@@ -11,18 +11,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 
 const version = (process.argv[2] || '').replace(/^v/i, '');
-const notes = process.argv[3] || '';
-let updateType = (process.argv[4] || 'optional').toLowerCase();
+let notes = process.argv[3] || process.env.RELEASE_NOTES || '';
+let updateType = (process.argv[4] || process.env.UPDATE_TYPE || 'optional').toLowerCase();
+
+const commitMsg = process.env.GITHUB_COMMIT_MESSAGE || process.env.COMMIT_MESSAGE || '';
 
 if (!version) {
   console.error('Uso: node scripts/generate-release-json.mjs <version> "<notes>" <critical|optional>');
   process.exit(1);
 }
 
+function detectCritical(text) {
+  return /🔥|critico|crítico|critical|urgente|seguridad|\[CRITICAL\]/i.test(text);
+}
+
 if (!['critical', 'optional'].includes(updateType)) {
-  const lower = `${notes} ${updateType}`.toLowerCase();
-  if (/🔥|critico|crítico|critical|urgente|seguridad/.test(lower)) updateType = 'critical';
-  else updateType = 'optional';
+  const blob = `${notes} ${updateType} ${commitMsg}`;
+  updateType = detectCritical(blob) ? 'critical' : 'optional';
+} else if (updateType === 'optional' && detectCritical(`${notes} ${commitMsg}`)) {
+  updateType = 'critical';
 }
 
 const repo = process.env.GITHUB_REPOSITORY || 'kenny14ramirez-prog/Principal';
@@ -39,19 +46,25 @@ function findFiles(dir, ext, found = []) {
   return found;
 }
 
-const searchRoots = [
-  path.join(root, 'src-tauri', 'target'),
-  path.join(root, 'target'),
-  root,
-];
+function scoreSig(filePath) {
+  const n = filePath.toLowerCase();
+  if (/nsis/.test(n) && /setup\.exe\.sig$/.test(n)) return 100;
+  if (/setup\.exe\.sig$/.test(n)) return 90;
+  if (/\.exe\.sig$/.test(n) && !/msi/.test(n)) return 80;
+  if (/nsis/.test(n)) return 70;
+  if (/\.msi\.sig$/.test(n)) return 30;
+  return 10;
+}
+
+const searchRoots = [path.join(root, 'src-tauri', 'target'), path.join(root, 'target'), root];
 
 let sigPath = process.env.CROZZO_SIG_PATH;
 let exePath = process.env.CROZZO_EXE_PATH;
 
 if (!sigPath) {
   const sigs = searchRoots.flatMap((r) => findFiles(r, '.sig'));
-  sigs.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-  sigPath = sigs.find((p) => /setup|nsis|msi/i.test(p)) || sigs[0];
+  sigs.sort((a, b) => scoreSig(b) - scoreSig(a) || fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  sigPath = sigs[0];
 }
 
 if (sigPath && !exePath) {
@@ -65,17 +78,17 @@ if (!sigPath || !fs.existsSync(sigPath)) {
 }
 
 const signature = fs.readFileSync(sigPath, 'utf8').trim();
-const exeName = exePath ? path.basename(exePath) : `Crozzo.POS_${version}_x64-setup.exe`;
+const exeName = exePath ? path.basename(exePath) : `Crozzo POS_${version}_x64-setup.exe`;
 const size = exePath && fs.existsSync(exePath) ? fs.statSync(exePath).size : 0;
 
 const url =
   process.env.CROZZO_INSTALLER_URL ||
-  `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(exeName).replace(/%20/g, '%20')}`;
+  `https://github.com/${repo}/releases/download/${tag}/${encodeURIComponent(exeName)}`;
 
 const manifest = {
   version,
   pub_date: new Date().toISOString(),
-  notes,
+  notes: notes || commitMsg || `Actualización Crozzo POS v${version}`,
   update_type: updateType,
   platforms: {
     'windows-x86_64': {
