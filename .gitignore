@@ -1,4 +1,4 @@
 node_modules/
 src-tauri/target/
-src/tauri-plugin-updater.js
 dist/
+*.key
