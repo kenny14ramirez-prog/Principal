@@ -5622,7 +5622,7 @@ body.crozzo-drag-over-productos .main-content .card:first-of-type {
 <!--
   ARQUITECTURA UI (resumen): (1) Tema = html[data-theme] + variables CSS (crozzoApplyVisualTheme, sin re-render de vistas).
   (2) Tipografía Inter + tokens --space-* / --motion-* / --elevation-* en :root. (3) Lista POS: content-visibility + debounce búsqueda 150 ms.
-  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients.   (5) Marca Crozzo: #10b981 (--crozzo-platform-green).
+  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients. (5) Marca Crozzo: #10b981 (--crozzo-platform-green).
 -->
 <link rel="stylesheet" href="./style.css">
 </head>
@@ -30188,6 +30188,46 @@ init();
 })();
 
 </script>
+<script defer>
+(function () {
+  /**
+   * Orquestación de módulos POS (sin Node). Debe ejecutarse tras el bundle principal.
+   */
+  function initPOS() {
+    try {
+      if (window.CrozzoModeManager) CrozzoModeManager.init();
+    } catch (e) {
+      console.warn('[crozzo] ModeManager', e);
+    }
+    try {
+      if (window.CrozzoNetworkGuard) CrozzoNetworkGuard.afterMainInit();
+    } catch (e) {
+      console.warn('[crozzo] NetworkGuard', e);
+    }
+    try {
+      if (window.CrozzoSyncRouterModule) CrozzoSyncRouterModule.init();
+    } catch (e) {
+      console.warn('[crozzo] SyncRouter module', e);
+    }
+    try {
+      if (typeof updateCrozzoServerConflictBadge === 'function') updateCrozzoServerConflictBadge();
+    } catch (e2) { /* ignore */ }
+    try {
+      if (window.CrozzoSyncRouterModule) CrozzoSyncRouterModule.refreshConnectivityBadges();
+    } catch (e3) { /* ignore */ }
+    try {
+      if (typeof updateCrozzoAutoConfigBadge === 'function') updateCrozzoAutoConfigBadge('ready');
+    } catch (e4) { /* ignore */ }
+    try {
+      if (window.CrozzoEmergencyMesh && typeof CrozzoEmergencyMesh.init === 'function') CrozzoEmergencyMesh.init();
+    } catch (e5) {
+      console.warn('[crozzo] EmergencyMesh', e5);
+    }
+  }
+  window.initPOS = initPOS;
+  initPOS();
+})();
+</script>
 <script>
 /* CROZZO: Desktop/Tauri — atajos, menú contextual, drag-drop imágenes */
 (function () {
@@ -30299,46 +30339,6 @@ init();
       if (sp) { e.preventDefault(); sp.focus(); if (sp.select) sp.select(); }
     }
   }, true);
-})();
-</script>
-<script defer>
-(function () {
-  /**
-   * Orquestación de módulos POS (sin Node). Debe ejecutarse tras el bundle principal.
-   */
-  function initPOS() {
-    try {
-      if (window.CrozzoModeManager) CrozzoModeManager.init();
-    } catch (e) {
-      console.warn('[crozzo] ModeManager', e);
-    }
-    try {
-      if (window.CrozzoNetworkGuard) CrozzoNetworkGuard.afterMainInit();
-    } catch (e) {
-      console.warn('[crozzo] NetworkGuard', e);
-    }
-    try {
-      if (window.CrozzoSyncRouterModule) CrozzoSyncRouterModule.init();
-    } catch (e) {
-      console.warn('[crozzo] SyncRouter module', e);
-    }
-    try {
-      if (typeof updateCrozzoServerConflictBadge === 'function') updateCrozzoServerConflictBadge();
-    } catch (e2) { /* ignore */ }
-    try {
-      if (window.CrozzoSyncRouterModule) CrozzoSyncRouterModule.refreshConnectivityBadges();
-    } catch (e3) { /* ignore */ }
-    try {
-      if (typeof updateCrozzoAutoConfigBadge === 'function') updateCrozzoAutoConfigBadge('ready');
-    } catch (e4) { /* ignore */ }
-    try {
-      if (window.CrozzoEmergencyMesh && typeof CrozzoEmergencyMesh.init === 'function') CrozzoEmergencyMesh.init();
-    } catch (e5) {
-      console.warn('[crozzo] EmergencyMesh', e5);
-    }
-  }
-  window.initPOS = initPOS;
-  initPOS();
 })();
 </script>
 
