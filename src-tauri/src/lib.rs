@@ -6,7 +6,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.open_devtools();
+                let _ = window.show_devtools();
             }
             Ok(())
         })
