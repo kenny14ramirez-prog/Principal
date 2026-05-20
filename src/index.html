@@ -30307,6 +30307,7 @@ init();
 {"imports":{"@tauri-apps/plugin-updater":"./tauri-plugin-updater.js"}}
 </script>
 <script type="module" src="./crozzo-smart-updater.js"></script>
+<script>if(window.__TAURI__){console.log('TAURI_MENU_FIX');document.documentElement.classList.add('crozzo-tauri');var _sb=document.getElementById('sidebar'),_nav=document.getElementById('sidebarNav');if(_sb){_sb.style.visibility='visible';_sb.style.opacity='1';_sb.style.display='';}if(_nav){_nav.style.visibility='visible';_nav.style.display='';}setTimeout(function(){document.body.style.visibility='hidden';document.body.offsetHeight;document.body.style.visibility='';if(_sb){_sb.style.visibility='visible';_sb.style.opacity='1';}if(typeof crozzoApplyViewportBodyClass==='function')crozzoApplyViewportBodyClass();if(typeof applyAccessControl==='function')try{applyAccessControl();}catch(e){}},100);}</script>
 </body>
 </html>
 

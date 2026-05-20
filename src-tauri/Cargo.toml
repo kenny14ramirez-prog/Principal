@@ -1,6 +1,6 @@
 [package]
 name = "crozzo-pos"
-version = "1.0.8"
+version = "1.0.9"
 description = "Crozzo POS - Punto de venta Colombia"
 authors = ["Crozzo"]
 edition = "2021"
