@@ -1,7 +1,7 @@
 {
   "name": "crozzo-pos",
   "private": true,
-  "version": "1.0.9",
+  "version": "1.0.10",
   "type": "module",
   "scripts": {
     "serve": "serve src -l 1420",

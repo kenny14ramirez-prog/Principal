@@ -7873,6 +7873,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script defer>
 // ==========================================
+// Atajos de teclado POS (filtros navegador / Tauri)
+// ==========================================
+/** Teclas/combos reservadas del navegador o Tauri — no capturar para el POS. */
+function crozzoIsReservedBrowserKey(e) {
+  if (!e || !e.key) return false;
+  var k = e.key;
+  if (k === 'F12' || k === 'F5') return true;
+  if (e.ctrlKey && (k === 'r' || k === 'R' || k === 's' || k === 'S' || k === 'p' || k === 'P')) return true;
+  if (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'I')) return true;
+  return false;
+}
+
+function crozzoIsTypingTarget(el) {
+  if (!el) return false;
+  var tag = (el.tagName || '').toUpperCase();
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!el.isContentEditable;
+}
+
+function crozzoPosShortcutsBlocked() {
+  if (typeof crozzoModalIsOpen === 'function' && crozzoModalIsOpen()) return true;
+  try {
+    if (typeof wizardState !== 'undefined' && wizardState && wizardState.open) return true;
+  } catch (_) {}
+  return false;
+}
+
+function crozzoPosGlobalKeydown(e) {
+  if (crozzoIsReservedBrowserKey(e)) return;
+  if (crozzoPosShortcutsBlocked()) return;
+  var ae = document.activeElement;
+  if (crozzoIsTypingTarget(ae)) return;
+  if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
+    if (typeof currentPage === 'undefined') return;
+    if (currentPage === 'cajero') {
+      const el = document.getElementById('searchProduct');
+      if (el) {
+        e.preventDefault();
+        el.focus();
+        if (typeof el.select === 'function') el.select();
+      }
+    } else if (currentPage === 'tablets') {
+      const el = document.getElementById('tabletSearchProduct') || document.getElementById('tabletSearchTarget');
+      if (el) {
+        e.preventDefault();
+        el.focus();
+        if (typeof el.select === 'function') el.select();
+      }
+    }
+    return;
+  }
+  if (e.ctrlKey && e.key === 'Enter') {
+    if (typeof currentPage === 'undefined') return;
+    if (currentPage === 'cajero') {
+      const btn = document.getElementById('btnComandarCobrar');
+      if (btn && !btn.disabled) {
+        e.preventDefault();
+        btn.click();
+      }
+    } else if (currentPage === 'tablets') {
+      const btn = document.getElementById('btnTabletConfirmComanda');
+      if (btn && !btn.disabled) {
+        e.preventDefault();
+        btn.click();
+      }
+    }
+  }
+  /* F1–F11: atajo producto visible (F12 = DevTools, no POS) */
+  if (!e.ctrlKey && !e.altKey && !e.metaKey && /^F([1-9]|1[0-1])$/.test(e.key)) {
+    if (typeof currentPage === 'undefined') return;
+    if (currentPage !== 'cajero' && currentPage !== 'tablets') return;
+    const n = parseInt(e.key.replace('F', ''), 10);
+    if (n < 1 || n > 11) return;
+    const sel = currentPage === 'cajero' ? '#posProducts .product-card' : '#tabletProducts .product-card';
+    const cards = document.querySelectorAll(sel);
+    const card = cards[n - 1];
+    if (!card || card.style.display === 'none') return;
+    e.preventDefault();
+    card.click();
+  }
+}
+
+try { window.crozzoIsReservedBrowserKey = crozzoIsReservedBrowserKey; } catch (_) {}
+
+// ==========================================
 // packages/shared-config/config-manager.ts
 // ==========================================
 /** Hash encadenado ligero para auditoría (integridad entre entradas consecutivas). */
@@ -10260,6 +10344,8 @@ function renderCocinaCorkboardHtml(areas) {
 
 window.crozzoToggleCorkboardFocus = crozzoToggleCorkboardFocus;
 document.addEventListener('keydown', function (e) {
+  if (crozzoIsReservedBrowserKey(e)) return;
+  if (crozzoPosShortcutsBlocked() || crozzoIsTypingTarget(document.activeElement)) return;
   if (e.key === 'Escape' && crozzoCorkboardFocus) {
     e.preventDefault();
     crozzoToggleCorkboardFocus(false);
@@ -12778,62 +12864,6 @@ function crozzoPosFlashOrderContainer(containerId) {
   }, 400);
 }
 
-function crozzoPosGlobalKeydown(e) {
-  if (crozzoModalIsOpen()) return;
-  try {
-    if (typeof wizardState !== 'undefined' && wizardState && wizardState.open) return;
-  } catch (_) {}
-  if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
-    if (typeof currentPage === 'undefined') return;
-    if (currentPage === 'cajero') {
-      const el = document.getElementById('searchProduct');
-      if (el) {
-        e.preventDefault();
-        el.focus();
-        if (typeof el.select === 'function') el.select();
-      }
-    } else if (currentPage === 'tablets') {
-      const el = document.getElementById('tabletSearchProduct') || document.getElementById('tabletSearchTarget');
-      if (el) {
-        e.preventDefault();
-        el.focus();
-        if (typeof el.select === 'function') el.select();
-      }
-    }
-    return;
-  }
-  if (e.ctrlKey && e.key === 'Enter') {
-    if (typeof currentPage === 'undefined') return;
-    if (currentPage === 'cajero') {
-      const btn = document.getElementById('btnComandarCobrar');
-      if (btn && !btn.disabled) {
-        e.preventDefault();
-        btn.click();
-      }
-    } else if (currentPage === 'tablets') {
-      const btn = document.getElementById('btnTabletConfirmComanda');
-      if (btn && !btn.disabled) {
-        e.preventDefault();
-        btn.click();
-      }
-    }
-  }
-  if (!e.ctrlKey && !e.altKey && !e.metaKey && /^F(1[0-2]?|[1-9])$/.test(e.key)) {
-    if (typeof currentPage === 'undefined') return;
-    if (currentPage !== 'cajero' && currentPage !== 'tablets') return;
-    const ae = document.activeElement;
-    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable)) return;
-    const n = parseInt(e.key.replace('F', ''), 10);
-    if (n < 1 || n > 12) return;
-    const sel = currentPage === 'cajero' ? '#posProducts .product-card' : '#tabletProducts .product-card';
-    const cards = document.querySelectorAll(sel);
-    const card = cards[n - 1];
-    if (!card || card.style.display === 'none') return;
-    e.preventDefault();
-    card.click();
-  }
-}
-
 function normalizeText(value) {
   return (value || '').toString().toLowerCase().trim();
 }
@@ -13284,8 +13314,8 @@ function renderCajero() {
           ` : ''}
         </div>
         <div style="margin-bottom: 16px; display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;">
-          <input type="text" class="form-input" placeholder="🔍 Buscar producto, código o SKU…" id="searchProduct" value="${productSearchTerm}" style="flex: 1; min-width: 200px;" title="Atajos: Ctrl+K buscar · Ctrl+Enter cobrar · F1–F12 productos visibles" autocomplete="off">
-          <span class="form-hint" style="margin:0; flex:1 1 220px; line-height:1.35;">Atajos: <strong>Ctrl+K</strong> buscar · <strong>Ctrl+Enter</strong> cobrar · <strong>F1–F12</strong> productos. Táctil-first.</span>
+          <input type="text" class="form-input" placeholder="🔍 Buscar producto, código o SKU…" id="searchProduct" value="${productSearchTerm}" style="flex: 1; min-width: 200px;" title="Atajos: Ctrl+K buscar · Ctrl+Enter cobrar · F1–F11 productos visibles" autocomplete="off">
+          <span class="form-hint" style="margin:0; flex:1 1 220px; line-height:1.35;">Atajos: <strong>Ctrl+K</strong> buscar · <strong>Ctrl+Enter</strong> cobrar · <strong>F1–F11</strong> productos. Táctil-first.</span>
         </div>
         <div class="pos-products" id="posProducts">
           ${getVisibleProducts().map(p => `
@@ -15746,6 +15776,8 @@ function crozzoCrmLiteBindCartUi() {
   if (!window.__crozzoCrmCtrlLBound) {
     window.__crozzoCrmCtrlLBound = true;
     document.addEventListener('keydown', (e) => {
+      if (crozzoIsReservedBrowserKey(e)) return;
+      if (crozzoPosShortcutsBlocked() || crozzoIsTypingTarget(document.activeElement)) return;
       if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
         if (typeof currentPage === 'undefined' || (currentPage !== 'cajero' && currentPage !== 'tablets')) return;
         const el = document.getElementById('crozzoCrmSearch');
@@ -20227,6 +20259,7 @@ function wizardSkip() {
 
 function wizardKeydownHandler(e) {
   if (!wizardState.open) return;
+  if (crozzoIsReservedBrowserKey(e)) return;
   if (e.key === 'Escape') {
     e.preventDefault();
     wizardClose();
@@ -24653,6 +24686,7 @@ if (!window.__crozzoKioskKeysBound) {
   document.addEventListener(
     'keydown',
     function (e) {
+      if (crozzoIsReservedBrowserKey(e)) return;
       if (e.key !== 'Escape') return;
       const ov = document.getElementById('crozzoKioskPinOverlay');
       if (ov && ov.classList.contains('active')) {
@@ -30245,11 +30279,14 @@ init();
   document.body.appendChild(badge);
 
   document.addEventListener('keydown', function (e) {
+    if (typeof crozzoIsReservedBrowserKey === 'function' && crozzoIsReservedBrowserKey(e)) return;
     if (e.key === 'Escape' && typeof crozzoModalIsOpen === 'function' && crozzoModalIsOpen()) {
       e.preventDefault();
       if (typeof closeModal === 'function') closeModal();
       return;
     }
+    if (typeof crozzoPosShortcutsBlocked === 'function' && crozzoPosShortcutsBlocked()) return;
+    if (typeof crozzoIsTypingTarget === 'function' && crozzoIsTypingTarget(document.activeElement)) return;
     if (e.key === 'F2' && !e.ctrlKey && !e.altKey && !e.metaKey) {
       if (typeof currentPage !== 'undefined' && currentPage === 'cajero' && typeof clearCart === 'function') {
         e.preventDefault();
@@ -30260,15 +30297,6 @@ init();
     if (e.key === 'F4' && !e.ctrlKey && !e.altKey && !e.metaKey) {
       var sp = document.getElementById('searchProduct') || document.getElementById('tabletSearchProduct');
       if (sp) { e.preventDefault(); sp.focus(); if (sp.select) sp.select(); }
-    }
-    if (e.key === 'F5' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      e.preventDefault();
-      if (typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
-      else location.reload();
-    }
-    if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
-      e.preventDefault();
-      if (typeof window.print === 'function') window.print();
     }
   }, true);
 })();
@@ -30320,7 +30348,7 @@ init();
 </script>
 <script type="module" src="./crozzo-smart-updater.js"></script>
 <script>if(window.__TAURI__){console.log('TAURI_MENU_FIX');document.documentElement.classList.add('crozzo-tauri');document.body.classList.add('desktop','crozzo-tauri-desktop');var _sb=document.getElementById('sidebar'),_nav=document.getElementById('sidebarNav');if(_sb){_sb.classList.add('open');_sb.style.visibility='visible';_sb.style.opacity='1';_sb.style.display='flex';_sb.style.transform='none';}if(_nav){_nav.style.visibility='visible';_nav.style.display='flex';}setTimeout(function(){document.body.style.visibility='hidden';document.body.offsetHeight;document.body.style.visibility='';if(_sb){_sb.classList.add('open');_sb.style.visibility='visible';_sb.style.opacity='1';_sb.style.display='flex';_sb.style.transform='none';}if(typeof crozzoApplyViewportBodyClass==='function')crozzoApplyViewportBodyClass();if(typeof applyAccessControl==='function')try{applyAccessControl();}catch(e){}},100);}</script>
-<script>document.getElementById('debug-menu').textContent='MENU OK - v1.0.9'; setTimeout(()=>document.getElementById('debug-menu').remove(),3000);</script>
+<script>document.getElementById('debug-menu').textContent='MENU OK - v1.0.10'; setTimeout(()=>document.getElementById('debug-menu').remove(),3000);</script>
 </body>
 </html>
 
