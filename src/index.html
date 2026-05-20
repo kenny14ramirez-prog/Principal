@@ -5622,10 +5622,12 @@ body.crozzo-drag-over-productos .main-content .card:first-of-type {
 <!--
   ARQUITECTURA UI (resumen): (1) Tema = html[data-theme] + variables CSS (crozzoApplyVisualTheme, sin re-render de vistas).
   (2) Tipografía Inter + tokens --space-* / --motion-* / --elevation-* en :root. (3) Lista POS: content-visibility + debounce búsqueda 150 ms.
-  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients. (5) Marca Crozzo: #10b981 (--crozzo-platform-green).
+  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients.   (5) Marca Crozzo: #10b981 (--crozzo-platform-green).
 -->
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
+<div id="debug-menu" style="position:fixed;top:0;left:0;background:red;color:white;padding:10px;z-index:99999;">MENU CARGANDO...</div>
 <script>
 /* CROZZO: detección Tauri / Desktop vs Web / Tablet (inicio) */
 (function () {
@@ -5692,14 +5694,24 @@ body.crozzo-drag-over-productos .main-content .card:first-of-type {
       else b.classList.remove('crozzo-tablet');
       if (rt && rt.isTauri) b.classList.add('crozzo-tauri-desktop');
     } catch (_) {}
-    if (b.classList.contains('desktop')) {
-      var s = document.getElementById('sidebar');
-      var bd = document.getElementById('sidebarBackdrop');
-      if (s) s.classList.remove('open');
+    var s = document.getElementById('sidebar');
+    var bd = document.getElementById('sidebarBackdrop');
+    var rt2 = window.CrozzoRuntime;
+    var forceOpenMenu = b.classList.contains('desktop') || (rt2 && (rt2.isTauri || rt2.isDesktop));
+    if (forceOpenMenu) {
+      if (s) {
+        s.classList.add('open');
+        s.style.transform = 'none';
+        s.style.visibility = 'visible';
+        s.style.opacity = '1';
+        s.style.display = 'flex';
+      }
       if (bd) {
         bd.classList.remove('active');
         bd.setAttribute('aria-hidden', 'true');
       }
+    } else if (s && !s.classList.contains('open')) {
+      s.style.transform = '';
     }
     if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
     try {
@@ -5743,7 +5755,7 @@ body.crozzo-drag-over-productos .main-content .card:first-of-type {
 
 <div class="app-container">
   <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal">
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Menú principal" style="display:block;visibility:visible;">
     <div class="sidebar-header">
       <div class="crozzo-brand-dual crozzo-brand-dual--sidebar" id="crozzoBrandSidebar" aria-label="Marcas visibles">
         <div class="crozzo-brand-slot" id="crozzoBrandSidebarPlatform" title="Marca plataforma (Crozzo)">
@@ -5763,7 +5775,7 @@ body.crozzo-drag-over-productos .main-content .card:first-of-type {
       </div>
       <div class="demo-badge" id="demoBadge">💵 SIMPLE</div>
     </div>
-    <nav class="sidebar-nav" id="sidebarNav">
+    <nav class="sidebar-nav" id="sidebarNav" style="display:block;visibility:visible;">
       <div class="nav-group" data-nav-group="caja">
         <button type="button" class="nav-group-toggle" aria-expanded="true" aria-controls="nav-group-caja" id="nav-toggle-caja">
           <span class="nav-group-label"><span class="nav-icon" style="width:20px;text-align:center;">🛒</span> Caja</span>
@@ -30307,7 +30319,8 @@ init();
 {"imports":{"@tauri-apps/plugin-updater":"./tauri-plugin-updater.js"}}
 </script>
 <script type="module" src="./crozzo-smart-updater.js"></script>
-<script>if(window.__TAURI__){console.log('TAURI_MENU_FIX');document.documentElement.classList.add('crozzo-tauri');var _sb=document.getElementById('sidebar'),_nav=document.getElementById('sidebarNav');if(_sb){_sb.style.visibility='visible';_sb.style.opacity='1';_sb.style.display='';}if(_nav){_nav.style.visibility='visible';_nav.style.display='';}setTimeout(function(){document.body.style.visibility='hidden';document.body.offsetHeight;document.body.style.visibility='';if(_sb){_sb.style.visibility='visible';_sb.style.opacity='1';}if(typeof crozzoApplyViewportBodyClass==='function')crozzoApplyViewportBodyClass();if(typeof applyAccessControl==='function')try{applyAccessControl();}catch(e){}},100);}</script>
+<script>if(window.__TAURI__){console.log('TAURI_MENU_FIX');document.documentElement.classList.add('crozzo-tauri');document.body.classList.add('desktop','crozzo-tauri-desktop');var _sb=document.getElementById('sidebar'),_nav=document.getElementById('sidebarNav');if(_sb){_sb.classList.add('open');_sb.style.visibility='visible';_sb.style.opacity='1';_sb.style.display='flex';_sb.style.transform='none';}if(_nav){_nav.style.visibility='visible';_nav.style.display='flex';}setTimeout(function(){document.body.style.visibility='hidden';document.body.offsetHeight;document.body.style.visibility='';if(_sb){_sb.classList.add('open');_sb.style.visibility='visible';_sb.style.opacity='1';_sb.style.display='flex';_sb.style.transform='none';}if(typeof crozzoApplyViewportBodyClass==='function')crozzoApplyViewportBodyClass();if(typeof applyAccessControl==='function')try{applyAccessControl();}catch(e){}},100);}</script>
+<script>document.getElementById('debug-menu').textContent='MENU OK - v1.0.9'; setTimeout(()=>document.getElementById('debug-menu').remove(),3000);</script>
 </body>
 </html>
 

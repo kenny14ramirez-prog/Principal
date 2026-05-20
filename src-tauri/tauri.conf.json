@@ -12,6 +12,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "Crozzo POS",
         "width": 1280,
         "height": 800,
@@ -28,10 +29,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "nsis",
-      "msi"
-    ],
+    "targets": ["nsis", "msi"],
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
