@@ -17,6 +17,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: npm install
       - name: Build & Release
+        id: tauri_build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,3 +28,14 @@ jobs:
           releaseBody: "Actualización automática del sistema."
           releaseDraft: false
           prerelease: false
+      - name: Generar latest.json (updater)
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ver = "${{ github.ref_name }}" -replace '^v',''
+          $notes = if ($env:RELEASE_NOTES) { $env:RELEASE_NOTES } else { "Actualización Crozzo POS v$ver" }
+          $type = if ($env:UPDATE_TYPE) { $env:UPDATE_TYPE } else { "optional" }
+          if ($notes -match '🔥|critico|crítico|critical|\[CRITICAL\]') { $type = "critical" }
+          node scripts/generate-release-json.mjs $ver $notes $type
+          gh release upload ${{ github.ref_name }} latest.json --clobber
