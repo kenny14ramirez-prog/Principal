@@ -39,7 +39,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5Vk1UTlZtK3BiQko5ZHJOaHhvNjdDc1RpVHJxUlU1QURDT1ZEaUY4TFBmZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQUNHeWl3NGFoYklvSWdqdUF2SGh3TnRaRUdodGtaUnJteE93U2VFdDNlN212L1dDVitETXlwV0FPK1RibTMrLzhEN2dLUldFK0dBZCt2eFM0VFE4R1pSUjlUcjZhVU1PY1Z5Q25lTDZqR1h1UVRLRlI3ZytORVc0R21DR2dvZDFRSXpRanhnYzVyRmM9Cg==",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY1QTg2N0M0QTkwRUNGOEQKUldTTnp3NnB4R2VvWll6M1VxWkp1MXBTNEYyZFh3M1RSTkpUd0FBdCtPUmc2QzExWkVILzFYN0QK",
       "endpoints": [
         "https://github.com/kenny14ramirez-prog/Principal/releases/latest/download/latest.json"
       ]
