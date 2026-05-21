@@ -1,11 +1,11 @@
 {
-  "version": "v1.0.10",
-  "semver": "1.0.10",
+  "version": "v1.0.11",
+  "semver": "1.0.11",
   "type": "critical",
-  "message": "critica ejemplo",
-  "publishedAt": "2026-05-21T21:17:00.470Z",
+  "message": "critico",
+  "publishedAt": "2026-05-21T21:58:51.034Z",
   "installMode": "auto",
   "changelog": [
-    "critica ejemplo"
+    "critico"
   ]
 }
