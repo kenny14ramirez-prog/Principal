@@ -2,10 +2,10 @@
   "version": "v1.0.10",
   "semver": "1.0.10",
   "type": "critical",
-  "message": "ejemplo",
-  "publishedAt": "2026-05-21T21:01:22.439Z",
+  "message": "critica ejemplo",
+  "publishedAt": "2026-05-21T21:17:00.470Z",
   "installMode": "auto",
   "changelog": [
-    "ejemplo"
+    "critica ejemplo"
   ]
 }
