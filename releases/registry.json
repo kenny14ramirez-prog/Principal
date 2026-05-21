@@ -1,14 +1,4 @@
 {
-  "id": "1.0.14-critical",
-  "version": "v1.0.14",
-  "semver": "1.0.14",
-  "type": "critical",
-  "message": "111",
-  "publishedAt": "2026-05-21T23:29:40.807Z",
-  "installMode": "auto",
-  "changelog": [
-    "111"
-  ],
   "updatedAt": "2026-05-21T23:29:40.807Z",
   "entries": [
     {

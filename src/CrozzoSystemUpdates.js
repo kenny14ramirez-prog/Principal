@@ -1,13 +1,17 @@
 /**
- * Crozzo POS — Actualizaciones OTA (GitHub latest.json + UI integrada)
+ * Crozzo POS — Actualizaciones OTA (registry.json + crítica/opcional por id)
  */
 (function (global) {
   'use strict';
 
   var DEFAULT_MANIFEST_URL =
     'https://raw.githubusercontent.com/kenny14ramirez-prog/Principal/main/releases/latest.json';
+  var DEFAULT_REGISTRY_URL =
+    'https://raw.githubusercontent.com/kenny14ramirez-prog/Principal/main/releases/registry.json';
   var LS_INSTALLED = 'crozzo_app_installed_version';
   var LS_MANIFEST = 'crozzo_update_manifest_url';
+  var LS_STATE = 'crozzo_update_state';
+  var LS_LOCAL_LOG = 'crozzo_update_local_log';
   var LS_DISMISSED_OPTIONAL = 'crozzo_update_dismissed_optional';
   var LS_ACK_CRITICAL = 'crozzo_update_ack_critical';
   var CHECK_INTERVAL_MS = 30 * 60 * 1000;
@@ -17,6 +21,9 @@
   var VERSION_AVAIL = 'v2.0.0';
   var _checkTimer = null;
   var _bootTimer = null;
+  var _registryEntries = [];
+  var _currentCriticalId = null;
+  var _currentOptionalId = null;
 
   var UPDATE_NORMAL = {
     version: VERSION_AVAIL,
@@ -98,6 +105,110 @@
     }
   }
 
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function entryId(entry) {
+    if (!entry) return '';
+    if (entry.id) return String(entry.id);
+    var sem = entry.semver || String(entry.version || '').replace(/^v/i, '');
+    var t =
+      entry.type === 'critical' ||
+      entry.installMode === 'auto' ||
+      entry.type === 'critica'
+        ? 'critical'
+        : 'optional';
+    return sem + '-' + t;
+  }
+
+  function isCriticalEntry(entry) {
+    return (
+      entry.type === 'critical' ||
+      entry.installMode === 'auto' ||
+      entry.type === 'critica'
+    );
+  }
+
+  function loadUpdateState() {
+    var state = { ackCritical: [], dismissedOptional: [], appliedOptional: [] };
+    try {
+      var raw = localStorage.getItem(LS_STATE);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.ackCritical)) state.ackCritical = parsed.ackCritical.slice();
+        if (Array.isArray(parsed.dismissedOptional)) {
+          state.dismissedOptional = parsed.dismissedOptional.slice();
+        }
+        if (Array.isArray(parsed.appliedOptional)) {
+          state.appliedOptional = parsed.appliedOptional.slice();
+        }
+      }
+    } catch (_) {}
+
+    try {
+      var legAck = localStorage.getItem(LS_ACK_CRITICAL);
+      if (legAck && state.ackCritical.indexOf(legAck) < 0) {
+        var sem = String(legAck).replace(/^v/i, '');
+        state.ackCritical.push(sem + '-critical');
+      }
+    } catch (_) {}
+    try {
+      var legDis = localStorage.getItem(LS_DISMISSED_OPTIONAL);
+      if (legDis && state.dismissedOptional.indexOf(legDis) < 0) {
+        var sem2 = String(legDis).replace(/^v/i, '');
+        state.dismissedOptional.push(sem2 + '-optional');
+      }
+    } catch (_) {}
+
+    return state;
+  }
+
+  function saveUpdateState(state) {
+    try {
+      localStorage.setItem(LS_STATE, JSON.stringify(state));
+    } catch (_) {}
+  }
+
+  function stateHas(list, id) {
+    return list && list.indexOf(id) >= 0;
+  }
+
+  function pushStateId(listName, id) {
+    var state = loadUpdateState();
+    if (!state[listName]) state[listName] = [];
+    if (state[listName].indexOf(id) < 0) state[listName].push(id);
+    saveUpdateState(state);
+  }
+
+  function appendLocalLog(action, entry) {
+    var log = [];
+    try {
+      var raw = localStorage.getItem(LS_LOCAL_LOG);
+      if (raw) log = JSON.parse(raw);
+      if (!Array.isArray(log)) log = [];
+    } catch (_) {
+      log = [];
+    }
+    log.unshift({
+      at: new Date().toISOString(),
+      action: action,
+      id: entryId(entry),
+      version: entry.version || entry.semver,
+      type: entry.type,
+      message: entry.message || '',
+    });
+    if (log.length > 80) log.length = 80;
+    try {
+      localStorage.setItem(LS_LOCAL_LOG, JSON.stringify(log));
+    } catch (_) {}
+    renderLocalLogPanel();
+  }
+
   function getManifestUrl() {
     try {
       var u = localStorage.getItem(LS_MANIFEST);
@@ -109,12 +220,41 @@
     return DEFAULT_MANIFEST_URL;
   }
 
+  function getRegistryUrl() {
+    var base = getManifestUrl();
+    if (/registry\.json/i.test(base)) return base;
+    if (/latest\.json/i.test(base)) return base.replace(/latest\.json/i, 'registry.json');
+    return DEFAULT_REGISTRY_URL;
+  }
+
   function setManifestUrl(url) {
     var u = String(url || '').trim();
     try {
       if (u) localStorage.setItem(LS_MANIFEST, u);
       else localStorage.removeItem(LS_MANIFEST);
     } catch (_) {}
+  }
+
+  function normalizeRegistryEntries(data) {
+    if (!data) return [];
+    if (Array.isArray(data.entries) && data.entries.length) {
+      return data.entries.slice();
+    }
+    if (data.version || data.semver) {
+      return [data];
+    }
+    return [];
+  }
+
+  function sortEntriesForProcess(entries) {
+    return entries.slice().sort(function (a, b) {
+      var cmp = compareSemver(a.version || a.semver, b.version || b.semver);
+      if (cmp !== 0) return cmp;
+      var ca = isCriticalEntry(a) ? 0 : 1;
+      var cb = isCriticalEntry(b) ? 0 : 1;
+      if (ca !== cb) return ca - cb;
+      return String(a.publishedAt || '').localeCompare(String(b.publishedAt || ''));
+    });
   }
 
   function mountNormalBanner() {
@@ -210,21 +350,16 @@
     }
   }
 
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
   function setNormalBannerMessage() {
     var msg = document.getElementById('crozzoUpdateNormalMsg');
     if (!msg) return;
+    var typeLabel = UPDATE_NORMAL.type || 'Actualización opcional';
     msg.innerHTML =
       'En uso: <strong>' +
       escapeHtml(VERSION) +
-      '</strong> · Disponible: <strong>' +
+      '</strong> · ' +
+      escapeHtml(typeLabel) +
+      ': <strong>' +
       escapeHtml(VERSION_AVAIL) +
       '</strong> — abra el detalle para revisar e instalar cuando desee.';
   }
@@ -235,20 +370,20 @@
     global.CROZZO_APP_VERSION = VERSION;
   }
 
-  function buildUpdateNormalFromManifest(manifest, currentVer) {
-    var remote = manifest.version || 'v' + (manifest.semver || '');
-    var changes = Array.isArray(manifest.changelog) ? manifest.changelog.slice() : [];
-    if (!changes.length && manifest.message) changes.push(manifest.message);
+  function buildUpdateNormalFromEntry(entry, currentVer) {
+    var remote = entry.version || 'v' + (entry.semver || '');
+    var changes = Array.isArray(entry.changelog) ? entry.changelog.slice() : [];
+    if (!changes.length && entry.message) changes.push(entry.message);
     return {
       version: remote,
       current: currentVer,
-      date: formatManifestDate(manifest.publishedAt),
-      size: manifest.size || '',
-      type: manifest.type === 'optional' ? 'Actualización opcional' : 'Actualización disponible',
-      summary: manifest.message || 'Nueva versión disponible para Crozzo POS.',
+      date: formatManifestDate(entry.publishedAt),
+      size: entry.size || '',
+      type: 'Actualización opcional',
+      summary: entry.message || 'Nueva versión disponible para Crozzo POS.',
       changes: changes,
       notes:
-        manifest.notes ||
+        entry.notes ||
         'La instalación reiniciará la aplicación en este equipo. Se recomienda hacerlo al cierre del turno o con la caja sin ventas en curso.',
     };
   }
@@ -298,50 +433,61 @@
     if (body) body.innerHTML = buildDetailBodyHtml();
   }
 
-  function applyRemoteManifest(manifest) {
-    if (!manifest) return false;
-    var remote = manifest.version || (manifest.semver ? 'v' + manifest.semver : '');
-    if (!remote || compareSemver(remote, VERSION) <= 0) return false;
-
+  function showCriticalEntry(entry) {
+    var id = entryId(entry);
+    var remote = entry.version || 'v' + (entry.semver || '');
     var prev = VERSION;
-    var isCritical =
-      manifest.type === 'critical' ||
-      manifest.installMode === 'auto' ||
-      manifest.type === 'critica';
+    _currentCriticalId = id;
 
-    if (isCritical) {
-      try {
-        if (localStorage.getItem(LS_ACK_CRITICAL) === remote) return false;
-      } catch (_) {}
+    UPDATE_CRITICAL_INSTALLED = {
+      version: remote,
+      previous: prev,
+      date: formatManifestDate(entry.publishedAt),
+      installed: Array.isArray(entry.changelog)
+        ? entry.changelog.slice()
+        : entry.message
+          ? [entry.message]
+          : [],
+    };
 
-      UPDATE_CRITICAL_INSTALLED = {
-        version: remote,
-        previous: prev,
-        date: formatManifestDate(manifest.publishedAt),
-        installed: Array.isArray(manifest.changelog)
-          ? manifest.changelog.slice()
-          : manifest.message
-            ? [manifest.message]
-            : [],
-      };
+    saveInstalledVersion(remote);
+    setDetailOpen(false);
+    setNormalOpen(false);
+    setCriticalOpen(true);
+    return true;
+  }
 
-      saveInstalledVersion(remote);
-      setDetailOpen(false);
-      setNormalOpen(false);
-      setCriticalOpen(true);
-      return true;
-    }
-
-    try {
-      if (localStorage.getItem(LS_DISMISSED_OPTIONAL) === remote) return false;
-    } catch (_) {}
-
+  function showOptionalEntry(entry) {
+    var id = entryId(entry);
+    var remote = entry.version || 'v' + (entry.semver || '');
+    _currentOptionalId = id;
     VERSION_AVAIL = remote;
     global.CROZZO_APP_VERSION_DISPONIBLE = VERSION_AVAIL;
-    UPDATE_NORMAL = buildUpdateNormalFromManifest(manifest, prev);
+    UPDATE_NORMAL = buildUpdateNormalFromEntry(entry, VERSION);
     setCriticalOpen(false);
     setNormalOpen(true);
     return true;
+  }
+
+  function processPendingUpdates(entries) {
+    var state = loadUpdateState();
+    var sorted = sortEntriesForProcess(entries);
+
+    for (var i = 0; i < sorted.length; i++) {
+      var entry = sorted[i];
+      var id = entryId(entry);
+
+      if (isCriticalEntry(entry)) {
+        if (stateHas(state.ackCritical, id)) continue;
+        return showCriticalEntry(entry);
+      }
+
+      if (stateHas(state.appliedOptional, id)) continue;
+      if (stateHas(state.dismissedOptional, id)) continue;
+      return showOptionalEntry(entry);
+    }
+
+    return false;
   }
 
   function fetchWithTimeout(url, ms) {
@@ -367,44 +513,165 @@
     });
   }
 
-  function checkForUpdates(opts) {
-    opts = opts || {};
-    var url = getManifestUrl();
-    if (!url) {
-      if (opts.toastIfNoUrl && typeof global.showToast === 'function') {
-        global.showToast(
-          'Configure la URL del manifiesto en Actualizaciones del sistema (GitHub raw → releases/latest.json).',
-          'warning'
-        );
-      }
-      return Promise.resolve({ ok: false, reason: 'no_url' });
+  function fetchRegistryData() {
+    var registryUrl = getRegistryUrl();
+    return fetchWithTimeout(registryUrl, 12000)
+      .then(function (res) {
+        if (res.ok) return res.json();
+        throw new Error('registry HTTP ' + res.status);
+      })
+      .catch(function () {
+        return fetchWithTimeout(getManifestUrl(), 12000).then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        });
+      });
+  }
+
+  function getEntryStatusLabel(entry) {
+    var state = loadUpdateState();
+    var id = entryId(entry);
+    if (isCriticalEntry(entry)) {
+      return stateHas(state.ackCritical, id) ? 'Vista / aplicada' : 'Pendiente';
+    }
+    if (stateHas(state.appliedOptional, id)) return 'Instalada';
+    if (stateHas(state.dismissedOptional, id)) return 'Aviso oculto';
+    return 'Pendiente';
+  }
+
+  function renderRegistryPanel() {
+    var el = document.getElementById('crozzoUpdateRegistryTable');
+    if (!el) return;
+
+    if (!_registryEntries.length) {
+      el.innerHTML = '<p style="margin:0;">Sin entradas en el registro remoto. Use <strong>Comprobar ahora</strong>.</p>';
+      return;
     }
 
-    return fetchWithTimeout(url, 12000)
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
+    var rows = _registryEntries
+      .slice()
+      .reverse()
+      .map(function (entry) {
+        var tipo = isCriticalEntry(entry) ? 'Crítica' : 'Opcional';
+        var badgeClass = isCriticalEntry(entry) ? 'badge-danger' : 'badge-info';
+        return (
+          '<tr>' +
+          '<td><code>' +
+          escapeHtml(entryId(entry)) +
+          '</code></td>' +
+          '<td>' +
+          escapeHtml(entry.version || '') +
+          '</td>' +
+          '<td><span class="badge ' +
+          badgeClass +
+          '" style="font-size:0.72rem;">' +
+          tipo +
+          '</span></td>' +
+          '<td>' +
+          escapeHtml(formatManifestDate(entry.publishedAt) || '—') +
+          '</td>' +
+          '<td>' +
+          escapeHtml(getEntryStatusLabel(entry)) +
+          '</td>' +
+          '</tr>'
+        );
       })
+      .join('');
+
+    el.innerHTML =
+      '<div style="overflow-x:auto;">' +
+      '<table class="data-table" style="width:100%;font-size:0.82rem;">' +
+      '<thead><tr><th>ID</th><th>Versión</th><th>Tipo</th><th>Publicada</th><th>En este equipo</th></tr></thead>' +
+      '<tbody>' +
+      rows +
+      '</tbody></table></div>' +
+      '<p class="form-hint" style="margin:8px 0 0;">Misma versión (ej. 1.0.13) puede tener fila <strong>crítica</strong> y otra <strong>opcional</strong> con IDs distintos.</p>';
+  }
+
+  function renderLocalLogPanel() {
+    var el = document.getElementById('crozzoUpdateLocalLog');
+    if (!el) return;
+    var log = [];
+    try {
+      var raw = localStorage.getItem(LS_LOCAL_LOG);
+      if (raw) log = JSON.parse(raw);
+    } catch (_) {}
+    if (!Array.isArray(log) || !log.length) {
+      el.innerHTML =
+        '<p class="form-hint" style="margin:0;">Historial local vacío (se llena al ver críticas, instalar u ocultar opcionales).</p>';
+      return;
+    }
+    var items = log
+      .slice(0, 15)
+      .map(function (row) {
+        var when = '';
+        try {
+          when = new Date(row.at).toLocaleString('es-CO');
+        } catch (_) {
+          when = row.at;
+        }
+        return (
+          '<li><strong>' +
+          escapeHtml(row.action) +
+          '</strong> · ' +
+          escapeHtml(row.id || '') +
+          ' (' +
+          escapeHtml(row.type || '') +
+          ') — ' +
+          escapeHtml(when) +
+          '</li>'
+        );
+      })
+      .join('');
+    el.innerHTML =
+      '<p style="margin:0 0 6px;font-weight:600;font-size:0.85rem;">Historial en este equipo</p><ul style="margin:0;padding-left:1.2rem;font-size:0.8rem;">' +
+      items +
+      '</ul>';
+  }
+
+  function setCheckStatus(text) {
+    var el = document.getElementById('crozzoUpdateCheckStatus');
+    if (el) el.textContent = text || '';
+  }
+
+  function checkForUpdates(opts) {
+    opts = opts || {};
+
+    return fetchRegistryData()
       .then(function (data) {
-        var shown = applyRemoteManifest(data);
-        var remote = data.version || (data.semver ? 'v' + data.semver : '');
+        _registryEntries = normalizeRegistryEntries(data);
+        global.CROZZO_UPDATE_REGISTRY = _registryEntries.slice();
+        renderRegistryPanel();
+        renderLocalLogPanel();
+
+        var shown = processPendingUpdates(_registryEntries);
+        var pending = _registryEntries.filter(function (e) {
+          return getEntryStatusLabel(e) === 'Pendiente';
+        });
+
         if (shown) {
+          var active = _currentCriticalId || _currentOptionalId || '';
           setCheckStatus(
-            'Última comprobación: nueva versión ' + remote + ' (' + (data.type || 'update') + ').'
+            'Última comprobación: mostrando actualización pendiente (' + active + ').'
           );
           if (opts.toastOnFound && typeof global.showToast === 'function') {
-            global.showToast('Nueva actualización detectada: ' + remote, 'info');
+            global.showToast('Actualización pendiente detectada.', 'info');
           }
+        } else if (pending.length) {
+          setCheckStatus(
+            'Hay ' + pending.length + ' pendiente(s) en cola; cierre avisos previos o use Restablecer avisos.'
+          );
         } else {
           setCheckStatus(
-            'Última comprobación: sin novedades (remoto ' +
-              remote +
-              ', equipo ' +
+            'Última comprobación: al día (' +
+              _registryEntries.length +
+              ' en registro remoto, equipo ' +
               VERSION +
               ').'
           );
         }
-        return { ok: true, shown: shown, manifest: data };
+
+        return { ok: true, shown: shown, entries: _registryEntries, manifest: data };
       })
       .catch(function (err) {
         setCheckStatus('Error al comprobar actualizaciones. Revise la URL y la conexión.');
@@ -416,20 +683,34 @@
       });
   }
 
+  function continueAfterCriticalAck() {
+    setTimeout(function () {
+      processPendingUpdates(_registryEntries);
+    }, 400);
+  }
+
   function crozzoCerrarActualizacionNormal() {
     setDetailOpen(false);
     setNormalOpen(false);
-    try {
-      if (VERSION_AVAIL) localStorage.setItem(LS_DISMISSED_OPTIONAL, VERSION_AVAIL);
-    } catch (_) {}
+    if (_currentOptionalId) {
+      pushStateId('dismissedOptional', _currentOptionalId);
+      var entry = _registryEntries.find(function (e) {
+        return entryId(e) === _currentOptionalId;
+      });
+      if (entry) appendLocalLog('aviso_oculto', entry);
+    }
   }
 
   function crozzoCerrarActualizacionCritica() {
-    try {
-      var v = UPDATE_CRITICAL_INSTALLED.version || VERSION;
-      if (v) localStorage.setItem(LS_ACK_CRITICAL, v);
-    } catch (_) {}
+    if (_currentCriticalId) {
+      pushStateId('ackCritical', _currentCriticalId);
+      var entry = _registryEntries.find(function (e) {
+        return entryId(e) === _currentCriticalId;
+      });
+      if (entry) appendLocalLog('critica_vista', entry);
+    }
     setCriticalOpen(false);
+    continueAfterCriticalAck();
   }
 
   function crozzoAbrirDetalleActualizacion() {
@@ -451,27 +732,27 @@
 
   function resetUpdateDismissals() {
     try {
+      localStorage.removeItem(LS_STATE);
       localStorage.removeItem(LS_DISMISSED_OPTIONAL);
       localStorage.removeItem(LS_ACK_CRITICAL);
     } catch (_) {}
     if (typeof global.showToast === 'function') {
-      global.showToast('Avisos de actualización restablecidos. Comprobando de nuevo…', 'info');
+      global.showToast('Avisos restablecidos. Comprobando de nuevo…', 'info');
     }
     checkForUpdates({ silent: true, toastOnFound: true });
-  }
-
-  function setCheckStatus(text) {
-    var el = document.getElementById('crozzoUpdateCheckStatus');
-    if (el) el.textContent = text || '';
   }
 
   function crozzoAceptarActualizacion() {
     var next = VERSION_AVAIL;
     setDetailOpen(false);
     setNormalOpen(false);
-    try {
-      localStorage.removeItem(LS_DISMISSED_OPTIONAL);
-    } catch (_) {}
+    if (_currentOptionalId) {
+      pushStateId('appliedOptional', _currentOptionalId);
+      var entry = _registryEntries.find(function (e) {
+        return entryId(e) === _currentOptionalId;
+      });
+      if (entry) appendLocalLog('opcional_instalada', entry);
+    }
     saveInstalledVersion(next);
     try {
       if (typeof global.showToast === 'function') {
@@ -497,6 +778,7 @@
           'Corrección de validación en sincronización de cola offline.',
         ],
       };
+      _currentCriticalId = 'sim-critical';
       setDetailOpen(false);
       setNormalOpen(false);
       setCriticalOpen(true);
@@ -504,6 +786,7 @@
     }
     if (t === 'normal') {
       VERSION_AVAIL = 'v2.0.0';
+      _currentOptionalId = 'sim-optional';
       UPDATE_NORMAL = {
         version: VERSION_AVAIL,
         current: VERSION,
@@ -560,7 +843,7 @@
     wireOnce(document.getElementById('crozzoUpdateCheckNow'), function (e) {
       e.preventDefault();
       if (urlInput) setManifestUrl(urlInput.value);
-      setCheckStatus('Comprobando…');
+      setCheckStatus('Comprobando registro…');
       checkForUpdates({ toastIfNoUrl: true, toastOnFound: true });
     });
 
@@ -570,6 +853,9 @@
     });
 
     syncVersionLabels();
+    renderRegistryPanel();
+    renderLocalLogPanel();
+    checkForUpdates({ silent: true });
   }
 
   function initCrozzoUpdateOverlays() {
@@ -662,9 +948,13 @@
     check: checkForUpdates,
     start: startCrozzoUpdateChecks,
     getManifestUrl: getManifestUrl,
+    getRegistryUrl: getRegistryUrl,
     setManifestUrl: setManifestUrl,
     resetDismissals: resetUpdateDismissals,
     defaultManifestUrl: DEFAULT_MANIFEST_URL,
+    defaultRegistryUrl: DEFAULT_REGISTRY_URL,
+    renderRegistry: renderRegistryPanel,
+    renderLocalLog: renderLocalLogPanel,
   };
 
   function boot() {

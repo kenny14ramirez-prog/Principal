@@ -28001,7 +28001,7 @@ function renderActualizacionesSistema() {
     '<span class="card-title">Actualizaciones del sistema</span>' +
     '<span class="badge" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);">Super Admin</span>' +
     '</div>' +
-    '<p class="form-hint" style="margin:0 0 var(--space-3);">Al abrir la app se consulta <code>latest.json</code> en GitHub. Las <strong>críticas</strong> se registran solas y muestran qué se aplicó. Las <strong>opcionales</strong> muestran la franja bajo el encabezado para instalar o posponer.</p>' +
+    '<p class="form-hint" style="margin:0 0 var(--space-3);">Se consulta <code>registry.json</code> en GitHub (historial). La misma versión puede tener <strong>crítica</strong> y <strong>opcional</strong> (IDs distintos, ej. <code>1.0.13-critical</code> y <code>1.0.13-optional</code>). Tras cerrar la crítica, la opcional aparece sola.</p>' +
     '<p style="margin:0 0 var(--space-4);">Versión registrada en este equipo: <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
     escUserAttr(vCur) +
     '</span></p>' +
@@ -28018,6 +28018,17 @@ function renderActualizacionesSistema() {
     '<button type="button" class="btn btn-outline" id="crozzoUpdateResetAlerts">Restablecer avisos ocultos</button>' +
     '</div>' +
     '<p class="form-hint" id="crozzoUpdateCheckStatus" style="margin:0 0 var(--space-4);min-height:1.2em;"></p>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px;">' +
+    '<div class="card-header"><span class="card-title">Registro remoto (GitHub)</span></div>' +
+    '<div id="crozzoUpdateRegistryTable" class="form-hint">Abra esta página o pulse Comprobar ahora.</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px;">' +
+    '<div class="card-header"><span class="card-title">Historial en este equipo</span></div>' +
+    '<div id="crozzoUpdateLocalLog"></div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:14px;">' +
+    '<div class="card-header"><span class="card-title">Simulación local</span></div>' +
     '<div class="crozzo-updates-panel">' +
     '<p class="form-hint" style="margin:0 0 var(--space-2);">Simulación local (sin GitHub):</p>' +
     '<div class="crozzo-updates-actions">' +
