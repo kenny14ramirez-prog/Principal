@@ -1,11 +1,11 @@
 {
-  "version": "v1.0.12",
-  "semver": "1.0.12",
-  "type": "critical",
-  "message": "actualizacion",
-  "publishedAt": "2026-05-21T22:31:50.024Z",
-  "installMode": "auto",
+  "version": "v1.0.13",
+  "semver": "1.0.13",
+  "type": "optional",
+  "message": "ejemplo ",
+  "publishedAt": "2026-05-21T22:43:26.187Z",
+  "installMode": "prompt",
   "changelog": [
-    "actualizacion"
+    "ejemplo"
   ]
 }
