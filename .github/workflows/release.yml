@@ -1,4 +1,4 @@
-name: Publicar Crozzo POS
+﻿name: Publicar Crozzo POS
 on:
   push:
     tags:
@@ -11,11 +11,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Sincronizar frontend a src
+        run: node scripts/sync-frontend-to-src.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - uses: dtolnay/rust-toolchain@stable
-      - name: Sincronizar versión desde tag
+      - name: Sincronizar versiÃ³n desde tag
         shell: pwsh
         run: node scripts/sync-version-from-tag.mjs "${{ github.ref_name }}"
       - run: npm install
@@ -42,7 +44,7 @@ jobs:
           $msg = "${{ github.event.head_commit.message }}"
           $notes = if ($env:RELEASE_NOTES) { $env:RELEASE_NOTES } else { $msg }
           $type = "optional"
-          if ($msg -match '\[CRITICAL\]|🔥|critico|crítico|critical') { $type = "critical" }
+          if ($msg -match '\[CRITICAL\]|ðŸ”¥|critico|crÃ­tico|critical') { $type = "critical" }
           if ($env:UPDATE_TYPE) { $type = $env:UPDATE_TYPE }
 
           node scripts/generate-release-json.mjs $ver $notes $type
@@ -63,3 +65,4 @@ jobs:
           gh release upload $tag latest.json --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Host "latest.json subido a release $tag"
+
