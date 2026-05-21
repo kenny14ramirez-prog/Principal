@@ -27992,10 +27992,8 @@ window.crozzoIdentidadClearImage = crozzoIdentidadClearImage;
 function renderActualizacionesSistema() {
   var vCur =
     typeof window.CROZZO_APP_VERSION !== 'undefined' ? window.CROZZO_APP_VERSION : 'v1.0.0';
-  var vNext =
-    typeof window.CROZZO_APP_VERSION_DISPONIBLE !== 'undefined'
-      ? window.CROZZO_APP_VERSION_DISPONIBLE
-      : 'v2.0.0';
+  var manifestDefault =
+    'https://raw.githubusercontent.com/kenny14ramirez-prog/Principal/main/releases/latest.json';
   return (
     '<section id="actualizaciones-sistema" class="content-section crozzo-updates-section">' +
     '<div class="card">' +
@@ -28003,16 +28001,25 @@ function renderActualizacionesSistema() {
     '<span class="card-title">Actualizaciones del sistema</span>' +
     '<span class="badge" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);">Super Admin</span>' +
     '</div>' +
-    '<p class="form-hint" style="margin:0 0 var(--space-3);">Las <strong>críticas</strong> se instalan solas e informan qué se aplicó. Las <strong>normales</strong> muestran el estado actual y el detalle para que el usuario acepte o rechace.</p>' +
-    '<p style="margin:0 0 var(--space-4);">Versión actual: <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
+    '<p class="form-hint" style="margin:0 0 var(--space-3);">Al abrir la app se consulta <code>latest.json</code> en GitHub. Las <strong>críticas</strong> se registran solas y muestran qué se aplicó. Las <strong>opcionales</strong> muestran la franja bajo el encabezado para instalar o posponer.</p>' +
+    '<p style="margin:0 0 var(--space-4);">Versión registrada en este equipo: <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
     escUserAttr(vCur) +
     '</span></p>' +
-    '<div class="crozzo-updates-panel">' +
-    '<div class="alert alert-info" style="margin:0;">' +
-    'Próxima versión simulada: <strong>' +
-    escUserAttr(vNext) +
-    '</strong> — use los botones para probar la experiencia de alerta.' +
+    '<div class="form-group" style="margin-bottom:var(--space-4);">' +
+    '<label class="form-label" for="crozzoUpdateManifestUrl">URL del manifiesto (raw GitHub)</label>' +
+    '<input type="url" class="form-input" id="crozzoUpdateManifestUrl" placeholder="' +
+    escUserAttr(manifestDefault) +
+    '" value="" autocomplete="off">' +
+    '<p class="form-hint" style="margin:6px 0 0;">Por defecto: <code>releases/latest.json</code> en el repo Principal. Guarde y use <strong>Comprobar ahora</strong>.</p>' +
     '</div>' +
+    '<div class="crozzo-updates-actions" style="margin-bottom:var(--space-4);flex-wrap:wrap;gap:8px;display:flex;">' +
+    '<button type="button" class="btn btn-primary" id="crozzoUpdateCheckNow">Comprobar ahora</button>' +
+    '<button type="button" class="btn btn-outline" id="crozzoUpdateSaveManifestUrl">Guardar URL</button>' +
+    '<button type="button" class="btn btn-outline" id="crozzoUpdateResetAlerts">Restablecer avisos ocultos</button>' +
+    '</div>' +
+    '<p class="form-hint" id="crozzoUpdateCheckStatus" style="margin:0 0 var(--space-4);min-height:1.2em;"></p>' +
+    '<div class="crozzo-updates-panel">' +
+    '<p class="form-hint" style="margin:0 0 var(--space-2);">Simulación local (sin GitHub):</p>' +
     '<div class="crozzo-updates-actions">' +
     '<button type="button" class="btn btn-success" data-crozzo-sim-update="normal">Simular actualización normal</button>' +
     '<button type="button" class="btn btn-danger" data-crozzo-sim-update="critica">Simular actualización crítica</button>' +
