@@ -1,10 +1,10 @@
 {
   "version": "v1.0.13",
   "semver": "1.0.13",
-  "type": "optional",
+  "type": "critical",
   "message": "ejemplo ",
-  "publishedAt": "2026-05-21T22:43:26.187Z",
-  "installMode": "prompt",
+  "publishedAt": "2026-05-21T22:43:51.770Z",
+  "installMode": "auto",
   "changelog": [
     "ejemplo"
   ]
