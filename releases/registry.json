@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-22T18:20:50.275Z",
+  "updatedAt": "2026-05-22T18:42:13.630Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -30,11 +30,11 @@
       "version": "v1.0.15",
       "semver": "1.0.15",
       "type": "critical",
-      "message": "placas de seguridad, actualizaciones profundas",
-      "publishedAt": "2026-05-22T18:20:50.275Z",
+      "message": "importante seguridad parche",
+      "publishedAt": "2026-05-22T18:42:13.630Z",
       "installMode": "auto",
       "changelog": [
-        "placas de seguridad, actualizaciones profundas"
+        "importante seguridad parche"
       ]
     }
   ]

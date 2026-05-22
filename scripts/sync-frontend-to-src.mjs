@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Copia el frontend canónico (carpeta app/) a src/ para el empaquetado Tauri.
- * Regenera QyC embebido desde integrar/ antes de copiar.
+ * Regenera QyC/planilla desde integrar/ cuando existen script y fuentes; si no, usa artefactos en app/.
  */
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -10,22 +10,61 @@ import { spawnSync } from 'node:child_process';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const prepQyc = spawnSync(process.execPath, [join(root, 'scripts', 'prepare-qyc-embed.mjs')], {
-  cwd: root,
-  stdio: 'inherit',
-});
-if (prepQyc.status !== 0) {
-  console.error('[sync] prepare-qyc-embed falló');
-  process.exit(prepQyc.status || 1);
+/**
+ * @param {string} label
+ * @param {string} scriptName
+ * @param {{ inputs?: string[], output?: string }} opts
+ * @returns {number} exit code (0 ok)
+ */
+function runOptionalPrep(label, scriptName, opts) {
+  const inputs = opts.inputs || [];
+  const output = opts.output || '';
+  const scriptPath = join(root, 'scripts', scriptName);
+  const outputPath = output ? join(root, output) : '';
+
+  if (!existsSync(scriptPath)) {
+    if (outputPath && existsSync(outputPath)) {
+      console.warn('[sync]', label + ': script ausente; usando', output);
+      return 0;
+    }
+    console.warn('[sync]', label + ': omitido (no hay', scriptName, 'ni', output || 'salida', ')');
+    return 0;
+  }
+
+  const missingInput = inputs.find(p => !existsSync(join(root, p)));
+  if (missingInput) {
+    if (outputPath && existsSync(outputPath)) {
+      console.warn('[sync]', label + ': sin fuente', missingInput + '; usando', output);
+      return 0;
+    }
+    console.error('[sync]', label + ': falta', missingInput, 'y no existe', output);
+    return 1;
+  }
+
+  const run = spawnSync(process.execPath, [scriptPath], { cwd: root, stdio: 'inherit' });
+  if (run.status !== 0) {
+    if (outputPath && existsSync(outputPath)) {
+      console.warn('[sync]', label + ': falló la regeneración; se usa', output, 'existente');
+      return 0;
+    }
+    console.error('[sync]', label, 'falló');
+    return run.status || 1;
+  }
+  return 0;
 }
-const prepPl = spawnSync(process.execPath, [join(root, 'scripts', 'extract-planilla-template.mjs')], {
-  cwd: root,
-  stdio: 'inherit',
+
+let code = runOptionalPrep('QyC embed', 'prepare-qyc-embed.mjs', {
+  inputs: ['integrar/sistema de facturas, cortes y estadisticas/Crozzo QyC.html'],
+  output: 'app/CrozzoQyC_App.html',
 });
-if (prepPl.status !== 0) {
-  console.error('[sync] extract-planilla-template falló');
-  process.exit(prepPl.status || 1);
-}
+if (code !== 0) process.exit(code);
+
+code = runOptionalPrep('Planilla template', 'extract-planilla-template.mjs', {
+  inputs: ['integrar/2026 PLANILLA BLANCO.xlsx'],
+  output: 'app/CrozzoPlanilla2026.template.json',
+});
+if (code !== 0) process.exit(code);
+
 const appDir = join(root, 'app');
 const srcDir = join(root, 'src');
 const mainHtml = join(appDir, 'Crozzo_POS_Completo.html');
