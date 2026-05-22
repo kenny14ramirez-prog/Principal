@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crozzo Print Studio — Ticket térmico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --studio-bg: #0c0e12;
+      --studio-surface: #141820;
+      --studio-elevated: #1a1f28;
+      --studio-border: rgba(255, 255, 255, 0.08);
+      --studio-border-strong: rgba(255, 255, 255, 0.14);
+      --studio-text: #f4f4f5;
+      --studio-muted: #8b93a7;
+      --studio-gold: #c9a962;
+      --studio-gold-dim: rgba(201, 169, 98, 0.15);
+      --studio-gold-glow: rgba(201, 169, 98, 0.35);
+      --studio-accent: #6eb5ff;
+      --studio-success: #4ade80;
+      --studio-radius: 12px;
+      --studio-font: 'DM Sans', system-ui, sans-serif;
+      --studio-serif: 'Cormorant Garamond', Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: var(--studio-font);
+      background: var(--studio-bg);
+      color: var(--studio-text);
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+    body.embedded { overflow: hidden; }
+    body.embedded .studio-hero { display: none; }
+    body.embedded .studio-root { min-height: 100vh; border-radius: 0; }
+
+    .studio-hero {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--studio-border);
+      background: linear-gradient(180deg, var(--studio-elevated) 0%, var(--studio-bg) 100%);
+    }
+    .studio-hero h1 {
+      margin: 0;
+      font-family: var(--studio-serif);
+      font-size: 1.45rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .studio-hero p { margin: 4px 0 0; color: var(--studio-muted); font-size: 0.8rem; }
+
+    .studio-root {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 56px);
+      border-radius: var(--studio-radius);
+      overflow: hidden;
+      background: var(--studio-surface);
+    }
+    body.embedded .studio-root { min-height: 100vh; }
+
+    .studio-topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--studio-border);
+      background: var(--studio-elevated);
+      flex-wrap: wrap;
+    }
+    .studio-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .studio-brand__mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--studio-gold), #8b7355);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #1a1208;
+      letter-spacing: 0.04em;
+    }
+    .studio-brand__label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--studio-gold);
+      font-weight: 600;
+    }
+    .studio-brand__name {
+      font-family: var(--studio-serif);
+      font-size: 1.05rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .studio-topbar__center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-width: 200px;
+    }
+    .studio-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .studio-field label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--studio-muted);
+      font-weight: 600;
+    }
+    .studio-field input,
+    .studio-field select {
+      background: var(--studio-bg);
+      border: 1px solid var(--studio-border-strong);
+      color: var(--studio-text);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      min-width: 0;
+    }
+    .studio-field input:focus,
+    .studio-field select:focus {
+      outline: none;
+      border-color: var(--studio-gold);
+      box-shadow: 0 0 0 2px var(--studio-gold-dim);
+    }
+    .studio-pill-group {
+      display: flex;
+      background: var(--studio-bg);
+      border: 1px solid var(--studio-border);
+      border-radius: 8px;
+      padding: 2px;
+    }
+    .studio-pill-group button {
+      border: none;
+      background: transparent;
+      color: var(--studio-muted);
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .studio-pill-group button.is-on {
+      background: var(--studio-gold-dim);
+      color: var(--studio-gold);
+    }
+    .studio-topbar__actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .studio-sync {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--studio-muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--studio-border);
+    }
+    .studio-sync__dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--studio-muted);
+    }
+    .studio-sync.is-live .studio-sync__dot {
+      background: var(--studio-success);
+      box-shadow: 0 0 8px var(--studio-success);
+    }
+    .studio-sync.is-live { color: var(--studio-success); border-color: rgba(74, 222, 128, 0.3); }
+
+    .studio-workspace {
+      display: grid;
+      grid-template-columns: 220px 1fr 260px;
+      flex: 1;
+      min-height: 0;
+    }
+    @media (max-width: 1000px) {
+      .studio-workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    }
+
+    .studio-rail {
+      border-right: 1px solid var(--studio-border);
+      padding: 12px 10px;
+      overflow-y: auto;
+      background: var(--studio-bg);
+    }
+    .studio-rail h2 {
+      margin: 0 0 8px;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--studio-muted);
+      font-weight: 700;
+      padding: 0 4px;
+    }
+    .studio-rail h2:not(:first-child) { margin-top: 14px; }
+    .studio-block-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      padding: 9px 10px;
+      margin-bottom: 4px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--studio-text);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .studio-block-btn:hover {
+      background: var(--studio-elevated);
+      border-color: var(--studio-border);
+    }
+    .studio-block-btn__icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--studio-gold-dim);
+      color: var(--studio-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+    .studio-presets {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .studio-preset-btn {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--studio-border);
+      background: var(--studio-elevated);
+      color: var(--studio-text);
+      font-size: 0.76rem;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+    }
+    .studio-preset-btn:hover { border-color: var(--studio-gold); }
+    .studio-preset-btn small { display: block; color: var(--studio-muted); margin-top: 2px; font-size: 0.68rem; }
+
+    .studio-canvas {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: radial-gradient(ellipse at 50% 0%, #1e2430 0%, var(--studio-surface) 55%);
+    }
+    .studio-canvas__toolbar {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      flex-wrap: wrap;
+    }
+    .studio-zoom-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--studio-border);
+      background: var(--studio-elevated);
+      color: var(--studio-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .studio-zoom-btn.is-on { color: var(--studio-gold); border-color: var(--studio-gold); }
+    .studio-canvas__stage {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px 20px 28px;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 40%),
+        repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,0.02) 19px, rgba(255,255,255,0.02) 20px);
+    }
+    .studio-paper-shadow {
+      padding: 24px 20px 32px;
+      background: linear-gradient(145deg, #2a3040, #1a1e28);
+      border-radius: 4px;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.06) inset,
+        0 24px 48px rgba(0,0,0,0.45),
+        0 0 0 1px rgba(255,255,255,0.04);
+    }
+    .ticket {
+      background: #fffef9;
+      color: #1a1a1a;
+      font-family: 'Courier New', Consolas, ui-monospace, monospace;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 12px 10px 14px;
+      line-height: 1.4;
+      transition: width 0.2s ease;
+    }
+    .ticket.sz80 { width: 72mm; font-size: 10px; }
+    .ticket.sz58 { width: 54mm; font-size: 9px; }
+    .ticket.zoom-125 { transform: scale(1.25); transform-origin: top center; }
+    .ticket.zoom-150 { transform: scale(1.5); transform-origin: top center; }
+
+    .studio-inspector {
+      border-left: 1px solid var(--studio-border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--studio-bg);
+    }
+    .studio-inspector__tabs {
+      display: flex;
+      border-bottom: 1px solid var(--studio-border);
+    }
+    .studio-inspector__tabs button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: var(--studio-muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .studio-inspector__tabs button.is-on {
+      color: var(--studio-gold);
+      box-shadow: inset 0 -2px 0 var(--studio-gold);
+    }
+    .studio-inspector__body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .studio-layer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      margin-bottom: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--studio-border);
+      background: var(--studio-elevated);
+      cursor: pointer;
+      font-size: 0.78rem;
+      transition: border-color 0.12s;
+    }
+    .studio-layer.is-selected {
+      border-color: var(--studio-gold);
+      box-shadow: 0 0 0 1px var(--studio-gold-dim);
+    }
+    .studio-layer.inactive { opacity: 0.4; }
+    .studio-layer__grip { color: var(--studio-muted); font-size: 0.7rem; cursor: grab; }
+    .studio-layer__actions { margin-left: auto; display: flex; gap: 2px; }
+    .studio-layer__actions button {
+      border: none;
+      background: transparent;
+      color: var(--studio-muted);
+      cursor: pointer;
+      padding: 2px 5px;
+      font-size: 0.72rem;
+      border-radius: 4px;
+    }
+    .studio-layer__actions button:hover { color: var(--studio-text); background: var(--studio-border); }
+
+    .studio-props-empty {
+      text-align: center;
+      padding: 28px 12px;
+      color: var(--studio-muted);
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+    .studio-props .row {
+      margin-bottom: 12px;
+    }
+    .studio-props label {
+      display: block;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--studio-muted);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    .studio-props input[type="text"],
+    .studio-props select,
+    .studio-props textarea {
+      width: 100%;
+      background: var(--studio-elevated);
+      border: 1px solid var(--studio-border-strong);
+      color: var(--studio-text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      font-family: inherit;
+    }
+    .studio-props textarea { min-height: 64px; resize: vertical; }
+    .studio-align-btns {
+      display: flex;
+      gap: 4px;
+    }
+    .studio-align-btns button {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid var(--studio-border);
+      background: var(--studio-elevated);
+      color: var(--studio-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .studio-align-btns button.is-on {
+      border-color: var(--studio-gold);
+      color: var(--studio-gold);
+      background: var(--studio-gold-dim);
+    }
+
+    .studio-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--studio-border-strong);
+      background: var(--studio-elevated);
+      color: var(--studio-text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .studio-btn:hover { border-color: var(--studio-gold); }
+    .studio-btn--gold {
+      background: linear-gradient(135deg, #d4b87a, var(--studio-gold));
+      border-color: #a88b4a;
+      color: #1a1208;
+    }
+    .studio-btn--gold:hover { filter: brightness(1.06); box-shadow: 0 4px 16px var(--studio-gold-glow); }
+    .studio-foot {
+      padding: 10px 14px;
+      border-top: 1px solid var(--studio-border);
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: var(--studio-elevated);
+    }
+  </style>
+</head>
+<body>
+  <header class="studio-hero">
+    <h1>Crozzo Print Studio</h1>
+    <p>Diseño profesional de tickets térmicos 58 y 80 mm — personalización total.</p>
+  </header>
+  <div class="studio-root">
+    <div class="studio-topbar">
+      <div class="studio-brand">
+        <div class="studio-brand__mark">CP</div>
+        <div>
+          <div class="studio-brand__label">Print Studio</div>
+          <div class="studio-brand__name" id="brandTplName">Mi plantilla</div>
+        </div>
+      </div>
+      <div class="studio-topbar__center">
+        <div class="studio-field">
+          <label>Ancho papel</label>
+          <div class="studio-pill-group" id="szPills">
+            <button type="button" data-sz="58" class="is-on">58 mm</button>
+            <button type="button" data-sz="80">80 mm</button>
+          </div>
+        </div>
+        <div class="studio-field" style="flex:1;max-width:200px;">
+          <label>Nombre plantilla</label>
+          <input type="text" id="tplName" value="Mi ticket premium" />
+        </div>
+      </div>
+      <div class="studio-topbar__actions">
+        <div class="studio-sync" id="syncBadge" title="Estado con Crozzo POS">
+          <span class="studio-sync__dot"></span>
+          <span id="syncLabel">Listo</span>
+        </div>
+        <button type="button" class="studio-btn studio-btn--gold" id="btnSendParent">Aplicar al POS</button>
+      </div>
+    </div>
+
+    <div class="studio-workspace">
+      <aside class="studio-rail">
+        <h2>Plantillas</h2>
+        <div class="studio-presets" id="presetList"></div>
+        <h2>Marca</h2>
+        <button type="button" class="studio-block-btn" data-add="logo"><span class="studio-block-btn__icon">◆</span><span>Logotipo / marca</span></button>
+        <button type="button" class="studio-block-btn" data-add="company"><span class="studio-block-btn__icon">▣</span><span>Razón social</span></button>
+        <button type="button" class="studio-block-btn" data-add="nit"><span class="studio-block-btn__icon">#</span><span>NIT empresa</span></button>
+        <button type="button" class="studio-block-btn" data-add="address"><span class="studio-block-btn__icon">⌂</span><span>Dirección</span></button>
+        <h2>Documento</h2>
+        <button type="button" class="studio-block-btn" data-add="title"><span class="studio-block-btn__icon">T</span><span>Título</span></button>
+        <button type="button" class="studio-block-btn" data-add="consec"><span class="studio-block-btn__icon">№</span><span>Consecutivo</span></button>
+        <button type="button" class="studio-block-btn" data-add="date"><span class="studio-block-btn__icon">📅</span><span>Fecha y hora</span></button>
+        <button type="button" class="studio-block-btn" data-add="client"><span class="studio-block-btn__icon">👤</span><span>Cliente</span></button>
+        <h2>Venta</h2>
+        <button type="button" class="studio-block-btn" data-add="items"><span class="studio-block-btn__icon">☰</span><span>Detalle ítems</span></button>
+        <button type="button" class="studio-block-btn" data-add="total"><span class="studio-block-btn__icon">$</span><span>Totales</span></button>
+        <h2>Legal / FE</h2>
+        <button type="button" class="studio-block-btn" data-add="resol"><span class="studio-block-btn__icon">§</span><span>Resolución DIAN</span></button>
+        <button type="button" class="studio-block-btn" data-add="cufe"><span class="studio-block-btn__icon">⛓</span><span>CUFE</span></button>
+        <button type="button" class="studio-block-btn" data-add="qr"><span class="studio-block-btn__icon">▦</span><span>QR verificación</span></button>
+        <h2>Estilo</h2>
+        <button type="button" class="studio-block-btn" data-add="divider"><span class="studio-block-btn__icon">┄</span><span>Línea punteada</span></button>
+        <button type="button" class="studio-block-btn" data-add="line"><span class="studio-block-btn__icon">━</span><span>Línea sólida</span></button>
+        <button type="button" class="studio-block-btn" data-add="space"><span class="studio-block-btn__icon">↕</span><span>Espacio</span></button>
+        <button type="button" class="studio-block-btn" data-add="text"><span class="studio-block-btn__icon">✎</span><span>Texto libre</span></button>
+        <button type="button" class="studio-block-btn" data-add="footer"><span class="studio-block-btn__icon">♦</span><span>Pie de página</span></button>
+      </aside>
+
+      <section class="studio-canvas">
+        <div class="studio-canvas__toolbar">
+          <button type="button" class="studio-zoom-btn is-on" data-zoom="100">100%</button>
+          <button type="button" class="studio-zoom-btn" data-zoom="125">125%</button>
+          <button type="button" class="studio-zoom-btn" data-zoom="150">150%</button>
+        </div>
+        <div class="studio-canvas__stage">
+          <div class="studio-paper-shadow">
+            <div id="preview" class="ticket sz58"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="studio-inspector">
+        <div class="studio-inspector__tabs">
+          <button type="button" class="is-on" data-insp="layers">Capas</button>
+          <button type="button" data-insp="props">Propiedades</button>
+        </div>
+        <div class="studio-inspector__body">
+          <div id="panelLayers"></div>
+          <div id="panelProps" style="display:none;"></div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="studio-foot">
+      <button type="button" class="studio-btn" id="btnReset">Restablecer Crozzo</button>
+      <button type="button" class="studio-btn" id="btnExport">Exportar JSON</button>
+      <button type="button" class="studio-btn" id="btnImport">Importar JSON</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden />
+    </footer>
+  </div>
+
+  <script>
+(function () {
+  'use strict';
+  var LS_KEY = 'crozzo_ticket_designer_v1';
+  var embedded = /[?&]embedded=1/.test(location.search);
+  if (embedded) document.body.classList.add('embedded');
+
+  var BLOCK_LABELS = {
+    logo: 'Logotipo', company: 'Razón social', nit: 'NIT', address: 'Dirección',
+    divider: 'Separador', line: 'Línea sólida', title: 'Título', items: 'Ítems',
+    total: 'Totales', footer: 'Pie', text: 'Texto libre', client: 'Cliente',
+    date: 'Fecha', consec: 'Consecutivo', resol: 'Resolución', cufe: 'CUFE',
+    qr: 'QR', space: 'Espacio',
+  };
+
+  var PRESETS = {
+    luxury: {
+      name: 'Lujo · Boutique',
+      sz: '80',
+      studio: true,
+      blocks: [
+        { t: 'logo', c: '◆ SU MARCA', v: true, o: 1, a: 'center', fs: 'lg', fw: true },
+        { t: 'company', c: '', v: true, o: 2, a: 'center', fs: 'md' },
+        { t: 'nit', c: '', v: true, o: 3, a: 'center', fs: 'sm' },
+        { t: 'space', c: '2', v: true, o: 4 },
+        { t: 'line', c: '', v: true, o: 5 },
+        { t: 'title', c: '', v: true, o: 6, a: 'center', fs: 'md', fw: true },
+        { t: 'consec', c: '', v: true, o: 7, a: 'center', fs: 'sm' },
+        { t: 'date', c: '', v: true, o: 8, a: 'center', fs: 'xs' },
+        { t: 'divider', c: '', v: true, o: 9 },
+        { t: 'client', c: '', v: true, o: 10, a: 'left', fs: 'sm' },
+        { t: 'items', c: '', v: true, o: 11 },
+        { t: 'total', c: 'TOTAL', v: true, o: 12 },
+        { t: 'space', c: '1', v: true, o: 13 },
+        { t: 'footer', c: 'Gracias por elegirnos', v: true, o: 14, a: 'center', fs: 'sm' },
+        { t: 'cufe', c: '', v: false, o: 15 },
+        { t: 'qr', c: '', v: false, o: 16 },
+      ],
+    },
+    retail: {
+      name: 'Retail · Mostrador',
+      sz: '58',
+      studio: true,
+      blocks: [
+        { t: 'company', c: '', v: true, o: 1, a: 'center', fw: true },
+        { t: 'nit', c: '', v: true, o: 2, a: 'center', fs: 'xs' },
+        { t: 'title', c: 'TICKET DE VENTA', v: true, o: 3, a: 'center', fs: 'sm', fw: true },
+        { t: 'date', c: '', v: true, o: 4, fs: 'xs' },
+        { t: 'consec', c: '', v: true, o: 5, fs: 'xs' },
+        { t: 'items', c: '', v: true, o: 6 },
+        { t: 'total', c: 'A PAGAR', v: true, o: 7 },
+        { t: 'footer', c: 'Vuelva pronto', v: true, o: 8, a: 'center' },
+      ],
+    },
+    minimal: {
+      name: 'Minimal Pro',
+      sz: '58',
+      studio: true,
+      blocks: [
+        { t: 'company', c: '', v: true, o: 1, a: 'left', fs: 'sm', fw: true },
+        { t: 'items', c: '', v: true, o: 2 },
+        { t: 'total', c: 'Total', v: true, o: 3 },
+        { t: 'date', c: '', v: true, o: 4, fs: 'xs', a: 'right' },
+      ],
+    },
+  };
+
+  var SAMPLE = {
+    head: 'COMPROBANTE',
+    nameE: 'Crozzo Boutique S.A.S.',
+    nitE: '900.123.456-7',
+    dirE: 'Carrera 15 # 93-47 · Bogotá',
+    resol: '18764000001234',
+    consecutivo: 'FE-000128',
+    fecha: new Date().toLocaleString('es-CO'),
+    cliNom: 'María González',
+    cliNit: '52.123.456',
+    lines: [
+      { n: 'Blazer lino premium', q: 1, p: 289000 },
+      { n: 'Accesorio regalo', q: 1, p: 45000 },
+    ],
+    sub: 334000,
+    iva: 63460,
+    tot: 397460,
+    cufe: 'a1b2c3d4e5f6789012345678901234567890abcd',
+    qrUrl: 'https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=sample',
+  };
+
+  var selectedIdx = null;
+  var zoomLevel = 100;
+  var syncTimer = null;
+
+  function defaultTpl() {
+    return JSON.parse(JSON.stringify(PRESETS.luxury));
+  }
+
+  var state = defaultTpl();
+
+  function normalize(raw) {
+    if (!raw || !Array.isArray(raw.blocks) || !raw.blocks.length) return null;
+    return {
+      name: String(raw.name || 'Plantilla'),
+      sz: raw.sz === '80' ? '80' : '58',
+      studio: raw.studio === true || raw.studio === 'true',
+      blocks: raw.blocks.filter(function (b) { return b && b.t; }).map(function (b, i) {
+        return {
+          t: b.t,
+          c: String(b.c || ''),
+          v: b.v !== false,
+          o: typeof b.o === 'number' ? b.o : i + 1,
+          a: b.a || 'center',
+          fs: b.fs || 'sm',
+          fw: !!b.fw,
+          sp: Number(b.sp) || 0,
+        };
+      }),
+    };
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function fmtCOP(n) {
+    try {
+      return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(n) || 0);
+    } catch (_) {
+      return '$' + Math.round(Number(n) || 0);
+    }
+  }
+
+  function blockStyle(b, extra) {
+    extra = extra || {};
+    var fsMap = { xs: '8px', sm: '9px', md: '10px', lg: '12px', xl: '14px' };
+    var fs = fsMap[b.fs] || extra.fontSize || '9px';
+    var align = b.a || extra.align || 'center';
+    var fw = b.fw || extra.bold ? '700' : '400';
+    var mt = (Number(b.sp) || 0) * 4 + (extra.marginTop || 0);
+    return 'text-align:' + align + ';font-size:' + fs + ';font-weight:' + fw + ';margin-top:' + mt + 'px;';
+  }
+
+  function wrap(style, html) {
+    return '<div style="' + style + '">' + html + '</div>';
+  }
+
+  function renderBlockHtml(b, d) {
+    if (!b.v) return '';
+    var st;
+    switch (b.t) {
+      case 'logo':
+        return wrap(blockStyle(b, { bold: true, fontSize: '12px' }), esc(b.c || '◆ MARCA'));
+      case 'company':
+        return wrap(blockStyle(b), esc(d.nameE));
+      case 'nit':
+        return wrap(blockStyle(b, { fontSize: '8px' }), 'NIT ' + esc(d.nitE));
+      case 'address':
+        return wrap(blockStyle(b, { align: 'center', fontSize: '8px' }), esc(d.dirE));
+      case 'divider':
+        return '<div style="border-top:1px dashed #999;margin:' + (Number(b.c) || 6) + 'px 0;"></div>';
+      case 'line':
+        return '<div style="border-top:1px solid #222;margin:' + (Number(b.c) || 6) + 'px 0;"></div>';
+      case 'title':
+        return wrap(blockStyle(b, { bold: true }), esc(b.c || d.head));
+      case 'consec':
+        return wrap(blockStyle(b, { align: 'center' }), 'No. ' + esc(d.consecutivo));
+      case 'date':
+        return wrap(blockStyle(b, { fontSize: '8px' }), esc(d.fecha));
+      case 'client':
+        return wrap(blockStyle(b, { align: 'left' }),
+          '<div>' + esc(d.cliNom) + '</div><div style="opacity:0.75;">Doc. ' + esc(d.cliNit) + '</div>');
+      case 'items':
+        var rows = (d.lines || []).map(function (it) {
+          return '<div style="display:flex;justify-content:space-between;gap:4px;margin:3px 0;"><span>' +
+            (it.q || 0) + '× ' + esc(it.n) + '</span><span>' + fmtCOP((it.p || 0) * (it.q || 0)) + '</span></div>';
+        }).join('');
+        return '<div style="border-top:1px dashed #999;margin:6px 0;"></div>' + rows +
+          '<div style="border-top:1px dashed #999;margin:6px 0;"></div>';
+      case 'total':
+        return wrap(blockStyle(b, { align: 'stretch' }),
+          '<div style="display:flex;justify-content:space-between;margin:2px 0;"><span>Subtotal</span><span>' + fmtCOP(d.sub) + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;margin:2px 0;"><span>IVA</span><span>' + fmtCOP(d.iva) + '</span></div>' +
+          '<div style="display:flex;justify-content:space-between;font-weight:800;margin-top:6px;padding-top:6px;border-top:2px solid #111;"><span>' + esc(b.c || 'TOTAL') + '</span><span>' + fmtCOP(d.tot) + '</span></div>');
+      case 'resol':
+        return wrap(blockStyle(b, { fontSize: '8px' }), 'Resol. ' + esc(d.resol));
+      case 'cufe':
+        if (!d.cufe) return '';
+        return wrap(blockStyle(b, { align: 'left', fontSize: '7px' }), 'CUFE<br>' + esc(d.cufe));
+      case 'qr':
+        if (!d.qrUrl) return wrap(blockStyle(b, { fontSize: '7px' }), '[ QR DIAN ]');
+        return wrap(blockStyle(b, { fontSize: '7px' }), 'Verif.: ' + esc(d.qrUrl.slice(0, 42)) + '…');
+      case 'space':
+        return '<div style="height:' + (Math.max(1, Number(b.c) || 1) * 4) + 'px;"></div>';
+      case 'footer':
+        return wrap(blockStyle(b, { fontSize: '8px' }), esc(b.c || ''));
+      default:
+        return wrap(blockStyle(b), esc(b.c));
+    }
+  }
+
+  function renderPreview() {
+    var sorted = state.blocks.slice().sort(function (a, b) { return a.o - b.o; });
+    var parts = sorted.map(function (b) { return renderBlockHtml(b, SAMPLE); });
+    if (!state.studio) {
+      parts.push('<div style="margin-top:6px;font-size:8px;">No: ' + esc(SAMPLE.consecutivo) + '</div>');
+      parts.push('<div style="font-size:8px;">Fecha: ' + esc(SAMPLE.fecha) + '</div>');
+    }
+    var el = document.getElementById('preview');
+    el.className = 'ticket sz' + state.sz + (zoomLevel === 125 ? ' zoom-125' : zoomLevel === 150 ? ' zoom-150' : '');
+    el.innerHTML = parts.join('');
+    document.getElementById('brandTplName').textContent = state.name;
+  }
+
+  function renderPresets() {
+    var host = document.getElementById('presetList');
+    host.innerHTML = Object.keys(PRESETS).map(function (k) {
+      var p = PRESETS[k];
+      return '<button type="button" class="studio-preset-btn" data-preset="' + k + '"><strong>' + esc(p.name) + '</strong><small>Estilo ' + k + '</small></button>';
+    }).join('');
+    host.querySelectorAll('[data-preset]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        state = JSON.parse(JSON.stringify(PRESETS[btn.getAttribute('data-preset')]));
+        selectedIdx = null;
+        renderAll();
+        scheduleSync();
+      });
+    });
+  }
+
+  function renderLayers() {
+    var host = document.getElementById('panelLayers');
+    var sorted = state.blocks.slice().sort(function (a, b) { return a.o - b.o; });
+    if (!sorted.length) {
+      host.innerHTML = '<div class="studio-props-empty">Agregue bloques desde la paleta izquierda.</div>';
+      return;
+    }
+    host.innerHTML = sorted.map(function (b) {
+      var i = state.blocks.indexOf(b);
+      var label = BLOCK_LABELS[b.t] || b.t;
+      var sel = selectedIdx === i ? ' is-selected' : '';
+      var off = b.v ? '' : ' inactive';
+      return (
+        '<div class="studio-layer' + sel + off + '" data-idx="' + i + '">' +
+        '<span class="studio-layer__grip">⋮⋮</span>' +
+        '<span style="flex:1;">' + esc(label) + '</span>' +
+        '<div class="studio-layer__actions">' +
+        '<button type="button" data-act="vis" title="Visible">' + (b.v ? '👁' : '○') + '</button>' +
+        '<button type="button" data-act="up">↑</button>' +
+        '<button type="button" data-act="down">↓</button>' +
+        '<button type="button" data-act="del" title="Eliminar">✕</button>' +
+        '</div></div>'
+      );
+    }).join('');
+
+    host.querySelectorAll('.studio-layer').forEach(function (layer) {
+      layer.addEventListener('click', function (e) {
+        if (e.target.closest('[data-act]')) return;
+        selectBlock(parseInt(layer.getAttribute('data-idx'), 10));
+      });
+    });
+    host.querySelectorAll('[data-act]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var i = parseInt(btn.closest('.studio-layer').getAttribute('data-idx'), 10);
+        var blk = state.blocks[i];
+        if (!blk) return;
+        var act = btn.getAttribute('data-act');
+        if (act === 'vis') blk.v = !blk.v;
+        else if (act === 'del') { state.blocks.splice(i, 1); selectedIdx = null; }
+        else if (act === 'up' || act === 'down') {
+          var sorted2 = state.blocks.slice().sort(function (a, b) { return a.o - b.o; });
+          var pos = sorted2.indexOf(blk);
+          var swap = act === 'up' ? sorted2[pos - 1] : sorted2[pos + 1];
+          if (swap) { var t = blk.o; blk.o = swap.o; swap.o = t; }
+        }
+        renderAll();
+        scheduleSync();
+      });
+    });
+  }
+
+  function renderProps() {
+    var host = document.getElementById('panelProps');
+    if (selectedIdx == null || !state.blocks[selectedIdx]) {
+      host.innerHTML = '<div class="studio-props-empty">Seleccione una capa para editar alineación, tipografía y contenido.</div>';
+      return;
+    }
+    var b = state.blocks[selectedIdx];
+    var hasText = ['logo', 'title', 'footer', 'text', 'total', 'space', 'divider', 'line'].indexOf(b.t) >= 0;
+    host.innerHTML =
+      '<div class="studio-props">' +
+      '<div class="row"><label>Tipo</label><input type="text" readonly value="' + esc(BLOCK_LABELS[b.t] || b.t) + '" /></div>' +
+      (hasText ? '<div class="row"><label>Contenido / valor</label><textarea id="propC">' + esc(b.c) + '</textarea></div>' : '') +
+      '<div class="row"><label>Alineación</label><div class="studio-align-btns" id="propAlign">' +
+      ['left', 'center', 'right'].map(function (a) {
+        return '<button type="button" data-a="' + a + '"' + (b.a === a ? ' class="is-on"' : '') + '>' +
+          (a === 'left' ? '◧' : a === 'center' ? '◫' : '◨') + '</button>';
+      }).join('') + '</div></div>' +
+      '<div class="row"><label>Tamaño texto</label><select id="propFs">' +
+      ['xs', 'sm', 'md', 'lg', 'xl'].map(function (f) {
+        return '<option value="' + f + '"' + (b.fs === f ? ' selected' : '') + '>' + f.toUpperCase() + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="row"><label><input type="checkbox" id="propFw"' + (b.fw ? ' checked' : '') + ' /> Negrita</label></div>' +
+      '<div class="row"><label>Espacio superior (×4px)</label><input type="number" id="propSp" min="0" max="12" value="' + (b.sp || 0) + '" /></div>' +
+      '<div class="row"><label><input type="checkbox" id="propV"' + (b.v ? ' checked' : '') + ' /> Visible en impresión</label></div>' +
+      '</div>';
+
+    var ta = document.getElementById('propC');
+    if (ta) ta.addEventListener('input', function () { b.c = ta.value; renderPreview(); scheduleSync(); });
+    document.getElementById('propFs').addEventListener('change', function () { b.fs = this.value; renderPreview(); scheduleSync(); });
+    document.getElementById('propSp').addEventListener('input', function () { b.sp = Number(this.value) || 0; renderPreview(); scheduleSync(); });
+    document.getElementById('propFw').addEventListener('change', function () { b.fw = this.checked; renderPreview(); scheduleSync(); });
+    document.getElementById('propV').addEventListener('change', function () { b.v = this.checked; renderAll(); scheduleSync(); });
+    document.querySelectorAll('#propAlign [data-a]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        b.a = btn.getAttribute('data-a');
+        renderProps();
+        renderPreview();
+        scheduleSync();
+      });
+    });
+  }
+
+  function selectBlock(i) {
+    selectedIdx = i;
+    document.querySelectorAll('.studio-inspector__tabs button').forEach(function (btn) {
+      var on = btn.getAttribute('data-insp') === 'props';
+      btn.classList.toggle('is-on', on);
+    });
+    document.getElementById('panelLayers').style.display = 'none';
+    document.getElementById('panelProps').style.display = 'block';
+    renderLayers();
+    renderProps();
+  }
+
+  function showLayersPanel() {
+    selectedIdx = null;
+    document.querySelectorAll('.studio-inspector__tabs button').forEach(function (btn) {
+      btn.classList.toggle('is-on', btn.getAttribute('data-insp') === 'layers');
+    });
+    document.getElementById('panelLayers').style.display = 'block';
+    document.getElementById('panelProps').style.display = 'none';
+    renderLayers();
+  }
+
+  function renderAll() {
+    document.getElementById('tplName').value = state.name;
+    document.querySelectorAll('#szPills [data-sz]').forEach(function (btn) {
+      btn.classList.toggle('is-on', btn.getAttribute('data-sz') === state.sz);
+    });
+    renderPreview();
+    if (selectedIdx != null) renderProps();
+    else renderLayers();
+  }
+
+  function nextOrder() {
+    var m = 0;
+    state.blocks.forEach(function (b) { if (b.o > m) m = b.o; });
+    return m + 1;
+  }
+
+  function addBlock(t) {
+    var c = '';
+    if (t === 'logo') c = '◆ SU MARCA';
+    if (t === 'footer') c = 'Gracias por su compra';
+    if (t === 'title') c = '';
+    if (t === 'space') c = '2';
+    state.blocks.push({ t: t, c: c, v: true, o: nextOrder(), a: 'center', fs: 'sm', fw: false, sp: 0 });
+    selectedIdx = state.blocks.length - 1;
+    renderAll();
+    selectBlock(selectedIdx);
+    scheduleSync();
+  }
+
+  function exportTpl() {
+    return { name: state.name, sz: state.sz, studio: true, blocks: state.blocks.slice() };
+  }
+
+  function applyTpl(raw) {
+    var n = normalize(raw);
+    if (n) {
+      if (!n.studio) n.studio = true;
+      state = n;
+    }
+    renderAll();
+  }
+
+  function setSyncLive(live, msg) {
+    var badge = document.getElementById('syncBadge');
+    var label = document.getElementById('syncLabel');
+    badge.classList.toggle('is-live', !!live);
+    label.textContent = msg || (live ? 'Sincronizado' : 'Listo');
+  }
+
+  function scheduleSync() {
+    if (!embedded) return;
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () {
+      syncTimer = null;
+      pushToParent(false);
+    }, 600);
+  }
+
+  function pushToParent(showAlert) {
+    var tpl = exportTpl();
+    try { localStorage.setItem(LS_KEY, JSON.stringify(tpl)); } catch (_) {}
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'crozzo_ticket_tpl', tpl: tpl }, '*');
+      setSyncLive(true, 'Enviado al POS');
+      if (showAlert) alert('Plantilla aplicada. Pulse «Guardar configuración» en Facturas e impresión.');
+    } else if (showAlert) {
+      alert('Plantilla exportada al navegador.');
+    }
+  }
+
+  document.querySelectorAll('[data-add]').forEach(function (btn) {
+    btn.addEventListener('click', function () { addBlock(btn.getAttribute('data-add')); });
+  });
+  document.querySelectorAll('#szPills [data-sz]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.sz = btn.getAttribute('data-sz') === '80' ? '80' : '58';
+      renderAll();
+      scheduleSync();
+    });
+  });
+  document.getElementById('tplName').addEventListener('input', function () {
+    state.name = this.value;
+    renderPreview();
+    scheduleSync();
+  });
+  document.getElementById('btnReset').addEventListener('click', function () {
+    state = defaultTpl();
+    selectedIdx = null;
+    showLayersPanel();
+    renderAll();
+    scheduleSync();
+  });
+  document.getElementById('btnSendParent').addEventListener('click', function () { pushToParent(true); });
+  document.getElementById('btnExport').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(exportTpl(), null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (state.name || 'plantilla').replace(/\s+/g, '_') + '.json';
+    a.click();
+  });
+  document.getElementById('btnImport').addEventListener('click', function () {
+    document.getElementById('importFile').click();
+  });
+  document.getElementById('importFile').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try { applyTpl(JSON.parse(r.result)); scheduleSync(); } catch (_) { alert('JSON inválido'); }
+    };
+    r.readAsText(f);
+    e.target.value = '';
+  });
+  document.querySelectorAll('.studio-inspector__tabs button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.getAttribute('data-insp') === 'layers') showLayersPanel();
+      else if (selectedIdx != null) selectBlock(selectedIdx);
+      else document.getElementById('panelProps').innerHTML = '<div class="studio-props-empty">Seleccione una capa primero.</div>';
+    });
+  });
+  document.querySelectorAll('[data-zoom]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      zoomLevel = Number(btn.getAttribute('data-zoom')) || 100;
+      document.querySelectorAll('[data-zoom]').forEach(function (b) {
+        b.classList.toggle('is-on', b === btn);
+      });
+      renderPreview();
+    });
+  });
+
+  window.addEventListener('message', function (e) {
+    if (!e.data || e.data.type !== 'crozzo_ticket_init' || !e.data.tpl) return;
+    applyTpl(e.data.tpl);
+    setSyncLive(true, 'Cargada desde POS');
+  });
+
+  renderPresets();
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (raw) applyTpl(JSON.parse(raw));
+  } catch (_) {}
+  if (!state.blocks.length) {
+    state = defaultTpl();
+  }
+  showLayersPanel();
+  renderAll();
+  if (embedded) setSyncLive(false, 'Auto-sync activo');
+})();
+  </script>
+</body>
+</html>
