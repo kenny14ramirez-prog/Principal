@@ -13,7 +13,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.17">
+<meta name="crozzo-app-version" content="1.0.18">
 <title>Crozzo POS Colombia · portable</title>
 <script src="CrozzoAuthSecurity.js"></script>
 <script src="CrozzoHoneypotSim.js"></script>
@@ -32668,8 +32668,8 @@ function renderActualizacionesSistema() {
     '<span class="badge" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);">Super Admin</span>' +
     '</div>' +
     '<p class="form-hint" style="margin:0 0 var(--space-3);">OTA: <code>registry.json</code> en <code>main</code> (avisos). Instalador: <code>latest.json</code> del <strong>GitHub Release</strong> (tag <code>v*</code>); en escritorio, <strong>Instalar</strong> descarga el .exe firmado.</p>' +
-    '<p style="margin:0 0 var(--space-2);">Versión del ejecutable / build: <strong id="crozzoUpdatesBinaryVersionLabel">—</strong></p>' +
-    '<p style="margin:0 0 var(--space-4);">Versión registrada (OTA): <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
+    '<p style="margin:0 0 var(--space-2);">Versión del ejecutable (.exe): <strong id="crozzoUpdatesBinaryVersionLabel">—</strong></p>' +
+    '<p style="margin:0 0 var(--space-4);">Versión OTA registrada: <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
     escUserAttr(vCur) +
     '</span></p>' +
     '<p class="form-hint" style="margin:0 0 var(--space-4);">Los cambios de código locales requieren <strong>Sincronizar frontend</strong> (menú herramientas) y recompilar el .exe, o publicar un release nuevo en GitHub. El JSON en <code>main</code> solo muestra avisos; no sustituye el instalador.</p>' +
@@ -39050,15 +39050,13 @@ init();
 
 <div id="crozzo-update-critical-overlay" class="crozzo-update-critical-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateCriticalTitle" aria-hidden="true">
   <div class="crozzo-update-critical-modal">
-    <span class="crozzo-update-critical-modal__badge crozzo-update-critical-modal__badge--done" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-      Instalada
-    </span>
-    <h2 id="crozzoUpdateCriticalTitle">Parche de seguridad aplicado</h2>
-    <p id="crozzoUpdateCriticalLead">La actualización crítica se instaló automáticamente. Esto es lo que se aplicó en su equipo:</p>
+    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true">⏳ Instalando…</span>
+    <h2 id="crozzoUpdateCriticalTitle">Instalando actualización crítica</h2>
+    <p id="crozzoUpdateCriticalLead">Descargando e instalando el nuevo Crozzo POS (.exe). No cierre la aplicación.</p>
     <ul class="crozzo-update-critical-modal__list" id="crozzoUpdateCriticalList"></ul>
     <p class="crozzo-update-critical-modal__version" id="crozzoUpdateCriticalVersion"></p>
-    <button type="button" class="btn btn-primary" id="crozzoUpdateCriticalDismiss">Entendido</button>
+    <button type="button" class="btn btn-outline" id="crozzoUpdateCriticalRetry" style="display:none;margin-bottom:8px;">Reintentar instalación</button>
+    <button type="button" class="btn btn-primary" id="crozzoUpdateCriticalDismiss" disabled>Instalando…</button>
   </div>
 </div>
 <div id="crozzo-update-detail-overlay" class="crozzo-update-detail-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateDetailTitle" aria-hidden="true">

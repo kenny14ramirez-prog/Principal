@@ -1,15 +1,15 @@
 {
-  "id": "1.0.17-critical",
-  "version": "v1.0.17",
-  "semver": "1.0.17",
+  "id": "1.0.18-critical",
+  "version": "v1.0.18",
+  "semver": "1.0.18",
   "type": "critical",
-  "message": "Parche de seguridad ",
-  "publishedAt": "2026-05-23T20:23:02.718Z",
+  "message": "actualizcacion ",
+  "publishedAt": "2026-05-23T20:42:14.152Z",
   "installMode": "auto",
   "changelog": [
-    "Parche de seguridad"
+    "actualizcacion"
   ],
-  "updatedAt": "2026-05-23T20:23:02.718Z",
+  "updatedAt": "2026-05-23T20:42:14.152Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -69,6 +69,18 @@
       "installMode": "auto",
       "changelog": [
         "Parche de seguridad"
+      ]
+    },
+    {
+      "id": "1.0.18-critical",
+      "version": "v1.0.18",
+      "semver": "1.0.18",
+      "type": "critical",
+      "message": "actualizcacion ",
+      "publishedAt": "2026-05-23T20:42:14.152Z",
+      "installMode": "auto",
+      "changelog": [
+        "actualizcacion"
       ]
     }
   ]
