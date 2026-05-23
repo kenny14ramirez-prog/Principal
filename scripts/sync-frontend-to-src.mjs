@@ -3,7 +3,7 @@
  * Copia el frontend canónico (carpeta app/) a src/ para el empaquetado Tauri.
  * Regenera QyC/planilla desde integrar/ cuando existen script y fuentes; si no, usa artefactos en app/.
  */
-import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -71,12 +71,14 @@ const mainHtml = join(appDir, 'Crozzo_POS_Completo.html');
 const assets = [
   'CrozzoAuthSecurity.js',
   'CrozzoHoneypotSim.js',
+  'CrozzoViewportFit.js',
   'CrozzoA11yUser.js',
   'CrozzoSidebarNav.js',
   'CrozzoTauriUpdater.js',
   'CrozzoSystemUpdates.js',
   'CrozzoComprasLocal.js',
   'CrozzoCentroCompras.js',
+  'CrozzoCentroProcesos.js',
   'CrozzoPlanilla2026.js',
   'CrozzoPlanilla2026.template.json',
   'CrozzoModulosIntegrados.js',
@@ -93,8 +95,35 @@ if (!existsSync(mainHtml)) {
 
 mkdirSync(srcDir, { recursive: true });
 
+function injectBuildVersionMeta(html, semver) {
+  if (!semver || !html) return html;
+  const meta = `<meta name="crozzo-app-version" content="${semver}">`;
+  if (/name=["']crozzo-app-version["']/i.test(html)) {
+    return html.replace(
+      /<meta\s+name=["']crozzo-app-version["'][^>]*>/i,
+      meta
+    );
+  }
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, `<head$1>\n${meta}`);
+  }
+  return html;
+}
+
+let htmlBody = readFileSync(mainHtml, 'utf8');
+try {
+  const tauriConf = join(root, 'src-tauri', 'tauri.conf.json');
+  if (existsSync(tauriConf)) {
+    const conf = JSON.parse(readFileSync(tauriConf, 'utf8'));
+    const ver = String(conf.version || '').trim();
+    if (ver) htmlBody = injectBuildVersionMeta(htmlBody, ver);
+  }
+} catch (e) {
+  console.warn('[sync] No se pudo inyectar versión de build:', e.message);
+}
+
 const destHtml = join(srcDir, 'index.html');
-copyFileSync(mainHtml, destHtml);
+writeFileSync(destHtml, htmlBody, 'utf8');
 
 let copied = 0;
 for (const name of extraHtml) {

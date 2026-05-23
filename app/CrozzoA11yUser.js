@@ -54,6 +54,11 @@
       if (document.body) document.body.classList.add('crozzo-a11y-focus-mode');
     }
     syncA11yControls(p);
+    try {
+      if (global.CrozzoViewportFit && typeof global.CrozzoViewportFit.schedule === 'function') {
+        global.CrozzoViewportFit.schedule();
+      }
+    } catch (_) {}
     return p;
   }
 

@@ -13,9 +13,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="crozzo-app-version" content="1.0.16">
 <title>Crozzo POS Colombia · portable</title>
 <script src="CrozzoAuthSecurity.js"></script>
 <script src="CrozzoHoneypotSim.js"></script>
+<script src="CrozzoViewportFit.js"></script>
 <script>
 try {
   if (typeof globalThis !== 'undefined') {
@@ -134,10 +136,114 @@ var QRCode;!function(){function a(a){this.mode=c.MODE_8BIT_BYTE,this.data=a,this
   --sidebar-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   --sidebar-duration: 280ms;
   --sidebar-submenu-delay: 50ms;
+  /* Viewport real (actualizado por CrozzoViewportFit.js) */
+  --crozzo-vh: 100dvh;
+  --crozzo-vw: 100vw;
+  --crozzo-content-h: 100dvh;
+  --crozzo-header-h: 60px;
+  --crozzo-bottom-safe: 0px;
+  --crozzo-dpr: 1;
+  --crozzo-system-scale: 1;
 }
 
 html {
   font-size: calc(16px * var(--a11y-font-scale, 1));
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+html.crozzo-vp-ready {
+  height: var(--crozzo-vh);
+  max-height: var(--crozzo-vh);
+  overflow: hidden;
+}
+
+html.crozzo-vp-ready body {
+  height: var(--crozzo-content-h);
+  max-height: var(--crozzo-content-h);
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-bottom: var(--crozzo-bottom-safe);
+}
+
+html.crozzo-vp-ready .app-container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  max-width: var(--crozzo-vw);
+  height: var(--crozzo-content-h);
+  max-height: var(--crozzo-content-h);
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+html.crozzo-vp-ready .sidebar,
+html.crozzo-vp-ready #sidebar,
+html.crozzo-vp-ready aside.sidebar {
+  height: var(--crozzo-content-h) !important;
+  max-height: var(--crozzo-content-h) !important;
+  top: 0 !important;
+}
+
+html.crozzo-vp-ready .main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: var(--crozzo-content-h);
+  max-height: var(--crozzo-content-h);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+html.crozzo-vp-ready .main-header {
+  flex-shrink: 0;
+}
+
+html.crozzo-vp-ready .main-body,
+html.crozzo-vp-ready #mainContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+html.tauri-desktop.crozzo-vp-ready #sidebar.sidebar-pro,
+html.tauri-desktop.crozzo-vp-ready #sidebar.sidebar-elite.sidebar-pro,
+html.tauri-desktop.crozzo-vp-ready aside.sidebar.sidebar-pro {
+  top: var(--crozzo-header-h) !important;
+  height: calc(var(--crozzo-content-h) - var(--crozzo-header-h)) !important;
+  max-height: calc(var(--crozzo-content-h) - var(--crozzo-header-h)) !important;
+}
+
+html.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-content {
+  padding-bottom: 0;
+}
+
+html.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-body,
+html.crozzo-vp-ready body.crozzo-vp-mobile-nav #mainContent {
+  padding-bottom: calc(56px + var(--crozzo-bottom-safe));
+}
+
+html.crozzo-vp-ready .login-overlay {
+  height: var(--crozzo-vh);
+  max-height: var(--crozzo-vh);
+  padding-bottom: var(--crozzo-bottom-safe);
+  box-sizing: border-box;
+}
+
+html.crozzo-vp-ready .crozzo-honeypot-overlay {
+  height: var(--crozzo-vh);
+  max-height: var(--crozzo-vh);
+  padding-bottom: var(--crozzo-bottom-safe);
+  box-sizing: border-box;
 }
 
 html[data-theme="clear-elegance"] {
@@ -1175,6 +1281,7 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+  min-height: 100dvh;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -1183,6 +1290,10 @@ body {
 .app-container {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* Sidebar — base (web / móvil; Tauri usa .sidebar-pro abajo) */
@@ -1199,9 +1310,8 @@ aside.sidebar {
   position: fixed !important;
   left: 0 !important;
   top: 0 !important;
-  height: 100vh !important;
-  height: 100dvh !important;
-  max-height: 100dvh;
+  height: var(--crozzo-content-h, 100dvh) !important;
+  max-height: var(--crozzo-content-h, 100dvh);
   overflow: hidden;
   z-index: 100;
   transition: transform 0.3s ease, width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1251,19 +1361,11 @@ body.super-admin-active .super-admin-menu {
   flex-direction: column !important;
   visibility: visible !important;
 }
-body.super-admin-active .menu-item,
-body.super-admin-active .nav-item,
-body.super-admin-active [data-menu],
-body.super-admin-active .admin-only,
-body.super-admin-active .super-admin-only {
+/* Solo sesión Super Admin real: no forzar ítems ocultos por permiso */
+body.super-admin-active.crozzo-session-superadmin .super-admin-menu,
+body.super-admin-active.crozzo-session-superadmin [data-nav-group="super-admin"] {
   display: flex !important;
-  align-items: center !important;
   visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-body.super-admin-active .nav-item[hidden] {
-  display: flex !important;
 }
 html.tauri-desktop #sidebar.sidebar-pro:not(:hover):not(.is-expanded) .nav-group-items.submenu {
   display: block !important;
@@ -1278,9 +1380,9 @@ html.tauri-desktop #sidebar.sidebar-pro,
 html.tauri-desktop aside.sidebar.sidebar-pro {
   position: fixed !important;
   left: 0 !important;
-  top: 60px !important;
-  height: calc(100vh - 60px) !important;
-  height: calc(100dvh - 60px) !important;
+  top: var(--crozzo-header-h, 60px) !important;
+  height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px)) !important;
+  max-height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px)) !important;
   width: var(--sidebar-width-rail, 64px) !important;
   max-width: var(--sidebar-width-rail, 64px) !important;
   background: var(--bg-secondary) !important;
@@ -2387,7 +2489,11 @@ body.touch-device .mobile-menu-btn {
 .main-content {
   flex: 1;
   margin-left: 260px;
+  min-height: 0;
   min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .main-header {
@@ -7893,6 +7999,231 @@ body.crozzo-corkboard-focus .comandas-layout > div {
   color: #94a3b8;
   min-height: 1.4em;
 }
+.seg-status-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  table-layout: fixed;
+}
+.seg-status-table th,
+.seg-status-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  text-align: left;
+}
+.seg-status-table th {
+  width: 38%;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.seg-status-table td {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.seg-status-table tr:last-child th,
+.seg-status-table tr:last-child td {
+  border-bottom: none;
+}
+.seg-status-table .seg-val--compact {
+  font-weight: 500;
+  font-size: 0.82rem;
+}
+.seg-preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.seg-preview-row .form-group {
+  margin: 0;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.seg-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  flex: 1 1 100%;
+}
+.seg-hp-mode-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.seg-hp-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  user-select: none;
+}
+.seg-hp-mode:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-08);
+}
+.seg-hp-mode input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+#cfgHpPreviewDecoy,
+#cfgHpPreviewDecoy option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+body.crozzo-login-open .app-container,
+body.crozzo-login-open .main-content,
+body.crozzo-login-open #sidebar,
+body.crozzo-login-open aside.sidebar,
+body.crozzo-login-open .sidebar,
+body.crozzo-login-open .crozzo-mobile-bottom-nav,
+body.crozzo-login-open .sidebar-backdrop {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.crozzo-login-open .login-overlay {
+  display: flex !important;
+  pointer-events: auto;
+  z-index: 8000;
+  background: var(--bg-primary);
+}
+body.crozzo-honeypot-active:not(.crozzo-honeypot-live) .app-container,
+body.crozzo-honeypot-active:not(.crozzo-honeypot-live) #sidebar,
+body.crozzo-honeypot-active:not(.crozzo-honeypot-live) aside.sidebar,
+body.crozzo-honeypot-active:not(.crozzo-honeypot-live) .sidebar {
+  display: none !important;
+}
+body.crozzo-honeypot-live .app-container {
+  visibility: visible !important;
+  pointer-events: auto !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+body.crozzo-honeypot-live .login-overlay {
+  display: none !important;
+}
+body.crozzo-honeypot-live .sidebar,
+body.crozzo-honeypot-live .main-content {
+  pointer-events: auto;
+}
+body.crozzo-honeypot-live .nav-item[data-page],
+body.crozzo-honeypot-live .nav-group-toggle {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+body.crozzo-honeypot-live [data-nav-group="super-admin"],
+body.crozzo-honeypot-live .super-admin-menu {
+  display: none !important;
+}
+html.tauri-desktop body.crozzo-honeypot-live #sidebar.sidebar-pro .nav-group.open .nav-group-items,
+html.tauri-desktop body.crozzo-honeypot-live #sidebar.sidebar-pro.is-expanded .nav-group.open .nav-group-items,
+html.tauri-desktop body.crozzo-honeypot-live #sidebar.sidebar-pro.is-expanded .nav-group-items.submenu {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  max-height: 2400px !important;
+  overflow: visible !important;
+  visibility: visible !important;
+}
+.crozzo-hp-live-exit {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+  z-index: 12055;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  display: none;
+}
+body.crozzo-honeypot-live .crozzo-hp-live-exit {
+  display: block;
+}
+#loginPassword.form-input {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+body.crozzo-login-open .crozzo-emergency-shell,
+body.crozzo-honeypot-active .crozzo-emergency-shell,
+.crozzo-emergency-shell[data-hp-hidden] {
+  display: none !important;
+}
+body.crozzo-login-open #menu-toggle-btn,
+body.crozzo-login-open .menu-toggle {
+  display: none !important;
+}
+body.crozzo-honeypot-live #sidebar {
+  pointer-events: auto;
+}
+body.crozzo-honeypot-live #sidebar.sidebar-pro {
+  width: var(--sidebar-width-expanded, 260px);
+}
+.login-overlay .form-input[type="password"] {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-text-fill-color: var(--text-primary);
+}
+.login-overlay .form-input:-webkit-autofill,
+.login-overlay .form-input:-webkit-autofill:hover,
+.login-overlay .form-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-primary) inset;
+  box-shadow: 0 0 0 1000px var(--bg-primary) inset;
+  caret-color: var(--text-primary);
+}
+.crozzo-brand-dual--login .crozzo-brand-fallback .crozzo-brand-txt {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crozzo-brand-dual--login {
+  gap: 10px;
+  max-width: 100%;
+}
+.crozzo-brand-dual--login .crozzo-brand-slot {
+  flex: 1 1 120px;
+  min-width: 0;
+  max-width: 48%;
+}
+.seg-status-ok { color: #4ade80; }
+.seg-status-warn { color: #fbbf24; }
+.seg-status-danger { color: #f87171; }
+.seg-status-muted { color: var(--text-muted); }
+.crozzo-honeypot-admin-badge {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  left: auto;
+  transform: none;
+  z-index: 12060;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: rgba(59, 130, 246, 0.88);
+  color: #fff;
+  border: 1px solid #93c5fd;
+  max-width: min(320px, 46vw);
+  text-align: right;
+  line-height: 1.3;
+}
 .login-bait-hint {
   margin: 10px 0 0;
   padding: 10px 12px;
@@ -7918,8 +8249,159 @@ body.crozzo-corkboard-focus .comandas-layout > div {
   color: #fecaca;
   font-size: 0.82rem;
 }
+.login-honeypot-blocked {
+  margin: 0 0 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(69, 10, 10, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+}
+.login-honeypot-blocked h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #fca5a5;
+}
+.login-honeypot-blocked p {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #fecaca;
+}
+.login-honeypot-blocked pre {
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  font-size: 0.68rem;
+  line-height: 1.4;
+  max-height: 160px;
+  overflow: auto;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+}
+.login-honeypot-blocked .login-hp-case {
+  font-size: 0.72rem;
+  color: #f87171;
+}
+body.crozzo-login-hp-blocked #loginForm .form-input,
+body.crozzo-login-hp-blocked #loginForm button[type="submit"] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+/* Contención legendaria — pantalla completa tras intrusión */
+.crozzo-hp-containment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 13000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: radial-gradient(circle at 50% 20%, rgba(127, 29, 29, 0.45), rgba(2, 6, 23, 0.98) 55%);
+  color: #fecaca;
+  overflow: auto;
+}
+.crozzo-hp-containment-overlay[hidden] {
+  display: none !important;
+}
+.crozzo-hp-containment-panel {
+  width: min(560px, 96vw);
+  padding: 28px 24px 22px;
+  border-radius: 14px;
+  border: 2px solid rgba(248, 113, 113, 0.65);
+  background: linear-gradient(165deg, #450a0a 0%, #1e1b4b 42%, #0f172a 100%);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.75);
+  text-align: center;
+}
+.crozzo-hp-containment-panel__eyebrow {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f87171;
+  font-weight: 700;
+}
+.crozzo-hp-containment-panel h1 {
+  margin: 0 0 12px;
+  font-size: 1.45rem;
+  line-height: 1.25;
+  color: #fca5a5;
+  font-weight: 800;
+}
+.crozzo-hp-containment-panel__lead {
+  margin: 0 0 16px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #fecaca;
+}
+.crozzo-hp-containment-panel__lead strong {
+  color: #f87171;
+}
+.crozzo-hp-containment-dump {
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  max-height: 200px;
+  overflow: auto;
+  text-align: left;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+}
+.crozzo-hp-containment-case {
+  margin: 0 0 18px;
+  font-size: 0.72rem;
+  color: #f87171;
+}
+.crozzo-hp-containment-unlock {
+  text-align: left;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+}
+.crozzo-hp-containment-unlock .form-label {
+  color: #fca5a5;
+  font-size: 0.78rem;
+}
+.crozzo-hp-containment-unlock .form-input {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #f8fafc;
+}
+.crozzo-hp-containment-unlock .form-hint {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+body.crozzo-hp-containment-active .app-container,
+body.crozzo-hp-containment-active #sidebar,
+body.crozzo-hp-containment-active aside.sidebar,
+body.crozzo-hp-containment-active .main-content,
+body.crozzo-hp-containment-active .login-overlay,
+body.crozzo-hp-containment-active .crozzo-honeypot-overlay,
+body.crozzo-hp-containment-active #crozzoKioskBar,
+body.crozzo-hp-containment-active .crozzo-hp-live-exit,
+body.crozzo-hp-containment-active .crozzo-hp-intrusion-bar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.crozzo-hp-trap-prep .login-overlay,
+body.crozzo-hp-trap-prep .app-container .main-content {
+  visibility: hidden !important;
+}
+body.crozzo-hp-containment-active #btnKioskCocinaBar,
+body.crozzo-hp-containment-active #btnPairDevice {
+  display: none !important;
+}
 .crozzo-honeypot-panel[hidden],
 .crozzo-honeypot-harvest[hidden],
+.crozzo-honeypot-breach[hidden],
 .crozzo-honeypot-detention[hidden] {
   display: none !important;
 }
@@ -7975,9 +8457,12 @@ body.crozzo-corkboard-focus .comandas-layout > div {
   color: #fecaca;
   font-size: 1.25rem;
 }
-body.crozzo-honeypot-active .app-container {
+body.crozzo-honeypot-active:not(.crozzo-honeypot-live) .app-container {
   pointer-events: none;
   filter: blur(3px);
+}
+body.crozzo-honeypot-live .crozzo-honeypot-admin-badge {
+  pointer-events: none;
 }
 .crozzo-honeypot-sandbox {
   width: min(820px, 96vw);
@@ -7998,6 +8483,307 @@ body.crozzo-honeypot-active .app-container {
 .hp-sandbox-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 8px; }
 .hp-sandbox-table th, .hp-sandbox-table td { padding: 6px 8px; border-bottom: 1px solid #334155; text-align: left; }
 .hp-sandbox-foot { margin: 10px 0 0; font-size: 0.72rem; color: #86efac; font-family: monospace; }
+
+/* Honeypot — apariencia de app real (intruso) */
+.crozzo-honeypot-overlay.crozzo-honeypot--real {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  align-items: center;
+  justify-content: center;
+}
+.crozzo-honeypot-overlay.crozzo-honeypot--real:has(#honeypotSandboxPanel:not([hidden])) {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+.crozzo-honeypot--real .crozzo-honeypot-panel {
+  width: min(420px, 92vw);
+  margin: 0 auto;
+  flex-shrink: 0;
+  padding: 28px 24px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-2, 0 12px 40px rgba(0, 0, 0, 0.2));
+  text-align: center;
+}
+.crozzo-honeypot--real .crozzo-honeypot-panel h2 {
+  color: var(--text-primary);
+}
+.crozzo-honeypot--real .crozzo-honeypot-status,
+.crozzo-honeypot--real #honeypotFootnote {
+  color: var(--text-muted);
+}
+.crozzo-honeypot--real .crozzo-honeypot-progress {
+  background: var(--border);
+}
+.crozzo-honeypot--real .crozzo-honeypot-progress__bar {
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+}
+.crozzo-honeypot--real .crozzo-honeypot-sandbox {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: var(--bg-primary);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.crozzo-honeypot-overlay.crozzo-honeypot--real:has(#honeypotSandboxPanel:not([hidden])) {
+  flex-direction: column;
+  padding: 0;
+}
+.crozzo-honeypot-overlay.crozzo-honeypot--real:has(#honeypotSandboxPanel:not([hidden])) .crozzo-honeypot-admin-badge {
+  z-index: 12060;
+}
+.crozzo-honeypot--real .crozzo-honeypot-harvest {
+  width: min(480px, 92vw);
+  margin: auto;
+  align-self: center;
+  max-height: 85vh;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-2, 0 12px 40px rgba(0, 0, 0, 0.2));
+}
+.crozzo-honeypot--real .crozzo-honeypot-harvest h2 {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+.crozzo-honeypot--real .crozzo-honeypot-harvest-meta,
+.crozzo-honeypot--real #honeypotHarvestEta {
+  color: var(--text-muted);
+}
+.crozzo-honeypot--real .crozzo-honeypot-log {
+  height: 140px;
+  background: var(--bg-primary);
+  border-color: var(--border);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+.crozzo-honeypot--real .crozzo-honeypot-detention {
+  width: min(440px, 92vw);
+  margin: auto;
+  align-self: center;
+  animation: none;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--elevation-2, 0 12px 40px rgba(0, 0, 0, 0.2));
+}
+.crozzo-honeypot--real .crozzo-honeypot-detention h2 {
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+.crozzo-honeypot--real #honeypotDetentionMsg {
+  color: var(--text-muted) !important;
+}
+.crozzo-honeypot-breach {
+  width: min(720px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 0;
+  border: 2px solid rgba(239, 68, 68, 0.65);
+  border-radius: 14px;
+  background: linear-gradient(165deg, #1a0505 0%, #0f172a 45%, #020617 100%);
+  color: #fecaca;
+  box-shadow: 0 0 60px rgba(239, 68, 68, 0.35), inset 0 0 80px rgba(239, 68, 68, 0.08);
+  animation: crozzoHpBreachPulse 2s ease-in-out infinite;
+}
+@keyframes crozzoHpBreachPulse {
+  0%, 100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.25); }
+  50% { box-shadow: 0 0 70px rgba(239, 68, 68, 0.5); }
+}
+.crozzo-honeypot-breach__inner {
+  position: relative;
+  padding: 24px 22px 20px;
+  overflow: hidden;
+}
+.crozzo-honeypot-breach__scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent, rgba(239, 68, 68, 0.12), transparent);
+  animation: crozzoHpScanLine 2.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes crozzoHpScanLine {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.crozzo-honeypot-breach__eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #f87171;
+}
+.crozzo-honeypot-breach h2 {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  color: #fff;
+}
+.crozzo-honeypot-breach__lead {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  color: #fca5a5;
+  line-height: 1.45;
+}
+.crozzo-honeypot-breach__alerts {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+.crozzo-honeypot-breach__alerts li {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  font-size: 0.8rem;
+}
+.crozzo-honeypot-breach__device h3 {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.crozzo-honeypot-device-dump {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #020617;
+  border: 1px solid #334155;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #86efac;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.crozzo-honeypot-breach__lock {
+  margin-top: 16px;
+}
+.crozzo-honeypot-breach__lock-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #fde047;
+}
+.crozzo-hp-intrusion-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 12040;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, #7f1d1d, #991b1b, #7f1d1d);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 2px solid #fca5a5;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  animation: crozzoHpIntrusionBlink 0.55s ease-in-out infinite;
+}
+.crozzo-hp-intrusion-bar.critical {
+  animation: crozzoHpIntrusionBlink 0.35s ease-in-out infinite;
+  border-bottom-color: #fecaca;
+}
+@keyframes crozzoHpIntrusionBlink {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  50% { opacity: 0.92; filter: brightness(1.15); }
+}
+body.crozzo-honeypot-real-app .app-container {
+  visibility: hidden;
+  pointer-events: none;
+}
+.crozzo-hp-clone-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone.app-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  flex: 1;
+  pointer-events: none;
+  filter: none;
+  opacity: 1;
+  visibility: visible;
+}
+/* Sidebar del clon siempre expandido (evita textos cortados tipo "Cro…" / "SIMPI") */
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar.sidebar-pro {
+  width: var(--sidebar-width, 260px) !important;
+  min-width: var(--sidebar-width, 260px) !important;
+  flex-shrink: 0 !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar.sidebar-pro.is-expanded,
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar.sidebar-pro {
+  overflow: visible !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar .crozzo-brand-txt,
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar .nav-item-label,
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar .nav-group-title,
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar .demo-badge {
+  display: inline !important;
+  opacity: 1 !important;
+  width: auto !important;
+  max-width: none !important;
+  overflow: visible !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar [id$="crozzoBrandSidebarTenant"],
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar .crozzo-brand-slot {
+  display: flex !important;
+  opacity: 1 !important;
+  width: auto !important;
+  max-width: none !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .sidebar .crozzo-nav-search-wrap {
+  display: none !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .crozzo-mobile-bottom-nav {
+  display: none !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .main-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  margin-left: 0 !important;
+}
+.crozzo-hp-clone-wrap .crozzo-hp-app-clone .main-body {
+  overflow: auto;
+  max-height: none;
+}
+#honeypotSandboxBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.crozzo-honeypot--real #honeypotSandboxPanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 .login-legend-unlock { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
 .login-legend-unlock summary { cursor: pointer; font-size: 0.8rem; color: var(--text-muted); }
 
@@ -9818,6 +10604,12 @@ if (window.__CROZZO_IS_TAURI__) {
     }
     if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
     try {
+      if (window.CrozzoViewportFit && typeof CrozzoViewportFit.schedule === 'function') CrozzoViewportFit.schedule();
+      else if (window.CrozzoViewportFit && typeof CrozzoViewportFit.apply === 'function') CrozzoViewportFit.apply();
+    } catch (eVp) {
+      /* ignore */
+    }
+    try {
       if (typeof applyAccessControl === 'function') applyAccessControl();
     } catch (eAc) {
       /* ignore */
@@ -9927,7 +10719,10 @@ if (window.__CROZZO_IS_TAURI__) {
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-procesos" role="group" aria-labelledby="nav-toggle-procesos">
-            <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="scissors"></i></span><span class="nav-item-label">Cortes y materia prima</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">Centro de producción</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="sparkles"></i></span><span class="nav-item-label">Nueva sesión</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-entrada" data-menu="compras-proceso-entrada" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="package-check"></i></span><span class="nav-item-label">Entrada materia prima</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="history"></i></span><span class="nav-item-label">Historial procesos</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="gestion" data-nav-group="gestion" data-nav-category="gestion">
@@ -10181,16 +10976,16 @@ if (window.__CROZZO_IS_TAURI__) {
         <input class="form-input" id="loginPassword" type="password" autocomplete="current-password" required>
       </div>
       <div id="loginHoneypotLock" class="login-honeypot-lock" hidden role="alert"></div>
+      <div id="loginHoneypotBlocked" class="login-honeypot-blocked" hidden role="alert">
+        <h3>⛔ Acceso bloqueado — revisión requerida</h3>
+        <p>Se detectó actividad no autorizada en este terminal. El dispositivo quedó registrado. <strong>Contacte a un administrador del sistema</strong> para continuar.</p>
+        <pre id="loginHoneypotDeviceDump" aria-label="Huella del dispositivo"></pre>
+        <p class="login-hp-case" id="loginHoneypotCaseRef"></p>
+      </div>
       <p id="loginBaitHint" class="login-bait-hint" hidden role="status"></p>
       <div class="login-error" id="loginError" hidden></div>
       <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">🔐 Iniciar sesión</button>
       <p class="login-hint" id="loginLocalHint" style="margin:10px 0 0;text-align:center;" hidden></p>
-      <details class="login-legend-unlock" id="loginLegendUnlockBox">
-        <summary>Liberación de cuarentena (solo mantenimiento)</summary>
-        <p class="form-hint" style="margin:8px 0 6px;">Si el sistema está en cuarentena por intrusión, ingrese el código legendaria. No sustituye usuario ni contraseña de trabajo.</p>
-        <input type="password" class="form-input" id="loginLegendCode" placeholder="Código de liberación" autocomplete="off" style="margin-bottom:8px;">
-        <button type="button" class="btn btn-outline" style="width:100%;" onclick="crozzoTryLegendUnlockFromLogin()">🔓 Liberar cuarentena</button>
-      </details>
     </form>
     <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
       <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="crozzoKioskEnterComandasFromLogin('comandas')">🖥️ Cocina y bar — modo pantalla fija (sin usuario)</button>
@@ -10201,26 +10996,74 @@ if (window.__CROZZO_IS_TAURI__) {
 </div>
 
 <div id="crozzoHoneypotOverlay" class="crozzo-honeypot-overlay" hidden aria-modal="true" role="alertdialog">
+  <div id="honeypotAdminPreviewBadge" class="crozzo-honeypot-admin-badge" hidden>Vista previa Super Admin — no bloquea el sistema</div>
   <div id="honeypotTheaterPanel" class="crozzo-honeypot-panel">
-    <h2 id="honeypotTitle">⚠️ Verificación de plataforma</h2>
-    <p class="crozzo-honeypot-status" id="honeypotStatus">Iniciando módulos seguros…</p>
+    <h2 id="honeypotTitle">Crozzo POS</h2>
+    <p class="crozzo-honeypot-status" id="honeypotStatus">Iniciando sesión…</p>
     <div class="crozzo-honeypot-progress" aria-hidden="true"><div class="crozzo-honeypot-progress__bar" id="honeypotProgressBar"></div></div>
-    <p class="form-hint" id="honeypotFootnote" style="margin:12px 0 0;color:#94a3b8;"></p>
+    <p class="form-hint" id="honeypotFootnote" style="margin:12px 0 0;"></p>
   </div>
   <div id="honeypotSandboxPanel" class="crozzo-honeypot-sandbox" hidden>
-    <h2 style="margin:0 0 10px;font-size:1rem;color:#e2e8f0;">🏪 Entorno operativo (emulación)</h2>
+    <h2 id="honeypotSandboxTitle" hidden>Panel operativo</h2>
     <div id="honeypotSandboxBody"></div>
   </div>
   <div id="honeypotHarvestPanel" class="crozzo-honeypot-harvest" hidden>
-    <h2>🔍 Módulo forense Crozzo — recolección en curso</h2>
-    <p class="crozzo-honeypot-harvest-meta" id="honeypotHarvestMeta">Perfil falso cargado…</p>
+    <h2 id="honeypotHarvestTitle">Sincronizando datos</h2>
+    <p class="crozzo-honeypot-harvest-meta" id="honeypotHarvestMeta">Preparando respaldo local…</p>
+    <div class="crozzo-honeypot-progress" id="honeypotHarvestProgressWrap" aria-hidden="true"><div class="crozzo-honeypot-progress__bar" id="honeypotHarvestProgressBar"></div></div>
     <pre class="crozzo-honeypot-log" id="honeypotHarvestLog" aria-live="polite"></pre>
-    <p class="form-hint" id="honeypotHarvestEta" style="margin:10px 0 0;color:#64748b;"></p>
+    <p class="form-hint" id="honeypotHarvestEta" style="margin:10px 0 0;"></p>
+  </div>
+  <div id="honeypotBreachPanel" class="crozzo-honeypot-breach" hidden>
+    <div class="crozzo-honeypot-breach__inner">
+      <div class="crozzo-honeypot-breach__scan" id="honeypotBreachScan" aria-hidden="true"></div>
+      <p class="crozzo-honeypot-breach__eyebrow">⚠ ALERTA DE SEGURIDAD CROZZO</p>
+      <h2 id="honeypotBreachTitle">Violación de integridad detectada</h2>
+      <p class="crozzo-honeypot-breach__lead" id="honeypotBreachLead">Accesos no autorizados al sistema. Analizando dispositivo intruso…</p>
+      <ul class="crozzo-honeypot-breach__alerts" id="honeypotBreachAlerts" aria-live="polite"></ul>
+      <div class="crozzo-honeypot-breach__device">
+        <h3>Huella del dispositivo</h3>
+        <pre id="honeypotDeviceDump" class="crozzo-honeypot-device-dump"></pre>
+      </div>
+      <div class="crozzo-honeypot-breach__lock">
+        <div class="crozzo-honeypot-breach__lock-label" id="honeypotBreachLockLabel">Iniciando bloqueo permanente del terminal…</div>
+        <div class="crozzo-honeypot-progress"><div class="crozzo-honeypot-progress__bar" id="honeypotBreachLockBar"></div></div>
+      </div>
+      <p class="form-hint" id="honeypotBreachRef" style="margin:12px 0 0;"></p>
+    </div>
   </div>
   <div id="honeypotDetentionPanel" class="crozzo-honeypot-detention" hidden>
-    <h2>🚨 DETENCIÓN DE INTRUSIÓN</h2>
-    <p id="honeypotDetentionMsg" style="margin:0;color:#fecaca;font-size:0.9rem;"></p>
-    <p class="form-hint" id="honeypotDetentionId" style="margin:12px 0 0;color:#94a3b8;font-size:0.75rem;"></p>
+    <h2 id="honeypotDetentionTitle">No se pudo completar el acceso</h2>
+    <p id="honeypotDetentionMsg" style="margin:0;font-size:0.9rem;"></p>
+    <p class="form-hint" id="honeypotDetentionId" style="margin:12px 0 0;font-size:0.75rem;"></p>
+  </div>
+</div>
+<div id="crozzoHpIntrusionBar" class="crozzo-hp-intrusion-bar" hidden role="alert" aria-live="assertive"></div>
+
+<div id="crozzoHpContainmentOverlay" class="crozzo-hp-containment-overlay" hidden role="alertdialog" aria-modal="true" aria-labelledby="crozzoHpContainmentTitle">
+  <div class="crozzo-hp-containment-panel">
+    <p class="crozzo-hp-containment-panel__eyebrow">⚠ Alerta de seguridad Crozzo</p>
+    <h1 id="crozzoHpContainmentTitle">Dispositivo en cuarentena de seguridad</h1>
+    <p class="crozzo-hp-containment-panel__lead">
+      Se detectó actividad no autorizada en este terminal. <strong>El equipo quedó registrado y aislado.</strong>
+      No puede iniciar sesión hasta que un administrador autorizado levante la cuarentena.
+    </p>
+    <h2 style="margin:0 0 8px;font-size:0.82rem;color:#f87171;text-align:left;">Huella del dispositivo</h2>
+    <pre id="crozzoHpContainmentDump" class="crozzo-hp-containment-dump" aria-label="Huella del dispositivo"></pre>
+    <p id="crozzoHpContainmentCase" class="crozzo-hp-containment-case"></p>
+    <form class="crozzo-hp-containment-unlock" onsubmit="event.preventDefault(); crozzoHpTryContainmentUnlock();">
+      <p class="form-hint" style="margin:0 0 10px;">Solo personal autorizado puede desactivar el bloqueo:</p>
+      <div class="form-group">
+        <label class="form-label" for="crozzoHpAssistUser">Usuario de asistencia</label>
+        <input class="form-input" id="crozzoHpAssistUser" type="text" autocomplete="username" placeholder="Asistencia general" required>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label" for="crozzoHpAssistPass">Clave de liberación</label>
+        <input class="form-input" id="crozzoHpAssistPass" type="password" autocomplete="off" placeholder="Clave legendaria de desbloqueo" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:12px;">🔓 Desactivar bloqueo de seguridad</button>
+      <p id="crozzoHpContainmentErr" class="login-error" hidden style="margin-top:10px;"></p>
+    </form>
   </div>
 </div>
 
@@ -11208,6 +12051,9 @@ async function hydrateProfileFromSession(session) {
 }
 
 window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase() {
+  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+    return { handled: true, ok: false, error: 'sistema_bloqueado' };
+  }
   const sb = window.__SUPABASE;
   const rawUser = (document.getElementById('loginUsername')?.value || '').trim();
   const pwd = (document.getElementById('loginPassword')?.value || '').trim();
@@ -11771,6 +12617,14 @@ function crozzoInitClarityUX() {
   } catch (_) {}
   try {
     if (window.CrozzoA11yUser && typeof CrozzoA11yUser.init === 'function') CrozzoA11yUser.init();
+  } catch (_) {}
+  try {
+    if (window.CrozzoViewportFit && typeof CrozzoViewportFit.schedule === 'function') {
+      CrozzoViewportFit.schedule();
+      setTimeout(function () {
+        CrozzoViewportFit.schedule();
+      }, 400);
+    }
   } catch (_) {}
 }
 
@@ -12596,7 +13450,12 @@ class ConfigManager {
     return { valid: missing.length === 0, missing };
   }
 
-  addAudit(action, details) {
+  addAudit(action, details, opts) {
+    const o = opts && typeof opts === 'object' ? opts : {};
+    if (o.synthetic || o.channel === 'honeypot') {
+      this.appendHoneypotTripLog(String(action || 'evento'), String(details == null ? '' : details), o);
+      return;
+    }
     let userLabel = 'admin';
     try {
       if (typeof getCurrentUser === 'function') {
@@ -12620,11 +13479,35 @@ class ConfigManager {
       details,
       modo: this.getOperacionModo(),
       prevHash,
-      chainHash
+      chainHash,
+      synthetic: false,
+      channel: o.channel || 'operational',
     };
     this.config.auditoria.unshift(entry);
     if (this.config.auditoria.length > 100) this.config.auditoria.pop();
     this.save();
+  }
+
+  /** Registro forense honeypot (no contamina cadena operativa de auditoría). */
+  appendHoneypotTripLog(action, details, meta) {
+    const seg = this.get('seguridad') || {};
+    const hp = seg.honeypot && typeof seg.honeypot === 'object' ? { ...seg.honeypot } : {};
+    const log = Array.isArray(hp.tripLog) ? hp.tripLog.slice() : [];
+    log.unshift({
+      at: new Date().toISOString(),
+      action: String(action || ''),
+      details: String(details == null ? '' : details),
+      tripId: meta && meta.tripId ? String(meta.tripId) : null,
+      decoyUser: meta && meta.decoyUser ? String(meta.decoyUser) : null,
+    });
+    if (log.length > 250) log.length = 250;
+    hp.tripLog = log;
+    window.__crozzoHpConfigWriteBypass = true;
+    try {
+      this.set('seguridad', { ...seg, honeypot: hp });
+    } finally {
+      window.__crozzoHpConfigWriteBypass = false;
+    }
   }
 
   getNextConsecutivo() {
@@ -12950,6 +13833,30 @@ async function timbrarFactura(xml, factura, config) {
 // Global State
 // ==========================================
 const config = ConfigManager.getInstance();
+
+(function crozzoInstallSecurityGuards() {
+  const _set = config.set.bind(config);
+  config.set = function crozzoGuardedConfigSet(key, value) {
+    const live = window.__crozzoHoneypotLive;
+    if (live && live.active && !window.__crozzoHpConfigWriteBypass) {
+      if (String(key) !== 'seguridad') {
+        console.warn('[Crozzo/honeypot] Escritura de configuración bloqueada:', key);
+        return;
+      }
+    }
+    return _set(key, value);
+  };
+  const _update = config.update.bind(config);
+  config.update = function crozzoGuardedConfigUpdate(path, value) {
+    const live = window.__crozzoHoneypotLive;
+    if (live && live.active && !window.__crozzoHpConfigWriteBypass) {
+      console.warn('[Crozzo/honeypot] config.update bloqueada:', path);
+      return;
+    }
+    return _update(path, value);
+  };
+})();
+
 let crozzoSyncRouter = null;
 let currentPage = 'cajero';
 
@@ -13075,6 +13982,10 @@ let currentSessionUserId = (() => {
 })();
 
 function getCurrentUser() {
+  if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active && window.__crozzoHoneypotLive.fakeUser) {
+    return window.__crozzoHoneypotLive.fakeUser;
+  }
+  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) return null;
   if (!currentSessionUserId) {
     try { currentSessionUserId = sessionStorage.getItem('crozzo_session_user') || null; } catch (e) { /* ignore */ }
   }
@@ -13099,7 +14010,14 @@ async function loginWithCredentials(userId, clave) {
       return { ok: false, error: 'cuenta_bloqueada', minutos: min };
     }
   }
+  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+    return { ok: false, error: 'sistema_bloqueado' };
+  }
   const id = String(userId || '').trim();
+  const segLogin = config.get('seguridad') || {};
+  if (Auth && typeof Auth.crozzoHoneypotIsReservedUserId === 'function' && Auth.crozzoHoneypotIsReservedUserId(id, segLogin)) {
+    return { ok: false, error: 'usuario_reservado' };
+  }
   const u = (getUsuariosConfig().staff || []).find(s => s.id === id);
   if (!u) return { ok: false, error: 'usuario_no_encontrado' };
   if (u.activo === false) return { ok: false, error: 'usuario_inactivo' };
@@ -13165,7 +14083,7 @@ function logoutCurrentUser() {
   try { sessionStorage.removeItem('crozzo_cloud_profile'); } catch (e) { /* ignore */ }
   try {
     localStorage.removeItem('crozzo_user_role');
-    document.body.classList.remove('super-admin-active');
+    document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin', 'crozzo-auth-guest');
   } catch (_) {}
   if (typeof window.__crozzoSupabaseSignOut === 'function') {
     window.__crozzoSupabaseSignOut().catch(() => {});
@@ -13182,25 +14100,66 @@ function shouldRequireLogin() {
 function crozzoRefreshLoginLocalHint() {
   const el = document.getElementById('loginLocalHint');
   if (!el) return;
-  const local =
-    typeof window.__crozzoIsLocalDataMode === 'function' && window.__crozzoIsLocalDataMode();
-  const seg = config.get('seguridad') || {};
-  if (local && !seg.kennyPasswordChanged) {
-    el.textContent =
-      'Primera configuración: use la cuenta de soporte del fabricante con la clave de fábrica (una sola vez); luego deberá cambiarla.';
-    el.hidden = false;
-  } else if (local) {
-    el.textContent = 'Inicie sesión con su usuario del negocio. La cuenta de soporte interna no aparece en Usuarios.';
-    el.hidden = false;
-  } else {
-    el.hidden = true;
-    el.textContent = '';
+  el.hidden = true;
+  el.textContent = '';
+}
+
+function crozzoHoneypotSecurityLock() {
+  try {
+    const Auth = window.CrozzoAuthSecurity;
+    if (!Auth || typeof Auth.crozzoHoneypotLockActive !== 'function') return { locked: false };
+    return Auth.crozzoHoneypotLockActive(config.get('seguridad') || {});
+  } catch (_) {
+    return { locked: false };
   }
 }
 
+function crozzoIsLegendaryQuarantineActive() {
+  const lock = crozzoHoneypotSecurityLock();
+  return !!(lock.locked && lock.legendary);
+}
+
+function crozzoSecurityBlocksRealSession() {
+  return !!crozzoHoneypotSecurityLock().locked;
+}
+
+/** Efectos colaterales al activar cuarentena (sesión, nube, kiosko). */
+function crozzoHpSecurityLockdownSideEffects() {
+  try {
+    if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
+  } catch (_) {}
+  try {
+    if (typeof window.__crozzoSupabaseSignOut === 'function') void window.__crozzoSupabaseSignOut();
+  } catch (_) {}
+  try {
+    if (typeof crozzoKioskExitNow === 'function') crozzoKioskExitNow();
+  } catch (_) {}
+  try {
+    document.body.classList.remove('crozzo-kiosk-active', 'crozzo-honeypot-live', 'crozzo-honeypot-active');
+  } catch (_) {}
+}
+
+window.crozzoHpSecurityLockdownSideEffects = crozzoHpSecurityLockdownSideEffects;
+
+async function crozzoEnsureLegendaryContainmentUi() {
+  if (!crozzoIsLegendaryQuarantineActive()) return false;
+  if (typeof crozzoHpShowContainmentAsync === 'function') {
+    await crozzoHpShowContainmentAsync();
+  } else if (typeof crozzoHpShowContainment === 'function') {
+    crozzoHpShowContainment();
+  }
+  return true;
+}
+
 function showLoginOverlay() {
+  if (crozzoIsLegendaryQuarantineActive()) {
+    void crozzoEnsureLegendaryContainmentUi();
+    return;
+  }
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
+  document.body.classList.add('crozzo-login-open');
+  document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
   ov.removeAttribute('hidden');
   try {
     if (typeof crozzoRefreshLoginLocalHint === 'function') crozzoRefreshLoginLocalHint();
@@ -13226,6 +14185,7 @@ function hideLoginOverlay() {
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
   ov.setAttribute('hidden', '');
+  document.body.classList.remove('crozzo-login-open');
   document.body.style.overflow = '';
   const err = document.getElementById('loginError');
   if (err) { err.hidden = true; err.textContent = ''; }
@@ -13236,17 +14196,40 @@ function hideLoginOverlay() {
   } catch (_) {}
 }
 
+function crozzoIsStaffDecoyAccount(userRow) {
+  if (!userRow) return false;
+  const Auth = window.CrozzoAuthSecurity;
+  if (!Auth || typeof Auth.crozzoHoneypotIsReservedUserId !== 'function') return false;
+  const seg = config.get('seguridad') || {};
+  return Auth.crozzoHoneypotIsReservedUserId(userRow.id, seg);
+}
+
+function crozzoClearReservedSessionIfAny() {
+  const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!u || !crozzoIsStaffDecoyAccount(u)) return false;
+  if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
+  return true;
+}
+
 // Permite login por id (KENNY) o por nombre (Kenny / kenny). Case-insensitive.
 function findUserForLogin(rawInput) {
   const input = String(rawInput || '').trim();
   if (!input) return null;
+  const Auth = window.CrozzoAuthSecurity;
+  const seg = config.get('seguridad') || {};
+  if (Auth && typeof Auth.crozzoHoneypotFindDecoyByUser === 'function') {
+    if (Auth.crozzoHoneypotFindDecoyByUser(input, seg)) return null;
+  }
   const staff = getUsuariosConfig().staff || [];
   const upper = input.toUpperCase();
   const lower = input.toLowerCase();
-  return staff.find(u => u.id === upper)
-      || staff.find(u => String(u.id).toLowerCase() === lower)
-      || staff.find(u => String(u.nombre).toLowerCase() === lower)
-      || null;
+  const found =
+    staff.find(u => u.id === upper)
+    || staff.find(u => String(u.id).toLowerCase() === lower)
+    || staff.find(u => String(u.nombre).toLowerCase() === lower)
+    || null;
+  if (found && crozzoIsStaffDecoyAccount(found)) return null;
+  return found;
 }
 
 function crozzoDispatchAuthReady(detail) {
@@ -13264,30 +14247,217 @@ function crozzoDispatchAuthReady(detail) {
 
 window.crozzoDispatchAuthReady = crozzoDispatchAuthReady;
 
+function crozzoHpPopulateContainmentDump(hp) {
+  const dumpEl = document.getElementById('crozzoHpContainmentDump');
+  const caseEl = document.getElementById('crozzoHpContainmentCase');
+  const Sim = window.CrozzoHoneypotSim;
+  if (dumpEl) {
+    dumpEl.textContent =
+      hp.lastDeviceDump && Sim && typeof Sim.formatDeviceDump === 'function'
+        ? Sim.formatDeviceDump(hp.lastDeviceDump)
+        : hp.lastDeviceDump
+          ? JSON.stringify(hp.lastDeviceDump, null, 2)
+          : 'Huella del dispositivo registrada en el incidente de seguridad.';
+  }
+  if (caseEl) {
+    caseEl.textContent =
+      'Caso ' +
+      (hp.lastTripId || '—') +
+      (hp.lastDecoyUser ? ' · usuario señuelo ' + hp.lastDecoyUser : '') +
+      (hp.lastTripAt ? ' · ' + String(hp.lastTripAt).slice(0, 19).replace('T', ' ') : '');
+  }
+}
+
+function crozzoHpPrepareTrapEntry() {
+  try {
+    if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
+  } catch (_) {}
+  const mc = document.getElementById('mainContent');
+  if (mc) {
+    mc.innerHTML =
+      '<div class="card" style="margin:2rem auto;max-width:420px;text-align:center;padding:24px;"><p class="form-hint" style="margin:0;">Validando credenciales…</p></div>';
+  }
+  document.body.classList.add('crozzo-hp-trap-prep');
+}
+
+function crozzoHpShowContainment() {
+  try {
+    if (typeof crozzoHoneypotLiveEnd === 'function') crozzoHoneypotLiveEnd();
+  } catch (_) {}
+  try {
+    if (typeof hideLoginOverlay === 'function') hideLoginOverlay();
+  } catch (_) {}
+  const loginOv = document.getElementById('loginOverlay');
+  if (loginOv) loginOv.setAttribute('hidden', '');
+  document.body.classList.remove('crozzo-login-open');
+  crozzoHpSecurityLockdownSideEffects();
+  const hp = ((config.get('seguridad') || {}).honeypot) || {};
+  crozzoHpPopulateContainmentDump(hp);
+  const panel = document.getElementById('crozzoHpContainmentOverlay');
+  if (panel) panel.removeAttribute('hidden');
+  const hpOv = document.getElementById('crozzoHoneypotOverlay');
+  if (hpOv) hpOv.setAttribute('hidden', '');
+  document.body.classList.add('crozzo-hp-containment-active');
+  document.body.classList.remove(
+    'crozzo-honeypot-active',
+    'crozzo-honeypot-live',
+    'crozzo-honeypot-real-app',
+    'crozzo-login-hp-blocked'
+  );
+  document.body.style.overflow = 'hidden';
+  const err = document.getElementById('crozzoHpContainmentErr');
+  if (err) {
+    err.hidden = true;
+    err.textContent = '';
+  }
+  setTimeout(() => {
+    const u = document.getElementById('crozzoHpAssistUser');
+    if (u) u.focus();
+  }, 80);
+}
+
+function crozzoHpHideContainment() {
+  const panel = document.getElementById('crozzoHpContainmentOverlay');
+  if (panel) panel.setAttribute('hidden', '');
+  document.body.classList.remove('crozzo-hp-containment-active');
+  document.body.style.overflow = '';
+  const pass = document.getElementById('crozzoHpAssistPass');
+  const user = document.getElementById('crozzoHpAssistUser');
+  if (pass) pass.value = '';
+  if (user) user.value = '';
+}
+
+async function crozzoHpEnsureLegendUnlockReady() {
+  const Auth = window.CrozzoAuthSecurity;
+  if (!Auth || typeof Auth.ensureHoneypotLegendUnlock !== 'function') return;
+  const seg = config.get('seguridad') || {};
+  await Auth.ensureHoneypotLegendUnlock(seg, window);
+}
+
+async function crozzoHpShowContainmentAsync() {
+  await crozzoHpEnsureLegendUnlockReady();
+  crozzoHpShowContainment();
+}
+
+async function crozzoHpTryContainmentUnlock() {
+  const user = document.getElementById('crozzoHpAssistUser')?.value || '';
+  const pass = document.getElementById('crozzoHpAssistPass')?.value || '';
+  const err = document.getElementById('crozzoHpContainmentErr');
+  const showErr = msg => {
+    if (err) {
+      err.textContent = msg;
+      err.hidden = !msg;
+    }
+  };
+  const Auth = window.CrozzoAuthSecurity;
+  if (!Auth || typeof Auth.crozzoHoneypotClearLegendLock !== 'function') {
+    return showErr('Módulo de seguridad no disponible.');
+  }
+  if (!user.trim() || !pass.trim()) {
+    return showErr('Ingrese usuario de asistencia y clave de liberación.');
+  }
+  await crozzoHpEnsureLegendUnlockReady();
+  const seg = config.get('seguridad') || {};
+  const res = await Auth.crozzoHoneypotClearLegendLock(pass.trim(), seg, window, {
+    requireSuperAdmin: false,
+    assistUser: user,
+  });
+  if (!res.ok) {
+    if (res.error === 'usuario_invalido') {
+      return showErr('Usuario de asistencia incorrecto. Use «Asistencia general».');
+    }
+    if (res.error === 'codigo_invalido') {
+      return showErr('Clave de liberación incorrecta. El bloqueo permanece activo.');
+    }
+    return showErr('No se pudo desactivar el bloqueo.');
+  }
+  showErr('');
+  crozzoHpHideContainment();
+  if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+  if (typeof showLoginOverlay === 'function') showLoginOverlay();
+  if (typeof showToast === 'function') {
+    showToast('Bloqueo de seguridad desactivado. Ya puede iniciar sesión con su usuario habitual.', 'success');
+  }
+}
+
+window.crozzoHpShowContainment = crozzoHpShowContainment;
+window.crozzoHpHideContainment = crozzoHpHideContainment;
+window.crozzoHpTryContainmentUnlock = crozzoHpTryContainmentUnlock;
+
 function crozzoRefreshLoginHoneypotBanner() {
   const el = document.getElementById('loginHoneypotLock');
+  const blocked = document.getElementById('loginHoneypotBlocked');
+  const dumpEl = document.getElementById('loginHoneypotDeviceDump');
+  const caseRef = document.getElementById('loginHoneypotCaseRef');
   const box = document.getElementById('loginLegendUnlockBox');
-  if (!el || !window.CrozzoAuthSecurity) return;
+  const loginUser = document.getElementById('loginUsername');
+  const loginPass = document.getElementById('loginPassword');
+  const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+  if (!window.CrozzoAuthSecurity) return;
   const seg = config.get('seguridad') || {};
+  const hp = seg.honeypot || {};
   const lock = CrozzoAuthSecurity.crozzoHoneypotLockActive(seg);
-  if (lock.locked) {
-    if (lock.legendary) {
-      el.textContent =
-        '🛡️ CUARENTENA LEGENDARIA activa. Todo login bloqueado hasta el código de liberación (carpeta herramientas Crozzo).';
-      if (box) box.open = true;
-    } else {
-      el.textContent = '🔒 Acceso suspendido. Espere ' + (lock.minutos || '?') + ' min.';
-      if (box) box.open = false;
+
+  const setFormBlocked = on => {
+    document.body.classList.toggle('crozzo-login-hp-blocked', on);
+    if (loginUser) loginUser.disabled = on;
+    if (loginPass) loginPass.disabled = on;
+    if (submitBtn) submitBtn.disabled = on;
+  };
+
+  if (lock.locked && lock.legendary) {
+    if (el) {
+      el.hidden = true;
+      el.textContent = '';
     }
-    el.hidden = false;
-  } else {
-    el.hidden = true;
-    el.textContent = '';
+    if (blocked) blocked.hidden = true;
+    if (dumpEl) dumpEl.textContent = '';
+    if (caseRef) caseRef.textContent = '';
+    if (box) {
+      box.hidden = true;
+      box.open = false;
+    }
+    setFormBlocked(true);
+    void crozzoEnsureLegendaryContainmentUi();
+    return;
+  } else if (lock.locked) {
+    if (blocked) blocked.hidden = true;
+    if (dumpEl) dumpEl.textContent = '';
+    if (caseRef) caseRef.textContent = '';
+    if (el) {
+      el.textContent = '🔒 Acceso suspendido. Espere ' + (lock.minutos || '?') + ' min.';
+      el.hidden = false;
+    }
     if (box) box.open = false;
+    setFormBlocked(true);
+  } else {
+    if (el) {
+      el.hidden = true;
+      el.textContent = '';
+    }
+    if (blocked) blocked.hidden = true;
+    if (dumpEl) dumpEl.textContent = '';
+    if (caseRef) caseRef.textContent = '';
+    if (box) {
+      box.hidden = true;
+      box.open = false;
+    }
+    setFormBlocked(false);
+    if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
+  }
+}
+
+async function crozzoHpFinishAttackLockdown() {
+  crozzoHpSecurityLockdownSideEffects();
+  if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+  await crozzoEnsureLegendaryContainmentUi();
+  if (typeof showToast === 'function') {
+    showToast('Dispositivo en cuarentena de seguridad. Contacte a un administrador.', 'error');
   }
 }
 
 async function crozzoTryLegendUnlockFromLogin() {
+  const user = document.getElementById('loginLegendAssistUser')?.value || 'Asistencia general';
   const code = document.getElementById('loginLegendCode')?.value || '';
   const err = document.getElementById('loginError');
   const showErr = msg => {
@@ -13299,8 +14469,14 @@ async function crozzoTryLegendUnlockFromLogin() {
   const Auth = window.CrozzoAuthSecurity;
   if (!Auth || typeof Auth.crozzoHoneypotClearLegendLock !== 'function') return showErr('Módulo de seguridad no disponible.');
   const seg = config.get('seguridad') || {};
-  const res = await Auth.crozzoHoneypotClearLegendLock(code, seg, window, { requireSuperAdmin: false });
+  const res = await Auth.crozzoHoneypotClearLegendLock(code, seg, window, {
+    requireSuperAdmin: false,
+    assistUser: user,
+  });
   if (!res.ok) {
+    if (res.error === 'usuario_invalido') {
+      return showErr('Usuario de asistencia incorrecto.');
+    }
     if (res.error === 'codigo_invalido') {
       return showErr('Código incorrecto. La cuarentena permanece activa.');
     }
@@ -13308,6 +14484,9 @@ async function crozzoTryLegendUnlockFromLogin() {
   }
   const inp = document.getElementById('loginLegendCode');
   if (inp) inp.value = '';
+  const assistInp = document.getElementById('loginLegendAssistUser');
+  if (assistInp) assistInp.value = '';
+  if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
   crozzoRefreshLoginHoneypotBanner();
   if (err) err.hidden = true;
   showToast('Cuarentena levantada. Ya puede iniciar sesión con su usuario habitual.', 'success');
@@ -13344,13 +14523,479 @@ function crozzoHoneypotIsDecoyUserId(id) {
           .trim()
           .toUpperCase()
           .replace(/\s+/g, '_');
-  if (typeof Auth.crozzoHoneypotIsReservedUserId === 'function' && Auth.crozzoHoneypotIsReservedUserId(id)) return true;
+  if (typeof Auth.crozzoHoneypotIsReservedUserId === 'function' && Auth.crozzoHoneypotIsReservedUserId(id, config.get('seguridad') || {})) return true;
   const hp = Auth.crozzoHoneypotFromSeguridad(config.get('seguridad') || {});
   return (hp.decoys || []).some(d => d.user === u);
 }
 
+function crozzoHpMapDecoyRol(rol) {
+  const r = String(rol || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  if (r === 'superadmin' || r === 'super_admin') return 'admin';
+  if (r === 'gerente' || r === 'director' || r === 'auditor' || r === 'contador' || r === 'facturacion') return 'admin';
+  if (r === 'mesero' || r === 'caja' || r === 'admin' || r === 'inventario' || r === 'cocina') return r;
+  return 'caja';
+}
+
+/** Permisos sintéticos para el usuario señuelo (sin esto el menú se ve pero navigateTo bloquea). */
+function crozzoHpBuildFakePermisos(rol) {
+  const r = crozzoNormalizeAppRol(rol);
+  if (r === 'mesero') {
+    return { caja: ['vista_tablets'], comandas: ['comandas'] };
+  }
+  if (r === 'cocina') {
+    return { comandas: ['comandas'] };
+  }
+  if (r === 'inventario') {
+    return {
+      inventario: ['reportes', 'proveedores'],
+      productos: ['catalogo'],
+    };
+  }
+  if (r === 'caja') {
+    return {
+      caja: ['vista_pos', 'vista_tablets', 'vista_clientes', 'vista_facturas', 'facturar'],
+      comandas: ['comandas'],
+    };
+  }
+  return {
+    caja: ['vista_pos', 'vista_tablets', 'vista_clientes', 'vista_facturas', 'facturar'],
+    comandas: ['comandas'],
+    productos: ['catalogo'],
+    inventario: ['reportes', 'proveedores'],
+    admin: [
+      'config_empresa',
+      'config_impuestos',
+      'config_comandas',
+      'config_conexiones',
+      'config_facturas_admin',
+      'config_usuarios',
+      'auditoria',
+    ],
+  };
+}
+
+/** Qué páginas puede abrir el intruso durante la exploración honeypot (misma lógica que el menú por rol). */
+function crozzoHpCanSeePage(page) {
+  const hp = window.__crozzoHoneypotLive;
+  if (!hp || !hp.active || !hp.fakeUser || !page) return false;
+  if (SUPERADMIN_PAGES.has(page)) return false;
+  if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) {
+    return false;
+  }
+  const role = crozzoNormalizeAppRol(hp.fakeUser.rol);
+  const perfil = 'completo';
+  const menus = getMenusForRole(role, perfil);
+  if (menus.includes('all')) return true;
+  const menuId = CROZZO_PAGE_MENU_MAP[page] || page;
+  return menus.includes(menuId) || menus.includes(page);
+}
+
+function crozzoHpApplyLiveSidebar() {
+  const live = window.__crozzoHoneypotLive;
+  if (!live || !live.active) return;
+  document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
+  document.querySelectorAll('[data-nav-group="super-admin"], .super-admin-menu').forEach(function (g) {
+    g.style.display = 'none';
+    g.hidden = true;
+  });
+}
+
+window.crozzoHpApplyLiveSidebar = crozzoHpApplyLiveSidebar;
+
+function crozzoHpPageTitles() {
+  return {
+    'inicio-operacion': ['Inicio de ventas', 'Acceso rápido al POS del turno'],
+    cajero: ['Restaurante · POS', 'Mesas, llevar, comandas y cobro en sala'],
+    'venta-comercial': ['Tienda / Comercial', 'Venta directa por mostrador'],
+    tablets: ['Tablets', 'Toma de pedidos por meseros'],
+    'caja-clientes': ['Clientes (FE)', 'Directorio para facturación electrónica'],
+    facturas: ['Facturas', 'Historial de comprobantes del turno'],
+    comandas: ['Comandas', 'Vista por áreas de producción'],
+    cocina: ['Cocina', 'Comandas entrantes'],
+    inventarios: ['Reportes y dashboard', 'KPIs del día'],
+    'compras-dashboard': ['Resumen compras', 'Órdenes y recepciones'],
+    'compras-proveedores': ['Proveedores', 'Catálogo de proveedores'],
+    'compras-cortes': ['Centro de producción', 'Cocina y transformación'],
+    'compras-proceso-sesion': ['Nueva sesión', 'Procesado en cocina'],
+    'compras-proceso-entrada': ['Entrada materia prima', 'Recepciones y cortes de factura'],
+    'compras-proceso-historial': ['Historial procesos', 'Lotes y mermas'],
+    'centro-procesos': ['Centro de producción', 'Kitchen Operations'],
+    'centro-compras': ['Centro de compras', 'Órdenes y recepciones'],
+    productos: ['Productos', 'Catálogo y precios'],
+    'config-empresa': ['Configuración empresa', 'Datos del negocio'],
+    'config-usuarios': ['Usuarios y permisos', 'Personal del terminal'],
+    'config-impuestos': ['Impuestos', 'Tarifas y retenciones'],
+    'config-comandas': ['Impresión comandas', 'Impresoras y áreas'],
+    'config-conexiones-sistemas': ['Conexión de sistemas', 'Red local'],
+    'config-facturas-admin': ['Facturas e impresión', 'Impresoras fiscales'],
+    'control-acceso': ['Marcación personal', 'Entrada y salida'],
+    auditoria: ['Auditoría', 'Eventos del turno'],
+    'planilla-2026': ['Planilla 2026', 'Cuadre y nómina'],
+    'nomina-planilla': ['Planilla 2026', 'Cuadre y nómina'],
+  };
+}
+
+function crozzoHpSyncChromeForPage(page) {
+  const titles = crozzoHpPageTitles();
+  const t = titles[page] || titles.cajero || ['Crozzo POS', ''];
+  const titleEl = document.getElementById('pageTitle');
+  const subEl = document.getElementById('pageSubtitle');
+  if (titleEl) titleEl.textContent = t[0];
+  if (subEl) subEl.textContent = t[1];
+  document.querySelectorAll('.nav-item[data-page]').forEach(function (el) {
+    el.classList.remove('active');
+  });
+  const navItem = document.querySelector('.nav-item[data-page="' + page + '"]');
+  if (navItem) navItem.classList.add('active');
+  if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.expandGroupForPage === 'function') {
+    CrozzoSidebarNav.expandGroupForPage(page);
+  } else if (typeof expandNavGroupForPage === 'function') {
+    expandNavGroupForPage(page);
+  }
+}
+
+window.crozzoHpSyncChromeForPage = crozzoHpSyncChromeForPage;
+
+function crozzoHpLiveSetCajaMode(mode) {
+  const live = window.__crozzoHoneypotLive;
+  if (!live || !live.active) return;
+  live.cajaMode = mode === 'mesa' || mode === 'llevar' ? mode : 'directa';
+  if (typeof renderPage === 'function') renderPage('cajero');
+}
+
+window.crozzoHpLiveSetCajaMode = crozzoHpLiveSetCajaMode;
+
+function crozzoHoneypotLiveBegin(decoy, ctx, opts) {
+  const o = opts || {};
+  document.body.classList.remove('crozzo-hp-trap-prep');
+  if (typeof hideLoginOverlay === 'function') hideLoginOverlay();
+  const fakeRol = crozzoHpMapDecoyRol(decoy && decoy.rol);
+  window.__crozzoHoneypotLive = {
+    active: true,
+    decoy: decoy,
+    ctx: ctx,
+    opts: o,
+    cajaMode: decoy && decoy.rol === 'mesero' ? 'mesa' : 'directa',
+    alertsEscalated: false,
+    fakeUser: {
+      id: (decoy && decoy.user) || 'HP_USER',
+      nombre: (decoy && decoy.label) || 'Usuario',
+      rol: fakeRol,
+      activo: true,
+      permisos: crozzoHpBuildFakePermisos(fakeRol),
+    },
+  };
+  try {
+    const Sim = window.CrozzoHoneypotSim;
+    if (Sim && typeof Sim.pickFakeEmpresa === 'function') {
+      const seed = (o.trip && o.trip.tripId) || String(Date.now());
+      if (!ctx.fakeEmpresa) ctx.fakeEmpresa = Sim.pickFakeEmpresa(seed);
+      ctx.believable = true;
+      ctx.empresa = ctx.fakeEmpresa;
+      ctx.sucursal = ctx.fakeEmpresa.nombre;
+      ctx.nit = ctx.fakeEmpresa.nit;
+      window.__crozzoHoneypotLive.fakeEmpresa = ctx.fakeEmpresa;
+      window.__crozzoHoneypotLive.ctx = ctx;
+    }
+  } catch (_) {}
+  const ov = document.getElementById('crozzoHoneypotOverlay');
+  if (ov) ov.setAttribute('hidden', '');
+  document.body.classList.remove('crozzo-honeypot-active', 'crozzo-honeypot-real-app');
+  document.body.classList.add('crozzo-honeypot-live');
+  document.body.style.overflow = '';
+  let badge = document.getElementById('crozzoHpLiveBadge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'crozzoHpLiveBadge';
+    badge.className = 'crozzo-honeypot-admin-badge';
+    badge.style.display = 'none';
+    document.body.appendChild(badge);
+  }
+  if (o.adminPreview) {
+    badge.textContent = 'Exploración honeypot — datos señuelo · no bloquea el sistema';
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+  const nameEl = document.getElementById('userMenuName');
+  const roleEl = document.getElementById('userMenuRole');
+  const avEl = document.getElementById('userMenuAvatarInitial');
+  if (nameEl) nameEl.textContent = window.__crozzoHoneypotLive.fakeUser.nombre;
+  if (roleEl) roleEl.textContent = rolFuncionalLabel(fakeRol);
+  if (avEl) avEl.textContent = String(window.__crozzoHoneypotLive.fakeUser.nombre).charAt(0).toUpperCase();
+  const tenantTxt = document.getElementById('crozzoSidebarTenantTxt');
+  const empNom =
+    (ctx && ctx.fakeEmpresa && ctx.fakeEmpresa.nombre) ||
+    (ctx && ctx.empresa && ctx.empresa.nombre) ||
+    (ctx && ctx.sucursal) ||
+    'Mi negocio';
+  if (tenantTxt) tenantTxt.textContent = empNom;
+  try {
+    const sb = document.getElementById('sidebar');
+    if (sb) {
+      sb.classList.add('is-expanded', 'expanded', 'pinned');
+    }
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
+      CrozzoSidebarNav.setExpanded(true, true);
+    }
+  } catch (_) {}
+  try {
+    if (typeof applyAccessControl === 'function') applyAccessControl();
+  } catch (_) {}
+  try {
+    if (typeof crozzoHpApplyLiveSidebar === 'function') crozzoHpApplyLiveSidebar();
+  } catch (_) {}
+  try {
+    const startPage = fakeRol === 'mesero' ? 'tablets' : 'cajero';
+    if (typeof navigateTo === 'function') navigateTo(startPage);
+    else if (typeof crozzoHpSyncChromeForPage === 'function') crozzoHpSyncChromeForPage(startPage);
+  } catch (_) {}
+  try {
+    if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+  } catch (_) {}
+}
+
+function crozzoHoneypotLiveEnd() {
+  const backPage = typeof currentPage !== 'undefined' ? currentPage : 'cajero';
+  window.__crozzoHoneypotLive = null;
+  document.body.classList.remove('crozzo-honeypot-live');
+  const badge = document.getElementById('crozzoHpLiveBadge');
+  if (badge) badge.style.display = 'none';
+  try {
+    const tenantTxt = document.getElementById('crozzoSidebarTenantTxt');
+    if (tenantTxt && typeof config !== 'undefined' && typeof config.getEmpresa === 'function') {
+      if (!(typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession())) {
+        const e = config.getEmpresa() || {};
+        tenantTxt.textContent = e.nombreComercial || e.razonSocial || 'Tu negocio';
+      }
+    }
+  } catch (_) {}
+  try {
+    if (typeof applyAccessControl === 'function') applyAccessControl();
+  } catch (_) {}
+  try {
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.restore === 'function') {
+      CrozzoSidebarNav.restore(false);
+    } else if (typeof crozzoRestoreSidebarNavState === 'function') {
+      crozzoRestoreSidebarNavState();
+    }
+  } catch (_) {}
+  if (typeof getCurrentUser === 'function' && getCurrentUser() && typeof renderPage === 'function') {
+    try {
+      if (!crozzoIsLegendaryQuarantineActive()) renderPage(backPage);
+    } catch (_) {}
+  } else {
+    const content = document.getElementById('mainContent');
+    if (content) {
+      content.innerHTML = '';
+      content.classList.remove('main-body--retail-pos', 'main-body--qyc-embed', 'main-body--centro-compras');
+    }
+  }
+}
+
+window.crozzoHoneypotLiveBegin = crozzoHoneypotLiveBegin;
+window.crozzoHoneypotLiveEnd = crozzoHoneypotLiveEnd;
+
+function crozzoHpGetInteractiveLiveMs(hpCfg, shortDemo) {
+  const hp = hpCfg || {};
+  if (shortDemo) return 45000;
+  const minM = Math.max(1, parseInt(hp.sandboxInteractiveMinMinutes, 10) || 1);
+  let maxM = Math.max(minM, parseInt(hp.sandboxInteractiveMaxMinutes, 10) || 5);
+  return Math.round((minM + Math.random() * (maxM - minM)) * 60 * 1000);
+}
+
+function crozzoHpShowIntrusionBar(text, level) {
+  const bar = document.getElementById('crozzoHpIntrusionBar');
+  if (!bar) return;
+  if (!text) {
+    bar.setAttribute('hidden', '');
+    bar.textContent = '';
+    bar.classList.remove('critical');
+    return;
+  }
+  bar.removeAttribute('hidden');
+  bar.textContent = text;
+  bar.classList.toggle('critical', level === 'critical');
+  bar.style.background =
+    level === 'critical'
+      ? 'linear-gradient(90deg, #450a0a, #b91c1c, #450a0a)'
+      : 'linear-gradient(90deg, #7f1d1d, #991b1b, #7f1d1d)';
+  try {
+    bar.classList.remove('crozzo-hp-bar-flash');
+    void bar.offsetWidth;
+    bar.classList.add('crozzo-hp-bar-flash');
+  } catch (_) {}
+}
+
+function crozzoHpClearIntrusionAlerts() {
+  crozzoHpShowIntrusionBar('');
+  const timers = window.__crozzoHpAlertTimers;
+  if (timers) timers.forEach(t => clearTimeout(t));
+  window.__crozzoHpAlertTimers = [];
+}
+
+function crozzoHpBuildAlertCascade(decoy) {
+  const user = (decoy && decoy.user) || '—';
+  return [
+    { delay: 0, msg: '⚠ Actividad sospechosa detectada · sesión «' + user + '»', bar: true },
+    { delay: 5000, msg: '🚨 Acceso no autorizado a configuración del sistema', bar: true, critical: true },
+    { delay: 10000, msg: '⛔ Iniciando contención y captura de huella del dispositivo…', bar: true, critical: true },
+  ];
+}
+
+function crozzoHpRunAlertCascade(decoy, startAt, pace) {
+  const p = pace != null ? pace : 1;
+  const schedule = crozzoHpBuildAlertCascade(decoy);
+  window.__crozzoHpAlertTimers = schedule.map(s => {
+    return setTimeout(() => {
+      if (!window.__crozzoHoneypotLive || !window.__crozzoHoneypotLive.active) return;
+      if (s.bar) crozzoHpShowIntrusionBar(s.msg, s.critical ? 'critical' : 'warn');
+      if (s.toast === true && typeof showToast === 'function') showToast(s.msg, 'error');
+    }, startAt + Math.round(s.delay * p));
+  });
+}
+
+function crozzoHpTriggerImmediateAlerts(source) {
+  const live = window.__crozzoHoneypotLive;
+  if (!live || !live.active || live.alertsEscalated) return;
+  live.alertsEscalated = true;
+  crozzoHpClearIntrusionAlerts();
+  crozzoHpRunAlertCascade(live.decoy, 0, 1);
+  if (typeof window.__crozzoHpLiveEndEarly === 'function') window.__crozzoHpLiveEndEarly(14500);
+}
+
+function crozzoHpFakeAddUser() {
+  const name = document.getElementById('hpFakeNewUserName')?.value?.trim();
+  const pass = document.getElementById('hpFakeNewUserPass')?.value?.trim();
+  if (!name || !pass) {
+    if (typeof showToast === 'function') showToast('Complete nombre y contraseña del nuevo usuario.', 'warning');
+    return;
+  }
+  if (typeof showToast === 'function') {
+    showToast('Guardando usuario «' + name + '» en ' + (window.__crozzoHoneypotLive?.fakeEmpresa?.nombre || 'el negocio') + '…', 'info');
+  }
+  setTimeout(() => crozzoHpTriggerImmediateAlerts('create_user'), 400);
+}
+
+function crozzoHpFakeEditUser() {
+  if (typeof showToast === 'function') showToast('Abriendo edición de permisos…', 'info');
+  setTimeout(() => crozzoHpTriggerImmediateAlerts('edit_user'), 300);
+}
+
+window.crozzoHpTriggerImmediateAlerts = crozzoHpTriggerImmediateAlerts;
+window.crozzoHpFakeAddUser = crozzoHpFakeAddUser;
+window.crozzoHpFakeEditUser = crozzoHpFakeEditUser;
+
+function crozzoHpScheduleIntrusionAlerts(liveMs, decoy, trip, opts) {
+  crozzoHpClearIntrusionAlerts();
+  if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.alertsEscalated) return;
+  const o = opts || {};
+  const shortDemo = !!o.shortDemo;
+  const cascadeMs = shortDemo ? 13000 : 12000;
+  const cascadeStart = Math.max(5000, liveMs - cascadeMs);
+  crozzoHpRunAlertCascade(decoy, cascadeStart, 1);
+}
+
+async function crozzoHpRunBreachPhase(trip, decoy, ctx, Sim, believable, adminPreview, skipFinalize) {
+  const hpCfg = (config.get('seguridad') || {}).honeypot || {};
+  const configuredSec = parseInt(hpCfg.breachSeconds, 10) || 14;
+  const fastBreach = believable !== false;
+  const ov = document.getElementById('crozzoHoneypotOverlay');
+  const device =
+    Sim && typeof Sim.collectDeviceProfile === 'function'
+      ? Sim.collectDeviceProfile(decoy, trip)
+      : { resumen: 'Dispositivo no identificado' };
+  if (trip) trip.device = device;
+
+  crozzoHpClearIntrusionAlerts();
+  if (typeof crozzoHoneypotLiveEnd === 'function') crozzoHoneypotLiveEnd();
+  document.body.classList.remove('crozzo-honeypot-live');
+  document.body.classList.add('crozzo-honeypot-active');
+  if (ov) {
+    ov.removeAttribute('hidden');
+    ov.classList.add('crozzo-honeypot--real');
+  }
+  crozzoHpShowPanel('honeypotBreachPanel');
+
+  const title = document.getElementById('honeypotBreachTitle');
+  const lead = document.getElementById('honeypotBreachLead');
+  const alerts = document.getElementById('honeypotBreachAlerts');
+  const dump = document.getElementById('honeypotDeviceDump');
+  const lockLbl = document.getElementById('honeypotBreachLockLabel');
+  const lockBar = document.getElementById('honeypotBreachLockBar');
+  const ref = document.getElementById('honeypotBreachRef');
+
+  if (title) {
+    title.textContent = adminPreview
+      ? 'Simulación · violación de integridad'
+      : 'Violación de integridad del sistema detectada';
+  }
+  if (lead) {
+    lead.textContent = adminPreview
+      ? 'Vista previa: se muestra la huella del dispositivo y el envío al registro de seguridad.'
+      : 'Se detectó acceso no autorizado. El terminal quedó bloqueado. Contacte a un administrador del sistema.';
+  }
+  if (alerts) {
+    alerts.innerHTML = [
+      'Intento de acceso no autorizado detectado',
+      'Huella del dispositivo capturada',
+    ]
+      .map(t => '<li>' + t + '</li>')
+      .join('');
+  }
+  if (dump) {
+    dump.textContent =
+      Sim && typeof Sim.formatDeviceDump === 'function'
+        ? Sim.formatDeviceDump(device)
+        : JSON.stringify(device, null, 2);
+  }
+  if (ref) {
+    ref.textContent =
+      'Caso ' +
+      (trip.tripId || '—') +
+      ' · ' +
+      new Date().toLocaleString('es-CO') +
+      ' · usuario ' +
+      (decoy.user || '—');
+  }
+
+  const steps = fastBreach
+    ? [
+        { pct: 25, txt: 'Enviando huella del dispositivo al registro de seguridad…', wait: 5000 },
+        { pct: 65, txt: 'Registrando incidente de intrusión en el servidor…', wait: 5000 },
+        {
+          pct: 100,
+          txt: adminPreview ? 'Simulación finalizada' : 'Sistema bloqueado — contacte a un administrador',
+          wait: 4500,
+        },
+      ]
+    : [
+        { pct: 20, txt: 'Enviando huella del dispositivo al registro de seguridad…', wait: 5000 },
+        { pct: 55, txt: 'Registrando incidente de intrusión en el servidor…', wait: 5000 },
+        {
+          pct: 100,
+          txt: adminPreview ? 'Simulación finalizada' : 'Sistema bloqueado — contacte a un administrador',
+          wait: 4500,
+        },
+      ];
+  const slowStepMs = Math.max(4500, Math.floor((configuredSec * 1000) / steps.length));
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i];
+    if (lockLbl) lockLbl.textContent = st.txt;
+    if (lockBar) lockBar.style.width = st.pct + '%';
+    await new Promise(r => setTimeout(r, fastBreach ? st.wait || slowStepMs : slowStepMs));
+  }
+  if (lockLbl && !adminPreview) {
+    lockLbl.textContent = 'Acceso bloqueado — revisión requerida · contacte a un administrador';
+  }
+  crozzoHpShowIntrusionBar('');
+}
+
 function crozzoHpShowPanel(name) {
-  ['honeypotTheaterPanel', 'honeypotSandboxPanel', 'honeypotHarvestPanel', 'honeypotDetentionPanel'].forEach(id => {
+  ['honeypotTheaterPanel', 'honeypotSandboxPanel', 'honeypotHarvestPanel', 'honeypotBreachPanel', 'honeypotDetentionPanel'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (id === name) el.removeAttribute('hidden');
@@ -13358,30 +15003,132 @@ function crozzoHpShowPanel(name) {
   });
 }
 
-async function crozzoRunHoneypotSequence(trip, decoy) {
+async function crozzoRunHoneypotSequence(trip, decoy, runOpts) {
+  const opts = runOpts || {};
+  const adminPreview = !!opts.adminPreview;
+  const skipFinalize = !!opts.skipFinalize;
+  const shortDemo = !!opts.shortDemo;
+  const believable = opts.believable !== false;
   const Sim = window.CrozzoHoneypotSim;
-  const ctx = Sim && Sim.getShiftContext ? Sim.getShiftContext() : { period: 'day', label: '', staffOnline: [], mesasOcupadas: 0, comandasVivas: 0, ventasHoyFake: 0, nit: '900000000', terminal: 'POS-01' };
+  const ctx =
+    Sim && Sim.getShiftContext
+      ? Sim.getShiftContext(believable)
+      : { period: 'day', label: '', staffOnline: [], mesasOcupadas: 0, comandasVivas: 0, ventasHoyFake: 0, nit: '900000000', terminal: 'POS-01', sucursal: 'Sucursal Norte' };
   const ov = document.getElementById('crozzoHoneypotOverlay');
+  const adminBadge = document.getElementById('honeypotAdminPreviewBadge');
+  const hpTitle = document.getElementById('honeypotTitle');
   const status = document.getElementById('honeypotStatus');
   const bar = document.getElementById('honeypotProgressBar');
   const foot = document.getElementById('honeypotFootnote');
   const logEl = document.getElementById('honeypotHarvestLog');
   const meta = document.getElementById('honeypotHarvestMeta');
   const eta = document.getElementById('honeypotHarvestEta');
+  const harvestTitle = document.getElementById('honeypotHarvestTitle');
+  const sandboxTitle = document.getElementById('honeypotSandboxTitle');
+  const detTitle = document.getElementById('honeypotDetentionTitle');
   const detMsg = document.getElementById('honeypotDetentionMsg');
   const detId = document.getElementById('honeypotDetentionId');
   const sandboxBody = document.getElementById('honeypotSandboxBody');
+  const harvestBar = document.getElementById('honeypotHarvestProgressBar');
   const hpCfg = (config.get('seguridad') || {}).honeypot || {};
   const steps =
-    Sim && Sim.theaterStepsForDecoy ? Sim.theaterStepsForDecoy(decoy, ctx) : [{ pct: 100, txt: 'Cargando…' }];
+    Sim && Sim.theaterStepsForDecoy
+      ? Sim.theaterStepsForDecoy(decoy, ctx, believable)
+      : [{ pct: 100, txt: 'Cargando…' }];
   const sec = (trip && trip.theaterSeconds) || hpCfg.theaterSeconds || 10;
   const stepMs = Math.max(350, Math.floor((sec * 1000) / steps.length));
-  const harvestMs = trip.harvestMs || 120000;
-  const sandboxSec = hpCfg.sandboxSeconds || 12;
+  const harvestMs = shortDemo ? 6000 : trip.harvestMs || 120000;
+  const sandboxSec = shortDemo ? 5 : hpCfg.sandboxSeconds || 12;
 
-  if (ov) ov.removeAttribute('hidden');
+  if (ov && !believable) {
+    ov.removeAttribute('hidden');
+    ov.classList.toggle('crozzo-honeypot--real', believable);
+    ov.classList.toggle('crozzo-honeypot--admin', !believable);
+  } else if (ov && believable) {
+    ov.setAttribute('hidden', '');
+    ov.classList.add('crozzo-honeypot--real');
+    ov.classList.remove('crozzo-honeypot--admin');
+  }
+  if (adminBadge && !believable) {
+    if (adminPreview) adminBadge.removeAttribute('hidden');
+    else adminBadge.setAttribute('hidden', '');
+  }
+  if (hpTitle && !believable) hpTitle.textContent = 'Vista previa — secuencia de protección';
+  if (sandboxTitle) {
+    if (believable) sandboxTitle.setAttribute('hidden', '');
+    else {
+      sandboxTitle.removeAttribute('hidden');
+      sandboxTitle.textContent = 'Panel operativo (datos señuelo)';
+    }
+  }
+  if (harvestTitle) harvestTitle.textContent = believable ? 'Sincronizando datos' : 'Recolección forense (vista admin)';
+  const liveMs = crozzoHpGetInteractiveLiveMs(hpCfg, shortDemo);
+
+  if (believable && typeof crozzoHoneypotLiveBegin === 'function') {
+    if (ov) ov.setAttribute('hidden', '');
+    crozzoHoneypotLiveBegin(decoy, ctx, { adminPreview: adminPreview, trip: trip });
+    crozzoHpScheduleIntrusionAlerts(liveMs, decoy, trip, { shortDemo: shortDemo });
+    await new Promise(resolve => {
+      window.__crozzoHpResolveLivePhase = resolve;
+      window.__crozzoHpLiveMainTimer = setTimeout(resolve, liveMs);
+      window.__crozzoHpLiveEndEarly = delayMs => {
+        if (window.__crozzoHpLiveMainTimer) clearTimeout(window.__crozzoHpLiveMainTimer);
+        window.__crozzoHpLiveMainTimer = setTimeout(resolve, Math.max(2000, delayMs || 10000));
+      };
+    });
+    window.__crozzoHpResolveLivePhase = null;
+    window.__crozzoHpLiveEndEarly = null;
+    if (window.__crozzoHpLiveMainTimer) {
+      clearTimeout(window.__crozzoHpLiveMainTimer);
+      window.__crozzoHpLiveMainTimer = null;
+    }
+    crozzoHpClearIntrusionAlerts();
+    crozzoHoneypotLiveEnd();
+    const breachShort = shortDemo && adminPreview;
+    await crozzoHpRunBreachPhase(trip, decoy, ctx, Sim, believable, adminPreview, skipFinalize || breachShort);
+    if (!skipFinalize && !breachShort) {
+      const Auth = window.CrozzoAuthSecurity;
+      const seg = config.get('seguridad') || {};
+      if (Auth && typeof Auth.ensureHoneypotLegendUnlock === 'function') {
+        await Auth.ensureHoneypotLegendUnlock(seg, window);
+      }
+      if (Auth && typeof Auth.crozzoHoneypotFinalizeTrip === 'function') {
+        Auth.crozzoHoneypotFinalizeTrip(seg, trip, window);
+      }
+      try {
+        if (typeof crozzoHpShowContainmentAsync === 'function') {
+          await crozzoHpShowContainmentAsync();
+        } else if (typeof crozzoHpShowContainment === 'function') {
+          crozzoHpShowContainment();
+        }
+      } catch (_) {}
+    }
+    if (ov) {
+      ov.setAttribute('hidden', '');
+      ov.classList.remove('crozzo-honeypot--real', 'crozzo-honeypot--admin');
+    }
+    if (adminBadge) adminBadge.setAttribute('hidden', '');
+    document.body.classList.remove('crozzo-honeypot-active', 'crozzo-honeypot-real-app', 'crozzo-honeypot-live');
+    if (!document.body.classList.contains('crozzo-hp-containment-active')) {
+      document.body.style.overflow = '';
+    }
+    try {
+      var emShellHp = document.getElementById('crozzo-emergency-shell');
+      if (emShellHp) emShellHp.removeAttribute('data-hp-hidden');
+    } catch (_) {}
+    if (bar) bar.style.width = '0%';
+    if (status) status.textContent = '';
+    if (foot) foot.textContent = '';
+    return;
+  }
+
   document.body.classList.add('crozzo-honeypot-active');
+  document.body.classList.remove('crozzo-honeypot-real-app', 'crozzo-honeypot-live');
   document.body.style.overflow = 'hidden';
+  try {
+    var emShell = document.getElementById('crozzo-emergency-shell');
+    if (emShell) emShell.setAttribute('data-hp-hidden', '1');
+  } catch (_) {}
   crozzoHpShowPanel('honeypotTheaterPanel');
 
   await new Promise(resolve => {
@@ -13396,8 +15143,8 @@ async function crozzoRunHoneypotSequence(trip, decoy) {
         if (foot) {
           foot.textContent =
             ctx.period === 'night'
-              ? `${decoy.label}: turno nocturno — sin personal en sala (todo simulado).`
-              : `${decoy.label}: ${ctx.staffOnline.length} colegas activos en red (simulado).`;
+              ? `${decoy.label} conectado — turno nocturno, sin estaciones activas.`
+              : `${decoy.label} — ${ctx.staffOnline.length} estación(es) activa(s) en la red.`;
         }
         setTimeout(resolve, 800);
       }
@@ -13405,83 +15152,95 @@ async function crozzoRunHoneypotSequence(trip, decoy) {
     tick();
   });
 
-  crozzoHpShowPanel('honeypotSandboxPanel');
-  if (sandboxBody && Sim && Sim.dashboardHtml) {
-    sandboxBody.innerHTML = Sim.dashboardHtml(decoy, ctx);
-    const live = document.getElementById('hpSandboxLive');
-    const sandboxEnd = Date.now() + sandboxSec * 1000;
-    const tickLive = () => {
-      if (Date.now() >= sandboxEnd || !live) return;
-      const peer =
-        ctx.period === 'night'
-          ? '— silencio operativo —'
-          : (ctx.staffOnline[Math.floor(Math.random() * ctx.staffOnline.length)] || {}).id || 'SISTEMA';
-      live.textContent =
-        ctx.period === 'day'
-          ? `▶ ${peer} actualizó comanda · Mesa ${Math.floor(Math.random() * 20) + 1} · ${new Date().toLocaleTimeString('es-CO')}`
-          : ctx.period === 'evening'
-            ? `▶ Cierre parcial · ${peer} · ${new Date().toLocaleTimeString('es-CO')}`
-            : `▶ Vigilancia · sin operadores · ${new Date().toLocaleTimeString('es-CO')}`;
-      setTimeout(tickLive, 900 + Math.floor(Math.random() * 1200));
-    };
-    tickLive();
+  if (sandboxBody && Sim && typeof Sim.mountSandbox === 'function') {
+    crozzoHpShowPanel('honeypotSandboxPanel');
+    const hpSandbox = Sim.mountSandbox(sandboxBody, decoy, ctx);
+    if (hpSandbox && typeof hpSandbox.startRotation === 'function') hpSandbox.startRotation(sandboxSec * 1000);
     await new Promise(r => setTimeout(r, sandboxSec * 1000));
-  }
-
-  crozzoHpShowPanel('honeypotHarvestPanel');
-  if (meta) {
-    meta.textContent = `[EMULACIÓN] ${ctx.label} · ${decoy.label} · caso ${trip.tripId} · datos 100% falsos`;
-  }
-  if (logEl) logEl.textContent = '';
-  const harvestEnd = Date.now() + harvestMs;
-  let logTimer = null;
-
-  const appendLog = () => {
-    if (Date.now() >= harvestEnd) return;
-    if (!logEl) return;
-    const line =
-      Sim && Sim.fakeLogLine ? Sim.fakeLogLine(decoy, trip.tripId, ctx) : { text: '[SIM] evento', cls: '' };
-    const div = document.createElement('div');
-    if (line.cls) div.className = line.cls;
-    div.textContent = line.text;
-    logEl.appendChild(div);
-    logEl.scrollTop = logEl.scrollHeight;
-    const remain = Math.max(0, harvestEnd - Date.now());
-    if (eta) {
-      eta.textContent = `Recolección forense simulada… ${Math.ceil(remain / 1000)} s · ${ctx.label}`;
+    if (hpSandbox && typeof hpSandbox.stop === 'function') hpSandbox.stop();
+    if (!shortDemo) {
+      if (ov) ov.removeAttribute('hidden');
+      crozzoHpShowPanel('honeypotHarvestPanel');
+      await new Promise(r => setTimeout(r, harvestMs));
     }
-    logTimer = setTimeout(appendLog, 1500 + Math.floor(Math.random() * 3500));
-  };
-  appendLog();
-
-  await new Promise(r => setTimeout(r, harvestMs));
-  if (logTimer) clearTimeout(logTimer);
-
-  crozzoHpShowPanel('honeypotDetentionPanel');
-  if (detMsg) {
-    detMsg.textContent =
-      'INTRUSIÓN DETECTADA · Cuarentena legendaria activada. ' +
-      'Ningún dato real fue expuesto. Solo el código de liberación en herramientas Crozzo puede restaurar el acceso.';
-  }
-  if (detId) {
-    detId.textContent = `Caso ${trip.tripId} · ${new Date().toLocaleString('es-CO')} · emulación ${ctx.period}`;
+    if (!skipFinalize) {
+      crozzoHpShowPanel('honeypotDetentionPanel');
+      const Auth = window.CrozzoAuthSecurity;
+      const seg = config.get('seguridad') || {};
+      if (Auth && typeof Auth.crozzoHoneypotFinalizeTrip === 'function') Auth.crozzoHoneypotFinalizeTrip(seg, trip, window);
+    }
   }
 
-  await new Promise(r => setTimeout(r, 5500));
-
-  const Auth = window.CrozzoAuthSecurity;
-  const seg = config.get('seguridad') || {};
-  if (Auth && typeof Auth.crozzoHoneypotFinalizeTrip === 'function') {
-    Auth.crozzoHoneypotFinalizeTrip(seg, trip, window);
+  if (ov) {
+    ov.setAttribute('hidden', '');
+    ov.classList.remove('crozzo-honeypot--real', 'crozzo-honeypot--admin');
   }
-
-  if (ov) ov.setAttribute('hidden', '');
-  document.body.classList.remove('crozzo-honeypot-active');
+  if (adminBadge) adminBadge.setAttribute('hidden', '');
+  document.body.classList.remove('crozzo-honeypot-active', 'crozzo-honeypot-real-app');
   document.body.style.overflow = '';
+  try {
+    var emShell2 = document.getElementById('crozzo-emergency-shell');
+    if (emShell2) emShell2.removeAttribute('data-hp-hidden');
+  } catch (_) {}
+  if (harvestBar) harvestBar.style.width = '0%';
   if (bar) bar.style.width = '0%';
   if (status) status.textContent = '';
   if (foot) foot.textContent = '';
 }
+
+async function crozzoHoneypotAdminTheaterPreview() {
+  if (!isSuperAdminUser()) return showToast('Solo Super Admin puede ejecutar la vista previa.', 'warning');
+  const Auth = window.CrozzoAuthSecurity;
+  if (!Auth) return showToast('Módulo de seguridad no disponible.', 'error');
+  const seg = config.get('seguridad') || {};
+  if (typeof Auth.crozzoHoneypotLockActive === 'function') {
+    const lock = Auth.crozzoHoneypotLockActive(seg);
+    if (lock.locked) {
+      return showToast(
+        lock.legendary
+          ? 'Cuarentena legendaria activa. Desbloquee el terminal antes de la vista previa.'
+          : 'Bloqueo de seguridad activo. Espere o desbloquee antes de la vista previa.',
+        'warning'
+      );
+    }
+  }
+  const hp = Auth.crozzoHoneypotFromSeguridad(seg);
+  if (hp.enabled === false) return showToast('Active la trampa honeypot antes de la vista previa.', 'warning');
+  const sel = document.getElementById('cfgHpPreviewDecoy')?.value || '';
+  const decoy = (hp.decoys || []).find(d => d.user === sel) || (hp.decoys || [])[0];
+  if (!decoy) return showToast('No hay usuarios señuelo configurados.', 'warning');
+  const previewMode = document.querySelector('input[name="cfgHpPreviewMode"]:checked')?.value || 'short';
+  const short = previewMode === 'short';
+  const full = previewMode === 'full';
+  const msg = full
+    ? `¿Simular ataque completo (${decoy.user})?\n\nExploración interactiva del POS falso + alertas + pantalla de bloqueo. NO activa cuarentena real.`
+    : `¿Vista rápida (${decoy.user})?\n\n~45 s de exploración + breve pantalla de bloqueo (simulación).`;
+  if (!confirm(msg)) return;
+  const theaterSec = parseInt(document.getElementById('cfgHoneypotTheater')?.value, 10) || hp.theaterSeconds || 10;
+  const hMin = (hp.harvestMinMinutes || 1) * 60000;
+  const trip = {
+    tripId: 'PREVIEW-' + Date.now().toString(36).toUpperCase(),
+    theaterSeconds: theaterSec,
+    harvestMs: full ? Math.min(hMin, 25000) : 8000,
+    decoy: decoy,
+  };
+  config.addAudit('honeypot_preview', (full ? 'Completa' : 'Corta') + ' · ' + decoy.user, {
+    synthetic: true,
+    channel: 'honeypot',
+    tripId: trip.tripId,
+    decoyUser: decoy.user,
+  });
+  await crozzoRunHoneypotSequence(trip, decoy, {
+    adminPreview: true,
+    believable: true,
+    skipFinalize: true,
+    shortDemo: !full,
+  });
+  showToast('Vista previa de protección finalizada (sin bloqueo).', 'success');
+  if (typeof renderPage === 'function' && currentPage === 'config-seguridad') renderPage('config-seguridad');
+}
+
+window.crozzoHoneypotAdminTheaterPreview = crozzoHoneypotAdminTheaterPreview;
 
 function saveHoneypotSettings() {
   const seg = config.get('seguridad') || {};
@@ -13493,7 +15252,9 @@ function saveHoneypotSettings() {
     enabled: !!document.getElementById('cfgHoneypotEnabled')?.checked,
     lockMinutes: parseInt(document.getElementById('cfgHoneypotLockMin')?.value, 10) || 45,
     theaterSeconds: parseInt(document.getElementById('cfgHoneypotTheater')?.value, 10) || 8,
-    sandboxSeconds: parseInt(document.getElementById('cfgHoneypotSandbox')?.value, 10) || 12,
+    sandboxInteractiveMinMinutes: parseInt(document.getElementById('cfgHpLiveMin')?.value, 10) || 1,
+    sandboxInteractiveMaxMinutes: parseInt(document.getElementById('cfgHpLiveMax')?.value, 10) || 5,
+    breachSeconds: parseInt(document.getElementById('cfgHpBreachSec')?.value, 10) || 14,
     harvestMinMinutes: hMin,
     harvestMaxMinutes: hMax,
     wipeSecrets: !!document.getElementById('cfgHoneypotWipe')?.checked,
@@ -13505,7 +15266,10 @@ function saveHoneypotSettings() {
     lastDecoyRol: prev.lastDecoyRol,
   });
   config.set('seguridad', { ...seg, honeypot: window.CrozzoAuthSecurity ? CrozzoAuthSecurity.normalizeHoneypot(hp) : hp });
-  config.addAudit('honeypot_config', 'Trampa actualizada: ' + (hp.enabled ? 'activa' : 'off'));
+  config.addAudit('honeypot_config', 'Trampa actualizada: ' + (hp.enabled ? 'activa' : 'off'), {
+    synthetic: true,
+    channel: 'honeypot',
+  });
   showToast('Configuración de trampa guardada', 'success');
   renderPage('config-seguridad');
 }
@@ -13518,7 +15282,10 @@ async function crozzoClearHoneypotLock() {
   if (!code) return;
   const Auth = window.CrozzoAuthSecurity;
   const seg = config.get('seguridad') || {};
-  const res = await Auth.crozzoHoneypotClearLegendLock(code.trim(), seg, window, { requireSuperAdmin: true });
+  const res = await Auth.crozzoHoneypotClearLegendLock(code.trim(), seg, window, {
+    requireSuperAdmin: true,
+    requireAssistUser: false,
+  });
   if (!res.ok) {
     showToast(res.error === 'codigo_invalido' ? 'Código legendario incorrecto.' : 'No se pudo liberar.', 'error');
     return;
@@ -13541,23 +15308,20 @@ async function handleLoginSubmit() {
   if (!rawUser.trim() || !pwd.trim()) return showErr('Ingresa usuario y contraseña.');
 
   const Auth = window.CrozzoAuthSecurity;
-  let seg = config.get('seguridad') || {};
-  const legendCode = document.getElementById('loginLegendCode')?.value?.trim() || '';
-  if (legendCode && Auth && typeof Auth.crozzoHoneypotClearLegendLock === 'function') {
-    const cleared = await Auth.crozzoHoneypotClearLegendLock(legendCode, seg, window, { requireSuperAdmin: false });
-    if (cleared.ok) {
-      crozzoRefreshLoginHoneypotBanner();
-      seg = config.get('seguridad') || {};
-    }
-  }
+  const seg = config.get('seguridad') || {};
 
   if (Auth && typeof Auth.crozzoHoneypotLockActive === 'function') {
     const hLock = Auth.crozzoHoneypotLockActive(seg);
+    if (hLock.locked && hLock.legendary) {
+      if (typeof crozzoHpFinishAttackLockdown === 'function') {
+        await crozzoHpFinishAttackLockdown();
+      } else {
+        await crozzoEnsureLegendaryContainmentUi();
+      }
+      return;
+    }
     if (hLock.locked) {
       crozzoRefreshLoginHoneypotBanner();
-      if (hLock.legendary) {
-        return showErr('Cuarentena legendaria: use el código de liberación (herramientas Crozzo). El login normal no sirve.');
-      }
       return showErr('Sistema bloqueado por seguridad. Espere ' + hLock.minutos + ' min.');
     }
   }
@@ -13567,15 +15331,11 @@ async function handleLoginSubmit() {
     if (found) {
       crozzoClearLoginBaitHint();
       if (typeof Auth.crozzoHoneypotBaitClear === 'function') Auth.crozzoHoneypotBaitClear();
+      crozzoHpPrepareTrapEntry();
       hideLoginOverlay();
       const trip = Auth.crozzoHoneypotBeginTrip(rawUser, pwd, seg, window);
-      logoutCurrentUser();
       if (trip) await crozzoRunHoneypotSequence(trip, found.decoy);
-      showLoginOverlay();
-      crozzoRefreshLoginHoneypotBanner();
-      if (typeof showToast === 'function') {
-        showToast('🚨 Intrusión detectada. Sistema bloqueado.', 'error');
-      }
+      await crozzoHpFinishAttackLockdown();
       return;
     }
   }
@@ -13587,15 +15347,11 @@ async function handleLoginSubmit() {
       if (bait.forceTrip) {
         crozzoClearLoginBaitHint();
         if (typeof Auth.crozzoHoneypotBaitClear === 'function') Auth.crozzoHoneypotBaitClear();
+        crozzoHpPrepareTrapEntry();
         hideLoginOverlay();
         const trip = Auth.crozzoHoneypotBeginTrip(bait.decoy.user, bait.decoy.pass, seg, window);
-        logoutCurrentUser();
         if (trip) await crozzoRunHoneypotSequence(trip, bait.decoy);
-        showLoginOverlay();
-        crozzoRefreshLoginHoneypotBanner();
-        if (typeof showToast === 'function') {
-          showToast('🚨 Intrusión detectada. Sistema bloqueado.', 'error');
-        }
+        await crozzoHpFinishAttackLockdown();
         return;
       }
       return;
@@ -13604,11 +15360,21 @@ async function handleLoginSubmit() {
 
   crozzoClearLoginBaitHint();
 
+  if (Auth && typeof Auth.crozzoHoneypotFindDecoyByUser === 'function') {
+    const decoyOnly = Auth.crozzoHoneypotFindDecoyByUser(rawUser, seg);
+    if (decoyOnly) return showErr('Usuario o contraseña incorrectos.');
+  }
+
   if (typeof window.__crozzoHandleLoginWithSupabase === 'function') {
     try {
       const cloud = await window.__crozzoHandleLoginWithSupabase();
       if (cloud && cloud.handled) {
         if (!cloud.ok) {
+          if (cloud.error === 'sistema_bloqueado') {
+            if (crozzoIsLegendaryQuarantineActive()) await crozzoEnsureLegendaryContainmentUi();
+            else if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+            return showErr('Sistema bloqueado por seguridad.');
+          }
           return showErr(cloud.error === 'auth_error' ? 'Credenciales Supabase inválidas.' : (cloud.error || 'Error de inicio de sesión.'));
         }
         hideLoginOverlay();
@@ -13651,6 +15417,12 @@ async function handleLoginSubmit() {
     if (res.error === 'cuenta_bloqueada') {
       return showErr('Demasiados intentos. Espere ' + (res.minutos || 5) + ' min e intente de nuevo.');
     }
+    if (res.error === 'sistema_bloqueado') {
+      if (crozzoIsLegendaryQuarantineActive()) await crozzoEnsureLegendaryContainmentUi();
+      else if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+      return showErr('Sistema bloqueado por seguridad.');
+    }
+    if (res.error === 'usuario_reservado') return showErr('Usuario o contraseña incorrectos.');
     if (res.error === 'clave_incorrecta') return showErr('Contraseña incorrecta.');
     if (res.error === 'usuario_inactivo') return showErr('Este usuario está inactivo.');
     return showErr('No se pudo iniciar sesión.');
@@ -15513,7 +17285,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
 
 const CROZZO_PERFIL_EMPRESA_MENUS = Object.freeze({
   completo: ['all'],
-  restaurante: ['inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'comandas', 'cocina', 'inventarios', 'productos', 'centro-compras', 'compras-cortes', 'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas'],
+  restaurante: ['inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'comandas', 'cocina', 'inventarios', 'productos', 'centro-compras', 'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-entrada', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas'],
   retail: ['inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'inventarios', 'productos', 'admin', 'config-empresa', 'impuestos'],
   servicios: ['inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'productos', 'admin', 'config-empresa', 'impuestos'],
   basico: ['caja', 'venta-comercial']
@@ -15562,8 +17334,13 @@ const CROZZO_MENU_CATALOG = [
     ]
   },
   {
-    group: 'Procesos',
-    items: [{ id: 'compras-cortes', label: 'Cortes y materia prima', icon: '🔪', page: 'compras-cortes' }]
+    group: 'Producción',
+    items: [
+      { id: 'compras-cortes', label: 'Centro de producción', icon: '◆', page: 'compras-cortes' },
+      { id: 'compras-proceso-sesion', label: 'Nueva sesión', icon: '✦', page: 'compras-proceso-sesion' },
+      { id: 'compras-proceso-entrada', label: 'Entrada MP', icon: '▣', page: 'compras-proceso-entrada' },
+      { id: 'compras-proceso-historial', label: 'Historial', icon: '◎', page: 'compras-proceso-historial' }
+    ]
   },
   {
     group: 'Administrativo',
@@ -15681,7 +17458,7 @@ function crozzoClientAllowsMenuId(menuId) {
 
 function crozzoClientAllowsPage(page) {
   if (!page) return true;
-  if (SUPERADMIN_PAGES.has(page)) return true;
+  if (SUPERADMIN_PAGES.has(page)) return isSuperAdminUser();
   var menuId = CROZZO_PAGE_MENU_MAP[page] || page;
   return crozzoClientAllowsMenuId(menuId) || crozzoClientAllowsMenuId(page);
 }
@@ -15779,7 +17556,8 @@ function crozzoSidebarSyncNavGroupsOnExpand() {
 
 /** SUPER ADMIN VE TODO — sin filtros de permisos ni modo simple. */
 function crozzoForceSuperAdminVisibility() {
-  document.body.classList.add('super-admin-active');
+  if (!isSuperAdminUser()) return;
+  document.body.classList.add('super-admin-active', 'crozzo-session-superadmin');
   if (window.__CROZZO_IS_TAURI__ && document.body) {
     document.body.classList.add('desktop');
     document.body.classList.remove('mobile', 'tablet');
@@ -15863,7 +17641,7 @@ function renderMenusByRole(role, perfilEmpresa) {
     console.log('✅ Super Admin: todos los menús visibles');
     return;
   }
-  document.body.classList.remove('super-admin-active');
+  document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
   const menusPermitidos = getMenusForRole(role, perfil);
   if (menusPermitidos.includes('all')) return;
   document.querySelectorAll('.nav-item[data-page], [data-menu]').forEach(function (item) {
@@ -15874,7 +17652,7 @@ function renderMenusByRole(role, perfilEmpresa) {
     item.style.display = ok ? 'flex' : 'none';
     item.hidden = !ok;
   });
-  if (typeof applyAccessControl === 'function') {
+  if (typeof applyAccessControl === 'function' && !(window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active)) {
     const prev = window.__crozzoSkipMenuRoleFilter;
     window.__crozzoSkipMenuRoleFilter = true;
     try {
@@ -15907,10 +17685,10 @@ function crozzoInitSuperAdminMenus() {
     localStorage.getItem('crozzo_perfil_empresa') ||
     'completo';
 
-  if (crozzoIsSuperAdminRole(currentUserRole)) {
-    document.body.classList.add('super-admin-active');
+  if (isSuperAdminUser()) {
+    document.body.classList.add('super-admin-active', 'crozzo-session-superadmin');
   } else {
-    document.body.classList.remove('super-admin-active');
+    document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
   }
 
   renderMenusByRole(currentUserRole || 'guest', perfilEmpresa);
@@ -16669,6 +18447,9 @@ function crozzoHasCajaPermiso(sub, opts) {
 
 // Devuelve true si el usuario actual puede ver/usar una página.
 function currentUserCanSeePage(page) {
+  if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
+    return crozzoHpCanSeePage(page);
+  }
   if (SUPERADMIN_PAGES.has(page)) return isSuperAdminUser();
   if (!crozzoClientAllowsPage(page)) return false;
   if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) {
@@ -16696,8 +18477,11 @@ function currentUserCanSeePage(page) {
   }
   const r = crozzoNormalizeAppRol(u.rol);
   if (r === 'superadmin' || r === 'super_admin') return true;
-  // Modo local con sesión: permisos completos salvo páginas Super Admin.
-  if (typeof window.__crozzoIsLocalDataMode === 'function' && window.__crozzoIsLocalDataMode()) return true;
+  if (r === 'admin') {
+    const req = PAGE_PERMISOS[page];
+    if (!req) return true;
+    if (req.categoria === 'admin') return true;
+  }
   if (crozzoMeseroSinModuloVentas() && CROZZO_FIELD_HIDDEN_VENTAS_PAGES.has(page)) return false;
   if (crozzoFieldVentasHiddenOnThisDevice() && CROZZO_FIELD_HIDDEN_VENTAS_PAGES.has(page)) return false;
   const req = PAGE_PERMISOS[page];
@@ -16787,49 +18571,95 @@ function pickFirstAccessiblePage() {
 
 // Oculta nav-items, grupos vacíos y el grupo Super Admin según permisos.
 function applyAccessControl() {
+  const hpLive = window.__crozzoHoneypotLive;
+  if (hpLive && hpLive.active && hpLive.fakeUser) {
+    document.body.classList.remove('crozzo-auth-guest', 'super-admin-active', 'crozzo-session-superadmin');
+    document.body.classList.toggle('crozzo-auth-guest', false);
+    const role = crozzoNormalizeAppRol(hpLive.fakeUser.rol) || 'caja';
+    const perfilCliente = (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) || 'completo';
+    const superGrp = document.querySelector('[data-nav-group="super-admin"]');
+    if (superGrp) superGrp.style.display = 'none';
+    const menusPermitidos = getMenusForRole(role, perfilCliente);
+    document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+      const page = el.getAttribute('data-page');
+      const menuId = el.getAttribute('data-menu') || CROZZO_PAGE_MENU_MAP[page] || page;
+      let ok =
+        menusPermitidos.includes('all') ||
+        menusPermitidos.includes(menuId) ||
+        menusPermitidos.includes(page);
+      if (ok && page) ok = crozzoHpCanSeePage(page);
+      el.style.display = ok ? 'flex' : 'none';
+      el.hidden = !ok;
+      if (!ok) el.removeAttribute('hidden');
+      if (ok) {
+        el.style.pointerEvents = 'auto';
+        el.style.cursor = 'pointer';
+      }
+    });
+    document.querySelectorAll('.nav-group, .nav-group-li').forEach(g => {
+      if (g.dataset.navGroup === 'super-admin' || g.getAttribute('data-nav-group') === 'super-admin') {
+        g.style.display = 'none';
+        return;
+      }
+      const items = g.querySelectorAll('.nav-item[data-page]');
+      const visibles = Array.from(items).filter(el => el.style.display !== 'none' && !el.hidden);
+      g.style.display = visibles.length ? '' : 'none';
+    });
+    try {
+      if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
+    } catch (_) {}
+    return;
+  }
+
   const role = typeof crozzoGetCurrentUserRole === 'function' ? crozzoGetCurrentUserRole() : '';
-  const isSuper = crozzoIsSuperAdminRole(role) || isSuperAdminUser();
-  const localData = typeof window.__crozzoIsLocalDataMode === 'function' && window.__crozzoIsLocalDataMode();
+  const isSuper = isSuperAdminUser();
+  const hasUser = typeof getCurrentUser === 'function' && !!getCurrentUser();
+  const perfilCliente = (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) || 'completo';
+
+  document.body.classList.toggle('crozzo-auth-guest', !hasUser);
 
   if (isSuper && !window.__crozzoSkipMenuRoleFilter) {
     crozzoForceSuperAdminVisibility();
     try {
       if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
     } catch (_) {}
-    setTimeout(crozzoFixHiddenMenuItems, 50);
     return;
   }
 
-  // Modo local: mostrar grupo Super Admin para poder configurar nube sin Supabase previo.
-  const superGrp = document.querySelector('[data-nav-group="super-admin"]');
-  if (superGrp) superGrp.style.display = isSuper || localData ? '' : 'none';
+  document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
 
-  // Filtra cada nav-item por permiso y modo de operación (simple oculta módulos DIAN/sync avanzado).
-  const perfilCliente = (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) || 'completo';
-  if (!window.__crozzoSkipMenuRoleFilter && !isSuper && !localData) {
+  const superGrp = document.querySelector('[data-nav-group="super-admin"]');
+  if (superGrp) superGrp.style.display = isSuper ? '' : 'none';
+
+  if (!window.__crozzoSkipMenuRoleFilter && hasUser) {
     var prevSkip = window.__crozzoSkipMenuRoleFilter;
     window.__crozzoSkipMenuRoleFilter = true;
     try {
-      renderMenusByRole(role, perfilCliente);
+      renderMenusByRole(role || 'user', perfilCliente);
     } catch (_) {}
     window.__crozzoSkipMenuRoleFilter = prevSkip;
   }
+
   document.querySelectorAll('.nav-item[data-page]').forEach(el => {
     const page = el.getAttribute('data-page');
-    let ok = currentUserCanSeePage(page);
+    let ok = hasUser && currentUserCanSeePage(page);
     if (ok && pageBlockedByOperacionModo(page)) ok = false;
     if (ok && !crozzoClientAllowsPage(page)) ok = false;
     el.style.display = ok ? '' : 'none';
-    if (ok) el.hidden = false;
+    el.hidden = !ok;
+    if (!ok) el.removeAttribute('hidden');
   });
 
-  // Oculta grupos enteros si todos sus items quedaron ocultos.
-  document.querySelectorAll('.nav-group').forEach(g => {
-    if (g.dataset.navGroup === 'super-admin') return;
+  document.querySelectorAll('.nav-group, .nav-group-li').forEach(g => {
+    if (g.dataset.navGroup === 'super-admin' || g.getAttribute('data-nav-group') === 'super-admin') {
+      g.style.display = isSuper ? '' : 'none';
+      return;
+    }
     const items = g.querySelectorAll('.nav-item[data-page]');
-    const visibles = Array.from(items).filter(el => el.style.display !== 'none');
+    const visibles = Array.from(items).filter(el => el.style.display !== 'none' && !el.hidden);
     g.style.display = visibles.length ? '' : 'none';
   });
+
   try {
     if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
   } catch (_) {}
@@ -16855,6 +18685,14 @@ function renderSinAcceso() {
 }
 
 function navigateTo(page) {
+  const hpLiveNav = window.__crozzoHoneypotLive;
+  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+    if (!(hpLiveNav && hpLiveNav.active)) {
+      if (crozzoIsLegendaryQuarantineActive()) void crozzoEnsureLegendaryContainmentUi();
+      else if (typeof showLoginOverlay === 'function') showLoginOverlay();
+      return;
+    }
+  }
   if (page === 'nomina-planilla') {
     window.__crozzoPlanillaTab = 'nomina';
     page = 'planilla-2026';
@@ -16865,6 +18703,12 @@ function navigateTo(page) {
   if (page === 'compras-ordenes') {
     window.__crozzoCentroComprasStart = 'ordenes';
     page = 'centro-compras';
+  } else if (typeof crozzoProcesosPageToView === 'function') {
+    var proView = crozzoProcesosPageToView(page);
+    if (proView) {
+      window.__crozzoCentroProcesosStart = proView;
+      page = 'centro-procesos';
+    }
   } else if (typeof crozzoComprasPageToModule === 'function') {
     var comprasMod = crozzoComprasPageToModule(page);
     if (comprasMod) {
@@ -16891,34 +18735,41 @@ function navigateTo(page) {
       return;
     }
   }
-  if (pageBlockedByOperacionModo(page)) {
-    if (typeof showToast === 'function') {
-      showToast('En modo Facturación simple esa sección no está disponible. Cambia a modo electrónico en Super Admin → Modo de operación.', 'warning');
-    }
-    const fallback = pickFirstAccessiblePage();
-    if (fallback) page = fallback;
-    else {
-      currentPage = page;
-      applyAccessControl();
-      renderSinAcceso();
+  if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
+    if (!crozzoHpCanSeePage(page)) {
+      if (typeof showToast === 'function') showToast('No tienes permiso para esta sección', 'warning');
       return;
     }
-  }
-  if (!currentUserCanSeePage(page)) {
-    if (typeof showToast === 'function') {
-      const motivo = SUPERADMIN_PAGES.has(page)
-        ? '🔒 Sección restringida al Super Admin'
-        : '🔒 No tienes permiso para esta sección';
-      showToast(motivo, 'warning');
+  } else {
+    if (pageBlockedByOperacionModo(page)) {
+      if (typeof showToast === 'function') {
+        showToast('En modo Facturación simple esa sección no está disponible. Cambia a modo electrónico en Super Admin → Modo de operación.', 'warning');
+      }
+      const fallback = pickFirstAccessiblePage();
+      if (fallback) page = fallback;
+      else {
+        currentPage = page;
+        applyAccessControl();
+        renderSinAcceso();
+        return;
+      }
     }
-    const fallback = pickFirstAccessiblePage();
-    if (!fallback) {
-      currentPage = page;
-      applyAccessControl();
-      renderSinAcceso();
-      return;
+    if (!currentUserCanSeePage(page)) {
+      if (typeof showToast === 'function') {
+        const motivo = SUPERADMIN_PAGES.has(page)
+          ? '🔒 Sección restringida al Super Admin'
+          : '🔒 No tienes permiso para esta sección';
+        showToast(motivo, 'warning');
+      }
+      const fallback = pickFirstAccessiblePage();
+      if (!fallback) {
+        currentPage = page;
+        applyAccessControl();
+        renderSinAcceso();
+        return;
+      }
+      page = fallback;
     }
-    page = fallback;
   }
   currentPage = page;
   if (typeof crozzoOpenNavGroup === 'function') {
@@ -16957,7 +18808,10 @@ function navigateTo(page) {
     'comandas': ['Comandas', 'Vista por áreas de producción'],
     'cocina': ['Cocina', 'Comandas entrantes y estado de preparación'],
     'compras-recepcion': ['Entrada de factura', 'Recepción de proveedor (nube QyC o almacenamiento local)'],
-    'compras-cortes': ['Cortes y materia prima', 'Kilos, rendimientos y MP'],
+    'compras-cortes': ['Centro de producción', 'Despiece, cocción y elaboración'],
+    'compras-proceso-sesion': ['Nueva sesión', 'Registrar proceso en cocina'],
+    'compras-proceso-entrada': ['Entrada materia prima', 'Kg y cortes de factura'],
+    'compras-proceso-historial': ['Historial procesos', 'Lotes y alertas de merma'],
     'compras-oficina': ['Oficina y pagos', 'Transferencias, efectivo y tarjeta'],
     'compras-dashboard': ['Resumen compras', 'Pestaña dentro de Reportes y dashboard (Gestión)'],
     'inventarios': ['Reportes y dashboard', 'Ventas, inventario, exportación y resumen de compras'],
@@ -17013,6 +18867,9 @@ function navigateTo(page) {
   try {
     crozzoShiftSyncFabVisibility();
   } catch (_) {}
+  try {
+    if (window.CrozzoViewportFit && typeof CrozzoViewportFit.schedule === 'function') CrozzoViewportFit.schedule();
+  } catch (_) {}
 }
 
 function updateDemoBadge() {
@@ -17052,6 +18909,40 @@ function updateOperacionModeBadges() {
 }
 
 function renderPage(page) {
+  const hpLive = window.__crozzoHoneypotLive;
+  if (hpLive && hpLive.active) {
+    const content = document.getElementById('mainContent');
+    if (content) {
+      content.classList.remove('main-body--retail-pos', 'main-body--qyc-embed', 'main-body--centro-compras');
+      if (document.body) {
+        document.body.classList.remove(
+          'crozzo-page-venta-comercial',
+          'crozzo-page-facturas',
+          'crozzo-page-control-acceso',
+          'crozzo-page-qyc-embed',
+          'crozzo-page-pedidos-internos',
+          'crozzo-page-centro-compras'
+        );
+      }
+      if (window.CrozzoHoneypotSim && typeof CrozzoHoneypotSim.renderLivePage === 'function') {
+        content.innerHTML = CrozzoHoneypotSim.renderLivePage(page, hpLive.ctx, hpLive.decoy, hpLive);
+      } else {
+        content.innerHTML =
+          '<motion.div class="card"><p class="form-hint">Cargando terminal señuelo…</p></motion.div>'.replace(/<motion\./g, '<').replace(/<\/motion\./g, '</');
+      }
+    }
+    if (typeof crozzoHpSyncChromeForPage === 'function') crozzoHpSyncChromeForPage(page);
+    try {
+      if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+    } catch (_) {}
+    return;
+  }
+  const liveUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (liveUser && crozzoIsStaffDecoyAccount(liveUser)) {
+    if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
+    if (typeof showLoginOverlay === 'function') showLoginOverlay();
+    return;
+  }
   if (typeof window.destroyDiagnosticsPanel === 'function') window.destroyDiagnosticsPanel();
   if (page !== 'config-conexiones-sistemas') destroyCrozzoSyncRouter();
   if (page !== 'config-multidispositivo') destroyMultiDeviceSyncRouterUI();
@@ -17061,6 +18952,7 @@ function renderPage(page) {
   }
   if (typeof crozzoIntAccesoTeardown === 'function') crozzoIntAccesoTeardown();
   if (typeof window.crozzoCentroComprasTeardown === 'function') window.crozzoCentroComprasTeardown();
+  if (typeof window.crozzoCentroProcesosTeardown === 'function') window.crozzoCentroProcesosTeardown();
   const mc = document.getElementById('mainContent');
   if (mc) mc.classList.remove('main-body--qyc-embed', 'main-body--centro-compras');
   const content = document.getElementById('mainContent');
@@ -17088,6 +18980,20 @@ function renderPage(page) {
       if (document.body) document.body.classList.add('crozzo-page-centro-compras');
       content.innerHTML = typeof renderComprasProveedores === 'function' ? renderComprasProveedores() : '<div class="card"><p>Módulo de proveedores no disponible</p></div>';
       if (typeof initComprasProveedores === 'function') initComprasProveedores();
+      break;
+    }
+    case 'centro-procesos':
+    case 'compras-cortes':
+    case 'compras-proceso-sesion':
+    case 'compras-proceso-entrada':
+    case 'compras-proceso-historial': {
+      if (document.body) document.body.classList.add('crozzo-page-centro-procesos');
+      if (content) content.classList.add('main-body--centro-procesos');
+      var proStart = window.__crozzoCentroProcesosStart || null;
+      window.__crozzoCentroProcesosStart = null;
+      if (!proStart && typeof crozzoProcesosPageToView === 'function') proStart = crozzoProcesosPageToView(page);
+      content.innerHTML = typeof renderCentroProcesos === 'function' ? renderCentroProcesos(proStart) : '<div class="card"><p>Cargue CrozzoCentroProcesos.js</p></div>';
+      if (typeof initCentroProcesos === 'function') initCentroProcesos(proStart);
       break;
     }
     case 'centro-compras':
@@ -30762,9 +32668,11 @@ function renderActualizacionesSistema() {
     '<span class="badge" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);">Super Admin</span>' +
     '</div>' +
     '<p class="form-hint" style="margin:0 0 var(--space-3);">OTA: <code>registry.json</code> en <code>main</code> (avisos). Instalador: <code>latest.json</code> del <strong>GitHub Release</strong> (tag <code>v*</code>); en escritorio, <strong>Instalar</strong> descarga el .exe firmado.</p>' +
-    '<p style="margin:0 0 var(--space-4);">Versión registrada en este equipo: <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
+    '<p style="margin:0 0 var(--space-2);">Versión del ejecutable / build: <strong id="crozzoUpdatesBinaryVersionLabel">—</strong></p>' +
+    '<p style="margin:0 0 var(--space-4);">Versión registrada (OTA): <span class="crozzo-updates-version" id="crozzoUpdatesVersionLabel">' +
     escUserAttr(vCur) +
     '</span></p>' +
+    '<p class="form-hint" style="margin:0 0 var(--space-4);">Los cambios de código locales requieren <strong>Sincronizar frontend</strong> (menú herramientas) y recompilar el .exe, o publicar un release nuevo en GitHub. El JSON en <code>main</code> solo muestra avisos; no sustituye el instalador.</p>' +
     '<div class="form-group" style="margin-bottom:var(--space-4);">' +
     '<label class="form-label" for="crozzoUpdateManifestUrl">URL del manifiesto (raw GitHub)</label>' +
     '<input type="url" class="form-input" id="crozzoUpdateManifestUrl" placeholder="' +
@@ -30806,6 +32714,15 @@ window.renderActualizacionesSistema = renderActualizacionesSistema;
 // ==========================================
 // CONFIGURACIÓN DEL SISTEMA (Super Admin)
 // ==========================================
+function crozzoSeguridadShiftLabel() {
+  try {
+    if (window.CrozzoHoneypotSim && typeof CrozzoHoneypotSim.getShiftContext === 'function') {
+      return CrozzoHoneypotSim.getShiftContext(false).label;
+    }
+  } catch (_) {}
+  return '—';
+}
+
 function renderConfigSeguridad() {
   const u = getCurrentUser();
   const seg = config.get('seguridad') || { requiereLogin: true };
@@ -30816,6 +32733,35 @@ function renderConfigSeguridad() {
     window.CrozzoAuthSecurity && typeof CrozzoAuthSecurity.crozzoHoneypotLockActive === 'function'
       ? CrozzoAuthSecurity.crozzoHoneypotLockActive(seg)
       : { locked: false };
+  const legendReady = !!(hp.unlockCodeHash && hp.unlockCodeSalt);
+  const shiftLbl = crozzoSeguridadShiftLabel();
+  const vpScale =
+    typeof getComputedStyle === 'function'
+      ? getComputedStyle(document.documentElement).getPropertyValue('--crozzo-system-scale').trim() || '1'
+      : '1';
+  const vpH =
+    typeof getComputedStyle === 'function'
+      ? getComputedStyle(document.documentElement).getPropertyValue('--crozzo-vh').trim()
+      : '';
+  const cuarentenaCls = hpLock.legendary
+    ? 'seg-status-danger'
+    : hpLock.locked
+      ? 'seg-status-warn'
+      : 'seg-status-ok';
+  const cuarentenaVal = hpLock.legendary
+    ? 'Cuarentena legendaria activa'
+    : hpLock.locked
+      ? 'Bloqueo temporal (~' + (hpLock.minutos || 0) + ' min)'
+      : 'Sin bloqueo por intrusión';
+  const trampaCls = hp.enabled === false ? 'seg-status-muted' : 'seg-status-ok';
+  const trampaVal =
+    hp.enabled === false ? 'Trampa desactivada' : 'Activa · ' + (hp.decoys || []).length + ' cebos';
+  const lastEvt = hp.lastTripAt
+    ? `${escUserAttr(hp.lastTripId || '—')}${hp.lastDecoyUser ? ' · ' + escUserAttr(hp.lastDecoyUser) : ''} · ${escUserAttr(String(hp.lastTripAt).slice(0, 19).replace('T', ' '))}`
+    : 'Ningún evento registrado';
+  const decoyOptions = (hp.decoys || [])
+    .map(d => `<option value="${escUserAttr(d.user)}">${escUserAttr(d.user)} — ${escUserAttr(d.label)}</option>`)
+    .join('');
   const localHint =
     typeof window.__crozzoIsLocalDataMode === 'function' && window.__crozzoIsLocalDataMode()
       ? '<p class="form-hint" style="margin:8px 0 0;">Modo local: cuenta de soporte del fabricante (no listada en Usuarios). Clave de fábrica solo en la guía de instalación.</p>'
@@ -30878,19 +32824,104 @@ function renderConfigSeguridad() {
 
     <div class="card" style="margin-top:14px;">
       <div class="card-header">
-        <span class="card-title">🎭 Usuario señuelo (honeypot)</span>
+        <span class="card-title">🛡️ Protección actual del sistema</span>
       </div>
-      <p class="form-hint" style="margin:0 0 10px;">
-        ${(hp.decoys || []).length} usuarios señuelo con contraseñas obvias y <strong>errores falsos</strong> que invitan a reintentar (3 intentos → trampa).
-        Emulación según hora (día = actividad; noche = silencio). Flujo: teatro → sandbox → recolección →
-        <strong>cuarentena legendaria</strong> (${hp.tripCount || 0} eventos). Todo falso.
-        Solo el código en <code>herramientas/CROZZO_LEYENDA_DESBLOQUEO.txt</code> levanta el bloqueo (la contraseña de soporte sola no basta).
+      <p class="form-hint" style="margin:0 0 8px;">
+        Resumen en tiempo real (solo Super Admin). Los intrusos <strong>no</strong> ven esta pantalla; la secuencia que ven usa textos operativos creíbles, sin mencionar “emulación” ni “datos falsos”.
       </p>
+      <table class="seg-status-table" role="table" aria-label="Estado de protección">
+        <tbody>
+          <tr>
+            <th scope="row">Login al iniciar</th>
+            <td class="${requiere ? 'seg-status-ok' : 'seg-status-warn'}">${requiere ? 'Requerido' : 'Desactivado'}</td>
+          </tr>
+          <tr>
+            <th scope="row">Cierre por inactividad</th>
+            <td>${idleMin ? idleMin + ' min' : 'Desactivado'}</td>
+          </tr>
+          <tr>
+            <th scope="row">Contraseñas locales</th>
+            <td class="seg-status-ok">PBKDF2 · 120 k iteraciones</td>
+          </tr>
+          <tr>
+            <th scope="row">Intentos fallidos</th>
+            <td>5 intentos → bloqueo 5 min</td>
+          </tr>
+          <tr>
+            <th scope="row">Trampa honeypot</th>
+            <td class="${trampaCls}">${escUserAttr(trampaVal)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Cuarentena / bloqueo</th>
+            <td class="${cuarentenaCls}">${escUserAttr(cuarentenaVal)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Código leyenda</th>
+            <td class="${legendReady ? 'seg-status-ok' : 'seg-status-warn'}">${legendReady ? 'Configurado (hash en disco)' : 'Pendiente al iniciar app'}</td>
+          </tr>
+          <tr>
+            <th scope="row">Contexto horario (teatro)</th>
+            <td class="seg-status-muted">${escUserAttr(shiftLbl)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Pantalla / escala</th>
+            <td class="seg-status-muted">${escUserAttr(vpScale !== '1' ? '×' + vpScale : '100%')}${vpH ? ' · ' + escUserAttr(vpH) : ''}</td>
+          </tr>
+          <tr>
+            <th scope="row">Último evento de intrusión</th>
+            <td class="seg-val--compact">${lastEvt} · total ${hp.tripCount || 0}</td>
+          </tr>
+        </tbody>
+      </table>
       ${
         hpLock.locked
           ? hpLock.legendary
-            ? `<div class="alert alert-warning" style="margin-bottom:10px;">🛡️ <strong>Cuarentena legendaria</strong> activa. Use el código de liberación o el .bat en herramientas Crozzo.</div>`
-            : `<div class="alert alert-warning" style="margin-bottom:10px;">🔒 Bloqueo temporal ~${hpLock.minutos} min (evento ${escUserAttr(hp.lastTripId || '—')}${hp.lastDecoyUser ? ' · ' + escUserAttr(hp.lastDecoyUser) : ''}).</div>`
+            ? `<div class="alert alert-warning" style="margin:12px 0 0;">🛡️ <strong>Cuarentena legendaria</strong> — libere con el código en <code>herramientas/CROZZO_LEYENDA_DESBLOQUEO.txt</code> o el .bat recordatorio.</div>`
+            : `<div class="alert alert-warning" style="margin:12px 0 0;">🔒 Bloqueo temporal activo (~${hpLock.minutos} min).</div>`
+          : ''
+      }
+      <div class="form-group" style="margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:var(--radius);background:rgba(59,130,246,0.06);">
+        <strong style="font-size:0.88rem;">🎬 Recrear secuencia de protección (vista previa)</strong>
+        <p class="form-hint" style="margin:6px 0 10px;">
+          Reproduce el teatro que vería un atacante con un usuario señuelo. <strong>No bloquea</strong> el sistema ni incrementa la cuarentena.
+        </p>
+        <div class="seg-preview-row">
+          <div class="form-group">
+            <label class="form-label">Usuario señuelo</label>
+            <select class="form-select" id="cfgHpPreviewDecoy">${decoyOptions}</select>
+          </div>
+          <div class="seg-preview-actions">
+            <div class="seg-hp-mode-group" role="radiogroup" aria-label="Duración de la vista previa">
+              <label class="seg-hp-mode" title="Teatro y app simulada, ~15 s">
+                <input type="radio" name="cfgHpPreviewMode" value="short" checked>
+                <span>Rápida</span>
+              </label>
+              <label class="seg-hp-mode" title="Incluye sincronización y cierre simulado">
+                <input type="radio" name="cfgHpPreviewMode" value="full">
+                <span>Completa</span>
+              </label>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="crozzoHoneypotAdminTheaterPreview()">▶ Iniciar vista previa</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <div class="card-header">
+        <span class="card-title">🎭 Configuración honeypot</span>
+      </div>
+      <p class="form-hint" style="margin:0 0 10px;">
+        Cebos con errores engañosos (3 intentos → trampa). Flujo real: POS falso navegable → alertas → pantalla de bloqueo → cuarentena.
+        Liberación solo con código en <code>herramientas/</code> (la contraseña de soporte sola no basta).
+      </p>
+      <div class="alert alert-info" style="margin:0 0 12px;">
+        <strong>Prueba rápida (cebo):</strong> usuario <code>payaso</code> · contraseña <code>payaso123</code>
+        (rol admin señuelo; no existe en Usuarios reales). También vale <code>PAYASO</code> en mayúsculas.
+      </div>
+      ${
+        Array.isArray(hp.tripLog) && hp.tripLog.length
+          ? `<p class="form-hint" style="margin:0 0 12px;color:#f87171;">Registro forense: ${hp.tripLog.length} evento(s) de trampa. Ver también Auditoría → eventos de trampa.</p>`
           : ''
       }
       <div class="form-group" style="padding:12px;border:1px solid var(--border);border-radius:var(--radius);">
@@ -30899,29 +32930,41 @@ function renderConfigSeguridad() {
           <span class="slider"></span>
           <span style="margin-left:8px;">Trampa activa</span>
         </label>
-        <div class="users-table-wrap" style="margin:10px 0;max-height:220px;overflow:auto;">
-          <table class="users-table" style="font-size:0.78rem;">
-            <thead><tr><th>Usuario</th><th>Clave cebo</th><th>Rol</th><th>Etiqueta</th></tr></thead>
-            <tbody>
-              ${(hp.decoys || []).map(d => `
-                <tr>
-                  <td><code>${escUserAttr(d.user)}</code></td>
-                  <td><code>${escUserAttr(d.pass)}</code></td>
-                  <td>${escUserAttr(d.rol)}</td>
-                  <td>${escUserAttr(d.label)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
+        <details style="margin:10px 0;">
+          <summary class="form-hint" style="cursor:pointer;">Ver lista de usuarios señuelo (${(hp.decoys || []).length})</summary>
+          <div class="users-table-wrap" style="margin:10px 0;max-height:220px;overflow:auto;">
+            <table class="users-table" style="font-size:0.78rem;">
+              <thead><tr><th>Usuario</th><th>Clave cebo</th><th>Rol</th><th>Etiqueta</th></tr></thead>
+              <tbody>
+                ${(hp.decoys || []).map(d => `
+                  <tr>
+                    <td><code>${escUserAttr(d.user)}</code></td>
+                    <td><code>${escUserAttr(d.pass)}</code></td>
+                    <td>${escUserAttr(d.rol)}</td>
+                    <td>${escUserAttr(d.label)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </details>
         <div class="form-grid" style="gap:10px;">
           <div class="form-group">
             <label class="form-label">Teatro inicial (seg)</label>
             <input type="number" class="form-input" id="cfgHoneypotTheater" min="3" max="30" value="${hp.theaterSeconds || 8}">
           </div>
           <div class="form-group">
-            <label class="form-label">Emulación POS (seg)</label>
-            <input type="number" class="form-input" id="cfgHoneypotSandbox" min="5" max="120" value="${hp.sandboxSeconds || 12}">
+            <label class="form-label">Exploración falsa mín (min)</label>
+            <input type="number" class="form-input" id="cfgHpLiveMin" min="1" max="15" value="${hp.sandboxInteractiveMinMinutes || 1}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Exploración falsa máx (min)</label>
+            <input type="number" class="form-input" id="cfgHpLiveMax" min="1" max="15" value="${hp.sandboxInteractiveMaxMinutes || 5}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pantalla de bloqueo (seg)</label>
+            <input type="number" class="form-input" id="cfgHpBreachSec" min="8" max="120" value="${hp.breachSeconds || 14}">
+            <p class="form-hint" style="margin:4px 0 0;">En trampa real la secuencia de bloqueo es rápida (~8 s); este valor aplica a la vista admin lenta.</p>
           </div>
           <div class="form-group">
             <label class="form-label">Recolección mín (min)</label>
@@ -30967,7 +33010,7 @@ function renderConfigSeguridad() {
       </div>
       <p class="form-hint" style="margin:0 0 8px;">
         DIAN, certificado .p12, proveedor FE, modo demo/prod e identidad viven en <strong>Soporte y plataforma</strong>.
-        Solo el rol <strong>Super Admin</strong> (local <code>KENNY</code> o perfil nube equivalente) ve ese grupo.
+        Solo el rol <strong>Super Admin</strong> (cuenta de soporte interna o perfil nube equivalente) ve ese grupo.
       </p>
       <p class="form-hint" style="margin:0;">
         Rol <em>admin</em>: empresa, impuestos, comandas, facturas y <strong>Usuarios</strong> en Configuración — sin acceso a DIAN ni certificados.
@@ -31156,6 +33199,11 @@ function crozzoKioskGetLockedPage() {
 }
 
 function crozzoKioskEnterComandasFromLogin(targetPage) {
+  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+    if (crozzoIsLegendaryQuarantineActive()) void crozzoEnsureLegendaryContainmentUi();
+    else showToast('Terminal bloqueado por seguridad.', 'error');
+    return;
+  }
   const t = targetPage === 'cocina' ? 'cocina' : 'comandas';
   if (t === 'cocina') {
     cocinaVistaKds = true;
@@ -31514,7 +33562,9 @@ window.crozzoRunProductionReadiness = crozzoRunProductionReadiness;
 function crozzoExportAuditoriaCsv() {
   try {
     const logs =
-      typeof config !== 'undefined' && config.config && Array.isArray(config.config.auditoria) ? config.config.auditoria : [];
+      typeof config !== 'undefined' && config.config && Array.isArray(config.config.auditoria)
+        ? config.config.auditoria.filter(l => !l.synthetic)
+        : [];
     const cols = ['timestamp', 'user', 'action', 'details', 'modo', 'prevHash', 'chainHash'];
     const esc = (v) => {
       const s = String(v == null ? '' : v).replace(/"/g, '""');
@@ -31540,7 +33590,8 @@ window.crozzoExportAuditoriaCsv = crozzoExportAuditoriaCsv;
 // AUDITORIA PAGE
 // ==========================================
 function renderAuditoria() {
-  const logs = config.config.auditoria || [];
+  const logs = (config.config.auditoria || []).filter(l => !l.synthetic);
+  const hpLog = ((config.get('seguridad') || {}).honeypot || {}).tripLog || [];
   const ua =
     typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent.slice(0, 160) : '—';
 
@@ -31553,7 +33604,7 @@ function renderAuditoria() {
           <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="clearAudit()">Limpiar logs</button>
         </div>
       </div>
-      <p class="form-hint" style="margin: 0 16px 12px;">Cadena <code>chainHash</code> enlaza cada evento con el anterior (integridad básica en este equipo). Dispositivo: <span style="word-break:break-all;">${typeof escUserAttr === 'function' ? escUserAttr(ua) : ua}</span></p>
+      <p class="form-hint" style="margin: 0 16px 12px;">Cadena <code>chainHash</code> enlaza cada evento operativo (eventos de trampa honeypot van al registro de seguridad en Sesión y acceso). Dispositivo: <span style="word-break:break-all;">${typeof escUserAttr === 'function' ? escUserAttr(ua) : ua}</span></p>
       ${logs.length === 0 ? `
         <div style="text-align: center; padding: 40px; color: var(--text-muted);">
           <div style="font-size: 3rem; margin-bottom: 12px;">📋</div>
@@ -31588,6 +33639,27 @@ function renderAuditoria() {
         </div>
       `}
     </div>
+    ${
+      hpLog.length
+        ? `<div class="card" style="margin-top:14px;border-color:rgba(248,113,113,0.35);">
+      <div class="card-header"><span class="card-title">🛡️ Eventos de trampa (forense)</span></div>
+      <p class="form-hint" style="margin:0 16px 10px;">Separado del log operativo. Últimos ${hpLog.length} incidentes.</p>
+      <div class="table-container">
+        <table><thead><tr><th>Fecha</th><th>Acción</th><th>Detalle</th><th>Caso</th></tr></thead>
+        <tbody>${hpLog
+          .slice(0, 40)
+          .map(
+            e => `<tr>
+              <td style="white-space:nowrap;">${new Date(e.at).toLocaleString('es-CO')}</td>
+              <td><span class="badge badge-warning">${typeof escUserAttr === 'function' ? escUserAttr(e.action) : e.action}</span></td>
+              <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;">${typeof escUserAttr === 'function' ? escUserAttr(e.details) : e.details}</td>
+              <td style="font-family:monospace;font-size:0.72rem;">${e.tripId || '—'}</td>
+            </tr>`
+          )
+          .join('')}</tbody></table>
+      </div></div>`
+        : ''
+    }
   `;
 }
 
@@ -32383,6 +34455,9 @@ function init() {
   } catch (eMenu) {
     console.warn('crozzoInitSuperAdminMenus', eMenu);
   }
+  try {
+    if (typeof crozzoClearReservedSessionIfAny === 'function') crozzoClearReservedSessionIfAny();
+  } catch (_) {}
   applyAccessControl();
   try {
     if (typeof initMobileUX === 'function') initMobileUX();
@@ -32415,12 +34490,27 @@ function init() {
     !getCurrentUser() &&
     !(typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective());
 
-  if (needLogin) {
+  if (crozzoIsLegendaryQuarantineActive()) {
+    try {
+      if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
+      if (typeof window.__crozzoSupabaseSignOut === 'function') void window.__crozzoSupabaseSignOut();
+    } catch (_) {}
+    applyAccessControl();
+    void crozzoEnsureLegendaryContainmentUi();
+  } else if (needLogin) {
+    applyAccessControl();
     showLoginOverlay();
     try {
       if (typeof crozzoRefreshLoginLocalHint === 'function') crozzoRefreshLoginLocalHint();
     } catch (_) {}
     navigateTo('cajero');
+  } else if (crozzoSecurityBlocksRealSession()) {
+    applyAccessControl();
+    try {
+      if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
+    } catch (_) {}
+    if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+    showLoginOverlay();
   } else {
     const home =
       (bootKiosk && typeof crozzoKioskGetLockedPage === 'function' ? crozzoKioskGetLockedPage() : null) ||
@@ -32451,6 +34541,12 @@ function init() {
   try {
     crozzoShiftEnsureTurn();
     crozzoShiftSyncFabVisibility();
+  } catch (_) {}
+
+  try {
+    if (window.CrozzoViewportFit && typeof CrozzoViewportFit.bootSequence === 'function') {
+      CrozzoViewportFit.bootSequence();
+    }
   } catch (_) {}
 
   try {
@@ -37073,6 +39169,7 @@ init();
 <script src="CrozzoSystemUpdates.js"></script>
 <script src="CrozzoComprasLocal.js"></script>
 <script src="CrozzoCentroCompras.js"></script>
+<script src="CrozzoCentroProcesos.js"></script>
 <script src="CrozzoPlanilla2026.js"></script>
 <script src="CrozzoModulosIntegrados.js"></script>
 <script src="CrozzoModulosIntegradosAcceso.js"></script>

@@ -52,12 +52,64 @@
     } catch (_) {}
   }
 
+  function readMetaBuildVersion() {
+    try {
+      var meta = document.querySelector('meta[name="crozzo-app-version"]');
+      if (meta && meta.getAttribute('content')) {
+        var v = String(meta.getAttribute('content')).trim();
+        if (v) return v.indexOf('v') === 0 ? v : 'v' + v;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function fetchTauriBinaryVersion() {
+    if (!global.__TAURI__ || !global.__TAURI__.core || typeof global.__TAURI__.core.invoke !== 'function') {
+      return Promise.resolve(null);
+    }
+    return global.__TAURI__.core
+      .invoke('plugin:app|version')
+      .then(function (v) {
+        if (!v) return null;
+        var s = String(v).trim();
+        return s.indexOf('v') === 0 ? s : 'v' + s;
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   function loadInstalledVersion() {
     try {
       var v = localStorage.getItem(LS_INSTALLED);
       if (v && String(v).trim()) return String(v).trim();
     } catch (_) {}
+    var meta = readMetaBuildVersion();
+    if (meta) return meta;
     return 'v1.0.0';
+  }
+
+  function reconcileInstalledVersion(binaryVer) {
+    var stored = null;
+    try {
+      var raw = localStorage.getItem(LS_INSTALLED);
+      if (raw && String(raw).trim()) stored = String(raw).trim();
+    } catch (_) {}
+    var meta = readMetaBuildVersion();
+    var truth = binaryVer || meta || stored || 'v1.0.0';
+    if (stored && compareSemver(stored, truth) > 0) {
+      saveInstalledVersion(truth);
+      return truth;
+    }
+    if (binaryVer && compareSemver(binaryVer, truth) >= 0) {
+      saveInstalledVersion(binaryVer);
+      return binaryVer;
+    }
+    if (meta && (!stored || compareSemver(meta, stored) > 0)) {
+      saveInstalledVersion(meta);
+      return meta;
+    }
+    return stored || truth;
   }
 
   function saveInstalledVersion(v) {
@@ -366,8 +418,14 @@
 
   function syncVersionLabels() {
     var label = document.getElementById('crozzoUpdatesVersionLabel');
+    var binary = document.getElementById('crozzoUpdatesBinaryVersionLabel');
     if (label) label.textContent = VERSION;
+    if (binary) {
+      var meta = readMetaBuildVersion();
+      binary.textContent = meta || (global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.isAvailable() ? '…' : 'N/A (navegador)');
+    }
     global.CROZZO_APP_VERSION = VERSION;
+    global.CROZZO_APP_BUILD_VERSION = readMetaBuildVersion();
   }
 
   function buildUpdateNormalFromEntry(entry, currentVer) {
@@ -452,10 +510,30 @@
           : [],
     };
 
-    saveInstalledVersion(remote);
     setDetailOpen(false);
     setNormalOpen(false);
     setCriticalOpen(true);
+
+    if (global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.isAvailable()) {
+      setCheckStatus('Instalando actualización crítica desde GitHub Releases…');
+      global.CrozzoTauriUpdater.installLatest({
+        onProgress: function (p) {
+          if (p && p.message) setCheckStatus(p.message);
+        },
+      })
+        .then(function (res) {
+          if (res && res.installed && res.version) {
+            saveInstalledVersion(res.version.indexOf('v') === 0 ? res.version : 'v' + res.version);
+          }
+        })
+        .catch(function () {
+          setCheckStatus(
+            'Aviso crítico mostrado. Publique un release v' +
+              String(entry.semver || remote).replace(/^v/i, '') +
+              ' en GitHub para instalar el .exe.'
+          );
+        });
+    }
     return true;
   }
 
@@ -477,6 +555,8 @@
 
     for (var i = 0; i < sorted.length; i++) {
       var entry = sorted[i];
+      var remote = entry.version || 'v' + (entry.semver || '');
+      if (compareSemver(remote, VERSION) <= 0) continue;
       var id = entryId(entry);
 
       if (isCriticalEntry(entry)) {
@@ -661,15 +741,23 @@
           }
         } else if (pending.length) {
           setCheckStatus(
-            'Hay ' + pending.length + ' pendiente(s) en cola; cierre avisos previos o use Restablecer avisos.'
+            'Hay ' +
+              pending.length +
+              ' actualización(es) más nueva(s) en GitHub. Use Restablecer avisos o Instalar (requiere release v' +
+              (pending[0] && pending[0].semver ? pending[0].semver : '?') +
+              ' en GitHub).'
           );
         } else {
+          var maxRemote = _registryEntries.reduce(function (best, e) {
+            var rv = e.version || 'v' + (e.semver || '');
+            return !best || compareSemver(rv, best) > 0 ? rv : best;
+          }, '');
+          var needsExe =
+            maxRemote && compareSemver(maxRemote, VERSION) > 0
+              ? ' Hay release ' + maxRemote + ' en GitHub; pulse Instalar en escritorio para bajar el .exe.'
+              : '';
           setCheckStatus(
-            'Última comprobación: al día (' +
-              _registryEntries.length +
-              ' en registro remoto, equipo ' +
-              VERSION +
-              ').'
+            'Avisos al día. Versión equipo: ' + VERSION + '.' + needsExe
           );
         }
 
@@ -759,7 +847,6 @@
     var next = VERSION_AVAIL;
     setDetailOpen(false);
     setNormalOpen(false);
-    markOptionalInstalled(next);
 
     var acceptBtn = document.getElementById('crozzoUpdateDetailAccept');
     if (acceptBtn) {
@@ -794,7 +881,32 @@
       })
         .then(function (res) {
           resetAcceptBtn();
+          if (res && res.installed && res.version) {
+            markOptionalInstalled(
+              res.version.indexOf('v') === 0 ? res.version : 'v' + res.version
+            );
+            return;
+          }
           if (res && res.upToDate) {
+            if (compareSemver(next, VERSION) > 0) {
+              setCheckStatus(
+                'GitHub no tiene un .exe más nuevo que ' +
+                  VERSION +
+                  '. Publique release ' +
+                  next +
+                  ' y vuelva a pulsar Instalar.'
+              );
+              try {
+                if (typeof global.showToast === 'function') {
+                  global.showToast(
+                    'Falta el instalador ' + next + ' en GitHub Releases.',
+                    'warning'
+                  );
+                }
+              } catch (_) {}
+              return;
+            }
+            markOptionalInstalled(next);
             try {
               if (typeof global.showToast === 'function') {
                 global.showToast(
@@ -825,6 +937,7 @@
     }
 
     resetAcceptBtn();
+    markOptionalInstalled(next);
     finishReloadOnly();
   }
 
@@ -971,28 +1084,30 @@
   }
 
   function startCrozzoUpdateChecks() {
-    VERSION = loadInstalledVersion();
-    global.CROZZO_APP_VERSION = VERSION;
-    syncVersionLabels();
+    fetchTauriBinaryVersion().then(function (binaryVer) {
+      VERSION = reconcileInstalledVersion(binaryVer);
+      global.CROZZO_APP_VERSION = VERSION;
+      syncVersionLabels();
 
-    if (_bootTimer) clearTimeout(_bootTimer);
-    _bootTimer = setTimeout(function () {
-      checkForUpdates({ silent: true });
-    }, BOOT_DELAY_MS);
+      if (_bootTimer) clearTimeout(_bootTimer);
+      _bootTimer = setTimeout(function () {
+        checkForUpdates({ silent: true });
+      }, BOOT_DELAY_MS);
 
-    if (_checkTimer) clearInterval(_checkTimer);
-    _checkTimer = setInterval(function () {
-      checkForUpdates({ silent: true });
-    }, CHECK_INTERVAL_MS);
+      if (_checkTimer) clearInterval(_checkTimer);
+      _checkTimer = setInterval(function () {
+        checkForUpdates({ silent: true });
+      }, CHECK_INTERVAL_MS);
 
-    if (!global.__crozzoUpdateAuthWired) {
-      global.__crozzoUpdateAuthWired = true;
-      global.addEventListener('crozzo:auth-ready', onAuthReady);
-      global.addEventListener('crozzo-ready', onAuthReady);
-      document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) checkForUpdates({ silent: true });
-      });
-    }
+      if (!global.__crozzoUpdateAuthWired) {
+        global.__crozzoUpdateAuthWired = true;
+        global.addEventListener('crozzo:auth-ready', onAuthReady);
+        global.addEventListener('crozzo-ready', onAuthReady);
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden) checkForUpdates({ silent: true });
+        });
+      }
+    });
   }
 
   global.CROZZO_APP_VERSION = VERSION;
