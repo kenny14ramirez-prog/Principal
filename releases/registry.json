@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-23T20:03:52.085Z",
+  "updatedAt": "2026-05-23T20:23:02.718Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -47,6 +47,18 @@
       "installMode": "auto",
       "changelog": [
         "critico"
+      ]
+    },
+    {
+      "id": "1.0.17-critical",
+      "version": "v1.0.17",
+      "semver": "1.0.17",
+      "type": "critical",
+      "message": "Parche de seguridad ",
+      "publishedAt": "2026-05-23T20:23:02.718Z",
+      "installMode": "auto",
+      "changelog": [
+        "Parche de seguridad"
       ]
     }
   ]
