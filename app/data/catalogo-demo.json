@@ -1,0 +1,48 @@
+{
+  "version": 4,
+  "label": "Restaurante Sol Naciente — datos de capacitación",
+  "materiasPrimas": [
+    { "id": "mp_huevo_aa", "nombre": "Huevo AA", "categoria": "PROTEINAS", "proveedores": ["Avícola del Valle", "Mayorista Sol"], "und": "UNI", "peso": 55, "precioTotal": 450 },
+    { "id": "mp_pechuga_pollo", "nombre": "Pechuga de pollo", "categoria": "PROTEINAS", "proveedores": ["Frigorífico Central"], "und": "GR", "peso": 1000, "precioTotal": 14500 },
+    { "id": "mp_carne_molida", "nombre": "Carne molida", "categoria": "PROTEINAS", "proveedores": ["Carnes del Campo", "Distribuidora Norte"], "und": "GR", "peso": 1000, "precioTotal": 22000 },
+    { "id": "mp_tocineta", "nombre": "Tocineta", "categoria": "PROTEINAS", "proveedores": ["Embutidos La Sabana"], "und": "GR", "peso": 500, "precioTotal": 12000 },
+    { "id": "mp_queso_mozzarella", "nombre": "Queso mozzarella", "categoria": "LACTEOS", "proveedores": ["Lácteos Andinos"], "und": "GR", "peso": 1000, "precioTotal": 28000 },
+    { "id": "mp_leche_entera", "nombre": "Leche entera", "categoria": "LACTEOS", "proveedores": ["Lácteos Andinos", "Mayorista Sol"], "und": "ML", "peso": 1000, "precioTotal": 4200 },
+    { "id": "mp_mantequilla", "nombre": "Mantequilla", "categoria": "LACTEOS", "proveedores": ["Lácteos Andinos"], "und": "GR", "peso": 500, "precioTotal": 9500 },
+    { "id": "mp_tomate", "nombre": "Tomate", "categoria": "FRUVER", "proveedores": ["Plaza Mayor Fruver"], "und": "GR", "peso": 1000, "precioTotal": 3800 },
+    { "id": "mp_cebolla", "nombre": "Cebolla", "categoria": "FRUVER", "proveedores": ["Plaza Mayor Fruver"], "und": "GR", "peso": 1000, "precioTotal": 2900 },
+    { "id": "mp_lechuga", "nombre": "Lechuga", "categoria": "FRUVER", "proveedores": ["Plaza Mayor Fruver", "Hidroponía Verde"], "und": "UNI", "peso": 1, "precioTotal": 2200 },
+    { "id": "mp_papa", "nombre": "Papa criolla", "categoria": "FRUVER", "proveedores": ["Agrícola Sierra"], "und": "GR", "peso": 1000, "precioTotal": 4500 },
+    { "id": "mp_arroz", "nombre": "Arroz", "categoria": "ABARROTES", "proveedores": ["Distribuidora Norte"], "und": "GR", "peso": 1000, "precioTotal": 3200 },
+    { "id": "mp_aceite", "nombre": "Aceite vegetal", "categoria": "ABARROTES", "proveedores": ["Abarrotes Unidos"], "und": "ML", "peso": 1000, "precioTotal": 8500 },
+    { "id": "mp_sal", "nombre": "Sal", "categoria": "ABARROTES", "proveedores": ["Abarrotes Unidos"], "und": "GR", "peso": 1000, "precioTotal": 1800 },
+    { "id": "mp_pan_hamburguesa", "nombre": "Pan hamburguesa", "categoria": "ABARROTES", "proveedores": ["Panadería Horizonte"], "und": "UNI", "peso": 1, "precioTotal": 1800 },
+    { "id": "mp_papa_congelada", "nombre": "Papa prefrita", "categoria": "PULPAS Y CONGELADOS", "proveedores": ["Congelados Express"], "und": "GR", "peso": 2500, "precioTotal": 24000 },
+    { "id": "mp_gaseosa", "nombre": "Gaseosa lata", "categoria": "BEBIDAS Y LICORES", "proveedores": ["Bebidas del Pacífico"], "und": "UNI", "peso": 1, "precioTotal": 2500 },
+    { "id": "mp_cafe_molido", "nombre": "Café molido", "categoria": "BEBIDAS Y LICORES", "proveedores": ["Tostión Premium"], "und": "GR", "peso": 500, "precioTotal": 15000 },
+    { "id": "mp_servilleta", "nombre": "Servilleta", "categoria": "DESECHABLES", "proveedores": ["Papelera Industrial"], "und": "PAQ", "peso": 1, "precioTotal": 4500 },
+    { "id": "mp_salsa_tomate", "nombre": "Salsa de tomate", "categoria": "PROCESADOS", "proveedores": ["Procesados del Valle"], "und": "GR", "peso": 1000, "precioTotal": 6500 }
+  ],
+  "menuPlatos": [
+    { "slug": "hamburguesa_clasica", "producto": "Hamburguesa clásica", "costoMp": 8200, "precioVenta": 28000 },
+    { "slug": "ensalada_verde", "producto": "Ensalada verde", "costoMp": 4100, "precioVenta": 16500 },
+    { "slug": "desayuno_huevos", "producto": "Desayuno con huevos", "costoMp": 5500, "precioVenta": 22000 },
+    { "slug": "papas_crocantes", "producto": "Papas crocantes", "costoMp": 2800, "precioVenta": 12000 },
+    { "slug": "cafe_americano", "producto": "Café americano", "costoMp": 900, "precioVenta": 6500 },
+    { "slug": "bowl_pollo", "producto": "Bowl de pollo", "costoMp": 7600, "precioVenta": 26500 }
+  ],
+  "recetaDemo": {
+    "nombre": "Hamburguesa clásica — costeo",
+    "slug": "hamburguesa_clasica",
+    "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
+    "lineas": [
+      { "mpId": "mp_pan_hamburguesa", "ingrediente": "Pan hamburguesa", "unidad": "UNI", "cantidad": 1 },
+      { "mpId": "mp_carne_molida", "ingrediente": "Carne molida", "unidad": "GR", "cantidad": 150 },
+      { "mpId": "mp_queso_mozzarella", "ingrediente": "Queso mozzarella", "unidad": "GR", "cantidad": 30 },
+      { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 40 },
+      { "mpId": "mp_lechuga", "ingrediente": "Lechuga", "unidad": "UNI", "cantidad": 0.25 },
+      { "mpId": "mp_salsa_tomate", "ingrediente": "Salsa de tomate", "unidad": "GR", "cantidad": 25 }
+    ]
+  },
+  "stats": { "precios": 20, "categorias": 8, "resumenSample": 6 }
+}

@@ -24,6 +24,7 @@
 
   function cloudOk() {
     try {
+      if (typeof global.crozzoShouldUseCloud === 'function') return global.crozzoShouldUseCloud();
       return typeof crozzoOnlineConfigReady === 'function' && crozzoOnlineConfigReady();
     } catch (_) {
       return false;
@@ -61,6 +62,9 @@
   }
 
   function statusBarHtml() {
+    if (global.CrozzoReservorioOffline && global.CrozzoReservorioOffline.statusBarHtml) {
+      return global.CrozzoReservorioOffline.statusBarHtml();
+    }
     var cloud = cloudOk();
     return (
       '<div class="crozzo-hub-status" id="crozzo-hub-status">' +
@@ -89,10 +93,20 @@
     hub.qycModule = mod || 'recepcion';
     var host = document.getElementById('crozzo-hub-local-host');
     var eng = document.getElementById('crozzo-hub-engine');
+    if (!hub.loadedQyc) {
+      showLocalModule(mod);
+      if (eng) eng.style.display = 'none';
+      ensureQycFrameLoaded(function () {
+        if (!hub.loadedQyc || !cloudOk()) return;
+        if (host) host.style.display = 'none';
+        if (eng) eng.style.display = 'flex';
+        postToQycFrame({ type: 'crozzo-qyc-nav', module: hub.qycModule });
+      });
+      return;
+    }
     if (host) host.style.display = 'none';
     if (eng) eng.style.display = 'flex';
-    if (hub.loadedQyc) postToQycFrame({ type: 'crozzo-qyc-nav', module: hub.qycModule });
-    else ensureQycFrameLoaded();
+    postToQycFrame({ type: 'crozzo-qyc-nav', module: hub.qycModule });
   }
 
   function openModule(mod) {
@@ -120,13 +134,44 @@
     fr.src = qycUrl();
   }
 
-  function ensureQycFrameLoaded() {
+  function syncThemeToQycFrame() {
+    if (typeof global.crozzoBroadcastThemeToEmbeds === 'function') {
+      global.crozzoBroadcastThemeToEmbeds();
+    }
+  }
+
+  function ensureQycFrameLoaded(onReady) {
     var fr = document.getElementById('crozzo-hub-qyc-frame');
-    if (!fr || hub.loadedQyc || !cloudOk()) return;
+    if (!fr || hub.loadedQyc || !cloudOk()) {
+      if (onReady) onReady();
+      return;
+    }
+    var token = hub.frameToken;
+    if (hub._loadTimer) clearTimeout(hub._loadTimer);
+    hub._loadTimer = setTimeout(function () {
+      if (hub.loadedQyc || token !== hub.frameToken) return;
+      hub.loadedQyc = false;
+      try {
+        fr.removeAttribute('src');
+      } catch (_) {}
+      toast('Sin conexión con QyC — modo local seguro activado', 'warning');
+      showLocalModule(hub.qycModule);
+      var st = document.getElementById('crozzo-hub-status');
+      if (st) st.outerHTML = statusBarHtml();
+    }, 10000);
+    fr.onerror = function () {
+      if (hub._loadTimer) clearTimeout(hub._loadTimer);
+      if (hub.loadedQyc) return;
+      toast('Error cargando QyC — modo local', 'warning');
+      showLocalModule(hub.qycModule);
+    };
     fr.onload = function () {
+      if (hub._loadTimer) clearTimeout(hub._loadTimer);
       hub.loadedQyc = true;
       postToQycFrame({ type: 'crozzo-pos-supabase-sync' });
       postToQycFrame({ type: 'crozzo-qyc-nav', module: hub.qycModule });
+      syncThemeToQycFrame();
+      if (onReady) onReady();
     };
     fr.src = qycUrl();
   }
@@ -140,6 +185,30 @@
     });
     window.addEventListener('storage', function (ev) {
       if (ev && ev.key === 'crozzo_supabase_config') reloadQycFrame();
+    });
+    document.addEventListener('crozzo-connectivity-changed', function () {
+      if (typeof currentPage === 'undefined') return;
+      if (currentPage !== 'centro-compras' && currentPage !== 'operaciones-qyc') return;
+      hub.loadedQyc = false;
+      var st = document.getElementById('crozzo-hub-status');
+      if (st) st.outerHTML = statusBarHtml();
+      openModule(hub.qycModule);
+    });
+    window.addEventListener('message', function (ev) {
+      var d = ev.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'crozzo-qyc-recepcion-guardada' && global.CrozzoReservorio) {
+        global.CrozzoReservorio.registrarRecepcion({
+          proveedorId: d.proveedorId,
+          proveedorNombre: d.proveedorNombre,
+          valor: d.valor || d.total,
+          notas: d.notas || 'QyC nube',
+          crearOficina: d.crearOficina !== false,
+        });
+      }
+      if (d.type === 'crozzo-qyc-factura-pagada' && global.CrozzoReservorio && d.facturaId) {
+        global.CrozzoReservorio.actualizarEstadoOficina(d.facturaId, 'pagada');
+      }
     });
   }
 
@@ -237,6 +306,7 @@
     },
 
     init: function (startModule) {
+      if (global.CrozzoReservorioOffline) global.CrozzoReservorioOffline.ensureReservorioReady();
       bindSupabaseListeners();
       if (startModule === 'ordenes') {
         if (typeof initComprasProveedores === 'function') initComprasProveedores();

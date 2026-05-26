@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="BONA origen">
+  <defs>
+    <linearGradient id="bonaGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4BC94"/>
+      <stop offset="50%" stop-color="#B59A6D"/>
+      <stop offset="100%" stop-color="#7A6342"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="24" fill="#FAF9F7" stroke="url(#bonaGold)" stroke-width="1.2"/>
+  <circle cx="60" cy="60" r="34" fill="none" stroke="#1C1C1C" stroke-width=".6" opacity=".2"/>
+  <circle cx="60" cy="60" r="26" fill="none" stroke="url(#bonaGold)" stroke-width=".8" opacity=".45"/>
+  <line x1="60" y1="60" x2="60" y2="28" stroke="#1C1C1C" stroke-width="1" stroke-linecap="round"/>
+  <line x1="60" y1="60" x2="86" y2="60" stroke="url(#bonaGold)" stroke-width="1" stroke-linecap="round"/>
+  <line x1="60" y1="60" x2="60" y2="92" stroke="#1C1C1C" stroke-width="1" stroke-linecap="round"/>
+  <line x1="60" y1="60" x2="34" y2="60" stroke="url(#bonaGold)" stroke-width="1" stroke-linecap="round"/>
+  <circle cx="60" cy="60" r="4" fill="#1C1C1C"/>
+  <text x="60" y="108" text-anchor="middle" font-family="Georgia,serif" font-size="9" letter-spacing=".32em" fill="#7A6342">ORIGIN</text>
+</svg>

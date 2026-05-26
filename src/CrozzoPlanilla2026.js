@@ -312,28 +312,99 @@
     var el = document.createElement('style');
     el.id = 'crozzo-planilla-css';
     el.textContent =
+      'body.crozzo-page-planillas .main-body,#mainContent.main-body--planillas{padding:0!important;overflow:hidden!important;min-height:0!important;height:auto!important;flex:1 1 auto!important;background:var(--bg-primary)}' +
+      'html.crozzo-vp-ready body.crozzo-page-planillas .main-body,html.crozzo-vp-ready #mainContent.main-body--planillas{overflow:hidden!important}' +
+      '.crozzo-pl-app{position:relative;display:flex;flex-direction:column;height:100%;max-height:100%;min-height:0;overflow:hidden;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans,system-ui,sans-serif)}' +
+      '.crozzo-pl-app::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 45% at 0% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 55%),radial-gradient(ellipse 50% 35% at 100% 0%,color-mix(in srgb,var(--accent) 8%,transparent),transparent 50%);opacity:.9}' +
+      '.crozzo-pl-hero{position:relative;z-index:1;flex-shrink:0;padding:20px 24px 16px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,color-mix(in srgb,var(--bg-card) 96%,transparent),var(--bg-primary))}' +
+      '.crozzo-pl-hero__row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}' +
+      '.crozzo-pl-eyebrow{margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}' +
+      '.crozzo-pl-title{margin:0;font-size:1.65rem;font-weight:700;letter-spacing:-.03em;line-height:1.15}' +
+      '.crozzo-pl-sub{margin:8px 0 0;font-size:13px;color:var(--text-muted);max-width:520px;line-height:1.55}' +
+      '.crozzo-pl-hero__chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}' +
+      '.crozzo-pl-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary)}' +
+      '.crozzo-pl-pill--accent{border-color:color-mix(in srgb,var(--accent) 35%,var(--border));background:color-mix(in srgb,var(--accent) 12%,var(--bg-card));color:var(--text-primary)}' +
+      '.crozzo-pl-flow{display:flex;flex-wrap:wrap;gap:6px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--bg-secondary);flex-shrink:0;position:relative;z-index:1}' +
+      '.crozzo-pl-flow__step{font-size:10px;font-weight:600;letter-spacing:.04em;padding:6px 12px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--bg-card)}' +
+      '.crozzo-pl-flow__step.is-on{border-color:color-mix(in srgb,var(--accent) 40%,var(--border));color:var(--text-primary);background:color-mix(in srgb,var(--accent) 10%,var(--bg-card))}' +
+      '.crozzo-pl-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;position:relative;z-index:1}' +
+      '.crozzo-pl-tabs button{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:inherit;transition:background .2s,border-color .2s,color .2s,transform .15s}' +
+      '.crozzo-pl-tabs button:hover{color:var(--text-primary);background:var(--bg-secondary);transform:translateY(-1px)}' +
+      '.crozzo-pl-tabs button.active{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--bg-card)),var(--bg-card));color:var(--text-primary);border-color:color-mix(in srgb,var(--accent) 35%,var(--border));box-shadow:0 4px 16px rgba(0,0,0,.12)}' +
+      '.crozzo-pl-stage{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px 24px 28px;position:relative;z-index:1}' +
+      '.crozzo-pl-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--elevation-1,0 1px 3px rgba(0,0,0,.08));overflow:hidden}' +
+      '.crozzo-pl-panel__head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}' +
+      '.crozzo-pl-panel__head h3{margin:0;font-size:0.95rem;font-weight:650}' +
+      '.crozzo-pl-panel__body{padding:16px 18px}' +
       '.crozzo-pl-root{--pl-gap:12px}' +
-      '.crozzo-pl-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}' +
-      '.crozzo-pl-tabs button{padding:8px 14px;border-radius:var(--radius,8px);border:1px solid var(--border);background:var(--bg-secondary);cursor:pointer;font-size:12px;font-weight:600;color:inherit;font-family:inherit;transition:background .15s,border-color .15s}' +
-      '.crozzo-pl-tabs button.active{background:var(--accent);color:var(--btn-text,#111);border-color:transparent}' +
-      '.crozzo-pl-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 14px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius,12px);margin-bottom:var(--pl-gap)}' +
+      '.crozzo-pl-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px 16px;background:color-mix(in srgb,var(--bg-secondary) 80%,var(--bg-card));border:1px solid var(--border);border-radius:12px;margin-bottom:var(--pl-gap)}' +
       '.crozzo-pl-toolbar .form-group{margin:0;min-width:140px}' +
-      '.crozzo-pl-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:var(--pl-gap)}' +
-      '.crozzo-pl-kpi{padding:12px 14px;border-radius:var(--radius,10px);border:1px solid var(--border);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 8%,transparent),transparent)}' +
-      '.crozzo-pl-kpi .val{font-size:1.15rem;font-weight:800}' +
-      '.crozzo-pl-kpi .lbl{font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em}' +
+      '.crozzo-pl-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:var(--pl-gap)}' +
+      '.crozzo-pl-kpi{padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(145deg,var(--bg-card),color-mix(in srgb,var(--accent) 6%,var(--bg-card)));transition:transform .2s,box-shadow .2s}' +
+      '.crozzo-pl-kpi:hover{transform:translateY(-2px);box-shadow:var(--elevation-2,0 4px 12px rgba(0,0,0,.1))}' +
+      '.crozzo-pl-kpi .val{font-size:1.2rem;font-weight:800;font-variant-numeric:tabular-nums}' +
+      '.crozzo-pl-kpi .lbl{font-size:10px;opacity:.72;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}' +
       '.crozzo-pl-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--pl-gap)}@media(max-width:900px){.crozzo-pl-grid{grid-template-columns:1fr}}' +
-      '.crozzo-pl-acc{border:1px solid var(--border);border-radius:var(--radius,10px);margin-bottom:10px;background:var(--bg-card);overflow:hidden}' +
-      '.crozzo-pl-acc summary{padding:12px 14px;cursor:pointer;font-weight:700;font-size:0.9rem;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none}' +
+      '.crozzo-pl-acc{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--bg-card);overflow:hidden;transition:box-shadow .2s}' +
+      '.crozzo-pl-acc[open]{box-shadow:var(--elevation-1,0 2px 8px rgba(0,0,0,.06))}' +
+      '.crozzo-pl-acc summary{padding:13px 16px;cursor:pointer;font-weight:700;font-size:0.88rem;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none;background:color-mix(in srgb,var(--bg-secondary) 50%,transparent)}' +
       '.crozzo-pl-acc summary::-webkit-details-marker{display:none}' +
-      '.crozzo-pl-acc summary::after{content:"▸";opacity:.5;transition:transform .2s}' +
-      '.crozzo-pl-acc[open] summary::after{transform:rotate(90deg)}' +
-      '.crozzo-pl-acc__body{padding:0 14px 14px;border-top:1px solid var(--border)}' +
+      '.crozzo-pl-acc summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);transform:rotate(-45deg);transition:transform .2s}' +
+      '.crozzo-pl-acc[open] summary::after{transform:rotate(45deg)}' +
+      '.crozzo-pl-acc__body{padding:0 16px 16px;border-top:1px solid var(--border)}' +
       '.crozzo-pl-cuadre{display:grid;grid-template-columns:1fr auto 1fr auto;gap:6px 10px;align-items:center;font-size:12px}' +
-      '.crozzo-pl-cuadre .lbl{opacity:.75}' +
+      '.crozzo-pl-cuadre .lbl{opacity:.78;font-size:11px}' +
       '.crozzo-pl-dia-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}' +
-      '.crozzo-pl-badge{font-size:11px;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,transparent);font-weight:600}';
+      '.crozzo-pl-badge{font-size:11px;padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--accent) 16%,transparent);font-weight:600;border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}' +
+      '.crozzo-pl-mount{min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px}' +
+      'html[data-theme="bona-origen"] .crozzo-pl-app{background:var(--bona-cream,#faf9f7)}' +
+      'html[data-theme="bona-origen"] .crozzo-pl-hero{background:#fff}' +
+      'html[data-theme="bona-origen"] .crozzo-pl-title{font-family:var(--bona-font-display,serif)}';
     document.head.appendChild(el);
+  }
+
+  function periodKpisHtml() {
+    var agg = aggregatePeriod();
+    return (
+      '<div class="crozzo-pl-kpis">' +
+      '<div class="crozzo-pl-kpi"><div class="lbl">Días con datos</div><div class="val">' +
+      agg.diasConDatos +
+      '</div></div>' +
+      '<div class="crozzo-pl-kpi"><div class="lbl">Venta turnos</div><div class="val">' +
+      fmtMoney(agg.totalVentaM + agg.totalVentaT) +
+      '</div></div>' +
+      '<div class="crozzo-pl-kpi"><div class="lbl">Egresos</div><div class="val">' +
+      fmtMoney(agg.egresosValor) +
+      '</div></div>' +
+      '<div class="crozzo-pl-kpi"><div class="lbl">Efectivo contado</div><div class="val">' +
+      fmtMoney(agg.conteoEfectivo) +
+      '</div></div>' +
+      '</div>'
+    );
+  }
+
+  function flowStepsHtml() {
+    var steps = [
+      { id: 'dia', label: '1 · Día a día' },
+      { id: 'mes', label: '2 · Resumen' },
+      { id: 'nomina', label: '3 · Nómina' },
+      { id: 'archivo', label: '4 · Excel' }
+    ];
+    return (
+      '<div class="crozzo-pl-flow">' +
+      steps
+        .map(function (s) {
+          return (
+            '<span class="crozzo-pl-flow__step' +
+            (state.tab === s.id ? ' is-on' : '') +
+            '">' +
+            esc(s.label) +
+            '</span>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
   }
 
   function renderPeriodToolbar() {
@@ -654,10 +725,10 @@
   function renderRoot() {
     injectStyles();
     var tabs = [
-      { id: 'dia', label: '📅 Día a día' },
-      { id: 'mes', label: '📊 Resumen periodo' },
-      { id: 'nomina', label: '🧮 Turnos y nómina' },
-      { id: 'archivo', label: '📁 Excel' }
+      { id: 'dia', label: 'Día a día', icon: 'calendar-days' },
+      { id: 'mes', label: 'Resumen periodo', icon: 'bar-chart-3' },
+      { id: 'nomina', label: 'Turnos y nómina', icon: 'users' },
+      { id: 'archivo', label: 'Excel', icon: 'file-spreadsheet' }
     ];
     var inner = '';
     if (state.tab === 'dia') inner = renderDia();
@@ -665,16 +736,50 @@
     else if (state.tab === 'nomina') inner = renderNominaEmbed();
     else inner = renderArchivo();
 
+    var p = period();
+    var tabBtns = tabs
+      .map(function (t) {
+        return (
+          '<button type="button" class="' +
+          (state.tab === t.id ? 'active' : '') +
+          '" data-pl-tab="' +
+          t.id +
+          '" title="' +
+          esc(t.label) +
+          '"><i data-lucide="' +
+          esc(t.icon) +
+          '" aria-hidden="true"></i><span>' +
+          esc(t.label) +
+          '</span></button>'
+        );
+      })
+      .join('');
+
     return (
-      '<section class="content-section crozzo-pl-root" id="crozzo-pl-root">' +
-      '<div class="card"><div class="card-header"><div><h2 class="card-title">Planilla 2026</h2>' +
-      '<p class="page-subtitle">Periodos de corte con fechas libres · todos los registros se guardan</p></div>' +
-      '<span class="crozzo-retail-pill" style="font-size:11px">💾 Local</span></div>' +
-      '<div class="crozzo-pl-tabs">' +
-      tabs.map(function (t) {
-        return '<button type="button" class="' + (state.tab === t.id ? 'active' : '') + '" data-pl-tab="' + t.id + '">' + esc(t.label) + '</button>';
-      }).join('') +
-      '</div>' + inner + '</div></section>'
+      '<section class="crozzo-pl-app" id="crozzo-pl-app">' +
+      '<header class="crozzo-pl-hero">' +
+      '<div class="crozzo-pl-hero__row">' +
+      '<div><p class="crozzo-pl-eyebrow">Administrativo · Nómina</p>' +
+      '<h1 class="crozzo-pl-title">Planillas</h1>' +
+      '<p class="crozzo-pl-sub">Cuadre de caja por turno, egresos, propinas, resumen del periodo e importación desde Excel. Todo queda guardado en este equipo.</p></div>' +
+      '<div class="crozzo-pl-hero__chips">' +
+      '<span class="crozzo-pl-pill crozzo-pl-pill--accent"><i data-lucide="calendar-range" aria-hidden="true"></i> ' +
+      esc(periodLabel(p)) +
+      '</span>' +
+      '<span class="crozzo-pl-pill"><i data-lucide="hard-drive" aria-hidden="true"></i> Respaldo local</span>' +
+      '</div></div></header>' +
+      flowStepsHtml() +
+      '<nav class="crozzo-pl-tabs" aria-label="Secciones planilla">' +
+      tabBtns +
+      '</nav>' +
+      '<main class="crozzo-pl-stage">' +
+      '<div class="crozzo-pl-root" id="crozzo-pl-root">' +
+      periodKpisHtml() +
+      '<div class="crozzo-pl-panel"><div class="crozzo-pl-panel__head"><h3>Trabajo del periodo</h3><span class="crozzo-pl-badge">Paso ' +
+      (state.tab === 'dia' ? '1' : state.tab === 'mes' ? '2' : state.tab === 'nomina' ? '3' : '4') +
+      ' de 4</span></div><div class="crozzo-pl-panel__body">' +
+      inner +
+      '</div></div></div></main></section>'
     );
   }
 
@@ -743,15 +848,27 @@
     toast('Periodo: ' + periodLabel(store.periods[id]), 'success');
   }
 
+  function refreshPlIcons(scope) {
+    var el = scope || document.getElementById('crozzo-pl-app');
+    if (!el) return;
+    if (typeof global.crozzoRefreshLucideIcons === 'function') {
+      global.crozzoRefreshLucideIcons(el);
+    } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons({ nameAttr: 'data-lucide', root: el });
+    }
+  }
+
   function bind(root) {
-    root.querySelectorAll('[data-pl-tab]').forEach(function (btn) {
+    var scope = root || document.getElementById('crozzo-pl-app') || document.getElementById('crozzo-pl-root');
+    if (!scope) return;
+    scope.querySelectorAll('[data-pl-tab]').forEach(function (btn) {
       btn.onclick = function () {
         state.tab = btn.getAttribute('data-pl-tab');
-        rerender(root);
+        rerender();
       };
     });
 
-    root.querySelectorAll('details[data-pl-acc]').forEach(function (det) {
+    scope.querySelectorAll('details[data-pl-acc]').forEach(function (det) {
       det.addEventListener('toggle', function () {
         var id = det.getAttribute('data-pl-acc');
         if (id === 'pl-acc-conteo') state.ui.conteoOpen = det.open;
@@ -767,7 +884,7 @@
         store.activePeriodId = sel.value;
         var p = period();
         state.activeDate = p.fechaInicio;
-        rerender(root);
+        rerender();
       };
     }
 
@@ -778,7 +895,7 @@
         var ff = (document.getElementById('pl-period-fin') || {}).value;
         var nm = (document.getElementById('pl-period-name') || {}).value;
         applyPeriodDates(fi, ff, nm);
-        rerender(root);
+        rerender();
       };
     }
 
@@ -793,7 +910,7 @@
         state.activeDate = fi;
         saveStore();
         toast('Nuevo periodo creado', 'success');
-        rerender(root);
+        rerender();
       };
     }
 
@@ -809,7 +926,7 @@
     if (rec) {
       rec.onclick = function () {
         recalcResumenFromDays();
-        rerender(root);
+        rerender();
       };
     }
 
@@ -826,7 +943,7 @@
       dateSel.onchange = function () {
         saveStore();
         state.activeDate = dateSel.value;
-        rerender(root);
+        rerender();
       };
     }
 
@@ -839,7 +956,7 @@
         if (i > 0) {
           state.activeDate = dates[i - 1];
           saveStore();
-          rerender(root);
+          rerender();
         }
       };
     }
@@ -850,7 +967,7 @@
         if (i >= 0 && i < dates.length - 1) {
           state.activeDate = dates[i + 1];
           saveStore();
-          rerender(root);
+          rerender();
         }
       };
     }
@@ -922,7 +1039,7 @@
     root.querySelectorAll('[data-pl-add-eg]').forEach(function (btn) {
       btn.onclick = function () {
         day()[btn.getAttribute('data-pl-add-eg')].push({ nit: '', proveedor: '', concepto: '', descripcion: '', valor: 0 });
-        rerender(root);
+        rerender();
       };
     });
 
@@ -930,7 +1047,7 @@
       btn.onclick = function () {
         var tr = btn.closest('tr');
         day()[tr.getAttribute('data-pl-eg')].splice(parseInt(tr.getAttribute('data-pl-idx'), 10), 1);
-        rerender(root);
+        rerender();
       };
     });
 
@@ -972,11 +1089,17 @@
     if (exp) exp.onclick = exportXlsx;
   }
 
-  function rerender(root) {
-    if (!root) root = document.getElementById('crozzo-pl-root');
-    if (!root) return;
-    root.innerHTML = renderRoot();
-    bind(root);
+  function rerender() {
+    var app = document.getElementById('crozzo-pl-app');
+    if (app) {
+      app.outerHTML = renderRoot();
+    } else {
+      var mount = document.getElementById('crozzo-pl-mount');
+      if (mount) mount.outerHTML = renderRoot();
+    }
+    var next = document.getElementById('crozzo-pl-app');
+    bind(next);
+    refreshPlIcons(next);
     if (state.tab === 'nomina' && typeof bindNomina === 'function') bindNomina();
   }
 
@@ -1038,7 +1161,7 @@
             }
             saveStore();
             toast('Excel importado al periodo actual', 'success');
-            rerender(document.getElementById('crozzo-pl-root'));
+            rerender();
           } catch (e) {
             toast('Error: ' + (e.message || e), 'error');
           }
@@ -1077,7 +1200,7 @@
   global.CrozzoPlanilla2026 = {
     render: function (startTab) {
       state.tab = startTab || 'dia';
-      return '<div id="crozzo-pl-mount">Cargando planilla…</div>';
+      return '<div id="crozzo-pl-mount" class="crozzo-pl-mount"><span>Cargando planillas…</span></div>';
     },
     init: function (startTab) {
       state.tab = startTab || global.__crozzoPlanillaTab || 'dia';
@@ -1093,7 +1216,9 @@
         var mount = document.getElementById('crozzo-pl-mount');
         if (!mount) return;
         mount.outerHTML = renderRoot();
-        bind(document.getElementById('crozzo-pl-root'));
+        var app = document.getElementById('crozzo-pl-app');
+        bind(app);
+        refreshPlIcons(app);
         if (state.tab === 'nomina' && typeof bindNomina === 'function') bindNomina();
       });
     }

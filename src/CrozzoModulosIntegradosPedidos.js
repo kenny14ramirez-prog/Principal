@@ -105,7 +105,10 @@
 
   function applyTheme(name) {
     ped.theme = name;
-    try { localStorage.setItem('crozzo-theme', name); } catch (_) {}
+    try {
+      localStorage.setItem('crozzo-theme', name);
+      localStorage.setItem('crozzo_theme', name);
+    } catch (_) {}
     var root = document.getElementById('crozzo-pi-root');
     if (root) root.setAttribute('data-pi-theme', name);
     var sel = document.getElementById('pi-theme-select');
@@ -298,7 +301,10 @@
       if (!inHub) injectPedidosStyles();
       try {
         if (!inHub) {
-          var saved = localStorage.getItem('crozzo-theme') || 'deepspace';
+          var saved =
+            localStorage.getItem('crozzo_theme') ||
+            localStorage.getItem('crozzo-theme') ||
+            'deepspace';
           if (THEMES.some(function (t) { return t.id === saved; })) ped.theme = saved;
         } else ped.theme = 'minimalist';
       } catch (_) {}

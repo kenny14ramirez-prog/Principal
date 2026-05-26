@@ -86,19 +86,28 @@
 
   function cloudOk() {
     try {
+      if (typeof global.crozzoShouldUseCloud === 'function') return global.crozzoShouldUseCloud();
       return typeof crozzoOnlineConfigReady === 'function' && crozzoOnlineConfigReady();
     } catch (_) {
       return false;
     }
   }
 
+  function bona() {
+    return global.CrozzoBonaOrigen;
+  }
+
   function injectStyles() {
+    if (bona()) bona().injectStyles();
     if (document.getElementById('crozzo-centro-procesos-css')) return;
     var el = document.createElement('style');
     el.id = 'crozzo-centro-procesos-css';
     el.textContent =
-      'body.crozzo-page-centro-procesos .main-body,#mainContent.main-body--centro-procesos{padding:0;overflow:hidden;height:calc(100vh - 56px);min-height:480px}' +
-      '.ccp{--ccp-gold:#d4b84a;--ccp-gold-soft:rgba(212,184,74,.22);--ccp-glass:rgba(14,16,26,.78);display:flex;flex-direction:column;height:100%;min-height:calc(100vh - 56px);background:radial-gradient(1100px 520px at 6% -8%,rgba(212,184,74,.16),transparent 58%),radial-gradient(800px 380px at 94% 2%,rgba(139,92,246,.1),transparent 52%),var(--bg-primary,#080a10);font-family:inherit}' +
+      'body.crozzo-page-centro-procesos .main-body,#mainContent.main-body--centro-procesos{padding:0!important;overflow:hidden!important;min-height:0!important;height:auto!important;flex:1 1 auto!important;background:var(--bg-primary,#080a10)}' +
+      'html.crozzo-vp-ready body.crozzo-page-centro-procesos .main-body,html.crozzo-vp-ready #mainContent.main-body--centro-procesos{overflow:hidden!important;min-height:0!important;-webkit-overflow-scrolling:auto!important}' +
+      '.ccp{display:flex;flex-direction:column;height:100%;max-height:100%;min-height:0;overflow:hidden;box-sizing:border-box}' +
+      '.ccp__status,.ccp__rail,#ccp-crumb,.ccp__crumb{flex-shrink:0}' +
+      '.ccp:not(.bona){--ccp-gold:#d4b84a;--ccp-gold-soft:rgba(212,184,74,.22);--ccp-glass:rgba(14,16,26,.78);background:radial-gradient(1100px 520px at 6% -8%,rgba(212,184,74,.16),transparent 58%),var(--bg-primary,#080a10);font-family:inherit}' +
       '.ccp__status{padding:8px 20px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.28);color:var(--text-muted)}' +
       '.ccp__status strong{color:var(--text-primary)}' +
       '.ccp__hero{position:relative;padding:22px 24px 18px;border-bottom:1px solid rgba(255,255,255,.06)}' +
@@ -115,7 +124,7 @@
       '.ccp-kpi__lbl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}' +
       '.ccp-kpi__val{font-size:1.2rem;font-weight:700;font-variant-numeric:tabular-nums}' +
       '.ccp-kpi__val--gold{color:var(--ccp-gold)}' +
-      '.ccp__body{flex:1;min-height:0;display:flex;flex-direction:column}' +
+      '.ccp__body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}' +
       '.ccp__rail{display:flex;align-items:center;gap:8px;padding:12px 20px 14px;border-bottom:1px solid rgba(255,255,255,.05);flex-wrap:wrap;background:rgba(0,0,0,.12)}' +
       '.ccp-nav{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;border:1px solid transparent;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .25s cubic-bezier(.22,1,.36,1);font-family:inherit}' +
       '.ccp-nav:hover{color:var(--text-primary);background:rgba(255,255,255,.05);transform:translateY(-1px)}' +
@@ -123,10 +132,13 @@
       '.ccp-nav i,.ccp-nav svg{width:15px;height:15px}' +
       '.ccp__crumb{padding:8px 24px 0;font-size:11px;color:var(--text-muted)}' +
       '.ccp__crumb button{background:none;border:none;color:var(--ccp-gold);cursor:pointer;font:inherit;padding:0;font-weight:600}' +
-      '.ccp__panel{flex:1;min-height:0;position:relative}' +
-      '.ccp-home{position:absolute;inset:0;overflow:auto;padding:8px 24px 28px;animation:ccpFadeUp .4s ease}' +
-      '.ccp-home__lead{margin:0 0 18px;font-size:14px;color:var(--text-muted);line-height:1.55}' +
-      '.ccp-wf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}' +
+      '.ccp__panel{flex:1;min-height:0;position:relative;overflow:hidden}' +
+      '.ccp-home{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 0 28px;animation:ccpFadeUp .4s ease}' +
+      '.ccp-home .ccp__hero{margin:0}' +
+      '.ccp-home .ccp__welcome{margin:12px 24px 0}' +
+      '.ccp-home .ccp__kpis{padding:12px 24px 16px}' +
+      '.ccp-home__lead{margin:16px 24px 18px;font-size:14px;color:var(--text-muted);line-height:1.55}' +
+      '.ccp-wf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:0 24px 8px}' +
       '.ccp-card{position:relative;text-align:left;padding:20px 20px 56px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:var(--ccp-glass);backdrop-filter:blur(18px);cursor:pointer;font-family:inherit;color:inherit;overflow:hidden;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s}' +
       '.ccp-card::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(125deg,rgba(212,184,74,.14),transparent 50%);transition:opacity .35s;pointer-events:none}' +
       '.ccp-card:hover{transform:translateY(-5px);box-shadow:0 24px 56px rgba(0,0,0,.38);border-color:rgba(212,184,74,.25)}' +
@@ -141,15 +153,15 @@
       '.ccp-card__steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}' +
       '.ccp-card__steps li{font-size:10px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--text-muted)}' +
       '.ccp-card__go{position:absolute;left:20px;bottom:18px;font-size:11px;font-weight:650;color:var(--ccp-gold);letter-spacing:.03em}' +
-      '.ccp-engine{position:absolute;inset:0;display:none;flex-direction:column;opacity:0;transition:opacity .35s ease}' +
+      '.ccp-engine{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;opacity:0;transition:opacity .35s ease}' +
       '.ccp-engine.is-open{display:flex;opacity:1}' +
-      '.ccp-engine__frame{flex:1;border:0;width:100%;background:var(--bg-primary)}' +
+      '.ccp-engine__frame{flex:1;min-height:0;width:100%;height:100%;border:0;background:var(--bg-primary);display:block}' +
       '.ccp-loader{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;background:rgba(8,10,16,.92);z-index:5;backdrop-filter:blur(8px)}' +
       '.ccp-loader.show{display:flex;animation:ccpFadeUp .3s ease}' +
       '.ccp-loader__ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(212,184,74,.2);border-top-color:var(--ccp-gold);animation:ccpSpin .9s linear infinite}' +
       '@keyframes ccpSpin{to{transform:rotate(360deg)}}' +
       '.ccp-loader__txt{font-size:13px;color:var(--text-muted)}' +
-      '.ccp-local{position:absolute;inset:0;overflow:auto;padding:20px 24px;display:none}' +
+      '.ccp-local{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px 24px;display:none}' +
       '@media(max-width:900px){.ccp__kpis{grid-template-columns:repeat(2,1fr)}.ccp-wf{grid-template-columns:1fr}}';
     document.head.appendChild(el);
   }
@@ -316,7 +328,12 @@
 
     if (cloudOk()) {
       setLoading(true, 'Preparando tu pantalla de cocina…');
+      if (!hub.loadedQyc) {
+        showLocalFallback(hub.view === 'jefe' ? 'recepcion' : 'procesado');
+      }
       ensureFrame(function () {
+        var loc = document.getElementById('ccp-local-host');
+        if (loc) loc.style.display = 'none';
         var payload = { type: 'crozzo-qyc-nav', module: 'procesado', sub: sub };
         if (opts.hint) payload.workflow = opts.hint;
         postToFrame(payload);
@@ -326,12 +343,13 @@
       });
     } else {
       setLoading(false);
-      showLocalFallback();
-      toast('Activa la nube para la guía completa, o usa el registro simple local', 'info');
+      showLocalFallback(hub.view === 'jefe' ? 'recepcion' : 'procesado');
+      toast('Modo local seguro — datos en reservorio de este equipo', 'info');
     }
   }
 
-  function showLocalFallback() {
+  function showLocalFallback(mod) {
+    mod = mod || (hub.view === 'jefe' ? 'recepcion' : 'procesado');
     var loc = document.getElementById('ccp-local-host');
     var eng = document.getElementById('ccp-engine');
     if (!loc || !eng) return;
@@ -340,6 +358,13 @@
     if (global.CrozzoComprasLocal) {
       loc.innerHTML = global.CrozzoComprasLocal.render('procesado');
       global.CrozzoComprasLocal.init(loc, 'procesado');
+    }
+  }
+
+  function syncThemeToQycFrame() {
+    postToFrame({ type: 'crozzo-pos-theme-sync', theme: 'bona-origen' });
+    if (typeof global.crozzoBroadcastThemeToEmbeds === 'function') {
+      global.crozzoBroadcastThemeToEmbeds('bona-origen');
     }
   }
 
@@ -355,6 +380,7 @@
     fr.onload = function () {
       hub.loadedQyc = true;
       postToFrame({ type: 'crozzo-pos-supabase-sync' });
+      syncThemeToQycFrame();
       if (onReady) onReady();
     };
     fr.src = qycUrl();
@@ -460,24 +486,37 @@
     } catch (_) {}
   }
 
+  function heroHtml() {
+    var B = bona();
+    var wf = '';
+    try {
+      wf = sessionStorage.getItem('qca_pro_workflow') || '';
+    } catch (_) {}
+    var chain = B ? B.renderOrigenChain(B.mapWorkflowToOrigen(wf)) : '';
+    return (
+      '<header class="ccp__hero">' +
+      '<div class="ccp__hero-inner">' +
+      (B ? B.brandHero() : '<div class="ccp__eyebrow">Origen bueno</div>') +
+      '<h1 class="ccp__title">¿Qué vas a hacer hoy?</h1>' +
+      '<p class="ccp__sub">Cada paso queda trazado: del proveedor al plato. Elige una tarjeta y te guiamos con claridad.</p>' +
+      '</div></header>' +
+      chain
+    );
+  }
+
   global.CrozzoCentroProcesos = {
     render: function (startView) {
       injectStyles();
+      if (bona()) bona().activateModule();
       hub.loadedQyc = false;
       hub.frameToken = 0;
       hub.view = startView && VIEWS[startView] ? startView : 'home';
       hub.qycSub = VIEWS[hub.view] && VIEWS[hub.view].sub;
 
       return (
-        '<section class="ccp" id="crozzo-centro-procesos">' +
+        '<section class="ccp bona" id="crozzo-centro-procesos">' +
+        (bona() ? bona().renderCcpWatermark() : '') +
         statusBarHtml() +
-        '<header class="ccp__hero">' +
-        '<div class="ccp__eyebrow">Cocina inteligente</div>' +
-        '<h1 class="ccp__title">¿Qué vas a hacer hoy?</h1>' +
-        '<p class="ccp__sub">Elige una opción. Nosotros te llevamos a la pantalla correcta y te decimos qué tocar en cada paso.</p>' +
-        '</header>' +
-        welcomeHtml() +
-        kpiHtml() +
         '<div class="ccp__body">' +
         '<nav class="ccp__rail" aria-label="Producción">' +
         railHtml(hub.view) +
@@ -487,7 +526,10 @@
         '</div>' +
         '<div class="ccp__panel">' +
         '<div class="ccp-home" id="ccp-panel-home">' +
-        '<p class="ccp-home__lead">Toca la tarjeta que más se parezca a tu tarea. Si te equivocas, vuelve al inicio sin perder nada.</p>' +
+        heroHtml() +
+        welcomeHtml() +
+        kpiHtml() +
+        '<p class="ccp-home__lead">Origen bueno: registras quién, cuándo y cuánto en cada etapa. Toca la tarjeta de tu tarea.</p>' +
         '<div class="ccp-wf">' +
         workflowCardsHtml() +
         '</div></div>' +
@@ -538,6 +580,7 @@
   };
 
   global.crozzoCentroProcesosTeardown = function () {
+    if (bona()) bona().deactivateModule();
     hub.loadedQyc = false;
     var fr = document.getElementById('ccp-qyc-frame');
     if (fr) {
