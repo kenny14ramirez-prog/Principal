@@ -1,0 +1,56 @@
+# Compila Crozzo POS y publica instalador + tauri-latest.json (updater nativo).
+# Disparador: tag v* (ej. v1.0.15)
+name: Tauri Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: '--target x86_64-pc-windows-msvc'
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Sync frontend to src
+        run: node scripts/sync-frontend-to-src.mjs
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Crozzo POS ${{ github.ref_name }}
+          releaseBody: |
+            Instalador Windows y `latest.json` del release (updater Tauri, formato distinto al OTA de main).
+            Avisos crítica/opcional: `releases/registry.json` en la rama main.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          includeUpdaterJson: true
+          # El updater Tauri no puede ejecutar .msi directo; debe apuntar al setup.exe (NSIS).
+          updaterJsonPreferNsis: true

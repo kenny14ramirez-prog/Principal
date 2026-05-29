@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-29T03:45:08.441Z",
+  "updatedAt": "2026-05-29T04:36:33.872Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -143,6 +143,18 @@
       "installMode": "auto",
       "changelog": [
         "revision"
+      ]
+    },
+    {
+      "id": "1.0.25-critical",
+      "version": "v1.0.25",
+      "semver": "1.0.25",
+      "type": "critical",
+      "message": "Fix updater automatico NSIS",
+      "publishedAt": "2026-05-29T04:36:33.872Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix updater automatico NSIS"
       ]
     }
   ]

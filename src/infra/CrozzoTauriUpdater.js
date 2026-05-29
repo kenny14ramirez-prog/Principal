@@ -178,10 +178,15 @@
       .then(function (data) {
         if (!data || !data.platforms) return null;
         var p =
+          data.platforms['windows-x86_64-nsis'] ||
           data.platforms['windows-x86_64'] ||
           data.platforms['windows-x86_64-msi'] ||
           data.platforms['darwin-aarch64'] ||
           data.platforms['darwin-x86_64'];
+        if (p && p.url && /\.msi$/i.test(p.url)) {
+          var nsis = data.platforms['windows-x86_64-nsis'];
+          if (nsis && nsis.url) p = nsis;
+        }
         if (!p || !p.signature) return null;
         return {
           version: normVersion(data.version || ver),
