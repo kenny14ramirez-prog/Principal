@@ -16,6 +16,7 @@
   var LS_ACK_CRITICAL = 'crozzo_update_ack_critical';
   var LS_APPLIED_ENTRIES = 'crozzo_update_applied_entry_ids';
   var LS_SESSION_DISMISS = 'crozzo_update_session_dismiss';
+  var LS_SNOOZE_UNTIL = 'crozzo_update_snooze_until';
   var CHECK_INTERVAL_MS = 15 * 60 * 1000;
   var BOOT_DELAY_MS = 2000;
 
@@ -206,6 +207,48 @@
 
   function isSessionDismissed(entry) {
     return loadSessionDismissIds().indexOf(entryId(entry)) >= 0;
+  }
+
+  function loadSnoozeMap() {
+    try {
+      var raw = localStorage.getItem(LS_SNOOZE_UNTIL);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveSnoozeMap(map) {
+    try {
+      localStorage.setItem(LS_SNOOZE_UNTIL, JSON.stringify(map || {}));
+    } catch (_) {}
+  }
+
+  function snoozeEntry(entry, hours) {
+    var id = entryId(entry);
+    if (!id) return;
+    var map = loadSnoozeMap();
+    map[id] = Date.now() + (hours || 6) * 3600000;
+    saveSnoozeMap(map);
+  }
+
+  function isSnoozed(entry) {
+    var map = loadSnoozeMap();
+    var until = map[entryId(entry)];
+    if (!until) return false;
+    if (Date.now() >= until) {
+      delete map[entryId(entry)];
+      saveSnoozeMap(map);
+      return false;
+    }
+    return true;
+  }
+
+  function isBuildOnlyUpdate(entry) {
+    if (!entry || !entryNeedsInstall(entry)) return false;
+    return compareSemver(normEntryVersion(entry), VERSION) === 0;
   }
 
   function entryBuildStamp(entry) {
@@ -453,6 +496,7 @@
 
   function entryIsPending(entry) {
     if (!entry || !entryNeedsInstall(entry)) return false;
+    if (isSnoozed(entry)) return false;
     if (isCriticalEntry(entry)) return true;
     if (isSessionDismissed(entry)) return false;
     return true;
@@ -633,7 +677,7 @@
       '<span class="crozzo-update-install-foot__plan" id="crozzoUpdateInstallPlanLabel">Plan A · automático</span>' +
       '<button type="button" class="btn btn-outline" id="crozzoUpdateInstallRetry" style="display:none">Reintentar Plan A</button>' +
       '<button type="button" class="btn btn-outline" id="crozzoUpdateInstallPlanBShow" style="display:none">Plan B manual</button>' +
-      '<button type="button" class="btn btn-primary" id="crozzoUpdateInstallClose" style="display:none">Continuar</button>' +
+      '<button type="button" class="btn btn-primary" id="crozzoUpdateInstallClose" style="display:none">Continuar usando la app</button>' +
       '</footer></div>';
     document.body.appendChild(wrap);
     wireOnce(document.getElementById('crozzoUpdateInstallRetry'), function (e) {
@@ -667,10 +711,33 @@
     });
     wireOnce(document.getElementById('crozzoUpdateInstallClose'), function (e) {
       e.preventDefault();
-      closeInstallOverlay();
-      if (_criticalInstallState === 'success') crozzoCerrarActualizacionCritica();
-      else setDetailOpen(false);
+      dismissInstallOverlayAndContinue();
     });
+    if (!wrap.__crozzoEscWired) {
+      wrap.__crozzoEscWired = true;
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Escape' || !_installUi.open || _installUi.state !== 'error') return;
+        dismissInstallOverlayAndContinue();
+      });
+    }
+  }
+
+  function dismissInstallOverlayAndContinue() {
+    var entry = _pendingCriticalEntry;
+    closeInstallOverlay();
+    _installInProgress = false;
+    _criticalInstallState = 'idle';
+    setCriticalOpen(false);
+    if (entry && _installUi.state === 'error') {
+      snoozeEntry(entry, 6);
+      sessionDismissEntry(entry);
+    }
+    if (typeof global.showToast === 'function') {
+      global.showToast(
+        'Puede seguir usando la app. Reinstale cuando quiera desde Actualizaciones del sistema.',
+        'info'
+      );
+    }
   }
 
   function loadPlanBFallback(targetVersion, manualFromError) {
@@ -930,7 +997,11 @@
     }
     if (close) {
       close.style.display = _installUi.state === 'error' || _installUi.state === 'success' ? 'inline-flex' : 'none';
-      close.textContent = _installUi.state === 'error' ? 'Cerrar' : 'Continuar';
+      close.textContent = _installUi.state === 'error' ? 'Continuar usando la app' : 'Continuar';
+    }
+    if (_installUi.state === 'error') {
+      var pbErr = document.getElementById('crozzoUpdateInstallPlanB');
+      if (pbErr) pbErr.hidden = false;
     }
     renderInstallStepsUi();
     renderCriticalMiniProgress();
@@ -1266,16 +1337,17 @@
             return res;
           }
           if (res && res.upToDate && !isEntryApplied(entry)) {
-            var stampMsg =
-              'La versión coincide pero falta el build nuevo en el .exe. Publique tag v' +
-              String(remote).replace(/^v/, '') +
-              ' y espere GitHub Actions.';
+            var stampMsg = isBuildOnlyUpdate(entry)
+              ? 'Misma versión ' +
+                remote +
+                ' pero el build del .exe es anterior. Use Plan B: descargue e instale el .exe de nuevo (no se puede actualizar automáticamente la misma versión).'
+              : 'La versión coincide pero falta el build nuevo en el .exe. Publique tag v' +
+                String(remote).replace(/^v/, '') +
+                ' y espere GitHub Actions.';
             _criticalInstallState = 'failed';
             _installUi.state = 'error';
             handleInstallProgress({ phase: 'error', percent: 100, message: stampMsg });
             offerPlanBAfterFailure(remote, null);
-            setCriticalOpen(true);
-            populateCriticalInfo('failed', stampMsg);
             return res;
           }
           var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
@@ -1283,8 +1355,6 @@
           _installUi.state = 'error';
           handleInstallProgress({ phase: 'error', percent: 100, message: failMsg });
           offerPlanBAfterFailure(remote, null);
-          setCriticalOpen(true);
-          populateCriticalInfo('failed', failMsg);
           return res;
         });
       })
@@ -1294,8 +1364,6 @@
         _installUi.state = 'error';
         handleInstallProgress({ phase: 'error', percent: 0, message: msg });
         offerPlanBAfterFailure(remote, err);
-        setCriticalOpen(true);
-        populateCriticalInfo('failed', msg);
         setCheckStatus('Error al instalar: ' + msg);
         console.warn('[crozzo-updates] install failed', err);
       })
@@ -1305,7 +1373,32 @@
       });
   }
 
+  function showBuildOnlyUpdate(entry) {
+    var remote = normEntryVersion(entry);
+    _currentCriticalId = entryId(entry);
+    _pendingCriticalEntry = entry;
+    VERSION_AVAIL = remote;
+    global.CROZZO_APP_VERSION_DISPONIBLE = remote;
+    UPDATE_NORMAL = buildUpdateNormalFromEntry(entry, VERSION);
+    UPDATE_NORMAL.type = 'Build nuevo disponible';
+    UPDATE_NORMAL.summary =
+      (entry.message || 'Hay un build nuevo del programa.') +
+      ' La versión del .exe es la misma (' +
+      remote +
+      '); descargue e instale el .exe con Plan B.';
+    setCriticalOpen(false);
+    setNormalOpen(true);
+    setCheckStatus(
+      'Build nuevo ' + remote + ': reinstale el .exe manualmente (Plan B en Actualizaciones del sistema).'
+    );
+    loadPlanBFallback(remote);
+    return true;
+  }
+
   function showCriticalEntry(entry) {
+    if (isBuildOnlyUpdate(entry)) {
+      return showBuildOnlyUpdate(entry);
+    }
     var id = entryId(entry);
     var remote = entry.version || 'v' + (entry.semver || '');
     var prev = VERSION;
@@ -1365,11 +1458,6 @@
     }
 
     if (isCriticalEntry(entry)) {
-      if (_criticalInstallState === 'failed' && _pendingCriticalEntry && entryId(_pendingCriticalEntry) === entryId(entry)) {
-        setCriticalOpen(true);
-        populateCriticalInfo('failed');
-        return true;
-      }
       return showCriticalEntry(entry);
     }
     return showOptionalEntry(entry);
@@ -1685,6 +1773,7 @@
       localStorage.removeItem(LS_ACK_CRITICAL);
       localStorage.removeItem(LS_INSTALLED);
       localStorage.removeItem(LS_APPLIED_ENTRIES);
+      localStorage.removeItem(LS_SNOOZE_UNTIL);
       clearSessionDismissals();
     } catch (_) {}
     refreshBinaryVersion().then(function () {
@@ -2011,6 +2100,7 @@
   global.crozzoUpdateOpenManualDownload = crozzoUpdateOpenManualDownload;
   global.crozzoUpdateCopyManualLink = crozzoUpdateCopyManualLink;
   global.crozzoUpdateOpenReleasePage = crozzoUpdateOpenReleasePage;
+  global.crozzoDismissUpdateOverlay = dismissInstallOverlayAndContinue;
   global.checkForUpdates = checkForUpdates;
   global.startCrozzoUpdateChecks = startCrozzoUpdateChecks;
   global.initActualizacionesSistema = initActualizacionesSistema;

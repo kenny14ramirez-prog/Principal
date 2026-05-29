@@ -13856,13 +13856,15 @@ body.crozzo-update-install-open {
 }
 .crozzo-update-install-card {
   position: relative;
-  width: min(480px, 100%);
+  width: min(520px, 100%);
+  max-height: min(92vh, 900px);
   padding: 28px 28px 24px;
   border-radius: 20px;
   border: 1px solid rgba(var(--matriz-gold-rgb, 201, 169, 98), 0.28);
   background: linear-gradient(165deg, rgba(var(--matriz-gold-rgb, 201, 169, 98), 0.1) 0%, var(--bg-card) 38%, var(--bg-card) 100%);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   animation: crozzoModalIn 0.45s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 .crozzo-update-install-card__glow {
@@ -14060,6 +14062,11 @@ body.crozzo-update-install-open {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  padding-top: 12px;
+  background: linear-gradient(to top, var(--bg-card) 75%, transparent);
 }
 .crozzo-update-install-foot .btn {
   min-width: 140px;
@@ -14125,6 +14132,10 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
   gap: 8px;
   align-items: center;
   justify-content: center;
+  position: sticky;
+  bottom: 0;
+  padding-top: 12px;
+  background: linear-gradient(to top, var(--bg-card) 75%, transparent);
 }
 .crozzo-update-install-foot__plan {
   flex: 1 1 100%;
