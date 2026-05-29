@@ -1,5 +1,6 @@
-# Compila Crozzo POS y publica instalador + tauri-latest.json (updater nativo).
-# Disparador: tag v* (ej. v1.0.15)
+# Único workflow de release: compila .exe + latest.json Tauri (updater automático).
+# OTA (avisos en app): releases/latest.json en rama main — subir con publicar-actualizacion / _git-push-latest.bat
+# NO usar otro workflow en tag v* (evita doble compilación y sobrescribir latest.json).
 name: Tauri Release
 
 on:
@@ -9,15 +10,9 @@ on:
 
 jobs:
   publish:
+    runs-on: windows-latest
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            args: '--target x86_64-pc-windows-msvc'
-    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,13 +25,16 @@ jobs:
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Versión desde tag
+        run: node scripts/sync-version-from-tag.mjs "${{ github.ref_name }}"
+
+      - name: Sync frontend app → src
+        run: node scripts/sync-frontend-to-src.mjs
+
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Sync frontend to src
-        run: node scripts/sync-frontend-to-src.mjs
-
-      - name: Build and release
+      - name: Compilar instalador y publicar release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,11 +44,13 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: Crozzo POS ${{ github.ref_name }}
           releaseBody: |
-            Instalador Windows y `latest.json` del release (updater Tauri, formato distinto al OTA de main).
-            Avisos crítica/opcional: `releases/registry.json` en la rama main.
+            Instalador Windows (NSIS) y actualización automática silenciosa.
+            Avisos crítica/opcional: `releases/latest.json` en rama **main** (canal OTA).
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          args: --target x86_64-pc-windows-msvc
           includeUpdaterJson: true
-          # El updater Tauri no puede ejecutar .msi directo; debe apuntar al setup.exe (NSIS).
           updaterJsonPreferNsis: true
+
+      - name: Verificar latest.json (setup.exe, no MSI)
+        run: node scripts/verify-release-updater-json.mjs "${{ github.ref_name }}"

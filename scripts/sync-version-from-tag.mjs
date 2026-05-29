@@ -1,30 +1,20 @@
 #!/usr/bin/env node
-import fs from 'node:fs';
-import path from 'node:path';
+/** Alinea tauri.conf.json + HTML con el tag de release (v1.0.28 → 1.0.28). */
+import { spawnSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const tag = (process.argv[2] || '').trim();
-const version = tag.replace(/^v/i, '');
-if (!version) {
-  console.error('Uso: node scripts/sync-version-from-tag.mjs v1.0.8');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const tag = process.argv[2] || '';
+const semver = String(tag).replace(/^v/i, '').trim();
+
+if (!semver) {
+  console.error('Uso: node scripts/sync-version-from-tag.mjs v1.0.28');
   process.exit(1);
 }
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-const tauriConfPath = path.join(root, 'src-tauri', 'tauri.conf.json');
-const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf8'));
-tauriConf.version = version;
-fs.writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n', 'utf8');
-
-const pkgPath = path.join(root, 'package.json');
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-pkg.version = version;
-fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
-
-const cargoPath = path.join(root, 'src-tauri', 'Cargo.toml');
-let cargo = fs.readFileSync(cargoPath, 'utf8');
-cargo = cargo.replace(/^version = ".*"/m, `version = "${version}"`);
-fs.writeFileSync(cargoPath, cargo, 'utf8');
-
-console.log('Versión sincronizada a', version);
+const r = spawnSync(process.execPath, [join(root, 'scripts', 'set-tauri-version.mjs'), semver], {
+  cwd: root,
+  stdio: 'inherit',
+});
+process.exit(r.status || 0);
