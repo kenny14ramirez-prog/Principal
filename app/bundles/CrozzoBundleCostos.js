@@ -5898,7 +5898,6 @@
       '.crozzo-costos-editable{width:100%;min-width:72px;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}' +
       '.crozzo-costos-editable:focus{border-color:var(--accent);outline:none}' +
       '.crozzo-costos-note{padding:10px 14px;border-radius:10px;background:rgba(var(--accent-rgb,201,169,98),.08);border:1px solid rgba(var(--accent-rgb,201,169,98),.2);font-size:.82rem;line-height:1.5;margin:0 0 12px}' +
-      '.crozzo-costos-sql{width:100%;min-height:420px;font-family:ui-monospace,monospace;font-size:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-secondary);color:var(--text-primary);resize:vertical}' +
       '.crozzo-matriz-premium{--matriz-gold:var(--accent,#c9a962);--matriz-gold-rgb:var(--accent-rgb,201,169,98);position:relative}' +
       '.crozzo-matriz-hero{position:relative;margin:0 0 20px;padding:22px 22px 18px;border-radius:18px;border:1px solid rgba(var(--matriz-gold-rgb),.28);background:linear-gradient(145deg,rgba(var(--matriz-gold-rgb),.14) 0%,rgba(var(--matriz-gold-rgb),.03) 42%,var(--bg-card) 100%);box-shadow:0 12px 40px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}' +
       '.crozzo-matriz-hero__glow{position:absolute;top:-40%;right:-8%;width:min(380px,55vw);height:min(380px,55vw);background:radial-gradient(circle,rgba(var(--matriz-gold-rgb),.22) 0%,transparent 68%);pointer-events:none}' +
@@ -7188,20 +7187,7 @@
       healthLine +
       dash +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoReservorioExport">Exportar backup JSON</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosGoSql">Editor SQL</button></div></div>'
-    );
-  }
-
-  function renderSqlPanel() {
-    var sqlMod = global.CrozzoReservorioSql;
-    var sql = sqlMod && sqlMod.getFullScript ? sqlMod.getFullScript() : '-- Módulo SQL no disponible';
-    return (
-      '<div class="crozzo-costos-hub">' +
-      '<header class="crozzo-costos-hero"><h1>Editor SQL — Supabase</h1>' +
-      '<p>Copie en SQL Editor al activar nube.</p></header>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoSqlCopy" style="margin-bottom:10px">Copiar todo</button>' +
-      '<textarea class="crozzo-costos-sql" id="crozzoSqlEditor" readonly>' + esc(sql) + '</textarea></div>'
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoReservorioExport">Exportar backup JSON</button></div></div>'
     );
   }
 
@@ -8942,7 +8928,6 @@
     if (view === 'matriz') return renderMatrizAsync();
     if (view === 'inventario') return renderInventarioPanel();
     if (view === 'reservorio') return renderReservorioPanel();
-    if (view === 'sql') return renderSqlPanel();
     return renderMatrizAsync();
   }
 
@@ -8951,11 +8936,6 @@
     root._costosBound = true;
     root.addEventListener('click', function (e) {
       if (e.target.id === 'crozzoCostosGoPlanilla') goPage('planilla-2026');
-      if (e.target.id === 'crozzoCostosGoSql') {
-        hub.view = 'sql';
-        var hs = document.getElementById('mainContent');
-        if (hs) { hs.innerHTML = render('sql'); }
-      }
       if (e.target.id === 'crozzoReservorioExport') {
         if (global.CrozzoReservorioOffline && global.CrozzoReservorioOffline.exportBackupFile()) {
           toast('Backup JSON descargado', 'success');
@@ -8970,18 +8950,6 @@
             toast('Backup JSON descargado', 'success');
           } catch (_) {
             toast('No se pudo exportar', 'error');
-          }
-        }
-      }
-      if (e.target.id === 'crozzoSqlCopy') {
-        var ta = document.getElementById('crozzoSqlEditor');
-        if (ta) {
-          ta.select();
-          try {
-            document.execCommand('copy');
-            toast('SQL copiado al portapapeles', 'success');
-          } catch (_) {
-            navigator.clipboard.writeText(ta.value).then(function () { toast('SQL copiado', 'success'); });
           }
         }
       }
@@ -9052,7 +9020,6 @@
     if (page === 'costos-inventario') return 'inventario';
     if (page === 'costos-planilla-feed') return 'planilla-feed';
     if (page === 'costos-reservorio') return 'reservorio';
-    if (page === 'costos-sql') return 'sql';
     return 'matriz';
   }
 

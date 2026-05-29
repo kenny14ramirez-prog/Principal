@@ -63,7 +63,7 @@
       '<div class="card" style="margin-bottom:12px">' +
       '<h2 class="card-title" style="margin:0 0 6px">' + esc(title) + '</h2>' +
       '<p class="page-subtitle" style="margin:0">' + hint +
-      ' · <strong>Reservorio unificado</strong> (memoria interna). Al activar nube: ejecute SQL en Costos → Editor SQL.</p></div>' +
+      ' · <strong>Reservorio unificado</strong> (memoria interna). Al activar nube: ejecute los scripts en <code>docs/</code> del proyecto (Supabase SQL Editor).</p></div>' +
       inner + '</div>'
     );
   }

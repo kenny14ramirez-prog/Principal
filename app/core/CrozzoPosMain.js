@@ -1629,7 +1629,6 @@ function crozzoHpPageTitles() {
     'costos-inventario': ['Inventario continuo', 'Entradas, salidas y conteo'],
     'costos-planilla-feed': ['Cola planilla', 'Propuestas para administrador'],
     'costos-reservorio': ['Reservorio unificado', 'Memoria interna conectada'],
-    'costos-sql': ['Editor SQL', 'Scripts Supabase para activar nube'],
     'compras-proveedores': ['Proveedores', 'Catálogo de proveedores'],
     'compras-cotizaciones': ['Cotizaciones', 'Compare precios de proveedores vs costeo'],
     'compras-cortes': ['Centro de producción', 'Cocina y transformación'],
@@ -4198,7 +4197,6 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'costos-inventario': 'sistema-costos',
   'costos-planilla-feed': 'sistema-costos',
   'costos-reservorio': 'sistema-costos',
-  'costos-sql': 'sistema-costos',
   'nomina-planilla': 'nomina-planilla'
 });
 const CROZZO_PERFIL_EMPRESA_MENUS = Object.freeze({
@@ -5590,7 +5588,6 @@ const PAGE_PERMISOS = {
   'costos-matriz':              { categoria: 'inventario', sub: 'proveedores' },
   'costos-inventario':          { categoria: 'inventario', sub: 'reportes' },
   'costos-reservorio':          { categoria: 'inventario', sub: 'reportes' },
-  'costos-sql':                 { categoria: 'admin', sub: 'config_usuarios' },
   'costos-planilla-feed':       { categoria: 'admin', sub: 'config_usuarios' },
   'nomina-planilla':            { categoria: 'admin' }
 };
@@ -5908,6 +5905,7 @@ function navigateTo(page) {
     page = 'planilla-2026';
   }
   if (page === 'sistema-costos') page = 'costos-matriz';
+  if (page === 'costos-sql') page = 'costos-reservorio';
   if (page === 'compras-dashboard') {
     window.__crozzoInventariosTab = 'compras';
   }
@@ -6067,7 +6065,6 @@ function navigateTo(page) {
     'costos-matriz': ['Costos y márgenes', 'Precios de venta y costeo de materias primas'],
     'costos-inventario': ['Inventario continuo', 'Movimientos y teórico vs conteo'],
     'costos-reservorio': ['Reservorio', 'Memoria unificada del negocio'],
-    'costos-sql': ['Editor SQL', 'Scripts Supabase'],
     'costos-planilla-feed': ['Cola planilla', 'Propuestas hacia nómina']
   };
   
@@ -6361,7 +6358,6 @@ function renderPage(page) {
     case 'costos-matriz':
     case 'costos-inventario':
     case 'costos-reservorio':
-    case 'costos-sql':
     case 'costos-planilla-feed': {
       crozzoPrepareModuloGestionPage(content);
       if (document.body) document.body.classList.add('crozzo-page-sistema-costos');

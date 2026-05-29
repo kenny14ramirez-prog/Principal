@@ -54,7 +54,6 @@
     ],
     'costos-inventario': [BUNDLES.costos, BUNDLES.reservorio],
     'costos-reservorio': [BUNDLES.costos, BUNDLES.reservorio],
-    'costos-sql': [BUNDLES.costos, BUNDLES.reservorio],
     'costos-planilla-feed': [BUNDLES.costos, BUNDLES.reservorio],
     'planilla-2026': [MODULES.planilla, MODULES.integrados],
     'nomina-planilla': [MODULES.planilla, MODULES.integrados],
@@ -72,6 +71,7 @@
     if (p === 'nomina-planilla') return 'planilla-2026';
     if (p === 'compras-ordenes') return 'centro-compras';
     if (p === 'compras-oficina') return 'centro-compras';
+    if (p === 'costos-sql') return 'costos-reservorio';
     try {
       if (typeof global.crozzoProcesosPageToView === 'function' && global.crozzoProcesosPageToView(p)) {
         return 'centro-procesos';
