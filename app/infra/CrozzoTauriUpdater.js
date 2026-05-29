@@ -128,6 +128,96 @@
     }
   }
 
+  var RELEASE_WAIT_MS = 20 * 60 * 1000;
+  var RELEASE_POLL_MS = 12000;
+
+  function isSignatureMismatchError(err) {
+    var msg = err && err.message ? err.message : String(err || '');
+    return /different key|signature was created/i.test(msg);
+  }
+
+  function waitUntilReleaseReady(targetVersion, onProgress, maxWaitMs) {
+    var ver = normVersion(targetVersion);
+    if (!ver) return Promise.resolve(null);
+    var started = Date.now();
+    maxWaitMs = maxWaitMs || RELEASE_WAIT_MS;
+
+    function attempt() {
+      return probeReleaseArtifacts(ver).then(function (probe) {
+        if (probe && probe.url && /setup\.exe/i.test(probe.url)) {
+          return probe;
+        }
+        if (Date.now() - started > maxWaitMs) {
+          return Promise.reject(
+            new Error(
+              'El instalador v' +
+                semverCore(ver) +
+                ' aún no está en GitHub. Espere a que termine GitHub Actions.'
+            )
+          );
+        }
+        if (onProgress) {
+          onProgress({
+            phase: 'probe',
+            percent: Math.min(10, 4 + Math.floor((Date.now() - started) / 60000)),
+            message:
+              'Esperando instalador v' +
+              semverCore(ver) +
+              ' en GitHub (compilación en curso)…',
+          });
+        }
+        return delay(RELEASE_POLL_MS).then(attempt);
+      });
+    }
+
+    return attempt();
+  }
+
+  function installViaSilentSetupExe(targetVersion, onProgress) {
+    var ver = normVersion(targetVersion);
+    return resolveManualFallback(ver).then(function (info) {
+      var url = info && info.downloadUrl;
+      if (!url || !/setup\.exe/i.test(url)) {
+        return Promise.reject(new Error('No hay setup.exe en el release de GitHub.'));
+      }
+      if (onProgress) {
+        onProgress({
+          phase: 'download',
+          percent: 55,
+          message: 'Descargando e instalando en silencio…',
+        });
+      }
+      return invoke('install_setup_from_url', { url: url })
+        .catch(function (invokeErr) {
+          var msg = invokeErr && invokeErr.message ? invokeErr.message : String(invokeErr);
+          if (/not found|unknown command|install_setup_from_url/i.test(msg)) {
+            return openExternalUrl(url).then(function () {
+              return Promise.reject(
+                new Error(
+                  'Este build aún no incluye instalación silenciosa. Se abrió la descarga; ejecútela una vez y las siguientes serán automáticas.'
+                )
+              );
+            });
+          }
+          return Promise.reject(invokeErr);
+        })
+        .then(function () {
+          if (onProgress) {
+            onProgress({
+              phase: 'install',
+              percent: 96,
+              message: 'Instalador en ejecución. La app se cerrará y abrirá la versión nueva…',
+            });
+          }
+          return delay(800).then(function () {
+            return invoke('plugin:process|exit', { code: 0 }).catch(function () {
+              return { installed: true, version: ver, plan: 'C', exiting: true };
+            });
+          });
+        });
+    });
+  }
+
   function relaunchApp() {
     if (!isTauri()) {
       try {
@@ -356,7 +446,14 @@
     if (toast) toast('Preparando actualización automática…', 'info');
     onProgress({ phase: 'probe', percent: 2, message: 'Verificando paquete en la nube…' });
 
-    return getAppVersion()
+    var waitP = targetVersion
+      ? waitUntilReleaseReady(targetVersion, onProgress, opts.maxWaitMs)
+      : Promise.resolve(null);
+
+    return waitP
+      .then(function () {
+        return getAppVersion();
+      })
       .then(function (current) {
         var probeP = targetVersion ? probeReleaseArtifacts(targetVersion) : Promise.resolve(null);
 
@@ -380,23 +477,70 @@
 
           onProgress({ phase: 'check', percent: 12, message: 'Comprobando actualización con el servidor…' });
 
-          return checkForAppUpdate({ timeout: 120000 }).then(function (meta) {
+          function trySilentFallback(err, ver, currentVer) {
+            if (opts.allowSilentSetup === false) {
+              return Promise.reject(err);
+            }
+            if (onProgress) {
+              onProgress({
+                phase: 'install',
+                percent: 30,
+                message: 'Aplicando actualización automática (instalador silencioso)…',
+              });
+            }
+            return installViaSilentSetupExe(targetVersion || ver, onProgress)
+              .then(function () {
+                return {
+                  installed: true,
+                  version: normVersion(ver || targetVersion),
+                  previous: currentVer,
+                  plan: 'C',
+                  exiting: true,
+                };
+              })
+              .catch(function (silentErr) {
+                return Promise.reject(silentErr || err);
+              });
+          }
+
+          return checkForAppUpdate({ timeout: 120000 })
+            .catch(function (err) {
+              if (isSignatureMismatchError(err)) {
+                return trySilentFallback(err, targetVersion, current);
+              }
+              return Promise.reject(err);
+            })
+            .then(function (meta) {
+            if (meta && meta.plan === 'C') return meta;
             if (!meta) {
               if (targetVersion && current && compareSemver(targetVersion, current) > 0) {
-                return resolveManualFallback(targetVersion).then(function (manual) {
-                  return Promise.reject(
-                    attachManual(
-                      new Error(
-                        'Plan A: el updater no encontró un .exe más nuevo (actual ' +
-                          current +
-                          ', requerido ' +
-                          targetVersion +
-                          '). Use Plan B para descargar manualmente.'
-                      ),
-                      manual
-                    )
-                  );
-                });
+                return installViaSilentSetupExe(targetVersion, onProgress)
+                  .then(function () {
+                    return {
+                      installed: true,
+                      version: normVersion(targetVersion),
+                      previous: current,
+                      plan: 'C',
+                      exiting: true,
+                    };
+                  })
+                  .catch(function (silentErr) {
+                    return resolveManualFallback(targetVersion).then(function (manual) {
+                      return Promise.reject(
+                        attachManual(
+                          silentErr ||
+                            new Error(
+                              'No se encontró actualización firmada (actual ' +
+                                current +
+                                ', requerido ' +
+                                targetVersion +
+                                ').'
+                            ),
+                          manual
+                        )
+                      );
+                    });
+                  });
               }
               onProgress({ phase: 'check', percent: 100, message: 'Este equipo ya está al día.' });
               return { installed: false, upToDate: true, current: current, plan: 'A' };
@@ -428,8 +572,10 @@
             });
 
             return runDownloadInstall(meta, ver, current, onProgress, toast, 0).catch(function (err) {
-              return resolveManualFallback(targetVersion || ver).then(function (manual) {
-                return Promise.reject(attachManual(err, manual));
+              return trySilentFallback(err, ver, current).catch(function (silentErr) {
+                return resolveManualFallback(targetVersion || ver).then(function (manual) {
+                  return Promise.reject(attachManual(silentErr || err, manual));
+                });
               });
             });
           });
@@ -450,10 +596,13 @@
     getVersion: getAppVersion,
     check: checkForAppUpdate,
     probeRelease: probeReleaseArtifacts,
+    waitUntilReleaseReady: waitUntilReleaseReady,
     fetchReleaseAssets: fetchReleaseAssets,
     resolveManualFallback: resolveManualFallback,
     openExternalUrl: openExternalUrl,
     installLatest: installLatestBinary,
+    installViaSilentSetup: installViaSilentSetupExe,
+    isSignatureMismatchError: isSignatureMismatchError,
     relaunch: relaunchApp,
     compareSemver: compareSemver,
     releasesLatestUrl: GITHUB_RELEASES_LATEST,

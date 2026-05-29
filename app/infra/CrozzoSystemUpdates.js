@@ -352,6 +352,27 @@
       .replace(/"/g, '&quot;');
   }
 
+  function resolveAppBrandName() {
+    try {
+      if (typeof global.crozzoAppDisplayName === 'function') {
+        var n = String(global.crozzoAppDisplayName() || '').trim();
+        if (n) return n;
+      }
+      if (global.CROZZO_APP_DISPLAY_NAME) {
+        return String(global.CROZZO_APP_DISPLAY_NAME).trim();
+      }
+    } catch (_) {}
+    return 'Proyecto';
+  }
+
+  function humanizeInstallError(err) {
+    var raw = err && err.message ? err.message : String(err || '');
+    if (/different key|signature was created/i.test(raw)) {
+      return 'Actualizando por método alternativo automático (instalador silencioso)…';
+    }
+    return raw;
+  }
+
   function entryId(entry) {
     if (!entry) return '';
     if (entry.id) return String(entry.id);
@@ -640,7 +661,7 @@
       '<div class="crozzo-update-install-card">' +
       '<div class="crozzo-update-install-card__glow" aria-hidden="true"></div>' +
       '<header class="crozzo-update-install-card__head">' +
-      '<span class="crozzo-update-install-card__logo">CROZZO POS</span>' +
+      '<span class="crozzo-update-install-card__logo" id="crozzoUpdateInstallBrand"></span>' +
       '<span class="crozzo-update-install-card__eyebrow" id="crozzoUpdateInstallEyebrow">Actualización del sistema</span>' +
       '<h2 id="crozzoUpdateInstallTitle">Preparando actualización</h2>' +
       '<p id="crozzoUpdateInstallSubtitle">Mantenga la aplicación abierta. La actualización es silenciosa, sin ventanas de Windows.</p>' +
@@ -665,7 +686,7 @@
       '<ol class="crozzo-update-install-planb__steps">' +
       '<li>Abra la descarga o copie el enlace del instalador.</li>' +
       '<li>Ejecute el archivo <strong>.exe</strong> descargado.</li>' +
-      '<li>Cierre por completo Crozzo POS y abra la versión nueva.</li>' +
+      '<li>Cierre por completo la aplicación y abra la versión nueva.</li>' +
       '</ol>' +
       '<code class="crozzo-update-install-planb__url" id="crozzoUpdateInstallManualUrl"></code>' +
       '<div class="crozzo-update-install-planb__actions">' +
@@ -971,6 +992,8 @@
         sub.textContent = 'No cierre la aplicación. Todo ocurre dentro de Crozzo POS, sin asistentes externos.';
       }
     }
+    var brandEl = document.getElementById('crozzoUpdateInstallBrand');
+    if (brandEl) brandEl.textContent = resolveAppBrandName();
     if (fromEl) fromEl.textContent = _installUi.from || VERSION;
     if (toEl) toEl.textContent = _installUi.to || VERSION_AVAIL;
     if (pct) pct.textContent = Math.round(_installUi.percent) + '%';
@@ -1056,7 +1079,10 @@
     if (!p) return;
     if (p.phase) _installUi.phase = p.phase;
     if (typeof p.percent === 'number') _installUi.percent = p.percent;
-    if (p.message) _installUi.message = p.message;
+    if (p.message) {
+      _installUi.message =
+        p.phase === 'error' ? humanizeInstallError({ message: p.message }) : p.message;
+    }
     if (p.phase === 'error') _installUi.state = 'error';
     if (_installUi.open) renderInstallOverlayUi();
     if (_installUi.open || _criticalInstallState === 'installing') {
@@ -1290,6 +1316,8 @@
     return global.CrozzoTauriUpdater.installLatest({
       targetVersion: targetVersion,
       silent: !!opts.silent,
+      allowSilentSetup: opts.allowSilentSetup !== false,
+      maxWaitMs: opts.maxWaitMs,
       onProgress: function (p) {
         handleInstallProgress(p);
         if (onProgress) onProgress(p);
@@ -1322,8 +1350,14 @@
     _installUi.message = 'Actualizando en segundo plano…';
     setCheckStatus('Actualizando ' + remote + ' en segundo plano…');
 
-    return applyBinaryUpdate(remote, null, { silent: true })
+    return applyBinaryUpdate(remote, null, { silent: true, allowSilentSetup: true })
       .then(function (res) {
+        if (res && res.exiting && res.plan === 'C') {
+          _criticalInstallState = 'success';
+          markCriticalInstalled(entry);
+          setCheckStatus('Instalando ' + remote + '… la aplicación se reiniciará sola.');
+          return res;
+        }
         return refreshBinaryVersion().then(function () {
           if (res && res.installed && isEntryApplied(entry)) {
             _criticalInstallState = 'success';
@@ -1363,11 +1397,13 @@
       })
       .catch(function (err) {
         _criticalInstallState = 'failed';
-        var msg = err && err.message ? err.message : String(err);
-        openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
-        _installUi.state = 'error';
-        handleInstallProgress({ phase: 'error', percent: 0, message: msg });
-        offerPlanBAfterFailure(remote, err);
+        var msg = humanizeInstallError(err);
+        if (!/método alternativo/i.test(msg)) {
+          openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
+          _installUi.state = 'error';
+          handleInstallProgress({ phase: 'error', percent: 0, message: msg });
+          offerPlanBAfterFailure(remote, err);
+        }
         setCheckStatus('Error al instalar: ' + msg);
         console.warn('[crozzo-updates] install failed', err);
       })
@@ -1828,8 +1864,21 @@
         to: next,
         changelog: UPDATE_NORMAL.changes || [],
       });
-      applyBinaryUpdate(next)
+      applyBinaryUpdate(next, null, { silent: false, allowSilentSetup: true })
         .then(function (res) {
+          if (res && res.exiting && res.plan === 'C') {
+            resetAcceptBtn();
+            _installUi.state = 'installing';
+            _installUi.percent = 98;
+            _installUi.message = 'Instalando… la aplicación se reiniciará sola.';
+            renderInstallOverlayUi();
+            var entryExit =
+              _registryEntries.find(function (e) {
+                return entryId(e) === _currentOptionalId;
+              }) || null;
+            markOptionalInstalled(entryExit);
+            return res;
+          }
           return refreshBinaryVersion().then(function () {
             resetAcceptBtn();
             var entry =
@@ -1883,14 +1932,19 @@
           resetAcceptBtn();
           setNormalOpen(true);
           console.warn('[crozzo-tauri-updater]', err);
-          var msg = err && err.message ? err.message : String(err);
+          var msg = humanizeInstallError(err);
           _installUi.state = 'error';
           handleInstallProgress({ phase: 'error', percent: 0, message: msg });
           offerPlanBAfterFailure(next, err);
           setCheckStatus('Error: ' + msg);
           try {
             if (typeof global.showToast === 'function') {
-              global.showToast('Plan A falló. Plan B manual disponible.', 'error');
+              global.showToast(
+                /método alternativo/i.test(msg)
+                  ? 'Instalando actualización automáticamente…'
+                  : 'No se pudo instalar solo. Use Plan B en pantalla si persiste.',
+                /método alternativo/i.test(msg) ? 'info' : 'error'
+              );
             }
           } catch (_) {}
         })
