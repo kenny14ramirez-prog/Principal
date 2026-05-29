@@ -6203,7 +6203,10 @@ function renderPage(page) {
   content.classList.remove('main-body--retail-pos');
   try {
   switch(page) {
-    case 'inicio-operacion': content.innerHTML = renderInicioOperacion(); break;
+    case 'inicio-operacion':
+      content.innerHTML = renderInicioOperacion();
+      if (typeof initInicioOperacion === 'function') initInicioOperacion();
+      break;
     case 'cajero': content.innerHTML = renderCajero(); initCajero(); break;
     case 'venta-comercial':
       content.innerHTML = renderVentaComercial();
@@ -7859,35 +7862,167 @@ function saveProductAdvancedConfig(productId) {
 // ==========================================
 // INICIO VENTAS + VENTA COMERCIAL (tienda / servicios)
 // ==========================================
+function crozzoInicioOpLastPage() {
+  try {
+    return localStorage.getItem('crozzo_inicio_op_last') || '';
+  } catch (_) {
+    return '';
+  }
+}
+function crozzoInicioOpRemember(page) {
+  try {
+    localStorage.setItem('crozzo_inicio_op_last', page);
+  } catch (_) {}
+}
+function crozzoInicioOpShiftKpisHtml() {
+  if (typeof crozzoShiftMetrics !== 'function') return '';
+  try {
+    var m = crozzoShiftMetrics();
+    var opened = m.shift && m.shift.openedAt ? new Date(m.shift.openedAt) : null;
+    var openedLbl = opened
+      ? opened.toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      : '—';
+    return (
+      '<div class="crozzo-ventas-hub__kpis" aria-label="Resumen del turno">' +
+      '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">Turno desde</span><strong class="crozzo-ventas-kpi__val">' +
+      escUserAttr(openedLbl) +
+      '</strong></div>' +
+      '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">Ventas</span><strong class="crozzo-ventas-kpi__val">' +
+      String(m.count) +
+      '</strong></div>' +
+      '<div class="crozzo-ventas-kpi crozzo-ventas-kpi--accent"><span class="crozzo-ventas-kpi__lbl">Total turno</span><strong class="crozzo-ventas-kpi__val">$' +
+      Math.round(m.total).toLocaleString('es-CO') +
+      '</strong></div>' +
+      '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">Ticket prom.</span><strong class="crozzo-ventas-kpi__val">' +
+      (m.count ? '$' + Math.round(m.ticket).toLocaleString('es-CO') : '$0') +
+      '</strong></div>' +
+      '</div>'
+    );
+  } catch (_) {
+    return '';
+  }
+}
 function renderInicioOperacion() {
   var perfil = crozzoGetPerfilEmpresa();
+  var last = crozzoInicioOpLastPage();
+  var cards = [
+    {
+      page: 'cajero',
+      key: '1',
+      icon: 'utensils',
+      tag: 'Gastronómico',
+      title: 'Restaurante · POS',
+      desc: 'Mesas, domicilio, comandas a cocina y bar, tablets para meseros.',
+      feats: ['Mesas y domicilio', 'Comandas en vivo', 'Tablets meseros'],
+    },
+    {
+      page: 'venta-comercial',
+      key: '2',
+      icon: 'store',
+      tag: 'Mostrador',
+      title: 'Tienda / Comercial',
+      desc: 'Retail rápido: escáner, categorías, carrito y cobro sin comandas.',
+      feats: ['Escáner / SKU', 'Categorías', 'Cobro express'],
+    },
+    {
+      page: 'pedidos-internos',
+      key: '3',
+      icon: 'clipboard-list',
+      tag: 'Áreas internas',
+      title: 'Pedidos internos',
+      desc: 'Solicitudes a cocina, bar o bodega. Solo nombre, sin cuenta.',
+      feats: ['Sin login', 'Por área', 'Trazabilidad'],
+    },
+  ];
+  var cardsHtml = cards
+    .map(function (c) {
+      var isLast = last === c.page;
+      return (
+        '<button type="button" class="crozzo-ventas-card' +
+        (isLast ? ' is-recent' : '') +
+        '" data-ventas-page="' +
+        escUserAttr(c.page) +
+        '" onclick="crozzoInicioOpGo(\'' +
+        escUserAttr(c.page) +
+        '\')">' +
+        '<span class="crozzo-ventas-card__glow" aria-hidden="true"></span>' +
+        '<span class="crozzo-ventas-card__top">' +
+        '<span class="crozzo-ventas-card__icon" aria-hidden="true"><i data-lucide="' +
+        escUserAttr(c.icon) +
+        '"></i></span>' +
+        '<span class="crozzo-ventas-card__tags">' +
+        '<span class="crozzo-ventas-card__tag">' +
+        escUserAttr(c.tag) +
+        '</span>' +
+        (isLast ? '<span class="crozzo-ventas-card__tag crozzo-ventas-card__tag--recent">Último uso</span>' : '') +
+        '</span></span>' +
+        '<h3 class="crozzo-ventas-card__title">' +
+        escUserAttr(c.title) +
+        '</h3>' +
+        '<p class="crozzo-ventas-card__desc">' +
+        escUserAttr(c.desc) +
+        '</p>' +
+        '<ul class="crozzo-ventas-card__feats">' +
+        c.feats
+          .map(function (f) {
+            return '<li><i data-lucide="check" aria-hidden="true"></i>' + escUserAttr(f) + '</li>';
+          })
+          .join('') +
+        '</ul>' +
+        '<span class="crozzo-ventas-card__cta">Abrir <kbd>' +
+        escUserAttr(c.key) +
+        '</kbd> <i data-lucide="arrow-right" aria-hidden="true"></i></span>' +
+        '</button>'
+      );
+    })
+    .join('');
   return (
-    '<section class="content-section">' +
-    '<div class="crozzo-invoice-studio__hero" style="margin-bottom:20px;">' +
-    '<div><h2>Inicio de ventas</h2>' +
-    '<p>Seleccione el entorno de caja según su operación. Perfil activo: <strong>' + escUserAttr(perfil) + '</strong>.</p></div></div>' +
-    '<div class="crozzo-inicio-operacion">' +
-    '<button type="button" class="crozzo-inicio-op-card" onclick="navigateTo(\'cajero\')">' +
-    '<div class="crozzo-inicio-op-card__icon">🍽️</div>' +
-    '<h3>Restaurante</h3>' +
-    '<p>Mesas, domicilio, comandas a cocina y bar, tablets para meseros y control de tiempos.</p>' +
-    '<span class="crozzo-retail-pill" style="margin-top:12px;display:inline-block;">POS gastronómico</span>' +
-    '</button>' +
-    '<button type="button" class="crozzo-inicio-op-card" onclick="navigateTo(\'venta-comercial\')">' +
-    '<div class="crozzo-inicio-op-card__icon">🏪</div>' +
-    '<h3>Tienda / Comercial</h3>' +
-    '<p>Mostrador retail: escáner, categorías, carrito rápido y cobro sin mesas ni comandas.</p>' +
-    '<span class="crozzo-retail-pill" style="margin-top:12px;display:inline-block;">POS mostrador</span>' +
-    '</button>' +
-    '<button type="button" class="crozzo-inicio-op-card" onclick="navigateTo(\'pedidos-internos\')">' +
-    '<div class="crozzo-inicio-op-card__icon">📋</div>' +
-    '<h3>Pedidos internos</h3>' +
-    '<p>Solicite insumos a cocina, bar, panadería u otras áreas de comandas. Sin cuenta: solo su nombre.</p>' +
-    '<span class="crozzo-retail-pill" style="margin-top:12px;display:inline-block;">Sin login</span>' +
-    '</button>' +
-    '</div></section>'
+    '<section class="content-section crozzo-ventas-hub">' +
+    '<header class="crozzo-ventas-hub__hero">' +
+    '<div class="crozzo-ventas-hub__hero-glow" aria-hidden="true"></div>' +
+    '<div class="crozzo-ventas-hub__hero-main">' +
+    '<p class="crozzo-ventas-hub__eyebrow">Centro de ventas</p>' +
+    '<h2 class="crozzo-ventas-hub__title">Inicio de ventas</h2>' +
+    '<p class="crozzo-ventas-hub__sub">Elija el entorno de caja. Perfil <strong>' +
+    escUserAttr(perfil) +
+    '</strong> · atajos <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></p>' +
+    '</div>' +
+    '<div class="crozzo-ventas-hub__hero-actions">' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'facturas\')"><i data-lucide="receipt"></i> Facturas</button>' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="typeof crozzoShiftToggleDashboard===\'function\'&&crozzoShiftToggleDashboard(true)"><i data-lucide="bar-chart-3"></i> Turno</button>' +
+    '</div></header>' +
+    crozzoInicioOpShiftKpisHtml() +
+    '<div class="crozzo-ventas-hub__grid" role="list">' +
+    cardsHtml +
+    '</div>' +
+    '<p class="crozzo-ventas-hub__foot">Tip: use <strong>1</strong> restaurante, <strong>2</strong> tienda, <strong>3</strong> pedidos internos.</p>' +
+    '</section>'
   );
 }
+function crozzoInicioOpGo(page) {
+  crozzoInicioOpRemember(page);
+  navigateTo(page);
+}
+function initInicioOperacion() {
+  var root = document.getElementById('mainContent');
+  if (!root) return;
+  if (!root._crozzoInicioOpBound) {
+    root._crozzoInicioOpBound = true;
+    root.addEventListener('keydown', function (e) {
+      if (currentPage !== 'inicio-operacion') return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+      var map = { '1': 'cajero', '2': 'venta-comercial', '3': 'pedidos-internos' };
+      if (map[e.key]) {
+        e.preventDefault();
+        crozzoInicioOpGo(map[e.key]);
+      }
+    });
+  }
+  try {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ root: root });
+  } catch (_) {}
+}
+global.crozzoInicioOpGo = crozzoInicioOpGo;
 function setCommercialCategory(categoryId) {
   commercialCategory = categoryId || 'todas';
   commercialCategoryOpen = true;
