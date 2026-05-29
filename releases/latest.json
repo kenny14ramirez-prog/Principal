@@ -1,15 +1,15 @@
 {
-  "id": "1.0.20-critical",
-  "version": "v1.0.20",
-  "semver": "1.0.20",
+  "id": "1.0.21-critical",
+  "version": "v1.0.21",
+  "semver": "1.0.21",
   "type": "critical",
-  "message": "interfaz mejoras, menu de actualizacion y sistemas revisados ",
-  "publishedAt": "2026-05-29T02:40:12.958Z",
+  "message": "actulizacion prueba",
+  "publishedAt": "2026-05-29T02:55:51.224Z",
   "installMode": "auto",
   "changelog": [
-    "interfaz mejoras, menu de actualizacion y sistemas revisados"
+    "actulizacion prueba"
   ],
-  "updatedAt": "2026-05-29T02:40:12.958Z",
+  "updatedAt": "2026-05-29T02:55:51.224Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -105,6 +105,18 @@
       "installMode": "auto",
       "changelog": [
         "interfaz mejoras, menu de actualizacion y sistemas revisados"
+      ]
+    },
+    {
+      "id": "1.0.21-critical",
+      "version": "v1.0.21",
+      "semver": "1.0.21",
+      "type": "critical",
+      "message": "actulizacion prueba",
+      "publishedAt": "2026-05-29T02:55:51.224Z",
+      "installMode": "auto",
+      "changelog": [
+        "actulizacion prueba"
       ]
     }
   ]

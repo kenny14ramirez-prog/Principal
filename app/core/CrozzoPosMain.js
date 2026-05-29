@@ -1623,7 +1623,7 @@ function crozzoHpPageTitles() {
     cocina: ['Cocina', 'Comandas entrantes'],
     inventarios: ['Reportes y dashboard', 'KPIs del día'],
     'compras-dashboard': ['Resumen compras', 'Órdenes y recepciones'],
-    'sistema-costos': ['Sistema de costos', 'Mapa de flujos conectados'],
+    'sistema-costos': ['Costos y márgenes', 'Precios de venta y costeo'],
     'costos-matriz': ['Costos y márgenes', 'Precios de venta y costeo'],
     'catalogo-mp': ['Materias primas', 'Catálogo de insumos'],
     'costos-inventario': ['Inventario continuo', 'Entradas, salidas y conteo'],
@@ -4203,7 +4203,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
 });
 const CROZZO_PERFIL_EMPRESA_MENUS = Object.freeze({
   completo: ['all'],
-  restaurante: ['inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'comandas', 'cocina', 'inventarios', 'productos', 'catalogo-mp', 'sistema-costos', 'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-entrada', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas'],
+  restaurante: ['inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'comandas', 'cocina', 'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-entrada', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas'],
   retail: ['inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'inventarios', 'productos', 'admin', 'config-empresa', 'impuestos', 'nomina-planilla', 'compras-oficina', 'control-acceso'],
   servicios: ['inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'productos', 'admin', 'config-empresa', 'impuestos'],
   basico: ['caja', 'venta-comercial']
@@ -4260,7 +4260,6 @@ const CROZZO_MENU_CATALOG = [
   {
     group: 'Costos',
     items: [
-      { id: 'sistema-costos', label: 'Mapa de flujos costos', icon: '🔗', page: 'sistema-costos' },
       { id: 'sistema-costos-matriz', label: 'Costos y márgenes', icon: '💰', page: 'costos-matriz' },
       { id: 'sistema-costos-inv', label: 'Inventario continuo', icon: '📦', page: 'costos-inventario' },
       { id: 'sistema-costos-feed', label: 'Cola planilla', icon: '🧾', page: 'costos-planilla-feed' }
@@ -5682,7 +5681,6 @@ function currentUserCanSeePage(page) {
         'compras-recepcion',
         'compras-proveedores',
         'centro-compras',
-        'sistema-costos',
         'costos-matriz',
         'costos-inventario',
       ]);
@@ -5909,6 +5907,7 @@ function navigateTo(page) {
     window.__crozzoPlanillaTab = 'nomina';
     page = 'planilla-2026';
   }
+  if (page === 'sistema-costos') page = 'costos-matriz';
   if (page === 'compras-dashboard') {
     window.__crozzoInventariosTab = 'compras';
   }
@@ -6064,7 +6063,7 @@ function navigateTo(page) {
     'gestion-perfiles-menus': ['Gestión de Perfiles y Menús', 'Perfil de empresa y visibilidad de módulos por rol'],
     'auditoria': ['Auditoría', 'Registro de cambios en la configuración fiscal'],
     'catalogo-mp': ['Catálogo · materias primas', 'Insumos, proveedores y recetas'],
-    'sistema-costos': ['Sistema de costos', 'Mapa de flujos conectados'],
+    'sistema-costos': ['Costos y márgenes', 'Precios de venta y costeo'],
     'costos-matriz': ['Costos y márgenes', 'Precios de venta y costeo de materias primas'],
     'costos-inventario': ['Inventario continuo', 'Movimientos y teórico vs conteo'],
     'costos-reservorio': ['Reservorio', 'Memoria unificada del negocio'],

@@ -112,7 +112,7 @@
   ];
 
   var hub = {
-    view: 'map',
+    view: 'matriz',
     flowKey: null,
     bound: false,
     seed: null,
@@ -2980,59 +2980,12 @@
       '.crozzo-inv-row--diff td{background:rgba(251,191,36,.06)}';
   }
 
-  function statusBadge(status) {
-    if (status === 'conectado') return '<span class="crozzo-costos-badge crozzo-costos-badge--ok">Conectado</span>';
-    if (status === 'fase-1-local') return '<span class="crozzo-costos-badge crozzo-costos-badge--local">Cola local</span>';
-    return '<span class="crozzo-costos-badge crozzo-costos-badge--wip">Próxima fase</span>';
-  }
-
   function goPage(page) {
     if (typeof global.navigateTo === 'function') global.navigateTo(page);
     else toast('Abra: ' + page, 'info');
   }
 
-  function renderFlowCard(f) {
-    return (
-      '<article class="crozzo-costos-card" data-flow="' + esc(f.key) + '">' +
-      '<div class="crozzo-costos-card__head">' +
-      '<span class="crozzo-costos-card__icon" aria-hidden="true">' + f.icon + '</span>' +
-      '<div><h2 class="crozzo-costos-card__title">' + esc(f.id + ' · ' + f.title) + '</h2>' +
-      '<p class="crozzo-costos-card__sub">' + esc(f.subtitle) + '</p></div></div>' +
-      statusBadge(f.status) +
-      '<div class="crozzo-costos-links">' +
-      '<button type="button" class="btn btn-primary btn-sm crozzo-costos-open" data-page="' + esc(f.navigate) + '">Abrir módulo</button>' +
-      '<button type="button" class="btn btn-outline btn-sm crozzo-costos-detail" data-flow="' + esc(f.key) + '">Detalle</button>' +
-      '</div></article>'
-    );
-  }
-
-    function renderMap() {
-    var cards = Object.keys(FLOWS).map(function (k) { return renderFlowCard(FLOWS[k]); }).join('');
-    var conns = CONNECTIONS.map(function (c) {
-      return (
-        '<div class="crozzo-costos-conn-row">' +
-        '<strong>' + esc(c.from) + '</strong>' +
-        '<span><strong>' + esc(c.label) + '</strong><br><span class="crozzo-costos-conn-ev">' + esc(c.event) + '</span></span>' +
-        '<strong style="text-align:right">' + esc(c.to) + '</strong></div>'
-      );
-    }).join('');
-
-    return (
-      '<div class="crozzo-costos-hub">' +
-      '<header class="crozzo-costos-hero">' +
-      '<h1>Sistema de costos</h1>' +
-      '<p>Seis flujos conectados: matriz de precios, recetas, inventario, compras, oficina y cola hacia planilla. ' +
-      (cloudReady() ? 'Nube activa — listo para tablas SQL.' : 'Modo local — cola en este equipo hasta activar Cloud.') +
-      '</p></header>' +
-      '<div class="crozzo-costos-map" aria-label="Fórmulas">' +
-      '<strong>Inventario (F3):</strong> Teórico = Inicial + Entradas − Salidas · Diferencia = Conteo − Teórico<br>' +
-      '<strong>Costos:</strong> costo MP · precio venta · margen = (precio − costo) / precio</div>' +
-      '<div class="crozzo-costos-grid">' + cards + '</div>' +
-      '<section class="crozzo-costos-conn"><h3>Conexiones entre flujos</h3>' + conns + '</section></div>'
-    );
-  }
-
-function renderFeedPanel() {
+  function renderFeedPanel() {
     var feed = loadFeed();
     var rv = reservorio();
     var rows = feed.length
@@ -3053,8 +3006,7 @@ function renderFeedPanel() {
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoCostosFeedRefresh">Actualizar</button>' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoCostosGoPlanilla">Ir a Planilla 2026</button></div>' +
       '<table class="crozzo-costos-feed-table"><thead><tr><th>Fecha</th><th>Origen</th><th>Concepto</th><th>Tipo</th><th>Monto</th><th>Estado</th></tr></thead><tbody>' +
-      rows + '</tbody></table>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosBackMap" style="margin-top:16px">← Mapa de flujos</button></div>'
+      rows + '</tbody></table></div>'
     );
   }
 
@@ -3876,8 +3828,7 @@ function renderFeedPanel() {
       '</tbody></table></div></div></div>' +
       '<div class="crozzo-inv-foot">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoRecepcion">Recepción facturas →</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoCatalogo">Catálogo MP →</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosBackMap">← Mapa de flujos</button></div></div>'
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoCatalogo">Catálogo MP →</button></div></div>'
     );
   }
 
@@ -4072,8 +4023,7 @@ function renderFeedPanel() {
       dash +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoReservorioExport">Exportar backup JSON</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosGoSql">Editor SQL</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosBackMap">← Mapa</button></div></div>'
+      '<button type="button" class="btn btn-outline" id="crozzoCostosGoSql">Editor SQL</button></div></div>'
     );
   }
 
@@ -4085,8 +4035,7 @@ function renderFeedPanel() {
       '<header class="crozzo-costos-hero"><h1>Editor SQL — Supabase</h1>' +
       '<p>Copie en SQL Editor al activar nube.</p></header>' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoSqlCopy" style="margin-bottom:10px">Copiar todo</button>' +
-      '<textarea class="crozzo-costos-sql" id="crozzoSqlEditor" readonly>' + esc(sql) + '</textarea>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosBackMap" style="margin-top:12px">← Mapa</button></div>'
+      '<textarea class="crozzo-costos-sql" id="crozzoSqlEditor" readonly>' + esc(sql) + '</textarea></div>'
     );
   }
 
@@ -4718,8 +4667,7 @@ function renderFeedPanel() {
       '</div>' +
       '<div class="crozzo-costos-panel" data-matriz-panel="demo">' +
       renderDemoRecetaHtml(seed) +
-      '</div>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosBackMap" style="margin-top:16px">← Mapa de flujos</button></div>'
+      '</div></div>'
     );
   }
 
@@ -5814,56 +5762,28 @@ function renderFeedPanel() {
       '<header class="crozzo-costos-hero"><h1>' + esc(title) + '</h1>' +
       '<p>Fase de implementación: <strong>' + esc(phase) + '</strong>. La estructura y conexiones ya están listas.</p></header>' +
       (formula ? '<div class="crozzo-costos-formula">' + formula + '</div>' : '') +
-      '<div class="crozzo-costos-placeholder">Próximo paso: pantalla detallada de este flujo.<br>Vuelva al mapa con el botón «Mapa de flujos».</div>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCostosBackMap" style="margin-top:16px">← Mapa de flujos</button></div>'
+      '<div class="crozzo-costos-placeholder">Próximo paso: pantalla detallada de este flujo. Use el menú lateral de Costos.</div></div>'
     );
   }
 
   function render(view) {
     injectStyles();
     registerDefaultListeners();
-    view = view || hub.view || 'map';
+    view = view || hub.view || 'matriz';
+    if (view === 'map') view = 'matriz';
     hub.view = view;
-    if (view === 'map') return renderMap();
     if (view === 'planilla-feed') return renderFeedPanel();
     if (view === 'matriz') return renderMatrizAsync();
     if (view === 'inventario') return renderInventarioPanel();
     if (view === 'reservorio') return renderReservorioPanel();
     if (view === 'sql') return renderSqlPanel();
-    return renderMap();
+    return renderMatrizAsync();
   }
 
   function bindRoot(root) {
     if (!root || root._costosBound) return;
     root._costosBound = true;
     root.addEventListener('click', function (e) {
-      var open = e.target.closest('.crozzo-costos-open');
-      if (open) {
-        e.preventDefault();
-        goPage(open.getAttribute('data-page'));
-        return;
-      }
-      var det = e.target.closest('.crozzo-costos-detail');
-      if (det) {
-        e.preventDefault();
-        var fk = det.getAttribute('data-flow');
-        if (fk === 'planilla-feed') hub.view = 'planilla-feed';
-        else if (fk === 'matriz') hub.view = 'matriz';
-        else if (fk === 'inventario') hub.view = 'inventario';
-        else hub.view = 'map';
-        var host = document.getElementById('mainContent');
-        if (host) {
-          host.innerHTML = render(hub.view);
-          bindRoot(host);
-          bindViewOnRender(host);
-        }
-        return;
-      }
-      if (e.target.id === 'crozzoCostosBackMap') {
-        hub.view = 'map';
-        var h = document.getElementById('mainContent');
-        if (h) { h.innerHTML = render('map'); bindRoot(h); }
-      }
       if (e.target.id === 'crozzoCostosGoPlanilla') goPage('planilla-2026');
       if (e.target.id === 'crozzoCostosGoSql') {
         hub.view = 'sql';
@@ -5953,7 +5873,8 @@ function renderFeedPanel() {
       bindRoot(root);
       bindMatrizOnRender(root);
     }
-    hub.view = view || 'map';
+    hub.view = view || 'matriz';
+    if (hub.view === 'map') hub.view = 'matriz';
   }
 
   function teardown() {
@@ -5961,12 +5882,12 @@ function renderFeedPanel() {
   }
 
   function pageToView(page) {
-    if (page === 'costos-matriz') return 'matriz';
+    if (page === 'sistema-costos' || page === 'costos-matriz') return 'matriz';
     if (page === 'costos-inventario') return 'inventario';
     if (page === 'costos-planilla-feed') return 'planilla-feed';
     if (page === 'costos-reservorio') return 'reservorio';
     if (page === 'costos-sql') return 'sql';
-    return 'map';
+    return 'matriz';
   }
 
     global.CrozzoSistemaCostos = {
