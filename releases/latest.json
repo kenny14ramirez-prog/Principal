@@ -1,15 +1,15 @@
 {
-  "id": "1.0.26-critical",
-  "version": "v1.0.26",
-  "semver": "1.0.26",
+  "id": "1.0.27-critical",
+  "version": "v1.0.27",
+  "semver": "1.0.27",
   "type": "critical",
-  "message": "Actualizacion silenciosa sin asistente Windows",
-  "publishedAt": "2026-05-29T04:45:03.817Z",
+  "message": "instlador",
+  "publishedAt": "2026-05-29T04:46:29.639Z",
   "installMode": "auto",
   "changelog": [
-    "Actualizacion silenciosa sin asistente Windows"
+    "instlador"
   ],
-  "updatedAt": "2026-05-29T04:45:03.817Z",
+  "updatedAt": "2026-05-29T04:46:29.639Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -177,6 +177,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion silenciosa sin asistente Windows"
+      ]
+    },
+    {
+      "id": "1.0.27-critical",
+      "version": "v1.0.27",
+      "semver": "1.0.27",
+      "type": "critical",
+      "message": "instlador",
+      "publishedAt": "2026-05-29T04:46:29.639Z",
+      "installMode": "auto",
+      "changelog": [
+        "instlador"
       ]
     }
   ]
