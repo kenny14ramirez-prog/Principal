@@ -44,11 +44,11 @@
   var _planB = { downloadUrl: '', releasePageUrl: '', version: '', ready: false };
 
   var INSTALL_STEPS = [
-    { id: 'probe', label: 'Verificar instalador en GitHub' },
-    { id: 'check', label: 'Comprobar actualización firmada' },
-    { id: 'download', label: 'Descargar paquete seguro' },
-    { id: 'install', label: 'Instalar en este equipo' },
-    { id: 'relaunch', label: 'Reiniciar con interfaz nueva' },
+    { id: 'probe', label: 'Verificando paquete en la nube' },
+    { id: 'check', label: 'Validando firma de seguridad' },
+    { id: 'download', label: 'Descargando actualización' },
+    { id: 'install', label: 'Aplicando en este equipo' },
+    { id: 'relaunch', label: 'Reiniciando con la nueva versión' },
   ];
 
   var UPDATE_NORMAL = {
@@ -643,7 +643,7 @@
       '<span class="crozzo-update-install-card__logo">CROZZO POS</span>' +
       '<span class="crozzo-update-install-card__eyebrow" id="crozzoUpdateInstallEyebrow">Actualización del sistema</span>' +
       '<h2 id="crozzoUpdateInstallTitle">Preparando actualización</h2>' +
-      '<p id="crozzoUpdateInstallSubtitle">Mantenga la aplicación abierta hasta finalizar.</p>' +
+      '<p id="crozzoUpdateInstallSubtitle">Mantenga la aplicación abierta. La actualización es silenciosa, sin ventanas de Windows.</p>' +
       '</header>' +
       '<div class="crozzo-update-install-versions">' +
       '<span class="crozzo-update-install-versions__from" id="crozzoUpdateInstallFrom">—</span>' +
@@ -968,7 +968,7 @@
       } else if (_installUi.state === 'error') {
         sub.textContent = 'Revise la conexión o espere a que GitHub Actions termine de compilar el release.';
       } else {
-        sub.textContent = 'No cierre ni apague el equipo. Este proceso puede tardar unos minutos.';
+        sub.textContent = 'No cierre la aplicación. Todo ocurre dentro de Crozzo POS, sin asistentes externos.';
       }
     }
     if (fromEl) fromEl.textContent = _installUi.from || VERSION;
@@ -1059,8 +1059,9 @@
     if (p.message) _installUi.message = p.message;
     if (p.phase === 'error') _installUi.state = 'error';
     if (_installUi.open) renderInstallOverlayUi();
-    else renderCriticalMiniProgress();
-    setCheckStatus(p.message || '');
+    if (_installUi.open || _criticalInstallState === 'installing') {
+      setCheckStatus(p.message || '');
+    }
   }
 
   function setOverlayOpen(id, open, bodyClass) {
@@ -1129,7 +1130,7 @@
       if (lead) {
         lead.textContent = _installUi.open
           ? 'Siga el progreso en pantalla. No cierre la aplicación.'
-          : 'Descargando e instalando la nueva versión (.exe). No cierre la aplicación hasta que termine.';
+          : 'Actualizando en segundo plano. La aplicación se reiniciará sola al terminar.';
       }
       if (dismiss) {
         dismiss.disabled = true;
@@ -1231,7 +1232,7 @@
       notes:
         entry.notes ||
         (global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.isAvailable()
-          ? 'En la app de escritorio, Instalar descargará el nuevo .exe desde GitHub Releases (firmado) y reiniciará la aplicación. Hágalo al cierre del turno si puede.'
+          ? 'Pulse Instalar para aplicar la nueva versión en segundo plano (sin asistente de Windows). Hágalo al cierre del turno si puede.'
           : 'La instalación reiniciará la aplicación en este equipo. Se recomienda hacerlo al cierre del turno o con la caja sin ventas en curso.'),
     };
   }
@@ -1281,12 +1282,14 @@
     if (body) body.innerHTML = buildDetailBodyHtml();
   }
 
-  function applyBinaryUpdate(targetVersion, onProgress) {
+  function applyBinaryUpdate(targetVersion, onProgress, opts) {
+    opts = opts || {};
     if (!global.CrozzoTauriUpdater || !global.CrozzoTauriUpdater.isAvailable()) {
       return Promise.reject(new Error('Solo la app de escritorio (Tauri) puede instalar el .exe nuevo.'));
     }
     return global.CrozzoTauriUpdater.installLatest({
       targetVersion: targetVersion,
+      silent: !!opts.silent,
       onProgress: function (p) {
         handleInstallProgress(p);
         if (onProgress) onProgress(p);
@@ -1306,34 +1309,32 @@
     _installInProgress = true;
     _criticalInstallState = 'installing';
     setCriticalOpen(false);
-    openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
-    populateCriticalInfo('installing');
-    setCheckStatus('Instalando ' + remote + '…');
+    setNormalOpen(false);
+    closeInstallOverlay();
+    _installUi.open = false;
+    _installUi.mode = 'critical';
+    _installUi.from = VERSION;
+    _installUi.to = remote;
+    _installUi.changelog = changes;
+    _installUi.state = 'installing';
+    _installUi.phase = 'probe';
+    _installUi.percent = 0;
+    _installUi.message = 'Actualizando en segundo plano…';
+    setCheckStatus('Actualizando ' + remote + ' en segundo plano…');
 
-    return applyBinaryUpdate(remote)
+    return applyBinaryUpdate(remote, null, { silent: true })
       .then(function (res) {
         return refreshBinaryVersion().then(function () {
           if (res && res.installed && isEntryApplied(entry)) {
             _criticalInstallState = 'success';
-            _installUi.state = 'success';
-            _installUi.percent = 100;
-            _installUi.phase = 'relaunch';
-            _installUi.message = 'Reiniciando con la interfaz nueva…';
-            renderInstallOverlayUi();
             markCriticalInstalled(entry);
             setCheckStatus('Actualización ' + remote + ' instalada.');
             return res;
           }
           if (res && res.upToDate && isEntryApplied(entry)) {
             _criticalInstallState = 'success';
-            _installUi.state = 'success';
-            _installUi.percent = 100;
-            _installUi.message = 'Este equipo ya está actualizado.';
-            renderInstallOverlayUi();
             markCriticalInstalled(entry);
-            closeInstallOverlay();
-            setCriticalOpen(true);
-            populateCriticalInfo('success');
+            setCheckStatus('Este equipo ya está actualizado.');
             return res;
           }
           if (res && res.upToDate && !isEntryApplied(entry)) {
@@ -1345,6 +1346,7 @@
                 String(remote).replace(/^v/, '') +
                 ' y espere GitHub Actions.';
             _criticalInstallState = 'failed';
+            openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
             _installUi.state = 'error';
             handleInstallProgress({ phase: 'error', percent: 100, message: stampMsg });
             offerPlanBAfterFailure(remote, null);
@@ -1352,6 +1354,7 @@
           }
           var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
           _criticalInstallState = 'failed';
+          openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
           _installUi.state = 'error';
           handleInstallProgress({ phase: 'error', percent: 100, message: failMsg });
           offerPlanBAfterFailure(remote, null);
@@ -1361,6 +1364,7 @@
       .catch(function (err) {
         _criticalInstallState = 'failed';
         var msg = err && err.message ? err.message : String(err);
+        openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
         _installUi.state = 'error';
         handleInstallProgress({ phase: 'error', percent: 0, message: msg });
         offerPlanBAfterFailure(remote, err);

@@ -309,7 +309,7 @@
         onProgress({
           phase: 'install',
           percent: 92,
-          message: 'Instalando en el equipo (no cierre la ventana)…',
+          message: 'Instalando en este equipo (silencioso)…',
         });
       }
     })
@@ -349,12 +349,12 @@
       return Promise.reject(new Error('Solo disponible en la app de escritorio (Tauri)'));
     }
 
-    var toast = typeof global.showToast === 'function' ? global.showToast : null;
+    var toast = !opts.silent && typeof global.showToast === 'function' ? global.showToast : null;
     var onProgress = opts.onProgress || function () {};
     var targetVersion = opts.targetVersion ? normVersion(opts.targetVersion) : '';
 
     if (toast) toast('Preparando actualización automática…', 'info');
-    onProgress({ phase: 'probe', percent: 2, message: 'Plan A: verificando instalador en GitHub…' });
+    onProgress({ phase: 'probe', percent: 2, message: 'Verificando paquete en la nube…' });
 
     return getAppVersion()
       .then(function (current) {
@@ -365,7 +365,7 @@
             onProgress({
               phase: 'probe',
               percent: 8,
-              message: 'Instalador ' + (probe.version || targetVersion) + ' verificado y firmado.',
+              message: 'Instalador ' + (probe.version || targetVersion) + ' verificado.',
             });
           } else if (targetVersion) {
             onProgress({

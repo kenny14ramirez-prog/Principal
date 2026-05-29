@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-29T04:36:33.872Z",
+  "updatedAt": "2026-05-29T04:45:03.817Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -155,6 +155,18 @@
       "installMode": "auto",
       "changelog": [
         "Fix updater automatico NSIS"
+      ]
+    },
+    {
+      "id": "1.0.26-critical",
+      "version": "v1.0.26",
+      "semver": "1.0.26",
+      "type": "critical",
+      "message": "Actualizacion silenciosa sin asistente Windows",
+      "publishedAt": "2026-05-29T04:45:03.817Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion silenciosa sin asistente Windows"
       ]
     }
   ]
