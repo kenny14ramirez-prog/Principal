@@ -88,17 +88,14 @@
   }
 
   function filterItems(items) {
-    var q = ui.q.toLowerCase().trim();
+    var matchFn = global.CrozzoCostosSearch && global.CrozzoCostosSearch.match;
+    var q = ui.q.trim();
     return items.filter(function (it) {
       if (ui.cat && it.categoria !== ui.cat) return false;
       if (!q) return true;
-      var prov = proveedoresToStr(it.proveedores).toLowerCase();
-      return (
-        String(it.nombre).toLowerCase().indexOf(q) >= 0 ||
-        String(it.categoria).toLowerCase().indexOf(q) >= 0 ||
-        prov.indexOf(q) >= 0 ||
-        String(CAT_LABEL[it.categoria] || '').toLowerCase().indexOf(q) >= 0
-      );
+      var prov = proveedoresToStr(it.proveedores);
+      var blob = [it.nombre, it.categoria, it.id, it.und, prov, CAT_LABEL[it.categoria] || ''].join(' ');
+      return matchFn ? matchFn(blob, q) : String(it.nombre).toLowerCase().indexOf(q.toLowerCase()) >= 0;
     });
   }
 
@@ -176,7 +173,7 @@
       '">' +
       chrome +
       '<div class="crozzo-mod-toolbar-bar"><div class="crozzo-mod-toolbar">' +
-      '<input type="search" id="crozzoMpSearch" placeholder="Buscar nombre o proveedor…" value="' +
+      '<input type="search" id="crozzoMpSearch" placeholder="Buscar MP, categoría, proveedor… (ej. lacteos queso)" value="' +
       esc(ui.q) +
       '" autocomplete="off">' +
       '<span class="form-hint">' +

@@ -103,6 +103,8 @@
 
   async function crozzoMigrateUserPasswordToHash(userId, plain) {
     if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
+    var pol = crozzoPasswordPolicy(plain, userId);
+    if (!pol.ok) return;
     var conf = global.getUsuariosConfig();
     var idx = (conf.staff || []).findIndex(function (s) {
       return s.id === userId;

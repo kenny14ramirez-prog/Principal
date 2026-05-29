@@ -152,6 +152,8 @@
       var rec = {
         id: id,
         recepcionId: input.recepcionId || null,
+        proveedorId: input.proveedorId || null,
+        refTipo: input.refTipo || 'recepcion',
         nombre: input.nombre || 'archivo',
         mime: input.mime || (blob && blob.type) || 'application/octet-stream',
         bytes: blob ? blob.size : 0,

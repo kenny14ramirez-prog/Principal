@@ -128,6 +128,27 @@
     };
   }
 
+  /**
+   * Precio de venta para un margen de utilidad sobre el precio (F = utilidad / precio).
+   * Ej.: 20 % margen → precio = costo / 0,80
+   */
+  function precioDesdeMargenUtilidad(costoMp, pctUtilidad) {
+    var c = num(costoMp);
+    var m = num(pctUtilidad);
+    if (c <= 0) return 0;
+    if (m >= 1) m = 0.99;
+    if (m < 0) m = 0;
+    return c / (1 - m);
+  }
+
+  /** Redondeo típico de menú (múltiplos de 100 COP) */
+  function redondearPrecioMenu(precio, paso) {
+    paso = num(paso, 100);
+    if (paso <= 0) return round(precio, 0);
+    var p = num(precio);
+    return Math.round(p / paso) * paso;
+  }
+
   /** Compara margen real vs objetivo food cost */
   function evaluarMargen(resumen, porcentajeMpObjetivo) {
     var target = num(porcentajeMpObjetivo, DEFAULTS.porcentajeMpObjetivo);
@@ -309,6 +330,7 @@
     resumenUtilidad: 'D = precio_venta − costo_mp',
     resumenPctCosto: 'E = costo_mp / precio_venta',
     resumenPctUtilidad: 'F = utilidad / precio_venta',
+    precioMargenUtilidad: 'precio_venta = costo_mp / (1 − margen_utilidad)',
   };
 
   global.CrozzoCostosEngine = {
@@ -321,6 +343,8 @@
     lineaReceta: lineaReceta,
     calcularReceta: calcularReceta,
     calcularResumen: calcularResumen,
+    precioDesdeMargenUtilidad: precioDesdeMargenUtilidad,
+    redondearPrecioMenu: redondearPrecioMenu,
     evaluarMargen: evaluarMargen,
     resolverCostoUnitario: resolverCostoUnitario,
     recalcularCadena: recalcularCadena,

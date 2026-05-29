@@ -259,8 +259,8 @@
     return (
       '<div id="crozzo-hub-ordenes-host">' +
       (typeof renderComprasProveedores === 'function'
-        ? '<div class="card" style="margin-bottom:12px"><p class="page-subtitle" style="margin:0">Órdenes de compra al catálogo POS.</p></div>' + renderComprasProveedores()
-        : '<div class="card"><p>Módulo de proveedores no disponible</p></div>') +
+        ? renderComprasProveedores({ view: 'ordenes' })
+        : '<div class="card"><p>Módulo de órdenes no disponible</p></div>') +
       '</div>'
     );
   }
@@ -352,7 +352,7 @@
       if (global.CrozzoReservorioOffline) global.CrozzoReservorioOffline.ensureReservorioReady();
       bindSupabaseListeners();
       if (startModule === 'ordenes') {
-        if (typeof initComprasProveedores === 'function') initComprasProveedores();
+        if (typeof initComprasProveedores === 'function') initComprasProveedores({ view: 'ordenes' });
         return;
       }
       openModule(hub.qycModule);
@@ -373,7 +373,7 @@
     if (page === 'compras-proveedores') return { page: 'compras-proveedores', module: null };
     if (page === 'compras-cotizaciones') return { page: 'compras-cotizaciones', module: null };
     if (page === 'compras-recepcion') return { page: 'compras-recepcion', module: null };
-    if (page === 'compras-ordenes') return { page: 'centro-compras', module: 'ordenes' };
+    if (page === 'compras-ordenes') return { page: 'compras-ordenes', module: null };
     return { page: page, module: null };
   };
 

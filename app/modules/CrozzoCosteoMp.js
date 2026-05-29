@@ -76,10 +76,12 @@
   }
 
   function filterItems(items) {
-    var q = ui.q.toLowerCase().trim();
+    var matchFn = global.CrozzoCostosSearch && global.CrozzoCostosSearch.match;
+    var q = ui.q.trim();
     if (!q) return items;
     return items.filter(function (it) {
-      return String(it.nombre).toLowerCase().indexOf(q) >= 0;
+      var blob = [it.nombre, it.categoria, it.id, it.und, it.precioUnit, it.precioTotal].join(' ');
+      return matchFn ? matchFn(blob, q) : String(it.nombre).toLowerCase().indexOf(q.toLowerCase()) >= 0;
     });
   }
 
@@ -148,7 +150,7 @@
       '">' +
       chrome +
       '<div class="crozzo-mod-toolbar-bar"><div class="crozzo-mod-toolbar">' +
-      '<input type="search" id="crozzoCosteoSearch" placeholder="Buscar por nombre…" value="' +
+      '<input type="search" id="crozzoCosteoSearch" placeholder="Buscar MP por nombre, categoría o código…" value="' +
       esc(ui.q) +
       '" autocomplete="off">' +
       '<span class="form-hint">' +

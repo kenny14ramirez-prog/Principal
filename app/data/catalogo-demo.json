@@ -19,6 +19,7 @@
     { "id": "mp_pan_hamburguesa", "nombre": "Pan hamburguesa", "categoria": "ABARROTES", "proveedores": ["Panadería Horizonte"], "und": "UNI", "peso": 1, "precioTotal": 1800 },
     { "id": "mp_papa_congelada", "nombre": "Papa prefrita", "categoria": "PULPAS Y CONGELADOS", "proveedores": ["Congelados Express"], "und": "GR", "peso": 2500, "precioTotal": 24000 },
     { "id": "mp_gaseosa", "nombre": "Gaseosa lata", "categoria": "BEBIDAS Y LICORES", "proveedores": ["Bebidas del Pacífico"], "und": "UNI", "peso": 1, "precioTotal": 2500 },
+    { "id": "mp_agua_botella", "nombre": "Agua botella", "categoria": "BEBIDAS Y LICORES", "proveedores": ["Bebidas del Pacífico"], "und": "UNI", "peso": 1, "precioTotal": 1800 },
     { "id": "mp_cafe_molido", "nombre": "Café molido", "categoria": "BEBIDAS Y LICORES", "proveedores": ["Tostión Premium"], "und": "GR", "peso": 500, "precioTotal": 15000 },
     { "id": "mp_servilleta", "nombre": "Servilleta", "categoria": "DESECHABLES", "proveedores": ["Papelera Industrial"], "und": "PAQ", "peso": 1, "precioTotal": 4500 },
     { "id": "mp_salsa_tomate", "nombre": "Salsa de tomate", "categoria": "PROCESADOS", "proveedores": ["Procesados del Valle"], "und": "GR", "peso": 1000, "precioTotal": 6500 }
@@ -34,6 +35,7 @@
   "recetaDemo": {
     "nombre": "Hamburguesa clásica — costeo",
     "slug": "hamburguesa_clasica",
+    "producto": "Hamburguesa clásica",
     "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
     "lineas": [
       { "mpId": "mp_pan_hamburguesa", "ingrediente": "Pan hamburguesa", "unidad": "UNI", "cantidad": 1 },
@@ -44,5 +46,193 @@
       { "mpId": "mp_salsa_tomate", "ingrediente": "Salsa de tomate", "unidad": "GR", "cantidad": 25 }
     ]
   },
+  "recetasPlatos": [
+    {
+      "slug": "hamburguesa_clasica",
+      "producto": "Hamburguesa clásica",
+      "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
+      "lineas": [
+        { "mpId": "mp_pan_hamburguesa", "ingrediente": "Pan hamburguesa", "unidad": "UNI", "cantidad": 1 },
+        { "mpId": "mp_carne_molida", "ingrediente": "Carne molida", "unidad": "GR", "cantidad": 150 },
+        { "mpId": "mp_queso_mozzarella", "ingrediente": "Queso mozzarella", "unidad": "GR", "cantidad": 30 },
+        { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 40 },
+        { "mpId": "mp_lechuga", "ingrediente": "Lechuga", "unidad": "UNI", "cantidad": 0.25 },
+        { "mpId": "mp_salsa_tomate", "ingrediente": "Salsa de tomate", "unidad": "GR", "cantidad": 25 }
+      ]
+    },
+    {
+      "slug": "ensalada_verde",
+      "producto": "Ensalada verde",
+      "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
+      "lineas": [
+        { "mpId": "mp_lechuga", "ingrediente": "Lechuga", "unidad": "UNI", "cantidad": 0.5 },
+        { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 80 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 35 },
+        { "mpId": "mp_aceite", "ingrediente": "Aceite vegetal", "unidad": "ML", "cantidad": 15 },
+        { "mpId": "mp_sal", "ingrediente": "Sal", "unidad": "GR", "cantidad": 4 }
+      ]
+    },
+    {
+      "slug": "desayuno_huevos",
+      "producto": "Desayuno con huevos",
+      "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
+      "lineas": [
+        { "mpId": "mp_huevo_aa", "ingrediente": "Huevo AA", "unidad": "UNI", "cantidad": 2 },
+        { "mpId": "mp_mantequilla", "ingrediente": "Mantequilla", "unidad": "GR", "cantidad": 20 },
+        { "mpId": "mp_tocineta", "ingrediente": "Tocineta", "unidad": "GR", "cantidad": 45 },
+        { "mpId": "mp_papa", "ingrediente": "Papa criolla", "unidad": "GR", "cantidad": 120 },
+        { "mpId": "mp_pan_hamburguesa", "ingrediente": "Pan hamburguesa", "unidad": "UNI", "cantidad": 0.5 }
+      ]
+    },
+    {
+      "slug": "papas_crocantes",
+      "producto": "Papas crocantes",
+      "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
+      "lineas": [
+        { "mpId": "mp_papa_congelada", "ingrediente": "Papa prefrita", "unidad": "GR", "cantidad": 200 },
+        { "mpId": "mp_aceite", "ingrediente": "Aceite vegetal", "unidad": "ML", "cantidad": 25 },
+        { "mpId": "mp_sal", "ingrediente": "Sal", "unidad": "GR", "cantidad": 3 }
+      ]
+    },
+    {
+      "slug": "cafe_americano",
+      "producto": "Café americano",
+      "opts": { "margenErrorPct": 0.02, "porcentajeMpObjetivo": 0.25, "impuestoPct": 0.08, "porciones": 1 },
+      "lineas": [
+        { "mpId": "mp_cafe_molido", "ingrediente": "Café molido", "unidad": "GR", "cantidad": 18 },
+        { "mpId": "mp_leche_entera", "ingrediente": "Leche entera", "unidad": "ML", "cantidad": 40 },
+        { "mpId": "mp_servilleta", "ingrediente": "Servilleta", "unidad": "PAQ", "cantidad": 0.05 }
+      ]
+    },
+    {
+      "slug": "bowl_pollo",
+      "producto": "Bowl de pollo",
+      "opts": { "margenErrorPct": 0.03, "porcentajeMpObjetivo": 0.3, "impuestoPct": 0.08, "porciones": 1 },
+      "lineas": [
+        { "mpId": "mp_pechuga_pollo", "ingrediente": "Pechuga de pollo", "unidad": "GR", "cantidad": 180 },
+        { "mpId": "mp_arroz", "ingrediente": "Arroz", "unidad": "GR", "cantidad": 150 },
+        { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 55 },
+        { "mpId": "mp_lechuga", "ingrediente": "Lechuga", "unidad": "UNI", "cantidad": 0.2 },
+        { "mpId": "mp_aceite", "ingrediente": "Aceite vegetal", "unidad": "ML", "cantidad": 12 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 25 }
+      ]
+    }
+  ],
+  "recetasPosPlatos": [
+    {
+      "slug": "BANDEJA_PAISA",
+      "producto": "Bandeja Paisa",
+      "lineas": [
+        { "mpId": "mp_carne_molida", "ingrediente": "Carne molida", "unidad": "GR", "cantidad": 120 },
+        { "mpId": "mp_tocineta", "ingrediente": "Tocineta", "unidad": "GR", "cantidad": 40 },
+        { "mpId": "mp_huevo_aa", "ingrediente": "Huevo AA", "unidad": "UNI", "cantidad": 1 },
+        { "mpId": "mp_papa", "ingrediente": "Papa criolla", "unidad": "GR", "cantidad": 150 },
+        { "mpId": "mp_arroz", "ingrediente": "Arroz", "unidad": "GR", "cantidad": 120 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 30 }
+      ]
+    },
+    {
+      "slug": "AJIACO_SANTAFERENO",
+      "producto": "Ajiaco Santafereño",
+      "lineas": [
+        { "mpId": "mp_pechuga_pollo", "ingrediente": "Pechuga de pollo", "unidad": "GR", "cantidad": 140 },
+        { "mpId": "mp_papa", "ingrediente": "Papa criolla", "unidad": "GR", "cantidad": 200 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 40 },
+        { "mpId": "mp_leche_entera", "ingrediente": "Leche entera", "unidad": "ML", "cantidad": 80 },
+        { "mpId": "mp_sal", "ingrediente": "Sal", "unidad": "GR", "cantidad": 5 }
+      ]
+    },
+    {
+      "slug": "SANCOCHO",
+      "producto": "Sancocho",
+      "lineas": [
+        { "mpId": "mp_pechuga_pollo", "ingrediente": "Pechuga de pollo", "unidad": "GR", "cantidad": 160 },
+        { "mpId": "mp_papa", "ingrediente": "Papa criolla", "unidad": "GR", "cantidad": 180 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 50 },
+        { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 60 },
+        { "mpId": "mp_sal", "ingrediente": "Sal", "unidad": "GR", "cantidad": 4 }
+      ]
+    },
+    {
+      "slug": "CHULETA_VALLUNA",
+      "producto": "Chuleta Valluna",
+      "lineas": [
+        { "mpId": "mp_pechuga_pollo", "ingrediente": "Pechuga de pollo", "unidad": "GR", "cantidad": 220 },
+        { "mpId": "mp_papa_congelada", "ingrediente": "Papa prefrita", "unidad": "GR", "cantidad": 180 },
+        { "mpId": "mp_aceite", "ingrediente": "Aceite vegetal", "unidad": "ML", "cantidad": 35 },
+        { "mpId": "mp_huevo_aa", "ingrediente": "Huevo AA", "unidad": "UNI", "cantidad": 1 }
+      ]
+    },
+    {
+      "slug": "ARROZ_CON_POLLO",
+      "producto": "Arroz con Pollo",
+      "lineas": [
+        { "mpId": "mp_pechuga_pollo", "ingrediente": "Pechuga de pollo", "unidad": "GR", "cantidad": 170 },
+        { "mpId": "mp_arroz", "ingrediente": "Arroz", "unidad": "GR", "cantidad": 160 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 35 },
+        { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 45 }
+      ]
+    },
+    {
+      "slug": "LECHONA_TOLIMENSE",
+      "producto": "Lechona Tolimense",
+      "lineas": [
+        { "mpId": "mp_carne_molida", "ingrediente": "Carne molida", "unidad": "GR", "cantidad": 200 },
+        { "mpId": "mp_arroz", "ingrediente": "Arroz", "unidad": "GR", "cantidad": 80 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 40 }
+      ]
+    },
+    {
+      "slug": "AREPA_CON_QUESO",
+      "producto": "Arepa con Queso",
+      "lineas": [
+        { "mpId": "mp_queso_mozzarella", "ingrediente": "Queso mozzarella", "unidad": "GR", "cantidad": 45 },
+        { "mpId": "mp_mantequilla", "ingrediente": "Mantequilla", "unidad": "GR", "cantidad": 10 }
+      ]
+    },
+    {
+      "slug": "EMPANADA",
+      "producto": "Empanada",
+      "lineas": [
+        { "mpId": "mp_carne_molida", "ingrediente": "Carne molida", "unidad": "GR", "cantidad": 55 },
+        { "mpId": "mp_papa", "ingrediente": "Papa criolla", "unidad": "GR", "cantidad": 40 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 15 }
+      ]
+    },
+    {
+      "slug": "PATACONES",
+      "producto": "Patacones",
+      "lineas": [
+        { "mpId": "mp_papa", "ingrediente": "Papa criolla", "unidad": "GR", "cantidad": 220 },
+        { "mpId": "mp_aceite", "ingrediente": "Aceite vegetal", "unidad": "ML", "cantidad": 30 },
+        { "mpId": "mp_sal", "ingrediente": "Sal", "unidad": "GR", "cantidad": 3 }
+      ]
+    },
+    {
+      "slug": "TAMALES",
+      "producto": "Tamales",
+      "lineas": [
+        { "mpId": "mp_carne_molida", "ingrediente": "Carne molida", "unidad": "GR", "cantidad": 70 },
+        { "mpId": "mp_arroz", "ingrediente": "Arroz", "unidad": "GR", "cantidad": 90 },
+        { "mpId": "mp_cebolla", "ingrediente": "Cebolla", "unidad": "GR", "cantidad": 20 }
+      ]
+    },
+    {
+      "slug": "JUGO_NATURAL",
+      "producto": "Jugo Natural",
+      "lineas": [
+        { "mpId": "mp_leche_entera", "ingrediente": "Leche entera", "unidad": "ML", "cantidad": 120 },
+        { "mpId": "mp_tomate", "ingrediente": "Tomate", "unidad": "GR", "cantidad": 80 }
+      ]
+    },
+    {
+      "slug": "CAFE_PREMIUM",
+      "producto": "Café Premium",
+      "lineas": [
+        { "mpId": "mp_cafe_molido", "ingrediente": "Café molido", "unidad": "GR", "cantidad": 20 },
+        { "mpId": "mp_leche_entera", "ingrediente": "Leche entera", "unidad": "ML", "cantidad": 50 }
+      ]
+    }
+  ],
   "stats": { "precios": 20, "categorias": 8, "resumenSample": 6 }
 }

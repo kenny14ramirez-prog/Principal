@@ -27,6 +27,26 @@
   var _criticalInstallState = 'idle';
   var _pendingCriticalEntry = null;
   var _installInProgress = false;
+  var _installUi = {
+    open: false,
+    mode: 'optional',
+    phase: 'probe',
+    percent: 0,
+    message: '',
+    from: '',
+    to: '',
+    state: 'installing',
+    changelog: [],
+  };
+  var _planB = { downloadUrl: '', releasePageUrl: '', version: '', ready: false };
+
+  var INSTALL_STEPS = [
+    { id: 'probe', label: 'Verificar instalador en GitHub' },
+    { id: 'check', label: 'Comprobar actualización firmada' },
+    { id: 'download', label: 'Descargar paquete seguro' },
+    { id: 'install', label: 'Instalar en este equipo' },
+    { id: 'relaunch', label: 'Reiniciar con interfaz nueva' },
+  ];
 
   var UPDATE_NORMAL = {
     version: VERSION_AVAIL,
@@ -64,6 +84,16 @@
       }
     } catch (_) {}
     return null;
+  }
+
+  function readMetaBuildStamp() {
+    try {
+      var meta = document.querySelector('meta[name="crozzo-build-stamp"]');
+      if (meta && meta.getAttribute('content')) {
+        return String(meta.getAttribute('content')).trim();
+      }
+    } catch (_) {}
+    return '';
   }
 
   function fetchTauriBinaryVersion() {
@@ -110,10 +140,27 @@
     });
   }
 
+  function entryBuildStamp(entry) {
+    if (!entry) return '';
+    return String(entry.publishedAt || entry.updatedAt || '').trim();
+  }
+
   function isEntryApplied(entry) {
     if (!entry) return false;
     var remote = entry.version || 'v' + (entry.semver || '');
-    return compareSemver(VERSION, remote) >= 0;
+    var cmp = compareSemver(VERSION, remote);
+    if (cmp > 0) return true;
+    if (cmp < 0) return false;
+    var remoteStamp = entryBuildStamp(entry);
+    var localStamp = readMetaBuildStamp();
+    if (!remoteStamp) return cmp >= 0;
+    if (!localStamp) return false;
+    return String(localStamp) >= String(remoteStamp);
+  }
+
+  function entryNeedsInstall(entry) {
+    if (!entry) return false;
+    return !isEntryApplied(entry);
   }
 
   function saveInstalledVersion(v) {
@@ -365,14 +412,463 @@
     }
   }
 
+  function ensureCriticalPlanBButtons() {
+    var foot = document.querySelector('#crozzo-update-critical-overlay .crozzo-update-critical-modal');
+    if (!foot || document.getElementById('crozzoUpdateCriticalPlanB')) return;
+    var retry = document.getElementById('crozzoUpdateCriticalRetry');
+    var html =
+      '<button type="button" class="btn btn-outline" id="crozzoUpdateCriticalPlanB" style="display:none;margin-bottom:8px;width:100%">Plan B · Descarga manual</button>';
+    if (retry) retry.insertAdjacentHTML('beforebegin', html);
+    else foot.insertAdjacentHTML('beforeend', html);
+    wireOnce(document.getElementById('crozzoUpdateCriticalPlanB'), function (e) {
+      e.preventDefault();
+      var ver =
+        (_pendingCriticalEntry && (_pendingCriticalEntry.version || _pendingCriticalEntry.semver)) ||
+        VERSION_AVAIL;
+      loadPlanBFallback(ver).then(function () {
+        crozzoUpdateOpenManualDownload();
+      });
+    });
+  }
+
   function ensureUpdatePortals() {
     mountNormalBanner();
-    ['crozzo-update-critical-overlay', 'crozzo-update-detail-overlay'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el && el.parentElement !== document.body) {
-        document.body.appendChild(el);
+    ensureUpdateInstallOverlay();
+    ensureCriticalProgressBar();
+    ensureCriticalPlanBButtons();
+    ['crozzo-update-critical-overlay', 'crozzo-update-detail-overlay', 'crozzo-update-install-overlay'].forEach(
+      function (id) {
+        var el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+          document.body.appendChild(el);
+        }
       }
+    );
+  }
+
+  function ensureCriticalProgressBar() {
+    var lead = document.getElementById('crozzoUpdateCriticalLead');
+    if (!lead || document.getElementById('crozzoUpdateCriticalProgress')) return;
+    lead.insertAdjacentHTML(
+      'afterend',
+      '<div class="crozzo-update-critical-modal__progress" id="crozzoUpdateCriticalProgress" hidden>' +
+        '<div class="crozzo-update-critical-modal__progress-track">' +
+        '<div class="crozzo-update-critical-modal__progress-fill" id="crozzoUpdateCriticalProgressFill"></div></div>' +
+        '<p class="crozzo-update-critical-modal__progress-msg" id="crozzoUpdateCriticalProgressMsg"></p></div>'
+    );
+  }
+
+  function ensureUpdateInstallOverlay() {
+    if (document.getElementById('crozzo-update-install-overlay')) {
+      if (document.getElementById('crozzoUpdateInstallPlanB')) return;
+      var old = document.getElementById('crozzo-update-install-overlay');
+      if (old) old.remove();
+    }
+    var wrap = document.createElement('div');
+    wrap.id = 'crozzo-update-install-overlay';
+    wrap.className = 'crozzo-update-install-overlay';
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-modal', 'true');
+    wrap.setAttribute('aria-labelledby', 'crozzoUpdateInstallTitle');
+    wrap.setAttribute('aria-hidden', 'true');
+    wrap.innerHTML =
+      '<div class="crozzo-update-install-card">' +
+      '<div class="crozzo-update-install-card__glow" aria-hidden="true"></div>' +
+      '<header class="crozzo-update-install-card__head">' +
+      '<span class="crozzo-update-install-card__logo">CROZZO POS</span>' +
+      '<span class="crozzo-update-install-card__eyebrow" id="crozzoUpdateInstallEyebrow">Actualización del sistema</span>' +
+      '<h2 id="crozzoUpdateInstallTitle">Preparando actualización</h2>' +
+      '<p id="crozzoUpdateInstallSubtitle">Mantenga la aplicación abierta hasta finalizar.</p>' +
+      '</header>' +
+      '<div class="crozzo-update-install-versions">' +
+      '<span class="crozzo-update-install-versions__from" id="crozzoUpdateInstallFrom">—</span>' +
+      '<span class="crozzo-update-install-versions__arrow" aria-hidden="true">→</span>' +
+      '<span class="crozzo-update-install-versions__to" id="crozzoUpdateInstallTo">—</span>' +
+      '</div>' +
+      '<ol class="crozzo-update-install-steps" id="crozzoUpdateInstallSteps" aria-label="Progreso"></ol>' +
+      '<div class="crozzo-update-install-progress">' +
+      '<div class="crozzo-update-install-progress__track">' +
+      '<div class="crozzo-update-install-progress__fill" id="crozzoUpdateInstallBarFill"></div></div>' +
+      '<div class="crozzo-update-install-progress__meta">' +
+      '<span class="crozzo-update-install-progress__pct" id="crozzoUpdateInstallPercent">0%</span>' +
+      '<span class="crozzo-update-install-progress__msg" id="crozzoUpdateInstallMessage">Iniciando…</span>' +
+      '</div></div>' +
+      '<div class="crozzo-update-install-changelog" id="crozzoUpdateInstallChangelog"></div>' +
+      '<div class="crozzo-update-install-planb" id="crozzoUpdateInstallPlanB" hidden>' +
+      '<p class="crozzo-update-install-planb__title">Plan B — Instalación manual</p>' +
+      '<p class="crozzo-update-install-planb__lead">Si la actualización automática no pudo completarse, descargue el instalador y ejecútelo en este equipo.</p>' +
+      '<ol class="crozzo-update-install-planb__steps">' +
+      '<li>Abra la descarga o copie el enlace del instalador.</li>' +
+      '<li>Ejecute el archivo <strong>.exe</strong> descargado.</li>' +
+      '<li>Cierre por completo Crozzo POS y abra la versión nueva.</li>' +
+      '</ol>' +
+      '<code class="crozzo-update-install-planb__url" id="crozzoUpdateInstallManualUrl"></code>' +
+      '<div class="crozzo-update-install-planb__actions">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoUpdateInstallManualOpen">Abrir descarga</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdateInstallManualCopy">Copiar enlace</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdateInstallManualRelease">Ver release en GitHub</button>' +
+      '</div></div>' +
+      '<footer class="crozzo-update-install-foot">' +
+      '<span class="crozzo-update-install-foot__plan" id="crozzoUpdateInstallPlanLabel">Plan A · automático</span>' +
+      '<button type="button" class="btn btn-outline" id="crozzoUpdateInstallRetry" style="display:none">Reintentar Plan A</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoUpdateInstallPlanBShow" style="display:none">Plan B manual</button>' +
+      '<button type="button" class="btn btn-primary" id="crozzoUpdateInstallClose" style="display:none">Continuar</button>' +
+      '</footer></div>';
+    document.body.appendChild(wrap);
+    wireOnce(document.getElementById('crozzoUpdateInstallRetry'), function (e) {
+      e.preventDefault();
+      _installUi.state = 'installing';
+      _installUi.percent = 0;
+      document.getElementById('crozzoUpdateInstallPlanB').hidden = true;
+      if (_pendingCriticalEntry) runCriticalInstall(_pendingCriticalEntry);
+      else if (_currentOptionalId) crozzoAceptarActualizacion();
     });
+    wireOnce(document.getElementById('crozzoUpdateInstallPlanBShow'), function (e) {
+      e.preventDefault();
+      var ver = _installUi.to || VERSION_AVAIL;
+      loadPlanBFallback(ver).then(function () {
+        var pb = document.getElementById('crozzoUpdateInstallPlanB');
+        if (pb) pb.hidden = false;
+        renderInstallOverlayUi();
+      });
+    });
+    wireOnce(document.getElementById('crozzoUpdateInstallManualOpen'), function (e) {
+      e.preventDefault();
+      crozzoUpdateOpenManualDownload();
+    });
+    wireOnce(document.getElementById('crozzoUpdateInstallManualCopy'), function (e) {
+      e.preventDefault();
+      crozzoUpdateCopyManualLink();
+    });
+    wireOnce(document.getElementById('crozzoUpdateInstallManualRelease'), function (e) {
+      e.preventDefault();
+      crozzoUpdateOpenReleasePage();
+    });
+    wireOnce(document.getElementById('crozzoUpdateInstallClose'), function (e) {
+      e.preventDefault();
+      closeInstallOverlay();
+      if (_criticalInstallState === 'success') crozzoCerrarActualizacionCritica();
+      else setDetailOpen(false);
+    });
+  }
+
+  function loadPlanBFallback(targetVersion, manualFromError) {
+    var ver = targetVersion || _installUi.to || VERSION_AVAIL;
+    if (manualFromError && manualFromError.downloadUrl) {
+      _planB = {
+        version: ver,
+        downloadUrl: manualFromError.downloadUrl,
+        releasePageUrl: manualFromError.releasePageUrl || manualFromError.downloadUrl,
+        ready: true,
+      };
+      return Promise.resolve(_planB);
+    }
+    var TU = global.CrozzoTauriUpdater;
+    if (!TU || !TU.resolveManualFallback) {
+      _planB = {
+        version: ver,
+        downloadUrl: TU && TU.releasesLatestUrl ? TU.releasesLatestUrl : '',
+        releasePageUrl: TU && TU.releasesPageUrl ? TU.releasesPageUrl : '',
+        ready: false,
+      };
+      return Promise.resolve(_planB);
+    }
+    return TU.resolveManualFallback(ver).then(function (info) {
+      _planB = {
+        version: info.version || ver,
+        downloadUrl: info.downloadUrl || TU.releasesLatestUrl,
+        releasePageUrl: info.releasePageUrl || TU.releasesPageUrl,
+        ready: !!(info.downloadUrl || info.releasePageUrl),
+      };
+      return _planB;
+    });
+  }
+
+  function renderPlanBUi() {
+    var pb = document.getElementById('crozzoUpdateInstallPlanB');
+    var urlEl = document.getElementById('crozzoUpdateInstallManualUrl');
+    var adminUrl = document.getElementById('crozzoUpdatePlanBUrl');
+    if (urlEl) urlEl.textContent = _planB.downloadUrl || '—';
+    if (adminUrl) {
+      adminUrl.innerHTML = _planB.ready
+        ? '<code style="word-break:break-all">' + escapeHtml(_planB.downloadUrl) + '</code>'
+        : '<span class="form-hint">Pulse «Resolver enlace manual» para la versión pendiente.</span>';
+    }
+    if (pb) pb.hidden = _installUi.state !== 'error';
+  }
+
+  function crozzoUpdateOpenManualDownload() {
+    var url = _planB.downloadUrl;
+    if (!url) {
+      loadPlanBFallback(_installUi.to || VERSION_AVAIL).then(function () {
+        crozzoUpdateOpenManualDownload();
+      });
+      return;
+    }
+    var TU = global.CrozzoTauriUpdater;
+    var openFn = TU && TU.openExternalUrl ? TU.openExternalUrl : null;
+    (openFn ? openFn(url) : Promise.resolve(false)).then(function (ok) {
+      if (typeof global.showToast === 'function') {
+        global.showToast(
+          ok ? 'Abriendo descarga en el navegador…' : 'No se pudo abrir el enlace.',
+          ok ? 'info' : 'error'
+        );
+      }
+      appendLocalLog('plan_b_descarga', {
+        version: _planB.version,
+        message: url,
+        type: 'manual',
+      });
+    });
+  }
+
+  function crozzoUpdateOpenReleasePage() {
+    var url = _planB.releasePageUrl || (global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.releasesPageUrl);
+    if (!url) return;
+    var openFn = global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.openExternalUrl;
+    if (openFn) openFn(url);
+    else global.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function crozzoUpdateCopyManualLink() {
+    var url = _planB.downloadUrl;
+    if (!url) {
+      loadPlanBFallback(_installUi.to || VERSION_AVAIL).then(function () {
+        crozzoUpdateCopyManualLink();
+      });
+      return;
+    }
+    function done(ok) {
+      if (typeof global.showToast === 'function') {
+        global.showToast(ok ? 'Enlace copiado al portapapeles.' : 'No se pudo copiar.', ok ? 'success' : 'error');
+      }
+    }
+    if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.writeText) {
+      global.navigator.clipboard.writeText(url).then(function () { done(true); }).catch(function () { done(false); });
+      return;
+    }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      done(document.execCommand('copy'));
+      document.body.removeChild(ta);
+    } catch (_) {
+      done(false);
+    }
+  }
+
+  function offerPlanBAfterFailure(targetVersion, err) {
+    var manual = err && err.manualFallback;
+    return loadPlanBFallback(targetVersion, manual).then(function () {
+      _installUi.state = 'error';
+      var pb = document.getElementById('crozzoUpdateInstallPlanB');
+      if (pb) pb.hidden = false;
+      renderInstallOverlayUi();
+      renderPlanBAdminPanel();
+    });
+  }
+
+  function renderPlanBAdminPanel() {
+    renderPlanBUi();
+  }
+
+  function ensurePlanBAdminCard(root) {
+    if (!root || document.getElementById('crozzoUpdatePlanBCard')) return;
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'crozzoUpdatePlanBCard';
+    card.style.marginTop = '14px';
+    card.innerHTML =
+      '<div class="card-header"><span class="card-title">Plan B — Respaldo manual</span></div>' +
+      '<p class="form-hint" style="margin:0 0 12px;">Si el Plan A (automático) falla por red, permisos o GitHub Actions, use descarga manual del instalador firmado.</p>' +
+      '<div class="crozzo-updates-actions" style="flex-wrap:wrap;gap:8px;display:flex;margin-bottom:10px">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoUpdatePlanAForce">Reintentar Plan A</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBResolve">Resolver enlace manual</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBOpen">Abrir descarga</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBCopy">Copiar enlace</button>' +
+      '</div>' +
+      '<div id="crozzoUpdatePlanBUrl"></div>';
+    root.appendChild(card);
+    wireOnce(document.getElementById('crozzoUpdatePlanAForce'), function (e) {
+      e.preventDefault();
+      crozzoAceptarActualizacion();
+    });
+    wireOnce(document.getElementById('crozzoUpdatePlanBResolve'), function (e) {
+      e.preventDefault();
+      var ver = VERSION_AVAIL || VERSION;
+      loadPlanBFallback(ver).then(function () {
+        renderPlanBAdminPanel();
+        if (typeof global.showToast === 'function') global.showToast('Enlace manual listo.', 'success');
+      });
+    });
+    wireOnce(document.getElementById('crozzoUpdatePlanBOpen'), function (e) {
+      e.preventDefault();
+      crozzoUpdateOpenManualDownload();
+    });
+    wireOnce(document.getElementById('crozzoUpdatePlanBCopy'), function (e) {
+      e.preventDefault();
+      crozzoUpdateCopyManualLink();
+    });
+  }
+
+  function renderInstallStepsUi() {
+    var list = document.getElementById('crozzoUpdateInstallSteps');
+    if (!list) return;
+    var cur = _installUi.phase;
+    var stepIndex = 0;
+    for (var si = 0; si < INSTALL_STEPS.length; si++) {
+      if (INSTALL_STEPS[si].id === cur) stepIndex = si;
+    }
+    if (cur === 'relaunch') stepIndex = INSTALL_STEPS.length - 1;
+    if (_installUi.state === 'success') stepIndex = INSTALL_STEPS.length;
+    if (_installUi.state === 'error' && stepIndex < 1) stepIndex = 1;
+    list.innerHTML = INSTALL_STEPS.map(function (step, i) {
+      var cls = '';
+      if (_installUi.state === 'success' || i < stepIndex) cls = ' is-done';
+      else if (i === stepIndex && _installUi.state !== 'error') cls = ' is-active';
+      else if (_installUi.state === 'error' && i === stepIndex) cls = ' is-active';
+      var icon = cls.indexOf('is-done') >= 0 ? '✓' : String(i + 1);
+      return (
+        '<li class="' +
+        cls.trim() +
+        '"><span class="crozzo-update-install-step-ico">' +
+        icon +
+        '</span><span>' +
+        escapeHtml(step.label) +
+        '</span></li>'
+      );
+    }).join('');
+  }
+
+  function renderInstallOverlayUi() {
+    var ov = document.getElementById('crozzo-update-install-overlay');
+    if (!ov) return;
+    var title = document.getElementById('crozzoUpdateInstallTitle');
+    var sub = document.getElementById('crozzoUpdateInstallSubtitle');
+    var eyebrow = document.getElementById('crozzoUpdateInstallEyebrow');
+    var fromEl = document.getElementById('crozzoUpdateInstallFrom');
+    var toEl = document.getElementById('crozzoUpdateInstallTo');
+    var pct = document.getElementById('crozzoUpdateInstallPercent');
+    var msg = document.getElementById('crozzoUpdateInstallMessage');
+    var fill = document.getElementById('crozzoUpdateInstallBarFill');
+    var log = document.getElementById('crozzoUpdateInstallChangelog');
+    var retry = document.getElementById('crozzoUpdateInstallRetry');
+    var close = document.getElementById('crozzoUpdateInstallClose');
+
+    ov.classList.toggle('is-critical', _installUi.mode === 'critical');
+    ov.classList.toggle('is-success', _installUi.state === 'success');
+    ov.classList.toggle('is-error', _installUi.state === 'error');
+
+    if (eyebrow) {
+      eyebrow.textContent =
+        _installUi.mode === 'critical' ? 'Actualización crítica' : 'Actualización recomendada';
+    }
+    if (title) {
+      if (_installUi.state === 'success') title.textContent = 'Actualización completada';
+      else if (_installUi.state === 'error') title.textContent = 'No se pudo completar';
+      else if (_installUi.phase === 'relaunch') title.textContent = 'Reiniciando aplicación';
+      else if (_installUi.phase === 'download') title.textContent = 'Descargando actualización';
+      else title.textContent = 'Instalando actualización';
+    }
+    if (sub) {
+      if (_installUi.state === 'success') {
+        sub.textContent = 'La nueva versión está lista. La aplicación se reiniciará en un momento.';
+      } else if (_installUi.state === 'error') {
+        sub.textContent = 'Revise la conexión o espere a que GitHub Actions termine de compilar el release.';
+      } else {
+        sub.textContent = 'No cierre ni apague el equipo. Este proceso puede tardar unos minutos.';
+      }
+    }
+    if (fromEl) fromEl.textContent = _installUi.from || VERSION;
+    if (toEl) toEl.textContent = _installUi.to || VERSION_AVAIL;
+    if (pct) pct.textContent = Math.round(_installUi.percent) + '%';
+    if (msg) msg.textContent = _installUi.message || '';
+    if (fill) fill.style.width = Math.max(0, Math.min(100, _installUi.percent)) + '%';
+    if (log) {
+      var items = _installUi.changelog || [];
+      log.innerHTML = items.length
+        ? '<ul>' + items.map(function (c) { return '<li>' + escapeHtml(c) + '</li>'; }).join('') + '</ul>'
+        : '';
+    }
+    if (retry) {
+      retry.style.display = _installUi.state === 'error' ? 'inline-flex' : 'none';
+      retry.textContent = 'Reintentar Plan A';
+    }
+    var planBShow = document.getElementById('crozzoUpdateInstallPlanBShow');
+    if (planBShow) planBShow.style.display = _installUi.state === 'error' ? 'inline-flex' : 'none';
+    var planLbl = document.getElementById('crozzoUpdateInstallPlanLabel');
+    if (planLbl) {
+      planLbl.textContent =
+        _installUi.state === 'error'
+          ? 'Plan A falló · Plan B disponible'
+          : 'Plan A · actualización automática';
+    }
+    if (close) {
+      close.style.display = _installUi.state === 'error' || _installUi.state === 'success' ? 'inline-flex' : 'none';
+      close.textContent = _installUi.state === 'error' ? 'Cerrar' : 'Continuar';
+    }
+    renderInstallStepsUi();
+    renderCriticalMiniProgress();
+    renderPlanBUi();
+  }
+
+  function renderCriticalMiniProgress() {
+    var box = document.getElementById('crozzoUpdateCriticalProgress');
+    var fill = document.getElementById('crozzoUpdateCriticalProgressFill');
+    var msg = document.getElementById('crozzoUpdateCriticalProgressMsg');
+    if (!box) return;
+    var show = _installInProgress && !_installUi.open;
+    box.hidden = !show;
+    if (fill) fill.style.width = Math.round(_installUi.percent) + '%';
+    if (msg) msg.textContent = _installUi.message || '';
+  }
+
+  function openInstallOverlay(opts) {
+    opts = opts || {};
+    ensureUpdateInstallOverlay();
+    _installUi.open = true;
+    _installUi.mode = opts.mode || 'optional';
+    _installUi.from = opts.from || VERSION;
+    _installUi.to = opts.to || VERSION_AVAIL;
+    _installUi.changelog = opts.changelog || [];
+    _installUi.state = 'installing';
+    _installUi.phase = 'probe';
+    _installUi.percent = 0;
+    _installUi.message = 'Preparando actualización segura…';
+    var ov = document.getElementById('crozzo-update-install-overlay');
+    if (ov) {
+      ov.classList.add('is-open');
+      ov.setAttribute('aria-hidden', 'false');
+    }
+    if (document.body) document.body.classList.add('crozzo-update-install-open');
+    setDetailOpen(false);
+    renderInstallOverlayUi();
+    refreshUpdateIcons();
+  }
+
+  function closeInstallOverlay() {
+    _installUi.open = false;
+    var ov = document.getElementById('crozzo-update-install-overlay');
+    if (ov) {
+      ov.classList.remove('is-open', 'is-success', 'is-error', 'is-critical');
+      ov.setAttribute('aria-hidden', 'true');
+    }
+    if (document.body) document.body.classList.remove('crozzo-update-install-open');
+  }
+
+  function handleInstallProgress(p) {
+    if (!p) return;
+    if (p.phase) _installUi.phase = p.phase;
+    if (typeof p.percent === 'number') _installUi.percent = p.percent;
+    if (p.message) _installUi.message = p.message;
+    if (p.phase === 'error') _installUi.state = 'error';
+    if (_installUi.open) renderInstallOverlayUi();
+    else renderCriticalMiniProgress();
+    setCheckStatus(p.message || '');
   }
 
   function setOverlayOpen(id, open, bodyClass) {
@@ -439,14 +935,18 @@
       }
       if (title) title.textContent = 'Instalando actualización crítica';
       if (lead) {
-        lead.textContent =
-          'Descargando e instalando la nueva versión (.exe). No cierre la aplicación hasta que termine.';
+        lead.textContent = _installUi.open
+          ? 'Siga el progreso en pantalla. No cierre la aplicación.'
+          : 'Descargando e instalando la nueva versión (.exe). No cierre la aplicación hasta que termine.';
       }
       if (dismiss) {
         dismiss.disabled = true;
         dismiss.textContent = 'Instalando…';
       }
       if (retry) retry.style.display = 'none';
+      var planBHide = document.getElementById('crozzoUpdateCriticalPlanB');
+      if (planBHide) planBHide.style.display = 'none';
+      renderCriticalMiniProgress();
     } else if (state === 'success') {
       if (badge) {
         badge.className =
@@ -464,6 +964,8 @@
         dismiss.textContent = 'Entendido';
       }
       if (retry) retry.style.display = 'none';
+      var planBHide2 = document.getElementById('crozzoUpdateCriticalPlanB');
+      if (planBHide2) planBHide2.style.display = 'none';
     } else {
       if (badge) {
         badge.className = 'crozzo-update-critical-modal__badge';
@@ -475,13 +977,15 @@
       if (lead) {
         lead.textContent =
           (errMsg || 'El .exe nuevo no se descargó.') +
-          ' Pulse Reintentar o espere a que GitHub Actions termine de compilar el release.';
+          ' Pulse Reintentar (Plan A) o use Plan B para descargar el instalador manualmente.';
       }
       if (dismiss) {
         dismiss.disabled = false;
         dismiss.textContent = 'Cerrar';
       }
       if (retry) retry.style.display = 'inline-flex';
+      var planB = document.getElementById('crozzoUpdateCriticalPlanB');
+      if (planB) planB.style.display = 'inline-flex';
     }
 
     if (list) {
@@ -508,7 +1012,7 @@
       escapeHtml(typeLabel) +
       ': <strong>' +
       escapeHtml(VERSION_AVAIL) +
-      '</strong> — abra el detalle para revisar e instalar cuando desee.';
+      '</strong> — pulse <strong>Instalar ahora</strong> o revise los cambios antes de continuar.';
   }
 
   function syncVersionLabels() {
@@ -591,56 +1095,94 @@
     }
     return global.CrozzoTauriUpdater.installLatest({
       targetVersion: targetVersion,
-      onProgress: onProgress || function () {},
+      onProgress: function (p) {
+        handleInstallProgress(p);
+        if (onProgress) onProgress(p);
+      },
     });
+  }
+
+  function markCriticalInstalled(entry) {
+    if (!entry) return;
+    pushStateId('ackCritical', entryId(entry));
+    appendLocalLog('critica_instalada', entry);
+    if (VERSION) saveInstalledVersion(VERSION);
   }
 
   function runCriticalInstall(entry) {
     if (_installInProgress) return Promise.resolve();
     var remote = entry.version || 'v' + (entry.semver || '');
+    var changes = Array.isArray(entry.changelog) ? entry.changelog.slice() : entry.message ? [entry.message] : [];
     _installInProgress = true;
     _criticalInstallState = 'installing';
+    setCriticalOpen(false);
+    openInstallOverlay({ mode: 'critical', from: VERSION, to: remote, changelog: changes });
     populateCriticalInfo('installing');
-    setCheckStatus('Instalando ' + remote + ' (descarga del .exe)…');
+    setCheckStatus('Instalando ' + remote + '…');
 
-    return applyBinaryUpdate(remote, function (p) {
-      if (p && p.message) setCheckStatus(p.message);
-    })
+    return applyBinaryUpdate(remote)
       .then(function (res) {
         return refreshBinaryVersion().then(function () {
-          if (res && res.installed) {
+          if (res && res.installed && isEntryApplied(entry)) {
             _criticalInstallState = 'success';
-            populateCriticalInfo('success');
-            pushStateId('ackCritical', entryId(entry));
-            appendLocalLog('critica_instalada', entry);
-            setCheckStatus('Actualización ' + remote + ' instalada correctamente.');
+            _installUi.state = 'success';
+            _installUi.percent = 100;
+            _installUi.phase = 'relaunch';
+            _installUi.message = 'Reiniciando con la interfaz nueva…';
+            renderInstallOverlayUi();
+            markCriticalInstalled(entry);
+            setCheckStatus('Actualización ' + remote + ' instalada.');
             return res;
           }
-          if (compareSemver(VERSION, remote) >= 0) {
+          if (res && res.upToDate && isEntryApplied(entry)) {
             _criticalInstallState = 'success';
+            _installUi.state = 'success';
+            _installUi.percent = 100;
+            _installUi.message = 'Este equipo ya está actualizado.';
+            renderInstallOverlayUi();
+            markCriticalInstalled(entry);
+            closeInstallOverlay();
+            setCriticalOpen(true);
             populateCriticalInfo('success');
-            pushStateId('ackCritical', entryId(entry));
-            appendLocalLog('critica_instalada', entry);
-            setCheckStatus('Ya tiene la versión ' + VERSION + '.');
             return res;
           }
+          if (res && res.upToDate && !isEntryApplied(entry)) {
+            var stampMsg =
+              'La versión coincide pero falta el build nuevo en el .exe. Publique tag v' +
+              String(remote).replace(/^v/, '') +
+              ' y espere GitHub Actions.';
+            _criticalInstallState = 'failed';
+            _installUi.state = 'error';
+            handleInstallProgress({ phase: 'error', percent: 100, message: stampMsg });
+            offerPlanBAfterFailure(remote, null);
+            setCriticalOpen(true);
+            populateCriticalInfo('failed', stampMsg);
+            return res;
+          }
+          var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
           _criticalInstallState = 'failed';
-          populateCriticalInfo(
-            'failed',
-            'El instalador no se aplicó. Ejecutable actual: ' + VERSION + ', requerido: ' + remote + '.'
-          );
+          _installUi.state = 'error';
+          handleInstallProgress({ phase: 'error', percent: 100, message: failMsg });
+          offerPlanBAfterFailure(remote, null);
+          setCriticalOpen(true);
+          populateCriticalInfo('failed', failMsg);
           return res;
         });
       })
       .catch(function (err) {
         _criticalInstallState = 'failed';
         var msg = err && err.message ? err.message : String(err);
+        _installUi.state = 'error';
+        handleInstallProgress({ phase: 'error', percent: 0, message: msg });
+        offerPlanBAfterFailure(remote, err);
+        setCriticalOpen(true);
         populateCriticalInfo('failed', msg);
         setCheckStatus('Error al instalar: ' + msg);
         console.warn('[crozzo-updates] install failed', err);
       })
       .finally(function () {
         _installInProgress = false;
+        renderCriticalMiniProgress();
       });
   }
 
@@ -664,12 +1206,11 @@
 
     setDetailOpen(false);
     setNormalOpen(false);
-    setCriticalOpen(true);
-    populateCriticalInfo('installing');
 
     if (global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.isAvailable()) {
       runCriticalInstall(entry);
     } else {
+      setCriticalOpen(true);
       _criticalInstallState = 'failed';
       populateCriticalInfo(
         'failed',
@@ -692,7 +1233,7 @@
   }
 
   function processPendingUpdates(entries) {
-    if (_installInProgress || _criticalInstallState === 'installing') return false;
+    if (_installInProgress || _criticalInstallState === 'installing' || _installUi.open) return false;
 
     pruneStaleStateFlags();
     var state = loadUpdateState();
@@ -700,8 +1241,7 @@
 
     for (var i = 0; i < sorted.length; i++) {
       var entry = sorted[i];
-      var remote = entry.version || 'v' + (entry.semver || '');
-      if (compareSemver(remote, VERSION) <= 0) continue;
+      if (!entryNeedsInstall(entry)) continue;
       var id = entryId(entry);
 
       if (isCriticalEntry(entry)) {
@@ -773,15 +1313,19 @@
     var state = loadUpdateState();
     var id = entryId(entry);
     var applied = isEntryApplied(entry);
+    var remote = entry.version || 'v' + (entry.semver || '');
     if (isCriticalEntry(entry)) {
-      if (applied) return 'Instalada en .exe';
+      if (applied) return 'Instalada (.exe + build)';
+      if (compareSemver(remote, VERSION) > 0) return 'Pendiente · falta .exe';
+      if (compareSemver(remote, VERSION) === 0 && !applied) return 'Pendiente · recompilar .exe';
       if (stateHas(state.ackCritical, id)) return 'Vista (sin instalar)';
       return 'Pendiente';
     }
-    if (applied || stateHas(state.appliedOptional, id)) {
-      return applied ? 'Instalada en .exe' : 'Marcada (revisar .exe)';
-    }
+    if (applied) return 'Instalada (.exe + build)';
+    if (stateHas(state.appliedOptional, id)) return 'Marcada (revisar .exe)';
     if (stateHas(state.dismissedOptional, id)) return 'Aviso oculto';
+    if (compareSemver(remote, VERSION) > 0) return 'Pendiente · falta .exe';
+    if (compareSemver(remote, VERSION) === 0) return 'Pendiente · recompilar .exe';
     return 'Pendiente';
   }
 
@@ -831,7 +1375,7 @@
       '<tbody>' +
       rows +
       '</tbody></table></div>' +
-      '<p class="form-hint" style="margin:8px 0 0;">Misma versión (ej. 1.0.13) puede tener fila <strong>crítica</strong> y otra <strong>opcional</strong> con IDs distintos.</p>';
+      '<p class="form-hint" style="margin:8px 0 0;">Aviso OTA (main) ≠ instalador: hace falta tag <code>vX.Y.Z</code> + workflow Tauri Release. Misma versión puede tener crítica y opcional con IDs distintos.</p>';
   }
 
   function renderLocalLogPanel() {
@@ -1051,18 +1595,34 @@
     if (global.CrozzoTauriUpdater && global.CrozzoTauriUpdater.isAvailable()) {
       _installInProgress = true;
       setCheckStatus('Descargando e instalando ' + next + '…');
-      applyBinaryUpdate(next, function (p) {
-        if (p && p.message) setCheckStatus(p.message);
-      })
+      openInstallOverlay({
+        mode: 'optional',
+        from: VERSION,
+        to: next,
+        changelog: UPDATE_NORMAL.changes || [],
+      });
+      applyBinaryUpdate(next)
         .then(function (res) {
           return refreshBinaryVersion().then(function () {
             resetAcceptBtn();
+            var entry =
+              _registryEntries.find(function (e) {
+                return entryId(e) === _currentOptionalId;
+              }) || null;
             if (res && res.installed) {
-              markOptionalInstalled();
-              return;
+              if (!entry || isEntryApplied(entry)) {
+                _installUi.state = 'success';
+                _installUi.percent = 100;
+                _installUi.phase = 'relaunch';
+                _installUi.message = 'Reiniciando…';
+                renderInstallOverlayUi();
+                markOptionalInstalled(entry);
+                return;
+              }
             }
-            if (compareSemver(VERSION, next) >= 0) {
-              markOptionalInstalled();
+            if (res && res.upToDate && entry && isEntryApplied(entry)) {
+              closeInstallOverlay();
+              markOptionalInstalled(entry);
               try {
                 if (typeof global.showToast === 'function') {
                   global.showToast('Actualización ' + next + ' ya está en este ejecutable.', 'info');
@@ -1070,14 +1630,21 @@
               } catch (_) {}
               return;
             }
+            _installUi.state = 'error';
+            var hint =
+              res && res.upToDate && entry && !isEntryApplied(entry)
+                ? 'Versión ' +
+                  VERSION +
+                  ' sin el build OTA nuevo. Republicar tag y esperar GitHub Actions.'
+                : 'No se aplicó el .exe ' +
+                  next +
+                  '. Ejecutable actual: ' +
+                  VERSION +
+                  '. Espere GitHub Actions o republique.';
+            handleInstallProgress({ phase: 'error', percent: 100, message: hint });
+            offerPlanBAfterFailure(next, null);
             setNormalOpen(true);
-            setCheckStatus(
-              'No se aplicó el .exe ' +
-                next +
-                '. Ejecutable actual: ' +
-                VERSION +
-                '. Espere GitHub Actions o republique.'
-            );
+            setCheckStatus(hint);
             try {
               if (typeof global.showToast === 'function') {
                 global.showToast('No se instaló el ejecutable ' + next + '.', 'error');
@@ -1090,10 +1657,13 @@
           setNormalOpen(true);
           console.warn('[crozzo-tauri-updater]', err);
           var msg = err && err.message ? err.message : String(err);
+          _installUi.state = 'error';
+          handleInstallProgress({ phase: 'error', percent: 0, message: msg });
+          offerPlanBAfterFailure(next, err);
           setCheckStatus('Error: ' + msg);
           try {
             if (typeof global.showToast === 'function') {
-              global.showToast('No se pudo instalar: ' + msg, 'error');
+              global.showToast('Plan A falló. Plan B manual disponible.', 'error');
             }
           } catch (_) {}
         })
@@ -1199,6 +1769,8 @@
       resetUpdateDismissals();
     });
 
+    ensurePlanBAdminCard(root);
+
     syncVersionLabels();
     renderRegistryPanel();
     renderLocalLogPanel();
@@ -1226,6 +1798,10 @@
     wireOnce(document.getElementById('crozzoUpdateNormalChanges'), function (e) {
       e.preventDefault();
       crozzoVerCambiosActualizacion();
+    });
+    wireOnce(document.getElementById('crozzoUpdateNormalInstall'), function (e) {
+      e.preventDefault();
+      crozzoAceptarActualizacion();
     });
     wireOnce(document.getElementById('crozzoUpdateNormalDismiss'), function (e) {
       e.preventDefault();
@@ -1295,6 +1871,9 @@
   global.crozzoAbrirDetalleActualizacion = crozzoAbrirDetalleActualizacion;
   global.crozzoAceptarActualizacion = crozzoAceptarActualizacion;
   global.crozzoRechazarActualizacion = crozzoRechazarActualizacion;
+  global.crozzoUpdateOpenManualDownload = crozzoUpdateOpenManualDownload;
+  global.crozzoUpdateCopyManualLink = crozzoUpdateCopyManualLink;
+  global.crozzoUpdateOpenReleasePage = crozzoUpdateOpenReleasePage;
   global.checkForUpdates = checkForUpdates;
   global.startCrozzoUpdateChecks = startCrozzoUpdateChecks;
   global.initActualizacionesSistema = initActualizacionesSistema;

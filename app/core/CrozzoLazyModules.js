@@ -11,6 +11,10 @@
   var lazyReady = false;
   var lazyReadyQueue = [];
 
+  function bundleBasePath(src) {
+    return String(src || '').split('?')[0];
+  }
+
   function bundleSrc(src) {
     if (!global.__CROZZO_IS_TAURI__ || !src || src.indexOf('bundles/') !== 0) return src;
     var v =
@@ -23,29 +27,30 @@
           return '';
         }
       })() ||
-      String(Date.now());
+      'app';
     return src + (src.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(v);
   }
 
   function loadOne(src) {
+    var base = bundleBasePath(src);
+    if (loaded[base]) return loaded[base];
     var url = bundleSrc(src);
-    if (loaded[url]) return loaded[url];
-    if (loading[url]) return loading[url];
-    loading[url] = new Promise(function (resolve, reject) {
+    if (loading[base]) return loading[base];
+    loading[base] = new Promise(function (resolve, reject) {
       var s = document.createElement('script');
       s.src = url;
       s.defer = true;
       s.onload = function () {
-        loaded[url] = true;
+        loaded[base] = true;
         resolve();
       };
       s.onerror = function () {
-        delete loading[url];
+        delete loading[base];
         reject(new Error('No se pudo cargar ' + url));
       };
       document.head.appendChild(s);
     });
-    return loading[url];
+    return loading[base];
   }
 
   function loadAll(list) {

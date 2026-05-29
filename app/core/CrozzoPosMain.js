@@ -209,6 +209,8 @@ class ConfigManager {
         telefono: '',
         email: '',
         codigoPostal: '',
+        departamento: '',
+        ciudad: '',
         regimenFiscal: 'responsable_iva',
         matriculaMercantil: '',
         actividadEconomica: ''
@@ -3183,28 +3185,56 @@ let printerRescueState = {
   printerIp: ''
 };
 let products = [
-  { id: 1, nombre: 'Bandeja Paisa', precio: 28000, ivaRate: 0, icon: '🍛', categoria: 'platos-fuertes' },
-  { id: 2, nombre: 'Ajiaco Santafereño', precio: 25000, ivaRate: 0, icon: '🍲', categoria: 'platos-fuertes' },
-  { id: 3, nombre: 'Lechona Tolimense', precio: 22000, ivaRate: 0, icon: '🐷', categoria: 'platos-fuertes' },
-  { id: 4, nombre: 'Arepa con Queso', precio: 5000, ivaRate: 0, icon: '🧀', categoria: 'entradas' },
-  { id: 5, nombre: 'Empanada', precio: 3500, ivaRate: 0, icon: '🥟', categoria: 'entradas' },
-  { id: 6, nombre: 'Jugo Natural', precio: 8000, ivaRate: 0.19, icon: '🧃', categoria: 'bebidas' },
-  { id: 7, nombre: 'Cerveza Artesanal', precio: 12000, ivaRate: 0.19, icon: '🍺', categoria: 'bebidas' },
-  { id: 8, nombre: 'Café Premium', precio: 7000, ivaRate: 0, icon: '☕', categoria: 'bebidas' },
-  { id: 9, nombre: 'Postre de Nata', precio: 9000, ivaRate: 0.19, icon: '🍰', categoria: 'postres' },
-  { id: 10, nombre: 'Chuleta Valluna', precio: 32000, ivaRate: 0, icon: '🥩', categoria: 'platos-fuertes' },
-  { id: 11, nombre: 'Sancocho', precio: 20000, ivaRate: 0, icon: '🥘', categoria: 'platos-fuertes' },
-  { id: 12, nombre: 'Agua Mineral', precio: 3000, ivaRate: 0.19, icon: '💧', categoria: 'bebidas' },
-  { id: 13, nombre: 'Arroz con Pollo', precio: 18000, ivaRate: 0, icon: '🍗', categoria: 'platos-fuertes' },
-  { id: 14, nombre: 'Patacones', precio: 8000, ivaRate: 0, icon: '🍌', categoria: 'entradas' },
-  { id: 15, nombre: 'Tamales', precio: 6000, ivaRate: 0, icon: '🫔', categoria: 'entradas' },
-  { id: 16, nombre: 'Gaseosa 400ml', precio: 4500, ivaRate: 0.19, icon: '🥤', categoria: 'bebidas' }
+  { id: 1, nombre: 'Bandeja Paisa', precio: 28000, ivaRate: 0, icon: '🍛', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+  { id: 2, nombre: 'Ajiaco Santafereño', precio: 25000, ivaRate: 0, icon: '🍲', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+  { id: 3, nombre: 'Lechona Tolimense', precio: 22000, ivaRate: 0, icon: '🐷', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+  { id: 4, nombre: 'Arepa con Queso', precio: 5000, ivaRate: 0, icon: '🧀', categoria: 'entradas', tieneRecetaProceso: true },
+  { id: 5, nombre: 'Empanada', precio: 3500, ivaRate: 0, icon: '🥟', categoria: 'entradas', tieneRecetaProceso: true },
+  { id: 6, nombre: 'Jugo Natural', precio: 8000, ivaRate: 0.19, icon: '🧃', categoria: 'bebidas', tieneRecetaProceso: true },
+  { id: 7, nombre: 'Cerveza Artesanal', precio: 12000, ivaRate: 0.19, icon: '🍺', categoria: 'bebidas', tieneRecetaProceso: false },
+  { id: 8, nombre: 'Café Premium', precio: 7000, ivaRate: 0, icon: '☕', categoria: 'bebidas', tieneRecetaProceso: true },
+  { id: 9, nombre: 'Postre de Nata', precio: 9000, ivaRate: 0.19, icon: '🍰', categoria: 'postres', tieneRecetaProceso: true },
+  { id: 10, nombre: 'Chuleta Valluna', precio: 32000, ivaRate: 0, icon: '🥩', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+  { id: 11, nombre: 'Sancocho', precio: 20000, ivaRate: 0, icon: '🥘', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+  { id: 12, nombre: 'Agua Mineral', precio: 3000, ivaRate: 0.19, icon: '💧', categoria: 'bebidas', tieneRecetaProceso: false },
+  { id: 13, nombre: 'Arroz con Pollo', precio: 18000, ivaRate: 0, icon: '🍗', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+  { id: 14, nombre: 'Patacones', precio: 8000, ivaRate: 0, icon: '🍌', categoria: 'entradas', tieneRecetaProceso: true },
+  { id: 15, nombre: 'Tamales', precio: 6000, ivaRate: 0, icon: '🫔', categoria: 'entradas', tieneRecetaProceso: true },
+  { id: 16, nombre: 'Gaseosa 400ml', precio: 4500, ivaRate: 0.19, icon: '🥤', categoria: 'bebidas', tieneRecetaProceso: false }
 ];
+if (typeof global !== 'undefined') global.products = products;
+
+function crozzoSyncProductoCosteo(p, opts) {
+  try {
+    var C = typeof CrozzoCatalogoMp !== 'undefined' ? CrozzoCatalogoMp : null;
+    if (C && C.syncProductoFromPos && p) C.syncProductoFromPos(p, opts || { silent: true });
+  } catch (_) {}
+}
+
+/** Actualiza precio en caja POS y menú de costos (matriz). */
+window.crozzoSetProductPrecio = function crozzoSetProductPrecio(productId, precio) {
+  var pid = Number(productId);
+  var p = Math.round(Number(precio) || 0);
+  if (!isFinite(pid) || pid <= 0) return false;
+  products = products.map(function (x) {
+    return x.id === pid ? Object.assign({}, x, { precio: p }) : x;
+  });
+  if (typeof global !== 'undefined') global.products = products;
+  try {
+    if (typeof persistCatalogProductos === 'function') persistCatalogProductos(pid);
+    else if (typeof persistCatalogProductosLocal === 'function') persistCatalogProductosLocal();
+  } catch (_) {}
+  var prod = products.find(function (x) { return x.id === pid; });
+  if (prod) crozzoSyncProductoCosteo(prod, { silent: true });
+  return true;
+};
+
 /** Reemplaza el arreglo local `products` con filas ya mapeadas desde Supabase (módulo crozzo-sb). */
 window.__crozzoApplyProductsFromRemote = function __crozzoApplyProductsFromRemote(rows) {
   if (!Array.isArray(rows) || !rows.length) return;
   products.length = 0;
   rows.forEach((r) => products.push(r));
+  if (typeof global !== 'undefined') global.products = products;
   try {
     ensureProductsArea();
   } catch (e) {
@@ -3229,6 +3259,7 @@ function saveComandasConfig(next) {
 function ensureProductsArea() {
   const firstArea = getComandasConfig().areas[0]?.id || 'COCINA';
   products = products.map(p => ({ ...p, areaComanda: p.areaComanda || firstArea }));
+  if (typeof global !== 'undefined') global.products = products;
 }
 // Sugiere rol de dispositivo (A/B) según el rol funcional del usuario.
 // admin/caja → A (Central). mesero → B (Tablet). Resto → 'auto'.
@@ -3283,20 +3314,6 @@ function ensureSuperAdminUser() {
     staff.unshift(kennyBootstrap);
     config.set('usuarios', { ...base, staff });
     if (config.addAudit) config.addAudit('superadmin_creado', 'Usuario Kenny (Super Admin) creado por bootstrap');
-    if (window.CrozzoAuthSecurity && typeof CrozzoAuthSecurity.crozzoMigrateUserPasswordToHash === 'function') {
-      void CrozzoAuthSecurity.crozzoMigrateUserPasswordToHash('KENNY', '141414');
-    }
-  } else {
-    const kenny = staff.find(u => u.id === 'KENNY');
-    if (
-      kenny &&
-      kenny.clave &&
-      window.CrozzoAuthSecurity &&
-      typeof CrozzoAuthSecurity.hasHashFields === 'function' &&
-      !CrozzoAuthSecurity.hasHashFields(kenny)
-    ) {
-      void CrozzoAuthSecurity.crozzoMigrateUserPasswordToHash('KENNY', kenny.clave);
-    }
   }
 }
 // Migra permisos caja antiguos (solo abrir/editar/eliminar/facturar) a vistas de menú + tab_* para tablet.
@@ -4147,9 +4164,9 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'compras-cortes': 'compras-cortes',
   'compras-oficina': 'compras-oficina',
   'compras-dashboard': 'inventarios',
-  'compras-proveedores': 'centro-compras',
-  'compras-cotizaciones': 'centro-compras',
-  'compras-ordenes': 'centro-compras',
+  'compras-proveedores': 'compras-proveedores',
+  'compras-cotizaciones': 'compras-cotizaciones',
+  'compras-ordenes': 'compras-ordenes',
   'centro-compras': 'centro-compras',
   productos: 'productos',
   'config-empresa': 'config-empresa',
@@ -4261,8 +4278,8 @@ const CROZZO_MENU_CATALOG = [
     items: [
       { id: 'centro-compras', label: 'Entrada de factura', icon: '📥', page: 'compras-recepcion' },
       { id: 'compras-cotizaciones', label: 'Cotizaciones', icon: '⚖️', page: 'compras-cotizaciones' },
-      { id: 'compras-proveedores', label: 'Proveedores', icon: '🏪', page: 'compras-proveedores' },
-      { id: 'compras-ordenes', label: 'Órdenes al catálogo', icon: '📦', page: 'compras-ordenes' },
+      { id: 'compras-proveedores', label: 'Directorio proveedores', icon: '🏪', page: 'compras-proveedores' },
+      { id: 'compras-ordenes', label: 'Órdenes de stock', icon: '📦', page: 'compras-ordenes' },
       { id: 'pedidos-internos', label: 'Pedidos internos', icon: '📋' }
     ]
   },
@@ -5898,8 +5915,7 @@ function navigateTo(page) {
   if (page === 'compras-recepcion' || page === 'compras-proveedores' || page === 'compras-cotizaciones') {
     window.__crozzoCentroComprasStart = null;
   } else if (page === 'compras-ordenes') {
-    window.__crozzoCentroComprasStart = 'ordenes';
-    page = 'centro-compras';
+    window.__crozzoCentroComprasStart = null;
   } else if (page === 'compras-oficina') {
     window.__crozzoCentroComprasStart = 'oficina';
     page = 'centro-compras';
@@ -6020,9 +6036,9 @@ function navigateTo(page) {
     'compras-oficina': ['Oficina y pagos', 'Transferencias, efectivo y tarjeta'],
     'compras-dashboard': ['Resumen compras', 'Pestaña dentro de Reportes y dashboard (Gestión)'],
     'inventarios': ['Reportes y dashboard', 'Ventas, inventario, exportación y resumen de compras'],
-    'compras-proveedores': ['Proveedores', 'Listado y órdenes al catálogo POS'],
+    'compras-proveedores': ['Directorio proveedores', 'RUT/NIT, certificados y listado unificado'],
     'compras-cotizaciones': ['Cotizaciones vs costeo', 'Compare ofertas de proveedores con el costeo actual'],
-    'compras-ordenes': ['Órdenes al catálogo', 'Compras de stock enlazadas al inventario'],
+    'compras-ordenes': ['Órdenes de stock', 'Compras al catálogo POS'],
     'centro-compras': ['Compras', 'Use el menú lateral Compras'],
     'productos': ['Productos', 'Catálogo, precios e impuestos por ítem'],
     'pedidos-internos': ['Pedidos internos', 'Insumos por área de comandas — catálogo MP inteligente'],
@@ -6226,12 +6242,24 @@ function renderPage(page) {
       crozzoPrepareModuloGestionPage(content);
       content.innerHTML =
         '<div class="crozzo-mod-page crozzo-prov-page">' +
-        '<p class="crozzo-mod-lead">Directorio de proveedores, órdenes de compra al catálogo POS y preferencia de sincronización en este equipo.</p>' +
+        '<p class="crozzo-mod-lead">Mantenimiento del directorio (RUT/NIT, rubro, certificados). Para facturar el día use <strong>Entrada de factura</strong>.</p>' +
         (typeof renderComprasProveedores === 'function'
-          ? renderComprasProveedores()
+          ? renderComprasProveedores({ view: 'full' })
           : '<div class="card"><p>Módulo de proveedores no disponible</p></div>') +
         '</div>';
-      if (typeof initComprasProveedores === 'function') initComprasProveedores();
+      if (typeof initComprasProveedores === 'function') initComprasProveedores({ view: 'full' });
+      break;
+    }
+    case 'compras-ordenes': {
+      crozzoPrepareModuloGestionPage(content);
+      content.innerHTML =
+        '<div class="crozzo-mod-page crozzo-prov-page">' +
+        '<p class="crozzo-mod-lead">Órdenes de compra al catálogo POS. Al recibir en tránsito se actualiza el stock.</p>' +
+        (typeof renderComprasProveedores === 'function'
+          ? renderComprasProveedores({ view: 'ordenes' })
+          : '<div class="card"><p>Módulo no disponible</p></div>') +
+        '</div>';
+      if (typeof initComprasProveedores === 'function') initComprasProveedores({ view: 'ordenes' });
       break;
     }
     case 'compras-cotizaciones': {
@@ -6890,7 +6918,10 @@ function crozzoGetProveedoresUnificados() {
   }
   return config.get('proveedoresOC') || [];
 }
-function renderComprasProveedores() {
+function renderComprasProveedores(opts) {
+  opts = opts || {};
+  const view = opts.view || 'full';
+  const initialTab = opts.initialTab || window.__crozzoProvOpenTab || 'prov';
   crozzoEnsureProveedoresExtensions();
   const provs = crozzoGetProveedoresUnificados();
   const orders = [...(config.get('ordenesCompra') || [])].sort((a, b) =>
@@ -6907,17 +6938,97 @@ function renderComprasProveedores() {
           )
           .join('')
       : '';
-  const provRows = provs
-    .map(
-      (s) => `
-      <tr>
-        <td>${escUserAttr(String(s.id || ''))}</td>
-        <td>${escUserAttr(String(s.name || s.nombre || ''))}</td>
-        <td>${escUserAttr(String(s.nit || '—'))}</td>
-        <td>${escUserAttr(String(s.tipoRubro || s.categoria || '—'))}</td>
-        <td>${escUserAttr(String(s.phone || s.telefono || '—'))}</td>
-      </tr>`
-    )
+  const provCards = provs
+    .map((s) => {
+      const sid = String(s.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const nombre = String(s.name || s.nombre || '');
+      const nit = String(s.nit || '—');
+      const tel = String(s.phone || s.telefono || '—');
+      const rubro = String(s.tipoRubro || s.categoria || '—');
+      const searchBlob = [nombre, nit, tel, rubro, s.id].join(' ').toLowerCase();
+      const ini = nombre
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w.charAt(0))
+        .join('')
+        .toUpperCase() || '?';
+      let badges = '';
+      let bancoHint = '';
+      let rutHint = '';
+      try {
+        if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.getProveedor) {
+          const full = CrozzoReservorio.getProveedor(s.id);
+          const leg = full && full.legal;
+          const doc = leg && leg.document;
+          const est = leg && leg.vigencia && leg.vigencia.estado;
+          if (doc && doc.blobId) {
+            badges += ' <span class="badge badge-info" title="Certificado RUT archivado">RUT</span>';
+            if (est && typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.vigenciaBadge) {
+              badges += CrozzoProveedorDocumentos.vigenciaBadge(est);
+            }
+            const rutNombre = String(doc.nombre || 'Certificado.pdf');
+            const vigLabel =
+              est === 'vigente'
+                ? 'Vigente'
+                : est === 'por_vencer'
+                  ? 'Por revisar'
+                  : est === 'desactualizado'
+                    ? 'Desactualizado'
+                    : 'Sin fecha clara';
+            rutHint =
+              '<p class="crozzo-prov-dir__rut form-hint" title="Certificado tributario">📄 ' +
+              escUserAttr(rutNombre) +
+              ' · ' +
+              escUserAttr(vigLabel) +
+              '</p>';
+          } else {
+            badges += ' <span class="badge" style="opacity:0.75">Sin RUT</span>';
+          }
+          if (leg && leg.retenciones) {
+            if (leg.retenciones.exento) {
+              badges += ' <span class="badge badge-success">Sin ret.</span>';
+            } else if (leg.retenciones.aplicaRetencion) {
+              badges += ' <span class="badge badge-warning">Retención</span>';
+            }
+            if (leg.retenciones.retencionICA && leg.retenciones.retencionICA.aplica) {
+              badges += ' <span class="badge badge-warning">RETE ICA</span>';
+            }
+          }
+          if (leg && leg.tipoPersona && leg.tipoPersona.tipo && leg.tipoPersona.tipo !== 'desconocido') {
+            badges +=
+              ' <span class="badge badge-info">' +
+              escUserAttr(leg.tipoPersona.tipo === 'juridica' ? 'Jurídica' : 'Natural') +
+              '</span>';
+          }
+          if (leg && leg.nombreParaTransferencias) {
+            bancoHint =
+              '<p class="crozzo-prov-dir__bank form-hint" title="Nombre para transferencias">🏦 ' +
+              escUserAttr(String(leg.nombreParaTransferencias)) +
+              '</p>';
+          }
+        }
+      } catch (_) {}
+      return `
+      <article class="crozzo-prov-dir__card" data-prov-card data-prov-search="${escUserAttr(searchBlob)}" data-prov-id="${escUserAttr(String(s.id || ''))}">
+        <div class="crozzo-prov-dir__card-top">
+          <div class="crozzo-prov-dir__avatar" aria-hidden="true">${escUserAttr(ini)}</div>
+          <div class="crozzo-prov-dir__card-main">
+            <h4 class="crozzo-prov-dir__name">${escUserAttr(nombre)}</h4>
+            <p class="crozzo-prov-dir__meta">${escUserAttr(nit)} · ${escUserAttr(rubro)}</p>
+            ${rutHint}
+            ${bancoHint}
+            <p class="crozzo-prov-dir__tel form-hint">📞 ${escUserAttr(tel)}</p>
+            <div class="crozzo-prov-dir__badges">${badges || '<span class="form-hint">Sin certificado RUT</span>'}</div>
+          </div>
+        </div>
+        <div class="crozzo-prov-dir__actions">
+          <button type="button" class="btn btn-outline btn-sm" onclick="crozzoProvView('${sid}')" title="Ver ficha completa">Ver</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="crozzoProvEdit('${sid}')" title="Editar datos">Editar</button>
+          <button type="button" class="btn btn-outline btn-sm crozzo-prov-dir__btn-danger" onclick="crozzoProvDelete('${sid}')" title="Quitar del directorio">Eliminar</button>
+        </div>
+      </article>`;
+    })
     .join('');
   const orderRows = orders
     .map((po) => {
@@ -6962,71 +7073,9 @@ function renderComprasProveedores() {
         (s) =>
           `<option value="${String(s.id).replace(/"/g, '&quot;')}">${escUserAttr(String(s.name || ''))}</option>`
       )
-      .join('') || '<option value="">— Cree un proveedor —</option>';
-  return `
-    <div class="card crozzo-rep-root" id="crozzo-op-root">
-      <div class="card-header">
-        <div>
-          <h2 class="card-title">Proveedores y sistema</h2>
-          <p class="page-subtitle" style="margin-top:4px;">Órdenes de compra enlazadas al catálogo, modo de sync en runtime y diagnóstico ligero</p>
-        </div>
-      </div>
-      <div class="alert alert-info" style="margin-bottom:14px;">
-        <span>ℹ️</span>
-        <div style="font-size:0.85rem;">
-          Al <strong>recibir</strong> una orden en tránsito se suma la cantidad al <code>stock</code> de cada línea (misma lógica que recepción de inventario). Use <strong>Reportes y stock</strong> para ajustes puntuales.
-        </div>
-      </div>
-      <div class="crozzo-rep-tabs" id="crozzo-op-tabs">
-        <button type="button" class="crozzo-rep-tab active" data-op-tab="prov">Proveedores</button>
-        <button type="button" class="crozzo-rep-tab" data-op-tab="po">Órdenes</button>
-        <button type="button" class="crozzo-rep-tab" data-op-tab="mode">Modo sync</button>
-        <button type="button" class="crozzo-rep-tab" data-op-tab="diag">Diagnóstico</button>
-      </div>
-      <div class="crozzo-rep-panel" data-op-panel="prov">
-        <div class="form-grid" style="margin-bottom:14px;">
-          <div class="form-group">
-            <label class="form-label">Nombre proveedor</label>
-            <input class="form-input" id="crozzo-op-prov-name" placeholder="Ej: Distribuidora ABC">
-          </div>
-          <div class="form-group">
-            <label class="form-label">NIT (opcional)</label>
-            <input class="form-input" id="crozzo-op-prov-nit" placeholder="900...">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Rubro</label>
-            <select class="form-input" id="crozzo-op-prov-rubro">
-              <option value="Carnicería">Carnicería</option>
-              <option value="Quesería">Quesería</option>
-              <option value="Verduras y frutas">Verduras y frutas</option>
-              <option value="Abarrotes">Abarrotes</option>
-              <option value="Bebidas">Bebidas</option>
-              <option value="Panadería">Panadería</option>
-              <option value="Lácteos">Lácteos</option>
-              <option value="Pescadería">Pescadería</option>
-              <option value="Empaques">Empaques</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Teléfono</label>
-            <input class="form-input" id="crozzo-op-prov-tel" placeholder="603...">
-          </div>
-        </div>
-        <p class="form-hint" style="margin:0 0 12px">Los proveedores creados en <strong>Entrada de factura</strong> aparecen aquí automáticamente (reservorio unificado).</p>
-        <button type="button" class="btn btn-primary" onclick="crozzoOpAddSupplier()">Agregar proveedor</button>
-        <button type="button" class="btn btn-outline" style="margin-left:8px" onclick="navigateTo('compras-recepcion')">Entrada de factura</button>
-        <div class="table-container" style="margin-top:14px;">
-          <table>
-            <thead><tr><th>ID</th><th>Nombre</th><th>NIT</th><th>Rubro</th><th>Tel</th></tr></thead>
-            <tbody>${
-              provRows ||
-              '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin proveedores</td></tr>'
-            }</tbody>
-          </table>
-        </div>
-      </div>
-      <div class="crozzo-rep-panel" data-op-panel="po" style="display:none;">
+      .join('') || '<option value="">— Sin proveedores —</option>';
+
+  const poPanelInner = `
         <p class="form-hint">Sugerencias de stock bajo:</p>
         <div style="margin-bottom:10px;">${
           low.length ? lowChips : '<span class="form-hint">Inventario por encima de umbrales</span>'
@@ -7047,6 +7096,7 @@ function renderComprasProveedores() {
         </div>
         <button type="button" class="btn btn-outline" onclick="crozzoOpPoAddLine()">Añadir línea al borrador</button>
         <button type="button" class="btn btn-primary" onclick="crozzoOpPoCreate()" style="margin-left:8px;">Crear orden</button>
+        <p class="form-hint" style="margin:8px 0 0">¿Falta un proveedor? <button type="button" class="btn btn-link btn-sm" onclick="crozzoNavProveedores('prov')">Abrir directorio</button></p>
         <div id="crozzo-op-po-draft" style="margin:12px 0;padding:10px;border:1px dashed var(--border);border-radius:var(--radius);min-height:40px;font-size:0.85rem;">Borrador vacío — agrega líneas.</div>
         <div class="table-container" style="margin-top:10px;">
           <table>
@@ -7056,46 +7106,321 @@ function renderComprasProveedores() {
               '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin órdenes</td></tr>'
             }</tbody>
           </table>
+        </div>`;
+  const poPanelHtml = `<div class="crozzo-rep-panel" data-op-panel="po" style="display:none;">${poPanelInner}</div>`;
+
+  if (view === 'ordenes') {
+    return `
+    <div class="card crozzo-rep-root" id="crozzo-op-root" data-prov-view="ordenes">
+      <div class="card-header" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+        <div>
+          <h2 class="card-title">Órdenes de compra</h2>
+          <p class="page-subtitle" style="margin-top:4px;">Stock del catálogo POS</p>
         </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="navigateTo('compras-proveedores')">Directorio proveedores</button>
       </div>
-      <div class="crozzo-rep-panel" data-op-panel="mode" style="display:none;">
-        <p class="form-hint" style="margin-bottom:12px;">
-          Preferencia de trabajo con red (independiente del modo fiscal Demo / Simple / Electrónica).
-          Puedes escuchar el evento <code>crozzo-runtime-sync-mode</code> en integraciones.
-        </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn ${mode === 'online' ? 'btn-primary' : 'btn-outline'}" onclick="crozzoOpSetRuntimeMode('online')">Online</button>
-          <button type="button" class="btn ${mode === 'hybrid' ? 'btn-primary' : 'btn-outline'}" onclick="crozzoOpSetRuntimeMode('hybrid')">Híbrido</button>
-          <button type="button" class="btn ${mode === 'offline' ? 'btn-primary' : 'btn-outline'}" onclick="crozzoOpSetRuntimeMode('offline')">Offline</button>
+      <div class="crozzo-rep-panel" data-op-panel="po">${poPanelInner}</div>
+    </div>`;
+  }
+
+  const tabActive = (t) => (t === initialTab ? ' active' : '');
+  const panelDisplay = (t) => (t === initialTab ? '' : ' style="display:none;"');
+  return `
+    <div class="card crozzo-rep-root" id="crozzo-op-root" data-prov-view="full">
+      <div class="card-header" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2 class="card-title">Directorio de proveedores</h2>
+          <p class="page-subtitle" style="margin-top:4px;">Un solo listado para compras, costos y entrada de factura (reservorio unificado)</p>
         </div>
-        <p style="margin-top:12px;font-size:0.85rem;">Actual: <strong>${escUserAttr(String(mode))}</strong></p>
+        <button type="button" class="btn btn-outline btn-sm" onclick="navigateTo('compras-recepcion')">Entrada de factura →</button>
       </div>
-      <div class="crozzo-rep-panel" data-op-panel="diag" style="display:none;">
-        <button type="button" class="btn btn-primary" onclick="crozzoOpRunDiagnostics()">Ejecutar chequeo</button>
-        <div id="crozzo-op-diag-out" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;"></div>
-        <p class="form-hint" style="margin-top:14px;">Para diagnóstico completo: Super Admin → Pruebas de conexión y sistema.</p>
+      <div class="crozzo-rep-tabs" id="crozzo-op-tabs">
+        <button type="button" class="crozzo-rep-tab${tabActive('prov')}" data-op-tab="prov">Listado</button>
+        <button type="button" class="crozzo-rep-tab${tabActive('import')}" data-op-tab="import">Importar certificado</button>
+        <button type="button" class="crozzo-rep-tab${tabActive('po')}" data-op-tab="po">Órdenes de stock</button>
       </div>
+      <div class="crozzo-rep-panel crozzo-prov-dir" data-op-panel="prov"${panelDisplay('prov')}>
+        <div class="crozzo-prov-dir__toolbar">
+          <div class="crozzo-prov-dir__search-wrap">
+            <span class="crozzo-prov-dir__search-icon" aria-hidden="true">🔎</span>
+            <input type="search" class="form-input crozzo-prov-dir__search" id="crozzo-prov-search" placeholder="Buscar por nombre, NIT, teléfono, rubro…" oninput="crozzoProvFilterList()">
+          </div>
+          <div class="crozzo-prov-dir__toolbar-actions">
+            <button type="button" class="btn btn-outline btn-sm" onclick="crozzoOpSwitchProvTab('import')">📄 Importar RUT</button>
+          </div>
+        </div>
+        <details class="crozzo-prov-dir__quick-add">
+          <summary class="crozzo-prov-dir__quick-add-title">＋ Alta rápida manual</summary>
+          <div class="crozzo-prov-dir__quick-add-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Nombre en directorio</label>
+                <input class="form-input" id="crozzo-op-prov-name" placeholder="Ej: Distribuidora ABC">
+              </div>
+              <div class="form-group">
+                <label class="form-label" id="crozzo-op-prov-nit-label">NIT / RUT</label>
+                <input class="form-input" id="crozzo-op-prov-nit" placeholder="900.123.456-7">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Rubro</label>
+                <select class="form-input" id="crozzo-op-prov-rubro">
+                  <option value="Carnicería">Carnicería</option>
+                  <option value="Quesería">Quesería</option>
+                  <option value="Verduras y frutas">Verduras y frutas</option>
+                  <option value="Abarrotes">Abarrotes</option>
+                  <option value="Bebidas">Bebidas</option>
+                  <option value="Panadería">Panadería</option>
+                  <option value="Lácteos">Lácteos</option>
+                  <option value="Pescadería">Pescadería</option>
+                  <option value="Empaques">Empaques</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Teléfono</label>
+                <input class="form-input" id="crozzo-op-prov-tel" placeholder="300…">
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="crozzoOpAddSupplier()">Guardar proveedor</button>
+          </div>
+        </details>
+        <div class="crozzo-prov-dir__grid" id="crozzo-prov-grid">${
+          provCards ||
+          '<p class="crozzo-prov-dir__empty">Sin proveedores. Importe un certificado RUT o use alta rápida.</p>'
+        }</div>
+        <p class="form-hint crozzo-prov-dir__footer-hint">${provs.length} proveedor${provs.length === 1 ? '' : 'es'} en el directorio unificado (compras y facturación).</p>
+      </div>
+      <div class="crozzo-rep-panel" data-op-panel="import"${panelDisplay('import')}>
+        ${
+          typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.renderImportBlock
+            ? CrozzoProveedorDocumentos.renderImportBlock('crozzo-op')
+            : '<p class="form-hint">Cargue el módulo de reservorio (recargue la página).</p>'
+        }
+      </div>
+      ${poPanelHtml}
+      <details class="crozzo-prov-advanced" style="margin-top:16px">
+        <summary class="form-hint" style="cursor:pointer">Opciones técnicas (sync y diagnóstico local)</summary>
+        <div style="padding:12px 0">
+          <p class="form-hint" style="margin-bottom:8px">Modo de trabajo con red en este equipo. Actual: <strong>${escUserAttr(String(mode))}</strong></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button type="button" class="btn ${mode === 'online' ? 'btn-primary' : 'btn-outline'}" onclick="crozzoOpSetRuntimeMode('online')">Online</button>
+            <button type="button" class="btn ${mode === 'hybrid' ? 'btn-primary' : 'btn-outline'}" onclick="crozzoOpSetRuntimeMode('hybrid')">Híbrido</button>
+            <button type="button" class="btn ${mode === 'offline' ? 'btn-primary' : 'btn-outline'}" onclick="crozzoOpSetRuntimeMode('offline')">Offline</button>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="crozzoOpRunDiagnostics()">Diagnóstico rápido</button>
+          <div id="crozzo-op-diag-out" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;"></div>
+        </div>
+      </details>
     </div>
   `;
 }
-function initComprasProveedores() {
+function crozzoProvGetFull(id) {
+  if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.getProveedor) {
+    return CrozzoReservorio.getProveedor(id);
+  }
+  return (crozzoGetProveedoresUnificados() || []).find((p) => String(p.id) === String(id));
+}
+function crozzoProvFilterList() {
+  const q = String(document.getElementById('crozzo-prov-search')?.value || '')
+    .trim()
+    .toLowerCase();
+  document.querySelectorAll('[data-prov-card]').forEach((card) => {
+    const blob = (card.getAttribute('data-prov-search') || '').toLowerCase();
+    card.style.display = !q || blob.indexOf(q) >= 0 ? '' : 'none';
+  });
+}
+function crozzoProvView(id) {
+  const p = crozzoProvGetFull(id);
+  if (!p) return showToast('Proveedor no encontrado', 'error');
+  const body =
+    typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.renderProveedorFicha
+      ? CrozzoProveedorDocumentos.renderProveedorFicha(p)
+      : '<p class="form-hint">Sin módulo de ficha.</p>';
+  const leg = p.legal && typeof p.legal === 'object' ? p.legal : {};
+  const tieneRut = !!(leg.document && leg.document.blobId);
+  const sid = String(id).replace(/'/g, "\\'");
+  const footer =
+    '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
+    (tieneRut
+      ? '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoProvViewRut(\'' +
+        sid +
+        '\')">Ver RUT</button>'
+      : '') +
+    '<button type="button" class="btn btn-primary btn-sm" onclick="closeModal();crozzoProvEdit(\'' +
+    sid +
+    '\')">Editar</button>' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Cerrar</button></div>';
+  showModal('Proveedor · ' + (p.nombre || ''), body + footer, { wide: true, modalClass: 'modal--prov-ficha' });
+}
+function crozzoProvViewRut(id) {
+  if (typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.openProveedorRut) {
+    CrozzoProveedorDocumentos.openProveedorRut(id);
+    return;
+  }
+  showToast('No se puede abrir el certificado', 'error');
+}
+function crozzoProvEdit(id) {
+  const p = crozzoProvGetFull(id);
+  if (!p) return showToast('Proveedor no encontrado', 'error');
+  const body =
+    typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.renderProveedorEditForm
+      ? CrozzoProveedorDocumentos.renderProveedorEditForm(p)
+      : '<p class="form-hint">Sin formulario de edición.</p>';
+  showModal('Editar · ' + (p.nombre || ''), body, { wide: true, modalClass: 'modal--prov-edit' });
+}
+function crozzoProvSaveEdit() {
+  const id = document.getElementById('crozzo-prov-edit-id')?.value;
+  const nombre = (document.getElementById('crozzo-prov-edit-nombre')?.value || '').trim();
+  if (!id || !nombre) return showToast('Nombre requerido', 'warning');
+  const prev = crozzoProvGetFull(id) || {};
+  const legPrev = prev.legal && typeof prev.legal === 'object' ? prev.legal : {};
+  const ciudadEdit = (document.getElementById('crozzo-prov-edit-ciudad')?.value || '').trim();
+  let retenciones = legPrev.retenciones || null;
+  if (
+    typeof CrozzoProveedorDocumentos !== 'undefined' &&
+    CrozzoProveedorDocumentos.computeRetencionesProveedor
+  ) {
+    retenciones = CrozzoProveedorDocumentos.computeRetencionesProveedor(
+      legPrev.regimenTributario || {},
+      legPrev.obligaciones || [],
+      legPrev.tipoPersona,
+      { ciudadProveedor: ciudadEdit }
+    );
+  }
+  const payload = {
+    id: id,
+    nombre: nombre,
+    nit: (document.getElementById('crozzo-prov-edit-nit')?.value || '').trim(),
+    telefono: (document.getElementById('crozzo-prov-edit-tel')?.value || '').trim(),
+    email: (document.getElementById('crozzo-prov-edit-email')?.value || '').trim(),
+    tipoRubro: document.getElementById('crozzo-prov-edit-rubro')?.value || 'Otro',
+    representante: (document.getElementById('crozzo-prov-edit-rep')?.value || '').trim(),
+    legal: Object.assign({}, legPrev, {
+      razonSocial: (document.getElementById('crozzo-prov-edit-razon')?.value || '').trim(),
+      nombreComercial: (document.getElementById('crozzo-prov-edit-comercial')?.value || '').trim(),
+      nombreParaTransferencias: (document.getElementById('crozzo-prov-edit-banco')?.value || '').trim(),
+      representanteLegal: (document.getElementById('crozzo-prov-edit-rep')?.value || '').trim(),
+      ciudad: ciudadEdit,
+      retenciones: retenciones,
+    }),
+  };
+  if (typeof crozzoReservorioUpsertProveedor === 'function') crozzoReservorioUpsertProveedor(payload);
+  else if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.upsertProveedor) {
+    CrozzoReservorio.upsertProveedor(payload);
+  }
+  closeModal();
+  showToast('Proveedor actualizado', 'success');
+  const mc = document.getElementById('mainContent');
+  if (mc && typeof renderComprasProveedores === 'function') {
+    const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
+    mc.innerHTML = renderComprasProveedores({ view: view });
+    initComprasProveedores({ view: view });
+  }
+}
+function crozzoProvDelete(id) {
+  const p = crozzoProvGetFull(id);
+  if (!p) return showToast('Proveedor no encontrado', 'error');
+  if (
+    !confirm(
+      '¿Eliminar «' +
+        (p.nombre || p.name || id) +
+        '» del directorio?\n\nNo borra facturas ya registradas; deja de aparecer en listas nuevas.'
+    )
+  ) {
+    return;
+  }
+  let ok = false;
+  if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.deleteProveedor) {
+    ok = CrozzoReservorio.deleteProveedor(id);
+  } else {
+    const list = (config.get('proveedoresOC') || []).filter((x) => String(x.id) !== String(id));
+    config.set('proveedoresOC', list);
+    ok = true;
+  }
+  if (!ok) return showToast('No se pudo eliminar', 'error');
+  if (config.addAudit) config.addAudit('proveedor_eliminado', String(p.nombre || id));
+  showToast('Proveedor eliminado del directorio', 'success');
+  const mc = document.getElementById('mainContent');
+  if (mc && typeof renderComprasProveedores === 'function') {
+    const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
+    mc.innerHTML = renderComprasProveedores({ view: view });
+    initComprasProveedores({ view: view });
+  }
+}
+window.crozzoProvFilterList = crozzoProvFilterList;
+window.crozzoProvView = crozzoProvView;
+window.crozzoProvViewRut = crozzoProvViewRut;
+window.crozzoProvEdit = crozzoProvEdit;
+window.crozzoProvSaveEdit = crozzoProvSaveEdit;
+window.crozzoProvDelete = crozzoProvDelete;
+function crozzoNavProveedores(tab) {
+  window.__crozzoProvOpenTab = tab || 'prov';
+  navigateTo('compras-proveedores');
+}
+window.crozzoNavProveedores = crozzoNavProveedores;
+function crozzoOpSwitchProvTab(name) {
   const root = document.getElementById('crozzo-op-root');
   if (!root) return;
-  window.__crozzoPoDraft = [];
+  const tabs = root.querySelector('#crozzo-op-tabs');
+  if (tabs) {
+    tabs.querySelectorAll('.crozzo-rep-tab').forEach((t) => {
+      t.classList.toggle('active', t.getAttribute('data-op-tab') === name);
+    });
+  }
+  root.querySelectorAll('[data-op-panel]').forEach((panel) => {
+    panel.style.display = panel.getAttribute('data-op-panel') === name ? '' : 'none';
+  });
+}
+function crozzoOpBindProvDocImports(root) {
+  if (!root) return;
+  if (typeof CrozzoProveedorDocumentos === 'undefined' || !CrozzoProveedorDocumentos.bindImportRoot) {
+    setTimeout(function () {
+      crozzoOpBindProvDocImports(root);
+    }, 350);
+    return;
+  }
+  root.querySelectorAll('[data-prov-doc-root]').forEach(function (importRoot) {
+    CrozzoProveedorDocumentos.bindImportRoot(importRoot, {
+      onSaved: function () {
+        const mc = document.getElementById('mainContent');
+        const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
+        if (mc && typeof renderComprasProveedores === 'function') {
+          mc.innerHTML = renderComprasProveedores({ view: view });
+          initComprasProveedores({ view: view });
+          if (view === 'full') crozzoOpSwitchProvTab('prov');
+        }
+      },
+    });
+  });
+}
+function initComprasProveedores(opts) {
+  opts = opts || {};
+  const root = document.getElementById('crozzo-op-root');
+  if (!root) return;
+  window.__crozzoPoDraft = window.__crozzoPoDraft || [];
   crozzoOpPoRenderDraft();
+  const nitLbl = document.getElementById('crozzo-op-prov-nit-label');
+  if (nitLbl && typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.labelIdentificador) {
+    nitLbl.textContent = CrozzoProveedorDocumentos.labelIdentificador();
+  }
+  crozzoOpBindProvDocImports(root);
+  const openTab = window.__crozzoProvOpenTab;
+  if (openTab && root.getAttribute('data-prov-view') === 'full') {
+    crozzoOpSwitchProvTab(openTab);
+    window.__crozzoProvOpenTab = null;
+  }
   if (!root.__crozzoOpBound) {
     root.__crozzoOpBound = true;
     root.addEventListener('click', (e) => {
       const tab = e.target.closest('.crozzo-rep-tab');
       if (!tab || !root.contains(tab)) return;
       const name = tab.getAttribute('data-op-tab');
-      root.querySelectorAll('#crozzo-op-tabs .crozzo-rep-tab').forEach((t) => t.classList.toggle('active', t === tab));
-      root.querySelectorAll('[data-op-panel]').forEach((panel) => {
-        panel.style.display = panel.getAttribute('data-op-panel') === name ? '' : 'none';
-      });
+      crozzoOpSwitchProvTab(name);
+      if (name === 'import') crozzoOpBindProvDocImports(root);
     });
   }
 }
+window.crozzoOpSwitchProvTab = crozzoOpSwitchProvTab;
 function crozzoOpPoRenderDraft() {
   const el = document.getElementById('crozzo-op-po-draft');
   if (!el) return;
@@ -7108,9 +7433,15 @@ function crozzoOpAddSupplier() {
   crozzoEnsureProveedoresExtensions();
   const name = (document.getElementById('crozzo-op-prov-name')?.value || '').trim();
   if (!name) return showToast('Nombre requerido', 'warning');
-  const nit = (document.getElementById('crozzo-op-prov-nit')?.value || '').trim();
+  const nitRaw = (document.getElementById('crozzo-op-prov-nit')?.value || '').trim();
   const phone = (document.getElementById('crozzo-op-prov-tel')?.value || '').trim();
   const rubro = (document.getElementById('crozzo-op-prov-rubro')?.value || '').trim();
+  let nit = nitRaw;
+  if (nitRaw && typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.validarIdentificador) {
+    const v = CrozzoProveedorDocumentos.validarIdentificador(nitRaw);
+    if (v.display) nit = v.display;
+    if (v.norm && !v.ok) showToast('Revise el dígito verificador del identificador', 'warning');
+  }
   if (typeof crozzoReservorioUpsertProveedor === 'function') {
     crozzoReservorioUpsertProveedor({
       nombre: name,
@@ -7140,8 +7471,9 @@ function crozzoOpAddSupplier() {
   showToast('Proveedor guardado — visible en Entrada de factura', 'success');
   const mc = document.getElementById('mainContent');
   if (mc) {
-    mc.innerHTML = renderComprasProveedores();
-    initComprasProveedores();
+    const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
+    mc.innerHTML = renderComprasProveedores({ view: view });
+    initComprasProveedores({ view: view });
   }
 }
 function crozzoOpPoAddLine() {
@@ -7325,6 +7657,12 @@ function renderProductos() {
               ${areas.map(a => `<option value="${a.id}">${a.nombre}</option>`).join('')}
             </select>
           </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="newProdTieneReceta" checked>
+              <span>Tiene proceso interno / receta de cocina (desmarque para venta directa: agua, gaseosa…)</span>
+            </label>
+          </div>
         </div>
         <div class="btn-group" style="justify-content:flex-end;">
           <button class="btn btn-primary" onclick="addCatalogProduct(${nextId})">Agregar producto</button>
@@ -7378,6 +7716,7 @@ function addCatalogProduct(nextIdHint) {
   const icon = (document.getElementById('newProdIcon')?.value || '🍽️').trim() || '🍽️';
   const categoria = (document.getElementById('newProdCategoria')?.value || 'platos-fuertes').trim();
   const areaComanda = (document.getElementById('newProdArea')?.value || getComandasConfig().areas[0]?.id || 'COCINA').trim();
+  const tieneRecetaProceso = document.getElementById('newProdTieneReceta')?.checked !== false;
   if (!nombre) return showToast('Nombre de producto requerido', 'warning');
   if (precio < 0) return showToast('Precio inválido', 'warning');
   const nextId = Math.max(Number(nextIdHint) || 0, ...products.map(p => p.id || 0)) + 1;
@@ -7389,9 +7728,11 @@ function addCatalogProduct(nextIdHint) {
     icon,
     categoria,
     areaComanda,
+    tieneRecetaProceso,
     opcionGrupos: [],
     arrastraProductos: []
   });
+  crozzoSyncProductoCosteo(products[products.length - 1]);
   showToast('Producto agregado al catálogo', 'success');
   try {
     if (typeof persistCatalogProductos === 'function') persistCatalogProductos(nextId);
@@ -7426,6 +7767,12 @@ function showEditProductModal(productId) {
           <select class="form-select" id="editProdArea">
             ${getComandasConfig().areas.map(a => `<option value="${a.id}" ${product.areaComanda === a.id ? 'selected' : ''}>${a.nombre}</option>`).join('')}
           </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1;">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="editProdTieneReceta" ${product.tieneRecetaProceso !== false ? 'checked' : ''}>
+            <span>Tiene proceso interno / receta (agua, gaseosa = sin receta)</span>
+          </label>
         </div>
       </div>
       <div class="form-group">
@@ -7483,6 +7830,7 @@ function saveProductAdvancedConfig(productId) {
   const precio = Number(document.getElementById('editProdPrecio')?.value || 0);
   const categoria = (document.getElementById('editProdCategoria')?.value || 'platos-fuertes').trim();
   const areaComanda = (document.getElementById('editProdArea')?.value || 'COCINA').trim();
+  const tieneRecetaProceso = document.getElementById('editProdTieneReceta')?.checked !== false;
   const optionRows = Array.from(document.querySelectorAll('#editProdOptionGroups .edit-option-group-row'));
   const arrastraProductos = Array.from(document.querySelectorAll('.editProdLinked:checked')).map(el => Number(el.value));
   const opcionGrupos = optionRows.map(row => {
@@ -7500,9 +7848,12 @@ function saveProductAdvancedConfig(productId) {
     precio: precio > 0 ? precio : p.precio,
     categoria,
     areaComanda,
+    tieneRecetaProceso,
     opcionGrupos,
     arrastraProductos
   } : p);
+  var updated = products.find(p => p.id === productId);
+  if (updated) crozzoSyncProductoCosteo(updated);
   closeModal();
   showToast('Producto actualizado', 'success');
   try {
@@ -16469,6 +16820,15 @@ function renderConfigEmpresa() {
           <input type="text" class="form-input" id="cfgDireccion" value="${emp.direccion || ''}" placeholder="Cra 15 #93-47, Bogotá">
         </div>
         <div class="form-group">
+          <label class="form-label">Departamento (sede)</label>
+          <input type="text" class="form-input" id="cfgDepartamento" value="${emp.departamento || ''}" placeholder="Ej. Risaralda, Cundinamarca">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ciudad / municipio (sede) *</label>
+          <input type="text" class="form-input" id="cfgCiudad" value="${emp.ciudad || ''}" placeholder="Ej. Pereira, Bogotá D.C.">
+          <span class="form-hint">Usada para <strong>RETE ICA</strong>: solo se retiene ICA a proveedores ubicados en la misma ciudad que su establecimiento.</span>
+        </div>
+        <div class="form-group">
           <label class="form-label">Teléfono</label>
           <input type="text" class="form-input" id="cfgTelefono" value="${emp.telefono || ''}" placeholder="+57 1 234 5678">
         </div>
@@ -16546,6 +16906,8 @@ function saveEmpresaConfig() {
     razonSocial: document.getElementById('cfgRazonSocial')?.value || '',
     nombreComercial: document.getElementById('cfgNombreComercial')?.value || '',
     direccion: document.getElementById('cfgDireccion')?.value || '',
+    departamento: document.getElementById('cfgDepartamento')?.value || '',
+    ciudad: document.getElementById('cfgCiudad')?.value || '',
     telefono: document.getElementById('cfgTelefono')?.value || '',
     email: document.getElementById('cfgEmail')?.value || '',
     codigoPostal: document.getElementById('cfgCodigoPostal')?.value || '',
@@ -16567,6 +16929,8 @@ function fillDemoEmpresa() {
     razonSocial: 'RESTAURANTE EL RINCÓN COLOMBIANO S.A.S.',
     nombreComercial: 'El Rincón Colombiano',
     direccion: 'Cra 15 #93-47, Bogotá D.C.',
+    departamento: 'Cundinamarca',
+    ciudad: 'Bogotá D.C.',
     telefono: '+57 1 234 5678',
     email: 'facturacion@rinconcolombiano.com',
     codigoPostal: '110111',
@@ -17062,15 +17426,16 @@ function renderConfigImpuestos() {
             <span class="form-hint">%</span>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Retención ICA</label>
-          <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label class="form-label">Retención ICA (industria y comercio)</label>
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
             <div class="toggle ${impuestos.retencionICA.aplica ? 'active' : ''}" onclick="toggleRetICA()">
               <div class="toggle-knob"></div>
             </div>
             <input type="number" class="form-input" id="retICARate" value="${impuestos.retencionICA.tarifa.toFixed(3)}" step="0.001" style="width: 100px;" ${!impuestos.retencionICA.aplica ? 'disabled' : ''}>
-            <span class="form-hint">%</span>
+            <span class="form-hint">% · por mil o tarifa local según su contador</span>
           </div>
+          <p class="form-hint" style="margin-top:8px">Solo aplica en compras a proveedores de la <strong>misma ciudad</strong> que la sede (configure ciudad en <button type="button" class="btn btn-link btn-sm" onclick="navigateTo('config-empresa')">Administración → Empresa</button>). Primero debe evaluarse retención en la fuente (renta); si no aplica renta, no se sugiere ICA.</p>
         </div>
       </div>
       <div class="btn-group">
@@ -21362,7 +21727,14 @@ function init() {
     __crozzoJsQRPromise = new Promise(function (resolve, reject) {
       var s = document.createElement('script');
       s.async = true;
-      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+      s.setAttribute('data-crozzo-jsqr', '1');
+      try {
+        var a = document.createElement('a');
+        a.href = 'vendor/CrozzoJsQR.js';
+        s.src = a.href;
+      } catch (e0) {
+        s.src = 'vendor/CrozzoJsQR.js';
+      }
       s.onload = function () {
         if (typeof window.jsQR === 'function') resolve(window.jsQR);
         else reject(new Error('jsQR'));

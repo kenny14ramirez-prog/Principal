@@ -36,6 +36,7 @@
       facturasOficina: [],
       cortes: [],
       inventarioMovimientos: [],
+      inventarioConteos: [],
       catalogoMp: [],
       costeoMp: [],
       cotizacionesMp: [],
@@ -70,6 +71,7 @@
     if (!Array.isArray(st.facturasOficina)) st.facturasOficina = [];
     if (!Array.isArray(st.cortes)) st.cortes = [];
     if (!Array.isArray(st.inventarioMovimientos)) st.inventarioMovimientos = [];
+    if (!Array.isArray(st.inventarioConteos)) st.inventarioConteos = [];
     if (!Array.isArray(st.catalogoMp)) st.catalogoMp = [];
     if (!Array.isArray(st.costeoMp)) st.costeoMp = [];
     if (!Array.isArray(st.cotizacionesMp)) st.cotizacionesMp = [];
@@ -502,23 +504,53 @@
     return save(st);
   }
 
+  function normProvNit(raw) {
+    if (global.CrozzoProveedorDocumentos && global.CrozzoProveedorDocumentos.normIdentificador) {
+      return global.CrozzoProveedorDocumentos.normIdentificador(raw);
+    }
+    return String(raw || '')
+      .replace(/[^0-9-]/gi, '')
+      .replace(/\./g, '')
+      .trim()
+      .toUpperCase();
+  }
+
   function upsertProveedorInternal(st, p) {
+    var forceNew = p.forceNew === true;
     var id = String(p.id || uid('prov'));
     var nombre = String(p.nombre || p.name || '').trim();
     if (!nombre) return null;
-    var idx = st.proveedores.findIndex(function (x) {
-      return String(x.id) === id || String(x.nombre || x.name || '').toUpperCase() === nombre.toUpperCase();
-    });
+    var nitNorm = normProvNit(p.nit);
+    var idx = -1;
+    if (p.id) {
+      idx = st.proveedores.findIndex(function (x) {
+        return String(x.id) === id;
+      });
+    }
+    if (!forceNew && idx < 0 && nitNorm) {
+      idx = st.proveedores.findIndex(function (x) {
+        return normProvNit(x.nit) === nitNorm;
+      });
+    }
+    if (!forceNew && idx < 0) {
+      idx = st.proveedores.findIndex(function (x) {
+        return String(x.nombre || x.name || '').toUpperCase() === nombre.toUpperCase();
+      });
+    }
+    if (idx >= 0) id = String(st.proveedores[idx].id);
+    var prev = idx >= 0 ? st.proveedores[idx] : {};
+    var legalNew = p.legal && typeof p.legal === 'object' ? p.legal : {};
+    var legalPrev = prev.legal && typeof prev.legal === 'object' ? prev.legal : {};
     var row = {
       id: id,
       nombre: nombre,
-      nit: p.nit || '',
-      telefono: p.telefono || p.phone || '',
-      categoria: p.categoria || p.tipoRubro || '',
-      tipoRubro: p.tipoRubro || p.categoria || '',
-      representante: p.representante || '',
-      email: p.email || '',
-      legal: p.legal && typeof p.legal === 'object' ? p.legal : {},
+      nit: p.nit || prev.nit || '',
+      telefono: p.telefono || p.phone || prev.telefono || '',
+      categoria: p.categoria || p.tipoRubro || prev.categoria || '',
+      tipoRubro: p.tipoRubro || p.categoria || prev.tipoRubro || '',
+      representante: p.representante || prev.representante || '',
+      email: p.email || prev.email || '',
+      legal: Object.assign({}, legalPrev, legalNew),
       activo: p.activo !== false,
       updatedAt: new Date().toISOString(),
     };
@@ -597,6 +629,22 @@
 
   function getProveedor(id) {
     return listProveedores().find(function (p) { return String(p.id) === String(id); });
+  }
+
+  function deleteProveedor(id) {
+    var st = migrateLegacy();
+    var idx = st.proveedores.findIndex(function (p) {
+      return String(p.id) === String(id);
+    });
+    if (idx < 0) return false;
+    st.proveedores[idx] = Object.assign({}, st.proveedores[idx], {
+      activo: false,
+      updatedAt: new Date().toISOString(),
+    });
+    pushSync(st, { tipo: 'delete', tabla: 'proveedores', payload: { id: String(id) } });
+    syncProveedoresToConfig(st);
+    save(st);
+    return true;
   }
 
   function addInventarioMovimiento(st, mov) {
@@ -1211,6 +1259,116 @@
     return migrateLegacy().inventarioMovimientos.slice(0, limit || 100);
   }
 
+  function inventarioConteoResumen(lineas) {
+    var contadas = 0;
+    var difs = 0;
+    var difValor = 0;
+    Object.keys(lineas || {}).forEach(function (k) {
+      var l = lineas[k];
+      if (!l || l.fisico == null || l.fisico === '' || !isFinite(Number(l.fisico))) return;
+      contadas++;
+      var teo = Number(l.teorico) || 0;
+      var fis = Number(l.fisico) || 0;
+      var diff = Math.round((fis - teo) * 100) / 100;
+      if (Math.abs(diff) > 0.001) {
+        difs++;
+        difValor += diff * (Number(l.precioUnit) || 0);
+      }
+    });
+    return {
+      contadas: contadas,
+      difs: difs,
+      difValor: Math.round(difValor),
+    };
+  }
+
+  function listInventarioConteos(limit) {
+    return migrateLegacy()
+      .inventarioConteos.slice()
+      .sort(function (a, b) {
+        return String(b.updatedAt || b.fecha || '').localeCompare(String(a.updatedAt || a.fecha || ''));
+      })
+      .slice(0, limit || 50);
+  }
+
+  function getInventarioConteoAbierto(fecha) {
+    var f = String(fecha || '').slice(0, 10);
+    return (
+      migrateLegacy().inventarioConteos.find(function (c) {
+        return c.estado === 'borrador' && String(c.fecha || '').slice(0, 10) === f;
+      }) || null
+    );
+  }
+
+  function getInventarioConteo(id) {
+    return migrateLegacy().inventarioConteos.find(function (c) {
+      return String(c.id) === String(id);
+    }) || null;
+  }
+
+  function upsertInventarioConteo(data) {
+    var st = migrateLegacy();
+    var now = new Date().toISOString();
+    var row = Object.assign({}, data || {});
+    if (!row.id) row.id = uid('cnt');
+    row.fecha = String(row.fecha || now.slice(0, 10)).slice(0, 10);
+    row.contadoPor = String(row.contadoPor || '').trim();
+    row.estado = row.estado === 'cerrado' ? 'cerrado' : 'borrador';
+    row.lineas = row.lineas && typeof row.lineas === 'object' ? row.lineas : {};
+    row.resumen = inventarioConteoResumen(row.lineas);
+    row.updatedAt = now;
+    if (!row.createdAt) row.createdAt = now;
+    var idx = st.inventarioConteos.findIndex(function (c) {
+      return String(c.id) === String(row.id);
+    });
+    if (idx >= 0) st.inventarioConteos[idx] = row;
+    else st.inventarioConteos.unshift(row);
+    if (st.inventarioConteos.length > 200) st.inventarioConteos.length = 200;
+    pushSync(st, { tipo: 'upsert', tabla: 'crozzo_inventario_cierres', payload: row });
+    save(st);
+    return row;
+  }
+
+  function cerrarInventarioConteo(conteoId, opts) {
+    opts = opts || {};
+    var st = migrateLegacy();
+    var idx = st.inventarioConteos.findIndex(function (c) {
+      return String(c.id) === String(conteoId);
+    });
+    if (idx < 0) return null;
+    var row = st.inventarioConteos[idx];
+    row.estado = 'cerrado';
+    row.cerradoAt = new Date().toISOString();
+    row.resumen = inventarioConteoResumen(row.lineas);
+    row.ajustesAplicados = !!opts.aplicarAjustes;
+    if (opts.aplicarAjustes) {
+      Object.keys(row.lineas || {}).forEach(function (mpId) {
+        var l = row.lineas[mpId];
+        if (!l || l.fisico == null || l.fisico === '' || !isFinite(Number(l.fisico))) return;
+        var teo = Number(l.teorico) || 0;
+        var fis = Number(l.fisico) || 0;
+        var diff = Math.round((fis - teo) * 100) / 100;
+        if (Math.abs(diff) < 0.001) return;
+        addInventarioMovimiento(st, {
+          tipo: diff > 0 ? 'ajuste_entrada' : 'ajuste_salida',
+          refTipo: 'conteo',
+          refId: row.id,
+          productoRefId: mpId,
+          productoRefTipo: 'materia_prima',
+          productoNombre: l.nombre || mpId,
+          cantidad: Math.abs(diff),
+          unidad: mpInvUnidad(l.und),
+          costoUnitario: Number(l.precioUnit) || 0,
+          notas: 'Ajuste conteo ' + row.fecha + (l.obs ? ' · ' + l.obs : ''),
+        });
+      });
+    }
+    st.inventarioConteos[idx] = row;
+    pushSync(st, { tipo: 'upsert', tabla: 'crozzo_inventario_cierres', payload: row });
+    save(st);
+    return row;
+  }
+
   function listFeed(limit) {
     return migrateLegacy().planillaFeed.slice(0, limit || 100);
   }
@@ -1344,6 +1502,7 @@
     syncProveedoresBidirectional: syncProveedoresBidirectional,
     listProveedoresOcFormat: listProveedoresOcFormat,
     getProveedor: getProveedor,
+    deleteProveedor: deleteProveedor,
     upsertProveedor: upsertProveedor,
     syncProveedoresToConfig: syncProveedoresToConfig,
     listCotizacionesMp: listCotizacionesMp,
@@ -1374,6 +1533,11 @@
     },
     getStats: getStats,
     listInventarioMovimientos: listInventarioMovimientos,
+    listInventarioConteos: listInventarioConteos,
+    getInventarioConteoAbierto: getInventarioConteoAbierto,
+    getInventarioConteo: getInventarioConteo,
+    upsertInventarioConteo: upsertInventarioConteo,
+    cerrarInventarioConteo: cerrarInventarioConteo,
     upsertMatrizMp: upsertMatrizMp,
     listMatrizMp: listMatrizMp,
     listCatalogoMp: function (limit) {

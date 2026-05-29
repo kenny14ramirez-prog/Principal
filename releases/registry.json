@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-26T05:18:46.270Z",
+  "updatedAt": "2026-05-29T02:40:12.958Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -83,6 +83,18 @@
       "installMode": "auto",
       "changelog": [
         "type changelog.txt"
+      ]
+    },
+    {
+      "id": "1.0.20-critical",
+      "version": "v1.0.20",
+      "semver": "1.0.20",
+      "type": "critical",
+      "message": "interfaz mejoras, menu de actualizacion y sistemas revisados ",
+      "publishedAt": "2026-05-29T02:40:12.958Z",
+      "installMode": "auto",
+      "changelog": [
+        "interfaz mejoras, menu de actualizacion y sistemas revisados"
       ]
     }
   ]
