@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-29T06:41:04.591Z",
+  "updatedAt": "2026-05-31T02:55:20.255Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -215,6 +215,18 @@
       "installMode": "auto",
       "changelog": [
         "2"
+      ]
+    },
+    {
+      "id": "1.0.34-critical",
+      "version": "v1.0.34",
+      "semver": "1.0.34",
+      "type": "critical",
+      "message": "mejoras",
+      "publishedAt": "2026-05-31T02:55:20.255Z",
+      "installMode": "auto",
+      "changelog": [
+        "mejoras"
       ]
     }
   ]

@@ -8,8 +8,79 @@
   var MIN_PASSWORD_LEN = 8;
   var DEFAULT_PASSWORDS = ['141414', '1234', 'password', 'admin', 'crozzo'];
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
+  var AUTH_PROOF_LS = 'crozzo_auth_proof_v1';
+  var DEVICE_AUTH_KEY_LS = 'crozzo_device_auth_key_v1';
+  /** Solo vive en memoria: cada arranque/recarga exige login de nuevo. */
+  var CROZZO_BOOT_SESSION_TOKEN = (function () {
+    try {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    } catch (_) {}
+    return 'boot-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  })();
   var MAX_ATTEMPTS = 5;
   var LOCK_MS = 5 * 60 * 1000;
+
+  /** Clave por dispositivo (localStorage) — prueba de sesión no forgeable con solo sessionStorage. */
+  function crozzoGetDeviceAuthKey() {
+    try {
+      var k = localStorage.getItem(DEVICE_AUTH_KEY_LS);
+      if (!k) {
+        k =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem(DEVICE_AUTH_KEY_LS, k);
+      }
+      return k;
+    } catch (_) {
+      return 'crozzo-device-fallback';
+    }
+  }
+
+  function crozzoProofDigest(userId) {
+    var raw = crozzoGetDeviceAuthKey() + '|' + String(userId || '') + '|crozzo-auth-v1';
+    var h = 0;
+    for (var i = 0; i < raw.length; i++) {
+      h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0;
+    }
+    return 'p1.' + Math.abs(h).toString(36) + '.' + String(userId || '').length;
+  }
+
+  function crozzoIssueAuthProof(userId) {
+    var uid = String(userId || '').trim();
+    if (!uid) return false;
+    var proof = {
+      userId: uid,
+      issuedAt: Date.now(),
+      digest: crozzoProofDigest(uid),
+      boot: CROZZO_BOOT_SESSION_TOKEN,
+      v: 2,
+    };
+    try {
+      sessionStorage.setItem(AUTH_PROOF_LS, JSON.stringify(proof));
+    } catch (_) {}
+    return true;
+  }
+
+  function crozzoValidateAuthProof(userId) {
+    try {
+      var raw = sessionStorage.getItem(AUTH_PROOF_LS);
+      if (!raw) return false;
+      var proof = JSON.parse(raw);
+      if (!proof || proof.v !== 2) return false;
+      if (proof.boot !== CROZZO_BOOT_SESSION_TOKEN) return false;
+      if (String(proof.userId) !== String(userId || '')) return false;
+      return proof.digest === crozzoProofDigest(userId);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function crozzoClearAuthProof() {
+    try {
+      sessionStorage.removeItem(AUTH_PROOF_LS);
+    } catch (_) {}
+  }
 
   function enc() {
     return new TextEncoder();
@@ -826,5 +897,8 @@
     ensureHoneypotLegendUnlock: ensureHoneypotLegendUnlock,
     crozzoHoneypotVerifyLegendUnlock: crozzoHoneypotVerifyLegendUnlock,
     crozzoHoneypotClearLegendLock: crozzoHoneypotClearLegendLock,
+    crozzoIssueAuthProof: crozzoIssueAuthProof,
+    crozzoValidateAuthProof: crozzoValidateAuthProof,
+    crozzoClearAuthProof: crozzoClearAuthProof,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

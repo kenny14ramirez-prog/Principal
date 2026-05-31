@@ -1,0 +1,31 @@
+{
+  "version": 3,
+  "trainedAt": "2026-05-30",
+  "sampleSize": 83,
+  "okFePct": 45.8,
+  "okQrPct": 15.7,
+  "scannedFailPct": 51,
+  "summary": {
+    "escaneada-sin-qr-cufe": 42,
+    "fe-qr": 10,
+    "fe-ocr": 9,
+    "fe-qr-sin-cufe": 2,
+    "fe-texto-pdf": 19,
+    "sin-fe-detectada": 1
+  },
+  "qrZones": {
+    "esquina-sup-der": 1,
+    "centro": 4,
+    "esquina-inf-izq": 3,
+    "borde-sup": 3,
+    "esquina-inf-der": 1
+  },
+  "hint": "Entrenamiento 83 facturas (2026-05-30): ~45.8% CUFE · ~15.7% QR. Escaneos difíciles: marque QR o cámara.",
+  "recommendations": [
+    "QR arriba/abajo: bandas sup/inf + rejilla 6×6 antes que centro.",
+    "Modo lote: edges → lite → standard → high (sin OCR si ya hay QR URL).",
+    "QR sin CUFE: badge «QR detectado» — confirme en DIAN o Reanalizar.",
+    "PDF escaneado sin QR: marque zona en vista o use cámara alta resolución.",
+    "Re-entrenar: npm run train:recepcion-fe [--full] [--retry-failed]"
+  ]
+}

@@ -17,6 +17,16 @@
   var LS_APPLIED_ENTRIES = 'crozzo_update_applied_entry_ids';
   var LS_SESSION_DISMISS = 'crozzo_update_session_dismiss';
   var LS_SNOOZE_UNTIL = 'crozzo_update_snooze_until';
+  var LS_POST_UPDATE_WELCOME = 'crozzo_update_post_welcome';
+  var CHANGELOG_TAG_META = {
+    FIX: { key: 'fix', label: 'Correcciones', icon: '🔧' },
+    UI: { key: 'ui', label: 'Pantalla más clara', icon: '✨' },
+    PERF: { key: 'perf', label: 'Más velocidad', icon: '⚡' },
+    NEW: { key: 'new', label: 'Funciones nuevas', icon: '🆕' },
+    UPD: { key: 'upd', label: 'Mejoras', icon: '📈' },
+    AUTO: { key: 'auto', label: 'Automatización', icon: '🤖' },
+    SEC: { key: 'sec', label: 'Seguridad', icon: '🔒' },
+  };
   var CHECK_INTERVAL_MS = 15 * 60 * 1000;
   var BOOT_DELAY_MS = 2000;
 
@@ -183,6 +193,7 @@
       if (ids.indexOf(id) < 0) ids.push(id);
       localStorage.setItem(LS_APPLIED_ENTRIES, JSON.stringify(ids));
     } catch (_) {}
+    queuePostUpdateWelcome(entry, tv);
     if (isCriticalEntry(entry)) {
       pushStateId('ackCritical', id);
       appendLocalLog('critica_instalada', entry);
@@ -408,6 +419,268 @@
       isDesktopBinary: kind === 'windows' || kind === 'mac' || kind === 'desktop',
       canAutoInstall: !!canAutoInstall,
     };
+  }
+
+  /** Perfil operativo + rol: adapta tono del aviso (simulación E1 — equipo inexperto). */
+  function getUpdateOperativeContext() {
+    var ctx = {
+      experiencia: 'mixed',
+      canInstall: true,
+      isPeak: false,
+      roleLabel: '',
+      isStaffOnly: false,
+    };
+    try {
+      if (typeof global.crozzoGetPerfilOperativo === 'function' && typeof global.crozzoGetPerfilEmpresa === 'function') {
+        var op = global.crozzoGetPerfilOperativo(global.crozzoGetPerfilEmpresa());
+        if (op && op.experiencia) ctx.experiencia = op.experiencia;
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser()) {
+        ctx.canInstall = true;
+        ctx.roleLabel = 'super_admin';
+        return ctx;
+      }
+      var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+      if (u) {
+        var r =
+          typeof global.crozzoNormalizeAppRol === 'function'
+            ? global.crozzoNormalizeAppRol(u.rol)
+            : String(u.rol || '').toLowerCase();
+        ctx.roleLabel = r;
+        ctx.canInstall =
+          r === 'admin' || r === 'super_admin' || r === 'gerente' || r === 'caja' || r === 'inventario';
+        ctx.isStaffOnly = !ctx.canInstall && (r === 'mesero' || r === 'cocina' || r === 'user' || !r);
+      }
+    } catch (_) {}
+    try {
+      var stress = document.body && document.body.getAttribute('data-crozzo-stress');
+      ctx.isPeak =
+        stress === 'busy' || stress === 'rush' || stress === 'critical' ||
+        !!(document.body && document.body.classList.contains('crozzo-peak-novice'));
+    } catch (_) {}
+    return ctx;
+  }
+
+  function parseChangelogLine(line) {
+    var raw = String(line || '').trim();
+    if (!raw) return { tag: 'general', text: '', label: 'Novedades', icon: '📋' };
+    var m = /^\[(FIX|UI|PERF|NEW|UPD|AUTO|SEC)\]\s*(.*)$/i.exec(raw);
+    if (!m) return { tag: 'general', text: raw, label: 'Novedades', icon: '📋' };
+    var meta = CHANGELOG_TAG_META[m[1].toUpperCase()] || CHANGELOG_TAG_META.UPD;
+    return {
+      tag: meta.key,
+      text: String(m[2] || raw).trim(),
+      label: meta.label,
+      icon: meta.icon,
+    };
+  }
+
+  function noviceFriendlyChange(parsed) {
+    if (!parsed || !parsed.text) return '';
+    if (parsed.tag === 'perf') return 'El sistema responderá más rápido, sobre todo en horas pico.';
+    if (parsed.tag === 'sec') return 'Refuerzo de seguridad: sus datos y la caja quedan más protegidos.';
+    if (parsed.tag === 'ui') return 'Pantallas más fáciles de leer durante el servicio.';
+    if (parsed.tag === 'fix') return 'Corregimos un detalle para que el turno fluya mejor: ' + parsed.text;
+    return parsed.text;
+  }
+
+  function buildHumanChangelogHtml(changes, opts) {
+    opts = opts || {};
+    var ctx = opts.ctx || getUpdateOperativeContext();
+    var novice = ctx.experiencia === 'novice' || ctx.experiencia === 'mixed';
+    var list = (changes || []).filter(Boolean);
+    if (!list.length) {
+      return '<p class="crozzo-update-detail-modal__empty">Sin detalle de cambios en el registro remoto.</p>';
+    }
+    var groups = {};
+    list.forEach(function (line) {
+      var p = parseChangelogLine(line);
+      var key = p.tag || 'general';
+      if (!groups[key]) groups[key] = { meta: p, items: [] };
+      groups[key].items.push(p);
+    });
+    var order = ['sec', 'fix', 'perf', 'ui', 'new', 'upd', 'auto', 'general'];
+    var html = '<div class="crozzo-update-changelog-human">';
+    order.forEach(function (key) {
+      var g = groups[key];
+      if (!g || !g.items.length) return;
+      html +=
+        '<section class="crozzo-update-changelog-human__group">' +
+        '<h4 class="crozzo-update-changelog-human__title">' +
+        escapeHtml(g.meta.icon + ' ' + g.meta.label) +
+        '</h4><ul class="crozzo-update-changelog-human__list">';
+      g.items.forEach(function (p) {
+        var txt = novice ? noviceFriendlyChange(p) : p.text;
+        html += '<li>' + escapeHtml(txt) + '</li>';
+      });
+      html += '</ul></section>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function buildNoviceImpactHtml(changes) {
+    var top = (changes || []).slice(0, 3).map(parseChangelogLine);
+    if (!top.length) return '';
+    var bullets = top
+      .map(function (p) {
+        return '<li>' + escapeHtml(noviceFriendlyChange(p)) + '</li>';
+      })
+      .join('');
+    return (
+      '<div class="crozzo-update-detail-modal__impact">' +
+      '<h3>Qué significa para su turno</h3>' +
+      '<ul>' +
+      bullets +
+      '</ul>' +
+      '<p class="form-hint">No tiene que memorizar nada: la app sigue igual de usar. Instale al cierre o cuando no haya ventas abiertas.</p>' +
+      '</div>'
+    );
+  }
+
+  function applyNormalBannerRoleChrome(ctx) {
+    var banner = document.getElementById('crozzo-update-normal-banner');
+    var installBtn = document.getElementById('crozzoUpdateNormalInstall');
+    var laterBtn = document.getElementById('crozzoUpdateNormalLater');
+    var changesBtn = document.getElementById('crozzoUpdateNormalChanges');
+    if (!banner) return;
+    ctx = ctx || getUpdateOperativeContext();
+    banner.classList.toggle('crozzo-update-normal-banner--novice', ctx.experiencia === 'novice');
+    banner.classList.toggle('crozzo-update-normal-banner--peak', !!ctx.isPeak);
+    banner.classList.toggle('crozzo-update-normal-banner--staff', !!ctx.isStaffOnly);
+    if (installBtn) {
+      if (ctx.isStaffOnly) {
+        installBtn.hidden = true;
+      } else {
+        installBtn.hidden = false;
+        installBtn.textContent =
+          ctx.experiencia === 'novice'
+            ? ctx.isPeak
+              ? 'Instalar al cierre'
+              : 'Instalar al cierre'
+            : 'Instalar ahora';
+      }
+    }
+    if (laterBtn) {
+      laterBtn.textContent = ctx.experiencia === 'novice' ? 'Recordarme mañana' : 'Instalar después';
+    }
+    if (changesBtn) {
+      changesBtn.textContent = ctx.experiencia === 'novice' ? 'Ver qué cambia' : 'Ver cambios';
+    }
+  }
+
+  function buildUpdateToastMessage(entry, isCritical) {
+    var ctx = getUpdateOperativeContext();
+    var ver = normEntryVersion(entry);
+    if (isCritical) {
+      return ctx.experiencia === 'novice'
+        ? 'Actualización importante en camino — no cierre la app. El encargado verá el progreso.'
+        : 'Actualización crítica: instalando…';
+    }
+    if (ctx.isStaffOnly) {
+      return 'Hay una mejora del sistema. Avise al encargado cuando haya un momento tranquilo.';
+    }
+    if (ctx.experiencia === 'novice') {
+      return 'Mejora disponible (' + ver + '). Instálela al cierre — no interrumpe ventas en curso.';
+    }
+    return 'Nueva versión ' + ver + ' disponible.';
+  }
+
+  function queuePostUpdateWelcome(entry, targetVersion) {
+    var changes = [];
+    if (entry && Array.isArray(entry.changelog)) changes = entry.changelog.slice();
+    else if (UPDATE_NORMAL && Array.isArray(UPDATE_NORMAL.changes)) changes = UPDATE_NORMAL.changes.slice();
+    var ctx = getUpdateOperativeContext();
+    var headline =
+      ctx.experiencia === 'novice'
+        ? 'Listo — la app quedó actualizada. Siga con su turno con normalidad.'
+        : 'Actualización ' + (targetVersion || normEntryVersion(entry)) + ' aplicada correctamente.';
+    try {
+      localStorage.setItem(
+        LS_POST_UPDATE_WELCOME,
+        JSON.stringify({
+          at: Date.now(),
+          version: targetVersion || normEntryVersion(entry),
+          headline: headline,
+          changes: changes.slice(0, 4),
+          experiencia: ctx.experiencia,
+        })
+      );
+    } catch (_) {}
+  }
+
+  function maybeShowPostUpdateWelcome() {
+    var pack = null;
+    try {
+      var raw = localStorage.getItem(LS_POST_UPDATE_WELCOME);
+      if (raw) pack = JSON.parse(raw);
+    } catch (_) {}
+    if (!pack || !pack.headline) return;
+    try {
+      localStorage.removeItem(LS_POST_UPDATE_WELCOME);
+    } catch (_) {}
+    if (typeof global.showToast !== 'function') return;
+    global.showToast(pack.headline, 'success');
+    if (pack.changes && pack.changes.length && typeof global.openModal === 'function') {
+      var body =
+        buildNoviceImpactHtml(pack.changes) ||
+        buildHumanChangelogHtml(pack.changes, { ctx: { experiencia: pack.experiencia || 'mixed' } });
+      setTimeout(function () {
+        try {
+          global.openModal(
+            'Actualización instalada · ' + escapeHtml(pack.version || ''),
+            body +
+              '<div class="modal-actions" style="margin-top:14px;"><button type="button" class="btn btn-primary" onclick="closeModal()">Entendido — continuar</button></div>'
+          );
+        } catch (_) {}
+      }, 900);
+    }
+  }
+
+  function fetchEmbeddedChangelogLines() {
+    var urls = ['changelog.txt', '../changelog.txt', 'app/changelog.txt'];
+    var idx = 0;
+    function tryNext() {
+      if (idx >= urls.length) return Promise.resolve([]);
+      var url = urls[idx++];
+      return fetch(url + '?_=' + Date.now(), { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) return tryNext();
+          return res.text();
+        })
+        .then(function (text) {
+          if (!text || typeof text !== 'string') return tryNext();
+          var lines = [];
+          text.split(/\r?\n/).forEach(function (line) {
+            var t = String(line || '').trim();
+            if (!t || /^CHANGELOG/i.test(t) || /^=+$/.test(t)) return;
+            if (/^\[/.test(t)) lines.push(t);
+            else if (lines.length && /^\s+-/.test(line)) {
+              lines[lines.length - 1] += ' — ' + t.replace(/^\s+-+\s*/, '');
+            } else if (t.indexOf('—') >= 0 || t.indexOf('-') === 0) {
+              lines.push('[UPD] ' + t.replace(/^[-–—]\s*/, ''));
+            }
+          });
+          return lines.length ? lines : tryNext();
+        })
+        .catch(function () {
+          return tryNext();
+        });
+    }
+    return tryNext();
+  }
+
+  function enrichEntryChangelog(entry) {
+    if (!entry) return Promise.resolve(entry);
+    var existing = Array.isArray(entry.changelog) ? entry.changelog.slice() : [];
+    if (existing.length) return Promise.resolve(entry);
+    return fetchEmbeddedChangelogLines().then(function (lines) {
+      if (!lines.length) return entry;
+      entry.changelog = lines;
+      return entry;
+    });
   }
 
   function planBAssetLabel(profile) {
@@ -1430,8 +1703,39 @@
   function setNormalBannerMessage() {
     var msg = document.getElementById('crozzoUpdateNormalMsg');
     if (!msg) return;
-    var typeLabel = UPDATE_NORMAL.type || 'Actualización opcional';
+    var ctx = getUpdateOperativeContext();
+    applyNormalBannerRoleChrome(ctx);
     var profile = getUpdateClientProfile();
+    var summary =
+      UPDATE_NORMAL.summary && String(UPDATE_NORMAL.summary).trim()
+        ? String(UPDATE_NORMAL.summary).trim()
+        : 'Mejoras de rendimiento y estabilidad.';
+    if (ctx.isStaffOnly) {
+      msg.textContent =
+        'Hay una mejora del sistema (' +
+        VERSION_AVAIL +
+        '). Avise al encargado para instalarla al cierre del turno.';
+      return;
+    }
+    if (ctx.experiencia === 'novice') {
+      if (ctx.isPeak) {
+        msg.innerHTML =
+          '<strong>Mejora lista</strong> (' +
+          escapeHtml(VERSION_AVAIL) +
+          ') — ' +
+          escapeHtml(summary) +
+          '. <strong>Instálela al cierre</strong>; ahora hay servicio activo y la app esperará a que no haya ventas abiertas.';
+      } else {
+        msg.innerHTML =
+          'Mejora disponible: <strong>' +
+          escapeHtml(VERSION_AVAIL) +
+          '</strong> — ' +
+          escapeHtml(summary) +
+          '. Puede instalar ahora; <strong>no interrumpe ventas en curso</strong>.';
+      }
+      return;
+    }
+    var typeLabel = UPDATE_NORMAL.type || 'Actualización opcional';
     var actionHint = profile.canAutoInstall
       ? 'instalar en este equipo'
       : profile.isAndroid
@@ -1480,19 +1784,16 @@
 
   function buildDetailBodyHtml() {
     var u = UPDATE_NORMAL;
-    var changesHtml = (u.changes || [])
-      .map(function (c) {
-        return '<li>' + escapeHtml(c) + '</li>';
-      })
-      .join('');
+    var ctx = getUpdateOperativeContext();
+    var changesHtml = buildHumanChangelogHtml(u.changes || [], { ctx: ctx });
+    var impactHtml = ctx.experiencia === 'novice' || ctx.experiencia === 'mixed' ? buildNoviceImpactHtml(u.changes || []) : '';
     return (
-      '<p>' +
-      escapeHtml(u.summary) +
+      '<p class="crozzo-update-detail-modal__lead">' +
+      escapeHtml(u.summary || 'Nueva versión disponible.') +
       '</p>' +
+      impactHtml +
       '<h3>Novedades incluidas</h3>' +
-      '<ul>' +
       changesHtml +
-      '</ul>' +
       '<p class="crozzo-update-detail-modal__note">' +
       escapeHtml(u.notes) +
       '</p>'
@@ -1936,6 +2237,14 @@
     UPDATE_NORMAL = buildUpdateNormalFromEntry(entry, VERSION);
     setCriticalOpen(false);
     setNormalOpen(true);
+    enrichEntryChangelog(entry).then(function (enriched) {
+      if (!enriched || entryId(enriched) !== _currentOptionalId) return;
+      if (!Array.isArray(enriched.changelog) || !enriched.changelog.length) return;
+      UPDATE_NORMAL = buildUpdateNormalFromEntry(enriched, VERSION);
+      setNormalBannerMessage();
+      var detailOv = document.getElementById('crozzo-update-detail-overlay');
+      if (detailOv && detailOv.classList.contains('is-open')) populateDetailPanel();
+    });
     return true;
   }
 
@@ -2160,11 +2469,10 @@
             'Actualización ' + tipo + ' detectada (' + active + '). Equipo: ' + VERSION + ' → ' + VERSION_AVAIL + '.'
           );
           if (opts.toastOnFound !== false && typeof global.showToast === 'function') {
+            var pendingEntry = pickNextPendingEntry(pending) || pending[0] || {};
             global.showToast(
-              isCriticalEntry(pending[0] || {})
-                ? 'Actualización crítica: instalando…'
-                : 'Nueva versión ' + VERSION_AVAIL + ' disponible.',
-              isCriticalEntry(pending[0] || {}) ? 'warning' : 'info'
+              buildUpdateToastMessage(pendingEntry, isCriticalEntry(pendingEntry)),
+              isCriticalEntry(pendingEntry) ? 'warning' : 'info'
             );
           }
         } else if (pending.length) {
@@ -2227,8 +2535,11 @@
       appendLocalLog('aviso_pospuesto', entry);
       try {
         if (typeof global.showToast === 'function') {
+          var ctx = getUpdateOperativeContext();
           global.showToast(
-            'Actualización ' + normEntryVersion(entry) + ' pospuesta. El aviso volverá más tarde.',
+            ctx.experiencia === 'novice'
+              ? 'Mejora pospuesta — le recordaremos mañana o al próximo inicio tranquilo.'
+              : 'Actualización ' + normEntryVersion(entry) + ' pospuesta. El aviso volverá más tarde.',
             'info'
           );
         }
@@ -2719,6 +3030,7 @@
 
   function onAuthReady() {
     setTimeout(function () {
+      maybeShowPostUpdateWelcome();
       checkForUpdates({ silent: true, toastOnFound: true });
     }, 1500);
   }
@@ -2783,12 +3095,19 @@
     defaultRegistryUrl: DEFAULT_REGISTRY_URL,
     renderRegistry: renderRegistryPanel,
     renderLocalLog: renderLocalLogPanel,
+    getOperativeContext: getUpdateOperativeContext,
+    humanizeChangelog: buildHumanChangelogHtml,
   };
 
   function boot() {
     initCrozzoUpdateOverlays();
     wirePosIdleListener();
     startCrozzoUpdateChecks();
+    global.addEventListener('crozzo:operational-stress', function () {
+      var banner = document.getElementById('crozzo-update-normal-banner');
+      if (banner && banner.classList.contains('is-open')) setNormalBannerMessage();
+    });
+    setTimeout(maybeShowPostUpdateWelcome, 3200);
   }
 
   if (document.readyState === 'loading') {

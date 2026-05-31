@@ -191,9 +191,28 @@
     var nameEl = document.getElementById('userMenuName');
     var roleEl = document.getElementById('userMenuRole');
     var avatarEl = document.getElementById('userMenuAvatarInitial');
+    var root = document.getElementById('crozzoUserMenu');
+    var cpBtn = document.getElementById('change-password-btn');
+    var loBtn = document.getElementById('logout-btn');
     var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
-    var nombre = (u && u.nombre) || 'Invitado';
-    var rol = (u && u.rol) || '—';
+    if (!u) {
+      if (nameEl) nameEl.textContent = 'Sin sesión';
+      if (roleEl) roleEl.textContent = 'Pulse el icono para iniciar sesión';
+      if (avatarEl) avatarEl.textContent = '?';
+      if (root) root.classList.add('crozzo-user-menu--guest');
+      if (cpBtn) cpBtn.hidden = true;
+      if (loBtn) {
+        loBtn.hidden = false;
+        loBtn.textContent = 'Iniciar sesión';
+      }
+      if (typeof global.crozzoUpdatePremiumIdentity === 'function') global.crozzoUpdatePremiumIdentity();
+      return;
+    }
+    if (root) root.classList.remove('crozzo-user-menu--guest');
+    if (cpBtn) cpBtn.hidden = false;
+    if (loBtn) loBtn.textContent = 'Cerrar sesión';
+    var nombre = u.nombre || 'Usuario';
+    var rol = u.rol || '—';
     var rolLabels = {
       caja: 'Caja principal',
       mesero: 'Mesero',
@@ -304,6 +323,15 @@
 
   function userMenuLogout() {
     closeUserMenu();
+    var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+    if (!u) {
+      if (typeof global.showLoginOverlay === 'function') global.showLoginOverlay();
+      return;
+    }
+    if (typeof global.crozzoRequestLogout === 'function') {
+      global.crozzoRequestLogout({ source: 'user-menu', force: true });
+      return;
+    }
     if (!global.confirm('¿Seguro que deseas salir?')) return;
     if (typeof global.logoutCurrentUser === 'function') global.logoutCurrentUser();
     if (typeof global.applyAccessControl === 'function') global.applyAccessControl();
@@ -326,6 +354,12 @@
 
     trigger.addEventListener('click', function (e) {
       e.stopPropagation();
+      var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+      if (!u) {
+        closeUserMenu();
+        if (typeof global.showLoginOverlay === 'function') global.showLoginOverlay();
+        return;
+      }
       setUserMenuOpen(!userMenu.open);
       syncUserMenuProfile();
     });
@@ -396,6 +430,14 @@
     }
 
     syncUserMenuProfile();
+    global.addEventListener('crozzo:auth-ready', function () {
+      syncUserMenuProfile();
+    });
+    try {
+      document.addEventListener('crozzo-ready', function () {
+        syncUserMenuProfile();
+      });
+    } catch (_) {}
   }
 
   var a11yPanelOpen = false;

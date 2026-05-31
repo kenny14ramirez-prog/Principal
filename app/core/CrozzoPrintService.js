@@ -60,8 +60,16 @@
   }
 
   function crozzoRefreshPrinterList() {
-    global.AVAILABLE_PRINTERS = crozzoGetAvailablePrinters();
-    return global.AVAILABLE_PRINTERS;
+    if (global.__crozzoRefreshingPrinterList) {
+      return global.AVAILABLE_PRINTERS || crozzoGetAvailablePrinters();
+    }
+    global.__crozzoRefreshingPrinterList = true;
+    try {
+      global.AVAILABLE_PRINTERS = crozzoGetAvailablePrinters();
+      return global.AVAILABLE_PRINTERS;
+    } finally {
+      global.__crozzoRefreshingPrinterList = false;
+    }
   }
 
   function crozzoLoadSystemPrintersAsync() {
@@ -587,6 +595,25 @@
     });
   }
 
+  function crozzoPrintRetryFailed() {
+    var retried = false;
+    __crozzoPrintQueue.forEach(function (j) {
+      if (j.status === 'error') {
+        j.status = 'pending';
+        j.finishedAt = null;
+        retried = true;
+      }
+    });
+    if (retried) {
+      crozzoNotifyPrintQueueUi();
+      crozzoPrintQueueRunNext();
+      if (typeof global.showToast === 'function') global.showToast('Reintentando impresiones fallidas…', 'info');
+    } else if (typeof global.showToast === 'function') {
+      global.showToast('No hay impresiones fallidas en cola', 'info');
+    }
+    return retried;
+  }
+
   function crozzoAutoPrintFacturaIfConfigured(factura) {
     if (getAdminConfig().autoImprimir === false) return Promise.resolve(false);
     var printer = getCajaPrinter();
@@ -718,6 +745,7 @@
   global.crozzoFacturaPrintThermal = crozzoFacturaPrintThermal;
   global.crozzoGetPrintQueueStatus = crozzoGetPrintQueueStatus;
   global.crozzoPrintEnqueue = crozzoPrintEnqueue;
+  global.crozzoPrintRetryFailed = crozzoPrintRetryFailed;
 
   if (!Array.isArray(global.AVAILABLE_PRINTERS) || !global.AVAILABLE_PRINTERS.length) {
     global.AVAILABLE_PRINTERS = DEFAULT_PRINTERS.slice();

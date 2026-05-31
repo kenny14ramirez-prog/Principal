@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.33">
+<meta name="crozzo-app-version" content="1.0.34">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -19,6 +19,23 @@
 <script src="core/CrozzoStorageHygiene.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
+<script>
+(function () {
+  try {
+    if (localStorage.getItem('crozzo_kiosk') === '1') return;
+  } catch (_) {}
+  try {
+    sessionStorage.removeItem('crozzo_session_user');
+    sessionStorage.removeItem('crozzo_cloud_profile');
+    sessionStorage.removeItem('crozzo_cloud_auth_uid');
+    sessionStorage.removeItem('crozzo_auth_proof_v1');
+    localStorage.removeItem('crozzo_user_role');
+  } catch (_) {}
+  window.__crozzoAuthInteractiveThisBoot = false;
+  window.crozzoPosIsOperationBusy = window.crozzoPosIsOperationBusy || function () { return false; };
+  window.crozzoPosNotifyOperationState = window.crozzoPosNotifyOperationState || function () {};
+})();
+</script>
 <script src="core/CrozzoViewportFit.js"></script>
 <script>
 try {
@@ -859,7 +876,12 @@ if (window.__CROZZO_IS_TAURI__) {
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>
+<script src="modules/CrozzoPerfilesOperativos.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
+<script src="modules/CrozzoOnboardingOperativo.js" defer></script>
+<script src="modules/CrozzoOperativePsyche.js" defer></script>
+<script src="modules/CrozzoAdquirienteLookup.js" defer></script>
+<script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="core/CrozzoLazyModules.js" defer></script>

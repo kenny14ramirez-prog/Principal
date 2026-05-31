@@ -3457,6 +3457,7 @@ body.crozzo-premium-psyche #sidebar .nav-item.active {
   );
   box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb, 201, 169, 98), 0.08);
 }
+body.crozzo-premium-human .toast.toast-success.toast-premium-success,
 body.crozzo-premium-psyche .toast.toast-success.toast-premium-success {
   border-left-color: var(--premium-gold);
   background: linear-gradient(
@@ -3466,8 +3467,20 @@ body.crozzo-premium-psyche .toast.toast-success.toast-premium-success {
   );
   box-shadow: var(--shadow-md), 0 0 0 1px var(--premium-gold-soft);
 }
+body.crozzo-premium-human .toast.toast-success.toast-premium-success span:first-child,
 body.crozzo-premium-psyche .toast.toast-premium-success span:first-child {
   filter: none;
+}
+body.crozzo-premium-human .crozzo-header-greeting {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--accent, #c9a962) 75%, var(--text-primary));
+}
+body.crozzo-premium-human .main-header {
+  border-bottom-color: color-mix(in srgb, var(--border) 82%, var(--accent, #c9a962) 18%);
+}
+body.crozzo-premium-human .toast.toast-warning {
+  border-left-color: color-mix(in srgb, var(--accent, #c9a962) 55%, #f59e0b);
 }
 @media (max-width: 1024px) {
   body.crozzo-premium-psyche .crozzo-header-greeting {
@@ -5112,6 +5125,616 @@ tr:hover {
   max-width: 1100px;
   margin: 0 auto;
 }
+
+/* —— Onboarding operativo (Día 0–30) —— */
+.crozzo-onb-banner {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.12), var(--bg-card));
+}
+.crozzo-onb-banner__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.crozzo-onb-banner__sub {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: normal;
+  margin-top: 2px;
+}
+.crozzo-onb-banner__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.crozzo-onb-banner__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.crozzo-onb-banner__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #c9a962);
+  transition: width 0.35s ease;
+}
+.crozzo-onb-banner__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.crozzo-onb__pending-item {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.crozzo-onb__pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning, #e6a817);
+  flex-shrink: 0;
+}
+.crozzo-onb-modal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(420px, 55vh);
+  overflow-y: auto;
+}
+.crozzo-onb-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crozzo-onb-row--done {
+  opacity: 0.72;
+}
+.crozzo-onb-row__icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+.crozzo-onb-row__body p {
+  margin: 4px 0 8px;
+}
+.crozzo-onb-modal__progress {
+  margin-bottom: 12px;
+}
+.crozzo-onb-modal__progress .crozzo-onb-banner__bar {
+  margin-top: 6px;
+}
+.crozzo-onb-adoption {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.25);
+  background: var(--bg-primary);
+  margin-bottom: 4px;
+}
+.crozzo-onb-adoption__score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.crozzo-onb-adoption__ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.78rem;
+  border: 3px solid var(--accent, #c9a962);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.12);
+  color: var(--text-primary);
+}
+.crozzo-onb-adoption__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.crozzo-onb-tour {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  line-height: 1.55;
+}
+.crozzo-onb-tour li {
+  margin-bottom: 8px;
+}
+
+/* —— Índice humano-sistema (IH-S) y modo pico inexperto —— */
+.crozzo-hfsi {
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
+}
+.crozzo-hfsi--rush {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.08);
+}
+.crozzo-hfsi--critical {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+}
+.crozzo-hfsi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.crozzo-hfsi__phase {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.crozzo-hfsi__score {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent, #c9a962);
+}
+.crozzo-cierre-stress__hfsi {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+body.crozzo-peak-novice--mute .nav-item.crozzo-nav-peak-muted {
+  opacity: 0.35;
+  pointer-events: none;
+  filter: grayscale(0.4);
+}
+body.crozzo-peak-novice[data-crozzo-stress='critical'] .crozzo-onb-banner {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+.crozzo-onb-banner--compact {
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.crozzo-onb-banner--compact .crozzo-onb-banner__head {
+  margin-bottom: 0;
+}
+
+/* —— Psique operativa: confort, apoyo, refuerzo positivo —— */
+.crozzo-psyche-chip-host {
+  padding: 0 16px 0;
+  max-width: 100%;
+}
+.crozzo-psyche-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
+  animation: crozzoComfortPageIn 440ms var(--ease-calm, ease) forwards;
+}
+.crozzo-psyche-chip--calm { border-color: rgba(34, 197, 94, 0.28); background: rgba(34, 197, 94, 0.06); }
+.crozzo-psyche-chip--focus { border-color: rgba(59, 130, 246, 0.28); background: rgba(59, 130, 246, 0.06); }
+.crozzo-psyche-chip--support { border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.35); }
+.crozzo-psyche-chip--peak { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08); }
+.crozzo-psyche-chip__emoji { font-size: 1.35rem; line-height: 1; }
+.crozzo-psyche-chip__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.crozzo-psyche-chip__body strong { font-size: 0.88rem; }
+.crozzo-psyche-chip__wins { font-size: 0.75rem; color: var(--accent, #c9a962); margin-top: 4px; }
+.crozzo-psyche-modal__lead { font-size: 1rem; line-height: 1.5; margin: 0 0 10px; }
+body.crozzo-psyche-active .crozzo-hfsi--critical {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.07);
+}
+body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .crozzo-onb-banner {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.crozzo-header-psyche-line {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-top: 2px;
+  line-height: 1.35;
+  opacity: 0.92;
+}
+.crozzo-psyche-chip {
+  position: relative;
+  padding-right: 36px;
+}
+.crozzo-psyche-chip__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+.crozzo-psyche-chip__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
+}
+.crozzo-psyche-chip__tip {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-style: italic;
+}
+.crozzo-psyche-wellbeing__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.crozzo-psyche-mood {
+  flex: 1;
+  min-width: 100px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.crozzo-psyche-mood:hover {
+  border-color: var(--accent, #c9a962);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+}
+.crozzo-hfsi__wellbeing {
+  color: var(--accent, #c9a962);
+  margin-top: 6px !important;
+}
+.crozzo-admin-wellbeing {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.05);
+}
+.crozzo-admin-wellbeing__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.crozzo-admin-wellbeing__head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.crozzo-admin-wellbeing__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.crozzo-admin-wellbeing__stat {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+.crozzo-admin-wellbeing__stat span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.crozzo-admin-wellbeing__stat strong {
+  display: block;
+  font-size: 1.15rem;
+  margin-top: 2px;
+}
+.crozzo-admin-wellbeing__stat small {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.crozzo-fe-guide__alert {
+  margin: 12px 0;
+}
+.crozzo-fe-guide__missing {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+.crozzo-fe-guide__ok {
+  margin: 10px 0;
+  color: var(--success, #22c55e);
+}
+
+.crozzo-concierge-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.1) 0%, rgba(var(--accent-rgb, 201, 169, 98), 0.03) 100%);
+  animation: crozzoComfortPageIn 480ms var(--ease-calm, ease) forwards;
+}
+.crozzo-concierge-strip__mark {
+  font-size: 1.1rem;
+  color: var(--accent, #c9a962);
+  line-height: 1;
+}
+.crozzo-concierge-strip__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.crozzo-concierge-strip__greet {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.crozzo-concierge-strip__tone {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.crozzo-concierge-strip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crozzo-concierge-strip__link {
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+  background: rgba(var(--bg-card-rgb, 255, 255, 255), 0.6);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.crozzo-concierge-strip__link:hover {
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.14);
+  border-color: var(--accent, #c9a962);
+}
+.crozzo-human-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.2);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.05);
+}
+.crozzo-peak-breathe-host {
+  padding: 0 16px;
+}
+.crozzo-peak-breathe {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  animation: crozzoComfortPageIn 400ms ease forwards;
+}
+.crozzo-ihs--good { color: var(--success, #22c55e); }
+.crozzo-ihs--mid { color: #f59e0b; }
+.crozzo-ihs--low { color: #ef4444; }
+.crozzo-adq-lookup-status { font-size: 0.78rem; min-height: 1.2em; line-height: 1.45; }
+.crozzo-adq-lookup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.crozzo-adq-lookup-row .btn-sm { font-size: 0.75rem; padding: 5px 12px; }
+.crozzo-adq-comfort {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.18);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.04);
+}
+body.crozzo-premium-human .crozzo-adq-comfort,
+body.crozzo-premium-psyche .crozzo-adq-comfort {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.26);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.07) 0%, transparent 100%);
+}
+.crozzo-adq-comfort__lead {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.crozzo-adq-doc-hint-wrap { min-height: 0; }
+.crozzo-adq-doc-hint {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.crozzo-adq-lookup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.4) !important;
+}
+.crozzo-adq-lookup-btn span { color: var(--accent, #c9a962); font-size: 0.7rem; }
+.crozzo-adq-lookup-status--soft { color: var(--text-secondary); font-style: normal; }
+.crozzo-adq-lookup-status--loading { opacity: 0.95; }
+.crozzo-adq-lookup-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  animation: crozzoAdqPulse 1.2s ease-in-out infinite;
+}
+@keyframes crozzoAdqPulse {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+.crozzo-adq-input--busy {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45) !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 201, 169, 98), 0.1);
+}
+.crozzo-adq-input--filled {
+  border-color: rgba(34, 197, 94, 0.35) !important;
+}
+body.crozzo-premium-human .crozzo-crm-create,
+body.crozzo-premium-psyche .crozzo-crm-create {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+  box-shadow: inset 0 1px 0 rgba(var(--accent-rgb, 201, 169, 98), 0.06);
+}
+.crozzo-crm-create-intro { line-height: 1.5; }
+
+/* —— Perfiles operativos (pills + grid) —— */
+.crozzo-perfil-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.crozzo-perfil-pill {
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.crozzo-perfil-pill:hover {
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.18);
+}
+.crozzo-perfil-pill--active {
+  border-color: var(--accent, #c9a962);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+  font-weight: 600;
+}
+.crozzo-perfil-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: min(480px, 60vh);
+  overflow-y: auto;
+}
+.crozzo-perfil-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.crozzo-perfil-card:hover {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45);
+}
+.crozzo-perfil-card--active {
+  border-color: var(--accent, #c9a962);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+}
+.crozzo-perfil-card__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.crozzo-perfil-card__tag {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* —— Super Admin: gestión perfiles unificada —— */
+.crozzo-gestion-perfil-panel {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
+  background: var(--bg-primary);
+}
+.crozzo-gestion-perfil-panel__head {
+  margin-bottom: 12px;
+}
+.crozzo-gestion-perfil-panel__title {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.crozzo-gestion-perfil-panel__icon {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+.crozzo-gestion-perfil-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crozzo-gestion-role-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.crozzo-gestion-role-preview--info {
+  display: block;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.2);
+}
+.crozzo-gestion-role-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: var(--bg-primary);
+}
+.crozzo-gestion-role-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+.crozzo-gestion-role-card__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.crozzo-gestion-role-card__list li {
+  margin-bottom: 3px;
+}
 .crozzo-ventas-hub__hero {
   position: relative;
   display: flex;
@@ -5382,6 +6005,199 @@ tr:hover {
   .crozzo-ventas-hub__grid {
     grid-template-columns: 1fr;
   }
+}
+
+.crozzo-global-stress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.crozzo-global-stress--busy {
+  background: rgba(245, 158, 11, 0.1);
+  border-bottom-color: rgba(245, 158, 11, 0.35);
+}
+.crozzo-global-stress--rush {
+  background: rgba(239, 68, 68, 0.1);
+  border-bottom-color: rgba(239, 68, 68, 0.35);
+}
+.crozzo-global-stress__txt {
+  flex: 1;
+  color: var(--text-secondary);
+}
+.crozzo-admin-hub {
+  margin: 0 0 20px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.06), transparent);
+}
+.crozzo-admin-hub__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.crozzo-admin-hub__head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.crozzo-admin-hub__ok {
+  font-size: 0.78rem;
+  color: var(--success, #22c55e);
+}
+.crozzo-admin-hub__stress {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.crozzo-admin-hub__stress--busy {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+.crozzo-admin-hub__stress--rush {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+.crozzo-admin-hub__badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+.crozzo-admin-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.crozzo-admin-hub__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.crozzo-admin-hub__tile:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.crozzo-admin-hub__tile strong {
+  font-size: 0.88rem;
+}
+.crozzo-admin-hub__tile span {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+.crozzo-admin-hub__tile [data-lucide] {
+  width: 18px;
+  height: 18px;
+  opacity: 0.85;
+}
+.crozzo-pl-cierres {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.04);
+}
+.crozzo-pl-cierres--empty p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.crozzo-pl-cierres__title {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+.crozzo-pl-cierres__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crozzo-pl-cierre {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.crozzo-pl-cierre.is-done {
+  opacity: 0.75;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.crozzo-pl-cierre__meta {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+.crozzo-cierre-integrity--ok {
+  color: #22c55e;
+  font-weight: 700;
+}
+.crozzo-cierre-integrity--warn {
+  color: #f59e0b;
+  font-weight: 700;
+}
+@media (max-width: 768px) {
+  .crozzo-admin-hub__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.crozzo-fact-archivo {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 0.82rem;
+}
+.crozzo-fact-archivo--warn {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.06);
+}
+.crozzo-fact-archivo__head {
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+.crozzo-fact-archivo__list {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.crozzo-fact-archivo__list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.crozzo-fact-archivo__empty {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
 }
 
 /* —— Restaurante · POS (premium) —— */
@@ -5810,6 +6626,64 @@ tr:hover {
 }
 .crozzo-print-queue-bar--warn [data-lucide] {
   color: #f59e0b;
+}
+.crozzo-print-queue-bar__hint {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.75;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.crozzo-print-queue-bar:hover {
+  cursor: pointer;
+  border-color: rgba(59, 130, 246, 0.55);
+}
+.crozzo-print-queue-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.crozzo-print-queue-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+.crozzo-print-queue-row--error {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.06);
+}
+.crozzo-print-queue-row--busy {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+.crozzo-print-queue-row__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.crozzo-print-queue-row__meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.modal.modal--print-queue {
+  max-width: 420px;
+}
+.crozzo-rest-pos__action--cash {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #059669;
+}
+.crozzo-rest-pos__action--cash:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.1);
+}
+.crozzo-rest-pos__ticket-foot {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 @keyframes crozzoPrintQueuePulse {
   0%, 100% { opacity: 1; }
@@ -6399,8 +7273,70 @@ body.crozzo-page-qyc-embed .main-body,
   min-height: calc(100vh - 56px);
   border: 0;
   display: block;
-  background: #0f0720;
+  background: var(--bg-primary);
 }
+
+/* —— Shell unificado: mismos márgenes, cards y embeds en todos los módulos —— */
+body.crozzo-unified-chrome .main-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+body.crozzo-unified-chrome:not(.crozzo-unified-chrome--fullscreen) .main-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+}
+body.crozzo-unified-chrome .card,
+body.crozzo-unified-chrome .crozzo-mod-page .card {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+body.crozzo-unified-chrome--embed .main-body--centro-compras,
+body.crozzo-unified-chrome--embed #mainContent.crozzo-embed-page-host {
+  padding: 12px 16px 20px !important;
+  background: var(--bg-primary) !important;
+  height: auto !important;
+  min-height: calc(100vh - 56px);
+  overflow: hidden;
+}
+body.crozzo-unified-chrome--embed .crozzo-hub-engine,
+body.crozzo-unified-chrome--embed .ccp-engine {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  background: var(--bg-secondary);
+}
+body.crozzo-unified-chrome--embed .crozzo-hub-engine__frame,
+body.crozzo-unified-chrome--embed .ccp-engine__frame,
+body.crozzo-unified-chrome--embed .crozzo-qyc-embed-frame {
+  background: var(--bg-primary) !important;
+  border-radius: 0;
+  min-height: calc(100vh - 96px);
+}
+body.crozzo-unified-chrome .btn-primary {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+body.crozzo-unified-chrome .form-input,
+body.crozzo-unified-chrome .form-select,
+body.crozzo-unified-chrome .form-textarea {
+  border-radius: 9px;
+  border-color: var(--border);
+  background: var(--bg-primary);
+}
+body.crozzo-unified-chrome .table-container {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+body.crozzo-unified-chrome .crozzo-onb-banner,
+body.crozzo-unified-chrome .crozzo-hfsi {
+  border-radius: 12px;
+}
+
 body.crozzo-page-pedidos-internos .main-body { max-width: 960px; margin: 0 auto; }
 
 /* Centro de producción / procesos — scroll único dentro del panel */
@@ -11136,6 +12072,33 @@ body.crozzo-page-modulo-gestion .crozzo-costos-matriz-tabs.crozzo-mod-nav--segme
     flex: 0 1 calc(25% - 17px);
     max-width: calc(25% - 17px);
   }
+}
+
+.crozzo-alergen-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7c2d12;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  vertical-align: middle;
+}
+.crozzo-alergen-badge--compact {
+  font-size: 0.62rem;
+  padding: 1px 6px;
+}
+.cart-item-alergenos {
+  margin-top: 4px;
+}
+.crozzo-sticky-items .crozzo-alergen-badge {
+  display: inline-flex;
+  margin-top: 2px;
 }
 
 .crozzo-sticky-note {
@@ -17144,6 +18107,72 @@ body.crozzo-update-detail-open {
 }
 .crozzo-update-normal-banner.is-open {
   display: flex;
+}
+.crozzo-update-normal-banner--novice {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, rgba(52, 199, 89, 0.12) 0%, rgba(28, 28, 30, 0.4) 60%, transparent 100%);
+}
+.crozzo-update-normal-banner--peak.crozzo-update-normal-banner--novice {
+  border-left-color: #f5a623;
+  background: linear-gradient(90deg, rgba(245, 166, 35, 0.14) 0%, rgba(28, 28, 30, 0.45) 60%, transparent 100%);
+}
+.crozzo-update-normal-banner--staff .crozzo-update-normal-banner__actions .btn-primary {
+  display: none;
+}
+.crozzo-update-changelog-human {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+.crozzo-update-changelog-human__group {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 10px;
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle);
+}
+.crozzo-update-changelog-human__title {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.crozzo-update-changelog-human__list {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.crozzo-update-detail-modal__impact {
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border-radius: 12px;
+  background: var(--accent-08);
+  border: 1px solid var(--accent-20);
+}
+.crozzo-update-detail-modal__impact h3 {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+.crozzo-update-detail-modal__impact ul {
+  margin: 0 0 8px;
+  padding-left: 1.2rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.crozzo-update-detail-modal__lead {
+  margin: 0 0 var(--space-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.crozzo-update-detail-modal__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
 .crozzo-update-normal-banner__icon {
   display: flex;

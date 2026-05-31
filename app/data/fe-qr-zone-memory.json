@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "builtAt": "2026-05-30T23:47:23.733Z",
+  "probeStats": {
+    "esquina-sup-der": 1,
+    "centro": 4,
+    "esquina-inf-izq": 3,
+    "borde-sup": 3,
+    "esquina-inf-der": 1
+  },
+  "bySupplier": {
+    "DISPAPELES": {
+      "zone": "esquina-sup-der",
+      "nx": 0.8711732963388656,
+      "ny": 0.22655726757001274,
+      "hits": 1,
+      "source": "probe",
+      "samples": [
+        "2026-05-15_DISPAPELES_94fc57d9.pdf"
+      ]
+    },
+    "SILVIO_LUCERO_CUARAN": {
+      "zone": "centro",
+      "nx": 0.6024217216384647,
+      "ny": 0.39985837109781436,
+      "hits": 3,
+      "source": "probe",
+      "samples": [
+        "2026-05-15_SILVIO_LUCERO_CUARAN_2c494e42.pdf",
+        "2026-05-19_SILVIO_LUCERO_CUARAN_ebca1181.pdf",
+        "2026-05-29_SILVIO_LUCERO_CUARAN_fa90c4da.pdf"
+      ]
+    },
+    "LUIS_FLORES_DIAZ": {
+      "zone": "esquina-inf-izq",
+      "nx": 0.08887041178510618,
+      "ny": 0.7366647117230236,
+      "hits": 3,
+      "source": "probe",
+      "samples": [
+        "2026-05-16_LUIS_FLORES_DIAZ_a1247e2f.pdf",
+        "2026-05-23_LUIS_FLORES_DIAZ_503300e6.pdf",
+        "2026-05-26_LUIS_FLORES_DIAZ_019cd46b.pdf"
+      ]
+    },
+    "ALEJANDRO_VARON": {
+      "zone": "borde-sup",
+      "nx": 0.5695964790399182,
+      "ny": 0.0995492994601388,
+      "hits": 1,
+      "source": "probe",
+      "samples": [
+        "2026-05-18_Alejandro_Varon_d132cfaa.pdf"
+      ]
+    },
+    "ALQUERIA": {
+      "zone": "esquina-inf-der",
+      "nx": 0.8914763195550828,
+      "ny": 0.8004496380370795,
+      "hits": 1,
+      "source": "probe",
+      "samples": [
+        "2026-05-19_ALQUERIA_ef122724.pdf"
+      ]
+    },
+    "HIELO_POLAR": {
+      "zone": "centro",
+      "nx": 0.6095498679211254,
+      "ny": 0.3997757540244722,
+      "hits": 1,
+      "source": "probe",
+      "samples": [
+        "2026-05-22_Hielo_Polar_c5ebe4fa.pdf"
+      ]
+    },
+    "TINTAS_Y_TECNOLOGIA": {
+      "zone": "borde-sup",
+      "nx": 0.5659200084516829,
+      "ny": 0.0995492994601388,
+      "hits": 1,
+      "source": "probe",
+      "samples": [
+        "2026-05-28_Tintas_y_Tecnologia_44493599.pdf"
+      ]
+    },
+    "AVICOLA_DEL_EJE_CAFETERO_JM_S_A_S": {
+      "zone": "borde-sup",
+      "nx": 0.5590287307821348,
+      "ny": 0.05388609835554651,
+      "hits": 1,
+      "source": "probe",
+      "samples": [
+        "2026-05-29_Avicola_Del_Eje_Cafetero_JM_S_A_S_e298dff7.pdf"
+      ]
+    }
+  },
+  "runtime": {}
+}
