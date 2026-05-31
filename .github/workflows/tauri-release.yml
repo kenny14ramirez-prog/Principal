@@ -1,6 +1,5 @@
-# Único workflow de release: compila .exe + latest.json Tauri (updater automático).
-# OTA (avisos en app): releases/latest.json en rama main — subir con publicar-actualizacion / _git-push-latest.bat
-# NO usar otro workflow en tag v* (evita doble compilación y sobrescribir latest.json).
+# Release multiplataforma: Windows + macOS + Android (APK) + latest.json Tauri
+# OTA tablets/navegador: releases/registry.json en rama main
 name: Tauri Release
 
 on:
@@ -10,7 +9,28 @@ on:
 
 jobs:
   publish:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            label: Windows x64
+            args: '--target x86_64-pc-windows-msvc'
+            android: false
+          - platform: macos-latest
+            label: macOS Apple Silicon
+            args: '--target aarch64-apple-darwin'
+            android: false
+          - platform: macos-latest
+            label: macOS Intel
+            args: '--target x86_64-apple-darwin'
+            android: false
+          - platform: ubuntu-22.04
+            label: Android ARM64 (APK)
+            args: '--target aarch64-linux-android --bundles apk'
+            android: true
+
+    runs-on: ${{ matrix.platform }}
     permissions:
       contents: write
     steps:
@@ -22,8 +42,40 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Java (Android)
+        if: matrix.android
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        if: matrix.android
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle (Android)
+        if: matrix.android
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            src-tauri/gen/android/.gradle
+          key: ${{ runner.os }}-gradle-android-${{ hashFiles('src-tauri/**/*.rs', 'src-tauri/tauri.android.conf.json', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-android-
+
+      - name: Setup Android NDK
+        if: matrix.android
+        uses: nttld/setup-ndk@v1
+        id: android-ndk
+        with:
+          ndk-version: r26d
+
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.android && 'aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android' || matrix.target }}
 
       - name: Versión desde tag
         run: node scripts/sync-version-from-tag.mjs "${{ github.ref_name }}"
@@ -34,23 +86,42 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Compilar instalador y publicar release
+      - name: Init proyecto Android
+        if: matrix.android
+        env:
+          NDK_HOME: ${{ steps.android-ndk.outputs.ndk-path }}
+        run: npx tauri android init --ci
+
+      - name: Compilar ${{ matrix.label }} y publicar release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NDK_HOME: ${{ matrix.android && steps.android-ndk.outputs.ndk-path || '' }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Crozzo POS ${{ github.ref_name }}
           releaseBody: |
-            Instalador Windows (NSIS) y actualización automática silenciosa.
-            Avisos crítica/opcional: `releases/latest.json` en rama **main** (canal OTA).
+            Instaladores multiplataforma Crozzo POS.
+
+            | Plataforma | Artefacto | Uso |
+            |------------|-----------|-----|
+            | Windows | `Proyecto_*_x64-setup.exe` | PC caja / mostrador |
+            | macOS Apple Silicon | `.dmg` aarch64 | Mac M1/M2/M3 |
+            | macOS Intel | `.dmg` x86_64 | Mac Intel |
+            | Android (tablets) | `.apk` ARM64 | Instalar en tablet (permitir orígenes desconocidos o MDM) |
+
+            Actualización automática Tauri: Windows y Mac (desde la app).
+            Tablets en navegador: avisos vía `registry.json` en rama **main**.
           releaseDraft: false
           prerelease: false
-          args: --target x86_64-pc-windows-msvc
-          includeUpdaterJson: true
+          args: ${{ matrix.args }}
+          includeUpdaterJson: ${{ !matrix.android }}
           updaterJsonPreferNsis: true
 
-      - name: Verificar latest.json (setup.exe, no MSI)
+      - name: Verificar latest.json y artefactos del release
+        if: matrix.label == 'Windows x64'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/verify-release-updater-json.mjs "${{ github.ref_name }}"

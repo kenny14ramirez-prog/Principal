@@ -2179,6 +2179,8 @@
   var _discoveryInterval = null;
   var _autoQrInterval = null;
   var _isolatedAt = 0;
+  var _bootAt = 0;
+  var _isoStreak = 0;
   var _lastRemotePack = null;
   var _meshLogLines = [];
   var state = {
@@ -2200,6 +2202,58 @@
   }
   function getMd() {
     return typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+  }
+  /** Solo mostrar supervivencia P2P si el negocio activó sync LAN / mesh multi-dispositivo. */
+  function meshFeaturesEnabled() {
+    try {
+      var L = global.readCrozzoLanJson && global.readCrozzoLanJson();
+      if (L && L.lanSyncEnabled) return true;
+    } catch (e) { /* ignore */ }
+    var md = getMd();
+    if (md.allowLan === false) return false;
+    if (md.role === 'B' && md.centralIp) return true;
+    if (md.role === 'A' && md.serverIp) return true;
+    return false;
+  }
+  function hasPendingEmergencyOutbox() {
+    try {
+      var cache = global.__crozzoEmergencyStatusCache;
+      if (!cache || typeof cache !== 'object') return false;
+      var keys = Object.keys(cache);
+      for (var i = 0; i < keys.length; i++) {
+        var st = cache[keys[i]];
+        if (st && st !== STATUS.RECONCILED && st !== STATUS.ACK_RECEIVED) return true;
+      }
+    } catch (e) { /* ignore */ }
+    return false;
+  }
+  function shouldShowEmergencyShell() {
+    if (global.document.body && global.document.body.classList.contains('crozzo-login-open')) return false;
+    var sh = global.document.getElementById('crozzo-emergency-shell');
+    if (sh && sh.getAttribute('data-hp-hidden') === '1') return false;
+    var p2p = isLinkReady();
+    if (p2p) return true;
+    if (!meshFeaturesEnabled()) return false;
+    if (_bootAt && Date.now() - _bootAt < 22000) return false;
+    if (!state.isolated) return false;
+    if (hasPendingEmergencyOutbox()) return true;
+    if (_isolatedAt && Date.now() - _isolatedAt >= 6000) return true;
+    return false;
+  }
+  function setEmergencyShellVisible(visible) {
+    var sh = global.document.getElementById('crozzo-emergency-shell');
+    if (!sh) return;
+    if (visible) {
+      sh.style.display = 'block';
+      sh.removeAttribute('hidden');
+      sh.setAttribute('aria-hidden', 'false');
+      sh.classList.add('is-active');
+    } else {
+      sh.style.display = 'none';
+      sh.setAttribute('hidden', '');
+      sh.setAttribute('aria-hidden', 'true');
+      sh.classList.remove('is-active');
+    }
   }
   function getLocId() {
     var md = getMd();
@@ -2809,6 +2863,19 @@
     } catch (e) {
       tier = { tier: 'offline' };
     }
+    if (!meshFeaturesEnabled()) {
+      state.lastCheck = {
+        online: online,
+        tier: tier.tier,
+        cloudOk: tier && tier.tier === 'cloud',
+        centralOk: true,
+        isolated: false,
+        meshOff: true
+      };
+      state.cableHint = guessUsbTethering();
+      setCableBadge();
+      return state.lastCheck;
+    }
     var cloudOk = tier && tier.tier === 'cloud';
     var md = getMd();
     var centralOk = false;
@@ -2836,8 +2903,8 @@
   function updateShell() {
     var sh = global.document.getElementById('crozzo-emergency-shell');
     if (!sh) return;
-    var p2p = !!(state.dc && state.dc.readyState === 'open');
-    sh.style.display = state.isolated || p2p ? 'block' : 'none';
+    var p2p = isLinkReady();
+    setEmergencyShellVisible(shouldShowEmergencyShell());
     var forceBtn = global.document.getElementById('btnEmergencyOfferForce');
     if (forceBtn) {
       var showForce =
@@ -2882,7 +2949,13 @@
   async function isolationLoop() {
     var prev = state.isolated;
     var r = await evaluateIsolation();
-    state.isolated = !!r.isolated;
+    var rawIsolated = !!(r && r.isolated) && meshFeaturesEnabled();
+    if (rawIsolated) _isoStreak = Math.min(_isoStreak + 1, 6);
+    else _isoStreak = 0;
+    var confirmed =
+      rawIsolated &&
+      (_isoStreak >= 2 || (r && !r.online) || hasPendingEmergencyOutbox());
+    state.isolated = !!confirmed;
     if (state.isolated && !prev) {
       _isolatedAt = Date.now();
       showIsolationBanner(true);
@@ -2990,6 +3063,9 @@
       '  </div>' +
       '</div>';
     global.document.body.appendChild(sh);
+    sh.style.display = 'none';
+    sh.setAttribute('hidden', '');
+    sh.setAttribute('aria-hidden', 'true');
     global.document.getElementById('crozzoPreferCable').addEventListener('change', function (e) {
       state.preferCable = !!e.target.checked;
       setCableBadge();
@@ -3304,7 +3380,7 @@
     if (global.showToast) global.showToast(any ? '⚡ Reenvío P2P disparado (solo sin ACK definitivo).' : 'Nada que reenviar: ya hay ACK o reconciliación.', any ? 'info' : 'warning');
   }
   function isActive() {
-    return !!state.isolated;
+    return shouldShowEmergencyShell();
   }
   function isLinkReady() {
     return !!(state.dc && state.dc.readyState === 'open');
@@ -3312,6 +3388,8 @@
   function init() {
     if (_inited) return;
     _inited = true;
+    _bootAt = Date.now();
+    _isoStreak = 0;
     global.__crozzoEmergencyStatusCache = global.__crozzoEmergencyStatusCache || {};
     global.__crozzoEmergencyStatusByComandaId = global.__crozzoEmergencyStatusByComandaId || {};
     attachShell();
@@ -3338,6 +3416,8 @@
   global.CrozzoEmergencyMesh = {
     init: init,
     evaluateIsolation: evaluateIsolation,
+    meshFeaturesEnabled: meshFeaturesEnabled,
+    shouldShowEmergencyShell: shouldShowEmergencyShell,
     isActive: isActive,
     isLinkReady: isLinkReady,
     broadcastNewOrder: broadcastNewOrder,

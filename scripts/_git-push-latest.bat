@@ -53,7 +53,7 @@ mkdir "%CROZZO_STAGING%\scripts" 2>nul
 
 copy /Y releases\latest.json "%CROZZO_STAGING%\releases\latest.json" >nul
 if exist releases\registry.json copy /Y releases\registry.json "%CROZZO_STAGING%\releases\registry.json" >nul
-copy /Y src-tauri\tauri.conf.json "%CROZZO_STAGING%\src-tauri\tauri.conf.json" >nul
+call :mirror_src_tauri "%CROZZO_ROOT%\src-tauri" "%CROZZO_STAGING%\src-tauri"
 
 call :mirror_frontend "%CROZZO_ROOT%\app" "%CROZZO_STAGING%\app"
 call :mirror_frontend "%CROZZO_ROOT%\src" "%CROZZO_STAGING%\src"
@@ -91,7 +91,7 @@ if not exist "%CROZZO_WT%\src-tauri" mkdir "%CROZZO_WT%\src-tauri"
 
 copy /Y "%CROZZO_STAGING%\releases\latest.json" "%CROZZO_WT%\releases\latest.json" >nul
 if exist "%CROZZO_STAGING%\releases\registry.json" copy /Y "%CROZZO_STAGING%\releases\registry.json" "%CROZZO_WT%\releases\registry.json" >nul
-copy /Y "%CROZZO_STAGING%\src-tauri\tauri.conf.json" "%CROZZO_WT%\src-tauri\tauri.conf.json" >nul
+call :mirror_src_tauri "%CROZZO_STAGING%\src-tauri" "%CROZZO_WT%\src-tauri"
 
 call :mirror_frontend "%CROZZO_STAGING%\app" "%CROZZO_WT%\app"
 call :mirror_frontend "%CROZZO_STAGING%\src" "%CROZZO_WT%\src"
@@ -116,7 +116,7 @@ pushd "%CROZZO_WT%"
 REM Quitar workflow duplicado (compilaba 2x y rompia latest.json del updater)
 if exist .github\workflows\release.yml git rm -f .github\workflows\release.yml
 
-git add releases\ releases\*.json app\ src\ src-tauri\tauri.conf.json scripts\sync-frontend-to-src.mjs scripts\generate-release-json.mjs scripts\set-tauri-version.mjs
+git add releases\ releases\*.json app\ src\ src-tauri\ scripts\sync-frontend-to-src.mjs scripts\generate-release-json.mjs scripts\set-tauri-version.mjs
 if exist scripts\verificar-publicacion.mjs git add scripts\verificar-publicacion.mjs
 if exist scripts\sync-version-from-tag.mjs git add scripts\sync-version-from-tag.mjs
 if exist scripts\verify-release-updater-json.mjs git add scripts\verify-release-updater-json.mjs
@@ -164,4 +164,12 @@ set "DST_DIR=%~2"
 if not exist "%SRC_DIR%" exit /b 0
 if not exist "%DST_DIR%" mkdir "%DST_DIR%"
 robocopy "%SRC_DIR%" "%DST_DIR%" /E /XD node_modules .git target /XF *.monolith.html /NFL /NDL /NJH /NJS /nc /ns /np >nul
+exit /b 0
+
+:mirror_src_tauri
+set "SRC_DIR=%~1"
+set "DST_DIR=%~2"
+if not exist "%SRC_DIR%" exit /b 0
+if not exist "%DST_DIR%" mkdir "%DST_DIR%"
+robocopy "%SRC_DIR%" "%DST_DIR%" /E /XD target gen /XF *.key /NFL /NDL /NJH /NJS /nc /ns /np >nul
 exit /b 0

@@ -507,6 +507,7 @@
           <span id="syncLabel">Listo</span>
         </div>
         <button type="button" class="studio-btn studio-btn--gold" id="btnSendParent">Aplicar al POS</button>
+        <button type="button" class="studio-btn" id="btnTestPrint" title="Imprimir vista previa">🖨️ Probar</button>
       </div>
     </div>
 
@@ -527,6 +528,7 @@
         <h2>Venta</h2>
         <button type="button" class="studio-block-btn" data-add="items"><span class="studio-block-btn__icon">☰</span><span>Detalle ítems</span></button>
         <button type="button" class="studio-block-btn" data-add="total"><span class="studio-block-btn__icon">$</span><span>Totales</span></button>
+        <button type="button" class="studio-block-btn" data-add="payment"><span class="studio-block-btn__icon">💳</span><span>Forma de pago</span></button>
         <h2>Legal / FE</h2>
         <button type="button" class="studio-block-btn" data-add="resol"><span class="studio-block-btn__icon">§</span><span>Resolución DIAN</span></button>
         <button type="button" class="studio-block-btn" data-add="cufe"><span class="studio-block-btn__icon">⛓</span><span>CUFE</span></button>
@@ -584,7 +586,7 @@
     divider: 'Separador', line: 'Línea sólida', title: 'Título', items: 'Ítems',
     total: 'Totales', footer: 'Pie', text: 'Texto libre', client: 'Cliente',
     date: 'Fecha', consec: 'Consecutivo', resol: 'Resolución', cufe: 'CUFE',
-    qr: 'QR', space: 'Espacio',
+    qr: 'QR', space: 'Espacio', payment: 'Forma de pago',
   };
 
   var PRESETS = {
@@ -605,10 +607,11 @@
         { t: 'client', c: '', v: true, o: 10, a: 'left', fs: 'sm' },
         { t: 'items', c: '', v: true, o: 11 },
         { t: 'total', c: 'TOTAL', v: true, o: 12 },
-        { t: 'space', c: '1', v: true, o: 13 },
-        { t: 'footer', c: 'Gracias por elegirnos', v: true, o: 14, a: 'center', fs: 'sm' },
-        { t: 'cufe', c: '', v: false, o: 15 },
-        { t: 'qr', c: '', v: false, o: 16 },
+        { t: 'payment', c: '', v: true, o: 13 },
+        { t: 'space', c: '1', v: true, o: 14 },
+        { t: 'footer', c: 'Gracias por elegirnos', v: true, o: 15, a: 'center', fs: 'sm' },
+        { t: 'cufe', c: '', v: false, o: 16 },
+        { t: 'qr', c: '', v: false, o: 17 },
       ],
     },
     retail: {
@@ -644,6 +647,8 @@
     nameE: 'Mi negocio S.A.S.',
     nitE: '900.123.456-7',
     dirE: 'Carrera 15 # 93-47 · Bogotá',
+    telE: '',
+    logoUrl: '',
     resol: '18764000001234',
     consecutivo: 'FE-000128',
     fecha: new Date().toLocaleString('es-CO'),
@@ -656,9 +661,20 @@
     sub: 334000,
     iva: 63460,
     tot: 397460,
+    pago: 'Efectivo',
+    propina: 0,
+    recibido: 400000,
+    cambio: 2540,
+    logoUrl: '',
     cufe: 'a1b2c3d4e5f6789012345678901234567890abcd',
     qrUrl: 'https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=sample',
   };
+
+  function qrImg(url, sz) {
+    if (!url) return '';
+    sz = sz || 96;
+    return '<img src="https://api.qrserver.com/v1/create-qr-code/?size=' + sz + 'x' + sz + '&data=' + encodeURIComponent(url) + '" width="' + sz + '" height="' + sz + '" alt="QR" style="display:block;margin:4px auto;"/>';
+  }
 
   var selectedIdx = null;
   var zoomLevel = 100;
@@ -722,6 +738,9 @@
     var st;
     switch (b.t) {
       case 'logo':
+        if (d.logoUrl) {
+          return wrap(blockStyle(b, { align: 'center' }), '<img src="' + esc(d.logoUrl) + '" alt="Logo" style="max-width:85%;max-height:52px;object-fit:contain;display:block;margin:0 auto;"/>');
+        }
         return wrap(blockStyle(b, { bold: true, fontSize: '12px' }), esc(b.c || '◆ MARCA'));
       case 'company':
         return wrap(blockStyle(b), esc(d.nameE));
@@ -754,14 +773,21 @@
           '<div style="display:flex;justify-content:space-between;margin:2px 0;"><span>Subtotal</span><span>' + fmtCOP(d.sub) + '</span></div>' +
           '<div style="display:flex;justify-content:space-between;margin:2px 0;"><span>IVA</span><span>' + fmtCOP(d.iva) + '</span></div>' +
           '<div style="display:flex;justify-content:space-between;font-weight:800;margin-top:6px;padding-top:6px;border-top:2px solid #111;"><span>' + esc(b.c || 'TOTAL') + '</span><span>' + fmtCOP(d.tot) + '</span></div>');
+      case 'payment':
+        if (!d.pago && !d.propina && !d.recibido) return '';
+        return wrap(blockStyle(b, { align: 'left', fontSize: '8px' }),
+          (d.pago ? '<div>Pago: ' + esc(d.pago) + '</div>' : '') +
+          (d.propina > 0 ? '<div>Propina: ' + fmtCOP(d.propina) + '</div>' : '') +
+          (d.recibido > 0 ? '<div>Recibido: ' + fmtCOP(d.recibido) + '</div>' : '') +
+          (d.cambio > 0 ? '<div>Cambio: ' + fmtCOP(d.cambio) + '</div>' : ''));
       case 'resol':
         return wrap(blockStyle(b, { fontSize: '8px' }), 'Resol. ' + esc(d.resol));
       case 'cufe':
         if (!d.cufe) return '';
         return wrap(blockStyle(b, { align: 'left', fontSize: '7px' }), 'CUFE<br>' + esc(d.cufe));
       case 'qr':
-        if (!d.qrUrl) return wrap(blockStyle(b, { fontSize: '7px' }), '[ QR DIAN ]');
-        return wrap(blockStyle(b, { fontSize: '7px' }), 'Verif.: ' + esc(d.qrUrl.slice(0, 42)) + '…');
+        if (d.qrUrl) return wrap(blockStyle(b, { align: 'center' }), qrImg(d.qrUrl, state.sz === '80' ? 110 : 96));
+        return wrap(blockStyle(b, { fontSize: '7px' }), '[ QR DIAN ]');
       case 'space':
         return '<div style="height:' + (Math.max(1, Number(b.c) || 1) * 4) + 'px;"></div>';
       case 'footer':
@@ -1009,6 +1035,14 @@
     scheduleSync();
   });
   document.getElementById('btnSendParent').addEventListener('click', function () { pushToParent(true); });
+  document.getElementById('btnTestPrint').addEventListener('click', function () {
+    var tpl = exportTpl();
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'crozzo_ticket_test_print', tpl: tpl }, '*');
+    } else {
+      alert('Abra el diseñador desde Facturas e impresión para probar con el POS, o use «Exportar JSON».');
+    }
+  });
   document.getElementById('btnExport').addEventListener('click', function () {
     var blob = new Blob([JSON.stringify(exportTpl(), null, 2)], { type: 'application/json' });
     var a = document.createElement('a');
@@ -1047,9 +1081,17 @@
   });
 
   window.addEventListener('message', function (e) {
-    if (!e.data || e.data.type !== 'crozzo_ticket_init' || !e.data.tpl) return;
-    applyTpl(e.data.tpl);
-    setSyncLive(true, 'Cargada desde POS');
+    if (!e.data) return;
+    if (e.data.type === 'crozzo_ticket_init' && e.data.tpl) {
+      applyTpl(e.data.tpl);
+      setSyncLive(true, 'Cargada desde POS');
+      return;
+    }
+    if (e.data.type === 'crozzo_ticket_sample' && e.data.sample) {
+      SAMPLE = Object.assign(SAMPLE, e.data.sample);
+      renderPreview();
+      setSyncLive(true, 'Datos del negocio');
+    }
   });
 
   renderPresets();
@@ -1059,6 +1101,9 @@
   } catch (_) {}
   if (!state.blocks.length) {
     state = defaultTpl();
+  }
+  if (embedded && window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'crozzo_ticket_request_sample' }, '*');
   }
   showLayersPanel();
   renderAll();

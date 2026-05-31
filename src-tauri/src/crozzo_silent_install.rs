@@ -1,5 +1,34 @@
 //! Descarga setup.exe del release y lo ejecuta en silencio (fallback sin verificar firma del updater).
 
+const MIN_INSTALLER_BYTES: usize = 400 * 1024;
+const DOWNLOAD_RETRIES: u32 = 3;
+
+fn validate_installer_bytes(bytes: &[u8]) -> Result<(), String> {
+    if bytes.len() < MIN_INSTALLER_BYTES {
+        return Err(format!(
+            "Archivo descargado demasiado pequeño ({} bytes). ¿Red, antivirus o enlace incorrecto?",
+            bytes.len()
+        ));
+    }
+    if bytes.len() < 2 || bytes[0] != b'M' || bytes[1] != b'Z' {
+        return Err(
+            "El archivo descargado no parece un instalador Windows (.exe). Verifique el release en GitHub."
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+fn download_bytes(client: &reqwest::blocking::Client, url: &str) -> Result<Vec<u8>, String> {
+    client
+        .get(url)
+        .send()
+        .map_err(|e| format!("Descarga falló: {e}"))?
+        .bytes()
+        .map_err(|e| e.to_string())
+        .map(|b| b.to_vec())
+}
+
 #[tauri::command]
 pub fn install_setup_from_url(url: String) -> Result<(), String> {
     let url = url.trim();
@@ -20,12 +49,36 @@ pub fn install_setup_from_url(url: String) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let bytes = client
-        .get(url)
-        .send()
-        .map_err(|e| format!("Descarga falló: {e}"))?
-        .bytes()
-        .map_err(|e| e.to_string())?;
+    let mut last_err = String::from("Descarga falló");
+    let mut bytes: Vec<u8> = Vec::new();
+
+    for attempt in 0..DOWNLOAD_RETRIES {
+        match download_bytes(&client, url) {
+            Ok(b) => match validate_installer_bytes(&b) {
+                Ok(()) => {
+                    bytes = b;
+                    break;
+                }
+                Err(e) => {
+                    last_err = e;
+                    if attempt + 1 >= DOWNLOAD_RETRIES {
+                        return Err(last_err);
+                    }
+                }
+            },
+            Err(e) => {
+                last_err = e;
+                if attempt + 1 >= DOWNLOAD_RETRIES {
+                    return Err(last_err);
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1500 * (attempt as u64 + 1)));
+    }
+
+    if bytes.is_empty() {
+        return Err(last_err);
+    }
 
     std::fs::write(&tmp, &bytes).map_err(|e| format!("No se pudo guardar instalador: {e}"))?;
 

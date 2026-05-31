@@ -10,6 +10,11 @@
   var LS_LEGACY_PINNED = 'crozzo_sidebar_expanded';
   var LS_GROUPS_RESET = 'bona_sidebar_groups_collapsed_v2';
   var SUBMENU_DELAY_MS = 50;
+  var HOVER_OPEN_MS = 420;
+  var HOVER_CLOSE_MS = 280;
+  var _hoverOpenTimer = null;
+  var _hoverCloseTimer = null;
+  var _sidebarTransitionTimer = null;
 
   function getSidebar() {
     return document.getElementById('sidebar');
@@ -98,7 +103,37 @@
 
   function isSidebarExpanded(sb) {
     if (!sb) return false;
-    return sb.classList.contains('expanded') || sb.classList.contains('is-expanded') || sb.matches(':hover');
+    return sb.classList.contains('expanded') || sb.classList.contains('is-expanded');
+  }
+
+  function hoverExpandEnabled() {
+    try {
+      return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function clearHoverTimers() {
+    if (_hoverOpenTimer) {
+      clearTimeout(_hoverOpenTimer);
+      _hoverOpenTimer = null;
+    }
+    if (_hoverCloseTimer) {
+      clearTimeout(_hoverCloseTimer);
+      _hoverCloseTimer = null;
+    }
+  }
+
+  function markSidebarTransition() {
+    var root = document.documentElement;
+    if (!root) return;
+    root.classList.add('crozzo-sidebar-transitioning');
+    if (_sidebarTransitionTimer) clearTimeout(_sidebarTransitionTimer);
+    _sidebarTransitionTimer = setTimeout(function () {
+      _sidebarTransitionTimer = null;
+      root.classList.remove('crozzo-sidebar-transitioning');
+    }, 450);
   }
 
   function applyGroupOpen(group, open, withDelay) {
@@ -171,9 +206,9 @@
   function setSidebarExpanded(expanded, persist) {
     var sb = getSidebar();
     if (!sb) return;
+    var wasExpanded = isSidebarExpanded(sb);
     sb.classList.toggle('expanded', !!expanded);
     sb.classList.toggle('is-expanded', !!expanded);
-    sb.classList.toggle('pinned', !!expanded);
     sb.classList.toggle('collapsed', !expanded);
     if (persist) {
       var st = readState();
@@ -183,6 +218,8 @@
         localStorage.setItem(LS_LEGACY_PINNED, expanded ? '1' : '0');
       } catch (_) {}
     }
+    sb.classList.toggle('pinned', !!expanded && readState().pinned);
+    if (wasExpanded !== !!expanded) markSidebarTransition();
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
@@ -444,11 +481,46 @@
     setSidebarExpanded(!!st.pinned, false);
     collapseAllGroups(false);
 
-    sb.addEventListener('mouseleave', function () {
-      if (!readState().pinned && !sb.classList.contains('is-nav-searching')) {
-        setSidebarExpanded(false, false);
+    function shouldBlockHoverToggle() {
+      return !!readState().pinned || sb.classList.contains('is-nav-searching');
+    }
+
+    function scheduleHoverOpen() {
+      if (!hoverExpandEnabled() || shouldBlockHoverToggle()) return;
+      if (isSidebarExpanded(sb)) return;
+      if (_hoverOpenTimer) return;
+      if (_hoverCloseTimer) {
+        clearTimeout(_hoverCloseTimer);
+        _hoverCloseTimer = null;
       }
-    });
+      _hoverOpenTimer = setTimeout(function () {
+        _hoverOpenTimer = null;
+        if (!sb.matches(':hover') || shouldBlockHoverToggle()) return;
+        setSidebarExpanded(true, false);
+      }, HOVER_OPEN_MS);
+    }
+
+    function scheduleHoverClose() {
+      if (shouldBlockHoverToggle()) {
+        clearHoverTimers();
+        return;
+      }
+      if (_hoverOpenTimer) {
+        clearTimeout(_hoverOpenTimer);
+        _hoverOpenTimer = null;
+      }
+      if (_hoverCloseTimer) return;
+      _hoverCloseTimer = setTimeout(function () {
+        _hoverCloseTimer = null;
+        if (sb.matches(':hover') || shouldBlockHoverToggle()) return;
+        setSidebarExpanded(false, false);
+      }, HOVER_CLOSE_MS);
+    }
+
+    if (hoverExpandEnabled()) {
+      sb.addEventListener('mouseenter', scheduleHoverOpen);
+    }
+    sb.addEventListener('mouseleave', scheduleHoverClose);
 
     if (!global._crozzoSidebarKeyBound) {
       global._crozzoSidebarKeyBound = true;

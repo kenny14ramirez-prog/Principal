@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Proyecto",
+  "version": "1.0.31",
+  "identifier": "com.crozzo.pos",
+  "app": {
+    "windows": [
+      {
+        "title": "Proyecto",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "center": true,
+        "fullscreen": false,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "apk"
+    ],
+    "android": {
+      "minSdkVersion": 24,
+      "versionCode": 10031
+    }
+  }
+}

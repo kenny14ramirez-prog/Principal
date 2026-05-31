@@ -13,9 +13,75 @@
   var GITHUB_RELEASES_LATEST = GITHUB_RELEASES_PAGE + '/latest';
   var GITHUB_API_RELEASE =
     'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/tags/';
+  var PRODUCT_NAME = 'Proyecto';
+  var SETUP_MIN_BYTES = 400 * 1024;
+  var APK_MIN_BYTES = 800 * 1024;
+  var CHECK_RETRY_MAX = 2;
+  var SILENT_INSTALL_RETRY_MAX = 2;
 
   function isTauri() {
     return !!(global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke);
+  }
+
+  function ua() {
+    return String((global.navigator && global.navigator.userAgent) || '');
+  }
+
+  function isWindowsDesktop() {
+    if (!isTauri()) return /Windows/i.test(ua());
+    return /Win/i.test(ua()) || /Windows/i.test(global.navigator.platform || '');
+  }
+
+  function isMacDesktop() {
+    return /Mac OS X|Macintosh/i.test(ua()) || /^Mac/i.test(global.navigator.platform || '');
+  }
+
+  function isAndroidTablet() {
+    return /Android/i.test(ua());
+  }
+
+  function getClientKind() {
+    if (!isTauri()) {
+      if (isAndroidTablet()) return 'android-web';
+      if (/iPad|iPhone|iPod/i.test(ua())) return 'ios-web';
+      return 'web';
+    }
+    if (isAndroidTablet()) return 'android';
+    if (isMacDesktop()) return 'mac';
+    if (isWindowsDesktop()) return 'windows';
+    return 'desktop';
+  }
+
+  function prefersApkDownload() {
+    var kind = getClientKind();
+    return kind === 'android' || kind === 'android-web';
+  }
+
+  function prefersWebReload() {
+    var kind = getClientKind();
+    return kind === 'web' || kind === 'ios-web';
+  }
+
+  function canUseTauriUpdater() {
+    if (!isTauri()) return false;
+    return !isAndroidTablet();
+  }
+
+  function updaterPlatformKeys() {
+    if (isMacDesktop()) {
+      return ['darwin-aarch64', 'darwin-x86_64', 'darwin-universal'];
+    }
+    return ['windows-x86_64-nsis', 'windows-x86_64', 'windows-x86_64-msi'];
+  }
+
+  function pickPlatformEntry(platforms) {
+    if (!platforms) return null;
+    var keys = updaterPlatformKeys();
+    for (var i = 0; i < keys.length; i++) {
+      var p = platforms[keys[i]];
+      if (p && p.url && p.signature) return p;
+    }
+    return null;
   }
 
   function invoke(cmd, args) {
@@ -136,6 +202,111 @@
     return /different key|signature was created/i.test(msg);
   }
 
+  function isRecoverableUpdaterError(err) {
+    if (isSignatureMismatchError(err)) return true;
+    var msg = err && err.message ? err.message : String(err || '');
+    return /timeout|timed out|network|fetch|failed|econn|could not|unable|404|403|502|503|certificate|dns|abort|sin metadatos|updater/i.test(
+      msg
+    );
+  }
+
+  function predictSetupExeUrl(targetVersion) {
+    var ver = semverCore(targetVersion);
+    if (!ver) return '';
+    return (
+      GITHUB_RELEASE_BASE +
+      '/v' +
+      ver +
+      '/' +
+      encodeURIComponent(PRODUCT_NAME + '_' + ver + '_x64-setup.exe')
+    );
+  }
+
+  function verifySetupDownloadUrl(url) {
+    url = String(url || '').trim();
+    if (!url || !/^https:\/\//i.test(url)) {
+      return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
+    }
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return fetch(url + sep + '_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) return { ok: false, reason: 'http_' + res.status, url: url };
+        var len = parseInt(res.headers.get('content-length') || '0', 10);
+        if (len > 0 && len < SETUP_MIN_BYTES) {
+          return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
+        }
+        return { ok: true, url: url, bytes: len };
+      })
+      .catch(function () {
+        return { ok: false, reason: 'red', url: url };
+      });
+  }
+
+  function pickVerifiedSetupUrl(candidates) {
+    var list = (candidates || []).filter(function (u) {
+      return u && /^https:\/\//i.test(String(u));
+    });
+    var seen = {};
+    list = list.filter(function (u) {
+      if (seen[u]) return false;
+      seen[u] = true;
+      return true;
+    });
+    if (!list.length) return Promise.resolve(null);
+
+    function next(i) {
+      if (i >= list.length) return Promise.resolve(null);
+      return verifySetupDownloadUrl(list[i]).then(function (v) {
+        if (v.ok) return v;
+        return next(i + 1);
+      });
+    }
+    return next(0);
+  }
+
+  function resolveBestSetupUrl(targetVersion) {
+    var ver = normVersion(targetVersion);
+    return resolveManualFallback(ver).then(function (info) {
+      var candidates = [];
+      if (info.downloadUrl) candidates.push(info.downloadUrl);
+      var predicted = predictSetupExeUrl(ver);
+      if (predicted) candidates.push(predicted);
+      if (Array.isArray(info.assets)) {
+        info.assets.forEach(function (a) {
+          if (a && a.url && /setup\.exe/i.test(a.name || a.url)) candidates.push(a.url);
+        });
+      }
+      return pickVerifiedSetupUrl(candidates).then(function (verified) {
+        if (verified && verified.url) {
+          return {
+            version: ver,
+            downloadUrl: verified.url,
+            releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_PAGE + '/tag/' + ver,
+            verified: true,
+            bytes: verified.bytes || 0,
+          };
+        }
+        return {
+          version: ver,
+          downloadUrl: info.downloadUrl || predicted || GITHUB_RELEASES_LATEST,
+          releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_LATEST,
+          verified: false,
+          bytes: 0,
+        };
+      });
+    });
+  }
+
+  function checkForAppUpdateWithRetry(opts, attempt) {
+    attempt = attempt || 0;
+    return checkForAppUpdate(opts).catch(function (err) {
+      if (attempt >= CHECK_RETRY_MAX) return Promise.reject(err);
+      return delay(1800 * (attempt + 1)).then(function () {
+        return checkForAppUpdateWithRetry(opts, attempt + 1);
+      });
+    });
+  }
+
   function waitUntilReleaseReady(targetVersion, onProgress, maxWaitMs) {
     var ver = normVersion(targetVersion);
     if (!ver) return Promise.resolve(null);
@@ -144,8 +315,45 @@
 
     function attempt() {
       return probeReleaseArtifacts(ver).then(function (probe) {
-        if (probe && probe.url && /setup\.exe/i.test(probe.url)) {
+        if (
+          probe &&
+          probe.url &&
+          (/setup\.exe/i.test(probe.url) ||
+            /\.dmg$/i.test(probe.url) ||
+            (prefersApkDownload() && /\.apk$/i.test(probe.url)))
+        ) {
           return probe;
+        }
+        if (prefersApkDownload()) {
+          return fetchReleaseAssets(ver).then(function (api) {
+            var apk = api && pickApkFromAssets(api.assets);
+            if (apk) {
+              return {
+                version: normVersion(api.version || ver),
+                url: apk,
+                releasePageUrl: api.releasePageUrl,
+                platform: getClientKind(),
+              };
+            }
+            if (Date.now() - started > maxWaitMs) {
+              return Promise.reject(
+                new Error(
+                  'El APK v' +
+                    semverCore(ver) +
+                    ' aún no está en GitHub. Espere a que termine GitHub Actions.'
+                )
+              );
+            }
+            if (onProgress) {
+              onProgress({
+                phase: 'probe',
+                percent: Math.min(10, 4 + Math.floor((Date.now() - started) / 60000)),
+                message:
+                  'Esperando APK v' + semverCore(ver) + ' en GitHub (compilación Android)…',
+              });
+            }
+            return delay(RELEASE_POLL_MS).then(attempt);
+          });
         }
         if (Date.now() - started > maxWaitMs) {
           return Promise.reject(
@@ -173,18 +381,26 @@
     return attempt();
   }
 
-  function installViaSilentSetupExe(targetVersion, onProgress) {
+  function installViaSilentSetupExe(targetVersion, onProgress, attempt) {
+    if (!isWindowsDesktop()) {
+      return Promise.reject(
+        new Error('Instalación silenciosa (.exe) solo en Windows. En Mac use el updater automático (Plan A).')
+      );
+    }
+    attempt = attempt || 0;
     var ver = normVersion(targetVersion);
-    return resolveManualFallback(ver).then(function (info) {
+    return resolveBestSetupUrl(ver).then(function (info) {
       var url = info && info.downloadUrl;
-      if (!url || !/setup\.exe/i.test(url)) {
-        return Promise.reject(new Error('No hay setup.exe en el release de GitHub.'));
+      if (!url || !/\.exe/i.test(url)) {
+        return Promise.reject(new Error('No hay setup.exe verificado en el release de GitHub.'));
       }
       if (onProgress) {
         onProgress({
           phase: 'download',
-          percent: 55,
-          message: 'Descargando e instalando en silencio…',
+          percent: 50 + attempt * 4,
+          message:
+            (info.verified ? 'Instalador verificado (' : 'Descargando instalador (') +
+            (info.bytes ? fmtMb(info.bytes) + ')…' : 'en la nube)…'),
         });
       }
       return invoke('install_setup_from_url', { url: url })
@@ -199,6 +415,18 @@
               );
             });
           }
+          if (attempt < SILENT_INSTALL_RETRY_MAX) {
+            if (onProgress) {
+              onProgress({
+                phase: 'download',
+                percent: 45,
+                message: 'Reintentando descarga silenciosa (intento ' + (attempt + 2) + ')…',
+              });
+            }
+            return delay(3000 * (attempt + 1)).then(function () {
+              return installViaSilentSetupExe(targetVersion, onProgress, attempt + 1);
+            });
+          }
           return Promise.reject(invokeErr);
         })
         .then(function () {
@@ -209,7 +437,7 @@
               message: 'Instalador en ejecución. La app se cerrará y abrirá la versión nueva…',
             });
           }
-          return delay(800).then(function () {
+          return delay(2500).then(function () {
             return invoke('plugin:process|exit', { code: 0 }).catch(function () {
               return { installed: true, version: ver, plan: 'C', exiting: true };
             });
@@ -232,13 +460,168 @@
     });
   }
 
+  function pickApkFromAssets(assets) {
+    if (!Array.isArray(assets)) return '';
+    var preferred = assets.find(function (a) {
+      var name = String(a.name || a.url || '');
+      return (
+        /\.apk$/i.test(name) &&
+        (/aarch64|arm64|arm-v8|universal/i.test(name) || !/x86|x86_64|i686/i.test(name))
+      );
+    });
+    if (preferred) return preferred.browser_download_url || preferred.url || '';
+    var anyApk = assets.find(function (a) {
+      return /\.apk$/i.test(a.name || a.url || '');
+    });
+    return anyApk ? anyApk.browser_download_url || anyApk.url || '' : '';
+  }
+
+  function predictApkUrl(targetVersion) {
+    var ver = semverCore(targetVersion);
+    if (!ver) return '';
+    var candidates = [
+      PRODUCT_NAME + '_' + ver + '_aarch64.apk',
+      PRODUCT_NAME + '_' + ver + '_arm64-v8a.apk',
+      PRODUCT_NAME + '_' + ver + '.apk',
+      PRODUCT_NAME + '-v' + ver + '-aarch64.apk',
+    ];
+    return (
+      GITHUB_RELEASE_BASE +
+      '/v' +
+      ver +
+      '/' +
+      encodeURIComponent(candidates[0])
+    );
+  }
+
+  function verifyApkDownloadUrl(url) {
+    url = String(url || '').trim();
+    if (!url || !/^https:\/\//i.test(url)) {
+      return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
+    }
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return fetch(url + sep + '_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) return { ok: false, reason: 'http_' + res.status, url: url };
+        var len = parseInt(res.headers.get('content-length') || '0', 10);
+        if (len > 0 && len < APK_MIN_BYTES) {
+          return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
+        }
+        return { ok: true, url: url, bytes: len };
+      })
+      .catch(function () {
+        return { ok: false, reason: 'red', url: url };
+      });
+  }
+
+  function pickVerifiedApkUrl(candidates) {
+    var list = (candidates || []).filter(function (u) {
+      return u && /^https:\/\//i.test(String(u));
+    });
+    var seen = {};
+    list = list.filter(function (u) {
+      if (seen[u]) return false;
+      seen[u] = true;
+      return true;
+    });
+    if (!list.length) return Promise.resolve(null);
+
+    function next(i) {
+      if (i >= list.length) return Promise.resolve(null);
+      return verifyApkDownloadUrl(list[i]).then(function (v) {
+        if (v.ok) return v;
+        return next(i + 1);
+      });
+    }
+    return next(0);
+  }
+
+  function resolveBestApkUrl(targetVersion) {
+    var ver = normVersion(targetVersion);
+    return resolveManualFallback(ver).then(function (info) {
+      var candidates = [];
+      if (Array.isArray(info.assets)) {
+        var apk = pickApkFromAssets(info.assets);
+        if (apk) candidates.push(apk);
+      }
+      var predicted = predictApkUrl(ver);
+      if (predicted) candidates.push(predicted);
+      if (info.downloadUrl && /\.apk$/i.test(info.downloadUrl)) candidates.push(info.downloadUrl);
+      return pickVerifiedApkUrl(candidates).then(function (verified) {
+        if (verified && verified.url) {
+          return {
+            version: ver,
+            downloadUrl: verified.url,
+            releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_PAGE + '/tag/' + ver,
+            verified: true,
+            bytes: verified.bytes || 0,
+            assetType: 'apk',
+          };
+        }
+        return {
+          version: ver,
+          downloadUrl: pickApkFromAssets(info.assets) || predicted || info.releasePageUrl || GITHUB_RELEASES_LATEST,
+          releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_LATEST,
+          verified: false,
+          bytes: 0,
+          assetType: 'apk',
+        };
+      });
+    });
+  }
+
+  function resolveBestDownloadUrl(targetVersion) {
+    var kind = getClientKind();
+    if (kind === 'android' || kind === 'android-web') return resolveBestApkUrl(targetVersion);
+    if (kind === 'mac') {
+      return resolveManualFallback(targetVersion).then(function (info) {
+        var dmg =
+          pickBestAssetUrl(null, info.assets) ||
+          (info.downloadUrl && /\.dmg$/i.test(info.downloadUrl) ? info.downloadUrl : '');
+        return {
+          version: info.version || normVersion(targetVersion),
+          downloadUrl: dmg || info.downloadUrl || info.releasePageUrl,
+          releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_PAGE,
+          verified: !!dmg,
+          assetType: 'dmg',
+        };
+      });
+    }
+    if (kind === 'windows' || kind === 'desktop') {
+      return resolveBestSetupUrl(targetVersion).then(function (info) {
+        info.assetType = 'exe';
+        return info;
+      });
+    }
+    return resolveManualFallback(targetVersion).then(function (info) {
+      info.assetType = 'release';
+      return info;
+    });
+  }
+
   function pickBestAssetUrl(platformEntry, assets) {
+    if (Array.isArray(assets) && prefersApkDownload()) {
+      var apkUrl = pickApkFromAssets(assets);
+      if (apkUrl) return apkUrl;
+    }
     if (platformEntry && platformEntry.url) {
       if (/\.exe$/i.test(platformEntry.url) && /setup/i.test(platformEntry.url)) {
         return platformEntry.url;
       }
+      if (/\.dmg$/i.test(platformEntry.url)) {
+        return platformEntry.url;
+      }
+      if (/\.apk$/i.test(platformEntry.url)) {
+        return platformEntry.url;
+      }
     }
     if (Array.isArray(assets)) {
+      if (isMacDesktop()) {
+        var dmg = assets.find(function (a) {
+          return /\.dmg$/i.test(a.name || a.url || '');
+        });
+        if (dmg) return dmg.browser_download_url || dmg.url;
+      }
       var setupExe = assets.find(function (a) {
         return /\.exe$/i.test(a.name || a.url || '') && /setup/i.test(a.name || '');
       });
@@ -267,13 +650,8 @@
       })
       .then(function (data) {
         if (!data || !data.platforms) return null;
-        var p =
-          data.platforms['windows-x86_64-nsis'] ||
-          data.platforms['windows-x86_64'] ||
-          data.platforms['windows-x86_64-msi'] ||
-          data.platforms['darwin-aarch64'] ||
-          data.platforms['darwin-x86_64'];
-        if (p && p.url && /\.msi$/i.test(p.url)) {
+        var p = pickPlatformEntry(data.platforms);
+        if (p && p.url && /\.msi$/i.test(p.url) && isWindowsDesktop()) {
           var nsis = data.platforms['windows-x86_64-nsis'];
           if (nsis && nsis.url) p = nsis;
         }
@@ -284,6 +662,7 @@
           hasSignature: !!p.signature,
           releaseTag: 'v' + ver,
           releasePageUrl: GITHUB_RELEASES_PAGE + '/tag/v' + ver,
+          platform: getClientKind(),
         };
       })
       .catch(function () {
@@ -328,6 +707,7 @@
           var downloadUrl =
             (api && api.downloadUrl) ||
             (probe && probe.url) ||
+            predictSetupExeUrl(ver) ||
             GITHUB_RELEASES_LATEST;
           return {
             version: ver,
@@ -415,13 +795,13 @@
         });
       })
       .catch(function (err) {
-        if (attempt < 1) {
+        if (attempt < 2) {
           onProgress({
             phase: 'download',
             percent: 12,
-            message: 'Reintentando descarga automática (intento 2 de 2)…',
+            message: 'Reintentando descarga automática (intento ' + (attempt + 2) + ' de 3)…',
           });
-          return delay(2500).then(function () {
+          return delay(2500 * (attempt + 1)).then(function () {
             return runDownloadInstall(meta, ver, current, onProgress, toast, attempt + 1);
           });
         }
@@ -437,6 +817,11 @@
     opts = opts || {};
     if (!isTauri()) {
       return Promise.reject(new Error('Solo disponible en la app de escritorio (Tauri)'));
+    }
+    if (!canUseTauriUpdater()) {
+      return Promise.reject(
+        new Error('En Android use la descarga del APK desde Actualizaciones del sistema.')
+      );
     }
 
     var toast = !opts.silent && typeof global.showToast === 'function' ? global.showToast : null;
@@ -478,7 +863,7 @@
           onProgress({ phase: 'check', percent: 12, message: 'Comprobando actualización con el servidor…' });
 
           function trySilentFallback(err, ver, currentVer) {
-            if (opts.allowSilentSetup === false) {
+            if (opts.allowSilentSetup === false || !isWindowsDesktop()) {
               return Promise.reject(err);
             }
             if (onProgress) {
@@ -503,9 +888,9 @@
               });
           }
 
-          return checkForAppUpdate({ timeout: 120000 })
+          return checkForAppUpdateWithRetry({ timeout: 120000 })
             .catch(function (err) {
-              if (isSignatureMismatchError(err)) {
+              if (isRecoverableUpdaterError(err)) {
                 return trySilentFallback(err, targetVersion, current);
               }
               return Promise.reject(err);
@@ -593,12 +978,26 @@
 
   global.CrozzoTauriUpdater = {
     isAvailable: isTauri,
+    canUseTauriUpdater: canUseTauriUpdater,
+    getClientKind: getClientKind,
+    prefersApkDownload: prefersApkDownload,
+    prefersWebReload: prefersWebReload,
+    isWindowsDesktop: isWindowsDesktop,
+    isMacDesktop: isMacDesktop,
+    isAndroidTablet: isAndroidTablet,
     getVersion: getAppVersion,
     check: checkForAppUpdate,
     probeRelease: probeReleaseArtifacts,
     waitUntilReleaseReady: waitUntilReleaseReady,
     fetchReleaseAssets: fetchReleaseAssets,
     resolveManualFallback: resolveManualFallback,
+    resolveBestSetupUrl: resolveBestSetupUrl,
+    resolveBestApkUrl: resolveBestApkUrl,
+    resolveBestDownloadUrl: resolveBestDownloadUrl,
+    pickApkFromAssets: pickApkFromAssets,
+    verifySetupDownloadUrl: verifySetupDownloadUrl,
+    verifyApkDownloadUrl: verifyApkDownloadUrl,
+    predictSetupExeUrl: predictSetupExeUrl,
     openExternalUrl: openExternalUrl,
     installLatest: installLatestBinary,
     installViaSilentSetup: installViaSilentSetupExe,

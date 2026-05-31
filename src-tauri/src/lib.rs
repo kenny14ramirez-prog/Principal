@@ -1,6 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+mod crozzo_print;
 mod crozzo_silent_install;
+mod dian_vpfe;
 mod webview_permissions;
 
 use tauri::Manager;
@@ -12,11 +14,16 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    builder
         .setup(|app| {
+            #[cfg(desktop)]
             if let Some(win) = app.get_webview_window("main") {
                 webview_permissions::install_camera_permission_handler(&win);
             }
@@ -24,8 +31,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            crozzo_print::crozzo_list_printers,
+            crozzo_print::crozzo_get_default_printer,
+            crozzo_print::crozzo_print_raw,
             crozzo_silent_install::install_setup_from_url,
-            webview_permissions::cxf_reset_webview_camera_permission
+            webview_permissions::cxf_reset_webview_camera_permission,
+            dian_vpfe::fetch_dian_vpfe
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

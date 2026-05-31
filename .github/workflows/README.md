@@ -4,9 +4,11 @@
 
 **Único** workflow que debe ejecutarse al subir un tag `v*`.
 
-- Compila el instalador Windows (NSIS)
-- Publica el release en GitHub
-- Genera `latest.json` del **updater Tauri** (formato con `platforms` y firmas)
+- Compila **Windows** (NSIS `.exe`), **macOS** (`.dmg` ×2) y **Android** (`.apk` ARM64 para tablets)
+- Publica un **único** release en GitHub con todos los instaladores
+- Genera `latest.json` del **updater Tauri** (Windows + Mac; Android se publica como `.apk` en assets)
+
+**Tablets:** instale el `.apk` del release, o use el navegador con OTA `registry.json` (recarga automática).
 
 ## OTA (avisos en la app)
 

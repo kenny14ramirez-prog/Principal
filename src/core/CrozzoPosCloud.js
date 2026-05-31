@@ -503,6 +503,50 @@ function crozzoQueueFacturaForCloudSync(f) {
     void Promise.resolve().then(() => syncOfflineQueue());
   }
 }
+async function crozzoTryMirrorShiftCloseToSupabase(rec) {
+  if (!rec || !window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) return { ok: false, reason: 'offline_o_sin_cliente' };
+  const sb = window.__SUPABASE;
+  try {
+    let id;
+    try {
+      id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'shift-' + Date.now();
+    } catch (_) {
+      id = 'shift-' + Date.now();
+    }
+    const dev = typeof crozzoCloudDeviceUuidForRest === 'function' ? crozzoCloudDeviceUuidForRest() : null;
+    const row = {
+      id,
+      device_id: dev || null,
+      business_date: rec.businessDate || null,
+      shift_type: rec.shiftType || null,
+      shift_id: rec.shiftId || null,
+      closed_at: rec.closedAt || new Date().toISOString(),
+      closed_by: rec.closedBy || null,
+      closed_by_id: rec.closedById || null,
+      sales_count: rec.salesCount != null ? Number(rec.salesCount) : null,
+      total_sales: rec.totalSales != null ? Number(rec.totalSales) : null,
+      cash_sales: rec.cashSales != null ? Number(rec.cashSales) : null,
+      fondo: rec.fondo != null ? Number(rec.fondo) : null,
+      expected: rec.expected != null ? Number(rec.expected) : null,
+      actual: rec.actual != null ? Number(rec.actual) : null,
+      diff: rec.diff != null ? Number(rec.diff) : null,
+      auto_closed: !!rec.autoClosed,
+      facturas_hash: rec.facturasHash || null,
+      notes: rec.notes || null,
+      record_json: rec,
+    };
+    const ins = await sb.from('shift_closes').insert(row);
+    if (ins.error) {
+      console.warn('[crozzo-sb] shift_closes insert', ins.error);
+      return { ok: false, error: ins.error };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.warn('[crozzo-sb] shift_closes', e);
+    return { ok: false, error: e };
+  }
+}
+window.crozzoTryMirrorShiftCloseToSupabase = crozzoTryMirrorShiftCloseToSupabase;
 async function crozzoTryMirrorSaleToSupabase(f) {
   if (!f || !window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) return;
   const sb = window.__SUPABASE;
@@ -721,15 +765,10 @@ function buildSyntheticUserFromProfile(profile) {
     permisos: {
       caja: [
         'vista_pos',
-        'vista_tablets',
         'vista_facturas',
         'vista_clientes',
         'abrir_orden',
         'editar_orden',
-        'eliminar_item',
-        'tab_abrir',
-        'tab_editar',
-        'tab_eliminar',
         'facturar',
       ],
       comandas: ['ver', 'despachar', 'reimprimir'],
@@ -739,6 +778,20 @@ function buildSyntheticUserFromProfile(profile) {
     },
   };
   if (appRol === 'superadmin') {
+    base.permisos.caja = [
+      'vista_pos',
+      'vista_tablets',
+      'vista_facturas',
+      'vista_clientes',
+      'abrir_orden',
+      'editar_orden',
+      'eliminar_item',
+      'anular_comandado',
+      'tab_abrir',
+      'tab_editar',
+      'tab_eliminar',
+      'facturar',
+    ];
     base.permisos.admin = [
       'config_empresa',
       'config_impuestos',
@@ -747,16 +800,40 @@ function buildSyntheticUserFromProfile(profile) {
       'config_facturas_admin',
       'config_usuarios',
       'auditoria',
+      'facturas_limpiar',
     ];
     base.permisos.inventario = ['reportes', 'proveedores'];
     base.permisos.productos = ['catalogo'];
   } else if (appRol === 'admin') {
-    base.permisos.admin = ['config_empresa', 'config_impuestos', 'config_usuarios'];
+    base.permisos.caja = [
+      'vista_pos',
+      'vista_tablets',
+      'vista_facturas',
+      'vista_clientes',
+      'abrir_orden',
+      'editar_orden',
+      'eliminar_item',
+      'anular_comandado',
+      'tab_abrir',
+      'tab_editar',
+      'tab_eliminar',
+      'facturar',
+    ];
+    base.permisos.admin = ['config_empresa', 'config_impuestos', 'config_usuarios', 'facturas_limpiar'];
     base.permisos.inventario = ['reportes', 'proveedores'];
     base.permisos.productos = ['catalogo'];
   } else if (appRol === 'mesero') {
-    base.permisos.caja = ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar', 'tab_eliminar'];
+    base.permisos.caja = ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar'];
     base.permisos.comandas = ['ver', 'despachar'];
+  } else if (appRol === 'caja') {
+    base.permisos.caja = [
+      'vista_pos',
+      'vista_facturas',
+      'vista_clientes',
+      'abrir_orden',
+      'editar_orden',
+      'facturar',
+    ];
   }
   return base;
 }

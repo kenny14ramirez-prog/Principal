@@ -19,36 +19,335 @@
   var CUFE_HEX_MAX = 96;
   var CUFE_PREFERRED = 96;
 
+  /** Perfil de entrenamiento (83 facturas integrar/facturas de pruebas) — métricas para UI y diagnóstico. */
+  var _feTrainingProfile = null;
+  var FE_TRAINING_FALLBACK = {
+    version: 2,
+    trainedAt: '2026-05-30',
+    sampleSize: 83,
+    okFePct: 41,
+    scannedFailPct: 58,
+    hint:
+      'Entrenamiento 83 facturas: ~41% detectan FE en lote automático. Escaneos sin QR: use «Reanalizar» o marque el QR en la vista.',
+  };
+
+  function getFeTrainingProfile() {
+    return _feTrainingProfile || FE_TRAINING_FALLBACK;
+  }
+
+  function loadFeTrainingProfile() {
+    if (_feTrainingProfile && _feTrainingProfile._loaded) {
+      return Promise.resolve(_feTrainingProfile);
+    }
+    if (typeof fetch !== 'function') {
+      _feTrainingProfile = Object.assign({}, FE_TRAINING_FALLBACK, { _loaded: true });
+      return Promise.resolve(_feTrainingProfile);
+    }
+    var url = feResolveAppDataUrl('fe-training-profile.json');
+    return fetch(url, { cache: 'no-cache' })
+      .then(function (res) {
+        return res.ok ? res.json() : null;
+      })
+      .then(function (json) {
+        if (json && json.sampleSize) {
+          var failN =
+            json.summary && json.summary['escaneada-sin-qr-cufe']
+              ? json.summary['escaneada-sin-qr-cufe']
+              : 0;
+          json.scannedFailPct = json.sampleSize ? Math.round((failN / json.sampleSize) * 100) : 58;
+          json.hint =
+            'Entrenamiento ' +
+            json.sampleSize +
+            ' facturas (' +
+            (json.trainedAt || '') +
+            '): ~' +
+            json.okFePct +
+            '% detectan FE en lote. Escaneos sin QR: use «Reanalizar» o marque el QR.';
+          json._loaded = true;
+          _feTrainingProfile = json;
+        } else {
+          _feTrainingProfile = Object.assign({}, FE_TRAINING_FALLBACK, { _loaded: true });
+        }
+        return _feTrainingProfile;
+      })
+      .catch(function () {
+        _feTrainingProfile = Object.assign({}, FE_TRAINING_FALLBACK, { _loaded: true });
+        return _feTrainingProfile;
+      });
+  }
+
+  function getFeTrainingUiHint() {
+    var p = getFeTrainingProfile();
+    return p.hint || FE_TRAINING_FALLBACK.hint;
+  }
+
+  function feResolveAppBase() {
+    return (
+      (typeof global !== 'undefined' && global.__crozzoAppBase) ||
+      (typeof document !== 'undefined' &&
+        document.querySelector('base') &&
+        document.querySelector('base').getAttribute('href')) ||
+      ''
+    );
+  }
+
+  function feResolveAppDataUrl(subpath) {
+    var base = feResolveAppBase();
+    return String(base).replace(/\/?$/, '/') + String(subpath || '').replace(/^\//, '');
+  }
+
+  function feOcrLangPath() {
+    return feResolveAppDataUrl('data/');
+  }
+
+  function feOcrRecognizeOptions(extra) {
+    extra = extra || {};
+    return Object.assign(
+      {
+        logger: function () {},
+        langPath: feOcrLangPath(),
+        gzip: false,
+      },
+      extra
+    );
+  }
+
+  /** Memoria de zona QR por proveedor (probe + aprendizaje en runtime). */
+  var _feQrZoneMemory = null;
+  var FE_QR_ZONE_LS = 'crozzo_fe_qr_zone_runtime_v1';
+
+  function feSlugKey(str) {
+    return String(str || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+  }
+
+  function feSupplierSlugFromFilename(name) {
+    var base = String(name || '').replace(/^.*[/\\]/, '');
+    var m = base.match(/^\d{4}-\d{2}-\d{2}_(.+?)_[a-f0-9]{6,10}\.pdf$/i);
+    return m ? feSlugKey(m[1].replace(/__/g, '_')) : feSlugKey(base.replace(/\.pdf$/i, ''));
+  }
+
+  function feProvQrKey(prov, doc) {
+    if (doc && doc.nombre) {
+      var fromFile = feSupplierSlugFromFilename(doc.nombre);
+      if (fromFile) return fromFile;
+    }
+    if (prov) {
+      if (prov.nit) return feSlugKey(prov.nit);
+      if (prov.documento) return feSlugKey(prov.documento);
+      if (prov.nombre) return feSlugKey(prov.nombre);
+    }
+    return '';
+  }
+
+  function feLoadQrRuntimeMemory() {
+    try {
+      if (typeof localStorage === 'undefined') return {};
+      var raw = localStorage.getItem(FE_QR_ZONE_LS);
+      return raw ? JSON.parse(raw) : {};
+    } catch (eR) {
+      return {};
+    }
+  }
+
+  function feSaveQrRuntimeMemory(runtime) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(FE_QR_ZONE_LS, JSON.stringify(runtime || {}));
+      }
+    } catch (eS) {}
+  }
+
+  function loadFeQrZoneMemory() {
+    if (_feQrZoneMemory && _feQrZoneMemory._loaded) {
+      return Promise.resolve(_feQrZoneMemory);
+    }
+    var runtime = feLoadQrRuntimeMemory();
+    if (typeof fetch !== 'function') {
+      _feQrZoneMemory = { version: 1, bySupplier: {}, runtime: runtime, _loaded: true };
+      return Promise.resolve(_feQrZoneMemory);
+    }
+    return fetch(feResolveAppDataUrl('fe-qr-zone-memory.json'), { cache: 'no-cache' })
+      .then(function (res) {
+        return res.ok ? res.json() : null;
+      })
+      .then(function (json) {
+        _feQrZoneMemory = json && json.bySupplier ? json : { version: 1, bySupplier: {}, runtime: {} };
+        _feQrZoneMemory.runtime = Object.assign({}, _feQrZoneMemory.runtime || {}, runtime);
+        _feQrZoneMemory._loaded = true;
+        return _feQrZoneMemory;
+      })
+      .catch(function () {
+        _feQrZoneMemory = { version: 1, bySupplier: {}, runtime: runtime, _loaded: true };
+        return _feQrZoneMemory;
+      });
+  }
+
+  function getFeQrZoneForProv(provKey) {
+    if (!provKey || !_feQrZoneMemory) return null;
+    var rt = (_feQrZoneMemory.runtime && _feQrZoneMemory.runtime[provKey]) || null;
+    var seed = (_feQrZoneMemory.bySupplier && _feQrZoneMemory.bySupplier[provKey]) || null;
+    if (rt && seed) {
+      return rt.hits >= (seed.hits || 0) ? rt : seed;
+    }
+    return rt || seed || null;
+  }
+
+  function feQrZonePresetRect(zoneId) {
+    var z = String(zoneId || '');
+    if (z.indexOf('inf-izq') >= 0) return { rx: 0, ry: 0.54, rw: 0.52, rh: 0.46 };
+    if (z.indexOf('inf-der') >= 0) return { rx: 0.48, ry: 0.54, rw: 0.52, rh: 0.46 };
+    if (z.indexOf('sup-der') >= 0) return { rx: 0.48, ry: 0, rw: 0.52, rh: 0.46 };
+    if (z.indexOf('sup-izq') >= 0) return { rx: 0, ry: 0, rw: 0.52, rh: 0.46 };
+    if (z.indexOf('borde-sup') >= 0 || z === 'borde superior') return { rx: 0, ry: 0, rw: 1, rh: 0.38 };
+    if (z.indexOf('borde-inf') >= 0) return { rx: 0, ry: 0.62, rw: 1, rh: 0.38 };
+    if (z === 'centro') return { rx: 0.2, ry: 0.15, rw: 0.6, rh: 0.7 };
+    return null;
+  }
+
+  function buildFeQrMemoryRegions(w, h, mem) {
+    if (!mem) return [];
+    var size = 0.38;
+    if (mem.nx != null && mem.ny != null && !isNaN(mem.nx) && !isNaN(mem.ny)) {
+      var nx = Math.max(0.08, Math.min(0.92, Number(mem.nx)));
+      var ny = Math.max(0.08, Math.min(0.92, Number(mem.ny)));
+      return [
+        feQrRegionRect(w, h, nx - size / 2, ny - size / 2, size, size, 'memoria proveedor'),
+        feQrRegionRect(w, h, nx - size * 0.65, ny - size * 0.65, size * 1.3, size * 1.3, 'memoria ampliada'),
+      ];
+    }
+    var preset = feQrZonePresetRect(mem.zone);
+    if (!preset) return [];
+    return [feQrRegionRect(w, h, preset.rx, preset.ry, preset.rw, preset.rh, 'zona ' + (mem.zone || 'probe'))];
+  }
+
+  function rememberFeQrZoneFromHit(provKey, hit, canvasW, canvasH) {
+    if (!provKey || !hit) return;
+    loadFeQrZoneMemory().then(function () {
+      if (!_feQrZoneMemory) return;
+      if (!_feQrZoneMemory.runtime) _feQrZoneMemory.runtime = {};
+      var prev = _feQrZoneMemory.runtime[provKey] || {};
+      var zoneName = hit.qrRegion || '';
+      var entry = {
+        zone: zoneName || prev.zone || 'memoria',
+        hits: (prev.hits || 0) + 1,
+        source: 'runtime',
+        lastAt: new Date().toISOString(),
+      };
+      if (hit.qrNormX != null && hit.qrNormY != null) {
+        entry.nx = hit.qrNormX;
+        entry.ny = hit.qrNormY;
+      } else if (zoneName) {
+        var preset = feQrZonePresetRect(zoneName);
+        if (preset) {
+          entry.nx = preset.rx + preset.rw / 2;
+          entry.ny = preset.ry + preset.rh / 2;
+        }
+      }
+      _feQrZoneMemory.runtime[provKey] = entry;
+      feSaveQrRuntimeMemory(_feQrZoneMemory.runtime);
+    });
+  }
+
+  /** Detección rápida al subir: PDF escaneado vs texto nativo. */
+  function probePdfQuickProfile(doc) {
+    if (!doc) return Promise.resolve({ scanned: false, textLen: 0, profile: 'desconocido' });
+    var mime = String(doc.mime || '');
+    if (mime.indexOf('pdf') < 0 && !/^data:application\/pdf/i.test(doc.dataUrl || '')) {
+      return Promise.resolve({ scanned: false, textLen: 0, profile: 'no-pdf' });
+    }
+    return extractTextFromPdfDataUrl(doc, 1)
+      .then(function (text) {
+        var compact = String(text || '').replace(/\s/g, '');
+        var textLen = compact.length;
+        var scanned = textLen < 40;
+        return {
+          scanned: scanned,
+          likelyScanned: scanned,
+          textLen: textLen,
+          profile: scanned ? 'escaneada' : textLen > 400 ? 'texto-nativo' : 'mixta',
+          probedAt: new Date().toISOString(),
+        };
+      })
+      .catch(function () {
+        return { scanned: true, likelyScanned: true, textLen: 0, profile: 'escaneada', probedAt: new Date().toISOString() };
+      });
+  }
+
   /** Perfiles de lectura QR (cascada: si uno falla, sigue el siguiente). */
   var QR_SCAN_PROFILES = {
-    lite: { label: 'Lectura rápida', scanned: true, scales: [2.4, 3], grid: false, maxSide: 2200 },
+    edges: {
+      label: 'Bordes superior e inferior',
+      scanned: true,
+      edgesOnly: true,
+      scales: [3.6, 4.2, 4.8],
+      grid: false,
+      topBottomGrid: true,
+      maxSide: 3400,
+      fullFilters: true,
+    },
+    lite: { label: 'Lectura rápida', scanned: true, scales: [2.8, 3.4], grid: false, maxSide: 2400 },
     standard: {
       label: 'Regiones y filtros',
       scanned: true,
       scales: [2.6, 3.2, 3.6],
-      grid: false,
+      grid: true,
       maxSide: 2600,
       fullFilters: true,
     },
-    high: { label: 'Alta resolución', scanned: true, scales: [3.2, 3.8], grid: false, maxSide: 3000, fullFilters: true },
-    grid: { label: 'Rejilla de página', scanned: true, scales: [3, 3.5], grid: true, maxSide: 2800, fullFilters: true },
-    deep: { label: 'Escaneo profundo', scanned: true, thorough: true, scales: [3.5, 4.2], grid: false, maxSide: 3200 },
+    high: { label: 'Alta resolución', scanned: true, scales: [3.2, 3.8, 4.2], grid: true, maxSide: 3000, fullFilters: true },
+    grid: { label: 'Rejilla de página', scanned: true, scales: [3, 3.5, 4], grid: true, maxSide: 2800, fullFilters: true },
+    deep: {
+      label: 'Escaneo profundo',
+      scanned: true,
+      thorough: true,
+      scales: [3.5, 4.2, 4.8],
+      grid: true,
+      maxSide: 3400,
+      fullFilters: true,
+      tryRotations: true,
+    },
     max: {
       label: 'Máxima ampliación',
       scanned: true,
       thorough: true,
-      scales: [4, 4.8],
+      scales: [4, 4.8, 5.4],
       grid: true,
-      maxSide: 3400,
+      maxSide: 3800,
       fullFilters: true,
+      tryRotations: true,
+    },
+    hunter: {
+      label: 'Modo cámara (QR/CUFE)',
+      scanned: true,
+      thorough: true,
+      scales: [3.8, 4.4, 5],
+      grid: true,
+      maxSide: 3600,
+      fullFilters: true,
+      tryRotations: true,
+      gridSize: 4,
     },
     quick: { label: 'PDF con texto', scanned: false, scales: [2, 2.8], grid: false },
   };
 
-  /** En lote: solo 2 métodos (evita congelar la UI). Use cámara o Reanalizar para el resto. */
-  var QR_CASCADE_BATCH = ['lite', 'standard'];
-  var QR_CASCADE_SCANNED = ['lite', 'standard', 'high', 'grid', 'deep', 'max'];
-  var QR_CASCADE_TEXT = ['quick', 'standard', 'high'];
+  /** En lote: 3 métodos (entrenamiento 83 facturas — lite+standard dejaban ~58% escaneadas sin CUFE). */
+  var QR_CASCADE_BATCH = ['edges', 'lite', 'standard', 'high'];
+  /** Análisis normal: profundo pero acotado (evita colapsar la app). */
+  var QR_CASCADE_SCANNED = ['edges', 'lite', 'standard', 'high', 'grid', 'deep'];
+  /** Reanalizar / modo cámara completo. */
+  var QR_CASCADE_SCANNED_DEEP = ['lite', 'standard', 'high', 'grid', 'deep', 'max', 'hunter'];
+  var QR_CASCADE_TEXT = ['quick', 'standard', 'high', 'grid'];
+
+  /** Presupuesto de tiempo por fase QR (ms) — evita congelar UI / agotar memoria. */
+  var FE_QR_BUDGET_BATCH_MS = 62000;
+  var FE_QR_BUDGET_SINGLE_MS = 72000;
+  var FE_QR_BUDGET_DEEP_MS = 110000;
+  var FE_QR_LITE_REGION_PX = 1200000;
+  var FE_QR_MAX_REGION_PX = 2400000;
+  var _feQrScanDeadline = 0;
 
   var FE_LOADER_TRACK = [
     { id: 'init', label: 'Preparando documento' },
@@ -169,7 +468,11 @@
     if (cufeResolved && cufeResolved.cufeValidado) return true;
     if (cufeResolved && cufeResolved.cufe && isValidCufeHex(cufeResolved.cufe)) return true;
     if (qr && qr.cufe && isValidCufeHex(qr.cufe)) return true;
-    if (qr && qr.url && /dian\.gov|documentkey|catalogo-vpfe/i.test(qr.url)) return true;
+    if (qr && qr.url) {
+      if (/dian\.gov|documentkey|catalogo-vpfe/i.test(qr.url)) return true;
+      if (/factura|electronic|fe\.|vpfe|cufe|dispapeles|facturacion/i.test(qr.url)) return true;
+      if (/^https?:\/\//i.test(qr.url)) return true;
+    }
     return false;
   }
 
@@ -301,7 +604,16 @@
     return !!(_activeQrScan && _activeQrScan.useGrid);
   }
 
-  function applyQrScanProfile(profileId) {
+  function isQrScanEdgesOnly() {
+    return !!(_activeQrScan && _activeQrScan.edgesOnly);
+  }
+
+  function isQrScanTopBottomGrid() {
+    return !!(_activeQrScan && _activeQrScan.topBottomGrid);
+  }
+
+  function applyQrScanProfile(profileId, extra) {
+    extra = extra || {};
     var p = QR_SCAN_PROFILES[profileId] || QR_SCAN_PROFILES.standard;
     var batchUi = !!global.__cxfFeBatchMode;
     _activeQrScan = {
@@ -311,9 +623,15 @@
       batch: batchUi,
       batchLite: profileId === 'lite',
       useGrid: !!p.grid,
+      tryRotations: !!p.tryRotations,
+      gridCols: p.gridSize || (p.thorough || p.grid ? 4 : 3),
+      gridRows: p.gridSize || (p.thorough || p.grid ? 4 : 3),
       forceScales: p.scales ? p.scales.slice() : null,
       maxSide: p.maxSide || 0,
       fullFilters: !!p.fullFilters,
+      edgesOnly: !!p.edgesOnly,
+      topBottomGrid: !!p.topBottomGrid,
+      provKey: extra.provKey || '',
     };
     return p;
   }
@@ -324,12 +642,16 @@
     return isFacturaElectronicaDetectada(resolved, qr);
   }
 
-  function scanQrWithProfile(doc, mime, profileId, onProgress) {
-    applyQrScanProfile(profileId);
+  function scanQrWithProfile(doc, mime, profileId, onProgress, scanOptsExtra) {
+    applyQrScanProfile(profileId, scanOptsExtra || {});
+    scanOptsExtra = scanOptsExtra || {};
     return scanQrDeep(doc, mime, onProgress, {
       doc: doc,
       scanned: _activeQrScan.scanned,
       thorough: _activeQrScan.thorough,
+      preserveProfile: true,
+      forceDeepQr: !!scanOptsExtra.forceDeepQr,
+      provKey: scanOptsExtra.provKey || (_activeQrScan && _activeQrScan.provKey) || '',
     });
   }
 
@@ -344,11 +666,14 @@
     if (!stages) {
       if (batchMode) {
         stages = opts.likelyScanned ? QR_CASCADE_BATCH : ['quick', 'standard'];
+      } else if (opts.forceDeepQr) {
+        stages = opts.likelyScanned ? QR_CASCADE_SCANNED_DEEP : QR_CASCADE_TEXT;
       } else {
         stages = opts.likelyScanned ? QR_CASCADE_SCANNED : QR_CASCADE_TEXT;
       }
     }
     var smooth = opts.smooth;
+    var forceDeepQr = !!opts.forceDeepQr;
     var base = 14;
     var span = 36;
     var chain = Promise.resolve(null);
@@ -358,6 +683,7 @@
         var prof = QR_SCAN_PROFILES[profileId] || QR_SCAN_PROFILES.standard;
         chain = chain.then(function (prevQr) {
           if (qrHitValid(prevQr, fromQuick)) return prevQr;
+          if (feQrBudgetExpired()) return prevQr || null;
           if (smooth) {
             smooth.bump(
               base + (stageIdx / stages.length) * span,
@@ -365,14 +691,20 @@
             );
           }
           return feYieldToMain(stageIdx > 0 ? feYieldMs() + 40 : feYieldMs()).then(function () {
-            return scanQrWithProfile(doc, mime, profileId, function (ratio, msg) {
-              if (smooth) {
-                smooth.bump(
-                  base + ((stageIdx + Math.min(0.92, ratio || 0)) / stages.length) * span,
-                  msg || prof.label
-                );
-              }
-            });
+            return scanQrWithProfile(
+              doc,
+              mime,
+              profileId,
+              function (ratio, msg) {
+                if (smooth) {
+                  smooth.bump(
+                    base + ((stageIdx + Math.min(0.92, ratio || 0)) / stages.length) * span,
+                    msg || prof.label
+                  );
+                }
+              },
+              { forceDeepQr: forceDeepQr, provKey: opts.provKey || '' }
+            );
           });
         });
       })(i, stages[i]);
@@ -381,17 +713,54 @@
   }
 
   function feYieldMs() {
-    if (isQrScanBatchLite()) return 64;
-    if (isFeBatchUi()) return 88;
-    return 14;
+    if (isQrScanBatchLite()) return 72;
+    if (isFeBatchUi()) return 96;
+    return 20;
+  }
+
+  function feQrBeginBudget(opts) {
+    opts = opts || {};
+    var ms = FE_QR_BUDGET_BATCH_MS;
+    if (opts.forceDeepQr) ms = FE_QR_BUDGET_DEEP_MS;
+    else if (!opts.batchMode && !global.__cxfFeBatchMode) ms = FE_QR_BUDGET_SINGLE_MS;
+    _feQrScanDeadline = Date.now() + ms;
+  }
+
+  function feQrClearBudget() {
+    _feQrScanDeadline = 0;
+  }
+
+  function feQrBudgetExpired() {
+    return _feQrScanDeadline > 0 && Date.now() >= _feQrScanDeadline;
+  }
+
+  function feQrImagePixels(img) {
+    if (!img) return 0;
+    return (img.width || 0) * (img.height || 0);
   }
 
   function qrScanMaxCanvasSide() {
     if (_activeQrScan && _activeQrScan.maxSide) return _activeQrScan.maxSide;
     if (isQrScanBatchLite()) return 2200;
     if (isQrScanThorough()) return 3600;
-    if (isQrScanScanned()) return isFeBatchUi() ? 2800 : 3600;
-    return isFeBatchUi() ? 2000 : 3200;
+    if (isQrScanScanned()) return isFeBatchUi() ? 2600 : 3400;
+    return isFeBatchUi() ? 2000 : 3000;
+  }
+
+  /** Orden tipo cámara: última página primero (QR DIAN suele estar al final). */
+  function fePdfPageScanOrder(numPages, maxPages) {
+    maxPages = maxPages || numPages;
+    var order = [];
+    var seen = {};
+    function add(p) {
+      if (p < 1 || p > numPages || seen[p]) return;
+      seen[p] = true;
+      order.push(p);
+    }
+    if (numPages > 1) add(numPages);
+    add(1);
+    for (var p = 2; p <= numPages && order.length < maxPages; p++) add(p);
+    return order.slice(0, maxPages);
   }
 
   function dataUrlToUint8(dataUrl) {
@@ -405,9 +774,27 @@
   }
 
   function configurePdfJsWorker(pdfjsLib) {
-    if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+    if (pdfjsLib && pdfjsLib.GlobalWorkerOptions && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = resolveFeVendorUrl('vendor/CrozzoPdfJs.worker.js');
     }
+  }
+
+  function openPdfDocumentWithPdfJs(pdfjsLib, bytes) {
+    configurePdfJsWorker(pdfjsLib);
+    var baseParams = { data: bytes };
+    return pdfjsLib.getDocument(baseParams).promise.catch(function (err) {
+      var msg = String((err && err.message) || err || '');
+      if (!/worker|fake worker/i.test(msg)) throw err;
+      return pdfjsLib
+        .getDocument(
+          Object.assign({}, baseParams, {
+            disableWorker: true,
+            useWorkerFetch: false,
+            isEvalSupported: false,
+          })
+        )
+        .promise;
+    });
   }
 
   function getPdfBytesFromDoc(doc) {
@@ -436,8 +823,7 @@
     return bytesP.then(function (bytes) {
       if (!bytes || !bytes.length) throw new Error('PDF sin datos');
       return loadPdfJs().then(function (pdfjsLib) {
-        configurePdfJsWorker(pdfjsLib);
-        return pdfjsLib.getDocument({ data: bytes }).promise;
+        return openPdfDocumentWithPdfJs(pdfjsLib, bytes);
       });
     });
   }
@@ -598,7 +984,32 @@
     if (cufe && !isValidCufeHex(cufe)) cufe = '';
     if (cufe && !url) url = buildDianConsultaUrl(cufe);
     if (!url && /dian\.gov|catalogo-vpfe|documentkey/i.test(data)) url = data.split(/\s/)[0];
+    if (!url && /^www\./i.test(data)) url = 'https://' + data;
+    if (
+      !url &&
+      /(?:^|\/\/)(?:[a-z0-9-]+\.)+(?:com|co|net|org|gov)(?:\.[a-z]{2})?(?:\/|$|\?)/i.test(data)
+    ) {
+      url = /^https?:\/\//i.test(data) ? data : 'https://' + data.replace(/^\/\//, '');
+    }
+    if (!url && /factura|electronic|fe\.|vpfe|dispapeles|facturacion/i.test(data) && data.length > 12) {
+      url = /^https?:\/\//i.test(data) ? data : 'https://' + data.replace(/^\/\//, '');
+    }
     return { url: url, cufe: cufe, raw: data };
+  }
+
+  function qrPayloadReadable(parsed) {
+    if (!parsed) return false;
+    if (parsed.cufe || parsed.url) return true;
+    var raw = String(parsed.raw || '').trim();
+    return raw.length >= 8;
+  }
+
+  function normalizeQrPayload(parsed) {
+    parsed = parsed || { url: '', cufe: '', raw: '' };
+    if (qrPayloadReadable(parsed)) return parsed;
+    var raw = String(parsed.raw || '').trim();
+    if (raw.length >= 8) parsed.url = raw;
+    return parsed;
   }
 
   function buildDianConsultaUrl(cufe) {
@@ -611,9 +1022,10 @@
     maxPages = maxPages || 3;
     return runPdfExclusive(function () {
       return openPdfDocument(docOrDataUrl).then(function (pdf) {
-          var n = Math.min(pdf.numPages, maxPages);
+          var pageNums = fePdfTextExtractOrder(pdf.numPages, maxPages);
           var chain = Promise.resolve('');
-          for (var p = 1; p <= n; p++) {
+          var pi;
+          for (pi = 0; pi < pageNums.length; pi++) {
             (function (pageNum) {
               chain = chain.then(function (acc) {
                 return pdf.getPage(pageNum).then(function (page) {
@@ -627,7 +1039,7 @@
                   });
                 });
               });
-            })(p);
+            })(pageNums[pi]);
           }
           return chain.finally(function () {
             try {
@@ -638,8 +1050,94 @@
     });
   }
 
+  /** Páginas para texto: 1ª, última (CUFE/QR suele estar al final). */
+  function fePdfTextExtractOrder(numPages, maxPages) {
+    maxPages = maxPages || 3;
+    var order = [];
+    var seen = {};
+    function add(p) {
+      if (p < 1 || p > numPages || seen[p]) return;
+      seen[p] = true;
+      order.push(p);
+    }
+    add(1);
+    if (numPages > 1) add(numPages);
+    if (numPages > 2 && maxPages > 2) add(2);
+    return order.slice(0, maxPages);
+  }
+
+  function feCanvasFromImageData(img) {
+    var c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    c.getContext('2d').putImageData(img, 0, 0);
+    return c;
+  }
+
+  /** Mejora contraste para OCR en escaneos (CUFE impreso). */
+  function feCanvasForOcr(sourceCanvas) {
+    try {
+      var ctx = sourceCanvas.getContext('2d');
+      var img = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+      var step1 = preprocessImageData(img, 'grayscale');
+      var step2 = preprocessImageData(step1, 'contrast');
+      var step3 = preprocessImageData(step2, 'adaptive');
+      return feCanvasFromImageData(step3);
+    } catch (e) {
+      return sourceCanvas;
+    }
+  }
+
   function cloneImageData(img) {
     return new ImageData(new Uint8ClampedArray(img.data), img.width, img.height);
+  }
+
+  /** Umbral Otsu — como cámaras que separan QR del fondo. */
+  function computeOtsuThreshold(img) {
+    var hist = new Array(256).fill(0);
+    var d = img.data;
+    var n = d.length / 4;
+    var i;
+    for (i = 0; i < d.length; i += 4) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      hist[g]++;
+    }
+    var sum = 0;
+    for (i = 0; i < 256; i++) sum += i * hist[i];
+    var sumB = 0;
+    var wB = 0;
+    var maxVar = 0;
+    var threshold = 128;
+    for (i = 0; i < 256; i++) {
+      wB += hist[i];
+      if (!wB) continue;
+      var wF = n - wB;
+      if (!wF) break;
+      sumB += i * hist[i];
+      var mB = sumB / wB;
+      var mF = (sum - sumB) / wF;
+      var between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > maxVar) {
+        maxVar = between;
+        threshold = i;
+      }
+    }
+    return threshold;
+  }
+
+  function rotateCanvas90(canvas, turns) {
+    turns = ((turns % 4) + 4) % 4;
+    if (!turns) return canvas;
+    var w = canvas.width;
+    var h = canvas.height;
+    var out = document.createElement('canvas');
+    out.width = turns % 2 ? h : w;
+    out.height = turns % 2 ? w : h;
+    var ctx = out.getContext('2d');
+    ctx.translate(out.width / 2, out.height / 2);
+    ctx.rotate((turns * Math.PI) / 2);
+    ctx.drawImage(canvas, -w / 2, -h / 2);
+    return out;
   }
 
   /** Mejora contraste / nitidez para QR en fotos borrosas o con poca luz. */
@@ -649,6 +1147,13 @@
     var i;
     var w = out.width;
     var h = out.height;
+    var px = w * h;
+    if (px > FE_QR_MAX_REGION_PX && (mode === 'denoise-threshold' || mode === 'sharpen')) {
+      return out;
+    }
+    if (px > FE_QR_LITE_REGION_PX && mode === 'denoise-threshold') {
+      mode = 'adaptive';
+    }
 
     if (mode === 'grayscale') {
       for (i = 0; i < d.length; i += 4) {
@@ -672,6 +1177,47 @@
         var g3 = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
         var v = g3 > 140 ? 255 : 0;
         d[i] = d[i + 1] = d[i + 2] = v;
+      }
+      return out;
+    }
+
+    if (mode === 'adaptive') {
+      var thr = computeOtsuThreshold(img);
+      for (i = 0; i < d.length; i += 4) {
+        var ga = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+        var va = ga > thr ? 255 : 0;
+        d[i] = d[i + 1] = d[i + 2] = va;
+      }
+      return out;
+    }
+
+    if (mode === 'gamma') {
+      for (i = 0; i < d.length; i += 4) {
+        var gg = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
+        gg = Math.pow(gg, 0.82);
+        var gv = (gg * 255) | 0;
+        d[i] = d[i + 1] = d[i + 2] = gv;
+      }
+      return out;
+    }
+
+    if (mode === 'denoise-threshold') {
+      var srcD = new Uint8ClampedArray(d);
+      for (var y = 1; y < h - 1; y++) {
+        for (var x = 1; x < w - 1; x++) {
+          var si = (y * w + x) * 4;
+          var acc = 0;
+          var cnt = 0;
+          for (var ky = -1; ky <= 1; ky++) {
+            for (var kx = -1; kx <= 1; kx++) {
+              var pi = ((y + ky) * w + (x + kx)) * 4;
+              acc += srcD[pi] * 0.299 + srcD[pi + 1] * 0.587 + srcD[pi + 2] * 0.114;
+              cnt++;
+            }
+          }
+          var avg = acc / cnt;
+          d[si] = d[si + 1] = d[si + 2] = avg > 135 ? 255 : 0;
+        }
       }
       return out;
     }
@@ -718,8 +1264,8 @@
         .detect(canvas)
         .then(function (codes) {
           if (!codes || !codes.length || !codes[0].rawValue) return null;
-          var parsed = parseQrPayload(codes[0].rawValue);
-          if (parsed.cufe || parsed.url) {
+          var parsed = normalizeQrPayload(parseQrPayload(codes[0].rawValue));
+          if (qrPayloadReadable(parsed)) {
             parsed.technique = 'BarcodeDetector (nativo)';
             return parsed;
           }
@@ -733,135 +1279,280 @@
     }
   }
 
+  function buildJsQrAttempts(imageData, meta, opts) {
+    opts = opts || {};
+    var batchLite = !!opts.batchLite;
+    var batch = !!opts.batch;
+    var scanned = !!opts.scanned;
+    var full = !!opts.fullFilters;
+    var thorough = !!opts.thorough;
+    var px = feQrImagePixels(imageData);
+    var heavy = px > FE_QR_LITE_REGION_PX;
+    var liteOnly = px > FE_QR_MAX_REGION_PX || feQrBudgetExpired();
+    var attempts = [{ data: imageData, label: meta + ' · original' }];
+    function add(mode, label) {
+      attempts.push({ data: preprocessImageData(imageData, mode), label: meta + ' · ' + label });
+    }
+    if (batchLite || liteOnly) {
+      add('grayscale', 'gris');
+      add('threshold', 'umbral');
+      if (!liteOnly) add('contrast', 'contraste');
+      if (!liteOnly && !heavy) add('adaptive', 'umbral adaptativo');
+      return attempts;
+    }
+    if (batch && !scanned && !full) {
+      add('threshold', 'umbral');
+      add('grayscale', 'gris');
+      return attempts;
+    }
+    add('grayscale', 'gris');
+    add('contrast', 'contraste');
+    add('gamma', 'gamma');
+    add('adaptive', 'umbral adaptativo');
+    add('threshold', 'blanco/negro');
+    if (!heavy) {
+      add('sharpen', 'nitidez');
+      add('denoise-threshold', 'suavizado+umbral');
+    }
+    add('invert', 'invertido');
+    if (!heavy) {
+      attempts.push({
+        data: preprocessImageData(preprocessImageData(imageData, 'grayscale'), 'adaptive'),
+        label: meta + ' · gris+adaptativo',
+      });
+      attempts.push({
+        data: preprocessImageData(preprocessImageData(imageData, 'contrast'), 'threshold'),
+        label: meta + ' · contraste+umbral',
+      });
+    }
+    if ((full || thorough || scanned) && !heavy) {
+      attempts.push({
+        data: preprocessImageData(preprocessImageData(imageData, 'sharpen'), 'adaptive'),
+        label: meta + ' · nitidez+adaptativo',
+      });
+    }
+    return attempts;
+  }
+
   function tryJsQrOnImageData(jsQR, imageData, meta) {
     var batchLite = isQrScanBatchLite() && !(_activeQrScan && _activeQrScan.fullFilters);
     var batch = isFeBatchUi() && !isQrScanScanned() && !(_activeQrScan && _activeQrScan.fullFilters);
     var scanned = isQrScanScanned();
-    var attempts = batchLite
-      ? [
-          { data: imageData, label: meta + ' · original' },
-          { data: preprocessImageData(imageData, 'grayscale'), label: meta + ' · gris' },
-          { data: preprocessImageData(imageData, 'threshold'), label: meta + ' · umbral' },
-          { data: preprocessImageData(imageData, 'contrast'), label: meta + ' · contraste' },
-        ]
-      : batch
-      ? [
-          { data: imageData, label: meta + ' · original' },
-          { data: preprocessImageData(imageData, 'threshold'), label: meta + ' · umbral' },
-        ]
-      : scanned
-        ? [
-            { data: imageData, label: meta + ' · original' },
-            { data: preprocessImageData(imageData, 'grayscale'), label: meta + ' · gris' },
-            { data: preprocessImageData(imageData, 'contrast'), label: meta + ' · contraste' },
-            { data: preprocessImageData(imageData, 'threshold'), label: meta + ' · blanco/negro' },
-            { data: preprocessImageData(imageData, 'sharpen'), label: meta + ' · nitidez' },
-            { data: preprocessImageData(imageData, 'invert'), label: meta + ' · invertido' },
-            {
-              data: preprocessImageData(preprocessImageData(imageData, 'grayscale'), 'threshold'),
-              label: meta + ' · gris+umbral',
-            },
-            {
-              data: preprocessImageData(preprocessImageData(imageData, 'contrast'), 'threshold'),
-              label: meta + ' · contraste+umbral',
-            },
-          ]
-        : [
-          { data: imageData, label: meta + ' · original' },
-          { data: preprocessImageData(imageData, 'grayscale'), label: meta + ' · gris' },
-          { data: preprocessImageData(imageData, 'contrast'), label: meta + ' · contraste' },
-          { data: preprocessImageData(imageData, 'threshold'), label: meta + ' · blanco/negro' },
-          { data: preprocessImageData(imageData, 'sharpen'), label: meta + ' · nitidez' },
-          { data: preprocessImageData(imageData, 'invert'), label: meta + ' · invertido' },
-          {
-            data: preprocessImageData(preprocessImageData(imageData, 'grayscale'), 'contrast'),
-            label: meta + ' · gris+contraste',
-          },
-          {
-            data: preprocessImageData(preprocessImageData(imageData, 'grayscale'), 'threshold'),
-            label: meta + ' · gris+umbral',
-          },
-        ];
-    for (var i = 0; i < attempts.length; i++) {
-      var pack = attempts[i];
-      var code = jsQR(pack.data.data, pack.data.width, pack.data.height, {
-        inversionAttempts: batch && !scanned ? 'dontInvert' : 'attemptBoth',
-      });
-      if (code && code.data) {
-        var parsed = parseQrPayload(code.data);
-        if (parsed.cufe || parsed.url) {
-          parsed.technique = pack.label;
-          return parsed;
-        }
-      }
+    var attempts = buildJsQrAttempts(imageData, meta, {
+      batchLite: batchLite,
+      batch: batch,
+      scanned: scanned,
+      fullFilters: _activeQrScan && _activeQrScan.fullFilters,
+      thorough: isQrScanThorough(),
+    });
+    var inversion = batch && !scanned ? 'dontInvert' : 'attemptBoth';
+    var chain = Promise.resolve(null);
+    var ai;
+    for (ai = 0; ai < attempts.length; ai++) {
+      (function (pack, idx) {
+        chain = chain.then(function (prev) {
+          if (prev || feQrBudgetExpired()) return prev;
+          if (idx > 0) return feYieldToMain(6).then(runOne);
+          return runOne();
+          function runOne() {
+            if (feQrBudgetExpired()) return null;
+            var code = jsQR(pack.data.data, pack.data.width, pack.data.height, {
+              inversionAttempts: inversion,
+            });
+            if (code && code.data) {
+              var parsed = parseQrPayload(code.data);
+              if (parsed.cufe || parsed.url) {
+                parsed.technique = pack.label;
+                return parsed;
+              }
+            }
+            return null;
+          }
+        });
+      })(attempts[ai], ai);
     }
-    return null;
+    return chain;
+  }
+
+  function decodeQrOneCanvas(canvas, label) {
+    label = label || 'lectura';
+    return tryBarcodeDetectorOnCanvas(canvas).then(function (hit) {
+      if (hit && qrPayloadReadable(hit)) return hit;
+      return ensureJsQR().then(function (jsQR) {
+        var ctx = canvas.getContext('2d');
+        var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          var parsedDirect = normalizeQrPayload(parseQrPayload(code.data));
+          if (qrPayloadReadable(parsedDirect)) {
+            parsedDirect.technique = label + ' · jsQR directo';
+            return parsedDirect;
+          }
+        }
+        var prevScan = _activeQrScan;
+        _activeQrScan = { scanned: true, fullFilters: true, thorough: true, tryRotations: false };
+        return tryJsQrOnImageData(jsQR, img, label)
+          .then(function (filtered) {
+            if (filtered && qrPayloadReadable(filtered)) return filtered;
+            return null;
+          })
+          .finally(function () {
+            _activeQrScan = prevScan;
+          });
+      });
+    });
+  }
+
+  /** Cámara / foto: BarcodeDetector + jsQR con filtros y multi-escala. */
+  function decodeQrFromCanvas(canvas, label) {
+    label = label || 'cámara';
+    var maxSide = 1600;
+    var w = canvas.width;
+    var h = canvas.height;
+    var base = canvas;
+    if (Math.max(w, h) > maxSide) {
+      base = document.createElement('canvas');
+      var down = maxSide / Math.max(w, h);
+      base.width = Math.max(8, Math.round(w * down));
+      base.height = Math.max(8, Math.round(h * down));
+      base.getContext('2d').drawImage(canvas, 0, 0, base.width, base.height);
+    }
+    var scales = [1, 1.35, 1.75, 2.2];
+    var chain = Promise.resolve(null);
+    var si;
+    for (si = 0; si < scales.length; si++) {
+      (function (sf) {
+        chain = chain.then(function (prev) {
+          if (prev) return prev;
+          var target = base;
+          if (sf !== 1) {
+            target = document.createElement('canvas');
+            target.width = Math.min(Math.round(base.width * sf), 2600);
+            target.height = Math.min(Math.round(base.height * sf), 2600);
+            target.getContext('2d').drawImage(base, 0, 0, target.width, target.height);
+          }
+          return decodeQrOneCanvas(target, label + ' · ' + Math.round(sf * 100) + '%');
+        });
+      })(scales[si]);
+    }
+    return chain;
+  }
+
+  function decodeQrFromVideoFrame(video, label) {
+    label = label || 'cámara en vivo';
+    if (!video || video.readyState < 2) return Promise.resolve(null);
+    var vw = video.videoWidth || 640;
+    var vh = video.videoHeight || 480;
+    if (vw < 8 || vh < 8) return Promise.resolve(null);
+    var maxSide = 1600;
+    var sc = Math.min(1, maxSide / Math.max(vw, vh));
+    var tw = Math.max(8, Math.floor(vw * sc));
+    var th = Math.max(8, Math.floor(vh * sc));
+    var canvas = document.createElement('canvas');
+    canvas.width = tw;
+    canvas.height = th;
+    canvas.getContext('2d').drawImage(video, 0, 0, tw, th);
+    return decodeQrFromCanvas(canvas, label);
+  }
+
+  /** Regiones QR priorizando esquinas y bordes (entrenamiento 83 facturas DIAN). */
+  function feQrRegionRect(w, h, rx, ry, rw, rh, name) {
+    return {
+      name: name,
+      x: Math.max(0, Math.floor(w * rx)),
+      y: Math.max(0, Math.floor(h * ry)),
+      cw: Math.max(24, Math.min(w, Math.floor(w * rw))),
+      ch: Math.max(24, Math.min(h, Math.floor(h * rh))),
+    };
+  }
+
+  function buildFeTopBottomPriorityRegions(w, h, mode) {
+    mode = mode || 'full';
+    var band = mode === 'edges' ? 0.48 : mode === 'batch' ? 0.44 : 0.4;
+    return [
+      feQrRegionRect(w, h, 0, 0, 1, band, 'franja superior'),
+      feQrRegionRect(w, h, 0, 1 - band, 1, band, 'franja inferior'),
+      feQrRegionRect(w, h, 0, 0, 0.52, band, 'sup izquierda'),
+      feQrRegionRect(w, h, 0.48, 0, 0.52, band, 'sup derecha'),
+      feQrRegionRect(w, h, 0, 1 - band, 0.52, band, 'inf izquierda'),
+      feQrRegionRect(w, h, 0.48, 1 - band, 0.52, band, 'inf derecha'),
+    ];
+  }
+
+  function buildFeQrCornerEdgeRegions(w, h, mode) {
+    mode = mode || 'full';
+    var lite = mode === 'lite';
+    var batch = mode === 'batch';
+    var edges = mode === 'edges';
+    var cw = lite ? 0.48 : batch || edges ? 0.5 : 0.52;
+    var ch = lite ? 0.42 : batch || edges ? 0.44 : 0.46;
+    var edge = lite ? 0.36 : 0.4;
+    var topBottom = buildFeTopBottomPriorityRegions(w, h, edges ? 'edges' : batch ? 'batch' : 'full');
+    var corners = [
+      feQrRegionRect(w, h, 0, 0, cw, ch, 'esquina sup-izq'),
+      feQrRegionRect(w, h, 1 - cw, 0, cw, ch, 'esquina sup-der'),
+      feQrRegionRect(w, h, 0, 1 - ch, cw, ch, 'esquina inf-izq'),
+      feQrRegionRect(w, h, 1 - cw, 1 - ch, cw, ch, 'esquina inf-der'),
+      feQrRegionRect(w, h, 0.5 - cw * 0.55, 1 - ch, cw * 1.1, ch, 'inf-der ampliado'),
+      feQrRegionRect(w, h, 0, 1 - ch, cw * 1.15, ch, 'inf-izq ampliado'),
+    ];
+    var sides = [
+      feQrRegionRect(w, h, 0, 0, edge, 1, 'borde izquierdo'),
+      feQrRegionRect(w, h, 1 - edge, 0, edge, 1, 'borde derecho'),
+    ];
+    if (edges) {
+      return topBottom.concat(corners);
+    }
+    var regions = topBottom.concat(corners).concat(sides);
+    if (!lite) {
+      regions.push(
+        feQrRegionRect(w, h, 0.3, 0.5, 0.7, 0.5, 'mitad inferior'),
+        feQrRegionRect(w, h, 0.2, 0.15, 0.6, 0.7, 'centro')
+      );
+    }
+    if (!lite) {
+      regions.push({ name: 'página completa', x: 0, y: 0, cw: w, ch: h });
+    }
+    return regions;
   }
 
   function getCanvasRegions(canvas, light, scanned) {
     var w = canvas.width;
     var h = canvas.height;
+    var base;
     if (isQrScanBatchLite()) {
-      return [
+      base = buildFeQrCornerEdgeRegions(w, h, 'lite');
+    } else if (isFeBatchUi() && !scanned) {
+      base = [
         { name: 'página completa', x: 0, y: 0, cw: w, ch: h },
-        {
-          name: 'QR inferior derecha',
-          x: Math.floor(w * 0.35),
-          y: Math.floor(h * 0.5),
-          cw: Math.floor(w * 0.65),
-          ch: Math.floor(h * 0.5),
-        },
-        {
-          name: 'QR superior derecha',
-          x: Math.floor(w * 0.42),
-          y: 0,
-          cw: Math.floor(w * 0.58),
-          ch: Math.floor(h * 0.42),
-        },
+        feQrRegionRect(w, h, 1 - 0.62, 0.52, 0.62, 0.48, 'QR inferior derecha'),
+        feQrRegionRect(w, h, 1 - 0.58, 0, 0.58, 0.42, 'QR superior derecha'),
+        feQrRegionRect(w, h, 0, 0, 0.58, 0.42, 'QR superior izquierda'),
       ];
-    }
-    if (isFeBatchUi() && !scanned) {
-      return [
+    } else if (scanned) {
+      var scanMode = isQrScanEdgesOnly() ? 'edges' : 'batch';
+      base = buildFeQrCornerEdgeRegions(w, h, scanMode);
+    } else if (light) {
+      base = [
         { name: 'página completa', x: 0, y: 0, cw: w, ch: h },
-        {
-          name: 'QR inferior derecha',
-          x: Math.floor(w * 0.38),
-          y: Math.floor(h * 0.52),
-          cw: Math.floor(w * 0.62),
-          ch: Math.floor(h * 0.48),
-        },
+        feQrRegionRect(w, h, 1 - 0.55, 0, 0.55, 0.45, 'esquina superior derecha'),
+        feQrRegionRect(w, h, 0, 0, 0.55, 0.45, 'esquina superior izquierda'),
       ];
+    } else {
+      base = buildFeQrCornerEdgeRegions(w, h, 'full');
     }
-    if (scanned) {
-      return [
-        { name: 'página completa', x: 0, y: 0, cw: w, ch: h },
-        { name: 'esquina superior derecha', x: Math.floor(w * 0.4), y: 0, cw: Math.floor(w * 0.6), ch: Math.floor(h * 0.42) },
-        { name: 'esquina inferior derecha', x: Math.floor(w * 0.35), y: Math.floor(h * 0.52), cw: Math.floor(w * 0.65), ch: Math.floor(h * 0.48) },
-        { name: 'esquina inferior izquierda', x: 0, y: Math.floor(h * 0.5), cw: Math.floor(w * 0.65), ch: Math.floor(h * 0.5) },
-        { name: 'franja inferior', x: 0, y: Math.floor(h * 0.62), cw: w, ch: Math.floor(h * 0.38) },
-        { name: 'centro', x: Math.floor(w * 0.12), y: Math.floor(h * 0.12), cw: Math.floor(w * 0.76), ch: Math.floor(h * 0.76) },
-      ];
-    }
-    if (light) {
-      return [
-        { name: 'página completa', x: 0, y: 0, cw: w, ch: h },
-        {
-          name: 'esquina superior derecha',
-          x: Math.floor(w * 0.45),
-          y: 0,
-          cw: Math.floor(w * 0.55),
-          ch: Math.floor(h * 0.45),
-        },
-      ];
-    }
-    return [
-      { name: 'página completa', x: 0, y: 0, cw: w, ch: h },
-      { name: 'esquina superior derecha', x: Math.floor(w * 0.45), y: 0, cw: Math.floor(w * 0.55), ch: Math.floor(h * 0.45) },
-      { name: 'esquina superior izquierda', x: 0, y: 0, cw: Math.floor(w * 0.55), ch: Math.floor(h * 0.45) },
-      { name: 'esquina inferior derecha', x: Math.floor(w * 0.4), y: Math.floor(h * 0.5), cw: Math.floor(w * 0.6), ch: Math.floor(h * 0.5) },
-      { name: 'tercio inferior', x: 0, y: Math.floor(h * 0.55), cw: w, ch: Math.floor(h * 0.45) },
-      { name: 'centro ampliado', x: Math.floor(w * 0.15), y: Math.floor(h * 0.15), cw: Math.floor(w * 0.7), ch: Math.floor(h * 0.7) },
-    ];
+    var provKey = _activeQrScan && _activeQrScan.provKey;
+    var mem = provKey ? getFeQrZoneForProv(provKey) : null;
+    var pref = mem ? buildFeQrMemoryRegions(w, h, mem) : [];
+    if (!pref.length) return base;
+    var seen = {};
+    pref.forEach(function (r) {
+      seen[r.name] = true;
+    });
+    var tail = base.filter(function (r) {
+      return !seen[r.name];
+    });
+    return pref.concat(tail);
   }
 
   function cropCanvasRegion(canvas, region) {
@@ -872,10 +1563,167 @@
     return sub;
   }
 
-  /** Rejilla 3×3 con solape — útil cuando el QR es pequeño en PDF escaneado. */
+  function clampNormRect(norm) {
+    var x = Math.max(0, Math.min(1, Number(norm.x) || 0));
+    var y = Math.max(0, Math.min(1, Number(norm.y) || 0));
+    var w = Math.max(0, Math.min(1 - x, Number(norm.w) || 0));
+    var h = Math.max(0, Math.min(1 - y, Number(norm.h) || 0));
+    return { x: x, y: y, w: w, h: h };
+  }
+
+  function normRectToPixels(canvas, norm) {
+    norm = clampNormRect(norm);
+    var w = canvas.width;
+    var h = canvas.height;
+    var x = Math.max(0, Math.min(w - 1, Math.floor(norm.x * w)));
+    var y = Math.max(0, Math.min(h - 1, Math.floor(norm.y * h)));
+    var cw = Math.max(12, Math.min(w - x, Math.ceil(norm.w * w)));
+    var ch = Math.max(12, Math.min(h - y, Math.ceil(norm.h * h)));
+    return { name: 'zona marcada', x: x, y: y, cw: cw, ch: ch };
+  }
+
+  /** Escaneo QR solo en el recuadro que marcó el usuario (coords 0–1 sobre la página). */
+  function scanQrInMarkedRegion(doc, normRect, onProgress, opts) {
+    opts = opts || {};
+    if (!doc || !normRect) return Promise.resolve(null);
+    var norm = clampNormRect(normRect);
+    if (norm.w < 0.012 || norm.h < 0.012) return Promise.resolve(null);
+
+    feQrBeginBudget({ forceDeepQr: true });
+    _activeQrScan = {
+      scanned: true,
+      thorough: true,
+      fullFilters: true,
+      tryRotations: true,
+      maxSide: 3800,
+    };
+
+    function tick(msg) {
+      if (typeof onProgress === 'function') onProgress(msg);
+    }
+
+    var mime = String(doc.mime || '');
+    var isPdf = mime.indexOf('pdf') >= 0 || !!doc._pdfBlob;
+    var pageNum = Math.max(1, Math.floor(Number(opts.pageNum || doc.previewPage || 1)));
+
+    function scanCanvasRegion(jsQR, canvas, scaleLabel) {
+      var region = normRectToPixels(canvas, norm);
+      return scanCanvasRegionAdvanced(jsQR, canvas, region, scaleLabel || 'marca usuario');
+    }
+
+    if (isPdf) {
+      tick('Preparando página ' + pageNum + '…');
+      return runPdfExclusive(function () {
+        return openPdfDocument(doc).then(function (pdf) {
+          var pn = Math.min(pageNum, pdf.numPages);
+          var scales = [3.4, 4.2, 5];
+          var chain = Promise.resolve(null);
+          var si;
+          for (si = 0; si < scales.length; si++) {
+            (function (sc) {
+              chain = chain.then(function (found) {
+                if (found) return found;
+                if (feQrBudgetExpired()) return null;
+                tick('Ampliando zona marcada (' + sc + '×)…');
+                return feYieldToMain(16).then(function () {
+                  return pdf.getPage(pn).then(function (page) {
+                    return renderPdfPageToCanvas(page, sc).then(function (canvas) {
+                      return ensureJsQR().then(function (jsQR) {
+                        return scanCanvasRegion(jsQR, canvas, 'marca · pág. ' + pn + ' · ' + sc + '×');
+                      });
+                    });
+                  });
+                });
+              });
+            })(scales[si]);
+          }
+          return chain.finally(function () {
+            try {
+              pdf.destroy();
+            } catch (_) {}
+          });
+        });
+      }).finally(function () {
+        _activeQrScan = null;
+        feQrClearBudget();
+      });
+    }
+
+    if (!doc.dataUrl) return Promise.resolve(null).finally(function () {
+      _activeQrScan = null;
+      feQrClearBudget();
+    });
+
+    tick('Analizando zona marcada en la imagen…');
+    return loadImageFromDataUrl(doc.dataUrl)
+      .then(function (canvas) {
+        return ensureJsQR().then(function (jsQR) {
+          return scanCanvasRegion(jsQR, canvas, 'marca · imagen');
+        });
+      })
+      .finally(function () {
+        _activeQrScan = null;
+        feQrClearBudget();
+      });
+  }
+
+  /** Rejilla N×N con solape — como cámara que barre la hoja en tiles. */
+  /** Rejilla solo en tercio superior e inferior (donde suelen ir los QR DIAN). */
+  function scanCanvasTopBottomBands(jsQR, canvas, scaleLabel) {
+    var w = canvas.width;
+    var h = canvas.height;
+    var cols = 6;
+    var rows = 6;
+    var tileW = Math.ceil(w / cols);
+    var tileH = Math.ceil(h / rows);
+    var rowRanges = [
+      { r0: 0, r1: 2, label: 'tercio sup' },
+      { r0: 3, r1: 5, label: 'tercio inf' },
+    ];
+    var chain = Promise.resolve(null);
+    var ri;
+    for (ri = 0; ri < rowRanges.length; ri++) {
+      (function (range) {
+        var r;
+        for (r = range.r0; r <= range.r1; r++) {
+          (function (rowIdx) {
+            var c;
+            for (c = 0; c < cols; c++) {
+              (function (colIdx) {
+                chain = chain.then(function (found) {
+                  if (found) return found;
+                  if (feQrBudgetExpired()) return null;
+                  var padX = Math.floor(tileW * 0.14);
+                  var padY = Math.floor(tileH * 0.14);
+                  var x = Math.max(0, colIdx * tileW - padX);
+                  var y = Math.max(0, rowIdx * tileH - padY);
+                  var cw = Math.min(w - x, tileW + padX * 2);
+                  var ch = Math.min(h - y, tileH + padY * 2);
+                  return scanCanvasRegionAdvanced(
+                    jsQR,
+                    canvas,
+                    {
+                      name: range.label + ' · celda ' + (rowIdx + 1) + '×' + (colIdx + 1),
+                      x: x,
+                      y: y,
+                      cw: cw,
+                      ch: ch,
+                    },
+                    scaleLabel + ' · bandas sup/inf'
+                  );
+                });
+              })(c);
+            }
+          })(r);
+        }
+      })(rowRanges[ri]);
+    }
+    return chain;
+  }
+
   function scanCanvasGridTiles(jsQR, canvas, scaleLabel, cols, rows) {
-    cols = cols || 3;
-    rows = rows || 3;
+    cols = cols || (_activeQrScan && _activeQrScan.gridCols) || 3;
+    rows = rows || (_activeQrScan && _activeQrScan.gridRows) || 3;
     var w = canvas.width;
     var h = canvas.height;
     var tileW = Math.ceil(w / cols);
@@ -888,6 +1736,7 @@
         (function (ri, ci) {
           chain = chain.then(function (found) {
             if (found) return found;
+            if (feQrBudgetExpired()) return null;
             var padX = Math.floor(tileW * 0.08);
             var padY = Math.floor(tileH * 0.08);
             var x = Math.max(0, ci * tileW - padX);
@@ -908,20 +1757,66 @@
   }
 
   function scanCanvasRegionAdvanced(jsQR, canvas, region, scaleLabel) {
+    if (feQrBudgetExpired()) return Promise.resolve(null);
     var sub = cropCanvasRegion(canvas, region);
     var meta = scaleLabel + ' · ' + region.name;
     var px = region.cw * region.ch;
     var yieldP = px > 800000 ? feYieldToMain(90) : feYieldFrame();
-    return yieldP.then(function () {
-      return tryBarcodeDetectorOnCanvas(sub).then(function (hit) {
+    function scanOne(targetCanvas, suffix) {
+      return feYieldToMain().then(function () {
+        var img = targetCanvas.getContext('2d').getImageData(0, 0, targetCanvas.width, targetCanvas.height);
+        var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data) {
+          var parsedDirect = parseQrPayload(code.data);
+          if (parsedDirect.cufe || parsedDirect.url) {
+            parsedDirect.technique = meta + (suffix || '') + ' · jsQR directo';
+            parsedDirect.qrRegion = region.name;
+            parsedDirect.qrNormX = (region.x + region.cw / 2) / canvas.width;
+            parsedDirect.qrNormY = (region.y + region.ch / 2) / canvas.height;
+            return parsedDirect;
+          }
+        }
+        return tryBarcodeDetectorOnCanvas(targetCanvas).then(function (hit) {
         if (hit) {
-          hit.technique = (hit.technique || 'BarcodeDetector') + ' · ' + meta;
+          hit.technique = (hit.technique || 'BarcodeDetector') + ' · ' + meta + (suffix || '');
+          hit.qrRegion = region.name;
+          if (canvas && canvas.width && canvas.height) {
+            hit.qrNormX = (region.x + region.cw / 2) / canvas.width;
+            hit.qrNormY = (region.y + region.ch / 2) / canvas.height;
+          }
           return hit;
         }
         return feYieldToMain().then(function () {
-          var img = sub.getContext('2d').getImageData(0, 0, sub.width, sub.height);
-          return tryJsQrOnImageData(jsQR, img, meta);
+          var img2 = targetCanvas.getContext('2d').getImageData(0, 0, targetCanvas.width, targetCanvas.height);
+          return tryJsQrOnImageData(jsQR, img2, meta + (suffix || ''));
         });
+      });
+      });
+    }
+    return yieldP.then(function () {
+      return scanOne(sub, '').then(function (hit) {
+        if (hit && !hit.qrRegion) {
+          hit.qrRegion = region.name;
+          hit.qrNormX = (region.x + region.cw / 2) / canvas.width;
+          hit.qrNormY = (region.y + region.ch / 2) / canvas.height;
+        }
+        if (hit) return hit;
+        if (feQrBudgetExpired()) return null;
+        if (!(_activeQrScan && _activeQrScan.tryRotations)) return null;
+        if (px > FE_QR_LITE_REGION_PX) return null;
+        var chain = Promise.resolve(null);
+        var turns;
+        for (turns = 1; turns <= 3; turns++) {
+          (function (t) {
+            chain = chain.then(function (prev) {
+              if (prev || feQrBudgetExpired()) return prev;
+              return feYieldToMain(48).then(function () {
+                return scanOne(rotateCanvas90(sub, t), ' · rot ' + t * 90 + '°');
+              });
+            });
+          })(turns);
+        }
+        return chain;
       });
     });
   }
@@ -983,7 +1878,7 @@
     } else {
       scaleFactors =
         scaleFactors ||
-        (scanned ? [1, 1.25, 1.5, 1.85, 2.15] : light ? [1, 1.2] : [1, 1.35, 1.7]);
+        (scanned ? [1, 1.22, 1.48] : light ? [1, 1.2] : [1, 1.35, 1.7]);
     }
     return ensureJsQR().then(function (jsQR) {
       var chain = Promise.resolve(null);
@@ -992,6 +1887,7 @@
         (function (sf) {
           chain = chain.then(function (found) {
             if (found) return found;
+            if (feQrBudgetExpired()) return null;
             return feYieldToMain().then(function () {
               var w = canvas.width;
               var h = canvas.height;
@@ -1012,8 +1908,16 @@
                     '%';
                   return fullHit;
                 }
-                var regions = getCanvasRegions(target, light, scanned);
                 var inner = Promise.resolve(null);
+                if (scanned) {
+                  inner = inner.then(function (prev) {
+                    if (prev) return prev;
+                    if (feQrBudgetExpired()) return null;
+                    if (onAttempt) onAttempt();
+                    return scanCanvasTopBottomBands(jsQR, target, 'zoom ' + Math.round(sf * 100) + '%');
+                  });
+                }
+                var regions = getCanvasRegions(target, light, scanned);
                 var r;
                 for (r = 0; r < regions.length; r++) {
                   (function (reg) {
@@ -1028,17 +1932,22 @@
                 }
                 return inner.then(function (prev) {
                   if (prev || !scanned) return prev;
-                  if (!isQrScanUseGrid() && (isQrScanBatchLite() || (!isQrScanThorough() && isFeBatchUi()))) {
-                    return prev;
-                  }
+                  if (!isQrScanUseGrid() && isQrScanBatchLite()) return prev;
                   if (onAttempt) onAttempt();
+                  var batchScanned = isFeBatchUi() && scanned && !isQrScanBatchLite();
+                  var gCols =
+                    (_activeQrScan && _activeQrScan.gridCols) ||
+                    (isQrScanThorough() || isQrScanUseGrid() ? 4 : batchScanned ? 4 : 3);
+                  var gRows =
+                    (_activeQrScan && _activeQrScan.gridRows) ||
+                    (isQrScanThorough() || isQrScanUseGrid() ? 4 : batchScanned ? 4 : 3);
                   return feYieldToMain(100).then(function () {
                     return scanCanvasGridTiles(
                       jsQR,
                       target,
                       'zoom ' + Math.round(sf * 100) + '%',
-                      isQrScanThorough() || isQrScanUseGrid() ? 4 : 3,
-                      isQrScanThorough() || isQrScanUseGrid() ? 4 : 3
+                      gCols,
+                      gRows
                     );
                   });
                 });
@@ -1061,12 +1970,21 @@
     var scanned = !!scanOpts.scanned;
     var thorough = !!scanOpts.thorough;
     var light = !scanned && !thorough && (batchUi || !!scanOpts.light);
-    _activeQrScan = {
-      scanned: scanned,
-      thorough: thorough,
-      batch: batchUi,
-      batchLite: batchUi && scanned && !thorough,
-    };
+    if (scanOpts.preserveProfile && _activeQrScan) {
+      _activeQrScan.batch = batchUi;
+      _activeQrScan.scanned = scanned || _activeQrScan.scanned;
+      _activeQrScan.thorough = thorough || _activeQrScan.thorough;
+      _activeQrScan.batchLite = _activeQrScan.batchLite && batchUi && !_activeQrScan.thorough;
+      if (scanOpts.provKey) _activeQrScan.provKey = scanOpts.provKey;
+    } else {
+      _activeQrScan = {
+        scanned: scanned,
+        thorough: thorough,
+        batch: batchUi,
+        batchLite: batchUi && scanned && !thorough,
+        provKey: scanOpts.provKey || '',
+      };
+    }
     var doc =
       scanOpts.doc ||
       (typeof dataUrlOrDoc === 'object' && dataUrlOrDoc !== null && !(dataUrlOrDoc instanceof Uint8Array)
@@ -1102,7 +2020,16 @@
       tickQr('Abriendo PDF…');
       return runPdfExclusive(function () {
         return openPdfDocument(doc || dataUrl).then(function (pdf) {
-          var maxP = batchUi ? 1 : scanned || thorough ? Math.min(pdf.numPages, 2) : quick || light ? 1 : Math.min(pdf.numPages, 2);
+          var maxP = batchUi
+            ? 1
+            : scanOpts.forceDeepQr
+              ? Math.min(pdf.numPages, 3)
+              : scanned || thorough
+                ? Math.min(pdf.numPages, 2)
+                : quick || light
+                  ? 1
+                  : Math.min(pdf.numPages, 2);
+          var pageOrder = fePdfPageScanOrder(pdf.numPages, maxP);
           var renderScales;
           if (_activeQrScan && _activeQrScan.forceScales && _activeQrScan.forceScales.length) {
             renderScales = _activeQrScan.forceScales;
@@ -1111,9 +2038,17 @@
           } else if (isQrScanBatchLite()) {
             renderScales = [2.4, 3.1];
           } else if (batchUi && scanned) {
-            renderScales = thorough ? [3.2, 4] : [2.6, 3.2];
+            renderScales = isQrScanEdgesOnly()
+              ? [3.6, 4.2]
+              : thorough
+                ? [3.4, 4.2]
+                : [3.2, 3.8, 4.2];
           } else if (scanned || thorough) {
-            renderScales = thorough ? [3.2, 3.8, 4.4, 5] : [2.6, 3.2, 3.8, 4.2, 4.8];
+            renderScales = isQrScanEdgesOnly()
+              ? [3.6, 4.2, 4.8]
+              : thorough
+                ? [3.2, 3.8, 4.4]
+                : [3.2, 3.8, 4.2];
           } else if (light) {
             renderScales = [2, 2.6];
           } else if (quick) {
@@ -1122,11 +2057,12 @@
             renderScales = [2, 2.8, 3.2, 3.6];
           }
           var chain = Promise.resolve(null);
-          var p;
-          for (p = 1; p <= maxP; p++) {
+          var pi;
+          for (pi = 0; pi < pageOrder.length; pi++) {
             (function (pageNum) {
               chain = chain.then(function (found) {
                 if (found) return found;
+                if (feQrBudgetExpired()) return null;
                 return feYieldToMain(batchUi ? 40 : 12).then(function () {
                   tickQr('Página ' + pageNum + ' · QR…');
                   var inner = Promise.resolve(null);
@@ -1135,6 +2071,7 @@
                     (function (rs) {
                       inner = inner.then(function (prev) {
                         if (prev) return prev;
+                        if (feQrBudgetExpired()) return null;
                         return feYieldToMain().then(function () {
                           tickQr('Pág. ' + pageNum + ' · escala ' + rs + '×…');
                           return pdf.getPage(pageNum).then(function (page) {
@@ -1157,19 +2094,28 @@
                   return inner;
                 });
               });
-            })(p);
+            })(pageOrder[pi]);
           }
-          return chain.finally(function () {
+          return chain
+            .then(function (hit) {
+              if (hit && _activeQrScan && _activeQrScan.provKey) {
+                rememberFeQrZoneFromHit(_activeQrScan.provKey, hit);
+              }
+              return hit;
+            })
+            .finally(function () {
             try {
               pdf.destroy();
             } catch (eD2) {}
           });
         });
-      }).finally(function () {
+      })
+        .finally(function () {
         _activeQrScan = null;
       });
     }
     tickQr('Imagen · buscando QR…');
+    var imgProvKey = scanOpts.provKey || (_activeQrScan && _activeQrScan.provKey) || '';
     return loadImageFromDataUrl(dataUrl)
       .then(function (canvas) {
         return scanCanvasMultiAdvanced(
@@ -1179,6 +2125,10 @@
           light,
           scanned || thorough
         );
+      })
+      .then(function (hit) {
+        if (hit && imgProvKey) rememberFeQrZoneFromHit(imgProvKey, hit);
+        return hit;
       })
       .finally(function () {
         _activeQrScan = null;
@@ -1242,6 +2192,8 @@
     opts = opts || {};
     var batchMode = !!(opts.batchMode || global.__cxfFeBatchMode);
     if (opts.batchMode) global.__cxfFeBatchMode = true;
+    var provKey = feProvQrKey(opts.proveedor, doc);
+    feQrBeginBudget({ batchMode: batchMode, forceDeepQr: !!opts.forceDeepQr });
     var mime = String((doc && doc.mime) || '');
     var isPdf =
       mime.indexOf('pdf') >= 0 ||
@@ -1250,50 +2202,154 @@
     var smooth = createSmoothProgress(opts);
     smooth.start(52, 'Buscando código QR y CUFE…', 'detect', { init: true });
 
-    var quickTextP = isPdf
-      ? extractTextFromPdfDataUrl(doc, 1).then(function (t) {
-          smooth.bump(11, 'Texto página 1 · candidatos CUFE…');
-          return t;
-        })
-      : Promise.resolve('');
+    var quickTextP = loadFeQrZoneMemory()
+      .catch(function () {})
+      .then(function () {
+        return isPdf
+          ? extractTextFromPdfDataUrl(doc, 1).then(function (t) {
+              smooth.bump(11, 'Texto página 1 · candidatos CUFE…');
+              return t;
+            })
+          : Promise.resolve('');
+      });
 
     return quickTextP
       .then(function (quickText) {
         var fromQuick = extractAllCufeCandidates(quickText);
-        var likelyScanned = quickText.replace(/\s/g, '').length < 40;
+        var textCompactLen = quickText.replace(/\s/g, '').length;
         if (qrHitValid(null, fromQuick)) {
           smooth.bump(48, 'CUFE detectado en texto del PDF');
-          return { qr: null, quickText: quickText, fromQuick: fromQuick };
+          return { qr: null, quickText: quickText, fromQuick: fromQuick, likelyScanned: false };
         }
+        var likelyScanned = batchMode ? textCompactLen < 40 : !fromQuick.length || textCompactLen < 400;
         if (likelyScanned) {
-          smooth.bump(10, 'PDF escaneado — probando varios métodos de lectura QR…');
+          smooth.bump(10, 'PDF escaneado — QR arriba/abajo + CUFE…');
+        } else {
+          smooth.bump(10, 'Buscando QR en el documento…');
+        }
+        if (likelyScanned && !opts.forceDeepQr) {
+          function batchQrProfile(profileId, basePct) {
+            return scanQrWithProfile(
+              doc,
+              mime,
+              profileId,
+              function (ratio, msg) {
+                smooth.bump(basePct + (ratio || 0) * 16, msg || 'QR ' + profileId + '…');
+              },
+              { forceDeepQr: false, batchMode: true, scanned: true, provKey: provKey }
+            );
+          }
+          function packWithQr(qr) {
+            return {
+              qr: qr,
+              quickText: quickText,
+              fromQuick: fromQuick,
+              likelyScanned: likelyScanned,
+              _batchOcrDone: !!(qr && (qr.url || qr.cufe)),
+            };
+          }
+          function qrHasCufe(qr) {
+            return !!(qr && qr.cufe && isValidCufeHex(qr.cufe));
+          }
+          function qrReadable(qr) {
+            if (!qr) return false;
+            if (qrHasCufe(qr)) return true;
+            return qrHitValid(qr, fromQuick);
+          }
+          function afterQrHit(qr) {
+            if (!qrReadable(qr)) return Promise.resolve(null);
+            return Promise.resolve(packWithQr(qr));
+          }
+          smooth.bump(12, 'PDF escaneado: QR arriba/abajo (bordes)…');
+          return batchQrProfile('edges', 14)
+            .then(function (qr) {
+              return afterQrHit(qr).then(function (packed) {
+                if (packed) return packed;
+                return batchQrProfile('lite', 26).then(function (qr2) {
+                  return afterQrHit(qr2).then(function (packed2) {
+                    if (packed2) return packed2;
+                    return batchQrProfile('standard', 40).then(function (qr3) {
+                      return afterQrHit(qr3).then(function (packed3) {
+                        if (packed3) return packed3;
+                        return batchQrProfile('high', 52).then(function (qr4) {
+                          return afterQrHit(qr4).then(function (packed4) {
+                            if (packed4) return packed4;
+                            return {
+                              qr: qr4 || qr3 || qr2 || qr || null,
+                              quickText: quickText,
+                              fromQuick: fromQuick,
+                              likelyScanned: likelyScanned,
+                              _batchOcrDone: false,
+                            };
+                          });
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            });
         }
         return scanQrCascade(doc, mime, {
           likelyScanned: likelyScanned,
           fromQuick: fromQuick,
           smooth: smooth,
           batchMode: batchMode,
+          thorough: !batchMode,
+          forceDeepQr: !!opts.forceDeepQr,
+          provKey: provKey,
+          stages: !batchMode && likelyScanned && !opts.forceDeepQr ? QR_CASCADE_SCANNED : undefined,
         }).then(function (qr) {
-          return { qr: qr, quickText: quickText, fromQuick: fromQuick };
+          return { qr: qr, quickText: quickText, fromQuick: fromQuick, likelyScanned: likelyScanned };
         });
       })
       .then(function (pack) {
+        var batchMode = !!(opts.batchMode || global.__cxfFeBatchMode);
+        function finalizeDetect(resolved, esElectronica) {
+          var budgetMsg = feQrBudgetExpired() ? ' (tiempo máximo QR — use Reanalizar si falta CUFE)' : '';
+          smooth.stop(
+            esElectronica ? 56 : 54,
+            esElectronica
+              ? 'Factura electrónica confirmada (QR/CUFE)' + budgetMsg
+              : likelyScannedPdfHint(pack.quickText, pack.qr, resolved) + budgetMsg,
+            'cufe',
+            { init: true, detect: true, cufe: true }
+          );
+          return {
+            esElectronica: esElectronica,
+            qr: pack.qr,
+            quickText: pack.quickText,
+            cufeResolved: resolved,
+          };
+        }
+
         var resolved = buildCufeResolution(pack.qr, pack.fromQuick);
         var esElectronica = isFacturaElectronicaDetectada(resolved, pack.qr);
-        smooth.stop(
-          esElectronica ? 56 : 54,
-          esElectronica
-            ? 'Factura electrónica confirmada (QR/CUFE)'
-            : likelyScannedPdfHint(pack.quickText, pack.qr, resolved),
-          'cufe',
-          { init: true, detect: true, cufe: true }
+        if (esElectronica && resolved.cufeValidado) return finalizeDetect(resolved, esElectronica);
+        if (!pack.likelyScanned) {
+          return finalizeDetect(resolved, esElectronica);
+        }
+        if (esElectronica && pack.qr && (pack.qr.url || pack.qr.cufe)) {
+          return finalizeDetect(resolved, esElectronica);
+        }
+        if (pack._batchOcrDone && !opts.forceDeepQr && resolved.cufeValidado) {
+          return finalizeDetect(resolved, esElectronica);
+        }
+
+        smooth.bump(
+          55,
+          batchMode ? 'OCR en pie de página (escaneo)…' : 'Leyendo CUFE impreso (OCR)…'
         );
-        return {
-          esElectronica: esElectronica,
-          qr: pack.qr,
-          quickText: pack.quickText,
-          cufeResolved: resolved,
-        };
+        return extractCufeFromScannedOcr(doc, opts).then(function (ocrRes) {
+          if (ocrRes && ocrRes.cufe && isValidCufeHex(ocrRes.cufe)) {
+            resolved = ocrRes;
+            esElectronica = isFacturaElectronicaDetectada(resolved, pack.qr);
+          }
+          return finalizeDetect(resolved, esElectronica);
+        });
+      })
+      .finally(function () {
+        feQrClearBudget();
       });
   }
 
@@ -1301,11 +2357,14 @@
     if (quickText && quickText.replace(/\s/g, '').length >= 40) {
       return 'Sin QR ni CUFE válido — no parece FE';
     }
+    if (qr && qr.url && !(qr.cufe && isValidCufeHex(qr.cufe))) {
+      return 'QR detectado (URL proveedor) — CUFE pendiente; use «Reanalizar» o PDF oficial DIAN';
+    }
     if (resolved && resolved.cufe && !resolved.cufeValidado) {
       return 'CUFE dudoso en imagen — confirme con «Abrir en DIAN» o suba PDF original de la DIAN';
     }
-    if (!qr || !qr.cufe) {
-      return 'PDF escaneado: no se leyó el QR — acerque foto, más luz, o suba el PDF original (no solo escáner)';
+    if (!qr || (!qr.cufe && !qr.url)) {
+      return 'PDF escaneado: no se leyó el QR — marque la zona, use cámara o suba PDF original DIAN';
     }
     return 'Sin QR ni CUFE válido — no parece FE';
   }
@@ -1360,19 +2419,541 @@
     return out;
   }
 
-  function fetchDianConsulta(cufe) {
+  function isTauriDianFetch() {
+    try {
+      return !!(
+        global.__TAURI__ &&
+        global.__TAURI__.core &&
+        typeof global.__TAURI__.core.invoke === 'function'
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function invokeTauriDian(cufe) {
+    return global.__TAURI__.core.invoke('fetch_dian_vpfe', { cufe: String(cufe || '') });
+  }
+
+  function blobFromBase64(b64, mime, nombre) {
+    if (!b64) return null;
+    try {
+      var bin = atob(b64);
+      var len = bin.length;
+      var arr = new Uint8Array(len);
+      for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+      var blob = new Blob([arr], { type: mime || 'application/octet-stream' });
+      return {
+        id: 'dian_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        nombre: nombre || 'FE-DIAN-oficial.pdf',
+        mime: mime || 'application/pdf',
+        dataUrl: '',
+        _pdfBlob: blob,
+        _viewBlob: blob,
+        role: 'dian-oficial',
+      };
+    } catch (e) {
+      console.warn('[FE] blobFromBase64', e);
+      return null;
+    }
+  }
+
+  function buildDocOficialPayload(tauriRes, feMeta) {
+    feMeta = feMeta || {};
+    if (tauriRes && tauriRes.pdf_base64) {
+      return {
+        pdfBase64: tauriRes.pdf_base64,
+        mime: 'application/pdf',
+        nombre:
+          (feMeta.numeroFactura ? 'FE-DIAN-' + feMeta.numeroFactura : 'FE-DIAN-oficial') + '.pdf',
+        xmlText: tauriRes.xml || null,
+        source: 'dian-vpfe',
+      };
+    }
+    if (tauriRes && tauriRes.xml) {
+      return {
+        xmlText: tauriRes.xml,
+        mime: 'application/xml',
+        nombre:
+          (feMeta.numeroFactura ? 'FE-DIAN-' + feMeta.numeroFactura : 'FE-DIAN-oficial') + '.xml',
+        source: 'dian-vpfe-xml',
+      };
+    }
+    return null;
+  }
+
+  function mergeFeParsed(base, extra, officialWins) {
+    base = base || {};
+    extra = extra || {};
+    var out = {
+      cufe: base.cufe || '',
+      nitEmisor: base.nitEmisor || '',
+      razonSocial: base.razonSocial || '',
+      numeroFactura: base.numeroFactura || '',
+      total: base.total || 0,
+      fecha: base.fecha || '',
+      lineas: (base.lineas || []).slice(),
+      rawExcerpt: base.rawExcerpt || extra.rawExcerpt || '',
+      qrUrl: base.qrUrl,
+    };
+    ['cufe', 'nitEmisor', 'razonSocial', 'numeroFactura', 'fecha'].forEach(function (k) {
+      if (extra[k] && (officialWins || !out[k])) out[k] = extra[k];
+    });
+    if (extra.total && (officialWins || !out.total)) out.total = extra.total;
+    if (extra.lineas && extra.lineas.length) {
+      if (officialWins || !out.lineas.length) out.lineas = extra.lineas.slice();
+    }
+    return out;
+  }
+
+  /** Parser UBL 2.1 / AttachedDocument — líneas de producto desde XML DIAN. */
+  function parseFeFromXml(xmlText) {
+    var out = {
+      cufe: '',
+      nitEmisor: '',
+      razonSocial: '',
+      numeroFactura: '',
+      total: 0,
+      fecha: '',
+      lineas: [],
+      rawExcerpt: String(xmlText || '').slice(0, 2000),
+    };
+    xmlText = String(xmlText || '').trim();
+    if (!xmlText) return out;
+    try {
+      var parser = new DOMParser();
+      var xdoc = parser.parseFromString(xmlText, 'application/xml');
+      if (xdoc.querySelector('parsererror')) return out;
+
+      function nodesLocal(name) {
+        var all = xdoc.getElementsByTagName('*');
+        var found = [];
+        for (var i = 0; i < all.length; i++) {
+          var el = all[i];
+          if (el.localName === name || (el.tagName && el.tagName.indexOf(':' + name) >= 0)) {
+            found.push(el);
+          }
+        }
+        return found;
+      }
+
+      function firstText(names) {
+        for (var ni = 0; ni < names.length; ni++) {
+          var list = nodesLocal(names[ni]);
+          if (list.length && list[0].textContent) return list[0].textContent.trim();
+        }
+        return '';
+      }
+
+      function allText(parent, name) {
+        var list = [];
+        var kids = parent.getElementsByTagName('*');
+        for (var i = 0; i < kids.length; i++) {
+          if (kids[i].localName === name) list.push(kids[i].textContent.trim());
+        }
+        return list;
+      }
+
+      out.cufe = firstText(['UUID', 'CompanyID']) || extractCufeFromText(xmlText);
+      out.nitEmisor = firstText(['CompanyID']);
+      out.razonSocial = firstText(['RegistrationName', 'Name']);
+      out.numeroFactura = firstText(['ID']);
+      out.fecha = firstText(['IssueDate']);
+      var payAmt = firstText(['PayableAmount', 'TaxInclusiveAmount', 'LegalMonetaryTotal']);
+      if (payAmt) out.total = parseCopAmount(payAmt);
+
+      var invoiceLines = nodesLocal('InvoiceLine');
+      invoiceLines.forEach(function (line) {
+        var descs = allText(line, 'Description');
+        var names = allText(line, 'Name');
+        var desc = (descs[0] || names[0] || '').trim();
+        var qty = parseCopAmount(allText(line, 'InvoicedQuantity')[0] || '1') || 1;
+        var val = parseCopAmount(
+          allText(line, 'LineExtensionAmount')[0] ||
+            allText(line, 'PriceAmount')[0] ||
+            '0'
+        );
+        if (desc && desc.length > 2) {
+          out.lineas.push({ descripcion: desc, cantidad: qty, valor: val });
+        }
+      });
+
+      if (!out.lineas.length) {
+        var descNodes = nodesLocal('Description');
+        descNodes.forEach(function (dn) {
+          var t = (dn.textContent || '').trim();
+          if (t.length > 3 && t.length < 120 && out.lineas.length < 24) {
+            out.lineas.push({ descripcion: t, cantidad: 1, valor: 0 });
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[FE] parseFeFromXml', err);
+    }
+    return out;
+  }
+
+  var VPFE_BASE = 'https://catalogo-vpfe.dian.gov.co';
+
+  function vpfeResolveUrl(base, href) {
+    href = String(href || '').trim();
+    if (/^https?:\/\//i.test(href)) return href;
+    if (href.indexOf('//') === 0) return 'https:' + href;
+    base = String(base || '').replace(/\/+$/, '');
+    if (href.indexOf('/') === 0) return VPFE_BASE + href;
+    return base + '/' + href;
+  }
+
+  function vpfeExtractHrefLinks(html) {
+    var links = [];
+    var re = /href\s*=\s*"([^"#]+)"/gi;
+    var m;
+    html = String(html || '');
+    while ((m = re.exec(html))) {
+      var href = m[1].trim();
+      if (href && href.indexOf('javascript:') !== 0) links.push(href);
+    }
+    return links;
+  }
+
+  function vpfePickDownloadUrl(links, base, kind) {
+    var needles =
+      kind === 'xml'
+        ? ['.xml', 'xml', 'downloadxml', 'getxml', 'attacheddocument']
+        : ['.pdf', 'pdf', 'downloadpdf', 'getpdf'];
+    for (var i = 0; i < links.length; i++) {
+      var lower = links[i].toLowerCase();
+      for (var j = 0; j < needles.length; j++) {
+        if (lower.indexOf(needles[j]) >= 0) return vpfeResolveUrl(base, links[i]);
+      }
+    }
+    return '';
+  }
+
+  function vpfeBodyLooksLikeXml(body) {
+    var t = String(body || '').trimStart();
+    return t.indexOf('<?xml') === 0 || t.indexOf(':Invoice') >= 0 || t.indexOf('AttachedDocument') >= 0;
+  }
+
+  function arrayBufferToBase64(ab) {
+    var bytes = new Uint8Array(ab);
+    var chunk = 8192;
+    var bin = '';
+    for (var i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+    }
+    return btoa(bin);
+  }
+
+  function vpfeDeepFetchFromHtml(html, pageUrl, cufe) {
+    if (vpfeBodyLooksLikeXml(html)) {
+      var parsedXml = parseFeFromXml(html);
+      var parsed = mergeFeParsed(parseFeFromText(html), parsedXml, true);
+      var xmlShape = { ok: true, html: '', xml: html, motivo: 'XML UBL recibido' };
+      return Promise.resolve(mapTauriDianResult(xmlShape, cufe));
+    }
+
+    var links = vpfeExtractHrefLinks(html);
+    var xmlUrl = vpfePickDownloadUrl(links, pageUrl, 'xml');
+    var pdfUrl = vpfePickDownloadUrl(links, pageUrl, 'pdf');
+    var acc = { xml: null, pdfBase64: null, pdfUrl: pdfUrl, xmlUrl: xmlUrl };
+
+    function fetchXml() {
+      if (!xmlUrl) return Promise.resolve();
+      return fetch(xmlUrl, { method: 'GET', credentials: 'omit' })
+        .then(function (res) {
+          if (!res.ok) return;
+          return res.text().then(function (body) {
+            if (vpfeBodyLooksLikeXml(body)) acc.xml = body;
+          });
+        })
+        .catch(function () {});
+    }
+
+    function fetchPdf() {
+      if (!pdfUrl) return Promise.resolve();
+      return fetch(pdfUrl, { method: 'GET', credentials: 'omit' })
+        .then(function (res) {
+          if (!res.ok) return;
+          return res.arrayBuffer().then(function (ab) {
+            if (ab && ab.byteLength > 80) acc.pdfBase64 = arrayBufferToBase64(ab);
+          });
+        })
+        .catch(function () {});
+    }
+
+    return fetchXml()
+      .then(function () {
+        if (acc.xml) return;
+        var i;
+        for (i = 0; i < links.length; i++) {
+          var lower = links[i].toLowerCase();
+          if (lower.indexOf('.xml') >= 0 || lower.indexOf('xml') >= 0) {
+            var u = vpfeResolveUrl(pageUrl, links[i]);
+            return fetch(u, { method: 'GET', credentials: 'omit' })
+              .then(function (res) {
+                if (!res.ok) return;
+                return res.text().then(function (body) {
+                  if (vpfeBodyLooksLikeXml(body)) acc.xml = body;
+                });
+              })
+              .catch(function () {});
+          }
+        }
+      })
+      .then(fetchPdf)
+      .then(function () {
+        var shape = {
+          ok: !!(acc.xml || acc.pdfBase64 || html.length > 200),
+          html: html,
+          xml: acc.xml,
+          pdf_base64: acc.pdfBase64,
+          pdf_url: acc.pdfUrl,
+          xml_url: acc.xmlUrl,
+          motivo: acc.xml
+            ? 'Factura electrónica XML descargada de DIAN'
+            : acc.pdfBase64
+              ? 'Representación PDF oficial descargada de DIAN'
+              : 'Consulta DIAN OK — sin descarga automática',
+        };
+        return mapTauriDianResult(shape, cufe);
+      });
+  }
+
+  var _tesseractPromise = null;
+  var FE_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  var FE_TESSERACT_WORKER_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+
+  function ensureTesseract() {
+    if (global.Tesseract && typeof global.Tesseract.recognize === 'function') {
+      return Promise.resolve(global.Tesseract);
+    }
+    if (_tesseractPromise) return _tesseractPromise;
+    _tesseractPromise = new Promise(function (resolve, reject) {
+      var candidates = [
+        resolveFeVendorUrl('vendor/CrozzoTesseract.min.js'),
+        FE_TESSERACT_CDN,
+      ];
+      var idx = 0;
+      function tryNext() {
+        if (idx >= candidates.length) {
+          reject(new Error('No se pudo cargar OCR (Tesseract)'));
+          return;
+        }
+        var s = document.createElement('script');
+        s.async = true;
+        s.setAttribute('data-cxf-tesseract', String(idx));
+        s.src = candidates[idx++];
+        s.onload = function () {
+          if (global.Tesseract && typeof global.Tesseract.recognize === 'function') {
+            resolve(global.Tesseract);
+          } else {
+            tryNext();
+          }
+        };
+        s.onerror = function () {
+          tryNext();
+        };
+        document.head.appendChild(s);
+      }
+      tryNext();
+    });
+    return _tesseractPromise;
+  }
+
+  function feIsNodeRuntime() {
+    return typeof process !== 'undefined' && !!(process.versions && process.versions.node);
+  }
+
+  function feIsBrowserOcrContext() {
+    return !feIsNodeRuntime() && typeof document !== 'undefined' && document.head;
+  }
+
+  function feRunOcr(T, dataUrl, extra) {
+    var opts = feOcrRecognizeOptions(extra);
+    if (feIsBrowserOcrContext()) {
+      if (!opts.workerPath) opts.workerPath = FE_TESSERACT_WORKER_CDN;
+    } else {
+      delete opts.workerPath;
+      delete opts.langPath;
+    }
+    return T.recognize(dataUrl, 'eng', opts);
+  }
+
+  /** OCR en pie de página escaneado — CUFE impreso cuando el QR no se lee. */
+  function extractCufeFromScannedOcr(doc, opts) {
+    opts = opts || {};
+    if (typeof opts.onProgress === 'function') {
+      opts.onProgress({ pct: 54, label: 'OCR en pie de factura (CUFE impreso)…', stepId: 'detect' });
+    }
+    var cropStarts = [0.25, 0.35, 0.45, 0.55, 0.65, 0.75];
+    var ocrExtra = {
+      tessedit_char_whitelist: '0123456789abcdefABCDEFCUFEcufe: \n\r\t/-',
+    };
+    return runPdfExclusive(function () {
+      return openPdfDocument(doc).then(function (pdf) {
+        return pdf.getPage(1).then(function (page) {
+          var batchUi = !!(opts.batchMode || global.__cxfFeBatchMode);
+          var scale = batchUi ? 5 : 4.5;
+          var vp = page.getViewport({ scale: scale });
+          var full = document.createElement('canvas');
+          full.width = Math.ceil(vp.width);
+          full.height = Math.ceil(vp.height);
+          return page
+            .render({ canvasContext: full.getContext('2d'), viewport: vp })
+            .promise.then(function () {
+              function ocrOneCanvas(canvas) {
+                var dataUrl =
+                  typeof canvas.toDataURL === 'function' ? canvas.toDataURL('image/png') : '';
+                if (!dataUrl) return Promise.resolve(null);
+                return ensureTesseract().then(function (T) {
+                  return feRunOcr(T, dataUrl, ocrExtra).then(function (res) {
+                    var text = (res.data && res.data.text) || '';
+                    var cands = extractAllCufeCandidates(text);
+                    cands.forEach(function (c) {
+                      c.source = 'ocr-pie-pagina';
+                      c.score = (c.score || 0) + 18;
+                    });
+                    if (!cands.length) return null;
+                    return buildCufeResolution(null, cands);
+                  });
+                });
+              }
+              function ocrCropRegion(region) {
+                if (region.cw < 80 || region.ch < 60) return Promise.resolve(null);
+                var crop = document.createElement('canvas');
+                crop.width = region.cw;
+                crop.height = region.ch;
+                crop
+                  .getContext('2d')
+                  .drawImage(full, region.x, region.y, region.cw, region.ch, 0, 0, region.cw, region.ch);
+                var enhanced = feCanvasForOcr(crop);
+                return ocrOneCanvas(crop).then(function (hit) {
+                  if (hit && hit.cufe && isValidCufeHex(hit.cufe)) return hit;
+                  return ocrOneCanvas(enhanced);
+                });
+              }
+              function ocrCrop(startRatio) {
+                var cropY = Math.floor(full.height * startRatio);
+                var cropH = full.height - cropY;
+                if (cropH < 80) return Promise.resolve(null);
+                return ocrCropRegion({ x: 0, y: cropY, cw: full.width, ch: cropH });
+              }
+              var cornerRegions = [
+                {
+                  x: Math.floor(full.width * 0.42),
+                  y: 0,
+                  cw: Math.floor(full.width * 0.58),
+                  ch: Math.floor(full.height * 0.38),
+                },
+                {
+                  x: Math.floor(full.width * 0.48),
+                  y: Math.floor(full.height * 0.58),
+                  cw: Math.floor(full.width * 0.52),
+                  ch: Math.floor(full.height * 0.42),
+                },
+              ];
+              var chain = Promise.resolve(null);
+              var ci;
+              for (ci = 0; ci < cornerRegions.length; ci++) {
+                (function (reg) {
+                  chain = chain.then(function (prev) {
+                    if (prev && prev.cufe && isValidCufeHex(prev.cufe)) return prev;
+                    return ocrCropRegion(reg);
+                  });
+                })(cornerRegions[ci]);
+              }
+              var si;
+              for (si = 0; si < cropStarts.length; si++) {
+                (function (ratio) {
+                  chain = chain.then(function (prev) {
+                    if (prev && prev.cufe && isValidCufeHex(prev.cufe)) return prev;
+                    return ocrCrop(ratio);
+                  });
+                })(cropStarts[si]);
+              }
+              return chain;
+            });
+        });
+      });
+    }).catch(function (err) {
+      console.warn('[FE] OCR CUFE', err);
+      return null;
+    });
+  }
+
+  /** Clasificación entrenada para UI y segundo pase automático. */
+  function classifyFeDoc(analisis, docHint) {
+    analisis = analisis || {};
+    docHint = docHint || {};
+    var src = String(analisis.cufeSource || '');
+    if (analisis.estado === 'error') {
+      return {
+        id: 'error',
+        hint: 'Error en análisis — use Reanalizar',
+      };
+    }
+    if (!analisis.esElectronica || !analisis.cufeValidado) {
+      var qrStepOk =
+        (analisis.pasos || []).some(function (p) {
+          return p.id === 'qr' && p.ok;
+        }) ||
+        !!(analisis.fe && analisis.fe.qrUrl) ||
+        !!(analisis.dianUrl && /^https?:\/\//i.test(analisis.dianUrl));
+      if (analisis.esElectronica && qrStepOk && !analisis.cufeValidado) {
+        return {
+          id: 'fe-qr-sin-cufe',
+          hint:
+            'QR leído — falta CUFE válido. Use «Reanalizar», marque el QR en vista o PDF oficial DIAN. ' +
+            getFeTrainingUiHint(),
+        };
+      }
+      if (docHint.scanned || docHint.likelyScanned) {
+        return {
+          id: 'escaneada-sin-qr-cufe',
+          hint:
+            'Escaneo sin QR/CUFE legible — marque el QR en vista, cámara o PDF oficial DIAN. ' +
+            getFeTrainingUiHint(),
+        };
+      }
+      return {
+        id: 'sin-fe-detectada',
+        hint: 'No se confirmó factura electrónica en este documento',
+      };
+    }
+    if (/qr/i.test(src)) {
+      return { id: 'fe-qr', hint: 'CUFE leído del código QR DIAN' };
+    }
+    if (/ocr/i.test(src)) {
+      return { id: 'fe-ocr', hint: 'CUFE leído por OCR en pie de página' };
+    }
+    if (/texto|pdf|etiqueta/i.test(src) || (docHint.textLen && docHint.textLen > 80)) {
+      return { id: 'fe-texto-pdf', hint: 'CUFE leído del texto del PDF' };
+    }
+    return { id: 'fe-detectada', hint: 'Factura electrónica confirmada' };
+  }
+
+  function classifyFeDocProfile(analisis, docHint) {
+    var c = classifyFeDoc(analisis, docHint);
+    return c && c.id ? c.id : 'desconocido';
+  }
+
+  function fetchDianConsultaBrowser(cufe) {
     var url = buildDianConsultaUrl(cufe);
-    if (!url) return Promise.resolve({ ok: false, motivo: 'Sin CUFE' });
     return fetch(url, { method: 'GET', mode: 'cors', credentials: 'omit' })
       .then(function (res) {
         if (!res.ok) return { ok: false, motivo: 'DIAN respondió ' + res.status, url: url };
         return res.text().then(function (html) {
-          return {
-            ok: true,
-            url: url,
-            html: html,
-            parsed: parseFeFromText(html),
-          };
+          return vpfeDeepFetchFromHtml(html, url, cufe).catch(function (err) {
+            console.warn('[FE] VPFE deep', err);
+            return {
+              ok: true,
+              url: url,
+              html: html,
+              parsed: parseFeFromText(html),
+              motivo: 'Consulta DIAN (sin descarga automática)',
+            };
+          });
         });
       })
       .catch(function (err) {
@@ -1383,6 +2964,122 @@
           error: String((err && err.message) || err),
         };
       });
+  }
+
+  function mapTauriDianResult(r, cufe) {
+    var url = buildDianConsultaUrl(cufe);
+    if (!r) {
+      return { ok: false, motivo: 'Sin respuesta DIAN', url: url };
+    }
+    var parsed = parseFeFromText(r.html || '');
+    var parsedXml = null;
+    if (r.xml) {
+      parsedXml = parseFeFromXml(r.xml);
+      parsed = mergeFeParsed(parsed, parsedXml, true);
+    }
+    return {
+      ok: !!r.ok,
+      url: url,
+      html: r.html || '',
+      xmlText: r.xml || null,
+      pdfBase64: r.pdf_base64 || null,
+      pdfUrl: r.pdf_url || null,
+      xmlUrl: r.xml_url || null,
+      parsed: parsed,
+      parsedXml: parsedXml,
+      motivo: r.motivo || (r.ok ? 'Consulta DIAN' : 'DIAN no disponible'),
+      docOficialPayload: buildDocOficialPayload(r, parsed),
+    };
+  }
+
+  /**
+   * Tras CUFE: descarga oficial DIAN (Tauri) → XML UBL o PDF → análisis profundo de líneas.
+   */
+  function processDianOfficialDeep(ctx, opts, batchMode) {
+    var cufe = (ctx.fe && ctx.fe.cufe) || '';
+    if (!cufe) {
+      return Promise.resolve(ctx);
+    }
+    var skipDownload = !!(batchMode && !opts.forceDeepQr && !isValidCufeHex(cufe) && !isTauriDianFetch());
+    if (skipDownload) {
+      ctx.dian = {
+        ok: false,
+        motivo: 'Sin CUFE válido — descarga DIAN omitida en lote',
+        url: buildDianConsultaUrl(cufe),
+        deferredBatch: true,
+      };
+      return Promise.resolve(ctx);
+    }
+
+    emitProgress(opts, 80, 'Descargando factura electrónica en DIAN…', 'dian', {
+      init: true,
+      detect: true,
+      cufe: true,
+      texto: true,
+    });
+
+    var fetchP;
+    if (isTauriDianFetch()) {
+      fetchP = invokeTauriDian(cufe)
+        .then(function (r) {
+          return mapTauriDianResult(r, cufe);
+        })
+        .catch(function (err) {
+          console.warn('[FE] Tauri DIAN', err);
+          return fetchDianConsultaBrowser(cufe);
+        });
+    } else {
+      fetchP = fetchDianConsultaBrowser(cufe);
+    }
+
+    return fetchP.then(function (dian) {
+      ctx.dian = dian;
+      ctx.docOficialPayload = (dian && dian.docOficialPayload) || null;
+
+      var deepP = Promise.resolve();
+      if (dian && dian.parsedXml && dian.parsedXml.lineas && dian.parsedXml.lineas.length) {
+        ctx.fe = mergeFeParsed(ctx.fe, dian.parsedXml, true);
+        ctx.feDeepSource = 'xml-ubl-dian';
+      } else if (dian && dian.xmlText) {
+        var px = parseFeFromXml(dian.xmlText);
+        ctx.fe = mergeFeParsed(ctx.fe, px, true);
+        if (px.lineas.length) ctx.feDeepSource = 'xml-ubl-dian';
+      }
+
+      if (dian && dian.pdfBase64) {
+        var offDoc = blobFromBase64(
+          dian.pdfBase64,
+          'application/pdf',
+          (ctx.fe.numeroFactura ? 'FE-DIAN-' + ctx.fe.numeroFactura : 'FE-DIAN-oficial') + '.pdf'
+        );
+        if (offDoc) {
+          ctx.docOficial = offDoc;
+          var maxPages = opts.forceDeepQr ? 14 : 10;
+          deepP = extractTextFromPdfDataUrl(offDoc, maxPages).then(function (text) {
+            var feOff = parseFeFromText(text);
+            ctx.fe = mergeFeParsed(ctx.fe, feOff, true);
+            if (feOff.lineas && feOff.lineas.length) ctx.feDeepSource = 'pdf-oficial-dian';
+          });
+        }
+      }
+
+      return deepP.then(function () {
+        return ctx;
+      });
+    });
+  }
+
+  function fetchDianConsulta(cufe) {
+    if (isTauriDianFetch()) {
+      return invokeTauriDian(cufe)
+        .then(function (r) {
+          return mapTauriDianResult(r, cufe);
+        })
+        .catch(function () {
+          return fetchDianConsultaBrowser(cufe);
+        });
+    }
+    return fetchDianConsultaBrowser(cufe);
   }
 
   function matchProveedor(prov, fe) {
@@ -1513,7 +3210,7 @@
         ok: false,
         titulo: 'Código QR',
         detalle:
-          'No se leyó QR (BarcodeDetector + jsQR) — suba PDF original o foto más nítida',
+          'No se leyó QR (nativo + jsQR + modo cámara) — use «Reanalizar», cámara o PDF original DIAN',
       });
     }
     var cufeOk = resolved.cufeValidado;
@@ -1584,6 +3281,13 @@
       cufeSource: ctx.cufeResolved && ctx.cufeResolved.cufeSource,
       cufeCandidates: (ctx.cufeResolved && ctx.cufeResolved.cufeCandidates) || [],
       dianUrl: buildDianConsultaUrl(fe.cufe) || (ctx.qr && ctx.qr.url) || '',
+      qrDetectado: !!(ctx.qr && (ctx.qr.url || ctx.qr.cufe)),
+      qrUrl: (ctx.qr && ctx.qr.url) || (fe && fe.qrUrl) || '',
+      dianOk: !!(ctx.dian && ctx.dian.ok),
+      dianDownloaded: !!(
+        ctx.dian &&
+        (ctx.dian.parsedXml || ctx.dian.xmlText || ctx.dian.pdfBase64 || ctx.docOficialPayload)
+      ),
       fe: fe,
       pasos: pasos,
       proveedorMatch: provMatch,
@@ -1591,6 +3295,8 @@
       lineasSugeridas: sugeridas,
       analizadoAt: new Date().toISOString(),
       progreso: { pct: 100, label: 'Completado', stepId: 'cierre' },
+      docOficialPayload: ctx.docOficialPayload || null,
+      feDeepSource: ctx.feDeepSource || 'pdf-subido',
     };
   }
 
@@ -1722,60 +3428,52 @@
             return finalizeFeAnalisis(ctx, pasos, opts, prov, valorCajero, mpCatalog);
           }
 
-          emitProgress(opts, 78, 'Consultando portal DIAN…', 'dian', {
+          emitProgress(opts, 78, 'Consultando y descargando DIAN…', 'dian', {
             init: true,
             detect: true,
             cufe: true,
             texto: true,
           });
-          pasos.push({ id: 'dian', ok: false, titulo: 'Consulta DIAN', detalle: 'Consultando…' });
-          if (batchMode) {
-            pasos[pasos.length - 1] = {
-              id: 'dian',
-              ok: null,
-              warn: true,
-              titulo: 'Consulta DIAN',
-              detalle: 'Omitida en lote — use «Abrir en DIAN» o Reanalizar en esta factura',
-            };
-            ctx.dian = { ok: false, motivo: 'Consulta diferida en análisis por lote', url: buildDianConsultaUrl(cufe) };
-            return feYieldToMain(20).then(function () {
-              return finalizeFeAnalisis(ctx, pasos, opts, prov, valorCajero, mpCatalog);
-            });
-          }
-          return feYieldToMain(16).then(function () {
-            return fetchDianConsulta(cufe);
-          }).then(function (dian) {
-            ctx.dian = dian;
-            if (dian.ok && dian.parsed) {
-              if (dian.parsed.total && !ctx.fe.total) ctx.fe.total = dian.parsed.total;
-              if (dian.parsed.numeroFactura && !ctx.fe.numeroFactura) {
-                ctx.fe.numeroFactura = dian.parsed.numeroFactura;
+          pasos.push({ id: 'dian', ok: false, titulo: 'DIAN · descarga oficial', detalle: 'Consultando…' });
+          return feYieldToMain(batchMode ? 20 : 16)
+            .then(function () {
+              return processDianOfficialDeep(ctx, opts, batchMode);
+            })
+            .then(function (ctx2) {
+              var dian = ctx2.dian || {};
+              if (dian.ok && (dian.parsedXml || dian.pdfBase64 || dian.xmlText)) {
+                pasos[pasos.length - 1] = {
+                  id: 'dian',
+                  ok: true,
+                  titulo: 'DIAN · descarga oficial',
+                  detalle:
+                    ctx2.feDeepSource === 'xml-ubl-dian'
+                      ? 'XML UBL descargado — líneas de producto desde factura oficial'
+                      : ctx2.feDeepSource === 'pdf-oficial-dian'
+                        ? 'PDF oficial DIAN — análisis profundo de productos'
+                        : dian.motivo || 'Datos leídos del portal DIAN',
+                };
+              } else {
+                pasos[pasos.length - 1] = {
+                  id: 'dian',
+                  ok: false,
+                  warn: true,
+                  titulo: 'DIAN · descarga oficial',
+                  detalle:
+                    (dian && dian.motivo) ||
+                    'Use «Abrir en DIAN» o Reanalizar (app de escritorio descarga sin CORS)',
+                  url: (dian && dian.url) || buildDianConsultaUrl(cufe),
+                };
               }
-              if (dian.parsed.nitEmisor && !ctx.fe.nitEmisor) ctx.fe.nitEmisor = dian.parsed.nitEmisor;
-              pasos[pasos.length - 1] = {
-                id: 'dian',
-                ok: true,
-                titulo: 'Consulta DIAN',
-                detalle: 'Datos leídos del portal DIAN',
-              };
-            } else {
-              pasos[pasos.length - 1] = {
-                id: 'dian',
-                ok: false,
-                titulo: 'Consulta DIAN',
-                detalle: (dian && dian.motivo) || 'Use el enlace para validar en el navegador',
-                url: (dian && dian.url) || buildDianConsultaUrl(cufe),
-              };
-            }
-            emitProgress(opts, 88, 'Cruzando proveedor, total y líneas…', 'cierre', {
-              init: true,
-              detect: true,
-              cufe: true,
-              texto: true,
-              dian: true,
+              emitProgress(opts, 88, 'Cruzando proveedor, total y líneas…', 'cierre', {
+                init: true,
+                detect: true,
+                cufe: true,
+                texto: true,
+                dian: true,
+              });
+              return finalizeFeAnalisis(ctx2, pasos, opts, prov, valorCajero, mpCatalog);
             });
-            return finalizeFeAnalisis(ctx, pasos, opts, prov, valorCajero, mpCatalog);
-          });
         });
       })
       .catch(function (err) {
@@ -1839,6 +3537,30 @@
     return html;
   }
 
+  function renderFeStatusChips(analisis, docHint) {
+    analisis = analisis || {};
+    docHint = docHint || {};
+    var chips = [];
+    var src = String(analisis.cufeSource || '');
+    var qrPasosOk = (analisis.pasos || []).some(function (p) {
+      return p.id === 'qr' && p.ok;
+    });
+    var qrUrlHit = !!(analisis.fe && analisis.fe.qrUrl);
+    if (/qr/i.test(src) || qrPasosOk || qrUrlHit) chips.push({ cls: 'qr', label: 'QR' });
+    else if (/ocr/i.test(src)) chips.push({ cls: 'ocr', label: 'OCR' });
+    else if (src) chips.push({ cls: 'txt', label: 'Texto PDF' });
+    if (analisis.dianDownloaded) chips.push({ cls: 'dian', label: 'DIAN XML/PDF' });
+    else if (analisis.dianOk) chips.push({ cls: 'dian', label: 'DIAN OK' });
+    if (docHint.scanned || docHint.likelyScanned) chips.push({ cls: 'scan', label: 'Escaneada' });
+    if (!chips.length) return '';
+    var html = '<div class="cxf-fe-chips">';
+    chips.forEach(function (c) {
+      html += '<span class="cxf-fe-chip cxf-fe-chip--' + c.cls + '">' + esc(c.label) + '</span>';
+    });
+    html += '</div>';
+    return html;
+  }
+
   function renderAnalisisPanel(analisis, opts) {
     opts = opts || {};
     analisis = analisis || {};
@@ -1859,6 +3581,7 @@
         ? 'Factura electrónica detectada'
         : 'Documento sin FE clara') +
       '</h4>';
+    html += renderFeStatusChips(analisis, opts.docHint || {});
     if (analisis.cufe) {
       html +=
         '<p class="form-hint cxf-fe-analisis__cufe"><strong>CUFE:</strong> <code title="' +
@@ -1873,6 +3596,21 @@
           ? ' <span class="form-hint">(' + esc(analisis.cufeSource) + ')</span>'
           : '') +
         '</p>';
+    }
+    if (analisis.feDeepSource && analisis.feDeepSource !== 'pdf-subido') {
+      html +=
+        '<p class="form-hint cxf-fe-analisis__deep-src">Análisis profundo: <strong>' +
+        esc(
+          analisis.feDeepSource === 'xml-ubl-dian'
+            ? 'XML oficial DIAN (UBL)'
+            : analisis.feDeepSource === 'pdf-oficial-dian'
+              ? 'PDF oficial DIAN'
+              : analisis.feDeepSource
+        ) +
+        '</strong> — el PDF que subió se conserva como respaldo.</p>';
+    }
+    if (analisis.docOficialPayload) {
+      html += '<p class="form-hint"><span class="badge badge-info">Factura DIAN guardada en adjuntos</span></p>';
     }
     html += '</header><ol class="cxf-fe-analisis__steps">';
     pasos.forEach(function (p) {
@@ -1900,11 +3638,19 @@
       html += '<div class="cxf-fe-analisis__actions">';
       if (sinQr) {
         html +=
-          '<p class="cxf-fe-analisis__qr-hint">No se detectó QR en el PDF. Use la cámara para leer el código impreso en la factura.</p>';
+          '<p class="cxf-fe-analisis__qr-hint">No se detectó QR en el PDF. Marque el código en la vista previa o use la cámara.</p>';
+      }
+      if (sinQr) {
+        html +=
+          '<button type="button" class="btn btn-primary btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
+          esc(pid) +
+          '" data-factura-id="' +
+          esc(fid) +
+          '">🔲 Marcar QR en vista</button> ';
       }
       html +=
         '<button type="button" class="' +
-        (sinQr ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm') +
+        (sinQr ? 'btn btn-outline btn-sm' : 'btn btn-outline btn-sm') +
         '" data-cxf-fe-camara data-prov-id="' +
         esc(pid) +
         '" data-factura-id="' +
@@ -1944,8 +3690,14 @@
     renderFeAnalisisLoader: renderFeAnalisisLoader,
     createInitialProgreso: createInitialProgreso,
     renderAnalisisPanel: renderAnalisisPanel,
+    renderFeStatusChips: renderFeStatusChips,
     parseFeFromText: parseFeFromText,
+    parseFeFromXml: parseFeFromXml,
+    fetchDianConsulta: fetchDianConsulta,
     parseQrPayload: parseQrPayload,
+    normalizeQrPayload: normalizeQrPayload,
+    decodeQrFromCanvas: decodeQrFromCanvas,
+    decodeQrFromVideoFrame: decodeQrFromVideoFrame,
     buildDianConsultaUrl: buildDianConsultaUrl,
     matchProveedor: matchProveedor,
     verifyValorCajero: verifyValorCajero,
@@ -1953,9 +3705,19 @@
     extractCufeFromText: extractCufeFromText,
     extractAllCufeCandidates: extractAllCufeCandidates,
     scanQrDeep: scanQrDeep,
+    scanQrInMarkedRegion: scanQrInMarkedRegion,
     resolveQrAndCufe: resolveQrAndCufe,
     detectFeElectronica: detectFeElectronica,
+    classifyFeDocProfile: classifyFeDocProfile,
+    classifyFeDoc: classifyFeDoc,
     isValidCufeHex: isValidCufeHex,
+    loadFeTrainingProfile: loadFeTrainingProfile,
+    getFeTrainingProfile: getFeTrainingProfile,
+    getFeTrainingUiHint: getFeTrainingUiHint,
+    loadFeQrZoneMemory: loadFeQrZoneMemory,
+    probePdfQuickProfile: probePdfQuickProfile,
+    feProvQrKey: feProvQrKey,
+    rememberFeQrZoneFromHit: rememberFeQrZoneFromHit,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -2338,7 +4100,71 @@
         (global.__cxfBlobVault && global.__cxfBlobVault[viewVaultKey(d.id)])
       ),
       viewBlobRef: d.viewBlobRef || null,
+      role: d.role || '',
     };
+  }
+
+  function getFeUploadDoc(f) {
+    if (!f || !f.docs || !f.docs.length) return null;
+    var idx = f.docPreviewIdx || 0;
+    var cur = f.docs[idx];
+    if (cur && cur.role !== 'dian-oficial' && docHasPayload(cur)) return cur;
+    for (var i = 0; i < f.docs.length; i++) {
+      if (f.docs[i].role !== 'dian-oficial' && docHasPayload(f.docs[i])) return f.docs[i];
+    }
+    return f.docs[0];
+  }
+
+  function attachDianOficialDoc(provId, facturaId, payload) {
+    if (!payload) return null;
+    var f = getFactura(provId, facturaId);
+    if (!f) return null;
+    f.docs = (f.docs || []).filter(function (d) {
+      return d.role !== 'dian-oficial';
+    });
+    var doc = null;
+    if (payload.pdfBase64) {
+      try {
+        var bin = atob(payload.pdfBase64);
+        var len = bin.length;
+        var arr = new Uint8Array(len);
+        for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+        var blob = new Blob([arr], { type: 'application/pdf' });
+        doc = {
+          id: 'dian_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          nombre: payload.nombre || 'FE-DIAN-oficial.pdf',
+          mime: 'application/pdf',
+          role: 'dian-oficial',
+          dataUrl: '',
+          _pdfBlob: blob,
+          _viewBlob: blob,
+        };
+      } catch (e) {
+        console.warn('[CXF] attachDianOficialDoc pdf', e);
+      }
+    }
+    if (!doc && payload.xmlText) {
+      doc = {
+        id: 'dian_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        nombre: payload.nombre || 'FE-DIAN-oficial.xml',
+        mime: 'application/xml',
+        role: 'dian-oficial',
+        dataUrl: 'data:application/xml;base64,' + btoa(unescape(encodeURIComponent(payload.xmlText.slice(0, 500000)))),
+        feXmlText: payload.xmlText,
+      };
+    }
+    if (!doc) return null;
+    f.docs.push(doc);
+    vaultDocBlob(doc);
+    if (doc._viewBlob) vaultViewDocBlob(doc);
+    if (_cxfIngestBatch > 0) {
+      if (!_cxfDeferredIdbBackups) _cxfDeferredIdbBackups = [];
+      if (doc._pdfBlob) _cxfDeferredIdbBackups.push(doc);
+    } else if (doc._pdfBlob) {
+      scheduleViewBlobIdbBackup(doc);
+    }
+    schedulePersistCxfSession();
+    return doc;
   }
 
   function serializeFacturaForSession(f) {
@@ -2404,11 +4230,22 @@
   }
 
   function schedulePersistCxfSession() {
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) {
+      _cxfPersistDeferred = true;
+      return;
+    }
     if (_cxfPersistTimer) clearTimeout(_cxfPersistTimer);
     _cxfPersistTimer = setTimeout(function () {
       _cxfPersistTimer = null;
       persistCxfSessionNow();
     }, 420);
+  }
+
+  function flushDeferredCxfPersist() {
+    if (_cxfPersistDeferred && !_cxfIngestBatch && !_cxfIngestJobBusy) {
+      _cxfPersistDeferred = false;
+      schedulePersistCxfSession();
+    }
   }
 
   function restoreCxfSessionIfNeeded() {
@@ -2457,6 +4294,30 @@
         }
       }
       syncProveedorIdsFromBuckets();
+      if (hasActiveRecepcionWork() && ui.modoEntrada === 'complejo') {
+        var fePendRestore = false;
+        ui.proveedorIds.forEach(function (pid) {
+          var b = ensureBucket(pid);
+          if (!b) return;
+          b.facturas.forEach(function (f) {
+            if (!f.docs || !f.docs.length) return;
+            if (
+              f._fePendienteAnalisis ||
+              !f.feAnalisis ||
+              f.feAnalisis.estado === 'error' ||
+              (f.feAnalisis.estado !== 'listo' && f.feAnalisis.estado !== 'analizando')
+            ) {
+              fePendRestore = true;
+              f._fePendienteAnalisis = true;
+            }
+          });
+        });
+        if (fePendRestore && _feBatchSession && (_feBatchSession.complete || _feBatchSession.awaitingContinue)) {
+          _feBatchSession.awaitingContinue = false;
+          _feBatchSession.complete = false;
+          _feBatchSession.active = false;
+        }
+      }
       return hasActiveRecepcionWork();
     } catch (_) {
       return false;
@@ -3096,10 +4957,16 @@
     jobs.sort(function (a, b) {
       return a.priority - b.priority;
     });
-    jobs.forEach(function (j) {
-      var doc = findDocById(j.docId);
-      if (doc) enqueuePdfPreview(doc, j.priority);
+    var chain = Promise.resolve();
+    jobs.forEach(function (j, i) {
+      chain = chain.then(function () {
+        return yieldToMain(240 + i * 180).then(function () {
+          var doc = findDocById(j.docId);
+          if (doc) enqueuePdfPreview(doc, j.priority);
+        });
+      });
     });
+    return chain;
   }
 
   function getPdfBlobUrl(doc) {
@@ -3422,27 +5289,27 @@
     persistNumeroFacturasFromDom(host);
     persistValorCajeroFromDom(host);
     persistActiveBucket();
+    if (!totalDocsCount()) return toast('Adjunte al menos un archivo en algún proveedor', 'warning');
     if (isModoComplejo()) {
-      var sinAplicar = [];
-      ui.proveedorIds.forEach(function (pid) {
-        var b = ensureBucket(pid);
-        if (!b) return;
-        b.facturas.forEach(function (f) {
-          if (!f.docs || !f.docs.length) return;
-          if (f.feAnalisis && f.feAnalisis.esElectronica && !f.feAnalisis.aplicadoAt) {
-            sinAplicar.push(f.numeroFactura || 'factura sin número');
-          }
-        });
-      });
+      var feSt = collectDocumentoFeStatus();
+      if (feSt.trabajando || _feAnalisisQueueBusy || _feAnalisisQueue.length) {
+        return toast('Espere a que termine el análisis de facturas en curso', 'warning');
+      }
+      if (feSt.analizando) {
+        return toast('Hay facturas analizándose — espere un momento', 'warning');
+      }
+      var sinAplicar = feSt.sinAplicarFe.slice();
       if (sinAplicar.length && !global.confirm(
         'Hay ' +
           sinAplicar.length +
-          ' factura(s) electrónica(s) sin «Aplicar datos».\n\n¿Continuar igual a productos?'
+          ' factura(s) electrónica(s) sin «Aplicar datos»:\n\n' +
+          sinAplicar.slice(0, 6).join('\n') +
+          (sinAplicar.length > 6 ? '\n… y ' + (sinAplicar.length - 6) + ' más' : '') +
+          '\n\n¿Continuar igual a productos?'
       )) {
         return;
       }
     }
-    if (!totalDocsCount()) return toast('Adjunte al menos un archivo en algún proveedor', 'warning');
     if (hasImageDocs()) {
       promptAndConvertImages(host, { scope: 'all', autoGoProductos: true });
       return;
@@ -3880,6 +5747,365 @@
     return '';
   }
 
+  function renderQrRegionModal() {
+    return (
+      '<div id="cxf-qr-region-modal" class="cxf-mp-modal-backdrop" hidden aria-hidden="true">' +
+      '<div class="cxf-qr-region-dialog" role="dialog" aria-modal="true" aria-labelledby="cxf-qr-region-title">' +
+      '<header class="cxf-qr-region-dialog__head">' +
+      '<h3 id="cxf-qr-region-title">Marcar QR en la vista</h3>' +
+      '<button type="button" class="cxf-qr-region-close" data-cxf-qr-region-close aria-label="Cerrar">×</button>' +
+      '</header>' +
+      '<p class="cxf-muted cxf-qr-region-lead">Arrastre un recuadro sobre el código QR. Si no lo encuentra automáticamente, marque usted la zona exacta.</p>' +
+      '<div class="cxf-qr-region-stage-wrap">' +
+      '<div id="cxf-qr-region-stage" class="cxf-qr-region-stage">' +
+      '<img id="cxf-qr-region-img" class="cxf-qr-region-img" alt="Vista del documento" draggable="false">' +
+      '<div id="cxf-qr-region-box" class="cxf-qr-region-box" hidden></div>' +
+      '</div></div>' +
+      '<p id="cxf-qr-region-page" class="cxf-qr-region-page cxf-muted" hidden></p>' +
+      '<p id="cxf-qr-region-status" class="cxf-qr-region-status" role="status">Cargando vista…</p>' +
+      '<div class="cxf-qr-region-actions">' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-qr-region-prev" data-cxf-qr-region-prev hidden>← Página ant.</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-qr-region-next" data-cxf-qr-region-next hidden>Página sig. →</button>' +
+      '<span class="cxf-qr-region-actions__spacer"></span>' +
+      '<button type="button" class="btn btn-outline" data-cxf-qr-region-close>Cancelar</button>' +
+      '<button type="button" class="btn btn-primary" id="cxf-qr-region-scan" data-cxf-qr-region-scan disabled>🔍 Buscar QR aquí</button>' +
+      '</div></div></div>'
+    );
+  }
+
+  var _cxfQrRegion = null;
+
+  function setCxfQrRegionStatus(msg, isError) {
+    var el = document.getElementById('cxf-qr-region-status');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('is-error', !!isError);
+  }
+
+  function closeCxfQrRegionModal(showCancelToast) {
+    var modal = document.getElementById('cxf-qr-region-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    if (_cxfQrRegion && _cxfQrRegion.stage && _cxfQrRegion._onPointerDown) {
+      _cxfQrRegion.stage.removeEventListener('pointerdown', _cxfQrRegion._onPointerDown);
+      _cxfQrRegion.stage.removeEventListener('pointermove', _cxfQrRegion._onPointerMove);
+      _cxfQrRegion.stage.removeEventListener('pointerup', _cxfQrRegion._onPointerUp);
+      _cxfQrRegion.stage.removeEventListener('pointercancel', _cxfQrRegion._onPointerUp);
+    }
+    _cxfQrRegion = null;
+    if (showCancelToast) toast('Marcado de QR cancelado', 'info');
+  }
+
+  function pdfDocPreviewPageUrl(doc, pageNum) {
+    pageNum = Math.max(1, Math.floor(Number(pageNum) || 1));
+    return getViewPdfBytes(doc).then(function (bytes) {
+      if (!bytes || !bytes.length) return '';
+      return loadPdfJs().then(function (pdfjsLib) {
+        var data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+        return pdfjsLib.getDocument({ data: data }).promise.then(function (pdf) {
+          var pn = Math.min(pageNum, pdf.numPages);
+          return pdf.getPage(pn).then(function (page) {
+            var vp = page.getViewport({ scale: 1.2 });
+            var canvas = document.createElement('canvas');
+            var maxSide = 960;
+            var w = vp.width;
+            var h = vp.height;
+            var sc = 1;
+            if (Math.max(w, h) > maxSide) sc = maxSide / Math.max(w, h);
+            canvas.width = Math.max(1, (w * sc) | 0);
+            canvas.height = Math.max(1, (h * sc) | 0);
+            var ctx = canvas.getContext('2d');
+            var drawVp = sc < 1 ? page.getViewport({ scale: 1.2 * sc }) : vp;
+            return page.render({ canvasContext: ctx, viewport: drawVp }).promise.then(function () {
+              var numPages = pdf.numPages;
+              try {
+                pdf.destroy();
+              } catch (_) {}
+              return { url: canvas.toDataURL('image/jpeg', 0.88), numPages: numPages, pageNum: pn };
+            });
+          });
+        });
+      });
+    });
+  }
+
+  function updateCxfQrRegionPageUi() {
+    if (!_cxfQrRegion) return;
+    var pageEl = document.getElementById('cxf-qr-region-page');
+    var prevBtn = document.getElementById('cxf-qr-region-prev');
+    var nextBtn = document.getElementById('cxf-qr-region-next');
+    var showNav = _cxfQrRegion.numPages > 1 && _cxfQrRegion.isPdf;
+    if (pageEl) {
+      pageEl.hidden = !showNav;
+      if (showNav) pageEl.textContent = 'Página ' + _cxfQrRegion.pageNum + ' de ' + _cxfQrRegion.numPages;
+    }
+    if (prevBtn) {
+      prevBtn.hidden = !showNav;
+      prevBtn.disabled = _cxfQrRegion.pageNum <= 1 || !!_cxfQrRegion.scanning;
+    }
+    if (nextBtn) {
+      nextBtn.hidden = !showNav;
+      nextBtn.disabled = _cxfQrRegion.pageNum >= _cxfQrRegion.numPages || !!_cxfQrRegion.scanning;
+    }
+  }
+
+  function clearCxfQrRegionBox() {
+    if (!_cxfQrRegion) return;
+    _cxfQrRegion.rect = null;
+    var box = document.getElementById('cxf-qr-region-box');
+    var scanBtn = document.getElementById('cxf-qr-region-scan');
+    if (box) box.hidden = true;
+    if (scanBtn) scanBtn.disabled = true;
+  }
+
+  function paintCxfQrRegionBox() {
+    if (!_cxfQrRegion || !_cxfQrRegion.rect) return;
+    var box = document.getElementById('cxf-qr-region-box');
+    var img = document.getElementById('cxf-qr-region-img');
+    if (!box || !img) return;
+    var r = img.getBoundingClientRect();
+    var rect = _cxfQrRegion.rect;
+    box.style.left = rect.x * 100 + '%';
+    box.style.top = rect.y * 100 + '%';
+    box.style.width = rect.w * 100 + '%';
+    box.style.height = rect.h * 100 + '%';
+    box.hidden = !(rect.w > 0.008 && rect.h > 0.008);
+    var scanBtn = document.getElementById('cxf-qr-region-scan');
+    if (scanBtn) scanBtn.disabled = box.hidden || !!_cxfQrRegion.scanning;
+  }
+
+  function pointerNormOnRegionImg(clientX, clientY) {
+    var img = document.getElementById('cxf-qr-region-img');
+    if (!img) return { x: 0, y: 0 };
+    var r = img.getBoundingClientRect();
+    if (!r.width || !r.height) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, Math.min(1, (clientX - r.left) / r.width)),
+      y: Math.max(0, Math.min(1, (clientY - r.top) / r.height)),
+    };
+  }
+
+  function bindCxfQrRegionStage() {
+    var stage = document.getElementById('cxf-qr-region-stage');
+    if (!stage || !_cxfQrRegion) return;
+    if (_cxfQrRegion._onPointerDown) {
+      stage.removeEventListener('pointerdown', _cxfQrRegion._onPointerDown);
+      stage.removeEventListener('pointermove', _cxfQrRegion._onPointerMove);
+      stage.removeEventListener('pointerup', _cxfQrRegion._onPointerUp);
+      stage.removeEventListener('pointercancel', _cxfQrRegion._onPointerUp);
+    }
+    _cxfQrRegion.stage = stage;
+    _cxfQrRegion._onPointerDown = function (e) {
+      if (!_cxfQrRegion || _cxfQrRegion.scanning) return;
+      if (e.button != null && e.button !== 0) return;
+      e.preventDefault();
+      try {
+        stage.setPointerCapture(e.pointerId);
+      } catch (_) {}
+      _cxfQrRegion.dragging = true;
+      _cxfQrRegion.start = pointerNormOnRegionImg(e.clientX, e.clientY);
+      _cxfQrRegion.rect = { x: _cxfQrRegion.start.x, y: _cxfQrRegion.start.y, w: 0, h: 0 };
+      paintCxfQrRegionBox();
+    };
+    _cxfQrRegion._onPointerMove = function (e) {
+      if (!_cxfQrRegion || !_cxfQrRegion.dragging) return;
+      e.preventDefault();
+      var cur = pointerNormOnRegionImg(e.clientX, e.clientY);
+      var sx = _cxfQrRegion.start.x;
+      var sy = _cxfQrRegion.start.y;
+      _cxfQrRegion.rect = {
+        x: Math.min(sx, cur.x),
+        y: Math.min(sy, cur.y),
+        w: Math.abs(cur.x - sx),
+        h: Math.abs(cur.y - sy),
+      };
+      paintCxfQrRegionBox();
+    };
+    _cxfQrRegion._onPointerUp = function (e) {
+      if (!_cxfQrRegion || !_cxfQrRegion.dragging) return;
+      _cxfQrRegion.dragging = false;
+      try {
+        stage.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+      paintCxfQrRegionBox();
+      if (_cxfQrRegion.rect && _cxfQrRegion.rect.w > 0.01 && _cxfQrRegion.rect.h > 0.01) {
+        setCxfQrRegionStatus('Recuadro listo — pulse «Buscar QR aquí».');
+      } else {
+        clearCxfQrRegionBox();
+        setCxfQrRegionStatus('El recuadro es muy pequeño — vuelva a marcar el QR.', true);
+      }
+    };
+    stage.addEventListener('pointerdown', _cxfQrRegion._onPointerDown);
+    stage.addEventListener('pointermove', _cxfQrRegion._onPointerMove);
+    stage.addEventListener('pointerup', _cxfQrRegion._onPointerUp);
+    stage.addEventListener('pointercancel', _cxfQrRegion._onPointerUp);
+  }
+
+  function loadCxfQrRegionPreview() {
+    if (!_cxfQrRegion) return Promise.resolve();
+    var img = document.getElementById('cxf-qr-region-img');
+    if (!img) return Promise.resolve();
+    var doc = findDocById(_cxfQrRegion.docId);
+    if (!doc) {
+      setCxfQrRegionStatus('Documento no encontrado', true);
+      return Promise.resolve();
+    }
+    clearCxfQrRegionBox();
+    setCxfQrRegionStatus('Cargando vista…');
+    var p;
+    if (isPdfDoc(doc)) {
+      p = pdfDocPreviewPageUrl(doc, _cxfQrRegion.pageNum).then(function (out) {
+        if (!out || !out.url) throw new Error('Sin vista');
+        _cxfQrRegion.numPages = out.numPages || 1;
+        _cxfQrRegion.pageNum = out.pageNum || _cxfQrRegion.pageNum;
+        doc.previewPages = _cxfQrRegion.numPages;
+        doc.previewPage = _cxfQrRegion.pageNum;
+        return out.url;
+      });
+    } else if (doc.dataUrl) {
+      _cxfQrRegion.isPdf = false;
+      _cxfQrRegion.numPages = 1;
+      p = Promise.resolve(doc.dataUrl);
+    } else {
+      p = Promise.reject(new Error('Sin imagen'));
+    }
+    return p
+      .then(function (url) {
+        return new Promise(function (resolve) {
+          img.onload = function () {
+            resolve();
+          };
+          img.onerror = function () {
+            resolve();
+          };
+          img.src = url;
+          if (img.complete) resolve();
+        });
+      })
+      .then(function () {
+        updateCxfQrRegionPageUi();
+        bindCxfQrRegionStage();
+        setCxfQrRegionStatus('Arrastre un recuadro sobre el código QR.');
+      })
+      .catch(function () {
+        setCxfQrRegionStatus('No se pudo cargar la vista — vuelva a subir el PDF.', true);
+      });
+  }
+
+  function openCxfQrRegionModal(provId, facturaId, host) {
+    var f = getFactura(provId, facturaId);
+    if (!f || !f.docs || !f.docs.length) {
+      toast('Suba un PDF o foto primero', 'warning');
+      return;
+    }
+    var doc = f.docs[f.docPreviewIdx || 0];
+    if (!doc || (!isPdfDoc(doc) && !(doc.mime && doc.mime.indexOf('image') >= 0))) {
+      toast('Necesita un PDF o foto para marcar el QR', 'warning');
+      return;
+    }
+    if (isPdfDoc(doc) && !docHasPayload(doc)) {
+      toast('PDF sin datos en memoria — vuelva a cargarlo', 'warning');
+      return;
+    }
+    var modal = document.getElementById('cxf-qr-region-modal');
+    if (!modal) {
+      toast('Marcador de QR no disponible — recargue la página', 'warning');
+      return;
+    }
+    _cxfQrRegion = {
+      provId: String(provId),
+      facturaId: String(facturaId),
+      host: host || getCxfHost(),
+      docId: doc.id,
+      pageNum: doc.previewPage || 1,
+      numPages: doc.previewPages || 1,
+      isPdf: isPdfDoc(doc),
+      rect: null,
+      dragging: false,
+      scanning: false,
+    };
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    loadCxfQrRegionPreview();
+  }
+
+  function shiftCxfQrRegionPage(delta) {
+    if (!_cxfQrRegion || !_cxfQrRegion.isPdf || _cxfQrRegion.scanning) return;
+    var next = _cxfQrRegion.pageNum + delta;
+    if (next < 1 || next > _cxfQrRegion.numPages) return;
+    _cxfQrRegion.pageNum = next;
+    loadCxfQrRegionPreview();
+  }
+
+  function runCxfQrRegionScan() {
+    if (!_cxfQrRegion || !_cxfQrRegion.rect) {
+      toast('Marque un recuadro sobre el QR', 'info');
+      return;
+    }
+    if (_cxfQrRegion.rect.w < 0.012 || _cxfQrRegion.rect.h < 0.012) {
+      toast('Amplíe el recuadro sobre el código QR', 'warning');
+      return;
+    }
+    var FD = feDian();
+    if (!FD || !FD.scanQrInMarkedRegion) {
+      toast('Módulo FE no cargado', 'warning');
+      return;
+    }
+    var doc = findDocById(_cxfQrRegion.docId);
+    if (!doc) {
+      setCxfQrRegionStatus('Documento no encontrado', true);
+      return;
+    }
+    var ctx = {
+      provId: _cxfQrRegion.provId,
+      facturaId: _cxfQrRegion.facturaId,
+      host: _cxfQrRegion.host,
+      rect: {
+        x: _cxfQrRegion.rect.x,
+        y: _cxfQrRegion.rect.y,
+        w: _cxfQrRegion.rect.w,
+        h: _cxfQrRegion.rect.h,
+      },
+      pageNum: _cxfQrRegion.pageNum,
+    };
+    _cxfQrRegion.scanning = true;
+    var scanBtn = document.getElementById('cxf-qr-region-scan');
+    if (scanBtn) scanBtn.disabled = true;
+    setCxfQrRegionStatus('Buscando QR en la zona marcada…');
+    global.__cxfFeBatchPaused = true;
+    waitPdfWorkIdle()
+      .then(function () {
+        return yieldToMain(60);
+      })
+      .then(function () {
+        return FD.scanQrInMarkedRegion(doc, ctx.rect, setCxfQrRegionStatus, { pageNum: ctx.pageNum });
+      })
+      .then(function (qr) {
+        _cxfQrRegion.scanning = false;
+        if (qr && (qr.cufe || qr.url)) {
+          closeCxfQrRegionModal(false);
+          qr.technique = (qr.technique || 'Zona marcada') + ' · vista';
+          toast('QR detectado en la zona marcada — analizando…', 'success');
+          return runFeAnalisisFromQr(ctx.provId, ctx.facturaId, qr, ctx.host);
+        }
+        setCxfQrRegionStatus(
+          'No se detectó QR en ese recuadro. Amplíe la zona, pruebe otra página o use la cámara.',
+          true
+        );
+        paintCxfQrRegionBox();
+      })
+      .catch(function (err) {
+        _cxfQrRegion.scanning = false;
+        setCxfQrRegionStatus(String((err && err.message) || err || 'Error al buscar QR'), true);
+        paintCxfQrRegionBox();
+      })
+      .finally(function () {
+        global.__cxfFeBatchPaused = false;
+      });
+  }
+
   function renderQrCameraModal() {
     return (
       '<div id="cxf-qr-cam-modal" class="cxf-mp-modal-backdrop" hidden aria-hidden="true">' +
@@ -3888,7 +6114,7 @@
       '<h3 id="cxf-qr-cam-title">Escanear QR de factura</h3>' +
       '<button type="button" class="cxf-qr-cam-close" data-cxf-qr-cam-close aria-label="Cerrar">×</button>' +
       '</header>' +
-      '<p class="cxf-muted cxf-qr-cam-lead">Enfoque el código QR de la factura electrónica (suele estar en una esquina).</p>' +
+      '<p class="cxf-muted cxf-qr-cam-lead">Enfoque el código QR (pantalla, papel o foto). El lector usa alta resolución y filtros como el escáner del PDF.</p>' +
       '<div id="cxf-qr-cam-host" class="cxf-qr-cam-host"></div>' +
       '<p id="cxf-qr-cam-status" class="cxf-qr-cam-status" role="status">Preparando cámara…</p>' +
       '<div class="cxf-qr-cam-actions">' +
@@ -3931,9 +6157,11 @@
 
   function tryCxfGetUserMedia() {
     var tries = [
-      { video: { facingMode: 'user' }, audio: false },
+      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+      { video: { facingMode: 'environment' }, audio: false },
+      { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
       { video: true, audio: false },
-      { video: { facingMode: { ideal: 'environment' } }, audio: false },
+      { video: { facingMode: 'user' }, audio: false },
     ];
     var i = 0;
     var lastErr;
@@ -3950,26 +6178,33 @@
 
   function decodeCxfQrFromImageFile(file) {
     if (!file) return Promise.reject(new Error('Sin archivo'));
+    var FD = feDian();
     return ensureJsQrForCamera().then(function () {
       return new Promise(function (resolve, reject) {
         var url = URL.createObjectURL(file);
         var img = new Image();
         img.onload = function () {
           try {
-            var c = document.createElement('canvas');
             var w = img.naturalWidth || img.width;
             var h = img.naturalHeight || img.height;
-            var max = 1280;
+            var max = 2400;
             var sc = Math.min(1, max / Math.max(w, h));
-            c.width = Math.max(2, (w * sc) | 0);
-            c.height = Math.max(2, (h * sc) | 0);
-            var ctx = c.getContext('2d');
-            ctx.drawImage(img, 0, 0, c.width, c.height);
-            var id = ctx.getImageData(0, 0, c.width, c.height);
-            var code = global.jsQR(id.data, c.width, c.height, { inversionAttempts: 'attemptBoth' });
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(8, Math.floor(w * sc));
+            canvas.height = Math.max(8, Math.floor(h * sc));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
             URL.revokeObjectURL(url);
-            if (code && code.data) resolve(code.data);
-            else reject(new Error('No se encontró QR en la foto'));
+            var decodeP =
+              FD && FD.decodeQrFromCanvas
+                ? FD.decodeQrFromCanvas(canvas, 'foto QR')
+                : Promise.resolve(null);
+            decodeP
+              .then(function (hit) {
+                if (hit && hit.raw) resolve(hit.raw);
+                else if (hit && (hit.url || hit.cufe)) resolve(hit.url || hit.cufe);
+                else reject(new Error('No se encontró QR en la foto'));
+              })
+              .catch(reject);
           } catch (e) {
             URL.revokeObjectURL(url);
             reject(e);
@@ -4101,9 +6336,11 @@
   function onCxfQrCameraDecoded(raw) {
     var FD = feDian();
     if (!FD || !FD.parseQrPayload || !_cxfQrCam) return;
-    var parsed = FD.parseQrPayload(raw);
-    if (!parsed.cufe && !parsed.url) {
-      setCxfQrCamStatus('QR leído pero sin CUFE DIAN — acerque más el código.', true);
+    var parsed = FD.normalizeQrPayload
+      ? FD.normalizeQrPayload(FD.parseQrPayload(raw))
+      : FD.parseQrPayload(raw);
+    if (!parsed.cufe && !parsed.url && !(parsed.raw && parsed.raw.length >= 8)) {
+      setCxfQrCamStatus('QR leído pero formato no reconocido — acerque más el código.', true);
       return;
     }
     var ctx = { provId: _cxfQrCam.provId, facturaId: _cxfQrCam.facturaId, host: _cxfQrCam.host };
@@ -4111,6 +6348,44 @@
     parsed.technique = 'Cámara en vivo';
     toast('QR detectado — analizando factura…', 'success');
     runFeAnalisisFromQr(ctx.provId, ctx.facturaId, parsed, ctx.host);
+  }
+
+  function tickCxfQrCameraFrame() {
+    if (!_cxfQrCam || !_cxfQrCam.video) return;
+    var v = _cxfQrCam.video;
+    if (v.readyState < 2) {
+      _cxfQrCam.rafId = requestAnimationFrame(tickCxfQrCameraFrame);
+      return;
+    }
+    if (_cxfQrCam.busy) {
+      _cxfQrCam.rafId = requestAnimationFrame(tickCxfQrCameraFrame);
+      return;
+    }
+    _cxfQrCam.frame = (_cxfQrCam.frame || 0) + 1;
+    if (_cxfQrCam.frame % 2 !== 0) {
+      _cxfQrCam.rafId = requestAnimationFrame(tickCxfQrCameraFrame);
+      return;
+    }
+    var FD = feDian();
+    _cxfQrCam.busy = true;
+    var decodeP =
+      FD && FD.decodeQrFromVideoFrame
+        ? FD.decodeQrFromVideoFrame(v, 'cámara en vivo')
+        : Promise.resolve(null);
+    decodeP
+      .then(function (hit) {
+        _cxfQrCam.busy = false;
+        if (!_cxfQrCam) return;
+        if (hit && hit.raw) {
+          onCxfQrCameraDecoded(hit.raw);
+          return;
+        }
+        _cxfQrCam.rafId = requestAnimationFrame(tickCxfQrCameraFrame);
+      })
+      .catch(function () {
+        if (_cxfQrCam) _cxfQrCam.busy = false;
+        if (_cxfQrCam) _cxfQrCam.rafId = requestAnimationFrame(tickCxfQrCameraFrame);
+      });
   }
 
   function startCxfQrCameraScan() {
@@ -4125,12 +6400,6 @@
       setCxfQrCamStatus('Cámara no disponible en este navegador.', true);
       return;
     }
-    var detector = null;
-    if (typeof global.BarcodeDetector !== 'undefined') {
-      try {
-        detector = new global.BarcodeDetector({ formats: ['qr_code'] });
-      } catch (_) {}
-    }
     var video = document.createElement('video');
     video.setAttribute('playsinline', 'true');
     video.muted = true;
@@ -4138,72 +6407,20 @@
     video.autoplay = true;
     video.className = 'cxf-qr-cam-video';
     hostEl.appendChild(video);
-    var canvas = document.createElement('canvas');
-    var ctx = canvas.getContext('2d', { willReadFrequently: true });
     tryCxfGetUserMedia()
       .then(function (stream) {
         var base = _cxfQrCam || {};
         _cxfQrCam = base;
         _cxfQrCam.stream = stream;
         _cxfQrCam.video = video;
-        _cxfQrCam.detector = detector;
-        _cxfQrCam.canvas = canvas;
-        _cxfQrCam.ctx = ctx;
         _cxfQrCam.frame = 0;
+        _cxfQrCam.busy = false;
         video.srcObject = stream;
         return video.play();
       })
       .then(function () {
-        setCxfQrCamStatus('Enfoque el QR — se detecta automáticamente');
-        function tick() {
-          if (!_cxfQrCam || !_cxfQrCam.video) return;
-          var v = _cxfQrCam.video;
-          if (v.readyState < 2) {
-            _cxfQrCam.rafId = requestAnimationFrame(tick);
-            return;
-          }
-          _cxfQrCam.frame = (_cxfQrCam.frame || 0) + 1;
-          if (_cxfQrCam.frame % 6 !== 0) {
-            _cxfQrCam.rafId = requestAnimationFrame(tick);
-            return;
-          }
-          if (_cxfQrCam.detector) {
-            _cxfQrCam.detector
-              .detect(v)
-              .then(function (codes) {
-                if (codes && codes.length && codes[0].rawValue) onCxfQrCameraDecoded(codes[0].rawValue);
-                else _cxfQrCam.rafId = requestAnimationFrame(tick);
-              })
-              .catch(function () {
-                _cxfQrCam.rafId = requestAnimationFrame(tick);
-              });
-          } else {
-            ensureJsQrForCamera()
-              .then(function () {
-                if (!_cxfQrCam || !_cxfQrCam.video || typeof global.jsQR !== 'function') {
-                  _cxfQrCam.rafId = requestAnimationFrame(tick);
-                  return;
-                }
-                var vw = v.videoWidth || 640;
-                var vh = v.videoHeight || 480;
-                var maxSide = 400;
-                var sc = Math.min(1, maxSide / Math.max(vw, vh));
-                var tw = Math.max(2, Math.floor(vw * sc));
-                var th = Math.max(2, Math.floor(vh * sc));
-                _cxfQrCam.canvas.width = tw;
-                _cxfQrCam.canvas.height = th;
-                _cxfQrCam.ctx.drawImage(v, 0, 0, tw, th);
-                var id = _cxfQrCam.ctx.getImageData(0, 0, tw, th);
-                var code = global.jsQR(id.data, tw, th, { inversionAttempts: 'attemptBoth' });
-                if (code && code.data) onCxfQrCameraDecoded(code.data);
-                else _cxfQrCam.rafId = requestAnimationFrame(tick);
-              })
-              .catch(function () {
-                _cxfQrCam.rafId = requestAnimationFrame(tick);
-              });
-          }
-        }
-        _cxfQrCam.rafId = requestAnimationFrame(tick);
+        setCxfQrCamStatus('Enfoque el QR — lectura alta resolución + filtros automáticos');
+        _cxfQrCam.rafId = requestAnimationFrame(tickCxfQrCameraFrame);
       })
       .catch(function (err) {
         setCxfQrCamStatus(cxfCameraErrorMessage(err), true);
@@ -4656,7 +6873,11 @@
     if (id === 'proveedor') return true;
     if (!ui.proveedorIds.length) return false;
     if (id === 'documento') return true;
-    if (id === 'productos') return totalDocsCount() > 0 || true;
+    if (id === 'productos') {
+      if (!totalDocsCount()) return false;
+      if (isModoComplejo() && collectDocumentoFeStatus().trabajando) return false;
+      return true;
+    }
     if (id === 'cierre') {
       var hostCk = getCxfHost();
       if (ui.step === 'productos' && hostCk && hostCk.querySelectorAll('.cxf-line').length) {
@@ -4672,6 +6893,7 @@
 
   function renderStepper() {
     var cur = stepIndex(ui.step);
+    var premium = isCxfPremiumPsyche();
     return STEPS.map(function (s, i) {
       var done = i < cur;
       var active = s.id === ui.step;
@@ -4679,6 +6901,7 @@
       return (
         '<button type="button" class="crozzo-mod-nav__item cxf-step' +
         (active ? ' is-active' : '') +
+        (active && premium ? ' is-active-power' : '') +
         (done ? ' is-done' : '') +
         (locked ? ' is-locked' : '') +
         '" data-cxf-step="' +
@@ -5170,11 +7393,16 @@
 
   function renderProveedorStep() {
     var tab = ui.proveedorTab || 'select';
+    var premium = isCxfPremiumPsyche();
     return (
       '<section class="cxf-panel cxf-panel--proveedor cxf-panel--full">' +
-      '<header class="cxf-prov-hero">' +
+      '<header class="cxf-prov-hero' +
+      (premium ? ' cxf-prov-hero--power' : '') +
+      '">' +
       '<p class="cxf-eyebrow">Paso 1 · Proveedores</p>' +
-      '<h2 class="cxf-panel-title">¿Quiénes facturan hoy?</h2>' +
+      '<h2 class="cxf-panel-title">' +
+      (premium ? 'Arme su mesa de recepción' : '¿Quiénes facturan hoy?') +
+      '</h2>' +
       '<p class="cxf-panel-lead">Elija proveedores ya registrados o délos de alta aquí. El directorio completo está en <strong>Compras → Directorio proveedores</strong>.</p>' +
       '</header>' +
       '<nav class="cxf-prov-tabs crozzo-mod-nav crozzo-mod-nav--segmented cxf-prov-tabs--wrap" role="tablist" aria-label="Modo proveedor">' +
@@ -5259,8 +7487,12 @@
             esc(d.nombre) +
             '">' +
             (d.mime && d.mime.indexOf('pdf') >= 0
-              ? '<span class="cxf-doc-thumb__pdf">PDF</span>'
-              : '<span class="cxf-doc-thumb__img" aria-hidden="true">🖼</span>') +
+              ? '<span class="cxf-doc-thumb__pdf">' +
+                (d.role === 'dian-oficial' ? 'DIAN' : 'PDF') +
+                '</span>'
+              : '<span class="cxf-doc-thumb__img" aria-hidden="true">' +
+                (d.role === 'dian-oficial' ? '⚡' : '🖼') +
+                '</span>') +
             '<span class="cxf-doc-thumb__name">' +
             esc(d.nombre) +
             '</span></button>' +
@@ -5321,6 +7553,13 @@
           '<span class="cxf-preview-toolbar__name">' +
           esc(doc.nombre) +
           '</span>' +
+          (isModoComplejo() && (isPdfDoc(doc) || (doc.mime && doc.mime.indexOf('image') >= 0))
+            ? '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
+              esc(provId) +
+              '" data-factura-id="' +
+              esc(factura.id) +
+              '" title="Marque el QR en la vista">🔲 Marcar QR</button> '
+            : '') +
           '<button type="button" class="btn btn-outline btn-sm cxf-doc-remove-current" data-prov-id="' +
           esc(provId) +
           '" data-factura-id="' +
@@ -5342,7 +7581,7 @@
       '" data-factura-id="' +
       esc(factura.id) +
       '">' +
-      (multi
+      (multi || isModoComplejo()
         ? '<div class="cxf-factura-slot__head"><span class="cxf-factura-slot__tag">Factura ' +
           (slotIndex + 1) +
           '</span>' +
@@ -5351,6 +7590,7 @@
               factura.docs.length +
               ' PDF</span>'
             : '') +
+          renderFacturaFeBadge(factura) +
           '</div>'
         : '') +
       '<div class="cxf-factura-slot__grid">' +
@@ -5369,6 +7609,9 @@
       '" data-factura-id="' +
       esc(factura.id) +
       '" accept="image/*" capture="environment" hidden multiple>' +
+      '<p class="cxf-dropzone__hint">' +
+      (isCxfPremiumPsyche() ? 'Arrastre aquí o elija el tipo de archivo' : 'Suba PDF o foto de la factura') +
+      '</p>' +
       '<div class="cxf-doc-actions">' +
       '<button type="button" class="cxf-doc-btn cxf-pick-pdf" data-prov-id="' +
       esc(provId) +
@@ -5496,30 +7739,254 @@
     return ui.modoEntrada === 'complejo';
   }
 
+  function isCxfPremiumPsyche() {
+    return !!(typeof document !== 'undefined' && document.body && document.body.classList.contains('crozzo-premium-psyche'));
+  }
+
+  function collectCxfSessionMetrics() {
+    var m = {
+      provs: ui.proveedorIds.length,
+      docs: totalDocsCount(),
+      facturas: 0,
+      feAplicadas: 0,
+      feListas: 0,
+      valorEst: 0,
+      pctFe: 0,
+    };
+    ui.proveedorIds.forEach(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b) return;
+      b.facturas.forEach(function (f) {
+        if (!f.docs || !f.docs.length) return;
+        m.facturas++;
+        if (f.feAnalisis && f.feAnalisis.aplicadoAt) m.feAplicadas++;
+        if (f.feAnalisis && f.feAnalisis.estado === 'listo') m.feListas++;
+        var v = Number(f.valorCajero || f.valorFactura || 0);
+        if (v > 0) m.valorEst += v;
+      });
+    });
+    m.pctFe = m.facturas ? Math.round((m.feAplicadas / m.facturas) * 100) : 0;
+    return m;
+  }
+
+  function renderCxfRingProgress(pct, label) {
+    pct = Math.min(100, Math.max(0, Number(pct) || 0));
+    var r = 18;
+    var c = 2 * Math.PI * r;
+    var off = c - (pct / 100) * c;
+    return (
+      '<div class="cxf-ring" aria-hidden="true" title="' +
+      esc(label || pct + '%') +
+      '">' +
+      '<svg viewBox="0 0 44 44" width="44" height="44">' +
+      '<circle class="cxf-ring__track" cx="22" cy="22" r="' +
+      r +
+      '" fill="none" stroke-width="3"></circle>' +
+      '<circle class="cxf-ring__fill" cx="22" cy="22" r="' +
+      r +
+      '" fill="none" stroke-width="3" stroke-dasharray="' +
+      c.toFixed(2) +
+      '" stroke-dashoffset="' +
+      off.toFixed(2) +
+      '"></circle></svg>' +
+      '<span class="cxf-ring__pct">' +
+      pct +
+      '%</span></div>'
+    );
+  }
+
+  function renderFacturaFeBadge(factura) {
+    if (!isModoComplejo() || !factura.docs || !factura.docs.length) return '';
+    var FD = feDian();
+    var a = factura.feAnalisis;
+    if (factura._feAnalisisRunning || (a && a.estado === 'analizando')) {
+      return '<span class="cxf-fe-badge cxf-fe-badge--busy">Analizando</span>';
+    }
+    if (a && a.estado === 'en_cola') {
+      return '<span class="cxf-fe-badge cxf-fe-badge--queue">En cola</span>';
+    }
+    var chips = '';
+    var doc = getFeUploadDoc(factura);
+    if (doc && doc._cxfPdfProfile && doc._cxfPdfProfile.scanned && (!a || a.estado !== 'listo')) {
+      chips += '<span class="cxf-fe-chip cxf-fe-chip--scan">Escaneada</span>';
+    }
+    if (a && a.estado === 'listo' && FD && FD.renderFeStatusChips) {
+      chips += FD.renderFeStatusChips(a, {
+        scanned: !!(doc && doc._cxfPdfProfile && doc._cxfPdfProfile.scanned),
+        likelyScanned: factura.feDocProfile === 'escaneada-sin-qr-cufe',
+      });
+    }
+    var main = '';
+    if (a && a.aplicadoAt) {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--applied">✓ Aplicada</span>';
+    } else if (a && a.estado === 'listo' && a.esElectronica && a.cufeValidado) {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--ready">FE verificada</span>';
+    } else if (a && a.estado === 'error') {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--fail">Revisar</span>';
+    } else if (a && a.estado === 'listo' && a.esElectronica && (a.qrDetectado || a.qrUrl)) {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--ready">QR detectado</span>';
+    } else if (a && a.estado === 'listo' && a.esElectronica) {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--ready">FE detectada</span>';
+    } else if (a && a.estado === 'listo') {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--ok">Analizada</span>';
+    } else if (factura._fePostBatchRetried) {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--queue">2.º pase</span>';
+    } else {
+      main = '<span class="cxf-fe-badge cxf-fe-badge--idle">Pendiente FE</span>';
+    }
+    return '<span class="cxf-fe-badge-row">' + chips + main + '</span>';
+  }
+
+  function renderCxfCommandStrip() {
+    if (!isCxfPremiumPsyche()) return '';
+    var m = collectCxfSessionMetrics();
+    var stepLabels = { proveedor: 'Proveedores', documento: 'Facturas', productos: 'Productos', cierre: 'Cierre' };
+    var modoLabel =
+      ui.modoEntrada === 'complejo' ? 'Motor FE activo' : ui.modoEntrada === 'simple' ? 'Modo manual' : 'Sin modo';
+    var ring =
+      isModoComplejo() && m.facturas > 0
+        ? renderCxfRingProgress(m.pctFe, m.feAplicadas + ' de ' + m.facturas + ' aplicadas')
+        : '';
+    return (
+      '<div class="cxf-command-strip" id="cxf-command-strip" role="region" aria-label="Centro de recepción">' +
+      '<div class="cxf-command-strip__glow" aria-hidden="true"></div>' +
+      '<div class="cxf-command-strip__main">' +
+      (ring ? '<div class="cxf-command-strip__ring">' + ring + '</div>' : '') +
+      '<div class="cxf-command-strip__brand">' +
+      '<span class="cxf-command-strip__seal" aria-hidden="true">◆</span>' +
+      '<div><strong class="cxf-command-strip__title">Centro de recepción</strong>' +
+      '<span class="cxf-command-strip__step">' +
+      esc(stepLabels[ui.step] || ui.step) +
+      ' · ' +
+      esc(modoLabel) +
+      '</span></div></div>' +
+      '<div class="cxf-command-strip__stats">' +
+      '<div class="cxf-command-strip__stat"><span class="cxf-command-strip__stat-val">' +
+      m.provs +
+      '</span><span class="cxf-command-strip__stat-lbl">Proveedores</span></div>' +
+      '<div class="cxf-command-strip__stat"><span class="cxf-command-strip__stat-val">' +
+      m.docs +
+      '</span><span class="cxf-command-strip__stat-lbl">Archivos</span></div>' +
+      '<div class="cxf-command-strip__stat"><span class="cxf-command-strip__stat-val">' +
+      m.facturas +
+      '</span><span class="cxf-command-strip__stat-lbl">Facturas</span></div>' +
+      (m.valorEst > 0
+        ? '<div class="cxf-command-strip__stat cxf-command-strip__stat--valor"><span class="cxf-command-strip__stat-val">' +
+          esc(fmtMoney(m.valorEst)) +
+          '</span><span class="cxf-command-strip__stat-lbl">Valor est.</span></div>'
+        : '') +
+      '</div></div></div>'
+    );
+  }
+
+  function renderCxfStepperRail() {
+    if (!isCxfPremiumPsyche()) return '';
+    var cur = stepIndex(ui.step);
+    var pct = Math.round(((cur + 0.35) / STEPS.length) * 100);
+    return (
+      '<div class="cxf-stepper-rail" aria-hidden="true"><div class="cxf-stepper-rail__fill" style="width:' +
+      pct +
+      '%"></div></div>'
+    );
+  }
+
+  function patchCxfCommandStrip(host) {
+    if (!isCxfPremiumPsyche()) return;
+    if (isCxfHeavyWork()) {
+      var wait = 2400;
+      var now = Date.now();
+      if (now - _cxfCmdStripLast < wait) {
+        if (!_cxfCmdStripThrottle) {
+          _cxfCmdStripThrottle = setTimeout(function () {
+            _cxfCmdStripThrottle = null;
+            patchCxfCommandStrip(host);
+          }, wait);
+        }
+        return;
+      }
+    }
+    if (_cxfCmdStripThrottle) {
+      clearTimeout(_cxfCmdStripThrottle);
+      _cxfCmdStripThrottle = null;
+    }
+    _cxfCmdStripLast = Date.now();
+    host = host || getCxfHost();
+    if (!host) return;
+    var strip = host.querySelector('#cxf-command-strip');
+    if (!strip) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = renderCxfCommandStrip();
+    var neu = wrap.firstChild;
+    if (neu && strip.parentNode) strip.parentNode.replaceChild(neu, strip);
+  }
+
+  function celebrateCxfMilestone(kind) {
+    if (!isCxfPremiumPsyche()) return;
+    var host = getCxfHost();
+    var strip = host && host.querySelector('#cxf-command-strip');
+    if (strip) {
+      strip.classList.remove('cxf-command-strip--pulse');
+      void strip.offsetWidth;
+      strip.classList.add('cxf-command-strip--pulse');
+    }
+    if (kind === 'batch-complete') {
+      toast('Motor FE completado — revise y aplique datos en cada factura', 'success');
+    } else if (kind === 'all-applied') {
+      toast('Lote completo — puede avanzar a productos con confianza', 'success');
+    }
+  }
+
   function feDian() {
     return global.CrozzoRecepcionFeDian;
   }
 
+  function feTrainingBannerExtra() {
+    var FD = feDian();
+    if (!FD || !FD.getFeTrainingUiHint) return '';
+    var hint = FD.getFeTrainingUiHint();
+    if (!hint) return '';
+    return (
+      '<p class="cxf-modo-banner__train" style="margin:0.45rem 0 0;font-size:0.82rem;opacity:0.92">' +
+      esc(hint) +
+      '</p>'
+    );
+  }
+
   function renderModoEntradaPicker() {
+    var premium = isCxfPremiumPsyche();
     return (
       '<section class="cxf-panel cxf-panel--documento cxf-panel--full cxf-panel--modo">' +
-      '<header class="cxf-prov-hero">' +
+      '<header class="cxf-prov-hero' +
+      (premium ? ' cxf-prov-hero--power' : '') +
+      '">' +
       '<p class="cxf-eyebrow">Paso 2 · Tipo de entrada</p>' +
-      '<h2 class="cxf-panel-title">¿Cómo desea cargar las facturas?</h2>' +
-      '<p class="cxf-panel-lead">Elija el flujo para esta recepción. Puede cambiarlo volviendo a proveedores y entrando de nuevo.</p>' +
-      '</header>' +
+      '<h2 class="cxf-panel-title">' +
+      (premium ? 'Elija su motor de recepción' : '¿Cómo desea cargar las facturas?') +
+      '</h2>' +
+      '<p class="cxf-panel-lead">' +
+      (premium
+        ? 'El modo <strong>Inteligencia FE</strong> desbloquea lectura QR/CUFE, validación DIAN y sugerencia automática de líneas — la experiencia completa Crozzo.'
+        : 'Elija el flujo para esta recepción. Puede cambiarlo volviendo a proveedores y entrando de nuevo.') +
+      '</p></header>' +
       '<div class="cxf-modo-grid">' +
       '<article class="cxf-modo-card">' +
+      (premium ? '<div class="cxf-modo-card__icon" aria-hidden="true">📄</div>' : '') +
       '<h3 class="cxf-modo-card__title">Simple</h3>' +
       '<p class="cxf-modo-card__desc">Sube PDF o fotos, asigna número de factura y continúa a materias primas como hasta ahora.</p>' +
       '<ul class="cxf-modo-card__list form-hint"><li>Varios PDF por proveedor</li><li>Conversión foto → PDF</li><li>Control manual de líneas</li></ul>' +
-      '<button type="button" class="btn btn-primary btn-lg" data-cxf-modo-entrada="simple">Usar modo simple</button></article>' +
-      '<article class="cxf-modo-card cxf-modo-card--featured">' +
-      '<span class="badge badge-info">Recomendado FE</span>' +
-      '<h3 class="cxf-modo-card__title">Complejo</h3>' +
+      '<button type="button" class="btn btn-outline btn-lg" data-cxf-modo-entrada="simple">Modo manual</button></article>' +
+      '<article class="cxf-modo-card cxf-modo-card--featured' +
+      (premium ? ' cxf-modo-card--power' : '') +
+      '">' +
+      (premium ? '<div class="cxf-modo-card__glow" aria-hidden="true"></div>' : '') +
+      '<span class="cxf-modo-card__tier">' +
+      (premium ? 'Recomendado · Poder FE' : 'Recomendado FE') +
+      '</span>' +
+      (premium ? '<div class="cxf-modo-card__icon cxf-modo-card__icon--power" aria-hidden="true">⚡</div>' : '') +
+      '<h3 class="cxf-modo-card__title">Inteligencia FE</h3>' +
       '<p class="cxf-modo-card__desc">Analiza facturas electrónicas: lee <strong>QR y CUFE</strong>, consulta DIAN, valida proveedor y total del cajero, y sugiere materias primas.</p>' +
       '<ul class="cxf-modo-card__list form-hint"><li>Detección automática FE</li><li>Enlace a catálogo DIAN</li><li>Match proveedor y valor</li><li>Sugerencia de líneas MP</li></ul>' +
-      '<button type="button" class="btn btn-primary btn-lg" data-cxf-modo-entrada="complejo">Usar modo complejo</button></article>' +
+      '<button type="button" class="btn btn-primary btn-lg cxf-btn-power" data-cxf-modo-entrada="complejo">Activar motor FE</button></article>' +
       '</div>' +
       '<div class="cxf-nav-row">' +
       '<button type="button" class="btn btn-outline" data-cxf-step="proveedor">← Proveedores</button></div></section>'
@@ -5532,6 +7999,7 @@
   var _pdfPreviewQueue = [];
   var _pdfPreviewQueueBusy = false;
   var _cxfIngestBatch = 0;
+  var _cxfScannedBatchCount = 0;
   var _cxfIngestOverlayEl = null;
   var _cxfProgressDockEl = null;
   var _cxfProgressDockHideTimer = null;
@@ -5540,6 +8008,8 @@
   var CXF_MAX_PDF_FILE_MB = 18;
   var CXF_MAX_PDF_TOTAL_MB = 70;
   var FE_ANALISIS_TIMEOUT_MS = 4 * 60 * 1000;
+  var CXF_INGEST_JOB_TIMEOUT_MS = 3 * 60 * 1000;
+  var _cxfMountGen = 0;
   var _cxfPdfJsWorkBusy = false;
   var _cxfPdfJsWorkQueue = [];
   var _feProgressMinInterval = 400;
@@ -5555,9 +8025,374 @@
   var CXF_BG_YIELD_MS = 820;
   var _cxfQrCam = null;
   var CXF_FE_DRAIN_DELAY_MS = 1100;
+  var CXF_INGEST_BETWEEN_JOBS_MS = 650;
+  var CXF_INGEST_POST_BATCH_MS = 1000;
+  var CXF_FE_BETWEEN_INVOICES_MS = 1300;
   var _feDockBatchMerge = null;
   var _feDrainTimer = null;
   var _feBackgroundJob = null;
+  var _feBatchSlotPatchTimer = null;
+  var _feBatchSlotPatchLast = null;
+  var _cxfIngestJobQueue = [];
+  var _cxfIngestJobBusy = false;
+  var _cxfPersistDeferred = false;
+  var _cxfMassIngestMode = false;
+  var _cxfDeferredIdbBackups = [];
+  var _cxfCmdStripThrottle = null;
+  var _cxfCmdStripLast = 0;
+
+  function isCxfHeavyWork() {
+    return _cxfIngestBatch > 0 || _cxfIngestJobBusy || _feAnalisisQueueBusy || _feAnalisisQueue.length > 0;
+  }
+
+  function cxfIngestPauseMs(idx, file, multi) {
+    if (!multi && !_cxfMassIngestMode) return 72;
+    var mb = file && file.size ? file.size / (1024 * 1024) : 0;
+    return Math.min(2600, 360 + (idx || 0) * 80 + Math.round(mb * 150));
+  }
+
+  function cxfFeGapMs() {
+    var q = _feAnalisisQueue.length + (_feAnalisisQueueBusy ? 1 : 0);
+    if (_cxfMassIngestMode || q > 1) {
+      return CXF_BG_YIELD_MS + CXF_FE_BETWEEN_INVOICES_MS + Math.min(q * 220, 3400);
+    }
+    return isFeBatchUi() ? CXF_BG_YIELD_MS + 240 : 260;
+  }
+
+  function cxfFeStartDelayAfterIngest(fileCount) {
+    var n = Math.max(0, (fileCount || 1) - 1);
+    return CXF_FE_DRAIN_DELAY_MS + CXF_INGEST_POST_BATCH_MS + Math.min(n * 350, 5200);
+  }
+
+  function flushDeferredIdbBackupsSerial() {
+    if (!_cxfDeferredIdbBackups || !_cxfDeferredIdbBackups.length) return Promise.resolve();
+    var list = _cxfDeferredIdbBackups.slice();
+    _cxfDeferredIdbBackups = [];
+    var chain = Promise.resolve();
+    list.forEach(function (doc, i) {
+      chain = chain.then(function () {
+        return yieldToMain(200 + i * 140).then(function () {
+          scheduleViewBlobIdbBackup(doc);
+        });
+      });
+    });
+    return chain;
+  }
+
+  function enqueueCxfIngestJob(worker) {
+    return new Promise(function (resolve, reject) {
+      _cxfIngestJobQueue.push({ worker: worker, resolve: resolve, reject: reject });
+      drainCxfIngestJobQueue();
+    });
+  }
+
+  function drainCxfIngestJobQueue() {
+    if (_cxfIngestJobBusy || !_cxfIngestJobQueue.length) return;
+    _cxfIngestJobBusy = true;
+    var job = _cxfIngestJobQueue.shift();
+    var settled = false;
+    var watchdog = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      _cxfIngestJobBusy = false;
+      _cxfIngestBatch = 0;
+      global.__cxfFeBatchPaused = false;
+      console.warn('[CXF] ingest job timeout');
+      try {
+        job.reject(new Error('Tiempo agotado al importar archivos'));
+      } catch (_) {}
+      toast('La importación tardó demasiado — intente subir de nuevo', 'warning');
+      hideIngestOverlay();
+      finishCxfIngestBatchUi(getCxfHost());
+      setTimeout(drainCxfIngestJobQueue, CXF_INGEST_BETWEEN_JOBS_MS);
+    }, CXF_INGEST_JOB_TIMEOUT_MS);
+    Promise.resolve()
+      .then(function () {
+        return job.worker();
+      })
+      .then(function (r) {
+        job.resolve(r);
+      })
+      .catch(function (err) {
+        console.error('[CXF] ingest job', err);
+        job.reject(err);
+      })
+      .finally(function () {
+        if (settled) return;
+        settled = true;
+        clearTimeout(watchdog);
+        _cxfIngestJobBusy = false;
+        flushDeferredCxfPersist();
+        if (_cxfIngestBatch === 0 && !_cxfIngestJobQueue.length) {
+          finishCxfIngestBatchUi(getCxfHost());
+        }
+        if (!_cxfIngestJobQueue.length) return;
+        var wait = CXF_INGEST_BETWEEN_JOBS_MS;
+        if (_feAnalisisQueueBusy || _feAnalisisQueue.length) {
+          wait = Math.max(wait, cxfFeGapMs());
+        }
+        setTimeout(drainCxfIngestJobQueue, wait);
+      });
+  }
+
+  /** Al remontar la pantalla, liberar candados huérfanos que bloquean subidas y refresco. */
+  function resetCxfIngestPipelineOnMount() {
+    _cxfMountGen = (_cxfMountGen || 0) + 1;
+    var gen = _cxfMountGen;
+    _cxfIngestBatch = 0;
+    _cxfIngestJobBusy = false;
+    _cxfIngestJobQueue = [];
+    _cxfMassIngestMode = false;
+    global.__cxfFeBatchPaused = false;
+    hideIngestOverlay();
+    flushDeferredCxfPersist();
+    setTimeout(function () {
+      if (_cxfMountGen !== gen) return;
+      var h = getCxfHost();
+      if (!h) return;
+      syncUiFromBucket();
+      if (ui.step === 'documento' && totalDocsCount() > 0) {
+        refreshDocumentoCards(h);
+        patchCxfCommandStrip(h);
+      }
+    }, 120);
+  }
+
+  function cxfIngestFileOne(file, asPdf, provId, facturaId, opts) {
+    opts = opts || {};
+    if (!file || !provId) return Promise.resolve();
+    if (asPdf) {
+      var mb = file.size / (1024 * 1024);
+      if (mb > CXF_MAX_PDF_FILE_MB) {
+        toast(
+          'PDF muy pesado (' +
+            Math.round(mb) +
+            ' MB): ' +
+            (file.name || '') +
+            ' — máx ' +
+            CXF_MAX_PDF_FILE_MB +
+            ' MB por archivo',
+          'warning'
+        );
+        return Promise.resolve();
+      }
+      return file
+        .arrayBuffer()
+        .then(function (buf) {
+          return yieldToMain(cxfIngestPauseMs(opts.fileIdx || 0, file, _cxfMassIngestMode)).then(function () {
+            var pdfBuf = new Uint8Array(buf);
+            var doc = {
+              id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+              nombre: file.name,
+              mime: 'application/pdf',
+              dataUrl: '',
+              _viewBlob: new Blob([pdfBuf], { type: 'application/pdf' }),
+              _pdfBlob: new Blob([pdfBuf], { type: 'application/pdf' }),
+            };
+            addDoc(doc, provId, {
+              facturaId: opts.useFacturaId ? facturaId : null,
+              newFacturaPerFile: !!opts.newFacturaPerFile,
+            });
+            return yieldToMain(cxfIngestPauseMs((opts.fileIdx || 0) + 1, file, _cxfMassIngestMode));
+          });
+        })
+        .catch(function (err) {
+          console.error('[CXF] ingest PDF', err);
+          toast('No se pudo leer el PDF: ' + (file.name || 'archivo'), 'error');
+        });
+    }
+    return compressImage(file)
+      .then(function (url) {
+        return yieldToMain(cxfIngestPauseMs(opts.fileIdx || 0, file, _cxfMassIngestMode)).then(function () {
+          addDoc(
+            {
+              id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+              nombre: file.name,
+              mime: 'image/jpeg',
+              dataUrl: url,
+            },
+            provId,
+            {
+              facturaId: opts.useFacturaId ? facturaId : null,
+              newFacturaPerImage: !!opts.newFacturaPerImage,
+            }
+          );
+          return yieldToMain(cxfIngestPauseMs((opts.fileIdx || 0) + 1, file, _cxfMassIngestMode));
+        });
+      })
+      .catch(function (err) {
+        console.error('[CXF] ingest foto', err);
+        toast('No se pudo procesar la foto: ' + (file.name || 'archivo'), 'error');
+      });
+  }
+
+  function cxfRunIngestFilesBatch(fileList, asPdf, provId, facturaId) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!provId) {
+      toast('Seleccione un proveedor antes de subir archivos', 'warning');
+      return Promise.resolve();
+    }
+    if (!files.length) return Promise.resolve();
+    var multi = files.length > 1;
+    var totalMb = 0;
+    var fi;
+    for (fi = 0; fi < files.length; fi++) totalMb += (files[fi].size || 0) / (1024 * 1024);
+    if (asPdf && totalMb > CXF_MAX_PDF_TOTAL_MB) {
+      toast(
+        'Demasiado peso en total (' +
+          Math.round(totalMb) +
+          ' MB). Suba como máximo ' +
+          CXF_MAX_PDF_TOTAL_MB +
+          ' MB por tanda o menos archivos.',
+        'warning'
+      );
+      return Promise.resolve();
+    }
+    _cxfMassIngestMode = multi || files.length >= 2 || totalMb > 12;
+    global.__cxfFeBatchPaused = true;
+    if (_feDrainTimer) {
+      clearTimeout(_feDrainTimer);
+      _feDrainTimer = null;
+    }
+    _cxfIngestBatch++;
+    _pdfPreviewQueue = [];
+    if (!_feAnalisisQueueBusy) {
+      _feAnalisisQueue = [];
+    }
+    showIngestOverlay(
+      multi ? 'Cola: 1 de ' + files.length + ' archivos…' : 'Importando archivo…',
+      { current: 0, total: files.length || 1 }
+    );
+    var chain = Promise.resolve();
+    files.forEach(function (file, idx) {
+      chain = chain
+        .then(function () {
+          showIngestOverlay('Importando ' + (idx + 1) + ' de ' + files.length + ' (uno a uno)…', {
+            current: idx + 1,
+            total: files.length,
+          });
+          return yieldToMain(cxfIngestPauseMs(idx, file, true));
+        })
+        .then(function () {
+          return cxfIngestFileOne(file, asPdf, provId, facturaId, {
+            useFacturaId: !multi || idx === 0,
+            newFacturaPerFile: asPdf && multi && idx > 0,
+            newFacturaPerImage: !asPdf && multi && idx > 0,
+            fileIdx: idx,
+          });
+        });
+    });
+    return chain
+      .then(function () {
+        var msg =
+          files.length === 1
+            ? asPdf
+              ? 'PDF agregado'
+              : 'Foto agregada'
+            : files.length +
+              ' archivos importados uno a uno' +
+              (isModoComplejo() ? ' — el análisis FE arrancará en secuencia' : '');
+        toast(msg, 'success');
+        if (!asPdf && ui.step === 'documento') {
+          var scope = files.length > 1 ? 'prov' : facturaId ? 'slot' : 'prov';
+          var imgN = countImagesForPdfPrompt(provId, scope === 'slot' ? facturaId : null);
+          if (imgN > 0) {
+            setTimeout(function () {
+              promptAndConvertImages(getCxfHost(), {
+                provId: provId,
+                facturaId: facturaId || '',
+                scope: scope,
+              });
+            }, 420);
+          }
+        }
+      })
+      .finally(function () {
+        hideIngestOverlay();
+        _cxfIngestBatch = Math.max(0, _cxfIngestBatch - 1);
+        if (_cxfIngestBatch === 0 && !_cxfIngestJobBusy && !_cxfIngestJobQueue.length) {
+          if (_cxfScannedBatchCount > 0) {
+            toast(
+              _cxfScannedBatchCount + ' PDF escaneado(s) en el lote — OCR + QR profundo activados',
+              'info'
+            );
+            _cxfScannedBatchCount = 0;
+          }
+          scheduleDocumentoRefresh(getCxfHost(), { force: true, immediate: true });
+        }
+      });
+  }
+
+  function cxfIngestFiles(fileList, asPdf, provId, facturaId) {
+    if (!provId) {
+      toast('Seleccione un proveedor antes de subir archivos', 'warning');
+      return Promise.resolve();
+    }
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return Promise.resolve();
+    return enqueueCxfIngestJob(function () {
+      return cxfRunIngestFilesBatch(files, asPdf, provId, facturaId);
+    });
+  }
+
+  function installCxfFileIngestDelegation() {
+    if (global.__cxfFileIngestInstalled) return;
+    global.__cxfFileIngestInstalled = true;
+    document.addEventListener('change', function (e) {
+      var host = getCxfHost();
+      if (!host || !e.target || !host.contains(e.target)) return;
+      var inPdf = e.target.closest('.cxf-file-pdf');
+      if (inPdf) {
+        var pid = inPdf.getAttribute('data-prov-id');
+        var fid = inPdf.getAttribute('data-factura-id');
+        cxfIngestFiles(inPdf.files, true, pid, fid);
+        inPdf.value = '';
+        return;
+      }
+      var inImg = e.target.closest('.cxf-file-img');
+      if (inImg) {
+        var pid2 = inImg.getAttribute('data-prov-id');
+        var fid2 = inImg.getAttribute('data-factura-id');
+        cxfIngestFiles(inImg.files, false, pid2, fid2);
+        inImg.value = '';
+      }
+    });
+  }
+
+  function finishCxfIngestBatchUi(host, fileCount) {
+    if (_cxfCmdStripThrottle) {
+      clearTimeout(_cxfCmdStripThrottle);
+      _cxfCmdStripThrottle = null;
+    }
+    global.__cxfFeBatchPaused = false;
+    _cxfMassIngestMode = false;
+    _cxfCmdStripLast = 0;
+    if (_cxfIngestBatch > 0 || _cxfIngestJobQueue.length > 0) return Promise.resolve();
+    var hDone = host || getCxfHost();
+    if (!hDone || ui.step !== 'documento') return Promise.resolve();
+    if (_feBatchSession && (_feBatchSession.awaitingContinue || _feBatchSession.complete)) {
+      _feBatchSession.awaitingContinue = false;
+      _feBatchSession.complete = false;
+    }
+    syncUiFromBucket();
+    return flushDeferredIdbBackupsSerial()
+      .then(function () {
+        return yieldToMain(CXF_INGEST_POST_BATCH_MS);
+      })
+      .then(function () {
+        refreshDocumentoCards(hDone);
+        patchCxfCommandStrip(hDone);
+        if (isModoComplejo()) {
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              rebuildFeAnalisisQueue(hDone, { force: true });
+              resolve();
+            }, cxfFeStartDelayAfterIngest(fileCount));
+          });
+        }
+        setTimeout(enqueueAllPdfPreviewsDeferred, 640);
+      });
+  }
 
   function yieldToMain(ms) {
     return new Promise(function (resolve) {
@@ -5632,12 +8467,12 @@
   }
 
   function isCxfBackgroundWork() {
-    return _cxfIngestBatch > 0 || _feAnalisisQueueBusy || _feAnalisisQueue.length > 0;
+    return _cxfIngestBatch > 0 || _cxfIngestJobBusy || _feAnalisisQueueBusy || _feAnalisisQueue.length > 0;
   }
 
   /** Bloquea miniaturas JPEG solo mientras corre ingest o análisis FE activo. */
   function isFeBlockingPdfPreviews() {
-    if (_cxfIngestBatch > 0) return true;
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) return true;
     if (_feAnalisisQueueBusy) return true;
     if (_feAnalisisQueue.length > 0 && _feBatchSession && _feBatchSession.active) return true;
     return false;
@@ -5696,6 +8531,45 @@
     updateCxfProgressDock({ phase: 'fe' });
   }
 
+  function enqueuePostBatchFeDeep(host, attempt) {
+    attempt = attempt || 0;
+    if (!isModoComplejo()) return;
+    if (_feAnalisisQueueBusy || _feAnalisisQueue.length) {
+      if (attempt < 12) {
+        setTimeout(function () {
+          enqueuePostBatchFeDeep(host, attempt + 1);
+        }, 1200);
+      }
+      return;
+    }
+    host = host || getCxfHost();
+    var n = 0;
+    ui.proveedorIds.forEach(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b) return;
+      b.facturas.forEach(function (f) {
+        if (!f.docs || !f.docs.length) return;
+        var a = f.feAnalisis;
+        if (!a || a.estado !== 'listo') return;
+        var doc = getFeUploadDoc(f);
+        if (!doc || !isPdfDoc(doc)) return;
+        var needQrRetry = !a.cufeValidado && !f._fePostBatchRetried;
+        var needDianRetry = a.cufeValidado && !a.dianDownloaded && !f._fePostBatchDianRetried;
+        if (!needQrRetry && !needDianRetry) return;
+        if (needQrRetry) f._fePostBatchRetried = true;
+        if (needDianRetry) f._fePostBatchDianRetried = true;
+        f._feForceDeepQr = true;
+        f.feAnalisis = null;
+        f._fePendienteAnalisis = true;
+        enqueueFeAnalisis(pid, f.id, host);
+        n++;
+      });
+    });
+    if (n > 0) {
+      toast('Segundo pase automático: ' + n + ' factura(s) — QR/OCR/DIAN profundo', 'info');
+    }
+  }
+
   function finishFeBatchSession() {
     if (!_feBatchSession) return;
     if (_feDockBatchMerge) {
@@ -5714,7 +8588,10 @@
     updateCxfProgressDock({ phase: 'fe', complete: true, showContinue: true });
     if (onPage) {
       if (n > 1) {
-        toast('Análisis de ' + n + ' facturas listo — revise y pulse «Aplicar datos»', 'success');
+        if (isCxfPremiumPsyche()) celebrateCxfMilestone('batch-complete');
+        else toast('Análisis de ' + n + ' facturas listo — revise y pulse «Aplicar datos»', 'success');
+      } else if (isCxfPremiumPsyche()) {
+        celebrateCxfMilestone('batch-complete');
       }
       var h = getCxfHost();
       if (h && ui.step === 'documento') {
@@ -5727,6 +8604,9 @@
     setTimeout(function () {
       kickCxfPdfPreviews(getCxfHost());
     }, onPage ? 450 : 120);
+    setTimeout(function () {
+      enqueuePostBatchFeDeep(getCxfHost());
+    }, 900);
     if (_cxfProgressDockHideTimer) clearTimeout(_cxfProgressDockHideTimer);
     if (!onPage) {
       return;
@@ -5738,12 +8618,15 @@
         !_feBatchSession.awaitingContinue ||
         _feAnalisisQueueBusy ||
         _feAnalisisQueue.length ||
-        _cxfIngestBatch > 0
+        _cxfIngestBatch > 0 ||
+        _cxfIngestJobBusy
       ) {
         return;
       }
+      var stDock = collectDocumentoFeStatus();
+      if (stDock.sinAplicarFe.length || stDock.trabajando) return;
       hideCxfProgressDock();
-    }, 12000);
+    }, 45000);
   }
 
   function ensureCxfProgressDock() {
@@ -5818,7 +8701,7 @@
 
   function updateCxfProgressDock(opts) {
     opts = opts || {};
-    var ingestActive = _cxfIngestBatch > 0;
+    var ingestActive = _cxfIngestBatch > 0 || _cxfIngestJobBusy;
     var feActive = _feAnalisisQueueBusy || _feAnalisisQueue.length > 0;
     if (opts.visible === false && !ingestActive && !feActive) {
       if (_feBatchSession && _feBatchSession.awaitingContinue) {
@@ -5891,6 +8774,13 @@
       }
     }
 
+    if (isCxfPremiumPsyche()) {
+      if (ingestActive || opts.phase === 'ingest') title = 'Importación segura';
+      else if (feActive || opts.phase === 'fe' || _feBatchSession) {
+        title = opts.complete ? 'Motor FE · listo' : 'Motor de análisis FE';
+      }
+    }
+
     if (actionsEl) {
       var showBtn =
         !!opts.showContinue || (_feBatchSession && _feBatchSession.awaitingContinue && !feActive && !ingestActive);
@@ -5912,6 +8802,8 @@
     if (pctEl) pctEl.textContent = pct + '%';
     if (barEl) barEl.style.width = pct + '%';
     dock.classList.toggle('is-complete', !!opts.complete);
+    dock.classList.toggle('cxf-progress-dock--premium', isCxfPremiumPsyche());
+    patchCxfCommandStrip();
   }
 
   function patchFacturaSlotUiIfVisible(host, provId, facturaId) {
@@ -6000,7 +8892,7 @@
       if (!b) return;
       b.facturas.forEach(function (f) {
         if (!f.docs || !f.docs.length) return;
-        var doc = f.docs[f.docPreviewIdx || 0];
+        var doc = getFeUploadDoc(f);
         if (!doc || !docHasPayload(doc)) return;
         var okMime = isPdfDoc(doc) || (doc.mime && doc.mime.indexOf('image') >= 0);
         if (!okMime) return;
@@ -6070,7 +8962,7 @@
       _feAnalisisQueue.shift();
       return drainFeAnalisisQueue(host);
     }
-    var doc = f.docs && f.docs[f.docPreviewIdx || 0];
+    var doc = getFeUploadDoc(f);
     var okMime = doc && docHasPayload(doc) && (isPdfDoc(doc) || (doc.mime && doc.mime.indexOf('image') >= 0));
     if (!okMime) {
       f._fePendienteAnalisis = false;
@@ -6080,13 +8972,12 @@
     _feAnalisisQueue.shift();
     _feAnalisisQueueBusy = true;
     if (!isFeBatchUi()) markFeColaStates();
-    var docNext = f.docs && f.docs[f.docPreviewIdx || 0];
     scheduleCxfProgressDock({
       phase: 'fe',
       currentPct: 4,
       label: 'Iniciando factura ' + ((_feBatchSession && _feBatchSession.done) || 0) + 1 + '…',
     });
-    if (!isFeBatchUi()) patchFacturaSlotUiIfVisible(host, next.provId, next.facturaId);
+    patchFacturaSlotUiIfVisible(host, next.provId, next.facturaId);
     waitPdfWorkIdle()
       .then(function () {
         return yieldToMain(isFeBatchUi() ? CXF_BG_YIELD_MS : 32);
@@ -6107,7 +8998,12 @@
           );
         }
         scheduleCxfProgressDock({ phase: 'fe' });
-        if (!isFeBatchUi()) patchFacturaSlotUiIfVisible(host, next.provId, next.facturaId);
+        patchFacturaSlotUiIfVisible(host, next.provId, next.facturaId);
+        var resumenEl = host && host.querySelector('#cxf-documento-resumen');
+        if (resumenEl && ui.step === 'documento') {
+          resumenEl.outerHTML = renderDocumentoResumen();
+        }
+        patchCxfCommandStrip(host);
         setTimeout(function () {
           if (!_feAnalisisQueue.length && !_feAnalisisQueueBusy) {
             finishFeBatchSession();
@@ -6115,7 +9011,7 @@
             global.__cxfFeBatchMode = false;
           }
           drainFeAnalisisQueue(host);
-        }, isFeBatchUi() ? CXF_BG_YIELD_MS : 180);
+        }, cxfFeGapMs());
       });
   }
 
@@ -6126,7 +9022,7 @@
     var fid = String(facturaId || '');
     var f = getFactura(pid, fid);
     if (!f) return;
-    var doc = f.docs && f.docs[f.docPreviewIdx || 0];
+    var doc = getFeUploadDoc(f);
     if (!doc || !docHasPayload(doc)) return;
     var okMime = isPdfDoc(doc) || (doc.mime && doc.mime.indexOf('image') >= 0);
     if (!okMime) return;
@@ -6138,7 +9034,7 @@
     if (feAnalisisQueueIndex(key) < 0) {
       _feAnalisisQueue.push({ provId: pid, facturaId: fid, key: key });
     }
-    if (_cxfIngestBatch > 0) return;
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) return;
     if (!global.__cxfFeBatchMode) markFeColaStates();
     syncCxfFeBatchModeFlag();
     scheduleFeDrain(host, global.__cxfFeBatchMode ? CXF_FE_DRAIN_DELAY_MS : 200);
@@ -6148,7 +9044,7 @@
     if (!doc || !isPdfDoc(doc) || doc.previewUrl) return;
     ensureDocViewBlobAttached(doc);
     if (!docHasPayload(doc)) return;
-    if (_cxfIngestBatch > 0) return;
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) return;
     var id = doc.id;
     var i;
     for (i = 0; i < _pdfPreviewQueue.length; i++) {
@@ -6163,8 +9059,8 @@
 
   function drainPdfPreviewQueue() {
     if (_pdfPreviewQueueBusy || !_pdfPreviewQueue.length) return;
-    if (_cxfIngestBatch > 0) {
-      setTimeout(drainPdfPreviewQueue, 400);
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) {
+      setTimeout(drainPdfPreviewQueue, 520);
       return;
     }
     _pdfPreviewQueueBusy = true;
@@ -6184,7 +9080,8 @@
       })
       .finally(function () {
         _pdfPreviewQueueBusy = false;
-        setTimeout(drainPdfPreviewQueue, 120);
+        var gap = _cxfMassIngestMode || _pdfPreviewQueue.length > 2 ? 480 : 220;
+        setTimeout(drainPdfPreviewQueue, gap);
       });
   }
 
@@ -6243,6 +9140,18 @@
           scheduleCxfProgressDock(_cxfDockPending || { phase: 'fe' });
         }, CXF_DOCK_PAINT_BATCH_MS);
       }
+      _feBatchSlotPatchLast = { provId: String(provId), facturaId: String(facturaId), progreso: progreso };
+      if (!_feBatchSlotPatchTimer) {
+        _feBatchSlotPatchTimer = setTimeout(function () {
+          _feBatchSlotPatchTimer = null;
+          var loc = _feBatchSlotPatchLast;
+          if (!loc) return;
+          host = host || getCxfHost();
+          if (!patchFeLoaderDom(host, loc.provId, loc.facturaId, loc.progreso)) {
+            patchFacturaSlotUiIfVisible(host, loc.provId, loc.facturaId);
+          }
+        }, 680);
+      }
       return;
     }
     scheduleCxfProgressDock({ phase: 'fe', currentPct: progreso.pct, label: progreso.label });
@@ -6266,6 +9175,7 @@
     var f = getFactura(provId, facturaId);
     if (f) {
       f._fePendienteAnalisis = true;
+      f._feForceDeepQr = true;
       if (f.feAnalisis && f.feAnalisis.estado === 'listo') {
         f.feAnalisis = null;
       }
@@ -6274,9 +9184,15 @@
         return q.key !== key;
       });
     }
-    if (_feBatchSession) {
+    if (_feBatchSession && _feBatchSession.awaitingContinue) {
+      _feBatchSession.awaitingContinue = false;
+      _feBatchSession.complete = false;
+    }
+    if (_feBatchSession && !_feAnalisisQueueBusy && _feAnalisisQueue.length === 0) {
       _feBatchSession.active = false;
-      _feBatchSession = null;
+      if (!_feBatchSession.awaitingContinue && !_feBatchSession.complete) {
+        _feBatchSession = null;
+      }
     }
     global.__cxfFeBatchMode = false;
     enqueueFeAnalisis(provId, facturaId, host);
@@ -6294,7 +9210,7 @@
     });
     var f = getFactura(provId, facturaId);
     if (!f || !f.docs || !f.docs.length) return Promise.resolve();
-    var doc = f.docs[f.docPreviewIdx || 0];
+    var doc = getFeUploadDoc(f);
     if (!doc || !docHasPayload(doc)) return Promise.resolve();
     var docEsPdf = isPdfDoc(doc);
     var docEsImg = doc.mime && doc.mime.indexOf('image') >= 0;
@@ -6305,7 +9221,7 @@
     f.feAnalisis = { estado: 'analizando', pasos: [], progreso: progresoIni };
     host = host || getCxfHost();
     syncFeBatchTotals();
-    if (!isFeBatchUi()) patchFacturaSlotUiIfVisible(host, provId, facturaId);
+    patchFacturaSlotUiIfVisible(host, provId, facturaId);
     var quedanEnCola = function () {
       return _feAnalisisQueue.length > 0;
     };
@@ -6319,10 +9235,13 @@
       valorCajero: f.valorCajero || f.valorFactura,
       mpCatalog: _feMpCatalogCache || mpList(),
       batchMode: isFeBatchUi(),
+      forceDeepQr: !!f._feForceDeepQr,
       onProgress: function (prog) {
         pushFeAnalisisProgress(f, host, String(provId), String(facturaId), prog);
       },
     });
+    }).finally(function () {
+      if (f) f._feForceDeepQr = false;
     });
     var timeoutP = new Promise(function (_, reject) {
       setTimeout(function () {
@@ -6331,6 +9250,23 @@
     });
     return Promise.race([analisisP, timeoutP])
       .then(function (res) {
+        if (res && res.docOficialPayload) {
+          attachDianOficialDoc(provId, facturaId, res.docOficialPayload);
+        }
+        if (FD.classifyFeDoc) {
+          var uploadDoc = getFeUploadDoc(f);
+          var prof = uploadDoc && uploadDoc._cxfPdfProfile;
+          var docHint = {
+            likelyScanned: prof ? prof.scanned : !(res.fe && res.fe.rawExcerpt),
+            scanned: prof && prof.scanned,
+            textLen: prof && prof.textLen,
+          };
+          var feCls = FD.classifyFeDoc(res, docHint);
+          f.feDocProfile = feCls.id;
+          f.feDocHint = feCls.hint;
+        } else if (FD.classifyFeDocProfile) {
+          f.feDocProfile = FD.classifyFeDocProfile(res, {});
+        }
         f.feAnalisis = res;
         f._feAnalisisRunning = false;
         patchFacturaSlotUiIfVisible(host, provId, facturaId);
@@ -6381,8 +9317,14 @@
     }
     f.feAnalisis.aplicadoAt = new Date().toISOString();
     if (String(provId) === getActiveProvId()) syncUiFromBucket();
-    scheduleDocumentoRefresh(host);
-    toast('Datos de la FE aplicados a número, valor y líneas sugeridas', 'success');
+    var stApply = collectDocumentoFeStatus();
+    if (stApply.aplicado >= stApply.totalConDoc && stApply.totalConDoc > 0) {
+      celebrateCxfMilestone('all-applied');
+    } else {
+      toast('Datos de la FE aplicados a número, valor y líneas sugeridas', 'success');
+    }
+    patchCxfCommandStrip(host);
+    scheduleDocumentoRefresh(host, { force: true, deferMs: 80 });
   }
 
   function renderFeAnalisisBlock(provId, factura) {
@@ -6403,7 +9345,12 @@
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">📷 Escanear QR con cámara (sin esperar)</button></div>'
+        '">📷 Escanear QR con cámara (sin esperar)</button> ' +
+        '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
+        esc(provId) +
+        '" data-factura-id="' +
+        esc(factura.id) +
+        '">🔲 Marcar QR</button></div>'
       );
     }
     if (!a || a.estado === 'analizando') {
@@ -6411,6 +9358,12 @@
         return isPdfDoc(d) || (d.mime && d.mime.indexOf('image') >= 0);
       });
       if (a && a.estado === 'analizando' && isFeBatchUi()) {
+        if (a.progreso && FD.renderFeAnalisisLoader) {
+          return FD.renderFeAnalisisLoader(a.progreso, {
+            provId: provId,
+            facturaId: factura.id,
+          });
+        }
         return (
           '<div class="cxf-fe-analisis cxf-fe-analisis--background">' +
           '<p class="form-label">Análisis factura electrónica</p>' +
@@ -6419,7 +9372,12 @@
           esc(provId) +
           '" data-factura-id="' +
           esc(factura.id) +
-          '">📷 Cámara QR</button></div>'
+          '">📷 Cámara QR</button> ' +
+          '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
+          esc(provId) +
+          '" data-factura-id="' +
+          esc(factura.id) +
+          '">🔲 Marcar QR</button></div>'
         );
       }
       if (a && a.estado === 'analizando' && FD.renderFeAnalisisLoader) {
@@ -6441,6 +9399,11 @@
             esc(factura.id) +
             '">▶ Iniciar análisis</button> '
           : '') +
+        '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
+        esc(provId) +
+        '" data-factura-id="' +
+        esc(factura.id) +
+        '">🔲 Marcar QR</button> ' +
         '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-camara data-prov-id="' +
         esc(provId) +
         '" data-factura-id="' +
@@ -6460,6 +9423,11 @@
         '" data-factura-id="' +
         esc(factura.id) +
         '">↻ Reanalizar</button> ' +
+        '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
+        esc(provId) +
+        '" data-factura-id="' +
+        esc(factura.id) +
+        '">🔲 Marcar QR</button> ' +
         '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-camara data-prov-id="' +
         esc(provId) +
         '" data-factura-id="' +
@@ -6467,23 +9435,183 @@
         '">📷 Cámara QR</button></div>'
       );
     }
-    return FD.renderAnalisisPanel(a, { provId: provId, facturaId: factura.id });
+    return FD.renderAnalisisPanel(a, {
+      provId: provId,
+      facturaId: factura.id,
+      docHint: (function () {
+        var d = getFeUploadDoc(factura);
+        var p = d && d._cxfPdfProfile;
+        return {
+          scanned: p && p.scanned,
+          likelyScanned: (p && p.scanned) || factura.feDocProfile === 'escaneada-sin-qr-cufe',
+          textLen: p && p.textLen,
+        };
+      })(),
+    });
+  }
+
+  function collectDocumentoFeStatus() {
+    var st = {
+      totalConDoc: 0,
+      analizando: 0,
+      cola: 0,
+      listo: 0,
+      aplicado: 0,
+      error: 0,
+      noFe: 0,
+      sinAnalisis: 0,
+      sinQr: 0,
+      sinAplicarFe: [],
+      porPerfil: {},
+      trabajando: false,
+    };
+    st.trabajando = _feAnalisisQueueBusy || _feAnalisisQueue.length > 0 || _cxfIngestBatch > 0 || _cxfIngestJobBusy;
+    if (!isModoComplejo()) return st;
+    ui.proveedorIds.forEach(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b) return;
+      var prov = proveedoresList().find(function (p) {
+        return String(p.id) === String(pid);
+      });
+      b.facturas.forEach(function (f) {
+        if (!f.docs || !f.docs.length) return;
+        st.totalConDoc++;
+        if (f._feAnalisisRunning || (f.feAnalisis && f.feAnalisis.estado === 'analizando')) {
+          st.analizando++;
+          st.trabajando = true;
+        } else if (f.feAnalisis && f.feAnalisis.estado === 'en_cola') {
+          st.cola++;
+          st.trabajando = true;
+        } else if (f.feAnalisis && f.feAnalisis.estado === 'error') {
+          st.error++;
+        } else if (f.feAnalisis && f.feAnalisis.estado === 'listo') {
+          st.listo++;
+          if (f.feDocProfile) {
+            st.porPerfil[f.feDocProfile] = (st.porPerfil[f.feDocProfile] || 0) + 1;
+            if (f.feDocProfile === 'escaneada-sin-fe') st.sinQr++;
+          } else if (f.feAnalisis.esElectronica === false) {
+            st.sinQr++;
+          }
+          if (f.feAnalisis.aplicadoAt) st.aplicado++;
+          else if (f.feAnalisis.esElectronica) {
+            st.sinAplicarFe.push(
+              (prov && prov.nombre ? prov.nombre + ' · ' : '') + (f.numeroFactura || 'sin número')
+            );
+          } else st.noFe++;
+        } else if (f._fePendienteAnalisis) {
+          st.sinAnalisis++;
+          st.trabajando = true;
+        } else {
+          st.sinAnalisis++;
+        }
+      });
+    });
+    return st;
+  }
+
+  function renderDocumentoResumen() {
+    var docsN = totalDocsCount();
+    if (!docsN) return '';
+    if (!isModoComplejo()) {
+      return (
+        '<div class="cxf-documento-resumen" id="cxf-documento-resumen">' +
+        '<p class="cxf-documento-resumen__lead">' +
+        docsN +
+        ' archivo(s) cargados — puede continuar a productos.</p></div>'
+      );
+    }
+    var st = collectDocumentoFeStatus();
+    if (!st.totalConDoc) return '';
+    var chips = [];
+    if (st.trabajando || st.analizando || st.cola) {
+      chips.push(
+        '<span class="cxf-documento-resumen__chip is-busy">⏳ ' +
+          (st.analizando ? st.analizando + ' analizando' : st.cola ? st.cola + ' en cola' : 'Procesando') +
+          '</span>'
+      );
+    }
+    if (st.aplicado) chips.push('<span class="cxf-documento-resumen__chip is-ok">✓ ' + st.aplicado + ' aplicadas</span>');
+    if (st.listo - st.aplicado > 0) {
+      chips.push(
+        '<span class="cxf-documento-resumen__chip is-warn">⚠ ' +
+          (st.listo - st.aplicado) +
+          ' listas sin aplicar</span>'
+      );
+    }
+    if (st.error) chips.push('<span class="cxf-documento-resumen__chip is-fail">✕ ' + st.error + ' con error</span>');
+    if (st.sinQr) {
+      chips.push(
+        '<span class="cxf-documento-resumen__chip is-fail" title="Escaneos sin QR/CUFE — use cámara o ingreso manual">📷 ' +
+          st.sinQr +
+          ' sin QR/CUFE</span>'
+      );
+    }
+    if (st.sinAnalisis && !st.trabajando) {
+      chips.push('<span class="cxf-documento-resumen__chip is-pending">' + st.sinAnalisis + ' pendientes</span>');
+    }
+    var hint = '';
+    if (st.trabajando) {
+      hint = 'El análisis sigue en la barra inferior. Puede usar otras pantallas.';
+    } else if (st.sinAplicarFe.length) {
+      hint = 'Pulse <strong>Aplicar datos</strong> en cada factura electrónica antes de continuar.';
+    } else if (st.error) {
+      hint = 'Use <strong>🔲 Marcar QR</strong>, <strong>↻ Reanalizar</strong> o <strong>📷 Cámara QR</strong> en las facturas con error.';
+    } else if (st.aplicado >= st.totalConDoc || st.listo >= st.totalConDoc) {
+      hint = 'Todo listo — puede continuar a productos.';
+    } else {
+      hint = st.totalConDoc + ' documento(s) — revise cada recuadro de proveedor.';
+    }
+    var pctDone = st.totalConDoc ? Math.round((st.aplicado / st.totalConDoc) * 100) : 0;
+    var premium = isCxfPremiumPsyche();
+    var titleRes = premium ? 'Panel de control del lote' : 'Estado del lote';
+    return (
+      '<div class="cxf-documento-resumen' +
+      (premium ? ' cxf-documento-resumen--premium' : '') +
+      (st.aplicado >= st.totalConDoc && st.totalConDoc > 0 ? ' is-complete' : '') +
+      '" id="cxf-documento-resumen" role="status" aria-live="polite">' +
+      (premium
+        ? '<div class="cxf-documento-resumen__ring">' +
+          renderCxfRingProgress(pctDone, st.aplicado + ' aplicadas') +
+          '</div>'
+        : '') +
+      '<div class="cxf-documento-resumen__body">' +
+      '<div class="cxf-documento-resumen__head">' +
+      '<strong>' +
+      titleRes +
+      '</strong>' +
+      (chips.length ? '<div class="cxf-documento-resumen__chips">' + chips.join('') + '</div>' : '') +
+      '</div>' +
+      '<p class="cxf-documento-resumen__hint">' +
+      hint +
+      '</p></div></div>'
+    );
   }
 
   function renderDocumentoStep() {
     if (!ui.modoEntrada) return renderModoEntradaPicker();
     var provs = getSelectedProviders();
+    var premium = isCxfPremiumPsyche();
     var modoBanner =
       ui.modoEntrada === 'complejo'
-        ? '<div class="alert alert-info cxf-modo-banner"><strong>Modo complejo:</strong> por cada PDF se intenta leer el QR (en lote, lectura rápida). Si no detecta el código, use <strong>📷 Cámara QR</strong> o <strong>↻ Reanalizar</strong> en esa factura. Pulse <strong>Aplicar datos</strong> antes de continuar.</div>'
+        ? '<div class="alert alert-info cxf-modo-banner cxf-modo-banner--fe' +
+          (premium ? ' cxf-modo-banner--power' : '') +
+          '"><strong>' +
+          (premium ? 'Motor FE activo:' : 'Modo complejo:') +
+          '</strong> por cada PDF se intenta leer el QR (en lote, lectura rápida). Si no lo detecta, use <strong>🔲 Marcar QR en vista</strong>, <strong>📷 Cámara QR</strong> o <strong>↻ Reanalizar</strong>. Tras el lote, un <strong>segundo pase automático</strong> reintenta las que quedaron sin CUFE. Pulse <strong>Aplicar datos</strong> antes de continuar.' +
+          feTrainingBannerExtra() +
+          '</div>'
         : '<div class="cxf-modo-banner cxf-muted" style="font-size:0.85rem">Modo simple — carga manual de facturas.</div>';
     return (
       '<section class="cxf-panel cxf-panel--documento cxf-panel--full">' +
-      '<header class="cxf-prov-hero">' +
+      '<header class="cxf-prov-hero' +
+      (premium ? ' cxf-prov-hero--power' : '') +
+      '">' +
       '<p class="cxf-eyebrow">Paso 2 · Facturas · ' +
-      (ui.modoEntrada === 'complejo' ? 'Complejo' : 'Simple') +
+      (ui.modoEntrada === 'complejo' ? (premium ? 'Inteligencia FE' : 'Complejo') : 'Simple') +
       '</p>' +
-      '<h2 class="cxf-panel-title">Un recuadro por proveedor</h2>' +
+      '<h2 class="cxf-panel-title">' +
+      (premium ? 'Recepción por proveedor' : 'Un recuadro por proveedor') +
+      '</h2>' +
       '<p class="cxf-panel-lead">' +
       (isModoComplejo()
         ? 'Suba el <strong>PDF de la factura electrónica</strong>. El sistema leerá QR/CUFE, consultará DIAN cuando sea posible y completará datos para productos.'
@@ -6496,9 +9624,30 @@
         ? provs.map(renderProvFacturaCard).join('')
         : '<p class="cxf-muted">Vuelva al paso anterior y agregue proveedores.</p>') +
       '</div>' +
+      renderDocumentoResumen() +
       '<div class="cxf-nav-row">' +
       '<button type="button" class="btn btn-outline" data-cxf-step="proveedor">← Proveedores</button>' +
-      '<button type="button" class="btn btn-primary" id="cxf-go-productos">Continuar a productos →</button></div></section>'
+      (function () {
+        var feSt = isModoComplejo() ? collectDocumentoFeStatus() : { trabajando: false };
+        var canGo = totalDocsCount() > 0 && !feSt.trabajando;
+        var title = !totalDocsCount()
+          ? 'Adjunte al menos un PDF'
+          : feSt.trabajando
+            ? 'Espere a que termine el análisis'
+            : '';
+        return (
+          '<button type="button" class="btn btn-primary' +
+          (canGo && premium ? ' cxf-btn-power' : '') +
+          '" id="cxf-go-productos"' +
+          (canGo ? '' : ' disabled') +
+          (title ? ' title="' + esc(title) + '"' : '') +
+          '>' +
+          (canGo && premium ? 'Continuar a productos' : 'Continuar a productos →') +
+          (canGo && premium ? ' <span class="cxf-btn-power__arrow" aria-hidden="true">→</span>' : '') +
+          '</button>'
+        );
+      })() +
+      '</div></section>'
     );
   }
 
@@ -6832,6 +9981,12 @@
     var prov = proveedoresList().find(function (p) {
       return String(p.id) === getActiveProvId();
     });
+    var saveEntryCount = 0;
+    try {
+      saveEntryCount = collectAllSaveEntries(null).length;
+    } catch (_) {
+      saveEntryCount = ui.editingId ? 1 : 0;
+    }
     return (
       '<section class="cxf-panel cxf-panel--cierre cxf-panel--full">' +
       renderProvWorkRail() +
@@ -6887,10 +10042,11 @@
       '<textarea class="form-input" id="cxf-comentarios" rows="3" placeholder="Observaciones, acuerdos, vencimiento…">' +
       esc(ui.comentarios) +
       '</textarea>' +
+      renderCierreBatchSummary(null) +
       '<div class="cxf-verificar-actions">' +
       '<button type="button" class="btn btn-outline btn-sm" data-cxf-step="productos">← Productos</button>' +
       '<button type="button" class="btn btn-primary btn-lg" id="cxf-ingreso-guardar">' +
-      (ui.editingId ? '✓ Actualizar recepción' : '✓ Confirmar ingreso y salir') +
+      saveButtonLabel(saveEntryCount) +
       '</button></div></div>' +
       renderCierreComprasPeriodoHtml() +
       '</div></section>'
@@ -6978,20 +10134,31 @@
     });
   }
 
+  function cxfRootClassList() {
+    var c = 'crozzo-mod-page cxf-root';
+    if (ui.step === 'productos') c += ' cxf-root--wide cxf-root--fluid';
+    else if (ui.step === 'documento' || ui.step === 'proveedor') c += ' cxf-root--wide';
+    if (isCxfPremiumPsyche()) c += ' cxf-root--premium';
+    return c;
+  }
+
   function render() {
     repairRecepcionSession();
     return (
-      '<div class="crozzo-mod-page cxf-root' +
-      (ui.step === 'productos' ? ' cxf-root--wide cxf-root--fluid' : ui.step === 'documento' || ui.step === 'proveedor' ? ' cxf-root--wide' : '') +
-      '" data-cxf-build="202606023">' +
+      '<div class="' +
+      cxfRootClassList() +
+      '" data-cxf-build="202606030">' +
       renderPdfChoiceModal() +
       renderQrCameraModal() +
+      renderQrRegionModal() +
       renderSplitPdfModal() +
+      renderCxfCommandStrip() +
       renderStorageNote({ retentionDays: 365 }) +
       renderAlertasBanner() +
       '<nav class="crozzo-mod-nav crozzo-mod-nav--segmented cxf-stepper" aria-label="Pasos ingreso factura">' +
       renderStepper() +
       '</nav>' +
+      renderCxfStepperRail() +
       '<div id="cxf-step-host" class="cxf-step-host">' +
       renderStepContent() +
       '</div>' +
@@ -7151,14 +10318,14 @@
       refreshStepHost(host);
       return;
     }
-    if (_cxfIngestBatch === 0 && !_feAnalisisQueueBusy) {
+    if (_cxfIngestBatch === 0 && !_cxfIngestJobBusy && !_feAnalisisQueueBusy) {
       scanPendingFeAnalisis(host);
     }
   }
 
   function scheduleDocumentoRefresh(host, opts) {
     opts = opts || {};
-    if (!opts.force && (_feAnalisisQueueBusy || _cxfIngestBatch > 0)) return;
+    if (!opts.force && (_feAnalisisQueueBusy || _cxfIngestBatch > 0 || _cxfIngestJobBusy)) return;
     var delay = opts.immediate ? 0 : opts.deferMs != null ? opts.deferMs : 180;
     if (_cxfDocRefreshTimer) clearTimeout(_cxfDocRefreshTimer);
     _cxfDocRefreshTimer = setTimeout(function () {
@@ -7183,6 +10350,14 @@
     var stepper = host.querySelector('.cxf-stepper');
     if (stepper) stepper.innerHTML = renderStepper();
     bindStep(host);
+    patchCxfCommandStrip(host);
+    var rail = host.querySelector('.cxf-stepper-rail');
+    if (rail) {
+      var cur = stepIndex(ui.step);
+      var pct = Math.round(((cur + 0.35) / STEPS.length) * 100);
+      var fill = rail.querySelector('.cxf-stepper-rail__fill');
+      if (fill) fill.style.width = pct + '%';
+    }
     applyPdfPreviews(host);
     if (
       ui.step === 'documento' &&
@@ -7221,11 +10396,13 @@
     var imgsHere = (f.docs || []).filter(function (d) {
       return d.mime && d.mime.indexOf('image') >= 0;
     });
+    var isDianDoc = doc.role === 'dian-oficial';
     if (
-      opts.newFacturaPerFile ||
-      opts.newFacturaPerImage ||
-      (isPdf && pdfsHere.length >= 1) ||
-      (isImage && imgsHere.length >= 1 && !opts.facturaId)
+      !isDianDoc &&
+      (opts.newFacturaPerFile ||
+        opts.newFacturaPerImage ||
+        (isPdf && pdfsHere.length >= 1) ||
+        (isImage && imgsHere.length >= 1 && !opts.facturaId))
     ) {
       f = newFactura({ numeroFactura: guessNumeroFactura(doc.nombre) });
       b.facturas.push(f);
@@ -7239,9 +10416,36 @@
     b.facturaActiva = f.id;
     if (isPdf) {
       vaultViewDocBlob(doc);
-      scheduleViewBlobIdbBackup(doc);
+      if (_cxfIngestBatch > 0) {
+        if (!_cxfDeferredIdbBackups) _cxfDeferredIdbBackups = [];
+        _cxfDeferredIdbBackups.push(doc);
+      } else {
+        scheduleViewBlobIdbBackup(doc);
+      }
+      if (feModoComplejoActive()) {
+        var FDprobe = feDian();
+        if (FDprobe && FDprobe.probePdfQuickProfile) {
+        FDprobe.probePdfQuickProfile(doc).then(function (prof) {
+          doc._cxfPdfProfile = prof;
+          if (prof && prof.scanned) {
+            if (_cxfIngestBatch > 0) {
+              if (!_cxfScannedBatchCount) _cxfScannedBatchCount = 0;
+              _cxfScannedBatchCount++;
+            } else {
+              toast(
+                'PDF escaneado detectado — se usará OCR + QR profundo (memoria por proveedor)',
+                'info'
+              );
+            }
+          }
+          if (String(pid) === getActiveProvId()) {
+            patchFacturaSlotUiIfVisible(getCxfHost(), pid, f.id);
+          }
+        });
+        }
+      }
     }
-    if (String(pid) === getActiveProvId()) syncUiFromBucket();
+    if (_cxfIngestBatch === 0 && String(pid) === getActiveProvId()) syncUiFromBucket();
     queueFeAnalisisAfterDoc(pid, f.id);
     if (isPdf) {
       var slotIdx = b.facturas.indexOf(f);
@@ -7254,22 +10458,24 @@
     if (!feModoComplejoActive()) return;
     var f = getFactura(provId, facturaId);
     if (f) f._fePendienteAnalisis = true;
-    if (_cxfIngestBatch > 0) return;
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) return;
     enqueueFeAnalisis(provId, facturaId, getCxfHost());
   }
 
-  function scanPendingFeAnalisis(host) {
+  function scanPendingFeAnalisis(host, opts) {
+    opts = opts || {};
     if (!feModoComplejoActive()) return;
-    if (_cxfIngestBatch > 0) return;
-    if (_feAnalisisQueueBusy || _feAnalisisQueue.length) return;
+    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) return;
+    if (!opts.force && (_feAnalisisQueueBusy || _feAnalisisQueue.length)) return;
     if (
+      !opts.force &&
       _feBatchSession &&
       (_feBatchSession.awaitingContinue ||
         (_feBatchSession.complete && !_feAnalisisQueueBusy && !_feAnalisisQueue.length))
     ) {
       return;
     }
-    rebuildFeAnalisisQueue(host || getCxfHost());
+    rebuildFeAnalisisQueue(host || getCxfHost(), opts.force ? { force: true } : undefined);
   }
 
   function resumeRecepcionBackground(host) {
@@ -7312,6 +10518,24 @@
           kickCxfPdfPreviews(host);
         }, 280);
       }
+      if (feModoComplejoActive() && !_feAnalisisQueueBusy && !_feAnalisisQueue.length) {
+        var needFeResume = false;
+        ui.proveedorIds.forEach(function (pid) {
+          var b = ensureBucket(pid);
+          if (!b) return;
+          b.facturas.forEach(function (f) {
+            if (!f.docs || !f.docs.length) return;
+            if (f._fePendienteAnalisis || !f.feAnalisis || f.feAnalisis.estado === 'error') {
+              needFeResume = true;
+            }
+          });
+        });
+        if (needFeResume) {
+          setTimeout(function () {
+            rebuildFeAnalisisQueue(host, { force: true });
+          }, 520);
+        }
+      }
     }
   }
 
@@ -7329,6 +10553,26 @@
       if (e.target.closest('[data-cxf-qr-cam-close]')) {
         e.preventDefault();
         closeCxfQrCameraModal(true);
+        return;
+      }
+      if (e.target.closest('[data-cxf-qr-region-close]')) {
+        e.preventDefault();
+        closeCxfQrRegionModal(true);
+        return;
+      }
+      if (e.target.closest('[data-cxf-qr-region-scan]')) {
+        e.preventDefault();
+        runCxfQrRegionScan();
+        return;
+      }
+      if (e.target.closest('[data-cxf-qr-region-prev]')) {
+        e.preventDefault();
+        shiftCxfQrRegionPage(-1);
+        return;
+      }
+      if (e.target.closest('[data-cxf-qr-region-next]')) {
+        e.preventDefault();
+        shiftCxfQrRegionPage(1);
         return;
       }
       if (e.target.closest('[data-cxf-qr-cam-retry-perm]')) {
@@ -7519,159 +10763,23 @@
   function bindDocumento(host) {
     if (host._cxfDocDelegated) return;
     host._cxfDocDelegated = true;
+    installCxfFileIngestDelegation();
 
-    function ingestFileOne(file, asPdf, provId, facturaId, opts) {
-      opts = opts || {};
-      if (!file || !provId) return Promise.resolve();
-      if (asPdf) {
-        var mb = file.size / (1024 * 1024);
-        if (mb > CXF_MAX_PDF_FILE_MB) {
-          toast(
-            'PDF muy pesado (' +
-              Math.round(mb) +
-              ' MB): ' +
-              (file.name || '') +
-              ' — máx ' +
-              CXF_MAX_PDF_FILE_MB +
-              ' MB por archivo',
-            'warning'
-          );
-          return Promise.resolve();
+    function openCxfFilePicker(inputEl) {
+      if (!inputEl) return false;
+      try {
+        if (typeof inputEl.showPicker === 'function') {
+          inputEl.showPicker();
+          return true;
         }
-        return file
-          .arrayBuffer()
-          .then(function (buf) {
-            return yieldToMain(24).then(function () {
-              var pdfBuf = new Uint8Array(buf);
-              var doc = {
-                id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
-                nombre: file.name,
-                mime: 'application/pdf',
-                dataUrl: '',
-                _viewBlob: new Blob([pdfBuf], { type: 'application/pdf' }),
-                _pdfBlob: new Blob([pdfBuf], { type: 'application/pdf' }),
-              };
-              addDoc(doc, provId, {
-                facturaId: opts.useFacturaId ? facturaId : null,
-                newFacturaPerFile: !!opts.newFacturaPerFile,
-              });
-            });
-          })
-          .catch(function (err) {
-            console.error('[CXF] ingest PDF', err);
-            toast('No se pudo leer el PDF: ' + (file.name || 'archivo'), 'error');
-          });
+      } catch (_) {}
+      try {
+        inputEl.click();
+        return true;
+      } catch (err) {
+        console.warn('[CXF] file picker', err);
+        return false;
       }
-      return compressImage(file)
-        .then(function (url) {
-          addDoc(
-            {
-              id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
-              nombre: file.name,
-              mime: 'image/jpeg',
-              dataUrl: url,
-            },
-            provId,
-            {
-              facturaId: opts.useFacturaId ? facturaId : null,
-              newFacturaPerImage: !!opts.newFacturaPerImage,
-            }
-          );
-        });
-    }
-
-    function ingestFiles(fileList, asPdf, provId, facturaId) {
-      var files = Array.prototype.slice.call(fileList || []);
-      if (!files.length || !provId) return Promise.resolve();
-      var multi = files.length > 1;
-      var totalMb = 0;
-      var fi;
-      for (fi = 0; fi < files.length; fi++) totalMb += (files[fi].size || 0) / (1024 * 1024);
-      if (asPdf && totalMb > CXF_MAX_PDF_TOTAL_MB) {
-        toast(
-          'Demasiado peso en total (' +
-            Math.round(totalMb) +
-            ' MB). Suba como máximo ' +
-            CXF_MAX_PDF_TOTAL_MB +
-            ' MB por tanda o menos archivos.',
-          'warning'
-        );
-        return Promise.resolve();
-      }
-      _cxfIngestBatch++;
-      _pdfPreviewQueue = [];
-      _feAnalisisQueue = [];
-      _feAnalisisQueueBusy = false;
-      if (multi) {
-        showIngestOverlay('Preparando ' + files.length + ' archivos…', {
-          current: 0,
-          total: files.length,
-        });
-      }
-      var chain = Promise.resolve();
-      files.forEach(function (file, idx) {
-        chain = chain
-          .then(function () {
-            if (multi) {
-              showIngestOverlay('Cargando ' + (idx + 1) + ' de ' + files.length + '…', {
-                current: idx + 1,
-                total: files.length,
-              });
-            }
-            return yieldToMain(multi ? 180 + Math.min(idx * 15, 120) : 48);
-          })
-          .then(function () {
-            return ingestFileOne(file, asPdf, provId, facturaId, {
-              useFacturaId: !multi || idx === 0,
-              newFacturaPerFile: asPdf && multi && idx > 0,
-              newFacturaPerImage: !asPdf && multi && idx > 0,
-            });
-          });
-      });
-      return chain
-        .then(function () {
-          var msg =
-            files.length === 1
-              ? asPdf
-                ? 'PDF agregado'
-                : 'Foto agregada'
-              : files.length +
-                ' archivos cargados' +
-                (isModoComplejo() ? ' — iniciando análisis uno por uno…' : '');
-          toast(msg, 'success');
-          if (!asPdf && ui.step === 'documento') {
-            var scope = files.length > 1 ? 'prov' : facturaId ? 'slot' : 'prov';
-            var imgN = countImagesForPdfPrompt(provId, scope === 'slot' ? facturaId : null);
-            if (imgN > 0) {
-              setTimeout(function () {
-                promptAndConvertImages(host, {
-                  provId: provId,
-                  facturaId: facturaId || '',
-                  scope: scope,
-                });
-              }, 180);
-            }
-          }
-        })
-        .finally(function () {
-          hideIngestOverlay();
-          _cxfIngestBatch = Math.max(0, _cxfIngestBatch - 1);
-          if (_cxfIngestBatch === 0) {
-            var hDone = getCxfHost() || host;
-            if (hDone && ui.step === 'documento') {
-              requestAnimationFrame(function () {
-                refreshDocumentoCards(hDone);
-                if (isModoComplejo()) {
-                  setTimeout(function () {
-                    rebuildFeAnalisisQueue(hDone || host);
-                  }, CXF_FE_DRAIN_DELAY_MS);
-                } else {
-                  setTimeout(enqueueAllPdfPreviewsDeferred, 400);
-                }
-              });
-            }
-          }
-        });
     }
 
     host.addEventListener('click', function (e) {
@@ -7725,6 +10833,12 @@
         openCxfQrCameraModal(feCam.getAttribute('data-prov-id'), feCam.getAttribute('data-factura-id'), host);
         return;
       }
+      var feMarca = e.target.closest('[data-cxf-fe-marca-qr]');
+      if (feMarca) {
+        e.preventDefault();
+        openCxfQrRegionModal(feMarca.getAttribute('data-prov-id'), feMarca.getAttribute('data-factura-id'), host);
+        return;
+      }
       var goProdBtn = e.target.closest('#cxf-go-productos');
       if (goProdBtn) {
         e.preventDefault();
@@ -7757,22 +10871,30 @@
       }
       var pickPdf = e.target.closest('.cxf-pick-pdf');
       if (pickPdf) {
+        e.preventDefault();
         var pid = pickPdf.getAttribute('data-prov-id');
         var fid = pickPdf.getAttribute('data-factura-id');
-        var inp = host.querySelector(
+        var root = getCxfHost() || host;
+        var inp = root.querySelector(
           '.cxf-file-pdf[data-prov-id="' + pid + '"]' + (fid ? '[data-factura-id="' + fid + '"]' : '')
         );
-        if (inp) inp.click();
+        if (!openCxfFilePicker(inp)) {
+          toast('No se pudo abrir el selector de PDF — intente arrastrar el archivo', 'warning');
+        }
         return;
       }
       var pickImg = e.target.closest('.cxf-pick-img');
       if (pickImg) {
+        e.preventDefault();
         var pid2 = pickImg.getAttribute('data-prov-id');
         var fid2 = pickImg.getAttribute('data-factura-id');
-        var inp2 = host.querySelector(
+        var root2 = getCxfHost() || host;
+        var inp2 = root2.querySelector(
           '.cxf-file-img[data-prov-id="' + pid2 + '"]' + (fid2 ? '[data-factura-id="' + fid2 + '"]' : '')
         );
-        if (inp2) inp2.click();
+        if (!openCxfFilePicker(inp2)) {
+          toast('No se pudo abrir la cámara o galería — intente arrastrar la foto', 'warning');
+        }
         return;
       }
       var toPdf = e.target.closest('.cxf-img-to-pdf');
@@ -7829,24 +10951,6 @@
       }
     });
 
-    host.addEventListener('change', function (e) {
-      var inPdf = e.target.closest('.cxf-file-pdf');
-      if (inPdf) {
-        var pid = inPdf.getAttribute('data-prov-id');
-        var fid = inPdf.getAttribute('data-factura-id');
-        ingestFiles(inPdf.files, true, pid, fid);
-        inPdf.value = '';
-        return;
-      }
-      var inImg = e.target.closest('.cxf-file-img');
-      if (inImg) {
-        var pid2 = inImg.getAttribute('data-prov-id');
-        var fid2 = inImg.getAttribute('data-factura-id');
-        ingestFiles(inImg.files, false, pid2, fid2);
-        inImg.value = '';
-      }
-    });
-
     host.addEventListener('input', function (e) {
       var num = e.target.closest('.cxf-num-factura');
       if (num) {
@@ -7879,39 +10983,46 @@
       }
     });
 
-    host.querySelectorAll('[data-cxf-drop-prov]').forEach(function (zone) {
-      if (zone._cxfDropBound) return;
-      zone._cxfDropBound = true;
+    host.addEventListener('dragover', function (e) {
+      var zone = e.target.closest('[data-cxf-drop-prov]');
+      if (!zone || !host.contains(zone)) return;
+      e.preventDefault();
+      zone.classList.add('is-drag');
+    });
+    host.addEventListener('dragleave', function (e) {
+      var zone = e.target.closest('[data-cxf-drop-prov]');
+      if (!zone || !host.contains(zone)) return;
+      if (zone.contains(e.relatedTarget)) return;
+      zone.classList.remove('is-drag');
+    });
+    host.addEventListener('drop', function (e) {
+      var zone = e.target.closest('[data-cxf-drop-prov]');
+      if (!zone || !host.contains(zone)) return;
+      e.preventDefault();
+      zone.classList.remove('is-drag');
       var pid = zone.getAttribute('data-cxf-drop-prov');
-      zone.addEventListener('dragover', function (e) {
-        e.preventDefault();
-        zone.classList.add('is-drag');
+      var fidDrop = zone.getAttribute('data-factura-id');
+      var pdfFiles = [];
+      var imgFiles = [];
+      Array.prototype.forEach.call(e.dataTransfer.files || [], function (f) {
+        if (f.type === 'application/pdf') pdfFiles.push(f);
+        else if (f.type && f.type.indexOf('image') >= 0) imgFiles.push(f);
       });
-      zone.addEventListener('dragleave', function () {
-        zone.classList.remove('is-drag');
-      });
-      zone.addEventListener('drop', function (e) {
-        e.preventDefault();
-        zone.classList.remove('is-drag');
-        var fidDrop = zone.getAttribute('data-factura-id');
-        var pdfFiles = [];
-        var imgFiles = [];
-        Array.prototype.forEach.call(e.dataTransfer.files || [], function (f) {
-          if (f.type === 'application/pdf') pdfFiles.push(f);
-          else if (f.type && f.type.indexOf('image') >= 0) imgFiles.push(f);
-        });
-        var dropChain = Promise.resolve();
+      if (!pdfFiles.length && !imgFiles.length) {
+        toast('Suelte un PDF o una imagen en la zona del proveedor', 'info');
+        return;
+      }
+      var dropChain = Promise.resolve();
         if (pdfFiles.length) {
           dropChain = dropChain.then(function () {
-            return ingestFiles(pdfFiles, true, pid, fidDrop);
+            return cxfIngestFiles(pdfFiles, true, pid, fidDrop);
           });
         }
         if (imgFiles.length) {
           dropChain = dropChain.then(function () {
-            return ingestFiles(imgFiles, false, pid, fidDrop);
+            return cxfIngestFiles(imgFiles, false, pid, fidDrop);
           });
         }
-      });
     });
 
   }
@@ -8367,49 +11478,277 @@
     };
   }
 
-  function buildIngresosParaGuardar(host) {
+  function saveButtonLabel(entryCount) {
+    if (ui.editingId) return '✓ Actualizar recepción';
+    if (entryCount > 1) return '✓ Confirmar ' + entryCount + ' ingresos';
+    return '✓ Confirmar ingreso y salir';
+  }
+
+  function collectAllSaveEntries(host) {
     host = host || getCxfHost();
-    var pid0 = getActiveProvId();
-    if (pid0 && ui.proveedorIds.indexOf(pid0) < 0) addProvToSession(pid0);
     if (host && host.querySelectorAll('.cxf-line').length) readLinesFromDom(host);
     if (host) readCierreFieldsFromDom(host);
     persistActiveBucket();
-    syncUiFromBucket();
 
-    var label = ui.editingId ? 'Actualizar recepción' : 'Confirmar ingreso y salir';
-    var merged = mergeFacturaLinesFromUi(host);
-    if (!merged || !merged.provId) return { error: 'Seleccione un proveedor en el paso 1', level: 'warning' };
-    if (!merged.items || !merged.items.length) {
-      return {
-        error: 'En Productos agregue materia prima con cantidad y valor total de línea',
-        level: 'warning',
-      };
+    if (ui.editingId) {
+      var mergedEdit = mergeFacturaLinesFromUi(host);
+      if (!mergedEdit || !mergedEdit.items || !mergedEdit.items.length) return [];
+      var editEntry = buildPayloadEntry(mergedEdit.provId, mergedEdit.factura, mergedEdit.items, {
+        editingId: String(ui.editingId),
+        idx: 0,
+      });
+      if (!editEntry) return [];
+      editEntry.provId = mergedEdit.provId;
+      editEntry.facturaId = mergedEdit.factura && mergedEdit.factura.id;
+      return [editEntry];
     }
-    var entry = buildPayloadEntry(merged.provId, merged.factura, merged.items, {
-      editingId: ui.editingId ? String(ui.editingId) : null,
-      idx: 0,
+
+    var activePid = getActiveProvId();
+    var activeFid = getActiveFacturaId(activePid);
+    var entries = [];
+    var seen = {};
+    ui.proveedorIds.forEach(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b) return;
+      b.facturas.forEach(function (f, idx) {
+        var key = String(pid) + '::' + String(f.id);
+        if (seen[key]) return;
+        var items;
+        if (String(pid) === String(activePid) && String(f.id) === String(activeFid)) {
+          items = mergeFacturaLinesFromUi(host).items;
+        } else {
+          items = collectLines(f);
+        }
+        if (!items.length) return;
+        seen[key] = true;
+        var entry = buildPayloadEntry(pid, f, items, { idx: idx });
+        if (!entry) return;
+        if (!ui.editingId) entry.payload._forceNew = true;
+        entry.provId = pid;
+        entry.facturaId = f.id;
+        var prov = proveedoresList().find(function (p) {
+          return String(p.id) === String(pid);
+        });
+        entry.provNombre = prov ? prov.nombre : entry.payload.proveedorNombre;
+        entry.facturaLabel = f.numeroFactura || guessNumeroFactura((f.docs && f.docs[0] && f.docs[0].nombre) || '') || 'Factura';
+        entry.itemCount = items.length;
+        entry.valorPreview = entry.payload.valor;
+        entries.push(entry);
+      });
     });
-    if (!entry) return { error: 'Datos incompletos para guardar', level: 'warning' };
-    if (!ui.editingId) entry.payload._forceNew = true;
-    return { entries: [entry], label: label };
+    return entries;
   }
 
-  function afterIngresoGuardado() {
-    global.__cxfSavingRecepcion = false;
-    ui._pendingRecId = null;
-    freshUi();
-    ui.step = 'proveedor';
+  function collectSessionPendingSummary(savedEntries) {
+    savedEntries = savedEntries || [];
+    var savedKeys = {};
+    savedEntries.forEach(function (e) {
+      savedKeys[String(e.provId) + '::' + String(e.facturaId)] = true;
+    });
+    var pending = [];
+    ui.proveedorIds.forEach(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b) return;
+      b.facturas.forEach(function (f) {
+        var key = String(pid) + '::' + String(f.id);
+        if (savedKeys[key]) return;
+        var hasDocs = !!(f.docs && f.docs.length);
+        var hasPartial = (f.lines || []).some(function (ln) {
+          return ln.mpId || ln.precio || ln.cant;
+        });
+        if (!hasDocs && !hasPartial) return;
+        var prov = proveedoresList().find(function (p) {
+          return String(p.id) === String(pid);
+        });
+        pending.push({
+          provId: pid,
+          facturaId: f.id,
+          provNombre: prov ? prov.nombre : 'Proveedor',
+          hasDocs: hasDocs,
+          ready: collectLines(f).length > 0,
+        });
+      });
+    });
+    return pending;
+  }
+
+  function buildIngresosParaGuardar(host, opts) {
+    opts = opts || {};
+    host = host || getCxfHost();
+    var pid0 = getActiveProvId();
+    if (pid0 && ui.proveedorIds.indexOf(pid0) < 0) addProvToSession(pid0);
+    syncUiFromBucket();
+
+    if (!getActiveProvId() && !ui.editingId) {
+      return { error: 'Seleccione un proveedor en el paso 1', level: 'warning' };
+    }
+
+    var entries = collectAllSaveEntries(host);
+    var pending = collectSessionPendingSummary(entries);
+
+    if (!ui.editingId) {
+      var activePid = getActiveProvId();
+      var activeFid = getActiveFacturaId(activePid);
+      var hasActive = entries.some(function (e) {
+        return String(e.provId) === String(activePid) && String(e.facturaId) === String(activeFid);
+      });
+      if (!hasActive && !opts.preview) {
+        return {
+          error: 'En Productos agregue materia prima con cantidad y valor total de línea',
+          level: 'warning',
+        };
+      }
+    }
+
+    if (!entries.length && !opts.preview) {
+      return { error: 'No hay datos listos para guardar', level: 'warning' };
+    }
+
+    return {
+      entries: entries,
+      pending: pending,
+      label: ui.editingId ? 'Actualizar recepción' : saveButtonLabel(entries.length),
+      saveButtonLabel: saveButtonLabel(entries.length),
+    };
+  }
+
+  function renderCierreBatchSummary(host) {
+    if (ui.editingId) return '';
+    var pack = buildIngresosParaGuardar(host, { preview: true });
+    if (!pack.entries || !pack.entries.length) return '';
+    var html = '<div class="cxf-save-plan" role="status">';
+    html += '<h4 class="cxf-save-plan__title">Resumen del registro</h4><ul class="cxf-save-plan__list">';
+    pack.entries.forEach(function (e) {
+      html +=
+        '<li class="cxf-save-plan__item cxf-save-plan__item--ok"><span class="cxf-save-plan__check" aria-hidden="true">✓</span> ' +
+        esc(e.provNombre || e.payload.proveedorNombre) +
+        ' · ' +
+        esc(e.facturaLabel || e.payload.numeroFactura || 'Factura') +
+        ' · ' +
+        fmtMoney(e.valorPreview || e.payload.valor) +
+        ' · ' +
+        (e.itemCount || e.itemsCount || 0) +
+        ' ítem(s)</li>';
+    });
+    (pack.pending || []).forEach(function (p) {
+      html +=
+        '<li class="cxf-save-plan__item cxf-save-plan__item--pending"><span class="cxf-save-plan__check" aria-hidden="true">○</span> ' +
+        esc(p.provNombre) +
+        (p.ready ? ' — falta confirmar en Verificar' : ' — pendiente productos') +
+        '</li>';
+    });
+    html += '</ul>';
+    if (pack.entries.length > 1) {
+      html +=
+        '<p class="cxf-save-plan__hint">Se registrarán <strong>' +
+        pack.entries.length +
+        '</strong> ingresos en una sola acción.</p>';
+    } else if (pack.pending && pack.pending.length) {
+      html +=
+        '<p class="cxf-save-plan__hint">Tras guardar, podrá continuar con ' +
+        pack.pending.length +
+        ' recepción(es) pendiente(s) sin perder el resto.</p>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function removeSavedFacturaFromSession(provId, facturaId) {
+    var b = ensureBucket(provId);
+    if (!b) return;
+    b.facturas = b.facturas.filter(function (f) {
+      return String(f.id) !== String(facturaId);
+    });
+    if (!b.facturas.length) {
+      removeProvFromSession(provId);
+    } else {
+      b.facturaActiva = b.facturas[0].id;
+      if (String(provId) === getActiveProvId()) syncUiFromBucket();
+    }
+    schedulePersistCxfSession();
+  }
+
+  function formatSaveSuccessMessage(saved) {
+    saved = saved || [];
+    if (!saved.length) return 'Ingreso guardado';
+    if (saved.length === 1) {
+      var s = saved[0];
+      var r = s.out.recepcion;
+      var nCosteo = s.out.costeoActualizado && s.out.costeoActualizado.length ? s.out.costeoActualizado.length : 0;
+      var tail = r.numeroFactura ? ' · ' + r.numeroFactura : '';
+      return (
+        'Ingreso guardado · ' +
+        (r.proveedorNombre || 'Proveedor') +
+        tail +
+        ' · ' +
+        fmtMoney(r.valor) +
+        (nCosteo ? ' · ' + nCosteo + ' costo(s) actualizado(s)' : '')
+      );
+    }
+    var totalValor = saved.reduce(function (sum, s) {
+      return sum + (Number(s.out.recepcion && s.out.recepcion.valor) || 0);
+    }, 0);
+    return saved.length + ' ingresos guardados · ' + fmtMoney(totalValor) + ' · inventario actualizado';
+  }
+
+  function applyHistoryHighlights(host, ids) {
+    if (!host || !ids || !ids.length) return;
+    ids.forEach(function (id) {
+      var row = host.querySelector('.cxf-hist-row[data-rec-id="' + id + '"]');
+      if (row) {
+        row.classList.add('cxf-hist-row--fresh');
+        try {
+          row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } catch (_) {}
+      }
+    });
+    setTimeout(function () {
+      ids.forEach(function (id) {
+        var row = host.querySelector('.cxf-hist-row[data-rec-id="' + id + '"]');
+        if (row) row.classList.remove('cxf-hist-row--fresh');
+      });
+    }, 4500);
+  }
+
+  function remountOrRefreshAfterSave(opts) {
+    opts = opts || {};
     var hubHost = document.getElementById('crozzo-hub-local-host');
     if (hubHost) {
       hubHost.innerHTML = render();
       init(hubHost);
-      try {
-        var hist = hubHost.querySelector('.cxf-historial');
-        if (hist && hist.scrollIntoView) hist.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } catch (_) {}
+      applyHistoryHighlights(hubHost, opts.highlightIds);
+      if (!opts.partial) {
+        try {
+          var hist = hubHost.querySelector('.cxf-historial');
+          if (hist) {
+            hist.open = true;
+            if (hist.scrollIntoView) hist.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        } catch (_) {}
+      }
       return;
     }
     remountRecepcionModule();
+  }
+
+  function afterIngresoGuardado(opts) {
+    opts = opts || {};
+    global.__cxfSavingRecepcion = false;
+    ui._pendingRecId = null;
+    ui._cierreItems = null;
+
+    if (opts.partial && opts.pending && opts.pending.length) {
+      ui.step = opts.suggestedStep || 'documento';
+      if (opts.nextProvId) ui.proveedorActivo = String(opts.nextProvId);
+      syncUiFromBucket();
+      schedulePersistCxfSession();
+      remountOrRefreshAfterSave({ partial: true, highlightIds: opts.highlightIds });
+      return;
+    }
+
+    freshUi();
+    ui.step = 'proveedor';
+    remountOrRefreshAfterSave({ highlightIds: opts.highlightIds });
   }
 
   function onBorrarIngreso(recId) {
@@ -8454,6 +11793,7 @@
 
     var btn = host.querySelector('#cxf-ingreso-guardar');
     if (btn && btn.disabled) return;
+    if (global.__cxfSavingRecepcion) return;
 
     if (global.CrozzoReservorioOffline && global.CrozzoReservorioOffline.ensureReservorioReady) {
       global.CrozzoReservorioOffline.ensureReservorioReady();
@@ -8478,52 +11818,103 @@
       return;
     }
 
-    var entry = pack.entries[0];
-    if (!entry || !entry.payload) {
+    if (!pack.entries || !pack.entries.length) {
       toast('No hay datos para guardar', 'warning');
       return;
     }
 
+    var btnLabel = pack.saveButtonLabel || saveButtonLabel(pack.entries.length);
+    global.__cxfSavingRecepcion = true;
     if (btn) {
       btn.disabled = true;
-      btn.textContent = 'Guardando…';
+      btn.textContent =
+        pack.entries.length > 1 ? 'Guardando ' + pack.entries.length + ' ingresos…' : 'Guardando…';
     }
 
-    var out;
-    try {
-      if (entry.editingId) {
-        out = res.actualizarRecepcion(entry.editingId, entry.payload);
-      } else {
-        out = res.registrarRecepcion(entry.payload);
+    var saved = [];
+    var highlightIds = [];
+    var failMsg = '';
+    var ei;
+    for (ei = 0; ei < pack.entries.length; ei++) {
+      var entry = pack.entries[ei];
+      if (!entry || !entry.payload) continue;
+      try {
+        var out;
+        if (entry.editingId) {
+          out = res.actualizarRecepcion(entry.editingId, entry.payload);
+        } else {
+          out = res.registrarRecepcion(entry.payload);
+        }
+        if (!out || !out.recepcion) {
+          failMsg = 'No se pudo guardar «' + (entry.provNombre || 'ingreso') + '»';
+          break;
+        }
+        if (typeof entry.persistAdjuntos === 'function') {
+          entry.persistAdjuntos(out.recepcion.id);
+        }
+        saved.push({ entry: entry, out: out });
+        highlightIds.push(out.recepcion.id);
+        if (!entry.editingId) {
+          removeSavedFacturaFromSession(entry.provId, entry.facturaId);
+        }
+      } catch (err) {
+        failMsg = (err && err.message) || 'Error al guardar';
+        console.error('[cxf-guardar]', err);
+        break;
       }
-    } catch (err) {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = ui.editingId ? '✓ Actualizar recepción' : '✓ Confirmar ingreso y salir';
-      }
-      toast((err && err.message) || 'Error al guardar', 'error');
-      console.error('[cxf-guardar]', err);
+    }
+
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btnLabel;
+    }
+
+    if (!saved.length) {
+      global.__cxfSavingRecepcion = false;
+      toast(failMsg || 'No se pudo guardar en el reservorio local', 'error');
       return;
     }
 
-    if (!out || !out.recepcion) {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = ui.editingId ? '✓ Actualizar recepción' : '✓ Confirmar ingreso y salir';
-      }
-      toast('No se pudo guardar en el reservorio local', 'error');
+    toast(formatSaveSuccessMessage(saved), 'success');
+
+    if (failMsg) {
+      toast('Algunos ingresos no se guardaron — ' + failMsg, 'warning');
+    }
+
+    var pending = collectSessionPendingSummary([]);
+    if (!ui.editingId && pending.length && ui.proveedorIds.length) {
+      var nextProv = pending[0].provId;
+      var pendingNames = pending
+        .slice(0, 3)
+        .map(function (p) {
+          return p.provNombre;
+        })
+        .join(', ');
+      setTimeout(function () {
+        toast(
+          'Quedan ' +
+            pending.length +
+            ' recepción(es) pendiente(s)' +
+            (pendingNames ? ': ' + pendingNames : '') +
+            ' — continúe cuando quiera',
+          'info'
+        );
+      }, 600);
+      afterIngresoGuardado({
+        partial: true,
+        pending: pending,
+        nextProvId: nextProv,
+        suggestedStep: pending.some(function (p) {
+          return p.ready;
+        })
+          ? 'cierre'
+          : 'documento',
+        highlightIds: highlightIds,
+      });
       return;
     }
 
-    if (typeof entry.persistAdjuntos === 'function') {
-      entry.persistAdjuntos(out.recepcion.id);
-    }
-
-    var nCosteo = out.costeoActualizado && out.costeoActualizado.length ? out.costeoActualizado.length : 0;
-    var msg = 'Ingreso guardado · inventario actualizado';
-    if (nCosteo) msg += ' · costo unitario actualizado';
-    toast(msg, 'success');
-    afterIngresoGuardado();
+    afterIngresoGuardado({ highlightIds: highlightIds });
   }
 
   function installCxfClickDelegation(host) {
@@ -8692,9 +12083,11 @@
 
   function init(host) {
     if (!host) return;
+    resetCxfIngestPipelineOnMount();
     repairRecepcionSession();
     installCxfGlobalUi();
     installCxfBackgroundNavigation();
+    installCxfFileIngestDelegation();
     var root = resolveCxfRoot(host);
     if (!root) return;
     installCxfClickDelegation(root);
@@ -8704,6 +12097,13 @@
     refreshStorageNote(root);
     var res = R();
     if (res && res.runBlobMigration) res.runBlobMigration(res.load());
+    var FD = feDian();
+    if (FD && FD.loadFeTrainingProfile) {
+      FD.loadFeTrainingProfile().catch(function () {});
+    }
+    if (FD && FD.loadFeQrZoneMemory) {
+      FD.loadFeQrZoneMemory().catch(function () {});
+    }
     var prov = root.querySelector('#cxf-go-proveedores');
     if (prov && !prov._cxfBound) {
       prov._cxfBound = true;
@@ -8745,7 +12145,7 @@
     onBorrarIngreso: onBorrarIngreso,
     guardar: confirmarIngresoFactura,
     guardarIngreso: confirmarIngresoFactura,
-    version: 202606023,
+    version: 202606030,
   };
   global.cxfGuardarRecepcion = confirmarIngresoFactura;
   global.crozzoConfirmarIngresoFactura = confirmarIngresoFactura;

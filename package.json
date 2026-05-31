@@ -1,22 +1,39 @@
 {
-  "name": "crozzo-pos",
+  "name": "tauri-app",
   "private": true,
-  "version": "1.0.10",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "serve": "serve src -l 1420",
     "tauri": "tauri",
-    "postinstall": "node scripts/copy-updater.mjs",
-    "dev": "tauri dev",
-    "build": "tauri build",
-    "rebuild": "npm run tauri build -- -- --force"
+    "tauri:build": "tauri build",
+    "tauri:dev": "tauri dev",
+    "sync": "node scripts/sync-frontend-to-src.mjs",
+    "consolidate": "node scripts/consolidate-crozzo-bundles.mjs",
+    "split:pos": "node scripts/split-pos-html.mjs",
+    "prepare:qyc": "node scripts/prepare-qyc-embed.mjs",
+    "prepare:planilla": "node scripts/extract-planilla-template.mjs",
+    "test:recepcion-fe": "node scripts/test-recepcion-fe.mjs",
+    "test:recepcion-fe:quick": "node scripts/test-recepcion-fe.mjs --quick",
+    "train:recepcion-fe": "node scripts/train-recepcion-fe.mjs",
+    "train:recepcion-fe:full": "node scripts/train-recepcion-fe.mjs --full",
+    "train:recepcion-fe:deep": "node scripts/train-recepcion-fe.mjs --retry-failed",
+    "maintain:recepcion-fe": "node scripts/maintain-recepcion-fe.mjs check",
+    "maintain:recepcion-fe:sync": "node scripts/maintain-recepcion-fe.mjs sync --consolidate",
+    "maintain:recepcion-fe:refresh": "node scripts/maintain-recepcion-fe.mjs refresh",
+    "maintain:recepcion-fe:eval": "node scripts/maintain-recepcion-fe.mjs eval",
+    "maintain:recepcion-fe:eval:full": "node scripts/maintain-recepcion-fe.mjs eval --full"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
-    "serve": "^14"
+    "canvas": "^3.2.3",
+    "jspdf": "^2.5.2",
+    "pdfjs-dist": "^3.11.174",
+    "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-updater": "^2"
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
+    "jsqr": "^1.4.0"
   }
 }

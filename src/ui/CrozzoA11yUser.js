@@ -206,6 +206,9 @@
     if (avatarEl) {
       avatarEl.textContent = nombre.trim().charAt(0).toUpperCase() || '?';
     }
+    if (typeof global.crozzoUpdatePremiumIdentity === 'function') {
+      global.crozzoUpdatePremiumIdentity();
+    }
   }
 
   function openChangePasswordModal() {

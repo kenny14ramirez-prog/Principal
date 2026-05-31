@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.30">
+<meta name="crozzo-app-version" content="1.0.31">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -80,6 +80,8 @@ window.crozzoAppDisplayName = function () {
   d.body.classList.toggle('theme-high-contrast', !!p.highContrast);
   d.body.classList.toggle('crozzo-a11y-reduce-motion', !!p.reduceMotion);
   d.body.classList.toggle('crozzo-a11y-focus-mode', !!p.focusMode);
+  d.body.classList.add('crozzo-session-comfort');
+  d.body.classList.add('crozzo-premium-psyche');
 })(document, window);
 </script>
 <script>
@@ -237,6 +239,7 @@ if (window.__CROZZO_IS_TAURI__) {
           </button>
           <ul class="nav-group-items" id="nav-group-gestion" role="group" aria-labelledby="nav-toggle-gestion">
             <li><div class="nav-item menu-item" data-page="facturas" data-menu="facturas" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="file-text"></i></span><span class="nav-item-label">Facturas</span></div></li>
+            <li><div class="nav-item menu-item" data-page="cierre-caja" data-menu="cierre-caja" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wallet"></i></span><span class="nav-item-label">Cierre de caja</span></div></li>
             <li><div class="nav-item menu-item" data-page="caja-clientes" data-menu="caja" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="users"></i></span><span class="nav-item-label">Clientes (FE)</span></div></li>
             <li><div class="nav-item menu-item" data-page="inventarios" data-menu="inventarios" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="bar-chart-3"></i></span><span class="nav-item-label">Reportes y dashboard</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-dashboard" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="pie-chart"></i></span><span class="nav-item-label">Resumen compras</span></div></li>
@@ -323,6 +326,7 @@ if (window.__CROZZO_IS_TAURI__) {
       <div class="crozzo-header__primary">
         <button type="button" class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Abrir menú"><i data-lucide="menu"></i></button>
         <div class="crozzo-header__titles">
+          <p class="crozzo-header-greeting" id="crozzoHeaderGreeting" hidden></p>
           <h1 class="page-title" id="pageTitle">Punto de Venta</h1>
           <p class="page-subtitle" id="pageSubtitle">Gestiona tus ventas y facturación electrónica</p>
         </div>
@@ -383,6 +387,7 @@ if (window.__CROZZO_IS_TAURI__) {
           </button>
           <div class="user-menu__dropdown" id="userMenuDropdown" role="menu" aria-hidden="true">
             <div class="user-menu__header">
+              <span class="user-menu__tier" id="userMenuTier" hidden></span>
               <p class="user-menu__name" id="userMenuName">Usuario activo</p>
               <p class="user-menu__role" id="userMenuRole">Caja principal</p>
             </div>
@@ -595,8 +600,11 @@ if (window.__CROZZO_IS_TAURI__) {
   <button type="button" class="btn btn-outline" style="min-height:36px;padding:6px 12px;border-color:#475569;color:#e2e8f0;" onclick="crozzoKioskPromptExit()">Salir</button>
 </div>
 <div id="crozzoCorkFocusBar" class="crozzo-cork-focus-bar" hidden role="region" aria-label="Tablero corcho pantalla completa">
-  <span>📌 Tablero corcho — pantalla completa</span>
-  <button type="button" class="btn btn-warning" style="min-height:40px;padding:8px 16px;font-weight:700;" onclick="crozzoToggleCorkboardFocus(false)">⬅️ Salir</button>
+  <span class="crozzo-cork-focus-bar__brand">
+    <span class="crozzo-cork-focus-bar__pin" aria-hidden="true"></span>
+    Tablero corcho · pantalla completa
+  </span>
+  <button type="button" class="btn btn-outline crozzo-cork-focus-bar__exit" onclick="crozzoToggleCorkboardFocus(false)">Salir</button>
 </div>
 <div id="crozzoKioskPinOverlay" class="crozzo-kiosk-pin-overlay" hidden aria-hidden="true" aria-modal="true" role="dialog" aria-labelledby="crozzoKioskPinTitle">
   <div id="crozzoKioskPinTitle" style="font-weight:600;">Salir del modo pantalla fija</div>
@@ -673,46 +681,43 @@ if (window.__CROZZO_IS_TAURI__) {
   <button type="button" class="btn btn-outline" id="crozzoPwaDismissBtn" style="min-height:36px;border-color:rgba(255,255,255,0.45);color:#fff;">Ahora no</button>
 </div>
 
-<button type="button" id="crozzo-shift-fab" hidden title="Turno: métricas y cierre de caja" aria-label="Dashboard de turno" onclick="crozzoShiftToggleDashboard()">📊</button>
-<div id="crozzo-shift-dashboard" aria-live="polite">
-  <div class="crozzo-shift-dash-head">
-    <span>📈 Turno</span>
-    <button type="button" class="btn btn-outline" style="padding:4px 10px;min-height:auto;font-size:0.8rem;" onclick="crozzoShiftToggleDashboard(false)">✕</button>
-  </div>
-  <div class="crozzo-shift-dash-grid">
-    <div class="crozzo-shift-dash-card"><div class="val" id="crozzo-dash-sales">0</div><div class="lbl">Ventas</div></div>
-    <div class="crozzo-shift-dash-card"><div class="val" id="crozzo-dash-total">$0</div><div class="lbl">Total</div></div>
-    <div class="crozzo-shift-dash-card"><div class="val" id="crozzo-dash-cash">$0</div><div class="lbl">Efectivo</div></div>
-    <div class="crozzo-shift-dash-card"><div class="val" id="crozzo-dash-nocash">$0</div><div class="lbl">Otros medios</div></div>
-    <div class="crozzo-shift-dash-card"><div class="val" id="crozzo-dash-ticket">$0</div><div class="lbl">Ticket prom.</div></div>
-  </div>
-  <div id="crozzo-shift-stock-wrap"></div>
-  <div class="crozzo-shift-dash-actions">
-    <button type="button" class="btn btn-outline" onclick="crozzoShiftOpenArqueo()">🔒 Cierre / arqueo</button>
-    <button type="button" class="btn btn-outline" style="font-size:0.8rem;" onclick="crozzoShiftNuevoTurno()">🔄 Nuevo turno (sin arqueo)</button>
-  </div>
-</div>
-
-<div id="crozzo-shift-arqueo" hidden aria-modal="true" role="dialog" onclick="if(event.target===this)crozzoShiftCloseArqueo()">
+<div id="crozzo-shift-arqueo" hidden aria-modal="true" role="dialog" aria-labelledby="crozzo-arqueo-dialog-title" onclick="if(event.target===this)crozzoShiftCloseArqueo()">
   <div class="crozzo-shift-arqueo-card">
+    <button type="button" class="crozzo-arqueo-close" aria-label="Cerrar" onclick="crozzoShiftCloseArqueo()"><i data-lucide="x"></i></button>
+    <div class="crozzo-arqueo-wizard" aria-hidden="true">
+      <div class="crozzo-arqueo-wizard__step is-active"><span>1</span> Conteo</div>
+      <div class="crozzo-arqueo-wizard__line"></div>
+      <div class="crozzo-arqueo-wizard__step"><span>2</span> Confirmar</div>
+    </div>
     <div class="crozzo-shift-step is-active" id="crozzo-shift-step1">
-      <h3 class="modal-title" style="margin-top:0">Cierre de turno / arqueo</h3>
-      <p class="form-hint" style="margin-bottom:8px;">Las ventas se leen del historial local (cuentas POS y facturas del turno). Efectivo esperado = fondo inicial + ventas en efectivo (incluye la parte en efectivo de pagos mixtos). «Otros medios» en el panel de turno = tarjeta, QR, PSE, etc.</p>
-      <label class="form-label">Fondo inicial en caja ($)</label>
-      <input type="number" class="crozzo-shift-input" id="crozzo-shift-fondo" min="0" step="1" placeholder="0">
-      <label class="form-label">Efectivo contado físicamente ($)</label>
-      <input type="number" class="crozzo-shift-input" id="crozzo-shift-count" min="0" step="1" placeholder="Ej: 450000">
+      <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-dialog-title">Arqueo de caja</h3>
+      <p class="form-hint crozzo-arqueo-hint">Cuente el efectivo físico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
+      <div class="crozzo-arqueo-type-grid" role="radiogroup" aria-label="Tipo de cierre">
+        <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="manana" checked><span class="crozzo-arqueo-type__icon"><i data-lucide="sunrise"></i></span><span class="crozzo-arqueo-type__lbl">Mañana</span></label>
+        <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="tarde"><span class="crozzo-arqueo-type__icon"><i data-lucide="sunset"></i></span><span class="crozzo-arqueo-type__lbl">Tarde</span></label>
+        <label class="crozzo-arqueo-type crozzo-arqueo-type--day"><input type="radio" name="crozzo-arqueo-type" value="dia"><span class="crozzo-arqueo-type__icon"><i data-lucide="calendar-check"></i></span><span class="crozzo-arqueo-type__lbl">Día completo</span></label>
+      </div>
       <div class="crozzo-shift-summary" id="crozzo-shift-summary">—</div>
-      <button type="button" class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="crozzoShiftCalcArqueo()">Calcular diferencia</button>
-      <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="crozzoShiftCloseArqueo()">Cancelar</button>
+      <div class="crozzo-arqueo-fields">
+        <label class="form-label" for="crozzo-shift-fondo">Fondo inicial en caja</label>
+        <div class="crozzo-arqueo-money-input"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-fondo" min="0" step="1" placeholder="0"></div>
+        <label class="form-label" for="crozzo-shift-count">Efectivo contado físicamente</label>
+        <div class="crozzo-arqueo-money-input crozzo-arqueo-money-input--primary"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-count" min="0" step="1" placeholder="Ej: 450000"></div>
+      </div>
+      <div class="crozzo-arqueo-actions">
+        <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" onclick="crozzoShiftCalcArqueo()"><i data-lucide="calculator"></i> Calcular diferencia</button>
+        <button type="button" class="btn btn-outline" onclick="crozzoShiftCloseArqueo()">Cancelar</button>
+      </div>
     </div>
     <div class="crozzo-shift-step" id="crozzo-shift-step2">
-      <h3 class="modal-title" style="margin-top:0">Resumen de cierre</h3>
-      <div class="crozzo-shift-summary" id="crozzo-shift-final"></div>
-      <label class="form-label">Notas (opcional)</label>
-      <textarea class="crozzo-shift-input" id="crozzo-shift-notes" rows="3" placeholder="Faltante, sobrante, incidencias…"></textarea>
-      <button type="button" class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="crozzoShiftFinalize()">Cerrar turno y guardar</button>
-      <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="crozzoShiftArqueoGoStep(1)">← Volver</button>
+      <h3 class="modal-title crozzo-arqueo-title">Confirmar cierre</h3>
+      <div class="crozzo-shift-summary crozzo-shift-summary--final" id="crozzo-shift-final"></div>
+      <label class="form-label" for="crozzo-shift-notes">Notas del cierre</label>
+      <textarea class="crozzo-shift-input crozzo-shift-notes-input" id="crozzo-shift-notes" rows="3" placeholder="Explique faltantes, sobrantes o incidencias…"></textarea>
+      <div class="crozzo-arqueo-actions">
+        <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" onclick="crozzoShiftFinalize()"><i data-lucide="shield-check"></i> Confirmar y guardar</button>
+        <button type="button" class="btn btn-outline" onclick="crozzoShiftArqueoGoStep(1)"><i data-lucide="arrow-left"></i> Volver al conteo</button>
+      </div>
     </div>
   </div>
 </div>
@@ -847,9 +852,11 @@ if (window.__CROZZO_IS_TAURI__) {
     </div>
   </div>
 </div>
+<script src="modules/CrozzoCierreTurnos.js"></script>
 <script src="core/CrozzoRecepcionBridge.js"></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
+<script src="core/CrozzoPrintService.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
