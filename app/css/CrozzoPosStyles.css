@@ -196,22 +196,22 @@ html.crozzo-vp-ready body.crozzo-vp-mobile-nav #mainContent {
   padding-bottom: calc(56px + var(--crozzo-bottom-safe));
 }
 
-/* Tauri / POS restaurante: menú lateral basta; ocultar barra móvil inferior */
-html.tauri-desktop .crozzo-mobile-bottom-nav,
-body.crozzo-page-rest-pos .crozzo-mobile-bottom-nav,
-body.crozzo-page-venta-comercial .crozzo-mobile-bottom-nav {
+/* Escritorio Tauri / POS restaurante ancho: menú lateral basta; ocultar barra móvil inferior */
+html.tauri-desktop.crozzo-form-desktop .crozzo-mobile-bottom-nav,
+html.crozzo-form-desktop body.crozzo-page-rest-pos .crozzo-mobile-bottom-nav,
+html.crozzo-form-desktop body.crozzo-page-venta-comercial .crozzo-mobile-bottom-nav {
   display: none !important;
 }
 
-html.tauri-desktop.crozzo-vp-ready .main-content,
-html.tauri-desktop.crozzo-vp-ready .main-body,
-html.tauri-desktop.crozzo-vp-ready #mainContent,
-body.crozzo-page-rest-pos .main-content,
-body.crozzo-page-rest-pos .main-body,
-body.crozzo-page-rest-pos #mainContent,
-body.crozzo-page-venta-comercial .main-content,
-body.crozzo-page-venta-comercial .main-body,
-body.crozzo-page-venta-comercial #mainContent {
+html.tauri-desktop.crozzo-form-desktop.crozzo-vp-ready .main-content,
+html.tauri-desktop.crozzo-form-desktop.crozzo-vp-ready .main-body,
+html.tauri-desktop.crozzo-form-desktop.crozzo-vp-ready #mainContent,
+html.crozzo-form-desktop body.crozzo-page-rest-pos .main-content,
+html.crozzo-form-desktop body.crozzo-page-rest-pos .main-body,
+html.crozzo-form-desktop body.crozzo-page-rest-pos #mainContent,
+html.crozzo-form-desktop body.crozzo-page-venta-comercial .main-content,
+html.crozzo-form-desktop body.crozzo-page-venta-comercial .main-body,
+html.crozzo-form-desktop body.crozzo-page-venta-comercial #mainContent {
   padding-bottom: var(--crozzo-bottom-safe, 0) !important;
 }
 
@@ -20369,3 +20369,82 @@ body.cxf-progress-dock-visible .cxf-root {
 .crozzo-prov-advanced summary::-webkit-details-marker {
   display: none;
 }
+
+/* ===== Adaptación nativa: Tauri en móvil / tablet (drawer + safe area) ===== */
+html.tauri-shell.crozzo-form-mobile,
+html.tauri-shell.crozzo-form-tablet {
+  --crozzo-safe-top: env(safe-area-inset-top, 0px);
+  --crozzo-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.tauri-shell.crozzo-form-mobile .main-header,
+html.tauri-shell.crozzo-form-tablet .main-header {
+  padding-top: calc(10px + var(--crozzo-safe-top));
+}
+
+html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro,
+html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro,
+html.tauri-shell.crozzo-form-mobile aside.sidebar.sidebar-pro,
+html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro {
+  top: calc(var(--crozzo-header-h, 60px) + var(--crozzo-safe-top)) !important;
+  height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - var(--crozzo-safe-top)) !important;
+  max-height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - var(--crozzo-safe-top)) !important;
+  width: min(300px, 88vw) !important;
+  max-width: min(300px, 88vw) !important;
+  transform: translateX(-100%) !important;
+  margin-left: 0 !important;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro,
+html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro {
+  width: min(280px, 72vw) !important;
+  max-width: min(280px, 72vw) !important;
+}
+
+html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro.open,
+html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro.open,
+html.tauri-shell.crozzo-form-mobile aside.sidebar.sidebar-pro.open,
+html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro.open {
+  transform: translateX(0) !important;
+}
+
+html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro + .main-content,
+html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro + .main-content {
+  margin-left: 0 !important;
+}
+
+html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav,
+html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav {
+  display: flex !important;
+  padding-bottom: calc(4px + var(--crozzo-safe-bottom));
+}
+
+html.tauri-shell.crozzo-form-mobile .mobile-menu-btn,
+html.tauri-shell.crozzo-form-tablet .mobile-menu-btn {
+  display: inline-flex !important;
+}
+
+html.tauri-shell.crozzo-form-mobile .crozzo-rest-pos,
+html.tauri-shell.crozzo-form-tablet .crozzo-rest-pos {
+  height: auto;
+  min-height: min(100%, calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - 72px));
+}
+
+html.crozzo-form-mobile .crozzo-mobile-secondary,
+html.crozzo-form-tablet .crozzo-mobile-secondary {
+  display: none !important;
+}
+
+html.crozzo-form-mobile .main-header .header-actions,
+html.crozzo-form-tablet .main-header .header-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+html.crozzo-form-mobile .login-overlay,
+html.crozzo-form-tablet .login-overlay {
+  padding-top: var(--crozzo-safe-top);
+  padding-bottom: calc(var(--crozzo-bottom-safe, 0px) + var(--crozzo-safe-bottom));
+}
+

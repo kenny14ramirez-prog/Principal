@@ -6,12 +6,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
 <meta name="theme-color" content="#1e3a8a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.34">
+<meta name="crozzo-app-version" content="1.0.35">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -19,6 +19,7 @@
 <script src="core/CrozzoStorageHygiene.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
+<script src="core/CrozzoDeviceForm.js"></script>
 <script>
 (function () {
   try {
@@ -32,8 +33,10 @@
     localStorage.removeItem('crozzo_user_role');
   } catch (_) {}
   window.__crozzoAuthInteractiveThisBoot = false;
+  window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
   window.crozzoPosIsOperationBusy = window.crozzoPosIsOperationBusy || function () { return false; };
   window.crozzoPosNotifyOperationState = window.crozzoPosNotifyOperationState || function () {};
+  if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 })();
 </script>
 <script src="core/CrozzoViewportFit.js"></script>
@@ -103,82 +106,11 @@ window.crozzoAppDisplayName = function () {
 })(document, window);
 </script>
 <script>
-/* Única fuente de verdad — no redeclarar isTauri en otros scripts */
+/* Tauri / web: factor de forma vía CrozzoDeviceForm.js (no forzar escritorio en móvil). */
 window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
-if (window.__CROZZO_IS_TAURI__) {
-  document.documentElement.classList.add('tauri-desktop');
-  if (document.body) {
-    document.body.classList.add('desktop', 'tauri-desktop');
-  }
-}
+if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 </script>
 <a href="#mainContent" class="crozzo-skip-link">Saltar al contenido principal</a>
-<script>
-(function () {
-  function crozzoApplyViewportBodyClass() {
-    var w = window.innerWidth || document.documentElement.clientWidth;
-    var b = document.body;
-    if (!b) return;
-    b.classList.remove('mobile', 'tablet', 'desktop');
-    if (window.__CROZZO_IS_TAURI__ || b.classList.contains('tauri-desktop')) {
-      b.classList.add('desktop');
-    } else if (w <= 480) b.classList.add('mobile');
-    else if (w <= 1024) b.classList.add('tablet');
-    else b.classList.add('desktop');
-    if (b.classList.contains('desktop')) {
-      var s = document.getElementById('sidebar');
-      var bd = document.getElementById('sidebarBackdrop');
-      if (s) s.classList.remove('open');
-      if (bd) {
-        bd.classList.remove('active');
-        bd.setAttribute('aria-hidden', 'true');
-      }
-    }
-    if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
-    try {
-      if (window.CrozzoViewportFit && typeof CrozzoViewportFit.schedule === 'function') CrozzoViewportFit.schedule();
-      else if (window.CrozzoViewportFit && typeof CrozzoViewportFit.apply === 'function') CrozzoViewportFit.apply();
-    } catch (eVp) {
-      /* ignore */
-    }
-    try {
-      if (typeof applyAccessControl === 'function') applyAccessControl();
-    } catch (eAc) {
-      /* ignore */
-    }
-    try {
-      if (
-        typeof getCurrentUser === 'function' &&
-        getCurrentUser() &&
-        typeof currentPage !== 'undefined' &&
-        typeof currentUserCanSeePage === 'function' &&
-        typeof navigateTo === 'function' &&
-        typeof pickFirstAccessiblePage === 'function'
-      ) {
-        let blocked = !currentUserCanSeePage(currentPage);
-        try {
-          if (!blocked && typeof pageBlockedByOperacionModo === 'function') blocked = pageBlockedByOperacionModo(currentPage);
-        } catch (_) {}
-        if (blocked) {
-          const fb = pickFirstAccessiblePage();
-          if (fb && fb !== currentPage) navigateTo(fb);
-        }
-      }
-    } catch (eNav) {
-      /* ignore */
-    }
-  }
-  crozzoApplyViewportBodyClass();
-  var crozzoResizeTimer;
-  window.addEventListener('resize', function () {
-    clearTimeout(crozzoResizeTimer);
-    crozzoResizeTimer = setTimeout(crozzoApplyViewportBodyClass, 100);
-  });
-  window.addEventListener('orientationchange', function () {
-    setTimeout(crozzoApplyViewportBodyClass, 300);
-  });
-})();
-</script>
 
 <div class="app-container">
   <!-- Sidebar -->
@@ -450,11 +382,10 @@ if (window.__CROZZO_IS_TAURI__) {
 </div>
 
 <nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida">
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true">🏁</span><span class="crozzo-mbn-txt">Inicio</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
   <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inventarios" aria-label="Inventarios"><span class="crozzo-mbn-ico" aria-hidden="true">📊</span><span class="crozzo-mbn-txt">Stock</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="productos" aria-label="Catálogo"><span class="crozzo-mbn-ico" aria-hidden="true">🍽️</span><span class="crozzo-mbn-txt">Catálogo</span></button>
   <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" onclick="toggleSidebar()"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
 </nav>
 

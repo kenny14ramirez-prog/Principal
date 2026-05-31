@@ -1448,6 +1448,9 @@ function crozzoNavigateAfterLogin() {
   }
   crozzoEnsureLoginGateCleared(page);
   try {
+    if (typeof crozzoScheduleFormFactor === 'function') crozzoScheduleFormFactor();
+  } catch (_) {}
+  try {
     requestAnimationFrame(function () {
       crozzoEnsureLoginGateCleared(page);
     });
@@ -5103,9 +5106,10 @@ function crozzoSidebarSyncNavGroupsOnExpand() {
 function crozzoForceSuperAdminVisibility() {
   if (!isSuperAdminUser()) return;
   document.body.classList.add('super-admin-active', 'crozzo-session-superadmin');
-  if (window.__CROZZO_IS_TAURI__ && document.body) {
-    document.body.classList.add('desktop');
-    document.body.classList.remove('mobile', 'tablet');
+  if (typeof crozzoApplyFormFactorClasses === 'function') {
+    crozzoApplyFormFactorClasses();
+  } else if (window.__CROZZO_IS_TAURI__ && document.body) {
+    document.body.classList.toggle('tauri-desktop', document.documentElement.classList.contains('crozzo-form-desktop'));
   }
   crozzoEnsureSidebarShellVisible();
   if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.collapseAllGroups === 'function') {
@@ -6144,9 +6148,10 @@ function pageBlockedByOperacionModo(page) {
 const CROZZO_FIELD_HIDDEN_VENTAS_PAGES = new Set(['cajero', 'facturas', 'caja-clientes']);
 function crozzoIsTauriDesktopUi() {
   try {
-    if (global.__CROZZO_IS_TAURI__) return true;
-    var b = document.body;
-    return !!(b && (b.classList.contains('tauri-desktop') || b.classList.contains('desktop') && !b.classList.contains('mobile')));
+    if (typeof crozzoIsTauriDesktopShell === 'function') return crozzoIsTauriDesktopShell();
+    if (!window.__CROZZO_IS_TAURI__) return false;
+    var doc = document.documentElement;
+    return !!(doc && doc.classList.contains('crozzo-form-desktop'));
   } catch (_) {
     return false;
   }
@@ -6177,7 +6182,7 @@ function crozzoFieldVentasHiddenOnThisDevice() {
     const r = u ? crozzoNormalizeAppRol(u.rol) : '';
     if (r === 'superadmin' || r === 'super_admin' || r === 'admin') return false;
     if (crozzoDeviceConexionRoleB()) return true;
-    if (crozzoIsCompactViewportClass()) return true;
+    if (crozzoMeseroSinModuloVentas()) return true;
     return false;
   } catch (_) {
     return false;
@@ -24229,6 +24234,9 @@ function crozzoFixMobileNavScroll() {
 }
 /** UX táctil: marca body, recalcula scroll/alturas del menú lateral (sin tocar permisos por rol). */
 function initMobileUX() {
+  try {
+    if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
+  } catch (_) {}
   try {
     var touch = false;
     try {
