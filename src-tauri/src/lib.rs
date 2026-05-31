@@ -35,6 +35,8 @@ pub fn run() {
             crozzo_print::crozzo_get_default_printer,
             crozzo_print::crozzo_print_raw,
             crozzo_silent_install::install_setup_from_url,
+            crozzo_silent_install::install_dmg_from_url,
+            crozzo_silent_install::probe_platform_installer,
             webview_permissions::cxf_reset_webview_camera_permission,
             dian_vpfe::fetch_dian_vpfe
         ])

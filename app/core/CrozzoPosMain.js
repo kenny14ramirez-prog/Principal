@@ -10349,13 +10349,10 @@ function crozzoModalIsOpen() {
     return false;
   }
 }
-/** Hay venta/orden activa en caja restaurante o tienda (para actualizaciones en reposo). */
-function crozzoPosIsOperationBusy() {
+function crozzoPosCoreOperationBusy() {
   try {
     if (typeof crozzoModalIsOpen === 'function' && crozzoModalIsOpen()) return true;
     if (typeof wizardState !== 'undefined' && wizardState && wizardState.open) return true;
-    const loginOv = document.getElementById('loginOverlay');
-    if (loginOv && !loginOv.hasAttribute('hidden')) return true;
     if (typeof currentPage === 'undefined') return false;
     if (currentPage !== 'cajero' && currentPage !== 'venta-comercial') return false;
     if (typeof getActiveCart === 'function') {
@@ -10374,6 +10371,21 @@ function crozzoPosIsOperationBusy() {
     return false;
   }
 }
+/** Hay venta/orden activa en caja restaurante o tienda (para actualizaciones en reposo). */
+function crozzoPosIsOperationBusy() {
+  try {
+    if (crozzoPosCoreOperationBusy()) return true;
+    const loginOv = document.getElementById('loginOverlay');
+    if (loginOv && !loginOv.hasAttribute('hidden')) return true;
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+/** Ventas activas sin contar el login (el updater corre antes/durante inicio de sesión). */
+function crozzoPosIsOperationBusyForUpdates() {
+  return crozzoPosCoreOperationBusy();
+}
 function crozzoPosNotifyOperationState() {
   try {
     const busy = crozzoPosIsOperationBusy();
@@ -10391,6 +10403,7 @@ function crozzoPosNotifyOperationState() {
   } catch (_) {}
 }
 window.crozzoPosIsOperationBusy = crozzoPosIsOperationBusy;
+window.crozzoPosIsOperationBusyForUpdates = crozzoPosIsOperationBusyForUpdates;
 window.crozzoPosNotifyOperationState = crozzoPosNotifyOperationState;
 function crozzoPosHapticLight() {
   try {
@@ -13518,18 +13531,127 @@ function crozzoCrmGetClients() {
   const arr = config.get('clientesCrm');
   return Array.isArray(arr) ? arr : [];
 }
+function crozzoCrmNormNitDigits(nit) {
+  return String(nit || '').replace(/\D/g, '');
+}
+function crozzoCrmQueryLooksLikeDoc(q) {
+  return crozzoCrmNormNitDigits(q).length >= 4;
+}
 function crozzoCrmFindClientsByQuery(q) {
   const qq = String(q || '').toLowerCase().trim();
   if (!qq) return [];
-  return crozzoCrmGetClients().filter((c) => {
-    const nit = String(c.nit || '').toLowerCase();
-    const nom = String(c.nombre || '').toLowerCase();
-    const tel = String(c.telefono || '');
-    const emailHay = (typeof crozzoCrmClientEmailsArray === 'function' ? crozzoCrmClientEmailsArray(c) : [])
-      .join(' ')
-      .toLowerCase();
-    return nit.includes(qq) || nom.includes(qq) || tel.includes(qq) || emailHay.includes(qq);
-  }).slice(0, 10);
+  const qqDigits = crozzoCrmNormNitDigits(q);
+  return crozzoCrmGetClients()
+    .filter((c) => {
+      const nit = String(c.nit || '').toLowerCase();
+      const nitDigits = crozzoCrmNormNitDigits(c.nit);
+      const nom = String(c.nombre || '').toLowerCase();
+      const tel = String(c.telefono || '');
+      const emailHay = (typeof crozzoCrmClientEmailsArray === 'function' ? crozzoCrmClientEmailsArray(c) : [])
+        .join(' ')
+        .toLowerCase();
+      if (nom.includes(qq) || tel.includes(qq) || emailHay.includes(qq) || nit.includes(qq)) return true;
+      if (qqDigits.length >= 4 && nitDigits && (nitDigits.includes(qqDigits) || qqDigits.includes(nitDigits))) return true;
+      return false;
+    })
+    .slice(0, 10);
+}
+function crozzoCrmApplyLookupGuestToPos(data, doc) {
+  if (!data) return false;
+  window.__crozzoCrmSelectedClientId = null;
+  const nitEl = document.getElementById('nitCliente');
+  const nomEl = document.getElementById('nombreCliente');
+  const display = doc && doc.display ? String(doc.display) : crozzoCrmNormNit(data.nit || '');
+  if (nitEl) nitEl.value = display;
+  if (nomEl) nomEl.value = data.nombre || '';
+  const searchEl = document.getElementById('crozzoCrmSearch');
+  if (searchEl) searchEl.value = data.nombre ? data.nombre : display;
+  const nameEl = document.getElementById('crozzoCrmName');
+  const prof = document.getElementById('crozzoCrmProfile');
+  const badge = document.getElementById('crozzoCrmCreditBadge');
+  if (nameEl) nameEl.textContent = data.nombre || display || 'Cliente';
+  if (badge) {
+    badge.className = 'crozzo-crm-badge ok';
+    badge.textContent = 'Consulta';
+  }
+  const lineDoc = document.getElementById('crozzoCrmDetailLine');
+  const lineMeta = document.getElementById('crozzoCrmMetaLine');
+  if (lineDoc) {
+    const p = [];
+    if (display) p.push(display);
+    if (data.telefono) p.push('Tel. ' + data.telefono);
+    if (data.email) p.push(String(data.email));
+    lineDoc.textContent = p.length ? p.join(' · ') : 'Documento sin nombre — complete en ➕ Nuevo';
+  }
+  if (lineMeta) lineMeta.textContent = 'Datos de consulta · guarde con ➕ Nuevo para reutilizar';
+  if (prof) prof.style.display = 'block';
+  crozzoCrmUpdateFeNombreVisibility();
+  crozzoCrmUpdateEditButtonState();
+  crozzoPersistClienteSlotFromCurrentForm();
+  return true;
+}
+function crozzoCrmOpenCreateFromSearch() {
+  const q = document.getElementById('crozzoCrmSearch');
+  const v = q ? q.value.trim() : '';
+  crozzoCrmToggleCreatePanel(true);
+  const nn = document.getElementById('crozzoCrmNewNit');
+  const nNom = document.getElementById('crozzoCrmNewNombre');
+  const nitH = document.getElementById('nitCliente');
+  const nomH = document.getElementById('nombreCliente');
+  if (nn) {
+    if (v && crozzoCrmQueryLooksLikeDoc(v)) nn.value = v;
+    else if (nitH && nitH.value) nn.value = nitH.value;
+  }
+  if (nNom && nomH && nomH.value && !nNom.value) nNom.value = nomH.value;
+  setTimeout(function () {
+    if (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
+      CrozzoAdquirienteLookup.bindForm('crm_new');
+    }
+    if (nn && nn.value.replace(/\D/g, '').length >= 4 && typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.runForForm) {
+      CrozzoAdquirienteLookup.runForForm('crm_new', { silent: false });
+    } else if (nNom) {
+      nNom.focus();
+    }
+  }, 80);
+}
+var __crozzoCrmSearchLookupT = null;
+var __crozzoCrmSearchLookupGen = 0;
+function crozzoCrmRunSearchLookup(q, opts) {
+  opts = opts || {};
+  const needle = String(q || '').trim();
+  if (!needle || !crozzoCrmQueryLooksLikeDoc(needle)) return Promise.resolve(null);
+  if (typeof CrozzoAdquirienteLookup === 'undefined' || !CrozzoAdquirienteLookup.lookupAdquiriente) return Promise.resolve(null);
+  const gen = ++__crozzoCrmSearchLookupGen;
+  if (!opts.silent) {
+    crozzoCrmRenderDropdown(crozzoCrmFindClientsByQuery(needle), { pending: true, query: needle });
+  }
+  return CrozzoAdquirienteLookup.lookupAdquiriente(needle).then(function (res) {
+    if (gen !== __crozzoCrmSearchLookupGen) return res;
+    const searchEl = document.getElementById('crozzoCrmSearch');
+    if (!searchEl || searchEl.value.trim() !== needle) return res;
+    const local = crozzoCrmFindClientsByQuery(needle);
+    if (res.ok && res.data) {
+      if (res.data.clientId) {
+        const c = crozzoCrmClientById(res.data.clientId);
+        if (c) {
+          crozzoCrmApplyClientToUi(c);
+          if (!opts.silent && typeof showToast === 'function') showToast('Cliente encontrado.', 'success');
+          return res;
+        }
+      }
+      crozzoCrmApplyLookupGuestToPos(res.data, res.doc);
+      crozzoCrmRenderDropdown(local, { query: needle, lookupOk: true });
+      if (!opts.silent && typeof showToast === 'function') {
+        showToast('Datos cargados — puede cobrar o guardar con ➕ Nuevo.', 'success');
+      }
+    } else {
+      crozzoCrmRenderDropdown(local, { query: needle, lookupMiss: true, lookupMsg: res.error || '' });
+      if (!opts.silent && typeof showToast === 'function') {
+        showToast(res.error || 'Sin datos para ese documento. Use ➕ Nuevo para registrarlo.', 'info');
+      }
+    }
+    return res;
+  });
 }
 function crozzoCrmClientById(id) {
   if (!id) return null;
@@ -13809,23 +13931,43 @@ function crozzoCrmUpsertClientRecordAfterSale(factura) {
   crozzoCrmEnqueueClientSync(c);
   crozzoCrmRefreshProfileFromSelection();
 }
-function crozzoCrmRenderDropdown(items) {
+function crozzoCrmRenderDropdown(items, meta) {
+  meta = meta || {};
   const dd = document.getElementById('crozzoCrmDropdown');
   if (!dd) return;
-  if (!items.length) {
-    dd.innerHTML = '';
-    dd.style.display = 'none';
-    return;
-  }
-  dd.innerHTML = items
-    .map(
-      (c) => `
+  const q = String(meta.query || '').trim();
+  let html = '';
+  if (items && items.length) {
+    html += items
+      .map(
+        (c) => `
     <div class="crozzo-crm-item" data-crm-id="${crozzoCrmEscAttr(c.id)}">
       <span><strong>${crozzoCrmEscAttr(c.nombre || 'Cliente')}</strong> <small style="color:var(--text-muted)">(${crozzoCrmEscAttr(c.nit || 'S/N')})</small></span>
       <span style="color:var(--text-muted)">${crozzoCrmEscAttr(c.telefono || '')}</span>
     </div>`
-    )
-    .join('');
+      )
+      .join('');
+  }
+  if (meta.pending) {
+    html += '<div class="crozzo-crm-item crozzo-crm-item--hint">Buscando documento…</div>';
+  }
+  if (!items.length && !meta.pending && q) {
+    html += '<div class="crozzo-crm-item crozzo-crm-item--hint">Sin clientes locales con «' + crozzoCrmEscAttr(q) + '»</div>';
+  }
+  if ((meta.lookupMiss || (!items.length && !meta.pending)) && q && crozzoCrmQueryLooksLikeDoc(q)) {
+    html +=
+      '<div class="crozzo-crm-item crozzo-crm-item--action" role="button" tabindex="0" onclick="crozzoCrmOpenCreateFromSearch()">' +
+      '<span><strong>➕ Registrar «' +
+      crozzoCrmEscAttr(q) +
+      '»</strong></span>' +
+      '<span style="color:var(--text-muted)">Crear y buscar datos</span></div>';
+  }
+  if (!html) {
+    dd.innerHTML = '';
+    dd.style.display = 'none';
+    return;
+  }
+  dd.innerHTML = html;
   dd.style.display = 'block';
 }
 function crozzoCrmLiteBindCartUi() {
@@ -13837,7 +13979,19 @@ function crozzoCrmLiteBindCartUi() {
       const t = e.target;
       if (!t) return;
       if (t.id === 'crozzoCrmSearch') {
-        crozzoCrmRenderDropdown(crozzoCrmFindClientsByQuery(t.value));
+        const v = t.value;
+        const local = crozzoCrmFindClientsByQuery(v);
+        crozzoCrmRenderDropdown(local, { query: v });
+        if (__crozzoCrmSearchLookupT) clearTimeout(__crozzoCrmSearchLookupT);
+        const digits = crozzoCrmNormNitDigits(v);
+        if (digits.length >= 6) {
+          __crozzoCrmSearchLookupT = setTimeout(function () {
+            __crozzoCrmSearchLookupT = null;
+            const cur = document.getElementById('crozzoCrmSearch');
+            if (!cur || cur.value.trim() !== String(v).trim()) return;
+            crozzoCrmRunSearchLookup(v, { silent: local.length > 0 });
+          }, 850);
+        }
       }
       if (t.id === 'nitCliente') {
         const id = window.__crozzoCrmSelectedClientId;
@@ -13891,6 +14045,22 @@ function crozzoCrmLiteBindCartUi() {
     window.__crozzoCrmCtrlLBound = true;
     document.addEventListener('keydown', (e) => {
       if (crozzoIsReservedBrowserKey(e)) return;
+      const crmSearch = document.getElementById('crozzoCrmSearch');
+      if (crmSearch && document.activeElement === crmSearch && e.key === 'Enter') {
+        e.preventDefault();
+        const v = crmSearch.value.trim();
+        const local = crozzoCrmFindClientsByQuery(v);
+        if (local.length === 1) {
+          crozzoCrmApplyClientToUi(local[0]);
+          const dd = document.getElementById('crozzoCrmDropdown');
+          if (dd) dd.style.display = 'none';
+          return;
+        }
+        if (crozzoCrmQueryLooksLikeDoc(v)) {
+          crozzoCrmRunSearchLookup(v, { silent: false });
+        }
+        return;
+      }
       if (crozzoPosShortcutsBlocked() || crozzoIsTypingTarget(document.activeElement)) return;
       if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
         if (typeof currentPage === 'undefined' || (currentPage !== 'cajero' && currentPage !== 'tablets')) return;
@@ -25337,14 +25507,29 @@ function init() {
       console.error('[crozzo] init', e);
     }
   }
+  function afterBootUpdates(run) {
+    if (typeof window.crozzoWhenBootUpdatesReady === 'function') {
+      window.crozzoWhenBootUpdatesReady(run);
+      return;
+    }
+    if (window.__crozzoBootUpdatesReady) {
+      run();
+      return;
+    }
+    document.addEventListener('crozzo:boot-updates-ready', run, { once: true });
+    setTimeout(run, 15000);
+  }
   function schedule() {
     if (scheduled) return;
     scheduled = true;
+    function whenAllReady() {
+      afterBootUpdates(runInit);
+    }
     if (typeof window.crozzoWhenLazyReady === 'function') {
-      window.crozzoWhenLazyReady(runInit);
+      window.crozzoWhenLazyReady(whenAllReady);
     } else {
-      document.addEventListener('crozzo-lazy-ready', runInit, { once: true });
-      setTimeout(runInit, 8000);
+      document.addEventListener('crozzo-lazy-ready', whenAllReady, { once: true });
+      setTimeout(whenAllReady, 8000);
     }
   }
   setTimeout(schedule, 0);

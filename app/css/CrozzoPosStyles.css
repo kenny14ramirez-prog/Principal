@@ -124,12 +124,12 @@ html.crozzo-vp-ready {
 }
 
 html.crozzo-vp-ready body {
-  height: var(--crozzo-content-h);
-  max-height: var(--crozzo-content-h);
+  height: var(--crozzo-vh);
+  max-height: var(--crozzo-vh);
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  padding-bottom: var(--crozzo-bottom-safe);
+  padding-bottom: 0;
 }
 
 html.crozzo-vp-ready .app-container {
@@ -143,6 +143,7 @@ html.crozzo-vp-ready .app-container {
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
+  margin: 0;
 }
 
 html.crozzo-vp-ready .sidebar,
@@ -4176,6 +4177,23 @@ tr:hover {
   font-size: 0.82rem;
   border-bottom: 1px solid var(--border);
 }
+.crozzo-crm-item--hint {
+  cursor: default;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 10px 12px;
+}
+.crozzo-crm-item--hint:hover {
+  background: transparent;
+}
+.crozzo-crm-item--action {
+  cursor: pointer;
+  border-top: 1px dashed var(--border);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
+}
+.crozzo-crm-item--action:hover {
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.12);
+}
 .crozzo-crm-item:last-child {
   border-bottom: none;
 }
@@ -6201,18 +6219,55 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 }
 
 /* —— Restaurante · POS (premium) —— */
-.crozzo-page-rest-pos .main-content,
-.main-body--rest-pos {
-  padding-top: 8px;
+body.crozzo-page-rest-pos .main-body,
+#mainContent.main-body--rest-pos {
+  padding: 0;
+  overflow: hidden !important;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+html.crozzo-vp-ready body.crozzo-page-rest-pos .main-body,
+html.crozzo-vp-ready #mainContent.main-body--rest-pos {
+  overflow: hidden !important;
+  -webkit-overflow-scrolling: auto;
+}
+html.crozzo-vp-ready body.crozzo-page-rest-pos {
+  padding-bottom: 0 !important;
+}
+.crozzo-page-rest-pos .main-content {
+  padding-top: 0;
+  min-height: 0;
 }
 .crozzo-rest-pos {
   --rest-gold: var(--accent, #c9a962);
   --rest-gold-rgb: var(--accent-rgb, 201, 169, 98);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  height: calc(100vh - 112px);
-  min-height: 520px;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 0 6px 2px;
+}
+.crozzo-rest-pos__bar,
+.crozzo-rest-pos__modes,
+.crozzo-rest-pos > .crozzo-print-queue-bar,
+.crozzo-rest-pos > .alert,
+.crozzo-rest-pos > .crozzo-emergency-pagebar {
+  flex-shrink: 0;
+}
+.crozzo-rest-pos .pos-container,
+.crozzo-rest-pos__workspace.pos-container {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  gap: 8px;
 }
 .crozzo-rest-pos--picker {
   height: auto;
@@ -6282,10 +6337,10 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 12px 16px;
-  border-radius: 16px;
+  padding: 8px 12px;
+  border-radius: 12px;
   border: 1px solid rgba(var(--rest-gold-rgb), 0.22);
   background: linear-gradient(135deg, var(--bg-card) 0%, rgba(var(--rest-gold-rgb), 0.06) 100%);
   box-shadow: var(--elevation-1);
@@ -6359,9 +6414,9 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 11px 12px;
-  border-radius: 12px;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text-secondary);
@@ -6417,9 +6472,9 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-rest-pos__search {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 14px;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   margin-bottom: 4px;
@@ -6682,9 +6737,6 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-rest-pos__action--cash:hover:not(:disabled) {
   background: rgba(16, 185, 129, 0.1);
 }
-.crozzo-rest-pos__ticket-foot {
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-}
 @keyframes crozzoPrintQueuePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.82; }
@@ -6730,11 +6782,17 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   min-width: 0;
 }
 .crozzo-rest-pos__workspace {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  height: auto !important;
-  grid-template-columns: 1fr min(400px, 36vw);
-  gap: 14px;
+  height: 100% !important;
+  display: grid;
+  grid-template-columns: 1fr min(380px, 34vw);
+  gap: 8px;
+  overflow: hidden;
+  align-items: stretch;
+}
+.crozzo-rest-pos__workspace > * {
+  min-height: 0;
 }
 .crozzo-rest-pos__catalog {
   display: flex;
@@ -6753,7 +6811,7 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   background: var(--bg-card);
 }
 .crozzo-rest-pos__cats {
-  padding: 10px 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
 .crozzo-rest-pos__cat-toggle {
@@ -6771,9 +6829,10 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   margin-top: 10px;
 }
 .crozzo-rest-pos__products {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: 8px;
   grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
 }
 .crozzo-rest-product {
@@ -6819,12 +6878,38 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   border: 1px solid rgba(var(--rest-gold-rgb), 0.22);
   background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
 }
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-head,
+body.crozzo-page-rest-pos .crozzo-rest-pos__pending,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-wrap,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  flex-shrink: 0;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__cart-items {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 8px;
+}
 .crozzo-rest-pos__ticket-head {
-  padding: 14px 16px !important;
+  padding: 10px 12px !important;
   border-bottom: 1px solid var(--border);
   background: rgba(var(--rest-gold-rgb), 0.06);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-wrap {
+  margin: 0 10px 6px;
+  padding-bottom: 0;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
+  margin: 6px 10px 0;
+  padding: 6px 8px;
 }
 .crozzo-rest-pos__ticket-label {
   display: inline-flex;
@@ -6871,14 +6956,14 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   font-size: 0.88rem;
 }
 .crozzo-rest-pos__ticket-foot {
-  padding: 14px 16px 16px !important;
+  padding: 8px 12px 6px !important;
   border-top: 1px solid var(--border);
   background: var(--bg-card);
 }
 .crozzo-rest-pos__totals {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
 }
@@ -6894,8 +6979,11 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-bottom: 8px !important;
+  gap: 6px;
+  min-height: 36px;
+  margin-bottom: 6px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
 }
 .crozzo-rest-pos__action [data-lucide] {
   width: 18px;
@@ -17839,6 +17927,85 @@ body.crozzo-a11y-focus-mode .focus-zone {
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+/* Arranque — comprobación/instalación OTA antes del login */
+.crozzo-boot-update-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--login-overlay-bg, rgba(15, 23, 42, 0.92));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.crozzo-boot-update-gate.is-open {
+  display: flex;
+}
+body.crozzo-boot-updates-active {
+  overflow: hidden;
+}
+body.crozzo-boot-updates-active .login-overlay:not([hidden]) {
+  visibility: hidden;
+  pointer-events: none;
+}
+body.crozzo-boot-updates-active .app-container,
+body.crozzo-boot-updates-active .sidebar {
+  visibility: hidden;
+  pointer-events: none;
+}
+.crozzo-boot-update-gate__card {
+  max-width: 420px;
+  width: 100%;
+  padding: var(--space-8) var(--space-6);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--surface-elevated, #fff);
+  box-shadow: var(--shadow-xl, 0 24px 48px rgba(0, 0, 0, 0.2));
+  text-align: center;
+}
+.crozzo-boot-update-gate__spinner {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-5);
+  border: 3px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  border-top-color: var(--accent, #1e3a8a);
+  border-radius: 50%;
+  animation: crozzo-boot-spin 0.9s linear infinite;
+}
+@keyframes crozzo-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+html.crozzo-a11y-reduce-motion .crozzo-boot-update-gate__spinner {
+  animation: none;
+  border-top-color: var(--accent, #1e3a8a);
+}
+.crozzo-boot-update-gate__brand {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+  margin: 0 0 var(--space-2);
+}
+.crozzo-boot-update-gate__title {
+  margin: 0 0 var(--space-3);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+.crozzo-boot-update-gate__msg {
+  margin: 0 0 var(--space-3);
+  font-size: 0.95rem;
+  color: var(--text-secondary, #334155);
+}
+.crozzo-boot-update-gate__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.45;
+}
 /* Actualizaciones — integradas al shell Executive Elite */
 .crozzo-update-critical-overlay {
   position: fixed;
@@ -20446,5 +20613,117 @@ html.crozzo-form-mobile .login-overlay,
 html.crozzo-form-tablet .login-overlay {
   padding-top: var(--crozzo-safe-top);
   padding-bottom: calc(var(--crozzo-bottom-safe, 0px) + var(--crozzo-safe-bottom));
+}
+
+/* —— POS Restaurante: layout delgado (Tauri / escritorio) —— */
+html.crozzo-vp-ready body.crozzo-page-rest-pos,
+html.crozzo-vp-ready body.crozzo-page-rest-pos .app-container,
+html.crozzo-vp-ready body.crozzo-page-rest-pos .main-content {
+  padding-bottom: 0 !important;
+}
+body.crozzo-page-rest-pos .main-body,
+body.crozzo-page-rest-pos #mainContent.main-body--rest-pos {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos {
+  gap: 4px !important;
+  padding: 0 4px 0 !important;
+  margin: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos:has(.crozzo-rest-pos__workspace) > .crozzo-rest-pos__bar {
+  display: none !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__modes {
+  gap: 4px !important;
+  margin: 0 !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-mode {
+  padding: 6px 8px !important;
+  min-height: 0 !important;
+  font-size: 0.78rem !important;
+  border-radius: 8px !important;
+}
+body.crozzo-page-rest-pos .pos-container,
+body.crozzo-page-rest-pos .crozzo-rest-pos__workspace {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__workspace > * {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__catalog {
+  min-height: 0 !important;
+  height: 100% !important;
+  border-radius: 10px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__search--inline {
+  padding: 4px 8px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__cats {
+  padding: 4px 8px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__products {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding: 6px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket {
+  min-height: 0 !important;
+  height: 100% !important;
+  border-radius: 10px !important;
+}
+body.crozzo-page-rest-pos .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__cart-items {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 6px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-head {
+  padding: 6px 10px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
+  margin: 4px 8px 0 !important;
+  padding: 4px 8px !important;
+  font-size: 0.72rem !important;
+}
+body.crozzo-page-rest-pos .crozzo-crm-wrap {
+  margin: 0 8px 4px !important;
+  padding: 0 !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  padding: 6px 8px 4px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__totals {
+  margin-bottom: 4px !important;
+  padding: 6px 8px !important;
+}
+body.crozzo-page-rest-pos .touch-main-btn,
+body.crozzo-page-rest-pos .crozzo-rest-pos__action {
+  padding: 6px 8px !important;
+  min-height: 0 !important;
+  margin-bottom: 4px !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty {
+  padding: 16px 8px !important;
 }
 

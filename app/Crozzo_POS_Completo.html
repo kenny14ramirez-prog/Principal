@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.35">
+<meta name="crozzo-app-version" content="1.0.36">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -35,7 +35,13 @@
   window.__crozzoAuthInteractiveThisBoot = false;
   window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
   window.crozzoPosIsOperationBusy = window.crozzoPosIsOperationBusy || function () { return false; };
+  window.crozzoPosIsOperationBusyForUpdates = window.crozzoPosIsOperationBusyForUpdates || function () { return false; };
   window.crozzoPosNotifyOperationState = window.crozzoPosNotifyOperationState || function () {};
+  window.crozzoWhenBootUpdatesReady = window.crozzoWhenBootUpdatesReady || function (cb) {
+    if (window.__crozzoBootUpdatesReady) { try { cb(); } catch (_) {} return; }
+    document.addEventListener('crozzo:boot-updates-ready', function () { try { cb(); } catch (_) {} }, { once: true });
+    setTimeout(function () { try { cb(); } catch (_) {} }, 15000);
+  };
   if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 })();
 </script>
@@ -808,6 +814,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>
 <script src="modules/CrozzoPerfilesOperativos.js" defer></script>
+<script src="infra/CrozzoTauriUpdater.js" defer></script>
+<script src="infra/CrozzoSystemUpdates.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
 <script src="modules/CrozzoOperativePsyche.js" defer></script>
@@ -816,8 +824,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="core/CrozzoLazyModules.js" defer></script>
-<script src="infra/CrozzoTauriUpdater.js" defer></script>
-<script src="infra/CrozzoSystemUpdates.js" defer></script>
 <script src="ui/CrozzoSidebarNav.js" defer></script>
 <script src="ui/CrozzoA11yUser.js" defer></script>
 <!-- Módulos de dominio: bundles en app/bundles/ — carga bajo demanda vía CrozzoLazyModules + CrozzoManifest -->

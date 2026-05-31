@@ -19,11 +19,28 @@
     }
   }
 
+  function isTauriDesktopShell() {
+    var doc = document.documentElement;
+    try {
+      if (doc.classList.contains('tauri-shell') && doc.classList.contains('crozzo-form-desktop')) {
+        return true;
+      }
+      if (global.__TAURI__ || global.__TAURI_INTERNALS__) {
+        return (global.innerWidth || 0) >= 1024;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   function measureBottomInset() {
     var bottom = 0;
     try {
       if (isBottomNavVisible()) bottom += navHeight();
     } catch (_) {}
+    /* Tauri escritorio: innerHeight ya es el área útil; no restar barra de tareas otra vez */
+    if (isTauriDesktopShell() && !isBottomNavVisible()) {
+      return 0;
+    }
     try {
       if (global.visualViewport) {
         var vv = global.visualViewport;
