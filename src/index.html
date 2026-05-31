@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.31">
+<meta name="crozzo-app-version" content="1.0.32">
 <meta name="crozzo-build-stamp" content="2026-05-29T06:41:04.591Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
@@ -413,6 +413,7 @@ if (window.__CROZZO_IS_TAURI__) {
         </div>
       </div>
     </header>
+    <div id="crozzo-global-stress" class="crozzo-global-stress crozzo-global-stress--calm" hidden role="status" aria-live="polite"></div>
     <div id="crozzo-update-normal-banner" class="crozzo-update-normal-banner" role="region" aria-live="polite" aria-label="Actualización disponible" aria-hidden="true">
       <span class="crozzo-update-normal-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>
       <p class="crozzo-update-normal-banner__msg" id="crozzoUpdateNormalMsg">Nueva versión disponible. Mejoras de rendimiento.</p>

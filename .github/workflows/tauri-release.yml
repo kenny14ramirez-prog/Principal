@@ -15,19 +15,23 @@ jobs:
         include:
           - platform: windows-latest
             label: Windows x64
+            rust_target: x86_64-pc-windows-msvc
             args: '--target x86_64-pc-windows-msvc'
             android: false
           - platform: macos-latest
             label: macOS Apple Silicon
+            rust_target: aarch64-apple-darwin
             args: '--target aarch64-apple-darwin'
             android: false
           - platform: macos-latest
             label: macOS Intel
+            rust_target: x86_64-apple-darwin
             args: '--target x86_64-apple-darwin'
             android: false
           - platform: ubuntu-22.04
             label: Android ARM64 (APK)
-            args: '--target aarch64-linux-android --bundles apk'
+            rust_target: aarch64-linux-android
+            args: '--target aarch64'
             android: true
 
     runs-on: ${{ matrix.platform }}
@@ -75,7 +79,7 @@ jobs:
       - name: Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.android && 'aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android' || matrix.target }}
+          targets: ${{ matrix.android && 'aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android' || matrix.rust_target }}
 
       - name: Versión desde tag
         run: node scripts/sync-version-from-tag.mjs "${{ github.ref_name }}"
@@ -89,8 +93,11 @@ jobs:
       - name: Init proyecto Android
         if: matrix.android
         env:
+          CI: true
           NDK_HOME: ${{ steps.android-ndk.outputs.ndk-path }}
-        run: npx tauri android init --ci
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        run: npx tauri android init --ci --skip-targets-install
 
       - name: Compilar ${{ matrix.label }} y publicar release
         uses: tauri-apps/tauri-action@v0
@@ -117,6 +124,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+          mobile: ${{ matrix.android && 'android' || '' }}
           includeUpdaterJson: ${{ !matrix.android }}
           updaterJsonPreferNsis: true
 

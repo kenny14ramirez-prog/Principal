@@ -1,5 +1,4 @@
 {
-  "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile-capability",
   "description": "Permisos app Android / tablet",
   "platforms": ["android", "iOS"],
