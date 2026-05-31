@@ -531,10 +531,33 @@ class ConfigManager {
 // ==========================================
 // packages/shared-dian/validators/nit-validator.ts
 // ==========================================
+function normalizarEntradaNit(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return s;
+  var sep = s.match(/^(\d{8,14})[\s,.\u00B7\-]+(\d)$/);
+  if (sep) return sep[1] + '-' + sep[2];
+  return s;
+}
+function intentarSepararNitDv(digits) {
+  if (!/^[0-9]{10,11}$/.test(digits)) return null;
+  var base = digits.slice(0, -1);
+  var dv = digits.slice(-1);
+  var dvCalc = calcularDV(base);
+  if (dvCalc === parseInt(dv, 10)) {
+    return { base: base, dv: dv, display: base + '-' + dv };
+  }
+  return null;
+}
+function inferirNitDesdeSoloBase(digits) {
+  if (!/^[0-9]{9}$/.test(digits)) return null;
+  if (digits.charAt(0) !== '8' && digits.charAt(0) !== '9') return null;
+  var dv = calcularDV(digits);
+  return { base: digits, dv: String(dv), display: digits + '-' + dv };
+}
 function validarNIT(nit, opciones) {
   var opts = opciones || {};
   var relajado = !!opts.relajado;
-  var raw = String(nit || '').trim();
+  var raw = normalizarEntradaNit(nit);
   if (!raw) {
     return relajado ? { valido: true, modo: 'vacio' } : { valido: false, error: 'NIT requerido' };
   }
@@ -565,6 +588,8 @@ function validarNIT(nit, opciones) {
         return {
           valido: true,
           modo: 'dv_no_verificado',
+          base: base,
+          dv: parseInt(dvInput, 10),
           advertencia:
             'El dígito de verificación no coincide con el algoritmo DIAN; se guarda como referencia. Para factura electrónica válida corrige el NIT o usa consumidor final.',
         };
@@ -573,8 +598,20 @@ function validarNIT(nit, opciones) {
     }
     return { valido: true, dv: dvCalculado, base: base, modo: 'nit_dian' };
   }
+  if (/^[0-9]{10,11}$/.test(clean)) {
+    var sp = intentarSepararNitDv(clean);
+    if (sp) {
+      return { valido: true, dv: parseInt(sp.dv, 10), base: sp.base, modo: 'nit_dian' };
+    }
+  }
+  if (/^[0-9]{9}$/.test(clean)) {
+    var inf = inferirNitDesdeSoloBase(clean);
+    if (inf) {
+      return { valido: true, dv: parseInt(inf.dv, 10), base: inf.base, modo: 'nit_dian', inferido: true };
+    }
+  }
   if (relajado && /^[0-9]{4,15}$/.test(clean)) {
-    return { valido: true, modo: 'cedula_o_documento' };
+    return { valido: true, modo: 'cedula_o_documento', base: clean };
   }
   if (relajado) {
     return {
@@ -11577,9 +11614,16 @@ function initTablets() {
   if (document.getElementById('crozzoCrmWrap')) {
     if (typeof crozzoHydrateClienteSlotToForm === 'function') crozzoHydrateClienteSlotToForm();
     crozzoCrmLiteBindCartUi();
+    if (typeof CrozzoCrmRegistroQr !== 'undefined' && CrozzoCrmRegistroQr.mountTabletCrmExtras) {
+      CrozzoCrmRegistroQr.mountTabletCrmExtras();
+    }
+    if (typeof CrozzoAdquirienteLookup !== 'undefined') {
+      if (typeof CrozzoAdquirienteLookup.bindForm === 'function') CrozzoAdquirienteLookup.bindForm('crm_new');
+      if (typeof CrozzoAdquirienteLookup.bindAllVisible === 'function') CrozzoAdquirienteLookup.bindAllVisible();
+    }
   }
 }
-function renderCajaClientes() {
+function crozzoCajaClientesRowsHtml() {
   const list = typeof crozzoCrmGetClients === 'function' ? crozzoCrmGetClients() : [];
   const needle = normalizeText(window.__crozzoClienteDirSearch || '');
   const filtered = list.filter((c) => {
@@ -11588,7 +11632,7 @@ function renderCajaClientes() {
     );
     return !needle || hay.includes(needle);
   });
-  const rows = filtered
+  return filtered
     .slice()
     .sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es'))
     .map((c) => {
@@ -11606,6 +11650,16 @@ function renderCajaClientes() {
       </tr>`;
     })
     .join('');
+}
+function crozzoCajaClientesRefreshTable() {
+  const tbody = document.getElementById('crozzoClientesDirTbody');
+  if (!tbody) return;
+  const rows = crozzoCajaClientesRowsHtml();
+  tbody.innerHTML =
+    rows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Sin coincidencias. Borre el filtro o cree un cliente nuevo.</td></tr>';
+}
+function renderCajaClientes() {
+  const rows = crozzoCajaClientesRowsHtml();
   return `
     <div class="card">
       <div class="card-header">
@@ -11637,6 +11691,7 @@ function renderCajaClientes() {
         </table>
       </div>
       <p class="form-hint" style="margin-top:12px;">Los datos se guardan en este equipo (<code>clientesCrm</code>). Cupo crédito, notas e historial se gestionan desde el panel CRM al cobrar.</p>
+      <div id="crozzoCrmRegMount"></div>
     </div>
   `;
 }
@@ -11646,8 +11701,15 @@ function initCajaClientes() {
     inp._crozzoDirBound = true;
     inp.addEventListener('input', function (e) {
       window.__crozzoClienteDirSearch = e.target.value;
-      if (typeof renderPage === 'function') renderPage('caja-clientes');
+      if (window.__crozzoClienteDirSearchT) clearTimeout(window.__crozzoClienteDirSearchT);
+      window.__crozzoClienteDirSearchT = setTimeout(function () {
+        window.__crozzoClienteDirSearchT = null;
+        crozzoCajaClientesRefreshTable();
+      }, 150);
     });
+  }
+  if (typeof CrozzoCrmRegistroQr !== 'undefined' && CrozzoCrmRegistroQr.mountInClientesPage) {
+    CrozzoCrmRegistroQr.mountInClientesPage();
   }
 }
 function crozzoCajaClientesOpenNew() {
@@ -11676,13 +11738,13 @@ function crozzoCajaClientesEditFormHtml(c) {
   const id = isNew ? '' : String(c.id || '').replace(/"/g, '&quot;');
   return `
     <div class="fade-in">
-      <p class="form-hint crozzo-crm-create-intro" style="margin-bottom:10px;">Para factura electrónica. Escriba cédula o NIT — el sistema puede completar el resto. Vacío = consumidor final.</p>
-      <div class="form-group"><label class="form-label">NIT / documento (opcional)</label><input type="text" class="form-input" id="cliDirNit" placeholder="Ej. 900123456-1 o cédula sin guion" value="${isNew ? '' : crozzoCrmEscAttr(c.nit || '')}">${typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.lookupFieldHtml ? CrozzoAdquirienteLookup.lookupFieldHtml('crm_modal') : ''}</div>
+      <p class="form-hint crozzo-crm-create-intro" style="margin-bottom:10px;">Para factura electrónica: NIT, nombre y correo son obligatorios. Acepta 900319753-3, 900319753 3 o 9003197533.</p>
+      <div class="form-group"><label class="form-label">NIT / documento *</label><input type="text" class="form-input" id="cliDirNit" placeholder="Ej. 900319753-3 · también 900319753 3 o 9003197533" value="${isNew ? '' : crozzoCrmEscAttr(c.nit || '')}">${typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.lookupFieldHtml ? CrozzoAdquirienteLookup.lookupFieldHtml('crm_modal') : ''}</div>
       <div class="form-group"><label class="form-label">Nombre o razón social *</label><input type="text" class="form-input" id="cliDirNom" value="${isNew ? '' : crozzoCrmEscAttr(c.nombre || '')}"></div>
       <div class="form-group"><label class="form-label">Teléfono (opcional · WhatsApp)</label><input type="text" class="form-input" id="cliDirTel" placeholder="Ej. 310… (referencia para enviar copia PDF por WhatsApp)" value="${isNew ? '' : crozzoCrmEscAttr(c.telefono || '')}"></div>
       <div class="form-group">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-          <label class="form-label" style="margin:0;">Correos (PDF / notificaciones)</label>
+          <label class="form-label" style="margin:0;">Correos * (PDF / FE)</label>
           <button type="button" class="btn btn-outline" style="padding:2px 10px;font-size:0.75rem;" onclick="crozzoCrmAddCliDirEmailRow()">+ Correo</button>
         </div>
         <div id="cliDirEmailsList" style="margin-top:6px;">${crozzoCrmBuildModalEmailsListInnerHtml(c)}</div>
@@ -11700,21 +11762,17 @@ function crozzoCajaClientesEditFormHtml(c) {
 function crozzoCajaClientesSaveFromModal(existingId) {
   if (typeof config === 'undefined' || !config.get || !config.set || !config.save) return;
   const nom = (document.getElementById('cliDirNom') && document.getElementById('cliDirNom').value.trim()) || '';
-  if (!nom) {
-    if (typeof showToast === 'function') showToast('El nombre es obligatorio', 'warning');
+  const nitRaw = (document.getElementById('cliDirNit') && document.getElementById('cliDirNit').value.trim()) || '';
+  const emailArr =
+    typeof crozzoCrmCollectEmailsFromContainer === 'function'
+      ? crozzoCrmCollectEmailsFromContainer('cliDirEmailsList', 'cliDirEmailIn')
+      : [];
+  const req = crozzoCrmValidateRequiredClientFields(nitRaw, nom, emailArr);
+  if (!req.ok) {
+    if (typeof showToast === 'function') showToast(req.msg, 'warning');
     return;
   }
-  const nitRaw = (document.getElementById('cliDirNit') && document.getElementById('cliDirNit').value.trim()) || '';
-  const nit = typeof crozzoCrmNormNit === 'function' ? crozzoCrmNormNit(nitRaw) : nitRaw.replace(/[^0-9-]/g, '').trim();
-  if (nitRaw && nit) {
-    try {
-      const vr = validarNIT(nitRaw, { relajado: true });
-      if (!vr.valido) {
-        if (typeof showToast === 'function') showToast('NIT inválido: ' + (vr.error || ''), 'error');
-        return;
-      }
-    } catch (_) {}
-  }
+  const nit = req.nit;
   let list = config.get('clientesCrm');
   if (!Array.isArray(list)) {
     list = [];
@@ -11726,7 +11784,7 @@ function crozzoCajaClientesSaveFromModal(existingId) {
     return;
   }
   if (nit && !existingId) {
-    const dup = list.find((x) => typeof crozzoCrmNormNit === 'function' && crozzoCrmNormNit(x.nit) === nit);
+    const dup = list.find((x) => typeof crozzoCrmNitsEquivalent === 'function' && crozzoCrmNitsEquivalent(x.nit, nit));
     if (dup) {
       if (typeof showToast === 'function') showToast('Ya existe un cliente con ese NIT', 'error');
       return;
@@ -11735,7 +11793,7 @@ function crozzoCajaClientesSaveFromModal(existingId) {
   if (nit && existingId) {
     const dup = list.find(
       (x) =>
-        x.id !== existingId && typeof crozzoCrmNormNit === 'function' && crozzoCrmNormNit(x.nit) === nit
+        x.id !== existingId && typeof crozzoCrmNitsEquivalent === 'function' && crozzoCrmNitsEquivalent(x.nit, nit)
     );
     if (dup) {
       if (typeof showToast === 'function') showToast('Ya existe otro cliente con ese NIT', 'error');
@@ -11764,14 +11822,11 @@ function crozzoCajaClientesSaveFromModal(existingId) {
   c.nombre = nom;
   c.nit = nit || c.nit || '';
   c.telefono = (document.getElementById('cliDirTel') && document.getElementById('cliDirTel').value.trim()) || '';
-  const emailArr =
-    typeof crozzoCrmCollectEmailsFromContainer === 'function'
-      ? crozzoCrmCollectEmailsFromContainer('cliDirEmailsList', 'cliDirEmailIn')
-      : [];
-  if (typeof crozzoCrmApplyEmailsToClientRecord === 'function') crozzoCrmApplyEmailsToClientRecord(c, emailArr);
-  else {
-    c.emails = emailArr;
-    c.email = emailArr[0] || '';
+  if (typeof crozzoCrmApplyEmailsToClientRecord === 'function') {
+    crozzoCrmApplyEmailsToClientRecord(c, req.emails);
+  } else {
+    c.emails = req.emails;
+    c.email = req.emails[0] || '';
   }
   c.ciudad = (document.getElementById('cliDirCiudad') && document.getElementById('cliDirCiudad').value.trim()) || '';
   c.direccion = (document.getElementById('cliDirDir') && document.getElementById('cliDirDir').value.trim()) || '';
@@ -13209,11 +13264,13 @@ function crozzoCrmPosClientePanelHtml() {
   return (
     '<div class="crozzo-crm-wrap" id="crozzoCrmWrap">' +
     '  <div class="crozzo-crm-toolbar">' +
-    '    <div class="crozzo-crm-search-wrap">' +
-    '      <input type="text" class="crozzo-crm-search" id="crozzoCrmSearch" placeholder="Buscar cliente (NIT, nombre, teléfono, correo…) · Ctrl+L" autocomplete="off">' +
+    '    <div class="crozzo-crm-search-wrap crozzo-crm-search-wrap--with-btn">' +
+      '      <input type="text" class="crozzo-crm-search" id="crozzoCrmSearch" placeholder="NIT, cédula o nombre" autocomplete="off">' +
+    '      <button type="button" class="btn btn-outline crozzo-crm-search-go" onclick="crozzoCrmSearchFromBar()" title="Buscar en directorio e internet" aria-label="Buscar cliente">🌐</button>' +
     '      <div class="crozzo-crm-dropdown" id="crozzoCrmDropdown" style="display:none;"></div>' +
     '    </div>' +
     '    <div class="crozzo-crm-toolbar-actions">' +
+    '      <button type="button" class="btn btn-outline crozzo-crm-tb-btn" onclick="crozzoCrmRegistroOpenQrModal()" title="Mostrar QR de registro al cliente">📲 QR</button>' +
     '      <button type="button" class="btn btn-outline crozzo-crm-tb-btn" onclick="crozzoCrmToggleCreatePanel(true)" title="Registrar cliente nuevo">➕ Nuevo</button>' +
     '      <button type="button" class="btn btn-outline crozzo-crm-tb-btn" id="crozzoCrmBtnEdit" disabled onclick="crozzoCrmOpenEditSelected()" title="Editar cliente cargado">✏️ Editar</button>' +
     '    </div>' +
@@ -13223,8 +13280,12 @@ function crozzoCrmPosClientePanelHtml() {
     '      <strong style="font-size:0.88rem;">Nuevo cliente (FE)</strong>' +
     '      <button type="button" class="btn btn-outline" style="padding:4px 10px;font-size:0.75rem;" onclick="crozzoCrmToggleCreatePanel(false)">Cerrar</button>' +
     '    </div>' +
-    '    <p class="form-hint crozzo-crm-create-intro" style="margin:0 0 10px;">Registre al cliente con calma — el documento puede autocompletar nombre y correo. Queda guardado para la próxima visita.</p>' +
-    '    <div class="form-group"><label class="form-label">NIT / documento (opcional)</label><input type="text" class="form-input" id="crozzoCrmNewNit" placeholder="NIT-DV (empresa) o cédula solo números; vacío = consumidor final">' +
+    '    <p class="form-hint crozzo-crm-create-intro" style="margin:0 0 10px;">NIT + correo + nombre. Busca razón social en internet o suba el RUT.</p>' +
+    '    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+    '      <button type="button" class="btn btn-outline" style="padding:4px 12px;font-size:0.78rem;" id="crozzoCrmNewRutBtn">📄 Subir RUT</button>' +
+    '      <input type="file" id="crozzoCrmNewRutFile" accept=".pdf,image/*,application/pdf" style="display:none;">' +
+    '    </div>' +
+    '    <div class="form-group"><label class="form-label">NIT / documento *</label><input type="text" class="form-input" id="crozzoCrmNewNit" placeholder="NIT-DV o cédula · ej. 900319753-3">' +
     (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.lookupFieldHtml
       ? CrozzoAdquirienteLookup.lookupFieldHtml('crm_new')
       : '') +
@@ -13233,7 +13294,7 @@ function crozzoCrmPosClientePanelHtml() {
     '    <div class="form-group"><label class="form-label">Teléfono (opcional · WhatsApp)</label><input type="text" class="form-input" id="crozzoCrmNewTel" placeholder="Ej. 310… (referencia para enviar copia PDF por WhatsApp)"></div>' +
     '    <div class="form-group">' +
     '      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px;">' +
-    '        <label class="form-label" style="margin:0;">Correos</label>' +
+    '        <label class="form-label" style="margin:0;">Correos *</label>' +
     '        <button type="button" class="btn btn-outline" style="padding:2px 10px;font-size:0.75rem;" onclick="crozzoCrmNewAddEmailRow()">+ Correo</button>' +
     '      </div>' +
     '      <div id="crozzoCrmNewEmailsList">' +
@@ -13304,6 +13365,9 @@ function crozzoCrmUpdateFeNombreVisibility() {
       if (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
         CrozzoAdquirienteLookup.bindForm('crm_new');
       }
+      if (typeof CrozzoCrmRegistroQr !== 'undefined' && CrozzoCrmRegistroQr.mountTabletCrmExtras) {
+        CrozzoCrmRegistroQr.mountTabletCrmExtras();
+      }
       if (nn) nn.focus();
     }, 60);
   } else {
@@ -13314,21 +13378,17 @@ function crozzoCrmUpdateFeNombreVisibility() {
 function crozzoCrmSubmitNewClient() {
   if (typeof config === 'undefined' || !config.get || !config.set || !config.save) return;
   var nom = (document.getElementById('crozzoCrmNewNombre') && document.getElementById('crozzoCrmNewNombre').value.trim()) || '';
-  if (!nom) {
-    if (typeof showToast === 'function') showToast('Indica el nombre o razón social', 'warning');
+  var nitRaw = (document.getElementById('crozzoCrmNewNit') && document.getElementById('crozzoCrmNewNit').value.trim()) || '';
+  var emailArr =
+    typeof crozzoCrmCollectEmailsFromContainer === 'function'
+      ? crozzoCrmCollectEmailsFromContainer('crozzoCrmNewEmailsList', 'crozzoCrmNewEmailIn')
+      : [];
+  var req = crozzoCrmValidateRequiredClientFields(nitRaw, nom, emailArr);
+  if (!req.ok) {
+    if (typeof showToast === 'function') showToast(req.msg, 'warning');
     return;
   }
-  var nitRaw = (document.getElementById('crozzoCrmNewNit') && document.getElementById('crozzoCrmNewNit').value.trim()) || '';
-  var nit = crozzoCrmNormNit(nitRaw);
-  if (nitRaw && nit) {
-    try {
-      var vr = validarNIT(nitRaw, { relajado: true });
-      if (!vr.valido) {
-        if (typeof showToast === 'function') showToast('NIT inválido: ' + (vr.error || ''), 'error');
-        return;
-      }
-    } catch (_) {}
-  }
+  var nit = req.nit;
   var list = config.get('clientesCrm');
   if (!Array.isArray(list)) {
     list = [];
@@ -13336,7 +13396,7 @@ function crozzoCrmSubmitNewClient() {
   }
   if (nit) {
     var dup = list.find(function (x) {
-      return crozzoCrmNormNit(x.nit) === nit;
+      return crozzoCrmNitsEquivalent(x.nit, nit);
     });
     if (dup) {
       if (typeof showToast === 'function') showToast('Ya existe un cliente con ese NIT; se selecciona el existente.', 'info');
@@ -13345,10 +13405,6 @@ function crozzoCrmSubmitNewClient() {
       return;
     }
   }
-  var emailArr =
-    typeof crozzoCrmCollectEmailsFromContainer === 'function'
-      ? crozzoCrmCollectEmailsFromContainer('crozzoCrmNewEmailsList', 'crozzoCrmNewEmailIn')
-      : [];
   var c = {
     id: crozzoCrmNewClientId(),
     nit: nit || '',
@@ -13365,10 +13421,10 @@ function crozzoCrmSubmitNewClient() {
     totalCompras: 0,
     historial: [],
   };
-  if (typeof crozzoCrmApplyEmailsToClientRecord === 'function') crozzoCrmApplyEmailsToClientRecord(c, emailArr);
+  if (typeof crozzoCrmApplyEmailsToClientRecord === 'function') crozzoCrmApplyEmailsToClientRecord(c, req.emails);
   else {
-    c.emails = emailArr;
-    c.email = emailArr[0] || '';
+    c.emails = req.emails;
+    c.email = req.emails[0] || '';
   }
   list.push(c);
   config.save();
@@ -13394,7 +13450,213 @@ function crozzoResolveCompradorNombreForFe() {
   return 'Consumidor Final';
 }
 function crozzoCrmNormNit(nit) {
+  var vr = validarNIT(normalizarEntradaNit(nit), { relajado: true });
+  if (vr.valido && vr.modo === 'nit_dian' && vr.base != null) {
+    return vr.base + '-' + vr.dv;
+  }
+  if (vr.valido && vr.modo === 'cedula_o_documento' && vr.base) {
+    return vr.base;
+  }
   return String(nit || '').replace(/[^0-9-]/g, '').trim();
+}
+function crozzoCrmNormNitDigits(nit) {
+  var vr = validarNIT(normalizarEntradaNit(nit), { relajado: true });
+  if (vr.valido && vr.modo === 'nit_dian' && vr.base != null) {
+    return vr.base + String(vr.dv);
+  }
+  return String(nit || '').replace(/\D/g, '');
+}
+function crozzoCrmNitsEquivalent(a, b) {
+  var da = crozzoCrmNormNitDigits(a);
+  var db = crozzoCrmNormNitDigits(b);
+  if (!da || !db) return false;
+  return da === db;
+}
+function crozzoCrmDocQueryComplete(q) {
+  var prep = normalizarEntradaNit(q);
+  var vr = validarNIT(prep, { relajado: true });
+  if (vr.valido && vr.modo === 'nit_dian' && vr.base) return true;
+  if (vr.valido && vr.modo === 'cedula_o_documento' && vr.base && String(vr.base).length >= 6) return true;
+  return crozzoCrmNormNitDigits(q).length >= 10;
+}
+function crozzoCrmSetPendingLookup(data, doc, source) {
+  window.__crozzoCrmPendingLookup = data && doc ? { data: data, doc: doc, source: source || '' } : null;
+}
+function crozzoCrmExactLocalByQuery(q) {
+  var qq = String(q || '').trim();
+  if (!qq) return [];
+  return crozzoCrmFindClientsByQuery(qq).filter(function (c) {
+    return crozzoCrmNitsEquivalent(c.nit, qq);
+  });
+}
+function crozzoCrmScheduleInternetLookup(q) {
+  if (__crozzoCrmSearchLookupT) clearTimeout(__crozzoCrmSearchLookupT);
+  __crozzoCrmSearchLookupT = null;
+  var v = String(q || '').trim();
+  if (!v || !crozzoCrmDocQueryComplete(v)) return;
+  if (crozzoCrmExactLocalByQuery(v).length > 0) return;
+  __crozzoCrmSearchLookupT = setTimeout(function () {
+    __crozzoCrmSearchLookupT = null;
+    var el = document.getElementById('crozzoCrmSearch');
+    if (!el || el.value.trim() !== v) return;
+    crozzoCrmRunInternetLookup(v);
+  }, 700);
+}
+function crozzoCrmRunInternetLookup(q, opts) {
+  opts = opts || {};
+  var needle = String(q || '').trim();
+  if (!needle || !crozzoCrmQueryLooksLikeDoc(needle)) return Promise.resolve(null);
+  if (typeof CrozzoAdquirienteLookup === 'undefined' || !CrozzoAdquirienteLookup.lookupAdquiriente) {
+    return Promise.resolve(null);
+  }
+  if (crozzoCrmExactLocalByQuery(needle).length > 0) return Promise.resolve(null);
+  var gen = ++__crozzoCrmSearchLookupGen;
+  var local = crozzoCrmFindClientsByQuery(needle);
+  crozzoCrmSetPendingLookup(null, null);
+  crozzoCrmRenderDropdown(local, { query: needle, pendingInternet: true });
+  return CrozzoAdquirienteLookup.lookupAdquiriente(needle, { skipLocal: true, skipJsDemo: true }).then(function (res) {
+    if (gen !== __crozzoCrmSearchLookupGen) return res;
+    var searchEl = document.getElementById('crozzoCrmSearch');
+    if (!searchEl || searchEl.value.trim() !== needle) return res;
+    local = crozzoCrmFindClientsByQuery(needle);
+    if (res.ok && res.data && res.data.nombre) {
+      crozzoCrmSetPendingLookup(res.data, res.doc, res.source);
+      crozzoCrmRenderDropdown(local, {
+        query: needle,
+        lookupCandidate: res.data,
+        lookupDoc: res.doc,
+        lookupSource: res.source,
+      });
+      if (opts.autoConfirm) crozzoCrmConfirmPendingLookup();
+    } else {
+      crozzoCrmSetPendingLookup(null, null);
+      crozzoCrmRenderDropdown(local, { query: needle, lookupMiss: true });
+    }
+    return res;
+  });
+}
+function crozzoCrmSearchFromBar() {
+  var el = document.getElementById('crozzoCrmSearch');
+  var v = el ? el.value.trim() : '';
+  if (!v) return;
+  if (window.__crozzoCrmPendingLookup) {
+    crozzoCrmConfirmPendingLookup();
+    return;
+  }
+  var local = crozzoCrmFindClientsByQuery(v);
+  var exact = crozzoCrmExactLocalByQuery(v);
+  if (exact.length === 1) {
+    crozzoCrmApplyClientToUi(exact[0], { clearSearch: true });
+    var dd0 = document.getElementById('crozzoCrmDropdown');
+    if (dd0) dd0.style.display = 'none';
+    return;
+  }
+  if (local.length === 1 && !crozzoCrmDocQueryComplete(v)) {
+    crozzoCrmApplyClientToUi(local[0], { clearSearch: true });
+    var dd1 = document.getElementById('crozzoCrmDropdown');
+    if (dd1) dd1.style.display = 'none';
+    return;
+  }
+  if (crozzoCrmDocQueryComplete(v) && crozzoCrmQueryLooksLikeDoc(v)) {
+    crozzoCrmRunInternetLookup(v);
+  } else if (local.length) {
+    crozzoCrmRenderDropdown(local, { query: v });
+  }
+}
+window.crozzoCrmSearchFromBar = crozzoCrmSearchFromBar;
+function crozzoCrmLookupSourceLabel(source) {
+  if (source === 'dian_tauri' || source === 'dian_supabase' || source === 'dian_demo') return 'DIAN';
+  if (source === 'rues_opendata') return 'RUES';
+  if (source === 'crm_local') return 'directorio';
+  if (source === 'cache') return 'memoria';
+  return 'internet';
+}
+function crozzoCrmLookupContactSummary(data) {
+  if (!data) return '';
+  var bits = [];
+  if (data.nombre) bits.push('nombre');
+  if (data.ciudad) bits.push('ciudad');
+  if (data.telefono) bits.push('tel.');
+  if (data.email) bits.push('correo');
+  if (!data.email) bits.push('correo: lo indica el cliente');
+  return bits.join(' · ');
+}
+function crozzoCrmOpenCreateFromLookupPending(pending) {
+  pending = pending || window.__crozzoCrmPendingLookup;
+  if (!pending || !pending.data) {
+    crozzoCrmOpenCreateFromSearch();
+    return;
+  }
+  var data = pending.data;
+  var doc = pending.doc;
+  crozzoCrmToggleCreatePanel(true);
+  var nn = document.getElementById('crozzoCrmNewNit');
+  var nNom = document.getElementById('crozzoCrmNewNombre');
+  var nTel = document.getElementById('crozzoCrmNewTel');
+  var nCiudad = document.getElementById('crozzoCrmNewCiudad');
+  var nDir = document.getElementById('crozzoCrmNewDir');
+  var display = doc && doc.display ? String(doc.display) : crozzoCrmNormNit(data.nit || '');
+  if (nn) nn.value = display || nn.value || '';
+  if (nNom && data.nombre) nNom.value = data.nombre;
+  if (nTel && data.telefono) nTel.value = data.telefono;
+  if (nCiudad && data.ciudad) nCiudad.value = data.ciudad;
+  if (nDir && data.direccion) nDir.value = data.direccion;
+  var emailList = document.getElementById('crozzoCrmNewEmailsList');
+  if (emailList && typeof crozzoCrmEmailRowHtml === 'function') {
+    emailList.innerHTML = crozzoCrmEmailRowHtml(data.email || '', 'crozzoCrmNewEmailIn');
+  }
+  window.__crozzoCrmPendingLookup = null;
+  var dd = document.getElementById('crozzoCrmDropdown');
+  if (dd) dd.style.display = 'none';
+  setTimeout(function () {
+    if (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
+      CrozzoAdquirienteLookup.bindForm('crm_new');
+    }
+    var focusEmail = document.querySelector('#crozzoCrmNewEmailsList input.crozzoCrmNewEmailIn');
+    if (focusEmail && !focusEmail.value.trim()) focusEmail.focus();
+    else if (nNom && !nNom.value.trim()) nNom.focus();
+  }, 80);
+}
+window.crozzoCrmOpenCreateFromLookupPending = crozzoCrmOpenCreateFromLookupPending;
+function crozzoCrmConfirmPendingLookup() {
+  var pending = window.__crozzoCrmPendingLookup;
+  if (!pending || !pending.data) return false;
+  var data = pending.data;
+  crozzoCrmDismissInternetLookupModal();
+  crozzoCrmOpenCreateFromLookupPending(pending);
+  if (typeof showToast === 'function') {
+    var hint = crozzoCrmLookupContactSummary(data);
+    var msg = data.email
+      ? 'Datos cargados — revise y guarde.'
+      : 'Nombre' +
+        (data.ciudad ? ' y ciudad' : '') +
+        ' cargados. El correo no viene en RUES — pídaselo al cliente.';
+    if (hint) msg += ' (' + hint + ')';
+    showToast(msg, data.email ? 'success' : 'info');
+  }
+  return true;
+}
+window.crozzoCrmConfirmPendingLookup = crozzoCrmConfirmPendingLookup;
+window.crozzoCrmDismissInternetLookupModal = crozzoCrmDismissInternetLookupModal;
+function crozzoCrmEmailLooksValid(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+function crozzoCrmValidateRequiredClientFields(nitRaw, nom, emailArr) {
+  if (!String(nom || '').trim()) {
+    return { ok: false, msg: 'El nombre o razón social es obligatorio' };
+  }
+  if (!String(nitRaw || '').trim()) {
+    return { ok: false, msg: 'NIT o documento es obligatorio' };
+  }
+  var vr = validarNIT(nitRaw, { relajado: true });
+  if (!vr.valido) {
+    return { ok: false, msg: 'NIT inválido: ' + (vr.error || '') };
+  }
+  var mails = (emailArr || []).map(function (e) { return String(e || '').trim(); }).filter(Boolean);
+  if (!mails.length || !mails.some(crozzoCrmEmailLooksValid)) {
+    return { ok: false, msg: 'Indique al menos un correo válido (obligatorio para FE)' };
+  }
+  return { ok: true, nit: crozzoCrmNormNit(nitRaw), emails: mails };
 }
 function crozzoCrmClientEmailsArray(c) {
   if (!c) return [];
@@ -13531,9 +13793,6 @@ function crozzoCrmGetClients() {
   const arr = config.get('clientesCrm');
   return Array.isArray(arr) ? arr : [];
 }
-function crozzoCrmNormNitDigits(nit) {
-  return String(nit || '').replace(/\D/g, '');
-}
 function crozzoCrmQueryLooksLikeDoc(q) {
   return crozzoCrmNormNitDigits(q).length >= 4;
 }
@@ -13551,12 +13810,13 @@ function crozzoCrmFindClientsByQuery(q) {
         .join(' ')
         .toLowerCase();
       if (nom.includes(qq) || tel.includes(qq) || emailHay.includes(qq) || nit.includes(qq)) return true;
-      if (qqDigits.length >= 4 && nitDigits && (nitDigits.includes(qqDigits) || qqDigits.includes(nitDigits))) return true;
+      if (qqDigits.length >= 4 && nitDigits && (nitDigits === qqDigits || crozzoCrmNitsEquivalent(c.nit, q))) return true;
       return false;
     })
     .slice(0, 10);
 }
-function crozzoCrmApplyLookupGuestToPos(data, doc) {
+function crozzoCrmApplyLookupGuestToPos(data, doc, opts) {
+  opts = opts || {};
   if (!data) return false;
   window.__crozzoCrmSelectedClientId = null;
   const nitEl = document.getElementById('nitCliente');
@@ -13565,7 +13825,7 @@ function crozzoCrmApplyLookupGuestToPos(data, doc) {
   if (nitEl) nitEl.value = display;
   if (nomEl) nomEl.value = data.nombre || '';
   const searchEl = document.getElementById('crozzoCrmSearch');
-  if (searchEl) searchEl.value = data.nombre ? data.nombre : display;
+  if (searchEl && opts.clearSearch) searchEl.value = '';
   const nameEl = document.getElementById('crozzoCrmName');
   const prof = document.getElementById('crozzoCrmProfile');
   const badge = document.getElementById('crozzoCrmCreditBadge');
@@ -13590,9 +13850,121 @@ function crozzoCrmApplyLookupGuestToPos(data, doc) {
   crozzoPersistClienteSlotFromCurrentForm();
   return true;
 }
+function crozzoCrmMergeLookupIntoClient(c, data) {
+  if (!c || !data) return;
+  var changed = false;
+  if (data.nombre && !String(c.nombre || '').trim()) {
+    c.nombre = data.nombre;
+    changed = true;
+  }
+  if (data.telefono && !String(c.telefono || '').trim()) {
+    c.telefono = data.telefono;
+    changed = true;
+  }
+  if (data.ciudad && !String(c.ciudad || '').trim()) {
+    c.ciudad = data.ciudad;
+    changed = true;
+  }
+  if (data.direccion && !String(c.direccion || '').trim()) {
+    c.direccion = data.direccion;
+    changed = true;
+  }
+  if (data.email) {
+    var emails = typeof crozzoCrmClientEmailsArray === 'function' ? crozzoCrmClientEmailsArray(c) : [];
+    if (!emails.length) {
+      if (typeof crozzoCrmApplyEmailsToClientRecord === 'function') {
+        crozzoCrmApplyEmailsToClientRecord(c, [data.email]);
+      } else {
+        c.email = data.email;
+        c.emails = [data.email];
+      }
+      changed = true;
+    }
+  }
+  if (changed && typeof config !== 'undefined' && config.save) config.save();
+}
+function crozzoCrmEnsureClientFromLookup(data, doc, opts) {
+  opts = opts || {};
+  if (!data || typeof config === 'undefined' || !config.get || !config.set || !config.save) return null;
+  var nitRaw = doc && doc.display ? String(doc.display) : crozzoCrmNormNit(data.nit || '');
+  var nit = crozzoCrmNormNit(nitRaw);
+  var nitDigits = crozzoCrmNormNitDigits(nit);
+  var isCc = doc && (doc.typeKey === 'cc' || (doc.type && String(doc.type.schemeName) === '13'));
+  if (data.clientId) {
+    var byId = crozzoCrmClientById(data.clientId);
+    if (byId) {
+      crozzoCrmMergeLookupIntoClient(byId, data);
+      crozzoCrmApplyClientToUi(byId, { clearSearch: true });
+      return byId;
+    }
+  }
+  if (nitDigits) {
+    var existing = crozzoCrmGetClients().find(function (c) {
+      return crozzoCrmNitsEquivalent(c.nit, nitRaw || nit);
+    });
+    if (existing) {
+      crozzoCrmMergeLookupIntoClient(existing, data);
+      crozzoCrmApplyClientToUi(existing, { clearSearch: true });
+      return existing;
+    }
+  }
+  var nombre = String(data.nombre || '').trim();
+  var emailOk = String(data.email || '').trim() || (Array.isArray(data.emails) && data.emails.some(function (e) { return crozzoCrmEmailLooksValid(e); }));
+  if (!nombre || !nitDigits) {
+    if (opts.fromConfirm) crozzoCrmApplyLookupGuestToPos(data, doc, { clearSearch: true });
+    return null;
+  }
+  if (!emailOk && !isCc) {
+    if (opts.fromConfirm) crozzoCrmApplyLookupGuestToPos(data, doc, { clearSearch: true });
+    return null;
+  }
+  var list = config.get('clientesCrm');
+  if (!Array.isArray(list)) {
+    list = [];
+    config.set('clientesCrm', list);
+  }
+  var emailArr = [];
+  if (data.email) emailArr.push(String(data.email).trim());
+  if (Array.isArray(data.emails)) emailArr = emailArr.concat(data.emails.map(function (e) { return String(e || '').trim(); }).filter(Boolean));
+  var c = {
+    id: crozzoCrmNewClientId(),
+    nit: nit || nitRaw || '',
+    nombre: nombre,
+    telefono: String(data.telefono || '').trim(),
+    email: '',
+    emails: [],
+    ciudad: String(data.ciudad || '').trim(),
+    direccion: String(data.direccion || '').trim(),
+    notas: '',
+    limiteCredito: 0,
+    creditoUsado: 0,
+    puntos: 0,
+    totalCompras: 0,
+    historial: [],
+  };
+  if (typeof crozzoCrmApplyEmailsToClientRecord === 'function') crozzoCrmApplyEmailsToClientRecord(c, emailArr);
+  else {
+    c.emails = emailArr;
+    c.email = emailArr[0] || '';
+  }
+  list.push(c);
+  config.save();
+  if (typeof crozzoCrmEnqueueClientSync === 'function') crozzoCrmEnqueueClientSync(c);
+  try {
+    if (typeof config.addAudit === 'function') config.addAudit('crm_cliente_auto', nombre + (nit ? ' · ' + nit : ''));
+  } catch (_) {}
+  crozzoCrmApplyClientToUi(c, { clearSearch: true });
+  return c;
+}
+window.crozzoCrmEnsureClientFromLookup = crozzoCrmEnsureClientFromLookup;
+window.crozzoCrmNitsEquivalent = crozzoCrmNitsEquivalent;
+window.normalizarEntradaNit = normalizarEntradaNit;
+window.intentarSepararNitDv = intentarSepararNitDv;
+window.inferirNitDesdeSoloBase = inferirNitDesdeSoloBase;
 function crozzoCrmOpenCreateFromSearch() {
   const q = document.getElementById('crozzoCrmSearch');
   const v = q ? q.value.trim() : '';
+  crozzoCrmDismissInternetLookupModal();
   crozzoCrmToggleCreatePanel(true);
   const nn = document.getElementById('crozzoCrmNewNit');
   const nNom = document.getElementById('crozzoCrmNewNombre');
@@ -13607,51 +13979,15 @@ function crozzoCrmOpenCreateFromSearch() {
     if (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
       CrozzoAdquirienteLookup.bindForm('crm_new');
     }
-    if (nn && nn.value.replace(/\D/g, '').length >= 4 && typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.runForForm) {
-      CrozzoAdquirienteLookup.runForForm('crm_new', { silent: false });
-    } else if (nNom) {
-      nNom.focus();
-    }
+    var emailIn = document.querySelector('#crozzoCrmNewEmailsList input.crozzoCrmNewEmailIn');
+    if (emailIn) emailIn.focus();
+    else if (nNom) nNom.focus();
   }, 80);
 }
 var __crozzoCrmSearchLookupT = null;
 var __crozzoCrmSearchLookupGen = 0;
 function crozzoCrmRunSearchLookup(q, opts) {
-  opts = opts || {};
-  const needle = String(q || '').trim();
-  if (!needle || !crozzoCrmQueryLooksLikeDoc(needle)) return Promise.resolve(null);
-  if (typeof CrozzoAdquirienteLookup === 'undefined' || !CrozzoAdquirienteLookup.lookupAdquiriente) return Promise.resolve(null);
-  const gen = ++__crozzoCrmSearchLookupGen;
-  if (!opts.silent) {
-    crozzoCrmRenderDropdown(crozzoCrmFindClientsByQuery(needle), { pending: true, query: needle });
-  }
-  return CrozzoAdquirienteLookup.lookupAdquiriente(needle).then(function (res) {
-    if (gen !== __crozzoCrmSearchLookupGen) return res;
-    const searchEl = document.getElementById('crozzoCrmSearch');
-    if (!searchEl || searchEl.value.trim() !== needle) return res;
-    const local = crozzoCrmFindClientsByQuery(needle);
-    if (res.ok && res.data) {
-      if (res.data.clientId) {
-        const c = crozzoCrmClientById(res.data.clientId);
-        if (c) {
-          crozzoCrmApplyClientToUi(c);
-          if (!opts.silent && typeof showToast === 'function') showToast('Cliente encontrado.', 'success');
-          return res;
-        }
-      }
-      crozzoCrmApplyLookupGuestToPos(res.data, res.doc);
-      crozzoCrmRenderDropdown(local, { query: needle, lookupOk: true });
-      if (!opts.silent && typeof showToast === 'function') {
-        showToast('Datos cargados — puede cobrar o guardar con ➕ Nuevo.', 'success');
-      }
-    } else {
-      crozzoCrmRenderDropdown(local, { query: needle, lookupMiss: true, lookupMsg: res.error || '' });
-      if (!opts.silent && typeof showToast === 'function') {
-        showToast(res.error || 'Sin datos para ese documento. Use ➕ Nuevo para registrarlo.', 'info');
-      }
-    }
-    return res;
-  });
+  return crozzoCrmRunInternetLookup(q, opts || {});
 }
 function crozzoCrmClientById(id) {
   if (!id) return null;
@@ -13708,15 +14044,17 @@ function crozzoCrmUpdateCreditBadgeEl(c) {
     badge.textContent = `✅ Disp. $${avail.toLocaleString('es-CO')}`;
   }
 }
-function crozzoCrmApplyClientToUi(c) {
+function crozzoCrmApplyClientToUi(c, opts) {
+  opts = opts || {};
   if (!c || !c.id) return;
   window.__crozzoCrmSelectedClientId = c.id;
+  window.__crozzoCrmPendingLookup = null;
   const nitEl = document.getElementById('nitCliente');
   const nomEl = document.getElementById('nombreCliente');
   if (nitEl) nitEl.value = c.nit || '';
   if (nomEl) nomEl.value = c.nombre || '';
   const searchEl = document.getElementById('crozzoCrmSearch');
-  if (searchEl) searchEl.value = '';
+  if (searchEl && opts.clearSearch !== false) searchEl.value = '';
   const nameEl = document.getElementById('crozzoCrmName');
   const prof = document.getElementById('crozzoCrmProfile');
   if (nameEl) nameEl.textContent = c.nombre || 'Cliente';
@@ -13758,8 +14096,11 @@ function crozzoCrmApplyClientToUi(c) {
   } catch (_) {}
   crozzoCrmUpdateFeNombreVisibility();
   crozzoCrmToggleCreatePanel(false);
+  crozzoCrmDismissInternetLookupModal();
+  const ddHide = document.getElementById('crozzoCrmDropdown');
+  if (ddHide) ddHide.style.display = 'none';
   if (typeof crozzoCrmUpdateEditButtonState === 'function') crozzoCrmUpdateEditButtonState();
-  crozzoPersistClienteSlotFromCurrentForm();
+  if (opts.persistSlot !== false) crozzoPersistClienteSlotFromCurrentForm();
 }
 function crozzoCrmClearClient() {
   window.__crozzoCrmSelectedClientId = null;
@@ -13769,6 +14110,7 @@ function crozzoCrmClearClient() {
   if (prof) prof.style.display = 'none';
   const dd = document.getElementById('crozzoCrmDropdown');
   if (dd) dd.style.display = 'none';
+  crozzoCrmDismissInternetLookupModal();
   const nitEl = document.getElementById('nitCliente');
   const nomEl = document.getElementById('nombreCliente');
   if (nitEl) nitEl.value = '';
@@ -13886,7 +14228,7 @@ function crozzoCrmUpsertClientRecordAfterSale(factura) {
   }
   let c = null;
   if (selId) c = list.find((x) => x.id === selId) || null;
-  if (!c && nit) c = list.find((x) => crozzoCrmNormNit(x.nit) === nit) || null;
+  if (!c && nit) c = list.find((x) => crozzoCrmNitsEquivalent(x.nit, nit)) || null;
   if (!c) {
     if (genericNit && genericNom && !selId) return;
     c = {
@@ -13931,37 +14273,124 @@ function crozzoCrmUpsertClientRecordAfterSale(factura) {
   crozzoCrmEnqueueClientSync(c);
   crozzoCrmRefreshProfileFromSelection();
 }
-function crozzoCrmRenderDropdown(items, meta) {
+function crozzoCrmIsTabletCrmContext() {
+  try {
+    return typeof currentPage !== 'undefined' && currentPage === 'tablets';
+  } catch (_) {
+    return false;
+  }
+}
+function crozzoCrmDismissInternetLookupModal() {
+  window.__crozzoCrmInetModalOpen = false;
+  try {
+    if (typeof closeModal === 'function') closeModal({ skipCobroAbort: true });
+  } catch (_) {}
+}
+function crozzoCrmShouldUseLookupModal(meta) {
+  if (!crozzoCrmIsTabletCrmContext()) return false;
   meta = meta || {};
-  const dd = document.getElementById('crozzoCrmDropdown');
-  if (!dd) return;
+  return !!(meta.pendingInternet || meta.lookupCandidate || meta.lookupMiss);
+}
+function crozzoCrmBuildLookupUiHtml(items, meta) {
+  meta = meta || {};
   const q = String(meta.query || '').trim();
   let html = '';
   if (items && items.length) {
+    html +=
+      '<div class="crozzo-crm-item crozzo-crm-item--hint crozzo-crm-item--section">📁 En su directorio</div>';
     html += items
       .map(
         (c) => `
-    <div class="crozzo-crm-item" data-crm-id="${crozzoCrmEscAttr(c.id)}">
+    <div class="crozzo-crm-item" data-crm-id="${crozzoCrmEscAttr(c.id)}" role="button" tabindex="0">
       <span><strong>${crozzoCrmEscAttr(c.nombre || 'Cliente')}</strong> <small style="color:var(--text-muted)">(${crozzoCrmEscAttr(c.nit || 'S/N')})</small></span>
       <span style="color:var(--text-muted)">${crozzoCrmEscAttr(c.telefono || '')}</span>
     </div>`
       )
       .join('');
   }
-  if (meta.pending) {
-    html += '<div class="crozzo-crm-item crozzo-crm-item--hint">Buscando documento…</div>';
+  if (meta.pendingInternet) {
+    html += '<div class="crozzo-crm-item crozzo-crm-item--hint">🌐 Buscando en internet…</div>';
   }
-  if (!items.length && !meta.pending && q) {
-    html += '<div class="crozzo-crm-item crozzo-crm-item--hint">Sin clientes locales con «' + crozzoCrmEscAttr(q) + '»</div>';
+  if (meta.lookupCandidate && meta.lookupCandidate.nombre) {
+    var lc = meta.lookupCandidate;
+    var ld = meta.lookupDoc;
+    var docLbl = ld && ld.display ? ld.display : lc.nit || q;
+    var srcLbl = crozzoCrmLookupSourceLabel(meta.lookupSource);
+    var contactHint = crozzoCrmLookupContactSummary(lc);
+    html += '<div class="crozzo-crm-item crozzo-crm-item--hint crozzo-crm-item--section">🌐 Sugerencia de internet</div>';
+    html +=
+      '<div class="crozzo-crm-item crozzo-crm-item--action crozzo-crm-item--confirm" role="button" tabindex="0" onclick="crozzoCrmConfirmPendingLookup()">' +
+      '<span><strong>' +
+      crozzoCrmEscAttr(lc.nombre) +
+      '</strong> <small style="color:var(--text-muted)">(' +
+      crozzoCrmEscAttr(docLbl) +
+      ' · ' +
+      crozzoCrmEscAttr(srcLbl) +
+      ')</small></span>' +
+      '<span style="color:var(--text-muted)">Usar →</span></div>';
+    if (contactHint) {
+      html +=
+        '<div class="crozzo-crm-item crozzo-crm-item--hint" style="padding-top:0;">' +
+        crozzoCrmEscAttr(contactHint) +
+        '</div>';
+    }
   }
-  if ((meta.lookupMiss || (!items.length && !meta.pending)) && q && crozzoCrmQueryLooksLikeDoc(q)) {
+  if (meta.lookupMiss && q && crozzoCrmQueryLooksLikeDoc(q)) {
     html +=
       '<div class="crozzo-crm-item crozzo-crm-item--action" role="button" tabindex="0" onclick="crozzoCrmOpenCreateFromSearch()">' +
-      '<span><strong>➕ Registrar «' +
+      '<span><strong>➕ Crear cliente nuevo</strong></span>' +
+      '<span style="color:var(--text-muted)">NIT «' +
       crozzoCrmEscAttr(q) +
-      '»</strong></span>' +
-      '<span style="color:var(--text-muted)">Crear y buscar datos</span></div>';
+      '» · sin datos en internet</span></div>';
   }
+  if (!items.length && !meta.pendingInternet && !meta.lookupCandidate && !meta.lookupMiss && q) {
+    html += '<div class="crozzo-crm-item crozzo-crm-item--hint">Sin coincidencias en directorio</div>';
+    if (crozzoCrmDocQueryComplete(q) && crozzoCrmQueryLooksLikeDoc(q)) {
+      html += '<div class="crozzo-crm-item crozzo-crm-item--hint">🌐 Consultando internet…</div>';
+    }
+  }
+  return html;
+}
+function crozzoCrmShowInternetLookupModal(items, meta) {
+  meta = meta || {};
+  var html = crozzoCrmBuildLookupUiHtml(items, meta);
+  if (!html) {
+    crozzoCrmDismissInternetLookupModal();
+    return;
+  }
+  var q = String(meta.query || '').trim();
+  var title = meta.pendingInternet ? 'Buscando en internet…' : 'Buscar cliente' + (q ? ' · ' + q : '');
+  var bodyEl = document.getElementById('crozzoCrmInetModalBody');
+  if (window.__crozzoCrmInetModalOpen && bodyEl) {
+    bodyEl.innerHTML = html;
+    var titleEl = document.querySelector('#modalContent .modal-title');
+    if (titleEl) titleEl.textContent = title;
+  } else {
+    window.__crozzoCrmInetModalOpen = true;
+    showModal(
+      title,
+      '<div id="crozzoCrmInetModalBody" class="crozzo-crm-inet-modal">' + html + '</div>',
+      { modalClass: 'modal--crm-inet' }
+    );
+  }
+  var dd = document.getElementById('crozzoCrmDropdown');
+  if (dd) {
+    dd.innerHTML = '';
+    dd.style.display = 'none';
+  }
+}
+function crozzoCrmRenderDropdown(items, meta) {
+  meta = meta || {};
+  if (crozzoCrmShouldUseLookupModal(meta)) {
+    crozzoCrmShowInternetLookupModal(items, meta);
+    return;
+  }
+  if (window.__crozzoCrmInetModalOpen && !meta.pendingInternet && !meta.lookupCandidate && !meta.lookupMiss) {
+    crozzoCrmDismissInternetLookupModal();
+  }
+  const dd = document.getElementById('crozzoCrmDropdown');
+  if (!dd) return;
+  const html = crozzoCrmBuildLookupUiHtml(items, meta);
   if (!html) {
     dd.innerHTML = '';
     dd.style.display = 'none';
@@ -13980,18 +14409,10 @@ function crozzoCrmLiteBindCartUi() {
       if (!t) return;
       if (t.id === 'crozzoCrmSearch') {
         const v = t.value;
+        window.__crozzoCrmPendingLookup = null;
         const local = crozzoCrmFindClientsByQuery(v);
         crozzoCrmRenderDropdown(local, { query: v });
-        if (__crozzoCrmSearchLookupT) clearTimeout(__crozzoCrmSearchLookupT);
-        const digits = crozzoCrmNormNitDigits(v);
-        if (digits.length >= 6) {
-          __crozzoCrmSearchLookupT = setTimeout(function () {
-            __crozzoCrmSearchLookupT = null;
-            const cur = document.getElementById('crozzoCrmSearch');
-            if (!cur || cur.value.trim() !== String(v).trim()) return;
-            crozzoCrmRunSearchLookup(v, { silent: local.length > 0 });
-          }, 850);
-        }
+        crozzoCrmScheduleInternetLookup(v);
       }
       if (t.id === 'nitCliente') {
         const id = window.__crozzoCrmSelectedClientId;
@@ -14017,10 +14438,28 @@ function crozzoCrmLiteBindCartUi() {
       (ev) => {
         const row = ev.target && ev.target.closest ? ev.target.closest('.crozzo-crm-item') : null;
         if (!row || !row.dataset.crmId) return;
-        if (!row.closest('#crozzoCrmDropdown')) return;
+        const inList =
+          row.closest('#crozzoCrmDropdown') || row.closest('#crozzoCrmInetModalBody');
+        if (!inList) return;
         const c = crozzoCrmClientById(row.dataset.crmId);
         if (!c) return;
         ev.preventDefault();
+        crozzoCrmApplyClientToUi(c);
+        const dd = document.getElementById('crozzoCrmDropdown');
+        if (dd) dd.style.display = 'none';
+      },
+      true
+    );
+    document.addEventListener(
+      'click',
+      (ev) => {
+        const row = ev.target && ev.target.closest ? ev.target.closest('.crozzo-crm-item[data-crm-id]') : null;
+        if (!row) return;
+        const inList =
+          row.closest('#crozzoCrmDropdown') || row.closest('#crozzoCrmInetModalBody');
+        if (!inList) return;
+        const c = crozzoCrmClientById(row.dataset.crmId);
+        if (!c) return;
         crozzoCrmApplyClientToUi(c);
         const dd = document.getElementById('crozzoCrmDropdown');
         if (dd) dd.style.display = 'none';
@@ -14048,17 +14487,7 @@ function crozzoCrmLiteBindCartUi() {
       const crmSearch = document.getElementById('crozzoCrmSearch');
       if (crmSearch && document.activeElement === crmSearch && e.key === 'Enter') {
         e.preventDefault();
-        const v = crmSearch.value.trim();
-        const local = crozzoCrmFindClientsByQuery(v);
-        if (local.length === 1) {
-          crozzoCrmApplyClientToUi(local[0]);
-          const dd = document.getElementById('crozzoCrmDropdown');
-          if (dd) dd.style.display = 'none';
-          return;
-        }
-        if (crozzoCrmQueryLooksLikeDoc(v)) {
-          crozzoCrmRunSearchLookup(v, { silent: false });
-        }
+        crozzoCrmSearchFromBar();
         return;
       }
       if (crozzoPosShortcutsBlocked() || crozzoIsTypingTarget(document.activeElement)) return;
@@ -14073,6 +14502,9 @@ function crozzoCrmLiteBindCartUi() {
   }
   if (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
     CrozzoAdquirienteLookup.bindForm('crm_new');
+    if (typeof CrozzoAdquirienteLookup.bindAllVisible === 'function') {
+      CrozzoAdquirienteLookup.bindAllVisible();
+    }
   }
 }
 async function facturar(options = {}) {
@@ -20122,13 +20554,25 @@ async function saveCertificate() {
     } catch (eHash) {
       console.warn('[cert] read file', eHash);
     }
-    // Simulate encryption and storage (huella del archivo para checklist / auditoría local)
+    // Guardar .p12 en base64 para consultas DIAN GetAcquirer desde Tauri
+    let p12Base64 = '';
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      p12Base64 = btoa(bin);
+    } catch (eB64) {
+      console.warn('[cert] base64', eB64);
+    }
     config.set('certificado', {
       filename: file.name,
       expiryDate: '2027-12-31',
       issuer: 'CA Certicámara S.A.',
       encrypted: true,
-      p12Sha256: p12Sha256 || ''
+      p12Sha256: p12Sha256 || '',
+      p12Base64: p12Base64,
+      password: password,
     });
   } else if (!config.getCertificado().encrypted) {
     showToast('Seleccione un archivo .p12', 'error');

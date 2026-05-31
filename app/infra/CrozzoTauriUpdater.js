@@ -18,6 +18,7 @@
   var APK_MIN_BYTES = 800 * 1024;
   var CHECK_RETRY_MAX = 2;
   var SILENT_INSTALL_RETRY_MAX = 2;
+  var MIN_ARTIFACT_BYTES = { exe: 400 * 1024, dmg: 1024 * 1024, apk: 800 * 1024 };
 
   function isTauri() {
     return !!(global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke);
@@ -1010,6 +1011,89 @@
     });
   }
 
+  function artifactMatchesPlatform(url, kind) {
+    if (!url) return false;
+    if (kind === 'exe') return /setup\.exe/i.test(url);
+    if (kind === 'dmg') return /\.dmg$/i.test(url);
+    if (kind === 'apk') return /\.apk$/i.test(url);
+    return false;
+  }
+
+  function validateArtifactForPlatform(hit, kind) {
+    if (!hit || !hit.url) {
+      return { ok: false, reason: 'sin_url', message: 'No hay instalador en GitHub para esta versión.' };
+    }
+    if (!artifactMatchesPlatform(hit.url, kind)) {
+      return {
+        ok: false,
+        reason: 'incompatible',
+        message:
+          'El release no trae el paquete correcto para ' +
+          platformArtifactLabel(kind) +
+          ' (URL: ' +
+          hit.url.split('/').pop() +
+          ').',
+      };
+    }
+    var minB = MIN_ARTIFACT_BYTES[kind] || 0;
+    if (hit.bytes && hit.bytes > 0 && hit.bytes < minB) {
+      return {
+        ok: false,
+        reason: 'pequeno',
+        message: 'Archivo demasiado pequeño o corrupto (' + hit.bytes + ' bytes).',
+      };
+    }
+    return { ok: true };
+  }
+
+  function ensureInstallTargetReady(targetVersion) {
+    var kind = getPlatformAssetKind();
+    var ver = normVersion(targetVersion);
+    return resolveReleaseInstallTarget(ver).then(function (hit) {
+      var v = validateArtifactForPlatform(hit, kind);
+      if (!v.ok) {
+        return Promise.reject(new Error(v.message || 'Artefacto no válido para esta plataforma.'));
+      }
+      return hit;
+    });
+  }
+
+  /** Comprueba Win + Mac + APK en GitHub (estabilidad del release completo). */
+  function checkReleaseMultiplatformStability(targetVersion) {
+    var ver = normVersion(targetVersion);
+    return fetchReleaseAssets(ver).then(function (api) {
+      var assets = (api && api.assets) || [];
+      var setup = assets.find(function (a) {
+        return /setup\.exe/i.test(a.name || '');
+      });
+      var dmgArm = assets.find(function (a) {
+        return /\.dmg$/i.test(a.name || '') && /aarch64|arm64|universal/i.test(a.name || '');
+      });
+      var dmgX64 = assets.find(function (a) {
+        return /\.dmg$/i.test(a.name || '') && /x86_64|intel|x64/i.test(a.name || '');
+      });
+      var dmgAny = assets.find(function (a) {
+        return /\.dmg$/i.test(a.name || '');
+      });
+      var apk = pickApkFromAssets(assets);
+      var winOk = setup && (!setup.size || setup.size >= MIN_ARTIFACT_BYTES.exe);
+      var macOk =
+        (dmgArm && (!dmgArm.size || dmgArm.size >= MIN_ARTIFACT_BYTES.dmg)) ||
+        (dmgX64 && (!dmgX64.size || dmgX64.size >= MIN_ARTIFACT_BYTES.dmg)) ||
+        (dmgAny && (!dmgAny.size || dmgAny.size >= MIN_ARTIFACT_BYTES.dmg));
+      var apkOk = apk && (!apk.size || apk.size >= MIN_ARTIFACT_BYTES.apk);
+      return {
+        version: ver,
+        tagFound: !!api,
+        windows: !!winOk,
+        mac: !!macOk,
+        android: !!apkOk,
+        complete: !!(winOk && macOk && apkOk),
+        majorityStable: [winOk, macOk, apkOk].filter(Boolean).length >= 2,
+      };
+    });
+  }
+
   /**
    * Instalación totalmente automática según plataforma (exe / dmg / updater).
    */
@@ -1023,9 +1107,22 @@
     var onProgress = opts.onProgress || function () {};
 
     return getAppVersion().then(function (current) {
+      if (targetVersion && current && compareSemver(targetVersion, current) < 0) {
+        return Promise.reject(
+          new Error(
+            'La versión ' +
+              targetVersion +
+              ' es anterior a la instalada (' +
+              current +
+              '). No se permite retroceder.'
+          )
+        );
+      }
       if (targetVersion && current && compareSemver(targetVersion, current) <= 0) {
         return { installed: false, upToDate: true, current: current, plan: 'none' };
       }
+      var readyP = targetVersion ? ensureInstallTargetReady(targetVersion) : Promise.resolve(null);
+      return readyP.then(function () {
       if (kind === 'exe' && targetVersion) {
         onProgress({ phase: 'probe', percent: 5, message: 'Windows: instalación automática…' });
         return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts).catch(
@@ -1043,6 +1140,7 @@
         return tryMacDmgInstall(targetVersion, targetVersion, current, onProgress, opts);
       }
       return installLatestBinary(opts);
+      });
     });
   }
 
@@ -1236,6 +1334,9 @@
     openExternalUrl: openExternalUrl,
     installLatest: installLatestBinary,
     installAutomatic: installAutomatic,
+    ensureInstallTargetReady: ensureInstallTargetReady,
+    checkReleaseMultiplatformStability: checkReleaseMultiplatformStability,
+    validateArtifactForPlatform: validateArtifactForPlatform,
     installViaSilentSetup: installViaSilentSetupExe,
     installViaSilentDmg: installViaSilentDmgMac,
     probePlatformInstaller: probePlatformInstallerCommand,

@@ -110,7 +110,7 @@ const appDir = join(root, 'app');
 const srcDir = join(root, 'src');
 const mainHtml = join(appDir, 'Crozzo_POS_Completo.html');
 
-const extraHtml = ['CrozzoQyC_App.html', 'Crozzo_POS_DisenadorTicket.html'];
+const extraHtml = ['CrozzoQyC_App.html', 'Crozzo_POS_DisenadorTicket.html', 'crm-registro-cliente.html'];
 
 const copyDirs = ['css', 'core', 'vendor', 'ui', 'infra', 'modules', 'bundles'];
 

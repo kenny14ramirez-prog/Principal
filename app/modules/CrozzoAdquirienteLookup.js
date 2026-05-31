@@ -40,7 +40,17 @@
 
     '3199992': { nombre: 'Nombre NIT 2 (prueba DIAN)', email: 'mail_nit2@prueba.dian', ciudad: 'Bogotá D.C.' },
 
+    '3199993': { nombre: 'Nombre NIT 3 (prueba DIAN)', email: 'mail_nit3@prueba.dian', ciudad: 'Medellín' },
+
     '4299991': { nombre: 'Nombre Documento prueba DIAN', email: 'mail_doc@prueba.dian', ciudad: 'Medellín' },
+
+    '1399991': { nombre: 'Nombre Cédula de ciudadanía 1', email: 'mail_cc1@prueba.dian', ciudad: 'Bogotá D.C.' },
+
+    '1399992': { nombre: 'Nombre Cédula de ciudadanía 2', email: 'mail_cc2@prueba.dian', ciudad: 'Bogotá D.C.' },
+
+    '1399993': { nombre: 'Nombre Cédula de ciudadanía 3', email: 'mail_cc3@prueba.dian', ciudad: 'Cali' },
+
+    '1399994': { nombre: 'Nombre Cédula de ciudadanía 4', email: 'mail_cc4@prueba.dian', ciudad: 'Barranquilla' },
 
   };
 
@@ -58,9 +68,135 @@
 
     dian_supabase: 'DIAN',
 
+    rues_opendata: 'RUES (internet)',
+
     cache: 'memoria reciente',
 
   };
+
+
+
+  var RUES_OPENDATA_URL = 'https://www.datos.gov.co/resource/c82u-588k.json';
+
+  var RUES_DETALLE_RM_URL = 'https://ruesapi.rues.org.co/WEB2/api/Expediente/DetalleRM/';
+
+
+
+  function ruesPickContact() {
+
+    for (var i = 0; i < arguments.length; i++) {
+
+      var v = String(arguments[i] == null ? '' : arguments[i]).trim();
+
+      if (v) return v;
+
+    }
+
+    return '';
+
+  }
+
+
+
+  function buildRuesRmId(codCamara, matricula) {
+
+    var cam = String(codCamara || '').replace(/\D/g, '');
+
+    var mat = String(matricula || '').replace(/\D/g, '');
+
+    if (!cam || !mat) return '';
+
+    var matWidth = 12 - cam.length;
+
+    if (matWidth < 1) return '';
+
+    while (mat.length < matWidth) mat = '0' + mat;
+
+    if (mat.length > matWidth) mat = mat.slice(-matWidth);
+
+    return cam + mat;
+
+  }
+
+
+
+  function lookupRuesDetalleRm(rmId) {
+
+    if (!rmId) return Promise.resolve(null);
+
+    return fetch(RUES_DETALLE_RM_URL + encodeURIComponent(rmId), {
+
+      method: 'GET',
+
+      headers: { Accept: 'application/json' },
+
+    })
+
+      .then(function (r) {
+
+        return r.ok ? r.json() : null;
+
+      })
+
+      .then(function (body) {
+
+        if (!body || body.codigo_error !== '0000' || !body.registros) return null;
+
+        return body.registros;
+
+      })
+
+      .catch(function () {
+
+        return null;
+
+      });
+
+  }
+
+
+
+  function annotateRuesContactFields(row) {
+
+    if (!row) return row;
+
+    row._contactFields = {
+
+      nombre: !!row.nombre,
+
+      email: !!row.email,
+
+      telefono: !!row.telefono,
+
+      ciudad: !!row.ciudad,
+
+      direccion: !!row.direccion,
+
+    };
+
+    return row;
+
+  }
+
+
+
+  function mergeRuesDetalle(base, det) {
+
+    if (!det) return annotateRuesContactFields(base);
+
+    base.email = ruesPickContact(base.email, det.email_com, det.email_fiscal);
+
+    base.telefono = ruesPickContact(base.telefono, det.tel_com_1, det.tel_com_2, det.tel_com_3, det.tel_fiscal_1);
+
+    base.ciudad = ruesPickContact(base.ciudad, det.mun_comercial, det.mun_fiscal, det.camara);
+
+    base.direccion = ruesPickContact(base.direccion, det.dir_comercial, det.dir_fiscal);
+
+    if (det.razon_social && !base.nombre) base.nombre = String(det.razon_social).trim();
+
+    return annotateRuesContactFields(base);
+
+  }
 
 
 
@@ -138,13 +274,37 @@
 
 
 
+  function docLookupKeys(doc) {
+
+    var keys = [];
+
+    var num = String(doc.number || '').replace(/\D/g, '');
+
+    var dv = String(doc.dv || '').replace(/\D/g, '');
+
+    if (num) keys.push(num);
+
+    if (num && dv) keys.push(num + dv);
+
+    if (doc.display) {
+
+      var d = String(doc.display).replace(/\D/g, '');
+
+      if (d && keys.indexOf(d) < 0) keys.push(d);
+
+    }
+
+    return keys;
+
+  }
+
+
+
   function parseDocument(raw) {
 
-    var clean = String(raw || '')
+    var prep = typeof global.normalizarEntradaNit === 'function' ? global.normalizarEntradaNit(raw) : String(raw || '').trim();
 
-      .trim()
-
-      .replace(/[^0-9-]/g, '');
+    var clean = prep.replace(/[^0-9-]/g, '');
 
     if (!clean) return null;
 
@@ -152,11 +312,11 @@
 
     try {
 
-      if (typeof global.validarNIT === 'function') vr = global.validarNIT(raw, { relajado: true });
+      if (typeof global.validarNIT === 'function') vr = global.validarNIT(prep, { relajado: true });
 
     } catch (_) {}
 
-    if (vr && vr.valido && vr.modo === 'nit_dian') {
+    if (vr && vr.valido && vr.modo === 'nit_dian' && vr.base != null) {
 
       return {
 
@@ -170,7 +330,27 @@
 
         display: vr.base + '-' + vr.dv,
 
-        raw: clean,
+        raw: prep,
+
+      };
+
+    }
+
+    if (vr && vr.valido && vr.modo === 'cedula_o_documento' && vr.base) {
+
+      return {
+
+        typeKey: 'cc',
+
+        type: DOC_TYPE.cc,
+
+        number: vr.base,
+
+        dv: '',
+
+        display: vr.base,
+
+        raw: prep,
 
       };
 
@@ -201,6 +381,50 @@
     var digits = clean.replace(/-/g, '');
 
     if (/^[0-9]{4,15}$/.test(digits)) {
+
+      var sp = typeof global.intentarSepararNitDv === 'function' ? global.intentarSepararNitDv(digits) : null;
+
+      if (sp) {
+
+        return {
+
+          typeKey: 'nit',
+
+          type: DOC_TYPE.nit,
+
+          number: sp.base,
+
+          dv: sp.dv,
+
+          display: sp.display,
+
+          raw: digits,
+
+        };
+
+      }
+
+      var inf = typeof global.inferirNitDesdeSoloBase === 'function' ? global.inferirNitDesdeSoloBase(digits) : null;
+
+      if (inf) {
+
+        return {
+
+          typeKey: 'nit',
+
+          type: DOC_TYPE.nit,
+
+          number: inf.base,
+
+          dv: inf.dv,
+
+          display: inf.display,
+
+          raw: digits,
+
+        };
+
+      }
 
       var isNitLen = digits.length >= 9 && digits.length <= 11;
 
@@ -248,15 +472,23 @@
 
   function lookupLocalCrm(doc) {
 
-    if (typeof global.crozzoCrmGetClients !== 'function' || typeof global.crozzoCrmNormNit !== 'function') return null;
-
-    var norm = global.crozzoCrmNormNit(doc.display || doc.number);
+    if (typeof global.crozzoCrmGetClients !== 'function') return null;
 
     var list = global.crozzoCrmGetClients();
 
+    var equiv = typeof global.crozzoCrmNitsEquivalent === 'function' ? global.crozzoCrmNitsEquivalent : null;
+
+    var normDigits = typeof global.crozzoCrmNormNitDigits === 'function' ? global.crozzoCrmNormNitDigits : null;
+
+    var target = doc.display || doc.number;
+
     var hit = list.find(function (c) {
 
-      return global.crozzoCrmNormNit(c.nit) === norm;
+      if (equiv && equiv(c.nit, target)) return true;
+
+      if (normDigits && normDigits(c.nit) === normDigits(target)) return true;
+
+      return false;
 
     });
 
@@ -338,21 +570,55 @@
 
     try {
 
-      if (typeof global.config === 'undefined' || !global.config.isDemoMode || !global.config.isDemoMode()) return null;
+      var keys = docLookupKeys(doc);
+
+      for (var i = 0; i < keys.length; i++) {
+
+        var d = DEMO_ADQUIRIENTES[keys[i]];
+
+        if (d) return Object.assign({}, d, { source: 'dian_demo' });
+
+      }
+
+    } catch (_) {}
+
+    return null;
+
+  }
+
+
+
+  function crozzoDianCertPayload() {
+
+    try {
+
+      if (typeof global.config === 'undefined' || !global.config.get) return { useHab: false };
+
+      var c = global.config.get('certificado') || {};
+
+      var useHab = typeof global.config.isDemoMode === 'function' && global.config.isDemoMode();
+
+      if (c.p12Base64 && (c.password || c.p12Password)) {
+
+        return {
+
+          p12Base64: c.p12Base64,
+
+          p12Password: c.password || c.p12Password,
+
+          useHab: useHab,
+
+        };
+
+      }
+
+      return { useHab: useHab };
 
     } catch (_) {
 
-      return null;
+      return { useHab: false };
 
     }
-
-    var key = String(doc.number || '').replace(/\D/g, '');
-
-    var d = DEMO_ADQUIRIENTES[key];
-
-    if (!d) return null;
-
-    return Object.assign({}, d, { source: 'dian_demo' });
 
   }
 
@@ -366,6 +632,8 @@
 
     }
 
+    var cert = crozzoDianCertPayload();
+
     return global.__TAURI__.core
 
       .invoke('fetch_dian_adquiriente', {
@@ -376,17 +644,35 @@
 
         dv: doc.dv || null,
 
+        p12Base64: cert.p12Base64 || null,
+
+        p12Password: cert.p12Password || null,
+
+        useHab: !!cert.useHab,
+
       })
 
       .then(function (r) {
 
-        if (!r || !r.ok) return null;
+        if (!r || !r.ok) {
+
+          if (r && r.motivo && typeof global.showToast === 'function') {
+
+            global.__crozzoLastDianLookupError = r.motivo;
+
+          }
+
+          return null;
+
+        }
 
         return {
 
           nombre: r.name || r.nombre || r.razonSocial || '',
 
           email: r.email || r.correo || '',
+
+          telefono: r.telefono || r.phone || '',
 
           ciudad: r.ciudad || r.municipio || '',
 
@@ -403,6 +689,124 @@
         return null;
 
       });
+
+  }
+
+
+
+  function lookupRemoteRuesOpenData(doc) {
+
+    if (!doc || !doc.number) return Promise.resolve(null);
+
+    var nit = String(doc.number).replace(/\D/g, '');
+
+    if (nit.length < 6) return Promise.resolve(null);
+
+    var url = RUES_OPENDATA_URL + '?nit=' + encodeURIComponent(nit) + '&$limit=3';
+
+    return fetch(url, { method: 'GET', headers: { Accept: 'application/json' } })
+
+      .then(function (r) {
+
+        if (!r.ok) return null;
+
+        return r.json();
+
+      })
+
+      .then(function (rows) {
+
+        if (!Array.isArray(rows) || !rows.length) return null;
+
+        var hit = rows[0];
+
+        var nombre = String(
+
+          hit.razon_social || hit.nombre || hit.representante_legal || ''
+
+        ).trim();
+
+        if (!nombre) return null;
+
+        var base = {
+
+          nombre: nombre,
+
+          email: '',
+
+          telefono: '',
+
+          ciudad: ruesPickContact(hit.municipio, hit.municipio_comercial, hit.camara_comercio),
+
+          direccion: '',
+
+          source: 'rues_opendata',
+
+        };
+
+        var rmId = buildRuesRmId(hit.codigo_camara, hit.matricula);
+
+        if (!rmId) return Promise.resolve(annotateRuesContactFields(base));
+
+        return lookupRuesDetalleRm(rmId).then(function (det) {
+
+          return mergeRuesDetalle(base, det);
+
+        });
+
+      })
+
+      .catch(function () {
+
+        return null;
+
+      });
+
+  }
+
+
+
+  function lookupRemoteAll(doc) {
+
+    var steps = [];
+
+    if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+
+      steps.push(function () {
+
+        return lookupRemoteTauri(doc);
+
+      });
+
+    }
+
+    steps.push(function () {
+
+      return lookupRemoteSupabase(doc);
+
+    });
+
+    steps.push(function () {
+
+      return lookupRemoteRuesOpenData(doc);
+
+    });
+
+    function runStep(i) {
+
+      if (i >= steps.length) return Promise.resolve(null);
+
+      return steps[i]().then(function (hit) {
+
+        if (hit) return hit;
+
+        return runStep(i + 1);
+
+      });
+
+    }
+
+    return runStep(0);
 
   }
 
@@ -502,7 +906,9 @@
 
 
 
-  function lookupAdquiriente(raw) {
+  function lookupAdquiriente(raw, opts) {
+
+    opts = opts || {};
 
     var doc = parseDocument(raw);
 
@@ -514,55 +920,47 @@
 
     var ck = normDocKey(doc);
 
-    var cached = cacheGet(ck);
+    if (!opts.skipCache) {
 
-    if (cached) {
+      var cached = cacheGet(ck);
 
-      return Promise.resolve({ ok: true, doc: doc, data: cached, source: 'cache' });
+      if (cached) {
 
-    }
+        return Promise.resolve({ ok: true, doc: doc, data: cached, source: 'cache' });
 
-    var local = lookupLocalCrm(doc) || lookupLocalReservorio(doc);
-
-    if (local) {
-
-      writeCacheEntry(ck, local);
-
-      return Promise.resolve({ ok: true, doc: doc, data: local, source: local.source });
+      }
 
     }
 
-    var demo = lookupDemo(doc);
+    if (!opts.skipLocal) {
 
-    if (demo) {
+      var local = lookupLocalCrm(doc) || lookupLocalReservorio(doc);
 
-      writeCacheEntry(ck, demo);
+      if (local) {
 
-      return Promise.resolve({ ok: true, doc: doc, data: demo, source: demo.source });
+        writeCacheEntry(ck, local);
 
-    }
+        return Promise.resolve({ ok: true, doc: doc, data: local, source: local.source });
 
-    if (!canUseDianLookup() && !global.__TAURI__) {
-
-      return Promise.resolve({
-
-        ok: false,
-
-        doc: doc,
-
-        soft: true,
-
-        error: 'Sin datos guardados — use ➕ Nuevo para registrar este documento.',
-
-      });
+      }
 
     }
 
-    var remoteChain = lookupRemoteTauri(doc);
+    if (!opts.skipJsDemo) {
 
-    if (!global.__TAURI__) remoteChain = lookupRemoteSupabase(doc);
+      var demo = lookupDemo(doc);
 
-    return remoteChain.then(function (remote) {
+      if (demo) {
+
+        writeCacheEntry(ck, demo);
+
+        return Promise.resolve({ ok: true, doc: doc, data: demo, source: demo.source });
+
+      }
+
+    }
+
+    return lookupRemoteAll(doc).then(function (remote) {
 
       if (remote) {
 
@@ -572,29 +970,17 @@
 
       }
 
-      return lookupRemoteSupabase(doc).then(function (remote2) {
+      return {
 
-        if (remote2) {
+        ok: false,
 
-          writeCacheEntry(ck, remote2);
+        doc: doc,
 
-          return { ok: true, doc: doc, data: remote2, source: remote2.source };
+        soft: true,
 
-        }
+        error: 'No hay datos en internet para ese documento — escriba nombre y correo.',
 
-        return {
-
-          ok: false,
-
-          doc: doc,
-
-          soft: true,
-
-          error: 'No encontramos datos — use ➕ Nuevo para registrar el documento y nombre.',
-
-        };
-
-      });
+      };
 
     });
 
@@ -748,6 +1134,33 @@
 
 
 
+  function persistLookupToPos(data, doc) {
+
+    if (typeof global.crozzoCrmEnsureClientFromLookup === 'function') {
+
+      return global.crozzoCrmEnsureClientFromLookup(data, doc);
+
+    }
+
+    if (data && data.clientId && typeof global.crozzoCrmApplyClientToUi === 'function') {
+
+      var c = typeof global.crozzoCrmClientById === 'function' ? global.crozzoCrmClientById(data.clientId) : null;
+
+      if (c) {
+
+        global.crozzoCrmApplyClientToUi(c);
+
+        return c;
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+
   function tryApplyExistingClient(profileKey, data) {
 
     if (!data || !data.clientId) return false;
@@ -766,7 +1179,7 @@
 
     if (typeof global.showToast === 'function') {
 
-      global.showToast('Cliente ya registrado — lo cargamos en este pedido.', 'success');
+      global.showToast('Cliente listo.', 'success');
 
     }
 
@@ -818,7 +1231,7 @@
 
     setStatus(p.status, '<span class="crozzo-adq-lookup-pulse">Buscando con cuidado…</span>', true);
 
-    lookupAdquiriente(raw)
+    lookupAdquiriente(raw, { skipJsDemo: true })
 
       .then(function (res) {
 
@@ -830,7 +1243,7 @@
 
           if (res.data.clientId && tryApplyExistingClient(profileKey, res.data)) {
 
-            setStatus(p.status, '<span class="form-success">✓ Cliente conocido — listo en el pedido</span>');
+            setStatus(p.status, '<span class="form-success">✓ Cliente listo</span>');
 
             setHint(p.hint, '');
 
@@ -842,13 +1255,13 @@
 
           var lbl = sourceLabel(res.source);
 
-          setStatus(p.status, '<span class="form-success">✓ Completado desde ' + lbl + '</span>');
+          setStatus(p.status, '<span class="form-success">✓ Datos completados</span>');
 
           setHint(p.hint, '');
 
           if (!opts.silent && typeof global.showToast === 'function') {
 
-            global.showToast('Listo — datos tomados de ' + lbl + '. Revise y continúe.', 'success');
+            global.showToast('Datos del cliente listos.', 'success');
 
           }
 
@@ -1043,6 +1456,8 @@
     parseDocument: parseDocument,
 
     lookupAdquiriente: lookupAdquiriente,
+
+    persistLookupToPos: persistLookupToPos,
 
     runForForm: runForForm,
 

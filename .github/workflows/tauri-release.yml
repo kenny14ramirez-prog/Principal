@@ -162,3 +162,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/verify-release-updater-json.mjs "${{ github.ref_name }}"
+
+  verify-multiplatform:
+    name: Release estable (Win + Mac + Android)
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Comprobar instaladores para todos los dispositivos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/verify-release-multiplatform.mjs "${{ github.ref_name }}"

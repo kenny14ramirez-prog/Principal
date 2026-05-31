@@ -4138,6 +4138,40 @@ tr:hover {
 .crozzo-crm-search-wrap {
   position: relative;
 }
+.crozzo-crm-search-wrap--with-btn {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.crozzo-crm-search-wrap--with-btn .crozzo-crm-search {
+  flex: 1;
+  min-width: 0;
+}
+.crozzo-crm-search-go {
+  flex-shrink: 0;
+  padding: 6px 10px !important;
+  min-width: 42px;
+  font-size: 1rem !important;
+}
+.crozzo-crm-inet-modal .crozzo-crm-item {
+  border-radius: var(--radius, 8px);
+  margin-bottom: 4px;
+}
+.crozzo-crm-inet-modal .crozzo-crm-item--action {
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+.modal--crm-inet .modal-body {
+  padding-top: 8px;
+}
+.tablet-order-panel .crozzo-crm-wrap {
+  overflow: visible;
+  z-index: 5;
+}
+.tablet-order-panel .crozzo-crm-dropdown {
+  z-index: 120;
+  max-height: min(280px, 42vh);
+}
 .crozzo-crm-wrap .crozzo-crm-search {
   width: 100%;
   padding: 8px 10px;
@@ -4182,6 +4216,15 @@ tr:hover {
   color: var(--text-muted);
   font-size: 0.78rem;
   padding: 10px 12px;
+}
+.crozzo-crm-item--section {
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 12px 4px;
+  pointer-events: none;
+  border-bottom: none;
 }
 .crozzo-crm-item--hint:hover {
   background: transparent;
@@ -20725,5 +20768,48 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__action {
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty {
   padding: 16px 8px !important;
+}
+
+/* CRM — QR autoregistro clientes */
+.crozzo-crm-reg-panel .crozzo-crm-reg-body {
+  padding: 0 4px 12px;
+}
+.crozzo-crm-reg-status {
+  font-size: 0.82rem;
+  margin: 0 0 10px;
+  color: var(--text-muted);
+}
+.crozzo-crm-reg-status.is-on {
+  color: var(--success, #34d399);
+}
+.crozzo-crm-reg-url {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  padding: 8px 10px;
+  margin: 0;
+}
+.crozzo-crm-reg-qr-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: var(--elevation-1, 0 1px 3px rgba(0, 0, 0, 0.12));
+}
+@media (max-width: 720px) {
+  .crozzo-crm-reg-panel .crozzo-crm-reg-body {
+    grid-template-columns: 1fr !important;
+  }
+}
+.crozzo-crm-reg-modal {
+  text-align: center;
+  padding: 4px 0 8px;
+}
+.crozzo-crm-wrap .crozzo-crm-tb-btn {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
 }
 

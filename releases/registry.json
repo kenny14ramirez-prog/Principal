@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-31T11:26:53.106Z",
+  "updatedAt": "2026-05-31T13:23:34.404Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -251,6 +251,18 @@
       "installMode": "auto",
       "changelog": [
         "critico actualizaciones"
+      ]
+    },
+    {
+      "id": "1.0.37-critical",
+      "version": "v1.0.37",
+      "semver": "1.0.37",
+      "type": "critical",
+      "message": "asistema de clientes!!",
+      "publishedAt": "2026-05-31T13:23:34.404Z",
+      "installMode": "auto",
+      "changelog": [
+        "asistema de clientes!!"
       ]
     }
   ]

@@ -1201,6 +1201,24 @@
     }
 
     step('plataforma', true, profile.kind + ' → ' + (profile.artifactLabel || profile.assetKind));
+    step('boot_pipeline', typeof runBootUpdatePipeline === 'function', 'runBootUpdatePipeline registrado');
+    step('auditoria_exportada', typeof global.crozzoUpdateRunDiagnostic === 'function', 'crozzoUpdateRunDiagnostic en consola');
+
+    var registryP = fetch(DEFAULT_REGISTRY_URL, { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) {
+          step('registry_ota', false, 'HTTP ' + res.status);
+          return null;
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        var entries = data && Array.isArray(data.entries) ? data.entries : [];
+        step('registry_ota', entries.length > 0, entries.length + ' entrada(s) en main');
+      })
+      .catch(function (e) {
+        step('registry_ota', false, e && e.message ? e.message : 'sin red');
+      });
 
     var probeP = Promise.resolve();
     if (TU && TU.probePlatformInstaller) {
@@ -1214,15 +1232,47 @@
       ? TU.resolveReleaseInstallTarget(target)
           .then(function (hit) {
             step('artefacto_github', !!(hit && hit.url), hit ? hit.url + ' (' + (hit.assetType || '') + ')' : 'no encontrado');
+            if (TU.validateArtifactForPlatform && hit) {
+              var v = TU.validateArtifactForPlatform(hit, profile.assetKind);
+              step('compatible_plataforma', v.ok, v.ok ? 'paquete correcto para este equipo' : v.message || v.reason);
+            }
           })
           .catch(function (e) {
             step('artefacto_github', false, e && e.message ? e.message : String(e));
           })
       : Promise.resolve();
 
-    return probeP
+    var stabilityP =
+      TU && TU.checkReleaseMultiplatformStability
+        ? TU.checkReleaseMultiplatformStability(target)
+            .then(function (st) {
+              step('release_windows', !!st.windows, st.windows ? 'setup.exe listo' : 'falta o incompleto');
+              step('release_mac', !!st.mac, st.mac ? 'dmg listo' : 'falta');
+              step('release_android', !!st.android, st.android ? 'apk listo' : 'falta');
+              step(
+                'release_estable_mayoria',
+                st.complete || st.majorityStable,
+                st.complete
+                  ? 'Win+Mac+Android completos'
+                  : st.majorityStable
+                    ? 'mayoría de plataformas OK'
+                    : 'publique de nuevo el tag y espere CI'
+              );
+            })
+            .catch(function (e) {
+              step('release_estable_mayoria', false, e && e.message ? e.message : String(e));
+            })
+        : Promise.resolve();
+
+    return registryP
+      .then(function () {
+        return probeP;
+      })
       .then(function () {
         return assetP;
+      })
+      .then(function () {
+        return stabilityP;
       })
       .then(function () {
         var pending = (_registryEntries || []).filter(entryIsPending);

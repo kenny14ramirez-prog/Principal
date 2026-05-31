@@ -1,7 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+mod crm_registro_server;
 mod crozzo_print;
 mod crozzo_silent_install;
+mod dian_adquiriente;
 mod dian_vpfe;
 mod webview_permissions;
 
@@ -38,7 +40,13 @@ pub fn run() {
             crozzo_silent_install::install_dmg_from_url,
             crozzo_silent_install::probe_platform_installer,
             webview_permissions::cxf_reset_webview_camera_permission,
-            dian_vpfe::fetch_dian_vpfe
+            dian_vpfe::fetch_dian_vpfe,
+            dian_adquiriente::fetch_dian_adquiriente,
+            crm_registro_server::crm_registro_start,
+            crm_registro_server::crm_registro_stop,
+            crm_registro_server::crm_registro_status,
+            crm_registro_server::crm_registro_drain_pending,
+            crm_registro_server::crm_registro_push_pending
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
