@@ -100,6 +100,7 @@ jobs:
         run: npx tauri android init --ci --skip-targets-install
 
       - name: Compilar ${{ matrix.label }} y publicar release
+        if: ${{ !matrix.android }}
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -124,9 +125,37 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          mobile: ${{ matrix.android && 'android' || '' }}
-          includeUpdaterJson: ${{ !matrix.android }}
+          includeUpdaterJson: true
           updaterJsonPreferNsis: true
+
+      - name: Compilar APK Android
+        if: matrix.android
+        env:
+          CI: true
+          NDK_HOME: ${{ steps.android-ndk.outputs.ndk-path }}
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
+        run: npx tauri android build --target aarch64
+
+      - name: Subir APK al release de GitHub
+        if: matrix.android
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          for i in $(seq 1 20); do
+            if gh release view "$TAG" >/dev/null 2>&1; then break; fi
+            echo "Esperando release $TAG ($i/20)..."
+            sleep 30
+          done
+          APK=$(find src-tauri/gen/android -name '*.apk' -type f 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            echo "No se encontró APK en src-tauri/gen/android"
+            find src-tauri/gen/android -type f 2>/dev/null || true
+            exit 1
+          fi
+          gh release upload "$TAG" "$APK" --clobber
+          echo "APK subido: $APK"
 
       - name: Verificar latest.json y artefactos del release
         if: matrix.label == 'Windows x64'
