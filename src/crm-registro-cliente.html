@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a8a">
+  <title>Registro de cliente · Factura electrónica</title>
+  <link rel="stylesheet" href="css/CrozzoPosStyles.css">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: var(--bg-primary, #0f172a);
+      color: var(--text-primary, #f8fafc);
+      font-family: Inter, system-ui, sans-serif;
+    }
+    .crm-reg-page {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 20px 16px 32px;
+    }
+    .crm-reg-head {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .crm-reg-head h1 {
+      font-size: 1.25rem;
+      margin: 0 0 6px;
+    }
+    .crm-reg-head p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted, #94a3b8);
+      line-height: 1.45;
+    }
+    .crm-reg-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .crm-reg-tab {
+      flex: 1;
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border, #334155);
+      background: transparent;
+      color: inherit;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .crm-reg-tab.is-active {
+      background: var(--primary, #2563eb);
+      border-color: var(--primary, #2563eb);
+      color: #fff;
+    }
+    .crm-reg-panel { display: none; }
+    .crm-reg-panel.is-active { display: block; }
+    .crm-reg-rut-box {
+      border: 2px dashed var(--border, #475569);
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .crm-reg-rut-box input[type=file] { display: none; }
+    .crm-reg-status {
+      font-size: 0.82rem;
+      margin: 10px 0;
+      min-height: 1.2em;
+      color: var(--text-muted, #94a3b8);
+    }
+    .crm-reg-status.ok { color: #34d399; }
+    .crm-reg-status.err { color: #f87171; }
+    .crm-reg-success {
+      display: none;
+      text-align: center;
+      padding: 32px 16px;
+    }
+    .crm-reg-success.is-visible { display: block; }
+    .crm-reg-success .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .crm-reg-form-wrap.is-hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="crm-reg-page">
+    <div class="crm-reg-head">
+      <h1 id="crmRegBizName">Registro de cliente</h1>
+      <p>Complete sus datos para factura electrónica. Puede escribirlos o subir el PDF/foto del RUT DIAN.</p>
+    </div>
+
+    <div id="crmRegSuccess" class="crm-reg-success">
+      <div class="icon" aria-hidden="true">✅</div>
+      <h2 style="font-size:1.1rem;margin:0 0 8px;">Datos enviados</h2>
+      <p style="color:var(--text-muted);font-size:0.88rem;margin:0;">Gracias. El local recibirá su registro en unos segundos.</p>
+    </div>
+
+    <div id="crmRegFormWrap" class="crm-reg-form-wrap">
+      <div class="crm-reg-tabs" role="tablist">
+        <button type="button" class="crm-reg-tab is-active" data-tab="manual" role="tab">Escribir datos</button>
+        <button type="button" class="crm-reg-tab" data-tab="rut" role="tab">Subir RUT</button>
+      </div>
+
+      <div id="crmRegPanelRut" class="crm-reg-panel" role="tabpanel">
+        <div class="crm-reg-rut-box">
+          <p style="margin:0 0 12px;font-size:0.88rem;">PDF o foto del certificado RUT de la DIAN</p>
+          <label for="crmRegRutFile" class="btn btn-outline" style="cursor:pointer;display:inline-block;">📄 Elegir archivo</label>
+          <input type="file" id="crmRegRutFile" accept=".pdf,image/*,application/pdf">
+          <p class="form-hint" style="margin:10px 0 0;font-size:0.75rem;">Leemos NIT, razón social, correo y teléfono del formulario DIAN.</p>
+        </div>
+        <div id="crmRegRutStatus" class="crm-reg-status"></div>
+      </div>
+
+      <div id="crmRegPanelManual" class="crm-reg-panel is-active" role="tabpanel">
+        <form id="crmRegForm" autocomplete="on">
+          <div class="form-group">
+            <label class="form-label" for="crmRegNit">NIT / documento *</label>
+            <input type="text" class="form-input" id="crmRegNit" required placeholder="900123456-7">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="crmRegNombre">Nombre o razón social *</label>
+            <input type="text" class="form-input" id="crmRegNombre" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="crmRegEmail">Correo electrónico *</label>
+            <input type="email" class="form-input" id="crmRegEmail" required placeholder="correo@empresa.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="crmRegTel">Teléfono (opcional)</label>
+            <input type="tel" class="form-input" id="crmRegTel" placeholder="Ej. 310…">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="crmRegCiudad">Ciudad / municipio</label>
+            <input type="text" class="form-input" id="crmRegCiudad">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="crmRegDir">Dirección (opcional)</label>
+            <input type="text" class="form-input" id="crmRegDir">
+          </div>
+          <div id="crmRegFormStatus" class="crm-reg-status"></div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px;padding:12px;" id="crmRegSubmit">Enviar datos</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/CrozzoPdfJs.js"></script>
+  <script src="modules/CrozzoProveedorDocumentos.js"></script>
+  <script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var token = params.get('t') || params.get('token') || '';
+    var biz = params.get('b') || params.get('biz') || '';
+    if (biz) {
+      var h = document.getElementById('crmRegBizName');
+      if (h) h.textContent = decodeURIComponent(biz);
+    }
+
+    function setStatus(el, msg, kind) {
+      if (!el) return;
+      el.textContent = msg || '';
+      el.className = 'crm-reg-status' + (kind ? ' ' + kind : '');
+    }
+
+    document.querySelectorAll('.crm-reg-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tab = btn.getAttribute('data-tab');
+        document.querySelectorAll('.crm-reg-tab').forEach(function (b) {
+          b.classList.toggle('is-active', b === btn);
+        });
+        document.getElementById('crmRegPanelManual').classList.toggle('is-active', tab === 'manual');
+        document.getElementById('crmRegPanelRut').classList.toggle('is-active', tab === 'rut');
+      });
+    });
+
+    function fillFromParsed(parsed) {
+      if (!parsed) return;
+      var nitEl = document.getElementById('crmRegNit');
+      var nomEl = document.getElementById('crmRegNombre');
+      var mailEl = document.getElementById('crmRegEmail');
+      var telEl = document.getElementById('crmRegTel');
+      var ciuEl = document.getElementById('crmRegCiudad');
+      var dirEl = document.getElementById('crmRegDir');
+      if (parsed.identificador && parsed.identificador.display && nitEl) {
+        nitEl.value = parsed.identificador.display;
+      } else if (parsed.identificador && parsed.identificador.norm && nitEl) {
+        nitEl.value = parsed.identificador.norm;
+      }
+      if (parsed.razonSocial && nomEl) nomEl.value = parsed.razonSocial;
+      if (parsed.email && mailEl) mailEl.value = parsed.email;
+      if (parsed.telefono && telEl) telEl.value = parsed.telefono;
+      if (parsed.ciudad && ciuEl) ciuEl.value = parsed.ciudad;
+      if (parsed.direccion && dirEl) dirEl.value = parsed.direccion;
+      document.querySelector('.crm-reg-tab[data-tab="manual"]').click();
+    }
+
+    var rutInput = document.getElementById('crmRegRutFile');
+    if (rutInput) {
+      rutInput.addEventListener('change', function () {
+        var file = rutInput.files && rutInput.files[0];
+        var st = document.getElementById('crmRegRutStatus');
+        if (!file) return;
+        if (!window.CrozzoProveedorDocumentos || !CrozzoProveedorDocumentos.extractFromFile) {
+          setStatus(st, 'Lector RUT no disponible en esta página.', 'err');
+          return;
+        }
+        setStatus(st, 'Leyendo certificado…');
+        CrozzoProveedorDocumentos.extractFromFile(file)
+          .then(function (res) {
+            var p = res && res.parsed;
+            if (!p || (!p.identificador && !p.razonSocial)) {
+              setStatus(st, 'No se pudo leer el RUT. Intente una foto más nítida o escriba los datos.', 'err');
+              return;
+            }
+            fillFromParsed(p);
+            setStatus(st, 'Datos extraídos del RUT. Revise y envíe.', 'ok');
+          })
+          .catch(function (e) {
+            setStatus(st, (e && e.message) || 'Error al leer el archivo', 'err');
+          });
+      });
+    }
+
+    function collectPayload() {
+      return {
+        nit: (document.getElementById('crmRegNit').value || '').trim(),
+        nombre: (document.getElementById('crmRegNombre').value || '').trim(),
+        email: (document.getElementById('crmRegEmail').value || '').trim(),
+        telefono: (document.getElementById('crmRegTel').value || '').trim(),
+        ciudad: (document.getElementById('crmRegCiudad').value || '').trim(),
+        direccion: (document.getElementById('crmRegDir').value || '').trim(),
+        origen: 'qr_registro',
+        token: token
+      };
+    }
+
+    function showDone() {
+      document.getElementById('crmRegFormWrap').classList.add('is-hidden');
+      document.getElementById('crmRegSuccess').classList.add('is-visible');
+    }
+
+    function submitPayload(payload) {
+      var st = document.getElementById('crmRegFormStatus');
+      var headers = { 'Content-Type': 'application/json' };
+      if (token) headers['X-Crozzo-Token'] = token;
+      setStatus(st, 'Enviando…');
+      return fetch('/api/crm-registro', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload)
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          if (res.ok && res.j && res.j.ok !== false) {
+            showDone();
+            return;
+          }
+          throw new Error((res.j && res.j.error) || 'No se pudo enviar');
+        });
+    }
+
+    document.getElementById('crmRegForm').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var st = document.getElementById('crmRegFormStatus');
+      var payload = collectPayload();
+      if (!payload.nombre) {
+        setStatus(st, 'Indique nombre o razón social', 'err');
+        return;
+      }
+      if (!payload.nit) {
+        setStatus(st, 'Indique NIT o documento', 'err');
+        return;
+      }
+      if (!payload.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+        setStatus(st, 'Indique un correo válido (obligatorio para FE)', 'err');
+        return;
+      }
+      submitPayload(payload).catch(function (e) {
+        setStatus(st, e.message || 'Error de red. ¿Está conectado al Wi‑Fi del local?', 'err');
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

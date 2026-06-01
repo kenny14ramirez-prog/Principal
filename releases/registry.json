@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-01T15:57:17.623Z",
+  "updatedAt": "2026-06-01T17:59:07.444Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -296,6 +296,18 @@
       "type": "critical",
       "message": "global",
       "publishedAt": "2026-06-01T15:57:17.623Z",
+      "installMode": "auto",
+      "changelog": [
+        "global"
+      ]
+    },
+    {
+      "id": "1.0.41-critical",
+      "version": "v1.0.41",
+      "semver": "1.0.41",
+      "type": "critical",
+      "message": "global",
+      "publishedAt": "2026-06-01T17:59:07.444Z",
       "installMode": "auto",
       "changelog": [
         "global"

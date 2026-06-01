@@ -8,6 +8,9 @@
   var GITHUB_REPO = 'Principal';
   var GITHUB_RELEASE_BASE =
     'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/download';
+  var GITHUB_RAW_MAIN =
+    'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/main';
+  var GITHUB_RAW_RELEASES_LATEST = GITHUB_RAW_MAIN + '/releases/latest.json';
   var GITHUB_RELEASES_PAGE =
     'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases';
   var GITHUB_RELEASES_LATEST = GITHUB_RELEASES_PAGE + '/latest';
@@ -18,9 +21,16 @@
   var APK_MIN_BYTES = 800 * 1024;
   var CHECK_RETRY_MAX = 2;
   var SILENT_INSTALL_RETRY_MAX = 2;
+  var MIN_ARTIFACT_BYTES = { exe: 400 * 1024, dmg: 1024 * 1024, apk: 800 * 1024 };
 
   function isTauri() {
-    return !!(global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke);
+    if (global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke) return true;
+    if (typeof global.crozzoIsTauriShell === 'function' && global.crozzoIsTauriShell()) return true;
+    return !!(global.__TAURI_INTERNALS__ && global.__TAURI_INTERNALS__.invoke);
+  }
+
+  function isGithubReleaseUrl(url) {
+    return /github\.com\/[^/]+\/[^/]+\/releases\/(download|latest)/i.test(String(url || ''));
   }
 
   function ua() {
@@ -86,6 +96,66 @@
 
   function invoke(cmd, args) {
     return global.__TAURI__.core.invoke(cmd, args || {});
+  }
+
+  /** GitHub Releases no envía CORS; en Tauri usamos el backend Rust. */
+  function httpGetJson(url) {
+    url = String(url || '').trim();
+    if (!url) return Promise.resolve(null);
+    if (isTauri()) {
+      return invoke('crozzo_http_get_text', { url: url })
+        .then(function (text) {
+          if (!text) return null;
+          return JSON.parse(text);
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+    if (isGithubReleaseUrl(url)) {
+      return Promise.resolve(null);
+    }
+    if (/raw\.githubusercontent\.com/i.test(url) || /api\.github\.com/i.test(url)) {
+      return fetch(url, { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) return null;
+          return res.json();
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+    return Promise.resolve(null);
+  }
+
+  function httpHead(url) {
+    url = String(url || '').trim();
+    if (!url) return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
+    if (isTauri()) {
+      return invoke('crozzo_http_head', { url: url })
+        .then(function (r) {
+          var ok = r && r.status >= 200 && r.status < 400;
+          var len = r && r.content_length ? Number(r.content_length) : 0;
+          return { ok: ok, url: url, bytes: len, reason: ok ? '' : 'http_' + (r && r.status) };
+        })
+        .catch(function () {
+          return { ok: false, reason: 'red', url: url };
+        });
+    }
+    if (isGithubReleaseUrl(url)) {
+      return Promise.resolve({ ok: false, reason: 'cors_github', url: url });
+    }
+    if (/api\.github\.com/i.test(url)) {
+      return fetch(url, { method: 'HEAD', cache: 'no-store' })
+        .then(function (res) {
+          var len = parseInt(res.headers.get('content-length') || '0', 10);
+          return { ok: res.ok, url: url, bytes: len, reason: res.ok ? '' : 'http_' + res.status };
+        })
+        .catch(function () {
+          return { ok: false, reason: 'red', url: url };
+        });
+    }
+    return Promise.resolve({ ok: true, url: url, bytes: 0, reason: 'sin_head_navegador' });
   }
 
   function normVersion(v) {
@@ -194,8 +264,9 @@
     }
   }
 
-  var RELEASE_WAIT_MS = 20 * 60 * 1000;
-  var RELEASE_POLL_MS = 12000;
+  var RELEASE_WAIT_MS = 90 * 1000;
+  var RELEASE_POLL_MS = 4000;
+  var UPDATER_CHECK_TIMEOUT_MS = 45000;
 
   function isSignatureMismatchError(err) {
     var msg = err && err.message ? err.message : String(err || '');
@@ -222,27 +293,28 @@
     );
   }
 
-  function verifySetupDownloadUrl(url) {
+  function verifySetupDownloadUrl(url, knownBytes) {
     url = String(url || '').trim();
     if (!url || !/^https:\/\//i.test(url)) {
       return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
     }
+    var kb = Number(knownBytes) || 0;
+    if (kb >= SETUP_MIN_BYTES) {
+      return Promise.resolve({ ok: true, url: url, bytes: kb });
+    }
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
-    return fetch(url + sep + '_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) return { ok: false, reason: 'http_' + res.status, url: url };
-        var len = parseInt(res.headers.get('content-length') || '0', 10);
-        if (len > 0 && len < SETUP_MIN_BYTES) {
-          return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
-        }
-        return { ok: true, url: url, bytes: len };
-      })
-      .catch(function () {
-        return { ok: false, reason: 'red', url: url };
-      });
+    return httpHead(url + sep + '_=' + Date.now()).then(function (res) {
+      if (!res.ok) return res;
+      var len = res.bytes || 0;
+      if (len > 0 && len < SETUP_MIN_BYTES) {
+        return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
+      }
+      return { ok: true, url: url, bytes: len };
+    });
   }
 
-  function pickVerifiedSetupUrl(candidates) {
+  function pickVerifiedSetupUrl(candidates, sizeByUrl) {
+    sizeByUrl = sizeByUrl || {};
     var list = (candidates || []).filter(function (u) {
       return u && /^https:\/\//i.test(String(u));
     });
@@ -256,7 +328,7 @@
 
     function next(i) {
       if (i >= list.length) return Promise.resolve(null);
-      return verifySetupDownloadUrl(list[i]).then(function (v) {
+      return verifySetupDownloadUrl(list[i], sizeByUrl[list[i]]).then(function (v) {
         if (v.ok) return v;
         return next(i + 1);
       });
@@ -271,12 +343,15 @@
       if (info.downloadUrl) candidates.push(info.downloadUrl);
       var predicted = predictSetupExeUrl(ver);
       if (predicted) candidates.push(predicted);
+      var sizeByUrl = {};
       if (Array.isArray(info.assets)) {
         info.assets.forEach(function (a) {
-          if (a && a.url && /setup\.exe/i.test(a.name || a.url)) candidates.push(a.url);
+          if (!a || !a.url) return;
+          if (a.size) sizeByUrl[a.url] = Number(a.size) || 0;
+          if (/setup\.exe$/i.test(a.name || a.url)) candidates.push(a.url);
         });
       }
-      return pickVerifiedSetupUrl(candidates).then(function (verified) {
+      return pickVerifiedSetupUrl(candidates, sizeByUrl).then(function (verified) {
         if (verified && verified.url) {
           return {
             version: ver,
@@ -307,71 +382,127 @@
     });
   }
 
+  function releaseUrlLooksInstallable(url) {
+    if (!url) return false;
+    var u = String(url);
+    if (/setup\.exe$/i.test(u) || /\.dmg$/i.test(u) || /\.apk$/i.test(u)) return true;
+    if (/\.exe$/i.test(u) && /setup|nsis/i.test(u)) return true;
+    return false;
+  }
+
+  function getPlatformAssetKind() {
+    var kind = getClientKind();
+    if (kind === 'android' || kind === 'android-web') return 'apk';
+    if (kind === 'mac') return 'dmg';
+    if (kind === 'windows' || kind === 'desktop') return 'exe';
+    if (kind === 'ios-web') return 'web';
+    return 'web';
+  }
+
+  function platformArtifactLabel(assetKind) {
+    assetKind = assetKind || getPlatformAssetKind();
+    if (assetKind === 'exe') return 'instalador Windows (.exe)';
+    if (assetKind === 'dmg') return 'instalador macOS (.dmg)';
+    if (assetKind === 'apk') return 'APK Android';
+    return 'paquete web';
+  }
+
+  function pickMacDmgFromAssets(assets) {
+    if (!Array.isArray(assets)) return '';
+    var armHint = /aarch64|arm64|apple.?silicon|universal/i;
+    var arm = assets.find(function (a) {
+      var name = String(a.name || a.url || '');
+      return /\.dmg$/i.test(name) && armHint.test(name);
+    });
+    if (arm) return arm.browser_download_url || arm.url || '';
+    var intel = assets.find(function (a) {
+      var name = String(a.name || a.url || '');
+      return /\.dmg$/i.test(name) && /x64|x86_64|intel/i.test(name);
+    });
+    if (intel) return intel.browser_download_url || intel.url || '';
+    var any = assets.find(function (a) {
+      return /\.dmg$/i.test(a.name || a.url || '');
+    });
+    return any ? any.browser_download_url || any.url || '' : '';
+  }
+
+  /** Artefacto correcto según dispositivo (exe / dmg / apk). */
+  function resolveReleaseInstallTarget(targetVersion) {
+    var ver = normVersion(targetVersion);
+    if (!ver) return Promise.resolve(null);
+    var assetKind = getPlatformAssetKind();
+
+    return resolveBestDownloadUrl(ver)
+      .then(function (info) {
+        if (info && info.downloadUrl && releaseUrlLooksInstallable(info.downloadUrl)) {
+          return {
+            version: normVersion(info.version || ver),
+            url: info.downloadUrl,
+            releasePageUrl: info.releasePageUrl,
+            assetType: info.assetType || assetKind,
+            verified: !!info.verified,
+            source: 'platform-' + (info.assetType || assetKind),
+          };
+        }
+        return probeReleaseArtifacts(ver).then(function (probe) {
+          if (probe && probe.url && (releaseUrlLooksInstallable(probe.url) || probe.hasSignature)) {
+            return {
+              version: normVersion(probe.version || ver),
+              url: probe.url,
+              releasePageUrl: probe.releasePageUrl,
+              hasSignature: !!probe.hasSignature,
+              assetType: assetKind,
+              source: 'latest-json',
+            };
+          }
+          if (assetKind === 'exe' && isWindowsDesktop()) {
+            var predicted = predictSetupExeUrl(ver);
+            if (!predicted) return null;
+            return verifySetupDownloadUrl(predicted).then(function (v) {
+              if (!v.ok) return null;
+              return {
+                version: ver,
+                url: v.url,
+                bytes: v.bytes || 0,
+                assetType: 'exe',
+                source: 'predicted-exe',
+              };
+            });
+          }
+          return null;
+        });
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   function waitUntilReleaseReady(targetVersion, onProgress, maxWaitMs) {
     var ver = normVersion(targetVersion);
     if (!ver) return Promise.resolve(null);
     var started = Date.now();
-    maxWaitMs = maxWaitMs || RELEASE_WAIT_MS;
+    maxWaitMs = typeof maxWaitMs === 'number' ? maxWaitMs : RELEASE_WAIT_MS;
 
     function attempt() {
-      return probeReleaseArtifacts(ver).then(function (probe) {
-        if (
-          probe &&
-          probe.url &&
-          (/setup\.exe/i.test(probe.url) ||
-            /\.dmg$/i.test(probe.url) ||
-            (prefersApkDownload() && /\.apk$/i.test(probe.url)))
-        ) {
-          return probe;
-        }
-        if (prefersApkDownload()) {
-          return fetchReleaseAssets(ver).then(function (api) {
-            var apk = api && pickApkFromAssets(api.assets);
-            if (apk) {
-              return {
-                version: normVersion(api.version || ver),
-                url: apk,
-                releasePageUrl: api.releasePageUrl,
-                platform: getClientKind(),
-              };
-            }
-            if (Date.now() - started > maxWaitMs) {
-              return Promise.reject(
-                new Error(
-                  'El APK v' +
-                    semverCore(ver) +
-                    ' aún no está en GitHub. Espere a que termine GitHub Actions.'
-                )
-              );
-            }
-            if (onProgress) {
-              onProgress({
-                phase: 'probe',
-                percent: Math.min(10, 4 + Math.floor((Date.now() - started) / 60000)),
-                message:
-                  'Esperando APK v' + semverCore(ver) + ' en GitHub (compilación Android)…',
-              });
-            }
-            return delay(RELEASE_POLL_MS).then(attempt);
-          });
-        }
+      return resolveReleaseInstallTarget(ver).then(function (hit) {
+        if (hit && hit.url) return hit;
         if (Date.now() - started > maxWaitMs) {
           return Promise.reject(
             new Error(
-              'El instalador v' +
+              'No se encontró el instalador v' +
                 semverCore(ver) +
-                ' aún no está en GitHub. Espere a que termine GitHub Actions.'
+                ' en GitHub. Compruebe que el release exista o use Plan B (descarga manual).'
             )
           );
         }
         if (onProgress) {
           onProgress({
             phase: 'probe',
-            percent: Math.min(10, 4 + Math.floor((Date.now() - started) / 60000)),
+            percent: Math.min(15, 5 + Math.floor((Date.now() - started) / 4000)),
             message:
-              'Esperando instalador v' +
-              semverCore(ver) +
-              ' en GitHub (compilación en curso)…',
+              'Buscando instalador v' + semverCore(ver) + ' en GitHub… (' +
+              Math.ceil((maxWaitMs - (Date.now() - started)) / 1000) +
+              ' s restantes)',
           });
         }
         return delay(RELEASE_POLL_MS).then(attempt);
@@ -403,17 +534,30 @@
             (info.bytes ? fmtMb(info.bytes) + ')…' : 'en la nube)…'),
         });
       }
+      var tick = null;
+      var tickPct = 50 + attempt * 4;
+      if (onProgress) {
+        tick = setInterval(function () {
+          tickPct = Math.min(88, tickPct + 2);
+          onProgress({
+            phase: 'download',
+            percent: tickPct,
+            message: 'Descargando instalador desde GitHub…',
+          });
+        }, 2500);
+      }
       return invoke('install_setup_from_url', { url: url })
+        .finally(function () {
+          if (tick) clearInterval(tick);
+        })
         .catch(function (invokeErr) {
           var msg = invokeErr && invokeErr.message ? invokeErr.message : String(invokeErr);
           if (/not found|unknown command|install_setup_from_url/i.test(msg)) {
-            return openExternalUrl(url).then(function () {
-              return Promise.reject(
-                new Error(
-                  'Este build aún no incluye instalación silenciosa. Se abrió la descarga; ejecútela una vez y las siguientes serán automáticas.'
-                )
-              );
-            });
+            return Promise.reject(
+              new Error(
+                'Este ejecutable no incluye el instalador automático. Cierre la app, instale el .exe nuevo desde GitHub una vez, y las siguientes actualizaciones serán automáticas.'
+              )
+            );
           }
           if (attempt < SILENT_INSTALL_RETRY_MAX) {
             if (onProgress) {
@@ -500,18 +644,14 @@
       return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
     }
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
-    return fetch(url + sep + '_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) return { ok: false, reason: 'http_' + res.status, url: url };
-        var len = parseInt(res.headers.get('content-length') || '0', 10);
-        if (len > 0 && len < APK_MIN_BYTES) {
-          return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
-        }
-        return { ok: true, url: url, bytes: len };
-      })
-      .catch(function () {
-        return { ok: false, reason: 'red', url: url };
-      });
+    return httpHead(url + sep + '_=' + Date.now()).then(function (res) {
+      if (!res.ok) return res;
+      var len = res.bytes || 0;
+      if (len > 0 && len < APK_MIN_BYTES) {
+        return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
+      }
+      return { ok: true, url: url, bytes: len };
+    });
   }
 
   function pickVerifiedApkUrl(candidates) {
@@ -617,13 +757,11 @@
     }
     if (Array.isArray(assets)) {
       if (isMacDesktop()) {
-        var dmg = assets.find(function (a) {
-          return /\.dmg$/i.test(a.name || a.url || '');
-        });
-        if (dmg) return dmg.browser_download_url || dmg.url;
+        var dmgUrl = pickMacDmgFromAssets(assets);
+        if (dmgUrl) return dmgUrl;
       }
       var setupExe = assets.find(function (a) {
-        return /\.exe$/i.test(a.name || a.url || '') && /setup/i.test(a.name || '');
+        return /setup\.exe$/i.test(a.name || a.url || '');
       });
       if (setupExe) return setupExe.browser_download_url || setupExe.url;
       var anyExe = assets.find(function (a) {
@@ -639,23 +777,29 @@
     return '';
   }
 
+  function releaseLatestJsonCandidates(ver) {
+    var tag = 'v' + semverCore(ver);
+    return [
+      GITHUB_RELEASE_BASE + '/' + tag + '/latest.json',
+      'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/latest/download/latest.json',
+      GITHUB_RAW_RELEASES_LATEST,
+    ];
+  }
+
   function probeReleaseArtifacts(targetVersion) {
     var ver = semverCore(targetVersion);
     if (!ver) return Promise.resolve(null);
-    var url = GITHUB_RELEASE_BASE + '/v' + ver + '/latest.json?_=' + Date.now();
-    return fetch(url, { cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (!data || !data.platforms) return null;
+
+    function tryUrl(i, urls) {
+      if (i >= urls.length) return Promise.resolve(null);
+      return httpGetJson(urls[i] + (urls[i].indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now()).then(function (data) {
+        if (!data || !data.platforms) return tryUrl(i + 1, urls);
         var p = pickPlatformEntry(data.platforms);
         if (p && p.url && /\.msi$/i.test(p.url) && isWindowsDesktop()) {
           var nsis = data.platforms['windows-x86_64-nsis'];
           if (nsis && nsis.url) p = nsis;
         }
-        if (!p || !p.signature) return null;
+        if (!p || !p.signature) return tryUrl(i + 1, urls);
         return {
           version: normVersion(data.version || ver),
           url: p.url || '',
@@ -664,60 +808,54 @@
           releasePageUrl: GITHUB_RELEASES_PAGE + '/tag/v' + ver,
           platform: getClientKind(),
         };
-      })
-      .catch(function () {
-        return null;
       });
+    }
+    return tryUrl(0, releaseLatestJsonCandidates(ver));
   }
 
   function fetchReleaseAssets(targetVersion) {
     var tag = 'v' + semverCore(targetVersion);
-    return fetch(GITHUB_API_RELEASE + tag + '?_=' + Date.now(), {
-      cache: 'no-store',
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-      .then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (!data) return null;
-        var assets = (data.assets || []).map(function (a) {
-          return { name: a.name, url: a.browser_download_url, size: a.size };
-        });
-        var downloadUrl = pickBestAssetUrl(null, assets);
-        return {
-          version: normVersion(data.tag_name || tag),
-          tag: data.tag_name || tag,
-          downloadUrl: downloadUrl,
-          releasePageUrl: data.html_url || GITHUB_RELEASES_PAGE + '/tag/' + tag,
-          assets: assets,
-        };
-      })
-      .catch(function () {
-        return null;
+    var apiUrl = GITHUB_API_RELEASE + tag + '?_=' + Date.now();
+    return httpGetJson(apiUrl).then(function (data) {
+      if (!data) return null;
+      var assets = (data.assets || []).map(function (a) {
+        return { name: a.name, url: a.browser_download_url, size: a.size };
       });
+      var downloadUrl = pickBestAssetUrl(null, assets);
+      return {
+        version: normVersion(data.tag_name || tag),
+        tag: data.tag_name || tag,
+        downloadUrl: downloadUrl,
+        releasePageUrl: data.html_url || GITHUB_RELEASES_PAGE + '/tag/' + tag,
+        assets: assets,
+      };
+    });
   }
 
   function resolveManualFallback(targetVersion) {
     var ver = normVersion(targetVersion);
-    return probeReleaseArtifacts(ver)
-      .then(function (probe) {
-        return fetchReleaseAssets(ver).then(function (api) {
-          var downloadUrl =
-            (api && api.downloadUrl) ||
-            (probe && probe.url) ||
-            predictSetupExeUrl(ver) ||
-            GITHUB_RELEASES_LATEST;
+    return fetchReleaseAssets(ver)
+      .then(function (api) {
+        if (api && api.downloadUrl) {
           return {
             version: ver,
-            tag: (api && api.tag) || ver,
+            tag: api.tag || ver,
+            downloadUrl: api.downloadUrl,
+            releasePageUrl: api.releasePageUrl || GITHUB_RELEASES_LATEST,
+            assets: api.assets || [],
+            fromProbe: false,
+            fromApi: true,
+          };
+        }
+        return probeReleaseArtifacts(ver).then(function (probe) {
+          var downloadUrl =
+            (probe && probe.url) || predictSetupExeUrl(ver) || GITHUB_RELEASES_LATEST;
+          return {
+            version: ver,
+            tag: ver,
             downloadUrl: downloadUrl,
-            releasePageUrl:
-              (api && api.releasePageUrl) ||
-              (probe && probe.releasePageUrl) ||
-              GITHUB_RELEASES_LATEST,
-            assets: (api && api.assets) || [],
+            releasePageUrl: (probe && probe.releasePageUrl) || GITHUB_RELEASES_LATEST,
+            assets: api && api.assets ? api.assets : [],
             fromProbe: !!probe,
             fromApi: !!api,
           };
@@ -809,9 +947,276 @@
       });
   }
 
+  function trySilentSetupInstall(targetVersion, ver, currentVer, onProgress, opts) {
+    if (opts.allowSilentSetup === false || !isWindowsDesktop()) {
+      return Promise.reject(new Error('Instalación silenciosa (.exe) solo en Windows.'));
+    }
+    onProgress({
+      phase: 'download',
+      percent: 28,
+      message:
+        'Windows: descargando v' +
+        semverCore(targetVersion || ver) +
+        ' (.exe, ~8 MB, 1–3 min)…',
+    });
+    return installViaSilentSetupExe(targetVersion || ver, onProgress).then(function () {
+      return {
+        installed: true,
+        version: normVersion(ver || targetVersion),
+        previous: currentVer,
+        plan: 'C',
+        exiting: true,
+      };
+    });
+  }
+
+  function probePlatformInstallerCommand() {
+    if (!isTauri()) return Promise.resolve({ ok: false, platform: 'none' });
+    return invoke('probe_platform_installer')
+      .then(function (p) {
+        return { ok: true, platform: p };
+      })
+      .catch(function (err) {
+        return { ok: false, platform: 'unknown', error: err && err.message ? err.message : String(err) };
+      });
+  }
+
+  function installViaSilentDmgMac(targetVersion, onProgress, attempt) {
+    if (!isMacDesktop()) {
+      return Promise.reject(new Error('Instalación automática .dmg solo en macOS.'));
+    }
+    attempt = attempt || 0;
+    var ver = normVersion(targetVersion);
+    return resolveBestDownloadUrl(ver).then(function (info) {
+      var dmg = info && info.downloadUrl && /\.dmg$/i.test(info.downloadUrl) ? info.downloadUrl : '';
+      if (!dmg) {
+        return Promise.reject(new Error('No hay .dmg para macOS en GitHub.'));
+      }
+      if (onProgress) {
+        onProgress({
+          phase: 'download',
+          percent: 30 + attempt * 5,
+          message: 'macOS: descargando e instalando v' + semverCore(ver) + ' automáticamente…',
+        });
+      }
+      return invoke('install_dmg_from_url', { url: dmg })
+        .catch(function (invokeErr) {
+          var msg = invokeErr && invokeErr.message ? invokeErr.message : String(invokeErr);
+          if (attempt < SILENT_INSTALL_RETRY_MAX) {
+            return delay(3000 * (attempt + 1)).then(function () {
+              return installViaSilentDmgMac(targetVersion, onProgress, attempt + 1);
+            });
+          }
+          return Promise.reject(invokeErr || new Error(msg));
+        })
+        .then(function () {
+          if (onProgress) {
+            onProgress({
+              phase: 'install',
+              percent: 96,
+              message: 'Instalación en /Applications completada. Reiniciando…',
+            });
+          }
+          return delay(1200).then(function () {
+            return invoke('plugin:process|exit', { code: 0 }).catch(function () {
+              return { installed: true, version: ver, plan: 'D', exiting: true };
+            });
+          });
+        });
+    });
+  }
+
+  function tryMacDmgInstall(targetVersion, ver, currentVer, onProgress, opts) {
+    opts = opts || {};
+    if (opts.automaticOnly !== false) {
+      return installViaSilentDmgMac(targetVersion || ver, onProgress).then(function () {
+        return {
+          installed: true,
+          version: normVersion(ver || targetVersion),
+          previous: currentVer,
+          plan: 'D',
+          exiting: true,
+        };
+      });
+    }
+    return resolveBestDownloadUrl(targetVersion || ver).then(function (info) {
+      var dmg = info && info.downloadUrl && /\.dmg$/i.test(info.downloadUrl) ? info.downloadUrl : '';
+      if (!dmg) return Promise.reject(new Error('No hay .dmg para macOS.'));
+      return openExternalUrl(dmg).then(function (ok) {
+        if (!ok) return Promise.reject(new Error('No se pudo abrir el .dmg.'));
+        return {
+          installed: false,
+          version: normVersion(ver || targetVersion),
+          previous: currentVer,
+          plan: 'dmg_download',
+          downloadUrl: dmg,
+          needsManualInstall: true,
+        };
+      });
+    });
+  }
+
+  function tryPlatformFallback(err, ver, currentVer, onProgress, opts, targetVer) {
+    var tv = targetVer || ver;
+    opts = opts || {};
+    if (isWindowsDesktop()) {
+      return trySilentSetupInstall(tv, ver, currentVer, onProgress, opts);
+    }
+    if (isMacDesktop()) {
+      return tryMacDmgInstall(tv, ver, currentVer, onProgress, opts).catch(function (macErr) {
+        if (opts.automaticOnly !== false) {
+          return Promise.reject(macErr || err);
+        }
+        return resolveManualFallback(tv).then(function (manual) {
+          return Promise.reject(attachManual(macErr || err, manual));
+        });
+      });
+    }
+    if (opts.automaticOnly !== false) {
+      return Promise.reject(err || new Error('Plataforma sin instalador automático.'));
+    }
+    return resolveManualFallback(tv).then(function (manual) {
+      return Promise.reject(attachManual(err, manual));
+    });
+  }
+
+  function artifactMatchesPlatform(url, kind) {
+    if (!url) return false;
+    if (kind === 'exe') return /setup\.exe$/i.test(url);
+    if (kind === 'dmg') return /\.dmg$/i.test(url);
+    if (kind === 'apk') return /\.apk$/i.test(url);
+    return false;
+  }
+
+  function validateArtifactForPlatform(hit, kind) {
+    if (!hit || !hit.url) {
+      return { ok: false, reason: 'sin_url', message: 'No hay instalador en GitHub para esta versión.' };
+    }
+    if (!artifactMatchesPlatform(hit.url, kind)) {
+      return {
+        ok: false,
+        reason: 'incompatible',
+        message:
+          'El release no trae el paquete correcto para ' +
+          platformArtifactLabel(kind) +
+          ' (URL: ' +
+          hit.url.split('/').pop() +
+          ').',
+      };
+    }
+    var minB = MIN_ARTIFACT_BYTES[kind] || 0;
+    if (hit.bytes && hit.bytes > 0 && hit.bytes < minB) {
+      return {
+        ok: false,
+        reason: 'pequeno',
+        message: 'Archivo demasiado pequeño o corrupto (' + hit.bytes + ' bytes).',
+      };
+    }
+    return { ok: true };
+  }
+
+  function ensureInstallTargetReady(targetVersion) {
+    var kind = getPlatformAssetKind();
+    var ver = normVersion(targetVersion);
+    return resolveReleaseInstallTarget(ver).then(function (hit) {
+      var v = validateArtifactForPlatform(hit, kind);
+      if (!v.ok) {
+        return Promise.reject(new Error(v.message || 'Artefacto no válido para esta plataforma.'));
+      }
+      return hit;
+    });
+  }
+
+  /** Comprueba Win + Mac + APK en GitHub (estabilidad del release completo). */
+  function checkReleaseMultiplatformStability(targetVersion) {
+    var ver = normVersion(targetVersion);
+    return fetchReleaseAssets(ver).then(function (api) {
+      var assets = (api && api.assets) || [];
+      var setup = assets.find(function (a) {
+        return /setup\.exe$/i.test(a.name || '');
+      });
+      var dmgArm = assets.find(function (a) {
+        return /\.dmg$/i.test(a.name || '') && /aarch64|arm64|universal/i.test(a.name || '');
+      });
+      var dmgX64 = assets.find(function (a) {
+        return /\.dmg$/i.test(a.name || '') && /x86_64|intel|x64/i.test(a.name || '');
+      });
+      var dmgAny = assets.find(function (a) {
+        return /\.dmg$/i.test(a.name || '');
+      });
+      var apk = pickApkFromAssets(assets);
+      var winOk = setup && (!setup.size || setup.size >= MIN_ARTIFACT_BYTES.exe);
+      var macOk =
+        (dmgArm && (!dmgArm.size || dmgArm.size >= MIN_ARTIFACT_BYTES.dmg)) ||
+        (dmgX64 && (!dmgX64.size || dmgX64.size >= MIN_ARTIFACT_BYTES.dmg)) ||
+        (dmgAny && (!dmgAny.size || dmgAny.size >= MIN_ARTIFACT_BYTES.dmg));
+      var apkOk = apk && (!apk.size || apk.size >= MIN_ARTIFACT_BYTES.apk);
+      return {
+        version: ver,
+        tagFound: !!api,
+        windows: !!winOk,
+        mac: !!macOk,
+        android: !!apkOk,
+        complete: !!(winOk && macOk && apkOk),
+        majorityStable: [winOk, macOk, apkOk].filter(Boolean).length >= 2,
+      };
+    });
+  }
+
   /**
-   * Plan A: updater Tauri firmado desde GitHub Releases.
-   * Plan B: resolveManualFallback() si falla o no hay meta.
+   * Instalación totalmente automática según plataforma (exe / dmg / updater).
+   */
+  function installAutomatic(opts) {
+    opts = opts || {};
+    opts.automaticOnly = opts.automaticOnly !== false;
+    opts.preferSilentSetup = opts.preferSilentSetup !== false;
+    opts.skipReleaseWait = opts.skipReleaseWait !== false;
+    var kind = getPlatformAssetKind();
+    var targetVersion = opts.targetVersion ? normVersion(opts.targetVersion) : '';
+    var onProgress = opts.onProgress || function () {};
+
+    return getAppVersion().then(function (current) {
+      if (targetVersion && current && compareSemver(targetVersion, current) < 0) {
+        return Promise.reject(
+          new Error(
+            'La versión ' +
+              targetVersion +
+              ' es anterior a la instalada (' +
+              current +
+              '). No se permite retroceder.'
+          )
+        );
+      }
+      if (targetVersion && current && compareSemver(targetVersion, current) <= 0) {
+        return { installed: false, upToDate: true, current: current, plan: 'none' };
+      }
+      var readyP = targetVersion ? ensureInstallTargetReady(targetVersion) : Promise.resolve(null);
+      return readyP.then(function () {
+      if (kind === 'exe' && targetVersion) {
+        onProgress({ phase: 'probe', percent: 5, message: 'Windows: instalación automática…' });
+        return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts).catch(
+          function (silentErr) {
+            return installLatestBinary(
+              Object.assign({}, opts, { automaticOnly: false, preferSilentSetup: false, skipReleaseWait: true })
+            ).catch(function (planErr) {
+              return Promise.reject(planErr || silentErr);
+            });
+          }
+        );
+      }
+      if (kind === 'dmg' && targetVersion) {
+        onProgress({ phase: 'probe', percent: 5, message: 'macOS: instalación automática…' });
+        return tryMacDmgInstall(targetVersion, targetVersion, current, onProgress, opts);
+      }
+      return installLatestBinary(opts);
+      });
+    });
+  }
+
+  /**
+   * Plan C (Windows): setup.exe silencioso — más fiable y rápido.
+   * Plan A: updater Tauri firmado.
+   * Plan B: resolveManualFallback() si falla.
    */
   function installLatestBinary(opts) {
     opts = opts || {};
@@ -827,143 +1232,137 @@
     var toast = !opts.silent && typeof global.showToast === 'function' ? global.showToast : null;
     var onProgress = opts.onProgress || function () {};
     var targetVersion = opts.targetVersion ? normVersion(opts.targetVersion) : '';
+    var skipWait = !!opts.skipReleaseWait;
+    var assetKind = getPlatformAssetKind();
+    var preferSilent = opts.preferSilentSetup !== false && assetKind === 'exe' && !!targetVersion;
 
     if (toast) toast('Preparando actualización automática…', 'info');
-    onProgress({ phase: 'probe', percent: 2, message: 'Verificando paquete en la nube…' });
+    onProgress({
+      phase: 'probe',
+      percent: 2,
+      message: 'Buscando ' + platformArtifactLabel(assetKind) + ' en GitHub…',
+    });
 
-    var waitP = targetVersion
-      ? waitUntilReleaseReady(targetVersion, onProgress, opts.maxWaitMs)
-      : Promise.resolve(null);
+    function trySilentFallback(err, ver, currentVer) {
+      if (!targetVersion && !ver) return Promise.reject(err);
+      return tryPlatformFallback(err, ver, currentVer, onProgress, opts, targetVersion);
+    }
 
-    return waitP
-      .then(function () {
-        return getAppVersion();
-      })
-      .then(function (current) {
-        var probeP = targetVersion ? probeReleaseArtifacts(targetVersion) : Promise.resolve(null);
+    function runPlanA(current, releaseHit) {
+      if (releaseHit) {
+        onProgress({
+          phase: 'probe',
+          percent: 10,
+          message: 'Instalador v' + semverCore(releaseHit.version || targetVersion) + ' listo.',
+        });
+      }
 
-        return probeP.then(function (probe) {
-          if (probe) {
-            onProgress({
-              phase: 'probe',
-              percent: 8,
-              message: 'Instalador ' + (probe.version || targetVersion) + ' verificado.',
-            });
-          } else if (targetVersion) {
-            onProgress({
-              phase: 'probe',
-              percent: 6,
-              message:
-                'Instalador v' +
-                semverCore(targetVersion) +
-                ' aún no verificado; intentando updater automático…',
-            });
+      onProgress({ phase: 'check', percent: 14, message: 'Comprobando firma con el servidor…' });
+
+      return checkForAppUpdateWithRetry({ timeout: UPDATER_CHECK_TIMEOUT_MS })
+        .catch(function (err) {
+          if (isRecoverableUpdaterError(err)) {
+            return trySilentFallback(err, targetVersion, current);
+          }
+          return Promise.reject(err);
+        })
+        .then(function (meta) {
+          if (meta && meta.plan === 'C') return meta;
+          if (!meta) {
+            if (targetVersion && current && compareSemver(targetVersion, current) > 0) {
+              return trySilentFallback(
+                new Error('Updater sin paquete nuevo'),
+                targetVersion,
+                current
+              );
+            }
+            onProgress({ phase: 'check', percent: 100, message: 'Este equipo ya está al día.' });
+            return { installed: false, upToDate: true, current: current, plan: 'A' };
           }
 
-          onProgress({ phase: 'check', percent: 12, message: 'Comprobando actualización con el servidor…' });
-
-          function trySilentFallback(err, ver, currentVer) {
-            if (opts.allowSilentSetup === false || !isWindowsDesktop()) {
-              return Promise.reject(err);
-            }
-            if (onProgress) {
-              onProgress({
-                phase: 'install',
-                percent: 30,
-                message: 'Aplicando actualización automática (instalador silencioso)…',
-              });
-            }
-            return installViaSilentSetupExe(targetVersion || ver, onProgress)
-              .then(function () {
-                return {
-                  installed: true,
-                  version: normVersion(ver || targetVersion),
-                  previous: currentVer,
-                  plan: 'C',
-                  exiting: true,
-                };
-              })
-              .catch(function (silentErr) {
-                return Promise.reject(silentErr || err);
-              });
+          var ver = normVersion(meta.version || '');
+          if (targetVersion && compareSemver(ver, targetVersion) < 0) {
+            return trySilentFallback(
+              new Error('GitHub publicó ' + ver + ' pero se requiere ' + targetVersion),
+              targetVersion,
+              current
+            );
           }
 
-          return checkForAppUpdateWithRetry({ timeout: 120000 })
-            .catch(function (err) {
-              if (isRecoverableUpdaterError(err)) {
-                return trySilentFallback(err, targetVersion, current);
-              }
-              return Promise.reject(err);
-            })
-            .then(function (meta) {
-            if (meta && meta.plan === 'C') return meta;
-            if (!meta) {
-              if (targetVersion && current && compareSemver(targetVersion, current) > 0) {
-                return installViaSilentSetupExe(targetVersion, onProgress)
-                  .then(function () {
-                    return {
-                      installed: true,
-                      version: normVersion(targetVersion),
-                      previous: current,
-                      plan: 'C',
-                      exiting: true,
-                    };
-                  })
-                  .catch(function (silentErr) {
-                    return resolveManualFallback(targetVersion).then(function (manual) {
-                      return Promise.reject(
-                        attachManual(
-                          silentErr ||
-                            new Error(
-                              'No se encontró actualización firmada (actual ' +
-                                current +
-                                ', requerido ' +
-                                targetVersion +
-                                ').'
-                            ),
-                          manual
-                        )
-                      );
-                    });
-                  });
-              }
-              onProgress({ phase: 'check', percent: 100, message: 'Este equipo ya está al día.' });
-              return { installed: false, upToDate: true, current: current, plan: 'A' };
-            }
+          if (
+            releaseHit &&
+            releaseHit.url &&
+            ((assetKind === 'exe' && /setup\.exe$/i.test(releaseHit.url)) ||
+              (assetKind === 'dmg' && /\.dmg$/i.test(releaseHit.url)))
+          ) {
+            return trySilentFallback(null, ver || targetVersion, current);
+          }
 
-            var ver = normVersion(meta.version || '');
-            if (targetVersion && compareSemver(ver, targetVersion) < 0) {
-              return resolveManualFallback(targetVersion).then(function (manual) {
-                return Promise.reject(
-                  attachManual(
-                    new Error(
-                      'GitHub tiene ' +
-                        ver +
-                        ' pero el manifiesto OTA pide ' +
-                        targetVersion +
-                        '. Espere la compilación o use Plan B.'
-                    ),
-                    manual
-                  )
-                );
-              });
-            }
-
-            if (toast) toast('Descargando versión ' + ver + '…', 'info');
-            onProgress({
-              phase: 'download',
-              percent: 15,
-              message: 'Descargando ' + ver + ' de forma segura…',
-            });
-
-            return runDownloadInstall(meta, ver, current, onProgress, toast, 0).catch(function (err) {
-              return trySilentFallback(err, ver, current).catch(function (silentErr) {
-                return resolveManualFallback(targetVersion || ver).then(function (manual) {
-                  return Promise.reject(attachManual(silentErr || err, manual));
-                });
-              });
-            });
+          if (toast) toast('Descargando versión ' + ver + '…', 'info');
+          onProgress({
+            phase: 'download',
+            percent: 18,
+            message: 'Descargando actualización firmada…',
           });
+
+          return runDownloadInstall(meta, ver, current, onProgress, toast, 0).catch(function (err) {
+            return trySilentFallback(err, ver, current);
+          });
+        });
+    }
+
+    return getAppVersion()
+      .then(function (current) {
+        if (targetVersion && current && compareSemver(targetVersion, current) <= 0) {
+          onProgress({ phase: 'check', percent: 100, message: 'Versión actual: ' + current });
+          return { installed: false, upToDate: true, current: current, plan: 'A' };
+        }
+
+        var resolveP = targetVersion
+          ? resolveReleaseInstallTarget(targetVersion)
+          : Promise.resolve(null);
+        var waitP =
+          targetVersion && !skipWait && !preferSilent
+            ? waitUntilReleaseReady(targetVersion, onProgress, opts.maxWaitMs)
+            : Promise.resolve(null);
+
+        return Promise.all([resolveP, waitP]).then(function (parts) {
+          var hit = parts[0] || parts[1];
+
+          if (preferSilent && targetVersion && compareSemver(targetVersion, current) > 0) {
+            if (hit && hit.url && /setup\.exe$/i.test(hit.url)) {
+              return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts);
+            }
+            return waitUntilReleaseReady(targetVersion, onProgress, opts.maxWaitMs || RELEASE_WAIT_MS).then(
+              function (hit2) {
+                if (hit2 && hit2.url && /setup\.exe$/i.test(hit2.url)) {
+                  return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts);
+                }
+                return trySilentFallback(
+                  new Error('No hay instalador .exe para Windows en el release'),
+                  targetVersion,
+                  current
+                );
+              }
+            );
+          }
+
+          if (
+            assetKind === 'dmg' &&
+            targetVersion &&
+            compareSemver(targetVersion, current) > 0 &&
+            hit &&
+            hit.url &&
+            /\.dmg$/i.test(hit.url)
+          ) {
+            return runPlanA(current, hit).catch(function (planErr) {
+              return tryMacDmgInstall(targetVersion, targetVersion, current, onProgress).catch(function () {
+                return Promise.reject(planErr);
+              });
+            });
+          }
+
+          return runPlanA(current, hit);
         });
       })
       .catch(function (err) {
@@ -980,6 +1379,8 @@
     isAvailable: isTauri,
     canUseTauriUpdater: canUseTauriUpdater,
     getClientKind: getClientKind,
+    getPlatformAssetKind: getPlatformAssetKind,
+    platformArtifactLabel: platformArtifactLabel,
     prefersApkDownload: prefersApkDownload,
     prefersWebReload: prefersWebReload,
     isWindowsDesktop: isWindowsDesktop,
@@ -987,6 +1388,7 @@
     isAndroidTablet: isAndroidTablet,
     getVersion: getAppVersion,
     check: checkForAppUpdate,
+    resolveReleaseInstallTarget: resolveReleaseInstallTarget,
     probeRelease: probeReleaseArtifacts,
     waitUntilReleaseReady: waitUntilReleaseReady,
     fetchReleaseAssets: fetchReleaseAssets,
@@ -1000,7 +1402,13 @@
     predictSetupExeUrl: predictSetupExeUrl,
     openExternalUrl: openExternalUrl,
     installLatest: installLatestBinary,
+    installAutomatic: installAutomatic,
+    ensureInstallTargetReady: ensureInstallTargetReady,
+    checkReleaseMultiplatformStability: checkReleaseMultiplatformStability,
+    validateArtifactForPlatform: validateArtifactForPlatform,
     installViaSilentSetup: installViaSilentSetupExe,
+    installViaSilentDmg: installViaSilentDmgMac,
+    probePlatformInstaller: probePlatformInstallerCommand,
     isSignatureMismatchError: isSignatureMismatchError,
     relaunch: relaunchApp,
     compareSemver: compareSemver,

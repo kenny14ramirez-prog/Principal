@@ -91,15 +91,17 @@
 
   function emptyCuadre() {
     var o = {};
-    (TPL.cuadreCampos || []).forEach(function (k) {
+    var campos = (TPL && TPL.cuadreCampos) || ['totalVenta', 'gasto', 'transferencia', 'banco', 'efectivo', 'total', 'diferencia'];
+    campos.forEach(function (k) {
       o[k] = 0;
     });
     return o;
   }
 
   function emptyDay() {
+    var denoms = (TPL && TPL.denoms) || ['50000', '20000', '10000', '5000', '2000', '1000', '500', '200', '100', '50'];
     var conteo = {};
-    (TPL.denoms || []).forEach(function (dn) {
+    denoms.forEach(function (dn) {
       conteo[dn] = { cantidad: 0, efectivo: 0 };
     });
     return {
@@ -123,7 +125,8 @@
         efectivoAnterior: 0
       },
       conteo: { items: conteo, base: 0, totalEfectivo: 0, totalMenosBase: 0 },
-      egresoPropina: { transf: 0, banco: 0, efectivo: 0 }
+      egresoPropina: { transf: 0, banco: 0, efectivo: 0 },
+      cierresPos: []
     };
   }
 
@@ -587,6 +590,7 @@
         );
       })
       .join('');
+    var cierresPosHtml = renderCierresPosBlock(d);
     return (
       renderPeriodToolbar() +
       '<div class="crozzo-pl-dia-nav">' +
@@ -613,7 +617,7 @@
       renderCuadreBlock('Turno tarde', d.cuadreT, 'cuadreT') +
       '</div>' +
       renderAccordion('pl-acc-egresos', 'Egresos y compras del día', 'Mañana + tarde + caja mayor', state.ui.egresosOpen, renderEgresosTable(d.egresosM, 'egresosM') + renderEgresosTable(d.egresosT, 'egresosT') + '<h4 style="margin:14px 0 6px;font-size:0.85rem">Egreso caja mayor</h4>' + renderEgresosTable(d.egresoMayor, 'egresoMayor')) +
-      renderAccordion('pl-acc-propinas', 'Propinas y cierre', null, state.ui.propinasOpen, '<div class="form-grid" style="padding-top:10px">' + propGrid + '</div>') +
+      renderAccordion('pl-acc-propinas', 'Propinas y cierre', null, state.ui.propinasOpen, cierresPosHtml + '<div class="form-grid" style="padding-top:10px">' + propGrid + '</div>') +
       renderConteoAccordion(d) +
       renderAccordion('pl-acc-egprop', 'Egreso propina', null, false, '<div class="form-grid" style="padding-top:10px">' + ['transf', 'banco', 'efectivo'].map(function (k) { return '<div class="form-group"><label class="form-label">' + esc(k) + '</label><input type="number" class="form-input" data-pl-egprop="' + k + '" value="' + num(d.egresoPropina[k]) + '" /></div>'; }).join('') + '</div>')
     );
@@ -858,9 +862,62 @@
     }
   }
 
+  function renderCierresPosBlock(d) {
+    var list = (d && d.cierresPos) || [];
+    if (!list.length) {
+      return (
+        '<div class="crozzo-pl-cierres crozzo-pl-cierres--empty">' +
+        '<p><i data-lucide="link"></i> Sin cierres importados desde <strong>Cierre de caja</strong>. Al confirmar un arqueo, los datos llegan aquí automáticamente.</p></div>'
+      );
+    }
+    return (
+      '<div class="crozzo-pl-cierres"><h4 class="crozzo-pl-cierres__title">Cierres POS del día</h4><ul class="crozzo-pl-cierres__list">' +
+      list
+        .map(function (c) {
+          return (
+            '<li class="crozzo-pl-cierre' +
+            (c.revisado ? ' is-done' : '') +
+            '"><div><strong>' +
+            esc(c.shiftLabel || c.shiftType || 'Turno') +
+            '</strong> · ' +
+            esc(c.closedBy || '—') +
+            '<br><span class="crozzo-pl-cierre__meta">Contado ' +
+            fmtMoney(c.actual) +
+            ' · Δ ' +
+            fmtMoney(c.diff) +
+            ' · ' +
+            (c.salesCount || 0) +
+            ' ventas</span></div>' +
+            '<button type="button" class="btn btn-outline btn-sm" data-pl-cierre-ok="' +
+            esc(c.id) +
+            '">' +
+            (c.revisado ? 'Revisado ✓' : 'Marcar revisado') +
+            '</button></li>'
+          );
+        })
+        .join('') +
+      '</ul></div>'
+    );
+  }
+
   function bind(root) {
     var scope = root || document.getElementById('crozzo-pl-app') || document.getElementById('crozzo-pl-root');
     if (!scope) return;
+    scope.querySelectorAll('[data-pl-cierre-ok]').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute('data-pl-cierre-ok');
+        var d = day();
+        if (!d.cierresPos) return;
+        d.cierresPos = d.cierresPos.map(function (c) {
+          if (c && c.id === id) return Object.assign({}, c, { revisado: true, revisadoAt: new Date().toISOString() });
+          return c;
+        });
+        saveStore();
+        toast('Cierre marcado como revisado', 'success');
+        rerender();
+      };
+    });
+
     scope.querySelectorAll('[data-pl-tab]').forEach(function (btn) {
       btn.onclick = function () {
         state.tab = btn.getAttribute('data-pl-tab');
@@ -1234,4 +1291,85 @@
     if (page === 'nomina-planilla') return 'nomina';
     return null;
   };
+
+  /** Recibe cierre de turno POS → conciliación planilla del día. */
+  function applyCierreFromShift(rec) {
+    if (!rec || !rec.businessDate) return { ok: false, reason: 'sin_fecha' };
+    try {
+      loadStore();
+      var iso = rec.businessDate;
+      var p = period();
+      if (iso < p.fechaInicio || iso > p.fechaFin) {
+        var dm = defaultMonthPeriod(new Date(iso + 'T12:00:00'));
+        var id = periodId(dm.fi, dm.ff);
+        if (!store.periods[id]) store.periods[id] = emptyPeriod(dm.fi, dm.ff, 'Mes calendario');
+        store.activePeriodId = id;
+        p = store.periods[id];
+      }
+      var d = ensureDay(iso);
+      if (!Array.isArray(d.cierresPos)) d.cierresPos = [];
+      var cid = String(rec.shiftId || rec.closedAt || Date.now());
+      var row = {
+        id: cid,
+        shiftType: rec.shiftType,
+        shiftLabel: rec.shiftLabel,
+        closedAt: rec.closedAt,
+        closedBy: rec.closedBy,
+        actual: num(rec.actual),
+        expected: num(rec.expected),
+        diff: num(rec.diff),
+        cashSales: num(rec.cashSales),
+        totalSales: num(rec.totalSales),
+        salesCount: num(rec.salesCount),
+        notes: rec.notes || '',
+        planillaSyncAt: new Date().toISOString(),
+        revisado: false,
+      };
+      var found = false;
+      d.cierresPos = d.cierresPos.map(function (c) {
+        if (c && c.id === cid) {
+          found = true;
+          return row;
+        }
+        return c;
+      });
+      if (!found) d.cierresPos.unshift(row);
+      d.propinas.facturasEfectivo = num(rec.cashSales);
+      if (rec.shiftType === 'dia' || rec.shiftType === 'tarde') {
+        d.propinas.efectivoReal = num(rec.actual);
+        d.propinas.diferencia = num(rec.diff);
+      }
+      if (d.cuadreM && (rec.shiftType === 'manana' || rec.shiftType === 'dia')) {
+        d.cuadreM.totalVenta = num(rec.totalSales);
+      }
+      if (d.cuadreT && rec.shiftType === 'tarde') {
+        d.cuadreT.totalVenta = num(rec.totalSales);
+      }
+      saveStore();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, reason: String(e && e.message ? e.message : e) };
+    }
+  }
+
+  function cierrePendienteCount() {
+    try {
+      loadStore();
+      var p = period();
+      var n = 0;
+      datesInPeriod(p).forEach(function (iso) {
+        var d = p.days[iso];
+        if (!d || !Array.isArray(d.cierresPos)) return;
+        d.cierresPos.forEach(function (c) {
+          if (c && !c.revisado) n += 1;
+        });
+      });
+      return n;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  global.crozzoPlanillaApplyCierreFromShift = applyCierreFromShift;
+  global.crozzoPlanillaCierrePendienteCount = cierrePendienteCount;
 })(typeof window !== 'undefined' ? window : globalThis);

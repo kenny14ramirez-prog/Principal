@@ -6,19 +6,46 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
 <meta name="theme-color" content="#1e3a8a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.32">
-<meta name="crozzo-build-stamp" content="2026-05-29T06:41:04.591Z">
+<meta name="crozzo-app-version" content="1.0.41">
+<meta name="crozzo-build-stamp" content="2026-06-01T17:59:07.444Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <script src="core/CrozzoStorageHygiene.js"></script>
+<script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
+<script src="core/CrozzoDeviceForm.js"></script>
+<script>
+(function () {
+  try {
+    if (localStorage.getItem('crozzo_kiosk') === '1') return;
+  } catch (_) {}
+  try {
+    sessionStorage.removeItem('crozzo_session_user');
+    sessionStorage.removeItem('crozzo_cloud_profile');
+    sessionStorage.removeItem('crozzo_cloud_auth_uid');
+    sessionStorage.removeItem('crozzo_auth_proof_v1');
+    localStorage.removeItem('crozzo_user_role');
+  } catch (_) {}
+  window.__crozzoAuthInteractiveThisBoot = false;
+  window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
+  window.crozzoPosIsOperationBusy = window.crozzoPosIsOperationBusy || function () { return false; };
+  window.crozzoPosIsOperationBusyForUpdates = window.crozzoPosIsOperationBusyForUpdates || function () { return false; };
+  window.crozzoPosNotifyOperationState = window.crozzoPosNotifyOperationState || function () {};
+  window.crozzoWhenBootUpdatesReady = window.crozzoWhenBootUpdatesReady || function (cb) {
+    if (window.__crozzoBootUpdatesReady) { try { cb(); } catch (_) {} return; }
+    document.addEventListener('crozzo:boot-updates-ready', function () { try { cb(); } catch (_) {} }, { once: true });
+    setTimeout(function () { try { cb(); } catch (_) {} }, 15000);
+  };
+  if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
+})();
+</script>
 <script src="core/CrozzoViewportFit.js"></script>
 <script>
 try {
@@ -86,82 +113,11 @@ window.crozzoAppDisplayName = function () {
 })(document, window);
 </script>
 <script>
-/* Única fuente de verdad — no redeclarar isTauri en otros scripts */
+/* Tauri / web: factor de forma vía CrozzoDeviceForm.js (no forzar escritorio en móvil). */
 window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
-if (window.__CROZZO_IS_TAURI__) {
-  document.documentElement.classList.add('tauri-desktop');
-  if (document.body) {
-    document.body.classList.add('desktop', 'tauri-desktop');
-  }
-}
+if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 </script>
 <a href="#mainContent" class="crozzo-skip-link">Saltar al contenido principal</a>
-<script>
-(function () {
-  function crozzoApplyViewportBodyClass() {
-    var w = window.innerWidth || document.documentElement.clientWidth;
-    var b = document.body;
-    if (!b) return;
-    b.classList.remove('mobile', 'tablet', 'desktop');
-    if (window.__CROZZO_IS_TAURI__ || b.classList.contains('tauri-desktop')) {
-      b.classList.add('desktop');
-    } else if (w <= 480) b.classList.add('mobile');
-    else if (w <= 1024) b.classList.add('tablet');
-    else b.classList.add('desktop');
-    if (b.classList.contains('desktop')) {
-      var s = document.getElementById('sidebar');
-      var bd = document.getElementById('sidebarBackdrop');
-      if (s) s.classList.remove('open');
-      if (bd) {
-        bd.classList.remove('active');
-        bd.setAttribute('aria-hidden', 'true');
-      }
-    }
-    if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
-    try {
-      if (window.CrozzoViewportFit && typeof CrozzoViewportFit.schedule === 'function') CrozzoViewportFit.schedule();
-      else if (window.CrozzoViewportFit && typeof CrozzoViewportFit.apply === 'function') CrozzoViewportFit.apply();
-    } catch (eVp) {
-      /* ignore */
-    }
-    try {
-      if (typeof applyAccessControl === 'function') applyAccessControl();
-    } catch (eAc) {
-      /* ignore */
-    }
-    try {
-      if (
-        typeof getCurrentUser === 'function' &&
-        getCurrentUser() &&
-        typeof currentPage !== 'undefined' &&
-        typeof currentUserCanSeePage === 'function' &&
-        typeof navigateTo === 'function' &&
-        typeof pickFirstAccessiblePage === 'function'
-      ) {
-        let blocked = !currentUserCanSeePage(currentPage);
-        try {
-          if (!blocked && typeof pageBlockedByOperacionModo === 'function') blocked = pageBlockedByOperacionModo(currentPage);
-        } catch (_) {}
-        if (blocked) {
-          const fb = pickFirstAccessiblePage();
-          if (fb && fb !== currentPage) navigateTo(fb);
-        }
-      }
-    } catch (eNav) {
-      /* ignore */
-    }
-  }
-  crozzoApplyViewportBodyClass();
-  var crozzoResizeTimer;
-  window.addEventListener('resize', function () {
-    clearTimeout(crozzoResizeTimer);
-    crozzoResizeTimer = setTimeout(crozzoApplyViewportBodyClass, 100);
-  });
-  window.addEventListener('orientationchange', function () {
-    setTimeout(crozzoApplyViewportBodyClass, 300);
-  });
-})();
-</script>
 
 <div class="app-container">
   <!-- Sidebar -->
@@ -308,6 +264,7 @@ if (window.__CROZZO_IS_TAURI__) {
             <li><div class="nav-item menu-item" data-page="config-dian" data-menu="config-dian" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="landmark"></i></span><span class="nav-item-label">Config. DIAN</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-certificado" data-menu="certificado-p12" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><span class="nav-item-label">Certificado .p12</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-proveedor" data-menu="proveedor" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="plug"></i></span><span class="nav-item-label">Proveedor FE</span></div></li>
+            <li><div class="nav-item menu-item" data-page="super-admin-nube" data-menu="config-nube-global" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span class="nav-item-label">Nube global</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-multidispositivo" data-menu="conexion-multi" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wifi"></i></span><span class="nav-item-label">Multi-dispositivo</span></div></li>
             <li><div class="nav-item menu-item" id="menu-test-diagnostics" data-page="super-admin-diagnostics" data-menu="pruebas-conexion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="nav-item-label">Pruebas de sistema</span></div></li>
             <li><div class="nav-item menu-item" data-page="modo-demo" data-menu="modo-operacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="toggle-right"></i></span><span class="nav-item-label">Modo de operación</span></div></li>
@@ -433,11 +390,10 @@ if (window.__CROZZO_IS_TAURI__) {
 </div>
 
 <nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida">
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true">🏁</span><span class="crozzo-mbn-txt">Inicio</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
   <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inventarios" aria-label="Inventarios"><span class="crozzo-mbn-ico" aria-hidden="true">📊</span><span class="crozzo-mbn-txt">Stock</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="productos" aria-label="Catálogo"><span class="crozzo-mbn-ico" aria-hidden="true">🍽️</span><span class="crozzo-mbn-txt">Catálogo</span></button>
   <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" onclick="toggleSidebar()"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
 </nav>
 
@@ -858,13 +814,25 @@ if (window.__CROZZO_IS_TAURI__) {
 <script src="core/CrozzoRecepcionBridge.js"></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
+<script src="core/CrozzoTermicaColombia.js" defer></script>
+<script src="core/CrozzoTermicaPremium.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>
+<script src="modules/CrozzoPrintPresets.js" defer></script>
+<script src="modules/CrozzoPrintStudioHub.js" defer></script>
+<script src="modules/CrozzoPerfilesOperativos.js" defer></script>
+<script src="infra/CrozzoTauriUpdater.js" defer></script>
+<script src="infra/CrozzoSystemUpdates.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
+<script src="modules/CrozzoOnboardingOperativo.js" defer></script>
+<script src="modules/CrozzoOperativePsyche.js" defer></script>
+<script src="modules/CrozzoAdquirienteLookup.js" defer></script>
+<script src="modules/CrozzoCrmRegistroQr.js" defer></script>
+<script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
+<script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
+<script src="modules/CrozzoSuperAdminNube.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="core/CrozzoLazyModules.js" defer></script>
-<script src="infra/CrozzoTauriUpdater.js" defer></script>
-<script src="infra/CrozzoSystemUpdates.js" defer></script>
 <script src="ui/CrozzoSidebarNav.js" defer></script>
 <script src="ui/CrozzoA11yUser.js" defer></script>
 <!-- Módulos de dominio: bundles en app/bundles/ — carga bajo demanda vía CrozzoLazyModules + CrozzoManifest -->

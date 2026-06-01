@@ -40,6 +40,13 @@
     } catch (e5) {
       console.warn('[crozzo] EmergencyMesh', e5);
     }
+    try {
+      if (window.CrozzoOnboardingOperativo && typeof CrozzoOnboardingOperativo.init === 'function') {
+        CrozzoOnboardingOperativo.init();
+      }
+    } catch (e6) {
+      console.warn('[crozzo] OnboardingOperativo', e6);
+    }
   }
   window.initPOS = initPOS;
 })();

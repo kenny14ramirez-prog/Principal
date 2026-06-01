@@ -8,6 +8,7 @@
   var loaded = {};
   var loading = {};
   var lastEnsuredPage = '';
+  var pageEnsurePromises = {};
   var lazyReady = false;
   var lazyReadyQueue = [];
 
@@ -86,26 +87,29 @@
 
   function ensurePageModules(page, cb) {
     var key = canonicalPage(page);
-    if (lastEnsuredPage === key) {
-      cb();
-      return;
-    }
-    var scripts = scriptsForPage(page);
-    if (!scripts.length) {
-      lastEnsuredPage = key;
-      cb();
-      return;
-    }
-    loadAll(scripts)
-      .then(function () {
-        lastEnsuredPage = key;
-        cb();
-      })
-      .catch(function (e) {
-        console.warn('[crozzo-lazy]', e);
-        lastEnsuredPage = key;
-        cb();
+    if (!pageEnsurePromises[key]) {
+      pageEnsurePromises[key] = new Promise(function (resolve) {
+        var scripts = scriptsForPage(page);
+        if (!scripts.length) {
+          lastEnsuredPage = key;
+          resolve();
+          return;
+        }
+        loadAll(scripts)
+          .then(function () {
+            lastEnsuredPage = key;
+            resolve();
+          })
+          .catch(function (e) {
+            console.warn('[crozzo-lazy]', e);
+            lastEnsuredPage = key;
+            resolve();
+          });
       });
+    }
+    pageEnsurePromises[key].then(function () {
+      if (typeof cb === 'function') cb();
+    });
   }
 
   function preloadIdle() {
@@ -118,6 +122,7 @@
       var bundles =
         global.CrozzoManifest && global.CrozzoManifest.bundles ? global.CrozzoManifest.bundles : {};
       if (bundles.reservorio) loadOne(bundles.reservorio).catch(function () {});
+      if (bundles.costos) loadOne(bundles.costos).catch(function () {});
       var hp =
         global.CrozzoManifest && global.CrozzoManifest.modules
           ? global.CrozzoManifest.modules.honeypot

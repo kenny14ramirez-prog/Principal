@@ -290,6 +290,8 @@
       precioVenta: Math.round(num(raw.precioVenta)),
       categoria: String(raw.categoria || '').trim(),
       posProductId: raw.posProductId != null ? raw.posProductId : null,
+      gramajeVenta:
+        raw.gramajeVenta != null && Number(raw.gramajeVenta) > 0 ? Math.round(num(raw.gramajeVenta)) : null,
       costeoMpSourceId: raw.costeoMpSourceId ? String(raw.costeoMpSourceId).trim() : null,
       origen: raw.origen || 'menu',
       tipoCosteo: tipo,
@@ -677,6 +679,11 @@
     base.precioVenta = precio;
     base.posProductId = p.id;
     base.categoria = p.categoria || base.categoria || '';
+    if (p.gramajeVenta != null && Number(p.gramajeVenta) > 0) {
+      base.gramajeVenta = Math.round(num(p.gramajeVenta));
+    } else if (p.porcionGramos != null && Number(p.porcionGramos) > 0) {
+      base.gramajeVenta = Math.round(num(p.porcionGramos));
+    }
     base.tipoCosteo = tipo;
     if (!Number(base.costoMp) || base.costoMp <= 0) {
       var sug = guessCostoMpForPosProduct(p);
@@ -792,6 +799,9 @@
       posProductId: raw.posProductId != null ? raw.posProductId : null,
       esReventaPos: raw.esReventaPos === true,
       activo: raw.activo !== false,
+      fechaElaboracion: String(raw.fechaElaboracion || '').trim().slice(0, 10),
+      fechaIngreso: String(raw.fechaIngreso || '').trim().slice(0, 10),
+      fechaVencimiento: String(raw.fechaVencimiento || '').trim().slice(0, 10),
       updatedAt: raw.updatedAt || new Date().toISOString(),
     };
     if (!item.nombre) return null;
@@ -844,6 +854,9 @@
       posProductId: catRow.posProductId != null ? catRow.posProductId : null,
       esReventaPos: catRow.esReventaPos === true,
       activo: catRow.activo !== false,
+      fechaElaboracion: catRow.fechaElaboracion || '',
+      fechaIngreso: catRow.fechaIngreso || '',
+      fechaVencimiento: catRow.fechaVencimiento || '',
       precioAnterior: c.precioAnterior,
       ultimaRecepcionId: c.ultimaRecepcionId,
       ultimaRecepcionAt: c.ultimaRecepcionAt,
@@ -1108,6 +1121,25 @@
         })
         .catch(function () {});
     } catch (_) {}
+  }
+
+  function patchTrazabilidad(mpId, dates) {
+    dates = dates || {};
+    var st = loadStore();
+    var idx = st.catalogoMp.findIndex(function (x) {
+      return x && String(x.id) === String(mpId);
+    });
+    if (idx < 0) return null;
+    var row = Object.assign({}, st.catalogoMp[idx]);
+    if (dates.fechaElaboracion !== undefined) row.fechaElaboracion = String(dates.fechaElaboracion || '').trim().slice(0, 10);
+    if (dates.fechaIngreso !== undefined) row.fechaIngreso = String(dates.fechaIngreso || '').trim().slice(0, 10);
+    if (dates.fechaVencimiento !== undefined) row.fechaVencimiento = String(dates.fechaVencimiento || '').trim().slice(0, 10);
+    row.updatedAt = new Date().toISOString();
+    st.catalogoMp[idx] = row;
+    saveStore(st);
+    var merged = get(row.id);
+    emitChanged({ tipo: 'trazabilidad', mpId: row.id, item: merged });
+    return merged;
   }
 
   function upsertCatalog(raw, opts) {
@@ -2000,6 +2032,7 @@
     get: get,
     getByNombre: getByNombre,
     upsert: upsert,
+    patchTrazabilidad: patchTrazabilidad,
     upsertCatalog: upsertCatalog,
     upsertCosteo: upsertCosteo,
     applyRecepcionItems: applyRecepcionItems,

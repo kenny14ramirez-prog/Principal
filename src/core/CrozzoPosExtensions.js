@@ -41,7 +41,8 @@
         'config-dian': true,
         'config-certificado': true,
         'config-proveedor': true,
-        'config-multidispositivo': true
+        'config-multidispositivo': true,
+        'super-admin-nube': true
       };
       return !!hidden[page];
     } catch (e) {

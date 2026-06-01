@@ -547,6 +547,40 @@ async function crozzoTryMirrorShiftCloseToSupabase(rec) {
   }
 }
 window.crozzoTryMirrorShiftCloseToSupabase = crozzoTryMirrorShiftCloseToSupabase;
+
+function crozzoTryMirrorAuditToSupabase(entry) {
+  if (!entry || entry.synthetic) return;
+  try {
+    const dev = typeof crozzoCloudDeviceUuidForRest === 'function' ? crozzoCloudDeviceUuidForRest() : null;
+    enqueueOfflineOperation({
+      operation: 'insert',
+      table_name: 'audit_logs',
+      type: 'audit',
+      transaction_id: 'audit-' + String(entry.chainHash || entry.timestamp || Date.now()),
+      payload: {
+        event_type: String(entry.action || 'event'),
+        detail: String(entry.details == null ? '' : entry.details).slice(0, 4000),
+        meta: {
+          user: entry.user || null,
+          modo: entry.modo || null,
+          prev_hash: entry.prevHash || null,
+          chain_hash: entry.chainHash || null,
+          channel: entry.channel || 'operational',
+        },
+        device_id: dev || undefined,
+        created_at: entry.timestamp || new Date().toISOString(),
+      },
+      device_id: dev || undefined,
+    });
+  } catch (e) {
+    console.warn('[crozzo-sb] audit_logs queue', e);
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine && typeof syncOfflineQueue === 'function') {
+    void Promise.resolve().then(() => syncOfflineQueue());
+  }
+}
+window.crozzoTryMirrorAuditToSupabase = crozzoTryMirrorAuditToSupabase;
+
 async function crozzoTryMirrorSaleToSupabase(f) {
   if (!f || !window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) return;
   const sb = window.__SUPABASE;
@@ -800,7 +834,6 @@ function buildSyntheticUserFromProfile(profile) {
       'config_facturas_admin',
       'config_usuarios',
       'auditoria',
-      'facturas_limpiar',
     ];
     base.permisos.inventario = ['reportes', 'proveedores'];
     base.permisos.productos = ['catalogo'];
@@ -819,7 +852,7 @@ function buildSyntheticUserFromProfile(profile) {
       'tab_eliminar',
       'facturar',
     ];
-    base.permisos.admin = ['config_empresa', 'config_impuestos', 'config_usuarios', 'facturas_limpiar'];
+    base.permisos.admin = ['config_empresa', 'config_impuestos', 'config_usuarios', 'auditoria', 'nomina_planilla'];
     base.permisos.inventario = ['reportes', 'proveedores'];
     base.permisos.productos = ['catalogo'];
   } else if (appRol === 'mesero') {
@@ -850,6 +883,10 @@ function applyRolePermissions() {
 async function hydrateProfileFromSession(session) {
   const sb = window.__SUPABASE;
   if (!sb || !session?.user?.id) return null;
+  if (!window.__crozzoAuthInteractiveThisBoot) {
+    const live = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!live) return null;
+  }
   try {
     const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     if (error) throw error;
@@ -858,7 +895,15 @@ async function hydrateProfileFromSession(session) {
     const pack = { profile, synthetic, email: session.user.email };
     sessionStorage.setItem('crozzo_cloud_profile', JSON.stringify(pack));
     sessionStorage.setItem('crozzo_session_user', profile.id);
+    try {
+      sessionStorage.setItem('crozzo_cloud_auth_uid', session.user.id);
+    } catch (_) {}
     currentSessionUserId = profile.id;
+    if (typeof window.crozzoIssueSessionProof === 'function') {
+      window.crozzoIssueSessionProof(profile.id);
+    } else if (typeof CrozzoAuthSecurity !== 'undefined' && CrozzoAuthSecurity.crozzoIssueAuthProof) {
+      CrozzoAuthSecurity.crozzoIssueAuthProof(profile.id);
+    }
     if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
     return pack;
   } catch (e) {
@@ -877,6 +922,7 @@ window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase(
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email: rawUser, password: pwd });
     if (error) return { handled: true, ok: false, error: error.message || 'auth_error' };
+    if (typeof window.crozzoMarkInteractiveLoginBoot === 'function') window.crozzoMarkInteractiveLoginBoot();
     await hydrateProfileFromSession(data.session);
     return { handled: true, ok: true };
   } catch (e) {
@@ -885,6 +931,7 @@ window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase(
 };
 window.__crozzoSupabaseSignOut = async function crozzoSupabaseSignOut() {
   try {
+    if (typeof crozzoStopRemoteTenantSync === 'function') crozzoStopRemoteTenantSync();
     sessionStorage.removeItem('crozzo_cloud_profile');
     if (window.__SUPABASE?.auth) await window.__SUPABASE.auth.signOut();
   } catch (e) {
@@ -1038,6 +1085,7 @@ window.__crozzoBootstrapCloudData = async function bootstrapCloudData() {
 };
 window.__crozzoPostInitCloud = async function postInitCloud() {
   if (!crozzoOnlineConfigReady() || !window.__SUPABASE) return;
+  if (typeof getCurrentUser === 'function' && !getCurrentUser()) return;
   try {
     await window.__crozzoRegisterDeviceHeartbeat?.();
     await window.__crozzoBootstrapCloudData?.();
@@ -1081,10 +1129,53 @@ var __crozzoTenantSyncStarted = false;
 var __crozzoTenantHub = null;
 var __crozzoTenantPgCh = null;
 var __crozzoTenantDebounceT = null;
+var __crozzoTenantProductsDebounceT = null;
 var __crozzoTenantPushTimer = null;
 var __crozzoTenantPushEchoUntil = 0;
+var __crozzoTenantRealtimeLive = false;
+var __crozzoTenantLastPullAt = 0;
+var CROZZO_TENANT_VIS_SKIP_MS = 90000;
 var __crozzoTenantBC =
   typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('crozzo_tenant_v1') : null;
+function crozzoTenantRealtimeIsLive() {
+  return !!(__crozzoTenantRealtimeLive && __crozzoTenantPgCh);
+}
+window.crozzoTenantRealtimeIsLive = crozzoTenantRealtimeIsLive;
+window.crozzoShouldSkipVisibilityCloudPull = function crozzoShouldSkipVisibilityCloudPull() {
+  if (!crozzoTenantRealtimeIsLive()) return false;
+  return Date.now() - __crozzoTenantLastPullAt < CROZZO_TENANT_VIS_SKIP_MS;
+};
+function crozzoTenantMarkPullDone() {
+  __crozzoTenantLastPullAt = Date.now();
+}
+function crozzoTenantDebouncedProductsSync() {
+  if (__crozzoTenantProductsDebounceT) clearTimeout(__crozzoTenantProductsDebounceT);
+  __crozzoTenantProductsDebounceT = setTimeout(function () {
+    __crozzoTenantProductsDebounceT = null;
+    if (Date.now() < __crozzoTenantPushEchoUntil) return;
+    if (typeof window.__crozzoBootstrapCloudData !== 'function') return;
+    window.__crozzoBootstrapCloudData().catch(function (e) {
+      console.warn('[crozzo-tenant] products realtime', e);
+    });
+  }, 1400);
+}
+function crozzoStopRemoteTenantSync() {
+  __crozzoTenantSyncStarted = false;
+  __crozzoTenantRealtimeLive = false;
+  try {
+    if (__crozzoTenantPgCh && typeof __crozzoTenantPgCh.unsubscribe === 'function') {
+      __crozzoTenantPgCh.unsubscribe();
+    }
+  } catch (_) {}
+  __crozzoTenantPgCh = null;
+  try {
+    if (__crozzoTenantHub && typeof __crozzoTenantHub.unsubscribe === 'function') {
+      __crozzoTenantHub.unsubscribe();
+    }
+  } catch (_) {}
+  __crozzoTenantHub = null;
+}
+window.crozzoStopRemoteTenantSync = crozzoStopRemoteTenantSync;
 function crozzoParseTenantSnapshotFromRow(row) {
   if (!row || typeof row !== 'object') return null;
   if (row.tenant_snapshot && typeof row.tenant_snapshot === 'object') return row.tenant_snapshot;
@@ -1164,7 +1255,7 @@ function crozzoTenantDebouncedPull() {
     __crozzoTenantDebounceT = null;
     if (Date.now() < __crozzoTenantPushEchoUntil) return;
     if (typeof crozzoPullRemoteTenantState === 'function') {
-      crozzoPullRemoteTenantState({ skipRender: false, quiet: true }).catch(function () {});
+      crozzoPullRemoteTenantState({ skipRender: true, quiet: true }).catch(function () {});
     }
   }, 750);
 }
@@ -1191,7 +1282,7 @@ function startCrozzoRemoteTenantSync() {
     console.warn('[crozzo-tenant] hub subscribe', e);
   }
   try {
-    __crozzoTenantPgCh = window.__SUPABASE.channel('crozzo_pg_tenant');
+    __crozzoTenantPgCh = window.__SUPABASE.channel('crozzo_pg_tenant_v2');
     __crozzoTenantPgCh.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'company_config' },
@@ -1206,17 +1297,31 @@ function startCrozzoRemoteTenantSync() {
         crozzoTenantDebouncedPull();
       }
     );
+    __crozzoTenantPgCh.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'products' },
+      function () {
+        crozzoTenantDebouncedProductsSync();
+      }
+    );
     __crozzoTenantPgCh.subscribe(function (st) {
-      if (st === 'CHANNEL_ERROR') {
-        /* Realtime o políticas no habilitadas: se sigue usando broadcast + visibilidad */
+      if (st === 'SUBSCRIBED') {
+        __crozzoTenantRealtimeLive = true;
+      } else if (st === 'CHANNEL_ERROR' || st === 'CLOSED' || st === 'TIMED_OUT') {
+        __crozzoTenantRealtimeLive = false;
       }
     });
   } catch (e2) {
-    /* sin postgres_changes */
+    __crozzoTenantRealtimeLive = false;
   }
 }
 async function crozzoRefreshSessionProfileFromCloud() {
   try {
+    const live =
+      typeof getCurrentUser === 'function' && getCurrentUser()
+        ? getCurrentUser()
+        : null;
+    if (!live) return;
     const sb = window.__SUPABASE;
     if (!sb || !sb.auth || typeof hydrateProfileFromSession !== 'function') return;
     const { data } = await sb.auth.getSession();
@@ -1270,6 +1375,7 @@ async function crozzoPullRemoteTenantState(opts) {
       console.warn('[crozzo-tenant] render', e2);
     }
   }
+  crozzoTenantMarkPullDone();
   return changed || !!best;
 }
 async function crozzoPushTenantSnapshotToCloud() {
@@ -1659,8 +1765,7 @@ void (async function __crozzoSupabaseBootstrap() {
         if (sb) {
           const { data } = await sb.auth.getSession();
           if (data?.session) {
-            await hydrateProfileFromSession(data.session);
-            if (typeof crozzoRebuildMenusFromRoles === 'function') crozzoRebuildMenusFromRoles();
+            window.__crozzoSupabaseSessionCached = true;
           }
         }
       } catch (e) {
