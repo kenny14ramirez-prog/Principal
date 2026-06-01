@@ -16947,6 +16947,339 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   }
 }
 
+/* Form factor manda sobre ancho inflado (WebView Android / Tauri móvil) */
+html.crozzo-form-mobile .main-content,
+html.crozzo-form-tablet .main-content {
+  margin-left: 0 !important;
+  max-width: 100vw !important;
+}
+
+html.crozzo-form-mobile.crozzo-vp-ready .app-container,
+html.crozzo-form-tablet.crozzo-vp-ready .app-container {
+  max-width: 100% !important;
+}
+
+html.crozzo-form-mobile .sidebar:not(.open),
+html.crozzo-form-tablet .sidebar:not(.open),
+html.crozzo-form-mobile #sidebar:not(.open),
+html.crozzo-form-tablet #sidebar:not(.open) {
+  transform: translateX(-100%) !important;
+}
+
+html.crozzo-form-mobile .crozzo-mobile-bottom-nav,
+html.crozzo-form-tablet .crozzo-mobile-bottom-nav {
+  display: flex !important;
+}
+
+html.crozzo-form-mobile .mobile-menu-btn,
+html.crozzo-form-tablet .mobile-menu-btn {
+  display: inline-flex !important;
+}
+
+html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav,
+html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav {
+  display: flex !important;
+}
+
+/* ===== Touch shell unificado: móvil + tablet (web y Tauri) ===== */
+html.crozzo-touch-shell {
+  --crozzo-safe-top: env(safe-area-inset-top, 0px);
+  --crozzo-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --crozzo-touch-scale: 1;
+  --crozzo-touch-gap: 10px;
+  --crozzo-touch-pad: 12px;
+  --crozzo-touch-nav-h: 56px;
+  --crozzo-touch-btn-min: 44px;
+  --crozzo-touch-font: 14px;
+  --crozzo-touch-icon: 1.35rem;
+  --crozzo-touch-pos-cols: 2;
+  --crozzo-touch-sidebar-max: min(300px, 88vw);
+  --crozzo-touch-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html.crozzo-touch-shell body {
+  font-size: var(--crozzo-touch-font);
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html.crozzo-touch-shell .main-header {
+  padding: calc(var(--crozzo-touch-pad) * 0.85) var(--crozzo-touch-pad);
+  padding-top: calc(var(--crozzo-touch-pad) * 0.85 + var(--crozzo-safe-top));
+  gap: var(--crozzo-touch-gap);
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .main-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .main-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .main-header,
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .main-header {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+html.crozzo-touch-shell .main-body,
+html.crozzo-touch-shell #mainContent {
+  padding: var(--crozzo-touch-pad);
+}
+
+html.crozzo-touch-shell .sidebar-backdrop {
+  display: block;
+}
+
+html.crozzo-touch-shell .sidebar,
+html.crozzo-touch-shell #sidebar,
+html.crozzo-touch-shell aside.sidebar {
+  width: var(--crozzo-touch-sidebar-max) !important;
+  max-width: var(--crozzo-touch-sidebar-max) !important;
+  z-index: 120;
+  margin-left: 0 !important;
+  top: calc(var(--crozzo-header-h, 60px) + var(--crozzo-safe-top)) !important;
+  height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - var(--crozzo-safe-top)) !important;
+  max-height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - var(--crozzo-safe-top)) !important;
+  transform: translateX(-100%);
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.42);
+}
+
+html.crozzo-touch-shell .sidebar.open,
+html.crozzo-touch-shell #sidebar.open,
+html.crozzo-touch-shell aside.sidebar.open {
+  transform: translateX(0);
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-pro:not(.open),
+html.crozzo-touch-shell aside.sidebar.sidebar-pro:not(.open) {
+  width: var(--crozzo-touch-sidebar-max) !important;
+  max-width: var(--crozzo-touch-sidebar-max) !important;
+  transform: translateX(-100%) !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-pro.open,
+html.crozzo-touch-shell aside.sidebar.sidebar-pro.open {
+  transform: translateX(0) !important;
+}
+
+html.crozzo-touch-shell .main-content {
+  margin-left: 0 !important;
+  max-width: 100vw !important;
+  padding-bottom: calc(var(--crozzo-touch-nav-h) + var(--crozzo-safe-bottom));
+}
+
+html.crozzo-touch-shell .crozzo-mobile-bottom-nav {
+  display: flex !important;
+  min-height: var(--crozzo-touch-nav-h);
+  padding: 6px 8px calc(6px + var(--crozzo-safe-bottom));
+}
+
+html.crozzo-touch-shell .crozzo-mbn-btn {
+  min-height: calc(var(--crozzo-touch-nav-h) - 10px);
+  font-size: calc(0.62rem * var(--crozzo-touch-scale));
+  gap: 3px;
+}
+
+html.crozzo-touch-shell .crozzo-mbn-btn .crozzo-mbn-ico {
+  font-size: var(--crozzo-touch-icon);
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mbn-btn .crozzo-mbn-txt,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mbn-btn .crozzo-mbn-txt {
+  font-size: calc(0.68rem * var(--crozzo-touch-scale));
+}
+
+html.crozzo-touch-shell .mobile-menu-btn {
+  display: inline-flex !important;
+  min-width: var(--crozzo-touch-btn-min);
+  min-height: var(--crozzo-touch-btn-min);
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.crozzo-touch-shell .btn,
+html.crozzo-touch-shell .form-input,
+html.crozzo-touch-shell .form-select {
+  min-height: var(--crozzo-touch-btn-min);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.crozzo-touch-shell .form-input,
+html.crozzo-touch-shell .form-select {
+  font-size: max(16px, calc(var(--crozzo-touch-font) * 0.95));
+}
+
+html.crozzo-touch-shell .nav-item,
+html.crozzo-touch-shell .nav-group-toggle {
+  min-height: calc(var(--crozzo-touch-btn-min) + 4px);
+  padding: calc(var(--crozzo-touch-pad) * 0.75) var(--crozzo-touch-pad);
+}
+
+html.crozzo-touch-shell .pos-products {
+  grid-template-columns: repeat(var(--crozzo-touch-pos-cols), minmax(0, 1fr));
+  gap: var(--crozzo-touch-gap);
+}
+
+html.crozzo-touch-shell .pos-container {
+  grid-template-columns: 1fr;
+  height: auto;
+  gap: var(--crozzo-touch-gap);
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--crozzo-touch-gap);
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .provider-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .mesas-grid {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+html.crozzo-touch-shell .page-title {
+  font-size: calc(1.12rem * var(--crozzo-touch-scale));
+}
+
+html.crozzo-touch-shell .product-card {
+  padding: var(--crozzo-touch-pad);
+  border-radius: calc(var(--radius) + 2px);
+}
+
+html.crozzo-touch-shell .qty-btn {
+  width: var(--crozzo-touch-btn-min);
+  height: var(--crozzo-touch-btn-min);
+  min-width: var(--crozzo-touch-btn-min);
+  min-height: var(--crozzo-touch-btn-min);
+}
+
+html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-body,
+html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav #mainContent {
+  padding-bottom: calc(var(--crozzo-touch-nav-h) + var(--crozzo-bottom-safe, 0px));
+}
+
+html.crozzo-touch-shell .login-overlay,
+html.crozzo-touch-shell .crozzo-honeypot-overlay {
+  padding-top: var(--crozzo-safe-top);
+  padding-bottom: calc(var(--crozzo-bottom-safe, 0px) + var(--crozzo-safe-bottom));
+}
+
+html.crozzo-form-resizing .main-content,
+html.crozzo-form-resizing .main-header,
+html.crozzo-form-resizing .main-body,
+html.crozzo-form-resizing #mainContent,
+html.crozzo-form-resizing .crozzo-mobile-bottom-nav,
+html.crozzo-form-resizing .sidebar,
+html.crozzo-form-resizing #sidebar {
+  transition:
+    padding 0.34s var(--crozzo-touch-ease, ease),
+    margin 0.34s var(--crozzo-touch-ease, ease),
+    max-width 0.34s ease,
+    min-height 0.34s ease,
+    font-size 0.28s ease !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html.crozzo-touch-shell .sidebar,
+  html.crozzo-touch-shell #sidebar,
+  html.crozzo-touch-shell aside.sidebar {
+    transition: transform 0.34s var(--crozzo-touch-ease), box-shadow 0.3s ease !important;
+    will-change: transform;
+  }
+
+  html.crozzo-touch-shell .sidebar-backdrop {
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+  }
+
+  html.crozzo-touch-shell .crozzo-mbn-btn {
+    transition: color 0.18s ease, background 0.18s ease, transform 0.14s var(--crozzo-touch-ease);
+  }
+
+  html.crozzo-touch-shell .crozzo-mbn-btn:active {
+    transform: scale(0.93);
+  }
+
+  html.crozzo-touch-shell .main-body.crozzo-page-enter {
+    animation: crozzoTouchPageIn 0.38s var(--crozzo-touch-ease) forwards;
+  }
+
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .card,
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .content-section {
+    animation: crozzoTouchCardIn 0.42s var(--crozzo-touch-ease) backwards;
+  }
+
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .card:nth-child(1),
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .content-section:nth-child(1) {
+    animation-delay: 40ms;
+  }
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .card:nth-child(2),
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .content-section:nth-child(2) {
+    animation-delay: 80ms;
+  }
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .card:nth-child(3),
+  html.crozzo-touch-shell .main-body.crozzo-page-enter .content-section:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  html.crozzo-touch-shell .wizard-shell {
+    animation: crozzoTouchSheetUp 0.36s var(--crozzo-touch-ease) forwards;
+  }
+}
+
+@keyframes crozzoTouchPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes crozzoTouchCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes crozzoTouchSheetUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.crozzo-touch-shell .sidebar,
+  html.crozzo-touch-shell #sidebar,
+  html.crozzo-form-resizing .main-content,
+  html.crozzo-form-resizing .main-body {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 @media (min-width: 1400px) {
   .pos-products {
     grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
@@ -19892,6 +20225,60 @@ body.crozzo-update-detail-open {
   min-height: 36px;
   font-size: 0.8125rem;
 }
+.crozzo-update-detail-modal__stepbar {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 10px var(--space-5) 0;
+}
+.crozzo-update-wizard-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.crozzo-update-wizard-dot.is-active {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+.crozzo-update-wizard-dot.is-done {
+  background: rgba(52, 199, 89, 0.85);
+}
+.crozzo-update-wizard-versions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  font-size: 1rem;
+}
+.crozzo-update-wizard-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.crozzo-update-wizard-list li {
+  margin-bottom: 8px;
+}
+.crozzo-update-critical-modal__progress {
+  margin: 12px 0 4px;
+}
+.crozzo-update-critical-modal__progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+.crozzo-update-critical-modal__progress-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  transition: width 0.35s ease;
+}
+.crozzo-update-critical-modal__progress-msg {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
 .crozzo-update-normal-banner {
   display: none;
   align-items: center;
@@ -22188,8 +22575,8 @@ html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro {
   top: calc(var(--crozzo-header-h, 60px) + var(--crozzo-safe-top)) !important;
   height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - var(--crozzo-safe-top)) !important;
   max-height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px) - var(--crozzo-safe-top)) !important;
-  width: min(300px, 88vw) !important;
-  max-width: min(300px, 88vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(300px, 88vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(300px, 88vw)) !important;
   transform: translateX(-100%) !important;
   margin-left: 0 !important;
   box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45) !important;
@@ -22197,8 +22584,8 @@ html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro {
 
 html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro,
 html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro {
-  width: min(280px, 72vw) !important;
-  max-width: min(280px, 72vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(280px, 72vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(280px, 72vw)) !important;
 }
 
 html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro.open,

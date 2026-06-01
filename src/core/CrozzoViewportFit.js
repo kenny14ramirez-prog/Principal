@@ -25,8 +25,8 @@
       if (doc.classList.contains('tauri-shell') && doc.classList.contains('crozzo-form-desktop')) {
         return true;
       }
-      if (global.__TAURI__ || global.__TAURI_INTERNALS__) {
-        return (global.innerWidth || 0) >= 1024;
+      if (typeof global.crozzoIsTauriDesktopShell === 'function') {
+        return global.crozzoIsTauriDesktopShell();
       }
     } catch (_) {}
     return false;
@@ -62,7 +62,16 @@
 
   function navHeight() {
     var nav = document.getElementById('crozzoMobileBottomNav');
-    return nav ? Math.ceil(nav.getBoundingClientRect().height) || 56 : 56;
+    if (nav) {
+      var h = Math.ceil(nav.getBoundingClientRect().height);
+      if (h > 0) return h;
+    }
+    try {
+      var doc = document.documentElement;
+      var token = doc && global.getComputedStyle(doc).getPropertyValue('--crozzo-touch-nav-h').trim();
+      if (token) return Math.ceil(parseFloat(token)) || 56;
+    } catch (_) {}
+    return 56;
   }
 
   function measureHeaderH() {
@@ -77,17 +86,28 @@
     var ih = Math.round(global.innerHeight || 0);
     var iw = Math.round(global.innerWidth || 0);
     try {
-      if (global.visualViewport) {
-        ih = Math.max(ih, Math.round(global.visualViewport.height || 0));
-        iw = Math.max(iw, Math.round(global.visualViewport.width || 0));
+      var docEl = document.documentElement;
+      if (docEl) {
+        if (docEl.clientWidth > 0) iw = iw > 0 ? Math.min(iw, Math.round(docEl.clientWidth)) : Math.round(docEl.clientWidth);
+        if (docEl.clientHeight > 0) ih = ih > 0 ? Math.min(ih, Math.round(docEl.clientHeight)) : Math.round(docEl.clientHeight);
       }
     } catch (_) {}
-    if (ih < 400 && global.screen && global.screen.availHeight) {
-      ih = Math.round(global.screen.availHeight);
-    }
-    if (iw < 400 && global.screen && global.screen.availWidth) {
-      iw = Math.round(global.screen.availWidth);
-    }
+    try {
+      if (global.visualViewport) {
+        var vvh = Math.round(global.visualViewport.height || 0);
+        var vvw = Math.round(global.visualViewport.width || 0);
+        if (vvh > 0) ih = ih > 0 ? Math.min(ih, vvh) : vvh;
+        if (vvw > 0) iw = iw > 0 ? Math.min(iw, vvw) : vvw;
+      }
+    } catch (_) {}
+    try {
+      if (global.screen && global.devicePixelRatio > 1 && global.screen.width && global.screen.height) {
+        var cssW = Math.round(global.screen.width / global.devicePixelRatio);
+        var cssH = Math.round(global.screen.height / global.devicePixelRatio);
+        if (cssW > 0 && iw > cssW * 1.2) iw = cssW;
+        if (cssH > 0 && ih > cssH * 1.2) ih = cssH;
+      }
+    } catch (_) {}
     return { ih: ih, iw: iw };
   }
 

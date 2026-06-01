@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.44">
+<meta name="crozzo-app-version" content="1.0.45">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -697,9 +697,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div id="crozzo-update-critical-overlay" class="crozzo-update-critical-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateCriticalTitle" aria-hidden="true">
   <div class="crozzo-update-critical-modal">
-    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true">⏳ Instalando…</span>
-    <h2 id="crozzoUpdateCriticalTitle">Instalando actualización crítica</h2>
-    <p id="crozzoUpdateCriticalLead">Descargando e instalando la nueva versión (.exe). No cierre la aplicación.</p>
+    <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true">🔒 Crítica</span>
+    <h2 id="crozzoUpdateCriticalTitle">Actualización crítica obligatoria</h2>
+    <p id="crozzoUpdateCriticalLead">Esta versión se instalará automáticamente al iniciar. Mantenga la aplicación abierta.</p>
     <ul class="crozzo-update-critical-modal__list" id="crozzoUpdateCriticalList"></ul>
     <p class="crozzo-update-critical-modal__version" id="crozzoUpdateCriticalVersion"></p>
     <button type="button" class="btn btn-outline" id="crozzoUpdateCriticalRetry" style="display:none;margin-bottom:8px;">Reintentar instalación</button>
@@ -715,10 +715,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </button>
     </div>
     <div class="crozzo-update-detail-modal__meta" id="crozzoUpdateDetailMeta"></div>
+    <div class="crozzo-update-detail-modal__stepbar" id="crozzoUpdateDetailStepbar" hidden></div>
     <div class="crozzo-update-detail-modal__body" id="crozzoUpdateDetailBody"></div>
     <div class="crozzo-update-detail-modal__foot">
-      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailReject">Rechazar por ahora</button>
-      <button type="button" class="btn btn-primary" id="crozzoUpdateDetailAccept">Instalar actualización</button>
+      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailBack" style="display:none;">Anterior</button>
+      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailReject">Instalar después</button>
+      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailNext">Siguiente</button>
+      <button type="button" class="btn btn-primary" id="crozzoUpdateDetailAccept">Instalar ahora</button>
     </div>
   </div>
 </div>
