@@ -3620,6 +3620,107 @@ function saveComandasConfig(next) {
   });
   config.set('comandas', toSave);
 }
+const CROZZO_PANTALLA_DEVICE_LS = 'crozzo_comanda_pantalla_id';
+function crozzoGetDevicePantallaId() {
+  try {
+    return String(localStorage.getItem(CROZZO_PANTALLA_DEVICE_LS) || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+function crozzoSetDevicePantallaId(areaId, opts) {
+  opts = opts || {};
+  const id = String(areaId || '').trim();
+  try {
+    if (id) localStorage.setItem(CROZZO_PANTALLA_DEVICE_LS, id);
+    else localStorage.removeItem(CROZZO_PANTALLA_DEVICE_LS);
+  } catch (_) {}
+  if (typeof crozzoRefreshComandasPantallaUi === 'function') crozzoRefreshComandasPantallaUi();
+  if (!opts.silent && typeof showToast === 'function') {
+    showToast(
+      id ? 'Pantalla activa: ' + crozzoComandaAreaLabel(id) : 'Sin pantalla fija — recibe comandas de todas las áreas',
+      'info'
+    );
+  }
+}
+function crozzoComandaAreaLabel(areaId) {
+  if (areaId === 'TODAS') return 'Todas las áreas';
+  const a = (getComandasConfig().areas || []).find((x) => x.id === areaId);
+  return a ? a.nombre : String(areaId || '');
+}
+function crozzoDeviceShowsComandaArea(areaId) {
+  const dev = crozzoGetDevicePantallaId();
+  if (!dev || dev === 'TODAS') return true;
+  return dev === String(areaId || '');
+}
+function crozzoHasPrinterForComandaArea(areaId) {
+  const area = (getComandasConfig().areas || []).find((a) => a.id === areaId);
+  return !!(area && crozzoComandaAreaEffectivePrinter(area));
+}
+function crozzoShouldAutoPrintComanda(c, areaCfg) {
+  const cmdCfg = getComandasConfig();
+  if (!cmdCfg.autoPrint) return false;
+  if (!crozzoDeviceShowsComandaArea(c.areaId)) return false;
+  const prn = areaCfg
+    ? crozzoComandaAreaEffectivePrinter(areaCfg)
+    : crozzoComandaAreaEffectivePrinter((getComandasConfig().areas || []).find((a) => a.id === c.areaId));
+  return !!prn;
+}
+function crozzoComandaPantallaOptionsHtml(selected) {
+  const cur = String(selected != null ? selected : crozzoGetDevicePantallaId() || '');
+  let html =
+    '<option value=""' +
+    (!cur ? ' selected' : '') +
+    '>Sin fijar (todas las áreas)</option>';
+  html +=
+    '<option value="TODAS"' +
+    (cur === 'TODAS' ? ' selected' : '') +
+    '>Todas las pantallas</option>';
+  (getComandasConfig().areas || []).forEach(function (a) {
+    html +=
+      '<option value="' +
+      escUserAttr(a.id) +
+      '"' +
+      (cur === a.id ? ' selected' : '') +
+      '>' +
+      escUserAttr(a.nombre) +
+      '</option>';
+  });
+  return html;
+}
+function crozzoComandaPantallaDeviceBarHtml() {
+  const cur = crozzoGetDevicePantallaId();
+  return (
+    '<div class="crozzo-pantalla-device-bar" style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-secondary);">' +
+    '<div class="form-group" style="margin:0; flex:1; min-width:200px;">' +
+    '<label class="form-label">📺 Esta pantalla muestra</label>' +
+    '<select class="form-select" data-crozzo-device-pantalla onchange="crozzoSetDevicePantallaId(this.value)">' +
+    crozzoComandaPantallaOptionsHtml(cur) +
+    '</select>' +
+    '<span class="form-hint" style="margin-top:4px;">Las comandas llegan aquí por área. La impresora es opcional.</span>' +
+    '</div>' +
+    '<div class="form-group" style="margin:0; flex:1; min-width:200px;">' +
+    '<label class="form-label">➕ Nueva pantalla / área</label>' +
+    '<div style="display:flex; gap:8px;">' +
+    '<input type="text" class="form-input" id="newComandaAreaNameInline" placeholder="Ej: COCINA, BAR, POSTRES" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addComandaArea();}">' +
+    '<button type="button" class="btn btn-primary" onclick="addComandaArea()">Agregar</button>' +
+    '</div>' +
+    '</div>' +
+    '</div>'
+  );
+}
+function crozzoRefreshComandasPantallaUi(areaId) {
+  document.querySelectorAll('select[data-crozzo-device-pantalla]').forEach(function (sel) {
+    sel.innerHTML = crozzoComandaPantallaOptionsHtml(crozzoGetDevicePantallaId());
+  });
+  if (typeof crozzoRefreshComandasPrinterUi === 'function') crozzoRefreshComandasPrinterUi(areaId);
+}
+window.crozzoGetDevicePantallaId = crozzoGetDevicePantallaId;
+window.crozzoSetDevicePantallaId = crozzoSetDevicePantallaId;
+window.crozzoDeviceShowsComandaArea = crozzoDeviceShowsComandaArea;
+window.crozzoHasPrinterForComandaArea = crozzoHasPrinterForComandaArea;
+window.crozzoComandaAreaLabel = crozzoComandaAreaLabel;
+window.crozzoRefreshComandasPantallaUi = crozzoRefreshComandasPantallaUi;
 function crozzoComandaGlobalPrinter() {
   try {
     var fa = typeof getFacturacionAdminConfig === 'function' ? getFacturacionAdminConfig() : {};
@@ -4822,6 +4923,11 @@ function despacharComanda(id) {
   if (!c) return;
   c.estado = 'entregada';
   c.despachadaAt = new Date().toISOString();
+  try {
+    if (typeof window.crozzoPushComandaToCloud === 'function') {
+      window.crozzoPushComandaToCloud(c);
+    }
+  } catch (_) {}
   comandas.splice(idx, 1);
   comandaHistory.unshift({ ...c });
   comandaHistory = comandaHistory.slice(0, 200);
@@ -10534,11 +10640,11 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
       if (!Array.isArray(activeExisting.itemUpdates)) activeExisting.itemUpdates = [];
       activeExisting.itemUpdates.unshift({ at: activeExisting.lastUpdateAt, count: updateCount, items: updateItems });
       activeExisting.itemUpdates = activeExisting.itemUpdates.slice(0, 4);
-      if (activeExisting.impresora && cmdCfg.autoPrint) {
+      if (crozzoShouldAutoPrintComanda(activeExisting, areaCfg)) {
         printComandaNow(activeExisting.id, true);
-        showToast(`🖨️ +Items ${activeExisting.areaNombre} enviados a ${activeExisting.impresora}`, 'info');
-      } else if (activeExisting.impresora && !cmdCfg.autoPrint) {
-        showToast(`🧾 Comanda #${activeExisting.id} actualizada. Usa botón 🖨️ para imprimir`, 'info');
+        showToast(`🖨️ +Items ${activeExisting.areaNombre} — ticket en impresora`, 'info');
+      } else {
+        showToast(`📺 Comanda #${activeExisting.id} → pantalla ${activeExisting.areaNombre}`, 'info');
       }
       config.addAudit('comanda_actualizada', `Comanda #${activeExisting.id} +${updateCount} ítems - ${tipoServicio} ${referencia}`);
       touchedIds.push(activeExisting.id);
@@ -10564,11 +10670,11 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
         itemUpdates: []
       };
       comandas.unshift(comanda);
-      if (comanda.impresora && cmdCfg.autoPrint) {
+      if (crozzoShouldAutoPrintComanda(comanda, areaCfg)) {
         printComandaNow(comanda.id, true);
-        showToast(`🖨️ Comanda ${comanda.areaNombre} enviada a ${comanda.impresora}`, 'info');
-      } else if (comanda.impresora && !cmdCfg.autoPrint) {
-        showToast(`🧾 Comanda #${comanda.id} creada. Usa botón 🖨️ para imprimir`, 'info');
+        showToast(`🖨️ Comanda ${comanda.areaNombre} — ticket en impresora`, 'info');
+      } else {
+        showToast(`📺 Comanda #${comanda.id} → pantalla ${comanda.areaNombre}`, 'info');
       }
       config.addAudit('comanda_enviada', `Comanda #${comanda.id} - ${comanda.areaNombre} - ${tipoServicio} ${referencia}`);
       touchedIds.push(comanda.id);
@@ -10580,6 +10686,13 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
     maybeEmergencyBroadcastComandas(touchedIds);
   } catch (e) {
     console.warn('[EmergencyMesh] broadcast', e);
+  }
+  try {
+    if (typeof window.crozzoPushComandasCloudByIds === 'function') {
+      window.crozzoPushComandasCloudByIds(touchedIds);
+    }
+  } catch (eCloud) {
+    console.warn('[comanda-cloud] push', eCloud);
   }
   try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
@@ -10604,17 +10717,25 @@ function maybeEmergencyBroadcastComandas(ids) {
   if (!window.CrozzoEmergencyMesh || typeof CrozzoEmergencyMesh.isLinkReady !== 'function' || !CrozzoEmergencyMesh.isLinkReady()) return;
   window.__crozzoEmergencyBroadcastByIds(ids);
 }
-window.__crozzoEmergencyApplyComandaSnapshot = function (snap) {
+window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   if (!snap || snap.id == null) return;
-  const ex = comandas.find((c) => c.id === snap.id);
+  opts = opts || {};
+  const ex = comandas.find((c) =>
+    c.id === snap.id ||
+    (snap.transaction_id && c.transaction_id && c.transaction_id === snap.transaction_id)
+  );
   if (ex) {
     if (snap.transaction_id) ex.transaction_id = snap.transaction_id;
     mergeItemsInto(ex.items, snap.items || []);
     ex.total = computeTotals(ex.items).total;
     ex.lastUpdateAt = new Date().toISOString();
   } else {
+    let localId = Number(snap.id);
+    if (!Number.isFinite(localId) || comandas.some((c) => c.id === localId)) {
+      localId = nextComandaId++;
+    }
     comandas.unshift({
-      id: snap.id,
+      id: localId,
       transaction_id: snap.transaction_id || newCrozzoComandaTransactionId(),
       origen: snap.origen || 'caja',
       tipoServicio: snap.tipoServicio || 'mesa',
@@ -10630,14 +10751,16 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap) {
       createdAt: snap.createdAt || new Date().toISOString(),
       itemUpdates: Array.isArray(snap.itemUpdates) ? snap.itemUpdates.slice() : []
     });
-    nextComandaId = Math.max(nextComandaId, Number(snap.id) + 1);
+    nextComandaId = Math.max(nextComandaId, Number(localId) + 1);
   }
   try {
     config.addAudit('comanda_emergencia_p2p', `Comanda #${snap.id} vía mesh`);
   } catch (e1) { /* ignore */ }
-  try {
-    if (typeof printComandaNow === 'function') printComandaNow(snap.id, false);
-  } catch (e2) { /* ignore */ }
+  if (!opts.skipPrint) {
+    try {
+      if (typeof printComandaNow === 'function') printComandaNow(snap.id, false);
+    } catch (e2) { /* ignore */ }
+  }
   if (currentPage === 'cocina') renderPage('cocina');
   if (currentPage === 'comandas') renderPage('comandas');
   try {
@@ -13017,8 +13140,8 @@ function renderCocina() {
     crozzoKioskGetLockedPage() === 'cocina';
   const kdsUiOn = (!!cocinaVistaKds || kioskCocinaLock) && !cocinaVistaCorcho;
   const corchoUiOn = !!cocinaVistaCorcho;
-  const kdsBoard = kdsUiOn && areas.length ? renderCocinaKdsColumnsHtml(areas) : '';
-  const corchoBoard = corchoUiOn && areas.length ? renderCocinaCorkboardHtml(areas) : '';
+  const kdsBoard = kdsUiOn && areas.length ? renderCocinaKdsColumnsHtml(areas.filter((a) => crozzoDeviceShowsComandaArea(a.id))) : '';
+  const corchoBoard = corchoUiOn && areas.length ? renderCocinaCorkboardHtml(areas.filter((a) => crozzoDeviceShowsComandaArea(a.id))) : '';
   return `
     <div class="card${corchoUiOn ? ' cocina-vista-tablero' : ''}">
       <div class="card-header crozzo-cork-focus-hide">
@@ -13029,7 +13152,7 @@ function renderCocina() {
               corchoUiOn
                 ? 'Notas adhesivas de todas las áreas · arrastra para priorizar · pulsa LISTO al terminar.'
                 : kdsUiOn
-                ? 'Una columna por cada área creada en <strong>Config → Comandas</strong>. Deslice horizontalmente si hay muchas. Pulse el título del área para abrir el detalle de comandas de esa zona.'
+                ? 'Una columna por cada pantalla de producción. Cree o elimine pantallas aquí o en Config → Comandas.'
                 : `Vista clásica: solo comandas con área <strong>COCINA</strong>. Use el tablero para ver Barra, Postres, etc. a la vez.`
             }
           </p>
@@ -13048,6 +13171,7 @@ function renderCocina() {
         </div>
       </div>
       ${crozzoKioskInlineExitToolbarHtml()}
+      ${crozzoComandaPantallaDeviceBarHtml()}
       ${typeof CrozzoEmergencyMesh !== 'undefined' && (CrozzoEmergencyMesh.isActive() || CrozzoEmergencyMesh.isLinkReady()) ? `
       <div class="crozzo-emergency-pagebar crozzo-cork-focus-hide" role="status" style="margin:0 0 12px;">
         <strong>🔗 Emergencia P2P</strong>
@@ -13129,11 +13253,12 @@ function renderComandas() {
           <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px; width:100%;">
             <div>
               <h2 class="card-title">Tablero de comandas</h2>
-              <p class="form-hint" style="margin:6px 0 0;">Elige un área o usa pantalla corcho para ver todas las notas.</p>
+              <p class="form-hint" style="margin:6px 0 0;">Elige una pantalla de producción o crea una nueva arriba. Las comandas van a la pantalla, no a la impresora.</p>
             </div>
             ${typeof crozzoCorkboardFocusBtnHtml === 'function' ? crozzoCorkboardFocusBtnHtml() : ''}
           </div>
         </div>
+        ${crozzoComandaPantallaDeviceBarHtml()}
         <div class="comandas-layout">
           <div class="crozzo-corkboard" style="min-height:280px;">
             <div class="crozzo-corkboard crozzo-corkboard-all-areas" style="min-height:280px;">
@@ -13149,17 +13274,23 @@ function renderComandas() {
               return `
                 <div class="${areaCls}" onclick='selectComandasArea(${JSON.stringify(a.id)})' role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectComandasArea(${JSON.stringify(a.id)});}">
                   <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                    <strong>${a.nombre}</strong>
+                    <strong>📺 ${a.nombre}</strong>
                     <span class="badge badge-info">${count}</span>
                   </div>
-                  <div style="margin-top:8px; font-size:0.8rem; color: var(--text-secondary);" data-crozzo-area-printer-label="${escUserAttr(a.id)}">
-                    🖨️ ${escUserAttr(crozzoComandaPrinterDisplayText(a))}
+                  <div style="margin-top:8px; font-size:0.8rem; color: var(--text-secondary);">
+                    Pantalla de producción · ${crozzoGetDevicePantallaId() === a.id ? '✓ activa en este equipo' : 'toca para abrir'}
                   </div>
-                  <div style="margin-top:8px;" onclick="event.stopPropagation();">
-                    <select class="form-select" data-crozzo-area-printer="${escUserAttr(a.id)}" onchange="setComandaPrinterFromComandas(${JSON.stringify(a.id)}, this.value)" onclick="event.stopPropagation();">
+                  <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;" onclick="event.stopPropagation();">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="crozzoSetDevicePantallaId(${JSON.stringify(a.id)})">Usar en esta pantalla</button>
+                    ${areas.length > 1 ? `<button type="button" class="btn btn-danger btn-sm" onclick="removeComandaArea(${JSON.stringify(a.id)})">Eliminar</button>` : ''}
+                  </div>
+                  <details style="margin-top:8px;" onclick="event.stopPropagation();">
+                    <summary style="cursor:pointer; font-size:0.78rem; color:var(--text-muted);">Impresora opcional (ticket)</summary>
+                    <div style="margin-top:6px;" data-crozzo-area-printer-label="${escUserAttr(a.id)}">🖨️ ${escUserAttr(crozzoComandaPrinterDisplayText(a))}</div>
+                    <select class="form-select" style="margin-top:6px;" data-crozzo-area-printer="${escUserAttr(a.id)}" onchange="setComandaPrinterFromComandas(${JSON.stringify(a.id)}, this.value)">
                       ${crozzoComandaPrinterOptionsHtml(a.impresora || '')}
                     </select>
-                  </div>
+                  </details>
                   <div style="color: var(--text-secondary); font-size:0.8rem; margin-top:8px;">Toca para ver pedidos</div>
                 </div>
               `;
@@ -13197,6 +13328,7 @@ function renderComandas() {
   return `
     <div class="card">
       ${crozzoKioskInlineExitToolbarHtml()}
+      ${crozzoComandaPantallaDeviceBarHtml()}
       <div class="card-header crozzo-cork-focus-hide">
         <div>
           <h2 class="card-title">Tablero corcho · ${area ? area.nombre : comandasAreaSelected}</h2>
@@ -13277,23 +13409,24 @@ function renderComandas() {
             🟡 Normal · 🔵 Barra · 🔴 Urgente (+15 min)
           </div>
           <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(148,163,184,0.2);">
-            <div style="font-size:0.8rem; color: var(--text-muted); margin-bottom:6px;">Impresora de ${area ? area.nombre : 'área'}</div>
-            <div style="font-size:0.9rem; margin-bottom:8px;" data-crozzo-area-printer-label="${escUserAttr(area ? area.id : comandasAreaSelected)}">🖨️ ${escUserAttr(crozzoComandaPrinterDisplayText(area || { id: comandasAreaSelected, impresora: '' }))}</div>
-            <select class="form-select" data-crozzo-area-printer="${escUserAttr(area ? area.id : comandasAreaSelected)}" onchange="setComandaPrinterFromComandas('${area ? area.id : comandasAreaSelected}', this.value)">
-              ${crozzoComandaPrinterOptionsHtml(area?.impresora || '')}
+            <div style="font-size:0.8rem; color: var(--text-muted); margin-bottom:6px;">Pantalla activa en este equipo</div>
+            <select class="form-select" data-crozzo-device-pantalla onchange="crozzoSetDevicePantallaId(this.value)">
+              ${crozzoComandaPantallaOptionsHtml(crozzoGetDevicePantallaId())}
             </select>
-            <div style="margin-top:10px;">
-              <button class="btn btn-outline" style="width:100%;" onclick="printAllPendingByArea('${area ? area.id : comandasAreaSelected}')">🖨️ Imprimir pendientes del área</button>
-            </div>
-            <div style="margin-top:10px;">
-              <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem;">
-                <input type="checkbox" ${cmdCfg.autoPrint ? 'checked' : ''} onchange="toggleComandaAutoPrint(this.checked)">
-                Imprimir automáticamente al enviar pedido
-              </label>
-              <div style="font-size:0.76rem; color:var(--text-muted); margin-top:4px;">
-                ${cmdCfg.autoPrint ? 'Modo automático activo' : 'Modo manual: usa el botón 🖨️ para imprimir'}
+            <details style="margin-top:10px;">
+              <summary style="cursor:pointer; font-size:0.8rem; color:var(--text-muted);">Impresora opcional (ticket físico)</summary>
+              <div style="font-size:0.9rem; margin:8px 0;" data-crozzo-area-printer-label="${escUserAttr(area ? area.id : comandasAreaSelected)}">🖨️ ${escUserAttr(crozzoComandaPrinterDisplayText(area || { id: comandasAreaSelected, impresora: '' }))}</div>
+              <select class="form-select" data-crozzo-area-printer="${escUserAttr(area ? area.id : comandasAreaSelected)}" onchange="setComandaPrinterFromComandas('${area ? area.id : comandasAreaSelected}', this.value)">
+                ${crozzoComandaPrinterOptionsHtml(area?.impresora || '')}
+              </select>
+              <div style="margin-top:10px;">
+                <button class="btn btn-outline" style="width:100%;" onclick="printAllPendingByArea('${area ? area.id : comandasAreaSelected}')">🖨️ Imprimir pendientes (ticket)</button>
               </div>
-            </div>
+              <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; margin-top:10px;">
+                <input type="checkbox" ${cmdCfg.autoPrint ? 'checked' : ''} onchange="toggleComandaAutoPrint(this.checked)">
+                Imprimir ticket automáticamente (solo si hay impresora)
+              </label>
+            </details>
           </div>
           <div style="margin-top:12px;">
             <button class="btn btn-outline" style="width:100%;" onclick="openPrinterRescue('comandas')">🛠️ Rescate de impresora</button>
@@ -13308,6 +13441,11 @@ function updateComandaEstado(id, estado) {
   if (!c) return;
   c.estado = estado;
   config.addAudit('comanda_estado', `Comanda #${id} -> ${getEstadoLabel(estado)}`);
+  try {
+    if (typeof window.crozzoPushComandasCloudByIds === 'function') {
+      window.crozzoPushComandasCloudByIds([id]);
+    }
+  } catch (_) {}
   try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
@@ -21454,29 +21592,32 @@ function renderConfigComandas() {
   return `
     <div class="card">
       <div class="card-header">
-        <span class="card-title">🖨️ Pedidos Admin - Configuración simple</span>
+        <span class="card-title">📺 Pantallas de producción (comandas)</span>
       </div>
+      ${crozzoComandaPantallaDeviceBarHtml()}
+      <p class="form-hint" style="margin:0 0 14px;">Las comandas se envían a la pantalla del área (Cocina, Bar, etc.). La impresora física es opcional para ticket.</p>
       <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:10px; margin-bottom:14px;">
-        <input type="text" class="form-input" id="newComandaAreaName" placeholder="Nueva sección de pedidos (ej: BAR, FRIOS, PANADERIA)">
-        <button class="btn btn-primary" onclick="addComandaArea()">➕ Agregar sección</button>
+        <input type="text" class="form-input" id="newComandaAreaName" placeholder="Nueva pantalla (ej: COCINA, BAR, POSTRES)" onkeydown="if(event.key==='Enter'){event.preventDefault();addComandaArea();}">
+        <button class="btn btn-primary" onclick="addComandaArea()">➕ Agregar pantalla</button>
       </div>
       <div style="display:grid; gap:10px;">
         ${conf.areas.map(a => `
           <details style="border:1px solid var(--border); border-radius: var(--radius); background: var(--bg-secondary);" open>
             <summary style="list-style:none; cursor:pointer; padding:10px 12px; border-bottom:1px solid rgba(148,163,184,0.15);">
               <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <strong>📌 ${a.nombre}</strong>
-                <span class="badge badge-info">${escUserAttr(crozzoComandaPrinterDisplayText(a))}</span>
+                <strong>📺 ${a.nombre}</strong>
+                <span class="badge badge-info">${crozzoGetDevicePantallaId() === a.id ? 'Activa aquí' : 'Pantalla'}</span>
               </div>
             </summary>
             <div style="padding:12px;">
-              <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px;">
+              <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
                 <input class="form-input" value="${a.nombre}" onchange="renameComandaArea('${a.id}', this.value)">
-                <button class="btn btn-danger" style="padding:6px 10px;" onclick="removeComandaArea('${a.id}')">Eliminar</button>
+                <button type="button" class="btn btn-outline" onclick="crozzoSetDevicePantallaId('${a.id}')">Usar en este equipo</button>
+                ${conf.areas.length > 1 ? `<button class="btn btn-danger" style="padding:6px 10px;" onclick="removeComandaArea('${a.id}')">Eliminar</button>` : ''}
               </div>
               <div class="form-grid">
                 <div class="form-group">
-                  <label class="form-label">Impresora</label>
+                  <label class="form-label">Impresora opcional (ticket)</label>
                   <select class="form-select" data-crozzo-area-printer="${escUserAttr(a.id)}" onchange="setComandaPrinter('${a.id}', this.value)">
                     ${crozzoComandaPrinterOptionsHtml(a.impresora || '')}
                   </select>
@@ -21503,6 +21644,12 @@ function renderConfigComandas() {
             </div>
           </details>
         `).join('')}
+      </div>
+      <div style="margin-top:14px; padding:12px; border:1px dashed var(--border); border-radius:var(--radius);">
+        <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+          <input type="checkbox" ${conf.autoPrint ? 'checked' : ''} onchange="toggleComandaAutoPrint(this.checked)">
+          Imprimir ticket automáticamente cuando esta pantalla reciba comandas (requiere impresora configurada)
+        </label>
       </div>
     </div>
   `;
@@ -23040,17 +23187,33 @@ async function saveEditedUser() {
   renderPage('config-usuarios');
   showToast('Usuario actualizado', 'success');
 }
-function addComandaArea() {
-  const name = (document.getElementById('newComandaAreaName')?.value || '').trim();
-  if (!name) return showToast('Escribe un nombre de área', 'warning');
+function addComandaArea(nameInput) {
+  const name =
+    typeof nameInput === 'string' && nameInput.trim()
+      ? nameInput.trim()
+      : (
+          document.getElementById('newComandaAreaName')?.value ||
+          document.getElementById('newComandaAreaNameInline')?.value ||
+          ''
+        ).trim();
+  if (!name) return showToast('Escribe un nombre de pantalla / área', 'warning');
   const conf = getComandasConfig();
   const id = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
-  if (conf.areas.some(a => a.id === id)) return showToast('Esa área ya existe', 'warning');
+  if (conf.areas.some(a => a.id === id)) return showToast('Esa pantalla ya existe', 'warning');
   conf.areas.push({ id, nombre: name, impresora: '', estilo: { fontSize: 12, showPrice: true, showHeader: true } });
   saveComandasConfig(conf);
   ensureProductsArea();
-  renderPage('config-comandas');
-  showToast(`Área ${name} creada`, 'success');
+  ['newComandaAreaName', 'newComandaAreaNameInline'].forEach(function (fid) {
+    const el = document.getElementById(fid);
+    if (el) el.value = '';
+  });
+  if (typeof crozzoRefreshComandasPantallaUi === 'function') crozzoRefreshComandasPantallaUi();
+  const pg =
+    typeof currentPage !== 'undefined' && (currentPage === 'cocina' || currentPage === 'comandas' || currentPage === 'config-comandas')
+      ? currentPage
+      : 'config-comandas';
+  renderPage(pg);
+  showToast(`Pantalla ${name} creada`, 'success');
 }
 function renameComandaArea(id, nombre) {
   const conf = getComandasConfig();
@@ -23059,12 +23222,20 @@ function renameComandaArea(id, nombre) {
 }
 function removeComandaArea(id) {
   const conf = getComandasConfig();
-  if (conf.areas.length <= 1) return showToast('Debe existir al menos un área', 'warning');
+  if (conf.areas.length <= 1) return showToast('Debe existir al menos una pantalla', 'warning');
   conf.areas = conf.areas.filter(a => a.id !== id);
   saveComandasConfig(conf);
   const fallback = conf.areas[0]?.id || 'COCINA';
   products = products.map(p => p.areaComanda === id ? { ...p, areaComanda: fallback } : p);
-  renderPage('config-comandas');
+  if (crozzoGetDevicePantallaId() === id) crozzoSetDevicePantallaId('', { silent: true });
+  if (comandasAreaSelected === id) comandasAreaSelected = '';
+  if (typeof crozzoRefreshComandasPantallaUi === 'function') crozzoRefreshComandasPantallaUi();
+  const pg =
+    typeof currentPage !== 'undefined' && (currentPage === 'cocina' || currentPage === 'comandas' || currentPage === 'config-comandas')
+      ? currentPage
+      : 'config-comandas';
+  renderPage(pg);
+  showToast('Pantalla eliminada', 'info');
 }
 function setComandaPrinter(id, printer, opts) {
   opts = opts || {};
@@ -23090,28 +23261,24 @@ function toggleComandaAutoPrint(enabled) {
   const conf = getComandasConfig();
   conf.autoPrint = Boolean(enabled);
   saveComandasConfig(conf);
-  showToast(`Impresión automática ${enabled ? 'activada' : 'manual'}`, 'info');
-  if (currentPage === 'comandas') renderPage('comandas');
+  showToast(`Ticket automático ${enabled ? 'activado' : 'desactivado'} (solo en pantalla con impresora)`, 'info');
+  if (currentPage === 'comandas' || currentPage === 'config-comandas') renderPage(currentPage);
 }
 function printAllPendingByArea(areaId) {
   const pending = comandas.filter(c => c.areaId === areaId);
   if (!pending.length) {
-    showToast('No hay comandas pendientes por imprimir en esta área', 'warning');
+    showToast('No hay comandas pendientes en esta pantalla', 'warning');
     return;
   }
   let sent = 0;
   pending.forEach(c => {
-    const before = sent;
-    if (c.impresora) {
+    if (crozzoHasPrinterForComandaArea(areaId)) {
       printComandaNow(c.id, true);
       sent++;
     }
-    if (before === sent && !c.impresora) {
-      config.addAudit('comanda_impresion_sin_equipo', `Comanda #${c.id} sin impresora`);
-    }
   });
   if (!sent) {
-    showToast('No hay impresoras configuradas para estas comandas', 'warning');
+    showToast('Configure una impresora opcional para imprimir tickets', 'warning');
     return;
   }
   showToast(`🖨️ ${sent} comanda(s) enviadas a impresión`, 'success');

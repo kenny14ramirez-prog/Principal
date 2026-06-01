@@ -12,7 +12,7 @@
  * Modelo de datos (importante):
  * - Config fiscal/empresa (`pos_dian_config` vía ConfigManager) y catálogo guardado (`catalogoProductos`) persisten en localStorage del navegador.
  * - Estado operativo en vivo (carritos, comandas abiertas, historial reciente, slots cobrados) se respalda en `crozzo_pos_runtime_v1` para sobrevivir cierre de pestaña y modo offline/híbrido.
- * - Supabase es la fuente de verdad para entidades explícitas (p. ej. `products` cuando la nube está activa); ventas/facturas/comandas completas como tablas dedicadas aún no se duplican fila a fila en esta build — la cola `sync_queue` / LAN cubre otros eventos según tu esquema.
+ * - Supabase es la fuente de verdad para entidades explícitas (p. ej. `products` cuando la nube está activa); comandas activas se sincronizan vía tabla `comandas` + `CrozzoComandasCloudSync.js`.
  * - Tras login local/Supabase y al volver a la pestaña (visible) se vuelve a descargar `products` y se repinta la página actual si la nube está activa (`__crozzoRefreshCloudCatalogUi`).
  *
  * Estrategia offline (resumen): cola `sync_queue` + reintentos; marcas de tiempo en facturas; resolución de conflicto «dos servidor A» vía UI;
@@ -932,6 +932,7 @@ window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase(
 window.__crozzoSupabaseSignOut = async function crozzoSupabaseSignOut() {
   try {
     if (typeof crozzoStopRemoteTenantSync === 'function') crozzoStopRemoteTenantSync();
+    if (typeof crozzoStopComandasCloudSync === 'function') crozzoStopComandasCloudSync();
     sessionStorage.removeItem('crozzo_cloud_profile');
     if (window.__SUPABASE?.auth) await window.__SUPABASE.auth.signOut();
   } catch (e) {
@@ -1098,6 +1099,7 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
     if (typeof crozzoPullRemoteTenantState === 'function') {
       await crozzoPullRemoteTenantState({ skipRender: true, quiet: true });
     }
+    if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
   } catch (e2) {
     console.warn('[crozzo-sb] tenant sync init', e2);
   }
