@@ -98,7 +98,18 @@
     return global.__TAURI__.core.invoke(cmd, args || {});
   }
 
-  /** GitHub Releases no envía CORS; en Tauri usamos el backend Rust. */
+  /** GitHub Releases no envía CORS; en Tauri desktop usamos Rust. En móvil, fetch. */
+  function fetchJsonFromUrl(url) {
+    return fetch(url, { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   function httpGetJson(url) {
     url = String(url || '').trim();
     if (!url) return Promise.resolve(null);
@@ -109,6 +120,9 @@
           return JSON.parse(text);
         })
         .catch(function () {
+          if (/raw\.githubusercontent\.com/i.test(url) || /api\.github\.com/i.test(url)) {
+            return fetchJsonFromUrl(url);
+          }
           return null;
         });
     }
@@ -116,14 +130,7 @@
       return Promise.resolve(null);
     }
     if (/raw\.githubusercontent\.com/i.test(url) || /api\.github\.com/i.test(url)) {
-      return fetch(url, { cache: 'no-store' })
-        .then(function (res) {
-          if (!res.ok) return null;
-          return res.json();
-        })
-        .catch(function () {
-          return null;
-        });
+      return fetchJsonFromUrl(url);
     }
     return Promise.resolve(null);
   }
@@ -139,6 +146,15 @@
           return { ok: ok, url: url, bytes: len, reason: ok ? '' : 'http_' + (r && r.status) };
         })
         .catch(function () {
+          if (isAndroidTablet() || /iPad|iPhone|iPod/i.test(ua())) {
+            return fetch(url, { method: 'HEAD', cache: 'no-store', mode: 'no-cors' })
+              .then(function () {
+                return { ok: true, url: url, bytes: 0, reason: 'sin_head_movil' };
+              })
+              .catch(function () {
+                return { ok: false, reason: 'red', url: url };
+              });
+          }
           return { ok: false, reason: 'red', url: url };
         });
     }
@@ -242,12 +258,18 @@
   function openExternalUrl(url) {
     url = String(url || '').trim();
     if (!url) return Promise.resolve(false);
+    if (!/^https?:\/\//i.test(url)) return Promise.resolve(false);
     if (isTauri()) {
+      var mobileShell = isAndroidTablet() || /iPad|iPhone|iPod/i.test(ua());
       return invoke('plugin:opener|open_url', { url: url })
         .then(function () {
           return true;
         })
         .catch(function () {
+          if (mobileShell) {
+            console.warn('[crozzo-updater] no se pudo abrir enlace externo en móvil:', url);
+            return false;
+          }
           try {
             global.open(url, '_blank', 'noopener,noreferrer');
             return true;
@@ -700,8 +722,8 @@
         }
         return {
           version: ver,
-          downloadUrl: pickApkFromAssets(info.assets) || predicted || info.releasePageUrl || GITHUB_RELEASES_LATEST,
-          releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_LATEST,
+          downloadUrl: pickApkFromAssets(info.assets) || predicted || '',
+          releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_PAGE + '/tag/' + ver,
           verified: false,
           bytes: 0,
           assetType: 'apk',

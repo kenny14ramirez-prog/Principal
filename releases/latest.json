@@ -1,15 +1,15 @@
 {
-  "id": "1.0.45-critical",
-  "version": "v1.0.45",
-  "semver": "1.0.45",
+  "id": "1.0.46-critical",
+  "version": "v1.0.46",
+  "semver": "1.0.46",
   "type": "critical",
-  "message": "global apk",
-  "publishedAt": "2026-06-01T19:59:41.002Z",
+  "message": "apk",
+  "publishedAt": "2026-06-01T20:18:40.583Z",
   "installMode": "auto",
   "changelog": [
-    "global apk"
+    "apk"
   ],
-  "updatedAt": "2026-06-01T19:59:41.002Z",
+  "updatedAt": "2026-06-01T20:18:40.583Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -369,6 +369,18 @@
       "installMode": "auto",
       "changelog": [
         "global apk"
+      ]
+    },
+    {
+      "id": "1.0.46-critical",
+      "version": "v1.0.46",
+      "semver": "1.0.46",
+      "type": "critical",
+      "message": "apk",
+      "publishedAt": "2026-06-01T20:18:40.583Z",
+      "installMode": "auto",
+      "changelog": [
+        "apk"
       ]
     }
   ]

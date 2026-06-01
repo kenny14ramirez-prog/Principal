@@ -69,6 +69,7 @@
   var CRITICAL_AUTO_INSTALL_MAX = 3;
   var CRITICAL_INFO_DELAY_MS = 2400;
   var _optionalWizard = { step: 0, steps: [], entry: null };
+  var _deferredAndroidCritical = null;
 
   var INSTALL_STEPS = [
     { id: 'probe', label: 'Verificando paquete en la nube' },
@@ -1164,7 +1165,7 @@
     if (!TU || !TU.resolveManualFallback) {
       _planB = {
         version: ver,
-        downloadUrl: TU && TU.releasesLatestUrl ? TU.releasesLatestUrl : '',
+        downloadUrl: '',
         releasePageUrl: TU && TU.releasesPageUrl ? TU.releasesPageUrl : '',
         ready: false,
       };
@@ -2145,6 +2146,15 @@
     if (body) body.innerHTML = buildDetailBodyHtml();
   }
 
+  function isAppShellHref(href) {
+    href = String(href || '');
+    if (!href) return false;
+    if (/^https?:\/\//i.test(href)) {
+      return /localhost|127\.0\.0\.1|tauri\.|asset\.|crozzo/i.test(href);
+    }
+    return /^(file:|tauri:|asset:|capacitor:|ionic:|content:)/i.test(href);
+  }
+
   function applyWebClientUpdate(targetVersion, onProgress) {
     if (onProgress) {
       onProgress({
@@ -2161,6 +2171,10 @@
     return delay(800).then(function () {
       try {
         var href = global.location.href.split('#')[0];
+        if (!isAppShellHref(href)) {
+          console.warn('[crozzo-updates] recarga bloqueada: origen externo', href);
+          return { installed: false, plan: 'web_reload_blocked', version: targetVersion };
+        }
         var sep = href.indexOf('?') >= 0 ? '&' : '?';
         global.location.replace(href + sep + '_crozzo=' + Date.now());
       } catch (_) {
@@ -2230,11 +2244,11 @@
           };
         });
       }
-      if (profile.kind === 'android-web' || opts.allowWebFallback !== false) {
+      if (profile.kind === 'android-web' && opts.allowWebFallback !== false) {
         return applyWebClientUpdate(targetVersion, onProgress);
       }
       return Promise.reject(
-        new Error('El APK aún no está en GitHub. Espere a que termine la compilación Android.')
+        new Error('El APK aún no está en GitHub. Espere a que termine la compilación Android o use Plan B.')
       );
     });
   }
@@ -2323,6 +2337,16 @@
     } catch (_) {}
     setTimeout(function () {
       if (_installInProgress || _criticalInstallState === 'installing') return;
+      if (_deferredAndroidCritical) {
+        var androidEntry = _deferredAndroidCritical;
+        _deferredAndroidCritical = null;
+        setCriticalOpen(true);
+        populateCriticalInfo('idle');
+        setCheckStatus(
+          'Actualización ' + normEntryVersion(androidEntry) + ' lista. Pulse «Instalar ahora» cuando quiera.'
+        );
+        return;
+      }
       var opt = pickNextPendingEntry(
         _registryEntries.filter(function (e) {
           return entryIsPending(e) && !isCriticalEntry(e);
@@ -2451,11 +2475,20 @@
     return Promise.resolve();
   }
 
+  function shouldDeferCriticalAutoOnBoot(profile) {
+    return !!(profile && profile.kind === 'android');
+  }
+
   function runBootCriticalInstallLoop() {
     pruneStaleStateFlags();
     var pending = _registryEntries.filter(entryIsPending);
     var entry = pickNextPendingEntry(pending);
     if (!entry || !isCriticalEntry(entry)) return Promise.resolve({ done: true });
+    var profile = getUpdateClientProfile();
+    if (shouldDeferCriticalAutoOnBoot(profile)) {
+      beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
+      return Promise.resolve({ done: true, deferredAndroid: true });
+    }
     return beginCriticalEntryInstall(entry, { returnPromise: true }).then(function (res) {
       if (res && res.exiting) return res;
       return refreshBinaryVersion().then(function () {
@@ -2774,6 +2807,18 @@
     };
     setNormalOpen(false);
     hideBootUpdateGate();
+    if (shouldDeferCriticalAutoOnBoot(getUpdateClientProfile()) && opts.forceAuto !== true) {
+      _criticalInstallState = 'idle';
+      if (opts.deferOverlay) {
+        _deferredAndroidCritical = entry;
+      } else {
+        setCriticalOpen(true);
+        populateCriticalInfo('idle');
+      }
+      setCheckStatus('Build nuevo ' + remote + ' disponible para Android.');
+      if (opts.returnPromise) return Promise.resolve({ deferred: true });
+      return true;
+    }
     setCriticalOpen(true);
     populateCriticalInfo('info');
     setCheckStatus('Build nuevo ' + remote + ': reinstalando automáticamente…');
@@ -2787,7 +2832,7 @@
 
   function beginCriticalEntryInstall(entry, opts) {
     opts = opts || {};
-    if (isBuildOnlyUpdate(entry)) {
+    if (isBuildOnlyUpdate(entry) && !opts.skipBuildAuto) {
       return showBuildOnlyUpdate(entry, opts);
     }
     var id = entryId(entry);
@@ -2811,6 +2856,18 @@
     setNormalOpen(false);
     _criticalAutoAttempts = 0;
     hideBootUpdateGate();
+    if (shouldDeferCriticalAutoOnBoot(getUpdateClientProfile()) && opts.forceAuto !== true) {
+      _criticalInstallState = 'idle';
+      if (opts.deferOverlay) {
+        _deferredAndroidCritical = entry;
+      } else {
+        setCriticalOpen(true);
+        populateCriticalInfo('idle');
+      }
+      setCheckStatus('Actualización ' + remote + ' disponible para Android.');
+      if (opts.returnPromise) return Promise.resolve({ deferred: true });
+      return true;
+    }
     setCriticalOpen(true);
     populateCriticalInfo('info');
 
