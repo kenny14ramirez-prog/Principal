@@ -67,6 +67,10 @@ reqFile('scripts/generate-release-json.mjs');
 reqFile('scripts/publicar-actualizacion.mjs');
 reqFile('scripts/sync-version-from-tag.mjs');
 reqFile('scripts/verify-release-updater-json.mjs');
+reqFile('scripts/verify-release-multiplatform.mjs');
+reqFile('scripts/lib/release-artifact-checks.mjs');
+reqFile('scripts/lib/update-audit-static.mjs');
+reqFile('scripts/audit-updates-full.mjs');
 reqFile('.github/workflows/tauri-release.yml');
 const releaseYml = join(root, '.github/workflows/release.yml');
 if (existsSync(releaseYml)) {
@@ -113,16 +117,48 @@ if (tauri) {
   }
 }
 
-for (const cap of ['src-tauri/capabilities/default.json', 'src-tauri/capabilities/desktop.json']) {
-  const c = readJson(cap);
-  if (!c) continue;
-  const perms = c.permissions || [];
-  if (!perms.some((p) => String(p).includes('updater'))) {
-    errors.push(`${cap}: falta permiso updater`);
+// Updater solo en desktop.json — default.json + mobile.json aplican a Android (sin plugin updater).
+const defaultCap = readJson('src-tauri/capabilities/default.json');
+const desktopCap = readJson('src-tauri/capabilities/desktop.json');
+const mobileCap = readJson('src-tauri/capabilities/mobile.json');
+
+function capHasPerm(cap, needle) {
+  return (cap?.permissions || []).some((p) => String(p).includes(needle));
+}
+
+if (desktopCap) {
+  if (!capHasPerm(desktopCap, 'updater')) {
+    errors.push('src-tauri/capabilities/desktop.json: falta permiso updater');
   }
-  if (!perms.some((p) => String(p).includes('process'))) {
-    errors.push(`${cap}: falta permiso process (reinicio tras instalar)`);
+  if (!capHasPerm(desktopCap, 'process')) {
+    errors.push('src-tauri/capabilities/desktop.json: falta permiso process (reinicio tras instalar)');
+  } else if (capHasPerm(desktopCap, 'updater')) {
+    ok.push('Capabilities desktop: updater + process OK');
   }
+} else {
+  errors.push('Falta src-tauri/capabilities/desktop.json');
+}
+
+if (defaultCap) {
+  if (capHasPerm(defaultCap, 'updater')) {
+    errors.push(
+      'src-tauri/capabilities/default.json: no incluir updater (rompe build Android) — use desktop.json'
+    );
+  } else if (!capHasPerm(defaultCap, 'process')) {
+    errors.push('src-tauri/capabilities/default.json: falta permiso process');
+  } else {
+    ok.push('Capabilities default: base multiplataforma sin updater (OK Android)');
+  }
+}
+
+if (mobileCap) {
+  if (capHasPerm(mobileCap, 'updater')) {
+    errors.push('src-tauri/capabilities/mobile.json: updater no aplica en Android/iOS');
+  } else {
+    ok.push('Capabilities mobile: sin updater (OK)');
+  }
+} else {
+  warnings.push('Falta src-tauri/capabilities/mobile.json');
 }
 
 function htmlHasUpdaterScripts(rel) {
@@ -179,4 +215,8 @@ if (errors.length) {
   process.exit(1);
 }
 console.log('  Resultado: OK — cadena local de actualizaciones configurada.');
+console.log('');
+console.log('  Auditoría completa:     npm run updates:audit');
+console.log('  Antes de publicar tag:  npm run updates:verify-release -- vX.Y.Z');
+console.log('  Simular OTA:            npm run updates:simulate -- v1.0.0 v1.0.36');
 console.log('');
