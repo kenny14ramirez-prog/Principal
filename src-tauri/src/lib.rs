@@ -2,6 +2,7 @@
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crm_registro_server;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_print;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_http;
@@ -13,6 +14,7 @@ mod dian_adquiriente;
 mod dian_vpfe;
 mod webview_permissions;
 
+#[cfg(desktop)]
 use tauri::Manager;
 
 #[tauri::command]
@@ -32,9 +34,13 @@ pub fn run() {
     builder
         .setup(|app| {
             #[cfg(desktop)]
-            if let Some(win) = app.get_webview_window("main") {
-                webview_permissions::install_camera_permission_handler(&win);
+            {
+                if let Some(win) = app.get_webview_window("main") {
+                    webview_permissions::install_camera_permission_handler(&win);
+                }
             }
+            #[cfg(not(desktop))]
+            let _ = &app;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
