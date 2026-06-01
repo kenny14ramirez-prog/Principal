@@ -99,6 +99,27 @@ jobs:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: npx tauri android init --ci --skip-targets-install
 
+      - name: Cache keystore Android (sideload estable)
+        if: matrix.android
+        uses: actions/cache@v4
+        id: android-keystore-cache
+        with:
+          path: ${{ runner.temp }}/crozzo-upload.jks
+          key: crozzo-android-upload-keystore-v1
+
+      - name: Configurar firma Android
+        if: matrix.android
+        env:
+          ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/crozzo-upload.jks
+        run: node scripts/prepare-android-keystore.mjs
+
+      - name: Parchear Gradle (firma release)
+        if: matrix.android
+        run: node scripts/patch-android-signing.mjs
+
       - name: Compilar ${{ matrix.label }} y publicar release
         if: ${{ !matrix.android }}
         uses: tauri-apps/tauri-action@v0
@@ -148,14 +169,21 @@ jobs:
             echo "Esperando release $TAG ($i/20)..."
             sleep 30
           done
-          APK=$(find src-tauri/gen/android -name '*.apk' -type f 2>/dev/null | head -1)
-          if [ -z "$APK" ]; then
-            echo "No se encontró APK en src-tauri/gen/android"
-            find src-tauri/gen/android -type f 2>/dev/null || true
+          APK=$(node scripts/pick-android-apk.mjs)
+          if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+            echo "No se encontró APK firmado en src-tauri/gen/android"
+            find src-tauri/gen/android -type f -name '*.apk' 2>/dev/null || true
             exit 1
           fi
-          gh release upload "$TAG" "$APK" --clobber
-          echo "APK subido: $APK"
+          if echo "$APK" | grep -qi unsigned; then
+            echo "ERROR: Solo hay APK sin firmar. Revise pasos de firma Android."
+            exit 1
+          fi
+          VER="${TAG#v}"
+          OUT="Proyecto_${VER}_arm64.apk"
+          cp "$APK" "$OUT"
+          gh release upload "$TAG" "$OUT" --clobber
+          echo "APK firmado subido: $OUT (origen: $APK)"
 
       - name: Verificar latest.json y artefactos del release
         if: matrix.label == 'Windows x64'

@@ -58,12 +58,17 @@ export async function headUrl(url) {
 
 export function pickApkFromAssets(assets) {
   if (!Array.isArray(assets)) return null;
-  const preferred = assets.find((a) => {
+  const signed = assets.filter((a) => {
     const n = String(a.name || a.url || '');
-    return /\.apk$/i.test(n) && (/aarch64|arm64|arm-v8|universal/i.test(n) || !/x86|x86_64/i.test(n));
+    return /\.apk$/i.test(n) && !/unsigned/i.test(n);
+  });
+  const pool = signed.length ? signed : assets;
+  const preferred = pool.find((a) => {
+    const n = String(a.name || a.url || '');
+    return /\.apk$/i.test(n) && (/aarch64|arm64|arm-v8|universal|Proyecto_/i.test(n) || !/x86|x86_64/i.test(n));
   });
   if (preferred) return preferred;
-  return assets.find((a) => /\.apk$/i.test(a.name || a.url || '')) || null;
+  return pool.find((a) => /\.apk$/i.test(a.name || a.url || '')) || null;
 }
 
 export function pickMacDmgs(assets) {
