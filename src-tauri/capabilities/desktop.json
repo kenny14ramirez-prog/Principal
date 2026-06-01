@@ -11,6 +11,9 @@
   "permissions": [
     "core:default",
     "updater:default",
-    "process:default"
+    "process:default",
+    "allow-crozzo-list-printers",
+    "allow-crozzo-get-default-printer",
+    "allow-crozzo-print-raw"
   ]
 }

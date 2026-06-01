@@ -1710,6 +1710,8 @@
         'config-comandas': 'Impresión comandas',
         'config-conexiones-sistemas': 'Conexión de sistemas',
         'config-multidispositivo': 'Multi-dispositivo',
+        'super-admin-nube': 'Nube global',
+        'config-nube-global': 'Nube global',
         'config-facturas-admin': 'Facturas e impresión',
         'config-certificado': 'Certificado .p12',
         'config-proveedor': 'Proveedor FE',

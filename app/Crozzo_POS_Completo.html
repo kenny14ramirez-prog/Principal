@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.37">
+<meta name="crozzo-app-version" content="1.0.38">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -263,6 +263,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="config-dian" data-menu="config-dian" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="landmark"></i></span><span class="nav-item-label">Config. DIAN</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-certificado" data-menu="certificado-p12" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><span class="nav-item-label">Certificado .p12</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-proveedor" data-menu="proveedor" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="plug"></i></span><span class="nav-item-label">Proveedor FE</span></div></li>
+            <li><div class="nav-item menu-item" data-page="super-admin-nube" data-menu="config-nube-global" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span class="nav-item-label">Nube global</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-multidispositivo" data-menu="conexion-multi" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wifi"></i></span><span class="nav-item-label">Multi-dispositivo</span></div></li>
             <li><div class="nav-item menu-item" id="menu-test-diagnostics" data-page="super-admin-diagnostics" data-menu="pruebas-conexion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="nav-item-label">Pruebas de sistema</span></div></li>
             <li><div class="nav-item menu-item" data-page="modo-demo" data-menu="modo-operacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="toggle-right"></i></span><span class="nav-item-label">Modo de operación</span></div></li>
@@ -812,7 +813,11 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoRecepcionBridge.js"></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
+<script src="core/CrozzoTermicaColombia.js" defer></script>
+<script src="core/CrozzoTermicaPremium.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>
+<script src="modules/CrozzoPrintPresets.js" defer></script>
+<script src="modules/CrozzoPrintStudioHub.js" defer></script>
 <script src="modules/CrozzoPerfilesOperativos.js" defer></script>
 <script src="infra/CrozzoTauriUpdater.js" defer></script>
 <script src="infra/CrozzoSystemUpdates.js" defer></script>
@@ -822,6 +827,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoAdquirienteLookup.js" defer></script>
 <script src="modules/CrozzoCrmRegistroQr.js" defer></script>
 <script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
+<script src="modules/CrozzoSuperAdminNube.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="core/CrozzoLazyModules.js" defer></script>

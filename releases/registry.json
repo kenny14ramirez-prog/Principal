@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-05-31T13:23:34.404Z",
+  "updatedAt": "2026-06-01T15:11:07.095Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -263,6 +263,18 @@
       "installMode": "auto",
       "changelog": [
         "asistema de clientes!!"
+      ]
+    },
+    {
+      "id": "1.0.38-critical",
+      "version": "v1.0.38",
+      "semver": "1.0.38",
+      "type": "critical",
+      "message": "actualizacion global ",
+      "publishedAt": "2026-06-01T15:11:07.095Z",
+      "installMode": "auto",
+      "changelog": [
+        "actualizacion global"
       ]
     }
   ]

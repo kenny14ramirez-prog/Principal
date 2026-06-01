@@ -1,9 +1,15 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crm_registro_server;
 mod crozzo_print;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_http;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_silent_install;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_adquiriente;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_vpfe;
 mod webview_permissions;
 
@@ -33,19 +39,40 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_list_printers,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_get_default_printer,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_print_raw,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_print::crozzo_print_raw_b64,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_print::crozzo_print_html_b64,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_http::crozzo_http_get_text,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_http::crozzo_http_head,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::install_setup_from_url,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::install_dmg_from_url,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::probe_platform_installer,
             webview_permissions::cxf_reset_webview_camera_permission,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_vpfe::fetch_dian_vpfe,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_adquiriente::fetch_dian_adquiriente,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_start,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_stop,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_drain_pending,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_push_pending
         ])
         .run(tauri::generate_context!())

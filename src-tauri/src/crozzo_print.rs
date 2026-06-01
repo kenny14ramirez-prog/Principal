@@ -1,5 +1,8 @@
 //! Impresión térmica ESC/POS: Windows (WinAPI RAW), macOS/Linux (CUPS lp).
 
+#[path = "crozzo_print_html.rs"]
+mod crozzo_print_html;
+
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -40,26 +43,78 @@ pub fn crozzo_get_default_printer() -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
-pub fn crozzo_print_raw(
-    printer_name: String,
-    data: Vec<u8>,
-    copies: u32,
-) -> Result<CrozzoPrintResult, String> {
+fn print_raw_inner(printer_name: &str, data: &[u8], copies: u32) -> Result<CrozzoPrintResult, String> {
     let copies = copies.max(1).min(10);
     #[cfg(windows)]
     {
-        return win::print_raw(&printer_name, &data, copies);
+        return win::print_raw(printer_name, data, copies);
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
-        return cups::print_raw(&printer_name, &data, copies);
+        return cups::print_raw(printer_name, data, copies);
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {
         let _ = (printer_name, data, copies);
         Err("Impresión directa no disponible en esta plataforma.".into())
     }
+}
+
+#[tauri::command]
+pub fn crozzo_print_raw(
+    printer_name: String,
+    data: Vec<u8>,
+    copies: u32,
+) -> Result<CrozzoPrintResult, String> {
+    print_raw_inner(&printer_name, &data, copies)
+}
+
+/// Misma impresión vía Base64 (más fiable desde el WebView que arrays enormes).
+#[tauri::command]
+pub fn crozzo_print_raw_b64(
+    printer_name: String,
+    data_b64: String,
+    copies: u32,
+) -> Result<CrozzoPrintResult, String> {
+    use base64::Engine;
+    let data = base64::engine::general_purpose::STANDARD
+        .decode(data_b64.trim())
+        .map_err(|e| format!("Datos de impresión inválidos (base64): {e}"))?;
+    print_raw_inner(&printer_name, &data, copies)
+}
+
+/// Resuelve nombre de impresora (config o predeterminada del sistema).
+pub fn resolve_printer_for_html(requested: &str) -> Result<String, String> {
+    #[cfg(windows)]
+    {
+        return win::resolve_printer_name(requested);
+    }
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        return cups::resolve_printer_name(requested);
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        let _ = requested;
+        Err("Impresión no disponible en esta plataforma.".into())
+    }
+}
+
+#[tauri::command]
+pub fn crozzo_print_html_b64(
+    app: tauri::AppHandle,
+    printer_name: String,
+    html_b64: String,
+    copies: Option<u32>,
+    landscape: Option<bool>,
+) -> Result<CrozzoPrintResult, String> {
+    crozzo_print_html::print_html_b64_sync(
+        app,
+        printer_name,
+        html_b64,
+        copies.unwrap_or(1),
+        landscape.unwrap_or(true),
+    )
 }
 
 #[cfg(windows)]
@@ -96,7 +151,8 @@ mod win {
     }
 
     pub fn list_printers() -> Result<Vec<String>, String> {
-        let flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
+        // Local, conexiones (USB/red compartida) y cola de red
+        let flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS | windows::Win32::Graphics::Printing::PRINTER_ENUM_NETWORK;
         let mut needed: u32 = 0;
         let mut returned: u32 = 0;
 
@@ -161,7 +217,7 @@ mod win {
         }
     }
 
-    fn resolve_printer_name(requested: &str) -> Result<String, String> {
+    pub fn resolve_printer_name(requested: &str) -> Result<String, String> {
         let req = requested.trim();
         if !req.is_empty() {
             return Ok(req.to_string());
@@ -311,7 +367,7 @@ mod cups {
         Ok(None)
     }
 
-    fn resolve_printer_name(requested: &str) -> Result<String, String> {
+    pub fn resolve_printer_name(requested: &str) -> Result<String, String> {
         let req = requested.trim();
         if !req.is_empty() {
             return Ok(req.to_string());

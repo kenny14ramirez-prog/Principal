@@ -36,7 +36,52 @@
     }
     body.embedded { overflow: hidden; }
     body.embedded .studio-hero { display: none; }
-    body.embedded .studio-root { min-height: 100vh; border-radius: 0; }
+    body.embedded .studio-root {
+      min-height: 0;
+      height: 100%;
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    body.embedded .studio-workspace {
+      flex: 1;
+      min-height: 0;
+    }
+    body.embedded .studio-canvas {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    body.embedded .studio-canvas__stage {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    body.embedded .studio-canvas__stage.is-sheet-stage {
+      padding: 12px 8px 24px;
+    }
+    body.embedded .studio-rail > h2:first-of-type,
+    body.embedded .studio-presets {
+      display: none;
+    }
+    body.embedded .studio-foot {
+      display: none;
+    }
+    body.embedded .studio-topbar {
+      padding: 8px 12px;
+      gap: 8px;
+    }
+    body.embedded .studio-topbar__center .studio-field:last-child {
+      display: none;
+    }
+    body.embedded .studio-brand__label::after {
+      content: ' · embebido';
+      font-size: 0.65rem;
+      opacity: 0.6;
+    }
 
     .studio-hero {
       padding: 14px 20px;
@@ -60,7 +105,9 @@
       overflow: hidden;
       background: var(--studio-surface);
     }
-    body.embedded .studio-root { min-height: 100vh; }
+    body.embedded html,
+    body.embedded { height: 100%; }
+    body.embedded .studio-root { min-height: 0; height: 100%; }
 
     .studio-topbar {
       display: flex;
@@ -218,6 +265,33 @@
       padding: 0 4px;
     }
     .studio-rail h2:not(:first-child) { margin-top: 14px; }
+    .studio-rail-hint {
+      margin: 0 4px 10px;
+      font-size: 0.68rem;
+      line-height: 1.35;
+      color: var(--studio-muted);
+    }
+    .studio-preset-btn--colombia {
+      border-color: rgba(201, 168, 98, 0.45);
+      background: linear-gradient(135deg, rgba(201, 168, 98, 0.12), transparent);
+    }
+    .studio-preset-btn--colombia strong { color: var(--studio-gold); }
+    .studio-block-btn--auto .studio-block-btn__icon::after {
+      content: '↻';
+      font-size: 0.65rem;
+      margin-left: 2px;
+      opacity: 0.85;
+    }
+    .studio-props-auto {
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      background: rgba(201, 168, 98, 0.1);
+      border: 1px solid rgba(201, 168, 98, 0.25);
+      font-size: 0.72rem;
+      line-height: 1.4;
+      color: var(--studio-muted);
+    }
     .studio-block-btn {
       display: flex;
       align-items: center;
@@ -326,8 +400,180 @@
     }
     .ticket.sz80 { width: 72mm; font-size: 10px; }
     .ticket.sz58 { width: 54mm; font-size: 9px; }
+    .studio-pill-group button[data-sz="carta"],
+    .studio-pill-group button[data-sz="oficio"] {
+      font-size: 0.78rem;
+      padding: 5px 10px;
+    }
+    .studio-paper-shadow.is-sheet {
+      position: relative;
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+      max-width: 100%;
+      box-shadow: none;
+    }
+    .studio-paper-shadow.is-sheet > .ticket {
+      display: none !important;
+    }
+    .studio-paper-shadow:not(.is-sheet) .studio-sheet-mock {
+      display: none !important;
+    }
+    .studio-sheet-mock {
+      display: none;
+      position: relative;
+      margin: 0 auto;
+      background: #fffef9;
+      border-radius: 2px;
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.9) inset,
+        0 12px 40px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(0, 0, 0, 0.08);
+    }
+    .studio-paper-shadow.is-sheet .studio-sheet-mock {
+      display: block;
+    }
+    .studio-paper-shadow.is-sheet-carta .studio-sheet-mock {
+      width: min(420px, calc(100vw - 120px));
+      aspect-ratio: 210 / 297;
+      height: auto;
+    }
+    .studio-paper-shadow.is-sheet-oficio .studio-sheet-mock {
+      width: min(400px, calc(100vw - 120px));
+      aspect-ratio: 216 / 279;
+      height: auto;
+    }
+    .studio-sheet-mock__tag {
+      display: block;
+      padding: 10px 14px 6px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #8b7355;
+      font-family: var(--studio-sans);
+      border-bottom: 1px dashed rgba(139, 115, 85, 0.35);
+      margin-bottom: 4px;
+    }
+    .studio-sheet-mock__hint {
+      display: block;
+      padding: 0 14px 8px;
+      font-size: 0.6rem;
+      color: #9a8b78;
+      font-family: var(--studio-sans);
+      line-height: 1.35;
+    }
+    .studio-sheet-mock__body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 8px 16px 28px;
+      min-height: 120px;
+    }
+    .studio-paper-shadow.is-sheet .studio-sheet-mock__body .ticket {
+      width: 72mm;
+      max-width: 92%;
+      font-size: 10px;
+      margin: 0;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      outline: 2px dashed rgba(201, 169, 98, 0.45);
+      outline-offset: 4px;
+      transform: none !important;
+    }
+    .studio-paper-shadow.is-sheet-oficio .studio-sheet-mock__body .ticket {
+      width: 72mm;
+    }
+    .studio-paper-shadow:not(.is-sheet) > .ticket {
+      display: block;
+    }
+    .studio-field--cut select,
+    .studio-field--cut input { font-size: 0.72rem; padding: 6px 8px; }
+    .studio-block-btn--cut { border-color: rgba(201, 169, 98, 0.45); }
+    .studio-cut-marker {
+      margin: 8px 0;
+      padding: 8px 6px;
+      border-top: 2px dashed #c9a962;
+      border-bottom: 2px dashed #c9a962;
+      background: rgba(201, 169, 98, 0.12);
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #92400e;
+      letter-spacing: 0.04em;
+    }
+    .studio-cut-marker__icon { font-size: 1rem; margin-right: 4px; }
+    .studio-cut-marker__feed { display: block; font-size: 0.65rem; font-weight: 500; opacity: 0.85; margin-top: 2px; }
     .ticket.zoom-125 { transform: scale(1.25); transform-origin: top center; }
     .ticket.zoom-150 { transform: scale(1.5); transform-origin: top center; }
+
+    /* Vista premium: un solo “papel”; evita doble caja 72mm + recorte */
+    .ticket.ticket--premium-preview {
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+      width: auto;
+      max-width: 100%;
+      overflow: visible;
+    }
+    .ticket.ticket--premium-preview.sz80,
+    .ticket.ticket--premium-preview.sz58 {
+      width: auto;
+    }
+    .ticket.ticket--premium-preview.zoom-125 {
+      transform: none;
+    }
+    .ticket.ticket--premium-preview.zoom-125 .studio-premium-ticket {
+      transform: scale(1.25);
+      transform-origin: top center;
+    }
+    .ticket.ticket--premium-preview.zoom-150 {
+      transform: none;
+    }
+    .ticket.ticket--premium-preview.zoom-150 .studio-premium-ticket {
+      transform: scale(1.5);
+      transform-origin: top center;
+    }
+    .studio-premium-ticket {
+      display: block;
+      margin: 0 auto;
+    }
+    .studio-premium-ticket .crozzo-ticket {
+      margin: 0 auto;
+      box-sizing: border-box;
+      box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.12),
+        inset 0 0 0 1px #c9a962,
+        inset 0 2px 0 #8b7355;
+    }
+    .studio-premium-ticket .crozzo-label-inline {
+      cursor: default;
+      max-width: 100%;
+    }
+    .studio-premium-ticket .crozzo-label-inline img {
+      display: block;
+    }
+    .studio-preview-hit {
+      position: relative;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: outline 0.12s, background 0.12s;
+    }
+    .studio-preview-hit:hover {
+      outline: 2px dashed rgba(201, 169, 98, 0.55);
+      outline-offset: 2px;
+      background: rgba(201, 169, 98, 0.06);
+    }
+    .studio-preview-hit.is-selected {
+      outline: 2px solid var(--studio-gold);
+      outline-offset: 2px;
+      background: rgba(201, 169, 98, 0.1);
+    }
+    .studio-preview-hit::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
 
     .studio-inspector {
       border-left: 1px solid var(--studio-border);
@@ -361,6 +607,12 @@
       flex: 1;
       overflow-y: auto;
       padding: 10px;
+    }
+    .studio-props-hint {
+      margin: -4px 0 8px;
+      font-size: 0.72rem;
+      color: var(--studio-muted);
+      line-height: 1.35;
     }
     .studio-layer {
       display: flex;
@@ -494,11 +746,26 @@
           <div class="studio-pill-group" id="szPills">
             <button type="button" data-sz="58" class="is-on">58 mm</button>
             <button type="button" data-sz="80">80 mm</button>
+            <button type="button" data-sz="carta">Carta</button>
+            <button type="button" data-sz="oficio">Oficio</button>
           </div>
         </div>
         <div class="studio-field" style="flex:1;max-width:200px;">
           <label>Nombre plantilla</label>
           <input type="text" id="tplName" value="Mi ticket premium" />
+        </div>
+        <div class="studio-field studio-field--cut">
+          <label>Corte al final</label>
+          <select id="tplCutEnd" title="Use «Sin corte» y el bloque ✂ al final del ticket">
+            <option value="none" selected>Sin corte extra (usa bloque ✂)</option>
+            <option value="auto">Auto si falta bloque ✂</option>
+            <option value="partial">Parcial al final</option>
+            <option value="full">Total al final</option>
+          </select>
+        </div>
+        <div class="studio-field studio-field--cut" style="max-width:88px;">
+          <label>Líneas avance</label>
+          <input type="number" id="tplCutEndFeed" min="0" max="8" value="2" title="Líneas en blanco antes del corte final" />
         </div>
       </div>
       <div class="studio-topbar__actions">
@@ -515,30 +782,45 @@
       <aside class="studio-rail">
         <h2>Plantillas</h2>
         <div class="studio-presets" id="presetList"></div>
-        <h2>Marca</h2>
-        <button type="button" class="studio-block-btn" data-add="logo"><span class="studio-block-btn__icon">◆</span><span>Logotipo / marca</span></button>
-        <button type="button" class="studio-block-btn" data-add="company"><span class="studio-block-btn__icon">▣</span><span>Razón social</span></button>
-        <button type="button" class="studio-block-btn" data-add="nit"><span class="studio-block-btn__icon">#</span><span>NIT empresa</span></button>
-        <button type="button" class="studio-block-btn" data-add="address"><span class="studio-block-btn__icon">⌂</span><span>Dirección</span></button>
-        <h2>Documento</h2>
-        <button type="button" class="studio-block-btn" data-add="title"><span class="studio-block-btn__icon">T</span><span>Título</span></button>
-        <button type="button" class="studio-block-btn" data-add="consec"><span class="studio-block-btn__icon">№</span><span>Consecutivo</span></button>
-        <button type="button" class="studio-block-btn" data-add="date"><span class="studio-block-btn__icon">📅</span><span>Fecha y hora</span></button>
-        <button type="button" class="studio-block-btn" data-add="client"><span class="studio-block-btn__icon">👤</span><span>Cliente</span></button>
-        <h2>Venta</h2>
-        <button type="button" class="studio-block-btn" data-add="items"><span class="studio-block-btn__icon">☰</span><span>Detalle ítems</span></button>
-        <button type="button" class="studio-block-btn" data-add="total"><span class="studio-block-btn__icon">$</span><span>Totales</span></button>
-        <button type="button" class="studio-block-btn" data-add="payment"><span class="studio-block-btn__icon">💳</span><span>Forma de pago</span></button>
-        <h2>Legal / FE</h2>
-        <button type="button" class="studio-block-btn" data-add="resol"><span class="studio-block-btn__icon">§</span><span>Resolución DIAN</span></button>
-        <button type="button" class="studio-block-btn" data-add="cufe"><span class="studio-block-btn__icon">⛓</span><span>CUFE</span></button>
-        <button type="button" class="studio-block-btn" data-add="qr"><span class="studio-block-btn__icon">▦</span><span>QR verificación</span></button>
+        <p class="studio-rail-hint">Bloques con ↻ se llenan solos desde <strong>Empresa</strong>, <strong>DIAN</strong> y la venta. Usted solo ordena y estilo.</p>
+        <h2>Emisor (Colombia)</h2>
+        <button type="button" class="studio-block-btn" data-add="logo"><span class="studio-block-btn__icon">◆</span><span>Logotipo</span></button>
+        <button type="button" class="studio-block-btn" data-add="company"><span class="studio-block-btn__icon">▣</span><span>Nombre comercial</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="razon"><span class="studio-block-btn__icon">▣</span><span>Razón social RUT</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="nit"><span class="studio-block-btn__icon">#</span><span>NIT (con DV)</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="address"><span class="studio-block-btn__icon">⌂</span><span>Dirección</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="tel"><span class="studio-block-btn__icon">☎</span><span>Teléfono</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="ciudad"><span class="studio-block-btn__icon">◎</span><span>Ciudad / depto</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="regimen"><span class="studio-block-btn__icon">⚖</span><span>Régimen IVA</span></button>
+        <h2>Factura / documento</h2>
+        <button type="button" class="studio-block-btn" data-add="title"><span class="studio-block-btn__icon">T</span><span>Título legal</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="num_fe"><span class="studio-block-btn__icon">№</span><span>Número FE (prefijo)</span></button>
+        <button type="button" class="studio-block-btn" data-add="consec"><span class="studio-block-btn__icon">№</span><span>Consecutivo (simple)</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="date"><span class="studio-block-btn__icon">📅</span><span>Fecha y hora</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="resol_full"><span class="studio-block-btn__icon">§</span><span>Resolución DIAN completa</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="resol"><span class="studio-block-btn__icon">§</span><span>Resolución (corta)</span></button>
+        <h2>Adquirente y venta</h2>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="client"><span class="studio-block-btn__icon">👤</span><span>Cliente / NIT</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="items"><span class="studio-block-btn__icon">☰</span><span>Ítems (cant. y precio)</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="iva_disc"><span class="studio-block-btn__icon">%</span><span>Discriminación IVA</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="total"><span class="studio-block-btn__icon">$</span><span>Subtotal / IVA / total</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="payment"><span class="studio-block-btn__icon">💳</span><span>Forma de pago</span></button>
+        <h2>Validación DIAN</h2>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="cufe"><span class="studio-block-btn__icon">⛓</span><span>CUFE</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="qr"><span class="studio-block-btn__icon">▦</span><span>QR verificación</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--auto" data-add="legal_co"><span class="studio-block-btn__icon">⚖</span><span>Pie legal Colombia</span></button>
         <h2>Estilo</h2>
+        <button type="button" class="studio-block-btn studio-block-btn--gold" data-add="ornament"><span class="studio-block-btn__icon">◆</span><span>Ornamento premium</span></button>
         <button type="button" class="studio-block-btn" data-add="divider"><span class="studio-block-btn__icon">┄</span><span>Línea punteada</span></button>
         <button type="button" class="studio-block-btn" data-add="line"><span class="studio-block-btn__icon">━</span><span>Línea sólida</span></button>
         <button type="button" class="studio-block-btn" data-add="space"><span class="studio-block-btn__icon">↕</span><span>Espacio</span></button>
+        <button type="button" class="studio-block-btn studio-block-btn--cut" data-add="cut"><span class="studio-block-btn__icon">✂</span><span>Corte aquí</span></button>
         <button type="button" class="studio-block-btn" data-add="text"><span class="studio-block-btn__icon">✎</span><span>Texto libre</span></button>
         <button type="button" class="studio-block-btn" data-add="footer"><span class="studio-block-btn__icon">♦</span><span>Pie de página</span></button>
+        <h2>Bodega / salón</h2>
+        <button type="button" class="studio-block-btn" data-add="rotulo_nombre"><span class="studio-block-btn__icon">🏷</span><span>Nombre rótulo</span></button>
+        <button type="button" class="studio-block-btn" data-add="fechas_blank"><span class="studio-block-btn__icon">📅</span><span>FE FI FV en blanco</span></button>
+        <button type="button" class="studio-block-btn" data-add="salon_etiqueta"><span class="studio-block-btn__icon">🛒</span><span>Etiqueta góndola</span></button>
       </aside>
 
       <section class="studio-canvas">
@@ -547,8 +829,13 @@
           <button type="button" class="studio-zoom-btn" data-zoom="125">125%</button>
           <button type="button" class="studio-zoom-btn" data-zoom="150">150%</button>
         </div>
-        <div class="studio-canvas__stage">
-          <div class="studio-paper-shadow">
+        <div class="studio-canvas__stage" id="studioCanvasStage">
+          <div class="studio-paper-shadow" id="studioPaperShadow">
+            <div class="studio-sheet-mock" id="studioSheetMock" hidden>
+              <span class="studio-sheet-mock__tag" id="studioSheetTag">Carta · A4</span>
+              <span class="studio-sheet-mock__hint" id="studioSheetHint">Etiqueta centrada · impresión por diálogo Windows (láser / PDF)</span>
+              <div class="studio-sheet-mock__body" id="studioSheetBody"></div>
+            </div>
             <div id="preview" class="ticket sz58"></div>
           </div>
         </div>
@@ -574,28 +861,79 @@
     </footer>
   </div>
 
+  <script src="core/CrozzoTermicaPremium.js"></script>
   <script>
 (function () {
   'use strict';
   var LS_KEY = 'crozzo_ticket_designer_v1';
   var embedded = /[?&]embedded=1/.test(location.search);
   if (embedded) document.body.classList.add('embedded');
+  var parentInitRev = 0;
+  var blockAutoSyncUntil = 0;
 
   var BLOCK_LABELS = {
-    logo: 'Logotipo', company: 'Razón social', nit: 'NIT', address: 'Dirección',
-    divider: 'Separador', line: 'Línea sólida', title: 'Título', items: 'Ítems',
-    total: 'Totales', footer: 'Pie', text: 'Texto libre', client: 'Cliente',
-    date: 'Fecha', consec: 'Consecutivo', resol: 'Resolución', cufe: 'CUFE',
-    qr: 'QR', space: 'Espacio', payment: 'Forma de pago',
+    logo: 'Logotipo', company: 'Nombre comercial', razon: 'Razón social (RUT)', nit: 'NIT',
+    address: 'Dirección', tel: 'Teléfono', ciudad: 'Ciudad / depto', regimen: 'Régimen IVA',
+    divider: 'Separador', ornament: 'Ornamento ◆', line: 'Línea sólida', title: 'Título legal', items: 'Ítems',
+    total: 'Totales', footer: 'Pie', text: 'Texto libre', client: 'Adquirente',
+    date: 'Fecha y hora', consec: 'Consecutivo', num_fe: 'Número factura (prefijo)',
+    resol: 'Resolución (corta)', resol_full: 'Resolución DIAN completa', iva_disc: 'Discriminación IVA',
+    legal_co: 'Pie legal Colombia', cufe: 'CUFE', qr: 'QR DIAN', space: 'Espacio',
+    payment: 'Forma de pago', cut: 'Corte de papel',
+    rotulo_nombre: 'Nombre rótulo', fechas_blank: 'FE / FI / FV (en blanco)', salon_etiqueta: 'Etiqueta salón',
+    marcacion: 'Secuencia bodega', bodega_ref: 'Ref. bodega', obs: 'Observación', mp_lines: 'Líneas MP',
   };
 
+  var CUT_MODE_LABELS = { partial: 'Parcial (deja unión)', full: 'Total (corta del todo)', none: 'Solo avance, sin corte' };
+
+  var AUTO_DATA_BLOCKS = [
+    'razon', 'nit', 'address', 'tel', 'ciudad', 'regimen', 'num_fe', 'date', 'resol_full', 'resol',
+    'client', 'items', 'iva_disc', 'total', 'payment', 'cufe', 'qr', 'legal_co', 'consec',
+  ];
+
+  var COLOMBIA_FE_BLOCKS = [
+    { t: 'logo', c: '', v: true, o: 1, a: 'center', fs: 'md', fw: true },
+    { t: 'company', c: '', v: true, o: 2, a: 'center', fs: 'sm', fw: true },
+    { t: 'nit', c: '', v: true, o: 3, a: 'center', fs: 'xs' },
+    { t: 'address', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
+    { t: 'tel', c: '', v: true, o: 5, a: 'center', fs: 'xs' },
+    { t: 'ciudad', c: '', v: true, o: 6, a: 'center', fs: 'xs' },
+    { t: 'regimen', c: '', v: true, o: 7, a: 'center', fs: 'xs' },
+    { t: 'divider', c: '4', v: true, o: 8 },
+    { t: 'title', c: 'FACTURA ELECTRÓNICA DE VENTA', v: true, o: 9, a: 'center', fs: 'lg', fw: true },
+    { t: 'num_fe', c: '', v: true, o: 10, a: 'center', fs: 'sm', fw: true },
+    { t: 'date', c: '', v: true, o: 11, a: 'center', fs: 'xs' },
+    { t: 'resol_full', c: '', v: true, o: 12, a: 'center', fs: 'xs' },
+    { t: 'divider', c: '3', v: true, o: 13 },
+    { t: 'client', c: '', v: true, o: 14, a: 'left', fs: 'sm' },
+    { t: 'items', c: '', v: true, o: 15, a: 'left', fs: 'sm' },
+    { t: 'iva_disc', c: '', v: true, o: 16, a: 'left', fs: 'xs' },
+    { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 17, a: 'left', fs: 'md', fw: true },
+    { t: 'payment', c: '', v: true, o: 18, a: 'left', fs: 'sm' },
+    { t: 'cufe', c: '', v: true, o: 19, a: 'left', fs: 'xs' },
+    { t: 'qr', c: '', v: true, o: 20, a: 'center', fs: 'sm' },
+    { t: 'legal_co', c: '', v: true, o: 21, a: 'center', fs: 'xs' },
+    { t: 'footer', c: 'Gracias por su compra', v: true, o: 22, a: 'center', fs: 'xs' },
+    { t: 'cut', c: 'partial', v: true, o: 118, a: 'center', fs: 'xs', sp: 5 },
+  ];
+
   var PRESETS = {
+    colombia_fe: {
+      name: '🇨🇴 Factura DIAN completa',
+      sz: '80',
+      studio: true,
+      docType: 'factura',
+      blocks: COLOMBIA_FE_BLOCKS.slice(),
+      cutEnd: 'none',
+      cutEndFeed: 0,
+    },
     luxury: {
       name: 'Lujo · Boutique',
       sz: '80',
       studio: true,
       blocks: [
         { t: 'logo', c: '◆ SU MARCA', v: true, o: 1, a: 'center', fs: 'lg', fw: true },
+        { t: 'ornament', c: 'flourish', v: true, o: 1.5, a: 'center', fs: 'xs' },
         { t: 'company', c: '', v: true, o: 2, a: 'center', fs: 'md' },
         { t: 'nit', c: '', v: true, o: 3, a: 'center', fs: 'sm' },
         { t: 'space', c: '2', v: true, o: 4 },
@@ -612,7 +950,10 @@
         { t: 'footer', c: 'Gracias por elegirnos', v: true, o: 15, a: 'center', fs: 'sm' },
         { t: 'cufe', c: '', v: false, o: 16 },
         { t: 'qr', c: '', v: false, o: 17 },
+        { t: 'cut', c: 'partial', v: true, o: 118, a: 'center', fs: 'xs', sp: 5 },
       ],
+      cutEnd: 'none',
+      cutEndFeed: 0,
     },
     retail: {
       name: 'Retail · Mostrador',
@@ -627,7 +968,10 @@
         { t: 'items', c: '', v: true, o: 6 },
         { t: 'total', c: 'A PAGAR', v: true, o: 7 },
         { t: 'footer', c: 'Vuelva pronto', v: true, o: 8, a: 'center' },
+        { t: 'cut', c: 'partial', v: true, o: 9, sp: 2 },
       ],
+      cutEnd: 'none',
+      cutEndFeed: 0,
     },
     minimal: {
       name: 'Minimal Pro',
@@ -638,22 +982,33 @@
         { t: 'items', c: '', v: true, o: 2 },
         { t: 'total', c: 'Total', v: true, o: 3 },
         { t: 'date', c: '', v: true, o: 4, fs: 'xs', a: 'right' },
+        { t: 'cut', c: 'partial', v: true, o: 5, sp: 1 },
       ],
+      cutEnd: 'none',
+      cutEndFeed: 0,
     },
   };
 
   var SAMPLE = {
-    head: 'COMPROBANTE',
+    head: 'FACTURA ELECTRÓNICA DE VENTA',
     nameE: 'Mi negocio S.A.S.',
+    razonE: 'Mi Negocio Sociedad por Acciones S.A.S.',
     nitE: '900.123.456-7',
-    dirE: 'Carrera 15 # 93-47 · Bogotá',
-    telE: '',
+    dirE: 'Carrera 15 # 93-47',
+    telE: '601 555 0100',
+    ciudadE: 'Bogotá, Cundinamarca',
+    regimenE: 'Responsable de IVA',
     logoUrl: '',
     resol: '18764000001234',
-    consecutivo: 'FE-000128',
+    resolFull: 'Autorización 18764000001234 · Prefijo SETT · Numeración 1 al 5000 · Vigencia 2025-01-01 a 2027-12-31',
+    numFe: 'SETT00000128',
+    consecutivo: '00000128',
     fecha: new Date().toLocaleString('es-CO'),
+    cliTipo: 'NIT',
     cliNom: 'María González',
-    cliNit: '52.123.456',
+    cliNit: '901.234.567-1',
+    ivaDisc: 'Base gravada $334.000 · IVA 19% $63.460',
+    legalCo: 'Representación impresa de Factura Electrónica de Venta (Res. DIAN 000165/2023).',
     lines: [
       { n: 'Blazer lino premium', q: 1, p: 289000 },
       { n: 'Accesorio regalo', q: 1, p: 45000 },
@@ -668,6 +1023,9 @@
     logoUrl: '',
     cufe: 'a1b2c3d4e5f6789012345678901234567890abcd',
     qrUrl: 'https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=sample',
+    rotuloNombre: 'Harina de trigo',
+    rotuloNombre: 'Jugo Natural',
+    salonItem: { nombre: 'Jugo Natural', precio: 8000, gramaje: 0, precioGramo: null, enDescuento: false },
   };
 
   function qrImg(url, sz) {
@@ -680,18 +1038,203 @@
   var zoomLevel = 100;
   var syncTimer = null;
 
+  function colombiaBlocksFromParent() {
+    try {
+      if (window.parent && window.parent.CrozzoTermicaColombia && window.parent.CrozzoTermicaColombia.blocksFacturaColombiaBase) {
+        return window.parent.CrozzoTermicaColombia.blocksFacturaColombiaBase();
+      }
+    } catch (_) {}
+    return COLOMBIA_FE_BLOCKS.slice();
+  }
+
   function defaultTpl() {
-    return JSON.parse(JSON.stringify(PRESETS.luxury));
+    return JSON.parse(JSON.stringify(PRESETS.colombia_fe));
   }
 
   var state = defaultTpl();
+  state.docType = state.docType || 'factura';
+  state.printOutput = state.printOutput || 'roll_80';
+
+  function normalizePrintOutput(id) {
+    var s = String(id || '').toLowerCase();
+    if (s === 'thermal' || s === 'roll' || s === 'termica' || s === 'roll_80') return 'roll_80';
+    if (s === 'roll_58' || s === '50' || s === '50mm') return 'roll_58';
+    if (s === 'normal' || s === 'html' || s === 'a4' || s === 'carta') return 'carta';
+    if (s === 'oficio' || s === 'legal') return 'oficio';
+    if (s === '58') return 'roll_58';
+    if (s === '80') return 'roll_80';
+    return 'roll_80';
+  }
+
+  function printOutputFromRaw(raw) {
+    if (raw.printOutput) return normalizePrintOutput(raw.printOutput);
+    if (raw.sz === 'carta' || raw.sz === 'oficio') return raw.sz;
+    return raw.sz === '58' ? 'roll_58' : 'roll_80';
+  }
+
+  function rollSzFromOutput(out) {
+    return out === 'roll_58' ? '58' : '80';
+  }
+
+  function activePaperPillKey() {
+    var o = state.printOutput || 'roll_80';
+    if (o === 'carta' || o === 'oficio') return o;
+    return rollSzFromOutput(o);
+  }
+
+  function isSheetOutput() {
+    return state.printOutput === 'carta' || state.printOutput === 'oficio';
+  }
+
+  function paperModeFromInput(szOrOut) {
+    var s = String(szOrOut || 'roll_80').toLowerCase();
+    if (s === 'carta' || s === 'oficio') return { printOutput: s, sz: state.sz === '58' ? '58' : '80' };
+    if (s === '58' || s === 'roll_58') return { printOutput: 'roll_58', sz: '58' };
+    if (s === '80' || s === 'roll_80') return { printOutput: 'roll_80', sz: '80' };
+    return { printOutput: 'roll_80', sz: '80' };
+  }
+
+  function reflowPaperCanvas() {
+    var el = document.getElementById('preview');
+    var body = document.getElementById('studioSheetBody');
+    var shadow = document.getElementById('studioPaperShadow');
+    var mock = document.getElementById('studioSheetMock');
+    if (!el || !shadow) return;
+    var sheet = isSheetOutput();
+    if (sheet && body) {
+      body.appendChild(el);
+      if (mock) mock.hidden = false;
+    } else {
+      if (mock) mock.hidden = true;
+      shadow.appendChild(el);
+    }
+  }
+
+  function syncPaperChrome() {
+    var shadow = document.getElementById('studioPaperShadow');
+    var mock = document.getElementById('studioSheetMock');
+    var tag = document.getElementById('studioSheetTag');
+    var hint = document.getElementById('studioSheetHint');
+    var stage = document.getElementById('studioCanvasStage');
+    var sheet = isSheetOutput();
+    if (shadow) {
+      shadow.classList.remove('is-sheet', 'is-sheet-carta', 'is-sheet-oficio');
+      if (sheet) {
+        shadow.classList.add('is-sheet');
+        shadow.classList.add(state.printOutput === 'oficio' ? 'is-sheet-oficio' : 'is-sheet-carta');
+      }
+      shadow.setAttribute('data-paper', state.printOutput || 'roll_80');
+    }
+    if (mock) mock.hidden = !sheet;
+    if (tag) {
+      tag.textContent = state.printOutput === 'oficio' ? 'Oficio · Legal (8.5×14")' : 'Carta · A4';
+    }
+    if (hint) {
+      hint.textContent =
+        state.printOutput === 'oficio'
+          ? 'Hoja oficio · varias etiquetas por página · diálogo Windows'
+          : 'Hoja carta · varias etiquetas por página · diálogo Windows';
+    }
+    if (stage) stage.classList.toggle('is-sheet-stage', sheet);
+    reflowPaperCanvas();
+  }
+
+  function previewTicketClassName() {
+    var cls = 'ticket sz' + (state.sz === '58' ? '58' : '80');
+    if (isSheetOutput()) {
+      cls += ' ticket--sheet ticket--' + state.printOutput;
+    } else {
+      cls += ' ticket--roll';
+    }
+    if (!isSheetOutput() && zoomLevel === 125) cls += ' zoom-125';
+    if (!isSheetOutput() && zoomLevel === 150) cls += ' zoom-150';
+    return cls;
+  }
+
+  function applyPaperMode(szOrOut) {
+    var next = paperModeFromInput(szOrOut);
+    state.printOutput = next.printOutput;
+    state.sz = next.sz;
+    if (isSheetOutput()) {
+      zoomLevel = 100;
+      document.querySelectorAll('[data-zoom]').forEach(function (b) {
+        b.classList.toggle('is-on', (b.getAttribute('data-zoom') || '') === '100');
+      });
+    }
+    syncPaperChrome();
+    renderAll();
+  }
+
+  window.crozzoDesignerGetPrintOutput = function () {
+    return state.printOutput || rollSzFromOutput('roll_80');
+  };
+
+  function polishFacturaTpl(tpl) {
+    if (!tpl || (tpl.docType && tpl.docType !== 'factura')) return tpl;
+    var col = window.CrozzoTermicaColombia || (window.parent && window.parent.CrozzoTermicaColombia);
+    if (!col) return tpl;
+    if (typeof col.ensureFacturaBlocks === 'function') tpl = col.ensureFacturaBlocks(tpl);
+    else if (typeof col.dedupeFacturaBlocks === 'function') tpl = col.dedupeFacturaBlocks(tpl);
+    return tpl;
+  }
+
+  function polishTplForDesigner(tpl) {
+    if (!tpl) return tpl;
+    tpl = polishFacturaTpl(tpl);
+    var dt = tpl.docType || state.docType || 'factura';
+    tpl.docType = dt;
+    var hub = window.CrozzoPrintStudioHub || (window.parent && window.parent.CrozzoPrintStudioHub);
+    if (hub && typeof hub.polishTplForDocType === 'function') {
+      return hub.polishTplForDocType(tpl, dt);
+    }
+    if (dt === 'salon' && hub && typeof hub.ensureSalonBlocks === 'function') {
+      tpl = hub.ensureSalonBlocks(tpl);
+    }
+    return tpl;
+  }
+
+  function payloadForPreview() {
+    try {
+      var hub = window.CrozzoPrintStudioHub || (window.parent && window.parent.CrozzoPrintStudioHub);
+      if (hub && typeof hub.samplePayload === 'function') {
+        return hub.samplePayload(state.docType || 'factura');
+      }
+    } catch (_) {}
+    var payload = Object.assign({}, SAMPLE);
+    try {
+      if (window.parent && typeof window.parent.crozzoResolveTicketLogoUrl === 'function') {
+        payload.logoUrl = window.parent.crozzoResolveTicketLogoUrl();
+      }
+    } catch (_2) {}
+    return payload;
+  }
+
+  function tplForPreview() {
+    var tpl = exportTpl();
+    tpl = polishTplForDesigner(tpl);
+    try {
+      var hub = window.CrozzoPrintStudioHub || (window.parent && window.parent.CrozzoPrintStudioHub);
+      if (hub && typeof hub.tplForPrintOutput === 'function') {
+        tpl = hub.tplForPrintOutput(tpl, state.printOutput || 'roll_80');
+      }
+    } catch (_) {}
+    return tpl;
+  }
 
   function normalize(raw) {
     if (!raw || !Array.isArray(raw.blocks) || !raw.blocks.length) return null;
-    return {
+    var cutEnd = String(raw.cutEnd || 'auto').toLowerCase();
+    if (cutEnd === 'off' || cutEnd === 'sin') cutEnd = 'none';
+    if (cutEnd === 'total') cutEnd = 'full';
+    var out = printOutputFromRaw(raw);
+    var tpl = {
       name: String(raw.name || 'Plantilla'),
-      sz: raw.sz === '80' ? '80' : '58',
+      sz: rollSzFromOutput(out),
+      printOutput: out,
       studio: raw.studio === true || raw.studio === 'true',
+      cutEnd: cutEnd,
+      cutEndFeed: Math.max(0, Math.min(8, Number(raw.cutEndFeed) || 0)),
+      docType: String(raw.docType || state.docType || 'factura'),
       blocks: raw.blocks.filter(function (b) { return b && b.t; }).map(function (b, i) {
         return {
           t: b.t,
@@ -705,6 +1248,7 @@
         };
       }),
     };
+    return polishTplForDesigner(tpl);
   }
 
   function esc(s) {
@@ -744,10 +1288,37 @@
         return wrap(blockStyle(b, { bold: true, fontSize: '12px' }), esc(b.c || '◆ MARCA'));
       case 'company':
         return wrap(blockStyle(b), esc(d.nameE));
+      case 'razon': {
+        var col = window.CrozzoTermicaColombia;
+        if (col && col.namesEqual && col.namesEqual(d.nameE, d.razonE)) return '';
+        return d.razonE ? wrap(blockStyle(b, { fontSize: '8px' }), esc(d.razonE)) : '';
+      }
       case 'nit':
         return wrap(blockStyle(b, { fontSize: '8px' }), 'NIT ' + esc(d.nitE));
+      case 'tel':
+        return d.telE ? wrap(blockStyle(b, { fontSize: '8px' }), 'Tel. ' + esc(d.telE)) : '';
+      case 'ciudad':
+        return d.ciudadE ? wrap(blockStyle(b, { fontSize: '8px' }), esc(d.ciudadE)) : '';
+      case 'regimen':
+        return d.regimenE ? wrap(blockStyle(b, { fontSize: '8px' }), esc(d.regimenE)) : '';
       case 'address':
         return wrap(blockStyle(b, { align: 'center', fontSize: '8px' }), esc(d.dirE));
+      case 'num_fe':
+        return wrap(blockStyle(b, { bold: true }), 'No. ' + esc(d.numFe || d.consecutivo));
+      case 'resol_full':
+        return d.resolFull ? wrap(blockStyle(b, { fontSize: '7px' }), esc(d.resolFull)) : '';
+      case 'iva_disc':
+        return d.ivaDisc ? wrap(blockStyle(b, { fontSize: '8px' }), esc(d.ivaDisc)) : '';
+      case 'legal_co':
+        return d.legalCo ? wrap(blockStyle(b, { fontSize: '7px' }), esc(d.legalCo)) : '';
+      case 'ornament': {
+        var prem = window.CrozzoTermicaPremium;
+        var line = prem && prem.ornamentText ? prem.ornamentText(b.c || 'flourish', { sz: state.sz }) : '· ─── ◆ ─── ·';
+        return wrap(
+          blockStyle(b, { align: 'center', fontSize: '7px' }),
+          '<span style="letter-spacing:0.14em;color:#8b7355;font-family:ui-monospace,Consolas,monospace;">' + esc(line) + '</span>'
+        );
+      }
       case 'divider':
         return '<div style="border-top:1px dashed #999;margin:' + (Number(b.c) || 6) + 'px 0;"></div>';
       case 'line':
@@ -758,16 +1329,43 @@
         return wrap(blockStyle(b, { align: 'center' }), 'No. ' + esc(d.consecutivo));
       case 'date':
         return wrap(blockStyle(b, { fontSize: '8px' }), esc(d.fecha));
-      case 'client':
+      case 'client': {
+        var cliHdr = d.cliTipo === 'NIT' ? 'Cliente' : (d.cliTipo || 'Adquirente');
         return wrap(blockStyle(b, { align: 'left' }),
-          '<div>' + esc(d.cliNom) + '</div><div style="opacity:0.75;">Doc. ' + esc(d.cliNit) + '</div>');
+          '<div style="font-size:7px;opacity:0.85;">' + esc(cliHdr) + '</div>' +
+          '<div>' + esc(d.cliNom) + '</div><div style="opacity:0.75;">' +
+          (d.cliTipo === 'NIT' ? 'NIT ' : 'Doc. ') + esc(d.cliNit) + '</div>');
+      }
       case 'items':
+      case 'inv_conteo': {
+        var invMode = state.docType === 'inventario' || b.t === 'inv_conteo';
         var rows = (d.lines || []).map(function (it) {
-          return '<div style="display:flex;justify-content:space-between;gap:4px;margin:3px 0;"><span>' +
-            (it.q || 0) + '× ' + esc(it.n) + '</span><span>' + fmtCOP((it.p || 0) * (it.q || 0)) + '</span></div>';
+          if (invMode) {
+            var und = String(it.und || '').trim().toLowerCase();
+            var nom = String(it.n || 'Ítem').replace(/\s*\((g|ml|und|kg)\)\s*$/i, '').trim();
+            if (!und) {
+              var um = String(it.n || '').match(/\((g|ml|und|kg)\)\s*$/i);
+              und = um ? um[1].toLowerCase() : 'und';
+            }
+            return (
+              '<div style="margin:8px 0;padding:4px 0;border-bottom:1px dashed #444;">' +
+              '<div style="font-weight:800;font-size:11px;margin:0 0 4px;">' + esc(nom) + '</div>' +
+              '<div style="font-size:9px;margin:0 0 6px;">Unidad: <strong>' + esc(und) + '</strong></div>' +
+              '<div style="font-size:9px;">Cantidad:<span style="display:block;margin-top:4px;border-bottom:2px dashed #000;min-height:18px;"></span></div></div>'
+            );
+          }
+          var pu = Number(it.p) || 0;
+          var qty = Number(it.q) || 0;
+          return (
+            '<div style="margin:3px 0;"><div style="display:flex;justify-content:space-between;gap:4px;"><span>' +
+            qty + '× ' + esc(it.n) + '</span><span>' + fmtCOP(pu * qty) + '</span></div>' +
+            (pu > 0 ? '<div style="font-size:7px;opacity:0.75;">Vr.unit ' + fmtCOP(pu) + '</div>' : '') +
+            '</div>'
+          );
         }).join('');
         return '<div style="border-top:1px dashed #999;margin:6px 0;"></div>' + rows +
           '<div style="border-top:1px dashed #999;margin:6px 0;"></div>';
+      }
       case 'total':
         return wrap(blockStyle(b, { align: 'stretch' }),
           '<div style="display:flex;justify-content:space-between;margin:2px 0;"><span>Subtotal</span><span>' + fmtCOP(d.sub) + '</span></div>' +
@@ -790,35 +1388,130 @@
         return wrap(blockStyle(b, { fontSize: '7px' }), '[ QR DIAN ]');
       case 'space':
         return '<div style="height:' + (Math.max(1, Number(b.c) || 1) * 4) + 'px;"></div>';
+      case 'cut': {
+        var cm = String(b.c || 'partial').toLowerCase();
+        var lbl = CUT_MODE_LABELS[cm] || CUT_MODE_LABELS.partial;
+        return (
+          '<div class="studio-cut-marker" title="' + esc(lbl) + '">' +
+          '<span class="studio-cut-marker__icon">✂</span>' +
+          '<span class="studio-cut-marker__lbl">' + esc(lbl) + '</span>' +
+          (Number(b.sp) > 0 ? '<span class="studio-cut-marker__feed">+' + Number(b.sp) + ' líneas</span>' : '') +
+          '</div>'
+        );
+      }
       case 'footer':
         return wrap(blockStyle(b, { fontSize: '8px' }), esc(b.c || ''));
+      case 'rotulo_nombre':
+        return wrap(blockStyle(b, { bold: true, fontSize: '14px' }), esc(d.rotuloNombre || b.c || 'Producto'));
+      case 'fechas_blank': {
+        var wF = state.sz === '80' ? 26 : 18;
+        var lineF = Array(wF).join('_');
+        return wrap(
+          blockStyle(b, { align: 'left', fontSize: '9px' }),
+          '<div style="margin-top:6px;">FE ' + lineF + '</div><div style="margin-top:4px;">FI ' + lineF + '</div><div style="margin-top:4px;">FV ' + lineF + '</div>'
+        );
+      }
+      case 'salon_etiqueta': {
+        var sit = d.salonItem || (d.lines && d.lines[0] ? { nombre: d.lines[0].n, precio: d.lines[0].p, precioGramo: d.lines[0].pGramo, gramaje: d.lines[0].gramaje, enDescuento: d.lines[0].enDescuento, precioAnterior: d.lines[0].precioAnt } : { nombre: 'Jugo Natural', precio: 8000, gramaje: 0, precioGramo: null, enDescuento: false });
+        var precioSalon = sit.precio != null ? sit.precio : sit.p;
+        var html =
+          '<div style="font-size:13px;font-weight:800;">' + esc(sit.nombre || sit.n || 'Producto') + '</div>' +
+          '<div style="font-size:16px;font-weight:800;margin:6px 0;">' + fmtCOP(precioSalon) + '</div>';
+        if (sit.gramaje > 0 && sit.precioGramo > 0) html += '<div style="font-size:9px;">' + fmtCOP(sit.precioGramo) + '/g</div>';
+        if (sit.enDescuento) html += '<div style="font-weight:700;margin-top:6px;border:2px solid #111;padding:4px;">OFERTA</div>';
+        return wrap(blockStyle(b, { align: 'center' }), html);
+      }
       default:
         return wrap(blockStyle(b), esc(b.c));
     }
   }
 
   function renderPreview() {
+    var el = document.getElementById('preview');
+    syncPaperChrome();
+    el.className = previewTicketClassName() + ' ticket--premium-preview';
+    var prem = window.CrozzoTermicaPremium;
+    if (prem && typeof prem.render === 'function') {
+      var tplP = tplForPreview();
+      var htmlP = prem.render(tplP, payloadForPreview());
+      el.innerHTML =
+        '<div class="studio-premium-ticket" title="Vista de impresión">' + (htmlP || '') + '</div>';
+      reflowPaperCanvas();
+      var brandP = document.getElementById('brandTplName');
+      if (brandP) brandP.textContent = state.name;
+      return;
+    }
+    el.className = previewTicketClassName();
     var sorted = state.blocks.slice().sort(function (a, b) { return a.o - b.o; });
-    var parts = sorted.map(function (b) { return renderBlockHtml(b, SAMPLE); });
+    var parts = sorted.map(function (b) {
+      var html = renderBlockHtml(b, SAMPLE);
+      if (!html) return '';
+      var i = state.blocks.indexOf(b);
+      var sel = selectedIdx === i ? ' is-selected' : '';
+      return (
+        '<div class="studio-preview-hit' +
+        sel +
+        '" data-idx="' +
+        i +
+        '" role="button" tabindex="0" title="Clic para editar: ' +
+        esc(BLOCK_LABELS[b.t] || b.t) +
+        '">' +
+        html +
+        '</div>'
+      );
+    });
     if (!state.studio) {
       parts.push('<div style="margin-top:6px;font-size:8px;">No: ' + esc(SAMPLE.consecutivo) + '</div>');
       parts.push('<div style="font-size:8px;">Fecha: ' + esc(SAMPLE.fecha) + '</div>');
     }
-    var el = document.getElementById('preview');
-    el.className = 'ticket sz' + state.sz + (zoomLevel === 125 ? ' zoom-125' : zoomLevel === 150 ? ' zoom-150' : '');
     el.innerHTML = parts.join('');
-    document.getElementById('brandTplName').textContent = state.name;
+    reflowPaperCanvas();
+    el.querySelectorAll('.studio-preview-hit').forEach(function (hit) {
+      hit.addEventListener('click', function (e) {
+        e.stopPropagation();
+        selectBlock(parseInt(hit.getAttribute('data-idx'), 10));
+      });
+      hit.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectBlock(parseInt(hit.getAttribute('data-idx'), 10));
+        }
+      });
+    });
+    var brand = document.getElementById('brandTplName');
+    if (brand) brand.textContent = state.name;
   }
 
   function renderPresets() {
     var host = document.getElementById('presetList');
-    host.innerHTML = Object.keys(PRESETS).map(function (k) {
-      var p = PRESETS[k];
-      return '<button type="button" class="studio-preset-btn" data-preset="' + k + '"><strong>' + esc(p.name) + '</strong><small>Estilo ' + k + '</small></button>';
-    }).join('');
+    var keys = Object.keys(PRESETS);
+    keys.sort(function (a, b) {
+      if (a === 'colombia_fe') return -1;
+      if (b === 'colombia_fe') return 1;
+      return 0;
+    });
+    host.innerHTML = keys
+      .map(function (k) {
+        var p = PRESETS[k];
+        var extra = k === 'colombia_fe' ? ' studio-preset-btn--colombia' : '';
+        return (
+          '<button type="button" class="studio-preset-btn' +
+          extra +
+          '" data-preset="' +
+          k +
+          '"><strong>' +
+          esc(p.name) +
+          '</strong><small>' +
+          (k === 'colombia_fe' ? 'Requisitos DIAN · listo' : 'Estilo ' + k) +
+          '</small></button>'
+        );
+      })
+      .join('');
     host.querySelectorAll('[data-preset]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        state = JSON.parse(JSON.stringify(PRESETS[btn.getAttribute('data-preset')]));
+        var key = btn.getAttribute('data-preset');
+        state = JSON.parse(JSON.stringify(PRESETS[key]));
+        if (PRESETS[key].docType) state.docType = PRESETS[key].docType;
         selectedIdx = null;
         renderAll();
         scheduleSync();
@@ -885,11 +1578,57 @@
       return;
     }
     var b = state.blocks[selectedIdx];
-    var hasText = ['logo', 'title', 'footer', 'text', 'total', 'space', 'divider', 'line'].indexOf(b.t) >= 0;
+    var isAuto = AUTO_DATA_BLOCKS.indexOf(b.t) >= 0;
+    var hasText = ['logo', 'title', 'footer', 'text', 'total'].indexOf(b.t) >= 0;
+    var isSpace = b.t === 'space';
+    var isCut = b.t === 'cut';
+    var isGapLine = b.t === 'divider' || b.t === 'line';
+    var isOrnament = b.t === 'ornament';
+    var contentField = '';
+    if (isCut) {
+      contentField =
+        '<div class="row"><label>Tipo de corte en esta posición</label>' +
+        '<select id="propCutMode">' +
+        ['partial', 'full', 'none'].map(function (m) {
+          return '<option value="' + m + '"' + ((b.c || 'partial') === m ? ' selected' : '') + '>' + esc(CUT_MODE_LABELS[m]) + '</option>';
+        }).join('') +
+        '</select></div>' +
+        '<div class="row"><label>Líneas de avance antes del corte (0–8)</label>' +
+        '<input type="number" id="propCutFeed" min="0" max="8" value="' + (Number(b.sp) || 0) + '" /></div>' +
+        '<p class="studio-props-hint">Coloque al <strong>final</strong> (después del pie). Use 4–6 líneas de avance para que no corte el texto del pie.</p>';
+    } else if (isSpace) {
+      contentField =
+        '<div class="row"><label>Altura del espacio (×4 px)</label>' +
+        '<input type="number" id="propC" min="1" max="24" value="' +
+        (Math.max(1, Number(b.c) || 1)) +
+        '" /></div>' +
+        '<p class="studio-props-hint">Solo separación vertical; no imprime el número en el ticket.</p>';
+    } else if (isGapLine) {
+      contentField =
+        '<div class="row"><label>Margen vertical (px)</label>' +
+        '<input type="number" id="propC" min="0" max="24" value="' +
+        (Number(b.c) || 6) +
+        '" /></div>';
+    } else if (isOrnament) {
+      contentField =
+        '<div class="row"><label>Estilo de ornamento</label>' +
+        '<select id="propOrnKind">' +
+        ['flourish', 'diamond', 'double', 'wave', 'dots'].map(function (k) {
+          return '<option value="' + k + '"' + ((b.c || 'flourish') === k ? ' selected' : '') + '>' + k + '</option>';
+        }).join('') +
+        '</select></div>' +
+        '<p class="studio-props-hint">Se imprime como línea decorativa (◆ ═ ·). Ideal debajo del logo o antes del pie.</p>';
+    } else if (hasText) {
+      contentField =
+        '<div class="row"><label>Contenido / valor</label><textarea id="propC">' + esc(b.c) + '</textarea></div>';
+    }
     host.innerHTML =
       '<div class="studio-props">' +
       '<div class="row"><label>Tipo</label><input type="text" readonly value="' + esc(BLOCK_LABELS[b.t] || b.t) + '" /></div>' +
-      (hasText ? '<div class="row"><label>Contenido / valor</label><textarea id="propC">' + esc(b.c) + '</textarea></div>' : '') +
+      (isAuto
+        ? '<p class="studio-props-auto">Este bloque se completa <strong>automáticamente</strong> al imprimir (Empresa, DIAN, cliente e ítems de la venta). Aquí solo ajusta tamaño, alineación y si está visible.</p>'
+        : '') +
+      contentField +
       '<div class="row"><label>Alineación</label><div class="studio-align-btns" id="propAlign">' +
       ['left', 'center', 'right'].map(function (a) {
         return '<button type="button" data-a="' + a + '"' + (b.a === a ? ' class="is-on"' : '') + '>' +
@@ -904,8 +1643,40 @@
       '<div class="row"><label><input type="checkbox" id="propV"' + (b.v ? ' checked' : '') + ' /> Visible en impresión</label></div>' +
       '</div>';
 
+    var cutModeSel = document.getElementById('propCutMode');
+    if (cutModeSel) {
+      cutModeSel.addEventListener('change', function () {
+        b.c = cutModeSel.value;
+        renderPreview();
+        scheduleSync();
+      });
+    }
+    var cutFeedInp = document.getElementById('propCutFeed');
+    if (cutFeedInp) {
+      cutFeedInp.addEventListener('input', function () {
+        b.sp = Math.max(0, Math.min(8, Number(cutFeedInp.value) || 0));
+        renderPreview();
+        scheduleSync();
+      });
+    }
+    var ornKindSel = document.getElementById('propOrnKind');
+    if (ornKindSel) {
+      ornKindSel.addEventListener('change', function () {
+        b.c = ornKindSel.value;
+        renderPreview();
+        scheduleSync();
+      });
+    }
     var ta = document.getElementById('propC');
-    if (ta) ta.addEventListener('input', function () { b.c = ta.value; renderPreview(); scheduleSync(); });
+    if (ta) {
+      var onContent = function () {
+        b.c = isSpace ? String(Math.max(1, Number(ta.value) || 1)) : ta.value;
+        renderPreview();
+        scheduleSync();
+      };
+      ta.addEventListener('input', onContent);
+      ta.addEventListener('change', onContent);
+    }
     document.getElementById('propFs').addEventListener('change', function () { b.fs = this.value; renderPreview(); scheduleSync(); });
     document.getElementById('propSp').addEventListener('input', function () { b.sp = Number(this.value) || 0; renderPreview(); scheduleSync(); });
     document.getElementById('propFw').addEventListener('change', function () { b.fw = this.checked; renderPreview(); scheduleSync(); });
@@ -930,6 +1701,7 @@
     document.getElementById('panelProps').style.display = 'block';
     renderLayers();
     renderProps();
+    renderPreview();
   }
 
   function showLayersPanel() {
@@ -942,10 +1714,37 @@
     renderLayers();
   }
 
+  function bindCutEndControls() {
+    var endSel = document.getElementById('tplCutEnd');
+    var feedInp = document.getElementById('tplCutEndFeed');
+    if (endSel) {
+      endSel.value = state.cutEnd || 'auto';
+      if (!endSel._wired) {
+        endSel._wired = true;
+        endSel.addEventListener('change', function () {
+          state.cutEnd = endSel.value;
+          scheduleSync();
+        });
+      }
+    }
+    if (feedInp) {
+      feedInp.value = state.cutEndFeed != null ? state.cutEndFeed : 2;
+      if (!feedInp._wired) {
+        feedInp._wired = true;
+        feedInp.addEventListener('input', function () {
+          state.cutEndFeed = Math.max(0, Math.min(8, Number(feedInp.value) || 0));
+          scheduleSync();
+        });
+      }
+    }
+  }
+
   function renderAll() {
     document.getElementById('tplName').value = state.name;
+    bindCutEndControls();
+    var pillKey = activePaperPillKey();
     document.querySelectorAll('#szPills [data-sz]').forEach(function (btn) {
-      btn.classList.toggle('is-on', btn.getAttribute('data-sz') === state.sz);
+      btn.classList.toggle('is-on', btn.getAttribute('data-sz') === pillKey);
     });
     renderPreview();
     if (selectedIdx != null) renderProps();
@@ -962,9 +1761,21 @@
     var c = '';
     if (t === 'logo') c = '◆ SU MARCA';
     if (t === 'footer') c = 'Gracias por su compra';
-    if (t === 'title') c = '';
+    if (t === 'title') {
+      c =
+        state.docType === 'precuenta'
+          ? 'PRECUENTA'
+          : state.docType === 'pos'
+            ? 'DOCUMENTO SOPORTE POS'
+            : 'FACTURA ELECTRÓNICA DE VENTA';
+    }
     if (t === 'space') c = '2';
-    state.blocks.push({ t: t, c: c, v: true, o: nextOrder(), a: 'center', fs: 'sm', fw: false, sp: 0 });
+    if (t === 'ornament') c = 'flourish';
+    if (t === 'cut') c = 'partial';
+    var sp = t === 'cut' ? 2 : 0;
+    var fs = t === 'title' || t === 'num_fe' ? 'md' : 'sm';
+    var fw = t === 'title' || t === 'num_fe' || t === 'total';
+    state.blocks.push({ t: t, c: c, v: true, o: nextOrder(), a: 'center', fs: fs, fw: !!fw, sp: sp });
     selectedIdx = state.blocks.length - 1;
     renderAll();
     selectBlock(selectedIdx);
@@ -972,7 +1783,29 @@
   }
 
   function exportTpl() {
-    return { name: state.name, sz: state.sz, studio: true, blocks: state.blocks.slice() };
+    var tpl = {
+      name: state.name,
+      sz: state.sz,
+      printOutput: state.printOutput || (state.sz === '58' ? 'roll_58' : 'roll_80'),
+      studio: true,
+      docType: state.docType || 'factura',
+      cutEnd: state.cutEnd || 'none',
+      cutEndFeed: state.cutEndFeed != null ? state.cutEndFeed : 0,
+      blocks: state.blocks.slice(),
+    };
+    if (window.parent && window.parent.CrozzoPrintPresets && window.parent.CrozzoPrintPresets.applyCutPolicy) {
+      tpl = window.parent.CrozzoPrintPresets.applyCutPolicy(tpl, state.docType || 'factura');
+    } else {
+      var hasCut = tpl.blocks.some(function (b) { return b.t === 'cut'; });
+      if (!hasCut) {
+        var m = 0;
+        tpl.blocks.forEach(function (b) { if (b.o > m) m = b.o; });
+        tpl.blocks.push({ t: 'cut', c: 'partial', v: true, o: m + 100, a: 'center', fs: 'xs', sp: 5 });
+      }
+      tpl.cutEnd = 'none';
+      tpl.cutEndFeed = 0;
+    }
+    return polishTplForDesigner(tpl);
   }
 
   function applyTpl(raw) {
@@ -981,6 +1814,7 @@
       if (!n.studio) n.studio = true;
       state = n;
     }
+    syncPaperChrome();
     renderAll();
   }
 
@@ -993,11 +1827,12 @@
 
   function scheduleSync() {
     if (!embedded) return;
+    if (Date.now() < blockAutoSyncUntil) return;
     if (syncTimer) clearTimeout(syncTimer);
     syncTimer = setTimeout(function () {
       syncTimer = null;
       pushToParent(false);
-    }, 600);
+    }, 400);
   }
 
   function pushToParent(showAlert) {
@@ -1006,7 +1841,7 @@
     if (window.parent && window.parent !== window) {
       window.parent.postMessage({ type: 'crozzo_ticket_tpl', tpl: tpl }, '*');
       setSyncLive(true, 'Enviado al POS');
-      if (showAlert) alert('Plantilla aplicada. Pulse «Guardar configuración» en Facturas e impresión.');
+      if (showAlert) alert('Diseño enviado al POS y guardado para este tipo de documento.');
     } else if (showAlert) {
       alert('Plantilla exportada al navegador.');
     }
@@ -1017,8 +1852,7 @@
   });
   document.querySelectorAll('#szPills [data-sz]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      state.sz = btn.getAttribute('data-sz') === '80' ? '80' : '58';
-      renderAll();
+      applyPaperMode(btn.getAttribute('data-sz'));
       scheduleSync();
     });
   });
@@ -1035,6 +1869,7 @@
     scheduleSync();
   });
   document.getElementById('btnSendParent').addEventListener('click', function () { pushToParent(true); });
+
   document.getElementById('btnTestPrint').addEventListener('click', function () {
     var tpl = exportTpl();
     if (window.parent && window.parent !== window) {
@@ -1072,6 +1907,7 @@
   });
   document.querySelectorAll('[data-zoom]').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      if (isSheetOutput()) return;
       zoomLevel = Number(btn.getAttribute('data-zoom')) || 100;
       document.querySelectorAll('[data-zoom]').forEach(function (b) {
         b.classList.toggle('is-on', b === btn);
@@ -1083,22 +1919,57 @@
   window.addEventListener('message', function (e) {
     if (!e.data) return;
     if (e.data.type === 'crozzo_ticket_init' && e.data.tpl) {
+      if (typeof e.data.rev === 'number' && e.data.rev < parentInitRev) return;
+      if (typeof e.data.rev === 'number') parentInitRev = e.data.rev;
+      if (e.data.docType) state.docType = e.data.docType;
       applyTpl(e.data.tpl);
-      setSyncLive(true, 'Cargada desde POS');
+      if (e.data.printOutput) {
+        applyPaperMode(e.data.printOutput);
+      } else if (e.data.tpl && e.data.tpl.printOutput) {
+        applyPaperMode(e.data.tpl.printOutput);
+      }
+      blockAutoSyncUntil = Date.now() + 800;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(exportTpl())); } catch (_) {}
+      setSyncLive(true, 'Modelo actualizado');
+      if (e.data.docLabel) {
+        var sub = document.querySelector('.studio-brand__label');
+        if (sub) sub.textContent = String(e.data.docLabel).toUpperCase();
+      }
       return;
     }
     if (e.data.type === 'crozzo_ticket_sample' && e.data.sample) {
+      if (typeof e.data.rev === 'number' && e.data.rev < parentInitRev) return;
       SAMPLE = Object.assign(SAMPLE, e.data.sample);
       renderPreview();
-      setSyncLive(true, 'Datos del negocio');
+      setSyncLive(true, 'Datos reales del POS');
+    }
+    if (e.data.type === 'crozzo_ticket_request_tpl') {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'crozzo_ticket_tpl_reply', tpl: exportTpl() }, '*');
+      }
+      return;
+    }
+    if (e.data.type === 'crozzo_ticket_request_push') {
+      pushToParent(false);
+      blockAutoSyncUntil = Date.now() + 400;
+      setSyncLive(true, 'Aplicado al POS');
+      return;
+    }
+    if (e.data.type === 'crozzo_ticket_set_output' && e.data.printOutput) {
+      applyPaperMode(e.data.printOutput);
+      renderAll();
+      scheduleSync();
+      return;
     }
   });
 
   renderPresets();
-  try {
-    var raw = localStorage.getItem(LS_KEY);
-    if (raw) applyTpl(JSON.parse(raw));
-  } catch (_) {}
+  if (!embedded) {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (raw) applyTpl(JSON.parse(raw));
+    } catch (_) {}
+  }
   if (!state.blocks.length) {
     state = defaultTpl();
   }
@@ -1107,6 +1978,7 @@
   }
   showLayersPanel();
   renderAll();
+  syncPaperChrome();
   if (embedded) setSyncLive(false, 'Auto-sync activo');
 })();
   </script>

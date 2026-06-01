@@ -931,6 +931,7 @@ window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase(
 };
 window.__crozzoSupabaseSignOut = async function crozzoSupabaseSignOut() {
   try {
+    if (typeof crozzoStopRemoteTenantSync === 'function') crozzoStopRemoteTenantSync();
     sessionStorage.removeItem('crozzo_cloud_profile');
     if (window.__SUPABASE?.auth) await window.__SUPABASE.auth.signOut();
   } catch (e) {
@@ -1128,10 +1129,53 @@ var __crozzoTenantSyncStarted = false;
 var __crozzoTenantHub = null;
 var __crozzoTenantPgCh = null;
 var __crozzoTenantDebounceT = null;
+var __crozzoTenantProductsDebounceT = null;
 var __crozzoTenantPushTimer = null;
 var __crozzoTenantPushEchoUntil = 0;
+var __crozzoTenantRealtimeLive = false;
+var __crozzoTenantLastPullAt = 0;
+var CROZZO_TENANT_VIS_SKIP_MS = 90000;
 var __crozzoTenantBC =
   typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('crozzo_tenant_v1') : null;
+function crozzoTenantRealtimeIsLive() {
+  return !!(__crozzoTenantRealtimeLive && __crozzoTenantPgCh);
+}
+window.crozzoTenantRealtimeIsLive = crozzoTenantRealtimeIsLive;
+window.crozzoShouldSkipVisibilityCloudPull = function crozzoShouldSkipVisibilityCloudPull() {
+  if (!crozzoTenantRealtimeIsLive()) return false;
+  return Date.now() - __crozzoTenantLastPullAt < CROZZO_TENANT_VIS_SKIP_MS;
+};
+function crozzoTenantMarkPullDone() {
+  __crozzoTenantLastPullAt = Date.now();
+}
+function crozzoTenantDebouncedProductsSync() {
+  if (__crozzoTenantProductsDebounceT) clearTimeout(__crozzoTenantProductsDebounceT);
+  __crozzoTenantProductsDebounceT = setTimeout(function () {
+    __crozzoTenantProductsDebounceT = null;
+    if (Date.now() < __crozzoTenantPushEchoUntil) return;
+    if (typeof window.__crozzoBootstrapCloudData !== 'function') return;
+    window.__crozzoBootstrapCloudData().catch(function (e) {
+      console.warn('[crozzo-tenant] products realtime', e);
+    });
+  }, 1400);
+}
+function crozzoStopRemoteTenantSync() {
+  __crozzoTenantSyncStarted = false;
+  __crozzoTenantRealtimeLive = false;
+  try {
+    if (__crozzoTenantPgCh && typeof __crozzoTenantPgCh.unsubscribe === 'function') {
+      __crozzoTenantPgCh.unsubscribe();
+    }
+  } catch (_) {}
+  __crozzoTenantPgCh = null;
+  try {
+    if (__crozzoTenantHub && typeof __crozzoTenantHub.unsubscribe === 'function') {
+      __crozzoTenantHub.unsubscribe();
+    }
+  } catch (_) {}
+  __crozzoTenantHub = null;
+}
+window.crozzoStopRemoteTenantSync = crozzoStopRemoteTenantSync;
 function crozzoParseTenantSnapshotFromRow(row) {
   if (!row || typeof row !== 'object') return null;
   if (row.tenant_snapshot && typeof row.tenant_snapshot === 'object') return row.tenant_snapshot;
@@ -1211,7 +1255,7 @@ function crozzoTenantDebouncedPull() {
     __crozzoTenantDebounceT = null;
     if (Date.now() < __crozzoTenantPushEchoUntil) return;
     if (typeof crozzoPullRemoteTenantState === 'function') {
-      crozzoPullRemoteTenantState({ skipRender: false, quiet: true }).catch(function () {});
+      crozzoPullRemoteTenantState({ skipRender: true, quiet: true }).catch(function () {});
     }
   }, 750);
 }
@@ -1238,7 +1282,7 @@ function startCrozzoRemoteTenantSync() {
     console.warn('[crozzo-tenant] hub subscribe', e);
   }
   try {
-    __crozzoTenantPgCh = window.__SUPABASE.channel('crozzo_pg_tenant');
+    __crozzoTenantPgCh = window.__SUPABASE.channel('crozzo_pg_tenant_v2');
     __crozzoTenantPgCh.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'company_config' },
@@ -1253,13 +1297,22 @@ function startCrozzoRemoteTenantSync() {
         crozzoTenantDebouncedPull();
       }
     );
+    __crozzoTenantPgCh.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'products' },
+      function () {
+        crozzoTenantDebouncedProductsSync();
+      }
+    );
     __crozzoTenantPgCh.subscribe(function (st) {
-      if (st === 'CHANNEL_ERROR') {
-        /* Realtime o políticas no habilitadas: se sigue usando broadcast + visibilidad */
+      if (st === 'SUBSCRIBED') {
+        __crozzoTenantRealtimeLive = true;
+      } else if (st === 'CHANNEL_ERROR' || st === 'CLOSED' || st === 'TIMED_OUT') {
+        __crozzoTenantRealtimeLive = false;
       }
     });
   } catch (e2) {
-    /* sin postgres_changes */
+    __crozzoTenantRealtimeLive = false;
   }
 }
 async function crozzoRefreshSessionProfileFromCloud() {
@@ -1322,6 +1375,7 @@ async function crozzoPullRemoteTenantState(opts) {
       console.warn('[crozzo-tenant] render', e2);
     }
   }
+  crozzoTenantMarkPullDone();
   return changed || !!best;
 }
 async function crozzoPushTenantSnapshotToCloud() {

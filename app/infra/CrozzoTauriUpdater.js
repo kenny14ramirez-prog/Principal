@@ -8,6 +8,9 @@
   var GITHUB_REPO = 'Principal';
   var GITHUB_RELEASE_BASE =
     'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/download';
+  var GITHUB_RAW_MAIN =
+    'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/main';
+  var GITHUB_RAW_RELEASES_LATEST = GITHUB_RAW_MAIN + '/releases/latest.json';
   var GITHUB_RELEASES_PAGE =
     'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases';
   var GITHUB_RELEASES_LATEST = GITHUB_RELEASES_PAGE + '/latest';
@@ -21,7 +24,13 @@
   var MIN_ARTIFACT_BYTES = { exe: 400 * 1024, dmg: 1024 * 1024, apk: 800 * 1024 };
 
   function isTauri() {
-    return !!(global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke);
+    if (global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke) return true;
+    if (typeof global.crozzoIsTauriShell === 'function' && global.crozzoIsTauriShell()) return true;
+    return !!(global.__TAURI_INTERNALS__ && global.__TAURI_INTERNALS__.invoke);
+  }
+
+  function isGithubReleaseUrl(url) {
+    return /github\.com\/[^/]+\/[^/]+\/releases\/(download|latest)/i.test(String(url || ''));
   }
 
   function ua() {
@@ -87,6 +96,66 @@
 
   function invoke(cmd, args) {
     return global.__TAURI__.core.invoke(cmd, args || {});
+  }
+
+  /** GitHub Releases no envía CORS; en Tauri usamos el backend Rust. */
+  function httpGetJson(url) {
+    url = String(url || '').trim();
+    if (!url) return Promise.resolve(null);
+    if (isTauri()) {
+      return invoke('crozzo_http_get_text', { url: url })
+        .then(function (text) {
+          if (!text) return null;
+          return JSON.parse(text);
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+    if (isGithubReleaseUrl(url)) {
+      return Promise.resolve(null);
+    }
+    if (/raw\.githubusercontent\.com/i.test(url) || /api\.github\.com/i.test(url)) {
+      return fetch(url, { cache: 'no-store' })
+        .then(function (res) {
+          if (!res.ok) return null;
+          return res.json();
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+    return Promise.resolve(null);
+  }
+
+  function httpHead(url) {
+    url = String(url || '').trim();
+    if (!url) return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
+    if (isTauri()) {
+      return invoke('crozzo_http_head', { url: url })
+        .then(function (r) {
+          var ok = r && r.status >= 200 && r.status < 400;
+          var len = r && r.content_length ? Number(r.content_length) : 0;
+          return { ok: ok, url: url, bytes: len, reason: ok ? '' : 'http_' + (r && r.status) };
+        })
+        .catch(function () {
+          return { ok: false, reason: 'red', url: url };
+        });
+    }
+    if (isGithubReleaseUrl(url)) {
+      return Promise.resolve({ ok: false, reason: 'cors_github', url: url });
+    }
+    if (/api\.github\.com/i.test(url)) {
+      return fetch(url, { method: 'HEAD', cache: 'no-store' })
+        .then(function (res) {
+          var len = parseInt(res.headers.get('content-length') || '0', 10);
+          return { ok: res.ok, url: url, bytes: len, reason: res.ok ? '' : 'http_' + res.status };
+        })
+        .catch(function () {
+          return { ok: false, reason: 'red', url: url };
+        });
+    }
+    return Promise.resolve({ ok: true, url: url, bytes: 0, reason: 'sin_head_navegador' });
   }
 
   function normVersion(v) {
@@ -224,27 +293,28 @@
     );
   }
 
-  function verifySetupDownloadUrl(url) {
+  function verifySetupDownloadUrl(url, knownBytes) {
     url = String(url || '').trim();
     if (!url || !/^https:\/\//i.test(url)) {
       return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
     }
+    var kb = Number(knownBytes) || 0;
+    if (kb >= SETUP_MIN_BYTES) {
+      return Promise.resolve({ ok: true, url: url, bytes: kb });
+    }
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
-    return fetch(url + sep + '_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) return { ok: false, reason: 'http_' + res.status, url: url };
-        var len = parseInt(res.headers.get('content-length') || '0', 10);
-        if (len > 0 && len < SETUP_MIN_BYTES) {
-          return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
-        }
-        return { ok: true, url: url, bytes: len };
-      })
-      .catch(function () {
-        return { ok: false, reason: 'red', url: url };
-      });
+    return httpHead(url + sep + '_=' + Date.now()).then(function (res) {
+      if (!res.ok) return res;
+      var len = res.bytes || 0;
+      if (len > 0 && len < SETUP_MIN_BYTES) {
+        return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
+      }
+      return { ok: true, url: url, bytes: len };
+    });
   }
 
-  function pickVerifiedSetupUrl(candidates) {
+  function pickVerifiedSetupUrl(candidates, sizeByUrl) {
+    sizeByUrl = sizeByUrl || {};
     var list = (candidates || []).filter(function (u) {
       return u && /^https:\/\//i.test(String(u));
     });
@@ -258,7 +328,7 @@
 
     function next(i) {
       if (i >= list.length) return Promise.resolve(null);
-      return verifySetupDownloadUrl(list[i]).then(function (v) {
+      return verifySetupDownloadUrl(list[i], sizeByUrl[list[i]]).then(function (v) {
         if (v.ok) return v;
         return next(i + 1);
       });
@@ -273,12 +343,15 @@
       if (info.downloadUrl) candidates.push(info.downloadUrl);
       var predicted = predictSetupExeUrl(ver);
       if (predicted) candidates.push(predicted);
+      var sizeByUrl = {};
       if (Array.isArray(info.assets)) {
         info.assets.forEach(function (a) {
-          if (a && a.url && /setup\.exe/i.test(a.name || a.url)) candidates.push(a.url);
+          if (!a || !a.url) return;
+          if (a.size) sizeByUrl[a.url] = Number(a.size) || 0;
+          if (/setup\.exe$/i.test(a.name || a.url)) candidates.push(a.url);
         });
       }
-      return pickVerifiedSetupUrl(candidates).then(function (verified) {
+      return pickVerifiedSetupUrl(candidates, sizeByUrl).then(function (verified) {
         if (verified && verified.url) {
           return {
             version: ver,
@@ -312,7 +385,7 @@
   function releaseUrlLooksInstallable(url) {
     if (!url) return false;
     var u = String(url);
-    if (/setup\.exe/i.test(u) || /\.dmg$/i.test(u) || /\.apk$/i.test(u)) return true;
+    if (/setup\.exe$/i.test(u) || /\.dmg$/i.test(u) || /\.apk$/i.test(u)) return true;
     if (/\.exe$/i.test(u) && /setup|nsis/i.test(u)) return true;
     return false;
   }
@@ -571,18 +644,14 @@
       return Promise.resolve({ ok: false, reason: 'url_invalida', url: url });
     }
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
-    return fetch(url + sep + '_=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) return { ok: false, reason: 'http_' + res.status, url: url };
-        var len = parseInt(res.headers.get('content-length') || '0', 10);
-        if (len > 0 && len < APK_MIN_BYTES) {
-          return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
-        }
-        return { ok: true, url: url, bytes: len };
-      })
-      .catch(function () {
-        return { ok: false, reason: 'red', url: url };
-      });
+    return httpHead(url + sep + '_=' + Date.now()).then(function (res) {
+      if (!res.ok) return res;
+      var len = res.bytes || 0;
+      if (len > 0 && len < APK_MIN_BYTES) {
+        return { ok: false, reason: 'archivo_pequeno', url: url, bytes: len };
+      }
+      return { ok: true, url: url, bytes: len };
+    });
   }
 
   function pickVerifiedApkUrl(candidates) {
@@ -692,7 +761,7 @@
         if (dmgUrl) return dmgUrl;
       }
       var setupExe = assets.find(function (a) {
-        return /\.exe$/i.test(a.name || a.url || '') && /setup/i.test(a.name || '');
+        return /setup\.exe$/i.test(a.name || a.url || '');
       });
       if (setupExe) return setupExe.browser_download_url || setupExe.url;
       var anyExe = assets.find(function (a) {
@@ -708,23 +777,29 @@
     return '';
   }
 
+  function releaseLatestJsonCandidates(ver) {
+    var tag = 'v' + semverCore(ver);
+    return [
+      GITHUB_RELEASE_BASE + '/' + tag + '/latest.json',
+      'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/latest/download/latest.json',
+      GITHUB_RAW_RELEASES_LATEST,
+    ];
+  }
+
   function probeReleaseArtifacts(targetVersion) {
     var ver = semverCore(targetVersion);
     if (!ver) return Promise.resolve(null);
-    var url = GITHUB_RELEASE_BASE + '/v' + ver + '/latest.json?_=' + Date.now();
-    return fetch(url, { cache: 'no-store' })
-      .then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (!data || !data.platforms) return null;
+
+    function tryUrl(i, urls) {
+      if (i >= urls.length) return Promise.resolve(null);
+      return httpGetJson(urls[i] + (urls[i].indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now()).then(function (data) {
+        if (!data || !data.platforms) return tryUrl(i + 1, urls);
         var p = pickPlatformEntry(data.platforms);
         if (p && p.url && /\.msi$/i.test(p.url) && isWindowsDesktop()) {
           var nsis = data.platforms['windows-x86_64-nsis'];
           if (nsis && nsis.url) p = nsis;
         }
-        if (!p || !p.signature) return null;
+        if (!p || !p.signature) return tryUrl(i + 1, urls);
         return {
           version: normVersion(data.version || ver),
           url: p.url || '',
@@ -733,60 +808,54 @@
           releasePageUrl: GITHUB_RELEASES_PAGE + '/tag/v' + ver,
           platform: getClientKind(),
         };
-      })
-      .catch(function () {
-        return null;
       });
+    }
+    return tryUrl(0, releaseLatestJsonCandidates(ver));
   }
 
   function fetchReleaseAssets(targetVersion) {
     var tag = 'v' + semverCore(targetVersion);
-    return fetch(GITHUB_API_RELEASE + tag + '?_=' + Date.now(), {
-      cache: 'no-store',
-      headers: { Accept: 'application/vnd.github+json' },
-    })
-      .then(function (res) {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then(function (data) {
-        if (!data) return null;
-        var assets = (data.assets || []).map(function (a) {
-          return { name: a.name, url: a.browser_download_url, size: a.size };
-        });
-        var downloadUrl = pickBestAssetUrl(null, assets);
-        return {
-          version: normVersion(data.tag_name || tag),
-          tag: data.tag_name || tag,
-          downloadUrl: downloadUrl,
-          releasePageUrl: data.html_url || GITHUB_RELEASES_PAGE + '/tag/' + tag,
-          assets: assets,
-        };
-      })
-      .catch(function () {
-        return null;
+    var apiUrl = GITHUB_API_RELEASE + tag + '?_=' + Date.now();
+    return httpGetJson(apiUrl).then(function (data) {
+      if (!data) return null;
+      var assets = (data.assets || []).map(function (a) {
+        return { name: a.name, url: a.browser_download_url, size: a.size };
       });
+      var downloadUrl = pickBestAssetUrl(null, assets);
+      return {
+        version: normVersion(data.tag_name || tag),
+        tag: data.tag_name || tag,
+        downloadUrl: downloadUrl,
+        releasePageUrl: data.html_url || GITHUB_RELEASES_PAGE + '/tag/' + tag,
+        assets: assets,
+      };
+    });
   }
 
   function resolveManualFallback(targetVersion) {
     var ver = normVersion(targetVersion);
-    return probeReleaseArtifacts(ver)
-      .then(function (probe) {
-        return fetchReleaseAssets(ver).then(function (api) {
-          var downloadUrl =
-            (api && api.downloadUrl) ||
-            (probe && probe.url) ||
-            predictSetupExeUrl(ver) ||
-            GITHUB_RELEASES_LATEST;
+    return fetchReleaseAssets(ver)
+      .then(function (api) {
+        if (api && api.downloadUrl) {
           return {
             version: ver,
-            tag: (api && api.tag) || ver,
+            tag: api.tag || ver,
+            downloadUrl: api.downloadUrl,
+            releasePageUrl: api.releasePageUrl || GITHUB_RELEASES_LATEST,
+            assets: api.assets || [],
+            fromProbe: false,
+            fromApi: true,
+          };
+        }
+        return probeReleaseArtifacts(ver).then(function (probe) {
+          var downloadUrl =
+            (probe && probe.url) || predictSetupExeUrl(ver) || GITHUB_RELEASES_LATEST;
+          return {
+            version: ver,
+            tag: ver,
             downloadUrl: downloadUrl,
-            releasePageUrl:
-              (api && api.releasePageUrl) ||
-              (probe && probe.releasePageUrl) ||
-              GITHUB_RELEASES_LATEST,
-            assets: (api && api.assets) || [],
+            releasePageUrl: (probe && probe.releasePageUrl) || GITHUB_RELEASES_LATEST,
+            assets: api && api.assets ? api.assets : [],
             fromProbe: !!probe,
             fromApi: !!api,
           };
@@ -1013,7 +1082,7 @@
 
   function artifactMatchesPlatform(url, kind) {
     if (!url) return false;
-    if (kind === 'exe') return /setup\.exe/i.test(url);
+    if (kind === 'exe') return /setup\.exe$/i.test(url);
     if (kind === 'dmg') return /\.dmg$/i.test(url);
     if (kind === 'apk') return /\.apk$/i.test(url);
     return false;
@@ -1064,7 +1133,7 @@
     return fetchReleaseAssets(ver).then(function (api) {
       var assets = (api && api.assets) || [];
       var setup = assets.find(function (a) {
-        return /setup\.exe/i.test(a.name || '');
+        return /setup\.exe$/i.test(a.name || '');
       });
       var dmgArm = assets.find(function (a) {
         return /\.dmg$/i.test(a.name || '') && /aarch64|arm64|universal/i.test(a.name || '');
@@ -1223,7 +1292,7 @@
           if (
             releaseHit &&
             releaseHit.url &&
-            ((assetKind === 'exe' && /setup\.exe/i.test(releaseHit.url)) ||
+            ((assetKind === 'exe' && /setup\.exe$/i.test(releaseHit.url)) ||
               (assetKind === 'dmg' && /\.dmg$/i.test(releaseHit.url)))
           ) {
             return trySilentFallback(null, ver || targetVersion, current);
@@ -1261,12 +1330,12 @@
           var hit = parts[0] || parts[1];
 
           if (preferSilent && targetVersion && compareSemver(targetVersion, current) > 0) {
-            if (hit && hit.url && /setup\.exe/i.test(hit.url)) {
+            if (hit && hit.url && /setup\.exe$/i.test(hit.url)) {
               return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts);
             }
             return waitUntilReleaseReady(targetVersion, onProgress, opts.maxWaitMs || RELEASE_WAIT_MS).then(
               function (hit2) {
-                if (hit2 && hit2.url && /setup\.exe/i.test(hit2.url)) {
+                if (hit2 && hit2.url && /setup\.exe$/i.test(hit2.url)) {
                   return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts);
                 }
                 return trySilentFallback(

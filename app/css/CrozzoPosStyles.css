@@ -11423,6 +11423,1265 @@ body.crozzo-page-modulo-gestion .crozzo-costos-matriz-tabs.crozzo-mod-nav--segme
   line-height: 1.5;
   max-width: 640px;
 }
+
+/* —— Centro de impresión · diseño premium claro —— */
+.crozzo-print-hub {
+  --print-gold: var(--gold-primary, #c9a962);
+  --print-gold-soft: color-mix(in srgb, var(--print-gold) 14%, transparent);
+  --print-gold-border: color-mix(in srgb, var(--print-gold) 32%, var(--border));
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.crozzo-print-hub__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.crozzo-print-hub__bar h2 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.crozzo-print-hub__bar p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  max-width: 48ch;
+}
+.crozzo-print-hub__tabs {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.crozzo-print-hub__tab {
+  padding: 12px 18px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.crozzo-print-hub__tab:hover { color: var(--text-primary); }
+.crozzo-print-hub__tab.is-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--print-gold);
+}
+.crozzo-print-hub__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 22px 22px;
+}
+.crozzo-print-hub .crozzo-fa-panel {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.crozzo-print-hub .crozzo-fa-panel.is-active {
+  display: flex;
+}
+.crozzo-print-panel {
+  padding: 18px 0 8px;
+}
+.crozzo-print-panel__title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.crozzo-print-panel__help {
+  margin: 14px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.crozzo-print-studio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 200px);
+  gap: 0;
+}
+.crozzo-print-studio__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.crozzo-print-studio__head h3 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.crozzo-print-studio__head p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  max-width: 52ch;
+}
+.crozzo-print-studio__sz-badge {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid var(--print-gold-border);
+  background: var(--print-gold-soft);
+  color: var(--text-primary);
+}
+.crozzo-print-studio__workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 14px;
+  flex: 1;
+  min-height: calc(100vh - 320px);
+}
+.crozzo-print-studio__workspace--solo-editor {
+  grid-template-columns: 1fr;
+}
+.crozzo-print-studio__workspace--solo-editor .crozzo-print-studio__editor-pane {
+  min-height: min(72vh, 720px);
+}
+@media (max-width: 960px) {
+  .crozzo-print-studio__workspace {
+    grid-template-columns: 1fr;
+  }
+  .crozzo-print-studio__preview-pane {
+    max-height: 220px;
+  }
+}
+.crozzo-print-studio__preview-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.crozzo-print-studio__preview-head {
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.crozzo-print-studio__preview-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 200px;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--bg-card) 92%, var(--border)),
+    color-mix(in srgb, var(--bg-card) 92%, var(--border)) 8px,
+    color-mix(in srgb, var(--bg-secondary) 92%, var(--border)) 8px,
+    color-mix(in srgb, var(--bg-secondary) 92%, var(--border)) 16px
+  );
+}
+.crozzo-print-studio__preview-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.crozzo-print-studio__preview-note {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.crozzo-print-studio__preview-ticket {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 9px;
+  line-height: 1.35;
+  color: #111;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  padding: 8px 6px;
+}
+.crozzo-print-studio__preview-ticket--80 {
+  width: 72mm;
+  max-width: 100%;
+}
+.crozzo-print-studio__preview-ticket--58 {
+  width: 54mm;
+  max-width: 100%;
+}
+.crozzo-print-studio__preview-sheet {
+  margin: 0 auto;
+  padding: 10px 12px 14px;
+  background: #fffef9;
+  border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, #c9a962 30%);
+}
+.crozzo-print-studio__preview-sheet--carta {
+  width: min(280px, 100%);
+  aspect-ratio: 210 / 297;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.crozzo-print-studio__preview-sheet--oficio {
+  width: min(260px, 100%);
+  aspect-ratio: 216 / 279;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.crozzo-print-studio__preview-sheet-tag {
+  display: block;
+  width: 100%;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8b7355;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px dashed rgba(139, 115, 85, 0.35);
+  text-align: center;
+}
+.crozzo-print-studio__preview-sheet .crozzo-print-studio__preview-ticket {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  outline: 2px dashed rgba(201, 169, 98, 0.4);
+  outline-offset: 3px;
+}
+.crozzo-print-studio__editor-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.crozzo-print-studio__editor-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.03em;
+}
+.crozzo-print-studio__unsaved {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--warning, #d97706) 90%, #000);
+  background: color-mix(in srgb, var(--warning, #d97706) 12%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--warning, #d97706) 35%, var(--border));
+}
+.crozzo-print-studio.has-unsaved .crozzo-print-studio__toolbar {
+  border-color: color-mix(in srgb, var(--warning, #d97706) 40%, var(--border));
+}
+.crozzo-print-studio__intro {
+  margin: 0 0 14px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+.crozzo-print-studio__toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px 18px;
+  align-items: end;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-card) 94%, var(--print-gold-soft, transparent) 6%);
+  margin-bottom: 10px;
+}
+.crozzo-print-studio__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.crozzo-print-studio__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.crozzo-print-studio__select {
+  width: 100%;
+}
+.crozzo-print-studio__hint {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.crozzo-print-studio__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  grid-column: 1 / -1;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+.crozzo-print-studio__statusbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 4px 10px;
+  font-size: 0.78rem;
+}
+.crozzo-print-studio__doc-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.crozzo-print-studio__doc {
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.crozzo-print-studio__doc:hover {
+  border-color: var(--print-gold-border);
+  color: var(--text-primary);
+}
+.crozzo-print-studio__doc.is-active {
+  border-color: var(--print-gold);
+  background: var(--print-gold-soft);
+  color: var(--text-primary);
+}
+/* preset chips → select en .crozzo-print-studio__field */
+.crozzo-print-studio__meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.crozzo-print-studio__sync {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.crozzo-print-studio__sync.is-synced {
+  color: color-mix(in srgb, var(--success, #22c55e) 85%, var(--text-primary));
+  border-color: color-mix(in srgb, var(--success, #22c55e) 35%, var(--border));
+  background: color-mix(in srgb, var(--success, #22c55e) 8%, var(--bg-secondary));
+}
+.crozzo-print-studio__editor {
+  position: relative;
+  flex: 1;
+  min-height: min(520px, calc(100vh - 340px));
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--print-gold) 22%, var(--border));
+  overflow: hidden;
+  background: #0c0e12;
+}
+.crozzo-print-studio__loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0c0e12;
+  color: #9ca3af;
+  font-size: 0.88rem;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+.crozzo-print-studio__editor.is-ready .crozzo-print-studio__loader {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.crozzo-print-studio__editor iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #0c0e12;
+}
+.crozzo-bodega-panel .crozzo-bodega-flow {
+  display: grid;
+  gap: 16px;
+}
+.crozzo-bodega-block__title {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.crozzo-bodega-mp-table-wrap {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.crozzo-bodega-mp-table .crozzo-bodega-date {
+  min-width: 118px;
+  padding: 4px 6px;
+  font-size: 0.78rem;
+}
+.crozzo-bodega-mp-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.crozzo-salon-panel .crozzo-salon-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.crozzo-salon-panel .crozzo-salon-toolbar .form-input {
+  flex: 1;
+  min-width: 180px;
+}
+.crozzo-salon-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.crozzo-salon-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.crozzo-salon-desc {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #92400e;
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.crozzo-print-channel,
+.crozzo-print-output {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 10px 0 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+}
+.crozzo-print-channel__label,
+.crozzo-print-output__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.crozzo-print-output__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+.crozzo-print-output__btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.crozzo-print-output__btn:hover {
+  border-color: color-mix(in srgb, var(--print-gold) 55%, var(--border));
+}
+.crozzo-print-output__btn.is-on {
+  background: color-mix(in srgb, var(--print-gold) 22%, var(--bg-card));
+  border-color: var(--print-gold-border, #c9a962);
+  color: var(--text);
+}
+.crozzo-print-output__hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.78rem;
+}
+.crozzo-print-channel__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+.crozzo-print-studio__toolbar .crozzo-print-channel,
+.crozzo-print-studio__toolbar .crozzo-print-output {
+  margin: 0;
+  flex: 1 1 100%;
+}
+.crozzo-print-hub__hero {
+  position: relative;
+  padding: 28px 28px 24px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--print-gold-border);
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--print-gold) 9%, var(--bg-card)) 0%, var(--bg-card) 42%, var(--bg-secondary) 100%);
+  box-shadow:
+    var(--elevation-1),
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+  overflow: hidden;
+}
+.crozzo-print-hub__hero::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -8%;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--gold-glow, rgba(201,169,98,0.25)) 0%, transparent 70%);
+  pointer-events: none;
+}
+.crozzo-print-hub__eyebrow {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--print-gold) 85%, #6b5a2e);
+  background: var(--print-gold-soft);
+  border: 1px solid var(--print-gold-border);
+}
+.crozzo-print-hub__hero h2 {
+  margin: 0 0 10px;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.45rem, 2.5vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+.crozzo-print-hub__lead {
+  margin: 0 0 20px;
+  max-width: 52ch;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.crozzo-print-hub__roadmap {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 720px) {
+  .crozzo-print-hub__roadmap { grid-template-columns: 1fr; }
+}
+.crozzo-print-hub__roadmap li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--print-gold) 4%);
+  border: 1px solid var(--border);
+}
+.crozzo-print-hub__roadmap li span:first-child {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--gradient-gold, linear-gradient(135deg, #d4af37, #c9a962, #b8941f));
+  box-shadow: 0 2px 8px var(--gold-glow, rgba(201,169,98,0.35));
+}
+.crozzo-print-hub__roadmap li strong {
+  display: block;
+  font-size: 0.86rem;
+  margin-bottom: 2px;
+}
+.crozzo-print-hub__roadmap li small {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+/* tabs legacy: .crozzo-print-hub__tabs definido arriba */
+.crozzo-print-card {
+  border: 1px solid var(--print-gold-border);
+  box-shadow: var(--elevation-1);
+}
+.crozzo-print-card__lead {
+  margin: 0 0 16px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.crozzo-printers-detected {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--print-gold-border);
+  background: var(--bg-secondary);
+}
+.crozzo-printers-detected--empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+.crozzo-printers-detected--empty strong {
+  font-size: 0.92rem;
+}
+.crozzo-printers-detected--empty span {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.crozzo-printers-detected--ok .crozzo-printers-detected__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.crozzo-printers-detected__backend {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.crozzo-printers-detected__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crozzo-printer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.crozzo-printer-chip.is-default {
+  border-color: var(--print-gold-border);
+  background: var(--print-gold-soft);
+  color: color-mix(in srgb, var(--print-gold) 75%, var(--text-primary));
+}
+.crozzo-printer-chip__star {
+  color: var(--print-gold);
+}
+.crozzo-printers-detected__default {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.crozzo-print-assign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+@media (max-width: 640px) {
+  .crozzo-print-assign { grid-template-columns: 1fr; }
+}
+.crozzo-print-assign__item {
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.crozzo-print-assign__tag {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--print-gold) 80%, var(--text-muted));
+}
+.crozzo-print-options {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+@media (max-width: 560px) {
+  .crozzo-print-options { grid-template-columns: 1fr; }
+}
+.crozzo-print-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+.crozzo-print-check input { margin-top: 3px; flex-shrink: 0; }
+.crozzo-print-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.crozzo-print-toolbar .form-input {
+  flex: 1;
+  min-width: 180px;
+}
+.crozzo-print-assign__hint {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.crozzo-print-routing {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  background: color-mix(in srgb, var(--primary) 4%, var(--bg-card));
+  font-size: 0.84rem;
+}
+.crozzo-print-routing summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+}
+.crozzo-print-routing__list {
+  margin: 10px 0 0;
+  padding-left: 1.15rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.crozzo-print-routing__list li + li { margin-top: 6px; }
+.crozzo-print-notes {
+  margin-top: 8px;
+  font-size: 0.84rem;
+}
+.crozzo-print-notes summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+.crozzo-print-notes textarea { margin-top: 8px; }
+.crozzo-print-rescue {
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+  background: color-mix(in srgb, var(--warning) 6%, var(--bg-card));
+}
+.crozzo-print-hub__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 18px 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--print-gold-border);
+  background: linear-gradient(180deg, var(--bg-card), color-mix(in srgb, var(--print-gold) 5%, var(--bg-secondary)));
+}
+.crozzo-print-hub__footer p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  max-width: 36ch;
+}
+.crozzo-fa-studio-wrap--premium {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.crozzo-print-studio--unified {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: min(78vh, 820px);
+}
+.crozzo-ps-studio-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--print-gold-border, var(--border));
+  background: linear-gradient(145deg, var(--bg-card), color-mix(in srgb, var(--gold-primary, #c9a962) 6%, var(--bg-secondary)));
+}
+.crozzo-ps-studio-head h3 {
+  margin: 0 0 6px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.2rem;
+}
+.crozzo-ps-studio-head p {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  max-width: 52ch;
+  line-height: 1.45;
+}
+.crozzo-ps-models-section {
+  margin-bottom: 12px;
+}
+.crozzo-ps-models-section__head {
+  margin-bottom: 8px;
+}
+.crozzo-ps-editor-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: min(62vh, 680px);
+}
+.crozzo-print-studio {
+  padding: 4px 0;
+}
+.crozzo-ps-intro {
+  margin-bottom: 14px;
+}
+.crozzo-ps-intro__title {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--print-gold) 75%, var(--text-muted));
+}
+.crozzo-ps-intro__text {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 56ch;
+}
+.crozzo-ps-intro--compact {
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+.crozzo-ps-doc-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .crozzo-ps-doc-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .crozzo-ps-doc-grid { grid-template-columns: 1fr; }
+}
+.crozzo-print-hub,
+.crozzo-print-hub .crozzo-print-studio,
+.crozzo-print-hub .crozzo-print-studio *,
+.crozzo-print-hub .crozzo-fa-tabs,
+.crozzo-print-hub .crozzo-fa-panel {
+  animation: none !important;
+}
+.crozzo-print-hub .crozzo-fa-tab,
+.crozzo-print-hub .crozzo-print-hub__tab,
+.crozzo-print-hub .crozzo-print-studio__preset,
+.crozzo-print-hub .crozzo-print-studio__doc,
+.crozzo-print-hub .crozzo-fa-mode-card--premium,
+.crozzo-print-hub .crozzo-ps-preset-card,
+.crozzo-print-hub .crozzo-ps-doc-btn {
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
+  transform: none !important;
+}
+.crozzo-ps-doc-btn {
+  position: relative;
+  align-items: flex-start;
+  text-align: left;
+  padding: 14px 12px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--elevation-1);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.crozzo-ps-doc-btn:hover {
+  border-color: var(--print-gold-border);
+  box-shadow: var(--elevation-1);
+}
+.crozzo-ps-doc-btn.is-active {
+  border-color: var(--print-gold);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--print-gold) 12%, var(--bg-card)), var(--bg-card));
+  box-shadow: 0 0 0 1px var(--print-gold-soft), var(--elevation-1);
+}
+.crozzo-ps-doc-btn__step {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--gradient-gold);
+}
+.crozzo-ps-doc-btn__icon {
+  font-size: 1.35rem;
+  margin-bottom: 4px;
+}
+.crozzo-ps-doc-btn__label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  width: 100%;
+}
+.crozzo-ps-doc-btn__hint {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.35;
+  margin-top: 4px;
+  display: block;
+  width: 100%;
+}
+.crozzo-ps-active-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 18px;
+  margin: 16px 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--print-gold-border);
+  background: color-mix(in srgb, var(--print-gold) 7%, var(--bg-card));
+}
+.crozzo-ps-active-banner__kicker {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--print-gold) 80%, var(--text-muted));
+  margin-bottom: 4px;
+}
+.crozzo-ps-active-banner__main strong {
+  display: block;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.crozzo-ps-active-banner__main p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  max-width: 42ch;
+}
+.crozzo-ps-meta-chip {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.crozzo-ps-editor-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.crozzo-fa-studio-status--premium {
+  align-items: flex-start;
+  padding: 14px 16px;
+  margin-top: 14px;
+  border-color: var(--print-gold-border);
+  background: color-mix(in srgb, var(--success) 4%, var(--bg-secondary));
+}
+.crozzo-fa-studio-status--premium .crozzo-fa-studio-status__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.9rem;
+  background: var(--print-gold-soft);
+  color: var(--print-gold);
+  flex-shrink: 0;
+}
+.crozzo-fa-studio-status__text {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.crozzo-bodega-studio__hero {
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--print-gold-border);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--print-gold) 6%, var(--bg-card)), var(--bg-secondary));
+}
+.crozzo-bodega-studio__hero h3 {
+  margin: 8px 0 8px;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.crozzo-bodega-studio__hero p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 56ch;
+}
+.crozzo-bodega-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.crozzo-bodega-step {
+  display: flex;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--elevation-1);
+}
+.crozzo-bodega-step__num {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  background: var(--gradient-gold);
+  box-shadow: 0 2px 10px var(--gold-glow);
+}
+.crozzo-bodega-step__body {
+  flex: 1;
+  min-width: 0;
+}
+.crozzo-bodega-step__body h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.crozzo-bodega-step--action {
+  border-color: var(--print-gold-border);
+  background: color-mix(in srgb, var(--print-gold) 5%, var(--bg-card));
+}
+.crozzo-bodega-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.crozzo-bodega-preview {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.crozzo-bodega-studio .card {
+  border-radius: var(--radius-lg);
+}
+.crozzo-ps-preset-wrap.is-hidden {
+  display: none;
+}
+.crozzo-ps-preset-wrap {
+  margin-bottom: 0;
+  padding-right: 2px;
+}
+.crozzo-ps-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 1100px) {
+  .crozzo-ps-preset-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .crozzo-ps-preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.crozzo-ps-preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 8px 6px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--elevation-1);
+}
+.crozzo-ps-preset-card:hover {
+  border-color: color-mix(in srgb, var(--gold-primary, #c9a962) 40%, var(--border));
+}
+body.crozzo-page-print-hub .crozzo-print-hub,
+body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"] {
+  min-height: 0;
+}
+body.crozzo-page-print-hub.crozzo-page-modulo-gestion .main-body {
+  align-content: flex-start;
+}
+body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.crozzo-ps-editor-stage,
+.crozzo-print-studio__editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 300px);
+}
+.crozzo-fa-lab-frame.is-hidden,
+.crozzo-fa-studio-status.is-hidden {
+  display: none !important;
+}
+.crozzo-ps-preset-card.is-active {
+  border-color: var(--gold-primary, #c9a962);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--gold-primary, #c9a962) 10%, var(--bg-card)), var(--bg-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold-primary, #c9a962) 20%, transparent);
+}
+.crozzo-ps-preset-card__icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.crozzo-ps-preset-card__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.crozzo-ps-preset-card__desc {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.crozzo-ps-preset-card__sz {
+  margin-top: 2px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--gold-primary, #c9a962) 70%, var(--text-muted));
+}
+
+.crozzo-nube-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 4px;
+}
+.crozzo-nube-status-card .crozzo-nube-dl {
+  margin: 0;
+  font-size: 0.88rem;
+}
+.crozzo-nube-status-card .crozzo-nube-dl dt {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.crozzo-nube-status-card .crozzo-nube-dl dt:first-child {
+  margin-top: 0;
+}
+.crozzo-nube-status-card .crozzo-nube-dl dd {
+  margin: 2px 0 0;
+}
+.crozzo-nube-checklist li {
+  margin-bottom: 4px;
+}
+.crozzo-ps-doc-grid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.crozzo-ps-doc-hint {
+  margin-bottom: 14px !important;
+}
+.crozzo-bodega-studio .data-table code {
+  font-size: 0.78rem;
+}
 .crozzo-fa-tabs {
   display: flex;
   gap: 4px;
@@ -11540,7 +12799,7 @@ body.crozzo-page-modulo-gestion .crozzo-costos-matriz-tabs.crozzo-mod-nav--segme
   opacity: 0;
   pointer-events: none;
 }
-.crozzo-fa-lab-frame {
+.crozzo-fa-lab-frame:not(.crozzo-fa-lab-frame--editor) {
   border: 1px solid color-mix(in srgb, #c9a962 22%, var(--border));
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -11550,7 +12809,7 @@ body.crozzo-page-modulo-gestion .crozzo-costos-matriz-tabs.crozzo-mod-nav--segme
     0 0 0 1px rgba(255,255,255,0.04) inset,
     0 20px 50px rgba(0,0,0,0.35);
 }
-.crozzo-fa-lab-frame iframe {
+.crozzo-fa-lab-frame:not(.crozzo-fa-lab-frame--editor) iframe {
   width: 100%;
   height: min(72vh, 720px);
   min-height: 560px;

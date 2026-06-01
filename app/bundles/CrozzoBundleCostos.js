@@ -659,6 +659,8 @@
       precioVenta: Math.round(num(raw.precioVenta)),
       categoria: String(raw.categoria || '').trim(),
       posProductId: raw.posProductId != null ? raw.posProductId : null,
+      gramajeVenta:
+        raw.gramajeVenta != null && Number(raw.gramajeVenta) > 0 ? Math.round(num(raw.gramajeVenta)) : null,
       costeoMpSourceId: raw.costeoMpSourceId ? String(raw.costeoMpSourceId).trim() : null,
       origen: raw.origen || 'menu',
       tipoCosteo: tipo,
@@ -1046,6 +1048,11 @@
     base.precioVenta = precio;
     base.posProductId = p.id;
     base.categoria = p.categoria || base.categoria || '';
+    if (p.gramajeVenta != null && Number(p.gramajeVenta) > 0) {
+      base.gramajeVenta = Math.round(num(p.gramajeVenta));
+    } else if (p.porcionGramos != null && Number(p.porcionGramos) > 0) {
+      base.gramajeVenta = Math.round(num(p.porcionGramos));
+    }
     base.tipoCosteo = tipo;
     if (!Number(base.costoMp) || base.costoMp <= 0) {
       var sug = guessCostoMpForPosProduct(p);
@@ -1161,6 +1168,9 @@
       posProductId: raw.posProductId != null ? raw.posProductId : null,
       esReventaPos: raw.esReventaPos === true,
       activo: raw.activo !== false,
+      fechaElaboracion: String(raw.fechaElaboracion || '').trim().slice(0, 10),
+      fechaIngreso: String(raw.fechaIngreso || '').trim().slice(0, 10),
+      fechaVencimiento: String(raw.fechaVencimiento || '').trim().slice(0, 10),
       updatedAt: raw.updatedAt || new Date().toISOString(),
     };
     if (!item.nombre) return null;
@@ -1213,6 +1223,9 @@
       posProductId: catRow.posProductId != null ? catRow.posProductId : null,
       esReventaPos: catRow.esReventaPos === true,
       activo: catRow.activo !== false,
+      fechaElaboracion: catRow.fechaElaboracion || '',
+      fechaIngreso: catRow.fechaIngreso || '',
+      fechaVencimiento: catRow.fechaVencimiento || '',
       precioAnterior: c.precioAnterior,
       ultimaRecepcionId: c.ultimaRecepcionId,
       ultimaRecepcionAt: c.ultimaRecepcionAt,
@@ -1477,6 +1490,25 @@
         })
         .catch(function () {});
     } catch (_) {}
+  }
+
+  function patchTrazabilidad(mpId, dates) {
+    dates = dates || {};
+    var st = loadStore();
+    var idx = st.catalogoMp.findIndex(function (x) {
+      return x && String(x.id) === String(mpId);
+    });
+    if (idx < 0) return null;
+    var row = Object.assign({}, st.catalogoMp[idx]);
+    if (dates.fechaElaboracion !== undefined) row.fechaElaboracion = String(dates.fechaElaboracion || '').trim().slice(0, 10);
+    if (dates.fechaIngreso !== undefined) row.fechaIngreso = String(dates.fechaIngreso || '').trim().slice(0, 10);
+    if (dates.fechaVencimiento !== undefined) row.fechaVencimiento = String(dates.fechaVencimiento || '').trim().slice(0, 10);
+    row.updatedAt = new Date().toISOString();
+    st.catalogoMp[idx] = row;
+    saveStore(st);
+    var merged = get(row.id);
+    emitChanged({ tipo: 'trazabilidad', mpId: row.id, item: merged });
+    return merged;
   }
 
   function upsertCatalog(raw, opts) {
@@ -2369,6 +2401,7 @@
     get: get,
     getByNombre: getByNombre,
     upsert: upsert,
+    patchTrazabilidad: patchTrazabilidad,
     upsertCatalog: upsertCatalog,
     upsertCosteo: upsertCosteo,
     applyRecepcionItems: applyRecepcionItems,
@@ -6282,12 +6315,25 @@
         row.lastMov = m;
       }
     });
-    var items = Object.keys(byMp)
+    var items = [];
+    var seenMp = {};
+    catList.forEach(function (mp) {
+      if (!mp || !mp.id || !byMp[mp.id]) return;
+      items.push(byMp[mp.id]);
+      seenMp[mp.id] = true;
+    });
+    Object.keys(byMp)
+      .filter(function (k) {
+        return !seenMp[k];
+      })
       .map(function (k) {
         return byMp[k];
       })
       .sort(function (a, b) {
         return String(a.nombre).localeCompare(String(b.nombre), 'es', { sensitivity: 'base' });
+      })
+      .forEach(function (row) {
+        items.push(row);
       });
     var valorTotal = 0;
     var conMov = 0;
@@ -6328,6 +6374,16 @@
       var blob = [it.nombre, it.categoria, it.mpId, it.undLabel].join(' ');
       return matchSearchQuery(blob, q);
     });
+  }
+
+  /** Misma lista que en pantalla (filtro búsqueda/categoría si está activo). */
+  function inventarioItemsForPrint(snap) {
+    snap = snap || buildInventarioSnapshot();
+    var ui = hub.inventarioUi || { q: '', cat: 'all' };
+    var hasFilter = !!String(ui.q || '').trim() || (ui.cat && ui.cat !== 'all');
+    var items = filterInventarioItems(snap.items, ui.q, ui.cat);
+    if (!items.length && !hasFilter) return snap.items;
+    return items.length ? items : snap.items;
   }
 
   function downloadTextFile(filename, content, mime) {
@@ -6411,54 +6467,649 @@
     else toast('No se pudo descargar', 'error');
   }
 
-  function printInventarioConteo(items) {
-    var fecha = new Date().toISOString().slice(0, 10);
-    var rows = items
-      .map(function (it, i) {
-        return (
-          '<tr><td>' +
-          (i + 1) +
-          '</td><td>' +
-          esc(it.categoria) +
-          '</td><td><strong>' +
-          esc(it.nombre) +
-          '</strong></td><td>' +
-          esc(it.undLabel) +
-          '</td><td style="text-align:right;font-weight:700">' +
-          esc(String(it.teorico)) +
-          '</td><td></td><td></td><td></td></tr>'
-        );
+  var INV_PRINT_CSS_BODY =
+    'body{font-family:Segoe UI,system-ui,sans-serif;padding:16px 20px;color:#111;font-size:11px}' +
+    'h1{font-size:17px;margin:0 0 10px}' +
+    '.inv-header-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 28px;margin:0 0 14px;padding:14px 16px;border:1px solid #c9a962;border-radius:4px;background:#fffef9}' +
+    '.inv-header-cell{display:flex;flex-direction:column;gap:5px;min-width:0}' +
+    '.inv-header-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b5a45}' +
+    '.inv-header-val{font-size:12px;font-weight:600;color:#111;min-height:20px;padding:4px 0;border-bottom:1px solid #d4c4a8}' +
+    '.inv-header-val--fill{min-height:28px;border-bottom:1px dashed #b8a88a;background:#fffef6}' +
+    '.inv-sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:18px;padding-top:12px}' +
+    '.inv-sign-cell{display:flex;flex-direction:column;gap:6px}' +
+    '.inv-sign-line{display:block;min-height:32px;border-bottom:1px solid #888;margin-top:4px}' +
+    '.inv-meta{color:#555;font-size:11px;margin:0 0 14px;line-height:1.45}' +
+    '.inv-meta strong{color:#111}' +
+    'table{width:100%;border-collapse:collapse;font-size:10px}' +
+    'th,td{border:1px solid #bbb;padding:6px 5px;text-align:left;vertical-align:top}' +
+    'th{background:#f5f0e6;font-size:9px;text-transform:uppercase;letter-spacing:.04em}' +
+    'td.num{text-align:right;font-variant-numeric:tabular-nums}' +
+    'td.inv-unit{text-align:center;font-weight:700;white-space:nowrap}' +
+    'td.inv-fill{min-height:30px;height:30px;background:#fffef6;border:1px dashed #b8a88a}' +
+    'td.inv-fill--wide{min-width:88px}' +
+    'td.inv-fill--obs{min-width:110px}' +
+    'tr:nth-child(even) td{background:#faf8f4}' +
+    'tr:nth-child(even) td.inv-fill{background:#fffdf8}' +
+    '.diff-ok{color:#166534}.diff-warn{color:#b45309;font-weight:600}.diff-bad{color:#b91c1c;font-weight:700}' +
+    '.inv-foot{margin-top:12px;font-size:9px;color:#666}' +
+    '.inv-logo-head{margin:0 0 12px;padding:0 0 8px;border-bottom:1px solid #e8dcc8}' +
+    '.inv-logo-head img{max-height:52px;max-width:220px;width:auto;object-fit:contain;display:block}' +
+    '.inv-items-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:0 0 12px}' +
+    '.inv-item-card{border:1px solid #bbb;border-radius:3px;padding:8px 10px;background:#fffef9;page-break-inside:avoid;min-height:72px}' +
+    '.inv-item-card:nth-child(4n+1),.inv-item-card:nth-child(4n+2){background:#faf8f4}' +
+    '.inv-item-num{font-size:8px;color:#6b5a45;font-weight:700}' +
+    '.inv-item-name{font-size:12px;font-weight:800;line-height:1.25;margin:4px 0 6px;word-wrap:break-word}' +
+    '.inv-item-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:10px;margin-top:4px}' +
+    '.inv-item-row label{font-size:8px;font-weight:700;text-transform:uppercase;color:#6b5a45;flex:0 0 auto}' +
+    '.inv-item-fill{flex:1;min-height:18px;border-bottom:1px dashed #b8a88a;background:#fffef6}' +
+    '.inv-item-unit{display:inline-block;font-weight:800;padding:2px 8px;border:1px solid #c9a962;border-radius:3px;font-size:11px}' +
+    '.inv-item-card--conteo{min-height:96px}' +
+    '.inv-item-card--conteo .inv-item-num{display:none}' +
+    '.inv-item-card--conteo .inv-item-name{font-size:14px;margin:0 0 10px;line-height:1.3}' +
+    '.inv-item-unit-row{display:flex;align-items:center;gap:10px;margin:6px 0 12px}' +
+    '.inv-item-unit-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#6b5a45}' +
+    '.inv-item-qty-row{display:flex;align-items:flex-end;gap:10px;margin-top:4px}' +
+    '.inv-item-qty-lbl{font-size:10px;font-weight:800;text-transform:uppercase;color:#111;white-space:nowrap}' +
+    '.inv-item-fill--qty{flex:1;min-height:32px;border-bottom:2px dashed #555;background:#fffef6}' +
+    '@media print{body{padding:8px}.inv-items-grid{gap:8px 12px}}';
+
+  var INV_PRINT_CSS_THERMAL =
+    '@page{size:80mm auto;margin:2mm}' +
+    'body{margin:0;padding:4px 6px;width:72mm;font-family:Consolas,monospace;font-size:11px;color:#000}' +
+    'h1{font-size:13px;margin:0 0 6px}' +
+    '.inv-meta{font-size:9px;margin:0 0 8px;color:#333}' +
+    '.inv-thermal-item{padding:8px 0;border-bottom:1px dashed #444;page-break-inside:avoid}' +
+    '.inv-thermal-name{font-size:12px;font-weight:700;line-height:1.25;margin:0 0 4px;word-wrap:break-word}' +
+    '.inv-thermal-unit{font-size:10px;margin:0 0 6px}' +
+    '.inv-thermal-unit strong{font-size:12px}' +
+    '.inv-thermal-qty{font-size:10px;margin:0}' +
+    '.inv-thermal-qty-line{display:block;margin-top:4px;border-bottom:2px dashed #000;min-height:22px}' +
+    '.inv-foot{font-size:8px;margin-top:8px;color:#555}';
+
+  function inventarioPrintPageCss(pageFormat) {
+    var pf = String(pageFormat || 'a4').toLowerCase();
+    var pageSize = pf === 'legal' || pf === 'oficio' ? 'legal landscape' : 'A4 landscape';
+    return '@page{size:' + pageSize + ';margin:10mm}';
+  }
+
+  function inventarioNormalizeOutput(id) {
+    var s = String(id || 'carta').toLowerCase();
+    if (s === 'thermal' || s === 'roll' || s === 'termica') return 'roll_80';
+    if (s === 'normal' || s === 'html' || s === 'a4') return 'carta';
+    if (s === 'roll_58' || s === '58' || s === '50') return 'roll_58';
+    if (s === 'roll_80' || s === '80') return 'roll_80';
+    if (s === 'oficio' || s === 'legal') return 'oficio';
+    if (s === 'carta') return 'carta';
+    return 'carta';
+  }
+
+  function inventarioOutputMeta(id) {
+    id = inventarioNormalizeOutput(id);
+    if (id === 'roll_58') return { id: id, kind: 'roll', sz: '58', page: 'a4' };
+    if (id === 'roll_80') return { id: id, kind: 'roll', sz: '80', page: 'a4' };
+    if (id === 'oficio') return { id: id, kind: 'sheet', page: 'legal' };
+    return { id: 'carta', kind: 'sheet', page: 'a4' };
+  }
+
+  function inventarioResolvePrintOpts(extra) {
+    extra = extra || {};
+    if (extra.printOpts && typeof extra.printOpts === 'object') {
+      return Object.assign({}, extra.printOpts);
+    }
+    if (
+      global.CrozzoPrintStudioHub &&
+      typeof global.CrozzoPrintStudioHub.getInventarioPrintOpts === 'function'
+    ) {
+      return global.CrozzoPrintStudioHub.getInventarioPrintOpts();
+    }
+    var conf = typeof global.getFacturacionAdminConfig === 'function' ? global.getFacturacionAdminConfig() : {};
+    var outputId = 'carta';
+    try {
+      var stored = localStorage.getItem('crozzo_print_output_inventario');
+      if (stored) outputId = inventarioNormalizeOutput(stored);
+    } catch (_) {}
+    var meta = inventarioOutputMeta(outputId);
+    var isRoll = meta.kind === 'roll';
+    return {
+      printOutput: meta.id,
+      pageFormat: isRoll ? undefined : meta.page,
+      landscape: !isRoll,
+      allowDialog: true,
+      silent: false,
+      printer: isRoll
+        ? String(conf.impresoraBodega || conf.impresoraCajaPos || '').trim()
+        : String(conf.impresoraCajaPos || conf.impresoraFacturas || '').trim(),
+      role: isRoll ? 'bodega' : 'caja',
+      channel: isRoll ? 'roll' : 'normal',
+      paperSz: meta.sz,
+    };
+  }
+
+  function inventarioLogoHeaderHtml() {
+    var url =
+      typeof global.crozzoResolveTicketLogoUrl === 'function' ? global.crozzoResolveTicketLogoUrl() : '';
+    if (!url) return '';
+    return '<div class="inv-logo-head"><img src="' + esc(url) + '" alt="Logo"/></div>';
+  }
+
+  function inventarioEmpresaNombre() {
+    try {
+      var emp = global.config && global.config.getEmpresa ? global.config.getEmpresa() : {};
+      return String(emp.nombreComercial || emp.razonSocial || 'CROZZO POS').trim();
+    } catch (_) {
+      return 'CROZZO POS';
+    }
+  }
+
+  function inventarioBodegaUbicacion() {
+    try {
+      if (typeof global.getFacturacionAdminConfig === 'function') {
+        var c = global.getFacturacionAdminConfig();
+        if (c.bodegaMarcacion && c.bodegaMarcacion.ubicacion) return String(c.bodegaMarcacion.ubicacion).trim();
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  function buildInventarioHeaderGrid(kind, data) {
+    var meta = data.meta || {};
+    var fecha = String(data.fecha || new Date().toISOString().slice(0, 10)).slice(0, 10);
+    var items = data.items || [];
+    var responsable = String(meta.contadoPor || '').trim();
+    var isConteo = kind === 'conteo' || kind === 'conteo_capturado';
+    var fields = [
+      { label: 'Empresa / negocio', value: inventarioEmpresaNombre(), fill: false },
+      {
+        label: isConteo ? 'Fecha conteo' : 'Fecha reporte',
+        value: fecha,
+        fill: kind === 'conteo',
+      },
+      {
+        label: 'Responsable',
+        value: responsable,
+        fill: kind === 'conteo' && !responsable,
+      },
+      {
+        label: 'Bodega / ubicación',
+        value: meta.ubicacion || inventarioBodegaUbicacion() || '',
+        fill: !meta.ubicacion && !inventarioBodegaUbicacion(),
+      },
+      { label: 'Total materias primas', value: String(items.length), fill: false },
+      { label: 'Filtro / categoría', value: meta.filtro || 'Todas', fill: false },
+    ];
+    return (
+      '<div class="inv-header-grid">' +
+      fields
+        .map(function (f) {
+          var valCls = 'inv-header-val' + (f.fill && !f.value ? ' inv-header-val--fill' : '');
+          var inner = f.fill && !f.value ? '' : esc(f.value || '—');
+          return (
+            '<div class="inv-header-cell"><span class="inv-header-lbl">' +
+            esc(f.label) +
+            '</span><span class="' +
+            valCls +
+            '">' +
+            inner +
+            '</span></div>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  function buildInventarioSignGrid() {
+    return (
+      '<div class="inv-sign-grid">' +
+      '<div class="inv-sign-cell"><span class="inv-header-lbl">Firma responsable</span><span class="inv-sign-line"></span></div>' +
+      '<div class="inv-sign-cell"><span class="inv-header-lbl">Revisado / jefe bodega</span><span class="inv-sign-line"></span></div>' +
+      '</div>'
+    );
+  }
+
+  function inventarioItemUndLabel(it) {
+    return String(it.undLabel || invUndDisplay(it.und) || 'und').trim() || 'und';
+  }
+
+  function buildInventarioItemConteoCard(it) {
+    var und = esc(inventarioItemUndLabel(it));
+    return (
+      '<div class="inv-item-card inv-item-card--conteo">' +
+      '<div class="inv-item-name">' +
+      esc(it.nombre || 'Materia prima') +
+      '</div>' +
+      '<div class="inv-item-unit-row"><span class="inv-item-unit-lbl">Unidad</span><span class="inv-item-unit">' +
+      und +
+      '</span></div>' +
+      '<div class="inv-item-qty-row"><span class="inv-item-qty-lbl">Cantidad</span><span class="inv-item-fill inv-item-fill--qty"></span></div>' +
+      '</div>'
+    );
+  }
+
+  function buildInventarioItemsThermal(kind, items, data) {
+    items = items || [];
+    var lineas = (data && data.lineas) || {};
+    return items
+      .map(function (it) {
+        var und = esc(inventarioItemUndLabel(it));
+        var block =
+          '<div class="inv-thermal-item">' +
+          '<div class="inv-thermal-name">' +
+          esc(it.nombre || 'Materia prima') +
+          '</div>' +
+          '<div class="inv-thermal-unit">Unidad: <strong>' +
+          und +
+          '</strong></div>';
+        if (kind === 'conteo' || kind === 'conteo_capturado') {
+          if (kind === 'conteo_capturado') {
+            var l = lineas[it.mpId] || {};
+            var fis = l.fisico;
+            var hasFis = fis != null && fis !== '' && isFinite(Number(fis));
+            block +=
+              '<div class="inv-thermal-qty">Cantidad: <strong>' +
+              (hasFis ? esc(formatInvQty(fis)) + ' ' + und : '—') +
+              '</strong></div>';
+          } else {
+            block += '<div class="inv-thermal-qty">Cantidad:<span class="inv-thermal-qty-line"></span></div>';
+          }
+        } else if (kind === 'stock' || kind === 'completo') {
+          block +=
+            '<div class="inv-thermal-qty">Teórico: <strong>' +
+            esc(formatInvQty(it.teorico)) +
+            ' ' +
+            und +
+            '</strong></div>';
+        }
+        block += '</div>';
+        return block;
       })
       .join('');
-    var html =
-      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Conteo MP ' +
-      fecha +
+  }
+
+  /** Listado MP en dos columnas (Carta / Oficio horizontal). */
+  function buildInventarioItemsTwoCol(kind, items, data) {
+    items = items || [];
+    var lineas = (data && data.lineas) || {};
+    return (
+      '<div class="inv-items-grid">' +
+      items
+        .map(function (it, i) {
+          if (kind === 'conteo') {
+            return buildInventarioItemConteoCard(it);
+          }
+          var card = '<div class="inv-item-card">';
+          card += '<div class="inv-item-num">#' + (i + 1) + ' · ' + esc(it.categoria || 'OTRO') + '</div>';
+          card += '<div class="inv-item-name">' + esc(it.nombre || 'Materia prima') + '</div>';
+          card +=
+            '<div class="inv-item-unit-row"><span class="inv-item-unit-lbl">Unidad</span><span class="inv-item-unit">' +
+            esc(inventarioItemUndLabel(it)) +
+            '</span></div>';
+
+          if (kind === 'stock') {
+            card +=
+              '<div class="inv-item-row"><label>Teórico</label><strong>' +
+              esc(formatInvQty(it.teorico)) +
+              ' ' +
+              esc(it.undLabel) +
+              '</strong></div>';
+            card +=
+              '<div class="inv-item-row"><label>Valor</label><span>' +
+              esc(it.valor > 0 ? engFmt(it.valor) : '—') +
+              '</span></div>';
+          } else if (kind === 'completo') {
+            card +=
+              '<div class="inv-item-row"><label>Teórico</label><strong>' +
+              esc(formatInvQty(it.teorico)) +
+              ' ' +
+              esc(it.undLabel) +
+              '</strong></div>';
+            card +=
+              '<div class="inv-item-row"><label>In · Out</label><span>' +
+              esc(formatInvQty(it.entradas)) +
+              ' / ' +
+              esc(formatInvQty(it.salidas)) +
+              '</span></div>';
+          } else if (kind === 'conteo_capturado') {
+            var l = lineas[it.mpId] || {};
+            var fis = l.fisico;
+            var hasFis = fis != null && fis !== '' && isFinite(Number(fis));
+            var teor = Number(l.teorico != null ? l.teorico : it.teorico) || 0;
+            var diff = hasFis ? Number(fis) - teor : null;
+            var diffCls = diff != null ? inventarioConteoDiffClass(diff) : '';
+            card +=
+              '<div class="inv-item-row"><label>Teórico</label><strong>' +
+              esc(formatInvQty(teor)) +
+              ' ' +
+              esc(it.undLabel) +
+              '</strong></div>';
+            card +=
+              '<div class="inv-item-row"><label>Físico</label><span>' +
+              (hasFis ? esc(formatInvQty(fis)) + ' ' + esc(it.undLabel) : '—') +
+              '</span></div>';
+            if (diff != null) {
+              card +=
+                '<div class="inv-item-row"><label>Dif.</label><span class="' +
+                diffCls +
+                '">' +
+                esc(inventarioConteoDiffFmt(diff)) +
+                '</span></div>';
+            }
+          }
+          card += '</div>';
+          return card;
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  function buildInventarioPrintHtml(kind, data, printOpts) {
+    data = data || {};
+    printOpts = inventarioResolvePrintOpts({ printOpts: printOpts });
+    var items = data.items || [];
+    var fecha = String(data.fecha || new Date().toISOString().slice(0, 10)).slice(0, 10);
+    var meta = data.meta || {};
+    var titulo = 'Inventario materias primas';
+    var subtitulo = inventarioEmpresaNombre() + ' · CROZZO POS · ' + fecha;
+    var bodyContent = '';
+    var gridKind = kind === 'conteo' ? 'conteo' : kind;
+
+    if (kind === 'stock') {
+      titulo = 'Stock teórico — Materias primas';
+      subtitulo = 'Teórico = Inicial + Entradas − Salidas · listado en 2 columnas (Carta / Oficio)';
+      bodyContent = buildInventarioItemsTwoCol('stock', items, data);
+    } else if (kind === 'completo') {
+      titulo = 'Listado completo inventario MP';
+      subtitulo = 'Mismo orden que inventario en pantalla · 2 columnas';
+      bodyContent = buildInventarioItemsTwoCol('completo', items, data);
+    } else if (kind === 'conteo_capturado') {
+      titulo = 'Conteo físico (capturado en sistema)';
+      subtitulo = 'Valores registrados · 2 columnas';
+      bodyContent = buildInventarioItemsTwoCol('conteo_capturado', items, data);
+    } else if (kind === 'movs') {
+      titulo = 'Libro de movimientos (reciente)';
+      var movs = data.movs || [];
+      bodyContent =
+        '<table><thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th><th class="num">Cantidad</th><th class="num">$/u</th></tr></thead><tbody>' +
+        movs
+          .map(function (m) {
+            return (
+              '<tr><td>' +
+              esc(String(m.fecha || '').slice(0, 16)) +
+              '</td><td>' +
+              esc(invTipoLabel(m.tipo)) +
+              '</td><td>' +
+              esc(m.productoNombre || m.productoRefId || '') +
+              '</td><td class="num">' +
+              esc(formatInvQty(m.cantidad)) +
+              '</td><td class="num">' +
+              esc(m.costoUnitario > 0 ? engFmt(m.costoUnitario) : '—') +
+              '</td></tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table>';
+    } else {
+      titulo = 'Hoja de conteo físico — Materias primas';
+      subtitulo = 'Nombre · unidad (g / ml / und) · espacio para cantidad';
+      bodyContent = buildInventarioItemsTwoCol(gridKind, items, data);
+    }
+
+    var outMeta = inventarioOutputMeta(printOpts.printOutput);
+    var isRoll = outMeta.kind === 'roll';
+    if (isRoll) {
+      titulo = 'Conteo MP · ' + (outMeta.sz === '58' ? '58' : '80') + ' mm';
+      subtitulo = 'Escriba la cantidad en la unidad indicada';
+      bodyContent = buildInventarioItemsThermal(gridKind, items, data);
+    }
+
+    var statsLine = '';
+    if (data.stats) {
+      statsLine =
+        '<p class="inv-meta"><strong>Resumen:</strong> Valor teórico ' +
+        esc(engFmt(data.stats.valorTotal || 0)) +
+        (meta.contadas != null ? ' · Contados: ' + meta.contadas + '/' + meta.total : '') +
+        '</p>';
+    }
+
+    var headerGrid = buildInventarioHeaderGrid(kind, data);
+    var signGrid = kind === 'conteo' || kind === 'conteo_capturado' ? buildInventarioSignGrid() : '';
+
+    var css = isRoll
+      ? INV_PRINT_CSS_THERMAL.replace('80mm', outMeta.sz === '58' ? '58mm' : '80mm').replace('72mm', outMeta.sz === '58' ? '52mm' : '72mm')
+      : inventarioPrintPageCss(printOpts.pageFormat) + INV_PRINT_CSS_BODY;
+
+    return (
+      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>' +
+      esc(titulo) +
       '</title><style>' +
-      'body{font-family:Segoe UI,system-ui,sans-serif;padding:24px;color:#111}' +
-      'h1{font-size:18px;margin:0 0 4px}p{color:#555;font-size:12px;margin:0 0 16px}' +
-      'table{width:100%;border-collapse:collapse;font-size:11px}' +
-      'th,td{border:1px solid #ccc;padding:8px 6px;text-align:left}' +
-      'th{background:#f5f0e6;font-size:10px;text-transform:uppercase;letter-spacing:.04em}' +
-      '@media print{body{padding:12px}}' +
+      css +
       '</style></head><body>' +
-      '<h1>Conteo físico — Materias primas</h1>' +
-      '<p>CROZZO POS · Fecha: ' +
-      fecha +
-      ' · Complete «Conteo físico» y «Observaciones» a mano o en Excel.</p>' +
-      '<table><thead><tr><th>#</th><th>Categoría</th><th>Materia prima</th><th>U.</th><th>Teórico</th><th>Conteo físico</th><th>Diferencia</th><th>Obs.</th></tr></thead><tbody>' +
-      rows +
-      '</tbody></table></body></html>';
-    var w = window.open('', '_blank', 'width=900,height=700');
+      inventarioLogoHeaderHtml() +
+      '<h1>' +
+      esc(titulo) +
+      '</h1>' +
+      headerGrid +
+      '<p class="inv-meta">' +
+      subtitulo +
+      '</p>' +
+      statsLine +
+      bodyContent +
+      signGrid +
+      '<p class="inv-foot">Generado ' +
+      new Date().toLocaleString('es-CO') +
+      ' · Crozzo POS · formato conteo v2 (nombre · unidad · cantidad)</p></body></html>'
+    );
+  }
+
+  function printInventarioWindowFallback(html) {
+    var w = window.open('', '_blank', 'width=960,height=720');
     if (!w) {
       toast('Permita ventanas emergentes para imprimir', 'warning');
-      return;
+      return Promise.resolve(false);
     }
     w.document.write(html);
     w.document.close();
     w.focus();
-    setTimeout(function () {
-      w.print();
-    }, 400);
+    return new Promise(function (resolve) {
+      global.setTimeout(function () {
+        try {
+          w.print();
+          resolve(true);
+        } catch (_) {
+          resolve(false);
+        }
+      }, 450);
+    });
+  }
+
+  function printInventarioDocument(kind, data, extra) {
+    extra = extra || {};
+    var printOpts = inventarioResolvePrintOpts(extra);
+    var meta = inventarioOutputMeta(printOpts.printOutput);
+    var html = buildInventarioPrintHtml(kind, data, printOpts);
+    var docOpts = {
+      allowDialog: printOpts.allowDialog !== false,
+      silent: printOpts.silent === true,
+      landscape: printOpts.landscape === true,
+      pageFormat: printOpts.pageFormat,
+      printOutput: printOpts.printOutput,
+      printer: printOpts.printer,
+      role: printOpts.role || (meta.kind === 'roll' ? 'bodega' : 'caja'),
+      toast: true,
+    };
+    var itemCount = (data && data.items && data.items.length) || 0;
+    var fmtLbl = inventarioPrintOutputLabel(printOpts.printOutput);
+    if (typeof global.crozzoPrintHtmlDocument === 'function') {
+      return global.crozzoPrintHtmlDocument(html, docOpts).then(function (ok) {
+        if (!ok) {
+          toast('No se imprimió en «' + fmtLbl + '». Abriendo vista previa…', 'warning');
+          return printInventarioWindowFallback(html);
+        }
+        if (kind === 'conteo' || kind === 'conteo_capturado') {
+          toast('Conteo impreso · ' + fmtLbl + ' · ' + itemCount + ' ítems (nombre → unidad → cantidad)', 'success');
+        }
+        return ok;
+      });
+    }
+    return printInventarioWindowFallback(html).then(function () {
+      toast('Vista previa · ' + fmtLbl, 'info');
+      return true;
+    });
+  }
+
+  function inventarioSavedPrintOutput() {
+    try {
+      var stored = localStorage.getItem('crozzo_print_output_inventario');
+      if (stored) return inventarioNormalizeOutput(stored);
+    } catch (_) {}
+    return 'carta';
+  }
+
+  function inventarioPrintOutputLabel(id) {
+    var m = inventarioOutputMeta(inventarioNormalizeOutput(id));
+    if (m.kind === 'roll') return (m.sz === '58' ? '58' : '80') + ' mm · térmica bodega';
+    return m.id === 'oficio' ? 'Oficio · impresora caja' : 'Carta · impresora caja';
+  }
+
+  function pickInventarioPrintOutput(outputId) {
+    outputId = inventarioNormalizeOutput(outputId);
+    try {
+      localStorage.setItem('crozzo_print_output_inventario', outputId);
+    } catch (_) {}
+    var host = document.querySelector('[data-inv-print-format]');
+    if (host) {
+      host.querySelectorAll('[data-inv-out]').forEach(function (btn) {
+        btn.classList.toggle('is-on', btn.getAttribute('data-inv-out') === outputId);
+      });
+    }
+    if (global.CrozzoPrintStudioHub && typeof global.CrozzoPrintStudioHub.pickPrintOutput === 'function') {
+      global.CrozzoPrintStudioHub.pickPrintOutput('inventario', outputId);
+    }
+    toast('Formato inventario: ' + inventarioPrintOutputLabel(outputId), 'info');
+  }
+
+  function inventarioPrintFormatPickerHtml() {
+    var current = inventarioSavedPrintOutput();
+    var H = global.CrozzoPrintStudioHub;
+    if (H && typeof H.renderPrintOutputPicker === 'function') {
+      return (
+        '<div class="crozzo-inv-print-format" data-inv-print-format="hub">' +
+        H.renderPrintOutputPicker('inventario', current, ['roll_58', 'roll_80', 'carta', 'oficio']) +
+        '</div>'
+      );
+    }
+    var opts = [
+      { id: 'roll_58', label: '58 mm' },
+      { id: 'roll_80', label: '80 mm' },
+      { id: 'carta', label: 'Carta' },
+      { id: 'oficio', label: 'Oficio' },
+    ];
+    return (
+      '<div class="crozzo-inv-print-format crozzo-print-output" data-inv-print-format="inline" data-print-output-scope="inventario">' +
+      '<span class="crozzo-print-output__label">Formato de impresión</span>' +
+      '<div class="crozzo-print-output__pills">' +
+      opts
+        .map(function (o) {
+          return (
+            '<button type="button" class="crozzo-print-output__btn' +
+            (current === o.id ? ' is-on' : '') +
+            '" data-inv-out="' +
+            esc(o.id) +
+            '" data-output="' +
+            esc(o.id) +
+            '" onclick="CrozzoSistemaCostos.pickInventarioPrintOutput(\'' +
+            esc(o.id) +
+            '\')">' +
+            esc(o.label) +
+            '</button>'
+          );
+        })
+        .join('') +
+      '</div>' +
+      '<span class="form-hint crozzo-print-output__hint">58/80 mm → térmica bodega · Carta/Oficio → impresora de caja</span>' +
+      '</div>'
+    );
+  }
+
+  function previewInventarioConteo() {
+    var snap = buildInventarioSnapshot();
+    var items = inventarioItemsForPrint(snap);
+    if (!items.length) {
+      toast('No hay materias primas para mostrar', 'warning');
+      return Promise.resolve(false);
+    }
+    var ui = hub.inventarioUi || {};
+    var html = buildInventarioPrintHtml(
+      'conteo',
+      {
+        items: items,
+        fecha: ui.conteoFecha || new Date().toISOString().slice(0, 10),
+        meta: {
+          contadoPor: ui.conteoPor || invConteoUser(),
+          filtro: String(ui.q || '').trim() || (ui.cat && ui.cat !== 'all' ? 'Categoría: ' + ui.cat : ''),
+          ubicacion: inventarioBodegaUbicacion(),
+        },
+      },
+      inventarioResolvePrintOpts({})
+    );
+    return printInventarioWindowFallback(html).then(function () {
+      toast('Vista previa · ' + inventarioPrintOutputLabel(inventarioSavedPrintOutput()), 'info');
+      return true;
+    });
+  }
+
+  function printInventarioConteo(items, opts) {
+    opts = opts || {};
+    var ui = hub.inventarioUi || {};
+    var filtroHint = String(ui.q || '').trim();
+    if (!filtroHint && ui.cat && ui.cat !== 'all') filtroHint = 'Categoría: ' + ui.cat;
+    return printInventarioDocument(
+      opts.capturado ? 'conteo_capturado' : 'conteo',
+      {
+        items: items,
+        fecha: ui.conteoFecha || new Date().toISOString().slice(0, 10),
+        lineas: opts.lineas || ui.conteoLineas || {},
+        meta: Object.assign({}, opts.meta || {}, {
+          contadoPor: ui.conteoPor || invConteoUser(),
+          filtro: filtroHint,
+          ubicacion: inventarioBodegaUbicacion(),
+          orden: 'Catálogo MP (mismo orden que inventario en pantalla)',
+        }),
+      },
+      opts
+    );
+  }
+
+  function printInventarioStock(items, snap, opts) {
+    snap = snap || buildInventarioSnapshot();
+    opts = opts || {};
+    var ui = hub.inventarioUi || {};
+    return printInventarioDocument(
+      'stock',
+      {
+        items: items,
+        stats: snap.stats,
+        meta: { filtro: ui.q || (ui.cat !== 'all' ? ui.cat : '') },
+      },
+      opts
+    );
+  }
+
+  function printInventarioCompleto(items, snap, opts) {
+    snap = snap || buildInventarioSnapshot();
+    opts = opts || {};
+    return printInventarioDocument('completo', { items: items, stats: snap.stats }, opts);
+  }
+
+  function printInventarioMovs(snap, opts) {
+    snap = snap || buildInventarioSnapshot();
+    opts = opts || {};
+    return printInventarioDocument(
+      'movs',
+      { movs: snap.movs, fecha: new Date().toISOString().slice(0, 10) },
+      opts
+    );
   }
 
   function invConteoUser() {
@@ -6701,12 +7352,14 @@
           '</span><span class="crozzo-inv-cat">' +
           esc(it.categoria || 'OTRO') +
           '</span></td>' +
-          '<td class="num">' +
+          '<td class="inv-unit">' +
           esc(it.undLabel) +
           '</td>' +
           '<td class="num crozzo-inv-teorico">' +
           formatInvQty(it.teorico) +
-          '</td>' +
+          ' <span style="opacity:.65;font-size:.85em">' +
+          esc(it.undLabel) +
+          '</span></td>' +
           '<td class="num"><input type="number" class="crozzo-inv-conteo-input crozzo-inv-conteo-fisico" inputmode="decimal" step="any" min="0" placeholder="—" value="' +
           esc(fisVal) +
           '" aria-label="Conteo físico ' +
@@ -6772,7 +7425,7 @@
           '</span><span class="crozzo-inv-cat">' +
           esc(it.categoria || 'OTRO') +
           '</span></td>' +
-          '<td class="num">' +
+          '<td class="inv-unit">' +
           esc(it.undLabel) +
           '</td>' +
           '<td class="num" title="Suma entradas">' +
@@ -6892,13 +7545,21 @@
       ' <span class="crozzo-inv-formula__op">·</span> <strong>Diferencia</strong> <span class="crozzo-inv-formula__op">=</span> Conteo físico <span class="crozzo-inv-formula__op">−</span> Teórico' +
       ' <span class="crozzo-inv-formula__op">·</span> <strong>Valor</strong> <span class="crozzo-inv-formula__op">=</span> cantidad × $/u vigente' +
       '</p>' +
+      '<div class="alert alert-info crozzo-inv-print-help" style="margin:0 0 12px">' +
+      '<strong>Hoja para bodega (impresión):</strong> cada ítem va <strong>nombre</strong> → unidad <strong>g / ml / und</strong> → línea para <strong>cantidad</strong> (sin teórico en hoja en blanco). ' +
+      'La tabla de la pestaña «Conteo físico» es para capturar en el sistema; la hoja impresa es distinta.' +
+      '</div>' +
+      inventarioPrintFormatPickerHtml() +
       '<div class="crozzo-inv-actions">' +
-      '<span class="crozzo-inv-actions__lbl">Descargar para conteo en bodega</span>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvDownloadConteo">📋 Hoja conteo (CSV)</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintConteo">🖨 Imprimir hoja conteo</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadCompleto">📊 Listado completo (CSV)</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoConteoTab">✏ Conteo en pantalla →</button>' +
-      '<span class="form-hint" style="margin:0;align-self:center">CSV para Excel · o capture el físico en la pestaña Conteo</span>' +
+      '<span class="crozzo-inv-actions__lbl">Imprimir / exportar</span>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPreviewConteo">👁 Ver hoja (pantalla)</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvPrintConteo">🖨 Imprimir conteo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintStock">🖨 Stock teórico</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintCompleto">🖨 Listado completo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadConteo">📋 CSV conteo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadCompleto">📊 CSV completo</button>' +
+      '<button type="button" class="btn btn-link btn-sm" id="crozzoInvGoConteoTab">✏ Conteo en pantalla →</button>' +
+      '<span class="form-hint" style="margin:0;align-self:center">Cada ítem: nombre, unidad (g/ml/und) y línea para cantidad. Mismo formato en Facturas → Inventario.</span>' +
       '</div>' +
       '<div class="crozzo-inv-tabs" role="tablist">' +
       '<button type="button" class="crozzo-inv-tab' +
@@ -6926,15 +7587,16 @@
       esc(ui.q) +
       '" autocomplete="off">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvRefresh">↻ Actualizar</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintMovs">🖨 Movimientos</button>' +
       '</div>' +
       '<div class="crozzo-inv-chips" role="group" aria-label="Categoría">' +
       chips +
       '</div>' +
       '<div class="crozzo-inv-table-shell">' +
       '<div class="crozzo-inv-scroll"><table class="crozzo-inv-table"><thead><tr>' +
-      '<th>Materia prima</th><th class="num">U.</th><th class="num">Entradas</th><th class="num">Salidas</th><th class="num">Teórico</th><th class="num">$/u</th><th class="num">Valor</th><th>Actividad</th>' +
+      '<th>Materia prima</th><th class="num">Unidad</th><th class="num">Entradas</th><th class="num">Salidas</th><th class="num">Teórico</th><th class="num">$/u</th><th class="num">Valor</th><th>Actividad</th>' +
       '</tr></thead><tbody id="crozzoInvStockTbody">' +
-      renderInventarioStockRows(filtered) +
+      renderInventarioStockRows(snap.items) +
       '</tbody></table></div></div></div>' +
       '<div class="crozzo-inv-panel' +
       (tab === 'conteo' ? ' is-active' : '') +
@@ -6963,13 +7625,14 @@
       '</div>' +
       '<div class="crozzo-inv-table-shell">' +
       '<div class="crozzo-inv-scroll"><table class="crozzo-inv-table"><thead><tr>' +
-      '<th>Materia prima</th><th class="num">U.</th><th class="num">Teórico</th><th class="num">Conteo físico</th><th class="num">Diferencia</th><th>Obs.</th>' +
+      '<th>Materia prima</th><th class="num">Unidad</th><th class="num">Teórico</th><th class="num">Conteo físico</th><th class="num">Diferencia</th><th>Obs.</th>' +
       '</tr></thead><tbody id="crozzoInvConteoTbody">' +
       renderInventarioConteoRows(snap.items, conteoUi.conteoLineas) +
       '</tbody></table></div></div>' +
       '<div class="crozzo-inv-conteo-foot">' +
       '<label class="crozzo-inv-conteo-opt"><input type="checkbox" id="crozzoInvConteoAjustes" checked> Aplicar ajustes al cerrar (ledger)</label>' +
       '<span class="form-hint" style="margin:0;flex:1">Puede llenar solo los ítems que aplique · el resto queda sin contar</span>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintConteoCapturado">🖨 Imprimir conteo actual</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvConteoSave">💾 Guardar progreso</button>' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvConteoClose">✓ Cerrar conteo</button>' +
       '</div></div>' +
@@ -7125,13 +7788,57 @@
       });
     }
 
+    var prPreview = root.querySelector('#crozzoInvPreviewConteo');
+    if (prPreview && !prPreview._bound) {
+      prPreview._bound = true;
+      prPreview.addEventListener('click', function () {
+        previewInventarioConteo();
+      });
+    }
+
     var prConteo = root.querySelector('#crozzoInvPrintConteo');
     if (prConteo && !prConteo._bound) {
       prConteo._bound = true;
       prConteo.addEventListener('click', function () {
         var snap = buildInventarioSnapshot();
-        var items = filterInventarioItems(snap.items, hub.inventarioUi.q, hub.inventarioUi.cat);
-        printInventarioConteo(items.length ? items : snap.items);
+        printInventarioConteo(inventarioItemsForPrint(snap));
+      });
+    }
+
+    var prStock = root.querySelector('#crozzoInvPrintStock');
+    if (prStock && !prStock._bound) {
+      prStock._bound = true;
+      prStock.addEventListener('click', function () {
+        var snap = buildInventarioSnapshot();
+        printInventarioStock(inventarioItemsForPrint(snap), snap);
+      });
+    }
+
+    var prCompleto = root.querySelector('#crozzoInvPrintCompleto');
+    if (prCompleto && !prCompleto._bound) {
+      prCompleto._bound = true;
+      prCompleto.addEventListener('click', function () {
+        var snap = buildInventarioSnapshot();
+        printInventarioCompleto(inventarioItemsForPrint(snap), snap);
+      });
+    }
+
+    var prCapt = root.querySelector('#crozzoInvPrintConteoCapturado');
+    if (prCapt && !prCapt._bound) {
+      prCapt._bound = true;
+      prCapt.addEventListener('click', function () {
+        var snap = buildInventarioSnapshot();
+        var lineas = collectInventarioConteoLineas(root);
+        hub.inventarioUi.conteoLineas = lineas;
+        printInventarioConteo(inventarioItemsForPrint(snap), { capturado: true, lineas: lineas });
+      });
+    }
+
+    var prMovs = root.querySelector('#crozzoInvPrintMovs');
+    if (prMovs && !prMovs._bound) {
+      prMovs._bound = true;
+      prMovs.addEventListener('click', function () {
+        printInventarioMovs(buildInventarioSnapshot());
       });
     }
 
@@ -9035,6 +9742,17 @@
     init: init,
     teardown: teardown,
     pageToView: pageToView,
+    buildInventarioSnapshot: buildInventarioSnapshot,
+    inventarioItemsForPrint: inventarioItemsForPrint,
+    filterInventarioItems: filterInventarioItems,
+    printInventarioDocument: printInventarioDocument,
+    printInventarioConteo: printInventarioConteo,
+    printInventarioStock: printInventarioStock,
+    printInventarioCompleto: printInventarioCompleto,
+    printInventarioMovs: printInventarioMovs,
+    previewInventarioConteo: previewInventarioConteo,
+    pickInventarioPrintOutput: pickInventarioPrintOutput,
+    inventarioSavedPrintOutput: inventarioSavedPrintOutput,
   };
 
   global.renderSistemaCostos = function (view) { return render(view); };

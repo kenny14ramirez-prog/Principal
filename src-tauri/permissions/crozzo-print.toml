@@ -1,0 +1,14 @@
+[[permission]]
+identifier = "allow-crozzo-list-printers"
+description = "Listar impresoras del sistema"
+commands.allow = ["crozzo_list_printers"]
+
+[[permission]]
+identifier = "allow-crozzo-get-default-printer"
+description = "Impresora predeterminada Windows"
+commands.allow = ["crozzo_get_default_printer"]
+
+[[permission]]
+identifier = "allow-crozzo-print-raw"
+description = "Impresión térmica RAW ESC/POS"
+commands.allow = ["crozzo_print_raw", "crozzo_print_raw_b64", "crozzo_print_html_b64"]

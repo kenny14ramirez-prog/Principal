@@ -6,6 +6,9 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "process:default"
+    "process:default",
+    "allow-crozzo-list-printers",
+    "allow-crozzo-get-default-printer",
+    "allow-crozzo-print-raw"
   ]
 }
