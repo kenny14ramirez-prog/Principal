@@ -355,6 +355,7 @@
     admin: 'Administrador',
     user: 'Usuario básico',
   };
+  var GESTION_ROLE_ORDER = ['caja', 'mesero', 'cocina', 'inventario', 'user', 'admin'];
 
   function menuLabel(menuId) {
     if (typeof global.crozzoMenuLabelById === 'function') return global.crozzoMenuLabelById(menuId);
@@ -485,8 +486,11 @@
       return '<p class="form-hint">Sin vista previa para este perfil.</p>';
     }
     var html = '<div class="crozzo-gestion-role-preview">';
-    Object.keys(map).forEach(function (role) {
-      var items = map[role] || [];
+    var rolesDone = {};
+    function appendRoleCard(role) {
+      if (rolesDone[role] || !map[role] || !map[role].length) return;
+      rolesDone[role] = true;
+      var items = map[role];
       html +=
         '<div class="crozzo-gestion-role-card">' +
         '<h4>' +
@@ -499,7 +503,9 @@
         html += '<li>' + esc(menuLabel(mid)) + '</li>';
       });
       html += '</ul></div>';
-    });
+    }
+    GESTION_ROLE_ORDER.forEach(appendRoleCard);
+    Object.keys(map).forEach(appendRoleCard);
     html += '</div>';
     return html;
   }

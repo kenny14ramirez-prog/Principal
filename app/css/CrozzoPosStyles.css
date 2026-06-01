@@ -5796,6 +5796,147 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-gestion-role-card__list li {
   margin-bottom: 3px;
 }
+
+/* —— Super Admin: página gestión perfiles y menús —— */
+.crozzo-gestion-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 1200px;
+}
+.crozzo-gestion-page__title {
+  margin-top: 0;
+}
+.crozzo-gestion-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.crozzo-gestion-page__col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.crozzo-gestion-page__card {
+  margin: 0;
+}
+.crozzo-gestion-page__card-title {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+.crozzo-gestion-page__select-narrow {
+  max-width: 100%;
+  width: min(520px, 100%);
+}
+.crozzo-gestion-page__hint {
+  margin-top: 8px;
+}
+.crozzo-gestion-page__panel-wrap {
+  margin-top: 14px;
+}
+.crozzo-gestion-cliente-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px 12px;
+  align-items: end;
+  max-width: 720px;
+}
+.crozzo-gestion-cliente-row__select {
+  min-width: 0;
+}
+.crozzo-gestion-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crozzo-gestion-page__btn-danger {
+  color: var(--danger, #e57373);
+}
+.crozzo-menu-catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.crozzo-menu-catalog-group {
+  margin-bottom: 14px;
+}
+.crozzo-menu-catalog-group--nested {
+  margin-bottom: 10px;
+  padding-left: 4px;
+  border-left: 2px solid rgba(var(--accent-rgb, 201, 169, 98), 0.2);
+}
+.crozzo-menu-catalog-group__title {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+.crozzo-menu-catalog-group--nested .crozzo-menu-catalog-group__title {
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.crozzo-menu-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 10px;
+}
+.crozzo-menu-catalog-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.crozzo-menu-catalog-item:hover {
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
+}
+.crozzo-menu-catalog-item__cb {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.crozzo-menu-catalog-item__label {
+  flex: 1;
+  min-width: 0;
+}
+.crozzo-role-menus-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.crozzo-role-block {
+  padding: 14px 16px;
+  background: var(--bg-primary);
+}
+.crozzo-role-block__title {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crozzo-role-block--super {
+  opacity: 0.92;
+}
+@media (max-width: 640px) {
+  .crozzo-gestion-cliente-row {
+    grid-template-columns: 1fr;
+  }
+  .crozzo-menu-catalog-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .crozzo-ventas-hub__hero {
   position: relative;
   display: flex;
@@ -12670,6 +12811,195 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
 }
 .crozzo-nube-checklist li {
   margin-bottom: 4px;
+}
+.crozzo-nube-hub {
+  max-width: 1100px;
+}
+.crozzo-nube-hero__title {
+  margin: 0 0 8px;
+}
+.crozzo-nube-hero__lead {
+  margin: 0 0 12px;
+  max-width: 72ch;
+}
+.crozzo-nube-steps-overview {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.crozzo-nube-wizard-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 12px;
+}
+.crozzo-nube-wizard-nav__item {
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.3);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.crozzo-nube-wizard-nav__item:hover {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.55);
+}
+.crozzo-nube-wizard-nav__item--active {
+  border-color: var(--accent, #c9a962);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.12);
+  font-weight: 600;
+}
+.crozzo-nube-wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crozzo-nube-callout {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.crozzo-nube-callout p {
+  margin: 0 0 8px;
+}
+.crozzo-nube-callout p:last-child {
+  margin-bottom: 0;
+}
+.crozzo-nube-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.crozzo-nube-inline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.crozzo-nube-inline-actions .form-input {
+  flex: 1;
+  min-width: 120px;
+}
+.crozzo-nube-code {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+.crozzo-nube-sql-layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .crozzo-nube-sql-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.crozzo-nube-sql-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(520px, 65vh);
+  overflow-y: auto;
+}
+.crozzo-nube-sql-list__item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: var(--bg-primary);
+  cursor: pointer;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+.crozzo-nube-sql-list__item:hover {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.4);
+}
+.crozzo-nube-sql-list__item--active {
+  border-color: var(--accent, #c9a962);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 201, 169, 98), 0.25);
+}
+.crozzo-nube-sql-list__item--done {
+  opacity: 0.92;
+}
+.crozzo-nube-sql-list__order {
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.15);
+}
+.crozzo-nube-sql-list__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.82rem;
+}
+.crozzo-nube-sql-list__text small {
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+.crozzo-nube-sql-editor__head {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crozzo-nube-sql-editor__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+}
+.crozzo-nube-sql-done-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.crozzo-nube-sql-textarea {
+  width: 100%;
+  min-height: 280px;
+  max-height: min(420px, 50vh);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-primary);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.crozzo-nube-tables-ref {
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+.crozzo-nube-probe-table .crozzo-nube-probe-status {
+  white-space: nowrap;
 }
 .crozzo-ps-doc-grid {
   display: grid;

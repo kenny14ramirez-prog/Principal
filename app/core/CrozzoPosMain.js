@@ -4917,6 +4917,8 @@ const SUPERADMIN_PAGES = new Set([
   'config-seguridad',
   'gestion-perfiles-menus'
 ]);
+/** Pantallas accesibles sin sesión POS (pedidos internos, marcación, inicio). */
+const CROZZO_GUEST_PUBLIC_PAGES = new Set(['inicio-operacion', 'pedidos-internos', 'control-acceso']);
 /** data-page → id de menú para perfiles (Gestión de Perfiles y Menús). */
 const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'inicio-operacion': 'inicio-operacion',
@@ -5066,8 +5068,6 @@ const CROZZO_MENU_CATALOG = [
   {
     group: 'Gestión',
     items: [
-      { id: 'facturas', label: 'Facturas venta', icon: '📄' },
-      { id: 'caja', label: 'Clientes (FE)', icon: '👤' },
       { id: 'inventarios', label: 'Reportes y dashboard', icon: '📊' },
       { id: 'compras-dashboard', label: 'Resumen compras (pestaña)', icon: '📊', page: 'compras-dashboard' },
       { id: 'productos', label: 'Catálogo y precios', icon: '🍽️' }
@@ -7050,8 +7050,6 @@ function crozzoCanClearAuditoriaLog() {
 }
 window.crozzoHasCajaPermiso = crozzoHasCajaPermiso;
 window.crozzoCanClearFacturasHistorial = crozzoCanClearFacturasHistorial;
-/** Pantallas accesibles sin sesión POS (pedidos internos, marcación, inicio). */
-const CROZZO_GUEST_PUBLIC_PAGES = new Set(['inicio-operacion', 'pedidos-internos', 'control-acceso']);
 // Devuelve true si el usuario actual puede ver/usar una página.
 function currentUserCanSeePage(page) {
   if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
@@ -7564,7 +7562,7 @@ function navigateTo(page) {
     'config-comandas': ['Config. Comandas', 'Áreas, impresoras y estilo de ticket'],
     'config-conexiones-sistemas': ['Conexión de sistemas', 'Central, tablets y sincronización en red local'],
     'config-multidispositivo': ['Conexión Multi-Dispositivo', 'Sincronización Cloud (Supabase) ↔ LAN ↔ Offline para todos los dispositivos del negocio'],
-    'super-admin-nube': ['Configuración global en nube', 'Supabase, scripts SQL, módulos integrados y estado de conexión'],
+    'super-admin-nube': ['Nube global (Supabase)', 'Asistente: conectar → SQL Editor → verificar tablas → activar módulos'],
     'super-admin-diagnostics': ['Pruebas de Conexión y Sistema', 'Diagnóstico en vivo: red, sync, almacenamiento y permisos (solo lectura)'],
     'config-facturas-admin': ['Facturas e impresión', 'Conexión de impresoras para comandas y facturas'],
     'config-usuarios': ['Usuarios y permisos', 'Cuentas de acceso y permisos por módulo'],
@@ -17902,7 +17900,7 @@ function switchMdMainTab(which) {
   if (bLan) bLan.classList.toggle('active', !isCloud);
 }
 async function testSupabaseConnection() {
-  const el = document.getElementById('mdCloudConnStatus');
+  const el = document.getElementById('sanCloudConnStatus') || document.getElementById('mdCloudConnStatus');
   const url = (document.getElementById('mdSupabaseUrl')?.value || '').trim();
   const key = (document.getElementById('mdSupabaseKey')?.value || '').trim();
   if (!url || !key) {
@@ -23654,69 +23652,92 @@ window.crozzoIdentidadRefreshPreview = crozzoIdentidadRefreshPreview;
 function crozzoBuildMenuCatalogCheckboxes(prefix, checkedMap, disabled) {
   var html = '';
   var dis = disabled ? ' disabled' : '';
+  var seen = {};
   CROZZO_MENU_CATALOG.forEach(function (grp) {
-    html += '<div class="crozzo-menu-catalog-group" style="margin-bottom:14px;">';
-    html += '<h4 style="margin:0 0 8px;font-size:0.85rem;color:var(--text-secondary);">' + grp.group + '</h4>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">';
-    grp.items.forEach(function (it) {
+    var items = grp.items.filter(function (it) {
+      if (!it || !it.id || seen[it.id]) return false;
+      seen[it.id] = true;
+      return true;
+    });
+    if (!items.length) return;
+    html += '<div class="crozzo-menu-catalog-group">';
+    html += '<h4 class="crozzo-menu-catalog-group__title">' + grp.group + '</h4>';
+    html += '<div class="crozzo-menu-catalog-grid">';
+    items.forEach(function (it) {
       var on = checkedMap && checkedMap[it.id] ? ' checked' : '';
       html +=
-        '<label style="display:flex;gap:8px;align-items:center;font-size:0.875rem;">' +
-        '<input type="checkbox" ' +
+        '<label class="crozzo-menu-catalog-item">' +
+        '<input type="checkbox" class="crozzo-menu-catalog-item__cb" ' +
         prefix +
         ' data-menu="' +
         it.id +
         '"' +
         on +
         dis +
-        '> ' +
+        '> <span class="crozzo-menu-catalog-item__label">' +
         (it.icon || '') +
         ' ' +
         it.label +
-        '</label>';
+        '</span></label>';
     });
     html += '</div></div>';
   });
   return html;
 }
 function crozzoBuildRoleMenusCheckboxes(client) {
-  var html = '<div class="role-menus" style="display:flex;flex-direction:column;gap:20px;">';
+  var html = '<div class="crozzo-role-menus-editor">';
   CROZZO_ROLES_MENU_CONFIG.forEach(function (roleDef) {
     var roleState = (client.roles && client.roles[roleDef.id]) || {};
     var defaults = roleDef.defaults || {};
-    html += '<div class="card" style="padding:16px;background:var(--bg-primary);">';
-    html += '<h4 style="margin:0 0 10px;">' + roleDef.label + '</h4>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">';
+    html += '<div class="crozzo-role-block card">';
+    html += '<h4 class="crozzo-role-block__title">' + roleDef.label + '</h4>';
     CROZZO_MENU_CATALOG.forEach(function (grp) {
-      grp.items.forEach(function (it) {
+      var seenInRole = {};
+      var items = grp.items.filter(function (it) {
+        if (!it || !it.id || seenInRole[it.id]) return false;
+        seenInRole[it.id] = true;
+        return true;
+      });
+      if (!items.length) return;
+      html += '<div class="crozzo-menu-catalog-group crozzo-menu-catalog-group--nested">';
+      html += '<h5 class="crozzo-menu-catalog-group__title">' + grp.group + '</h5>';
+      html += '<div class="crozzo-menu-catalog-grid">';
+      items.forEach(function (it) {
         var checked = roleState[it.id] !== undefined ? !!roleState[it.id] : !!defaults[it.id];
         html +=
-          '<label style="display:flex;gap:8px;align-items:center;font-size:0.85rem;">' +
-          '<input type="checkbox" data-role="' +
+          '<label class="crozzo-menu-catalog-item">' +
+          '<input type="checkbox" class="crozzo-menu-catalog-item__cb" data-role="' +
           roleDef.id +
           '" data-menu="' +
           it.id +
           '"' +
           (checked ? ' checked' : '') +
-          '> ' +
+          '> <span class="crozzo-menu-catalog-item__label">' +
           (it.icon || '') +
           ' ' +
           it.label +
-          '</label>';
+          '</span></label>';
       });
+      html += '</div></div>';
     });
-    html += '</div></div>';
+    html += '</div>';
   });
   html +=
-    '<div class="card" style="padding:16px;opacity:0.9;">' +
-    '<h4 style="margin:0 0 8px;">🔒 Super Admin</h4>' +
+    '<div class="crozzo-role-block crozzo-role-block--super card">' +
+    '<h4 class="crozzo-role-block__title">🔒 Super Admin</h4>' +
     '<p class="form-hint" style="margin:0;">Siempre ve todos los módulos y la configuración de plataforma (DIAN, certificado, identidad, etc.).</p></div>';
   html += '</div>';
   return html;
 }
-function renderGestionPerfilesMenus() {
+function renderGestionPerfilesMenus(previewPerfil) {
   var cfg = crozzoLoadMenuProfilesConfig();
-  var clientIds = Object.keys(cfg.clients || {});
+  var clientIds = Object.keys(cfg.clients || {}).sort(function (a, b) {
+    var na = ((cfg.clients[a] && cfg.clients[a].nombre) || a).toLowerCase();
+    var nb = ((cfg.clients[b] && cfg.clients[b].nombre) || b).toLowerCase();
+    if (a === 'default') return -1;
+    if (b === 'default') return 1;
+    return na.localeCompare(nb, 'es');
+  });
   var activeId = cfg.activeClientId || 'default';
   var clientOpts = clientIds
     .map(function (id) {
@@ -23729,7 +23750,7 @@ function renderGestionPerfilesMenus() {
     return '<option value="' + t.id + '">' + t.label + '</option>';
   }).join('');
   var activeClient = cfg.clients[activeId] || cfg.clients.default;
-  var perfilActivo = activeClient.perfil || 'completo';
+  var perfilActivo = previewPerfil || activeClient.perfil || 'completo';
   var esPersonalizado = perfilActivo === 'personalizado';
   var esPreset =
     typeof CrozzoPerfilesOperativos !== 'undefined' &&
@@ -23745,15 +23766,17 @@ function renderGestionPerfilesMenus() {
       : '';
   var menuChecks = crozzoBuildMenuCatalogCheckboxes('data-client-menu', activeClient.menus || {}, false);
   return (
-    '<section id="gestion-perfiles" class="menu-section">' +
-    '<div class="card">' +
-    '<h2 style="margin-top:0;">📋 Gestión de Perfiles, Clientes y Menús</h2>' +
+    '<section id="gestion-perfiles" class="crozzo-gestion-page">' +
+    '<div class="card crozzo-gestion-page__intro">' +
+    '<h2 class="crozzo-gestion-page__title">📋 Gestión de Perfiles, Clientes y Menús</h2>' +
     '<p class="form-hint" style="margin:0;">Configure cada <strong>restaurante / cliente</strong>: perfil operativo (pequeño, mediano, grande…), módulos visibles y menú por rol. Los usuarios del cliente activo solo ven lo permitido aquí.</p>' +
     '</div>' +
-    '<div class="card" style="margin-top:14px;">' +
-    '<h3 style="margin-top:0;">🏢 Cliente / Negocio</h3>' +
-    '<div class="form-grid" style="grid-template-columns:1fr auto auto;gap:12px;align-items:end;max-width:720px;">' +
-    '<div class="form-group"><label class="form-label">Cliente activo</label>' +
+    '<div class="crozzo-gestion-page__grid">' +
+    '<div class="crozzo-gestion-page__col">' +
+    '<div class="card crozzo-gestion-page__card">' +
+    '<h3 class="crozzo-gestion-page__card-title">🏢 Cliente / Negocio</h3>' +
+    '<div class="crozzo-gestion-cliente-row">' +
+    '<div class="form-group crozzo-gestion-cliente-row__select"><label class="form-label">Cliente activo</label>' +
     '<select id="crozzo-cliente-select" class="form-select">' +
     clientOpts +
     '</select></div>' +
@@ -23763,15 +23786,17 @@ function renderGestionPerfilesMenus() {
     '<p class="form-hint" id="crozzo-cliente-hint" style="margin-top:10px;">ID: <code>' +
     activeId +
     '</code></p></div>' +
-    '<div class="card" style="margin-top:14px;">' +
-    '<h3 style="margin-top:0;">🎨 Modelo visual (tema)</h3>' +
+    '<div class="card crozzo-gestion-page__card">' +
+    '<h3 class="crozzo-gestion-page__card-title">🎨 Modelo visual (tema)</h3>' +
     '<p class="form-hint">Apariencia que verá este cliente al usar la app.</p>' +
-    '<select id="crozzo-cliente-tema" class="form-select" style="max-width:420px;">' +
+    '<select id="crozzo-cliente-tema" class="form-select crozzo-gestion-page__select-narrow">' +
     themeOpts +
     '</select></div>' +
-    '<div class="card" style="margin-top:14px;">' +
-    '<h3 style="margin-top:0;">📦 Perfil de empresa</h3>' +
-    '<select id="perfil-empresa-select" class="form-select" style="max-width:520px;">' +
+    '</div>' +
+    '<div class="crozzo-gestion-page__col">' +
+    '<div class="card crozzo-gestion-page__card">' +
+    '<h3 class="crozzo-gestion-page__card-title">📦 Perfil de empresa</h3>' +
+    '<select id="perfil-empresa-select" class="form-select crozzo-gestion-page__select-narrow">' +
     (typeof CrozzoPerfilesOperativos !== 'undefined' && CrozzoPerfilesOperativos.renderSelectOptions
       ? CrozzoPerfilesOperativos.renderSelectOptions(activeClient.perfil || 'completo')
       : '<option value="completo">Completo (todos los módulos)</option>' +
@@ -23784,19 +23809,19 @@ function renderGestionPerfilesMenus() {
         '<option value="basico">Básico (solo venta comercial)</option>' +
         '<option value="personalizado">Personalizado</option>') +
     '</select>' +
-    '<p class="form-hint" style="margin-top:8px;">Perfiles operativos aplican menú por rol automáticamente. Use <em>Personalizado</em> para marcar módulos y roles a mano.</p>' +
-    (panelPerfilHtml ? '<div style="margin-top:14px;">' + panelPerfilHtml + '</div>' : '') +
-    '</div>' +
-    '<div class="card" style="margin-top:14px;" id="crozzo-cliente-menus-card"' +
+    '<p class="form-hint crozzo-gestion-page__hint">Perfiles operativos aplican menú por rol automáticamente. Use <em>Personalizado</em> para marcar módulos y roles a mano.</p>' +
+    (panelPerfilHtml ? '<div class="crozzo-gestion-page__panel-wrap">' + panelPerfilHtml + '</div>' : '') +
+    '</div></div></div>' +
+    '<div class="card crozzo-gestion-page__card" id="crozzo-cliente-menus-card"' +
     (esPersonalizado ? '' : ' hidden') +
     '>' +
-    '<h3 style="margin-top:0;">📂 Módulos visibles (solo personalizado)</h3>' +
+    '<h3 class="crozzo-gestion-page__card-title">📂 Módulos visibles (solo personalizado)</h3>' +
     '<p class="form-hint">Marca lo que este negocio puede usar cuando el perfil es <em>Personalizado</em>.</p>' +
-    '<div id="crozzo-cliente-menus-list">' +
+    '<div id="crozzo-cliente-menus-list" class="crozzo-menu-catalog">' +
     menuChecks +
     '</div></div>' +
-    '<div class="card" style="margin-top:14px;" id="crozzo-role-menus-section">' +
-    '<h3 style="margin-top:0;">🔐 Menú por rol</h3>' +
+    '<div class="card crozzo-gestion-page__card" id="crozzo-role-menus-section">' +
+    '<h3 class="crozzo-gestion-page__card-title">🔐 Menú por rol</h3>' +
     (esPreset
       ? '<p class="form-hint">Vista previa del preset <strong>' +
         escUserAttr(perfilActivo) +
@@ -23813,28 +23838,28 @@ function renderGestionPerfilesMenus() {
           rolePreviewHtml +
           '</div>') +
     '</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;">' +
+    '<div class="crozzo-gestion-page__actions">' +
     '<button type="button" id="guardar-perfil-menus" class="btn btn-primary">💾 Guardar configuración</button>' +
     '<button type="button" id="crozzo-cliente-aplicar-tema" class="btn btn-outline">🎨 Aplicar modelo ahora</button>' +
-    '<button type="button" id="crozzo-cliente-eliminar" class="btn btn-outline" style="color:var(--danger);">🗑️ Eliminar cliente</button>' +
+    '<button type="button" id="crozzo-cliente-eliminar" class="btn btn-outline crozzo-gestion-page__btn-danger">🗑️ Eliminar cliente</button>' +
     '</div></section>'
   );
 }
-function crozzoGestionPerfilesRefreshUI() {
+function crozzoGestionPerfilesRefreshUI(previewPerfil) {
   var root = document.getElementById('gestion-perfiles');
   if (!root || !root.parentElement) return;
   var parent = root.parentElement;
-  var html = renderGestionPerfilesMenus();
+  var html = renderGestionPerfilesMenus(previewPerfil);
   var wrap = document.createElement('div');
   wrap.innerHTML = html;
   var newSec = wrap.firstElementChild;
   if (newSec) {
     parent.replaceChild(newSec, root);
-    initGestionPerfilesMenus();
+    initGestionPerfilesMenus(previewPerfil);
   }
 }
 window.crozzoGestionPerfilesRefreshUI = crozzoGestionPerfilesRefreshUI;
-function initGestionPerfilesMenus() {
+function initGestionPerfilesMenus(previewPerfil) {
   var cfg = crozzoLoadMenuProfilesConfig();
   var activeId = cfg.activeClientId || 'default';
   var client = cfg.clients[activeId] || cfg.clients.default;
@@ -23846,46 +23871,17 @@ function initGestionPerfilesMenus() {
   var btnNuevo = document.getElementById('crozzo-cliente-nuevo');
   var btnRen = document.getElementById('crozzo-cliente-renombrar');
   var btnDel = document.getElementById('crozzo-cliente-eliminar');
-  var menusCard = document.getElementById('crozzo-cliente-menus-card');
-  function togglePerfilUi(refreshPreview) {
-    var p = selPerfil ? selPerfil.value : 'completo';
-    if (menusCard) menusCard.hidden = p !== 'personalizado';
-    if (p === 'personalizado') {
-      if (refreshPreview) crozzoGestionPerfilesRefreshUI();
-      return;
-    }
-    var previewEl = document.getElementById('crozzo-role-menus-preview');
-    if (
-      previewEl &&
-      typeof CrozzoPerfilesOperativos !== 'undefined' &&
-      CrozzoPerfilesOperativos.renderRolePreview
-    ) {
-      previewEl.style.display = '';
-      previewEl.innerHTML = CrozzoPerfilesOperativos.renderRolePreview(p);
-    }
-    var panelEl = document.querySelector('#gestion-perfiles .crozzo-gestion-perfil-panel');
-    if (
-      panelEl &&
-      panelEl.parentElement &&
-      typeof CrozzoPerfilesOperativos !== 'undefined' &&
-      CrozzoPerfilesOperativos.renderGestionPanel
-    ) {
-      var cname = (cfg.clients[cfg.activeClientId] || cfg.clients.default || {}).nombre || cfg.activeClientId;
-      panelEl.outerHTML = CrozzoPerfilesOperativos.renderGestionPanel(p, cname);
-    }
-  }
   if (selPerfil) {
-    selPerfil.value = client.perfil || 'completo';
+    selPerfil.value = previewPerfil || client.perfil || 'completo';
     if (!selPerfil._crozzoPerfilChg) {
       selPerfil._crozzoPerfilChg = true;
       selPerfil.addEventListener('change', function () {
-        togglePerfilUi(false);
+        crozzoGestionPerfilesRefreshUI(selPerfil.value);
         if (typeof showToast === 'function') {
           showToast('Vista previa del perfil — pulse Guardar para aplicar al cliente', 'info');
         }
       });
     }
-    togglePerfilUi(false);
   }
   if (selTema) selTema.value = client.tema || 'executive-elite';
   if (selCliente && !selCliente._crozzoClienteBound) {
