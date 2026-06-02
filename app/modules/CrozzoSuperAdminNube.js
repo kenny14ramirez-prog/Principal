@@ -7,6 +7,21 @@
 
   var LS_SQL_DONE = 'crozzo_nube_sql_done_v1';
   var LS_NUBE_STEP = 'crozzo_nube_wizard_step';
+  var LS_ALTA_CHECKLIST = 'crozzo_nube_alta_checklist_v1';
+
+  /** Pasos operativos (espejo de docs/SUPABASE-ALTA-NEGOCIO.md). */
+  var ALTA_NEGOCIO_STEPS = [
+    { id: 'proyecto', label: 'Proyecto Supabase creado (1 negocio = 1 proyecto)' },
+    { id: 'sql_editor', label: 'SQL ejecutado: SUPABASE-SQL-EDITOR.sql' },
+    { id: 'sql_integracion', label: 'SQL ejecutado: INTEGRACION + QYC + fotos + fix tarjeta' },
+    { id: 'sql_opcional', label: 'SQL opcional: costos / reservorio / cierres (si aplica)' },
+    { id: 'credenciales', label: 'URL + anon public copiadas (nunca service_role)' },
+    { id: 'pos_guardar', label: 'POS: guardado con Super Admin + confirmación de contraseña' },
+    { id: 'pos_probar', label: 'POS: Probar conexión y Comprobar tablas sin errores críticos' },
+    { id: 'sync', label: 'Central subió a nube; otra caja del mismo negocio sincronizó' },
+    { id: 'perfiles', label: 'Perfiles y menús activados para módulos del negocio' },
+    { id: 'seguridad', label: 'Anon key protegida; backup del proyecto Supabase revisado' },
+  ];
 
   var STORAGE_BUCKETS = ['oficina-docs', 'fotos-marcaciones'];
 
@@ -127,7 +142,179 @@
       : '<span class="badge badge-warning">' + esc(failLabel) + '</span>';
   }
 
+  function readAltaChecklistMap() {
+    try {
+      var raw = localStorage.getItem(LS_ALTA_CHECKLIST);
+      return raw ? JSON.parse(raw) : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writeAltaChecklistMap(map) {
+    try {
+      localStorage.setItem(LS_ALTA_CHECKLIST, JSON.stringify(map || {}));
+    } catch (_) {}
+  }
+
+  function altaChecklistProgress() {
+    var done = readAltaChecklistMap();
+    var n = 0;
+    ALTA_NEGOCIO_STEPS.forEach(function (it) {
+      if (done[it.id]) n++;
+    });
+    return { done: n, total: ALTA_NEGOCIO_STEPS.length };
+  }
+
+  function bindAltaChecklistInputs(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-alta-check]').forEach(function (inp) {
+      if (inp._crozzoAltaBound) return;
+      inp._crozzoAltaBound = true;
+      inp.addEventListener('change', function () {
+        var id = inp.getAttribute('data-alta-check');
+        var map = readAltaChecklistMap();
+        map[id] = !!inp.checked;
+        writeAltaChecklistMap(map);
+        var prog = altaChecklistProgress();
+        var el = document.getElementById('sanAltaChecklistProgress');
+        if (el) el.textContent = prog.done + '/' + prog.total;
+      });
+    });
+  }
+
+  function runSanNubeSmokeSelfCheck() {
+    if (typeof global.isSuperAdminUser === 'function' && !global.isSuperAdminUser()) {
+      if (global.showToast) global.showToast('Solo Super Admin puede ejecutar el smoke de nube.', 'warning');
+      return { ok: false, items: [] };
+    }
+    var s = nubeSnapshot();
+    var doneMap = readSqlDoneMap();
+    var scripts = getScripts();
+    var req = scripts.filter(function (x) { return x.required; });
+    var reqDone = req.filter(function (x) { return doneMap[x.key]; }).length;
+    var keyEl = document.getElementById('mdSupabaseKey');
+    var keyMasked =
+      !!(keyEl && keyEl.getAttribute && keyEl.getAttribute('data-crozzo-stored-anon-key')) &&
+      keyEl.dataset.crozzoKeyMasked === '1';
+    var items = [
+      { ok: true, label: 'Sesión Super Admin activa' },
+      {
+        ok: typeof global.crozzoAssertSuperAdminCloudWrite === 'function',
+        label: 'Guard de escritura Cloud (crozzoAssertSuperAdminCloudWrite)',
+      },
+      {
+        ok: typeof global.crozzoConfirmSuperAdminForCloudSave === 'function',
+        label: 'Reconfirmación de contraseña al guardar',
+      },
+      {
+        ok: typeof global.crozzoGetEffectiveAnonKeyFromInput === 'function',
+        label: 'Lectura de anon key enmascarada',
+      },
+      { ok: s.url.indexOf('supabase.co') >= 0, label: 'URL del proyecto configurada' },
+      { ok: s.hasKey, label: 'Anon key guardada (≥20 caracteres)' },
+      { ok: !s.hasKey || keyMasked, label: 'Anon key enmascarada en pantalla (si hay clave)' },
+      { ok: s.syncOn, label: 'Sincronización Cloud activada' },
+      { ok: s.clientOk, label: 'Cliente Supabase (__SUPABASE) iniciado' },
+      { ok: !req.length || reqDone >= req.length, label: 'Scripts SQL obligatorios marcados (' + reqDone + '/' + req.length + ')' },
+    ];
+    var prog = altaChecklistProgress();
+    items.push({
+      ok: prog.done >= Math.ceil(prog.total * 0.7),
+      warn: prog.done < prog.total,
+      label: 'Checklist operativo de alta (' + prog.done + '/' + prog.total + ' pasos)',
+    });
+    return { ok: items.every(function (it) { return it.ok; }), items: items };
+  }
+
+  function showSanNubeSmokeResults(report) {
+    var r = report || runSanNubeSmokeSelfCheck();
+    var rows = (r.items || [])
+      .map(function (it) {
+        var badge = it.ok
+          ? '<span class="badge badge-success">OK</span>'
+          : it.warn
+            ? '<span class="badge badge-info">Revise</span>'
+            : '<span class="badge badge-warning">Pendiente</span>';
+        return '<li style="margin:6px 0;display:flex;gap:8px;align-items:flex-start;">' + badge + '<span>' + esc(it.label) + '</span></li>';
+      })
+      .join('');
+    var body =
+      '<p class="form-hint">Comprobaciones automáticas en este equipo. Complete el resto en <strong>Guía de alta</strong>.</p>' +
+      '<ul class="crozzo-nube-checklist" style="list-style:none;padding:0;">' +
+      rows +
+      '</ul>' +
+      '<p class="form-hint">Repo: <code>npm run updates:audit</code> · Manual: <code>docs/SMOKE-CHECKLIST.md</code></p>' +
+      '<div class="modal-actions" style="margin-top:16px;">' +
+      '<button type="button" class="btn btn-outline" id="sanSmokeClose">Cerrar</button>' +
+      '<button type="button" class="btn btn-primary" id="sanSmokeOpenAlta">📋 Abrir guía de alta</button></div>';
+    if (typeof global.showModal === 'function') {
+      global.showModal('Smoke — configuración nube', body, { wide: true });
+      document.getElementById('sanSmokeClose')?.addEventListener('click', function () {
+        if (typeof global.closeModal === 'function') global.closeModal({ skipCobroAbort: true });
+      });
+      document.getElementById('sanSmokeOpenAlta')?.addEventListener('click', function () {
+        if (typeof global.closeModal === 'function') global.closeModal({ skipCobroAbort: true });
+        openSanAltaNegocioGuide();
+      });
+    }
+    if (global.showToast) {
+      global.showToast(
+        r.ok ? 'Smoke nube: todo OK en este equipo.' : 'Smoke nube: hay ítems pendientes.',
+        r.ok ? 'success' : 'warning'
+      );
+    }
+    return r;
+  }
+
+  function openSanAltaNegocioGuide() {
+    if (typeof global.isSuperAdminUser === 'function' && !global.isSuperAdminUser()) {
+      if (global.showToast) global.showToast('Solo Super Admin.', 'warning');
+      return;
+    }
+    var done = readAltaChecklistMap();
+    var prog = altaChecklistProgress();
+    var rows = ALTA_NEGOCIO_STEPS.map(function (it) {
+      var ck = done[it.id] ? ' checked' : '';
+      return (
+        '<label class="md-toggle" style="display:block;margin:10px 0;align-items:flex-start;">' +
+        '<input type="checkbox" data-alta-check="' +
+        esc(it.id) +
+        '"' +
+        ck +
+        '>' +
+        '<span>' +
+        esc(it.label) +
+        '</span></label>'
+      );
+    }).join('');
+    var body =
+      '<p class="form-hint"><strong>1 negocio = 1 proyecto Supabase.</strong> Marque cada paso al completarlo (se guarda en este navegador). Progreso: <strong id="sanAltaChecklistProgress">' +
+      prog.done +
+      '/' +
+      prog.total +
+      '</strong></p>' +
+      '<div id="sanAltaChecklistRoot" class="crozzo-nube-alta-checklist">' +
+      rows +
+      '</div>' +
+      '<p class="form-hint" style="margin-top:12px;">Documentación: <code>docs/SUPABASE-ALTA-NEGOCIO.md</code></p>' +
+      '<div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;">' +
+      '<button type="button" class="btn btn-outline" id="sanAltaGuideClose">Cerrar</button>' +
+      '<button type="button" class="btn btn-primary" id="sanAltaGuideSmoke">🧪 Smoke rápido</button></div>';
+    if (typeof global.showModal !== 'function') return;
+    global.showModal('Alta de negocio en Supabase', body, { wide: true });
+    bindAltaChecklistInputs(document.getElementById('sanAltaChecklistRoot'));
+    document.getElementById('sanAltaGuideClose')?.addEventListener('click', function () {
+      global.closeModal({ skipCobroAbort: true });
+    });
+    document.getElementById('sanAltaGuideSmoke')?.addEventListener('click', function () {
+      global.closeModal({ skipCobroAbort: true });
+      showSanNubeSmokeResults();
+    });
+  }
+
   function renderHero() {
+    var prog = altaChecklistProgress();
     return (
       '<div class="crozzo-nube-hero card">' +
       '<div class="crozzo-nube-hero__body">' +
@@ -141,7 +328,15 @@
       '<li><strong>Crear base</strong> — pegar cada script en el SQL Editor de Supabase</li>' +
       '<li><strong>Verificar</strong> — comprobar tablas y PostgREST</li>' +
       '<li><strong>Activar módulos</strong> — perfiles y menús por rol</li>' +
-      '</ol></div></div>'
+      '</ol>' +
+      '<div class="crozzo-nube-actions" style="margin-top:14px;flex-wrap:wrap;">' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnAltaGuia">📋 Guía de alta (' +
+      prog.done +
+      '/' +
+      prog.total +
+      ')</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnNubeSmoke">🧪 Smoke rápido</button>' +
+      '</div></div></div>'
     );
   }
 
@@ -233,7 +428,7 @@
       esc(s.schema) +
       '</dd>' +
       '</dl>' +
-      '<p class="form-hint">Credenciales en <code>crozzo_supabase_config</code> (solo Super Admin escribe).</p>' +
+      '<p class="form-hint">Credenciales en <code>crozzo_supabase_config</code> (solo Super Admin). Al guardar se pedirá su contraseña de nuevo.</p>' +
       '</div></div>'
     );
   }
@@ -273,9 +468,8 @@
       esc(url) +
       '" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off"></div>' +
       '<div class="form-group full"><label class="form-label">Anon key (public)</label>' +
-      '<input class="form-input" id="mdSupabaseKey" value="' +
-      esc(key) +
-      '" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off"></div>' +
+      '<input class="form-input" type="password" id="mdSupabaseKey" value="" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off" title="La clave guardada no se muestra completa; pegue de nuevo solo para cambiarla."></div>' +
+      '<p class="form-hint">Si ya hay clave guardada verá •••• y los últimos 4 caracteres.</p>' +
       '<div class="form-group"><label class="form-label">Nombre de este equipo</label>' +
       '<input class="form-input" id="mdCloudDeviceName" value="' +
       esc(deviceName) +
@@ -430,6 +624,59 @@
     );
   }
 
+  function renderEmpresaPerfilPanel() {
+    var cur = '';
+    try {
+      if (typeof global.crozzoGetPerfilEmpresa === 'function') cur = global.crozzoGetPerfilEmpresa();
+    } catch (_) {}
+    var pills = '';
+    try {
+      if (global.CrozzoPerfilesOperativos && typeof global.CrozzoPerfilesOperativos.renderQuickPills === 'function') {
+        pills = global.CrozzoPerfilesOperativos.renderQuickPills(false);
+      }
+    } catch (_) {}
+    var preview = '';
+    try {
+      if (global.CrozzoPerfilesOperativos && typeof global.CrozzoPerfilesOperativos.renderRolePreview === 'function') {
+        preview = global.CrozzoPerfilesOperativos.renderRolePreview(cur);
+      }
+    } catch (_) {}
+    return (
+      '<div class="card crozzo-nube-empresa-perfil" style="margin-top:14px;">' +
+      '<div class="card-header">' +
+      '<span class="card-title">🏢 Tamaño de empresa (cliente activo)</span>' +
+      '<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="navigateTo(\'gestion-perfiles-menus\')">⚙️ Perfiles y menús</button>' +
+      '</div>' +
+      '<p class="form-hint">Presets para grupos de aprox. <strong>20</strong>, <strong>250</strong> o <strong>500</strong> personas. ' +
+      'Ajusta ventas, compras, inventario/bodega y administración por rol.</p>' +
+      '<p class="form-hint">Perfil activo: <strong id="sanEmpresaPerfilLabel">' +
+      esc(cur || '—') +
+      '</strong></p>' +
+      '<div class="crozzo-perfil-pills" id="sanEmpresaPerfilPills">' +
+      pills +
+      '</div>' +
+      '<div id="sanEmpresaPerfilPreview" style="margin-top:12px;">' +
+      preview +
+      '</div></div>'
+    );
+  }
+
+  function bindEmpresaPerfilPanel() {
+    try {
+      global.addEventListener('crozzo-perfil-operativo-changed', function () {
+        if (global.currentPage !== 'super-admin-nube') return;
+        var label = document.getElementById('sanEmpresaPerfilLabel');
+        var prev = document.getElementById('sanEmpresaPerfilPreview');
+        var cur = typeof global.crozzoGetPerfilEmpresa === 'function' ? global.crozzoGetPerfilEmpresa() : '';
+        if (label) label.textContent = cur || '—';
+        if (prev && global.CrozzoPerfilesOperativos && global.CrozzoPerfilesOperativos.renderRolePreview) {
+          prev.innerHTML = global.CrozzoPerfilesOperativos.renderRolePreview(cur);
+        }
+        if (typeof global.crozzoRebuildMenusFromRoles === 'function') global.crozzoRebuildMenusFromRoles();
+      });
+    } catch (_) {}
+  }
+
   function renderStepModules() {
     var rows = MODULES_CLOUD.map(function (m) {
       return (
@@ -466,7 +713,9 @@
       esc(tables) +
       '</p>' +
       '<p class="form-hint">Documentación: <code>docs/INTEGRACION-MODULOS.md</code>, <code>docs/PROMPT-SQL-SUPABASE-INTEGRACION.md</code>, <code>docs/ALMACENAMIENTO-LOCAL-Y-NUBE.md</code>.</p>' +
-      '</div></div>'
+      '</div>' +
+      renderEmpresaPerfilPanel() +
+      '</div>'
     );
   }
 
@@ -570,7 +819,17 @@
     var urlEl = document.getElementById('mdSupabaseUrl');
     if (urlEl) urlEl.value = (c.supabase && c.supabase.url) || (sb && sb.url) || '';
     var keyEl = document.getElementById('mdSupabaseKey');
-    if (keyEl) keyEl.value = (c.supabase && c.supabase.anonKey) || getAnonKey(sb) || '';
+    if (keyEl) {
+      var fullKey = (c.supabase && c.supabase.anonKey) || getAnonKey(sb) || '';
+      if (typeof global.crozzoBindAnonKeyMaskedInput === 'function') {
+        global.crozzoBindAnonKeyMaskedInput(keyEl, fullKey);
+      } else {
+        keyEl.type = 'password';
+        keyEl.autocomplete = 'off';
+        keyEl.value = '';
+        keyEl.placeholder = fullKey ? 'Configurada (pegue solo para cambiar)' : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+      }
+    }
     var nameEl = document.getElementById('mdCloudDeviceName');
     if (nameEl) {
       var dn = (sb && sb.deviceName) || '';
@@ -613,7 +872,11 @@
 
   async function probeSupabaseTables() {
     var url = (document.getElementById('mdSupabaseUrl')?.value || '').trim();
-    var key = (document.getElementById('mdSupabaseKey')?.value || '').trim();
+    var keyEl = document.getElementById('mdSupabaseKey');
+    var key =
+      typeof global.crozzoGetEffectiveAnonKeyFromInput === 'function'
+        ? global.crozzoGetEffectiveAnonKeyFromInput(keyEl)
+        : (keyEl?.value || '').trim();
     var summary = document.getElementById('sanProbeSummary');
     if (!url || !key) {
       if (summary) summary.textContent = 'Configure URL y anon key en el paso 1.';
@@ -681,7 +944,13 @@
     el.addEventListener(event, handler);
   }
 
+  var _empresaPerfilPanelBound = false;
+
   function initSuperAdminNubeConfig() {
+    if (!_empresaPerfilPanelBound) {
+      _empresaPerfilPanelBound = true;
+      bindEmpresaPerfilPanel();
+    }
     var step = 1;
     try {
       step = parseInt(localStorage.getItem(LS_NUBE_STEP) || '1', 10) || 1;
@@ -705,6 +974,11 @@
       if (sqlBtn && sqlBtn.classList.contains('crozzo-nube-sql-list__item')) {
         selectSqlScript(sqlBtn.getAttribute('data-sql-key'));
       }
+    });
+
+    bindOnce(document.getElementById('sanBtnAltaGuia'), 'click', openSanAltaNegocioGuide);
+    bindOnce(document.getElementById('sanBtnNubeSmoke'), 'click', function () {
+      showSanNubeSmokeResults();
     });
 
     bindOnce(document.getElementById('sanBtnSaveCloud'), 'click', function () {
@@ -829,4 +1103,7 @@
   global.initSuperAdminNubeConfig = initSuperAdminNubeConfig;
   global.crozzoNubeSnapshot = nubeSnapshot;
   global.crozzoNubeProbeTables = probeSupabaseTables;
+  global.openSanAltaNegocioGuide = openSanAltaNegocioGuide;
+  global.runSanNubeSmokeSelfCheck = runSanNubeSmokeSelfCheck;
+  global.showSanNubeSmokeResults = showSanNubeSmokeResults;
 })(typeof window !== 'undefined' ? window : globalThis);

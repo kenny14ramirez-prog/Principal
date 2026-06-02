@@ -201,11 +201,13 @@
   }
 
   function applyComfortClasses() {
-    if (!document.body || !shouldApplyHumanLayer()) return;
-    document.body.classList.add('crozzo-session-comfort', 'crozzo-premium-human');
-    if (shouldApplyPsycheLayer()) {
-      document.body.classList.add('crozzo-premium-psyche', 'crozzo-psyche-active');
-    }
+    if (!document.body) return;
+    var human = shouldApplyHumanLayer();
+    var psyche = human && shouldApplyPsycheLayer();
+    document.body.classList.toggle('crozzo-session-comfort', human);
+    document.body.classList.toggle('crozzo-premium-human', human);
+    document.body.classList.toggle('crozzo-premium-psyche', psyche);
+    document.body.classList.toggle('crozzo-psyche-active', psyche);
   }
 
   function patchHumanToasts() {
@@ -721,7 +723,11 @@
 
   function shouldHideChipOnPage() {
     try {
-      if (global.currentPage === 'inicio-operacion') return true;
+      var p = global.currentPage;
+      if (p === 'inicio-operacion') return true;
+      if (p === 'cajero' || p === 'venta-comercial' || p === 'tablets' || p === 'cocina' || p === 'comandas') {
+        return true;
+      }
     } catch (_) {}
     return false;
   }
@@ -731,9 +737,16 @@
     injectPeakBreatheStrip();
     if (shouldHideChipOnPage()) {
       var h0 = document.getElementById('crozzo-psyche-chip-host');
-      if (h0) h0.innerHTML = '';
+      if (h0) {
+        h0.innerHTML = '';
+        h0.hidden = true;
+      }
+      var peak0 = document.getElementById('crozzo-peak-breathe-host');
+      if (peak0) peak0.innerHTML = '';
       return;
     }
+    var hostVis = document.getElementById('crozzo-psyche-chip-host');
+    if (hostVis) hostVis.hidden = false;
     var html = shouldApplyPsycheLayer() ? renderPsycheChip() : renderMinimalHumanChip();
     if (!html) {
       var h = document.getElementById('crozzo-psyche-chip-host');

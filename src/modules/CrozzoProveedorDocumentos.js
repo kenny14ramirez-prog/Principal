@@ -23,6 +23,8 @@
   ];
 
   function esc(s) {
+    if (typeof escHtml === 'function') return escHtml(s);
+    if (typeof escUserAttr === 'function') return escUserAttr(s);
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')

@@ -32,10 +32,18 @@
     return false;
   }
 
+  function isTouchNavShell() {
+    try {
+      return document.documentElement.classList.contains('crozzo-touch-shell');
+    } catch (_) {
+      return false;
+    }
+  }
+
   function measureBottomInset() {
     var bottom = 0;
     try {
-      if (isBottomNavVisible()) bottom += navHeight();
+      if (!isTouchNavShell() && isBottomNavVisible()) bottom += navHeight();
     } catch (_) {}
     /* Tauri escritorio: innerHeight ya es el área útil; no restar barra de tareas otra vez */
     if (isTauriDesktopShell() && !isBottomNavVisible()) {
@@ -82,6 +90,18 @@
     return 60;
   }
 
+  function isLikelyDesktopViewport(iw) {
+    if (isTauriDesktopShell()) return true;
+    try {
+      var doc = document.documentElement;
+      if (doc && doc.classList.contains('crozzo-form-desktop')) return true;
+      if (iw > 1024 && !global.matchMedia('(pointer: coarse) and (hover: none)').matches) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   function readViewportSize() {
     var ih = Math.round(global.innerHeight || 0);
     var iw = Math.round(global.innerWidth || 0);
@@ -100,8 +120,15 @@
         if (vvw > 0) iw = iw > 0 ? Math.min(iw, vvw) : vvw;
       }
     } catch (_) {}
+    /* Solo recortar ancho en móvil/tablet (WebView inflado); en PC usar ventana real */
     try {
-      if (global.screen && global.devicePixelRatio > 1 && global.screen.width && global.screen.height) {
+      if (
+        !isLikelyDesktopViewport(iw) &&
+        global.screen &&
+        global.devicePixelRatio > 1 &&
+        global.screen.width &&
+        global.screen.height
+      ) {
         var cssW = Math.round(global.screen.width / global.devicePixelRatio);
         var cssH = Math.round(global.screen.height / global.devicePixelRatio);
         if (cssW > 0 && iw > cssW * 1.2) iw = cssW;

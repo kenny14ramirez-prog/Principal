@@ -146,6 +146,12 @@ html.crozzo-vp-ready .app-container {
   margin: 0;
 }
 
+html.crozzo-form-desktop.crozzo-vp-ready .app-container,
+html.tauri-desktop.crozzo-vp-ready .app-container {
+  max-width: 100%;
+  width: 100%;
+}
+
 html.crozzo-vp-ready .sidebar,
 html.crozzo-vp-ready #sidebar,
 html.crozzo-vp-ready aside.sidebar {
@@ -192,9 +198,20 @@ html.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-content {
   padding-bottom: 0;
 }
 
+html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-content {
+  padding-bottom: 0;
+}
+
 html.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-body,
 html.crozzo-vp-ready body.crozzo-vp-mobile-nav #mainContent {
-  padding-bottom: calc(56px + var(--crozzo-bottom-safe));
+  padding-bottom: calc(56px + var(--crozzo-bottom-safe, 0px));
+}
+
+html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-body,
+html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav #mainContent {
+  padding-bottom: calc(
+    var(--crozzo-touch-nav-h, 56px) + max(var(--crozzo-bottom-safe, 0px), env(safe-area-inset-bottom, 0px))
+  );
 }
 
 /* Escritorio Tauri / POS restaurante ancho: menú lateral basta; ocultar barra móvil inferior */
@@ -1655,6 +1672,7 @@ html.tauri-desktop aside.sidebar.sidebar-pro {
   max-height: calc(var(--crozzo-content-h, 100dvh) - var(--crozzo-header-h, 60px)) !important;
   width: var(--sidebar-width-rail, 64px) !important;
   max-width: var(--sidebar-width-rail, 64px) !important;
+  z-index: 9998 !important;
   background: var(--bg-secondary) !important;
   border-right: 1px solid var(--border) !important;
   color: var(--text-secondary) !important;
@@ -2031,12 +2049,19 @@ html.tauri-desktop #sidebar.sidebar-pro .submenu {
   margin: 4px 12px !important;
   padding: 0 !important;
 }
-html.tauri-desktop #sidebar.sidebar-pro .nav-group:not(.nav-group-collapsed) > .nav-group-items.submenu {
+html.tauri-desktop #sidebar.sidebar-pro .nav-group:not(.nav-group-collapsed) > .nav-group-items.submenu,
+html.tauri-desktop #sidebar.sidebar-pro .nav-group-li.open:not(.nav-group-collapsed) > .nav-group-items.submenu,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group.open > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-group.open > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group-li.open > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-group-li.open > .nav-group-items {
   max-height: 900px !important;
   opacity: 1 !important;
   overflow: visible !important;
   pointer-events: auto !important;
   padding: 4px 0 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 html.tauri-desktop #sidebar.sidebar-pro .nav-group-collapsed > .nav-group-items.submenu {
   max-height: 0 !important;
@@ -2712,6 +2737,19 @@ html.tauri-desktop #menu-toggle-btn.menu-toggle:hover {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: relative;
+  z-index: 0;
+}
+.nav-group-li,
+.nav-group.nav-group-li {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.nav-group-li > .nav-group-toggle,
+.nav-group > .nav-group-toggle {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 #sidebar.sidebar-elite .nav-group-collapsed .nav-group-items:not(.open) {
@@ -6456,8 +6494,55 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
 .crozzo-rest-pos--picker {
   height: auto;
   min-height: 0;
-  max-width: 960px;
+  max-width: min(960px, 100%);
+  width: 100%;
   margin: 0 auto;
+  gap: 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.crozzo-rest-pos--picker > .crozzo-rest-pos__hero,
+.crozzo-rest-pos--picker > .crozzo-rest-pos__modes,
+.crozzo-rest-pos--picker > .crozzo-rest-pos__target-tabs,
+.crozzo-rest-pos--picker > .crozzo-rest-pos__slot-filters,
+.crozzo-rest-pos--picker > .crozzo-rest-pos__search,
+.crozzo-rest-pos--picker > .alert,
+.crozzo-rest-pos--picker > .crozzo-print-queue-bar {
+  flex-shrink: 0;
+}
+.crozzo-rest-pos--picker > .crozzo-rest-pos__slots {
+  flex: 1 1 auto;
+  min-height: 100px;
+  overflow-y: auto;
+  margin: 0;
+  align-content: start;
+}
+.crozzo-rest-pos--picker .crozzo-rest-pos__hero {
+  flex-shrink: 0;
+  z-index: 0;
+  overflow: visible;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  margin-bottom: 2px;
+}
+.crozzo-rest-pos--picker .crozzo-rest-pos__modes,
+.crozzo-rest-pos--picker .crozzo-rest-pos__target-tabs,
+.crozzo-rest-pos--picker .crozzo-rest-pos__slot-filters,
+.crozzo-rest-pos--picker .crozzo-rest-pos__search {
+  position: relative;
+  z-index: 1;
+}
+.crozzo-rest-pos--picker .crozzo-rest-pos__hero-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.crozzo-rest-pos--picker .crozzo-rest-pos__slot-filters {
+  margin-bottom: 8px;
+}
+.crozzo-rest-pos--picker .crozzo-rest-pos__search {
+  margin-bottom: 8px;
 }
 .crozzo-rest-pos__hero {
   position: relative;
@@ -6472,6 +6557,7 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
   background: linear-gradient(145deg, rgba(var(--rest-gold-rgb), 0.16) 0%, rgba(var(--rest-gold-rgb), 0.04) 45%, var(--bg-card) 100%);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   overflow: hidden;
+  flex-shrink: 0;
 }
 .crozzo-rest-pos__hero-glow {
   position: absolute;
@@ -6968,15 +7054,17 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
 .crozzo-rest-pos__workspace {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   height: 100% !important;
   display: grid;
-  grid-template-columns: 1fr min(380px, 34vw);
+  grid-template-columns: minmax(0, 1fr) min(380px, 34vw);
   gap: 8px;
   overflow: hidden;
   align-items: stretch;
 }
 .crozzo-rest-pos__workspace > * {
   min-height: 0;
+  min-width: 0;
 }
 .crozzo-rest-pos__catalog {
   display: flex;
@@ -17036,6 +17124,21 @@ html.crozzo-touch-shell .sidebar-backdrop {
   display: block;
 }
 
+html.crozzo-touch-shell .sidebar-backdrop.active {
+  z-index: 210;
+}
+
+html.crozzo-touch-shell #sidebar.open,
+html.crozzo-touch-shell #sidebar.sidebar-pro.open,
+html.crozzo-touch-shell aside.sidebar.open {
+  z-index: 220 !important;
+}
+
+html.crozzo-touch-shell body.crozzo-sidebar-drawer-open .crozzo-mobile-bottom-nav {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
 html.crozzo-touch-shell .sidebar,
 html.crozzo-touch-shell #sidebar,
 html.crozzo-touch-shell aside.sidebar {
@@ -17066,6 +17169,89 @@ html.crozzo-touch-shell aside.sidebar.sidebar-pro:not(.open) {
 html.crozzo-touch-shell #sidebar.sidebar-pro.open,
 html.crozzo-touch-shell aside.sidebar.sidebar-pro.open {
   transform: translateX(0) !important;
+}
+
+/* Drawer móvil: anular modo rail 64px de sidebar-elite (labels/submenús invisibles) */
+html.crozzo-touch-shell #sidebar.sidebar-elite,
+html.crozzo-touch-shell #sidebar.sidebar-pro.sidebar-elite {
+  width: var(--crozzo-touch-sidebar-max) !important;
+  max-width: var(--crozzo-touch-sidebar-max) !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite:not(.expanded):not(.is-expanded) .nav-group-items {
+  max-height: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition-delay: 0ms !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group-collapsed > .nav-group-items,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group-li.nav-group-collapsed > .nav-group-items,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group.nav-group-collapsed > .nav-group-items {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  display: none !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group-li.open > .nav-group-items,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group.open > .nav-group-items,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group:not(.nav-group-collapsed) > .nav-group-items.is-expanded,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group:not(.nav-group-collapsed) > .nav-group-items.open {
+  max-height: min(55vh, 520px) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-item-label,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group-title,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group-label,
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-chevron,
+html.crozzo-touch-shell #sidebar.sidebar-elite .crozzo-nav-search-wrap,
+html.crozzo-touch-shell #sidebar.sidebar-elite .demo-badge,
+html.crozzo-touch-shell #sidebar.sidebar-elite .crozzo-brand-txt,
+html.crozzo-touch-shell #sidebar.sidebar-elite .sidebar-brand,
+html.crozzo-touch-shell #sidebar.sidebar-elite .menu-text,
+html.crozzo-touch-shell #sidebar.sidebar-elite .text-label {
+  opacity: 1 !important;
+  visibility: visible !important;
+  max-width: none !important;
+  flex: 1 1 auto !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite:not(.expanded):not(.is-expanded) .nav-group-toggle,
+html.crozzo-touch-shell #sidebar.sidebar-elite:not(.expanded):not(.is-expanded) .nav-group-label,
+html.crozzo-touch-shell #sidebar.sidebar-elite:not(.expanded):not(.is-expanded) .nav-item {
+  justify-content: flex-start !important;
+  padding-left: var(--crozzo-touch-pad) !important;
+  padding-right: var(--crozzo-touch-pad) !important;
+  gap: 8px !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite .nav-icon,
+html.crozzo-touch-shell #sidebar.sidebar-elite .menu-icon {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+html.crozzo-touch-shell #sidebar.sidebar-elite .sidebar-nav,
+html.crozzo-touch-shell #sidebarNav {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+html.crozzo-touch-shell #menu-toggle-btn,
+html.crozzo-touch-shell .menu-toggle.menu-toggle-btn {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 html.crozzo-touch-shell .main-content {
@@ -17162,11 +17348,6 @@ html.crozzo-touch-shell .qty-btn {
   height: var(--crozzo-touch-btn-min);
   min-width: var(--crozzo-touch-btn-min);
   min-height: var(--crozzo-touch-btn-min);
-}
-
-html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav .main-body,
-html.crozzo-touch-shell.crozzo-vp-ready body.crozzo-vp-mobile-nav #mainContent {
-  padding-bottom: calc(var(--crozzo-touch-nav-h) + var(--crozzo-bottom-safe, 0px));
 }
 
 html.crozzo-touch-shell .login-overlay,
@@ -18237,6 +18418,27 @@ body.crozzo-honeypot-live .crozzo-honeypot-admin-badge {
 @keyframes crozzoHpIntrusionBlink {
   0%, 100% { opacity: 1; filter: brightness(1); }
   50% { opacity: 0.92; filter: brightness(1.15); }
+}
+body.crozzo-hp-threat-critical .sidebar,
+body.crozzo-hp-threat-critical #sidebar {
+  box-shadow: inset 0 0 0 2px rgba(248, 113, 113, 0.55);
+}
+body.crozzo-hp-threat-critical .main-content {
+  filter: saturate(0.85);
+}
+body.crozzo-hp-threat-critical .app-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12030;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(127, 29, 29, 0.04) 2px,
+    rgba(127, 29, 29, 0.04) 4px
+  );
 }
 body.crozzo-honeypot-real-app .app-container {
   visibility: hidden;
@@ -19763,6 +19965,16 @@ body.crozzo-a11y-focus-mode .focus-zone {
   pointer-events: none;
   transition-delay: 0ms !important;
 }
+#sidebar.sidebar-elite.is-expanded .nav-group-li.open:not(.nav-group-collapsed) > .nav-group-items,
+#sidebar.sidebar-elite.is-expanded .nav-group.open:not(.nav-group-collapsed) > .nav-group-items,
+#sidebar.sidebar-elite.expanded .nav-group-li.open:not(.nav-group-collapsed) > .nav-group-items,
+#sidebar.sidebar-elite.expanded .nav-group.open:not(.nav-group-collapsed) > .nav-group-items {
+  max-height: 1200px !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
 #sidebar.sidebar-elite .nav-group-toggle {
   display: flex;
   align-items: center;
@@ -19809,8 +20021,6 @@ body.crozzo-a11y-focus-mode .focus-zone {
 #sidebar.sidebar-elite.is-expanded .nav-group-title,
 #sidebar.sidebar-elite.expanded .nav-chevron,
 #sidebar.sidebar-elite.is-expanded .nav-chevron,
-#sidebar.sidebar-elite.expanded .crozzo-nav-search-wrap,
-#sidebar.sidebar-elite.is-expanded .crozzo-nav-search-wrap,
 #sidebar.sidebar-elite.expanded .demo-badge,
 #sidebar.sidebar-elite.is-expanded .demo-badge,
 #sidebar.sidebar-elite.expanded .crozzo-brand-txt,
@@ -19824,6 +20034,32 @@ body.crozzo-a11y-focus-mode .focus-zone {
     max-width var(--sidebar-duration) var(--sidebar-ease),
     opacity 260ms var(--sidebar-ease) 130ms,
     visibility 0s;
+}
+#sidebar.sidebar-elite.expanded .crozzo-nav-search-wrap,
+#sidebar.sidebar-elite.is-expanded .crozzo-nav-search-wrap,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .crozzo-nav-search-wrap,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .crozzo-nav-search-wrap {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  width: calc(100% - 12px) !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 6px 4px !important;
+  padding: 0 6px 6px !important;
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+#sidebar.sidebar-elite.expanded .crozzo-nav-search,
+#sidebar.sidebar-elite.is-expanded .crozzo-nav-search,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .crozzo-nav-search,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .crozzo-nav-search {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 38px !important;
+  font-size: 0.875rem !important;
+  box-sizing: border-box !important;
 }
 #sidebar.sidebar-elite .nav-chevron {
   flex: 0 0 auto;
@@ -19901,6 +20137,10 @@ body.crozzo-a11y-focus-mode .focus-zone {
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
+  padding-top: max(var(--space-6), env(safe-area-inset-top, 0px));
+  padding-right: max(var(--space-6), env(safe-area-inset-right, 0px));
+  padding-bottom: max(var(--space-6), env(safe-area-inset-bottom, 0px));
+  padding-left: max(var(--space-6), env(safe-area-inset-left, 0px));
   background: var(--login-overlay-bg, rgba(15, 23, 42, 0.92));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -19970,6 +20210,15 @@ html.crozzo-a11y-reduce-motion .crozzo-boot-update-gate__spinner {
   font-size: 0.8rem;
   color: var(--text-muted, #64748b);
   line-height: 1.45;
+}
+.crozzo-boot-update-gate__skip {
+  margin-top: var(--space-4);
+  width: 100%;
+  max-width: 280px;
+}
+.crozzo-boot-update-gate__skip:not([hidden]) {
+  display: inline-flex;
+  justify-content: center;
 }
 /* Actualizaciones — integradas al shell Executive Elite */
 .crozzo-update-critical-overlay {
@@ -22659,6 +22908,35 @@ body.crozzo-page-rest-pos .crozzo-rest-pos {
   height: 100% !important;
   max-height: 100% !important;
 }
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker {
+  gap: 10px !important;
+  padding: 4px 8px 8px !important;
+  max-width: min(960px, 100%) !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-rest-pos__hero,
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-rest-pos__modes,
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-rest-pos__target-tabs,
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-rest-pos__slot-filters,
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-rest-pos__search,
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .alert,
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-print-queue-bar {
+  flex-shrink: 0 !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker > .crozzo-rest-pos__slots {
+  flex: 1 1 auto !important;
+  min-height: 80px !important;
+  overflow-y: auto !important;
+  margin: 0 !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker .crozzo-rest-pos__hero {
+  padding: 14px 16px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  overflow: visible !important;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos:has(.crozzo-rest-pos__workspace) > .crozzo-rest-pos__bar {
   display: none !important;
 }
@@ -22674,8 +22952,11 @@ body.crozzo-page-rest-pos .crozzo-rest-mode {
 }
 body.crozzo-page-rest-pos .pos-container,
 body.crozzo-page-rest-pos .crozzo-rest-pos__workspace {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) min(380px, 30vw) !important;
   height: 100% !important;
   min-height: 0 !important;
+  min-width: 0 !important;
   max-height: none !important;
   gap: 6px !important;
   margin: 0 !important;
@@ -22684,12 +22965,17 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__workspace {
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__workspace > * {
   min-height: 0 !important;
+  min-width: 0 !important;
   height: 100% !important;
+  overflow: hidden;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__catalog {
   min-height: 0 !important;
   height: 100% !important;
   border-radius: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__search--inline {
   padding: 4px 8px !important;
@@ -22701,7 +22987,69 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__products {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow-y: auto !important;
-  padding: 6px !important;
+  padding: 8px !important;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)) !important;
+  gap: 10px !important;
+  align-content: start !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos > .alert {
+  margin: 4px 6px !important;
+  padding: 6px 10px !important;
+  font-size: 0.78rem !important;
+  line-height: 1.35 !important;
+  flex-shrink: 0 !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos > .alert strong {
+  font-size: 0.82rem !important;
+}
+body.crozzo-page-rest-pos #crozzo-psyche-chip-host,
+body.crozzo-page-rest-pos #crozzo-peak-breathe-host {
+  display: none !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-product.product-card {
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+  min-height: 92px !important;
+  padding: 10px 8px 12px !important;
+  overflow: hidden !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-product__name,
+body.crozzo-page-rest-pos .crozzo-rest-product .product-name {
+  font-size: 0.8rem !important;
+  line-height: 1.25 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  word-break: break-word !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-product__price,
+body.crozzo-page-rest-pos .crozzo-rest-product .product-price {
+  font-size: 0.9rem !important;
+  margin-top: 4px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-product__icon,
+body.crozzo-page-rest-pos .crozzo-rest-product .product-icon {
+  font-size: 1.35rem !important;
+  margin-bottom: 4px !important;
+}
+body.crozzo-page-rest-pos .main-content.main-body--rest-pos {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--picker {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket {
   min-height: 0 !important;

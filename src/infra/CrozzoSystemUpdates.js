@@ -100,8 +100,12 @@
 
   function refreshUpdateIcons() {
     try {
-      if (global.lucide && typeof global.lucide.createIcons === 'function') {
-        global.lucide.createIcons();
+      if (typeof global.crozzoRefreshLucideIcons === 'function') {
+        var updRoot = document.getElementById('mainContent') || document.querySelector('.crozzo-updates-page');
+        global.crozzoRefreshLucideIcons(updRoot || null);
+      } else if (global.lucide && typeof global.lucide.createIcons === 'function') {
+        var mc = document.getElementById('mainContent');
+        if (mc) global.lucide.createIcons({ nodes: [mc] });
       }
     } catch (_) {}
   }
@@ -410,7 +414,24 @@
     if (/different key|signature was created/i.test(raw)) {
       return 'Actualizando por método alternativo automático (instalador silencioso)…';
     }
-    return raw;
+    if (/APK aún no está|compilación Android/i.test(raw)) {
+      return 'El APK aún no está listo en GitHub. Espere la compilación o use el enlace manual en Actualizaciones.';
+    }
+    if (/No se pudo abrir la descarga del APK|navegador para descargar/i.test(raw)) {
+      return raw;
+    }
+    if (/timeout|timed out|abort/i.test(raw)) {
+      return 'La conexión tardó demasiado. Intente de nuevo con mejor señal o use «Continuar al login» si aparece.';
+    }
+    if (/failed to fetch|network error|fetch failed|enotfound|econn/i.test(raw)) {
+      return 'Sin conexión estable. Revise su internet e intente de nuevo.';
+    }
+    if (typeof global.crozzoUserFacingError === 'function') {
+      var mapped = global.crozzoUserFacingError(err);
+      if (mapped && mapped.length <= 160) return mapped;
+    }
+    if (raw.length > 140) return 'No se pudo completar la actualización. Intente de nuevo o use el enlace manual.';
+    return raw || 'No se pudo completar la actualización.';
   }
 
   function getUpdateClientProfile() {
@@ -2218,14 +2239,18 @@
         }
         return TU.openExternalUrl(apkUrl).then(function (ok) {
           if (!ok) {
-            return Promise.reject(new Error('No se pudo abrir la descarga del APK.'));
+            return Promise.reject(
+              new Error(
+                'No se pudo abrir el navegador para descargar el APK. Use Actualizaciones → enlace manual o copie la URL del release.'
+              )
+            );
           }
           appendLocalLog('apk_download', {
             version: targetVersion || VERSION_AVAIL,
             type: 'android',
             message: apkUrl,
           });
-          if (opts.markInstalled !== false) {
+          if (opts.markInstalled === true) {
             saveInstalledVersion(targetVersion || VERSION_AVAIL);
           }
           if (onProgress) {
@@ -2386,9 +2411,28 @@
       '<h2 class="crozzo-boot-update-gate__title">Preparando el sistema</h2>' +
       '<p class="crozzo-boot-update-gate__msg" id="crozzoBootUpdateMsg">Comprobando actualizaciones…</p>' +
       '<p class="crozzo-boot-update-gate__hint" id="crozzoBootUpdateHint">No cierre la aplicación. Se descargará el paquete correcto para este dispositivo (Windows, Mac, tablet o navegador) antes del inicio de sesión.</p>' +
+      '<button type="button" class="btn btn-outline crozzo-boot-update-gate__skip" id="crozzoBootUpdateSkip" hidden>Continuar al login</button>' +
       '</div>';
     document.body.appendChild(el);
+    var skipBtn = document.getElementById('crozzoBootUpdateSkip');
+    if (skipBtn && !skipBtn._crozzoBound) {
+      skipBtn._crozzoBound = true;
+      skipBtn.addEventListener('click', function () {
+        if (_installInProgress || _criticalInstallState === 'installing') return;
+        setBootGateMessage('Continuando al inicio de sesión…');
+        notifyBootUpdatesReady({ ok: false, reason: 'user_skip' });
+      });
+    }
     return el;
+  }
+
+  function showBootUpdateGateSlowOptions() {
+    var skip = document.getElementById('crozzoBootUpdateSkip');
+    if (!skip) return;
+    var profile = getUpdateClientProfile();
+    if (profile.isWeb || profile.kind === 'ios-web' || profile.kind === 'android-web') {
+      skip.hidden = false;
+    }
   }
 
   function setBootGateMessage(msg) {
@@ -2513,9 +2557,19 @@
         _criticalInstallState !== 'installing'
       ) {
         console.warn('[crozzo-updates] tiempo máximo de arranque; continuando sin bloquear');
+        setBootGateMessage(
+          'No se pudo comprobar actualizaciones a tiempo. Puede iniciar sesión; revise «Actualizaciones del sistema» más tarde.'
+        );
         notifyBootUpdatesReady({ ok: false, reason: 'timeout' });
       }
     }, BOOT_GATE_MAX_MS);
+
+    var slowHintTimer = setTimeout(function () {
+      if (!_bootUpdatesReady && !_installInProgress) {
+        setBootGateMessage('La conexión es lenta. Sigue comprobando actualizaciones…');
+        showBootUpdateGateSlowOptions();
+      }
+    }, 14000);
 
     return refreshBinaryVersion().then(function () {
       return fetchRegistryData();
@@ -2535,13 +2589,16 @@
       })
       .then(function (res) {
         clearTimeout(safetyTimer);
+        clearTimeout(slowHintTimer);
         if (res && res.exiting) return res;
         notifyBootUpdatesReady({ ok: true });
         return res;
       })
       .catch(function (err) {
         clearTimeout(safetyTimer);
+        clearTimeout(slowHintTimer);
         console.warn('[crozzo-updates] boot pipeline', err);
+        setBootGateMessage(humanizeInstallError(err));
         notifyBootUpdatesReady({ ok: false, error: err });
         return { ok: false, error: err };
       });
@@ -2706,15 +2763,14 @@
           return res;
         }
         if (res && res.plan === 'apk_download' && !res.exiting) {
-          _criticalAutoAttempts += 1;
-          if (_criticalAutoAttempts < CRITICAL_AUTO_INSTALL_MAX) {
-            setBootGateMessage('Reintentando actualización Android…');
-            return delay(4000).then(function () {
-              return runCriticalInstall(entry);
-            });
-          }
-          _criticalInstallState = 'failed';
-          setCheckStatus('APK Android: requiere confirmación del sistema.');
+          _criticalAutoAttempts = 0;
+          _criticalInstallState = 'idle';
+          setCriticalOpen(true);
+          populateCriticalInfo(
+            'idle',
+            'Descarga del APK iniciada. Instálelo desde el navegador y vuelva a abrir Crozzo POS.'
+          );
+          setCheckStatus('Instale el APK descargado para completar la actualización.');
           return res;
         }
         return refreshBinaryVersion().then(function () {
@@ -3306,16 +3362,18 @@
     setCriticalOpen(true);
     populateCriticalInfo('installing');
     setCheckStatus('Aplicando actualización ' + remote + '…');
-    return applyClientUpdate(remote, handleInstallProgress, { silent: false, markInstalled: true })
+    return applyClientUpdate(remote, handleInstallProgress, {
+      silent: false,
+      markInstalled: getUpdateClientProfile().kind !== 'android',
+    })
       .then(function (res) {
         if (res && res.exiting && (res.plan === 'web_reload' || res.plan === 'apk_download')) {
           return res;
         }
         if (res && res.plan === 'apk_download') {
-          _criticalInstallState = 'success';
-          markCriticalInstalled(entry, remote);
+          _criticalInstallState = 'idle';
           populateCriticalInfo(
-            'success',
+            'idle',
             'Descarga del APK iniciada. Instálelo y vuelva a abrir la app.'
           );
           setCheckStatus('Descargue e instale el APK v' + String(remote).replace(/^v/i, '') + '.');

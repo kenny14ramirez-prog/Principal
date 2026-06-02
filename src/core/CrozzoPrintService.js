@@ -1917,6 +1917,31 @@
     });
   }
 
+  function crozzoPrintBrowserDialogHint(options) {
+    if (!options || options.toast === false || typeof global.showToast !== 'function') return;
+    if (crozzoIsTauri()) return;
+    var ua = String((global.navigator && global.navigator.userAgent) || '');
+    var TU = global.CrozzoTauriUpdater;
+    var kind = TU && TU.getClientKind ? TU.getClientKind() : '';
+    if (/iPad|iPhone|iPod/i.test(ua) || kind === 'ios-web') {
+      global.showToast('En iPhone o iPad use Compartir → Imprimir o guardar en Archivos.', 'info');
+      return;
+    }
+    if ((/Android/i.test(ua) || kind === 'android-web') && !crozzoIsTauri()) {
+      global.showToast(
+        'En tablet o Android use el menú del navegador (Compartir o Imprimir) y elija impresora o PDF.',
+        'info'
+      );
+      return;
+    }
+    if (/Mac OS X|Macintosh/i.test(ua)) {
+      global.showToast(
+        'En macOS use el cuadro de impresión del sistema para elegir impresora o guardar como PDF.',
+        'info'
+      );
+    }
+  }
+
   function crozzoPrintThermalHtmlFallback(innerHtml, pageW, copies, options) {
     options = options || {};
     if (crozzoPreferSilentPrint(options)) {
@@ -1928,6 +1953,7 @@
       }
       return Promise.resolve(false);
     }
+    if (options.allowDialog) crozzoPrintBrowserDialogHint(options);
     var html =
       options.useFullDocument && options.htmlDocument
         ? options.htmlDocument
@@ -1958,7 +1984,9 @@
         return runCopy(i);
       });
     }
-    return chain;
+    return chain.then(function (finalOk) {
+      return finalOk;
+    });
   }
 
   /** Impresión HTML (inventario, reportes): en Tauri envía directo a la impresora configurada; allowDialog:true fuerza cuadro Windows. */

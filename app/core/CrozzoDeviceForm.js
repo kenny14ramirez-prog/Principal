@@ -35,6 +35,10 @@
       if (docEl && docEl.clientWidth > 0) values.push(Math.round(docEl.clientWidth));
       if (global.innerWidth > 0) values.push(Math.round(global.innerWidth));
       var w = values.length ? Math.min.apply(null, values) : 0;
+      var coarseTouch = isCoarseTouchShell();
+      if (!coarseTouch && w > BREAK_TABLET) {
+        return w;
+      }
       if (global.screen && global.devicePixelRatio > 1 && global.screen.width) {
         var cssW = Math.round(global.screen.width / global.devicePixelRatio);
         if (cssW > 0) {
@@ -103,8 +107,20 @@
     }, 380);
   }
 
+  function isAndroidTauriShell() {
+    try {
+      return isTauriShell() && /Android/i.test(global.navigator && global.navigator.userAgent ? global.navigator.userAgent : '');
+    } catch (_) {
+      return false;
+    }
+  }
+
   function detectFormFactor() {
     var w = readWidth();
+    if (isAndroidTauriShell()) {
+      if (w <= BREAK_MOBILE) return 'mobile';
+      return 'tablet';
+    }
     if (w <= BREAK_MOBILE) return 'mobile';
     if (w <= BREAK_TABLET) return 'tablet';
     if (isCoarseTouchShell()) return 'tablet';
@@ -166,9 +182,14 @@
 
     if ((prev && prev !== factor) || (prevTier && prevTier !== tier)) {
       markFormResizeTransition(doc);
-      try {
-        if (typeof global.initMobileUX === 'function') global.initMobileUX();
-      } catch (_) {}
+    try {
+      if (typeof global.initMobileUX === 'function') global.initMobileUX();
+    } catch (_) {}
+    try {
+      if (global.CrozzoSidebarNav && typeof global.CrozzoSidebarNav.refresh === 'function') {
+        global.CrozzoSidebarNav.refresh();
+      }
+    } catch (_) {}
     }
 
     return factor;

@@ -1,0 +1,30 @@
+[[permission]]
+identifier = "allow-crozzo-http"
+description = "HTTP GET/HEAD desde Rust (evita CORS en actualizaciones)"
+commands.allow = ["crozzo_http_get_text", "crozzo_http_head"]
+
+[[permission]]
+identifier = "allow-crozzo-install"
+description = "Instalador silencioso Windows/macOS"
+commands.allow = ["install_setup_from_url", "install_dmg_from_url", "probe_platform_installer"]
+
+[[permission]]
+identifier = "allow-crozzo-dian"
+description = "Consultas DIAN VPFE y adquiriente"
+commands.allow = ["fetch_dian_vpfe", "fetch_dian_adquiriente"]
+
+[[permission]]
+identifier = "allow-crozzo-crm-registro"
+description = "Servidor LAN registro CRM por QR"
+commands.allow = [
+  "crm_registro_start",
+  "crm_registro_stop",
+  "crm_registro_status",
+  "crm_registro_drain_pending",
+  "crm_registro_push_pending",
+]
+
+[[permission]]
+identifier = "allow-crozzo-webview-camera"
+description = "Reset permiso cámara WebView2"
+commands.allow = ["cxf_reset_webview_camera_permission"]

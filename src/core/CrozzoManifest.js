@@ -72,6 +72,9 @@
     if (p === 'compras-ordenes') return 'centro-compras';
     if (p === 'compras-oficina') return 'centro-compras';
     if (p === 'costos-sql') return 'costos-reservorio';
+    if (p === 'sistema-costos-inv') return 'costos-inventario';
+    if (p === 'sistema-costos-matriz') return 'costos-matriz';
+    if (p === 'punto-venta') return 'cajero';
     try {
       if (typeof global.crozzoProcesosPageToView === 'function' && global.crozzoProcesosPageToView(p)) {
         return 'centro-procesos';

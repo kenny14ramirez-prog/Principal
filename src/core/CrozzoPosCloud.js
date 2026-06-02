@@ -19,6 +19,11 @@
  * validación de columnas PostgREST antes de mirror (mensajes guiados); modo híbrido/offline en runtime. Contingencia DIAN formal = roadmap (ver `crozzo-roadmap-recomendaciones.csv`).
  */
 window.CROZZO_QUIET = true;
+function crozzoCloudFacingErr(err) {
+  if (typeof global.crozzoUserFacingError === 'function') return global.crozzoUserFacingError(err);
+  const msg = err && typeof err === 'object' ? String(err.message || err.error || err.details || '') : String(err || '');
+  return msg || 'No se pudo conectar. Revise su internet e intente de nuevo.';
+}
 (function crozzoQuietConsoleErrors() {
   try {
     if (typeof console === 'undefined' || console.__crozzoErrPatched) return;
@@ -426,6 +431,8 @@ window.enqueueOfflineOperation = enqueueOfflineOperation;
  */
 function crozzoSaleSyncTransactionId(f) {
   if (!f) return newOfflineSyncTransactionId();
+  const attempt = f.saleAttemptId != null ? String(f.saleAttemptId) : '';
+  if (attempt) return 'sale-attempt-' + attempt;
   const u = f.uuid != null ? String(f.uuid) : '';
   if (u) return 'sale-' + u;
   const c = f.consecutivo != null ? String(f.consecutivo) : '';
@@ -478,13 +485,36 @@ function crozzoMirrorSaleCheckConstraintError(err) {
   const msg = String(err.message || err.details || err.hint || '');
   return /check constraint|facturas_estado_check|estado_check/i.test(msg);
 }
+function crozzoOfflineQueueHasSaleDuplicate(q, f, tid) {
+  if (!Array.isArray(q) || !f) return false;
+  const t = tid != null ? String(tid) : '';
+  const attempt = f.saleAttemptId != null ? String(f.saleAttemptId) : '';
+  const uuid = f.uuid != null ? String(f.uuid) : '';
+  return q.some(function (r) {
+    if (!r || r.type !== 'sale') return false;
+    const rt =
+      r.transaction_id ||
+      r.sync_transaction_id ||
+      (r.payload && (r.payload.transaction_id || r.payload.sync_transaction_id));
+    if (t && rt && String(rt) === t) return true;
+    const pf = r.payload && r.payload.factura;
+    if (!pf) return false;
+    if (uuid && pf.uuid && String(pf.uuid) === uuid) return true;
+    if (attempt && pf.saleAttemptId != null && String(pf.saleAttemptId) === attempt) return true;
+    return false;
+  });
+}
 function crozzoQueueFacturaForCloudSync(f) {
   if (!f) return;
   try {
     const tid = crozzoSaleSyncTransactionId(f);
+    const q = readOfflineQueue();
+    if (crozzoOfflineQueueHasSaleDuplicate(q, f, tid)) {
+      return;
+    }
     const estadoSupa = crozzoMapLocalFacturaEstadoForSupabase(f.estado, !!f.is_demo);
-    const facturaPayload = { ...f, estado: estadoSupa };
-    enqueueOfflineOperation({
+    const facturaPayload = { ...f, estado: estadoSupa, saleAttemptId: f.saleAttemptId };
+    const enq = enqueueOfflineOperation({
       operation: 'insert',
       table_name: 'sales',
       type: 'sale',
@@ -496,6 +526,7 @@ function crozzoQueueFacturaForCloudSync(f) {
       },
       device_id: typeof crozzoCloudDeviceUuidForRest === 'function' ? crozzoCloudDeviceUuidForRest() : undefined,
     });
+    if (enq && enq.deduped) return;
   } catch (e) {
     console.warn('[crozzo-sb] cola ventas', e);
   }
@@ -639,6 +670,8 @@ async function crozzoTryMirrorSaleToSupabase(f) {
 }
 window.crozzoMapLocalFacturaEstadoForSupabase = crozzoMapLocalFacturaEstadoForSupabase;
 window.crozzoQueueFacturaForCloudSync = crozzoQueueFacturaForCloudSync;
+window.crozzoSaleSyncTransactionId = crozzoSaleSyncTransactionId;
+window.crozzoOfflineQueueHasSaleDuplicate = crozzoOfflineQueueHasSaleDuplicate;
 window.crozzoTryMirrorSaleToSupabase = crozzoTryMirrorSaleToSupabase;
 /**
  * Normaliza fila para sync_queue antes de enviar a PostgREST.
@@ -921,12 +954,12 @@ window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase(
   if (!sb || !rawUser.includes('@')) return { handled: false };
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email: rawUser, password: pwd });
-    if (error) return { handled: true, ok: false, error: error.message || 'auth_error' };
+    if (error) return { handled: true, ok: false, error: crozzoCloudFacingErr(error) };
     if (typeof window.crozzoMarkInteractiveLoginBoot === 'function') window.crozzoMarkInteractiveLoginBoot();
     await hydrateProfileFromSession(data.session);
     return { handled: true, ok: true };
   } catch (e) {
-    return { handled: true, ok: false, error: String(e?.message || e) };
+    return { handled: true, ok: false, error: crozzoCloudFacingErr(e) };
   }
 };
 window.__crozzoSupabaseSignOut = async function crozzoSupabaseSignOut() {
@@ -1471,11 +1504,21 @@ function crozzoSetStatusPill(el, dotClass, text, title, extraClass) {
       '</span>';
   }
 }
-function crozzoRefreshLucideIcons() {
+function crozzoRefreshLucideIcons(scopeEl) {
   try {
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-      lucide.createIcons({ attrs: { 'stroke-width': 1.5 } });
+    if (typeof lucide === 'undefined' || !lucide.createIcons) return;
+    var nodes = [];
+    if (scopeEl && scopeEl.nodeType === 1) nodes.push(scopeEl);
+    else {
+      var mc = document.getElementById('mainContent');
+      var sb = document.querySelector('.sidebar');
+      var mbn = document.getElementById('crozzoMobileBottomNav');
+      if (mc) nodes.push(mc);
+      if (sb) nodes.push(sb);
+      if (mbn) nodes.push(mbn);
     }
+    if (!nodes.length) return;
+    lucide.createIcons({ nodes: nodes, attrs: { 'stroke-width': 1.5 } });
   } catch (_) {}
 }
 function crozzoInitNavSearch() {
@@ -1588,7 +1631,12 @@ function hydrateMdSupabaseInputsFromLs() {
   const j = readCrozzoSupabaseJson();
   if (j) {
     if (j.url) urlEl.value = j.url;
-    if (j.anonKey) keyEl.value = j.anonKey;
+    const ak = crozzoSupabaseEffectiveAnonKey(j) || j.anonKey || '';
+    if (typeof window.crozzoBindAnonKeyMaskedInput === 'function') {
+      window.crozzoBindAnonKeyMaskedInput(keyEl, ak);
+    } else if (ak) {
+      keyEl.value = ak;
+    }
     if (syncEl) syncEl.checked = !!j.syncEnabled;
     if (nameEl && j.deviceName) nameEl.value = j.deviceName;
     if (idEl && j.deviceId && !idEl.value) idEl.value = j.deviceId;
@@ -1596,7 +1644,11 @@ function hydrateMdSupabaseInputsFromLs() {
     const u = (lsGet(LS.URL_PRIMARY) || lsGet(LS.URL_LEGACY) || '').trim();
     const k = (lsGet(LS.KEY_PRIMARY) || lsGet(LS.KEY_LEGACY) || '').trim();
     if (u) urlEl.value = u;
-    if (k) keyEl.value = k;
+    if (typeof window.crozzoBindAnonKeyMaskedInput === 'function') {
+      window.crozzoBindAnonKeyMaskedInput(keyEl, k);
+    } else if (k) {
+      keyEl.value = k;
+    }
     if (syncEl) syncEl.checked = false;
   }
   if (idEl && !idEl.value) {

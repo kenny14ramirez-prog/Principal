@@ -477,11 +477,22 @@
   }
 
   function esc(s) {
+    if (typeof escHtml === 'function') return escHtml(s);
+    if (typeof escUserAttr === 'function') return escUserAttr(s);
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function safeDocMediaAttr(url) {
+    var u = String(url || '').trim();
+    if (!u || /^javascript:/i.test(u) || /^vbscript:/i.test(u)) return '';
+    if (/^(blob:|data:|https?:\/\/)/i.test(u)) {
+      return typeof escHtml === 'function' ? escHtml(u) : esc(u);
+    }
+    return '';
   }
 
   function normNit(raw) {
@@ -3809,6 +3820,25 @@
       .replace(/"/g, '&quot;');
   }
 
+  /** Solo blob/data/https para src/href de documentos (evita javascript: en previews). */
+  function safeDocMediaUrl(url) {
+    var u = String(url || '').trim();
+    if (!u || /^javascript:/i.test(u) || /^vbscript:/i.test(u)) return '';
+    if (/^(blob:|data:|https?:\/\/)/i.test(u)) return u;
+    return '';
+  }
+
+  function safeDocMediaAttr(url) {
+    var safe = safeDocMediaUrl(url);
+    return safe ? esc(safe) : '';
+  }
+
+  function cxfCssEscape(id) {
+    var s = String(id == null ? '' : id);
+    if (typeof CSS !== 'undefined' && CSS.escape) return CSS.escape(s);
+    return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
   function attrQuote(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
@@ -5135,7 +5165,7 @@
       img.style.display = 'none';
       return;
     }
-    img.src = doc.previewUrl;
+    img.src = safeDocMediaUrl(doc.previewUrl) || '';
     img.style.display = 'block';
     if (loading) {
       if (doc.previewPages > 1) {
@@ -5720,12 +5750,12 @@
       return (
         '<div class="cxf-pdf-preview-host cxf-preview-frame--lg cxf-pdf-preview-host--ready">' +
         '<img class="cxf-preview-img cxf-preview-img--lg cxf-pdf-preview-img" src="' +
-        doc.previewUrl +
+        safeDocMediaAttr(doc.previewUrl) +
         '" alt="Vista previa"></div>'
       );
     }
     if (isPdfDoc(doc)) return renderPdfPreviewHtml(doc, 'cxf-preview-frame--lg');
-    return '<img class="cxf-preview-img cxf-preview-img--lg" src="' + esc(doc.dataUrl) + '" alt="Factura">';
+    return '<img class="cxf-preview-img cxf-preview-img--lg" src="' + safeDocMediaAttr(doc.dataUrl) + '" alt="Factura">';
   }
 
   function renderSplitPdfModal() {
@@ -7521,7 +7551,7 @@
       preview =
         '<div class="cxf-pdf-preview-host cxf-preview-frame--card cxf-pdf-preview-host--ready">' +
         '<img class="cxf-preview-img cxf-preview-img--card cxf-pdf-preview-img" src="' +
-        doc.previewUrl +
+        safeDocMediaAttr(doc.previewUrl) +
         '" alt="Vista previa del documento"></div>';
     } else if (isPdfDoc(doc)) {
       ensureDocBlobAttached(doc);
@@ -7532,7 +7562,7 @@
           esc(doc.id) +
           '">' +
           '<iframe class="cxf-pdf-preview-iframe" src="' +
-          esc(blobUrl) +
+          safeDocMediaAttr(blobUrl) +
           '#toolbar=0&navpanes=0" title="' +
           esc(doc.nombre || 'PDF') +
           '"></iframe></div>';
@@ -7544,7 +7574,7 @@
       }
     } else {
       preview =
-        '<img class="cxf-preview-img cxf-preview-img--card" src="' + esc(doc.dataUrl) + '" alt="">';
+        '<img class="cxf-preview-img cxf-preview-img--card" src="' + safeDocMediaAttr(doc.dataUrl) + '" alt="">';
     }
     return (
       '<div class="cxf-prov-factura-card__preview cxf-preview-wrap">' +
@@ -9088,7 +9118,11 @@
   function patchFeLoaderDom(host, provId, facturaId, progreso) {
     if (!host || !progreso) return false;
     var loader = host.querySelector(
-      '[data-fe-loader][data-prov-id="' + provId + '"][data-factura-id="' + facturaId + '"]'
+      '[data-fe-loader][data-prov-id="' +
+        cxfCssEscape(provId) +
+        '"][data-factura-id="' +
+        cxfCssEscape(facturaId) +
+        '"]'
     );
     if (!loader) return false;
     var pct = progreso.pct || 0;
@@ -12191,6 +12225,7 @@
   }
 
   function esc(s) {
+    if (typeof escHtml === 'function') return escHtml(s);
     if (typeof escUserAttr === 'function') return escUserAttr(s);
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')

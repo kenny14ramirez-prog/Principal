@@ -16,9 +16,9 @@
     ],
     mediano: [
       'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
-      'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones',
-      'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa', 'config-comandas',
-      'nomina-planilla', 'auditoria',
+      'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'centro-compras',
+      'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa',
+      'config-comandas', 'nomina-planilla', 'auditoria',
     ],
     grande: [
       'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
@@ -67,7 +67,7 @@
       cocina: ['cocina', 'comandas', 'pedidos-internos'],
       inventario: [
         'centro-compras', 'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'inventarios',
-        'catalogo-mp',
+        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv',
       ],
       admin: [
         'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
@@ -151,7 +151,7 @@
     pequeno: {
       id: 'pequeno',
       label: 'Pequeño negocio',
-      desc: '10–20 cubiertos · 3–5 empleados · menú mínimo por rol.',
+      desc: '~20 personas · operación compacta · menú mínimo por rol (caja, compras básicas).',
       icon: '🏠',
       tipo: 'restaurante',
       tamano: 'pequeno',
@@ -167,7 +167,7 @@
     mediano: {
       id: 'mediano',
       label: 'Restaurante mediano',
-      desc: '20–50 cubiertos · 8–12 empleados · compras y costos básicos.',
+      desc: '~250 personas · compras, cotizaciones, costos e inventario de bodega.',
       icon: '🍽️',
       tipo: 'restaurante',
       tamano: 'mediano',
@@ -183,7 +183,7 @@
     grande: {
       id: 'grande',
       label: 'Restaurante grande',
-      desc: '50–150+ cubiertos · producción, compras avanzadas y auditoría.',
+      desc: '~500 personas · producción, órdenes de compra, bodega continua y auditoría.',
       icon: '🏨',
       tipo: 'restaurante',
       tamano: 'grande',
@@ -279,11 +279,16 @@
   };
 
   function normalizeRol(rol) {
-    if (typeof global.crozzoNormalizeAppRol === 'function') return global.crozzoNormalizeAppRol(rol);
-    return String(rol || 'caja')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '_');
+    var r;
+    if (typeof global.crozzoNormalizeAppRol === 'function') r = global.crozzoNormalizeAppRol(rol);
+    else
+      r = String(rol || 'caja')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/-/g, '_');
+    if (r === 'jefe_compras') return 'inventario';
+    return r;
   }
 
   function getPerfilId(perfil) {

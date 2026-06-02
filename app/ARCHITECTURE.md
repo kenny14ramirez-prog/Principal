@@ -58,7 +58,7 @@ npm run sync
 
 ## Monolito (edición masiva)
 
-`Crozzo_POS_Completo.monolith.html` — backup / edición única. Regenerar trozos:
+`Crozzo_POS_Completo.monolith.html` — backup / edición única. **No usar en producción ni empaquetado Tauri** (puede quedar desfasado del shell modular en `app/core/`). Regenerar trozos:
 
 ```bat
 node scripts/split-pos-html.mjs

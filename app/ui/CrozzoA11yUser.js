@@ -312,7 +312,14 @@
     if (typeof global.saveUsuarios === 'function') global.saveUsuarios(conf.staff);
     if (u.id === 'KENNY' && typeof global.config !== 'undefined' && global.config.get) {
       var seg = global.config.get('seguridad') || {};
-      global.config.set('seguridad', Object.assign({}, seg, { kennyPasswordChanged: true }));
+      var hpKenny = Object.assign({}, seg.honeypot || {}, { produccionEstricta: true });
+      if (global.CrozzoAuthSecurity && typeof global.CrozzoAuthSecurity.normalizeHoneypot === 'function') {
+        hpKenny = global.CrozzoAuthSecurity.normalizeHoneypot(hpKenny);
+      }
+      global.config.set(
+        'seguridad',
+        Object.assign({}, seg, { kennyPasswordChanged: true, honeypot: hpKenny })
+      );
     }
     if (typeof global.config !== 'undefined' && global.config && global.config.addAudit) {
       global.config.addAudit('password_cambiada', 'Usuario ' + u.id + ' actualizó su contraseña');

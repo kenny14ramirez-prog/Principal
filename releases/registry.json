@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-01T20:18:40.583Z",
+  "updatedAt": "2026-06-02T02:21:42.475Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -371,6 +371,35 @@
       "installMode": "auto",
       "changelog": [
         "apk"
+      ]
+    },
+    {
+      "id": "1.0.47-critical",
+      "version": "v1.0.47",
+      "semver": "1.0.47",
+      "type": "critical",
+      "message": "Parche seguridad 1.0.47: auth PBKDF2 sin PIN debil; nube solo Super Admin; honeypot produccion estricta; idempotencia caja; timers en segundo plano; smoke diagnosticos",
+      "publishedAt": "2026-06-01T22:57:59.415Z",
+      "installMode": "auto",
+      "changelog": [
+        "Parche seguridad 1.0.47: auth PBKDF2 sin PIN debil",
+        "nube solo Super Admin",
+        "honeypot produccion estricta",
+        "idempotencia caja",
+        "timers en segundo plano",
+        "smoke diagnosticos"
+      ]
+    },
+    {
+      "id": "1.0.48-critical",
+      "version": "v1.0.48",
+      "semver": "1.0.48",
+      "type": "critical",
+      "message": "global ",
+      "publishedAt": "2026-06-02T02:21:42.475Z",
+      "installMode": "auto",
+      "changelog": [
+        "global"
       ]
     }
   ]

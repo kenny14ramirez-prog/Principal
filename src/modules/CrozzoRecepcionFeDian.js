@@ -472,11 +472,22 @@
   }
 
   function esc(s) {
+    if (typeof escHtml === 'function') return escHtml(s);
+    if (typeof escUserAttr === 'function') return escUserAttr(s);
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function safeDocMediaAttr(url) {
+    var u = String(url || '').trim();
+    if (!u || /^javascript:/i.test(u) || /^vbscript:/i.test(u)) return '';
+    if (/^(blob:|data:|https?:\/\/)/i.test(u)) {
+      return typeof escHtml === 'function' ? escHtml(u) : esc(u);
+    }
+    return '';
   }
 
   function normNit(raw) {

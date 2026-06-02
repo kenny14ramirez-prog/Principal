@@ -71,6 +71,7 @@ reqFile('scripts/verify-release-multiplatform.mjs');
 reqFile('scripts/lib/release-artifact-checks.mjs');
 reqFile('scripts/lib/update-audit-static.mjs');
 reqFile('scripts/audit-updates-full.mjs');
+reqFile('docs/SMOKE-CHECKLIST.md');
 reqFile('.github/workflows/tauri-release.yml');
 const releaseYml = join(root, '.github/workflows/release.yml');
 if (existsSync(releaseYml)) {
@@ -100,6 +101,10 @@ for (const dir of FRONTEND_DIRS) {
 reqSyncedPair('app/infra/CrozzoSystemUpdates.js', 'src/infra/CrozzoSystemUpdates.js');
 reqSyncedPair('app/infra/CrozzoTauriUpdater.js', 'src/infra/CrozzoTauriUpdater.js');
 reqSyncedPair('app/core/CrozzoManifest.js', 'src/core/CrozzoManifest.js');
+reqSyncedPair('app/core/CrozzoViewportFit.js', 'src/core/CrozzoViewportFit.js');
+reqSyncedPair('app/core/CrozzoDeviceForm.js', 'src/core/CrozzoDeviceForm.js');
+reqSyncedPair('app/core/CrozzoAuthSecurity.js', 'src/core/CrozzoAuthSecurity.js');
+reqSyncedPair('app/css/CrozzoPosStyles.css', 'src/css/CrozzoPosStyles.css');
 
 const tauri = readJson('src-tauri/tauri.conf.json');
 if (tauri) {

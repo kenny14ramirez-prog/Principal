@@ -15,6 +15,48 @@
   var _hoverOpenTimer = null;
   var _hoverCloseTimer = null;
   var _sidebarTransitionTimer = null;
+  var _boundNavEl = null;
+  var _navCoreReady = false;
+
+  function isDrawerNavMode() {
+    try {
+      var doc = document.documentElement;
+      if (doc && doc.classList.contains('crozzo-touch-shell')) return true;
+      var body = document.body;
+      return !!(body && (body.classList.contains('mobile') || body.classList.contains('tablet')));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function applyDrawerNavMode() {
+    if (!isDrawerNavMode()) return;
+    var sb = getSidebar();
+    if (!sb) return;
+    clearHoverTimers();
+    sb.classList.add('crozzo-drawer-nav');
+    setSidebarExpanded(true, false);
+    var btn = document.getElementById('menu-toggle-btn');
+    if (btn) {
+      btn.style.display = 'none';
+      btn.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function clearDrawerNavMode() {
+    if (isDrawerNavMode()) return;
+    var sb = getSidebar();
+    if (!sb) return;
+    clearHoverTimers();
+    sb.classList.remove('crozzo-drawer-nav');
+    var btn = document.getElementById('menu-toggle-btn');
+    if (btn) {
+      btn.style.removeProperty('display');
+      btn.removeAttribute('aria-hidden');
+    }
+    var st = readState();
+    setSidebarExpanded(!!st.pinned, false);
+  }
 
   function getSidebar() {
     return document.getElementById('sidebar');
@@ -157,6 +199,12 @@
     }
   }
 
+  function hasOpenNavGroup() {
+    return getGroups().some(function (g) {
+      return g.classList.contains('open') && !g.classList.contains('nav-group-collapsed');
+    });
+  }
+
   function collapseAllGroups(persist) {
     getGroups().forEach(function (g) {
       applyGroupOpen(g, false, false);
@@ -203,20 +251,44 @@
     } catch (_) {}
   }
 
+  function collapseGroupsForRail() {
+    getGroups().forEach(function (g) {
+      applyGroupOpen(g, false, false);
+    });
+  }
+
+  function maybeCollapseRailAfterInteraction() {
+    var sb = getSidebar();
+    if (!sb || shouldBlockHoverToggleGlobal(sb)) return;
+    if (!isSidebarExpanded(sb)) return;
+    if (hasOpenNavGroup()) return;
+    if (sb.matches(':hover')) return;
+    setSidebarExpanded(false, false);
+  }
+
+  function shouldBlockHoverToggleGlobal(sb) {
+    if (!sb) sb = getSidebar();
+    return !!readState().pinned || (sb && sb.classList.contains('is-nav-searching'));
+  }
+
   function setSidebarExpanded(expanded, persist) {
     var sb = getSidebar();
     if (!sb) return;
+    var st = readState();
     var wasExpanded = isSidebarExpanded(sb);
     sb.classList.toggle('expanded', !!expanded);
     sb.classList.toggle('is-expanded', !!expanded);
     sb.classList.toggle('collapsed', !expanded);
     if (persist) {
-      var st = readState();
       st.pinned = !!expanded;
       writeState(st);
       try {
         localStorage.setItem(LS_LEGACY_PINNED, expanded ? '1' : '0');
       } catch (_) {}
+      if (expanded) restoreGroupsState(false);
+    }
+    if (!expanded && !st.pinned && !sb.classList.contains('is-nav-searching')) {
+      collapseGroupsForRail();
     }
     sb.classList.toggle('pinned', !!expanded && readState().pinned);
     if (wasExpanded !== !!expanded) markSidebarTransition();
@@ -333,21 +405,40 @@
     if (emptyEl) emptyEl.hidden = matchCount > 0;
   }
 
-  function toggleGroupFromButton(toggle) {
-    var group = toggle.closest('.nav-group-li, .nav-group');
+  function toggleGroupById(groupId) {
+    var nav = getNav();
+    if (!nav || !groupId) return;
+    var group = nav.querySelector('.nav-group-li[data-group="' + groupId + '"]');
     if (!group) return;
     var sb = getSidebar();
     if (sb && sb.classList.contains('is-nav-searching')) return;
-    var railMode = sb && !sb.classList.contains('expanded') && !sb.classList.contains('is-expanded');
+    var railMode =
+      sb &&
+      !sb.classList.contains('expanded') &&
+      !sb.classList.contains('is-expanded') &&
+      !isDrawerNavMode();
     var open = !group.classList.contains('open');
     if (railMode && open) {
       setSidebarExpanded(true, !!readState().pinned);
     }
+    if (open) {
+      getGroups().forEach(function (g) {
+        if (g !== group) applyGroupOpen(g, false, false);
+      });
+    }
     applyGroupOpen(group, open, true);
     saveGroupsState();
-    try {
-      if (typeof global.initMobileUX === 'function') global.initMobileUX();
-    } catch (_) {}
+    if (!open) {
+      setTimeout(maybeCollapseRailAfterInteraction, HOVER_CLOSE_MS + 40);
+    }
+  }
+
+  function toggleGroupFromButton(toggle) {
+    if (!toggle) return;
+    var group = toggle.closest('.nav-group-li[data-group]');
+    if (!group) return;
+    var id = group.getAttribute('data-group');
+    if (id) toggleGroupById(id);
   }
 
   function navigateFromItem(item) {
@@ -400,61 +491,21 @@
     if (sb && sb.classList.contains('is-nav-searching')) return;
     getGroups().forEach(function (group) {
       var match = group.querySelector('.nav-item[data-page="' + page + '"]');
-      applyGroupOpen(group, !!match, false);
+      if (match) applyGroupOpen(group, true, false);
     });
     saveGroupsState();
   }
 
   function bindGroupToggles() {
     var nav = getNav();
-    if (!nav || nav._crozzoSidebarNavToggles) return;
+    if (!nav) return;
+    if (nav._crozzoSidebarNavToggles && _boundNavEl === nav) return;
+    _boundNavEl = nav;
     nav._crozzoSidebarNavToggles = true;
-
-    var touchAt = 0;
-    var touchY0 = null;
-
-    nav.addEventListener(
-      'touchstart',
-      function (e) {
-        var toggle = e.target.closest('.nav-group-toggle');
-        if (!toggle) return;
-        touchAt = Date.now();
-        try {
-          var p = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
-          touchY0 = p ? p.clientY : null;
-        } catch (_) {
-          touchY0 = null;
-        }
-      },
-      { passive: true }
-    );
-
-    nav.addEventListener(
-      'touchend',
-      function (e) {
-        var toggle = e.target.closest('.nav-group-toggle');
-        if (!toggle) return;
-        if (touchY0 !== null && e.changedTouches[0]) {
-          if (Math.abs(e.changedTouches[0].clientY - touchY0) > 22) return;
-        }
-        touchY0 = null;
-        try {
-          e.preventDefault();
-        } catch (_) {}
-        toggleGroupFromButton(toggle);
-        touchAt = Date.now();
-      },
-      { passive: false }
-    );
 
     nav.addEventListener('click', function (e) {
       var toggle = e.target.closest('.nav-group-toggle');
       if (!toggle) return;
-      if (Date.now() - touchAt < 500) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
       e.preventDefault();
       toggleGroupFromButton(toggle);
     });
@@ -479,7 +530,7 @@
 
     var st = readState();
     setSidebarExpanded(!!st.pinned, false);
-    collapseAllGroups(false);
+    restoreGroupsState(false);
 
     function shouldBlockHoverToggle() {
       return !!readState().pinned || sb.classList.contains('is-nav-searching');
@@ -517,10 +568,14 @@
       }, HOVER_CLOSE_MS);
     }
 
-    if (hoverExpandEnabled()) {
+    if (hoverExpandEnabled() && !isDrawerNavMode()) {
       sb.addEventListener('mouseenter', scheduleHoverOpen);
     }
-    sb.addEventListener('mouseleave', scheduleHoverClose);
+    if (!isDrawerNavMode()) {
+      sb.addEventListener('mouseleave', scheduleHoverClose);
+    } else {
+      applyDrawerNavMode();
+    }
 
     if (!global._crozzoSidebarKeyBound) {
       global._crozzoSidebarKeyBound = true;
@@ -569,15 +624,22 @@
 
   function init() {
     bindSidebarExpand();
+    applyDrawerNavMode();
     bindGroupToggles();
     bindNavItems();
     if (typeof global.crozzoEnhanceSidebarLabels === 'function') global.crozzoEnhanceSidebarLabels();
     bindNavSearch();
-    collapseAllGroups(false);
+    if (!_navCoreReady) {
+      _navCoreReady = true;
+    }
+    restoreGroupsState(false);
     if (typeof global.crozzoRefreshLucideIcons === 'function') global.crozzoRefreshLucideIcons();
   }
 
   function refresh() {
+    if (isDrawerNavMode()) applyDrawerNavMode();
+    else clearDrawerNavMode();
+    bindGroupToggles();
     bindNavItems();
     bindNavSearch();
     var sb = getSidebar();
@@ -585,7 +647,7 @@
       runNavSearch();
       return;
     }
-    collapseAllGroups(false);
+    restoreGroupsState(false);
   }
 
   global.CrozzoSidebarNav = {
@@ -596,6 +658,7 @@
     restore: restoreGroupsState,
     setExpanded: setSidebarExpanded,
     applyGroupOpen: applyGroupOpen,
+    toggleGroupById: toggleGroupById,
     expandGroupForPage: expandGroupForPage,
     collapseAllGroups: collapseAllGroups,
     bindNavSearch: bindNavSearch,
@@ -604,8 +667,8 @@
   };
 
   global.crozzoSaveSidebarNavState = saveGroupsState;
-  global.crozzoRestoreSidebarNavState = function () {
-    collapseAllGroups(false);
+  global.crozzoRestoreSidebarNavState = function (withDelay) {
+    restoreGroupsState(!!withDelay);
   };
 
   if (document.readyState === 'loading') {

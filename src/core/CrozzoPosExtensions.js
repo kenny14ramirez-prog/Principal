@@ -403,6 +403,9 @@
   function startHeartbeat() {
     stopHeartbeat();
     _hbTimer = setInterval(function () {
+      try {
+        if (typeof document !== 'undefined' && document.hidden) return;
+      } catch (_) {}
       announceIamServer();
     }, 28000);
   }
@@ -775,6 +778,9 @@
     return false;
   }
   async function refreshConnectivityBadges() {
+    try {
+      if (typeof document !== 'undefined' && document.hidden) return;
+    } catch (_) {}
     var info;
     try {
       info = await detectConnectivityTier();
@@ -1298,6 +1304,38 @@
     setCardState(id, 'ok');
     return { level: 'ok', summary: 'Modo ' + modo };
   }
+  async function testPerfBackground() {
+    var id = 'perfbackground';
+    setCardState(id, 'run');
+    if (typeof global.runPerfBackgroundSmoke === 'function') {
+      var r = global.runPerfBackgroundSmoke();
+      (r.items || []).forEach(function (it) {
+        logLine(it.ok ? 'ok' : it.warn ? 'warn' : 'fail', it.label, id);
+      });
+      var level = r.ok ? 'ok' : 'warn';
+      setCardState(id, level);
+      return { level: level, summary: r.ok ? 'Timers OK' : 'Revisar' };
+    }
+    logLine('fail', 'runPerfBackgroundSmoke no cargado.', id);
+    setCardState(id, 'fail');
+    return { level: 'fail', summary: 'Sin módulo' };
+  }
+  async function testCajaIntegrity() {
+    var id = 'cajaintegrity';
+    setCardState(id, 'run');
+    if (typeof global.runCajaIntegritySmoke === 'function') {
+      var r = global.runCajaIntegritySmoke();
+      (r.items || []).forEach(function (it) {
+        logLine(it.ok ? 'ok' : it.warn ? 'warn' : 'fail', it.label, id);
+      });
+      var level = r.ok ? 'ok' : 'warn';
+      setCardState(id, level);
+      return { level: level, summary: r.ok ? 'Integridad OK' : 'Revisar' };
+    }
+    logLine('fail', 'runCajaIntegritySmoke no cargado (CrozzoPosMain.js).', id);
+    setCardState(id, 'fail');
+    return { level: 'fail', summary: 'Sin módulo' };
+  }
   async function testPermissions() {
     var id = 'permissions';
     setCardState(id, 'run');
@@ -1350,6 +1388,8 @@
     hotspot: testHotspot,
     storage: testStorage,
     syncqueue: testSyncQueue,
+    cajaintegrity: testCajaIntegrity,
+    perfbackground: testPerfBackground,
     dian: testDian,
     permissions: testPermissions
   };
@@ -1432,8 +1472,14 @@
       card('hotspot', '📶 Hotspot / Servidor A') +
       card('storage', '💾 Almacenamiento Local') +
       card('syncqueue', '🔄 Cola de Sincronización') +
+      card('cajaintegrity', '💳 Integridad de caja') +
+      card('perfbackground', '⚡ Rendimiento fondo') +
       card('dian', '🔐 Configuración DIAN / Modo') +
       card('permissions', '🛡️ Permisos y Rol') +
+      '    </div>' +
+      '    <div class="btn-group" style="margin:10px 0 4px;">' +
+      '      <button type="button" class="btn btn-outline btn-sm" id="diag-caja-smoke-modal">🧪 Smoke caja (modal)</button>' +
+      '      <button type="button" class="btn btn-outline btn-sm" id="diag-perf-smoke-modal">⚡ Smoke rendimiento (modal)</button>' +
       '    </div>' +
       '    <div class="diag-logs-wrap">' +
       '      <div class="diag-logs-head">Registro</div>' +
@@ -1494,6 +1540,14 @@
     });
     global.document.getElementById('crozzo-readiness-run')?.addEventListener('click', function () {
       if (typeof global.crozzoRunProductionReadiness === 'function') global.crozzoRunProductionReadiness();
+    });
+    global.document.getElementById('diag-caja-smoke-modal')?.addEventListener('click', function () {
+      if (typeof global.showCajaIntegritySmokeResults === 'function') global.showCajaIntegritySmokeResults();
+      else if (global.showToast) global.showToast('Smoke de caja no disponible.', 'warning');
+    });
+    global.document.getElementById('diag-perf-smoke-modal')?.addEventListener('click', function () {
+      if (typeof global.showPerfBackgroundSmokeResults === 'function') global.showPerfBackgroundSmokeResults();
+      else if (global.showToast) global.showToast('Smoke de rendimiento no disponible.', 'warning');
     });
     global.document.querySelectorAll('.diag-run-one').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -2948,6 +3002,9 @@
     updateShell();
   }
   async function isolationLoop() {
+    try {
+      if (typeof document !== 'undefined' && document.hidden) return;
+    } catch (_) {}
     var prev = state.isolated;
     var r = await evaluateIsolation();
     var rawIsolated = !!(r && r.isolated) && meshFeaturesEnabled();
@@ -3386,6 +3443,45 @@
   function isLinkReady() {
     return !!(state.dc && state.dc.readyState === 'open');
   }
+  function pauseBackgroundTimers() {
+    if (_checkTimer) {
+      global.clearInterval(_checkTimer);
+      _checkTimer = null;
+    }
+    if (_cacheTimer) {
+      global.clearInterval(_cacheTimer);
+      _cacheTimer = null;
+    }
+    if (_discoveryInterval) {
+      global.clearInterval(_discoveryInterval);
+      _discoveryInterval = null;
+    }
+  }
+  function resumeBackgroundTimers() {
+    if (!_inited) return;
+    try {
+      if (typeof document !== 'undefined' && document.hidden) return;
+    } catch (_) {}
+    if (!_checkTimer) _checkTimer = global.setInterval(isolationLoop, 10000);
+    if (!_cacheTimer) {
+      _cacheTimer = global.setInterval(function () {
+        try {
+          if (typeof document !== 'undefined' && document.hidden) return;
+        } catch (_) {}
+        refreshOutboxCache().finally(function () {
+          refreshForceButtonsGlobal();
+        });
+      }, 4000);
+    }
+    if (!_discoveryInterval) {
+      _discoveryInterval = global.setInterval(function () {
+        try {
+          if (typeof document !== 'undefined' && document.hidden) return;
+        } catch (_) {}
+        if (state.isolated) tryDiscoveryPing();
+      }, 12000);
+    }
+  }
   function init() {
     if (_inited) return;
     _inited = true;
@@ -3394,21 +3490,10 @@
     global.__crozzoEmergencyStatusCache = global.__crozzoEmergencyStatusCache || {};
     global.__crozzoEmergencyStatusByComandaId = global.__crozzoEmergencyStatusByComandaId || {};
     attachShell();
-    if (_checkTimer) global.clearInterval(_checkTimer);
-    _checkTimer = global.setInterval(isolationLoop, 10000);
-    if (_cacheTimer) global.clearInterval(_cacheTimer);
-    _cacheTimer = global.setInterval(function () {
-      refreshOutboxCache().finally(function () {
-        refreshForceButtonsGlobal();
-      });
-    }, 4000);
+    resumeBackgroundTimers();
     isolationLoop();
     refreshOutboxCache().catch(function () {});
     initMeshHeartbeatOnce();
-    if (_discoveryInterval) global.clearInterval(_discoveryInterval);
-    _discoveryInterval = global.setInterval(function () {
-      if (state.isolated) tryDiscoveryPing();
-    }, 12000);
     global.addEventListener('online', function () {
       isolationLoop();
       reconcileSafe().catch(function () {});
@@ -3429,10 +3514,50 @@
     closePc: closePc,
     getLocalStatusForComanda: getLocalStatusForComanda,
     refreshOutboxCache: refreshOutboxCache,
+    pauseBackgroundTimers: pauseBackgroundTimers,
+    resumeBackgroundTimers: resumeBackgroundTimers,
     meshLog: meshLog,
     STATUS: STATUS,
     _state: state
   };
+})(typeof window !== 'undefined' ? window : this);
+/* ========== Pausa timers Extensions (tier, LAN heartbeat, mesh) ========== */
+(function (global) {
+  'use strict';
+  if (global.__crozzoExtVisibilityBound) return;
+  global.__crozzoExtVisibilityBound = true;
+  function onCrozzoAppVisibility(ev) {
+    var hidden =
+      ev && ev.detail && typeof ev.detail.hidden === 'boolean'
+        ? ev.detail.hidden
+        : !!(typeof document !== 'undefined' && document.hidden);
+    try {
+      if (hidden) {
+        if (global.CrozzoSyncRouterModule && typeof global.CrozzoSyncRouterModule.stopTierWatch === 'function') {
+          global.CrozzoSyncRouterModule.stopTierWatch();
+        }
+        if (global.CrozzoNetworkGuard && typeof global.CrozzoNetworkGuard.stopHeartbeat === 'function') {
+          global.CrozzoNetworkGuard.stopHeartbeat();
+        }
+        if (global.CrozzoEmergencyMesh && typeof global.CrozzoEmergencyMesh.pauseBackgroundTimers === 'function') {
+          global.CrozzoEmergencyMesh.pauseBackgroundTimers();
+        }
+        return;
+      }
+      if (global.CrozzoSyncRouterModule && typeof global.CrozzoSyncRouterModule.startTierWatch === 'function') {
+        global.CrozzoSyncRouterModule.startTierWatch();
+      }
+      if (global.CrozzoNetworkGuard && typeof global.CrozzoNetworkGuard.afterMainInit === 'function') {
+        global.CrozzoNetworkGuard.afterMainInit();
+      }
+      if (global.CrozzoEmergencyMesh && typeof global.CrozzoEmergencyMesh.resumeBackgroundTimers === 'function') {
+        global.CrozzoEmergencyMesh.resumeBackgroundTimers();
+      }
+    } catch (e) {
+      console.warn('[crozzo-vis-ext]', e);
+    }
+  }
+  global.addEventListener('crozzo-app-visibility', onCrozzoAppVisibility);
 })(typeof window !== 'undefined' ? window : this);
 /* ========== Crozzo namespace ========== */
 (function () {

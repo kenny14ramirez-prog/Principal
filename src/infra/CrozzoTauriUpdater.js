@@ -238,8 +238,7 @@
       .catch(function (err) {
         return Promise.reject(
           new Error(
-            'No se pudo contactar el updater de GitHub: ' +
-              (err && err.message ? err.message : String(err))
+            'No se pudo contactar el updater de GitHub: ' + humanizeUpdaterError(err)
           )
         );
       });
@@ -301,6 +300,22 @@
     return /timeout|timed out|network|fetch|failed|econn|could not|unable|404|403|502|503|certificate|dns|abort|sin metadatos|updater/i.test(
       msg
     );
+  }
+
+  function humanizeUpdaterError(err) {
+    if (typeof global.crozzoUserFacingError === 'function') {
+      var mapped = global.crozzoUserFacingError(err);
+      if (mapped) return mapped;
+    }
+    var msg = err && err.message ? err.message : String(err || '');
+    if (/timeout|timed out|abort/i.test(msg)) {
+      return 'La conexión tardó demasiado. Intente de nuevo con mejor señal.';
+    }
+    if (/failed to fetch|network|fetch/i.test(msg)) {
+      return 'Sin conexión estable. Revise su internet e intente de nuevo.';
+    }
+    if (msg.length > 140) return 'No se pudo completar la operación de actualización.';
+    return msg || 'Error de actualización.';
   }
 
   function predictSetupExeUrl(targetVersion) {
@@ -1391,7 +1406,7 @@
         onProgress({
           phase: 'error',
           percent: 0,
-          message: err && err.message ? err.message : String(err),
+          message: humanizeUpdaterError(err),
         });
         return Promise.reject(err);
       });
@@ -1432,6 +1447,7 @@
     installViaSilentDmg: installViaSilentDmgMac,
     probePlatformInstaller: probePlatformInstallerCommand,
     isSignatureMismatchError: isSignatureMismatchError,
+    humanizeUpdaterError: humanizeUpdaterError,
     relaunch: relaunchApp,
     compareSemver: compareSemver,
     releasesLatestUrl: GITHUB_RELEASES_LATEST,

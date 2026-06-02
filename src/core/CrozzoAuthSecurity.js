@@ -6,7 +6,10 @@
 
   var PBKDF2_ITERATIONS = 120000;
   var MIN_PASSWORD_LEN = 8;
-  var DEFAULT_PASSWORDS = ['141414', '1234', 'password', 'admin', 'crozzo'];
+  var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
+  var LEGACY_KENNY_PIN = '141414';
+  var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
+  var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
   var AUTH_PROOF_LS = 'crozzo_auth_proof_v1';
   var DEVICE_AUTH_KEY_LS = 'crozzo_device_auth_key_v1';
@@ -43,7 +46,32 @@
     for (var i = 0; i < raw.length; i++) {
       h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0;
     }
-    return 'p1.' + Math.abs(h).toString(36) + '.' + String(userId || '').length;
+    return 'p2.' + Math.abs(h).toString(36) + '.' + String(userId || '').length;
+  }
+
+  async function crozzoProofDigestV3(userId) {
+    try {
+      if (!crypto || !crypto.subtle) return null;
+      var keyMat = enc().encode(crozzoGetDeviceAuthKey());
+      var cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        keyMat,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      var msg = enc().encode(String(userId || '') + '|crozzo-auth-v3|' + CROZZO_BOOT_SESSION_TOKEN);
+      var sig = await crypto.subtle.sign('HMAC', cryptoKey, msg);
+      return 'p3.' + b64FromBytes(new Uint8Array(sig));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function crozzoWriteAuthProof(proof) {
+    try {
+      sessionStorage.setItem(AUTH_PROOF_LS, JSON.stringify(proof));
+    } catch (_) {}
   }
 
   function crozzoIssueAuthProof(userId) {
@@ -56,10 +84,42 @@
       boot: CROZZO_BOOT_SESSION_TOKEN,
       v: 2,
     };
-    try {
-      sessionStorage.setItem(AUTH_PROOF_LS, JSON.stringify(proof));
-    } catch (_) {}
+    crozzoWriteAuthProof(proof);
+    if (crypto && crypto.subtle) {
+      crozzoProofDigestV3(uid).then(function (d3) {
+        if (!d3) return;
+        var next = {
+          userId: uid,
+          issuedAt: Date.now(),
+          digest: proof.digest,
+          digestV3: d3,
+          boot: CROZZO_BOOT_SESSION_TOKEN,
+          v: 3,
+        };
+        crozzoWriteAuthProof(next);
+      });
+    }
     return true;
+  }
+
+  function crozzoWriteAuthV3Ok(userId) {
+    try {
+      sessionStorage.setItem(
+        AUTH_V3_OK_LS,
+        JSON.stringify({ userId: String(userId || ''), boot: CROZZO_BOOT_SESSION_TOKEN, at: Date.now() })
+      );
+    } catch (_) {}
+  }
+
+  function crozzoReadAuthV3Ok(userId) {
+    try {
+      var raw = sessionStorage.getItem(AUTH_V3_OK_LS);
+      if (!raw) return false;
+      var o = JSON.parse(raw);
+      return !!(o && o.boot === CROZZO_BOOT_SESSION_TOKEN && String(o.userId) === String(userId || ''));
+    } catch (_) {
+      return false;
+    }
   }
 
   function crozzoValidateAuthProof(userId) {
@@ -67,18 +127,64 @@
       var raw = sessionStorage.getItem(AUTH_PROOF_LS);
       if (!raw) return false;
       var proof = JSON.parse(raw);
-      if (!proof || proof.v !== 2) return false;
+      if (!proof) return false;
       if (proof.boot !== CROZZO_BOOT_SESSION_TOKEN) return false;
       if (String(proof.userId) !== String(userId || '')) return false;
-      return proof.digest === crozzoProofDigest(userId);
+      if (proof.v === 3 && proof.digestV3) {
+        if (crozzoReadAuthV3Ok(userId)) return true;
+        if (proof.digest === crozzoProofDigest(userId)) return true;
+        return false;
+      }
+      if (proof.v === 2 || proof.v === 3) {
+        if (proof.digest === crozzoProofDigest(userId)) return true;
+        return false;
+      }
+      return false;
     } catch (_) {
       return false;
     }
   }
 
+  function crozzoValidateAuthProofAsync(userId) {
+    return new Promise(function (resolve) {
+      try {
+        var raw = sessionStorage.getItem(AUTH_PROOF_LS);
+        if (!raw) {
+          resolve(false);
+          return;
+        }
+        var proof = JSON.parse(raw);
+        if (!proof || proof.boot !== CROZZO_BOOT_SESSION_TOKEN) {
+          resolve(false);
+          return;
+        }
+        if (String(proof.userId) !== String(userId || '')) {
+          resolve(false);
+          return;
+        }
+        if (proof.v === 3 && proof.digestV3) {
+          crozzoProofDigestV3(userId).then(function (d3) {
+            var ok = !!(d3 && d3 === proof.digestV3);
+            if (ok) crozzoWriteAuthV3Ok(userId);
+            resolve(ok);
+          });
+          return;
+        }
+        if (proof.v === 2 || (proof.v === 3 && proof.digest)) {
+          resolve(proof.digest === crozzoProofDigest(userId));
+          return;
+        }
+        resolve(false);
+      } catch (_) {
+        resolve(false);
+      }
+    });
+  }
+
   function crozzoClearAuthProof() {
     try {
       sessionStorage.removeItem(AUTH_PROOF_LS);
+      sessionStorage.removeItem(AUTH_V3_OK_LS);
     } catch (_) {}
   }
 
@@ -121,6 +227,30 @@
     return { ok: true };
   }
 
+  /** Solo migración legacy / bootstrap interno — no usar en UI de usuario. */
+  async function crozzoHashPasswordInternal(plain) {
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    var keyMat = await crypto.subtle.importKey('raw', enc().encode(String(plain)), 'PBKDF2', false, ['deriveBits']);
+    var bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+      keyMat,
+      256
+    );
+    return {
+      claveHash: b64FromBytes(new Uint8Array(bits)),
+      claveSalt: b64FromBytes(salt),
+      clave: '',
+    };
+  }
+
+  function crozzoGenerateBootstrapPassword() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+    var out = '';
+    var buf = crypto.getRandomValues(new Uint8Array(16));
+    for (var i = 0; i < 16; i++) out += chars[buf[i] % chars.length];
+    return out;
+  }
+
   async function crozzoHashPassword(plain) {
     var pol = crozzoPasswordPolicy(plain, '');
     if (!pol.ok) throw new Error(pol.msg);
@@ -141,6 +271,12 @@
   async function crozzoVerifyPassword(plain, user) {
     if (!user) return { ok: false };
     if (hasHashFields(user)) {
+      if (!crypto || !crypto.subtle) {
+        if (user.clave != null && user.clave !== '') {
+          return { ok: String(user.clave) === String(plain), legacy: true };
+        }
+        return { ok: false };
+      }
       try {
         var salt = bytesFromB64(user.claveSalt);
         var keyMat = await crypto.subtle.importKey('raw', enc().encode(String(plain)), 'PBKDF2', false, ['deriveBits']);
@@ -153,6 +289,9 @@
         return { ok: got === user.claveHash, legacy: false };
       } catch (e) {
         console.warn('[auth] verify hash', e);
+        if (user.clave != null && user.clave !== '') {
+          return { ok: String(user.clave) === String(plain), legacy: true };
+        }
         return { ok: false };
       }
     }
@@ -170,6 +309,281 @@
     });
     delete next.clave;
     return next;
+  }
+
+  function crozzoStaffRowUsesLegacyPlaintext(user) {
+    return !!(user && !hasHashFields(user) && user.clave != null && String(user.clave) !== '');
+  }
+
+  function crozzoSanitizeStaffForStorage(staff) {
+    if (!Array.isArray(staff)) return [];
+    return staff.map(function (u) {
+      if (!u) return u;
+      var next = Object.assign({}, u);
+      if (hasHashFields(next)) delete next.clave;
+      return next;
+    });
+  }
+
+  /** Migra cualquier `clave` en texto plano restante a PBKDF2 (arranque en idle). */
+  async function crozzoMigrateStaffPlaintextPasswordsQuiet() {
+    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
+    var conf = global.getUsuariosConfig();
+    var staff = (conf.staff || []).map(function (s) {
+      return s ? Object.assign({}, s) : s;
+    });
+    var changed = 0;
+    for (var i = 0; i < staff.length; i++) {
+      var u = staff[i];
+      if (!crozzoStaffRowUsesLegacyPlaintext(u)) continue;
+      var plain = String(u.clave);
+      try {
+        var pol = crozzoPasswordPolicy(plain, u.id);
+        var hashed = await crozzoHashPasswordInternal(plain);
+        var next = Object.assign({}, u, {
+          claveHash: hashed.claveHash,
+          claveSalt: hashed.claveSalt,
+        });
+        delete next.clave;
+        delete next.requiereClaveInicial;
+        if (!pol.ok) next.clavePendienteRotacion = true;
+        if (plain === '1234') next.claveMigradaDesde1234 = true;
+        staff[i] = next;
+        changed++;
+      } catch (e) {
+        console.warn('[auth] migrate staff plaintext', u && u.id, e);
+      }
+    }
+    if (!changed) return;
+    global.saveUsuarios(staff);
+    if (typeof global.config !== 'undefined' && global.config.addAudit) {
+      global.config.addAudit(
+        'staff_claves_migradas_hash',
+        changed + ' usuario(s) sin contraseña en texto plano (migración automática)'
+      );
+    }
+  }
+
+  function crozzoCountStaffLegacyPlaintext() {
+    if (typeof global.getUsuariosConfig !== 'function') return 0;
+    var staff = global.getUsuariosConfig().staff || [];
+    var n = 0;
+    staff.forEach(function (u) {
+      if (crozzoStaffRowUsesLegacyPlaintext(u)) n++;
+    });
+    return n;
+  }
+
+  async function crozzoMigrateStaffLegacyPin1234ToHash() {
+    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
+    var conf = global.getUsuariosConfig();
+    var staff = (conf.staff || []).map(function (s) {
+      return s ? Object.assign({}, s) : s;
+    });
+    var changed = false;
+    for (var i = 0; i < staff.length; i++) {
+      var u = staff[i];
+      if (!u || u.id === 'KENNY') continue;
+      if (hasHashFields(u)) continue;
+      if (String(u.clave || '') !== '1234') continue;
+      try {
+        var hashed = await crozzoHashPasswordInternal('1234');
+        var next = Object.assign({}, u, {
+          claveHash: hashed.claveHash,
+          claveSalt: hashed.claveSalt,
+        });
+        delete next.clave;
+        delete next.requiereClaveInicial;
+        next.claveMigradaDesde1234 = true;
+        staff[i] = next;
+        changed = true;
+      } catch (e) {
+        console.warn('[auth] migrate staff 1234', u.id, e);
+      }
+    }
+    if (!changed) return;
+    global.saveUsuarios(staff);
+    if (typeof global.config !== 'undefined' && global.config.addAudit) {
+      global.config.addAudit(
+        'staff_pin_migrado',
+        'Usuarios con PIN 1234 migrados a hash (sin texto en claro)'
+      );
+    }
+  }
+
+  async function crozzoMigrateKennyPlaintextIfNeeded() {
+    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
+    var conf = global.getUsuariosConfig();
+    var staff = conf.staff || [];
+    var idx = staff.findIndex(function (s) {
+      return s && s.id === 'KENNY';
+    });
+    if (idx < 0) return;
+    var u = staff[idx];
+    if (!u || hasHashFields(u) || u.clave == null || u.clave === '') return;
+    try {
+      var hashed = await crozzoHashPasswordInternal(String(u.clave));
+      var next = Object.assign({}, u, {
+        claveHash: hashed.claveHash,
+        claveSalt: hashed.claveSalt,
+      });
+      delete next.clave;
+      staff[idx] = next;
+      global.saveUsuarios(staff);
+      if (typeof global.config !== 'undefined' && global.config.addAudit) {
+        global.config.addAudit('kenny_clave_migrada', 'Contraseña Super Admin migrada a hash (sin texto en claro)');
+      }
+    } catch (e) {
+      console.warn('[auth] migrate kenny plaintext', e);
+    }
+  }
+
+  async function crozzoFinalizeKennyBootstrap() {
+    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
+    var conf = global.getUsuariosConfig();
+    var staff = conf.staff || [];
+    var idx = staff.findIndex(function (s) {
+      return s && s.id === 'KENNY';
+    });
+    if (idx < 0) return;
+    var u = staff[idx];
+    if (!u) return;
+    if (hasHashFields(u)) return;
+    if (!u.requiereClaveInicial) return;
+    try {
+      var temp = crozzoGenerateBootstrapPassword();
+      var hashed = await crozzoHashPasswordInternal(temp);
+      var next = Object.assign({}, u, {
+        claveHash: hashed.claveHash,
+        claveSalt: hashed.claveSalt,
+      });
+      delete next.clave;
+      delete next.requiereClaveInicial;
+      staff[idx] = next;
+      global.saveUsuarios(staff);
+      try {
+        sessionStorage.setItem(
+          KENNY_BOOTSTRAP_HINT_LS,
+          JSON.stringify({ user: 'KENNY', pass: temp, at: Date.now() })
+        );
+      } catch (_) {}
+      if (typeof global.config !== 'undefined' && global.config.addAudit) {
+        global.config.addAudit('kenny_bootstrap_hash', 'Super Admin creado con clave temporal (mostrada una vez)');
+      }
+    } catch (e) {
+      console.warn('[auth] kenny bootstrap', e);
+    }
+  }
+
+  function crozzoGetKennyBootstrapHint() {
+    try {
+      var raw = sessionStorage.getItem(KENNY_BOOTSTRAP_HINT_LS);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function crozzoClearKennyBootstrapHint() {
+    try {
+      sessionStorage.removeItem(KENNY_BOOTSTRAP_HINT_LS);
+    } catch (_) {}
+  }
+
+  /** Primer login KENNY sin hash: acepta PIN legacy 141414 y persiste hash (migración). */
+  async function crozzoAcceptKennyLegacy141414Login(user, plain) {
+    if (!user || user.id !== 'KENNY' || hasHashFields(user)) return null;
+    if (String(plain) !== LEGACY_KENNY_PIN) return null;
+    try {
+      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
+      var next = Object.assign({}, user, {
+        claveHash: hashed.claveHash,
+        claveSalt: hashed.claveSalt,
+        claveMigradaDesde141414: true,
+        clavePendienteRotacion: true,
+      });
+      delete next.clave;
+      delete next.requiereClaveInicial;
+      return next;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** Restaura PIN legacy 141414 (solo soporte; obliga cambio en primer login). */
+  async function crozzoRestoreKennyLegacyPin141414() {
+    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') {
+      return { ok: false, msg: 'Módulo de usuarios no disponible.' };
+    }
+    if (typeof global.ensureSuperAdminUser === 'function') global.ensureSuperAdminUser();
+    crozzoLoginClearFails();
+    var conf = global.getUsuariosConfig();
+    var staff = (conf.staff || []).map(function (u) {
+      return Object.assign({}, u);
+    });
+    var idx = staff.findIndex(function (s) {
+      return s && s.id === 'KENNY';
+    });
+    if (idx < 0) return { ok: false, msg: 'No existe el usuario KENNY.' };
+    try {
+      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
+      staff[idx] = Object.assign({}, staff[idx], {
+        id: 'KENNY',
+        activo: true,
+        claveHash: hashed.claveHash,
+        claveSalt: hashed.claveSalt,
+        claveMigradaDesde141414: true,
+        clavePendienteRotacion: true,
+      });
+      delete staff[idx].clave;
+      delete staff[idx].requiereClaveInicial;
+      global.saveUsuarios(staff);
+      crozzoClearKennyBootstrapHint();
+      if (typeof global.config !== 'undefined' && global.config.addAudit) {
+        global.config.addAudit('kenny_legacy_141414_restaurado', 'PIN legacy KENNY restaurado (soporte)');
+      }
+      return {
+        ok: true,
+        user: 'KENNY',
+        pass: LEGACY_KENNY_PIN,
+        msg: 'Use KENNY / 141414 en el login; luego defina una contraseña nueva (mín. 8 caracteres).',
+      };
+    } catch (e) {
+      return { ok: false, msg: String(e && e.message ? e.message : e) };
+    }
+  }
+
+  /** Regenera clave temporal KENNY (solo soporte / consola en login). */
+  async function crozzoRegenerateKennyAccess() {
+    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') {
+      return { ok: false, msg: 'Módulo de usuarios no disponible.' };
+    }
+    if (typeof global.ensureSuperAdminUser === 'function') global.ensureSuperAdminUser();
+    crozzoLoginClearFails();
+    var conf = global.getUsuariosConfig();
+    var staff = (conf.staff || []).map(function (u) {
+      return Object.assign({}, u);
+    });
+    var idx = staff.findIndex(function (s) {
+      return s && s.id === 'KENNY';
+    });
+    if (idx < 0) return { ok: false, msg: 'No existe el usuario KENNY.' };
+    staff[idx] = Object.assign({}, staff[idx], { id: 'KENNY', activo: true, requiereClaveInicial: true });
+    delete staff[idx].clave;
+    delete staff[idx].claveHash;
+    delete staff[idx].claveSalt;
+    global.saveUsuarios(staff);
+    await crozzoFinalizeKennyBootstrap();
+    var hint = crozzoGetKennyBootstrapHint();
+    return {
+      ok: true,
+      user: 'KENNY',
+      pass: hint && hint.pass ? hint.pass : null,
+      msg: hint && hint.pass
+        ? 'Use la clave del aviso amarillo en el login (válida solo en esta sesión).'
+        : 'Recargue la página (F5) y revise el aviso en el login.',
+    };
   }
 
   async function crozzoMigrateUserPasswordToHash(userId, plain) {
@@ -196,6 +610,10 @@
     if (!user) return false;
     var seg = typeof global.config !== 'undefined' && global.config.get ? global.config.get('seguridad') || {} : {};
     if (user.id === 'KENNY' && !seg.kennyPasswordChanged) return true;
+    if (user.requiereClaveInicial && !hasHashFields(user)) return true;
+    if (user.claveMigradaDesde1234) return true;
+    if (user.claveMigradaDesde141414) return true;
+    if (user.clavePendienteRotacion) return true;
     if (hasHashFields(user)) return false;
     if (user.clave != null && user.clave !== '') {
       var pol = crozzoPasswordPolicy(user.clave, user.id);
@@ -242,6 +660,30 @@
     crozzoWriteLoginLock({ fails: 0, until: 0 });
   }
 
+  /** Cebos de mantenimiento / superadmin ficticio: omitidos con produccionEstricta. */
+  var HONEYPOT_MAINTENANCE_USERS = {
+    SUPERADMIN: 1,
+    SOPORTE: 1,
+    SOPORTE_CROZZO: 1,
+    ROOT: 1,
+    INSTALADOR: 1,
+    BACKDOOR: 1,
+    RECOVERY: 1,
+    DEBUG: 1,
+  };
+
+  function crozzoHoneypotIsMaintenanceDecoyUser(rawUser) {
+    var u = crozzoHoneypotNormalizeUser(rawUser);
+    return !!HONEYPOT_MAINTENANCE_USERS[u];
+  }
+
+  function filterDecoysProduccion(decoys, strict) {
+    if (!strict || !Array.isArray(decoys)) return decoys;
+    return decoys.filter(function (d) {
+      return d && !crozzoHoneypotIsMaintenanceDecoyUser(d.user);
+    });
+  }
+
   var DECOY_ACCOUNTS_DEFAULT = [
     { user: 'SUPERADMIN', pass: 'admin123', rol: 'superadmin', label: 'Super Administrador' },
     { user: 'ADMIN', pass: 'admin', rol: 'admin', label: 'Administrador' },
@@ -278,6 +720,18 @@
     { user: 'BODEGA', pass: 'bodega', rol: 'inventario', label: 'Bodega' },
     { user: 'INVENTARIO', pass: 'inventario', rol: 'inventario', label: 'Inventarios' },
     { user: 'COMPRAS', pass: 'compras', rol: 'inventario', label: 'Compras' },
+    { user: 'TURNO_PM', pass: 'turnopm', rol: 'admin', label: 'Turno tarde' },
+    { user: 'SUPERVISOR', pass: 'super2024', rol: 'admin', label: 'Supervisor de sala' },
+    { user: 'DIAN', pass: 'dian2024', rol: 'admin', label: 'Facturación electrónica' },
+    { user: 'POS02', pass: 'terminal2', rol: 'caja', label: 'Terminal POS 02' },
+    { user: 'POS03', pass: 'pos03', rol: 'caja', label: 'Terminal auxiliar' },
+    { user: 'EXPORT', pass: 'exportar', rol: 'admin', label: 'Exportación de datos' },
+    { user: 'NOCHE', pass: 'noche123', rol: 'caja', label: 'Cajero nocturno' },
+    { user: 'BODEGUERO', pass: 'bodeguero', rol: 'inventario', label: 'Jefe de bodega' },
+    { user: 'QR_ADMIN', pass: 'qr2024', rol: 'admin', label: 'Administrador QR' },
+    { user: 'PLANILLA', pass: 'planilla', rol: 'admin', label: 'Nómina y planilla' },
+    { user: 'HOST', pass: 'hostess', rol: 'mesero', label: 'Host / recepción' },
+    { user: 'DOMICILIOS', pass: 'domi2024', rol: 'mesero', label: 'Domicilios app' },
   ];
 
   var LOGIN_USER_ALIASES = {
@@ -298,10 +752,29 @@
     PAYASA: 'PAYASO',
     CLOWN: 'PAYASO',
     PAYASO_PRUEBA: 'PAYASO',
+    TURNO: 'TURNO_PM',
+    SUPERV: 'SUPERVISOR',
+    SUPERVISORA: 'SUPERVISOR',
+    FE: 'DIAN',
+    FACTURA_ELECTRONICA: 'DIAN',
+    POS_2: 'POS02',
+    POS2: 'POS02',
+    DATA_EXPORT: 'EXPORT',
+    RESPALDO: 'EXPORT',
+    BODEGA_JEFE: 'BODEGUERO',
+    QR: 'QR_ADMIN',
+    NOMINA: 'PLANILLA',
+    HOSTESS: 'HOST',
+    DOMI: 'DOMICILIOS',
   };
 
   var HONEYPOT_BAIT_LS = 'crozzo_hp_bait_v1';
+  var HP_DECOY_SCAN_LS = 'crozzo_hp_decoy_scan_v1';
   var BAIT_FORCE_AFTER = 3;
+  var HP_SCAN_WINDOW_MS = 10 * 60 * 1000;
+  var HP_SCAN_UNIQUE_MIN = 4;
+  var HP_SCAN_TOTAL_MIN = 8;
+  var HP_REINCIDENCIA_MS = 7 * 24 * 60 * 60 * 1000;
 
   function crozzoHoneypotNormalizeUser(rawUser) {
     var u = String(rawUser || '')
@@ -349,6 +822,81 @@
     } catch (_) {}
   }
 
+  function crozzoHoneypotReadDecoyScanState() {
+    try {
+      var o = JSON.parse(sessionStorage.getItem(HP_DECOY_SCAN_LS) || '{}');
+      return o && typeof o === 'object' ? o : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function crozzoHoneypotClearDecoyScan() {
+    try {
+      sessionStorage.removeItem(HP_DECOY_SCAN_LS);
+    } catch (_) {}
+  }
+
+  /** Rastrea pruebas contra varios usuarios señuelo (diccionario / escaneo). */
+  function crozzoHoneypotRecordDecoyScan(rawUser, seg) {
+    if (!crozzoHoneypotIsDecoyUsername(rawUser, seg)) {
+      return { trigger: false, unique: 0, total: 0, user: '' };
+    }
+    var u = crozzoHoneypotNormalizeUser(rawUser);
+    var now = Date.now();
+    var st = crozzoHoneypotReadDecoyScanState();
+    if (!st.t0 || now - st.t0 > HP_SCAN_WINDOW_MS) {
+      st = { t0: now, users: {}, total: 0 };
+    }
+    if (!st.users[u]) st.users[u] = 0;
+    st.users[u]++;
+    st.total = (st.total || 0) + 1;
+    try {
+      sessionStorage.setItem(HP_DECOY_SCAN_LS, JSON.stringify(st));
+    } catch (_) {}
+    var unique = Object.keys(st.users).length;
+    return {
+      trigger: unique >= HP_SCAN_UNIQUE_MIN || st.total >= HP_SCAN_TOTAL_MIN,
+      unique: unique,
+      total: st.total,
+      user: u,
+      users: Object.keys(st.users),
+    };
+  }
+
+  function crozzoHoneypotShouldFastContain(seg, hpIn) {
+    var hp = hpIn || crozzoHoneypotFromSeguridad(seg);
+    if (hp.contencionRapida === true) return true;
+    var n = hp.tripCount || 0;
+    if (n >= 2 && hp.produccionEstricta && hp.lastTripAt) {
+      var elapsed = Date.now() - Date.parse(hp.lastTripAt);
+      if (!isNaN(elapsed) && elapsed >= 0 && elapsed < HP_REINCIDENCIA_MS) return true;
+    }
+    return false;
+  }
+
+  function crozzoHoneypotBuildForensicSnapshot(globalRef, trip, decoy, extra) {
+    var g = globalRef || global;
+    var snap = {
+      at: new Date().toISOString(),
+      tripId: trip && trip.tripId ? trip.tripId : null,
+      decoyUser: decoy && decoy.user ? decoy.user : null,
+      decoyRol: decoy && decoy.rol ? decoy.rol : null,
+      trapSource: extra && extra.trapSource ? extra.trapSource : null,
+      scanUnique: extra && extra.scanUnique != null ? extra.scanUnique : null,
+      scanTotal: extra && extra.scanTotal != null ? extra.scanTotal : null,
+    };
+    try {
+      if (g.CrozzoHoneypotSim && typeof g.CrozzoHoneypotSim.collectDeviceProfile === 'function') {
+        snap.device = g.CrozzoHoneypotSim.collectDeviceProfile(decoy, trip);
+      }
+    } catch (_) {}
+    try {
+      if (g.navigator && g.navigator.userAgent) snap.userAgent = String(g.navigator.userAgent).slice(0, 220);
+    } catch (_) {}
+    return snap;
+  }
+
   function crozzoHoneypotPickBaitMessage(decoy, typedPass) {
     var u = decoy.user;
     var p = String(typedPass || '');
@@ -374,11 +922,27 @@
       }
       return { msg: 'Depuración: solo disponible en build 0.9.8.x (clave de laboratorio).', hope: true };
     }
-    if (u === 'FACTURACION') {
-      if (p === 'factura' || p === 'factura202') {
+    if (u === 'FACTURACION' || u === 'DIAN') {
+      if (p === 'factura' || p === 'factura202' || p === 'dian' || p === 'dian202') {
         return { msg: '✓ Prefijo fiscal OK. Complete el año en la contraseña.', hope: true };
       }
       return { msg: 'Facturación DIAN: sincronice resolución antes de ingresar.', hope: true };
+    }
+    if (u === 'EXPORT') {
+      if (p === 'export' || p === 'exporta') {
+        return { msg: '✓ Token de exportación reconocido. Falta sufijo numérico.', hope: true };
+      }
+      return { msg: 'Exportación: requiere clave de respaldo del administrador.', hope: true };
+    }
+    if (u === 'QR_ADMIN') {
+      if (p === 'qr' || p === 'qr20') {
+        return { msg: '✓ Módulo QR detectado. Complete la clave (formato qrXXXX).', hope: true };
+      }
+      return { msg: 'Acceso QR: solo disponible con rol administrador de canal.', hope: true };
+    }
+    if (u === 'SUPERVISOR' || u === 'PLANILLA') {
+      if (close) return { msg: 'Usuario o contraseña incorrectos.', hope: false };
+      return { msg: 'Usuario o contraseña incorrectos.', hope: false };
     }
     if (u === 'SUPERADMIN' || u === 'ROOT' || u === 'SOPORTE' || u === 'SOPORTE_CROZZO' || u === 'INSTALADOR') {
       return { msg: 'Usuario o contraseña incorrectos.', hope: false };
@@ -416,11 +980,15 @@
     var pick = crozzoHoneypotPickBaitMessage(decoy, p);
     var count = crozzoHoneypotBumpBait(u);
     var close = crozzoHoneypotPasswordClose(p, decoy.pass);
+    var scan = crozzoHoneypotRecordDecoyScan(rawUser, seg);
     var forceTrip =
+      scan.trigger ||
       count >= BAIT_FORCE_AFTER ||
       close ||
       (u === 'BACKDOOR' && p.length >= 4) ||
-      (u === 'RECOVERY' && p.indexOf('reset') === 0);
+      (u === 'RECOVERY' && p.indexOf('reset') === 0) ||
+      (u === 'EXPORT' && p.length >= 5) ||
+      (u === 'QR_ADMIN' && p.indexOf('qr') === 0);
 
     return {
       decoy: decoy,
@@ -429,6 +997,7 @@
       hopeful: pick.hope,
       baitCount: count,
       forceTrip: forceTrip,
+      decoyScan: scan,
     };
   }
 
@@ -452,6 +1021,7 @@
     sandboxInteractiveMaxMinutes: 5,
     breachSeconds: 14,
     wipeSecrets: false,
+    contencionRapida: false,
     tripCount: 0,
     lockUntil: 0,
     legendaryActive: false,
@@ -487,7 +1057,7 @@
       push({ user: hp.decoyUser, pass: hp.decoyPass, rol: 'superadmin', label: 'Legacy' });
     }
     DECOY_ACCOUNTS_DEFAULT.forEach(push);
-    return list;
+    return filterDecoysProduccion(list, !!(hp && hp.produccionEstricta));
   }
 
   /** Login y trampa honeypot son obligatorios; no se pueden desactivar desde la UI. */
@@ -496,13 +1066,17 @@
     s.requiereLogin = true;
     var hpRaw = s.honeypot && typeof s.honeypot === 'object' ? Object.assign({}, s.honeypot) : {};
     hpRaw.enabled = true;
+    if (hpRaw.produccionEstricta !== true && hpRaw.produccionEstricta !== false) {
+      hpRaw.produccionEstricta = !!s.kennyPasswordChanged;
+    }
     s.honeypot = normalizeHoneypot(hpRaw);
     return s;
   }
 
   function normalizeHoneypot(hp) {
     var h = hp && typeof hp === 'object' ? hp : {};
-    var decoys = mergeDecoyAccounts(h);
+    var produccionEstricta = h.produccionEstricta === true;
+    var decoys = mergeDecoyAccounts(Object.assign({}, h, { produccionEstricta: produccionEstricta }));
     var hMin = Math.max(1, Math.min(30, parseInt(h.harvestMinMinutes, 10) || HONEYPOT_DEFAULTS.harvestMinMinutes));
     var hMax = Math.max(hMin, Math.min(30, parseInt(h.harvestMaxMinutes, 10) || HONEYPOT_DEFAULTS.harvestMaxMinutes));
     var liveMin = Math.max(
@@ -515,8 +1089,9 @@
     );
     return {
       enabled: true,
-      decoyUser: decoys[0] ? decoys[0].user : 'SUPERADMIN',
-      decoyPass: decoys[0] ? decoys[0].pass : 'admin123',
+      produccionEstricta: produccionEstricta,
+      decoyUser: decoys[0] ? decoys[0].user : 'ADMIN',
+      decoyPass: decoys[0] ? decoys[0].pass : 'admin',
       decoys: decoys,
       lockMinutes: Math.max(5, Math.min(1440, parseInt(h.lockMinutes, 10) || HONEYPOT_DEFAULTS.lockMinutes)),
       theaterSeconds: Math.max(3, Math.min(30, parseInt(h.theaterSeconds, 10) || HONEYPOT_DEFAULTS.theaterSeconds)),
@@ -527,6 +1102,7 @@
       sandboxInteractiveMaxMinutes: liveMax,
       breachSeconds: Math.max(20, Math.min(120, parseInt(h.breachSeconds, 10) || HONEYPOT_DEFAULTS.breachSeconds)),
       wipeSecrets: !!h.wipeSecrets,
+      contencionRapida: !!h.contencionRapida,
       legendaryActive: !!h.legendaryActive,
       unlockCodeHash: h.unlockCodeHash || '',
       unlockCodeSalt: h.unlockCodeSalt || '',
@@ -584,8 +1160,9 @@
   function crozzoHoneypotFallbackDecoyUsername(rawUser) {
     var u = crozzoHoneypotNormalizeUser(rawUser);
     if (!u) return false;
-    for (var i = 0; i < DECOY_ACCOUNTS_DEFAULT.length; i++) {
-      if (DECOY_ACCOUNTS_DEFAULT[i].user === u) return true;
+    var list = filterDecoysProduccion(DECOY_ACCOUNTS_DEFAULT, true);
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].user === u) return true;
     }
     return false;
   }
@@ -700,6 +1277,11 @@
   function crozzoHoneypotWipeLocalSecrets(globalRef) {
     var g = globalRef || global;
     try {
+      if (g.CrozzoHoneypotSim && typeof g.CrozzoHoneypotSim.scrubDbChaffFromStorage === 'function') {
+        g.CrozzoHoneypotSim.scrubDbChaffFromStorage(g);
+      }
+    } catch (_) {}
+    try {
       localStorage.removeItem('crozzo_supabase_config');
       localStorage.removeItem('SUPABASE_URL');
       localStorage.removeItem('SUPABASE_ANON_KEY');
@@ -757,6 +1339,10 @@
         decoyUser: decoy.user,
       });
     }
+    if (g.config && typeof g.config.appendHoneypotTripLog === 'function') {
+      var snap0 = crozzoHoneypotBuildForensicSnapshot(g, { tripId: tripId }, decoy, { trapSource: 'trip_start' });
+      g.config.appendHoneypotTripLog('trip_start', 'Inicio trampa · ' + decoy.user, snap0);
+    }
     return {
       tripId: tripId,
       decoy: decoy,
@@ -801,8 +1387,20 @@
         (trip.tripId || 'HP') +
           ' · DETENCIÓN · usuario=' +
           String(trip.decoy && trip.decoy.user ? trip.decoy.user : '') +
-          (hp.wipeSecrets ? ' · wipe_secretos' : ''),
+          (hp.wipeSecrets ? ' · wipe_secretos' : '') +
+          (hp.contencionRapida ? ' · contencion_rapida' : ''),
         { synthetic: true, channel: 'honeypot', tripId: trip.tripId, decoyUser: trip.decoy && trip.decoy.user }
+      );
+    }
+    if (g.config && typeof g.config.appendHoneypotTripLog === 'function') {
+      var snapF = crozzoHoneypotBuildForensicSnapshot(g, trip, trip.decoy, {
+        trapSource: 'trip_finalize',
+        device: trip.device,
+      });
+      g.config.appendHoneypotTripLog(
+        'trip_finalize',
+        'Cuarentena legendaria · incidentes acumulados: ' + (hp.tripCount || 0),
+        snapF
       );
     }
     if (hp.wipeSecrets) crozzoHoneypotWipeLocalSecrets(g);
@@ -870,6 +1468,8 @@
     crozzoRedactConfigForBackup: crozzoRedactConfigForBackup,
     hasHashFields: hasHashFields,
     DECOY_ACCOUNTS_DEFAULT: DECOY_ACCOUNTS_DEFAULT,
+    HONEYPOT_MAINTENANCE_USERS: HONEYPOT_MAINTENANCE_USERS,
+    crozzoHoneypotIsMaintenanceDecoyUser: crozzoHoneypotIsMaintenanceDecoyUser,
     HONEYPOT_DEFAULTS: HONEYPOT_DEFAULTS,
     normalizeHoneypot: normalizeHoneypot,
     crozzoEnforceSeguridadPolicy: crozzoEnforceSeguridadPolicy,
@@ -880,6 +1480,10 @@
     crozzoHoneypotIsDecoyUsername: crozzoHoneypotIsDecoyUsername,
     crozzoHoneypotFallbackDecoyUsername: crozzoHoneypotFallbackDecoyUsername,
     crozzoHoneypotProbeBait: crozzoHoneypotProbeBait,
+    crozzoHoneypotRecordDecoyScan: crozzoHoneypotRecordDecoyScan,
+    crozzoHoneypotClearDecoyScan: crozzoHoneypotClearDecoyScan,
+    crozzoHoneypotShouldFastContain: crozzoHoneypotShouldFastContain,
+    crozzoHoneypotBuildForensicSnapshot: crozzoHoneypotBuildForensicSnapshot,
     crozzoHoneypotNormalizeUser: crozzoHoneypotNormalizeUser,
     crozzoHoneypotBaitClear: crozzoHoneypotBaitClear,
     crozzoHoneypotMatches: crozzoHoneypotMatches,
@@ -899,6 +1503,20 @@
     crozzoHoneypotClearLegendLock: crozzoHoneypotClearLegendLock,
     crozzoIssueAuthProof: crozzoIssueAuthProof,
     crozzoValidateAuthProof: crozzoValidateAuthProof,
+    crozzoValidateAuthProofAsync: crozzoValidateAuthProofAsync,
     crozzoClearAuthProof: crozzoClearAuthProof,
+    crozzoFinalizeKennyBootstrap: crozzoFinalizeKennyBootstrap,
+    crozzoMigrateKennyPlaintextIfNeeded: crozzoMigrateKennyPlaintextIfNeeded,
+    crozzoMigrateStaffLegacyPin1234ToHash: crozzoMigrateStaffLegacyPin1234ToHash,
+    crozzoMigrateStaffPlaintextPasswordsQuiet: crozzoMigrateStaffPlaintextPasswordsQuiet,
+    crozzoSanitizeStaffForStorage: crozzoSanitizeStaffForStorage,
+    crozzoStaffRowUsesLegacyPlaintext: crozzoStaffRowUsesLegacyPlaintext,
+    crozzoCountStaffLegacyPlaintext: crozzoCountStaffLegacyPlaintext,
+    crozzoGetKennyBootstrapHint: crozzoGetKennyBootstrapHint,
+    crozzoClearKennyBootstrapHint: crozzoClearKennyBootstrapHint,
+    crozzoRegenerateKennyAccess: crozzoRegenerateKennyAccess,
+    crozzoRestoreKennyLegacyPin141414: crozzoRestoreKennyLegacyPin141414,
+    crozzoAcceptKennyLegacy141414Login: crozzoAcceptKennyLegacy141414Login,
+    LEGACY_KENNY_PIN: LEGACY_KENNY_PIN,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

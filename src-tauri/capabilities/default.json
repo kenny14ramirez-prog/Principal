@@ -9,6 +9,11 @@
     "process:default",
     "allow-crozzo-list-printers",
     "allow-crozzo-get-default-printer",
-    "allow-crozzo-print-raw"
+    "allow-crozzo-print-raw",
+    "allow-crozzo-http",
+    "allow-crozzo-install",
+    "allow-crozzo-dian",
+    "allow-crozzo-crm-registro",
+    "allow-crozzo-webview-camera"
   ]
 }
