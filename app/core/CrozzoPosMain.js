@@ -4699,7 +4699,7 @@ function crozzoCuentaItemNombreConsumo(item) {
 function crozzoCuentaItemsParaTicket(items) {
   return (items || []).map(function (c) {
     const nom = crozzoCuentaItemNombreConsumo(c);
-    return {
+    const row = {
       id: c.id,
       nombre: nom,
       nombreVenta: nom,
@@ -4707,6 +4707,8 @@ function crozzoCuentaItemsParaTicket(items) {
       precio: c.precio,
       icon: c.icon,
     };
+    if (typeof c.ivaRate === 'number' && !Number.isNaN(c.ivaRate)) row.ivaRate = c.ivaRate;
+    return row;
   });
 }
 function crozzoFacturaSoloProductosConsumo(factura) {
@@ -13184,14 +13186,18 @@ function crozzoImpuestosCajaOpciones(impOptional) {
 function crozzoLineaTasaImpuesto(item, op) {
   const r = item.ivaRate;
   const explicit = typeof r === 'number' && !Number.isNaN(r) ? r : null;
-  // Restaurante: impuesto al consumo por defecto (ignora ivaRate 19% heredado del catálogo).
+  // Restaurante: impuesto al consumo en TODAS las líneas (precuenta, POS, FE y demo).
   if (op.perfilFiscal === 'restaurante' && op.consumoTarifa > 0) {
-    if (explicit === 0) return 0;
     return op.consumoTarifa;
   }
+  // Comercio / servicios: IVA por defecto en TODAS las líneas.
+  if (op.perfilFiscal === 'comercio' && op.ivaTarifaDefault > 0) {
+    return op.ivaTarifaDefault;
+  }
+  // Mixto: tarifa por producto en catálogo; si no tiene, INC o IVA según reglas.
   if (explicit !== null) return Math.max(0, Math.min(1, explicit));
   if (op.perfilFiscal === 'mixto') {
-    if (op.consumoAplica && op.consumoTarifa > 0 && (explicit === null || explicit === 0)) return op.consumoTarifa;
+    if (op.consumoAplica && op.consumoTarifa > 0) return op.consumoTarifa;
     if (op.ivaTarifaDefault > 0) return op.ivaTarifaDefault;
   }
   if (op.consumoAplica && op.consumoTarifa > 0 && op.perfilFiscal !== 'comercio') return op.consumoTarifa;
@@ -13230,6 +13236,8 @@ function computeTotals(cart) {
   return { subtotal, iva, total, ivaIncluidoEnPrecios: op.ivaIncluidoEnPrecios };
 }
 window.computeTotals = computeTotals;
+window.crozzoImpuestosNormalize = crozzoImpuestosNormalize;
+window.crozzoImpuestosCajaOpciones = crozzoImpuestosCajaOpciones;
 /** Normaliza ítems del carrito antes de cobrar (anti-manipulación en cliente). */
 function crozzoSanitizeCartForSale(cart) {
   if (!Array.isArray(cart)) return [];
@@ -16917,17 +16925,20 @@ function crozzoCuentaTotalesTicketHtml(factura) {
       : { subtotal: f.subtotal, iva: f.iva, total: f.total, ivaIncluidoEnPrecios: false };
   const propina = Number(f.propinaVoluntaria || 0) > 0 ? Number(f.propinaVoluntaria) : Number(f.propinaSugerida || 0);
   const totPagar = Number(f.totalConPropina) || Number(tx.total) + propina;
-  const impCfgFb = typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {};
+  const impCfgFb = crozzoImpuestosNormalize(typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {});
+  const opFb = crozzoImpuestosCajaOpciones(impCfgFb);
   const labFb =
     co && typeof co.cuentaEtiquetasFiscales === 'function'
       ? co.cuentaEtiquetasFiscales(impCfgFb, !!tx.ivaIncluidoEnPrecios)
       : null;
   const impLblFb = labFb ? labFb.impuesto : 'IVA / impuesto';
+  const muestraImpFb =
+    tx.iva > 0 || opFb.perfilFiscal === 'restaurante' || opFb.perfilFiscal === 'comercio';
   return (
     '<div class="row"><span>Gravado</span><span>$' +
     tx.subtotal.toLocaleString('es-CO') +
     '</span></div>' +
-    (tx.iva > 0
+    (muestraImpFb
       ? '<div class="row"><span>' + escHtml(String(impLblFb)) + '</span><span>$' + tx.iva.toLocaleString('es-CO') + '</span></div>'
       : '') +
     '<div class="row"><span>Subtotal</span><span>$' + tx.total.toLocaleString('es-CO') +
@@ -17520,7 +17531,7 @@ function crozzoOpenCobroStudioModal(opts) {
       : tipoServicioCaja === 'llevar'
         ? 'Llevar ' + llevarSeleccionado
         : 'Venta directa';
-  const impCfgCobro = typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {};
+  const impCfgCobro = crozzoImpuestosNormalize(config.getImpuestos());
   const labCobro =
     global.CrozzoTermicaColombia && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales
       ? global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(impCfgCobro, totals.ivaIncluidoEnPrecios)
@@ -21369,9 +21380,10 @@ function crozzoFacturaBuildThermalHtmlBuiltin(factura) {
   var propinaEnTot = !!legalFb.propinaEnTotales;
   var totalesTxt = '';
   if (
-    !esPrecuenta &&
     typeof global.CrozzoTermicaColombia !== 'undefined' &&
-    global.CrozzoTermicaColombia.cuentaPrecuentaFilasTotales
+    global.CrozzoTermicaColombia.cuentaPrecuentaFilasTotales &&
+    global.CrozzoTermicaColombia.isCuentaClienteDoc &&
+    global.CrozzoTermicaColombia.isCuentaClienteDoc(factura, null)
   ) {
     var packFb = global.CrozzoTermicaColombia.cuentaPrecuentaFilasTotales(
       typeof crozzoTermicaPayloadFromFactura === 'function' ? crozzoTermicaPayloadFromFactura(factura) : legalFb
@@ -21427,8 +21439,11 @@ function crozzoFacturaBuildThermalHtmlBuiltin(factura) {
         '\n' +
         (legalFb.ivaDisc
           ? legalFb.ivaDisc + '\n'
-          : (Number(factura.iva || 0) > 0
-              ? (global.CrozzoTermicaColombia && global.CrozzoTermicaColombia.impuestoLineaLabel
+          : (Number(factura.iva || 0) > 0 ||
+              legalFb.consumoAplica ||
+              legalFb.impuestoTipo === 'consumo' ||
+              legalFb.impuestoTipo === 'iva'
+            ? (global.CrozzoTermicaColombia && global.CrozzoTermicaColombia.impuestoLineaLabel
                   ? global.CrozzoTermicaColombia.impuestoLineaLabel(legalFb)
                   : 'Impuesto') +
                 ':  $' +
@@ -29508,6 +29523,7 @@ function crozzoSetPerfilFiscalImpuestos(perfil) {
   config.addAudit('impuestos_perfil', 'Perfil fiscal: ' + impuestos.perfilFiscal);
   renderPage('config-impuestos');
   if (typeof showToast === 'function') showToast('Perfil fiscal actualizado', 'success');
+  if (typeof updateCartTotals === 'function') updateCartTotals();
 }
 window.crozzoSetPerfilFiscalImpuestos = crozzoSetPerfilFiscalImpuestos;
 function toggleImpuestoAlConsumo() {

@@ -31,6 +31,13 @@
     return d ? n + '-' + d : n;
   }
 
+  /** Config de impuestos normalizada (perfil restaurante / comercio / mixto). */
+  function getImpuestosCfg() {
+    var raw = typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+    if (typeof global.crozzoImpuestosNormalize === 'function') return global.crozzoImpuestosNormalize(raw);
+    return raw || {};
+  }
+
   function fmtFechaHora(factura) {
     var raw = (factura && (factura.fechaEmision || factura.fecha)) || '';
     if (!raw) return new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
@@ -345,7 +352,7 @@
     ctx = ctx || {};
     imp =
       imp ||
-      (typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {});
+      getImpuestosCfg();
     var lineas = [{ k: 'head', t: 'INFORMACIÓN LEGAL — FACTURA ELECTRÓNICA' }];
     var demo = lineaDemoSi(ctx);
     if (demo) lineas.push({ k: 'p', t: demo });
@@ -413,12 +420,12 @@
     if (isCuentaPrecuentaTicket(data, tpl)) return pieLegalPrecuentaLineas();
     if (data.docKind === 'pos_cerrado') {
       var impPos =
-        typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+        getImpuestosCfg();
       return pieLegalVentaPosLineas(impPos, operacionContexto({ estado: 'pos', tipoComprobante: 'pos' }), {});
     }
     if (data.docKind === 'fe_cerrada') {
       var impFe =
-        typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+        getImpuestosCfg();
       return pieLegalFeLineas({}, operacionContexto({ estado: 'timbrada', tipoComprobante: 'electronica' }), impFe);
     }
     return [];
@@ -502,8 +509,7 @@
   function impuestoLineaLabel(data) {
     data = data || {};
     if (data.etiquetaImpuesto) return data.etiquetaImpuesto;
-    var imp =
-      typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+    var imp = getImpuestosCfg();
     return cuentaEtiquetasFiscales(imp, data.ivaIncluidoEnPrecios).impuesto;
   }
 
@@ -552,7 +558,7 @@
     if (typeof tx.ivaIncluidoEnPrecios === 'boolean') return tx.ivaIncluidoEnPrecios;
     try {
       var imp =
-        typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+        getImpuestosCfg();
       return !!imp.ivaIncluidoEnPrecios;
     } catch (_) {
       return false;
@@ -624,11 +630,9 @@
     var lab =
       data.etiquetaGravado && data.etiquetaSubtotal
         ? { gravado: data.etiquetaGravado, impuesto: data.etiquetaImpuesto, subtotal: data.etiquetaSubtotal }
-        : cuentaEtiquetasFiscales(
-            typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {},
-            incl
-          );
-    var muestraImpuesto = iva > 0 || !!data.consumoAplica || data.impuestoTipo === 'consumo';
+        : cuentaEtiquetasFiscales(getImpuestosCfg(), incl);
+    var muestraImpuesto =
+      iva > 0 || !!data.consumoAplica || data.impuestoTipo === 'consumo' || data.impuestoTipo === 'iva';
     var rows = [];
     rows.push({ label: lab.gravado, amount: gravado, muted: false });
     if (muestraImpuesto) {
@@ -660,8 +664,7 @@
   /** Totales unificados para precuenta / cuenta POS (propina sumada al total a pagar). */
   function cuentaTicketTotals(factura) {
     factura = factura || {};
-    var imp =
-      typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+    var imp = getImpuestosCfg();
     var incl = !!imp.ivaIncluidoEnPrecios;
     var sub = Number(factura.subtotal || 0);
     var iva = Number(factura.iva || 0);
@@ -729,7 +732,7 @@
     var emp =
       typeof global.config !== 'undefined' && global.config.getEmpresa ? global.config.getEmpresa() : {};
     var dian = typeof global.config !== 'undefined' && global.config.getDian ? global.config.getDian() : {};
-    var imp = typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+    var imp = getImpuestosCfg();
     var estado = String(factura.estado || '');
     var tipo = factura.tipoComprobante || '';
     var sub = Number(factura.subtotal || 0);

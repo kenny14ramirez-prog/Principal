@@ -291,8 +291,10 @@
   }
 
   function isBuildOnlyUpdate(entry) {
-    if (!entry || !entryNeedsInstall(entry)) return false;
-    return compareSemver(normEntryVersion(entry), VERSION) === 0;
+    if (!entry) return false;
+    if (compareSemver(normEntryVersion(entry), VERSION) !== 0) return false;
+    if (isCriticalEntry(entry)) return false;
+    return !isEntryApplied(entry);
   }
 
   function entryBuildStamp(entry) {
@@ -306,6 +308,8 @@
     var cmp = compareSemver(VERSION, remote);
     if (cmp < 0) return false;
     if (cmp > 0) return true;
+    // Misma semver que el binario: no forzar reinstalación crítica por sello OTA distinto.
+    if (isCriticalEntry(entry)) return true;
     var id = entryId(entry);
     if (id && loadAppliedEntryIds().indexOf(id) >= 0) return true;
     var remoteStamp = entryBuildStamp(entry);
@@ -314,6 +318,18 @@
       return String(localStamp) >= String(remoteStamp);
     }
     return false;
+  }
+
+  /** Marca entradas del registry ya cubiertas por la versión instalada (evita bucles al arrancar). */
+  function reconcileAppliedEntriesForVersion(installedVer) {
+    var ver = normEntryVersion({ version: installedVer || VERSION });
+    if (!ver || !_registryEntries.length) return;
+    _registryEntries.forEach(function (entry) {
+      if (!entry) return;
+      if (compareSemver(ver, normEntryVersion(entry)) >= 0 && !isEntryApplied(entry)) {
+        markEntryFullyApplied(entry, ver);
+      }
+    });
   }
 
   function entryNeedsInstall(entry) {
@@ -2294,7 +2310,10 @@
     opts = opts || {};
     var profile = getUpdateClientProfile();
     if (!global.CrozzoTauriUpdater || !global.CrozzoTauriUpdater.canUseTauriUpdater()) {
-      return applyClientUpdate(targetVersion, onProgress, opts);
+      if (profile.canAutoInstall) {
+        return Promise.reject(new Error('Instalador automático no disponible en este equipo.'));
+      }
+      return applyWebClientUpdate(targetVersion, onProgress);
     }
     var windowsExe = profile.assetKind === 'exe';
     var TU = global.CrozzoTauriUpdater;
@@ -2571,12 +2590,17 @@
       }
     }, 14000);
 
-    return refreshBinaryVersion().then(function () {
-      return fetchRegistryData();
+    return refreshBinaryVersion().then(function (installedVer) {
+      return fetchRegistryData().then(function (data) {
+        return { data: data, installedVer: installedVer };
+      });
     })
-      .then(function (data) {
+      .then(function (payload) {
+        var data = payload && payload.data;
+        var installedVer = (payload && payload.installedVer) || VERSION;
         _registryEntries = sortEntriesForProcess(normalizeRegistryEntries(data));
         global.CROZZO_UPDATE_REGISTRY = _registryEntries.slice();
+        reconcileAppliedEntriesForVersion(installedVer);
         applyAvailabilityFromRegistry(_registryEntries);
         pruneStaleStateFlags();
 
@@ -2888,6 +2912,12 @@
 
   function beginCriticalEntryInstall(entry, opts) {
     opts = opts || {};
+    var remoteNorm = normEntryVersion(entry);
+    if (remoteNorm && compareSemver(VERSION, remoteNorm) >= 0 && isCriticalEntry(entry)) {
+      markEntryFullyApplied(entry, VERSION);
+      if (opts.returnPromise) return Promise.resolve({ done: true, upToDate: true });
+      return true;
+    }
     if (isBuildOnlyUpdate(entry) && !opts.skipBuildAuto) {
       return showBuildOnlyUpdate(entry, opts);
     }
