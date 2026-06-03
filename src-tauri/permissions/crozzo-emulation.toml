@@ -1,0 +1,10 @@
+[[permission]]
+identifier = "allow-crozzo-emulation"
+description = "Emulación autónoma: SQLite test.db e impresión simulada"
+commands.allow = [
+  "crozzo_emulation_set_active",
+  "crozzo_emulation_status",
+  "crozzo_emulation_reset_db",
+  "crozzo_emulation_log_action",
+  "crozzo_emulation_query_sql",
+]

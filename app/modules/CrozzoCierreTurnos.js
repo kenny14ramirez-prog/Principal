@@ -928,6 +928,8 @@
     var hfExtra = '';
     try {
       if (
+        typeof global.crozzoShowOperativeMetricsUi === 'function' &&
+        global.crozzoShowOperativeMetricsUi() &&
         global.CrozzoOnboardingOperativo &&
         typeof global.CrozzoOnboardingOperativo.getCombinedStress === 'function'
       ) {

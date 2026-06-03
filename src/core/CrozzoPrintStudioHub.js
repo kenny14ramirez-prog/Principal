@@ -96,9 +96,9 @@
         { t: 'divider', c: '4', v: true, o: 10 },
         { t: 'items', c: '', v: true, o: 11, a: 'left', fs: 'sm' },
         { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 13, a: 'left', fs: 'md', fw: true },
-        { t: 'divider', c: '2', v: true, o: 14, a: 'center', fs: 'xs', id: 'sep_pie' },
-        { t: 'propina_sugerida', c: '', v: true, o: 14.5, a: 'center', fs: 'xs' },
+        { t: 'propina_sugerida', c: '', v: true, o: 14, a: 'center', fs: 'xs' },
         { t: 'legal_co', c: '', v: true, o: 15, a: 'center', fs: 'xs' },
+        { t: 'divider', c: '2', v: true, o: 16, a: 'center', fs: 'xs' },
         { t: 'footer', c: '', v: true, o: 17, a: 'center', fs: 'sm', fw: true },
       ],
     };

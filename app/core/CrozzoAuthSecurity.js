@@ -606,10 +606,21 @@
     }
   }
 
+  function crozzoKennyStillNeedsFactoryPasswordChange(user, seg) {
+    if (!user || user.id !== 'KENNY') return false;
+    var s = seg && typeof seg === 'object' ? seg : {};
+    if (s.kennyPasswordChanged) return false;
+    if (user.claveMigradaDesde141414 || user.clavePendienteRotacion) return true;
+    if (!hasHashFields(user)) return true;
+    var hint = crozzoGetKennyBootstrapHint();
+    if (hint && hint.pass) return true;
+    return false;
+  }
+
   function crozzoMustChangePassword(user) {
     if (!user) return false;
     var seg = typeof global.config !== 'undefined' && global.config.get ? global.config.get('seguridad') || {} : {};
-    if (user.id === 'KENNY' && !seg.kennyPasswordChanged) return true;
+    if (crozzoKennyStillNeedsFactoryPasswordChange(user, seg)) return true;
     if (user.requiereClaveInicial && !hasHashFields(user)) return true;
     if (user.claveMigradaDesde1234) return true;
     if (user.claveMigradaDesde141414) return true;
@@ -686,7 +697,7 @@
 
   var DECOY_ACCOUNTS_DEFAULT = [
     { user: 'SUPERADMIN', pass: 'admin123', rol: 'superadmin', label: 'Super Administrador' },
-    { user: 'ADMIN', pass: 'admin', rol: 'admin', label: 'Administrador' },
+    { user: 'ADMIN', pass: 'admin123', rol: 'admin', label: 'Administrador' },
     { user: 'GERENTE', pass: 'gerente2024', rol: 'admin', label: 'Gerente' },
     { user: 'GERENTE2', pass: 'gerente', rol: 'admin', label: 'Gerente turno' },
     { user: 'DIRECTOR', pass: 'director', rol: 'admin', label: 'Director' },
@@ -1152,6 +1163,45 @@
     return crozzoHoneypotFindDecoyCredentials(rawUser, rawPass, seg);
   }
 
+  /** Claves alternativas habituales en diccionarios / pruebas manuales. */
+  var HP_DECOY_PASS_ALIASES = {
+    ADMIN: ['admin', 'admin123', 'Admin123', 'administrator', 'Administrador1'],
+    SUPERADMIN: ['admin123', 'admin', 'superadmin', 'SuperAdmin123'],
+    PAYASO: ['payaso123', 'payaso', 'Payaso123'],
+    GERENTE: ['gerente', 'gerente2024'],
+    CAJERO1: ['1234', 'cajero'],
+    CAJERO: ['cajero', '1234'],
+  };
+
+  function crozzoHoneypotPassMatchesDecoy(decoy, typedPass) {
+    if (!decoy) return false;
+    var p = String(typedPass || '');
+    if (!p) return false;
+    if (String(decoy.pass) === p) return true;
+    var aliases = HP_DECOY_PASS_ALIASES[decoy.user];
+    return !!(aliases && aliases.indexOf(p) >= 0);
+  }
+
+  /** Coincidencia exacta o alias → dispara trampa (payaso tratado como login válido al teatro). */
+  function crozzoHoneypotResolveDecoyLogin(rawUser, rawPass, seg) {
+    var hp = crozzoHoneypotFromSeguridad(seg);
+    if (!hp.enabled) return null;
+    var exact = crozzoHoneypotFindDecoyCredentials(rawUser, rawPass, seg);
+    if (exact) return exact;
+    var u = crozzoHoneypotNormalizeUser(rawUser);
+    var p = String(rawPass || '');
+    if (!u || !p) return null;
+    var byUser = crozzoHoneypotFindDecoyByUser(rawUser, seg);
+    if (byUser && crozzoHoneypotPassMatchesDecoy(byUser.decoy, p)) {
+      return byUser;
+    }
+    if (u === 'ADMIN' && p === 'admin123') {
+      var sa = crozzoHoneypotFindDecoyByUser('SUPERADMIN', seg);
+      if (sa) return sa;
+    }
+    return null;
+  }
+
   function crozzoHoneypotIsDecoyUsername(rawUser, seg) {
     return !!crozzoHoneypotFindDecoyByUser(rawUser, seg);
   }
@@ -1475,6 +1525,7 @@
     crozzoEnforceSeguridadPolicy: crozzoEnforceSeguridadPolicy,
     crozzoHoneypotFromSeguridad: crozzoHoneypotFromSeguridad,
     crozzoHoneypotFindDecoy: crozzoHoneypotFindDecoy,
+    crozzoHoneypotResolveDecoyLogin: crozzoHoneypotResolveDecoyLogin,
     crozzoHoneypotFindDecoyCredentials: crozzoHoneypotFindDecoyCredentials,
     crozzoHoneypotFindDecoyByUser: crozzoHoneypotFindDecoyByUser,
     crozzoHoneypotIsDecoyUsername: crozzoHoneypotIsDecoyUsername,

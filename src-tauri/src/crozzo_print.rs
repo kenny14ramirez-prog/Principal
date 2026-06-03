@@ -66,6 +66,9 @@ pub fn crozzo_print_raw(
     data: Vec<u8>,
     copies: u32,
 ) -> Result<CrozzoPrintResult, String> {
+    if crate::crozzo_emulation::is_active() {
+        return crate::crozzo_emulation::mock_print_raw(&printer_name, &data, copies, Some("escpos"));
+    }
     print_raw_inner(&printer_name, &data, copies)
 }
 
@@ -80,6 +83,9 @@ pub fn crozzo_print_raw_b64(
     let data = base64::engine::general_purpose::STANDARD
         .decode(data_b64.trim())
         .map_err(|e| format!("Datos de impresión inválidos (base64): {e}"))?;
+    if crate::crozzo_emulation::is_active() {
+        return crate::crozzo_emulation::mock_print_raw(&printer_name, &data, copies, Some("escpos_b64"));
+    }
     print_raw_inner(&printer_name, &data, copies)
 }
 
@@ -108,6 +114,13 @@ pub fn crozzo_print_html_b64(
     copies: Option<u32>,
     landscape: Option<bool>,
 ) -> Result<CrozzoPrintResult, String> {
+    if crate::crozzo_emulation::is_active() {
+        return crate::crozzo_emulation::mock_print_html(
+            &printer_name,
+            &html_b64,
+            copies.unwrap_or(1),
+        );
+    }
     crozzo_print_html::print_html_b64_sync(
         app,
         printer_name,

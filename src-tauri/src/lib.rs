@@ -3,6 +3,8 @@
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crm_registro_server;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_emulation;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_print;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_http;
@@ -33,6 +35,8 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_emulation::init_from_env();
             #[cfg(desktop)]
             {
                 if let Some(win) = app.get_webview_window("main") {
@@ -79,7 +83,17 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_drain_pending,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            crm_registro_server::crm_registro_push_pending
+            crm_registro_server::crm_registro_push_pending,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_emulation::crozzo_emulation_set_active,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_emulation::crozzo_emulation_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_emulation::crozzo_emulation_reset_db,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_emulation::crozzo_emulation_log_action,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_emulation::crozzo_emulation_query_sql
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
