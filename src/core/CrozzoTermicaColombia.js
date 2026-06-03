@@ -86,6 +86,7 @@
 
   function docKindFromFactura(factura) {
     var st = String((factura && factura.estado) || '').toLowerCase();
+    if (st === 'cotizacion') return 'cotizacion';
     if (st === 'precuenta') return perfilEmisionActivo(factura) === 'fe' ? 'precuenta_fe' : 'precuenta_cuenta';
     if (st === 'pos' || (factura && factura.tipoComprobante === 'pos')) return 'pos_cerrado';
     if (
@@ -167,6 +168,7 @@
   function tituloLegal(estado, tipoComprobante, factura) {
     factura = factura || {};
     var st = String(estado || '').toLowerCase();
+    if (st === 'cotizacion') return 'COTIZACIÓN';
     if (st === 'precuenta') {
       return esPrecuentaPerfilFe(factura)
         ? 'PRECUENTA — FE AL COBRAR'
@@ -208,6 +210,15 @@
       },
       { k: 'p', t: 'Verifique CUFE y código QR en la factura electrónica al cerrar la venta.' },
       { k: 'p', t: 'Revise consumos y totales antes de pagar.' },
+    ];
+  }
+
+  function pieLegalCotizacionLineas() {
+    return [
+      { k: 'head', t: 'INFORMACIÓN — COTIZACIÓN' },
+      { k: 'p', t: 'Documento informativo de precios. No constituye venta ni factura.' },
+      { k: 'p', t: 'Sin validez fiscal ante la DIAN. Sujeto a disponibilidad y vigencia comercial.' },
+      { k: 'p', t: 'Revise ítems y totales antes de confirmar la compra.' },
     ];
   }
 
@@ -259,7 +270,8 @@
     if (demoSub !== 'fe') demoSub = 'pos';
     var st = String(factura.estado || '').toLowerCase();
     var tipo = String(factura.tipoComprobante || '').toLowerCase();
-    var esPrecuenta = st === 'precuenta';
+    var esCotizacion = st === 'cotizacion';
+    var esPrecuenta = st === 'precuenta' || esCotizacion;
     var esPos = st === 'pos' || tipo === 'pos';
     var esFeDoc = esDocumentoFe(factura);
     var esDemoFe =
@@ -270,6 +282,7 @@
       modo: modo,
       demoSubmodo: demoSub,
       esPrecuenta: esPrecuenta,
+      esCotizacion: esCotizacion,
       esPos: esPos,
       esPosCerrado: esPos && !esPrecuenta,
       esDemoPos: isDemo && esPos && !esDemoFe,
@@ -286,6 +299,14 @@
       return 'DOCUMENTO DEMO — Simulación de factura electrónica. Sin validez ante la DIAN.';
     }
     return 'DOCUMENTO DEMO — Simulación de venta POS. Sin validez fiscal.';
+  }
+
+  function avisoCotizacionCaja() {
+    return {
+      titulo: 'COTIZACIÓN — NO ES VENTA',
+      cuerpo:
+        'Documento informativo de precios para el cliente. No reserva inventario ni genera obligación de pago hasta confirmar la venta.',
+    };
   }
 
   function avisoPrecuentaCaja(factura) {
@@ -314,6 +335,16 @@
 
   function pieLegal(estado, tipoComprobante) {
     var st = String(estado || '').toLowerCase();
+    if (st === 'cotizacion') {
+      return pieLegalCotizacionLineas()
+        .filter(function (ln) {
+          return ln.k === 'p';
+        })
+        .map(function (ln) {
+          return ln.t;
+        })
+        .join(' ');
+    }
     if (st === 'precuenta') return pieLegalPrecuenta();
     if (st === 'demo') return 'Documento de prueba. Sin validez ante la DIAN.';
     if (st === 'pos' || tipoComprobante === 'pos') {
@@ -417,6 +448,7 @@
     ctx = ctx || operacionContexto(factura);
     var st = String(factura.estado || '').toLowerCase();
     var tipo = factura.tipoComprobante || '';
+    if (ctx.esCotizacion || st === 'cotizacion') return pieLegalCotizacionLineas();
     if (ctx.esPrecuenta || st === 'precuenta') {
       return esPrecuentaPerfilFe(factura) ? pieLegalPrecuentaFeLineas() : pieLegalPrecuentaPosLineas();
     }
@@ -589,7 +621,7 @@
   function isCuentaClienteDoc(factura, tpl) {
     if (tpl && tpl.docType === 'precuenta') return true;
     var e = String((factura && factura.estado) || '').toLowerCase();
-    if (e === 'precuenta' || e === 'pos' || e === 'borrador_fe' || e === 'timbrada' || e === 'demo') return true;
+    if (e === 'precuenta' || e === 'cotizacion' || e === 'pos' || e === 'borrador_fe' || e === 'timbrada' || e === 'demo') return true;
     if (factura && (factura.tipoComprobante === 'pos' || factura.tipoComprobante === 'electronica')) return true;
     return false;
   }
@@ -638,7 +670,7 @@
   /** Precuenta abierta: aviso caja, pie legal precuenta, plantilla precuenta. */
   function isCuentaPrecuentaTicket(data, tpl) {
     if (tpl && tpl.docType === 'precuenta') return true;
-    if (data && (data.docKind === 'precuenta_cuenta' || data.docKind === 'precuenta_fe')) return true;
+    if (data && (data.docKind === 'precuenta_cuenta' || data.docKind === 'precuenta_fe' || data.docKind === 'cotizacion')) return true;
     return false;
   }
 
@@ -697,9 +729,10 @@
     }
     var esPosCerrado = data.docKind === 'pos_cerrado';
     var esFeCerrada = data.docKind === 'fe_cerrada';
+    var esCotizacion = data.docKind === 'cotizacion';
     return {
       rows: rows,
-      totalLabel: esPosCerrado || esFeCerrada ? 'TOTAL' : 'TOTAL A PAGAR',
+      totalLabel: esCotizacion ? 'TOTAL COTIZADO' : esPosCerrado || esFeCerrada ? 'TOTAL' : 'TOTAL A PAGAR',
       totalAmount: totPagar,
     };
   }
@@ -887,7 +920,7 @@
       legalPrecuentaLineas: null,
       legalVentaLineas: null,
       legalFeLineas: null,
-      avisoCajaPrecuenta: ctx.esPrecuenta ? avisoPrecuentaCaja(factura) : null,
+      avisoCajaPrecuenta: ctx.esCotizacion ? avisoCotizacionCaja() : ctx.esPrecuenta ? avisoPrecuentaCaja(factura) : null,
     };
     return refreshFiscalLabelsOnPayload(out);
   }

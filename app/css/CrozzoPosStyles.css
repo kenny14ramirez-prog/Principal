@@ -1636,6 +1636,19 @@ html:not(.tauri-desktop) body.super-admin-active .nav-group.open .nav-group-item
   visibility: visible !important;
   opacity: 1 !important;
 }
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-item[data-page],
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-group-toggle {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.is-expanded .nav-group-items,
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.expanded .nav-group-items,
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-group-li.open .nav-group-items,
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-group.open .nav-group-items {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
 html.tauri-desktop #sidebar.sidebar-pro .nav-group-collapsed > .nav-group-items {
   max-height: 0 !important;
   opacity: 0 !important;

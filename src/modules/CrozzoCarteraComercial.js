@@ -404,7 +404,11 @@
         ' doc. · <strong style="color:var(--warning);">$' +
         g.saldo.toLocaleString('es-CO') +
         '</strong></span></div>' +
-        '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'venta-comercial\')">+ Venta</button>' +
+        '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoCarteraComercial.iniciarVentaCliente(\'' +
+        esc(g.nit || '').replace(/'/g, "\\'") +
+        '\',\'' +
+        esc(g.nombre || '').replace(/'/g, "\\'") +
+        '\')">+ Venta</button>' +
         '</header><table class="crozzo-cartera-table"><thead><tr>' +
         '<th>Fecha</th><th>Nº</th><th>Total</th><th>Saldo</th><th></th></tr></thead><tbody>';
       g.rows.forEach(function (row) {
@@ -565,6 +569,10 @@
 
   function initPage() {
     if (document.body) document.body.classList.add('crozzo-page-cartera');
+    if (window.__crozzoCarteraFiltroNit) {
+      filtroQ = String(window.__crozzoCarteraFiltroNit || '');
+      window.__crozzoCarteraFiltroNit = '';
+    }
     var inp = document.getElementById('crozzoCarteraSearch');
     if (inp && !inp._bound) {
       inp._bound = true;
@@ -577,6 +585,19 @@
         }, 220);
       });
     }
+  }
+
+  function iniciarVentaCliente(nit, nombre) {
+    var c = findClientByNit(nit);
+    if (typeof global.crozzoRetailIniciarVentaParaCliente === 'function') {
+      global.crozzoRetailIniciarVentaParaCliente({
+        nit: nit || (c && c.nit) || '',
+        nombre: nombre || (c && c.nombre) || '',
+        clienteId: c && c.id ? c.id : '',
+      });
+      return;
+    }
+    if (typeof global.navigateTo === 'function') global.navigateTo('venta-comercial');
   }
 
   function setTab(id) {
@@ -606,6 +627,7 @@
     setTab: setTab,
     openAbonoModal: openAbonoModal,
     confirmAbonoModal: confirmAbonoModal,
+    iniciarVentaCliente: iniciarVentaCliente,
   };
 
   global.crozzoCarteraGuardarCotizacionDesdeCarrito = guardarCotizacionDesdeCarrito;

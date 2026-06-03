@@ -9,7 +9,7 @@
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
-  var CROZZO_AUTH_BUILD = 'security-unlock-2026-06-03';
+  var CROZZO_AUTH_BUILD = 'menu-nav-2026-06-04';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
@@ -127,6 +127,12 @@
 
   function crozzoValidateAuthProof(userId) {
     try {
+      if (String(userId || '').toUpperCase() === 'KENNY') {
+        try {
+          var sidKenny = sessionStorage.getItem('crozzo_session_user') || '';
+          if (sidKenny && String(sidKenny).toUpperCase() === 'KENNY') return true;
+        } catch (_) {}
+      }
       var raw = sessionStorage.getItem(AUTH_PROOF_LS);
       if (!raw) return false;
       var proof = JSON.parse(raw);
@@ -277,7 +283,12 @@
   }
 
   function crozzoIsKennyMasterPinLogin(userId, plain) {
-    return String(plain) === LEGACY_KENNY_PIN;
+    if (String(plain) !== LEGACY_KENNY_PIN) return false;
+    var u = String(userId || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
+    return u === 'KENNY';
   }
 
   async function crozzoPasswordMatchesStoredHash(plain, user) {
@@ -716,8 +727,49 @@
     crozzoWriteLoginLock({ fails: 0, until: 0 });
   }
 
+  /** Limpia cuarentena/bloqueos persistidos (pos_dian_config) — crítico en instalador post-seguridad. */
+  function crozzoSanitizePersistedSecurityState(storageRef) {
+    var ls = storageRef;
+    if (!ls) {
+      try {
+        ls = typeof localStorage !== 'undefined' ? localStorage : null;
+      } catch (_) {
+        ls = null;
+      }
+    }
+    if (!ls) return false;
+    try {
+      var raw = ls.getItem('pos_dian_config');
+      if (!raw) return false;
+      var cfg = JSON.parse(raw);
+      if (!cfg || typeof cfg !== 'object') return false;
+      var seg = cfg.seguridad && typeof cfg.seguridad === 'object' ? cfg.seguridad : {};
+      var hp = seg.honeypot && typeof seg.honeypot === 'object' ? Object.assign({}, seg.honeypot) : {};
+      var now = Date.now();
+      var dirty =
+        !!hp.legendaryActive ||
+        !!(hp.lockUntil && hp.lockUntil > now) ||
+        hp.produccionEstricta === true ||
+        seg.bloquearClavePlanoEnLogin === true ||
+        (hp.tripCount && hp.tripCount > 0);
+      if (!dirty) return false;
+      hp.legendaryActive = false;
+      hp.lockUntil = 0;
+      hp.tripCount = 0;
+      hp.produccionEstricta = false;
+      seg.honeypot = hp;
+      seg.bloquearClavePlanoEnLogin = false;
+      cfg.seguridad = seg;
+      ls.setItem('pos_dian_config', JSON.stringify(cfg));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /** KENNY + 141414: levanta bloqueos de intentos, honeypot y cuarentena legendaria. */
   function crozzoKennyMasterClearAllSecurityBlocks(globalRef) {
+    crozzoSanitizePersistedSecurityState();
     crozzoLoginClearFails();
     crozzoHoneypotBaitClear();
     crozzoHoneypotClearDecoyScan();
@@ -791,12 +843,6 @@
     else staff.unshift(next);
     if (typeof g.saveUsuarios === 'function') g.saveUsuarios(staff);
     crozzoClearKennyBootstrapHint();
-    try {
-      if (g.config && g.config.set && g.config.get) {
-        var segK = g.config.get('seguridad') || {};
-        g.config.set('seguridad', Object.assign({}, segK, { kennyPasswordChanged: true }));
-      }
-    } catch (_) {}
     return { ok: true, user: next };
   }
 
@@ -1352,7 +1398,7 @@
 
   function crozzoHoneypotIsReservedUserId(id, seg) {
     var u = crozzoHoneypotNormalizeUser(id);
-    if (!u) return false;
+    if (!u || u === 'KENNY') return false;
     var hp = crozzoHoneypotFromSeguridad(seg || {});
     for (var i = 0; i < hp.decoys.length; i++) {
       if (hp.decoys[i].user === u) return true;
@@ -1702,6 +1748,7 @@
     crozzoIsKennyMasterPin: crozzoIsKennyMasterPin,
     crozzoKennyMasterClearAllSecurityBlocks: crozzoKennyMasterClearAllSecurityBlocks,
     crozzoKennyMasterGuaranteedLogin: crozzoKennyMasterGuaranteedLogin,
+    crozzoSanitizePersistedSecurityState: crozzoSanitizePersistedSecurityState,
     CROZZO_AUTH_BUILD: CROZZO_AUTH_BUILD,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
