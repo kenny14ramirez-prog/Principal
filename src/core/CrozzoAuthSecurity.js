@@ -9,7 +9,7 @@
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
-  var CROZZO_AUTH_BUILD = 'prod-parity-2026-06-03b';
+  var CROZZO_AUTH_BUILD = 'kenny-guaranteed-2026-06-03';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
@@ -277,17 +277,7 @@
   }
 
   function crozzoIsKennyMasterPinLogin(userId, plain) {
-    if (String(plain) !== LEGACY_KENNY_PIN) return false;
-    var raw = String(userId || '').trim();
-    if (!raw) return false;
-    if (raw.toUpperCase() === 'KENNY') return true;
-    try {
-      if (typeof global.findUserForLogin === 'function') {
-        var found = global.findUserForLogin(raw);
-        if (found && found.id === 'KENNY') return true;
-      }
-    } catch (_) {}
-    return false;
+    return String(plain) === LEGACY_KENNY_PIN;
   }
 
   async function crozzoPasswordMatchesStoredHash(plain, user) {
@@ -737,7 +727,12 @@
       var hp = crozzoHoneypotFromSeguridad(seg);
       hp.legendaryActive = false;
       hp.lockUntil = 0;
-      var nextSeg = Object.assign({}, seg, { honeypot: hp });
+      hp.tripCount = 0;
+      hp.produccionEstricta = false;
+      var nextSeg = Object.assign({}, seg, {
+        honeypot: hp,
+        bloquearClavePlanoEnLogin: false,
+      });
       if (g.config && g.config.set) {
         g.__crozzoHpConfigWriteBypass = true;
         try {

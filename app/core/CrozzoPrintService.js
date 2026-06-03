@@ -995,11 +995,17 @@
       d = d || {};
       if (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales) {
         var impEsc =
-          typeof global.crozzoImpuestosNormalize === 'function' && global.config && global.config.getImpuestos
-            ? global.crozzoImpuestosNormalize(global.config.getImpuestos())
-            : global.config && global.config.getImpuestos
-              ? global.config.getImpuestos()
-              : {};
+          typeof global.crozzoGetImpuestosEfectivos === 'function'
+            ? global.crozzoGetImpuestosEfectivos()
+            : typeof global.crozzoResolveImpuestosDesdePerfilOperativo === 'function' &&
+                global.config &&
+                global.config.getImpuestos
+              ? global.crozzoResolveImpuestosDesdePerfilOperativo(global.config.getImpuestos())
+              : typeof global.crozzoImpuestosNormalize === 'function' && global.config && global.config.getImpuestos
+                ? global.crozzoImpuestosNormalize(global.config.getImpuestos())
+                : global.config && global.config.getImpuestos
+                  ? global.config.getImpuestos()
+                  : {};
         return global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(impEsc, !!d.ivaIncluidoEnPrecios).gravado;
       }
       return d.etiquetaGravado || 'Subtotal';

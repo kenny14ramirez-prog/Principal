@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.55">
+<meta name="crozzo-app-version" content="1.0.59">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
@@ -39,7 +39,7 @@
     localStorage.removeItem('crozzo_user_role');
   } catch (_) {}
   window.__crozzoAuthInteractiveThisBoot = false;
-  window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
+  window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__ || window.__TAURI_INTERNALS__) || /tauri/i.test(String(navigator.userAgent || ''));
   window.crozzoPosIsOperationBusy = window.crozzoPosIsOperationBusy || function () { return false; };
   window.crozzoPosIsOperationBusyForUpdates = window.crozzoPosIsOperationBusyForUpdates || function () { return false; };
   window.crozzoPosNotifyOperationState = window.crozzoPosNotifyOperationState || function () {};
@@ -149,6 +149,13 @@ window.crozzoAppDisplayName = function () {
         document.body.classList.add('crozzo-login-open');
         var ov = document.getElementById('loginOverlay');
         if (ov) ov.removeAttribute('hidden');
+        var bs = document.getElementById('loginBuildStamp');
+        if (bs) {
+          var mv = document.querySelector('meta[name="crozzo-app-version"]');
+          var ver = mv ? mv.getAttribute('content') : '';
+          bs.textContent = ver ? 'Build ' + ver + ' (cargando…)' : '';
+          bs.hidden = false;
+        }
       } catch (_) {}
     }
     if (document.readyState === 'loading') {
@@ -176,7 +183,7 @@ window.crozzoAppDisplayName = function () {
 </script>
 <script>
 /* Tauri / web: factor de forma vía CrozzoDeviceForm.js (no forzar escritorio en móvil). */
-window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
+window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__ || window.__TAURI_INTERNALS__) || /tauri/i.test(String(navigator.userAgent || ''));
 if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 </script>
 <a href="#mainContent" class="crozzo-skip-link">Saltar al contenido principal</a>
@@ -533,6 +540,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p id="loginBaitHint" class="login-bait-hint" hidden role="status"></p>
       <div class="login-error" id="loginError" hidden></div>
       <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">🔐 Iniciar sesión</button>
+      <p class="login-hint" id="loginKennyHint" style="margin:8px 0 0;text-align:center;font-size:12px;">Super Admin: <strong>KENNY</strong> / <strong>141414</strong></p>
+      <p class="login-hint" id="loginBuildStamp" style="margin:6px 0 0;text-align:center;font-size:11px;opacity:0.8;"></p>
       <p class="login-hint" id="loginLocalHint" style="margin:10px 0 0;text-align:center;" hidden></p>
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>

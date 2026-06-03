@@ -542,6 +542,9 @@
         new CustomEvent('crozzo-perfil-operativo-changed', { detail: { perfil: getPerfilId(perfilId), meta: getMeta(perfilId) } })
       );
     } catch (_) {}
+    if (typeof global.crozzoSyncFiscalPerfilOperativo === 'function') {
+      global.crozzoSyncFiscalPerfilOperativo(getPerfilId(perfilId));
+    }
     return true;
   }
 
@@ -573,6 +576,9 @@
     try {
       global.dispatchEvent(new CustomEvent('crozzo-perfil-operativo-changed', { detail: { perfil: id, meta: PERFIL_META[id] } }));
     } catch (_) {}
+    if (typeof global.crozzoSyncFiscalPerfilOperativo === 'function') {
+      global.crozzoSyncFiscalPerfilOperativo(id);
+    }
     try {
       if (document.body) document.body.setAttribute('data-crozzo-perfil', id);
     } catch (_) {}

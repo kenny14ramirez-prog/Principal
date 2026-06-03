@@ -985,6 +985,15 @@
   }
 
   function trySilentSetupInstall(targetVersion, ver, currentVer, onProgress, opts) {
+    if (isWindowsDesktop() || isMacDesktop()) {
+      try {
+        if (localStorage.getItem('crozzo_ota_auto') !== '1') {
+          return Promise.reject(new Error('Auto-instalación OTA desactivada en escritorio.'));
+        }
+      } catch (_) {
+        return Promise.reject(new Error('Auto-instalación OTA desactivada en escritorio.'));
+      }
+    }
     if (opts.allowSilentSetup === false || !isWindowsDesktop()) {
       return Promise.reject(new Error('Instalación silenciosa (.exe) solo en Windows.'));
     }
@@ -1205,6 +1214,15 @@
    */
   function installAutomatic(opts) {
     opts = opts || {};
+    if (isWindowsDesktop() || isMacDesktop()) {
+      try {
+        if (localStorage.getItem('crozzo_ota_auto') !== '1') {
+          return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
+        }
+      } catch (_) {
+        return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
+      }
+    }
     opts.automaticOnly = opts.automaticOnly !== false;
     opts.preferSilentSetup = opts.preferSilentSetup !== false;
     opts.skipReleaseWait = opts.skipReleaseWait !== false;
@@ -1257,6 +1275,15 @@
    */
   function installLatestBinary(opts) {
     opts = opts || {};
+    if (isWindowsDesktop() || isMacDesktop()) {
+      try {
+        if (localStorage.getItem('crozzo_ota_auto') !== '1') {
+          return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
+        }
+      } catch (_) {
+        return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
+      }
+    }
     if (!isTauri()) {
       return Promise.reject(new Error('Solo disponible en la app de escritorio (Tauri)'));
     }

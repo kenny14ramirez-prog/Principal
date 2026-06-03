@@ -777,9 +777,17 @@
         var encImp =
           (typeof global.CrozzoTermicaColombia !== 'undefined' &&
             global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa &&
+            typeof global.crozzoGetImpuestosEfectivos === 'function' &&
+            global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa(global.crozzoGetImpuestosEfectivos())) ||
+          (typeof global.CrozzoTermicaColombia !== 'undefined' &&
+            global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa &&
             global.config &&
             global.config.getImpuestos &&
-            global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa(global.config.getImpuestos())) ||
+            global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa(
+              typeof global.crozzoResolveImpuestosDesdePerfilOperativo === 'function'
+                ? global.crozzoResolveImpuestosDesdePerfilOperativo(global.config.getImpuestos())
+                : global.config.getImpuestos()
+            )) ||
           data.impuestoConsumoE ||
           '';
         return encImp

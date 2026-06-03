@@ -308,16 +308,8 @@
     var cmp = compareSemver(VERSION, remote);
     if (cmp < 0) return false;
     if (cmp > 0) return true;
-    // Misma semver que el binario: no forzar reinstalación crítica por sello OTA distinto.
-    if (isCriticalEntry(entry)) return true;
-    var id = entryId(entry);
-    if (id && loadAppliedEntryIds().indexOf(id) >= 0) return true;
-    var remoteStamp = entryBuildStamp(entry);
-    var localStamp = readMetaBuildStamp();
-    if (remoteStamp && localStamp) {
-      return String(localStamp) >= String(remoteStamp);
-    }
-    return false;
+    // Misma semver que el binario: nunca reinstalar por sello OTA distinto.
+    return true;
   }
 
   /** Marca entradas del registry ya cubiertas por la versión instalada (evita bucles al arrancar). */
@@ -488,6 +480,16 @@
       isDesktopBinary: kind === 'windows' || kind === 'mac' || kind === 'desktop',
       canAutoInstall: !!canAutoInstall,
     };
+  }
+
+  /** Escritorio: sin auto-instal OTA (evita que GitHub pise un build local con fixes). */
+  function otaAutoInstallAllowed() {
+    try {
+      if (localStorage.getItem('crozzo_ota_auto') === '1') return true;
+    } catch (_) {}
+    var profile = getUpdateClientProfile();
+    if (profile.isWindows || profile.isMac || profile.isDesktopBinary) return false;
+    return true;
   }
 
   function getPlatformUpdateDescriptor() {
@@ -2744,6 +2746,10 @@
   }
 
   function runCriticalInstall(entry) {
+    if (!otaAutoInstallAllowed()) {
+      beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
+      return Promise.resolve({ deferred: true, reason: 'ota_manual_only' });
+    }
     if (_installInProgress) return Promise.resolve();
     cancelCriticalIdleWait();
     _criticalAutoAttempts = _criticalAutoAttempts || 0;
@@ -3011,6 +3017,15 @@
       return false;
     }
 
+    if (isCriticalEntry(entry) && !otaAutoInstallAllowed()) {
+      setCheckStatus(
+        'Hay actualización ' +
+          normEntryVersion(entry) +
+          ' en GitHub. En este equipo no se instala sola: use Configuración → Actualizaciones.'
+      );
+      return false;
+    }
+
     if (isCriticalEntry(entry)) {
       return showCriticalEntry(entry);
     }
@@ -3202,14 +3217,18 @@
         renderLocalLogPanel();
 
         var pending = _registryEntries.filter(entryIsPending);
-        var shown = processPendingUpdates(_registryEntries);
-
-        if (!shown && pending.length) {
-          var hasPendingCritical = pending.some(isCriticalEntry);
-          if (hasPendingCritical) {
-            clearSessionDismissals();
-            shown = processPendingUpdates(_registryEntries);
+        var shown = false;
+        if (otaAutoInstallAllowed()) {
+          shown = processPendingUpdates(_registryEntries);
+          if (!shown && pending.length) {
+            var hasPendingCritical = pending.some(isCriticalEntry);
+            if (hasPendingCritical) {
+              clearSessionDismissals();
+              shown = processPendingUpdates(_registryEntries);
+            }
           }
+        } else {
+          reconcileAppliedEntriesForVersion(VERSION);
         }
 
         if (shown) {
@@ -3789,6 +3808,7 @@
   }
 
   function onAuthReady() {
+    if (!otaAutoInstallAllowed()) return;
     setTimeout(function () {
       maybeShowPostUpdateWelcome();
       checkForUpdates({ silent: true, toastOnFound: false });
@@ -3796,13 +3816,17 @@
   }
 
   function startCrozzoUpdateChecks() {
-    clearSessionDismissals();
     fetchTauriBinaryVersion().then(function (binaryVer) {
       VERSION = reconcileInstalledVersion(binaryVer);
       global.CROZZO_APP_VERSION = VERSION;
       syncVersionLabels();
 
       if (!_bootUpdatesReady) return;
+
+      if (!otaAutoInstallAllowed()) {
+        setCheckStatus('Versión ' + VERSION + ' · sin auto-instalación OTA en escritorio.');
+        return;
+      }
 
       checkForUpdates({ silent: true, toastOnFound: false });
 
@@ -3851,6 +3875,7 @@
   global.CrozzoSystemUpdates = {
     check: checkForUpdates,
     start: startCrozzoUpdateChecks,
+    otaAutoInstallAllowed: otaAutoInstallAllowed,
     getManifestUrl: getManifestUrl,
     getRegistryUrl: getRegistryUrl,
     setManifestUrl: setManifestUrl,
@@ -3867,11 +3892,31 @@
   function boot() {
     initCrozzoUpdateOverlays();
     wirePosIdleListener();
-    scheduleDeferredCriticalAfterLogin();
+    if (otaAutoInstallAllowed()) {
+      scheduleDeferredCriticalAfterLogin();
+    }
     runBootUpdatePipeline()
       .finally(function () {
         startCrozzoUpdateChecks();
-        checkForUpdates({ silent: true, toastOnFound: false });
+        if (otaAutoInstallAllowed()) {
+          checkForUpdates({ silent: true, toastOnFound: false });
+        } else {
+          refreshBinaryVersion()
+            .then(function (installedVer) {
+              return fetchRegistryData()
+                .then(function (data) {
+                  _registryEntries = sortEntriesForProcess(normalizeRegistryEntries(data));
+                  global.CROZZO_UPDATE_REGISTRY = _registryEntries.slice();
+                  reconcileAppliedEntriesForVersion(installedVer);
+                  pruneStaleStateFlags();
+                  setCheckStatus('Versión local ' + VERSION + ' (sin auto-instalación OTA en escritorio).');
+                })
+                .catch(function () {
+                  setCheckStatus('Versión local ' + VERSION + '.');
+                });
+            })
+            .catch(function () {});
+        }
         return runInternalUpdateAudit({ silent: true });
       })
       .catch(function () {

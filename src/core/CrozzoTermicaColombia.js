@@ -32,8 +32,21 @@
   }
 
   /** Config de impuestos normalizada (perfil restaurante / comercio / mixto). */
+  function normalizeImpCfg(imp) {
+    if (typeof global.crozzoResolveImpuestosDesdePerfilOperativo === 'function') {
+      return global.crozzoResolveImpuestosDesdePerfilOperativo(imp);
+    }
+    if (typeof global.crozzoImpuestosNormalize === 'function') {
+      return global.crozzoImpuestosNormalize(imp);
+    }
+    return imp || {};
+  }
+
   function getImpuestosCfg() {
     var raw = typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
+    if (typeof global.crozzoResolveImpuestosDesdePerfilOperativo === 'function') {
+      return global.crozzoResolveImpuestosDesdePerfilOperativo(raw);
+    }
     if (typeof global.crozzoImpuestosNormalize === 'function') return global.crozzoImpuestosNormalize(raw);
     return raw || {};
   }
@@ -460,14 +473,6 @@
       if (act) pct = Math.round(Number(act.rate) * 1000) / 10;
     }
     return pct;
-  }
-
-  /** Misma normalización que caja (CrozzoPosMain.crozzoImpuestosNormalize). */
-  function normalizeImpCfg(imp) {
-    if (typeof global.crozzoImpuestosNormalize === 'function') {
-      return global.crozzoImpuestosNormalize(imp);
-    }
-    return imp || {};
   }
 
   function consumoPctLabel(imp) {
