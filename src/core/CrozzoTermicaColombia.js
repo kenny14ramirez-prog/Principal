@@ -33,20 +33,23 @@
 
   /** Config de impuestos normalizada (perfil restaurante / comercio / mixto). */
   function normalizeImpCfg(imp) {
-    if (typeof global.crozzoResolveImpuestosDesdePerfilOperativo === 'function') {
-      return global.crozzoResolveImpuestosDesdePerfilOperativo(imp);
-    }
+    var raw =
+      imp != null && typeof imp === 'object'
+        ? imp
+        : typeof global.config !== 'undefined' && global.config.getImpuestos
+          ? global.config.getImpuestos()
+          : {};
     if (typeof global.crozzoImpuestosNormalize === 'function') {
-      return global.crozzoImpuestosNormalize(imp);
+      return global.crozzoImpuestosNormalize(raw);
     }
-    return imp || {};
+    return raw || {};
   }
 
   function getImpuestosCfg() {
-    var raw = typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
-    if (typeof global.crozzoResolveImpuestosDesdePerfilOperativo === 'function') {
-      return global.crozzoResolveImpuestosDesdePerfilOperativo(raw);
+    if (typeof global.crozzoGetImpuestosEfectivos === 'function') {
+      return global.crozzoGetImpuestosEfectivos();
     }
+    var raw = typeof global.config !== 'undefined' && global.config.getImpuestos ? global.config.getImpuestos() : {};
     if (typeof global.crozzoImpuestosNormalize === 'function') return global.crozzoImpuestosNormalize(raw);
     return raw || {};
   }

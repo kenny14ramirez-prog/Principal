@@ -1566,6 +1566,51 @@ function shouldRequireLogin() {
     return true;
   }
 }
+/** Al arranque: limpia cuarentena/honeypot persistido que bloquea login en instalador. */
+function crozzoBootClearSecurityLockdown() {
+  try {
+    const Auth = window.CrozzoAuthSecurity;
+    if (Auth && typeof Auth.crozzoKennyMasterClearAllSecurityBlocks === 'function') {
+      Auth.crozzoKennyMasterClearAllSecurityBlocks(window);
+    } else {
+      const seg = config.get('seguridad') || {};
+      const hp = Object.assign({}, seg.honeypot || {}, {
+        legendaryActive: false,
+        lockUntil: 0,
+        tripCount: 0,
+        produccionEstricta: false,
+      });
+      window.__crozzoHpConfigWriteBypass = true;
+      try {
+        config.set('seguridad', {
+          ...seg,
+          honeypot: hp,
+          bloquearClavePlanoEnLogin: false,
+        });
+      } finally {
+        window.__crozzoHpConfigWriteBypass = false;
+      }
+      if (Auth && typeof Auth.crozzoLoginClearFails === 'function') Auth.crozzoLoginClearFails();
+    }
+  } catch (e) {
+    console.warn('[auth] boot security unlock', e);
+  }
+  try {
+    document.body.classList.remove('crozzo-login-hp-blocked', 'crozzo-hp-containment-active');
+    if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
+    const blocked = document.getElementById('loginHoneypotBlocked');
+    if (blocked) blocked.hidden = true;
+  } catch (_) {}
+}
+window.crozzoBootClearSecurityLockdown = crozzoBootClearSecurityLockdown;
+function crozzoHasKennySessionFast() {
+  try {
+    const sid = sessionStorage.getItem('crozzo_session_user');
+    return !!(sid && String(sid).toUpperCase() === 'KENNY');
+  } catch (_) {
+    return false;
+  }
+}
 /** Cada arranque exige login explícito (excepto kiosko cocina/comandas). */
 function crozzoPurgeStaleSessionOnBoot() {
   try {
@@ -3769,6 +3814,16 @@ async function handleLoginSubmit() {
     (Auth &&
       typeof Auth.crozzoIsKennyMasterPinLogin === 'function' &&
       Auth.crozzoIsKennyMasterPinLogin(rawUser.trim(), pwd));
+  if (String(pwd) === kennyMasterPin && Auth && typeof Auth.crozzoKennyMasterClearAllSecurityBlocks === 'function') {
+    Auth.crozzoKennyMasterClearAllSecurityBlocks(window);
+    try {
+      document.body.classList.remove('crozzo-login-hp-blocked', 'crozzo-hp-containment-active');
+      if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
+      const blocked = document.getElementById('loginHoneypotBlocked');
+      if (blocked) blocked.hidden = true;
+      if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+    } catch (_) {}
+  }
   if (isKennyMasterLogin) {
     try {
       if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
@@ -5428,9 +5483,7 @@ function crozzoInferKennyPasswordChangedIfReady() {
   if (kenny.claveMigradaDesde141414 || kenny.clavePendienteRotacion) return;
   const hint = Auth && typeof Auth.crozzoGetKennyBootstrapHint === 'function' ? Auth.crozzoGetKennyBootstrapHint() : null;
   if (hint && hint.pass) return;
-  const hpRaw = Object.assign({}, seg.honeypot || {}, { produccionEstricta: true });
-  const hpKenny = Auth && typeof Auth.normalizeHoneypot === 'function' ? Auth.normalizeHoneypot(hpRaw) : hpRaw;
-  config.set('seguridad', { ...seg, kennyPasswordChanged: true, honeypot: hpKenny });
+  config.set('seguridad', { ...seg, kennyPasswordChanged: true });
 }
 function crozzoScheduleKennySecurityBootstrap() {
   const Auth = window.CrozzoAuthSecurity;
@@ -10035,6 +10088,7 @@ window.crozzoUpdatePremiumIdentity = crozzoUpdatePremiumIdentity;
 /** Misma política de acceso que navigateTo — evita bypass vía renderPage() desde consola. */
 function crozzoAssertPageAccess(page) {
   if (!page) return { ok: false, reason: 'invalid' };
+  if (crozzoHasKennySessionFast()) return { ok: true };
   if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return { ok: true };
   if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
     return { ok: typeof crozzoHpCanSeePage === 'function' ? crozzoHpCanSeePage(page) : false, reason: 'honeypot' };
@@ -10092,7 +10146,12 @@ function navigateTo(page) {
       return;
     }
   }
-  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+  if (
+    typeof crozzoSecurityBlocksRealSession === 'function' &&
+    crozzoSecurityBlocksRealSession() &&
+    !window.__crozzoPostLoginNavigate &&
+    !crozzoHasKennySessionFast()
+  ) {
     if (!(hpLiveNav && hpLiveNav.active)) {
       if (crozzoIsLegendaryQuarantineActive()) void crozzoEnsureLegendaryContainmentUi();
       else if (typeof showLoginOverlay === 'function') showLoginOverlay();
@@ -13272,7 +13331,8 @@ function crozzoImpuestosNormalize(imp) {
   }
   return out;
 }
-function crozzoResolveImpuestosDesdePerfilOperativo(impOptional) {
+/** Solo al cambiar perfil operativo: propone INC/IVA y lo guarda en config (no pisa caja en vivo). */
+function crozzoImpuestosSugeridosPorPerfilOperativo(perfilOpId, impOptional) {
   const raw =
     impOptional != null
       ? impOptional
@@ -13280,12 +13340,12 @@ function crozzoResolveImpuestosDesdePerfilOperativo(impOptional) {
         ? config.getImpuestos()
         : {};
   const imp = crozzoImpuestosNormalize(raw);
-  const opId =
-    typeof crozzoGetPerfilEmpresa === 'function'
-      ? crozzoGetPerfilEmpresa()
-      : String(
-          (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_perfil_empresa')) || 'completo'
-        ).toLowerCase();
+  const opId = String(
+    perfilOpId ||
+      (typeof crozzoGetPerfilEmpresa === 'function' ? crozzoGetPerfilEmpresa() : '') ||
+      (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_perfil_empresa')) ||
+      'completo'
+  ).toLowerCase();
   const meta =
     typeof global !== 'undefined' && global.CROZZO_PERFIL_META && global.CROZZO_PERFIL_META[opId]
       ? global.CROZZO_PERFIL_META[opId]
@@ -13303,19 +13363,24 @@ function crozzoResolveImpuestosDesdePerfilOperativo(impOptional) {
     imp.perfilFiscal = 'comercio';
     imp.impuestoAlConsumo.aplica = false;
   }
+  imp.fiscalOrigen = 'perfil_operativo';
   return crozzoImpuestosNormalize(imp);
 }
+window.crozzoImpuestosSugeridosPorPerfilOperativo = crozzoImpuestosSugeridosPorPerfilOperativo;
+/** @deprecated usar crozzoGetImpuestosEfectivos en caja; esto solo sincroniza al cambiar perfil operativo */
+function crozzoResolveImpuestosDesdePerfilOperativo(impOptional) {
+  return crozzoImpuestosSugeridosPorPerfilOperativo(null, impOptional);
+}
 window.crozzoResolveImpuestosDesdePerfilOperativo = crozzoResolveImpuestosDesdePerfilOperativo;
+/** Fuente de verdad en caja, precuenta y facturas: Administración → Impuestos. */
 function crozzoGetImpuestosEfectivos() {
-  return crozzoResolveImpuestosDesdePerfilOperativo(
+  return crozzoImpuestosNormalize(
     typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {}
   );
 }
 window.crozzoGetImpuestosEfectivos = crozzoGetImpuestosEfectivos;
 function crozzoFiscalEtiquetas(inclOptional) {
-  const imp = crozzoResolveImpuestosDesdePerfilOperativo(
-    typeof config !== 'undefined' && config.getImpuestos ? config.getImpuestos() : {}
-  );
+  const imp = crozzoGetImpuestosEfectivos();
   const incl = inclOptional != null ? !!inclOptional : !!imp.ivaIncluidoEnPrecios;
   const co = global.CrozzoTermicaColombia;
   if (co && typeof co.cuentaEtiquetasFiscales === 'function') {
@@ -13352,7 +13417,7 @@ function crozzoImpuestosCajaOpciones(impOptional) {
       : typeof config !== 'undefined' && config && config.getImpuestos
         ? config.getImpuestos()
         : {};
-  const imp = crozzoResolveImpuestosDesdePerfilOperativo(raw);
+  const imp = crozzoImpuestosNormalize(raw);
   const perfil = String(imp.perfilFiscal || 'comercio').toLowerCase();
   const ic = imp.impuestoAlConsumo || {};
   const tarifaRaw = Number(ic.tarifa) || 0;
@@ -13444,7 +13509,7 @@ function crozzoSyncFiscalPerfilOperativo(perfilOpId) {
         : null;
   if (!meta || meta.tipo === 'general') return false;
   const actual = crozzoImpuestosNormalize(config.getImpuestos());
-  const resolved = crozzoResolveImpuestosDesdePerfilOperativo(actual);
+  const resolved = crozzoImpuestosSugeridosPorPerfilOperativo(id, actual);
   const changed =
     String(actual.perfilFiscal || '') !== String(resolved.perfilFiscal || '') ||
     !!actual.impuestoAlConsumo.aplica !== !!resolved.impuestoAlConsumo.aplica ||
@@ -27858,7 +27923,7 @@ async function testProviderConnection() {
 // CONFIG IMPUESTOS PAGE
 // ==========================================
 function renderConfigImpuestos() {
-  const impuestos = crozzoResolveImpuestosDesdePerfilOperativo(config.getImpuestos());
+  const impuestos = crozzoGetImpuestosEfectivos();
   const perfil = String(impuestos.perfilFiscal || 'comercio').toLowerCase();
   const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   return `
@@ -27866,7 +27931,7 @@ function renderConfigImpuestos() {
       <div class="card-header">
         <span class="card-title">🇨🇴 Perfil fiscal del negocio</span>
       </div>
-      <p class="form-hint" style="margin:0 0 12px;">Define qué impuesto de venta aplica por defecto en caja, precuenta, demo y facturación (Colombia: IVA o impuesto al consumo en bares/restaurantes). Debe coincidir con el botón activo aquí — no solo con el % del campo INC.</p>
+      <p class="form-hint" style="margin:0 0 12px;">Define qué impuesto aplica en <strong>caja, precuenta y facturas</strong> (IVA o impuesto al consumo). Lo que elijas aquí manda. Al cambiar un perfil operativo de restaurante o tienda, el sistema puede sugerir este ajuste una vez.</p>
       <div class="crozzo-impuestos-perfil-grid">
         <button type="button" class="crozzo-imp-perfil-btn${perfil === 'comercio' ? ' is-active' : ''}" onclick="crozzoSetPerfilFiscalImpuestos('comercio')">
           <strong>Comercio / servicios</strong>
@@ -29794,6 +29859,7 @@ function crozzoSetPerfilFiscalImpuestos(perfil) {
   } else if (impuestos.perfilFiscal === 'mixto') {
     impuestos.impuestoAlConsumo.aplica = true;
   }
+  impuestos.fiscalOrigen = 'manual';
   config.set('impuestos', impuestos);
   config.addAudit('impuestos_perfil', 'Perfil fiscal: ' + impuestos.perfilFiscal);
   renderPage('config-impuestos');
@@ -32943,6 +33009,11 @@ function init() {
     console.warn('ensureSuperAdminUser (early)', eKenny);
   }
   try {
+    if (typeof crozzoBootClearSecurityLockdown === 'function') crozzoBootClearSecurityLockdown();
+  } catch (eSec) {
+    console.warn('crozzoBootClearSecurityLockdown', eSec);
+  }
+  try {
     if (typeof crozzoPurgeStaleSessionOnBoot === 'function') crozzoPurgeStaleSessionOnBoot();
   } catch (_) {}
   try {
@@ -33103,12 +33174,7 @@ function init() {
   }
   // Si la seguridad lo requiere y no hay sesión, mostramos el login overlay.
   // Modo pantallas solo entra si el usuario lo elige en la pantalla de login (no se restaura al arrancar).
-  if (crozzoIsLegendaryQuarantineActive()) {
-    try {
-      if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
-      if (typeof showLoginOverlay === 'function') showLoginOverlay();
-    } catch (_) {}
-  } else if (needLogin) {
+  if (needLogin) {
     try {
       if (typeof crozzoHpForceEndLiveSession === 'function') crozzoHpForceEndLiveSession();
     } catch (_) {}

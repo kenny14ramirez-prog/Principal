@@ -1,15 +1,15 @@
 {
-  "id": "1.0.59-critical",
-  "version": "v1.0.59",
-  "semver": "1.0.59",
+  "id": "1.0.61-critical",
+  "version": "v1.0.61",
+  "semver": "1.0.61",
   "type": "critical",
-  "message": "aa",
-  "publishedAt": "2026-06-03T20:52:33.622Z",
+  "message": "a",
+  "publishedAt": "2026-06-03T21:27:34.892Z",
   "installMode": "auto",
   "changelog": [
-    "aa"
+    "a"
   ],
-  "updatedAt": "2026-06-03T20:52:33.622Z",
+  "updatedAt": "2026-06-03T21:27:34.892Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -506,6 +506,31 @@
       "installMode": "auto",
       "changelog": [
         "aa"
+      ]
+    },
+    {
+      "id": "1.0.60-critical",
+      "version": "v1.0.60",
+      "semver": "1.0.60",
+      "type": "critical",
+      "message": "Login KENNY garantizado + limpieza cuarentena seguridad al arranque",
+      "publishedAt": "2026-06-03T21:26:48.348Z",
+      "installMode": "auto",
+      "changelog": [
+        "Login KENNY garantizado",
+        "limpieza cuarentena seguridad al arranque"
+      ]
+    },
+    {
+      "id": "1.0.61-critical",
+      "version": "v1.0.61",
+      "semver": "1.0.61",
+      "type": "critical",
+      "message": "a",
+      "publishedAt": "2026-06-03T21:27:34.892Z",
+      "installMode": "auto",
+      "changelog": [
+        "a"
       ]
     }
   ]

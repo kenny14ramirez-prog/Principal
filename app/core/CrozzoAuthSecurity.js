@@ -9,7 +9,7 @@
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
-  var CROZZO_AUTH_BUILD = 'kenny-guaranteed-2026-06-03';
+  var CROZZO_AUTH_BUILD = 'security-unlock-2026-06-03';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
@@ -1206,8 +1206,8 @@
     s.requiereLogin = true;
     var hpRaw = s.honeypot && typeof s.honeypot === 'object' ? Object.assign({}, s.honeypot) : {};
     hpRaw.enabled = true;
-    if (hpRaw.produccionEstricta !== true && hpRaw.produccionEstricta !== false) {
-      hpRaw.produccionEstricta = !!s.kennyPasswordChanged;
+    if (hpRaw.produccionEstricta !== true) {
+      hpRaw.produccionEstricta = false;
     }
     s.honeypot = normalizeHoneypot(hpRaw);
     return s;
