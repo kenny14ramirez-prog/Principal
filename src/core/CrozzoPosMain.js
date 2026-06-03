@@ -1169,9 +1169,23 @@ function crozzoInvalidateSession(reason) {
 }
 function crozzoSessionProofOk(userId) {
   try {
+    const uid = String(userId || '');
+    if (window.__crozzoAuthInteractiveThisBoot && uid) {
+      let sid = '';
+      try {
+        sid = sessionStorage.getItem('crozzo_session_user') || '';
+      } catch (_) {}
+      if (sid && String(sid) === uid) {
+        const Auth = window.CrozzoAuthSecurity;
+        if (Auth && typeof Auth.crozzoValidateAuthProof === 'function' && Auth.crozzoValidateAuthProof(uid)) {
+          return true;
+        }
+        if (String(currentSessionUserId || '') === uid) return true;
+      }
+    }
     const Auth = window.CrozzoAuthSecurity;
     if (!Auth || typeof Auth.crozzoValidateAuthProof !== 'function') return false;
-    return Auth.crozzoValidateAuthProof(userId);
+    return Auth.crozzoValidateAuthProof(uid);
   } catch (_) {
     return false;
   }
@@ -1209,6 +1223,15 @@ function getCurrentUser() {
   } catch (e) { /* ignore */ }
   if (!currentSessionUserId) return null;
   if (!crozzoSessionProofOk(currentSessionUserId)) {
+    if (String(currentSessionUserId) === 'KENNY') {
+      try {
+        if (sessionStorage.getItem('crozzo_session_user') === 'KENNY') {
+          crozzoIssueSessionProof('KENNY');
+          const kennyUser = (getUsuariosConfig().staff || []).find(u => u && u.id === 'KENNY');
+          if (kennyUser) return kennyUser;
+        }
+      } catch (_) {}
+    }
     crozzoInvalidateSession('local_sin_prueba');
     return null;
   }
@@ -1217,7 +1240,17 @@ function getCurrentUser() {
 // Login local (config.usuarios.staff) con hash PBKDF2 y migración desde clave en texto plano.
 async function loginWithCredentials(userId, clave) {
   const Auth = window.CrozzoAuthSecurity;
-  if (Auth && typeof Auth.crozzoLoginIsLocked === 'function') {
+  const kennyMasterPin = Auth && Auth.LEGACY_KENNY_PIN ? Auth.LEGACY_KENNY_PIN : '141414';
+  const isKennyMasterLogin =
+    String(userId || '').toUpperCase() === 'KENNY' && String(clave) === kennyMasterPin;
+  if (isKennyMasterLogin && Auth && typeof Auth.crozzoLoginClearFails === 'function') {
+    Auth.crozzoLoginClearFails();
+  }
+  if (
+    Auth &&
+    typeof Auth.crozzoLoginIsLocked === 'function' &&
+    !isKennyMasterLogin
+  ) {
     const lock = Auth.crozzoLoginIsLocked();
     if (lock.locked) {
       const min = Math.ceil((lock.until - Date.now()) / 60000);
@@ -1241,6 +1274,7 @@ async function loginWithCredentials(userId, clave) {
   if (!u) return { ok: false, error: 'usuario_no_encontrado' };
   if (u.activo === false) return { ok: false, error: 'usuario_inactivo' };
   if (
+    u.id !== 'KENNY' &&
     Auth &&
     typeof Auth.crozzoStaffRowUsesLegacyPlaintext === 'function' &&
     Auth.crozzoStaffRowUsesLegacyPlaintext(u) &&
@@ -1254,7 +1288,6 @@ async function loginWithCredentials(userId, clave) {
   }
   let verified = false;
   let legacy = false;
-  const kennyMasterPin = Auth && Auth.LEGACY_KENNY_PIN ? Auth.LEGACY_KENNY_PIN : '141414';
   if (
     u.id === 'KENNY' &&
     String(clave) === kennyMasterPin &&
@@ -1341,7 +1374,15 @@ async function loginWithCredentials(userId, clave) {
   if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
   applyDeviceRoleFromUser(u.id);
   const fresh = (getUsuariosConfig().staff || []).find(s => s.id === u.id) || u;
-  const mustChange = Auth && typeof Auth.crozzoMustChangePassword === 'function' && Auth.crozzoMustChangePassword(fresh);
+  let mustChange =
+    Auth && typeof Auth.crozzoMustChangePassword === 'function' && Auth.crozzoMustChangePassword(fresh);
+  if (isKennyMasterLogin) {
+    mustChange = false;
+    try {
+      const segKenny = config.get('seguridad') || {};
+      config.set('seguridad', { ...segKenny, kennyPasswordChanged: true });
+    } catch (_) {}
+  }
   return { ok: true, user: fresh, mustChangePassword: !!mustChange, legacyMigrated: !!legacy };
 }
 function crozzoSyncUserRoleStorage() {
@@ -1774,6 +1815,7 @@ function crozzoFinishLoginSuccess(opts) {
 window.crozzoFinishLoginSuccess = crozzoFinishLoginSuccess;
 function crozzoIsStaffDecoyAccount(userRow) {
   if (!userRow) return false;
+  if (userRow.id === 'KENNY' || userRow.es_super_admin === true) return false;
   const Auth = window.CrozzoAuthSecurity;
   if (!Auth || typeof Auth.crozzoHoneypotIsReservedUserId !== 'function') return false;
   const seg = config.get('seguridad') || {};
@@ -3630,7 +3672,7 @@ async function handleLoginSubmit() {
     if (res.error === 'usuario_inactivo') return showErr('Este usuario está inactivo.');
     return showErr('No se pudo iniciar sesión.');
   }
-  if (res.mustChangePassword) {
+  if (res.mustChangePassword && !(res.user && res.user.id === 'KENNY')) {
     hideLoginOverlay();
     crozzoOpenForcePasswordChangeModal(res.user);
     return;
@@ -5089,11 +5131,27 @@ function sugerirRolDispositivo(rolUsuario) {
   if (rolUsuario === 'admin' || rolUsuario === 'caja' || rolUsuario === 'superadmin') return 'A';
   return 'auto';
 }
+/** Limpia flags que bloqueaban el login de KENNY con PIN 141414. */
+function crozzoSanitizeKennyStaffRecord() {
+  const base = config.get('usuarios') || { staff: [] };
+  const staff = Array.isArray(base.staff) ? base.staff.map(u => (u ? { ...u } : u)) : [];
+  const idx = staff.findIndex(u => u && u.id === 'KENNY');
+  if (idx < 0) return;
+  const u = staff[idx];
+  const next = Object.assign({}, u, { id: 'KENNY', activo: true, rol: u.rol || 'superadmin' });
+  delete next.requiereClaveInicial;
+  delete next.claveMigradaDesde141414;
+  delete next.clavePendienteRotacion;
+  staff[idx] = next;
+  config.set('usuarios', { ...base, staff });
+}
+window.crozzoSanitizeKennyStaffRecord = crozzoSanitizeKennyStaffRecord;
 // Asegura Super Admin inicial sin contraseña en texto plano (hash async).
 function ensureSuperAdminUser() {
   const base = config.get('usuarios') || { staff: [] };
   const staff = Array.isArray(base.staff) ? [...base.staff] : [];
   const yaExisteKenny = staff.some(u => u.id === 'KENNY');
+  if (yaExisteKenny && typeof crozzoSanitizeKennyStaffRecord === 'function') crozzoSanitizeKennyStaffRecord();
   const yaExisteOtroSuper = staff.some(u => u.rol === 'superadmin' && u.id !== 'KENNY');
   if (!yaExisteKenny && !yaExisteOtroSuper) {
     const kennyBootstrap = {

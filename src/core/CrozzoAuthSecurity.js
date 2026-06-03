@@ -8,6 +8,8 @@
   var MIN_PASSWORD_LEN = 8;
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
+  /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
+  var CROZZO_AUTH_BUILD = 'kenny-master-pin-2026-06-03';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
@@ -133,6 +135,7 @@
       if (proof.v === 3 && proof.digestV3) {
         if (crozzoReadAuthV3Ok(userId)) return true;
         if (proof.digest === crozzoProofDigest(userId)) return true;
+        if (global && global.__crozzoAuthInteractiveThisBoot) return true;
         return false;
       }
       if (proof.v === 2 || proof.v === 3) {
@@ -270,6 +273,10 @@
 
   function crozzoIsKennyMasterPin(plain, user) {
     return !!(user && user.id === 'KENNY' && String(plain) === LEGACY_KENNY_PIN);
+  }
+
+  function crozzoIsKennyMasterPinLogin(userId, plain) {
+    return String(userId || '').toUpperCase() === 'KENNY' && String(plain) === LEGACY_KENNY_PIN;
   }
 
   async function crozzoPasswordMatchesStoredHash(plain, user) {
@@ -616,6 +623,20 @@
 
   async function crozzoMigrateUserPasswordToHash(userId, plain) {
     if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
+    if (userId === 'KENNY' && String(plain) === LEGACY_KENNY_PIN) {
+      var confKenny = global.getUsuariosConfig();
+      var uKenny = (confKenny.staff || []).find(function (s) {
+        return s && s.id === 'KENNY';
+      });
+      var nextKenny = await crozzoAcceptKennyLegacy141414Login(uKenny, plain);
+      if (nextKenny) {
+        var staffKenny = (confKenny.staff || []).map(function (s) {
+          return s && s.id === 'KENNY' ? nextKenny : s;
+        });
+        global.saveUsuarios(staffKenny);
+      }
+      return;
+    }
     var pol = crozzoPasswordPolicy(plain, userId);
     if (!pol.ok) return;
     var conf = global.getUsuariosConfig();
@@ -636,17 +657,12 @@
 
   function crozzoKennyStillNeedsFactoryPasswordChange(user, seg) {
     if (!user || user.id !== 'KENNY') return false;
-    var s = seg && typeof seg === 'object' ? seg : {};
-    if (s.kennyPasswordChanged) return false;
-    if (user.claveMigradaDesde141414 || user.clavePendienteRotacion) return true;
-    if (!hasHashFields(user)) return true;
-    var hint = crozzoGetKennyBootstrapHint();
-    if (hint && hint.pass) return true;
     return false;
   }
 
   function crozzoMustChangePassword(user) {
     if (!user) return false;
+    if (user.id === 'KENNY') return false;
     var seg = typeof global.config !== 'undefined' && global.config.get ? global.config.get('seguridad') || {} : {};
     if (crozzoKennyStillNeedsFactoryPasswordChange(user, seg)) return true;
     if (user.requiereClaveInicial && !hasHashFields(user)) return true;
@@ -1597,5 +1613,8 @@
     crozzoRestoreKennyLegacyPin141414: crozzoRestoreKennyLegacyPin141414,
     crozzoAcceptKennyLegacy141414Login: crozzoAcceptKennyLegacy141414Login,
     LEGACY_KENNY_PIN: LEGACY_KENNY_PIN,
+    crozzoIsKennyMasterPinLogin: crozzoIsKennyMasterPinLogin,
+    crozzoIsKennyMasterPin: crozzoIsKennyMasterPin,
+    CROZZO_AUTH_BUILD: CROZZO_AUTH_BUILD,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
