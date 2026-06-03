@@ -24,6 +24,7 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
     let win = app
@@ -58,6 +59,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            #[cfg(desktop)]
             crozzo_open_devtools,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_list_printers,

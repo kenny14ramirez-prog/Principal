@@ -15568,11 +15568,9 @@ function renderCajero() {
     '<i data-lucide="send" aria-hidden="true"></i> Comandar y guardar' +
     (tipoServicioCaja === 'directa' ? '' : ' · ' + (tipoServicioCaja === 'mesa' ? 'Mesa' : 'Llevar')) +
     '</button>' +
-    '<button type="button" class="btn btn-outline touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--cotizacion" id="btnCotizacion" onclick="iniciarCotizacion()" disabled title="Ver e imprimir cotización del pedido">' +
-    '<i data-lucide="file-text" aria-hidden="true"></i> Cotización</button>' +
     '<div class="crozzo-rest-cuenta-cobro" id="crozzoRestCuentaCobroWrap">' +
     '<button type="button" class="btn btn-success touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--pay crozzo-rest-cuenta-cobro__main" id="btnCuentaCobro" onclick="crozzoToggleCuentaCobroMenu(event)" disabled aria-haspopup="true" aria-expanded="false" aria-label="Precuenta, cotización o cobrar · Ctrl+Enter cobrar">' +
-    '<i data-lucide="wallet" aria-hidden="true"></i><span class="crozzo-rest-cuenta-cobro__label">Precuenta · Cobrar</span>' +
+    '<i data-lucide="wallet" aria-hidden="true"></i><span class="crozzo-rest-cuenta-cobro__label">Precuenta · Cotización · Cobrar</span>' +
     '<i data-lucide="chevron-down" class="crozzo-rest-cuenta-cobro__caret" aria-hidden="true"></i></button>' +
     '<div class="crozzo-rest-cuenta-cobro__menu" id="cuentaCobroMenu" role="menu" hidden onclick="event.stopPropagation()">' +
     '<button type="button" role="menuitem" class="crozzo-rest-cuenta-cobro__item" onclick="crozzoCuentaCobroElegir(\'precuenta\')"><i data-lucide="file-text"></i><span><strong>Precuenta</strong><small>Imprime al instante · sin cobrar</small></span></button>' +
@@ -16653,7 +16651,6 @@ function updateCartTotals() {
   const pendingEl = document.getElementById('cartPendingSummary');
   const btnFacturar = document.getElementById('btnFacturar');
   const btnPrecuenta = document.getElementById('btnPrecuenta');
-  const btnCotizacion = document.getElementById('btnCotizacion');
   const btnComandar = document.getElementById('btnComandar');
   const btnComandarGuardar = document.getElementById('btnComandarGuardar');
   const btnComandarCobrar = document.getElementById('btnComandarCobrar');
@@ -16679,7 +16676,6 @@ function updateCartTotals() {
   }
   if (btnFacturar) btnFacturar.disabled = cart.length === 0;
   if (btnPrecuenta) btnPrecuenta.disabled = cart.length === 0;
-  if (btnCotizacion) btnCotizacion.disabled = cart.length === 0;
   if (btnComandarCobrar) btnComandarCobrar.disabled = cart.length === 0;
   if (btnCuentaCobro) btnCuentaCobro.disabled = cart.length === 0;
   if (retailItemCount) {
