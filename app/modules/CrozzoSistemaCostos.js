@@ -649,12 +649,12 @@
           })
         : '—') +
       '</td>' +
-      '<td style="text-align:right" data-total-margen-pct>' +
-      renderMargenDualTotalHtml(
-        margenDisplay,
-        totales.sumPrecio > 0 ? Math.round((totales.sumCosto / totales.sumPrecio) * 1000) / 10 : 0
-      ) +
-      '</td>' +
+      '<td style="text-align:right" data-total-margen-pct><strong class="crozzo-matriz-total-margen" data-total-margen-val>' +
+      esc(String(margenDisplay)) +
+      '%</strong><span class="crozzo-matriz-totales__sub">s/ venta</span></td>' +
+      '<td style="text-align:right" data-total-margen-util-pct><strong class="crozzo-matriz-margen-util" data-total-margen-util>' +
+      esc(String(totales.sumPrecio > 0 ? Math.round((totales.sumCosto / totales.sumPrecio) * 1000) / 10 : 0)) +
+      '%</strong><span class="crozzo-matriz-totales__sub">utilidad</span></td>' +
       '<td style="text-align:right" data-total-util><strong class="crozzo-matriz-util">' +
       engFmt(totales.sumUtil) +
       '</strong></td>' +
@@ -2819,15 +2819,11 @@
       '.crozzo-matriz-costo-tag{display:block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#34d399;margin-top:4px}' +
       '.crozzo-matriz-costo-tag--diff{color:#fbbf24}' +
       'td:has(.crozzo-matriz-margen-inp){position:relative}' +
-      '.crozzo-matriz-margen-inp{width:52px;padding-right:2px}' +
+      '.crozzo-matriz-margen-inp{width:64px;padding-right:4px}' +
       '.crozzo-matriz-margen-suffix{font-size:.75rem;font-weight:700;opacity:.7;margin-left:2px}' +
-      '.crozzo-matriz-margen-dual{display:inline-flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}' +
-      '.crozzo-matriz-margen-dual--total{flex-direction:column;align-items:flex-end;gap:2px}' +
-      '.crozzo-matriz-margen-dual__side{display:inline-flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:0}' +
-      '.crozzo-matriz-margen-dual__side--util{opacity:.92}' +
-      '.crozzo-matriz-margen-dual__val{font-size:.86rem;font-weight:700;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap}' +
-      '.crozzo-matriz-margen-dual__lbl{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.65;color:var(--text-secondary);white-space:nowrap}' +
-      '.crozzo-matriz-margen-dual__sep{font-size:.72rem;font-weight:700;opacity:.35;color:var(--text-secondary);user-select:none}' +
+      '.crozzo-matriz-margen-util{font-size:1rem;font-weight:800;color:var(--matriz-gold);font-variant-numeric:tabular-nums}' +
+      '.crozzo-matriz-margen-util-cell{min-width:72px}' +
+      '.crozzo-matriz-margen-venta-cell{min-width:88px}' +
       '.crozzo-matriz-precio-inp{min-width:88px;font-weight:700}' +
       '.crozzo-matriz-leyenda{margin:0 0 14px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,.06)}' +
       '.crozzo-matriz-leyenda summary{cursor:pointer;padding:10px 14px;font-size:.8rem;font-weight:600;list-style:none}' +
@@ -4770,39 +4766,20 @@
     return r.precioVenta > 0 ? Math.round(r.pctCostoMp * 1000) / 10 : 0;
   }
 
-  function renderMargenDualCellHtml(margenVenta, margenUtilidad) {
+  function renderMargenVentaCellHtml(margenVenta) {
     return (
-      '<div class="crozzo-matriz-margen-dual">' +
-      '<div class="crozzo-matriz-margen-dual__side crozzo-matriz-margen-dual__side--venta">' +
-      '<span class="crozzo-matriz-margen-dual__inp-wrap">' +
       '<input type="number" class="crozzo-costos-editable crozzo-matriz-margen-inp" data-resumen-field="margenPct" min="0" max="95" step="0.1" value="' +
       esc(String(margenVenta)) +
       '" title="Margen sobre venta (utilidad ÷ precio)">' +
-      '<span class="crozzo-matriz-margen-suffix">%</span></span>' +
-      '<span class="crozzo-matriz-margen-dual__lbl">s/ venta</span></div>' +
-      '<span class="crozzo-matriz-margen-dual__sep" aria-hidden="true">|</span>' +
-      '<div class="crozzo-matriz-margen-dual__side crozzo-matriz-margen-dual__side--util">' +
-      '<strong class="crozzo-matriz-margen-dual__val" data-resumen-margen-util>' +
-      esc(String(margenUtilidad)) +
-      '%</strong>' +
-      '<span class="crozzo-matriz-margen-dual__lbl">utilidad</span></div></div>'
+      '<span class="crozzo-matriz-margen-suffix">%</span>'
     );
   }
 
-  function renderMargenDualTotalHtml(margenVenta, margenUtilidad) {
+  function renderMargenUtilidadCellHtml(margenUtilidad) {
     return (
-      '<div class="crozzo-matriz-margen-dual crozzo-matriz-margen-dual--total">' +
-      '<div class="crozzo-matriz-margen-dual__side">' +
-      '<strong class="crozzo-matriz-total-margen" data-total-margen-val>' +
-      esc(String(margenVenta)) +
-      '%</strong>' +
-      '<span class="crozzo-matriz-margen-dual__lbl">s/ venta</span></div>' +
-      '<span class="crozzo-matriz-margen-dual__sep" aria-hidden="true">|</span>' +
-      '<div class="crozzo-matriz-margen-dual__side">' +
-      '<strong class="crozzo-matriz-margen-dual__val" data-total-margen-util>' +
+      '<strong class="crozzo-matriz-margen-util" data-resumen-margen-util title="Complemento del margen s/ venta (% costo MP)">' +
       esc(String(margenUtilidad)) +
-      '%</strong>' +
-      '<span class="crozzo-matriz-margen-dual__lbl">utilidad</span></div></div>'
+      '%</strong>'
     );
   }
 
@@ -4817,7 +4794,7 @@
     var e = engine();
     var list = mergeResumenList(seed);
     if (!e || !list.length) {
-      return '<tr><td colspan="9">Sin platos en menú. Cargue el catálogo desde Catálogo MP.</td></tr>';
+      return '<tr><td colspan="10">Sin platos en menú. Cargue el catálogo desde Catálogo MP.</td></tr>';
     }
     return list
       .map(function (row) {
@@ -4895,8 +4872,11 @@
           esc(Math.round(row.precioVenta)) +
           '" title="Precio nuevo propuesto (costeo / menú)"><span class="crozzo-matriz-pos-lbl">nuevo costeo</span></td>' +
           renderComparativaPrecioCell(row) +
-          '<td style="text-align:right">' +
-          renderMargenDualCellHtml(margenDisplay, margenUtilDisplay) +
+          '<td style="text-align:right" class="crozzo-matriz-margen-venta-cell">' +
+          renderMargenVentaCellHtml(margenDisplay) +
+          '</td>' +
+          '<td style="text-align:right" class="crozzo-matriz-margen-util-cell">' +
+          renderMargenUtilidadCellHtml(margenUtilDisplay) +
           '</td>' +
           '<td style="text-align:right" class="crozzo-matriz-util" data-resumen-util>' +
           engFmt(r.utilidadBruta) +
@@ -5374,7 +5354,7 @@
       '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-cmp="diff">Con diferencia</button></div></div>' +
       '<div class="crozzo-matriz-table-shell">' +
       '<div class="crozzo-costos-scroll crozzo-costos-scroll--tall"><table class="crozzo-costos-feed-table crozzo-matriz-table"><thead><tr>' +
-      '<th>Producto</th><th style="text-align:right">Costo MP</th><th style="text-align:right" title="Precio vigente en caja (anterior)">Caja (ant.)</th><th style="text-align:right" title="Precio nuevo en costeo (editable)">Costeo (nuevo)</th><th title="Diferencia $ y % caja → costeo">Comparativa</th><th style="text-align:right" title="Margen sobre venta (editable) y margen utilidad (% costo MP)">Margen s/ venta · utilidad</th><th style="text-align:right">Utilidad</th><th>vs Meta</th><th>Estado</th>' +
+      '<th>Producto</th><th style="text-align:right">Costo MP</th><th style="text-align:right" title="Precio vigente en caja (anterior)">Caja (ant.)</th><th style="text-align:right" title="Precio nuevo en costeo (editable)">Costeo (nuevo)</th><th title="Diferencia $ y % caja → costeo">Comparativa</th><th style="text-align:right" title="Margen sobre el precio de venta (editable)">Margen s/ venta</th><th style="text-align:right" title="Complemento = % costo MP (100% − margen venta)">Margen utilidad</th><th style="text-align:right">Utilidad $</th><th>vs Meta</th><th>Estado</th>' +
       '</tr></thead><tbody id="crozzoResumenTbody">' +
       renderResumenRowsHtml(seed) +
       '</tbody>' +

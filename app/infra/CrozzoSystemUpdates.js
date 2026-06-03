@@ -29,7 +29,7 @@
   };
   var CHECK_INTERVAL_MS = 15 * 60 * 1000;
   var BOOT_DELAY_MS = 2000;
-  var BOOT_GATE_MAX_MS = 300000;
+  var BOOT_GATE_MAX_MS = 12000;
   var _bootUpdatePhase = false;
   var _bootUpdatesReady = false;
   var _bootReadyWaiters = [];
@@ -2539,7 +2539,39 @@
   }
 
   function shouldDeferCriticalAutoOnBoot(profile) {
-    return !!(profile && profile.kind === 'android');
+    if (!profile) return true;
+    if (profile.isWindows || profile.isMac || profile.isDesktopBinary) return true;
+    return profile.kind === 'android' || profile.kind === 'android-web';
+  }
+
+  /** Tras login: instalar críticas pendientes (paridad tauri dev — no bloquear arranque). */
+  function scheduleDeferredCriticalAfterLogin() {
+    if (global.__crozzoPostLoginCriticalWired) return;
+    global.__crozzoPostLoginCriticalWired = true;
+
+    function tryInstallPendingCritical() {
+      if (!_bootUpdatesReady || _installInProgress || _criticalInstallState === 'installing') return;
+      var pending = (_registryEntries || []).filter(entryIsPending).filter(isCriticalEntry);
+      if (!pending.length) return;
+      var entry = pickNextPendingEntry(pending);
+      if (!entry) return;
+      var remote = normEntryVersion(entry);
+      if (compareSemver(VERSION, remote) >= 0) {
+        markEntryFullyApplied(entry, VERSION);
+        return;
+      }
+      if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
+      scheduleCriticalInstallWhenIdle(entry);
+    }
+
+    global.addEventListener('crozzo:auth-ready', function () {
+      setTimeout(tryInstallPendingCritical, 2500);
+    });
+    global.addEventListener('crozzo-ready', function (ev) {
+      if (ev && ev.detail && ev.detail.session) {
+        setTimeout(tryInstallPendingCritical, 2500);
+      }
+    });
   }
 
   function runBootCriticalInstallLoop() {
@@ -2564,10 +2596,16 @@
     if (_bootUpdatesReady) return Promise.resolve({ ok: true, skipped: true });
     _bootUpdatePhase = true;
     global.__crozzoBootUpdatePhase = true;
-    showBootUpdateGate();
-    setBootGateMessage(
-      'Comprobando actualizaciones para ' + getPlatformUpdateDescriptor() + '…'
-    );
+    scheduleDeferredCriticalAfterLogin();
+
+    var gateTimer = setTimeout(function () {
+      if (!_bootUpdatesReady && !_installInProgress) {
+        showBootUpdateGate();
+        setBootGateMessage(
+          'Comprobando actualizaciones para ' + getPlatformUpdateDescriptor() + '…'
+        );
+      }
+    }, 4500);
 
     var safetyTimer = setTimeout(function () {
       if (
@@ -2575,20 +2613,19 @@
         !_installInProgress &&
         _criticalInstallState !== 'installing'
       ) {
-        console.warn('[crozzo-updates] tiempo máximo de arranque; continuando sin bloquear');
-        setBootGateMessage(
-          'No se pudo comprobar actualizaciones a tiempo. Puede iniciar sesión; revise «Actualizaciones del sistema» más tarde.'
-        );
+        console.warn('[crozzo-updates] comprobación en segundo plano; login disponible');
+        hideBootUpdateGate();
         notifyBootUpdatesReady({ ok: false, reason: 'timeout' });
       }
     }, BOOT_GATE_MAX_MS);
 
     var slowHintTimer = setTimeout(function () {
       if (!_bootUpdatesReady && !_installInProgress) {
-        setBootGateMessage('La conexión es lenta. Sigue comprobando actualizaciones…');
+        showBootUpdateGate();
+        setBootGateMessage('La conexión es lenta. Puede iniciar sesión mientras comprobamos…');
         showBootUpdateGateSlowOptions();
       }
-    }, 14000);
+    }, 9000);
 
     return refreshBinaryVersion().then(function (installedVer) {
       return fetchRegistryData().then(function (data) {
@@ -2605,15 +2642,16 @@
         pruneStaleStateFlags();
 
         var pending = _registryEntries.filter(entryIsPending);
-        var hasCritical = pending.some(isCriticalEntry);
-        if (hasCritical) {
-          return runBootCriticalInstallLoop();
-        }
-        return prefetchOptionalAtBoot(pending);
+        var optionalOnly = pending.filter(function (e) {
+          return !isCriticalEntry(e);
+        });
+        return prefetchOptionalAtBoot(optionalOnly);
       })
       .then(function (res) {
         clearTimeout(safetyTimer);
         clearTimeout(slowHintTimer);
+        clearTimeout(gateTimer);
+        hideBootUpdateGate();
         if (res && res.exiting) return res;
         notifyBootUpdatesReady({ ok: true });
         return res;
@@ -2621,8 +2659,9 @@
       .catch(function (err) {
         clearTimeout(safetyTimer);
         clearTimeout(slowHintTimer);
+        clearTimeout(gateTimer);
+        hideBootUpdateGate();
         console.warn('[crozzo-updates] boot pipeline', err);
-        setBootGateMessage(humanizeInstallError(err));
         notifyBootUpdatesReady({ ok: false, error: err });
         return { ok: false, error: err };
       });
@@ -3859,6 +3898,7 @@
   function boot() {
     initCrozzoUpdateOverlays();
     wirePosIdleListener();
+    scheduleDeferredCriticalAfterLogin();
     runBootUpdatePipeline()
       .finally(function () {
         startCrozzoUpdateChecks();

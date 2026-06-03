@@ -1,15 +1,15 @@
 {
-  "id": "1.0.53-critical",
-  "version": "v1.0.53",
-  "semver": "1.0.53",
+  "id": "1.0.54-critical",
+  "version": "v1.0.54",
+  "semver": "1.0.54",
   "type": "critical",
-  "message": "aa",
-  "publishedAt": "2026-06-03T19:46:43.411Z",
+  "message": "aaa",
+  "publishedAt": "2026-06-03T20:03:23.277Z",
   "installMode": "auto",
   "changelog": [
-    "aa"
+    "aaa"
   ],
-  "updatedAt": "2026-06-03T19:46:43.411Z",
+  "updatedAt": "2026-06-03T20:03:23.277Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -470,6 +470,18 @@
       "installMode": "auto",
       "changelog": [
         "aa"
+      ]
+    },
+    {
+      "id": "1.0.54-critical",
+      "version": "v1.0.54",
+      "semver": "1.0.54",
+      "type": "critical",
+      "message": "aaa",
+      "publishedAt": "2026-06-03T20:03:23.277Z",
+      "installMode": "auto",
+      "changelog": [
+        "aaa"
       ]
     }
   ]

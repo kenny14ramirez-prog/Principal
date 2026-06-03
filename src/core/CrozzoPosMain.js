@@ -1565,8 +1565,22 @@ window.crozzoPurgeStaleSessionOnBoot = crozzoPurgeStaleSessionOnBoot;
 function crozzoRefreshLoginLocalHint() {
   const el = document.getElementById('loginLocalHint');
   if (!el) return;
-  el.hidden = true;
-  el.textContent = '';
+  try {
+    const staff = (getUsuariosConfig().staff || []).filter(function (u) {
+      return u && u.activo !== false && String(u.id || '').toUpperCase() !== 'KENNY';
+    });
+    if (staff.length) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent =
+      'Este equipo aún no tiene usuarios de caja. Entre con KENNY / 141414 (Super Admin) y créelos en Configuración → Usuarios. Los usuarios son por dispositivo, no se copian solos entre PCs.';
+  } catch (_) {
+    el.hidden = true;
+    el.textContent = '';
+  }
 }
 /** Usuario payaso/señuelo con clave cebo → trampa teatral (POS falso, misma navegación). */
 async function crozzoTryLoginDecoyTrap(rawUser, pwd, seg, trapSource) {
@@ -1747,6 +1761,10 @@ function hideLoginOverlay() {
   ov.setAttribute('hidden', '');
   document.body.classList.remove('crozzo-login-open');
   crozzoClearAuthGatePending();
+  try {
+    document.documentElement.classList.remove('crozzo-boot-updates-active');
+    document.body.classList.remove('crozzo-boot-updates-active');
+  } catch (_) {}
   crozzoRestoreLoginChromeLeaks();
   document.body.style.overflow = '';
   const err = document.getElementById('loginError');
@@ -1814,28 +1832,60 @@ function crozzoNavigateAfterLogin() {
     page = typeof crozzoResolveStartupPage === 'function' ? crozzoResolveStartupPage({ preferHub: true }) : 'inicio-operacion';
   }
   crozzoClearLoginGatePlaceholder();
-  window.__crozzoPostLoginNavigate = true;
+  crozzoClearAuthGatePending();
   try {
-    if (typeof navigateTo === 'function') navigateTo(page);
-    else if (typeof renderPage === 'function') renderPage(page);
-  } catch (e) {
-    console.warn('[crozzo] navigateAfterLogin', e);
-    crozzoForcePaintPage(page);
-  } finally {
-    window.__crozzoPostLoginNavigate = false;
-  }
-  crozzoEnsureLoginGateCleared(page);
-  try {
-    if (typeof crozzoScheduleFormFactor === 'function') crozzoScheduleFormFactor();
+    document.documentElement.classList.remove('crozzo-boot-updates-active');
+    document.body.classList.remove('crozzo-boot-updates-active');
   } catch (_) {}
-  try {
-    requestAnimationFrame(function () {
-      crozzoEnsureLoginGateCleared(page);
+
+  function finishNav() {
+    crozzoEnsureLoginGateCleared(page);
+    try {
+      if (typeof crozzoScheduleFormFactor === 'function') crozzoScheduleFormFactor();
+    } catch (_) {}
+    try {
+      requestAnimationFrame(function () {
+        crozzoEnsureLoginGateCleared(page);
+      });
+    } catch (_) {
+      setTimeout(function () {
+        crozzoEnsureLoginGateCleared(page);
+      }, 0);
+    }
+  }
+
+  function paintNow() {
+    window.__crozzoPostLoginNavigate = true;
+    try {
+      if (typeof global.__crozzoLazyNavWrapped && typeof renderPage === 'function') {
+        global.__crozzoLazySkipRenderLoad = true;
+        try {
+          renderPage(page);
+        } finally {
+          global.__crozzoLazySkipRenderLoad = false;
+        }
+      } else if (typeof navigateTo === 'function') {
+        navigateTo(page);
+      } else if (typeof renderPage === 'function') {
+        renderPage(page);
+      }
+    } catch (e) {
+      console.warn('[crozzo] navigateAfterLogin', e);
+      crozzoForcePaintPage(page);
+    } finally {
+      window.__crozzoPostLoginNavigate = false;
+    }
+    finishNav();
+  }
+
+  if (typeof global.crozzoEnsureModulesForPage === 'function') {
+    global.crozzoEnsureModulesForPage(page).then(paintNow).catch(function (e) {
+      console.warn('[crozzo] navigateAfterLogin modules', e);
+      crozzoForcePaintPage(page);
+      finishNav();
     });
-  } catch (_) {
-    setTimeout(function () {
-      crozzoEnsureLoginGateCleared(page);
-    }, 0);
+  } else {
+    paintNow();
   }
   return page;
 }
@@ -32929,6 +32979,19 @@ function init() {
     if (typeof window.jsQR === 'function') return Promise.resolve(window.jsQR);
     if (__crozzoJsQRPromise) return __crozzoJsQRPromise;
     __crozzoJsQRPromise = new Promise(function (resolve, reject) {
+      function finish() {
+        if (typeof window.jsQR === 'function') resolve(window.jsQR);
+        else reject(new Error('jsQR'));
+      }
+      var existing = document.querySelector('script[src*="CrozzoJsQR"]');
+      if (existing) {
+        existing.addEventListener('load', finish, { once: true });
+        existing.addEventListener('error', function () {
+          reject(new Error('jsQR load'));
+        }, { once: true });
+        setTimeout(finish, 3000);
+        return;
+      }
       var s = document.createElement('script');
       s.async = true;
       s.setAttribute('data-crozzo-jsqr', '1');
@@ -32939,10 +33002,7 @@ function init() {
       } catch (e0) {
         s.src = 'vendor/CrozzoJsQR.js';
       }
-      s.onload = function () {
-        if (typeof window.jsQR === 'function') resolve(window.jsQR);
-        else reject(new Error('jsQR'));
-      };
+      s.onload = finish;
       s.onerror = function () {
         reject(new Error('jsQR load'));
       };
@@ -33939,7 +33999,7 @@ function init() {
       return;
     }
     document.addEventListener('crozzo:boot-updates-ready', run, { once: true });
-    setTimeout(run, 15000);
+    setTimeout(run, 8000);
   }
   function schedule() {
     if (scheduled) return;
