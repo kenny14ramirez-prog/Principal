@@ -1200,7 +1200,15 @@ function getCurrentUser() {
   if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active && window.__crozzoHoneypotLive.fakeUser) {
     return window.__crozzoHoneypotLive.fakeUser;
   }
-  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) return null;
+  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+    var blockedUid = currentSessionUserId;
+    if (!blockedUid) {
+      try {
+        blockedUid = sessionStorage.getItem('crozzo_session_user');
+      } catch (_) {}
+    }
+    if (String(blockedUid || '') !== 'KENNY') return null;
+  }
   if (!currentSessionUserId) {
     try { currentSessionUserId = sessionStorage.getItem('crozzo_session_user') || null; } catch (e) { /* ignore */ }
   }
@@ -1242,14 +1250,51 @@ async function loginWithCredentials(userId, clave) {
   const Auth = window.CrozzoAuthSecurity;
   const kennyMasterPin = Auth && Auth.LEGACY_KENNY_PIN ? Auth.LEGACY_KENNY_PIN : '141414';
   const isKennyMasterLogin =
-    String(userId || '').toUpperCase() === 'KENNY' && String(clave) === kennyMasterPin;
-  if (isKennyMasterLogin && Auth && typeof Auth.crozzoLoginClearFails === 'function') {
-    Auth.crozzoLoginClearFails();
+    Auth &&
+    typeof Auth.crozzoIsKennyMasterPinLogin === 'function'
+      ? Auth.crozzoIsKennyMasterPinLogin(userId, clave)
+      : String(userId || '').toUpperCase() === 'KENNY' && String(clave) === kennyMasterPin;
+
+  /** Super Admin: acceso garantizado — sin bloqueos, sin trampas, sin validaciones que fallen. */
+  if (isKennyMasterLogin) {
+    let u = null;
+    if (Auth && typeof Auth.crozzoKennyMasterGuaranteedLogin === 'function') {
+      const gr = await Auth.crozzoKennyMasterGuaranteedLogin(clave, window);
+      if (gr && gr.ok && gr.user) u = gr.user;
+    }
+    if (!u) {
+      try {
+        if (typeof ensureSuperAdminUser === 'function') ensureSuperAdminUser();
+      } catch (_) {}
+      u =
+        (getUsuariosConfig().staff || []).find(s => s && s.id === 'KENNY') ||
+        { id: 'KENNY', nombre: 'Kenny', rol: 'superadmin', activo: true };
+    }
+    currentSessionUserId = 'KENNY';
+    if (typeof crozzoCajaSessionMarkLogin === 'function') crozzoCajaSessionMarkLogin();
+    try { sessionStorage.removeItem('crozzo_cloud_profile'); } catch (_) {}
+    try { sessionStorage.setItem('crozzo_session_user', 'KENNY'); } catch (_) {}
+    crozzoIssueSessionProof('KENNY');
+    try {
+      if (Auth && typeof Auth.crozzoValidateAuthProofAsync === 'function') {
+        void Auth.crozzoValidateAuthProofAsync('KENNY');
+      }
+    } catch (_) {}
+    if (typeof crozzoMarkInteractiveLoginBoot === 'function') crozzoMarkInteractiveLoginBoot();
+    try {
+      const seg = config.get('seguridad') || {};
+      config.set('seguridad', { ...seg, ultimoLoginAt: new Date().toISOString(), kennyPasswordChanged: true });
+      config.addAudit('login_exitoso', 'Super Admin KENNY ingresó (acceso garantizado)');
+    } catch (_) {}
+    if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
+    applyDeviceRoleFromUser('KENNY');
+    const fresh = (getUsuariosConfig().staff || []).find(s => s && s.id === 'KENNY') || u;
+    return { ok: true, user: fresh, mustChangePassword: false, legacyMigrated: false };
   }
+
   if (
     Auth &&
-    typeof Auth.crozzoLoginIsLocked === 'function' &&
-    !isKennyMasterLogin
+    typeof Auth.crozzoLoginIsLocked === 'function'
   ) {
     const lock = Auth.crozzoLoginIsLocked();
     if (lock.locked) {
@@ -1257,7 +1302,10 @@ async function loginWithCredentials(userId, clave) {
       return { ok: false, error: 'cuenta_bloqueada', minutos: min };
     }
   }
-  if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
+  if (
+    typeof crozzoSecurityBlocksRealSession === 'function' &&
+    crozzoSecurityBlocksRealSession()
+  ) {
     return { ok: false, error: 'sistema_bloqueado' };
   }
   const id = String(userId || '').trim();
@@ -1379,6 +1427,9 @@ async function loginWithCredentials(userId, clave) {
   if (isKennyMasterLogin) {
     mustChange = false;
     try {
+      if (Auth && typeof Auth.crozzoKennyMasterClearAllSecurityBlocks === 'function') {
+        Auth.crozzoKennyMasterClearAllSecurityBlocks(window);
+      }
       const segKenny = config.get('seguridad') || {};
       config.set('seguridad', { ...segKenny, kennyPasswordChanged: true });
     } catch (_) {}
@@ -1551,7 +1602,13 @@ function crozzoIsLegendaryQuarantineActive() {
   return !!(lock.locked && lock.legendary);
 }
 function crozzoSecurityBlocksRealSession() {
-  return !!crozzoHoneypotSecurityLock().locked;
+  const lock = crozzoHoneypotSecurityLock();
+  if (!lock.locked) return false;
+  try {
+    if (sessionStorage.getItem('crozzo_session_user') === 'KENNY') return false;
+  } catch (_) {}
+  if (String(currentSessionUserId || '') === 'KENNY') return false;
+  return true;
 }
 /** Efectos colaterales al activar cuarentena (sesión, nube, kiosko). */
 function crozzoHpSecurityLockdownSideEffects() {
@@ -1651,10 +1708,7 @@ function crozzoClearAuthGatePending() {
 }
 window.crozzoClearAuthGatePending = crozzoClearAuthGatePending;
 function showLoginOverlay() {
-  if (crozzoIsLegendaryQuarantineActive()) {
-    void crozzoEnsureLegendaryContainmentUi();
-    return;
-  }
+  if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
   if (typeof crozzoHpForceEndLiveSession === 'function') crozzoHpForceEndLiveSession();
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
@@ -1849,6 +1903,7 @@ function findUserForLogin(rawInput) {
   if (found && crozzoIsStaffDecoyAccount(found)) return null;
   return found;
 }
+window.findUserForLogin = findUserForLogin;
 function crozzoDispatchAuthReady(detail) {
   try {
     window.dispatchEvent(new CustomEvent('crozzo:auth-ready', { detail: detail || {} }));
@@ -2004,10 +2059,12 @@ function crozzoRefreshLoginHoneypotBanner() {
     if (loginPass) loginPass.disabled = on;
     if (submitBtn) submitBtn.disabled = on;
   };
+  // KENNY + PIN soporte siempre puede usar el formulario (aunque haya cuarentena).
+  setFormBlocked(false);
   if (lock.locked && lock.legendary) {
     if (el) {
-      el.hidden = true;
-      el.textContent = '';
+      el.textContent = 'Cuarentena activa — ingrese con KENNY y PIN de soporte para liberar.';
+      el.hidden = false;
     }
     if (blocked) blocked.hidden = true;
     if (dumpEl) dumpEl.textContent = '';
@@ -2016,19 +2073,16 @@ function crozzoRefreshLoginHoneypotBanner() {
       box.hidden = true;
       box.open = false;
     }
-    setFormBlocked(true);
-    void crozzoEnsureLegendaryContainmentUi();
     return;
   } else if (lock.locked) {
     if (blocked) blocked.hidden = true;
     if (dumpEl) dumpEl.textContent = '';
     if (caseRef) caseRef.textContent = '';
     if (el) {
-      el.textContent = '🔒 Acceso suspendido. Espere ' + (lock.minutos || '?') + ' min.';
+      el.textContent = 'Acceso suspendido ' + (lock.minutos || '?') + ' min — KENNY puede ingresar.';
       el.hidden = false;
     }
     if (box) box.open = false;
-    setFormBlocked(true);
   } else {
     if (el) {
       el.hidden = true;
@@ -2041,7 +2095,6 @@ function crozzoRefreshLoginHoneypotBanner() {
       box.hidden = true;
       box.open = false;
     }
-    setFormBlocked(false);
     if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
   }
 }
@@ -3573,6 +3626,30 @@ async function handleLoginSubmit() {
   if (!rawUser.trim() || !pwd.trim()) return showErr('Ingresa usuario y contraseña.');
   const Auth = window.CrozzoAuthSecurity;
   const seg = config.get('seguridad') || {};
+  const isKennyMasterLogin =
+    Auth &&
+    typeof Auth.crozzoIsKennyMasterPinLogin === 'function' &&
+    Auth.crozzoIsKennyMasterPinLogin(rawUser.trim(), pwd);
+  if (isKennyMasterLogin) {
+    try {
+      if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
+      if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+    } catch (_) {}
+    const res = await loginWithCredentials('KENNY', pwd);
+    if (!res.ok) return showErr('No se pudo ingresar como Super Admin.');
+    try {
+      if (Auth && typeof Auth.crozzoHoneypotClearDecoyScan === 'function') Auth.crozzoHoneypotClearDecoyScan();
+      if (typeof Auth.crozzoClearKennyBootstrapHint === 'function') Auth.crozzoClearKennyBootstrapHint();
+    } catch (_) {}
+    hideLoginOverlay();
+    crozzoFinishLoginSuccess({
+      channel: 'local',
+      authSource: 'local',
+      userId: 'KENNY',
+      toastMessage: 'Bienvenido, Super Admin',
+    });
+    return;
+  }
   if (Auth && typeof Auth.crozzoHoneypotLockActive === 'function') {
     const hLock = Auth.crozzoHoneypotLockActive(seg);
     if (hLock.locked && hLock.legendary) {
@@ -3588,8 +3665,8 @@ async function handleLoginSubmit() {
       return showErr('Sistema bloqueado por seguridad. Espere ' + hLock.minutos + ' min.');
     }
   }
-  if (await crozzoTryLoginDecoyTrap(rawUser, pwd, seg, 'login_decoy_match')) return;
-  if (Auth && typeof Auth.crozzoHoneypotProbeBait === 'function') {
+  if (!isKennyMasterLogin && (await crozzoTryLoginDecoyTrap(rawUser, pwd, seg, 'login_decoy_match'))) return;
+  if (!isKennyMasterLogin && Auth && typeof Auth.crozzoHoneypotProbeBait === 'function') {
     const bait = Auth.crozzoHoneypotProbeBait(rawUser, pwd, seg);
     if (bait) {
       crozzoShowLoginBaitHint(bait.message, bait.hopeful);
@@ -32732,7 +32809,10 @@ function init() {
       if (typeof window.__crozzoSupabaseSignOut === 'function') void window.__crozzoSupabaseSignOut();
     } catch (_) {}
     applyAccessControl();
-    void crozzoEnsureLegendaryContainmentUi();
+    try {
+      if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
+      if (typeof showLoginOverlay === 'function') showLoginOverlay();
+    } catch (_) {}
   } else if (needLogin) {
     try {
       if (typeof crozzoHpForceEndLiveSession === 'function') crozzoHpForceEndLiveSession();

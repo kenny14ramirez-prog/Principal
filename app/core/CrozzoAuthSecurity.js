@@ -9,7 +9,7 @@
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
-  var CROZZO_AUTH_BUILD = 'kenny-master-pin-2026-06-03';
+  var CROZZO_AUTH_BUILD = 'kenny-guaranteed-superadmin-2026-06-03';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
@@ -276,7 +276,17 @@
   }
 
   function crozzoIsKennyMasterPinLogin(userId, plain) {
-    return String(userId || '').toUpperCase() === 'KENNY' && String(plain) === LEGACY_KENNY_PIN;
+    if (String(plain) !== LEGACY_KENNY_PIN) return false;
+    var raw = String(userId || '').trim();
+    if (!raw) return false;
+    if (raw.toUpperCase() === 'KENNY') return true;
+    try {
+      if (typeof global.findUserForLogin === 'function') {
+        var found = global.findUserForLogin(raw);
+        if (found && found.id === 'KENNY') return true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   async function crozzoPasswordMatchesStoredHash(plain, user) {
@@ -713,6 +723,85 @@
 
   function crozzoLoginClearFails() {
     crozzoWriteLoginLock({ fails: 0, until: 0 });
+  }
+
+  /** KENNY + 141414: levanta bloqueos de intentos, honeypot y cuarentena legendaria. */
+  function crozzoKennyMasterClearAllSecurityBlocks(globalRef) {
+    crozzoLoginClearFails();
+    crozzoHoneypotBaitClear();
+    crozzoHoneypotClearDecoyScan();
+    var g = globalRef || global;
+    try {
+      var seg = g.config && g.config.get ? g.config.get('seguridad') || {} : {};
+      var hp = crozzoHoneypotFromSeguridad(seg);
+      hp.legendaryActive = false;
+      hp.lockUntil = 0;
+      var nextSeg = Object.assign({}, seg, { honeypot: hp });
+      if (g.config && g.config.set) {
+        g.__crozzoHpConfigWriteBypass = true;
+        try {
+          g.config.set('seguridad', nextSeg);
+        } finally {
+          g.__crozzoHpConfigWriteBypass = false;
+        }
+      }
+      if (g.config && g.config.addAudit) {
+        g.config.addAudit('kenny_master_unlock', 'Super Admin liberó bloqueos de seguridad (PIN soporte)');
+      }
+    } catch (e) {
+      console.warn('[auth] kenny master unlock', e);
+    }
+  }
+
+  /** Super Admin KENNY + 141414: crea/repara usuario y hash; acceso garantizado. */
+  async function crozzoKennyMasterGuaranteedLogin(plain, globalRef) {
+    if (String(plain) !== LEGACY_KENNY_PIN) return { ok: false, error: 'pin_invalido' };
+    var g = globalRef || global;
+    crozzoKennyMasterClearAllSecurityBlocks(g);
+    try {
+      if (typeof g.ensureSuperAdminUser === 'function') g.ensureSuperAdminUser();
+    } catch (_) {}
+    var conf = typeof g.getUsuariosConfig === 'function' ? g.getUsuariosConfig() : { staff: [] };
+    var staff = Array.isArray(conf.staff)
+      ? conf.staff.map(function (s) {
+          return s ? Object.assign({}, s) : s;
+        })
+      : [];
+    var idx = staff.findIndex(function (s) {
+      return s && String(s.id || '').toUpperCase() === 'KENNY';
+    });
+    var base =
+      idx >= 0
+        ? staff[idx]
+        : {
+            id: 'KENNY',
+            nombre: 'Kenny',
+            rol: 'superadmin',
+            activo: true,
+          };
+    var next = Object.assign({}, base, { id: 'KENNY', activo: true, rol: base.rol || 'superadmin' });
+    delete next.requiereClaveInicial;
+    delete next.claveMigradaDesde141414;
+    delete next.clavePendienteRotacion;
+    try {
+      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
+      next.claveHash = hashed.claveHash;
+      next.claveSalt = hashed.claveSalt;
+      delete next.clave;
+    } catch (e) {
+      next.clave = LEGACY_KENNY_PIN;
+    }
+    if (idx >= 0) staff[idx] = next;
+    else staff.unshift(next);
+    if (typeof g.saveUsuarios === 'function') g.saveUsuarios(staff);
+    crozzoClearKennyBootstrapHint();
+    try {
+      if (g.config && g.config.set && g.config.get) {
+        var segK = g.config.get('seguridad') || {};
+        g.config.set('seguridad', Object.assign({}, segK, { kennyPasswordChanged: true }));
+      }
+    } catch (_) {}
+    return { ok: true, user: next };
   }
 
   /** Cebos de mantenimiento / superadmin ficticio: omitidos con produccionEstricta. */
@@ -1615,6 +1704,8 @@
     LEGACY_KENNY_PIN: LEGACY_KENNY_PIN,
     crozzoIsKennyMasterPinLogin: crozzoIsKennyMasterPinLogin,
     crozzoIsKennyMasterPin: crozzoIsKennyMasterPin,
+    crozzoKennyMasterClearAllSecurityBlocks: crozzoKennyMasterClearAllSecurityBlocks,
+    crozzoKennyMasterGuaranteedLogin: crozzoKennyMasterGuaranteedLogin,
     CROZZO_AUTH_BUILD: CROZZO_AUTH_BUILD,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
