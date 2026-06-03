@@ -21464,7 +21464,7 @@ async function facturar(options = {}) {
           <button type="button" class="btn btn-outline" style="border-color:#25D366;color:#0d6e4a;" onclick="crozzoFacturaShareWhatsAppModal()">📱 WhatsApp + PDF</button>
           <button type="button" class="btn btn-outline" style="border-color:var(--accent);color:var(--accent);" onclick="crozzoFacturaShareEmailModal()">✉️ Email</button>
         </div>
-        <p class="form-hint" style="text-align:center;margin:8px 0 0;font-size:0.72rem;">Descarga PDF con nombre del cliente y abre su chat de WhatsApp.</p>
+        <p class="form-hint" style="text-align:center;margin:8px 0 0;font-size:0.72rem;">Abre WhatsApp con mensaje de agradecimiento y descarga PDF oficio con nombre del cliente.</p>
         <div style="display:flex;justify-content:center;margin-top:10px;"><p class="form-hint" style="margin:0 0 6px;width:100%;text-align:center;">Reimprimir otro formato</p></div>
         <div style="display:flex;justify-content:center;margin-top:4px;">${typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(null) : ''}</div>
         ${crozzoCajeroPostCobroActionsHtml()}
@@ -21606,9 +21606,32 @@ window.__crozzoLastFacturaForShare = null;
 function crozzoOpenExternal(url) {
   if (!url || typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) {
     if (typeof showToast === 'function') showToast('Enlace no disponible', 'warning');
-    return;
+    return Promise.resolve(false);
   }
-  window.open(url.trim(), '_blank', 'noopener,noreferrer');
+  url = url.trim();
+  try {
+    if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+      return window.__TAURI__.core
+        .invoke('plugin:opener|open_url', { url: url })
+        .then(function () {
+          return true;
+        })
+        .catch(function () {
+          try {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return true;
+          } catch (_) {
+            return false;
+          }
+        });
+    }
+  } catch (_) {}
+  try {
+    var w = window.open(url, '_blank', 'noopener,noreferrer');
+    return Promise.resolve(!!w);
+  } catch (_) {
+    return Promise.resolve(false);
+  }
 }
 function crozzoFacturaShareWhatsAppModal() {
   crozzoFacturaShareWhatsApp(window.__crozzoLastFacturaForShare);
@@ -21761,22 +21784,14 @@ function crozzoLoadJsPdfForFactura() {
   return crozzoLoadScriptOnceForPdf('vendor/CrozzoJsPdf.js', 'jspdf').then(function () {
     var c = crozzoResolveJsPdfCtor();
     if (c) return c;
-    return crozzoLoadScriptOnceForPdf(
-      'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-      'jspdf-cdn'
-    ).then(function () {
-      var c2 = crozzoResolveJsPdfCtor();
-      if (c2) return c2;
-      throw new Error('jsPDF no está disponible');
-    });
+    throw new Error('jsPDF no está disponible (vendor/CrozzoJsPdf.js)');
   });
 }
 function crozzoEnsureHtml2CanvasForFactura() {
   if (window.html2canvas) return Promise.resolve();
-  return crozzoLoadScriptOnceForPdf(
-    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
-    'html2canvas'
-  );
+  return crozzoLoadScriptOnceForPdf('vendor/CrozzoHtml2Canvas.js', 'html2canvas').then(function () {
+    if (!window.html2canvas) throw new Error('html2canvas no está disponible (vendor/CrozzoHtml2Canvas.js)');
+  });
 }
 function crozzoSanitizeFileNamePart(s) {
   return (
@@ -21842,8 +21857,9 @@ function crozzoFacturaExportPdf(factura, opts) {
     return Promise.reject(new Error('Generador PDF no disponible'));
   }
   var filename = opts.filename || crozzoFacturaPdfFileName(factura);
-  var pageFormat = opts.pageFormat || 'carta';
-  var html = crozzoBuildFacturaSheetDocumentHtml(factura, { pageFormat: pageFormat });
+  var pageFormat = String(opts.pageFormat || 'oficio').toLowerCase();
+  var esOficio = pageFormat === 'oficio' || pageFormat === 'legal';
+  var html = crozzoBuildFacturaSheetDocumentHtml(factura, { pageFormat: esOficio ? 'oficio' : 'carta' });
   if (!html) return Promise.reject(new Error('No se pudo armar el documento'));
   return crozzoLoadJsPdfForFactura()
     .then(function (JsPDF) {
@@ -21856,7 +21872,9 @@ function crozzoFacturaExportPdf(factura, opts) {
         var iframe = document.createElement('iframe');
         iframe.setAttribute('aria-hidden', 'true');
         iframe.style.cssText =
-          'position:fixed;left:-10000px;top:0;width:820px;height:1400px;border:0;opacity:0;pointer-events:none';
+          'position:fixed;left:-10000px;top:0;width:820px;height:' +
+          (esOficio ? '2400' : '1400') +
+          'px;border:0;opacity:0;pointer-events:none';
         document.body.appendChild(iframe);
         var idoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
         if (!idoc) {
@@ -21895,7 +21913,11 @@ function crozzoFacturaExportPdf(factura, opts) {
           .then(function () {
             var el = idoc.querySelector('.fact-sheet') || idoc.body;
             if (!el) throw new Error('Documento vacío');
-            var doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            var doc = new JsPDF({
+              orientation: 'portrait',
+              unit: 'mm',
+              format: esOficio ? 'legal' : 'a4',
+            });
             if (typeof doc.html !== 'function') throw new Error('jsPDF sin soporte HTML');
             doc.html(el, {
               callback: function (pdf) {
@@ -21915,7 +21937,7 @@ function crozzoFacturaExportPdf(factura, opts) {
               },
               x: 8,
               y: 8,
-              width: 194,
+              width: esOficio ? 200 : 194,
               windowWidth: 820,
               html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
             });
@@ -21931,6 +21953,18 @@ function crozzoFacturaExportPdf(factura, opts) {
 }
 window.crozzoFacturaExportPdf = crozzoFacturaExportPdf;
 window.crozzoFacturaPdfFileName = crozzoFacturaPdfFileName;
+function crozzoFacturaExportPdfWithTimeout(factura, opts, timeoutMs) {
+  timeoutMs = Number(timeoutMs) || 35000;
+  return Promise.race([
+    crozzoFacturaExportPdf(factura, opts || {}),
+    new Promise(function (_, reject) {
+      setTimeout(function () {
+        reject(new Error('Tiempo agotado generando PDF'));
+      }, timeoutMs);
+    }),
+  ]);
+}
+window.crozzoFacturaExportPdfWithTimeout = crozzoFacturaExportPdfWithTimeout;
 function crozzoFacturaExportPdfModal() {
   var f = window.__crozzoLastFacturaForShare;
   if (!f) {
@@ -21983,6 +22017,44 @@ function crozzoFacturaResolveClienteCrm(factura) {
     }) || null
   );
 }
+function crozzoFacturaWhatsAppFechaText(factura) {
+  var raw = factura && (factura.fecha || factura.fechaEmision) ? factura.fecha || factura.fechaEmision : '';
+  if (!raw) return '—';
+  try {
+    var d = new Date(raw);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+    }
+  } catch (_) {}
+  return String(raw).replace('T', ' ').slice(0, 16);
+}
+function crozzoFacturaWhatsAppCierreText(cliNom) {
+  var primer =
+    cliNom && cliNom !== 'Consumidor Final' && cliNom !== 'Cliente' && cliNom !== 'Consumidor final'
+      ? String(cliNom).trim().split(/\s+/)[0]
+      : '';
+  var frases = primer
+    ? [
+        'Gracias, ' + primer + '. Lo esperamos pronto.',
+        'Fue un gusto atenderle, ' + primer + '. Que tenga un excelente dia.',
+        'Gracias por su confianza, ' + primer + '. Los esperamos de nuevo.',
+        'Apreciamos su compra, ' + primer + '. Hasta pronto.',
+        'Mil gracias por su visita, ' + primer + '. Vuelva cuando quiera.',
+      ]
+    : [
+        'Gracias por preferirnos. Lo esperamos pronto.',
+        'Fue un gusto atenderle. Que tenga un excelente dia.',
+        'Gracias por su confianza. Los esperamos de nuevo.',
+        'Apreciamos su compra. Hasta pronto.',
+        'Gracias por elegirnos. Con gusto le ayudamos cuando lo necesite.',
+      ];
+  return '\n\n' + frases[Math.floor(Math.random() * frases.length)];
+}
+function crozzoFacturaPdfPageFormatPreferido() {
+  var fmt = String(window.__crozzoFacturaPrintFormatElegido || '').toLowerCase();
+  if (fmt === 'carta' || fmt === 'oficio') return fmt;
+  return 'oficio';
+}
 function crozzoFacturaShareWhatsApp(factura) {
   factura = factura || window.__crozzoLastFacturaForShare;
   if (!factura) {
@@ -21996,26 +22068,24 @@ function crozzoFacturaShareWhatsApp(factura) {
   const telHint = crmCli && crmCli.telefono ? String(crmCli.telefono).trim() : '';
   const pdfName = typeof crozzoFacturaPdfFileName === 'function' ? crozzoFacturaPdfFileName(factura) : 'comprobante.pdf';
   const lines = [
-    `🧾 ${nombre}`,
-    `Consecutivo: ${factura.consecutivo || '—'}`,
-    `Total: $${Number(factura.total || 0).toLocaleString('es-CO')}`,
-    `Fecha: ${factura.fecha || factura.fechaEmision || ''}`,
+    nombre,
+    'Consecutivo: ' + (factura.consecutivo || '—'),
+    'Total: $' + Number(factura.total || 0).toLocaleString('es-CO'),
+    'Fecha: ' + crozzoFacturaWhatsAppFechaText(factura),
   ];
   if (factura.metodoPago && typeof crozzoMetodoPagoDescripcion === 'function') {
-    lines.splice(1, 0, 'Pago: ' + crozzoMetodoPagoDescripcion(factura.metodoPago, factura.paymentMeta || {}, { htmlSafe: false }));
+    lines.splice(2, 0, 'Pago: ' + crozzoMetodoPagoDescripcion(factura.metodoPago, factura.paymentMeta || {}, { htmlSafe: false }));
   }
   if (crozzoFacturaEsDocumentoFe(factura)) {
-    if (factura.uuid) lines.push(`UUID: ${factura.uuid}`);
-    if (crozzoFacturaCufeMostrable(factura)) lines.push(`CUFE (extracto): ${String(factura.cufe).slice(0, 28)}…`);
-    if (factura.qrUrl) lines.push(`Verificación DIAN: ${factura.qrUrl}`);
-  } else if (String(factura.estado || '') === 'pos') {
-    lines.push('Documento soporte POS (no es factura electrónica DIAN).');
+    if (factura.uuid) lines.push('UUID: ' + factura.uuid);
+    if (crozzoFacturaCufeMostrable(factura)) lines.push('CUFE (extracto): ' + String(factura.cufe).slice(0, 28) + '…');
+    if (factura.qrUrl) lines.push('Verificación DIAN: ' + factura.qrUrl);
   }
   const saludo =
     cliNom && cliNom !== 'Consumidor Final' && cliNom !== 'Cliente' && cliNom !== 'Consumidor final'
-      ? `Hola ${cliNom},\n\nGracias por su compra.\n\n`
+      ? 'Hola ' + cliNom + ',\n\nGracias por su compra.\n\n'
       : '';
-  const textBase = saludo + lines.join('\n');
+  const textBase = saludo + lines.join('\n') + crozzoFacturaWhatsAppCierreText(cliNom);
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     try {
       if (typeof enqueueOfflineOperation === 'function' && typeof crozzoCloudDeviceUuidForRest === 'function') {
@@ -22035,35 +22105,37 @@ function crozzoFacturaShareWhatsApp(factura) {
   const phoneRaw = prompt('WhatsApp del cliente (opcional — vacío para elegir contacto):', telHint);
   if (phoneRaw === null) return Promise.resolve(false);
   const waDigits = phoneRaw && String(phoneRaw).trim() ? crozzoNormTelefonoWhatsAppCo(String(phoneRaw).trim()) : '';
-  if (typeof showToast === 'function') showToast('Generando PDF «' + pdfName + '»…', 'info');
-  var pdfOk = false;
+  const url = waDigits
+    ? 'https://wa.me/' + waDigits + '?text=' + encodeURIComponent(textBase)
+    : 'https://wa.me/?text=' + encodeURIComponent(textBase);
+  void crozzoOpenExternal(url).then(function (opened) {
+    if (!opened && typeof showToast === 'function') {
+      showToast('No se pudo abrir WhatsApp. Revise permisos o abra wa.me manualmente.', 'warning');
+    }
+  });
+  if (typeof showToast === 'function') {
+    showToast('Generando PDF oficio «' + pdfName + '»…', 'info');
+  }
+  var pdfFmt = typeof crozzoFacturaPdfPageFormatPreferido === 'function' ? crozzoFacturaPdfPageFormatPreferido() : 'oficio';
   return (
-    typeof crozzoFacturaExportPdf === 'function'
-      ? crozzoFacturaExportPdf(factura, { filename: pdfName })
-      : Promise.reject(new Error('PDF no disponible'))
+    typeof crozzoFacturaExportPdfWithTimeout === 'function'
+      ? crozzoFacturaExportPdfWithTimeout(factura, { filename: pdfName, pageFormat: pdfFmt }, 45000)
+      : typeof crozzoFacturaExportPdf === 'function'
+        ? crozzoFacturaExportPdf(factura, { filename: pdfName, pageFormat: pdfFmt })
+        : Promise.reject(new Error('PDF no disponible'))
   )
     .then(function () {
-      pdfOk = true;
       if (typeof showToast === 'function') {
-        showToast('PDF descargado. Abriendo WhatsApp — adjunte el archivo en el chat.', 'success');
+        showToast('PDF oficio descargado: ' + pdfName, 'success');
       }
+      return true;
     })
     .catch(function (err) {
       console.warn('[factura-wa-pdf]', err);
       if (typeof showToast === 'function') {
-        showToast('No se pudo generar PDF. Se abrirá WhatsApp solo con texto.', 'warning');
+        showToast('WhatsApp abierto. PDF no generado — use Reimprimir Oficio si lo necesita.', 'warning');
       }
-    })
-    .then(function () {
-      const pdfNote = pdfOk
-        ? '\n\n📎 Comprobante en PDF descargado («' + pdfName + '»). Adjúntelo en este chat.'
-        : '';
-      const text = textBase + pdfNote;
-      const url = waDigits
-        ? 'https://wa.me/' + waDigits + '?text=' + encodeURIComponent(text)
-        : 'https://wa.me/?text=' + encodeURIComponent(text);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return pdfOk;
+      return false;
     });
 }
 function crozzoFacturaShareEmail(factura) {
@@ -23675,7 +23747,7 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
     '</div>' +
     '<div class="crozzo-invoice-action-card"><h4>Enviar e imprimir</h4>' +
     '<div class="btn-group" style="flex-direction:column;gap:8px;">' + histBtns + '</div>' +
-    '<p class="form-hint" style="margin:8px 0 0;font-size:0.72rem;">WhatsApp descarga PDF con nombre del cliente y abre el chat.</p>' +
+    '<p class="form-hint" style="margin:8px 0 0;font-size:0.72rem;">WhatsApp con mensaje de agradecimiento + PDF oficio con nombre del cliente.</p>' +
     (printBtns
       ? '<p class="form-hint" style="margin:10px 0 6px;">Reimprimir otro formato</p>' + printBtns
       : '') +

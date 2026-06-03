@@ -748,7 +748,7 @@
           var canvas = document.createElement('canvas');
           canvas.width = w;
           canvas.height = h;
-          var ctx = canvas.getContext('2d');
+          var ctx = canvas.getContext('2d', { willReadFrequently: true });
           if (!ctx) return resolve(null);
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, w, h);

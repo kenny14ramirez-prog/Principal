@@ -114,6 +114,36 @@
         crozzoOpenDevtools();
       });
     }
+    var loginForm = document.getElementById('loginForm');
+    if (loginForm && !loginForm._crozzoBound) {
+      loginForm._crozzoBound = true;
+      loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (typeof global.handleLoginSubmit === 'function') {
+          global.handleLoginSubmit();
+        }
+      });
+    }
+    var kioskBtn = document.getElementById('btnKioskCocinaBar');
+    if (kioskBtn && !kioskBtn._crozzoBound) {
+      kioskBtn._crozzoBound = true;
+      kioskBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof global.crozzoKioskEnterComandasFromLogin === 'function') {
+          global.crozzoKioskEnterComandasFromLogin('comandas');
+        }
+      });
+    }
+    var pairBtn = document.getElementById('btnPairDevice');
+    if (pairBtn && !pairBtn._crozzoBound) {
+      pairBtn._crozzoBound = true;
+      pairBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof global.crozzoOpenPairingModal === 'function') {
+          global.crozzoOpenPairingModal();
+        }
+      });
+    }
     if (!document._crozzoDevtoolsKey) {
       document._crozzoDevtoolsKey = true;
       document.addEventListener('keydown', function (e) {
