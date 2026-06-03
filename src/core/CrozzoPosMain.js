@@ -1862,8 +1862,20 @@ function crozzoClearAuthGatePending() {
   } catch (_) {}
 }
 window.crozzoClearAuthGatePending = crozzoClearAuthGatePending;
+function crozzoHasActivePosSession() {
+  try {
+    if (window.__crozzoKioskChosenThisBoot) return true;
+    if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) return true;
+    if (typeof crozzoHasKennySessionFast === 'function' && crozzoHasKennySessionFast()) return true;
+    if (typeof getCurrentUser === 'function' && getCurrentUser()) return true;
+  } catch (_) {}
+  return false;
+}
+window.crozzoHasActivePosSession = crozzoHasActivePosSession;
 /** Tras login en Tauri: quita capas que bloquean clics (login, OTA, cuarentena) y re-enlaza menú. */
 function crozzoEnsureAppShellInteractive() {
+  if (typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
+  if (!crozzoHasActivePosSession()) return;
   crozzoClearAuthGatePending();
   try {
     document.documentElement.classList.remove('crozzo-boot-updates-active');
@@ -1919,6 +1931,7 @@ function showLoginOverlay() {
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
   document.body.classList.add('crozzo-login-open');
+  if (typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
   crozzoHideLoginChromeLeaks();
   document.body.classList.remove('super-admin-active', 'crozzo-session-superadmin');
   try {
@@ -4088,6 +4101,10 @@ function handleLogout() {
 window.showLoginOverlay = showLoginOverlay;
 window.hideLoginOverlay = hideLoginOverlay;
 window.handleLoginSubmit = handleLoginSubmit;
+window.__crozzoHandleLoginSubmitMain = handleLoginSubmit;
+window.__crozzoLoginMainReady = true;
+window.crozzoKioskEnterComandasFromLogin = crozzoKioskEnterComandasFromLogin;
+window.__crozzoKioskEnterComandasFromLoginMain = crozzoKioskEnterComandasFromLogin;
 window.handleLogout = handleLogout;
 function crozzoOpenForcePasswordChangeModal(user) {
   const ov = document.getElementById('crozzoForcePasswordOverlay');
@@ -5010,7 +5027,7 @@ function crozzoCuentaItemsParaTicket(items) {
 function crozzoFacturaSoloProductosConsumo(factura) {
   if (!factura) return false;
   const e = String(factura.estado || '');
-  if (e === 'precuenta' || e === 'pos' || e === 'borrador_fe' || e === 'timbrada' || e === 'demo') return true;
+  if (e === 'precuenta' || e === 'cotizacion' || e === 'pos' || e === 'borrador_fe' || e === 'timbrada' || e === 'demo') return true;
   if (factura.tipoComprobante === 'pos' || factura.tipoComprobante === 'electronica') return true;
   return false;
 }
@@ -13241,7 +13258,7 @@ function renderVentaComercial() {
     '<button type="button" class="btn-finalizar" id="btnComandarCobrar" onclick="iniciarVentaComercial()" disabled>' +
     '<i data-lucide="credit-card" aria-hidden="true"></i> Finalizar venta</button>' +
     '<div class="crozzo-retail-paybar__secondary">' +
-    '<button type="button" class="btn btn-outline" id="btnPrecuenta" onclick="iniciarCotizacionComercial()" disabled title="Ver e imprimir cotización del carrito">' +
+    '<button type="button" class="btn btn-outline" id="btnPrecuenta" onclick="iniciarCotizacion()" disabled title="Ver e imprimir cotización del carrito">' +
     '<i data-lucide="file-text" aria-hidden="true"></i> Cotización</button>' +
     '</div></div></div></aside></div></div>'
   );
@@ -13413,13 +13430,17 @@ function crozzoRetailIniciarPrestamo() {
   }
   crozzoOpenCobroStudioModal({ metodoInicial: 'credito' });
 }
-function iniciarCotizacionComercial() {
+function iniciarCotizacion() {
   if (typeof crozzoOpenCotizacionStudioModal === 'function') {
     crozzoOpenCotizacionStudioModal();
     return;
   }
   if (typeof showToast === 'function') showToast('Vista de cotización no disponible.', 'warning');
 }
+function iniciarCotizacionComercial() {
+  iniciarCotizacion();
+}
+window.iniciarCotizacion = iniciarCotizacion;
 function crozzoRetailIniciarVentaParaCliente(opts) {
   opts = opts || {};
   window.__crozzoRetailPendingCliente = {
@@ -15547,12 +15568,15 @@ function renderCajero() {
     '<i data-lucide="send" aria-hidden="true"></i> Comandar y guardar' +
     (tipoServicioCaja === 'directa' ? '' : ' · ' + (tipoServicioCaja === 'mesa' ? 'Mesa' : 'Llevar')) +
     '</button>' +
+    '<button type="button" class="btn btn-outline touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--cotizacion" id="btnCotizacion" onclick="iniciarCotizacion()" disabled title="Ver e imprimir cotización del pedido">' +
+    '<i data-lucide="file-text" aria-hidden="true"></i> Cotización</button>' +
     '<div class="crozzo-rest-cuenta-cobro" id="crozzoRestCuentaCobroWrap">' +
-    '<button type="button" class="btn btn-success touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--pay crozzo-rest-cuenta-cobro__main" id="btnCuentaCobro" onclick="crozzoToggleCuentaCobroMenu(event)" disabled aria-haspopup="true" aria-expanded="false" aria-label="Precuenta o cobrar · Ctrl+Enter cobrar">' +
+    '<button type="button" class="btn btn-success touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--pay crozzo-rest-cuenta-cobro__main" id="btnCuentaCobro" onclick="crozzoToggleCuentaCobroMenu(event)" disabled aria-haspopup="true" aria-expanded="false" aria-label="Precuenta, cotización o cobrar · Ctrl+Enter cobrar">' +
     '<i data-lucide="wallet" aria-hidden="true"></i><span class="crozzo-rest-cuenta-cobro__label">Precuenta · Cobrar</span>' +
     '<i data-lucide="chevron-down" class="crozzo-rest-cuenta-cobro__caret" aria-hidden="true"></i></button>' +
     '<div class="crozzo-rest-cuenta-cobro__menu" id="cuentaCobroMenu" role="menu" hidden onclick="event.stopPropagation()">' +
     '<button type="button" role="menuitem" class="crozzo-rest-cuenta-cobro__item" onclick="crozzoCuentaCobroElegir(\'precuenta\')"><i data-lucide="file-text"></i><span><strong>Precuenta</strong><small>Imprime al instante · sin cobrar</small></span></button>' +
+    '<button type="button" role="menuitem" class="crozzo-rest-cuenta-cobro__item crozzo-rest-cuenta-cobro__item--cotizacion" onclick="crozzoCuentaCobroElegir(\'cotizacion\')"><i data-lucide="file-text"></i><span><strong>Cotización</strong><small>POS, carta u oficio · guardar en cartera</small></span></button>' +
     '<button type="button" role="menuitem" class="crozzo-rest-cuenta-cobro__item crozzo-rest-cuenta-cobro__item--pay" onclick="crozzoCuentaCobroElegir(\'cobrar\')"><i data-lucide="credit-card"></i><span><strong>Cobrar</strong><small>Efectivo, tarjeta, QR, transferencia…</small></span></button>' +
     '</div></div></div></aside></div></div>'
   );
@@ -16629,6 +16653,7 @@ function updateCartTotals() {
   const pendingEl = document.getElementById('cartPendingSummary');
   const btnFacturar = document.getElementById('btnFacturar');
   const btnPrecuenta = document.getElementById('btnPrecuenta');
+  const btnCotizacion = document.getElementById('btnCotizacion');
   const btnComandar = document.getElementById('btnComandar');
   const btnComandarGuardar = document.getElementById('btnComandarGuardar');
   const btnComandarCobrar = document.getElementById('btnComandarCobrar');
@@ -16654,6 +16679,7 @@ function updateCartTotals() {
   }
   if (btnFacturar) btnFacturar.disabled = cart.length === 0;
   if (btnPrecuenta) btnPrecuenta.disabled = cart.length === 0;
+  if (btnCotizacion) btnCotizacion.disabled = cart.length === 0;
   if (btnComandarCobrar) btnComandarCobrar.disabled = cart.length === 0;
   if (btnCuentaCobro) btnCuentaCobro.disabled = cart.length === 0;
   if (retailItemCount) {
@@ -17357,6 +17383,10 @@ function crozzoCuentaCobroElegir(mode, opts) {
     crozzoPrecuentaRapidaImprimir();
     return;
   }
+  if (mode === 'cotizacion') {
+    iniciarCotizacion();
+    return;
+  }
   if (mode === 'cobrar') {
     if (!crozzoRequireCajaPermiso('facturar', {}, 'No tienes permiso para cobrar / emitir comprobantes.')) return;
     if (!crozzoRequireComandarAntesCobro(cart)) return;
@@ -17379,6 +17409,12 @@ function crozzoRestPropinaConfig() {
 }
 function crozzoCuentaContextoServicioLabel() {
   if (typeof currentPage !== 'undefined' && currentPage === 'venta-comercial') return 'Tienda comercial';
+  if (typeof currentPage !== 'undefined' && currentPage === 'cajero' && typeof crozzoRestContextMeta === 'function') {
+    var ctx = crozzoRestContextMeta();
+    if (ctx && ctx.title) {
+      return ctx.sub ? ctx.title + ' · ' + ctx.sub : ctx.title;
+    }
+  }
   if (typeof tipoServicioCaja === 'undefined') return '';
   if (tipoServicioCaja === 'mesa') return 'Mesa ' + (typeof mesaSeleccionada !== 'undefined' ? mesaSeleccionada : '');
   if (tipoServicioCaja === 'llevar') return 'Pedido llevar ' + (typeof llevarSeleccionado !== 'undefined' ? llevarSeleccionado : '');
@@ -17422,6 +17458,10 @@ window.crozzoCalcularPropinaDesdeCart = crozzoCalcularPropinaDesdeCart;
 function crozzoEnrichCuentaFacturaColombia(factura, opts) {
   opts = opts || {};
   const f = Object.assign({}, factura || {});
+  const esCotizacion = String(f.estado || '').toLowerCase() === 'cotizacion';
+  if (esCotizacion) {
+    opts = Object.assign({}, opts, { incluirPropinaSugerida: false });
+  }
   const cart = f.items || [];
   let tx = { subtotal: f.subtotal, iva: f.iva, total: f.total, ivaIncluidoEnPrecios: true };
   if (cart.length && typeof computeTotals === 'function') {
@@ -17458,8 +17498,15 @@ function crozzoEnrichCuentaFacturaColombia(factura, opts) {
   f.propinaSugerida = propinaSug;
   f.propinaVoluntaria = propinaVol;
   f.propinaLeyenda = prCfg.leyendaVoluntaria;
-  const propinaEnTotal = propinaVol > 0 ? propinaVol : propinaSug;
+  const propinaEnTotal = esCotizacion ? 0 : propinaVol > 0 ? propinaVol : propinaSug;
   f.totalConPropina = total + (propinaEnTotal > 0 ? propinaEnTotal : 0);
+  if (esCotizacion) {
+    f.propinaSugerida = 0;
+    f.propinaVoluntaria = 0;
+    f.propinaPctSugerido = 0;
+    f.propinaBaseGravada = 0;
+    f.totalConPropina = total;
+  }
   if (!f.paymentMeta) f.paymentMeta = {};
   if (propinaVol > 0) f.paymentMeta.propina = propinaVol;
   if (co && typeof co.refreshFiscalLabelsOnPayload === 'function') {
@@ -17487,7 +17534,8 @@ function crozzoEnrichCuentaFacturaColombia(factura, opts) {
   return f;
 }
 function crozzoCuentaTotalesTicketHtml(factura) {
-  const f = crozzoEnrichCuentaFacturaColombia(factura, { incluirPropinaSugerida: true });
+  const esCot = String((factura && factura.estado) || '').toLowerCase() === 'cotizacion';
+  const f = crozzoEnrichCuentaFacturaColombia(factura, { incluirPropinaSugerida: !esCot });
   const payload =
     typeof crozzoTermicaPayloadFromFactura === 'function' ? crozzoTermicaPayloadFromFactura(f) : {};
   const co = global.CrozzoTermicaColombia;
@@ -17553,7 +17601,8 @@ function crozzoCuentaTotalesTicketHtml(factura) {
   );
 }
 function crozzoCuentaLegalResumenHtml(factura) {
-  const f = crozzoEnrichCuentaFacturaColombia(factura, { incluirPropinaSugerida: true });
+  const esCot = String((factura && factura.estado) || '').toLowerCase() === 'cotizacion';
+  const f = crozzoEnrichCuentaFacturaColombia(factura, { incluirPropinaSugerida: !esCot });
   const emp = typeof config !== 'undefined' && config.getEmpresa ? config.getEmpresa() : {};
   const legal =
     typeof global.crozzoTermicaLegalPayloadColombia === 'function'
@@ -17590,7 +17639,7 @@ function crozzoCuentaLegalResumenHtml(factura) {
       escUserAttr(legal.legalCo) +
       '</p></div>';
   }
-  if ((leyTip && !leyTipEnLegal) || Number(f.propinaSugerida) > 0) {
+  if (!esCot && ((leyTip && !leyTipEnLegal) || Number(f.propinaSugerida) > 0)) {
     legalHtml +=
       '<div class="crozzo-cuenta-legal-panel__bloque crozzo-cuenta-legal-panel__bloque--tip"><div class="crozzo-cuenta-legal-panel__titulo">Propina</div>';
     if (Number(f.propinaSugerida) > 0 && String(f.estado || '') === 'precuenta') {
@@ -17613,12 +17662,17 @@ function crozzoCuentaLegalResumenHtml(factura) {
       '</span></div>';
   }
   const perfilEm = legal.perfilEmision || crozzoCuentaPerfilEmisionActivo();
-  const esPrecFe = String(f.estado || '') === 'precuenta' && perfilEm === 'fe';
+  const esPrecFe = !esCot && String(f.estado || '') === 'precuenta' && perfilEm === 'fe';
+  const tipoDocLabel = esCot
+    ? 'COTIZACIÓN — DOCUMENTO INFORMATIVO'
+    : esPrecFe
+      ? 'PRECUENTA — FE AL COBRAR'
+      : 'PRECUENTA — DOCUMENTO POS';
   return (
     '<div class="crozzo-cuenta-legal-panel">' +
     '<div class="crozzo-cuenta-legal-panel__grid">' +
     '<div class="crozzo-cuenta-legal-panel__row"><span>Tipo</span><strong>' +
-    escUserAttr(legal.head || (esPrecFe ? 'PRECUENTA — FE AL COBRAR' : 'PRECUENTA — DOCUMENTO POS')) +
+    escUserAttr(legal.head || tipoDocLabel) +
     '</strong></div>' +
     (esPrecFe
       ? '<div class="crozzo-cuenta-legal-panel__row"><span>Adquirente provisional</span><strong>Consumidor final · 222222222-2</strong></div>'
@@ -18196,7 +18250,9 @@ function crozzoOpenCotizacionStudioModal(opts) {
       '<div class="crozzo-cobro-studio__foot">' +
       '<button type="button" class="btn btn-outline" onclick="closeModal()">Cerrar</button>' +
       '<button type="button" class="btn btn-outline" onclick="crozzoCotizacionGuardarEnCartera()">💾 Guardar en cartera</button>' +
-      '<button type="button" class="btn btn-primary" onclick="crozzoCotizacionPrintThermal()">🖨️ Imprimir cotización</button>' +
+      '<button type="button" class="btn btn-outline" onclick="crozzoCotizacionPrintSheet(\'carta\')">📄 Carta</button>' +
+      '<button type="button" class="btn btn-outline" onclick="crozzoCotizacionPrintSheet(\'oficio\')">📋 Oficio</button>' +
+      '<button type="button" class="btn btn-primary" onclick="crozzoCotizacionPrintThermal()">🖨️ POS térmica</button>' +
       '</div></div>',
     { modalClass: 'modal--cobro-studio modal--cotizacion', noBackdropClose: true }
   );
@@ -18231,6 +18287,238 @@ function crozzoCotizacionGuardarEnCartera() {
   }
   if (typeof navigateTo === 'function') navigateTo('cartera-comercial');
 }
+function crozzoBuildCotizacionSheetDocumentHtml(factura, opts) {
+  opts = opts || {};
+  var pageFormat = String(opts.pageFormat || 'carta').toLowerCase();
+  var pageSize = pageFormat === 'oficio' || pageFormat === 'legal' ? 'legal' : 'A4';
+  var f =
+    typeof crozzoBuildCotizacionFacturaFromCart === 'function'
+      ? Object.assign({}, factura || {})
+      : Object.assign({}, factura || {});
+  if (!f.items || !f.items.length) {
+    f = crozzoBuildCotizacionFacturaFromCart();
+  } else {
+    f = crozzoEnrichCuentaFacturaColombia(f, { incluirPropinaSugerida: false });
+  }
+  var emp = typeof config !== 'undefined' && config.getEmpresa ? config.getEmpresa() : {};
+  var esc =
+    typeof escHtml === 'function'
+      ? escHtml
+      : function (s) {
+          return String(s ?? '');
+        };
+  var legal =
+    typeof global.crozzoTermicaLegalPayloadColombia === 'function'
+      ? global.crozzoTermicaLegalPayloadColombia(f)
+      : {};
+  var payload =
+    typeof crozzoTermicaPayloadFromFactura === 'function' ? crozzoTermicaPayloadFromFactura(f) : {};
+  var co = global.CrozzoTermicaColombia;
+  var totRows = '';
+  if (co && typeof co.cuentaPrecuentaFilasTotales === 'function') {
+    var pack = co.cuentaPrecuentaFilasTotales(payload);
+    (pack.rows || []).forEach(function (row) {
+      if (row.hint) return;
+      totRows +=
+        '<tr><td class="lbl">' +
+        esc(String(row.label)) +
+        '</td><td class="num">$' +
+        Number(row.amount || 0).toLocaleString('es-CO') +
+        '</td></tr>';
+    });
+    totRows +=
+      '<tr class="total"><td class="lbl">' +
+      esc(String(pack.totalLabel || 'TOTAL COTIZADO')) +
+      '</td><td class="num">$' +
+      Number(pack.totalAmount || 0).toLocaleString('es-CO') +
+      '</td></tr>';
+  } else {
+    totRows =
+      '<tr><td class="lbl">Subtotal</td><td class="num">$' +
+      Number(f.total || 0).toLocaleString('es-CO') +
+      '</td></tr>' +
+      '<tr class="total"><td class="lbl">TOTAL COTIZADO</td><td class="num">$' +
+      Number(f.total || 0).toLocaleString('es-CO') +
+      '</td></tr>';
+  }
+  var itemsHtml = (f.items || [])
+    .map(function (item, idx) {
+      var ref = String(item.sku || item.codigo || item.id || '—');
+      var nom = typeof crozzoCuentaItemNombreConsumo === 'function' ? crozzoCuentaItemNombreConsumo(item) : item.nombre || '';
+      var qty = Number(item.cantidad) || 0;
+      var precio = Number(item.precio) || 0;
+      var lineTotal = precio * qty;
+      return (
+        '<tr><td class="num">' +
+        (idx + 1) +
+        '</td><td class="ref">' +
+        esc(ref) +
+        '</td><td>' +
+        esc(String(item.icon ? item.icon + ' ' : '') + nom) +
+        '</td><td class="num">' +
+        qty +
+        '</td><td class="num">$' +
+        precio.toLocaleString('es-CO') +
+        '</td><td class="num">$' +
+        lineTotal.toLocaleString('es-CO') +
+        '</td></tr>'
+      );
+    })
+    .join('');
+  var legalBlock = '';
+  (legal.legalTicketLineas || []).forEach(function (ln) {
+    if (!ln || !ln.t) return;
+    if (ln.k === 'head') {
+      legalBlock += '<h4>' + esc(ln.t) + '</h4>';
+      return;
+    }
+    legalBlock += '<p>' + esc(ln.t) + '</p>';
+  });
+  var aviso = legal.avisoCajaPrecuenta || {};
+  var nombreEmp = emp.nombreComercial || emp.razonSocial || 'Empresa';
+  var razonSec =
+    emp.razonSocial && emp.nombreComercial && emp.razonSocial !== emp.nombreComercial
+      ? '<div class="emp-razon">' + esc(emp.razonSocial) + '</div>'
+      : '';
+  var ciudad = [emp.ciudad, emp.departamento].filter(Boolean).join(', ');
+  var cliNom = esc(legal.cliNom || f.compradorNombre || 'Cliente');
+  var cliNit = esc(
+    f.compradorNit && f.compradorNit !== '222222222-2' && f.compradorNit !== '222222222222'
+      ? f.compradorNit
+      : '—'
+  );
+  var fechaTxt = esc(legal.fechaHora || f.fecha || new Date().toLocaleString('es-CO'));
+  var ctxTxt = esc(f.contextoServicio || legal.servicioRef || 'Tienda comercial');
+  var logoUrl =
+    typeof crozzoResolveTicketLogoUrl === 'function'
+      ? crozzoResolveTicketLogoUrl()
+      : String(emp.logoUrl || emp.logo || '').trim();
+  if (logoUrl && typeof crozzoResolveAssetUrl === 'function') {
+    logoUrl = crozzoResolveAssetUrl(logoUrl);
+  }
+  var logoBlock = logoUrl
+    ? '<div class="cot-logo"><img src="' + esc(logoUrl) + '" alt="Logo empresa" /></div>'
+    : '';
+  return (
+    '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Cotización</title><style>' +
+    '@page{size:' +
+    pageSize +
+    ';margin:14mm}' +
+    'body{margin:0;font-family:Segoe UI,system-ui,sans-serif;color:#111;font-size:11px;line-height:1.45}' +
+    '.cot-sheet{border:2px solid #1e293b;border-radius:4px;padding:18px 20px 16px;max-width:100%;box-sizing:border-box}' +
+    '.cot-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #cbd5e1}' +
+    '.cot-head__brand{display:flex;gap:14px;align-items:flex-start;flex:1;min-width:0}' +
+    '.cot-logo{flex-shrink:0}' +
+    '.cot-logo img{max-height:72px;max-width:140px;object-fit:contain;display:block}' +
+    '.cot-emp{min-width:0;flex:1}' +
+    '.cot-emp__name{font-size:18px;font-weight:800;color:#0f172a;margin:0 0 4px}' +
+    '.cot-emp__meta{font-size:10px;color:#475569;margin:2px 0}' +
+    '.cot-badge{border:2px solid #0f766e;background:#ecfdf5;color:#0f766e;text-align:center;padding:10px 14px;border-radius:4px;min-width:150px}' +
+    '.cot-badge__title{font-size:16px;font-weight:800;letter-spacing:0.08em}' +
+    '.cot-badge__sub{font-size:9px;margin-top:4px;color:#115e59}' +
+    '.cot-box{border:1px solid #94a3b8;border-radius:4px;padding:10px 12px;margin:0 0 14px;background:#f8fafc}' +
+    '.cot-box__title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin:0 0 8px}' +
+    '.cot-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:10px}' +
+    '.cot-grid span{color:#64748b;display:block;font-size:8px;text-transform:uppercase;font-weight:700;letter-spacing:0.04em}' +
+    '.cot-grid strong{color:#0f172a;font-size:11px}' +
+    'table.cot-lines{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:10px}' +
+    'table.cot-lines th,table.cot-lines td{border:1px solid #cbd5e1;padding:7px 6px;vertical-align:top}' +
+    'table.cot-lines th{background:#e2e8f0;font-size:8px;text-transform:uppercase;letter-spacing:0.04em}' +
+    'table.cot-lines td.num,table.cot-lines th.num{text-align:right;white-space:nowrap}' +
+    'table.cot-lines td.ref{font-family:ui-monospace,monospace;font-size:9px;color:#475569}' +
+    '.cot-foot{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}' +
+    'table.cot-totals{margin-left:auto;min-width:260px;border-collapse:collapse;font-size:11px}' +
+    'table.cot-totals td{border:1px solid #cbd5e1;padding:7px 10px}' +
+    'table.cot-totals td.lbl{text-align:right;color:#475569;font-weight:600;background:#f8fafc}' +
+    'table.cot-totals td.num{text-align:right;font-weight:700;min-width:110px}' +
+    'table.cot-totals tr.total td{background:#ecfdf5;font-size:13px;font-weight:800;color:#0f766e}' +
+    '.cot-legal{flex:1;font-size:9px;color:#475569;border:1px dashed #94a3b8;border-radius:4px;padding:10px 12px}' +
+    '.cot-legal h4{margin:0 0 6px;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;color:#334155}' +
+    '.cot-legal p{margin:0 0 5px}' +
+    '.cot-sign{margin-top:18px;padding-top:12px;border-top:1px solid #cbd5e1;font-size:10px;color:#64748b}' +
+    '.cot-sign__line{display:inline-block;min-width:220px;border-bottom:1px solid #64748b;margin-left:8px}' +
+    '</style></head><body><div class="cot-sheet">' +
+    '<div class="cot-head"><div class="cot-head__brand">' +
+    logoBlock +
+    '<div class="cot-emp"><div class="cot-emp__name">' +
+    esc(nombreEmp) +
+    '</div>' +
+    razonSec +
+    '<div class="cot-emp__meta">NIT ' +
+    esc(legal.nitE || emp.nit || '—') +
+    '</div>' +
+    (emp.direccion ? '<div class="cot-emp__meta">' + esc(emp.direccion) + '</div>' : '') +
+    (ciudad ? '<div class="cot-emp__meta">' + esc(ciudad) + '</div>' : '') +
+    (emp.telefono ? '<div class="cot-emp__meta">Tel. ' + esc(emp.telefono) + '</div>' : '') +
+    (emp.email ? '<div class="cot-emp__meta">' + esc(emp.email) + '</div>' : '') +
+    '</div></div><div class="cot-badge"><div class="cot-badge__title">COTIZACIÓN</div><div class="cot-badge__sub">No constituye venta ni factura</div></div></div>' +
+    '<div class="cot-box"><div class="cot-box__title">Datos del cliente y documento</div><div class="cot-grid">' +
+    '<div><span>Cliente</span><strong>' +
+    cliNom +
+    '</strong></div>' +
+    '<div><span>Documento / NIT</span><strong>' +
+    cliNit +
+    '</strong></div>' +
+    '<div><span>Fecha</span><strong>' +
+    fechaTxt +
+    '</strong></div>' +
+    '<div><span>Contexto</span><strong>' +
+    ctxTxt +
+    '</strong></div>' +
+    '</div></div>' +
+    '<table class="cot-lines"><thead><tr><th class="num">#</th><th>Ref.</th><th>Descripción</th><th class="num">Cant.</th><th class="num">V. unitario</th><th class="num">Subtotal</th></tr></thead><tbody>' +
+    itemsHtml +
+    '</tbody></table>' +
+    '<div class="cot-foot"><div class="cot-legal">' +
+    (aviso.titulo ? '<p><strong>' + esc(aviso.titulo) + '</strong> ' + esc(aviso.cuerpo || aviso.linea || '') + '</p>' : '') +
+    legalBlock +
+    '<p>Los precios pueden variar según disponibilidad. Validez sujeta a confirmación comercial.</p>' +
+    '</div><table class="cot-totals"><tbody>' +
+    totRows +
+    '</tbody></table></div>' +
+    '<div class="cot-sign">Aprobado cliente: <span class="cot-sign__line"></span> &nbsp; Fecha: <span class="cot-sign__line" style="min-width:120px"></span></div>' +
+    '</div></body></html>'
+  );
+}
+function crozzoCotizacionPrintSheet(pageFormat) {
+  var f =
+    typeof crozzoBuildCotizacionFacturaFromCart === 'function'
+      ? crozzoBuildCotizacionFacturaFromCart()
+      : window.__crozzoCotizacionThermalFactura;
+  if (!f) return Promise.resolve(false);
+  window.__crozzoCotizacionThermalFactura = f;
+  var fmt = String(pageFormat || 'carta').toLowerCase();
+  var html = crozzoBuildCotizacionSheetDocumentHtml(f, { pageFormat: fmt });
+  var printOpts = {
+    pageFormat: fmt === 'oficio' ? 'legal' : 'a4',
+    printOutput: fmt === 'oficio' ? 'oficio' : 'carta',
+    allowDialog: true,
+    silent: false,
+    toast: true,
+  };
+  if (typeof crozzoPrintHtmlDocument === 'function') {
+    return Promise.resolve(crozzoPrintHtmlDocument(html, printOpts)).then(function (ok) {
+      if (ok && typeof showToast === 'function') {
+        showToast('Cotización enviada a impresora · ' + (fmt === 'oficio' ? 'Oficio' : 'Carta'), 'success');
+      }
+      return ok;
+    });
+  }
+  var w = window.open('', '_blank', 'width=960,height=720');
+  if (!w) {
+    if (typeof showToast === 'function') showToast('Permita ventanas emergentes para imprimir', 'warning');
+    return Promise.resolve(false);
+  }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  window.setTimeout(function () {
+    w.print();
+  }, 450);
+  return Promise.resolve(true);
+}
+window.crozzoBuildCotizacionSheetDocumentHtml = crozzoBuildCotizacionSheetDocumentHtml;
+window.crozzoCotizacionPrintSheet = crozzoCotizacionPrintSheet;
 function crozzoCotizacionPrintThermal() {
   var f =
     typeof crozzoBuildCotizacionFacturaFromCart === 'function'
@@ -21117,11 +21405,11 @@ async function facturar(options = {}) {
         ${metodoPago === 'efectivo' ? `<p style="color:var(--text-secondary); margin-top:6px;">Recibido: $${Number(paymentMeta.valorRecibido || 0).toLocaleString('es-CO')} · Devueltas: $${Number(paymentMeta.devueltas || 0).toLocaleString('es-CO')}</p>` : ''}
         <p style="color:var(--success); font-weight:700; margin-top:6px;">Total: $${total.toLocaleString('es-CO')}</p>
         ${facturaSaved.cobroEstado === 'pendiente' || facturaSaved.cobroEstado === 'parcial' ? '<p class="form-hint" style="margin-top:10px;">💳 Quedó en <strong>cartera por cobrar</strong>. <button type="button" class="btn btn-link" style="padding:0;font-size:inherit;" onclick="closeModal();navigateTo(\'cartera-comercial\')">Abrir cartera</button></p>' : ''}
-        <div class="btn-group crozzo-factura-share-row" style="justify-content:center;">
+        <div class="btn-group crozzo-factura-share-row" style="justify-content:center;flex-wrap:wrap;gap:8px;">
           <button type="button" class="btn btn-outline" style="border-color:#25D366;color:#0d6e4a;" onclick="crozzoFacturaShareWhatsAppModal()">📱 WhatsApp</button>
           <button type="button" class="btn btn-outline" style="border-color:var(--accent);color:var(--accent);" onclick="crozzoFacturaShareEmailModal()">✉️ Email</button>
-          <button type="button" class="btn btn-outline" onclick="crozzoFacturaPrintThermalModal()">🖨️ Recibo térmica</button>
         </div>
+        <div style="display:flex;justify-content:center;margin-top:10px;">${typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(null) : ''}</div>
         ${crozzoCajeroPostCobroActionsHtml()}
       </div>
     `, { modalClass: 'modal--invoice-quick', noBackdropClose: true });
@@ -21271,13 +21559,105 @@ function crozzoFacturaShareWhatsAppModal() {
 function crozzoFacturaShareEmailModal() {
   crozzoFacturaShareEmail(window.__crozzoLastFacturaForShare);
 }
-function crozzoFacturaPrintThermalModal() {
-  const f = window.__crozzoLastFacturaForShare;
+function crozzoFacturaPrintPosModal() {
+  var f = window.__crozzoLastFacturaForShare;
   if (!f) {
     if (typeof showToast === 'function') showToast('No hay comprobante para imprimir', 'warning');
     return;
   }
-  void crozzoFacturaPrintThermal(f, { silent: false, allowDialog: true });
+  void crozzoFacturaPrintPos(f, { silent: true, toast: true });
+}
+function crozzoFacturaPrintSheetModal(pageFormat) {
+  var f = window.__crozzoLastFacturaForShare;
+  if (!f) {
+    if (typeof showToast === 'function') showToast('No hay comprobante para imprimir', 'warning');
+    return;
+  }
+  void crozzoFacturaPrintSheet(f, pageFormat || 'carta');
+}
+function crozzoFacturaPrintPos(factura, opts) {
+  opts = opts || {};
+  if (!factura) return Promise.resolve(false);
+  if (typeof crozzoFacturaPrintThermal !== 'function') return Promise.resolve(false);
+  return Promise.resolve(
+    crozzoFacturaPrintThermal(factura, {
+      silent: opts.silent !== false,
+      preferEscPos: true,
+      skipQueue: opts.skipQueue !== false,
+      allowDialog: false,
+      toast: false,
+    })
+  ).then(function (ok) {
+    if (ok && typeof showToast === 'function' && opts.toast !== false) {
+      showToast('Recibo enviado a impresora POS', 'success');
+    } else if (!ok && typeof showToast === 'function' && opts.toast !== false) {
+      showToast('No se pudo imprimir en POS. Revise la impresora de caja.', 'warning');
+    }
+    return ok;
+  });
+}
+function crozzoFacturaPrintSheet(factura, pageFormat) {
+  if (!factura) return Promise.resolve(false);
+  var fmt = String(pageFormat || 'carta').toLowerCase();
+  var html =
+    typeof crozzoBuildFacturaSheetDocumentHtml === 'function'
+      ? crozzoBuildFacturaSheetDocumentHtml(factura, { pageFormat: fmt })
+      : '';
+  if (!html) return Promise.resolve(false);
+  if (typeof crozzoPrintHtmlDocument === 'function') {
+    return Promise.resolve(
+      crozzoPrintHtmlDocument(html, {
+        pageFormat: fmt === 'oficio' ? 'legal' : 'a4',
+        printOutput: fmt === 'oficio' ? 'oficio' : 'carta',
+        allowDialog: true,
+        silent: false,
+        toast: true,
+      })
+    ).then(function (ok) {
+      if (ok && typeof showToast === 'function') {
+        showToast('Comprobante enviado · ' + (fmt === 'oficio' ? 'Oficio' : 'Carta'), 'success');
+      }
+      return ok;
+    });
+  }
+  var w = window.open('', '_blank', 'width=960,height=720');
+  if (!w) {
+    if (typeof showToast === 'function') showToast('Permita ventanas emergentes para imprimir', 'warning');
+    return Promise.resolve(false);
+  }
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  window.setTimeout(function () {
+    w.print();
+  }, 450);
+  return Promise.resolve(true);
+}
+function crozzoFacturaImpresionBtnsHtml(idx) {
+  var hasIdx = typeof idx === 'number';
+  var posFn = hasIdx ? 'crozzoFacturaPrintFromHistory(' + idx + ',\'pos\')' : 'crozzoFacturaPrintPosModal()';
+  var cartaFn = hasIdx ? 'crozzoFacturaPrintFromHistory(' + idx + ',\'carta\')' : 'crozzoFacturaPrintSheetModal(\'carta\')';
+  var oficioFn = hasIdx ? 'crozzoFacturaPrintFromHistory(' + idx + ',\'oficio\')' : 'crozzoFacturaPrintSheetModal(\'oficio\')';
+  return (
+    '<div class="crozzo-factura-print-btns">' +
+    '<button type="button" class="btn btn-primary btn-sm" onclick="' +
+    posFn +
+    '">🖨️ POS</button>' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="' +
+    cartaFn +
+    '">📄 Carta</button>' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="' +
+    oficioFn +
+    '">📋 Oficio</button></div>'
+  );
+}
+window.crozzoFacturaPrintPos = crozzoFacturaPrintPos;
+window.crozzoFacturaPrintSheet = crozzoFacturaPrintSheet;
+window.crozzoFacturaPrintPosModal = crozzoFacturaPrintPosModal;
+window.crozzoFacturaPrintSheetModal = crozzoFacturaPrintSheetModal;
+window.crozzoFacturaImpresionBtnsHtml = crozzoFacturaImpresionBtnsHtml;
+function crozzoFacturaPrintThermalModal() {
+  crozzoFacturaPrintPosModal();
 }
 window.crozzoFacturaShareWhatsAppModal = crozzoFacturaShareWhatsAppModal;
 window.crozzoFacturaShareEmailModal = crozzoFacturaShareEmailModal;
@@ -22351,8 +22731,11 @@ function crozzoFacturaShareFromHistory(idx, action) {
   window.__crozzoLastFacturaForShare = f;
   if (action === 'wa') crozzoFacturaShareWhatsApp(f);
   else if (action === 'em') crozzoFacturaShareEmail(f);
-  else if (action === 'pr') crozzoFacturaPrintThermal(f);
+  else if (action === 'pos' || action === 'pr') crozzoFacturaPrintPos(f, { silent: true, toast: true });
+  else if (action === 'carta') crozzoFacturaPrintSheet(f, 'carta');
+  else if (action === 'oficio') crozzoFacturaPrintSheet(f, 'oficio');
 }
+window.crozzoFacturaPrintFromHistory = crozzoFacturaShareFromHistory;
 function crozzoEnsureInvoiceModalInteractive() {
   try {
     const overlay = document.getElementById('modalOverlay');
@@ -22391,7 +22774,7 @@ function crozzoPresentFacturaShareAfterPrint(factura, showShareModalFn) {
         crozzoEnsureInvoiceModalInteractive();
         if (ok === false && typeof showToast === 'function') {
           showToast(
-            'No se imprimió el recibo. Revise impresora de caja en Configuración → Facturas e impresión, o pulse 🖨️ Térmica aquí.',
+            'No se imprimió el recibo. Revise impresora de caja en Configuración → Facturas e impresión, o pulse 🖨️ POS aquí.',
             'warning'
           );
         }
@@ -22399,7 +22782,7 @@ function crozzoPresentFacturaShareAfterPrint(factura, showShareModalFn) {
       .catch(function () {
         crozzoEnsureInvoiceModalInteractive();
         if (typeof showToast === 'function') {
-          showToast('Error al imprimir. Pulse 🖨️ Térmica en este menú o revise la cola de impresión.', 'warning');
+          showToast('Error al imprimir. Pulse 🖨️ POS / Carta / Oficio en este menú o revise la cola de impresión.', 'warning');
         }
       });
   }, 500);
@@ -22527,6 +22910,231 @@ function crozzoFacturaImpuestoEtiqueta() {
   }
   return 'Impuesto';
 }
+function crozzoBuildFacturaSheetDocumentHtml(factura, opts) {
+  opts = opts || {};
+  var pageFormat = String(opts.pageFormat || 'carta').toLowerCase();
+  var pageSize = pageFormat === 'oficio' || pageFormat === 'legal' ? 'legal' : 'A4';
+  var f = Object.assign({}, factura || {});
+  if (typeof crozzoEnrichCuentaFacturaColombia === 'function') {
+    f = crozzoEnrichCuentaFacturaColombia(f, { incluirPropinaSugerida: false });
+  }
+  var emp = typeof config !== 'undefined' && config.getEmpresa ? config.getEmpresa() : {};
+  var esc =
+    typeof escHtml === 'function'
+      ? escHtml
+      : function (s) {
+          return String(s ?? '');
+        };
+  var legal =
+    typeof global.crozzoTermicaLegalPayloadColombia === 'function'
+      ? global.crozzoTermicaLegalPayloadColombia(f)
+      : {};
+  var esFe = typeof crozzoFacturaEsDocumentoFe === 'function' ? crozzoFacturaEsDocumentoFe(f) : false;
+  var docTitle = legal.head || (esFe ? 'FACTURA ELECTRÓNICA DE VENTA' : 'COMPROBANTE DE VENTA');
+  var docSub = esFe ? 'Representación impresa · verifique CUFE y QR' : 'Documento soporte POS · no es FE DIAN';
+  var logoUrl =
+    typeof crozzoResolveTicketLogoUrl === 'function'
+      ? crozzoResolveTicketLogoUrl()
+      : String(emp.logoUrl || emp.logo || '').trim();
+  if (logoUrl && typeof crozzoResolveAssetUrl === 'function') logoUrl = crozzoResolveAssetUrl(logoUrl);
+  var logoBlock = logoUrl
+    ? '<div class="fact-logo"><img src="' + esc(logoUrl) + '" alt="Logo empresa" /></div>'
+    : '';
+  var soloConsumo = typeof crozzoFacturaSoloProductosConsumo === 'function' ? crozzoFacturaSoloProductosConsumo(f) : false;
+  var itemsHtml = (f.items || [])
+    .map(function (item, idx) {
+      var ref = String(item.sku || item.codigo || item.id || '—');
+      var nom =
+        typeof crozzoCuentaItemNombreConsumo === 'function'
+          ? crozzoCuentaItemNombreConsumo(item)
+          : item.nombreVenta || item.nombre || '';
+      var qty = Number(item.cantidad) || 0;
+      var precio = Number(item.precio) || 0;
+      return (
+        '<tr><td class="num">' +
+        (idx + 1) +
+        '</td><td class="ref">' +
+        esc(ref) +
+        '</td><td>' +
+        esc(String(item.icon ? item.icon + ' ' : '') + nom) +
+        (item.detalleConfig && !soloConsumo
+          ? '<br><small style="color:#64748b;">' + esc(String(item.detalleConfig)) + '</small>'
+          : '') +
+        '</td><td class="num">' +
+        qty +
+        '</td><td class="num">$' +
+        precio.toLocaleString('es-CO') +
+        '</td><td class="num">$' +
+        (precio * qty).toLocaleString('es-CO') +
+        '</td></tr>'
+      );
+    })
+    .join('');
+  var impLbl =
+    typeof crozzoFacturaImpuestoEtiqueta === 'function' ? crozzoFacturaImpuestoEtiqueta() : legal.etiquetaImpuesto || 'Impuesto';
+  var subLbl = legal.etiquetaSubtotal || 'Subtotal';
+  var propinaHist = Number((f.paymentMeta && f.paymentMeta.propina) || 0);
+  var totRows =
+    '<tr><td class="lbl">' +
+    esc(subLbl) +
+    '</td><td class="num">$' +
+    Number(f.subtotal || 0).toLocaleString('es-CO') +
+    '</td></tr>' +
+    '<tr><td class="lbl">' +
+    esc(impLbl) +
+    '</td><td class="num">$' +
+    Number(f.iva || 0).toLocaleString('es-CO') +
+    '</td></tr>' +
+    (propinaHist > 0
+      ? '<tr><td class="lbl">Propina</td><td class="num">$' + propinaHist.toLocaleString('es-CO') + '</td></tr>'
+      : '') +
+    '<tr class="total"><td class="lbl">TOTAL</td><td class="num">$' +
+    Number(f.total || 0).toLocaleString('es-CO') +
+    '</td></tr>';
+  var pagoTxt =
+    typeof crozzoMetodoPagoDescripcion === 'function'
+      ? crozzoMetodoPagoDescripcion(f.metodoPago, f.paymentMeta, { htmlSafe: false })
+      : f.metodoPago || '—';
+  var legalBlock = '';
+  (legal.legalTicketLineas || []).forEach(function (ln) {
+    if (!ln || !ln.t) return;
+    if (ln.k === 'head') {
+      legalBlock += '<h4>' + esc(ln.t) + '</h4>';
+      return;
+    }
+    legalBlock += '<p>' + esc(ln.t) + '</p>';
+  });
+  var cufeBlock =
+    typeof crozzoFacturaCufeMostrable === 'function' && crozzoFacturaCufeMostrable(f)
+      ? '<div class="fact-cufe"><strong>CUFE</strong><p>' + esc(String(f.cufe)) + '</p></div>'
+      : '';
+  var qrBlock = '';
+  if (typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(f) && f.qrUrl) {
+    var qrSrc =
+      'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=' + encodeURIComponent(String(f.qrUrl));
+    qrBlock =
+      '<div class="fact-qr"><img src="' + esc(qrSrc) + '" alt="QR verificación DIAN" /><p>Verificación DIAN</p></div>';
+  }
+  var demoBanner =
+    String(f.estado || '') === 'demo' || f.is_demo
+      ? '<div class="fact-demo">DOCUMENTO DEMO — SIN VALIDEZ FISCAL</div>'
+      : '';
+  var nombreEmp = emp.nombreComercial || emp.razonSocial || 'Empresa';
+  var razonSec =
+    emp.razonSocial && emp.nombreComercial && emp.razonSocial !== emp.nombreComercial
+      ? '<div class="fact-emp__razon">' + esc(emp.razonSocial) + '</div>'
+      : '';
+  var ciudad = [emp.ciudad, emp.departamento].filter(Boolean).join(', ');
+  var cliNom = esc(legal.cliNom || f.compradorNombre || '—');
+  var cliNit = esc(
+    !esFe && (!f.compradorNit || f.compradorNit === '222222222-2' || f.compradorNit === '222222222222')
+      ? '—'
+      : f.compradorNit || '—'
+  );
+  var fechaTxt = esc(legal.fechaHora || f.fecha || '');
+  var resolLine = esFe && legal.resolFull ? '<p class="fact-resol">' + esc(legal.resolFull) + '</p>' : '';
+  return (
+    '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ' +
+    esc(f.consecutivo || '') +
+    '</title><style>' +
+    '@page{size:' +
+    pageSize +
+    ';margin:14mm}' +
+    'body{margin:0;font-family:Segoe UI,system-ui,sans-serif;color:#111;font-size:11px;line-height:1.45}' +
+    '.fact-sheet{border:2px solid #1e293b;border-radius:4px;padding:18px 20px 16px;box-sizing:border-box}' +
+    '.fact-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #cbd5e1}' +
+    '.fact-head__brand{display:flex;gap:14px;align-items:flex-start;flex:1;min-width:0}' +
+    '.fact-logo img{max-height:72px;max-width:140px;object-fit:contain;display:block}' +
+    '.fact-emp__name{font-size:18px;font-weight:800;color:#0f172a;margin:0 0 4px}' +
+    '.fact-emp__meta,.fact-emp__razon{font-size:10px;color:#475569;margin:2px 0}' +
+    '.fact-badge{border:2px solid #1d4ed8;background:#eff6ff;color:#1d4ed8;text-align:center;padding:10px 14px;border-radius:4px;min-width:150px}' +
+    '.fact-badge--fe{border-color:#0f766e;background:#ecfdf5;color:#0f766e}' +
+    '.fact-badge__title{font-size:13px;font-weight:800;letter-spacing:0.06em}' +
+    '.fact-badge__sub{font-size:9px;margin-top:4px;opacity:0.9}' +
+    '.fact-demo{background:#fff7ed;border:1px solid #fdba74;color:#c2410c;text-align:center;padding:8px;font-weight:800;font-size:10px;margin-bottom:12px;border-radius:4px}' +
+    '.fact-box{border:1px solid #94a3b8;border-radius:4px;padding:10px 12px;margin:0 0 14px;background:#f8fafc}' +
+    '.fact-box__title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#64748b;margin:0 0 8px}' +
+    '.fact-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:10px}' +
+    '.fact-grid span{color:#64748b;display:block;font-size:8px;text-transform:uppercase;font-weight:700;letter-spacing:0.04em}' +
+    '.fact-grid strong{color:#0f172a;font-size:11px}' +
+    'table.fact-lines{width:100%;border-collapse:collapse;margin:0 0 14px;font-size:10px}' +
+    'table.fact-lines th,table.fact-lines td{border:1px solid #cbd5e1;padding:7px 6px;vertical-align:top}' +
+    'table.fact-lines th{background:#e2e8f0;font-size:8px;text-transform:uppercase}' +
+    'table.fact-lines td.num,table.fact-lines th.num{text-align:right;white-space:nowrap}' +
+    'table.fact-lines td.ref{font-family:ui-monospace,monospace;font-size:9px;color:#475569}' +
+    '.fact-foot{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}' +
+    'table.fact-totals{margin-left:auto;min-width:260px;border-collapse:collapse;font-size:11px}' +
+    'table.fact-totals td{border:1px solid #cbd5e1;padding:7px 10px}' +
+    'table.fact-totals td.lbl{text-align:right;color:#475569;font-weight:600;background:#f8fafc}' +
+    'table.fact-totals td.num{text-align:right;font-weight:700;min-width:110px}' +
+    'table.fact-totals tr.total td{background:#eff6ff;font-size:13px;font-weight:800;color:#1d4ed8}' +
+    '.fact-legal{flex:1;font-size:9px;color:#475569;border:1px dashed #94a3b8;border-radius:4px;padding:10px 12px}' +
+    '.fact-legal h4{margin:0 0 6px;font-size:9px;text-transform:uppercase;color:#334155}' +
+    '.fact-legal p{margin:0 0 5px}' +
+    '.fact-cufe{margin-top:10px;font-size:9px;word-break:break-all}' +
+    '.fact-cufe strong{display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em}' +
+    '.fact-qr{text-align:center;margin-top:10px}' +
+    '.fact-qr img{width:120px;height:120px}' +
+    '.fact-qr p{font-size:8px;color:#64748b;margin:4px 0 0}' +
+    '.fact-resol{font-size:9px;color:#64748b;margin-top:6px}' +
+    '.fact-consec{font-size:14px;font-weight:800;font-family:ui-monospace,monospace;margin-top:8px;color:#334155}' +
+    '</style></head><body><div class="fact-sheet">' +
+    demoBanner +
+    '<div class="fact-head"><div class="fact-head__brand">' +
+    logoBlock +
+    '<div class="fact-emp"><div class="fact-emp__name">' +
+    esc(nombreEmp) +
+    '</div>' +
+    razonSec +
+    '<div class="fact-emp__meta">NIT ' +
+    esc(legal.nitE || emp.nit || '—') +
+    '</div>' +
+    (emp.direccion ? '<div class="fact-emp__meta">' + esc(emp.direccion) + '</div>' : '') +
+    (ciudad ? '<div class="fact-emp__meta">' + esc(ciudad) + '</div>' : '') +
+    (emp.telefono ? '<div class="fact-emp__meta">Tel. ' + esc(emp.telefono) + '</div>' : '') +
+    '<div class="fact-consec">No. ' +
+    esc(f.consecutivo || '—') +
+    '</div>' +
+    resolLine +
+    '</div></div><div class="fact-badge' +
+    (esFe ? ' fact-badge--fe' : '') +
+    '"><div class="fact-badge__title">' +
+    esc(docTitle) +
+    '</div><div class="fact-badge__sub">' +
+    esc(docSub) +
+    '</div></div></div>' +
+    '<div class="fact-box"><div class="fact-box__title">Cliente y pago</div><div class="fact-grid">' +
+    '<div><span>Cliente</span><strong>' +
+    cliNom +
+    '</strong></div>' +
+    '<div><span>Documento</span><strong>' +
+    cliNit +
+    '</strong></div>' +
+    '<div><span>Fecha</span><strong>' +
+    fechaTxt +
+    '</strong></div>' +
+    '<div><span>Forma de pago</span><strong>' +
+    esc(pagoTxt) +
+    '</strong></div>' +
+    (esFe && f.uuid
+      ? '<div style="grid-column:1/-1;"><span>UUID</span><strong style="font-family:monospace;font-size:9px;word-break:break-all;">' +
+        esc(f.uuid) +
+        '</strong></div>'
+      : '') +
+    '</div></div>' +
+    '<table class="fact-lines"><thead><tr><th class="num">#</th><th>Ref.</th><th>Descripción</th><th class="num">Cant.</th><th class="num">V. unit.</th><th class="num">Subtotal</th></tr></thead><tbody>' +
+    itemsHtml +
+    '</tbody></table>' +
+    '<div class="fact-foot"><div class="fact-legal">' +
+    legalBlock +
+    cufeBlock +
+    qrBlock +
+    '</div><table class="fact-totals"><tbody>' +
+    totRows +
+    '</tbody></table></div></div></body></html>'
+  );
+}
+window.crozzoBuildFacturaSheetDocumentHtml = crozzoBuildFacturaSheetDocumentHtml;
 function crozzoBuildInvoiceDocumentHtml(f, opts) {
   opts = opts || {};
   var emp = config.getEmpresa();
@@ -22647,11 +23255,13 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
   var shareIdx = typeof idx === 'number' ? idx : 'null';
   var histBtns = typeof idx === 'number'
     ? '<button type="button" class="btn btn-outline" style="border-color:#25D366;color:#0d6e4a;" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'wa\')">📱 WhatsApp</button>' +
-      '<button type="button" class="btn btn-outline" style="border-color:var(--accent);" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">✉️ Email</button>' +
-      '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'pr\')">🖨️ Térmica</button>'
+      '<button type="button" class="btn btn-outline" style="border-color:var(--accent);" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">✉️ Email</button>'
     : '<button type="button" class="btn btn-outline" style="border-color:#25D366;color:#0d6e4a;" onclick="crozzoFacturaShareWhatsAppModal()">📱 WhatsApp</button>' +
-      '<button type="button" class="btn btn-outline" style="border-color:var(--accent);" onclick="crozzoFacturaShareEmailModal()">✉️ Email</button>' +
-      '<button type="button" class="btn btn-outline" onclick="crozzoFacturaPrintThermalModal()">🖨️ Térmica</button>';
+      '<button type="button" class="btn btn-outline" style="border-color:var(--accent);" onclick="crozzoFacturaShareEmailModal()">✉️ Email</button>';
+  var printBtns =
+    typeof crozzoFacturaImpresionBtnsHtml === 'function'
+      ? crozzoFacturaImpresionBtnsHtml(typeof idx === 'number' ? idx : null)
+      : '';
   var verifCard = crozzoFacturaQrMostrable(f)
     ? '<div class="crozzo-invoice-action-card"><h4>Verificación DIAN</h4>' +
       '<button type="button" class="btn btn-primary" style="width:100%;" onclick="crozzoOpenExternal(' +
@@ -22679,7 +23289,9 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
     (f.metodoPago === 'efectivo' ? '<p style="margin:6px 0 0;font-size:0.78rem;">Recibido: $' + Number(f.paymentMeta && f.paymentMeta.valorRecibido || 0).toLocaleString('es-CO') + ' · Cambio: $' + Number(f.paymentMeta && f.paymentMeta.devueltas || 0).toLocaleString('es-CO') + '</p>' : '') +
     '</div>' +
     '<div class="crozzo-invoice-action-card"><h4>Enviar e imprimir</h4>' +
-    '<div class="btn-group" style="flex-direction:column;gap:8px;">' + histBtns + '</div></div>' +
+    '<div class="btn-group" style="flex-direction:column;gap:8px;">' + histBtns + '</div>' +
+    (printBtns ? '<div style="margin-top:10px;">' + printBtns + '</div>' : '') +
+    '</div>' +
     postCobro +
     verifCard +
     (cerrarBtn ? '<div class="crozzo-invoice-action-card">' + cerrarBtn + '</div>' : '') +
@@ -22743,9 +23355,9 @@ function crozzoBuildInvoicePreviewToolbarHtml(f, idx) {
     : '';
   return (
     '<span style="font-size:0.75rem;color:var(--text-muted);flex:1;min-width:120px;">' + pagoLabel + '</span>' +
+    (typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(idx) : '') +
     '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'wa\')">WhatsApp</button>' +
     '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">Email</button>' +
-    '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'pr\')">Térmica</button>' +
     dian
   );
 }
@@ -32422,6 +33034,10 @@ function crozzoKioskGetLockedPage() {
   }
 }
 function crozzoKioskEnterComandasFromLogin(targetPage) {
+  try {
+    if (typeof crozzoBootClearSecurityLockdown === 'function') crozzoBootClearSecurityLockdown();
+  } catch (_) {}
+  if (typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
   if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
     if (crozzoIsLegendaryQuarantineActive()) void crozzoEnsureLegendaryContainmentUi();
     else showToast('Terminal bloqueado por seguridad.', 'error');
@@ -32690,6 +33306,7 @@ if (!window.__crozzoKioskKeysBound) {
 }
 window.crozzoKioskResetForBoot = crozzoKioskResetForBoot;
 window.crozzoKioskEnterComandasFromLogin = crozzoKioskEnterComandasFromLogin;
+window.__crozzoKioskEnterComandasFromLoginMain = crozzoKioskEnterComandasFromLogin;
 window.crozzoKioskComandasEffective = crozzoKioskComandasEffective;
 window.crozzoKioskGetLockedPage = crozzoKioskGetLockedPage;
 window.crozzoKioskSaveExitPin = crozzoKioskSaveExitPin;
@@ -33638,6 +34255,9 @@ function init() {
     applyAccessControl();
     try {
       if (typeof showLoginOverlay === 'function') showLoginOverlay();
+    } catch (_) {}
+    try {
+      if (typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
     } catch (_) {}
   } else if (crozzoSecurityBlocksRealSession()) {
     try {

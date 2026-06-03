@@ -24,6 +24,15 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
+    let win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Ventana principal no encontrada".to_string())?;
+    win.open_devtools();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -49,6 +58,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            crozzo_open_devtools,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_list_printers,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

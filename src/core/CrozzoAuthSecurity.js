@@ -9,7 +9,7 @@
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
-  var CROZZO_AUTH_BUILD = 'menu-nav-2026-06-04';
+  var CROZZO_AUTH_BUILD = 'login-shell-2026-06-04';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';

@@ -271,7 +271,7 @@
     var st = String(factura.estado || '').toLowerCase();
     var tipo = String(factura.tipoComprobante || '').toLowerCase();
     var esCotizacion = st === 'cotizacion';
-    var esPrecuenta = st === 'precuenta' || esCotizacion;
+    var esPrecuenta = st === 'precuenta';
     var esPos = st === 'pos' || tipo === 'pos';
     var esFeDoc = esDocumentoFe(factura);
     var esDemoFe =
@@ -481,7 +481,8 @@
 
   /** Leyenda propina en bloque propina_sugerida: precuenta y venta FE/POS cerrada. */
   function muestraLeyendaPropinaTicket(data, tpl) {
-    if (isCuentaPrecuentaTicket(data, tpl)) return propinaRestauranteActiva();
+    if (data && data.docKind === 'cotizacion') return false;
+    if (isCuentaPrecuentaTicket(data, tpl) && data.docKind !== 'cotizacion') return propinaRestauranteActiva();
     if (data && (data.docKind === 'fe_cerrada' || data.docKind === 'pos_cerrado') && propinaRestauranteActiva()) {
       return true;
     }
@@ -492,6 +493,7 @@
   /** Montos de propina fuera del total: precuenta (en total) o POS sin fila en total. */
   function muestraMontosPropinaBloque(data) {
     data = data || {};
+    if (data.docKind === 'cotizacion') return false;
     if (data.docKind === 'precuenta_cuenta' || data.docKind === 'precuenta_fe') return false;
     if (data.propinaEnTotales) return false;
     return Number(data.propinaSugerida || 0) > 0 || Number(data.propina || data.propinaVoluntaria || 0) > 0;
@@ -709,16 +711,30 @@
     var muestraImpuesto =
       iva > 0 || !!data.consumoAplica || data.impuestoTipo === 'consumo' || data.impuestoTipo === 'iva';
     var rows = [];
-    rows.push({ label: lab.gravado, amount: gravado, muted: false });
-    if (muestraImpuesto) {
-      rows.push({
-        label: lab.impuesto || impuestoLineaLabel(data),
-        amount: iva,
-        muted: false,
-      });
+    var esPosCerrado = data.docKind === 'pos_cerrado';
+    var esFeCerrada = data.docKind === 'fe_cerrada';
+    var esCotizacion = data.docKind === 'cotizacion';
+    if (esCotizacion) {
+      if (muestraImpuesto) {
+        rows.push({ label: lab.gravado, amount: gravado, muted: false });
+        rows.push({
+          label: lab.impuesto || impuestoLineaLabel(data),
+          amount: iva,
+          muted: false,
+        });
+      }
+    } else {
+      rows.push({ label: lab.gravado, amount: gravado, muted: false });
+      if (muestraImpuesto) {
+        rows.push({
+          label: lab.impuesto || impuestoLineaLabel(data),
+          amount: iva,
+          muted: false,
+        });
+      }
+      rows.push({ label: lab.subtotal, amount: tot, muted: false });
     }
-    rows.push({ label: lab.subtotal, amount: tot, muted: false });
-    if (propina > 0) {
+    if (propina > 0 && !esCotizacion) {
       var pctP = data.propinaPctSugerido || 0;
       var lblProp = propVol > 0 ? 'Propina voluntaria' : 'Propina sugerida (' + pctP + '%)';
       rows.push({
@@ -727,13 +743,10 @@
         muted: false,
       });
     }
-    var esPosCerrado = data.docKind === 'pos_cerrado';
-    var esFeCerrada = data.docKind === 'fe_cerrada';
-    var esCotizacion = data.docKind === 'cotizacion';
     return {
       rows: rows,
       totalLabel: esCotizacion ? 'TOTAL COTIZADO' : esPosCerrado || esFeCerrada ? 'TOTAL' : 'TOTAL A PAGAR',
-      totalAmount: totPagar,
+      totalAmount: esCotizacion ? tot : totPagar,
     };
   }
 
@@ -763,7 +776,8 @@
     if (!propinaVol && !propinaPct && Number(factura.propinaSugerida || 0) > 0) {
       propinaSug = Number(factura.propinaSugerida);
     }
-    var propina = propinaVol > 0 ? propinaVol : propinaSug;
+    var esCotizacionDoc = String(factura.estado || '').toLowerCase() === 'cotizacion';
+    var propina = esCotizacionDoc ? 0 : propinaVol > 0 ? propinaVol : propinaSug;
     var esPosCerrado =
       String(factura.estado || '').toLowerCase() === 'pos' || factura.tipoComprobante === 'pos';
     var esFeCerrada =
@@ -771,11 +785,11 @@
       String(factura.estado || '').toLowerCase() === 'demo' ||
       String(factura.estado || '').toLowerCase() === 'borrador_fe' ||
       factura.tipoComprobante === 'electronica';
-    if (esPosCerrado || esFeCerrada) {
+    if (esPosCerrado || esFeCerrada || esCotizacionDoc) {
       propinaSug = 0;
-      propina = propinaVol > 0 ? propinaVol : 0;
+      propina = esCotizacionDoc ? 0 : propinaVol > 0 ? propinaVol : 0;
     }
-    var totalPagar = tot + (propina > 0 ? propina : 0);
+    var totalPagar = esCotizacionDoc ? tot : tot + (propina > 0 ? propina : 0);
     var impMeta = impuestoCuentaMeta(imp);
     var labT = cuentaEtiquetasFiscales(imp, incl);
     return {
@@ -845,9 +859,10 @@
     var feCtxCli = esFe || precuentaFe;
     var ticketLineas = compactLegalTicketLineas(resolveLegalTicketLineas(factura, imp, ctx, dian, esFe));
     var propinaEnTot =
-      !!(cuentaTx && Number(cuentaTx.propinaMonto || 0) > 0) ||
-      propinaVol > 0 ||
-      (String(estado || '').toLowerCase() === 'precuenta' && propinaSug > 0);
+      !ctx.esCotizacion &&
+      (!!(cuentaTx && Number(cuentaTx.propinaMonto || 0) > 0) ||
+        propinaVol > 0 ||
+        (String(estado || '').toLowerCase() === 'precuenta' && propinaSug > 0));
     var docKindOut = cuentaTx ? cuentaTx.docKind : docKindFromFactura(factura);
     var impAct = getImpuestosCfg();
     var inclAct = cuentaTx ? cuentaTx.ivaIncluidoEnPrecios : !!impAct.ivaIncluidoEnPrecios;
@@ -909,10 +924,12 @@
       totalConPropina: totConPropina,
       propinaLeyenda: leyendaPropinaResuelta(factura),
       propinaLeyendaTicket:
-        ctx.esPrecuenta || docKindOut === 'fe_cerrada' || docKindOut === 'pos_cerrado'
+        !ctx.esCotizacion &&
+        (ctx.esPrecuenta || docKindOut === 'fe_cerrada' || docKindOut === 'pos_cerrado')
           ? leyendaPropinaResuelta(factura)
           : '',
       propinaLeyendaEnBloquePropina:
+        !ctx.esCotizacion &&
         (ctx.esPrecuenta || docKindOut === 'fe_cerrada' || docKindOut === 'pos_cerrado') &&
         propinaRestauranteActiva(),
       propinaEnTotales: propinaEnTot,

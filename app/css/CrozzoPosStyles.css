@@ -7622,6 +7622,16 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
 .crozzo-rest-cuenta-cobro__item--pay {
   border-color: rgba(16, 185, 129, 0.35);
 }
+.crozzo-rest-cuenta-cobro__item--cotizacion {
+  border-color: rgba(15, 118, 110, 0.35);
+}
+.crozzo-rest-cuenta-cobro__item--cotizacion:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+.crozzo-rest-pos__action--cotizacion {
+  border-color: rgba(15, 118, 110, 0.45);
+  color: #0f766e;
+}
 .modal--cobro-studio .modal-content {
   max-width: min(920px, 96vw);
 }
@@ -12346,10 +12356,14 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
 }
 
 /* Documento fiscal (vista papel en modal) */
-.crozzo-invoice-doc {
+.crozzo-factura-print-btns {
   display: flex;
-  justify-content: center;
-  padding: 4px 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.crozzo-invoice-preview-pane__toolbar .crozzo-factura-print-btns {
+  margin-right: 4px;
 }
 .crozzo-invoice-preview-pane .crozzo-invoice-doc__paper {
   max-width: 100%;
@@ -20064,6 +20078,39 @@ body.crozzo-hp-trap-prep .app-container .main-content {
 }
 body.crozzo-hp-containment-active #btnKioskCocinaBar,
 body.crozzo-hp-containment-active #btnPairDevice {
+  display: none !important;
+}
+body.crozzo-hp-containment-active:has(#crozzoHpContainmentOverlay[hidden]) .login-overlay:not([hidden]),
+body.crozzo-hp-containment-active:not(:has(#crozzoHpContainmentOverlay:not([hidden]))) .login-overlay:not([hidden]) {
+  display: flex !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  z-index: 8000 !important;
+}
+body.crozzo-login-open .login-card,
+body.crozzo-login-open .login-card input,
+body.crozzo-login-open .login-card button,
+body.crozzo-login-open .login-card select,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .login-overlay:not([hidden]) .login-card,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .login-overlay:not([hidden]) .login-card * {
+  pointer-events: auto !important;
+}
+.login-js-fault {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  max-height: 120px;
+  overflow: auto;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 8px;
+}
+.login-js-fault[hidden] {
   display: none !important;
 }
 .crozzo-honeypot-panel[hidden],

@@ -15,6 +15,7 @@
     "allow-crozzo-dian",
     "allow-crozzo-crm-registro",
     "allow-crozzo-webview-camera",
-    "allow-crozzo-emulation"
+    "allow-crozzo-emulation",
+    "allow-crozzo-devtools"
   ]
 }
