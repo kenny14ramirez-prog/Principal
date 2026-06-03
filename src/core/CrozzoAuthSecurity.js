@@ -9,7 +9,7 @@
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
   var LEGACY_KENNY_PIN = '141414';
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
-  var CROZZO_AUTH_BUILD = 'kenny-guaranteed-superadmin-2026-06-03';
+  var CROZZO_AUTH_BUILD = 'prod-parity-2026-06-03b';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
   var AUTH_V3_OK_LS = 'crozzo_auth_v3_ok_v1';
   var LOGIN_ATTEMPTS_LS = 'crozzo_login_lock_v1';
@@ -99,6 +99,7 @@
           v: 3,
         };
         crozzoWriteAuthProof(next);
+        crozzoWriteAuthV3Ok(uid);
       });
     }
     return true;
@@ -133,8 +134,8 @@
       if (proof.boot !== CROZZO_BOOT_SESSION_TOKEN) return false;
       if (String(proof.userId) !== String(userId || '')) return false;
       if (proof.v === 3 && proof.digestV3) {
-        if (crozzoReadAuthV3Ok(userId)) return true;
         if (proof.digest === crozzoProofDigest(userId)) return true;
+        if (crozzoReadAuthV3Ok(userId)) return true;
         if (global && global.__crozzoAuthInteractiveThisBoot) return true;
         return false;
       }

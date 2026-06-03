@@ -332,7 +332,7 @@
         t: 'Si el vendedor está obligado a FE, debe entregar factura electrónica validada por la DIAN.',
       });
     }
-    if (imp.impuestoAlConsumo && imp.impuestoAlConsumo.aplica) {
+    if (impuestoCuentaMeta(imp).consumoAplica) {
       lineas.push({
         k: 'p',
         t: 'Impuesto al consumo discriminado según tarifa del establecimiento.',
@@ -462,29 +462,42 @@
     return pct;
   }
 
+  /** Misma normalización que caja (CrozzoPosMain.crozzoImpuestosNormalize). */
+  function normalizeImpCfg(imp) {
+    if (typeof global.crozzoImpuestosNormalize === 'function') {
+      return global.crozzoImpuestosNormalize(imp);
+    }
+    return imp || {};
+  }
+
   function consumoPctLabel(imp) {
-    imp = imp || {};
+    imp = normalizeImpCfg(imp);
     var ic = imp.impuestoAlConsumo || {};
-    var perfil = String(imp.perfilFiscal || '').toLowerCase();
+    var perfil = String(imp.perfilFiscal || 'comercio').toLowerCase();
     var tarifa = Number(ic.tarifa) || 0;
     var activo =
       !!ic.aplica ||
-      (perfil === 'restaurante' && tarifa > 0) ||
+      perfil === 'restaurante' ||
       (perfil === 'mixto' && ic.aplica !== false && tarifa > 0);
     if (!activo) return 0;
     return Math.round((tarifa > 0 ? tarifa : 0.08) * 1000) / 10;
   }
 
-  /** Restaurante (IPC) vs comercio (IVA) según configuración de impuestos. */
+  /** Restaurante (INC) vs comercio (IVA) — misma lógica que crozzoImpuestosCajaOpciones. */
   function impuestoCuentaMeta(imp) {
-    imp = imp || {};
-    var perfil = String(imp.perfilFiscal || '').toLowerCase();
+    imp = normalizeImpCfg(imp);
+    var perfil = String(imp.perfilFiscal || 'comercio').toLowerCase();
     var ic = imp.impuestoAlConsumo || {};
-    var tarifaConsumo = Number(ic.tarifa) || 0;
+    var tarifaRaw = Number(ic.tarifa) || 0;
+    var consumoTarifa =
+      ic.aplica || (perfil === 'restaurante' && tarifaRaw > 0) || (perfil === 'mixto' && ic.aplica !== false && tarifaRaw > 0)
+        ? tarifaRaw || 0.08
+        : 0;
+    if (perfil === 'restaurante' && consumoTarifa <= 0) consumoTarifa = 0.08;
     var consumoAplica =
-      !!(ic.aplica) ||
-      (perfil === 'restaurante' && tarifaConsumo > 0) ||
-      (perfil === 'mixto' && ic.aplica !== false && tarifaConsumo > 0);
+      !!ic.aplica ||
+      (perfil === 'restaurante' && consumoTarifa > 0) ||
+      (perfil === 'mixto' && ic.aplica !== false && consumoTarifa > 0);
     if (consumoAplica) {
       var cp = consumoPctLabel(imp);
       return { tipo: 'consumo', pct: cp, consumoAplica: true, impuestoPct: cp };
@@ -495,7 +508,7 @@
 
   /** Etiquetas de cuenta/precuenta según perfil fiscal (Colombia). */
   function cuentaEtiquetasFiscales(imp, incl) {
-    imp = imp || {};
+    imp = normalizeImpCfg(imp);
     var meta = impuestoCuentaMeta(imp);
     var inc = !!incl;
     return {
@@ -508,9 +521,34 @@
 
   function impuestoLineaLabel(data) {
     data = data || {};
-    if (data.etiquetaImpuesto) return data.etiquetaImpuesto;
+    var incl =
+      typeof data.ivaIncluidoEnPrecios === 'boolean'
+        ? data.ivaIncluidoEnPrecios
+        : !!getImpuestosCfg().ivaIncluidoEnPrecios;
+    return cuentaEtiquetasFiscales(getImpuestosCfg(), incl).impuesto;
+  }
+
+  /** Reaplica etiquetas INC/IVA desde config actual (impresión precuenta/POS/FE). */
+  function refreshFiscalLabelsOnPayload(data) {
+    data = data || {};
     var imp = getImpuestosCfg();
-    return cuentaEtiquetasFiscales(imp, data.ivaIncluidoEnPrecios).impuesto;
+    var incl =
+      typeof data.ivaIncluidoEnPrecios === 'boolean' ? data.ivaIncluidoEnPrecios : !!imp.ivaIncluidoEnPrecios;
+    var meta = impuestoCuentaMeta(imp);
+    var lab = cuentaEtiquetasFiscales(imp, incl);
+    var sub = Number(data.sub != null ? data.sub : data.subtotal) || 0;
+    var tax = Number(data.iva) || 0;
+    data.consumoAplica = meta.consumoAplica;
+    data.consumoPct = meta.consumoAplica ? meta.pct : 0;
+    data.impuestoTipo = meta.tipo;
+    data.impuestoPct = meta.impuestoPct;
+    data.etiquetaGravado = lab.gravado;
+    data.etiquetaImpuesto = lab.impuesto;
+    data.etiquetaSubtotal = lab.subtotal;
+    data.impuestoConsumoE = impuestoConsumoLabel(imp);
+    data.perfilFiscal = imp.perfilFiscal || '';
+    data.ivaDisc = ivaDiscriminacion(sub, tax, imp);
+    return data;
   }
 
   function ivaDiscriminacion(sub, iva, imp) {
@@ -627,10 +665,7 @@
     var propSug = Number(data.propinaSugerida || 0);
     var propina = propVol > 0 ? propVol : propSug;
     var totPagar = Number(data.totalConPropina) || tot + (propina > 0 ? propina : 0);
-    var lab =
-      data.etiquetaGravado && data.etiquetaSubtotal
-        ? { gravado: data.etiquetaGravado, impuesto: data.etiquetaImpuesto, subtotal: data.etiquetaSubtotal }
-        : cuentaEtiquetasFiscales(getImpuestosCfg(), incl);
+    var lab = cuentaEtiquetasFiscales(getImpuestosCfg(), incl);
     var muestraImpuesto =
       iva > 0 || !!data.consumoAplica || data.impuestoTipo === 'consumo' || data.impuestoTipo === 'iva';
     var rows = [];
@@ -773,7 +808,11 @@
       propinaVol > 0 ||
       (String(estado || '').toLowerCase() === 'precuenta' && propinaSug > 0);
     var docKindOut = cuentaTx ? cuentaTx.docKind : docKindFromFactura(factura);
-    return {
+    var impAct = getImpuestosCfg();
+    var inclAct = cuentaTx ? cuentaTx.ivaIncluidoEnPrecios : !!impAct.ivaIncluidoEnPrecios;
+    var metaAct = impuestoCuentaMeta(impAct);
+    var labAct = cuentaEtiquetasFiscales(impAct, inclAct);
+    var out = {
       head: tituloLegal(estado, tipo, factura),
       esDocumentoFe: esFe,
       perfilEmision: perfilEm,
@@ -782,19 +821,19 @@
       nitE: fmtNit(emp.nit, emp.dv),
       dirE: String(emp.direccion || '').trim(),
       regimenE: REGIMEN_LABELS[emp.regimenFiscal] || REGIMEN_LABELS.responsable_iva,
-      impuestoConsumoE: impuestoConsumoLabel(imp),
+      impuestoConsumoE: impuestoConsumoLabel(impAct),
       ciudadE: ciudad,
       emailE: emp.email || '',
-      ivaIncluidoEnPrecios: cuentaTx ? cuentaTx.ivaIncluidoEnPrecios : !!imp.ivaIncluidoEnPrecios,
-      ivaPct: cuentaTx ? cuentaTx.ivaPct : ivaPctLabel(imp),
-      consumoAplica: cuentaTx ? cuentaTx.consumoAplica : impuestoCuentaMeta(imp).consumoAplica,
-      consumoPct: cuentaTx ? cuentaTx.consumoPct : consumoPctLabel(imp),
-      impuestoTipo: cuentaTx ? cuentaTx.impuestoTipo : impuestoCuentaMeta(imp).tipo,
-      impuestoPct: cuentaTx ? cuentaTx.impuestoPct : impuestoCuentaMeta(imp).impuestoPct,
-      etiquetaGravado: cuentaTx ? cuentaTx.etiquetaGravado : cuentaEtiquetasFiscales(imp, !!imp.ivaIncluidoEnPrecios).gravado,
-      etiquetaImpuesto: cuentaTx ? cuentaTx.etiquetaImpuesto : cuentaEtiquetasFiscales(imp, !!imp.ivaIncluidoEnPrecios).impuesto,
-      etiquetaSubtotal: cuentaTx ? cuentaTx.etiquetaSubtotal : cuentaEtiquetasFiscales(imp, !!imp.ivaIncluidoEnPrecios).subtotal,
-      perfilFiscal: imp.perfilFiscal || '',
+      ivaIncluidoEnPrecios: inclAct,
+      ivaPct: cuentaTx ? cuentaTx.ivaPct : ivaPctLabel(impAct),
+      consumoAplica: metaAct.consumoAplica,
+      consumoPct: metaAct.consumoAplica ? metaAct.pct : 0,
+      impuestoTipo: metaAct.tipo,
+      impuestoPct: metaAct.impuestoPct,
+      etiquetaGravado: labAct.gravado,
+      etiquetaImpuesto: labAct.impuesto,
+      etiquetaSubtotal: labAct.subtotal,
+      perfilFiscal: impAct.perfilFiscal || '',
       docKind: docKindOut,
       propinaMonto: cuentaTx ? cuentaTx.propinaMonto : propinaVol > 0 ? propinaVol : propinaSug,
       numFe: esFe
@@ -808,7 +847,7 @@
       cliTipo: cliTipoDoc(factura.compradorNit || factura.cliNit, { feContext: feCtxCli }),
       cliNom: cliNombreMostrar(factura, feCtxCli),
       cliNit: factura.compradorNit || factura.cliNit || '',
-      ivaDisc: ivaDiscriminacion(sub, iva, imp),
+      ivaDisc: ivaDiscriminacion(sub, iva, impAct),
       legalCo: ticketLineas.length ? '' : pieLegal(estado, tipo),
       sub: sub,
       iva: iva,
@@ -842,6 +881,7 @@
       legalFeLineas: null,
       avisoCajaPrecuenta: ctx.esPrecuenta ? avisoPrecuentaCaja(factura) : null,
     };
+    return refreshFiscalLabelsOnPayload(out);
   }
 
   function dedupePrecuentaResolBlocks(tpl) {
@@ -1162,6 +1202,7 @@
     cuentaEtiquetasFiscales: cuentaEtiquetasFiscales,
     impuestoEncabezadoEmpresa: impuestoEncabezadoEmpresa,
     impuestoLineaLabel: impuestoLineaLabel,
+    refreshFiscalLabelsOnPayload: refreshFiscalLabelsOnPayload,
     isCuentaClienteDoc: isCuentaClienteDoc,
     isCuentaPrecuentaTicket: isCuentaPrecuentaTicket,
     isCuentaTotalesTicket: isCuentaTotalesTicket,

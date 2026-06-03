@@ -418,7 +418,9 @@
       '</span><span>' +
       fmtCOP(data.sub) +
       '</span></div>' +
-      (data.ivaDisc ? '<div style="font-size:7px;color:' + MUTED + ';margin:2px 0;">' + esc(data.ivaDisc) + '</div>' : '') +
+      (data.ivaDisc && !data.consumoAplica && data.impuestoTipo !== 'consumo'
+        ? '<div style="font-size:7px;color:' + MUTED + ';margin:2px 0;">' + esc(data.ivaDisc) + '</div>'
+        : '') +
       (Number(data.iva) > 0 || data.consumoAplica || data.impuestoTipo === 'consumo'
         ? '<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:8px;color:' +
           MUTED +
@@ -796,7 +798,9 @@
         if (usaTotalesCuenta(data, tpl)) {
           return '';
         }
-        return data.ivaDisc ? '<div style="' + blockStyle(b, { align: 'left', fontSize: '8px' }) + '">' + esc(data.ivaDisc) + '</div>' : '';
+        return data.ivaDisc && !data.consumoAplica && data.impuestoTipo !== 'consumo'
+          ? '<div style="' + blockStyle(b, { align: 'left', fontSize: '8px' }) + '">' + esc(data.ivaDisc) + '</div>'
+          : '';
       case 'legal_co': {
         var lnLeg = legalLineas(data, tpl);
         if (lnLeg.length) return renderLegalPrecuenta(b, data, tpl);

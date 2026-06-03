@@ -2551,6 +2551,7 @@
 
     function tryInstallPendingCritical() {
       if (!_bootUpdatesReady || _installInProgress || _criticalInstallState === 'installing') return;
+      reconcileAppliedEntriesForVersion(VERSION);
       var pending = (_registryEntries || []).filter(entryIsPending).filter(isCriticalEntry);
       if (!pending.length) return;
       var entry = pickNextPendingEntry(pending);
@@ -2561,6 +2562,11 @@
         return;
       }
       if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
+      var profile = getUpdateClientProfile();
+      if (shouldDeferCriticalAutoOnBoot(profile)) {
+        beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
+        return;
+      }
       scheduleCriticalInstallWhenIdle(entry);
     }
 
@@ -2594,44 +2600,17 @@
 
   function runBootUpdatePipeline() {
     if (_bootUpdatesReady) return Promise.resolve({ ok: true, skipped: true });
-    _bootUpdatePhase = true;
-    global.__crozzoBootUpdatePhase = true;
     scheduleDeferredCriticalAfterLogin();
+    _bootUpdatePhase = false;
+    global.__crozzoBootUpdatePhase = false;
+    notifyBootUpdatesReady({ ok: true, reason: 'non_blocking' });
 
-    var gateTimer = setTimeout(function () {
-      if (!_bootUpdatesReady && !_installInProgress) {
-        showBootUpdateGate();
-        setBootGateMessage(
-          'Comprobando actualizaciones para ' + getPlatformUpdateDescriptor() + '…'
-        );
-      }
-    }, 4500);
-
-    var safetyTimer = setTimeout(function () {
-      if (
-        !_bootUpdatesReady &&
-        !_installInProgress &&
-        _criticalInstallState !== 'installing'
-      ) {
-        console.warn('[crozzo-updates] comprobación en segundo plano; login disponible');
-        hideBootUpdateGate();
-        notifyBootUpdatesReady({ ok: false, reason: 'timeout' });
-      }
-    }, BOOT_GATE_MAX_MS);
-
-    var slowHintTimer = setTimeout(function () {
-      if (!_bootUpdatesReady && !_installInProgress) {
-        showBootUpdateGate();
-        setBootGateMessage('La conexión es lenta. Puede iniciar sesión mientras comprobamos…');
-        showBootUpdateGateSlowOptions();
-      }
-    }, 9000);
-
-    return refreshBinaryVersion().then(function (installedVer) {
-      return fetchRegistryData().then(function (data) {
-        return { data: data, installedVer: installedVer };
-      });
-    })
+    return refreshBinaryVersion()
+      .then(function (installedVer) {
+        return fetchRegistryData().then(function (data) {
+          return { data: data, installedVer: installedVer };
+        });
+      })
       .then(function (payload) {
         var data = payload && payload.data;
         var installedVer = (payload && payload.installedVer) || VERSION;
@@ -2640,29 +2619,14 @@
         reconcileAppliedEntriesForVersion(installedVer);
         applyAvailabilityFromRegistry(_registryEntries);
         pruneStaleStateFlags();
-
         var pending = _registryEntries.filter(entryIsPending);
         var optionalOnly = pending.filter(function (e) {
           return !isCriticalEntry(e);
         });
         return prefetchOptionalAtBoot(optionalOnly);
       })
-      .then(function (res) {
-        clearTimeout(safetyTimer);
-        clearTimeout(slowHintTimer);
-        clearTimeout(gateTimer);
-        hideBootUpdateGate();
-        if (res && res.exiting) return res;
-        notifyBootUpdatesReady({ ok: true });
-        return res;
-      })
       .catch(function (err) {
-        clearTimeout(safetyTimer);
-        clearTimeout(slowHintTimer);
-        clearTimeout(gateTimer);
-        hideBootUpdateGate();
-        console.warn('[crozzo-updates] boot pipeline', err);
-        notifyBootUpdatesReady({ ok: false, error: err });
+        console.warn('[crozzo-updates] background registry check', err);
         return { ok: false, error: err };
       });
   }
@@ -2701,6 +2665,11 @@
 
   function scheduleCriticalInstallWhenIdle(entry) {
     if (!entry) return;
+    var profile = getUpdateClientProfile();
+    if (shouldDeferCriticalAutoOnBoot(profile)) {
+      beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
+      return;
+    }
     if (_bootUpdatePhase || entry.installMode === 'auto' || isCriticalEntry(entry)) {
       if (!posIsOperationBusy()) {
         runCriticalInstall(entry);

@@ -993,11 +993,16 @@
 
     function escFiscalGravadoLabel(d) {
       d = d || {};
-      if (d.etiquetaGravado) return d.etiquetaGravado;
-      if (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales && global.config && global.config.getImpuestos) {
-        return global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(global.config.getImpuestos(), !!d.ivaIncluidoEnPrecios).gravado;
+      if (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.cuentaEtiquetasFiscales) {
+        var impEsc =
+          typeof global.crozzoImpuestosNormalize === 'function' && global.config && global.config.getImpuestos
+            ? global.crozzoImpuestosNormalize(global.config.getImpuestos())
+            : global.config && global.config.getImpuestos
+              ? global.config.getImpuestos()
+              : {};
+        return global.CrozzoTermicaColombia.cuentaEtiquetasFiscales(impEsc, !!d.ivaIncluidoEnPrecios).gravado;
       }
-      return 'Subtotal';
+      return d.etiquetaGravado || 'Subtotal';
     }
 
     var hadCutBlock = false;
@@ -1125,7 +1130,14 @@
           if (data.resolFull) escPushText(chunks, data.resolFull);
           break;
         case 'iva_disc':
-          if (!isCuentaTotalesEsc() && data.ivaDisc) escPushText(chunks, data.ivaDisc);
+          if (
+            !isCuentaTotalesEsc() &&
+            data.ivaDisc &&
+            !data.consumoAplica &&
+            data.impuestoTipo !== 'consumo'
+          ) {
+            escPushText(chunks, data.ivaDisc);
+          }
           break;
         case 'legal_co': {
           var legalLn =

@@ -19771,23 +19771,29 @@ body.crozzo-honeypot-live .crozzo-hp-live-exit {
   border: 1px solid var(--border);
 }
 body.crozzo-login-open .menu-toggle,
-html.crozzo-auth-gate-pending .app-container,
-html.crozzo-auth-gate-pending .main-wrapper,
-html.crozzo-auth-gate-pending .crozzo-mobile-bottom-nav,
-html.crozzo-auth-gate-pending .sidebar-backdrop,
-html.crozzo-auth-gate-pending .crozzo-emergency-shell,
-html.crozzo-auth-gate-pending #menu-toggle-btn,
-html.crozzo-auth-gate-pending .menu-toggle {
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .app-container,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .main-wrapper,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .crozzo-mobile-bottom-nav,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .sidebar-backdrop,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .crozzo-emergency-shell,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) #menu-toggle-btn,
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .menu-toggle {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
-html.crozzo-auth-gate-pending .login-overlay,
-html.crozzo-auth-gate-pending .login-overlay[hidden] {
+html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .login-overlay:not([hidden]) {
   display: flex !important;
   visibility: visible !important;
   pointer-events: auto !important;
   z-index: 8000;
+}
+html.crozzo-app-ready .app-container,
+html.crozzo-app-ready .main-wrapper,
+html.crozzo-app-ready .sidebar,
+html.crozzo-app-ready .crozzo-mobile-bottom-nav {
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 body.crozzo-login-open .crozzo-emergency-shell,
@@ -22216,17 +22222,8 @@ html.tauri-desktop #sidebar.sidebar-pro.expanded .crozzo-nav-search {
 .crozzo-boot-update-gate.is-open {
   display: flex;
 }
-body.crozzo-boot-updates-active {
+body.crozzo-boot-updates-active:has(#crozzo-boot-update-gate.is-open) {
   overflow: hidden;
-}
-body.crozzo-boot-updates-active .login-overlay:not([hidden]) {
-  visibility: hidden;
-  pointer-events: none;
-}
-body.crozzo-boot-updates-active .app-container,
-body.crozzo-boot-updates-active .sidebar {
-  visibility: hidden;
-  pointer-events: none;
 }
 .crozzo-boot-update-gate__card {
   max-width: 420px;
