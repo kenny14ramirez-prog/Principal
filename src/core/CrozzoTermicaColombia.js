@@ -457,9 +457,15 @@
 
   function consumoPctLabel(imp) {
     imp = imp || {};
-    var ic = imp.impuestoAlConsumo;
-    if (!ic || !ic.aplica) return 0;
-    return Math.round((Number(ic.tarifa) || 0) * 1000) / 10;
+    var ic = imp.impuestoAlConsumo || {};
+    var perfil = String(imp.perfilFiscal || '').toLowerCase();
+    var tarifa = Number(ic.tarifa) || 0;
+    var activo =
+      !!ic.aplica ||
+      (perfil === 'restaurante' && tarifa > 0) ||
+      (perfil === 'mixto' && ic.aplica !== false && tarifa > 0);
+    if (!activo) return 0;
+    return Math.round((tarifa > 0 ? tarifa : 0.08) * 1000) / 10;
   }
 
   /** Restaurante (IPC) vs comercio (IVA) según configuración de impuestos. */
@@ -512,16 +518,14 @@
 
   function impuestoConsumoLabel(imp) {
     imp = imp || {};
-    var ic = imp.impuestoAlConsumo;
-    if (!ic || !ic.aplica) return '';
-    var pct = consumoPctLabel(imp);
-    return 'Impuesto al consumo ' + pct + '% (restaurantes y bares)';
+    var meta = impuestoCuentaMeta(imp);
+    if (!meta.consumoAplica) return '';
+    return 'Impuesto al consumo ' + meta.pct + '% (restaurantes y bares)';
   }
 
   function impuestoEncabezadoEmpresa(imp) {
     imp = imp || {};
-    var perfil = String(imp.perfilFiscal || '').toLowerCase();
-    if (perfil === 'restaurante' || (imp.impuestoAlConsumo && imp.impuestoAlConsumo.aplica)) {
+    if (impuestoCuentaMeta(imp).consumoAplica) {
       return impuestoConsumoLabel(imp);
     }
     if (imp.responsableIVA !== false) {

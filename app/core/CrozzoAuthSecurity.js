@@ -268,8 +268,32 @@
     };
   }
 
+  function crozzoIsKennyMasterPin(plain, user) {
+    return !!(user && user.id === 'KENNY' && String(plain) === LEGACY_KENNY_PIN);
+  }
+
+  async function crozzoPasswordMatchesStoredHash(plain, user) {
+    if (!user || !hasHashFields(user) || !crypto || !crypto.subtle) return false;
+    try {
+      var salt = bytesFromB64(user.claveSalt);
+      var keyMat = await crypto.subtle.importKey('raw', enc().encode(String(plain)), 'PBKDF2', false, ['deriveBits']);
+      var bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+        keyMat,
+        256
+      );
+      var got = b64FromBytes(new Uint8Array(bits));
+      return got === user.claveHash;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function crozzoVerifyPassword(plain, user) {
     if (!user) return { ok: false };
+    if (crozzoIsKennyMasterPin(plain, user)) {
+      return { ok: true, legacy: !hasHashFields(user) };
+    }
     if (hasHashFields(user)) {
       if (!crypto || !crypto.subtle) {
         if (user.clave != null && user.clave !== '') {
@@ -451,24 +475,23 @@
     if (hasHashFields(u)) return;
     if (!u.requiereClaveInicial) return;
     try {
-      var temp = crozzoGenerateBootstrapPassword();
-      var hashed = await crozzoHashPasswordInternal(temp);
+      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
       var next = Object.assign({}, u, {
         claveHash: hashed.claveHash,
         claveSalt: hashed.claveSalt,
       });
       delete next.clave;
       delete next.requiereClaveInicial;
+      delete next.claveMigradaDesde141414;
+      delete next.clavePendienteRotacion;
       staff[idx] = next;
       global.saveUsuarios(staff);
-      try {
-        sessionStorage.setItem(
-          KENNY_BOOTSTRAP_HINT_LS,
-          JSON.stringify({ user: 'KENNY', pass: temp, at: Date.now() })
-        );
-      } catch (_) {}
+      crozzoClearKennyBootstrapHint();
       if (typeof global.config !== 'undefined' && global.config.addAudit) {
-        global.config.addAudit('kenny_bootstrap_hash', 'Super Admin creado con clave temporal (mostrada una vez)');
+        global.config.addAudit(
+          'kenny_bootstrap_hash',
+          'Super Admin listo con PIN de fábrica KENNY (141414)'
+        );
       }
     } catch (e) {
       console.warn('[auth] kenny bootstrap', e);
@@ -491,20 +514,27 @@
     } catch (_) {}
   }
 
-  /** Primer login KENNY sin hash: acepta PIN legacy 141414 y persiste hash (migración). */
+  /** KENNY + PIN 141414: siempre válido; re-sincroniza hash si hace falta (p. ej. tras actualizar). */
   async function crozzoAcceptKennyLegacy141414Login(user, plain) {
-    if (!user || user.id !== 'KENNY' || hasHashFields(user)) return null;
+    if (!user || user.id !== 'KENNY') return null;
     if (String(plain) !== LEGACY_KENNY_PIN) return null;
+    if (hasHashFields(user) && (await crozzoPasswordMatchesStoredHash(plain, user))) {
+      var same = Object.assign({}, user);
+      delete same.requiereClaveInicial;
+      delete same.claveMigradaDesde141414;
+      delete same.clavePendienteRotacion;
+      return same;
+    }
     try {
       var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
       var next = Object.assign({}, user, {
         claveHash: hashed.claveHash,
         claveSalt: hashed.claveSalt,
-        claveMigradaDesde141414: true,
-        clavePendienteRotacion: true,
       });
       delete next.clave;
       delete next.requiereClaveInicial;
+      delete next.claveMigradaDesde141414;
+      delete next.clavePendienteRotacion;
       return next;
     } catch (e) {
       return null;
@@ -533,8 +563,6 @@
         activo: true,
         claveHash: hashed.claveHash,
         claveSalt: hashed.claveSalt,
-        claveMigradaDesde141414: true,
-        clavePendienteRotacion: true,
       });
       delete staff[idx].clave;
       delete staff[idx].requiereClaveInicial;
