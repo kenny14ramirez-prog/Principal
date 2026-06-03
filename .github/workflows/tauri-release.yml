@@ -8,7 +8,44 @@ on:
       - 'v*'
 
 jobs:
+  release-meta:
+    name: Crear release GitHub (una sola vez)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      releaseId: ${{ steps.meta.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Asegurar release del tag (idempotente)
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          TITLE="Crozzo POS ${TAG}"
+          BODY="Instaladores multiplataforma Crozzo POS.
+
+          | Plataforma | Artefacto | Uso |
+          |------------|-----------|-----|
+          | Windows | \`Proyecto_*_x64-setup.exe\` | PC caja / mostrador |
+          | macOS Apple Silicon | \`.dmg\` aarch64 | Mac M1/M2/M3 |
+          | macOS Intel | \`.dmg\` x86_64 | Mac Intel |
+          | Android (tablets) | \`.apk\` ARM64 | Instalar en tablet |
+
+          Actualización automática Tauri: Windows y Mac (desde la app).
+          Tablets en navegador: avisos vía \`registry.json\` en rama **main**."
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TITLE" --notes "$BODY"
+          else
+            echo "Release $TAG ya existe; se reutiliza para subir artefactos."
+          fi
+          ID=$(gh release view "$TAG" --json id -q .id)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: release-meta
     strategy:
       fail-fast: false
       matrix:
@@ -129,6 +166,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NDK_HOME: ${{ matrix.android && steps.android-ndk.outputs.ndk-path || '' }}
         with:
+          releaseId: ${{ needs.release-meta.outputs.releaseId }}
           tagName: ${{ github.ref_name }}
           releaseName: Crozzo POS ${{ github.ref_name }}
           releaseBody: |
@@ -146,7 +184,7 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-          includeUpdaterJson: true
+          includeUpdaterJson: ${{ matrix.label == 'Windows x64' }}
           updaterJsonPreferNsis: true
 
       - name: Compilar APK Android
@@ -164,11 +202,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ github.ref_name }}"
-          for i in $(seq 1 20); do
-            if gh release view "$TAG" >/dev/null 2>&1; then break; fi
-            echo "Esperando release $TAG ($i/20)..."
-            sleep 30
-          done
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG no encontrado (job release-meta debería haberlo creado)."
+            exit 1
+          fi
           APK=$(node scripts/pick-android-apk.mjs)
           if [ -z "$APK" ] || [ ! -f "$APK" ]; then
             echo "No se encontró APK firmado en src-tauri/gen/android"

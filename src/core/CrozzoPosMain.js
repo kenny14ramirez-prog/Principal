@@ -17983,6 +17983,54 @@ function crozzoCobroStudioSetPropina(modo) {
   if (typeof toggleMetodoPagoCobro === 'function') toggleMetodoPagoCobro();
 }
 window.crozzoCobroStudioSetPropina = crozzoCobroStudioSetPropina;
+function crozzoCobroStudioSetPrintFmt(fmt) {
+  fmt = String(fmt || 'pos').toLowerCase();
+  var hid = document.getElementById('cobroStudioPrintFmt');
+  if (hid) hid.value = fmt;
+  document.querySelectorAll('.crozzo-cobro-print-fmt-chip').forEach(function (el) {
+    el.classList.toggle('is-active', el.getAttribute('data-fmt') === fmt);
+  });
+}
+function crozzoCobroStudioPrintFmtActivo() {
+  var hid = document.getElementById('cobroStudioPrintFmt');
+  return hid ? String(hid.value || 'pos').toLowerCase() : 'pos';
+}
+function crozzoCobroStudioPrintFmtHtml(defaultFmt) {
+  defaultFmt = String(defaultFmt || 'pos').toLowerCase();
+  var chips = [
+    { id: 'pos', label: '🖨️ POS (térmica)' },
+    { id: 'carta', label: '📄 Carta' },
+    { id: 'oficio', label: '📋 Oficio' },
+    { id: 'none', label: 'No imprimir' },
+  ];
+  return (
+    '<div class="form-group crozzo-cobro-print-fmt">' +
+    '<label class="form-label">Impresión del comprobante</label>' +
+    '<div class="crozzo-cobro-print-fmt-chips" role="group" aria-label="Formato de impresión">' +
+    chips
+      .map(function (c) {
+        return (
+          '<button type="button" class="crozzo-cobro-print-fmt-chip' +
+          (c.id === defaultFmt ? ' is-active' : '') +
+          '" data-fmt="' +
+          escUserAttr(c.id) +
+          '" onclick="crozzoCobroStudioSetPrintFmt(\'' +
+          crozzoJsStringLiteral(c.id) +
+          '\')">' +
+          escUserAttr(c.label) +
+          '</button>'
+        );
+      })
+      .join('') +
+    '</div>' +
+    '<input type="hidden" id="cobroStudioPrintFmt" value="' +
+    escUserAttr(defaultFmt) +
+    '">' +
+    '<span class="form-hint">POS envía directo a la térmica. Carta y oficio abren el cuadro de impresión del sistema.</span></div>'
+  );
+}
+window.crozzoCobroStudioSetPrintFmt = crozzoCobroStudioSetPrintFmt;
+window.crozzoCobroStudioPrintFmtActivo = crozzoCobroStudioPrintFmtActivo;
 function crozzoRefreshCobroStudioLegalTotals() {
   const legalHost = document.getElementById('cobroStudioLegalPanel');
   const totHost = document.getElementById('cobroStudioTotalesPanel');
@@ -18716,6 +18764,13 @@ function crozzoOpenCobroStudioModal(opts) {
       '<div class="crozzo-cobro-studio__preview">' +
       '<div class="crozzo-cobro-studio__preview-head"><span>Vista del comprobante</span><span class="form-hint" id="cobroStudioPreviewMeta">—</span></div>' +
       '<div class="crozzo-cobro-studio__preview-body" id="cobroStudioThermalPreview"></div></div>' +
+      (typeof crozzoCobroStudioPrintFmtHtml === 'function'
+        ? crozzoCobroStudioPrintFmtHtml(
+            typeof getFacturacionAdminConfig === 'function' && getFacturacionAdminConfig().autoImprimir === false
+              ? 'none'
+              : 'pos'
+          )
+        : '') +
       '<div class="crozzo-cobro-studio__foot">' +
       '<button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>' +
       '<button type="button" class="btn btn-success" id="btnConfirmarCobroStudio" onclick="confirmarCobroDesdeCaja()">Confirmar cobro</button>' +
@@ -18817,6 +18872,9 @@ function toggleMetodoPagoCobro() {
 }
 async function confirmarCobroDesdeCaja() {
   const cart = getActiveCart();
+  if (!cart.length) return;
+  window.__crozzoFacturaPrintFormatElegido =
+    typeof crozzoCobroStudioPrintFmtActivo === 'function' ? crozzoCobroStudioPrintFmtActivo() : 'pos';
   const total = computeTotals(cart).total;
   const propPackConfirm =
     typeof crozzoCalcularPropinaDesdeCart === 'function'
@@ -21405,7 +21463,8 @@ async function facturar(options = {}) {
           <button type="button" class="btn btn-outline" style="border-color:#25D366;color:#0d6e4a;" onclick="crozzoFacturaShareWhatsAppModal()">📱 WhatsApp</button>
           <button type="button" class="btn btn-outline" style="border-color:var(--accent);color:var(--accent);" onclick="crozzoFacturaShareEmailModal()">✉️ Email</button>
         </div>
-        <div style="display:flex;justify-content:center;margin-top:10px;">${typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(null) : ''}</div>
+        <div style="display:flex;justify-content:center;margin-top:10px;"><p class="form-hint" style="margin:0 0 6px;width:100%;text-align:center;">Reimprimir otro formato</p></div>
+        <div style="display:flex;justify-content:center;margin-top:4px;">${typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(null) : ''}</div>
         ${crozzoCajeroPostCobroActionsHtml()}
       </div>
     `, { modalClass: 'modal--invoice-quick', noBackdropClose: true });
@@ -22751,36 +22810,57 @@ function crozzoEnsureInvoiceModalInteractive() {
     if (typeof global.crozzoRestoreUiFocusAfterPrint === 'function') global.crozzoRestoreUiFocusAfterPrint();
   } catch (_) {}
 }
-/** Paso final del cobro: menú compartir (WhatsApp/email) siempre visible; impresión en paralelo. */
-function crozzoPresentFacturaShareAfterPrint(factura, showShareModalFn) {
+/** Paso final del cobro: menú compartir visible; imprime solo el formato elegido al confirmar cobro. */
+function crozzoPresentFacturaShareAfterPrint(factura, showShareModalFn, opts) {
+  opts = opts || {};
   if (typeof showShareModalFn !== 'function') return;
   showShareModalFn();
   global.setTimeout(function () {
     crozzoEnsureInvoiceModalInteractive();
   }, 80);
-  const cfg = typeof getFacturacionAdminConfig === 'function' ? getFacturacionAdminConfig() : {};
-  if (cfg.autoImprimir === false) return;
-  const autoFn =
-    typeof crozzoAutoPrintFacturaIfConfigured === 'function' ? crozzoAutoPrintFacturaIfConfigured : null;
-  if (!autoFn) return;
+  var fmt = String(opts.printFormat || window.__crozzoFacturaPrintFormatElegido || '').toLowerCase();
+  if (!fmt) {
+    var cfg = typeof getFacturacionAdminConfig === 'function' ? getFacturacionAdminConfig() : {};
+    fmt = cfg.autoImprimir === false ? 'none' : 'pos';
+  }
+  if (fmt === 'none') return;
   global.setTimeout(function () {
-    if (typeof showToast === 'function') showToast('🖨️ Enviando recibo a impresora…', 'info');
-    void autoFn(factura)
-      .then(function (ok) {
+    if (fmt === 'pos') {
+      if (typeof showToast === 'function') showToast('🖨️ Enviando recibo a impresora POS…', 'info');
+      void (typeof crozzoFacturaPrintPos === 'function'
+        ? crozzoFacturaPrintPos(factura, { silent: true, toast: true })
+        : typeof crozzoAutoPrintFacturaIfConfigured === 'function'
+          ? crozzoAutoPrintFacturaIfConfigured(factura)
+          : Promise.resolve(false)
+      )
+        .then(function (ok) {
+          crozzoEnsureInvoiceModalInteractive();
+          if (ok === false && typeof showToast === 'function') {
+            showToast(
+              'No se imprimió en POS. Revise la impresora de caja o use Reimprimir en este menú.',
+              'warning'
+            );
+          }
+        })
+        .catch(function () {
+          crozzoEnsureInvoiceModalInteractive();
+          if (typeof showToast === 'function') {
+            showToast('Error al imprimir en POS. Use Reimprimir si necesita otra copia.', 'warning');
+          }
+        });
+      return;
+    }
+    if (fmt === 'carta' || fmt === 'oficio') {
+      void (typeof crozzoFacturaPrintSheet === 'function'
+        ? crozzoFacturaPrintSheet(factura, fmt)
+        : Promise.resolve(false)
+      ).then(function (ok) {
         crozzoEnsureInvoiceModalInteractive();
         if (ok === false && typeof showToast === 'function') {
-          showToast(
-            'No se imprimió el recibo. Revise impresora de caja en Configuración → Facturas e impresión, o pulse 🖨️ POS aquí.',
-            'warning'
-          );
-        }
-      })
-      .catch(function () {
-        crozzoEnsureInvoiceModalInteractive();
-        if (typeof showToast === 'function') {
-          showToast('Error al imprimir. Pulse 🖨️ POS / Carta / Oficio en este menú o revise la cola de impresión.', 'warning');
+          showToast('No se abrió la impresión ' + (fmt === 'oficio' ? 'oficio' : 'carta') + '.', 'warning');
         }
       });
+    }
   }, 500);
 }
 window.crozzoPresentFacturaShareAfterPrint = crozzoPresentFacturaShareAfterPrint;
@@ -23286,7 +23366,9 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
     '</div>' +
     '<div class="crozzo-invoice-action-card"><h4>Enviar e imprimir</h4>' +
     '<div class="btn-group" style="flex-direction:column;gap:8px;">' + histBtns + '</div>' +
-    (printBtns ? '<div style="margin-top:10px;">' + printBtns + '</div>' : '') +
+    (printBtns
+      ? '<p class="form-hint" style="margin:10px 0 6px;">Reimprimir otro formato</p>' + printBtns
+      : '') +
     '</div>' +
     postCobro +
     verifCard +

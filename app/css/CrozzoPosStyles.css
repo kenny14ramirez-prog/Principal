@@ -7797,6 +7797,33 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   background: rgba(var(--rest-gold-rgb, 212, 175, 55), 0.14);
   color: var(--rest-gold, var(--accent));
 }
+.crozzo-cobro-print-fmt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.crozzo-cobro-print-fmt-chip {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.crozzo-cobro-print-fmt-chip.is-active {
+  border-color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.1);
+  color: #1d4ed8;
+}
+.crozzo-cobro-print-fmt-chip[data-fmt="none"].is-active {
+  border-color: var(--text-muted);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
 .crozzo-cobro-propina-resumen {
   display: flex;
   justify-content: space-between;
