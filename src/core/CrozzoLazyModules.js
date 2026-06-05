@@ -102,6 +102,7 @@
           })
           .catch(function (e) {
             console.warn('[crozzo-lazy]', e);
+            delete pageEnsurePromises[key];
             lastEnsuredPage = key;
             resolve();
           });

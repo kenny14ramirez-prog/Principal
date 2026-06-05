@@ -24,7 +24,7 @@
       'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
       'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv',
       'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
-      'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-entrada', 'compras-proceso-historial',
+      'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial',
       'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa',
       'config-comandas',
     ],
@@ -32,7 +32,7 @@
       'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
       'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones',
       'compras-recepcion', 'compras-proveedores', 'compras-cortes', 'compras-proceso-sesion',
-      'compras-proceso-entrada', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos',
+      'compras-proceso-historial', 'compras-oficina', 'pedidos-internos',
       'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas',
     ],
     retail: [
@@ -82,11 +82,11 @@
       mesero: ['tablets', 'comandas'],
       cocina: [
         'cocina', 'comandas', 'pedidos-internos', 'compras-cortes', 'compras-proceso-sesion',
-        'compras-proceso-entrada',
+        'compras-recepcion',
       ],
       inventario: [
         'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
-        'compras-cortes', 'compras-proceso-entrada', 'compras-proceso-historial', 'pedidos-internos', 'inventarios',
+        'compras-cortes', 'compras-proceso-historial', 'pedidos-internos', 'inventarios',
         'catalogo-mp', 'costos-matriz', 'sistema-costos-inv',
       ],
       admin: PERFIL_CLIENT_MENUS.grande.filter(function (m) {

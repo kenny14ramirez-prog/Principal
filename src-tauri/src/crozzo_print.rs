@@ -2,6 +2,8 @@
 
 #[path = "crozzo_print_html.rs"]
 mod crozzo_print_html;
+#[path = "crozzo_print_html_pdf.rs"]
+mod crozzo_print_html_pdf;
 
 use serde::Serialize;
 
@@ -127,6 +129,29 @@ pub fn crozzo_print_html_b64(
         html_b64,
         copies.unwrap_or(1),
         landscape.unwrap_or(true),
+    )
+}
+
+#[tauri::command]
+pub fn crozzo_html_to_pdf_b64(
+    app: tauri::AppHandle,
+    html_b64: String,
+    page_format: Option<String>,
+    save_filename: Option<String>,
+) -> Result<crozzo_print_html_pdf::CrozzoHtmlPdfResult, String> {
+    if crate::crozzo_emulation::is_active() {
+        return Ok(crozzo_print_html_pdf::CrozzoHtmlPdfResult {
+            ok: false,
+            pdf_b64: String::new(),
+            saved_path: String::new(),
+            message: "PDF no simulado en modo emulación.".into(),
+        });
+    }
+    crozzo_print_html_pdf::html_to_pdf_b64_sync(
+        app,
+        html_b64,
+        page_format.unwrap_or_else(|| "legal".into()),
+        save_filename,
     )
 }
 

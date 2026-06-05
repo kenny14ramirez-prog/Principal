@@ -2359,7 +2359,7 @@
     ) {
       return renderHpCompras(ctx);
     }
-    if (p === 'centro-procesos' || p === 'compras-proceso-sesion' || p === 'compras-proceso-entrada' || p === 'compras-proceso-historial') {
+    if (p === 'centro-procesos' || p === 'compras-proceso-sesion' || p === 'compras-proceso-historial') {
       return renderHpCortes(ctx);
     }
     if (p === 'admin') return renderHpReportes(ctx);

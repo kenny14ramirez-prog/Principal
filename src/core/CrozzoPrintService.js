@@ -1683,6 +1683,9 @@
       var envioLbl =
         typeof global.crozzoComandaEnvioEtiqueta === 'function' ? global.crozzoComandaEnvioEtiqueta(comanda) : '';
       if (envioLbl) refLine = refLine + ' · ' + envioLbl;
+      var senderLine =
+        typeof global.crozzoComandaSenderLabel === 'function' ? global.crozzoComandaSenderLabel(comanda) : '';
+      if (senderLine) refLine = refLine + ' · ' + senderLine;
       var payload = {
         head: (comanda.areaNombre || 'COMANDA') + (envioLbl ? ' · ' + envioLbl : ''),
         nameE: emp.nombreComercial || emp.razonSocial || 'Crozzo POS',
@@ -1722,6 +1725,13 @@
           ? 'Para llevar ' + (comanda.referencia || '')
           : String(comanda.referencia || '');
     escPushText(chunks, ref);
+    var senderLine =
+      typeof global.crozzoComandaSenderLabel === 'function' ? global.crozzoComandaSenderLabel(comanda) : '';
+    if (senderLine) {
+      escFont(chunks, 'xs');
+      escPushText(chunks, senderLine);
+      escFont(chunks, 'sm');
+    }
     var envioLine =
       typeof global.crozzoComandaEnvioEtiqueta === 'function' ? global.crozzoComandaEnvioEtiqueta(comanda) : '';
     if (envioLine) {
@@ -2775,6 +2785,8 @@
         : comanda.tipoServicio === 'llevar'
           ? 'Para llevar · ' + (comanda.referencia || '—')
           : String(comanda.referencia || '—');
+    var senderLine =
+      typeof global.crozzoComandaSenderLabel === 'function' ? global.crozzoComandaSenderLabel(comanda) : '';
     var lines = crozzoComandaPrintLines(comanda)
       .map(function (ln) {
         if (ln.kind === 'opciones') return 'Opciones:\n' + String(ln.n || '').trim();
@@ -2791,6 +2803,7 @@
       comanda.id +
       ' · ' +
       ref +
+      (senderLine ? '\n' + senderLine : '') +
       '\n' +
       lines +
       '\n</pre>'
@@ -2978,7 +2991,121 @@
   global.crozzoPrintTemplateHtml = crozzoPrintTemplateHtml;
   global.crozzoPrintBatchLabelsHtml = crozzoPrintBatchLabelsHtml;
   global.crozzoPrintRollLabelsHtml = crozzoPrintRollLabelsHtml;
-  global.crozzoPrintHtmlWindowOpen = crozzoPrintHtmlWindowOpen;
+  function crozzoDownloadPdfBlob(blob, filename) {
+    try {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = String(filename || 'documento.pdf');
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      global.setTimeout(function () {
+        URL.revokeObjectURL(url);
+        a.remove();
+      }, 400);
+      return true;
+    } catch (e) {
+      console.error('[crozzo-print] downloadPdfBlob', e);
+      return false;
+    }
+  }
+
+  function crozzoExportHtmlToPdfPrintDialog(htmlDocument, filename) {
+    return crozzoPrintHtmlWindowOpen(htmlDocument, { delayMs: 700 }).then(function (ok) {
+      if (ok && typeof global.showToast === 'function') {
+        global.showToast(
+          'Elija «Microsoft Print to PDF» y guarde como ' +
+            filename +
+            ' (misma calidad que Reimprimir Oficio).',
+          'info'
+        );
+      }
+      return { ok: !!ok, mode: 'print-dialog', filename: filename };
+    });
+  }
+
+  function crozzoHtmlInjectPdfBaseHref(htmlDocument) {
+    if (!htmlDocument || typeof htmlDocument !== 'string') return htmlDocument;
+    if (/<base\s/i.test(htmlDocument)) return htmlDocument;
+    var origin = '';
+    try {
+      origin = String(global.location && global.location.origin ? global.location.origin : '').trim();
+    } catch (_) {}
+    if (!origin || origin === 'null') return htmlDocument;
+    var baseTag = '<base href="' + origin.replace(/\/$/, '') + '/">';
+    if (/<head[^>]*>/i.test(htmlDocument)) {
+      return htmlDocument.replace(/<head([^>]*)>/i, '<head$1>' + baseTag);
+    }
+    return baseTag + htmlDocument;
+  }
+
+  /** PDF oficio/carta: WebView2 PrintToPdf en Tauri; guarda en Descargas; si falla, cuadro de impresión. */
+  function crozzoExportHtmlToPdf(htmlDocument, options) {
+    options = options || {};
+    if (!htmlDocument) return Promise.reject(new Error('Sin documento HTML'));
+    var filename = String(options.filename || 'documento.pdf');
+    var pageFormat = String(options.pageFormat || 'legal');
+    htmlDocument = crozzoHtmlInjectPdfBaseHref(htmlDocument);
+    if (crozzoIsTauri()) {
+      return crozzoPromiseWithTimeout(
+        crozzoTauriInvoke('crozzo_html_to_pdf_b64', {
+          htmlB64: crozzoUtf8ToBase64(htmlDocument),
+          pageFormat: pageFormat,
+          saveFilename: filename,
+        }).catch(function (invokeErr) {
+          var msg =
+            invokeErr && (invokeErr.message || invokeErr.toString())
+              ? String(invokeErr.message || invokeErr)
+              : 'Comando PDF no disponible';
+          throw new Error(msg);
+        }),
+        options.timeoutMs || 90000,
+        null
+      )
+        .then(function (res) {
+          if (res === null) throw new Error('Tiempo agotado generando PDF (espere e intente de nuevo)');
+          if (!res || !res.ok) {
+            throw new Error((res && res.message) || 'PDF nativo no generado');
+          }
+          if (res.saved_path) {
+            if (typeof global.showToast === 'function' && options.toast !== false) {
+              global.showToast('PDF guardado en Descargas: ' + filename, 'success');
+            }
+            return { ok: true, mode: 'native-oficio', filename: filename, savedPath: res.saved_path };
+          }
+          if (!res.pdf_b64) {
+            throw new Error((res && res.message) || 'PDF nativo vacío');
+          }
+          var binary = atob(String(res.pdf_b64));
+          var bytes = new Uint8Array(binary.length);
+          for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          var blob = new Blob([bytes], { type: 'application/pdf' });
+          if (!crozzoDownloadPdfBlob(blob, filename)) {
+            throw new Error((res && res.message) || 'No se pudo guardar el PDF en Descargas');
+          }
+          if (typeof global.showToast === 'function' && options.toast !== false) {
+            global.showToast('PDF descargado: ' + filename, 'success');
+          }
+          return { ok: true, mode: 'native-oficio', filename: filename };
+        })
+        .catch(function (err) {
+          console.warn('[crozzo-print] exportHtmlToPdf native', err);
+          if (options.printDialogFallback === false) throw err;
+          if (typeof global.showToast === 'function' && options.toast !== false) {
+            global.showToast(
+              (err && err.message ? String(err.message) + ' — ' : '') +
+                'Abriendo impresión Oficio (Microsoft Print to PDF).',
+              'warning'
+            );
+          }
+          return crozzoExportHtmlToPdfPrintDialog(htmlDocument, filename);
+        });
+    }
+    return crozzoExportHtmlToPdfPrintDialog(htmlDocument, filename);
+  }
+
+  global.crozzoExportHtmlToPdf = crozzoExportHtmlToPdf;
   global.crozzoPrintFactura = crozzoPrintFactura;
   global.crozzoAutoPrintFacturaIfConfigured = crozzoAutoPrintFacturaIfConfigured;
   global.crozzoPrintComanda = crozzoPrintComanda;

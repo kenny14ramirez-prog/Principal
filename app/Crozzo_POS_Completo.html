@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.69">
+<meta name="crozzo-app-version" content="1.0.70">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
@@ -153,13 +153,6 @@ window.crozzoAppDisplayName = function () {
         document.body.classList.add('crozzo-login-open');
         var ov = document.getElementById('loginOverlay');
         if (ov) ov.removeAttribute('hidden');
-        var bs = document.getElementById('loginBuildStamp');
-        if (bs) {
-          var mv = document.querySelector('meta[name="crozzo-app-version"]');
-          var ver = mv ? mv.getAttribute('content') : '';
-          bs.textContent = ver ? 'Build ' + ver + ' (cargando…)' : '';
-          bs.hidden = false;
-        }
       } catch (_) {}
     }
     if (document.readyState === 'loading') {
@@ -252,14 +245,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="procesos" data-nav-group="procesos" data-nav-category="procesos">
           <button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="nav-group-procesos" id="nav-toggle-procesos">
-            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="workflow"></i></span><span class="nav-group-title">Procesos</span></span>
+            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="chef-hat"></i></span><span class="nav-group-title">Prep cocina</span></span>
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-procesos" role="group" aria-labelledby="nav-toggle-procesos">
-            <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">Centro de producción</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="sparkles"></i></span><span class="nav-item-label">Nueva sesión</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-entrada" data-menu="compras-proceso-entrada" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="package-check"></i></span><span class="nav-item-label">Entrada materia prima</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="history"></i></span><span class="nav-item-label">Historial procesos</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">¿Qué hago hoy?</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils"></i></span><span class="nav-item-label">Anotar prep</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Lo prepé antes</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="gestion" data-nav-group="gestion" data-nav-category="gestion">
@@ -522,8 +514,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
           </div>
         </div>
       </div>
-      <h2 id="loginTitle">BONA origen</h2>
-      <p>BONA origen · Inicia sesión para continuar</p>
+      <h2 id="loginTitle">Versión</h2>
+      <p id="loginSubtitle">Inicia sesión para continuar</p>
     </div>
     <form id="loginForm" onsubmit="event.preventDefault(); handleLoginSubmit();" autocomplete="off">
       <div class="form-group">
@@ -544,8 +536,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p id="loginBaitHint" class="login-bait-hint" hidden role="status"></p>
       <div class="login-error" id="loginError" hidden></div>
       <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">🔐 Iniciar sesión</button>
-      <p class="login-hint" id="loginKennyHint" style="margin:8px 0 0;text-align:center;font-size:12px;">Super Admin: <strong>KENNY</strong> / <strong>141414</strong></p>
-      <p class="login-hint" id="loginBuildStamp" style="margin:6px 0 0;text-align:center;font-size:11px;opacity:0.8;"></p>
       <p class="login-hint" id="loginBootStatus" style="margin:6px 0 0;text-align:center;font-size:11px;opacity:0.85;" hidden></p>
       <pre id="loginJsFault" class="login-js-fault" hidden role="alert"></pre>
       <p class="login-hint" id="loginLocalHint" style="margin:10px 0 0;text-align:center;" hidden></p>

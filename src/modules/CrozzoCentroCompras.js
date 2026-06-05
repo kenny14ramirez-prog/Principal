@@ -289,7 +289,6 @@
       page === 'compras-cortes' ||
       page === 'centro-procesos' ||
       page === 'compras-proceso-sesion' ||
-      page === 'compras-proceso-entrada' ||
       page === 'compras-proceso-historial'
     ) {
       return 'procesos';
@@ -373,6 +372,7 @@
     if (page === 'compras-proveedores') return { page: 'compras-proveedores', module: null };
     if (page === 'compras-cotizaciones') return { page: 'compras-cotizaciones', module: null };
     if (page === 'compras-recepcion') return { page: 'compras-recepcion', module: null };
+    if (page === 'compras-proceso-entrada') return { page: 'compras-recepcion', module: null };
     if (page === 'compras-ordenes') return { page: 'compras-ordenes', module: null };
     return { page: page, module: null };
   };

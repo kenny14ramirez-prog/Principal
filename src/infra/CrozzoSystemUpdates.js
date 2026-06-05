@@ -482,13 +482,15 @@
     };
   }
 
-  /** Escritorio: sin auto-instal OTA (evita que GitHub pise un build local con fixes). */
+  /** Escritorio: ON por defecto; opt-out con localStorage crozzo_ota_auto=0 (desarrollo). */
   function otaAutoInstallAllowed() {
+    var TU = global.CrozzoTauriUpdater;
+    if (TU && typeof TU.isDesktopBinaryInstallAllowed === 'function') {
+      return TU.isDesktopBinaryInstallAllowed({ automaticOnly: true });
+    }
     try {
-      if (localStorage.getItem('crozzo_ota_auto') === '1') return true;
+      if (localStorage.getItem('crozzo_ota_auto') === '0') return false;
     } catch (_) {}
-    var profile = getUpdateClientProfile();
-    if (profile.isWindows || profile.isMac || profile.isDesktopBinary) return false;
     return true;
   }
 
@@ -1799,7 +1801,9 @@
           errMsg ||
           (profile.isAndroid
             ? 'Pulse «Instalar ahora» para descargar el APK o recargar la interfaz si usa navegador.'
-            : 'Pulse «Instalar ahora» para recargar la app con la versión nueva del servidor.');
+            : profile.isDesktopBinary
+              ? 'Pulse «Instalar ahora» para descargar e instalar la nueva versión en este equipo.'
+              : 'Pulse «Instalar ahora» para recargar la app con la versión nueva del servidor.');
       }
       if (dismiss) {
         dismiss.disabled = false;
@@ -2542,7 +2546,6 @@
 
   function shouldDeferCriticalAutoOnBoot(profile) {
     if (!profile) return true;
-    if (profile.isWindows || profile.isMac || profile.isDesktopBinary) return true;
     return profile.kind === 'android' || profile.kind === 'android-web';
   }
 
@@ -2964,7 +2967,9 @@
         setCriticalOpen(true);
         populateCriticalInfo('idle');
       }
-      setCheckStatus('Actualización ' + remote + ' disponible para Android.');
+      setCheckStatus(
+        'Actualización ' + remote + ' lista. Pulse «Instalar ahora» cuando quiera.'
+      );
       if (opts.returnPromise) return Promise.resolve({ deferred: true });
       return true;
     }
@@ -3421,6 +3426,8 @@
     setCheckStatus('Aplicando actualización ' + remote + '…');
     return applyClientUpdate(remote, handleInstallProgress, {
       silent: false,
+      userInitiated: true,
+      automaticOnly: false,
       markInstalled: getUpdateClientProfile().kind !== 'android',
     })
       .then(function (res) {
@@ -3488,7 +3495,12 @@
         changelog: UPDATE_NORMAL.changes || [],
       });
       waitForPosIdleBeforeInstall(function () {
-        return applyBinaryUpdate(next, null, { silent: false, allowSilentSetup: true }).then(function (res) {
+        return applyBinaryUpdate(next, null, {
+          silent: false,
+          allowSilentSetup: true,
+          userInitiated: true,
+          automaticOnly: false,
+        }).then(function (res) {
           if (res && res.exiting && res.plan === 'C') {
             resetAcceptBtn();
             _installUi.state = 'installing';
@@ -3734,6 +3746,29 @@
       e.preventDefault();
       resetUpdateDismissals();
     });
+
+    var desktopAuto = document.getElementById('crozzoUpdateDesktopAutoInstall');
+    if (desktopAuto) {
+      try {
+        desktopAuto.checked = localStorage.getItem('crozzo_ota_auto') !== '0';
+      } catch (_) {
+        desktopAuto.checked = true;
+      }
+      wireOnce(desktopAuto, function () {
+        try {
+          if (desktopAuto.checked) localStorage.removeItem('crozzo_ota_auto');
+          else localStorage.setItem('crozzo_ota_auto', '0');
+        } catch (_) {}
+        if (typeof global.showToast === 'function') {
+          global.showToast(
+            desktopAuto.checked
+              ? 'Auto-instalación en PC activada.'
+              : 'Auto-instalación en PC desactivada (solo avisos).',
+            'info'
+          );
+        }
+      });
+    }
 
     ensurePlanBAdminCard(root);
 

@@ -8494,8 +8494,15 @@ body.crozzo-unified-chrome .crozzo-hfsi {
 
 body.crozzo-page-pedidos-internos .main-body { max-width: 960px; margin: 0 auto; }
 
-/* Centro de producción / procesos — scroll único dentro del panel */
-body.crozzo-page-centro-procesos .main-body,
+/* Centro de producción — panel local (Nueva sesión) */
+.ccp-local {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.ccp.bona .ccp-local {
+  background: transparent;
+}
+
 #mainContent.main-body--centro-procesos {
   padding: 0 !important;
   overflow: hidden !important;
@@ -15864,6 +15871,233 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   }
 }
 
+.crozzo-sticky-throw-clone {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38) !important;
+  will-change: transform, left, top, opacity, border-radius, filter;
+}
+
+.crozzo-sticky-note.sticky-throwing {
+  pointer-events: none;
+}
+
+/* --- Sestica de malla (historial del día) — anclada al corcho --- */
+.crozzo-comanda-trash-dock {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 24;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.crozzo-comanda-trash-dock:not([hidden]) {
+  pointer-events: auto;
+}
+.crozzo-comanda-trash-dock[hidden] {
+  display: none !important;
+}
+.crozzo-comandas-area-cork,
+.crozzo-comandas-stations-cork {
+  padding-bottom: 118px;
+}
+.crozzo-comanda-trash-bin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.crozzo-comanda-trash-bin--embedded,
+.crozzo-comanda-trash-dock .crozzo-comanda-trash-bin {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+}
+.crozzo-comanda-trash-bin:hover {
+  transform: translateY(-3px) scale(1.03);
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.42));
+}
+.crozzo-comanda-trash-bin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+.crozzo-comanda-trash-bin__wrap {
+  position: relative;
+  display: block;
+  width: 78px;
+  height: 88px;
+}
+.crozzo-comanda-trash-bin__rim {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #cbd5e1 0%, #64748b 55%, #475569 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  z-index: 3;
+}
+.crozzo-comanda-trash-bin__can {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 78px;
+  overflow: hidden;
+}
+.crozzo-comanda-trash-bin__svg {
+  width: 100%;
+  height: 100%;
+  color: #64748b;
+  display: block;
+}
+.crozzo-comanda-trash-bin__crumbs {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 8%;
+  height: var(--trash-fill, 0%);
+  max-height: 72%;
+  border-radius: 40% 40% 8px 8px;
+  background:
+    radial-gradient(circle at 30% 20%, #fef9c3 0%, transparent 42%),
+    radial-gradient(circle at 70% 35%, #fde68a 0%, transparent 38%),
+    linear-gradient(180deg, rgba(254, 243, 199, 0.95) 0%, rgba(251, 191, 36, 0.55) 100%);
+  opacity: 0.85;
+  pointer-events: none;
+  transition: height 0.35s ease;
+}
+.crozzo-comanda-trash-bin.has-items .crozzo-comanda-trash-bin__crumbs {
+  box-shadow: inset 0 -4px 8px rgba(180, 83, 9, 0.15);
+}
+.crozzo-comanda-trash-bin__count {
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+  color: #1c1917;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 22px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  z-index: 5;
+}
+.crozzo-comanda-trash-bin__count:empty {
+  display: none;
+}
+.crozzo-comanda-trash-bin__lbl {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__wrap {
+  animation: crozzoTrashCatch 0.58s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+.crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__can {
+  animation: crozzoTrashSquish 0.58s ease;
+}
+@keyframes crozzoTrashCatch {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  18% {
+    transform: translateY(4px) rotate(-4deg);
+  }
+  38% {
+    transform: translateY(-6px) rotate(3deg);
+  }
+  58% {
+    transform: translateY(2px) rotate(-2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+@keyframes crozzoTrashSquish {
+  0%,
+  100% {
+    transform: translateX(-50%) scaleY(1);
+  }
+  35% {
+    transform: translateX(-50%) scaleY(0.88) scaleX(1.06);
+  }
+  55% {
+    transform: translateX(-50%) scaleY(1.04) scaleX(0.96);
+  }
+}
+
+.crozzo-trash-history-modal {
+  max-height: min(70vh, 520px);
+  overflow: auto;
+}
+.crozzo-trash-history-list {
+  display: grid;
+  gap: 8px;
+}
+.crozzo-trash-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+.crozzo-trash-history-ball {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(145deg, #fef3c7 0%, #fde68a 45%, #fbbf24 100%);
+  box-shadow: inset 0 -2px 4px rgba(180, 83, 9, 0.2), 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+.crozzo-trash-history-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.crozzo-trash-history-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.crozzo-trash-history-reprint {
+  min-height: 40px !important;
+  padding: 6px 10px !important;
+}
+
+body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
+  bottom: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__wrap,
+  .crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__can {
+    animation: none;
+  }
+}
+
 .crozzo-sticky-dragging {
   cursor: grabbing !important;
   transform: scale(1.06) rotate(0deg) !important;
@@ -15908,6 +16142,15 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   letter-spacing: 0.07em;
   opacity: 0.82;
   margin-bottom: var(--space-2);
+}
+.crozzo-sticky-sender {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  opacity: 0.78;
+  margin-bottom: 4px;
+  color: rgba(41, 37, 36, 0.88);
 }
 .crozzo-sticky-area {
   display: inline-block;
@@ -16153,6 +16396,27 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   background: rgba(255, 255, 255, 0.72);
   transform: scale(1.06);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.crozzo-sticky-call-btn {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 251, 235, 0.92);
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+}
+
+.crozzo-sticky-call-btn:hover {
+  background: #fef3c7;
+  transform: scale(1.02);
 }
 
 .crozzo-sticky-done-btn {
@@ -16540,6 +16804,13 @@ body.crozzo-corkboard-focus .comandas-layout > div {
   color: var(--text-muted);
   margin-bottom: 6px;
 }
+.crozzo-kds-card-sender {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
 .crozzo-kds-card-items {
   font-size: 0.82rem;
   color: var(--text-secondary);
@@ -16551,11 +16822,71 @@ body.crozzo-corkboard-focus .comandas-layout > div {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
+.crozzo-kds-card-actions--with-call {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.crozzo-kds-call-btn {
+  grid-column: 1 / -1;
+  border-color: rgba(245, 158, 11, 0.55) !important;
+  color: #92400e !important;
+  background: rgba(255, 251, 235, 0.95) !important;
+}
 .crozzo-kds-touch-btn {
   padding: 12px 8px !important;
   font-size: 0.82rem !important;
   font-weight: 700 !important;
   min-height: 48px;
+}
+
+.crozzo-staff-call-banner-host {
+  position: fixed;
+  inset: auto 12px 12px 12px;
+  z-index: 10050;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+}
+.crozzo-staff-call-banner-host.is-visible {
+  pointer-events: auto;
+}
+.crozzo-staff-call-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  max-width: 520px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 2px solid rgba(245, 158, 11, 0.65);
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
+  animation: crozzoStaffCallPop 0.35s ease-out;
+}
+.crozzo-staff-call-banner__body {
+  flex: 1;
+  min-width: 180px;
+}
+.crozzo-staff-call-banner__body p {
+  margin: 6px 0 4px;
+  font-size: 0.92rem;
+  color: #78350f;
+}
+.crozzo-staff-call-banner__stack {
+  display: block;
+  margin-top: 6px;
+  color: #92400e;
+  font-weight: 700;
+}
+@keyframes crozzoStaffCallPop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Tablets: targets táctiles un poco mayores (sin duplicar lógica de pedido) */

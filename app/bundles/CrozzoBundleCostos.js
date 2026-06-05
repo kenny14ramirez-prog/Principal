@@ -389,6 +389,40 @@
   /** Fila oficial en «Costeos guardados» — se actualiza con MP, recetas y sincronización. */
   var PERIODO_COSTEO_VIGENTE = 'vigente';
 
+  /** Categorías oficiales de materia prima — usadas en catálogo, compras y prep cocina. */
+  var CATEGORIAS_MP = [
+    'PROTEINAS',
+    'LACTEOS',
+    'FRUVER',
+    'ABARROTES',
+    'PULPAS Y CONGELADOS',
+    'BEBIDAS Y LICORES',
+    'DESECHABLES',
+    'TERCERIZADOS',
+    'ASEO',
+    'PROCESADOS',
+    'ELABORADOS',
+    'OTRO',
+  ];
+
+  var CATEGORIA_MP_LABEL = {
+    PROTEINAS: 'Proteínas (carnes, pollo, pescado)',
+    LACTEOS: 'Lácteos',
+    FRUVER: 'Fruver',
+    ABARROTES: 'Abarrotes',
+    'PULPAS Y CONGELADOS': 'Pulpas y congelados',
+    'BEBIDAS Y LICORES': 'Bebidas y licores',
+    DESECHABLES: 'Desechables',
+    TERCERIZADOS: 'Tercerizados',
+    ASEO: 'Aseo',
+    PROCESADOS: 'Procesados',
+    ELABORADOS: 'Elaborados / prep',
+    OTRO: 'Otro / sin clasificar',
+  };
+
+  var MP_COCINA_EXCLUIDAS = ['BEBIDAS Y LICORES', 'DESECHABLES', 'ASEO', 'TERCERIZADOS', 'ELABORADOS', 'OTRO'];
+  var MP_COCCION_CATS = ['PROTEINAS', 'PULPAS Y CONGELADOS', 'FRUVER', 'PROCESADOS', 'LACTEOS', 'ABARROTES'];
+
   var demoCache = null;
   var ready = false;
   var readyCbs = [];
@@ -664,6 +698,19 @@
       costeoMpSourceId: raw.costeoMpSourceId ? String(raw.costeoMpSourceId).trim() : null,
       origen: raw.origen || 'menu',
       tipoCosteo: tipo,
+      modoProceso:
+        raw.modoProceso === 'bajo_demanda'
+          ? 'bajo_demanda'
+          : raw.modoProceso === 'prep_anticipado'
+            ? 'prep_anticipado'
+            : null,
+      tipoReceta: raw.tipoReceta === 'full' ? 'full' : raw.tipoReceta === 'base' ? 'base' : null,
+      workflowPrep:
+        raw.workflowPrep === 'coccion' || raw.workflowPrep === 'elaboracion' || raw.workflowPrep === 'ninguno'
+          ? raw.workflowPrep
+          : null,
+      prepConfigManual: raw.prepConfigManual === true,
+      vendeAlCliente: raw.vendeAlCliente === true || raw.vendeAlCliente === 1,
       margenObjetivoPct: raw.margenObjetivoPct != null ? num(raw.margenObjetivoPct) : null,
       margenMinimoPct: raw.margenMinimoPct != null ? num(raw.margenMinimoPct) : null,
       programaciones: prog,
@@ -687,6 +734,411 @@
     var cat = String(p.categoria || '').toLowerCase();
     if (cat === 'bebidas') return 'directo';
     return 'receta';
+  }
+
+  /** Prep anticipado (salsas, bases) vs al momento del pedido (jugos, armado de plato). */
+  function recetaUsaElaborados(slug) {
+    var rec = getRecetaPlato(slug);
+    if (!rec || !rec.lineas.length) return false;
+    return rec.lineas.some(function (ln) {
+      if (ln.mpId) {
+        var mp = get(ln.mpId);
+        if (mp && (mp.esElaborado || String(mp.categoria || '').toUpperCase() === 'ELABORADOS')) return true;
+      }
+      if (!ln.ingrediente) return false;
+      var s = slugPlato(ln.ingrediente);
+      if (!s || s === slug) return false;
+      var menu = getMenuPlato(s);
+      return !!(menu && menu.tipoCosteo === 'receta');
+    });
+  }
+
+  function inferTipoRecetaFromMenu(row) {
+    if (!row) return 'base';
+    if (row.tipoReceta === 'base' || row.tipoReceta === 'full') return row.tipoReceta;
+    if (row.tipoCosteo === 'directo') return 'full';
+    var cat = String(row.categoria || '').toLowerCase();
+    var nom = String(row.producto || '').toLowerCase();
+    if (
+      cat.indexOf('salsa') >= 0 ||
+      cat.indexOf('base') >= 0 ||
+      cat.indexOf('caldo') >= 0 ||
+      cat.indexOf('fondo') >= 0 ||
+      cat.indexOf('mise') >= 0 ||
+      cat.indexOf('prep') >= 0
+    ) {
+      return 'base';
+    }
+    if (row.posProductId != null) return 'full';
+    if (row.slug && recetaUsaElaborados(row.slug)) return 'full';
+    if (
+      cat.indexOf('beb') >= 0 ||
+      cat.indexOf('jug') >= 0 ||
+      cat.indexOf('bar') >= 0 ||
+      cat.indexOf('plato') >= 0 ||
+      cat.indexOf('fuerte') >= 0 ||
+      nom.indexOf('jugo') >= 0 ||
+      nom.indexOf('spag') >= 0 ||
+      nom.indexOf('pasta') >= 0
+    ) {
+      return 'full';
+    }
+    if (row.precioVenta > 0) return 'full';
+    return 'base';
+  }
+
+  /** Solo ítems que el módulo Procesos debe registrar a mano (prep en bodega). */
+  function requiresSesionProceso(row) {
+    if (!row) return false;
+    if (row.tipoCosteo === 'directo') return false;
+    return inferModoProcesoFromMenu(row) === 'prep_anticipado';
+  }
+
+  function getMenuPlatoByPosId(posProductId) {
+    if (posProductId == null) return null;
+    var st = loadStore();
+    var hit = (st.menuCostos || []).find(function (m) {
+      var row = normalizeMenuPlato(m);
+      return row && row.posProductId != null && String(row.posProductId) === String(posProductId);
+    });
+    return hit ? normalizeMenuPlato(hit) : null;
+  }
+
+  function inferModoProcesoFromMenu(row) {
+    if (!row) return 'prep_anticipado';
+    if (row.modoProceso === 'bajo_demanda' || row.modoProceso === 'prep_anticipado') return row.modoProceso;
+    var tipoRec = inferTipoRecetaFromMenu(row);
+    if (tipoRec === 'full') return 'bajo_demanda';
+    if (tipoRec === 'base') return 'prep_anticipado';
+    var cat = String(row.categoria || '').toLowerCase();
+    var nom = String(row.producto || '').toLowerCase();
+    if (
+      cat.indexOf('beb') >= 0 ||
+      cat.indexOf('jug') >= 0 ||
+      cat.indexOf('bar') >= 0 ||
+      cat.indexOf('refresco') >= 0
+    ) {
+      return 'bajo_demanda';
+    }
+    if (
+      nom.indexOf('jugo') >= 0 ||
+      nom.indexOf('limonada') >= 0 ||
+      nom.indexOf('smoothie') >= 0 ||
+      nom.indexOf('malteada') >= 0
+    ) {
+      return 'bajo_demanda';
+    }
+    if (row.slug && recetaUsaElaborados(row.slug)) return 'bajo_demanda';
+    return 'prep_anticipado';
+  }
+
+  /** Plato/receta de Costos enlazado a esta MP (elaborado o costeo directo). */
+  function resolveMenuSlugForMp(mpId) {
+    if (!mpId) return null;
+    var st = loadStore();
+    var catRow = (st.catalogoMp || []).find(function (c) {
+      return c && String(c.id) === String(mpId);
+    });
+    if (catRow && catRow.menuSlug) return String(catRow.menuSlug);
+    var byCosteo = (st.menuCostos || []).find(function (m) {
+      var row = normalizeMenuPlato(m);
+      return row && row.costeoMpSourceId && String(row.costeoMpSourceId) === String(mpId);
+    });
+    if (byCosteo && byCosteo.slug) return byCosteo.slug;
+    if (catRow && catRow.nombre) {
+      var nom = String(catRow.nombre).trim().toUpperCase();
+      var byNom = (st.menuCostos || []).find(function (m) {
+        var row = normalizeMenuPlato(m);
+        return row && String(row.producto || '').trim().toUpperCase() === nom;
+      });
+      if (byNom && byNom.slug) return byNom.slug;
+    }
+    return null;
+  }
+
+  function getProcesoVentaForMp(mpId) {
+    if (!mpId) return null;
+    var mp = get(mpId);
+    if (mp && mp.procesoVenta) return mp.procesoVenta;
+    var slug = resolveMenuSlugForMp(mpId);
+    if (!slug) return null;
+    var menu = getMenuPlato(slug);
+    if (!menu) return null;
+    if (menu.modoProceso === 'bajo_demanda' || menu.modoProceso === 'prep_anticipado') return menu.modoProceso;
+    return inferModoProcesoFromMenu(menu);
+  }
+
+  function inferWorkflowPrepFromReceta(slug) {
+    if (!slug) return null;
+    var rec = getRecetaPlato(slug);
+    if (!rec || !rec.lineas || !rec.lineas.length) return null;
+    var cocScore = 0;
+    var elabScore = 0;
+    rec.lineas.forEach(function (ln) {
+      var mp = ln.mpId ? get(ln.mpId) : null;
+      if (mp) {
+        var cat = normalizeCategoriaMp(mp.categoria);
+        if (cat === 'PROTEINAS' || cat === 'PULPAS Y CONGELADOS') cocScore += 1;
+        if (cat === 'ABARROTES' || cat === 'FRUVER' || cat === 'LACTEOS') cocScore += 1;
+        if (num(mp.mermaCoccionPct) > 0) cocScore += 2;
+        if (isMpElaboradoCatalog(mp) || cat === 'ELABORADOS') elabScore += 2;
+      }
+      var ing = String(ln.ingrediente || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      if (/\b(salsa|caldo|aderezo|sofrito|base|pesto|mayonesa)\b/.test(ing)) elabScore += 2;
+      if (/\b(arroz|frijol|lenteja|papa|pasta|guiso|porcion|batch)\b/.test(ing)) cocScore += 2;
+    });
+    if (recetaUsaElaborados(slug) && elabScore <= cocScore) elabScore += 1;
+    if (cocScore > elabScore && cocScore >= 2) return 'coccion';
+    if (elabScore >= cocScore && elabScore >= 1) return 'elaboracion';
+    return null;
+  }
+
+  function inferWorkflowPrepFromMenu(row) {
+    if (!row) return 'elaboracion';
+    if (row.workflowPrep === 'elaboracion' || row.workflowPrep === 'coccion' || row.workflowPrep === 'ninguno') {
+      if (!row.prepConfigManual && row.slug) {
+        var fromRec = inferWorkflowPrepFromReceta(row.slug);
+        if (fromRec && fromRec !== row.workflowPrep) return fromRec;
+      }
+      return row.workflowPrep;
+    }
+    if (inferModoProcesoFromMenu(row) === 'bajo_demanda') return 'ninguno';
+    var fromReceta = row.slug ? inferWorkflowPrepFromReceta(row.slug) : null;
+    if (fromReceta) return fromReceta;
+    var nom = String(row.producto || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    var cat = String(row.categoria || '').toLowerCase();
+    if (
+      /\b(arroz|cocido|guiso|guisado|porcion|porcionado|batch|frijol|lenteja|pasta cocida|prep cocido)\b/.test(nom) ||
+      cat.indexOf('guiso') >= 0 ||
+      cat.indexOf('cocido') >= 0
+    ) {
+      return 'coccion';
+    }
+    return 'elaboracion';
+  }
+
+  function inferPrepCocinaTipo(row) {
+    if (!row || row.tipoCosteo === 'directo') return 'al_vender';
+    if (inferModoProcesoFromMenu(row) === 'bajo_demanda') return 'al_vender';
+    return getWorkflowPrepForMenu(row) === 'coccion' ? 'prep_cocinar' : 'prep_salsas';
+  }
+
+  function prepCocinaTipoFromRow(row, preferStored) {
+    if (!row || row.tipoCosteo === 'directo') return 'al_vender';
+    if (preferStored !== false && row.modoProceso) {
+      if (row.modoProceso === 'bajo_demanda') return 'al_vender';
+      if (row.modoProceso === 'prep_anticipado') {
+        return row.workflowPrep === 'coccion' ? 'prep_cocinar' : 'prep_salsas';
+      }
+    }
+    return inferPrepCocinaTipo(row);
+  }
+
+  function applyPrepCocinaTipo(slug, tipo, opts) {
+    opts = opts || {};
+    if (!slug) return null;
+    var patch;
+    if (tipo === 'al_vender') {
+      patch = { modoProceso: 'bajo_demanda', tipoReceta: 'full', workflowPrep: 'ninguno' };
+    } else if (tipo === 'prep_cocinar') {
+      patch = { modoProceso: 'prep_anticipado', tipoReceta: 'base', workflowPrep: 'coccion' };
+    } else {
+      patch = { modoProceso: 'prep_anticipado', tipoReceta: 'base', workflowPrep: 'elaboracion' };
+    }
+    if (opts.prepConfigManual != null) patch.prepConfigManual = !!opts.prepConfigManual;
+    if (opts.vendeAlCliente != null) patch.vendeAlCliente = !!opts.vendeAlCliente;
+    return updateMenuPlato(slug, patch);
+  }
+
+  function autoApplyMenuPrepConfig(slug, opts) {
+    opts = opts || {};
+    var row = getMenuPlato(slug);
+    if (!row || row.tipoCosteo === 'directo') return null;
+    if (row.prepConfigManual && !opts.force) return row;
+    var inferred = inferPrepCocinaTipo(row);
+    return applyPrepCocinaTipo(slug, inferred, { prepConfigManual: false });
+  }
+
+  function autoNormalizeAllMpCategories() {
+    var n = 0;
+    list().forEach(function (item) {
+      if (!item || !item.id) return;
+      var norm = normalizeCategoriaMp(item.categoria);
+      if (norm === 'OTRO') {
+        var guess = guessCategoriaFromNombre(item.nombre);
+        if (guess !== 'OTRO') norm = guess;
+      }
+      if (norm !== item.categoria) {
+        upsertCatalog({ id: item.id, categoria: norm }, { skipInvMov: true, skipIdCheck: true });
+        n++;
+      }
+    });
+    return n;
+  }
+
+  function runPrepCatalogAutomation(opts) {
+    opts = opts || {};
+    var mpN = autoNormalizeAllMpCategories();
+    var menuN = 0;
+    (loadStore().menuCostos || []).forEach(function (m) {
+      var row = normalizeMenuPlato(m);
+      if (!row || row.tipoCosteo === 'directo') return;
+      if (opts.onlyUnset && row.prepConfigManual) return;
+      if (opts.onlyUnset && row.modoProceso && row.workflowPrep) return;
+      autoApplyMenuPrepConfig(row.slug, { force: !opts.onlyUnset });
+      menuN++;
+    });
+    if (!opts.silent && (mpN || menuN)) {
+      emitChanged({ tipo: 'prep-auto', mpN: mpN, menuN: menuN });
+    }
+    return { mpN: mpN, menuN: menuN };
+  }
+
+  function getWorkflowPrepForMenu(row) {
+    return inferWorkflowPrepFromMenu(row);
+  }
+
+  function menuRowMatchesPrepWorkflow(row, workflow) {
+    if (!row || !workflow) return true;
+    if (workflow === 'despiece') return false;
+    if (inferModoProcesoFromMenu(row) !== 'prep_anticipado') return false;
+    var wf = getWorkflowPrepForMenu(row);
+    if (workflow === 'elaboracion') return wf === 'elaboracion';
+    if (workflow === 'coccion') return wf === 'coccion';
+    return true;
+  }
+
+  /** Sincroniza prep antes vs al vender entre MP y plato de Costos. */
+  function applyProcesoVentaFromMp(slug, procesoVenta, opts) {
+    opts = opts || {};
+    procesoVenta =
+      procesoVenta === 'bajo_demanda' || procesoVenta === 'prep_anticipado' ? procesoVenta : null;
+    if (!procesoVenta) return null;
+    var patch = {
+      modoProceso: procesoVenta,
+      tipoReceta: procesoVenta === 'bajo_demanda' ? 'full' : 'base',
+      workflowPrep: procesoVenta === 'bajo_demanda' ? 'ninguno' : opts.workflowPrep || undefined,
+    };
+    if (procesoVenta === 'prep_anticipado' && patch.workflowPrep == null) {
+      var cur = slug ? getMenuPlato(slug) : null;
+      patch.workflowPrep =
+        cur && cur.workflowPrep && cur.workflowPrep !== 'ninguno' ? cur.workflowPrep : 'elaboracion';
+    }
+    if (procesoVenta === 'prep_anticipado' && opts.vendeAlCliente != null) {
+      patch.vendeAlCliente = !!opts.vendeAlCliente;
+    }
+    var menuRow = null;
+    if (slug) menuRow = updateMenuPlato(slug, patch);
+    if (opts.mpId) {
+      var mpPatch = { id: String(opts.mpId), procesoVenta: procesoVenta };
+      if (slug) mpPatch.menuSlug = slug;
+      upsertCatalog(mpPatch, { skipInvMov: true, skipIdCheck: true });
+    }
+    return menuRow;
+  }
+
+  /** Mermas reales: cocinado (entrada→cocido) y desposte/desgrado (cocido/entrada→útil). */
+  function calcMermasProceso(pesoEntradaKg, pesoCocidoKg, pesoUtilKg) {
+    var ent = num(pesoEntradaKg);
+    var coc = num(pesoCocidoKg);
+    var util = num(pesoUtilKg);
+    var mermaCoccionKg = 0;
+    var mermaDesposteKg = 0;
+    var mermaCoccionPct = null;
+    var mermaDespostePct = null;
+    if (ent > 0 && coc > 0) {
+      mermaCoccionKg = Math.max(0, ent - coc);
+      mermaCoccionPct = (mermaCoccionKg / ent) * 100;
+    }
+    var baseDesposte = coc > 0 ? coc : ent;
+    if (baseDesposte > 0 && util > 0) {
+      mermaDesposteKg = Math.max(0, baseDesposte - util);
+      mermaDespostePct = (mermaDesposteKg / baseDesposte) * 100;
+    } else if (ent > 0 && util > 0 && coc <= 0) {
+      mermaDesposteKg = Math.max(0, ent - util);
+      mermaDespostePct = (mermaDesposteKg / ent) * 100;
+    }
+    return {
+      pesoEntradaKg: ent,
+      pesoCocidoKg: coc,
+      pesoUtilKg: util,
+      mermaCoccionKg: mermaCoccionKg,
+      mermaDesposteKg: mermaDesposteKg,
+      mermaCoccionPct: mermaCoccionPct,
+      mermaDespostePct: mermaDespostePct,
+      mermaTotalKg: mermaCoccionKg + mermaDesposteKg,
+      mermaTotalPct: ent > 0 ? ((mermaCoccionKg + mermaDesposteKg) / ent) * 100 : null,
+    };
+  }
+
+  function evalMermaProcesoAlerta(mp, mermas) {
+    mermas = mermas || {};
+    if (!mp) return { ok: true };
+    var ref = getPerdidasProcesoRef();
+    var espC = num(mp.mermaCoccionPct) > 0 ? num(mp.mermaCoccionPct) : ref.coccionPct;
+    var espD = num(mp.mermaDespostePct) > 0 ? num(mp.mermaDespostePct) : ref.despiecePct;
+    var realC = mermas.mermaCoccionPct != null ? num(mermas.mermaCoccionPct) : null;
+    var realD = mermas.mermaDespostePct != null ? num(mermas.mermaDespostePct) : null;
+    var tol = num(ref.toleranciaPct, 3);
+    var msgs = [];
+    if (realC != null && espC > 0 && realC > espC + tol) {
+      msgs.push('cocinado ' + realC.toFixed(1) + '% (esp. ' + espC.toFixed(1) + '%)');
+    }
+    if (realD != null && espD > 0 && realD > espD + tol) {
+      msgs.push('desposte ' + realD.toFixed(1) + '% (esp. ' + espD.toFixed(1) + '%)');
+    }
+    if (!msgs.length) return { ok: true };
+    return { ok: false, mensaje: 'Merma por encima de lo esperado: ' + msgs.join(' · ') };
+  }
+
+  var PERDIDAS_PROCESO_KEY = 'crozzo_perdidas_procesos';
+  var PERDIDAS_PROCESO_DEFAULT = { despiecePct: 15, coccionPct: 25, toleranciaPct: 3 };
+
+  function getPerdidasProcesoRef() {
+    try {
+      var raw = localStorage.getItem(PERDIDAS_PROCESO_KEY);
+      if (raw) {
+        var p = JSON.parse(raw);
+        return {
+          despiecePct: num(p.despiecePct, PERDIDAS_PROCESO_DEFAULT.despiecePct),
+          coccionPct: num(p.coccionPct, PERDIDAS_PROCESO_DEFAULT.coccionPct),
+          toleranciaPct: num(p.toleranciaPct, PERDIDAS_PROCESO_DEFAULT.toleranciaPct),
+        };
+      }
+    } catch (_) {}
+    return Object.assign({}, PERDIDAS_PROCESO_DEFAULT);
+  }
+
+  function savePerdidasProcesoRef(patch) {
+    patch = patch || {};
+    var cur = getPerdidasProcesoRef();
+    var next = {
+      despiecePct: patch.despiecePct != null ? num(patch.despiecePct) : cur.despiecePct,
+      coccionPct: patch.coccionPct != null ? num(patch.coccionPct) : cur.coccionPct,
+      toleranciaPct: patch.toleranciaPct != null ? num(patch.toleranciaPct) : cur.toleranciaPct,
+    };
+    try {
+      localStorage.setItem(PERDIDAS_PROCESO_KEY, JSON.stringify(next));
+    } catch (_) {}
+    return next;
+  }
+
+  function perdidaEsperadaPct(mp, workflow) {
+    var ref = getPerdidasProcesoRef();
+    var wf = String(workflow || '').toLowerCase();
+    if (mp) {
+      if (wf === 'coccion' && num(mp.mermaCoccionPct) > 0) return num(mp.mermaCoccionPct);
+      if ((wf === 'despiece' || !wf) && num(mp.mermaDespostePct) > 0) return num(mp.mermaDespostePct);
+      if (num(mp.mermaCoccionPct) > 0 && wf === 'coccion') return num(mp.mermaCoccionPct);
+    }
+    if (wf === 'coccion') return ref.coccionPct;
+    return ref.despiecePct;
   }
 
   function getMenuPlato(slug) {
@@ -1151,6 +1603,30 @@
     return [];
   }
 
+  function normalizeCortesDespiece(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map(function (c) {
+        if (!c) return null;
+        var nom = String(c.nombre || '').trim();
+        var pct = c.pctRef != null && c.pctRef !== '' ? num(c.pctRef) : null;
+        var grPor =
+          c.grPorPorcion != null && c.grPorPorcion !== ''
+            ? num(c.grPorPorcion)
+            : c.gramosPorPorcion != null
+              ? num(c.gramosPorPorcion)
+              : null;
+        if (!nom && pct == null && !(grPor > 0)) return null;
+        return {
+          id: String(c.id || slugId(nom || 'corte')).trim(),
+          nombre: nom,
+          pctRef: pct,
+          grPorPorcion: grPor > 0 ? grPor : null,
+        };
+      })
+      .filter(Boolean);
+  }
+
   function reservorio() {
     return global.CrozzoReservorio || null;
   }
@@ -1161,7 +1637,7 @@
     var item = {
       id: id,
       nombre: String(raw.nombre || '').trim(),
-      categoria: String(raw.categoria || 'OTRO').trim().toUpperCase(),
+      categoria: normalizeCategoriaMp(raw.categoria || guessCategoriaFromNombre(raw.nombre)),
       proveedores: parseProveedores(raw.proveedores),
       materiaPrimaId: raw.materiaPrimaId || null,
       areaPedido: raw.areaPedido ? String(raw.areaPedido).trim() : null,
@@ -1171,8 +1647,32 @@
       fechaElaboracion: String(raw.fechaElaboracion || '').trim().slice(0, 10),
       fechaIngreso: String(raw.fechaIngreso || '').trim().slice(0, 10),
       fechaVencimiento: String(raw.fechaVencimiento || '').trim().slice(0, 10),
+      menuSlug: raw.menuSlug ? String(raw.menuSlug).trim() : null,
+      mpOrigenId: raw.mpOrigenId ? String(raw.mpOrigenId).trim() : null,
+      esElaborado: raw.esElaborado === true,
+      procesoVenta:
+        raw.procesoVenta === 'bajo_demanda' || raw.procesoVenta === 'prep_anticipado'
+          ? raw.procesoVenta
+          : null,
+      mermaCoccionPct:
+        raw.mermaCoccionPct != null
+          ? num(raw.mermaCoccionPct)
+          : raw.merma_coccion_pct != null
+            ? num(raw.merma_coccion_pct)
+            : null,
+      mermaDespostePct:
+        raw.mermaDespostePct != null
+          ? num(raw.mermaDespostePct)
+          : raw.merma_porcionado_pct != null
+            ? num(raw.merma_porcionado_pct)
+            : raw.merma_desposte_pct != null
+              ? num(raw.merma_desposte_pct)
+              : null,
       updatedAt: raw.updatedAt || new Date().toISOString(),
     };
+    if (raw.cortesDespiece != null) {
+      item.cortesDespiece = normalizeCortesDespiece(raw.cortesDespiece);
+    }
     if (!item.nombre) return null;
     return item;
   }
@@ -1212,7 +1712,7 @@
     return {
       id: catRow.id,
       nombre: catRow.nombre,
-      categoria: catRow.categoria,
+      categoria: normalizeCategoriaMp(catRow.categoria),
       proveedores: (catRow.proveedores || []).slice(),
       und: c.und,
       peso: c.peso,
@@ -1226,6 +1726,13 @@
       fechaElaboracion: catRow.fechaElaboracion || '',
       fechaIngreso: catRow.fechaIngreso || '',
       fechaVencimiento: catRow.fechaVencimiento || '',
+      menuSlug: catRow.menuSlug || null,
+      mpOrigenId: catRow.mpOrigenId || null,
+      esElaborado: catRow.esElaborado === true,
+      procesoVenta: catRow.procesoVenta || null,
+      mermaCoccionPct: catRow.mermaCoccionPct != null ? num(catRow.mermaCoccionPct) : null,
+      mermaDespostePct: catRow.mermaDespostePct != null ? num(catRow.mermaDespostePct) : null,
+      cortesDespiece: Array.isArray(catRow.cortesDespiece) ? catRow.cortesDespiece.slice() : [],
       precioAnterior: c.precioAnterior,
       ultimaRecepcionId: c.ultimaRecepcionId,
       ultimaRecepcionAt: c.ultimaRecepcionAt,
@@ -1467,8 +1974,8 @@
           var body = {
             nombre: item.nombre,
             categoria: mapCategoriaInventario(item.categoria),
-            merma_coccion_pct: 0,
-            merma_porcionado_pct: 0,
+            merma_coccion_pct: item.mermaCoccionPct != null ? num(item.mermaCoccionPct) : 0,
+            merma_porcionado_pct: item.mermaDespostePct != null ? num(item.mermaDespostePct) : 0,
           };
           if (Array.isArray(rows) && rows[0] && rows[0].id) {
             item.materiaPrimaId = rows[0].id;
@@ -1750,6 +2257,25 @@
       );
     }
     return merged;
+  }
+
+  /** Cortes de despiece guardados por MP (nombre + gramos por porción). */
+  function saveCortesDespiece(mpId, cortes) {
+    var id = String(mpId || '').trim();
+    if (!id) return null;
+    var mp = get(id);
+    if (!mp) return null;
+    var payload = normalizeCortesDespiece(
+      (cortes || []).map(function (c) {
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          pctRef: c.pctRef,
+          grPorPorcion: c.grPorPorcion,
+        };
+      })
+    );
+    return upsertCatalog(Object.assign({}, mp, { cortesDespiece: payload }), { skipInvMov: true });
   }
 
   function countUsages(id) {
@@ -2098,6 +2624,9 @@
       migrateStoreShape(loadStore());
       mergeCapacitacionRecetasFromDemo(loadStore(), j);
       ensureMpFromPosVentaDirecta({ silent: true });
+      try {
+        runPrepCatalogAutomation({ onlyUnset: true, silent: true });
+      } catch (_) {}
       ready = true;
       readyCbs.forEach(function (fn) {
         fn();
@@ -2149,6 +2678,109 @@
     if (c === 'entradas' || c === 'postres') return 'PROCESADOS';
     if (c === 'platos-fuertes') return 'OTRO';
     return 'OTRO';
+  }
+
+  function normalizeCategoriaMp(raw) {
+    var c = String(raw || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
+    if (!c || c === 'GENERAL' || c === 'GENERAL.') return 'OTRO';
+    if (CATEGORIAS_MP.indexOf(c) >= 0) return c;
+    if (c.indexOf('ELABOR') >= 0) return 'ELABORADOS';
+    if (c.indexOf('BEBID') >= 0 || c.indexOf('LICOR') >= 0 || c.indexOf('AGUA') >= 0) return 'BEBIDAS Y LICORES';
+    if (c.indexOf('DESECH') >= 0 || c.indexOf('EMPAQUE') >= 0) return 'DESECHABLES';
+    if (c.indexOf('ASEO') >= 0 || c.indexOf('LIMPIE') >= 0) return 'ASEO';
+    if (c.indexOf('LACT') >= 0 || c.indexOf('QUESO') >= 0) return 'LACTEOS';
+    if (c.indexOf('FRU') >= 0 || c.indexOf('VERD') >= 0 || c.indexOf('HORT') >= 0) return 'FRUVER';
+    if (c.indexOf('PULPA') >= 0 || c.indexOf('CONGEL') >= 0) return 'PULPAS Y CONGELADOS';
+    if (c.indexOf('ABARRO') >= 0 || c.indexOf('GRANO') >= 0) return 'ABARROTES';
+    if (
+      c.indexOf('CARNE') >= 0 ||
+      c.indexOf('CARN') >= 0 ||
+      c.indexOf('POLLO') >= 0 ||
+      c.indexOf('CERDO') >= 0 ||
+      c.indexOf('PESC') >= 0 ||
+      c.indexOf('MARISC') >= 0 ||
+      c.indexOf('PROTE') >= 0 ||
+      c === 'RES' ||
+      c.indexOf('RES ') >= 0 ||
+      c.indexOf(' RES') >= 0
+    ) {
+      return 'PROTEINAS';
+    }
+    if (c.indexOf('PROCES') >= 0) return 'PROCESADOS';
+    if (c.indexOf('TERCER') >= 0) return 'TERCERIZADOS';
+    return 'OTRO';
+  }
+
+  function guessCategoriaFromNombre(nombre) {
+    var n = String(nombre || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (!n.trim()) return 'OTRO';
+    if (/\b(agua|gaseosa|cerveza|licor|ron|whisky|vino|jugo|bebida|refresco|soda|cola|malta|te\s|cafe|café)\b/.test(n)) {
+      return 'BEBIDAS Y LICORES';
+    }
+    if (/\b(vaso|bolsa|servilleta|desech|empaque|envase|film|aluminio|guante)\b/.test(n)) return 'DESECHABLES';
+    if (/\b(cloro|deterg|jabon|jabón|aseo|desinf|limpia)\b/.test(n)) return 'ASEO';
+    if (/\b(pollo|pechuga|muslo|ala|carne|res\b|cerdo|chuleta|solomo|lomo|chicharron|chicharrón|pescado|trucha|salmon|salmón|camaron|marisc|atun|atún|higado|hígado|costilla|molida)\b/.test(n)) {
+      return 'PROTEINAS';
+    }
+    if (/\b(leche|queso|mantequilla|crema|yogurt|yogur)\b/.test(n)) return 'LACTEOS';
+    if (/\b(tomate|cebolla|papa|lechuga|zanahoria|fruver|verdura|fruta|limon|limón| cilantro|perejil)\b/.test(n)) {
+      return 'FRUVER';
+    }
+    if (/\b(pulpa|congelad|helado)\b/.test(n)) return 'PULPAS Y CONGELADOS';
+    if (/\b(aceite|arroz|harina|sal\b|azucar|azúcar|frijol|lenteja|pasta seca|pan\b|condimento)\b/.test(n)) {
+      return 'ABARROTES';
+    }
+    if (/\b(salsa|caldo|base|aderezo|elaborad)\b/.test(n)) return 'ELABORADOS';
+    return 'OTRO';
+  }
+
+  function categoriaMpLabel(cat) {
+    return CATEGORIA_MP_LABEL[normalizeCategoriaMp(cat)] || normalizeCategoriaMp(cat);
+  }
+
+  function renderCategoriaMpOptionsHtml(selected) {
+    selected = normalizeCategoriaMp(selected);
+    return CATEGORIAS_MP.map(function (c) {
+      return (
+        '<option value="' +
+        c +
+        '"' +
+        (c === selected ? ' selected' : '') +
+        '>' +
+        (CATEGORIA_MP_LABEL[c] || c) +
+        '</option>'
+      );
+    }).join('');
+  }
+
+  function isMpElaboradoCatalog(mp) {
+    if (!mp) return false;
+    var cat = normalizeCategoriaMp(mp.categoria);
+    return mp.esElaborado === true || cat === 'ELABORADOS';
+  }
+
+  function mpAptoDespiece(mp) {
+    if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return false;
+    var cat = normalizeCategoriaMp(mp.categoria);
+    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return false;
+    if (cat === 'PROTEINAS') return true;
+    if (num(mp.mermaDespostePct) > 0) return true;
+    return false;
+  }
+
+  function mpAptoCoccion(mp) {
+    if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return false;
+    var cat = normalizeCategoriaMp(mp.categoria);
+    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return false;
+    if (MP_COCCION_CATS.indexOf(cat) >= 0) return true;
+    if (num(mp.mermaCoccionPct) > 0) return true;
+    return false;
   }
 
   function mpIdForPosReventa(p) {
@@ -2213,6 +2845,99 @@
       if (ensureMpFromPosProducto(p, { silent: true })) n++;
     });
     return n;
+  }
+
+  function mpIdElaboradoSlug(key) {
+    var s = String(key || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_')
+      .slice(0, 64);
+    return 'mp_elab_' + (s || Date.now());
+  }
+
+  /** MP de producto elaborado (inventario global post-proceso) enlazado al plato de Costos. */
+  function ensureMpElaboradoDesdeMenu(slug, opts) {
+    opts = opts || {};
+    if (!slug) return null;
+    var menu = getMenuPlato(slug);
+    var nombre = (menu && menu.producto) || String(slug);
+    var linked = menu && resolveMpIdForMenuRow(menu);
+    if (linked) {
+      var exLink = get(linked);
+      if (exLink) return exLink;
+    }
+    var byName = getByNombre(nombre);
+    if (byName && String(byName.categoria || '').toUpperCase() === 'ELABORADOS') return byName;
+    var id = mpIdElaboradoSlug(slug);
+    if (get(id)) return get(id);
+    var merged = upsertCatalog(
+      {
+        id: id,
+        nombre: nombre,
+        categoria: 'ELABORADOS',
+        menuSlug: slug,
+        posProductId: menu && menu.posProductId != null ? menu.posProductId : null,
+        esElaborado: true,
+        activo: true,
+      },
+      { skipInvMov: true }
+    );
+    if (!merged) return null;
+    var costo = Math.round(num(opts.costoUnit) || num(opts.costoTotal) || 0);
+    if (costo > 0) {
+      upsertCosteo(
+        {
+          mpId: merged.id,
+          und: opts.und === 'und' || opts.und === 'UNI' ? 'UNI' : 'KG',
+          peso: 1,
+          precioTotal: costo,
+        },
+        { origen: 'proceso', skipVariacionCheck: true, skipConfirm: true }
+      );
+    }
+    if (menu && !menu.costeoMpSourceId) {
+      updateMenuPlato(slug, { costeoMpSourceId: merged.id });
+    }
+    var modoMenu = menu ? inferModoProcesoFromMenu(menu) : 'prep_anticipado';
+    upsertCatalog(
+      { id: merged.id, procesoVenta: modoMenu, menuSlug: slug },
+      { skipInvMov: true, skipIdCheck: true }
+    );
+    if (!opts.silent) emitChanged({ tipo: 'mp-elaborado', slug: slug, mpId: merged.id });
+    return get(merged.id) || merged;
+  }
+
+  /** Elaborado desde despiece de una MP (cortes / pieza procesada). */
+  function ensureMpElaboradoDesdeMp(mpId, opts) {
+    opts = opts || {};
+    var src = get(mpId);
+    if (!src) return null;
+    var nombre = String(opts.nombre || src.nombre + ' (procesado)').trim();
+    var id = mpIdElaboradoSlug('src_' + mpId);
+    if (get(id)) return get(id);
+    var dup = getByNombre(nombre);
+    if (dup) return dup;
+    var merged = upsertCatalog(
+      {
+        id: id,
+        nombre: nombre,
+        categoria: 'ELABORADOS',
+        mpOrigenId: mpId,
+        esElaborado: true,
+        activo: true,
+      },
+      { skipInvMov: true }
+    );
+    if (!merged) return null;
+    var costo = Math.round(num(opts.costoUnit) || num(opts.costoTotal) || 0);
+    if (costo > 0) {
+      upsertCosteo(
+        { mpId: merged.id, und: 'KG', peso: 1, precioTotal: costo },
+        { origen: 'proceso', skipVariacionCheck: true, skipConfirm: true }
+      );
+    }
+    return get(merged.id) || merged;
   }
 
   function findPosDirectoForRecepcion(q) {
@@ -2416,6 +3141,29 @@
     updateMenuPlatosBatch: updateMenuPlatosBatch,
     normalizeMenuPlato: normalizeMenuPlato,
     inferTipoCosteoFromPos: inferTipoCosteoFromPos,
+    inferTipoRecetaFromMenu: inferTipoRecetaFromMenu,
+    inferModoProcesoFromMenu: inferModoProcesoFromMenu,
+    requiresSesionProceso: requiresSesionProceso,
+    inferWorkflowPrepFromMenu: inferWorkflowPrepFromMenu,
+    inferPrepCocinaTipo: inferPrepCocinaTipo,
+    prepCocinaTipoFromRow: prepCocinaTipoFromRow,
+    applyPrepCocinaTipo: applyPrepCocinaTipo,
+    autoApplyMenuPrepConfig: autoApplyMenuPrepConfig,
+    runPrepCatalogAutomation: runPrepCatalogAutomation,
+    getWorkflowPrepForMenu: getWorkflowPrepForMenu,
+    menuRowMatchesPrepWorkflow: menuRowMatchesPrepWorkflow,
+    getMenuPlatoByPosId: getMenuPlatoByPosId,
+    resolveMenuSlugForMp: resolveMenuSlugForMp,
+    getProcesoVentaForMp: getProcesoVentaForMp,
+    applyProcesoVentaFromMp: applyProcesoVentaFromMp,
+    calcMermasProceso: calcMermasProceso,
+    evalMermaProcesoAlerta: evalMermaProcesoAlerta,
+    getPerdidasProcesoRef: getPerdidasProcesoRef,
+    savePerdidasProcesoRef: savePerdidasProcesoRef,
+    perdidaEsperadaPct: perdidaEsperadaPct,
+    saveCortesDespiece: saveCortesDespiece,
+    normalizeCortesDespiece: normalizeCortesDespiece,
+    recetaUsaElaborados: recetaUsaElaborados,
     syncProductoFromPos: syncProductoFromPos,
     removeMenuPlatoByPosId: removeMenuPlatoByPosId,
     getMenuPlato: getMenuPlato,
@@ -2432,8 +3180,18 @@
     aplicarPrecioAlPos: aplicarPrecioAlPos,
     ensureMpFromPosProducto: ensureMpFromPosProducto,
     ensureMpFromPosVentaDirecta: ensureMpFromPosVentaDirecta,
+    ensureMpElaboradoDesdeMenu: ensureMpElaboradoDesdeMenu,
+    ensureMpElaboradoDesdeMp: ensureMpElaboradoDesdeMp,
     findPosDirectoForRecepcion: findPosDirectoForRecepcion,
     isMpReventaPos: isMpReventaPos,
+    CATEGORIAS_MP: CATEGORIAS_MP,
+    CATEGORIA_MP_LABEL: CATEGORIA_MP_LABEL,
+    normalizeCategoriaMp: normalizeCategoriaMp,
+    guessCategoriaFromNombre: guessCategoriaFromNombre,
+    categoriaMpLabel: categoriaMpLabel,
+    renderCategoriaMpOptionsHtml: renderCategoriaMpOptionsHtml,
+    mpAptoDespiece: mpAptoDespiece,
+    mpAptoCoccion: mpAptoCoccion,
     listMenuSlugsAffectedByMp: listMenuSlugsAffectedByMp,
     resolveMpIdForMenuRow: resolveMpIdForMenuRow,
     costoMenuDesdeMpItem: costoMenuDesdeMpItem,
@@ -2479,6 +3237,7 @@
     'TERCERIZADOS',
     'ASEO',
     'PROCESADOS',
+    'ELABORADOS',
   ];
 
   var CAT_LABEL = {
@@ -2492,6 +3251,7 @@
     TERCERIZADOS: 'Tercerizados',
     ASEO: 'Aseo',
     PROCESADOS: 'Procesados',
+    ELABORADOS: 'Elaborados / prep',
     OTRO: 'Otro',
   };
 
@@ -2542,7 +3302,13 @@
       '.crozzo-mp-meta{font-size:.78rem;opacity:.75;margin:0 0 12px}' +
       '.crozzo-mp-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:14px;border:1px dashed var(--border);border-radius:12px;margin-bottom:14px;background:rgba(var(--accent-rgb,201,169,98),.04)}' +
       '.crozzo-mp-form label{font-size:10px;font-weight:600;text-transform:uppercase;opacity:.7;display:block;margin-bottom:4px}' +
-      '.crozzo-mp-form input,.crozzo-mp-form select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:inherit;font-size:13px}';
+      '.crozzo-mp-form input,.crozzo-mp-form select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:inherit;font-size:13px}' +
+      '.crozzo-mp-proceso-sel{min-width:148px;font-size:11px;padding:5px 6px}' +
+      '.crozzo-mp-proc-empty{color:var(--text-muted);font-size:11px;text-align:center}' +
+      '.crozzo-mp-merma-cell{min-width:118px}' +
+      '.crozzo-mp-merma-pair{display:flex;flex-direction:column;gap:4px;font-size:10px}' +
+      '.crozzo-mp-merma-pair label{display:flex;align-items:center;gap:4px;color:var(--text-muted);white-space:nowrap}' +
+      '.crozzo-mp-merma-pair input{width:52px;padding:3px 5px;font-size:11px;text-align:right}';
     document.head.appendChild(el);
   }
 
@@ -2563,25 +3329,83 @@
     });
   }
 
+  function renderProcesoCell(it) {
+    var C = cat();
+    if (!C) return '<td class="crozzo-mp-proc-empty">—</td>';
+    var slug = C.resolveMenuSlugForMp ? C.resolveMenuSlugForMp(it.id) : null;
+    var isElab = it.esElaborado || String(it.categoria || '').toUpperCase() === 'ELABORADOS';
+    if (!slug && !isElab) {
+      return '<td class="crozzo-mp-proc-empty" title="En Costos defina receta/plato o marque como ELABORADOS">—</td>';
+    }
+    var val = (C.getProcesoVentaForMp && C.getProcesoVentaForMp(it.id)) || 'prep_anticipado';
+    return (
+      '<td><select class="crozzo-mp-inp crozzo-mp-proceso-sel" data-mp-field="procesoVenta" data-mp-menu-slug="' +
+      esc(slug || '') +
+      '" title="Prep antes = bodega ELABORADOS · Al vender = plato al momento">' +
+      '<option value="prep_anticipado"' +
+      (val === 'prep_anticipado' ? ' selected' : '') +
+      '>Prep antes (bodega)</option>' +
+      '<option value="bajo_demanda"' +
+      (val === 'bajo_demanda' ? ' selected' : '') +
+      '>Al vender (plato)</option>' +
+      '</select></td>'
+    );
+  }
+
+  function renderMermaCell(it) {
+    var mc = it.mermaCoccionPct != null && it.mermaCoccionPct !== '' ? num(it.mermaCoccionPct) : '';
+    var md = it.mermaDespostePct != null && it.mermaDespostePct !== '' ? num(it.mermaDespostePct) : '';
+    return (
+      '<td class="crozzo-mp-merma-cell"><div class="crozzo-mp-merma-pair">' +
+      '<label title="Merma esperada al cocinar">Coc %' +
+      '<input class="crozzo-mp-inp" type="number" min="0" max="95" step="0.1" data-mp-field="mermaCoccionPct" value="' +
+      esc(mc) +
+      '"></label>' +
+      '<label title="Merma esperada al despostar/desgrado">Desp %' +
+      '<input class="crozzo-mp-inp" type="number" min="0" max="95" step="0.1" data-mp-field="mermaDespostePct" value="' +
+      esc(md) +
+      '"></label></div></td>'
+    );
+  }
+
+  function num(v) {
+    var n = Number(v);
+    return isFinite(n) ? n : 0;
+  }
+
   function renderRows(items) {
+    var C = cat();
     if (!items.length) {
-      return '<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use + Materia prima.</td></tr>';
+      return '<tr><td colspan="6" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use + Materia prima.</td></tr>';
     }
     return items
       .map(function (it) {
-        var catLbl = CAT_LABEL[it.categoria] || it.categoria;
+        var catOpts =
+          C && C.renderCategoriaMpOptionsHtml
+            ? C.renderCategoriaMpOptionsHtml(it.categoria)
+            : CATEGORIAS.map(function (c) {
+                return (
+                  '<option value="' +
+                  esc(c) +
+                  '"' +
+                  (it.categoria === c ? ' selected' : '') +
+                  '>' +
+                  esc(CAT_LABEL[c] || c) +
+                  '</option>'
+                );
+              }).join('');
         return (
           '<tr data-mp-id="' +
           esc(it.id) +
           '">' +
-          '<td><span class="crozzo-mp-cat" title="' +
-          esc(it.categoria) +
-          '">' +
-          esc(catLbl) +
-          '</span></td>' +
+          '<td><select class="crozzo-mp-inp crozzo-mp-cat-sel" data-mp-field="categoria" title="Clasifique bien: define en qué pantalla de cocina aparece">' +
+          catOpts +
+          '</select></td>' +
           '<td><input class="crozzo-mp-inp" data-mp-field="nombre" value="' +
           esc(it.nombre) +
           '"></td>' +
+          renderProcesoCell(it) +
+          renderMermaCell(it) +
           '<td><input class="crozzo-mp-inp" data-mp-field="proveedores" value="' +
           esc(proveedoresToStr(it.proveedores)) +
           '" placeholder="Proveedor A, Proveedor B" title="Separar con comas"></td>' +
@@ -2650,19 +3474,24 @@
       '<div class="crozzo-mod-chip-row crozzo-mp-chips">' +
       chips +
       '</div>' +
+      '<p class="crozzo-mp-meta">Clasifique cada insumo: <strong>Proteínas</strong> = partir carnes · <strong>Bebidas</strong> = no va a prep cocina · <strong>Fruver / Abarrotes</strong> = cocinar y porcionar.</p>' +
       '<div class="crozzo-mod-form-grid crozzo-mp-form" id="crozzoMpNewForm" style="display:none;margin-bottom:14px;padding:14px;border:1px dashed var(--border);border-radius:12px;background:rgba(var(--accent-rgb,201,169,98),.04)">' +
       '<div><label>Nombre</label><input id="crozzoMpNewNombre" placeholder="Ej. Aceite vegetal"></div>' +
       '<div><label>Categoría</label><select id="crozzoMpNewCat">' +
-      CATEGORIAS.map(function (c) {
-        return '<option value="' + esc(c) + '">' + esc(CAT_LABEL[c] || c) + '</option>';
-      }).join('') +
-      '<option value="OTRO">Otro</option></select></div>' +
+      (cat() && cat().renderCategoriaMpOptionsHtml
+        ? cat().renderCategoriaMpOptionsHtml('OTRO')
+        : CATEGORIAS.map(function (c) {
+            return '<option value="' + esc(c) + '">' + esc(CAT_LABEL[c] || c) + '</option>';
+          }).join('') + '<option value="OTRO">Otro</option>') +
+      '</select></div>' +
       '<div style="grid-column:1/-1"><label>Proveedor(es)</label><input id="crozzoMpNewProv" placeholder="Distribuidora Norte, Mayorista Sol"></div>' +
+      '<div><label>Merma cocinado %</label><input id="crozzoMpNewMc" type="number" min="0" max="95" step="0.1" placeholder="Ej. 28"></div>' +
+      '<div><label>Merma desposte %</label><input id="crozzoMpNewMd" type="number" min="0" max="95" step="0.1" placeholder="Ej. 12"></div>' +
       '<div style="display:flex;align-items:flex-end;gap:8px;grid-column:1/-1">' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoMpSaveNew">Guardar</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoMpCancelNew">Cancelar</button></div></div>' +
       '<div class="crozzo-mp-scroll"><table class="crozzo-mp-table"><thead><tr>' +
-      '<th>Categoría</th><th>Materia prima</th><th>Proveedor(es)</th><th></th>' +
+      '<th>Categoría</th><th>Materia prima</th><th>Proceso / venta</th><th>Mermas esp.</th><th>Proveedor(es)</th><th></th>' +
       '</tr></thead><tbody id="crozzoMpTbody">' +
       renderRows(filtered) +
       '</tbody></table></div></div>'
@@ -2684,6 +3513,8 @@
     tr.querySelectorAll('[data-mp-field]').forEach(function (inp) {
       var f = inp.getAttribute('data-mp-field');
       if (f === 'proveedores') row.proveedores = C.parseProveedores ? C.parseProveedores(inp.value) : inp.value.split(',');
+      else if (f === 'procesoVenta') row.procesoVenta = inp.value;
+      else if (f === 'mermaCoccionPct' || f === 'mermaDespostePct') row[f] = inp.value === '' ? null : num(inp.value);
       else row[f] = inp.value;
     });
     return row;
@@ -2764,6 +3595,8 @@
           nombre: nombre,
           categoria: (root.querySelector('#crozzoMpNewCat') || {}).value || 'OTRO',
           proveedores: C.parseProveedores ? C.parseProveedores(provRaw) : provRaw.split(','),
+          mermaCoccionPct: num((root.querySelector('#crozzoMpNewMc') || {}).value),
+          mermaDespostePct: num((root.querySelector('#crozzoMpNewMd') || {}).value),
         };
         C.upsertCatalog(item);
         toast('«' + item.nombre + '» creada. Defina peso y precio en Costeo.', 'success');
@@ -2787,6 +3620,23 @@
         if (!tr) return;
         var item = getItemFromRow(tr);
         if (!item) return;
+        if (inp.getAttribute('data-mp-field') === 'procesoVenta') {
+          var slug =
+            inp.getAttribute('data-mp-menu-slug') ||
+            (C.resolveMenuSlugForMp ? C.resolveMenuSlugForMp(item.id) : '');
+          if (C.applyProcesoVentaFromMp) {
+            C.applyProcesoVentaFromMp(slug, item.procesoVenta, { mpId: item.id });
+          } else {
+            C.upsertCatalog({ id: item.id, procesoVenta: item.procesoVenta }, { skipInvMov: true, skipIdCheck: true });
+          }
+          toast(
+            item.procesoVenta === 'bajo_demanda'
+              ? 'Proceso al vender — se prepara al pedido'
+              : 'Prep antes de vender — queda en bodega ELABORADOS',
+            'success'
+          );
+          return;
+        }
         if (inp.getAttribute('data-mp-field') === 'nombre') {
           var prev = C.get(item.id);
           if (prev && prev.nombre !== item.nombre) {
@@ -3723,6 +4573,7 @@
 
   global.CrozzoCostosCascadeMpChange = cascadeMpChangeToMenu;
   global.CrozzoCostosResolveCostoVentaMenu = resolveCostoVentaMenu;
+  global.CrozzoCostosRecetaLineasCalc = recetaLineasCalcForSlug;
 
   function recetaLineasCalcForSlug(slug, seed, opts) {
     opts = opts || {};
@@ -4323,7 +5174,12 @@
     wrap.classList.remove('is-open');
     var list = wrap.querySelector('.cxf-combobox__list');
     if (list) list.hidden = true;
-    if (root) refreshRecetaPlatoPanel(root, seed);
+    var C = global.CrozzoCatalogoMp;
+    if (C && C.autoApplyMenuPrepConfig) {
+      C.autoApplyMenuPrepConfig(slug);
+      invalidateSeed();
+    }
+    if (root) refreshRecetaPlatoPanel(root, hub.seed || seed);
   }
 
   function closeRecetaCombosExcept(exceptWrap) {
@@ -4841,6 +5697,9 @@
           posProductId: row.posProductId,
           origen: row.origen || 'menu',
           tipoCosteo: tipo,
+          tipoReceta: row.tipoReceta || null,
+          vendeAlCliente: !!row.vendeAlCliente,
+          modoProceso: row.modoProceso || null,
           margenObjetivoPct: row.margenObjetivoPct,
           margenMinimoPct: row.margenMinimoPct,
           costeoMpSourceId: row.costeoMpSourceId || null,
@@ -5795,6 +6654,24 @@
       }
       console.info('[costos] receta → matriz', ev.detail);
     });
+    on('crozzo-costos:proceso-cerrado', function (ev) {
+      var p = (ev.detail && ev.detail.proceso) || {};
+      if (!p.slug || !(Number(p.costoMpTotal) > 0)) return;
+      var C = global.CrozzoCatalogoMp;
+      if (!C || !C.getMenuPlato || !C.pushHistorialCosteo) return;
+      var row = C.getMenuPlato(p.slug);
+      if (!row || row.tipoCosteo === 'directo') return;
+      var porciones = Number(p.kg) || Number(p.factor) || 1;
+      if (porciones <= 0) porciones = 1;
+      var costoUnit = Math.round(Number(p.costoMpTotal) / porciones);
+      if (costoUnit <= 0) return;
+      C.pushHistorialCosteo(p.slug, {
+        costoMp: costoUnit,
+        label: 'Proceso ' + (p.fecha || ''),
+        notas: 'Sesión producción · ' + (p.id || ''),
+      });
+      console.info('[costos] proceso → historial costeo', p.slug, costoUnit);
+    });
     on('crozzo-costos:precio-mp-cambiado', function (ev) {
       var e = engine();
       if (!e || !ev.detail) return;
@@ -6014,6 +6891,14 @@
       '.crozzo-matriz-margen-global__min .crozzo-matriz-margen-global__label strong{display:block;font-size:.88rem;margin-bottom:2px}' +
       '.crozzo-matriz-margen-global__min .crozzo-matriz-margen-global__ctrl{max-width:380px}' +
       '.crozzo-matriz-margen-global__actions{display:flex;flex-wrap:wrap;gap:8px}' +
+      '.crozzo-perdidas-proceso{margin:0 0 18px;padding:16px 18px;border-radius:16px;border:1px solid rgba(251,191,36,.35);background:linear-gradient(135deg,rgba(251,191,36,.1),rgba(0,0,0,.04))}' +
+      '.crozzo-perdidas-proceso__head{margin:0 0 4px;font-size:1rem;font-weight:700}' +
+      '.crozzo-perdidas-proceso__sub{margin:0 0 14px;font-size:.8rem;line-height:1.5;color:var(--text-secondary)}' +
+      '.crozzo-perdidas-proceso__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px 16px;margin-bottom:12px}' +
+      '.crozzo-perdidas-proceso__grid label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;color:var(--text-secondary)}' +
+      '.crozzo-perdidas-proceso__grid input{width:100%;font-size:1.05rem;font-weight:700;text-align:center}' +
+      '.crozzo-perdidas-proceso__foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center}' +
+      '.crozzo-perdidas-proceso__hint{font-size:.75rem;color:var(--text-secondary);margin:10px 0 0;line-height:1.45}' +
       '.crozzo-matriz-costo-cell{position:relative;white-space:nowrap}' +
       '.crozzo-matriz-costo-tag{display:block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#34d399;margin-top:4px}' +
       '.crozzo-matriz-costo-tag--diff{color:#fbbf24}' +
@@ -6037,6 +6922,10 @@
       '.crozzo-matriz-tipo{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-size:.62rem;font-weight:700;vertical-align:middle;letter-spacing:.03em;text-transform:uppercase}' +
       '.crozzo-matriz-tipo--receta{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.28)}' +
       '.crozzo-matriz-tipo--directo{background:rgba(100,180,255,.12);color:#93c5fd;border:1px solid rgba(100,180,255,.25)}' +
+      '.crozzo-matriz-tipo-receta-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px}' +
+      '.crozzo-matriz-tipo-receta-sel{font-size:11px;padding:2px 6px;border-radius:6px;max-width:88px}' +
+      '.crozzo-matriz-vende-check{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text-muted);cursor:pointer;white-space:nowrap}' +
+      '.crozzo-matriz-vende-check input{margin:0;accent-color:var(--accent)}' +
       '.crozzo-matriz-cat{display:block;font-size:.65rem;opacity:.65;margin-top:4px;text-transform:capitalize}' +
       '.crozzo-matriz-costo-tag--mp{color:#93c5fd}' +
       '.crozzo-matriz-filters--meta{margin-top:0}' +
@@ -6117,7 +7006,19 @@
       '.crozzo-receta-mp-combo .cxf-combobox__input,.crozzo-receta-plato-combo .cxf-combobox__input{font-size:.78rem;padding:6px 10px;border-radius:8px;border:1px solid rgba(var(--matriz-gold-rgb),.18);background:var(--bg-card);width:100%}' +
       '.crozzo-receta-mp-combo.is-open .cxf-combobox__input,.crozzo-receta-plato-combo.is-open .cxf-combobox__input{border-color:var(--matriz-gold);box-shadow:0 0 0 2px rgba(var(--matriz-gold-rgb),.12)}' +
       '.crozzo-receta-mp-combo .cxf-combobox__list,.crozzo-receta-plato-combo .cxf-combobox__list{position:absolute;left:0;right:0;top:calc(100% + 4px);max-height:min(240px,42vh);overflow:auto;z-index:60;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);box-shadow:0 12px 32px rgba(0,0,0,.22)}' +
-      '.crozzo-receta-table td:first-child{position:relative;overflow:visible}' +
+      '.crozzo-receta-proceso{margin:0 0 18px;padding:14px 16px;border-radius:14px;border:2px solid rgba(var(--matriz-gold-rgb),.45);background:rgba(var(--matriz-gold-rgb),.1);box-shadow:0 0 0 1px rgba(var(--matriz-gold-rgb),.12)}' +
+      '.crozzo-receta-proceso--muted{font-size:.82rem;line-height:1.55;color:var(--text-secondary)}' +
+      '.crozzo-receta-proceso__row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:8px}' +
+      '.crozzo-receta-proceso__lbl{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--matriz-gold);white-space:nowrap}' +
+      '.crozzo-receta-proceso__sel{flex:1;min-width:min(100%,280px);max-width:520px;font-weight:600}' +
+      '.crozzo-receta-proceso__hint{margin:0;font-size:.78rem;line-height:1.5;color:var(--text-secondary)}' +
+      '.crozzo-receta-proceso__check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.78rem;color:var(--text-secondary);cursor:pointer}' +
+      '.crozzo-receta-proceso__row.is-hidden{display:none}' +
+      '.crozzo-receta-proceso__hint.is-hidden{display:none}' +
+      '.crozzo-receta-proceso__auto{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 10px;font-size:.78rem;color:var(--text-secondary)}' +
+      '.crozzo-receta-proceso__auto-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(var(--matriz-gold-rgb),.14);color:var(--matriz-gold);font-weight:600;font-size:.72rem}' +
+      '.crozzo-receta-proceso__auto-link{background:none;border:none;padding:0;color:var(--accent);font-size:.72rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:inherit}' +
+      '.crozzo-receta-proceso__check.is-hidden{display:none}' +
       '.crozzo-matriz-search::placeholder{color:var(--text-secondary);opacity:.75;font-size:.82rem}' +
       '.crozzo-inventario-premium{position:relative}' +
       '.crozzo-inv-hero{position:relative;margin:0 0 20px;padding:22px 24px;border-radius:18px;border:1px solid rgba(var(--matriz-gold-rgb),.28);background:linear-gradient(145deg,rgba(var(--matriz-gold-rgb),.14) 0%,rgba(var(--matriz-gold-rgb),.03) 42%,var(--bg-card) 100%);box-shadow:0 12px 40px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}' +
@@ -6228,7 +7129,8 @@
   function invTipoLabel(tipo) {
     var map = {
       entrada_proveedor: 'Entrada proveedor',
-      entrada_proceso: 'Entrada proceso',
+      entrada_proceso: 'Entrada elaborado (proceso)',
+      salida_proceso: 'Salida MP (proceso)',
       salida_venta: 'Salida venta POS',
       inventario_inicial: 'Inventario inicial',
       ajuste_entrada: 'Ajuste entrada',
@@ -7904,6 +8806,76 @@
     );
   }
 
+  function canConfigPerdidasProceso() {
+    if (typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser()) return true;
+    if (typeof global.getCurrentUser !== 'function') return false;
+    var u = global.getCurrentUser();
+    if (!u) return false;
+    var r =
+      typeof global.crozzoNormalizeAppRol === 'function'
+        ? global.crozzoNormalizeAppRol(u.rol)
+        : String(u.rol || '').toLowerCase();
+    return (
+      r === 'admin' ||
+      r === 'superadmin' ||
+      r === 'super_admin' ||
+      r === 'gerente' ||
+      r === 'jefe_compras' ||
+      r === 'jefe-compras'
+    );
+  }
+
+  function renderPerdidasProcesoAdminPanel() {
+    if (!canConfigPerdidasProceso()) return '';
+    var C = global.CrozzoCatalogoMp;
+    var ref =
+      C && C.getPerdidasProcesoRef
+        ? C.getPerdidasProcesoRef()
+        : { despiecePct: 15, coccionPct: 25, toleranciaPct: 3 };
+    return (
+      '<section class="crozzo-perdidas-proceso" id="crozzoPerdidasProceso" aria-labelledby="crozzoPerdidasProcesoTitle">' +
+      '<h2 class="crozzo-perdidas-proceso__head" id="crozzoPerdidasProcesoTitle">Pérdidas en cocina <span style="font-size:.72rem;font-weight:600;opacity:.75">· referencia global</span></h2>' +
+      '<p class="crozzo-perdidas-proceso__sub">Solo administración. Cocina <strong>no</strong> ve ni edita estos % — solo pesos y porciones. Si un insumo tiene % propio en Catálogo MP, ese valor tiene prioridad.</p>' +
+      '<div class="crozzo-perdidas-proceso__grid">' +
+      '<div><label for="crozzoPerdDesp">Al partir carnes (%)</label>' +
+      '<input type="number" class="form-input" id="crozzoPerdDesp" min="0" max="95" step="0.5" value="' +
+      esc(String(Number(ref.despiecePct))) +
+      '"></div>' +
+      '<div><label for="crozzoPerdCoc">Al cocinar (%)</label>' +
+      '<input type="number" class="form-input" id="crozzoPerdCoc" min="0" max="95" step="0.5" value="' +
+      esc(String(Number(ref.coccionPct))) +
+      '"></div>' +
+      '<div><label for="crozzoPerdTol">Tolerancia alerta (± %)</label>' +
+      '<input type="number" class="form-input" id="crozzoPerdTol" min="0" max="25" step="0.5" value="' +
+      esc(String(Number(ref.toleranciaPct))) +
+      '" title="Por encima de lo esperado + tolerancia → alerta"></div></div>' +
+      '<div class="crozzo-perdidas-proceso__foot">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoPerdSave">Guardar referencia de pérdidas</button>' +
+      '<span class="form-hint" style="margin:0">Aplica a Prep cocina y alertas de merma.</span></div>' +
+      '<p class="crozzo-perdidas-proceso__hint">Por insumo: en <strong>Catálogo → Materias primas</strong> puede poner % de desposte y cocción distintos (ej. pollo vs res).</p></section>'
+    );
+  }
+
+  function bindPerdidasProcesoAdmin(root) {
+    if (!root || !canConfigPerdidasProceso()) return;
+    var saveBtn = root.querySelector('#crozzoPerdSave');
+    if (!saveBtn || saveBtn._bound) return;
+    saveBtn._bound = true;
+    saveBtn.addEventListener('click', function () {
+      var C = global.CrozzoCatalogoMp;
+      if (!C || !C.savePerdidasProcesoRef) {
+        toast('Catálogo MP no disponible', 'warn');
+        return;
+      }
+      C.savePerdidasProcesoRef({
+        despiecePct: Number((root.querySelector('#crozzoPerdDesp') || {}).value),
+        coccionPct: Number((root.querySelector('#crozzoPerdCoc') || {}).value),
+        toleranciaPct: Number((root.querySelector('#crozzoPerdTol') || {}).value),
+      });
+      toast('Referencia de pérdidas guardada', 'success');
+    });
+  }
+
   function renderMargenGlobalBar() {
     var pct = loadGlobalMargenPct();
     var minPct = loadGlobalMargenMinimoPct();
@@ -7949,6 +8921,7 @@
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoMargenSyncCostos">↻ Sincronizar costos (unit. + recetas)</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoGuardarCosteoMenu">💾 Guardar costeo del menú</button>' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoMargenAplicar">Aplicar margen a todos</button></div>' +
+      renderPerdidasProcesoAdminPanel() +
       '<div class="crozzo-matriz-reportes-pdf">' +
       '<span class="crozzo-matriz-reportes-pdf__lbl">Descargar reportes PDF</span>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoCostosPdfGeneral" title="Resumen: actual, guardado y variaciones">📄 Resumen general</button>' +
@@ -7987,6 +8960,33 @@
     var el = tr.querySelector('[data-resumen-margen-util]');
     if (!el) return;
     el.textContent = (r.precioVenta > 0 ? margenUtilidadDisplayFromResumen(r) : 0) + '%';
+  }
+
+  function renderTipoRecetaControls(row) {
+    if (!row || !row.tieneReceta || row.tipoCosteo === 'directo') return '';
+    var C = global.CrozzoCatalogoMp;
+    var tipoRec = row.tipoReceta;
+    if (!tipoRec && C && C.inferTipoRecetaFromMenu) tipoRec = C.inferTipoRecetaFromMenu(row);
+    tipoRec = tipoRec === 'base' ? 'base' : 'full';
+    var html =
+      '<span class="crozzo-matriz-tipo-receta-wrap">' +
+      '<select class="crozzo-costos-editable crozzo-matriz-tipo-receta-sel" data-resumen-field="tipoReceta" title="Base = prep en bodega · Plato = venta al cliente">' +
+      '<option value="base"' +
+      (tipoRec === 'base' ? ' selected' : '') +
+      '>Prep antes</option>' +
+      '<option value="full"' +
+      (tipoRec === 'full' ? ' selected' : '') +
+      '>Al vender</option>' +
+      '</select>';
+    if (tipoRec === 'base') {
+      html +=
+        '<label class="crozzo-matriz-vende-check" title="Esta base también se vende en carta">' +
+        '<input type="checkbox" data-resumen-field="vendeAlCliente"' +
+        (row.vendeAlCliente ? ' checked' : '') +
+        '> En carta</label>';
+    }
+    html += '</span>';
+    return html;
   }
 
   function renderResumenRowsHtml(seed) {
@@ -8045,6 +9045,7 @@
           '</span>' +
           tipoTag +
           catTag +
+          renderTipoRecetaControls(row) +
           '</td>' +
           '<td style="text-align:right" class="crozzo-matriz-costo-cell">' +
           '<span class="crozzo-matriz-costo-val" data-resumen-costo-mp="' +
@@ -8442,6 +9443,112 @@
     );
   }
 
+  function prepCocinaTipoHintText(tipo) {
+    if (tipo === 'prep_cocinar') {
+      return 'El cocinero lo ve en Prep cocina → Cocinar y porcionar. Se detectó por nombre e ingredientes.';
+    }
+    if (tipo === 'prep_salsas') {
+      return 'El cocinero lo ve en Prep cocina → Salsas y bases. Se detectó por nombre e ingredientes.';
+    }
+    return 'No va a Prep cocina: al cobrar en caja se descuentan los ingredientes solos.';
+  }
+
+  function prepCocinaTipoLabel(tipo) {
+    if (tipo === 'prep_cocinar') return 'Prep antes · Cocinar y porcionar';
+    if (tipo === 'prep_salsas') return 'Prep antes · Salsas y bases';
+    return 'Al vender · inmediata';
+  }
+
+  function renderRecetaProcesoVentaHtml(row) {
+    if (!row || row.tipoCosteo === 'directo') {
+      return (
+        '<div class="crozzo-receta-proceso crozzo-receta-proceso--muted">' +
+        '<strong>Venta directa</strong> — sin transformación (bebidas, reventa). No aplica prep cocina.</div>'
+      );
+    }
+    var C = global.CrozzoCatalogoMp;
+    var inferred = C && C.inferPrepCocinaTipo ? C.inferPrepCocinaTipo(row) : 'prep_salsas';
+    var tipo = C && C.prepCocinaTipoFromRow ? C.prepCocinaTipoFromRow(row, true) : inferred;
+    var isAuto = !row.prepConfigManual;
+    var showVende = tipo === 'prep_salsas' || tipo === 'prep_cocinar';
+    return (
+      '<div class="crozzo-receta-proceso" data-receta-proceso-wrap id="crozzoRecetasEstandarPrep">' +
+      (isAuto
+        ? '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill">✦ Automático</span> ' +
+          'Por nombre, categoría e ingredientes. Cambie solo si no cuadra.</p>'
+        : '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill">Manual</span> ' +
+          '<button type="button" class="crozzo-receta-proceso__auto-link" data-receta-field="prepAutoReset">Volver a automático</button></p>') +
+      '<div class="crozzo-receta-proceso__row">' +
+      '<label class="crozzo-receta-proceso__lbl" for="crozzoRecetaPrepCocina">En cocina</label>' +
+      '<select id="crozzoRecetaPrepCocina" class="form-input form-select crozzo-receta-proceso__sel" data-receta-field="prepCocinaTipo">' +
+      '<option value="al_vender"' +
+      (tipo === 'al_vender' ? ' selected' : '') +
+      '>Al vender · inmediata (caja)</option>' +
+      '<option value="prep_salsas"' +
+      (tipo === 'prep_salsas' ? ' selected' : '') +
+      '>Prep antes · Salsas y bases</option>' +
+      '<option value="prep_cocinar"' +
+      (tipo === 'prep_cocinar' ? ' selected' : '') +
+      '>Prep antes · Cocinar y porcionar</option>' +
+      '</select></div>' +
+      '<p class="crozzo-receta-proceso__hint" data-receta-proceso-hint>' +
+      esc(prepCocinaTipoHintText(tipo)) +
+      '</p>' +
+      '<label class="crozzo-receta-proceso__check' +
+      (showVende ? '' : ' is-hidden') +
+      '" data-receta-vende-wrap>' +
+      '<input type="checkbox" data-receta-field="vendeAlCliente"' +
+      (row.vendeAlCliente ? ' checked' : '') +
+      '> También se vende por porción en carta</label></div>'
+    );
+  }
+
+  function syncRecetaProcesoUi(root, tipo) {
+    if (!root) return;
+    var hint = root.querySelector('[data-receta-proceso-hint]');
+    if (hint) hint.textContent = prepCocinaTipoHintText(tipo);
+    var vendeWrap = root.querySelector('[data-receta-vende-wrap]');
+    if (vendeWrap) vendeWrap.classList.toggle('is-hidden', tipo === 'al_vender');
+  }
+
+  function applyPrepCocinaTipoFromUi(root, slug, tipo, opts) {
+    opts = opts || {};
+    var C = global.CrozzoCatalogoMp;
+    if (C && C.applyPrepCocinaTipo) {
+      C.applyPrepCocinaTipo(slug, tipo, {
+        prepConfigManual: opts.prepConfigManual != null ? opts.prepConfigManual : true,
+        vendeAlCliente: opts.vendeAlCliente,
+      });
+    } else {
+      saveResumenEdit(slug, {
+        modoProceso: tipo === 'al_vender' ? 'bajo_demanda' : 'prep_anticipado',
+        tipoReceta: tipo === 'al_vender' ? 'full' : 'base',
+        workflowPrep:
+          tipo === 'al_vender' ? 'ninguno' : tipo === 'prep_cocinar' ? 'coccion' : 'elaboracion',
+        prepConfigManual: opts.prepConfigManual != null ? opts.prepConfigManual : true,
+        vendeAlCliente: opts.vendeAlCliente,
+      });
+    }
+    invalidateSeed();
+    syncRecetaProcesoUi(root, tipo);
+  }
+
+  function applyRecetaProcesoVentaFromUi(root, slug, val, opts) {
+    var tipo =
+      val === 'bajo_demanda' || val === 'al_vender'
+        ? 'al_vender'
+        : opts.workflowPrep === 'coccion' || val === 'prep_cocinar'
+          ? 'prep_cocinar'
+          : 'prep_salsas';
+    applyPrepCocinaTipoFromUi(root, slug, tipo, opts);
+  }
+
+  function applyRecetaWorkflowPrepFromUi(root, slug, wf) {
+    var tipo = wf === 'coccion' ? 'prep_cocinar' : 'prep_salsas';
+    applyPrepCocinaTipoFromUi(root, slug, tipo, { prepConfigManual: true });
+    toast(prepCocinaTipoLabel(tipo), 'success');
+  }
+
   function renderDemoRecetaHtml(seed) {
     var activeSlug = getActiveRecetaSlug(seed);
     var packEdicion = buildRecetaCalcPack(seed, activeSlug, { useSaved: false });
@@ -8453,7 +9560,9 @@
       : 'Vincule el plato al producto POS (nombre o SKU = slug) para inferir área en pedidos.';
 
     return (
-      '<p class="crozzo-costos-note crozzo-receta-plato__intro"><strong>Recetas por plato</strong> — Tres vistas como la matriz general: <em>En edición</em> (borrador), <em>Receta guardada</em> (oficial) y <em>Programaciones</em>. ' +
+      '<p class="crozzo-costos-note crozzo-receta-plato__intro"><strong>Recetas estándar</strong> — Ingredientes y costos. ' +
+      'El tipo en cocina se configura <em>solo</em> (nombre + ingredientes); ajústelo abajo si hace falta. ' +
+      'Use las pestañas para borrador, receta oficial y programaciones. ' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoDemoGoCatalogo">Catálogo MP →</button></p>' +
       '<div class="crozzo-receta-plato">' +
       '<div class="crozzo-receta-plato__toolbar">' +
@@ -8462,6 +9571,7 @@
       '<div class="crozzo-receta-plato__actions">' +
       '<button type="button" class="btn btn-outline btn-sm crozzo-receta-btn--probar" id="crozzoRecetaProbar" title="Recalcular borrador sin guardar">Probar cambios</button>' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoRecetaSave" title="Guardar borrador como receta oficial">Guardar receta</button></div></div>' +
+      renderRecetaProcesoVentaHtml(packEdicion.row) +
       '<header class="crozzo-receta-plato__head">' +
       '<div class="crozzo-receta-plato__head-top">' +
       '<span class="crozzo-receta-plato__badge crozzo-receta-plato__badge--gold">Costeo activo</span>' +
@@ -8515,7 +9625,7 @@
       '<span class="crozzo-matriz-tab__text"><strong>Costeo MP</strong><small>Unidad, peso y $/g</small></span></button>' +
       '<button type="button" class="crozzo-mod-nav__item" data-matriz-tab="demo">' +
       '<span class="crozzo-matriz-tab__icon" aria-hidden="true">🍽</span>' +
-      '<span class="crozzo-matriz-tab__text"><strong>Recetas plato</strong><small>Insumos y explosión</small></span></button></div>' +
+      '<span class="crozzo-matriz-tab__text"><strong>Recetas estándar</strong><small>Ingredientes y prep</small></span></button></div>' +
       '<div class="crozzo-costos-panel active" data-matriz-panel="resumen">' +
       '<p class="crozzo-matriz-panel-head"><strong>' +
       esc(String(resumenCount)) +
@@ -8654,11 +9764,32 @@
     var e = engine();
     if (!e || !tr) return;
     var slug = tr.getAttribute('data-resumen-slug');
+    var source = opts.sourceField || '';
+
+    if (opts.save && (source === 'tipoReceta' || source === 'vendeAlCliente')) {
+      var patchMeta = {};
+      if (source === 'tipoReceta') {
+        var sel = tr.querySelector('[data-resumen-field="tipoReceta"]');
+        if (sel) patchMeta.tipoReceta = sel.value === 'full' ? 'full' : 'base';
+      }
+      if (source === 'vendeAlCliente') {
+        var chk = tr.querySelector('[data-resumen-field="vendeAlCliente"]');
+        if (chk) patchMeta.vendeAlCliente = chk.checked;
+      }
+      saveResumenEdit(slug, patchMeta);
+      invalidateSeed();
+      var rootMeta = tr.closest('.crozzo-matriz-premium') || document.getElementById('mainContent');
+      loadSeed(function (updated) {
+        hub.seed = updated;
+        refreshMatrizResumenTable(rootMeta, updated);
+      });
+      return;
+    }
+
     var precioInp = tr.querySelector('[data-resumen-field="precioVenta"]');
     var margenInp = tr.querySelector('[data-resumen-field="margenPct"]');
     var costoMp = readResumenRowCostoMp(tr);
     var precioVenta = Number(precioInp && precioInp.value);
-    var source = opts.sourceField || '';
     if (!isFinite(costoMp) || costoMp < 0) return;
 
     if (source === 'margenPct' && margenInp && !margenInp._silent) {
@@ -9198,6 +10329,11 @@
       return null;
     }
     var slug = getActiveRecetaSlug(seed);
+    var C = global.CrozzoCatalogoMp;
+    if (C && C.autoApplyMenuPrepConfig) {
+      var row = C.getMenuPlato ? C.getMenuPlato(slug) : null;
+      if (row && !row.prepConfigManual) C.autoApplyMenuPrepConfig(slug);
+    }
     var calc = recalcDemoReceta(root, seed, { persist: true, savePrecio: true });
     if (!calc) return null;
     var rec = C && C.getRecetaPlato ? C.getRecetaPlato(slug) : null;
@@ -9313,6 +10449,23 @@
     if (!root._gerenciaBound) {
       root._gerenciaBound = true;
       root.addEventListener('click', function (e) {
+        var resetAuto = e.target.closest('[data-receta-field="prepAutoReset"]');
+        if (resetAuto) {
+          e.preventDefault();
+          var slugRa = getActiveRecetaSlug(hub.seed || seed);
+          if (!slugRa) return;
+          var C = global.CrozzoCatalogoMp;
+          if (C && C.autoApplyMenuPrepConfig) {
+            saveResumenEdit(slugRa, { prepConfigManual: false });
+            C.autoApplyMenuPrepConfig(slugRa, { force: true });
+          }
+          invalidateSeed();
+          loadSeed(function (fresh) {
+            hub.seed = fresh;
+            refreshRecetaPlatoPanel(root, fresh);
+          });
+          return;
+        }
         var btn = e.target.closest('[data-action="usar-precio-pos"]');
         if (!btn) return;
         e.preventDefault();
@@ -9325,6 +10478,36 @@
         if (precioInp) setInputSilent(precioInp, pos);
         refreshResumenRow(tr, hub.seed || seed, { sourceField: 'precioVenta', save: true });
         toast('Precio de costeo igualado al de caja ($' + pos.toLocaleString('es-CO') + ')', 'success');
+      });
+      root.addEventListener('change', function (e) {
+        var tipoSel = e.target.closest('[data-receta-field="prepCocinaTipo"]');
+        if (tipoSel) {
+          var slugPv = getActiveRecetaSlug(hub.seed || seed);
+          if (!slugPv) return;
+          applyPrepCocinaTipoFromUi(root, slugPv, tipoSel.value, { prepConfigManual: true });
+          return;
+        }
+        var sel = e.target.closest('[data-receta-field="procesoVenta"]');
+        if (sel) {
+          var slugPv = getActiveRecetaSlug(hub.seed || seed);
+          if (!slugPv) return;
+          var val = sel.value === 'prep_anticipado' ? 'prep_anticipado' : 'bajo_demanda';
+          applyRecetaProcesoVentaFromUi(root, slugPv, val, { prepConfigManual: true });
+          return;
+        }
+        var wfSel = e.target.closest('[data-receta-field="workflowPrep"]');
+        if (wfSel) {
+          var slugWf = getActiveRecetaSlug(hub.seed || seed);
+          if (!slugWf) return;
+          applyRecetaWorkflowPrepFromUi(root, slugWf, wfSel.value);
+          return;
+        }
+        var vendeChk = e.target.closest('[data-receta-field="vendeAlCliente"]');
+        if (vendeChk) {
+          var slugV = getActiveRecetaSlug(hub.seed || seed);
+          if (!slugV) return;
+          saveResumenEdit(slugV, { vendeAlCliente: !!vendeChk.checked });
+        }
       });
       document.addEventListener('crozzo-catalogo-mp:changed', function () {
         if (!root.isConnected || hub.matrizApplying) return;
@@ -9629,13 +10812,36 @@
     updateRecetaDirtyBadge(root, !!(getRecetaDraft(getActiveRecetaSlug(seed)) && getRecetaDraft(getActiveRecetaSlug(seed)).dirty));
   }
 
+  function applyPendingMatrizTab(root) {
+    if (!root) return;
+    var tab = global.__crozzoCostosMatrizTab;
+    if (!tab) return;
+    var btn = root.querySelector('[data-matriz-tab="' + tab + '"]');
+    if (!btn) return;
+    global.__crozzoCostosMatrizTab = null;
+    btn.click();
+    setTimeout(function () {
+      var anchor = document.getElementById('crozzoRecetasEstandarPrep');
+      if (anchor && anchor.scrollIntoView) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  }
+
+  function openRecetasEstandar(opts) {
+    opts = opts || {};
+    global.__crozzoCostosMatrizTab = 'demo';
+    if (opts.slug) hub.recetaSlug = String(opts.slug);
+    if (typeof global.navigateTo === 'function') global.navigateTo('costos-matriz');
+  }
+
   function initMatrizAllPanels(root, seed) {
     seed = seed || hub.seed;
     initMatrizGerenciaPanel(root, seed);
+    bindPerdidasProcesoAdmin(root);
     var costeoPanel = root.querySelector('[data-matriz-panel="costeo-mp"]');
     if (costeoPanel && global.CrozzoCosteoMp && global.CrozzoCosteoMp.init) {
       global.CrozzoCosteoMp.init(costeoPanel);
     }
+    applyPendingMatrizTab(root);
     var goCat = document.getElementById('crozzoCostosGoCatalogoMp');
     if (goCat && !goCat._bound) {
       goCat._bound = true;
@@ -9791,6 +10997,7 @@
     init: init,
     teardown: teardown,
     pageToView: pageToView,
+    openRecetasEstandar: openRecetasEstandar,
     buildInventarioSnapshot: buildInventarioSnapshot,
     inventarioItemsForPrint: inventarioItemsForPrint,
     filterInventarioItems: filterInventarioItems,
@@ -9807,6 +11014,14 @@
   global.renderSistemaCostos = function (view) { return render(view); };
   global.initSistemaCostos = init;
   global.crozzoCostosPageToView = pageToView;
+  global.crozzoNavigateToRecetasEstandar = function (opts) {
+    if (global.CrozzoSistemaCostos && global.CrozzoSistemaCostos.openRecetasEstandar) {
+      global.CrozzoSistemaCostos.openRecetasEstandar(opts || {});
+      return;
+    }
+    global.__crozzoCostosMatrizTab = 'demo';
+    if (typeof global.navigateTo === 'function') global.navigateTo('costos-matriz');
+  };
   global.crozzoSistemaCostosTeardown = teardown;
   global.crozzoCostosEmit = emit;
 })(window);

@@ -71,7 +71,8 @@ reqFile('scripts/verify-release-multiplatform.mjs');
 reqFile('scripts/lib/release-artifact-checks.mjs');
 reqFile('scripts/lib/update-audit-static.mjs');
 reqFile('scripts/audit-updates-full.mjs');
-reqFile('docs/SMOKE-CHECKLIST.md');
+reqFile('scripts/pre-release-updates.mjs');
+reqFile('docs/TAURI_UPDATER.md');
 reqFile('.github/workflows/tauri-release.yml');
 const releaseYml = join(root, '.github/workflows/release.yml');
 if (existsSync(releaseYml)) {
@@ -112,7 +113,11 @@ if (tauri) {
   else ok.push(`Versión tauri: ${tauri.version}`);
   const ep = tauri.plugins?.updater?.endpoints?.[0];
   if (!ep) errors.push('Sin endpoint updater en tauri.conf.json');
-  else if (!/github\.com.*releases.*latest\.json/i.test(ep)) {
+  else if (/raw\.githubusercontent\.com.*\/main\/releases\/latest\.json/i.test(ep)) {
+    errors.push(
+      'Endpoint updater apunta al manifiesto OTA (main/releases/latest.json). Use GitHub Release: .../releases/latest/download/latest.json'
+    );
+  } else if (!/github\.com.*releases.*latest\.json/i.test(ep)) {
     warnings.push(`Endpoint updater inusual: ${ep}`);
   } else ok.push('Endpoint updater GitHub Releases OK');
   if (!tauri.plugins?.updater?.pubkey) errors.push('Sin pubkey updater');
@@ -221,7 +226,7 @@ if (errors.length) {
 }
 console.log('  Resultado: OK — cadena local de actualizaciones configurada.');
 console.log('');
-console.log('  Auditoría completa:     npm run updates:audit');
-console.log('  Antes de publicar tag:  npm run updates:verify-release -- vX.Y.Z');
+console.log('  Checklist completo:     npm run updates:pre-release');
+console.log('  Tras CI / tag:          npm run updates:post-release -- vX.Y.Z');
 console.log('  Simular OTA:            npm run updates:simulate -- v1.0.0 v1.0.36');
 console.log('');

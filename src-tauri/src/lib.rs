@@ -72,6 +72,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_print_html_b64,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_print::crozzo_html_to_pdf_b64,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_http::crozzo_http_get_text,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_http::crozzo_http_head,

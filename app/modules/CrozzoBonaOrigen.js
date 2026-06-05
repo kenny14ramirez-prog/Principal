@@ -328,6 +328,13 @@
       '.ccp.bona .ccp-card__go{color:var(--bona-gold-dark);font-weight:600;letter-spacing:.04em}' +
       '.ccp.bona .ccp-card__badge{background:var(--bona-gold-08);color:var(--bona-gold-dark);border:1px solid rgba(181,154,109,.2);font-size:10px;letter-spacing:.06em}' +
       '.ccp.bona .ccp-loader{background:rgba(250,249,247,.96);backdrop-filter:blur(6px)}' +
+      '.ccp.bona .ccp-local{background:transparent;padding:20px 32px 32px;color:var(--bona-charcoal)}' +
+      '.ccp.bona .ccp-nav{color:var(--bona-charcoal-soft)}' +
+      '.ccp.bona .ccp-nav:hover{background:var(--bona-gold-08);color:var(--bona-charcoal)}' +
+      '.ccp.bona .ccp__crumb{color:var(--bona-charcoal-soft);padding:8px 32px 0}' +
+      '.ccp.bona .ccp__crumb button{color:var(--bona-gold-dark)}' +
+      '.ccp.bona .cps .card{border-color:var(--bona-line);box-shadow:var(--bona-shadow-sm)}' +
+      '.ccp.bona .cps__badge{border-color:rgba(181,154,109,.28);color:var(--bona-gold-dark);background:var(--bona-gold-08)}' +
       'html[data-crozzo-theme="bona-origen"],html.bona-origen-hub{--bg:var(--bona-cream);--surface-solid:#fff;--text:var(--bona-charcoal);--accent:var(--bona-gold);--sans:var(--bona-font)}' +
       'html.bona-origen-hub .bona-qyc-strip{display:flex!important;align-items:center;gap:16px;padding:14px 24px;background:linear-gradient(180deg,#fff,var(--bona-cream));border-bottom:1px solid var(--bona-line);box-shadow:var(--bona-shadow-sm)}' +
       'html.bona-origen-hub .bona-qyc-strip .bona-logo-frame--hero{width:52px;height:52px;padding:8px}' +
@@ -395,12 +402,7 @@
   function enhanceLoginChrome() {
     var card = document.querySelector('.login-card');
     if (card) card.classList.add('bona-login-card');
-    var title = document.getElementById('loginTitle');
-    if (title && (title.textContent === 'Crozzo POS' || title.textContent === 'Proyecto')) title.textContent = 'BONA origen';
-    var sub = title && title.nextElementSibling;
-    if (sub && sub.tagName === 'P' && !document.getElementById('bonaLoginPowered')) {
-      /* Sin línea de powered-by de plataforma en login */
-    }
+    if (typeof crozzoRefreshLoginBuildStamp === 'function') crozzoRefreshLoginBuildStamp();
   }
 
   function clearDynamicChrome() {

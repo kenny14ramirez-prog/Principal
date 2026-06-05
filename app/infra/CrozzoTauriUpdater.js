@@ -77,6 +77,17 @@
     return !isAndroidTablet();
   }
 
+  /** Escritorio: ON por defecto en producción; opt-out con localStorage crozzo_ota_auto=0. */
+  function isDesktopBinaryInstallAllowed(opts) {
+    opts = opts || {};
+    if (!isWindowsDesktop() && !isMacDesktop()) return true;
+    if (opts.forceInstall || opts.userInitiated || opts.automaticOnly === false) return true;
+    try {
+      if (localStorage.getItem('crozzo_ota_auto') === '0') return false;
+    } catch (_) {}
+    return true;
+  }
+
   function updaterPlatformKeys() {
     if (isMacDesktop()) {
       return ['darwin-aarch64', 'darwin-x86_64', 'darwin-universal'];
@@ -985,14 +996,8 @@
   }
 
   function trySilentSetupInstall(targetVersion, ver, currentVer, onProgress, opts) {
-    if (isWindowsDesktop() || isMacDesktop()) {
-      try {
-        if (localStorage.getItem('crozzo_ota_auto') !== '1') {
-          return Promise.reject(new Error('Auto-instalación OTA desactivada en escritorio.'));
-        }
-      } catch (_) {
-        return Promise.reject(new Error('Auto-instalación OTA desactivada en escritorio.'));
-      }
+    if (!isDesktopBinaryInstallAllowed(opts)) {
+      return Promise.reject(new Error('Auto-instalación OTA desactivada en escritorio.'));
     }
     if (opts.allowSilentSetup === false || !isWindowsDesktop()) {
       return Promise.reject(new Error('Instalación silenciosa (.exe) solo en Windows.'));
@@ -1214,14 +1219,8 @@
    */
   function installAutomatic(opts) {
     opts = opts || {};
-    if (isWindowsDesktop() || isMacDesktop()) {
-      try {
-        if (localStorage.getItem('crozzo_ota_auto') !== '1') {
-          return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
-        }
-      } catch (_) {
-        return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
-      }
+    if (!isDesktopBinaryInstallAllowed(opts)) {
+      return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
     }
     opts.automaticOnly = opts.automaticOnly !== false;
     opts.preferSilentSetup = opts.preferSilentSetup !== false;
@@ -1275,14 +1274,8 @@
    */
   function installLatestBinary(opts) {
     opts = opts || {};
-    if (isWindowsDesktop() || isMacDesktop()) {
-      try {
-        if (localStorage.getItem('crozzo_ota_auto') !== '1') {
-          return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
-        }
-      } catch (_) {
-        return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
-      }
+    if (!isDesktopBinaryInstallAllowed(opts)) {
+      return Promise.resolve({ installed: false, plan: 'manual_only', reason: 'desktop_ota_disabled' });
     }
     if (!isTauri()) {
       return Promise.reject(new Error('Solo disponible en la app de escritorio (Tauri)'));
@@ -1477,6 +1470,7 @@
     humanizeUpdaterError: humanizeUpdaterError,
     relaunch: relaunchApp,
     compareSemver: compareSemver,
+    isDesktopBinaryInstallAllowed: isDesktopBinaryInstallAllowed,
     releasesLatestUrl: GITHUB_RELEASES_LATEST,
     releasesPageUrl: GITHUB_RELEASES_PAGE,
   };

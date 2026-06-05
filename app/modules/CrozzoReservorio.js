@@ -1134,37 +1134,328 @@
     save(st);
   }
 
+  function cantidadSalidaProceso(cor) {
+    if (Number(cor.kg) > 0) return { cant: Number(cor.kg), und: 'kg' };
+    if (Number(cor.porciones) > 0) return { cant: Number(cor.porciones), und: 'und' };
+    if (Number(cor.factor) > 0) return { cant: Number(cor.factor), und: 'und' };
+    return { cant: 1, und: 'und' };
+  }
+
+  function resolveLineaInventarioProceso(C, ln, cor) {
+    var out = {
+      mpId: ln && ln.mpId ? String(ln.mpId) : null,
+      refTipo: 'materia_prima',
+      nombre: (ln && (ln.ingrediente || ln.producto)) || '',
+      esElaborado: false,
+    };
+    if (!C) {
+      out.mpId = out.mpId || out.nombre;
+      return out;
+    }
+    if (out.mpId) {
+      var mp0 = C.get(out.mpId);
+      if (mp0) {
+        out.nombre = mp0.nombre || out.nombre;
+        if (mp0.esElaborado || String(mp0.categoria || '').toUpperCase() === 'ELABORADOS') {
+          out.refTipo = 'elaborado';
+          out.esElaborado = true;
+        }
+        return out;
+      }
+    }
+    if (out.nombre && C.getByNombre) {
+      var byN = C.getByNombre(out.nombre);
+      if (byN) {
+        out.mpId = byN.id;
+        out.nombre = byN.nombre;
+        if (byN.esElaborado || String(byN.categoria || '').toUpperCase() === 'ELABORADOS') {
+          out.refTipo = 'elaborado';
+          out.esElaborado = true;
+        }
+        return out;
+      }
+    }
+    if (out.nombre && C.slugPlato && C.getMenuPlato && C.ensureMpElaboradoDesdeMenu) {
+      var slugIng = C.slugPlato(out.nombre);
+      var menuIng = slugIng ? C.getMenuPlato(slugIng) : null;
+      if (menuIng && menuIng.slug !== (cor && cor.slug)) {
+        var elab = C.ensureMpElaboradoDesdeMenu(menuIng.slug, { silent: true });
+        if (elab) {
+          out.mpId = elab.id;
+          out.nombre = elab.nombre;
+          out.refTipo = 'elaborado';
+          out.esElaborado = true;
+        }
+      }
+    }
+    out.mpId = out.mpId || out.nombre;
+    return out;
+  }
+
+  function lineasConsumoRecetaVenta(slug, qtyVendida) {
+    var C = global.CrozzoCatalogoMp;
+    var qty = Number(qtyVendida) || 0;
+    if (!C || !slug || qty <= 0) return [];
+    var rec = C.getRecetaPlato && C.getRecetaPlato(slug);
+    if (!rec || !rec.lineas || !rec.lineas.length) return [];
+    var porBase = (rec.opts && rec.opts.porciones) || 1;
+    var ratio = qty / porBase;
+    var pack =
+      global.CrozzoCostosRecetaLineasCalc && typeof global.CrozzoCostosRecetaLineasCalc === 'function'
+        ? global.CrozzoCostosRecetaLineasCalc(slug, null, { readOnly: true })
+        : null;
+    var lineas = pack && pack.lineas && pack.lineas.length ? pack.lineas : rec.lineas;
+    return lineas
+      .map(function (ln) {
+        var cant = Number(ln.cantidad != null ? ln.cantidad : ln.cantidadUsada) || 0;
+        if (cant <= 0) return null;
+        return {
+          mpId: ln.mpId || null,
+          ingrediente: ln.ingrediente || ln.nombre || '',
+          unidad: ln.unidad || ln.und || 'GR',
+          cantidadUsada: Math.round(cant * ratio * 1000) / 1000,
+          costoXUnidad: Number(ln.costoXUnidad) || 0,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function consumirIngredientesAlVender(st, input) {
+    var C = global.CrozzoCatalogoMp;
+    if (!C) return;
+    var saleId = input.saleId || input.uuid;
+    (input.items || []).forEach(function (line) {
+      var pid = line.id != null ? line.id : line.productId;
+      if (pid == null) return;
+      var menu = C.getMenuPlatoByPosId ? C.getMenuPlatoByPosId(pid) : null;
+      if (!menu) return;
+      var qty = Number(line.cantidad || line.qty) || 0;
+      if (qty <= 0) return;
+      var modo = C.inferModoProcesoFromMenu ? C.inferModoProcesoFromMenu(menu) : 'bajo_demanda';
+      if (modo !== 'bajo_demanda') return;
+
+      if (menu.tipoCosteo === 'directo' && C.resolveMpIdForMenuRow) {
+        var mpId = C.resolveMpIdForMenuRow(menu);
+        var mp = mpId && C.get ? C.get(mpId) : null;
+        if (mp) {
+          addInventarioMovimiento(st, {
+            tipo: 'salida_venta',
+            refTipo: 'venta',
+            refId: saleId,
+            productoRefTipo: 'materia_prima',
+            productoRefId: mp.id,
+            productoNombre: mp.nombre || line.nombre || menu.producto,
+            cantidad: qty,
+            unidad: mpInvUnidad(mp.und || 'UND'),
+            costoUnitario: Number(mp.precioUnit) || 0,
+            notas: 'Consumo directo al vender · ' + (line.nombre || menu.producto),
+          });
+        }
+        return;
+      }
+
+      var lineas = lineasConsumoRecetaVenta(menu.slug, qty);
+      if (!lineas.length) return;
+      var pseudoCor = { slug: menu.slug, producto: menu.producto };
+      lineas.forEach(function (ln) {
+        var ref = resolveLineaInventarioProceso(C, ln, pseudoCor);
+        addInventarioMovimiento(st, {
+          tipo: 'salida_venta',
+          refTipo: 'venta',
+          refId: saleId,
+          productoRefTipo: ref.refTipo,
+          productoRefId: ref.mpId,
+          productoNombre: ref.nombre || ln.ingrediente || '',
+          cantidad: ln.cantidadUsada,
+          unidad: mpInvUnidad(ln.unidad || 'GR'),
+          costoUnitario: Number(ln.costoXUnidad) || 0,
+          notas:
+            (ref.esElaborado ? 'Salida elaborado · ' : 'Salida MP · ') +
+            'al vender · ' +
+            (line.nombre || menu.producto),
+        });
+      });
+    });
+  }
+
   function registrarProceso(input) {
+    input = input || {};
     var st = migrateLegacy();
+    var C = global.CrozzoCatalogoMp;
+    var modo =
+      input.modoProceso === 'bajo_demanda' || input.modoProceso === 'prep_anticipado'
+        ? input.modoProceso
+        : C && C.inferModoProcesoFromMenu && input.slug
+          ? C.inferModoProcesoFromMenu(C.getMenuPlato(input.slug))
+          : 'prep_anticipado';
     var cor = {
       id: input.id || uid('cor'),
       fecha: input.fecha || new Date().toISOString().slice(0, 10),
       producto: input.producto || '',
+      slug: input.slug ? String(input.slug) : null,
+      mpId: input.mpId ? String(input.mpId) : null,
+      workflow: input.workflow ? String(input.workflow) : null,
+      modoProceso: modo,
+      sesionId: input.sesionId ? String(input.sesionId) : null,
+      responsableId: input.responsableId ? String(input.responsableId) : null,
+      responsableNombre: input.responsableNombre ? String(input.responsableNombre) : null,
+      responsables: Array.isArray(input.responsables) ? input.responsables.slice() : [],
       kg: Number(input.kg) || 0,
+      pesoEntradaKg: input.pesoEntradaKg != null ? Number(input.pesoEntradaKg) : null,
+      pesoCocidoKg: input.pesoCocidoKg != null ? Number(input.pesoCocidoKg) : null,
+      pesoUtilKg: input.pesoUtilKg != null ? Number(input.pesoUtilKg) : null,
+      mermaCoccionRealPct: input.mermaCoccionRealPct != null ? Number(input.mermaCoccionRealPct) : null,
+      mermaDesposteRealPct: input.mermaDesposteRealPct != null ? Number(input.mermaDesposteRealPct) : null,
+      mermaCoccionKg: input.mermaCoccionKg != null ? Number(input.mermaCoccionKg) : null,
+      mermaDesposteKg: input.mermaDesposteKg != null ? Number(input.mermaDesposteKg) : null,
+      mermaTotalKg: input.mermaTotalKg != null ? Number(input.mermaTotalKg) : null,
+      mermaAlerta: input.mermaAlerta ? String(input.mermaAlerta) : null,
+      porciones: input.porciones != null ? Number(input.porciones) : input.factor != null ? Number(input.factor) : null,
+      factor: input.factor != null ? Number(input.factor) : null,
+      cortesDespiece: Array.isArray(input.cortesDespiece) ? input.cortesDespiece.slice() : [],
+      costoMpTotal: input.costoMpTotal != null ? Math.round(Number(input.costoMpTotal)) : null,
+      lineas: Array.isArray(input.lineas) ? input.lineas.slice() : [],
       notas: input.notas || '',
       createdAt: new Date().toISOString(),
     };
+    if (
+      C &&
+      C.calcMermasProceso &&
+      (cor.pesoEntradaKg > 0 || cor.pesoCocidoKg > 0 || cor.pesoUtilKg > 0 || cor.kg > 0)
+    ) {
+      var util = cor.pesoUtilKg > 0 ? cor.pesoUtilKg : cor.kg;
+      var mCalc = C.calcMermasProceso(cor.pesoEntradaKg, cor.pesoCocidoKg, util);
+      if (cor.mermaCoccionKg == null || cor.mermaCoccionKg === 0) cor.mermaCoccionKg = mCalc.mermaCoccionKg;
+      if (cor.mermaDesposteKg == null || cor.mermaDesposteKg === 0) cor.mermaDesposteKg = mCalc.mermaDesposteKg;
+      if (cor.mermaCoccionRealPct == null) cor.mermaCoccionRealPct = mCalc.mermaCoccionPct;
+      if (cor.mermaDesposteRealPct == null) cor.mermaDesposteRealPct = mCalc.mermaDespostePct;
+      if (cor.mermaTotalKg == null || cor.mermaTotalKg === 0) cor.mermaTotalKg = mCalc.mermaTotalKg;
+    }
     st.cortes.unshift(cor);
-    addInventarioMovimiento(st, {
-      tipo: 'entrada_proceso',
-      refTipo: 'proceso',
-      refId: cor.id,
-      productoRefId: cor.producto,
-      productoNombre: cor.producto,
-      cantidad: cor.kg || 1,
-      unidad: 'kg',
-      notas: cor.notas,
+    (cor.lineas || []).forEach(function (ln) {
+      if (!ln) return;
+      var qty = Number(ln.cantidadUsada != null ? ln.cantidadUsada : ln.cantidad) || 0;
+      if (qty <= 0) return;
+      var ref = resolveLineaInventarioProceso(C, ln, cor);
+      addInventarioMovimiento(st, {
+        tipo: 'salida_proceso',
+        refTipo: 'proceso',
+        refId: cor.id,
+        productoRefTipo: ref.refTipo,
+        productoRefId: ref.mpId,
+        productoNombre: ref.nombre || ln.ingrediente || '',
+        cantidad: qty,
+        unidad: mpInvUnidad(ln.unidad || 'GR'),
+        costoUnitario: Number(ln.costoXUnidad) || 0,
+        notas:
+          (ref.esElaborado ? 'Salida elaborado · ' : 'Salida MP · ') +
+          (modo === 'bajo_demanda' ? 'al momento · ' : '') +
+          cor.producto,
+      });
     });
+    var outQty = cantidadSalidaProceso(cor);
+    var costoUnitOut =
+      cor.costoMpTotal > 0 && outQty.cant > 0 ? Math.round(cor.costoMpTotal / outQty.cant) : 0;
+    var outMp = null;
+    if (modo === 'prep_anticipado') {
+      if (cor.slug && C && C.ensureMpElaboradoDesdeMenu) {
+        outMp = C.ensureMpElaboradoDesdeMenu(cor.slug, {
+          costoUnit: costoUnitOut,
+          und: outQty.und,
+          silent: true,
+        });
+      } else if (cor.mpId && C && C.ensureMpElaboradoDesdeMp) {
+        outMp = C.ensureMpElaboradoDesdeMp(cor.mpId, {
+          nombre: cor.producto,
+          costoUnit: costoUnitOut,
+        });
+      }
+      addInventarioMovimiento(st, {
+        tipo: 'entrada_proceso',
+        refTipo: 'proceso',
+        refId: cor.id,
+        productoRefTipo: 'elaborado',
+        productoRefId: outMp ? outMp.id : cor.slug || cor.mpId || cor.producto,
+        productoNombre: outMp ? outMp.nombre : cor.producto,
+        cantidad: outQty.cant,
+        unidad: outQty.und,
+        costoUnitario: costoUnitOut,
+        notas: (cor.notas || 'Entrada elaborado') + (cor.sesionId ? ' · sesión ' + cor.sesionId : ''),
+      });
+      cor.inventarioEntradaMpId = outMp ? outMp.id : null;
+    } else {
+      cor.consumoDirecto = true;
+      cor.inventarioEntradaMpId = null;
+    }
+    var mpMermaId = cor.mpId || (cor.lineas[0] && cor.lineas[0].mpId) || null;
+    var mpMermaNom = cor.producto || '';
+    if (cor.mermaCoccionKg > 0) {
+      addInventarioMovimiento(st, {
+        tipo: 'merma',
+        refTipo: 'proceso',
+        refId: cor.id,
+        productoRefTipo: 'materia_prima',
+        productoRefId: mpMermaId,
+        productoNombre: mpMermaNom,
+        cantidad: cor.mermaCoccionKg,
+        unidad: 'KG',
+        notas: 'Merma cocinado · ' + cor.producto,
+      });
+    }
+    if (cor.mermaDesposteKg > 0) {
+      addInventarioMovimiento(st, {
+        tipo: 'merma',
+        refTipo: 'proceso',
+        refId: cor.id,
+        productoRefTipo: 'materia_prima',
+        productoRefId: mpMermaId,
+        productoNombre: mpMermaNom,
+        cantidad: cor.mermaDesposteKg,
+        unidad: 'KG',
+        notas: 'Merma desposte/desgrado · ' + cor.producto,
+      });
+    }
     pushSync(st, { tipo: 'insert', tabla: 'lotes_procesado', payload: cor });
     save(st);
     emitCostos('crozzo-costos:proceso-cerrado', { proceso: cor });
     return cor;
   }
 
+  function eliminarProceso(id) {
+    var st = migrateLegacy();
+    var sid = String(id || '');
+    if (!sid) return false;
+    var idx = st.cortes.findIndex(function (c) {
+      return c && String(c.id) === sid;
+    });
+    if (idx < 0) return false;
+    var removed = st.cortes[idx];
+
+    st.inventarioMovimientos = (st.inventarioMovimientos || []).filter(function (m) {
+      return !(m.refTipo === 'proceso' && String(m.refId) === sid);
+    });
+
+    st.cortes.splice(idx, 1);
+    pushSync(st, { tipo: 'delete', tabla: 'lotes_procesado', payload: { id: sid } });
+    save(st);
+
+    emitCostos('crozzo-costos:proceso-eliminado', { proceso: removed, id: sid });
+    try {
+      global.dispatchEvent(
+        new CustomEvent('crozzo-proceso:eliminado', {
+          detail: { proceso: removed, id: sid },
+        })
+      );
+    } catch (_) {}
+
+    return true;
+  }
+
   function registrarVenta(input) {
     var st = migrateLegacy();
     var total = Number(input.monto || input.total) || 0;
     var items = input.items || [];
+    consumirIngredientesAlVender(st, input);
 
     items.forEach(function (line) {
       var qty = Number(line.cantidad || line.qty) || 0;
@@ -1523,6 +1814,7 @@
     registrarOficina: registrarOficina,
     actualizarEstadoOficina: actualizarEstadoOficina,
     registrarProceso: registrarProceso,
+    eliminarProceso: eliminarProceso,
     registrarVenta: registrarVenta,
     registrarOrdenCompraRecibida: registrarOrdenCompraRecibida,
     addInventarioMovimiento: function (mov) {

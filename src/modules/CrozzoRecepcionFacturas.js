@@ -3519,6 +3519,19 @@
     modal.style.pointerEvents = '';
     modal.style.visibility = '';
     var nom = modal.querySelector('#cxf-mp-nombre');
+    var catSel = modal.querySelector('#cxf-mp-cat');
+    if (nom && catSel && ui.mpEditorMode !== 'edit') {
+      var catApi = C();
+      nom.addEventListener('input', function () {
+        if (catSel.dataset.userPicked === '1' || !catApi || !catApi.guessCategoriaFromNombre) return;
+        catSel.value = catApi.normalizeCategoriaMp
+          ? catApi.normalizeCategoriaMp(catApi.guessCategoriaFromNombre(nom.value))
+          : catApi.guessCategoriaFromNombre(nom.value);
+      });
+      catSel.addEventListener('change', function () {
+        catSel.dataset.userPicked = '1';
+      });
+    }
     if (nom) {
       try {
         nom.focus();
@@ -5951,6 +5964,17 @@
     if (ui.creatingMpLine == null) return '';
     var isEdit = ui.mpEditorMode === 'edit' && ui.editingMpId;
     var mp = isEdit ? getMp(ui.editingMpId) : null;
+    var catApi = C();
+    var catVal = mp && mp.categoria ? mp.categoria : 'OTRO';
+    var nombreSug = mp ? mp.nombre : getMpLineFilter(ui.creatingMpLine) || '';
+    if (!isEdit && catApi && catApi.guessCategoriaFromNombre && nombreSug) {
+      catVal = catApi.guessCategoriaFromNombre(nombreSug);
+    }
+    if (catApi && catApi.normalizeCategoriaMp) catVal = catApi.normalizeCategoriaMp(catVal);
+    var catOptions =
+      catApi && catApi.renderCategoriaMpOptionsHtml
+        ? catApi.renderCategoriaMpOptionsHtml(catVal)
+        : '<option value="OTRO">Otro</option>';
     return (
       '<div class="cxf-mp-create cxf-mp-create--modal" id="cxf-mp-create-panel">' +
       '<header class="cxf-mp-create__head">' +
@@ -5967,11 +5991,11 @@
       '</p></div></header>' +
       '<div class="cxf-form-grid cxf-form-grid--mp-modal">' +
       '<div class="cxf-field-span-2"><label class="cxf-label">Nombre *</label><input class="form-input" id="cxf-mp-nombre" placeholder="Ej. Pechuga fresca" value="' +
-      esc(mp ? mp.nombre : '') +
+      esc(mp ? mp.nombre : nombreSug) +
       '"></div>' +
-      '<div><label class="cxf-label">Categoría</label><input class="form-input" id="cxf-mp-cat" placeholder="Carnes" value="' +
-      esc((mp && mp.categoria) || 'General') +
-      '"></div>' +
+      '<div><label class="cxf-label">Categoría</label><select class="form-input" id="cxf-mp-cat" title="Define dónde aparece en cocina">' +
+      catOptions +
+      '</select></div>' +
       '<div><label class="cxf-label">Unidad</label><select class="form-input" id="cxf-mp-und">' +
       '<option value="GR"' +
       (mp && mp.und === 'GR' ? ' selected' : !mp ? ' selected' : '') +
@@ -7402,9 +7426,12 @@
       });
       if (!has) provs.push({ nombre: prov.nombre, id: prov.id });
     }
+    var catSel = host.querySelector('#cxf-mp-cat');
+    var catVal = catSel ? catSel.value : 'OTRO';
+    if (cat.normalizeCategoriaMp) catVal = cat.normalizeCategoriaMp(catVal);
     var payload = {
       nombre: nom.value.trim(),
-      categoria: ((host.querySelector('#cxf-mp-cat') || {}).value || 'General').trim(),
+      categoria: catVal,
       proveedores: provs,
       und: (host.querySelector('#cxf-mp-und') || {}).value || 'GR',
       peso: Number((host.querySelector('#cxf-mp-peso') || {}).value) || 1000,
