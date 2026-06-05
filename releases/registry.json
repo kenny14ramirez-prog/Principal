@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-05T23:06:44.573Z",
+  "updatedAt": "2026-06-05T23:18:53.368Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -617,6 +617,18 @@
       "installMode": "auto",
       "changelog": [
         "critico"
+      ]
+    },
+    {
+      "id": "1.0.72-optional",
+      "version": "v1.0.72",
+      "semver": "1.0.72",
+      "type": "optional",
+      "message": "prueba",
+      "publishedAt": "2026-06-05T23:18:53.368Z",
+      "installMode": "prompt",
+      "changelog": [
+        "prueba"
       ]
     }
   ]
