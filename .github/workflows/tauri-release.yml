@@ -153,13 +153,9 @@ jobs:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/crozzo-upload.jks
         run: node scripts/prepare-android-keystore.mjs
 
-      - name: Parchear Gradle (firma release)
+      - name: Parchear Gradle (firma release + APK in-app)
         if: matrix.android
         run: node scripts/patch-android-signing.mjs
-
-      - name: Parchear instalación APK in-app
-        if: matrix.android
-        run: node scripts/patch-android-apk-install.mjs
 
       - name: Compilar ${{ matrix.label }} y publicar release
         if: ${{ !matrix.android }}
