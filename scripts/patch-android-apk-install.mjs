@@ -14,12 +14,21 @@ const filePaths = join(genAndroid, 'app', 'src', 'main', 'res', 'xml', 'file_pat
 const manifest = join(genAndroid, 'app', 'src', 'main', 'AndroidManifest.xml');
 
 const FILE_PATHS_SNIPPET =
-  '  <cache-path name="crozzo_apk_cache" path="." />\n  <files-path name="crozzo_apk_files" path="." />\n';
+  '  <files-path name="apk_files" path="." />\n' +
+  '  <files-path name="crozzo_apk_files" path="." />\n' +
+  '  <cache-path name="my_cache_images" path="." />\n' +
+  '  <cache-path name="crozzo_apk_cache" path="." />\n' +
+  '  <external-cache-path name="crozzo_apk_external_cache" path="." />\n';
 
 function patchApkInstallResources() {
   if (existsSync(filePaths)) {
     let xml = readFileSync(filePaths, 'utf8');
-    if (!xml.includes('crozzo_apk_cache') || !xml.includes('crozzo_apk_files')) {
+    if (
+      !xml.includes('apk_files') ||
+      !xml.includes('crozzo_apk_cache') ||
+      !xml.includes('crozzo_apk_files') ||
+      !xml.includes('my_cache_images')
+    ) {
       if (xml.includes('</paths>')) {
         xml = xml.replace('</paths>', FILE_PATHS_SNIPPET + '</paths>');
       } else {

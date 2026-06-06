@@ -11,10 +11,10 @@
   var BREAK_PHONE_SM = 360;
 
   var TOUCH_TOKENS = {
-    'phone-sm': { scale: 1, gap: 8, pad: 10, navH: 54, sidebarVw: 90, btn: 44, font: 14, icon: 1.28, posCols: 2, sidebarPx: 280 },
-    phone: { scale: 1, gap: 10, pad: 12, navH: 56, sidebarVw: 88, btn: 44, font: 14, icon: 1.35, posCols: 2, sidebarPx: 300 },
-    'phone-lg': { scale: 1.03, gap: 12, pad: 14, navH: 58, sidebarVw: 82, btn: 46, font: 15, icon: 1.45, posCols: 3, sidebarPx: 320 },
-    tablet: { scale: 1.06, gap: 14, pad: 18, navH: 62, sidebarVw: 68, btn: 48, font: 15, icon: 1.55, posCols: 4, sidebarPx: 300 },
+    'phone-sm': { scale: 1.04, gap: 10, pad: 13, navH: 60, sidebarVw: 90, btn: 48, font: 16, icon: 1.42, posCols: 2, sidebarPx: 300 },
+    phone: { scale: 1.06, gap: 11, pad: 14, navH: 62, sidebarVw: 88, btn: 50, font: 16, icon: 1.48, posCols: 2, sidebarPx: 320 },
+    'phone-lg': { scale: 1.1, gap: 13, pad: 16, navH: 66, sidebarVw: 84, btn: 52, font: 17, icon: 1.58, posCols: 3, sidebarPx: 340 },
+    tablet: { scale: 1.12, gap: 15, pad: 18, navH: 68, sidebarVw: 78, btn: 54, font: 17, icon: 1.65, posCols: 4, sidebarPx: 360 },
   };
 
   function isCoarseTouchShell() {

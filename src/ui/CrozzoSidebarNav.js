@@ -18,10 +18,13 @@
   var _boundNavEl = null;
   var _navCoreReady = false;
 
-  function isDrawerNavMode() {
+  function isDrawerLayoutActive() {
     try {
+      if (typeof global.crozzoIsDrawerLayoutActive === 'function') return global.crozzoIsDrawerLayoutActive();
       var doc = document.documentElement;
+      if (doc && doc.classList.contains('crozzo-form-desktop')) return false;
       if (doc && doc.classList.contains('crozzo-touch-shell')) return true;
+      if (doc && (doc.classList.contains('crozzo-form-mobile') || doc.classList.contains('crozzo-form-tablet'))) return true;
       var body = document.body;
       return !!(body && (body.classList.contains('mobile') || body.classList.contains('tablet')));
     } catch (_) {
@@ -29,31 +32,46 @@
     }
   }
 
+  function isDrawerNavMode() {
+    return isDrawerLayoutActive();
+  }
+
+  var _drawerNavPrepared = false;
+
   function applyDrawerNavMode() {
     if (!isDrawerNavMode()) return;
+    clearHoverTimers();
     var sb = getSidebar();
     if (!sb) return;
-    clearHoverTimers();
     sb.classList.add('crozzo-drawer-nav');
-    sb.classList.remove('open');
-    sb.style.removeProperty('transform');
-    sb.style.removeProperty('visibility');
-    setSidebarExpanded(true, false);
-    if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
-    if (typeof global.crozzoInitSidebarDrawerClosed === 'function') global.crozzoInitSidebarDrawerClosed();
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.style.display = 'none';
       btn.setAttribute('aria-hidden', 'true');
     }
+    if (_drawerNavPrepared) return;
+    _drawerNavPrepared = true;
+    if (!sb.classList.contains('expanded') && !sb.classList.contains('is-expanded')) {
+      setSidebarExpanded(true, false);
+    }
+    if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
+  }
+
+  function ensureLayout() {
+    if (isDrawerNavMode()) applyDrawerNavMode();
+    else clearDrawerNavMode();
   }
 
   function clearDrawerNavMode() {
-    if (isDrawerNavMode()) return;
+    if (isDrawerLayoutActive()) return;
+    _drawerNavPrepared = false;
     var sb = getSidebar();
     if (!sb) return;
     clearHoverTimers();
-    sb.classList.remove('crozzo-drawer-nav');
+    sb.classList.remove('crozzo-drawer-nav', 'open');
+    sb.style.removeProperty('transform');
+    sb.style.removeProperty('visibility');
+    if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.style.removeProperty('display');
@@ -153,6 +171,19 @@
     return sb.classList.contains('expanded') || sb.classList.contains('is-expanded');
   }
 
+  function shouldDisableSidebarHover() {
+    try {
+      if (typeof global.crozzoIsSidebarDrawerMode === 'function' && global.crozzoIsSidebarDrawerMode()) return true;
+    } catch (_) {}
+    if (isDrawerNavMode()) return true;
+    var sb = getSidebar();
+    if (sb && sb.classList.contains('open')) return true;
+    try {
+      if (document.body && document.body.classList.contains('crozzo-sidebar-drawer-open')) return true;
+    } catch (_) {}
+    return false;
+  }
+
   function hoverExpandEnabled() {
     try {
       return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -173,6 +204,9 @@
   }
 
   function markSidebarTransition() {
+    var sb = getSidebar();
+    if (sb && sb.classList.contains('crozzo-drawer-nav')) return;
+    if (shouldDisableSidebarHover()) return;
     var root = document.documentElement;
     if (!root) return;
     root.classList.add('crozzo-sidebar-transitioning');
@@ -185,6 +219,8 @@
 
   function applyGroupOpen(group, open, withDelay) {
     if (!group) return;
+    var sb = getSidebar();
+    if (sb && sb.classList.contains('crozzo-drawer-nav')) withDelay = false;
     group.classList.toggle('open', !!open);
     group.classList.toggle('nav-group-collapsed', !open);
     var btn = group.querySelector('.nav-group-toggle');
@@ -263,6 +299,7 @@
   }
 
   function maybeCollapseRailAfterInteraction() {
+    if (shouldDisableSidebarHover()) return;
     var sb = getSidebar();
     if (!sb || shouldBlockHoverToggleGlobal(sb)) return;
     if (!isSidebarExpanded(sb)) return;
@@ -292,11 +329,13 @@
       } catch (_) {}
       if (expanded) restoreGroupsState(false);
     }
-    if (!expanded && !st.pinned && !sb.classList.contains('is-nav-searching')) {
+    if (!expanded && !st.pinned && !sb.classList.contains('is-nav-searching') && !shouldDisableSidebarHover()) {
       collapseGroupsForRail();
     }
     sb.classList.toggle('pinned', !!expanded && readState().pinned);
-    if (wasExpanded !== !!expanded) markSidebarTransition();
+    if (wasExpanded !== !!expanded && sb && !sb.classList.contains('crozzo-drawer-nav') && !shouldDisableSidebarHover()) {
+      markSidebarTransition();
+    }
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
@@ -461,7 +500,9 @@
     if (group) applyGroupOpen(group, true, false);
     if (typeof global.crozzoNavigateImmediate === 'function') global.crozzoNavigateImmediate(p);
     else if (typeof global.navigateTo === 'function') global.navigateTo(p);
-    if (document.body && !document.body.classList.contains('desktop') && typeof global.crozzoCloseSidebarDrawer === 'function') {
+    var drawerOpen = document.body && document.body.classList.contains('crozzo-sidebar-drawer-open');
+    var drawerMode = isDrawerNavMode();
+    if ((drawerOpen || drawerMode) && typeof global.crozzoCloseSidebarDrawer === 'function') {
       global.crozzoCloseSidebarDrawer();
     }
   }
@@ -539,11 +580,12 @@
     restoreGroupsState(false);
 
     function shouldBlockHoverToggle() {
+      if (shouldDisableSidebarHover()) return true;
       return !!readState().pinned || sb.classList.contains('is-nav-searching');
     }
 
     function scheduleHoverOpen() {
-      if (!hoverExpandEnabled() || shouldBlockHoverToggle()) return;
+      if (shouldDisableSidebarHover() || !hoverExpandEnabled() || shouldBlockHoverToggle()) return;
       if (isSidebarExpanded(sb)) return;
       if (_hoverOpenTimer) return;
       if (_hoverCloseTimer) {
@@ -558,6 +600,10 @@
     }
 
     function scheduleHoverClose() {
+      if (shouldDisableSidebarHover()) {
+        clearHoverTimers();
+        return;
+      }
       if (shouldBlockHoverToggle()) {
         clearHoverTimers();
         return;
@@ -574,12 +620,9 @@
       }, HOVER_CLOSE_MS);
     }
 
-    if (hoverExpandEnabled() && !isDrawerNavMode()) {
-      sb.addEventListener('mouseenter', scheduleHoverOpen);
-    }
-    if (!isDrawerNavMode()) {
-      sb.addEventListener('mouseleave', scheduleHoverClose);
-    } else {
+    sb.addEventListener('mouseenter', scheduleHoverOpen);
+    sb.addEventListener('mouseleave', scheduleHoverClose);
+    if (isDrawerNavMode()) {
       applyDrawerNavMode();
     }
 
@@ -630,7 +673,8 @@
 
   function init() {
     bindSidebarExpand();
-    applyDrawerNavMode();
+    if (isDrawerNavMode()) applyDrawerNavMode();
+    else clearDrawerNavMode();
     bindGroupToggles();
     bindNavItems();
     if (typeof global.crozzoEnhanceSidebarLabels === 'function') global.crozzoEnhanceSidebarLabels();
@@ -643,8 +687,7 @@
   }
 
   function refresh() {
-    if (isDrawerNavMode()) applyDrawerNavMode();
-    else clearDrawerNavMode();
+    ensureLayout();
     bindGroupToggles();
     bindNavItems();
     bindNavSearch();
@@ -659,6 +702,7 @@
   global.CrozzoSidebarNav = {
     init: init,
     refresh: refresh,
+    ensureLayout: ensureLayout,
     readState: readState,
     save: saveGroupsState,
     restore: restoreGroupsState,
@@ -669,7 +713,9 @@
     collapseAllGroups: collapseAllGroups,
     bindNavSearch: bindNavSearch,
     runNavSearch: runNavSearch,
-    clearNavSearch: clearNavSearch
+    clearNavSearch: clearNavSearch,
+    clearHoverTimers: clearHoverTimers,
+    shouldDisableSidebarHover: shouldDisableSidebarHover
   };
 
   global.crozzoSaveSidebarNavState = saveGroupsState;

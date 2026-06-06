@@ -44,8 +44,10 @@
   function applyDocumentFlags() {
     var doc = document.documentElement;
     if (!doc) return;
-    doc.classList.toggle('crozzo-android-apk', isAndroidApk());
+    var apk = isAndroidApk();
+    doc.classList.toggle('crozzo-android-apk', apk);
     doc.classList.toggle('crozzo-field-tablet', isFieldTabletDevice());
+    if (apk) doc.classList.add('crozzo-perf-lite', 'crozzo-apk-perf');
   }
 
   function applyLoginTabletUx() {
@@ -72,23 +74,6 @@
   }
 
   function applyBottomNavTabletDefaults() {
-    var root = document.getElementById('crozzoMobileBottomNav');
-    if (!root) return;
-    var hideVentas =
-      isAndroidApk() ||
-      deviceRoleB() ||
-      (typeof global.crozzoFieldVentasHiddenOnThisDevice === 'function' &&
-        global.crozzoFieldVentasHiddenOnThisDevice());
-    root.querySelectorAll('.crozzo-mbn-btn[data-crozzo-nav="cajero"]').forEach(function (btn) {
-      if (hideVentas) btn.style.display = 'none';
-    });
-    if (hideVentas && typeof global.crozzoUpdateMobileBottomNavActive === 'function') {
-      var active = root.querySelector('.crozzo-mbn-btn.active');
-      var activePage = active && active.getAttribute('data-crozzo-nav');
-      if (!activePage || activePage === 'cajero') {
-        global.crozzoUpdateMobileBottomNavActive('tablets');
-      }
-    }
     if (typeof global.crozzoApplyMobileBottomNavAccess === 'function') {
       global.crozzoApplyMobileBottomNavAccess();
     }

@@ -8231,7 +8231,9 @@ function crozzoRestoreSidebarNavState() {
   if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.restore === 'function') {
     CrozzoSidebarNav.restore(false);
     try {
-      if (typeof initMobileUX === 'function') initMobileUX();
+      if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.ensureLayout === 'function') {
+        CrozzoSidebarNav.ensureLayout();
+      }
     } catch (_) {}
     return;
   }
@@ -8253,7 +8255,9 @@ function crozzoRestoreSidebarNavState() {
       if (sub) sub.classList.toggle('open', open);
     });
     try {
-      if (typeof initMobileUX === 'function') initMobileUX();
+      if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.ensureLayout === 'function') {
+        CrozzoSidebarNav.ensureLayout();
+      }
     } catch (_) {}
   } catch (e) {
     console.warn('[nav] restore', e);
@@ -8806,7 +8810,7 @@ function crozzoForceSuperAdminVisibility() {
     document.body.classList.toggle('tauri-desktop', document.documentElement.classList.contains('crozzo-form-desktop'));
   }
   if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
-    if (typeof crozzoCloseSidebarDrawer === 'function') crozzoCloseSidebarDrawer();
+    if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
   } else {
     crozzoEnsureSidebarShellVisible();
   }
@@ -9907,6 +9911,10 @@ function crozzoMeseroSinModuloVentas() {
   }
 }
 function crozzoApplyMobileBottomNavAccess() {
+  if (global.CrozzoTabletNav && typeof global.CrozzoTabletNav.applyBottomNavLayout === 'function') {
+    global.CrozzoTabletNav.applyBottomNavLayout();
+    return;
+  }
   const root = document.getElementById('crozzoMobileBottomNav');
   if (!root) return;
   const hpLive = window.__crozzoHoneypotLive;
@@ -10607,27 +10615,57 @@ function pickFirstAccessiblePage() {
   }
   const preferTabletPrimero =
     typeof crozzoMeseroSinModuloVentas === 'function' && crozzoMeseroSinModuloVentas();
-  const orden = preferTabletPrimero
-    ? [
-        'tablets',
-        'comandas',
-        'cocina',
-        'cajero',
-        'caja-clientes',
-        'facturas',
-        'cierre-caja',
-        'productos',
-        'inventarios',
-        'centro-compras',
-        'config-empresa',
-        'config-impuestos',
-        'config-comandas',
-        'config-conexiones-sistemas',
-        'config-facturas-admin',
-        'config-usuarios',
-        'auditoria'
-      ]
-    : [
+  const preferCocinaPrimero = (function () {
+    try {
+      const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+      if (!u) return false;
+      const r = crozzoNormalizeAppRol(u.rol);
+      return r === 'cocina' || r === 'chef';
+    } catch (_) {
+      return false;
+    }
+  })();
+  const ordenCocina = [
+    'cocina',
+    'comandas',
+    'pedidos-internos',
+    'tablets',
+    'cajero',
+    'inicio-operacion',
+    'facturas',
+    'cierre-caja',
+    'productos',
+    'inventarios',
+    'centro-compras',
+    'config-empresa',
+    'config-comandas',
+    'config-usuarios',
+    'auditoria'
+  ];
+  const ordenTablet = [
+    'tablets',
+    'comandas',
+    'cocina',
+    'cajero',
+    'caja-clientes',
+    'facturas',
+    'cierre-caja',
+    'productos',
+    'inventarios',
+    'centro-compras',
+    'config-empresa',
+    'config-impuestos',
+    'config-comandas',
+    'config-conexiones-sistemas',
+    'config-facturas-admin',
+    'config-usuarios',
+    'auditoria'
+  ];
+  const orden = preferCocinaPrimero
+    ? ordenCocina
+    : preferTabletPrimero
+      ? ordenTablet
+      : [
         'inicio-operacion',
         'venta-comercial',
         'cajero',
@@ -14315,6 +14353,12 @@ function crozzoSupportsHomeHub() {
   try {
     if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) return false;
     if (typeof crozzoKioskIsActive === 'function' && crozzoKioskIsActive()) return false;
+    try {
+      var doc = document.documentElement;
+      if (doc && (doc.classList.contains('crozzo-android-apk') || doc.classList.contains('crozzo-field-tablet'))) {
+        return false;
+      }
+    } catch (_) {}
     var p = typeof crozzoGetPerfilEmpresa === 'function' ? crozzoGetPerfilEmpresa() : 'completo';
     if (p === 'basico') return false;
     return true;
@@ -14337,9 +14381,10 @@ function crozzoResolveStartupPage(opts) {
       (typeof crozzoDeviceConexionRoleB === 'function' && crozzoDeviceConexionRoleB()) ||
       (typeof crozzoMeseroSinModuloVentas === 'function' && crozzoMeseroSinModuloVentas());
     if (fieldTablet) {
-      var tabOk = typeof currentUserCanSeePage === 'function' ? currentUserCanSeePage('tablets') : true;
-      if (tabOk && typeof pageBlockedByOperacionModo === 'function') tabOk = !pageBlockedByOperacionModo('tablets');
-      if (tabOk) return 'tablets';
+      if (typeof pickFirstAccessiblePage === 'function') {
+        var fieldPick = pickFirstAccessiblePage();
+        if (fieldPick) return fieldPick;
+      }
     }
   } catch (_) {}
   var preferHub = opts.preferHub !== false;
@@ -35061,12 +35106,164 @@ function crozzoIsSidebarDrawerMode() {
   try {
     const doc = document.documentElement;
     if (doc && doc.classList.contains('crozzo-touch-shell')) return true;
+    if (doc && (doc.classList.contains('crozzo-form-mobile') || doc.classList.contains('crozzo-form-tablet'))) {
+      return true;
+    }
     const body = document.body;
     return !!(body && (body.classList.contains('mobile') || body.classList.contains('tablet')));
   } catch (_) {
     return false;
   }
 }
+function crozzoIsDrawerLayoutActive() {
+  try {
+    const html = document.documentElement;
+    if (html && html.classList.contains('crozzo-form-desktop')) return false;
+    if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) return true;
+    if (
+      html.classList.contains('crozzo-touch-shell') ||
+      html.classList.contains('crozzo-form-tablet') ||
+      html.classList.contains('crozzo-form-mobile')
+    ) {
+      return true;
+    }
+    const body = document.body;
+    if (body && (body.classList.contains('tablet') || body.classList.contains('mobile'))) {
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+function crozzoOpenSidebarDrawer() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  if (typeof crozzoIsDrawerLayoutActive === 'function' && !crozzoIsDrawerLayoutActive()) {
+    try {
+      if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
+        CrozzoSidebarNav.setExpanded(true, true);
+      } else if (typeof crozzoSidebarApplyExpanded === 'function') {
+        crozzoSidebarApplyExpanded(sidebar, true);
+      }
+    } catch (_) {}
+    return;
+  }
+  try {
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.clearHoverTimers === 'function') {
+      CrozzoSidebarNav.clearHoverTimers();
+    }
+  } catch (_) {}
+  sidebar.classList.add('expanded', 'is-expanded');
+  sidebar.style.removeProperty('transform');
+  sidebar.style.removeProperty('visibility');
+  sidebar.style.removeProperty('display');
+  if (typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive()) {
+    sidebar.classList.add('crozzo-drawer-nav');
+  }
+  var needSlide = !sidebar.classList.contains('open');
+  var apkShell = false;
+  try {
+    apkShell = document.documentElement && document.documentElement.classList.contains('crozzo-android-apk');
+  } catch (_) {}
+  if (needSlide && !apkShell) {
+    sidebar.classList.remove('open');
+    void sidebar.offsetWidth;
+  }
+  sidebar.classList.add('open');
+  try {
+    sessionStorage.setItem('crozzo_sidebar_drawer_open', '1');
+  } catch (_) {}
+  try {
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
+      CrozzoSidebarNav.setExpanded(true, false);
+    }
+  } catch (_) {}
+  crozzoSyncSidebarBackdrop();
+  global.requestAnimationFrame(function () {
+    try {
+      if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') crozzoSidebarSyncNavGroupsOnExpand();
+    } catch (_) {}
+    try {
+      const pg = typeof currentPage !== 'undefined' ? currentPage : '';
+      if (pg && window.CrozzoSidebarNav && typeof CrozzoSidebarNav.expandGroupForPage === 'function') {
+        CrozzoSidebarNav.expandGroupForPage(pg);
+      }
+    } catch (_) {}
+    try {
+      if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
+    } catch (_) {}
+  });
+}
+function crozzoBindSidebarDrawerKeys() {
+  if (document._crozzoDrawerEscBound) return;
+  document._crozzoDrawerEscBound = true;
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    if (!document.body || !document.body.classList.contains('crozzo-sidebar-drawer-open')) return;
+    crozzoCloseSidebarDrawer();
+  });
+}
+function crozzoRepairBlankShell(options) {
+  try {
+    const closeDrawer = !(options && options.closeDrawer === false);
+    const html = document.documentElement;
+    const body = document.body;
+    if (!html || !body) return;
+    const ov = document.getElementById('loginOverlay');
+    const app = document.querySelector('.app-container');
+    const hasSession =
+      (typeof crozzoHasActivePosSession === 'function' && crozzoHasActivePosSession()) ||
+      (typeof getCurrentUser === 'function' && !!getCurrentUser());
+    const loginRequired = typeof shouldRequireLogin === 'function' && shouldRequireLogin();
+    const needLogin = loginRequired && !hasSession;
+
+    if (closeDrawer && typeof crozzoCloseSidebarDrawer === 'function') {
+      crozzoCloseSidebarDrawer();
+    } else if (closeDrawer) {
+      const sb = document.getElementById('sidebar');
+      const bd = document.getElementById('sidebarBackdrop');
+      if (sb) {
+        sb.classList.remove('open', 'expanded', 'is-expanded');
+        sb.style.removeProperty('transform');
+        sb.style.removeProperty('visibility');
+      }
+      if (bd) {
+        bd.classList.remove('active');
+        bd.setAttribute('aria-hidden', 'true');
+      }
+      body.classList.remove('crozzo-sidebar-drawer-open');
+    }
+
+    if (needLogin) {
+      if (ov) {
+        ov.removeAttribute('hidden');
+        ov.style.removeProperty('display');
+        ov.style.removeProperty('visibility');
+      }
+      body.classList.add('crozzo-login-open');
+      html.classList.add('crozzo-auth-gate-pending');
+      html.classList.remove('crozzo-app-ready');
+      return;
+    }
+
+    if (typeof crozzoClearAuthGatePending === 'function') crozzoClearAuthGatePending();
+    else {
+      html.classList.remove('crozzo-auth-gate-pending');
+      html.classList.add('crozzo-app-ready');
+    }
+    body.classList.remove('crozzo-login-open');
+    body.style.removeProperty('overflow');
+    if (ov) ov.setAttribute('hidden', '');
+    if (app) {
+      app.style.removeProperty('display');
+      app.style.removeProperty('visibility');
+      app.style.removeProperty('opacity');
+    }
+    if (hasSession && typeof crozzoEnsureAppShellInteractive === 'function') {
+      crozzoEnsureAppShellInteractive();
+    }
+  } catch (_) {}
+}
+window.crozzoRepairBlankShell = crozzoRepairBlankShell;
 function crozzoBindSidebarBackdropClose() {
   const bd = document.getElementById('sidebarBackdrop');
   if (!bd || bd._crozzoDrawerCloseBound) return;
@@ -35084,15 +35281,16 @@ function crozzoBindSidebarBackdropClose() {
     },
     { passive: false }
   );
+  crozzoBindSidebarDrawerKeys();
 }
 function crozzoSyncSidebarBackdrop() {
   const sidebar = document.getElementById('sidebar');
   const bd = document.getElementById('sidebarBackdrop');
   if (!sidebar || !bd) return;
   crozzoBindSidebarBackdropClose();
-  const drawerMode = crozzoIsSidebarDrawerMode();
+  const layoutDrawer = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
   const open = sidebar.classList.contains('open');
-  if (drawerMode && open) {
+  if (layoutDrawer && open) {
     bd.classList.add('active');
     bd.setAttribute('aria-hidden', 'false');
   } else {
@@ -35100,67 +35298,70 @@ function crozzoSyncSidebarBackdrop() {
     bd.setAttribute('aria-hidden', 'true');
   }
   if (document.body) {
-    document.body.classList.toggle('crozzo-sidebar-drawer-open', !!(drawerMode && open));
+    document.body.classList.toggle('crozzo-sidebar-drawer-open', !!(layoutDrawer && open));
   }
 }
 function crozzoCloseSidebarDrawer() {
   const sidebar = document.getElementById('sidebar');
-  const bd = document.getElementById('sidebarBackdrop');
-  if (sidebar) {
+  if (sidebar && sidebar.classList.contains('open')) {
     sidebar.classList.remove('open');
     sidebar.style.removeProperty('transform');
     sidebar.style.removeProperty('visibility');
+    if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
+      setTimeout(function () {
+        if (sidebar && !sidebar.classList.contains('open')) {
+          sidebar.classList.remove('expanded', 'is-expanded');
+        }
+      }, 220);
+    }
+  } else if (sidebar) {
+    sidebar.classList.remove('open');
+    if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
+      sidebar.classList.remove('expanded', 'is-expanded');
+    }
+    sidebar.style.removeProperty('transform');
+    sidebar.style.removeProperty('visibility');
   }
-  if (bd) {
-    bd.classList.remove('active');
-    bd.setAttribute('aria-hidden', 'true');
-  }
-  if (document.body) document.body.classList.remove('crozzo-sidebar-drawer-open');
   try {
     sessionStorage.setItem('crozzo_sidebar_drawer_open', '0');
   } catch (_) {}
+  crozzoSyncSidebarBackdrop();
 }
 function toggleSidebar() {
   if (typeof crozzoKioskIsActive === 'function' && crozzoKioskIsActive()) return;
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
-  const drawerMode = crozzoIsSidebarDrawerMode();
+  const drawerLayout = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
+  if (!drawerLayout) {
+    const next = !sidebar.classList.contains('is-expanded') && !sidebar.classList.contains('expanded');
+    try {
+      if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
+        CrozzoSidebarNav.setExpanded(next, true);
+      } else if (typeof crozzoSidebarApplyExpanded === 'function') {
+        crozzoSidebarApplyExpanded(sidebar, next);
+      }
+    } catch (_) {}
+    return;
+  }
   const willOpen = !sidebar.classList.contains('open');
   if (!willOpen) {
     crozzoCloseSidebarDrawer();
     crozzoSyncSidebarBackdrop();
     return;
   }
-  sidebar.style.removeProperty('transform');
-  sidebar.style.removeProperty('visibility');
-  sidebar.classList.add('open');
-  try {
-    sessionStorage.setItem('crozzo_sidebar_drawer_open', '1');
-  } catch (_) {}
-  if (drawerMode) {
-    try {
-      if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
-        CrozzoSidebarNav.setExpanded(true, false);
-      }
-    } catch (_) {}
-  }
-  crozzoSyncSidebarBackdrop();
-  try {
-    if (typeof initMobileUX === 'function') initMobileUX();
-  } catch (e) {
-    /* ignore */
-  }
+  crozzoOpenSidebarDrawer();
 }
 function crozzoInitSidebarDrawerClosed() {
-  if (!crozzoIsSidebarDrawerMode()) return;
-  try {
-    if (sessionStorage.getItem('crozzo_sidebar_drawer_open') === '1') return;
-  } catch (_) {}
+  crozzoBindSidebarDrawerKeys();
   crozzoCloseSidebarDrawer();
+  crozzoRepairBlankShell({ closeDrawer: false });
 }
 window.crozzoIsSidebarDrawerMode = crozzoIsSidebarDrawerMode;
+window.crozzoIsDrawerLayoutActive = crozzoIsDrawerLayoutActive;
+window.crozzoOpenSidebarDrawer = crozzoOpenSidebarDrawer;
 window.crozzoCloseSidebarDrawer = crozzoCloseSidebarDrawer;
 window.crozzoInitSidebarDrawerClosed = crozzoInitSidebarDrawerClosed;
+window.crozzoBindSidebarDrawerKeys = crozzoBindSidebarDrawerKeys;
 window.toggleSidebar = toggleSidebar;
 if (document.readyState === 'loading') {
   document.addEventListener(
@@ -35168,14 +35369,24 @@ if (document.readyState === 'loading') {
     function () {
       crozzoBindSidebarBackdropClose();
       crozzoInitSidebarDrawerClosed();
+      setTimeout(function () {
+        crozzoRepairBlankShell({ closeDrawer: false });
+      }, 400);
     },
     { once: true }
   );
 } else {
   crozzoBindSidebarBackdropClose();
   crozzoInitSidebarDrawerClosed();
+  setTimeout(function () {
+    crozzoRepairBlankShell({ closeDrawer: false });
+  }, 400);
 }
 function crozzoUpdateMobileBottomNavActive(page) {
+  if (global.CrozzoTabletNav && typeof global.CrozzoTabletNav.refreshActiveState === 'function') {
+    global.CrozzoTabletNav.refreshActiveState();
+    return;
+  }
   const root = document.getElementById('crozzoMobileBottomNav');
   if (!root) return;
   root.querySelectorAll('.crozzo-mbn-btn[data-crozzo-nav]').forEach(btn => {
@@ -35183,13 +35394,15 @@ function crozzoUpdateMobileBottomNavActive(page) {
     btn.classList.toggle('active', p === page);
   });
 }
-document.querySelectorAll('.crozzo-mbn-btn[data-crozzo-nav]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const p = btn.getAttribute('data-crozzo-nav');
-    if (p) navigateTo(p);
-    crozzoCloseSidebarDrawer();
+if (!window.CrozzoTabletNav) {
+  document.querySelectorAll('.crozzo-mbn-btn[data-crozzo-nav]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.getAttribute('data-crozzo-nav');
+      if (p) navigateTo(p);
+      crozzoCloseSidebarDrawer();
+    });
   });
-});
+}
 (function crozzoBindSidebarNavGroupTogglesLegacy() {
   function bindLegacyNavGroupToggles() {
     if (window.CrozzoSidebarNav) return;
@@ -35258,8 +35471,8 @@ function crozzoRebuildMenusFromRoles() {
     /* ignore */
   }
   try {
-    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.refresh === 'function') {
-      CrozzoSidebarNav.refresh();
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.ensureLayout === 'function') {
+      CrozzoSidebarNav.ensureLayout();
     }
   } catch (e3) {
     /* ignore */
@@ -35285,52 +35498,34 @@ function crozzoNavSubmenuMaxHeightPx() {
 function crozzoPatchMobileSidebarMenus() {
   const nav = document.getElementById('sidebarNav');
   if (!nav) return;
-  const drawer = document.body && !document.body.classList.contains('desktop');
+  const drawerLayout =
+    (typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive()) ||
+    (document.body && document.body.classList.contains('crozzo-sidebar-drawer-open'));
   function clearEl(el) {
     if (!el || el.getAttribute('data-crozzo-scroll-patch') !== '1') return;
     el.removeAttribute('data-crozzo-scroll-patch');
     el.style.maxHeight = '';
     el.style.overflowY = '';
     el.style.overflowX = '';
+    el.style.flex = '';
+    el.style.minHeight = '';
     try {
       el.style.removeProperty('-webkit-overflow-scrolling');
     } catch (_) {
       /* ignore */
     }
   }
-  if (!drawer) {
+  if (!drawerLayout) {
     clearEl(nav);
     nav.querySelectorAll('.nav-group-items[data-crozzo-scroll-patch="1"]').forEach(clearEl);
     return;
   }
-  let cap = 0;
-  try {
-    const doc = document.documentElement;
-    const cs = global.getComputedStyle ? global.getComputedStyle(doc) : null;
-    const contentH = cs ? parseFloat(cs.getPropertyValue('--crozzo-content-h')) : 0;
-    const headerH = cs ? parseFloat(cs.getPropertyValue('--crozzo-header-h')) : 60;
-    if (contentH > 0) cap = Math.max(160, Math.round(contentH - headerH - 8));
-  } catch (_) {}
-  if (!cap) {
-    try {
-      const ih = window.innerHeight || document.documentElement.clientHeight || 0;
-      cap = ih > 160 ? Math.max(160, ih - 150) : ih;
-    } catch (_) {
-      cap = 0;
-    }
-  }
-  try {
-    nav.style.maxHeight = cap ? cap + 'px' : '';
-  } catch (_) {
-    nav.style.maxHeight = '';
-  }
-  nav.setAttribute('data-crozzo-scroll-patch', '1');
-  nav.style.overflowY = 'auto';
-  try {
-    nav.style.setProperty('-webkit-overflow-scrolling', 'touch');
-  } catch (_) {
-    /* ignore */
-  }
+  clearEl(nav);
+  nav.style.maxHeight = '';
+  nav.style.overflowY = '';
+  nav.style.flex = '';
+  nav.style.minHeight = '';
+  nav.querySelectorAll('.nav-group-items[data-crozzo-scroll-patch="1"]').forEach(clearEl);
   nav.querySelectorAll('.nav-group:not(.nav-group-collapsed) .nav-group-items').forEach(function (sub) {
     sub.setAttribute('data-crozzo-scroll-patch', '1');
     sub.style.maxHeight = (crozzoNavSubmenuMaxHeightPx ? crozzoNavSubmenuMaxHeightPx() : 280) + 'px';
@@ -35359,11 +35554,29 @@ function crozzoFixMobileNavScroll() {
   }
 }
 /** UX táctil: marca body, recalcula scroll/alturas del menú lateral (sin tocar permisos por rol). */
+var _crozzoInitMobileUxTimer = null;
+var _crozzoInitMobileUxLastFactor = '';
 function initMobileUX() {
   try {
     if (typeof crozzoScheduleFormFactor === 'function') crozzoScheduleFormFactor();
     else if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
   } catch (_) {}
+  try {
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.ensureLayout === 'function') {
+      CrozzoSidebarNav.ensureLayout();
+    }
+  } catch (_) {}
+  if (_crozzoInitMobileUxTimer) clearTimeout(_crozzoInitMobileUxTimer);
+  var debounceMs = 180;
+  try {
+    if (document.documentElement && document.documentElement.classList.contains('crozzo-android-apk')) debounceMs = 320;
+  } catch (_) {}
+  _crozzoInitMobileUxTimer = setTimeout(function () {
+    _crozzoInitMobileUxTimer = null;
+    initMobileUXDeferred();
+  }, debounceMs);
+}
+function initMobileUXDeferred() {
   try {
     var touch = false;
     try {
@@ -35377,6 +35590,15 @@ function initMobileUX() {
   } catch (e1) {
     /* ignore */
   }
+  try {
+    var factor = typeof global.__CROZZO_FORM_FACTOR__ !== 'undefined' ? global.__CROZZO_FORM_FACTOR__ : '';
+    if (factor !== _crozzoInitMobileUxLastFactor) {
+      _crozzoInitMobileUxLastFactor = factor;
+      if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.refresh === 'function') {
+        CrozzoSidebarNav.refresh();
+      }
+    }
+  } catch (_) {}
   try {
     if (typeof crozzoFixMobileNavScroll === 'function') crozzoFixMobileNavScroll();
   } catch (e2) {

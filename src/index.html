@@ -11,8 +11,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.86">
-<meta name="crozzo-build-stamp" content="2026-06-06T06:20:59.601Z">
+<meta name="crozzo-app-version" content="1.0.87">
+<meta name="crozzo-build-stamp" content="2026-06-06T20:34:23.249Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -447,12 +447,15 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   </main>
 </div>
 
-<nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida">
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true">🏁</span><span class="crozzo-mbn-txt">Inicio</span></button>
-  <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
-  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" onclick="toggleSidebar()"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
+<nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida tablet">
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="tablets" aria-label="Toma de pedidos" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cocina" aria-label="Cocina KDS" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">👨‍🍳</span><span class="crozzo-mbn-txt">Cocina</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-action="pantallas-kiosk" aria-label="Modo pantallas cocina y bar" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">🖥️</span><span class="crozzo-mbn-txt">Pantallas</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio ventas" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">🏁</span><span class="crozzo-mbn-txt">Inicio</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="control-acceso" aria-label="Control de acceso personal" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">⏱️</span><span class="crozzo-mbn-txt">Acceso</span></button>
+  <button type="button" class="crozzo-mbn-btn crozzo-mbn-menu" data-crozzo-action="open-menu" aria-label="Menú completo con todos los módulos" onclick="return crozzoTabletNavClick(this, event)"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Menú</span></button>
 </nav>
 
 <div class="sidebar-backdrop" id="sidebarBackdrop" role="presentation" aria-hidden="true" onclick="crozzoCloseSidebarDrawer()"></div>
@@ -907,6 +910,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoMobileInstall.js" defer></script>
 <script src="core/CrozzoPairingSeal.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
+<script src="core/CrozzoTabletNav.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
 <script src="modules/CrozzoOperativePsyche.js" defer></script>
 <script src="modules/CrozzoClienteDocIntel.js" defer></script>

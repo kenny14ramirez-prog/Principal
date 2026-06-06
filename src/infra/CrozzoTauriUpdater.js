@@ -88,6 +88,17 @@
       })
       .then(function () {
         return invoke('plugin:android-package-install|install', { installPath: installPath });
+      })
+      .catch(function (err) {
+        var msg = String((err && err.message) || err || '');
+        if (/FileProvider|configured root|resource|parse|invalid|package/i.test(msg)) {
+          return Promise.reject(
+            new Error(
+              'Android rechazó el APK al instalar. Si la app se instaló antes con otra firma, desinstálela y vuelva a instalar. También puede descargar Proyecto_*_arm64.apk manualmente desde GitHub Releases.'
+            )
+          );
+        }
+        return Promise.reject(err);
       });
   }
 
@@ -132,7 +143,12 @@
             ? 'Descargando actualización verificada…'
             : 'Descargando actualización…',
         });
-        return invoke('crozzo_android_download_apk', { url: apkUrl })
+        return verifyApkDownloadUrl(apkUrl).then(function (head) {
+          return invoke('crozzo_android_download_apk', {
+            url: apkUrl,
+            expectedBytes: head && head.bytes > 0 ? head.bytes : null,
+          });
+        })
           .then(function (localPath) {
             if (!localPath) {
               return Promise.reject(new Error('No se pudo guardar el APK en el dispositivo.'));
@@ -766,16 +782,23 @@
 
   function pickApkFromAssets(assets) {
     if (!Array.isArray(assets)) return '';
-    var preferred = assets.find(function (a) {
+    var signed = assets.filter(function (a) {
+      var name = String(a.name || a.url || '');
+      return /\.apk$/i.test(name) && !/unsigned/i.test(name);
+    });
+    var pool = signed.length ? signed : assets;
+    var preferred = pool.find(function (a) {
       var name = String(a.name || a.url || '');
       return (
         /\.apk$/i.test(name) &&
-        (/aarch64|arm64|arm-v8|universal/i.test(name) || !/x86|x86_64|i686/i.test(name))
+        !/unsigned/i.test(name) &&
+        (/aarch64|arm64|arm-v8|universal|Proyecto_/i.test(name) || !/x86|x86_64|i686/i.test(name))
       );
     });
     if (preferred) return preferred.browser_download_url || preferred.url || '';
-    var anyApk = assets.find(function (a) {
-      return /\.apk$/i.test(a.name || a.url || '');
+    var anyApk = pool.find(function (a) {
+      var name = String(a.name || a.url || '');
+      return /\.apk$/i.test(name) && !/unsigned/i.test(name);
     });
     return anyApk ? anyApk.browser_download_url || anyApk.url || '' : '';
   }
