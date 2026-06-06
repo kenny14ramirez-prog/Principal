@@ -822,6 +822,9 @@
   }
 
   function renderInicioCompactHfsi() {
+    try {
+      if (typeof global.crozzoShowOperativeMetricsUi === 'function' && !global.crozzoShowOperativeMetricsUi()) return '';
+    } catch (_) {}
     var op = getOperativoConfig();
     if (!op.onboarding && op.experiencia !== 'novice') return '';
     var cs = getCombinedStress();
@@ -856,6 +859,13 @@
 
   function renderInicioHtml() {
     var op = getOperativoConfig();
+    if (!op.onboarding && op.experiencia !== 'novice') {
+      try {
+        if (typeof global.crozzoShowOperativeMetricsUi !== 'function' || !global.crozzoShowOperativeMetricsUi()) return '';
+      } catch (_) {
+        return '';
+      }
+    }
     if (isDismissed()) {
       if (op.experiencia === 'novice' || op.onboarding) return renderInicioCompactHfsi();
       return '';
@@ -960,9 +970,15 @@
         );
       })
       .join('');
+    var adoptionBlock = '';
+    try {
+      if (typeof global.crozzoShowOperativeMetricsUi === 'function' && global.crozzoShowOperativeMetricsUi()) {
+        adoptionBlock = renderAdoptionPanel();
+      }
+    } catch (_) {}
     global.showModal(
       '📋 Checklist operativo — Día 0 a mes 1',
-      renderAdoptionPanel() +
+      adoptionBlock +
         '<p class="form-hint" style="margin:12px 0;">Para restaurantes pequeños con personal nuevo. Complete los pasos antes del primer servicio real.</p>' +
         '<div class="crozzo-onb-modal__progress">' +
         '<span>Progreso checklist: <strong>' +
@@ -1150,6 +1166,8 @@
     items.forEach(function (i) {
       var nom = String(i.nombreVenta || i.nombre || '').toLowerCase();
       var det = String(i.detalleConfig || '').trim();
+      var nota = String(i.notaLinea || '').trim();
+      if (nota) return;
       if (det && OBS_SENAL_OK.test(det)) return;
       if (Array.isArray(i.alergenos) && i.alergenos.length && !det) {
         out.push(i.nombreVenta || i.nombre);

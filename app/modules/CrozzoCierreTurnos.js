@@ -8,6 +8,7 @@
   var LS_DAY = 'crozzo_day_session_v2';
   var LS_TURN = 'crozzo_shift_turn_v1';
   var LS_HIST = 'crozzo_shift_turn_history_v1';
+  var LS_SUPERV = 'crozzo_arqueo_supervision_v1';
   var STOCK_DEFAULT = 5;
   var HIST_LIMIT_DEFAULT = 500;
   var DIFF_ALERT_DEFAULT = 5000;
@@ -19,10 +20,12 @@
   };
 
   var __arqueoPending = null;
+  var __arqueoMode = 'cierre';
   var __histFilter = 'all';
   var __histSearch = '';
   var __snapCache = null;
   var __histCache = null;
+  var __supervCache = null;
   var __refreshDebounce = null;
   var __searchDebounce = null;
   var __stressFullRefreshTimer = null;
@@ -310,6 +313,7 @@
   }
 
   function getFacturas() {
+    if (typeof config !== 'undefined' && config.getFacturasFiscal) return config.getFacturasFiscal() || [];
     return typeof config !== 'undefined' && config.getFacturas ? config.getFacturas() : [];
   }
 
@@ -321,6 +325,7 @@
   function invalidateCierreCaches() {
     __snapCache = null;
     __histCache = null;
+    __supervCache = null;
   }
 
   function isProductionArqueo() {
@@ -627,6 +632,11 @@
         localStorage.setItem(LS_TURN, JSON.stringify(newTurnRecord()));
       } catch (_) {}
       audit('dia_operativo_abierto', 'Día operativo ' + today + ' iniciado en cero');
+      try {
+        if (typeof global.crozzoLabExpireRecommendations === 'function') {
+          global.crozzoLabExpireRecommendations('day_check', today);
+        }
+      } catch (_) {}
     } else {
       var clockShift = inferShiftByClock();
       if (day.activeShift !== clockShift && day.shifts && day.shifts[day.activeShift] && day.shifts[day.activeShift].status === 'open') {
@@ -701,7 +711,16 @@
     if (typeof getCurrentUser !== 'function' || !getCurrentUser()) return false;
     if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
     var r = normalizeRole();
-    return r === 'admin' || r === 'superadmin' || r === 'super_admin';
+    return r === 'admin' || r === 'superadmin' || r === 'super_admin' || r === 'gerente';
+  }
+
+  /** Revisión de caja sin cerrar turno — el cajero sigue vendiendo con calma. */
+  function canPerformSupervisionArqueo() {
+    return canPerformArqueo();
+  }
+
+  function isSupervisionMode() {
+    return __arqueoMode === 'supervision';
   }
 
   function loginBlocking() {
@@ -784,6 +803,29 @@
       __histCache = [];
     }
     return __histCache;
+  }
+
+  function getSupervisionRows() {
+    if (__supervCache) return __supervCache;
+    try {
+      var rows = JSON.parse(localStorage.getItem(LS_SUPERV) || '[]');
+      __supervCache = Array.isArray(rows) ? rows : [];
+    } catch (_) {
+      __supervCache = [];
+    }
+    return __supervCache;
+  }
+
+  function appendSupervision(rec) {
+    try {
+      var limit = getShiftSettings().histLimit;
+      var h = JSON.parse(localStorage.getItem(LS_SUPERV) || '[]');
+      h.unshift(rec);
+      localStorage.setItem(LS_SUPERV, JSON.stringify(h.slice(0, limit)));
+      __supervCache = null;
+    } catch (e) {
+      console.warn('[cierre] supervision', e);
+    }
   }
 
   function filterHistoryRows(rows) {
@@ -928,6 +970,8 @@
     var hfExtra = '';
     try {
       if (
+        typeof global.crozzoShowOperativeMetricsUi === 'function' &&
+        global.crozzoShowOperativeMetricsUi() &&
         global.CrozzoOnboardingOperativo &&
         typeof global.CrozzoOnboardingOperativo.getCombinedStress === 'function'
       ) {
@@ -1102,25 +1146,36 @@
     return el ? el.value : 'manana';
   }
 
-  function openArqueoForType(forcedType) {
-    if (!canPerformArqueo()) {
+  function openArqueoForType(forcedType, mode) {
+    __arqueoMode = mode === 'supervision' ? 'supervision' : 'cierre';
+    if (__arqueoMode === 'supervision') {
+      if (!canPerformSupervisionArqueo()) {
+        if (typeof showToast === 'function') showToast('Solo encargados pueden hacer revisión de caja', 'warning');
+        return;
+      }
+    } else if (!canPerformArqueo()) {
       if (typeof showToast === 'function') showToast('Solo administradores y encargados pueden hacer arqueo', 'warning');
       return;
     }
-    var day = crozzoDaySessionEnsure();
-    if (day.closedAt) {
-      if (typeof showToast === 'function') showToast('El día operativo ya está cerrado', 'info');
-      return;
+    if (__arqueoMode === 'cierre') {
+      var dayBlock = crozzoDaySessionEnsure();
+      if (dayBlock.closedAt) {
+        if (typeof showToast === 'function') showToast('El día operativo ya está cerrado', 'info');
+        return;
+      }
     }
-    var type = forcedType || day.activeShift || 'manana';
+    var day = readDaySession() || crozzoDaySessionEnsure();
+    var type = forcedType || (day && day.activeShift) || 'manana';
     var radio = document.querySelector('input[name="crozzo-arqueo-type"][value="' + type + '"]');
     if (radio) radio.checked = true;
+    updateArqueoModalUi();
     refreshArqueoSummary(type);
     arqueoGoStep(1);
     var ov = document.getElementById('crozzo-shift-arqueo');
     if (ov) {
       ov.hidden = false;
       ov.classList.add('is-open');
+      ov.setAttribute('data-arqueo-mode', __arqueoMode);
     }
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [ov] });
@@ -1131,8 +1186,48 @@
     }, 80);
   }
 
+  function updateArqueoModalUi() {
+    var sup = isSupervisionMode();
+    var title = document.getElementById('crozzo-arqueo-dialog-title');
+    var hint = document.getElementById('crozzo-arqueo-dialog-hint');
+    var step2Title = document.getElementById('crozzo-arqueo-step2-title');
+    var notesLbl = document.getElementById('crozzo-arqueo-notes-label');
+    var confirmBtn = document.getElementById('crozzo-arqueo-confirm-btn');
+    var banner = document.getElementById('crozzo-arqueo-mode-banner');
+    if (title) {
+      title.textContent = sup ? 'Revisión de caja (sin cerrar turno)' : 'Cierre formal de turno';
+    }
+    if (hint) {
+      hint.textContent = sup
+        ? 'Cuente el efectivo en este momento. No cierra el turno ni interrumpe al cajero — queda registrado solo para administración.'
+        : 'Cuente el efectivo físico y confirme el cierre del turno. Las ventas se calculan desde comprobantes reales del POS.';
+    }
+    if (step2Title) step2Title.textContent = sup ? 'Confirmar revisión' : 'Confirmar cierre';
+    if (notesLbl) notesLbl.textContent = sup ? 'Notas internas (administración)' : 'Notas del cierre';
+    if (confirmBtn) {
+      confirmBtn.innerHTML = sup
+        ? '<i data-lucide="eye"></i> Guardar revisión (cajero sigue)'
+        : '<i data-lucide="shield-check"></i> Confirmar cierre y guardar';
+    }
+    if (banner) {
+      banner.hidden = !sup;
+      banner.innerHTML = sup
+        ? '<span class="crozzo-arqueo-mode-banner crozzo-arqueo-mode-banner--supervision"><i data-lucide="eye-off"></i> Revisión silenciosa — no reinicia contadores ni avisa en caja</span>'
+        : '';
+    }
+    try {
+      if (typeof lucide !== 'undefined' && lucide.createIcons && banner && !banner.hidden) {
+        lucide.createIcons({ nodes: [banner, confirmBtn].filter(Boolean) });
+      }
+    } catch (_) {}
+  }
+
+  function openSupervisionArqueo() {
+    openArqueoForType(null, 'supervision');
+  }
+
   function openArqueo() {
-    openArqueoForType(null);
+    openArqueoForType(null, 'cierre');
   }
 
   function refreshArqueoSummary(type) {
@@ -1181,8 +1276,10 @@
     if (ov) {
       ov.hidden = true;
       ov.classList.remove('is-open');
+      ov.removeAttribute('data-arqueo-mode');
     }
     __arqueoPending = null;
+    __arqueoMode = 'cierre';
   }
 
   function arqueoGoStep(n) {
@@ -1198,7 +1295,11 @@
   }
 
   function calcArqueo() {
-    if (!canPerformArqueo()) return;
+    if (isSupervisionMode()) {
+      if (!canPerformSupervisionArqueo()) return;
+    } else if (!canPerformArqueo()) {
+      return;
+    }
     var type = selectedArqueoType();
     var m = metricsForScopeDetailed(type);
     var sh = m.shift;
@@ -1267,9 +1368,21 @@
           }
         }
       } catch (_) {}
+      var cajeroHint = '';
+      if (isSupervisionMode()) {
+        var decl = latestCajeroDeclaracionHint();
+        if (decl) {
+          cajeroHint =
+            '<div class="crozzo-arqueo-alert crozzo-arqueo-alert--info"><i data-lucide="info"></i> ' +
+            esc(decl) +
+            '</div>';
+        }
+      }
       fin.innerHTML =
         '<div class="crozzo-arqueo-result">' +
-        '<div class="crozzo-arqueo-result__head">Cierre <strong>' +
+        '<div class="crozzo-arqueo-result__head">' +
+        (isSupervisionMode() ? 'Revisión' : 'Cierre') +
+        ' <strong>' +
         esc(__arqueoPending.shiftLabel) +
         '</strong></div>' +
         '<div class="crozzo-arqueo-result__grid">' +
@@ -1287,6 +1400,7 @@
         '</strong></div></div>' +
         unpaidAlert +
         alertNote +
+        cajeroHint +
         '</div>';
       try {
         if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [fin] });
@@ -1309,7 +1423,11 @@
   }
 
   function finalizeArqueo() {
-    if (!canPerformArqueo()) return;
+    if (isSupervisionMode()) {
+      if (!canPerformSupervisionArqueo()) return;
+    } else if (!canPerformArqueo()) {
+      return;
+    }
     if (!__arqueoPending) {
       if (typeof showToast === 'function') showToast('Calcula la diferencia primero', 'warning');
       return;
@@ -1341,6 +1459,10 @@
 
   function finalizeArqueoCore() {
     if (!__arqueoPending) return;
+    if (isSupervisionMode()) {
+      finalizeSupervisionArqueoCore();
+      return;
+    }
     var notes = String(document.getElementById('crozzo-shift-notes') && document.getElementById('crozzo-shift-notes').value || '').trim();
     var metrics = __arqueoPending._metrics || metricsForScopeDetailed(__arqueoPending.shiftType);
     var rec = enrichCierreRecord(
@@ -1348,6 +1470,7 @@
         closedAt: new Date().toISOString(),
         notes: notes,
         autoClosed: false,
+        recordKind: 'cierre',
       }),
       metrics
     );
@@ -1373,6 +1496,31 @@
       showToast('Cierre registrado con diferencia significativa — revisar en historial', 'warning');
     }
     queueCloudSync(rec);
+    try {
+      if (typeof global.crozzoLabReconcileAtClose === 'function') {
+        var labRec = global.crozzoLabReconcileAtClose(rec);
+        if (labRec && labRec.summary) rec.labReconcile = labRec.summary;
+      }
+      if (typeof global.crozzoLabOnCashierClose === 'function') {
+        var labGen = global.crozzoLabOnCashierClose(rec);
+        if (
+          labGen &&
+          labGen.ok &&
+          typeof global.crozzoLabCanAccessRole === 'function' &&
+          global.crozzoLabCanAccessRole() &&
+          typeof showToast === 'function'
+        ) {
+          setTimeout(function () {
+            showToast(
+              'Laboratorio: recomendación pendiente · ' +
+                (labGen.recommendation.picks ? labGen.recommendation.picks.length : 0) +
+                ' facturas (Ctrl+Shift+L)',
+              'info'
+            );
+          }, 1800);
+        }
+      }
+    } catch (_) {}
     var pl = pushCierreToPlanilla(rec);
     if (pl && pl.ok && typeof showToast === 'function') {
       showToast('Cierre enviado a planilla · ' + rec.businessDate, 'info');
@@ -1413,6 +1561,69 @@
         global.CrozzoOperativePsyche.onShiftClose(rec);
       }
     } catch (_) {}
+  }
+
+  function latestCajeroDeclaracionHint() {
+    try {
+      if (typeof config === 'undefined' || !config.get) return '';
+      var decls = config.get('cajaDeclaracionesTurno') || [];
+      if (!Array.isArray(decls) || !decls.length) return '';
+      var d = decls[0];
+      var diff = Number(d.diff) || 0;
+      return (
+        'Última declaración cajero (' +
+        String(d.user || '—') +
+        '): contó ' +
+        formatMoney(d.efectivoDeclarado) +
+        ' · esp ' +
+        formatMoney(d.efectivoEsperado) +
+        ' · Δ ' +
+        formatMoney(diff)
+      );
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function finalizeSupervisionArqueoCore() {
+    var notes = String(document.getElementById('crozzo-shift-notes') && document.getElementById('crozzo-shift-notes').value || '').trim();
+    var metrics = __arqueoPending._metrics || metricsForScopeDetailed(__arqueoPending.shiftType);
+    var rec = enrichCierreRecord(
+      Object.assign({}, __arqueoPending, {
+        closedAt: new Date().toISOString(),
+        notes: notes,
+        autoClosed: false,
+        recordKind: 'supervision',
+        closesTurn: false,
+      }),
+      metrics
+    );
+    delete rec._metrics;
+    appendSupervision(rec);
+    audit(
+      'arqueo_supervision',
+      rec.shiftLabel +
+        ' ' +
+        rec.businessDate +
+        ' · ' +
+        (rec.closedBy || '—') +
+        ': revisión contado ' +
+        formatMoney(rec.actual) +
+        ' vs ' +
+        formatMoney(rec.expected) +
+        ' (Δ ' +
+        formatMoney(rec.diff) +
+        ')' +
+        (notes ? ' · ' + notes : '') +
+        ' · turno NO cerrado'
+    );
+    __arqueoPending = null;
+    closeArqueo();
+    invalidateCierreCaches();
+    refreshCierrePageIfActive(true);
+    if (typeof showToast === 'function') {
+      showToast('Revisión guardada — el cajero puede seguir operando con normalidad', 'success');
+    }
   }
 
   function nuevoTurnoSinArqueo() {
@@ -1546,7 +1757,10 @@
       '</div></div>' +
       '<div class="crozzo-cierre-hero__actions crozzo-cierre-panel__actions">' +
       (can
-        ? '<button type="button" class="btn btn-primary crozzo-cierre-cta" id="crozzo-cierre-btn-arqueo" onclick="crozzoShiftOpenArqueo()"><i data-lucide="vault"></i> Iniciar arqueo</button>'
+        ? '<button type="button" class="btn btn-outline crozzo-cierre-cta crozzo-cierre-cta--supervision" onclick="crozzoShiftOpenSupervisionArqueo()"><i data-lucide="eye"></i> Revisión de caja</button>'
+        : '') +
+      (can
+        ? '<button type="button" class="btn btn-primary crozzo-cierre-cta" id="crozzo-cierre-btn-arqueo" onclick="crozzoShiftOpenArqueo()"><i data-lucide="vault"></i> Cierre formal</button>'
         : '<span class="crozzo-cierre-badge-readonly"><i data-lucide="eye"></i> Solo lectura — encargado</span>') +
       (can
         ? '<button type="button" class="btn btn-outline" onclick="typeof crozzoRepExportTurnos===\'function\'&&crozzoRepExportTurnos()"><i data-lucide="download"></i> Exportar</button>'
@@ -1603,7 +1817,7 @@
       '</section>' +
       '<div class="crozzo-cierre-grid">' +
       '<section class="crozzo-cierre-turnos" aria-label="Turnos del día">' +
-      '<div class="crozzo-cierre-section-head"><h3>Turnos operativos</h3><p>Seleccione un turno para arqueo dirigido</p></div>' +
+      '<div class="crozzo-cierre-section-head"><h3>Turnos operativos</h3><p>Tarjetas = cierre formal · Revisión = conteo sin interrumpir caja</p></div>' +
       '<div class="crozzo-cierre-shift-cards">' +
       ['manana', 'tarde', 'dia'].map(function (k) {
         return renderShiftCard(k, SHIFT_META[k], can);
@@ -1630,8 +1844,13 @@
       '<div class="crozzo-cierre-trust__meta" id="crozzo-cierre-trust-device">Dispositivo: —</div></div>' +
       '</aside></div>' +
       '<section class="crozzo-cierre-seguridad" aria-label="Alertas cajeros" id="crozzo-cierre-seguridad-wrap">' +
-      '<div class="crozzo-cierre-section-head"><h3>Seguridad de cajeros</h3><p>Cobros cancelados y declaraciones de efectivo del turno</p></div>' +
+      '<div class="crozzo-cierre-section-head"><h3>Seguridad de cajeros</h3><p>Declaraciones al salir · el cajero no ve las revisiones de administración</p></div>' +
       '<div id="crozzo-cierre-seguridad">—</div></section>' +
+      (can
+        ? '<section class="crozzo-cierre-supervision" aria-label="Revisiones de caja" id="crozzo-cierre-supervision-wrap">' +
+          '<div class="crozzo-cierre-section-head"><h3>Revisiones de administración</h3><p>Conteos sin cerrar turno — registro separado del cierre formal</p></div>' +
+          '<div id="crozzo-cierre-supervision">—</div></section>'
+        : '') +
       '<section class="crozzo-cierre-history" aria-label="Historial de cierres">' +
       '<div class="crozzo-cierre-section-head crozzo-cierre-history__head">' +
       '<div><h3>Historial de cierres</h3><p id="crozzo-cierre-hist-caption">Registro auditable de arqueos confirmados</p></div>' +
@@ -1749,6 +1968,45 @@
     return parts.join('');
   }
 
+  function renderSupervisionHtml() {
+    var rows = getSupervisionRows().slice(0, 15);
+    if (!rows.length) {
+      return (
+        '<p class="crozzo-cierre-seg-empty">Sin revisiones guardadas. Use <strong>Revisión de caja</strong> para contar efectivo sin interrumpir al cajero.</p>'
+      );
+    }
+    return (
+      '<div class="crozzo-rep-table-wrap crozzo-cierre-hist-wrap"><table class="crozzo-cierre-hist-table crozzo-cierre-supervision-table"><thead><tr>' +
+      '<th>Fecha</th><th>Turno</th><th>Esperado</th><th>Contado</th><th>Δ</th><th>Encargado</th><th>Notas</th></tr></thead><tbody>' +
+      rows
+        .map(function (r) {
+          var diff = Number(r.diff) || 0;
+          var diffCls = diff >= 0 ? 'crozzo-cierre-diff--ok' : 'crozzo-cierre-diff--bad';
+          return (
+            '<tr><td>' +
+            esc(r.businessDate || '—') +
+            '</td><td>' +
+            esc(r.shiftLabel || r.shiftType || '—') +
+            '</td><td>' +
+            formatMoney(r.expected) +
+            '</td><td>' +
+            formatMoney(r.actual) +
+            '</td><td class="' +
+            diffCls +
+            '">' +
+            formatMoney(diff) +
+            '</td><td>' +
+            esc(r.closedBy || '—') +
+            '</td><td>' +
+            esc(String(r.notes || '').slice(0, 48)) +
+            '</td></tr>'
+          );
+        })
+        .join('') +
+      '</tbody></table></div>'
+    );
+  }
+
   function refreshHistorySection() {
     var histAll = getHistoryRows();
     var histFiltered = filterHistoryRows(histAll);
@@ -1842,7 +2100,10 @@
       syncEl.innerHTML = '<span class="crozzo-cierre-sync__dot"></span>' + esc(sync.text);
     }
     setHtml('crozzo-cierre-pay-grid', light ? '<p class="crozzo-cierre-stress-pause">Medios de pago — actualización diferida en servicio crítico.</p>' : paymentMethodHtml(dm.byMethod));
-    if (!light) setHtml('crozzo-cierre-seguridad', renderCajeroSeguridadHtml());
+    if (!light) {
+      setHtml('crozzo-cierre-seguridad', renderCajeroSeguridadHtml());
+      setHtml('crozzo-cierre-supervision', renderSupervisionHtml());
+    }
     var scopeMap = { manana: am, tarde: pm, dia: dm };
     Object.keys(scopeMap).forEach(function (k) {
       var m = scopeMap[k];
@@ -1986,6 +2247,7 @@
     dayMetrics: crozzoDaySalesMetrics,
     filterOperationalDay: crozzoRepFilterFacturasOperationalDay,
     canArqueo: canPerformArqueo,
+    canSupervisionArqueo: canPerformSupervisionArqueo,
     renderPanel: renderCierrePanelHtml,
     renderPage: renderCierrePageHtml,
     mountPage: mountCierrePage,
@@ -2018,7 +2280,13 @@
   global.crozzoShiftAppendHistory = appendHistory;
   global.crozzoShiftNuevoTurno = nuevoTurnoSinArqueo;
   global.crozzoShiftOpenArqueo = openArqueo;
-  global.crozzoShiftOpenArqueoType = openArqueoForType;
+  global.crozzoShiftOpenSupervisionArqueo = openSupervisionArqueo;
+  global.crozzoShiftOpenArqueoType = function (type) {
+    openArqueoForType(type, 'cierre');
+  };
+  global.crozzoShiftOpenSupervisionType = function (type) {
+    openArqueoForType(type, 'supervision');
+  };
   global.crozzoShiftCloseArqueo = closeArqueo;
   global.crozzoShiftArqueoGoStep = arqueoGoStep;
   global.crozzoShiftCalcArqueo = calcArqueo;

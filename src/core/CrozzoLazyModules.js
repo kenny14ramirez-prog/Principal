@@ -102,6 +102,7 @@
           })
           .catch(function (e) {
             console.warn('[crozzo-lazy]', e);
+            delete pageEnsurePromises[key];
             lastEnsuredPage = key;
             resolve();
           });
@@ -136,8 +137,21 @@
     if (typeof global.navigateTo !== 'function') return;
     global.__crozzoLazyNavWrapped = true;
     var origNav = global.navigateTo;
+    global.__crozzoOrigNavigateTo = origNav;
     global.navigateTo = function (page) {
       var navArgs = arguments;
+      if (global.__crozzoNavImmediate || global.__crozzoLazySkipRenderLoad) {
+        return origNav.apply(global, navArgs);
+      }
+      var scripts = scriptsForPage(page);
+      if (!scripts.length) {
+        global.__crozzoLazySkipRenderLoad = true;
+        try {
+          return origNav.apply(global, navArgs);
+        } finally {
+          global.__crozzoLazySkipRenderLoad = false;
+        }
+      }
       ensurePageModules(page, function () {
         global.__crozzoLazySkipRenderLoad = true;
         try {

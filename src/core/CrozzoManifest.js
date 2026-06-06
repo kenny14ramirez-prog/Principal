@@ -35,11 +35,11 @@
     'centro-compras': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados],
     'compras-oficina': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados],
     'operaciones-qyc': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados],
-    'centro-procesos': [BUNDLES.compras, BUNDLES.reservorio],
-    'compras-cortes': [BUNDLES.compras, BUNDLES.reservorio],
-    'compras-proceso-sesion': [BUNDLES.compras, BUNDLES.reservorio],
+    'centro-procesos': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
+    'compras-cortes': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
+    'compras-proceso-sesion': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
     'compras-proceso-entrada': ['vendor/CrozzoPdfJs.js', BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
-    'compras-proceso-historial': [BUNDLES.compras, BUNDLES.reservorio],
+    'compras-proceso-historial': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
     'sistema-costos': [
       'vendor/CrozzoJsPdf.js',
       BUNDLES.costos,
@@ -75,6 +75,7 @@
     if (p === 'sistema-costos-inv') return 'costos-inventario';
     if (p === 'sistema-costos-matriz') return 'costos-matriz';
     if (p === 'punto-venta') return 'cajero';
+    if (p === 'compras-proceso-entrada') return 'compras-recepcion';
     try {
       if (typeof global.crozzoProcesosPageToView === 'function' && global.crozzoProcesosPageToView(p)) {
         return 'centro-procesos';

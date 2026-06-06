@@ -6,6 +6,27 @@
 
   var LS = 'crozzo_operative_psyche_v1';
   var SS_CHIP = 'crozzo_psyche_chip_dismiss';
+  var SS_SESSION = 'crozzo_comfort_session_start';
+  var LS_BREAK_SNOOZE = 'crozzo_break_snooze_until';
+  var LS_BREAK_INTERVAL = 'crozzo_break_interval_min';
+  var LS_COMFORT_OFF = 'crozzo_comfort_off';
+  var DEFAULT_BREAK_MIN = 50;
+  var MIN_BREAK_MIN = 25;
+  var MAX_BREAK_MIN = 120;
+  var BREAK_CHECK_MS = 60000;
+  var BREAK_GRACE_MS = 18 * 60000;
+
+  var BREAK_LINES = [
+    '☕ Un minuto fuera de pantalla — estirar, agua, respirar. El turno sigue cuando usted quiera.',
+    '🌿 Lleva un buen rato concentrado. Treinta segundos de pausa recargan el enfoque.',
+    '✨ La app espera — mire lejos de la pantalla un momento e hidrátese.',
+    '🪑 Los mejores servicios salen de quien se cuida: pausa breve y vuelva con calma.',
+  ];
+
+  var WELCOME_BACK_LINES = [
+    'De vuelta — siga cuando quiera, sin prisa.',
+    'Bienvenido otra vez — todo sigue donde lo dejó.',
+  ];
 
   var STATES = {
     calm: { id: 'calm', label: 'Tranquilo', emoji: '🌿', tone: 'Puede avanzar con calma. El sistema está listo.', color: 'calm' },
@@ -133,6 +154,161 @@
   }
 
   function shouldApplyHumanLayer() {
+    return shouldApplyPsycheLayer();
+  }
+
+  function isComfortOptedOut() {
+    try {
+      if (localStorage.getItem(LS_COMFORT_OFF) === '1') return true;
+    } catch (_) {}
+    return false;
+  }
+
+  /** Confort visual + pausas: todos los usuarios con sesión (no solo onboarding). */
+  function shouldApplyComfortUx() {
+    if (isComfortOptedOut()) return false;
+    try {
+      if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function comfortMotionSoft() {
+    if (shouldApplyComfortUx()) return true;
+    try {
+      if (typeof global.crozzoMotionReduced === 'function' && global.crozzoMotionReduced()) return true;
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function getBreakIntervalMs() {
+    var m = DEFAULT_BREAK_MIN;
+    try {
+      m = parseInt(localStorage.getItem(LS_BREAK_INTERVAL), 10);
+    } catch (_) {}
+    if (!m || m < MIN_BREAK_MIN) m = DEFAULT_BREAK_MIN;
+    if (m > MAX_BREAK_MIN) m = MAX_BREAK_MIN;
+    return m * 60000;
+  }
+
+  function getSessionStartMs() {
+    try {
+      var s = sessionStorage.getItem(SS_SESSION);
+      if (s) return parseInt(s, 10) || Date.now();
+    } catch (_) {}
+    return Date.now();
+  }
+
+  function markComfortSessionStart() {
+    try {
+      sessionStorage.setItem(SS_SESSION, String(Date.now()));
+      sessionStorage.removeItem('crozzo_welcome_back_done');
+    } catch (_) {}
+  }
+
+  function getBreakSnoozeUntil() {
+    try {
+      return parseInt(localStorage.getItem(LS_BREAK_SNOOZE), 10) || 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  function snoozeBreakReminder(minutes) {
+    var until = Date.now() + (minutes || 15) * 60000;
+    try {
+      localStorage.setItem(LS_BREAK_SNOOZE, String(until));
+    } catch (_) {}
+  }
+
+  function renderBreakReminderModal() {
+    var line = BREAK_LINES[Math.floor(Math.random() * BREAK_LINES.length)];
+    return (
+      '<div class="crozzo-break-reminder">' +
+      '<p class="crozzo-break-reminder__lead">' +
+      line +
+      '</p>' +
+      '<p class="form-hint">Sin alarmas ni parpadeos — solo un recordatorio amable.</p>' +
+      '<div class="btn-group" style="justify-content:flex-end;margin-top:14px;flex-wrap:wrap;gap:8px;">' +
+      '<button type="button" class="btn btn-primary" onclick="CrozzoOperativePsyche.ackBreakPause()">☕ Pausa breve</button>' +
+      '<button type="button" class="btn btn-outline" onclick="CrozzoOperativePsyche.snoozeBreakAndClose(20)">Recordar en 20 min</button>' +
+      '<button type="button" class="btn btn-outline" onclick="CrozzoOperativePsyche.snoozeBreakAndClose(45)">Seguir ahora</button></div></div>'
+    );
+  }
+
+  function maybeShowBreakReminder() {
+    if (!shouldApplyComfortUx()) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
+    if (Date.now() < getBreakSnoozeUntil()) return;
+    if (Date.now() - getSessionStartMs() < BREAK_GRACE_MS) return;
+    var lastKey = 'crozzo_last_break_prompt';
+    var last = 0;
+    try {
+      last = parseInt(sessionStorage.getItem(lastKey), 10) || 0;
+    } catch (_) {}
+    if (Date.now() - last < getBreakIntervalMs()) return;
+    try {
+      sessionStorage.setItem(lastKey, String(Date.now()));
+    } catch (_) {}
+    if (typeof global.showModal === 'function') {
+      global.showModal('🌿 Momento de pausa', renderBreakReminderModal());
+      return;
+    }
+    if (typeof global.showToast === 'function') {
+      global.showToast(BREAK_LINES[0], 'info');
+    }
+  }
+
+  function ackBreakPause() {
+    snoozeBreakReminder(8);
+    if (typeof global.closeModal === 'function') global.closeModal();
+    if (typeof global.showToast === 'function') {
+      global.showToast('Tómese su tiempo — aquí estaremos cuando regrese.', 'success');
+    }
+  }
+
+  function snoozeBreakAndClose(minutes) {
+    snoozeBreakReminder(minutes || 20);
+    if (typeof global.closeModal === 'function') global.closeModal();
+  }
+
+  function startComfortBreakLoop() {
+    if (global.__crozzoComfortBreakLoop) return;
+    global.__crozzoComfortBreakLoop = setInterval(maybeShowBreakReminder, BREAK_CHECK_MS);
+  }
+
+  function stopComfortBreakLoop() {
+    if (global.__crozzoComfortBreakLoop) {
+      clearInterval(global.__crozzoComfortBreakLoop);
+      global.__crozzoComfortBreakLoop = null;
+    }
+  }
+
+  function patchVisibilityWelcomeBack() {
+    if (global.__crozzoComfortVisPatched) return;
+    global.__crozzoComfortVisPatched = true;
+    var hiddenAt = 0;
+    document.addEventListener('visibilitychange', function () {
+      if (!shouldApplyComfortUx()) return;
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (!hiddenAt || Date.now() - hiddenAt < 90000) return;
+      try {
+        if (sessionStorage.getItem('crozzo_welcome_back_done') === '1') return;
+        sessionStorage.setItem('crozzo_welcome_back_done', '1');
+      } catch (_) {}
+      if (typeof global.showToast !== 'function') return;
+      var msg = WELCOME_BACK_LINES[Math.floor(Math.random() * WELCOME_BACK_LINES.length)];
+      setTimeout(function () {
+        global.showToast(msg, 'info');
+      }, 400);
+    });
+  }
+
+  function shouldApplyHumanToasts() {
     try {
       if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) return true;
     } catch (_) {}
@@ -170,7 +346,7 @@
   ];
 
   function humanizeToastMessage(message, type) {
-    if (!shouldApplyHumanLayer() || !message) return message;
+    if (!shouldApplyHumanToasts() || !message) return message;
     var msg = String(message);
     if (type === 'success') {
       for (var j = 0; j < HUMAN_TOAST_SUCCESS.length; j++) {
@@ -202,8 +378,10 @@
 
   function applyComfortClasses() {
     if (!document.body) return;
-    var human = shouldApplyHumanLayer();
+    var comfort = shouldApplyComfortUx();
+    var human = comfort || shouldApplyHumanLayer();
     var psyche = human && shouldApplyPsycheLayer();
+    document.body.classList.toggle('crozzo-comfort-ux', comfort);
     document.body.classList.toggle('crozzo-session-comfort', human);
     document.body.classList.toggle('crozzo-premium-human', human);
     document.body.classList.toggle('crozzo-premium-psyche', psyche);
@@ -291,7 +469,9 @@
   }
 
   function onLoginWelcome() {
-    if (!shouldApplyHumanLayer()) return;
+    if (!shouldApplyComfortUx() && !shouldApplyHumanLayer()) return;
+    markComfortSessionStart();
+    startComfortBreakLoop();
     applyComfortClasses();
     if (typeof global.crozzoUpdatePremiumIdentity === 'function') {
       try {
@@ -347,7 +527,7 @@
   }
 
   function renderConciergeStrip() {
-    if (!shouldApplyHumanLayer()) return '';
+    if (!shouldApplyPsycheLayer()) return '';
     var first = getFirstName();
     var greet = typeof global.crozzoPremiumGreeting === 'function' ? global.crozzoPremiumGreeting() : 'Bienvenido';
     var s = getPsychState();
@@ -387,7 +567,7 @@
   }
 
   function injectPeakBreatheStrip() {
-    if (!shouldApplyHumanLayer()) return;
+    if (!shouldApplyComfortUx() && !shouldApplyHumanLayer()) return;
     var s = getPsychState();
     var critical = s.id === 'peak';
     var host = document.getElementById('crozzo-peak-breathe-host');
@@ -405,9 +585,9 @@
       if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
     }
     host.innerHTML =
-      '<div class="crozzo-peak-breathe" role="status" aria-live="polite">' +
-      '<span aria-hidden="true">💨</span>' +
-      '<span>Servicio intenso — respire. Enfoque en lo esencial; el sistema filtra el resto.</span></div>';
+      '<div class="crozzo-peak-breathe crozzo-peak-breathe--soft" role="status" aria-live="polite">' +
+      '<span aria-hidden="true">🌿</span>' +
+      '<span>Rush de servicio — un respiro y lo esencial primero. Sin prisa falsa.</span></div>';
   }
 
   function maybeAffirmComandaFromToast(message) {
@@ -563,9 +743,11 @@
       if (opts._psycheLogoutBypass) {
         var next = Object.assign({}, opts);
         delete next._psycheLogoutBypass;
+        stopComfortBreakLoop();
         return orig.call(global, next);
       }
       maybeWellbeingBeforeLogout(function () {
+        stopComfortBreakLoop();
         orig.call(global, Object.assign({}, opts, { _psycheLogoutBypass: true }));
       });
     };
@@ -669,6 +851,9 @@
   }
 
   function renderAdminWellbeingPanel() {
+    try {
+      if (typeof global.crozzoShowOperativeMetricsUi === 'function' && !global.crozzoShowOperativeMetricsUi()) return '';
+    } catch (_) {}
     var r = getRoleNorm();
     if (r !== 'admin' && r !== 'superadmin' && r !== 'super_admin' && r !== 'gerente') return '';
     var wb = getWellbeingSummary();
@@ -784,9 +969,14 @@
     applyComfortClasses();
     patchIntegrations();
     patchLogoutWellbeing();
+    patchVisibilityWelcomeBack();
     updateHeaderPsycheLine();
     injectPsycheChipHost();
-    if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) onLoginWelcome();
+    if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) {
+      markComfortSessionStart();
+      startComfortBreakLoop();
+      onLoginWelcome();
+    }
     if (!global.__crozzoPsychePoll) {
       global.__crozzoPsychePoll = setInterval(injectPsycheChipHost, 45000);
     }
@@ -794,6 +984,12 @@
 
   global.CrozzoOperativePsyche = {
     init: init,
+    shouldApplyComfortUx: shouldApplyComfortUx,
+    comfortMotionSoft: comfortMotionSoft,
+    snoozeBreakReminder: snoozeBreakReminder,
+    snoozeBreakAndClose: snoozeBreakAndClose,
+    ackBreakPause: ackBreakPause,
+    getBreakIntervalMs: getBreakIntervalMs,
     getPsychState: getPsychState,
     getWellbeingSummary: getWellbeingSummary,
     renderPsycheChip: renderPsycheChip,

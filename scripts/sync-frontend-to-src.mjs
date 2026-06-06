@@ -178,6 +178,12 @@ for (const name of extraHtml) {
   }
 }
 
+const movilHtml = join(appDir, 'movil.html');
+if (existsSync(movilHtml)) {
+  copyFileSync(movilHtml, join(srcDir, 'movil.html'));
+  console.log('[sync] HTML extra: movil.html');
+}
+
 for (const dir of copyDirs) {
   const n = copyDirRecursive(join(appDir, dir), join(srcDir, dir));
   copied += n;

@@ -25,6 +25,36 @@
     return '$' + String(Math.round(Number(n) || 0));
   }
 
+  function esPrecuentaTicket(data, tpl) {
+    var co = global.CrozzoTermicaColombia;
+    if (co && co.isCuentaPrecuentaTicket) return co.isCuentaPrecuentaTicket(data, tpl);
+    return data.docKind === 'precuenta_cuenta' || data.docKind === 'precuenta_fe' || (tpl && tpl.docType === 'precuenta');
+  }
+
+  function usaTotalesCuenta(data, tpl) {
+    var co = global.CrozzoTermicaColombia;
+    if (co && co.isCuentaTotalesTicket) return co.isCuentaTotalesTicket(data, tpl);
+    return data.docKind === 'precuenta_cuenta' || data.docKind === 'precuenta_fe' || data.docKind === 'pos_cerrado' || data.docKind === 'fe_cerrada' || (tpl && tpl.docType === 'precuenta');
+  }
+
+  function muestraLeyendaPropina(data, tpl) {
+    var co = global.CrozzoTermicaColombia;
+    if (co && co.muestraLeyendaPropinaTicket) return co.muestraLeyendaPropinaTicket(data, tpl);
+    return esPrecuentaTicket(data, tpl);
+  }
+
+  function muestraMontosPropina(data) {
+    var co = global.CrozzoTermicaColombia;
+    if (co && co.muestraMontosPropinaBloque) return co.muestraMontosPropinaBloque(data);
+    return !data.propinaEnTotales && (Number(data.propinaSugerida || 0) > 0 || Number(data.propina || 0) > 0);
+  }
+
+  function legalLineas(data, tpl) {
+    var co = global.CrozzoTermicaColombia;
+    if (co && co.legalTicketLineasForData) return co.legalTicketLineasForData(data, tpl);
+    return data.legalTicketLineas || [];
+  }
+
   function blockStyle(b, extra) {
     if (typeof global.crozzoTermicaBlockStyleAttr === 'function') {
       return global.crozzoTermicaBlockStyleAttr(b, extra || {});
@@ -301,12 +331,80 @@
         );
       })
       .join('');
+    var pieCuenta = tpl && tpl.docType === 'precuenta';
+    var wrap = pieCuenta ? rows : renderDivider({ c: '3', v: true }, tpl) + rows + renderDivider({ c: '3', v: true }, tpl);
+    return '<div style="' + blockStyle(b, { align: 'left' }) + '">' + wrap + '</div>';
+  }
+
+  function renderTotalRow(label, amount, opts) {
+    opts = opts || {};
     return (
-      '<div style="' + blockStyle(b, { align: 'left' }) + '">' + renderDivider({ c: '3', v: true }, tpl) + rows + renderDivider({ c: '3', v: true }, tpl) + '</div>'
+      '<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:' +
+      (opts.small ? '7px' : '8px') +
+      ';color:' +
+      (opts.muted ? MUTED : INK) +
+      ';"><span>' +
+      esc(label) +
+      '</span><span>' +
+      fmtCOP(amount) +
+      '</span></div>'
     );
   }
 
-  function renderTotal(b, data) {
+  function renderTotalCuentaPrecuenta(b, data) {
+    var pack =
+      typeof global.CrozzoTermicaColombia !== 'undefined' &&
+      global.CrozzoTermicaColombia.cuentaPrecuentaFilasTotales
+        ? global.CrozzoTermicaColombia.cuentaPrecuentaFilasTotales(data)
+        : null;
+    var rows = '';
+    var totLabel = esc(b.c || 'TOTAL A PAGAR');
+    var totAmt = Number(data.totalConPropina) || Number(data.tot) || 0;
+    if (pack && pack.rows) {
+      pack.rows.forEach(function (row) {
+        if (row.hint) {
+          rows +=
+            '<div style="font-size:7px;color:' +
+            MUTED +
+            ';margin:2px 0;">' +
+            esc(row.hint) +
+            '</div>';
+          return;
+        }
+        rows += renderTotalRow(row.label, row.amount, { muted: !!row.muted });
+      });
+      totLabel = esc(b.c || pack.totalLabel || 'TOTAL A PAGAR');
+      totAmt = pack.totalAmount;
+    }
+    return (
+      '<div style="' +
+      blockStyle(b, { align: 'stretch', marginTop: 6 }) +
+      'padding:8px 6px;border:2px solid ' +
+      INK +
+      ';background:#faf8f5;">' +
+      rows +
+      '<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid ' +
+      INK +
+      ';font-weight:800;font-size:' +
+      (b.fs === 'xl' ? '14px' : '12px') +
+      ';letter-spacing:0.06em;"><span>' +
+      totLabel +
+      '</span><span>' +
+      fmtCOP(totAmt) +
+      '</span></div></div>'
+    );
+  }
+
+  function renderTotal(b, data, tpl) {
+    if (usaTotalesCuenta(data, tpl)) {
+      return renderTotalCuentaPrecuenta(b, data);
+    }
+    var impLbl =
+      typeof global.CrozzoTermicaColombia !== 'undefined' &&
+      global.CrozzoTermicaColombia.impuestoLineaLabel
+        ? global.CrozzoTermicaColombia.impuestoLineaLabel(data)
+        : data.etiquetaImpuesto || 'IVA / impuesto';
+    var subLbl = data.etiquetaSubtotal || 'Subtotal';
     return (
       '<div style="' +
       blockStyle(b, { align: 'stretch', marginTop: 6 }) +
@@ -315,14 +413,23 @@
       ';background:#faf8f5;">' +
       '<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:8px;color:' +
       MUTED +
-      ';"><span>Subtotal</span><span>' +
+      ';"><span>' +
+      esc(subLbl) +
+      '</span><span>' +
       fmtCOP(data.sub) +
       '</span></div>' +
-      '<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:8px;color:' +
-      MUTED +
-      ';"><span>IVA</span><span>' +
-      fmtCOP(data.iva) +
-      '</span></div>' +
+      (data.ivaDisc && !data.consumoAplica && data.impuestoTipo !== 'consumo'
+        ? '<div style="font-size:7px;color:' + MUTED + ';margin:2px 0;">' + esc(data.ivaDisc) + '</div>'
+        : '') +
+      (Number(data.iva) > 0 || data.consumoAplica || data.impuestoTipo === 'consumo'
+        ? '<div style="display:flex;justify-content:space-between;margin:2px 0;font-size:8px;color:' +
+          MUTED +
+          ';"><span>' +
+          esc(impLbl) +
+          '</span><span>' +
+          fmtCOP(data.iva) +
+          '</span></div>'
+        : '') +
       '<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid ' +
       INK +
       ';font-weight:800;font-size:' +
@@ -335,7 +442,59 @@
     );
   }
 
-  function renderFooter(b, tpl) {
+  function renderFooterPrecuenta(b, data) {
+    var co = typeof global.CrozzoTermicaColombia !== 'undefined' ? global.CrozzoTermicaColombia : null;
+    var av = data.avisoCajaPrecuenta || null;
+    if (!av) return '';
+    return (
+      '<div style="' +
+      blockStyle(b, { align: 'center', marginTop: 4 }) +
+      'padding:10px 6px 4px;border-top:2px solid ' +
+      INK +
+      ';text-align:center;">' +
+      '<div style="font-weight:800;font-size:12px;letter-spacing:0.14em;line-height:1.2;">' +
+      esc(av.titulo) +
+      '</div>' +
+      '<div style="font-size:9px;font-weight:600;margin-top:4px;color:' +
+      INK +
+      ';">' +
+      esc(av.linea) +
+      '</div></div>'
+    );
+  }
+
+  function renderLegalPrecuenta(b, data, tpl) {
+    var lineas = legalLineas(data, tpl);
+    if (!lineas.length && data.legalCo) {
+      return '<div style="' + blockStyle(b, { fontSize: '7px', align: 'center' }) + '">' + esc(data.legalCo) + '</div>';
+    }
+    var html =
+      '<div style="' +
+      blockStyle(b, { align: 'center', fontSize: '7px', marginTop: 4 }) +
+      'padding:4px 2px 2px;">';
+    lineas.forEach(function (ln) {
+      if (!ln || !ln.t) return;
+      if (ln.k === 'head') {
+        html +=
+          '<div style="font-weight:700;font-size:6px;letter-spacing:0.12em;color:' +
+          MUTED +
+          ';margin:0 0 5px;text-transform:uppercase;">' +
+          esc(ln.t) +
+          '</div>';
+      } else {
+        html += '<div style="margin:2px 0;line-height:1.4;color:' + MUTED + ';">' + esc(ln.t) + '</div>';
+      }
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderFooter(b, tpl, data) {
+    data = data || {};
+    if (esPrecuentaTicket(data, tpl)) {
+      var prec = renderFooterPrecuenta(b, data);
+      if (prec) return prec;
+    }
     if (!b.c) return '';
     var compact = usesInlineLogoLayout(tpl);
     return (
@@ -613,16 +772,39 @@
         return data.ciudadE ? '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">' + esc(data.ciudadE) + '</div>' : '';
       case 'regimen':
         return data.regimenE ? '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">' + esc(data.regimenE) + '</div>' : '';
+      case 'impuesto_consumo': {
+        if (usaTotalesCuenta(data, tpl)) return '';
+        var encImp =
+          (typeof global.CrozzoTermicaColombia !== 'undefined' &&
+            global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa &&
+            typeof global.crozzoGetImpuestosEfectivos === 'function' &&
+            global.CrozzoTermicaColombia.impuestoEncabezadoEmpresa(global.crozzoGetImpuestosEfectivos())) ||
+          data.impuestoConsumoE ||
+          '';
+        return encImp
+          ? '<div style="' + blockStyle(b, { fontSize: '8px', align: 'center' }) + '">' + esc(encImp) + '</div>'
+          : '';
+      }
       case 'address':
-        return '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">' + esc(data.dirE) + '</div>';
+        return data.dirE
+          ? '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">' + esc(data.dirE) + '</div>'
+          : '';
       case 'num_fe':
         return '<div style="' + blockStyle(b, { bold: true }) + '">No. ' + esc(data.numFe || data.consecutivo) + '</div>';
       case 'resol_full':
         return data.resolFull ? '<div style="' + blockStyle(b, { fontSize: '7px' }) + '">' + esc(data.resolFull) + '</div>' : '';
       case 'iva_disc':
-        return data.ivaDisc ? '<div style="' + blockStyle(b, { align: 'left', fontSize: '8px' }) + '">' + esc(data.ivaDisc) + '</div>' : '';
-      case 'legal_co':
+        if (usaTotalesCuenta(data, tpl)) {
+          return '';
+        }
+        return data.ivaDisc && !data.consumoAplica && data.impuestoTipo !== 'consumo'
+          ? '<div style="' + blockStyle(b, { align: 'left', fontSize: '8px' }) + '">' + esc(data.ivaDisc) + '</div>'
+          : '';
+      case 'legal_co': {
+        var lnLeg = legalLineas(data, tpl);
+        if (lnLeg.length) return renderLegalPrecuenta(b, data, tpl);
         return data.legalCo ? '<div style="' + blockStyle(b, { fontSize: '7px' }) + '">' + esc(data.legalCo) + '</div>' : '';
+      }
       case 'divider':
         return renderDivider(b, tpl);
       case 'line':
@@ -643,6 +825,15 @@
         return '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">' + esc(data.fecha) + '</div>';
       case 'client': {
         var cliHdr = data.cliTipo === 'NIT' ? 'Cliente' : data.cliTipo || 'Adquirente';
+        var docLine =
+          data.cliNit && String(data.cliNit).trim()
+            ? '<div style="font-size:8px;color:' +
+              MUTED +
+              ';">' +
+              (data.cliTipo === 'NIT' ? 'NIT ' : 'Doc. ') +
+              esc(data.cliNit) +
+              '</div>'
+            : '';
         return (
           '<div style="' + blockStyle(b, { align: 'left' }) + '">' +
           '<div style="font-size:7px;color:' +
@@ -651,27 +842,68 @@
           esc(cliHdr) +
           '</div><div style="font-weight:600;margin-top:2px;">' +
           esc(data.cliNom) +
-          '</div><div style="font-size:8px;color:' +
-          MUTED +
-          ';">' +
-          (data.cliTipo === 'NIT' ? 'NIT ' : 'Doc. ') +
-          esc(data.cliNit) +
-          '</div></div>'
+          '</div>' +
+          docLine +
+          '</div>'
+        );
+      }
+      case 'servicio_ref':
+        return data.servicioRef
+          ? '<div style="' + blockStyle(b, { align: 'center', bold: true, fontSize: '11px' }) + '">' + esc(data.servicioRef) + '</div>'
+          : '';
+      case 'propina_sugerida': {
+        var leyTip =
+          data.propinaLeyendaTicket ||
+          data.propinaLeyenda ||
+          (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.propinaLeyendaTicketCorta
+            ? global.CrozzoTermicaColombia.propinaLeyendaTicketCorta()
+            : '');
+        var htmlProp = '';
+        if (muestraLeyendaPropina(data, tpl) && leyTip) {
+          htmlProp =
+            '<div style="' +
+            blockStyle(b, { align: 'center', marginTop: 2 }) +
+            'padding:4px 6px 2px;"><div style="font-size:7px;line-height:1.4;color:' +
+            MUTED +
+            ';font-style:italic;text-align:center;">' +
+            esc(leyTip) +
+            '</div></div>';
+        }
+        if (!muestraMontosPropina(data)) return htmlProp;
+        return (
+          htmlProp +
+          '<div style="' +
+          blockStyle(b, { align: 'left', fontSize: '8px' }) +
+          '">' +
+          (data.propinaSugerida > 0
+            ? '<div>Propina sugerida (' + (data.propinaPctSugerido || 0) + '%): ' + fmtCOP(data.propinaSugerida) + '</div>'
+            : '') +
+          (data.propina > 0 ? '<div>Propina voluntaria: ' + fmtCOP(data.propina) + '</div>' : '') +
+          (!data.propinaEnTotales && data.totalConPropina > data.tot
+            ? '<div style="font-weight:700;margin-top:4px;">Total ref.: ' + fmtCOP(data.totalConPropina) + '</div>'
+            : '') +
+          '</div>'
         );
       }
       case 'items':
       case 'inv_conteo':
         return renderItems(b, data, tpl);
       case 'total':
-        return renderTotal(b, data);
+        return renderTotal(b, data, tpl);
       case 'payment':
-        if (!data.pago && !data.propina && !data.recibido) return '';
+        if (esPrecuentaTicket(data, tpl)) {
+          return '';
+        }
+        if (!data.pago && !data.recibido && !data.cambio && !(data.propinaSugerida > 0) && !(data.propina > 0)) return '';
         return (
           '<div style="' + blockStyle(b, { align: 'left', fontSize: '8px' }) + '">' +
           (data.pago ? '<div>Pago: ' + esc(data.pago) + '</div>' : '') +
-          (data.propina > 0 ? '<div>Propina: ' + fmtCOP(data.propina) + '</div>' : '') +
+          (!data.propinaEnTotales && data.propina > 0 ? '<div>Propina voluntaria: ' + fmtCOP(data.propina) + '</div>' : '') +
+          (!data.propinaEnTotales && data.propinaSugerida > 0 && !data.propina
+            ? '<div>Propina sugerida: ' + fmtCOP(data.propinaSugerida) + '</div>'
+            : '') +
           (data.recibido > 0 ? '<div>Recibido: ' + fmtCOP(data.recibido) + '</div>' : '') +
-          (data.cambio > 0 ? '<div>Cambio: ' + fmtCOP(data.cambio) + '</div>' : '') +
+          (data.cambio > 0 ? '<div>Devueltas: ' + fmtCOP(data.cambio) + '</div>' : '') +
           '</div>'
         );
       case 'resol':
@@ -703,7 +935,7 @@
         );
       }
       case 'footer':
-        return renderFooter(b, tpl);
+        return renderFooter(b, tpl, data);
       case 'rotulo_nombre':
         return renderRotuloNombre(b, data, { tightAfterLogo: !!(prev && prev.t === 'logo') });
       case 'fechas_blank':

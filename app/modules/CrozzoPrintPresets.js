@@ -424,7 +424,7 @@
         { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
         { t: 'divider', c: '4', v: true, o: 5 },
         { t: 'items', c: '', v: true, o: 6, a: 'left', fs: 'lg', fw: true },
-        { t: 'footer', c: '*** PREPARAR ***', v: true, o: 7, a: 'center', fs: 'sm', fw: true },
+        { t: 'footer', c: 'Preparar con amor', v: true, o: 7, a: 'left', fs: 'xs' },
       ];
     }
     if (presetId === 'express' || presetId === 'economizador') {

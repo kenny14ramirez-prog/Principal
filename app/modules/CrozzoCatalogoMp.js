@@ -20,6 +20,40 @@
   /** Fila oficial en «Costeos guardados» — se actualiza con MP, recetas y sincronización. */
   var PERIODO_COSTEO_VIGENTE = 'vigente';
 
+  /** Categorías oficiales de materia prima — usadas en catálogo, compras y prep cocina. */
+  var CATEGORIAS_MP = [
+    'PROTEINAS',
+    'LACTEOS',
+    'FRUVER',
+    'ABARROTES',
+    'PULPAS Y CONGELADOS',
+    'BEBIDAS Y LICORES',
+    'DESECHABLES',
+    'TERCERIZADOS',
+    'ASEO',
+    'PROCESADOS',
+    'ELABORADOS',
+    'OTRO',
+  ];
+
+  var CATEGORIA_MP_LABEL = {
+    PROTEINAS: 'Proteínas (carnes, pollo, pescado)',
+    LACTEOS: 'Lácteos',
+    FRUVER: 'Fruver',
+    ABARROTES: 'Abarrotes',
+    'PULPAS Y CONGELADOS': 'Pulpas y congelados',
+    'BEBIDAS Y LICORES': 'Bebidas y licores',
+    DESECHABLES: 'Desechables',
+    TERCERIZADOS: 'Tercerizados',
+    ASEO: 'Aseo',
+    PROCESADOS: 'Procesados',
+    ELABORADOS: 'Elaborados / prep',
+    OTRO: 'Otro / sin clasificar',
+  };
+
+  var MP_COCINA_EXCLUIDAS = ['BEBIDAS Y LICORES', 'DESECHABLES', 'ASEO', 'TERCERIZADOS', 'ELABORADOS', 'OTRO'];
+  var MP_COCCION_CATS = ['PROTEINAS', 'PULPAS Y CONGELADOS', 'FRUVER', 'PROCESADOS', 'LACTEOS', 'ABARROTES'];
+
   var demoCache = null;
   var ready = false;
   var readyCbs = [];
@@ -295,6 +329,19 @@
       costeoMpSourceId: raw.costeoMpSourceId ? String(raw.costeoMpSourceId).trim() : null,
       origen: raw.origen || 'menu',
       tipoCosteo: tipo,
+      modoProceso:
+        raw.modoProceso === 'bajo_demanda'
+          ? 'bajo_demanda'
+          : raw.modoProceso === 'prep_anticipado'
+            ? 'prep_anticipado'
+            : null,
+      tipoReceta: raw.tipoReceta === 'full' ? 'full' : raw.tipoReceta === 'base' ? 'base' : null,
+      workflowPrep:
+        raw.workflowPrep === 'coccion' || raw.workflowPrep === 'elaboracion' || raw.workflowPrep === 'ninguno'
+          ? raw.workflowPrep
+          : null,
+      prepConfigManual: raw.prepConfigManual === true,
+      vendeAlCliente: raw.vendeAlCliente === true || raw.vendeAlCliente === 1,
       margenObjetivoPct: raw.margenObjetivoPct != null ? num(raw.margenObjetivoPct) : null,
       margenMinimoPct: raw.margenMinimoPct != null ? num(raw.margenMinimoPct) : null,
       programaciones: prog,
@@ -318,6 +365,411 @@
     var cat = String(p.categoria || '').toLowerCase();
     if (cat === 'bebidas') return 'directo';
     return 'receta';
+  }
+
+  /** Prep anticipado (salsas, bases) vs al momento del pedido (jugos, armado de plato). */
+  function recetaUsaElaborados(slug) {
+    var rec = getRecetaPlato(slug);
+    if (!rec || !rec.lineas.length) return false;
+    return rec.lineas.some(function (ln) {
+      if (ln.mpId) {
+        var mp = get(ln.mpId);
+        if (mp && (mp.esElaborado || String(mp.categoria || '').toUpperCase() === 'ELABORADOS')) return true;
+      }
+      if (!ln.ingrediente) return false;
+      var s = slugPlato(ln.ingrediente);
+      if (!s || s === slug) return false;
+      var menu = getMenuPlato(s);
+      return !!(menu && menu.tipoCosteo === 'receta');
+    });
+  }
+
+  function inferTipoRecetaFromMenu(row) {
+    if (!row) return 'base';
+    if (row.tipoReceta === 'base' || row.tipoReceta === 'full') return row.tipoReceta;
+    if (row.tipoCosteo === 'directo') return 'full';
+    var cat = String(row.categoria || '').toLowerCase();
+    var nom = String(row.producto || '').toLowerCase();
+    if (
+      cat.indexOf('salsa') >= 0 ||
+      cat.indexOf('base') >= 0 ||
+      cat.indexOf('caldo') >= 0 ||
+      cat.indexOf('fondo') >= 0 ||
+      cat.indexOf('mise') >= 0 ||
+      cat.indexOf('prep') >= 0
+    ) {
+      return 'base';
+    }
+    if (row.posProductId != null) return 'full';
+    if (row.slug && recetaUsaElaborados(row.slug)) return 'full';
+    if (
+      cat.indexOf('beb') >= 0 ||
+      cat.indexOf('jug') >= 0 ||
+      cat.indexOf('bar') >= 0 ||
+      cat.indexOf('plato') >= 0 ||
+      cat.indexOf('fuerte') >= 0 ||
+      nom.indexOf('jugo') >= 0 ||
+      nom.indexOf('spag') >= 0 ||
+      nom.indexOf('pasta') >= 0
+    ) {
+      return 'full';
+    }
+    if (row.precioVenta > 0) return 'full';
+    return 'base';
+  }
+
+  /** Solo ítems que el módulo Procesos debe registrar a mano (prep en bodega). */
+  function requiresSesionProceso(row) {
+    if (!row) return false;
+    if (row.tipoCosteo === 'directo') return false;
+    return inferModoProcesoFromMenu(row) === 'prep_anticipado';
+  }
+
+  function getMenuPlatoByPosId(posProductId) {
+    if (posProductId == null) return null;
+    var st = loadStore();
+    var hit = (st.menuCostos || []).find(function (m) {
+      var row = normalizeMenuPlato(m);
+      return row && row.posProductId != null && String(row.posProductId) === String(posProductId);
+    });
+    return hit ? normalizeMenuPlato(hit) : null;
+  }
+
+  function inferModoProcesoFromMenu(row) {
+    if (!row) return 'prep_anticipado';
+    if (row.modoProceso === 'bajo_demanda' || row.modoProceso === 'prep_anticipado') return row.modoProceso;
+    var tipoRec = inferTipoRecetaFromMenu(row);
+    if (tipoRec === 'full') return 'bajo_demanda';
+    if (tipoRec === 'base') return 'prep_anticipado';
+    var cat = String(row.categoria || '').toLowerCase();
+    var nom = String(row.producto || '').toLowerCase();
+    if (
+      cat.indexOf('beb') >= 0 ||
+      cat.indexOf('jug') >= 0 ||
+      cat.indexOf('bar') >= 0 ||
+      cat.indexOf('refresco') >= 0
+    ) {
+      return 'bajo_demanda';
+    }
+    if (
+      nom.indexOf('jugo') >= 0 ||
+      nom.indexOf('limonada') >= 0 ||
+      nom.indexOf('smoothie') >= 0 ||
+      nom.indexOf('malteada') >= 0
+    ) {
+      return 'bajo_demanda';
+    }
+    if (row.slug && recetaUsaElaborados(row.slug)) return 'bajo_demanda';
+    return 'prep_anticipado';
+  }
+
+  /** Plato/receta de Costos enlazado a esta MP (elaborado o costeo directo). */
+  function resolveMenuSlugForMp(mpId) {
+    if (!mpId) return null;
+    var st = loadStore();
+    var catRow = (st.catalogoMp || []).find(function (c) {
+      return c && String(c.id) === String(mpId);
+    });
+    if (catRow && catRow.menuSlug) return String(catRow.menuSlug);
+    var byCosteo = (st.menuCostos || []).find(function (m) {
+      var row = normalizeMenuPlato(m);
+      return row && row.costeoMpSourceId && String(row.costeoMpSourceId) === String(mpId);
+    });
+    if (byCosteo && byCosteo.slug) return byCosteo.slug;
+    if (catRow && catRow.nombre) {
+      var nom = String(catRow.nombre).trim().toUpperCase();
+      var byNom = (st.menuCostos || []).find(function (m) {
+        var row = normalizeMenuPlato(m);
+        return row && String(row.producto || '').trim().toUpperCase() === nom;
+      });
+      if (byNom && byNom.slug) return byNom.slug;
+    }
+    return null;
+  }
+
+  function getProcesoVentaForMp(mpId) {
+    if (!mpId) return null;
+    var mp = get(mpId);
+    if (mp && mp.procesoVenta) return mp.procesoVenta;
+    var slug = resolveMenuSlugForMp(mpId);
+    if (!slug) return null;
+    var menu = getMenuPlato(slug);
+    if (!menu) return null;
+    if (menu.modoProceso === 'bajo_demanda' || menu.modoProceso === 'prep_anticipado') return menu.modoProceso;
+    return inferModoProcesoFromMenu(menu);
+  }
+
+  function inferWorkflowPrepFromReceta(slug) {
+    if (!slug) return null;
+    var rec = getRecetaPlato(slug);
+    if (!rec || !rec.lineas || !rec.lineas.length) return null;
+    var cocScore = 0;
+    var elabScore = 0;
+    rec.lineas.forEach(function (ln) {
+      var mp = ln.mpId ? get(ln.mpId) : null;
+      if (mp) {
+        var cat = normalizeCategoriaMp(mp.categoria);
+        if (cat === 'PROTEINAS' || cat === 'PULPAS Y CONGELADOS') cocScore += 1;
+        if (cat === 'ABARROTES' || cat === 'FRUVER' || cat === 'LACTEOS') cocScore += 1;
+        if (num(mp.mermaCoccionPct) > 0) cocScore += 2;
+        if (isMpElaboradoCatalog(mp) || cat === 'ELABORADOS') elabScore += 2;
+      }
+      var ing = String(ln.ingrediente || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+      if (/\b(salsa|caldo|aderezo|sofrito|base|pesto|mayonesa)\b/.test(ing)) elabScore += 2;
+      if (/\b(arroz|frijol|lenteja|papa|pasta|guiso|porcion|batch)\b/.test(ing)) cocScore += 2;
+    });
+    if (recetaUsaElaborados(slug) && elabScore <= cocScore) elabScore += 1;
+    if (cocScore > elabScore && cocScore >= 2) return 'coccion';
+    if (elabScore >= cocScore && elabScore >= 1) return 'elaboracion';
+    return null;
+  }
+
+  function inferWorkflowPrepFromMenu(row) {
+    if (!row) return 'elaboracion';
+    if (row.workflowPrep === 'elaboracion' || row.workflowPrep === 'coccion' || row.workflowPrep === 'ninguno') {
+      if (!row.prepConfigManual && row.slug) {
+        var fromRec = inferWorkflowPrepFromReceta(row.slug);
+        if (fromRec && fromRec !== row.workflowPrep) return fromRec;
+      }
+      return row.workflowPrep;
+    }
+    if (inferModoProcesoFromMenu(row) === 'bajo_demanda') return 'ninguno';
+    var fromReceta = row.slug ? inferWorkflowPrepFromReceta(row.slug) : null;
+    if (fromReceta) return fromReceta;
+    var nom = String(row.producto || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    var cat = String(row.categoria || '').toLowerCase();
+    if (
+      /\b(arroz|cocido|guiso|guisado|porcion|porcionado|batch|frijol|lenteja|pasta cocida|prep cocido)\b/.test(nom) ||
+      cat.indexOf('guiso') >= 0 ||
+      cat.indexOf('cocido') >= 0
+    ) {
+      return 'coccion';
+    }
+    return 'elaboracion';
+  }
+
+  function inferPrepCocinaTipo(row) {
+    if (!row || row.tipoCosteo === 'directo') return 'al_vender';
+    if (inferModoProcesoFromMenu(row) === 'bajo_demanda') return 'al_vender';
+    return getWorkflowPrepForMenu(row) === 'coccion' ? 'prep_cocinar' : 'prep_salsas';
+  }
+
+  function prepCocinaTipoFromRow(row, preferStored) {
+    if (!row || row.tipoCosteo === 'directo') return 'al_vender';
+    if (preferStored !== false && row.modoProceso) {
+      if (row.modoProceso === 'bajo_demanda') return 'al_vender';
+      if (row.modoProceso === 'prep_anticipado') {
+        return row.workflowPrep === 'coccion' ? 'prep_cocinar' : 'prep_salsas';
+      }
+    }
+    return inferPrepCocinaTipo(row);
+  }
+
+  function applyPrepCocinaTipo(slug, tipo, opts) {
+    opts = opts || {};
+    if (!slug) return null;
+    var patch;
+    if (tipo === 'al_vender') {
+      patch = { modoProceso: 'bajo_demanda', tipoReceta: 'full', workflowPrep: 'ninguno' };
+    } else if (tipo === 'prep_cocinar') {
+      patch = { modoProceso: 'prep_anticipado', tipoReceta: 'base', workflowPrep: 'coccion' };
+    } else {
+      patch = { modoProceso: 'prep_anticipado', tipoReceta: 'base', workflowPrep: 'elaboracion' };
+    }
+    if (opts.prepConfigManual != null) patch.prepConfigManual = !!opts.prepConfigManual;
+    if (opts.vendeAlCliente != null) patch.vendeAlCliente = !!opts.vendeAlCliente;
+    return updateMenuPlato(slug, patch);
+  }
+
+  function autoApplyMenuPrepConfig(slug, opts) {
+    opts = opts || {};
+    var row = getMenuPlato(slug);
+    if (!row || row.tipoCosteo === 'directo') return null;
+    if (row.prepConfigManual && !opts.force) return row;
+    var inferred = inferPrepCocinaTipo(row);
+    return applyPrepCocinaTipo(slug, inferred, { prepConfigManual: false });
+  }
+
+  function autoNormalizeAllMpCategories() {
+    var n = 0;
+    list().forEach(function (item) {
+      if (!item || !item.id) return;
+      var norm = normalizeCategoriaMp(item.categoria);
+      if (norm === 'OTRO') {
+        var guess = guessCategoriaFromNombre(item.nombre);
+        if (guess !== 'OTRO') norm = guess;
+      }
+      if (norm !== item.categoria) {
+        upsertCatalog({ id: item.id, categoria: norm }, { skipInvMov: true, skipIdCheck: true });
+        n++;
+      }
+    });
+    return n;
+  }
+
+  function runPrepCatalogAutomation(opts) {
+    opts = opts || {};
+    var mpN = autoNormalizeAllMpCategories();
+    var menuN = 0;
+    (loadStore().menuCostos || []).forEach(function (m) {
+      var row = normalizeMenuPlato(m);
+      if (!row || row.tipoCosteo === 'directo') return;
+      if (opts.onlyUnset && row.prepConfigManual) return;
+      if (opts.onlyUnset && row.modoProceso && row.workflowPrep) return;
+      autoApplyMenuPrepConfig(row.slug, { force: !opts.onlyUnset });
+      menuN++;
+    });
+    if (!opts.silent && (mpN || menuN)) {
+      emitChanged({ tipo: 'prep-auto', mpN: mpN, menuN: menuN });
+    }
+    return { mpN: mpN, menuN: menuN };
+  }
+
+  function getWorkflowPrepForMenu(row) {
+    return inferWorkflowPrepFromMenu(row);
+  }
+
+  function menuRowMatchesPrepWorkflow(row, workflow) {
+    if (!row || !workflow) return true;
+    if (workflow === 'despiece') return false;
+    if (inferModoProcesoFromMenu(row) !== 'prep_anticipado') return false;
+    var wf = getWorkflowPrepForMenu(row);
+    if (workflow === 'elaboracion') return wf === 'elaboracion';
+    if (workflow === 'coccion') return wf === 'coccion';
+    return true;
+  }
+
+  /** Sincroniza prep antes vs al vender entre MP y plato de Costos. */
+  function applyProcesoVentaFromMp(slug, procesoVenta, opts) {
+    opts = opts || {};
+    procesoVenta =
+      procesoVenta === 'bajo_demanda' || procesoVenta === 'prep_anticipado' ? procesoVenta : null;
+    if (!procesoVenta) return null;
+    var patch = {
+      modoProceso: procesoVenta,
+      tipoReceta: procesoVenta === 'bajo_demanda' ? 'full' : 'base',
+      workflowPrep: procesoVenta === 'bajo_demanda' ? 'ninguno' : opts.workflowPrep || undefined,
+    };
+    if (procesoVenta === 'prep_anticipado' && patch.workflowPrep == null) {
+      var cur = slug ? getMenuPlato(slug) : null;
+      patch.workflowPrep =
+        cur && cur.workflowPrep && cur.workflowPrep !== 'ninguno' ? cur.workflowPrep : 'elaboracion';
+    }
+    if (procesoVenta === 'prep_anticipado' && opts.vendeAlCliente != null) {
+      patch.vendeAlCliente = !!opts.vendeAlCliente;
+    }
+    var menuRow = null;
+    if (slug) menuRow = updateMenuPlato(slug, patch);
+    if (opts.mpId) {
+      var mpPatch = { id: String(opts.mpId), procesoVenta: procesoVenta };
+      if (slug) mpPatch.menuSlug = slug;
+      upsertCatalog(mpPatch, { skipInvMov: true, skipIdCheck: true });
+    }
+    return menuRow;
+  }
+
+  /** Mermas reales: cocinado (entrada→cocido) y desposte/desgrado (cocido/entrada→útil). */
+  function calcMermasProceso(pesoEntradaKg, pesoCocidoKg, pesoUtilKg) {
+    var ent = num(pesoEntradaKg);
+    var coc = num(pesoCocidoKg);
+    var util = num(pesoUtilKg);
+    var mermaCoccionKg = 0;
+    var mermaDesposteKg = 0;
+    var mermaCoccionPct = null;
+    var mermaDespostePct = null;
+    if (ent > 0 && coc > 0) {
+      mermaCoccionKg = Math.max(0, ent - coc);
+      mermaCoccionPct = (mermaCoccionKg / ent) * 100;
+    }
+    var baseDesposte = coc > 0 ? coc : ent;
+    if (baseDesposte > 0 && util > 0) {
+      mermaDesposteKg = Math.max(0, baseDesposte - util);
+      mermaDespostePct = (mermaDesposteKg / baseDesposte) * 100;
+    } else if (ent > 0 && util > 0 && coc <= 0) {
+      mermaDesposteKg = Math.max(0, ent - util);
+      mermaDespostePct = (mermaDesposteKg / ent) * 100;
+    }
+    return {
+      pesoEntradaKg: ent,
+      pesoCocidoKg: coc,
+      pesoUtilKg: util,
+      mermaCoccionKg: mermaCoccionKg,
+      mermaDesposteKg: mermaDesposteKg,
+      mermaCoccionPct: mermaCoccionPct,
+      mermaDespostePct: mermaDespostePct,
+      mermaTotalKg: mermaCoccionKg + mermaDesposteKg,
+      mermaTotalPct: ent > 0 ? ((mermaCoccionKg + mermaDesposteKg) / ent) * 100 : null,
+    };
+  }
+
+  function evalMermaProcesoAlerta(mp, mermas) {
+    mermas = mermas || {};
+    if (!mp) return { ok: true };
+    var ref = getPerdidasProcesoRef();
+    var espC = num(mp.mermaCoccionPct) > 0 ? num(mp.mermaCoccionPct) : ref.coccionPct;
+    var espD = num(mp.mermaDespostePct) > 0 ? num(mp.mermaDespostePct) : ref.despiecePct;
+    var realC = mermas.mermaCoccionPct != null ? num(mermas.mermaCoccionPct) : null;
+    var realD = mermas.mermaDespostePct != null ? num(mermas.mermaDespostePct) : null;
+    var tol = num(ref.toleranciaPct, 3);
+    var msgs = [];
+    if (realC != null && espC > 0 && realC > espC + tol) {
+      msgs.push('cocinado ' + realC.toFixed(1) + '% (esp. ' + espC.toFixed(1) + '%)');
+    }
+    if (realD != null && espD > 0 && realD > espD + tol) {
+      msgs.push('desposte ' + realD.toFixed(1) + '% (esp. ' + espD.toFixed(1) + '%)');
+    }
+    if (!msgs.length) return { ok: true };
+    return { ok: false, mensaje: 'Merma por encima de lo esperado: ' + msgs.join(' · ') };
+  }
+
+  var PERDIDAS_PROCESO_KEY = 'crozzo_perdidas_procesos';
+  var PERDIDAS_PROCESO_DEFAULT = { despiecePct: 15, coccionPct: 25, toleranciaPct: 3 };
+
+  function getPerdidasProcesoRef() {
+    try {
+      var raw = localStorage.getItem(PERDIDAS_PROCESO_KEY);
+      if (raw) {
+        var p = JSON.parse(raw);
+        return {
+          despiecePct: num(p.despiecePct, PERDIDAS_PROCESO_DEFAULT.despiecePct),
+          coccionPct: num(p.coccionPct, PERDIDAS_PROCESO_DEFAULT.coccionPct),
+          toleranciaPct: num(p.toleranciaPct, PERDIDAS_PROCESO_DEFAULT.toleranciaPct),
+        };
+      }
+    } catch (_) {}
+    return Object.assign({}, PERDIDAS_PROCESO_DEFAULT);
+  }
+
+  function savePerdidasProcesoRef(patch) {
+    patch = patch || {};
+    var cur = getPerdidasProcesoRef();
+    var next = {
+      despiecePct: patch.despiecePct != null ? num(patch.despiecePct) : cur.despiecePct,
+      coccionPct: patch.coccionPct != null ? num(patch.coccionPct) : cur.coccionPct,
+      toleranciaPct: patch.toleranciaPct != null ? num(patch.toleranciaPct) : cur.toleranciaPct,
+    };
+    try {
+      localStorage.setItem(PERDIDAS_PROCESO_KEY, JSON.stringify(next));
+    } catch (_) {}
+    return next;
+  }
+
+  function perdidaEsperadaPct(mp, workflow) {
+    var ref = getPerdidasProcesoRef();
+    var wf = String(workflow || '').toLowerCase();
+    if (mp) {
+      if (wf === 'coccion' && num(mp.mermaCoccionPct) > 0) return num(mp.mermaCoccionPct);
+      if ((wf === 'despiece' || !wf) && num(mp.mermaDespostePct) > 0) return num(mp.mermaDespostePct);
+      if (num(mp.mermaCoccionPct) > 0 && wf === 'coccion') return num(mp.mermaCoccionPct);
+    }
+    if (wf === 'coccion') return ref.coccionPct;
+    return ref.despiecePct;
   }
 
   function getMenuPlato(slug) {
@@ -782,6 +1234,30 @@
     return [];
   }
 
+  function normalizeCortesDespiece(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map(function (c) {
+        if (!c) return null;
+        var nom = String(c.nombre || '').trim();
+        var pct = c.pctRef != null && c.pctRef !== '' ? num(c.pctRef) : null;
+        var grPor =
+          c.grPorPorcion != null && c.grPorPorcion !== ''
+            ? num(c.grPorPorcion)
+            : c.gramosPorPorcion != null
+              ? num(c.gramosPorPorcion)
+              : null;
+        if (!nom && pct == null && !(grPor > 0)) return null;
+        return {
+          id: String(c.id || slugId(nom || 'corte')).trim(),
+          nombre: nom,
+          pctRef: pct,
+          grPorPorcion: grPor > 0 ? grPor : null,
+        };
+      })
+      .filter(Boolean);
+  }
+
   function reservorio() {
     return global.CrozzoReservorio || null;
   }
@@ -792,7 +1268,7 @@
     var item = {
       id: id,
       nombre: String(raw.nombre || '').trim(),
-      categoria: String(raw.categoria || 'OTRO').trim().toUpperCase(),
+      categoria: normalizeCategoriaMp(raw.categoria || guessCategoriaFromNombre(raw.nombre)),
       proveedores: parseProveedores(raw.proveedores),
       materiaPrimaId: raw.materiaPrimaId || null,
       areaPedido: raw.areaPedido ? String(raw.areaPedido).trim() : null,
@@ -802,8 +1278,32 @@
       fechaElaboracion: String(raw.fechaElaboracion || '').trim().slice(0, 10),
       fechaIngreso: String(raw.fechaIngreso || '').trim().slice(0, 10),
       fechaVencimiento: String(raw.fechaVencimiento || '').trim().slice(0, 10),
+      menuSlug: raw.menuSlug ? String(raw.menuSlug).trim() : null,
+      mpOrigenId: raw.mpOrigenId ? String(raw.mpOrigenId).trim() : null,
+      esElaborado: raw.esElaborado === true,
+      procesoVenta:
+        raw.procesoVenta === 'bajo_demanda' || raw.procesoVenta === 'prep_anticipado'
+          ? raw.procesoVenta
+          : null,
+      mermaCoccionPct:
+        raw.mermaCoccionPct != null
+          ? num(raw.mermaCoccionPct)
+          : raw.merma_coccion_pct != null
+            ? num(raw.merma_coccion_pct)
+            : null,
+      mermaDespostePct:
+        raw.mermaDespostePct != null
+          ? num(raw.mermaDespostePct)
+          : raw.merma_porcionado_pct != null
+            ? num(raw.merma_porcionado_pct)
+            : raw.merma_desposte_pct != null
+              ? num(raw.merma_desposte_pct)
+              : null,
       updatedAt: raw.updatedAt || new Date().toISOString(),
     };
+    if (raw.cortesDespiece != null) {
+      item.cortesDespiece = normalizeCortesDespiece(raw.cortesDespiece);
+    }
     if (!item.nombre) return null;
     return item;
   }
@@ -843,7 +1343,7 @@
     return {
       id: catRow.id,
       nombre: catRow.nombre,
-      categoria: catRow.categoria,
+      categoria: normalizeCategoriaMp(catRow.categoria),
       proveedores: (catRow.proveedores || []).slice(),
       und: c.und,
       peso: c.peso,
@@ -857,6 +1357,13 @@
       fechaElaboracion: catRow.fechaElaboracion || '',
       fechaIngreso: catRow.fechaIngreso || '',
       fechaVencimiento: catRow.fechaVencimiento || '',
+      menuSlug: catRow.menuSlug || null,
+      mpOrigenId: catRow.mpOrigenId || null,
+      esElaborado: catRow.esElaborado === true,
+      procesoVenta: catRow.procesoVenta || null,
+      mermaCoccionPct: catRow.mermaCoccionPct != null ? num(catRow.mermaCoccionPct) : null,
+      mermaDespostePct: catRow.mermaDespostePct != null ? num(catRow.mermaDespostePct) : null,
+      cortesDespiece: Array.isArray(catRow.cortesDespiece) ? catRow.cortesDespiece.slice() : [],
       precioAnterior: c.precioAnterior,
       ultimaRecepcionId: c.ultimaRecepcionId,
       ultimaRecepcionAt: c.ultimaRecepcionAt,
@@ -1098,8 +1605,8 @@
           var body = {
             nombre: item.nombre,
             categoria: mapCategoriaInventario(item.categoria),
-            merma_coccion_pct: 0,
-            merma_porcionado_pct: 0,
+            merma_coccion_pct: item.mermaCoccionPct != null ? num(item.mermaCoccionPct) : 0,
+            merma_porcionado_pct: item.mermaDespostePct != null ? num(item.mermaDespostePct) : 0,
           };
           if (Array.isArray(rows) && rows[0] && rows[0].id) {
             item.materiaPrimaId = rows[0].id;
@@ -1381,6 +1888,25 @@
       );
     }
     return merged;
+  }
+
+  /** Cortes de despiece guardados por MP (nombre + gramos por porción). */
+  function saveCortesDespiece(mpId, cortes) {
+    var id = String(mpId || '').trim();
+    if (!id) return null;
+    var mp = get(id);
+    if (!mp) return null;
+    var payload = normalizeCortesDespiece(
+      (cortes || []).map(function (c) {
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          pctRef: c.pctRef,
+          grPorPorcion: c.grPorPorcion,
+        };
+      })
+    );
+    return upsertCatalog(Object.assign({}, mp, { cortesDespiece: payload }), { skipInvMov: true });
   }
 
   function countUsages(id) {
@@ -1729,6 +2255,9 @@
       migrateStoreShape(loadStore());
       mergeCapacitacionRecetasFromDemo(loadStore(), j);
       ensureMpFromPosVentaDirecta({ silent: true });
+      try {
+        runPrepCatalogAutomation({ onlyUnset: true, silent: true });
+      } catch (_) {}
       ready = true;
       readyCbs.forEach(function (fn) {
         fn();
@@ -1780,6 +2309,109 @@
     if (c === 'entradas' || c === 'postres') return 'PROCESADOS';
     if (c === 'platos-fuertes') return 'OTRO';
     return 'OTRO';
+  }
+
+  function normalizeCategoriaMp(raw) {
+    var c = String(raw || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ');
+    if (!c || c === 'GENERAL' || c === 'GENERAL.') return 'OTRO';
+    if (CATEGORIAS_MP.indexOf(c) >= 0) return c;
+    if (c.indexOf('ELABOR') >= 0) return 'ELABORADOS';
+    if (c.indexOf('BEBID') >= 0 || c.indexOf('LICOR') >= 0 || c.indexOf('AGUA') >= 0) return 'BEBIDAS Y LICORES';
+    if (c.indexOf('DESECH') >= 0 || c.indexOf('EMPAQUE') >= 0) return 'DESECHABLES';
+    if (c.indexOf('ASEO') >= 0 || c.indexOf('LIMPIE') >= 0) return 'ASEO';
+    if (c.indexOf('LACT') >= 0 || c.indexOf('QUESO') >= 0) return 'LACTEOS';
+    if (c.indexOf('FRU') >= 0 || c.indexOf('VERD') >= 0 || c.indexOf('HORT') >= 0) return 'FRUVER';
+    if (c.indexOf('PULPA') >= 0 || c.indexOf('CONGEL') >= 0) return 'PULPAS Y CONGELADOS';
+    if (c.indexOf('ABARRO') >= 0 || c.indexOf('GRANO') >= 0) return 'ABARROTES';
+    if (
+      c.indexOf('CARNE') >= 0 ||
+      c.indexOf('CARN') >= 0 ||
+      c.indexOf('POLLO') >= 0 ||
+      c.indexOf('CERDO') >= 0 ||
+      c.indexOf('PESC') >= 0 ||
+      c.indexOf('MARISC') >= 0 ||
+      c.indexOf('PROTE') >= 0 ||
+      c === 'RES' ||
+      c.indexOf('RES ') >= 0 ||
+      c.indexOf(' RES') >= 0
+    ) {
+      return 'PROTEINAS';
+    }
+    if (c.indexOf('PROCES') >= 0) return 'PROCESADOS';
+    if (c.indexOf('TERCER') >= 0) return 'TERCERIZADOS';
+    return 'OTRO';
+  }
+
+  function guessCategoriaFromNombre(nombre) {
+    var n = String(nombre || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    if (!n.trim()) return 'OTRO';
+    if (/\b(agua|gaseosa|cerveza|licor|ron|whisky|vino|jugo|bebida|refresco|soda|cola|malta|te\s|cafe|café)\b/.test(n)) {
+      return 'BEBIDAS Y LICORES';
+    }
+    if (/\b(vaso|bolsa|servilleta|desech|empaque|envase|film|aluminio|guante)\b/.test(n)) return 'DESECHABLES';
+    if (/\b(cloro|deterg|jabon|jabón|aseo|desinf|limpia)\b/.test(n)) return 'ASEO';
+    if (/\b(pollo|pechuga|muslo|ala|carne|res\b|cerdo|chuleta|solomo|lomo|chicharron|chicharrón|pescado|trucha|salmon|salmón|camaron|marisc|atun|atún|higado|hígado|costilla|molida)\b/.test(n)) {
+      return 'PROTEINAS';
+    }
+    if (/\b(leche|queso|mantequilla|crema|yogurt|yogur)\b/.test(n)) return 'LACTEOS';
+    if (/\b(tomate|cebolla|papa|lechuga|zanahoria|fruver|verdura|fruta|limon|limón| cilantro|perejil)\b/.test(n)) {
+      return 'FRUVER';
+    }
+    if (/\b(pulpa|congelad|helado)\b/.test(n)) return 'PULPAS Y CONGELADOS';
+    if (/\b(aceite|arroz|harina|sal\b|azucar|azúcar|frijol|lenteja|pasta seca|pan\b|condimento)\b/.test(n)) {
+      return 'ABARROTES';
+    }
+    if (/\b(salsa|caldo|base|aderezo|elaborad)\b/.test(n)) return 'ELABORADOS';
+    return 'OTRO';
+  }
+
+  function categoriaMpLabel(cat) {
+    return CATEGORIA_MP_LABEL[normalizeCategoriaMp(cat)] || normalizeCategoriaMp(cat);
+  }
+
+  function renderCategoriaMpOptionsHtml(selected) {
+    selected = normalizeCategoriaMp(selected);
+    return CATEGORIAS_MP.map(function (c) {
+      return (
+        '<option value="' +
+        c +
+        '"' +
+        (c === selected ? ' selected' : '') +
+        '>' +
+        (CATEGORIA_MP_LABEL[c] || c) +
+        '</option>'
+      );
+    }).join('');
+  }
+
+  function isMpElaboradoCatalog(mp) {
+    if (!mp) return false;
+    var cat = normalizeCategoriaMp(mp.categoria);
+    return mp.esElaborado === true || cat === 'ELABORADOS';
+  }
+
+  function mpAptoDespiece(mp) {
+    if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return false;
+    var cat = normalizeCategoriaMp(mp.categoria);
+    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return false;
+    if (cat === 'PROTEINAS') return true;
+    if (num(mp.mermaDespostePct) > 0) return true;
+    return false;
+  }
+
+  function mpAptoCoccion(mp) {
+    if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return false;
+    var cat = normalizeCategoriaMp(mp.categoria);
+    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return false;
+    if (MP_COCCION_CATS.indexOf(cat) >= 0) return true;
+    if (num(mp.mermaCoccionPct) > 0) return true;
+    return false;
   }
 
   function mpIdForPosReventa(p) {
@@ -1844,6 +2476,99 @@
       if (ensureMpFromPosProducto(p, { silent: true })) n++;
     });
     return n;
+  }
+
+  function mpIdElaboradoSlug(key) {
+    var s = String(key || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_')
+      .slice(0, 64);
+    return 'mp_elab_' + (s || Date.now());
+  }
+
+  /** MP de producto elaborado (inventario global post-proceso) enlazado al plato de Costos. */
+  function ensureMpElaboradoDesdeMenu(slug, opts) {
+    opts = opts || {};
+    if (!slug) return null;
+    var menu = getMenuPlato(slug);
+    var nombre = (menu && menu.producto) || String(slug);
+    var linked = menu && resolveMpIdForMenuRow(menu);
+    if (linked) {
+      var exLink = get(linked);
+      if (exLink) return exLink;
+    }
+    var byName = getByNombre(nombre);
+    if (byName && String(byName.categoria || '').toUpperCase() === 'ELABORADOS') return byName;
+    var id = mpIdElaboradoSlug(slug);
+    if (get(id)) return get(id);
+    var merged = upsertCatalog(
+      {
+        id: id,
+        nombre: nombre,
+        categoria: 'ELABORADOS',
+        menuSlug: slug,
+        posProductId: menu && menu.posProductId != null ? menu.posProductId : null,
+        esElaborado: true,
+        activo: true,
+      },
+      { skipInvMov: true }
+    );
+    if (!merged) return null;
+    var costo = Math.round(num(opts.costoUnit) || num(opts.costoTotal) || 0);
+    if (costo > 0) {
+      upsertCosteo(
+        {
+          mpId: merged.id,
+          und: opts.und === 'und' || opts.und === 'UNI' ? 'UNI' : 'KG',
+          peso: 1,
+          precioTotal: costo,
+        },
+        { origen: 'proceso', skipVariacionCheck: true, skipConfirm: true }
+      );
+    }
+    if (menu && !menu.costeoMpSourceId) {
+      updateMenuPlato(slug, { costeoMpSourceId: merged.id });
+    }
+    var modoMenu = menu ? inferModoProcesoFromMenu(menu) : 'prep_anticipado';
+    upsertCatalog(
+      { id: merged.id, procesoVenta: modoMenu, menuSlug: slug },
+      { skipInvMov: true, skipIdCheck: true }
+    );
+    if (!opts.silent) emitChanged({ tipo: 'mp-elaborado', slug: slug, mpId: merged.id });
+    return get(merged.id) || merged;
+  }
+
+  /** Elaborado desde despiece de una MP (cortes / pieza procesada). */
+  function ensureMpElaboradoDesdeMp(mpId, opts) {
+    opts = opts || {};
+    var src = get(mpId);
+    if (!src) return null;
+    var nombre = String(opts.nombre || src.nombre + ' (procesado)').trim();
+    var id = mpIdElaboradoSlug('src_' + mpId);
+    if (get(id)) return get(id);
+    var dup = getByNombre(nombre);
+    if (dup) return dup;
+    var merged = upsertCatalog(
+      {
+        id: id,
+        nombre: nombre,
+        categoria: 'ELABORADOS',
+        mpOrigenId: mpId,
+        esElaborado: true,
+        activo: true,
+      },
+      { skipInvMov: true }
+    );
+    if (!merged) return null;
+    var costo = Math.round(num(opts.costoUnit) || num(opts.costoTotal) || 0);
+    if (costo > 0) {
+      upsertCosteo(
+        { mpId: merged.id, und: 'KG', peso: 1, precioTotal: costo },
+        { origen: 'proceso', skipVariacionCheck: true, skipConfirm: true }
+      );
+    }
+    return get(merged.id) || merged;
   }
 
   function findPosDirectoForRecepcion(q) {
@@ -2047,6 +2772,29 @@
     updateMenuPlatosBatch: updateMenuPlatosBatch,
     normalizeMenuPlato: normalizeMenuPlato,
     inferTipoCosteoFromPos: inferTipoCosteoFromPos,
+    inferTipoRecetaFromMenu: inferTipoRecetaFromMenu,
+    inferModoProcesoFromMenu: inferModoProcesoFromMenu,
+    requiresSesionProceso: requiresSesionProceso,
+    inferWorkflowPrepFromMenu: inferWorkflowPrepFromMenu,
+    inferPrepCocinaTipo: inferPrepCocinaTipo,
+    prepCocinaTipoFromRow: prepCocinaTipoFromRow,
+    applyPrepCocinaTipo: applyPrepCocinaTipo,
+    autoApplyMenuPrepConfig: autoApplyMenuPrepConfig,
+    runPrepCatalogAutomation: runPrepCatalogAutomation,
+    getWorkflowPrepForMenu: getWorkflowPrepForMenu,
+    menuRowMatchesPrepWorkflow: menuRowMatchesPrepWorkflow,
+    getMenuPlatoByPosId: getMenuPlatoByPosId,
+    resolveMenuSlugForMp: resolveMenuSlugForMp,
+    getProcesoVentaForMp: getProcesoVentaForMp,
+    applyProcesoVentaFromMp: applyProcesoVentaFromMp,
+    calcMermasProceso: calcMermasProceso,
+    evalMermaProcesoAlerta: evalMermaProcesoAlerta,
+    getPerdidasProcesoRef: getPerdidasProcesoRef,
+    savePerdidasProcesoRef: savePerdidasProcesoRef,
+    perdidaEsperadaPct: perdidaEsperadaPct,
+    saveCortesDespiece: saveCortesDespiece,
+    normalizeCortesDespiece: normalizeCortesDespiece,
+    recetaUsaElaborados: recetaUsaElaborados,
     syncProductoFromPos: syncProductoFromPos,
     removeMenuPlatoByPosId: removeMenuPlatoByPosId,
     getMenuPlato: getMenuPlato,
@@ -2063,8 +2811,18 @@
     aplicarPrecioAlPos: aplicarPrecioAlPos,
     ensureMpFromPosProducto: ensureMpFromPosProducto,
     ensureMpFromPosVentaDirecta: ensureMpFromPosVentaDirecta,
+    ensureMpElaboradoDesdeMenu: ensureMpElaboradoDesdeMenu,
+    ensureMpElaboradoDesdeMp: ensureMpElaboradoDesdeMp,
     findPosDirectoForRecepcion: findPosDirectoForRecepcion,
     isMpReventaPos: isMpReventaPos,
+    CATEGORIAS_MP: CATEGORIAS_MP,
+    CATEGORIA_MP_LABEL: CATEGORIA_MP_LABEL,
+    normalizeCategoriaMp: normalizeCategoriaMp,
+    guessCategoriaFromNombre: guessCategoriaFromNombre,
+    categoriaMpLabel: categoriaMpLabel,
+    renderCategoriaMpOptionsHtml: renderCategoriaMpOptionsHtml,
+    mpAptoDespiece: mpAptoDespiece,
+    mpAptoCoccion: mpAptoCoccion,
     listMenuSlugsAffectedByMp: listMenuSlugsAffectedByMp,
     resolveMpIdForMenuRow: resolveMpIdForMenuRow,
     costoMenuDesdeMpItem: costoMenuDesdeMpItem,

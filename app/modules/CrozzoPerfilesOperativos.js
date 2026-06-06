@@ -18,22 +18,22 @@
       'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
       'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'centro-compras',
       'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa',
-      'config-comandas', 'nomina-planilla', 'auditoria',
+      'config-comandas', 'nomina-planilla',
     ],
     grande: [
       'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
       'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv',
       'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
-      'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-entrada', 'compras-proceso-historial',
+      'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial',
       'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa',
-      'config-comandas', 'auditoria',
+      'config-comandas',
     ],
     restaurante: [
       'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
       'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones',
       'compras-recepcion', 'compras-proveedores', 'compras-cortes', 'compras-proceso-sesion',
-      'compras-proceso-entrada', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos',
-      'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas', 'auditoria',
+      'compras-proceso-historial', 'compras-oficina', 'pedidos-internos',
+      'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas',
     ],
     retail: [
       'inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'cierre-caja', 'inventarios', 'productos',
@@ -73,7 +73,7 @@
         'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
         'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones',
         'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa', 'config-comandas',
-        'nomina-planilla', 'auditoria',
+        'nomina-planilla',
       ],
       user: ['inicio-operacion', 'punto-venta', 'cierre-caja'],
     },
@@ -82,11 +82,11 @@
       mesero: ['tablets', 'comandas'],
       cocina: [
         'cocina', 'comandas', 'pedidos-internos', 'compras-cortes', 'compras-proceso-sesion',
-        'compras-proceso-entrada',
+        'compras-recepcion',
       ],
       inventario: [
         'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
-        'compras-cortes', 'compras-proceso-entrada', 'compras-proceso-historial', 'pedidos-internos', 'inventarios',
+        'compras-cortes', 'compras-proceso-historial', 'pedidos-internos', 'inventarios',
         'catalogo-mp', 'costos-matriz', 'sistema-costos-inv',
       ],
       admin: PERFIL_CLIENT_MENUS.grande.filter(function (m) {
@@ -171,10 +171,10 @@
       icon: '🍽️',
       tipo: 'restaurante',
       tamano: 'mediano',
-      experiencia: 'mixed',
+      experiencia: 'expert',
       home: 'inicio-operacion',
       roleMenus: true,
-      onboarding: true,
+      onboarding: false,
       debounceMs: 650,
       dupWindowMs: 90000,
       dupRatio: 0.78,
@@ -183,7 +183,7 @@
     grande: {
       id: 'grande',
       label: 'Restaurante grande',
-      desc: '~500 personas · producción, órdenes de compra, bodega continua y auditoría.',
+      desc: '~500 personas · producción, órdenes de compra y bodega continua.',
       icon: '🏨',
       tipo: 'restaurante',
       tamano: 'grande',
@@ -542,6 +542,9 @@
         new CustomEvent('crozzo-perfil-operativo-changed', { detail: { perfil: getPerfilId(perfilId), meta: getMeta(perfilId) } })
       );
     } catch (_) {}
+    if (typeof global.crozzoSyncFiscalPerfilOperativo === 'function') {
+      global.crozzoSyncFiscalPerfilOperativo(getPerfilId(perfilId));
+    }
     return true;
   }
 
@@ -573,6 +576,9 @@
     try {
       global.dispatchEvent(new CustomEvent('crozzo-perfil-operativo-changed', { detail: { perfil: id, meta: PERFIL_META[id] } }));
     } catch (_) {}
+    if (typeof global.crozzoSyncFiscalPerfilOperativo === 'function') {
+      global.crozzoSyncFiscalPerfilOperativo(id);
+    }
     try {
       if (document.body) document.body.setAttribute('data-crozzo-perfil', id);
     } catch (_) {}
