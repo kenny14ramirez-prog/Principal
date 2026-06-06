@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-06T05:42:46.858Z",
+  "updatedAt": "2026-06-06T06:03:10.717Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -472,6 +472,18 @@
       "installMode": "auto",
       "changelog": [
         "apk 2"
+      ]
+    },
+    {
+      "id": "1.0.85-critical",
+      "version": "v1.0.85",
+      "semver": "1.0.85",
+      "type": "critical",
+      "message": "apk 3",
+      "publishedAt": "2026-06-06T06:03:10.717Z",
+      "installMode": "auto",
+      "changelog": [
+        "apk 3"
       ]
     }
   ]

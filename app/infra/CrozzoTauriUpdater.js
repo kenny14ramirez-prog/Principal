@@ -102,8 +102,19 @@
       return Promise.reject(new Error('Instalador in-app solo en la app Android (APK).'));
     }
     return getAppVersion().then(function (current) {
-      if (targetVersion && current && compareSemver(targetVersion, current) <= 0) {
-        return { installed: false, upToDate: true, current: current, plan: 'none' };
+      if (
+        !opts.forceInstall &&
+        targetVersion &&
+        current &&
+        compareSemver(targetVersion, current) <= 0
+      ) {
+        return {
+          installed: false,
+          upToDate: true,
+          current: current,
+          target: targetVersion,
+          plan: 'none',
+        };
       }
       onProgress({ phase: 'probe', percent: 8, message: 'Buscando APK en GitHub…' });
       return resolveBestApkUrl(targetVersion).then(function (info) {
@@ -133,13 +144,14 @@
             });
             return invokeAndroidPackageInstall(localPath).then(function () {
               return {
-                installed: true,
+                installed: false,
                 plan: 'android_apk',
                 version: targetVersion || info.version,
                 downloadUrl: apkUrl,
                 localPath: localPath,
                 needsManualInstall: false,
                 awaitingSystemConfirm: true,
+                intentLaunched: true,
               };
             });
           })

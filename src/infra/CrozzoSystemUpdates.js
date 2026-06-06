@@ -199,6 +199,11 @@
         markEntryFullyApplied(entry, installedVer, { skipAndroidGuard: true });
       }
     });
+    try {
+      if (typeof global.showToast === 'function') {
+        global.showToast('Actualización ' + installedVer + ' instalada correctamente.', 'success');
+      }
+    } catch (_) {}
   }
 
   function refreshBinaryVersion() {
@@ -2321,6 +2326,7 @@
       return TU.installApkAutomatic({
         targetVersion: targetVersion,
         onProgress: onProgress,
+        forceInstall: !!opts.forceInstall,
       }).then(function (res) {
         if (res && res.plan === 'android_apk') {
           appendLocalLog('apk_install_intent', {
@@ -2400,6 +2406,146 @@
         new Error('El APK aún no está en GitHub. Espere a que termine la compilación Android o use Plan B.')
       );
     });
+  }
+
+  function handleAndroidOtaResult(res, ctx) {
+    ctx = ctx || {};
+    var entry = ctx.entry || null;
+    var remote = normEntryVersion({ version: ctx.remote || '' });
+    var onProgress = ctx.onProgress || handleInstallProgress;
+    var uiMode = ctx.uiMode || 'critical';
+
+    function failMsg(base) {
+      return (
+        base +
+        ' Versión del equipo: ' +
+        VERSION +
+        (remote ? '. Requerida: ' + remote + '.' : '.') +
+        ' Confirme «Actualizar» en Android o use el enlace manual en Actualizaciones.'
+      );
+    }
+
+    function applyCriticalSuccess(status, msg) {
+      _criticalInstallState = 'success';
+      _criticalFailCount = 0;
+      _criticalAutoAttempts = 0;
+      cancelCriticalAutoRetry();
+      if (entry && remote && compareSemver(VERSION, remote) >= 0) {
+        markCriticalInstalled(entry, remote);
+      }
+      setCriticalOpen(true);
+      populateCriticalInfo('success', msg);
+      if (status) setCheckStatus(status);
+    }
+
+    function applyCriticalAwaiting(status, msg) {
+      _criticalInstallState = 'idle';
+      _criticalAutoAttempts = 0;
+      setCriticalOpen(true);
+      populateCriticalInfo('success', msg);
+      if (status) setCheckStatus(status);
+    }
+
+    function applyCriticalFail(msg, status) {
+      _criticalInstallState = 'failed';
+      setCriticalOpen(true);
+      populateCriticalInfo('failed', msg);
+      if (status) setCheckStatus(status);
+      if (remote) offerPlanBAfterFailure(remote, null);
+    }
+
+    function applyOptionalAwaiting(msg) {
+      _installUi.state = 'success';
+      _installUi.percent = 100;
+      _installUi.phase = 'install';
+      _installUi.message = msg;
+      renderInstallOverlayUi();
+    }
+
+    function applyOptionalFail(msg) {
+      _installUi.state = 'error';
+      handleInstallProgress({ phase: 'error', percent: 0, message: msg });
+      if (remote) offerPlanBAfterFailure(remote, null);
+      setNormalOpen(true);
+    }
+
+    if (res && res.plan === 'android_apk') {
+      var awaitingMsg =
+        'Instalador del sistema abierto. Confirme «Actualizar» o «Instalar» en Android y vuelva a abrir Crozzo POS.';
+      if (uiMode === 'optional') {
+        applyOptionalAwaiting(awaitingMsg);
+        return Promise.resolve({ handled: true, res: res });
+      }
+      applyCriticalAwaiting('Esperando confirmación de Android…', awaitingMsg);
+      return Promise.resolve({ handled: true, res: res });
+    }
+
+    if (res && res.plan === 'apk_download' && !res.exiting) {
+      var dlMsg = 'Descarga del APK iniciada. Instálelo y vuelva a abrir Crozzo POS.';
+      if (uiMode === 'optional') {
+        applyOptionalAwaiting(dlMsg);
+        if (typeof global.showToast === 'function') global.showToast('Descarga del APK iniciada.', 'info');
+        return Promise.resolve({ handled: true, res: res });
+      }
+      _criticalInstallState = 'idle';
+      setCriticalOpen(true);
+      populateCriticalInfo('idle', dlMsg);
+      setCheckStatus('Instale el APK descargado para completar la actualización.');
+      return Promise.resolve({ handled: true, res: res });
+    }
+
+    if (res && res.upToDate) {
+      return refreshBinaryVersion().then(function () {
+        if (remote && compareSemver(VERSION, remote) >= 0) {
+          if (uiMode === 'optional') {
+            _installUi.state = 'success';
+            _installUi.percent = 100;
+            renderInstallOverlayUi();
+            if (entry) markOptionalInstalled(entry, remote);
+            return { handled: true, res: res, upToDate: true };
+          }
+          applyCriticalSuccess('Este equipo ya está en ' + VERSION + '.');
+          return { handled: true, res: res, upToDate: true };
+        }
+        if (ctx.allowForceRetry !== false && getUpdateClientProfile().kind === 'android' && remote) {
+          return applyAndroidClientUpdate(remote, onProgress, { forceInstall: true }).then(function (res2) {
+            return handleAndroidOtaResult(res2, Object.assign({}, ctx, { allowForceRetry: false }));
+          });
+        }
+        var upFail = failMsg('El APK no se actualizó.');
+        if (uiMode === 'optional') {
+          applyOptionalFail(upFail);
+          return { handled: true, res: res, failed: true };
+        }
+        applyCriticalFail(upFail, 'Actualización pendiente: binario ' + VERSION + ', requerido ' + remote + '.');
+        return { handled: true, res: res, failed: true };
+      });
+    }
+
+    if (res && res.installed) {
+      return refreshBinaryVersion().then(function () {
+        if (remote && compareSemver(VERSION, remote) >= 0) {
+          if (uiMode === 'optional') {
+            _installUi.state = 'success';
+            _installUi.percent = 100;
+            renderInstallOverlayUi();
+            if (entry) markOptionalInstalled(entry, remote);
+            return { handled: true, res: res };
+          }
+          applyCriticalSuccess('Actualización ' + remote + ' instalada.');
+          return { handled: true, res: res };
+        }
+        var inFail = failMsg('La instalación no cambió la versión del APK.');
+        if (uiMode === 'optional') {
+          applyOptionalFail(inFail);
+          return { handled: true, res: res, failed: true };
+        }
+        applyCriticalFail(inFail, 'Reintente o instale el APK manualmente.');
+        return { handled: true, res: res, failed: true };
+      });
+    }
+
+    return Promise.resolve({ handled: false, res: res });
   }
 
   function applyClientUpdate(targetVersion, onProgress, opts) {
@@ -2919,68 +3065,29 @@
           return res;
         }
         if (res && res.plan === 'android_apk') {
-          _criticalAutoAttempts = 0;
-          _criticalInstallState = 'success';
-          setCriticalOpen(true);
-          populateCriticalInfo(
-            'success',
-            'Actualización descargada. Confirme «Actualizar» en la pantalla del sistema Android.'
-          );
-          setCheckStatus('Tras instalar, abra de nuevo Crozzo POS.');
-          return res;
+          return handleAndroidOtaResult(res, {
+            entry: entry,
+            remote: remote,
+            uiMode: 'critical',
+            allowForceRetry: false,
+          }).then(function () {
+            return res;
+          });
         }
-        return refreshBinaryVersion().then(function () {
-          if (res && res.installed) {
-            _criticalInstallState = 'success';
-            _criticalFailCount = 0;
-            _criticalAutoAttempts = 0;
-            cancelCriticalAutoRetry();
-            markCriticalInstalled(entry, remote);
+        return handleAndroidOtaResult(res, {
+          entry: entry,
+          remote: remote,
+          uiMode: 'critical',
+          allowForceRetry: true,
+        }).then(function (out) {
+          if (!out.handled) {
+            var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
+            _criticalInstallState = 'failed';
             setCriticalOpen(true);
-            populateCriticalInfo('success');
-            setCheckStatus('Actualización ' + remote + ' instalada.');
-            return res;
+            populateCriticalInfo('failed', failMsg);
+            offerPlanBAfterFailure(remote, null);
+            scheduleCriticalInstallRetry(entry, new Error(failMsg));
           }
-          if (res && res.upToDate) {
-            if (compareSemver(VERSION, remote) >= 0) {
-              _criticalInstallState = 'success';
-              _criticalFailCount = 0;
-              cancelCriticalAutoRetry();
-              markCriticalInstalled(entry, remote);
-              setCriticalOpen(true);
-              populateCriticalInfo('success');
-              _registryEntries.forEach(function (e) {
-                if (
-                  isCriticalEntry(e) &&
-                  entryIsPending(e) &&
-                  compareSemver(VERSION, normEntryVersion(e)) >= 0
-                ) {
-                  markCriticalInstalled(e, VERSION);
-                }
-              });
-              setCheckStatus('Este equipo ya está en ' + VERSION + '.');
-            } else {
-              _criticalInstallState = 'failed';
-              setCriticalOpen(true);
-              populateCriticalInfo(
-                'failed',
-                'El APK no se actualizó. Versión del equipo: ' +
-                  VERSION +
-                  '. Requerida: ' +
-                  remote +
-                  '. Instale el APK y vuelva a abrir la app.'
-              );
-              setCheckStatus('Actualización pendiente: binario ' + VERSION + ', requerido ' + remote + '.');
-              offerPlanBAfterFailure(remote, null);
-            }
-            return res;
-          }
-          var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
-          _criticalInstallState = 'failed';
-          setCriticalOpen(true);
-          populateCriticalInfo('failed', failMsg);
-          offerPlanBAfterFailure(remote, null);
-          scheduleCriticalInstallRetry(entry, new Error(failMsg));
           return res;
         });
       })
@@ -3564,28 +3671,22 @@
       markInstalled: getUpdateClientProfile().kind !== 'android',
     })
       .then(function (res) {
-        if (res && res.exiting && (res.plan === 'web_reload' || res.plan === 'apk_download')) {
+        if (res && res.exiting && res.plan === 'web_reload') return res;
+        return handleAndroidOtaResult(res, {
+          entry: entry,
+          remote: remote,
+          uiMode: 'critical',
+          allowForceRetry: true,
+        }).then(function (out) {
+          if (!out.handled) {
+            _criticalInstallState = 'failed';
+            populateCriticalInfo(
+              'failed',
+              'No se pudo aplicar la actualización. Versión actual: ' + VERSION + '.'
+            );
+          }
           return res;
-        }
-        if (res && res.plan === 'apk_download') {
-          _criticalInstallState = 'idle';
-          populateCriticalInfo(
-            'idle',
-            'Descarga del APK iniciada. Instálelo y vuelva a abrir la app.'
-          );
-          setCheckStatus('Descargue e instale el APK v' + String(remote).replace(/^v/i, '') + '.');
-          return res;
-        }
-        if (res && res.installed) {
-          _criticalInstallState = 'success';
-          markCriticalInstalled(entry, remote);
-          populateCriticalInfo('success');
-          setCheckStatus('Actualización ' + remote + ' aplicada.');
-        } else {
-          _criticalInstallState = 'failed';
-          populateCriticalInfo('failed', 'No se pudo aplicar la actualización.');
-        }
-        return res;
+        });
       })
       .catch(function (err) {
         _criticalInstallState = 'failed';
@@ -3741,34 +3842,24 @@
             markOptionalInstalled(entry, next);
             return res;
           }
-          if (res && res.plan === 'apk_download') {
-            _installUi.state = 'success';
-            _installUi.percent = 100;
-            _installUi.phase = 'install';
-            _installUi.message = 'Instale el APK descargado y vuelva a abrir Crozzo POS.';
-            renderInstallOverlayUi();
-            markOptionalInstalled(entry, next);
-            if (typeof global.showToast === 'function') {
-              global.showToast('Descarga del APK iniciada.', 'info');
+          return handleAndroidOtaResult(res, {
+            entry: entry,
+            remote: next,
+            uiMode: 'optional',
+            allowForceRetry: true,
+          }).then(function (out) {
+            if (!out.handled) {
+              _installUi.state = 'error';
+              handleInstallProgress({
+                phase: 'error',
+                percent: 0,
+                message: 'No se pudo aplicar la actualización en este cliente.',
+              });
+              offerPlanBAfterFailure(next, null);
+              setNormalOpen(true);
             }
             return res;
-          }
-          if (res && res.installed) {
-            _installUi.state = 'success';
-            _installUi.percent = 100;
-            renderInstallOverlayUi();
-            markOptionalInstalled(entry, next);
-            return res;
-          }
-          _installUi.state = 'error';
-          handleInstallProgress({
-            phase: 'error',
-            percent: 0,
-            message: 'No se pudo aplicar la actualización en este cliente.',
           });
-          offerPlanBAfterFailure(next, null);
-          setNormalOpen(true);
-          return res;
         });
       })
         .catch(function (err) {
