@@ -295,17 +295,11 @@
     try {
       for (var i = 0; i < (conf.staff || []).length; i++) {
         if (conf.staff[i].id !== u.id) continue;
-        var nextUser;
         if (Auth && typeof Auth.crozzoApplyPasswordToUser === 'function') {
-          nextUser = await Auth.crozzoApplyPasswordToUser(conf.staff[i], v.neu);
+          conf.staff[i] = await Auth.crozzoApplyPasswordToUser(conf.staff[i], v.neu);
         } else {
-          nextUser = Object.assign({}, conf.staff[i], { clave: v.neu });
+          conf.staff[i] = Object.assign({}, conf.staff[i], { clave: v.neu });
         }
-        delete nextUser.claveMigradaDesde1234;
-        delete nextUser.claveMigradaDesde141414;
-        delete nextUser.clavePendienteRotacion;
-        delete nextUser.requiereClaveInicial;
-        conf.staff[i] = nextUser;
         break;
       }
     } catch (e) {

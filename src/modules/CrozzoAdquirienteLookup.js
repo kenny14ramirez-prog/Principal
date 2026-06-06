@@ -64,108 +64,17 @@
 
     dian_demo: 'DIAN (prueba)',
 
-    dian_tauri: 'DIAN GetAcquirer',
+    dian_tauri: 'DIAN',
 
-    dian_supabase: 'DIAN (nube)',
+    dian_supabase: 'DIAN',
 
-    rues_opendata: 'RUES datos.gov.co',
+    rues_opendata: 'RUES (internet)',
 
     cache: 'memoria reciente',
 
-    cedula_escaneada: 'cédula escaneada',
-
   };
 
-  function getFeReadiness(data, doc) {
-    data = data || {};
-    var src = SOURCE_LABEL[data.source] || data.source || '—';
-    var items = [
-      {
-        key: 'doc',
-        ok: !!(doc && (doc.display || doc.number)),
-        label: 'Documento',
-        hint: doc && doc.type ? doc.type.label + ' ' + (doc.display || doc.number) : '',
-      },
-      {
-        key: 'nombre',
-        ok: !!String(data.nombre || '').trim(),
-        label: 'Nombre / razón social',
-        hint: data.source === 'rues_opendata' ? 'RUES suele traerlo' : '',
-      },
-      {
-        key: 'email',
-        ok: !!String(data.email || '').trim(),
-        label: 'Correo FE',
-        hint:
-          data.source === 'dian_tauri' || data.source === 'dian_supabase' || data.source === 'dian_demo'
-            ? 'DIAN puede traerlo'
-            : data.source === 'rues_opendata'
-              ? 'Pida al cliente — RUES casi nunca trae correo'
-              : 'Obligatorio si envía FE por email',
-      },
-      {
-        key: 'ciudad',
-        ok: !!String(data.ciudad || '').trim(),
-        label: 'Municipio',
-        optional: true,
-        hint: 'Recomendado en XML',
-      },
-    ];
-    var required = items.filter(function (x) {
-      return !x.optional;
-    });
-    var missing = required.filter(function (x) {
-      return !x.ok;
-    });
-    return {
-      ok: missing.length === 0,
-      items: items,
-      missing: missing,
-      sourceLabel: src,
-      source: data.source || '',
-    };
-  }
 
-  function feReadinessSummary(data, doc) {
-    var r = getFeReadiness(data, doc);
-    if (r.ok) return 'Listo para FE · fuente: ' + r.sourceLabel;
-    var miss = r.missing.map(function (m) {
-      return m.label;
-    });
-    return 'Falta: ' + miss.join(', ') + ' · fuente: ' + r.sourceLabel;
-  }
-
-  function feReadinessHtml(data, doc) {
-    var r = getFeReadiness(data, doc);
-    var rows = r.items
-      .map(function (it) {
-        return (
-          '<li class="' +
-          (it.ok ? 'is-ok' : it.optional ? 'is-opt' : 'is-miss') +
-          '"><span>' +
-          (it.ok ? '✓' : it.optional ? '○' : '○') +
-          '</span> ' +
-          it.label +
-          (it.hint ? ' <small>' + it.hint + '</small>' : '') +
-          '</li>'
-        );
-      })
-      .join('');
-    return (
-      '<div class="crozzo-fe-readiness' +
-      (r.ok ? ' crozzo-fe-readiness--ok' : '') +
-      '">' +
-      '<p class="crozzo-fe-readiness__title">' +
-      (r.ok ? '✅ Datos suficientes para facturar' : '⚠️ Complete antes de emitir FE') +
-      '</p>' +
-      '<ul class="crozzo-fe-readiness__list">' +
-      rows +
-      '</ul>' +
-      '<p class="form-hint" style="margin:6px 0 0;">Fuente: ' +
-      r.sourceLabel +
-      '. Con certificado .p12, DIAN GetAcquirer aporta nombre y correo.</p></div>'
-    );
-  }
 
   var RUES_OPENDATA_URL = 'https://www.datos.gov.co/resource/c82u-588k.json';
 
@@ -1346,18 +1255,13 @@
 
           var lbl = sourceLabel(res.source);
 
-          var feSum =
-            typeof feReadinessSummary === 'function' ? feReadinessSummary(res.data, res.doc) : '';
-          setStatus(
-            p.status,
-            '<span class="form-success">✓ Datos completados</span>' +
-              (feSum ? ' <small>· ' + feSum + '</small>' : '')
-          );
+          setStatus(p.status, '<span class="form-success">✓ Datos completados</span>');
 
           setHint(p.hint, '');
 
           if (!opts.silent && typeof global.showToast === 'function') {
-            global.showToast(feSum || 'Datos del cliente listos.', res.data.email ? 'success' : 'info');
+
+            global.showToast('Datos del cliente listos.', 'success');
 
           }
 
@@ -1515,7 +1419,7 @@
 
       '<div class="crozzo-adq-comfort">' +
 
-      '<p class="crozzo-adq-comfort__lead">Documento → directorio → DIAN (con .p12) → RUES. Para FE hacen falta nombre y correo (DIAN los trae si está en base).</p>' +
+      '<p class="crozzo-adq-comfort__lead">Escriba el documento — nosotros buscamos el resto cuando esté disponible.</p>' +
 
       '<div id="' +
 
@@ -1553,12 +1457,6 @@
 
     lookupAdquiriente: lookupAdquiriente,
 
-    getFeReadiness: getFeReadiness,
-
-    feReadinessSummary: feReadinessSummary,
-
-    feReadinessHtml: feReadinessHtml,
-
     persistLookupToPos: persistLookupToPos,
 
     runForForm: runForForm,
@@ -1570,8 +1468,6 @@
     lookupFieldHtml: lookupFieldHtml,
 
     canUseDianLookup: canUseDianLookup,
-
-    SOURCE_LABEL: SOURCE_LABEL,
 
   };
 

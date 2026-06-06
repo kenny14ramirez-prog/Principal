@@ -180,16 +180,6 @@
       if (factor === 'desktop' && prev && prev !== 'desktop') closeSidebarDrawerIfOpen();
     }
 
-    doc.classList.toggle('crozzo-android-apk', isAndroidTauriShell());
-
-    try {
-      if (typeof global.crozzoTabletShellRefresh === 'function') global.crozzoTabletShellRefresh();
-    } catch (_) {}
-
-    try {
-      global.dispatchEvent(new CustomEvent('crozzo-form-factor', { detail: { factor: factor, tier: tier } }));
-    } catch (_) {}
-
     if ((prev && prev !== factor) || (prevTier && prevTier !== tier)) {
       markFormResizeTransition(doc);
     try {
@@ -272,10 +262,6 @@
   global.crozzoIsTauriDesktopShell = isTauriDesktopShell;
   global.crozzoApplyFormFactorClasses = applyFormFactorClasses;
   global.crozzoScheduleFormFactor = scheduleApply;
-  global.CrozzoDeviceForm = {
-    isAndroidApk: isAndroidTauriShell,
-    detectFormFactor: detectFormFactor,
-  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

@@ -685,35 +685,7 @@
     return cart;
   }
 
-  function applyLiveTheaterDensity(ctx) {
-    var live = global.__crozzoHoneypotLive;
-    if (!live || !live.active || ctx.believable === false) return;
-    var h = typeof ctx.hour === 'number' ? ctx.hour : new Date().getHours();
-    if (h < 6 || h > 23) h = 14;
-    if (ctx.dataDensity == null || ctx.dataDensity < 3) {
-      var forced = getDensityConfig(h);
-      if (!forced || forced.dataDensity < 3) {
-        forced = {
-          period: 'afternoon',
-          dataDensity: 3,
-          label: 'Turno tarde · servicio activo',
-          emptyBusiness: false,
-        };
-      }
-      Object.assign(ctx, forced);
-      ctx.densityRanges = densityRanges(ctx.dataDensity);
-    }
-    ctx.emptyBusiness = false;
-    if (!ctx.label || ctx.label.indexOf('cerrado') >= 0) {
-      ctx.label = 'Turno tarde · servicio activo';
-    }
-  }
-
   function enrichContext(ctx) {
-    if (global.__crozzoHoneypotLive && global.__crozzoHoneypotLive.active) {
-      ctx.believable = true;
-    }
-    applyLiveTheaterDensity(ctx);
     if (ctx.believable && !ctx.fakeEmpresa) {
       var seed =
         (global.__crozzoHoneypotLive &&
@@ -1457,202 +1429,25 @@
         '<button type="button" class="btn btn-outline" disabled>📄 Facturas</button></div></div>'
       );
     }
-    var cards = [
-      {
-        page: 'cajero',
-        key: '1',
-        icon: 'utensils',
-        tag: 'Gastronómico',
-        title: 'Restaurante · POS',
-        desc: 'Mesas, domicilio, comandas a cocina y bar, tablets para meseros.',
-        feats: ['Mesas y domicilio', 'Comandas en vivo', 'Tablets meseros'],
-      },
-      {
-        page: 'venta-comercial',
-        key: '2',
-        icon: 'store',
-        tag: 'Mostrador',
-        title: 'Tienda / Comercial',
-        desc: 'Retail rápido: escáner, categorías, carrito y cobro sin comandas.',
-        feats: ['Escáner / SKU', 'Categorías', 'Cobro express'],
-      },
-      {
-        page: 'pedidos-internos',
-        key: '3',
-        icon: 'clipboard-list',
-        tag: 'Áreas internas',
-        title: 'Pedidos internos',
-        desc: 'Solicitudes a cocina, bar o bodega. Solo nombre, sin cuenta.',
-        feats: ['Por área', 'Trazabilidad', 'Cola en vivo'],
-      },
-    ];
-    var cardsHtml = cards
-      .map(function (c) {
-        return (
-          '<button type="button" class="crozzo-ventas-card" data-ventas-page="' +
-          esc(c.page) +
-          '" onclick="navigateTo(\'' +
-          esc(c.page) +
-          '\')">' +
-          '<span class="crozzo-ventas-card__glow" aria-hidden="true"></span>' +
-          '<span class="crozzo-ventas-card__top">' +
-          '<span class="crozzo-ventas-card__icon" aria-hidden="true"><i data-lucide="' +
-          esc(c.icon) +
-          '"></i></span>' +
-          '<span class="crozzo-ventas-card__tags"><span class="crozzo-ventas-card__tag">' +
-          esc(c.tag) +
-          '</span></span></span>' +
-          '<h3 class="crozzo-ventas-card__title">' +
-          esc(c.title) +
-          '</h3>' +
-          '<p class="crozzo-ventas-card__desc">' +
-          esc(c.desc) +
-          '</p>' +
-          '<ul class="crozzo-ventas-card__feats">' +
-          c.feats
-            .map(function (f) {
-              return '<li><i data-lucide="check" aria-hidden="true"></i>' + esc(f) + '</li>';
-            })
-            .join('') +
-          '</ul>' +
-          '<span class="crozzo-ventas-card__cta">Abrir <kbd>' +
-          esc(c.key) +
-          '</kbd> <i data-lucide="arrow-right" aria-hidden="true"></i></span></button>'
-        );
-      })
-      .join('');
     return (
-      '<section class="content-section crozzo-ventas-hub">' +
-      '<header class="crozzo-ventas-hub__hero">' +
-      '<div class="crozzo-ventas-hub__hero-glow" aria-hidden="true"></div>' +
-      '<div class="crozzo-ventas-hub__hero-main">' +
-      '<p class="crozzo-ventas-hub__eyebrow">Centro de ventas</p>' +
-      '<h2 class="crozzo-ventas-hub__title">Inicio de ventas</h2>' +
-      '<p class="crozzo-ventas-hub__sub">Elija el entorno de caja · <strong>' +
-      esc(ctx.empresa.nombre) +
-      '</strong> · ' +
-      esc(ctx.label) +
-      '</p></div>' +
-      '<div class="crozzo-ventas-hub__hero-actions">' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'facturas\')"><i data-lucide="receipt"></i> Facturas</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'cierre-caja\')"><i data-lucide="wallet"></i> Cierre de caja</button>' +
-      '</div></header>' +
-      '<div class="crozzo-rep-kpi-grid" style="margin-bottom:16px;">' +
-      '<div class="crozzo-rep-kpi"><div class="val">$' +
-      formatMoney(ctx.ventasHoyFake) +
-      '</div><div class="lbl">Ventas hoy</div></div>' +
-      '<div class="crozzo-rep-kpi"><div class="val">' +
-      ctx.facturasCount +
-      '</div><div class="lbl">Comprobantes</div></div>' +
-      '<div class="crozzo-rep-kpi"><div class="val">' +
-      ctx.comandasVivas +
-      '</div><div class="lbl">Comandas vivas</div></div>' +
-      '<div class="crozzo-rep-kpi"><div class="val">' +
-      ctx.mesasOcupadas +
-      '</div><div class="lbl">Mesas activas</div></div></div>' +
-      '<div class="crozzo-ventas-hub__grid" role="list">' +
-      cardsHtml +
-      '</div>' +
-      '<p class="crozzo-ventas-hub__foot">Tip: use <strong>1</strong> restaurante, <strong>2</strong> tienda, <strong>3</strong> pedidos internos.</p>' +
-      '</section>'
-    );
-  }
-
-  function renderHpVentaComercial(ctx, decoy, liveState) {
-    var products = ctx.catalog || [];
-    var cart = [];
-    if (liveState && global.__crozzoHoneypotLive && global.__crozzoHoneypotLive.active) {
-      if (!Array.isArray(liveState.cart) || !liveState.cart.length) {
-        liveState.cart = buildSampleCart(products);
-      }
-      cart = liveState.cart;
-    } else {
-      cart = ctx.sampleCart || buildSampleCart(products);
-    }
-    var total = cart.reduce(function (s, i) {
-      return s + i.precio * i.cantidad;
-    }, 0);
-    var rowsHtml = products
-      .slice(0, 24)
-      .map(function (p) {
-        return (
-          '<div class="crozzo-retail-row" role="button" tabindex="0" onclick="crozzoHpLiveTapProduct(' +
-          p.id +
-          ')">' +
-          '<div class="crozzo-retail-row__thumb">' +
-          esc(p.icon || '📦') +
-          '</div>' +
-          '<div><div class="crozzo-retail-row__name">' +
-          esc(p.nombre) +
-          '</div><div class="crozzo-retail-row__meta">' +
-          esc(p.categoria || 'General') +
-          '</div></div>' +
-          '<div class="crozzo-retail-row__price">$' +
-          p.precio.toLocaleString('es-CO') +
-          '</div>' +
-          '<button type="button" class="crozzo-retail-row__add" onclick="event.stopPropagation();crozzoHpLiveTapProduct(' +
-          p.id +
-          ')">+</button></div>'
-        );
-      })
-      .join('');
-    return (
-      '<div class="crozzo-retail-pos">' +
-      '<header class="crozzo-retail-pos__bar">' +
-      '<div class="crozzo-retail-pos__bar-brand">' +
-      '<span class="crozzo-retail-pos__bar-icon" aria-hidden="true"><i data-lucide="store"></i></span>' +
-      '<div><div class="crozzo-retail-pos__bar-title">Tienda · Comercial</div>' +
-      '<div class="crozzo-retail-pos__bar-sub">' +
-      products.length +
-      ' referencias · ' +
-      esc(ctx.empresa.nombre) +
-      '</div></div></div>' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'inicio-operacion\')"><i data-lucide="layout-grid"></i> Módulos</button></header>' +
-      '<div class="crozzo-retail-pos__body">' +
-      '<div class="crozzo-retail-pos__catalog">' +
-      rowsHtml +
-      '</div>' +
-      '<aside class="crozzo-retail-pos__cart">' +
-      '<div class="crozzo-retail-cart__head"><strong>Carrito</strong><span>' +
-      cart.length +
-      ' ítems</span></div>' +
-      '<div class="crozzo-retail-cart__total">$' +
-      total.toLocaleString('es-CO') +
-      '</div>' +
-      '<button type="button" class="btn btn-success" style="width:100%;margin-top:12px;" onclick="crozzoHpLiveCobrar()">Cobrar mostrador</button></aside></div></div>'
-    );
-  }
-
-  function renderHpPedidosInternos(ctx) {
-    var areas = ['Cocina caliente', 'Bar y fríos', 'Bodega', 'Panadería'];
-    var cards = areas
-      .map(function (a, i) {
-        return (
-          '<div class="card" style="padding:14px;margin-bottom:10px;border-left:4px solid var(--accent);">' +
-          '<strong>' +
-          esc(a) +
-          '</strong>' +
-          '<p class="form-hint" style="margin:6px 0 0;">' +
-          rand(1, 6) +
-          ' pedidos en cola · último hace ' +
-          rand(2, 18) +
-          ' min</p>' +
-          '<button type="button" class="btn btn-outline btn-sm" style="margin-top:8px;" onclick="if(typeof showToast===\'function\')showToast(\'Pedido registrado · ' +
-          esc(a) +
-          '\',\'success\')">+ Nuevo pedido</button></div>'
-        );
-      })
-      .join('');
-    return (
-      '<section class="content-section">' +
-      '<div class="card"><h2 class="card-title">Pedidos internos</h2>' +
+      '<div class="card">' +
       '<p class="form-hint">' +
       esc(ctx.empresa.nombre) +
-      ' · solicitudes entre áreas · turno ' +
+      ' · NIT ' +
+      esc(ctx.nit) +
+      ' · ' +
       esc(ctx.label) +
-      '</p>' +
-      cards +
-      '</div></section>'
+      '<br>' +
+      ctx.facturasCount +
+      ' comprobantes · $' +
+      formatMoney(ctx.ventasHoyFake) +
+      ' ventas hoy · ' +
+      (ctx.fakeClientes && ctx.fakeClientes.length) +
+      ' clientes</p>' +
+      '<div class="btn-group" style="margin-top:14px;flex-wrap:wrap;gap:10px;">' +
+      '<button type="button" class="btn btn-primary" onclick="navigateTo(\'cajero\')">🍽️ Restaurante · POS</button>' +
+      '<button type="button" class="btn btn-outline" onclick="navigateTo(\'venta-comercial\')">🏪 Tienda / Comercial</button>' +
+      '<button type="button" class="btn btn-outline" onclick="navigateTo(\'facturas\')">📄 Facturas</button></div></div>'
     );
   }
 
@@ -2338,31 +2133,25 @@
     var p = String(page || 'cajero');
     if (p === 'hp-agent-token-index') return renderHpAgentTokenIndex(ctx);
     if (HP_AI_MAZE_PAGES[p] && getAiMazeMeta(p)) return renderHpAiMazeStep(ctx, p);
-    if (p === 'cajero') return renderHpCajero(ctx, decoy, liveState);
-    if (p === 'venta-comercial') return renderHpVentaComercial(ctx, decoy, liveState);
+    if (p === 'cajero' || p === 'venta-comercial') return renderHpCajero(ctx, decoy, liveState);
     if (p === 'facturas') return renderHpFacturas(ctx);
     if (p === 'tablets') return renderHpTablets(ctx);
     if (p === 'comandas' || p === 'cocina') return renderHpComandas(ctx);
-    if (p === 'cierre-caja') return renderHpCierre(ctx);
     if (p === 'inventarios' || p === 'compras-dashboard') return renderHpReportes(ctx);
     if (p === 'planilla-2026' || p === 'nomina-planilla') return renderHpCierre(ctx);
     if (p === 'inicio-operacion') return renderHpInicio(ctx);
-    if (p === 'pedidos-internos') return renderHpPedidosInternos(ctx);
     if (p === 'caja-clientes') return renderHpClientes(ctx);
-    if (p === 'productos' || p === 'catalogo-mp') return renderHpProductos(ctx);
+    if (p === 'productos') return renderHpProductos(ctx);
     if (p === 'compras-proveedores') return renderHpProveedores(ctx);
     if (p === 'compras-cortes') return renderHpCortes(ctx);
     if (
       p === 'centro-compras' ||
-      (p.indexOf('compras-') === 0 && p !== 'compras-cortes' && p !== 'compras-proveedores') ||
+      p.indexOf('compras-') === 0 ||
+      p === 'pedidos-internos' ||
       p === 'operaciones-qyc'
     ) {
       return renderHpCompras(ctx);
     }
-    if (p === 'centro-procesos' || p === 'compras-proceso-sesion' || p === 'compras-proceso-historial') {
-      return renderHpCortes(ctx);
-    }
-    if (p === 'admin') return renderHpReportes(ctx);
     if (p === 'config-empresa') return renderHpEmpresa(ctx);
     if (p === 'config-dian') return renderHpDian(ctx);
     if (p === 'config-certificado' || p === 'config-proveedor') return renderHpCertificado(ctx);

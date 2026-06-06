@@ -454,8 +454,7 @@
     }
     var group = item.closest('.nav-group-li, .nav-group');
     if (group) applyGroupOpen(group, true, false);
-    if (typeof global.crozzoNavigateImmediate === 'function') global.crozzoNavigateImmediate(p);
-    else if (typeof global.navigateTo === 'function') global.navigateTo(p);
+    global.navigateTo(p);
     if (document.body && !document.body.classList.contains('desktop') && typeof global.crozzoCloseSidebarDrawer === 'function') {
       global.crozzoCloseSidebarDrawer();
     }

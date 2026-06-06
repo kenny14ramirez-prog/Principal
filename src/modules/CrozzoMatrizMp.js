@@ -15,7 +15,6 @@
     'TERCERIZADOS',
     'ASEO',
     'PROCESADOS',
-    'ELABORADOS',
   ];
 
   var CAT_LABEL = {
@@ -29,7 +28,6 @@
     TERCERIZADOS: 'Tercerizados',
     ASEO: 'Aseo',
     PROCESADOS: 'Procesados',
-    ELABORADOS: 'Elaborados / prep',
     OTRO: 'Otro',
   };
 
@@ -80,13 +78,7 @@
       '.crozzo-mp-meta{font-size:.78rem;opacity:.75;margin:0 0 12px}' +
       '.crozzo-mp-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:14px;border:1px dashed var(--border);border-radius:12px;margin-bottom:14px;background:rgba(var(--accent-rgb,201,169,98),.04)}' +
       '.crozzo-mp-form label{font-size:10px;font-weight:600;text-transform:uppercase;opacity:.7;display:block;margin-bottom:4px}' +
-      '.crozzo-mp-form input,.crozzo-mp-form select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:inherit;font-size:13px}' +
-      '.crozzo-mp-proceso-sel{min-width:148px;font-size:11px;padding:5px 6px}' +
-      '.crozzo-mp-proc-empty{color:var(--text-muted);font-size:11px;text-align:center}' +
-      '.crozzo-mp-merma-cell{min-width:118px}' +
-      '.crozzo-mp-merma-pair{display:flex;flex-direction:column;gap:4px;font-size:10px}' +
-      '.crozzo-mp-merma-pair label{display:flex;align-items:center;gap:4px;color:var(--text-muted);white-space:nowrap}' +
-      '.crozzo-mp-merma-pair input{width:52px;padding:3px 5px;font-size:11px;text-align:right}';
+      '.crozzo-mp-form input,.crozzo-mp-form select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:inherit;font-size:13px}';
     document.head.appendChild(el);
   }
 
@@ -107,83 +99,25 @@
     });
   }
 
-  function renderProcesoCell(it) {
-    var C = cat();
-    if (!C) return '<td class="crozzo-mp-proc-empty">—</td>';
-    var slug = C.resolveMenuSlugForMp ? C.resolveMenuSlugForMp(it.id) : null;
-    var isElab = it.esElaborado || String(it.categoria || '').toUpperCase() === 'ELABORADOS';
-    if (!slug && !isElab) {
-      return '<td class="crozzo-mp-proc-empty" title="En Costos defina receta/plato o marque como ELABORADOS">—</td>';
-    }
-    var val = (C.getProcesoVentaForMp && C.getProcesoVentaForMp(it.id)) || 'prep_anticipado';
-    return (
-      '<td><select class="crozzo-mp-inp crozzo-mp-proceso-sel" data-mp-field="procesoVenta" data-mp-menu-slug="' +
-      esc(slug || '') +
-      '" title="Prep antes = bodega ELABORADOS · Al vender = plato al momento">' +
-      '<option value="prep_anticipado"' +
-      (val === 'prep_anticipado' ? ' selected' : '') +
-      '>Prep antes (bodega)</option>' +
-      '<option value="bajo_demanda"' +
-      (val === 'bajo_demanda' ? ' selected' : '') +
-      '>Al vender (plato)</option>' +
-      '</select></td>'
-    );
-  }
-
-  function renderMermaCell(it) {
-    var mc = it.mermaCoccionPct != null && it.mermaCoccionPct !== '' ? num(it.mermaCoccionPct) : '';
-    var md = it.mermaDespostePct != null && it.mermaDespostePct !== '' ? num(it.mermaDespostePct) : '';
-    return (
-      '<td class="crozzo-mp-merma-cell"><div class="crozzo-mp-merma-pair">' +
-      '<label title="Merma esperada al cocinar">Coc %' +
-      '<input class="crozzo-mp-inp" type="number" min="0" max="95" step="0.1" data-mp-field="mermaCoccionPct" value="' +
-      esc(mc) +
-      '"></label>' +
-      '<label title="Merma esperada al despostar/desgrado">Desp %' +
-      '<input class="crozzo-mp-inp" type="number" min="0" max="95" step="0.1" data-mp-field="mermaDespostePct" value="' +
-      esc(md) +
-      '"></label></div></td>'
-    );
-  }
-
-  function num(v) {
-    var n = Number(v);
-    return isFinite(n) ? n : 0;
-  }
-
   function renderRows(items) {
-    var C = cat();
     if (!items.length) {
-      return '<tr><td colspan="6" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use + Materia prima.</td></tr>';
+      return '<tr><td colspan="4" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use + Materia prima.</td></tr>';
     }
     return items
       .map(function (it) {
-        var catOpts =
-          C && C.renderCategoriaMpOptionsHtml
-            ? C.renderCategoriaMpOptionsHtml(it.categoria)
-            : CATEGORIAS.map(function (c) {
-                return (
-                  '<option value="' +
-                  esc(c) +
-                  '"' +
-                  (it.categoria === c ? ' selected' : '') +
-                  '>' +
-                  esc(CAT_LABEL[c] || c) +
-                  '</option>'
-                );
-              }).join('');
+        var catLbl = CAT_LABEL[it.categoria] || it.categoria;
         return (
           '<tr data-mp-id="' +
           esc(it.id) +
           '">' +
-          '<td><select class="crozzo-mp-inp crozzo-mp-cat-sel" data-mp-field="categoria" title="Clasifique bien: define en qué pantalla de cocina aparece">' +
-          catOpts +
-          '</select></td>' +
+          '<td><span class="crozzo-mp-cat" title="' +
+          esc(it.categoria) +
+          '">' +
+          esc(catLbl) +
+          '</span></td>' +
           '<td><input class="crozzo-mp-inp" data-mp-field="nombre" value="' +
           esc(it.nombre) +
           '"></td>' +
-          renderProcesoCell(it) +
-          renderMermaCell(it) +
           '<td><input class="crozzo-mp-inp" data-mp-field="proveedores" value="' +
           esc(proveedoresToStr(it.proveedores)) +
           '" placeholder="Proveedor A, Proveedor B" title="Separar con comas"></td>' +
@@ -252,24 +186,19 @@
       '<div class="crozzo-mod-chip-row crozzo-mp-chips">' +
       chips +
       '</div>' +
-      '<p class="crozzo-mp-meta">Clasifique cada insumo: <strong>Proteínas</strong> = partir carnes · <strong>Bebidas</strong> = no va a prep cocina · <strong>Fruver / Abarrotes</strong> = cocinar y porcionar.</p>' +
       '<div class="crozzo-mod-form-grid crozzo-mp-form" id="crozzoMpNewForm" style="display:none;margin-bottom:14px;padding:14px;border:1px dashed var(--border);border-radius:12px;background:rgba(var(--accent-rgb,201,169,98),.04)">' +
       '<div><label>Nombre</label><input id="crozzoMpNewNombre" placeholder="Ej. Aceite vegetal"></div>' +
       '<div><label>Categoría</label><select id="crozzoMpNewCat">' +
-      (cat() && cat().renderCategoriaMpOptionsHtml
-        ? cat().renderCategoriaMpOptionsHtml('OTRO')
-        : CATEGORIAS.map(function (c) {
-            return '<option value="' + esc(c) + '">' + esc(CAT_LABEL[c] || c) + '</option>';
-          }).join('') + '<option value="OTRO">Otro</option>') +
-      '</select></div>' +
+      CATEGORIAS.map(function (c) {
+        return '<option value="' + esc(c) + '">' + esc(CAT_LABEL[c] || c) + '</option>';
+      }).join('') +
+      '<option value="OTRO">Otro</option></select></div>' +
       '<div style="grid-column:1/-1"><label>Proveedor(es)</label><input id="crozzoMpNewProv" placeholder="Distribuidora Norte, Mayorista Sol"></div>' +
-      '<div><label>Merma cocinado %</label><input id="crozzoMpNewMc" type="number" min="0" max="95" step="0.1" placeholder="Ej. 28"></div>' +
-      '<div><label>Merma desposte %</label><input id="crozzoMpNewMd" type="number" min="0" max="95" step="0.1" placeholder="Ej. 12"></div>' +
       '<div style="display:flex;align-items:flex-end;gap:8px;grid-column:1/-1">' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoMpSaveNew">Guardar</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoMpCancelNew">Cancelar</button></div></div>' +
       '<div class="crozzo-mp-scroll"><table class="crozzo-mp-table"><thead><tr>' +
-      '<th>Categoría</th><th>Materia prima</th><th>Proceso / venta</th><th>Mermas esp.</th><th>Proveedor(es)</th><th></th>' +
+      '<th>Categoría</th><th>Materia prima</th><th>Proveedor(es)</th><th></th>' +
       '</tr></thead><tbody id="crozzoMpTbody">' +
       renderRows(filtered) +
       '</tbody></table></div></div>'
@@ -291,8 +220,6 @@
     tr.querySelectorAll('[data-mp-field]').forEach(function (inp) {
       var f = inp.getAttribute('data-mp-field');
       if (f === 'proveedores') row.proveedores = C.parseProveedores ? C.parseProveedores(inp.value) : inp.value.split(',');
-      else if (f === 'procesoVenta') row.procesoVenta = inp.value;
-      else if (f === 'mermaCoccionPct' || f === 'mermaDespostePct') row[f] = inp.value === '' ? null : num(inp.value);
       else row[f] = inp.value;
     });
     return row;
@@ -373,8 +300,6 @@
           nombre: nombre,
           categoria: (root.querySelector('#crozzoMpNewCat') || {}).value || 'OTRO',
           proveedores: C.parseProveedores ? C.parseProveedores(provRaw) : provRaw.split(','),
-          mermaCoccionPct: num((root.querySelector('#crozzoMpNewMc') || {}).value),
-          mermaDespostePct: num((root.querySelector('#crozzoMpNewMd') || {}).value),
         };
         C.upsertCatalog(item);
         toast('«' + item.nombre + '» creada. Defina peso y precio en Costeo.', 'success');
@@ -398,23 +323,6 @@
         if (!tr) return;
         var item = getItemFromRow(tr);
         if (!item) return;
-        if (inp.getAttribute('data-mp-field') === 'procesoVenta') {
-          var slug =
-            inp.getAttribute('data-mp-menu-slug') ||
-            (C.resolveMenuSlugForMp ? C.resolveMenuSlugForMp(item.id) : '');
-          if (C.applyProcesoVentaFromMp) {
-            C.applyProcesoVentaFromMp(slug, item.procesoVenta, { mpId: item.id });
-          } else {
-            C.upsertCatalog({ id: item.id, procesoVenta: item.procesoVenta }, { skipInvMov: true, skipIdCheck: true });
-          }
-          toast(
-            item.procesoVenta === 'bajo_demanda'
-              ? 'Proceso al vender — se prepara al pedido'
-              : 'Prep antes de vender — queda en bodega ELABORADOS',
-            'success'
-          );
-          return;
-        }
         if (inp.getAttribute('data-mp-field') === 'nombre') {
           var prev = C.get(item.id);
           if (prev && prev.nombre !== item.nombre) {

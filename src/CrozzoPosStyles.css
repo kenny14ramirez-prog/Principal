@@ -8226,8 +8226,7 @@ body.crozzo-corkboard-focus .comandas-layout > div {
 .crozzo-pairing-overlay {
   position: fixed;
   inset: 0;
-  /* Por encima del login (8000); por debajo de honeypot/containment */
-  z-index: 8500;
+  z-index: 4600;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -8240,10 +8239,6 @@ body.crozzo-corkboard-focus .comandas-layout > div {
 }
 .crozzo-pairing-overlay[hidden] {
   display: none !important;
-}
-body.crozzo-pairing-open .login-overlay {
-  visibility: hidden;
-  pointer-events: none;
 }
 
 /* === Trampa honeypot (login falso) === */
@@ -9899,9 +9894,6 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-.crozzo-pairing-card__foot[hidden] {
-  display: none !important;
 }
 .crozzo-wizard-steps {
   display: flex;

@@ -709,42 +709,6 @@ body::after{
 .of-toolbar-row2{width:100%;display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;margin-top:4px;padding-top:14px;border-top:1px dashed var(--border2);}
 .of-toolbar-extras{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;}
 .of-toolbar-extras .btn{font-size:11px;padding:6px 10px;border-radius:8px;}
-.of-head{margin:0 0 14px;}.of-head-lead{margin:0;font-size:13px;color:var(--muted);line-height:1.5;}
-.of-filter-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.12);}
-.of-filter-card__title{font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;}
-.of-filter-grid{display:grid;grid-template-columns:minmax(260px,1.1fr) minmax(220px,1fr) minmax(140px,.7fr) auto;gap:14px;align-items:end;}
-.of-filter-block{display:flex;flex-direction:column;gap:6px;}
-.of-filter-block-label{font-size:11px;font-family:var(--mono);color:var(--muted);}
-.of-date-range{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.of-date-inp{flex:1;min-width:118px;}
-.of-date-sep{color:var(--muted);font-size:12px;}
-.of-date-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
-.of-preset{font-size:11px;padding:5px 10px;border-radius:999px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer;font-family:var(--sans);}
-.of-preset.active{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.12);}
-.of-filter-card .of-ctl{font-size:12px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);min-height:38px;width:100%;box-sizing:border-box;color:var(--text);}
-.of-filter-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border2);}
-.of-filter-summary{flex:1;font-size:12px;color:var(--muted);line-height:1.45;}
-.of-filter-summary strong{color:var(--text);}
-.of-mp-wrap{position:relative;}
-.of-mp-trigger{width:100%;min-height:38px;padding:7px 36px 7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);text-align:left;cursor:pointer;font-size:12px;position:relative;box-sizing:border-box;}
-.of-mp-trigger.placeholder{color:var(--muted);}
-.of-mp-trigger::after{content:'▼';position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);}
-.of-mp-chips{display:flex;flex-wrap:wrap;gap:5px;}
-.of-mp-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(var(--accent-rgb),.14);border:1px solid rgba(var(--accent-rgb),.35);font-size:11px;max-width:150px;}
-.of-mp-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.of-mp-chip button{border:none;background:transparent;color:var(--muted);cursor:pointer;}
-.of-mp-drop{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.4);max-height:320px;flex-direction:column;}
-.of-mp-drop.open{display:flex;}
-.of-mp-search{padding:8px;border-bottom:1px solid var(--border2);}
-.of-mp-search input{width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);box-sizing:border-box;color:var(--text);}
-.of-mp-list{overflow-y:auto;flex:1;padding:4px 0;}
-.of-mp-opt{display:flex;gap:8px;padding:8px 12px;cursor:pointer;font-size:12px;}
-.of-mp-foot{display:flex;gap:8px;padding:8px;border-top:1px solid var(--border2);}
-.of-valor-range{display:flex;gap:8px;}.of-valor-range .of-ctl{flex:1;}
-#mod-oficina .subtabs{margin-bottom:14px;}
-@media(max-width:960px){.of-filter-grid{grid-template-columns:1fr 1fr;}}
-@media(max-width:768px){.of-filter-grid{grid-template-columns:1fr;}}
-
 @media(max-width:768px){
   .of-sel-bar{flex-direction:column;align-items:stretch;}
   .of-sel-bar .btn,.of-sel-bar .btn-primary,.of-sel-bar .btn-ghost{width:100%;justify-content:center;}
@@ -2373,52 +2337,6 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
     </div>
 
   <div id="mod-oficina" class="module active" style="">
-  <div class="of-head"><p class="of-head-lead">Filtros compartidos en las tres pestañas. Elija <strong>varios proveedores</strong> si lo necesita, luego <strong>Aplicar filtros</strong>.</p></div>
-  <div class="of-filter-card">
-    <div class="of-filter-card__title">Criterios de búsqueda</div>
-    <div class="of-filter-grid">
-      <div class="of-filter-block">
-        <span class="of-filter-block-label">Rango de fechas</span>
-        <div class="of-date-range">
-          <input type="date" id="of-shared-desde" class="of-ctl of-date-inp" aria-label="Desde">
-          <span class="of-date-sep">→</span>
-          <input type="date" id="of-shared-hasta" class="of-ctl of-date-inp" aria-label="Hasta">
-        </div>
-        <div class="of-date-presets">
-          <button type="button" class="of-preset" data-of-preset="7d">7 días</button>
-          <button type="button" class="of-preset active" data-of-preset="mes">Este mes</button>
-          <button type="button" class="of-preset" data-of-preset="mes-ant">Mes anterior</button>
-          <button type="button" class="of-preset" data-of-preset="trim">90 días</button>
-        </div>
-      </div>
-      <div class="of-filter-block">
-        <span class="of-filter-block-label">Proveedores (uno o varios)</span>
-        <div id="ss-of-prov-multi" class="of-mp-wrap"></div>
-      </div>
-      <div class="of-filter-block">
-        <span class="of-filter-block-label">Estado</span>
-        <select id="of-shared-estado" class="of-ctl">
-          <option value="" selected>Todos</option>
-          <option value="pendiente_oficina">⏳ Pendiente oficina</option>
-          <option value="pendiente_pago">💳 Pendiente pago</option>
-          <option value="pagada">✓ Pagadas</option>
-        </select>
-      </div>
-      <div class="of-filter-block" id="of-filter-valor-wrap">
-        <span class="of-filter-block-label">Valor ($)</span>
-        <div class="of-valor-range">
-          <input type="number" id="of-shared-vmin" class="of-ctl" min="0" step="100" placeholder="Mín">
-          <span class="of-date-sep">—</span>
-          <input type="number" id="of-shared-vmax" class="of-ctl" min="0" step="100" placeholder="Máx">
-        </div>
-      </div>
-    </div>
-    <div class="of-filter-actions">
-      <button type="button" class="btn btn-primary" onclick="ofApplyFilters()">Aplicar filtros</button>
-      <button type="button" class="btn btn-ghost" onclick="ofClearFilters()">Limpiar</button>
-      <span id="of-filter-summary" class="of-filter-summary"></span>
-    </div>
-  </div>
   <div class="subtabs">
     <button class="subtab active" id="of-tab-transferencias" onclick="ofSubTab(&#39;facturas&#39;,this);ofLoadFacturas()">🔄 Transferencias</button>
     <button class="subtab" id="of-tab-efectivo" onclick="ofSubTab(&#39;efectivo&#39;,this);ofLoadEfectivo()">💵 Efectivo</button>
@@ -2427,6 +2345,7 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
 
   <!-- ── FACTURAS ── -->
   <div id="of-facturas" class="subpage active">
+    <!-- Stats rápidos -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
       <div class="stat"><div class="stat-l">EN OFICINA / POR PAGAR</div><div class="stat-v" id="of-cnt-pend" style="color:var(--yellow)">0 / 0</div></div>
       <div class="stat"><div class="stat-l">VALOR POR PAGAR</div><div class="stat-v" id="of-val-pend" style="font-size:16px">$0</div></div>
@@ -2434,16 +2353,42 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
       <div class="stat"><div class="stat-l">TOTAL MES</div><div class="stat-v" id="of-val-mes" style="font-size:16px">$0</div></div>
     </div>
 
-    <div class="of-toolbar of-tab-toolbar">
-      <button type="button" class="btn btn-ghost" onclick="ofLoadFacturas(true)">&#8635; Actualizar</button>
-      <div class="of-ctl-field"><label for="of-page-size">Por página</label>
-        <select id="of-page-size" class="of-ctl" onchange="ofLoadFacturas(true)"><option value="25">25</option><option value="50">50</option><option value="100" selected>100</option></select></div>
-      <button type="button" class="btn btn-ghost" id="of-btn-zip" onclick="ofDescargarPDFs()"><span>📦</span> PDFs</button>
-      <button type="button" class="btn btn-ghost" id="of-btn-zip-sel" onclick="ofDescargarSeleccionFacturas()"><span>📦</span> Selección</button>
+    <div class="of-toolbar">
+      <button type="button" class="btn btn-ghost" onclick="ofLoadFacturas(true)">&#8635; Cargar</button>
+      <div class="of-ctl-field">
+        <label for="of-page-size">Por página</label>
+        <select id="of-page-size" class="of-ctl" onchange="ofLoadFacturas(true)">
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-ghost" id="of-btn-zip" onclick="ofDescargarPDFs()"><span>📦</span> Descargar PDFs</button>
+      <button type="button" class="btn btn-ghost" id="of-btn-zip-sel" onclick="ofDescargarSeleccionFacturas()"><span>📦</span> Descargar seleccionadas</button>
       <button type="button" class="btn btn-ghost" id="of-btn-listado-visual" onclick="ofExportListadoFacturasVisualOpciones()"><span>🖼️</span> Reporte visual</button>
-      <select id="oft-filt-estado" hidden></select>
-      <input type="date" id="of-desde" hidden><input type="date" id="of-hasta" hidden>
-      <div id="ss-of-filt-prov" hidden></div>
+      <div class="of-ctl-field">
+        <label for="oft-filt-estado">Estado</label>
+        <select id="oft-filt-estado" class="of-ctl" onchange="ofReporteMemoToggle();ofLoadFacturas()">
+          <option value="" selected>Todos los estados</option>
+          <option value="pendiente_oficina">⏳ Pendiente oficina</option>
+          <option value="pendiente_pago">💳 Pendiente pago</option>
+          <option value="pagada">✓ Pagadas</option>
+        </select>
+      </div>
+      <div class="of-ctl-field" style="min-width:200px;flex:1">
+        <label for="ss-of-filt-prov">Proveedor</label>
+        <div id="ss-of-filt-prov" class="ss-wrap"></div>
+      </div>
+      <div class="of-toolbar-row2">
+        <div class="of-ctl-field">
+          <label for="of-desde">Desde</label>
+          <input type="date" id="of-desde" class="of-ctl" onchange="ofLoadFacturas()">
+        </div>
+        <div class="of-ctl-field">
+          <label for="of-hasta">Hasta</label>
+          <input type="date" id="of-hasta" class="of-ctl" onchange="ofLoadFacturas()">
+        </div>
+      </div>
     </div>
     <div id="tabla-transferencias" class="of-sel-host"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:10px">
@@ -2473,19 +2418,54 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
       <div class="stat"><div class="stat-l">PROMEDIO / FACTURA</div><div class="stat-v" id="ofe-prom" style="font-size:16px">$0</div></div>
       <div class="stat"><div class="stat-l">PROVEEDOR FRECUENTE</div><div class="stat-v" id="ofe-top-prov" style="font-size:13px">—</div></div>
     </div>
-    <div class="of-toolbar of-tab-toolbar">
-      <button type="button" class="btn btn-ghost" onclick="ofLoadEfectivo(true)">&#8635; Actualizar</button>
-      <div class="of-ctl-field"><label for="ofe-page-size">Por página</label>
-        <select id="ofe-page-size" class="of-ctl" onchange="ofLoadEfectivo(true)"><option value="25">25</option><option value="50">50</option><option value="100" selected>100</option></select></div>
-      <button type="button" class="btn btn-ghost" onclick="ofeDescargarPDFsTodos()"><span>📦</span> PDFs</button>
-      <button type="button" class="btn btn-ghost" id="ofe-btn-zip-sel" onclick="ofeDescargarSeleccion()"><span>📦</span> Selección</button>
+    <div class="of-toolbar">
+      <button type="button" class="btn btn-ghost" onclick="ofLoadEfectivo(true)">&#8635; Cargar</button>
+      <div class="of-ctl-field">
+        <label for="ofe-page-size">Por página</label>
+        <select id="ofe-page-size" class="of-ctl" onchange="ofLoadEfectivo(true)">
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-ghost" onclick="ofeDescargarPDFsTodos()"><span>📦</span> Descargar PDFs</button>
+      <button type="button" class="btn btn-ghost" id="ofe-btn-zip-sel" onclick="ofeDescargarSeleccion()"><span>📦</span> Descargar seleccionadas</button>
       <button type="button" class="btn btn-ghost" id="ofe-btn-listado-visual" onclick="ofeExportListadoFacturasVisualOpciones()"><span>🖼️</span> Reporte visual</button>
-      <button type="button" class="btn btn-ghost" onclick="ofExportEfectivoCSV()">CSV</button>
-      <button type="button" class="btn btn-ghost" onclick="ofExportEfectivoPDF()">PDF</button>
-      <select id="ofe-filt-estado" hidden></select>
-      <input type="date" id="ofe-desde" hidden><input type="date" id="ofe-hasta" hidden>
-      <input type="number" id="ofe-vmin" hidden><input type="number" id="ofe-vmax" hidden>
-      <div id="ss-ofe-prov" hidden></div>
+      <div class="of-ctl-field">
+        <label for="ofe-filt-estado">Estado</label>
+        <select id="ofe-filt-estado" class="of-ctl" onchange="ofLoadEfectivo()">
+          <option value="" selected>Todos los estados</option>
+          <option value="pendiente_oficina">⏳ Pendiente oficina</option>
+          <option value="pendiente_pago">💳 Pendiente pago</option>
+          <option value="pagada">✓ Pagadas</option>
+        </select>
+      </div>
+      <div class="of-ctl-field" style="min-width:200px;flex:1">
+        <label for="ss-ofe-prov">Proveedor</label>
+        <div id="ss-ofe-prov" class="ss-wrap"></div>
+      </div>
+      <div class="of-toolbar-row2">
+        <div class="of-ctl-field">
+          <label for="ofe-desde">Desde</label>
+          <input type="date" id="ofe-desde" class="of-ctl" onchange="ofLoadEfectivo()">
+        </div>
+        <div class="of-ctl-field">
+          <label for="ofe-hasta">Hasta</label>
+          <input type="date" id="ofe-hasta" class="of-ctl" onchange="ofLoadEfectivo()">
+        </div>
+        <div class="of-ctl-field">
+          <label for="ofe-vmin">Valor mín</label>
+          <input type="number" id="ofe-vmin" class="of-ctl" min="0" step="100" oninput="ofLoadEfectivo()">
+        </div>
+        <div class="of-ctl-field">
+          <label for="ofe-vmax">Valor máx</label>
+          <input type="number" id="ofe-vmax" class="of-ctl" min="0" step="100" oninput="ofLoadEfectivo()">
+        </div>
+      </div>
+      <div class="of-toolbar-extras">
+        <button type="button" class="btn btn-ghost" onclick="ofExportEfectivoCSV()">CSV listado</button>
+        <button type="button" class="btn btn-ghost" onclick="ofExportEfectivoPDF()">PDF listado</button>
+      </div>
     </div>
     <div id="tabla-efectivo" class="of-sel-host"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:10px">
@@ -2511,18 +2491,23 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
       <div class="stat"><div class="stat-l">PROMEDIO / FACTURA</div><div class="stat-v" id="oft-prom" style="font-size:16px">$0</div></div>
       <div class="stat"><div class="stat-l">PROVEEDOR FRECUENTE</div><div class="stat-v" id="oft-top-prov" style="font-size:13px">—</div></div>
     </div>
-    <div class="of-toolbar of-tab-toolbar">
-      <button type="button" class="btn btn-ghost" onclick="ofLoadTarjetas(true)">&#8635; Actualizar</button>
-      <div class="of-ctl-field"><label for="oft-page-size">Por página</label>
-        <select id="oft-page-size" class="of-ctl" onchange="ofLoadTarjetas(true)"><option value="25">25</option><option value="50">50</option><option value="100" selected>100</option></select></div>
-      <button type="button" class="btn btn-ghost" onclick="oftDescargarPDFsTodos()"><span>📦</span> PDFs</button>
-      <button type="button" class="btn btn-ghost" id="oft-btn-zip-sel" onclick="oftDescargarSeleccion()"><span>📦</span> Selección</button>
-      <button type="button" class="btn btn-ghost" onclick="oftExportTabCSV()">CSV</button>
-      <button type="button" class="btn btn-ghost" onclick="oftExportTabPDF()">PDF</button>
-      <button type="button" class="btn btn-ghost" id="oft-btn-listado-visual" onclick="oftExportListadoFacturasVisualOpciones()"><span>🖼️</span> Reporte visual</button>
-      <input type="date" id="oft-desde" hidden><input type="date" id="oft-hasta" hidden>
-      <input type="number" id="oft-vmin" hidden><input type="number" id="oft-vmax" hidden>
-      <div id="ss-oft-prov" hidden></div>
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+      <div><label>DESDE</label><input type="date" id="oft-desde" onchange="ofLoadTarjetas()"></div>
+      <div><label>HASTA</label><input type="date" id="oft-hasta" onchange="ofLoadTarjetas()"></div>
+      <div style="min-width:220px"><label>PROVEEDOR</label><div id="ss-oft-prov" class="ss-wrap"></div></div>
+      <div><label>VALOR MÍN</label><input type="number" id="oft-vmin" min="0" step="100" oninput="ofLoadTarjetas()"></div>
+      <div><label>VALOR MÁX</label><input type="number" id="oft-vmax" min="0" step="100" oninput="ofLoadTarjetas()"></div>
+      <select id="oft-page-size" onchange="ofLoadTarjetas(true)" style="font-size:12px;padding:4px 8px;width:auto">
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100" selected="">100</option>
+      </select>
+      <button class="btn btn-ghost" type="button" onclick="oftDescargarPDFsTodos()" style="font-size:12px;padding:5px 12px"><span>📦</span> Descargar PDFs</button>
+      <button class="btn btn-ghost" type="button" id="oft-btn-zip-sel" onclick="oftDescargarSeleccion()" style="font-size:12px;padding:5px 12px"><span>📦</span> Descargar seleccionadas</button>
+      <button class="btn btn-ghost" type="button" onclick="oftExportTabCSV()" style="font-size:12px;padding:5px 12px">CSV</button>
+      <button class="btn btn-ghost" type="button" onclick="oftExportTabPDF()" style="font-size:12px;padding:5px 12px">PDF</button>
+      <button class="btn btn-ghost" type="button" id="oft-btn-listado-visual" onclick="oftExportListadoFacturasVisualOpciones()"><span>🖼️</span> Reporte visual</button>
+      <button class="btn btn-ghost" type="button" onclick="ofLoadTarjetas(true)" style="font-size:12px;padding:5px 12px">&#8635; Cargar</button>
     </div>
     <div id="tabla-tarjeta" class="of-sel-host"></div>
     <div style="display:flex;justify-content:flex-end;margin-top:10px">
@@ -3097,20 +3082,6 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
 </div>
 
 <script>
-// ── CROZZO POS BRIDGE (generado; no editar a mano) ──
-(function(){
-  try{
-    var p=new URLSearchParams(location.search);
-    window.QCA_POS_EMBED=p.get('embed')==='1';
-    window.QCA_POS_AUTO_ADMIN=p.get('pos_auto')==='1';
-    if(window.QCA_POS_EMBED){ document.documentElement.classList.add('qca-pos-embed'); }
-    if(p.get('hub')==='procesos'){
-      document.documentElement.classList.add('qca-hub-procesos','bona-origen-hub');
-      document.documentElement.setAttribute('data-crozzo-theme','bona-origen');
-    }
-  }catch(e){ console.warn('[QyC bridge]',e); }
-})();
-
 // ── CONFIG Supabase (todo en este archivo) ──
 // 1) Supabase Dashboard → tu proyecto → Settings → API.
 // 2) Copia "Project URL" en supabaseUrl y "anon public" en supabaseAnonKey (entre comillas).
@@ -3159,13 +3130,8 @@ if(!SB||!SK){
     function show(){
       const err=document.getElementById('login-error');
       const sub=document.getElementById('login-sub');
-      if(window.QCA_POS_EMBED){
-      if(err) err.textContent='Sin nube: configure Supabase en el POS (Super Admin → Multi-dispositivo → Cloud) y recargue.';
-      if(sub) sub.textContent='Usa la misma base de datos que el resto del sistema.';
-    } else {
       if(err) err.textContent='Configura Supabase: en este archivo busca QCA_SUPABASE y pega Project URL + anon key (Settings → API). Luego guarda y recarga.';
       if(sub) sub.textContent='Editor: Ctrl+F → QCA_SUPABASE — dos cadenas entre comillas simples. Sin eso el PIN no puede validarse.';
-    }
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',show,{once:true});
     else show();
@@ -3452,24 +3418,6 @@ async function init(){
   qcaLoginScrollLock(true);
   document.getElementById('login-screen').style.display='flex';
   loginCargarOpcionesUsuarios();
-
-  if(window.QCA_POS_AUTO_ADMIN&&window.QCA_CONFIG&&window.QCA_CONFIG.supabaseUrl){
-    setTimeout(async function(){
-      if(sesionUsuario) return;
-      try{
-        const res=await apiUsuariosForLogin('?activo=eq.true&limit=1');
-        if(res.ok&&res.data&&res.data.length){
-          sesionUsuario={id:res.data[0].id,nombre:res.data[0].nombre,rol:res.data[0].rol||'admin',permisos:res.data[0].permisos||ROL_PRESETS.admin};
-        }else{
-          sesionUsuario={id:null,nombre:'Administrador',rol:'admin',permisos:ROL_PRESETS.admin};
-        }
-        await loginEntrar();
-      }catch(e){
-        sesionUsuario={id:null,nombre:'Administrador',rol:'admin',permisos:ROL_PRESETS.admin};
-        try{ await loginEntrar(); }catch(_e){}
-      }
-    },500);
-  }
 
   // Solo fechas en UI — el resto carga después del login
   const now=new Date();
@@ -8226,34 +8174,15 @@ let seleccionadas=new Set();
 let ofMetodoPestañaActiva='transferencia';
 let _ofSelRowsCache={transferencia:[],efectivo:[],tarjeta:[]};
 let _ofTransferAcumulado=[];
-/* CROZZO_OFICINA_UI_V2 */
-function ofGetDesde(){return document.getElementById('of-shared-desde')?.value||document.getElementById('of-desde')?.value||'';}
-function ofGetHasta(){return document.getElementById('of-shared-hasta')?.value||document.getElementById('of-hasta')?.value||'';}
-function ofGetProvIds(){if(SS['of-prov-multi'])return SS['of-prov-multi'].getValues();const o=SS['of-filt-prov']?.getValue()||'';return o?[String(o)]:[];}
-function ofGetProvIdsFromOpts(o){if(o&&o.filtProvIds?.length)return o.filtProvIds.map(String);if(o&&o.filtProv)return[String(o.filtProv)];return ofGetProvIds();}
-function ofAppendProvToUrl(u,ids){ids=ids||ofGetProvIds();if(!ids.length)return u;if(ids.length===1)return u+'&proveedor_id=eq.'+encodeURIComponent(ids[0]);return u+'&proveedor_id=in.('+ids.map(encodeURIComponent).join(',')+')';}
-function ofGetSharedEstado(){const v=document.getElementById('of-shared-estado')?.value;if(v!=null&&String(v).trim()!=='')return String(v).trim();return document.getElementById('ofe-filt-estado')?.value||document.getElementById('oft-filt-estado')?.value||'';}
-function ofGetValorMinMax(){const vmin=parseFloat(document.getElementById('of-shared-vmin')?.value||0)||0;const vmaxRaw=parseFloat(document.getElementById('of-shared-vmax')?.value||0)||0;return{vmin,vmax:vmaxRaw>0?vmaxRaw:null};}
-function ofSyncLegacyFilterFields(){const d=ofGetDesde(),h=ofGetHasta(),e=ofGetSharedEstado(),ids=ofGetProvIds(),p=ids.length===1?ids[0]:'',vm=ofGetValorMinMax();['of-desde','ofe-desde','oft-desde'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=d;});['of-hasta','ofe-hasta','oft-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=h;});['oft-filt-estado','ofe-filt-estado'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=e;});['ofe-vmin','oft-vmin'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=vm.vmin>0?String(vm.vmin):'';});['ofe-vmax','oft-vmax'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=vm.vmax!=null?String(vm.vmax):'';});if(SS['of-filt-prov'])SS['of-filt-prov'].setValue(p);if(SS['ofe-prov'])SS['ofe-prov'].setValue(p);if(SS['oft-prov'])SS['oft-prov'].setValue(p);}
-function ofFilterSummaryText(){const d=ofGetDesde(),h=ofGetHasta(),ids=ofGetProvIds(),est=ofGetSharedEstado(),vm=ofGetValorMinMax();let pt='Todos los proveedores';if(ids.length===1)pt=provMap[ids[0]]?.nombre||'1 proveedor';else if(ids.length>1)pt=ids.length+' proveedores';const et=est==='pendiente_oficina'?'Pendiente oficina':(est==='pendiente_pago'?'Pendiente pago':(est==='pagada'?'Pagadas':'Todos'));const pe=(d&&h)?(d+' → '+h):(d||h||'Sin fechas');let vt='';if(vm.vmin>0||vm.vmax!=null)vt=' · Valor '+(vm.vmin||0)+'–'+(vm.vmax??'∞');return '<strong>'+pe+'</strong> · '+pt+' · '+et+vt;}
-function ofUpdateFilterSummary(){const el=document.getElementById('of-filter-summary');if(el)el.innerHTML=ofFilterSummaryText();}
-function ofDatePreset(k){const hoy=new Date(),pad=n=>String(n).padStart(2,'0'),iso=x=>x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate());let d='',h=iso(hoy);if(k==='7d'){const t=new Date(hoy);t.setDate(t.getDate()-6);d=iso(t);}else if(k==='mes-ant'){d=iso(new Date(hoy.getFullYear(),hoy.getMonth()-1,1));h=iso(new Date(hoy.getFullYear(),hoy.getMonth(),0));}else if(k==='trim'){const t=new Date(hoy);t.setDate(t.getDate()-89);d=iso(t);}else d=iso(new Date(hoy.getFullYear(),hoy.getMonth(),1));const sd=document.getElementById('of-shared-desde'),sh=document.getElementById('of-shared-hasta');if(sd)sd.value=d;if(sh)sh.value=h;document.querySelectorAll('#mod-oficina .of-preset').forEach(b=>b.classList.toggle('active',b.getAttribute('data-of-preset')===k));ofSyncLegacyFilterFields();ofUpdateFilterSummary();}
-function ofBindDatePresets(){document.querySelectorAll('#mod-oficina .of-preset').forEach(btn=>{if(btn._ofPb)return;btn._ofPb=1;btn.addEventListener('click',()=>ofDatePreset(btn.getAttribute('data-of-preset')||'mes'));});}
-function ofApplyFilters(){ofSyncLegacyFilterFields();ofUpdateFilterSummary();if(ofMetodoPestañaActiva==='efectivo')ofLoadEfectivo(true);else if(ofMetodoPestañaActiva==='tarjeta')ofLoadTarjetas(true);else ofLoadFacturas(true);try{ofReporteMemoToggle();}catch(_e){}}
-function ofClearFilters(){if(SS['of-prov-multi'])SS['of-prov-multi'].clear();const e=document.getElementById('of-shared-estado');if(e)e.value='';['of-shared-vmin','of-shared-vmax'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});ofDatePreset('mes');ofApplyFilters();}
-function ofFilterTabUi(){const w=document.getElementById('of-filter-valor-wrap'),e=document.getElementById('of-shared-estado');if(w)w.style.display=ofMetodoPestañaActiva==='transferencia'?'none':'';if(e&&ofMetodoPestañaActiva==='tarjeta'){e.disabled=true;e.value='pagada';}else if(e)e.disabled=false;}
-function ofProvLabelForExport(ids){ids=ids||ofGetProvIds();if(!ids.length)return 'Todos los proveedores';if(ids.length===1)return provMap[ids[0]]?.nombre||'Proveedor';return ids.length+' proveedores';}
-
 const OF_SEL_HOST_ID={transferencia:'tabla-transferencias',efectivo:'tabla-efectivo',tarjeta:'tabla-tarjeta'};
 
 /** Igual que `Crozzo QyC viejo.html`: cabeceras recepción + filtros por `estado_recepcion`. */
 function ofRecepcionesFacturasQueryExtra(opts){
   opts=opts||{};
-  const filtProvIds=ofGetProvIdsFromOpts(opts);
+  const filtProv=opts.filtProv||'';
   const filtEst=opts.filtEst||'';
   const andInner=['or(peso_bascula_kg.eq.0,peso_bascula_kg.is.null)'];
-  if(filtProvIds.length===1) andInner.push('proveedor_id.eq.'+filtProvIds[0]);
-  else if(filtProvIds.length>1) andInner.push('proveedor_id.in.('+filtProvIds.join(',')+')');
+  if(filtProv) andInner.push('proveedor_id.eq.'+filtProv);
   if(filtEst==='pagada') andInner.push('estado_recepcion.eq.pagada');
   else if(filtEst==='pendiente_pago') andInner.push('estado_recepcion.in.(pendiente_pago,completada)');
   else if(filtEst==='pendiente_oficina') andInner.push('estado_recepcion.in.(pendiente_jefe,pendiente_oficina,pending)');
@@ -8298,8 +8227,6 @@ function ofSubTab(sub,btn){
   btn.classList.add('active');
   try{ ofSelCerrarTodosPdfFilaMetodo('efectivo'); ofSelCerrarTodosPdfFilaMetodo('tarjeta'); }catch(_e){}
   try{ ofeCerrarPdf(); oftCerrarPdf(); }catch(_e){}
-  ofFilterTabUi();
-  ofUpdateFilterSummary();
   actualizarBarra();
 }
 
@@ -9027,9 +8954,6 @@ async function ofInit(){
   }
 
   // Inicializar SS de oficina (solo si no existen)
-  if(!SS['of-prov-multi']){
-    SS['of-prov-multi']=new OficinaMultiSelect('ss-of-prov-multi',{placeholder:'Todos los proveedores',searchPlaceholder:'Buscar proveedor…',onChange:()=>ofUpdateFilterSummary()});
-  }
   if(!SS['of-filt-prov']){
     SS['of-filt-prov']=new SearchableSelect('ss-of-filt-prov',{
       placeholder:'Todos los proveedores',
@@ -9061,8 +8985,7 @@ async function ofInit(){
 
   // Actualizar items de proveedores en SS de oficina
   const provs=Object.values(provMap).sort((a,b)=>a.nombre.localeCompare(b.nombre));
-  const provFiltItems=[{value:'',label:'Todos los proveedores'}, ...provs.map(p=>({value:String(p.id),label:p.nombre}))];
-  if(SS['of-prov-multi']) SS['of-prov-multi'].setItems(provs.map(p=>({value:String(p.id),label:p.nombre})));
+  const provFiltItems=[{value:'',label:'Todos los proveedores'}, ...provs.map(p=>({value:p.id,label:p.nombre}))];
   SS['of-filt-prov'].setItems(provFiltItems);
   SS['ofe-prov'].setItems(provFiltItems);
   SS['oft-prov'].setItems(provFiltItems);
@@ -9108,7 +9031,8 @@ async function ofActualizarBadge(){
 }
 
 function ofTransferFiltroEstadoActual(){
-  const v=String(ofGetSharedEstado()||'').trim();
+  const sel=document.getElementById('oft-filt-estado');
+  const v=String(sel&&sel.value||'').trim();
   if(v==='pendiente_oficina'||v==='pendiente_pago'||v==='pagada') return v;
   return 'todos';
 }
@@ -9132,10 +9056,10 @@ async function ofLoadFacturas(forzar=false,append=false){
   }
 
   const filtEst=ofTransferFiltroEstadoParaRecepcionQuery();
-  const filtProvIds=ofGetProvIds();
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const qExtra=ofRecepcionesFacturasQueryExtra({filtProvIds,filtEst});
+  const filtProv=SS['of-filt-prov']?.getValue()||'';
+  const desde=document.getElementById('of-desde')?.value||'';
+  const hasta=document.getElementById('of-hasta')?.value||'';
+  const qExtra=ofRecepcionesFacturasQueryExtra({filtProv,filtEst});
 
   let recs=[];
   const offset=append?_ofFactOffset:0;
@@ -9327,10 +9251,10 @@ function ofCanvasWrapMemoLines(g,text,maxPx,fontPx){
 async function ofFetchFacturasListadoParaReporte(){
   const pageSize=parseInt(document.getElementById('of-page-size')?.value||'100',10)||100;
   const filtEst=ofTransferFiltroEstadoParaRecepcionQuery();
-  const filtProvIds=ofGetProvIds();
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const qExtra=ofRecepcionesFacturasQueryExtra({filtProvIds,filtEst});
+  const filtProv=SS['of-filt-prov']?.getValue()||'';
+  const desde=document.getElementById('of-desde')?.value||'';
+  const hasta=document.getElementById('of-hasta')?.value||'';
+  const qExtra=ofRecepcionesFacturasQueryExtra({filtProv,filtEst});
   const excl=await ofTransferIdsRecepcionesExcluirEfectivoTarjeta();
   const listado=[];
   let apiOffset=0;
@@ -9368,13 +9292,13 @@ async function ofFetchFacturasListadoParaReporte(){
 /** Igual que el listado de reporte visual pero para facturas en efectivo y filtros de la pestaña 💵. */
 async function ofeFetchFacturasListadoParaReporte(){
   const pageSize=100;
-  const filtEst=ofGetSharedEstado();
-  const filtProvIds=ofGetProvIds();
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const vm=ofGetValorMinMax();
-  const vmin=vm.vmin;
-  const vmax=vm.vmax;
+  const filtEst=document.getElementById('ofe-filt-estado')?.value||'';
+  const filtProv=SS['ofe-prov']?.getValue()||'';
+  const desde=document.getElementById('ofe-desde')?.value||'';
+  const hasta=document.getElementById('ofe-hasta')?.value||'';
+  const vmin=parseFloat(document.getElementById('ofe-vmin')?.value||0)||0;
+  const vmaxRaw=parseFloat(document.getElementById('ofe-vmax')?.value||0)||0;
+  const vmax=vmaxRaw>0?vmaxRaw:null;
   const estadoQ=ofMetodoFacturaEstadoQueryParam(filtEst);
   const listado=[];
   let apiOffset=0;
@@ -9382,7 +9306,7 @@ async function ofeFetchFacturasListadoParaReporte(){
     let page=[];
     try{
       let q=`${SB}/rest/v1/facturas?select=id,fecha,proveedor_id,numero_factura,valor,estado,notas,proveedores(nombre)&metodo_pago=eq.efectivo&order=fecha.desc&limit=${pageSize}&offset=${apiOffset}`;
-      q=ofAppendProvToUrl(q,filtProvIds);
+      if(filtProv) q+=`&proveedor_id=eq.${filtProv}`;
       if(desde) q+=`&fecha=gte.${desde}`;
       if(hasta) q+=`&fecha=lte.${hasta}`;
       if(vmin>0) q+=`&valor=gte.${vmin}`;
@@ -9415,12 +9339,12 @@ async function ofeFetchFacturasListadoParaReporte(){
 /** Listado reporte visual Tarjeta: mismos filtros que la pestaña 💳 (pagadas en caja). */
 async function oftFetchFacturasListadoParaReporte(){
   const pageSize=parseInt(document.getElementById('oft-page-size')?.value||'100',10)||100;
-  const filtProvIds=ofGetProvIds();
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const vm=ofGetValorMinMax();
-  const vmin=vm.vmin;
-  const vmax=vm.vmax;
+  const filtProv=SS['oft-prov']?.getValue()||'';
+  const desde=document.getElementById('oft-desde')?.value||'';
+  const hasta=document.getElementById('oft-hasta')?.value||'';
+  const vmin=parseFloat(document.getElementById('oft-vmin')?.value||0)||0;
+  const vmaxRaw=parseFloat(document.getElementById('oft-vmax')?.value||0)||0;
+  const vmax=vmaxRaw>0?vmaxRaw:null;
   const listado=[];
   let apiOffset=0;
   for(var guard=0;guard<500;guard++){
@@ -9529,9 +9453,12 @@ async function ofExportListadoFacturasVisual(formato='pdf', opts){
     return;
   }
   const estRaw=opts.estRaw!=null?opts.estRaw:(opts.reporteModulo==='efectivo'
-    ?(ofGetSharedEstado()||'todos')
+    ?(document.getElementById('ofe-filt-estado')?.value||'todos')
     :(opts.reporteModulo==='tarjeta'?'pagada':ofTransferFiltroEstadoActual()));
-  const provNom=opts.provNom!=null?opts.provNom:ofProvLabelForExport(ofGetProvIds());
+  const provId=opts.reporteModulo==='efectivo'
+    ?(SS['ofe-prov']?.getValue()||'')
+    :(opts.reporteModulo==='tarjeta'?(SS['oft-prov']?.getValue()||''):(SS['of-filt-prov']?.getValue()||''));
+  const provNom=opts.provNom!=null?opts.provNom:(provId?(provMap[provId]?.nombre||'Proveedor filtrado'):'Todos los proveedores');
   const estLabel=opts.estLabel!=null?opts.estLabel:(estRaw==='pendiente_oficina'?'Pendiente oficina':(estRaw==='pendiente_pago'?'Pendiente pago':(estRaw==='pagada'?'Pagada':'Todos')));
   const hoy=new Date().toISOString().slice(0,10);
   const total=rows.reduce((s,r)=>s+(parseFloat(r.valor)||0),0);
@@ -9842,20 +9769,20 @@ async function ofLoadEfectivo(forzar=false,append=false){
     host.innerHTML='<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>';
   }
 
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const filtProvIds=ofGetProvIds();
-  const vm=ofGetValorMinMax();
-  const vmin=vm.vmin;
-  const vmax=vm.vmax;
-  const filtEst=ofGetSharedEstado();
+  const desde=document.getElementById('ofe-desde')?.value||'';
+  const hasta=document.getElementById('ofe-hasta')?.value||'';
+  const prov=SS['ofe-prov']?.getValue()||'';
+  const vmin=parseFloat(document.getElementById('ofe-vmin')?.value||0)||0;
+  const vmaxRaw=parseFloat(document.getElementById('ofe-vmax')?.value||0)||0;
+  const vmax=vmaxRaw>0?vmaxRaw:null;
+  const filtEst=document.getElementById('ofe-filt-estado')?.value||'';
   const estadoQ=ofMetodoFacturaEstadoQueryParam(filtEst);
 
   const offset=append?_ofeOffset:0;
   let query=`${SB}/rest/v1/facturas?select=id,fecha,proveedor_id,numero_factura,valor,foto_url,registrado_por,notas,metodo_pago,recepcion_id,estado,proveedores(nombre)&metodo_pago=eq.efectivo&order=fecha.desc&limit=${pageSize}&offset=${offset}`;
   if(desde) query+=`&fecha=gte.${desde}`;
   if(hasta) query+=`&fecha=lte.${hasta}`;
-  query=ofAppendProvToUrl(query,filtProvIds);
+  if(prov) query+=`&proveedor_id=eq.${prov}`;
   if(vmin>0) query+=`&valor=gte.${vmin}`;
   if(vmax!==null) query+=`&valor=lte.${vmax}`;
   query+=estadoQ;
@@ -9916,13 +9843,13 @@ function ofeCerrarPdf(){
 
 async function ofeDescargarPDFsTodos(){
   const pageSize=100;
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const filtProvIds=ofGetProvIds();
-  const vm=ofGetValorMinMax();
-  const vmin=vm.vmin;
-  const vmax=vm.vmax;
-  const filtEst=ofGetSharedEstado();
+  const desde=document.getElementById('ofe-desde')?.value||'';
+  const hasta=document.getElementById('ofe-hasta')?.value||'';
+  const prov=SS['ofe-prov']?.getValue()||'';
+  const vmin=parseFloat(document.getElementById('ofe-vmin')?.value||0)||0;
+  const vmaxRaw=parseFloat(document.getElementById('ofe-vmax')?.value||0)||0;
+  const vmax=vmaxRaw>0?vmaxRaw:null;
+  const filtEst=document.getElementById('ofe-filt-estado')?.value||'';
   const estadoQ=ofMetodoFacturaEstadoQueryParam(filtEst);
   const all=[];
   let offset=0;
@@ -9930,7 +9857,7 @@ async function ofeDescargarPDFsTodos(){
     let q=`${SB}/rest/v1/facturas?select=id,fecha,proveedor_id,foto_url,valor,metodo_pago&metodo_pago=eq.efectivo&order=fecha.desc&limit=${pageSize}&offset=${offset}`;
     if(desde) q+=`&fecha=gte.${desde}`;
     if(hasta) q+=`&fecha=lte.${hasta}`;
-    q=ofAppendProvToUrl(q,filtProvIds);
+    if(prov) q+=`&proveedor_id=eq.${prov}`;
     if(vmin>0) q+=`&valor=gte.${vmin}`;
     if(vmax!==null) q+=`&valor=lte.${vmax}`;
     q+=estadoQ;
@@ -10061,17 +9988,17 @@ async function ofLoadTarjetas(forzar=false,append=false){
     [...seleccionadas].filter(k=>k.startsWith('tarjeta|')).forEach(k=>seleccionadas.delete(k));
     host.innerHTML='<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>';
   }
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const filtProvIds=ofGetProvIds();
-  const vm=ofGetValorMinMax();
-  const vmin=vm.vmin;
-  const vmax=vm.vmax;
+  const desde=document.getElementById('oft-desde')?.value||'';
+  const hasta=document.getElementById('oft-hasta')?.value||'';
+  const prov=SS['oft-prov']?.getValue()||'';
+  const vmin=parseFloat(document.getElementById('oft-vmin')?.value||0)||0;
+  const vmaxRaw=parseFloat(document.getElementById('oft-vmax')?.value||0)||0;
+  const vmax=vmaxRaw>0?vmaxRaw:null;
   const offset=append?_oftOffset:0;
   let query=`${SB}/rest/v1/facturas?select=id,fecha,proveedor_id,numero_factura,valor,foto_url,registrado_por,notas,metodo_pago,recepcion_id,estado,proveedores(nombre)&metodo_pago=eq.tarjeta&estado=eq.pagada&order=fecha.desc&limit=${pageSize}&offset=${offset}`;
   if(desde) query+=`&fecha=gte.${desde}`;
   if(hasta) query+=`&fecha=lte.${hasta}`;
-  query=ofAppendProvToUrl(query,filtProvIds);
+  if(prov) query+=`&proveedor_id=eq.${prov}`;
   if(vmin>0) query+=`&valor=gte.${vmin}`;
   if(vmax!==null) query+=`&valor=lte.${vmax}`;
   try{
@@ -10131,19 +10058,19 @@ function oftCerrarPdf(){
 
 async function oftDescargarPDFsTodos(){
   const pageSize=100;
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const filtProvIds=ofGetProvIds();
-  const vm=ofGetValorMinMax();
-  const vmin=vm.vmin;
-  const vmax=vm.vmax;
+  const desde=document.getElementById('oft-desde')?.value||'';
+  const hasta=document.getElementById('oft-hasta')?.value||'';
+  const prov=SS['oft-prov']?.getValue()||'';
+  const vmin=parseFloat(document.getElementById('oft-vmin')?.value||0)||0;
+  const vmaxRaw=parseFloat(document.getElementById('oft-vmax')?.value||0)||0;
+  const vmax=vmaxRaw>0?vmaxRaw:null;
   const all=[];
   let offset=0;
   for(let guard=0;guard<500;guard++){
     let q=`${SB}/rest/v1/facturas?select=id,fecha,proveedor_id,foto_url,valor,metodo_pago,estado&metodo_pago=eq.tarjeta&estado=eq.pagada&order=fecha.desc&limit=${pageSize}&offset=${offset}`;
     if(desde) q+=`&fecha=gte.${desde}`;
     if(hasta) q+=`&fecha=lte.${hasta}`;
-    q=ofAppendProvToUrl(q,filtProvIds);
+    if(prov) q+=`&proveedor_id=eq.${prov}`;
     if(vmin>0) q+=`&valor=gte.${vmin}`;
     if(vmax!==null) q+=`&valor=lte.${vmax}`;
     let page=[];
@@ -10307,10 +10234,10 @@ async function ofImportarDesdeRecepciones(){
 async function ofDescargarPDFs(){
   const estadoActivo=ofTransferFiltroEstadoActual();
   const filtEst=ofTransferFiltroEstadoParaRecepcionQuery();
-  const filtProvIds=ofGetProvIds();
-  const desde=ofGetDesde();
-  const hasta=ofGetHasta();
-  const qExtra=ofRecepcionesFacturasQueryExtra({filtProvIds,filtEst});
+  const filtProv=SS['of-filt-prov']?.getValue()||'';
+  const desde=document.getElementById('of-desde')?.value||'';
+  const hasta=document.getElementById('of-hasta')?.value||'';
+  const qExtra=ofRecepcionesFacturasQueryExtra({filtProv,filtEst});
 
   const btn=document.getElementById('of-btn-zip');
   btn.textContent='⏳ Preparando...';btn.disabled=true;
@@ -12832,18 +12759,6 @@ async function cuentaCobroGenerar(provId){
 
 
 // ══════════════════════════════
-class OficinaMultiSelect{
-  constructor(id,o){o=o||{};this.cid=id;this.ph=o.placeholder||'Todos';this.searchPh=o.searchPlaceholder||'Buscar…';this.onChange=o.onChange||function(){};this.items=[];this.selected=new Set();this._b();}
-  _b(){const c=document.getElementById(this.cid);if(!c)return;c.innerHTML='';c.className='of-mp-wrap';this.btn=document.createElement('button');this.btn.type='button';this.btn.className='of-mp-trigger placeholder';this.btn.textContent=this.ph;this.btn.onclick=e=>{e.stopPropagation();this._o?this._c():this._op();};this.drop=document.createElement('div');this.drop.className='of-mp-drop';const s=document.createElement('div');s.className='of-mp-search';this.si=document.createElement('input');this.si.placeholder=this.searchPh;this.si.oninput=()=>this._rl();s.appendChild(this.si);this.ls=document.createElement('div');this.ls.className='of-mp-list';const f=document.createElement('div');f.className='of-mp-foot';const ok=document.createElement('button');ok.type='button';ok.className='btn btn-primary';ok.textContent='Listo';ok.onclick=()=>{this._c();this.onChange(this.getValues());};const cl=document.createElement('button');cl.type='button';cl.className='btn btn-ghost';cl.textContent='Quitar todos';cl.onclick=()=>{this.clear();this.onChange([]);};f.append(cl,ok);this.drop.append(s,this.ls,f);c.append(this.btn,this.drop);this._rt();this._rl();}
-  setItems(it){this.items=(it||[]).filter(i=>i&&i.value);this.selected.forEach(id=>{if(!this.items.some(i=>String(i.value)===String(id)))this.selected.delete(id);});this._rt();this._rl();}
-  getValues(){return[...this.selected];}
-  clear(){this.selected.clear();this._rt();this._rl();}
-  _op(){document.querySelectorAll('.of-mp-drop.open').forEach(d=>d.classList.remove('open'));this._o=1;this.drop.classList.add('open');this.si.value='';this._rl();setTimeout(()=>this.si.focus(),40);}
-  _c(){this._o=0;this.drop.classList.remove('open');}
-  _rt(){if(!this.btn)return;if(!this.selected.size){this.btn.className='of-mp-trigger placeholder';this.btn.textContent=this.ph;return;}this.btn.className='of-mp-trigger';const w=document.createElement('div');w.className='of-mp-chips';[...this.selected].slice(0,3).forEach(id=>{const it=this.items.find(i=>String(i.value)===String(id));const ch=document.createElement('span');ch.className='of-mp-chip';ch.innerHTML='<span>'+(it?it.label:id)+'</span><button type="button">×</button>';ch.querySelector('button').onclick=e=>{e.stopPropagation();this.selected.delete(String(id));this._rt();this._rl();this.onChange(this.getValues());};w.appendChild(ch);});if(this.selected.size>3){const m=document.createElement('span');m.className='of-mp-chip';m.textContent='+'+(this.selected.size-3);w.appendChild(m);}this.btn.innerHTML='';this.btn.appendChild(w);}
-  _rl(){if(!this.ls)return;const q=(this.si?.value||'').toLowerCase();const it=this.items.filter(i=>!q||i.label.toLowerCase().includes(q));this.ls.innerHTML='';it.forEach(i=>{const r=document.createElement('label');r.className='of-mp-opt';const x=document.createElement('input');x.type='checkbox';x.checked=this.selected.has(String(i.value));x.onchange=()=>{const id=String(i.value);if(x.checked)this.selected.add(id);else this.selected.delete(id);this._rt();};r.append(x,document.createTextNode(i.label));this.ls.appendChild(r);});}
-}
-
 // SEARCHABLE SELECT — componente reutilizable
 // ══════════════════════════════
 class SearchableSelect {
@@ -13001,7 +12916,6 @@ class SearchableSelect {
 document.addEventListener('click', () => {
   document.querySelectorAll('.ss-dropdown.open').forEach(d => d.classList.remove('open'));
   document.querySelectorAll('.ss-input.open').forEach(b => b.classList.remove('open'));
-  document.querySelectorAll('.of-mp-drop.open').forEach(d => d.classList.remove('open'));
 });
 
 

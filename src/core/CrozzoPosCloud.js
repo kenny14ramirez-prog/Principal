@@ -1033,13 +1033,6 @@ function mapRemoteProductToLocal(row) {
     sku: row.sku || '',
     stock,
     areaComanda: row.area_comanda || row.areaComanda,
-    areasComanda: Array.isArray(row.areas_comanda)
-      ? row.areas_comanda
-      : Array.isArray(row.areasComanda)
-        ? row.areasComanda
-        : row.area_comanda || row.areaComanda
-          ? [row.area_comanda || row.areaComanda]
-          : undefined,
     opcionGrupos: Array.isArray(row.opcion_grupos) ? row.opcion_grupos : row.opcionGrupos,
     arrastraProductos: Array.isArray(row.arrastra_productos) ? row.arrastra_productos : row.arrastraProductos,
   };
@@ -1059,9 +1052,6 @@ function mapLocalProductToSupabaseRow(p) {
   if (p.sku) row.sku = String(p.sku);
   if (p.stock != null && !Number.isNaN(Number(p.stock))) row.stock = Number(p.stock);
   if (p.areaComanda) row.area_comanda = String(p.areaComanda);
-  if (Array.isArray(p.areasComanda) && p.areasComanda.length) {
-    row.areas_comanda = p.areasComanda.map(String);
-  }
   return row;
 }
 /** Catálogo en `pos_dian_config` para sobrevivir recargas y otro equipo (misma cuenta/archivo). */

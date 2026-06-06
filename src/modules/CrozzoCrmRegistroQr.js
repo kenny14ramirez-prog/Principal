@@ -359,21 +359,23 @@
       '<div class="card-header" style="padding-bottom:8px;">' +
       '<div><h3 class="card-title" style="font-size:1rem;margin:0;">📲 QR autoregistro de clientes</h3>' +
       '<p class="form-hint" style="margin:6px 0 0;">Imprima o muestre este QR en caja. El cliente escanea, llena datos o sube su RUT, y entra al directorio automáticamente.</p></div></div>' +
-      '<div class="crozzo-crm-reg-body crozzo-crm-reg-body--compact">' +
+      '<div class="crozzo-crm-reg-body" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:start;">' +
       '<div class="crozzo-crm-reg-qr-col">' +
       '<div id="crozzoCrmRegQrHost"></div>' +
+      '<p class="form-hint" style="text-align:center;margin:8px 0 0;font-size:0.75rem;">Token permanente · no expira</p>' +
       '</div>' +
       '<div class="crozzo-crm-reg-meta">' +
       '<p id="crozzoCrmRegStatus" class="crozzo-crm-reg-status">…</p>' +
-      '<p id="crozzoCrmRegUrl" class="crozzo-crm-reg-url form-hint"></p>' +
-      '<div class="crozzo-crm-reg-actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoCrmRegBtnStart">Activar</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnStop">Detener</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnCopy">Copiar enlace</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnPoll">↻ Revisar</button>' +
+      '<label class="form-label">Enlace (misma red Wi‑Fi)</label>' +
+      '<p id="crozzoCrmRegUrl" class="crozzo-crm-reg-url form-hint" style="word-break:break-all;font-size:0.78rem;"></p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;">' +
+      '<button type="button" class="btn btn-primary" id="crozzoCrmRegBtnStart">▶ Activar servidor</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoCrmRegBtnStop">⏹ Detener</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoCrmRegBtnCopy">Copiar enlace</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoCrmRegBtnPoll">↻ Revisar ahora</button>' +
       '</div>' +
-      '<details class="form-hint crozzo-crm-reg-advanced"><summary>Token y opciones avanzadas</summary>' +
-      '<button type="button" class="btn btn-outline btn-sm" style="margin-top:8px;" id="crozzoCrmRegBtnNewToken">Renovar token QR</button></details>' +
+      '<details class="form-hint" style="margin-top:8px;"><summary>Renovar token (invalida QR anterior)</summary>' +
+      '<button type="button" class="btn btn-outline" style="margin-top:8px;" id="crozzoCrmRegBtnNewToken">Generar nuevo token</button></details>' +
       (!isTauri()
         ? '<p class="form-hint" style="color:var(--warning,#f59e0b);margin-top:10px;">⚠️ Abra la app de escritorio para servir el formulario a celulares en la red local.</p>'
         : '') +
@@ -508,9 +510,9 @@
     ensureCfg();
     var body =
       '<div class="crozzo-crm-reg-modal" id="crozzoCrmRegModal">' +
-      '<p id="crozzoCrmRegModalStatus" class="crozzo-crm-reg-status">Preparando QR…</p>' +
+      '<p id="crozzoCrmRegModalStatus" class="crozzo-crm-reg-status">Cargando QR…</p>' +
       '<div id="crozzoCrmRegModalQrHost" style="display:flex;justify-content:center;margin:12px 0;"></div>' +
-      '<p class="form-hint" style="text-align:center;margin:0 0 12px;font-size:0.78rem;">El cliente escanea en el mismo Wi‑Fi, completa datos o sube RUT. En caja se activa el servidor automáticamente.</p>' +
+      '<p class="form-hint" style="text-align:center;margin:0 0 12px;font-size:0.78rem;">El cliente escanea y registra sus datos, o usted puede usar «Nuevo» / «Subir RUT» abajo.</p>' +
       '<label class="form-label">Enlace</label>' +
       '<p id="crozzoCrmRegModalUrl" class="crozzo-crm-reg-url form-hint" style="word-break:break-all;font-size:0.75rem;"></p>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center;">' +
@@ -524,22 +526,7 @@
       global.showModal('QR · Registro de cliente', body, { wide: false });
     }
     setTimeout(function () {
-      var boot = Promise.resolve();
-      if (isTauri() && !isTabletContext()) {
-        boot = serverStatus().then(function (st) {
-          if (st && st.running) return st;
-          return startServer().catch(function (e) {
-            if (typeof global.showToast === 'function') {
-              global.showToast(e && e.message ? e.message : 'No se pudo activar el servidor QR', 'warning');
-            }
-            return st;
-          });
-        });
-      }
-      boot.finally(function () {
-        refreshQrDisplay('crozzoCrmRegModalQrHost', 'crozzoCrmRegModalStatus', 'crozzoCrmRegModalUrl', 220, false);
-        if (isTauri()) startPolling();
-      });
+      refreshQrDisplay('crozzoCrmRegModalQrHost', 'crozzoCrmRegModalStatus', 'crozzoCrmRegModalUrl', 220, false);
       var copyBtn = document.getElementById('crozzoCrmRegModalCopy');
       if (copyBtn && !copyBtn._bound) {
         copyBtn._bound = true;
