@@ -130,7 +130,7 @@ fn write_apk_for_install(app: &AppHandle, bytes: &[u8]) -> Result<ApkDownloadRes
     let install_path = files_dest
         .into_os_string()
         .into_string()
-        .map_err(|_| "Ruta APK inválida".into())?;
+        .map_err(|_| "Ruta APK inválida".to_string())?;
 
     Ok(ApkDownloadResult {
         install_path,
