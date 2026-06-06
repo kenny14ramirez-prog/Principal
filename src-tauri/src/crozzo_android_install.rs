@@ -6,6 +6,14 @@ use tauri::{AppHandle, Manager};
 const MIN_APK_BYTES: usize = 800 * 1024;
 const DOWNLOAD_RETRIES: u32 = 3;
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApkDownloadResult {
+    pub install_path: String,
+    pub alt_install_path: Option<String>,
+    pub size_bytes: u64,
+}
+
 #[cfg(target_os = "android")]
 fn http_client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
@@ -14,6 +22,14 @@ fn http_client() -> Result<reqwest::blocking::Client, String> {
         .user_agent("CrozzoPOS-Android-Updater/1.0")
         .build()
         .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "android")]
+fn apk_has_signature(bytes: &[u8]) -> bool {
+    bytes.windows(9).any(|w| w == b"META-INF/")
+        && (bytes.windows(4).any(|w| w == b".RSA")
+            || bytes.windows(4).any(|w| w == b".DSA")
+            || bytes.windows(3).any(|w| w == b".SF"))
 }
 
 #[cfg(target_os = "android")]
@@ -32,6 +48,11 @@ fn validate_apk(bytes: &[u8], expected_bytes: Option<u64>) -> Result<(), String>
             "APK inválido (falta AndroidManifest). Descargue de nuevo desde GitHub.".into(),
         );
     }
+    if !apk_has_signature(bytes) {
+        return Err(
+            "APK sin firma digital (unsigned). No se puede instalar. Use el APK firmado del release.".into(),
+        );
+    }
     let tail_start = bytes.len().saturating_sub(65557);
     let tail = &bytes[tail_start..];
     if !tail.windows(4).any(|w| w == b"PK\x05\x06") {
@@ -45,8 +66,7 @@ fn validate_apk(bytes: &[u8], expected_bytes: Option<u64>) -> Result<(), String>
             if got.abs_diff(expected) > 4096 {
                 return Err(format!(
                     "Tamaño del APK no coincide (esperado ~{} bytes, recibido {}).",
-                    expected,
-                    got
+                    expected, got
                 ));
             }
         }
@@ -87,7 +107,7 @@ fn download_apk_bytes(url: &str, expected_bytes: Option<u64>) -> Result<Vec<u8>,
 }
 
 #[cfg(target_os = "android")]
-fn write_apk_for_install(app: &AppHandle, bytes: &[u8]) -> Result<String, String> {
+fn write_apk_for_install(app: &AppHandle, bytes: &[u8]) -> Result<ApkDownloadResult, String> {
     let files_dir = app
         .path()
         .app_data_dir()
@@ -95,19 +115,28 @@ fn write_apk_for_install(app: &AppHandle, bytes: &[u8]) -> Result<String, String
     std::fs::create_dir_all(&files_dir)
         .map_err(|e| format!("No se pudo preparar carpeta de instalación: {e}"))?;
 
-    let dest = files_dir.join("crozzo-pos-update.apk");
-    std::fs::write(&dest, bytes).map_err(|e| format!("No se pudo guardar APK: {e}"))?;
+    let files_dest = files_dir.join("crozzo-pos-update.apk");
+    std::fs::write(&files_dest, bytes).map_err(|e| format!("No se pudo guardar APK: {e}"))?;
 
-    // Copia en cache por si FileProvider usa cache-path en builds antiguos.
+    let mut alt_path: Option<String> = None;
     if let Ok(cache_dir) = app.path().app_cache_dir() {
         let _ = std::fs::create_dir_all(&cache_dir);
         let cache_dest = cache_dir.join("crozzo-pos-update.apk");
-        let _ = std::fs::write(&cache_dest, bytes);
+        if std::fs::write(&cache_dest, bytes).is_ok() {
+            alt_path = cache_dest.into_os_string().into_string().ok();
+        }
     }
 
-    dest.into_os_string()
+    let install_path = files_dest
+        .into_os_string()
         .into_string()
-        .map_err(|_| "Ruta APK inválida".into())
+        .map_err(|_| "Ruta APK inválida".into())?;
+
+    Ok(ApkDownloadResult {
+        install_path,
+        alt_install_path: alt_path,
+        size_bytes: bytes.len() as u64,
+    })
 }
 
 #[tauri::command]
@@ -127,7 +156,7 @@ pub fn crozzo_android_download_apk(
     app: AppHandle,
     url: String,
     expected_bytes: Option<u64>,
-) -> Result<String, String> {
+) -> Result<ApkDownloadResult, String> {
     #[cfg(target_os = "android")]
     {
         let url = url.trim();

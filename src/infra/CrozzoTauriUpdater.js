@@ -81,20 +81,30 @@
     return isTauri() && isAndroidTablet();
   }
 
-  function invokeAndroidPackageInstall(installPath) {
+  function tryInstallPath(installPath) {
+    return invoke('plugin:android-package-install|install', { installPath: installPath });
+  }
+
+  function invokeAndroidPackageInstall(primaryPath, alternatePath) {
     return invoke('plugin:android-package-install|requestPermissions', {})
       .catch(function () {
         return null;
       })
       .then(function () {
-        return invoke('plugin:android-package-install|install', { installPath: installPath });
+        return tryInstallPath(primaryPath);
+      })
+      .catch(function (err) {
+        if (alternatePath && alternatePath !== primaryPath) {
+          return tryInstallPath(alternatePath);
+        }
+        return Promise.reject(err);
       })
       .catch(function (err) {
         var msg = String((err && err.message) || err || '');
-        if (/FileProvider|configured root|resource|parse|invalid|package/i.test(msg)) {
+        if (/FileProvider|configured root|resource|parse|invalid|package|paquete/i.test(msg)) {
           return Promise.reject(
             new Error(
-              'Android rechazó el APK al instalar. Si la app se instaló antes con otra firma, desinstálela y vuelva a instalar. También puede descargar Proyecto_*_arm64.apk manualmente desde GitHub Releases.'
+              'Android rechazó el APK. Si ya tiene Crozzo instalado: desinstálelo (Ajustes → Apps), descargue Proyecto_*_arm64.apk desde GitHub Releases e instálelo manualmente. Luego las actualizaciones automáticas funcionarán.'
             )
           );
         }
@@ -149,8 +159,14 @@
             expectedBytes: head && head.bytes > 0 ? head.bytes : null,
           });
         })
-          .then(function (localPath) {
-            if (!localPath) {
+          .then(function (dl) {
+            var installPath =
+              dl && typeof dl === 'object' ? dl.installPath || dl.install_path : dl;
+            var altPath =
+              dl && typeof dl === 'object'
+                ? dl.altInstallPath || dl.alt_install_path || null
+                : null;
+            if (!installPath) {
               return Promise.reject(new Error('No se pudo guardar el APK en el dispositivo.'));
             }
             onProgress({
@@ -158,16 +174,18 @@
               percent: 88,
               message: 'Abriendo instalador del sistema… Confirme «Actualizar».',
             });
-            return invokeAndroidPackageInstall(localPath).then(function () {
+            return invokeAndroidPackageInstall(installPath, altPath).then(function () {
               return {
                 installed: false,
                 plan: 'android_apk',
                 version: targetVersion || info.version,
                 downloadUrl: apkUrl,
-                localPath: localPath,
+                localPath: installPath,
                 needsManualInstall: false,
                 awaitingSystemConfirm: true,
                 intentLaunched: true,
+                installHint:
+                  'Si Android dice «problema de paquetes»: desinstale Crozzo POS e instale el APK manual desde GitHub.',
               };
             });
           })

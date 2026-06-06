@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Requerido por tauri-plugin-android-package-install -->
+  <files-path name="apk_files" path="." />
+  <files-path name="crozzo_apk_files" path="." />
+  <cache-path name="my_cache_images" path="." />
+  <cache-path name="crozzo_apk_cache" path="." />
+  <external-cache-path name="crozzo_apk_external_cache" path="." />
+  <external-files-path name="crozzo_apk_external_files" path="." />
+</paths>

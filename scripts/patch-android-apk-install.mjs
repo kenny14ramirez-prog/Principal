@@ -4,12 +4,13 @@
  * En tags v1.0.76+ el workflow lo invoca después de patch-android-signing.mjs.
  * En main reciente patch-android-signing.mjs ya incluye esta lógica; este script sigue siendo idempotente.
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const genAndroid = join(root, 'src-tauri', 'gen', 'android');
+const overlayFilePaths = join(root, 'src-tauri', 'android-overlays', 'res', 'xml', 'file_paths.xml');
 const filePaths = join(genAndroid, 'app', 'src', 'main', 'res', 'xml', 'file_paths.xml');
 const manifest = join(genAndroid, 'app', 'src', 'main', 'AndroidManifest.xml');
 
@@ -21,7 +22,11 @@ const FILE_PATHS_SNIPPET =
   '  <external-cache-path name="crozzo_apk_external_cache" path="." />\n';
 
 function patchApkInstallResources() {
-  if (existsSync(filePaths)) {
+  if (existsSync(overlayFilePaths)) {
+    mkdirSync(dirname(filePaths), { recursive: true });
+    copyFileSync(overlayFilePaths, filePaths);
+    console.log('[patch-android-apk-install] OK overlay file_paths.xml');
+  } else if (existsSync(filePaths)) {
     let xml = readFileSync(filePaths, 'utf8');
     if (
       !xml.includes('apk_files') ||

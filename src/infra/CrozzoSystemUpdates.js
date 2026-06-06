@@ -2471,6 +2471,7 @@
 
     if (res && res.plan === 'android_apk') {
       var awaitingMsg =
+        (res.installHint ? res.installHint + ' ' : '') +
         'Instalador del sistema abierto. Confirme «Actualizar» o «Instalar» en Android y vuelva a abrir Crozzo POS.';
       if (uiMode === 'optional') {
         applyOptionalAwaiting(awaitingMsg);

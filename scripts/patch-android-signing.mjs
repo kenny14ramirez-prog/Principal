@@ -4,14 +4,16 @@
  * - Firma release APK (Gradle)
  * - Permisos / FileProvider para instalación in-app de actualizaciones
  */
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const gradlePath = join(root, 'src-tauri', 'gen', 'android', 'app', 'build.gradle.kts');
 const genAndroid = join(root, 'src-tauri', 'gen', 'android');
+const overlayRoot = join(root, 'src-tauri', 'android-overlays');
 const filePaths = join(genAndroid, 'app', 'src', 'main', 'res', 'xml', 'file_paths.xml');
+const overlayFilePaths = join(overlayRoot, 'res', 'xml', 'file_paths.xml');
 const manifest = join(genAndroid, 'app', 'src', 'main', 'AndroidManifest.xml');
 
 const FILE_PATHS_SNIPPET =
@@ -70,7 +72,17 @@ function alreadyPatched(src) {
   );
 }
 
-function patchApkInstallResources() {
+function applyAndroidOverlays() {
+  if (existsSync(overlayFilePaths)) {
+    mkdirSync(dirname(filePaths), { recursive: true });
+    copyFileSync(overlayFilePaths, filePaths);
+    console.log('[patch-android-signing] OK overlay file_paths.xml');
+    return;
+  }
+  patchApkInstallResourcesLegacy();
+}
+
+function patchApkInstallResourcesLegacy() {
   if (existsSync(filePaths)) {
     let xml = readFileSync(filePaths, 'utf8');
     if (
@@ -94,7 +106,9 @@ function patchApkInstallResources() {
   } else {
     console.warn('[patch-android-signing] file_paths.xml no encontrado (¿tauri android init?).');
   }
+}
 
+function patchApkInstallManifest() {
   if (existsSync(manifest)) {
     let xml = readFileSync(manifest, 'utf8');
     const perm = 'android.permission.REQUEST_INSTALL_PACKAGES';
@@ -111,7 +125,8 @@ function patchApkInstallResources() {
 }
 
 function main() {
-  patchApkInstallResources();
+  applyAndroidOverlays();
+  patchApkInstallManifest();
 
   if (!existsSync(gradlePath)) {
     console.error('[patch-android-signing] build.gradle.kts no encontrado (¿tauri android init?).');
