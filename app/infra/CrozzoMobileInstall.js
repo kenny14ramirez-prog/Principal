@@ -190,6 +190,20 @@
     } catch (_) {}
   }
 
+  function bindModalCloseButtons(extraIds) {
+    var ids = ['crozzoAppDownloadQrClose', 'crozzoMobileInstallClose'].concat(extraIds || []);
+    ids.forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (!btn || btn._crozzoCloseBound) return;
+      btn._crozzoCloseBound = true;
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof global.closeModal === 'function') global.closeModal();
+      });
+    });
+  }
+
   function bindAppDownloadQrModal(payload) {
     var qrUrl = payload.qrUrl || payload.androidUrl || payload.landingUrl || payload.releasePageUrl;
     var host = document.getElementById('crozzoAppDownloadQrHost');
@@ -248,9 +262,11 @@
       '<div class="btn-group" style="justify-content:center;flex-wrap:wrap;gap:8px;">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoAppDownloadQrDlHere">Descargar en este equipo</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoAppDownloadQrAdvanced">Más opciones (iPhone)</button>' +
-      '<button type="button" class="btn btn-primary btn-sm" onclick="typeof closeModal===\'function\'&&closeModal()">Cerrar</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoAppDownloadQrClose">Cerrar</button>' +
       '</div>' +
       '</div>';
+
+    if (typeof global.crozzoCloseSidebarDrawer === 'function') global.crozzoCloseSidebarDrawer();
 
     if (typeof global.showModal !== 'function') {
       toast('Cargando interfaz… intente de nuevo en unos segundos.', 'warning');
@@ -260,10 +276,15 @@
       modalClass: 'modal--mobile-install',
       wide: false,
       stackTop: true,
+      showClose: true,
     });
+    bindModalCloseButtons();
 
     resolveInstallPayload()
-      .then(bindAppDownloadQrModal)
+      .then(function (payload) {
+        bindAppDownloadQrModal(payload);
+        bindModalCloseButtons();
+      })
       .catch(function () {
         bindAppDownloadQrModal({
           version: '—',
@@ -385,12 +406,19 @@
         '<button type="button" class="btn btn-outline" id="crozzoMobileInstallSaveUrls">Guardar y actualizar QR</button>' +
         '</div>' +
         '</details>' +
+        '<div class="btn-group" style="justify-content:center;margin-top:14px;">' +
+        '<button type="button" class="btn btn-primary btn-sm" id="crozzoMobileInstallClose">Cerrar</button>' +
+        '</div>' +
         '</div>',
-      { modalClass: 'modal--mobile-install', wide: true, stackTop: true }
+      { modalClass: 'modal--mobile-install', wide: true, stackTop: true, showClose: true }
     );
+    bindModalCloseButtons();
 
     resolveInstallPayload()
-      .then(bindMobileInstallModal)
+      .then(function (payload) {
+        bindMobileInstallModal(payload);
+        bindModalCloseButtons();
+      })
       .catch(function () {
         bindMobileInstallModal({
           version: '—',

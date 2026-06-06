@@ -1934,11 +1934,18 @@ function crozzoEnsureAppShellInteractive() {
     }
   } catch (_) {}
   try {
+    if (typeof crozzoCloseSidebarDrawer === 'function' && crozzoIsSidebarDrawerMode()) {
+      crozzoCloseSidebarDrawer();
+    }
     if (window.__CROZZO_IS_TAURI__ && window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
-      CrozzoSidebarNav.setExpanded(true, false);
-      var pg = typeof currentPage !== 'undefined' ? currentPage : 'inicio-operacion';
-      if (pg && typeof CrozzoSidebarNav.expandGroupForPage === 'function') {
-        CrozzoSidebarNav.expandGroupForPage(pg);
+      if (crozzoIsSidebarDrawerMode()) {
+        CrozzoSidebarNav.setExpanded(true, false);
+      } else {
+        CrozzoSidebarNav.setExpanded(true, false);
+        var pg = typeof currentPage !== 'undefined' ? currentPage : 'inicio-operacion';
+        if (pg && typeof CrozzoSidebarNav.expandGroupForPage === 'function') {
+          CrozzoSidebarNav.expandGroupForPage(pg);
+        }
       }
     }
   } catch (_) {}
@@ -34964,11 +34971,26 @@ function showModal(title, content, options) {
   if (options.noBackdropClose) overlay.dataset.noBackdropClose = '1';
   else delete overlay.dataset.noBackdropClose;
   const titleHtml = options.titleHtml != null ? options.titleHtml : `<h3 class="modal-title">${title}</h3>`;
-  modal.innerHTML = `${titleHtml}<div class="modal-body">${content}</div>`;
+  const showClose = options.showClose === true;
+  const closeHtml = showClose
+    ? '<button type="button" class="crozzo-modal-close" id="crozzoModalCloseBtn" aria-label="Cerrar">&times;</button>'
+    : '';
+  modal.innerHTML = `<div class="modal-head">${titleHtml}${closeHtml}</div><div class="modal-body">${content}</div>`;
+  if (showClose) {
+    const closeEl = modal.querySelector('.crozzo-modal-close');
+    if (closeEl) {
+      closeEl.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeModal();
+      });
+    }
+  }
   overlay.classList.add('active');
   modal.style.opacity = '1';
   modal.style.transform = 'none';
   modal.style.pointerEvents = 'auto';
+  if (typeof crozzoCloseSidebarDrawer === 'function') crozzoCloseSidebarDrawer();
 }
 function closeModal(options) {
   options = options || {};
@@ -35022,11 +35044,40 @@ function showToast(message, type = 'info') {
 // ==========================================
 // NAVIGATION
 // ==========================================
+function crozzoIsSidebarDrawerMode() {
+  try {
+    const doc = document.documentElement;
+    if (doc && doc.classList.contains('crozzo-touch-shell')) return true;
+    const body = document.body;
+    return !!(body && (body.classList.contains('mobile') || body.classList.contains('tablet')));
+  } catch (_) {
+    return false;
+  }
+}
+function crozzoBindSidebarBackdropClose() {
+  const bd = document.getElementById('sidebarBackdrop');
+  if (!bd || bd._crozzoDrawerCloseBound) return;
+  bd._crozzoDrawerCloseBound = true;
+  bd.addEventListener('click', function (e) {
+    if (e.target !== bd) return;
+    crozzoCloseSidebarDrawer();
+  });
+  bd.addEventListener(
+    'touchend',
+    function (e) {
+      if (e.target !== bd) return;
+      e.preventDefault();
+      crozzoCloseSidebarDrawer();
+    },
+    { passive: false }
+  );
+}
 function crozzoSyncSidebarBackdrop() {
   const sidebar = document.getElementById('sidebar');
   const bd = document.getElementById('sidebarBackdrop');
   if (!sidebar || !bd) return;
-  const drawerMode = document.body && !document.body.classList.contains('desktop');
+  crozzoBindSidebarBackdropClose();
+  const drawerMode = crozzoIsSidebarDrawerMode();
   const open = sidebar.classList.contains('open');
   if (drawerMode && open) {
     bd.classList.add('active');
@@ -35053,8 +35104,15 @@ function toggleSidebar() {
   if (typeof crozzoKioskIsActive === 'function' && crozzoKioskIsActive()) return;
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
-  sidebar.classList.toggle('open');
-  if (sidebar.classList.contains('open')) {
+  const drawerMode = crozzoIsSidebarDrawerMode();
+  const willOpen = !sidebar.classList.contains('open');
+  if (!willOpen) {
+    crozzoCloseSidebarDrawer();
+    crozzoSyncSidebarBackdrop();
+    return;
+  }
+  sidebar.classList.add('open');
+  if (drawerMode) {
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(true, false);
@@ -35067,6 +35125,20 @@ function toggleSidebar() {
   } catch (e) {
     /* ignore */
   }
+}
+window.crozzoIsSidebarDrawerMode = crozzoIsSidebarDrawerMode;
+window.crozzoCloseSidebarDrawer = crozzoCloseSidebarDrawer;
+window.toggleSidebar = toggleSidebar;
+if (document.readyState === 'loading') {
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      crozzoBindSidebarBackdropClose();
+    },
+    { once: true }
+  );
+} else {
+  crozzoBindSidebarBackdropClose();
 }
 function crozzoUpdateMobileBottomNavActive(page) {
   const root = document.getElementById('crozzoMobileBottomNav');

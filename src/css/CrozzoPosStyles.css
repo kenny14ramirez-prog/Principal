@@ -4144,6 +4144,50 @@ tr:hover {
   z-index: 9200;
 }
 
+html.crozzo-touch-shell .modal-overlay.active,
+html.crozzo-touch-shell .modal-overlay.modal-overlay--stack-top.active,
+html.crozzo-android-apk .modal-overlay.active {
+  z-index: 10150 !important;
+  pointer-events: auto !important;
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal-head .modal-title {
+  margin-bottom: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.crozzo-modal-close {
+  flex-shrink: 0;
+  min-width: var(--crozzo-touch-btn-min, 44px);
+  min-height: var(--crozzo-touch-btn-min, 44px);
+  width: var(--crozzo-touch-btn-min, 44px);
+  height: var(--crozzo-touch-btn-min, 44px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto !important;
+}
+
+.crozzo-modal-close:active {
+  background: var(--accent-08, var(--bg-secondary));
+}
+
 .modal {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -19593,6 +19637,8 @@ html.crozzo-touch-shell .sidebar-backdrop {
 
 html.crozzo-touch-shell .sidebar-backdrop.active {
   z-index: 210;
+  pointer-events: auto !important;
+  touch-action: manipulation;
 }
 
 html.crozzo-touch-shell #sidebar.open,

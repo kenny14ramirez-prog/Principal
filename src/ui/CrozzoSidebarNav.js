@@ -35,7 +35,9 @@
     if (!sb) return;
     clearHoverTimers();
     sb.classList.add('crozzo-drawer-nav');
+    sb.classList.remove('open');
     setSidebarExpanded(true, false);
+    if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.style.display = 'none';
