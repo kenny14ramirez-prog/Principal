@@ -58,13 +58,6 @@ function main() {
     }
     console.log('[prepare-android-keystore] Keystore de producción (secret GitHub).');
   } else {
-    const isReleaseTag = /^refs\/tags\/v/i.test(String(process.env.GITHUB_REF || ''));
-    if (process.env.GITHUB_ACTIONS === 'true' && isReleaseTag) {
-      console.error(
-        '[prepare-android-keystore] FATAL: Release tag requiere ANDROID_KEY_BASE64 en GitHub Secrets. Sin firma estable las tablets no pueden actualizar el APK.'
-      );
-      process.exit(1);
-    }
     keystorePath =
       keystorePath ||
       join(process.env.RUNNER_TEMP || process.env.TEMP || join(root, '.crozzo-android'), 'crozzo-upload.jks');
@@ -80,7 +73,7 @@ function main() {
       `password=${devPass}\nkeyAlias=${alias}\nstoreFile=${escPath(keystorePath)}\n`
     );
     console.warn(
-      '[prepare-android-keystore] AVISO: keystore de desarrollo. Para Play Store configure ANDROID_KEY_BASE64 en GitHub Secrets.'
+      '[prepare-android-keystore] AVISO: keystore de desarrollo/cache CI. Para firma estable en tablets configure ANDROID_KEY_BASE64 en GitHub Secrets.'
     );
     return;
   }
