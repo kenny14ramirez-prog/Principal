@@ -59,7 +59,7 @@
     }
     if (dlBtn) {
       if (apk) {
-        dlBtn.textContent = '🔄 QR — Actualizar esta app';
+        dlBtn.textContent = '⬆ Actualizar app automáticamente';
         dlBtn.classList.add('login-action-secondary');
       } else {
         dlBtn.textContent = '📱 QR — Descargar app actualizada';

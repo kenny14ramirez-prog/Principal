@@ -446,11 +446,15 @@
     var TU = global.CrozzoTauriUpdater;
     var kind = TU && TU.getClientKind ? TU.getClientKind() : 'web';
     var canAutoInstall =
-      TU &&
-      TU.canUseTauriUpdater &&
-      TU.canUseTauriUpdater() &&
-      TU.isAvailable &&
-      TU.isAvailable();
+      (TU &&
+        TU.canUseTauriUpdater &&
+        TU.canUseTauriUpdater() &&
+        TU.isAvailable &&
+        TU.isAvailable()) ||
+      (kind === 'android' &&
+        TU &&
+        TU.canUseAndroidInAppUpdater &&
+        TU.canUseAndroidInAppUpdater());
     var assetKind =
       TU && TU.getPlatformAssetKind ? TU.getPlatformAssetKind() : kind === 'android' || kind === 'android-web'
         ? 'apk'
@@ -1818,9 +1822,11 @@
       if (lead) {
         lead.textContent =
           errMsg ||
-          (profile.isAndroid
-            ? 'Pulse «Instalar ahora» para descargar el APK o recargar la interfaz si usa navegador.'
-            : profile.isDesktopBinary
+          (profile.kind === 'android'
+            ? 'La app descargará e instalará la actualización. Confirme «Actualizar» cuando Android lo pida (un solo toque).'
+            : profile.isAndroid
+              ? 'Pulse «Instalar ahora» para recargar la interfaz en el navegador.'
+              : profile.isDesktopBinary
               ? 'Pulse «Instalar ahora». Al terminar, Crozzo POS se reiniciará automáticamente.'
               : 'Pulse «Instalar ahora» para recargar la app con la versión nueva del servidor.');
       }
@@ -1830,7 +1836,7 @@
       }
       if (retry) retry.style.display = 'none';
       var planBIdle = document.getElementById('crozzoUpdateCriticalPlanB');
-      if (planBIdle) planBIdle.style.display = profile.isAndroid ? 'inline-flex' : 'none';
+      if (planBIdle) planBIdle.style.display = profile.kind === 'android-web' ? 'inline-flex' : 'none';
     } else if (state === 'installing') {
       if (badge) {
         badge.className = 'crozzo-update-critical-modal__badge';
@@ -2253,6 +2259,21 @@
     if (profile.kind === 'android-web') {
       return applyWebClientUpdate(targetVersion, onProgress);
     }
+    if (TU && typeof TU.installApkAutomatic === 'function' && TU.canUseAndroidInAppUpdater()) {
+      return TU.installApkAutomatic({
+        targetVersion: targetVersion,
+        onProgress: onProgress,
+      }).then(function (res) {
+        if (res && res.plan === 'android_apk') {
+          appendLocalLog('apk_install_intent', {
+            version: targetVersion || VERSION_AVAIL,
+            type: 'android',
+            message: res.localPath || res.downloadUrl || '',
+          });
+        }
+        return res;
+      });
+    }
     if (onProgress) {
       onProgress({
         phase: 'probe',
@@ -2565,7 +2586,7 @@
 
   function shouldDeferCriticalAutoOnBoot(profile) {
     if (!profile) return true;
-    return profile.kind === 'android' || profile.kind === 'android-web';
+    return profile.kind === 'android-web' || profile.kind === 'ios-web';
   }
 
   /** Tras login: instalar críticas pendientes (paridad tauri dev — no bloquear arranque). */
@@ -2831,6 +2852,17 @@
             'Descarga del APK iniciada. Instálelo desde el navegador y vuelva a abrir Crozzo POS.'
           );
           setCheckStatus('Instale el APK descargado para completar la actualización.');
+          return res;
+        }
+        if (res && res.plan === 'android_apk') {
+          _criticalAutoAttempts = 0;
+          _criticalInstallState = 'success';
+          setCriticalOpen(true);
+          populateCriticalInfo(
+            'success',
+            'Actualización descargada. Confirme «Actualizar» en la pantalla del sistema Android.'
+          );
+          setCheckStatus('Tras instalar, abra de nuevo Crozzo POS.');
           return res;
         }
         return refreshBinaryVersion().then(function () {
@@ -3921,6 +3953,49 @@
   global.crozzoUpdateCopyManualLink = crozzoUpdateCopyManualLink;
   global.crozzoUpdateOpenReleasePage = crozzoUpdateOpenReleasePage;
   global.crozzoDismissUpdateOverlay = dismissInstallOverlayAndContinue;
+  function crozzoTriggerAppUpdate() {
+    var TU = global.CrozzoTauriUpdater;
+    if (TU && typeof TU.canUseAndroidInAppUpdater === 'function' && TU.canUseAndroidInAppUpdater()) {
+      return refreshBinaryVersion()
+        .then(function () {
+          return fetchRegistryData();
+        })
+        .then(function (data) {
+          _registryEntries = sortEntriesForProcess(normalizeRegistryEntries(data));
+          global.CROZZO_UPDATE_REGISTRY = _registryEntries.slice();
+          applyAvailabilityFromRegistry(_registryEntries);
+          var pending = _registryEntries.filter(entryIsPending);
+          var entry =
+            pickNextPendingEntry(pending.filter(isCriticalEntry)) || pickNextPendingEntry(pending);
+          if (entry) {
+            return beginCriticalEntryInstall(entry, {
+              returnPromise: true,
+              forceAuto: true,
+              skipInfoDelay: true,
+            });
+          }
+          if (typeof global.showToast === 'function') {
+            global.showToast('Ya tiene la versión más reciente instalada.', 'info');
+          }
+          return { upToDate: true };
+        })
+        .catch(function (err) {
+          if (typeof global.showToast === 'function') {
+            global.showToast(
+              err && err.message ? err.message : 'No se pudo comprobar actualizaciones.',
+              'error'
+            );
+          }
+        });
+    }
+    if (typeof global.crozzoOpenAppDownloadQr === 'function') {
+      global.crozzoOpenAppDownloadQr();
+      return Promise.resolve();
+    }
+    return Promise.resolve();
+  }
+
+  global.crozzoTriggerAppUpdate = crozzoTriggerAppUpdate;
   global.checkForUpdates = checkForUpdates;
   global.crozzoWhenBootUpdatesReady = crozzoWhenBootUpdatesReady;
   global.startCrozzoUpdateChecks = startCrozzoUpdateChecks;

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-crozzo-android-install"
+description = "Descarga in-app de APK para actualizaciones Android"
+commands.allow = ["crozzo_android_download_apk", "crozzo_android_probe_updater"]

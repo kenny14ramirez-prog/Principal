@@ -8228,6 +8228,16 @@ const SUPERADMIN_PAGES = new Set([
 ]);
 /** Pantallas accesibles sin sesión POS (pedidos internos, marcación, inicio). */
 const CROZZO_GUEST_PUBLIC_PAGES = new Set(['inicio-operacion', 'pedidos-internos', 'control-acceso']);
+/** Punto de venta completo, facturas y clientes FE: no van en móvil/tablet ni en rol B (salvo admin). */
+const CROZZO_FIELD_HIDDEN_VENTAS_PAGES = new Set(['cajero', 'facturas', 'caja-clientes']);
+/** En modo facturación SIMPLE ocultamos DIAN / certificado / proveedor / multi-dispositivo avanzado / auditoría fiscal completa. */
+const OPERACION_SIMPLE_HIDDEN_PAGES = new Set([
+  'config-dian',
+  'config-certificado',
+  'config-proveedor',
+  'config-multidispositivo',
+  'auditoria'
+]);
 /** data-page → id de menú para perfiles (Gestión de Perfiles y Menús). */
 const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'inicio-operacion': 'inicio-operacion',
@@ -9726,14 +9736,6 @@ window.crozzoBrandHasImageSrc = crozzoBrandHasImageSrc;
 window.crozzoResolvePlatformBranding = crozzoResolvePlatformBranding;
 window.getCrozzoBranding = getCrozzoBranding;
 window.setCrozzoBranding = setCrozzoBranding;
-/** En modo facturación SIMPLE ocultamos DIAN / certificado / proveedor / multi-dispositivo avanzado / auditoría fiscal completa. */
-const OPERACION_SIMPLE_HIDDEN_PAGES = new Set([
-  'config-dian',
-  'config-certificado',
-  'config-proveedor',
-  'config-multidispositivo',
-  'auditoria'
-]);
 function crozzoIsPlanillaPage(page) {
   return page === 'planilla-2026' || page === 'nomina-planilla';
 }
@@ -9774,8 +9776,6 @@ function pageBlockedByOperacionModo(page) {
     return false;
   }
 }
-/** Punto de venta completo, facturas y clientes FE: no van en móvil/tablet ni en rol B (salvo admin). */
-const CROZZO_FIELD_HIDDEN_VENTAS_PAGES = new Set(['cajero', 'facturas', 'caja-clientes']);
 function crozzoIsTauriDesktopUi() {
   try {
     if (typeof crozzoIsTauriDesktopShell === 'function') return crozzoIsTauriDesktopShell();

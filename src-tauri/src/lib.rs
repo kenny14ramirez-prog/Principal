@@ -15,6 +15,8 @@ mod dian_adquiriente;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_vpfe;
 mod webview_permissions;
+#[cfg(target_os = "android")]
+mod crozzo_android_install;
 
 #[cfg(desktop)]
 use tauri::Manager;
@@ -45,6 +47,12 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_android_package_install::init())
+                    .map_err(|e| e.to_string())?;
+            }
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::init_from_env();
             #[cfg(desktop)]
@@ -84,6 +92,10 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::probe_platform_installer,
             webview_permissions::cxf_reset_webview_camera_permission,
+            #[cfg(target_os = "android")]
+            crozzo_android_install::crozzo_android_download_apk,
+            #[cfg(target_os = "android")]
+            crozzo_android_install::crozzo_android_probe_updater,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_vpfe::fetch_dian_vpfe,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

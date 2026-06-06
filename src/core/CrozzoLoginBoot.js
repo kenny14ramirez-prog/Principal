@@ -152,7 +152,9 @@
       apkQrBtn._crozzoBound = true;
       apkQrBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        if (typeof global.crozzoOpenAppDownloadQr === 'function') {
+        if (typeof global.crozzoTriggerAppUpdate === 'function') {
+          global.crozzoTriggerAppUpdate();
+        } else if (typeof global.crozzoOpenAppDownloadQr === 'function') {
           global.crozzoOpenAppDownloadQr();
         } else if (typeof global.crozzoDownloadLatestApk === 'function') {
           global.crozzoDownloadLatestApk();

@@ -157,6 +157,10 @@ jobs:
         if: matrix.android
         run: node scripts/patch-android-signing.mjs
 
+      - name: Parchear instalación APK in-app
+        if: matrix.android
+        run: node scripts/patch-android-apk-install.mjs
+
       - name: Compilar ${{ matrix.label }} y publicar release
         if: ${{ !matrix.android }}
         uses: tauri-apps/tauri-action@v0

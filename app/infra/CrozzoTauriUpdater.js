@@ -77,6 +77,93 @@
     return !isAndroidTablet();
   }
 
+  function canUseAndroidInAppUpdater() {
+    return isTauri() && isAndroidTablet();
+  }
+
+  function invokeAndroidPackageInstall(installPath) {
+    return invoke('plugin:android-package-install|requestPermissions', {})
+      .catch(function () {
+        return null;
+      })
+      .then(function () {
+        return invoke('plugin:android-package-install|install', { installPath: installPath });
+      });
+  }
+
+  /**
+   * Descarga APK desde GitHub e abre el instalador del sistema (un toque del usuario en Android).
+   */
+  function installApkAutomatic(opts) {
+    opts = opts || {};
+    var onProgress = opts.onProgress || function () {};
+    var targetVersion = opts.targetVersion ? normVersion(opts.targetVersion) : '';
+    if (!canUseAndroidInAppUpdater()) {
+      return Promise.reject(new Error('Instalador in-app solo en la app Android (APK).'));
+    }
+    return getAppVersion().then(function (current) {
+      if (targetVersion && current && compareSemver(targetVersion, current) <= 0) {
+        return { installed: false, upToDate: true, current: current, plan: 'none' };
+      }
+      onProgress({ phase: 'probe', percent: 8, message: 'Buscando APK en GitHub…' });
+      return resolveBestApkUrl(targetVersion).then(function (info) {
+        var apkUrl =
+          info && info.downloadUrl && /\.apk(\?|$)/i.test(info.downloadUrl) ? info.downloadUrl : '';
+        if (!apkUrl) {
+          return Promise.reject(
+            new Error('El APK aún no está en GitHub. Espere a que termine la compilación Android.')
+          );
+        }
+        onProgress({
+          phase: 'download',
+          percent: 22,
+          message: info.verified
+            ? 'Descargando actualización verificada…'
+            : 'Descargando actualización…',
+        });
+        return invoke('crozzo_android_download_apk', { url: apkUrl })
+          .then(function (localPath) {
+            if (!localPath) {
+              return Promise.reject(new Error('No se pudo guardar el APK en el dispositivo.'));
+            }
+            onProgress({
+              phase: 'install',
+              percent: 88,
+              message: 'Abriendo instalador del sistema… Confirme «Actualizar».',
+            });
+            return invokeAndroidPackageInstall(localPath).then(function () {
+              return {
+                installed: true,
+                plan: 'android_apk',
+                version: targetVersion || info.version,
+                downloadUrl: apkUrl,
+                localPath: localPath,
+                needsManualInstall: false,
+                awaitingSystemConfirm: true,
+              };
+            });
+          })
+          .catch(function (nativeErr) {
+            onProgress({
+              phase: 'fallback',
+              percent: 70,
+              message: 'Reintentando descarga externa…',
+            });
+            return openExternalUrl(apkUrl).then(function (ok) {
+              if (!ok) return Promise.reject(nativeErr || new Error('No se pudo instalar el APK.'));
+              return {
+                installed: false,
+                plan: 'apk_download',
+                version: targetVersion || info.version,
+                downloadUrl: apkUrl,
+                needsManualInstall: true,
+              };
+            });
+          });
+      });
+    });
+  }
+
   /** Escritorio: ON por defecto en producción; opt-out con localStorage crozzo_ota_auto=0. */
   function isDesktopBinaryInstallAllowed(opts) {
     opts = opts || {};
@@ -685,6 +772,7 @@
     var ver = semverCore(targetVersion);
     if (!ver) return '';
     var candidates = [
+      PRODUCT_NAME + '_' + ver + '_arm64.apk',
       PRODUCT_NAME + '_' + ver + '_aarch64.apk',
       PRODUCT_NAME + '_' + ver + '_arm64-v8a.apk',
       PRODUCT_NAME + '_' + ver + '.apk',
@@ -1444,6 +1532,8 @@
   global.CrozzoTauriUpdater = {
     isAvailable: isTauri,
     canUseTauriUpdater: canUseTauriUpdater,
+    canUseAndroidInAppUpdater: canUseAndroidInAppUpdater,
+    installApkAutomatic: installApkAutomatic,
     getClientKind: getClientKind,
     getPlatformAssetKind: getPlatformAssetKind,
     platformArtifactLabel: platformArtifactLabel,
