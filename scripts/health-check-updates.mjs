@@ -72,6 +72,8 @@ reqFile('scripts/lib/release-artifact-checks.mjs');
 reqFile('scripts/lib/update-audit-static.mjs');
 reqFile('scripts/audit-updates-full.mjs');
 reqFile('scripts/pre-release-updates.mjs');
+reqFile('scripts/updates-guard.mjs');
+reqFile('docs/ACTUALIZACIONES-PILAR.md');
 reqFile('docs/TAURI_UPDATER.md');
 reqFile('.github/workflows/tauri-release.yml');
 const releaseYml = join(root, '.github/workflows/release.yml');
@@ -227,6 +229,7 @@ if (errors.length) {
 console.log('  Resultado: OK — cadena local de actualizaciones configurada.');
 console.log('');
 console.log('  Checklist completo:     npm run updates:pre-release');
+console.log('  Guardia rápida (local): npm run updates:guard');
 console.log('  Tras CI / tag:          npm run updates:post-release -- vX.Y.Z');
 console.log('  Simular OTA:            npm run updates:simulate -- v1.0.0 v1.0.36');
 console.log('');

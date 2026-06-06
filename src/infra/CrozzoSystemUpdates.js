@@ -88,7 +88,7 @@
     summary: '',
     changes: [],
     notes:
-      'La instalación reiniciará la aplicación en este equipo. Se recomienda hacerlo al cierre del turno o con la caja sin ventas en curso.',
+      'Al actualizar, Crozzo POS se reiniciará automáticamente. Hágalo con la caja sin ventas en curso.',
   };
 
   var UPDATE_CRITICAL_INSTALLED = {
@@ -496,6 +496,20 @@
 
   function getPlatformUpdateDescriptor() {
     return getUpdateClientProfile().artifactLabel || 'este equipo';
+  }
+
+  function desktopRestartNotice() {
+    var profile = getUpdateClientProfile();
+    if (profile.isDesktopBinary) {
+      return (
+        'Al actualizar, Crozzo POS se reiniciará automáticamente con la versión nueva. ' +
+        'No cierre la ventana manualmente; espere a que vuelva a abrir sola.'
+      );
+    }
+    if (profile.isAndroid) {
+      return 'Descargará el APK o recargará la interfaz. Siga las instrucciones en pantalla.';
+    }
+    return 'La aplicación se recargará con la versión nueva del servidor.';
   }
 
   /** Perfil operativo + rol: adapta tono del aviso (simulación E1 — equipo inexperto). */
@@ -1598,11 +1612,16 @@
     }
     if (sub) {
       if (_installUi.state === 'success') {
-        sub.textContent = 'La nueva versión está lista. La aplicación se reiniciará en un momento.';
+        sub.textContent = 'Actualización lista. Crozzo POS se reiniciará automáticamente en un momento.';
       } else if (_installUi.state === 'error') {
         sub.textContent = 'Revise la conexión o espere a que GitHub Actions termine de compilar el release.';
+      } else if (_installUi.phase === 'relaunch') {
+        sub.textContent = 'Reiniciando Crozzo POS con la versión nueva…';
+      } else if (getUpdateClientProfile().isDesktopBinary) {
+        sub.textContent =
+          'Al terminar, la aplicación se cerrará y volverá a abrir sola. No la cierre manualmente.';
       } else {
-        sub.textContent = 'No cierre la aplicación. Todo ocurre dentro de Crozzo POS, sin asistentes externos.';
+        sub.textContent = 'No cierre la aplicación hasta que termine la actualización.';
       }
     }
     var brandEl = document.getElementById('crozzoUpdateInstallBrand');
@@ -1775,8 +1794,8 @@
       if (title) title.textContent = 'Actualización crítica obligatoria';
       if (lead) {
         lead.textContent =
-          'Esta versión se instalará automáticamente al iniciar la aplicación. ' +
-          'Es solo informativo: no tiene que pulsar nada. Mantenga Crozzo POS abierto.';
+          desktopRestartNotice() +
+          ' Mantenga Crozzo POS abierto hasta que termine el reinicio.';
       }
       if (dismiss) {
         dismiss.disabled = true;
@@ -1802,7 +1821,7 @@
           (profile.isAndroid
             ? 'Pulse «Instalar ahora» para descargar el APK o recargar la interfaz si usa navegador.'
             : profile.isDesktopBinary
-              ? 'Pulse «Instalar ahora» para descargar e instalar la nueva versión en este equipo.'
+              ? 'Pulse «Instalar ahora». Al terminar, Crozzo POS se reiniciará automáticamente.'
               : 'Pulse «Instalar ahora» para recargar la app con la versión nueva del servidor.');
       }
       if (dismiss) {
@@ -1821,7 +1840,7 @@
       if (lead) {
         lead.textContent = _installUi.message
           ? _installUi.message
-          : 'Descargando e instalando en este equipo. No cierre la aplicación.';
+          : desktopRestartNotice();
       }
       if (dismiss) {
         dismiss.disabled = true;

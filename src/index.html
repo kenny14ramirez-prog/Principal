@@ -11,8 +11,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.72">
-<meta name="crozzo-build-stamp" content="2026-06-05T23:18:53.368Z">
+<meta name="crozzo-app-version" content="1.0.73">
+<meta name="crozzo-build-stamp" content="2026-06-06T01:34:48.083Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -337,6 +337,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="config-seguridad" data-menu="config-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="nav-item-label">Sesión y acceso</span></div></li>
             <li><div class="nav-item menu-item super-admin-only" data-page="gestion-perfiles-menus" data-menu="gestion-perfiles" data-section="gestion-perfiles" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="sliders-horizontal"></i></span><span class="nav-item-label">Perfiles y menús</span></div></li>
             <li><div class="nav-item menu-item super-admin-only" data-page="auditoria" data-menu="auditoria" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Auditoría (eventos)</span></div></li>
+            <li class="crozzo-lab-nav-li" hidden><div class="nav-item menu-item crozzo-lab-nav-item" id="nav-laboratorio-admin" data-page="laboratorio-admin" data-menu="laboratorio-admin" role="button" tabindex="0" title="Laboratorio (Ctrl+Shift+L)"><span class="nav-icon" aria-hidden="true"><i data-lucide="flask-conical"></i></span><span class="nav-item-label">Lab</span></div></li>
           </ul>
         </li>
       </ul>
@@ -720,8 +721,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-arqueo-wizard__step"><span>2</span> Confirmar</div>
     </div>
     <div class="crozzo-shift-step is-active" id="crozzo-shift-step1">
+      <div id="crozzo-arqueo-mode-banner" hidden></div>
       <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-dialog-title">Arqueo de caja</h3>
-      <p class="form-hint crozzo-arqueo-hint">Cuente el efectivo físico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
+      <p class="form-hint crozzo-arqueo-hint" id="crozzo-arqueo-dialog-hint">Cuente el efectivo físico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
       <div class="crozzo-arqueo-type-grid" role="radiogroup" aria-label="Tipo de cierre">
         <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="manana" checked><span class="crozzo-arqueo-type__icon"><i data-lucide="sunrise"></i></span><span class="crozzo-arqueo-type__lbl">Mañana</span></label>
         <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="tarde"><span class="crozzo-arqueo-type__icon"><i data-lucide="sunset"></i></span><span class="crozzo-arqueo-type__lbl">Tarde</span></label>
@@ -740,12 +742,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
     </div>
     <div class="crozzo-shift-step" id="crozzo-shift-step2">
-      <h3 class="modal-title crozzo-arqueo-title">Confirmar cierre</h3>
+      <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-step2-title">Confirmar cierre</h3>
       <div class="crozzo-shift-summary crozzo-shift-summary--final" id="crozzo-shift-final"></div>
-      <label class="form-label" for="crozzo-shift-notes">Notas del cierre</label>
+      <label class="form-label" for="crozzo-shift-notes" id="crozzo-arqueo-notes-label">Notas del cierre</label>
       <textarea class="crozzo-shift-input crozzo-shift-notes-input" id="crozzo-shift-notes" rows="3" placeholder="Explique faltantes, sobrantes o incidencias…"></textarea>
       <div class="crozzo-arqueo-actions">
-        <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" onclick="crozzoShiftFinalize()"><i data-lucide="shield-check"></i> Confirmar y guardar</button>
+        <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" id="crozzo-arqueo-confirm-btn" onclick="crozzoShiftFinalize()"><i data-lucide="shield-check"></i> Confirmar y guardar</button>
         <button type="button" class="btn btn-outline" onclick="crozzoShiftArqueoGoStep(1)"><i data-lucide="arrow-left"></i> Volver al conteo</button>
       </div>
     </div>
@@ -772,7 +774,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <div class="crozzo-update-critical-modal">
     <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true">🔒 Crítica</span>
     <h2 id="crozzoUpdateCriticalTitle">Actualización crítica obligatoria</h2>
-    <p id="crozzoUpdateCriticalLead">Esta versión se instalará automáticamente al iniciar. Mantenga la aplicación abierta.</p>
+    <p id="crozzoUpdateCriticalLead">Al actualizar, Crozzo POS se reiniciará automáticamente con la versión nueva. No cierre la ventana hasta que termine.</p>
     <ul class="crozzo-update-critical-modal__list" id="crozzoUpdateCriticalList"></ul>
     <p class="crozzo-update-critical-modal__version" id="crozzoUpdateCriticalVersion"></p>
     <button type="button" class="btn btn-outline" id="crozzoUpdateCriticalRetry" style="display:none;margin-bottom:8px;">Reintentar instalación</button>
@@ -886,6 +888,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   </div>
 </div>
 <script src="modules/CrozzoCierreTurnos.js"></script>
+<script src="core/CrozzoLaboratorioCore.js"></script>
+<script src="modules/CrozzoLaboratorio.js"></script>
 <script src="core/CrozzoRecepcionBridge.js"></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>

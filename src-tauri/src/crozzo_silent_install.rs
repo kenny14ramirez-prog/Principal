@@ -92,8 +92,9 @@ pub fn install_setup_from_url(url: String) -> Result<(), String> {
 
     #[cfg(windows)]
     {
+        // /S silencioso · /R reinicia la app al terminar · /UPDATE modo actualización in-place (Tauri NSIS)
         std::process::Command::new(&tmp)
-            .arg("/S")
+            .args(["/S", "/R", "/UPDATE"])
             .spawn()
             .map_err(|e| format!("No se pudo ejecutar instalador: {e}"))?;
         return Ok(());
@@ -199,6 +200,11 @@ pub fn install_dmg_from_url(url: String) -> Result<(), String> {
             .status();
 
         let _ = std::fs::remove_file(&dmg_path);
+
+        let _ = Command::new("open")
+            .arg("-a")
+            .arg(&dest)
+            .spawn();
 
         return Ok(());
     }

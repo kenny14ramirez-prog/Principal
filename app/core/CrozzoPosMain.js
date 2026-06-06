@@ -8218,7 +8218,8 @@ const SUPERADMIN_PAGES = new Set([
   'super-admin-identidad',
   'actualizaciones-sistema',
   'config-seguridad',
-  'gestion-perfiles-menus'
+  'gestion-perfiles-menus',
+  'laboratorio-admin'
 ]);
 /** Pantallas accesibles sin sesión POS (pedidos internos, marcación, inicio). */
 const CROZZO_GUEST_PUBLIC_PAGES = new Set(['inicio-operacion', 'pedidos-internos', 'control-acceso']);
@@ -8257,6 +8258,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'super-admin-identidad': 'identidad-logos',
   'actualizaciones-sistema': 'actualizaciones-sistema',
   'config-seguridad': 'config-sistema',
+  'laboratorio-admin': 'laboratorio-admin',
   'gestion-perfiles-menus': 'gestion-perfiles',
   tablets: 'tablets',
   cocina: 'cocina',
@@ -8810,6 +8812,14 @@ function renderMenusByRole(role, perfilEmpresa) {
       item.style.opacity = '1';
     });
     crozzoForceSuperAdminVisibility();
+    if (typeof crozzoLabSyncNavVisibility === 'function') crozzoLabSyncNavVisibility();
+    /* Lab oculto para operación: no forzar visible con el barrido super-admin. */
+    var labNav = document.getElementById('nav-laboratorio-admin');
+    if (labNav && typeof crozzoLabCanAccessRole === 'function' && !crozzoLabCanAccessRole()) {
+      var labLi = labNav.closest('li');
+      if (labLi) labLi.hidden = true;
+      labNav.style.display = 'none';
+    }
     console.log('✅ Super Admin: todos los menús visibles');
     return;
   }
@@ -8833,6 +8843,7 @@ function renderMenusByRole(role, perfilEmpresa) {
       window.__crozzoSkipMenuRoleFilter = prev;
     }
   }
+  if (typeof crozzoLabSyncNavVisibility === 'function') crozzoLabSyncNavVisibility();
 }
 function crozzoFixHiddenMenuItems() {
   if (typeof isSuperAdminUser === 'function' && !isSuperAdminUser()) return;
@@ -10467,6 +10478,9 @@ window.crozzoHasCajaPermiso = crozzoHasCajaPermiso;
 window.crozzoCanClearFacturasHistorial = crozzoCanClearFacturasHistorial;
 // Devuelve true si el usuario actual puede ver/usar una página.
 function currentUserCanSeePage(page) {
+  if (page === 'laboratorio-admin') {
+    return typeof crozzoLabCanAccessRole === 'function' && crozzoLabCanAccessRole();
+  }
   if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
     return crozzoHpCanSeePage(page);
   }
@@ -10812,6 +10826,15 @@ window.crozzoUpdatePremiumIdentity = crozzoUpdatePremiumIdentity;
 /** Misma política de acceso que navigateTo — evita bypass vía renderPage() desde consola. */
 function crozzoAssertPageAccess(page) {
   if (!page) return { ok: false, reason: 'invalid' };
+  if (page === 'laboratorio-admin') {
+    if (typeof crozzoLabCanAccessRole !== 'function' || !crozzoLabCanAccessRole()) {
+      return { ok: false, reason: 'perm' };
+    }
+    if (typeof crozzoLabIsSessionUnlocked === 'function' && !crozzoLabIsSessionUnlocked()) {
+      return { ok: false, reason: 'lab_pin' };
+    }
+    return { ok: true };
+  }
   if (crozzoHasKennySessionFast()) return { ok: true };
   if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return { ok: true };
   if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
@@ -10846,6 +10869,16 @@ function crozzoAssertPageAccess(page) {
 window.crozzoAssertPageAccess = crozzoAssertPageAccess;
 function navigateTo(page) {
   if (typeof crozzoResolveMenuPageId === 'function') page = crozzoResolveMenuPageId(page);
+  if (page === 'laboratorio-admin') {
+    if (typeof crozzoLabCanAccessRole === 'function' && !crozzoLabCanAccessRole()) {
+      if (typeof showToast === 'function') showToast('Solo administradores y super administradores.', 'warning');
+      return;
+    }
+    if (typeof crozzoLabIsSessionUnlocked === 'function' && !crozzoLabIsSessionUnlocked()) {
+      if (typeof crozzoLabOpenGate === 'function') crozzoLabOpenGate();
+      return;
+    }
+  }
   const hpLiveNav = window.__crozzoHoneypotLive;
   if (typeof crozzoHpIsTrapOnlyPage === 'function' && crozzoHpIsTrapOnlyPage(page) && !(hpLiveNav && hpLiveNav.active)) {
     if (typeof showToast === 'function') {
@@ -11058,6 +11091,7 @@ function navigateTo(page) {
     'super-admin-identidad': ['Identidad y logos', 'BONA origen (plataforma) y logo de tu empresa: imágenes, tamaños y animaciones del chrome'],
     'actualizaciones-sistema': ['Actualizaciones del sistema', 'Versiones, parches críticos y notificaciones de nueva versión'],
     'config-seguridad': ['Sesión y acceso', 'Login al iniciar, sesión activa y respaldo local (Super Admin)'],
+    'laboratorio-admin': ['Laboratorio', 'Emulación, topes ocultos y vista operativa (PIN)'],
     'gestion-perfiles-menus': ['Gestión de Perfiles y Menús', 'Perfil de empresa y visibilidad de módulos por rol'],
     'auditoria': ['Auditoría', 'Registro de cambios en la configuración fiscal'],
     'catalogo-mp': ['Catálogo · materias primas', 'Insumos, proveedores y recetas'],
@@ -11460,6 +11494,13 @@ function renderPage(page) {
           ? CrozzoCierreTurnos.renderPage()
           : '<div class="card"><p class="page-subtitle">Módulo de cierre de caja no disponible. Recargue la aplicación.</p></div>';
       initCierreCaja();
+      break;
+    case 'laboratorio-admin':
+      content.innerHTML =
+        window.CrozzoLaboratorio && typeof CrozzoLaboratorio.renderPage === 'function'
+          ? CrozzoLaboratorio.renderPage()
+          : '<div class="card"><p class="page-subtitle">Laboratorio no disponible. Recargue la aplicación.</p></div>';
+      if (window.CrozzoLaboratorio && typeof CrozzoLaboratorio.initPage === 'function') CrozzoLaboratorio.initPage();
       break;
     case 'comandas': content.innerHTML = renderComandas(); initComandas(); break;
     case 'cocina': content.innerHTML = renderCocina(); initCocina(); break;

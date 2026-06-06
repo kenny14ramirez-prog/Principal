@@ -626,14 +626,11 @@
             onProgress({
               phase: 'install',
               percent: 96,
-              message: 'Instalador en ejecución. La app se cerrará y abrirá la versión nueva…',
+              message:
+                'Instalando… Crozzo POS se cerrará y volverá a abrir solo con la versión nueva.',
             });
           }
-          return delay(2500).then(function () {
-            return invoke('plugin:process|exit', { code: 0 }).catch(function () {
-              return { installed: true, version: ver, plan: 'C', exiting: true };
-            });
-          });
+          return finishUpdateRelaunch(onProgress, ver, 'C');
         });
     });
   }
@@ -648,6 +645,22 @@
     return delay(600).then(function () {
       return invoke('plugin:process|restart', {}).catch(function () {
         return invoke('plugin:process|exit', { code: 0 });
+      });
+    });
+  }
+
+  /** Tras instalar: NSIS /R suele reabrir solo; si no, restart del proceso. */
+  function finishUpdateRelaunch(onProgress, ver, plan) {
+    if (onProgress) {
+      onProgress({
+        phase: 'relaunch',
+        percent: 98,
+        message: 'Actualización lista. Crozzo POS se reiniciará automáticamente…',
+      });
+    }
+    return delay(1200).then(function () {
+      return relaunchApp().then(function () {
+        return { installed: true, version: ver, plan: plan || 'C', exiting: true };
       });
     });
   }
@@ -1065,14 +1078,10 @@
             onProgress({
               phase: 'install',
               percent: 96,
-              message: 'Instalación en /Applications completada. Reiniciando…',
+              message: 'Instalación completada. Crozzo POS se reiniciará automáticamente…',
             });
           }
-          return delay(1200).then(function () {
-            return invoke('plugin:process|exit', { code: 0 }).catch(function () {
-              return { installed: true, version: ver, plan: 'D', exiting: true };
-            });
-          });
+          return finishUpdateRelaunch(onProgress, ver, 'D');
         });
     });
   }
