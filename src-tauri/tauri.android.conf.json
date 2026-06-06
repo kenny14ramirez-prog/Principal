@@ -20,7 +20,7 @@
   "bundle": {
     "active": true,
     "android": {
-      "minSdkVersion": 24,
+      "minSdkVersion": 26,
       "versionCode": 10049
     }
   }
