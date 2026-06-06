@@ -206,17 +206,13 @@ pub fn install_dmg_from_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn probe_platform_installer() -> Result<String, String> {
-    #[cfg(windows)]
-    {
-        return Ok("windows-exe".into());
+    if cfg!(windows) {
+        Ok("windows-exe".into())
+    } else if cfg!(target_os = "macos") {
+        Ok("macos-dmg".into())
+    } else if cfg!(target_os = "android") {
+        Ok("android".into())
+    } else {
+        Ok("unsupported".into())
     }
-    #[cfg(target_os = "macos")]
-    {
-        return Ok("macos-dmg".into());
-    }
-    #[cfg(target_os = "android")]
-    {
-        return Ok("android".into());
-    }
-    Ok("unsupported".into())
 }
