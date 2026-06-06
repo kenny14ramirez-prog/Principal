@@ -8745,7 +8745,9 @@ function crozzoCollapseAllNavGroups() {
 function crozzoExpandAllNavGroups() {
   var sb = document.getElementById('sidebar');
   if (window.__CROZZO_IS_TAURI__ && sb && sb.classList.contains('sidebar-pro')) {
-    crozzoEnsureSidebarShellVisible();
+    if (!(typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode())) {
+      crozzoEnsureSidebarShellVisible();
+    }
     return;
   }
   document.querySelectorAll('#sidebarNav .nav-group').forEach(function (g) {
@@ -8766,12 +8768,17 @@ function crozzoExpandAllNavGroups() {
 }
 function crozzoEnsureSidebarShellVisible() {
   const sb = document.getElementById('sidebar');
-  if (sb) {
-    sb.classList.add('open');
-    sb.style.transform = 'translateX(0)';
-    sb.style.visibility = 'visible';
-    sb.style.display = 'flex';
+  if (!sb) return;
+  if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
+    sb.style.removeProperty('transform');
+    sb.style.removeProperty('visibility');
+    if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
+    return;
   }
+  sb.classList.add('open');
+  sb.style.transform = 'translateX(0)';
+  sb.style.visibility = 'visible';
+  sb.style.display = 'flex';
 }
 /** Al expandir rail: restaura grupos guardados y asegura el de la página actual. */
 function crozzoSidebarSyncNavGroupsOnExpand() {
@@ -8798,7 +8805,11 @@ function crozzoForceSuperAdminVisibility() {
   } else if (window.__CROZZO_IS_TAURI__ && document.body) {
     document.body.classList.toggle('tauri-desktop', document.documentElement.classList.contains('crozzo-form-desktop'));
   }
-  crozzoEnsureSidebarShellVisible();
+  if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
+    if (typeof crozzoCloseSidebarDrawer === 'function') crozzoCloseSidebarDrawer();
+  } else {
+    crozzoEnsureSidebarShellVisible();
+  }
   if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') {
     crozzoSidebarSyncNavGroupsOnExpand();
   } else if (typeof crozzoRestoreSidebarNavState === 'function') {
@@ -11220,7 +11231,9 @@ function navigateTo(page) {
     if (typeof crozzoUpdateGlobalStressBanner === 'function') crozzoUpdateGlobalStressBanner();
   } catch (_) {}
   try {
-    if (document.body && !document.body.classList.contains('desktop') && typeof crozzoCloseSidebarDrawer === 'function') {
+    if (document.body && typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode() && typeof crozzoCloseSidebarDrawer === 'function') {
+      crozzoCloseSidebarDrawer();
+    } else if (document.body && !document.body.classList.contains('desktop') && typeof crozzoCloseSidebarDrawer === 'function') {
       crozzoCloseSidebarDrawer();
     }
   } catch (_) {}
@@ -35093,12 +35106,19 @@ function crozzoSyncSidebarBackdrop() {
 function crozzoCloseSidebarDrawer() {
   const sidebar = document.getElementById('sidebar');
   const bd = document.getElementById('sidebarBackdrop');
-  if (sidebar) sidebar.classList.remove('open');
+  if (sidebar) {
+    sidebar.classList.remove('open');
+    sidebar.style.removeProperty('transform');
+    sidebar.style.removeProperty('visibility');
+  }
   if (bd) {
     bd.classList.remove('active');
     bd.setAttribute('aria-hidden', 'true');
   }
   if (document.body) document.body.classList.remove('crozzo-sidebar-drawer-open');
+  try {
+    sessionStorage.setItem('crozzo_sidebar_drawer_open', '0');
+  } catch (_) {}
 }
 function toggleSidebar() {
   if (typeof crozzoKioskIsActive === 'function' && crozzoKioskIsActive()) return;
@@ -35111,7 +35131,12 @@ function toggleSidebar() {
     crozzoSyncSidebarBackdrop();
     return;
   }
+  sidebar.style.removeProperty('transform');
+  sidebar.style.removeProperty('visibility');
   sidebar.classList.add('open');
+  try {
+    sessionStorage.setItem('crozzo_sidebar_drawer_open', '1');
+  } catch (_) {}
   if (drawerMode) {
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
@@ -35126,19 +35151,29 @@ function toggleSidebar() {
     /* ignore */
   }
 }
+function crozzoInitSidebarDrawerClosed() {
+  if (!crozzoIsSidebarDrawerMode()) return;
+  try {
+    if (sessionStorage.getItem('crozzo_sidebar_drawer_open') === '1') return;
+  } catch (_) {}
+  crozzoCloseSidebarDrawer();
+}
 window.crozzoIsSidebarDrawerMode = crozzoIsSidebarDrawerMode;
 window.crozzoCloseSidebarDrawer = crozzoCloseSidebarDrawer;
+window.crozzoInitSidebarDrawerClosed = crozzoInitSidebarDrawerClosed;
 window.toggleSidebar = toggleSidebar;
 if (document.readyState === 'loading') {
   document.addEventListener(
     'DOMContentLoaded',
     function () {
       crozzoBindSidebarBackdropClose();
+      crozzoInitSidebarDrawerClosed();
     },
     { once: true }
   );
 } else {
   crozzoBindSidebarBackdropClose();
+  crozzoInitSidebarDrawerClosed();
 }
 function crozzoUpdateMobileBottomNavActive(page) {
   const root = document.getElementById('crozzoMobileBottomNav');

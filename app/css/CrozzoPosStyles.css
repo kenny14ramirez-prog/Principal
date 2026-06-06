@@ -25560,11 +25560,25 @@ html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro {
   max-width: var(--crozzo-touch-sidebar-max, min(280px, 72vw)) !important;
 }
 
+html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro:not(.open),
+html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro:not(.open),
+html.tauri-shell.crozzo-form-mobile aside.sidebar.sidebar-pro:not(.open),
+html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro:not(.open),
+html.crozzo-touch-shell #sidebar.sidebar-pro:not(.open),
+html.crozzo-touch-shell aside.sidebar.sidebar-pro:not(.open) {
+  transform: translateX(-100%) !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+
 html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro.open,
 html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro.open,
 html.tauri-shell.crozzo-form-mobile aside.sidebar.sidebar-pro.open,
-html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro.open {
+html.tauri-shell.crozzo-form-tablet aside.sidebar.sidebar-pro.open,
+html.crozzo-touch-shell #sidebar.sidebar-pro.open,
+html.crozzo-touch-shell aside.sidebar.sidebar-pro.open {
   transform: translateX(0) !important;
+  pointer-events: auto !important;
 }
 
 html.tauri-shell.crozzo-form-mobile #sidebar.sidebar-pro + .main-content,

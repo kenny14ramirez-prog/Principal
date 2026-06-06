@@ -36,8 +36,11 @@
     clearHoverTimers();
     sb.classList.add('crozzo-drawer-nav');
     sb.classList.remove('open');
+    sb.style.removeProperty('transform');
+    sb.style.removeProperty('visibility');
     setSidebarExpanded(true, false);
     if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
+    if (typeof global.crozzoInitSidebarDrawerClosed === 'function') global.crozzoInitSidebarDrawerClosed();
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.style.display = 'none';
