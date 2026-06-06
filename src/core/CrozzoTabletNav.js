@@ -30,13 +30,37 @@
     return canSeePage('comandas') || canSeePage('cocina');
   }
 
+  function isPhoneShell() {
+    try {
+      var doc = document.documentElement;
+      if (doc.classList.contains('crozzo-form-mobile')) return true;
+      var tier = doc.getAttribute('data-crozzo-touch-tier') || '';
+      return tier === 'phone-sm' || tier === 'phone' || tier === 'phone-lg';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function isBottomNavShell() {
+    if (isPhoneShell()) return false;
+    try {
+      var doc = document.documentElement;
+      if (doc.classList.contains('crozzo-form-tablet')) return true;
+      if (doc.classList.contains('crozzo-touch-shell')) {
+        return (doc.getAttribute('data-crozzo-touch-tier') || '') === 'tablet';
+      }
+    } catch (_) {}
+    return false;
+  }
+
   function buttonAllowed(btn) {
     var nav = btn.getAttribute('data-crozzo-nav');
     var action = btn.getAttribute('data-crozzo-action');
 
     if (action === 'open-menu') return true;
     if (action === 'pantallas-kiosk') return canSeePantallasKiosk();
-    if (nav) return canSeePage(nav);
+    if (nav === 'tablets') return canSeePage('tablets');
+    if (nav === 'inicio-operacion') return canSeePage('inicio-operacion');
     return false;
   }
 
@@ -146,6 +170,24 @@
     if (!root) return;
 
     bindBottomNavOnce();
+
+    if (!isBottomNavShell()) {
+      root.style.display = 'none';
+      root.setAttribute('aria-hidden', 'true');
+      root.classList.remove('crozzo-mbn--compact');
+      root.querySelectorAll('.crozzo-mbn-btn').forEach(function (btn) {
+        btn.hidden = true;
+        btn.style.display = 'none';
+        btn.disabled = true;
+        btn.setAttribute('aria-hidden', 'true');
+      });
+      try {
+        if (global.CrozzoViewportFit && typeof global.CrozzoViewportFit.schedule === 'function') {
+          global.CrozzoViewportFit.schedule();
+        }
+      } catch (_) {}
+      return;
+    }
 
     var visible = 0;
     var shortcutCount = 0;

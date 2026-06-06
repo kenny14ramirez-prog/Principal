@@ -19591,9 +19591,19 @@ html.crozzo-form-tablet #sidebar:not(.open) {
   transform: translateX(-100%) !important;
 }
 
-html.crozzo-form-mobile .crozzo-mobile-bottom-nav,
-html.crozzo-form-tablet .crozzo-mobile-bottom-nav {
+html.crozzo-form-mobile .crozzo-mobile-bottom-nav {
+  display: none !important;
+}
+
+html.crozzo-form-tablet .crozzo-mobile-bottom-nav,
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
   display: flex !important;
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
+  display: none !important;
 }
 
 html.crozzo-form-mobile .mobile-menu-btn,
@@ -19601,7 +19611,10 @@ html.crozzo-form-tablet .mobile-menu-btn {
   display: inline-flex !important;
 }
 
-html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav,
+html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav {
+  display: none !important;
+}
+
 html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav {
   display: flex !important;
 }
@@ -19888,6 +19901,15 @@ html.crozzo-touch-shell .main-content {
   padding-bottom: calc(var(--crozzo-touch-nav-h) + var(--crozzo-safe-bottom));
 }
 
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .main-content,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .main-content,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .main-content,
+html.crozzo-form-mobile .main-content,
+html.crozzo-form-mobile .main-body,
+html.crozzo-form-mobile #mainContent {
+  padding-bottom: calc(var(--crozzo-touch-pad) + var(--crozzo-safe-bottom, 0px)) !important;
+}
+
 html.crozzo-form-tablet .main-content,
 html.crozzo-form-mobile .main-content {
   margin-left: 0 !important;
@@ -19895,10 +19917,16 @@ html.crozzo-form-mobile .main-content {
   max-width: 100% !important;
 }
 
-html.crozzo-touch-shell .crozzo-mobile-bottom-nav {
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
   display: flex !important;
   min-height: var(--crozzo-touch-nav-h);
   padding: 6px 8px calc(6px + var(--crozzo-safe-bottom));
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
+  display: none !important;
 }
 
 html.crozzo-touch-shell .crozzo-mbn-btn {

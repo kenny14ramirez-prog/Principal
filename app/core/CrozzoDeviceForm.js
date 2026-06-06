@@ -115,10 +115,27 @@
     }
   }
 
+  function readHeight() {
+    try {
+      var values = [];
+      if (global.visualViewport && global.visualViewport.height > 0) {
+        values.push(Math.round(global.visualViewport.height));
+      }
+      var docEl = document.documentElement;
+      if (docEl && docEl.clientHeight > 0) values.push(Math.round(docEl.clientHeight));
+      if (global.innerHeight > 0) values.push(Math.round(global.innerHeight));
+      return values.length ? Math.min.apply(null, values) : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   function detectFormFactor() {
     var w = readWidth();
     if (isAndroidTauriShell()) {
-      if (w <= BREAK_MOBILE) return 'mobile';
+      var h = readHeight();
+      var minSide = Math.min(w, h > 0 ? h : w);
+      if (minSide <= BREAK_PHONE_LG) return 'mobile';
       return 'tablet';
     }
     if (w <= BREAK_MOBILE) return 'mobile';
