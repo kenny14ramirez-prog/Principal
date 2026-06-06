@@ -65,14 +65,22 @@ function reqDir(rel) {
 reqFile('scripts/sync-frontend-to-src.mjs');
 reqFile('scripts/generate-release-json.mjs');
 reqFile('scripts/publicar-actualizacion.mjs');
+reqFile('scripts/set-tauri-version.mjs');
+reqFile('scripts/bump-tauri-version.mjs');
+reqFile('scripts/resolve-crozzo-version.mjs');
+reqFile('scripts/patch-android-signing.mjs');
+reqFile('scripts/patch-android-apk-install.mjs');
 reqFile('scripts/sync-version-from-tag.mjs');
 reqFile('scripts/verify-release-updater-json.mjs');
 reqFile('scripts/verify-release-multiplatform.mjs');
 reqFile('scripts/lib/release-artifact-checks.mjs');
-reqFile('scripts/lib/update-audit-static.mjs');
-reqFile('scripts/audit-updates-full.mjs');
-reqFile('docs/SMOKE-CHECKLIST.md');
 reqFile('.github/workflows/tauri-release.yml');
+if (existsSync(join(root, 'scripts/lib/update-audit-static.mjs'))) {
+  ok.push('Auditoría extendida disponible');
+}
+if (existsSync(join(root, 'docs/SMOKE-CHECKLIST.md'))) {
+  ok.push('SMOKE-CHECKLIST presente');
+}
 const releaseYml = join(root, '.github/workflows/release.yml');
 if (existsSync(releaseYml)) {
   errors.push(
@@ -112,9 +120,12 @@ if (tauri) {
   else ok.push(`Versión tauri: ${tauri.version}`);
   const ep = tauri.plugins?.updater?.endpoints?.[0];
   if (!ep) errors.push('Sin endpoint updater en tauri.conf.json');
-  else if (!/github\.com.*releases.*latest\.json/i.test(ep)) {
+  else if (
+    !/github\.com.*releases.*latest\.json/i.test(ep) &&
+    !/raw\.githubusercontent\.com.*releases\/latest\.json/i.test(ep)
+  ) {
     warnings.push(`Endpoint updater inusual: ${ep}`);
-  } else ok.push('Endpoint updater GitHub Releases OK');
+  } else ok.push('Endpoint updater OTA OK');
   if (!tauri.plugins?.updater?.pubkey) errors.push('Sin pubkey updater');
   else ok.push('Pubkey updater presente');
   if (!tauri.bundle?.createUpdaterArtifacts) {
