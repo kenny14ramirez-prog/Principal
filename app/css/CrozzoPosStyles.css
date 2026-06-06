@@ -21081,6 +21081,20 @@ body.crozzo-honeypot-real-app .app-container {
 .crozzo-kiosk-bar[hidden] {
   display: none !important;
 }
+body.crozzo-kiosk-active #mainContent,
+body.crozzo-kiosk-active .main-content,
+body.crozzo-kiosk-active .main-wrapper,
+body.crozzo-pantallas-kiosk #mainContent,
+body.crozzo-pantallas-kiosk .main-content {
+  pointer-events: auto !important;
+}
+body.crozzo-kiosk-active .crozzo-station-note,
+body.crozzo-kiosk-active .crozzo-station-note .btn,
+body.crozzo-kiosk-active .crozzo-pantallas-kiosk-setup .btn,
+body.crozzo-kiosk-active .crozzo-comandas-stations-cork .btn {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
 body.crozzo-kiosk-active .crozzo-kiosk-bar {
   display: flex;
 }

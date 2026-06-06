@@ -18,6 +18,7 @@
   var LS_SESSION_DISMISS = 'crozzo_update_session_dismiss';
   var LS_SNOOZE_UNTIL = 'crozzo_update_snooze_until';
   var LS_POST_UPDATE_WELCOME = 'crozzo_update_post_welcome';
+  var SS_ANDROID_PENDING = 'crozzo_android_pending_apk_version';
   var CHANGELOG_TAG_META = {
     FIX: { key: 'fix', label: 'Correcciones', icon: '🔧' },
     UI: { key: 'ui', label: 'Pantalla más clara', icon: '✨' },
@@ -147,18 +148,57 @@
       });
   }
 
-  function loadInstalledVersion() {
+  function readStoredInstalledVersion() {
     try {
       var v = localStorage.getItem(LS_INSTALLED);
       if (v && String(v).trim()) return String(v).trim();
     } catch (_) {}
-    var meta = readMetaBuildVersion();
-    if (meta) return meta;
-    return 'v1.0.0';
+    return null;
   }
 
+  function loadInstalledVersion() {
+    var meta = readMetaBuildVersion();
+    if (meta) return meta;
+    return readStoredInstalledVersion() || 'v1.0.0';
+  }
+
+  /** Binario del APK manda sobre localStorage (evita “versión fantasma” en Android OTA). */
   function reconcileInstalledVersion(binaryVer) {
-    return binaryVer || readMetaBuildVersion() || 'v1.0.0';
+    var binary = binaryVer ? normEntryVersion({ version: binaryVer }) : null;
+    var meta = readMetaBuildVersion();
+    var stored = readStoredInstalledVersion();
+    if (binary) {
+      if (stored && compareSemver(stored, binary) > 0) {
+        console.warn(
+          '[crozzo-updates] localStorage decía',
+          stored,
+          'pero el binario es',
+          binary,
+          '— corrigiendo'
+        );
+      }
+      return binary;
+    }
+    return meta || stored || 'v1.0.0';
+  }
+
+  function finalizeAndroidPendingInstall(installedVer) {
+    var pending = null;
+    try {
+      pending = sessionStorage.getItem(SS_ANDROID_PENDING);
+    } catch (_) {}
+    if (!pending) return;
+    var pv = normEntryVersion({ version: pending });
+    if (!pv || compareSemver(installedVer, pv) < 0) return;
+    try {
+      sessionStorage.removeItem(SS_ANDROID_PENDING);
+    } catch (_) {}
+    _registryEntries.forEach(function (entry) {
+      if (!entry) return;
+      if (compareSemver(installedVer, normEntryVersion(entry)) >= 0 && !isEntryApplied(entry)) {
+        markEntryFullyApplied(entry, installedVer, { skipAndroidGuard: true });
+      }
+    });
   }
 
   function refreshBinaryVersion() {
@@ -169,6 +209,9 @@
         localStorage.setItem(LS_INSTALLED, VERSION);
       } catch (_) {}
       syncVersionLabels();
+      if (getUpdateClientProfile().kind === 'android') {
+        finalizeAndroidPendingInstall(VERSION);
+      }
       return VERSION;
     });
   }
@@ -191,11 +234,26 @@
     }
   }
 
-  function markEntryFullyApplied(entry, targetVersion) {
+  function markEntryFullyApplied(entry, targetVersion, opts) {
+    opts = opts || {};
     if (!entry) return;
     var id = entryId(entry);
     if (!id) return;
     var tv = targetVersion ? normEntryVersion({ version: targetVersion }) : normEntryVersion(entry);
+    if (
+      tv &&
+      !opts.skipAndroidGuard &&
+      getUpdateClientProfile().kind === 'android' &&
+      compareSemver(tv, VERSION) > 0
+    ) {
+      console.warn(
+        '[crozzo-updates] no marcar',
+        tv,
+        'como instalada: binario actual',
+        VERSION
+      );
+      return;
+    }
     if (tv) {
       VERSION = tv;
       global.CROZZO_APP_VERSION = tv;
@@ -2270,6 +2328,10 @@
             type: 'android',
             message: res.localPath || res.downloadUrl || '',
           });
+          try {
+            var pendingVer = normEntryVersion({ version: targetVersion || VERSION_AVAIL });
+            if (pendingVer) sessionStorage.setItem(SS_ANDROID_PENDING, pendingVer);
+          } catch (_) {}
         }
         return res;
       });
@@ -2596,23 +2658,25 @@
 
     function tryInstallPendingCritical() {
       if (!_bootUpdatesReady || _installInProgress || _criticalInstallState === 'installing') return;
-      reconcileAppliedEntriesForVersion(VERSION);
-      var pending = (_registryEntries || []).filter(entryIsPending).filter(isCriticalEntry);
-      if (!pending.length) return;
-      var entry = pickNextPendingEntry(pending);
-      if (!entry) return;
-      var remote = normEntryVersion(entry);
-      if (compareSemver(VERSION, remote) >= 0) {
-        markEntryFullyApplied(entry, VERSION);
-        return;
-      }
-      if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
-      var profile = getUpdateClientProfile();
-      if (shouldDeferCriticalAutoOnBoot(profile)) {
-        beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
-        return;
-      }
-      scheduleCriticalInstallWhenIdle(entry);
+      refreshBinaryVersion().then(function () {
+        reconcileAppliedEntriesForVersion(VERSION);
+        var pending = (_registryEntries || []).filter(entryIsPending).filter(isCriticalEntry);
+        if (!pending.length) return;
+        var entry = pickNextPendingEntry(pending);
+        if (!entry) return;
+        var remote = normEntryVersion(entry);
+        if (compareSemver(VERSION, remote) >= 0) {
+          markEntryFullyApplied(entry, VERSION);
+          return;
+        }
+        if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
+        var profile = getUpdateClientProfile();
+        if (shouldDeferCriticalAutoOnBoot(profile)) {
+          beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
+          return;
+        }
+        scheduleCriticalInstallWhenIdle(entry);
+      });
     }
 
     global.addEventListener('crozzo:auth-ready', function () {
@@ -2878,22 +2942,37 @@
             return res;
           }
           if (res && res.upToDate) {
-            _criticalInstallState = 'success';
-            _criticalFailCount = 0;
-            cancelCriticalAutoRetry();
-            markCriticalInstalled(entry, remote);
-            setCriticalOpen(true);
-            populateCriticalInfo('success');
-            _registryEntries.forEach(function (e) {
-              if (
-                isCriticalEntry(e) &&
-                entryIsPending(e) &&
-                compareSemver(VERSION, normEntryVersion(e)) >= 0
-              ) {
-                markCriticalInstalled(e, VERSION);
-              }
-            });
-            setCheckStatus('Este equipo ya está en ' + VERSION + '.');
+            if (compareSemver(VERSION, remote) >= 0) {
+              _criticalInstallState = 'success';
+              _criticalFailCount = 0;
+              cancelCriticalAutoRetry();
+              markCriticalInstalled(entry, remote);
+              setCriticalOpen(true);
+              populateCriticalInfo('success');
+              _registryEntries.forEach(function (e) {
+                if (
+                  isCriticalEntry(e) &&
+                  entryIsPending(e) &&
+                  compareSemver(VERSION, normEntryVersion(e)) >= 0
+                ) {
+                  markCriticalInstalled(e, VERSION);
+                }
+              });
+              setCheckStatus('Este equipo ya está en ' + VERSION + '.');
+            } else {
+              _criticalInstallState = 'failed';
+              setCriticalOpen(true);
+              populateCriticalInfo(
+                'failed',
+                'El APK no se actualizó. Versión del equipo: ' +
+                  VERSION +
+                  '. Requerida: ' +
+                  remote +
+                  '. Instale el APK y vuelva a abrir la app.'
+              );
+              setCheckStatus('Actualización pendiente: binario ' + VERSION + ', requerido ' + remote + '.');
+              offerPlanBAfterFailure(remote, null);
+            }
             return res;
           }
           var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
@@ -3444,6 +3523,9 @@
       localStorage.removeItem(LS_INSTALLED);
       localStorage.removeItem(LS_APPLIED_ENTRIES);
       localStorage.removeItem(LS_SNOOZE_UNTIL);
+      try {
+        sessionStorage.removeItem(SS_ANDROID_PENDING);
+      } catch (_) {}
       clearSessionDismissals();
     } catch (_) {}
     refreshBinaryVersion().then(function () {
@@ -3931,7 +4013,16 @@
         global.addEventListener('crozzo:auth-ready', onAuthReady);
         global.addEventListener('crozzo-ready', onAuthReady);
         document.addEventListener('visibilitychange', function () {
-          if (!document.hidden) checkForUpdates({ silent: true });
+          if (document.hidden) return;
+          refreshBinaryVersion().then(function () {
+            checkForUpdates({ silent: true });
+          });
+        });
+        global.addEventListener('focus', function () {
+          if (getUpdateClientProfile().kind !== 'android') return;
+          refreshBinaryVersion().then(function () {
+            checkForUpdates({ silent: true });
+          });
         });
       }
     });
