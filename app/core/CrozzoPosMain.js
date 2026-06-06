@@ -1505,7 +1505,19 @@ async function loginWithCredentials(userId, clave) {
 }
 function crozzoSyncUserRoleStorage() {
   try {
-    const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    let uid = currentSessionUserId;
+    if (!uid) {
+      try {
+        uid = sessionStorage.getItem('crozzo_session_user');
+      } catch (_) {}
+    }
+    let u = null;
+    if (String(uid || '').toUpperCase() === 'KENNY') {
+      u = { id: 'KENNY', rol: 'superadmin', es_super_admin: true };
+    } else if (uid) {
+      u = (getUsuariosConfig().staff || []).find(s => s && s.id === uid) || null;
+    }
+    if (!u && typeof getCurrentUser === 'function') u = getCurrentUser();
     if (u && u.rol) {
       const r = crozzoNormalizeAppRol(u.rol);
       localStorage.setItem('crozzo_user_role', r === 'superadmin' ? 'super_admin' : r);
@@ -1632,6 +1644,14 @@ function crozzoHasKennySessionFast() {
 function crozzoPurgeStaleSessionOnBoot() {
   try {
     if (window.__crozzoAuthInteractiveThisBoot) return;
+    if (
+      typeof crozzoKioskComandasEffective === 'function' &&
+      crozzoKioskComandasEffective()
+    ) {
+      window.__crozzoKioskChosenThisBoot = true;
+      if (typeof crozzoKioskApplyFromStorage === 'function') crozzoKioskApplyFromStorage();
+      return;
+    }
     window.__crozzoAuthInteractiveThisBoot = false;
     const kioskAlreadyChosen =
       !!window.__crozzoKioskChosenThisBoot ||
@@ -1881,8 +1901,13 @@ function crozzoHasActivePosSession() {
 window.crozzoHasActivePosSession = crozzoHasActivePosSession;
 /** Tras login en Tauri: quita capas que bloquean clics (login, OTA, cuarentena) y re-enlaza menú. */
 function crozzoEnsureAppShellInteractive() {
-  if (typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
-  if (!crozzoHasActivePosSession()) return;
+  var pairingOpen = false;
+  try {
+    var pairOv = document.getElementById('crozzoPairingOverlay');
+    pairingOpen = !!(pairOv && !pairOv.hasAttribute('hidden'));
+  } catch (_) {}
+  if (!pairingOpen && typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
+  if (!crozzoHasActivePosSession() && !pairingOpen) return;
   crozzoClearAuthGatePending();
   try {
     document.documentElement.classList.remove('crozzo-boot-updates-active');
@@ -2119,6 +2144,10 @@ function crozzoFinishLoginSuccess(opts) {
   if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
   if (typeof crozzoInitSuperAdminMenus === 'function') crozzoInitSuperAdminMenus();
   applyAccessControl();
+  if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) {
+    document.body.classList.add('super-admin-active', 'crozzo-session-superadmin');
+    if (typeof crozzoForceSuperAdminVisibility === 'function') crozzoForceSuperAdminVisibility();
+  }
   if (typeof window.crozzoTabletShellRefresh === 'function') window.crozzoTabletShellRefresh();
   if (typeof window.applyRolePermissions === 'function') window.applyRolePermissions();
   crozzoNavigateAfterLogin();
@@ -34261,14 +34290,14 @@ function crozzoKioskEnterComandasFromLogin(targetPage) {
   try {
     if (typeof crozzoBootClearSecurityLockdown === 'function') crozzoBootClearSecurityLockdown();
   } catch (_) {}
+  window.__crozzoKioskChosenThisBoot = true;
+  if (typeof crozzoMarkInteractiveLoginBoot === 'function') crozzoMarkInteractiveLoginBoot();
   if (typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
   if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
     if (crozzoIsLegendaryQuarantineActive()) void crozzoEnsureLegendaryContainmentUi();
     else showToast('Terminal bloqueado por seguridad.', 'error');
     return;
   }
-  window.__crozzoKioskChosenThisBoot = true;
-  if (typeof crozzoMarkInteractiveLoginBoot === 'function') crozzoMarkInteractiveLoginBoot();
   const t = targetPage === 'cocina' ? 'cocina' : 'comandas';
   if (t === 'cocina') {
     cocinaVistaKds = true;
@@ -34291,6 +34320,8 @@ function crozzoKioskEnterComandasFromLogin(targetPage) {
   }
   crozzoKioskApplyFromStorage();
   hideLoginOverlay();
+  if (typeof crozzoClearAuthGatePending === 'function') crozzoClearAuthGatePending();
+  if (typeof crozzoEnsureAppShellInteractive === 'function') crozzoEnsureAppShellInteractive();
   try {
     document.dispatchEvent(new CustomEvent('crozzo-ready', { detail: { source: 'kiosk-comandas', channel: 'local', page: t } }));
   } catch (_) {}
@@ -35495,7 +35526,7 @@ function init() {
     /* ignore */
   }
   // Si la seguridad lo requiere y no hay sesión, mostramos el login overlay.
-  // Modo pantallas solo entra si el usuario lo elige en la pantalla de login (no se restaura al arrancar).
+  // Modo pantallas: se restaura si quedó activo en sessionStorage (F5 en pantalla cocina/comandas).
   if (needLogin) {
     try {
       if (typeof crozzoHpForceEndLiveSession === 'function') crozzoHpForceEndLiveSession();
@@ -35532,12 +35563,13 @@ function init() {
           })
         );
       } catch (_) {}
-    } else if (!window.__crozzoAuthInteractiveThisBoot) {
+    } else if (!window.__crozzoAuthInteractiveThisBoot || kioskEarlyBoot) {
       const home =
         (bootKiosk && typeof crozzoKioskGetLockedPage === 'function' ? crozzoKioskGetLockedPage() : null) ||
         (typeof crozzoResolveStartupPage === 'function' ? crozzoResolveStartupPage({ preferHub: true }) : null) ||
         (typeof pickFirstAccessiblePage === 'function' ? pickFirstAccessiblePage() : null) ||
         'inicio-operacion';
+      if (bootKiosk && typeof crozzoKioskApplyFromStorage === 'function') crozzoKioskApplyFromStorage();
       navigateTo(home);
       if (!(typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective())) {
         setTimeout(() => wizardMaybeShowInitialBanner(), 600);
@@ -36628,7 +36660,8 @@ function init() {
   };
   function crozzoWirePairDeviceBtn() {
     const b = el('btnPairDevice');
-    if (b) {
+    if (b && !b._crozzoBound) {
+      b._crozzoBound = true;
       b.addEventListener('click', function () {
         if (typeof window.crozzoOpenPairingModal === 'function') window.crozzoOpenPairingModal();
       });

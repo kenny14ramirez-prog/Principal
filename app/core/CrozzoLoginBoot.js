@@ -57,7 +57,11 @@
         document.documentElement.classList.remove('crozzo-boot-updates-active');
         document.body.classList.remove('crozzo-boot-updates-active');
       }
-      document.body.classList.remove('crozzo-login-hp-blocked', 'crozzo-hp-trap-prep', 'crozzo-pairing-open');
+      document.body.classList.remove('crozzo-login-hp-blocked', 'crozzo-hp-trap-prep');
+      var pairOv = document.getElementById('crozzoPairingOverlay');
+      if (!pairOv || pairOv.hasAttribute('hidden')) {
+        document.body.classList.remove('crozzo-pairing-open');
+      }
     } catch (_) {}
 
     if (crozzoHasActivePosSessionEarly()) return;
@@ -213,6 +217,12 @@
       }
       crozzoPresentLoginBootFault('Modo pantallas: espere a que termine de cargar el sistema.');
       crozzoRepairLoginShell();
+    };
+  }
+
+  if (typeof global.crozzoOpenPairingModal !== 'function') {
+    global.crozzoOpenPairingModal = function crozzoPairingBootStub() {
+      crozzoPresentLoginBootFault('Emparejamiento: espere a que termine de cargar el sistema.');
     };
   }
 

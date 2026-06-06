@@ -20121,6 +20121,12 @@ html.crozzo-form-resizing #sidebar {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
+.crozzo-pairing-overlay:not([hidden]) {
+  pointer-events: auto;
+}
+.crozzo-pairing-overlay:not([hidden]) .crozzo-pairing-card {
+  pointer-events: auto;
+}
 .crozzo-pairing-overlay[hidden] {
   display: none !important;
 }
