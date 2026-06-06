@@ -83,7 +83,7 @@
             el.style.pointerEvents = 'auto';
           });
         }
-        ['btnKioskCocinaBar', 'btnPairDevice'].forEach(function (id) {
+        ['btnKioskCocinaBar', 'btnPairDevice', 'btnDownloadApk'].forEach(function (id) {
           var btn = document.getElementById(id);
           if (!btn) return;
           btn.disabled = false;
@@ -92,6 +92,9 @@
         });
       }
     } catch (_) {}
+    if (typeof global.crozzoTabletShellRefresh === 'function') {
+      global.crozzoTabletShellRefresh();
+    }
   }
 
   function crozzoOpenDevtools() {
@@ -144,6 +147,18 @@
         }
       });
     }
+    var apkQrBtn = document.getElementById('btnDownloadApk');
+    if (apkQrBtn && !apkQrBtn._crozzoBound) {
+      apkQrBtn._crozzoBound = true;
+      apkQrBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof global.crozzoOpenAppDownloadQr === 'function') {
+          global.crozzoOpenAppDownloadQr();
+        } else if (typeof global.crozzoDownloadLatestApk === 'function') {
+          global.crozzoDownloadLatestApk();
+        }
+      });
+    }
     if (!document._crozzoDevtoolsKey) {
       document._crozzoDevtoolsKey = true;
       document.addEventListener('keydown', function (e) {
@@ -152,6 +167,9 @@
           crozzoOpenDevtools();
         }
       });
+    }
+    if (typeof global.crozzoTabletShellRefresh === 'function') {
+      global.crozzoTabletShellRefresh();
     }
   }
 

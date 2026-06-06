@@ -4140,6 +4140,10 @@ tr:hover {
   visibility: visible;
 }
 
+.modal-overlay.modal-overlay--stack-top {
+  z-index: 9200;
+}
+
 .modal {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -5076,6 +5080,58 @@ tr:hover {
 .wizard-qr-box small {
   color: #475569;
   font-size: 0.72rem;
+}
+
+.crozzo-pairing-apk-strip {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.crozzo-pairing-apk-strip__title {
+  margin: 0 0 6px;
+  font-size: 0.88rem;
+}
+.crozzo-pairing-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0 0 14px;
+}
+
+.crozzo-mobile-install-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.crozzo-mobile-install-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.02));
+}
+.crozzo-mobile-install-card--hero {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.06);
+}
+.crozzo-mobile-install-card h4 {
+  margin: 0 0 8px;
+  font-size: 0.88rem;
+  text-align: center;
+}
+.modal--mobile-install .modal-dialog {
+  max-width: min(420px, 96vw);
+}
+.modal--mobile-install.modal--wide .modal-dialog,
+.modal--mobile-install .modal-dialog.modal-wide {
+  max-width: min(920px, 96vw);
+}
+.crozzo-mobile-install-modal .btn-sm {
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  width: 100%;
+  margin-top: 8px;
 }
 
 .wizard-banner {
@@ -18693,6 +18749,97 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   .service-mode-btn {
     min-width: 170px;
   }
+}
+
+/* APK / touch tablet: apilar pedido aunque el ancho supere 1024px (WebView 1280) */
+html.crozzo-touch-shell .tablet-layout {
+  grid-template-columns: 1fr;
+  gap: var(--crozzo-touch-gap, 12px);
+}
+
+html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch {
+  display: flex;
+  flex-direction: column;
+}
+
+html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch .tablet-order-panel {
+  order: -1;
+  position: relative;
+  top: auto;
+  padding: var(--crozzo-touch-pad, 14px);
+  border-radius: calc(var(--radius-lg) + 2px);
+}
+
+html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch #tabletProducts {
+  order: 1;
+  max-height: min(52vh, 560px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
+}
+
+html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch .tablet-order-items {
+  max-height: min(30vh, 280px);
+}
+
+html.crozzo-touch-shell .mesa-card {
+  min-height: var(--crozzo-touch-btn-min, 48px);
+  padding: 12px 10px;
+  touch-action: manipulation;
+}
+
+html.crozzo-touch-shell .mesa-card:active {
+  transform: scale(0.98);
+}
+
+html.crozzo-touch-shell .service-mode-btn {
+  min-height: var(--crozzo-touch-btn-min, 48px);
+  flex: 1 1 140px;
+}
+
+html.crozzo-touch-shell .login-post-actions .btn {
+  min-height: 48px;
+}
+
+html.crozzo-touch-shell .login-post-actions #btnPairDevice {
+  font-weight: 700;
+}
+
+html.crozzo-android-apk .login-post-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+html.crozzo-android-apk .login-post-actions #btnPairDevice {
+  order: 1;
+}
+
+html.crozzo-android-apk .login-post-actions #btnDownloadApk.login-action-secondary {
+  order: 3;
+  font-size: 0.82rem;
+  min-height: 42px;
+  opacity: 0.92;
+}
+
+html.crozzo-android-apk .login-post-actions #btnKioskCocinaBar {
+  order: 2;
+}
+
+html.crozzo-android-apk #crozzoMobileBottomNav [data-crozzo-nav="cajero"] {
+  display: none !important;
+}
+
+html.crozzo-android-apk .crozzo-pairing-overlay .crozzo-pairing-card {
+  max-width: min(520px, 96vw);
+}
+
+html.crozzo-android-apk #crozzoPairingStepReader .btn-group .btn-outline:not(.crozzo-pairing-reader-back) {
+  min-height: 44px;
+}
+
+html.crozzo-field-tablet #crozzoPairingStepReader .btn-group .btn-outline[onclick="crozzoPairingStartScan()"] {
+  display: none;
 }
 
 .qty-readonly {

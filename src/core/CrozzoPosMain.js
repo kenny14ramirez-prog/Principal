@@ -718,16 +718,20 @@ async function calcularCUFE(factura) {
 // ==========================================
 // packages/shared-dian/qr-dian-generator.ts
 // ==========================================
+var CROZZO_DIAN_QR_VPFE_BASE = 'https://catalogo-vpfe.dian.gov.co/document/searchqr';
 function generarQRDIAN(factura) {
-  const params = new URLSearchParams({
-    nit: factura.vendedorNit,
-    tipo: factura.tipoDocumento,
-    consecutivo: factura.consecutivo,
-    fecha: factura.fechaEmision ? factura.fechaEmision.split('T')[0] : '',
-    total: (factura.totalFactura || 0).toFixed(2),
-    cufe: factura.cufe || ''
-  });
-  return `https://facturaelectronica.dian.gov.co/?${params.toString()}`;
+  var cufe = String((factura && factura.cufe) || '').trim();
+  if (!cufe) return '';
+  return CROZZO_DIAN_QR_VPFE_BASE + '?documentkey=' + encodeURIComponent(cufe);
+}
+function crozzoFacturaQrUrlResolve(f) {
+  if (!f) return '';
+  var cufe = String(f.cufe || '').trim();
+  if (!cufe || cufe === 'NO-APLICA-POS' || /^pendiente/i.test(cufe)) return '';
+  var raw = String(f.qrUrl || '').trim();
+  if (/catalogo-vpfe\.dian\.gov\.co/i.test(raw) && /documentkey/i.test(raw)) return raw;
+  if (/facturaelectronica\.dian\.gov\.co/i.test(raw) || !raw) return generarQRDIAN({ cufe: cufe });
+  return raw;
 }
 // ==========================================
 // packages/shared-dian/ubl-2.1-builder.ts
@@ -2115,6 +2119,7 @@ function crozzoFinishLoginSuccess(opts) {
   if (typeof crozzoSyncUserRoleStorage === 'function') crozzoSyncUserRoleStorage();
   if (typeof crozzoInitSuperAdminMenus === 'function') crozzoInitSuperAdminMenus();
   applyAccessControl();
+  if (typeof window.crozzoTabletShellRefresh === 'function') window.crozzoTabletShellRefresh();
   if (typeof window.applyRolePermissions === 'function') window.applyRolePermissions();
   crozzoNavigateAfterLogin();
   try {
@@ -9837,6 +9842,11 @@ function crozzoApplyMobileBottomNavAccess() {
       ok = typeof crozzoHpCanSeePage === 'function' ? crozzoHpCanSeePage(page) : true;
     } else if (page && typeof currentUserCanSeePage === 'function') ok = currentUserCanSeePage(page);
     if (ok && page && typeof pageBlockedByOperacionModo === 'function' && !(hpLive && hpLive.active) && pageBlockedByOperacionModo(page)) ok = false;
+    if (ok && page && CROZZO_FIELD_HIDDEN_VENTAS_PAGES.has(page)) {
+      if (typeof crozzoFieldVentasHiddenOnThisDevice === 'function' && crozzoFieldVentasHiddenOnThisDevice()) ok = false;
+      else if (typeof crozzoDeviceConexionRoleB === 'function' && crozzoDeviceConexionRoleB()) ok = false;
+      else if (document.documentElement && document.documentElement.classList.contains('crozzo-android-apk')) ok = false;
+    }
     btn.style.display = ok ? '' : 'none';
     if (ok) visible += 1;
   });
@@ -10709,6 +10719,9 @@ function applyAccessControl() {
   });
   try {
     if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
+  } catch (_) {}
+  try {
+    if (typeof window.crozzoTabletShellRefresh === 'function') window.crozzoTabletShellRefresh();
   } catch (_) {}
   try {
     if (typeof crozzoUpdatePremiumIdentity === 'function') crozzoUpdatePremiumIdentity(typeof currentPage !== 'undefined' ? currentPage : null);
@@ -11875,7 +11888,7 @@ function renderTablets() {
         <div class="card-header">
           <div>
             <h2 class="card-title">Tablets - Toma de pedidos</h2>
-            <p class="page-subtitle" style="margin-top:4px;">Selecciona ${tabletModoPedido === 'mesa' ? 'mesa' : 'pedido de llevar'} para abrir pedido</p>
+            <p class="page-subtitle" style="margin-top:4px;">Toca ${tabletModoPedido === 'mesa' ? 'una mesa' : 'un pedido llevar'} para abrir el pedido</p>
           </div>
         </div>
         <div class="service-mode-switch">
@@ -11919,7 +11932,7 @@ function renderTablets() {
       <div class="card-header">
         <div>
           <h2 class="card-title">Pedido ${pedidoTarget ? escHtml(String(pedidoTarget.nombre || '')) : '-'}</h2>
-          <p class="page-subtitle" style="margin-top:4px;">Edición rápida de pedido (tablet/celular)</p>
+          <p class="page-subtitle" style="margin-top:4px;">Carrito arriba · productos abajo · desliza para ver más</p>
         </div>
         <button class="btn btn-outline" onclick="closeTabletOrderPanel()">✕ Cerrar</button>
       </div>
@@ -14237,6 +14250,18 @@ function crozzoResolveStartupPage(opts) {
   try {
     if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) {
       return typeof crozzoKioskGetLockedPage === 'function' ? crozzoKioskGetLockedPage() : 'comandas';
+    }
+  } catch (_) {}
+  try {
+    var doc = document.documentElement;
+    var fieldTablet =
+      (doc && doc.classList.contains('crozzo-android-apk')) ||
+      (typeof crozzoDeviceConexionRoleB === 'function' && crozzoDeviceConexionRoleB()) ||
+      (typeof crozzoMeseroSinModuloVentas === 'function' && crozzoMeseroSinModuloVentas());
+    if (fieldTablet) {
+      var tabOk = typeof currentUserCanSeePage === 'function' ? currentUserCanSeePage('tablets') : true;
+      if (tabOk && typeof pageBlockedByOperacionModo === 'function') tabOk = !pageBlockedByOperacionModo('tablets');
+      if (tabOk) return 'tablets';
     }
   } catch (_) {}
   var preferHub = opts.preferHub !== false;
@@ -22767,7 +22792,10 @@ function crozzoFacturaShareWhatsApp(factura) {
   if (crozzoFacturaEsDocumentoFe(factura)) {
     if (factura.uuid) lines.push('UUID: ' + factura.uuid);
     if (crozzoFacturaCufeMostrable(factura)) lines.push('CUFE (extracto): ' + String(factura.cufe).slice(0, 28) + '…');
-    if (factura.qrUrl) lines.push('Verificación DIAN: ' + factura.qrUrl);
+    if (typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(factura)) {
+      var qrLink = typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(factura) : factura.qrUrl;
+      if (qrLink) lines.push('Verificación DIAN: ' + qrLink);
+    }
   }
   const saludo =
     cliNom && cliNom !== 'Consumidor Final' && cliNom !== 'Cliente' && cliNom !== 'Consumidor final'
@@ -22853,7 +22881,10 @@ function crozzoFacturaShareEmail(factura) {
   if (crozzoFacturaEsDocumentoFe(factura)) {
     if (factura.uuid) bodyLines.push(`UUID: ${factura.uuid}`);
     if (crozzoFacturaCufeMostrable(factura)) bodyLines.push(`CUFE: ${factura.cufe}`);
-    if (factura.qrUrl) bodyLines.push(`Enlace verificación DIAN: ${factura.qrUrl}`);
+    if (typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(factura)) {
+      var qrEmail = typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(factura) : factura.qrUrl;
+      if (qrEmail) bodyLines.push(`Enlace verificación DIAN: ${qrEmail}`);
+    }
     bodyLines.push('', 'Adjunta XML/PDF desde tu historial si ya los exportaste.');
   } else {
     bodyLines.push('', 'Documento soporte de venta en caja. No sustituye factura electrónica si su negocio está obligado a FE.');
@@ -23065,7 +23096,7 @@ function crozzoTermicaPayloadFromFactura(factura) {
           : '',
       qrUrl:
         typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(factura)
-          ? String(factura.qrUrl)
+          ? String(typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(factura) : factura.qrUrl || '')
           : '',
     },
     legal
@@ -23745,7 +23776,9 @@ function crozzoFacturaBuildThermalHtmlBuiltin(factura) {
       ? 'CUFE:\n' + factura.cufe + '\n'
       : '') +
     (esFe && typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(factura)
-      ? 'Verif. DIAN:\n' + factura.qrUrl + '\n'
+      ? 'Verif. DIAN:\n' +
+        (typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(factura) : factura.qrUrl) +
+        '\n'
       : '') +
     (function () {
       var ln = legalFb.legalTicketLineas || [];
@@ -23940,7 +23973,15 @@ function crozzoPresentFacturaShareAfterPrint(factura, showShareModalFn, opts) {
 }
 window.crozzoPresentFacturaShareAfterPrint = crozzoPresentFacturaShareAfterPrint;
 function showInvoiceResult(factura, result) {
-  var fDoc = Object.assign({}, factura, { cufe: result.cufe || factura.cufe, qrUrl: result.qrUrl || factura.qrUrl, uuid: result.uuid || factura.uuid });
+  var fDoc = Object.assign({}, factura, {
+    cufe: result.cufe || factura.cufe,
+    qrUrl: result.qrUrl || factura.qrUrl,
+    uuid: result.uuid || factura.uuid,
+  });
+  if (typeof crozzoFacturaQrUrlResolve === 'function') {
+    var qrNorm = crozzoFacturaQrUrlResolve(fDoc);
+    if (qrNorm) fDoc.qrUrl = qrNorm;
+  }
   window.__crozzoLastFacturaForShare = crozzoCloneFacturaForShare(fDoc);
   var qrId = crozzoFacturaQrMostrable(fDoc) ? 'qr_' + Date.now() : null;
   var demoStrip = config.isDemoMode()
@@ -24043,7 +24084,7 @@ function crozzoFacturaEsDocumentoFe(f) {
   return false;
 }
 function crozzoFacturaQrMostrable(f) {
-  return crozzoFacturaEsDocumentoFe(f) && !!(f && f.qrUrl);
+  return crozzoFacturaEsDocumentoFe(f) && !!crozzoFacturaQrUrlResolve(f);
 }
 function crozzoFacturaCufeMostrable(f) {
   if (!crozzoFacturaEsDocumentoFe(f) || !f) return false;
@@ -24160,11 +24201,14 @@ function crozzoBuildFacturaSheetDocumentHtml(factura, opts) {
       ? '<div class="fact-cufe"><strong>CUFE</strong><p>' + esc(String(f.cufe)) + '</p></div>'
       : '';
   var qrBlock = '';
-  if (typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(f) && f.qrUrl) {
-    var qrSrc =
-      'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=' + encodeURIComponent(String(f.qrUrl));
-    qrBlock =
-      '<div class="fact-qr"><img src="' + esc(qrSrc) + '" alt="QR verificación DIAN" /><p>Verificación DIAN</p></div>';
+  if (typeof crozzoFacturaQrMostrable === 'function' && crozzoFacturaQrMostrable(f)) {
+    var qrUrlResolved = typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(f) : String(f.qrUrl || '');
+    if (qrUrlResolved) {
+      var qrSrc =
+        'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=' + encodeURIComponent(qrUrlResolved);
+      qrBlock =
+        '<div class="fact-qr"><img src="' + esc(qrSrc) + '" alt="QR verificación DIAN" /><p>Verificación DIAN</p></div>';
+    }
   }
   var demoBanner =
     String(f.estado || '') === 'demo' || f.is_demo
@@ -24416,7 +24460,7 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
   var verifCard = crozzoFacturaQrMostrable(f)
     ? '<div class="crozzo-invoice-action-card"><h4>Verificación DIAN</h4>' +
       '<button type="button" class="btn btn-primary" style="width:100%;" onclick="crozzoOpenExternal(' +
-      JSON.stringify(f.qrUrl) +
+      JSON.stringify(typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(f) : f.qrUrl) +
       ')">🔍 Consultar en portal DIAN</button></div>'
     : '';
   var demoStrip = extra.demoStrip || '';
@@ -24454,11 +24498,16 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
 }
 function crozzoInitInvoiceModalQr(f, qrId) {
   if (!qrId || !f || !crozzoFacturaQrMostrable(f)) return;
+  var qrUrl = typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(f) : String(f.qrUrl || '');
+  if (!qrUrl) return;
   setTimeout(function () {
     var qrEl = document.getElementById(qrId);
-    if (qrEl && typeof QRCode !== 'undefined') {
+    if (!qrEl) return;
+    if (typeof QRCode !== 'undefined') {
       qrEl.innerHTML = '';
-      new QRCode(qrEl, { text: f.qrUrl, width: 140, height: 140, colorDark: '#0f172a', colorLight: '#ffffff' });
+      new QRCode(qrEl, { text: qrUrl, width: 140, height: 140, colorDark: '#0f172a', colorLight: '#ffffff' });
+    } else if (typeof crozzoTermicaQrImgHtml === 'function') {
+      qrEl.innerHTML = crozzoTermicaQrImgHtml(qrUrl, 140);
     }
   }, 120);
 }
@@ -24505,7 +24554,9 @@ function crozzoRenderFacturaPreviewPane() {
 function crozzoBuildInvoicePreviewToolbarHtml(f, idx) {
   var pagoLabel = crozzoMetodoPagoDescripcion(f.metodoPago, f.paymentMeta, { htmlSafe: true });
   var dian = crozzoFacturaQrMostrable(f)
-    ? '<button type="button" class="btn btn-primary" onclick="crozzoOpenExternal(' + JSON.stringify(f.qrUrl) + ')">DIAN</button>'
+    ? '<button type="button" class="btn btn-primary" onclick="crozzoOpenExternal(' +
+      JSON.stringify(typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(f) : f.qrUrl) +
+      ')">DIAN</button>'
     : '';
   return (
     '<span style="font-size:0.75rem;color:var(--text-muted);flex:1;min-width:120px;">' + pagoLabel + '</span>' +
@@ -27474,12 +27525,26 @@ function renderConfigMultidispositivo() {
     cloudDeviceIdDisp = String(c.deviceId || '');
   }
   return `
+    <div class="card crozzo-md-apk-card" style="margin-bottom:14px;border-color:rgba(56,189,248,0.35);">
+      <div class="card-header" style="border:0;padding-bottom:0;">
+        <span class="card-title">📱 Instalar app en tablets / móvil</span>
+      </div>
+      <p class="form-hint" style="margin:8px 0 12px;">
+        <strong>No requiere Supabase ni base de datos.</strong> Descarga el APK desde GitHub (solo internet).
+        Después use el emparejamiento QR más abajo o en la pantalla de login.
+      </p>
+      <div class="btn-group" style="flex-wrap:wrap;gap:8px;">
+        <button type="button" class="btn btn-primary" onclick="crozzoOpenAppDownloadQr()">📱 QR — Descargar app actualizada</button>
+        <button type="button" class="btn btn-outline" onclick="crozzoOpenPairingModal()">🔗 Emparejar dispositivo</button>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header">
         <span class="card-title">🔗 Conexión Multi-Dispositivo</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" class="btn btn-outline" onclick="navigateTo('super-admin-nube')">☁️ Nube global</button>
           <button type="button" class="btn btn-outline" onclick="openMultiDeviceWizard()">🧭 Asistente paso a paso</button>
+          <button type="button" class="btn btn-outline" onclick="crozzoOpenAppDownloadQr()">📱 QR app actualizada</button>
         </div>
       </div>
       <p class="form-hint" style="margin-bottom:10px;">
@@ -33627,6 +33692,7 @@ function renderActualizacionesSistema() {
     '<button type="button" class="btn btn-primary" id="crozzoUpdateCheckNow">Comprobar ahora</button>' +
     '<button type="button" class="btn btn-outline" id="crozzoUpdateSaveManifestUrl">Guardar URL</button>' +
     '<button type="button" class="btn btn-outline" id="crozzoUpdateResetAlerts">Restablecer avisos ocultos</button>' +
+    '<button type="button" class="btn btn-outline" onclick="crozzoOpenAppDownloadQr()">📱 QR app actualizada</button>' +
     '</div>' +
     '<p class="form-hint" id="crozzoUpdateCheckStatus" style="margin:0 0 var(--space-4);min-height:1.2em;"></p>' +
     '<label class="form-label" style="display:flex;align-items:center;gap:8px;margin:0 0 var(--space-4);cursor:pointer;">' +
@@ -34815,6 +34881,9 @@ function showModal(title, content, options) {
   if (!overlay || !modal) return;
   modal.className = 'modal' + (options.modalClass ? ' ' + options.modalClass : '');
   if (options.wide) overlay.classList.add('modal-overlay--wide');
+  else overlay.classList.remove('modal-overlay--wide');
+  if (options.stackTop) overlay.classList.add('modal-overlay--stack-top');
+  else overlay.classList.remove('modal-overlay--stack-top');
   if (options.noBackdropClose) overlay.dataset.noBackdropClose = '1';
   else delete overlay.dataset.noBackdropClose;
   const titleHtml = options.titleHtml != null ? options.titleHtml : `<h3 class="modal-title">${title}</h3>`;
@@ -34836,11 +34905,13 @@ function closeModal(options) {
   const overlay = document.getElementById('modalOverlay');
   const modal = document.getElementById('modalContent');
   if (overlay) {
-    overlay.classList.remove('active', 'modal-overlay--wide');
+    overlay.classList.remove('active', 'modal-overlay--wide', 'modal-overlay--stack-top');
     delete overlay.dataset.noBackdropClose;
   }
   if (modal) modal.className = 'modal';
 }
+window.showModal = showModal;
+window.closeModal = closeModal;
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -35758,7 +35829,11 @@ function init() {
       rootEl &&
       (rootEl.classList.contains('crozzo-form-tablet') ||
         rootEl.classList.contains('crozzo-form-mobile') ||
-        rootEl.classList.contains('crozzo-touch-shell'));
+        rootEl.classList.contains('crozzo-touch-shell') ||
+        rootEl.classList.contains('crozzo-android-apk') ||
+        (window.CrozzoTabletShell &&
+          typeof window.CrozzoTabletShell.isFieldTabletDevice === 'function' &&
+          window.CrozzoTabletShell.isFieldTabletDevice()));
     if (isTabletLike && typeof crozzoPairingSelectReader === 'function') crozzoPairingSelectReader();
     else crozzoPairingSelectChoice();
   };
@@ -35889,6 +35964,30 @@ function init() {
       crozzoPairingCopyJsonFallback(text);
     }
   };
+  function crozzoPairingReaderIsFieldDevice() {
+    var rootEl = document.documentElement;
+    return !!(
+      rootEl &&
+      (rootEl.classList.contains('crozzo-android-apk') ||
+        rootEl.classList.contains('crozzo-touch-shell') ||
+        (window.CrozzoTabletShell &&
+          typeof window.CrozzoTabletShell.isFieldTabletDevice === 'function' &&
+          window.CrozzoTabletShell.isFieldTabletDevice()))
+    );
+  }
+  function crozzoPairingSyncReaderFoot() {
+    var foot = el('crozzoPairingFootReader');
+    if (!foot) return;
+    var backBtn = foot.querySelector('.crozzo-pairing-reader-back');
+    if (!backBtn) return;
+    if (crozzoPairingReaderIsFieldDevice()) {
+      backBtn.textContent = 'Cancelar';
+      backBtn.setAttribute('onclick', 'crozzoClosePairingModal()');
+    } else {
+      backBtn.textContent = 'Volver';
+      backBtn.setAttribute('onclick', 'crozzoPairingSelectChoice()');
+    }
+  }
   window.crozzoPairingSelectReader = function crozzoPairingSelectReader() {
     crozzoPairingStopScan();
     pairingLastPayload = null;
@@ -35898,7 +35997,16 @@ function init() {
     el('crozzoPairingStepReader').hidden = false;
     crozzoPairingSetWizardStep(2);
     crozzoPairingSyncFooters('reader');
+    crozzoPairingSyncReaderFoot();
     crozzoPairingShowStatus('');
+    var titleEl = el('crozzoPairingTitle');
+    if (titleEl) titleEl.textContent = 'Conectar esta tablet a la caja';
+    var hintEl = el('crozzoPairingReaderHint');
+    if (hintEl) {
+      hintEl.textContent = crozzoPairingReaderIsFieldDevice()
+        ? 'En la caja principal abra «Emparejar» y muestre el QR. Aquí pulse «Foto» para escanearlo con la cámara de esta tablet.'
+        : 'En móvil o tablet, pulse «Foto (cámara del teléfono)»: se abre la cámara para fotografiar el QR. «Escanear en vivo» usa la cámara dentro del navegador (requiere HTTPS o localhost).';
+    }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
     const ta = el('crozzoPairingPasteJson');

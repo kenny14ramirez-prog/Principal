@@ -11,8 +11,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.73">
-<meta name="crozzo-build-stamp" content="2026-06-06T01:34:48.083Z">
+<meta name="crozzo-app-version" content="1.0.74">
+<meta name="crozzo-build-stamp" content="2026-06-06T02:29:02.419Z">
 <title>Proyecto · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
@@ -23,6 +23,7 @@
 <script src="core/CrozzoAuthSecurity.js"></script>
 <script src="core/CrozzoLoginBoot.js"></script>
 <script src="core/CrozzoDeviceForm.js"></script>
+<script src="core/CrozzoTabletShell.js"></script>
 <script>
 (function () {
   try {
@@ -457,8 +458,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida">
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true">🏁</span><span class="crozzo-mbn-txt">Inicio</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
-  <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
+  <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
   <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" onclick="toggleSidebar()"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
 </nav>
@@ -542,9 +543,11 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p class="login-hint" id="loginLocalHint" style="margin:10px 0 0;text-align:center;" hidden></p>
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>
-    <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
+    <div class="login-post-actions" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
+      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;">📱 Emparejar tablet con el sistema</button>
       <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="crozzoKioskEnterComandasFromLogin('comandas')">🖥️ Modo pantallas (cocina, bar y fríos)</button>
-      <button type="button" class="btn btn-outline" id="btnPairDevice" style="width:100%; min-height:44px;">📱 Emparejar tablet con el sistema</button>
+      <button type="button" class="btn btn-outline" id="btnDownloadApk" style="width:100%; min-height:44px;" onclick="crozzoOpenAppDownloadQr()">📱 QR — Descargar app actualizada</button>
+      <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Escanee el QR con otra tablet · no requiere Supabase</p>
       <button type="button" class="btn btn-outline" id="loginDevToolsBtn" style="width:100%; margin-top:6px; min-height:36px; font-size:11px; display:none;">🛠 Consola técnica (F12)</button>
     </div>
   </div>
@@ -656,11 +659,19 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
     <div class="crozzo-pairing-card__body">
     <div id="crozzoPairingStepChoice" class="crozzo-pairing-panel">
+      <div class="crozzo-pairing-apk-strip">
+        <p class="crozzo-pairing-apk-strip__title"><strong>1 · Instalar la app</strong> (sin base de datos en la nube)</p>
+        <p class="form-hint" style="margin:0 0 10px;font-size:0.82rem;">En la tablet Android, instale primero el APK. Solo necesita internet para GitHub — no Supabase.</p>
+        <div class="btn-group" style="flex-direction:column;gap:8px;margin-bottom:4px;">
+          <button type="button" class="btn btn-primary" style="width:100%;min-height:48px;" onclick="crozzoOpenAppDownloadQr()">📱 QR — Descargar app actualizada</button>
+        </div>
+      </div>
+      <hr class="crozzo-pairing-divider" aria-hidden="true" />
       <p class="form-hint" style="margin:0 0 14px;">La <strong>caja principal</strong> gestiona todo (POS, comandas, cobro). La <strong>tablet APK</strong> toma pedidos y clientes; las <strong>pantallas</strong> reciben comandas e imprimen. El QR incluye <strong>Red A</strong> (Wi‑Fi principal), <strong>Red B</strong> (hotspot de respaldo si cae el router) y la IP de la caja — funciona aunque no haya internet en la nube.</p>
-      <p class="form-hint" style="margin:0 0 10px; font-size:0.85rem;"><strong>Desde la caja</strong> — genera el código para el equipo nuevo:</p>
+      <p class="form-hint" style="margin:0 0 10px; font-size:0.85rem;"><strong>2 · Desde la caja</strong> — genera el código para el equipo nuevo:</p>
       <button type="button" class="btn btn-primary" style="width:100%; margin-bottom:8px; min-height:48px;" onclick="crozzoPairingSelectReceiver('tablet')">📱 QR para Tablet mesero (APK)</button>
       <button type="button" class="btn btn-outline" style="width:100%; margin-bottom:14px; min-height:48px;" onclick="crozzoPairingSelectReceiver('pantalla')">🖥️ QR para Pantalla (cocina / bar / fríos)</button>
-      <p class="form-hint" style="margin:0 0 10px; font-size:0.85rem;"><strong>En tablet o pantalla nueva</strong> — escanea el código de la caja:</p>
+      <p class="form-hint" style="margin:0 0 10px; font-size:0.85rem;"><strong>3 · En tablet o pantalla nueva</strong> — escanea el código de la caja:</p>
       <button type="button" class="btn btn-outline" style="width:100%; min-height:48px;" onclick="crozzoPairingSelectReader()">Escanear código de la caja</button>
     </div>
     <div id="crozzoPairingStepReceiver" class="crozzo-pairing-panel" hidden>
@@ -675,7 +686,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
     </div>
     <div id="crozzoPairingStepReader" class="crozzo-pairing-panel" hidden>
-      <p class="form-hint">En <strong>móvil o tablet</strong>, pulsa <strong>«Foto (cámara del teléfono)»</strong>: se abre la app de cámara para fotografiar el QR (funciona con <code>file://</code> y HTTPS). <strong>Escanear en vivo</strong> usa la cámara dentro del navegador (requiere HTTPS o localhost; en archivo local suele estar bloqueada).</p>
+      <p class="form-hint" id="crozzoPairingReaderHint">En <strong>móvil o tablet</strong>, pulsa <strong>«Foto (cámara del teléfono)»</strong>: se abre la app de cámara para fotografiar el QR (funciona con <code>file://</code> y HTTPS). <strong>Escanear en vivo</strong> usa la cámara dentro del navegador (requiere HTTPS o localhost; en archivo local suele estar bloqueada).</p>
       <input type="file" id="crozzoPairingCaptureInput" accept="image/*" capture="environment" tabindex="-1" aria-label="Elegir o tomar foto del código QR" style="position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;overflow:hidden" />
       <div id="crozzoPairingReaderHost"></div>
       <div class="btn-group" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
@@ -692,7 +703,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReader" hidden>
       <button type="button" class="btn btn-primary" style="width:100%; min-height:48px;" id="crozzoPairingApplyBtn" onclick="crozzoPairingApplyFromForm()" disabled>Aplicar configuración</button>
-      <button type="button" class="btn btn-outline" style="width:100%;" onclick="crozzoPairingSelectChoice()">Volver</button>
+      <button type="button" class="btn btn-outline crozzo-pairing-reader-back" style="width:100%;" onclick="crozzoPairingSelectChoice()">Volver</button>
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootChoice">
       <button type="button" class="btn btn-outline" style="width:100%;" onclick="crozzoClosePairingModal()">Cancelar</button>
@@ -902,6 +913,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoPerfilesOperativos.js" defer></script>
 <script src="infra/CrozzoTauriUpdater.js" defer></script>
 <script src="infra/CrozzoSystemUpdates.js" defer></script>
+<script src="infra/CrozzoMobileInstall.js" defer></script>
 <script src="core/CrozzoPairingSeal.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
