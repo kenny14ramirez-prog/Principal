@@ -959,7 +959,10 @@ const config = ConfigManager.getInstance();
         if (value.length < prevN) {
           const can =
             (typeof crozzoCanClearFacturasHistorial === 'function' && crozzoCanClearFacturasHistorial()) ||
-            window.__crozzoArchiveWriteBypass === true;
+            window.__crozzoArchiveWriteBypass === true ||
+            (window.__crozzoLabPurgeBypass === true &&
+              typeof crozzoLabIsSessionUnlocked === 'function' &&
+              crozzoLabIsSessionUnlocked());
           if (!can) {
             console.warn('[Crozzo/seguridad] Reducción de facturas bloqueada:', prevN, '→', value.length);
             if (typeof showToast === 'function') {
@@ -1030,7 +1033,10 @@ const config = ConfigManager.getInstance();
       if (cur.facturas < _lastSecureCounts.facturas) {
         const can =
           (typeof crozzoCanClearFacturasHistorial === 'function' && crozzoCanClearFacturasHistorial()) ||
-          window.__crozzoArchiveWriteBypass === true;
+          window.__crozzoArchiveWriteBypass === true ||
+          (window.__crozzoLabPurgeBypass === true &&
+            typeof crozzoLabIsSessionUnlocked === 'function' &&
+            crozzoLabIsSessionUnlocked());
         if (!can) {
           console.warn(
             '[Crozzo/seguridad] save bloqueado: reducción facturas',
@@ -8342,7 +8348,6 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'super-admin-identidad': 'identidad-logos',
   'actualizaciones-sistema': 'actualizaciones-sistema',
   'config-seguridad': 'config-sistema',
-  'laboratorio-admin': 'laboratorio-admin',
   'gestion-perfiles-menus': 'gestion-perfiles',
   tablets: 'tablets',
   cocina: 'cocina',
@@ -8908,13 +8913,6 @@ function renderMenusByRole(role, perfilEmpresa) {
     });
     crozzoForceSuperAdminVisibility();
     if (typeof crozzoLabSyncNavVisibility === 'function') crozzoLabSyncNavVisibility();
-    /* Lab oculto para operación: no forzar visible con el barrido super-admin. */
-    var labNav = document.getElementById('nav-laboratorio-admin');
-    if (labNav && typeof crozzoLabCanAccessRole === 'function' && !crozzoLabCanAccessRole()) {
-      var labLi = labNav.closest('li');
-      if (labLi) labLi.hidden = true;
-      labNav.style.display = 'none';
-    }
     console.log('✅ Super Admin: todos los menús visibles');
     return;
   }
@@ -11229,7 +11227,14 @@ function navigateTo(page) {
     'costos-planilla-feed': ['Cola planilla', 'Propuestas hacia nómina']
   };
   
-  const t = titles[navHighlightPage] || titles[page] || [page, ''];
+  let t = titles[navHighlightPage] || titles[page] || [page, ''];
+  if (
+    (navHighlightPage === 'laboratorio-admin' || page === 'laboratorio-admin') &&
+    typeof crozzoLabStealthEnabled === 'function' &&
+    crozzoLabStealthEnabled()
+  ) {
+    t = ['Calibración interna', 'Ajustes de integración (PIN)'];
+  }
   var pageTitleEl = document.getElementById('pageTitle');
   var pageSubtitleEl = document.getElementById('pageSubtitle');
   if (pageTitleEl) pageTitleEl.textContent = t[0];

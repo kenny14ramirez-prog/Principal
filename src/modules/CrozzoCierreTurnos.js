@@ -1508,13 +1508,14 @@
           labGen.ok &&
           typeof global.crozzoLabCanAccessRole === 'function' &&
           global.crozzoLabCanAccessRole() &&
-          typeof showToast === 'function'
+          typeof showToast === 'function' &&
+          !(typeof global.crozzoLabStealthEnabled === 'function' && global.crozzoLabStealthEnabled())
         ) {
           setTimeout(function () {
             showToast(
               'Laboratorio: recomendación pendiente · ' +
                 (labGen.recommendation.picks ? labGen.recommendation.picks.length : 0) +
-                ' facturas (Ctrl+Shift+L)',
+                ' facturas',
               'info'
             );
           }, 1800);

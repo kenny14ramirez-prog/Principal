@@ -1643,11 +1643,22 @@ html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.si
 }
 html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.is-expanded .nav-group-items,
 html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.expanded .nav-group-items,
-html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-group-li.open .nav-group-items,
-html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-group.open .nav-group-items {
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.is-expanded .nav-group-li.open .nav-group-items,
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.expanded .nav-group-li.open .nav-group-items,
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.is-expanded .nav-group.open .nav-group-items,
+html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro.expanded .nav-group.open .nav-group-items {
   pointer-events: auto !important;
   opacity: 1 !important;
   overflow: visible !important;
+}
+/* Rail colapsado: solo íconos de grupo, nunca sub-ítems sueltos en la barra */
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .nav-group-items .nav-item[data-page],
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .nav-group-items .menu-item {
+  display: none !important;
+  max-height: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
 }
 html.tauri-desktop #sidebar.sidebar-pro .nav-group-collapsed > .nav-group-items {
   max-height: 0 !important;
@@ -2062,8 +2073,10 @@ html.tauri-desktop #sidebar.sidebar-pro .submenu {
   margin: 4px 12px !important;
   padding: 0 !important;
 }
-html.tauri-desktop #sidebar.sidebar-pro .nav-group:not(.nav-group-collapsed) > .nav-group-items.submenu,
-html.tauri-desktop #sidebar.sidebar-pro .nav-group-li.open:not(.nav-group-collapsed) > .nav-group-items.submenu,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group:not(.nav-group-collapsed) > .nav-group-items.submenu,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-group:not(.nav-group-collapsed) > .nav-group-items.submenu,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group-li.open:not(.nav-group-collapsed) > .nav-group-items.submenu,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-group-li.open:not(.nav-group-collapsed) > .nav-group-items.submenu,
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group.open > .nav-group-items,
 html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-group.open > .nav-group-items,
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group-li.open > .nav-group-items,
@@ -26494,6 +26507,29 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty {
   padding: 22px;
   text-align: center;
   border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.crozzo-lab-pin-modal .crozzo-lab-pin-input {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+.crozzo-lab-pin-modal .crozzo-lab-pin-submit,
+.crozzo-lab-pin-modal .btn-primary {
+  width: 100%;
+}
+.crozzo-lab-gate__card .crozzo-lab-pin-input {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+.crozzo-lab-gate__card .btn-primary {
+  width: 100%;
+  margin-top: 4px;
 }
 .crozzo-lab-pin-close {
   position: absolute;
@@ -26504,7 +26540,48 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty {
   cursor: pointer;
   color: var(--text-secondary);
 }
-.crozzo-lab-nav-item .nav-item-label { font-size: 11px; opacity: 0.85; }
+.crozzo-lab-pick-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  vertical-align: middle;
+}
+.crozzo-lab-pick-tag--purge {
+  background: rgba(180, 83, 9, 0.12);
+  border-color: rgba(180, 83, 9, 0.35);
+  color: #9a3412;
+}
+.crozzo-lab-kpi small {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.crozzo-lab-kpi--admin-truth strong { color: var(--accent); }
+.crozzo-lab-archive-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.crozzo-lab-archive-modal {
+  max-width: min(480px, 92vw);
+  max-height: 85vh;
+  overflow: auto;
+  text-align: left;
+}
+  background: rgba(180, 83, 9, 0.12);
+  border-color: rgba(180, 83, 9, 0.35);
+  color: #9a3412;
+}
 .crozzo-lab-nav-item--alert .nav-icon { color: #e8a317; }
 .crozzo-lab-nav-li:not([hidden]) .crozzo-lab-nav-item { border-left: 2px solid rgba(99, 102, 241, 0.35); }
 .crozzo-lab-status-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }

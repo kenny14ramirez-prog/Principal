@@ -14,6 +14,14 @@
   /** PIN de fábrica del laboratorio (cambiable desde el módulo). */
   var DEFAULT_LAB_PIN = '8888';
 
+  function normalizeLabPin(pin) {
+    var s = String(pin == null ? '' : pin).trim();
+    s = s.replace(/[\uFF10-\uFF19]/g, function (ch) {
+      return String.fromCharCode(ch.charCodeAt(0) - 0xff10 + 0x30);
+    });
+    return s.replace(/\D/g, '').slice(0, 4);
+  }
+
   var _sessionUntil = 0;
   var _hooksInstalled = false;
   var _origGetFacturas = null;
@@ -69,6 +77,7 @@
         patternAdjust: false,
         maxEligibleAmount: 350000,
         level: 3,
+        purgeDeletable: false,
         targetDowReduction: {},
       },
       hiddenCap: {
@@ -86,12 +95,75 @@
         enabled: true,
         autoAfterClose: true,
         level: 2,
+        purgeDeletable: false,
+      },
+      stealth: {
+        enabled: true,
+        knockRequired: false,
       },
     };
   }
 
+  var LAB_KNOCK_MS = 12000;
+  var LAB_KNOCK_CLICKS = 5;
+  var LAB_KNOCK_WINDOW_MS = 3000;
+
+  function isStealthMode() {
+    try {
+      var cfg = loadConfig();
+      return cfg.stealth == null || cfg.stealth.enabled !== false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function isKnockRequired() {
+    try {
+      var cfg = loadConfig();
+      if (!isStealthMode()) return false;
+      return !!(cfg.stealth && cfg.stealth.knockRequired === true);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function armKnockWindow() {
+    if (typeof global !== 'undefined') {
+      global.__crozzoLabKnockUntil = Date.now() + LAB_KNOCK_MS;
+    }
+  }
+
+  function isKnockArmed() {
+    return !!(typeof global !== 'undefined' && global.__crozzoLabKnockUntil && Date.now() < global.__crozzoLabKnockUntil);
+  }
+
+  function shortcutAllowed() {
+    if (!isKnockRequired()) return true;
+    if (isSessionUnlocked()) return true;
+    return isKnockArmed();
+  }
+
+  function setKnockRequired(on) {
+    var cfg = loadConfig();
+    cfg.stealth = cfg.stealth || {};
+    cfg.stealth.knockRequired = !!on;
+    saveConfig(cfg);
+    auditLab('stealth_knock', { required: !!on });
+    return cfg.stealth.knockRequired;
+  }
+
+  function setStealthMode(on) {
+    var cfg = loadConfig();
+    cfg.stealth = cfg.stealth || {};
+    cfg.stealth.enabled = !!on;
+    saveConfig(cfg);
+    auditLab('stealth', { enabled: !!on });
+    return cfg.stealth.enabled;
+  }
+
   var LS_RECOMMEND = 'crozzo_lab_recommend_v1';
   var LS_EMU_REPORT = 'crozzo_lab_emu_report_v1';
+  var LS_PURGE = 'crozzo_lab_purge_v1';
 
   function loadRecommendations() {
     try {
@@ -298,15 +370,20 @@
     var needReduce = num(opts.needReduce) || computeNeedReduceForDay(iso, cfg);
     if (needReduce <= 0) needReduce = Math.floor(fiscalDayTotal(iso) * 0.04);
     var picks = pickEligibleForReduction(iso, needReduce, { level: level, ignoreExisting: true });
+    var purgeDeletable = !!(cfg.operMask && cfg.operMask.purgeDeletable) || !!(cfg.recommendations && cfg.recommendations.purgeDeletable);
+    var picksAnnotated = annotatePicksWithActions(picks, purgeDeletable);
     return {
       iso: iso,
       level: level,
       levelLabel: getMaskLevelConfig(level).label,
       needReduce: needReduce,
-      reducedPlanned: picks.reduce(function (a, p) {
-        return a + p.delta;
+      reducedPlanned: picksAnnotated.reduce(function (a, p) {
+        return a + num(p.action === 'purge' ? p.original : p.delta);
       }, 0),
-      picks: picks,
+      picks: picksAnnotated,
+      purgeCount: picksAnnotated.filter(function (p) {
+        return p.action === 'purge';
+      }).length,
       fiscalDay: fiscalDayTotal(iso),
       pattern: {
         dow: dow,
@@ -330,6 +407,11 @@
       return a + p.delta;
     }, 0);
     var gap = Math.max(0, needReduce - reduced);
+    var purgeDeletable = opts.purgeDeletable != null ? !!opts.purgeDeletable : !!(cfg.operMask && cfg.operMask.purgeDeletable);
+    var picksAnnotated = annotatePicksWithActions(picks, purgeDeletable);
+    var purgeCount = picksAnnotated.filter(function (p) {
+      return p.action === 'purge';
+    }).length;
     return {
       iso: iso,
       level: level,
@@ -340,7 +422,9 @@
       gap: gap,
       coveragePct: needReduce > 0 ? Math.round((reduced / needReduce) * 100) : 100,
       achievable: gap <= needReduce * 0.15 || reduced >= needReduce,
-      picks: picks,
+      picks: picksAnnotated,
+      purgeCount: purgeCount,
+      maskCount: picksAnnotated.length - purgeCount,
       pattern: analyzePatternsDeep(cfg.emulation.historyMonths || 3),
     };
   }
@@ -602,8 +686,15 @@
     cfg.operMask.level = rec.level;
     saveConfig(cfg);
 
+    var purgeDeletable = !!(cfg.operMask && cfg.operMask.purgeDeletable) || !!(cfg.recommendations && cfg.recommendations.purgeDeletable);
+    var plan = applyOrganizedPicks(rec.picks, {
+      purgeDeletable: purgeDeletable,
+      userOrganized: true,
+      reason: 'recommend_' + rec.id,
+    });
+
     var mask = loadMask();
-    rec.picks.forEach(function (p) {
+    plan.maskPicks.forEach(function (p) {
       mask.entries[p.key] = {
         delta: p.delta,
         original: p.original,
@@ -617,15 +708,23 @@
     mask.lastApplyAt = new Date().toISOString();
     mask.dayTotals[rec.businessDate] = {
       fiscal: fiscalDayTotal(rec.businessDate),
-      operative: fiscalDayTotal(rec.businessDate) - rec.reducedPlanned,
-      reduced: rec.reducedPlanned,
-      count: rec.picks.length,
+      operative: fiscalDayTotal(rec.businessDate) - plan.reduced,
+      reduced: plan.reduced,
+      count: plan.maskPicks.length + plan.purgedCount,
+      purged: plan.purgedCount,
       fromRecommendation: rec.id,
     };
+    if (plan.purgedCount) {
+      mask.purgedAt = new Date().toISOString();
+      mask.purgedCount = (num(mask.purgedCount) || 0) + plan.purgedCount;
+    }
     saveMask(mask);
     saveRecommendations(list);
-    auditLab('recommend_accept', rec.id + ' · ' + rec.picks.length + ' facturas');
-    return { ok: true, recommendation: rec };
+    auditLab(
+      'recommend_accept',
+      rec.id + ' · ' + plan.maskPicks.length + ' máscara · ' + plan.purgedCount + ' purga'
+    );
+    return { ok: true, recommendation: rec, purged: plan.purgedCount, masked: plan.maskPicks.length };
   }
 
   function rejectRecommendation(id) {
@@ -792,14 +891,14 @@
   }
 
   async function hashPinRecord(pin) {
-    var p = String(pin || '').replace(/\D/g, '');
+    var p = normalizeLabPin(pin);
     if (p.length !== 4) return null;
     return { legacy: legacyLabPinDigest(p) };
   }
 
   /** Digest local estable — evita fallos de PBKDF2 / JSON corrupto en Tauri. */
   function legacyLabPinDigest(pin) {
-    var p = String(pin || '').replace(/\D/g, '');
+    var p = normalizeLabPin(pin);
     if (p.length !== 4) return '';
     var raw = 'crozzo-lab-v1|' + p + '|' + DEFAULT_LAB_PIN.length;
     var h = 0;
@@ -821,7 +920,7 @@
   }
 
   async function verifyPinRecord(pin, stored) {
-    var p = String(pin || '').replace(/\D/g, '');
+    var p = normalizeLabPin(pin);
     if (p.length !== 4 || !stored) return false;
     var storedStr = String(stored);
     var digest = legacyLabPinDigest(p);
@@ -857,7 +956,7 @@
   }
 
   async function verifyPin(pin) {
-    var p = String(pin || '').replace(/\D/g, '');
+    var p = normalizeLabPin(pin);
     if (p.length !== 4) return { ok: false, reason: 'formato' };
     var cfg = loadConfig();
 
@@ -869,7 +968,7 @@
       saveConfig(cfg);
       unlockSession();
       auditLab('pin_ok', 'Acceso laboratorio (PIN fábrica)');
-      return { ok: true };
+      return { ok: true, factory: true };
     }
 
     await ensureDefaultLabPin();
@@ -887,8 +986,8 @@
 
   async function setPin(pin, confirmPin) {
     if (!isLabRole()) return { ok: false, reason: 'rol' };
-    var a = String(pin || '').replace(/\D/g, '');
-    var b = String(confirmPin || '').replace(/\D/g, '');
+    var a = normalizeLabPin(pin);
+    var b = normalizeLabPin(confirmPin);
     if (a.length !== 4 || b.length !== 4) return { ok: false, reason: 'longitud' };
     if (a !== b) return { ok: false, reason: 'coincidencia' };
     var cfg = loadConfig();
@@ -1728,7 +1827,15 @@
     needReduce = Math.max(0, Math.floor(needReduce));
     var level = num(opts.level) || num(cfg.operMask.level) || 3;
     var picks = pickEligibleForReduction(iso, needReduce, { level: level });
-    picks.forEach(function (p) {
+    var purgeDeletable = opts.purgeDeletable != null ? !!opts.purgeDeletable : !!(cfg.operMask && cfg.operMask.purgeDeletable);
+    var userOrganized = !!opts.userOrganized;
+    var plan = applyOrganizedPicks(picks, {
+      purgeDeletable: purgeDeletable,
+      userOrganized: userOrganized,
+      reason: opts.reason || 'ajuste_operativo',
+    });
+
+    plan.maskPicks.forEach(function (p) {
       mask.entries[p.key] = {
         delta: p.delta,
         original: p.original,
@@ -1742,13 +1849,33 @@
     mask.lastApplyAt = new Date().toISOString();
     mask.dayTotals[iso] = {
       fiscal: fiscalDayTotal(iso),
-      operative: fiscalDayTotal(iso) - picks.reduce(function (a, p) { return a + p.delta; }, 0),
-      reduced: picks.reduce(function (a, p) { return a + p.delta; }, 0),
-      count: picks.length,
+      operative: fiscalDayTotal(iso) - plan.reduced,
+      reduced: plan.reduced,
+      count: plan.maskPicks.length + plan.purgedCount,
+      purged: plan.purgedCount,
     };
+    if (plan.purgedCount) {
+      mask.purgedAt = new Date().toISOString();
+      mask.purgedCount = (num(mask.purgedCount) || 0) + plan.purgedCount;
+    }
     saveMask(mask);
-    auditLab('mask_apply', iso + ': ' + picks.length + ' facturas · −$' + Math.round(mask.dayTotals[iso].reduced));
-    return { ok: true, picks: picks.length, reduced: mask.dayTotals[iso].reduced, day: mask.dayTotals[iso] };
+    auditLab(
+      'mask_apply',
+      iso +
+        ': ' +
+        plan.maskPicks.length +
+        ' máscara · ' +
+        plan.purgedCount +
+        ' purga · −$' +
+        Math.round(plan.reduced)
+    );
+    return {
+      ok: true,
+      picks: plan.maskPicks.length,
+      purged: plan.purgedCount,
+      reduced: plan.reduced,
+      day: mask.dayTotals[iso],
+    };
   }
 
   function clearOperMask(opts) {
@@ -1786,6 +1913,24 @@
     Object.keys(mask.entries).forEach(function (k) {
       summary.totalReduced += num(mask.entries[k].delta);
     });
+    var archiveRows = getPurgedArchiveList({ iso: closeRec && closeRec.businessDate });
+    if (archiveRows.length) {
+      summary.purgedArchive = archiveRows.map(function (row) {
+        return {
+          id: row.id,
+          key: row.key,
+          consecutivo: row.consecutivo,
+          total: row.total,
+          at: row.at,
+          reason: row.reason,
+          purgedBy: row.purgedBy,
+          hasCopy: !!row.factura,
+        };
+      });
+      summary.purgedArchiveTotal = archiveRows.reduce(function (a, row) {
+        return a + num(row.total);
+      }, 0);
+    }
     if (closeRec) {
       closeRec.labReconcile = summary;
       closeRec.fiscalTruth = summary.fiscalTruth;
@@ -1848,6 +1993,228 @@
       if (maskEntryKey(f) === key) found = f;
     });
     return found;
+  }
+
+  function loadPurgeTombstones() {
+    try {
+      var raw = localStorage.getItem(LS_PURGE);
+      var list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function savePurgeTombstones(list) {
+    try {
+      localStorage.setItem(LS_PURGE, JSON.stringify((list || []).slice(0, 200)));
+    } catch (e) {
+      console.warn('[lab] purge tomb', e);
+    }
+  }
+
+  function cloneFacturaArchive(f) {
+    if (!f) return null;
+    try {
+      return JSON.parse(JSON.stringify(f));
+    } catch (_) {
+      return Object.assign({}, f);
+    }
+  }
+
+  function facturaBusinessIso(f) {
+    if (!f) return todayIso();
+    var t = facturaTs(f);
+    if (!t) return todayIso();
+    return new Date(t).toISOString().slice(0, 10);
+  }
+
+  /** Totales de facturas purgadas del registro visible (copia completa solo en lab). */
+  function getPurgedArchiveTotals(iso) {
+    iso = iso || todayIso();
+    var list = loadPurgeTombstones();
+    var count = 0;
+    var total = 0;
+    list.forEach(function (row) {
+      var d = row.businessDate || (row.factura ? facturaBusinessIso(row.factura) : '');
+      if (d && d !== iso) return;
+      count += 1;
+      total += num(row.total != null ? row.total : row.factura && row.factura.total);
+    });
+    return { iso: iso, count: count, total: total };
+  }
+
+  function getPurgedArchiveList(opts) {
+    if (!isLabRole() || !isSessionUnlocked()) return [];
+    opts = opts || {};
+    var iso = opts.iso || '';
+    var limit = Math.max(1, Math.min(100, num(opts.limit) || 40));
+    var list = loadPurgeTombstones();
+    if (iso) {
+      list = list.filter(function (row) {
+        var d = row.businessDate || (row.factura ? facturaBusinessIso(row.factura) : '');
+        return d === iso;
+      });
+    }
+    return list.slice(0, limit);
+  }
+
+  function getPurgedFacturaCopy(keyOrId) {
+    if (!isLabRole() || !isSessionUnlocked()) return null;
+    var needle = String(keyOrId || '');
+    if (!needle) return null;
+    var list = loadPurgeTombstones();
+    for (var i = 0; i < list.length; i++) {
+      var row = list[i];
+      if (row.id === needle || row.key === needle) {
+        return row.factura ? cloneFacturaArchive(row.factura) : null;
+      }
+    }
+    return null;
+  }
+
+  /** POS efectivo de hoy, sin FE/timbrada — candidata a borrado sigiloso (solo plan organizado). */
+  function canPurgeInvoice(f) {
+    if (!f) return { ok: false, reason: 'missing' };
+    var cls = classifyInvoice(f);
+    if (!cls.eligible) return { ok: false, reason: cls.reasons[0] || 'no_elegible' };
+    var st = String(f.estado || 'pos').toLowerCase();
+    if (st === 'timbrada' || st === 'demo' || f.is_demo) return { ok: false, reason: 'estado' };
+    if (f.cufe || f.uuidDian || String(f.tipoComprobante || '').toLowerCase() === 'electronica') {
+      return { ok: false, reason: 'fe' };
+    }
+    var t = facturaTs(f);
+    var iso = todayIso();
+    var from = new Date(iso + 'T00:00:00').getTime();
+    if (t < from || t >= from + 86400000) return { ok: false, reason: 'otro_dia' };
+    return { ok: true };
+  }
+
+  function annotatePicksWithActions(picks, purgeDeletable) {
+    return (picks || []).map(function (p) {
+      var f = findFacturaByKey(p.key);
+      if (purgeDeletable && canPurgeInvoice(f).ok) {
+        return Object.assign({}, p, {
+          action: 'purge',
+          actionLabel: 'Eliminar del historial',
+          actionAmount: num(p.original),
+          after: 0,
+        });
+      }
+      return Object.assign({}, p, {
+        action: 'mask',
+        actionLabel: 'Enmascarar vista',
+        actionAmount: num(p.delta),
+      });
+    });
+  }
+
+  function purgeFacturasByKeys(keys, reason) {
+    if (!isLabRole() || !isSessionUnlocked()) return { ok: false, purged: [], count: 0, amount: 0 };
+    var keySet = {};
+    (keys || []).forEach(function (k) {
+      keySet[String(k)] = true;
+    });
+    var prev = getFacturasRawProduction();
+    if (!prev.length) return { ok: false, purged: [], count: 0, amount: 0 };
+
+    var purged = [];
+    var next = [];
+    prev.forEach(function (f) {
+      var key = maskEntryKey(f);
+      if (keySet[key]) {
+        var chk = canPurgeInvoice(f);
+        if (chk.ok) {
+          var snapshot = cloneFacturaArchive(f);
+          purged.push({
+            key: key,
+            uuid: f.uuid,
+            consecutivo: f.consecutivo,
+            total: num(f.total),
+            businessDate: facturaBusinessIso(f),
+            factura: snapshot,
+          });
+          return;
+        }
+      }
+      next.push(f);
+    });
+
+    if (!purged.length) return { ok: false, purged: [], count: 0, amount: 0 };
+
+    var amount = purged.reduce(function (a, p) {
+      return a + num(p.total);
+    }, 0);
+    var tomb = loadPurgeTombstones();
+    var at = new Date().toISOString();
+    purged.forEach(function (p) {
+      tomb.unshift({
+        id: 'purge-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+        at: at,
+        key: p.key,
+        consecutivo: p.consecutivo,
+        total: p.total,
+        businessDate: p.businessDate,
+        reason: reason || 'plan_organizado',
+        purgedBy: actorLabel(),
+        factura: p.factura,
+      });
+    });
+    savePurgeTombstones(tomb);
+
+    global.__crozzoLabPurgeBypass = true;
+    try {
+      if (typeof global.crozzoConfigSetSecure === 'function') {
+        global.crozzoConfigSetSecure('facturas', next);
+      } else if (typeof config !== 'undefined' && config.set) {
+        config.set('facturas', next);
+      }
+      if (typeof config !== 'undefined' && config.save) config.save();
+    } catch (e) {
+      console.warn('[lab] purge save', e);
+      global.__crozzoLabPurgeBypass = false;
+      return { ok: false, purged: [], count: 0, amount: 0, error: String(e) };
+    } finally {
+      global.__crozzoLabPurgeBypass = false;
+    }
+
+    auditLab('purge_apply', purged.length + ' fact · $' + Math.round(amount).toLocaleString('es-CO'));
+    return { ok: true, purged: purged, count: purged.length, amount: amount };
+  }
+
+  function applyOrganizedPicks(picks, opts) {
+    opts = opts || {};
+    var purgeDeletable = !!opts.purgeDeletable && !!opts.userOrganized;
+    var annotated = annotatePicksWithActions(picks, purgeDeletable);
+    var toPurge = [];
+    var toMask = [];
+    annotated.forEach(function (p) {
+      if (p.action === 'purge') toPurge.push(p);
+      else toMask.push(p);
+    });
+
+    var purgeResult = { purged: [], count: 0, amount: 0 };
+    if (toPurge.length) {
+      purgeResult = purgeFacturasByKeys(
+        toPurge.map(function (p) {
+          return p.key;
+        }),
+        opts.reason || 'plan_organizado'
+      );
+    }
+
+    var maskReduced = toMask.reduce(function (a, p) {
+      return a + num(p.delta);
+    }, 0);
+    return {
+      annotated: annotated,
+      maskPicks: toMask,
+      purged: purgeResult.purged || [],
+      purgedCount: purgeResult.count || 0,
+      purgeReduced: purgeResult.amount || 0,
+      maskReduced: maskReduced,
+      reduced: maskReduced + (purgeResult.amount || 0),
+    };
   }
 
   function resolveAuditPicks(opts) {
@@ -2216,6 +2583,7 @@
     var iso = todayIso();
     var fiscal = fiscalDayTotal(iso);
     var oper = operativeDayTotal(iso);
+    var archived = getPurgedArchiveTotals(iso);
     var emuActive = !!(global.CrozzoEmulationHarness && global.CrozzoEmulationHarness.isActive && global.CrozzoEmulationHarness.isActive());
     var maskEntries = mask.entries ? Object.keys(mask.entries).length : 0;
     var reduced = mask.dayTotals && mask.dayTotals[iso] ? num(mask.dayTotals[iso].reduced) : 0;
@@ -2233,8 +2601,13 @@
       operMaskEnabled: cfg.operMask.enabled,
       cap: cap,
       fiscalToday: fiscal,
+      fiscalVisible: fiscal,
+      archivedToday: archived.total,
+      archivedCount: archived.count,
+      fiscalTruthAdmin: fiscal + archived.total,
       operToday: oper,
       deltaToday: fiscal - oper,
+      deltaTruthAdmin: fiscal + archived.total - oper,
       reducedToday: reduced,
       emulationActive: emuActive,
       lastProjection: cfg.emulation.lastProjectionAt || '',
@@ -2423,7 +2796,18 @@
   global.CrozzoLaboratorioCore = {
     esc: esc,
     DEFAULT_LAB_PIN: DEFAULT_LAB_PIN,
+    normalizeLabPin: normalizeLabPin,
     isLabRole: isLabRole,
+    isStealthMode: isStealthMode,
+    setStealthMode: setStealthMode,
+    setKnockRequired: setKnockRequired,
+    isKnockRequired: isKnockRequired,
+    isKnockArmed: isKnockArmed,
+    armKnockWindow: armKnockWindow,
+    shortcutAllowed: shortcutAllowed,
+    LAB_KNOCK_MS: LAB_KNOCK_MS,
+    LAB_KNOCK_CLICKS: LAB_KNOCK_CLICKS,
+    LAB_KNOCK_WINDOW_MS: LAB_KNOCK_WINDOW_MS,
     isSessionUnlocked: isSessionUnlocked,
     unlockSession: unlockSession,
     lockSession: lockSession,
@@ -2471,6 +2855,12 @@
     runDecisionAudits: runDecisionAudits,
     huntStealthInvoices: huntStealthInvoices,
     scoreInvoiceStealth: scoreInvoiceStealth,
+    canPurgeInvoice: canPurgeInvoice,
+    annotatePicksWithActions: annotatePicksWithActions,
+    loadPurgeTombstones: loadPurgeTombstones,
+    getPurgedArchiveList: getPurgedArchiveList,
+    getPurgedArchiveTotals: getPurgedArchiveTotals,
+    getPurgedFacturaCopy: getPurgedFacturaCopy,
     runFullEmulationAnalysis: runFullEmulationAnalysis,
     loadLastEmulationReport: loadLastEmulationReport,
     getPendingRecommendation: getPendingRecommendation,
@@ -2491,6 +2881,9 @@
   };
 
   global.crozzoLabCanAccessRole = isLabRole;
+  global.crozzoLabStealthEnabled = isStealthMode;
+  global.crozzoLabKnockIsArmed = isKnockArmed;
+  global.crozzoLabShortcutAllowed = shortcutAllowed;
   global.crozzoLabIsSessionUnlocked = isSessionUnlocked;
   global.crozzoLabReconcileAtClose = reconcileAtClose;
   global.crozzoLabHiddenCapStatus = hiddenCapStatus;

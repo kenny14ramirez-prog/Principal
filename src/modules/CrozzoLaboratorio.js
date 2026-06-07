@@ -52,11 +52,14 @@
   function bindLabPinInputs(root) {
     root = root || document;
     root.querySelectorAll('.crozzo-lab-pin-input').forEach(function (inp) {
+      if (inp.dataset.crozzoLabPinBound === '1') return;
+      inp.dataset.crozzoLabPinBound = '1';
       inp.addEventListener('input', function () {
         inp.value = String(inp.value || '').replace(/\D/g, '').slice(0, 4);
       });
       inp.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
+          e.preventDefault();
           if (inp.id === 'crozzo-lab-gate-pin') crozzoLabGateSubmit();
           else if (inp.id === 'crozzo-lab-pin') crozzoLabSubmitPin();
         }
@@ -64,7 +67,32 @@
     });
   }
 
+  function normalizeLabPinInput(pin) {
+    if (global.CrozzoLaboratorioCore && typeof global.CrozzoLaboratorioCore.normalizeLabPin === 'function') {
+      return global.CrozzoLaboratorioCore.normalizeLabPin(pin);
+    }
+    return String(pin == null ? '' : pin).replace(/\D/g, '').slice(0, 4);
+  }
+
+  function labPinFailToast(entered, r) {
+    if (typeof showToast !== 'function') return;
+    var p = normalizeLabPinInput(entered);
+    if (r && r.reason === 'formato') {
+      showToast('Ingrese 4 dígitos numéricos', 'warning');
+      return;
+    }
+    if (p === '8888') {
+      showToast('No se pudo validar el acceso — recargue con Ctrl+R', 'warning');
+      return;
+    }
+    showToast('PIN incorrecto', 'warning');
+  }
+
+  var _labPinSubmitting = false;
+
   function renderDashboard(dash) {
+    var c = Core();
+    var stealth = !!(c && c.isStealthMode && c.isStealthMode());
     var capHtml = dash.cap.active
       ? '<div class="crozzo-lab-kpi' +
         (dash.cap.alert ? ' crozzo-lab-kpi--warn' : '') +
@@ -100,13 +128,23 @@
         : '') +
       '</div>' +
       '<div class="crozzo-lab-kpi-row crozzo-lab-kpi-row--4">' +
-      '<div class="crozzo-lab-kpi"><span>Fiscal hoy</span><strong>' +
-      fmt(dash.fiscalToday) +
-      '</strong></div>' +
+      '<div class="crozzo-lab-kpi"><span>Reportes / usuarios</span><strong>' +
+      fmt(dash.fiscalVisible != null ? dash.fiscalVisible : dash.fiscalToday) +
+      '</strong><small>Lo que ven caja e informes</small></div>' +
       '<div class="crozzo-lab-kpi"><span>Vista operación</span><strong>' +
       fmt(dash.operToday) +
       '</strong></div>' +
-      '<div class="crozzo-lab-kpi"><span>Diferencia</span><strong class="' +
+      '<div class="crozzo-lab-kpi crozzo-lab-kpi--admin-truth"><span>Fiscal real (Laboratorio)</span><strong>' +
+      fmt(dash.fiscalTruthAdmin != null ? dash.fiscalTruthAdmin : dash.fiscalToday) +
+      '</strong><small>Incluye copias archivadas · ' +
+      (dash.archivedCount || 0) +
+      ' factura(s)</small></div>' +
+      '<div class="crozzo-lab-kpi"><span>Archivadas hoy</span><strong>' +
+      fmt(dash.archivedToday || 0) +
+      '</strong><small>Solo en Laboratorio</small></div>' +
+      '</div>' +
+      '<div class="crozzo-lab-kpi-row crozzo-lab-kpi-row--2">' +
+      '<div class="crozzo-lab-kpi"><span>Diferencia visible</span><strong class="' +
       (dash.deltaToday > 0 ? 'crozzo-lab-delta' : '') +
       '">' +
       fmt(dash.deltaToday) +
@@ -121,7 +159,18 @@
       '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoLabSwitchTab(\'tope\')"><i data-lucide="gauge"></i> Tope</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoLabRefresh()"><i data-lucide="refresh-cw"></i> Actualizar</button>' +
       '</div>' +
-      '<p class="form-hint crozzo-lab-secret-hint"><i data-lucide="keyboard"></i> Atajo oculto: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> · PIN: <strong>8888</strong></p></section>'
+      (stealth
+        ? '<p class="form-hint crozzo-lab-secret-hint"><i data-lucide="keyboard"></i> Atajo: <strong>Ctrl+Shift+R</strong> (también Ctrl+Shift+L) · PIN 8888 si no lo cambió</p>'
+        : '<p class="form-hint crozzo-lab-secret-hint"><i data-lucide="keyboard"></i> Atajo: Ctrl+Shift+R o Ctrl+Shift+L</p>') +
+      '<label class="crozzo-lab-toggle crozzo-lab-stealth"><input type="checkbox" id="crozzo-lab-stealth"' +
+      (stealth ? ' checked' : '') +
+      ' onchange="crozzoLabSetStealth(this.checked)"><span>Modo sigilo (sin menú ni avisos fuera de esta sesión)</span></label>' +
+      (stealth
+        ? '<label class="crozzo-lab-toggle"><input type="checkbox" id="crozzo-lab-knock"' +
+          (c.isKnockRequired && c.isKnockRequired() ? ' checked' : '') +
+          ' onchange="crozzoLabSetKnock(this.checked)"><span>Exigir 5 clics en pastilla Local antes del atajo</span></label>'
+        : '') +
+      '</section>'
     );
   }
 
@@ -179,16 +228,20 @@
       picks
         .slice(0, limit)
         .map(function (p) {
+          var isPurge = p.action === 'purge';
+          var after = isPurge ? 0 : p.after != null ? p.after : p.original - p.delta;
+          var tag = isPurge
+            ? '<span class="crozzo-lab-pick-tag crozzo-lab-pick-tag--purge">Eliminar</span> '
+            : '<span class="crozzo-lab-pick-tag">Enmascarar</span> ';
           return (
-            '<li>#' +
+            '<li>' +
+            tag +
+            '#' +
             esc(p.consecutivo || '—') +
             ' · ' +
             fmt(p.original) +
-            ' → ' +
-            fmt(p.after != null ? p.after : p.original - p.delta) +
-            ' (−' +
-            fmt(p.delta) +
-            ')</li>'
+            (isPurge ? ' · desaparece del historial' : ' → ' + fmt(after) + ' (−' + fmt(p.delta) + ')') +
+            '</li>'
           );
         })
         .join('') +
@@ -411,12 +464,17 @@
     var c = Core();
     if (!c) return '<div class="card"><p>Módulo laboratorio no cargado.</p></div>';
     var hasPin = c.pinIsSet();
+    var stealth = c.isStealthMode && c.isStealthMode();
     return (
       '<div class="crozzo-lab-gate">' +
       '<div class="crozzo-lab-gate__card">' +
-      '<div class="crozzo-lab-gate__icon"><i data-lucide="flask-conical"></i></div>' +
-      '<h2>Laboratorio administrativo</h2>' +
-      '<p class="crozzo-lab-gate__hint">Acceso restringido · PIN de 4 dígitos · Solo administradores<br><small>PIN por defecto: <strong>8888</strong> (cámbielo con «Cambiar PIN»)</small></p>' +
+      '<div class="crozzo-lab-gate__icon"><i data-lucide="' +
+      (stealth ? 'shield' : 'flask-conical') +
+      '"></i></div>' +
+      '<h2>' +
+      (stealth ? 'Sesión interna' : 'Laboratorio administrativo') +
+      '</h2>' +
+      '<p class="crozzo-lab-gate__hint">Acceso restringido · PIN de 4 dígitos · Solo administradores</p>' +
       (hasPin
         ? '<label class="form-label" for="crozzo-lab-pin">PIN</label>' +
           '<input type="password" id="crozzo-lab-pin" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••">' +
@@ -551,6 +609,10 @@
       '<label class="crozzo-lab-toggle"><input type="checkbox" id="crozzo-lab-pattern-adj"' +
       (cfg.operMask.patternAdjust ? ' checked' : '') +
       '><span>Ajuste por patrón semanal (ej. domingo vs lunes)</span></label>' +
+      '<label class="crozzo-lab-toggle"><input type="checkbox" id="crozzo-lab-purge-deletable"' +
+      (cfg.operMask.purgeDeletable ? ' checked' : '') +
+      '><span>Eliminar elegibles del historial (plan confirmado; más difícil de rastrear)</span></label>' +
+      '<p class="form-hint">Solo POS efectivo de hoy, sin FE/timbrada. Las demás se enmascaran. Requiere confirmación con PIN.</p>' +
       '<div class="form-group"><label class="form-label">Nivel de descuento (tolerancia)</label><select id="crozzo-lab-mask-level" class="form-select">' +
       (c
         ? c.listMaskLevels()
@@ -863,11 +925,20 @@
     var pending = c.getPendingRecommendation();
     var capBadge = dash.cap.alert ? ' <span class="crozzo-lab-tab-badge">!</span>' : '';
     var recBadge = pending ? ' <span class="crozzo-lab-tab-badge">1</span>' : '';
+    var stealth = c.isStealthMode && c.isStealthMode();
     return (
       '<div class="crozzo-lab-page">' +
       '<div class="crozzo-lab-hero">' +
-      '<div><h1 class="page-title"><i data-lucide="flask-conical"></i> Laboratorio</h1>' +
-      '<p class="page-subtitle">Panel oculto · emulación · topes · vista operativa · conciliación en cierre</p></div>' +
+      '<div><h1 class="page-title"><i data-lucide="' +
+      (stealth ? 'settings-2' : 'flask-conical') +
+      '"></i> ' +
+      (stealth ? 'Calibración interna' : 'Laboratorio') +
+      '</h1>' +
+      '<p class="page-subtitle">' +
+      (stealth
+        ? 'Ajustes de integración · solo administradores autorizados'
+        : 'Panel oculto · emulación · topes · vista operativa · conciliación en cierre') +
+      '</p></div>' +
       '<div class="crozzo-lab-hero__actions">' +
       '<span class="crozzo-lab-session-badge" id="crozzo-lab-session-badge">' +
       esc(dash.session) +
@@ -1063,6 +1134,51 @@
     );
   }
 
+  function renderPurgeArchivePanel() {
+    var c = Core();
+    if (!c || !c.getPurgedArchiveList) {
+      return '<p class="form-hint">Archivo no disponible.</p>';
+    }
+    var rows = c.getPurgedArchiveList({ limit: 50 });
+    if (!rows.length) {
+      return '<p class="form-hint">Sin facturas archivadas. Las eliminadas del registro visible quedan aquí con copia completa.</p>';
+    }
+    return (
+      '<div class="crozzo-lab-archive">' +
+      '<p class="crozzo-lab-desc">Copia íntegra de comprobantes quitados del historial y reportes visibles. Solo existe en esta sesión administrativa.</p>' +
+      '<ul class="crozzo-lab-list crozzo-lab-archive-list">' +
+      rows
+        .map(function (row) {
+          var when = row.at ? new Date(row.at).toLocaleString('es-CO') : '—';
+          var hasCopy = !!row.factura;
+          return (
+            '<li class="crozzo-lab-archive-item">' +
+            '<div><strong>#' +
+            esc(row.consecutivo || '—') +
+            '</strong> · ' +
+            fmt(row.total) +
+            ' · ' +
+            esc(row.businessDate || '—') +
+            '</div>' +
+            '<div class="form-hint">' +
+            esc(when) +
+            ' · ' +
+            esc(row.reason || 'plan') +
+            (hasCopy ? '' : ' · <em>sin copia (registro antiguo)</em>') +
+            '</div>' +
+            (hasCopy
+              ? '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoLabViewArchiveCopy(' +
+                JSON.stringify(String(row.id || row.key)) +
+                ')"><i data-lucide="file-search"></i> Ver copia</button>'
+              : '') +
+            '</li>'
+          );
+        })
+        .join('') +
+      '</ul></div>'
+    );
+  }
+
   function renderAudit() {
     return (
       '<section class="crozzo-lab-section">' +
@@ -1080,6 +1196,9 @@
       '<button type="button" class="btn btn-primary" onclick="crozzoLabRunDecisionAudits()"><i data-lucide="clipboard-check"></i> Auditar ambas</button>' +
       '</div>' +
       '<div id="crozzo-lab-audit-report-out" class="crozzo-lab-out"></div>' +
+      '<hr class="crozzo-lab-divider">' +
+      '<h4><i data-lucide="archive"></i> Archivo del Laboratorio (copias)</h4>' +
+      renderPurgeArchivePanel() +
       '<hr class="crozzo-lab-divider">' +
       '<h4><i data-lucide="history"></i> Log de eventos</h4>' +
       renderAuditLog() +
@@ -1258,6 +1377,65 @@
     refreshIcons();
   };
 
+  global.crozzoLabViewArchiveCopy = function (id) {
+    var c = Core();
+    if (!c || !c.getPurgedFacturaCopy) return;
+    var f = c.getPurgedFacturaCopy(id);
+    if (!f) {
+      if (typeof showToast === 'function') showToast('Copia no encontrada', 'warning');
+      return;
+    }
+    var items = Array.isArray(f.items || f.lineas || f.productos) ? f.items || f.lineas || f.productos : [];
+    var linesHtml = items.length
+      ? '<ul class="crozzo-lab-list">' +
+        items
+          .slice(0, 24)
+          .map(function (it) {
+            var nom = (it && (it.nombre || it.name || it.producto)) || 'Ítem';
+            var qty = num(it && (it.cantidad || it.qty));
+            var sub = num(it && (it.subtotal || it.total));
+            return '<li>' + esc(nom) + ' × ' + qty + ' · ' + fmt(sub) + '</li>';
+          })
+          .join('') +
+        '</ul>'
+      : '<p class="form-hint">Sin detalle de líneas en la copia.</p>';
+    var ov = document.getElementById('crozzo-lab-archive-detail-overlay');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'crozzo-lab-archive-detail-overlay';
+      ov.className = 'crozzo-lab-pin-overlay';
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML =
+      '<div class="crozzo-lab-pin-modal crozzo-lab-archive-modal" role="dialog">' +
+      '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseArchiveCopy()" aria-label="Cerrar"><i data-lucide="x"></i></button>' +
+      '<h3>Copia archivada · #' +
+      esc(f.consecutivo || '—') +
+      '</h3>' +
+      '<p class="form-hint">Fuera del Laboratorio esta factura no aparece en ningún listado ni reporte.</p>' +
+      '<div class="crozzo-lab-kpi-row">' +
+      '<div class="crozzo-lab-kpi"><span>Total</span><strong>' +
+      fmt(f.total || f.totalFactura) +
+      '</strong></div>' +
+      '<div class="crozzo-lab-kpi"><span>Pago</span><strong>' +
+      esc(f.metodoPago || '—') +
+      '</strong></div></div>' +
+      '<p class="form-hint">Fecha: ' +
+      esc(f.fecha || f.createdAt || '—') +
+      ' · UUID: ' +
+      esc(f.uuid || '—') +
+      '</p>' +
+      linesHtml +
+      '</div>';
+    ov.hidden = false;
+    refreshIcons();
+  };
+
+  global.crozzoLabCloseArchiveCopy = function () {
+    var ov = document.getElementById('crozzo-lab-archive-detail-overlay');
+    if (ov) ov.hidden = true;
+  };
+
   global.crozzoLabClearAudit = function () {
     try {
       localStorage.removeItem('crozzo_lab_audit_v1');
@@ -1280,7 +1458,7 @@
         '<input type="password" id="crozzo-lab-new-pin" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric">' +
         '<input type="password" id="crozzo-lab-new-pin2" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric" placeholder="Confirmar">' +
         '<button type="button" class="btn btn-primary" onclick="crozzoLabSaveNewPin()">Guardar</button>' +
-        '<button type="button" class="btn btn-link btn-sm" onclick="crozzoLabChangePin()">Restaurar fábrica 8888</button></div>';
+        '<button type="button" class="btn btn-link btn-sm" onclick="crozzoLabChangePin()">Restablecer PIN de fábrica</button></div>';
       document.body.appendChild(ov);
     }
     ov.hidden = false;
@@ -1307,26 +1485,62 @@
     }
   };
 
+  function crozzoLabShortcutKeyMatch(e) {
+    if (!e.ctrlKey || !e.shiftKey || e.altKey) return false;
+    var k = String(e.key || '').toLowerCase();
+    return k === 'r' || k === 'l';
+  }
+
   function crozzoLabInstallShortcuts() {
     if (global.__crozzoLabShortcuts) return;
     global.__crozzoLabShortcuts = true;
-    document.addEventListener('keydown', function (e) {
-      if (e.ctrlKey && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+    document.addEventListener(
+      'keydown',
+      function (e) {
+        if (!crozzoLabShortcutKeyMatch(e)) return;
+        var c = Core();
+        if (c && typeof c.shortcutAllowed === 'function' && !c.shortcutAllowed()) return;
         e.preventDefault();
+        e.stopPropagation();
         if (typeof crozzoLabOpenGate === 'function') crozzoLabOpenGate();
+      },
+      true
+    );
+  }
+
+  function crozzoLabInstallGhostKnock() {
+    if (global.__crozzoLabGhostKnock) return;
+    var badge = document.getElementById('crozzoStorageModeBadge');
+    if (!badge) return;
+    global.__crozzoLabGhostKnock = true;
+    var hits = [];
+    badge.addEventListener('click', function () {
+      var c = Core();
+      if (!c || typeof c.isKnockRequired !== 'function' || !c.isKnockRequired()) return;
+      var now = Date.now();
+      var windowMs = c.LAB_KNOCK_WINDOW_MS || 3000;
+      var need = c.LAB_KNOCK_CLICKS || 5;
+      hits = hits.filter(function (t) {
+        return now - t < windowMs;
+      });
+      hits.push(now);
+      if (hits.length >= need && typeof c.armKnockWindow === 'function') {
+        hits = [];
+        c.armKnockWindow();
       }
     });
   }
 
+  function crozzoLabTryInstallGhostKnockLater() {
+    crozzoLabInstallGhostKnock();
+    if (!global.__crozzoLabGhostKnock) {
+      setTimeout(crozzoLabInstallGhostKnock, 500);
+      setTimeout(crozzoLabInstallGhostKnock, 2000);
+    }
+  }
+
   function crozzoLabBindNavClick() {
-    var nav = document.getElementById('nav-laboratorio-admin');
-    if (!nav || nav.__labBound) return;
-    nav.__labBound = true;
-    nav.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof crozzoLabOpenGate === 'function') crozzoLabOpenGate();
-    });
+    /* Menú lateral eliminado: acceso solo por knock + atajo o sesión activa. */
   }
   global.crozzoLabSwitchTab = function (tab) {
     document.querySelectorAll('.crozzo-lab-tab').forEach(function (b) {
@@ -1339,11 +1553,15 @@
   };
 
   global.crozzoLabSubmitPin = async function () {
+    if (_labPinSubmitting) return;
     var c = Core();
     var inp = document.getElementById('crozzo-lab-pin');
     if (!c || !inp) return;
+    _labPinSubmitting = true;
     try {
-      var r = await c.verifyPin(inp.value);
+      var pin = normalizeLabPinInput(inp.value);
+      inp.value = pin;
+      var r = await c.verifyPin(pin);
       if (r && r.ok) {
         if (typeof showToast === 'function') showToast('Laboratorio desbloqueado', 'success');
         if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage === 'laboratorio-admin') {
@@ -1353,12 +1571,14 @@
             initPage();
           }
         }
-      } else if (typeof showToast === 'function') {
-        showToast(r && r.reason === 'formato' ? 'Ingrese 4 dígitos' : 'PIN incorrecto — pruebe 8888', 'warning');
+      } else {
+        labPinFailToast(pin, r);
       }
     } catch (e) {
       console.warn('[lab] pin', e);
       if (typeof showToast === 'function') showToast('Error al verificar PIN', 'warning');
+    } finally {
+      _labPinSubmitting = false;
     }
   };
 
@@ -1386,7 +1606,7 @@
     if (typeof navigateTo === 'function') navigateTo('laboratorio-admin');
   };
 
-  global.crozzoLabChangePin = function () {
+  global.crozzoLabChangePin = async function () {
     var c = Core();
     if (c) {
       c.lockSession();
@@ -1394,9 +1614,19 @@
       cfg.pinHash = '';
       cfg.pinFactory = false;
       c.saveConfig(cfg);
-      void c.ensureDefaultLabPin();
+      await c.ensureDefaultLabPin();
+      try {
+        var r = await c.verifyPin('8888');
+        if (r && r.ok) {
+          if (typeof showToast === 'function') showToast('PIN de fábrica restablecido · laboratorio desbloqueado', 'success');
+          global.crozzoLabCloseGate();
+          global.crozzoLabCloseChangePin();
+          if (typeof navigateTo === 'function') navigateTo('laboratorio-admin');
+          return;
+        }
+      } catch (_) {}
     }
-    if (typeof showToast === 'function') showToast('PIN restablecido a 8888 · ingrese de nuevo', 'info');
+    if (typeof showToast === 'function') showToast('PIN de fábrica restablecido · ingrese de nuevo', 'info');
     if (typeof navigateTo === 'function') navigateTo('laboratorio-admin');
   };
 
@@ -1515,9 +1745,9 @@
         var c = Core();
         if (!c || !pinInp) return;
         try {
-          var r = await c.verifyPin(pinInp.value);
+          var r = await c.verifyPin(normalizeLabPinInput(pinInp.value));
           if (!r || !r.ok) {
-            if (typeof showToast === 'function') showToast('PIN incorrecto', 'warning');
+            labPinFailToast(pinInp.value, r);
             return;
           }
         } catch (e) {
@@ -1678,7 +1908,9 @@
     var manual = num(document.getElementById('crozzo-lab-manual-reduce') && document.getElementById('crozzo-lab-manual-reduce').value);
     var level = num(document.getElementById('crozzo-lab-mask-level') && document.getElementById('crozzo-lab-mask-level').value) || 3;
     var enabled = !!(document.getElementById('crozzo-lab-mask-enabled') && document.getElementById('crozzo-lab-mask-enabled').checked);
-    var preview = c.previewMaskApply({ manualReduce: manual, level: level });
+    var pattern = !!(document.getElementById('crozzo-lab-pattern-adj') && document.getElementById('crozzo-lab-pattern-adj').checked);
+    var purgeDeletable = !!(document.getElementById('crozzo-lab-purge-deletable') && document.getElementById('crozzo-lab-purge-deletable').checked);
+    var preview = c.previewMaskApply({ manualReduce: manual, level: level, purgeDeletable: purgeDeletable });
     if (!preview.picks.length && enabled) {
       if (typeof showToast === 'function') showToast('Sin facturas elegibles para el ajuste', 'warning');
       return;
@@ -1688,6 +1920,9 @@
       'Entiendo que el cierre formal concilia y restaura la vista fiscal',
       'Confirmo que solo afecta tickets elegibles (efectivo POS)',
     ];
+    if (purgeDeletable) {
+      checks.push('Autorizo eliminar del historial las facturas marcadas como «Eliminar» (irreversible en este equipo)');
+    }
     global.crozzoLabOpenWizard({
       finishLabel: 'Aplicar máscara',
       requirePin: true,
@@ -1806,15 +2041,28 @@
     if (!c) return;
     var enabled = !!(document.getElementById('crozzo-lab-mask-enabled') && document.getElementById('crozzo-lab-mask-enabled').checked);
     var pattern = !!(document.getElementById('crozzo-lab-pattern-adj') && document.getElementById('crozzo-lab-pattern-adj').checked);
+    var purgeDeletable = !!(document.getElementById('crozzo-lab-purge-deletable') && document.getElementById('crozzo-lab-purge-deletable').checked);
     var maxEl = Number(document.getElementById('crozzo-lab-max-eligible') && document.getElementById('crozzo-lab-max-eligible').value);
     var manual = Number(document.getElementById('crozzo-lab-manual-reduce') && document.getElementById('crozzo-lab-manual-reduce').value);
     var cfg = c.loadConfig();
     cfg.operMask.maxEligibleAmount = maxEl;
     cfg.operMask.level = Number(document.getElementById('crozzo-lab-mask-level') && document.getElementById('crozzo-lab-mask-level').value) || 3;
+    cfg.operMask.purgeDeletable = purgeDeletable;
     c.saveConfig(cfg);
-    var r = c.applyOperMask({ enabled: enabled, patternAdjust: pattern, manualReduce: manual, reason: 'ui_apply', level: cfg.operMask.level });
+    var r = c.applyOperMask({
+      enabled: enabled,
+      patternAdjust: pattern,
+      manualReduce: manual,
+      reason: 'ui_apply',
+      level: cfg.operMask.level,
+      purgeDeletable: purgeDeletable,
+      userOrganized: true,
+    });
     if (r.ok && typeof showToast === 'function') {
-      showToast('Ajuste aplicado · ' + r.picks + ' facturas · −' + fmt(r.reduced), 'success');
+      var msg = 'Plan aplicado · ' + r.picks + ' enmascaradas';
+      if (r.purged) msg += ' · ' + r.purged + ' eliminadas';
+      msg += ' · −' + fmt(r.reduced);
+      showToast(msg, 'success');
     }
     if (typeof renderPage === 'function' && currentPage === 'laboratorio-admin') {
       document.getElementById('mainContent').innerHTML = renderMain();
@@ -1845,20 +2093,23 @@
       if (typeof navigateTo === 'function') navigateTo('laboratorio-admin');
       return;
     }
+    var gateHtml =
+      '<div class="crozzo-lab-pin-modal" role="dialog" aria-modal="true">' +
+      '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseGate()" aria-label="Cerrar"><i data-lucide="x"></i></button>' +
+      '<h3>' +
+      (Core().isStealthMode && Core().isStealthMode() ? 'PIN de sesión' : 'Laboratorio · PIN') +
+      '</h3>' +
+      '<p class="form-hint crozzo-lab-gate__hint">Acceso restringido · administradores autorizados</p>' +
+      '<input type="password" id="crozzo-lab-gate-pin" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric" autocomplete="off" placeholder="••••" aria-label="PIN de acceso">' +
+      '<button type="button" class="btn btn-primary crozzo-lab-pin-submit" onclick="crozzoLabGateSubmit()">Entrar</button></div>';
     var ov = document.getElementById('crozzo-lab-pin-overlay');
     if (!ov) {
       ov = document.createElement('div');
       ov.id = 'crozzo-lab-pin-overlay';
       ov.className = 'crozzo-lab-pin-overlay';
-      ov.innerHTML =
-        '<div class="crozzo-lab-pin-modal" role="dialog" aria-modal="true">' +
-        '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseGate()" aria-label="Cerrar"><i data-lucide="x"></i></button>' +
-        '<h3>Laboratorio · PIN</h3>' +
-        '<p class="form-hint">PIN fábrica: <strong>8888</strong></p>' +
-        '<input type="password" id="crozzo-lab-gate-pin" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric" placeholder="••••">' +
-        '<button type="button" class="btn btn-primary" onclick="crozzoLabGateSubmit()">Entrar</button></div>';
       document.body.appendChild(ov);
     }
+    ov.innerHTML = gateHtml;
     ov.hidden = false;
     bindLabPinInputs(ov);
     refreshIcons();
@@ -1874,18 +2125,27 @@
   };
 
   global.crozzoLabGateSubmit = async function () {
+    if (_labPinSubmitting) return;
     var c = Core();
     var inp = document.getElementById('crozzo-lab-gate-pin');
     if (!c || !inp) return;
+    _labPinSubmitting = true;
     try {
-      var r = await c.verifyPin(inp.value);
+      var pin = normalizeLabPinInput(inp.value);
+      inp.value = pin;
+      var r = await c.verifyPin(pin);
       if (r && r.ok) {
+        inp.value = '';
         global.crozzoLabCloseGate();
         if (typeof navigateTo === 'function') navigateTo('laboratorio-admin');
-      } else if (typeof showToast === 'function') showToast('PIN incorrecto — pruebe 8888', 'warning');
+      } else {
+        labPinFailToast(pin, r);
+      }
     } catch (e) {
       console.warn('[lab] gate pin', e);
       if (typeof showToast === 'function') showToast('Error al verificar PIN', 'warning');
+    } finally {
+      _labPinSubmitting = false;
     }
   };
 
@@ -1915,7 +2175,12 @@
     var c = Core();
     if (!c) return;
     var r = c.acceptRecommendation(id);
-    if (r.ok && typeof showToast === 'function') showToast('Recomendación aplicada · vista operativa actualizada', 'success');
+    if (r.ok && typeof showToast === 'function') {
+      var msg = 'Recomendación aplicada';
+      if (r.purged) msg += ' · ' + r.purged + ' eliminadas del historial';
+      if (r.masked) msg += ' · ' + r.masked + ' enmascaradas';
+      showToast(msg, 'success');
+    }
     else if (typeof showToast === 'function') showToast('No se pudo aplicar', 'warning');
     crozzoLabRefresh();
     crozzoLabSyncNavVisibility();
@@ -2126,28 +2391,48 @@
     refreshIcons();
   };
 
+  global.crozzoLabSetStealth = function (on) {
+    var c = Core();
+    if (!c || typeof c.setStealthMode !== 'function') return;
+    c.setStealthMode(!!on);
+    crozzoLabSyncNavVisibility();
+    if (typeof showToast === 'function') {
+      showToast(on ? 'Modo sigilo activado' : 'Modo sigilo desactivado', on ? 'info' : 'success');
+    }
+    if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage === 'laboratorio-admin') {
+      renderPage();
+    }
+  };
+
+  global.crozzoLabSetKnock = function (on) {
+    var c = Core();
+    if (!c || typeof c.setKnockRequired !== 'function') return;
+    c.setKnockRequired(!!on);
+    if (typeof showToast === 'function') {
+      showToast(on ? 'Atajo bloqueado hasta secuencia Local' : 'Atajo directo habilitado', 'info');
+    }
+  };
+
   global.crozzoLabSyncNavVisibility = function () {
     var el = document.getElementById('nav-laboratorio-admin');
-    var li = el && el.closest('li');
-    var c = Core();
-    var show = c && c.isLabRole();
+    if (!el) return;
+    var li = el.closest('li');
     if (li) {
-      li.hidden = !show;
-      if (show) li.removeAttribute('hidden');
+      li.hidden = true;
+      li.setAttribute('hidden', '');
+      if (li.parentNode) li.parentNode.removeChild(li);
     }
-    if (el) {
-      el.hidden = !show;
-      el.style.display = show ? 'flex' : 'none';
-      if (c) {
-        var capAlert = !!c.hiddenCapStatus().alert;
-        var recPending = !!c.getPendingRecommendation();
-        el.classList.toggle('crozzo-lab-nav-item--alert', capAlert || recPending);
-      }
-    }
-    crozzoLabBindNavClick();
   };
 
   crozzoLabInstallShortcuts();
+  crozzoLabTryInstallGhostKnockLater();
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', crozzoLabTryInstallGhostKnockLater);
+    } else {
+      crozzoLabTryInstallGhostKnockLater();
+    }
+  }
 
   global.CrozzoLaboratorio = {
     renderPage: renderPage,
