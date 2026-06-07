@@ -480,8 +480,26 @@
     return 'Proyecto';
   }
 
+  function androidInstallUninstallGuide(short) {
+    var TU = global.CrozzoTauriUpdater;
+    if (!short && TU && typeof TU.androidInstallConflictHelp === 'function') {
+      return TU.androidInstallConflictHelp();
+    }
+    return (
+      'Si Android dice «no se pudo instalar» o «conflicto de paquetes»: Ajustes → Apps → busque «Proyecto» → Desinstalar. ' +
+      'Luego instale el APK Proyecto_*_arm64.apk desde GitHub Releases (no use «Actualizar» sobre la app vieja).'
+    );
+  }
+
   function humanizeInstallError(err) {
     var raw = err && err.message ? err.message : String(err || '');
+    if (
+      /conflicto de paquetes|conflicting packages|UPDATE_INCOMPATIBLE|INSTALL_FAILED_UPDATE|signatures do not match|signature mismatch|different key|signature was created|no coinciden las firmas|firma incompatible/i.test(
+        raw
+      )
+    ) {
+      if (getUpdateClientProfile().isAndroid) return androidInstallUninstallGuide(false);
+    }
     if (/different key|signature was created/i.test(raw)) {
       return 'Actualizando por método alternativo automático (instalador silencioso)…';
     }
@@ -1479,7 +1497,7 @@
     var profile = getUpdateClientProfile();
     if (hint) {
       hint.textContent = profile.isAndroid
-        ? 'Descargue el APK del release e instálelo en la tablet (orígenes desconocidos o MDM).'
+        ? androidInstallUninstallGuide(true)
         : profile.isWeb
           ? 'En navegador la interfaz se recarga sola; si usa app nativa, descargue el instalador correspondiente.'
           : 'Si el Plan A (automático) falla por red, permisos o GitHub Actions, use descarga manual del instalador firmado.';
@@ -1886,7 +1904,8 @@
         lead.textContent =
           errMsg ||
           (profile.kind === 'android'
-            ? 'La app descargará e instalará la actualización. Confirme «Actualizar» cuando Android lo pida (un solo toque).'
+            ? 'Se descargará el APK y Android abrirá el instalador. ' +
+              'Si ya tiene la app: «Actualizar» puede fallar por conflicto de firma — entonces desinstale «Proyecto» primero (Ajustes → Apps) e instale el APK limpio.'
             : profile.isAndroid
               ? 'Pulse «Instalar ahora» para recargar la interfaz en el navegador.'
               : profile.isDesktopBinary
@@ -1947,9 +1966,15 @@
       }
       if (title) title.textContent = 'No se pudo instalar la actualización';
       if (lead) {
-        lead.textContent =
-          (errMsg || 'El .exe nuevo no se descargó.') +
-          ' Pulse Reintentar (Plan A) o use Plan B para descargar el instalador manualmente.';
+        var failProfile = getUpdateClientProfile();
+        if (failProfile.isAndroid) {
+          lead.textContent =
+            (errMsg ? errMsg + ' ' : '') + androidInstallUninstallGuide(false);
+        } else {
+          lead.textContent =
+            (errMsg || 'El instalador no se descargó.') +
+            ' Pulse Reintentar (Plan A) o use Plan B para descargar el instalador manualmente.';
+        }
       }
       if (dismiss) {
         dismiss.disabled = false;
@@ -2387,7 +2412,7 @@
             onProgress({
               phase: 'install',
               percent: 88,
-              message: 'Instale el APK descargado y vuelva a abrir Crozzo POS.',
+              message: 'Instale el APK. Si Android rechaza: desinstale «Proyecto» primero (Ajustes → Apps).',
             });
           }
           return {
@@ -2471,8 +2496,8 @@
 
     if (res && res.plan === 'android_apk') {
       var awaitingMsg =
-        (res.installHint ? res.installHint + ' ' : '') +
-        'Instalador del sistema abierto. Confirme «Actualizar» o «Instalar» en Android y vuelva a abrir Crozzo POS.';
+        (res.installHint ? res.installHint + ' ' : androidInstallUninstallGuide(true) + ' ') +
+        'Instalador abierto: confirme en Android. Si falla, desinstale «Proyecto» e instale el APK de GitHub.';
       if (uiMode === 'optional') {
         applyOptionalAwaiting(awaitingMsg);
         return Promise.resolve({ handled: true, res: res });
@@ -2482,7 +2507,9 @@
     }
 
     if (res && res.plan === 'apk_download' && !res.exiting) {
-      var dlMsg = 'Descarga del APK iniciada. Instálelo y vuelva a abrir Crozzo POS.';
+      var dlMsg =
+        (res.installHint ? res.installHint + ' ' : '') +
+        'Descarga del APK iniciada. Al instalar: si falla, desinstale «Proyecto» en Ajustes → Apps e instale el APK de nuevo.';
       if (uiMode === 'optional') {
         applyOptionalAwaiting(dlMsg);
         if (typeof global.showToast === 'function') global.showToast('Descarga del APK iniciada.', 'info');
@@ -3060,7 +3087,7 @@
           setCriticalOpen(true);
           populateCriticalInfo(
             'idle',
-            'Descarga del APK iniciada. Instálelo desde el navegador y vuelva a abrir Crozzo POS.'
+            'Descarga del APK iniciada. ' + androidInstallUninstallGuide(true)
           );
           setCheckStatus('Instale el APK descargado para completar la actualización.');
           return res;

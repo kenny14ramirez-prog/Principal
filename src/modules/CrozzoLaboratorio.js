@@ -2111,6 +2111,7 @@
     }
     ov.innerHTML = gateHtml;
     ov.hidden = false;
+    ov.removeAttribute('hidden');
     bindLabPinInputs(ov);
     refreshIcons();
     setTimeout(function () {
@@ -2121,7 +2122,13 @@
 
   global.crozzoLabCloseGate = function () {
     var ov = document.getElementById('crozzo-lab-pin-overlay');
-    if (ov) ov.hidden = true;
+    if (ov) {
+      ov.hidden = true;
+      ov.setAttribute('hidden', '');
+      ov.innerHTML = '';
+      ov.style.removeProperty('display');
+      ov.style.removeProperty('pointer-events');
+    }
   };
 
   global.crozzoLabGateSubmit = async function () {

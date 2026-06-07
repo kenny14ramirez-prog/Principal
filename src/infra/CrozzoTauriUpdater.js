@@ -81,6 +81,22 @@
     return isTauri() && isAndroidTablet();
   }
 
+  function androidInstallConflictHelp() {
+    return (
+      'Conflicto de paquetes: la APK nueva no tiene la misma firma que la app instalada (com.crozzo.pos). ' +
+      'Solución: Ajustes → Apps → busque «Proyecto» o «Crozzo POS» → Desinstalar. ' +
+      'Luego instale el APK Proyecto_*_arm64.apk desde GitHub Releases. ' +
+      'Los datos locales de la app se pierden al desinstalar; la caja/nube conserva la configuración del negocio.'
+    );
+  }
+
+  function isAndroidInstallConflictError(msg) {
+    var s = String(msg || '');
+    return /UPDATE_INCOMPATIBLE|INSTALL_FAILED_UPDATE|INSTALL_FAILED.*SIGN|signatures do not match|signature mismatch|different certificate|conflicto de paquetes|conflicting packages|package conflicts|same package|mismo nombre de paquete|already exists.*signature|certific.*no coincid/i.test(
+      s
+    );
+  }
+
   function tryInstallPath(installPath) {
     return invoke('plugin:android-package-install|install', { installPath: installPath });
   }
@@ -101,10 +117,13 @@
       })
       .catch(function (err) {
         var msg = String((err && err.message) || err || '');
-        if (/FileProvider|configured root|resource|parse|invalid|package|paquete/i.test(msg)) {
+        if (isAndroidInstallConflictError(msg)) {
+          return Promise.reject(new Error(androidInstallConflictHelp()));
+        }
+        if (/FileProvider|configured root|INSTALL_PARSE_FAILED|parse error/i.test(msg)) {
           return Promise.reject(
             new Error(
-              'Android rechazó el APK. Si ya tiene Crozzo instalado: desinstálelo (Ajustes → Apps), descargue Proyecto_*_arm64.apk desde GitHub Releases e instálelo manualmente. Luego las actualizaciones automáticas funcionarán.'
+              'Android no pudo abrir el APK descargado. Reintente la descarga o instale manualmente desde GitHub Releases.'
             )
           );
         }
@@ -172,7 +191,8 @@
             onProgress({
               phase: 'install',
               percent: 88,
-              message: 'Abriendo instalador del sistema… Confirme «Actualizar».',
+              message:
+                'Abriendo instalador… Si «Actualizar» falla, desinstale «Proyecto» en Ajustes → Apps e instale de nuevo.',
             });
             return invokeAndroidPackageInstall(installPath, altPath).then(function () {
               return {
@@ -184,8 +204,7 @@
                 needsManualInstall: false,
                 awaitingSystemConfirm: true,
                 intentLaunched: true,
-                installHint:
-                  'Si Android dice «problema de paquetes»: desinstale Crozzo POS e instale el APK manual desde GitHub.',
+                installHint: androidInstallConflictHelp(),
               };
             });
           })
@@ -203,6 +222,7 @@
                 version: targetVersion || info.version,
                 downloadUrl: apkUrl,
                 needsManualInstall: true,
+                installHint: androidInstallConflictHelp(),
               };
             });
           });
@@ -1587,6 +1607,8 @@
     canUseTauriUpdater: canUseTauriUpdater,
     canUseAndroidInAppUpdater: canUseAndroidInAppUpdater,
     installApkAutomatic: installApkAutomatic,
+    androidInstallConflictHelp: androidInstallConflictHelp,
+    isAndroidInstallConflictError: isAndroidInstallConflictError,
     getClientKind: getClientKind,
     getPlatformAssetKind: getPlatformAssetKind,
     platformArtifactLabel: platformArtifactLabel,

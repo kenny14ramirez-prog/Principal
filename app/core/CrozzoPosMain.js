@@ -35124,6 +35124,10 @@ function crozzoIsDrawerLayoutActive() {
   try {
     const html = document.documentElement;
     if (html && html.classList.contains('crozzo-form-desktop')) return false;
+    if (html && html.classList.contains('crozzo-android-apk')) return true;
+    if (html && html.classList.contains('tauri-shell') && !html.classList.contains('crozzo-form-desktop')) {
+      return true;
+    }
     if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) return true;
     if (
       html.classList.contains('crozzo-touch-shell') ||
@@ -35139,10 +35143,29 @@ function crozzoIsDrawerLayoutActive() {
   } catch (_) {}
   return false;
 }
+
+function crozzoDismissBlockingLabOverlay() {
+  try {
+    var ov = document.getElementById('crozzo-lab-pin-overlay');
+    if (!ov) return;
+    if (document.getElementById('crozzo-lab-gate-pin')) return;
+    ov.hidden = true;
+    ov.setAttribute('hidden', '');
+    ov.style.removeProperty('display');
+    ov.style.removeProperty('pointer-events');
+  } catch (_) {}
+}
+
 function crozzoOpenSidebarDrawer() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
-  if (typeof crozzoIsDrawerLayoutActive === 'function' && !crozzoIsDrawerLayoutActive()) {
+  crozzoDismissBlockingLabOverlay();
+  var drawerLayout = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
+  var apkShell = false;
+  try {
+    apkShell = document.documentElement && document.documentElement.classList.contains('crozzo-android-apk');
+  } catch (_) {}
+  if (!drawerLayout && !apkShell) {
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(true, true);
@@ -35157,23 +35180,29 @@ function crozzoOpenSidebarDrawer() {
       CrozzoSidebarNav.clearHoverTimers();
     }
   } catch (_) {}
+  sidebar.removeAttribute('hidden');
+  sidebar.setAttribute('aria-hidden', 'false');
   sidebar.classList.add('expanded', 'is-expanded');
-  sidebar.style.removeProperty('transform');
-  sidebar.style.removeProperty('visibility');
-  sidebar.style.removeProperty('display');
-  if (typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive()) {
+  sidebar.style.removeProperty('pointer-events');
+  if (drawerLayout || apkShell) {
     sidebar.classList.add('crozzo-drawer-nav');
   }
   var needSlide = !sidebar.classList.contains('open');
-  var apkShell = false;
-  try {
-    apkShell = document.documentElement && document.documentElement.classList.contains('crozzo-android-apk');
-  } catch (_) {}
   if (needSlide && !apkShell) {
     sidebar.classList.remove('open');
     void sidebar.offsetWidth;
   }
   sidebar.classList.add('open');
+  if (apkShell || drawerLayout) {
+    sidebar.style.setProperty('transform', 'translateX(0)', 'important');
+    sidebar.style.setProperty('visibility', 'visible', 'important');
+    sidebar.style.setProperty('display', 'flex', 'important');
+    sidebar.style.setProperty('z-index', '220', 'important');
+  } else {
+    sidebar.style.removeProperty('transform');
+    sidebar.style.removeProperty('visibility');
+    sidebar.style.removeProperty('display');
+  }
   try {
     sessionStorage.setItem('crozzo_sidebar_drawer_open', '1');
   } catch (_) {}
@@ -35312,6 +35341,7 @@ function crozzoCloseSidebarDrawer() {
     sidebar.classList.remove('open');
     sidebar.style.removeProperty('transform');
     sidebar.style.removeProperty('visibility');
+    sidebar.style.removeProperty('z-index');
     if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
       setTimeout(function () {
         if (sidebar && !sidebar.classList.contains('open')) {
@@ -35336,6 +35366,7 @@ function toggleSidebar() {
   if (typeof crozzoKioskIsActive === 'function' && crozzoKioskIsActive()) return;
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
+  crozzoDismissBlockingLabOverlay();
   const drawerLayout = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
   if (!drawerLayout) {
     const next = !sidebar.classList.contains('is-expanded') && !sidebar.classList.contains('expanded');

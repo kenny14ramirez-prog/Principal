@@ -63,6 +63,9 @@ function main() {
       join(process.env.RUNNER_TEMP || process.env.TEMP || join(root, '.crozzo-android'), 'crozzo-upload.jks');
     const devPass = password || 'crozzo-pos-tablet-2026';
     if (!existsSync(keystorePath)) {
+      console.warn(
+        '[prepare-android-keystore] ATENCIÓN: se creará un keystore NUEVO. Las tablets con APK anterior deberán DESINSTALAR la app antes de instalar este build (conflicto de firma). Configure ANDROID_KEY_BASE64 en GitHub Secrets para firma estable.'
+      );
       console.log('[prepare-android-keystore] Generando keystore Crozzo (primera vez / cache vacía)…');
       runKeytool(keystorePath, alias, devPass);
     } else {

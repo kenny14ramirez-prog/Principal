@@ -96,12 +96,18 @@
     var page = btn.getAttribute('data-crozzo-nav');
 
     if (action === 'open-menu') {
+      if (evt) {
+        try {
+          evt.preventDefault();
+          evt.stopPropagation();
+          if (typeof evt.stopImmediatePropagation === 'function') evt.stopImmediatePropagation();
+        } catch (_) {}
+      }
       if (typeof global.crozzoOpenSidebarDrawer === 'function') global.crozzoOpenSidebarDrawer();
       else if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
       refreshActiveState();
       return false;
     }
-
     if (action === 'pantallas-kiosk') {
       if (!canSeePantallasKiosk()) return false;
       if (typeof global.crozzoKioskEnterComandasFromLogin === 'function') {
@@ -138,6 +144,29 @@
       var btn = e.target && e.target.closest ? e.target.closest('.crozzo-mbn-btn') : null;
       if (!btn || !root.contains(btn)) return;
       activateButton(btn, e);
+    });
+
+    root.addEventListener(
+      'touchend',
+      function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('.crozzo-mbn-btn') : null;
+        if (!btn || !root.contains(btn)) return;
+        activateButton(btn, e);
+      },
+      { passive: false }
+    );
+  }
+
+  function bindMobileMenuBtnOnce() {
+    var btn = document.querySelector('.mobile-menu-btn');
+    if (!btn || btn._crozzoMobileMenuBound) return;
+    btn._crozzoMobileMenuBound = true;
+    btn.addEventListener('touchend', function (e) {
+      try {
+        e.preventDefault();
+      } catch (_) {}
+      if (typeof global.crozzoOpenSidebarDrawer === 'function') global.crozzoOpenSidebarDrawer();
+      else if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
     });
   }
 
@@ -244,6 +273,7 @@
   function boot() {
     refresh();
     bindBottomNavOnce();
+    bindMobileMenuBtnOnce();
   }
 
   if (document.readyState === 'loading') {
