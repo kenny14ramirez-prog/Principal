@@ -10,17 +10,18 @@
   var LS_BREAK_SNOOZE = 'crozzo_break_snooze_until';
   var LS_BREAK_INTERVAL = 'crozzo_break_interval_min';
   var LS_COMFORT_OFF = 'crozzo_comfort_off';
-  var DEFAULT_BREAK_MIN = 50;
-  var MIN_BREAK_MIN = 25;
-  var MAX_BREAK_MIN = 120;
-  var BREAK_CHECK_MS = 60000;
-  var BREAK_GRACE_MS = 18 * 60000;
+  var DEFAULT_BREAK_MIN = 90;
+  var MIN_BREAK_MIN = 60;
+  var MAX_BREAK_MIN = 180;
+  var BREAK_CHECK_MS = 120000;
+  var BREAK_GRACE_MS = 45 * 60000;
+  var BREAK_NUDGE_AUTO_MS = 18000;
 
   var BREAK_LINES = [
-    '☕ Un minuto fuera de pantalla — estirar, agua, respirar. El turno sigue cuando usted quiera.',
-    '🌿 Lleva un buen rato concentrado. Treinta segundos de pausa recargan el enfoque.',
-    '✨ La app espera — mire lejos de la pantalla un momento e hidrátese.',
-    '🪑 Los mejores servicios salen de quien se cuida: pausa breve y vuelva con calma.',
+    '☕ Un respiro breve ayuda — agua, estirar, mirar lejos de la pantalla.',
+    '🌿 Lleva rato concentrado. Treinta segundos fuera recargan el enfoque.',
+    '✨ Cuando quiera, pause un momento. La app sigue aquí.',
+    '🪑 Cuídese un instante y vuelva con calma.',
   ];
 
   var WELCOME_BACK_LINES = [
@@ -192,6 +193,58 @@
     return m * 60000;
   }
 
+  function escBreakHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function isBusyOperationalPage() {
+    try {
+      var p = global.currentPage;
+      if (p === 'cajero' || p === 'venta-comercial' || p === 'tablets' || p === 'cocina' || p === 'comandas') return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function closeBreakNudge(snoozeMinutes) {
+    var el = global.__crozzoBreakNudgeEl;
+    if (el) {
+      if (el._autoTimer) clearTimeout(el._autoTimer);
+      el.classList.add('crozzo-break-nudge--exit');
+      setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 320);
+      global.__crozzoBreakNudgeEl = null;
+    }
+    if (snoozeMinutes != null) snoozeBreakReminder(snoozeMinutes);
+  }
+
+  function showBreakNudge() {
+    if (global.__crozzoBreakNudgeEl) return;
+    if (isBusyOperationalPage()) return;
+    var line = BREAK_LINES[Math.floor(Math.random() * BREAK_LINES.length)];
+    var wrap = document.createElement('div');
+    wrap.className = 'crozzo-break-nudge';
+    wrap.setAttribute('role', 'status');
+    wrap.setAttribute('aria-live', 'polite');
+    wrap.innerHTML =
+      '<button type="button" class="crozzo-break-nudge__close" aria-label="Cerrar recordatorio" onclick="CrozzoOperativePsyche.dismissBreakNudge(45)">×</button>' +
+      '<p class="crozzo-break-nudge__text">' +
+      escBreakHtml(line) +
+      '</p>' +
+      '<div class="crozzo-break-nudge__actions">' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOperativePsyche.ackBreakPause()">☕ Pausa</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOperativePsyche.snoozeBreakAndClose(90)">Más tarde</button>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    global.__crozzoBreakNudgeEl = wrap;
+    wrap._autoTimer = setTimeout(function () {
+      closeBreakNudge(45);
+    }, BREAK_NUDGE_AUTO_MS);
+  }
+
   function getSessionStartMs() {
     try {
       var s = sessionStorage.getItem(SS_SESSION);
@@ -222,26 +275,12 @@
     } catch (_) {}
   }
 
-  function renderBreakReminderModal() {
-    var line = BREAK_LINES[Math.floor(Math.random() * BREAK_LINES.length)];
-    return (
-      '<div class="crozzo-break-reminder">' +
-      '<p class="crozzo-break-reminder__lead">' +
-      line +
-      '</p>' +
-      '<p class="form-hint">Sin alarmas ni parpadeos — solo un recordatorio amable.</p>' +
-      '<div class="btn-group" style="justify-content:flex-end;margin-top:14px;flex-wrap:wrap;gap:8px;">' +
-      '<button type="button" class="btn btn-primary" onclick="CrozzoOperativePsyche.ackBreakPause()">☕ Pausa breve</button>' +
-      '<button type="button" class="btn btn-outline" onclick="CrozzoOperativePsyche.snoozeBreakAndClose(20)">Recordar en 20 min</button>' +
-      '<button type="button" class="btn btn-outline" onclick="CrozzoOperativePsyche.snoozeBreakAndClose(45)">Seguir ahora</button></div></div>'
-    );
-  }
-
   function maybeShowBreakReminder() {
     if (!shouldApplyComfortUx()) return;
     if (typeof document !== 'undefined' && document.hidden) return;
     if (Date.now() < getBreakSnoozeUntil()) return;
     if (Date.now() - getSessionStartMs() < BREAK_GRACE_MS) return;
+    if (isBusyOperationalPage()) return;
     var lastKey = 'crozzo_last_break_prompt';
     var last = 0;
     try {
@@ -251,26 +290,22 @@
     try {
       sessionStorage.setItem(lastKey, String(Date.now()));
     } catch (_) {}
-    if (typeof global.showModal === 'function') {
-      global.showModal('🌿 Momento de pausa', renderBreakReminderModal());
-      return;
-    }
-    if (typeof global.showToast === 'function') {
-      global.showToast(BREAK_LINES[0], 'info');
-    }
+    showBreakNudge();
+  }
+
+  function dismissBreakNudge(minutes) {
+    closeBreakNudge(minutes != null ? minutes : 45);
   }
 
   function ackBreakPause() {
-    snoozeBreakReminder(8);
-    if (typeof global.closeModal === 'function') global.closeModal();
+    closeBreakNudge(15);
     if (typeof global.showToast === 'function') {
       global.showToast('Tómese su tiempo — aquí estaremos cuando regrese.', 'success');
     }
   }
 
   function snoozeBreakAndClose(minutes) {
-    snoozeBreakReminder(minutes || 20);
-    if (typeof global.closeModal === 'function') global.closeModal();
+    closeBreakNudge(minutes || 90);
   }
 
   function startComfortBreakLoop() {
@@ -987,6 +1022,7 @@
     shouldApplyComfortUx: shouldApplyComfortUx,
     comfortMotionSoft: comfortMotionSoft,
     snoozeBreakReminder: snoozeBreakReminder,
+    dismissBreakNudge: dismissBreakNudge,
     snoozeBreakAndClose: snoozeBreakAndClose,
     ackBreakPause: ackBreakPause,
     getBreakIntervalMs: getBreakIntervalMs,

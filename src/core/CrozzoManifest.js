@@ -81,6 +81,8 @@
       M + 'CrozzoMatrizMp.js',
       M + 'CrozzoCosteoMp.js',
       M + 'CrozzoSistemaCostos.js',
+      M + 'CrozzoFlujosMapaPdf.js',
+      M + 'CrozzoCostosReportesPdf.js',
     ],
     'costos-matriz': [
       'vendor/CrozzoJsPdf.js',
@@ -91,6 +93,8 @@
       M + 'CrozzoMatrizMp.js',
       M + 'CrozzoCosteoMp.js',
       M + 'CrozzoSistemaCostos.js',
+      M + 'CrozzoFlujosMapaPdf.js',
+      M + 'CrozzoCostosReportesPdf.js',
     ],
     'costos-inventario': [
       BUNDLES.costos,

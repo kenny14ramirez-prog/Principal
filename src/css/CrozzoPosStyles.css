@@ -5878,6 +5878,77 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
 .crozzo-break-reminder {
   max-width: 420px;
 }
+.crozzo-break-nudge {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 8500;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 12px 14px 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
+  background: rgba(var(--bg-secondary-rgb, 30, 30, 35), 0.96);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+  animation: crozzoBreakNudgeIn 0.45s ease forwards;
+}
+.crozzo-break-nudge--exit {
+  animation: crozzoBreakNudgeOut 0.32s ease forwards;
+}
+.crozzo-break-nudge__text {
+  margin: 0 28px 10px 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #cbd5e1);
+}
+.crozzo-break-nudge__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.crozzo-break-nudge__close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.crozzo-break-nudge__close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #f8fafc);
+}
+@keyframes crozzoBreakNudgeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes crozzoBreakNudgeOut {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (max-width: 640px) {
+  .crozzo-break-nudge {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}
 
 /* Confort UX: sin parpadeos agresivos ni pulsos infinitos (sesión activa) */
 body.crozzo-comfort-ux .pulse,
@@ -7585,6 +7656,33 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   border-radius: 10px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
+}
+.cart-row--descuento {
+  color: var(--success);
+  font-weight: 600;
+}
+.cart-row--descuento span:last-child {
+  color: var(--success);
+}
+.crozzo-cart-descuento-wrap {
+  margin: 6px 0 4px;
+  display: flex;
+  justify-content: flex-end;
+}
+.crozzo-cart-descuento-wrap--retail {
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+.crozzo-cart-descuento-btn.is-active {
+  border-color: var(--success);
+  color: var(--success);
+}
+.crozzo-descuento-modal__preview {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
 }
 .crozzo-rest-pos__total-row {
   font-size: 1.05rem !important;

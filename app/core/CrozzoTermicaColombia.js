@@ -693,6 +693,8 @@
     var sub = Number(data.sub) || 0;
     var iva = Number(data.iva) || 0;
     var tot = Number(data.tot) || 0;
+    var descuento = Math.max(0, Number(data.descuentoMonto) || 0);
+    var totalBruto = Number(data.totalBruto) > 0 ? Number(data.totalBruto) : descuento > 0 ? tot + descuento : tot;
     var gravado =
       Number(data.propinaBaseGravada) > 0
         ? Number(data.propinaBaseGravada)
@@ -724,6 +726,10 @@
         });
       }
     } else {
+      if (descuento > 0) {
+        rows.push({ label: 'Total ítems', amount: totalBruto, muted: true });
+        rows.push({ label: 'Descuento autorizado', amount: -descuento, muted: false });
+      }
       rows.push({ label: lab.gravado, amount: gravado, muted: false });
       if (muestraImpuesto) {
         rows.push({
@@ -760,7 +766,11 @@
     var tot = Number(factura.total || 0);
     if (factura.items && typeof global.computeTotals === 'function') {
       try {
-        var tx = global.computeTotals(factura.items);
+        var descM =
+          Number(factura.descuentoMonto) ||
+          (factura.descuentoAutorizado && Number(factura.descuentoAutorizado.monto)) ||
+          0;
+        var tx = global.computeTotals(factura.items, { descuentoMonto: descM });
         sub = tx.subtotal;
         iva = tx.iva;
         tot = tx.total;
@@ -806,6 +816,13 @@
       sub: sub,
       iva: iva,
       tot: tot,
+      descuentoMonto: Math.max(0, Number(factura.descuentoMonto) || 0),
+      totalBruto:
+        Number(factura.totalBruto) > 0
+          ? Number(factura.totalBruto)
+          : tot + Math.max(0, Number(factura.descuentoMonto) || 0),
+      descuentoMotivo:
+        (factura.descuentoAutorizado && factura.descuentoAutorizado.motivo) || factura.descuentoMotivo || '',
       propinaVoluntaria: propinaVol,
       propinaSugerida: propinaSug,
       propinaPctSugerido: propinaPct,
@@ -829,9 +846,13 @@
     var iva = Number(factura.iva || 0);
     if (!sub && !iva && factura.items && typeof global.computeTotals === 'function') {
       try {
-        var tx = global.computeTotals(factura.items);
-        sub = tx.subtotal;
-        iva = tx.iva;
+        var descL =
+          Number(factura.descuentoMonto) ||
+          (factura.descuentoAutorizado && Number(factura.descuentoAutorizado.monto)) ||
+          0;
+        var txL = global.computeTotals(factura.items, { descuentoMonto: descL });
+        sub = txL.subtotal;
+        iva = txL.iva;
       } catch (_) {}
     }
     var ciudad = [emp.ciudad, emp.departamento].filter(Boolean).join(', ');

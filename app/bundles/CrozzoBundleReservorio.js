@@ -4386,9 +4386,19 @@
   function syncProveedoresToConfig(st) {
     try {
       if (typeof global.config === 'undefined' || !global.config.set || !global.config.get) return;
-      var list = (st || load()).proveedores.map(function (p) {
-        return { id: p.id, name: p.nombre, nit: p.nit, phone: p.telefono };
-      });
+      var list = (st || load()).proveedores
+        .filter(function (p) {
+          return p && p.activo !== false;
+        })
+        .map(function (p) {
+          return {
+            id: p.id,
+            name: p.nombre,
+            nit: p.nit,
+            phone: p.telefono,
+            tipoRubro: p.tipoRubro || p.categoria || '',
+          };
+        });
       global.config.set('proveedoresOC', list);
     } catch (_) {}
   }
@@ -4423,10 +4433,19 @@
   }
 
   function proveedorToOcRow(p) {
+    var legal = p.legal && typeof p.legal === 'object' ? p.legal : {};
+    var nombre = String(
+      p.nombre ||
+        p.name ||
+        legal.nombreParaTransferencias ||
+        legal.razonSocial ||
+        legal.nombreComercial ||
+        ''
+    ).trim();
     return {
       id: p.id,
-      name: p.nombre,
-      nombre: p.nombre,
+      name: nombre,
+      nombre: nombre,
       nit: p.nit || '',
       phone: p.telefono || '',
       telefono: p.telefono || '',

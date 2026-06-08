@@ -10,6 +10,7 @@
   var RECETAS_VERSION = 3;
   var DEFAULT_RECIPE_OPTS = {
     margenErrorPct: 0.03,
+    margenErrorManual: false,
     porcentajeMpObjetivo: 0.3,
     impuestoPct: 0.08,
     porciones: 1,
@@ -169,11 +170,24 @@
       vigenciaDesde: vig,
       vigenciaHasta: raw.vigenciaHasta ? String(raw.vigenciaHasta).slice(0, 10) : null,
       aplicarPos: raw.aplicarPos !== false,
+      lanzarPlato: raw.lanzarPlato !== false,
       estado: raw.estado === 'aplicada' || raw.estado === 'cancelada' ? raw.estado : 'pendiente',
       createdAt: raw.createdAt || new Date().toISOString(),
       aplicadaAt: raw.aplicadaAt || null,
       notas: String(raw.notas || '').trim(),
     };
+  }
+
+  function normalizeEstadoFlujo(raw) {
+    var s = String((raw && raw.estadoFlujo) || '').toLowerCase();
+    if (s === 'borrador' || s === 'programado' || s === 'vigente') return s;
+    if (raw && raw.posProductId != null && typeof global.products !== 'undefined' && Array.isArray(global.products)) {
+      var p = global.products.find(function (x) {
+        return x && x.id === raw.posProductId;
+      });
+      if (p && p.visibleEnPos === false) return 'borrador';
+    }
+    return 'vigente';
   }
 
   function normalizeProgramacionReceta(raw) {
@@ -345,6 +359,9 @@
       vendeAlCliente: raw.vendeAlCliente === true || raw.vendeAlCliente === 1,
       margenObjetivoPct: raw.margenObjetivoPct != null ? num(raw.margenObjetivoPct) : null,
       margenMinimoPct: raw.margenMinimoPct != null ? num(raw.margenMinimoPct) : null,
+      estadoFlujo: normalizeEstadoFlujo(raw),
+      programadoPara: raw.programadoPara ? String(raw.programadoPara).slice(0, 10) : null,
+      lanzadoAt: raw.lanzadoAt || null,
       programaciones: prog,
       historialCosteo: hist,
     };
@@ -758,6 +775,12 @@
     try {
       localStorage.setItem(PERDIDAS_PROCESO_KEY, JSON.stringify(next));
     } catch (_) {}
+    emitChanged({ tipo: 'mermas-proceso', ref: next });
+    try {
+      document.dispatchEvent(
+        new CustomEvent('crozzo-mermas-proceso-actualizadas', { detail: next, bubbles: true })
+      );
+    } catch (_) {}
     return next;
   }
 
@@ -771,6 +794,39 @@
     }
     if (wf === 'coccion') return ref.coccionPct;
     return ref.despiecePct;
+  }
+
+  function normalizeMargenErrorFrac(raw) {
+    var n = num(raw, DEFAULT_RECIPE_OPTS.margenErrorPct);
+    if (n > 1) n = n / 100;
+    if (n < 0) n = 0;
+    if (n > 0.5) n = 0.5;
+    return n;
+  }
+
+  /** Estima margen de error (J4) a partir de mermas de MP en líneas de receta. */
+  function inferMargenErrorPctFromLineas(lineas) {
+    if (!Array.isArray(lineas) || !lineas.length) return null;
+    var totalWeight = 0;
+    var mermaWeighted = 0;
+    lineas.forEach(function (ln) {
+      if (!ln) return;
+      var mp = ln.mpId ? get(ln.mpId) : null;
+      if (!mp && ln.ingrediente) mp = getByNombre(ln.ingrediente);
+      var mermaPct = 0;
+      if (mp) {
+        mermaPct = Math.max(num(mp.mermaCoccionPct), num(mp.mermaDespostePct));
+        if (mermaPct <= 0) {
+          mermaPct = Math.max(perdidaEsperadaPct(mp, 'coccion'), perdidaEsperadaPct(mp, 'despiece'));
+        }
+      }
+      var q = num(ln.cantidad, 1);
+      if (q <= 0) q = 1;
+      totalWeight += q;
+      mermaWeighted += mermaPct * q;
+    });
+    if (totalWeight <= 0 || mermaWeighted <= 0) return null;
+    return normalizeMargenErrorFrac(mermaWeighted / totalWeight);
   }
 
   function getMenuPlato(slug) {
@@ -800,6 +856,57 @@
     return found;
   }
 
+  function setProductoVisibleEnPos(posProductId, visible, opts) {
+    opts = opts || {};
+    if (posProductId == null) return false;
+    if (typeof global.crozzoSetProductVisibleEnPos === 'function') {
+      return global.crozzoSetProductVisibleEnPos(posProductId, visible !== false, opts) === true;
+    }
+    if (typeof global.products === 'undefined' || !Array.isArray(global.products)) return false;
+    var vis = visible !== false;
+    var found = false;
+    global.products.forEach(function (p) {
+      if (p && p.id === posProductId) {
+        p.visibleEnPos = vis;
+        found = true;
+      }
+    });
+    return found;
+  }
+
+  function lanzarPlatoAlFlujoPrincipal(slug, opts) {
+    opts = opts || {};
+    var row = getMenuPlato(slug);
+    if (!row) return false;
+    var precio =
+      opts.precioVenta != null && Number(opts.precioVenta) > 0
+        ? Math.round(num(opts.precioVenta))
+        : row.precioVenta;
+    var patch = {
+      estadoFlujo: 'vigente',
+      programadoPara: null,
+      lanzadoAt: new Date().toISOString(),
+    };
+    if (precio > 0) patch.precioVenta = precio;
+    updateMenuPlato(slug, patch);
+    if (row.posProductId != null) {
+      setProductoVisibleEnPos(row.posProductId, true, opts);
+      if (precio > 0) aplicarPrecioAlPos(slug, precio);
+    }
+    if (!opts.silent) {
+      emitChanged({ tipo: 'plato-lanzado', slug: slug, precioVenta: precio });
+      try {
+        document.dispatchEvent(
+          new CustomEvent('crozzo-costos:plato-lanzado', {
+            detail: { slug: slug, precioVenta: precio },
+            bubbles: true,
+          })
+        );
+      } catch (_) {}
+    }
+    return true;
+  }
+
   function addProgramacionPrecio(slug, precioVenta, vigenciaDesde, opts) {
     opts = opts || {};
     var st = loadStore();
@@ -818,6 +925,10 @@
     if (!prog) return null;
     row.programaciones = row.programaciones || [];
     row.programaciones.push(prog);
+    if (row.estadoFlujo === 'borrador') {
+      row.estadoFlujo = 'programado';
+      row.programadoPara = prog.vigenciaDesde;
+    }
     st.menuCostos[idx] = row;
     saveStore(st);
     emitChanged({ tipo: 'programacion', slug: slug, programacion: prog });
@@ -848,6 +959,15 @@
         prog.estado = 'aplicada';
         prog.aplicadaAt = now.toISOString();
         if (prog.aplicarPos) aplicarPrecioAlPos(row.slug, prog.precioVenta);
+        if (prog.lanzarPlato !== false) {
+          lanzarPlatoAlFlujoPrincipal(row.slug, { silent: true, precioVenta: prog.precioVenta });
+        } else if (row.estadoFlujo !== 'vigente') {
+          row.estadoFlujo = 'vigente';
+          row.programadoPara = null;
+        }
+        var freshRow = getMenuPlato(row.slug);
+        if (freshRow) row = freshRow;
+        else row.precioVenta = prog.precioVenta;
         aplicadas.push({ slug: row.slug, precioVenta: prog.precioVenta });
         changed++;
         touched = true;
@@ -1138,6 +1258,13 @@
       base.gramajeVenta = Math.round(num(p.porcionGramos));
     }
     base.tipoCosteo = tipo;
+    if (opts.estadoFlujo) {
+      base.estadoFlujo = normalizeEstadoFlujo({ estadoFlujo: opts.estadoFlujo });
+    } else if (p.visibleEnPos === false) {
+      base.estadoFlujo = 'borrador';
+    } else if (!base.estadoFlujo) {
+      base.estadoFlujo = 'vigente';
+    }
     if (!Number(base.costoMp) || base.costoMp <= 0) {
       var sug = guessCostoMpForPosProduct(p);
       if (sug > 0) base.costoMp = sug;
@@ -1148,7 +1275,32 @@
       if (mpRow && mpRow.id) row.costeoMpSourceId = mpRow.id;
       if (mpRow && (!row.costoMp || row.costoMp <= 0)) row.costoMp = costoMenuDesdeMpItem(mpRow);
     } else {
-      ensureRecetaForMenu(slug, row.producto);
+      var recOpts = {};
+      if (opts.margenErrorPct != null) {
+        recOpts.margenErrorPct = normalizeMargenErrorFrac(opts.margenErrorPct);
+        recOpts.margenErrorManual = opts.margenErrorManual === true;
+      }
+      var exRec = getRecetaPlato(slug);
+      if (exRec) {
+        if (Object.keys(recOpts).length) {
+          upsertRecetaPlato(
+            {
+              slug: slug,
+              producto: exRec.producto,
+              lineas: exRec.lineas,
+              opts: Object.assign({}, exRec.opts, recOpts),
+            },
+            { skipLegacyDemo: true }
+          );
+        } else {
+          ensureRecetaForMenu(slug, row.producto);
+        }
+      } else {
+        upsertRecetaPlato(
+          { slug: slug, producto: row.producto, lineas: [], opts: recOpts },
+          { skipLegacyDemo: true }
+        );
+      }
     }
     if (idx >= 0) st.menuCostos[idx] = row;
     else st.menuCostos.push(row);
@@ -2012,6 +2164,17 @@
     rec.programaciones = rec.programaciones || [];
     rec.programaciones.push(prog);
     st.recetasPlatos[idx] = rec;
+    var menuIdx = (st.menuCostos || []).findIndex(function (m) {
+      return m && m.slug === slug;
+    });
+    if (menuIdx >= 0) {
+      var menuRow = normalizeMenuPlato(st.menuCostos[menuIdx]);
+      if (menuRow.estadoFlujo === 'borrador') {
+        menuRow.estadoFlujo = 'programado';
+        menuRow.programadoPara = prog.vigenciaDesde;
+        st.menuCostos[menuIdx] = menuRow;
+      }
+    }
     saveStore(st);
     emitChanged({ tipo: 'programacion-receta', slug: slug, programacion: prog });
     return prog;
@@ -2071,6 +2234,7 @@
           }
           st.menuCostos[menuIdx] = row;
         }
+        if (opts.aplicarPos !== false) lanzarPlatoAlFlujoPrincipal(rec.slug, { silent: true, precioVenta: snap.precioVenta });
         aplicadas.push({ slug: rec.slug, programacion: prog, snapshot: snap });
       });
       if (touched) st.recetasPlatos[idx] = rec;
@@ -2111,10 +2275,32 @@
       .toUpperCase();
   }
 
-  function ensureRecetaForMenu(slug, producto) {
+  function ensureRecetaForMenu(slug, producto, opts) {
+    opts = opts || {};
     var ex = getRecetaPlato(slug);
-    if (ex) return ex;
-    return upsertRecetaPlato({ slug: slug, producto: producto, lineas: [] }, { skipLegacyDemo: true });
+    if (ex) {
+      if (opts.margenErrorPct != null) {
+        return upsertRecetaPlato(
+          {
+            slug: slug,
+            producto: ex.producto,
+            lineas: ex.lineas,
+            opts: Object.assign({}, ex.opts, {
+              margenErrorPct: normalizeMargenErrorFrac(opts.margenErrorPct),
+              margenErrorManual: opts.margenErrorManual === true,
+            }),
+          },
+          { skipLegacyDemo: true }
+        );
+      }
+      return ex;
+    }
+    var recOpts = {};
+    if (opts.margenErrorPct != null) {
+      recOpts.margenErrorPct = normalizeMargenErrorFrac(opts.margenErrorPct);
+      recOpts.margenErrorManual = opts.margenErrorManual === true;
+    }
+    return upsertRecetaPlato({ slug: slug, producto: producto, lineas: [], opts: recOpts }, { skipLegacyDemo: true });
   }
 
   function remove(id, opts) {
@@ -2793,6 +2979,7 @@
         categoria: p.categoria || '',
         origen: 'pos',
         tipoCosteo: inferTipoCosteoFromPos(p),
+        estadoFlujo: p.visibleEnPos === false ? 'borrador' : 'vigente',
       });
       added++;
     });
@@ -2916,6 +3103,8 @@
     getPerdidasProcesoRef: getPerdidasProcesoRef,
     savePerdidasProcesoRef: savePerdidasProcesoRef,
     perdidaEsperadaPct: perdidaEsperadaPct,
+    inferMargenErrorPctFromLineas: inferMargenErrorPctFromLineas,
+    normalizeMargenErrorFrac: normalizeMargenErrorFrac,
     saveCortesDespiece: saveCortesDespiece,
     normalizeCortesDespiece: normalizeCortesDespiece,
     recetaUsaElaborados: recetaUsaElaborados,
@@ -2933,6 +3122,8 @@
     listProgramacionesAll: listProgramacionesAll,
     listHistorialCosteoAll: listHistorialCosteoAll,
     aplicarPrecioAlPos: aplicarPrecioAlPos,
+    lanzarPlatoAlFlujoPrincipal: lanzarPlatoAlFlujoPrincipal,
+    setProductoVisibleEnPos: setProductoVisibleEnPos,
     ensureMpFromPosProducto: ensureMpFromPosProducto,
     ensureMpFromPosVentaDirecta: ensureMpFromPosVentaDirecta,
     ensureMpElaboradoDesdeMenu: ensureMpElaboradoDesdeMenu,

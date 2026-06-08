@@ -932,6 +932,8 @@ async function timbrarFactura(xml, factura, config) {
 // Global State
 // ==========================================
 const config = ConfigManager.getInstance();
+if (typeof global !== 'undefined') global.config = config;
+if (typeof window !== 'undefined') window.config = config;
 (function crozzoInstallSecurityGuards() {
   let securityWriteBypass = false;
   config._withSecurityBypass = function crozzoWithSecurityBypass(fn) {
@@ -4770,6 +4772,10 @@ let commercialSearchTerm = '';
 let commercialCategoryOpen = true;
 /** Cliente enlazado por mesa / llevar (FE + CRM) para Caja y Tablets; va en respaldo runtime. */
 let clientePorSlot = { mesa: {}, llevar: {} };
+/** Descuento autorizado por mesa/llevar, venta directa o tienda comercial (runtime). */
+let descuentosPorSlot = { mesa: {}, llevar: {} };
+let descuentoDirecto = null;
+let descuentoComercial = null;
 window.__crozzoClienteDirSearch = window.__crozzoClienteDirSearch || '';
 let cartsPorMesa = {};
 let cartsPorLlevar = {};
@@ -4947,6 +4953,35 @@ window.crozzoSetProductPrecio = function crozzoSetProductPrecio(productId, preci
   if (prod) crozzoSyncProductoCosteo(prod, { silent: true });
   return true;
 };
+
+/** Controla si un producto aparece en caja, mesero, tablets y comandas operativas. */
+window.crozzoSetProductVisibleEnPos = function crozzoSetProductVisibleEnPos(productId, visible, opts) {
+  var pid = Number(productId);
+  if (!isFinite(pid) || pid <= 0) return false;
+  var vis = visible !== false;
+  products = products.map(function (x) {
+    return x.id === pid ? Object.assign({}, x, { visibleEnPos: vis }) : x;
+  });
+  if (typeof global !== 'undefined') global.products = products;
+  try {
+    if (typeof persistCatalogProductos === 'function') persistCatalogProductos(pid);
+    else if (typeof persistCatalogProductosLocal === 'function') persistCatalogProductosLocal();
+  } catch (_) {}
+  var prod = products.find(function (x) {
+    return x.id === pid;
+  });
+  if (prod) {
+    var syncOpts = Object.assign({ silent: true }, opts || {});
+    syncOpts.estadoFlujo = vis ? 'vigente' : 'borrador';
+    crozzoSyncProductoCosteo(prod, syncOpts);
+  }
+  return true;
+};
+
+function crozzoIsProductVisibleEnPos(p) {
+  if (!p) return false;
+  return p.visibleEnPos !== false;
+}
 
 /** Reemplaza el arreglo local `products` con filas ya mapeadas desde Supabase (módulo crozzo-sb). */
 window.__crozzoApplyProductsFromRemote = function __crozzoApplyProductsFromRemote(rows) {
@@ -5804,6 +5839,10 @@ function crozzoMigrateStaffCajaSecurity() {
             caja.add('anular_comandado');
             changed = true;
           }
+          if (!caja.has('descuento_autorizado')) {
+            caja.add('descuento_autorizado');
+            changed = true;
+          }
           permisos.caja = Array.from(caja);
         }
         return { ...u, permisos };
@@ -6052,6 +6091,7 @@ const PERMISOS_CATALOGO = [
           { id: 'anular_comandado', nombre: 'Quitar ítems ya enviados a cocina (supervisor)' },
           { id: 'unir_cuenta', nombre: 'Unir mesas o pedidos llevar (solo caja)' },
           { id: 'dividir_cuenta', nombre: 'Dividir cuenta / mover líneas (solo caja)' },
+          { id: 'descuento_autorizado', nombre: 'Aplicar descuento autorizado en venta' },
         ],
       },
       {
@@ -6175,7 +6215,7 @@ const PERMISOS_CATALOGO = [
 ];
 /** Perfil recomendado de permisos caja por rol (referencia al crear usuarios). */
 const CROZZO_CAJA_PERMISOS_POR_ROL = Object.freeze({
-  caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'unir_cuenta', 'dividir_cuenta'],
+  caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
   mesero: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar'],
   admin: [
     'vista_pos',
@@ -6188,6 +6228,7 @@ const CROZZO_CAJA_PERMISOS_POR_ROL = Object.freeze({
     'anular_comandado',
     'unir_cuenta',
     'dividir_cuenta',
+    'descuento_autorizado',
     'tab_abrir',
     'tab_editar',
     'tab_eliminar',
@@ -6259,6 +6300,9 @@ function collectPosRuntimeState() {
     productSearchTerm,
     tabletTargetSearch,
     clientePorSlot,
+    descuentosPorSlot,
+    descuentoDirecto,
+    descuentoComercial,
     cocinaSearch,
     cocinaEstadoFilter,
     cocinaVistaKds,
@@ -6536,6 +6580,14 @@ function loadPosRuntimeFromLocalStorage() {
         llevar: s.clientePorSlot.llevar && typeof s.clientePorSlot.llevar === 'object' ? s.clientePorSlot.llevar : {},
       };
     }
+    if (s.descuentosPorSlot && typeof s.descuentosPorSlot === 'object') {
+      descuentosPorSlot = {
+        mesa: s.descuentosPorSlot.mesa && typeof s.descuentosPorSlot.mesa === 'object' ? s.descuentosPorSlot.mesa : {},
+        llevar: s.descuentosPorSlot.llevar && typeof s.descuentosPorSlot.llevar === 'object' ? s.descuentosPorSlot.llevar : {},
+      };
+    }
+    descuentoDirecto = s.descuentoDirecto != null ? s.descuentoDirecto : descuentoDirecto;
+    descuentoComercial = s.descuentoComercial != null ? s.descuentoComercial : descuentoComercial;
     cocinaSearch = assign('cocinaSearch', cocinaSearch);
     cocinaEstadoFilter = assign('cocinaEstadoFilter', cocinaEstadoFilter);
     cocinaVistaKds = typeof s.cocinaVistaKds === 'boolean' ? s.cocinaVistaKds : cocinaVistaKds;
@@ -12098,7 +12150,7 @@ function renderTablets() {
       </div>
       <div class="tablet-layout crozzo-tablet-touch">
         <div class="pos-products" id="tabletProducts">
-          ${products.map(p => crozzoTabletProductTileHtml(p)).join('')}
+          ${products.filter(crozzoIsProductVisibleEnPos).map(p => crozzoTabletProductTileHtml(p)).join('')}
         </div>
         <div class="tablet-order-panel">
           ${crozzoTabletOrderPanelInnerHtml(cart)}
@@ -12682,12 +12734,81 @@ function crozzoEnsureProveedoresExtensions() {
   if (!Array.isArray(config.get('proveedoresOC'))) config.set('proveedoresOC', []);
   if (!Array.isArray(config.get('ordenesCompra'))) config.set('ordenesCompra', []);
 }
+function crozzoNormalizeProveedorOcRow(p) {
+  if (!p) return null;
+  var legal = p.legal && typeof p.legal === 'object' ? p.legal : {};
+  var nombre = String(
+    p.name ||
+      p.nombre ||
+      p.razonSocial ||
+      p.nombreComercial ||
+      legal.nombreParaTransferencias ||
+      legal.razonSocial ||
+      legal.nombreComercial ||
+      ''
+  ).trim();
+  if (!nombre) return null;
+  return {
+    id: p.id || '',
+    name: nombre,
+    nombre: nombre,
+    nit: String(p.nit || '').trim(),
+    phone: String(p.phone || p.telefono || '').trim(),
+    telefono: String(p.telefono || p.phone || '').trim(),
+    tipoRubro: String(p.tipoRubro || p.categoria || '').trim(),
+    categoria: String(p.categoria || p.tipoRubro || '').trim(),
+  };
+}
+function crozzoMergeProveedoresOcLists() {
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < arguments.length; i++) {
+    var list = arguments[i];
+    if (!Array.isArray(list)) continue;
+    list.forEach(function (p) {
+      var row = crozzoNormalizeProveedorOcRow(p);
+      if (!row) return;
+      var key = String(row.id || row.nit || row.name).toLowerCase();
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push(row);
+    });
+  }
+  return out;
+}
 function crozzoGetProveedoresUnificados() {
   crozzoEnsureProveedoresExtensions();
-  if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.listProveedoresOcFormat) {
-    return CrozzoReservorio.listProveedoresOcFormat();
+  if (typeof global !== 'undefined' && typeof config !== 'undefined' && !global.config) {
+    global.config = config;
   }
-  return config.get('proveedoresOC') || [];
+  var lists = [];
+  try {
+    if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.listProveedoresOcFormat) {
+      lists.push(CrozzoReservorio.listProveedoresOcFormat());
+    } else if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.listProveedores) {
+      lists.push(
+        CrozzoReservorio.listProveedores().map(function (p) {
+          return {
+            id: p.id,
+            name: p.nombre,
+            nombre: p.nombre,
+            nit: p.nit,
+            phone: p.telefono,
+            telefono: p.telefono,
+            tipoRubro: p.tipoRubro || p.categoria,
+            legal: p.legal,
+          };
+        })
+      );
+    }
+  } catch (e) {
+    console.warn('[crozzo] proveedores reservorio', e);
+  }
+  try {
+    lists.push(config.get('proveedoresOC') || []);
+  } catch (_) {}
+  var merged = crozzoMergeProveedoresOcLists.apply(null, lists);
+  return merged.length ? merged : config.get('proveedoresOC') || [];
 }
 function renderComprasProveedores(opts) {
   opts = opts || {};
@@ -13872,10 +13993,15 @@ function renderCostosNewPlatoFormHtml(opts) {
   const areas = getComandasConfig().areas;
   const nextId = Math.max(0, ...products.map((p) => p.id || 0)) + 1;
   const p = opts.prefix || 'crozzoCostosNewProd';
+  const hidePrecioCaja =
+    opts.hidePrecioCaja === true ||
+    (opts.hidePrecioCaja !== false && (p === 'crozzoCostosNewProd' || p === 'crozzoRecetaNewProd'));
   const title = opts.title || 'Nuevo plato de venta';
   const hint =
     opts.hint ||
-    'Queda disponible en caja, tablets y en esta matriz para precio, receta y margen.';
+    (hidePrecioCaja
+      ? 'Queda en borrador de costeos. Defina precio de venta en la matriz y lance o programe para caja.'
+      : 'Queda disponible en caja, tablets y en esta matriz para precio, receta y margen.');
   const tieneRecetaChecked = opts.tieneReceta !== false;
   const iconOptions = PRODUCT_ICON_OPTIONS.map(
     (icon) =>
@@ -13916,13 +14042,18 @@ function renderCostosNewPlatoFormHtml(opts) {
     '<input id="' +
     p +
     'Nombre" class="form-input" placeholder="Ej: Sopa del día, Bandeja paisa…" autocomplete="off"></div>' +
-    '<div class="crozzo-plato-create__field">' +
-    '<label class="crozzo-plato-create__label" for="' +
-    p +
-    'Precio">Precio en caja</label>' +
-    '<input type="number" id="' +
-    p +
-    'Precio" class="form-input" placeholder="0" min="0"></div>' +
+    (hidePrecioCaja
+      ? '<div class="crozzo-plato-create__field crozzo-plato-create__field--span">' +
+        '<span class="crozzo-plato-create__label">Precio de venta</span>' +
+        '<p class="crozzo-plato-create__hint" style="margin:0;padding:10px 12px;border-radius:10px;border:1px dashed var(--border);background:var(--bg-secondary)">' +
+        'Se define en la <strong>matriz de costos</strong> (columna precio de venta) al costear la receta. Al <strong>lanzar</strong> o <strong>programar</strong>, ese valor pasa a caja.</p></div>'
+      : '<div class="crozzo-plato-create__field">' +
+        '<label class="crozzo-plato-create__label" for="' +
+        p +
+        'Precio">Precio en caja</label>' +
+        '<input type="number" id="' +
+        p +
+        'Precio" class="form-input" placeholder="0" min="0"></div>') +
     '<div class="crozzo-plato-create__field">' +
     '<label class="crozzo-plato-create__label" for="' +
     p +
@@ -13971,6 +14102,31 @@ function renderCostosNewPlatoFormHtml(opts) {
     '>' +
     '<span class="crozzo-plato-create__toggle-text"><strong>Con receta / proceso cocina</strong>' +
     '<span>Desmarque para venta directa (bebidas, empaques, etc.).</span></span></label></div></section>' +
+    '<section class="crozzo-plato-create__section">' +
+    '<div class="crozzo-plato-create__section-head">' +
+    '<span class="crozzo-plato-create__section-icon" aria-hidden="true">📊</span>' +
+    '<h4 class="crozzo-plato-create__section-title">Costeo y merma</h4></div>' +
+    '<div class="crozzo-plato-create__grid">' +
+    '<div class="crozzo-plato-create__field">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'MargenError">Margen de error (J4)</label>' +
+    '<input type="number" min="0" max="100" step="0.1" id="' +
+    p +
+    'MargenError" class="form-input" value="3" placeholder="3">' +
+    '<span class="crozzo-plato-create__hint">% buffer merma / sazón en la receta estándar.</span></div>' +
+    '<div class="crozzo-plato-create__field crozzo-plato-create__field--span">' +
+    '<div class="crozzo-plato-create__toggles" style="margin-top:4px">' +
+    '<label class="crozzo-plato-create__toggle" for="' +
+    p +
+    'MargenAutoSync">' +
+    '<input type="checkbox" id="' +
+    p +
+    'MargenAutoSync"' +
+    (tieneRecetaChecked ? ' checked' : '') +
+    '>' +
+    '<span class="crozzo-plato-create__toggle-text"><strong>Sincronizar con mermas de insumos</strong>' +
+    '<span>Si está activo, J4 sube automáticamente según merma de cocción/despiece de cada MP en la receta.</span></span></label></div></div></div></section>' +
     '<section class="crozzo-plato-create__section crozzo-plato-create__section--safety">' +
     '<div class="crozzo-plato-create__section-head">' +
     '<span class="crozzo-plato-create__section-icon" aria-hidden="true">⚠</span>' +
@@ -14145,7 +14301,9 @@ function addCatalogProduct(nextIdHint, opts) {
   const prefix = opts.prefix || 'newProd';
   const id = (suffix) => document.getElementById(prefix + suffix);
   const nombre = (id('Nombre')?.value || '').trim();
-  const precio = Number(id('Precio')?.value || 0);
+  const fromCostos = opts.fromCostos === true;
+  const precioEl = id('Precio');
+  const precio = fromCostos || !precioEl ? 0 : Number(precioEl.value || 0);
   const gramajeVenta = Math.round(Number(id('GramajeVenta')?.value || 0)) || 0;
   const icon = (id('Icon')?.value || '🍽️').trim() || '🍽️';
   const categoria = (id('Categoria')?.value || 'platos-fuertes').trim();
@@ -14159,8 +14317,12 @@ function addCatalogProduct(nextIdHint, opts) {
   const arrastraProductos = Array.from(document.querySelectorAll('.' + prefix + 'Linked:checked'))
     .map((el) => Number(el.value))
     .filter((pid) => isFinite(pid) && pid > 0);
+  const margenErrorRaw = id('MargenError')?.value;
+  const margenErrorPct =
+    margenErrorRaw != null && String(margenErrorRaw).trim() !== '' ? Number(margenErrorRaw) : 3;
+  const margenAutoSync = id('MargenAutoSync')?.checked !== false;
   if (!nombre) return showToast('Nombre de producto requerido', 'warning');
-  if (precio < 0) return showToast('Precio inválido', 'warning');
+  if (!fromCostos && precio < 0) return showToast('Precio inválido', 'warning');
   const nextId = Math.max(Number(nextIdHint) || 0, ...products.map((p) => p.id || 0)) + 1;
   products.push(
     crozzoNormalizeProductComandaAreas({
@@ -14178,10 +14340,21 @@ function addCatalogProduct(nextIdHint, opts) {
       alergenos: alergenos.length ? alergenos : undefined,
       opcionGrupos,
       arrastraProductos,
+      visibleEnPos: fromCostos ? false : true,
     })
   );
-  crozzoSyncProductoCosteo(products[products.length - 1]);
-  showToast('Plato creado — listo en costos y punto de venta', 'success');
+  var costeoSyncOpts = { silent: true, estadoFlujo: fromCostos ? 'borrador' : 'vigente' };
+  if (tieneRecetaProceso) {
+    costeoSyncOpts.margenErrorPct = margenErrorPct;
+    costeoSyncOpts.margenErrorManual = !margenAutoSync;
+  }
+  crozzoSyncProductoCosteo(products[products.length - 1], costeoSyncOpts);
+  showToast(
+    fromCostos
+      ? 'Plato guardado en costeos — lance o programe para caja y cocina'
+      : 'Plato creado — listo en costos y punto de venta',
+    'success'
+  );
   try {
     if (typeof persistCatalogProductos === 'function') persistCatalogProductos(nextId);
   } catch (_) {}
@@ -14784,6 +14957,8 @@ function renderVentaComercial() {
     '<div class="crozzo-retail-paybar__subrows">' +
     '<span><span id="cartLblSub">' + escUserAttr(labFiscalCart.gravado) + '</span> <strong id="cartSubtotal">$0</strong></span>' +
     '<span><span id="cartLblIva">' + escUserAttr(labFiscalCart.impuesto) + '</span> <strong id="cartIva">$0</strong></span></div>' +
+    crozzoCartDescuentoSummaryHtml() +
+    '<div class="crozzo-cart-descuento-wrap crozzo-cart-descuento-wrap--retail">' + crozzoCartDescuentoBtnHtml() + '</div>' +
     '<div class="crozzo-retail-paybar__total"><span>Total a cobrar</span><span class="crozzo-retail-paybar__amount" id="cartTotal">$0</span></div>' +
     '<div class="crozzo-retail-paybar__actions">' +
     '<button type="button" class="btn-finalizar" id="btnComandarCobrar" onclick="iniciarVentaComercial()" disabled>' +
@@ -15315,7 +15490,116 @@ function crozzoLineMontosFiscales(item, op) {
   }
   return { base: bruto, tax: bruto * rate, rate, bruto };
 }
-function computeTotals(cart) {
+/** Referencia del descuento activo según pantalla / mesa / llevar. */
+function crozzoGetActiveDescuentoRef() {
+  if (typeof currentPage !== 'undefined' && currentPage === 'venta-comercial') return { kind: 'comercial' };
+  if (typeof tipoServicioCaja === 'undefined') return null;
+  if (tipoServicioCaja === 'directa') return { kind: 'directa' };
+  if (tipoServicioCaja === 'mesa') return { kind: 'slot', tipo: 'mesa', id: mesaSeleccionada };
+  if (tipoServicioCaja === 'llevar') return { kind: 'slot', tipo: 'llevar', id: llevarSeleccionado };
+  return null;
+}
+function crozzoGetActiveDescuento() {
+  const ref = crozzoGetActiveDescuentoRef();
+  if (!ref) return null;
+  if (ref.kind === 'comercial') return descuentoComercial;
+  if (ref.kind === 'directa') return descuentoDirecto;
+  const bag = descuentosPorSlot[ref.tipo] && descuentosPorSlot[ref.tipo][ref.id];
+  return bag || null;
+}
+function crozzoGetActiveDescuentoMonto() {
+  const d = crozzoGetActiveDescuento();
+  return d ? Math.max(0, Math.round(Number(d.monto) || 0)) : 0;
+}
+function crozzoSetActiveDescuento(data) {
+  const ref = crozzoGetActiveDescuentoRef();
+  if (!ref) return false;
+  const monto = Math.max(0, Math.round(Number(data && data.monto) || 0));
+  if (!monto) {
+    crozzoClearActiveDescuento();
+    return true;
+  }
+  const rec = {
+    monto: monto,
+    motivo: String((data && data.motivo) || '').trim(),
+    autorizadoPor: String((data && data.autorizadoPor) || crozzoGetCurrentUserLabel() || '').trim(),
+    at: Date.now(),
+  };
+  if (ref.kind === 'comercial') descuentoComercial = rec;
+  else if (ref.kind === 'directa') descuentoDirecto = rec;
+  else {
+    if (!descuentosPorSlot[ref.tipo]) descuentosPorSlot[ref.tipo] = {};
+    descuentosPorSlot[ref.tipo][ref.id] = rec;
+  }
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
+  return true;
+}
+function crozzoClearActiveDescuento() {
+  const ref = crozzoGetActiveDescuentoRef();
+  if (!ref) return;
+  if (ref.kind === 'comercial') descuentoComercial = null;
+  else if (ref.kind === 'directa') descuentoDirecto = null;
+  else if (descuentosPorSlot[ref.tipo]) delete descuentosPorSlot[ref.tipo][ref.id];
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
+}
+function crozzoGetCurrentUserLabel() {
+  try {
+    const u =
+      typeof config !== 'undefined' && config.getUsuarioActual ? config.getUsuarioActual() : null;
+    if (u && (u.nombre || u.usuario)) return String(u.nombre || u.usuario);
+  } catch (_) {}
+  return '';
+}
+/** Reparte descuento global proporcionalmente a un subconjunto del carrito (cobro dividido). */
+function crozzoDescuentoProrrateado(cart, itemsSubset) {
+  const desc = crozzoGetActiveDescuentoMonto();
+  if (!desc || !Array.isArray(cart) || !cart.length || !Array.isArray(itemsSubset) || !itemsSubset.length) return 0;
+  const txAll = computeTotals(cart, { skipDescuento: true });
+  const txSub = computeTotals(itemsSubset, { skipDescuento: true });
+  if (!txAll.total) return 0;
+  return Math.min(desc, Math.round(desc * (txSub.total / txAll.total)));
+}
+/** Reduce base gravable e impuesto en la misma proporción del descuento sobre el total. */
+function crozzoAplicarDescuentoProporcional(tx, descuentoMonto) {
+  tx = tx || {};
+  const sub = Math.round(Number(tx.subtotal) || 0);
+  const iva = Math.round(Number(tx.iva) || 0);
+  const total = Math.round(Number(tx.total) || 0);
+  let desc = Math.max(0, Math.round(Number(descuentoMonto) || 0));
+  if (!desc || !total) {
+    return Object.assign({}, tx, {
+      descuentoMonto: 0,
+      subtotalBruto: sub,
+      ivaBruto: iva,
+      totalBruto: total,
+    });
+  }
+  desc = Math.min(desc, total);
+  const factor = (total - desc) / total;
+  let subN = Math.round(sub * factor);
+  let ivaN = Math.round(iva * factor);
+  let totalN = Math.round(total * factor);
+  if (tx.ivaIncluidoEnPrecios) {
+    ivaN = Math.max(0, totalN - subN);
+  } else {
+    totalN = subN + ivaN;
+  }
+  return Object.assign({}, tx, {
+    subtotal: subN,
+    iva: ivaN,
+    total: totalN,
+    descuentoMonto: desc,
+    subtotalBruto: sub,
+    ivaBruto: iva,
+    totalBruto: total,
+  });
+}
+function computeTotals(cart, opts) {
+  opts = opts || {};
   const op = crozzoImpuestosCajaOpciones();
   let subtotal = 0;
   let iva = 0;
@@ -15327,9 +15611,25 @@ function computeTotals(cart) {
     brutoLineas += m.bruto;
   });
   const total = op.ivaIncluidoEnPrecios ? brutoLineas : subtotal + iva;
-  return { subtotal, iva, total, ivaIncluidoEnPrecios: op.ivaIncluidoEnPrecios };
+  let tx = { subtotal, iva, total, ivaIncluidoEnPrecios: op.ivaIncluidoEnPrecios };
+  if (!opts.skipDescuento) {
+    const desc =
+      opts.descuentoMonto != null
+        ? Math.max(0, Math.round(Number(opts.descuentoMonto) || 0))
+        : crozzoGetActiveDescuentoMonto();
+    tx = crozzoAplicarDescuentoProporcional(tx, desc);
+  } else {
+    tx = crozzoAplicarDescuentoProporcional(tx, 0);
+  }
+  return tx;
 }
 window.computeTotals = computeTotals;
+window.crozzoGetActiveDescuento = crozzoGetActiveDescuento;
+window.crozzoGetActiveDescuentoMonto = crozzoGetActiveDescuentoMonto;
+window.crozzoSetActiveDescuento = crozzoSetActiveDescuento;
+window.crozzoClearActiveDescuento = crozzoClearActiveDescuento;
+window.crozzoDescuentoProrrateado = crozzoDescuentoProrrateado;
+window.crozzoAplicarDescuentoProporcional = crozzoAplicarDescuentoProporcional;
 window.crozzoImpuestosNormalize = crozzoImpuestosNormalize;
 window.crozzoImpuestosCajaOpciones = crozzoImpuestosCajaOpciones;
 /** Persiste en config el perfil fiscal (INC 8 % vs IVA) según perfil operativo del negocio. */
@@ -16518,6 +16818,7 @@ function getVisibleProductsComercial() {
   var term = normalizeText(commercialSearchTerm);
   var cat = commercialCategory || 'todas';
   return products.filter(function (p) {
+    if (!crozzoIsProductVisibleEnPos(p)) return false;
     var c = String(p.categoria || 'general').trim() || 'general';
     var categoryOk = cat === 'todas' || c === cat;
     var textOk =
@@ -16534,6 +16835,7 @@ function getVisibleProducts() {
   }
   const term = normalizeText(productSearchTerm);
   return products.filter(p => {
+    if (!crozzoIsProductVisibleEnPos(p)) return false;
     const categoryOk = selectedProductCategory === 'todas' || (p.categoria || 'platos-fuertes') === selectedProductCategory;
     const textOk =
       !term ||
@@ -17200,7 +17502,9 @@ function renderCajero() {
     '<div class="cart-summary crozzo-rest-pos__totals">' +
     '<div class="cart-row"><span id="cartLblSub">' + escUserAttr(labFiscalCart.gravado) + '</span><span id="cartSubtotal">$0</span></div>' +
     '<div class="cart-row"><span id="cartLblIva">' + escUserAttr(labFiscalCart.impuesto) + '</span><span id="cartIva">$0</span></div>' +
-    '<div class="cart-row cart-total crozzo-rest-pos__total-row"><span>Total</span><span id="cartTotal">$0</span></div></div>' +
+    crozzoCartDescuentoSummaryHtml() +
+    '<div class="cart-row cart-total crozzo-rest-pos__total-row"><span>Total</span><span id="cartTotal">$0</span></div>' +
+    '<div class="crozzo-cart-descuento-wrap">' + crozzoCartDescuentoBtnHtml() + '</div></div>' +
     (typeof crozzoRestCuentaOpsButtonsHtml === 'function' ? crozzoRestCuentaOpsButtonsHtml() : '') +
     '<button type="button" class="btn btn-primary touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--cmd" id="btnComandarGuardar" onclick="' +
     (tipoServicioCaja === 'directa' ? 'toggleDirectSaveMenu()' : 'comandarDesdeCaja()') +
@@ -18261,6 +18565,7 @@ function clearCart() {
     if (hasSent) crozzoLogCajaVoid('clear_all', 'Pedido vaciado incl. comandado (supervisor)');
     else crozzoLogCajaVoid('clear_all', 'Pedido vaciado');
     cartRef.length = 0;
+    if (typeof crozzoClearActiveDescuento === 'function') crozzoClearActiveDescuento();
     return true;
   };
   if (typeof currentPage !== 'undefined' && currentPage === 'venta-comercial') {
@@ -18357,6 +18662,30 @@ function updateCartTotals() {
   
   if (subEl) subEl.textContent = `$${subtotal.toLocaleString('es-CO')}`;
   if (ivaEl) ivaEl.textContent = `$${iva.toLocaleString('es-CO')}`;
+  const descRow = document.getElementById('cartDescuentoRow');
+  const descEl = document.getElementById('cartDescuento');
+  const btnDesc = document.getElementById('btnCartDescuento');
+  if (descRow && descEl) {
+    if (tx.descuentoMonto > 0) {
+      descRow.style.display = '';
+      descEl.textContent = '−$' + tx.descuentoMonto.toLocaleString('es-CO');
+    } else {
+      descRow.style.display = 'none';
+    }
+  }
+  if (btnDesc) {
+    const d = typeof crozzoGetActiveDescuento === 'function' ? crozzoGetActiveDescuento() : null;
+    btnDesc.classList.toggle('is-active', !!(d && Number(d.monto) > 0));
+    const icon = btnDesc.querySelector('i');
+    const labelBase = 'Descuento';
+    btnDesc.innerHTML =
+      (icon ? '<i data-lucide="badge-percent" aria-hidden="true"></i> ' : '') +
+      labelBase +
+      (d && Number(d.monto) > 0 ? ' · $' + Number(d.monto).toLocaleString('es-CO') : '');
+    try {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [btnDesc] });
+    } catch (_) {}
+  }
   if (totalEl) {
     if (typeof currentPage !== 'undefined' && currentPage === 'venta-comercial' && totalEl.classList.contains('crozzo-retail-paybar__amount')) {
       totalEl.textContent = '$' + total.toLocaleString('es-CO');
@@ -18680,7 +19009,9 @@ function crozzoCobroDivisionMontoSugerido() {
     if (d.currentLineKeys[k] && !crozzoCobroDivisionLinePaid(k)) selected.push(it);
   });
   if (!selected.length) return 0;
-  const txSel = computeTotals(selected);
+  const descSub =
+    typeof crozzoDescuentoProrrateado === 'function' ? crozzoDescuentoProrrateado(cart, selected) : 0;
+  const txSel = computeTotals(selected, { descuentoMonto: descSub });
   const txAll = computeTotals(cart);
   const pct = typeof crozzoCobroStudioPropinaPctActivo === 'function' ? crozzoCobroStudioPropinaPctActivo() : 0;
   const propPack =
@@ -19160,12 +19491,41 @@ function crozzoEnrichCuentaFacturaColombia(factura, opts) {
   }
   const cart = f.items || [];
   let tx = { subtotal: f.subtotal, iva: f.iva, total: f.total, ivaIncluidoEnPrecios: true };
+  const descMonto =
+    f.descuentoAutorizado && Number(f.descuentoAutorizado.monto) > 0
+      ? Math.round(Number(f.descuentoAutorizado.monto))
+      : f.descuentoMonto != null
+        ? Math.round(Number(f.descuentoMonto) || 0)
+        : typeof crozzoGetActiveDescuentoMonto === 'function'
+          ? crozzoGetActiveDescuentoMonto()
+          : 0;
   if (cart.length && typeof computeTotals === 'function') {
-    tx = computeTotals(cart);
+    tx = computeTotals(cart, { descuentoMonto: descMonto });
     f.subtotal = tx.subtotal;
     f.iva = tx.iva;
     f.total = tx.total;
     f.ivaIncluidoEnPrecios = !!tx.ivaIncluidoEnPrecios;
+    f.descuentoMonto = tx.descuentoMonto || 0;
+    f.subtotalBruto = tx.subtotalBruto;
+    f.ivaBruto = tx.ivaBruto;
+    f.totalBruto = tx.totalBruto;
+  } else if (descMonto > 0 && typeof crozzoAplicarDescuentoProporcional === 'function') {
+    tx = crozzoAplicarDescuentoProporcional(
+      {
+        subtotal: Number(f.subtotal) || 0,
+        iva: Number(f.iva) || 0,
+        total: Number(f.total) || 0,
+        ivaIncluidoEnPrecios: !!f.ivaIncluidoEnPrecios,
+      },
+      descMonto
+    );
+    f.subtotal = tx.subtotal;
+    f.iva = tx.iva;
+    f.total = tx.total;
+    f.descuentoMonto = tx.descuentoMonto || 0;
+    f.subtotalBruto = tx.subtotalBruto;
+    f.ivaBruto = tx.ivaBruto;
+    f.totalBruto = tx.totalBruto;
   }
   const co = global.CrozzoTermicaColombia;
   const baseGravado =
@@ -19400,6 +19760,7 @@ function crozzoCuentaPerfilEmisionActivo() {
 }
 function crozzoBuildPrecuentaFacturaFromCart(opts) {
   const cart = getActiveCart();
+  const desc = typeof crozzoGetActiveDescuento === 'function' ? crozzoGetActiveDescuento() : null;
   const tx = computeTotals(cart);
   const perfil = crozzoCuentaPerfilEmisionActivo();
   let cliNom;
@@ -19429,6 +19790,11 @@ function crozzoBuildPrecuentaFacturaFromCart(opts) {
       subtotal: tx.subtotal,
       iva: tx.iva,
       total: tx.total,
+      descuentoAutorizado: desc ? Object.assign({}, desc) : null,
+      descuentoMonto: tx.descuentoMonto || 0,
+      subtotalBruto: tx.subtotalBruto,
+      ivaBruto: tx.ivaBruto,
+      totalBruto: tx.totalBruto,
       cufe: '',
       qrUrl: '',
     },
@@ -19519,6 +19885,7 @@ function crozzoCobroStudioCollectPaymentMeta(totalPagar, opts) {
 }
 function crozzoBuildDraftFacturaCobroPreview() {
   const cart = getActiveCart();
+  const desc = typeof crozzoGetActiveDescuento === 'function' ? crozzoGetActiveDescuento() : null;
   const tx = computeTotals(cart);
   const tipo = crozzoCobroStudioTipoComprobante();
   const esFe = tipo === 'electronica';
@@ -19559,6 +19926,11 @@ function crozzoBuildDraftFacturaCobroPreview() {
       subtotal: tx.subtotal,
       iva: tx.iva,
       total: tx.total,
+      descuentoAutorizado: desc ? Object.assign({}, desc) : null,
+      descuentoMonto: tx.descuentoMonto || 0,
+      subtotalBruto: tx.subtotalBruto,
+      ivaBruto: tx.ivaBruto,
+      totalBruto: tx.totalBruto,
       metodoPago: metodoPreview,
       paymentMeta: payPack.paymentMeta,
       cufe: esFe ? '' : 'NO-APLICA-POS',
@@ -21226,6 +21598,154 @@ function crozzoListSlotsForUnirCuenta(tipo, excludeRef) {
       };
     });
 }
+function crozzoCartDescuentoSummaryHtml() {
+  return (
+    '<div class="cart-row cart-row--descuento" id="cartDescuentoRow" style="display:none;">' +
+    '<span>Descuento autorizado</span><span id="cartDescuento">−$0</span></div>'
+  );
+}
+function crozzoCartDescuentoBtnHtml() {
+  const can =
+    typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('descuento_autorizado');
+  if (!can) return '';
+  const d = typeof crozzoGetActiveDescuento === 'function' ? crozzoGetActiveDescuento() : null;
+  const active = d && Number(d.monto) > 0;
+  return (
+    '<button type="button" class="btn btn-outline btn-sm crozzo-cart-descuento-btn' +
+    (active ? ' is-active' : '') +
+    '" id="btnCartDescuento" onclick="crozzoShowDescuentoVentaModal()" title="Descuento autorizado sobre la cuenta">' +
+    '<i data-lucide="badge-percent" aria-hidden="true"></i> Descuento' +
+    (active ? ' · $' + Number(d.monto).toLocaleString('es-CO') : '') +
+    '</button>'
+  );
+}
+function crozzoShowDescuentoVentaModal() {
+  if (!crozzoRequireCajaPermiso('descuento_autorizado', {}, 'No tienes permiso para aplicar descuentos autorizados.')) return;
+  const cart = typeof getActiveCart === 'function' ? getActiveCart() : [];
+  if (!cart.length) {
+    if (typeof showToast === 'function') showToast('Agregue productos antes de aplicar un descuento.', 'warning');
+    return;
+  }
+  const txBruto = computeTotals(cart, { skipDescuento: true });
+  const actual = typeof crozzoGetActiveDescuento === 'function' ? crozzoGetActiveDescuento() : null;
+  const montoIn = actual && Number(actual.monto) > 0 ? Number(actual.monto) : '';
+  const motivoIn = actual && actual.motivo ? String(actual.motivo) : '';
+  showModal(
+    'Descuento autorizado',
+    '<div class="crozzo-descuento-modal">' +
+      '<p class="form-hint">El descuento se reparte proporcionalmente sobre la base gravable y el impuesto. La propina sugerida se calcula sobre el neto después del descuento.</p>' +
+      '<div class="form-group"><label class="form-label">Total ítems</label>' +
+      '<div class="form-input" style="background:var(--bg-tertiary);">$' +
+      txBruto.total.toLocaleString('es-CO') +
+      '</div></div>' +
+      '<div class="form-group"><label class="form-label">Monto descuento ($)</label>' +
+      '<input type="number" class="form-input" id="crozzoDescuentoMonto" min="0" max="' +
+      txBruto.total +
+      '" step="1" value="' +
+      escUserAttr(String(montoIn)) +
+      '" oninput="crozzoRefreshDescuentoVentaPreview()"></div>' +
+      '<div class="form-group"><label class="form-label">Motivo (opcional)</label>' +
+      '<input type="text" class="form-input" id="crozzoDescuentoMotivo" maxlength="120" value="' +
+      escUserAttr(motivoIn) +
+      '" placeholder="Cortesía, convenio, error de carta…"></div>' +
+      '<div id="crozzoDescuentoPreview" class="crozzo-descuento-modal__preview"></div>' +
+      '<div class="btn-group" style="justify-content:flex-end;margin-top:14px;flex-wrap:wrap;gap:8px;">' +
+      (actual && Number(actual.monto) > 0
+        ? '<button type="button" class="btn btn-outline btn-danger" onclick="crozzoQuitarDescuentoVenta()">Quitar descuento</button>'
+        : '') +
+      '<button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>' +
+      '<button type="button" class="btn btn-primary" onclick="crozzoConfirmDescuentoVenta()">Aplicar</button>' +
+      '</div></div>'
+  );
+  crozzoRefreshDescuentoVentaPreview();
+}
+function crozzoRefreshDescuentoVentaPreview() {
+  const host = document.getElementById('crozzoDescuentoPreview');
+  if (!host) return;
+  const cart = typeof getActiveCart === 'function' ? getActiveCart() : [];
+  const raw = Number(document.getElementById('crozzoDescuentoMonto')?.value);
+  const monto = !Number.isNaN(raw) && raw > 0 ? Math.round(raw) : 0;
+  const txBruto = computeTotals(cart, { skipDescuento: true });
+  const txNet = typeof crozzoAplicarDescuentoProporcional === 'function'
+    ? crozzoAplicarDescuentoProporcional(txBruto, Math.min(monto, txBruto.total))
+    : txBruto;
+  const lab = typeof crozzoFiscalEtiquetas === 'function' ? crozzoFiscalEtiquetas(txNet.ivaIncluidoEnPrecios) : null;
+  const prCfg = typeof crozzoRestPropinaConfig === 'function' ? crozzoRestPropinaConfig() : { pctSugerido: 10 };
+  const co = global.CrozzoTermicaColombia;
+  const baseProp =
+    co && typeof co.propinaBaseGravada === 'function'
+      ? co.propinaBaseGravada(txNet)
+      : Math.round(Number(txNet.subtotal) || 0);
+  const propinaMonto =
+    co && typeof co.calcularPropinaSugeridaMonto === 'function'
+      ? co.calcularPropinaSugeridaMonto(baseProp, prCfg.pctSugerido)
+      : Math.round(baseProp * (Number(prCfg.pctSugerido) / 100));
+  host.innerHTML =
+    '<div class="crozzo-precuenta-totals">' +
+    (monto > 0
+      ? '<div class="row"><span>Descuento</span><span>−$' + Math.min(monto, txBruto.total).toLocaleString('es-CO') + '</span></div>'
+      : '') +
+    '<div class="row"><span>' +
+    escUserAttr(lab ? lab.gravado : 'Base gravable') +
+    '</span><span>$' +
+    txNet.subtotal.toLocaleString('es-CO') +
+    '</span></div>' +
+    '<div class="row"><span>' +
+    escUserAttr(lab ? lab.impuesto : 'Impuesto') +
+    '</span><span>$' +
+    txNet.iva.toLocaleString('es-CO') +
+    '</span></div>' +
+    '<div class="row"><span>Total cuenta</span><span><strong>$' +
+    txNet.total.toLocaleString('es-CO') +
+    '</strong></span></div>' +
+    (propinaMonto > 0
+      ? '<div class="row"><span>Propina sugerida (' +
+        prCfg.pctSugerido +
+        '%)</span><span>$' +
+        propinaMonto.toLocaleString('es-CO') +
+        '</span></div>'
+      : '') +
+    '</div>';
+}
+function crozzoConfirmDescuentoVenta() {
+  if (!crozzoRequireCajaPermiso('descuento_autorizado', {}, 'Sin permiso para descuentos.')) return;
+  const cart = typeof getActiveCart === 'function' ? getActiveCart() : [];
+  const txBruto = computeTotals(cart, { skipDescuento: true });
+  const raw = Number(document.getElementById('crozzoDescuentoMonto')?.value);
+  const monto = !Number.isNaN(raw) && raw > 0 ? Math.round(raw) : 0;
+  if (monto > txBruto.total) {
+    if (typeof showToast === 'function') showToast('El descuento no puede superar el total de la cuenta.', 'warning');
+    return;
+  }
+  const motivo = String(document.getElementById('crozzoDescuentoMotivo')?.value || '').trim();
+  if (monto > 0) {
+    crozzoSetActiveDescuento({ monto: monto, motivo: motivo });
+    if (typeof config !== 'undefined' && config.addAudit) {
+      config.addAudit(
+        'descuento_autorizado',
+        'Descuento $' + monto.toLocaleString('es-CO') + ' · ' + (motivo || 'sin motivo') + ' · ' + crozzoCuentaContextoServicioLabel()
+      );
+    }
+    if (typeof showToast === 'function') showToast('Descuento aplicado: $' + monto.toLocaleString('es-CO'), 'success');
+  } else {
+    crozzoClearActiveDescuento();
+    if (typeof showToast === 'function') showToast('Descuento removido', 'info');
+  }
+  closeModal();
+  if (typeof renderCart === 'function') renderCart();
+  else if (typeof updateCartTotals === 'function') updateCartTotals();
+}
+function crozzoQuitarDescuentoVenta() {
+  crozzoClearActiveDescuento();
+  closeModal();
+  if (typeof showToast === 'function') showToast('Descuento removido', 'info');
+  if (typeof renderCart === 'function') renderCart();
+  else if (typeof updateCartTotals === 'function') updateCartTotals();
+}
+window.crozzoShowDescuentoVentaModal = crozzoShowDescuentoVentaModal;
+window.crozzoConfirmDescuentoVenta = crozzoConfirmDescuentoVenta;
+window.crozzoQuitarDescuentoVenta = crozzoQuitarDescuentoVenta;
+window.crozzoRefreshDescuentoVentaPreview = crozzoRefreshDescuentoVentaPreview;
 function crozzoRestCuentaOpsButtonsHtml() {
   if (typeof tipoServicioCaja === 'undefined' || tipoServicioCaja === 'directa') return '';
   const canUnir = typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('unir_cuenta');
@@ -22940,6 +23460,7 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
       facturaSaved.cobroEstado === 'parcial');
   if (typeof currentPage !== 'undefined' && currentPage === 'venta-comercial') {
     cartComercial = [];
+    if (typeof crozzoClearActiveDescuento === 'function') crozzoClearActiveDescuento();
     if (typeof renderCart === 'function') renderCart();
     if (postCartera) {
       try {
@@ -22962,6 +23483,7 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
     markSlotAsPaid('mesa', mesaSeleccionada);
     cartsPorMesa[mesaSeleccionada] = [];
   }
+  if (typeof crozzoClearActiveDescuento === 'function') crozzoClearActiveDescuento();
 }
 async function facturar(options = {}) {
   if (!crozzoRequireCajaSession()) return;
@@ -23056,6 +23578,24 @@ async function facturar(options = {}) {
   const subtotal = txFactura.subtotal;
   const iva = txFactura.iva;
   const total = txFactura.total;
+  const descuentoVenta =
+    typeof crozzoGetActiveDescuento === 'function' && crozzoGetActiveDescuento()
+      ? Object.assign({}, crozzoGetActiveDescuento())
+      : null;
+  const descuentoMeta = descuentoVenta
+    ? {
+        descuentoAutorizado: descuentoVenta,
+        descuentoMonto: txFactura.descuentoMonto || descuentoVenta.monto || 0,
+        subtotalBruto: txFactura.subtotalBruto,
+        ivaBruto: txFactura.ivaBruto,
+        totalBruto: txFactura.totalBruto,
+      }
+    : {
+        descuentoMonto: txFactura.descuentoMonto || 0,
+        subtotalBruto: txFactura.subtotalBruto,
+        ivaBruto: txFactura.ivaBruto,
+        totalBruto: txFactura.totalBruto,
+      };
   if (tipoComprobante === 'pos' && (metodoPago === 'credito' || metodoPago === 'cartera_pendiente')) {
     const vCred = typeof crozzoCrmValidateCreditSale === 'function' ? crozzoCrmValidateCreditSale(total, metodoPago) : { ok: true };
     if (!vCred.ok) {
@@ -23103,6 +23643,7 @@ async function facturar(options = {}) {
       subtotal,
       iva,
       total,
+      ...descuentoMeta,
       items: crozzoCuentaItemsParaTicket(cart),
       estado: 'pos',
       metodoPago: metodoPago,
@@ -23236,6 +23777,7 @@ async function facturar(options = {}) {
       subtotal,
       iva,
       total,
+      ...descuentoMeta,
       items: crozzoCuentaItemsParaTicket(cart),
       estado: config.isDemoMode() ? 'demo' : 'timbrada',
       is_demo: !!config.isDemoMode(),
@@ -23920,6 +24462,19 @@ function crozzoTermicaPayloadFromFactura(factura) {
       sub: cuentaTx ? cuentaTx.sub : Number(factura.subtotal != null ? factura.subtotal : legal.sub) || 0,
       iva: cuentaTx ? cuentaTx.iva : Number(factura.iva != null ? factura.iva : legal.iva) || 0,
       tot: cuentaTx ? cuentaTx.tot : Number(factura.total != null ? factura.total : legal.tot) || 0,
+      descuentoMonto: cuentaTx
+        ? cuentaTx.descuentoMonto
+        : Math.max(0, Number(factura.descuentoMonto) || 0),
+      totalBruto: cuentaTx
+        ? cuentaTx.totalBruto
+        : Number(factura.totalBruto) > 0
+          ? Number(factura.totalBruto)
+          : Number(factura.total || 0) + Math.max(0, Number(factura.descuentoMonto) || 0),
+      descuentoMotivo:
+        (factura.descuentoAutorizado && factura.descuentoAutorizado.motivo) ||
+        factura.descuentoMotivo ||
+        (cuentaTx && cuentaTx.descuentoMotivo) ||
+        '',
       pago: pagoTxt,
       propina: cuentaTx ? cuentaTx.propinaVoluntaria : propina,
       propinaVoluntaria: cuentaTx ? cuentaTx.propinaVoluntaria : propina,
