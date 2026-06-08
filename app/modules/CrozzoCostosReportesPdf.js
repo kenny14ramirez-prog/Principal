@@ -7,6 +7,19 @@
   var PAGE_W = 210;
   var PAGE_H = 297;
   var M = 14;
+  var CONTENT_W = PAGE_W - M * 2;
+  var FOOTER_Y = PAGE_H - 10;
+
+  var C_GOLD = [201, 169, 98];
+  var C_DARK = [24, 29, 39];
+  var C_MUTED = [100, 116, 139];
+  var C_RED = [220, 38, 38];
+  var C_GREEN = [22, 163, 74];
+  var C_SLATE = [148, 163, 184];
+  var C_BG = [248, 250, 252];
+  var C_BORDER = [226, 232, 240];
+
+  var _pdfBusy = false;
 
   function loadScriptOnce(src) {
     return new Promise(function (resolve, reject) {
@@ -49,18 +62,17 @@
   function loadJsPdf() {
     var ctor = resolveJsPdfCtor();
     if (ctor) return Promise.resolve(ctor);
-    return loadScriptOnce('vendor/CrozzoJsPdf.js')
-      .then(function () {
-        var c = resolveJsPdfCtor();
-        if (c) return c;
-        return loadScriptOnce(
-          'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
-        ).then(function () {
-          var c2 = resolveJsPdfCtor();
-          if (c2) return c2;
-          throw new Error('jsPDF no está disponible');
-        });
+    return loadScriptOnce('vendor/CrozzoJsPdf.js').then(function () {
+      var c = resolveJsPdfCtor();
+      if (c) return c;
+      return loadScriptOnce(
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+      ).then(function () {
+        var c2 = resolveJsPdfCtor();
+        if (c2) return c2;
+        throw new Error('jsPDF no está disponible');
       });
+    });
   }
 
   function toast(msg, type) {
@@ -103,6 +115,27 @@
     );
   }
 
+  function isTauriEnv() {
+    return !!(global.__CROZZO_IS_TAURI__ || (global.__TAURI__ && global.__TAURI__.core));
+  }
+
+  function tauriInvoke(cmd, args) {
+    var t = global.__TAURI__;
+    if (t && t.core && typeof t.core.invoke === 'function') return t.core.invoke(cmd, args);
+    if (t && typeof t.invoke === 'function') return t.invoke(cmd, args);
+    return Promise.reject(new Error('Tauri no disponible'));
+  }
+
+  function tauriSavedPath(res) {
+    if (!res) return '';
+    return String(res.saved_path || res.savedPath || '').trim();
+  }
+
+  function openSavedPdfPath(path) {
+    if (!path || !isTauriEnv()) return;
+    tauriInvoke('plugin:opener|open_path', { path: path }).catch(function () {});
+  }
+
   function triggerDownload(blob, filename) {
     try {
       var url = URL.createObjectURL(blob);
@@ -123,81 +156,83 @@
     }
   }
 
-  /** Guarda el PDF sin depender de ventanas emergentes (si bloqueó popup, use otra vía). */
-  function savePdfDoc(doc, filename) {
-    filename = String(filename || 'reporte.pdf');
-    var err = null;
+  function pdfDocToBase64(doc) {
     try {
-      if (doc && typeof doc.save === 'function') {
-        doc.save(filename);
-        return {
-          ok: true,
-          mode: 'save',
-          hint: 'Revise la carpeta Descargas de Windows (' + filename + ')',
-        };
-      }
-    } catch (e1) {
-      err = e1;
-      console.warn('[costos-pdf] doc.save', e1);
-    }
-    try {
-      var blob = doc.output('blob');
-      if (triggerDownload(blob, filename)) {
-        return {
-          ok: true,
-          mode: 'download',
-          hint: 'Descarga iniciada — carpeta Descargas (' + filename + ')',
-        };
-      }
-      var url = URL.createObjectURL(blob);
-      if (!global.__CROZZO_IS_TAURI__) {
-        var w0 = window.open(url, '_blank');
-        if (w0) {
-          setTimeout(function () {
-            try {
-              URL.revokeObjectURL(url);
-            } catch (_) {}
-          }, 120000);
-          return { ok: true, mode: 'window', hint: 'PDF abierto en nueva pestaña' };
+      if (doc && typeof doc.output === 'function') {
+        var uri = doc.output('datauristring');
+        var comma = String(uri || '').indexOf(',');
+        if (comma >= 0) {
+          var b64 = String(uri).slice(comma + 1);
+          if (b64.length > 100) return Promise.resolve(b64);
         }
       }
-      var w = window.open(url, '_blank');
-      if (w) {
-        setTimeout(function () {
-          try {
-            URL.revokeObjectURL(url);
-          } catch (_) {}
-        }, 120000);
-        return {
-          ok: true,
-          mode: 'window',
-          hint: 'PDF abierto — Guardar como en el visor si lo necesita',
+    } catch (e) {
+      console.warn('[costos-pdf] datauri sync', e);
+    }
+    return new Promise(function (resolve) {
+      try {
+        var blob = doc.output('blob');
+        if (!blob || !blob.size) {
+          resolve('');
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function () {
+          var raw = String(reader.result || '');
+          var comma = raw.indexOf(',');
+          resolve(comma >= 0 ? raw.slice(comma + 1) : '');
         };
+        reader.onerror = function () {
+          resolve('');
+        };
+        reader.readAsDataURL(blob);
+      } catch (err) {
+        console.error('[costos-pdf] blob read', err);
+        resolve('');
       }
-      URL.revokeObjectURL(url);
-      return {
-        ok: false,
-        blockedPopup: true,
-        error: new Error('Ventana emergente bloqueada'),
-      };
-    } catch (e2) {
-      err = e2;
-      console.error('[costos-pdf] blob', e2);
-    }
-    try {
-      var uri = doc.output('datauristring');
-      var a = document.createElement('a');
-      a.href = uri;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      return { ok: true, mode: 'datauri', hint: 'Descarga alternativa (' + filename + ')' };
-    } catch (e3) {
-      err = e3;
-      console.error('[costos-pdf] datauri', e3);
-    }
-    return { ok: false, error: err };
+    });
+  }
+
+  /** Una sola vía de guardado — evita descargas duplicadas. */
+  function savePdfDoc(doc, filename) {
+    filename = String(filename || 'reporte.pdf');
+    return pdfDocToBase64(doc).then(function (b64) {
+      if (!b64) {
+        return { ok: false, error: new Error('No se pudo serializar el PDF') };
+      }
+      if (isTauriEnv()) {
+        return tauriInvoke('crozzo_save_pdf_b64', {
+          pdf_b64: b64,
+          filename: filename,
+        }).then(function (res) {
+          var path = tauriSavedPath(res);
+          if (res && res.ok && path) {
+            openSavedPdfPath(path);
+            return {
+              ok: true,
+              mode: 'tauri-downloads',
+              hint: 'PDF guardado en Descargas:\n' + path,
+              savedPath: path,
+            };
+          }
+          throw new Error((res && res.message) || 'No se pudo guardar en Descargas');
+        });
+      }
+      try {
+        var blob = doc.output('blob');
+        if (triggerDownload(blob, filename)) {
+          return {
+            ok: true,
+            mode: 'download',
+            hint: 'PDF descargado: ' + filename,
+          };
+        }
+      } catch (e) {
+        console.error('[costos-pdf] download', e);
+        return { ok: false, error: e };
+      }
+      return { ok: false, error: new Error('No se pudo iniciar la descarga') };
+    });
   }
 
   function empresaNombre() {
@@ -424,63 +459,171 @@
 
     function footer() {
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 120);
-      doc.text('Crozzo POS · Sistema de costos', M, PAGE_H - 8);
-      doc.text('Pág. ' + page, PAGE_W - M, PAGE_H - 8, { align: 'right' });
+      doc.setFontSize(7.5);
+      doc.setTextColor.apply(doc, C_MUTED);
+      doc.text('Crozzo POS · Sistema de costos · Confidencial', M, FOOTER_Y);
+      doc.text('Pág. ' + page, PAGE_W - M, FOOTER_Y, { align: 'right' });
     }
 
     function checkSpace(need, redraw) {
-      if (y + need <= PAGE_H - 16) return;
+      if (y + need <= FOOTER_Y - 6) return;
       footer();
       doc.addPage();
       page++;
-      y = M + 8;
+      y = M + 6;
       if (typeof redraw === 'function') redraw();
     }
 
-    function drawReportHeader(title, subtitle, meta) {
-      doc.setFillColor(24, 29, 39);
-      doc.roundedRect(M, 10, PAGE_W - M * 2, 28, 3, 3, 'F');
-      doc.setTextColor(201, 169, 98);
+    function drawReportHeader(title, subtitle, metaLine) {
+      doc.setFillColor.apply(doc, C_DARK);
+      doc.roundedRect(M, 10, CONTENT_W, 32, 3, 3, 'F');
+      doc.setFillColor.apply(doc, C_GOLD);
+      doc.rect(M, 10, CONTENT_W, 2.5, 'F');
+      doc.setTextColor.apply(doc, C_GOLD);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text(title, M + 4, 20);
+      doc.setFontSize(15);
+      doc.text(title, M + 5, 22);
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(subtitle, M + 4, 27);
-      if (meta) {
-        doc.setFontSize(8);
-        doc.text(meta, M + 4, 33);
+      doc.text(subtitle, M + 5, 29);
+      if (metaLine) {
+        doc.setFontSize(7.5);
+        doc.setTextColor(200, 210, 220);
+        var metaLines = doc.splitTextToSize(String(metaLine), CONTENT_W - 10);
+        doc.text(metaLines, M + 5, 35);
       }
-      y = 44;
+      y = 48;
     }
 
     function sectionTitle(txt) {
-      checkSpace(12);
+      checkSpace(14);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(24, 29, 39);
+      doc.setFontSize(10.5);
+      doc.setTextColor.apply(doc, C_DARK);
       doc.text(txt, M, y);
-      y += 3;
-      doc.setDrawColor(201, 169, 98);
-      doc.setLineWidth(0.4);
+      y += 4;
+      doc.setDrawColor.apply(doc, C_GOLD);
+      doc.setLineWidth(0.5);
       doc.line(M, y, PAGE_W - M, y);
+      y += 7;
+    }
+
+    function drawKpiCards(cards) {
+      checkSpace(24);
+      var gap = 3;
+      var cw = (CONTENT_W - gap * (cards.length - 1)) / cards.length;
+      var y0 = y;
+      cards.forEach(function (c, i) {
+        var x = M + i * (cw + gap);
+        doc.setFillColor.apply(doc, C_BG);
+        doc.setDrawColor.apply(doc, C_BORDER);
+        doc.roundedRect(x, y0, cw, 20, 2, 2, 'FD');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor.apply(doc, C_MUTED);
+        doc.text(c.label, x + 4, y0 + 6);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(c.large ? 12 : 10);
+        doc.setTextColor.apply(doc, C_DARK);
+        var valLines = doc.splitTextToSize(String(c.value), cw - 8);
+        doc.text(valLines[0], x + 4, y0 + 14);
+        if (c.sub) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(6);
+          doc.setTextColor.apply(doc, C_MUTED);
+          doc.text(c.sub, x + 4, y0 + 18);
+        }
+      });
+      y = y0 + 24;
+    }
+
+    function drawTrendChart(meta) {
+      var total = meta.subieron + meta.bajaron + meta.sinCambio;
+      if (!total) return;
+      checkSpace(32);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor.apply(doc, C_DARK);
+      doc.text('Variación de costos MP (menú)', M, y);
+      y += 5;
+      var segments = [
+        { label: 'Subieron', n: meta.subieron, color: C_RED },
+        { label: 'Bajaron', n: meta.bajaron, color: C_GREEN },
+        { label: 'Sin cambio', n: meta.sinCambio, color: C_SLATE },
+      ];
+      var barH = 10;
+      var x = M;
+      segments.forEach(function (seg) {
+        if (!seg.n) return;
+        var w = (seg.n / total) * CONTENT_W;
+        doc.setFillColor.apply(doc, seg.color);
+        doc.rect(x, y, Math.max(w, 1.2), barH, 'F');
+        x += w;
+      });
+      y += barH + 5;
+      var lx = M;
+      segments.forEach(function (seg) {
+        doc.setFillColor.apply(doc, seg.color);
+        doc.roundedRect(lx, y, 3, 3, 0.5, 0.5, 'F');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(55, 55, 55);
+        var pct = total > 0 ? Math.round((seg.n / total) * 100) : 0;
+        doc.text(seg.label + ' ' + seg.n + ' (' + pct + '%)', lx + 5, y + 2.5);
+        lx += 58;
+      });
+      y += 10;
+    }
+
+    function drawTopCostBars(items, limit) {
+      limit = limit || 8;
+      var top = items
+        .slice()
+        .sort(function (a, b) {
+          return b.costoActual - a.costoActual;
+        })
+        .slice(0, limit);
+      if (!top.length) return;
+      checkSpace(12 + top.length * 7);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor.apply(doc, C_DARK);
+      doc.text('Top platos por costo MP actual', M, y);
       y += 6;
+      var maxVal = top[0].costoActual || 1;
+      var labelW = 52;
+      var barX = M + labelW + 2;
+      var barMaxW = CONTENT_W - labelW - 28;
+      top.forEach(function (p) {
+        checkSpace(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(45, 45, 45);
+        var nameLines = doc.splitTextToSize(truncate(p.producto, 32), labelW);
+        doc.text(nameLines[0], M, y);
+        var bw = Math.max(2, (p.costoActual / maxVal) * barMaxW);
+        doc.setFillColor.apply(doc, C_GOLD);
+        doc.roundedRect(barX, y - 3.2, bw, 4.5, 1, 1, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.text(fmtMoney(p.costoActual), PAGE_W - M, y, { align: 'right' });
+        y += 7;
+      });
+      y += 4;
     }
 
     function drawTableHead(cols) {
-      checkSpace(10);
-      doc.setFillColor(237, 242, 247);
-      doc.rect(M, y, PAGE_W - M * 2, 7, 'F');
+      checkSpace(11);
+      doc.setFillColor.apply(doc, C_DARK);
+      doc.rect(M, y, CONTENT_W, 8, 'F');
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(40, 40, 40);
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255);
       cols.forEach(function (c) {
-        doc.text(c.label, c.x, y + 5, { align: c.align || 'left' });
+        doc.text(c.label, c.x, y + 5.5, { align: c.align || 'left' });
       });
-      y += 9;
+      y += 10;
     }
 
     function truncate(txt, max) {
@@ -499,150 +642,176 @@
       checkSpace: checkSpace,
       drawReportHeader: drawReportHeader,
       sectionTitle: sectionTitle,
+      drawKpiCards: drawKpiCards,
+      drawTrendChart: drawTrendChart,
+      drawTopCostBars: drawTopCostBars,
       drawTableHead: drawTableHead,
       truncate: truncate,
       footer: footer,
-      nextRow: function (cells, rowH) {
-        rowH = rowH || 6;
-        var self = this;
-        checkSpace(rowH + 2, null);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7.5);
-        doc.setTextColor(35, 35, 35);
+      nextRow: function (cells, opts) {
+        opts = opts || {};
+        var minH = opts.rowH || 6;
+        checkSpace(minH + 4, null);
+        var rowTop = y;
+        var maxH = minH;
         cells.forEach(function (c) {
-          doc.text(String(c.text), c.x, y, { align: c.align || 'left' });
+          if (c.maxW) {
+            var linesPre = doc.splitTextToSize(String(c.text), c.maxW);
+            maxH = Math.max(maxH, minH + (linesPre.length - 1) * 3.4);
+          }
         });
-        y += rowH;
-      },
-      badge: function (text, x, color) {
-        color = color || [100, 116, 139];
-        doc.setFillColor(color[0], color[1], color[2]);
-        doc.roundedRect(x, y - 3.8, 18, 5, 1, 1, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.text(text, x + 9, y - 0.5, { align: 'center' });
-        doc.setTextColor(35, 35, 35);
-        doc.setFont('helvetica', 'normal');
-      },
-      save: function (filename) {
-        footer();
-        var r = savePdfDoc(doc, filename);
-        return r && r.ok;
+        if (opts.zebra) {
+          doc.setFillColor.apply(doc, C_BG);
+          doc.rect(M, rowTop - 4, CONTENT_W, maxH + 1, 'F');
+        }
+        cells.forEach(function (c) {
+          doc.setFont('helvetica', c.bold ? 'bold' : 'normal');
+          doc.setFontSize(c.size || 7);
+          if (c.color) doc.setTextColor.apply(doc, c.color);
+          else doc.setTextColor(40, 40, 40);
+          if (c.maxW) {
+            var lines = doc.splitTextToSize(String(c.text), c.maxW);
+            lines.forEach(function (ln, li) {
+              doc.text(ln, c.x, rowTop + li * 3.4, { align: c.align || 'left' });
+            });
+          } else {
+            doc.text(String(c.text), c.x, rowTop, { align: c.align || 'left' });
+          }
+        });
+        y = rowTop + maxH + 1;
       },
     };
   }
 
+  var COL_MENU = {
+    prod: { x: M + 1, w: 46 },
+    actual: { x: M + 50, w: 22 },
+    guard: { x: M + 74, w: 22 },
+    ant: { x: M + 98, w: 20 },
+    delta: { x: M + 120, w: 20 },
+    caja: { x: M + 142, w: 22 },
+    marg: { x: M + 166, w: 16 },
+    trend: { x: PAGE_W - M - 1, w: 8 },
+  };
+
   function buildGeneralPdf(data, jsPDF) {
     var pb = createPdfDoc(jsPDF);
-    var doc = pb.doc;
     var meta = data.meta;
     pb.drawReportHeader(
       'Reporte general de costos',
       meta.empresa,
-      'Generado: ' + meta.fecha + ' · ' + meta.totalProductos + ' productos'
+      'Generado ' +
+        meta.fecha +
+        ' · ' +
+        meta.totalProductos +
+        ' productos · Margen global ' +
+        fmtPct(meta.margenGlobal)
     );
 
-    pb.sectionTitle('Resumen ejecutivo');
-    pb.nextRow([
-      { text: 'Costo MP total (actual):', x: M },
-      { text: fmtMoney(meta.sumCosto), x: PAGE_W - M, align: 'right' },
-    ]);
-    pb.nextRow([
-      { text: 'Venta menú total:', x: M },
-      { text: fmtMoney(meta.sumVenta), x: PAGE_W - M, align: 'right' },
-    ]);
-    pb.nextRow([
-      { text: 'Margen global ponderado:', x: M },
-      { text: fmtPct(meta.margenGlobal), x: PAGE_W - M, align: 'right' },
-    ]);
-    pb.setY(pb.getY() + 2);
-    pb.nextRow([
-      { text: 'Productos con costo al alza:', x: M },
-      { text: String(meta.subieron), x: 80 },
-      { text: 'A la baja:', x: 110 },
-      { text: String(meta.bajaron), x: 130 },
-      { text: 'Sin cambio:', x: 150 },
-      { text: String(meta.sinCambio), x: 175 },
+    pb.drawKpiCards([
+      { label: 'Productos en menú', value: String(meta.totalProductos) },
+      { label: 'Costo MP total', value: fmtMoney(meta.sumCosto) },
+      { label: 'Venta menú total', value: fmtMoney(meta.sumVenta) },
+      {
+        label: 'Margen global',
+        value: fmtPct(meta.margenGlobal),
+        sub: 'sobre venta',
+        large: true,
+      },
     ]);
 
-    var cols = [
-      { label: 'PRODUCTO', x: M + 1 },
-      { label: 'ACTUAL', x: 78, align: 'right' },
-      { label: 'GUARDADO', x: 102, align: 'right' },
-      { label: 'ANT.', x: 124, align: 'right' },
-      { label: 'Δ', x: 142, align: 'right' },
-      { label: 'CAJA', x: 162, align: 'right' },
-      { label: 'MARG%', x: 182, align: 'right' },
-      { label: '↕', x: PAGE_W - M - 2, align: 'right' },
-    ];
+    pb.drawTrendChart(meta);
+    pb.drawTopCostBars(data.productos, 8);
 
-    pb.sectionTitle('Menú de venta — actual vs guardado');
-    pb.drawTableHead(cols);
+    pb.sectionTitle('Menú — costo actual vs guardado');
+    pb.drawTableHead([
+      { label: 'PRODUCTO', x: COL_MENU.prod.x },
+      { label: 'ACTUAL', x: COL_MENU.actual.x + COL_MENU.actual.w, align: 'right' },
+      { label: 'GUARD.', x: COL_MENU.guard.x + COL_MENU.guard.w, align: 'right' },
+      { label: 'ANT.', x: COL_MENU.ant.x + COL_MENU.ant.w, align: 'right' },
+      { label: 'Δ', x: COL_MENU.delta.x + COL_MENU.delta.w, align: 'right' },
+      { label: 'CAJA', x: COL_MENU.caja.x + COL_MENU.caja.w, align: 'right' },
+      { label: 'MARG', x: COL_MENU.marg.x + COL_MENU.marg.w, align: 'right' },
+      { label: '↕', x: COL_MENU.trend.x, align: 'right' },
+    ]);
 
     data.productos.forEach(function (p, i) {
-      if (i > 0 && i % 2 === 0) {
-        pb.checkSpace(7);
-        doc.setFillColor(248, 250, 252);
-        doc.rect(M, pb.getY() - 4.5, PAGE_W - M * 2, 6, 'F');
-      }
       var arrow = p.tendencia === 'up' ? '↑' : p.tendencia === 'down' ? '↓' : '=';
       var deltaTxt =
         p.delta != null && Math.abs(p.delta) >= 1
           ? (p.delta > 0 ? '+' : '') + fmtMoney(p.delta)
           : '—';
-      pb.nextRow([
-        { text: pb.truncate(p.producto, 28), x: M + 1 },
-        { text: fmtMoney(p.costoActual), x: 78, align: 'right' },
-        { text: fmtMoney(p.costoGuardado), x: 102, align: 'right' },
-        {
-          text: p.costoAnterior != null ? fmtMoney(p.costoAnterior) : '—',
-          x: 124,
-          align: 'right',
-        },
-        { text: deltaTxt, x: 142, align: 'right' },
-        { text: p.precioCaja != null ? fmtMoney(p.precioCaja) : '—', x: 162, align: 'right' },
-        { text: fmtPct(p.margenReal), x: 182, align: 'right' },
-        { text: arrow, x: PAGE_W - M - 2, align: 'right' },
-      ]);
-    });
-
-    function listBlock(title, items, color) {
-      if (!items.length) return;
-      pb.sectionTitle(title + ' (' + items.length + ')');
-      items.slice(0, 40).forEach(function (p) {
-        pb.checkSpace(7);
-        pb.nextRow([
-          { text: pb.truncate(p.producto, 40), x: M },
+      var deltaColor = p.tendencia === 'up' ? C_RED : p.tendencia === 'down' ? C_GREEN : [40, 40, 40];
+      pb.nextRow(
+        [
+          { text: p.producto, x: COL_MENU.prod.x, maxW: COL_MENU.prod.w },
+          { text: fmtMoney(p.costoActual), x: COL_MENU.actual.x + COL_MENU.actual.w, align: 'right' },
+          { text: fmtMoney(p.costoGuardado), x: COL_MENU.guard.x + COL_MENU.guard.w, align: 'right' },
           {
-            text:
-              fmtMoney(p.costoAnterior != null ? p.costoAnterior : p.costoGuardado) +
-              ' → ' +
-              fmtMoney(p.costoActual),
-            x: PAGE_W - M,
+            text: p.costoAnterior != null ? fmtMoney(p.costoAnterior) : '—',
+            x: COL_MENU.ant.x + COL_MENU.ant.w,
             align: 'right',
           },
-        ]);
+          { text: deltaTxt, x: COL_MENU.delta.x + COL_MENU.delta.w, align: 'right', color: deltaColor },
+          {
+            text: p.precioCaja != null ? fmtMoney(p.precioCaja) : '—',
+            x: COL_MENU.caja.x + COL_MENU.caja.w,
+            align: 'right',
+          },
+          { text: fmtPct(p.margenReal), x: COL_MENU.marg.x + COL_MENU.marg.w, align: 'right' },
+          {
+            text: arrow,
+            x: COL_MENU.trend.x,
+            align: 'right',
+            color: p.tendencia === 'up' ? C_RED : p.tendencia === 'down' ? C_GREEN : C_SLATE,
+            bold: true,
+          },
+        ],
+        { zebra: i % 2 === 1, rowH: 5.5 }
+      );
+    });
+
+    function listBlock(title, items) {
+      if (!items.length) return;
+      pb.sectionTitle(title + ' (' + items.length + ')');
+      items.slice(0, 35).forEach(function (p, i) {
+        pb.nextRow(
+          [
+            { text: p.producto, x: M, maxW: 90 },
+            {
+              text:
+                fmtMoney(p.costoAnterior != null ? p.costoAnterior : p.costoGuardado) +
+                '  →  ' +
+                fmtMoney(p.costoActual),
+              x: PAGE_W - M,
+              align: 'right',
+            },
+          ],
+          { zebra: i % 2 === 1 }
+        );
       });
-      if (items.length > 40) {
-        pb.nextRow([{ text: '… y ' + (items.length - 40) + ' más', x: M }]);
+      if (items.length > 35) {
+        pb.nextRow([{ text: '… y ' + (items.length - 35) + ' productos más', x: M }]);
       }
     }
 
-    listBlock('Costos que subieron', data.subieron, [220, 38, 38]);
-    listBlock('Costos que bajaron', data.bajaron, [22, 163, 74]);
+    listBlock('Platos con costo al alza', data.subieron);
+    listBlock('Platos con costo a la baja', data.bajaron);
 
-    pb.sectionTitle('Notas');
+    pb.checkSpace(16);
+    pb.sectionTitle('Notas metodológicas');
     pb.nextRow([
       {
-        text: 'Actual = costeo unitario o receta en tiempo real. Guardado = fila vigente archivada.',
+        text: 'Actual = costeo en tiempo real (MP unitario + recetas). Guardado = costeo vigente archivado.',
         x: M,
+        maxW: CONTENT_W,
       },
     ]);
     pb.nextRow([
       {
-        text: 'Δ compara contra costo anterior registrado o, si no hay, contra el guardado.',
+        text: 'Δ compara contra el costo anterior registrado o, si no existe, contra el guardado.',
         x: M,
+        maxW: CONTENT_W,
       },
     ]);
 
@@ -652,31 +821,32 @@
 
   function buildDetalladoPdf(data, jsPDF) {
     var pb = createPdfDoc(jsPDF);
-    var doc = pb.doc;
     var meta = data.meta;
 
     pb.drawReportHeader(
       'Reporte detallado de costos',
       meta.empresa,
-      'MP unitarias · Recetas estándar · ' + meta.fecha
+      'Materia prima · Recetas · Menú · ' + meta.fechaCorta
     );
+
+    pb.drawKpiCards([
+      { label: 'Insumos MP', value: String(data.mps.length) },
+      { label: 'Recetas', value: String(data.recetas.length) },
+      { label: 'Platos menú', value: String(meta.totalProductos) },
+      { label: 'Margen global', value: fmtPct(meta.margenGlobal) },
+    ]);
 
     pb.sectionTitle('1. Materia prima — costeo unitario');
     pb.drawTableHead([
       { label: 'INSUMO', x: M + 1 },
-      { label: 'UND', x: 72 },
-      { label: 'REF.', x: 88, align: 'right' },
-      { label: 'P. TOTAL', x: 118, align: 'right' },
-      { label: '$/UND', x: 148, align: 'right' },
-      { label: 'CATEG.', x: 168 },
+      { label: 'UND', x: M + 58 },
+      { label: 'REF.', x: M + 72, align: 'right' },
+      { label: 'P. LOTE', x: M + 98, align: 'right' },
+      { label: '$/UND', x: M + 128, align: 'right' },
+      { label: 'CATEGORÍA', x: M + 152 },
     ]);
 
     data.mps.forEach(function (it, i) {
-      if (i > 0 && i % 2 === 0) {
-        pb.checkSpace(7);
-        doc.setFillColor(248, 250, 252);
-        doc.rect(M, pb.getY() - 4.5, PAGE_W - M * 2, 6, 'F');
-      }
       var ref =
         it.und === 'UNI' || it.und === 'UND'
           ? '1 u'
@@ -687,39 +857,51 @@
         it.und === 'GR' || it.und === 'ML'
           ? fmtMoneyDec(it.precioUnit, 4)
           : fmtMoney(it.precioUnit);
-      pb.nextRow([
-        { text: pb.truncate(it.nombre, 32), x: M + 1 },
-        { text: it.und, x: 72 },
-        { text: ref, x: 88, align: 'right' },
-        { text: fmtMoney(it.precioTotal), x: 118, align: 'right' },
-        { text: unitLabel, x: 148, align: 'right' },
-        { text: pb.truncate(it.categoria, 18), x: 168 },
-      ]);
+      pb.nextRow(
+        [
+          { text: it.nombre, x: M + 1, maxW: 54 },
+          { text: it.und, x: M + 58 },
+          { text: ref, x: M + 72, align: 'right' },
+          { text: fmtMoney(it.precioTotal), x: M + 98, align: 'right' },
+          { text: unitLabel, x: M + 128, align: 'right' },
+          { text: it.categoria, x: M + 152, maxW: 38 },
+        ],
+        { zebra: i % 2 === 1, rowH: 5.5 }
+      );
     });
 
     data.recetas.forEach(function (rec, ri) {
-      pb.checkSpace(24);
-      pb.sectionTitle('2.' + (ri + 1) + ' Receta — ' + rec.producto);
+      pb.checkSpace(28);
+      pb.sectionTitle('2.' + (ri + 1) + ' Receta — ' + pb.truncate(rec.producto, 42));
       pb.nextRow([
         { text: 'Costo referencia plato:', x: M },
-        { text: fmtMoney(rec.costoTotal), x: PAGE_W - M, align: 'right' },
+        {
+          text: fmtMoney(rec.costoTotal),
+          x: PAGE_W - M,
+          align: 'right',
+          bold: true,
+        },
       ]);
       pb.setY(pb.getY() + 2);
       pb.drawTableHead([
         { label: 'INGREDIENTE', x: M + 1 },
-        { label: 'CANT.', x: 100, align: 'right' },
-        { label: 'UND', x: 118 },
-        { label: '$/U', x: 142, align: 'right' },
+        { label: 'CANT.', x: M + 88, align: 'right' },
+        { label: 'UND', x: M + 98 },
+        { label: '$/U', x: M + 118, align: 'right' },
         { label: 'SUBTOTAL', x: PAGE_W - M, align: 'right' },
       ]);
-      rec.lineas.forEach(function (ln) {
-        pb.nextRow([
-          { text: pb.truncate(ln.ingrediente, 36), x: M + 1 },
-          { text: String(ln.cantidad), x: 100, align: 'right' },
-          { text: ln.unidad, x: 118 },
-          { text: fmtMoneyDec(ln.costoUnit, 2), x: 142, align: 'right' },
-          { text: fmtMoney(ln.subtotal), x: PAGE_W - M, align: 'right' },
-        ]);
+      rec.lineas.forEach(function (ln, li) {
+        pb.checkSpace(8);
+        pb.nextRow(
+          [
+            { text: ln.ingrediente, x: M + 1, maxW: 82 },
+            { text: String(ln.cantidad), x: M + 88, align: 'right' },
+            { text: ln.unidad, x: M + 98 },
+            { text: fmtMoneyDec(ln.costoUnit, 2), x: M + 118, align: 'right' },
+            { text: fmtMoney(ln.subtotal), x: PAGE_W - M, align: 'right' },
+          ],
+          { zebra: li % 2 === 1, rowH: 5.5 }
+        );
       });
       pb.setY(pb.getY() + 4);
     });
@@ -728,52 +910,68 @@
       pb.nextRow([{ text: 'No hay recetas definidas en el catálogo.', x: M }]);
     }
 
-    pb.checkSpace(20);
-    pb.sectionTitle('3. Menú — enlace venta / costo actual');
+    pb.checkSpace(22);
+    pb.sectionTitle('3. Menú — venta vs costo actual');
+    pb.drawTopCostBars(data.productos, 6);
     pb.drawTableHead([
       { label: 'PLATO', x: M + 1 },
-      { label: 'TIPO', x: 78 },
-      { label: 'COSTO', x: 108, align: 'right' },
-      { label: 'VENTA', x: 138, align: 'right' },
-      { label: 'MARG%', x: 168, align: 'right' },
+      { label: 'TIPO', x: M + 72 },
+      { label: 'COSTO', x: M + 98, align: 'right' },
+      { label: 'VENTA', x: M + 128, align: 'right' },
+      { label: 'MARG%', x: PAGE_W - M, align: 'right' },
     ]);
-    data.productos.forEach(function (p) {
-      pb.nextRow([
-        { text: pb.truncate(p.producto, 30), x: M + 1 },
-        { text: p.tipo === 'directo' ? 'Directo' : 'Receta', x: 78 },
-        { text: fmtMoney(p.costoActual), x: 108, align: 'right' },
-        { text: fmtMoney(p.precioMenu), x: 138, align: 'right' },
-        { text: fmtPct(p.margenReal), x: 168, align: 'right' },
-      ]);
+    data.productos.forEach(function (p, i) {
+      pb.nextRow(
+        [
+          { text: p.producto, x: M + 1, maxW: 66 },
+          { text: p.tipo === 'directo' ? 'Directo' : 'Receta', x: M + 72 },
+          { text: fmtMoney(p.costoActual), x: M + 98, align: 'right' },
+          { text: fmtMoney(p.precioMenu), x: M + 128, align: 'right' },
+          { text: fmtPct(p.margenReal), x: PAGE_W - M, align: 'right' },
+        ],
+        { zebra: i % 2 === 1, rowH: 5.5 }
+      );
     });
 
     pb.footer();
     return savePdfDoc(pb.doc, 'costos_detallado_' + fileStamp() + '.pdf');
   }
 
+  function handlePdfResult(result, okLabel) {
+    if (result && result.ok) {
+      toast(result.hint || okLabel, 'success');
+    } else if (result && result.blockedPopup) {
+      toast('Permita descargas en el navegador e intente de nuevo.', 'warning');
+    } else {
+      toast(
+        (result && result.error && result.error.message) ||
+          'No se pudo guardar el PDF — revise la consola (F12)',
+        'error'
+      );
+    }
+  }
+
   function runPdfBuild(buildFn, jsPDF, okLabel) {
     collectReportData(function (data, err) {
       if (!data) {
+        _pdfBusy = false;
         toast(err || 'No hay datos para el reporte', 'error');
         return;
       }
       try {
         var result = buildFn(data, jsPDF);
-        if (result && result.ok) {
-          toast((result.hint || okLabel) + '', 'success');
-        } else if (result && result.blockedPopup) {
-          toast(
-            'Bloqueó la ventana emergente — el PDF igual puede estar en Descargas. Vuelva a pulsar el botón y elija «Permitir», o abra Descargas.',
-            'warning'
-          );
-        } else {
-          toast(
-            (result && result.error && result.error.message) ||
-              'No se pudo guardar el PDF — revise la consola (F12)',
-            'error'
-          );
-        }
+        Promise.resolve(result)
+          .then(function (r) {
+            _pdfBusy = false;
+            handlePdfResult(r, okLabel);
+          })
+          .catch(function (ex) {
+            _pdfBusy = false;
+            console.error('[costos-pdf] save', ex);
+            toast('Error al guardar PDF: ' + (ex.message || ex), 'error');
+          });
       } catch (ex) {
+        _pdfBusy = false;
         console.error('[costos-pdf] build', ex);
         toast('Error al generar PDF: ' + (ex.message || ex), 'error');
       }
@@ -781,32 +979,44 @@
   }
 
   function downloadGeneral() {
+    if (_pdfBusy) {
+      toast('Ya hay un PDF en proceso…', 'warning');
+      return;
+    }
     if (!global.CrozzoCatalogoMp) {
       toast('Abra primero Sistema de costos (catálogo no listo)', 'error');
       return;
     }
+    _pdfBusy = true;
     toast('Generando PDF resumen…', 'info');
     loadJsPdf()
       .then(function (jsPDF) {
         runPdfBuild(buildGeneralPdf, jsPDF, 'PDF resumen listo');
       })
       .catch(function (e) {
+        _pdfBusy = false;
         console.error('[costos-pdf]', e);
         toast(e.message || 'Error cargando jsPDF', 'error');
       });
   }
 
   function downloadDetallado() {
+    if (_pdfBusy) {
+      toast('Ya hay un PDF en proceso…', 'warning');
+      return;
+    }
     if (!global.CrozzoCatalogoMp) {
       toast('Abra primero Sistema de costos (catálogo no listo)', 'error');
       return;
     }
+    _pdfBusy = true;
     toast('Generando PDF detallado…', 'info');
     loadJsPdf()
       .then(function (jsPDF) {
         runPdfBuild(buildDetalladoPdf, jsPDF, 'PDF detallado listo');
       })
       .catch(function (e) {
+        _pdfBusy = false;
         console.error('[costos-pdf]', e);
         toast(e.message || 'Error cargando jsPDF', 'error');
       });

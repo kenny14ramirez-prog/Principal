@@ -10001,10 +10001,351 @@ body.crozzo-page-modulo-gestion .crozzo-matriz-prog-check {
   gap: 6px;
   cursor: pointer;
 }
-body.crozzo-page-modulo-gestion .crozzo-matriz-prog-date {
-  max-width: 160px;
-  padding: 6px 8px;
+body.crozzo-page-modulo-gestion .crozzo-matriz-prog-date,
+body.crozzo-page-modulo-gestion .crozzo-matriz-prog-datetime,
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__datetime {
+  max-width: 100%;
+  padding: 8px 10px;
   font-size: 0.85rem;
+  border-radius: 10px;
+}
+
+/* Centro de acciones — command deck premium */
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd {
+  position: relative;
+  margin-top: 16px;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb, 201, 169, 98), 0.14) 0%,
+    rgba(var(--accent-rgb, 201, 169, 98), 0.04) 42%,
+    var(--bg-secondary) 100%
+  );
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
+  overflow: hidden;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger:hover,
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger:focus-visible {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.65);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(var(--accent-rgb, 201, 169, 98), 0.15);
+  transform: translateY(-1px);
+  outline: none;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd.is-open .crozzo-matriz-cmd__trigger {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-glow {
+  position: absolute;
+  inset: -40% auto auto -10%;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(var(--accent-rgb, 201, 169, 98), 0.22), transparent 70%);
+  pointer-events: none;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-glyph {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.18);
+  color: var(--accent);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-title {
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-sub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-badge {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  padding: 4px 8px;
+  border-radius: 99px;
+  background: rgba(245, 158, 11, 0.18);
+  color: #d97706;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__trigger-chev {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+  transition: transform 0.25s ease;
+  margin-right: 4px;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd.is-open .crozzo-matriz-cmd__trigger-chev {
+  transform: rotate(-135deg) translateY(3px);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__deck {
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, var(--bg-secondary), rgba(0, 0, 0, 0.04));
+  animation: crozzoMatrizCmdIn 0.28s ease;
+}
+@keyframes crozzoMatrizCmdIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__deck-inner {
+  padding: 18px 18px 16px;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  font-weight: 700;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__lead {
+  margin: 6px 0 0;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  max-width: 52ch;
+  line-height: 1.45;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__close {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__close:hover {
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.1);
+  color: var(--text-primary);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__grid {
+    grid-template-columns: 1fr;
+  }
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary, rgba(255, 255, 255, 0.03));
+  min-height: 100%;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card--publish {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45);
+  background: linear-gradient(
+    160deg,
+    rgba(var(--accent-rgb, 201, 169, 98), 0.1),
+    var(--bg-primary, rgba(255, 255, 255, 0.02)) 55%
+  );
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card-top {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.12);
+  font-size: 1rem;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card-desc {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__card-actions--stack {
+  flex-direction: column;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action {
+  flex: 1 1 auto;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action:hover:not(:disabled) {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.5);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action:active:not(:disabled) {
+  transform: scale(0.98);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action--primary {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0.1));
+  color: #059669;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action--accent {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.55);
+  background: linear-gradient(
+    180deg,
+    rgba(var(--accent-rgb, 201, 169, 98), 0.28),
+    rgba(var(--accent-rgb, 201, 169, 98), 0.12)
+  );
+  color: var(--accent);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action--wide {
+  width: 100%;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__action--ghost {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px dashed transparent;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__schedule.is-visible {
+  border-color: var(--border);
+  background: rgba(0, 0, 0, 0.03);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__schedule.is-highlight {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.55);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__schedule-lbl {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__foot {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__pref {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1.35;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-cmd__pref input {
+  margin-top: 2px;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-margen-global__pub {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(248, 250, 252, 0.6);
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-margen-global__pub-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+}
+body.crozzo-page-modulo-gestion .crozzo-matriz-margen-global__pub-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 body.crozzo-page-modulo-gestion .crozzo-matriz-alerts {
   margin: 12px 0;

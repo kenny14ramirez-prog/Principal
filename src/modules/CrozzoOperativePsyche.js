@@ -16,6 +16,10 @@
   var BREAK_CHECK_MS = 120000;
   var BREAK_GRACE_MS = 45 * 60000;
   var BREAK_NUDGE_AUTO_MS = 18000;
+  var _psycheChipHtmlCache = '';
+  var _psycheHeaderCache = '';
+  var _peakStripActive = null;
+  var _psycheChromeTimer = null;
 
   var BREAK_LINES = [
     '☕ Un respiro breve ayuda — agua, estirar, mirar lejos de la pantalla.',
@@ -423,13 +427,41 @@
     document.body.classList.toggle('crozzo-psyche-active', psyche);
   }
 
+  function schedulePsycheChromeRefresh() {
+    if (_psycheChromeTimer) return;
+    _psycheChromeTimer = setTimeout(function () {
+      _psycheChromeTimer = null;
+      refreshPsycheChrome(false);
+    }, 120);
+  }
+
+  function refreshPsycheChrome(force) {
+    updateHeaderPsycheLine();
+    injectPsycheChipHost(!!force);
+  }
+
+  function syncPsycheAfterRoleStorage() {
+    applyComfortClasses();
+    schedulePsycheChromeRefresh();
+  }
+
+  function bindLoginWelcomeOnce() {
+    if (global.__crozzoLoginWelcomeBound) return;
+    global.__crozzoLoginWelcomeBound = true;
+    document.addEventListener('crozzo-ready', function (ev) {
+      try {
+        if (ev && ev.detail && ev.detail.source === 'login') onLoginWelcome();
+      } catch (_) {}
+    });
+  }
+
   function patchHumanToasts() {
     if (global.__crozzoHumanToastPatched || typeof global.showToast !== 'function') return;
     global.__crozzoHumanToastPatched = true;
     var orig = global.showToast;
     global.showToast = function (message, type) {
       var t = type || 'info';
-      maybeAffirmComandaFromToast(message);
+      if (!global.__crozzoAffirmToastLock) maybeAffirmComandaFromToast(message);
       var msg = humanizeToastMessage(message, t);
       if (document.body && document.body.classList.contains('crozzo-premium-human') && (t === 'warning' || t === 'error')) {
         return orig.call(global, msg, t === 'error' ? 'warning' : t);
@@ -465,15 +497,23 @@
     var st = readStore();
     var today = new Date().toISOString().slice(0, 10);
     var dedupeKey = key + '_' + today + '_' + (getRoleNorm() || 'all');
-    if (st.affirmShown[dedupeKey]) return;
+    if (!global.__crozzoAffirmPending) global.__crozzoAffirmPending = {};
+    if (st.affirmShown[dedupeKey] || global.__crozzoAffirmPending[dedupeKey]) return;
     var pool = AFFIRMATIONS[key];
     var msg = message || (pool && pool[Math.floor(Math.random() * pool.length)]) || '';
     if (!msg || typeof global.showToast !== 'function') return;
+    global.__crozzoAffirmPending[dedupeKey] = 1;
     var shown = {};
     shown[dedupeKey] = 1;
     var newWins = (st.wins || 0) + 1;
     writeStore({ affirmShown: shown, wins: newWins });
-    global.showToast(msg, 'success');
+    global.__crozzoAffirmToastLock = true;
+    try {
+      global.showToast(msg, 'success');
+    } finally {
+      global.__crozzoAffirmToastLock = false;
+      delete global.__crozzoAffirmPending[dedupeKey];
+    }
     celebrateWinMilestones(newWins);
   }
 
@@ -490,7 +530,10 @@
 
   function updateHeaderPsycheLine() {
     if (!shouldApplyHumanLayer()) return;
+    var line = getRoleLine();
     var el = document.getElementById('crozzoHeaderPsycheLine');
+    if (el && line === _psycheHeaderCache && !el.hidden) return;
+    _psycheHeaderCache = line;
     if (!el) {
       var greet = document.getElementById('crozzoHeaderGreeting');
       if (!greet || !greet.parentNode) return;
@@ -499,41 +542,47 @@
       el.className = 'crozzo-header-psyche-line';
       greet.parentNode.insertBefore(el, greet.nextSibling);
     }
-    el.textContent = getRoleLine();
+    el.textContent = line;
     el.hidden = false;
   }
 
   function onLoginWelcome() {
     if (!shouldApplyComfortUx() && !shouldApplyHumanLayer()) return;
-    markComfortSessionStart();
-    startComfortBreakLoop();
+    if (!global.__crozzoComfortSessionBooted) {
+      global.__crozzoComfortSessionBooted = true;
+      markComfortSessionStart();
+      startComfortBreakLoop();
+    }
     applyComfortClasses();
-    if (typeof global.crozzoUpdatePremiumIdentity === 'function') {
-      try {
-        global.crozzoUpdatePremiumIdentity(typeof global.currentPage !== 'undefined' ? global.currentPage : null);
-      } catch (_) {}
-    }
-    if (shouldApplyPsycheLayer()) {
-      updateHeaderPsycheLine();
-      injectPsycheChipHost();
-    } else if (shouldApplyHumanLayer()) {
-      updateHeaderPsycheLine();
-    }
+    schedulePsycheChromeRefresh();
     var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
     if (!u) return;
     var st = readStore();
     var key = String(u.id || u.nombre || '');
     var today = new Date().toISOString().slice(0, 10);
-    if (st.lastGreetUser === key + '_' + today) return;
-    writeStore({ lastGreetUser: key + '_' + today });
+    var greetKey = key + '_' + today;
+    if (global.__crozzoWelcomeToastScheduled || global.__crozzoWelcomeToastDone === greetKey) return;
+    if (st.lastGreetUser === greetKey) {
+      global.__crozzoWelcomeToastDone = greetKey;
+      return;
+    }
+    global.__crozzoWelcomeToastScheduled = true;
+    writeStore({ lastGreetUser: greetKey });
     var first = getFirstName();
     var greet = typeof global.crozzoPremiumGreeting === 'function' ? global.crozzoPremiumGreeting() : 'Bienvenido';
     setTimeout(function () {
+      global.__crozzoWelcomeToastScheduled = false;
+      global.__crozzoWelcomeToastDone = greetKey;
       if (typeof global.showToast === 'function') {
         var line = first
           ? greet + ', ' + first + '. Su espacio de trabajo está listo.'
           : greet + '. Su espacio de trabajo está listo.';
-        global.showToast(line, 'success');
+        global.__crozzoAffirmToastLock = true;
+        try {
+          global.showToast(line, 'success');
+        } finally {
+          global.__crozzoAffirmToastLock = false;
+        }
       }
       if (shouldApplyPsycheLayer()) maybeAffirm('login_shift');
     }, 700);
@@ -607,9 +656,13 @@
     var critical = s.id === 'peak';
     var host = document.getElementById('crozzo-peak-breathe-host');
     if (!critical) {
+      if (_peakStripActive === false) return;
+      _peakStripActive = false;
       if (host) host.innerHTML = '';
       return;
     }
+    if (_peakStripActive === true && host && host.innerHTML) return;
+    _peakStripActive = true;
     if (!host) {
       host = document.createElement('div');
       host.id = 'crozzo-peak-breathe-host';
@@ -668,6 +721,7 @@
     try {
       sessionStorage.setItem(SS_CHIP, '1');
     } catch (_) {}
+    _psycheChipHtmlCache = '';
     var host = document.getElementById('crozzo-psyche-chip-host');
     if (host) host.innerHTML = '';
   }
@@ -769,6 +823,12 @@
     global.showModal('🌙 Antes de salir', renderWellbeingModal(finish));
   }
 
+  function resetComfortSessionFlags() {
+    global.__crozzoComfortSessionBooted = false;
+    global.__crozzoWelcomeToastScheduled = false;
+    stopComfortBreakLoop();
+  }
+
   function patchLogoutWellbeing() {
     if (global.__crozzoPsycheLogoutPatched || typeof global.crozzoRequestLogout !== 'function') return;
     global.__crozzoPsycheLogoutPatched = true;
@@ -778,11 +838,11 @@
       if (opts._psycheLogoutBypass) {
         var next = Object.assign({}, opts);
         delete next._psycheLogoutBypass;
-        stopComfortBreakLoop();
+        resetComfortSessionFlags();
         return orig.call(global, next);
       }
       maybeWellbeingBeforeLogout(function () {
-        stopComfortBreakLoop();
+        resetComfortSessionFlags();
         orig.call(global, Object.assign({}, opts, { _psycheLogoutBypass: true }));
       });
     };
@@ -850,8 +910,7 @@
       var origId = global.crozzoUpdatePremiumIdentity;
       global.crozzoUpdatePremiumIdentity = function (page) {
         origId.apply(global, arguments);
-        updateHeaderPsycheLine();
-        injectPsycheChipHost();
+        schedulePsycheChromeRefresh();
       };
     }
     if (!global.__crozzoPsycheAccessPatched && typeof global.applyAccessControl === 'function') {
@@ -860,9 +919,7 @@
       global.applyAccessControl = function () {
         var r = origAc.apply(global, arguments);
         try {
-          updateHeaderPsycheLine();
-          injectPsycheChipHost();
-          injectPeakBreatheStrip();
+          schedulePsycheChromeRefresh();
         } catch (_) {}
         return r;
       };
@@ -872,7 +929,7 @@
       var origPeak = global.CrozzoOnboardingOperativo.applyPeakNoviceMode;
       global.CrozzoOnboardingOperativo.applyPeakNoviceMode = function () {
         origPeak.apply(global.CrozzoOnboardingOperativo, arguments);
-        injectPsycheChipHost();
+        schedulePsycheChromeRefresh();
       };
     }
     if (!global.__crozzoPsycheLoginPatched && typeof global.crozzoSyncUserRoleStorage === 'function') {
@@ -880,7 +937,7 @@
       var origSync = global.crozzoSyncUserRoleStorage;
       global.crozzoSyncUserRoleStorage = function () {
         origSync.apply(global, arguments);
-        onLoginWelcome();
+        syncPsycheAfterRoleStorage();
       };
     }
   }
@@ -952,25 +1009,26 @@
     return false;
   }
 
-  function injectPsycheChipHost() {
+  function injectPsycheChipHost(force) {
     if (!shouldApplyHumanLayer()) return;
     injectPeakBreatheStrip();
     if (shouldHideChipOnPage()) {
+      _psycheChipHtmlCache = '';
       var h0 = document.getElementById('crozzo-psyche-chip-host');
       if (h0) {
+        if (!h0.innerHTML && h0.hidden) return;
         h0.innerHTML = '';
         h0.hidden = true;
       }
-      var peak0 = document.getElementById('crozzo-peak-breathe-host');
-      if (peak0) peak0.innerHTML = '';
       return;
     }
     var hostVis = document.getElementById('crozzo-psyche-chip-host');
     if (hostVis) hostVis.hidden = false;
     var html = shouldApplyPsycheLayer() ? renderPsycheChip() : renderMinimalHumanChip();
     if (!html) {
+      _psycheChipHtmlCache = '';
       var h = document.getElementById('crozzo-psyche-chip-host');
-      if (h) h.innerHTML = '';
+      if (h && h.innerHTML) h.innerHTML = '';
       return;
     }
     var host = document.getElementById('crozzo-psyche-chip-host');
@@ -981,6 +1039,8 @@
       var main = document.getElementById('mainContent');
       if (main && main.parentNode) main.parentNode.insertBefore(host, main);
     }
+    if (!force && html === _psycheChipHtmlCache && host.innerHTML === html) return;
+    _psycheChipHtmlCache = html;
     host.innerHTML = html;
   }
 
@@ -1000,20 +1060,25 @@
   }
 
   function init() {
+    if (global.__crozzoPsycheInitDone) {
+      schedulePsycheChromeRefresh();
+      return;
+    }
+    global.__crozzoPsycheInitDone = true;
     patchHumanToasts();
     applyComfortClasses();
     patchIntegrations();
     patchLogoutWellbeing();
     patchVisibilityWelcomeBack();
-    updateHeaderPsycheLine();
-    injectPsycheChipHost();
+    bindLoginWelcomeOnce();
+    refreshPsycheChrome(true);
     if (typeof global.getCurrentUser === 'function' && global.getCurrentUser()) {
-      markComfortSessionStart();
-      startComfortBreakLoop();
       onLoginWelcome();
     }
     if (!global.__crozzoPsychePoll) {
-      global.__crozzoPsychePoll = setInterval(injectPsycheChipHost, 45000);
+      global.__crozzoPsychePoll = setInterval(function () {
+        injectPsycheChipHost(false);
+      }, 45000);
     }
   }
 

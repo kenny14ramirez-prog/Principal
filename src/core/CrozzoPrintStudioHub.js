@@ -1051,6 +1051,9 @@
         btn.classList.toggle('is-on', btn.getAttribute('data-output') === outputId);
       });
     }
+    if (scope === 'inventario' && global.CrozzoSistemaCostos && global.CrozzoSistemaCostos.refreshInventarioPrintGuide) {
+      global.CrozzoSistemaCostos.refreshInventarioPrintGuide();
+    }
   }
 
   function touchPrintChannel(scope) {
@@ -2406,7 +2409,7 @@
     return (
       '<div class="crozzo-print-panel crozzo-inventario-panel">' +
       '<h3 class="crozzo-print-panel__title">Inventario · hojas y conteo</h3>' +
-      '<p class="crozzo-print-card__lead">Cada producto: <strong>nombre</strong>, unidad <strong>g / ml / und</strong> y línea para <strong>cantidad</strong>. 58/80 mm → térmica bodega · Carta/Oficio → impresora de caja.</p>' +
+      '<p class="crozzo-print-card__lead">Formatos: <strong>58/80 mm</strong> térmica bodega · <strong>Carta/Oficio</strong> láser caja. Conteo en blanco, stock, movimientos y CSV/HTML de prueba en Costos → Inventario.</p>' +
       renderPrintOutputPicker('inventario', savedPrintOutput('inventario'), ['roll_58', 'roll_80', 'carta', 'oficio']) +
       '<div class="crozzo-inventario-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;">' +
       '<button type="button" class="btn btn-outline" onclick="CrozzoPrintStudioHub.previewInventarioConteo()">👁 Ver hoja en pantalla</button>' +

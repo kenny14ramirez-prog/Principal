@@ -161,10 +161,16 @@
     if (typeof global.showToast === 'function') global.showToast('Recordatorio de apertura restaurado', 'info');
   }
 
+  var _refreshInicioTimer = null;
+
   function refreshInicioIfActive() {
-    if (typeof global.navigateTo === 'function' && global.currentPage === 'inicio-operacion') {
-      global.navigateTo('inicio-operacion');
-    }
+    if (_refreshInicioTimer) clearTimeout(_refreshInicioTimer);
+    _refreshInicioTimer = setTimeout(function () {
+      _refreshInicioTimer = null;
+      if (typeof global.navigateTo === 'function' && global.currentPage === 'inicio-operacion') {
+        global.navigateTo('inicio-operacion');
+      }
+    }, 250);
   }
 
   function getOperativoConfig() {
@@ -921,6 +927,13 @@
 
   function openModal() {
     if (typeof global.showModal !== 'function') return;
+    try {
+      var overlay = document.getElementById('modalOverlay');
+      var modal = document.getElementById('modalContent');
+      if (overlay && overlay.classList.contains('active') && modal && /Checklist operativo/i.test(modal.textContent || '')) {
+        return;
+      }
+    } catch (_) {}
     var p = getProgress();
     var rows = p.items
       .map(function (x) {

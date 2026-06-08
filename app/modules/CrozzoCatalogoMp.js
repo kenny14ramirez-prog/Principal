@@ -160,21 +160,80 @@
     return ch;
   }
 
+  function normalizeVigenciaIso(raw) {
+    if (!raw) return null;
+    var s = String(raw).trim();
+    if (!s) return null;
+    if (s.length === 16 && s.indexOf('T') === 10) {
+      try {
+        var dLocal = new Date(s);
+        if (!isNaN(dLocal.getTime())) return dLocal.toISOString();
+      } catch (_) {}
+    }
+    if (s.length === 10) return s;
+    try {
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) return d.toISOString();
+    } catch (_) {}
+    return s.slice(0, 10);
+  }
+
+  function vigenciaEsDue(vigenciaDesde, now) {
+    now = now || new Date();
+    if (!vigenciaDesde) return false;
+    var s = String(vigenciaDesde);
+    if (s.length <= 10) return s.slice(0, 10) <= now.toISOString().slice(0, 10);
+    try {
+      return new Date(s).getTime() <= now.getTime();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function vigenciaExpirada(vigenciaHasta, now) {
+    now = now || new Date();
+    if (!vigenciaHasta) return false;
+    var s = String(vigenciaHasta);
+    if (s.length <= 10) return s.slice(0, 10) < now.toISOString().slice(0, 10);
+    try {
+      return new Date(s).getTime() < now.getTime();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function formatVigenciaDisplay(vig) {
+    if (!vig) return '—';
+    var s = String(vig);
+    try {
+      if (s.length <= 10) {
+        var d0 = new Date(s + 'T00:00:00');
+        if (!isNaN(d0.getTime())) return d0.toLocaleDateString('es-CO', { dateStyle: 'short' });
+      }
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+      }
+    } catch (_) {}
+    return s;
+  }
+
   function normalizeProgramacion(raw) {
     if (!raw) return null;
-    var vig = String(raw.vigenciaDesde || '').slice(0, 10);
+    var vig = normalizeVigenciaIso(raw.vigenciaDesde);
     if (!vig) return null;
     return {
       id: String(raw.id || 'prog_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
       precioVenta: Math.round(num(raw.precioVenta)),
       vigenciaDesde: vig,
-      vigenciaHasta: raw.vigenciaHasta ? String(raw.vigenciaHasta).slice(0, 10) : null,
+      vigenciaHasta: raw.vigenciaHasta ? normalizeVigenciaIso(raw.vigenciaHasta) : null,
       aplicarPos: raw.aplicarPos !== false,
       lanzarPlato: raw.lanzarPlato !== false,
       estado: raw.estado === 'aplicada' || raw.estado === 'cancelada' ? raw.estado : 'pendiente',
       createdAt: raw.createdAt || new Date().toISOString(),
       aplicadaAt: raw.aplicadaAt || null,
       notas: String(raw.notas || '').trim(),
+      tipo: raw.tipo === 'menu' ? 'menu' : 'plato',
     };
   }
 
@@ -935,12 +994,190 @@
     return prog;
   }
 
+  function buildPlanActualizacionMenu(getCostoMp) {
+    var st = loadStore();
+    var rows = (st.menuCostos || []).map(normalizeMenuPlato).filter(Boolean);
+    var items = rows.map(function (row) {
+      var costo = row.costoMp;
+      if (getCostoMp) {
+        var live = getCostoMp(row);
+        if (live > 0) costo = live;
+      }
+      var precio = row.precioVenta > 0 ? row.precioVenta : 0;
+      var accion =
+        row.estadoFlujo === 'borrador' || row.estadoFlujo === 'programado' || row.posProductId == null
+          ? 'lanzar'
+          : 'actualizar';
+      return {
+        slug: row.slug,
+        producto: row.producto,
+        posProductId: row.posProductId,
+        precioVenta: precio,
+        costoMp: costo,
+        estadoFlujo: row.estadoFlujo,
+        accion: accion,
+      };
+    });
+    var prev = (st.meta || {}).costeoMenuPublicado || { posIds: [] };
+    var currentPosIds = {};
+    items.forEach(function (it) {
+      if (it.posProductId != null) currentPosIds[it.posProductId] = true;
+    });
+    var ocultar = (prev.posIds || []).filter(function (pid) {
+      return !currentPosIds[pid];
+    });
+    return {
+      items: items,
+      ocultarPosIds: ocultar,
+      generadoAt: new Date().toISOString(),
+    };
+  }
+
+  function aplicarPlanActualizacionMenu(plan, opts) {
+    opts = opts || {};
+    plan = plan || { items: [], ocultarPosIds: [] };
+    var lanzados = 0;
+    var actualizados = 0;
+    var ocultos = 0;
+    (plan.ocultarPosIds || []).forEach(function (pid) {
+      if (setProductoVisibleEnPos(pid, false, { silent: true })) ocultos++;
+    });
+    (plan.items || []).forEach(function (it) {
+      if (!it || !it.slug) return;
+      var row = getMenuPlato(it.slug);
+      if (!row) return;
+      var precio =
+        it.precioVenta > 0 ? Math.round(num(it.precioVenta)) : Math.round(num(row.precioVenta));
+      if (it.accion === 'lanzar' || row.estadoFlujo === 'borrador' || row.estadoFlujo === 'programado') {
+        if (lanzarPlatoAlFlujoPrincipal(it.slug, { silent: true, precioVenta: precio })) lanzados++;
+      } else if (row.posProductId != null && precio > 0) {
+        aplicarPrecioAlPos(it.slug, precio);
+        setProductoVisibleEnPos(row.posProductId, true, { silent: true });
+        updateMenuPlato(it.slug, {
+          precioVenta: precio,
+          estadoFlujo: 'vigente',
+          programadoPara: null,
+        });
+        actualizados++;
+      }
+    });
+    var st = loadStore();
+    if (!st.meta) st.meta = {};
+    var posIds = [];
+    (plan.items || []).forEach(function (it) {
+      var fresh = getMenuPlato(it.slug);
+      if (fresh && fresh.posProductId != null) posIds.push(fresh.posProductId);
+    });
+    st.meta.costeoMenuPublicado = {
+      at: new Date().toISOString(),
+      slugs: (plan.items || []).map(function (it) {
+        return it.slug;
+      }),
+      posIds: posIds,
+    };
+    saveStore(st);
+    if (typeof global.persistCatalogProductosLocal === 'function') {
+      try {
+        global.persistCatalogProductosLocal();
+      } catch (_) {}
+    } else if (typeof global.persistCatalogProductos === 'function') {
+      try {
+        global.persistCatalogProductos();
+      } catch (_) {}
+    }
+    if (!opts.silent) {
+      emitChanged({ tipo: 'menu-aplicado', lanzados: lanzados, actualizados: actualizados, ocultos: ocultos });
+      try {
+        document.dispatchEvent(
+          new CustomEvent('crozzo-costos:menu-aplicado', {
+            detail: { lanzados: lanzados, actualizados: actualizados, ocultos: ocultos },
+            bubbles: true,
+          })
+        );
+      } catch (_) {}
+    }
+    return { lanzados: lanzados, actualizados: actualizados, ocultos: ocultos };
+  }
+
+  function aplicarActualizacionMenuCompleta(opts) {
+    opts = opts || {};
+    var plan = buildPlanActualizacionMenu(opts.getCostoMp);
+    return aplicarPlanActualizacionMenu(plan, opts);
+  }
+
+  function addProgramacionMenu(vigenciaDesde, opts) {
+    opts = opts || {};
+    var vig = normalizeVigenciaIso(vigenciaDesde);
+    if (!vig) return null;
+    var st = loadStore();
+    if (!st.meta) st.meta = {};
+    if (!Array.isArray(st.meta.programacionesMenu)) st.meta.programacionesMenu = [];
+    var plan = buildPlanActualizacionMenu(opts.getCostoMp);
+    var resumen = {
+      lanzar: plan.items.filter(function (i) {
+        return i.accion === 'lanzar';
+      }).length,
+      actualizar: plan.items.filter(function (i) {
+        return i.accion === 'actualizar';
+      }).length,
+      ocultar: (plan.ocultarPosIds || []).length,
+    };
+    var prog = {
+      id: 'menuprog_' + Date.now(),
+      vigenciaDesde: vig,
+      estado: 'pendiente',
+      createdAt: new Date().toISOString(),
+      notas: opts.notas || 'Actualización menú costeo → caja',
+      plan: plan,
+      resumen: resumen,
+    };
+    st.meta.programacionesMenu.push(prog);
+    (plan.items || []).forEach(function (it) {
+      if (it.accion === 'lanzar' && it.slug) {
+        updateMenuPlato(it.slug, { estadoFlujo: 'programado', programadoPara: vig });
+      }
+    });
+    saveStore(st);
+    emitChanged({ tipo: 'programacion-menu', programacion: prog });
+    return prog;
+  }
+
+  function ejecutarProgramacionesMenuPendientes(opts) {
+    opts = opts || {};
+    var st = loadStore();
+    if (!st.meta || !Array.isArray(st.meta.programacionesMenu)) return 0;
+    var now = new Date();
+    var n = 0;
+    st.meta.programacionesMenu.forEach(function (prog) {
+      if (!prog || prog.estado !== 'pendiente') return;
+      if (!vigenciaEsDue(prog.vigenciaDesde, now)) return;
+      aplicarPlanActualizacionMenu(prog.plan, Object.assign({ silent: true }, opts));
+      prog.estado = 'aplicada';
+      prog.aplicadaAt = now.toISOString();
+      n++;
+    });
+    if (n) {
+      saveStore(st);
+      if (!opts.silent) {
+        emitChanged({ tipo: 'programaciones-menu-aplicadas', count: n });
+      }
+    }
+    return n;
+  }
+
+  function listProgramacionesMenuAll() {
+    var st = loadStore();
+    if (!st.meta || !Array.isArray(st.meta.programacionesMenu)) return [];
+    return st.meta.programacionesMenu.slice().sort(function (a, b) {
+      return String(a.vigenciaDesde).localeCompare(String(b.vigenciaDesde));
+    });
+  }
+
   function ejecutarProgramacionesPendientes(opts) {
     opts = opts || {};
     var st = loadStore();
     migrateMenuCostosShape(st);
     var now = new Date();
-    var today = now.toISOString().slice(0, 10);
     var changed = 0;
     var aplicadas = [];
     (st.menuCostos || []).forEach(function (raw, idx) {
@@ -949,8 +1186,8 @@
       var touched = false;
       row.programaciones.forEach(function (prog) {
         if (!prog || prog.estado !== 'pendiente') return;
-        if (prog.vigenciaDesde > today) return;
-        if (prog.vigenciaHasta && prog.vigenciaHasta < today) {
+        if (!vigenciaEsDue(prog.vigenciaDesde, now)) return;
+        if (vigenciaExpirada(prog.vigenciaHasta, now)) {
           prog.estado = 'cancelada';
           touched = true;
           return;
@@ -1047,12 +1284,23 @@
     return Math.round(r.pctUtilidad * 1000) / 10;
   }
 
-  function alertaMargenDesdePct(margenRealPct, margenMinPct, margenObjPct) {
+  function alertaMargenDesdePct(margenRealPct, margenMinPct, margenObjPct, costoMp, costoMpAnterior) {
+    var crit = readLsMargen('crozzo_costos_mp_alerta_subida_v1', null);
+    if (crit == null) crit = readLsMargen('crozzo_costos_margen_minimo_v1', 10);
+    var prev = costoMpAnterior != null ? Number(costoMpAnterior) : null;
+    var cur = costoMp != null ? Number(costoMp) : null;
+    if (prev > 0 && cur > 0 && cur > prev) {
+      var subidaPct = ((cur - prev) / prev) * 100;
+      if (subidaPct >= crit - 0.05) return 'crit';
+      if (subidaPct >= crit / 2 - 0.05) return 'warn';
+    }
     if (margenRealPct == null || !isFinite(margenRealPct)) return 'ok';
-    var min = margenMinPct != null ? Number(margenMinPct) : readLsMargen('crozzo_costos_margen_minimo_v1', 10);
-    var obj = margenObjPct != null ? Number(margenObjPct) : readLsMargen('crozzo_costos_margen_global_v1', 20);
-    if (margenRealPct < min - 0.05) return 'crit';
-    if (margenRealPct < obj - 0.05) return 'warn';
+    var objCosto =
+      margenObjPct != null ? 100 - Number(margenObjPct) : 100 - readLsMargen('crozzo_costos_margen_global_v1', 20);
+    var rawCosto = readLsMargen('crozzo_costos_costo_global_v1', null);
+    if (rawCosto != null) objCosto = Number(rawCosto);
+    var actualCosto = 100 - margenRealPct;
+    if (actualCosto > objCosto + 0.05) return 'warn';
     return 'ok';
   }
 
@@ -1109,7 +1357,8 @@
       margenMinimoPct: margenMin,
       margenRealPct: margenReal,
       alertaMargen:
-        snapshot.alertaMargen || alertaMargenDesdePct(margenReal, margenMin, margenObj),
+        snapshot.alertaMargen ||
+        alertaMargenDesdePct(margenReal, margenMin, margenObj, costoMp, costoMpAnterior),
       mpOrigenId: snapshot.mpOrigenId || null,
       mpOrigenNombre: snapshot.mpOrigenNombre || null,
       notas: snapshot.notas || '',
@@ -1199,6 +1448,23 @@
           producto: row.producto,
           programacion: p,
         });
+      });
+    });
+    listProgramacionesMenuAll().forEach(function (prog) {
+      out.push({
+        slug: '',
+        producto: 'Menú completo (caja)',
+        programacion: {
+          id: prog.id,
+          vigenciaDesde: prog.vigenciaDesde,
+          precioVenta: 0,
+          estado: prog.estado,
+          notas: prog.notas,
+          aplicarPos: true,
+          tipo: 'menu',
+          resumen: prog.resumen,
+          aplicadaAt: prog.aplicadaAt,
+        },
       });
     });
     out.sort(function (a, b) {
@@ -3112,6 +3378,14 @@
     removeMenuPlatoByPosId: removeMenuPlatoByPosId,
     getMenuPlato: getMenuPlato,
     addProgramacionPrecio: addProgramacionPrecio,
+    addProgramacionMenu: addProgramacionMenu,
+    aplicarActualizacionMenuCompleta: aplicarActualizacionMenuCompleta,
+    buildPlanActualizacionMenu: buildPlanActualizacionMenu,
+    ejecutarProgramacionesMenuPendientes: ejecutarProgramacionesMenuPendientes,
+    listProgramacionesMenuAll: listProgramacionesMenuAll,
+    formatVigenciaDisplay: formatVigenciaDisplay,
+    normalizeVigenciaIso: normalizeVigenciaIso,
+    vigenciaEsDue: vigenciaEsDue,
     ejecutarProgramacionesPendientes: ejecutarProgramacionesPendientes,
     pushHistorialCosteo: pushHistorialCosteo,
     PERIODO_COSTEO_VIGENTE: PERIODO_COSTEO_VIGENTE,
