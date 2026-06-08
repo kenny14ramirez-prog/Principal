@@ -189,7 +189,31 @@
       '.cps-coach{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg-tertiary)}' +
       '.cps-coach__step{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--bg-card);border:1px solid var(--border);font-size:12px;color:var(--text-muted)}' +
       '.cps-coach__step span.num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-08);color:var(--accent);font-size:11px;font-weight:700}' +
-      '@media(max-width:640px){.cps-modo-grid{grid-template-columns:1fr}}';
+      '.cps.crozzo-procesos-host{max-width:920px;margin:0 auto}' +
+      '.cps-hist-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 20px}' +
+      '.cps-hist-stat{padding:16px 18px;border-radius:14px;border:1px solid var(--border);background:var(--bg-card)}' +
+      '.cps-hist-stat__lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}' +
+      '.cps-hist-stat__val{font-size:1.35rem;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;color:var(--text-primary)}' +
+      '.cps .table-container{border-radius:12px;overflow:auto;border:1px solid var(--border);background:var(--bg-card)}' +
+      '.cps .table-container .table{margin:0}' +
+      '.cps-hist-empty{text-align:center;padding:36px 24px;color:var(--text-muted);border:1px dashed var(--border);border-radius:14px;background:var(--bg-tertiary)}' +
+      '.cps-hist-empty strong{display:block;font-size:15px;font-weight:650;color:var(--text-primary);margin-bottom:8px}' +
+      '.cps-wf-pick{margin-bottom:16px}' +
+      '.cps-wf-pick__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}' +
+      '.cps-wf-pick__btn{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);cursor:pointer;font-family:inherit;text-align:left;transition:border-color .22s,box-shadow .22s,transform .22s;color:inherit}' +
+      '.cps-wf-pick__btn:hover,.cps-wf-pick__btn.is-active{border-color:var(--accent);box-shadow:0 4px 18px rgba(0,0,0,.06);transform:translateY(-1px)}' +
+      '.cps-wf-pick__btn.is-active{background:var(--accent-08)}' +
+      '.cps-wf-pick__title{font-size:14px;font-weight:650;color:var(--text-primary)}' +
+      '.cps-wf-pick__desc{font-size:11px;color:var(--text-muted);line-height:1.45}' +
+      '.ccp.bona .cps .card{background:#fff;border-color:var(--bona-line,#e8e4de);box-shadow:var(--bona-shadow-sm,0 1px 3px rgba(0,0,0,.06))}' +
+      '.ccp.bona .cps__title{font-family:var(--bona-font-display,inherit);color:var(--bona-charcoal)}' +
+      '.ccp.bona .cps__sub{color:var(--bona-charcoal-soft)}' +
+      '.ccp.bona .cps-hist-stat{border-color:var(--bona-line);background:#fff;box-shadow:var(--bona-shadow-sm)}' +
+      '.ccp.bona .cps-wf-pick__btn{border-color:var(--bona-line);background:#fff}' +
+      '.ccp.bona .cps-wf-pick__btn.is-active{border-color:var(--bona-gold);background:var(--bona-gold-08)}' +
+      '.ccp.bona .cps-coach{border-color:var(--bona-line);background:linear-gradient(135deg,var(--bona-gold-08,#faf8f5),#fff)}' +
+      '.ccp.bona .cps-coach__step{background:#fff;border-color:var(--bona-line)}' +
+      '@media(max-width:640px){.cps-modo-grid{grid-template-columns:1fr}.cps-wf-pick__grid,.cps-hist-stats{grid-template-columns:1fr}}';
     var el = document.getElementById('crozzo-procesos-sesion-css');
     if (!el) {
       el = document.createElement('style');
@@ -202,13 +226,73 @@
   function wfMeta(wf) {
     return (
       WF[wf] || {
-        title: 'Anotar prep',
+        title: 'Anotar preparación',
         icon: 'utensils',
         tone: 'violet',
         sub: 'Elige qué preparaste y completa pesos o ingredientes.',
         pickLabel: '¿Qué preparaste?',
         steps: ['Elegir', 'Completar', 'Guardar'],
       }
+    );
+  }
+
+  function workflowPickerHtml(active) {
+    var ids = ['despiece', 'coccion', 'elaboracion'];
+    var btns = ids
+      .map(function (id) {
+        var m = WF[id];
+        return (
+          '<button type="button" class="cps-wf-pick__btn' +
+          (active === id ? ' is-active' : '') +
+          '" data-cps-wf="' +
+          id +
+          '">' +
+          '<span class="cps-wf-pick__title">' +
+          esc(m.title) +
+          '</span>' +
+          '<span class="cps-wf-pick__desc">' +
+          esc(m.sub) +
+          '</span></button>'
+        );
+      })
+      .join('');
+    return (
+      '<div class="card cps-wf-pick" id="cps-wf-pick">' +
+      '<h3 class="card-title">¿Qué tipo de preparación vas a anotar?</h3>' +
+      '<p class="cps-hint" style="margin:0">Elige para ver la lista correcta y los pasos guiados.</p>' +
+      '<div class="cps-wf-pick__grid">' +
+      btns +
+      '</div></div>'
+    );
+  }
+
+  function historialStatsHtml() {
+    var res = R();
+    if (!res) return '';
+    var all = (res.load().cortes || []).filter(function (c) {
+      return (c.modoProceso || 'prep_anticipado') !== 'bajo_demanda';
+    });
+    var hoy = new Date().toISOString().slice(0, 10);
+    var mes = hoy.slice(0, 7);
+    var today = 0;
+    var month = 0;
+    var total = all.length;
+    all.forEach(function (c) {
+      var f = String(c.fecha || '').slice(0, 10);
+      if (f === hoy) today++;
+      if (String(c.fecha || '').slice(0, 7) === mes) month++;
+    });
+    return (
+      '<div class="cps-hist-stats">' +
+      '<div class="cps-hist-stat"><div class="cps-hist-stat__lbl">Hoy</div><div class="cps-hist-stat__val">' +
+      today +
+      '</div></div>' +
+      '<div class="cps-hist-stat"><div class="cps-hist-stat__lbl">Este mes</div><div class="cps-hist-stat__val">' +
+      month +
+      '</div></div>' +
+      '<div class="cps-hist-stat"><div class="cps-hist-stat__lbl">Total en bodega</div><div class="cps-hist-stat__val">' +
+      total +
+      '</div></div></div>'
     );
   }
 
@@ -382,12 +466,12 @@
   }
 
   function modoProcesoLabel(m) {
-    return m === 'bajo_demanda' ? 'Al momento' : 'Prep anticipado';
+    return m === 'bajo_demanda' ? 'Al momento' : 'Preparación anticipada';
   }
 
   function modoProcesoHint(m) {
     if (m === 'bajo_demanda') {
-      return 'Consume MP y elaborados ya guardados (ej. salsa prep). No suma stock — va directo al plato o vaso.';
+      return 'Consume materia prima y elaborados ya guardados (ej. salsa elaborada). No suma stock — va directo al plato o vaso.';
     }
     return 'Descuenta MP cruda y suma el resultado en inventario ELABORADOS para usar después.';
   }
@@ -1421,7 +1505,7 @@
       '<input type="radio" name="cps-modo" value="prep_anticipado"' +
       (modo === 'prep_anticipado' ? ' checked' : '') +
       '>' +
-      '<span class="cps-modo-opt__title">Prep anticipado</span>' +
+      '<span class="cps-modo-opt__title">Preparación anticipada</span>' +
       '<span class="cps-modo-opt__desc">Salsas, bases — queda en bodega ELABORADOS</span></label>' +
       '<label class="cps-modo-opt' +
       (modo === 'bajo_demanda' ? ' is-active' : '') +
@@ -1662,7 +1746,7 @@
       var sinCoc = filterRecetasForWorkflow(data.sinReceta, 'coccion');
       if (recCoc.length || sinCoc.length) {
         html +=
-          '<optgroup label="Preps cocidos (con receta)">' +
+          '<optgroup label="Preparaciones cocidas (con receta)">' +
           recetaOptionsHtml(recCoc, sinCoc) +
           '</optgroup>';
       }
@@ -1683,7 +1767,7 @@
           '</optgroup>';
       } else {
         html +=
-          '<option value="" disabled>Define recetas con «Aparece en prep cocina → Salsas y bases» en Costos</option>';
+          '<option value="" disabled>Define recetas en Costos → «Salsas y bases»</option>';
       }
       return html;
     }
@@ -2103,7 +2187,7 @@
         var delCell = admin
           ? '<td><button type="button" class="btn btn-outline btn-sm cps-proc-rm" data-proc-rm="' +
             esc(c.id) +
-            '" title="Borrar prep">Borrar</button></td>'
+            '" title="Borrar preparación">Borrar</button></td>'
           : '';
         return (
           '<tr data-proc-id="' +
@@ -2128,20 +2212,29 @@
       .join('');
   }
 
-  function historialHtml() {
+  function historialHtml(opts) {
+    opts = opts || {};
     var admin = canAdminProcesos();
     var verVal = canVerValoresProcesos();
-    var rows = historialRowsHtml(admin ? 50 : 20);
+    var limit = opts.fullPage ? (admin ? 100 : 50) : admin ? 50 : 20;
+    var rows = historialRowsHtml(limit);
+    var title = opts.fullPage ? 'Registro completo' : 'Últimas preparaciones';
     var colSpan = (verVal ? 1 : 0) + 5 + (admin ? 1 : 0);
+    var body = rows
+      ? '<div class="table-container"><table class="table"><thead><tr><th>Fecha</th><th>Qué</th><th>Porc.</th>' +
+        (verVal ? '<th class="num">Insumos</th>' : '') +
+        '<th>Detalle</th><th>Quién</th>' +
+        (admin ? '<th></th>' : '') +
+        '</tr></thead><tbody id="cps-historial-tbody">' +
+        rows +
+        '</tbody></table></div>'
+      : '<div class="cps-hist-empty"><strong>Aún no hay preparaciones registradas</strong>Cuando anotes tu primera preparación en cocina, aparecerá aquí con fecha, pesos y responsable.</div>';
     return (
-      '<div class="card" id="cps-historial-card"><h3 class="card-title">Últimos preps</h3>' +
-      '<table class="table"><thead><tr><th>Fecha</th><th>Qué</th><th>Porc.</th>' +
-      (verVal ? '<th class="num">Insumos</th>' : '') +
-      '<th>Detalle</th><th>Quién</th>' +
-      (admin ? '<th></th>' : '') +
-      '</tr></thead><tbody id="cps-historial-tbody">' +
-      (rows || '<tr><td colspan="' + colSpan + '">Sin preparaciones registradas</td></tr>') +
-      '</tbody></table></div>'
+      '<div class="card" id="cps-historial-card"><h3 class="card-title">' +
+      esc(title) +
+      '</h3>' +
+      body +
+      '</div>'
     );
   }
 
@@ -2167,7 +2260,7 @@
         if (!id) return;
         if (
           !confirm(
-            '¿Borrar este prep?\n\nTambién se quitan los movimientos de bodega ligados a este registro.'
+            '¿Borrar esta preparación?\n\nTambién se quitan los movimientos de bodega ligados a este registro.'
           )
         ) {
           return;
@@ -2175,7 +2268,7 @@
         var res = R();
         if (!res || !res.eliminarProceso) return toast('No se puede borrar', 'error');
         if (res.eliminarProceso(id)) {
-          toast('Prep eliminado', 'success');
+          toast('Preparación eliminada', 'success');
           refreshHistorial(host);
         } else toast('No se encontró el registro', 'warning');
       });
@@ -2185,18 +2278,19 @@
   function renderHistorial() {
     injectStyles();
     return (
-      '<div class="crozzo-compras-local cps" id="crozzo-procesos-historial">' +
+      '<div class="crozzo-compras-local cps crozzo-procesos-host" id="crozzo-procesos-historial">' +
       '<header class="cps__head">' +
-      '<div class="cps__badge">Lo prepé</div>' +
-      '<h2 class="cps__title">Preparaciones anteriores</h2>' +
-      '<p class="cps__sub page-subtitle">Lo que registraste en cocina — salsas, bases y despiece.</p>' +
+      '<div class="cps__badge">Lo preparé antes</div>' +
+      '<h2 class="cps__title">Historial de preparaciones</h2>' +
+      '<p class="cps__sub page-subtitle">Todo lo que registraste en bodega: salsas, bases, despiece y cocción.</p>' +
       '<div class="cps__head-actions">' +
       (canVerValoresProcesos()
         ? '<button type="button" class="btn btn-outline btn-sm" id="cps-goto-recetas">Ver recetas e ingredientes</button>'
         : '') +
       '</div>' +
       '</header>' +
-      historialHtml() +
+      historialStatsHtml() +
+      historialHtml({ fullPage: true }) +
       '</div>'
     );
   }
@@ -2204,6 +2298,13 @@
   function initHistorial(host) {
     state.host = host || null;
     bindHistorialAdmin(host);
+    host.querySelectorAll('#cps-goto-recetas').forEach(function (btn) {
+      if (btn._cpsBound) return;
+      btn._cpsBound = true;
+      btn.addEventListener('click', function () {
+        goRecetasEstandar(host);
+      });
+    });
   }
 
   function goRecetasEstandar(host) {
@@ -2230,7 +2331,7 @@
     var meta = wfMeta(state.workflow);
     var ready = !!(C() && E());
     return (
-      '<div class="crozzo-compras-local cps" id="crozzo-procesos-sesion">' +
+      '<div class="crozzo-compras-local cps crozzo-procesos-host" id="crozzo-procesos-sesion">' +
       '<header class="cps__head">' +
       '<div class="cps__badge">' +
       esc(meta.title) +
@@ -2250,6 +2351,7 @@
       '</div>' +
       (!ready ? '<p class="cps-hint"><span class="cps-tag cps-tag--warn">Cargando catálogo…</span></p>' : '') +
       '</header>' +
+      (!state.workflow ? workflowPickerHtml('') : '') +
       coachHtml(state.workflow) +
       responsablesCardHtml() +
       '<div id="cps-batch-host">' +
@@ -2259,15 +2361,17 @@
       '<h3 class="card-title">' +
       esc(meta.pickLabel) +
       '</h3>' +
-      '<div class="form-group"><label class="form-label">Elige de la lista</label>' +
-      '<select class="form-input form-select" id="cps-producto">' +
-      productOptionsHtml(state.workflow) +
-      '</select></div>' +
-      workflowFootnoteHtml(state.workflow) +
+      (state.workflow
+        ? '<div class="form-group"><label class="form-label">Elige de la lista</label>' +
+          '<select class="form-input form-select" id="cps-producto">' +
+          productOptionsHtml(state.workflow) +
+          '</select></div>' +
+          workflowFootnoteHtml(state.workflow)
+        : '<p class="cps-hint" style="margin:0">Primero elige el tipo de preparación arriba para ver productos y pasos.</p>') +
       '</div>' +
       '<div id="cps-detail-host"></div>' +
       '<div class="cps-actions" id="cps-actions" style="display:none">' +
-      '<button type="button" class="btn btn-outline" id="cps-add-batch">+ Otro prep en esta anotación</button>' +
+      '<button type="button" class="btn btn-outline" id="cps-add-batch">+ Otra preparación en este registro</button>' +
       '<button type="button" class="btn btn-primary" id="cps-save">Guardar en bodega</button></div>' +
       historialHtml() +
       '</div>'
@@ -2504,7 +2608,7 @@
     if (actions) actions.style.display = 'none';
     if (sel) sel.value = '';
     refreshBatchHost(host);
-    toast('Agregado — puedes anotar otro prep', 'success');
+    toast('Agregado — puedes registrar otra preparación', 'success');
   }
 
   function saveSession(host) {
@@ -2513,7 +2617,7 @@
     var items = state.batch.slice();
     var current = collectCurrentItem(host);
     if (current) items.push(current);
-    if (!items.length) return toast('Anota al menos un prep antes de guardar', 'warning');
+    if (!items.length) return toast('Registra al menos una preparación antes de guardar', 'warning');
     var sesionId = 'ses_' + Date.now();
     var totalCosto = 0;
     items.forEach(function (item) {
@@ -2527,11 +2631,7 @@
       totalCosto += num(item.costoMpTotal);
     });
     toast(
-      items.length +
-        ' prep' +
-        (items.length > 1 ? 's' : '') +
-        ' guardado' +
-        (items.length > 1 ? 's' : '') +
+      (items.length === 1 ? '1 preparación guardada' : items.length + ' preparaciones guardadas') +
         (canVerValoresProcesos() ? ' · ' + fmtMoney(totalCosto) + ' en insumos' : ''),
       'success'
     );
@@ -2698,6 +2798,24 @@
     });
   }
 
+  function bindWorkflowPick(host) {
+    host.querySelectorAll('[data-cps-wf]').forEach(function (btn) {
+      if (btn._cpsWfBound) return;
+      btn._cpsWfBound = true;
+      btn.addEventListener('click', function () {
+        var wf = btn.getAttribute('data-cps-wf') || '';
+        if (!wf) return;
+        resetForWorkflow(wf);
+        try {
+          sessionStorage.setItem('qca_pro_workflow', wf);
+        } catch (_) {}
+        host.innerHTML = render({ workflow: wf });
+        init(host, { workflow: wf });
+        if (typeof global.refreshLucideIcons === 'function') global.refreshLucideIcons(host);
+      });
+    });
+  }
+
   function init(host, opts) {
     opts = opts || {};
     if (opts.workflow != null && opts.workflow !== state.workflow) {
@@ -2750,6 +2868,7 @@
         goRecetasEstandar(host);
       });
     });
+    bindWorkflowPick(host);
     bindResponsables(host);
     bindBatch(host);
     bindHistorialAdmin(host);

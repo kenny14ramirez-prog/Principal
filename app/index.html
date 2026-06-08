@@ -177,7 +177,7 @@ window.crozzoAppDisplayName = function () {
 window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
 if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorClasses();
 </script>
-<a href="#mainContent" class="crozzo-skip-link">Saltar al contenido principal</a>
+<a href="#mainContent" class="crozzo-skip-link" data-i18n="app.skip">Saltar al contenido principal</a>
 
 <div class="app-container">
   <!-- Sidebar -->
@@ -195,7 +195,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="demo-badge" id="demoBadge">SIMPLE</div>
     </div>
     <div class="crozzo-nav-search-wrap">
-      <input type="search" id="crozzoNavSearch" class="crozzo-nav-search" placeholder="Buscar módulo…" autocomplete="off" aria-label="Buscar en el menú">
+      <input type="search" id="crozzoNavSearch" class="crozzo-nav-search" data-i18n-placeholder="nav.search.placeholder" placeholder="Buscar módulo…" autocomplete="off" data-i18n-aria="nav.search.aria" aria-label="Buscar en el menú">
     </div>
     <nav class="sidebar-nav main-menu" id="sidebarNav" aria-label="Módulos">
       <ul class="nav-list" role="list">
@@ -239,13 +239,14 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="procesos" data-nav-group="procesos" data-nav-category="procesos">
           <button type="button" class="nav-group-toggle" aria-expanded="false" aria-controls="nav-group-procesos" id="nav-toggle-procesos">
-            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="chef-hat"></i></span><span class="nav-group-title">Prep cocina</span></span>
+            <span class="nav-group-label"><span class="nav-icon" aria-hidden="true"><i data-lucide="chef-hat"></i></span><span class="nav-group-title">Preparaciones de cocina</span></span>
             <span class="nav-chevron" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
           </button>
           <ul class="nav-group-items" id="nav-group-procesos" role="group" aria-labelledby="nav-toggle-procesos">
             <li><div class="nav-item menu-item" data-page="compras-cortes" data-menu="compras-cortes" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layout-grid"></i></span><span class="nav-item-label">¿Qué hago hoy?</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils"></i></span><span class="nav-item-label">Anotar prep</span></div></li>
-            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Lo prepé antes</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-recetario-cocina" data-menu="compras-recetario-cocina" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="book-open"></i></span><span class="nav-item-label">Recetario</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-sesion" data-menu="compras-proceso-sesion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils"></i></span><span class="nav-item-label">Anotar preparación</span></div></li>
+            <li><div class="nav-item menu-item" data-page="compras-proceso-historial" data-menu="compras-proceso-historial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Lo preparé antes</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="gestion" data-nav-group="gestion" data-nav-category="gestion">
@@ -260,8 +261,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="caja-clientes" data-menu="caja" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="users"></i></span><span class="nav-item-label">Clientes (FE)</span></div></li>
             <li><div class="nav-item menu-item" data-page="inventarios" data-menu="inventarios" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="bar-chart-3"></i></span><span class="nav-item-label">Reportes y dashboard</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-dashboard" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="pie-chart"></i></span><span class="nav-item-label">Resumen compras</span></div></li>
-            <li><div class="nav-item menu-item" data-page="productos" data-menu="productos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils-crossed"></i></span><span class="nav-item-label">Catálogo · platos</span></div></li>
-            <li><div class="nav-item menu-item" data-page="catalogo-mp" data-menu="productos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="package"></i></span><span class="nav-item-label">Catálogo · materias primas</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="costos" data-nav-group="costos" data-nav-category="costos">
@@ -401,27 +400,35 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             </details>
             <span class="crozzo-toolbar-divider" aria-hidden="true"></span>
             <div class="user-menu" id="crozzoUserMenu">
-          <button type="button" class="user-menu__trigger crozzo-toolbar-btn crozzo-toolbar-btn--user" id="userMenuTrigger" aria-haspopup="true" aria-expanded="false" aria-controls="userMenuDropdown" aria-label="Menú de usuario" title="Cuenta de usuario">
+          <button type="button" class="user-menu__trigger crozzo-toolbar-btn crozzo-toolbar-btn--user" id="userMenuTrigger" aria-haspopup="true" aria-expanded="false" aria-controls="userMenuDropdown" data-i18n-aria="menu.user" data-i18n-title="menu.account" aria-label="Menú de usuario" title="Cuenta de usuario">
             <span class="user-menu__avatar" id="userMenuAvatarInitial" aria-hidden="true">A</span>
           </button>
           <div class="user-menu__dropdown" id="userMenuDropdown" role="menu" aria-hidden="true">
             <div class="user-menu__header">
               <span class="user-menu__tier" id="userMenuTier" hidden></span>
-              <p class="user-menu__name" id="userMenuName">Usuario activo</p>
-              <p class="user-menu__role" id="userMenuRole">Caja principal</p>
+              <p class="user-menu__name" id="userMenuName" data-i18n="menu.activeUser">Usuario activo</p>
+              <p class="user-menu__role" id="userMenuRole" data-i18n="menu.mainCashier">Caja principal</p>
+            </div>
+            <div class="user-menu__lang" id="userMenuLangBlock">
+              <div class="user-menu__lang-head">
+                <span class="user-menu__lang-label" data-i18n="menu.language">Idioma</span>
+                <span class="user-menu__lang-current" id="userMenuLangCurrent">Español Latino (Colombiano)</span>
+              </div>
+              <input type="search" id="userMenuLangSearch" class="user-menu__lang-search form-input" data-i18n-placeholder="lang.search" placeholder="Buscar idioma…" autocomplete="off" aria-label="Buscar idioma">
+              <ul class="user-menu__lang-list" id="userMenuLangList" role="listbox" aria-label="Idiomas"></ul>
             </div>
             <ul class="user-menu__list" role="none">
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" id="change-password-btn">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg></span>
-                  Cambiar contraseña
+                  <span data-i18n="menu.changePassword">Cambiar contraseña</span>
                 </button>
               </li>
               <li class="user-menu__divider" role="separator" aria-hidden="true"></li>
               <li role="none">
                 <button type="button" class="user-menu__item user-menu__item--danger" role="menuitem" id="logout-btn">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
-                  Cerrar sesión
+                  <span data-i18n="menu.logout">Cerrar sesión</span>
                 </button>
               </li>
             </ul>
@@ -867,24 +874,24 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 
 <div id="crozzoChangePasswordOverlay" class="user-password-overlay" hidden>
   <div class="user-password-dialog" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
-    <h2 id="changePasswordTitle">Cambiar contraseña</h2>
+    <h2 id="changePasswordTitle" data-i18n="pwd.title">Cambiar contraseña</h2>
     <p id="changePasswordError" class="user-password-error" role="alert" aria-live="polite" hidden></p>
     <div class="form-group">
-      <label class="form-label" for="changePasswordCurrent">Contraseña actual</label>
+      <label class="form-label" for="changePasswordCurrent" data-i18n="pwd.current">Contraseña actual</label>
       <input type="password" id="changePasswordCurrent" class="form-input" autocomplete="current-password">
     </div>
     <div class="form-group">
-      <label class="form-label" for="changePasswordNew">Nueva contraseña</label>
+      <label class="form-label" for="changePasswordNew" data-i18n="pwd.new">Nueva contraseña</label>
       <input type="password" id="changePasswordNew" class="form-input" autocomplete="new-password" aria-describedby="changePasswordHint">
-      <p id="changePasswordHint" class="a11y-control__hint">Mínimo 8 caracteres</p>
+      <p id="changePasswordHint" class="a11y-control__hint" data-i18n="pwd.hint">Mínimo 8 caracteres</p>
     </div>
     <div class="form-group">
-      <label class="form-label" for="changePasswordConfirm">Confirmar nueva contraseña</label>
+      <label class="form-label" for="changePasswordConfirm" data-i18n="pwd.confirm">Confirmar nueva contraseña</label>
       <input type="password" id="changePasswordConfirm" class="form-input" autocomplete="new-password">
     </div>
     <div class="user-password-actions">
-      <button type="button" class="btn btn-outline" id="changePasswordCancel">Cancelar</button>
-      <button type="button" class="btn btn-primary" id="changePasswordSubmit">Guardar</button>
+      <button type="button" class="btn btn-outline" id="changePasswordCancel" data-i18n="pwd.cancel">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="changePasswordSubmit" data-i18n="pwd.save">Guardar</button>
     </div>
   </div>
 </div>
@@ -920,6 +927,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="infra/CrozzoAutomationApi.js" defer></script>
 <script src="core/CrozzoLazyModules.js" defer></script>
+<script src="ui/CrozzoI18n.js" defer></script>
 <script src="ui/CrozzoSidebarNav.js" defer></script>
 <script src="ui/CrozzoA11yUser.js" defer></script>
 <!-- Módulos de dominio: bundles en app/bundles/ — carga bajo demanda vía CrozzoLazyModules + CrozzoManifest -->

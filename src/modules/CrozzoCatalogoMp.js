@@ -47,7 +47,7 @@
     TERCERIZADOS: 'Tercerizados',
     ASEO: 'Aseo',
     PROCESADOS: 'Procesados',
-    ELABORADOS: 'Elaborados / prep',
+    ELABORADOS: 'Elaborados / preparación',
     OTRO: 'Otro / sin clasificar',
   };
 
@@ -57,6 +57,7 @@
   var demoCache = null;
   var ready = false;
   var readyCbs = [];
+  var readyPromise = null;
 
   function num(v, fb) {
     var n = Number(v);
@@ -2220,28 +2221,20 @@
     } catch (_) {}
   }
 
-  function fetchDemoJson() {
-    if (demoCache) return Promise.resolve(demoCache);
-    return fetch(DEMO_JSON)
-      .then(function (r) {
-        return r.ok ? r.json() : null;
-      })
-      .catch(function () {
-        return null;
-      })
-      .then(function (j) {
-        demoCache = j;
-        return j;
-      });
+  function flushReadyCbs() {
+    var cbs = readyCbs.slice();
+    readyCbs = [];
+    cbs.forEach(function (fn) {
+      try {
+        fn();
+      } catch (e) {
+        console.warn('[CatalogoMp] ensureReady cb', e);
+      }
+    });
   }
 
-  function ensureReady(cb) {
-    if (ready) {
-      if (cb) cb();
-      return Promise.resolve();
-    }
-    if (cb) readyCbs.push(cb);
-    return fetchDemoJson().then(function (j) {
+  function runEnsureReadyInit(j) {
+    try {
       purgeLegacyRealData();
       var st = loadStore();
       var needSeed = !st.catalogoMp.length;
@@ -2258,12 +2251,56 @@
       try {
         runPrepCatalogAutomation({ onlyUnset: true, silent: true });
       } catch (_) {}
-      ready = true;
-      readyCbs.forEach(function (fn) {
-        fn();
+    } catch (e) {
+      console.warn('[CatalogoMp] ensureReady init', e);
+    }
+    ready = true;
+    flushReadyCbs();
+  }
+
+  function fetchDemoJson() {
+    if (demoCache) return Promise.resolve(demoCache);
+    var fetchJson = fetch(DEMO_JSON)
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
+      .catch(function () {
+        return null;
       });
-      readyCbs = [];
+    var timeout = new Promise(function (resolve) {
+      setTimeout(function () {
+        resolve(null);
+      }, 8000);
     });
+    return Promise.race([fetchJson, timeout]).then(function (j) {
+      demoCache = j;
+      return j;
+    });
+  }
+
+  function ensureReady(cb) {
+    if (ready) {
+      if (cb) {
+        try {
+          cb();
+        } catch (e) {
+          console.warn('[CatalogoMp] ensureReady cb', e);
+        }
+      }
+      return Promise.resolve();
+    }
+    if (cb) readyCbs.push(cb);
+    if (!readyPromise) {
+      readyPromise = fetchDemoJson()
+        .then(function (j) {
+          runEnsureReadyInit(j);
+        })
+        .catch(function (e) {
+          console.warn('[CatalogoMp] ensureReady fetch', e);
+          runEnsureReadyInit(null);
+        });
+    }
+    return readyPromise;
   }
 
   function getDemoSeed() {
@@ -2311,13 +2348,89 @@
     return 'OTRO';
   }
 
-  function normalizeCategoriaMp(raw) {
-    var c = String(raw || '')
+  function slugCategoriaMpKey(raw) {
+    return String(raw || '')
       .trim()
       .toUpperCase()
-      .replace(/\s+/g, ' ');
+      .replace(/\s+/g, ' ')
+      .slice(0, 48);
+  }
+
+  function getCustomCategoriasMp(st) {
+    st = st || loadStore();
+    if (!st.meta) st.meta = {};
+    var arr = st.meta.categoriasMpCustom;
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map(function (x) {
+        if (typeof x === 'string') {
+          var k = slugCategoriaMpKey(x);
+          return k ? { key: k, label: String(x).trim() } : null;
+        }
+        if (x && x.key) {
+          var key = slugCategoriaMpKey(x.key);
+          return key ? { key: key, label: String(x.label || x.key).trim() } : null;
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  function getCustomCategoriaLabels(st) {
+    var map = {};
+    getCustomCategoriasMp(st).forEach(function (c) {
+      if (c.key) map[c.key] = c.label || c.key;
+    });
+    return map;
+  }
+
+  function listCategoriasMpAll(st) {
+    var seen = {};
+    var out = [];
+    CATEGORIAS_MP.forEach(function (c) {
+      if (!seen[c]) {
+        seen[c] = true;
+        out.push(c);
+      }
+    });
+    getCustomCategoriasMp(st).forEach(function (c) {
+      if (c.key && !seen[c.key]) {
+        seen[c.key] = true;
+        out.push(c.key);
+      }
+    });
+    return out;
+  }
+
+  function addCategoriaMp(nombre, labelOpt) {
+    var label = String(labelOpt || nombre || '').trim();
+    var key = slugCategoriaMpKey(nombre || label);
+    if (!key || key.length < 2) return { ok: false, msg: 'Escriba un nombre de categoría (mín. 2 caracteres).' };
+    if (CATEGORIAS_MP.indexOf(key) >= 0) {
+      return { ok: true, key: key, label: CATEGORIA_MP_LABEL[key] || key, existed: true };
+    }
+    var st = loadStore();
+    if (!st.meta) st.meta = {};
+    if (!Array.isArray(st.meta.categoriasMpCustom)) st.meta.categoriasMpCustom = [];
+    var existed = st.meta.categoriasMpCustom.some(function (x) {
+      return slugCategoriaMpKey(typeof x === 'string' ? x : x.key) === key;
+    });
+    if (!existed) {
+      st.meta.categoriasMpCustom.push({ key: key, label: label || key });
+      saveStore(st);
+      emitChanged({ type: 'categoria_mp_add', key: key });
+    }
+    return { ok: true, key: key, label: label || key, existed: existed };
+  }
+
+  function normalizeCategoriaMp(raw) {
+    var c = slugCategoriaMpKey(raw);
     if (!c || c === 'GENERAL' || c === 'GENERAL.') return 'OTRO';
     if (CATEGORIAS_MP.indexOf(c) >= 0) return c;
+    var custom = getCustomCategoriasMp();
+    for (var i = 0; i < custom.length; i++) {
+      if (custom[i].key === c) return c;
+    }
     if (c.indexOf('ELABOR') >= 0) return 'ELABORADOS';
     if (c.indexOf('BEBID') >= 0 || c.indexOf('LICOR') >= 0 || c.indexOf('AGUA') >= 0) return 'BEBIDAS Y LICORES';
     if (c.indexOf('DESECH') >= 0 || c.indexOf('EMPAQUE') >= 0) return 'DESECHABLES';
@@ -2372,22 +2485,33 @@
   }
 
   function categoriaMpLabel(cat) {
-    return CATEGORIA_MP_LABEL[normalizeCategoriaMp(cat)] || normalizeCategoriaMp(cat);
+    var norm = normalizeCategoriaMp(cat);
+    var customLabels = getCustomCategoriaLabels();
+    if (customLabels[norm]) return customLabels[norm];
+    return CATEGORIA_MP_LABEL[norm] || norm;
   }
 
-  function renderCategoriaMpOptionsHtml(selected) {
+  function renderCategoriaMpOptionsHtml(selected, opts) {
+    opts = opts || {};
     selected = normalizeCategoriaMp(selected);
-    return CATEGORIAS_MP.map(function (c) {
-      return (
-        '<option value="' +
-        c +
-        '"' +
-        (c === selected ? ' selected' : '') +
-        '>' +
-        (CATEGORIA_MP_LABEL[c] || c) +
-        '</option>'
-      );
-    }).join('');
+    var labels = Object.assign({}, CATEGORIA_MP_LABEL, getCustomCategoriaLabels());
+    var html = listCategoriasMpAll()
+      .map(function (c) {
+        return (
+          '<option value="' +
+          c +
+          '"' +
+          (c === selected ? ' selected' : '') +
+          '>' +
+          (labels[c] || c) +
+          '</option>'
+        );
+      })
+      .join('');
+    if (opts.allowNew !== false) {
+      html += '<option value="__NEW_MP_CAT__">+ Nueva categoría…</option>';
+    }
+    return html;
   }
 
   function isMpElaboradoCatalog(mp) {
@@ -2817,6 +2941,9 @@
     isMpReventaPos: isMpReventaPos,
     CATEGORIAS_MP: CATEGORIAS_MP,
     CATEGORIA_MP_LABEL: CATEGORIA_MP_LABEL,
+    listCategoriasMpAll: listCategoriasMpAll,
+    addCategoriaMp: addCategoriaMp,
+    getCustomCategoriasMp: getCustomCategoriasMp,
     normalizeCategoriaMp: normalizeCategoriaMp,
     guessCategoriaFromNombre: guessCategoriaFromNombre,
     categoriaMpLabel: categoriaMpLabel,

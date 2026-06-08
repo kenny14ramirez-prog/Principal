@@ -335,6 +335,15 @@
       '.ccp.bona .ccp__crumb button{color:var(--bona-gold-dark)}' +
       '.ccp.bona .cps .card{border-color:var(--bona-line);box-shadow:var(--bona-shadow-sm)}' +
       '.ccp.bona .cps__badge{border-color:rgba(181,154,109,.28);color:var(--bona-gold-dark);background:var(--bona-gold-08)}' +
+      '.ccp.bona .cps__title{font-family:var(--bona-font-display);color:var(--bona-charcoal)}' +
+      '.ccp.bona .cps__sub{color:var(--bona-charcoal-soft)}' +
+      '.ccp.bona .cps-hist-stat{border-color:var(--bona-line);background:#fff;box-shadow:var(--bona-shadow-sm)}' +
+      '.ccp.bona .cps-wf-pick__btn{border-color:var(--bona-line);background:#fff}' +
+      '.ccp.bona .cps-wf-pick__btn.is-active{border-color:var(--bona-gold);background:var(--bona-gold-08)}' +
+      '.ccp.bona .cps-coach{border-color:var(--bona-line);background:linear-gradient(135deg,var(--bona-gold-08),#fff)}' +
+      '.ccp.bona .cps-coach__step{background:#fff;border-color:var(--bona-line)}' +
+      '.ccp.bona .ccp-home__section-title,.ccp.bona .ccp-home__section-lead{color:var(--bona-charcoal-soft)}' +
+      '.ccp.bona .ccp__welcome-dismiss{color:var(--bona-gold-dark)}' +
       'html[data-crozzo-theme="bona-origen"],html.bona-origen-hub{--bg:var(--bona-cream);--surface-solid:#fff;--text:var(--bona-charcoal);--accent:var(--bona-gold);--sans:var(--bona-font)}' +
       'html.bona-origen-hub .bona-qyc-strip{display:flex!important;align-items:center;gap:16px;padding:14px 24px;background:linear-gradient(180deg,#fff,var(--bona-cream));border-bottom:1px solid var(--bona-line);box-shadow:var(--bona-shadow-sm)}' +
       'html.bona-origen-hub .bona-qyc-strip .bona-logo-frame--hero{width:52px;height:52px;padding:8px}' +

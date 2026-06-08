@@ -66,7 +66,10 @@
       '.crozzo-costeo-inp:focus{border-color:var(--accent);background:var(--bg-card);outline:none}' +
       '.crozzo-costeo-val{font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}' +
       '.crozzo-costeo-hint{display:block;font-size:10px;opacity:.65;margin-top:3px;font-weight:400;color:var(--text-secondary)}' +
-      '.crozzo-costeo-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(76,175,80,.15);color:#4caf50;margin-left:6px;vertical-align:middle}';
+      '.crozzo-costeo-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:rgba(76,175,80,.15);color:#4caf50;margin-left:6px;vertical-align:middle}' +
+      '.crozzo-costos-search-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}' +
+      '.crozzo-costos-search-row .crozzo-mod-toolbar input[type=search]{flex:1;min-width:180px}' +
+      '.crozzo-costos-create-btn{min-width:36px;width:36px;height:36px;padding:0;font-size:1.25rem;line-height:1;font-weight:700;border-radius:10px;flex-shrink:0}';
     document.head.appendChild(el);
   }
 
@@ -93,7 +96,7 @@
 
   function renderRows(items) {
     if (!items.length) {
-      return '<tr><td colspan="5" style="text-align:center;padding:24px;opacity:.7">Sin insumos en catálogo. Créelos en Catálogo · materias primas.</td></tr>';
+      return '<tr><td colspan="5" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use <strong>+ Nueva materia prima</strong> arriba para crear la primera.</td></tr>';
     }
     return items
       .map(function (it) {
@@ -104,7 +107,7 @@
           '" data-costeo-und="' +
           esc(it.und) +
           '">' +
-          '<td class="crozzo-costeo-nombre" title="Editar nombre en Catálogo">' +
+          '<td class="crozzo-costeo-nombre" title="Nombre del insumo">' +
           esc(it.nombre) +
           recepcionBadge(it) +
           '</td>' +
@@ -142,22 +145,40 @@
       ? ''
       : '<nav class="crozzo-mod-nav crozzo-mod-nav--links">' +
         '<button type="button" class="btn btn-outline btn-sm" id="crozzoCosteoGoCotizaciones">Cotizaciones</button>' +
-        '<button type="button" class="btn btn-outline btn-sm" id="crozzoCosteoGoRecepcion">Entrada factura</button>' +
-        '<button type="button" class="btn btn-outline btn-sm" id="crozzoCosteoGoCatalogo">Catálogo MP</button></nav>';
+        '<button type="button" class="btn btn-outline btn-sm" id="crozzoCosteoGoRecepcion">Entrada factura</button></nav>';
+    var newForm =
+      global.CrozzoMatrizMp && global.CrozzoMatrizMp.renderNewMpFormHtml
+        ? global.CrozzoMatrizMp.renderNewMpFormHtml({
+            prefix: 'crozzoCosteoMp',
+            includeCosteo: true,
+            open: false,
+            title: 'Nueva materia prima',
+            hint: 'Alta con costeo: unidad, lote y precio. El $/g o $/ml se calcula al guardar.',
+          })
+        : '';
+    var panelHead =
+      embedded && all.length >= 0
+        ? '<p class="crozzo-costeo-panel-head"><strong>' +
+          all.length +
+          ' insumos</strong> en catálogo · edite precio unitario en la tabla o cree uno nuevo con <strong>+</strong>.</p>'
+        : '';
     return (
       '<div class="crozzo-mod-page crozzo-costeo-root' +
       (embedded ? ' crozzo-mod-embedded' : '') +
       '">' +
       chrome +
-      '<div class="crozzo-mod-toolbar-bar"><div class="crozzo-mod-toolbar">' +
+      panelHead +
+      '<div class="crozzo-mod-toolbar-bar"><div class="crozzo-mod-toolbar crozzo-costos-search-row">' +
       '<input type="search" id="crozzoCosteoSearch" placeholder="Buscar MP por nombre, categoría o código…" value="' +
       esc(ui.q) +
       '" autocomplete="off">' +
+      '<button type="button" class="btn btn-primary btn-sm crozzo-costos-create-btn" id="crozzoCosteoMpToggleNew" title="Nueva materia prima" aria-label="Nueva materia prima">+</button>' +
       '<span class="form-hint">' +
       filtered.length +
       ' / ' +
       all.length +
       '</span></div></div>' +
+      newForm +
       '<div class="card crozzo-mod-table-card">' +
       '<div class="crozzo-mod-table-scroll"><table class="crozzo-mod-table crozzo-costeo-table"><thead><tr>' +
       '<th>Materia prima</th><th>U. medida</th><th>Ref.</th><th>Precio total lote</th><th>Precio unitario</th>' +
@@ -243,10 +264,17 @@
       });
     }
 
+    if (global.CrozzoMatrizMp && global.CrozzoMatrizMp.bindNewMpForm) {
+      global.CrozzoMatrizMp.bindNewMpForm(root, {
+        prefix: 'crozzoCosteoMp',
+        includeCosteo: true,
+        onSaved: function () {
+          refreshTable(root);
+        },
+      });
+    }
+
     root.addEventListener('click', function (e) {
-      if (e.target.id === 'crozzoCosteoGoCatalogo' && typeof global.navigateTo === 'function') {
-        global.navigateTo('catalogo-mp');
-      }
       if (e.target.id === 'crozzoCosteoGoCotizaciones' && typeof global.navigateTo === 'function') {
         global.navigateTo('compras-cotizaciones');
       }

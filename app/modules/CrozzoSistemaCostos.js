@@ -150,17 +150,29 @@
       return Promise.resolve(hub.seed);
     }
     if (hub.seedLoading) {
+      global.__crozzoCostosSeedLoading = true;
       return new Promise(function (resolve) {
+        var elapsed = 0;
         var t = setInterval(function () {
+          elapsed += 80;
           if (hub.seed && hub.seed.version >= 4) {
             clearInterval(t);
+            global.__crozzoCostosSeedLoading = false;
             resolve(hub.seed);
             if (cb) cb(hub.seed);
+          } else if (!hub.seedLoading || elapsed > 15000) {
+            clearInterval(t);
+            hub.seedLoading = false;
+            global.__crozzoCostosSeedLoading = false;
+            hub.seed = { version: 4, precios: {}, resumen: [], demoRecipe: { lineas: [] }, stats: {} };
+            if (cb) cb(hub.seed);
+            resolve(hub.seed);
           }
         }, 80);
       });
     }
     hub.seedLoading = true;
+    global.__crozzoCostosSeedLoading = true;
     var C = global.CrozzoCatalogoMp;
     if (!C || !C.ensureReady) {
       hub.seed = { version: 4, precios: {}, resumen: [], demoRecipe: { lineas: [] }, stats: {} };
@@ -172,12 +184,14 @@
       .then(function () {
         hub.seed = C.buildSeedForCostos();
         hub.seedLoading = false;
+        global.__crozzoCostosSeedLoading = false;
         if (cb) cb(hub.seed);
         return hub.seed;
       })
       .catch(function () {
         hub.seed = { version: 4, precios: {}, resumen: [], demoRecipe: { lineas: [] }, stats: {} };
         hub.seedLoading = false;
+        global.__crozzoCostosSeedLoading = false;
         if (cb) cb(hub.seed);
         return hub.seed;
       });
@@ -1300,6 +1314,8 @@
     if (!panel) return;
     panel.innerHTML = renderDemoRecetaHtml(seed);
     initMatrizGerenciaPanel(root, seed);
+    root._recetaNewPlatoBound = false;
+    bindRecetaNewPlatoForm(root);
   }
 
   function loadDemoRecetaLineas(seed) {
@@ -1672,36 +1688,66 @@
     return { sum: sum, count: n };
   }
 
+  function matrizFallbackSeed() {
+    return { version: 4, precios: {}, resumen: [], demoRecipe: { lineas: [], nombre: 'Demo' }, stats: {} };
+  }
+
   function ensureMatrizMenuCompleto(done) {
     var C = global.CrozzoCatalogoMp;
+    var settled = false;
+    function safeDone(seed) {
+      if (settled) return;
+      settled = true;
+      if (done) done(seed || hub.seed || matrizFallbackSeed());
+    }
+    var watchdog = setTimeout(function () {
+      console.warn('[costos] ensureMatrizMenuCompleto timeout — render con datos locales');
+      if (!hub.seed) hub.seed = matrizFallbackSeed();
+      safeDone(hub.seed);
+    }, 12000);
     function finish() {
-      invalidateSeed();
-      loadSeed(function (fresh) {
-        syncMenuCostosDesdeFuentes(fresh, { force: false });
-        if (C && C.syncHistorialVigenteDesdeMenu) {
-          C.syncHistorialVigenteDesdeMenu({
-            getCostoMp: function (row) {
-              return resolveCostoVentaMenu(row, fresh);
-            },
-            notas: 'Costeo vigente al abrir matriz',
-          });
-        }
+      try {
         invalidateSeed();
-        loadSeed(function (synced) {
-          hub.seed = synced;
-          if (done) done(synced);
+        loadSeed(function (fresh) {
+          try {
+            syncMenuCostosDesdeFuentes(fresh, { force: false });
+            if (C && C.syncHistorialVigenteDesdeMenu) {
+              C.syncHistorialVigenteDesdeMenu({
+                getCostoMp: function (row) {
+                  return resolveCostoVentaMenu(row, fresh);
+                },
+                notas: 'Costeo vigente al abrir matriz',
+              });
+            }
+          } catch (e) {
+            console.warn('[costos] ensureMatriz sync', e);
+          }
+          invalidateSeed();
+          loadSeed(function (synced) {
+            clearTimeout(watchdog);
+            hub.seed = synced;
+            safeDone(synced);
+          });
         });
-      });
+      } catch (e) {
+        clearTimeout(watchdog);
+        console.error('[costos] ensureMatriz finish', e);
+        safeDone(matrizFallbackSeed());
+      }
     }
     if (!C || !C.ensureReady) {
       finish();
       return;
     }
     C.ensureReady(function () {
-      if (C.ensureMenuPosProductos) C.ensureMenuPosProductos({ silent: true, keepCostos: true });
-      if (C.ejecutarProgramacionesPendientes) C.ejecutarProgramacionesPendientes({ silent: true });
-      if (C.ejecutarProgramacionesRecetasPendientes) C.ejecutarProgramacionesRecetasPendientes({ silent: true });
-      if (C.ensureMpFromPosVentaDirecta) C.ensureMpFromPosVentaDirecta({ silent: true });
+      try {
+        if (C.ensureMenuPosProductos) C.ensureMenuPosProductos({ silent: true, keepCostos: true });
+        if (C.ejecutarProgramacionesPendientes) C.ejecutarProgramacionesPendientes({ silent: true });
+        if (C.ejecutarProgramacionesRecetasPendientes) C.ejecutarProgramacionesRecetasPendientes({ silent: true });
+        if (C.ensureMpFromPosVentaDirecta) C.ensureMpFromPosVentaDirecta({ silent: true });
+      } catch (e) {
+        console.warn('[costos] ensureMatriz prep', e);
+      }
       finish();
     });
   }
@@ -2270,9 +2316,8 @@
       '<span class="crozzo-matriz-hero__glyph" aria-hidden="true">◈</span>' +
       '<div><p class="crozzo-matriz-hero__eyebrow">F1 · Matriz de precios</p>' +
       '<h1 class="crozzo-matriz-hero__title">Costos y márgenes</h1>' +
-      '<p class="crozzo-matriz-hero__sub">Define tu <strong>meta de ganancia</strong>, costea con recetas y ajusta precio o margen por plato.</p></div></div>' +
+      '<p class="crozzo-matriz-hero__sub">Cree <strong>platos</strong> y <strong>materias primas</strong> aquí, costee con recetas y deje listo menú, márgenes y punto de venta.</p></div></div>' +
       '<div class="crozzo-matriz-hero__actions">' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCostosGoCatalogoMp">Catálogo MP</button>' +
       '<span class="crozzo-matriz-live"><span class="crozzo-matriz-live__dot" aria-hidden="true"></span>Motor activo</span></div></div>' +
       '<div class="crozzo-matriz-kpis" id="crozzoMatrizKpis">' +
       '<article class="crozzo-matriz-kpi crozzo-matriz-kpi--primary">' +
@@ -2881,13 +2926,20 @@
       '.crozzo-matriz-costo-tag--mp{color:#93c5fd}' +
       '.crozzo-matriz-filters--meta{margin-top:0}' +
       '.crozzo-matriz-toolbar{align-items:center}' +
+      '.crozzo-costos-search-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}' +
+      '.crozzo-costos-search-row .crozzo-matriz-search{flex:1;min-width:180px}' +
+      '.crozzo-costos-create-btn{min-width:36px;width:36px;height:36px;padding:0;font-size:1.25rem;line-height:1;font-weight:700;border-radius:10px;flex-shrink:0}' +
       '.crozzo-receta-plato{position:relative;margin-top:4px;padding:2px 0 10px}' +
       '.crozzo-receta-plato__intro{margin:0 0 18px;padding:12px 16px;border-radius:12px;border:1px solid rgba(var(--matriz-gold-rgb),.2);background:rgba(var(--matriz-gold-rgb),.06);font-size:.82rem;line-height:1.55;color:var(--text-secondary)}' +
       '.crozzo-receta-plato__intro strong{color:var(--text-primary);font-weight:700}' +
       '.crozzo-receta-plato__toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px;padding:10px 0;border-bottom:1px solid var(--border)}' +
+      '.crozzo-receta-plato__toolbar.crozzo-costos-search-row{align-items:center;margin-bottom:12px;padding:10px 12px;border:1px solid rgba(var(--matriz-gold-rgb),.18);border-radius:12px;background:rgba(var(--matriz-gold-rgb),.04);border-bottom:1px solid rgba(var(--matriz-gold-rgb),.18)}' +
+      '.crozzo-receta-plato__pick{flex:1;min-width:180px}' +
+      '.crozzo-receta-plato__pick .crozzo-receta-plato-combo{width:100%}' +
       '.crozzo-receta-plato__toolbar label{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--matriz-gold);opacity:.85;white-space:nowrap}' +
       '.crozzo-receta-plato__toolbar select{flex:1;min-width:240px;text-align:left;font-weight:600;border-color:rgba(var(--matriz-gold-rgb),.22)}' +
       '.crozzo-receta-plato__toolbar .btn-primary{font-weight:700;letter-spacing:.03em;padding:9px 20px;background:linear-gradient(135deg,var(--matriz-gold),#e8d4a8);border-color:var(--matriz-gold);box-shadow:0 4px 14px rgba(var(--matriz-gold-rgb),.22)}' +
+      '.crozzo-receta-plato__actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}' +
       '.crozzo-receta-plato__head{position:relative;margin:0 0 20px;padding:22px 24px;border-radius:18px;border:1px solid rgba(var(--matriz-gold-rgb),.28);background:linear-gradient(145deg,rgba(var(--matriz-gold-rgb),.14) 0%,rgba(var(--matriz-gold-rgb),.03) 42%,var(--bg-card) 100%);box-shadow:0 12px 40px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}' +
       '.crozzo-receta-plato__head::after{content:"";position:absolute;top:-40%;right:-6%;width:min(280px,45vw);height:min(280px,45vw);background:radial-gradient(circle,rgba(var(--matriz-gold-rgb),.16) 0%,transparent 68%);pointer-events:none}' +
       '.crozzo-receta-plato__head-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;margin-bottom:10px}' +
@@ -3037,8 +3089,23 @@
   }
 
   function goPage(page) {
+    if (page === 'catalogo-mp' || page === 'productos') {
+      openCostosMatrizTab(page === 'catalogo-mp' ? 'costeo-mp' : 'resumen', {
+        openNewMp: page === 'catalogo-mp',
+        openNewPlato: page === 'productos',
+      });
+      return;
+    }
     if (typeof global.navigateTo === 'function') global.navigateTo(page);
     else toast('Abra: ' + page, 'info');
+  }
+
+  function openCostosMatrizTab(tab, opts) {
+    opts = opts || {};
+    global.__crozzoCostosMatrizTab = tab || 'resumen';
+    if (opts.openNewMp) global.__crozzoCostosOpenNewMp = true;
+    if (opts.openNewPlato) global.__crozzoCostosOpenNewPlato = true;
+    if (typeof global.navigateTo === 'function') global.navigateTo('costos-matriz');
   }
 
   function renderFeedPanel() {
@@ -4515,7 +4582,7 @@
       '</tbody></table></div></div></div>' +
       '<div class="crozzo-inv-foot">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoRecepcion">Recepción facturas →</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoCatalogo">Catálogo MP →</button></div></div>'
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoCatalogo">Costeo MP →</button></div></div>'
     );
   }
 
@@ -4802,7 +4869,7 @@
       '" title="Por encima de lo esperado + tolerancia → alerta"></div></div>' +
       '<div class="crozzo-perdidas-proceso__foot">' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoPerdSave">Guardar referencia de pérdidas</button>' +
-      '<span class="form-hint" style="margin:0">Aplica a Prep cocina y alertas de merma.</span></div>' +
+      '<span class="form-hint" style="margin:0">Aplica a preparaciones de cocina y alertas de merma.</span></div>' +
       '<p class="crozzo-perdidas-proceso__hint">Por insumo: en <strong>Catálogo → Materias primas</strong> puede poner % de desposte y cocción distintos (ej. pollo vs res).</p></section>'
     );
   }
@@ -4921,10 +4988,10 @@
     tipoRec = tipoRec === 'base' ? 'base' : 'full';
     var html =
       '<span class="crozzo-matriz-tipo-receta-wrap">' +
-      '<select class="crozzo-costos-editable crozzo-matriz-tipo-receta-sel" data-resumen-field="tipoReceta" title="Base = prep en bodega · Plato = venta al cliente">' +
+      '<select class="crozzo-costos-editable crozzo-matriz-tipo-receta-sel" data-resumen-field="tipoReceta" title="Base = preparación en bodega · Plato = venta al cliente">' +
       '<option value="base"' +
       (tipoRec === 'base' ? ' selected' : '') +
-      '>Prep antes</option>' +
+      '>Preparación anticipada</option>' +
       '<option value="full"' +
       (tipoRec === 'full' ? ' selected' : '') +
       '>Al vender</option>' +
@@ -4944,7 +5011,7 @@
     var e = engine();
     var list = mergeResumenList(seed);
     if (!e || !list.length) {
-      return '<tr><td colspan="10">Sin platos en menú. Cargue el catálogo desde Catálogo MP.</td></tr>';
+      return '<tr><td colspan="10">Sin platos en menú. Use <strong>+ Nuevo plato</strong> para crear el primero.</td></tr>';
     }
     return list
       .map(function (row) {
@@ -4974,6 +5041,12 @@
         var catTag = row.categoria
           ? '<span class="crozzo-matriz-cat">' + esc(row.categoria) + '</span>'
           : '';
+        var editPosBtn =
+          row.posProductId != null && typeof global.showEditProductModal === 'function'
+            ? ' <button type="button" class="btn btn-outline btn-sm" style="padding:2px 6px;font-size:10px;margin-left:6px;vertical-align:middle" onclick="showEditProductModal(' +
+              esc(String(row.posProductId)) +
+              ')">Editar plato</button>'
+            : '';
         var cmpD = getRowComparativaCaja(row);
         var cmpState = cmpD ? cmpStateFromDelta(cmpD) : 'none';
         var searchBlob = [row.producto, row.slug, row.categoria, tipo, row.tieneReceta ? 'receta' : 'venta directa'].join(' ');
@@ -4996,6 +5069,7 @@
           '</span>' +
           tipoTag +
           catTag +
+          editPosBtn +
           renderTipoRecetaControls(row) +
           '</td>' +
           '<td style="text-align:right" class="crozzo-matriz-costo-cell">' +
@@ -5396,17 +5470,17 @@
 
   function prepCocinaTipoHintText(tipo) {
     if (tipo === 'prep_cocinar') {
-      return 'El cocinero lo ve en Prep cocina → Cocinar y porcionar. Se detectó por nombre e ingredientes.';
+      return 'El cocinero lo ve en Preparaciones de cocina → Cocinar y porcionar. Se detectó por nombre e ingredientes.';
     }
     if (tipo === 'prep_salsas') {
-      return 'El cocinero lo ve en Prep cocina → Salsas y bases. Se detectó por nombre e ingredientes.';
+      return 'El cocinero lo ve en Preparaciones de cocina → Salsas y bases. Se detectó por nombre e ingredientes.';
     }
-    return 'No va a Prep cocina: al cobrar en caja se descuentan los ingredientes solos.';
+    return 'No va a preparaciones de cocina: al cobrar en caja se descuentan los ingredientes solos.';
   }
 
   function prepCocinaTipoLabel(tipo) {
-    if (tipo === 'prep_cocinar') return 'Prep antes · Cocinar y porcionar';
-    if (tipo === 'prep_salsas') return 'Prep antes · Salsas y bases';
+    if (tipo === 'prep_cocinar') return 'Preparación anticipada · Cocinar y porcionar';
+    if (tipo === 'prep_salsas') return 'Preparación anticipada · Salsas y bases';
     return 'Al vender · inmediata';
   }
 
@@ -5414,7 +5488,7 @@
     if (!row || row.tipoCosteo === 'directo') {
       return (
         '<div class="crozzo-receta-proceso crozzo-receta-proceso--muted">' +
-        '<strong>Venta directa</strong> — sin transformación (bebidas, reventa). No aplica prep cocina.</div>'
+        '<strong>Venta directa</strong> — sin transformación (bebidas, reventa). No aplica preparaciones de cocina.</div>'
       );
     }
     var C = global.CrozzoCatalogoMp;
@@ -5437,10 +5511,10 @@
       '>Al vender · inmediata (caja)</option>' +
       '<option value="prep_salsas"' +
       (tipo === 'prep_salsas' ? ' selected' : '') +
-      '>Prep antes · Salsas y bases</option>' +
+      '>Preparación anticipada · Salsas y bases</option>' +
       '<option value="prep_cocinar"' +
       (tipo === 'prep_cocinar' ? ' selected' : '') +
-      '>Prep antes · Cocinar y porcionar</option>' +
+      '>Preparación anticipada · Cocinar y porcionar</option>' +
       '</select></div>' +
       '<p class="crozzo-receta-proceso__hint" data-receta-proceso-hint>' +
       esc(prepCocinaTipoHintText(tipo)) +
@@ -5511,17 +5585,26 @@
       : 'Vincule el plato al producto POS (nombre o SKU = slug) para inferir área en pedidos.';
 
     return (
-      '<p class="crozzo-costos-note crozzo-receta-plato__intro"><strong>Recetas estándar</strong> — Ingredientes y costos. ' +
-      'El tipo en cocina se configura <em>solo</em> (nombre + ingredientes); ajústelo abajo si hace falta. ' +
-      'Use las pestañas para borrador, receta oficial y programaciones. ' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoDemoGoCatalogo">Catálogo MP →</button></p>' +
+      '<p class="crozzo-costos-note crozzo-receta-plato__intro"><strong>Recetas estándar</strong> — Arme ingredientes, costos y preparación por plato. ' +
+      'Use el selector o el botón <strong>+</strong> para dar de alta un plato con receta.</p>' +
       '<div class="crozzo-receta-plato">' +
-      '<div class="crozzo-receta-plato__toolbar">' +
+      '<div class="crozzo-receta-plato__toolbar crozzo-costos-search-row">' +
       '<label for="crozzoDemoPlatoCombo">Plato</label>' +
+      '<div class="crozzo-receta-plato__pick">' +
       renderPlatoComboHtml(seed) +
+      '</div>' +
+      '<button type="button" class="btn btn-primary btn-sm crozzo-costos-create-btn" id="crozzoRecetaToggleNewPlato" title="Nuevo plato con receta" aria-label="Nuevo plato con receta">+</button>' +
       '<div class="crozzo-receta-plato__actions">' +
       '<button type="button" class="btn btn-outline btn-sm crozzo-receta-btn--probar" id="crozzoRecetaProbar" title="Recalcular borrador sin guardar">Probar cambios</button>' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoRecetaSave" title="Guardar borrador como receta oficial">Guardar receta</button></div></div>' +
+      (typeof global.renderCostosNewPlatoFormHtml === 'function'
+        ? global.renderCostosNewPlatoFormHtml({
+            prefix: 'crozzoRecetaNewProd',
+            title: 'Nuevo plato con receta',
+            hint: 'Queda en menú, POS y este editor para armar ingredientes y costos.',
+            tieneReceta: true,
+          })
+        : '') +
       renderRecetaProcesoVentaHtml(packEdicion.row) +
       '<header class="crozzo-receta-plato__head">' +
       '<div class="crozzo-receta-plato__head-top">' +
@@ -5570,10 +5653,10 @@
       '<div class="crozzo-mod-nav crozzo-mod-nav--segmented crozzo-costos-tabs crozzo-costos-matriz-tabs crozzo-matriz-tabs">' +
       '<button type="button" class="crozzo-mod-nav__item active" data-matriz-tab="resumen">' +
       '<span class="crozzo-matriz-tab__icon" aria-hidden="true">📊</span>' +
-      '<span class="crozzo-matriz-tab__text"><strong>Precios de venta</strong><small>Menú y márgenes</small></span></button>' +
+      '<span class="crozzo-matriz-tab__text"><strong>Precios de venta</strong><small>Platos, márgenes y alta</small></span></button>' +
       '<button type="button" class="crozzo-mod-nav__item" data-matriz-tab="costeo-mp">' +
       '<span class="crozzo-matriz-tab__icon" aria-hidden="true">⚖</span>' +
-      '<span class="crozzo-matriz-tab__text"><strong>Costeo MP</strong><small>Unidad, peso y $/g</small></span></button>' +
+      '<span class="crozzo-matriz-tab__text"><strong>Costeo MP</strong><small>Alta insumos y $/g</small></span></button>' +
       '<button type="button" class="crozzo-mod-nav__item" data-matriz-tab="demo">' +
       '<span class="crozzo-matriz-tab__icon" aria-hidden="true">🍽</span>' +
       '<span class="crozzo-matriz-tab__text"><strong>Recetas estándar</strong><small>Ingredientes y prep</small></span></button></div>' +
@@ -5594,9 +5677,19 @@
       renderMatrizAlertsBanner(seed) +
       renderComparativaResumenBar(seed) +
       renderMatrizLeyenda() +
-      '<div class="crozzo-matriz-toolbar">' +
+      '<div class="crozzo-costos-search-row">' +
       '<input type="search" class="crozzo-matriz-search" id="crozzoResumenSearch" placeholder="Buscar plato, categoría o código… (ej. queso cocina)" autocomplete="off">' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizSyncPos" title="Traer productos del POS">↻ Catálogo POS</button>' +
+      '<button type="button" class="btn btn-primary btn-sm crozzo-costos-create-btn" id="crozzoCostosToggleNewPlato" title="Nuevo plato" aria-label="Nuevo plato">+</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizSyncPos" title="Traer productos del POS">↻ Sincronizar POS</button>' +
+      '</div>' +
+      (typeof global.renderCostosNewPlatoFormHtml === 'function'
+        ? global.renderCostosNewPlatoFormHtml({
+            prefix: 'crozzoCostosNewProd',
+            title: 'Nuevo plato de venta',
+            hint: 'Queda en caja, tablets y en esta matriz para precio, receta y margen.',
+          })
+        : '') +
+      '<div class="crozzo-matriz-toolbar">' +
       '<div class="crozzo-matriz-filters" role="group" aria-label="Tipo de producto">' +
       '<button type="button" class="crozzo-matriz-filter is-active" data-matriz-filter-tipo="all">Todos</button>' +
       '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-tipo="receta">Con receta</button>' +
@@ -6646,14 +6739,6 @@
       });
     }
 
-    var goDemoCat = document.getElementById('crozzoDemoGoCatalogo');
-    if (goDemoCat && !goDemoCat._bound) {
-      goDemoCat._bound = true;
-      goDemoCat.addEventListener('click', function () {
-        if (typeof global.navigateTo === 'function') global.navigateTo('catalogo-mp');
-      });
-    }
-
     root.querySelectorAll('[data-receta-vista]').forEach(function (btn) {
       if (btn._bound || btn.tagName !== 'BUTTON') return;
       btn._bound = true;
@@ -6766,15 +6851,129 @@
   function applyPendingMatrizTab(root) {
     if (!root) return;
     var tab = global.__crozzoCostosMatrizTab;
-    if (!tab) return;
-    var btn = root.querySelector('[data-matriz-tab="' + tab + '"]');
-    if (!btn) return;
-    global.__crozzoCostosMatrizTab = null;
-    btn.click();
-    setTimeout(function () {
-      var anchor = document.getElementById('crozzoRecetasEstandarPrep');
-      if (anchor && anchor.scrollIntoView) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 120);
+    var openMp = !!global.__crozzoCostosOpenNewMp;
+    if (openMp && !tab) tab = 'costeo-mp';
+    if (tab) {
+      var btn = root.querySelector('[data-matriz-tab="' + tab + '"]');
+      if (btn) {
+        global.__crozzoCostosMatrizTab = null;
+        btn.click();
+      }
+    }
+    if (global.__crozzoCostosOpenNewPlato) {
+      global.__crozzoCostosOpenNewPlato = null;
+      var demoActive = root.querySelector('[data-matriz-panel="demo"]');
+      var onRecetas = demoActive && demoActive.classList.contains('active');
+      var platoForm = root.querySelector(
+        onRecetas ? '#crozzoRecetaNewProdNewForm' : '#crozzoCostosNewProdNewForm'
+      );
+      if (platoForm) {
+        if (typeof global.crozzoTogglePlatoCreateForm === 'function') global.crozzoTogglePlatoCreateForm(platoForm, true);
+        else platoForm.classList.add('is-open');
+      }
+    }
+    if (global.__crozzoCostosOpenNewMp) {
+      global.__crozzoCostosOpenNewMp = null;
+      setTimeout(function () {
+        var costeoPanel = root.querySelector('[data-matriz-panel="costeo-mp"]');
+        if (costeoPanel && global.CrozzoMatrizMp && global.CrozzoMatrizMp.openNewMpForm) {
+          global.CrozzoMatrizMp.openNewMpForm(costeoPanel, 'crozzoCosteoMp');
+        }
+      }, 120);
+    }
+    if (tab === 'demo') {
+      setTimeout(function () {
+        var anchor = document.getElementById('crozzoRecetasEstandarPrep');
+        if (anchor && anchor.scrollIntoView) anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }
+
+  function bindCostosNewPlatoForm(root, seed) {
+    if (!root || root._costosNewPlatoBound) return;
+    root._costosNewPlatoBound = true;
+    var toggle = root.querySelector('#crozzoCostosToggleNewPlato');
+    if (toggle && !toggle._bound) {
+      toggle._bound = true;
+      toggle.addEventListener('click', function () {
+        var f = root.querySelector('#crozzoCostosNewProdNewForm');
+        if (f && typeof global.crozzoTogglePlatoCreateForm === 'function') global.crozzoTogglePlatoCreateForm(f);
+        else if (f) f.classList.toggle('is-open');
+      });
+    }
+    var cancel = root.querySelector('#crozzoCostosNewProdCancel');
+    if (cancel && !cancel._bound) {
+      cancel._bound = true;
+      cancel.addEventListener('click', function () {
+        var f = root.querySelector('#crozzoCostosNewProdNewForm');
+        if (f && typeof global.crozzoTogglePlatoCreateForm === 'function') global.crozzoTogglePlatoCreateForm(f, false);
+        else if (f) f.classList.remove('is-open');
+      });
+    }
+    var save = root.querySelector('#crozzoCostosNewProdSave');
+    if (save && !save._bound) {
+      save._bound = true;
+      save.addEventListener('click', function () {
+        if (typeof global.addCatalogProduct !== 'function') {
+          toast('No disponible', 'error');
+          return;
+        }
+        var nextId = Number(save.getAttribute('data-next-id') || 0);
+        global.addCatalogProduct(nextId, { prefix: 'crozzoCostosNewProd', fromCostos: true });
+      });
+    }
+    if (!root._costosPlatoCreatedBound) {
+      root._costosPlatoCreatedBound = true;
+      document.addEventListener('crozzo-costos-plato-created', function (ev) {
+        if (!root.isConnected) return;
+        var slug = ev && ev.detail && ev.detail.slug;
+        ensureMatrizMenuCompleto(function (fresh) {
+          hub.seed = fresh;
+          refreshMatrizResumenTable(root, fresh);
+          if (slug) {
+            hub.recetaSlug = String(slug);
+            refreshRecetaPlatoPanel(root, fresh);
+          }
+        });
+      });
+    }
+  }
+
+  function bindRecetaNewPlatoForm(root) {
+    if (!root || root._recetaNewPlatoBound) return;
+    var demoPanel = root.querySelector('[data-matriz-panel="demo"]');
+    if (!demoPanel) return;
+    root._recetaNewPlatoBound = true;
+    var toggle = demoPanel.querySelector('#crozzoRecetaToggleNewPlato');
+    if (toggle && !toggle._bound) {
+      toggle._bound = true;
+      toggle.addEventListener('click', function () {
+        var f = demoPanel.querySelector('#crozzoRecetaNewProdNewForm');
+        if (f && typeof global.crozzoTogglePlatoCreateForm === 'function') global.crozzoTogglePlatoCreateForm(f);
+        else if (f) f.classList.toggle('is-open');
+      });
+    }
+    var cancel = demoPanel.querySelector('#crozzoRecetaNewProdCancel');
+    if (cancel && !cancel._bound) {
+      cancel._bound = true;
+      cancel.addEventListener('click', function () {
+        var f = demoPanel.querySelector('#crozzoRecetaNewProdNewForm');
+        if (f && typeof global.crozzoTogglePlatoCreateForm === 'function') global.crozzoTogglePlatoCreateForm(f, false);
+        else if (f) f.classList.remove('is-open');
+      });
+    }
+    var save = demoPanel.querySelector('#crozzoRecetaNewProdSave');
+    if (save && !save._bound) {
+      save._bound = true;
+      save.addEventListener('click', function () {
+        if (typeof global.addCatalogProduct !== 'function') {
+          toast('No disponible', 'error');
+          return;
+        }
+        var nextId = Number(save.getAttribute('data-next-id') || 0);
+        global.addCatalogProduct(nextId, { prefix: 'crozzoRecetaNewProd', fromCostos: true });
+      });
+    }
   }
 
   function openRecetasEstandar(opts) {
@@ -6788,28 +6987,38 @@
     seed = seed || hub.seed;
     initMatrizGerenciaPanel(root, seed);
     bindPerdidasProcesoAdmin(root);
+    bindCostosNewPlatoForm(root, seed);
+    bindRecetaNewPlatoForm(root);
     var costeoPanel = root.querySelector('[data-matriz-panel="costeo-mp"]');
     if (costeoPanel && global.CrozzoCosteoMp && global.CrozzoCosteoMp.init) {
       global.CrozzoCosteoMp.init(costeoPanel);
     }
     applyPendingMatrizTab(root);
-    var goCat = document.getElementById('crozzoCostosGoCatalogoMp');
-    if (goCat && !goCat._bound) {
-      goCat._bound = true;
-      goCat.addEventListener('click', function () {
-        if (typeof global.navigateTo === 'function') global.navigateTo('catalogo-mp');
-      });
-    }
   }
 
   function renderMatrizAsync() {
     ensureMatrizMenuCompleto(function (fresh) {
-      hub.seed = fresh;
-      var host = document.getElementById('mainContent');
-      if (host && hub.view === 'matriz') {
-        host.innerHTML = renderMatrizPanel(fresh);
-        bindRoot(host);
-        initMatrizAllPanels(host, fresh);
+      try {
+        hub.seed = fresh;
+        var host = document.getElementById('mainContent');
+        if (host && hub.view === 'matriz') {
+          host.innerHTML = renderMatrizPanel(fresh);
+          host._costosBound = false;
+          bindRoot(host);
+          initMatrizAllPanels(host, fresh);
+        }
+      } catch (err) {
+        console.error('[costos] renderMatrizPanel', err);
+        var hostErr = document.getElementById('mainContent');
+        if (hostErr && hub.view === 'matriz') {
+          hostErr.innerHTML =
+            '<div class="card" style="margin:24px;padding:20px;max-width:520px">' +
+            '<p style="margin:0 0 8px;font-weight:600">No se pudo cargar la matriz de costos</p>' +
+            '<p class="form-hint" style="margin:0 0 14px">' +
+            esc(String((err && err.message) || err || 'Error desconocido')) +
+            '</p>' +
+            '<button type="button" class="btn btn-primary btn-sm" onclick="location.reload()">Recargar</button></div>';
+        }
       }
     });
     return (
@@ -6817,7 +7026,7 @@
       '<div class="crozzo-matriz-loading" role="status" aria-live="polite">' +
       '<div class="crozzo-matriz-loading__ring" aria-hidden="true"></div>' +
       '<p style="margin:0;font-weight:600">Cargando matriz de costos…</p>' +
-      '<p style="margin:8px 0 0;font-size:.82rem;opacity:.75">Catálogo MP y menú QyC</p></div></div>'
+      '<p style="margin:8px 0 0;font-size:.82rem;opacity:.75">Matriz de costos y menú</p></div></div>'
     );
   }
 
@@ -6949,6 +7158,7 @@
     teardown: teardown,
     pageToView: pageToView,
     openRecetasEstandar: openRecetasEstandar,
+    openCostosMatrizTab: openCostosMatrizTab,
     buildInventarioSnapshot: buildInventarioSnapshot,
     inventarioItemsForPrint: inventarioItemsForPrint,
     filterInventarioItems: filterInventarioItems,

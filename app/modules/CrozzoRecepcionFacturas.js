@@ -7584,7 +7584,7 @@
           return;
         }
         if (e.target.closest('#cxf-mp-goto-catalog')) {
-          if (typeof global.navigateTo === 'function') global.navigateTo('catalogo-mp');
+          if (typeof global.navigateTo === 'function') global.navigateTo('costos-matriz');
           return;
         }
       }

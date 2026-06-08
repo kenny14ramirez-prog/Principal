@@ -1943,21 +1943,18 @@ function crozzoEnsureAppShellInteractive() {
     if (typeof crozzoCloseSidebarDrawer === 'function' && crozzoIsSidebarDrawerMode()) {
       crozzoCloseSidebarDrawer();
     }
-    if (window.__CROZZO_IS_TAURI__ && window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
-      if (crozzoIsSidebarDrawerMode()) {
+    if (window.CrozzoSidebarNav) {
+      if (crozzoIsSidebarDrawerMode() && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(true, false);
-      } else {
-        CrozzoSidebarNav.setExpanded(true, false);
-        var pg = typeof currentPage !== 'undefined' ? currentPage : 'inicio-operacion';
-        if (pg && typeof CrozzoSidebarNav.expandGroupForPage === 'function') {
-          CrozzoSidebarNav.expandGroupForPage(pg);
-        }
+      } else if (typeof CrozzoSidebarNav.repairAfterNavigation === 'function') {
+        CrozzoSidebarNav.repairAfterNavigation();
+      } else if (typeof CrozzoSidebarNav.refresh === 'function') {
+        CrozzoSidebarNav.refresh();
       }
-    }
-  } catch (_) {}
-  try {
-    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.refresh === 'function') {
-      CrozzoSidebarNav.refresh();
+      var pg = typeof currentPage !== 'undefined' ? currentPage : 'inicio-operacion';
+      if (pg && typeof CrozzoSidebarNav.expandGroupForPage === 'function') {
+        CrozzoSidebarNav.expandGroupForPage(pg);
+      }
     }
   } catch (_) {}
   try {
@@ -2636,7 +2633,7 @@ function crozzoHpApplyLivePageChrome(page, content) {
   } else if (p === 'centro-compras' || p.indexOf('compras-') === 0 || p === 'operaciones-qyc') {
     mc.classList.add('main-body--centro-compras');
     document.body.classList.add('crozzo-page-centro-compras');
-  } else if (p === 'centro-procesos' || p.indexOf('compras-proceso') === 0 || p === 'compras-cortes') {
+  } else if (p === 'centro-procesos' || p.indexOf('compras-proceso') === 0 || p === 'compras-cortes' || p === 'compras-recetario-cocina') {
     mc.classList.add('main-body--centro-procesos');
     document.body.classList.add('crozzo-page-centro-procesos');
   } else if (p === 'planilla-2026' || p === 'nomina-planilla' || p === 'cierre-caja') {
@@ -2802,9 +2799,10 @@ function crozzoHpPageTitles() {
     'compras-proveedores': ['Proveedores', 'Catálogo de proveedores'],
     'compras-cotizaciones': ['Cotizaciones', 'Compare precios de proveedores vs costeo'],
     'compras-cortes': ['¿Qué hago hoy?', 'Elige qué vas a preparar'],
-    'compras-proceso-sesion': ['Anotar prep', 'Registrar lo que preparaste'],
-    'compras-proceso-historial': ['Lo prepé antes', 'Preparaciones anteriores'],
-    'centro-procesos': ['Prep cocina', '¿Qué vas a preparar hoy?'],
+    'compras-proceso-sesion': ['Anotar preparación', 'Registrar lo que preparaste'],
+    'compras-recetario-cocina': ['Recetario de cocina', 'Ingredientes y pesos para bodega'],
+    'compras-proceso-historial': ['Lo preparé antes', 'Preparaciones anteriores'],
+    'centro-procesos': ['Preparaciones de cocina', '¿Qué vas a preparar hoy?'],
     'centro-compras': ['Centro de compras', 'Órdenes y recepciones'],
     productos: ['Catálogo', 'Platos de venta'],
     'config-empresa': ['Configuración empresa', 'Datos del negocio'],
@@ -8510,11 +8508,12 @@ const CROZZO_MENU_CATALOG = [
     ]
   },
   {
-    group: 'Prep cocina',
+    group: 'Preparaciones de cocina',
     items: [
       { id: 'compras-cortes', label: '¿Qué hago hoy?', icon: '◆', page: 'compras-cortes' },
-      { id: 'compras-proceso-sesion', label: 'Anotar prep', icon: '✦', page: 'compras-proceso-sesion' },
-      { id: 'compras-proceso-historial', label: 'Lo prepé antes', icon: '◎', page: 'compras-proceso-historial' }
+      { id: 'compras-recetario-cocina', label: 'Recetario', icon: '▤', page: 'compras-recetario-cocina' },
+      { id: 'compras-proceso-sesion', label: 'Anotar preparación', icon: '✦', page: 'compras-proceso-sesion' },
+      { id: 'compras-proceso-historial', label: 'Lo preparé antes', icon: '◎', page: 'compras-proceso-historial' }
     ]
   },
   {
@@ -8781,12 +8780,14 @@ function crozzoEnsureSidebarShellVisible() {
   if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
     sb.style.removeProperty('transform');
     sb.style.removeProperty('visibility');
+    sb.classList.add('open');
     if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
     return;
   }
-  sb.classList.add('open');
-  sb.style.transform = 'translateX(0)';
-  sb.style.visibility = 'visible';
+  sb.classList.remove('open');
+  sb.style.removeProperty('transform');
+  sb.style.removeProperty('visibility');
+  sb.style.removeProperty('pointer-events');
   sb.style.display = 'flex';
 }
 /** Al expandir rail: restaura grupos guardados y asegura el de la página actual. */
@@ -9056,8 +9057,9 @@ function crozzoSidebarApplyExpanded(sidebar, expanded) {
   var btn = document.getElementById('menu-toggle-btn');
   if (btn) {
     btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    btn.style.left = expanded ? '248px' : '14px';
+    btn.style.removeProperty('left');
   }
+  document.documentElement.classList.toggle('crozzo-sidebar-layout-expanded', !!expanded);
   if (expanded) {
     if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') crozzoSidebarSyncNavGroupsOnExpand();
   }
@@ -9104,13 +9106,7 @@ function crozzoInitCollapsibleSidebar() {
   });
   if (!window.CrozzoSidebarNav) {
     sidebar.addEventListener('mouseenter', function () {
-      var tb = document.getElementById('menu-toggle-btn');
-      if (tb) tb.style.left = '248px';
       if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') crozzoSidebarSyncNavGroupsOnExpand();
-    });
-    sidebar.addEventListener('mouseleave', function () {
-      var tb = document.getElementById('menu-toggle-btn');
-      if (tb && !sidebar.classList.contains('is-expanded')) tb.style.left = '14px';
     });
   }
   if (typeof crozzoRestoreSidebarNavState === 'function') crozzoRestoreSidebarNavState();
@@ -10573,6 +10569,12 @@ function currentUserCanSeePage(page) {
   if (page === 'laboratorio-admin') {
     return typeof crozzoLabCanAccessRole === 'function' && crozzoLabCanAccessRole();
   }
+  if (page === 'productos' || page === 'catalogo-mp') {
+    const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (u && typeof crozzoStaffAndProfilePermitsPage === 'function') {
+      if (crozzoStaffAndProfilePermitsPage('costos-matriz', u)) return true;
+    }
+  }
   if (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active) {
     return crozzoHpCanSeePage(page);
   }
@@ -11045,6 +11047,15 @@ function navigateTo(page) {
     page = 'planilla-2026';
   }
   if (page === 'sistema-costos') page = 'costos-matriz';
+  if (page === 'productos') {
+    window.__crozzoCostosMatrizTab = window.__crozzoCostosMatrizTab || 'resumen';
+    page = 'costos-matriz';
+  }
+  if (page === 'catalogo-mp') {
+    window.__crozzoCostosMatrizTab = 'costeo-mp';
+    window.__crozzoCostosOpenNewMp = true;
+    page = 'costos-matriz';
+  }
   if (page === 'costos-sql') page = 'costos-reservorio';
   if (page === 'compras-dashboard') {
     window.__crozzoInventariosTab = 'compras';
@@ -11185,8 +11196,9 @@ function navigateTo(page) {
     'cocina': ['Cocina', 'Comandas entrantes y estado de preparación'],
     'compras-recepcion': ['Entrada de factura', 'Proveedor, documento, materias primas y pago — guardado local o en la nube'],
     'compras-cortes': ['¿Qué hago hoy?', 'Partir carnes, cocinar, salsas y bases'],
-    'compras-proceso-sesion': ['Anotar prep', 'Salsas, bases, despiece y cocción'],
-    'compras-proceso-historial': ['Lo prepé antes', 'Preparaciones y diferencias de peso'],
+    'compras-proceso-sesion': ['Anotar preparación', 'Salsas, bases, despiece y cocción'],
+    'compras-recetario-cocina': ['Recetario de cocina', 'Ingredientes y pesos — sincronizado con Costos'],
+    'compras-proceso-historial': ['Lo preparé antes', 'Preparaciones y diferencias de peso'],
     'compras-oficina': ['Oficina y pagos', 'Transferencias, efectivo y tarjeta'],
     'compras-dashboard': ['Resumen compras', 'Pestaña dentro de Reportes y dashboard (Gestión)'],
     'inventarios': ['Reportes y dashboard', 'Ventas, inventario, exportación y resumen de compras'],
@@ -11228,6 +11240,10 @@ function navigateTo(page) {
   };
   
   let t = titles[navHighlightPage] || titles[page] || [page, ''];
+  if (typeof CrozzoI18n !== 'undefined' && CrozzoI18n && typeof CrozzoI18n.pageTitle === 'function') {
+    var i18nT = CrozzoI18n.pageTitle(navHighlightPage) || CrozzoI18n.pageTitle(page);
+    if (i18nT) t = i18nT;
+  }
   if (
     (navHighlightPage === 'laboratorio-admin' || page === 'laboratorio-admin') &&
     typeof crozzoLabStealthEnabled === 'function' &&
@@ -11274,10 +11290,20 @@ function navigateTo(page) {
     if (typeof crozzoUpdateGlobalStressBanner === 'function') crozzoUpdateGlobalStressBanner();
   } catch (_) {}
   try {
-    if (document.body && typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode() && typeof crozzoCloseSidebarDrawer === 'function') {
+    if (
+      typeof crozzoIsSidebarDrawerMode === 'function' &&
+      crozzoIsSidebarDrawerMode() &&
+      typeof crozzoCloseSidebarDrawer === 'function'
+    ) {
       crozzoCloseSidebarDrawer();
-    } else if (document.body && !document.body.classList.contains('desktop') && typeof crozzoCloseSidebarDrawer === 'function') {
+    } else if (
+      typeof crozzoIsDrawerLayoutActive === 'function' &&
+      crozzoIsDrawerLayoutActive() &&
+      typeof crozzoCloseSidebarDrawer === 'function'
+    ) {
       crozzoCloseSidebarDrawer();
+    } else if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.repairAfterNavigation === 'function') {
+      CrozzoSidebarNav.repairAfterNavigation();
     }
   } catch (_) {}
 }
@@ -11341,7 +11367,7 @@ var CROZZO_SHELL_EMBED = new Set(['centro-compras', 'operaciones-qyc']);
 /** Módulos con layout propio de scroll (no forzar crozzo-mod-page-host). */
 var CROZZO_SHELL_CUSTOM_LAYOUT = new Set([
   'planilla-2026', 'nomina-planilla', 'centro-procesos',
-  'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial'
+  'compras-cortes', 'compras-recetario-cocina', 'compras-proceso-sesion', 'compras-proceso-historial'
 ]);
 
 function crozzoWireEmbedThemeSync(frame) {
@@ -11481,7 +11507,7 @@ function crozzoApplyPageMotionStagger() {
   var skipZones =
     '.crozzo-rep-tabs, .crozzo-mod-nav, .service-mode-switch, .crozzo-invoice-toolbar, .crozzo-invoice-filters, .crozzo-fa-tabs, .crozzo-retail-pos__bar, .crozzo-rest-pos__bar, .btn-group, .form-grid, .crozzo-invoice-editor-toolbar';
   var topSel =
-    ':scope > .card, :scope > .content-section, :scope > .comandas-layout, :scope > .crozzo-retail-pos, :scope > .crozzo-rest-pos, :scope > .crozzo-invoice-studio, :scope > .crozzo-ventas-hub';
+    ':scope > .card, :scope > .content-section, :scope > .comandas-layout, :scope > .crozzo-retail-pos, :scope > .crozzo-rest-pos, :scope > .crozzo-invoice-studio, :scope > .crozzo-mod-page, :scope > .crozzo-ventas-hub';
   var topItems = root.querySelectorAll(topSel);
   topItems.forEach(function (el, i) {
     el.classList.add('crozzo-motion-stagger');
@@ -11693,12 +11719,20 @@ function renderPage(page) {
     case 'centro-procesos':
     case 'compras-cortes':
     case 'compras-proceso-sesion':
+    case 'compras-recetario-cocina':
     case 'compras-proceso-historial': {
       if (document.body) document.body.classList.add('crozzo-page-centro-procesos');
       if (content) content.classList.add('main-body--centro-procesos');
       var proStart = window.__crozzoCentroProcesosStart || null;
       window.__crozzoCentroProcesosStart = null;
       if (!proStart && typeof crozzoProcesosPageToView === 'function') proStart = crozzoProcesosPageToView(page);
+      if (
+        !proStart &&
+        global.CrozzoManifest &&
+        typeof global.CrozzoManifest.procesosPageToView === 'function'
+      ) {
+        proStart = global.CrozzoManifest.procesosPageToView(page);
+      }
       if (typeof renderCentroProcesos === 'function') {
         content.innerHTML = renderCentroProcesos(proStart);
         if (typeof initCentroProcesos === 'function') initCentroProcesos(proStart);
@@ -11734,16 +11768,18 @@ function renderPage(page) {
       break;
     }
     case 'productos':
-      content.innerHTML = renderProductos();
-      break;
-    case 'catalogo-mp':
+    case 'catalogo-mp': {
+      window.__crozzoCostosMatrizTab = page === 'catalogo-mp' ? 'costeo-mp' : window.__crozzoCostosMatrizTab || 'resumen';
+      if (page === 'catalogo-mp') window.__crozzoCostosOpenNewMp = true;
       crozzoPrepareModuloGestionPage(content);
+      if (document.body) document.body.classList.add('crozzo-page-sistema-costos');
       content.innerHTML =
-        typeof renderCatalogoMp === 'function'
-          ? renderCatalogoMp()
-          : '<div class="card"><p>No se pudo cargar el catálogo de materias primas.</p></div>';
-      if (typeof initCatalogoMp === 'function') initCatalogoMp();
+        typeof renderSistemaCostos === 'function'
+          ? renderSistemaCostos('matriz')
+          : '<div class="card"><p>No se pudo cargar sistema de costos.</p></div>';
+      if (typeof initSistemaCostos === 'function') initSistemaCostos('matriz');
       break;
+    }
     case 'config-empresa': content.innerHTML = renderConfigEmpresa(); initConfigEmpresa(); break;
     case 'config-dian': content.innerHTML = renderConfigDian(); initConfigDian(); break;
     case 'config-certificado': content.innerHTML = renderConfigCertificado(); initConfigCertificado(); break;
@@ -13177,32 +13213,8 @@ function crozzoOpAddSupplier() {
     if (v.display) nit = v.display;
     if (v.norm && !v.ok) showToast('Revise el dígito verificador del identificador', 'warning');
   }
-  if (typeof crozzoReservorioUpsertProveedor === 'function') {
-    crozzoReservorioUpsertProveedor({
-      nombre: name,
-      nit: nit,
-      telefono: phone,
-      tipoRubro: rubro,
-    });
-  } else if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.upsertProveedor) {
-    CrozzoReservorio.upsertProveedor({
-      nombre: name,
-      nit: nit,
-      telefono: phone,
-      tipoRubro: rubro,
-    });
-  } else {
-    const list = [...(config.get('proveedoresOC') || [])];
-    list.push({
-      id: 'prov_' + Date.now(),
-      name,
-      nit,
-      phone,
-      tipoRubro: rubro,
-    });
-    config.set('proveedoresOC', list);
-  }
-  if (config.addAudit) config.addAudit('proveedor_local_agregado', name);
+  const created = crozzoUpsertProveedorRecord({ nombre: name, nit, telefono: phone, tipoRubro: rubro });
+  if (!created) return showToast('No se pudo guardar el proveedor', 'error');
   showToast('Proveedor guardado — visible en Entrada de factura', 'success');
   const mc = document.getElementById('mainContent');
   if (mc) {
@@ -13373,6 +13385,643 @@ function crozzoAlergenosBadgeHtml(alergenos, opts) {
     '</span>'
   );
 }
+function crozzoReadOpcionGruposFromContainer(container) {
+  const el = typeof container === 'string' ? document.getElementById(container) : container;
+  if (!el) return [];
+  return Array.from(el.querySelectorAll('.edit-option-group-row'))
+    .map((row) => {
+      const nombreGrupo = (row.querySelector('.group-title')?.value || '').trim();
+      const opcionesRaw = (row.querySelector('.group-options')?.value || '').trim();
+      const opciones = opcionesRaw
+        .split(/\n|,|;/)
+        .map((v) => v.trim())
+        .filter(Boolean);
+      return { nombre: nombreGrupo, opciones };
+    })
+    .filter((g) => g.nombre && g.opciones.length);
+}
+function crozzoPlatoOptionGroupRowHtml() {
+  return (
+    '<div class="crozzo-plato-create__option-row edit-option-group-row">' +
+    '<div class="crozzo-plato-create__option-head">' +
+    '<input class="form-input group-title" placeholder="Nombre del grupo (ej: Término, Punto, Extras)">' +
+    '<button type="button" class="btn btn-outline btn-sm crozzo-plato-create__option-remove" onclick="removeOptionGroupRow(this)" title="Quitar grupo">✕</button></div>' +
+    '<textarea class="form-input group-options" rows="3" placeholder="Opciones del grupo — una por línea o separadas por coma"></textarea></div>'
+  );
+}
+function renderCostosPlatoArrastraHtml(prefix, excludeProductId) {
+  const items = products.filter((p) => !excludeProductId || p.id !== excludeProductId);
+  if (!items.length) {
+    return '<p class="crozzo-plato-create__empty">Aún no hay otros productos para vincular.</p>';
+  }
+  return (
+    '<div class="crozzo-plato-create__linked-grid">' +
+    items
+      .map(
+        (prod) =>
+          '<label class="crozzo-plato-create__linked-item">' +
+          '<input type="checkbox" class="' +
+          prefix +
+          'Linked" value="' +
+          prod.id +
+          '">' +
+          '<span class="crozzo-plato-create__linked-icon" aria-hidden="true">' +
+          (prod.icon || '🍽️') +
+          '</span>' +
+          '<span class="crozzo-plato-create__linked-name">' +
+          escHtml(prod.nombre) +
+          '</span></label>'
+      )
+      .join('') +
+    '</div>'
+  );
+}
+function crozzoUpsertProveedorRecord(payload) {
+  crozzoEnsureProveedoresExtensions();
+  payload = payload || {};
+  const name = String(payload.nombre || payload.name || '').trim();
+  if (!name) return null;
+  let nit = String(payload.nit || '').trim();
+  const phone = String(payload.telefono || payload.phone || '').trim();
+  const rubro = String(payload.tipoRubro || payload.rubro || '').trim();
+  if (nit && typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.validarIdentificador) {
+    const v = CrozzoProveedorDocumentos.validarIdentificador(nit);
+    if (v.display) nit = v.display;
+  }
+  let id = '';
+  if (typeof crozzoReservorioUpsertProveedor === 'function') {
+    const row = crozzoReservorioUpsertProveedor({ nombre: name, nit, telefono: phone, tipoRubro: rubro });
+    id = row && row.id ? row.id : '';
+  } else if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.upsertProveedor) {
+    const row = CrozzoReservorio.upsertProveedor({ nombre: name, nit, telefono: phone, tipoRubro: rubro });
+    id = row && row.id ? row.id : '';
+  } else {
+    id = 'prov_' + Date.now();
+    const list = [...(config.get('proveedoresOC') || [])];
+    list.push({ id, name, nit, phone, tipoRubro: rubro });
+    config.set('proveedoresOC', list);
+  }
+  if (config.addAudit) config.addAudit('proveedor_local_agregado', name);
+  return { id, name };
+}
+function crozzoMpProvRubroOptionsHtml() {
+  return [
+    'Carnicería',
+    'Quesería',
+    'Verduras y frutas',
+    'Abarrotes',
+    'Bebidas',
+    'Panadería',
+    'Lácteos',
+    'Pescadería',
+    'Empaques',
+    'Otro',
+  ]
+    .map(function (r) {
+      return '<option value="' + r + '">' + r + '</option>';
+    })
+    .join('');
+}
+function crozzoMpProveedorPickerGridHtml(prefix, filterQ, selectedNames) {
+  prefix = prefix || 'crozzoMp';
+  filterQ = String(filterQ || '')
+    .trim()
+    .toLowerCase();
+  selectedNames = selectedNames || [];
+  const provs = crozzoGetProveedoresUnificados();
+  const filtered = provs.filter(function (s) {
+    if (!filterQ) return true;
+    const blob = [s.name, s.nombre, s.nit, s.phone, s.telefono, s.tipoRubro, s.categoria, s.id]
+      .join(' ')
+      .toLowerCase();
+    return blob.indexOf(filterQ) >= 0;
+  });
+  if (!filtered.length) {
+    return (
+      '<p class="crozzo-mp-prov-picker__empty">No hay proveedores' +
+      (filterQ ? ' que coincidan con la búsqueda' : ' en el directorio') +
+      '. Use alta rápida o abra el directorio.</p>'
+    );
+  }
+  return filtered
+    .map(function (s) {
+      const nombre = String(s.name || s.nombre || '').trim();
+      if (!nombre) return '';
+      const nit = String(s.nit || '—');
+      const rubro = String(s.tipoRubro || s.categoria || '—');
+      const ini =
+        nombre
+          .split(/\s+/)
+          .slice(0, 2)
+          .map(function (w) {
+            return w.charAt(0);
+          })
+          .join('')
+          .toUpperCase() || '?';
+      const checked = selectedNames.indexOf(nombre) >= 0 ? ' checked' : '';
+      const valEsc = String(nombre)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+      return (
+        '<label class="crozzo-mp-prov-picker__item">' +
+        '<input type="checkbox" class="' +
+        prefix +
+        'ProvPick" value="' +
+        valEsc +
+        '"' +
+        checked +
+        '>' +
+        '<span class="crozzo-mp-prov-picker__avatar" aria-hidden="true">' +
+        escHtml(ini) +
+        '</span>' +
+        '<span class="crozzo-mp-prov-picker__text">' +
+        '<strong>' +
+        escHtml(nombre) +
+        '</strong>' +
+        '<small>' +
+        escHtml(nit) +
+        ' · ' +
+        escHtml(rubro) +
+        '</small></span></label>'
+      );
+    })
+    .join('');
+}
+function crozzoMpGetSelectedProvNames(root, prefix) {
+  if (!root) return [];
+  return Array.from(root.querySelectorAll('.' + prefix + 'ProvPick:checked')).map(function (el) {
+    return String(el.value || '').trim();
+  }).filter(Boolean);
+}
+function crozzoMpRefreshProvPickerGrid(prefix, root, filterQ) {
+  root = root || document;
+  prefix = prefix || 'crozzoMp';
+  var grid = root.querySelector('#' + prefix + 'ProvGrid');
+  if (!grid) return;
+  var selected = crozzoMpGetSelectedProvNames(root, prefix);
+  var search = root.querySelector('#' + prefix + 'ProvSearch');
+  var q = filterQ != null ? filterQ : search ? search.value : '';
+  grid.innerHTML = crozzoMpProveedorPickerGridHtml(prefix, q, selected);
+}
+function crozzoMpFilterProvPicker(prefix) {
+  prefix = prefix || 'crozzoMp';
+  var form = document.getElementById(prefix + 'NewForm');
+  var root = form ? form.closest('.crozzo-mod-page') || form.parentElement : document.getElementById('mainContent');
+  if (!root) root = document;
+  var search = root.querySelector('#' + prefix + 'ProvSearch');
+  crozzoMpRefreshProvPickerGrid(prefix, root, search ? search.value : '');
+}
+window.crozzoMpFilterProvPicker = crozzoMpFilterProvPicker;
+window.crozzoMpRefreshProvPickerGrid = crozzoMpRefreshProvPickerGrid;
+function crozzoMpListCategoriasKeys() {
+  const C = window.CrozzoCatalogoMp;
+  if (C && typeof C.listCategoriasMpAll === 'function') return C.listCategoriasMpAll();
+  if (C && Array.isArray(C.CATEGORIAS_MP)) return C.CATEGORIAS_MP.slice();
+  return [
+    'PROTEINAS',
+    'LACTEOS',
+    'FRUVER',
+    'ABARROTES',
+    'PULPAS Y CONGELADOS',
+    'BEBIDAS Y LICORES',
+    'DESECHABLES',
+    'TERCERIZADOS',
+    'ASEO',
+    'PROCESADOS',
+    'ELABORADOS',
+    'OTRO',
+  ];
+}
+function crozzoMpCategoriaLabel(key) {
+  const C = window.CrozzoCatalogoMp;
+  if (C && typeof C.categoriaMpLabel === 'function') return C.categoriaMpLabel(key);
+  return String(key || 'OTRO');
+}
+function crozzoMpGetSelectedCatKey(root, prefix) {
+  if (!root) return 'OTRO';
+  const checked = root.querySelector('.' + prefix + 'CatPick:checked');
+  if (checked) return String(checked.value || '').trim() || 'OTRO';
+  const hidden = root.querySelector('#' + prefix + 'NewCat');
+  return hidden ? String(hidden.value || '').trim() || 'OTRO' : 'OTRO';
+}
+function crozzoMpCategoriaPickerGridHtml(prefix, filterQ, selectedKey) {
+  prefix = prefix || 'crozzoMp';
+  filterQ = String(filterQ || '')
+    .trim()
+    .toLowerCase();
+  selectedKey = selectedKey || 'OTRO';
+  const keys = crozzoMpListCategoriasKeys();
+  const filtered = keys.filter(function (key) {
+    if (!filterQ) return true;
+    const label = crozzoMpCategoriaLabel(key);
+    const blob = [key, label].join(' ').toLowerCase();
+    return blob.indexOf(filterQ) >= 0;
+  });
+  if (!filtered.length) {
+    return (
+      '<p class="crozzo-mp-cat-picker__empty">No hay categorías que coincidan. Use alta rápida para crear una nueva.</p>'
+    );
+  }
+  return filtered
+    .map(function (key) {
+      const label = crozzoMpCategoriaLabel(key);
+      const ini =
+        label
+          .split(/\s+/)
+          .slice(0, 2)
+          .map(function (w) {
+            return w.charAt(0);
+          })
+          .join('')
+          .toUpperCase() || key.slice(0, 2);
+      const checked = key === selectedKey ? ' checked' : '';
+      const valEsc = String(key)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+      return (
+        '<label class="crozzo-mp-cat-picker__item">' +
+        '<input type="radio" class="' +
+        prefix +
+        'CatPick" name="' +
+        prefix +
+        'CatPickGroup" value="' +
+        valEsc +
+        '"' +
+        checked +
+        '>' +
+        '<span class="crozzo-mp-cat-picker__avatar" aria-hidden="true">' +
+        escHtml(ini) +
+        '</span>' +
+        '<span class="crozzo-mp-cat-picker__text">' +
+        '<strong>' +
+        escHtml(label) +
+        '</strong>' +
+        '<small>' +
+        escHtml(key) +
+        '</small></span></label>'
+      );
+    })
+    .join('');
+}
+function crozzoMpRefreshCatPickerGrid(prefix, root, filterQ, selectedKey) {
+  root = root || document;
+  prefix = prefix || 'crozzoMp';
+  const grid = root.querySelector('#' + prefix + 'CatGrid');
+  if (!grid) return;
+  const selected = selectedKey != null ? selectedKey : crozzoMpGetSelectedCatKey(root, prefix);
+  const search = root.querySelector('#' + prefix + 'CatSearch');
+  const q = filterQ != null ? filterQ : search ? search.value : '';
+  grid.innerHTML = crozzoMpCategoriaPickerGridHtml(prefix, q, selected);
+  const hidden = root.querySelector('#' + prefix + 'NewCat');
+  if (hidden) hidden.value = selected;
+}
+function crozzoMpFilterCatPicker(prefix) {
+  prefix = prefix || 'crozzoMp';
+  const form = document.getElementById(prefix + 'NewForm');
+  let root = form ? form.closest('.crozzo-mod-page') || form.parentElement : document.getElementById('mainContent');
+  if (!root) root = document;
+  const search = root.querySelector('#' + prefix + 'CatSearch');
+  crozzoMpRefreshCatPickerGrid(prefix, root, search ? search.value : '', null);
+}
+window.crozzoMpFilterCatPicker = crozzoMpFilterCatPicker;
+window.crozzoMpRefreshCatPickerGrid = crozzoMpRefreshCatPickerGrid;
+function crozzoReadMpCategoriaFromPicker(root, prefix) {
+  if (!root) return 'OTRO';
+  return crozzoMpGetSelectedCatKey(root, prefix || 'crozzoMp');
+}
+window.crozzoReadMpCategoriaFromPicker = crozzoReadMpCategoriaFromPicker;
+function crozzoMpQuickAddCategoria(prefix) {
+  prefix = prefix || 'crozzoMp';
+  const nameEl = document.getElementById(prefix + 'QuickCatName');
+  const name = nameEl ? String(nameEl.value || '').trim() : '';
+  if (!name) return showToast('Escriba el nombre de la categoría', 'warning');
+  const C = window.CrozzoCatalogoMp;
+  if (!C || typeof C.addCategoriaMp !== 'function') {
+    return showToast('Catálogo MP no disponible', 'error');
+  }
+  const res = C.addCategoriaMp(name);
+  if (!res.ok) return showToast(res.msg || 'No se pudo crear la categoría', 'warning');
+  showToast(
+    res.existed ? 'La categoría ya existía — seleccionada' : 'Categoría «' + res.label + '» creada y seleccionada',
+    res.existed ? 'info' : 'success'
+  );
+  const form = document.getElementById(prefix + 'NewForm');
+  let root = form ? form.closest('.crozzo-mod-page') || form.parentElement : document.getElementById('mainContent');
+  if (!root) root = document;
+  crozzoMpRefreshCatPickerGrid(prefix, root, '', res.key);
+  if (nameEl) nameEl.value = '';
+  try {
+    document.dispatchEvent(
+      new CustomEvent('crozzo-catalogo-mp:changed', { detail: { type: 'categoria_mp_add', key: res.key } })
+    );
+  } catch (_) {}
+}
+window.crozzoMpQuickAddCategoria = crozzoMpQuickAddCategoria;
+function renderMpCategoriaPickerHtml(prefix, selectedKey) {
+  prefix = prefix || 'crozzoMp';
+  selectedKey = selectedKey || 'OTRO';
+  return (
+    '<div class="crozzo-mp-cat-picker" id="' +
+    prefix +
+    'CatPicker">' +
+    '<input type="hidden" id="' +
+    prefix +
+    'NewCat" value="' +
+    escHtml(selectedKey) +
+    '">' +
+    '<input type="search" class="form-input crozzo-mp-cat-picker__search" id="' +
+    prefix +
+    'CatSearch" placeholder="Buscar categoría (ej. proteínas, lácteos, especias)…" autocomplete="off" oninput="crozzoMpFilterCatPicker(\'' +
+    prefix +
+    '\')">' +
+    '<div class="crozzo-mp-cat-picker__grid" id="' +
+    prefix +
+    'CatGrid">' +
+    crozzoMpCategoriaPickerGridHtml(prefix, '', selectedKey) +
+    '</div>' +
+    '<details class="crozzo-mp-cat-picker__quick">' +
+    '<summary>Crear nueva categoría</summary>' +
+    '<div class="crozzo-mp-cat-picker__quick-body">' +
+    '<div class="crozzo-mp-cat-picker__quick-row">' +
+    '<div><label class="crozzo-mp-create__label">Nombre</label>' +
+    '<input class="form-input" id="' +
+    prefix +
+    'QuickCatName" placeholder="Ej. Especias, Condimentos…"></div>' +
+    '<button type="button" class="btn btn-primary btn-sm" onclick="crozzoMpQuickAddCategoria(\'' +
+    prefix +
+    '\')">Guardar y seleccionar</button></div>' +
+    '<span class="crozzo-mp-create__hint">Queda guardada en el catálogo y disponible para futuras materias primas.</span></div></details></div>'
+  );
+}
+window.renderMpCategoriaPickerHtml = renderMpCategoriaPickerHtml;
+function crozzoReadMpProveedoresFromPicker(root, prefix) {
+  if (!root) return [];
+  var names = crozzoMpGetSelectedProvNames(root, prefix);
+  var extraEl = root.querySelector('#' + prefix + 'NewProvExtra');
+  var extra = extraEl ? String(extraEl.value || '').trim() : '';
+  if (extra) {
+    extra.split(/[,;|]/).forEach(function (p) {
+      p = p.trim();
+      if (p && names.indexOf(p) < 0) names.push(p);
+    });
+  }
+  return names;
+}
+window.crozzoReadMpProveedoresFromPicker = crozzoReadMpProveedoresFromPicker;
+function crozzoMpQuickAddProveedor(prefix) {
+  prefix = prefix || 'crozzoMp';
+  var nameEl = document.getElementById(prefix + 'QuickProvName');
+  var name = nameEl ? String(nameEl.value || '').trim() : '';
+  if (!name) return showToast('Escriba el nombre del proveedor', 'warning');
+  var nit = (document.getElementById(prefix + 'QuickProvNit') || {}).value || '';
+  var phone = (document.getElementById(prefix + 'QuickProvTel') || {}).value || '';
+  var rubro = (document.getElementById(prefix + 'QuickProvRubro') || {}).value || '';
+  var created = crozzoUpsertProveedorRecord({ nombre: name, nit, telefono: phone, tipoRubro: rubro });
+  if (!created) return showToast('No se pudo guardar el proveedor', 'error');
+  showToast('Proveedor «' + created.name + '» guardado en el directorio', 'success');
+  var form = document.getElementById(prefix + 'NewForm');
+  var root = form ? form.closest('.crozzo-mod-page') || form.parentElement : document.getElementById('mainContent');
+  if (!root) root = document;
+  var selected = crozzoMpGetSelectedProvNames(root, prefix);
+  if (selected.indexOf(created.name) < 0) selected.push(created.name);
+  crozzoMpRefreshProvPickerGrid(prefix, root);
+  selected.forEach(function (nom) {
+    root.querySelectorAll('.' + prefix + 'ProvPick').forEach(function (el) {
+      if (el.value === nom) el.checked = true;
+    });
+  });
+  if (nameEl) nameEl.value = '';
+  var nitEl = document.getElementById(prefix + 'QuickProvNit');
+  if (nitEl) nitEl.value = '';
+  var telEl = document.getElementById(prefix + 'QuickProvTel');
+  if (telEl) telEl.value = '';
+}
+window.crozzoMpQuickAddProveedor = crozzoMpQuickAddProveedor;
+function renderMpProveedorPickerHtml(prefix) {
+  prefix = prefix || 'crozzoMp';
+  return (
+    '<div class="crozzo-mp-prov-picker" id="' +
+    prefix +
+    'ProvPicker">' +
+    '<input type="search" class="form-input crozzo-mp-prov-picker__search" id="' +
+    prefix +
+    'ProvSearch" placeholder="Buscar proveedor por nombre, NIT o rubro…" autocomplete="off" oninput="crozzoMpFilterProvPicker(\'' +
+    prefix +
+    '\')">' +
+    '<div class="crozzo-mp-prov-picker__grid" id="' +
+    prefix +
+    'ProvGrid">' +
+    crozzoMpProveedorPickerGridHtml(prefix, '', []) +
+    '</div>' +
+    '<div class="crozzo-mp-prov-picker__actions">' +
+    '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoNavProveedores(\'prov\')">Abrir directorio de proveedores</button>' +
+    '<span class="crozzo-mp-prov-picker__actions-hint">Certificado RUT, edición y listado completo</span></div>' +
+    '<details class="crozzo-mp-prov-picker__quick">' +
+    '<summary>Alta rápida de proveedor</summary>' +
+    '<div class="crozzo-mp-prov-picker__quick-body">' +
+    '<div class="crozzo-mp-prov-picker__quick-grid">' +
+    '<div><label class="crozzo-mp-create__label">Nombre</label>' +
+    '<input class="form-input" id="' +
+    prefix +
+    'QuickProvName" placeholder="Distribuidora ABC"></div>' +
+    '<div><label class="crozzo-mp-create__label">NIT / RUT</label>' +
+    '<input class="form-input" id="' +
+    prefix +
+    'QuickProvNit" placeholder="900.123.456-7"></div>' +
+    '<div><label class="crozzo-mp-create__label">Rubro</label>' +
+    '<select class="form-select" id="' +
+    prefix +
+    'QuickProvRubro">' +
+    crozzoMpProvRubroOptionsHtml() +
+    '</select></div>' +
+    '<div><label class="crozzo-mp-create__label">Teléfono</label>' +
+    '<input class="form-input" id="' +
+    prefix +
+    'QuickProvTel" placeholder="300…"></div></div>' +
+    '<button type="button" class="btn btn-primary btn-sm" onclick="crozzoMpQuickAddProveedor(\'' +
+    prefix +
+    '\')">Guardar y seleccionar</button></div></details>' +
+    '<div class="crozzo-mp-prov-picker__extra">' +
+    '<label class="crozzo-mp-create__label" for="' +
+    prefix +
+    'NewProvExtra">Otro proveedor (texto libre)</label>' +
+    '<input class="form-input" id="' +
+    prefix +
+    'NewProvExtra" placeholder="Opcional — separados por coma si son varios">' +
+    '<span class="crozzo-mp-create__hint">Solo si aún no está en el directorio.</span></div></div>'
+  );
+}
+window.renderMpProveedorPickerHtml = renderMpProveedorPickerHtml;
+function crozzoTogglePlatoCreateForm(formEl, open) {
+  if (!formEl) return;
+  if (open === true) formEl.classList.add('is-open');
+  else if (open === false) formEl.classList.remove('is-open');
+  else formEl.classList.toggle('is-open');
+}
+window.crozzoTogglePlatoCreateForm = crozzoTogglePlatoCreateForm;
+function addCostosPlatoOptionGroupRow(prefix) {
+  const container = document.getElementById(String(prefix || '') + 'OptionGroups');
+  if (!container) return;
+  container.insertAdjacentHTML('beforeend', crozzoPlatoOptionGroupRowHtml());
+}
+window.addCostosPlatoOptionGroupRow = addCostosPlatoOptionGroupRow;
+function renderCostosNewPlatoFormHtml(opts) {
+  opts = opts && typeof opts === 'object' ? opts : {};
+  const areas = getComandasConfig().areas;
+  const nextId = Math.max(0, ...products.map((p) => p.id || 0)) + 1;
+  const p = opts.prefix || 'crozzoCostosNewProd';
+  const title = opts.title || 'Nuevo plato de venta';
+  const hint =
+    opts.hint ||
+    'Queda disponible en caja, tablets y en esta matriz para precio, receta y margen.';
+  const tieneRecetaChecked = opts.tieneReceta !== false;
+  const iconOptions = PRODUCT_ICON_OPTIONS.map(
+    (icon) =>
+      '<option value="' +
+      icon.value +
+      '"' +
+      (icon.value === '🍽️' ? ' selected' : '') +
+      '>' +
+      icon.value +
+      ' ' +
+      icon.label +
+      '</option>'
+  ).join('');
+  return (
+    '<article class="crozzo-plato-create" id="' +
+    p +
+    'NewForm" aria-label="' +
+    escHtml(title) +
+    '">' +
+    '<header class="crozzo-plato-create__head">' +
+    '<div><p class="crozzo-plato-create__eyebrow">Alta de plato</p>' +
+    '<h3 class="crozzo-plato-create__title">' +
+    escHtml(title) +
+    '</h3>' +
+    '<p class="crozzo-plato-create__sub">' +
+    escHtml(hint) +
+    '</p></div></header>' +
+    '<div class="crozzo-plato-create__body">' +
+    '<section class="crozzo-plato-create__section">' +
+    '<div class="crozzo-plato-create__section-head">' +
+    '<span class="crozzo-plato-create__section-icon" aria-hidden="true">◈</span>' +
+    '<h4 class="crozzo-plato-create__section-title">Datos básicos</h4></div>' +
+    '<div class="crozzo-plato-create__grid">' +
+    '<div class="crozzo-plato-create__field crozzo-plato-create__field--span">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'Nombre">Nombre del plato</label>' +
+    '<input id="' +
+    p +
+    'Nombre" class="form-input" placeholder="Ej: Sopa del día, Bandeja paisa…" autocomplete="off"></div>' +
+    '<div class="crozzo-plato-create__field">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'Precio">Precio en caja</label>' +
+    '<input type="number" id="' +
+    p +
+    'Precio" class="form-input" placeholder="0" min="0"></div>' +
+    '<div class="crozzo-plato-create__field">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'GramajeVenta">Gramos porción</label>' +
+    '<input type="number" min="0" step="1" id="' +
+    p +
+    'GramajeVenta" class="form-input" placeholder="350">' +
+    '<span class="crozzo-plato-create__hint">Para etiqueta salón: precio ÷ gramos.</span></div>' +
+    '<div class="crozzo-plato-create__field">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'Icon">Ícono</label>' +
+    '<select id="' +
+    p +
+    'Icon" class="form-select">' +
+    iconOptions +
+    '</select></div>' +
+    '<div class="crozzo-plato-create__field">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'Categoria">Categoría menú</label>' +
+    '<select id="' +
+    p +
+    'Categoria" class="form-select">' +
+    '<option value="platos-fuertes">Platos fuertes</option>' +
+    '<option value="entradas">Entradas</option>' +
+    '<option value="bebidas">Bebidas</option>' +
+    '<option value="postres">Postres</option></select></div></div></section>' +
+    '<section class="crozzo-plato-create__section">' +
+    '<div class="crozzo-plato-create__section-head">' +
+    '<span class="crozzo-plato-create__section-icon" aria-hidden="true">📋</span>' +
+    '<h4 class="crozzo-plato-create__section-title">Comanda y cocina</h4></div>' +
+    '<div class="crozzo-plato-create__field crozzo-plato-create__field--span">' +
+    '<span class="crozzo-plato-create__label">Pantallas de comanda</span>' +
+    '<div class="crozzo-plato-create__areas">' +
+    crozzoProductAreasCheckboxHtml([areas[0]?.id || 'COCINA'], p + 'AreaMulti') +
+    '</div></div>' +
+    '<div class="crozzo-plato-create__toggles" style="margin-top:12px">' +
+    '<label class="crozzo-plato-create__toggle" for="' +
+    p +
+    'TieneReceta">' +
+    '<input type="checkbox" id="' +
+    p +
+    'TieneReceta"' +
+    (tieneRecetaChecked ? ' checked' : '') +
+    '>' +
+    '<span class="crozzo-plato-create__toggle-text"><strong>Con receta / proceso cocina</strong>' +
+    '<span>Desmarque para venta directa (bebidas, empaques, etc.).</span></span></label></div></section>' +
+    '<section class="crozzo-plato-create__section crozzo-plato-create__section--safety">' +
+    '<div class="crozzo-plato-create__section-head">' +
+    '<span class="crozzo-plato-create__section-icon" aria-hidden="true">⚠</span>' +
+    '<h4 class="crozzo-plato-create__section-title">Seguridad alimentaria</h4></div>' +
+    '<div class="crozzo-plato-create__field crozzo-plato-create__field--span">' +
+    '<label class="crozzo-plato-create__label" for="' +
+    p +
+    'Alergenos">Alérgenos declarados</label>' +
+    '<input id="' +
+    p +
+    'Alergenos" class="form-input" placeholder="gluten, lacteos, nueces, mariscos, huevo…" autocomplete="off">' +
+    '<span class="crozzo-plato-create__hint">Separados por coma. Visibles en cocina y comandas.</span></div>' +
+    '<div class="crozzo-plato-create__toggles" style="margin-top:10px">' +
+    '<label class="crozzo-plato-create__toggle" for="' +
+    p +
+    'AlertaServicio">' +
+    '<input type="checkbox" id="' +
+    p +
+    'AlertaServicio">' +
+    '<span class="crozzo-plato-create__toggle-text"><strong>Requiere observación al comandar</strong>' +
+    '<span>Alergias, intolerancias o término especial — el mesero debe escribir un comentario.</span></span></label></div></section>' +
+    '<section class="crozzo-plato-create__section">' +
+    '<div class="crozzo-plato-create__section-head">' +
+    '<span class="crozzo-plato-create__section-icon" aria-hidden="true">☰</span>' +
+    '<h4 class="crozzo-plato-create__section-title">Opciones al pedir</h4></div>' +
+    '<p class="crozzo-plato-create__hint" style="margin:0 0 12px">Término, punto, extras… El mesero elige al agregar.</p>' +
+    '<div class="crozzo-plato-create__options" id="' +
+    p +
+    'OptionGroups"></div>' +
+    '<button type="button" class="btn btn-outline btn-sm crozzo-plato-create__add-option" onclick="addCostosPlatoOptionGroupRow(\'' +
+    p +
+    '\')">+ Agregar grupo de opciones</button></section>' +
+    '<section class="crozzo-plato-create__section">' +
+    '<div class="crozzo-plato-create__section-head">' +
+    '<span class="crozzo-plato-create__section-icon" aria-hidden="true">🔗</span>' +
+    '<h4 class="crozzo-plato-create__section-title">Se suman al pedir</h4></div>' +
+    '<p class="crozzo-plato-create__hint" style="margin:0 0 12px">Ítems que entran automáticamente con este plato (guarnición, bebida del menú…).</p>' +
+    renderCostosPlatoArrastraHtml(p) +
+    '</section></div>' +
+    '<footer class="crozzo-plato-create__foot">' +
+    '<button type="button" class="btn btn-outline btn-sm" id="' +
+    p +
+    'Cancel">Cancelar</button>' +
+    '<button type="button" class="btn btn-primary btn-sm" id="' +
+    p +
+    'Save" data-next-id="' +
+    nextId +
+    '">Crear plato</button></footer></article>'
+  );
+}
+window.renderCostosNewPlatoFormHtml = renderCostosNewPlatoFormHtml;
 function renderProductos() {
   const areas = getComandasConfig().areas;
   const nextId = Math.max(0, ...products.map(p => p.id || 0)) + 1;
@@ -13381,7 +14030,7 @@ function renderProductos() {
       <div class="card-header">
         <div>
           <h2 class="card-title">Productos</h2>
-          <p class="page-subtitle" style="margin-top:4px;">Platos de venta · precios y comandas · <a href="#" onclick="navigateTo('catalogo-mp');return false;" style="color:var(--accent)">Materias primas →</a></p>
+          <p class="page-subtitle" style="margin-top:4px;">Platos de venta · precios y comandas · <a href="#" onclick="navigateTo('costos-matriz');return false;" style="color:var(--accent)">Costos y márgenes →</a></p>
         </div>
       </div>
       <div style="border:1px solid var(--border); border-radius:var(--radius); padding:12px; margin-bottom:12px; background:var(--bg-secondary);">
@@ -13491,20 +14140,28 @@ function setProductComandaArea(productId, areaId) {
     if (typeof persistCatalogProductos === 'function') persistCatalogProductos(productId);
   } catch (_) {}
 }
-function addCatalogProduct(nextIdHint) {
-  const nombre = (document.getElementById('newProdNombre')?.value || '').trim();
-  const precio = Number(document.getElementById('newProdPrecio')?.value || 0);
-  const gramajeVenta = Math.round(Number(document.getElementById('newProdGramajeVenta')?.value || 0)) || 0;
-  const icon = (document.getElementById('newProdIcon')?.value || '🍽️').trim() || '🍽️';
-  const categoria = (document.getElementById('newProdCategoria')?.value || 'platos-fuertes').trim();
-  const areasComanda = crozzoReadProductAreasFromForm('newProdAreaMulti');
+function addCatalogProduct(nextIdHint, opts) {
+  opts = opts || {};
+  const prefix = opts.prefix || 'newProd';
+  const id = (suffix) => document.getElementById(prefix + suffix);
+  const nombre = (id('Nombre')?.value || '').trim();
+  const precio = Number(id('Precio')?.value || 0);
+  const gramajeVenta = Math.round(Number(id('GramajeVenta')?.value || 0)) || 0;
+  const icon = (id('Icon')?.value || '🍽️').trim() || '🍽️';
+  const categoria = (id('Categoria')?.value || 'platos-fuertes').trim();
+  const areaField = prefix === 'newProd' ? 'newProdAreaMulti' : prefix + 'AreaMulti';
+  const areasComanda = crozzoReadProductAreasFromForm(areaField);
   const areaComanda = areasComanda[0];
-  const tieneRecetaProceso = document.getElementById('newProdTieneReceta')?.checked !== false;
-  const alertaServicio = document.getElementById('newProdAlertaServicio')?.checked === true;
-  const alergenos = crozzoParseAlergenos(document.getElementById('newProdAlergenos')?.value || '');
+  const tieneRecetaProceso = id('TieneReceta')?.checked !== false;
+  const alertaServicio = id('AlertaServicio')?.checked === true;
+  const alergenos = crozzoParseAlergenos(id('Alergenos')?.value || '');
+  const opcionGrupos = crozzoReadOpcionGruposFromContainer(prefix + 'OptionGroups');
+  const arrastraProductos = Array.from(document.querySelectorAll('.' + prefix + 'Linked:checked'))
+    .map((el) => Number(el.value))
+    .filter((pid) => isFinite(pid) && pid > 0);
   if (!nombre) return showToast('Nombre de producto requerido', 'warning');
   if (precio < 0) return showToast('Precio inválido', 'warning');
-  const nextId = Math.max(Number(nextIdHint) || 0, ...products.map(p => p.id || 0)) + 1;
+  const nextId = Math.max(Number(nextIdHint) || 0, ...products.map((p) => p.id || 0)) + 1;
   products.push(
     crozzoNormalizeProductComandaAreas({
       id: nextId,
@@ -13519,17 +14176,37 @@ function addCatalogProduct(nextIdHint) {
       tieneRecetaProceso,
       alertaServicio: alertaServicio,
       alergenos: alergenos.length ? alergenos : undefined,
-      opcionGrupos: [],
-      arrastraProductos: [],
+      opcionGrupos,
+      arrastraProductos,
     })
   );
   crozzoSyncProductoCosteo(products[products.length - 1]);
-  showToast('Producto agregado al catálogo', 'success');
+  showToast('Plato creado — listo en costos y punto de venta', 'success');
   try {
     if (typeof persistCatalogProductos === 'function') persistCatalogProductos(nextId);
   } catch (_) {}
+  if (opts.fromCostos) {
+    try {
+      var platoSlug = String(nombre || '')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '_')
+        .slice(0, 80);
+      document.dispatchEvent(
+        new CustomEvent('crozzo-costos-plato-created', {
+          detail: { productId: nextId, slug: platoSlug, prefix: prefix },
+          bubbles: true,
+        })
+      );
+    } catch (_) {}
+    const form = id('NewForm') || document.getElementById(prefix + 'NewForm');
+    if (form && typeof crozzoTogglePlatoCreateForm === 'function') crozzoTogglePlatoCreateForm(form, false);
+    else if (form) form.classList.remove('is-open');
+    return nextId;
+  }
   renderPage('productos');
 }
+window.addCatalogProduct = addCatalogProduct;
 function showEditProductModal(productId) {
   const product = products.find(p => p.id === productId);
   if (!product) return;
@@ -13618,15 +14295,7 @@ function showEditProductModal(productId) {
 function addOptionGroupRow() {
   const container = document.getElementById('editProdOptionGroups');
   if (!container) return;
-  container.insertAdjacentHTML('beforeend', `
-    <div class="edit-option-group-row" style="border:1px solid var(--border); border-radius:var(--radius); padding:8px; background:var(--bg-primary);">
-      <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; margin-bottom:8px;">
-        <input class="form-input group-title" placeholder="Nombre del grupo (ej: Término)">
-        <button class="btn btn-danger" type="button" style="padding:6px 10px;" onclick="removeOptionGroupRow(this)">✕</button>
-      </div>
-      <textarea class="form-input group-options" style="min-height:80px;" placeholder="Opciones del grupo (una por línea o separadas por coma)"></textarea>
-    </div>
-  `);
+  container.insertAdjacentHTML('beforeend', crozzoPlatoOptionGroupRowHtml());
 }
 function removeOptionGroupRow(btn) {
   const row = btn.closest('.edit-option-group-row');
@@ -13642,17 +14311,8 @@ function saveProductAdvancedConfig(productId) {
   const tieneRecetaProceso = document.getElementById('editProdTieneReceta')?.checked !== false;
   const alertaServicio = document.getElementById('editProdAlertaServicio')?.checked === true;
   const alergenos = crozzoParseAlergenos(document.getElementById('editProdAlergenos')?.value || '');
-  const optionRows = Array.from(document.querySelectorAll('#editProdOptionGroups .edit-option-group-row'));
+  const opcionGrupos = crozzoReadOpcionGruposFromContainer('editProdOptionGroups');
   const arrastraProductos = Array.from(document.querySelectorAll('.editProdLinked:checked')).map(el => Number(el.value));
-  const opcionGrupos = optionRows.map(row => {
-    const nombreGrupo = (row.querySelector('.group-title')?.value || '').trim();
-    const opcionesRaw = (row.querySelector('.group-options')?.value || '').trim();
-    const opciones = opcionesRaw
-      .split(/\n|,|;/)
-      .map(v => v.trim())
-      .filter(Boolean);
-    return { nombre: nombreGrupo, opciones };
-  }).filter(g => g.nombre && g.opciones.length);
   products = products.map(p =>
     p.id === productId
       ? crozzoNormalizeProductComandaAreas({
@@ -16714,6 +17374,7 @@ function crozzoCajaClientesRowsHtml() {
         <td style="font-size:0.78rem;">${crozzoCrmEscAttr(c.ciudad || '—')}</td>
         <td style="text-align:right;white-space:nowrap;">
           <button type="button" class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;" onclick="crozzoCajaClientesOpenEdit('${id}')">Editar</button>
+          <button type="button" class="btn btn-outline" style="padding:4px 8px;font-size:0.75rem;margin-left:4px;color:var(--danger);border-color:color-mix(in srgb, var(--danger) 45%, var(--border));" onclick="crozzoCrmDeleteClient('${id}')">Eliminar</button>
         </td>
       </tr>`;
     })
@@ -16820,9 +17481,12 @@ function crozzoCajaClientesEditFormHtml(c) {
       <div class="form-group"><label class="form-label">Ciudad / municipio</label><input type="text" class="form-input" id="cliDirCiudad" value="${isNew ? '' : crozzoCrmEscAttr(c.ciudad || '')}"></div>
       <div class="form-group"><label class="form-label">Dirección (opcional)</label><input type="text" class="form-input" id="cliDirDir" placeholder="Solo si la necesitas en datos del cliente" value="${isNew ? '' : crozzoCrmEscAttr(c.direccion || '')}"></div>
       <div class="form-group"><label class="form-label">Notas internas</label><textarea class="form-input" id="cliDirNotas" style="min-height:72px;">${isNew ? '' : crozzoCrmEscAttr(c.notas || '')}</textarea></div>
-      <div class="btn-group" style="justify-content:flex-end;margin-top:12px;">
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="crozzoCajaClientesSaveFromModal('${id}')">${isNew ? 'Crear' : 'Guardar'}</button>
+      <div class="btn-group" style="justify-content:${isNew ? 'flex-end' : 'space-between'};margin-top:12px;flex-wrap:wrap;gap:8px;">
+        ${isNew ? '' : '<button type="button" class="btn btn-outline" style="color:var(--danger);border-color:color-mix(in srgb, var(--danger) 45%, var(--border));" onclick="crozzoCrmDeleteClient(\'' + id + '\')">Eliminar</button>'}
+        <div style="display:flex;gap:8px;margin-left:auto;">
+          <button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="crozzoCajaClientesSaveFromModal('${id}')">${isNew ? 'Crear' : 'Guardar'}</button>
+        </div>
       </div>
     </div>
   `;
@@ -16918,6 +17582,59 @@ function crozzoCajaClientesSaveFromModal(existingId) {
     if (fresh) crozzoCrmApplyClientToUi(fresh);
   }
   if (typeof renderPage === 'function') renderPage('caja-clientes');
+}
+function crozzoCrmDeleteClient(clientId) {
+  if (typeof config === 'undefined' || !config.get || !config.set || !config.save) return;
+  const id = String(clientId || '').trim();
+  if (!id) return;
+  const c = typeof crozzoCrmClientById === 'function' ? crozzoCrmClientById(id) : null;
+  if (!c) {
+    if (typeof showToast === 'function') showToast('Cliente no encontrado', 'warning');
+    return;
+  }
+  const label = String(c.nombre || c.nit || id);
+  let extra = '';
+  const credito = Number(c.creditoUsado || 0);
+  if (credito > 0) {
+    extra =
+      '\n\nTiene saldo de cartera por $' +
+      credito.toLocaleString('es-CO') +
+      '. Las facturas ya emitidas no se borran.';
+  }
+  if (
+    !confirm(
+      '¿Eliminar «' +
+        label +
+        '» del directorio de clientes?' +
+        extra +
+        '\n\nEsta acción no se puede deshacer.'
+    )
+  ) {
+    return;
+  }
+  let list = config.get('clientesCrm');
+  if (!Array.isArray(list)) return;
+  const next = list.filter((x) => x.id !== id);
+  if (next.length === list.length) {
+    if (typeof showToast === 'function') showToast('Cliente no encontrado', 'warning');
+    return;
+  }
+  config.set('clientesCrm', next);
+  config.save();
+  if (window.__crozzoCrmSelectedClientId === id) {
+    if (typeof crozzoCrmClearClient === 'function') crozzoCrmClearClient();
+    else window.__crozzoCrmSelectedClientId = null;
+  }
+  try {
+    if (typeof config.addAudit === 'function') config.addAudit('crm_cliente_eliminado', label);
+  } catch (_) {}
+  if (typeof closeModal === 'function') closeModal();
+  if (typeof showToast === 'function') showToast('Cliente eliminado', 'success');
+  if (document.getElementById('crozzoClientesDirTbody')) {
+    crozzoCajaClientesRefreshTable();
+  } else if (typeof renderPage === 'function') {
+    renderPage('caja-clientes');
+  }
 }
 function hasAdvancedProductConfig(product) {
   return (product.opcionGrupos && product.opcionGrupos.length) || (product.arrastraProductos && product.arrastraProductos.length);
@@ -24175,6 +24892,42 @@ function crozzoFacturaMatchesListFilter(f) {
   if (facturasFilterEstado !== 'todos') return f.estado === facturasFilterEstado;
   return true;
 }
+function crozzoFacturaServicioLabel(f) {
+  if (!f) return '—';
+  if (f.mesa) return 'Mesa ' + String(f.mesa);
+  if (f.tipoServicio === 'llevar') return 'Para llevar';
+  if (f.contextoServicio) return String(f.contextoServicio);
+  if (f.tipoServicio) return String(f.tipoServicio);
+  return '—';
+}
+function crozzoFacturaPagoCorto(f) {
+  if (!f) return '—';
+  var raw =
+    typeof crozzoMetodoPagoDescripcion === 'function'
+      ? crozzoMetodoPagoDescripcion(f.metodoPago, f.paymentMeta, { htmlSafe: false })
+      : String(f.metodoPago || '—');
+  if (raw.length > 28) return raw.slice(0, 26) + '…';
+  return raw;
+}
+function crozzoFacturasResumenFiltrado(rows) {
+  rows = rows || [];
+  var total = 0;
+  var items = 0;
+  var pendientes = 0;
+  rows.forEach(function (row) {
+    var f = row.f;
+    total += Number(f.total || f.totalFactura || 0);
+    items += Array.isArray(f.items) ? f.items.length : 0;
+    if (
+      typeof CrozzoCarteraComercial !== 'undefined' &&
+      CrozzoCarteraComercial.matchesFacturaCobroFilter &&
+      CrozzoCarteraComercial.matchesFacturaCobroFilter(f, 'cobro_pendiente')
+    ) {
+      pendientes += 1;
+    }
+  });
+  return { count: rows.length, total: total, items: items, pendientes: pendientes };
+}
 function crozzoGetFacturasFiltradas() {
   var all = config.getFacturas();
   var q = String(facturasFilterQ || '').trim().toLowerCase();
@@ -24190,7 +24943,11 @@ function crozzoGetFacturasFiltradas() {
         f.compradorNit,
         f.uuid,
         f.cufe,
-        f.fecha
+        f.fecha,
+        f.metodoPago,
+        f.mesa,
+        f.tipoServicio,
+        f.contextoServicio
       ].join(' ').toLowerCase();
       return blob.indexOf(q) >= 0;
     });
@@ -24639,56 +25396,147 @@ function crozzoInitInvoiceModalQr(f, qrId) {
     }
   }, 120);
 }
-function crozzoFacturaPreviewPlaceholderHtml() {
-  return (
-    '<div class="crozzo-invoice-preview-pane__head"><h3>Vista previa</h3></div>' +
-    '<div class="crozzo-invoice-preview-empty">' +
-    '<div class="crozzo-invoice-empty__illus">📄</div>' +
-    '<p><strong>Seleccione un comprobante</strong></p>' +
-    '<p>Haga clic en una fila del historial para revisar el documento, compartir o imprimir.</p></div>'
-  );
-}
-function selectFacturaForPreview(idx) {
-  facturaPreviewIdx = idx;
-  document.querySelectorAll('.crozzo-invoice-table tbody tr[data-factura-idx]').forEach(function (tr) {
-    tr.classList.toggle('is-selected', Number(tr.getAttribute('data-factura-idx')) === idx);
-  });
-  crozzoRenderFacturaPreviewPane();
-}
-function crozzoRenderFacturaPreviewPane() {
-  var host = document.getElementById('facturaPreviewHost');
-  if (!host) return;
-  var facturas = config.getFacturas();
-  var idx = facturaPreviewIdx;
-  if (idx == null || idx < 0 || !facturas[idx]) {
-    host.innerHTML = crozzoFacturaPreviewPlaceholderHtml();
-    return;
-  }
-  var f = facturas[idx];
+function crozzoFacturaInlinePreviewHtml(f, idx) {
+  if (!f) return '';
   window.__crozzoLastFacturaForShare = f;
-  var qrId = crozzoFacturaQrMostrable(f) ? 'qr_preview_' + Date.now() : null;
-  host.innerHTML =
+  var qrId = crozzoFacturaQrMostrable(f) ? 'qr_preview_' + idx : null;
+  return (
+    '<div class="crozzo-invoice-row-detail__inner crozzo-invoice-row-detail__inner--compact">' +
     '<div class="crozzo-invoice-preview-pane__head">' +
-    '<h3>' + escUserAttr(f.consecutivo || 'Comprobante') + '</h3>' +
-    '<button type="button" class="btn btn-outline" style="font-size:0.75rem;padding:4px 10px;" onclick="openFacturaFullscreen(' + idx + ')">⛶ Pantalla completa</button></div>' +
+    '<h3>' + escUserAttr(f.consecutivo || '—') + '</h3>' +
+    '<button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaFullscreen(' + idx + ')">Expandir</button></div>' +
     '<div class="crozzo-invoice-preview-pane__body">' +
     crozzoBuildInvoiceDocumentHtml(f, { qrId: qrId, inModal: true }) +
     '</div>' +
     '<div class="crozzo-invoice-preview-pane__toolbar">' +
-    crozzoBuildInvoicePreviewToolbarHtml(f, idx) +
-    '</div>';
-  crozzoInitInvoiceModalQr(f, qrId);
+    crozzoBuildInvoicePreviewToolbarHtml(f, idx, true) +
+    '</div></div>'
+  );
 }
-function crozzoBuildInvoicePreviewToolbarHtml(f, idx) {
+function crozzoCloseFacturaDetailSlot() {
+  var slot = document.getElementById('crozzoFacturaDetailSlot');
+  if (slot) {
+    slot.classList.remove('is-open');
+    slot.style.display = 'none';
+    slot.removeAttribute('data-factura-detail-for');
+  }
+  var host = document.getElementById('facturaPreviewHost');
+  if (host) host.innerHTML = '';
+  document.querySelectorAll('.crozzo-invoice-table tbody tr.crozzo-invoice-row.is-selected').forEach(function (tr) {
+    tr.classList.remove('is-selected');
+  });
+}
+function crozzoEnsureFacturaDetailSlot() {
+  var slot = document.getElementById('crozzoFacturaDetailSlot');
+  if (slot) return slot;
+  var tbody = document.querySelector('.crozzo-facturas-page .crozzo-invoice-table tbody');
+  if (!tbody) return null;
+  slot = document.createElement('tr');
+  slot.id = 'crozzoFacturaDetailSlot';
+  slot.className = 'crozzo-invoice-detail-row';
+  slot.style.display = 'none';
+  slot.innerHTML =
+    '<td colspan="11"><div id="facturaPreviewHost" class="crozzo-invoice-row-detail"></div></td>';
+  return slot;
+}
+function crozzoMountFacturaDetailBelowRow(idx) {
+  idx = Number(idx);
+  var dataRow = document.querySelector('.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-idx="' + idx + '"]');
+  if (!dataRow) return false;
+  var slot = crozzoEnsureFacturaDetailSlot();
+  if (!slot) return false;
+  if (dataRow.nextElementSibling !== slot) {
+    dataRow.insertAdjacentElement('afterend', slot);
+  }
+  slot.classList.add('is-open');
+  slot.style.display = 'table-row';
+  slot.setAttribute('data-factura-detail-for', String(idx));
+  document.querySelectorAll('.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-idx]').forEach(function (tr) {
+    tr.classList.toggle('is-selected', Number(tr.getAttribute('data-factura-idx')) === idx);
+  });
+  return true;
+}
+function crozzoScrollFacturaDetailIntoView(idx) {
+  idx = Number(idx);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      var dataRow = document.querySelector(
+        '.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-idx="' + idx + '"]'
+      );
+      var slot = document.getElementById('crozzoFacturaDetailSlot');
+      if (!dataRow || !slot || slot.style.display === 'none') return;
+      var wrap = dataRow.closest('.crozzo-invoice-table-wrap');
+      if (!wrap || typeof wrap.scrollTo !== 'function') return;
+      var wrapRect = wrap.getBoundingClientRect();
+      var dataRect = dataRow.getBoundingClientRect();
+      var target = wrap.scrollTop + (dataRect.top - wrapRect.top) - 6;
+      wrap.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    });
+  });
+}
+function openFacturaBelow(idx) {
+  idx = Number(idx);
+  if (!config.getFacturas()[idx]) return;
+  facturaPreviewIdx = idx;
+  if (!crozzoMountFacturaDetailBelowRow(idx)) {
+    if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage === 'facturas') {
+      renderPage('facturas');
+      setTimeout(function () {
+        openFacturaBelow(idx);
+      }, 0);
+    }
+    return;
+  }
+  crozzoRenderFacturaPreviewPane();
+}
+function selectFacturaForPreview(idx) {
+  idx = Number(idx);
+  if (facturaPreviewIdx === idx) {
+    facturaPreviewIdx = null;
+    crozzoCloseFacturaDetailSlot();
+    return;
+  }
+  openFacturaBelow(idx);
+}
+function crozzoRenderFacturaPreviewPane() {
+  var idx = facturaPreviewIdx;
+  if (idx == null || idx < 0 || !config.getFacturas()[idx]) {
+    crozzoCloseFacturaDetailSlot();
+    return;
+  }
+  if (!crozzoMountFacturaDetailBelowRow(idx)) return;
+  var host = document.getElementById('facturaPreviewHost');
+  var f = config.getFacturas()[idx];
+  if (!host || !f) return;
+  host.innerHTML = crozzoFacturaInlinePreviewHtml(f, idx);
+  crozzoInitInvoiceModalQr(f, crozzoFacturaQrMostrable(f) ? 'qr_preview_' + idx : null);
+  crozzoScrollFacturaDetailIntoView(idx);
+}
+window.openFacturaBelow = openFacturaBelow;
+window.selectFacturaForPreview = selectFacturaForPreview;
+function crozzoBuildInvoicePreviewToolbarHtml(f, idx, compact) {
   var pagoLabel = crozzoMetodoPagoDescripcion(f.metodoPago, f.paymentMeta, { htmlSafe: true });
   var dian = crozzoFacturaQrMostrable(f)
-    ? '<button type="button" class="btn btn-primary" onclick="crozzoOpenExternal(' +
+    ? '<button type="button" class="btn btn-primary btn-xs" onclick="crozzoOpenExternal(' +
       JSON.stringify(typeof crozzoFacturaQrUrlResolve === 'function' ? crozzoFacturaQrUrlResolve(f) : f.qrUrl) +
       ')">DIAN</button>'
     : '';
+  var printBtns = typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(idx) : '';
+  if (compact) {
+    return (
+      '<div class="crozzo-invoice-inline-toolbar">' +
+      '<span class="crozzo-invoice-toolbar-pay">' + pagoLabel + '</span>' +
+      '<div class="crozzo-invoice-inline-toolbar__acts">' +
+      printBtns +
+      '<button type="button" class="btn btn-outline btn-xs" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'wa\')">WhatsApp</button>' +
+      '<button type="button" class="btn btn-outline btn-xs" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">Email</button>' +
+      dian +
+      '</div></div>'
+    );
+  }
   return (
     '<span style="font-size:0.75rem;color:var(--text-muted);flex:1;min-width:120px;">' + pagoLabel + '</span>' +
-    (typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(idx) : '') +
+    printBtns +
     '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'wa\')">WhatsApp + PDF Oficio</button>' +
     '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">Email</button>' +
     dian
@@ -24718,6 +25566,7 @@ function renderFacturas() {
   var facturas = config.getFacturas();
   var remaining = config.getFacturasRestantes();
   var filtered = crozzoGetFacturasFiltradas();
+  var resumen = crozzoFacturasResumenFiltrado(filtered);
   var chip = function (id, label) {
     var active = facturasFilterEstado === id ? ' is-active' : '';
     return '<button type="button" class="crozzo-invoice-filter-chip' + active + '" onclick="setFacturasFilter(\'' + id + '\')">' + label + '</button>';
@@ -24726,31 +25575,48 @@ function renderFacturas() {
     var f = row.f;
     var i = row.idx;
     var sel = facturaPreviewIdx === i ? ' is-selected' : '';
-    var fecha = f.fecha ? (function () { try { return new Date(f.fecha).toLocaleString('es-CO'); } catch (_) { return f.fecha; } })() : '—';
+    var fecha = f.fecha
+      ? (function () {
+          try {
+            return new Date(f.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+          } catch (_) {
+            return f.fecha;
+          }
+        })()
+      : '—';
+    var tipoDoc =
+      f.tipoComprobante === 'electronica' || f.estado === 'timbrada'
+        ? '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--fe">FE</span>'
+        : '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--pos">POS</span>';
+    var nItems = Array.isArray(f.items) ? f.items.length : 0;
     return (
-      '<tr data-factura-idx="' + i + '" class="' + sel.trim() + '" onclick="selectFacturaForPreview(' + i + ')" title="Vista previa">' +
-      '<td style="white-space:nowrap;font-size:0.8rem;color:var(--text-secondary);">' + fecha + '</td>' +
+      '<tr data-factura-idx="' + i + '" class="crozzo-invoice-row' + sel + '" onclick="selectFacturaForPreview(' + i + ')" title="Abrir comprobante debajo de esta fila">' +
+      '<td class="col-date">' + fecha + '</td>' +
       '<td class="col-cons">' + escUserAttr(f.consecutivo || '—') + '</td>' +
-      '<td><strong style="font-weight:600;">' + escUserAttr(f.compradorNombre || '—') + '</strong><br><span style="font-size:0.72rem;color:var(--text-muted);">' + escUserAttr(f.compradorNit || '') + '</span></td>' +
-      '<td class="col-total">$' + Number(f.total || 0).toLocaleString('es-CO') + '</td>' +
-      '<td>' + crozzoFacturaEstadoBadgeHtml(f) + '</td>' +
-      '<td style="font-size:0.72rem;font-family:monospace;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);">' + escUserAttr((f.uuid || '').slice(0, 12)) + '…</td>' +
-      '<td><button type="button" class="btn btn-outline" style="padding:5px 10px;font-size:0.75rem;" onclick="event.stopPropagation();openFacturaFullscreen(' + i + ')">Abrir</button></td></tr>'
+      '<td class="col-tipo">' + tipoDoc + '</td>' +
+      '<td class="col-client"><strong>' + escUserAttr(f.compradorNombre || '—') + '</strong><span class="crozzo-invoice-sub">' + escUserAttr(f.compradorNit || '—') + '</span></td>' +
+      '<td class="col-serv">' + escUserAttr(crozzoFacturaServicioLabel(f)) + '</td>' +
+      '<td class="col-pago" title="' + escUserAttr(crozzoFacturaPagoCorto(f)) + '">' + escUserAttr(crozzoFacturaPagoCorto(f)) + '</td>' +
+      '<td class="col-items">' + nItems + '</td>' +
+      '<td class="col-total">$' + Number(f.total || f.totalFactura || 0).toLocaleString('es-CO') + '</td>' +
+      '<td class="col-estado">' + crozzoFacturaEstadoBadgeHtml(f) + '</td>' +
+      '<td class="col-ref" title="' + escUserAttr(f.uuid || f.cufe || '') + '">' + escUserAttr((f.uuid || f.cufe || '').slice(0, 14)) + '</td>' +
+      '<td class="col-act"><button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaBelow(' + i + ')">Abrir</button></td></tr>'
     );
   }).join('');
   var listBlock = facturas.length === 0
     ? '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><div class="crozzo-invoice-empty__illus">📄</div><p><strong>Sin comprobantes aún</strong></p><p style="font-size:0.88rem;margin-top:8px;">Las ventas cobradas aparecerán aquí.</p></div></div>'
     : filtered.length === 0
       ? '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><p>Sin resultados para este filtro.</p></div></div>'
-      : '<div class="crozzo-invoice-table-wrap" style="max-height:calc(100vh - 320px);overflow:auto;"><table class="crozzo-invoice-table"><thead><tr>' +
-        '<th>Fecha</th><th>Nº</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Ref.</th><th></th></tr></thead><tbody>' +
+      : '<div class="crozzo-invoice-table-wrap crozzo-invoice-table-wrap--facturas"><table class="crozzo-invoice-table crozzo-invoice-table--wide"><thead><tr>' +
+        '<th>Fecha</th><th>Nº</th><th>Tipo</th><th>Cliente</th><th>Servicio</th><th>Pago</th><th>Ítems</th><th>Total</th><th>Estado</th><th>Ref.</th><th></th></tr></thead><tbody>' +
         rows + '</tbody></table></div>';
   return (
-    '<section class="crozzo-invoice-studio crozzo-invoice-studio--split">' +
-    '<div class="crozzo-invoice-studio__list">' +
-    '<div class="crozzo-invoice-studio__hero">' +
-    '<div><h2>Comprobantes y facturas</h2>' +
-    '<p>Historial de ventas facturadas. Seleccione una fila para editar vista, imprimir o enviar al cliente.</p></div>' +
+    '<div class="crozzo-mod-page crozzo-facturas-page">' +
+    '<div class="card crozzo-facturas-card">' +
+    '<div class="card-header crozzo-facturas-card__head">' +
+    '<div><h2 class="card-title">Comprobantes y facturas</h2>' +
+    '<p class="page-subtitle" style="margin-top:4px;">Historial de ventas — pulse una fila para desplegar el comprobante justo debajo.</p></div>' +
     (typeof crozzoCanClearFacturasHistorial === 'function' && crozzoCanClearFacturasHistorial()
       ? '<button type="button" class="btn btn-outline" onclick="clearFacturas()">Limpiar historial</button>'
       : '') +
@@ -24762,14 +25628,18 @@ function renderFacturas() {
     '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Registros</div><div class="crozzo-invoice-kpi__value">' + facturas.length + '</div></div>' +
     '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--success"><div class="crozzo-invoice-kpi__label">Timbradas</div><div class="crozzo-invoice-kpi__value">' + facturas.filter(function (x) { return x.estado === 'timbrada'; }).length + '</div></div>' +
     '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--info"><div class="crozzo-invoice-kpi__label">POS</div><div class="crozzo-invoice-kpi__value">' + facturas.filter(function (x) { return x.estado === 'pos'; }).length + '</div></div>' +
+    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--warn"><div class="crozzo-invoice-kpi__label">Por cobrar</div><div class="crozzo-invoice-kpi__value">' + resumen.pendientes + '</div></div>' +
+    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Total filtro</div><div class="crozzo-invoice-kpi__value">$' + resumen.total.toLocaleString('es-CO') + '</div></div>' +
     '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">FE restantes</div><div class="crozzo-invoice-kpi__value">' + (remaining === Infinity ? '∞' : remaining) + '</div></div></div>' +
     '<div class="crozzo-invoice-toolbar">' +
-    '<div class="crozzo-invoice-toolbar__search"><input type="search" id="facturasSearchInput" value="' + escUserAttr(facturasFilterQ) + '" placeholder="Buscar consecutivo, cliente, NIT…" autocomplete="off"></div>' +
+    '<div class="crozzo-invoice-toolbar__search"><input type="search" id="facturasSearchInput" value="' + escUserAttr(facturasFilterQ) + '" placeholder="Buscar consecutivo, cliente, NIT, mesa, pago…" autocomplete="off"></div>' +
     '<div class="crozzo-invoice-filters">' +
     chip('todos', 'Todos') + chip('cobro_pendiente', 'Por cobrar') + chip('timbrada', 'Timbradas') + chip('pos', 'POS') + chip('demo', 'Demo') + chip('precuenta', 'Precuenta') +
-    '</div></div>' + listBlock + '</div>' +
-    '<div class="crozzo-invoice-preview-pane" id="facturaPreviewHost">' + crozzoFacturaPreviewPlaceholderHtml() + '</div>' +
-    '</section>'
+    '</div></div>' +
+    '<div class="crozzo-invoice-result-bar">Mostrando <strong>' + resumen.count + '</strong> de <strong>' + facturas.length + '</strong> · ' +
+    resumen.items + ' líneas · <strong>$' + resumen.total.toLocaleString('es-CO') + '</strong></div>' +
+    listBlock +
+    '</div></div>'
   );
 }
 function initFacturas() {
@@ -24786,15 +25656,12 @@ function initFacturas() {
       }, 200);
     });
   }
-  if (facturaPreviewIdx != null) crozzoRenderFacturaPreviewPane();
-  else if (config.getFacturas().length && facturaPreviewIdx == null) {
-    var filtered = crozzoGetFacturasFiltradas();
-    if (filtered.length) selectFacturaForPreview(filtered[0].idx);
+  if (facturaPreviewIdx != null) {
+    openFacturaBelow(facturaPreviewIdx);
   }
 }
 function viewFactura(idx) {
-  selectFacturaForPreview(idx);
-  openFacturaFullscreen(idx);
+  openFacturaBelow(idx);
 }
 function clearFacturas() {
   if (typeof crozzoCanClearFacturasHistorial === 'function' && !crozzoCanClearFacturasHistorial()) {

@@ -15,8 +15,9 @@
 
   var VIEWS = {
     home: { label: 'Inicio', icon: 'home', sub: null, desc: 'Elige qué vas a preparar' },
-    form: { label: 'Anotar prep', icon: 'utensils', sub: 'form', desc: 'Registrar lo que acabas de preparar' },
-    hist: { label: 'Lo prepé', icon: 'clipboard-list', sub: 'hist', desc: 'Ver preparaciones anteriores' },
+    form: { label: 'Anotar preparación', icon: 'utensils', sub: 'form', desc: 'Registrar lo que acabas de preparar' },
+    hist: { label: 'Lo preparé antes', icon: 'clipboard-list', sub: 'hist', desc: 'Historial de preparaciones en bodega' },
+    recetario: { label: 'Recetario', icon: 'book-open', sub: 'recetario', desc: 'Ingredientes y pesos para cocina' },
     jefe: { label: 'Mercado', icon: 'truck', sub: 'jefe', desc: 'Entrada de factura' }
   };
 
@@ -126,8 +127,15 @@
       '.ccp-home .ccp__hero{margin:0}' +
       '.ccp-home .ccp__welcome{margin:12px 24px 0}' +
       '.ccp-home .ccp__kpis{padding:12px 24px 16px}' +
-      '.ccp-home__lead{margin:16px 24px 18px;font-size:14px;color:var(--text-muted);line-height:1.55}' +
-      '.ccp-wf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:0 24px 8px}' +
+      '.ccp-home__lead{margin:16px 32px 8px;font-size:14px;color:var(--text-muted);line-height:1.55}' +
+      '.ccp-home__section{padding:8px 32px 0}' +
+      '.ccp-home__section-title{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}' +
+      '.ccp-home__section-lead{margin:6px 0 0;font-size:13px;color:var(--text-muted);line-height:1.55;max-width:520px}' +
+      '.ccp__welcome-dismiss{margin-left:8px;background:none;border:none;color:var(--ccp-gold);cursor:pointer;font-weight:600;font-size:12px;font-family:inherit;text-decoration:underline;text-underline-offset:3px;padding:0}' +
+      '.ccp__status-icon{display:inline-flex;align-items:center;gap:8px;line-height:1.45}' +
+      '.ccp__status-icon svg,.ccp__status-icon i{width:14px;height:14px;opacity:.85;flex-shrink:0}' +
+      '.ccp__status-meta{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);opacity:.9}' +
+      '.ccp-wf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0 32px 28px}' +
       '.ccp-card{position:relative;text-align:left;padding:22px 22px 58px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:var(--ccp-glass);backdrop-filter:blur(18px);cursor:pointer;font-family:inherit;color:inherit;overflow:hidden;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s;min-height:168px}' +
       '.ccp-card::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(125deg,rgba(212,184,74,.14),transparent 50%);transition:opacity .35s;pointer-events:none}' +
       '.ccp-card:hover{transform:translateY(-5px);box-shadow:0 24px 56px rgba(0,0,0,.38);border-color:rgba(212,184,74,.25)}' +
@@ -150,8 +158,11 @@
       '.ccp-loader__ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(212,184,74,.2);border-top-color:var(--ccp-gold);animation:ccpSpin .9s linear infinite}' +
       '@keyframes ccpSpin{to{transform:rotate(360deg)}}' +
       '.ccp-loader__txt{font-size:13px;color:var(--text-muted)}' +
-      '.ccp-local{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px 24px;display:none}' +
-      '@media(max-width:900px){.ccp__kpis{grid-template-columns:repeat(2,1fr)}.ccp-wf{grid-template-columns:1fr}}';
+      '.ccp-local{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px 24px 32px;display:none;background:var(--bg-primary,#080a10)}' +
+      '.ccp-local .cps{max-width:980px}' +
+      '@media(max-width:1100px){.ccp-wf{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+      '@media(max-width:900px){.ccp__kpis{grid-template-columns:repeat(2,1fr)}.ccp-home__lead,.ccp-home__section,.ccp-wf{padding-left:20px;padding-right:20px}}' +
+      '@media(max-width:640px){.ccp-wf{grid-template-columns:1fr}.ccp__kpis{grid-template-columns:1fr}}';
     document.head.appendChild(el);
   }
 
@@ -183,7 +194,10 @@
   function statusBarHtml() {
     return (
       '<div class="ccp__status" id="ccp-status">' +
-      '<span>👨‍🍳 Solo anota lo que preparas <strong>antes</strong> del servicio (salsas, bases, despiece)</span></div>'
+      '<span class="ccp__status-icon">' +
+      navIcon('info') +
+      ' Solo anota lo que preparas <strong>antes</strong> del servicio</span>' +
+      '<span class="ccp__status-meta" id="ccp-status-meta">Salsas · bases · despiece</span></div>'
     );
   }
 
@@ -193,15 +207,15 @@
     } catch (_) {}
     return (
       '<p class="ccp__welcome" id="ccp-welcome">' +
-      '<strong>¿Primera vez en cocina?</strong> Toca una tarjeta (partir carnes, cocinar, salsas). Te guiamos paso a paso — no hay que memorizar nada. ' +
-      '<button type="button" style="margin-left:6px;background:none;border:none;color:var(--ccp-gold);cursor:pointer;font-weight:600;font-size:12px" id="ccp-welcome-dismiss">Entendido</button></p>'
+      '<strong>¿Primera vez aquí?</strong> Elige una tarjeta abajo. Te guiamos paso a paso — no hay que memorizar nada. ' +
+      '<button type="button" class="ccp__welcome-dismiss" id="ccp-welcome-dismiss">Entendido</button></p>'
     );
   }
 
   function kpiHtml() {
     return (
       '<div class="ccp__kpis ccp__kpis--chef">' +
-      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Preps hoy</div><div class="ccp-kpi__val ccp-kpi__val--gold" id="ccp-kpi-hoy">—</div></div>' +
+      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Preparaciones hoy</div><div class="ccp-kpi__val ccp-kpi__val--gold" id="ccp-kpi-hoy">—</div></div>' +
       '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Kg este mes</div><div class="ccp-kpi__val" id="ccp-kpi-kg">—</div></div>' +
       '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Revisar diferencias</div><div class="ccp-kpi__val" id="ccp-kpi-alert">—</div></div>' +
       '</div>'
@@ -221,7 +235,7 @@
   }
 
   function railHtml(active) {
-    return ['home', 'form', 'hist']
+    return ['home', 'recetario', 'form', 'hist']
       .filter(function (k) {
         return VIEWS[k];
       })
@@ -326,6 +340,18 @@
       return;
     }
 
+    if (view === 'recetario' && global.CrozzoRecetarioCocina) {
+      setLoading(false);
+      showRecetario(opts);
+      return;
+    }
+
+    if (global.__CROZZO_IS_TAURI__) {
+      setLoading(false);
+      showLocalFallback(opts);
+      return;
+    }
+
     if (cloudOk()) {
       setLoading(true, 'Preparando tu pantalla de cocina…');
       if (!hub.loadedQyc) {
@@ -372,6 +398,20 @@
     Ses.init(loc, { workflow: hint });
   }
 
+  function showRecetario(opts) {
+    opts = opts || {};
+    var loc = document.getElementById('ccp-local-host');
+    var eng = document.getElementById('ccp-engine');
+    var fr = document.getElementById('ccp-qyc-frame');
+    var Rec = global.CrozzoRecetarioCocina;
+    if (!loc || !eng || !Rec) return;
+    eng.classList.add('is-open');
+    loc.style.display = 'block';
+    if (fr) fr.style.display = 'none';
+    loc.innerHTML = Rec.render({ slug: opts.slug || null });
+    Rec.init(loc, opts);
+  }
+
   function showProcesosHistorial() {
     var loc = document.getElementById('ccp-local-host');
     var eng = document.getElementById('ccp-engine');
@@ -394,6 +434,10 @@
     loc.style.display = 'block';
     if (hub.view === 'hist') {
       showProcesosHistorial();
+      return;
+    }
+    if (hub.view === 'recetario') {
+      showRecetario(opts);
       return;
     }
     var mod = hub.view === 'jefe' ? 'recepcion' : 'procesado';
@@ -482,7 +526,7 @@
         var hint = card.getAttribute('data-ccp-hint') || card.getAttribute('data-ccp-wf');
         var view = sub === 'jefe' ? 'jefe' : sub === 'hist' ? 'hist' : 'form';
         setView(view, { hint: hint });
-        if (hint) toast('Sigue los pasos en pantalla', 'success');
+        if (hint) toast('Listo — completa los pasos en pantalla', 'info');
       });
     });
 
@@ -494,7 +538,58 @@
     });
   }
 
+  function applyKpiDom(today, kg, alertCount) {
+    var el = document.getElementById('ccp-kpi-hoy');
+    if (el) {
+      el.textContent =
+        today === 0
+          ? '0'
+          : today === 1
+            ? '1 preparación'
+            : today + ' preparaciones';
+    }
+    el = document.getElementById('ccp-kpi-kg');
+    if (el) el.textContent = kg > 0 ? kg.toFixed(1) + ' kg' : '0 kg';
+    el = document.getElementById('ccp-kpi-alert');
+    if (el) {
+      el.textContent =
+        alertCount === 0 ? 'Todo bien' : alertCount + ' lote' + (alertCount > 1 ? 's' : '') + ' a revisar';
+    }
+  }
+
+  function refreshKpisLocal() {
+    try {
+      var Res = global.CrozzoReservorio;
+      if (!Res || typeof Res.load !== 'function') return false;
+      var cortes = (Res.load().cortes || []).filter(function (c) {
+        return (c.modoProceso || 'prep_anticipado') !== 'bajo_demanda';
+      });
+      var hoy = new Date().toISOString().slice(0, 10);
+      var mes = hoy.slice(0, 7);
+      var today = 0;
+      var kg = 0;
+      var alertCount = 0;
+      cortes.forEach(function (c) {
+        var f = String(c.fecha || '').slice(0, 10);
+        if (f === hoy) today++;
+        if (String(c.fecha || '').slice(0, 7) === mes) {
+          var pe = Number(c.pesoEntradaKg) || 0;
+          kg += pe;
+          if (pe > 0 && Number(c.mermaTotalKg) > 0) {
+            var ratio = Number(c.mermaTotalKg) / pe;
+            if (ratio > 0.05) alertCount++;
+          }
+        }
+      });
+      applyKpiDom(today, kg, alertCount);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function refreshKpis() {
+    refreshKpisLocal();
     if (!cloudOk()) return;
     try {
       var raw = localStorage.getItem('crozzo_supabase_config');
@@ -530,12 +625,7 @@
           var pe = (parseFloat(r.peso_entrada_kg) || 0) * 1000;
           if (pe > 0 && Math.abs(d / pe) > 0.05) alert++;
         });
-        var el = document.getElementById('ccp-kpi-hoy');
-        if (el) el.textContent = today === 0 ? '0' : today + ' prep' + (today > 1 ? 's' : '');
-        el = document.getElementById('ccp-kpi-kg');
-        if (el) el.textContent = kg.toFixed(1) + ' kg';
-        el = document.getElementById('ccp-kpi-alert');
-        if (el) el.textContent = alert === 0 ? 'Todo bien' : alert + ' lote' + (alert > 1 ? 's' : '');
+        applyKpiDom(today, kg, alert);
       });
     } catch (_) {}
   }
@@ -552,7 +642,7 @@
       '<div class="ccp__hero-inner">' +
       (B ? B.brandHero() : '<div class="ccp__eyebrow">Cocina</div>') +
       '<h1 class="ccp__title">¿Qué vas a preparar hoy?</h1>' +
-      '<p class="ccp__sub">Toca lo que estás haciendo. Solo anotas lo que se hace antes del servicio y queda guardado en bodega.</p>' +
+      '<p class="ccp__sub">Elige la tarea, anota pesos o ingredientes y queda registrado en bodega para el servicio.</p>' +
       '</div></header>' +
       chain
     );
@@ -583,7 +673,14 @@
         heroHtml() +
         welcomeHtml() +
         kpiHtml() +
-        '<p class="ccp-home__lead">Los platos que se arman al pedir (huevos, pastas al momento, etc.) <strong>no</strong> se anotan aquí — el sistema los descuenta solos al vender.</p>' +
+        '<p class="ccp-home__lead">Lo que se arma al pedir (huevos, pastas al momento, etc.) <strong>no</strong> va aquí — el POS lo descuenta al vender.</p>' +
+        '<div class="ccp-home__section">' +
+        '<h2 class="ccp-home__section-title">Recetario de cocina</h2>' +
+        '<p class="ccp-home__section-lead">Ingredientes y pesos sincronizados con Costos — listo para imprimir o consultar en tablet.</p>' +
+        '<button type="button" class="btn btn-outline" data-ccp-view="recetario" style="margin:0 32px 8px">Abrir recetario</button></div>' +
+        '<div class="ccp-home__section">' +
+        '<h2 class="ccp-home__section-title">Tareas de preparación</h2>' +
+        '<p class="ccp-home__section-lead">Tres flujos guiados. Toca la tarjeta que corresponda a lo que estás haciendo ahora.</p></div>' +
         '<div class="ccp-wf">' +
         workflowCardsHtml() +
         '</div></div>' +
@@ -627,6 +724,7 @@
       'compras-cortes': 'home',
       'compras-proceso-sesion': 'form',
       'compras-proceso-historial': 'hist',
+      'compras-recetario-cocina': 'recetario',
       'centro-procesos': 'home'
     };
     return map[page] || null;

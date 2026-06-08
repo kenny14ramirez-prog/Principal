@@ -3011,6 +3011,21 @@
     }
   }
 
+  function crozzoSavePdfBase64ToDownloads(pdfB64, filename) {
+    if (!pdfB64 || !crozzoIsTauri()) {
+      return Promise.reject(new Error('Guardado nativo no disponible'));
+    }
+    return crozzoTauriInvoke('crozzo_save_pdf_b64', {
+      pdf_b64: String(pdfB64),
+      filename: String(filename || 'documento.pdf'),
+    }).then(function (res) {
+      if (res && res.ok && res.saved_path) {
+        return { ok: true, savedPath: res.saved_path, message: res.message || '' };
+      }
+      throw new Error((res && res.message) || 'No se pudo guardar el PDF en Descargas');
+    });
+  }
+
   function crozzoExportHtmlToPdfPrintDialog(htmlDocument, filename) {
     return crozzoPrintHtmlWindowOpen(htmlDocument, { delayMs: 700 }).then(function (ok) {
       if (ok && typeof global.showToast === 'function') {
@@ -3074,20 +3089,20 @@
             }
             return { ok: true, mode: 'native-oficio', filename: filename, savedPath: res.saved_path };
           }
-          if (!res.pdf_b64) {
-            throw new Error((res && res.message) || 'PDF nativo vacío');
+          if (res.pdf_b64) {
+            return crozzoSavePdfBase64ToDownloads(res.pdf_b64, filename).then(function (saveRes) {
+              if (typeof global.showToast === 'function' && options.toast !== false) {
+                global.showToast('PDF guardado en Descargas: ' + filename, 'success');
+              }
+              return {
+                ok: true,
+                mode: 'native-oficio',
+                filename: filename,
+                savedPath: saveRes.savedPath,
+              };
+            });
           }
-          var binary = atob(String(res.pdf_b64));
-          var bytes = new Uint8Array(binary.length);
-          for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-          var blob = new Blob([bytes], { type: 'application/pdf' });
-          if (!crozzoDownloadPdfBlob(blob, filename)) {
-            throw new Error((res && res.message) || 'No se pudo guardar el PDF en Descargas');
-          }
-          if (typeof global.showToast === 'function' && options.toast !== false) {
-            global.showToast('PDF descargado: ' + filename, 'success');
-          }
-          return { ok: true, mode: 'native-oficio', filename: filename };
+          throw new Error((res && res.message) || 'PDF nativo vacío');
         })
         .catch(function (err) {
           console.warn('[crozzo-print] exportHtmlToPdf native', err);

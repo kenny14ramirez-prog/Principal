@@ -9,12 +9,14 @@
   var LS_LEGACY_GROUPS = 'crozzo_sidebar_nav_v1';
   var LS_LEGACY_PINNED = 'crozzo_sidebar_expanded';
   var LS_GROUPS_RESET = 'bona_sidebar_groups_collapsed_v2';
-  var SUBMENU_DELAY_MS = 50;
-  var HOVER_OPEN_MS = 420;
-  var HOVER_CLOSE_MS = 280;
+  var SUBMENU_DELAY_MS = 40;
+  var HOVER_OPEN_MS = 180;
+  var HOVER_CLOSE_MS = 220;
+  var SIDEBAR_TRANSITION_MS = 320;
   var _hoverOpenTimer = null;
   var _hoverCloseTimer = null;
   var _sidebarTransitionTimer = null;
+  var _collapseGroupsTimer = null;
   var _boundNavEl = null;
   var _navCoreReady = false;
 
@@ -203,6 +205,31 @@
     }
   }
 
+  function syncSidebarLayoutClass(expanded) {
+    var root = document.documentElement;
+    if (!root) return;
+    root.classList.toggle('crozzo-sidebar-layout-expanded', !!expanded);
+  }
+
+  function cancelScheduledCollapseGroups() {
+    if (_collapseGroupsTimer) {
+      clearTimeout(_collapseGroupsTimer);
+      _collapseGroupsTimer = null;
+    }
+  }
+
+  function scheduleCollapseGroupsForRail() {
+    cancelScheduledCollapseGroups();
+    _collapseGroupsTimer = setTimeout(function () {
+      _collapseGroupsTimer = null;
+      var sb = getSidebar();
+      if (!sb || isSidebarExpanded(sb)) return;
+      if (readState().pinned) return;
+      if (sb.classList.contains('is-nav-searching')) return;
+      collapseGroupsForRail();
+    }, SIDEBAR_TRANSITION_MS);
+  }
+
   function markSidebarTransition() {
     var sb = getSidebar();
     if (sb && sb.classList.contains('crozzo-drawer-nav')) return;
@@ -214,7 +241,7 @@
     _sidebarTransitionTimer = setTimeout(function () {
       _sidebarTransitionTimer = null;
       root.classList.remove('crozzo-sidebar-transitioning');
-    }, 450);
+    }, SIDEBAR_TRANSITION_MS + 80);
   }
 
   function applyGroupOpen(group, open, withDelay) {
@@ -329,17 +356,20 @@
       } catch (_) {}
       if (expanded) restoreGroupsState(false);
     }
-    if (!expanded && !st.pinned && !sb.classList.contains('is-nav-searching') && !shouldDisableSidebarHover()) {
-      collapseGroupsForRail();
+    if (expanded) {
+      cancelScheduledCollapseGroups();
+    } else if (!st.pinned && !sb.classList.contains('is-nav-searching') && !shouldDisableSidebarHover()) {
+      scheduleCollapseGroupsForRail();
     }
     sb.classList.toggle('pinned', !!expanded && readState().pinned);
+    syncSidebarLayoutClass(!!expanded);
     if (wasExpanded !== !!expanded && sb && !sb.classList.contains('crozzo-drawer-nav') && !shouldDisableSidebarHover()) {
       markSidebarTransition();
     }
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-      btn.style.left = expanded ? '248px' : '14px';
+      btn.style.removeProperty('left');
     }
   }
 
@@ -686,22 +716,52 @@
     if (typeof global.crozzoRefreshLucideIcons === 'function') global.crozzoRefreshLucideIcons();
   }
 
-  function refresh() {
+  function repairAfterNavigation() {
+    clearHoverTimers();
+    cancelScheduledCollapseGroups();
+    var sb = getSidebar();
+    if (!sb) return;
     ensureLayout();
+    if (!isDrawerNavMode() && !sb.classList.contains('crozzo-drawer-nav')) {
+      sb.classList.remove('open');
+      sb.style.removeProperty('pointer-events');
+      sb.style.removeProperty('visibility');
+      sb.style.removeProperty('transform');
+      sb.style.removeProperty('display');
+      sb.style.removeProperty('width');
+      sb.style.removeProperty('max-width');
+      sb.removeAttribute('hidden');
+      sb.setAttribute('aria-hidden', 'false');
+      var btn = document.getElementById('menu-toggle-btn');
+      if (btn) {
+        var body = document.body;
+        if (!body || !body.classList.contains('crozzo-login-open')) {
+          btn.hidden = false;
+          btn.removeAttribute('hidden');
+          btn.style.removeProperty('display');
+          btn.style.removeProperty('pointer-events');
+          btn.style.removeProperty('left');
+        }
+      }
+    }
+    syncSidebarLayoutClass(isSidebarExpanded(sb));
+    var root = document.documentElement;
+    if (root) root.classList.remove('crozzo-sidebar-transitioning');
     bindGroupToggles();
     bindNavItems();
     bindNavSearch();
-    var sb = getSidebar();
-    if (sb && sb.classList.contains('is-nav-searching')) {
-      runNavSearch();
-      return;
-    }
-    restoreGroupsState(false);
+    if (sb.classList.contains('is-nav-searching')) runNavSearch();
+    else restoreGroupsState(false);
+  }
+
+  function refresh() {
+    repairAfterNavigation();
   }
 
   global.CrozzoSidebarNav = {
     init: init,
     refresh: refresh,
+    repairAfterNavigation: repairAfterNavigation,
     ensureLayout: ensureLayout,
     readState: readState,
     save: saveGroupsState,

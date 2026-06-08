@@ -167,6 +167,14 @@
     }
   }
 
+  function msg(key, fallback) {
+    if (global.CrozzoI18n && typeof global.CrozzoI18n.t === 'function') {
+      var v = global.CrozzoI18n.t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback;
+  }
+
   var userMenu = { open: false };
 
   function setUserMenuOpen(open) {
@@ -178,6 +186,9 @@
     dropdown.setAttribute('aria-hidden', open ? 'false' : 'true');
     dropdown.classList.toggle('is-open', open);
     if (open) {
+      if (global.CrozzoI18n && typeof global.CrozzoI18n.refreshLanguageMenu === 'function') {
+        global.CrozzoI18n.refreshLanguageMenu('');
+      }
       var first = dropdown.querySelector('.user-menu__item');
       if (first) first.focus();
     }
@@ -260,22 +271,22 @@
     var neu = (document.getElementById('changePasswordNew') && document.getElementById('changePasswordNew').value) || '';
     var conf = (document.getElementById('changePasswordConfirm') && document.getElementById('changePasswordConfirm').value) || '';
     var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
-    if (!u) return { ok: false, msg: 'No hay sesión activa.' };
-    if (!cur.trim()) return { ok: false, msg: 'Ingresa tu contraseña actual.' };
+    if (!u) return { ok: false, msg: msg('pwd.err.noSession', 'No hay sesión activa.') };
+    if (!cur.trim()) return { ok: false, msg: msg('pwd.err.currentRequired', 'Ingresa tu contraseña actual.') };
     var Auth = global.CrozzoAuthSecurity;
     if (Auth && typeof Auth.crozzoVerifyPassword === 'function') {
       var vr = await Auth.crozzoVerifyPassword(cur, u);
-      if (!vr.ok) return { ok: false, msg: 'La contraseña actual no coincide.' };
+      if (!vr.ok) return { ok: false, msg: msg('pwd.err.currentWrong', 'La contraseña actual no coincide.') };
     } else if (String(u.clave) !== String(cur)) {
-      return { ok: false, msg: 'La contraseña actual no coincide.' };
+      return { ok: false, msg: msg('pwd.err.currentWrong', 'La contraseña actual no coincide.') };
     }
     if (Auth && typeof Auth.crozzoPasswordPolicy === 'function') {
       var pol = Auth.crozzoPasswordPolicy(neu, u.id);
       if (!pol.ok) return { ok: false, msg: pol.msg };
     } else if (neu.length < 8) {
-      return { ok: false, msg: 'La nueva contraseña debe tener al menos 8 caracteres.' };
+      return { ok: false, msg: msg('pwd.err.minLength', 'La nueva contraseña debe tener al menos 8 caracteres.') };
     }
-    if (neu !== conf) return { ok: false, msg: 'La confirmación no coincide con la nueva contraseña.' };
+    if (neu !== conf) return { ok: false, msg: msg('pwd.err.confirm', 'La confirmación no coincide con la nueva contraseña.') };
     return { ok: true, neu: neu };
   }
 
@@ -310,7 +321,7 @@
       }
     } catch (e) {
       if (errEl) {
-        errEl.textContent = String(e && e.message ? e.message : e) || 'No se pudo guardar.';
+        errEl.textContent = String(e && e.message ? e.message : e) || msg('pwd.err.save', 'No se pudo guardar.');
         errEl.hidden = false;
       }
       return;
@@ -331,7 +342,7 @@
       global.config.addAudit('password_cambiada', 'Usuario ' + u.id + ' actualizó su contraseña');
     }
     closeChangePasswordModal();
-    if (typeof global.showToast === 'function') global.showToast('Contraseña actualizada correctamente', 'success');
+    if (typeof global.showToast === 'function') global.showToast(msg('pwd.ok', 'Contraseña actualizada correctamente'), 'success');
   }
 
   function userMenuLogout() {
@@ -345,14 +356,14 @@
       global.crozzoRequestLogout({ source: 'user-menu', force: true });
       return;
     }
-    if (!global.confirm('¿Seguro que deseas salir?')) return;
+    if (!global.confirm(msg('logout.confirm', '¿Seguro que deseas salir?'))) return;
     if (typeof global.logoutCurrentUser === 'function') global.logoutCurrentUser();
     if (typeof global.applyAccessControl === 'function') global.applyAccessControl();
     if (typeof global.shouldRequireLogin === 'function' && global.shouldRequireLogin()) {
       if (typeof global.showLoginOverlay === 'function') global.showLoginOverlay();
     } else if (typeof global.navigateTo === 'function') {
       global.navigateTo('cajero');
-      if (typeof global.showToast === 'function') global.showToast('Sesión cerrada', 'info');
+      if (typeof global.showToast === 'function') global.showToast(msg('logout.done', 'Sesión cerrada'), 'info');
     }
     try {
       if (typeof global.crozzoShiftSyncFabVisibility === 'function') global.crozzoShiftSyncFabVisibility();

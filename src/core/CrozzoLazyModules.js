@@ -17,7 +17,15 @@
   }
 
   function bundleSrc(src) {
-    if (!global.__CROZZO_IS_TAURI__ || !src || src.indexOf('bundles/') !== 0) return src;
+    if (!global.__CROZZO_IS_TAURI__ || !src) return src;
+    var isBundle = src.indexOf('bundles/') === 0;
+    var isModule = src.indexOf('modules/') === 0;
+    var isProcesosModule =
+      src.indexOf('modules/CrozzoCentroProcesos') === 0 ||
+      src.indexOf('modules/CrozzoProcesosSesion') === 0 ||
+      src.indexOf('modules/CrozzoBonaOrigen') === 0 ||
+      src.indexOf('modules/CrozzoRecetarioCocina') === 0;
+    if (!isBundle && !isModule && !isProcesosModule) return src;
     var v =
       (global.CrozzoRecepcionFacturas && global.CrozzoRecepcionFacturas.version) ||
       (function () {

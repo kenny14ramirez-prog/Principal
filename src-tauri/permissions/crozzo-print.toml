@@ -11,4 +11,4 @@ commands.allow = ["crozzo_get_default_printer"]
 [[permission]]
 identifier = "allow-crozzo-print-raw"
 description = "Impresión térmica RAW ESC/POS"
-commands.allow = ["crozzo_print_raw", "crozzo_print_raw_b64", "crozzo_print_html_b64"]
+commands.allow = ["crozzo_print_raw", "crozzo_print_raw_b64", "crozzo_print_html_b64", "crozzo_html_to_pdf_b64", "crozzo_save_pdf_b64"]

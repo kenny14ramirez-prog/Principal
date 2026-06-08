@@ -14,6 +14,38 @@
     costos: B + 'CrozzoBundleCostos.js',
   };
 
+  /** Dependencias de bundles + módulos canónicos (sobreescriben copias embebidas en bundles). */
+  var PROCESOS_STACK = [
+    BUNDLES.compras,
+    BUNDLES.costos,
+    BUNDLES.reservorio,
+    'vendor/CrozzoJsPdf.js',
+    M + 'CrozzoBonaOrigen.js',
+    M + 'CrozzoProcesosSesion.js',
+    M + 'CrozzoRecetarioCocina.js',
+    M + 'CrozzoCentroProcesos.js',
+  ];
+
+  /** Alias sidebar → vista interna (disponible antes de cargar CrozzoCentroProcesos). */
+  var PROCESOS_PAGE_VIEWS = {
+    'compras-cortes': 'home',
+    'compras-proceso-sesion': 'form',
+    'compras-proceso-historial': 'hist',
+    'compras-recetario-cocina': 'recetario',
+    'centro-procesos': 'home',
+  };
+
+  function procesosPageToView(page) {
+    var p = String(page || '').trim();
+    if (PROCESOS_PAGE_VIEWS[p]) return PROCESOS_PAGE_VIEWS[p];
+    try {
+      if (typeof global.crozzoProcesosPageToView === 'function') {
+        return global.crozzoProcesosPageToView(p);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   var MODULES = {
     planilla: M + 'CrozzoPlanilla2026.js',
     integrados: M + 'CrozzoModulosIntegrados.js',
@@ -35,24 +67,38 @@
     'centro-compras': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados],
     'compras-oficina': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados],
     'operaciones-qyc': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados],
-    'centro-procesos': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
-    'compras-cortes': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
-    'compras-proceso-sesion': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
+    'centro-procesos': PROCESOS_STACK.slice(),
+    'compras-cortes': PROCESOS_STACK.slice(),
+    'compras-proceso-sesion': PROCESOS_STACK.slice(),
     'compras-proceso-entrada': ['vendor/CrozzoPdfJs.js', BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
-    'compras-proceso-historial': [BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
+    'compras-proceso-historial': PROCESOS_STACK.slice(),
     'sistema-costos': [
       'vendor/CrozzoJsPdf.js',
       BUNDLES.costos,
       BUNDLES.reservorio,
       M + 'CrozzoPedidosInternosEngine.js',
+      M + 'CrozzoCatalogoMp.js',
+      M + 'CrozzoMatrizMp.js',
+      M + 'CrozzoCosteoMp.js',
+      M + 'CrozzoSistemaCostos.js',
     ],
     'costos-matriz': [
       'vendor/CrozzoJsPdf.js',
       BUNDLES.costos,
       BUNDLES.reservorio,
       M + 'CrozzoPedidosInternosEngine.js',
+      M + 'CrozzoCatalogoMp.js',
+      M + 'CrozzoMatrizMp.js',
+      M + 'CrozzoCosteoMp.js',
+      M + 'CrozzoSistemaCostos.js',
     ],
-    'costos-inventario': [BUNDLES.costos, BUNDLES.reservorio],
+    'costos-inventario': [
+      BUNDLES.costos,
+      BUNDLES.reservorio,
+      M + 'CrozzoCatalogoMp.js',
+      M + 'CrozzoCosteoMp.js',
+      M + 'CrozzoSistemaCostos.js',
+    ],
     'costos-reservorio': [BUNDLES.costos, BUNDLES.reservorio],
     'costos-planilla-feed': [BUNDLES.costos, BUNDLES.reservorio],
     'planilla-2026': [MODULES.planilla, MODULES.integrados],
@@ -60,7 +106,7 @@
     'pedidos-internos': [BUNDLES.reservorio, BUNDLES.costos, MODULES.pedidosEngine, MODULES.integrados, MODULES.integradosPedidos],
     'control-acceso': [MODULES.integrados, MODULES.integradosAcceso],
     productos: [MODULES.sortable],
-    'catalogo-mp': [BUNDLES.costos, BUNDLES.reservorio],
+    'catalogo-mp': [BUNDLES.costos, BUNDLES.reservorio, M + 'CrozzoCatalogoMp.js', M + 'CrozzoMatrizMp.js'],
     'gestion-perfiles-menus': [MODULES.sortable],
   };
 
@@ -77,7 +123,7 @@
     if (p === 'punto-venta') return 'cajero';
     if (p === 'compras-proceso-entrada') return 'compras-recepcion';
     try {
-      if (typeof global.crozzoProcesosPageToView === 'function' && global.crozzoProcesosPageToView(p)) {
+      if (procesosPageToView(p)) {
         return 'centro-procesos';
       }
       if (typeof global.crozzoComprasPageToModule === 'function' && global.crozzoComprasPageToModule(p)) {
@@ -104,7 +150,9 @@
     bundles: BUNDLES,
     modules: MODULES,
     pageScripts: PAGE_SCRIPTS,
+    procesosPageToView: procesosPageToView,
     resolvePageAlias: resolvePageAlias,
     scriptsForPage: scriptsForPage,
   };
+  global.crozzoProcesosPageToView = procesosPageToView;
 })(typeof window !== 'undefined' ? window : globalThis);
