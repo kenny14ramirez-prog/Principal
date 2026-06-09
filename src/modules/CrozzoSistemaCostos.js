@@ -4053,6 +4053,8 @@
       ajuste_entrada: 'Ajuste entrada',
       ajuste_salida: 'Ajuste salida',
       merma: 'Merma',
+      salida_remision: 'Salida remisión',
+      entrada_remision: 'Entrada remisión',
     };
     if (String(tipo || '').indexOf('conteo') >= 0) return 'Ajuste conteo';
     return map[tipo] || String(tipo || 'movimiento').replace(/_/g, ' ');
@@ -4067,7 +4069,9 @@
     return u.toLowerCase();
   }
 
-  function buildInventarioSnapshot() {
+  function buildInventarioSnapshot(opts) {
+    opts = opts || {};
+    var bodegaFilter = String(opts.bodegaId || '').trim();
     var C = global.CrozzoCatalogoMp;
     var rv = reservorio();
     var catList = C && C.list ? C.list() : [];
@@ -4076,6 +4080,14 @@
       movsAll = (rv.migrateLegacy().inventarioMovimientos || []).slice();
     } else if (rv && rv.listInventarioMovimientos) {
       movsAll = rv.listInventarioMovimientos(5000) || [];
+    }
+    if (bodegaFilter) {
+      movsAll = movsAll.filter(function (m) {
+        if (!m) return false;
+        var bid = m.bodegaId || '';
+        if (bodegaFilter === 'bod_principal') return !bid || bid === 'bod_principal';
+        return bid === bodegaFilter;
+      });
     }
     var byMp = {};
     catList.forEach(function (mp) {
@@ -5506,9 +5518,19 @@
     return String(Math.round(x * 100) / 100);
   }
 
+  function bodegaLabelInv(bodegaId) {
+    if (!bodegaId) return 'Principal';
+    try {
+      if (global.CrozzoFederacionEngine && global.CrozzoFederacionEngine.bodegaLabel) {
+        return global.CrozzoFederacionEngine.bodegaLabel(bodegaId);
+      }
+    } catch (_) {}
+    return bodegaId;
+  }
+
   function renderInventarioMovRows(movs) {
     if (!movs.length) {
-      return '<tr><td colspan="5" style="text-align:center;padding:28px;opacity:.75">Sin movimientos aún — las recepciones y ventas POS alimentan este libro.</td></tr>';
+      return '<tr><td colspan="6" style="text-align:center;padding:28px;opacity:.75">Sin movimientos aún — las recepciones y ventas POS alimentan este libro.</td></tr>';
     }
     return movs
       .map(function (m) {
@@ -5524,6 +5546,8 @@
           '</span></td><td>' +
           esc(m.productoNombre || m.productoRefId) +
           (m.notas ? '<span style="display:block;font-size:.68rem;opacity:.65;margin-top:2px">' + esc(m.notas) + '</span>' : '') +
+          '</td><td style="font-size:.72rem;opacity:.85">' +
+          esc(bodegaLabelInv(m.bodegaId)) +
           '</td><td class="num" style="font-weight:700">' +
           sign +
           formatInvQty(m.cantidad) +
@@ -5538,9 +5562,9 @@
   }
 
   function renderInventarioPanel() {
-    if (!hub.inventarioUi) hub.inventarioUi = { q: '', cat: 'all', tab: 'stock' };
-    var snap = buildInventarioSnapshot();
+    if (!hub.inventarioUi) hub.inventarioUi = { q: '', cat: 'all', tab: 'stock', bodega: '' };
     var ui = hub.inventarioUi;
+    var snap = buildInventarioSnapshot({ bodegaId: ui.bodega || '' });
     var filtered = filterInventarioItems(snap.items, ui.q, ui.cat);
     var tab = ui.tab || 'stock';
     if (tab === 'conteo') ensureInventarioConteoSession(snap);
@@ -5562,6 +5586,27 @@
             '">' +
             esc(c) +
             '</button>'
+          );
+        })
+        .join('');
+    var bodegas = [];
+    try {
+      if (global.CrozzoFederacionEngine && global.CrozzoFederacionEngine.listBodegas) {
+        bodegas = global.CrozzoFederacionEngine.listBodegas();
+      }
+    } catch (_) {}
+    var bodegaOpts =
+      '<option value="">Todas las bodegas (global)</option>' +
+      bodegas
+        .map(function (b) {
+          return (
+            '<option value="' +
+            esc(b.id) +
+            '"' +
+            (ui.bodega === b.id ? ' selected' : '') +
+            '>' +
+            esc(b.nombre) +
+            '</option>'
           );
         })
         .join('');
@@ -5616,6 +5661,9 @@
       (tab === 'stock' ? ' is-active' : '') +
       '" data-inv-panel="stock">' +
       '<div class="crozzo-inv-toolbar">' +
+      '<select class="form-input crozzo-inv-bodega-sel" id="crozzoInvBodega" style="max-width:220px;margin-right:8px" title="Filtrar teórico y movimientos por bodega">' +
+      bodegaOpts +
+      '</select>' +
       '<input type="search" class="crozzo-inv-search" id="crozzoInvSearch" placeholder="Buscar MP, categoría… (ej. lacteos queso)" value="' +
       esc(ui.q) +
       '" autocomplete="off">' +
@@ -5674,7 +5722,7 @@
       '" data-inv-panel="movs">' +
       '<div class="crozzo-inv-table-shell">' +
       '<div class="crozzo-inv-scroll"><table class="crozzo-inv-table"><thead><tr>' +
-      '<th>Fecha</th><th>Tipo</th><th>Producto / detalle</th><th class="num">Cantidad</th><th class="num">$/u mov.</th>' +
+      '<th>Fecha</th><th>Tipo</th><th>Producto / detalle</th><th>Bodega</th><th class="num">Cantidad</th><th class="num">$/u mov.</th>' +
       '</tr></thead><tbody>' +
       renderInventarioMovRows(snap.movs) +
       '</tbody></table></div></div></div>' +
@@ -5711,7 +5759,16 @@
 
   function initInventarioPanel(root) {
     if (!root) return;
-    if (!hub.inventarioUi) hub.inventarioUi = { q: '', cat: 'all', tab: 'stock' };
+    if (!hub.inventarioUi) hub.inventarioUi = { q: '', cat: 'all', tab: 'stock', bodega: '' };
+
+    var bodegaSel = root.querySelector('#crozzoInvBodega');
+    if (bodegaSel && !bodegaSel._bound) {
+      bodegaSel._bound = true;
+      bodegaSel.addEventListener('change', function () {
+        hub.inventarioUi.bodega = bodegaSel.value || '';
+        refreshInventarioPanel();
+      });
+    }
 
     var search = root.querySelector('#crozzoInvSearch');
     if (search && !search._bound) {
@@ -5912,7 +5969,7 @@
     if (prMovs && !prMovs._bound) {
       prMovs._bound = true;
       prMovs.addEventListener('click', function () {
-        printInventarioMovs(buildInventarioSnapshot());
+        printInventarioMovs(buildInventarioSnapshot({ bodegaId: hub.inventarioUi.bodega || '' }));
       });
     }
 

@@ -105,9 +105,29 @@
     ],
     'costos-reservorio': [BUNDLES.costos, BUNDLES.reservorio],
     'costos-planilla-feed': [BUNDLES.costos, BUNDLES.reservorio],
+    'costos-federacion': [
+      BUNDLES.costos,
+      BUNDLES.reservorio,
+      M + 'CrozzoCatalogoMp.js',
+      M + 'CrozzoFederacionSql.js',
+      M + 'CrozzoFederacionEngine.js',
+      M + 'CrozzoFederacionOperaciones.js',
+    ],
+    'super-admin-federacion': [
+      M + 'CrozzoFederacionSql.js',
+      M + 'CrozzoFederacionEngine.js',
+      M + 'CrozzoSuperAdminFederacion.js',
+    ],
     'planilla-2026': [MODULES.planilla, MODULES.integrados],
     'nomina-planilla': [MODULES.planilla, MODULES.integrados],
-    'pedidos-internos': [BUNDLES.reservorio, BUNDLES.costos, MODULES.pedidosEngine, MODULES.integrados, MODULES.integradosPedidos],
+    'pedidos-internos': [
+      BUNDLES.reservorio,
+      BUNDLES.costos,
+      M + 'CrozzoCatalogoMp.js',
+      MODULES.pedidosEngine,
+      MODULES.integrados,
+      MODULES.integradosPedidos,
+    ],
     'control-acceso': [MODULES.integrados, MODULES.integradosAcceso],
     productos: [MODULES.sortable],
     'catalogo-mp': [BUNDLES.costos, BUNDLES.reservorio, M + 'CrozzoCatalogoMp.js', M + 'CrozzoMatrizMp.js'],
@@ -123,6 +143,7 @@
     if (p === 'compras-oficina') return 'centro-compras';
     if (p === 'costos-sql') return 'costos-reservorio';
     if (p === 'sistema-costos-inv') return 'costos-inventario';
+    if (p === 'sistema-costos-fed') return 'costos-federacion';
     if (p === 'sistema-costos-matriz') return 'costos-matriz';
     if (p === 'punto-venta') return 'cajero';
     if (p === 'compras-proceso-entrada') return 'compras-recepcion';

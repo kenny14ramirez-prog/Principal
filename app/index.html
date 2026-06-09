@@ -260,6 +260,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="cartera-comercial" data-menu="cartera-comercial" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="credit-card"></i></span><span class="nav-item-label">Cartera clientes</span></div></li>
             <li><div class="nav-item menu-item" data-page="caja-clientes" data-menu="caja" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="users"></i></span><span class="nav-item-label">Clientes (FE)</span></div></li>
             <li><div class="nav-item menu-item" data-page="inventarios" data-menu="inventarios" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="bar-chart-3"></i></span><span class="nav-item-label">Reportes y dashboard</span></div></li>
+            <li><div class="nav-item menu-item" data-page="costos-federacion" data-menu="sistema-costos-fed" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="truck"></i></span><span class="nav-item-label">Bodegas y remisiones</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-dashboard" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="pie-chart"></i></span><span class="nav-item-label">Resumen compras</span></div></li>
           </ul>
         </li>
@@ -271,6 +272,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
           <ul class="nav-group-items" id="nav-group-costos" role="group" aria-labelledby="nav-toggle-costos">
             <li><div class="nav-item menu-item" data-page="costos-matriz" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="table"></i></span><span class="nav-item-label">Costos y márgenes</span></div></li>
             <li><div class="nav-item menu-item" data-page="costos-inventario" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="boxes"></i></span><span class="nav-item-label">Inventario continuo</span></div></li>
+            <li><div class="nav-item menu-item" data-page="costos-federacion" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="truck"></i></span><span class="nav-item-label">Bodegas y remisiones</span></div></li>
             <li><div class="nav-item menu-item" data-page="costos-planilla-feed" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="list-checks"></i></span><span class="nav-item-label">Cola planilla</span></div></li>
             <li><div class="nav-item menu-item" data-page="costos-reservorio" data-menu="sistema-costos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="database"></i></span><span class="nav-item-label">Reservorio</span></div></li>
           </ul>
@@ -324,6 +326,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="config-certificado" data-menu="certificado-p12" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><span class="nav-item-label">Certificado .p12</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-proveedor" data-menu="proveedor" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="plug"></i></span><span class="nav-item-label">Proveedor FE</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-nube" data-menu="config-nube-global" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span class="nav-item-label">Nube global</span></div></li>
+            <li><div class="nav-item menu-item" data-page="super-admin-federacion" data-menu="config-federacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="link"></i></span><span class="nav-item-label">Federación / remisiones</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-multidispositivo" data-menu="conexion-multi" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wifi"></i></span><span class="nav-item-label">Multi-dispositivo</span></div></li>
             <li><div class="nav-item menu-item" id="menu-test-diagnostics" data-page="super-admin-diagnostics" data-menu="pruebas-conexion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="nav-item-label">Pruebas de sistema</span></div></li>
             <li><div class="nav-item menu-item" data-page="modo-demo" data-menu="modo-operacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="toggle-right"></i></span><span class="nav-item-label">Modo de operación</span></div></li>
@@ -923,6 +926,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
 <script src="modules/CrozzoSuperAdminNube.js" defer></script>
+<script src="modules/CrozzoFederacionSql.js" defer></script>
+<script src="modules/CrozzoFederacionEngine.js" defer></script>
+<script src="modules/CrozzoSuperAdminFederacion.js" defer></script>
+<script src="modules/CrozzoFederacionOperaciones.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="infra/CrozzoAutomationApi.js" defer></script>

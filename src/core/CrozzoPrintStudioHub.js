@@ -2869,6 +2869,25 @@
     pickPrintOutput: pickPrintOutput,
     getPrintOutput: getPrintOutput,
     getInventarioPrintOpts: getInventarioPrintOpts,
+    getRemisionPrintOpts: function () {
+      var outputId = normalizePrintOutput(getPrintOutput('remision'));
+      var meta = printOutputMeta(outputId);
+      var conf = getFacturacionAdminConfigSafe();
+      var isRoll = meta.kind === 'roll';
+      return {
+        printOutput: meta.id,
+        pageFormat: isRoll ? undefined : meta.page,
+        landscape: !isRoll && outputId !== 'carta',
+        allowDialog: true,
+        silent: false,
+        printer: resolvePrinterForOutput(outputId, conf, 'bodega'),
+        role: 'bodega',
+        channel: isRoll ? 'roll' : 'normal',
+        paperSz: meta.sz,
+        preferEscPos: isRoll,
+      };
+    },
+    resolvePrinterForOutput: resolvePrinterForOutput,
     savedPrintOutput: savedPrintOutput,
     persistPrintOutputScope: persistPrintOutputScope,
     collectPrintOutputsFromUi: collectPrintOutputsFromUi,

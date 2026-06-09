@@ -681,6 +681,8 @@
       unidad: mov.unidad || 'und',
       costoUnitario: Number(mov.costoUnitario) || 0,
       notas: mov.notas || '',
+      bodegaId: mov.bodegaId ? String(mov.bodegaId) : '',
+      bodegaDestinoId: mov.bodegaDestinoId ? String(mov.bodegaDestinoId) : '',
       createdAt: new Date().toISOString(),
     };
     st.inventarioMovimientos.unshift(row);

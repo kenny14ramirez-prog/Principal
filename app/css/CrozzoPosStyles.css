@@ -2156,8 +2156,9 @@ html.tauri-desktop #sidebar.sidebar-pro::-webkit-scrollbar-thumb:hover {
 html.tauri-desktop .menu-toggle,
 html.tauri-desktop #menu-toggle-btn.menu-toggle {
   position: fixed !important;
-  top: 14px !important;
-  left: calc(var(--sidebar-width-rail, 64px) - 50px) !important;
+  /* Debajo del header: el rail lateral arranca en --crozzo-header-h, no en y=0 */
+  top: calc(var(--crozzo-header-h, 60px) + 12px) !important;
+  left: calc(var(--sidebar-width-rail, 64px) - 21px) !important;
   width: 42px !important;
   height: 42px !important;
   background: var(--accent) !important;
@@ -2174,14 +2175,20 @@ html.tauri-desktop #menu-toggle-btn.menu-toggle {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   transition:
     left var(--sidebar-duration) var(--sidebar-ease),
+    top var(--sidebar-duration) var(--sidebar-ease),
     background 0.22s var(--sidebar-ease),
     transform 0.22s var(--sidebar-ease),
     box-shadow 0.22s var(--sidebar-ease) !important;
   padding: 0 !important;
+  pointer-events: auto !important;
 }
 html.tauri-desktop.crozzo-sidebar-layout-expanded #menu-toggle-btn.menu-toggle,
 html.tauri-desktop.crozzo-sidebar-layout-expanded .menu-toggle {
-  left: calc(var(--sidebar-width-expanded, 260px) - 12px) !important;
+  /* Dentro del ancho del sidebar expandido — no invade el título del header */
+  left: calc(var(--sidebar-width-expanded, 260px) - 48px) !important;
+}
+html.tauri-desktop .mobile-menu-btn {
+  display: none !important;
 }
 html.tauri-desktop .menu-toggle:hover,
 html.tauri-desktop #menu-toggle-btn.menu-toggle:hover {
@@ -8713,7 +8720,76 @@ body.crozzo-unified-chrome .crozzo-hfsi {
   border-radius: 12px;
 }
 
-body.crozzo-page-pedidos-internos .main-body { max-width: 960px; margin: 0 auto; }
+
+/* Pedidos internos — layout mínimo; tabs/cards usan estilos globales de gestión */
+.crozzo-pi-row {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.crozzo-pi-row:last-child {
+  border-bottom: none;
+}
+.crozzo-pi-row--admin {
+  grid-template-columns: 1fr 130px 72px 88px;
+}
+.crozzo-pi-row--extra {
+  grid-template-columns: 1fr 100px;
+  margin-top: 6px;
+}
+.crozzo-pi-row__label {
+  font-size: 13px;
+  line-height: 1.35;
+}
+.crozzo-pi-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.crozzo-pi-badge--receta {
+  background: color-mix(in srgb, var(--success, #10b981) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--success, #10b981) 35%, var(--border));
+}
+.crozzo-pi-trace-btn {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: inherit;
+}
+.crozzo-pi-trace-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.crozzo-pi-hide-lbl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  justify-content: center;
+}
+@media (max-width: 720px) {
+  .crozzo-pi-row--admin {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Centro de producción — panel local (Nueva sesión) */
 .ccp-local {
@@ -8739,14 +8815,36 @@ html.crozzo-vp-ready #mainContent.main-body--centro-procesos {
 }
 
 /* Planillas — pantalla completa con scroll interno */
+body.crozzo-page-planillas .main-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+body.crozzo-page-planillas .main-header {
+  flex-shrink: 0;
+  padding: 8px 20px 10px;
+}
+body.crozzo-page-planillas .main-header .page-subtitle {
+  display: none;
+}
+body.crozzo-page-planillas.crozzo-pl-focus-mode .main-header {
+  display: none;
+}
 body.crozzo-page-planillas .main-body,
 #mainContent.main-body--planillas {
   padding: 0 !important;
   overflow: hidden !important;
   min-height: 0 !important;
-  height: auto !important;
   flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
   background: var(--bg-primary);
+}
+body.crozzo-page-planillas .crozzo-pl-app {
+  flex: 1;
+  min-height: 0;
 }
 html.crozzo-vp-ready body.crozzo-page-planillas .main-body,
 html.crozzo-vp-ready #mainContent.main-body--planillas {
@@ -8778,6 +8876,15 @@ body.crozzo-page-modulo-gestion .main-header--modulo-gestion {
   z-index: 2;
   padding-top: 12px;
   padding-bottom: 12px;
+  overflow: visible;
+}
+body.crozzo-page-modulo-gestion .crozzo-header__primary {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+body.crozzo-page-modulo-gestion .crozzo-header__titles {
+  position: relative;
+  z-index: 1;
 }
 body.crozzo-page-modulo-gestion .main-header .page-subtitle {
   margin: 2px 0 0;
@@ -24523,9 +24630,24 @@ html.tauri-desktop #sidebar.sidebar-pro.expanded .crozzo-nav-search {
   justify-content: center;
   color: var(--accent);
 }
-#sidebar.sidebar-elite:not(.expanded):not(.is-expanded) .crozzo-nav-search-wrap {
+#sidebar.sidebar-elite:not(.expanded):not(.is-expanded):not(.open) .crozzo-nav-search-wrap {
   display: none !important;
   pointer-events: none !important;
+}
+#sidebar.sidebar-elite:not(.expanded):not(.is-expanded):not(.open) .demo-badge {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .demo-badge {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 /* --- Actualizaciones del sistema (Super Admin) --- */
 .crozzo-updates-version {

@@ -16,13 +16,13 @@
     ],
     mediano: [
       'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
-      'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'centro-compras',
+      'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed', 'centro-compras',
       'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa',
       'config-comandas', 'nomina-planilla',
     ],
     grande: [
       'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
-      'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv',
+      'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed',
       'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
       'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial',
       'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa',
@@ -67,7 +67,7 @@
       cocina: ['cocina', 'comandas', 'pedidos-internos'],
       inventario: [
         'centro-compras', 'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'inventarios',
-        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv',
+        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed',
       ],
       admin: [
         'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
@@ -87,7 +87,7 @@
       inventario: [
         'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
         'compras-cortes', 'compras-proceso-historial', 'pedidos-internos', 'inventarios',
-        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv',
+        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed',
       ],
       admin: PERFIL_CLIENT_MENUS.grande.filter(function (m) {
         return m !== 'all';

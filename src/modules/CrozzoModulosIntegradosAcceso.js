@@ -221,6 +221,10 @@
   }
 
   function confirmarSiSoyYo() {
+    if (!acc.curEmp || !acc.pendingAction) {
+      setScreen('home');
+      return;
+    }
     acc.pendingNow = Date.now();
     if (acc.requiereFoto !== false) {
       var av = document.getElementById('ca-cam-av');

@@ -351,6 +351,168 @@
     return n;
   }
 
+  function pantallaForArea(areaId) {
+    var a = norm(areaId);
+    if (a.indexOf('bar') >= 0 || a.indexOf('beb') >= 0) return 'Bar · comandas / KDS';
+    if (a.indexOf('panad') >= 0) return 'Panadería · producción';
+    if (a.indexOf('desech') >= 0) return 'Desechables · despacho';
+    return 'Cocina · comandas / KDS';
+  }
+
+  /** Cadena MP → receta → plato POS (areaComanda) → pantalla de venta/comanda */
+  function getMpTrace(mpId) {
+    var st = reservorioStore();
+    var areas = getComandasAreas();
+    var cfg = loadConfig();
+    var C = global.CrozzoCatalogoMp;
+    var mp = null;
+    if (C && C.list) {
+      mp = C.list().find(function (x) {
+        return String(x.id) === String(mpId);
+      });
+    }
+    if (!mp) return null;
+    var areaId = resolveMpArea(mp, areas, cfg);
+    var ov = cfg.overrides[mp.id] || {};
+    var source = ov.areaId ? 'manual' : mp.areaPedido ? 'catalogo' : inferAreaFromRecipes(mp.id, areas) ? 'receta' : 'categoria';
+    var menu = st && Array.isArray(st.menuCostos) ? st.menuCostos : [];
+    var platos = [];
+    slugsUsingMp(mp.id, st || {}).forEach(function (slug) {
+      var rec = getAllRecetas(st).find(function (r) {
+        return norm(r.slug) === norm(slug);
+      });
+      var plato = menu.find(function (r) {
+        return norm(r.slug) === norm(slug);
+      });
+      if (!plato) {
+        plato = menu.find(function (r) {
+          return norm(r.producto) === norm(slug);
+        });
+      }
+      var prod = plato ? findProductForPlato(plato) : null;
+      var ac = prod && prod.areaComanda ? String(prod.areaComanda).trim() : '';
+      platos.push({
+        slug: slug,
+        producto: (plato && plato.producto) || (rec && rec.nombre) || slug,
+        areaComanda: ac,
+        areaLabel: ac ? areaLabel(ac) : '',
+        pantalla: ac ? pantallaForArea(ac) : '',
+        lineasReceta: rec && rec.lineas ? rec.lineas.length : 0,
+      });
+    });
+    return {
+      mpId: mp.id,
+      nombre: mp.nombre,
+      categoria: mp.categoria,
+      areaId: areaId,
+      areaLabel: areaLabel(areaId),
+      areaSource: source,
+      platos: platos,
+    };
+  }
+
+  function getIntegrationSummary() {
+    var panels = buildAreaPanels();
+    var totalMp = 0;
+    var byRecipe = 0;
+    panels.forEach(function (p) {
+      p.sections.forEach(function (s) {
+        s.items.forEach(function (it) {
+          totalMp++;
+          if (it.areaSource === 'receta') byRecipe++;
+        });
+      });
+    });
+    return {
+      areas: panels.length,
+      totalMp: totalMp,
+      linkedRecipes: byRecipe,
+      areasList: panels.map(function (p) {
+        return { id: p.id, label: p.label, count: p.sections.reduce(function (n, s) { return n + s.items.length; }, 0) };
+      }),
+    };
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function buildPedidoPrintHtml(pedido) {
+    pedido = pedido || {};
+    var items = Array.isArray(pedido.items) ? pedido.items : [];
+    var area = escHtml(pedido.area_label || areaLabel(pedido.area) || pedido.area || '');
+    var resp = escHtml(pedido.responsable || '');
+    var fecha = escHtml(pedido.fecha_pedido || '');
+    var obs = escHtml(pedido.observaciones || '');
+    var neg = '';
+    try {
+      if (typeof global.config !== 'undefined' && global.config.get) {
+        var emp = global.config.get('empresa') || {};
+        neg = escHtml(emp.nombreComercial || emp.razonSocial || '');
+      }
+    } catch (_) {}
+    var rows = items
+      .map(function (it) {
+        return (
+          '<tr><td>' +
+          escHtml(it.seccion || '') +
+          '</td><td>' +
+          escHtml(it.producto || '') +
+          '</td><td style="text-align:right;font-weight:700">' +
+          escHtml(it.cantidad || '') +
+          '</td></tr>'
+        );
+      })
+      .join('');
+    return (
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pedido interno</title>' +
+      '<style>@page{size:80mm auto;margin:3mm}body{font-family:Consolas,monospace;font-size:11px;margin:0;padding:4px 6px;color:#000}' +
+      'h1{font-size:13px;margin:0 0 6px;text-transform:uppercase}table{width:100%;border-collapse:collapse}' +
+      'td,th{padding:4px 2px;border-bottom:1px dashed #666;font-size:10px}th{text-align:left;font-size:9px;text-transform:uppercase}' +
+      '.meta{font-size:9px;line-height:1.4;margin-bottom:8px}.foot{margin-top:10px;font-size:8px;color:#444}</style></head><body>' +
+      '<h1>Pedido interno · ' +
+      area +
+      '</h1>' +
+      (neg ? '<div class="meta"><strong>' + neg + '</strong></div>' : '') +
+      '<div class="meta">Responsable: ' +
+      resp +
+      '<br>Fecha: ' +
+      fecha +
+      '</div>' +
+      '<table><thead><tr><th>Sección</th><th>Insumo</th><th>Cant.</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="3">Sin ítems</td></tr>') +
+      '</tbody></table>' +
+      (obs ? '<p class="meta" style="margin-top:8px"><strong>Obs:</strong> ' + obs + '</p>' : '') +
+      '<p class="foot">Crozzo POS · MP vinculada a recetas → platos → área comanda</p></body></html>'
+    );
+  }
+
+  function printPedido(pedido, opts) {
+    opts = opts || {};
+    var html = buildPedidoPrintHtml(pedido);
+    if (global.crozzoPrintHtmlDocument) {
+      return global.crozzoPrintHtmlDocument(html, {
+        printOutput: opts.printOutput || 'roll_80',
+        role: 'bodega',
+        channel: 'roll',
+        allowDialog: true,
+      });
+    }
+    try {
+      var w = window.open('', '_blank', 'width=420,height=640');
+      if (w) {
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        w.print();
+      }
+    } catch (_) {}
+    return Promise.resolve(false);
+  }
+
   global.CrozzoPedidosInternosEngine = {
     LS_CONFIG: LS_CONFIG,
     loadConfig: loadConfig,
@@ -362,6 +524,12 @@
     inferAreaFromRecipes: inferAreaFromRecipes,
     setOverride: setOverride,
     recalcAllFromRecipes: recalcAllFromRecipes,
+    getMpTrace: getMpTrace,
+    getIntegrationSummary: getIntegrationSummary,
+    buildPedidoPrintHtml: buildPedidoPrintHtml,
+    printPedido: printPedido,
+    slugsUsingMp: slugsUsingMp,
+    pantallaForArea: pantallaForArea,
     isAdminEditor: isAdminEditor,
     formatCategoriaLabel: formatCategoriaLabel,
     matchAreaToken: matchAreaToken,

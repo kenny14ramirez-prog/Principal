@@ -11,7 +11,14 @@
   var state = {
     tab: 'dia',
     activeDate: null,
-    ui: { conteoOpen: false, propinasOpen: false, egresosOpen: false, egresoMayorOpen: false },
+    ui: {
+      conteoOpen: false,
+      propinasOpen: false,
+      egresosOpen: false,
+      egresoMayorOpen: false,
+      kpisOpen: null,
+      focusMode: false
+    },
     tplLoaded: false
   };
 
@@ -311,36 +318,42 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('crozzo-planilla-css')) return;
-    var el = document.createElement('style');
-    el.id = 'crozzo-planilla-css';
+    var el = document.getElementById('crozzo-planilla-css');
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'crozzo-planilla-css';
+      document.head.appendChild(el);
+    }
     el.textContent =
-      'body.crozzo-page-planillas .main-body,#mainContent.main-body--planillas{padding:0!important;overflow:hidden!important;min-height:0!important;height:auto!important;flex:1 1 auto!important;background:var(--bg-primary)}' +
+      'body.crozzo-page-planillas .main-body,#mainContent.main-body--planillas{padding:0!important;overflow:hidden!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;background:var(--bg-primary)}' +
       'html.crozzo-vp-ready body.crozzo-page-planillas .main-body,html.crozzo-vp-ready #mainContent.main-body--planillas{overflow:hidden!important}' +
-      '.crozzo-pl-app{position:relative;display:flex;flex-direction:column;height:100%;max-height:100%;min-height:0;overflow:hidden;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans,system-ui,sans-serif)}' +
+      '.crozzo-pl-app{position:relative;display:flex;flex-direction:column;flex:1;min-height:0;height:100%;max-height:100%;overflow:hidden;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font-sans,system-ui,sans-serif)}' +
       '.crozzo-pl-app::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 70% 45% at 0% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 55%),radial-gradient(ellipse 50% 35% at 100% 0%,color-mix(in srgb,var(--accent) 8%,transparent),transparent 50%);opacity:.9}' +
-      '.crozzo-pl-hero{position:relative;z-index:1;flex-shrink:0;padding:20px 24px 16px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,color-mix(in srgb,var(--bg-card) 96%,transparent),var(--bg-primary))}' +
-      '.crozzo-pl-hero__row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}' +
-      '.crozzo-pl-eyebrow{margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--accent)}' +
-      '.crozzo-pl-title{margin:0;font-size:1.65rem;font-weight:700;letter-spacing:-.03em;line-height:1.15}' +
-      '.crozzo-pl-sub{margin:8px 0 0;font-size:13px;color:var(--text-muted);max-width:520px;line-height:1.55}' +
-      '.crozzo-pl-hero__chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}' +
-      '.crozzo-pl-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary)}' +
+      '.crozzo-pl-command{position:relative;z-index:2;flex-shrink:0;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 16px 10px 20px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,color-mix(in srgb,var(--bg-card) 94%,transparent),var(--bg-primary))}' +
+      '.crozzo-pl-command__meta{display:flex;align-items:center;gap:8px;min-width:0}' +
+      '.crozzo-pl-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);white-space:nowrap}' +
       '.crozzo-pl-pill--accent{border-color:color-mix(in srgb,var(--accent) 35%,var(--border));background:color-mix(in srgb,var(--accent) 12%,var(--bg-card));color:var(--text-primary)}' +
-      '.crozzo-pl-flow{display:flex;flex-wrap:wrap;gap:6px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--bg-secondary);flex-shrink:0;position:relative;z-index:1}' +
-      '.crozzo-pl-flow__step{font-size:10px;font-weight:600;letter-spacing:.04em;padding:6px 12px;border-radius:999px;border:1px solid var(--border);color:var(--text-muted);background:var(--bg-card)}' +
-      '.crozzo-pl-flow__step.is-on{border-color:color-mix(in srgb,var(--accent) 40%,var(--border));color:var(--text-primary);background:color-mix(in srgb,var(--accent) 10%,var(--bg-card))}' +
-      '.crozzo-pl-tabs{display:flex;flex-wrap:wrap;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--bg-card);flex-shrink:0;position:relative;z-index:1}' +
-      '.crozzo-pl-tabs button{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);font-family:inherit;transition:background .2s,border-color .2s,color .2s,transform .15s}' +
-      '.crozzo-pl-tabs button:hover{color:var(--text-primary);background:var(--bg-secondary);transform:translateY(-1px)}' +
-      '.crozzo-pl-tabs button.active{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--bg-card)),var(--bg-card));color:var(--text-primary);border-color:color-mix(in srgb,var(--accent) 35%,var(--border));box-shadow:0 4px 16px rgba(0,0,0,.12)}' +
-      '.crozzo-pl-stage{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:16px 24px 28px;position:relative;z-index:1}' +
-      '.crozzo-pl-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:var(--elevation-1,0 1px 3px rgba(0,0,0,.08));overflow:hidden}' +
-      '.crozzo-pl-panel__head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}' +
-      '.crozzo-pl-panel__head h3{margin:0;font-size:0.95rem;font-weight:650}' +
-      '.crozzo-pl-panel__body{padding:16px 18px}' +
+      '.crozzo-pl-period-chip{max-width:min(240px,42vw);overflow:hidden;text-overflow:ellipsis}' +
+      '.crozzo-pl-tabs{display:flex;flex:1 1 auto;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}' +
+      '.crozzo-pl-tabs button{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;border:1px solid transparent;background:transparent;cursor:pointer;font-size:11px;font-weight:600;color:var(--text-muted);font-family:inherit;transition:background .2s,border-color .2s,color .2s}' +
+      '.crozzo-pl-tabs button i,.crozzo-pl-tabs button svg{width:15px;height:15px}' +
+      '.crozzo-pl-tabs button:hover{color:var(--text-primary);background:var(--bg-secondary)}' +
+      '.crozzo-pl-tabs button.active{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--bg-card)),var(--bg-card));color:var(--text-primary);border-color:color-mix(in srgb,var(--accent) 35%,var(--border));box-shadow:0 2px 10px rgba(0,0,0,.1)}' +
+      '.crozzo-pl-command__tools{display:flex;align-items:center;gap:8px;margin-left:auto}' +
+      '.crozzo-pl-focus-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s,color .2s}' +
+      '.crozzo-pl-focus-btn:hover{color:var(--text-primary);border-color:color-mix(in srgb,var(--accent) 30%,var(--border));background:color-mix(in srgb,var(--accent) 8%,var(--bg-card))}' +
+      '.crozzo-pl-app.is-focus .crozzo-pl-command{padding:6px 12px 6px 14px}' +
+      '.crozzo-pl-app.is-focus .crozzo-pl-command__meta,.crozzo-pl-app.is-focus .crozzo-pl-focus-btn__lbl{display:none}' +
+      '.crozzo-pl-app.is-focus .crozzo-pl-tabs button span{display:none}' +
+      '.crozzo-pl-app.is-focus .crozzo-pl-tabs button{padding:8px 10px}' +
+      '.crozzo-pl-stage{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:12px 18px 24px;position:relative;z-index:1}' +
       '.crozzo-pl-root{--pl-gap:12px}' +
-      '.crozzo-pl-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:14px 16px;background:color-mix(in srgb,var(--bg-secondary) 80%,var(--bg-card));border:1px solid var(--border);border-radius:12px;margin-bottom:var(--pl-gap)}' +
+      '.crozzo-pl-work{min-height:0}' +
+      '.crozzo-pl-kpis-acc{margin-bottom:var(--pl-gap)}' +
+      '.crozzo-pl-kpis-acc summary .crozzo-pl-kpis-mini{font-weight:500;font-size:11px;opacity:.72;margin-left:auto}' +
+      '.crozzo-pl-dia-top{position:sticky;top:0;z-index:3;margin:-4px 0 10px;padding:4px 0 8px;background:linear-gradient(180deg,var(--bg-primary) 78%,transparent);backdrop-filter:blur(6px)}' +
+      '.crozzo-pl-dia-top .crozzo-pl-toolbar{margin-bottom:8px}' +
+      '.crozzo-pl-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px 14px;background:color-mix(in srgb,var(--bg-secondary) 80%,var(--bg-card));border:1px solid var(--border);border-radius:12px;margin-bottom:0}' +
       '.crozzo-pl-toolbar .form-group{margin:0;min-width:140px}' +
       '.crozzo-pl-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:var(--pl-gap)}' +
       '.crozzo-pl-kpi{padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(145deg,var(--bg-card),color-mix(in srgb,var(--accent) 6%,var(--bg-card)));transition:transform .2s,box-shadow .2s}' +
@@ -361,9 +374,7 @@
       '.crozzo-pl-badge{font-size:11px;padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--accent) 16%,transparent);font-weight:600;border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}' +
       '.crozzo-pl-mount{min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px}' +
       'html[data-theme="bona-origen"] .crozzo-pl-app{background:var(--bona-cream,#faf9f7)}' +
-      'html[data-theme="bona-origen"] .crozzo-pl-hero{background:#fff}' +
-      'html[data-theme="bona-origen"] .crozzo-pl-title{font-family:var(--bona-font-display,serif)}';
-    document.head.appendChild(el);
+      '@media(max-width:720px){.crozzo-pl-command{padding:8px 10px}.crozzo-pl-stage{padding:10px 12px 20px}.crozzo-pl-tabs button span{display:none}.crozzo-pl-tabs button{padding:8px 10px}.crozzo-pl-period-chip{max-width:140px}}';
   }
 
   function periodKpisHtml() {
@@ -386,27 +397,48 @@
     );
   }
 
-  function flowStepsHtml() {
-    var steps = [
-      { id: 'dia', label: '1 · Día a día' },
-      { id: 'mes', label: '2 · Resumen' },
-      { id: 'nomina', label: '3 · Nómina' },
-      { id: 'archivo', label: '4 · Excel' }
-    ];
+  function periodKpisBlockHtml() {
+    var agg = aggregatePeriod();
+    var defaultOpen = state.tab !== 'dia' && state.tab !== 'archivo';
+    var open = state.ui.kpisOpen != null ? state.ui.kpisOpen : defaultOpen;
     return (
-      '<div class="crozzo-pl-flow">' +
-      steps
-        .map(function (s) {
-          return (
-            '<span class="crozzo-pl-flow__step' +
-            (state.tab === s.id ? ' is-on' : '') +
-            '">' +
-            esc(s.label) +
-            '</span>'
-          );
-        })
-        .join('') +
-      '</div>'
+      '<details class="crozzo-pl-acc crozzo-pl-kpis-acc" id="pl-kpis-acc"' +
+      (open ? ' open' : '') +
+      '>' +
+      '<summary><span>Indicadores del periodo</span>' +
+      '<span class="crozzo-pl-kpis-mini">' +
+      fmtMoney(agg.totalVentaM + agg.totalVentaT) +
+      ' · ' +
+      agg.diasConDatos +
+      ' días</span></summary>' +
+      '<div class="crozzo-pl-acc__body">' +
+      periodKpisHtml() +
+      '</div></details>'
+    );
+  }
+
+  function renderCommandBar(tabBtns, p) {
+    return (
+      '<header class="crozzo-pl-command">' +
+      '<div class="crozzo-pl-command__meta">' +
+      '<span class="crozzo-pl-pill crozzo-pl-pill--accent crozzo-pl-period-chip" title="' +
+      esc(periodLabel(p)) +
+      '"><i data-lucide="calendar-range" aria-hidden="true"></i> ' +
+      esc(periodLabel(p)) +
+      '</span></div>' +
+      '<nav class="crozzo-pl-tabs" aria-label="Secciones planilla">' +
+      tabBtns +
+      '</nav>' +
+      '<div class="crozzo-pl-command__tools">' +
+      '<button type="button" class="crozzo-pl-focus-btn" id="pl-focus-toggle" title="' +
+      (state.ui.focusMode ? 'Salir de modo enfoque' : 'Modo enfoque — más espacio para cuadre') +
+      '">' +
+      '<i data-lucide="' +
+      (state.ui.focusMode ? 'minimize-2' : 'maximize-2') +
+      '" aria-hidden="true"></i>' +
+      '<span class="crozzo-pl-focus-btn__lbl">' +
+      (state.ui.focusMode ? 'Salir' : 'Enfoque') +
+      '</span></button></div></header>'
     );
   }
 
@@ -592,6 +624,7 @@
       .join('');
     var cierresPosHtml = renderCierresPosBlock(d);
     return (
+      '<div class="crozzo-pl-dia-top">' +
       renderPeriodToolbar() +
       '<div class="crozzo-pl-dia-nav">' +
       '<button type="button" class="btn btn-outline btn-sm" id="pl-day-prev"' +
@@ -611,7 +644,7 @@
       '<input id="pl-negocio" class="form-input" style="max-width:180px" value="' +
       esc(d.negocio || p.negocio || '') +
       '" />' +
-      '</div>' +
+      '</div></div>' +
       '<div class="crozzo-pl-grid">' +
       renderCuadreBlock('Turno mañana', d.cuadreM, 'cuadreM') +
       renderCuadreBlock('Turno tarde', d.cuadreT, 'cuadreT') +
@@ -625,7 +658,6 @@
 
   function renderMes() {
     var p = period();
-    var agg = aggregatePeriod(p);
     var res = p.resumen || emptyResumen();
     var rows = (TPL.egresosConceptos || [])
       .slice(0, 40)
@@ -669,24 +701,12 @@
       })
       .join('');
     return (
+      '<div class="crozzo-pl-dia-top">' +
       renderPeriodToolbar() +
+      '</div>' +
       '<p class="page-subtitle" style="margin:0 0 12px">Resumen del periodo <strong>' +
       esc(periodLabel(p)) +
       '</strong>. Los registros día a día se conservan; aquí define el rango que está gestionando.</p>' +
-      '<div class="crozzo-pl-kpis">' +
-      '<div class="crozzo-pl-kpi"><div class="lbl">Días con datos</div><div class="val">' +
-      agg.diasConDatos +
-      '</div></div>' +
-      '<div class="crozzo-pl-kpi"><div class="lbl">Ventas (M+T)</div><div class="val">' +
-      fmtMoney(agg.totalVentaM + agg.totalVentaT) +
-      '</div></div>' +
-      '<div class="crozzo-pl-kpi"><div class="lbl">Egresos en días</div><div class="val">' +
-      fmtMoney(agg.egresosValor) +
-      '</div></div>' +
-      '<div class="crozzo-pl-kpi"><div class="lbl">Conteo efectivo</div><div class="val">' +
-      fmtMoney(agg.conteoEfectivo) +
-      '</div></div>' +
-      '</div>' +
       '<div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">' +
       '<button type="button" class="btn btn-outline btn-sm" id="pl-recalc-resumen">↻ Recalcular sugeridos desde días</button>' +
       '</div>' +
@@ -708,8 +728,10 @@
 
   function renderArchivo() {
     return (
+      '<div class="crozzo-pl-dia-top">' +
       renderPeriodToolbar() +
-      '<div class="crozzo-pl-acc" open><summary><span>Archivo Excel</span></summary><div class="crozzo-pl-acc__body">' +
+      '</div>' +
+      '<details class="crozzo-pl-acc" open><summary><span>Archivo Excel</span></summary><div class="crozzo-pl-acc__body">' +
       '<p class="page-subtitle">Importe o exporte la planilla. Los <strong>periodos de corte</strong> se guardan por separado en este equipo.</p>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">' +
       '<a class="btn btn-outline btn-sm" href="assets/2026-PLANILLA-BLANCO.xlsx" download="2026-PLANILLA-BLANCO.xlsx">⬇ Plantilla vacía</a>' +
@@ -721,9 +743,15 @@
 
   function renderNominaEmbed() {
     if (typeof renderNominaPlanilla === 'function') {
-      return renderPeriodToolbar() + '<div class="alert alert-info" style="margin-bottom:12px;font-size:0.85rem">Horas nocturnas, festivos y dominicales — empleados de <strong>Marcación personal</strong>.</div>' + renderNominaPlanilla();
+      return (
+        '<div class="crozzo-pl-dia-top">' +
+        renderPeriodToolbar() +
+        '</div>' +
+        '<div class="alert alert-info" style="margin-bottom:12px;font-size:0.85rem">Horas nocturnas, festivos y dominicales — empleados de <strong>Marcación personal</strong>.</div>' +
+        renderNominaPlanilla()
+      );
     }
-    return renderPeriodToolbar() + '<div class="card"><p>Cargue CrozzoModulosIntegrados.js</p></div>';
+    return '<div class="crozzo-pl-dia-top">' + renderPeriodToolbar() + '</div><div class="card"><p>Cargue CrozzoModulosIntegrados.js</p></div>';
   }
 
   function renderRoot() {
@@ -760,30 +788,16 @@
       .join('');
 
     return (
-      '<section class="crozzo-pl-app" id="crozzo-pl-app">' +
-      '<header class="crozzo-pl-hero">' +
-      '<div class="crozzo-pl-hero__row">' +
-      '<div><p class="crozzo-pl-eyebrow">Administrativo · Nómina</p>' +
-      '<h1 class="crozzo-pl-title">Planillas</h1>' +
-      '<p class="crozzo-pl-sub">Cuadre de caja por turno, egresos, propinas, resumen del periodo e importación desde Excel. Todo queda guardado en este equipo.</p></div>' +
-      '<div class="crozzo-pl-hero__chips">' +
-      '<span class="crozzo-pl-pill crozzo-pl-pill--accent"><i data-lucide="calendar-range" aria-hidden="true"></i> ' +
-      esc(periodLabel(p)) +
-      '</span>' +
-      '<span class="crozzo-pl-pill"><i data-lucide="hard-drive" aria-hidden="true"></i> Respaldo local</span>' +
-      '</div></div></header>' +
-      flowStepsHtml() +
-      '<nav class="crozzo-pl-tabs" aria-label="Secciones planilla">' +
-      tabBtns +
-      '</nav>' +
+      '<section class="crozzo-pl-app' +
+      (state.ui.focusMode ? ' is-focus' : '') +
+      '" id="crozzo-pl-app">' +
+      renderCommandBar(tabBtns, p) +
       '<main class="crozzo-pl-stage">' +
       '<div class="crozzo-pl-root" id="crozzo-pl-root">' +
-      periodKpisHtml() +
-      '<div class="crozzo-pl-panel"><div class="crozzo-pl-panel__head"><h3>Trabajo del periodo</h3><span class="crozzo-pl-badge">Paso ' +
-      (state.tab === 'dia' ? '1' : state.tab === 'mes' ? '2' : state.tab === 'nomina' ? '3' : '4') +
-      ' de 4</span></div><div class="crozzo-pl-panel__body">' +
+      periodKpisBlockHtml() +
+      '<div class="crozzo-pl-work">' +
       inner +
-      '</div></div></div></main></section>'
+      '</div></div></main></section>'
     );
   }
 
@@ -921,9 +935,29 @@
     scope.querySelectorAll('[data-pl-tab]').forEach(function (btn) {
       btn.onclick = function () {
         state.tab = btn.getAttribute('data-pl-tab');
+        state.ui.kpisOpen = null;
         rerender();
       };
     });
+
+    var focusBtn = document.getElementById('pl-focus-toggle');
+    if (focusBtn) {
+      focusBtn.onclick = function () {
+        state.ui.focusMode = !state.ui.focusMode;
+        try {
+          sessionStorage.setItem('crozzo_pl_focus', state.ui.focusMode ? '1' : '0');
+        } catch (_) {}
+        if (document.body) document.body.classList.toggle('crozzo-pl-focus-mode', state.ui.focusMode);
+        rerender();
+      };
+    }
+
+    var kpisAcc = document.getElementById('pl-kpis-acc');
+    if (kpisAcc) {
+      kpisAcc.addEventListener('toggle', function () {
+        state.ui.kpisOpen = kpisAcc.open;
+      });
+    }
 
     scope.querySelectorAll('details[data-pl-acc]').forEach(function (det) {
       det.addEventListener('toggle', function () {
@@ -1262,6 +1296,10 @@
     init: function (startTab) {
       state.tab = startTab || global.__crozzoPlanillaTab || 'dia';
       global.__crozzoPlanillaTab = null;
+      try {
+        state.ui.focusMode = sessionStorage.getItem('crozzo_pl_focus') === '1';
+      } catch (_) {}
+      if (document.body) document.body.classList.toggle('crozzo-pl-focus-mode', !!state.ui.focusMode);
       ensureTpl(function () {
         loadStore();
         var p = period();

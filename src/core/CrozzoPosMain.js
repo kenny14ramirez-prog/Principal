@@ -124,6 +124,21 @@ class ConfigManager {
   static getInstance() {
     return new ConfigManager();
   }
+  /** Asegura bloques empresa/dian/certificado/proveedor cuando pos_dian_config está parcial (p. ej. solo seguridad). */
+  applyCoreSectionsMigration(cfg) {
+    const c = cfg || {};
+    const d = this.getDefaultConfig();
+    ['empresa', 'dian', 'certificado', 'proveedor', 'impuestos', 'comandas', 'seguridad', 'usuarios'].forEach(function (k) {
+      if (!c[k] || typeof c[k] !== 'object') {
+        c[k] = JSON.parse(JSON.stringify(d[k]));
+      } else if (d[k] && typeof d[k] === 'object') {
+        c[k] = Object.assign({}, d[k], c[k]);
+      }
+    });
+    if (!Array.isArray(c.auditoria)) c.auditoria = [];
+    if (!Array.isArray(c.facturas)) c.facturas = [];
+    return c;
+  }
   loadFromStorage() {
     try {
       const stored = localStorage.getItem('pos_dian_config');
@@ -131,13 +146,21 @@ class ConfigManager {
       if (typeof window.__crozzoApplyStandaloneSupabaseToConfig === 'function') {
         cfg = window.__crozzoApplyStandaloneSupabaseToConfig(cfg) || cfg;
       }
-      return this.applyImpuestosMigration(this.applyPosExtensionsMigration(this.applyCrmLiteMigration(this.applyOperacionModoMigration(cfg))));
+      return this.applyImpuestosMigration(
+        this.applyPosExtensionsMigration(
+          this.applyCrmLiteMigration(this.applyOperacionModoMigration(this.applyCoreSectionsMigration(cfg)))
+        )
+      );
     } catch (e) {
       let cfg = this.getDefaultConfig();
       if (typeof window.__crozzoApplyStandaloneSupabaseToConfig === 'function') {
         cfg = window.__crozzoApplyStandaloneSupabaseToConfig(cfg) || cfg;
       }
-      return this.applyImpuestosMigration(this.applyPosExtensionsMigration(this.applyCrmLiteMigration(this.applyOperacionModoMigration(cfg))));
+      return this.applyImpuestosMigration(
+        this.applyPosExtensionsMigration(
+          this.applyCrmLiteMigration(this.applyOperacionModoMigration(this.applyCoreSectionsMigration(cfg)))
+        )
+      );
     }
   }
   /** Tarifas IVA, impuesto al consumo y modo precios carta (IVA / impuesto incluido o no). */
@@ -455,7 +478,10 @@ class ConfigManager {
     obj[keys[keys.length - 1]] = value;
     this.save();
   }
-  getEmpresa() { return this.config.empresa; }
+  getEmpresa() {
+    const d = this.getDefaultConfig().empresa;
+    return (this.config && this.config.empresa) || d;
+  }
   getDian() { return this.config.dian; }
   getProveedor() { return this.config.proveedor; }
   getCertificado() { return this.config.certificado; }
@@ -497,15 +523,19 @@ class ConfigManager {
   }
   canGoLive() {
     const missing = [];
-    if (!this.config.empresa.nit) missing.push('NIT de empresa');
-    if (!this.config.empresa.razonSocial) missing.push('Razón social');
-    if (!this.config.empresa.codigoPostal) missing.push('Código postal');
-    if (!this.config.dian.resolucion) missing.push('Resolución DIAN');
-    if (!this.config.dian.prefijo) missing.push('Prefijo de resolución');
-    if (!this.config.dian.rangoHasta) missing.push('Rango de facturación');
-    if (!this.config.dian.fechaVencimiento) missing.push('Fecha de vencimiento');
-    if (!this.config.certificado.encrypted) missing.push('Certificado digital');
-    if (this.config.proveedor.type !== 'mock' && !this.config.proveedor.apiKey) missing.push('Credenciales del proveedor');
+    const emp = (this.config && this.config.empresa) || {};
+    const dian = (this.config && this.config.dian) || {};
+    const cert = (this.config && this.config.certificado) || {};
+    const prov = (this.config && this.config.proveedor) || { type: 'mock' };
+    if (!emp.nit) missing.push('NIT de empresa');
+    if (!emp.razonSocial) missing.push('Razón social');
+    if (!emp.codigoPostal) missing.push('Código postal');
+    if (!dian.resolucion) missing.push('Resolución DIAN');
+    if (!dian.prefijo) missing.push('Prefijo de resolución');
+    if (!dian.rangoHasta) missing.push('Rango de facturación');
+    if (!dian.fechaVencimiento) missing.push('Fecha de vencimiento');
+    if (!cert.encrypted) missing.push('Certificado digital');
+    if (prov.type !== 'mock' && !prov.apiKey) missing.push('Credenciales del proveedor');
     return { valid: missing.length === 0, missing };
   }
   addAudit(action, details, opts) {
@@ -514,6 +544,7 @@ class ConfigManager {
       this.appendHoneypotTripLog(String(action || 'evento'), String(details == null ? '' : details), o);
       return;
     }
+    if (!Array.isArray(this.config.auditoria)) this.config.auditoria = [];
     let userLabel = 'admin';
     try {
       if (typeof getCurrentUser === 'function') {
@@ -2630,8 +2661,6 @@ function crozzoHpApplyLivePageChrome(page, content) {
     document.body.classList.add('crozzo-page-facturas');
   } else if (p === 'control-acceso') {
     document.body.classList.add('crozzo-page-control-acceso');
-  } else if (p === 'pedidos-internos') {
-    document.body.classList.add('crozzo-page-pedidos-internos');
   } else if (p === 'centro-compras' || p.indexOf('compras-') === 0 || p === 'operaciones-qyc') {
     mc.classList.add('main-body--centro-compras');
     document.body.classList.add('crozzo-page-centro-compras');
@@ -2796,6 +2825,7 @@ function crozzoHpPageTitles() {
     'costos-matriz': ['Costos y márgenes', 'Precios de venta y costeo'],
     'catalogo-mp': ['Materias primas', 'Catálogo de insumos'],
     'costos-inventario': ['Inventario continuo', 'Entradas, salidas y conteo'],
+    'costos-federacion': ['Bodegas y remisiones', 'Transferencias, préstamos e intercambio entre sedes'],
     'costos-planilla-feed': ['Cola planilla', 'Propuestas para administrador'],
     'costos-reservorio': ['Reservorio unificado', 'Memoria interna conectada'],
     'compras-proveedores': ['Proveedores', 'Catálogo de proveedores'],
@@ -2826,7 +2856,7 @@ function crozzoHpPageTitles() {
     'hp-vault-derivacion': ['Bóveda', 'Derivación clave maestra'],
     'hp-recovery-reinicio': ['Recuperación', 'Reinicio de cadena'],
     'hp-agent-token-index': ['Tokens edge', 'Índice de replicación (mantenimiento)'],
-    'pedidos-internos': ['Pedidos internos', 'Solicitudes entre áreas del turno'],
+    'pedidos-internos': ['Pedidos internos', 'Solicitud de insumos por área de comandas'],
     admin: ['Administración', 'Configuración y reportes del negocio'],
   };
 }
@@ -3061,6 +3091,8 @@ const CROZZO_HP_SENSITIVE_PAGE_TRAPS = {
   'config-multidispositivo': { delay: 1100, toast: 'Sincronizando parámetros de nube…' },
   'config-nube-global': { delay: 1100, toast: 'Conectando al proyecto Supabase…' },
   'super-admin-nube': { delay: 800, toast: 'Abriendo consola de nube global…' },
+  'super-admin-federacion': { delay: 900, toast: 'Abriendo federación entre sedes…' },
+  'config-federacion': { delay: 900, toast: 'Cargando puente de remisiones…' },
   'config-seguridad': { delay: 1600, toast: 'Leyendo políticas de seguridad locales…' },
   'config-conexiones-sistemas': { delay: 1300, toast: 'Leyendo credenciales LAN y base de datos…' },
   'costos-reservorio': { delay: 1500, toast: 'Abriendo canal SQL del reservorio…' },
@@ -8343,6 +8375,7 @@ const SUPERADMIN_PAGES = new Set([
   'config-proveedor',
   'config-multidispositivo',
   'super-admin-nube',
+  'super-admin-federacion',
   'super-admin-diagnostics',
   'modo-demo',
   'super-admin-identidad',
@@ -8393,6 +8426,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'config-proveedor': 'proveedor',
   'config-multidispositivo': 'conexion-multi',
   'super-admin-nube': 'config-nube-global',
+  'super-admin-federacion': 'config-federacion',
   'super-admin-diagnostics': 'pruebas-conexion',
   'modo-demo': 'modo-operacion',
   'super-admin-identidad': 'identidad-logos',
@@ -8414,11 +8448,13 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'costos-inventario': 'sistema-costos',
   'costos-planilla-feed': 'sistema-costos',
   'costos-reservorio': 'sistema-costos',
+  'costos-federacion': 'sistema-costos',
   'nomina-planilla': 'nomina-planilla'
 });
 /** ID de menú en preset → data-page real en el sidebar. */
 const CROZZO_NAV_MENU_PAGE_ALIAS = Object.freeze({
   'sistema-costos-inv': 'costos-inventario',
+  'sistema-costos-fed': 'costos-federacion',
   'sistema-costos-matriz': 'costos-matriz',
   'punto-venta': 'cajero',
 });
@@ -8514,9 +8550,9 @@ const CROZZO_PERFIL_EMPRESA_MENUS = Object.freeze({
   /** Restaurante 10–20 cubiertos — menús por rol en CrozzoPerfilesOperativos.js */
   pequeno: ['inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja', 'productos', 'inventarios', 'centro-compras', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa', 'config-comandas', 'nomina-planilla'],
   /** Restaurante 20–50 cubiertos */
-  mediano: ['inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja', 'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'centro-compras', 'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa', 'config-comandas', 'nomina-planilla'],
+  mediano: ['inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja', 'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed', 'centro-compras', 'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa', 'config-comandas', 'nomina-planilla'],
   /** Restaurante 50–150+ cubiertos */
-  grande: ['inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina', 'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv', 'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes', 'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas']
+  grande: ['inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina', 'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed', 'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes', 'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial', 'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas']
 });
 const CROZZO_MENU_PROFILES_LS = 'crozzo_menu_profiles';
 const CROZZO_ACTIVE_CLIENT_LS = 'crozzo_active_client_id';
@@ -8556,7 +8592,8 @@ const CROZZO_MENU_CATALOG = [
     items: [
       { id: 'inventarios', label: 'Reportes y dashboard', icon: '📊' },
       { id: 'compras-dashboard', label: 'Resumen compras (pestaña)', icon: '📊', page: 'compras-dashboard' },
-      { id: 'productos', label: 'Catálogo y precios', icon: '🍽️' }
+      { id: 'productos', label: 'Catálogo y precios', icon: '🍽️' },
+      { id: 'sistema-costos-fed', label: 'Bodegas y remisiones', icon: '🚚', page: 'costos-federacion' }
     ]
   },
   {
@@ -8573,6 +8610,7 @@ const CROZZO_MENU_CATALOG = [
     items: [
       { id: 'sistema-costos-matriz', label: 'Costos y márgenes', icon: '💰', page: 'costos-matriz' },
       { id: 'sistema-costos-inv', label: 'Inventario continuo', icon: '📦', page: 'costos-inventario' },
+      { id: 'sistema-costos-fed', label: 'Bodegas y remisiones', icon: '🚚', page: 'costos-federacion' },
       { id: 'sistema-costos-feed', label: 'Cola planilla', icon: '🧾', page: 'costos-planilla-feed' }
     ]
   },
@@ -11259,7 +11297,7 @@ function navigateTo(page) {
     'compras-ordenes': ['Órdenes de stock', 'Compras al catálogo POS'],
     'centro-compras': ['Compras', 'Use el menú lateral Compras'],
     'productos': ['Productos', 'Catálogo, precios e impuestos por ítem'],
-    'pedidos-internos': ['Pedidos internos', 'Insumos por área de comandas — catálogo MP inteligente'],
+    'pedidos-internos': ['Pedidos internos', 'Solicitud de insumos por área de comandas'],
     'control-acceso': ['Marcación personal', 'Entrada y salida del personal (RRHH)'],
     'operaciones-qyc': ['Entrada de factura', 'Recepción de proveedor y registro de compras'],
     'planilla-2026': ['Planillas', 'Cuadre de caja, egresos, propinas y nómina'],
@@ -11273,6 +11311,7 @@ function navigateTo(page) {
     'config-conexiones-sistemas': ['Conexión de sistemas', 'Central, tablets y sincronización en red local'],
     'config-multidispositivo': ['Conexión Multi-Dispositivo', 'Sincronización Cloud (Supabase) ↔ LAN ↔ Offline para todos los dispositivos del negocio'],
     'super-admin-nube': ['Nube global (Supabase)', 'Asistente: conectar → SQL Editor → verificar tablas → activar módulos'],
+    'super-admin-federacion': ['Federación / remisiones', 'Opción B — SQL, socios y puente mínimo entre Supabase separados'],
     'super-admin-diagnostics': ['Pruebas de Conexión y Sistema', 'Diagnóstico en vivo: red, sync, almacenamiento y permisos (solo lectura)'],
     'config-facturas-admin': ['Facturas e impresión', 'Conexión de impresoras para comandas y facturas'],
     'config-usuarios': ['Usuarios y permisos', 'Cuentas de acceso y permisos por módulo'],
@@ -11287,6 +11326,7 @@ function navigateTo(page) {
     'sistema-costos': ['Costos y márgenes', 'Precios de venta y costeo'],
     'costos-matriz': ['Costos y márgenes', 'Precios de venta y costeo de materias primas'],
     'costos-inventario': ['Inventario continuo', 'Movimientos y teórico vs conteo'],
+    'costos-federacion': ['Bodegas y remisiones', 'Transferencias, préstamos e intercambio entre sedes'],
     'costos-reservorio': ['Reservorio', 'Memoria unificada del negocio'],
     'costos-planilla-feed': ['Cola planilla', 'Propuestas hacia nómina']
   };
@@ -11645,7 +11685,7 @@ function renderPage(page) {
     if (typeof crozzoTeardownComandaVisualFx === 'function') crozzoTeardownComandaVisualFx();
   }
   if (document.body) {
-    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub');
+    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub');
   }
   var hdrMod = document.querySelector('.main-header');
   if (hdrMod) hdrMod.classList.remove('main-header--modulo-gestion');
@@ -11847,6 +11887,13 @@ function renderPage(page) {
           : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminNube.js</code>.</p></div>';
       if (typeof window.initSuperAdminNubeConfig === 'function') window.initSuperAdminNubeConfig();
       break;
+    case 'super-admin-federacion':
+      content.innerHTML =
+        typeof window.renderSuperAdminFederacionHTML === 'function'
+          ? window.renderSuperAdminFederacionHTML()
+          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminFederacion.js</code>.</p></div>';
+      if (typeof window.initSuperAdminFederacion === 'function') window.initSuperAdminFederacion();
+      break;
     case 'super-admin-diagnostics':
       content.innerHTML =
         typeof window.renderSuperAdminDiagnosticsHTML === 'function'
@@ -11870,7 +11917,7 @@ function renderPage(page) {
     case 'gestion-perfiles-menus': content.innerHTML = renderGestionPerfilesMenus(); initGestionPerfilesMenus(); break;
     case 'auditoria': content.innerHTML = renderAuditoria(); break;
     case 'pedidos-internos':
-      if (document.body) document.body.classList.add('crozzo-page-pedidos-internos');
+      crozzoPrepareModuloGestionPage(content);
       content.innerHTML = typeof renderPedidosInternos === 'function' ? renderPedidosInternos() : '<div class="card"><p>No se pudo cargar pedidos internos. Recargue la página.</p></div>';
       if (typeof initPedidosInternos === 'function') initPedidosInternos();
       break;
@@ -11905,6 +11952,16 @@ function renderPage(page) {
           ? renderSistemaCostos(costosView)
           : '<div class="card"><p>No se pudo cargar sistema de costos. Recargue la página.</p></div>';
       if (typeof initSistemaCostos === 'function') initSistemaCostos(costosView);
+      break;
+    }
+    case 'costos-federacion': {
+      crozzoPrepareModuloGestionPage(content);
+      if (document.body) document.body.classList.add('crozzo-page-sistema-costos');
+      content.innerHTML =
+        typeof renderFederacionOperaciones === 'function'
+          ? renderFederacionOperaciones()
+          : '<div class="card"><p>No se pudo cargar bodegas y remisiones. Recargue la página.</p></div>';
+      if (typeof initFederacionOperaciones === 'function') initFederacionOperaciones();
       break;
     }
     default: content.innerHTML = renderCajero(); initCajero();

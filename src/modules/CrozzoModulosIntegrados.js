@@ -742,18 +742,16 @@
   };
 
   global.CrozzoModulosIntegrados = {
-    renderPedidosInternos: function (opts) {
+    renderPedidosInternos: function () {
       if (global.CrozzoModulosIntegradosPedidos && global.CrozzoModulosIntegradosPedidos.render) {
-        return global.CrozzoModulosIntegradosPedidos.render(opts);
+        return global.CrozzoModulosIntegradosPedidos.render();
       }
-      return renderPedidosInternos();
+      return '<div class="card"><p class="form-hint">Cargando pedidos internos… recargue la página.</p></div>';
     },
     initPedidosInternos: async function () {
       if (global.CrozzoModulosIntegradosPedidos && global.CrozzoModulosIntegradosPedidos.init) {
         return global.CrozzoModulosIntegradosPedidos.init();
       }
-      await loadIntegracionConfig();
-      bindPedidos();
     },
     renderControlAcceso: function () {
       if (global.CrozzoModulosIntegradosAcceso && global.CrozzoModulosIntegradosAcceso.render) {
@@ -781,11 +779,17 @@
     }
   };
 
-  global.renderPedidosInternos = function (opts) {
-    return global.CrozzoModulosIntegrados.renderPedidosInternos(opts);
+  global.renderPedidosInternos = function () {
+    if (global.CrozzoModulosIntegradosPedidos && global.CrozzoModulosIntegradosPedidos.render) {
+      return global.CrozzoModulosIntegradosPedidos.render();
+    }
+    return '<div class="card"><p class="form-hint">Cargando pedidos internos…</p></div>';
   };
   global.initPedidosInternos = function () {
-    return global.CrozzoModulosIntegrados.initPedidosInternos();
+    if (global.CrozzoModulosIntegradosPedidos && global.CrozzoModulosIntegradosPedidos.init) {
+      return global.CrozzoModulosIntegradosPedidos.init();
+    }
+    return Promise.resolve();
   };
   global.renderControlAcceso = function () {
     return global.CrozzoModulosIntegrados.renderControlAcceso();
