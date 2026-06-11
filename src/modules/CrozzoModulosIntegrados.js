@@ -723,6 +723,18 @@
     state: state,
     esc: esc,
     toast: toast,
+    resolveNum: function (el, def) {
+      if (global.CrozzoFormulaInput && global.CrozzoFormulaInput.resolve) return global.CrozzoFormulaInput.resolve(el, def);
+      var n = Number(el && el.value);
+      return isFinite(n) ? n : def != null ? def : 0;
+    },
+    evaluateExpr: function (raw, def) {
+      if (global.CrozzoFormulaInput && global.CrozzoFormulaInput.resolveRaw) {
+        return global.CrozzoFormulaInput.resolveRaw(raw, def);
+      }
+      var n = Number(raw);
+      return isFinite(n) ? n : def != null ? def : 0;
+    },
     businessId: businessId,
     sbPair: sbPair,
     cloudReady: cloudReady,

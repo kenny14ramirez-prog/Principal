@@ -160,12 +160,18 @@
           global.__crozzoLazySkipRenderLoad = false;
         }
       }
+      if (typeof global.crozzoShowPageLoading === 'function') {
+        global.crozzoShowPageLoading(page, { phase: 'modules', instant: true });
+      }
       ensurePageModules(page, function () {
         global.__crozzoLazySkipRenderLoad = true;
         try {
           origNav.apply(global, navArgs);
         } finally {
           global.__crozzoLazySkipRenderLoad = false;
+          if (typeof global.crozzoHidePageLoading === 'function') {
+            global.crozzoHidePageLoading();
+          }
         }
       });
     };

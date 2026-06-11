@@ -541,6 +541,25 @@
     var prev = idx >= 0 ? st.proveedores[idx] : {};
     var legalNew = p.legal && typeof p.legal === 'object' ? p.legal : {};
     var legalPrev = prev.legal && typeof prev.legal === 'object' ? prev.legal : {};
+    var legalMerged = Object.assign({}, legalPrev, legalNew);
+    if (Array.isArray(legalNew.cuentasBancarias)) legalMerged.cuentasBancarias = legalNew.cuentasBancarias;
+    if (legalNew.camaraComercio && typeof legalNew.camaraComercio === 'object') {
+      legalMerged.camaraComercio = Object.assign({}, legalPrev.camaraComercio || {}, legalNew.camaraComercio);
+    }
+    if (legalNew.cedulaRepresentante && typeof legalNew.cedulaRepresentante === 'object') {
+      legalMerged.cedulaRepresentante = Object.assign(
+        {},
+        legalPrev.cedulaRepresentante || {},
+        legalNew.cedulaRepresentante
+      );
+    }
+    if (legalNew.certificadoBancario && typeof legalNew.certificadoBancario === 'object') {
+      legalMerged.certificadoBancario = Object.assign(
+        {},
+        legalPrev.certificadoBancario || {},
+        legalNew.certificadoBancario
+      );
+    }
     var row = {
       id: id,
       nombre: nombre,
@@ -550,7 +569,7 @@
       tipoRubro: p.tipoRubro || p.categoria || prev.tipoRubro || '',
       representante: p.representante || prev.representante || '',
       email: p.email || prev.email || '',
-      legal: Object.assign({}, legalPrev, legalNew),
+      legal: legalMerged,
       activo: p.activo !== false,
       updatedAt: new Date().toISOString(),
     };
@@ -1125,33 +1144,164 @@
   }
 
   function actualizarEstadoOficina(facturaId, estado, extra) {
+    return actualizarFacturaOficina(facturaId, Object.assign({ estado: estado }, extra || {}));
+  }
+
+  function actualizarFacturaOficina(facturaId, patch) {
     var st = migrateLegacy();
-    var fac = st.facturasOficina.find(function (f) { return f.id === facturaId; });
-    if (!fac) return null;
-    fac.estado = estado;
-    if (extra) Object.assign(fac, extra);
+    var fac = st.facturasOficina.find(function (f) {
+      return String(f.id) === String(facturaId);
+    });
+    if (!fac || !patch) return null;
+    if (patch.proveedorId) {
+      var prov = getProveedor(patch.proveedorId);
+      if (prov) {
+        fac.proveedorId = prov.id;
+        fac.proveedorNombre = prov.nombre || fac.proveedorNombre;
+      }
+    }
+    if (patch.proveedorNombre) fac.proveedorNombre = String(patch.proveedorNombre).trim();
+    if (patch.numeroFactura !== undefined) fac.numeroFactura = String(patch.numeroFactura || '').trim();
+    if (patch.valor !== undefined) fac.valor = Number(patch.valor) || 0;
+    if (patch.fecha) fac.fecha = String(patch.fecha).slice(0, 10);
+    if (patch.metodo) fac.metodo = patch.metodo;
+    if (patch.estado) fac.estado = patch.estado;
+    if (patch.notas !== undefined) fac.notas = String(patch.notas || '');
+    if (patch.oficinaMeta && typeof patch.oficinaMeta === 'object') {
+      fac.oficinaMeta = Object.assign({}, fac.oficinaMeta || {}, patch.oficinaMeta);
+    }
     fac.updatedAt = new Date().toISOString();
     pushSync(st, { tipo: 'update', tabla: 'facturas', payload: fac });
     save(st);
-    if (estado === 'pagada') onFacturaPagada(fac);
+    if (fac.estado === 'pagada') onFacturaPagada(fac);
     return fac;
   }
 
+  function listFacturasOficinaPorProveedor(provId, opts) {
+    opts = opts || {};
+    var pid = String(provId || '');
+    if (!pid && !opts.proveedorNombre) return [];
+    var st = migrateLegacy();
+    var nomNorm = opts.proveedorNombre
+      ? String(opts.proveedorNombre || '')
+          .trim()
+          .toUpperCase()
+      : '';
+    var list = (st.facturasOficina || []).filter(function (f) {
+      if (!f) return false;
+      if (pid && String(f.proveedorId || '') === pid) return true;
+      if (nomNorm && String(f.proveedorNombre || '').trim().toUpperCase() === nomNorm) return true;
+      return false;
+    });
+    if (opts.soloPagadas) {
+      list = list.filter(function (f) {
+        return String(f.estado || '').toLowerCase() === 'pagada';
+      });
+    }
+    list.sort(function (a, b) {
+      var da = String(a.fecha || a.updatedAt || a.createdAt || '');
+      var db = String(b.fecha || b.updatedAt || b.createdAt || '');
+      return db.localeCompare(da);
+    });
+    return list;
+  }
+
+  function resumenPagosProveedor(provId, opts) {
+    opts = opts || {};
+    var list = listFacturasOficinaPorProveedor(provId, opts);
+    var pagadas = [];
+    var pendientes = [];
+    list.forEach(function (f) {
+      var e = String(f.estado || '').toLowerCase();
+      if (e === 'pagada') pagadas.push(f);
+      else if (e === 'pendiente' || e === 'en_proceso') pendientes.push(f);
+    });
+    function sumVal(arr, pick) {
+      return arr.reduce(function (s, f) {
+        return s + (Number(pick(f)) || 0);
+      }, 0);
+    }
+    return {
+      total: list.length,
+      pagadas: pagadas.length,
+      pendientes: pendientes.length,
+      montoPagado: sumVal(pagadas, function (f) {
+        return f.valor;
+      }),
+      montoPendiente: sumVal(pendientes, function (f) {
+        return f.valor;
+      }),
+      montoNetoPagado: sumVal(pagadas, function (f) {
+        var m = f.oficinaMeta || {};
+        if (m.retencionesConfirmadas && m.netoPagar != null) return m.netoPagar;
+        return f.valor;
+      }),
+      facturas: list,
+    };
+  }
+
+  function facturaOficinaPagada(fac) {
+    if (!fac) return false;
+    if (String(fac.estado || '').toLowerCase() !== 'pagada') return false;
+    var m = String(fac.metodo || '').toLowerCase().trim();
+    if (!m || m.indexOf('por_definir') >= 0) return false;
+    if (m.indexOf('pend') >= 0 && m.indexOf('pagad') < 0) return false;
+    if (m.indexOf('proceso') >= 0) return false;
+    return (
+      m.indexOf('efec') >= 0 ||
+      m.indexOf('trans') >= 0 ||
+      m.indexOf('tarj') >= 0 ||
+      m.indexOf('card') >= 0 ||
+      m.indexOf('credit') >= 0 ||
+      m.indexOf('créd') >= 0
+    );
+  }
+
   function onFacturaPagada(fac) {
+    if (!facturaOficinaPagada(fac)) return;
     emitCostos('crozzo-costos:factura-pagada', { factura: fac });
     var st = load();
     var exists = st.planillaFeed.some(function (f) {
       return f.referencia_id === fac.id && f.origen === 'oficina' && f.estado !== 'rechazado';
     });
     if (exists) return;
+    var prov = getProveedor(fac.proveedorId);
+    var meta = fac.oficinaMeta || {};
+    var rec = null;
+    var recItems = 0;
+    var recHasMp = false;
+    if (fac.recepcionId) {
+      rec = (st.recepciones || []).find(function (r) {
+        return r && String(r.id) === String(fac.recepcionId);
+      });
+      if (rec && Array.isArray(rec.items)) {
+        recItems = rec.items.length;
+        recHasMp = rec.items.some(function (it) {
+          return it && (it.mpId || it.materiaPrimaId || it.productoRefTipo === 'materia_prima');
+        });
+      }
+    }
+    var monto =
+      meta.retencionesConfirmadas && meta.netoPagar != null ? Number(meta.netoPagar) || fac.valor : fac.valor;
     enqueuePlanilla(st, {
       origen: 'oficina',
-      concepto: 'Pago proveedor: ' + (fac.proveedorNombre || ''),
-      monto: fac.valor,
+      concepto: recHasMp
+        ? 'Compra materia prima: ' + (fac.proveedorNombre || '')
+        : rec
+          ? 'Compra / recepción: ' + (fac.proveedorNombre || '')
+          : 'Pago proveedor: ' + (fac.proveedorNombre || ''),
+      monto: monto,
+      fecha: new Date().toISOString().slice(0, 10),
       tipo_movimiento: 'egreso',
       referencia_tipo: 'factura_oficina',
       referencia_id: fac.id,
-      payload: fac,
+      pagoConfirmado: true,
+      payload: Object.assign({}, fac, {
+        proveedorNit: (prov && prov.legal && prov.legal.nit) || fac.proveedorNit || '',
+        recepcionItems: recItems,
+        recepcionHasMp: recHasMp,
+        proveedorRubro: (prov && (prov.tipoRubro || prov.categoria)) || '',
+      }),
     });
     save(st);
   }
@@ -1835,6 +1985,9 @@
     },
     registrarOficina: registrarOficina,
     actualizarEstadoOficina: actualizarEstadoOficina,
+    actualizarFacturaOficina: actualizarFacturaOficina,
+    listFacturasOficinaPorProveedor: listFacturasOficinaPorProveedor,
+    resumenPagosProveedor: resumenPagosProveedor,
     registrarProceso: registrarProceso,
     eliminarProceso: eliminarProceso,
     registrarVenta: registrarVenta,

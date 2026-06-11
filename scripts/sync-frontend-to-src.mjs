@@ -152,17 +152,32 @@ function injectBuildVersionMeta(html, semver, buildStamp) {
   return out;
 }
 
+/** Cache-busting del CSS: el WebView cachea el stylesheet sin query y los fixes no se ven al recargar. */
+function injectCssCacheBust(html, semver) {
+  if (!html) return html;
+  const v = encodeURIComponent(semver || Date.now().toString(36));
+  return html.replace(
+    /(<link\s+rel="stylesheet"\s+href="css\/CrozzoPosStyles\.css)(?:\?[^"]*)?(")/i,
+    `$1?v=${v}$2`
+  );
+}
+
 let htmlBody = readFileSync(mainHtml, 'utf8');
+let appSemver = '';
 try {
   const tauriConf = join(root, 'src-tauri', 'tauri.conf.json');
   if (existsSync(tauriConf)) {
     const conf = JSON.parse(readFileSync(tauriConf, 'utf8'));
     const ver = String(conf.version || '').trim();
-    if (ver) htmlBody = injectBuildVersionMeta(htmlBody, ver, readOtaBuildStamp());
+    if (ver) {
+      appSemver = ver;
+      htmlBody = injectBuildVersionMeta(htmlBody, ver, readOtaBuildStamp());
+    }
   }
 } catch (e) {
   console.warn('[sync] No se pudo inyectar versión de build:', e.message);
 }
+htmlBody = injectCssCacheBust(htmlBody, appSemver ? appSemver + '-' + Date.now().toString(36) : '');
 
 const destHtml = join(srcDir, 'index.html');
 writeFileSync(destHtml, htmlBody, 'utf8');

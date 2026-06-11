@@ -8691,7 +8691,10 @@
     if (!root || root._costosBound) return;
     root._costosBound = true;
     root.addEventListener('click', function (e) {
-      if (e.target.id === 'crozzoCostosGoPlanilla') goPage('planilla-2026');
+      if (e.target.id === 'crozzoCostosGoPlanilla') {
+        global.__crozzoPlanillaTab = 'cola';
+        goPage('planilla-2026');
+      }
       if (e.target.id === 'crozzoReservorioExport') {
         if (global.CrozzoReservorioOffline && global.CrozzoReservorioOffline.exportBackupFile()) {
           toast('Backup JSON descargado', 'success');
@@ -8710,11 +8713,10 @@
         }
       }
       var fok = e.target.closest('.crozzo-feed-ok');
-      if (fok && reservorio()) {
-        reservorio().updateFeedEstado(fok.getAttribute('data-id'), 'aceptado');
-        toast('Propuesta aceptada — puede ingresarla en Planilla 2026', 'success');
-        var hf = document.getElementById('mainContent');
-        if (hf) { hf.innerHTML = render('planilla-feed'); }
+      if (fok) {
+        global.__crozzoPlanillaTab = 'cola';
+        toast('Volcar el pago en Planillas → Cola pagos', 'info');
+        goPage('planilla-2026');
       }
       var fno = e.target.closest('.crozzo-feed-no');
       if (fno && reservorio()) {

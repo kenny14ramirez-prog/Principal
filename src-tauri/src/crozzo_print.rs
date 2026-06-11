@@ -135,16 +135,6 @@ pub fn crozzo_html_to_pdf_b64(
     )
 }
 
-/// Guarda bytes PDF (base64) en la carpeta Descargas del usuario.
-#[tauri::command]
-pub fn crozzo_save_pdf_b64(
-    app: tauri::AppHandle,
-    pdf_b64: String,
-    filename: Option<String>,
-) -> Result<crozzo_print_html_pdf::CrozzoSavePdfResult, String> {
-    crozzo_print_html_pdf::save_pdf_b64_sync(&app, pdf_b64, filename)
-}
-
 #[cfg(windows)]
 mod win {
     use super::CrozzoPrintResult;

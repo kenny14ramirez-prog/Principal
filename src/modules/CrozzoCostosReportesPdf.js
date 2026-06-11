@@ -202,7 +202,7 @@
       }
       if (isTauriEnv()) {
         return tauriInvoke('crozzo_save_pdf_b64', {
-          pdf_b64: b64,
+          pdfB64: b64,
           filename: filename,
         }).then(function (res) {
           var path = tauriSavedPath(res);

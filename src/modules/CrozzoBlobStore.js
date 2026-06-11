@@ -196,6 +196,56 @@
     });
   }
 
+  function normalizeBlobId(ref) {
+    if (!ref) return null;
+    if (typeof ref === 'object') return ref.blobRef || ref.blobId || ref.id || null;
+    return String(ref);
+  }
+
+  /** URL lista para iframe/img/canvas + metadatos del archivo en IDB */
+  function getViewUrl(id) {
+    var rid = normalizeBlobId(id);
+    if (!rid) return Promise.resolve(null);
+    return getRecord(rid).then(function (rec) {
+      if (!rec) return null;
+      var mime = String(rec.mime || '').toLowerCase();
+      var nombre = rec.nombre || '';
+      var isPdf = mime.indexOf('pdf') >= 0 || /\.pdf$/i.test(nombre);
+      var isImage = mime.indexOf('image') >= 0;
+      if (rec.blob) {
+        try {
+          return {
+            url: URL.createObjectURL(rec.blob),
+            revoke: true,
+            mime: rec.mime,
+            nombre: nombre,
+            kind: isPdf ? 'pdf' : isImage ? 'image' : 'file',
+            rec: rec,
+          };
+        } catch (_) {}
+      }
+      if (rec.thumbDataUrl) {
+        return {
+          url: rec.thumbDataUrl,
+          revoke: false,
+          mime: rec.mime || 'image/jpeg',
+          nombre: nombre,
+          kind: 'image',
+          rec: rec,
+        };
+      }
+      return null;
+    });
+  }
+
+  function blobExists(id) {
+    var rid = normalizeBlobId(id);
+    if (!rid) return Promise.resolve(false);
+    return getRecord(rid).then(function (rec) {
+      return !!(rec && (rec.blob || rec.thumbDataUrl));
+    });
+  }
+
   function toAdjuntoRef(rec) {
     if (!rec) return null;
     return {
@@ -375,6 +425,9 @@
     putBlob: putBlob,
     getBlobUrl: getBlobUrl,
     getDataUrl: getDataUrl,
+    getViewUrl: getViewUrl,
+    normalizeBlobId: normalizeBlobId,
+    blobExists: blobExists,
     persistAdjuntos: persistAdjuntos,
     loadAdjuntosForUi: loadAdjuntosForUi,
     migrateReservorioAdjuntos: migrateReservorioAdjuntos,

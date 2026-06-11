@@ -22,6 +22,7 @@
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
 <script src="core/CrozzoDeviceForm.js"></script>
+<script src="ui/CrozzoFormulaInput.js"></script>
 <script src="core/CrozzoTabletShell.js"></script>
 <script>
 (function () {
@@ -74,6 +75,7 @@
 })();
 </script>
 <script src="core/CrozzoViewportFit.js"></script>
+<script src="ui/CrozzoLoadingShell.js"></script>
 <script>
 try {
   if (typeof globalThis !== 'undefined') {
@@ -732,9 +734,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-arqueo-wizard__line"></div>
       <div class="crozzo-arqueo-wizard__step"><span>2</span> Confirmar</div>
     </div>
+    <div id="crozzo-arqueo-mode-banner" hidden></div>
     <div class="crozzo-shift-step is-active" id="crozzo-shift-step1">
       <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-dialog-title">Arqueo de caja</h3>
-      <p class="form-hint crozzo-arqueo-hint">Cuente el efectivo físico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
+      <p class="form-hint crozzo-arqueo-hint" id="crozzo-arqueo-dialog-hint">Cuente el efectivo físico y confirme el turno. Las ventas se calculan desde comprobantes reales del POS.</p>
       <div class="crozzo-arqueo-type-grid" role="radiogroup" aria-label="Tipo de cierre">
         <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="manana" checked><span class="crozzo-arqueo-type__icon"><i data-lucide="sunrise"></i></span><span class="crozzo-arqueo-type__lbl">Mañana</span></label>
         <label class="crozzo-arqueo-type"><input type="radio" name="crozzo-arqueo-type" value="tarde"><span class="crozzo-arqueo-type__icon"><i data-lucide="sunset"></i></span><span class="crozzo-arqueo-type__lbl">Tarde</span></label>
@@ -744,8 +747,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-arqueo-fields">
         <label class="form-label" for="crozzo-shift-fondo">Fondo inicial en caja</label>
         <div class="crozzo-arqueo-money-input"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-fondo" min="0" step="1" placeholder="0"></div>
+        <label class="form-label" for="crozzo-shift-gastos">Gastos del turno (efectivo saliente)</label>
+        <div class="crozzo-arqueo-money-input"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-gastos" min="0" step="1" placeholder="0" inputmode="numeric"></div>
+        <p class="form-hint crozzo-arqueo-hint" style="margin:0 0 8px;font-size:0.78rem;">Compras, domicilios u otros egresos en efectivo. Si usa Planilla, se sugiere el total del turno.</p>
         <label class="form-label" for="crozzo-shift-count">Efectivo contado físicamente</label>
-        <div class="crozzo-arqueo-money-input crozzo-arqueo-money-input--primary"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-count" min="0" step="1" placeholder="Ej: 450000"></div>
+        <div class="crozzo-arqueo-money-input crozzo-arqueo-money-input--primary"><span class="crozzo-arqueo-money-input__prefix">$</span><input type="number" class="crozzo-shift-input" id="crozzo-shift-count" min="0" step="1" placeholder="Ej: 450000" inputmode="numeric"></div>
+        <p class="crozzo-arqueo-expected-hint" id="crozzo-arqueo-expected-hint" aria-live="polite">Esperado en caja: <strong>$0</strong></p>
       </div>
       <div class="crozzo-arqueo-actions">
         <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" onclick="crozzoShiftCalcArqueo()"><i data-lucide="calculator"></i> Calcular diferencia</button>
@@ -753,14 +760,65 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
     </div>
     <div class="crozzo-shift-step" id="crozzo-shift-step2">
-      <h3 class="modal-title crozzo-arqueo-title">Confirmar cierre</h3>
+      <h3 class="modal-title crozzo-arqueo-title" id="crozzo-arqueo-step2-title">Confirmar cierre</h3>
       <div class="crozzo-shift-summary crozzo-shift-summary--final" id="crozzo-shift-final"></div>
-      <label class="form-label" for="crozzo-shift-notes">Notas del cierre</label>
+      <label class="form-label" id="crozzo-arqueo-notes-label" for="crozzo-shift-notes">Notas del cierre</label>
       <textarea class="crozzo-shift-input crozzo-shift-notes-input" id="crozzo-shift-notes" rows="3" placeholder="Explique faltantes, sobrantes o incidencias…"></textarea>
       <div class="crozzo-arqueo-actions">
-        <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" onclick="crozzoShiftFinalize()"><i data-lucide="shield-check"></i> Confirmar y guardar</button>
+        <button type="button" class="btn btn-outline crozzo-arqueo-actions__primary" onclick="crozzoCierrePrintArqueoDraft()"><i data-lucide="clipboard-edit"></i> Llenar formato cuadre</button>
+        <button type="button" class="btn btn-primary crozzo-arqueo-actions__primary" id="crozzo-arqueo-confirm-btn" onclick="crozzoShiftFinalize()"><i data-lucide="shield-check"></i> Confirmar y guardar</button>
         <button type="button" class="btn btn-outline" onclick="crozzoShiftArqueoGoStep(1)"><i data-lucide="arrow-left"></i> Volver al conteo</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="crozzo-cuadre-modal" class="crozzo-cuadre-modal" hidden aria-modal="true" role="dialog" aria-labelledby="crozzo-cuadre-title">
+  <div class="crozzo-cuadre-modal__card crozzo-cuadre-modal__card--simple">
+    <button type="button" class="crozzo-cuadre-modal__close" aria-label="Cerrar" onclick="crozzoCierreCloseCuadreForm()"><i data-lucide="x"></i></button>
+    <header class="crozzo-cuadre-modal__brand">
+      <img id="crozzo-cuadre-logo" class="crozzo-cuadre-modal__logo" alt="" hidden>
+      <div>
+        <h3 class="crozzo-cuadre-modal__title" id="crozzo-cuadre-title">Cuadre de caja</h3>
+        <p class="crozzo-cuadre-modal__lead">Usted escribe efectivo, documentos, datáfonos y gastos. El sistema suma y compara con venta + propinas del POS.</p>
+      </div>
+    </header>
+    <div class="crozzo-cuadre-modal__auto">
+      <div><span class="lbl">Fecha</span><strong id="crozzo-cuadre-dia">—</strong></div>
+      <div><span class="lbl">Turno</span><strong id="crozzo-cuadre-turno">—</strong></div>
+      <div><span class="lbl">Responsable</span><strong id="crozzo-cuadre-cajero">—</strong></div>
+    </div>
+    <input type="hidden" id="crozzo-cuadre-fondo" value="0">
+    <section class="crozzo-cuadre-block" aria-label="Lo que contó">
+      <h4 class="crozzo-cuadre-block__title">Lo que contó</h4>
+      <div class="crozzo-cuadre-modal__grid crozzo-cuadre-modal__grid--4">
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-efectivo">Efectivo</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-efectivo" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-docs">Documentos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-docs" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-datafonos">Datáfonos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-datafonos" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-gastos">Gastos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-gastos" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+      </div>
+    </section>
+    <div class="crozzo-cuadre-result" id="crozzo-cuadre-result" aria-live="polite">
+      <div class="crozzo-cuadre-result__row"><span>Total contado</span><strong id="crozzo-cuadre-total-sumado">—</strong></div>
+      <div class="crozzo-cuadre-result__row crozzo-cuadre-result__row--sub"><span>Venta POS</span><strong id="crozzo-cuadre-venta-pos">—</strong></div>
+      <div class="crozzo-cuadre-result__row crozzo-cuadre-result__row--sub"><span>Propinas POS</span><strong id="crozzo-cuadre-propinas-pos">—</strong></div>
+      <div class="crozzo-cuadre-result__row"><span>Referencia sistema</span><strong id="crozzo-cuadre-ref-pos">—</strong></div>
+      <div class="crozzo-cuadre-result__status" id="crozzo-cuadre-estado-wrap"><span id="crozzo-cuadre-descuadre-val">—</span><strong id="crozzo-cuadre-estado-lbl">Ingrese valores o use formato en blanco</strong></div>
+    </div>
+    <section class="crozzo-cuadre-block crozzo-cuadre-block--tips" aria-label="Propinas contadas">
+      <h4 class="crozzo-cuadre-block__title">Propinas (aparte)</h4>
+      <div class="crozzo-cuadre-modal__grid crozzo-cuadre-modal__grid--3">
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-prop-efectivo">Efectivo</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-prop-efectivo" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label for="crozzo-cuadre-prop-datafono">Datáfonos</label><input type="text" class="form-input crozzo-cuadre-num" id="crozzo-cuadre-prop-datafono" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0" data-cuadre-manual="1"></div>
+        <div class="crozzo-cuadre-modal__field"><label>Total propinas</label><output class="crozzo-cuadre-result-inline" id="crozzo-cuadre-prop-total">—</output></div>
+      </div>
+    </section>
+    <label class="form-label" for="crozzo-cuadre-notas">Anotaciones</label>
+    <textarea class="crozzo-shift-input" id="crozzo-cuadre-notas" rows="3" placeholder="Observaciones, incidencias o motivo del descuadre…"></textarea>
+    <p class="form-hint crozzo-cuadre-cut-hint"><i data-lucide="scissors"></i> Térmica POS: línea «CORTE AQUÍ» y avance en blanco al final (compatible con cuadro de impresión Windows).</p>
+    <div class="crozzo-cuadre-modal__actions">
+      <button type="button" class="btn btn-outline" onclick="crozzoCierreDownloadCuadreBlank()"><i data-lucide="download"></i> Formato en blanco</button>
+      <button type="button" class="btn btn-primary" onclick="crozzoCierrePrintCuadreFromForm()"><i data-lucide="printer"></i> Imprimir cuadre</button>
     </div>
   </div>
 </div>
@@ -898,13 +956,14 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
   </div>
 </div>
-<script src="modules/CrozzoCierreTurnos.js"></script>
 <script src="core/CrozzoLaboratorioCore.js"></script>
 <script src="modules/CrozzoLaboratorio.js"></script>
 <script src="core/CrozzoRecepcionBridge.js"></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="modules/CrozzoComandasCloudSync.js" defer></script>
+<script src="modules/CrozzoCierreTurnos.js"></script>
+<script src="modules/CrozzoCierrePrint.js"></script>
 <script src="core/CrozzoTermicaColombia.js" defer></script>
 <script src="core/CrozzoTermicaPremium.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>

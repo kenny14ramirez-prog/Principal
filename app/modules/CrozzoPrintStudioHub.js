@@ -77,7 +77,7 @@
   }
 
   function defaultTplPrecuenta() {
-    var tpl = {
+    return {
       name: 'Precuenta mesa',
       sz: '80',
       studio: true,
@@ -85,27 +85,15 @@
       blocks: [
         { t: 'logo', c: '', v: true, o: 1, a: 'center', fs: 'md', fw: true },
         { t: 'company', c: '', v: true, o: 2, a: 'center', fs: 'md', fw: true },
-        { t: 'nit', c: '', v: true, o: 3, a: 'center', fs: 'xs' },
-        { t: 'address', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
-        { t: 'regimen', c: '', v: true, o: 5, a: 'center', fs: 'xs' },
-        { t: 'impuesto_consumo', c: '', v: true, o: 5.5, a: 'center', fs: 'xs' },
-        { t: 'title', c: 'PRECUENTA', v: true, o: 6, a: 'center', fs: 'lg', fw: true },
-        { t: 'servicio_ref', c: '', v: true, o: 7, a: 'center', fs: 'sm', fw: true },
-        { t: 'date', c: '', v: true, o: 8, a: 'center', fs: 'xs' },
-        { t: 'client', c: '', v: true, o: 9, a: 'left', fs: 'sm' },
-        { t: 'divider', c: '4', v: true, o: 10 },
-        { t: 'items', c: '', v: true, o: 11, a: 'left', fs: 'sm' },
-        { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 13, a: 'left', fs: 'md', fw: true },
-        { t: 'divider', c: '2', v: true, o: 14, a: 'center', fs: 'xs', id: 'sep_pie' },
-        { t: 'propina_sugerida', c: '', v: true, o: 14.5, a: 'center', fs: 'xs' },
-        { t: 'legal_co', c: '', v: true, o: 15, a: 'center', fs: 'xs' },
-        { t: 'footer', c: '', v: true, o: 17, a: 'center', fs: 'sm', fw: true },
+        { t: 'title', c: 'PRECUENTA', v: true, o: 3, a: 'center', fs: 'lg', fw: true },
+        { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
+        { t: 'client', c: '', v: true, o: 5, a: 'left', fs: 'sm' },
+        { t: 'divider', c: '4', v: true, o: 6 },
+        { t: 'items', c: '', v: true, o: 7, a: 'left', fs: 'sm' },
+        { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 8, a: 'left', fs: 'md', fw: true },
+        { t: 'footer', c: 'No es factura · Solicite cuenta en caja', v: true, o: 9, a: 'center', fs: 'xs' },
       ],
     };
-    if (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.ensurePrecuentaBlocks) {
-      tpl = global.CrozzoTermicaColombia.ensurePrecuentaBlocks(tpl);
-    }
-    return tpl;
   }
 
   function defaultTplSalon() {
@@ -203,7 +191,7 @@
         { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
         { t: 'divider', c: '4', v: true, o: 5 },
         { t: 'items', c: '', v: true, o: 6, a: 'left', fs: 'md', fw: true },
-        { t: 'footer', c: 'Preparar con amor', v: true, o: 7, a: 'left', fs: 'xs' },
+        { t: 'footer', c: '— Preparar con prioridad —', v: true, o: 7, a: 'center', fs: 'xs' },
       ],
     };
   }

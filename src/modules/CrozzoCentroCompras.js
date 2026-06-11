@@ -75,6 +75,11 @@
     );
   }
 
+  function setOficinaPageChrome(on) {
+    if (typeof document === 'undefined' || !document.body) return;
+    document.body.classList.toggle('crozzo-page-oficina', !!on);
+  }
+
   function showLocalModule(mod) {
     var host = document.getElementById('crozzo-hub-local-host');
     var eng = document.getElementById('crozzo-hub-engine');
@@ -142,6 +147,7 @@
       return;
     }
     hub.qycModule = mod;
+    setOficinaPageChrome(mod === 'oficina');
     showLocalModule(mod);
     var st = document.getElementById('crozzo-hub-status');
     if (st) st.outerHTML = statusBarHtml();
@@ -378,6 +384,7 @@
   };
 
   function centroComprasTeardown() {
+    setOficinaPageChrome(false);
     hub.loadedQyc = false;
     var fr = document.getElementById('crozzo-hub-qyc-frame');
     if (fr) {

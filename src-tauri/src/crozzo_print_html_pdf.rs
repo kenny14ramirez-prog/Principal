@@ -35,13 +35,13 @@ fn sanitize_pdf_filename(name: &str) -> String {
 }
 
 fn resolve_downloads_dir(app: &AppHandle) -> PathBuf {
-    #[cfg(windows)]
-    if let Ok(home) = std::env::var("USERPROFILE") {
-        let d = PathBuf::from(&home).join("Downloads");
-        let _ = std::fs::create_dir_all(&d);
+    if let Ok(d) = app.path().download_dir() {
         return d;
     }
-    if let Ok(d) = app.path().download_dir() {
+    #[cfg(windows)]
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        let d = PathBuf::from(home).join("Downloads");
+        let _ = std::fs::create_dir_all(&d);
         return d;
     }
     app.path()
@@ -49,86 +49,14 @@ fn resolve_downloads_dir(app: &AppHandle) -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("."))
 }
 
-fn collect_save_dirs(app: &AppHandle) -> Vec<PathBuf> {
-    let mut dirs: Vec<PathBuf> = Vec::new();
-    #[cfg(windows)]
-    if let Ok(home) = std::env::var("USERPROFILE") {
-        dirs.push(PathBuf::from(&home).join("Downloads"));
-        dirs.push(PathBuf::from(&home).join("Documents").join("CrozzoPOS"));
-    }
-    if let Ok(d) = app.path().download_dir() {
-        if !dirs.iter().any(|p| p == &d) {
-            dirs.push(d);
-        }
-    }
-    if let Ok(d) = app.path().document_dir() {
-        let crozzo = d.join("CrozzoPOS");
-        if !dirs.iter().any(|p| p == &crozzo) {
-            dirs.push(crozzo);
-        }
-    }
-    if dirs.is_empty() {
-        dirs.push(resolve_downloads_dir(app));
-    }
-    dirs
-}
-
-fn save_pdf_bytes(app: &AppHandle, bytes: &[u8], filename: &str) -> Result<String, String> {
+fn save_pdf_bytes(app: &AppHandle, bytes: &[u8], filename: &str) -> Option<String> {
     if bytes.is_empty() {
-        return Err("PDF vacio".into());
+        return None;
     }
     let safe = sanitize_pdf_filename(filename);
-    let dirs = collect_save_dirs(app);
-    let mut last_err = String::new();
-    for dir in dirs {
-        if let Err(e) = std::fs::create_dir_all(&dir) {
-            last_err = format!("{dir:?}: {e}");
-            continue;
-        }
-        let dest = dir.join(&safe);
-        match std::fs::write(&dest, bytes) {
-            Ok(()) => return Ok(dest.to_string_lossy().into_owned()),
-            Err(e) => last_err = format!("{dest:?}: {e}"),
-        }
-    }
-    Err(if last_err.is_empty() {
-        format!("No se pudo guardar {safe} en Descargas")
-    } else {
-        format!("No se pudo guardar {safe}: {last_err}")
-    })
-}
-
-#[derive(Debug, Serialize)]
-pub struct CrozzoSavePdfResult {
-    pub ok: bool,
-    pub saved_path: String,
-    pub message: String,
-}
-
-pub fn save_pdf_b64_sync(
-    app: &AppHandle,
-    pdf_b64: String,
-    filename: Option<String>,
-) -> Result<CrozzoSavePdfResult, String> {
-    use base64::Engine;
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(pdf_b64.trim())
-        .map_err(|e| format!("PDF invalido (base64): {e}"))?;
-    if bytes.is_empty() {
-        return Err("PDF vacio".into());
-    }
-    let name = filename
-        .as_deref()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or("documento.pdf");
-    match save_pdf_bytes(app, &bytes, name) {
-        Ok(path) => Ok(CrozzoSavePdfResult {
-            ok: true,
-            saved_path: path.clone(),
-            message: format!("PDF guardado: {path}"),
-        }),
-        Err(e) => Err(e),
-    }
+    let dest = resolve_downloads_dir(app).join(&safe);
+    std::fs::write(&dest, bytes).ok()?;
+    Some(dest.to_string_lossy().into_owned())
 }
 
 #[cfg(windows)]
@@ -363,7 +291,7 @@ pub fn html_to_pdf_b64_sync(
         .map(|s| sanitize_pdf_filename(s));
 
     if let Some(name) = saved_label.as_ref() {
-        if let Ok(path) = save_pdf_bytes(&app, &bytes, name) {
+        if let Some(path) = save_pdf_bytes(&app, &bytes, name) {
             saved_path = path;
         }
     }

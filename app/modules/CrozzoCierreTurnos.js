@@ -276,27 +276,140 @@
     return ' <span class="crozzo-cierre-integrity crozzo-cierre-integrity--warn" title="Facturas del turno cambiaron desde el cierre">⚠</span>';
   }
 
+  var LS_PL_CIERRE_Q = 'crozzo_planilla_cierre_pending_v1';
+
+  function slimCierreForPlanilla(rec) {
+    if (!rec) return null;
+    return {
+      shiftId: rec.shiftId,
+      shiftType: rec.shiftType,
+      shiftLabel: rec.shiftLabel,
+      businessDate: rec.businessDate,
+      closedAt: rec.closedAt,
+      closedBy: rec.closedBy,
+      closedById: rec.closedById,
+      actual: rec.actual,
+      expected: rec.expected,
+      diff: rec.diff,
+      cashSales: rec.cashSales,
+      totalSales: rec.totalSales,
+      salesCount: rec.salesCount,
+      fondo: rec.fondo,
+      gastosTurno: rec.gastosTurno,
+      byMethod: rec.byMethod,
+      facturasCargadas: rec.facturasCargadas,
+      facturasCargadasList: rec.facturasCargadasList,
+      notes: rec.notes,
+      cuadreSheet: rec.cuadreSheet,
+      recordKind: rec.recordKind || 'cierre',
+    };
+  }
+
+  function cierreQueueKey(rec) {
+    return String((rec && rec.shiftId) || (rec && rec.closedAt) || '');
+  }
+
+  function removeCierreFromPlanillaQueue(rec) {
+    try {
+      var key = cierreQueueKey(rec);
+      if (!key) return;
+      var q = JSON.parse(localStorage.getItem(LS_PL_CIERRE_Q) || '[]');
+      var next = q.filter(function (c) {
+        return c && cierreQueueKey(c) !== key;
+      });
+      localStorage.setItem(LS_PL_CIERRE_Q, JSON.stringify(next));
+    } catch (_) {}
+  }
+
+  function queueCierreForPlanilla(rec) {
+    var slim = slimCierreForPlanilla(rec);
+    if (!slim || !slim.businessDate || slim.recordKind !== 'cierre') return;
+    try {
+      var key = cierreQueueKey(slim);
+      var q = JSON.parse(localStorage.getItem(LS_PL_CIERRE_Q) || '[]');
+      var found = false;
+      q = q.map(function (c) {
+        if (c && cierreQueueKey(c) === key) {
+          found = true;
+          return slim;
+        }
+        return c;
+      });
+      if (!found) q.unshift(slim);
+      localStorage.setItem(LS_PL_CIERRE_Q, JSON.stringify(q.slice(0, 48)));
+    } catch (e) {
+      console.warn('[cierre] planilla queue', e);
+    }
+  }
+
+  function applyCierreToPlanillaNow(rec) {
+    if (!rec || rec.recordKind !== 'cierre') return { ok: false, reason: 'no_cierre' };
+    if (typeof global.crozzoPlanillaApplyCierreFromShift === 'function') {
+      return global.crozzoPlanillaApplyCierreFromShift(rec);
+    }
+    return null;
+  }
+
+  function ensurePlanillaModuleThen(fn) {
+    if (typeof global.crozzoEnsureModulesForPage === 'function') {
+      global.crozzoEnsureModulesForPage('nomina-planilla').then(fn).catch(function () {
+        if (typeof global.crozzoLoadModules === 'function') {
+          var scripts =
+            global.CrozzoManifest && typeof global.CrozzoManifest.scriptsForPage === 'function'
+              ? global.CrozzoManifest.scriptsForPage('nomina-planilla')
+              : ['modules/CrozzoPlanilla2026.js'];
+          global.crozzoLoadModules(scripts || []).then(fn).catch(function () {});
+        }
+      });
+      return;
+    }
+    if (typeof global.crozzoLoadModules === 'function') {
+      global.crozzoLoadModules(['modules/CrozzoPlanilla2026.js']).then(fn).catch(function () {});
+    }
+  }
+
   function pushCierreToPlanilla(rec) {
     try {
-      if (typeof global.crozzoPlanillaApplyCierreFromShift === 'function') {
-        return global.crozzoPlanillaApplyCierreFromShift(rec);
+      if (!rec || rec.recordKind === 'supervision') return { ok: false, reason: 'supervision' };
+      var slim = slimCierreForPlanilla(rec);
+      if (!slim || !slim.businessDate) return { ok: false, reason: 'sin_fecha' };
+      slim.recordKind = 'cierre';
+      var applied = applyCierreToPlanillaNow(slim);
+      if (applied && applied.ok) {
+        removeCierreFromPlanillaQueue(slim);
+        return applied;
       }
+      queueCierreForPlanilla(slim);
+      ensurePlanillaModuleThen(function () {
+        var r2 = applyCierreToPlanillaNow(slim);
+        if (r2 && r2.ok) {
+          removeCierreFromPlanillaQueue(slim);
+        } else if (typeof global.crozzoPlanillaDrainCierreQueue === 'function') {
+          global.crozzoPlanillaDrainCierreQueue();
+        }
+      });
+      return { ok: true, queued: true, pending: true };
     } catch (e) {
       console.warn('[cierre] planilla', e);
+      queueCierreForPlanilla(rec);
+      return { ok: false, reason: String(e && e.message ? e.message : e) };
     }
-    return { ok: false };
   }
 
   function enrichCierreRecord(rec, metrics) {
     var actor = getCierreActor();
     var snap = computeFacturasSnapshot(metrics);
-    return Object.assign({}, rec, {
+    var out = Object.assign({}, rec, {
       closedBy: actor.name,
       closedById: actor.id,
       deviceId: getCierreDeviceId(),
       facturasHash: snap.facturasHash,
       invoiceCountSnapshot: snap.invoiceCountSnapshot,
     });
+    if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.enrichWithCuadre === 'function') {
+      return global.CrozzoCierrePrint.enrichWithCuadre(out, metrics);
+    }
+    return out;
   }
 
   function diffNeedsNote(diff) {
@@ -358,7 +471,29 @@
       count: 0,
       total: 0,
       cash: 0,
-      byMethod: { efectivo: 0, tarjeta: 0, qr: 0, pse: 0, mixto: 0, otro: 0 },
+      facturasCargadas: 0,
+      byMethod: { efectivo: 0, tarjeta: 0, qr: 0, pse: 0, mixto: 0, credito: 0, cartera: 0, otro: 0 },
+    };
+  }
+
+  function isFacturaCargadaSale(f) {
+    if (!f) return false;
+    var mp = String(f.metodoPago || '').toLowerCase();
+    if (mp === 'credito' || mp === 'cartera_pendiente') return true;
+    var est = String(f.cobroEstado || '').toLowerCase();
+    if ((est === 'pendiente' || est === 'parcial') && Number(f.saldoPendiente) > 0) return true;
+    return false;
+  }
+
+  function facturaCargadaRow(f) {
+    return {
+      uuid: f.uuid || '',
+      consecutivo: f.consecutivo != null ? String(f.consecutivo) : '',
+      cliente: f.compradorNombre || f.clienteNombre || '',
+      nit: f.compradorNit || f.clienteNit || '',
+      valor: Number(f.total) || 0,
+      metodo: String(f.metodoPago || 'credito').toLowerCase(),
+      fecha: String(f.fecha || f.fechaEmision || '').slice(0, 10),
     };
   }
 
@@ -367,7 +502,9 @@
     agg.count += 1;
     agg.total += tot;
     agg.cash += saleCashAmount(f);
+    if (isFacturaCargadaSale(f)) agg.facturasCargadas += tot;
     var mp = String(f.metodoPago || 'otro').toLowerCase();
+    if (mp === 'cartera_pendiente') mp = 'cartera';
     if (agg.byMethod[mp] != null) agg.byMethod[mp] += tot;
     else agg.byMethod.otro += tot;
   }
@@ -381,6 +518,8 @@
       count: agg.count,
       total: agg.total,
       cash: agg.cash,
+      facturasCargadas: agg.facturasCargadas,
+      efectivoEsperado: agg.cash,
       nonCash: Math.max(0, agg.total - agg.cash),
       ticket: agg.count ? agg.total / agg.count : 0,
       byMethod: agg.byMethod,
@@ -474,12 +613,19 @@
     });
     var total = 0;
     var cash = 0;
-    var byMethod = { efectivo: 0, tarjeta: 0, qr: 0, pse: 0, mixto: 0, otro: 0 };
+    var facturasCargadas = 0;
+    var cargadasList = [];
+    var byMethod = { efectivo: 0, tarjeta: 0, qr: 0, pse: 0, mixto: 0, credito: 0, cartera: 0, otro: 0 };
     list.forEach(function (f) {
       var tot = Number(f.total) || 0;
       total += tot;
       cash += saleCashAmount(f);
+      if (isFacturaCargadaSale(f)) {
+        facturasCargadas += tot;
+        cargadasList.push(facturaCargadaRow(f));
+      }
       var mp = String(f.metodoPago || 'otro').toLowerCase();
+      if (mp === 'cartera_pendiente') mp = 'cartera';
       if (byMethod[mp] != null) byMethod[mp] += tot;
       else byMethod.otro += tot;
     });
@@ -487,6 +633,9 @@
       count: list.length,
       total: total,
       cash: cash,
+      facturasCargadas: facturasCargadas,
+      facturasCargadasList: cargadasList,
+      efectivoEsperado: cash,
       nonCash: Math.max(0, total - cash),
       ticket: list.length ? total / list.length : 0,
       byMethod: byMethod,
@@ -753,6 +902,9 @@
       count: detail.count,
       total: detail.total,
       cash: detail.cash,
+      facturasCargadas: detail.facturasCargadas,
+      facturasCargadasList: detail.facturasCargadasList,
+      efectivoEsperado: detail.efectivoEsperado,
       nonCash: detail.nonCash,
       ticket: detail.ticket,
     });
@@ -1058,12 +1210,15 @@
     var limit = opts.limit != null ? opts.limit : 15;
     var full = !!opts.full;
     var allRows = getHistoryRows();
-    var rows = full ? filterHistoryRows(allRows) : allRows;
+    var rows = filterHistoryRows(allRows);
     if (!host) return;
     if (!rows.length) {
+      if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.setHistPrintCache === 'function') {
+        global.CrozzoCierrePrint.setHistPrintCache([]);
+      }
       host.innerHTML =
         '<tr><td colspan="' +
-        (full ? 10 : 6) +
+        (full ? 11 : 7) +
         '" class="crozzo-cierre-empty">' +
         (allRows.length
           ? 'Ningún cierre coincide con el filtro actual.'
@@ -1071,9 +1226,12 @@
         '</td></tr>';
       return;
     }
-    host.innerHTML = rows
-      .slice(0, limit)
-      .map(function (r) {
+    var slice = rows.slice(0, limit);
+    if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.setHistPrintCache === 'function') {
+      global.CrozzoCierrePrint.setHistPrintCache(slice);
+    }
+    host.innerHTML = slice
+      .map(function (r, idx) {
         var lbl = r.shiftLabel || (SHIFT_META[r.shiftType] && SHIFT_META[r.shiftType].label) || r.shiftType || '—';
         var diff = Number(r.diff) || 0;
         var diffCls = diff >= 0 ? 'crozzo-cierre-diff--ok' : 'crozzo-cierre-diff--bad';
@@ -1123,7 +1281,11 @@
         base +=
           '<td class="crozzo-cierre-hist-time">' +
           esc(r.closedAt ? new Date(r.closedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '—') +
-          '</td></tr>';
+          '</td>' +
+          (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.historyPrintCellHtml === 'function'
+            ? global.CrozzoCierrePrint.historyPrintCellHtml(r)
+            : '') +
+          '</tr>';
         return base;
       })
       .join('');
@@ -1256,6 +1418,14 @@
         ' · ' +
         formatMoney(m.total) +
         '</strong></div>' +
+        (num(m.facturasCargadas) > 0
+          ? '<div class="crozzo-arqueo-live__row"><span>Facturas a crédito</span><strong>' +
+            formatMoney(m.facturasCargadas) +
+            '</strong></div>' +
+            '<div class="crozzo-arqueo-live__row crozzo-arqueo-live__row--hint"><span>Efectivo esperado en caja</span><strong>' +
+            formatMoney(m.efectivoEsperado != null ? m.efectivoEsperado : m.cash) +
+            '</strong></div>'
+          : '') +
         '<div class="crozzo-arqueo-live__row crozzo-arqueo-live__row--cash"><span>Efectivo en ventas</span><strong>' +
         formatMoney(m.cash) +
         '</strong></div>' +
@@ -1267,6 +1437,18 @@
     if (fondo) {
       var fv = Number(sh.cashOpen) || suggested || 0;
       fondo.value = String(fv);
+    }
+    var gastosEl = document.getElementById('crozzo-shift-gastos');
+    if (gastosEl) {
+      var gHint = 0;
+      try {
+        if (typeof global.crozzoPlanillaDayCuadreHints === 'function') {
+          var h = global.crozzoPlanillaDayCuadreHints(m.day.businessDate, type);
+          gHint = Number(h && h.gastosPlanilla) || 0;
+        }
+      } catch (_) {}
+      if (!gastosEl.value && gHint > 0) gastosEl.value = String(gHint);
+      gastosEl.placeholder = gHint > 0 ? String(gHint) : '0';
     }
     if (cnt) cnt.value = '';
   }
@@ -1304,6 +1486,7 @@
     var m = metricsForScopeDetailed(type);
     var sh = m.shift;
     var fondo = Number(document.getElementById('crozzo-shift-fondo') && document.getElementById('crozzo-shift-fondo').value) || 0;
+    var gastosTurno = Number(document.getElementById('crozzo-shift-gastos') && document.getElementById('crozzo-shift-gastos').value) || 0;
     var actual = Number(document.getElementById('crozzo-shift-count') && document.getElementById('crozzo-shift-count').value);
     if (!Number.isFinite(actual)) {
       if (typeof showToast === 'function') showToast('Ingresa el efectivo contado en caja', 'warning');
@@ -1324,7 +1507,10 @@
       salesCount: m.count,
       totalSales: m.total,
       cashSales: m.cash,
+      facturasCargadas: num(m.facturasCargadas),
+      facturasCargadasList: m.facturasCargadasList || [],
       byMethod: m.byMethod,
+      gastosTurno: gastosTurno,
       shiftId: sh.id,
       openedAt: sh.openedAt,
       _metrics: m,
@@ -1508,14 +1694,13 @@
           labGen.ok &&
           typeof global.crozzoLabCanAccessRole === 'function' &&
           global.crozzoLabCanAccessRole() &&
-          typeof showToast === 'function' &&
-          !(typeof global.crozzoLabStealthEnabled === 'function' && global.crozzoLabStealthEnabled())
+          typeof showToast === 'function'
         ) {
           setTimeout(function () {
             showToast(
               'Laboratorio: recomendación pendiente · ' +
                 (labGen.recommendation.picks ? labGen.recommendation.picks.length : 0) +
-                ' facturas',
+                ' facturas (Ctrl+Shift+L)',
               'info'
             );
           }, 1800);
@@ -1524,7 +1709,14 @@
     } catch (_) {}
     var pl = pushCierreToPlanilla(rec);
     if (pl && pl.ok && typeof showToast === 'function') {
-      showToast('Cierre enviado a planilla · ' + rec.businessDate, 'info');
+      var plMsg =
+        'Planilla · ' +
+        (rec.shiftLabel || rec.shiftType || 'turno') +
+        ' del ' +
+        rec.businessDate +
+        (rec.closedBy ? ' · ' + rec.closedBy : '') +
+        (pl.queued ? ' (sincronizando…)' : ' · cuadre rellenado');
+      showToast(plMsg, 'info');
     }
 
     var day = readDaySession();
@@ -1552,6 +1744,11 @@
         ? 'Día cerrado. Mañana el contador reinicia en cero.'
         : 'Turno ' + rec.shiftLabel + ' cerrado. Resumen guardado.';
     if (typeof showToast === 'function') showToast(msg, 'success');
+    if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.printOnFinalize === 'function') {
+      setTimeout(function () {
+        global.CrozzoCierrePrint.printOnFinalize(rec);
+      }, 500);
+    }
     if (typeof showToast === 'function') {
       setTimeout(function () {
         showToast('Datos disponibles en Planilla → Propinas y cierre', 'info');
@@ -1852,6 +2049,9 @@
           '<div class="crozzo-cierre-section-head"><h3>Revisiones de administración</h3><p>Conteos sin cerrar turno — registro separado del cierre formal</p></div>' +
           '<div id="crozzo-cierre-supervision">—</div></section>'
         : '') +
+      (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.renderExportSectionHtml === 'function'
+        ? global.CrozzoCierrePrint.renderExportSectionHtml()
+        : '') +
       '<section class="crozzo-cierre-history" aria-label="Historial de cierres">' +
       '<div class="crozzo-cierre-section-head crozzo-cierre-history__head">' +
       '<div><h3>Historial de cierres</h3><p id="crozzo-cierre-hist-caption">Registro auditable de arqueos confirmados</p></div>' +
@@ -1864,7 +2064,7 @@
       '" oninput="crozzoCierreHistSearchDebounced(this.value)"></div></div></div>' +
       '<div class="crozzo-cierre-hist-stats" id="crozzo-cierre-hist-stats"></div>' +
       '<div class="crozzo-rep-table-wrap crozzo-cierre-hist-wrap"><table class="crozzo-cierre-hist-table"><thead><tr>' +
-      '<th>Fecha op.</th><th>Turno</th><th>Ventas</th><th>Total</th><th>Esperado</th><th>Contado</th><th>Δ caja</th><th>Notas</th><th>Encargado</th><th>Cerrado</th></tr></thead>' +
+      '<th>Fecha op.</th><th>Turno</th><th>Ventas</th><th>Total</th><th>Esperado</th><th>Contado</th><th>Δ caja</th><th>Notas</th><th>Encargado</th><th>Cerrado</th><th title="Imprimir cuadre">🖨</th></tr></thead>' +
       '<tbody id="crozzo-cierre-hist-body"></tbody></table></div></section></div>'
     );
   }
@@ -2299,6 +2499,29 @@
   global.crozzoCierreInvalidateCaches = invalidateCierreCaches;
   global.crozzoCierreForceFullRefresh = forceFullCierreRefresh;
   global.crozzoRepFilterFacturasOperationalDay = crozzoRepFilterFacturasOperationalDay;
+
+  global.__CROZZO_CIERRE_PRINT_DEPS__ = {
+    formatMoney: formatMoney,
+    esc: esc,
+    todayKey: todayKey,
+    SHIFT_META: SHIFT_META,
+    getHistoryRows: getHistoryRows,
+    filterHistoryRows: filterHistoryRows,
+    getSupervisionRows: getSupervisionRows,
+    crozzoRepFilterFacturasOperationalDay: crozzoRepFilterFacturasOperationalDay,
+    readDaySession: readDaySession,
+    buildOperationalSnapshot: buildOperationalSnapshot,
+    getCierreActor: getCierreActor,
+    enrichCierreRecord: enrichCierreRecord,
+    facturasForCierreRecord: facturasForCierreRecord,
+    getPendingArqueo: function () {
+      return __arqueoPending;
+    },
+    pushCierreToPlanilla: pushCierreToPlanilla,
+  };
+  if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.boot === 'function') {
+    global.CrozzoCierrePrint.boot(global.__CROZZO_CIERRE_PRINT_DEPS__);
+  }
 
   global.addEventListener('change', function (e) {
     if (e.target && e.target.name === 'crozzo-arqueo-type') refreshArqueoSummary(e.target.value);

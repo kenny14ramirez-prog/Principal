@@ -363,6 +363,7 @@
     }
     sb.classList.toggle('pinned', !!expanded && readState().pinned);
     syncSidebarLayoutClass(!!expanded);
+    if (typeof global.crozzoSidebarMountToggleBtn === 'function') global.crozzoSidebarMountToggleBtn(sb);
     if (wasExpanded !== !!expanded && sb && !sb.classList.contains('crozzo-drawer-nav') && !shouldDisableSidebarHover()) {
       markSidebarTransition();
     }

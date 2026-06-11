@@ -522,7 +522,12 @@
   }
 
   function schedulePersistCxfSession() {
-    if (_cxfIngestBatch > 0 || _cxfIngestJobBusy) {
+    if (
+      _cxfIngestBatch > 0 ||
+      _cxfIngestJobBusy ||
+      _feAnalisisQueueBusy ||
+      _feAnalisisQueue.length > 0
+    ) {
       _cxfPersistDeferred = true;
       return;
     }
@@ -534,7 +539,13 @@
   }
 
   function flushDeferredCxfPersist() {
-    if (_cxfPersistDeferred && !_cxfIngestBatch && !_cxfIngestJobBusy) {
+    if (
+      _cxfPersistDeferred &&
+      !_cxfIngestBatch &&
+      !_cxfIngestJobBusy &&
+      !_feAnalisisQueueBusy &&
+      !_feAnalisisQueue.length
+    ) {
       _cxfPersistDeferred = false;
       schedulePersistCxfSession();
     }
@@ -910,6 +921,76 @@
       });
     });
     return n;
+  }
+
+  function isModoSimple() {
+    return ui.modoEntrada === 'simple';
+  }
+
+  function persistDocumentoFieldsFromDom(host) {
+    readDocumentoDomIntoBuckets(host || getCxfHost());
+  }
+
+  function patchDocumentoNavUi(host) {
+    host = host || getCxfHost();
+    if (!host || ui.step !== 'documento' || !ui.modoEntrada) return;
+    var canGo = documentoReadyForProductos(host);
+    var goBtn = host.querySelector('#cxf-go-productos');
+    if (goBtn) {
+      goBtn.disabled = !canGo;
+      goBtn.title = !canGo
+        ? isModoSimple()
+          ? 'Adjunte archivo o escriba Nº factura'
+          : 'Adjunte al menos un PDF'
+        : isModoComplejo() && collectDocumentoFeStatus().trabajando
+          ? 'Espere a que termine el análisis'
+          : '';
+    }
+    var oldRes = host.querySelector('#cxf-documento-resumen');
+    var resHtml = renderDocumentoResumen();
+    if (oldRes) {
+      if (resHtml) {
+        var wrap = document.createElement('div');
+        wrap.innerHTML = resHtml;
+        if (wrap.firstChild) oldRes.parentNode.replaceChild(wrap.firstChild, oldRes);
+      } else {
+        oldRes.remove();
+      }
+    } else if (resHtml) {
+      var navRow = host.querySelector('.cxf-panel--documento .cxf-nav-row');
+      if (navRow) navRow.insertAdjacentHTML('beforebegin', resHtml);
+    }
+  }
+
+  /** Modo simple: basta Nº factura (PDF/foto opcional). */
+  function hasSimpleManualFacturaReady(host) {
+    if (!isModoSimple()) return false;
+    persistDocumentoFieldsFromDom(host);
+    return ui.proveedorIds.some(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b || !b.facturas || !b.facturas.length) return false;
+      return b.facturas.some(function (f) {
+        return String(f.numeroFactura || '').trim().length > 0;
+      });
+    });
+  }
+
+  function provHasManualNumero(provId) {
+    var b = ensureBucket(provId);
+    if (!b) return false;
+    return b.facturas.some(function (f) {
+      return String(f.numeroFactura || '').trim().length > 0;
+    });
+  }
+
+  function documentoReadyForProductos(host) {
+    if (!ui.proveedorIds.length) return false;
+    persistDocumentoFieldsFromDom(host);
+    if (totalDocsCount() > 0) {
+      if (isModoComplejo() && collectDocumentoFeStatus().trabajando) return false;
+      return true;
+    }
+    return hasSimpleManualFacturaReady(host);
   }
 
   function allFacturasForSave() {
@@ -1578,10 +1659,16 @@
   }
 
   function attemptGoProductos(host) {
-    persistNumeroFacturasFromDom(host);
-    persistValorCajeroFromDom(host);
-    persistActiveBucket();
-    if (!totalDocsCount()) return toast('Adjunte al menos un archivo en algún proveedor', 'warning');
+    persistDocumentoFieldsFromDom(host);
+    var manualSimple = hasSimpleManualFacturaReady(host);
+    if (!totalDocsCount() && !manualSimple) {
+      return toast(
+        isModoSimple()
+          ? 'Adjunte un PDF/foto o escriba el número de factura para continuar'
+          : 'Adjunte al menos un archivo en algún proveedor',
+        'warning'
+      );
+    }
     if (isModoComplejo()) {
       var feSt = collectDocumentoFeStatus();
       if (feSt.trabajando || _feAnalisisQueueBusy || _feAnalisisQueue.length) {
@@ -1602,15 +1689,22 @@
         return;
       }
     }
-    if (hasImageDocs()) {
-      promptAndConvertImages(host, { scope: 'all', autoGoProductos: true });
-      return;
+    if (totalDocsCount() > 0) {
+      if (hasImageDocs()) {
+        promptAndConvertImages(host, { scope: 'all', autoGoProductos: true });
+        return;
+      }
+      if (hasNonPdfDocs()) return toast('Solo se permiten archivos PDF en este paso', 'warning');
+      ui.proveedorIds.forEach(function (pid) {
+        reorganizeFacturasPorPdf(pid);
+      });
     }
-    if (hasNonPdfDocs()) return toast('Solo se permiten archivos PDF en este paso', 'warning');
-    ui.proveedorIds.forEach(function (pid) {
-      reorganizeFacturasPorPdf(pid);
-    });
-    if (!ui.proveedorActivo) ui.proveedorActivo = ui.proveedorIds.find(provHasDocs) || ui.proveedorIds[0];
+    if (!ui.proveedorActivo) {
+      ui.proveedorActivo =
+        ui.proveedorIds.find(provHasDocs) ||
+        ui.proveedorIds.find(provHasManualNumero) ||
+        ui.proveedorIds[0];
+    }
     setActiveProv(ui.proveedorActivo);
     ui.step = 'productos';
     syncValorFromLines();
@@ -2602,8 +2696,11 @@
       .then(function (res) {
         f.feAnalisis = res;
         f._feAnalisisRunning = false;
+        var identCam = stampFeIdentidadEnFactura(f, res, prov);
+        if (String(provId) === getActiveProvId()) syncUiFromBucket();
         patchFacturaSlotUiIfVisible(host, provId, facturaId);
-        if (res && res.esElectronica) {
+        if (identCam) toastFeIdentidad(identCam, prov ? prov.nombre : '');
+        else if (res && res.esElectronica) {
           toast('Factura electrónica identificada por cámara — revise y pulse «Aplicar datos»', 'success');
         } else {
           toast('QR leído — revise el panel o use Reanalizar con el PDF', 'info');
@@ -3166,9 +3263,7 @@
     if (!ui.proveedorIds.length) return false;
     if (id === 'documento') return true;
     if (id === 'productos') {
-      if (!totalDocsCount()) return false;
-      if (isModoComplejo() && collectDocumentoFeStatus().trabajando) return false;
-      return true;
+      return documentoReadyForProductos(getCxfHost());
     }
     if (id === 'cierre') {
       var hostCk = getCxfHost();
@@ -3952,6 +4047,20 @@
       '" value="' +
       esc(factura.numeroFactura) +
       '" placeholder="FE-12345">' +
+      (function () {
+        var FD = feDian();
+        var id =
+          (factura.feAnalisis && factura.feAnalisis.identidad) ||
+          (factura.feIdentidad) ||
+          null;
+        if (!id && factura.feAnalisis && FD && FD.buildFeIdentidad) {
+          var prov = proveedoresList().find(function (p) {
+            return String(p.id) === String(provId);
+          });
+          id = FD.buildFeIdentidad(factura.feAnalisis, prov);
+        }
+        return id && FD && FD.renderFeIdentidadInline ? FD.renderFeIdentidadInline(id) : '';
+      })() +
       (isModoComplejo()
         ? '<label class="cxf-label">Valor registrado por cajero ($)</label>' +
           '<input class="form-input cxf-valor-cajero" type="number" min="0" step="1" data-prov-id="' +
@@ -4019,7 +4128,13 @@
           '<button type="button" class="btn btn-outline btn-sm" data-cxf-add-factura data-prov-id="' +
           esc(pid) +
           '">+ Factura vacía</button></div></div>'
-        : '') +
+        : isModoSimple()
+          ? '<div class="cxf-facturas-merge-bar cxf-facturas-merge-bar--simple">' +
+            '<p class="cxf-muted">Puede registrar varias facturas del mismo proveedor sin subir PDF.</p>' +
+            '<button type="button" class="btn btn-outline btn-sm" data-cxf-add-factura data-prov-id="' +
+            esc(pid) +
+            '">+ Otra factura</button></div>'
+          : '') +
       (hasImg
         ? '<div class="cxf-pdf-tools cxf-pdf-tools--prov">' +
           '<p class="cxf-muted">Hay ' +
@@ -4124,6 +4239,14 @@
     var main = '';
     if (a && a.aplicadoAt) {
       main = '<span class="cxf-fe-badge cxf-fe-badge--applied">✓ Aplicada</span>';
+    } else if (a && a.identidad && a.identidad.numeroFactura) {
+      main =
+        '<span class="cxf-fe-badge cxf-fe-badge--ready" title="' +
+        esc(a.identidad.subtitulo || '') +
+        '">' +
+        esc(a.identidad.numeroFactura.slice(0, 18)) +
+        (a.identidad.numeroFactura.length > 18 ? '…' : '') +
+        '</span>';
     } else if (a && a.estado === 'listo' && a.esElectronica && a.cufeValidado) {
       main = '<span class="cxf-fe-badge cxf-fe-badge--ready">FE verificada</span>';
     } else if (a && a.estado === 'error') {
@@ -4277,8 +4400,8 @@
       '<article class="cxf-modo-card">' +
       (premium ? '<div class="cxf-modo-card__icon" aria-hidden="true">📄</div>' : '') +
       '<h3 class="cxf-modo-card__title">Simple</h3>' +
-      '<p class="cxf-modo-card__desc">Sube PDF o fotos, asigna número de factura y continúa a materias primas como hasta ahora.</p>' +
-      '<ul class="cxf-modo-card__list form-hint"><li>Varios PDF por proveedor</li><li>Conversión foto → PDF</li><li>Control manual de líneas</li></ul>' +
+      '<p class="cxf-modo-card__desc">Ingrese el <strong>número de factura</strong> y las líneas a mano. PDF o fotos son <strong>opcionales</strong>.</p>' +
+      '<ul class="cxf-modo-card__list form-hint"><li>Sin PDF obligatorio</li><li>Varios PDF por proveedor (opcional)</li><li>Control manual de líneas</li></ul>' +
       '<button type="button" class="btn btn-outline btn-lg" data-cxf-modo-entrada="simple">Modo manual</button></article>' +
       '<article class="cxf-modo-card cxf-modo-card--featured' +
       (premium ? ' cxf-modo-card--power' : '') +
@@ -4313,6 +4436,10 @@
   var CXF_MAX_PDF_FILE_MB = 18;
   var CXF_MAX_PDF_TOTAL_MB = 70;
   var FE_ANALISIS_TIMEOUT_MS = 4 * 60 * 1000;
+  var CXF_FE_BATCH_ANALISIS_TIMEOUT_MS = 100 * 1000;
+  var CXF_FE_MAX_QUEUE = 48;
+  var CXF_FE_POST_BATCH_DEEP_MAX = 5;
+  var CXF_FE_POST_BATCH_DEEP_TOTAL_MAX = 10;
   var CXF_INGEST_JOB_TIMEOUT_MS = 3 * 60 * 1000;
   var _cxfMountGen = 0;
   var _cxfPdfJsWorkBusy = false;
@@ -4345,6 +4472,8 @@
   var _cxfDeferredIdbBackups = [];
   var _cxfCmdStripThrottle = null;
   var _cxfCmdStripLast = 0;
+  var _feSlotPatchThrottle = null;
+  var _feSlotPatchPending = {};
 
   function isCxfHeavyWork() {
     return _cxfIngestBatch > 0 || _cxfIngestJobBusy || _feAnalisisQueueBusy || _feAnalisisQueue.length > 0;
@@ -4358,10 +4487,25 @@
 
   function cxfFeGapMs() {
     var q = _feAnalisisQueue.length + (_feAnalisisQueueBusy ? 1 : 0);
-    if (_cxfMassIngestMode || q > 1) {
-      return CXF_BG_YIELD_MS + CXF_FE_BETWEEN_INVOICES_MS + Math.min(q * 220, 3400);
+    if (_cxfMassIngestMode || q > 1 || global.__cxfFeBatchMode) {
+      return (
+        CXF_BG_YIELD_MS +
+        CXF_FE_BETWEEN_INVOICES_MS +
+        Math.min(q * 320, 5200) +
+        (_cxfMassIngestMode ? 480 : 0)
+      );
     }
     return isFeBatchUi() ? CXF_BG_YIELD_MS + 240 : 260;
+  }
+
+  function isCxfFeBatchWork() {
+    return !!(
+      isFeBatchUi() ||
+      global.__cxfFeBatchMode ||
+      _cxfMassIngestMode ||
+      _feAnalisisQueue.length > 1 ||
+      (_feBatchSession && _feBatchSession.active && (_feBatchSession.total || 0) > 1)
+    );
   }
 
   function cxfFeStartDelayAfterIngest(fileCount) {
@@ -4554,6 +4698,15 @@
       return Promise.resolve();
     }
     _cxfMassIngestMode = multi || files.length >= 2 || totalMb > 12;
+    if (files.length >= 2) global.__cxfFeBatchMode = true;
+    if (files.length > 24) {
+      toast(
+        'Lote grande (' +
+          files.length +
+          ' archivos) — se procesarán uno a uno para no saturar el equipo',
+        'info'
+      );
+    }
     global.__cxfFeBatchPaused = true;
     if (_feDrainTimer) {
       clearTimeout(_feDrainTimer);
@@ -4785,7 +4938,9 @@
 
   function syncCxfFeBatchModeFlag() {
     global.__cxfFeBatchMode =
-      !!(_feBatchSession && _feBatchSession.active) || _feAnalisisQueue.length >= 2;
+      !!(_feBatchSession && _feBatchSession.active) ||
+      _feAnalisisQueue.length >= 2 ||
+      _cxfMassIngestMode;
   }
 
   function scheduleFeDrain(host, delayMs) {
@@ -4836,6 +4991,21 @@
     updateCxfProgressDock({ phase: 'fe' });
   }
 
+  function countFeSinCufeEnSesion() {
+    var n = 0;
+    ui.proveedorIds.forEach(function (pid) {
+      var b = ensureBucket(pid);
+      if (!b) return;
+      b.facturas.forEach(function (f) {
+        if (!f.docs || !f.docs.length) return;
+        var a = f.feAnalisis;
+        if (!a || a.estado !== 'listo') return;
+        if (!a.cufeValidado) n++;
+      });
+    });
+    return n;
+  }
+
   function enqueuePostBatchFeDeep(host, attempt) {
     attempt = attempt || 0;
     if (!isModoComplejo()) return;
@@ -4847,12 +5017,26 @@
       }
       return;
     }
+    var batchTotal = (_feBatchSession && _feBatchSession.total) || 0;
+    if (batchTotal > CXF_FE_POST_BATCH_DEEP_TOTAL_MAX) {
+      var sinCufe = countFeSinCufeEnSesion();
+      if (sinCufe > 0) {
+        toast(
+          sinCufe +
+            ' factura(s) sin CUFE en el lote — use «Reanalizar» solo en las que lo necesite (evita sobrecargar el equipo)',
+          'info'
+        );
+      }
+      return;
+    }
     host = host || getCxfHost();
     var n = 0;
     ui.proveedorIds.forEach(function (pid) {
+      if (n >= CXF_FE_POST_BATCH_DEEP_MAX) return;
       var b = ensureBucket(pid);
       if (!b) return;
       b.facturas.forEach(function (f) {
+        if (n >= CXF_FE_POST_BATCH_DEEP_MAX) return;
         if (!f.docs || !f.docs.length) return;
         var a = f.feAnalisis;
         if (!a || a.estado !== 'listo') return;
@@ -4871,7 +5055,7 @@
       });
     });
     if (n > 0) {
-      toast('Segundo pase automático: ' + n + ' factura(s) — QR/OCR/DIAN profundo', 'info');
+      toast('Segundo pase (máx. ' + n + '): QR/DIAN profundo en las más críticas', 'info');
     }
   }
 
@@ -4893,8 +5077,26 @@
     updateCxfProgressDock({ phase: 'fe', complete: true, showContinue: true });
     if (onPage) {
       if (n > 1) {
+        var identN = 0;
+        var feN = 0;
+        ui.proveedorIds.forEach(function (pid) {
+          var b = ensureBucket(pid);
+          if (!b) return;
+          b.facturas.forEach(function (f) {
+            if (!f.docs || !f.docs.length) return;
+            if (f.feIdentidad && f.feIdentidad.numeroFactura) identN++;
+            if (f.feAnalisis && f.feAnalisis.esElectronica) feN++;
+          });
+        });
+        var batchMsg =
+          'Lote listo: ' +
+          n +
+          ' factura(s)' +
+          (identN ? ' · ' + identN + ' identificadas' : '') +
+          (feN ? ' · ' + feN + ' FE' : '') +
+          ' — revise y «Aplicar datos»';
         if (isCxfPremiumPsyche()) celebrateCxfMilestone('batch-complete');
-        else toast('Análisis de ' + n + ' facturas listo — revise y pulse «Aplicar datos»', 'success');
+        else toast(batchMsg, 'success');
       } else if (isCxfPremiumPsyche()) {
         celebrateCxfMilestone('batch-complete');
       }
@@ -5111,9 +5313,57 @@
     patchCxfCommandStrip();
   }
 
+  function patchFacturaSlotUiLite(host, provId, facturaId) {
+    var slot = findFacturaSlotEl(host, provId, facturaId);
+    if (!slot) return false;
+    var f = getFactura(provId, facturaId);
+    if (!f) return false;
+    var feMount = slot.querySelector('[data-cxf-fe-mount]');
+    if (feMount && isModoComplejo()) {
+      feMount.innerHTML = renderFeAnalisisBlock(provId, f);
+    }
+    var head = slot.querySelector('.cxf-factura-slot__head');
+    if (head) {
+      var tag = head.querySelector('.cxf-factura-slot__tag');
+      var badgeHtml = renderFacturaFeBadge(f);
+      var existingBadge = head.querySelector('.cxf-fe-badge-row');
+      if (badgeHtml) {
+        if (existingBadge) existingBadge.outerHTML = badgeHtml;
+        else if (tag) tag.insertAdjacentHTML('afterend', badgeHtml);
+      }
+    }
+    if (f._feAnalisisRunning) slot.classList.add('is-fe-busy');
+    else slot.classList.remove('is-fe-busy');
+    return true;
+  }
+
+  function flushFeSlotPatchPending() {
+    if (_feSlotPatchThrottle) {
+      clearTimeout(_feSlotPatchThrottle);
+      _feSlotPatchThrottle = null;
+    }
+    var pending = _feSlotPatchPending;
+    _feSlotPatchPending = {};
+    Object.keys(pending).forEach(function (k) {
+      var p = pending[k];
+      patchFacturaSlotUiLite(p.host || getCxfHost(), p.provId, p.facturaId);
+    });
+  }
+
   function patchFacturaSlotUiIfVisible(host, provId, facturaId) {
     host = host || getCxfHost();
     if (!host || ui.step !== 'documento') return false;
+    if (isCxfFeBatchWork()) {
+      var key = String(provId) + ':' + String(facturaId);
+      _feSlotPatchPending[key] = { host: host, provId: provId, facturaId: facturaId };
+      if (!_feSlotPatchThrottle) {
+        _feSlotPatchThrottle = setTimeout(function () {
+          _feSlotPatchThrottle = null;
+          flushFeSlotPatchPending();
+        }, 780);
+      }
+      return false;
+    }
     return patchFacturaSlotUi(host, provId, facturaId);
   }
 
@@ -5209,11 +5459,21 @@
         if (feAnalisisQueueIndex(key) >= 0) return;
         seen[key] = true;
         f._fePendienteAnalisis = true;
-        _feAnalisisQueue.push({ provId: String(pid), facturaId: String(f.id), key: key });
-        added++;
+        if (_feAnalisisQueue.length < CXF_FE_MAX_QUEUE) {
+          _feAnalisisQueue.push({ provId: String(pid), facturaId: String(f.id), key: key });
+          added++;
+        }
       });
     });
     if (!added) return;
+    if (_feAnalisisQueue.length >= CXF_FE_MAX_QUEUE) {
+      toast(
+        'Cola FE al máximo (' +
+          CXF_FE_MAX_QUEUE +
+          ') — el resto quedará pendiente; use «Reanalizar» o guarde por tandas',
+        'warning'
+      );
+    }
     if (!global.__cxfFeBatchMode) markFeColaStates();
     if (!_feBatchSession || opts.force) {
       _feBatchSession = {
@@ -5309,11 +5569,13 @@
           resumenEl.outerHTML = renderDocumentoResumen();
         }
         patchCxfCommandStrip(host);
+        flushFeSlotPatchPending();
         setTimeout(function () {
           if (!_feAnalisisQueue.length && !_feAnalisisQueueBusy) {
             finishFeBatchSession();
             _feMpCatalogCache = null;
             global.__cxfFeBatchMode = false;
+            flushDeferredCxfPersist();
           }
           drainFeAnalisisQueue(host);
         }, cxfFeGapMs());
@@ -5543,7 +5805,7 @@
       proveedor: prov,
       valorCajero: f.valorCajero || f.valorFactura,
       mpCatalog: _feMpCatalogCache || mpList(),
-      batchMode: isFeBatchUi(),
+      batchMode: isCxfFeBatchWork() || isFeBatchUi() || !!global.__cxfFeBatchMode,
       forceDeepQr: !!f._feForceDeepQr,
       onProgress: function (prog) {
         pushFeAnalisisProgress(f, host, String(provId), String(facturaId), prog);
@@ -5552,10 +5814,14 @@
     }).finally(function () {
       if (f) f._feForceDeepQr = false;
     });
+    var timeoutMs =
+      isFeBatchUi() || global.__cxfFeBatchMode || _cxfMassIngestMode
+        ? CXF_FE_BATCH_ANALISIS_TIMEOUT_MS
+        : FE_ANALISIS_TIMEOUT_MS;
     var timeoutP = new Promise(function (_, reject) {
       setTimeout(function () {
         reject(new Error('Tiempo agotado analizando este documento'));
-      }, FE_ANALISIS_TIMEOUT_MS);
+      }, timeoutMs);
     });
     return Promise.race([analisisP, timeoutP])
       .then(function (res) {
@@ -5578,14 +5844,27 @@
         }
         f.feAnalisis = res;
         f._feAnalisisRunning = false;
+        var ident = stampFeIdentidadEnFactura(f, res, prov);
+        if (String(provId) === getActiveProvId()) syncUiFromBucket();
         patchFacturaSlotUiIfVisible(host, provId, facturaId);
+        if (ident && !isCxfFeBatchWork()) {
+          var slotEl = findFacturaSlotEl(host, provId, facturaId);
+          if (slotEl) {
+            slotEl.classList.add('cxf-factura-slot--identified');
+            try {
+              slotEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (_) {}
+          }
+        }
         if (!quedanEnCola() && !isFeBatchUi()) {
           if (res && res.estado === 'error') {
             toast('Error en análisis FE — use Reanalizar', 'warning');
+          } else if (ident) {
+            toastFeIdentidad(ident, prov ? prov.nombre : '');
           } else if (res && res.esElectronica) {
             toast('Análisis FE listo — revise y pulse «Aplicar datos»', 'success');
           } else if (res) {
-            toast('Documentos analizados — revise cada factura', 'info');
+            toast('Documento analizado — revise la identificación', 'info');
           }
         }
       })
@@ -5604,6 +5883,48 @@
         var slot = findFacturaSlotEl(host, provId, facturaId);
         if (slot) slot.classList.remove('is-fe-busy');
       });
+  }
+
+  function stampFeIdentidadEnFactura(factura, analisis, prov) {
+    if (!factura || !analisis || analisis.estado !== 'listo') return null;
+    var FD = feDian();
+    var ident =
+      analisis.identidad ||
+      (FD && FD.buildFeIdentidad ? FD.buildFeIdentidad(analisis, prov) : null);
+    if (!ident) return null;
+    var prevIdent = factura.feIdentidad;
+    var prevConf = prevIdent && prevIdent.confianza ? prevIdent.confianza : 0;
+    factura.feIdentidad = ident;
+    if (ident.numeroFactura) {
+      if (!String(factura.numeroFactura || '').trim() || ident.confianza >= prevConf + 8) {
+        factura.numeroFactura = ident.numeroFactura;
+      }
+    }
+    if (ident.total > 0) {
+      if (!Number(factura.valorFactura) || ident.confianza >= 50) {
+        factura.valorFactura = String(Math.round(ident.total));
+      }
+      if (!factura.valorCajero) factura.valorCajero = factura.valorFactura;
+    }
+    factura._feIdentidadStamped = true;
+    return ident;
+  }
+
+  function toastFeIdentidad(ident, provNombre) {
+    if (!ident) return;
+    var parts = [];
+    if (ident.numeroFactura) parts.push(ident.numeroFactura);
+    if (ident.totalFmt) parts.push(ident.totalFmt);
+    if (ident.proveedorOk) parts.push('proveedor ✓');
+    else if (ident.estadoId === 'probable' || ident.estadoId === 'parcial') {
+      parts.push('revise proveedor');
+    }
+    var msg =
+      parts.length > 0
+        ? 'Identificada: ' + parts.join(' · ')
+        : ident.titulo || 'Análisis listo';
+    if (provNombre && !ident.proveedorOk) msg += ' (' + provNombre + ')';
+    toast(msg, ident.estadoId === 'confirmada' ? 'success' : ident.estadoId === 'probable' ? 'info' : 'warning');
   }
 
   function applyFeAnalisis(provId, facturaId, host) {
@@ -5820,13 +6141,16 @@
 
   function renderDocumentoResumen() {
     var docsN = totalDocsCount();
-    if (!docsN) return '';
+    var manualReady = isModoSimple() && hasSimpleManualFacturaReady(getCxfHost());
+    if (!docsN && !manualReady) return '';
     if (!isModoComplejo()) {
       return (
         '<div class="cxf-documento-resumen" id="cxf-documento-resumen">' +
         '<p class="cxf-documento-resumen__lead">' +
-        docsN +
-        ' archivo(s) cargados — puede continuar a productos.</p></div>'
+        (docsN
+          ? docsN + ' archivo(s) cargados — puede continuar a productos.'
+          : 'Ingreso manual — número de factura listo. Puede continuar sin adjuntar PDF.') +
+        '</p></div>'
       );
     }
     var st = collectDocumentoFeStatus();
@@ -5906,10 +6230,10 @@
           (premium ? ' cxf-modo-banner--power' : '') +
           '"><strong>' +
           (premium ? 'Motor FE activo:' : 'Modo complejo:') +
-          '</strong> por cada PDF se intenta leer el QR (en lote, lectura rápida). Si no lo detecta, use <strong>🔲 Marcar QR en vista</strong>, <strong>📷 Cámara QR</strong> o <strong>↻ Reanalizar</strong>. Tras el lote, un <strong>segundo pase automático</strong> reintenta las que quedaron sin CUFE. Pulse <strong>Aplicar datos</strong> antes de continuar.' +
+          '</strong> lee <strong>QR/CUFE</strong>, extrae texto del PDF (fuentes Arial/Helvetica, etc.), y si el archivo es escaneado aplica <strong>OCR por zonas</strong> (impreso y manuscrito en totales). Valida que el documento sea FE y que coincida con el <strong>proveedor asignado</strong>. Si falla el QR: <strong>🔲 Marcar QR</strong>, <strong>📷 Cámara</strong> o <strong>↻ Reanalizar</strong>. Pulse <strong>Aplicar datos</strong> antes de continuar.' +
           feTrainingBannerExtra() +
           '</div>'
-        : '<div class="cxf-modo-banner cxf-muted" style="font-size:0.85rem">Modo simple — carga manual de facturas.</div>';
+        : '<div class="cxf-modo-banner cxf-muted" style="font-size:0.85rem">Modo simple — escriba el Nº de factura y continúe; el PDF es opcional.</div>';
     return (
       '<section class="cxf-panel cxf-panel--documento cxf-panel--full">' +
       '<header class="cxf-prov-hero' +
@@ -5924,7 +6248,7 @@
       '<p class="cxf-panel-lead">' +
       (isModoComplejo()
         ? 'Suba el <strong>PDF de la factura electrónica</strong>. El sistema leerá QR/CUFE, consultará DIAN cuando sea posible y completará datos para productos.'
-        : 'Cada <strong>PDF = una factura</strong>. Varios PDF → varios bloques. Un PDF con varias facturas → use <strong>✂ Dividir PDF</strong>.') +
+        : 'Escriba el <strong>número de factura</strong> y continúe; PDF y fotos son opcionales. Use <strong>+ Otra factura</strong> para varias del mismo proveedor.') +
       ' <button type="button" class="btn btn-link btn-sm" data-cxf-modo-cambiar>Cambiar modo</button></p>' +
       '</header>' +
       modoBanner +
@@ -5937,11 +6261,12 @@
       '<div class="cxf-nav-row">' +
       '<button type="button" class="btn btn-outline" data-cxf-step="proveedor">← Proveedores</button>' +
       (function () {
-        var feSt = isModoComplejo() ? collectDocumentoFeStatus() : { trabajando: false };
-        var canGo = totalDocsCount() > 0 && !feSt.trabajando;
-        var title = !totalDocsCount()
-          ? 'Adjunte al menos un PDF'
-          : feSt.trabajando
+        var canGo = documentoReadyForProductos(getCxfHost());
+        var title = !canGo
+          ? isModoSimple()
+            ? 'Adjunte archivo o escriba Nº factura'
+            : 'Adjunte al menos un PDF'
+          : isModoComplejo() && collectDocumentoFeStatus().trabajando
             ? 'Espere a que termine el análisis'
             : '';
         return (
@@ -6628,6 +6953,7 @@
     }
     if (!opts.skipPreviews && !isFeBlockingPdfPreviews()) applyPdfPreviews(host);
     if (!opts.skipSync && String(getActiveProvId())) syncUiFromBucket();
+    patchDocumentoNavUi(host);
     return true;
   }
 
@@ -6664,7 +6990,14 @@
     host = getCxfHost() || host;
     attachDocBlobsFromVault();
     closeAllCxfOverlays(host);
-    persistActiveBucket();
+    if (ui.step === 'documento') {
+      readDocumentoDomIntoBuckets(host);
+    } else {
+      if (ui.step === 'productos' && host.querySelectorAll('.cxf-line').length) {
+        readLinesFromDom(host);
+      }
+      persistActiveBucket();
+    }
     var sh = host.querySelector('#cxf-step-host');
     if (sh) sh.innerHTML = renderStepContent();
     var stepper = host.querySelector('.cxf-stepper');
@@ -7117,6 +7450,7 @@
         e.preventDefault();
         ui.modoEntrada = modoBtn.getAttribute('data-cxf-modo-entrada') === 'complejo' ? 'complejo' : 'simple';
         if (ui.modoEntrada === 'complejo') recordFeBackgroundJob();
+        schedulePersistCxfSession();
         toast(
           ui.modoEntrada === 'complejo' ? 'Modo complejo — análisis FE activado' : 'Modo simple',
           'success'
@@ -7179,12 +7513,14 @@
       }
       var addFac = e.target.closest('[data-cxf-add-factura]');
       if (addFac) {
+        readDocumentoDomIntoBuckets(host);
         var apid = addFac.getAttribute('data-prov-id');
         var ab = ensureBucket(apid);
         var nf = newFactura();
         ab.facturas.push(nf);
         ab.facturaActiva = nf.id;
         if (String(apid) === getActiveProvId()) syncUiFromBucket();
+        schedulePersistCxfSession();
         scheduleDocumentoRefresh(host);
         toast('Factura vacía agregada', 'info');
         return;
@@ -7271,13 +7607,27 @@
       }
     });
 
+    function onNumeroFacturaFieldChange(num) {
+      if (!num) return;
+      var pid = num.getAttribute('data-prov-id');
+      var fid = num.getAttribute('data-factura-id');
+      var f = getFactura(pid, fid);
+      if (f) f.numeroFactura = num.value;
+      if (
+        String(pid) === getActiveProvId() &&
+        String(fid) === String(getActiveFacturaId(pid))
+      ) {
+        ui.numeroFactura = num.value;
+      }
+      schedulePersistCxfSession();
+      if (ui.step === 'documento') patchDocumentoNavUi(host);
+    }
+
     host.addEventListener('input', function (e) {
       var num = e.target.closest('.cxf-num-factura');
       if (num) {
-        var pid = num.getAttribute('data-prov-id');
-        var f = getFactura(pid, num.getAttribute('data-factura-id'));
-        if (f) f.numeroFactura = num.value;
-        if (String(pid) === getActiveProvId()) ui.numeroFactura = num.value;
+        onNumeroFacturaFieldChange(num);
+        return;
       }
       var valCaj = e.target.closest('.cxf-valor-cajero');
       if (valCaj) {
@@ -7301,6 +7651,11 @@
           }
         }
       }
+    });
+
+    host.addEventListener('change', function (e) {
+      var numCh = e.target.closest('.cxf-num-factura');
+      if (numCh) onNumeroFacturaFieldChange(numCh);
     });
 
     host.addEventListener('dragover', function (e) {
@@ -7876,9 +8231,11 @@
         var key = String(pid) + '::' + String(f.id);
         if (savedKeys[key]) return;
         var hasDocs = !!(f.docs && f.docs.length);
-        var hasPartial = (f.lines || []).some(function (ln) {
-          return ln.mpId || ln.precio || ln.cant;
-        });
+        var hasPartial =
+          String(f.numeroFactura || '').trim().length > 0 ||
+          (f.lines || []).some(function (ln) {
+            return ln.mpId || ln.precio || ln.cant;
+          });
         if (!hasDocs && !hasPartial) return;
         var prov = proveedoresList().find(function (p) {
           return String(p.id) === String(pid);

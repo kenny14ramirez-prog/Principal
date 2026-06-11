@@ -9150,10 +9150,25 @@ function crozzoSidebarApplyExpanded(sidebar, expanded) {
     btn.style.removeProperty('left');
   }
   document.documentElement.classList.toggle('crozzo-sidebar-layout-expanded', !!expanded);
+  crozzoSidebarMountToggleBtn(sidebar);
   if (expanded) {
     if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') crozzoSidebarSyncNavGroupsOnExpand();
   }
 }
+/** Coloca el toggle dentro del header (expandido) o arriba del rail (colapsado). */
+function crozzoSidebarMountToggleBtn(sidebar) {
+  sidebar = sidebar || document.getElementById('sidebar');
+  var toggleBtn = document.getElementById('menu-toggle-btn');
+  var header = sidebar && sidebar.querySelector('.sidebar-header');
+  if (!sidebar || !toggleBtn) return;
+  var expanded = sidebar.classList.contains('is-expanded') || sidebar.classList.contains('expanded');
+  if (expanded && header) {
+    if (toggleBtn.parentElement !== header) header.insertBefore(toggleBtn, header.firstChild);
+  } else if (toggleBtn.parentElement !== sidebar) {
+    sidebar.insertBefore(toggleBtn, sidebar.firstChild);
+  }
+}
+window.crozzoSidebarMountToggleBtn = crozzoSidebarMountToggleBtn;
 /** Menú lateral Executive Elite: 64px rail ↔ 260px (hover, pin, Ctrl+M, crozzo_menu_state). */
 function crozzoInitCollapsibleSidebar() {
   var sidebar = document.getElementById('sidebar');
@@ -9178,11 +9193,17 @@ function crozzoInitCollapsibleSidebar() {
     toggleBtn = document.createElement('button');
     toggleBtn.type = 'button';
     toggleBtn.id = 'menu-toggle-btn';
-    document.body.appendChild(toggleBtn);
+  }
+  if (sidebar && toggleBtn.parentElement !== sidebar) {
+    sidebar.insertBefore(toggleBtn, sidebar.firstChild);
   }
   toggleBtn.className = 'menu-toggle menu-toggle-btn';
   toggleBtn.setAttribute('aria-label', 'Expandir o contraer menú lateral');
   toggleBtn.setAttribute('aria-controls', 'sidebar');
+  if (!toggleBtn.querySelector('.menu-toggle-icon')) {
+    toggleBtn.innerHTML = '<span class="menu-toggle-icon" aria-hidden="true">☰</span>';
+  }
+  crozzoSidebarMountToggleBtn(sidebar);
   if (document.body.classList.contains('crozzo-login-open') || (document.getElementById('loginOverlay') && !document.getElementById('loginOverlay').hasAttribute('hidden'))) {
     toggleBtn.hidden = true;
     toggleBtn.setAttribute('hidden', '');
@@ -11700,6 +11721,11 @@ function renderPage(page) {
     console.error('[Crozzo] mainContent no encontrado');
     return;
   }
+  try {
+    if (!content.getAttribute('data-crozzo-loading') && typeof crozzoMaybeShowRenderLoading === 'function') {
+      crozzoMaybeShowRenderLoading(page);
+    }
+  } catch (_) {}
   var __crozzoScrollRestore =
     page === currentPage && typeof crozzoCapturePosScroll === 'function' ? crozzoCapturePosScroll(page) : null;
   content.classList.remove('main-body--retail-pos', 'main-body--rest-pos');
@@ -11975,6 +12001,8 @@ function renderPage(page) {
       '<div class="btn-group" style="margin-top:14px;flex-wrap:wrap;gap:8px;">' +
       '<button type="button" class="btn btn-primary" onclick="navigateTo(\'inicio-operacion\')">Inicio ventas</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'cajero\')">Restaurante · POS</button></div></div>';
+  } finally {
+    if (typeof crozzoHidePageLoading === 'function') crozzoHidePageLoading();
   }
   try {
     if (typeof crozzoApplyUnifiedPageChrome === 'function') {
@@ -12395,6 +12423,10 @@ function crozzoRepPrintInventarioCatalogo() {
   setTimeout(() => w.print(), 450);
 }
 function crozzoRepExportTurnos() {
+  if (typeof crozzoCierreExportHistorialCompleto === 'function') {
+    crozzoCierreExportHistorialCompleto();
+    return;
+  }
   let h = [];
   try {
     h = JSON.parse(localStorage.getItem(CROZZO_SHIFT_TURN_HIST) || '[]');
@@ -12956,6 +12988,29 @@ function renderComprasProveedores(opts) {
               escUserAttr(String(leg.nombreParaTransferencias)) +
               '</p>';
           }
+          if (leg && Array.isArray(leg.cuentasBancarias) && leg.cuentasBancarias.length) {
+            const pri =
+              leg.cuentasBancarias.find((c) => c.esPrincipal) || leg.cuentasBancarias[0];
+            const bankLine = [pri.banco, pri.tipoCuenta || pri.tipo, pri.numero ? '****' + String(pri.numero).slice(-4) : '']
+              .filter(Boolean)
+              .join(' · ');
+            bancoHint =
+              '<p class="crozzo-prov-dir__bank form-hint" title="Cuenta principal">🏦 ' +
+              escUserAttr(bankLine || pri.titular || '') +
+              (leg.cuentasBancarias.length > 1
+                ? ' <span class="form-hint">(+' + (leg.cuentasBancarias.length - 1) + ')</span>'
+                : '') +
+              '</p>';
+          }
+          if (leg && leg.certificadoBancario && leg.certificadoBancario.blobId) {
+            badges += ' <span class="badge badge-info" title="Certificado bancario">Banco</span>';
+          }
+          if (leg && leg.camaraComercio && leg.camaraComercio.blobId) {
+            badges += ' <span class="badge badge-info" title="Cámara de comercio">Camara</span>';
+          }
+          if (leg && leg.cedulaRepresentante && leg.cedulaRepresentante.blobId) {
+            badges += ' <span class="badge badge-info" title="Cédula archivada">Cédula</span>';
+          }
         }
       } catch (_) {}
       return `
@@ -13130,6 +13185,11 @@ function renderComprasProveedores(opts) {
                 <input class="form-input" id="crozzo-op-prov-tel" placeholder="300…">
               </div>
             </div>
+            ${
+              typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.renderProveedorExtrasBlock
+                ? CrozzoProveedorDocumentos.renderProveedorExtrasBlock({}, 'crozzo-op-new', null)
+                : ''
+            }
             <button type="button" class="btn btn-primary btn-sm" onclick="crozzoOpAddSupplier()">Guardar proveedor</button>
           </div>
         </details>
@@ -13200,6 +13260,16 @@ function crozzoProvView(id) {
     '\')">Editar</button>' +
     '<button type="button" class="btn btn-outline btn-sm" onclick="closeModal()">Cerrar</button></div>';
   showModal('Proveedor · ' + (p.nombre || ''), body + footer, { wide: true, modalClass: 'modal--prov-ficha' });
+  setTimeout(function () {
+    crozzoProvMountFichaExtras(id);
+  }, 80);
+}
+function crozzoProvMountFichaExtras(id) {
+  if (typeof CrozzoProveedorDocumentos === 'undefined') return;
+  var mini = document.querySelector('[data-rut-mini-for="' + id + '"]');
+  if (mini && CrozzoProveedorDocumentos.mountRutMiniPreview) {
+    CrozzoProveedorDocumentos.mountRutMiniPreview(mini, id);
+  }
 }
 function crozzoProvViewRut(id) {
   if (typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.openProveedorRut) {
@@ -13216,6 +13286,12 @@ function crozzoProvEdit(id) {
       ? CrozzoProveedorDocumentos.renderProveedorEditForm(p)
       : '<p class="form-hint">Sin formulario de edición.</p>';
   showModal('Editar · ' + (p.nombre || ''), body, { wide: true, modalClass: 'modal--prov-edit' });
+  setTimeout(function () {
+    var modal = document.querySelector('.modal--prov-edit');
+    if (modal && typeof CrozzoProveedorDocumentos !== 'undefined' && CrozzoProveedorDocumentos.bindProveedorExtrasRoot) {
+      CrozzoProveedorDocumentos.bindProveedorExtrasRoot(modal, { provId: id });
+    }
+  }, 80);
 }
 function crozzoProvSaveEdit() {
   const id = document.getElementById('crozzo-prov-edit-id')?.value;
@@ -13247,7 +13323,6 @@ function crozzoProvSaveEdit() {
     legal: Object.assign({}, legPrev, {
       razonSocial: (document.getElementById('crozzo-prov-edit-razon')?.value || '').trim(),
       nombreComercial: (document.getElementById('crozzo-prov-edit-comercial')?.value || '').trim(),
-      nombreParaTransferencias: (document.getElementById('crozzo-prov-edit-banco')?.value || '').trim(),
       representanteLegal: (document.getElementById('crozzo-prov-edit-rep')?.value || '').trim(),
       ciudad: ciudadEdit,
       retenciones: retenciones,
@@ -13257,14 +13332,25 @@ function crozzoProvSaveEdit() {
   else if (typeof CrozzoReservorio !== 'undefined' && CrozzoReservorio.upsertProveedor) {
     CrozzoReservorio.upsertProveedor(payload);
   }
-  closeModal();
-  showToast('Proveedor actualizado', 'success');
-  const mc = document.getElementById('mainContent');
-  if (mc && typeof renderComprasProveedores === 'function') {
-    const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
-    mc.innerHTML = renderComprasProveedores({ view: view });
-    initComprasProveedores({ view: view });
+  var modalEl = document.querySelector('.modal--prov-edit');
+  var extrasDone = Promise.resolve();
+  if (
+    modalEl &&
+    typeof CrozzoProveedorDocumentos !== 'undefined' &&
+    CrozzoProveedorDocumentos.saveProveedorExtrasFromForm
+  ) {
+    extrasDone = CrozzoProveedorDocumentos.saveProveedorExtrasFromForm(modalEl, id, 'crozzo-prov-edit');
   }
+  extrasDone.then(function () {
+    closeModal();
+    showToast('Proveedor actualizado', 'success');
+    const mc = document.getElementById('mainContent');
+    if (mc && typeof renderComprasProveedores === 'function') {
+      const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
+      mc.innerHTML = renderComprasProveedores({ view: view });
+      initComprasProveedores({ view: view });
+    }
+  });
 }
 function crozzoProvDelete(id) {
   const p = crozzoProvGetFull(id);
@@ -13296,6 +13382,7 @@ function crozzoProvDelete(id) {
     initComprasProveedores({ view: view });
   }
 }
+window.crozzoProvMountFichaExtras = crozzoProvMountFichaExtras;
 window.crozzoProvFilterList = crozzoProvFilterList;
 window.crozzoProvView = crozzoProvView;
 window.crozzoProvViewRut = crozzoProvViewRut;
@@ -13353,6 +13440,12 @@ function initComprasProveedores(opts) {
     nitLbl.textContent = CrozzoProveedorDocumentos.labelIdentificador();
   }
   crozzoOpBindProvDocImports(root);
+  if (
+    typeof CrozzoProveedorDocumentos !== 'undefined' &&
+    CrozzoProveedorDocumentos.bindProveedorExtrasRoot
+  ) {
+    CrozzoProveedorDocumentos.bindProveedorExtrasRoot(root, {});
+  }
   const openTab = window.__crozzoProvOpenTab;
   if (openTab && root.getAttribute('data-prov-view') === 'full') {
     crozzoOpSwitchProvTab(openTab);
@@ -13393,12 +13486,25 @@ function crozzoOpAddSupplier() {
   }
   const created = crozzoUpsertProveedorRecord({ nombre: name, nit, telefono: phone, tipoRubro: rubro });
   if (!created) return showToast('No se pudo guardar el proveedor', 'error');
-  showToast('Proveedor guardado — visible en Entrada de factura', 'success');
-  const mc = document.getElementById('mainContent');
-  if (mc) {
-    const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
-    mc.innerHTML = renderComprasProveedores({ view: view });
-    initComprasProveedores({ view: view });
+  const root = document.getElementById('crozzo-op-root');
+  const finish = function () {
+    showToast('Proveedor guardado — visible en Entrada de factura', 'success');
+    const mc = document.getElementById('mainContent');
+    if (mc) {
+      const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
+      mc.innerHTML = renderComprasProveedores({ view: view });
+      initComprasProveedores({ view: view });
+    }
+  };
+  if (
+    root &&
+    created.id &&
+    typeof CrozzoProveedorDocumentos !== 'undefined' &&
+    CrozzoProveedorDocumentos.saveProveedorExtrasFromForm
+  ) {
+    CrozzoProveedorDocumentos.saveProveedorExtrasFromForm(root, created.id, 'crozzo-op-new').then(finish).catch(finish);
+  } else {
+    finish();
   }
 }
 function crozzoOpPoAddLine() {
@@ -14753,7 +14859,12 @@ function crozzoInicioOpAdminHubHtml() {
   var planillaHint = '';
   try {
     var pl = typeof crozzoPlanillaCierrePendienteCount === 'function' ? crozzoPlanillaCierrePendienteCount() : 0;
-    if (pl > 0) planillaHint = '<span class="crozzo-admin-hub__badge">' + pl + ' cierre(s) sin revisar en planilla</span>';
+    if (pl > 0) planillaHint += '<span class="crozzo-admin-hub__badge">' + pl + ' cierre(s) sin revisar en planilla</span>';
+    var feedPl = typeof crozzoPlanillaFeedPendingCount === 'function' ? crozzoPlanillaFeedPendingCount() : 0;
+    if (feedPl > 0) {
+      planillaHint +=
+        '<span class="crozzo-admin-hub__badge crozzo-admin-hub__badge--warn">' + feedPl + ' pago(s) en cola planilla</span>';
+    }
   } catch (_) {}
   return (
     '<section class="crozzo-admin-hub" aria-label="Centro de mando administrativo">' +
@@ -14770,7 +14881,15 @@ function crozzoInicioOpAdminHubHtml() {
         '</span></button>'
       : '') +
     (typeof currentUserCanSeePage === 'function' && currentUserCanSeePage('planilla-2026')
-      ? '<button type="button" class="crozzo-admin-hub__tile" onclick="navigateTo(\'planilla-2026\')"><i data-lucide="calculator"></i><strong>Planilla</strong><span>Conciliación efectivo</span></button>'
+      ? '<button type="button" class="crozzo-admin-hub__tile" onclick="' +
+        (typeof crozzoPlanillaFeedPendingCount === 'function' && crozzoPlanillaFeedPendingCount() > 0
+          ? 'crozzoOpenPlanillaCola()'
+          : "navigateTo('planilla-2026')") +
+        '"><i data-lucide="calculator"></i><strong>Planilla</strong><span>' +
+        (typeof crozzoPlanillaFeedPendingCount === 'function' && crozzoPlanillaFeedPendingCount() > 0
+          ? crozzoPlanillaFeedPendingCount() + ' pago(s) por volcar'
+          : 'Conciliación efectivo') +
+        '</span></button>'
       : '') +
     (typeof currentUserCanSeePage === 'function' && currentUserCanSeePage('facturas')
       ? '<button type="button" class="crozzo-admin-hub__tile" onclick="navigateTo(\'facturas\')"><i data-lucide="receipt"></i><strong>Facturas</strong><span>Ventas del día</span></button>'
@@ -36672,11 +36791,18 @@ function crozzoOpenSidebarDrawer() {
     void sidebar.offsetWidth;
   }
   sidebar.classList.add('open');
+  if (typeof crozzoSidebarMountToggleBtn === 'function') {
+    crozzoSidebarMountToggleBtn(sidebar);
+  }
   if (apkShell || drawerLayout) {
     sidebar.style.setProperty('transform', 'translateX(0)', 'important');
     sidebar.style.setProperty('visibility', 'visible', 'important');
     sidebar.style.setProperty('display', 'flex', 'important');
     sidebar.style.setProperty('z-index', '220', 'important');
+    sidebar.style.setProperty('top', '0', 'important');
+    sidebar.style.setProperty('height', '100dvh', 'important');
+    sidebar.style.setProperty('max-height', '100dvh', 'important');
+    sidebar.style.setProperty('min-height', '100dvh', 'important');
   } else {
     sidebar.style.removeProperty('transform');
     sidebar.style.removeProperty('visibility');
@@ -36812,6 +36938,18 @@ function crozzoSyncSidebarBackdrop() {
   }
   if (document.body) {
     document.body.classList.toggle('crozzo-sidebar-drawer-open', !!(layoutDrawer && open));
+  }
+  if (layoutDrawer && open && sidebar) {
+    if (typeof crozzoSidebarMountToggleBtn === 'function') crozzoSidebarMountToggleBtn(sidebar);
+    sidebar.style.setProperty('top', '0', 'important');
+    sidebar.style.setProperty('height', '100dvh', 'important');
+    sidebar.style.setProperty('max-height', '100dvh', 'important');
+    sidebar.style.setProperty('min-height', '100dvh', 'important');
+  } else if (sidebar && !open) {
+    sidebar.style.removeProperty('top');
+    sidebar.style.removeProperty('height');
+    sidebar.style.removeProperty('max-height');
+    sidebar.style.removeProperty('min-height');
   }
 }
 function crozzoCloseSidebarDrawer() {

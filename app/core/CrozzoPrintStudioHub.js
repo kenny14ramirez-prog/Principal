@@ -1051,9 +1051,6 @@
         btn.classList.toggle('is-on', btn.getAttribute('data-output') === outputId);
       });
     }
-    if (scope === 'inventario' && global.CrozzoSistemaCostos && global.CrozzoSistemaCostos.refreshInventarioPrintGuide) {
-      global.CrozzoSistemaCostos.refreshInventarioPrintGuide();
-    }
   }
 
   function touchPrintChannel(scope) {
@@ -2409,7 +2406,7 @@
     return (
       '<div class="crozzo-print-panel crozzo-inventario-panel">' +
       '<h3 class="crozzo-print-panel__title">Inventario · hojas y conteo</h3>' +
-      '<p class="crozzo-print-card__lead">Formatos: <strong>58/80 mm</strong> térmica bodega · <strong>Carta/Oficio</strong> láser caja. Conteo en blanco, stock, movimientos y CSV/HTML de prueba en Costos → Inventario.</p>' +
+      '<p class="crozzo-print-card__lead">Cada producto: <strong>nombre</strong>, unidad <strong>g / ml / und</strong> y línea para <strong>cantidad</strong>. 58/80 mm → térmica bodega · Carta/Oficio → impresora de caja.</p>' +
       renderPrintOutputPicker('inventario', savedPrintOutput('inventario'), ['roll_58', 'roll_80', 'carta', 'oficio']) +
       '<div class="crozzo-inventario-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;">' +
       '<button type="button" class="btn btn-outline" onclick="CrozzoPrintStudioHub.previewInventarioConteo()">👁 Ver hoja en pantalla</button>' +
@@ -2869,25 +2866,6 @@
     pickPrintOutput: pickPrintOutput,
     getPrintOutput: getPrintOutput,
     getInventarioPrintOpts: getInventarioPrintOpts,
-    getRemisionPrintOpts: function () {
-      var outputId = normalizePrintOutput(getPrintOutput('remision'));
-      var meta = printOutputMeta(outputId);
-      var conf = getFacturacionAdminConfigSafe();
-      var isRoll = meta.kind === 'roll';
-      return {
-        printOutput: meta.id,
-        pageFormat: isRoll ? undefined : meta.page,
-        landscape: !isRoll && outputId !== 'carta',
-        allowDialog: true,
-        silent: false,
-        printer: resolvePrinterForOutput(outputId, conf, 'bodega'),
-        role: 'bodega',
-        channel: isRoll ? 'roll' : 'normal',
-        paperSz: meta.sz,
-        preferEscPos: isRoll,
-      };
-    },
-    resolvePrinterForOutput: resolvePrinterForOutput,
     savedPrintOutput: savedPrintOutput,
     persistPrintOutputScope: persistPrintOutputScope,
     collectPrintOutputsFromUi: collectPrintOutputsFromUi,

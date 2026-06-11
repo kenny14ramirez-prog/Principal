@@ -344,16 +344,47 @@
   var FE_QR_MAX_REGION_PX = 2400000;
   var _feQrScanDeadline = 0;
 
+  /** Inteligencia documental — OCR por zonas, fuentes PDF, clasificación FE (con límite de tiempo). */
+  var FE_INTEL_OCR_CACHE = {};
+  var FE_INTEL_OCR_CACHE_MAX = 32;
+  var FE_INTEL_MAX_OCR_MS = 28000;
+  var FE_INTEL_BATCH_OCR_MS = 9000;
+  var FE_INTEL_MIN_CONFIDENCE = 50;
+
+  function feIntelCachePut(key, val) {
+    if (!key || !val) return;
+    if (FE_INTEL_OCR_CACHE[key]) delete FE_INTEL_OCR_CACHE[key];
+    FE_INTEL_OCR_CACHE[key] = val;
+    var keys = Object.keys(FE_INTEL_OCR_CACHE);
+    while (keys.length > FE_INTEL_OCR_CACHE_MAX) {
+      delete FE_INTEL_OCR_CACHE[keys.shift()];
+    }
+  }
+
+  var FE_DOC_SIGNALS = [
+    { re: /factura\s+electr[oó]nica\s+de\s+venta/i, w: 24, label: 'Título FE venta' },
+    { re: /factura\s+electr[oó]nica/i, w: 20, label: 'Factura electrónica' },
+    { re: /\bCUFE\b/i, w: 22, label: 'Etiqueta CUFE' },
+    { re: /c[oó]digo\s+[uú]nico\s+de\s+factura/i, w: 18, label: 'Código único' },
+    { re: /catalogo-vpfe|dian\.gov\.co/i, w: 18, label: 'Portal DIAN' },
+    { re: /documentkey=/i, w: 14, label: 'Clave DIAN' },
+    { re: /PayableAmount|InvoiceTypeCode|AccountingSupplierParty/i, w: 16, label: 'UBL/XML' },
+    { re: /Representaci[oó]n\s+gr[aá]fica/i, w: 12, label: 'Rep. gráfica DIAN' },
+    { re: /NIT\s*(?:del\s+)?(?:emisor|proveedor|vendedor)/i, w: 10, label: 'NIT emisor' },
+    { re: /Total\s+a\s+pagar/i, w: 8, label: 'Total a pagar' },
+  ];
+
   var FE_LOADER_TRACK = [
     { id: 'init', label: 'Preparando documento' },
     { id: 'detect', label: 'Detección QR y CUFE' },
     { id: 'cufe', label: 'Confirmación factura electrónica' },
+    { id: 'intel', label: 'Lectura inteligente (OCR)' },
     { id: 'texto', label: 'Datos del documento' },
     { id: 'dian', label: 'Consulta DIAN' },
     { id: 'cierre', label: 'Proveedor y materias primas' },
   ];
 
-  var FE_STEP_ORDER = { init: 0, detect: 1, cufe: 2, texto: 3, dian: 4, cierre: 5 };
+  var FE_STEP_ORDER = { init: 0, detect: 1, cufe: 2, intel: 3, texto: 4, dian: 5, cierre: 6 };
 
   function buildLoaderSteps(activeId, doneIds) {
     doneIds = doneIds || {};
@@ -469,6 +500,483 @@
       if (/^https?:\/\//i.test(qr.url)) return true;
     }
     return false;
+  }
+
+  function feConfirmadaElectronica(cufeResolved, qr, intelClassify) {
+    if (isFacturaElectronicaDetectada(cufeResolved, qr)) return true;
+    return !!(
+      intelClassify &&
+      intelClassify.esElectronica &&
+      (intelClassify.confidence || 0) >= FE_INTEL_MIN_CONFIDENCE
+    );
+  }
+
+  function feIntelMergeText(base, extra) {
+    base = String(base || '');
+    extra = String(extra || '');
+    if (!extra.trim()) return base;
+    if (!base.trim()) return extra;
+    if (base.indexOf(extra.slice(0, 80)) >= 0) return base;
+    return base + '\n--- ocr-intel ---\n' + extra;
+  }
+
+  function feExtractNitsFromText(text) {
+    var out = [];
+    var seen = {};
+    var re = /(?:NIT|N\.I\.T\.?|Emisor|Proveedor|Vendedor)[:\s#]*([0-9]{3,3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9Kk])/gi;
+    var m;
+    while ((m = re.exec(String(text || '')))) {
+      var n = normNit(m[1]);
+      if (n && !seen[n]) {
+        seen[n] = true;
+        out.push(n);
+      }
+    }
+    return out;
+  }
+
+  function extractStructuredPdfText(docOrDataUrl, maxPages) {
+    maxPages = maxPages || 3;
+    return runPdfExclusive(function () {
+      return openPdfDocument(docOrDataUrl).then(function (pdf) {
+        var pageNums = fePdfTextExtractOrder(pdf.numPages, maxPages);
+        var blocks = [];
+        var fontCounts = {};
+        var chain = Promise.resolve('');
+        var pi;
+        for (pi = 0; pi < pageNums.length; pi++) {
+          (function (pageNum) {
+            chain = chain.then(function (acc) {
+              return pdf.getPage(pageNum).then(function (page) {
+                return page.getTextContent().then(function (tc) {
+                  var pageText = '';
+                  (tc.items || []).forEach(function (it) {
+                    var s = it.str || '';
+                    if (!s.trim()) return;
+                    pageText += s + ' ';
+                    var fn = String(it.fontName || 'unknown')
+                      .replace(/\+/g, ' ')
+                      .replace(/[^a-zA-Z0-9 _-]/g, '')
+                      .trim();
+                    fontCounts[fn] = (fontCounts[fn] || 0) + 1;
+                    blocks.push({ text: s, font: fn, page: pageNum, h: it.height || 0 });
+                  });
+                  return acc + '\n--- p' + pageNum + ' ---\n' + pageText;
+                });
+              });
+            });
+          })(pageNums[pi]);
+        }
+        return chain
+          .then(function (text) {
+            var top = Object.keys(fontCounts)
+              .sort(function (a, b) {
+                return fontCounts[b] - fontCounts[a];
+              })
+              .slice(0, 10);
+            var compact = text.replace(/\s/g, '').length;
+            return {
+              text: text,
+              blocks: blocks,
+              fontStats: { counts: fontCounts, top: top },
+              textLen: compact,
+              blockCount: blocks.length,
+              likelyScanned: compact < 80 && blocks.length < 6,
+            };
+          })
+          .finally(function () {
+            try {
+              pdf.destroy();
+            } catch (eD) {}
+          });
+      });
+    });
+  }
+
+  function feIntelClassifyDocument(text, structured, cufeResolved, qr, prov) {
+    text = String(text || '');
+    var score = 0;
+    var signals = [];
+    FE_DOC_SIGNALS.forEach(function (sig) {
+      if (sig.re.test(text)) {
+        score += sig.w;
+        signals.push(sig.label);
+      }
+    });
+    if (cufeResolved && cufeResolved.cufeValidado) {
+      score += 38;
+      signals.push('CUFE válido');
+    } else if (cufeResolved && cufeResolved.cufe) {
+      score += 12;
+      signals.push('CUFE candidato');
+    }
+    if (qr && (qr.cufe || qr.url)) {
+      score += 14;
+      signals.push('QR');
+    }
+    if (structured && structured.likelyScanned) {
+      score += 4;
+      signals.push('PDF escaneado');
+    }
+    if (structured && structured.fontStats && structured.fontStats.top.length) {
+      var fonts = structured.fontStats.top.join(' ').toLowerCase();
+      if (/arial|helvetica|times|courier|calibri|roboto/i.test(fonts)) {
+        score += 6;
+        signals.push('Tipografía FE habitual');
+      }
+    }
+    var provMatch = feIntelProveedorEnTexto(prov, text);
+    if (provMatch.found) {
+      score += provMatch.score;
+      signals.push(provMatch.label);
+    }
+    var confidence = Math.min(100, score);
+    return {
+      score: score,
+      confidence: confidence,
+      esElectronica: confidence >= FE_INTEL_MIN_CONFIDENCE,
+      signals: signals,
+      proveedorEnDoc: provMatch,
+    };
+  }
+
+  function feIntelProveedorEnTexto(prov, text) {
+    prov = prov || {};
+    text = String(text || '').toUpperCase();
+    if (!text.trim()) return { found: false, score: 0, label: '' };
+    var nitP = normNit(prov.nit);
+    if (nitP) {
+      var nits = feExtractNitsFromText(text);
+      if (nits.indexOf(nitP) >= 0) {
+        return { found: true, score: 28, label: 'NIT proveedor en documento', nit: nitP };
+      }
+      var nitDigits = nitP.replace(/[^0-9]/g, '');
+      if (nitDigits.length >= 8 && text.replace(/[^0-9]/g, '').indexOf(nitDigits) >= 0) {
+        return { found: true, score: 22, label: 'NIT proveedor (parcial)', nit: nitP };
+      }
+    }
+    var nombre = String(prov.nombre || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]/g, ' ')
+      .trim();
+    if (nombre.length >= 4) {
+      if (text.indexOf(nombre) >= 0) {
+        return { found: true, score: 24, label: 'Razón social en documento' };
+      }
+      var words = nombre.split(/\s+/).filter(function (w) {
+        return w.length > 3;
+      });
+      var hit = 0;
+      words.forEach(function (w) {
+        if (text.indexOf(w) >= 0) hit++;
+      });
+      if (words.length && hit >= Math.max(2, Math.ceil(words.length * 0.55))) {
+        return {
+          found: true,
+          score: 16,
+          label: 'Nombre proveedor (' + hit + '/' + words.length + ' tokens)',
+        };
+      }
+    }
+    return { found: false, score: 0, label: '' };
+  }
+
+  function feCanvasForHandwritingOcr(sourceCanvas) {
+    try {
+      var ctx = sourceCanvas.getContext('2d');
+      var img = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+      var step1 = preprocessImageData(img, 'grayscale');
+      var step2 = preprocessImageData(step1, 'gamma');
+      var step3 = preprocessImageData(step2, 'contrast');
+      return feCanvasFromImageData(step3);
+    } catch (e) {
+      return sourceCanvas;
+    }
+  }
+
+  function feRunOcrProfile(T, dataUrl, profile) {
+    profile = profile || {};
+    var extra = Object.assign(
+      {
+        tessedit_pageseg_mode: profile.psm != null ? String(profile.psm) : '6',
+      },
+      profile.tess || {}
+    );
+    return feRunOcr(T, dataUrl, extra);
+  }
+
+  function feIntelOcrCropCanvas(full, region, profile) {
+    if (!region || region.cw < 60 || region.ch < 40) return Promise.resolve('');
+    var crop = document.createElement('canvas');
+    crop.width = region.cw;
+    crop.height = region.ch;
+    crop
+      .getContext('2d')
+      .drawImage(full, region.x, region.y, region.cw, region.ch, 0, 0, region.cw, region.ch);
+    var canvases =
+      profile && profile.handwriting
+        ? [feCanvasForHandwritingOcr(crop), feCanvasForOcr(crop)]
+        : [feCanvasForOcr(crop), crop];
+    var chain = Promise.resolve('');
+    var ci;
+    for (ci = 0; ci < canvases.length; ci++) {
+      (function (canvas) {
+        chain = chain.then(function (acc) {
+          if (acc.length > 40) return acc;
+          var dataUrl = canvas.toDataURL('image/png');
+          return ensureTesseract().then(function (T) {
+            return feRunOcrProfile(T, dataUrl, profile).then(function (res) {
+              var t = ((res.data && res.data.text) || '').trim();
+              return t.length > acc.length ? t : acc;
+            });
+          });
+        });
+      })(canvases[ci]);
+    }
+    return chain.catch(function () {
+      return '';
+    });
+  }
+
+  function feIntelOcrFromCanvas(full, opts) {
+    opts = opts || {};
+    var batchUi = !!(opts.batchMode || global.__cxfFeBatchMode);
+    var deadline = Date.now() + (batchUi ? FE_INTEL_BATCH_OCR_MS : FE_INTEL_MAX_OCR_MS);
+    var timedOut = function () {
+      return Date.now() > deadline;
+    };
+    var w = full.width;
+    var h = full.height;
+    var zones = batchUi
+      ? [
+          {
+            id: 'footer',
+            x: 0,
+            y: Math.floor(h * 0.58),
+            cw: w,
+            ch: h - Math.floor(h * 0.58),
+            profile: {
+              psm: 6,
+              tess: { tessedit_char_whitelist: '0123456789abcdefABCDEFCUFEcufe:NIT.$, \n\r\t/-' },
+            },
+          },
+        ]
+      : [
+          {
+            id: 'header',
+            x: 0,
+            y: 0,
+            cw: w,
+            ch: Math.floor(h * 0.28),
+            profile: { psm: 6, tess: { tessedit_char_whitelist: '' } },
+          },
+          {
+            id: 'body',
+            x: Math.floor(w * 0.02),
+            y: Math.floor(h * 0.22),
+            cw: Math.floor(w * 0.96),
+            ch: Math.floor(h * 0.42),
+            profile: { psm: 11 },
+          },
+          {
+            id: 'footer',
+            x: 0,
+            y: Math.floor(h * 0.58),
+            cw: w,
+            ch: h - Math.floor(h * 0.58),
+            profile: {
+              psm: 6,
+              tess: { tessedit_char_whitelist: '0123456789abcdefABCDEFCUFEcufe:NIT.$, \n\r\t/-' },
+            },
+          },
+          {
+            id: 'total-manuscrito',
+            x: Math.floor(w * 0.45),
+            y: Math.floor(h * 0.68),
+            cw: Math.floor(w * 0.52),
+            ch: Math.floor(h * 0.22),
+            profile: { psm: 7, handwriting: true },
+          },
+        ];
+    var parts = [];
+    var zi;
+    var chain = Promise.resolve();
+    for (zi = 0; zi < zones.length; zi++) {
+      (function (z) {
+        chain = chain.then(function () {
+          if (timedOut()) return;
+          return feIntelOcrCropCanvas(full, z, z.profile).then(function (txt) {
+            if (txt && txt.length > 2) parts.push('[' + z.id + ']\n' + txt);
+          });
+        });
+      })(zones[zi]);
+    }
+    return chain.then(function () {
+      return {
+        text: parts.join('\n'),
+        zones: parts.length,
+        source: 'ocr-zones',
+      };
+    });
+  }
+
+  function feIntelOcrZones(doc, opts) {
+    opts = opts || {};
+    var cacheKey = doc && doc.id ? 'z_' + String(doc.id) : '';
+    if (cacheKey && FE_INTEL_OCR_CACHE[cacheKey]) {
+      return Promise.resolve(FE_INTEL_OCR_CACHE[cacheKey]);
+    }
+    var mime = String((doc && doc.mime) || '');
+    var isImg = mime.indexOf('image') >= 0;
+    var runP;
+    if (isImg && doc.dataUrl) {
+      runP = new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement('canvas');
+          var scale = Math.min(2.2, 2200 / Math.max(img.width, img.height, 1));
+          c.width = Math.ceil(img.width * scale);
+          c.height = Math.ceil(img.height * scale);
+          var ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          feIntelOcrFromCanvas(c, opts).then(resolve, function () {
+            resolve(null);
+          });
+        };
+        img.onerror = function () {
+          resolve(null);
+        };
+        img.src = doc.dataUrl;
+      });
+    } else {
+      var batchUi = !!(opts.batchMode || global.__cxfFeBatchMode);
+      var scale = batchUi ? 4 : 4.8;
+      runP = runPdfExclusive(function () {
+        return openPdfDocument(doc).then(function (pdf) {
+          return pdf.getPage(1).then(function (page) {
+            var vp = page.getViewport({ scale: scale });
+            var full = document.createElement('canvas');
+            full.width = Math.ceil(vp.width);
+            full.height = Math.ceil(vp.height);
+            return page
+              .render({ canvasContext: full.getContext('2d'), viewport: vp })
+              .promise.then(function () {
+                return feIntelOcrFromCanvas(full, opts);
+              });
+          });
+        });
+      });
+    }
+    return runP
+      .then(function (res) {
+        if (cacheKey && res) feIntelCachePut(cacheKey, res);
+        return res;
+      })
+      .catch(function (err) {
+        console.warn('[FE] intel OCR', err);
+        return null;
+      });
+  }
+
+  function feIntelAugmentDetection(doc, pack, opts, smooth) {
+    if (opts.skipIntel) return Promise.resolve(pack);
+    var mergedLen = String(pack.quickText || '').replace(/\s/g, '').length;
+    var resolvedNow = buildCufeResolution(pack.qr, pack.fromQuick || []);
+    var batch = !!(opts.batchMode || global.__cxfFeBatchMode);
+    if (
+      resolvedNow.cufeValidado &&
+      isFacturaElectronicaDetectada(resolvedNow, pack.qr) &&
+      (mergedLen > 120 || !pack.likelyScanned)
+    ) {
+      pack.intelClassify = feIntelClassifyDocument(
+        pack.quickText || '',
+        pack.structured || null,
+        resolvedNow,
+        pack.qr,
+        opts.proveedor
+      );
+      return Promise.resolve(pack);
+    }
+    if (batch) {
+      pack.quickText = pack.quickText || '';
+      pack.intelClassify = feIntelClassifyDocument(
+        pack.quickText,
+        null,
+        resolvedNow,
+        pack.qr,
+        opts.proveedor
+      );
+      if (mergedLen > 60 || resolvedNow.cufe || (pack.fromQuick && pack.fromQuick.length)) {
+        return Promise.resolve(pack);
+      }
+    }
+    if (smooth && smooth.bump) {
+      smooth.bump(57, batch ? 'Clasificando documento…' : 'Lectura inteligente del documento…');
+    }
+    if (typeof opts.onProgress === 'function') {
+      opts.onProgress({
+        pct: 57,
+        label: batch ? 'Clasificando documento…' : 'Lectura inteligente (texto + OCR)…',
+        stepId: 'intel',
+      });
+    }
+    var mime = String((doc && doc.mime) || '');
+    var isPdfDoc =
+      mime.indexOf('pdf') >= 0 ||
+      /^data:application\/pdf/i.test((doc && doc.dataUrl) || '') ||
+      !!(doc && doc._pdfBlob);
+    var structP = isPdfDoc
+      ? extractStructuredPdfText(doc, batch ? 2 : 3)
+      : Promise.resolve({
+          text: pack.quickText || '',
+          blocks: [],
+          textLen: mergedLen,
+          likelyScanned: true,
+          blockCount: 0,
+          fontStats: { counts: {}, top: [] },
+        });
+    return structP
+      .catch(function () {
+        return { text: pack.quickText || '', blocks: [], textLen: mergedLen, likelyScanned: !!pack.likelyScanned };
+      })
+      .then(function (structured) {
+        pack.structured = structured;
+        pack.quickText = feIntelMergeText(pack.quickText, structured.text);
+        pack.fromQuick = extractAllCufeCandidates(pack.quickText).concat(pack.fromQuick || []);
+        pack.intelClassify = feIntelClassifyDocument(
+          pack.quickText,
+          structured,
+          buildCufeResolution(pack.qr, pack.fromQuick),
+          pack.qr,
+          opts.proveedor
+        );
+        var needOcr =
+          !batch &&
+          (pack.likelyScanned ||
+            structured.likelyScanned ||
+            structured.textLen < 160 ||
+            !(pack.fromQuick && pack.fromQuick.length));
+        if (!needOcr) return pack;
+        if (smooth && smooth.bump) smooth.bump(59, 'OCR por zonas (impreso y manuscrito)…');
+        return feIntelOcrZones(doc, opts).then(function (ocr) {
+          if (ocr && ocr.text) {
+            pack.intelOcr = ocr;
+            pack.quickText = feIntelMergeText(pack.quickText, ocr.text);
+            pack.fromQuick = extractAllCufeCandidates(pack.quickText).concat(pack.fromQuick || []);
+            pack.intelClassify = feIntelClassifyDocument(
+              pack.quickText,
+              structured,
+              buildCufeResolution(pack.qr, pack.fromQuick),
+              pack.qr,
+              opts.proveedor
+            );
+          }
+          return pack;
+        });
+      })
+      .catch(function () {
+        return pack;
+      });
   }
 
   function esc(s) {
@@ -2313,46 +2821,86 @@
         var batchMode = !!(opts.batchMode || global.__cxfFeBatchMode);
         function finalizeDetect(resolved, esElectronica) {
           var budgetMsg = feQrBudgetExpired() ? ' (tiempo máximo QR — use Reanalizar si falta CUFE)' : '';
+          var intelHint =
+            pack.intelClassify && pack.intelClassify.signals && pack.intelClassify.signals.length
+              ? ' · ' + pack.intelClassify.signals.slice(0, 3).join(', ')
+              : '';
           smooth.stop(
-            esElectronica ? 56 : 54,
+            esElectronica ? 58 : 54,
             esElectronica
-              ? 'Factura electrónica confirmada (QR/CUFE)' + budgetMsg
+              ? 'Factura electrónica confirmada' +
+                (resolved.cufeValidado ? ' (QR/CUFE)' : ' (lectura documento)') +
+                intelHint +
+                budgetMsg
               : likelyScannedPdfHint(pack.quickText, pack.qr, resolved) + budgetMsg,
             'cufe',
-            { init: true, detect: true, cufe: true }
+            { init: true, detect: true, cufe: true, intel: !!pack.intelClassify }
           );
           return {
             esElectronica: esElectronica,
             qr: pack.qr,
             quickText: pack.quickText,
             cufeResolved: resolved,
+            intelClassify: pack.intelClassify || null,
+            intelOcr: pack.intelOcr || null,
+            structured: pack.structured || null,
           };
         }
 
-        var resolved = buildCufeResolution(pack.qr, pack.fromQuick);
-        var esElectronica = isFacturaElectronicaDetectada(resolved, pack.qr);
-        if (esElectronica && resolved.cufeValidado) return finalizeDetect(resolved, esElectronica);
-        if (!pack.likelyScanned) {
-          return finalizeDetect(resolved, esElectronica);
-        }
-        if (esElectronica && pack.qr && (pack.qr.url || pack.qr.cufe)) {
-          return finalizeDetect(resolved, esElectronica);
-        }
-        if (pack._batchOcrDone && !opts.forceDeepQr && resolved.cufeValidado) {
-          return finalizeDetect(resolved, esElectronica);
+        function finishDetectionPass(resolved, esElectronica) {
+          if (batchMode && resolved.cufeValidado) {
+            pack.intelClassify = feIntelClassifyDocument(
+              pack.quickText || '',
+              pack.structured || null,
+              resolved,
+              pack.qr,
+              opts.proveedor
+            );
+            esElectronica = feConfirmadaElectronica(resolved, pack.qr, pack.intelClassify);
+            return Promise.resolve(finalizeDetect(resolved, esElectronica));
+          }
+          return feIntelAugmentDetection(doc, pack, opts, smooth).then(function (aug) {
+            pack = aug;
+            resolved = buildCufeResolution(pack.qr, pack.fromQuick);
+            esElectronica = feConfirmadaElectronica(resolved, pack.qr, pack.intelClassify);
+            return finalizeDetect(resolved, esElectronica);
+          });
         }
 
+        var resolved = buildCufeResolution(pack.qr, pack.fromQuick);
+        var esElectronica = feConfirmadaElectronica(resolved, pack.qr, null);
+        if (esElectronica && resolved.cufeValidado) return finishDetectionPass(resolved, esElectronica);
+        if (batchMode && !pack.likelyScanned && esElectronica) {
+          return finishDetectionPass(resolved, esElectronica);
+        }
+        if (!pack.likelyScanned && esElectronica) {
+          return finishDetectionPass(resolved, esElectronica);
+        }
+        if (esElectronica && pack.qr && (pack.qr.url || pack.qr.cufe)) {
+          return finishDetectionPass(resolved, esElectronica);
+        }
+        if (pack._batchOcrDone && !opts.forceDeepQr && resolved.cufeValidado) {
+          return finishDetectionPass(resolved, esElectronica);
+        }
+
+        if (batchMode && !pack.likelyScanned && String(pack.quickText || '').replace(/\s/g, '').length > 180) {
+          return finishDetectionPass(resolved, esElectronica);
+        }
         smooth.bump(
           55,
           batchMode ? 'OCR en pie de página (escaneo)…' : 'Leyendo CUFE impreso (OCR)…'
         );
-        return extractCufeFromScannedOcr(doc, opts).then(function (ocrRes) {
-          if (ocrRes && ocrRes.cufe && isValidCufeHex(ocrRes.cufe)) {
-            resolved = ocrRes;
-            esElectronica = isFacturaElectronicaDetectada(resolved, pack.qr);
-          }
-          return finalizeDetect(resolved, esElectronica);
-        });
+        return extractCufeFromScannedOcr(doc, opts)
+          .then(function (ocrRes) {
+            if (ocrRes && ocrRes.cufe && isValidCufeHex(ocrRes.cufe)) {
+              resolved = ocrRes;
+              esElectronica = isFacturaElectronicaDetectada(resolved, pack.qr);
+            }
+            return finishDetectionPass(resolved, esElectronica);
+          })
+          .catch(function () {
+            return finishDetectionPass(resolved, esElectronica);
+          });
       })
       .finally(function () {
         feQrClearBudget();
@@ -2390,9 +2938,17 @@
     };
     var nitM =
       flat.match(/NIT[:\s]*([0-9]{3,3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9K])/i) ||
-      flat.match(/Emisor[^0-9]*([0-9]{9,10}[-–]?[0-9K])/i);
+      flat.match(/Emisor[^0-9]*([0-9]{9,10}[-–]?[0-9K])/i) ||
+      flat.match(/Proveedor[^0-9]*([0-9]{9,10}[-–]?[0-9K])/i);
     if (nitM) out.nitEmisor = nitM[1].replace(/\s/g, '');
-    var rsM = flat.match(/Raz[oó]n\s+social[:\s]*([^|]{4,80}?)(?:\s+NIT|\s+DV|\s+CUFE|$)/i);
+    if (!out.nitEmisor) {
+      var nits = feExtractNitsFromText(text);
+      if (nits.length) out.nitEmisor = nits[0];
+    }
+    var rsM =
+      flat.match(/Raz[oó]n\s+social[:\s]*([^|]{4,80}?)(?:\s+NIT|\s+DV|\s+CUFE|$)/i) ||
+      flat.match(/Nombre\s+o\s+raz[oó]n\s+social[:\s]*([^|]{4,80}?)(?:\s+NIT|\s+DV|$)/i) ||
+      flat.match(/Emisor[:\s]*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ0-9 .,&-]{4,70}?)(?:\s+NIT|\s+CUFE|$)/i);
     if (rsM) out.razonSocial = rsM[1].trim();
     var feM =
       flat.match(/(?:Factura\s+electr[oó]nica|N[uú]mero\s+de\s+factura|FEV|Prefijo)[:\s#]*([A-Z]{0,6}[-\s]?[0-9]{4,12})/i) ||
@@ -2792,15 +3348,15 @@
     if (typeof opts.onProgress === 'function') {
       opts.onProgress({ pct: 54, label: 'OCR en pie de factura (CUFE impreso)…', stepId: 'detect' });
     }
-    var cropStarts = [0.25, 0.35, 0.45, 0.55, 0.65, 0.75];
+    var batchUi = !!(opts.batchMode || global.__cxfFeBatchMode);
+    var cropStarts = batchUi ? [0.58, 0.72] : [0.25, 0.35, 0.45, 0.55, 0.65, 0.75];
     var ocrExtra = {
       tessedit_char_whitelist: '0123456789abcdefABCDEFCUFEcufe: \n\r\t/-',
     };
     return runPdfExclusive(function () {
       return openPdfDocument(doc).then(function (pdf) {
         return pdf.getPage(1).then(function (page) {
-          var batchUi = !!(opts.batchMode || global.__cxfFeBatchMode);
-          var scale = batchUi ? 5 : 4.5;
+          var scale = batchUi ? 3.6 : 4.5;
           var vp = page.getViewport({ scale: scale });
           var full = document.createElement('canvas');
           full.width = Math.ceil(vp.width);
@@ -2833,6 +3389,7 @@
                 crop
                   .getContext('2d')
                   .drawImage(full, region.x, region.y, region.cw, region.ch, 0, 0, region.cw, region.ch);
+                if (batchUi) return ocrOneCanvas(crop);
                 var enhanced = feCanvasForOcr(crop);
                 return ocrOneCanvas(crop).then(function (hit) {
                   if (hit && hit.cufe && isValidCufeHex(hit.cufe)) return hit;
@@ -2845,20 +3402,29 @@
                 if (cropH < 80) return Promise.resolve(null);
                 return ocrCropRegion({ x: 0, y: cropY, cw: full.width, ch: cropH });
               }
-              var cornerRegions = [
-                {
-                  x: Math.floor(full.width * 0.42),
-                  y: 0,
-                  cw: Math.floor(full.width * 0.58),
-                  ch: Math.floor(full.height * 0.38),
-                },
-                {
-                  x: Math.floor(full.width * 0.48),
-                  y: Math.floor(full.height * 0.58),
-                  cw: Math.floor(full.width * 0.52),
-                  ch: Math.floor(full.height * 0.42),
-                },
-              ];
+              var cornerRegions = batchUi
+                ? [
+                    {
+                      x: Math.floor(full.width * 0.48),
+                      y: Math.floor(full.height * 0.58),
+                      cw: Math.floor(full.width * 0.52),
+                      ch: Math.floor(full.height * 0.42),
+                    },
+                  ]
+                : [
+                    {
+                      x: Math.floor(full.width * 0.42),
+                      y: 0,
+                      cw: Math.floor(full.width * 0.58),
+                      ch: Math.floor(full.height * 0.38),
+                    },
+                    {
+                      x: Math.floor(full.width * 0.48),
+                      y: Math.floor(full.height * 0.58),
+                      cw: Math.floor(full.width * 0.52),
+                      ch: Math.floor(full.height * 0.42),
+                    },
+                  ];
               var chain = Promise.resolve(null);
               var ci;
               for (ci = 0; ci < cornerRegions.length; ci++) {
@@ -3088,19 +3654,17 @@
     return fetchDianConsultaBrowser(cufe);
   }
 
-  function matchProveedor(prov, fe) {
+  function matchProveedor(prov, fe, fullText, intelProveedor) {
     prov = prov || {};
     fe = fe || {};
+    fullText = String(fullText || fe.rawExcerpt || '');
     var nitP = normNit(prov.nit);
     var nitF = normNit(fe.nitEmisor);
     var simNombre = nameSimilarity(
       prov.nombre || prov.name,
-      fe.razonSocial || prov.legal && prov.legal.razonSocial
+      fe.razonSocial || (prov.legal && prov.legal.razonSocial)
     );
-    var simRazon = nameSimilarity(
-      prov.legal && prov.legal.razonSocial,
-      fe.razonSocial
-    );
+    var simRazon = nameSimilarity(prov.legal && prov.legal.razonSocial, fe.razonSocial);
     var sim = Math.max(simNombre, simRazon);
     if (nitP && nitF && nitP === nitF) {
       return {
@@ -3110,12 +3674,44 @@
         detalle: 'El NIT del proveedor seleccionado coincide con el emisor de la FE.',
       };
     }
+    if (intelProveedor && intelProveedor.found) {
+      return {
+        ok: true,
+        score: Math.min(97, 70 + (intelProveedor.score || 0)),
+        etiqueta: 'Proveedor en documento',
+        detalle:
+          'El proveedor asignado aparece en el texto del archivo (' +
+          (intelProveedor.label || 'coincidencia') +
+          ').',
+      };
+    }
+    if (fullText && nitP) {
+      var nitsDoc = feExtractNitsFromText(fullText);
+      if (nitsDoc.indexOf(nitP) >= 0) {
+        return {
+          ok: true,
+          score: 94,
+          etiqueta: 'NIT en texto del PDF',
+          detalle: 'El NIT del proveedor en sesión fue encontrado en el documento.',
+        };
+      }
+    }
+    var enTexto = feIntelProveedorEnTexto(prov, fullText);
+    if (enTexto.found) {
+      return {
+        ok: true,
+        score: Math.min(92, 68 + enTexto.score),
+        etiqueta: 'Nombre en documento',
+        detalle: 'El proveedor en sesión coincide con texto leído del archivo.',
+      };
+    }
     if (sim >= 0.72) {
       return {
         ok: true,
         score: Math.round(sim * 100),
         etiqueta: 'Nombre relacionado',
-        detalle: 'El proveedor en sesión parece corresponder al emisor (' + Math.round(sim * 100) + '% similitud).',
+        detalle:
+          'El proveedor en sesión parece corresponder al emisor (' + Math.round(sim * 100) + '% similitud).',
       };
     }
     if (nitF && nitP && nitP !== nitF) {
@@ -3240,7 +3836,7 @@
   function finalizeFeAnalisis(ctx, pasos, opts, prov, valorCajero, mpCatalog) {
     var fe = ctx.fe || {};
     var esElectronica = ctx.esElectronica;
-    var provMatch = matchProveedor(prov, fe);
+    var provMatch = matchProveedor(prov, fe, ctx.text, ctx.intelClassify && ctx.intelClassify.proveedorEnDoc);
     pasos.push({
       id: 'prov',
       ok: provMatch.ok,
@@ -3303,7 +3899,181 @@
       progreso: { pct: 100, label: 'Completado', stepId: 'cierre' },
       docOficialPayload: ctx.docOficialPayload || null,
       feDeepSource: ctx.feDeepSource || 'pdf-subido',
+      intelClassify: ctx.intelClassify || null,
+      intelOcr: ctx.intelOcr || null,
+      structuredFonts: ctx.structured && ctx.structured.fontStats ? ctx.structured.fontStats.top : null,
+      identidad: buildFeIdentidad(
+        {
+          estado: 'listo',
+          esElectronica: esElectronica,
+          cufe: fe.cufe,
+          cufeValidado: ctx.cufeResolved && ctx.cufeResolved.cufeValidado,
+          fe: fe,
+          proveedorMatch: provMatch,
+          intelClassify: ctx.intelClassify,
+        },
+        prov
+      ),
     };
+  }
+
+  /** Resumen legible para el operador: qué factura es y si coincide con el proveedor. */
+  function buildFeIdentidad(analisis, prov) {
+    analisis = analisis || {};
+    var fe = analisis.fe || {};
+    var pm = analisis.proveedorMatch || {};
+    var intel = analisis.intelClassify || {};
+    var numero = String(fe.numeroFactura || '').trim();
+    var nit = String(fe.nitEmisor || '').trim();
+    var razon = String(fe.razonSocial || '').trim();
+    var total = Number(fe.total) || 0;
+    var cufe = String(analisis.cufe || fe.cufe || '').trim();
+    var conf = 0;
+    if (analisis.esElectronica) conf += 35;
+    if (analisis.cufeValidado) conf += 30;
+    else if (cufe) conf += 12;
+    if (numero) conf += 15;
+    if (total > 0) conf += 12;
+    if (pm.ok) conf += 18;
+    else if (intel.proveedorEnDoc && intel.proveedorEnDoc.found) conf += 10;
+    if (intel.confidence) conf = Math.max(conf, Math.min(95, intel.confidence));
+    conf = Math.min(100, conf);
+    var estadoId = 'sin-identificar';
+    var titulo = 'Sin identificar';
+    var subtitulo = 'No se leyeron datos claros — use Reanalizar o ingrese manualmente';
+    if (analisis.esElectronica && analisis.cufeValidado && pm.ok && numero) {
+      estadoId = 'confirmada';
+      titulo = 'Factura identificada';
+      subtitulo = 'FE confirmada · proveedor coincide';
+    } else if (analisis.esElectronica && (numero || total > 0)) {
+      estadoId = 'probable';
+      titulo = 'Factura electrónica probable';
+      subtitulo = pm.ok ? 'Revise número y total antes de continuar' : 'Verifique que el proveedor sea el correcto';
+    } else if (numero || nit || total > 0) {
+      estadoId = 'parcial';
+      titulo = 'Datos parciales leídos';
+      subtitulo = 'Puede no ser FE — confirme número y proveedor';
+    } else if (intel.esElectronica) {
+      estadoId = 'probable';
+      titulo = 'Documento parece FE';
+      subtitulo = (intel.signals || []).slice(0, 3).join(' · ') || 'Lectura inteligente';
+    }
+    return {
+      estadoId: estadoId,
+      titulo: titulo,
+      subtitulo: subtitulo,
+      confianza: conf,
+      numeroFactura: numero,
+      nitEmisor: nit,
+      razonSocial: razon,
+      total: total,
+      totalFmt: total > 0 ? fmtCop(total) : '',
+      cufe: cufe,
+      cufeCorto: cufe ? cufe.slice(0, 24) + (cufe.length > 24 ? '…' : '') : '',
+      proveedorOk: !!pm.ok,
+      proveedorEtiqueta: pm.etiqueta || (pm.ok ? 'Coincide' : 'Sin validar'),
+      proveedorDetalle: pm.detalle || '',
+      proveedorSesion: prov ? prov.nombre || '' : '',
+      esElectronica: !!analisis.esElectronica,
+      cufeValidado: !!analisis.cufeValidado,
+      puedeAutocompletar: !!(numero || total > 0),
+    };
+  }
+
+  function renderFeIdentidadCard(identidad, opts) {
+    opts = opts || {};
+    identidad = identidad || {};
+    if (!identidad.titulo && !identidad.numeroFactura) return '';
+    var cls =
+      'cxf-fe-identidad cxf-fe-identidad--' +
+      esc(identidad.estadoId || 'sin-identificar');
+    var html =
+      '<div class="' +
+      cls +
+      '" role="status" aria-live="polite">' +
+      '<div class="cxf-fe-identidad__head">' +
+      '<span class="cxf-fe-identidad__icon" aria-hidden="true">' +
+      (identidad.estadoId === 'confirmada'
+        ? '✓'
+        : identidad.estadoId === 'probable'
+          ? '⚡'
+          : identidad.estadoId === 'parcial'
+            ? '○'
+            : '?') +
+      '</span>' +
+      '<div><strong class="cxf-fe-identidad__title">' +
+      esc(identidad.titulo) +
+      '</strong>' +
+      '<p class="cxf-fe-identidad__sub">' +
+      esc(identidad.subtitulo || '') +
+      '</p></div>' +
+      (identidad.confianza
+        ? '<span class="cxf-fe-identidad__pct" title="Confianza de identificación">' +
+          esc(String(identidad.confianza)) +
+          '%</span>'
+        : '') +
+      '</div>';
+    html += '<dl class="cxf-fe-identidad__grid">';
+    if (identidad.numeroFactura) {
+      html +=
+        '<div><dt>Nº factura</dt><dd><strong>' + esc(identidad.numeroFactura) + '</strong></dd></div>';
+    }
+    if (identidad.totalFmt) {
+      html += '<div><dt>Total</dt><dd><strong>' + esc(identidad.totalFmt) + '</strong></dd></div>';
+    }
+    if (identidad.nitEmisor) {
+      html += '<div><dt>NIT emisor</dt><dd>' + esc(identidad.nitEmisor) + '</dd></div>';
+    }
+    if (identidad.razonSocial) {
+      html +=
+        '<div class="cxf-fe-identidad__span2"><dt>Emisor en documento</dt><dd>' +
+        esc(identidad.razonSocial) +
+        '</dd></div>';
+    }
+    if (identidad.proveedorSesion) {
+      html +=
+        '<div class="cxf-fe-identidad__span2"><dt>Proveedor en sesión</dt><dd>' +
+        esc(identidad.proveedorSesion) +
+        ' <span class="cxf-fe-identidad__prov-badge' +
+        (identidad.proveedorOk ? ' is-ok' : ' is-warn') +
+        '">' +
+        esc(identidad.proveedorEtiqueta) +
+        '</span></dd></div>';
+    }
+    if (identidad.cufeCorto) {
+      html +=
+        '<div class="cxf-fe-identidad__span2"><dt>CUFE</dt><dd><code>' +
+        esc(identidad.cufeCorto) +
+        '</code></dd></div>';
+    }
+    html += '</dl>';
+    if (opts.compact) return html;
+    if (identidad.puedeAutocompletar && identidad.estadoId !== 'sin-identificar') {
+      html +=
+        '<p class="cxf-fe-identidad__hint form-hint">Los campos Nº y total ya se rellenaron abajo. Pulse <strong>Aplicar datos</strong> para llevar también las líneas sugeridas.</p>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderFeIdentidadInline(identidad) {
+    identidad = identidad || {};
+    if (!identidad.numeroFactura && !identidad.totalFmt && identidad.estadoId === 'sin-identificar') {
+      return '';
+    }
+    var parts = [];
+    if (identidad.numeroFactura) parts.push(esc(identidad.numeroFactura));
+    if (identidad.totalFmt) parts.push(esc(identidad.totalFmt));
+    if (identidad.proveedorOk) parts.push('Proveedor ✓');
+    else if (identidad.proveedorEtiqueta && identidad.proveedorEtiqueta !== 'Sin validar') {
+      parts.push(esc(identidad.proveedorEtiqueta));
+    }
+    return (
+      '<p class="cxf-fe-identidad-inline" role="status">' +
+      '<span class="cxf-fe-identidad-inline__label">Identificada:</span> ' +
+      (parts.length ? parts.join(' · ') : esc(identidad.titulo || 'En análisis')) +
+      '</p>'
+    );
   }
 
   /**
@@ -3350,11 +4120,45 @@
       .then(function (det) {
         var qr = det.qr;
         var resolved = det.cufeResolved;
-        var esElectronica = det.esElectronica;
+        var esElectronica = feConfirmadaElectronica(resolved, qr, det.intelClassify) || det.esElectronica;
         pushQrCufePasos(pasos, qr, resolved);
+        if (det.intelClassify && det.intelClassify.signals && det.intelClassify.signals.length) {
+          pasos.push({
+            id: 'intel',
+            ok: det.intelClassify.esElectronica,
+            warn: !det.intelClassify.esElectronica && det.intelClassify.confidence >= 35,
+            titulo: 'Lectura inteligente',
+            detalle:
+              (det.intelClassify.esElectronica ? 'Documento FE probable' : 'Señales parciales') +
+              ' (' +
+              det.intelClassify.confidence +
+              '%) — ' +
+              det.intelClassify.signals.slice(0, 4).join(', '),
+          });
+        }
 
         if (!esElectronica) {
-          emitProgress(opts, 100, 'Sin factura electrónica detectada', 'cierre', {
+          var feParcial = parseFeFromText(det.quickText || '');
+          if (resolved.cufe) feParcial.cufe = resolved.cufe;
+          var pmParcial = matchProveedor(
+            prov,
+            feParcial,
+            det.quickText,
+            det.intelClassify && det.intelClassify.proveedorEnDoc
+          );
+          var identParcial = buildFeIdentidad(
+            {
+              estado: 'listo',
+              esElectronica: false,
+              cufe: feParcial.cufe || resolved.cufe || '',
+              cufeValidado: !!(resolved.cufeValidado),
+              fe: feParcial,
+              proveedorMatch: pmParcial,
+              intelClassify: det.intelClassify,
+            },
+            prov
+          );
+          emitProgress(opts, 100, identParcial.titulo || 'Sin factura electrónica detectada', 'cierre', {
             init: true,
             detect: true,
             cufe: true,
@@ -3363,13 +4167,16 @@
           return {
             estado: 'listo',
             esElectronica: false,
-            cufe: resolved.cufe || '',
-            cufeValidado: false,
+            cufe: resolved.cufe || feParcial.cufe || '',
+            cufeValidado: !!resolved.cufeValidado,
             pasos: pasos,
-            fe: {},
-            dianUrl: '',
+            fe: feParcial,
+            proveedorMatch: pmParcial,
+            intelClassify: det.intelClassify || null,
+            dianUrl: buildDianConsultaUrl(feParcial.cufe) || '',
             analizadoAt: new Date().toISOString(),
-            progreso: { pct: 100, label: 'Sin FE clara', stepId: 'cierre' },
+            progreso: { pct: 100, label: identParcial.titulo || 'Sin FE clara', stepId: 'cierre' },
+            identidad: identParcial,
           };
         }
 
@@ -3382,13 +4189,17 @@
 
         var maxTextPages = batchMode ? 1 : 4;
         var textP =
-          isPdf && det.quickText && det.quickText.length > 80 && !batchMode
-            ? extractTextFromPdfDataUrl(doc, maxTextPages).then(function (full) {
-                return full.length > det.quickText.length ? full : det.quickText;
-              })
-            : isPdf
-              ? extractTextFromPdfDataUrl(doc, maxTextPages)
-              : Promise.resolve(det.quickText || '');
+          det.quickText && det.quickText.length > 120
+            ? Promise.resolve(det.quickText)
+            : isPdf && det.quickText && det.quickText.length > 80 && !batchMode
+              ? extractTextFromPdfDataUrl(doc, maxTextPages).then(function (full) {
+                  return full.length > det.quickText.length ? full : det.quickText;
+                })
+              : isPdf
+                ? extractTextFromPdfDataUrl(doc, maxTextPages).then(function (full) {
+                    return feIntelMergeText(det.quickText, full);
+                  })
+                : Promise.resolve(det.quickText || '');
 
         return feYieldToMain(batchMode ? 40 : 0).then(function () {
           return textP;
@@ -3422,6 +4233,9 @@
             text: text,
             cufeResolved: resolved,
             esElectronica: true,
+            intelClassify: det.intelClassify || null,
+            intelOcr: det.intelOcr || null,
+            structured: det.structured || null,
           };
           var cufe = fe.cufe || '';
           if (!cufe) {
@@ -3510,7 +4324,7 @@
       '<div class="cxf-fe-loader__spinner" aria-hidden="true"></div>' +
       '<div class="cxf-fe-loader__head-text">' +
       '<p class="cxf-fe-loader__eyebrow">Modo complejo</p>' +
-      '<p class="cxf-fe-loader__title">Analizando factura electrónica</p>' +
+      '<p class="cxf-fe-loader__title">Identificando factura</p>' +
       '<p class="cxf-fe-loader__label" data-fe-loader-label>' +
       esc(progreso.label || 'Procesando…') +
       '</p></div></div>' +
@@ -3557,6 +4371,17 @@
     else if (src) chips.push({ cls: 'txt', label: 'Texto PDF' });
     if (analisis.dianDownloaded) chips.push({ cls: 'dian', label: 'DIAN XML/PDF' });
     else if (analisis.dianOk) chips.push({ cls: 'dian', label: 'DIAN OK' });
+    if (analisis.intelOcr && analisis.intelOcr.zones) {
+      chips.push({ cls: 'ocr', label: 'OCR zonas' });
+    }
+    if (analisis.proveedorMatch && analisis.proveedorMatch.ok) {
+      chips.push({ cls: 'prov', label: 'Proveedor OK' });
+    } else if (analisis.intelClassify && analisis.intelClassify.proveedorEnDoc && analisis.intelClassify.proveedorEnDoc.found) {
+      chips.push({ cls: 'prov', label: 'Prov. en doc' });
+    }
+    if (analisis.structuredFonts && analisis.structuredFonts.length) {
+      chips.push({ cls: 'font', label: analisis.structuredFonts[0].split('+')[0].slice(0, 12) });
+    }
     if (docHint.scanned || docHint.likelyScanned) chips.push({ cls: 'scan', label: 'Escaneada' });
     if (!chips.length) return '';
     var html = '<div class="cxf-fe-chips">';
@@ -3583,10 +4408,15 @@
       '<header class="cxf-fe-analisis__head">' +
       '<p class="cxf-eyebrow">Modo complejo · Análisis FE</p>' +
       '<h4 class="cxf-fe-analisis__title">' +
-      (analisis.esElectronica
-        ? 'Factura electrónica detectada'
-        : 'Documento sin FE clara') +
+      (analisis.identidad && analisis.identidad.titulo
+        ? esc(analisis.identidad.titulo)
+        : analisis.esElectronica
+          ? 'Factura electrónica detectada'
+          : 'Documento sin FE clara') +
       '</h4>';
+    if (analisis.identidad) {
+      html += renderFeIdentidadCard(analisis.identidad, { compact: true });
+    }
     html += renderFeStatusChips(analisis, opts.docHint || {});
     if (analisis.cufe) {
       html +=
@@ -3724,5 +4554,13 @@
     probePdfQuickProfile: probePdfQuickProfile,
     feProvQrKey: feProvQrKey,
     rememberFeQrZoneFromHit: rememberFeQrZoneFromHit,
+    extractStructuredPdfText: extractStructuredPdfText,
+    feIntelClassifyDocument: feIntelClassifyDocument,
+    feIntelProveedorEnTexto: feIntelProveedorEnTexto,
+    feExtractNitsFromText: feExtractNitsFromText,
+    feConfirmadaElectronica: feConfirmadaElectronica,
+    buildFeIdentidad: buildFeIdentidad,
+    renderFeIdentidadCard: renderFeIdentidadCard,
+    renderFeIdentidadInline: renderFeIdentidadInline,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

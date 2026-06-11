@@ -730,14 +730,112 @@
     }
   }
 
-  function empresaNombre() {
+  function recetarioBrandTitle() {
+    try {
+      if (typeof global.getCrozzoBranding === 'function') {
+        var b = global.getCrozzoBranding();
+        var plat = b && b.platform;
+        var tenant = b && b.tenant;
+        var show = b && b.show;
+        if (show && show.header && show.header.tenant && tenant && tenant.label && String(tenant.label).trim()) {
+          return String(tenant.label).trim();
+        }
+        if (plat && plat.label && String(plat.label).trim()) return String(plat.label).trim();
+      }
+    } catch (_) {}
     try {
       if (global.config && typeof global.config.getEmpresa === 'function') {
         var emp = global.config.getEmpresa();
         if (emp && emp.nombre) return String(emp.nombre).trim();
       }
     } catch (_) {}
-    return 'Crozzo POS';
+    try {
+      if (typeof global.crozzoAppDisplayName === 'function') return global.crozzoAppDisplayName();
+      if (global.CROZZO_APP_DISPLAY_NAME) return String(global.CROZZO_APP_DISPLAY_NAME).trim();
+    } catch (_) {}
+    return 'BONA origen';
+  }
+
+  function resolveRecetarioBrandLogoUrl() {
+    try {
+      if (typeof global.getCrozzoBranding === 'function') {
+        var b = global.getCrozzoBranding();
+        var show = b && b.show;
+        var tenant = b && b.tenant;
+        var plat = b && b.platform;
+        if (show && show.header && show.header.tenant && tenant && tenant.dataUrl && String(tenant.dataUrl).trim()) {
+          return String(tenant.dataUrl).trim();
+        }
+        if (plat && plat.dataUrl && String(plat.dataUrl).trim()) return String(plat.dataUrl).trim();
+      }
+    } catch (_) {}
+    var domIds = ['crozzoSidebarImgPlatform', 'crozzoHeaderImgPlatform', 'crozzoLoginImgPlatform'];
+    for (var i = 0; i < domIds.length; i++) {
+      var el = document.getElementById(domIds[i]);
+      if (el && !el.hidden && el.src) return el.src;
+    }
+    return 'assets/bona-origen-logo.png';
+  }
+
+  function absBrandAssetUrl(url) {
+    var p = String(url || '').trim();
+    if (!p) return '';
+    if (/^(data:|https?:|blob:|file:)/i.test(p)) return p;
+    if (typeof global.crozzoResolveAssetUrl === 'function') return global.crozzoResolveAssetUrl(p);
+    try {
+      if (global.location && global.location.href) return new URL(p, global.location.href).href;
+    } catch (_) {}
+    return p;
+  }
+
+  function loadRecetarioBrandForPdf() {
+    var meta = {
+      title: recetarioBrandTitle(),
+      logoData: '',
+      logoFormat: 'PNG',
+    };
+    var url = resolveRecetarioBrandLogoUrl();
+    if (!url) return Promise.resolve(meta);
+    if (/^data:image\//i.test(url)) {
+      meta.logoData = url;
+      meta.logoFormat = /png/i.test(url) ? 'PNG' : 'JPEG';
+      return Promise.resolve(meta);
+    }
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function () {
+        try {
+          var w = img.naturalWidth || img.width || 64;
+          var h = img.naturalHeight || img.height || 64;
+          var max = 512;
+          var scale = Math.min(1, max / Math.max(w, h, 1));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(w * scale));
+          canvas.height = Math.max(1, Math.round(h * scale));
+          var ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+          meta.logoData = canvas.toDataURL('image/png');
+          meta.logoFormat = 'PNG';
+        } catch (e) {
+          console.warn('[recetario-pdf] logo raster', e);
+        }
+        resolve(meta);
+      };
+      img.onerror = function () {
+        console.warn('[recetario-pdf] logo load', url);
+        resolve(meta);
+      };
+      img.src = absBrandAssetUrl(url);
+    });
+  }
+
+  function empresaNombre() {
+    return recetarioBrandTitle();
   }
 
   function loadJsPdf() {
@@ -821,7 +919,26 @@
     return String(res.saved_path || res.savedPath || '').trim();
   }
 
+  function bytesToBase64(u8) {
+    var CHUNK = 0x8000;
+    var bin = '';
+    for (var i = 0; i < u8.length; i += CHUNK) {
+      bin += String.fromCharCode.apply(null, u8.subarray(i, Math.min(i + CHUNK, u8.length)));
+    }
+    return btoa(bin);
+  }
+
   function pdfDocToBase64(doc) {
+    try {
+      if (doc && typeof doc.output === 'function') {
+        var ab = doc.output('arraybuffer');
+        if (ab && ab.byteLength > 100) {
+          return Promise.resolve(bytesToBase64(new Uint8Array(ab)));
+        }
+      }
+    } catch (e) {
+      console.warn('[recetario-pdf] arraybuffer', e);
+    }
     try {
       if (doc && typeof doc.output === 'function') {
         var uri = doc.output('datauristring');
@@ -936,7 +1053,7 @@
       }
       if (isTauriEnv()) {
         return tauriInvoke('crozzo_save_pdf_b64', {
-          pdf_b64: b64,
+          pdfB64: b64,
           filename: filename,
         }).then(function (res) {
           var path = tauriSavedPath(res);
@@ -1004,6 +1121,24 @@
     }
   }
 
+  function pdfDrawBrandLogo(doc, brandMeta, x, y, mm) {
+    mm = mm || 9;
+    if (!brandMeta || !brandMeta.logoData) return 0;
+    try {
+      var fmt = brandMeta.logoFormat || 'PNG';
+      if (!doc.__crcBrandLogoPlaced) {
+        doc.__crcBrandLogoPlaced = true;
+        doc.addImage(brandMeta.logoData, fmt, x, y - mm * 0.75, mm, mm, 'crcBrandLogo');
+      } else {
+        doc.addImage('crcBrandLogo', fmt, x, y - mm * 0.75, mm, mm);
+      }
+      return mm;
+    } catch (e) {
+      console.warn('[recetario-pdf] brand logo', e);
+      return 0;
+    }
+  }
+
   function pdfDrawEmoji(doc, emoji, x, y, mm) {
     mm = mm || 5;
     var data = pdfEmojiRaster(emoji, 48);
@@ -1039,7 +1174,9 @@
     doc.text(String(num), x, y - 0.2, { align: 'center' });
   }
 
-  function buildKitchenPdf(jsPDF, recipes) {
+  function buildKitchenPdf(jsPDF, recipes, brandMeta) {
+    brandMeta = brandMeta || { title: recetarioBrandTitle(), logoData: '', logoFormat: 'PNG' };
+    var brandTitle = String(brandMeta.title || recetarioBrandTitle()).trim() || 'BONA origen';
     var doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     var M = 16;
     var pageW = doc.internal.pageSize.getWidth();
@@ -1071,7 +1208,7 @@
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.5);
         doc.setTextColor.apply(doc, muted);
-        doc.text(empresaNombre() + ' · Recetario de cocina', M, pageH - 7);
+        doc.text(brandTitle + ' · Recetario de cocina', M, pageH - 7);
         doc.text('Pág. ' + p + ' / ' + total, pageW - M, pageH - 7, { align: 'right' });
       }
     }
@@ -1107,7 +1244,14 @@
         );
         y = 46;
       } else {
-        pdfDrawEmoji(doc, '👨‍🍳', M + 1, 15, 9);
+        var logoMm = 9;
+        if (brandMeta.logoData) {
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(M + 0.4, 7.4, logoMm + 1.4, logoMm + 1.4, 1.4, 1.4, 'F');
+          pdfDrawBrandLogo(doc, brandMeta, M + 1, 16, logoMm);
+        } else {
+          pdfDrawEmoji(doc, '👨‍🍳', M + 1, 15, 9);
+        }
         doc.setTextColor.apply(doc, gold);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(8);
@@ -1115,7 +1259,7 @@
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(12);
-        doc.text(empresaNombre(), M + 12, 21);
+        doc.text(brandTitle, M + 12, 21);
         doc.setFontSize(8);
         doc.setTextColor(210, 210, 210);
         doc.text(
@@ -1146,75 +1290,80 @@
 
     function drawRecipeBlock(rec, withTitle) {
       if (withTitle) {
-        ensure(16);
+        var titleMaxW = W - 12;
+        var nameLines = doc.splitTextToSize(rec.nombre, titleMaxW);
+        var bits = [rec.workflowLabel];
+        if (rec.porciones > 1) bits.push(rec.porciones + ' porciones');
+        if (rec.categoria) bits.push(rec.categoria);
+        var metaLines = doc.splitTextToSize(bits.join('  ·  '), titleMaxW);
+        var titleH = 8 + nameLines.length * 5 + metaLines.length * 4 + 4;
+        ensure(titleH);
         y += 2;
-        pdfDrawEmoji(doc, rec.emoji, M, y, 7);
+        pdfDrawEmoji(doc, rec.emoji, M, y + 2, 7);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
         doc.setTextColor.apply(doc, charcoal);
-        var nameLines = doc.splitTextToSize(rec.nombre, W - 12);
-        doc.text(nameLines[0], M + 9, y);
-        y += nameLines.length > 1 ? 5 : 0;
-        if (nameLines.length > 1) {
-          doc.text(nameLines.slice(1).join(' '), M + 9, y);
-          y += 5;
-        } else {
-          y += 1;
+        for (var ni = 0; ni < nameLines.length; ni++) {
+          doc.text(nameLines[ni], M + 9, y + 4 + ni * 5);
         }
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor.apply(doc, muted);
-        var bits = [rec.workflowLabel];
-        if (rec.porciones > 1) bits.push(rec.porciones + ' porciones');
-        if (rec.categoria) bits.push(rec.categoria);
-        doc.text(bits.join('  ·  '), M + 9, y);
-        y += 7;
+        var metaY = y + 4 + nameLines.length * 5 + 2;
+        for (var mi = 0; mi < metaLines.length; mi++) {
+          doc.text(metaLines[mi], M + 9, metaY + mi * 4);
+        }
+        y += titleH;
       }
 
       rec.lineas.forEach(function (ln) {
-        ensure(10);
+        var nameX = M + 15;
+        var qtyW = 44;
+        var nameMaxW = W - (nameX - M) - qtyW - 4;
+        var ingLines = doc.splitTextToSize(String(ln.nombre || ''), nameMaxW);
+        var qtyLines = doc.splitTextToSize(String(ln.display || ''), qtyW - 4);
+        var lineH = 4.2;
+        var padTop = 4.5;
+        var nameBlockH = ingLines.length * lineH;
+        var qtyBlockH = qtyLines.length * lineH;
+        var hintH = ln.hint ? 3.8 : 0;
+        var contentH = Math.max(nameBlockH + hintH, qtyBlockH);
+        var rowH = Math.max(9.5, padTop + contentH + 3);
+        ensure(rowH + 3);
         var rowY = y;
+
         doc.setFillColor.apply(doc, cream);
-        doc.roundedRect(M, rowY - 4.5, W, 8.5, 1.5, 1.5, 'F');
         doc.setDrawColor(237, 232, 224);
         doc.setLineWidth(0.12);
-        doc.roundedRect(M, rowY - 4.5, W, 8.5, 1.5, 1.5, 'S');
+        doc.roundedRect(M, rowY, W, rowH, 1.8, 1.8, 'FD');
 
-        pdfDrawNumBadge(doc, M + 5.5, rowY, ln.idx, gold);
-
-        pdfDrawEmoji(doc, ln.emoji || '🥄', M + 10, rowY, 4);
+        var badgeY = rowY + padTop + lineH * 0.85;
+        pdfDrawNumBadge(doc, M + 5.5, badgeY, ln.idx, gold);
+        pdfDrawEmoji(doc, ln.emoji || '🥄', M + 10, badgeY, 4);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor.apply(doc, charcoal);
-        var nameX = M + 15;
-        var qtyW = 36;
-        var nameMaxW = W - (nameX - M) - qtyW;
-        var ingLines = doc.splitTextToSize(ln.nombre, nameMaxW);
-        doc.text(ingLines[0], nameX, rowY);
+        for (var li = 0; li < ingLines.length; li++) {
+          doc.text(ingLines[li], nameX, rowY + padTop + lineH * (li + 1));
+        }
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(single ? 12.5 : 11);
+        doc.setFontSize(single ? 11 : 10);
         doc.setTextColor.apply(doc, gold);
-        doc.text(ln.display, M + W - 3, rowY, { align: 'right' });
-
-        y = rowY + 5;
-        if (ingLines.length > 1 || ln.hint) {
-          ensure(5);
-          if (ingLines.length > 1) {
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8);
-            doc.setTextColor.apply(doc, muted);
-            doc.text(ingLines.slice(1).join(' '), nameX, y);
-            y += 4;
-          }
-          if (ln.hint) {
-            doc.setFontSize(7);
-            doc.text(ln.hint, M + W - 3, y, { align: 'right' });
-            y += 3.5;
-          }
+        for (var qi = 0; qi < qtyLines.length; qi++) {
+          doc.text(qtyLines[qi], M + W - 4, rowY + padTop + lineH * (qi + 1), { align: 'right' });
         }
-        y += 2;
+        if (qtyLines.length > 1) doc.setFontSize(8);
+
+        if (ln.hint) {
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7);
+          doc.setTextColor.apply(doc, muted);
+          doc.text(String(ln.hint), nameX, rowY + padTop + nameBlockH + 2.5);
+        }
+
+        y = rowY + rowH + 2.5;
       });
 
       y += 4;
@@ -1242,148 +1391,11 @@
     return doc;
   }
 
-  function htmlEsc(s) {
-    return esc(s);
-  }
-
-  function buildRecetarioHtmlExport(recipes) {
-    var single = recipes.length === 1;
-    var groups = single ? [{ label: null, emoji: null, items: recipes }] : groupRecipesForPdf(recipes);
-    var body = '';
-    if (single) {
-      var r0 = recipes[0];
-      body +=
-        '<div class="hero">' +
-        '<div class="hero-emo">' +
-        htmlEsc(r0.emoji) +
-        '</div>' +
-        '<div><div class="eyebrow">Receta de cocina</div>' +
-        '<h1>' +
-        htmlEsc(r0.nombre) +
-        '</h1>' +
-        '<p class="meta">' +
-        htmlEsc(r0.workflowLabel) +
-        (r0.porciones > 1 ? ' · ' + r0.porciones + ' porciones' : '') +
-        '</p></div></div>';
-    } else {
-      body +=
-        '<div class="hero">' +
-        '<div class="hero-emo">👨‍🍳</div>' +
-        '<div><div class="eyebrow">Recetario de cocina</div>' +
-        '<h1>' +
-        htmlEsc(empresaNombre()) +
-        '</h1>' +
-        '<p class="meta">' +
-        recipes.length +
-        ' recetas · ' +
-        new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' }) +
-        '</p></div></div>';
-    }
-    groups.forEach(function (group) {
-      if (group.label) {
-        body +=
-          '<div class="section"><span class="section-emo">' +
-          htmlEsc(group.emoji) +
-          '</span> ' +
-          htmlEsc(group.label) +
-          '</div>';
-      }
-      group.items.forEach(function (rec) {
-        if (!single) {
-          body +=
-            '<div class="recipe-head">' +
-            '<span class="recipe-emo">' +
-            htmlEsc(rec.emoji) +
-            '</span>' +
-            '<div><h2>' +
-            htmlEsc(rec.nombre) +
-            '</h2><p class="meta">' +
-            htmlEsc(rec.workflowLabel) +
-            (rec.porciones > 1 ? ' · ' + rec.porciones + ' porc.' : '') +
-            (rec.categoria ? ' · ' + htmlEsc(rec.categoria) : '') +
-            '</p></div></div>';
-        }
-        body += '<div class="ings">';
-        rec.lineas.forEach(function (ln) {
-          body +=
-            '<div class="ing">' +
-            '<span class="ing-num">' +
-            ln.idx +
-            '</span>' +
-            '<span class="ing-emo">' +
-            htmlEsc(ln.emoji || '🥄') +
-            '</span>' +
-            '<span class="ing-name">' +
-            htmlEsc(ln.nombre) +
-            '</span>' +
-            '<span class="ing-qty">' +
-            htmlEsc(ln.display) +
-            '</span></div>';
-        });
-        body += '</div>';
-      });
-    });
-    return (
-      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
-      '<title>Recetario de cocina</title>' +
-      '<style>' +
-      '@page{size:A4;margin:14mm}' +
-      'body{font-family:"Segoe UI",system-ui,sans-serif;margin:0;padding:0;background:#fcfbf8;color:#2d2d2d;font-size:11pt}' +
-      '.hero{display:flex;gap:16px;align-items:center;background:linear-gradient(135deg,#1c2028,#2a3040);color:#fff;padding:22px 24px;border-radius:14px;margin-bottom:22px;border-top:4px solid #b59a6d}' +
-      '.hero-emo{font-size:2.4rem;line-height:1}' +
-      '.eyebrow{font-size:8pt;letter-spacing:.14em;text-transform:uppercase;color:#b59a6d;margin:0 0 6px;font-weight:700}' +
-      'h1{margin:0;font-size:18pt;font-weight:700;letter-spacing:-.02em}' +
-      'h2{margin:0;font-size:13pt;font-weight:700}' +
-      '.meta{margin:6px 0 0;font-size:9pt;color:#888}' +
-      '.hero .meta{color:#ccc}' +
-      '.section{font-size:9pt;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#b59a6d;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e0d4}' +
-      '.section-emo{font-size:1.1em}' +
-      '.recipe-head{display:flex;gap:12px;align-items:flex-start;margin:14px 0 8px}' +
-      '.recipe-emo{font-size:1.6rem;line-height:1}' +
-      '.ings{margin-bottom:16px}' +
-      '.ing{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;background:#fff;border:1px solid #ece7df;border-radius:10px}' +
-      '.ing-num{width:22px;height:22px;border-radius:50%;background:#b59a6d;color:#fff;font-size:8pt;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}' +
-      '.ing-emo{font-size:1.15rem;line-height:1;flex-shrink:0}' +
-      '.ing-name{flex:1;font-weight:550}' +
-      '.ing-qty{font-size:13pt;font-weight:800;color:#b59a6d;white-space:nowrap}' +
-      '</style></head><body>' +
-      body +
-      '</body></html>'
-    );
-  }
-
-  function exportPdfViaHtml(recipes, filename) {
-    if (typeof global.crozzoExportHtmlToPdf !== 'function') {
-      return Promise.reject(new Error('Exportador HTML no disponible'));
-    }
-    return global
-      .crozzoExportHtmlToPdf(buildRecetarioHtmlExport(recipes), {
-        filename: filename,
-        pageFormat: 'a4',
-        toast: false,
-        printDialogFallback: false,
-      })
-      .then(function (r) {
-        if (r && r.ok && r.savedPath) {
-          return {
-            ok: true,
-            hint: 'PDF guardado:\n' + r.savedPath,
-            savedPath: r.savedPath,
-          };
-        }
-        if (r && r.ok && r.mode === 'print-dialog') {
-          throw new Error(
-            'Se abrió el cuadro de impresión — elija «Microsoft Print to PDF» y guarde manualmente'
-          );
-        }
-        throw new Error((r && r.message) || 'No se pudo guardar el PDF en Descargas');
-      });
-  }
-
   function finishPdfExport(result) {
-    if (result && result.ok && result.savedPath) {
-      toast(result.hint || 'PDF guardado en Descargas', 'success');
-      openSavedPdfPath(result.savedPath);
+    var path = tauriSavedPath(result) || (result && result.savedPath) || '';
+    if (result && result.ok && path) {
+      toast(result.hint || 'PDF guardado en Descargas:\n' + path, 'success');
+      openSavedPdfPath(path);
       return;
     }
     if (result && result.ok) {
@@ -1413,30 +1425,43 @@
 
     toast('Generando PDF…', 'info');
 
-    var timeoutMs = 45000;
+    var timeoutMs = 60000;
     var timeoutPromise = new Promise(function (_, reject) {
       setTimeout(function () {
         reject(new Error('Tiempo agotado al generar el PDF (' + Math.round(timeoutMs / 1000) + ' s)'));
       }, timeoutMs);
     });
 
-    Promise.race([
-      loadJsPdf().then(function (jsPDF) {
-        var doc;
-        try {
-          doc = buildKitchenPdf(jsPDF, recipes);
-        } catch (buildErr) {
-          throw new Error('Error al armar el PDF: ' + (buildErr.message || buildErr));
-        }
-        return savePdfDoc(doc, filename);
-      }),
-      timeoutPromise,
-    ])
+    function exportRecetarioPdf() {
+      return loadJsPdf().then(function (jsPDF) {
+        return loadRecetarioBrandForPdf().then(function (brandMeta) {
+          var doc;
+          try {
+            doc = buildKitchenPdf(jsPDF, recipes, brandMeta);
+          } catch (buildErr) {
+            throw new Error('Error al armar el PDF: ' + (buildErr.message || buildErr));
+          }
+          return savePdfDoc(doc, filename);
+        });
+      });
+    }
+
+    Promise.race([exportRecetarioPdf(), timeoutPromise])
+      .catch(function (e) {
+        console.warn('[recetario-pdf] reintento', e);
+        return exportRecetarioPdf();
+      })
       .then(finishPdfExport)
       .catch(function (e) {
         console.error('[recetario-pdf]', e);
         finishPdfExport({ ok: false, error: e instanceof Error ? e : new Error(String(e)) });
       });
+  }
+
+  function resolveHost(host) {
+    if (!host) return document.getElementById('crozzo-recetario-cocina');
+    if (host.id === 'crozzo-recetario-cocina') return host;
+    return host.querySelector('#crozzo-recetario-cocina') || host;
   }
 
   function render(opts) {
@@ -1476,6 +1501,7 @@
   }
 
   function init(host, opts) {
+    host = resolveHost(host);
     state.host = host || null;
     bindToolbar(host);
     bindCards(host);
