@@ -280,27 +280,36 @@
   }
 
   function applyPairingUI() {
-    var name = syncBrandFromApp() || resolveBusinessName();
-    var sub = global.document.getElementById('crozzoPairingBizSubtitle');
-    if (sub) {
-      if (name) {
-        sub.textContent = 'Para ' + name;
-        sub.hidden = false;
-      } else {
-        sub.textContent = '';
-        sub.hidden = true;
+    try {
+      var name = syncBrandFromApp() || resolveBusinessName();
+      var sub = global.document.getElementById('crozzoPairingBizSubtitle');
+      if (sub) {
+        if (name) {
+          sub.textContent = 'Para ' + name;
+          sub.hidden = false;
+        } else {
+          sub.textContent = '';
+          sub.hidden = true;
+        }
       }
-    }
-    var eyebrow = global.document.querySelector('.crozzo-pairing-card__eyebrow');
-    if (eyebrow && name) eyebrow.textContent = name;
+      var eyebrow = global.document.querySelector(
+        '#crozzoPairingOverlay .crozzo-pairing-card__eyebrow'
+      );
+      if (eyebrow) {
+        eyebrow.textContent = name || 'Configuración de terminal';
+      }
 
-    var host = global.document.getElementById('crozzoPairingStep1Video');
-    if (host && !host._crozzoPremiumFilled) {
-      host._crozzoPremiumFilled = true;
-      probeBundledVideo(function () {
-        host.innerHTML = renderVideoBlock({ compact: true });
-        bindVideoPlayers(host);
-      });
+      var host = global.document.getElementById('crozzoPairingStep1Video');
+      if (host) {
+        probeBundledVideo(function () {
+          host.innerHTML = renderVideoBlock({ compact: true });
+          bindVideoPlayers(host);
+        });
+      }
+    } catch (e) {
+      try {
+        console.warn('[CrozzoInstallPremium] applyPairingUI', e);
+      } catch (_) {}
     }
   }
 

@@ -316,10 +316,16 @@
       toast('Cargando interfaz… intente de nuevo en unos segundos.', 'warning');
       return;
     }
+    var pairingOpen = false;
+    try {
+      var pov = global.document.getElementById('crozzoPairingOverlay');
+      pairingOpen = !!(pov && !pov.hasAttribute('hidden'));
+    } catch (_) {}
     global.showModal('Instalar aplicación', body, {
       modalClass: 'modal--mobile-install modal--install-premium',
       wide: false,
       stackTop: true,
+      pairingSafe: pairingOpen,
       showClose: true,
     });
     bindModalCloseButtons();

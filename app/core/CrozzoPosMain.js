@@ -37261,6 +37261,8 @@ function showModal(title, content, options) {
   else overlay.classList.remove('modal-overlay--wide');
   if (options.stackTop) overlay.classList.add('modal-overlay--stack-top');
   else overlay.classList.remove('modal-overlay--stack-top');
+  if (options.pairingSafe) overlay.classList.add('modal-overlay--above-pairing');
+  else overlay.classList.remove('modal-overlay--above-pairing');
   if (options.noBackdropClose) overlay.dataset.noBackdropClose = '1';
   else delete overlay.dataset.noBackdropClose;
   const titleHtml = options.titleHtml != null ? options.titleHtml : `<h3 class="modal-title">${title}</h3>`;
@@ -37297,7 +37299,7 @@ function closeModal(options) {
   const overlay = document.getElementById('modalOverlay');
   const modal = document.getElementById('modalContent');
   if (overlay) {
-    overlay.classList.remove('active', 'modal-overlay--wide', 'modal-overlay--stack-top');
+    overlay.classList.remove('active', 'modal-overlay--wide', 'modal-overlay--stack-top', 'modal-overlay--above-pairing');
     delete overlay.dataset.noBackdropClose;
   }
   if (modal) modal.className = 'modal';
@@ -38522,10 +38524,11 @@ function init() {
     return fromLan || fromMd || fromCs || lastIp || detected || '';
   }
   function crozzoPairingBuildPayload(targetProfile) {
+    try {
     targetProfile = String(targetProfile || 'tablet').toLowerCase();
     if (targetProfile !== 'tablet' && targetProfile !== 'pantalla') targetProfile = 'tablet';
-    const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : config.get('multidispositivo') || {};
-    const cs = config.get('conexionSistemas') || {};
+    const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : (typeof config !== 'undefined' && config.get ? config.get('multidispositivo') : null) || {};
+    const cs = (typeof config !== 'undefined' && config.get ? config.get('conexionSistemas') : null) || {};
     const readJ = typeof window.readCrozzoSupabaseJson === 'function' ? window.readCrozzoSupabaseJson() : null;
     const cloudOn = !!(readJ && readJ.syncEnabled);
     const url = cloudOn ? String(readJ.url || '').trim() : '';
@@ -38557,8 +38560,13 @@ function init() {
     const locationId = String((lanSnap && lanSnap.locationId) || md.locationId || '').trim();
     const redANote = String((lanSnap && lanSnap.networkSsidNote) || md.networkSsidNote || md.subnetNote || 'Red principal Wi‑Fi').trim().slice(0, 120);
     const redBNote = String(md.networkFallbackNote || 'Hotspot caja principal (Red B — respaldo sin router)').trim().slice(0, 120);
-    const syncPriority = String(config.get('runtimeSyncModo') || 'hybrid').toLowerCase();
-    const modo = (typeof config.getOperacionModo === 'function' ? config.getOperacionModo() : 'simple') || 'simple';
+    const syncPriority = String(
+      (typeof config !== 'undefined' && config.get ? config.get('runtimeSyncModo') : null) || 'hybrid'
+    ).toLowerCase();
+    const modo =
+      (typeof config !== 'undefined' && typeof config.getOperacionModo === 'function'
+        ? config.getOperacionModo()
+        : 'simple') || 'simple';
     const modeU = String(modo).toLowerCase();
     const modeOut = modeU === 'demo' ? 'DEMO' : modeU === 'electronic' ? 'ELECTRONICA' : 'SIMPLE';
     const pantallaArea =
@@ -38599,6 +38607,9 @@ function init() {
         timestamp: Date.now()
       }
     };
+    } catch (err) {
+      return { error: 'No se pudo preparar el QR: ' + String((err && err.message) || err) };
+    }
   }
   function crozzoPairingValidate(obj) {
     if (!obj || typeof obj !== 'object') return { ok: false, message: 'JSON vacío o inválido' };
@@ -38664,8 +38675,15 @@ function init() {
   window.crozzoOpenPairingModal = function crozzoOpenPairingModal() {
     const ov = el('crozzoPairingOverlay');
     if (!ov) return;
-    if (window.CrozzoInstallPremium && typeof window.CrozzoInstallPremium.applyPairingUI === 'function') {
-      window.CrozzoInstallPremium.applyPairingUI();
+    try {
+      if (typeof closeModal === 'function') closeModal();
+    } catch (_) {}
+    try {
+      if (window.CrozzoInstallPremium && typeof window.CrozzoInstallPremium.applyPairingUI === 'function') {
+        window.CrozzoInstallPremium.applyPairingUI();
+      }
+    } catch (ePrem) {
+      console.warn('[pairing] premium UI', ePrem);
     }
     if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
     crozzoPairingStopScan();
@@ -38679,7 +38697,8 @@ function init() {
     if (pr0) pr0.hidden = true;
     crozzoPairingShowStatus('');
     crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
-    el('crozzoPairingQrHost').innerHTML = '';
+    const qrHost0 = el('crozzoPairingQrHost');
+    if (qrHost0) qrHost0.innerHTML = '';
     ov.removeAttribute('hidden');
     document.body.classList.add('crozzo-pairing-open');
     var rootEl = document.documentElement;
@@ -38697,9 +38716,14 @@ function init() {
   };
   window.crozzoClosePairingModal = function crozzoClosePairingModal() {
     crozzoPairingStopScan();
+    try {
+      if (typeof closeModal === 'function') closeModal();
+    } catch (_) {}
     document.body.classList.remove('crozzo-pairing-open');
     const ov = el('crozzoPairingOverlay');
     if (ov) ov.setAttribute('hidden', '');
+    const vh = el('crozzoPairingStep1Video');
+    if (vh) vh.innerHTML = '';
   };
   function crozzoPairingSetWizardStep(n) {
     document.querySelectorAll('#crozzoPairingWizardSteps [data-pair-step]').forEach(function (stepEl) {
@@ -38796,10 +38820,13 @@ function init() {
     }
     crozzoPairingRenderReceiverQr(targetProfile, built);
   };
-  window.crozzoPairingDownloadPng = function crozzoPairingDownloadPng() {
+  function crozzoPairingQrCanvas() {
     const host = el('crozzoPairingQrHost');
-    if (!host) return;
-    const c = host.querySelector('canvas');
+    if (!host) return null;
+    return host.querySelector('canvas');
+  }
+  window.crozzoPairingDownloadPng = function crozzoPairingDownloadPng() {
+    const c = crozzoPairingQrCanvas();
     if (!c || typeof c.toDataURL !== 'function') {
       if (typeof showToast === 'function') showToast('No hay QR para descargar', 'warning');
       return;
@@ -38812,6 +38839,46 @@ function init() {
     } catch (e) {
       if (typeof showToast === 'function') showToast('No se pudo exportar PNG', 'warning');
     }
+  };
+  window.crozzoPairingShareQr = function crozzoPairingShareQr() {
+    const c = crozzoPairingQrCanvas();
+    if (!c) {
+      if (typeof showToast === 'function') showToast('Genere el QR primero (Tablet mesero o Pantalla cocina).', 'warning');
+      return;
+    }
+    const title = 'Emparejar tablet — BONA origen';
+    const text = pairingLastQrText
+      ? 'Escanee con la app BONA origen en la tablet nueva.'
+      : 'Código de emparejamiento BONA origen';
+    function fallback() {
+      if (typeof crozzoPairingDownloadPng === 'function') crozzoPairingDownloadPng();
+      else if (typeof showToast === 'function') showToast('Use «Descargar QR (PNG)» y envíelo por WhatsApp.', 'info');
+    }
+    if (!navigator.share) {
+      fallback();
+      return;
+    }
+    if (typeof c.toBlob === 'function') {
+      c.toBlob(function (blob) {
+        if (!blob) {
+          fallback();
+          return;
+        }
+        const file = new File([blob], 'emparejar-bona-origen.png', { type: 'image/png' });
+        const payload = { title: title, text: text, files: [file] };
+        if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
+          navigator.share({ title: title, text: text }).catch(function () {
+            fallback();
+          });
+          return;
+        }
+        navigator.share(payload).catch(function () {
+          fallback();
+        });
+      }, 'image/png');
+      return;
+    }
+    fallback();
   };
   function crozzoPairingCopyJsonFallback(text) {
     try {
@@ -39557,8 +39624,38 @@ function init() {
       });
     }
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', crozzoWirePairDeviceBtn);
-  else crozzoWirePairDeviceBtn();
+  function crozzoWirePairingOverlayControls() {
+    const ov = el('crozzoPairingOverlay');
+    if (!ov || ov._crozzoControlsBound) return;
+    ov._crozzoControlsBound = true;
+    ov.addEventListener('click', function (ev) {
+      if (ev.target === ov && typeof window.crozzoClosePairingModal === 'function') {
+        window.crozzoClosePairingModal();
+      }
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape') return;
+      if (!ov || ov.hasAttribute('hidden')) return;
+      if (typeof window.crozzoClosePairingModal === 'function') window.crozzoClosePairingModal();
+    });
+    ov.querySelectorAll('.crozzo-pairing-close, #crozzoPairingFootChoice .btn, #crozzoPairingFootReceiver .btn').forEach(function (btn) {
+      if (!btn || btn._crozzoPairBound) return;
+      btn._crozzoPairBound = true;
+      btn.addEventListener('click', function (ev) {
+        const oc = btn.getAttribute('onclick') || '';
+        if (/crozzoClosePairingModal/.test(oc)) {
+          ev.preventDefault();
+          if (typeof window.crozzoClosePairingModal === 'function') window.crozzoClosePairingModal();
+        }
+      });
+    });
+  }
+  function crozzoWirePairingUi() {
+    crozzoWirePairDeviceBtn();
+    crozzoWirePairingOverlayControls();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', crozzoWirePairingUi);
+  else crozzoWirePairingUi();
 })();
 (function crozzoScheduleAppInit() {
   var scheduled = false;

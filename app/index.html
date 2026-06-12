@@ -699,7 +699,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
       <p class="form-hint" style="text-align:center;">Escanea con el dispositivo nuevo (Chrome Android / cámara).</p>
       <div class="btn-group" style="flex-direction:column; margin-top:12px;">
-        <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" onclick="crozzoPairingDownloadPng()">Descargar QR (PNG)</button>
+        <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" onclick="crozzoPairingShareQr()">Compartir QR (WhatsApp / correo)</button>
+        <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" onclick="crozzoPairingDownloadPng()">Descargar QR (PNG)</button>
         <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" onclick="crozzoPairingCopyJson()">Copiar código seguro</button>
       </div>
     </div>
@@ -730,6 +731,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReceiver" hidden>
       <button type="button" class="btn btn-outline" style="width:100%;" onclick="crozzoPairingSelectChoice()">Volver</button>
+      <button type="button" class="btn btn-outline" style="width:100%;" onclick="crozzoClosePairingModal()">Cancelar</button>
     </div>
   </div>
 </div>
