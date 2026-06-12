@@ -20,7 +20,8 @@
     mensajeUniforme: 'Recuerda estar con el uniforme puesto antes de marcar.',
     requiereFoto: true,
     kioskFullscreen: false,
-    logoDataUrl: ''
+    logoDataUrl: '',
+    homeHintMode: 'default'
   };
 
   var EMP_PLANTILLA = [
@@ -90,7 +91,14 @@
       '.ca-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:0 auto}' +
       '.ca-keypad button{padding:14px;font-size:18px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);cursor:pointer}' +
       '.ca-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}' +
-      '.ca-foto-thumb{width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--ca-accent)}';
+      '.ca-foto-thumb{width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--ca-accent)}' +
+      '.ca-home-hint{text-align:center;font-size:13px;color:var(--text-muted);margin:0 0 12px;padding:10px 14px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);line-height:1.45}' +
+      '.ca-home-hint--nudge{color:var(--ca-accent);border-color:rgba(201,162,39,.45);animation:ca-hint-pulse 1.2s ease 2}' +
+      '.ca-emp-grid.ca-nudge .ca-emp-card:not(.is-idle){animation:ca-card-pulse 1s ease 2}' +
+      '@keyframes ca-hint-pulse{0%,100%{opacity:1}50%{opacity:.72}}' +
+      '@keyframes ca-card-pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}' +
+      '.ca-emp-empty{text-align:center;padding:28px 16px;color:var(--text-muted);font-size:14px;line-height:1.5;border:1px dashed var(--border);border-radius:12px;grid-column:1/-1}' +
+      '#ca-ce-yes:disabled{opacity:.45;cursor:not-allowed}';
     document.head.appendChild(el);
   }
 
@@ -130,7 +138,51 @@
     bar.className = 'ca-sync show ' + (kind || '');
   }
 
+  function updateHomeHint(mode) {
+    acc.homeHintMode = mode || 'default';
+    var el = document.getElementById('ca-home-hint');
+    if (!el) return;
+    var texts = {
+      default: 'Toca tu nombre para marcar entrada o salida',
+      pin: 'También puedes usar <strong>Ingresar con PIN</strong> arriba a la izquierda',
+      nudge: 'Elige tu nombre en la lista para continuar',
+      empty: 'Aún no hay personal en este kiosk — el administrador puede cargar empleados en Panel admin',
+    };
+    el.innerHTML = texts[acc.homeHintMode] || texts.default;
+    el.className = 'ca-home-hint' + (acc.homeHintMode === 'nudge' ? ' ca-home-hint--nudge' : '');
+    var grid = document.getElementById('ca-emp-grid');
+    if (grid) {
+      grid.classList.toggle('ca-nudge', acc.homeHintMode === 'nudge');
+      if (acc.homeHintMode === 'nudge') {
+        setTimeout(function () {
+          if (acc.homeHintMode === 'nudge') updateHomeHint('default');
+        }, 4000);
+      }
+    }
+  }
+
+  function updateConfirmButtons(ready) {
+    var yes = document.getElementById('ca-ce-yes');
+    if (!yes) return;
+    yes.disabled = !ready;
+    yes.setAttribute('aria-disabled', ready ? 'false' : 'true');
+    yes.title = ready ? '' : 'Primero elige tu nombre en la pantalla principal';
+  }
+
+  function resetConfirmSession() {
+    acc.curEmp = null;
+    acc.pendingAction = null;
+    acc.pendingNow = null;
+    updateConfirmButtons(false);
+  }
+
+  function nudgePickEmployee() {
+    acc.homeHintMode = 'nudge';
+    setScreen('home');
+  }
+
   function setScreen(name) {
+    if (name === 'confirm' && (!acc.curEmp || !acc.pendingAction)) name = 'home';
     acc.screen = name;
     document.querySelectorAll('.ca-screen').forEach(function (s) {
       s.classList.toggle('active', s.getAttribute('data-ca-screen') === name);
@@ -138,7 +190,9 @@
     if (name === 'camera') setTimeout(startCamera, 80);
     if (name === 'home') {
       detenerCamara();
+      resetConfirmSession();
       renderEmpGrid();
+      updateHomeHint(acc.homeHintMode === 'nudge' ? 'nudge' : acc.homeHintMode === 'empty' ? 'empty' : 'default');
       tickClock();
     }
   }
@@ -171,7 +225,15 @@
     var list = st().empleados.filter(function (e) {
       return !q || (e.name || '').toLowerCase().indexOf(q) >= 0 || (e.cargo || '').toLowerCase().indexOf(q) >= 0;
     });
-    g.innerHTML = list
+    if (!st().empleados.length) {
+      updateHomeHint('empty');
+      g.innerHTML =
+        '<div class="ca-emp-empty">No hay empleados cargados.<br>Panel admin → pestaña <strong>Empleados</strong>.</div>';
+      return;
+    }
+    if (acc.homeHintMode === 'empty') updateHomeHint('default');
+    g.innerHTML = list.length
+      ? list
       .map(function (e) {
         var stt = estadoEmpleado(e);
         var cls = 'ca-emp-card' + (stt.accion ? '' : ' is-idle');
@@ -185,7 +247,9 @@
           '</div>'
         );
       })
-      .join('');
+      .join('')
+      : '<div class="ca-emp-empty">Ningún nombre coincide con la búsqueda.</div>';
+    g.classList.toggle('ca-nudge', acc.homeHintMode === 'nudge');
     g.querySelectorAll('[data-ca-emp]').forEach(function (card) {
       card.onclick = function () {
         var id = card.getAttribute('data-ca-emp');
@@ -217,12 +281,16 @@
     if (rl) rl.textContent = emp.cargo || '';
     if (act) act.textContent = 'Registrar ' + action;
     if (msg) msg.innerHTML = renderMensajeHtml(acc.mensajeUniforme);
-    setScreen('confirm');
+    updateConfirmButtons(true);
+    acc.screen = 'confirm';
+    document.querySelectorAll('.ca-screen').forEach(function (s) {
+      s.classList.toggle('active', s.getAttribute('data-ca-screen') === 'confirm');
+    });
   }
 
   function confirmarSiSoyYo() {
     if (!acc.curEmp || !acc.pendingAction) {
-      setScreen('home');
+      nudgePickEmployee();
       return;
     }
     acc.pendingNow = Date.now();
@@ -605,7 +673,10 @@
       };
     });
     document.getElementById('ca-ce-yes').onclick = confirmarSiSoyYo;
-    document.getElementById('ca-ce-no').onclick = function () { setScreen('home'); };
+    document.getElementById('ca-ce-no').onclick = function () {
+      acc.homeHintMode = 'default';
+      setScreen('home');
+    };
     document.getElementById('ca-cam-cancel').onclick = function () { detenerCamara(); setScreen('home'); };
     document.getElementById('ca-pin-check').onclick = function () {
       var emp = st().empleados.find(function (e) { return String(e.pin) === acc.pinBuf; });
@@ -626,7 +697,13 @@
         document.getElementById('ca-pin-dots').textContent = acc.pinBuf ? '•'.repeat(acc.pinBuf.length) : '— — — —';
       };
     });
-    document.getElementById('ca-go-pin').onclick = function () { setScreen('pin'); acc.pinBuf = ''; };
+    document.getElementById('ca-go-pin').onclick = function () {
+      setScreen('pin');
+      acc.pinBuf = '';
+      updateHomeHint('pin');
+    };
+    resetConfirmSession();
+    updateHomeHint('default');
   }
 
   function renderShell() {
@@ -646,6 +723,7 @@
       '<div class="ca-date" id="ca-date-iso"></div>' +
       '<span class="ca-net" id="ca-net"><span class="dot"></span><span class="ca-net-txt">—</span></span></div>' +
       '<input class="ca-search" id="ca-search" placeholder="Buscar empleado…" />' +
+      '<p class="ca-home-hint" id="ca-home-hint">Toca tu nombre para marcar entrada o salida</p>' +
       '<div class="ca-emp-grid" id="ca-emp-grid"></div></div>' +
       '<div class="ca-screen" data-ca-screen="pin">' +
       '<div class="ca-confirm-card"><p style="font-weight:700">Ingrese PIN (4 dígitos)</p>' +
@@ -664,7 +742,7 @@
       '<div style="font-size:12px;opacity:.75" id="ca-ce-rl"></div>' +
       '<div style="font-size:11px;color:var(--accent);font-weight:700;margin:12px 0;text-transform:uppercase" id="ca-ce-act"></div>' +
       '<div class="ca-msg-box" id="ca-ce-msg"></div>' +
-      '<div style="display:flex;gap:10px"><button type="button" class="btn btn-primary" style="flex:1" id="ca-ce-yes">Sí, soy yo</button>' +
+      '<div style="display:flex;gap:10px"><button type="button" class="btn btn-primary" style="flex:1" id="ca-ce-yes" disabled aria-disabled="true">Sí, soy yo</button>' +
       '<button type="button" class="btn btn-outline" style="flex:1" id="ca-ce-no">No</button></div></div></div>' +
       '<div class="ca-screen" data-ca-screen="camera">' +
       '<div class="ca-confirm-card" style="max-width:600px">' +
@@ -699,7 +777,10 @@
   };
 
   global.CrozzoModulosIntegradosAcceso = {
-    goHome: function () { setScreen('home'); },
+    goHome: function () {
+      acc.homeHintMode = 'default';
+      setScreen('home');
+    },
     render: function () {
       injectAccesoStyles();
       return renderShell();

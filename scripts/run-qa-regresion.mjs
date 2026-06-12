@@ -6,6 +6,7 @@ import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { QA_PLATFORMS } from './lib/qa-platforms.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'scripts', '_qa-out');
@@ -64,7 +65,10 @@ function staticChecks() {
     });
   }
 
-  if (posMain.includes('this.config.auditoria.unshift') && posMain.includes('if (!Array.isArray(this.config.auditoria))')) {
+  if (
+    posMain.includes('this.config.auditoria.unshift') &&
+    !posMain.includes('let auditLog = this.config.auditoria')
+  ) {
     issues.push({
       id: 'AUD-001',
       severity: 'P0',
@@ -273,6 +277,7 @@ const report = {
     scoreOverall: SCORE.overall,
   },
   score: SCORE,
+  platforms: QA_PLATFORMS,
   scriptRuns: runs,
   autoIssues: autoIssues.sort((a, b) => (a.severity > b.severity ? 1 : -1)),
   manualIssues,

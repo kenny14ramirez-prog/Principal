@@ -548,7 +548,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>
     <div class="login-post-actions" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
-      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;">📱 Emparejar tablet con el sistema</button>
+      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;">📱 Conectar con la caja (escanear QR)</button>
+      <p id="loginPairingStatus" class="form-hint login-pairing-status" hidden style="margin:0;text-align:center;font-size:0.82rem;"></p>
       <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;">🖥️ Modo pantallas (cocina, bar y fríos)</button>
       <button type="button" class="btn btn-outline" id="btnDownloadApk" style="width:100%; min-height:44px;" onclick="crozzoOpenAppDownloadQr()">📱 QR — Descargar app actualizada</button>
       <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Escanee el QR con otra tablet · no requiere Supabase</p>
@@ -975,6 +976,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoMobileInstall.js" defer></script>
 <script src="core/CrozzoPairingSeal.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
+<script src="modules/CrozzoPosRuntimeCloud.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
 <script src="modules/CrozzoOperativePsyche.js" defer></script>
 <script src="modules/CrozzoClienteDocIntel.js" defer></script>
@@ -989,6 +991,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoFederacionEngine.js" defer></script>
 <script src="modules/CrozzoSuperAdminFederacion.js" defer></script>
 <script src="modules/CrozzoFederacionOperaciones.js" defer></script>
+<script src="infra/CrozzoMdnsBridge.js" defer></script>
+<script src="infra/CrozzoLanWebSocketBridge.js" defer></script>
+<script src="infra/CrozzoWifiZoneBridge.js" defer></script>
+<script src="infra/CrozzoLanSyncBridge.js" defer></script>
+<script src="infra/CrozzoReconnectSync.js" defer></script>
+<script src="infra/CrozzoOfflineGossip.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="infra/CrozzoAutomationApi.js" defer></script>

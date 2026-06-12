@@ -485,7 +485,15 @@ class ConfigManager {
   getDian() { return this.config.dian; }
   getProveedor() { return this.config.proveedor; }
   getCertificado() { return this.config.certificado; }
-  getImpuestos() { return this.config.impuestos; }
+  getImpuestos() {
+    if (!this.config || typeof this.config !== 'object') {
+      return JSON.parse(JSON.stringify(this.getDefaultConfig().impuestos));
+    }
+    if (!this.config.impuestos || typeof this.config.impuestos !== 'object') {
+      this.config.impuestos = JSON.parse(JSON.stringify(this.getDefaultConfig().impuestos));
+    }
+    return this.config.impuestos;
+  }
   /** Legacy: true solo en modo 🧪 DEMO (simulación, sin validez fiscal). */
   isDemoMode() { return this.config.operacionModo === 'demo'; }
   getOperacionModo() {
@@ -511,7 +519,11 @@ class ConfigManager {
   isDemoFePrueba() {
     return this.isDemoMode() && this.getDemoSubmodo() === 'fe';
   }
-  getFacturas() { return this.config.facturas; }
+  getFacturas() {
+    if (!this.config || typeof this.config !== 'object') return [];
+    if (!Array.isArray(this.config.facturas)) this.config.facturas = [];
+    return this.config.facturas;
+  }
   getCrmLite() {
     const d = { loyaltyMode: 'percent', loyaltyPercent: 0.05, loyaltyFixed: 0 };
     const x = this.config.crmLite;
@@ -544,7 +556,16 @@ class ConfigManager {
       this.appendHoneypotTripLog(String(action || 'evento'), String(details == null ? '' : details), o);
       return;
     }
-    if (!Array.isArray(this.config.auditoria)) this.config.auditoria = [];
+    if (!this.config || typeof this.config !== 'object') {
+      try {
+        this.config = this.loadFromStorage();
+      } catch (_) {
+        return;
+      }
+    }
+    let auditLog = this.config.auditoria;
+    if (!Array.isArray(auditLog)) auditLog = [];
+    this.config.auditoria = auditLog;
     let userLabel = 'admin';
     try {
       if (typeof getCurrentUser === 'function') {
@@ -552,7 +573,7 @@ class ConfigManager {
         if (u) userLabel = String(u.nombre || u.id || 'admin');
       }
     } catch (_) {}
-    const prevHead = this.config.auditoria && this.config.auditoria[0];
+    const prevHead = auditLog[0];
     let prevHash = 'GENESIS';
     if (prevHead) {
       prevHash = prevHead.chainHash || 'LEGACY-' + String(prevHead.timestamp || '');
@@ -572,8 +593,8 @@ class ConfigManager {
       synthetic: false,
       channel: o.channel || 'operational',
     };
-    this.config.auditoria.unshift(entry);
-    if (this.config.auditoria.length > 300) this.config.auditoria.pop();
+    auditLog.unshift(entry);
+    if (auditLog.length > 300) auditLog.pop();
     this.save();
     try {
       if (typeof crozzoTryMirrorAuditToSupabase === 'function') {
@@ -963,6 +984,7 @@ async function timbrarFactura(xml, factura, config) {
 // Global State
 // ==========================================
 const config = ConfigManager.getInstance();
+config.addAudit = ConfigManager.prototype.addAudit.bind(config);
 if (typeof global !== 'undefined') global.config = config;
 if (typeof window !== 'undefined') window.config = config;
 (function crozzoInstallSecurityGuards() {
@@ -4371,7 +4393,7 @@ function applyDeviceRoleFromUser(userId) {
   // Reinicia CrozzoSyncRouter con el nuevo perfil.
   destroyCrozzoSyncRouter();
   crozzoSyncRouter = new CrozzoSyncRouter(payload);
-  crozzoSyncRouter.on('itemSynced', (item) => showToast(`Sincronizado: ${item.type}`, 'success'));
+  crozzoSyncRouter.on('itemSynced', () => {});
   // Replica estructura para Supabase (tabla devices) si hay credenciales.
   pushDeviceProfileToCloud(u, payload).catch(() => {});
   config.addAudit('dispositivo_rol_aplicado', `Usuario ${u.nombre} → rol ${target}`);
@@ -6287,6 +6309,139 @@ let comandasSortableInstance = null;
 let comandaHistory = [];
 let comandaCalls = [];
 let closedSlots = { mesa: {}, llevar: {} };
+/** Candado corto al comandar — evita dos tablets comandando la misma mesa a la vez (sync vía runtime). */
+let comandaSlotLocks = { mesa: {}, llevar: {} };
+const CROZZO_COMANDA_LOCK_TTL_MS = 90000;
+
+function crozzoCurrentDeviceIdForLock() {
+  try {
+    if (typeof ensureCrozzoDeviceId === 'function') return String(ensureCrozzoDeviceId());
+  } catch (_) {}
+  try {
+    return String(localStorage.getItem('device_id') || 'device-unknown');
+  } catch (_) {
+    return 'device-unknown';
+  }
+}
+function crozzoComandaLockUserLabel() {
+  try {
+    const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (u && u.nombre) return String(u.nombre).trim();
+    if (u && u.id) return String(u.id);
+  } catch (_) {}
+  return 'Operador';
+}
+function crozzoPruneComandaSlotLocks(store) {
+  const bag = store || comandaSlotLocks;
+  const now = Date.now();
+  ['mesa', 'llevar'].forEach((tipo) => {
+    if (!bag[tipo] || typeof bag[tipo] !== 'object') bag[tipo] = {};
+    Object.keys(bag[tipo]).forEach((ref) => {
+      const row = bag[tipo][ref];
+      if (!row || !row.expiresAt || row.expiresAt <= now) delete bag[tipo][ref];
+    });
+  });
+  return bag;
+}
+function crozzoGetComandaSlotLock(tipoServicio, referencia) {
+  if (!referencia || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return null;
+  crozzoPruneComandaSlotLocks();
+  return (comandaSlotLocks[tipoServicio] && comandaSlotLocks[tipoServicio][referencia]) || null;
+}
+function crozzoCanOverrideComandaSlotLock() {
+  return (
+    (typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('anular_comandado')) ||
+    (typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('supervisor'))
+  );
+}
+function crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, opts) {
+  opts = opts || {};
+  if (!referencia || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return { ok: true };
+  crozzoPruneComandaSlotLocks();
+  const myId = crozzoCurrentDeviceIdForLock();
+  const now = Date.now();
+  if (!comandaSlotLocks[tipoServicio]) comandaSlotLocks[tipoServicio] = {};
+  const existing = comandaSlotLocks[tipoServicio][referencia];
+  if (
+    existing &&
+    existing.deviceId !== myId &&
+    existing.expiresAt > now &&
+    !opts.force &&
+    !crozzoCanOverrideComandaSlotLock()
+  ) {
+    return { ok: false, holder: existing };
+  }
+  comandaSlotLocks[tipoServicio][referencia] = {
+    deviceId: myId,
+    userName: crozzoComandaLockUserLabel(),
+    at: now,
+    expiresAt: now + CROZZO_COMANDA_LOCK_TTL_MS,
+  };
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
+  return { ok: true };
+}
+function crozzoReleaseComandaSlotLock(tipoServicio, referencia) {
+  if (!referencia || !comandaSlotLocks[tipoServicio]) return;
+  const myId = crozzoCurrentDeviceIdForLock();
+  const row = comandaSlotLocks[tipoServicio][referencia];
+  if (row && row.deviceId === myId) delete comandaSlotLocks[tipoServicio][referencia];
+}
+function crozzoComandaSlotLockHint(tipoServicio, referencia) {
+  const row = crozzoGetComandaSlotLock(tipoServicio, referencia);
+  if (!row) return '';
+  const mine = row.deviceId === crozzoCurrentDeviceIdForLock();
+  if (mine) return 'Enviando comanda…';
+  return '🔒 ' + (row.userName || 'Otro dispositivo');
+}
+function crozzoMergeCartLines(localLines, remoteLines) {
+  const map = new Map();
+  (localLines || []).forEach((line) => {
+    if (!line) return;
+    const k = String(line.id) + '|' + String(crozzoCartLineSig(line) || '');
+    map.set(k, { ...line });
+  });
+  (remoteLines || []).forEach((line) => {
+    if (!line) return;
+    const k = String(line.id) + '|' + String(crozzoCartLineSig(line) || '');
+    const ex = map.get(k);
+    if (!ex) {
+      map.set(k, { ...line });
+      return;
+    }
+    ex.cantidad = Math.max(Number(ex.cantidad) || 0, Number(line.cantidad) || 0);
+    ex.sentCantidad = Math.max(Number(ex.sentCantidad) || 0, Number(line.sentCantidad) || 0);
+    if (ex.sentCantidad > ex.cantidad) ex.sentCantidad = ex.cantidad;
+  });
+  return Array.from(map.values());
+}
+function crozzoMergeCartsMaps(local, remote, protectRef) {
+  const out = { ...(local || {}) };
+  Object.keys(remote || {}).forEach((ref) => {
+    if (protectRef && protectRef.ref && String(protectRef.ref) === String(ref)) return;
+    out[ref] = crozzoMergeCartLines(out[ref], remote[ref]);
+  });
+  return out;
+}
+function crozzoMergeComandaSlotLocks(local, remote) {
+  const out = {
+    mesa: { ...(local && local.mesa ? local.mesa : {}) },
+    llevar: { ...(local && local.llevar ? local.llevar : {}) },
+  };
+  ['mesa', 'llevar'].forEach((tipo) => {
+    const bag = (remote && remote[tipo]) || {};
+    Object.keys(bag).forEach((ref) => {
+      const r = bag[ref];
+      const l = out[tipo][ref];
+      if (!r) return;
+      if (!l || Number(r.expiresAt || 0) >= Number(l.expiresAt || 0)) out[tipo][ref] = r;
+    });
+  });
+  return crozzoPruneComandaSlotLocks(out);
+}
+window.crozzoGetComandaSlotLock = crozzoGetComandaSlotLock;
+window.crozzoComandaSlotLockHint = crozzoComandaSlotLockHint;
 function markSlotAsPaid(tipoServicio, referencia) {
   if (!referencia || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return;
   if (!closedSlots[tipoServicio]) closedSlots[tipoServicio] = {};
@@ -6321,6 +6476,7 @@ function collectPosRuntimeState() {
     comandasOrderByArea,
     nextComandaId,
     closedSlots,
+    comandaSlotLocks: crozzoPruneComandaSlotLocks(JSON.parse(JSON.stringify(comandaSlotLocks))),
     cajaMesaSearch,
     cajaLlevarSearch,
     cajaSlotFilter,
@@ -6354,6 +6510,11 @@ function savePosRuntimeToLocalStorage() {
       return;
     }
     localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
+    try {
+      if (!window.__crozzoRuntimeCloudApplying && typeof window.crozzoSchedulePosRuntimeCloudPush === 'function') {
+        window.crozzoSchedulePosRuntimeCloudPush('normal');
+      }
+    } catch (_) {}
   } catch (e) {
     console.warn('[runtime] save', e);
   }
@@ -6366,6 +6527,11 @@ function crozzoRuntimeSaveDebounceMs() {
   return 900;
 }
 function schedulePosRuntimeSave() {
+  try {
+    if (typeof window.crozzoSchedulePosRuntimeCloudPush === 'function') {
+      window.crozzoSchedulePosRuntimeCloudPush('fast');
+    }
+  } catch (_) {}
   if (__crozzoRuntimeSaveTimer) clearTimeout(__crozzoRuntimeSaveTimer);
   var ms = crozzoRuntimeSaveDebounceMs();
   __crozzoRuntimeSaveTimer = setTimeout(function () {
@@ -6566,36 +6732,64 @@ function crozzoGetPerformanceSnapshot() {
 }
 window.crozzoGetPerformanceSnapshot = crozzoGetPerformanceSnapshot;
 window.crozzoRuntimeSaveDebounceMs = crozzoRuntimeSaveDebounceMs;
-function loadPosRuntimeFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem(CROZZO_POS_RUNTIME_LS);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
-    if (!s || s.v !== CROZZO_POS_RUNTIME_VER) return false;
-    const assign = (k, def) => {
-      if (s[k] !== undefined && s[k] !== null) return s[k];
-      return def;
-    };
-    tipoServicioCaja = assign('tipoServicioCaja', tipoServicioCaja);
-    mesaSeleccionada = assign('mesaSeleccionada', mesaSeleccionada);
-    llevarSeleccionado = assign('llevarSeleccionado', llevarSeleccionado);
-    cartDirecto = Array.isArray(s.cartDirecto) ? s.cartDirecto : cartDirecto;
-    cartsPorMesa = s.cartsPorMesa && typeof s.cartsPorMesa === 'object' ? s.cartsPorMesa : cartsPorMesa;
-    cartsPorLlevar = s.cartsPorLlevar && typeof s.cartsPorLlevar === 'object' ? s.cartsPorLlevar : cartsPorLlevar;
-    tabletModoPedido = assign('tabletModoPedido', tabletModoPedido);
-    tabletMesaSeleccionada = assign('tabletMesaSeleccionada', tabletMesaSeleccionada);
-    tabletLlevarSeleccionado = assign('tabletLlevarSeleccionado', tabletLlevarSeleccionado);
-    tabletOrderOpen = !!s.tabletOrderOpen;
-    cajaMesaOrderOpen = !!s.cajaMesaOrderOpen;
-    cajaLlevarOrderOpen = !!s.cajaLlevarOrderOpen;
-    comandas = Array.isArray(s.comandas) ? s.comandas : comandas;
-    comandaHistory = Array.isArray(s.comandaHistory) ? s.comandaHistory.slice(0, 120) : comandaHistory;
-    comandaCalls = Array.isArray(s.comandaCalls) ? s.comandaCalls : comandaCalls;
-    comandasOrderByArea =
-      s.comandasOrderByArea && typeof s.comandasOrderByArea === 'object' ? s.comandasOrderByArea : comandasOrderByArea;
-    nextComandaId = Number.isFinite(s.nextComandaId) ? s.nextComandaId : nextComandaId;
-    closedSlots =
-      s.closedSlots && typeof s.closedSlots === 'object' ? s.closedSlots : closedSlots;
+function applyPosRuntimeSnapshot(s, opts) {
+  if (!s || s.v !== CROZZO_POS_RUNTIME_VER) return false;
+  const assign = (k, def) => {
+    if (s[k] !== undefined && s[k] !== null) return s[k];
+    return def;
+  };
+  tipoServicioCaja = assign('tipoServicioCaja', tipoServicioCaja);
+  mesaSeleccionada = assign('mesaSeleccionada', mesaSeleccionada);
+  llevarSeleccionado = assign('llevarSeleccionado', llevarSeleccionado);
+  cartDirecto = Array.isArray(s.cartDirecto) ? s.cartDirecto : cartDirecto;
+  const protectCartRef =
+    opts && opts.skipUiFields
+      ? tabletOrderOpen
+        ? { tipo: tabletModoPedido, ref: tabletModoPedido === 'mesa' ? tabletMesaSeleccionada : tabletLlevarSeleccionado }
+        : cajaMesaOrderOpen || cajaLlevarOrderOpen
+          ? {
+              tipo: tipoServicioCaja,
+              ref: tipoServicioCaja === 'mesa' ? mesaSeleccionada : llevarSeleccionado,
+            }
+          : null
+      : null;
+  if (opts && opts.skipUiFields && s.cartsPorMesa && typeof s.cartsPorMesa === 'object') {
+    cartsPorMesa = crozzoMergeCartsMaps(
+      cartsPorMesa,
+      s.cartsPorMesa,
+      protectCartRef && protectCartRef.tipo === 'mesa' ? protectCartRef : null
+    );
+  } else if (s.cartsPorMesa && typeof s.cartsPorMesa === 'object') {
+    cartsPorMesa = s.cartsPorMesa;
+  }
+  if (opts && opts.skipUiFields && s.cartsPorLlevar && typeof s.cartsPorLlevar === 'object') {
+    cartsPorLlevar = crozzoMergeCartsMaps(
+      cartsPorLlevar,
+      s.cartsPorLlevar,
+      protectCartRef && protectCartRef.tipo === 'llevar' ? protectCartRef : null
+    );
+  } else if (s.cartsPorLlevar && typeof s.cartsPorLlevar === 'object') {
+    cartsPorLlevar = s.cartsPorLlevar;
+  }
+  tabletModoPedido = assign('tabletModoPedido', tabletModoPedido);
+  tabletMesaSeleccionada = assign('tabletMesaSeleccionada', tabletMesaSeleccionada);
+  tabletLlevarSeleccionado = assign('tabletLlevarSeleccionado', tabletLlevarSeleccionado);
+  tabletOrderOpen = !!s.tabletOrderOpen;
+  cajaMesaOrderOpen = !!s.cajaMesaOrderOpen;
+  cajaLlevarOrderOpen = !!s.cajaLlevarOrderOpen;
+  comandas = Array.isArray(s.comandas) ? s.comandas : comandas;
+  comandaHistory = Array.isArray(s.comandaHistory) ? s.comandaHistory.slice(0, 120) : comandaHistory;
+  comandaCalls = Array.isArray(s.comandaCalls) ? s.comandaCalls : comandaCalls;
+  comandasOrderByArea =
+    s.comandasOrderByArea && typeof s.comandasOrderByArea === 'object' ? s.comandasOrderByArea : comandasOrderByArea;
+  nextComandaId = Number.isFinite(s.nextComandaId) ? s.nextComandaId : nextComandaId;
+  closedSlots = s.closedSlots && typeof s.closedSlots === 'object' ? s.closedSlots : closedSlots;
+  if (s.comandaSlotLocks && typeof s.comandaSlotLocks === 'object') {
+    comandaSlotLocks = crozzoMergeComandaSlotLocks(comandaSlotLocks, s.comandaSlotLocks);
+  } else {
+    crozzoPruneComandaSlotLocks();
+  }
+  if (!(opts && opts.skipUiFields)) {
     cajaMesaSearch = assign('cajaMesaSearch', cajaMesaSearch);
     cajaLlevarSearch = assign('cajaLlevarSearch', cajaLlevarSearch);
     cajaSlotFilter = assign('cajaSlotFilter', cajaSlotFilter);
@@ -6606,35 +6800,46 @@ function loadPosRuntimeFromLocalStorage() {
     selectedProductCategory = assign('selectedProductCategory', selectedProductCategory);
     productSearchTerm = assign('productSearchTerm', productSearchTerm);
     tabletTargetSearch = assign('tabletTargetSearch', tabletTargetSearch);
-    if (s.clientePorSlot && typeof s.clientePorSlot === 'object') {
-      clientePorSlot = {
-        mesa: s.clientePorSlot.mesa && typeof s.clientePorSlot.mesa === 'object' ? s.clientePorSlot.mesa : {},
-        llevar: s.clientePorSlot.llevar && typeof s.clientePorSlot.llevar === 'object' ? s.clientePorSlot.llevar : {},
-      };
-    }
-    if (s.descuentosPorSlot && typeof s.descuentosPorSlot === 'object') {
-      descuentosPorSlot = {
-        mesa: s.descuentosPorSlot.mesa && typeof s.descuentosPorSlot.mesa === 'object' ? s.descuentosPorSlot.mesa : {},
-        llevar: s.descuentosPorSlot.llevar && typeof s.descuentosPorSlot.llevar === 'object' ? s.descuentosPorSlot.llevar : {},
-      };
-    }
-    descuentoDirecto = s.descuentoDirecto != null ? s.descuentoDirecto : descuentoDirecto;
-    descuentoComercial = s.descuentoComercial != null ? s.descuentoComercial : descuentoComercial;
     cocinaSearch = assign('cocinaSearch', cocinaSearch);
     cocinaEstadoFilter = assign('cocinaEstadoFilter', cocinaEstadoFilter);
     cocinaVistaKds = typeof s.cocinaVistaKds === 'boolean' ? s.cocinaVistaKds : cocinaVistaKds;
     cocinaVistaCorcho = typeof s.cocinaVistaCorcho === 'boolean' ? s.cocinaVistaCorcho : cocinaVistaCorcho;
     crozzoCorkboardFocus = typeof s.crozzoCorkboardFocus === 'boolean' ? s.crozzoCorkboardFocus : crozzoCorkboardFocus;
     if (typeof crozzoApplyCorkboardFocusUi === 'function') crozzoApplyCorkboardFocusUi();
-    let maxId = nextComandaId;
-    comandas.forEach((c) => {
-      if (c && c.id != null && Number(c.id) > maxId) maxId = Number(c.id);
-    });
-    comandaHistory.forEach((c) => {
-      if (c && c.id != null && Number(c.id) > maxId) maxId = Number(c.id);
-    });
-    nextComandaId = Math.max(Number(nextComandaId) || 1, maxId + 1);
-    return true;
+  }
+  if (s.clientePorSlot && typeof s.clientePorSlot === 'object') {
+    clientePorSlot = {
+      mesa: s.clientePorSlot.mesa && typeof s.clientePorSlot.mesa === 'object' ? s.clientePorSlot.mesa : {},
+      llevar: s.clientePorSlot.llevar && typeof s.clientePorSlot.llevar === 'object' ? s.clientePorSlot.llevar : {},
+    };
+  }
+  if (s.descuentosPorSlot && typeof s.descuentosPorSlot === 'object') {
+    descuentosPorSlot = {
+      mesa: s.descuentosPorSlot.mesa && typeof s.descuentosPorSlot.mesa === 'object' ? s.descuentosPorSlot.mesa : {},
+      llevar: s.descuentosPorSlot.llevar && typeof s.descuentosPorSlot.llevar === 'object' ? s.descuentosPorSlot.llevar : {},
+    };
+  }
+  descuentoDirecto = s.descuentoDirecto != null ? s.descuentoDirecto : descuentoDirecto;
+  descuentoComercial = s.descuentoComercial != null ? s.descuentoComercial : descuentoComercial;
+  let maxId = nextComandaId;
+  comandas.forEach((c) => {
+    if (c && c.id != null && Number(c.id) > maxId) maxId = Number(c.id);
+  });
+  comandaHistory.forEach((c) => {
+    if (c && c.id != null && Number(c.id) > maxId) maxId = Number(c.id);
+  });
+  nextComandaId = Math.max(Number(nextComandaId) || 1, maxId + 1);
+  if (typeof window !== 'undefined') window.comandas = comandas;
+  return true;
+}
+window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
+window.collectPosRuntimeState = collectPosRuntimeState;
+function loadPosRuntimeFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(CROZZO_POS_RUNTIME_LS);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    return applyPosRuntimeSnapshot(s);
   } catch (e) {
     console.warn('[runtime] load', e);
     return false;
@@ -6676,11 +6881,25 @@ if (typeof window !== 'undefined' && !window.__crozzoRuntimeListeners) {
   });
   window.addEventListener('beforeunload', function () {
     savePosRuntimeToLocalStorage();
+    try {
+      if (typeof crozzoSchedulePosRuntimeCloudPush === 'function') crozzoSchedulePosRuntimeCloudPush('flush');
+    } catch (_) {}
   });
   window.addEventListener('online', function () {
     savePosRuntimeToLocalStorage();
     try {
       if (typeof syncOfflineQueue === 'function') syncOfflineQueue();
+    } catch (_) {}
+    try {
+      if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
+    } catch (_) {}
+  });
+  window.addEventListener('offline', function () {
+    try {
+      if (window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.syncFromConfig === 'function') {
+        window.CrozzoLanSyncBridge.syncFromConfig();
+      }
+      if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
     } catch (_) {}
   });
 }
@@ -8270,6 +8489,7 @@ function despacharComanda(id, opts) {
   const idx = comandas.findIndex(x => x.id === id);
   const c = idx >= 0 ? comandas[idx] : null;
   if (!c) return;
+  if (!opts.skipGossip) maybeGossipPublishEstado(c, 'entregada');
   c.estado = 'entregada';
   c.despachadaAt = new Date().toISOString();
   try {
@@ -12202,6 +12422,7 @@ function renderTablets() {
                   : "selectTabletLlevar('" + crozzoJsStringLiteral(s.id) + "')";
               const slotStatus =
                 tabletModoPedido === 'mesa' ? getMesaStatus(s.id) : getLlevarStatus(s.id);
+              const lockHint = crozzoComandaSlotLockHint(tabletModoPedido, s.id);
               return (
                 '<div class="mesa-card ' +
                 getSlotCardClass(tabletModoPedido, s.id) +
@@ -12213,6 +12434,7 @@ function renderTablets() {
                 '</div>' +
                 '<div class="mesa-card-status">' +
                 escHtml(String(slotStatus || '')) +
+                (lockHint ? '<div style="font-size:0.72rem;color:var(--warning);margin-top:2px;">' + escHtml(lockHint) + '</div>' : '') +
                 '</div></div>'
               );
             })
@@ -13604,7 +13826,11 @@ function crozzoOpSetRuntimeMode(m) {
   try {
     document.dispatchEvent(new CustomEvent('crozzo-runtime-sync-mode', { detail: { mode: m } }));
   } catch (_) {}
-  if (config.addAudit) config.addAudit('runtime_sync_modo', m);
+  try {
+    if (typeof config.addAudit === 'function') config.addAudit('runtime_sync_modo', m);
+  } catch (err) {
+    console.warn('[compras] auditoría sync modo no registrada', err);
+  }
   showToast('Modo sync: ' + m, 'success');
   navigateTo('compras-proveedores');
 }
@@ -15833,12 +16059,16 @@ function crozzoSyncFiscalPerfilOperativo(perfilOpId) {
     Math.abs(Number(actual.impuestoAlConsumo.tarifa || 0) - Number(resolved.impuestoAlConsumo.tarifa || 0)) > 0.0001;
   if (!changed) return false;
   config.set('impuestos', resolved);
-  if (typeof config.addAudit === 'function') {
-    const det =
-      resolved.perfilFiscal === 'restaurante'
-        ? 'INC ' + Math.round((Number(resolved.impuestoAlConsumo.tarifa) || 0.08) * 1000) / 10 + '%'
-        : 'IVA comercio';
-    config.addAudit('impuestos_perfil_sync', 'Perfil fiscal «' + resolved.perfilFiscal + '» (' + det + ') por perfil operativo «' + id + '»');
+  try {
+    if (typeof config.addAudit === 'function') {
+      const det =
+        resolved.perfilFiscal === 'restaurante'
+          ? 'INC ' + Math.round((Number(resolved.impuestoAlConsumo.tarifa) || 0.08) * 1000) / 10 + '%'
+          : 'IVA comercio';
+      config.addAudit('impuestos_perfil_sync', 'Perfil fiscal «' + resolved.perfilFiscal + '» (' + det + ') por perfil operativo «' + id + '»');
+    }
+  } catch (err) {
+    console.warn('[impuestos] auditoría sync no registrada', err);
   }
   if (typeof updateCartTotals === 'function') updateCartTotals();
   return true;
@@ -16273,6 +16503,17 @@ function crozzoComandaSenderLabel(c) {
 }
 window.crozzoComandaSenderLabel = crozzoComandaSenderLabel;
 function crearComanda(origen, tipoServicio, referencia, items, total) {
+  if (tipoServicio === 'mesa' || tipoServicio === 'llevar') {
+    const lock = crozzoTryAcquireComandaSlotLock(tipoServicio, referencia);
+    if (!lock.ok) {
+      const who = (lock.holder && lock.holder.userName) || 'otro dispositivo';
+      showToast(
+        `⏳ ${tipoServicio === 'mesa' ? 'Mesa' : 'Llevar'} ${referencia} en uso por ${who}. Espera unos segundos o pide al supervisor.`,
+        'warning'
+      );
+      return [];
+    }
+  }
   const touchedIds = [];
   const areas = getComandasConfig().areas;
   const cmdCfg = getComandasConfig();
@@ -16338,20 +16579,32 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
   if (currentPage === 'cocina') renderPage('cocina');
   if (currentPage === 'comandas') renderPage('comandas');
   try {
-    maybeEmergencyBroadcastComandas(touchedIds);
-  } catch (e) {
-    console.warn('[EmergencyMesh] broadcast', e);
-  }
-  try {
-    if (typeof window.crozzoPushComandasCloudByIds === 'function') {
-      window.crozzoPushComandasCloudByIds(touchedIds);
+    if (typeof window.crozzoFanoutComandasByIds === 'function') {
+      window.crozzoFanoutComandasByIds(touchedIds);
+    } else {
+      maybeEmergencyBroadcastComandas(touchedIds);
+      if (typeof window.crozzoPushComandasCloudByIds === 'function') {
+        window.crozzoPushComandasCloudByIds(touchedIds);
+      }
     }
-  } catch (eCloud) {
-    console.warn('[comanda-cloud] push', eCloud);
+  } catch (eFanout) {
+    console.warn('[comanda-fanout]', eFanout);
   }
   try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
+  try {
+    const tierOff = (window.__CROZZO_TIER_LAST || 'offline') === 'offline';
+    if (tierOff && window.CrozzoOfflineGossip && typeof CrozzoOfflineGossip.getStatus === 'function') {
+      const gst = CrozzoOfflineGossip.getStatus();
+      if (gst && gst.active && !gst.peerCount) {
+        showToast('📡 Sin red — comanda guardada; buscando tablets en malla local', 'warning');
+      }
+    }
+  } catch (_) {}
+  if (tipoServicio === 'mesa' || tipoServicio === 'llevar') {
+    crozzoReleaseComandaSlotLock(tipoServicio, referencia);
+  }
   crozzoPublishComandasGlobal();
   return touchedIds;
 }
@@ -16373,6 +16626,19 @@ function maybeEmergencyBroadcastComandas(ids) {
   if (!window.CrozzoEmergencyMesh || typeof CrozzoEmergencyMesh.isLinkReady !== 'function' || !CrozzoEmergencyMesh.isLinkReady()) return;
   window.__crozzoEmergencyBroadcastByIds(ids);
 }
+window.maybeEmergencyBroadcastComandas = maybeEmergencyBroadcastComandas;
+function maybeGossipPublishEstado(c, estado) {
+  if (!c) return;
+  try {
+    if (typeof window.crozzoFanoutComandaEstado === 'function') {
+      window.crozzoFanoutComandaEstado(c, estado || c.estado);
+      return;
+    }
+    if (window.CrozzoOfflineGossip && typeof CrozzoOfflineGossip.publishEstado === 'function') {
+      CrozzoOfflineGossip.publishEstado(c.id, estado || c.estado, c.transaction_id);
+    }
+  } catch (_) {}
+}
 window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   if (!snap || snap.id == null) return;
   opts = opts || {};
@@ -16381,6 +16647,14 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
         (c) => c.transaction_id && c.transaction_id === snap.transaction_id && c.estado !== 'entregada'
       )
     : comandas.find((c) => c.id === snap.id && c.estado !== 'entregada');
+  if (ex && !opts.forceApply) {
+    const sameEstado = String(ex.estado || '') === String(snap.estado || 'pendiente');
+    const sameItems = JSON.stringify(ex.items || []) === JSON.stringify(snap.items || []);
+    if (sameEstado && sameItems) return;
+  }
+  if (snap.transaction_id && typeof window.__crozzoComandaTidMark === 'function') {
+    window.__crozzoComandaTidMark(snap.transaction_id, opts.source || 'snapshot_apply');
+  }
   if (ex) {
     ex.items = (snap.items || []).map((i) => ({ ...i }));
     ex.total = snap.total || computeTotals(ex.items).total;
@@ -21650,16 +21924,20 @@ function renderComandas() {
     </div>
   `;
 }
-function updateComandaEstado(id, estado) {
+function updateComandaEstado(id, estado, opts) {
+  opts = opts || {};
   const c = comandas.find(x => x.id === id);
   if (!c) return;
+  if (!opts.skipFanout) maybeGossipPublishEstado(c, estado);
   c.estado = estado;
   config.addAudit('comanda_estado', `Comanda #${id} -> ${getEstadoLabel(estado)}`);
-  try {
-    if (typeof window.crozzoPushComandasCloudByIds === 'function') {
-      window.crozzoPushComandasCloudByIds([id]);
-    }
-  } catch (_) {}
+  if (!opts.skipFanout) {
+    try {
+      if (typeof window.crozzoPushComandasCloudByIds === 'function') {
+        window.crozzoPushComandasCloudByIds([id]);
+      }
+    } catch (_) {}
+  }
   try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
@@ -26619,7 +26897,10 @@ function saveConexionSistemasConfig() {
   showToast('Conexión guardada y aplicada', 'success');
   destroyCrozzoSyncRouter();
   crozzoSyncRouter = new CrozzoSyncRouter(payload);
-  crozzoSyncRouter.on('itemSynced', (item) => showToast(`Sincronizado: ${item.type}`, 'success'));
+  crozzoSyncRouter.on('itemSynced', () => {});
+  if (typeof crozzoRunFullReconnectSync === 'function') {
+    crozzoRunFullReconnectSync({ force: true, source: 'save_conexion' }).catch(() => {});
+  }
 }
 function renderConfigConexionesSistemas() {
   const c = getConexionSistemasConfig();
@@ -26717,6 +26998,7 @@ function renderConfigConexionesSistemas() {
       </div>
       <div id="conexionPanelB" style="display:${roleA ? 'none' : 'block'};">
         <h3 style="font-size:1rem;margin:0 0 12px;">Conectar a central</h3>
+        <button type="button" class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="wizardOpenPairingScan()">📱 Conectar con la caja (escanear QR)</button>
         <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="font-weight:600;">Escáner de red</span>
@@ -26751,6 +27033,7 @@ function renderConfigConexionesSistemas() {
       <p class="form-hint">Desde el código del POS puedes usar <code>window.crozzoSyncSend({ type: 'order', data: {...} })</code> cuando esta página mantiene el router activo.</p>
       <div class="btn-group" style="margin-top:16px;">
         <button type="button" class="btn btn-primary" onclick="saveConexionSistemasConfig()">Guardar y aplicar</button>
+        <button type="button" class="btn btn-outline" onclick="crozzoRunFullReconnectSyncUi && crozzoRunFullReconnectSyncUi()">🔄 Sync total</button>
         <button type="button" class="btn btn-outline" onclick="refreshWindowCrozzoConfigFromStorage(); showToast('window.CROZZO_CONFIG actualizado', 'info')">Recargar runtime</button>
       </div>
     </div>
@@ -26760,7 +27043,7 @@ function initConfigConexionesSistemas() {
   destroyCrozzoSyncRouter();
   const payload = buildCrozzoConfigPayload();
   crozzoSyncRouter = new CrozzoSyncRouter(payload);
-  crozzoSyncRouter.on('itemSynced', (item) => showToast(`Sincronizado: ${item.type}`, 'success'));
+  crozzoSyncRouter.on('itemSynced', () => {});
 }
 // ==========================================
 // 🧭 ASISTENTE PASO A PASO — BLOQUEADO (placeholder)
@@ -26952,6 +27235,7 @@ function persistMultiDeviceConfig(next) {
   }
   return safe;
 }
+window.persistMultiDeviceConfig = persistMultiDeviceConfig;
 // ------------------------------------------------------------
 // Cascada offline-first: CLOUD → LAN / HOTSPOT (P2P+HTTP) → OFFLINE
 // ------------------------------------------------------------
@@ -27047,18 +27331,29 @@ function crozzoTierTickDelayMs(lastTier, offlineStreak) {
   var streak = Math.max(0, Number(offlineStreak) || 0);
   return Math.min(CROZZO_TIER_TICK_OFFLINE_BASE_MS + streak * 8000, CROZZO_TIER_TICK_OFFLINE_MAX_MS);
 }
-async function crozzoPingHealthQuick(ip, port) {
+async function crozzoFetchLanHealth(ip, port, timeoutMs) {
   if (!ip) return false;
+  const url = `http://${ip}:${port || 3000}/health`;
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), timeoutMs || 2200);
   try {
-    const c = new AbortController();
-    const t = setTimeout(() => c.abort(), 2200);
-    await fetch(`http://${ip}:${port || 3000}/health`, { method: 'GET', signal: c.signal, mode: 'no-cors' });
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: c.signal,
+      headers: { Accept: 'application/json' }
+    });
     clearTimeout(t);
-    return true;
+    if (!res.ok) return false;
+    const j = await res.json().catch(() => null);
+    return !!(j && j.ok);
   } catch (e) {
-    if (e && e.name === 'AbortError') return false;
-    return true;
+    clearTimeout(t);
+    return false;
   }
+}
+window.crozzoFetchLanHealth = crozzoFetchLanHealth;
+async function crozzoPingHealthQuick(ip, port) {
+  return crozzoFetchLanHealth(ip, port, 2200);
 }
 async function crozzoPingGatewayQuick(gw) {
   if (!gw) return false;
@@ -27075,9 +27370,69 @@ async function crozzoPingGatewayQuick(gw) {
 window.crozzoGatewayGuessForTier = crozzoGatewayGuessForTier;
 window.crozzoPingGatewayQuick = crozzoPingGatewayQuick;
 window.crozzoPingHealthQuick = crozzoPingHealthQuick;
+var CROZZO_LAN_OK_CACHE_MS = 28000;
+/** LAN local (HTTP :3000 / servidor Tauri) — no requiere internet WAN. */
+async function crozzoProbeLocalLanReachable(md, opts) {
+  const cfg = md || getMultiDeviceConfig();
+  const allowLan = cfg.allowLan !== false;
+  if (!allowLan) return { ok: false, via: null };
+  const port = Number(cfg.port) || 3000;
+  const markOk = (via) => {
+    try {
+      window.__CROZZO_LAN_LAST_OK = Date.now();
+      window.__CROZZO_LAN_LAST_VIA = via;
+    } catch (_) {}
+    return { ok: true, via };
+  };
+  if (cfg.role === 'A') {
+    if (window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.status === 'function') {
+      try {
+        const st = await window.CrozzoLanSyncBridge.status();
+        if (st && st.running) return markOk('server');
+      } catch (_) {}
+    }
+    const okLocal = await crozzoFetchLanHealth('127.0.0.1', port, 1400);
+    if (okLocal) return markOk('health_local');
+    return { ok: false, via: null };
+  }
+  if (cfg.role === 'B') {
+    if (window.CrozzoWifiZoneBridge && typeof window.CrozzoWifiZoneBridge.probeRoleB === 'function') {
+      return window.CrozzoWifiZoneBridge.probeRoleB(cfg, opts, markOk);
+    }
+    const timeout = (opts && opts.timeoutMs) || 2200;
+    const ip = String(cfg.centralIp || '').trim();
+    if (ip) {
+      const ok = await crozzoFetchLanHealth(ip, port, timeout);
+      if (ok) return markOk('health');
+    }
+    if (typeof CrozzoP2PDataHub !== 'undefined' && CrozzoP2PDataHub.isLinked && CrozzoP2PDataHub.isLinked()) {
+      return markOk('p2p');
+    }
+    try {
+      const last = window.__CROZZO_LAN_LAST_OK;
+      if (last && Date.now() - last < CROZZO_LAN_OK_CACHE_MS) {
+        if (ip) {
+          const fresh = await crozzoFetchLanHealth(ip, port, 1000);
+          if (fresh) return markOk('health');
+          return { ok: false, via: 'stale' };
+        }
+        if (Date.now() - last < 15000) return { ok: true, via: 'cache' };
+      }
+    } catch (_) {}
+  }
+  return { ok: false, via: null };
+}
+window.crozzoProbeLocalLanReachable = crozzoProbeLocalLanReachable;
+window.crozzoIsLocalLanSegmentUp = function crozzoIsLocalLanSegmentUp() {
+  try {
+    return !!(window.__CROZZO_LAN_LAST_OK && Date.now() - window.__CROZZO_LAN_LAST_OK < CROZZO_LAN_OK_CACHE_MS);
+  } catch (_) {
+    return false;
+  }
+};
 /**
  * NIVEL 1 cloud · NIVEL 2 lan · NIVEL 3 hotspot (marcador UI) · NIVEL 4 offline
- * La señalización WebRTC P2P usa Supabase Realtime; sin proyecto activo el P2P no negocia entre pestañas remotas.
+ * LAN no depende de internet WAN: el router local basta si la caja escucha en :3000.
  */
 async function detectConnectivityTier() {
   const md = getMultiDeviceConfig();
@@ -27092,7 +27447,9 @@ async function detectConnectivityTier() {
       if (typeof window !== 'undefined') window.__CROZZO_TIER_LAST = tier;
     } catch (e) { /* ignore */ }
   };
-  const online = typeof navigator === 'undefined' || navigator.onLine;
+  const navOnline = typeof navigator === 'undefined' || navigator.onLine;
+  const lanProbe = await crozzoProbeLocalLanReachable(md);
+  const lanReach = lanProbe.ok;
   let sbUrl = String(md.supabase?.url || '').trim();
   let sbKey = String(md.supabase?.anonKey || '').trim();
   let jLs = null;
@@ -27108,26 +27465,27 @@ async function detectConnectivityTier() {
     if (!sbUrl) sbUrl = String(jLs.url || '').trim();
     if (!sbKey) sbKey = crozzoSupabaseEffectiveAnonKey(jLs);
   }
-  if (online && sbUrl && sbKey) {
+  if (sbUrl && sbKey) {
     const cloudPing = await crozzoPingSupabaseCached(sbUrl, sbKey);
     if (cloudPing && cloudPing.ok) {
       setLast('cloud');
-      return { tier: 'cloud', reason: 'Supabase alcanzable', hotspotUi };
+      return { tier: 'cloud', reason: 'Supabase alcanzable', hotspotUi, lanReach };
     }
   }
-  if (!online) {
+  if (lanReach) {
+    setLast('lan');
+    const via = lanProbe.via || 'lan';
+    const reason = navOnline
+      ? 'Red local con caja central (sin nube o internet WAN caído)'
+      : 'LAN local activa aunque el navegador reporta sin internet (' + via + ')';
+    return { tier: 'lan', reason, hotspotUi, lanReach, wanOnline: navOnline };
+  }
+  if (!navOnline) {
     setLast('offline');
-    return { tier: 'offline', reason: 'Sin ruta de red (navigator.offline)', hotspotUi };
+    return { tier: 'offline', reason: 'Sin LAN local ni internet', hotspotUi };
   }
   const allowLan = md.allowLan !== false;
   const port = Number(md.port) || 3000;
-  let lanReach = false;
-  if (allowLan && md.role === 'B' && md.centralIp) {
-    lanReach = await crozzoPingHealthQuick(md.centralIp, port);
-  }
-  if (allowLan && md.role === 'A') {
-    lanReach = true;
-  }
   let gwReach = false;
   try {
     if (typeof detectLocalIP === 'function') {
@@ -27140,7 +27498,7 @@ async function detectConnectivityTier() {
   }
   try {
     const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    if (online && conn && conn.type === 'cellular' && (gwReach || lanReach)) {
+    if (navOnline && conn && conn.type === 'cellular' && (gwReach || lanReach)) {
       setLast('hotspot');
       return {
         tier: 'hotspot',
@@ -27157,9 +27515,15 @@ async function detectConnectivityTier() {
     setLast('hotspot');
     return { tier: 'hotspot', reason: 'Modo hotspot/ad-hoc (marcado en asistente)', lanReach, gwReach };
   }
-  if (lanReach || gwReach || (allowLan && md.role === 'A')) {
+  if (lanReach || gwReach) {
     setLast('lan');
-    return { tier: 'lan', reason: lanReach ? 'Segmento local / central' : (gwReach ? 'Gateway local respondió' : 'Equipo central (rol A)'), lanReach, gwReach };
+    return {
+      tier: 'lan',
+      reason: lanReach ? 'Segmento local / central' : 'Gateway local respondió',
+      lanReach,
+      gwReach,
+      wanOnline: navOnline,
+    };
   }
   setLast('offline');
   return { tier: 'offline', reason: 'Sin cloud ni evidencia de LAN', hotspotUi };
@@ -27169,14 +27533,49 @@ function updateConnectivityTierBadge(tierInfo) {
   if (!el) return;
   const t = (tierInfo && tierInfo.tier) || window.__CROZZO_TIER_LAST || 'offline';
   window.__CROZZO_TIER_LAST = t;
+  const p2pOn =
+    typeof CrozzoP2PDataHub !== 'undefined' && CrozzoP2PDataHub.isLinked && CrozzoP2PDataHub.isLinked();
+  const wanDown = tierInfo && tierInfo.wanOnline === false;
   const map = {
-    cloud: { text: 'Sync OK', dot: 'ok', title: 'Nivel 1: sincronización remota Supabase prioritaria' },
-    lan: { text: 'LAN', dot: 'ok', title: 'Nivel 2: red local (HTTP/P2P según config)' },
-    hotspot: { text: 'Hotspot', dot: 'warn', title: 'Nivel 3: red ad-hoc / hotspot (UI)' },
-    offline: { text: 'Offline', dot: 'err', title: 'Nivel 4: cola local; reintento automático' }
+    cloud: { text: 'En línea', dot: 'ok', title: 'Conectado a la nube — todo se sincroniza en tiempo real' },
+    lan: {
+      text: wanDown ? 'Red local' : p2pOn ? 'Red local' : 'Red local',
+      dot: 'ok',
+      title: wanDown
+        ? 'Sin internet pero conectado a la caja por Wi‑Fi local — sigue operando'
+        : 'Conectado a la caja por red local'
+    },
+    hotspot: {
+      text: 'Hotspot',
+      dot: 'warn',
+      title: 'Red directa con la caja (hotspot) — sincronización automática'
+    },
+    offline: {
+      text: 'Sin red',
+      dot: 'warn',
+      title: 'Sin conexión ahora — los pedidos se guardan y se envían solos al reconectar'
+    }
   };
-  const m = map[t] || map.offline;
+  let m = map[t] || map.offline;
+  try {
+    const gst =
+      window.CrozzoOfflineGossip && typeof CrozzoOfflineGossip.getStatus === 'function'
+        ? CrozzoOfflineGossip.getStatus()
+        : null;
+    if (t === 'offline' && gst && gst.active) {
+      const peers = gst.peerCount || 0;
+      m = {
+        text: peers > 0 ? `Malla offline (${peers})` : 'Buscando malla…',
+        dot: peers > 0 ? 'ok' : 'warn',
+        title:
+          peers > 0
+            ? 'Tablets enlazadas por gossip UDP — comandas se replican sin internet'
+            : 'Activo modo malla — buscando otras tablets en la misma red Wi‑Fi',
+      };
+    }
+  } catch (_) {}
   var tip = m.title + (tierInfo && tierInfo.reason ? ' — ' + tierInfo.reason : '');
+  if (p2pOn) tip += ' — WebRTC enlazado con caja central';
   crozzoSetStatusPill(el, m.dot, m.text, tip, 'crozzo-status-pill crozzo-mobile-secondary');
 }
 function crozzoWizardTierLogLine(msg) {
@@ -27228,23 +27627,104 @@ async function crozzoInboundP2PToMirror(envelope) {
   }
   crozzoWizardTierLogLine(`P2P → mirror pending_cloud_sync uuid=${rec.uuid.slice(0, 8)}`);
 }
+window.crozzoInboundP2PToMirror = crozzoInboundP2PToMirror;
 const CrozzoP2PDataHub = {
   _pc: null,
   _dc: null,
   _ch: null,
   _role: null,
+  _transport: null,
+  _lanPollInt: null,
+  _lanSinceMs: 0,
   get cfg() {
     return getMultiDeviceConfig();
   },
   isLinked() {
     return !!(this._dc && this._dc.readyState === 'open');
   },
+  _rtcConfig() {
+    if (this._transport === 'lan') {
+      return { iceServers: [], bundlePolicy: 'max-bundle', iceTransportPolicy: 'all' };
+    }
+    return { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+  },
+  _lanBaseUrl() {
+    const md = this.cfg;
+    const port = Number(md.port) || 3000;
+    if (md.role === 'B' && md.centralIp) return 'http://' + String(md.centralIp).trim() + ':' + port;
+    if (md.role === 'A') return 'http://127.0.0.1:' + port;
+    return '';
+  },
+  _canUseLanSig() {
+    const md = this.cfg;
+    if (md.allowLan === false) return false;
+    if (md.role === 'A') return true;
+    return !!(md.role === 'B' && String(md.centralIp || '').trim());
+  },
+  _stopLanPoll() {
+    if (this._lanPollInt) {
+      clearInterval(this._lanPollInt);
+      this._lanPollInt = null;
+    }
+  },
+  async _postLanSig(payload) {
+    const base = this._lanBaseUrl();
+    if (!base) return false;
+    try {
+      const res = await fetch(base + '/api/p2p/signal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+        cache: 'no-store',
+        credentials: 'omit'
+      });
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
+  },
+  async _pollLanSigOnce() {
+    const base = this._lanBaseUrl();
+    if (!base) return;
+    const my = String(this.cfg.deviceId || (typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : '') || '').trim();
+    const forDev = this._role === 'A' ? 'central' : my;
+    const url = base + '/api/p2p/signal?for=' + encodeURIComponent(forDev) + '&since=' + String(this._lanSinceMs || 0);
+    try {
+      const res = await fetch(url, { method: 'GET', cache: 'no-store', credentials: 'omit' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = (data && data.signals) || [];
+      for (let i = 0; i < list.length; i++) {
+        const sig = list[i];
+        const at = Number(sig.at_ms || sig.atMs || 0);
+        if (at > this._lanSinceMs) this._lanSinceMs = at;
+        const body = sig.body || sig;
+        if (body && body.kind) this._onSig(body);
+      }
+    } catch (e) { /* ignore */ }
+  },
+  _startLanPoll() {
+    this._stopLanPoll();
+    this._pollLanSigOnce().catch(() => {});
+    this._lanPollInt = setInterval(() => {
+      this._pollLanSigOnce().catch(() => {});
+    }, 900);
+  },
   async _ensureCh() {
     const sb = window.__SUPABASE;
+    const navOnline = typeof navigator !== 'undefined' ? !!navigator.onLine : true;
     const bidRaw = String(this.cfg.businessId || '').trim();
     const devRaw = String(this.cfg.deviceId || (typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : '') || '').trim();
     const bid = String(bidRaw || devRaw || 'default').replace(/[^a-zA-Z0-9_]/g, '_');
-    if (!sb || !bid) return null;
+    if (!sb || !bid || !navOnline) {
+      if (this._canUseLanSig()) {
+        this._transport = 'lan';
+        this._startLanPoll();
+        return { transport: 'lan' };
+      }
+      return null;
+    }
+    this._transport = 'cloud';
     if (this._ch) return this._ch;
     this._ch = sb.channel('crozzo_p2p_' + bid);
     this._ch.on('broadcast', { event: 'rtc' }, (wr) => {
@@ -27259,6 +27739,14 @@ const CrozzoP2PDataHub = {
     return this._ch;
   },
   _sendSig(payload) {
+    if (this._transport === 'lan') {
+      const body = Object.assign({}, payload, {
+        from: payload.from || this.cfg.deviceId,
+        to: payload.to || (this._role === 'B' ? 'central' : payload.from)
+      });
+      this._postLanSig(body).catch(() => {});
+      return;
+    }
     if (!this._ch) return;
     try {
       this._ch.send({ type: 'broadcast', event: 'rtc', payload });
@@ -27301,10 +27789,10 @@ const CrozzoP2PDataHub = {
       if (this._pc) {
         try { this._pc.close(); } catch (e) { /* ignore */ }
       }
-      this._pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      this._pc = new RTCPeerConnection(this._rtcConfig());
       this._pc.onicecandidate = (e) => {
         if (e.candidate) {
-          this._sendSig({ kind: 'ice', candidate: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate, from: this.cfg.deviceId, role: 'A' });
+          this._sendSig({ kind: 'ice', candidate: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate, from: this.cfg.deviceId, role: 'A', to: payload.from });
         }
       };
       this._pc.ondatachannel = (ev) => {
@@ -27322,9 +27810,13 @@ const CrozzoP2PDataHub = {
   },
   async startCentral() {
     this._role = 'A';
-    if (!window.__SUPABASE) return;
-    await this._ensureCh();
-    crozzoWizardTierLogLine('P2P central: escuchando señales Realtime (mismo proyecto Supabase)');
+    const ch = await this._ensureCh();
+    if (!ch) return;
+    if (this._transport === 'lan') {
+      crozzoWizardTierLogLine('P2P central: señales WebRTC vía LAN HTTP (sin internet)');
+    } else {
+      crozzoWizardTierLogLine('P2P central: escuchando señales Realtime (mismo proyecto Supabase)');
+    }
   },
   async startClient() {
     this._role = 'B';
@@ -27333,7 +27825,7 @@ const CrozzoP2PDataHub = {
     if (this._pc) {
       try { this._pc.close(); } catch (e) { /* ignore */ }
     }
-    this._pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    this._pc = new RTCPeerConnection(this._rtcConfig());
     this._dc = this._pc.createDataChannel('crozzo', { ordered: true });
     this._wireDc();
     this._pc.onicecandidate = (e) => {
@@ -27344,7 +27836,9 @@ const CrozzoP2PDataHub = {
     const offer = await this._pc.createOffer();
     await this._pc.setLocalDescription(offer);
     this._sendSig({ kind: 'offer', sdp: offer.sdp, from: this.cfg.deviceId, to: 'central' });
-    crozzoWizardTierLogLine('P2P cliente: oferta WebRTC enviada vía Realtime');
+    crozzoWizardTierLogLine(this._transport === 'lan'
+      ? 'P2P cliente: oferta WebRTC enviada vía LAN HTTP'
+      : 'P2P cliente: oferta WebRTC enviada vía Realtime');
   },
   sendOp(body) {
     if (!this.isLinked()) return false;
@@ -27356,6 +27850,7 @@ const CrozzoP2PDataHub = {
     }
   },
   stop() {
+    this._stopLanPoll();
     try {
       if (this._dc) this._dc.close();
     } catch (e) { /* ignore */ }
@@ -27368,6 +27863,8 @@ const CrozzoP2PDataHub = {
       if (this._ch) this._ch.unsubscribe();
     } catch (e) { /* ignore */ }
     this._ch = null;
+    this._transport = null;
+    this._lanSinceMs = 0;
   }
 };
 window.CrozzoP2PDataHub = CrozzoP2PDataHub;
@@ -27441,12 +27938,11 @@ class MultiDeviceSyncRouter {
       this._scheduleTierConnectivityCheck();
     };
     this._offlineHandler = () => {
-      this.status.online = false;
-      this._tierOfflineStreak = Math.max(this._tierOfflineStreak || 0, 2);
-      this._setStatus({ cloud: 'offline', lan: 'offline', tier: 'offline' });
-      try {
-        if (typeof window !== 'undefined') window.__CROZZO_TIER_LAST = 'offline';
-      } catch (_) {}
+      this.status.online = typeof navigator !== 'undefined' ? !!navigator.onLine : false;
+      this._tierOfflineStreak = Math.min((this._tierOfflineStreak || 0) + 1, 6);
+      // Internet WAN puede fallar; la LAN local sigue si el router responde.
+      this.runHealthChecks();
+      this._scheduleTierConnectivityCheck();
     };
     if (typeof window !== 'undefined' && !this._noTimers) {
       window.addEventListener('online', this._onlineHandler);
@@ -27528,11 +28024,14 @@ class MultiDeviceSyncRouter {
   }
   _p2pKick() {
     try {
-      if (!window.__SUPABASE || !window.CrozzoP2PDataHub) return;
+      if (!window.CrozzoP2PDataHub) return;
       const cfg = this.config;
+      const canCloud = !!window.__SUPABASE;
+      const canLan = cfg.allowLan !== false && (cfg.role === 'A' || !!(cfg.role === 'B' && String(cfg.centralIp || '').trim()));
+      if (!canCloud && !canLan) return;
       if (cfg.role === 'A') {
         CrozzoP2PDataHub.startCentral().catch(() => {});
-      } else if (cfg.role === 'B' && cfg.allowLan !== false) {
+      } else if (cfg.role === 'B' && canLan) {
         setTimeout(() => CrozzoP2PDataHub.startClient().catch(() => {}), 1200);
         if (this._p2pRetryInt) clearInterval(this._p2pRetryInt);
         this._p2pRetryInt = setInterval(() => {
@@ -27670,12 +28169,16 @@ class MultiDeviceSyncRouter {
       tierInfo = { tier: 'offline', reason: String(e && e.message || e) };
     }
     const cloud = tierInfo.tier === 'cloud';
-    const lan = await this.checkLan();
+    const lan = tierInfo.tier === 'lan' || tierInfo.tier === 'hotspot' || (await this.checkLan());
+    const tier = cloud ? 'cloud' : lan ? 'lan' : tierInfo.tier || 'offline';
     this._setStatus({
       cloud: cloud ? 'online' : 'offline',
       lan: lan ? 'online' : 'offline',
-      tier: tierInfo.tier
+      tier
     });
+    try {
+      window.__CROZZO_TIER_LAST = tier;
+    } catch (_) {}
     updateConnectivityTierBadge(tierInfo);
     if (cloud) this.drainPendingCloudMirrorBackground();
     if (cloud || lan) this.processQueue();
@@ -27683,7 +28186,6 @@ class MultiDeviceSyncRouter {
   async checkCloud() {
     try {
       if (!this.config.cloudPriority) return false;
-      if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
       const sb = this.config.supabase || {};
       const k = crozzoSupabaseEffectiveAnonKey(sb) || String(sb.anonKey || '').trim();
       // Nunca contactar a Supabase con credenciales vacías o solo espacios.
@@ -27699,25 +28201,8 @@ class MultiDeviceSyncRouter {
   }
   async checkLan() {
     if (!this.config.allowLan) return false;
-    const ip = this.config.role === 'A' ? this.config.serverIp : this.config.centralIp;
-    if (!ip && this.config.role !== 'A') return false;
-    if (this.config.role === 'A') return true; // Este equipo ES el central
-    if (typeof CrozzoP2PDataHub !== 'undefined' && CrozzoP2PDataHub.isLinked && CrozzoP2PDataHub.isLinked()) return true;
-    const port = Number(this.config.port) || 3000;
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 4000);
-      await fetch(`http://${ip}:${port}/health`, { method: 'GET', signal: controller.signal, mode: 'no-cors' });
-      clearTimeout(t);
-      return true;
-    } catch (err) {
-      if (err && err.name === 'AbortError') {
-        const last = typeof window !== 'undefined' ? window.__CROZZO_TIER_LAST : '';
-        if (typeof navigator !== 'undefined' && navigator.onLine && (last === 'lan' || last === 'hotspot')) return true;
-        return false;
-      }
-      return true;
-    }
+    const probe = await crozzoProbeLocalLanReachable(this.config, { timeoutMs: 4000 });
+    return !!probe.ok;
   }
   _p2pEnvelopeFromItem(item) {
     const md = this.config || getMultiDeviceConfig();
@@ -27909,19 +28394,19 @@ class MultiDeviceSyncRouter {
     try {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), 6000);
-      await fetch(`http://${ip}:${port}${endpoint}`, {
+      const res = await fetch(`http://${ip}:${port}${endpoint}`, {
         method: 'POST',
         signal: controller.signal,
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ uuid: item.uuid, businessId: item.businessId, deviceId: item.deviceId, type: item.type, data: item.payload })
       });
       clearTimeout(t);
-      return true;
+      if (!res.ok) return false;
+      const j = await res.json().catch(() => null);
+      return !!(j && j.ok !== false);
     } catch (err) {
       if (err && err.name === 'AbortError') return false;
-      // no-cors → asumimos entregado si no fue timeout
-      return true;
+      return false;
     }
   }
   // --- Cola con reintentos y backoff exponencial ---
@@ -28681,7 +29166,24 @@ async function saveLANConfig() {
   }
   updateMdConnectionStatus();
   updateCrozzoServerConflictBadge();
+  if (window.CrozzoLanSyncBridge) {
+    if (L.lanSyncEnabled && L.role === 'A') {
+      try {
+        await window.CrozzoLanSyncBridge.syncFromConfig();
+      } catch (_) {}
+    } else if (typeof window.CrozzoLanSyncBridge.stopServer === 'function') {
+      try {
+        await window.CrozzoLanSyncBridge.stopServer();
+      } catch (_) {}
+    }
+  }
   config.addAudit('multidispositivo_lan', `LAN sync=${L.lanSyncEnabled} rol=${L.role} loc=${locationIdFinal || '—'}`);
+  try {
+    if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
+  } catch (_) {}
+  if (typeof crozzoRunFullReconnectSync === 'function') {
+    crozzoRunFullReconnectSync({ force: true, source: 'save_lan' }).catch(() => {});
+  }
   showToast(L.lanSyncEnabled ? '✅ Configuración LAN guardada.' : '✅ LAN desactivada. Solo datos locales para red.', 'success');
 }
 function updateCrozzoAutoConfigBadge(mode) {
@@ -29183,7 +29685,9 @@ async function multiTestSendDemo() {
   if (res.target === 'cloud') showToast('☁️ Enviado a Supabase Cloud', 'success');
   else if (res.target === 'p2p') showToast('🔗 Enviado al central vía P2P (WebRTC)', 'success');
   else if (res.target === 'lan') showToast('📶 Enviado a LAN Central', 'success');
-  else showToast('💾 En cola offline (se sincronizará al reconectar)', 'warning');
+  else if (res.queued) {
+    if (typeof crozzoWizardTierLogLine === 'function') crozzoWizardTierLogLine('Pedido guardado — se enviará al reconectar');
+  }
 }
 function clearMultiQueue() {
   if (!confirm('¿Eliminar todos los items en cola offline? (No afecta los ya sincronizados a la nube)')) return;
@@ -29470,6 +29974,7 @@ function renderConfigMultidispositivo() {
           <strong id="mdQueueCount">0</strong>
         </div>
         <div class="md-status-group">
+          <button type="button" class="btn btn-primary" onclick="crozzoRunFullReconnectSyncUi()">🔄 Sync total</button>
           <button type="button" class="btn btn-outline" onclick="multiTestSendDemo()">📤 Probar envío demo</button>
           <button type="button" class="btn btn-outline" onclick="clearMultiQueue()">🧹 Limpiar cola</button>
         </div>
@@ -29640,10 +30145,12 @@ function detectLocalIP() {
     let resolved = false;
     let pc;
     const candidates = new Set();
+    const navOff = typeof navigator !== 'undefined' && !navigator.onLine;
+    const iceCfg = navOff
+      ? { iceServers: [] }
+      : { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     try {
-      pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      });
+      pc = new RTCPeerConnection(iceCfg);
     } catch (e) {
       try {
         pc = new RTCPeerConnection({ iceServers: [] });
@@ -29683,7 +30190,7 @@ function detectLocalIP() {
     } catch (e) {
       finish(pickBestLocalIpFromSet(candidates));
     }
-    setTimeout(() => finish(pickBestLocalIpFromSet(candidates)), 4500);
+    setTimeout(() => finish(pickBestLocalIpFromSet(candidates)), navOff ? 2200 : 4500);
   });
 }
 window.detectLocalIP = detectLocalIP;
@@ -29861,21 +30368,11 @@ window.scanLocalNetwork = scanLocalNetwork;
 window.findServerA = findServerA;
 async function testHealthEndpoint(ip, port) {
   if (!ip) return { ok: false, code: 'no_ip', message: 'IP vacía' };
-  const url = `http://${ip}:${port || 3000}/health`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
-  try {
-    await fetch(url, { method: 'GET', signal: controller.signal, mode: 'no-cors' });
-    clearTimeout(timeoutId);
-    return { ok: true, code: 'reached', message: `Petición enviada a ${ip}:${port || 3000}` };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      return { ok: false, code: 'timeout', message: `Timeout (${ip}:${port || 3000} no respondió en 5s)` };
-    }
-    // En modo no-cors muchos navegadores arrojan TypeError aún si la petición salió.
-    return { ok: true, code: 'cors_opaque', message: `Servidor probablemente activo (respuesta opaca por CORS)` };
+  const ok = await crozzoFetchLanHealth(ip, port || 3000, 5000);
+  if (ok) {
+    return { ok: true, code: 'health_ok', message: `GET /health OK en ${ip}:${port || 3000}` };
   }
+  return { ok: false, code: 'health_fail', message: `Sin respuesta /health en ${ip}:${port || 3000}` };
 }
 function validateNITWithDV(nit) {
   if (typeof validarNIT === 'function') return validarNIT(nit);
@@ -29895,7 +30392,7 @@ function saveWizardConfig(payload) {
   config.addAudit('wizard_conexion_completado', `Rol ${fullPayload.role} ${fullPayload.serverIp || fullPayload.centralIp}:${fullPayload.port}`);
   destroyCrozzoSyncRouter();
   crozzoSyncRouter = new CrozzoSyncRouter(fullPayload);
-  crozzoSyncRouter.on('itemSynced', (item) => showToast(`Sincronizado: ${item.type}`, 'success'));
+  crozzoSyncRouter.on('itemSynced', () => {});
   wizardSaveStoredState({ role: next.role, step: 5, completed: true });
   return fullPayload;
 }
@@ -30638,6 +31135,9 @@ async function activateSync() {
   wizardSaveStoredState({ role: payload.role, step: 5, completed: true });
   showToast('Configuración aplicada y sincronización activada.', 'success');
   wizardRender();
+  if (typeof crozzoRunFullReconnectSync === 'function') {
+    crozzoRunFullReconnectSync({ force: true, source: 'wizard_activate' }).catch(() => {});
+  }
 }
 window.initFiveStepWizard = initFiveStepWizard;
 window.validateStep = validateStep;
@@ -30680,7 +31180,7 @@ function wizardRenderStepA(step) {
         <div class="form-group">
           <label class="form-label" for="wzPort">Puerto para pruebas /health (referencia)</label>
           <input class="form-input" id="wzPort" type="number" min="1024" max="65535" value="${wizardEsc(d.port || 3000)}">
-          <span class="form-hint">Solo si tienes un servicio HTTP en la red que exponga <code>/health</code>. La app web no abre este puerto sola.</span>
+          <span class="form-hint">En caja Windows (Rol A) la app abre este puerto al guardar LAN. Las tablets usan <code>/health</code> y <code>/status</code> para detectar la central.</span>
         </div>
       </div>
     `;
@@ -30812,9 +31312,10 @@ function wizardRenderStepA(step) {
       <div class="wizard-summary-item"><small>Negocio</small><strong>${wizardEsc(payload.businessName || '—')}</strong></div>
       <div class="wizard-summary-item"><small>Dispositivo</small><strong>${wizardEsc(payload.deviceId)}</strong></div>
     </div>
-    <div class="wizard-qr-box"><div id="wzQrCode"></div><small>Escanea desde la tablet (rol B)</small></div>
-    <div class="btn-group" style="justify-content:center;">
-      <button type="button" class="btn btn-outline" onclick="wizardOpenTabletGuide()">📱 Probar con una tablet</button>
+    <div class="wizard-qr-box"><div id="wzQrCode"></div><small>QR rápido (solo IP). Para tablets use el mismo botón que en inicio de sesión.</small></div>
+    <div class="btn-group" style="justify-content:center;flex-wrap:wrap;">
+      <button type="button" class="btn btn-primary" onclick="wizardOpenCentralPairingQr()">📱 Generar QR para tablets (igual que inicio)</button>
+      <button type="button" class="btn btn-outline" onclick="wizardOpenTabletGuide()">📱 Guía tablet</button>
       <button type="button" class="btn btn-outline" onclick="wizardCopyQrText()">📋 Copiar config</button>
     </div>
     ${wizardState.completed ? '<div class="alert alert-success" style="margin-top:12px;"><span>✅</span><div>Configuración guardada en este dispositivo.</div></div>' : ''}
@@ -30883,6 +31384,11 @@ function wizardRenderStepB(step) {
         <div class="form-group">
           <label class="form-label" for="wzPortB">Puerto</label>
           <input class="form-input" id="wzPortB" type="number" min="1024" max="65535" value="${wizardEsc(d.port || 3000)}">
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Conectar con la caja</label>
+          <button type="button" class="btn btn-primary" style="width:100%;" onclick="wizardOpenPairingScan()">📱 Mismo QR que en la pantalla de inicio</button>
+          <span class="form-hint">Usa el mismo flujo que «Conectar con la caja» del login — escanea y listo.</span>
         </div>
         <div class="form-group">
           <label class="form-label">Pegar config (QR/JSON)
@@ -31189,6 +31695,25 @@ async function wizardScanNetwork() {
   }
   wizardRender();
 }
+function wizardOpenPairingScan() {
+  if (typeof crozzoOpenPairingModal === 'function') {
+    crozzoOpenPairingModal();
+    if (typeof crozzoPairingSelectReader === 'function') crozzoPairingSelectReader();
+    return;
+  }
+  const b = document.getElementById('btnPairDevice');
+  if (b) b.click();
+}
+function wizardOpenCentralPairingQr() {
+  if (typeof crozzoOpenPairingModal === 'function') {
+    crozzoOpenPairingModal();
+    if (typeof crozzoPairingSelectReceiver === 'function') crozzoPairingSelectReceiver('tablet');
+    return;
+  }
+  showToast('Espere a que cargue el sistema e intente de nuevo', 'info');
+}
+window.wizardOpenPairingScan = wizardOpenPairingScan;
+window.wizardOpenCentralPairingQr = wizardOpenCentralPairingQr;
 async function wizardTryParseConfig(text) {
   if (!text) return;
   try {
@@ -31217,10 +31742,18 @@ async function wizardTryParseConfig(text) {
         if (portInput) portInput.value = String(port);
         wizardState.draft.centralIp = ip;
         wizardState.draft.port = port;
-        showToast(`Pareo v2 validado · ${ip}:${port}`, 'success');
-        if (typeof crozzoWizardTierLogLine === 'function') {
-          crozzoWizardTierLogLine(`QR v2 · location OK · ${String(v.data.locationId || '').slice(0, 24)}`);
+        wizardState.draft.role = 'B';
+        wizardState.role = 'B';
+        if (v.data.locationId) {
+          wizardState.draft.locationId = v.data.locationId;
+          const locInp = document.getElementById('wzLocationId');
+          if (locInp) locInp.value = v.data.locationId;
         }
+        showToast(`✅ QR del central · ${ip}:${port}`, 'success');
+        if (typeof crozzoWizardTierLogLine === 'function') {
+          crozzoWizardTierLogLine(`QR v2 · ${ip}:${port} · sede ${String(v.data.locationId || '').slice(0, 24)}`);
+        }
+        wizardRunHealthCheckB();
       }
       return;
     }
@@ -33026,7 +33559,16 @@ function crozzoSaveFacturasAdminConfigCore() {
   }
   config.set('facturacionAdmin', next);
   if (typeof crozzoRefreshPrinterList === 'function') crozzoRefreshPrinterList();
-  config.addAudit('facturacion_admin_actualizada', `CajaPOS:${next.impresoraCajaPos || 'N/A'} Copias:${next.copiasFactura} Auto:${next.autoImprimir} Comanda:${next.impresoraComandas || 'N/A'} Termica:${termicaModo}`);
+  try {
+    if (typeof config.addAudit === 'function') {
+      config.addAudit(
+        'facturacion_admin_actualizada',
+        `CajaPOS:${next.impresoraCajaPos || 'N/A'} Copias:${next.copiasFactura} Auto:${next.autoImprimir} Comanda:${next.impresoraComandas || 'N/A'} Termica:${termicaModo}`
+      );
+    }
+  } catch (err) {
+    console.warn('[facturas-admin] auditoría no registrada', err);
+  }
   showToast('Configuración de facturas e impresión guardada', 'success');
   if (typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.clearStudioDirty) {
     CrozzoPrintStudioHub.clearStudioDirty();
@@ -33855,10 +34397,16 @@ function crozzoSetPerfilFiscalImpuestos(perfil) {
   }
   impuestos.fiscalOrigen = 'manual';
   config.set('impuestos', impuestos);
-  config.addAudit('impuestos_perfil', 'Perfil fiscal: ' + impuestos.perfilFiscal);
+  if (typeof updateCartTotals === 'function') updateCartTotals();
+  try {
+    if (typeof config.addAudit === 'function') {
+      config.addAudit('impuestos_perfil', 'Perfil fiscal: ' + impuestos.perfilFiscal);
+    }
+  } catch (err) {
+    console.warn('[impuestos] auditoría no registrada', err);
+  }
   renderPage('config-impuestos');
   if (typeof showToast === 'function') showToast('Perfil fiscal actualizado', 'success');
-  if (typeof updateCartTotals === 'function') updateCartTotals();
 }
 window.crozzoSetPerfilFiscalImpuestos = crozzoSetPerfilFiscalImpuestos;
 function toggleImpuestoAlConsumo() {
@@ -37645,6 +38193,7 @@ function init() {
 }
 // ========== Emparejamiento nube por QR (login, opcional) ==========
 (function () {
+  const CROZZO_PAIRING_DONE_KEY = 'crozzo_device_paired_v1';
   const CROZZO_CLOUD_PAIRING = 'CROZZO_CLOUD_PAIRING';
   const PAIRING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const PAIR_PULL_TABLES = ['products', 'clients', 'taxes', 'categories', 'company_config'];
@@ -37655,6 +38204,81 @@ function init() {
   function el(id) {
     return document.getElementById(id);
   }
+  function crozzoIsDevicePaired() {
+    try {
+      if (localStorage.getItem(CROZZO_PAIRING_DONE_KEY) === '1') return true;
+    } catch (_) {}
+    try {
+      var cs = typeof config !== 'undefined' && config && typeof config.get === 'function' ? config.get('conexionSistemas') || {} : {};
+      if (cs.role === 'A' && String(cs.serverIp || '').trim()) return true;
+      if (cs.role === 'B' && String(cs.centralIp || '').trim()) return true;
+    } catch (_) {}
+    try {
+      var raw = localStorage.getItem('crozzo_lan_config');
+      if (raw) {
+        var L = JSON.parse(raw);
+        if (L && L.role === 'A' && L.lanSyncEnabled) return true;
+        if (L && String(L.centralIp || '').trim()) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+  function crozzoIsFieldTabletDevice() {
+    var rootEl = document.documentElement;
+    return !!(
+      rootEl &&
+      (rootEl.classList.contains('crozzo-android-apk') ||
+        rootEl.classList.contains('crozzo-touch-shell') ||
+        rootEl.classList.contains('crozzo-form-tablet') ||
+        (window.CrozzoTabletShell &&
+          typeof window.CrozzoTabletShell.isFieldTabletDevice === 'function' &&
+          window.CrozzoTabletShell.isFieldTabletDevice()))
+    );
+  }
+  window.crozzoIsDevicePaired = crozzoIsDevicePaired;
+  function crozzoRefreshLoginPairingHint() {
+    var hint = el('loginPairingStatus');
+    var btn = el('btnPairDevice');
+    var paired = crozzoIsDevicePaired();
+    var cs = typeof config !== 'undefined' && config && typeof config.get === 'function' ? config.get('conexionSistemas') || {} : {};
+    var ip = String(cs.centralIp || cs.serverIp || '').trim();
+    if (hint) {
+      if (paired && ip) {
+        hint.hidden = false;
+        hint.textContent = '✓ Conectado a la caja ' + ip + ' — puede iniciar sesión';
+        hint.style.color = 'var(--success, #10b981)';
+      } else if (crozzoIsFieldTabletDevice()) {
+        hint.hidden = false;
+        hint.textContent = 'Primera vez: pulse el botón y escanee el QR de la caja principal';
+        hint.style.color = '';
+      } else {
+        hint.hidden = true;
+        hint.textContent = '';
+      }
+    }
+    if (btn) {
+      if (paired) btn.textContent = '🔗 Reconfigurar conexión';
+      else if (crozzoIsFieldTabletDevice()) btn.textContent = '📱 Escanear QR de la caja';
+      else btn.textContent = '📱 Conectar tablet / pantalla (QR)';
+    }
+  }
+  window.crozzoRefreshLoginPairingHint = crozzoRefreshLoginPairingHint;
+  window.crozzoMaybeAutoOpenPairingOnBoot = function crozzoMaybeAutoOpenPairingOnBoot() {
+    crozzoRefreshLoginPairingHint();
+    if (crozzoIsDevicePaired()) return;
+    if (!crozzoIsFieldTabletDevice()) return;
+    if (document.body && document.body.classList.contains('crozzo-login-open') === false) return;
+    try {
+      if (sessionStorage.getItem('crozzo_pairing_autoprompt_v1')) return;
+      sessionStorage.setItem('crozzo_pairing_autoprompt_v1', '1');
+    } catch (_) {}
+    if (typeof window.crozzoOpenPairingModal !== 'function') return;
+    window.setTimeout(function () {
+      if (crozzoIsDevicePaired()) return;
+      window.crozzoOpenPairingModal();
+      if (typeof window.crozzoPairingSelectReader === 'function') window.crozzoPairingSelectReader();
+    }, 900);
+  };
   function crozzoPairingEnsureJsQR() {
     if (typeof window.jsQR === 'function') return Promise.resolve(window.jsQR);
     if (__crozzoJsQRPromise) return __crozzoJsQRPromise;
@@ -37870,6 +38494,7 @@ function init() {
   window.crozzoOpenPairingModal = function crozzoOpenPairingModal() {
     const ov = el('crozzoPairingOverlay');
     if (!ov) return;
+    if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
     crozzoPairingStopScan();
     pairingLastPayload = null;
     pairingLastQrText = '';
@@ -38273,9 +38898,16 @@ function init() {
       el('crozzoPairingPasteJson').value = String(text || '').trim();
       const ab = el('crozzoPairingApplyBtn');
       if (ab) ab.disabled = false;
-      crozzoPairingShowStatus('✅ QR leído. Revisa vista previa y pulsa Aplicar.', false);
       crozzoPairingPreviewFromPayload(v.data);
       crozzoPairingStopScan();
+      if (crozzoIsFieldTabletDevice()) {
+        crozzoPairingShowStatus('Conectando con la caja…', false);
+        window.setTimeout(function () {
+          if (typeof window.crozzoPairingApplyFromForm === 'function') window.crozzoPairingApplyFromForm();
+        }, 380);
+      } else {
+        crozzoPairingShowStatus('QR leído — pulse Aplicar para confirmar', false);
+      }
     });
   }
   function crozzoPairingDecodeFile(file) {
@@ -38631,13 +39263,9 @@ function init() {
         } catch (_) {}
       }
     }
+    if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
     if (typeof showToast === 'function') {
-      showToast(
-        tp === 'pantalla'
-          ? 'Pantalla emparejada — conectada a la caja por LAN'
-          : 'Tablet emparejada — pedidos van a la caja principal',
-        'success'
-      );
+      showToast(tp === 'pantalla' ? 'Pantalla conectada — ya puede usarse' : 'Tablet conectada — inicie sesión', 'success');
     }
     try {
       if (typeof applyAccessControl === 'function') applyAccessControl();
@@ -38659,6 +39287,14 @@ function init() {
         window.CrozzoNetworkGuard.afterMainInit();
       } catch (_) {}
     }
+    try {
+      localStorage.setItem(CROZZO_PAIRING_DONE_KEY, '1');
+    } catch (_) {}
+    if (typeof crozzoRunFullReconnectSync === 'function') {
+      try {
+        await crozzoRunFullReconnectSync({ force: true, source: 'pairing_qr' });
+      } catch (_) {}
+    }
     if (tp === 'pantalla' && typeof crozzoKioskEnterComandasFromLogin === 'function') {
       crozzoPairingShowStatus('Abriendo modo pantallas…', false);
       setTimeout(function () {
@@ -38668,12 +39304,7 @@ function init() {
       if (ab) ab.disabled = false;
       return;
     }
-    crozzoPairingShowStatus(
-      cloudOn
-        ? '✅ Listo. Inicia sesión con tu usuario (mesero/caja).'
-        : '✅ Listo. Inicia sesión — operará por red local aunque no haya internet.',
-      false
-    );
+    crozzoPairingShowStatus('Listo — inicie sesión con su usuario', false);
     try {
       if (typeof navigateTo === 'function') {
         navigateTo(tp === 'tablet' ? 'tablets' : currentPage || 'inicio-operacion');

@@ -8,6 +8,7 @@
     "opener:default",
     "process:default",
     "allow-crozzo-android-install",
+    "allow-crozzo-gossip-udp",
     "android-package-install:default"
   ]
 }

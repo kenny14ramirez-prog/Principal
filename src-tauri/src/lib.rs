@@ -3,6 +3,12 @@
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crm_registro_server;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_lan_sync_server;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_lan_ws;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_mdns;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_emulation;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_print;
@@ -17,6 +23,7 @@ mod dian_vpfe;
 mod webview_permissions;
 #[cfg(target_os = "android")]
 mod crozzo_android_install;
+mod crozzo_gossip_udp;
 
 #[cfg(desktop)]
 use tauri::Manager;
@@ -96,6 +103,11 @@ pub fn run() {
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_probe_updater,
+            crozzo_gossip_udp::crozzo_gossip_udp_start,
+            crozzo_gossip_udp::crozzo_gossip_udp_stop,
+            crozzo_gossip_udp::crozzo_gossip_udp_send,
+            crozzo_gossip_udp::crozzo_gossip_udp_drain,
+            crozzo_gossip_udp::crozzo_gossip_udp_status,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_vpfe::fetch_dian_vpfe,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -110,6 +122,30 @@ pub fn run() {
             crm_registro_server::crm_registro_drain_pending,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crm_registro_server::crm_registro_push_pending,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_start,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_stop,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_drain_pending,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_ws::crozzo_lan_ws_start,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_ws::crozzo_lan_ws_stop,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_ws::crozzo_lan_ws_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_ws::crozzo_lan_ws_broadcast,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_mdns::crozzo_mdns_start_advertise,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_mdns::crozzo_mdns_start_browse,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_mdns::crozzo_mdns_stop,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_mdns::crozzo_mdns_drain_discovered,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::crozzo_emulation_set_active,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

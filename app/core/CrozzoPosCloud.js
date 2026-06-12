@@ -11,7 +11,7 @@
  *
  * Modelo de datos (importante):
  * - Config fiscal/empresa (`pos_dian_config` vía ConfigManager) y catálogo guardado (`catalogoProductos`) persisten en localStorage del navegador.
- * - Estado operativo en vivo (carritos, comandas abiertas, historial reciente, slots cobrados) se respalda en `crozzo_pos_runtime_v1` para sobrevivir cierre de pestaña y modo offline/híbrido.
+ * - Estado operativo en vivo (carritos, comandas abiertas, historial reciente, slots cobrados) se respalda en `crozzo_pos_runtime_v1` localmente y, con nube activa, en `crozzo_sede_runtime` por `location_id` (`CrozzoPosRuntimeCloud.js`).
  * - Supabase es la fuente de verdad para entidades explícitas (p. ej. `products` cuando la nube está activa); comandas activas se sincronizan vía tabla `comandas` + `CrozzoComandasCloudSync.js`.
  * - Tras login local/Supabase y al volver a la pestaña (visible) se vuelve a descargar `products` y se repinta la página actual si la nube está activa (`__crozzoRefreshCloudCatalogUi`).
  *
@@ -108,6 +108,7 @@ window.__CROZZO_SB_TABLES = Object.freeze([
   'sale_items',
   'comandas',
   'sync_queue',
+  'crozzo_sede_runtime',
   'audit_logs',
   'company_config',
   'dian_config',
@@ -1143,6 +1144,7 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
       await crozzoPullRemoteTenantState({ skipRender: true, quiet: true });
     }
     if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
+    if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
   } catch (e2) {
     console.warn('[crozzo-sb] tenant sync init', e2);
   }

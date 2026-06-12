@@ -112,6 +112,9 @@
   }
 
   function crozzoWireLoginBootUi() {
+    if (typeof global.crozzoRefreshLoginPairingHint === 'function') {
+      global.crozzoRefreshLoginPairingHint();
+    }
     var devBtn = document.getElementById('loginDevToolsBtn');
     if (devBtn && !devBtn._crozzoBound) {
       devBtn._crozzoBound = true;
@@ -185,6 +188,12 @@
       var st = document.getElementById('loginBootStatus');
       if (st && !document.getElementById('loginJsFault')?.textContent) {
         st.hidden = true;
+      }
+      if (typeof global.crozzoRefreshLoginPairingHint === 'function') {
+        global.crozzoRefreshLoginPairingHint();
+      }
+      if (typeof global.crozzoMaybeAutoOpenPairingOnBoot === 'function') {
+        global.crozzoMaybeAutoOpenPairingOnBoot();
       }
       return;
     }

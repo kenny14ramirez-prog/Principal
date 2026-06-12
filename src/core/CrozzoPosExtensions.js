@@ -422,6 +422,26 @@
       startHeartbeat();
       announceIamServer();
     }
+    if (global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.afterMainInit === 'function') {
+      global.CrozzoLanSyncBridge.afterMainInit();
+    }
+    if (global.CrozzoWifiZoneBridge && typeof global.CrozzoWifiZoneBridge.startWatch === 'function') {
+      global.CrozzoWifiZoneBridge.startWatch();
+    }
+    if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.afterMainInit === 'function') {
+      global.CrozzoOfflineGossip.afterMainInit();
+    }
+    if (global.CrozzoMdnsBridge && typeof global.CrozzoMdnsBridge.afterMainInit === 'function') {
+      global.CrozzoMdnsBridge.afterMainInit();
+    }
+    if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.afterMainInit === 'function') {
+      global.CrozzoLanWebSocketBridge.afterMainInit();
+    }
+    if (typeof global.crozzoRunFullReconnectSync === 'function') {
+      global.setTimeout(function () {
+        global.crozzoRunFullReconnectSync({ source: 'after_main_init' }).catch(function () {});
+      }, 1400);
+    }
     if (global.updateCrozzoServerConflictBadge) global.updateCrozzoServerConflictBadge();
   }
   async function checkActiveServers(opt) {
@@ -777,6 +797,7 @@
     } catch (e) { /* ignore */ }
     return false;
   }
+  var __lastTierSeen = null;
   async function refreshConnectivityBadges() {
     try {
       if (typeof document !== 'undefined' && document.hidden) return;
@@ -788,22 +809,32 @@
       console.warn('[CrozzoSyncRouter]', e);
       info = { tier: 'offline', details: String(e.message || e), latency: 0 };
     }
+    var tierNow = (info && info.tier) || 'offline';
+    if (__lastTierSeen && __lastTierSeen !== tierNow) {
+      if (tierNow === 'cloud' || tierNow === 'lan' || tierNow === 'hotspot') {
+        if (typeof global.crozzoRunFullReconnectSync === 'function') {
+          global.crozzoRunFullReconnectSync({ source: 'tier_recover', skipPrint: true }).catch(function () {});
+        }
+      }
+    }
+    __lastTierSeen = tierNow;
     if (typeof global.updateConnectivityTierBadge === 'function') {
       global.updateConnectivityTierBadge(info);
     }
     var el = document.getElementById('crozzoConnectivityTierBadge');
     if (el) {
       var conflict = hasConflictFlag();
-      if (conflict && el.textContent.indexOf('⚠️') < 0) {
-        el.textContent = el.textContent.replace(/\s*·\s*⚠️\s*$/, '') + ' · ⚠️';
-      }
-      if (!conflict) {
-        el.textContent = el.textContent.replace(/\s*·\s*⚠️\s*$/, '');
+      var txtEl = el.querySelector('.crozzo-status-txt');
+      if (txtEl) {
+        var baseTxt = String(txtEl.textContent || '').replace(/\s*·\s*⚠️\s*$/, '').trim();
+        txtEl.textContent = conflict ? baseTxt + ' · ⚠️' : baseTxt;
       }
       el.classList.toggle('crozzo-tier-with-conflict', conflict);
-      var baseTitle = el.getAttribute('title') || '';
-      if (info.latency != null && baseTitle.indexOf('ms') < 0) {
+      var baseTitle = (el.getAttribute('title') || '').replace(/\s*·\s*latencia\s*~[\d.]+\s*ms\s*$/i, '').trim();
+      if (info.latency != null) {
         el.setAttribute('title', baseTitle + ' · latencia ~' + info.latency + ' ms');
+      } else {
+        el.setAttribute('title', baseTitle);
       }
     }
     if (typeof global.updateCrozzoServerConflictBadge === 'function') {
@@ -2187,8 +2218,20 @@
   function maybeBleAdvertiseHint(meta) {
     return new Promise(function (resolve) {
       try {
+        var gossip =
+          global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.getStatus === 'function'
+            ? global.CrozzoOfflineGossip.getStatus()
+            : null;
+        if (gossip && gossip.active) {
+          return resolve({
+            supported: true,
+            transport: gossip.transport || 'udp',
+            peers: gossip.peerCount || 0,
+            note: 'Malla gossip UDP activa (tier offline)',
+          });
+        }
         if (!meta || !global.navigator.bluetooth) return resolve({ supported: false });
-        resolve({ supported: false, note: 'BLE mesh broadcast no disponible en este navegador' });
+        resolve({ supported: false, note: 'BLE nativo pendiente; gossip UDP disponible sin internet' });
       } catch (e) {
         resolve({ supported: false });
       }
@@ -2283,16 +2326,6 @@
     return false;
   }
   function shouldShowEmergencyShell() {
-    if (global.document.body && global.document.body.classList.contains('crozzo-login-open')) return false;
-    var sh = global.document.getElementById('crozzo-emergency-shell');
-    if (sh && sh.getAttribute('data-hp-hidden') === '1') return false;
-    var p2p = isLinkReady();
-    if (p2p) return true;
-    if (!meshFeaturesEnabled()) return false;
-    if (_bootAt && Date.now() - _bootAt < 22000) return false;
-    if (!state.isolated) return false;
-    if (hasPendingEmergencyOutbox()) return true;
-    if (_isolatedAt && Date.now() - _isolatedAt >= 6000) return true;
     return false;
   }
   function setEmergencyShellVisible(visible) {
@@ -2994,9 +3027,6 @@
   }
   function showIsolationBanner(first) {
     updateShell();
-    if (first && global.showToast) {
-      global.showToast('🔴 Red central caída. Activando modo P2P de emergencia.', 'warning');
-    }
   }
   function hideIsolationBanner() {
     updateShell();
@@ -3569,6 +3599,7 @@
     QRPairing: window.CrozzoQRPairing,
     IdempotentSync: window.CrozzoIdempotentSync,
     SyncRouterModule: window.CrozzoSyncRouterModule,
+    ReconnectSync: window.CrozzoReconnectSync,
     AutoConfig: window.CrozzoAutoConfig,
     Diagnostics: {
       init: window.initDiagnosticsPanel,

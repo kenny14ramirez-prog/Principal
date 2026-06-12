@@ -7,8 +7,43 @@
 
   var __started = false;
   var __pullTimer = null;
+  var __realtimeLive = false;
+  var PULL_MS_LIVE = 22000;
+  var PULL_MS_FALLBACK = 7000;
   var __pushEcho = {};
   var __printedTids = {};
+  var TID_TTL_MS = 600000;
+
+  function tierNow() {
+    return String(global.__CROZZO_TIER_LAST || 'offline');
+  }
+
+  function tierAllowsCloudPush() {
+    var t = tierNow();
+    return t === 'cloud' || t === 'lan' || t === 'hotspot';
+  }
+
+  function markComandaTid(tid, source) {
+    if (!tid) return;
+    if (!global.__crozzoComandaTidSeen) global.__crozzoComandaTidSeen = {};
+    global.__crozzoComandaTidSeen[String(tid)] = { at: Date.now(), src: source || 'local' };
+    var keys = Object.keys(global.__crozzoComandaTidSeen);
+    if (keys.length > 600) {
+      var cutoff = Date.now() - TID_TTL_MS;
+      keys.forEach(function (k) {
+        if (global.__crozzoComandaTidSeen[k].at < cutoff) delete global.__crozzoComandaTidSeen[k];
+      });
+    }
+  }
+
+  function comandaTidRecent(tid, maxMs) {
+    if (!tid || !global.__crozzoComandaTidSeen) return false;
+    var e = global.__crozzoComandaTidSeen[String(tid)];
+    return !!(e && Date.now() - e.at < (maxMs || 120000));
+  }
+
+  global.__crozzoComandaTidMark = markComandaTid;
+  global.__crozzoComandaTidRecent = comandaTidRecent;
 
   function online() {
     return (
@@ -87,12 +122,91 @@
     return false;
   }
 
+  function slimComandaPayload(c) {
+    var items = Array.isArray(c.items)
+      ? c.items.map(function (it) {
+          if (!it) return null;
+          return {
+            id: it.id,
+            nombre: it.nombre,
+            cantidad: it.cantidad,
+            precio: it.precio,
+            nota: it.nota || it.observacion || '',
+          };
+        }).filter(Boolean)
+      : [];
+    return {
+      id: c.id,
+      transaction_id: c.transaction_id,
+      areaId: c.areaId,
+      estado: c.estado,
+      items: items,
+      mesaRef: c.mesaRef,
+      tipoServicio: c.tipoServicio,
+      createdAt: c.createdAt,
+      notas: c.notas,
+      slotRef: c.slotRef,
+    };
+  }
+
+  function fullComandaLanPayload(c) {
+    try {
+      return JSON.parse(JSON.stringify(c));
+    } catch (_) {
+      return slimComandaPayload(c);
+    }
+  }
+
+  async function pushComandaLan(comanda) {
+    if (!comanda) return false;
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    if (!md || md.role === 'A') return false;
+    var ip = String(md.centralIp || '').trim();
+    if (!ip) return false;
+    var port = Number(md.port) || 3000;
+    var ctx = cloudCtx();
+    var body = {
+      uuid: String(comanda.transaction_id || comanda.id || ''),
+      businessId: ctx.businessId,
+      deviceId: ctx.deviceId,
+      location_id: ctx.locationId,
+      type: 'comanda',
+      data: fullComandaLanPayload(comanda),
+    };
+    try {
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = controller ? global.setTimeout(function () { controller.abort(); }, 5500) : null;
+      var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller ? controller.signal : undefined,
+      });
+      if (timer) global.clearTimeout(timer);
+      if (!res.ok) return false;
+      var j = await res.json().catch(function () { return null; });
+      return !!(j && j.ok !== false);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function pushComandasLanByIds(ids) {
+    if (!Array.isArray(ids) || !ids.length) return;
+    var t = tierNow();
+    if (t !== 'lan' && t !== 'hotspot') return;
+    ids.forEach(function (id) {
+      var c = findComanda(id);
+      if (c) pushComandaLan(c).catch(function () {});
+    });
+  }
+
   async function pushComanda(comanda) {
-    if (!online() || !comanda) return false;
+    if (!online() || !comanda || !tierAllowsCloudPush()) return false;
     var sb = global.__SUPABASE;
     var ctx = cloudCtx();
     var rowId = rowIdForComanda(comanda);
-    var payload = JSON.parse(JSON.stringify(comanda));
+    var payload = slimComandaPayload(comanda);
     payload._cloudOriginDevice = ctx.deviceId;
     payload._cloudDeviceUuid = ctx.deviceUuid;
     payload._cloudSyncedAt = new Date().toISOString();
@@ -106,6 +220,7 @@
       updated_at: new Date().toISOString(),
     };
     markPushEcho(comanda, rowId);
+    if (comanda.transaction_id) markComandaTid(comanda.transaction_id, 'cloud_push');
     try {
       var res = await sb.from('comandas').upsert(body, { onConflict: 'id' });
       if (res.error) {
@@ -123,12 +238,79 @@
     if (!Array.isArray(ids) || !ids.length) return;
     ids.forEach(function (id) {
       var c = findComanda(id);
-      if (c) {
-        pushComanda(c).catch(function (e) {
+      if (!c) return;
+      pushComanda(c)
+        .then(function (ok) {
+          if (ok) return;
+          var t = tierNow();
+          if (t === 'lan' || t === 'hotspot') return pushComandaLan(c);
+        })
+        .catch(function (e) {
           console.warn('[crozzo-comanda-cloud]', e);
+          var t = tierNow();
+          if (t === 'lan' || t === 'hotspot') pushComandaLan(c).catch(function () {});
         });
-      }
     });
+  }
+
+  async function pushComandaEstadoLan(comanda, estado) {
+    if (!comanda) return false;
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    if (!md || md.role === 'A') return false;
+    var ip = String(md.centralIp || '').trim();
+    if (!ip) return false;
+    var port = Number(md.port) || 3000;
+    var ctx = cloudCtx();
+    var body = {
+      uuid: String(comanda.transaction_id || comanda.id || '') + ':' + String(estado || comanda.estado || ''),
+      businessId: ctx.businessId,
+      deviceId: ctx.deviceId,
+      location_id: ctx.locationId,
+      type: 'comanda_estado',
+      data: {
+        id: comanda.id,
+        transaction_id: comanda.transaction_id,
+        estado: estado || comanda.estado,
+        lastUpdateAt: new Date().toISOString(),
+      },
+    };
+    try {
+      var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return false;
+      var j = await res.json().catch(function () { return null; });
+      return !!(j && j.ok !== false);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function fanoutComandaEstado(comanda, estado) {
+    if (!comanda) return;
+    var est = estado || comanda.estado;
+    var tier = tierNow();
+    if (tier === 'offline') {
+      try {
+        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
+          global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id);
+        }
+      } catch (_) {}
+      return;
+    }
+    if (tierAllowsCloudPush() && online()) {
+      pushComanda(comanda).catch(function () {});
+    }
+    if (tier === 'lan' || tier === 'hotspot') {
+      pushComandaEstadoLan(comanda, est).catch(function () {});
+    }
+    try {
+      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
+        global.CrozzoLanWebSocketBridge.notifyEstado(comanda, est);
+      }
+    } catch (_) {}
   }
 
   function rowMatchesTenant(row) {
@@ -153,6 +335,15 @@
     if (String(row.status || '') === 'entregada') return false;
 
     var pay = row.payload;
+    var tidEarly = String(pay.transaction_id || row.id || '');
+    if (tidEarly && comandaTidRecent(tidEarly, 45000)) {
+      var existing =
+        findComanda(pay.id) ||
+        (global.comandas || []).find(function (c) {
+          return c.transaction_id && String(c.transaction_id) === tidEarly;
+        });
+      if (existing && !opts.forceApply) return false;
+    }
     if (!deviceReceivesComandaArea(pay.areaId)) return false;
     var ctx = cloudCtx();
     var tid = String(pay.transaction_id || row.id || '');
@@ -161,6 +352,7 @@
     var isOwnPush = myUuid && originUuid && myUuid === originUuid;
     var recentOwn = isRecentEcho(String(row.id)) || (tid && isRecentEcho(tid));
 
+    if (tidEarly) markComandaTid(tidEarly, 'cloud_pull');
     if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
       global.__crozzoEmergencyApplyComandaSnapshot(pay, { skipPrint: true });
     }
@@ -224,7 +416,7 @@
     try {
       var q = sb
         .from('comandas')
-        .select('*')
+        .select('id,status,payload,updated_at,device_id,location_id,business_id')
         .neq('status', 'entregada')
         .order('updated_at', { ascending: false })
         .limit(100);
@@ -264,10 +456,14 @@
 
     pullComandasFromCloud({ skipPrint: false }).catch(function () {});
 
-    if (__pullTimer) clearInterval(__pullTimer);
-    __pullTimer = global.setInterval(function () {
-      pullComandasFromCloud({ skipPrint: false }).catch(function () {});
-    }, 10000);
+    function scheduleComandaPull() {
+      if (__pullTimer) clearInterval(__pullTimer);
+      var ms = __realtimeLive ? PULL_MS_LIVE : PULL_MS_FALLBACK;
+      __pullTimer = global.setInterval(function () {
+        pullComandasFromCloud({ skipPrint: false }).catch(function () {});
+      }, ms);
+    }
+    scheduleComandaPull();
 
     try {
       if (global.__crozzoComandaCloudCh) return;
@@ -279,7 +475,14 @@
         if (payload.new) applyComandaFromCloudRow(payload.new);
       });
       ch.subscribe(function (status) {
-        if (status === 'CHANNEL_ERROR') console.warn('[crozzo-comanda-cloud] realtime error');
+        if (status === 'SUBSCRIBED') {
+          __realtimeLive = true;
+          scheduleComandaPull();
+        } else if (status === 'CHANNEL_ERROR') {
+          __realtimeLive = false;
+          scheduleComandaPull();
+          console.warn('[crozzo-comanda-cloud] realtime error');
+        }
       });
       global.__crozzoComandaCloudCh = ch;
     } catch (e) {
@@ -301,8 +504,40 @@
     } catch (_) {}
   }
 
+  function fanoutComandasByIds(ids) {
+    if (!Array.isArray(ids) || !ids.length) return;
+    ids.forEach(function (id) {
+      var c = findComanda(id);
+      if (c && c.transaction_id) markComandaTid(c.transaction_id, 'local_create');
+    });
+    try {
+      if (typeof global.maybeEmergencyBroadcastComandas === 'function') {
+        global.maybeEmergencyBroadcastComandas(ids);
+      }
+    } catch (_) {}
+    var tier = tierNow();
+    if (tier === 'offline') {
+      try {
+        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishComandaNewByIds === 'function') {
+          global.CrozzoOfflineGossip.publishComandaNewByIds(ids);
+        }
+      } catch (_) {}
+      return;
+    }
+    pushComandasByIds(ids);
+    pushComandasLanByIds(ids);
+    try {
+      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyComandasByIds === 'function') {
+        global.CrozzoLanWebSocketBridge.notifyComandasByIds(ids);
+      }
+    } catch (_) {}
+  }
+
+  global.crozzoFanoutComandasByIds = fanoutComandasByIds;
+  global.crozzoFanoutComandaEstado = fanoutComandaEstado;
   global.crozzoPushComandaToCloud = pushComanda;
   global.crozzoPushComandasCloudByIds = pushComandasByIds;
+  global.crozzoPushComandasLanByIds = pushComandasLanByIds;
   global.crozzoPullComandasFromCloud = pullComandasFromCloud;
   global.crozzoStartComandasCloudSync = startComandasCloudSync;
   global.crozzoStopComandasCloudSync = stopComandasCloudSync;

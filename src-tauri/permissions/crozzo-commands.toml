@@ -25,6 +25,47 @@ commands.allow = [
 ]
 
 [[permission]]
+identifier = "allow-crozzo-lan-sync"
+description = "Servidor LAN multidispositivo (health, status, sync)"
+commands.allow = [
+  "crozzo_lan_sync_start",
+  "crozzo_lan_sync_stop",
+  "crozzo_lan_sync_status",
+  "crozzo_lan_sync_drain_pending",
+]
+
+[[permission]]
 identifier = "allow-crozzo-webview-camera"
 description = "Reset permiso cámara WebView2"
 commands.allow = ["cxf_reset_webview_camera_permission"]
+
+[[permission]]
+identifier = "allow-crozzo-gossip-udp"
+description = "Gossip UDP offline entre tablets (broadcast/multicast)"
+commands.allow = [
+  "crozzo_gossip_udp_start",
+  "crozzo_gossip_udp_stop",
+  "crozzo_gossip_udp_send",
+  "crozzo_gossip_udp_drain",
+  "crozzo_gossip_udp_status",
+]
+
+[[permission]]
+identifier = "allow-crozzo-lan-ws"
+description = "WebSocket LAN push comandas (puerto HTTP+1)"
+commands.allow = [
+  "crozzo_lan_ws_start",
+  "crozzo_lan_ws_stop",
+  "crozzo_lan_ws_status",
+  "crozzo_lan_ws_broadcast",
+]
+
+[[permission]]
+identifier = "allow-crozzo-mdns"
+description = "mDNS anuncio y descubrimiento caja Crozzo"
+commands.allow = [
+  "crozzo_mdns_start_advertise",
+  "crozzo_mdns_start_browse",
+  "crozzo_mdns_stop",
+  "crozzo_mdns_drain_discovered",
+]

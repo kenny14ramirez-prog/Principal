@@ -42,6 +42,11 @@
     return y + '-' + m + '-' + day;
   }
 
+  function num(v) {
+    var n = Number(v);
+    return isFinite(n) ? n : 0;
+  }
+
   function readDaySession() {
     try {
       var raw = localStorage.getItem(LS_DAY);
@@ -1328,6 +1333,11 @@
     }
     var day = readDaySession() || crozzoDaySessionEnsure();
     var type = forcedType || (day && day.activeShift) || 'manana';
+    if (__arqueoMode === 'cierre' && day && day.shifts && day.shifts[type] && day.shifts[type].status === 'closed') {
+      var closedLbl = (SHIFT_META[type] && SHIFT_META[type].label) || type;
+      if (typeof showToast === 'function') showToast('El turno ' + closedLbl + ' ya está cerrado', 'info');
+      return;
+    }
     var radio = document.querySelector('input[name="crozzo-arqueo-type"][value="' + type + '"]');
     if (radio) radio.checked = true;
     updateArqueoModalUi();
@@ -2399,7 +2409,12 @@
       var k = card.getAttribute('data-shift-card');
       card.classList.toggle('is-closed', !!(day && day.shifts && day.shifts[k] && day.shifts[k].status === 'closed'));
       card.classList.toggle('is-active-shift', !!(day && day.activeShift === k && !(day.shifts && day.shifts[k] && day.shifts[k].status === 'closed')));
-      card.classList.toggle('is-clickable', canPerformArqueo() && !(day && day.closedAt));
+      card.classList.toggle(
+        'is-clickable',
+        canPerformArqueo() &&
+          !(day && day.closedAt) &&
+          !(day && day.shifts && day.shifts[k] && day.shifts[k].status === 'closed')
+      );
     });
     var statusEl = document.getElementById('crozzo-cierre-day-status');
     if (statusEl && day && statusEl.querySelector('[data-lucide]')) {
