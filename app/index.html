@@ -21,6 +21,7 @@
 <script src="infra/CrozzoEmulationHarness.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
+<script src="core/CrozzoLoginBoot.js"></script>
 <script src="core/CrozzoDeviceForm.js"></script>
 <script src="ui/CrozzoFormulaInput.js"></script>
 <script src="core/CrozzoTabletShell.js"></script>
@@ -548,9 +549,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>
     <div class="login-post-actions" style="margin-top:14px; display:flex; flex-direction:column; gap:10px;">
-      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;">📱 Conectar con la caja (escanear QR)</button>
+      <button type="button" class="btn btn-primary" id="btnPairDevice" style="width:100%; min-height:48px;" onclick="if(typeof crozzoOpenPairingModal==='function')crozzoOpenPairingModal();">📱 Conectar con la caja (escanear QR)</button>
       <p id="loginPairingStatus" class="form-hint login-pairing-status" hidden style="margin:0;text-align:center;font-size:0.82rem;"></p>
-      <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;">🖥️ Modo pantallas (cocina, bar y fríos)</button>
+      <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="if(typeof crozzoKioskEnterComandasFromLogin==='function')crozzoKioskEnterComandasFromLogin('comandas');">🖥️ Modo pantallas (cocina, bar y fríos)</button>
       <button type="button" class="btn btn-outline" id="btnDownloadApk" style="width:100%; min-height:44px;" onclick="crozzoOpenAppDownloadQr()">📱 QR — Descargar app actualizada</button>
       <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Escanee el QR con otra tablet · no requiere Supabase</p>
     </div>

@@ -23640,7 +23640,7 @@ body.crozzo-honeypot-real-app .app-container {
   left: 0;
   right: 0;
   height: 46px;
-  z-index: 3990;
+  z-index: 10050;
   display: none;
   align-items: center;
   justify-content: space-between;
@@ -23650,6 +23650,13 @@ body.crozzo-honeypot-real-app .app-container {
   font-size: 0.82rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.35);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+.crozzo-kiosk-bar .btn {
+  pointer-events: auto;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 .crozzo-kiosk-bar[hidden] {
   display: none !important;
@@ -23670,6 +23677,12 @@ body.crozzo-kiosk-active .crozzo-comandas-stations-cork .btn {
 }
 body.crozzo-kiosk-active .crozzo-kiosk-bar {
   display: flex;
+  pointer-events: auto !important;
+}
+body.crozzo-kiosk-active #loginOverlay {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 body.crozzo-kiosk-active {
   padding-top: 46px;
@@ -23865,8 +23878,11 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   padding: 24px;
   text-align: center;
 }
+.crozzo-kiosk-pin-overlay[hidden] {
+  display: none !important;
+}
 .crozzo-kiosk-pin-overlay.active {
-  display: flex;
+  display: flex !important;
 }
 .crozzo-kiosk-pin-overlay input {
   background: transparent;

@@ -36677,6 +36677,7 @@ function crozzoKioskApplyFromStorage() {
     crozzoKioskApplyChromeUi(true);
     const bar = document.getElementById('crozzoKioskBar');
     if (bar) bar.removeAttribute('hidden');
+    if (typeof crozzoWireKioskChromeButtons === 'function') crozzoWireKioskChromeButtons();
     const lab = document.getElementById('crozzoKioskBarLabel');
     if (lab) {
       const pg = typeof crozzoKioskGetLockedPage === 'function' ? crozzoKioskGetLockedPage() : 'comandas';
@@ -36785,8 +36786,42 @@ function crozzoKioskPromptExit() {
       return;
     }
   }
-  if (!confirm('¿Salir del modo pantallas (cocina / comandas)?')) return;
   crozzoKioskExitNow();
+}
+function crozzoWireKioskChromeButtons() {
+  try {
+    const bar = document.getElementById('crozzoKioskBar');
+    if (bar && !bar._crozzoBound) {
+      bar._crozzoBound = true;
+      const exitBtn = bar.querySelector('button');
+      if (exitBtn && !exitBtn._crozzoBound) {
+        exitBtn._crozzoBound = true;
+        exitBtn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          crozzoKioskPromptExit();
+        });
+      }
+    }
+    const kioskLoginBtn = document.getElementById('btnKioskCocinaBar');
+    if (kioskLoginBtn && !kioskLoginBtn._crozzoBound) {
+      kioskLoginBtn._crozzoBound = true;
+      kioskLoginBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof crozzoKioskEnterComandasFromLogin === 'function') {
+          crozzoKioskEnterComandasFromLogin('comandas');
+        }
+      });
+    }
+  } catch (_) {}
+}
+if (!window.__crozzoKioskChromeButtonsBound) {
+  window.__crozzoKioskChromeButtonsBound = true;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', crozzoWireKioskChromeButtons);
+  } else {
+    crozzoWireKioskChromeButtons();
+  }
 }
 function crozzoKioskCancelExitPin() {
   const ov = document.getElementById('crozzoKioskPinOverlay');
@@ -38349,6 +38384,36 @@ function init() {
     if (p === 'caja') return 'Caja principal';
     return 'Tablet mesero (APK)';
   }
+  function crozzoPairingResolveServerIp() {
+    var md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : config.get('multidispositivo') || {};
+    var cs = config.get('conexionSistemas') || {};
+    var lanSnap = null;
+    try {
+      var raw = localStorage.getItem('crozzo_lan_config');
+      if (raw && raw.length < 2000) lanSnap = JSON.parse(raw);
+    } catch (_) {
+      lanSnap = null;
+    }
+    var role = String((lanSnap && lanSnap.role) || md.role || cs.role || 'A').toUpperCase();
+    var fromLan = lanSnap ? String(lanSnap.serverIp || lanSnap.centralIp || '').trim() : '';
+    var fromMd =
+      role === 'B'
+        ? String(md.centralIp || md.serverIp || '').trim()
+        : String(md.serverIp || md.centralIp || '').trim();
+    var fromCs =
+      role === 'B'
+        ? String(cs.centralIp || cs.serverIp || '').trim()
+        : String(cs.serverIp || cs.centralIp || '').trim();
+    var lastIp = '';
+    try {
+      lastIp = String(localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+    } catch (_) {}
+    var detected = '';
+    try {
+      detected = String(window.__CROZZO_DETECTED_LAN_IP || '').trim();
+    } catch (_) {}
+    return fromLan || fromMd || fromCs || lastIp || detected || '';
+  }
   function crozzoPairingBuildPayload(targetProfile) {
     targetProfile = String(targetProfile || 'tablet').toLowerCase();
     if (targetProfile !== 'tablet' && targetProfile !== 'pantalla') targetProfile = 'tablet';
@@ -38372,9 +38437,7 @@ function init() {
     } catch (_) {
       lanSnap = null;
     }
-    const serverIp = String(
-      (lanSnap && lanSnap.serverIp) || md.serverIp || cs.serverIp || ''
-    ).trim();
+    const serverIp = crozzoPairingResolveServerIp();
     if (!serverIp && targetProfile !== 'caja') {
       return {
         error:
@@ -38555,20 +38618,7 @@ function init() {
     var subEl = el('crozzoPairingReceiverTitle');
     if (subEl) subEl.textContent = '';
   };
-  window.crozzoPairingSelectReceiver = function crozzoPairingSelectReceiver(targetProfile) {
-    targetProfile = String(targetProfile || 'tablet').toLowerCase();
-    const built = crozzoPairingBuildPayload(targetProfile);
-    el('crozzoPairingStepChoice').hidden = true;
-    el('crozzoPairingStepReceiver').hidden = false;
-    el('crozzoPairingStepReader').hidden = true;
-    crozzoPairingSetWizardStep(2);
-    crozzoPairingSyncFooters('receiver');
-    el('crozzoPairingQrHost').innerHTML = '';
-    pairingLastQrText = '';
-    var titleEl = el('crozzoPairingReceiverTitle') || el('crozzoPairingTitle');
-    if (titleEl) {
-      titleEl.textContent = 'QR para ' + crozzoPairingTargetProfileLabel(targetProfile);
-    }
+  function crozzoPairingRenderReceiverQr(targetProfile, built) {
     if (built.error) {
       crozzoPairingSetWarn('crozzoPairingReceiverWarn', built.error);
       return;
@@ -38599,6 +38649,42 @@ function init() {
       .catch(function () {
         crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo cifrar el código QR.');
       });
+  }
+  window.crozzoPairingSelectReceiver = function crozzoPairingSelectReceiver(targetProfile) {
+    targetProfile = String(targetProfile || 'tablet').toLowerCase();
+    el('crozzoPairingStepChoice').hidden = true;
+    el('crozzoPairingStepReceiver').hidden = false;
+    el('crozzoPairingStepReader').hidden = true;
+    crozzoPairingSetWizardStep(2);
+    crozzoPairingSyncFooters('receiver');
+    el('crozzoPairingQrHost').innerHTML = '';
+    pairingLastQrText = '';
+    var titleEl = el('crozzoPairingReceiverTitle') || el('crozzoPairingTitle');
+    if (titleEl) {
+      titleEl.textContent = 'QR para ' + crozzoPairingTargetProfileLabel(targetProfile);
+    }
+    var built = crozzoPairingBuildPayload(targetProfile);
+    if (!built.error) {
+      crozzoPairingRenderReceiverQr(targetProfile, built);
+      return;
+    }
+    if (/Configure la red LAN/i.test(built.error) && typeof detectLocalIP === 'function') {
+      crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Detectando IP de esta caja…');
+      detectLocalIP()
+        .then(function (lip) {
+          if (lip) {
+            try {
+              window.__CROZZO_DETECTED_LAN_IP = String(lip).trim();
+            } catch (_) {}
+          }
+          crozzoPairingRenderReceiverQr(targetProfile, crozzoPairingBuildPayload(targetProfile));
+        })
+        .catch(function () {
+          crozzoPairingRenderReceiverQr(targetProfile, built);
+        });
+      return;
+    }
+    crozzoPairingRenderReceiverQr(targetProfile, built);
   };
   window.crozzoPairingDownloadPng = function crozzoPairingDownloadPng() {
     const host = el('crozzoPairingQrHost');

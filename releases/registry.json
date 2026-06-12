@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-12T00:19:50.993Z",
+  "updatedAt": "2026-06-12T01:43:37.410Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -664,6 +664,18 @@
       "installMode": "auto",
       "changelog": [
         "conectividad global 2.5"
+      ]
+    },
+    {
+      "id": "1.0.101-critical",
+      "version": "v1.0.101",
+      "semver": "1.0.101",
+      "type": "critical",
+      "message": "aa",
+      "publishedAt": "2026-06-12T01:43:37.410Z",
+      "installMode": "auto",
+      "changelog": [
+        "aa"
       ]
     }
   ]

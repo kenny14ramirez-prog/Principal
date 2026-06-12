@@ -235,6 +235,16 @@
     };
   }
 
+  if (typeof global.crozzoKioskPromptExit !== 'function') {
+    global.crozzoKioskPromptExit = function crozzoKioskExitBootStub() {
+      if (typeof global.crozzoKioskExitNow === 'function') {
+        global.crozzoKioskExitNow();
+        return;
+      }
+      crozzoPresentLoginBootFault('Salir del modo pantallas: espere a que termine de cargar el sistema.');
+    };
+  }
+
   global.addEventListener('error', function (ev) {
     if (ev && ev.message && /ResizeObserver|Script error/i.test(ev.message)) return;
     crozzoPresentLoginBootFault(
