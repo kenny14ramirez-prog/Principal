@@ -1,0 +1,138 @@
+/**
+ * Scripts SQL opcionales (runtime sede, federación) — complemento de CrozzoSupabaseSqlBundles.
+ */
+(function (global) {
+  'use strict';
+
+  var FEDERACION_SQL =
+    '-- =============================================================================\n' +
+    '-- CROZZO POS — Federación: bodegas, remisiones e intercambio entre negocios\n' +
+    '-- =============================================================================\n' +
+    '-- Ejecutar en CADA proyecto Supabase de cada negocio.\n' +
+    '-- Después de: SUPABASE-SQL-EDITOR.sql y SUPABASE-SQL-COSTOS.sql (recomendado).\n' +
+    '-- =============================================================================\n\n' +
+    'create extension if not exists "pgcrypto" with schema extensions;\n\n' +
+    'create table if not exists public.crozzo_bodegas (\n' +
+    '  id text primary key,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  nombre text not null default \'\',\n' +
+    '  tipo text not null default \'central\'\n' +
+    '    check (tipo in (\'central\', \'frios\', \'area\', \'produccion\', \'transito\')),\n' +
+    '  link_comanda_area text,\n' +
+    '  activo boolean not null default true,\n' +
+    '  meta jsonb not null default \'{}\'::jsonb,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_bodegas_bid on public.crozzo_bodegas (business_id, activo);\n\n' +
+    'create table if not exists public.crozzo_remisiones (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  remision_uuid text not null unique,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  tipo text not null default \'transferencia\',\n' +
+    '  estado text not null default \'borrador\',\n' +
+    '  origen_bodega_id text,\n' +
+    '  destino_bodega_id text,\n' +
+    '  destino_negocio_id text,\n' +
+    '  destino_negocio_nombre text,\n' +
+    '  lineas jsonb not null default \'[]\'::jsonb,\n' +
+    '  notas text,\n' +
+    '  enviado_por text,\n' +
+    '  recibido_por text,\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  enviada_at timestamptz,\n' +
+    '  recibida_at timestamptz\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_remisiones_estado on public.crozzo_remisiones (business_id, estado, created_at desc);\n\n' +
+    'create table if not exists public.crozzo_federacion_entrante (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  remision_uuid text not null,\n' +
+    '  origen_negocio_id text not null,\n' +
+    '  origen_negocio_nombre text,\n' +
+    '  tipo text not null default \'transferencia\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  estado text not null default \'pendiente\',\n' +
+    '  recibido_por text,\n' +
+    '  acuse jsonb,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  procesada_at timestamptz,\n' +
+    '  unique (remision_uuid, origen_negocio_id)\n' +
+    ');\n\n' +
+    'create table if not exists public.crozzo_federacion_acuse (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  remision_uuid text not null,\n' +
+    '  destino_negocio_id text not null,\n' +
+    '  origen_negocio_id text not null,\n' +
+    '  estado text not null,\n' +
+    '  acuse jsonb not null default \'{}\'::jsonb,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  unique (remision_uuid, destino_negocio_id)\n' +
+    ');\n\n' +
+    'create table if not exists public.crozzo_federacion_socios (\n' +
+    '  id text primary key,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  partner_negocio_id text not null,\n' +
+    '  partner_nombre text not null default \'\',\n' +
+    '  partner_supabase_url text,\n' +
+    '  puede_enviar boolean not null default true,\n' +
+    '  puede_recibir boolean not null default true,\n' +
+    '  bodega_default_id text,\n' +
+    '  activo boolean not null default true,\n' +
+    '  meta jsonb not null default \'{}\'::jsonb,\n' +
+    '  updated_at timestamptz not null default now(),\n' +
+    '  unique (business_id, partner_negocio_id)\n' +
+    ');\n\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_bodegas\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_remisiones\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_federacion_entrante\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_federacion_acuse\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_federacion_socios\');\n' +
+    'select public.crozzo_fix_all_grants();\n' +
+    'notify pgrst, \'reload schema\';\n';
+
+  var POS_RUNTIME_SQL =
+    '-- Crozzo POS — Estado operativo compartido por sede (mesas, carritos, comandas)\n' +
+    '-- Requiere Realtime habilitado en la tabla.\n\n' +
+    'create table if not exists public.crozzo_sede_runtime (\n' +
+    '  location_id text primary key,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  saved_at timestamptz not null default now(),\n' +
+    '  source_device_id text,\n' +
+    '  source_role text,\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_sede_runtime_business\n' +
+    '  on public.crozzo_sede_runtime (business_id);\n\n' +
+    'alter table public.crozzo_sede_runtime enable row level security;\n\n' +
+    'drop policy if exists crozzo_sede_runtime_all on public.crozzo_sede_runtime;\n' +
+    'create policy crozzo_sede_runtime_all on public.crozzo_sede_runtime\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'alter publication supabase_realtime add table public.crozzo_sede_runtime;\n';
+
+  global.CrozzoSupabaseSqlExtras = {
+    list: function () {
+      return [
+        {
+          key: 'pos_runtime',
+          file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',
+          title: '10. Runtime sede (mesas en vivo)',
+          desc: 'Mesas, carritos y estado operativo compartido entre cajas. Active Realtime.',
+          required: false,
+          order: 10,
+          sql: POS_RUNTIME_SQL,
+        },
+        {
+          key: 'federacion',
+          file: 'docs/SUPABASE-SQL-FEDERACION.sql',
+          title: '11. Federación de bodegas',
+          desc: 'Remisiones entre bodegas/negocios. Un script por proyecto Supabase.',
+          required: false,
+          order: 11,
+          sql: FEDERACION_SQL,
+        },
+      ];
+    },
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

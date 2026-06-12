@@ -60,8 +60,11 @@
 
   function getMobileLandingUrl(webBase) {
     webBase = webBase || getWebAppBaseUrl();
-    if (webBase) return webBase.replace(/\/+$/, '') + '/movil.html';
-    return '';
+    if (!webBase) return '';
+    var url = webBase.replace(/\/+$/, '') + '/movil.html';
+    var P = global.CrozzoInstallPremium;
+    if (P && typeof P.withBrandUrl === 'function') return P.withBrandUrl(url);
+    return url;
   }
 
   function fetchLatestVersion() {
@@ -204,14 +207,36 @@
     });
   }
 
+  function appDisplayName() {
+    try {
+      if (typeof global.crozzoAppDisplayName === 'function') return global.crozzoAppDisplayName();
+      if (global.CROZZO_APP_DISPLAY_NAME) return String(global.CROZZO_APP_DISPLAY_NAME);
+    } catch (_) {}
+    return 'BONA origen';
+  }
+
+  function setInstallModalPhase(phase) {
+    var wrap = document.querySelector('.crozzo-install-qr-modal');
+    if (!wrap) return;
+    wrap.setAttribute('data-phase', phase || 'ready');
+    var statusEl = document.getElementById('crozzoAppDownloadQrStatus');
+    if (!statusEl) return;
+    if (phase === 'loading') statusEl.textContent = 'Consultando versión publicada…';
+    else if (phase === 'ready') statusEl.textContent = 'Listo para instalar';
+    else if (phase === 'fallback') statusEl.textContent = 'Usando enlace de respaldo';
+  }
+
   function bindAppDownloadQrModal(payload) {
     var qrUrl = payload.qrUrl || payload.androidUrl || payload.landingUrl || payload.releasePageUrl;
     var host = document.getElementById('crozzoAppDownloadQrHost');
     if (!qrUrl && payload.releasePageUrl) qrUrl = payload.releasePageUrl;
+    setInstallModalPhase(payload.timedOut ? 'fallback' : 'ready');
     if (host) {
       if (qrUrl) {
-        paintQrHost(host, qrUrl, 220);
+        paintQrHost(host, qrUrl, 200);
+        host.classList.add('crozzo-install-qr-modal__qr--ready');
       } else {
+        host.classList.remove('crozzo-install-qr-modal__qr--ready');
         host.innerHTML = '<span class="form-hint">Sin enlace APK</span>';
       }
     }
@@ -225,10 +250,10 @@
     var hintEl = document.getElementById('crozzoAppDownloadQrHint');
     if (hintEl) {
       hintEl.textContent = payload.androidUrl
-        ? 'El QR apunta al APK en GitHub. Escanéelo con la tablet Android para instalar la versión actualizada.'
+        ? 'Escanee con la tablet Android. El paquete se descarga desde el release oficial verificado.'
         : payload.landingUrl
-          ? 'El QR abre la página de instalación (detecta Android o iPhone).'
-          : 'Sin APK directo: el QR abre el release en GitHub.';
+          ? 'El QR abre el asistente de instalación personalizado para su dispositivo.'
+          : 'Sin APK directo: el QR abre el release oficial en GitHub.';
     }
 
     var dlBtn = document.getElementById('crozzoAppDownloadQrDlHere');
@@ -248,23 +273,42 @@
     }
   }
 
-  /** Modal principal: un QR grande para descargar la app actualizada. */
+  /** Modal principal: instalación premium con QR verificado. */
   function openAppDownloadQrModal() {
+    var P = global.CrozzoInstallPremium;
+    if (P && typeof P.syncBrandFromApp === 'function') P.syncBrandFromApp();
+    var name =
+      P && typeof P.resolveBusinessName === 'function' && P.resolveBusinessName()
+        ? P.resolveBusinessName()
+        : appDisplayName();
     var body =
-      '<div class="crozzo-app-download-qr-modal" style="text-align:center;">' +
-      '<p class="form-hint" style="margin:0 0 8px;">Versión publicada: <strong id="crozzoAppDownloadQrVersion">…</strong></p>' +
-      '<p class="form-hint" id="crozzoAppDownloadQrHint" style="margin:0 0 14px;font-size:0.82rem;">Consultando GitHub…</p>' +
-      '<div class="wizard-qr-box crozzo-app-download-qr-modal__box" style="margin:0 auto 12px;">' +
-      '<div id="crozzoAppDownloadQrHost" style="min-height:220px;min-width:220px;display:flex;align-items:center;justify-content:center;">⏳</div>' +
+      '<div class="crozzo-install-qr-modal" data-phase="loading">' +
+      '<div class="crozzo-install-qr-modal__hero">' +
+      '<div class="crozzo-install-qr-modal__logo" aria-hidden="true">' +
+      '<svg width="40" height="40" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="none" stroke="#B59A6D" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>' +
+      '<circle cx="32" cy="32" r="22" fill="none" stroke="#2D2D2D" stroke-width=".8" opacity=".35"/>' +
+      '<line x1="32" y1="32" x2="32" y2="10" stroke="#2D2D2D" stroke-width="1"/>' +
+      '<line x1="32" y1="32" x2="52" y2="32" stroke="#B59A6D" stroke-width="1"/>' +
+      '<line x1="32" y1="32" x2="32" y2="54" stroke="#2D2D2D" stroke-width="1"/>' +
+      '<line x1="32" y1="32" x2="12" y2="32" stroke="#B59A6D" stroke-width="1"/>' +
+      '<circle cx="32" cy="32" r="3.5" fill="#2D2D2D"/></svg></div>' +
+      '<p class="crozzo-install-qr-modal__eyebrow">' + esc(name) + '</p>' +
+      '<h3 class="crozzo-install-qr-modal__title">Instalación de aplicación</h3>' +
+      '<p class="crozzo-install-qr-modal__status" id="crozzoAppDownloadQrStatus">Consultando versión publicada…</p>' +
+      '<span class="crozzo-install-qr-modal__ver">Versión <strong id="crozzoAppDownloadQrVersion">…</strong></span>' +
       '</div>' +
-      '<p class="form-hint" style="margin:0 0 12px;font-size:0.72rem;word-break:break-all;" id="crozzoAppDownloadQrUrl">…</p>' +
-      '<p class="form-hint" style="margin:0 0 14px;font-size:0.75rem;">Escanee con la tablet Android. No requiere Supabase · solo internet.</p>' +
-      '<div class="btn-group" style="justify-content:center;flex-wrap:wrap;gap:8px;">' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoAppDownloadQrDlHere">Descargar en este equipo</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoAppDownloadQrAdvanced">Más opciones (iPhone)</button>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoAppDownloadQrClose">Cerrar</button>' +
-      '</div>' +
-      '</div>';
+      '<p class="form-hint crozzo-install-qr-modal__hint" id="crozzoAppDownloadQrHint">Preparando enlace seguro de descarga…</p>' +
+      '<div class="crozzo-install-qr-modal__qr-frame">' +
+      '<div class="crozzo-install-qr-modal__qr" id="crozzoAppDownloadQrHost">' +
+      '<span class="crozzo-install-qr-modal__spinner" aria-hidden="true"></span>' +
+      '</div></div>' +
+      '<p class="form-hint crozzo-install-qr-modal__url" id="crozzoAppDownloadQrUrl">…</p>' +
+      '<p class="form-hint crozzo-install-qr-modal__footnote">Solo requiere conexión a internet para la descarga · no necesita Supabase</p>' +
+      '<div class="crozzo-install-qr-modal__actions">' +
+      '<button type="button" class="btn btn-primary" id="crozzoAppDownloadQrDlHere">Descargar en este equipo</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoAppDownloadQrAdvanced">Más opciones (iPhone)</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoAppDownloadQrClose">Cerrar</button>' +
+      '</div></div>';
 
     if (typeof global.crozzoCloseSidebarDrawer === 'function') global.crozzoCloseSidebarDrawer();
 
@@ -272,8 +316,8 @@
       toast('Cargando interfaz… intente de nuevo en unos segundos.', 'warning');
       return;
     }
-    global.showModal('📱 QR — Instalar app actualizada', body, {
-      modalClass: 'modal--mobile-install',
+    global.showModal('Instalar aplicación', body, {
+      modalClass: 'modal--mobile-install modal--install-premium',
       wide: false,
       stackTop: true,
       showClose: true,

@@ -490,13 +490,11 @@
       if (typeof document !== 'undefined' && document.hidden) return;
     } catch (_) {}
     if (!online()) return;
+    var throttle = global.CrozzoCloudThrottle;
+    if (throttle && typeof throttle.isUnderPressure === 'function' && throttle.isUnderPressure()) return;
     if (typeof global.syncOfflineQueue === 'function') {
-      global.syncOfflineQueue().catch(function () {});
+      global.syncOfflineQueue({ kind: 'stability' }).catch(function () {});
     }
-    try {
-      var r = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
-      if (r && typeof r.processQueue === 'function') r.processQueue();
-    } catch (_) {}
   }
 
   function schedulePullLoop() {

@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Proyecto",
-  "version": "1.0.101",
+  "productName": "BONA origen",
+  "version": "1.0.102",
   "identifier": "com.crozzo.pos",
   "app": {
     "windows": [
       {
-        "title": "Proyecto",
+        "title": "BONA origen",
         "width": 1280,
         "height": 800,
         "minWidth": 800,
@@ -21,7 +21,7 @@
     "active": true,
     "android": {
       "minSdkVersion": 26,
-      "versionCode": 10101
+      "versionCode": 10102
     }
   }
 }

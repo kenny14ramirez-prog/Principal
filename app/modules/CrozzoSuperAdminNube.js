@@ -9,21 +9,155 @@
   var LS_NUBE_STEP = 'crozzo_nube_wizard_step';
   var LS_ALTA_CHECKLIST = 'crozzo_nube_alta_checklist_v1';
 
-  /** Pasos operativos (espejo de docs/SUPABASE-ALTA-NEGOCIO.md). */
+  /** Pasos operativos (checklist de alta en producción). */
   var ALTA_NEGOCIO_STEPS = [
-    { id: 'proyecto', label: 'Proyecto Supabase creado (1 negocio = 1 proyecto)' },
-    { id: 'sql_editor', label: 'SQL ejecutado: SUPABASE-SQL-EDITOR.sql' },
-    { id: 'sql_integracion', label: 'SQL ejecutado: INTEGRACION + QYC + fotos + fix tarjeta' },
-    { id: 'sql_opcional', label: 'SQL opcional: costos / reservorio / cierres (si aplica)' },
-    { id: 'credenciales', label: 'URL + anon public copiadas (nunca service_role)' },
-    { id: 'pos_guardar', label: 'POS: guardado con Super Admin + confirmación de contraseña' },
-    { id: 'pos_probar', label: 'POS: Probar conexión y Comprobar tablas sin errores críticos' },
-    { id: 'sync', label: 'Central subió a nube; otra caja del mismo negocio sincronizó' },
-    { id: 'perfiles', label: 'Perfiles y menús activados para módulos del negocio' },
-    { id: 'seguridad', label: 'Anon key protegida; backup del proyecto Supabase revisado' },
+    {
+      id: 'proyecto',
+      label: 'Proyecto Supabase creado (1 negocio = 1 proyecto)',
+      detail: 'Dashboard → New project → región SA → contraseña DB guardada.',
+    },
+    {
+      id: 'sql_editor',
+      label: 'Script 1 — Base POS ejecutado',
+      detail: 'SUPABASE-SQL-EDITOR.sql: products, sales, comandas, devices, company_config.',
+    },
+    {
+      id: 'sql_integracion',
+      label: 'Scripts 2–4 — Integración, QyC y Storage',
+      detail: 'Empleados, proveedores, facturas, buckets oficina-docs y fotos-marcaciones.',
+    },
+    {
+      id: 'sql_opcional',
+      label: 'Scripts opcionales según módulos (5–11)',
+      detail: 'Costos, reservorio, cierres, runtime mesas, federación bodegas.',
+    },
+    {
+      id: 'credenciales',
+      label: 'URL + anon public copiadas (nunca service_role)',
+      detail: 'Settings → API. Solo la clave anon public va al POS.',
+    },
+    {
+      id: 'pos_guardar',
+      label: 'POS: Guardar y conectar (Super Admin + contraseña)',
+      detail: 'Paso 1 de este asistente → Guardar → Recargar si hace falta.',
+    },
+    {
+      id: 'pos_probar',
+      label: 'POS: Probar conexión + Comprobar tablas',
+      detail: 'Paso 3: todas las tablas obligatorias en verde.',
+    },
+    {
+      id: 'sync',
+      label: 'Sincronización real entre equipos',
+      detail: 'Caja central sube catálogo; tablet/otra caja baja o empareja QR.',
+    },
+    {
+      id: 'perfiles',
+      label: 'Perfiles y menús del negocio',
+      detail: 'Paso 4: tamaño empresa + roles (caja, cocina, compras…).',
+    },
+    {
+      id: 'seguridad',
+      label: 'Seguridad y respaldo',
+      detail: 'Anon key enmascarada; backup Supabase; sin service_role en dispositivos.',
+    },
   ];
 
   var STORAGE_BUCKETS = ['oficina-docs', 'fotos-marcaciones'];
+
+  /** Metadatos por script SQL (tablas, dependencias, errores frecuentes). */
+  var SQL_SCRIPT_GUIDE = {
+    editor: {
+      tables: 'products, sales, comandas, devices, company_config, pos_staff, clients, sync_queue, shift_closes',
+      depends: 'Ninguno — ejecutar primero',
+      modules: 'POS base, ventas, comandas, multi-dispositivo, cierre turno',
+      steps: [
+        'Supabase → SQL → New query',
+        'Pegar TODO el script (no omitir cabecera)',
+        'Run ▶ y espere «Success. No rows returned» o filas de verificación al final',
+        'Si falla en company_config seed, ignore el notice y continúe',
+      ],
+      errors: [
+        '401/403 en POS → al final del script está crozzo_fix_all_grants(); vuelva a ejecutarlo',
+        'PGRST204 / columna no existe → ejecute de nuevo el script completo (tiene migraciones)',
+        'products id UUID vs bigint → use el script actual; no mezcle proyectos viejos',
+      ],
+    },
+    integracion: {
+      tables: 'crozzo_empleados, crozzo_marcaciones, crozzo_pedidos_internos, crozzo_nomina_periodos, crozzo_proveedores_ops',
+      depends: 'Script 1 (editor)',
+      modules: 'Marcación, pedidos internos, planilla, RRHH',
+      steps: ['Ejecutar después del script 1', 'Verifique tablas crozzo_% en Table Editor'],
+      errors: ['FK empleado_id → cree primero crozzo_empleados'],
+    },
+    qyc: {
+      tables: 'proveedores, recepciones, facturas, materias_primas, usuarios, configuracion',
+      depends: 'Scripts 1 y 2',
+      modules: 'Centro compras, recepción facturas, QyC, oficina',
+      steps: ['Crea bucket oficina-docs al final del script', 'Usuario admin QyC PIN 141414 (cambiar en app)'],
+      errors: ['facturas_metodo_pago_chk → ejecute script 5 (fix tarjeta)'],
+    },
+    storage: {
+      tables: 'storage.buckets (fotos-marcaciones)',
+      depends: 'Script 3 (qyc crea oficina-docs)',
+      modules: 'Fotos marcación, documentos proveedor',
+      steps: ['Dashboard → Storage puede mostrar buckets tras este script', 'Público ON para anon key del POS'],
+      errors: ['policy already exists → normal; el script hace drop/create'],
+    },
+    fix_tarjeta: {
+      tables: 'ALTER facturas (metodo_pago)',
+      depends: 'Script 3 si la base ya existía antes del fix',
+      modules: 'Pagos oficina con tarjeta',
+      steps: ['Solo si pagos con tarjeta fallan en QyC/oficina'],
+      errors: [],
+    },
+    costos: {
+      tables: 'crozzo_matriz_precios, crozzo_inventario_movimientos, crozzo_planilla_feed',
+      depends: 'Scripts 1–3',
+      modules: 'Sistema costos, matriz MP, inventario ledger',
+      steps: ['Opcional si usa costos e inventario valorizado'],
+      errors: [],
+    },
+    reservorio: {
+      tables: 'crozzo_reservorio_sync_queue, crozzo_reservorio_snapshots, vista crozzo_v_flujo_compras',
+      depends: 'Scripts 1–3 y 7 si usa costos',
+      modules: 'Reservorio unificado, sync offline compras',
+      steps: ['Puente proveedores POS ↔ QyC (pos_proveedor_id)'],
+      errors: [],
+    },
+    shift_closes: {
+      tables: 'shift_closes (refuerzo índices)',
+      depends: 'Script 1 (tabla ya existe); use si cierres no suben',
+      modules: 'Cierre de caja / arqueo en nube',
+      steps: ['Idempotente — seguro re-ejecutar'],
+      errors: [],
+    },
+    pos_runtime: {
+      tables: 'crozzo_sede_runtime',
+      depends: 'Script 1',
+      modules: 'Mesas, carritos, runtime cloud entre cajas',
+      steps: [
+        'Ejecutar script',
+        'Dashboard → Database → Replication → activar crozzo_sede_runtime en Realtime',
+      ],
+      errors: ['Mesas no se actualizan entre tablets → Realtime no habilitado'],
+    },
+    federacion: {
+      tables: 'crozzo_bodegas, crozzo_remisiones, crozzo_federacion_entrante, crozzo_federacion_socios',
+      depends: 'Scripts 1 y 7 recomendados',
+      modules: 'Super Admin → Federación / remisiones entre sedes',
+      steps: ['Un proyecto Supabase por negocio', 'Repita en cada sede que intercambie stock'],
+      errors: [],
+    },
+  };
+
+  var NUBE_ARCHITECTURE = [
+    { icon: '🏪', title: '1 negocio = 1 proyecto Supabase', body: 'No comparta un proyecto entre marcas distintas. Mismo Business ID en todos los equipos del negocio.' },
+    { icon: '🔑', title: 'Solo anon public en el POS', body: 'Nunca pegue service_role en la app. Super Admin confirma contraseña al guardar.' },
+    { icon: '📝', title: 'SQL en orden 1 → 11', body: 'Obligatorios: 1–4. Opcionales según módulos: 5–11. Marque «Ya lo ejecuté» por script.' },
+    { icon: '📡', title: 'LAN + Nube', body: 'Con internet caído, LAN/P2P sigue operando; la nube drena colas al volver.' },
+    { icon: '🪣', title: 'Storage', body: 'Buckets: oficina-docs (facturas PDF), fotos-marcaciones (asistencia).' },
+  ];
 
   var MODULES_CLOUD = [
     { menu: 'punto-venta', label: 'Punto de venta / restaurante', tables: 'products, sales, comandas', step: 3 },
@@ -37,14 +171,24 @@
   ];
 
   var PROBE_TABLES = [
-    { table: 'devices', label: 'Dispositivos', script: 'editor', required: true },
-    { table: 'products', label: 'Productos', script: 'editor', required: true },
-    { table: 'sales', label: 'Ventas', script: 'editor', required: true },
-    { table: 'crozzo_empleados', label: 'Empleados', script: 'integracion', required: true },
-    { table: 'proveedores', label: 'Proveedores', script: 'qyc', required: true },
-    { table: 'recepciones', label: 'Recepciones compra', script: 'qyc', required: true },
-    { table: 'crozzo_matriz_precios', label: 'Matriz costos', script: 'costos', required: false },
-    { table: 'crozzo_reservorio_sync_queue', label: 'Cola reservorio', script: 'reservorio', required: false },
+    { table: 'devices', label: 'Dispositivos', script: '1', required: true },
+    { table: 'products', label: 'Productos POS', script: '1', required: true },
+    { table: 'sales', label: 'Ventas', script: '1', required: true },
+    { table: 'comandas', label: 'Comandas', script: '1', required: true },
+    { table: 'company_config', label: 'Config empresa', script: '1', required: true },
+    { table: 'pos_staff', label: 'Usuarios caja', script: '1', required: true },
+    { table: 'sync_queue', label: 'Cola sync', script: '1', required: true },
+    { table: 'crozzo_empleados', label: 'Empleados RRHH', script: '2', required: true },
+    { table: 'crozzo_marcaciones', label: 'Marcaciones', script: '2', required: false },
+    { table: 'crozzo_pedidos_internos', label: 'Pedidos internos', script: '2', required: false },
+    { table: 'proveedores', label: 'Proveedores QyC', script: '3', required: true },
+    { table: 'recepciones', label: 'Recepciones', script: '3', required: true },
+    { table: 'facturas', label: 'Facturas oficina', script: '3', required: false },
+    { table: 'crozzo_matriz_precios', label: 'Matriz costos', script: '7', required: false },
+    { table: 'crozzo_reservorio_sync_queue', label: 'Cola reservorio', script: '8', required: false },
+    { table: 'shift_closes', label: 'Cierres turno', script: '9', required: false },
+    { table: 'crozzo_sede_runtime', label: 'Runtime mesas', script: '10', required: false },
+    { table: 'crozzo_bodegas', label: 'Bodegas federación', script: '11', required: false },
   ];
 
   function esc(s) {
@@ -59,6 +203,16 @@
       return global.CrozzoSupabaseSqlBundles.list();
     }
     return [];
+  }
+
+  function getAllScripts() {
+    var list = getScripts().slice();
+    if (global.CrozzoSupabaseSqlExtras && global.CrozzoSupabaseSqlExtras.list) {
+      list = list.concat(global.CrozzoSupabaseSqlExtras.list());
+    }
+    return list.sort(function (a, b) {
+      return (a.order || 0) - (b.order || 0);
+    });
   }
 
   function getSbFile() {
@@ -179,6 +333,8 @@
         var prog = altaChecklistProgress();
         var el = document.getElementById('sanAltaChecklistProgress');
         if (el) el.textContent = prog.done + '/' + prog.total;
+        var bar = document.querySelector('.crozzo-nube-alta-progress span');
+        if (bar) bar.style.width = Math.round((prog.done / prog.total) * 100) + '%';
       });
     });
   }
@@ -190,7 +346,7 @@
     }
     var s = nubeSnapshot();
     var doneMap = readSqlDoneMap();
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var req = scripts.filter(function (x) { return x.required; });
     var reqDone = req.filter(function (x) { return doneMap[x.key]; }).length;
     var keyEl = document.getElementById('mdSupabaseKey');
@@ -277,14 +433,17 @@
     var rows = ALTA_NEGOCIO_STEPS.map(function (it) {
       var ck = done[it.id] ? ' checked' : '';
       return (
-        '<label class="md-toggle" style="display:block;margin:10px 0;align-items:flex-start;">' +
+        '<label class="crozzo-nube-alta-row">' +
         '<input type="checkbox" data-alta-check="' +
         esc(it.id) +
         '"' +
         ck +
         '>' +
-        '<span>' +
+        '<span class="crozzo-nube-alta-row__body">' +
+        '<strong>' +
         esc(it.label) +
+        '</strong>' +
+        (it.detail ? '<small>' + esc(it.detail) + '</small>' : '') +
         '</span></label>'
       );
     }).join('');
@@ -294,13 +453,18 @@
       '/' +
       prog.total +
       '</strong></p>' +
+      '<div class="crozzo-nube-alta-progress" aria-hidden="true"><span style="width:' +
+      Math.round((prog.done / prog.total) * 100) +
+      '%"></span></div>' +
       '<div id="sanAltaChecklistRoot" class="crozzo-nube-alta-checklist">' +
       rows +
       '</div>' +
-      '<p class="form-hint" style="margin-top:12px;">Documentación: <code>docs/SUPABASE-ALTA-NEGOCIO.md</code></p>' +
-      '<div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;">' +
+      '<p class="form-hint" style="margin-top:12px;">Use el asistente principal (pasos 1–4) y la <strong>Guía maestra</strong> desplegable para el detalle de cada SQL.</p>' +
+      '<div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;gap:8px;">' +
       '<button type="button" class="btn btn-outline" id="sanAltaGuideClose">Cerrar</button>' +
-      '<button type="button" class="btn btn-primary" id="sanAltaGuideSmoke">🧪 Smoke rápido</button></div>';
+      '<button type="button" class="btn btn-outline" id="sanAltaGuideStep1">Ir a Paso 1</button>' +
+      '<button type="button" class="btn btn-outline" id="sanAltaGuideStep2">Ir a SQL</button>' +
+      '<button type="button" class="btn btn-primary" id="sanAltaGuideSmoke">Diagnóstico rápido</button></div>';
     if (typeof global.showModal !== 'function') return;
     global.showModal('Alta de negocio en Supabase', body, { wide: true });
     bindAltaChecklistInputs(document.getElementById('sanAltaChecklistRoot'));
@@ -311,31 +475,169 @@
       global.closeModal({ skipCobroAbort: true });
       showSanNubeSmokeResults();
     });
+    document.getElementById('sanAltaGuideStep1')?.addEventListener('click', function () {
+      global.closeModal({ skipCobroAbort: true });
+      setWizardStep(1);
+    });
+    document.getElementById('sanAltaGuideStep2')?.addEventListener('click', function () {
+      global.closeModal({ skipCobroAbort: true });
+      setWizardStep(2);
+      var w = document.getElementById('crozzoNubeSqlWizard');
+      if (w) w.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  function renderArchitectureCards() {
+    return NUBE_ARCHITECTURE.map(function (a) {
+      return (
+        '<div class="crozzo-nube-arch-card">' +
+        '<span class="crozzo-nube-arch-card__icon" aria-hidden="true">' +
+        a.icon +
+        '</span>' +
+        '<div><strong>' +
+        esc(a.title) +
+        '</strong><p>' +
+        esc(a.body) +
+        '</p></div></div>'
+      );
+    }).join('');
+  }
+
+  function renderSqlGuidePanel(key) {
+    var g = SQL_SCRIPT_GUIDE[key];
+    if (!g) {
+      return '<p class="form-hint crozzo-nube-sql-guide">Seleccione un script para ver tablas, dependencias y errores frecuentes.</p>';
+    }
+    var steps = (g.steps || [])
+      .map(function (s) {
+        return '<li>' + esc(s) + '</li>';
+      })
+      .join('');
+    var errs = (g.errors || [])
+      .map(function (e) {
+        return '<li>' + esc(e) + '</li>';
+      })
+      .join('');
+    return (
+      '<div class="crozzo-nube-sql-guide" id="crozzoNubeSqlGuide">' +
+      '<div class="crozzo-nube-sql-guide__grid">' +
+      '<div><span class="crozzo-nube-sql-guide__label">Tablas / objetos</span><p>' +
+      esc(g.tables || '—') +
+      '</p></div>' +
+      '<div><span class="crozzo-nube-sql-guide__label">Depende de</span><p>' +
+      esc(g.depends || '—') +
+      '</p></div>' +
+      '<div><span class="crozzo-nube-sql-guide__label">Módulos POS</span><p>' +
+      esc(g.modules || '—') +
+      '</p></div>' +
+      '</div>' +
+      (steps ? '<p class="crozzo-nube-sql-guide__label">Pasos en Supabase</p><ol class="crozzo-nube-sql-guide__ol">' + steps + '</ol>' : '') +
+      (errs ? '<p class="crozzo-nube-sql-guide__label crozzo-nube-sql-guide__label--warn">Si algo falla</p><ul class="crozzo-nube-sql-guide__ul">' + errs + '</ul>' : '') +
+      '</div>'
+    );
+  }
+
+  function renderFullGuideAccordion() {
+    var scripts = getAllScripts();
+    var req = scripts.filter(function (s) {
+      return s.required;
+    });
+    var opt = scripts.filter(function (s) {
+      return !s.required;
+    });
+    var reqList = req
+      .map(function (s) {
+        return '<li><strong>' + s.order + '.</strong> ' + esc(s.title) + ' — <code>' + esc(s.file) + '</code></li>';
+      })
+      .join('');
+    var optList = opt
+      .map(function (s) {
+        return '<li><strong>' + s.order + '.</strong> ' + esc(s.title) + '</li>';
+      })
+      .join('');
+    return (
+      '<div class="card crozzo-nube-master-guide">' +
+      '<div class="card-header"><span class="card-title">Guía maestra — configuración nube completa</span></div>' +
+      '<details class="crozzo-nube-guide-details" open>' +
+      '<summary>A. Crear proyecto Supabase (antes del POS)</summary>' +
+      '<ol class="crozzo-nube-guide-ol">' +
+      '<li>Entrar a <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">supabase.com/dashboard</a> → <strong>New project</strong>.</li>' +
+      '<li>Elegir región cercana (ej. South America). Contraseña de DB: guárdela en gestor de claves.</li>' +
+      '<li><strong>1 negocio = 1 proyecto.</strong> No mezcle Álamos y Pinares en el mismo proyecto.</li>' +
+      '<li>Espere a que el proyecto esté <em>Active</em> (2–5 min).</li>' +
+      '</ol></details>' +
+      '<details class="crozzo-nube-guide-details">' +
+      '<summary>B. Scripts SQL obligatorios (' +
+      req.length +
+      ')</summary>' +
+      '<ol class="crozzo-nube-guide-ol">' +
+      reqList +
+      '</ol>' +
+      '<p class="form-hint">Vaya al <strong>Paso 2</strong> de este asistente: copie cada script → SQL Editor → Run → marque «Ya lo ejecuté».</p>' +
+      '</details>' +
+      '<details class="crozzo-nube-guide-details">' +
+      '<summary>C. Scripts opcionales (' +
+      opt.length +
+      ') — según módulos activos</summary>' +
+      '<ul class="crozzo-nube-guide-ol">' +
+      optList +
+      '</ul></details>' +
+      '<details class="crozzo-nube-guide-details">' +
+      '<summary>D. Credenciales en el POS (Paso 1)</summary>' +
+      '<ol class="crozzo-nube-guide-ol">' +
+      '<li>Supabase → Settings → API → copiar <strong>Project URL</strong> y <strong>anon public</strong>.</li>' +
+      '<li>En este asistente: activar sync, pegar URL y clave, nombre del equipo.</li>' +
+      '<li><strong>Guardar y conectar</strong> — el sistema pedirá contraseña de Super Admin.</li>' +
+      '<li>Pulse <strong>Recargar aplicación</strong> si <code>__SUPABASE</code> no inicia.</li>' +
+      '</ol></details>' +
+      '<details class="crozzo-nube-guide-details">' +
+      '<summary>E. Verificación (Paso 3)</summary>' +
+      '<ol class="crozzo-nube-guide-ol">' +
+      '<li>Probar conexión — debe mostrar proyecto alcanzable.</li>' +
+      '<li>Comprobar tablas — todas las obligatorias en verde.</li>' +
+      '<li>En caja central: primera venta o «Subir a nube»; en otra caja: sincronizar catálogo.</li>' +
+      '</ol></details>' +
+      '<details class="crozzo-nube-guide-details">' +
+      '<summary>F. Storage (buckets)</summary>' +
+      '<ul class="crozzo-nube-guide-ol">' +
+      '<li><code>oficina-docs</code> — creado por script 3 (facturas PDF, RUT proveedor).</li>' +
+      '<li><code>fotos-marcaciones</code> — script 4 (fotos control de acceso).</li>' +
+      '<li>Dashboard → Storage: verifique que existan y sean <strong>public</strong> si usa anon key.</li>' +
+      '</ul></details>' +
+      '<details class="crozzo-nube-guide-details">' +
+      '<summary>G. Módulos y perfiles (Paso 4)</summary>' +
+      '<p class="form-hint">Super Admin → Perfiles y menús: active solo lo que el negocio usa (restaurante, compras, costos…).</p>' +
+      '</details>' +
+      '</div>'
+    );
   }
 
   function renderHero() {
     var prog = altaChecklistProgress();
+    var scripts = getAllScripts();
     return (
       '<div class="crozzo-nube-hero card">' +
       '<div class="crozzo-nube-hero__body">' +
-      '<h2 class="crozzo-nube-hero__title">☁️ Nube global — Supabase</h2>' +
+      '<p class="crozzo-nube-hero__eyebrow">Super Admin · Centro de nube</p>' +
+      '<h2 class="crozzo-nube-hero__title">Configuración Supabase paso a paso</h2>' +
       '<p class="form-hint crozzo-nube-hero__lead">' +
-      'Configure la base de datos en la nube para que <strong>ventas, compras, marcación, planilla y costos</strong> sincronicen entre dispositivos. ' +
-      'Sin Supabase el POS sigue en <strong>modo local</strong> (IndexedDB + localStorage).' +
+      'Asistente completo para dejar operativos <strong>ventas, comandas, compras, marcación, planilla, costos y federación</strong>. ' +
+      'Incluye <strong>' +
+      scripts.length +
+      ' scripts SQL</strong> embebidos con editor, copiar y descargar. Sin nube el POS sigue en modo local.' +
       '</p>' +
-      '<ol class="crozzo-nube-steps-overview">' +
-      '<li><strong>Conectar</strong> — URL y anon key del proyecto</li>' +
-      '<li><strong>Crear base</strong> — pegar cada script en el SQL Editor de Supabase</li>' +
-      '<li><strong>Verificar</strong> — comprobar tablas y PostgREST</li>' +
-      '<li><strong>Activar módulos</strong> — perfiles y menús por rol</li>' +
-      '</ol>' +
+      '<div class="crozzo-nube-arch-grid">' +
+      renderArchitectureCards() +
+      '</div>' +
       '<div class="crozzo-nube-actions" style="margin-top:14px;flex-wrap:wrap;">' +
-      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnAltaGuia">📋 Guía de alta (' +
+      '<button type="button" class="btn btn-primary btn-sm" id="sanBtnAltaGuia">Checklist operativo (' +
       prog.done +
       '/' +
       prog.total +
       ')</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnNubeSmoke">🧪 Smoke rápido</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnNubeSmoke">Diagnóstico rápido</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnScrollSql">Ir a SQL Editor</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'super-admin-federacion\')">Federación bodegas</button>' +
       '</div></div></div>'
     );
   }
@@ -365,6 +667,42 @@
     return html;
   }
 
+  function renderPerfPanel() {
+    var t =
+      global.CrozzoCloudThrottle && typeof global.CrozzoCloudThrottle.snapshot === 'function'
+        ? global.CrozzoCloudThrottle.snapshot()
+        : null;
+    var pressure = !!(t && t.underPressure);
+    var intervalSec = t ? Math.round(t.queueIntervalMs / 1000) : 20;
+    var batch = t ? t.batchLimit : 8;
+    var reason = t && t.reason ? ' (' + t.reason + ')' : '';
+    return (
+      '<div class="card crozzo-nube-perf-card" style="margin-bottom:14px;">' +
+      '<div class="card-header"><span class="card-title">Rendimiento y anti-saturación</span></div>' +
+      '<p class="form-hint" style="margin:0 0 10px;">' +
+      'La app envía operaciones en lotes pequeños y reduce tráfico automáticamente ante errores 429, 503 o timeouts.' +
+      '</p>' +
+      '<ul class="crozzo-nube-checklist">' +
+      '<li>Intervalo de cola multidispositivo: <strong>' +
+      intervalSec +
+      ' s</strong> (wizard «Intervalo sync», 5–300 s)</li>' +
+      '<li>Lote máximo por ciclo: <strong>' +
+      batch +
+      '</strong> operaciones</li>' +
+      '<li>Estado de presión: ' +
+      (pressure
+        ? '<span class="badge badge-warning">Frenado temporal' + esc(reason) + '</span>'
+        : '<span class="badge badge-success">Normal</span>') +
+      '</li>' +
+      '</ul>' +
+      '<p class="form-hint" style="margin-top:10px;">' +
+      '<strong>Recomendaciones:</strong> use 20–60 s de intervalo con varias tablets; comprima imágenes antes de subir; ' +
+      'evite pruebas masivas de SQL en hora pico; en sedes grandes active Realtime solo en comandas/mesas críticas.' +
+      '</p>' +
+      '</div>'
+    );
+  }
+
   function renderStatusPanel() {
     var s = nubeSnapshot();
     var mode =
@@ -375,7 +713,7 @@
           : 'Solo datos locales';
     var modeClass = s.ready && s.clientOk ? 'badge-success' : s.syncOn ? 'badge-info' : 'badge-warning';
     var doneMap = readSqlDoneMap();
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var req = scripts.filter(function (x) { return x.required; });
     var reqDone = req.filter(function (x) { return doneMap[x.key]; }).length;
 
@@ -455,8 +793,13 @@
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">🔌 Paso 1 — Conectar proyecto Supabase</span></div>' +
       '<div class="crozzo-nube-callout">' +
-      '<p><strong>¿Dónde obtengo esto?</strong> En <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">supabase.com/dashboard</a> → su proyecto → <em>Settings → API</em>: copie <strong>Project URL</strong> y la clave <strong>anon public</strong> (no use la service_role en el POS).</p>' +
-      '</div>' +
+      '<p><strong>¿Dónde obtengo esto?</strong> En <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">supabase.com/dashboard</a> → su proyecto → <em>Settings → API</em>:</p>' +
+      '<ol class="crozzo-nube-guide-ol" style="margin:8px 0 0;">' +
+      '<li><strong>Project URL</strong> → campo URL del POS</li>' +
+      '<li><strong>anon public</strong> (Project API keys) → campo Anon key</li>' +
+      '<li><strong>Nunca</strong> pegue <code>service_role</code> en tablets ni cajas</li>' +
+      '<li>Mismo <strong>Business ID</strong> en todos los equipos del negocio (opcional multi-sede)</li>' +
+      '</ol></div>' +
       '<div class="form-grid">' +
       '<div class="form-group full">' +
       '<label class="md-toggle"><input type="checkbox" id="mdSupabaseSyncEnabled" ' +
@@ -507,7 +850,7 @@
   }
 
   function renderSqlScriptList(activeKey) {
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var doneMap = readSqlDoneMap();
     if (!scripts.length) {
       return (
@@ -557,9 +900,23 @@
       '> Ya lo ejecuté en Supabase</label>';
     html += '</div></div>';
     html += '<p class="form-hint" id="crozzoNubeSqlDesc">' + esc(current ? current.desc : '') + '</p>';
-    html += '<p class="form-hint"><code id="crozzoNubeSqlFile">' + esc(file) + '</code></p>';
+    html +=
+      '<p class="form-hint"><code id="crozzoNubeSqlFile">' +
+      esc(file) +
+      '</code> · <span id="crozzoNubeSqlStats">' +
+      (sql ? Math.round(sql.length / 1024) + ' KB · ' + (sql.split('\n').length + ' líneas') : '') +
+      '</span></p>';
+    html += renderSqlGuidePanel(current ? current.key : '');
     html +=
       '<textarea id="crozzoNubeSqlTextarea" class="crozzo-nube-sql-textarea" readonly spellcheck="false" aria-label="Script SQL"></textarea>';
+    html += '<div class="crozzo-nube-sql-editor__foot">';
+    html +=
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnOpenSqlExtern">↗ Pegar en Supabase</button>';
+    html +=
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnNextSql">Siguiente script →</button>';
+    html +=
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnExpandSql">Pantalla completa</button>';
+    html += '</div>';
     html +=
       '<p class="form-hint">En Supabase: <strong>SQL → New query</strong> → pegar → <strong>Run</strong>. Espere «Success» antes del siguiente script.</p>';
     html += '</div></div>';
@@ -567,7 +924,7 @@
   }
 
   function renderStepSql() {
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var firstKey = scripts[0] ? scripts[0].key : '';
     var url = nubeSnapshot().url;
     return (
@@ -575,8 +932,9 @@
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">📝 Paso 2 — Crear la base de datos (SQL Editor)</span></div>' +
       '<div class="crozzo-nube-callout">' +
-      '<p>Ejecute los scripts <strong>en orden</strong> (1 → 9). Los marcados <em>opcional</em> solo si usa costos, reservorio o cierres de turno. ' +
-      'Los scripts están embebidos aquí; también existen en la carpeta <code>docs/</code> del proyecto.</p>' +
+      '<p>Ejecute los scripts <strong>en orden</strong> (1 → 11). Obligatorios: <strong>1–4</strong>. Opcionales: costos (7), reservorio (8), cierres (9), runtime mesas (10), federación (11). ' +
+      'Cada script incluye editor, guía de tablas y errores frecuentes.</p>' +
+      '<div class="crozzo-nube-sql-progress-bar" aria-hidden="true"><span id="crozzoNubeSqlProgressBar"></span></div>' +
       (url
         ? '<p><a href="' +
           esc(supabaseDashboardSqlUrl(url)) +
@@ -611,6 +969,10 @@
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">✅ Paso 3 — Verificar conexión y tablas</span></div>' +
       '<p class="form-hint">Comprueba que PostgREST responde y que las tablas principales existen (necesita URL + anon key del paso 1).</p>' +
+      '<div class="crozzo-nube-callout">' +
+      '<p><strong>Interpretación:</strong> <span class="badge badge-success">OK</span> = tabla accesible con anon key. ' +
+      '<span class="badge badge-warning">No existe</span> = falta ejecutar el script indicado. ' +
+      'HTTP 401/403 = ejecute <code>select crozzo_fix_all_grants();</code> en SQL Editor o repita script 1.</p></div>' +
       '<div class="crozzo-nube-actions" style="margin-bottom:12px;">' +
       '<button type="button" class="btn btn-primary" id="sanBtnTestCloud2">🔌 Probar conexión</button>' +
       '<button type="button" class="btn btn-outline" id="sanBtnProbeTables">🔍 Comprobar tablas</button>' +
@@ -729,6 +1091,8 @@
     return (
       '<div id="crozzo-nube-hub" class="crozzo-nube-hub">' +
       renderHero() +
+      renderFullGuideAccordion() +
+      renderPerfPanel() +
       renderStatusPanel() +
       renderWizardNav(step) +
       '<div class="crozzo-nube-wizard-body">' +
@@ -772,15 +1136,16 @@
   function renderSqlWizardProgress() {
     var el = document.getElementById('crozzoNubeSqlProgress');
     if (!el) return;
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var req = scripts.filter(function (x) { return x.required; });
     var doneMap = readSqlDoneMap();
     var reqDone = req.filter(function (x) { return doneMap[x.key]; }).length;
     el.textContent = reqDone + '/' + req.length;
+    updateSqlProgressBar();
   }
 
   function selectSqlScript(key) {
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var s = scripts.find(function (x) { return x.key === key; });
     if (!s) return;
     var ta = document.getElementById('crozzoNubeSqlTextarea');
@@ -796,7 +1161,39 @@
     document.querySelectorAll('.crozzo-nube-sql-list__item').forEach(function (btn) {
       btn.classList.toggle('crozzo-nube-sql-list__item--active', btn.getAttribute('data-sql-key') === key);
     });
+    var stats = document.getElementById('crozzoNubeSqlStats');
+    if (stats && s.sql) {
+      stats.textContent = Math.round(s.sql.length / 1024) + ' KB · ' + s.sql.split('\n').length + ' líneas';
+    }
+    var guideHost = document.getElementById('crozzoNubeSqlGuide');
+    if (guideHost && guideHost.parentElement) {
+      guideHost.outerHTML = renderSqlGuidePanel(key);
+    }
+    updateSqlProgressBar();
     hubStoreActiveSqlKey(key);
+  }
+
+  function updateSqlProgressBar() {
+    var bar = document.getElementById('crozzoNubeSqlProgressBar');
+    if (!bar) return;
+    var scripts = getAllScripts();
+    var doneMap = readSqlDoneMap();
+    var done = scripts.filter(function (s) {
+      return doneMap[s.key];
+    }).length;
+    var pct = scripts.length ? Math.round((done / scripts.length) * 100) : 0;
+    bar.style.width = pct + '%';
+    bar.setAttribute('title', done + '/' + scripts.length + ' scripts marcados');
+  }
+
+  function selectNextSqlScript() {
+    var scripts = getAllScripts();
+    var key = hubGetActiveSqlKey();
+    var idx = scripts.findIndex(function (s) {
+      return s.key === key;
+    });
+    var next = scripts[idx + 1] || scripts[0];
+    if (next) selectSqlScript(next.key);
   }
 
   function hubStoreActiveSqlKey(key) {
@@ -807,7 +1204,7 @@
   function hubGetActiveSqlKey() {
     var hub = document.getElementById('crozzo-nube-hub');
     if (hub && hub.getAttribute('data-active-sql-key')) return hub.getAttribute('data-active-sql-key');
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     return scripts[0] ? scripts[0].key : '';
   }
 
@@ -959,10 +1356,11 @@
 
     sanPopulateFormFromConfig();
     renderSqlWizardProgress();
-    var scripts = getScripts();
+    var scripts = getAllScripts();
     var firstKey = scripts[0] ? scripts[0].key : '';
     hubStoreActiveSqlKey(hubGetActiveSqlKey() || firstKey);
     if (firstKey) selectSqlScript(hubGetActiveSqlKey() || firstKey);
+    updateSqlProgressBar();
 
     document.getElementById('crozzo-nube-hub')?.addEventListener('click', function (ev) {
       var stepBtn = ev.target.closest('[data-nube-step]');
@@ -979,6 +1377,27 @@
     bindOnce(document.getElementById('sanBtnAltaGuia'), 'click', openSanAltaNegocioGuide);
     bindOnce(document.getElementById('sanBtnNubeSmoke'), 'click', function () {
       showSanNubeSmokeResults();
+    });
+    bindOnce(document.getElementById('sanBtnScrollSql'), 'click', function () {
+      setWizardStep(2);
+      var w = document.getElementById('crozzoNubeSqlWizard');
+      if (w) w.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    bindOnce(document.getElementById('sanBtnOpenSqlExtern'), 'click', function () {
+      var url = supabaseDashboardSqlUrl((document.getElementById('mdSupabaseUrl') || {}).value || nubeSnapshot().url);
+      if (typeof global.crozzoOpenExternal === 'function') global.crozzoOpenExternal(url);
+      else window.open(url, '_blank', 'noopener,noreferrer');
+      if (global.showToast) global.showToast('Abra SQL Editor, pegue el script y Run', 'info');
+    });
+    bindOnce(document.getElementById('sanBtnNextSql'), 'click', selectNextSqlScript);
+    bindOnce(document.getElementById('sanBtnExpandSql'), 'click', function () {
+      var ta = document.getElementById('crozzoNubeSqlTextarea');
+      if (!ta) return;
+      ta.classList.toggle('crozzo-nube-sql-textarea--fullscreen');
+      if (ta.classList.contains('crozzo-nube-sql-textarea--fullscreen')) {
+        ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
 
     bindOnce(document.getElementById('sanBtnSaveCloud'), 'click', function () {

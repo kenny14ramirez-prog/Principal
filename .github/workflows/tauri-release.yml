@@ -217,7 +217,7 @@ jobs:
             exit 1
           fi
           VER="${TAG#v}"
-          OUT="Proyecto_${VER}_arm64.apk"
+          OUT="BONA_origen_${VER}_arm64.apk"
           cp "$APK" "$OUT"
           gh release upload "$TAG" "$OUT" --clobber
           echo "APK firmado subido: $OUT (origen: $APK)"

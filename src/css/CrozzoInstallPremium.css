@@ -1,0 +1,121 @@
+/* Estilos compartidos — landings de instalación y emparejamiento premium */
+.crozzo-install-video__frame {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 100%);
+  aspect-ratio: 16 / 9;
+  box-shadow: 0 12px 32px rgba(45, 45, 45, 0.14);
+}
+.crozzo-install-video--compact .crozzo-install-video__frame {
+  border-radius: 14px;
+}
+.crozzo-install-video__frame iframe,
+.crozzo-install-video__frame video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+.crozzo-install-video__play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(249, 247, 245, 0.95);
+  color: #2d2d2d;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.crozzo-install-video__play--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.crozzo-install-video__caption {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #6b6b6b;
+}
+.crozzo-install-cinema {
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #2d2d2d 0%, #1f1f1f 55%, #2a2520 100%);
+  box-shadow: 0 12px 32px rgba(45, 45, 45, 0.14);
+}
+.crozzo-install-cinema--compact {
+  border-radius: 14px;
+}
+.crozzo-install-cinema__frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.crozzo-install-cinema__slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  opacity: 0;
+  animation: crozzo-cinema-slide 15s infinite;
+  padding: 16px;
+}
+.crozzo-install-cinema__slide--1 { animation-delay: 0s; }
+.crozzo-install-cinema__slide--2 { animation-delay: 5s; }
+.crozzo-install-cinema__slide--3 { animation-delay: 10s; }
+@keyframes crozzo-cinema-slide {
+  0%, 6% { opacity: 0; transform: translateY(8px) scale(0.98); }
+  8%, 28% { opacity: 1; transform: none; }
+  33%, 100% { opacity: 0; transform: translateY(-6px); }
+}
+.crozzo-install-cinema__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(181, 154, 109, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #b59a6d;
+}
+.crozzo-install-cinema__line {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f9f7f5;
+  text-align: center;
+  max-width: 22ch;
+  line-height: 1.4;
+}
+.crozzo-install-cinema__badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(249, 247, 245, 0.55);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-install-cinema__slide {
+    animation: none;
+    opacity: 0;
+  }
+  .crozzo-install-cinema__slide--1 {
+    opacity: 1;
+  }
+}

@@ -731,9 +731,16 @@ function crozzoSanitizeSyncQueueInsertBodyForFacturaEstado(insertBody) {
   };
 }
 /** Drena localStorage.sync_queue_temp → tabla sync_queue (payload flexible según tu DDL). */
-async function syncOfflineQueue() {
+async function syncOfflineQueue(opts) {
+  opts = opts || {};
   const sb = window.__SUPABASE;
   if (!sb || typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'offline_o_sin_cliente' };
+  const throttle = window.CrozzoCloudThrottle;
+  if (throttle && typeof throttle.canRunDrain === 'function' && !opts.force) {
+    if (!throttle.canRunDrain(opts.kind || 'queue')) {
+      return { ok: true, pushed: 0, skipped: 'throttle_gap' };
+    }
+  }
   let pending = readOfflineQueue();
   if (window.CrozzoIdempotentSync && typeof CrozzoIdempotentSync.deduplicateQueue === 'function') {
     const ded = CrozzoIdempotentSync.deduplicateQueue(pending);
@@ -741,9 +748,13 @@ async function syncOfflineQueue() {
     pending = ded;
   }
   if (!pending.length) return { ok: true, pushed: 0 };
-  const remain = [];
+  const batchMax =
+    throttle && typeof throttle.batchLimit === 'function' ? throttle.batchLimit() : 8;
+  const batch = pending.slice(0, batchMax);
+  const deferred = pending.slice(batchMax);
+  const remain = deferred.slice();
   let pushed = 0;
-  for (const row of pending) {
+  for (const row of batch) {
     try {
       let insertBody = crozzoBuildSyncQueueInsertBody(row);
       if (insertBody) insertBody = crozzoSanitizeSyncQueueInsertBodyForFacturaEstado(insertBody);
@@ -786,6 +797,9 @@ async function syncOfflineQueue() {
         pushed += 1;
         continue;
       }
+      if (throttle && typeof throttle.noteSupabaseError === 'function') {
+        throttle.noteSupabaseError(ins.error);
+      }
       if (insertBody.transaction_id) {
         const slimUp = {
           type: insertBody.type,
@@ -807,12 +821,13 @@ async function syncOfflineQueue() {
       }
       throw ins.error;
     } catch (e) {
+      if (throttle && typeof throttle.noteSupabaseError === 'function') throttle.noteSupabaseError(e);
       console.warn('[crozzo-sb] sync_queue item falló, se conserva en cola local', e);
       remain.push(row);
     }
   }
   writeOfflineQueue(remain);
-  return { ok: true, pushed, remaining: remain.length };
+  return { ok: true, pushed, remaining: remain.length, batched: batch.length };
 }
 function mapDbRoleToAppRole(dbRole) {
   const r = String(dbRole || '').toLowerCase().replace(/\s+/g, '_');

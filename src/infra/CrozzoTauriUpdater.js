@@ -16,7 +16,7 @@
   var GITHUB_RELEASES_LATEST = GITHUB_RELEASES_PAGE + '/latest';
   var GITHUB_API_RELEASE =
     'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/tags/';
-  var PRODUCT_NAME = 'Proyecto';
+  var PRODUCT_NAME = 'BONA origen';
   var SETUP_MIN_BYTES = 400 * 1024;
   var APK_MIN_BYTES = 800 * 1024;
   var CHECK_RETRY_MAX = 2;
@@ -84,8 +84,8 @@
   function androidInstallConflictHelp() {
     return (
       'Conflicto de paquetes: la APK nueva no tiene la misma firma que la app instalada (com.crozzo.pos). ' +
-      'Solución: Ajustes → Apps → busque «Proyecto» o «Crozzo POS» → Desinstalar. ' +
-      'Luego instale el APK Proyecto_*_arm64.apk desde GitHub Releases. ' +
+      'Solución: Ajustes → Apps → busque «BONA origen» → Desinstalar. ' +
+      'Luego instale el APK BONA_origen_*_arm64.apk desde GitHub Releases. ' +
       'Los datos locales de la app se pierden al desinstalar; la caja/nube conserva la configuración del negocio.'
     );
   }
@@ -192,7 +192,7 @@
               phase: 'install',
               percent: 88,
               message:
-                'Abriendo instalador… Si «Actualizar» falla, desinstale «Proyecto» en Ajustes → Apps e instale de nuevo.',
+                'Abriendo instalador… Si «Actualizar» falla, desinstale «BONA origen» en Ajustes → Apps e instale de nuevo.',
             });
             return invokeAndroidPackageInstall(installPath, altPath).then(function () {
               return {
@@ -830,7 +830,7 @@
       return (
         /\.apk$/i.test(name) &&
         !/unsigned/i.test(name) &&
-        (/aarch64|arm64|arm-v8|universal|Proyecto_/i.test(name) || !/x86|x86_64|i686/i.test(name))
+        (/aarch64|arm64|arm-v8|universal|(?:BONA_origen|Proyecto)_/i.test(name) || !/x86|x86_64|i686/i.test(name))
       );
     });
     if (preferred) return preferred.browser_download_url || preferred.url || '';

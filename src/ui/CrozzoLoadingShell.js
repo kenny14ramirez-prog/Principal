@@ -46,7 +46,7 @@
       if (typeof global.crozzoAppDisplayName === 'function') return global.crozzoAppDisplayName();
       if (global.CROZZO_APP_DISPLAY_NAME) return String(global.CROZZO_APP_DISPLAY_NAME);
     } catch (_) {}
-    return 'Crozzo POS';
+    return 'BONA origen';
   }
 
   function labelForPage(page) {
@@ -184,32 +184,59 @@
     el.setAttribute('aria-live', 'polite');
     el.setAttribute('aria-busy', 'true');
     el.innerHTML =
-      '<div class="crozzo-boot-shell__card">' +
+      '<div class="crozzo-boot-shell__card crozzo-boot-shell__card--premium">' +
+      '<div class="crozzo-boot-shell__logo" aria-hidden="true">' +
+      '<svg width="48" height="48" viewBox="0 0 64 64">' +
+      '<circle cx="32" cy="32" r="30" fill="none" stroke="#B59A6D" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>' +
+      '<circle cx="32" cy="32" r="22" fill="none" stroke="#2D2D2D" stroke-width=".8" opacity=".35"/>' +
+      '<line x1="32" y1="32" x2="32" y2="10" stroke="#2D2D2D" stroke-width="1"/>' +
+      '<line x1="32" y1="32" x2="52" y2="32" stroke="#B59A6D" stroke-width="1"/>' +
+      '<line x1="32" y1="32" x2="32" y2="54" stroke="#2D2D2D" stroke-width="1"/>' +
+      '<line x1="32" y1="32" x2="12" y2="32" stroke="#B59A6D" stroke-width="1"/>' +
+      '<circle cx="32" cy="32" r="3.5" fill="#2D2D2D"/></svg></div>' +
       '<div class="crozzo-boot-shell__brand">' +
       esc(appName()) +
       '</div>' +
       '<div class="crozzo-boot-shell__pulse" aria-hidden="true"></div>' +
-      '<h2 class="crozzo-boot-shell__title">Preparando el sistema</h2>' +
-      '<p class="crozzo-boot-shell__msg" id="crozzoBootShellMsg">Cargando recursos…</p>' +
+      '<h2 class="crozzo-boot-shell__title">Iniciando su sistema</h2>' +
+      '<p class="crozzo-boot-shell__msg" id="crozzoBootShellMsg">Verificando recursos locales…</p>' +
+      '<div class="crozzo-boot-shell__progress" aria-hidden="true"><span class="crozzo-boot-shell__progress-fill"></span></div>' +
       '<div class="crozzo-boot-shell__skeleton">' +
       '<div class="crozzo-skeleton-block crozzo-boot-shell__sk"></div>' +
       '<div class="crozzo-skeleton-block crozzo-boot-shell__sk crozzo-boot-shell__sk--md"></div>' +
       '<div class="crozzo-skeleton-block crozzo-boot-shell__sk crozzo-boot-shell__sk--sm"></div>' +
       '</div>' +
-      '<p class="crozzo-boot-shell__hint">Un momento — la interfaz aparecerá enseguida.</p>' +
+      '<p class="crozzo-boot-shell__hint">Experiencia optimizada para operación en sala.</p>' +
       '</div>';
     document.body.insertBefore(el, document.body.firstChild);
     return el;
   }
+
+  var bootMsgIndex = 0;
+  var bootMsgTimer = null;
+  var BOOT_MSGS = [
+    'Verificando recursos locales…',
+    'Preparando módulos operativos…',
+    'Sincronizando preferencias del terminal…',
+    'Casi listo — abriendo interfaz…',
+  ];
 
   function setBootMessage(msg) {
     var m = document.getElementById('crozzoBootShellMsg');
     if (m) m.textContent = String(msg || 'Cargando recursos…');
   }
 
+  function cycleBootMessages() {
+    if (bootHidden) return;
+    bootMsgIndex = (bootMsgIndex + 1) % BOOT_MSGS.length;
+    setBootMessage(BOOT_MSGS[bootMsgIndex]);
+    bootMsgTimer = setTimeout(cycleBootMessages, 2200);
+  }
+
   function hideBootShell() {
     if (bootHidden) return;
     bootHidden = true;
+    if (bootMsgTimer) clearTimeout(bootMsgTimer);
     var el = document.getElementById('crozzo-boot-shell');
     if (!el) return;
     el.classList.add('crozzo-boot-shell--out');
@@ -233,6 +260,7 @@
 
   function watchBootShell() {
     ensureBootShell();
+    cycleBootMessages();
     function tick() {
       if (bootReady()) hideBootShell();
     }

@@ -112,7 +112,7 @@ const mainHtml = join(appDir, 'Crozzo_POS_Completo.html');
 
 const extraHtml = ['CrozzoQyC_App.html', 'Crozzo_POS_DisenadorTicket.html', 'crm-registro-cliente.html'];
 
-const copyDirs = ['css', 'core', 'vendor', 'ui', 'infra', 'modules', 'bundles'];
+const copyDirs = ['css', 'core', 'vendor', 'ui', 'infra', 'modules', 'bundles', 'assets'];
 
 if (!existsSync(mainHtml)) {
   console.error('[sync] No se encontró app/Crozzo_POS_Completo.html');

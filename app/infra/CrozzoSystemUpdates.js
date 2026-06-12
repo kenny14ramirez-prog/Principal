@@ -477,7 +477,7 @@
         return String(global.CROZZO_APP_DISPLAY_NAME).trim();
       }
     } catch (_) {}
-    return 'Proyecto';
+    return 'BONA origen';
   }
 
   function androidInstallUninstallGuide(short) {
@@ -486,8 +486,8 @@
       return TU.androidInstallConflictHelp();
     }
     return (
-      'Si Android dice «no se pudo instalar» o «conflicto de paquetes»: Ajustes → Apps → busque «Proyecto» → Desinstalar. ' +
-      'Luego instale el APK Proyecto_*_arm64.apk desde GitHub Releases (no use «Actualizar» sobre la app vieja).'
+      'Si Android dice «no se pudo instalar» o «conflicto de paquetes»: Ajustes → Apps → busque «BONA origen» → Desinstalar. ' +
+      'Luego instale el APK BONA_origen_*_arm64.apk desde GitHub Releases (no use «Actualizar» sobre la app vieja).'
     );
   }
 
@@ -1927,7 +1927,7 @@
           errMsg ||
           (profile.kind === 'android'
             ? 'Puede instalar ahora o seguir operando la caja. Se descargará el APK y Android abrirá el instalador. ' +
-              'Si «Actualizar» falla por firma distinta, desinstale «Proyecto» en Ajustes → Apps e instale el APK de GitHub.'
+              'Si «Actualizar» falla por firma distinta, desinstale «BONA origen» en Ajustes → Apps e instale el APK de GitHub.'
             : profile.isAndroid
               ? 'Pulse «Instalar ahora» para recargar la interfaz en el navegador.'
               : profile.isDesktopBinary
@@ -2444,7 +2444,7 @@
             onProgress({
               phase: 'install',
               percent: 88,
-              message: 'Instale el APK. Si Android rechaza: desinstale «Proyecto» primero (Ajustes → Apps).',
+              message: 'Instale el APK. Si Android rechaza: desinstale «BONA origen» primero (Ajustes → Apps).',
             });
           }
           return {
@@ -2529,7 +2529,7 @@
     if (res && res.plan === 'android_apk') {
       var awaitingMsg =
         (res.installHint ? res.installHint + ' ' : androidInstallUninstallGuide(true) + ' ') +
-        'Instalador abierto: confirme en Android. Si falla, desinstale «Proyecto» e instale el APK de GitHub.';
+        'Instalador abierto: confirme en Android. Si falla, desinstale «BONA origen» e instale el APK de GitHub.';
       if (uiMode === 'optional') {
         applyOptionalAwaiting(awaitingMsg);
         return Promise.resolve({ handled: true, res: res });
@@ -2541,7 +2541,7 @@
     if (res && res.plan === 'apk_download' && !res.exiting) {
       var dlMsg =
         (res.installHint ? res.installHint + ' ' : '') +
-        'Descarga del APK iniciada. Al instalar: si falla, desinstale «Proyecto» en Ajustes → Apps e instale el APK de nuevo.';
+        'Descarga del APK iniciada. Al instalar: si falla, desinstale «BONA origen» en Ajustes → Apps e instale el APK de nuevo.';
       if (uiMode === 'optional') {
         applyOptionalAwaiting(dlMsg);
         if (typeof global.showToast === 'function') global.showToast('Descarga del APK iniciada.', 'info');
