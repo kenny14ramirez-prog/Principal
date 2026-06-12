@@ -40,6 +40,11 @@ description = "Reset permiso cámara WebView2"
 commands.allow = ["cxf_reset_webview_camera_permission"]
 
 [[permission]]
+identifier = "allow-crozzo-devtools"
+description = "Abrir consola técnica WebView (F12)"
+commands.allow = ["crozzo_open_devtools"]
+
+[[permission]]
 identifier = "allow-crozzo-gossip-udp"
 description = "Gossip UDP offline entre tablets (broadcast/multicast)"
 commands.allow = [

@@ -36,11 +36,16 @@ fn greet(name: &str) -> String {
 #[cfg(desktop)]
 #[tauri::command]
 fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
-    let win = app
-        .get_webview_window("main")
-        .ok_or_else(|| "Ventana principal no encontrada".to_string())?;
-    win.open_devtools();
-    Ok(())
+    if let Some(win) = app.get_webview_window("main") {
+        win.open_devtools();
+        return Ok(());
+    }
+    let wins = app.webview_windows();
+    if let Some(win) = wins.into_values().next() {
+        win.open_devtools();
+        return Ok(());
+    }
+    Err("No hay ventana WebView disponible".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

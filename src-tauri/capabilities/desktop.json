@@ -22,6 +22,7 @@
     "allow-crozzo-gossip-udp",
     "allow-crozzo-lan-ws",
     "allow-crozzo-mdns",
-    "allow-crozzo-webview-camera"
+    "allow-crozzo-webview-camera",
+    "allow-crozzo-devtools"
   ]
 }

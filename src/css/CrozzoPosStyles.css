@@ -23886,6 +23886,57 @@ html.crozzo-auth-gate-pending:not(.crozzo-app-ready) .login-overlay:not([hidden]
 .login-js-fault[hidden] {
   display: none !important;
 }
+#crozzoTechConsole {
+  position: fixed;
+  inset: auto 12px 12px 12px;
+  top: 12px;
+  z-index: 120000;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: min(70vh, 520px);
+  border-radius: 10px;
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  background: rgba(2, 6, 23, 0.96);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  font-family: ui-monospace, Consolas, monospace;
+  color: #e2e8f0;
+}
+#crozzoTechConsole[hidden] {
+  display: none !important;
+}
+.crozzo-tech-console__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 12px;
+}
+.crozzo-tech-console__hint {
+  flex: 1;
+  opacity: 0.7;
+  font-size: 11px;
+}
+.crozzo-tech-console__btn {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(30, 41, 59, 0.8);
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.crozzo-tech-console__log {
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .crozzo-honeypot-panel[hidden],
 .crozzo-honeypot-harvest[hidden],
 .crozzo-honeypot-breach[hidden],

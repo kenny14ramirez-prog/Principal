@@ -101,24 +101,77 @@
     }
   }
 
-  function crozzoOpenDevtools() {
+  function crozzoTauriInvoke(cmd) {
     try {
       if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
-        global.__TAURI__.core.invoke('crozzo_open_devtools').catch(function () {});
-        return;
+        return global.__TAURI__.core.invoke(cmd);
+      }
+      if (global.__TAURI_INTERNALS__ && typeof global.__TAURI_INTERNALS__.invoke === 'function') {
+        return global.__TAURI_INTERNALS__.invoke(cmd);
       }
     } catch (_) {}
-    crozzoPresentLoginBootFault('Consola técnica: use F12 si el navegador lo permite.');
+    return Promise.reject(new Error('Entorno Tauri no disponible'));
+  }
+
+  function crozzoClearLoginBootFault() {
+    try {
+      var el = document.getElementById('loginJsFault');
+      if (el) {
+        el.hidden = true;
+        el.textContent = '';
+      }
+    } catch (_) {}
+  }
+
+  function crozzoOpenDevtoolsFallback(reason) {
+    if (typeof global.crozzoOpenTechConsole === 'function') {
+      global.crozzoOpenTechConsole();
+      crozzoPresentLoginBootFault(
+        'DevTools nativo no disponible' + (reason ? ' (' + reason + ')' : '') + '. Consola embebida abierta.'
+      );
+      return;
+    }
+    crozzoPresentLoginBootFault(
+      'Consola técnica: ' + (reason || 'no disponible en este entorno.')
+    );
+  }
+
+  function crozzoOpenDevtools() {
+    var isTauri = !!(global.__CROZZO_IS_TAURI__ || global.__TAURI__ || global.__TAURI_INTERNALS__);
+    if (!isTauri) {
+      if (typeof global.crozzoToggleTechConsole === 'function') {
+        global.crozzoToggleTechConsole();
+        return;
+      }
+      crozzoOpenDevtoolsFallback('solo disponible en la app de escritorio');
+      return;
+    }
+    crozzoTauriInvoke('crozzo_open_devtools')
+      .then(function () {
+        crozzoClearLoginBootFault();
+      })
+      .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : String(err || 'error');
+        crozzoOpenDevtoolsFallback(msg);
+      });
+  }
+
+  function crozzoRefreshDevToolsBtn() {
+    var devBtn = document.getElementById('loginDevToolsBtn');
+    if (!devBtn) return;
+    if (global.__CROZZO_IS_TAURI__ || global.__TAURI__ || global.__TAURI_INTERNALS__) {
+      devBtn.style.display = '';
+    }
   }
 
   function crozzoWireLoginBootUi() {
     if (typeof global.crozzoRefreshLoginPairingHint === 'function') {
       global.crozzoRefreshLoginPairingHint();
     }
+    crozzoRefreshDevToolsBtn();
     var devBtn = document.getElementById('loginDevToolsBtn');
     if (devBtn && !devBtn._crozzoBound) {
       devBtn._crozzoBound = true;
-      if (global.__CROZZO_IS_TAURI__) devBtn.style.display = '';
       devBtn.addEventListener('click', function (e) {
         e.preventDefault();
         crozzoOpenDevtools();
@@ -170,12 +223,17 @@
     }
     if (!document._crozzoDevtoolsKey) {
       document._crozzoDevtoolsKey = true;
-      document.addEventListener('keydown', function (e) {
-        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i'))) {
-          e.preventDefault();
-          crozzoOpenDevtools();
-        }
-      });
+      document.addEventListener(
+        'keydown',
+        function (e) {
+          if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i'))) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            crozzoOpenDevtools();
+          }
+        },
+        true
+      );
     }
     if (typeof global.crozzoTabletShellRefresh === 'function') {
       global.crozzoTabletShellRefresh();
@@ -278,6 +336,7 @@
     boot();
   }
   global.addEventListener('load', function () {
+    crozzoRefreshDevToolsBtn();
     crozzoRepairLoginShell();
   });
 })(typeof window !== 'undefined' ? window : globalThis);

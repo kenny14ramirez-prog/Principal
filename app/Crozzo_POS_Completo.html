@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.104">
+<meta name="crozzo-app-version" content="1.0.105">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
@@ -21,6 +21,7 @@
 <script src="infra/CrozzoEmulationHarness.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
+<script src="core/CrozzoTechConsole.js"></script>
 <script src="core/CrozzoLoginBoot.js"></script>
 <script src="core/CrozzoDeviceForm.js"></script>
 <script src="core/CrozzoTabletShell.js"></script>
@@ -548,7 +549,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="crozzoKioskEnterComandasFromLogin('comandas')">🖥️ Modo pantallas (cocina, bar y fríos)</button>
       <button type="button" class="btn btn-outline" id="btnDownloadApk" style="width:100%; min-height:44px;" onclick="crozzoOpenAppDownloadQr()">📱 QR — Descargar app actualizada</button>
       <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Escanee el QR con otra tablet · no requiere Supabase</p>
-      <button type="button" class="btn btn-outline" id="loginDevToolsBtn" style="width:100%; margin-top:6px; min-height:36px; font-size:11px; display:none;">🛠 Consola técnica (F12)</button>
+      <button type="button" class="btn btn-outline" id="loginDevToolsBtn" style="width:100%; margin-top:6px; min-height:36px; font-size:11px;">🛠 Consola técnica (F12)</button>
     </div>
   </div>
 </div>
