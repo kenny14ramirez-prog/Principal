@@ -37285,6 +37285,18 @@ function showModal(title, content, options) {
   modal.style.opacity = '1';
   modal.style.transform = 'none';
   modal.style.pointerEvents = 'auto';
+  if (!overlay._crozzoBackdropBound) {
+    overlay._crozzoBackdropBound = true;
+    overlay.addEventListener('click', function (ev) {
+      if (
+        ev.target === overlay &&
+        !overlay.dataset.noBackdropClose &&
+        overlay.classList.contains('active')
+      ) {
+        closeModal();
+      }
+    });
+  }
   if (typeof crozzoCloseSidebarDrawer === 'function') crozzoCloseSidebarDrawer();
 }
 function closeModal(options) {

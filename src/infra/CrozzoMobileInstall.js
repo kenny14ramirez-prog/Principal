@@ -89,8 +89,34 @@
       });
   }
 
+  function instantInstallPayload() {
+    var TU = global.CrozzoTauriUpdater;
+    var ver =
+      typeof global.CROZZO_APP_VERSION !== 'undefined'
+        ? String(global.CROZZO_APP_VERSION)
+        : TU && TU.getVersion
+          ? TU.getVersion()
+          : 'v1.0.0';
+    if (ver && ver.charAt(0) !== 'v') ver = 'v' + ver;
+    var webBase = getWebAppBaseUrl();
+    var landingUrl = getMobileLandingUrl(webBase);
+    var releasePageUrl =
+      (TU && TU.releasesPageUrl) ||
+      'https://github.com/kenny14ramirez-prog/Principal/releases/latest';
+    return {
+      version: ver,
+      androidUrl: '',
+      qrUrl: landingUrl || releasePageUrl,
+      releasePageUrl: releasePageUrl,
+      iosUrl: getIosInstallUrl(webBase),
+      landingUrl: landingUrl,
+      webBase: webBase,
+      instant: true,
+    };
+  }
+
   function resolveInstallPayload() {
-    var timeoutMs = 12000;
+    var timeoutMs = 5000;
     var payloadPromise = fetchLatestVersion().then(function (ver) {
       var TU = global.CrozzoTauriUpdater;
       var apkPromise =
@@ -230,7 +256,11 @@
     var qrUrl = payload.qrUrl || payload.androidUrl || payload.landingUrl || payload.releasePageUrl;
     var host = document.getElementById('crozzoAppDownloadQrHost');
     if (!qrUrl && payload.releasePageUrl) qrUrl = payload.releasePageUrl;
-    setInstallModalPhase(payload.timedOut ? 'fallback' : 'ready');
+    setInstallModalPhase(payload.timedOut || payload.instant ? 'fallback' : 'ready');
+    if (payload.instant) {
+      var statusEl = document.getElementById('crozzoAppDownloadQrStatus');
+      if (statusEl) statusEl.textContent = 'Listo — enlace local (actualizando desde GitHub…)';
+    }
     if (host) {
       if (qrUrl) {
         paintQrHost(host, qrUrl, 200);
@@ -329,6 +359,7 @@
       showClose: true,
     });
     bindModalCloseButtons();
+    bindAppDownloadQrModal(instantInstallPayload());
 
     resolveInstallPayload()
       .then(function (payload) {
