@@ -136,6 +136,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_drain_pending,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_health,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_ws::crozzo_lan_ws_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_ws::crozzo_lan_ws_stop,
@@ -151,6 +153,8 @@ pub fn run() {
             crozzo_mdns::crozzo_mdns_stop,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_mdns::crozzo_mdns_drain_discovered,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_mdns::crozzo_guess_local_ipv4,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::crozzo_emulation_set_active,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

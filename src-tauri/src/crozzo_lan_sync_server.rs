@@ -532,3 +532,23 @@ pub fn crozzo_lan_sync_drain_pending() -> Result<Vec<CrozzoLanSyncSubmission>, S
         None => Ok(Vec::new()),
     }
 }
+
+/// Health check nativo (sin HTTP desde el WebView).
+#[tauri::command]
+pub fn crozzo_lan_sync_health() -> Result<serde_json::Value, String> {
+    let guard = shared_state().lock().map_err(|e| e.to_string())?;
+    match guard.as_ref() {
+        Some(inner) if !inner.stop => Ok(serde_json::json!({
+            "ok": true,
+            "running": true,
+            "port": inner.port,
+            "service": "crozzo-lan-sync"
+        })),
+        _ => Ok(serde_json::json!({
+            "ok": false,
+            "running": false,
+            "port": DEFAULT_PORT,
+            "service": "crozzo-lan-sync"
+        })),
+    }
+}

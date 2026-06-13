@@ -18,12 +18,21 @@ if errorlevel 1 (
 set "TAURI_SIGNING_PRIVATE_KEY_PATH=%USERPROFILE%\.tauri\crozzo-pos.key"
 if not exist "%TAURI_SIGNING_PRIVATE_KEY_PATH%" (
   echo [AVISO] No hay clave en %TAURI_SIGNING_PRIVATE_KEY_PATH%
-  echo Ejecute antes: generar-claves-tauri.bat
-  pause
+  echo Se compilara el .exe sin firmar artefactos updater ^(instalacion manual OK^).
+  echo Para OTA firmado ejecute antes: generar-claves-tauri.bat
+  echo.
 )
-call npm run tauri build
+node scripts\run-tauri-build-local.mjs
+if errorlevel 1 (
+  echo [ERROR] tauri build
+  pause
+  exit /b 1
+)
 echo.
-echo  Instalador en src-tauri\target\release\bundle\
-echo  Para publicar en GitHub: git tag vX.Y.Z ^&^& git push origin vX.Y.Z
+node scripts\compilar-instalador-local.mjs
+echo.
+echo  Instalador en src-tauri\target\release\bundle\nsis\
+echo  Copia lista en dist\local\
+echo  ^(Sin GitHub — para OTA publicada use opcion 2 o 3 del menu^)
 echo.
 pause

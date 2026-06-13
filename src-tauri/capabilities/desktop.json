@@ -19,6 +19,7 @@
     "allow-crozzo-install",
     "allow-crozzo-dian",
     "allow-crozzo-crm-registro",
+    "allow-crozzo-lan-sync",
     "allow-crozzo-gossip-udp",
     "allow-crozzo-lan-ws",
     "allow-crozzo-mdns",

@@ -2973,14 +2973,26 @@
       } catch (e2) {
         centralOk = false;
       }
-    } else if (md.role === 'A' && md.serverIp && typeof global.crozzoPingHealthQuick === 'function') {
-      try {
-        centralOk = await global.crozzoPingHealthQuick(md.serverIp, Number(md.port) || 3000);
-      } catch (e3) {
-        centralOk = false;
-      }
     } else if (md.role === 'A') {
-      centralOk = true;
+      if (global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.probeHealthLocal === 'function') {
+        try {
+          if (typeof global.CrozzoLanSyncBridge.ensureServerOnce === 'function') {
+            await global.CrozzoLanSyncBridge.ensureServerOnce(false);
+          }
+          var prA = await global.CrozzoLanSyncBridge.probeHealthLocal(Number(md.port) || 3000);
+          centralOk = !!(prA && prA.ok);
+        } catch (e3) {
+          centralOk = false;
+        }
+      } else if (md.serverIp && typeof global.crozzoPingHealthQuick === 'function') {
+        try {
+          centralOk = await global.crozzoPingHealthQuick(md.serverIp, Number(md.port) || 3000);
+        } catch (e3b) {
+          centralOk = false;
+        }
+      } else {
+        centralOk = true;
+      }
     }
     var isolated = !online || (!cloudOk && !centralOk);
     state.lastCheck = { online: online, tier: tier.tier, cloudOk: cloudOk, centralOk: centralOk, isolated: isolated };

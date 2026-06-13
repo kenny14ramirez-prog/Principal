@@ -26812,31 +26812,24 @@ async function testConexionHealthFromForm(which) {
     ip = (document.getElementById('conexionServerIp')?.value || '').trim();
     port = document.getElementById('conexionPortA')?.value || '3000';
   }
+  if (which === 'A' && window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.isDesktopTauri === 'function' && window.CrozzoLanSyncBridge.isDesktopTauri()) {
+    showConexionStatus(which, 'info', 'Comprobando servidor LAN interno de la app…');
+    if (typeof window.CrozzoLanSyncBridge.ensureServerForPairing === 'function') {
+      await window.CrozzoLanSyncBridge.ensureServerForPairing();
+    }
+    const res = await testHealthEndpoint(ip || '127.0.0.1', port);
+    showConexionStatus(which, res.ok ? 'success' : 'error', res.message);
+    showToast(res.message, res.ok ? 'success' : 'error');
+    return;
+  }
   if (!ip) {
     showToast('Ingresa una IP', 'warning');
     return;
   }
-  showConexionStatus(which, 'info', `Probando http://${ip}:${port}/health …`);
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    await fetch(`http://${ip}:${port}/health`, {
-      method: 'GET',
-      signal: controller.signal,
-      mode: 'no-cors'
-    });
-    clearTimeout(timeoutId);
-    showConexionStatus(which, 'success', `Servidor alcanzado en ${ip}:${port} (verifica API en el central).`);
-    showToast('Conexión verificada', 'success');
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      showConexionStatus(which, 'error', `Timeout: ${ip}:${port} no respondió en 5 s.`);
-      showToast('Timeout al conectar', 'error');
-    } else {
-      showConexionStatus(which, 'success', `Petición enviada a ${ip}:${port} (navegador puede ocultar CORS; si el central está arriba, suele ser válido).`);
-      showToast('Prueba completada', 'info');
-    }
-  }
+  showConexionStatus(which, 'info', `Probando servidor en ${ip}:${port}…`);
+  const res = await testHealthEndpoint(ip, port);
+  showConexionStatus(which, res.ok ? 'success' : 'error', res.message);
+  showToast(res.message, res.ok ? 'success' : 'error');
 }
 async function scanConexionRed() {
   const resultsContainer = document.getElementById('conexionScanResults');
@@ -27338,7 +27331,30 @@ function crozzoTierTickDelayMs(lastTier, offlineStreak) {
 }
 async function crozzoFetchLanHealth(ip, port, timeoutMs) {
   if (!ip) return false;
-  const url = `http://${ip}:${port || 3000}/health`;
+  const p = Number(port) || 3000;
+  const bridge = window.CrozzoLanSyncBridge;
+  const isLocal =
+    bridge && typeof bridge.crozzoIsLocalLanHost === 'function'
+      ? bridge.crozzoIsLocalLanHost(ip)
+      : (function () {
+          const host = String(ip).trim().toLowerCase();
+          if (host === '127.0.0.1' || host === 'localhost' || host === '::1') return true;
+          try {
+            const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : null;
+            return !!(md && md.role !== 'B' && md.serverIp && host === String(md.serverIp).trim().toLowerCase());
+          } catch (_) {
+            return false;
+          }
+        })();
+  if (isLocal && bridge) {
+    if (typeof bridge.ensureServerOnce === 'function') await bridge.ensureServerOnce(false);
+    if (typeof bridge.probeHealthLocal === 'function') {
+      const pr = await bridge.probeHealthLocal(p);
+      return !!(pr && pr.ok);
+    }
+    return false;
+  }
+  const url = `http://${ip}:${p}/health`;
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), timeoutMs || 2200);
   try {
@@ -27390,14 +27406,18 @@ async function crozzoProbeLocalLanReachable(md, opts) {
     return { ok: true, via };
   };
   if (cfg.role === 'A') {
-    if (window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.status === 'function') {
-      try {
-        const st = await window.CrozzoLanSyncBridge.status();
-        if (st && st.running) return markOk('server');
-      } catch (_) {}
+    if (window.CrozzoLanSyncBridge) {
+      if (typeof window.CrozzoLanSyncBridge.ensureServerOnce === 'function') {
+        await window.CrozzoLanSyncBridge.ensureServerOnce(false);
+      }
+      if (typeof window.CrozzoLanSyncBridge.probeHealthLocal === 'function') {
+        try {
+          const pr = await window.CrozzoLanSyncBridge.probeHealthLocal(port);
+          if (pr && pr.ok) return markOk(pr.via || 'tauri');
+          return { ok: false, via: null, error: (pr && pr.error) || '' };
+        } catch (_) {}
+      }
     }
-    const okLocal = await crozzoFetchLanHealth('127.0.0.1', port, 1400);
-    if (okLocal) return markOk('health_local');
     return { ok: false, via: null };
   }
   if (cfg.role === 'B') {
@@ -28824,15 +28844,19 @@ async function testLANConnection() {
   const role = (document.getElementById('mdRoleValue')?.value || 'A') === 'B' ? 'B' : 'A';
   if (el) el.textContent = '⏳ Probando red…';
   if (role === 'A') {
-    const ip = (document.getElementById('mdServerIp')?.value || '').trim();
     const port = document.getElementById('mdPortA')?.value || '3000';
-    if (!ip) {
-      if (el) el.textContent = '🟢 En red · Rol A (servidor local, sin IP obligatoria)';
-      showToast('Rol A: no necesitas IP remota para guardar. Opcional: detecta IP para que los clientes te encuentren.', 'success');
-      return;
+    const ip = (document.getElementById('mdServerIp')?.value || '').trim() || '127.0.0.1';
+    if (window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.ensureServerForPairing === 'function') {
+      await window.CrozzoLanSyncBridge.ensureServerForPairing();
     }
     const res = await testHealthEndpoint(ip, port);
-    if (el) el.textContent = res.ok ? '🟢 En red · /health responde en esta IP' : '🔴 Fuera de red · /health no responde';
+    if (el) {
+      el.textContent = res.ok
+        ? ip === '127.0.0.1'
+          ? '🟢 Servidor LAN interno activo en esta caja'
+          : '🟢 En red · servidor responde en esta IP'
+        : '🔴 Servidor LAN interno no responde';
+    }
     showToast(res.message, res.ok ? 'success' : 'error');
     return;
   }
@@ -30180,7 +30204,21 @@ function guessGatewayFromIp(ip) {
   return `${p[0]}.${p[1]}.${p[2]}.1`;
 }
 /** ICE host/srflx: recoge candidatos y elige la mejor IPv4 privada (más estable que el primer match). */
-function detectLocalIP() {
+async function crozzoDetectLocalIpTauri() {
+  try {
+    if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+      const rip = await window.__TAURI__.core.invoke('crozzo_guess_local_ipv4');
+      const ip = String(rip || '').trim();
+      if (ip && isPrivateIPv4(ip) && ip !== '127.0.0.1') return ip;
+    }
+  } catch (e) {
+    try {
+      console.warn('[crozzo] detectLocalIP tauri', e);
+    } catch (_) {}
+  }
+  return null;
+}
+function detectLocalIPWebRtc() {
   return new Promise((resolve) => {
     let resolved = false;
     let pc;
@@ -30233,6 +30271,12 @@ function detectLocalIP() {
     setTimeout(() => finish(pickBestLocalIpFromSet(candidates)), navOff ? 2200 : 4500);
   });
 }
+async function detectLocalIP() {
+  const tauriIp = await crozzoDetectLocalIpTauri();
+  if (tauriIp) return tauriIp;
+  return detectLocalIPWebRtc();
+}
+window.crozzoDetectLocalIpTauri = crozzoDetectLocalIpTauri;
 window.detectLocalIP = detectLocalIP;
 /**
  * Información de red disponible en el navegador.
@@ -30407,12 +30451,42 @@ window.getNetworkInfo = getNetworkInfo;
 window.scanLocalNetwork = scanLocalNetwork;
 window.findServerA = findServerA;
 async function testHealthEndpoint(ip, port) {
-  if (!ip) return { ok: false, code: 'no_ip', message: 'IP vacía' };
-  const ok = await crozzoFetchLanHealth(ip, port || 3000, 5000);
-  if (ok) {
-    return { ok: true, code: 'health_ok', message: `GET /health OK en ${ip}:${port || 3000}` };
+  const p = Number(port) || 3000;
+  const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : { role: 'A' };
+  const isLocalProbe =
+    !ip ||
+    ip === '127.0.0.1' ||
+    ip === 'localhost' ||
+    (String(md.serverIp || '').trim() && ip === String(md.serverIp).trim()) ||
+    (window.__CROZZO_DETECTED_LAN_IP && ip === String(window.__CROZZO_DETECTED_LAN_IP).trim());
+  if ((!ip || isLocalProbe) && md.role !== 'B' && window.CrozzoLanSyncBridge) {
+    if (typeof window.CrozzoLanSyncBridge.ensureServerForPairing === 'function') {
+      await window.CrozzoLanSyncBridge.ensureServerForPairing();
+    }
+    if (typeof window.CrozzoLanSyncBridge.probeHealthLocal === 'function') {
+      const pr = await window.CrozzoLanSyncBridge.probeHealthLocal(p);
+      if (pr.ok) {
+        return {
+          ok: true,
+          code: 'health_ok',
+          message: `Servidor LAN interno activo en este equipo (puerto ${p})`,
+        };
+      }
+      return {
+        ok: false,
+        code: 'health_fail',
+        message:
+          pr.error ||
+          'El servidor LAN interno no respondió. Cierre y abra la app o reinstale el instalador actualizado.',
+      };
+    }
   }
-  return { ok: false, code: 'health_fail', message: `Sin respuesta /health en ${ip}:${port || 3000}` };
+  if (!ip) return { ok: false, code: 'no_ip', message: 'IP vacía' };
+  const ok = await crozzoFetchLanHealth(ip, p, 5000);
+  if (ok) {
+    return { ok: true, code: 'health_ok', message: `Servidor alcanzable en ${ip}:${p}` };
+  }
+  return { ok: false, code: 'health_fail', message: `Sin respuesta en ${ip}:${p}. Verifique Wi‑Fi y firewall.` };
 }
 function validateNITWithDV(nit) {
   if (typeof validarNIT === 'function') return validarNIT(nit);
@@ -38535,6 +38609,88 @@ function init() {
     } catch (_) {}
     return fromLan || fromMd || fromCs || lastIp || detected || '';
   }
+  async function crozzoPairingEnsureCajaReady() {
+    var lip = '';
+    if (typeof crozzoDetectLocalIpTauri === 'function') {
+      try {
+        lip = (await crozzoDetectLocalIpTauri()) || '';
+      } catch (_) {}
+    }
+    if (!lip && typeof detectLocalIP === 'function') {
+      try {
+        lip = (await detectLocalIP()) || '';
+      } catch (_) {}
+    }
+    if (!lip && typeof getNetworkInfo === 'function') {
+      try {
+        var ni = await getNetworkInfo();
+        lip = (ni && ni.localIp) || '';
+      } catch (_) {}
+    }
+    if (lip) {
+      try {
+        window.__CROZZO_DETECTED_LAN_IP = String(lip).trim();
+        localStorage.setItem('crozzo_wifi_zone_last_ip', String(lip).trim());
+      } catch (_) {}
+      try {
+        var lanRaw = localStorage.getItem('crozzo_lan_config');
+        var lan = lanRaw ? JSON.parse(lanRaw) : null;
+        if (!lan || lan.lanSyncEnabled !== true) {
+          var devId = typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : 'caja';
+          var boot = {
+            version: 2,
+            lanSyncEnabled: true,
+            role: 'A',
+            serverIp: lip,
+            port: 3000,
+            allowLan: true,
+            offlineEnabled: true,
+            locationId: (lan && lan.locationId) || ('loc-' + String(devId).slice(0, 10)),
+            networkSsidNote: (lan && lan.networkSsidNote) || 'Red Wi‑Fi principal',
+            savedAt: Date.now()
+          };
+          localStorage.setItem('crozzo_lan_config', JSON.stringify(boot));
+        } else if (!String(lan.serverIp || '').trim()) {
+          lan.serverIp = lip;
+          lan.savedAt = Date.now();
+          localStorage.setItem('crozzo_lan_config', JSON.stringify(lan));
+        }
+      } catch (_) {}
+      try {
+        var md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : null;
+        if (md && !String(md.serverIp || '').trim()) {
+          md.serverIp = lip;
+          if (typeof persistMultiDeviceConfig === 'function') persistMultiDeviceConfig(md);
+        }
+      } catch (_) {}
+    }
+    if (window.CrozzoLanSyncBridge) {
+      try {
+        if (typeof window.CrozzoLanSyncBridge.ensureServerForPairing === 'function') {
+          await window.CrozzoLanSyncBridge.ensureServerForPairing();
+        } else if (typeof window.CrozzoLanSyncBridge.syncFromConfig === 'function') {
+          await window.CrozzoLanSyncBridge.syncFromConfig();
+        }
+      } catch (_) {}
+    }
+    var serverOk = false;
+    var serverErr = '';
+    if (window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.probeHealthLocal === 'function') {
+      try {
+        var probe = await window.CrozzoLanSyncBridge.probeHealthLocal(3000);
+        serverOk = !!(probe && probe.ok);
+        serverErr = (probe && probe.error) || '';
+      } catch (eProbe) {
+        serverErr = String((eProbe && eProbe.message) || eProbe);
+      }
+    } else if (typeof crozzoFetchLanHealth === 'function') {
+      serverOk = await crozzoFetchLanHealth('127.0.0.1', 3000, 1400);
+    }
+    if (window.CrozzoNetworkGuard && typeof window.CrozzoNetworkGuard.setIsActiveServer === 'function') {
+      window.CrozzoNetworkGuard.setIsActiveServer(true);
+    }
+    return { ip: lip, serverOk: serverOk, serverError: serverErr };
+  }
   function crozzoPairingBuildPayload(targetProfile) {
     try {
     targetProfile = String(targetProfile || 'tablet').toLowerCase();
@@ -38563,9 +38719,8 @@ function init() {
     if (!serverIp && targetProfile !== 'caja') {
       return {
         error:
-          'Configure la red LAN en la caja (Multi-Dispositivo → LAN → detectar IP) antes de generar el QR para ' +
-          crozzoPairingTargetProfileLabel(targetProfile) +
-          '.'
+          'No se detectó la IP de esta caja. Conecte Wi‑Fi o Ethernet, espere unos segundos y pulse «Tablet mesero» de nuevo. ' +
+          'Si persiste: Multi-Dispositivo → LAN → Detectar IP.'
       };
     }
     const port = Math.max(1, Number((lanSnap && lanSnap.port) || md.port || cs.port) || 3000);
@@ -38711,6 +38866,9 @@ function init() {
     crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
     const qrHost0 = el('crozzoPairingQrHost');
     if (qrHost0) qrHost0.innerHTML = '';
+    if (!isTabletLike && typeof crozzoPairingEnsureCajaReady === 'function') {
+      crozzoPairingEnsureCajaReady().catch(function () {});
+    }
     ov.removeAttribute('hidden');
     document.body.classList.add('crozzo-pairing-open');
     var rootEl = document.documentElement;
@@ -38809,28 +38967,23 @@ function init() {
     if (titleEl) {
       titleEl.textContent = 'QR para ' + crozzoPairingTargetProfileLabel(targetProfile);
     }
-    var built = crozzoPairingBuildPayload(targetProfile);
-    if (!built.error) {
-      crozzoPairingRenderReceiverQr(targetProfile, built);
-      return;
-    }
-    if (/Configure la red LAN/i.test(built.error) && typeof detectLocalIP === 'function') {
-      crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Detectando IP de esta caja…');
-      detectLocalIP()
-        .then(function (lip) {
-          if (lip) {
-            try {
-              window.__CROZZO_DETECTED_LAN_IP = String(lip).trim();
-            } catch (_) {}
-          }
-          crozzoPairingRenderReceiverQr(targetProfile, crozzoPairingBuildPayload(targetProfile));
-        })
-        .catch(function () {
-          crozzoPairingRenderReceiverQr(targetProfile, built);
-        });
-      return;
-    }
-    crozzoPairingRenderReceiverQr(targetProfile, built);
+    crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Preparando red local y generando QR…');
+    crozzoPairingEnsureCajaReady()
+      .then(function (ready) {
+        if (ready && ready.serverOk === false) {
+          crozzoPairingSetWarn(
+            'crozzoPairingReceiverWarn',
+            'El servidor LAN interno de la app no respondió. ' +
+              (ready.serverError || 'Reinicie BONA origen o reinstale el instalador actualizado.') +
+              ' El QR se genera igual, pero la tablet podría no conectar hasta que el servidor esté activo.'
+          );
+        }
+        var built = crozzoPairingBuildPayload(targetProfile);
+        crozzoPairingRenderReceiverQr(targetProfile, built);
+      })
+      .catch(function () {
+        crozzoPairingRenderReceiverQr(targetProfile, crozzoPairingBuildPayload(targetProfile));
+      });
   };
   function crozzoPairingQrCanvas() {
     const host = el('crozzoPairingQrHost');

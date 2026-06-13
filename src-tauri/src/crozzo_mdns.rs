@@ -47,7 +47,7 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-fn guess_local_ipv4() -> Ipv4Addr {
+pub fn guess_local_ipv4() -> Ipv4Addr {
     if let Ok(sock) = UdpSocket::bind("0.0.0.0:0") {
         if sock.connect("8.8.8.8:80").is_ok() {
             if let Ok(addr) = sock.local_addr() {
@@ -230,6 +230,11 @@ pub fn crozzo_mdns_stop() -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn crozzo_guess_local_ipv4() -> String {
+    guess_local_ipv4().to_string()
 }
 
 #[tauri::command]

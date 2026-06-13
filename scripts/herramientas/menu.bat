@@ -76,7 +76,9 @@ echo   [8] Verificar publicacion ^(local vs GitHub^)
 
 echo   [4] Configurar GitHub remoto
 
-echo   [5] Compilar .exe local
+echo   [5] Compilar .exe local ^(sin GitHub^)
+
+echo   [7] Compilar .apk local ^(sin GitHub^)
 
 echo   [6] Claves firma Tauri
 
@@ -99,6 +101,8 @@ if "%CROZZO_OP%"=="3" call "%~dp0publicar-actualizacion-opcional.bat" & goto men
 if "%CROZZO_OP%"=="4" call "%~dp0configurar-github-remoto.bat" & goto menu
 
 if "%CROZZO_OP%"=="5" call "%~dp0compilar-instalador.bat" & goto menu
+
+if "%CROZZO_OP%"=="7" call "%~dp0compilar-apk.bat" & goto menu
 
 if "%CROZZO_OP%"=="6" call "%~dp0generar-claves-tauri.bat" & goto menu
 
