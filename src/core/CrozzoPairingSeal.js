@@ -8,6 +8,8 @@
   var PAIR_INSTALL_URL = 'https://bonaorigen.app/instalar';
   var PAIR_SCHEME = 'bonaorigen://pair';
   var PAIR_BLOB_PREFIX = 'BO1.';
+  /** QR compacto de enlace rápido (sin cifrado, menos módulos → lectura más veloz). */
+  var PAIR_FAST_PREFIX = 'BOF.';
   var PAIR_KDF_SALT = new TextEncoder().encode('bona-origen-pair-v1');
   var PAIR_KDF_PASS = 'CrozzoBonaOrigenPairSeal2026';
   var _keyPromise = null;
@@ -56,7 +58,7 @@
         var combined = new Uint8Array(iv.length + ct.byteLength);
         combined.set(iv, 0);
         combined.set(new Uint8Array(ct), iv.length);
-        return PAIR_INSTALL_URL + '#' + PAIR_BLOB_PREFIX + base64UrlEncode(combined);
+        return PAIR_BLOB_PREFIX + base64UrlEncode(combined);
       });
     });
   }
@@ -77,7 +79,84 @@
     return null;
   }
 
+  function isPairingQr(text) {
+    var t = String(text || '').trim();
+    if (!t) return false;
+    return (
+      t.indexOf(PAIR_FAST_PREFIX) >= 0 ||
+      t.indexOf(PAIR_BLOB_PREFIX) >= 0 ||
+      t.indexOf(PAIR_INSTALL_URL) === 0 ||
+      t.indexOf(PAIR_SCHEME) === 0
+    );
+  }
+
+  /** Texto QR pequeño: solo LAN + perfil (la tablet completa vía nube/LAN después). */
+  function buildFastQrText(payloadObj) {
+    var p = payloadObj || {};
+    var lan = p.lan || {};
+    var ip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
+    var port = Math.max(1, Number(lan.port || p.port) || 3000);
+    var compact = {
+      t: 'C',
+      v: 4,
+      f: 1,
+      tp: String(p.target_profile || 'tablet').toLowerCase(),
+      ip: ip,
+      p: port,
+      loc: String(p.location_id || (p.network_primary && p.network_primary.location_id) || '').trim(),
+      ss: String((p.network_primary && p.network_primary.ssid_note) || p.network_ssid || '').trim().slice(0, 80),
+      ts: Number(p.timestamp) || Date.now(),
+    };
+    return PAIR_FAST_PREFIX + base64UrlEncode(new TextEncoder().encode(JSON.stringify(compact)));
+  }
+
+  function expandFastPayload(compact) {
+    if (!compact || typeof compact !== 'object') return null;
+    var ip = String(compact.ip || '').trim();
+    if (!ip) return null;
+    var port = Math.max(1, Number(compact.p) || 3000);
+    var tp = String(compact.tp || 'tablet').toLowerCase();
+    if (tp !== 'tablet' && tp !== 'pantalla') tp = 'tablet';
+    return {
+      type: 'CROZZO_CLOUD_PAIRING',
+      version: 4,
+      fast: 1,
+      target_profile: tp,
+      cloud_sync: false,
+      sync_priority: 'hybrid',
+      network_primary: { ssid_note: String(compact.ss || '').trim(), location_id: String(compact.loc || '').trim() },
+      lan: {
+        lan_sync_enabled: true,
+        role: 'B',
+        server_ip: ip,
+        central_ip: ip,
+        port: port,
+        allow_lan: true,
+        offline_enabled: true,
+        cloud_priority: true,
+      },
+      location_id: String(compact.loc || '').trim(),
+      network_ssid: String(compact.ss || '').trim(),
+      role: 'B',
+      timestamp: Number(compact.ts) || Date.now(),
+    };
+  }
+
+  function parseFastQr(text) {
+    var t = String(text || '').trim();
+    if (t.indexOf(PAIR_FAST_PREFIX) !== 0) return null;
+    try {
+      var raw = base64UrlDecode(t.slice(PAIR_FAST_PREFIX.length));
+      var compact = JSON.parse(new TextDecoder().decode(raw));
+      return expandFastPayload(compact);
+    } catch (_) {
+      return null;
+    }
+  }
+
   function unsealFromQr(text) {
+    var fast = parseFastQr(text);
+    if (fast) return Promise.resolve(fast);
     var blob = extractBlobFromQr(text);
     if (!blob || !global.crypto || !global.crypto.subtle) return Promise.resolve(null);
     return deriveKey()
@@ -97,21 +176,14 @@
       });
   }
 
-  function isPairingQr(text) {
-    var t = String(text || '').trim();
-    if (!t) return false;
-    return (
-      t.indexOf(PAIR_BLOB_PREFIX) >= 0 ||
-      t.indexOf(PAIR_INSTALL_URL) === 0 ||
-      t.indexOf(PAIR_SCHEME) === 0
-    );
-  }
-
   global.CrozzoPairingSeal = {
     PAIR_INSTALL_URL: PAIR_INSTALL_URL,
     PAIR_SCHEME: PAIR_SCHEME,
     PAIR_BLOB_PREFIX: PAIR_BLOB_PREFIX,
+    PAIR_FAST_PREFIX: PAIR_FAST_PREFIX,
     sealPayload: sealPayload,
+    buildFastQrText: buildFastQrText,
+    parseFastQr: parseFastQr,
     unsealFromQr: unsealFromQr,
     extractBlobFromQr: extractBlobFromQr,
     isPairingQr: isPairingQr,

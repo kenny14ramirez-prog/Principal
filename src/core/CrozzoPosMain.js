@@ -38372,6 +38372,7 @@ function init() {
   let pairingScanner = null;
   let pairingLastPayload = null;
   let pairingLastQrText = '';
+  let pairingLastQrFastText = '';
   let pairingApplying = false;
   let pairingQrRenderToken = 0;
   let pairingDecodeToken = 0;
@@ -38689,48 +38690,120 @@ function init() {
     ctx.drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
     return c2;
   }
+  function crozzoPairingGray(imageData) {
+    var d = imageData.data;
+    var out = new ImageData(imageData.width, imageData.height);
+    var o = out.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      o[i] = o[i + 1] = o[i + 2] = g;
+      o[i + 3] = 255;
+    }
+    return out;
+  }
+  function crozzoPairingBinarize(imageData, thresh) {
+    thresh = thresh == null ? 128 : thresh | 0;
+    var d = imageData.data;
+    var out = new ImageData(imageData.width, imageData.height);
+    var o = out.data;
+    for (var i = 0; i < d.length; i += 4) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      var v = g >= thresh ? 255 : 0;
+      o[i] = o[i + 1] = o[i + 2] = v;
+      o[i + 3] = 255;
+    }
+    return out;
+  }
+  function crozzoPairingOtsuThreshold(imageData) {
+    var hist = new Array(256);
+    var i;
+    for (i = 0; i < 256; i++) hist[i] = 0;
+    var d = imageData.data;
+    var total = 0;
+    for (i = 0; i < d.length; i += 4) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      hist[g]++;
+      total++;
+    }
+    if (!total) return 128;
+    var sum = 0;
+    for (i = 0; i < 256; i++) sum += i * hist[i];
+    var sumB = 0;
+    var wB = 0;
+    var max = 0;
+    var threshold = 128;
+    for (i = 0; i < 256; i++) {
+      wB += hist[i];
+      if (!wB) continue;
+      var wF = total - wB;
+      if (!wF) break;
+      sumB += i * hist[i];
+      var mB = sumB / wB;
+      var mF = (sum - sumB) / wF;
+      var between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > max) {
+        max = between;
+        threshold = i;
+      }
+    }
+    return threshold;
+  }
+  function crozzoPairingFilterAttempts(imageData) {
+    var attempts = [imageData];
+    try {
+      var contrast = crozzoPairingEnhanceContrast(imageData);
+      attempts.push(contrast);
+      attempts.push(crozzoPairingGray(imageData));
+      attempts.push(crozzoPairingBinarize(imageData, 128));
+      attempts.push(crozzoPairingBinarize(contrast, 140));
+      var otsu = crozzoPairingOtsuThreshold(contrast);
+      attempts.push(crozzoPairingBinarize(contrast, otsu));
+    } catch (_) {}
+    return attempts;
+  }
+  function crozzoPairingTryJsQrOnImageData(jsqr, imageData) {
+    if (!jsqr || !imageData) return null;
+    var attempts = crozzoPairingFilterAttempts(imageData);
+    var ai;
+    for (ai = 0; ai < attempts.length; ai++) {
+      var pack = attempts[ai];
+      var code = jsqr(pack.data, pack.width, pack.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) return code.data;
+    }
+    return null;
+  }
+  function crozzoPairingScaleCanvas(base, sf, maxSide) {
+    maxSide = maxSide || 2800;
+    if (sf === 1) return base;
+    var target = document.createElement('canvas');
+    target.width = Math.min(Math.max(8, Math.round(base.width * sf)), maxSide);
+    target.height = Math.min(Math.max(8, Math.round(base.height * sf)), maxSide);
+    var tctx = target.getContext('2d', { willReadFrequently: true }) || target.getContext('2d');
+    tctx.imageSmoothingEnabled = sf < 1;
+    tctx.drawImage(base, 0, 0, target.width, target.height);
+    return target;
+  }
   function crozzoPairingJsQrFast(jsqr, canvas) {
     var ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
     if (!ctx || typeof jsqr !== 'function') return null;
     var id = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    var code = jsqr(id.data, id.width, id.height, { inversionAttempts: 'attemptBoth' });
-    if (code && code.data) return code.data;
-    try {
-      var id2 = crozzoPairingEnhanceContrast(id);
-      code = jsqr(id2.data, id2.width, id2.height, { inversionAttempts: 'attemptBoth' });
-      if (code && code.data) return code.data;
-    } catch (_) {}
-    return null;
+    return crozzoPairingTryJsQrOnImageData(jsqr, id);
   }
   function crozzoPairingJsQrOnCanvas(jsqr, canvas, opts) {
     opts = opts || {};
-    var ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
-    if (!ctx) return null;
-    var scales = opts.scales || [1, 1.4, 1.85, 2.35];
-    var crops = opts.crops || [1, 0.82, 0.62];
-    var si;
+    var scales = opts.scales || [1, 1.4, 1.85, 2.35, 2.9];
+    var crops = opts.crops || [1, 0.72, 0.52, 0.38];
     var ci;
+    var si;
     for (ci = 0; ci < crops.length; ci++) {
       var base = crops[ci] >= 0.99 ? canvas : crozzoPairingCropCenterCanvas(canvas, crops[ci]);
       for (si = 0; si < scales.length; si++) {
-        var sf = scales[si];
-        var target = base;
-        if (sf !== 1) {
-          target = document.createElement('canvas');
-          target.width = Math.min(Math.round(base.width * sf), 2800);
-          target.height = Math.min(Math.round(base.height * sf), 2800);
-          var tctx = target.getContext('2d', { willReadFrequently: true }) || target.getContext('2d');
-          tctx.imageSmoothingEnabled = false;
-          tctx.drawImage(base, 0, 0, target.width, target.height);
-        }
-        var id = target.getContext('2d').getImageData(0, 0, target.width, target.height);
-        var attempts = [id, crozzoPairingEnhanceContrast(id)];
-        for (var ai = 0; ai < attempts.length; ai++) {
-          var code = jsqr(attempts[ai].data, attempts[ai].width, attempts[ai].height, {
-            inversionAttempts: 'attemptBoth',
-          });
-          if (code && code.data) return code.data;
-        }
+        var target = crozzoPairingScaleCanvas(base, scales[si]);
+        var ctx = target.getContext('2d', { willReadFrequently: true }) || target.getContext('2d');
+        if (!ctx) continue;
+        var id = ctx.getImageData(0, 0, target.width, target.height);
+        var raw = crozzoPairingTryJsQrOnImageData(jsqr, id);
+        if (raw) return raw;
       }
     }
     return null;
@@ -38753,10 +38826,40 @@ function init() {
         if (typeof jsqr !== 'function') return '';
         var fast = crozzoPairingJsQrFast(jsqr, canvas);
         if (fast) return fast;
-        return crozzoPairingJsQrOnCanvas(jsqr, canvas, {
-          scales: [1, 1.45, 1.9],
-          crops: [1, 0.74],
-        }) || '';
+        return new Promise(function (resolve) {
+          var bases = [canvas];
+          var crops = [0.68, 0.48, 0.82];
+          var ci;
+          for (ci = 0; ci < crops.length; ci++) {
+            bases.push(crozzoPairingCropCenterCanvas(canvas, crops[ci]));
+          }
+          var scales = [1, 1.35, 1.75, 2.2, 2.75];
+          var bi = 0;
+          var si = 0;
+          function step() {
+            if (bi >= bases.length) {
+              resolve('');
+              return;
+            }
+            var target = crozzoPairingScaleCanvas(bases[bi], scales[si]);
+            var tctx = target.getContext('2d', { willReadFrequently: true }) || target.getContext('2d');
+            if (tctx) {
+              var id = tctx.getImageData(0, 0, target.width, target.height);
+              var hit = crozzoPairingTryJsQrOnImageData(jsqr, id);
+              if (hit) {
+                resolve(hit);
+                return;
+              }
+            }
+            si++;
+            if (si >= scales.length) {
+              si = 0;
+              bi++;
+            }
+            window.setTimeout(step, 0);
+          }
+          window.setTimeout(step, 0);
+        });
       });
     });
   }
@@ -38818,11 +38921,11 @@ function init() {
     var photoLbl = el('crozzoPairingBtnPhoto');
     var galLbl = el('crozzoPairingBtnGallery');
     if (liveBtn) {
-      liveBtn.textContent = isApk ? '◎ Escanear en vivo' : '◎ Escáner óptico';
+      liveBtn.textContent = isApk ? '📷 Captura rápida' : '◎ Escáner óptico';
       liveBtn.style.display = '';
     }
     if (photoLbl) {
-      photoLbl.textContent = '📷 Captura rápida';
+      photoLbl.textContent = isApk ? '◎ Reintentar captura' : '📷 Captura rápida';
       photoLbl.style.display = isApk ? 'inline-flex' : 'none';
     }
     if (galLbl) {
@@ -39261,20 +39364,48 @@ function init() {
     }
     return null;
   }
-  function crozzoPairingMountQr(host, text) {
+  function crozzoPairingMountQr(host, text, opts) {
+    opts = opts || {};
     if (!host || !text || typeof QRCode !== 'function') return null;
     host.innerHTML = '';
+    var size = opts.size || 320;
     try {
       new QRCode(host, {
         text: text,
-        width: 280,
-        height: 280,
-        correctLevel: QRCode.CorrectLevel.M,
+        width: size,
+        height: size,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: opts.level || QRCode.CorrectLevel.H,
       });
     } catch (e) {
       return null;
     }
     return crozzoPairingDedupeQrNode(host);
+  }
+  function crozzoPairingMountDualQr(host, fastText, fullText) {
+    if (!host || typeof QRCode !== 'function') return null;
+    host.innerHTML =
+      '<div class="crozzo-pairing-qr-stack" data-pairing-layout="dual">' +
+      '<div class="crozzo-pairing-qr-fast-wrap">' +
+      '<span class="crozzo-pairing-qr-fiducial crozzo-pairing-qr-fiducial--tl" aria-hidden="true"></span>' +
+      '<span class="crozzo-pairing-qr-fiducial crozzo-pairing-qr-fiducial--tr" aria-hidden="true"></span>' +
+      '<span class="crozzo-pairing-qr-fiducial crozzo-pairing-qr-fiducial--bl" aria-hidden="true"></span>' +
+      '<p class="crozzo-pairing-qr-fast-label">Enlace rápido</p>' +
+      '<div class="crozzo-pairing-qr-fast-host" id="crozzoPairingQrFastHost"></div>' +
+      '</div>' +
+      '<p class="crozzo-pairing-qr-divider">Respaldo completo</p>' +
+      '<div class="crozzo-pairing-qr-full-host" id="crozzoPairingQrFullHost"></div>' +
+      '</div>';
+    var fastHost = host.querySelector('#crozzoPairingQrFastHost');
+    var fullHost = host.querySelector('#crozzoPairingQrFullHost');
+    var okFast = fastText && crozzoPairingMountQr(fastHost, fastText, { size: 148, level: QRCode.CorrectLevel.M });
+    var okFull = fullText && crozzoPairingMountQr(fullHost, fullText, { size: 300, level: QRCode.CorrectLevel.H });
+    if (!okFast && !okFull) {
+      host.innerHTML = '';
+      return null;
+    }
+    return host;
   }
   function crozzoPairingShowQrSkeleton() {
     var host = el('crozzoPairingQrHost');
@@ -39297,16 +39428,22 @@ function init() {
     var host = el('crozzoPairingQrHost');
     if (!host) return;
     var renderToken = ++pairingQrRenderToken;
+    var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
+    var fastText =
+      seal && typeof seal.buildFastQrText === 'function' ? seal.buildFastQrText(built.payload) : '';
     var sealFn =
-      typeof window.CrozzoPairingSeal !== 'undefined' && typeof window.CrozzoPairingSeal.sealPayload === 'function'
-        ? window.CrozzoPairingSeal.sealPayload(built.payload)
+      seal && typeof seal.sealPayload === 'function'
+        ? seal.sealPayload(built.payload)
         : Promise.resolve(JSON.stringify(built.payload));
     sealFn
       .then(function (text) {
         if (renderToken !== pairingQrRenderToken) return;
         pairingLastQrText = text;
-        if (!crozzoPairingMountQr(host, text)) {
-          crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo generar el QR.');
+        pairingLastQrFastText = fastText || '';
+        if (!crozzoPairingMountDualQr(host, fastText, text)) {
+          if (!crozzoPairingMountQr(host, text, { size: 320, level: QRCode.CorrectLevel.H })) {
+            crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo generar el QR.');
+          }
         }
       })
       .catch(function () {
@@ -39517,8 +39654,8 @@ function init() {
     var hintEl = el('crozzoPairingReaderHint');
     if (hintEl) {
       hintEl.textContent = crozzoPairingReaderIsFieldDevice()
-        ? 'Muestre el código en la caja. Esta tablet lo detecta, valida la criptografía y sincroniza el entorno operativo sin intervención manual.'
-        : 'Use el escáner óptico o capture una foto del código. La validación ocurre en este dispositivo antes de sincronizar.';
+        ? 'Enfoque primero el QR pequeño «Enlace rápido» (arriba en la caja). Tiene marcas negras en las esquinas para que la cámara lo detecte al instante.'
+        : 'Centre el QR rápido (arriba) o el completo (abajo). Evite reflejos y genere un código nuevo en la caja si es antiguo.';
     }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
@@ -39528,12 +39665,23 @@ function init() {
     crozzoPairingBindCaptureInput();
     crozzoPairingSyncReaderActions();
     crozzoPairingEnsureJsQR().catch(function () {});
+    if (window.CrozzoPairingQrReader && typeof window.CrozzoPairingQrReader.ensureReady === 'function') {
+      window.CrozzoPairingQrReader.ensureReady().catch(function () {});
+    }
     try {
       if (crozzoPairingReaderIsFieldDevice()) {
-        crozzoPairingShowStatus('Iniciando escáner óptico…', { busy: true, phase: 'decode', progress: 8 });
+        crozzoPairingShowStatus('Pulse «Captura rápida» y enfoque el QR de la caja en el marco.', false);
         window.setTimeout(function () {
-          if (typeof crozzoPairingStartScan === 'function') crozzoPairingStartScan();
-        }, 450);
+          if (
+            window.CrozzoPairingQrReader &&
+            typeof window.CrozzoPairingQrReader.preferNativeCamera === 'function' &&
+            window.CrozzoPairingQrReader.preferNativeCamera()
+          ) {
+            if (typeof crozzoPairingPickPhoto === 'function') crozzoPairingPickPhoto();
+          } else if (typeof crozzoPairingStartScan === 'function') {
+            crozzoPairingStartScan();
+          }
+        }, 500);
       } else if (typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches) {
         crozzoPairingShowStatus('Modo táctil: use escáner en vivo o captura rápida.', false);
       }
@@ -39541,7 +39689,16 @@ function init() {
   };
   window.crozzoPairingStopScan = function crozzoPairingStopScan() {
     crozzoPairingSetScanZoneActive(false);
-    if (!pairingScanner) return;
+    if (window.CrozzoPairingQrReader && typeof window.CrozzoPairingQrReader.stopLive === 'function') {
+      window.CrozzoPairingQrReader.stopLive();
+    }
+    if (!pairingScanner) {
+      try {
+        var h0 = el('crozzoPairingReaderHost');
+        if (h0) h0.innerHTML = '';
+      } catch (_) {}
+      return;
+    }
     const ps = pairingScanner;
     pairingScanner = null;
     try {
@@ -39577,158 +39734,57 @@ function init() {
     } catch (_) {}
   };
   window.crozzoPairingStartScan = function crozzoPairingStartScan() {
-    const hostId = 'crozzoPairingReaderHost';
-    const host = el(hostId);
+    const host = el('crozzoPairingReaderHost');
     if (!host) return;
     crozzoPairingStopScan();
+    var reader = window.CrozzoPairingQrReader;
+    if (!reader || typeof reader.startLive !== 'function') {
+      crozzoPairingShowStatus('Lector QR no cargado. Cierre y vuelva a abrir emparejamiento.', true);
+      return;
+    }
+    if (typeof reader.preferNativeCamera === 'function' && reader.preferNativeCamera()) {
+      crozzoPairingShowStatus('En tablet use «Captura rápida» (cámara nativa, más fiable).', false);
+      if (typeof crozzoPairingPickPhoto === 'function') {
+        crozzoPairingPickPhoto();
+        return;
+      }
+    }
     if (!window.isSecureContext) {
       crozzoPairingShowStatus(
-        'La cámara en vivo no está permitida aquí (p. ej. archivo local). Usa «Foto (cámara del teléfono)» o pega el JSON.',
+        'La cámara en vivo no está permitida aquí (p. ej. archivo local). Usa «Captura rápida» o pega el JSON.',
         true
       );
       if (typeof showToast === 'function') {
-        showToast('Pulsa «Foto (cámara del teléfono)» para abrir la cámara y leer el QR.', 'info');
+        showToast('Pulsa «Captura rápida» para abrir la cámara y leer el QR.', 'info');
       }
       return;
     }
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-      crozzoPairingShowStatus('Cámara en vivo no disponible. Usa «Foto (cámara del teléfono)» o pega JSON.', true);
+      crozzoPairingShowStatus('Cámara en vivo no disponible. Usa «Captura rápida» o pega JSON.', true);
       return;
     }
-    var Detector = typeof window !== 'undefined' ? window.BarcodeDetector : null;
-    var detector = null;
-    if (Detector) {
-      try {
-        detector = new BarcodeDetector({ formats: ['qr_code'] });
-      } catch (e0) {
-        detector = null;
-      }
-    }
-    var video = document.createElement('video');
-    video.setAttribute('playsinline', 'true');
-    video.setAttribute('muted', 'true');
-    video.playsInline = true;
-    video.muted = true;
-    video.autoplay = true;
-    video.style.width = '100%';
-    video.style.maxHeight = 'min(55vh, 280px)';
-    video.style.background = '#000';
-    video.style.borderRadius = '8px';
-    host.innerHTML = '';
-    host.appendChild(video);
-    var canvas = document.createElement('canvas');
-    var ctx = null;
-    try {
-      ctx = canvas.getContext('2d', { willReadFrequently: true });
-    } catch (e1) {
-      ctx = canvas.getContext('2d');
-    }
-    function crozzoPairingStartLiveScanLoop() {
-      if (!pairingScanner || pairingScanner.scanLoopStarted) return;
-      pairingScanner.scanLoopStarted = true;
-      crozzoPairingSetScanZoneActive(true);
-      crozzoPairingShowStatus('Escaneo activo — centre el código en el marco', { busy: true, phase: 'decode', progress: 15 });
-      function runLiveScanPass() {
-        if (!pairingScanner || pairingScanner.scanBusy) return;
-        var v = pairingScanner.video;
-        if (!v || v.readyState < 2) return;
-        var vw = v.videoWidth || 0;
-        var vh = v.videoHeight || 0;
-        if (vw < 16 || vh < 16) return;
-        pairingScanner.scanBusy = true;
-        var det = pairingScanner.detector;
-        var done = function () {
-          if (pairingScanner) pairingScanner.scanBusy = false;
-        };
-        function jsQrFromVideo() {
-          return crozzoPairingEnsureJsQR().then(function () {
-            if (!pairingScanner || !pairingScanner.ctx) return;
-            var jsqr = window.jsQR;
-            if (typeof jsqr !== 'function') return;
-            var maxSide = 720;
-            var scale = Math.min(1, maxSide / Math.max(vw, vh));
-            var tw = Math.max(2, Math.floor(vw * scale));
-            var th = Math.max(2, Math.floor(vh * scale));
-            var cv = pairingScanner.canvas;
-            var cx = pairingScanner.ctx;
-            cv.width = tw;
-            cv.height = th;
-            cx.drawImage(v, 0, 0, tw, th);
-            var raw = crozzoPairingJsQrFast(jsqr, cv);
+    crozzoPairingShowStatus('Iniciando lector óptico…', { busy: true, phase: 'decode', progress: 10 });
+    reader
+      .ensureReady()
+      .then(function () {
+        return reader.startLive({
+          host: host,
+          onResult: function (raw) {
             if (raw) crozzoPairingHandleDecoded(raw);
-          });
-        }
-        if (det) {
-          det
-            .detect(v)
-            .then(function (codes) {
-              if (!pairingScanner) return;
-              var raw = codes && codes[0] && codes[0].rawValue;
-              if (raw) {
-                crozzoPairingHandleDecoded(raw);
-                return;
-              }
-              return jsQrFromVideo();
-            })
-            .catch(jsQrFromVideo)
-            .finally(done);
-          return;
-        }
-        jsQrFromVideo().finally(done);
-      }
-      pairingScanner.scanBusy = false;
-      if (pairingScanner.scanTimer) clearInterval(pairingScanner.scanTimer);
-      pairingScanner.scanTimer = window.setInterval(runLiveScanPass, 280);
-      runLiveScanPass();
-    }
-    function crozzoPairingRequestCameraStream() {
-      var constraints = { video: { facingMode: { ideal: 'environment' } }, audio: false };
-      return navigator.mediaDevices.getUserMedia(constraints).catch(function () {
-        return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      });
-    }
-    crozzoPairingRequestCameraStream()
-      .then(function (stream) {
-        pairingScanner = {
-          stream: stream,
-          video: video,
-          detector: detector,
-          canvas: canvas,
-          ctx: ctx,
-          rafId: null,
-          scanTimer: null,
-          scanBusy: false,
-          scanLoopStarted: false,
-          frame: 0,
-        };
-        video.srcObject = stream;
-        return video.play();
+          },
+        });
       })
       .then(function () {
-        var v0 = pairingScanner && pairingScanner.video;
-        if (v0 && (v0.videoWidth || 0) >= 16) {
-          crozzoPairingStartLiveScanLoop();
-          return;
-        }
-        if (v0) {
-          v0.addEventListener(
-            'loadedmetadata',
-            function () {
-              crozzoPairingStartLiveScanLoop();
-            },
-            { once: true }
-          );
-          window.setTimeout(function () {
-            if (pairingScanner && !pairingScanner.scanTimer) crozzoPairingStartLiveScanLoop();
-          }, 1200);
-        }
+        pairingScanner = { fromReader: true };
+        crozzoPairingSetScanZoneActive(true);
+        crozzoPairingShowStatus('Escaneo activo — centre el código en el marco', { busy: true, phase: 'decode', progress: 15 });
       })
       .catch(function (err) {
         var name = err && err.name ? String(err.name) : '';
         var hint =
           name === 'NotAllowedError' || name === 'PermissionDeniedError'
-            ? 'Permiso de cámara denegado. Vaya a Ajustes → Apps → BONA origen → Permisos y active Cámara. Luego pulse «Abrir cámara» o «Foto con cámara».'
-            : 'Cámara: ' + (err && err.message ? err.message : 'no disponible') + '. Pruebe «Foto con cámara», «Galería» o pegue el código.';
+            ? 'Permiso de cámara denegado. Vaya a Ajustes → Apps → BONA origen → Permisos y active Cámara. Luego use «Captura rápida».'
+            : 'Cámara: ' + (err && err.message ? err.message : 'no disponible') + '. Pruebe «Captura rápida», «Galería» o pegue el código.';
         crozzoPairingShowStatus(hint, true);
         if (typeof showToast === 'function') {
           showToast(hint, name === 'NotAllowedError' ? 'warning' : 'error');
@@ -39736,7 +39792,11 @@ function init() {
       });
   };
   function crozzoPairingHandleDecoded(text) {
-    crozzoPairingShowStatus('Código detectado — verificando integridad…', { busy: true, phase: 'decode', progress: 28 });
+    var isFast = String(text || '').trim().indexOf('BOF.') === 0;
+    crozzoPairingShowStatus(
+      isFast ? 'Enlace rápido detectado — validando red…' : 'Código detectado — verificando integridad…',
+      { busy: true, phase: 'decode', progress: 28 }
+    );
     crozzoPairingResolvePayload(text).then(function (obj) {
       if (!obj) {
         var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
@@ -39775,39 +39835,30 @@ function init() {
   }
   function crozzoPairingDecodeFile(file) {
     if (!file) return;
+    var reader = window.CrozzoPairingQrReader;
+    if (!reader || typeof reader.readFile !== 'function') {
+      crozzoPairingShowStatus('Lector QR no disponible. Recargue la app.', true);
+      return;
+    }
     var token = ++pairingDecodeToken;
     var timedOut = false;
     var timeoutId = window.setTimeout(function () {
       if (token !== pairingDecodeToken) return;
       timedOut = true;
       crozzoPairingShowStatus(
-        'La imagen tardó demasiado. Pruebe escáner en vivo, acerque más el código o use ingreso manual.',
+        'La imagen tardó demasiado. Acerque el QR al marco, evite reflejos o use ingreso manual.',
         { isErr: true }
       );
-    }, 16000);
+    }, 28000);
     crozzoPairingShowStatus('Leyendo imagen…', { busy: true, phase: 'decode', progress: 12 });
-    crozzoPairingLoadBitmapFromFile(file)
-      .then(function (bitmap) {
-        if (timedOut || token !== pairingDecodeToken) return null;
-        if (bitmap) {
-          var c = crozzoPairingDrawToCanvas(bitmap, 1600);
-          try {
-            if (bitmap.close) bitmap.close();
-          } catch (_) {}
-          if (!c) throw new Error('canvas');
-          return c;
-        }
-        return crozzoPairingLoadImageFromDataUrl(file).then(function (img) {
-          if (timedOut || token !== pairingDecodeToken) return null;
-          var c2 = crozzoPairingDrawToCanvas(img, 1600);
-          if (!c2) throw new Error('canvas');
-          return c2;
+    reader
+      .ensureReady()
+      .then(function () {
+        if (timedOut || token !== pairingDecodeToken) return '';
+        return reader.readFile(file, function (msg, pct) {
+          if (token !== pairingDecodeToken) return;
+          crozzoPairingShowStatus(msg, { busy: true, phase: 'decode', progress: pct || 20 });
         });
-      })
-      .then(function (canvas) {
-        if (!canvas || timedOut || token !== pairingDecodeToken) return '';
-        crozzoPairingShowStatus('Decodificando código…', { busy: true, phase: 'decode', progress: 38 });
-        return crozzoPairingDecodeCanvasRobust(canvas);
       })
       .then(function (raw) {
         if (timedOut || token !== pairingDecodeToken) return;
@@ -39817,14 +39868,14 @@ function init() {
           return;
         }
         crozzoPairingShowStatus(
-          'No se detectó código en la imagen. Acerque el marco, evite reflejos en pantalla o use escáner en vivo.',
+          'No se leyó el código. En la caja genere un QR nuevo (Tablet mesero), llene el marco con el QR y evite reflejos. También puede pegar el código manualmente.',
           { isErr: true }
         );
       })
       .catch(function () {
         if (timedOut || token !== pairingDecodeToken) return;
         window.clearTimeout(timeoutId);
-        crozzoPairingShowStatus('No se pudo procesar la imagen. Pruebe escáner en vivo o ingreso manual.', { isErr: true });
+        crozzoPairingShowStatus('No se pudo procesar la imagen. Pruebe otra captura o ingreso manual.', { isErr: true });
       });
   }
   window.crozzoPairingPickPhoto = function crozzoPairingPickPhoto() {

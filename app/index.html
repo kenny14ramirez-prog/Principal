@@ -99,7 +99,8 @@ window.crozzoAppDisplayName = function () {
 </script>
 <script src="vendor/CrozzoLucide.js" defer></script>
 <script src="vendor/CrozzoQRCode.js" defer></script>
-<script src="vendor/CrozzoJsQR.js" defer></script>
+<script src="vendor/CrozzoJsQR.js"></script>
+<script src="modules/CrozzoPairingQrReader.js"></script>
 <script src="vendor/CrozzoSupabaseUmd.js" defer></script>
 <script>
 (function (w, d) {
@@ -702,7 +703,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-pairing-qr-frame">
         <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
       </div>
-      <p class="form-hint crozzo-pairing-meta-line" style="text-align:center;">Escanee desde la tablet o pantalla nueva (cámara integrada).</p>
+      <p class="form-hint crozzo-pairing-meta-line" style="text-align:center;">QR rápido arriba (BOF) · respaldo cifrado abajo (BO1). Escanee cualquiera desde la tablet.</p>
       <div class="btn-group" style="flex-direction:column; margin-top:12px;">
         <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingShareQr">Compartir QR (WhatsApp / correo)</button>
         <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingDownloadPng">Descargar QR (PNG)</button>
