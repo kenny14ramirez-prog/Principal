@@ -38373,6 +38373,8 @@ function init() {
   let pairingLastPayload = null;
   let pairingLastQrText = '';
   let pairingApplying = false;
+  let pairingQrRenderToken = 0;
+  let pairingDecodeToken = 0;
   let __crozzoJsQRPromise = null;
   function el(id) {
     return document.getElementById(id);
@@ -38687,6 +38689,19 @@ function init() {
     ctx.drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
     return c2;
   }
+  function crozzoPairingJsQrFast(jsqr, canvas) {
+    var ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
+    if (!ctx || typeof jsqr !== 'function') return null;
+    var id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var code = jsqr(id.data, id.width, id.height, { inversionAttempts: 'attemptBoth' });
+    if (code && code.data) return code.data;
+    try {
+      var id2 = crozzoPairingEnhanceContrast(id);
+      code = jsqr(id2.data, id2.width, id2.height, { inversionAttempts: 'attemptBoth' });
+      if (code && code.data) return code.data;
+    } catch (_) {}
+    return null;
+  }
   function crozzoPairingJsQrOnCanvas(jsqr, canvas, opts) {
     opts = opts || {};
     var ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
@@ -38736,21 +38751,26 @@ function init() {
       if (raw) return raw;
       return crozzoPairingEnsureJsQR().then(function (jsqr) {
         if (typeof jsqr !== 'function') return '';
-        return crozzoPairingJsQrOnCanvas(jsqr, canvas) || '';
+        var fast = crozzoPairingJsQrFast(jsqr, canvas);
+        if (fast) return fast;
+        return crozzoPairingJsQrOnCanvas(jsqr, canvas, {
+          scales: [1, 1.45, 1.9],
+          crops: [1, 0.74],
+        }) || '';
       });
     });
   }
   function crozzoPairingLoadBitmapFromFile(file) {
-    if (typeof createImageBitmap === 'function' && file && typeof file.type === 'string') {
-      return createImageBitmap(file, { imageOrientation: 'from-image' })
-        .then(function (bitmap) {
-          return bitmap;
-        })
-        .catch(function () {
-          return null;
-        });
-    }
-    return Promise.resolve(null);
+    if (typeof createImageBitmap !== 'function' || !file) return Promise.resolve(null);
+    var bitmapPromise = createImageBitmap(file, { imageOrientation: 'from-image' }).catch(function () {
+      return null;
+    });
+    var timeoutPromise = new Promise(function (resolve) {
+      window.setTimeout(function () {
+        resolve(null);
+      }, 7000);
+    });
+    return Promise.race([bitmapPromise, timeoutPromise]);
   }
   function crozzoPairingLoadImageFromDataUrl(file) {
     return new Promise(function (resolve, reject) {
@@ -38781,7 +38801,12 @@ function init() {
         try {
           inp.value = '';
         } catch (_) {}
-        if (f) crozzoPairingDecodeFile(f);
+        if (f) {
+          crozzoPairingStopScan();
+          crozzoPairingDecodeFile(f);
+        } else {
+          crozzoPairingShowStatus('Captura cancelada. Use escáner en vivo o galería.', { isErr: true });
+        }
       });
     }
     bindOne('crozzoPairingCaptureInput');
@@ -39219,6 +39244,38 @@ function init() {
     var subEl = el('crozzoPairingReceiverTitle');
     if (subEl) subEl.textContent = '';
   };
+  function crozzoPairingDedupeQrNode(host) {
+    if (!host) return null;
+    var canvas = host.querySelector('canvas');
+    var img = host.querySelector('img');
+    if (canvas && img) img.remove();
+    if (canvas) {
+      canvas.style.display = 'block';
+      canvas.style.margin = '0 auto';
+      return canvas;
+    }
+    if (img) {
+      img.style.display = 'block';
+      img.style.margin = '0 auto';
+      return img;
+    }
+    return null;
+  }
+  function crozzoPairingMountQr(host, text) {
+    if (!host || !text || typeof QRCode !== 'function') return null;
+    host.innerHTML = '';
+    try {
+      new QRCode(host, {
+        text: text,
+        width: 280,
+        height: 280,
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    } catch (e) {
+      return null;
+    }
+    return crozzoPairingDedupeQrNode(host);
+  }
   function crozzoPairingShowQrSkeleton() {
     var host = el('crozzoPairingQrHost');
     if (!host) return;
@@ -39237,30 +39294,29 @@ function init() {
       crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Librería QR no disponible.');
       return;
     }
+    var host = el('crozzoPairingQrHost');
+    if (!host) return;
+    var renderToken = ++pairingQrRenderToken;
     var sealFn =
       typeof window.CrozzoPairingSeal !== 'undefined' && typeof window.CrozzoPairingSeal.sealPayload === 'function'
         ? window.CrozzoPairingSeal.sealPayload(built.payload)
         : Promise.resolve(JSON.stringify(built.payload));
     sealFn
       .then(function (text) {
+        if (renderToken !== pairingQrRenderToken) return;
         pairingLastQrText = text;
-        try {
-          new QRCode(el('crozzoPairingQrHost'), {
-            text: text,
-            width: 280,
-            height: 280,
-            correctLevel: QRCode.CorrectLevel.M
-          });
-        } catch (e) {
+        if (!crozzoPairingMountQr(host, text)) {
           crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo generar el QR.');
         }
       })
       .catch(function () {
+        if (renderToken !== pairingQrRenderToken) return;
         crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo cifrar el código QR.');
       });
   }
   window.crozzoPairingSelectReceiver = function crozzoPairingSelectReceiver(targetProfile) {
     targetProfile = String(targetProfile || 'tablet').toLowerCase();
+    pairingQrRenderToken++;
     el('crozzoPairingStepChoice').hidden = true;
     el('crozzoPairingStepReceiver').hidden = false;
     el('crozzoPairingStepReader').hidden = true;
@@ -39293,17 +39349,28 @@ function init() {
   function crozzoPairingQrCanvas() {
     const host = el('crozzoPairingQrHost');
     if (!host) return null;
-    return host.querySelector('canvas');
+    return host.querySelector('canvas') || host.querySelector('img');
+  }
+  function crozzoPairingQrPngDataUrl(node) {
+    if (!node) return '';
+    if (typeof node.toDataURL === 'function') {
+      try {
+        return node.toDataURL('image/png');
+      } catch (_) {}
+    }
+    if (node.tagName === 'IMG' && node.src) return node.src;
+    return '';
   }
   window.crozzoPairingDownloadPng = function crozzoPairingDownloadPng() {
     const c = crozzoPairingQrCanvas();
-    if (!c || typeof c.toDataURL !== 'function') {
+    const dataUrl = crozzoPairingQrPngDataUrl(c);
+    if (!dataUrl) {
       if (typeof showToast === 'function') showToast('No hay QR para descargar', 'warning');
       return;
     }
     try {
       const a = document.createElement('a');
-      a.href = c.toDataURL('image/png');
+      a.href = dataUrl;
       a.download = 'crozzo-pairing-qr.png';
       a.click();
     } catch (e) {
@@ -39346,6 +39413,33 @@ function init() {
           fallback();
         });
       }, 'image/png');
+      return;
+    }
+    if (c.tagName === 'IMG' && c.src) {
+      fetch(c.src)
+        .then(function (r) {
+          return r.blob();
+        })
+        .then(function (blob) {
+          if (!blob) {
+            fallback();
+            return;
+          }
+          var file = new File([blob], 'emparejar-bona-origen.png', { type: 'image/png' });
+          var payload = { title: title, text: text, files: [file] };
+          if (typeof navigator.canShare === 'function' && !navigator.canShare(payload)) {
+            navigator.share({ title: title, text: text }).catch(function () {
+              fallback();
+            });
+            return;
+          }
+          navigator.share(payload).catch(function () {
+            fallback();
+          });
+        })
+        .catch(function () {
+          fallback();
+        });
       return;
     }
     fallback();
@@ -39433,6 +39527,7 @@ function init() {
     el('crozzoPairingPreview').hidden = true;
     crozzoPairingBindCaptureInput();
     crozzoPairingSyncReaderActions();
+    crozzoPairingEnsureJsQR().catch(function () {});
     try {
       if (crozzoPairingReaderIsFieldDevice()) {
         crozzoPairingShowStatus('Iniciando escáner óptico…', { busy: true, phase: 'decode', progress: 8 });
@@ -39528,8 +39623,71 @@ function init() {
     } catch (e1) {
       ctx = canvas.getContext('2d');
     }
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+    function crozzoPairingStartLiveScanLoop() {
+      if (!pairingScanner || pairingScanner.scanLoopStarted) return;
+      pairingScanner.scanLoopStarted = true;
+      crozzoPairingSetScanZoneActive(true);
+      crozzoPairingShowStatus('Escaneo activo — centre el código en el marco', { busy: true, phase: 'decode', progress: 15 });
+      function runLiveScanPass() {
+        if (!pairingScanner || pairingScanner.scanBusy) return;
+        var v = pairingScanner.video;
+        if (!v || v.readyState < 2) return;
+        var vw = v.videoWidth || 0;
+        var vh = v.videoHeight || 0;
+        if (vw < 16 || vh < 16) return;
+        pairingScanner.scanBusy = true;
+        var det = pairingScanner.detector;
+        var done = function () {
+          if (pairingScanner) pairingScanner.scanBusy = false;
+        };
+        function jsQrFromVideo() {
+          return crozzoPairingEnsureJsQR().then(function () {
+            if (!pairingScanner || !pairingScanner.ctx) return;
+            var jsqr = window.jsQR;
+            if (typeof jsqr !== 'function') return;
+            var maxSide = 720;
+            var scale = Math.min(1, maxSide / Math.max(vw, vh));
+            var tw = Math.max(2, Math.floor(vw * scale));
+            var th = Math.max(2, Math.floor(vh * scale));
+            var cv = pairingScanner.canvas;
+            var cx = pairingScanner.ctx;
+            cv.width = tw;
+            cv.height = th;
+            cx.drawImage(v, 0, 0, tw, th);
+            var raw = crozzoPairingJsQrFast(jsqr, cv);
+            if (raw) crozzoPairingHandleDecoded(raw);
+          });
+        }
+        if (det) {
+          det
+            .detect(v)
+            .then(function (codes) {
+              if (!pairingScanner) return;
+              var raw = codes && codes[0] && codes[0].rawValue;
+              if (raw) {
+                crozzoPairingHandleDecoded(raw);
+                return;
+              }
+              return jsQrFromVideo();
+            })
+            .catch(jsQrFromVideo)
+            .finally(done);
+          return;
+        }
+        jsQrFromVideo().finally(done);
+      }
+      pairingScanner.scanBusy = false;
+      if (pairingScanner.scanTimer) clearInterval(pairingScanner.scanTimer);
+      pairingScanner.scanTimer = window.setInterval(runLiveScanPass, 280);
+      runLiveScanPass();
+    }
+    function crozzoPairingRequestCameraStream() {
+      var constraints = { video: { facingMode: { ideal: 'environment' } }, audio: false };
+      return navigator.mediaDevices.getUserMedia(constraints).catch(function () {
+        return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      });
+    }
+    crozzoPairingRequestCameraStream()
       .then(function (stream) {
         pairingScanner = {
           stream: stream,
@@ -39539,76 +39697,31 @@ function init() {
           ctx: ctx,
           rafId: null,
           scanTimer: null,
+          scanBusy: false,
+          scanLoopStarted: false,
           frame: 0,
         };
         video.srcObject = stream;
         return video.play();
       })
       .then(function () {
-        crozzoPairingSetScanZoneActive(true);
-        crozzoPairingShowStatus('Escaneo óptico activo — alinee el código dentro del marco', { busy: true, phase: 'decode', progress: 15 });
-        function scheduleNext() {
-          if (pairingScanner) pairingScanner.rafId = requestAnimationFrame(tick);
+        var v0 = pairingScanner && pairingScanner.video;
+        if (v0 && (v0.videoWidth || 0) >= 16) {
+          crozzoPairingStartLiveScanLoop();
+          return;
         }
-        function tryJsQrOnVideoFrame() {
-          return crozzoPairingEnsureJsQR().then(function () {
-            if (!pairingScanner || !pairingScanner.video || !pairingScanner.ctx) return false;
-            var jsqr = window.jsQR;
-            if (typeof jsqr !== 'function') return false;
-            var vv = pairingScanner.video;
-            var vw = vv.videoWidth || 640;
-            var vh = vv.videoHeight || 480;
-            var maxSide = 960;
-            var scale = Math.min(1, maxSide / Math.max(vw, vh));
-            var tw = Math.max(2, Math.floor(vw * scale));
-            var th = Math.max(2, Math.floor(vh * scale));
-            var cv = pairingScanner.canvas;
-            var cx = pairingScanner.ctx;
-            cv.width = tw;
-            cv.height = th;
-            cx.drawImage(vv, 0, 0, tw, th);
-            var raw = crozzoPairingJsQrOnCanvas(jsqr, cv, { scales: [1, 1.35, 1.75], crops: [1, 0.75] });
-            if (raw) {
-              crozzoPairingHandleDecoded(raw);
-              return true;
-            }
-            return false;
-          });
+        if (v0) {
+          v0.addEventListener(
+            'loadedmetadata',
+            function () {
+              crozzoPairingStartLiveScanLoop();
+            },
+            { once: true }
+          );
+          window.setTimeout(function () {
+            if (pairingScanner && !pairingScanner.scanTimer) crozzoPairingStartLiveScanLoop();
+          }, 1200);
         }
-        function tick() {
-          if (!pairingScanner || !pairingScanner.video) return;
-          var v = pairingScanner.video;
-          if (v.readyState < 2) {
-            scheduleNext();
-            return;
-          }
-          pairingScanner.frame = (pairingScanner.frame || 0) + 1;
-          if (pairingScanner.frame % 3 !== 0) {
-            scheduleNext();
-            return;
-          }
-          var det = pairingScanner.detector;
-          if (det) {
-            det
-              .detect(v)
-              .then(function (codes) {
-                if (!pairingScanner) return;
-                var raw = codes && codes[0] && codes[0].rawValue;
-                if (raw) {
-                  crozzoPairingHandleDecoded(raw);
-                  return;
-                }
-                return tryJsQrOnVideoFrame();
-              })
-              .catch(function () {
-                return tryJsQrOnVideoFrame();
-              })
-              .finally(scheduleNext);
-            return;
-          }
-          tryJsQrOnVideoFrame().finally(scheduleNext);
-        }
-        pairingScanner.rafId = requestAnimationFrame(tick);
       })
       .catch(function (err) {
         var name = err && err.name ? String(err.name) : '';
@@ -39662,24 +39775,43 @@ function init() {
   }
   function crozzoPairingDecodeFile(file) {
     if (!file) return;
-    crozzoPairingShowStatus('Analizando imagen con visión óptica…', { busy: true, phase: 'decode', progress: 12 });
+    var token = ++pairingDecodeToken;
+    var timedOut = false;
+    var timeoutId = window.setTimeout(function () {
+      if (token !== pairingDecodeToken) return;
+      timedOut = true;
+      crozzoPairingShowStatus(
+        'La imagen tardó demasiado. Pruebe escáner en vivo, acerque más el código o use ingreso manual.',
+        { isErr: true }
+      );
+    }, 16000);
+    crozzoPairingShowStatus('Leyendo imagen…', { busy: true, phase: 'decode', progress: 12 });
     crozzoPairingLoadBitmapFromFile(file)
       .then(function (bitmap) {
+        if (timedOut || token !== pairingDecodeToken) return null;
         if (bitmap) {
-          var c = crozzoPairingDrawToCanvas(bitmap, 2600);
+          var c = crozzoPairingDrawToCanvas(bitmap, 1600);
           try {
             if (bitmap.close) bitmap.close();
           } catch (_) {}
           if (!c) throw new Error('canvas');
-          return crozzoPairingDecodeCanvasRobust(c);
+          return c;
         }
         return crozzoPairingLoadImageFromDataUrl(file).then(function (img) {
-          var c2 = crozzoPairingDrawToCanvas(img, 2600);
+          if (timedOut || token !== pairingDecodeToken) return null;
+          var c2 = crozzoPairingDrawToCanvas(img, 1600);
           if (!c2) throw new Error('canvas');
-          return crozzoPairingDecodeCanvasRobust(c2);
+          return c2;
         });
       })
+      .then(function (canvas) {
+        if (!canvas || timedOut || token !== pairingDecodeToken) return '';
+        crozzoPairingShowStatus('Decodificando código…', { busy: true, phase: 'decode', progress: 38 });
+        return crozzoPairingDecodeCanvasRobust(canvas);
+      })
       .then(function (raw) {
+        if (timedOut || token !== pairingDecodeToken) return;
+        window.clearTimeout(timeoutId);
         if (raw) {
           crozzoPairingHandleDecoded(raw);
           return;
@@ -39690,11 +39822,14 @@ function init() {
         );
       })
       .catch(function () {
+        if (timedOut || token !== pairingDecodeToken) return;
+        window.clearTimeout(timeoutId);
         crozzoPairingShowStatus('No se pudo procesar la imagen. Pruebe escáner en vivo o ingreso manual.', { isErr: true });
       });
   }
   window.crozzoPairingPickPhoto = function crozzoPairingPickPhoto() {
     crozzoPairingBindCaptureInput();
+    crozzoPairingStopScan();
     var inp = el('crozzoPairingCaptureInput');
     if (!inp) {
       crozzoPairingShowStatus('Selector de fotos no disponible.', true);
@@ -39710,6 +39845,7 @@ function init() {
   };
   window.crozzoPairingPickGallery = function crozzoPairingPickGallery() {
     crozzoPairingBindCaptureInput();
+    crozzoPairingStopScan();
     var inp = el('crozzoPairingGalleryInput');
     if (!inp) {
       crozzoPairingShowStatus('Galería no disponible.', true);

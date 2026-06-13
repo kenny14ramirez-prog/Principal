@@ -24678,6 +24678,15 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   max-width: 100% !important;
   height: auto !important;
 }
+.crozzo-pairing-qr-frame .crozzo-pairing-qr-host img {
+  display: none !important;
+}
+.crozzo-pairing-qr-frame .crozzo-pairing-qr-host canvas {
+  display: block !important;
+  margin: 0 auto !important;
+  width: 280px !important;
+  height: 280px !important;
+}
 #crozzoPairingReaderHost {
   width: 100%;
   min-height: 220px;
@@ -30933,6 +30942,23 @@ html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header >
   background: linear-gradient(135deg, rgba(181, 154, 109, 0.12), rgba(255, 255, 255, 0.9));
   border: 1px solid rgba(181, 154, 109, 0.28);
   box-shadow: 0 12px 36px rgba(15, 23, 42, 0.08);
+}
+.crozzo-pairing-qr-frame .crozzo-pairing-qr-host {
+  margin: 0;
+  padding: 10px;
+  min-height: 0;
+  background: #fff;
+  border-radius: 12px;
+}
+.crozzo-pairing-qr-host canvas,
+.crozzo-pairing-qr-host img {
+  margin: 0 auto !important;
+}
+.crozzo-pairing-qr-host img {
+  display: none !important;
+}
+.crozzo-pairing-qr-host canvas:only-of-type {
+  display: block !important;
 }
 .crozzo-pairing-qr-frame::before {
   content: '';
