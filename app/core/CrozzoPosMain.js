@@ -39654,8 +39654,8 @@ function init() {
       if (!btn || btn._crozzoPairBound) return;
       btn._crozzoPairBound = true;
       btn.addEventListener('click', function (ev) {
-        const oc = btn.getAttribute('onclick') || '';
-        if (/crozzoClosePairingModal/.test(oc)) {
+        var act = btn.getAttribute('data-crozzo-act') || '';
+        if (/crozzoClosePairingModal/.test(act)) {
           ev.preventDefault();
           if (typeof window.crozzoClosePairingModal === 'function') window.crozzoClosePairingModal();
         }
