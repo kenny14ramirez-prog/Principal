@@ -296,7 +296,7 @@
         '#crozzoPairingOverlay .crozzo-pairing-card__eyebrow'
       );
       if (eyebrow) {
-        eyebrow.textContent = name || 'Configuración de terminal';
+        eyebrow.textContent = name ? 'Protocolo · ' + name : 'Protocolo de enlace';
       }
 
       var host = global.document.getElementById('crozzoPairingStep1Video');

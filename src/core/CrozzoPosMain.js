@@ -38372,6 +38372,7 @@ function init() {
   let pairingScanner = null;
   let pairingLastPayload = null;
   let pairingLastQrText = '';
+  let pairingApplying = false;
   let __crozzoJsQRPromise = null;
   function el(id) {
     return document.getElementById(id);
@@ -38414,26 +38415,78 @@ function init() {
     var paired = crozzoIsDevicePaired();
     var cs = typeof config !== 'undefined' && config && typeof config.get === 'function' ? config.get('conexionSistemas') || {} : {};
     var ip = String(cs.centralIp || cs.serverIp || '').trim();
+    var port = Math.max(1, Number(cs.port) || 3000);
     if (hint) {
       if (paired && ip) {
         hint.hidden = false;
-        hint.textContent = '✓ Conectado a la caja ' + ip + ' — puede iniciar sesión';
-        hint.style.color = 'var(--success, #10b981)';
+        hint.classList.remove('is-warn', 'is-busy');
+        hint.textContent =
+          'Enlace activo · nodo ' + ip + ':' + port + ' · ingrese usuario y contraseña';
+        hint.style.color = '';
       } else if (crozzoIsFieldTabletDevice()) {
         hint.hidden = false;
-        hint.textContent = 'Primera vez: pulse el botón y escanee el QR de la caja principal';
+        hint.classList.remove('is-warn', 'is-busy');
+        hint.textContent = 'Primera conexión: enlazar con el código seguro de la caja principal';
         hint.style.color = '';
       } else {
         hint.hidden = true;
         hint.textContent = '';
+        hint.classList.remove('is-warn', 'is-busy');
       }
     }
+    var probeBtn = el('btnPairingProbeCaja');
+    if (probeBtn) probeBtn.hidden = !(paired && ip);
     if (btn) {
-      if (paired) btn.textContent = 'Reconfigurar conexión';
-      else if (crozzoIsFieldTabletDevice()) btn.textContent = 'Escanear QR de la caja';
-      else btn.textContent = 'Configurar terminal · escanear QR';
+      if (paired) btn.textContent = 'Reconfigurar enlace';
+      else if (crozzoIsFieldTabletDevice()) btn.textContent = '◎ Escanear código de la caja';
+      else btn.textContent = '◎ Enlazar terminal con la caja';
     }
   }
+  window.crozzoPairingTestCajaFromLogin = async function crozzoPairingTestCajaFromLogin() {
+    var hint = el('loginPairingStatus');
+    var cs =
+      typeof config !== 'undefined' && config && typeof config.get === 'function'
+        ? config.get('conexionSistemas') || {}
+        : {};
+    var ip = String(cs.centralIp || cs.serverIp || '').trim();
+    var port = Math.max(1, Number(cs.port) || 3000);
+    if (!ip) {
+      if (hint) {
+        hint.hidden = false;
+        hint.classList.add('is-warn');
+        hint.textContent = 'Sin nodo central configurado. Escanee el código de la caja primero.';
+      }
+      return;
+    }
+    if (hint) {
+      hint.hidden = false;
+      hint.classList.add('is-busy');
+      hint.classList.remove('is-warn');
+      hint.textContent = 'Verificando enlace LAN con ' + ip + ':' + port + '…';
+    }
+    var probe = await crozzoPairingProbeCajaHealth(ip, port, { retries: 3, delayMs: 500 });
+    if (hint) {
+      hint.classList.remove('is-busy');
+      if (probe.ok) {
+        hint.classList.remove('is-warn');
+        hint.textContent = '✓ Nodo alcanzable · ' + ip + ':' + port + ' · listo para iniciar sesión';
+      } else {
+        hint.classList.add('is-warn');
+        hint.textContent =
+          'La caja no respondió en ' +
+          ip +
+          ':' +
+          port +
+          '. Revise misma Wi‑Fi y que BONA origen esté abierto en la caja.';
+      }
+    }
+    if (typeof showToast === 'function') {
+      showToast(
+        probe.ok ? 'Enlace LAN operativo' : 'Sin respuesta del nodo central',
+        probe.ok ? 'success' : 'warning'
+      );
+    }
+  };
   window.crozzoRefreshLoginPairingHint = crozzoRefreshLoginPairingHint;
   function crozzoShowInstallSuccessSplash(opts) {
     opts = opts || {};
@@ -38493,6 +38546,60 @@ function init() {
       if (typeof window.crozzoPairingSelectReader === 'function') window.crozzoPairingSelectReader();
     }, 900);
   };
+  function crozzoPairingIsTabletLikeDevice() {
+    var rootEl = document.documentElement;
+    return !!(
+      rootEl &&
+      (rootEl.classList.contains('crozzo-form-tablet') ||
+        rootEl.classList.contains('crozzo-form-mobile') ||
+        rootEl.classList.contains('crozzo-touch-shell') ||
+        rootEl.classList.contains('crozzo-android-apk') ||
+        (window.CrozzoTabletShell &&
+          typeof window.CrozzoTabletShell.isFieldTabletDevice === 'function' &&
+          window.CrozzoTabletShell.isFieldTabletDevice()))
+    );
+  }
+  async function crozzoPairingProbeCajaHealth(cip, port, opts) {
+    cip = String(cip || '').trim();
+    port = Math.max(1, Number(port) || 3000);
+    if (!cip) return { ok: false, error: 'sin_ip' };
+    var retries = (opts && opts.retries) || 4;
+    var delayMs = (opts && opts.delayMs) || 700;
+    for (var i = 0; i < retries; i++) {
+      if (typeof crozzoFetchLanHealth === 'function') {
+        try {
+          var ok = await crozzoFetchLanHealth(cip, port, 3800);
+          if (ok) return { ok: true, attempt: i + 1 };
+        } catch (_) {}
+      }
+      if (i < retries - 1) {
+        await new Promise(function (r) {
+          window.setTimeout(r, delayMs);
+        });
+      }
+    }
+    return { ok: false, error: 'no_health' };
+  }
+  function crozzoPairingFocusLoginAfterPairing() {
+    try {
+      if (typeof showLoginOverlay === 'function') showLoginOverlay();
+      else {
+        document.body.classList.add('crozzo-login-open');
+        var lo = el('loginOverlay');
+        if (lo) lo.removeAttribute('hidden');
+      }
+    } catch (_) {}
+    if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
+    window.setTimeout(function () {
+      var u = el('loginUsername');
+      if (u) {
+        try {
+          u.focus();
+          u.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        } catch (_) {}
+      }
+    }, 350);
+  }
   function crozzoPairingEnsureJsQR() {
     if (typeof window.jsQR === 'function') return Promise.resolve(window.jsQR);
     if (__crozzoJsQRPromise) return __crozzoJsQRPromise;
@@ -38528,6 +38635,142 @@ function init() {
     });
     return __crozzoJsQRPromise;
   }
+  function crozzoPairingDrawToCanvas(source, maxSide) {
+    maxSide = maxSide || 2400;
+    var w = source.naturalWidth || source.width || source.videoWidth || 0;
+    var h = source.naturalHeight || source.height || source.videoHeight || 0;
+    if (w < 2 || h < 2) return null;
+    var scale = Math.min(1, maxSide / Math.max(w, h));
+    var tw = Math.max(8, Math.round(w * scale));
+    var th = Math.max(8, Math.round(h * scale));
+    var c = document.createElement('canvas');
+    c.width = tw;
+    c.height = th;
+    var ctx = c.getContext('2d', { willReadFrequently: true }) || c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source, 0, 0, tw, th);
+    return c;
+  }
+  function crozzoPairingEnhanceContrast(imageData) {
+    var d = imageData.data;
+    var min = 255;
+    var max = 0;
+    var i;
+    for (i = 0; i < d.length; i += 16) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      if (g < min) min = g;
+      if (g > max) max = g;
+    }
+    var range = max - min || 1;
+    var out = new ImageData(imageData.width, imageData.height);
+    var o = out.data;
+    for (i = 0; i < d.length; i += 4) {
+      var g2 = (((d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) - min) * 255) / range;
+      g2 = g2 < 0 ? 0 : g2 > 255 ? 255 : g2 | 0;
+      o[i] = o[i + 1] = o[i + 2] = g2;
+      o[i + 3] = 255;
+    }
+    return out;
+  }
+  function crozzoPairingCropCenterCanvas(canvas, frac) {
+    var w = canvas.width;
+    var h = canvas.height;
+    var cw = Math.max(32, Math.floor(w * frac));
+    var ch = Math.max(32, Math.floor(h * frac));
+    var x = Math.floor((w - cw) / 2);
+    var y = Math.floor((h - ch) / 2);
+    var c2 = document.createElement('canvas');
+    c2.width = cw;
+    c2.height = ch;
+    var ctx = c2.getContext('2d', { willReadFrequently: true }) || c2.getContext('2d');
+    ctx.drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
+    return c2;
+  }
+  function crozzoPairingJsQrOnCanvas(jsqr, canvas, opts) {
+    opts = opts || {};
+    var ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
+    if (!ctx) return null;
+    var scales = opts.scales || [1, 1.4, 1.85, 2.35];
+    var crops = opts.crops || [1, 0.82, 0.62];
+    var si;
+    var ci;
+    for (ci = 0; ci < crops.length; ci++) {
+      var base = crops[ci] >= 0.99 ? canvas : crozzoPairingCropCenterCanvas(canvas, crops[ci]);
+      for (si = 0; si < scales.length; si++) {
+        var sf = scales[si];
+        var target = base;
+        if (sf !== 1) {
+          target = document.createElement('canvas');
+          target.width = Math.min(Math.round(base.width * sf), 2800);
+          target.height = Math.min(Math.round(base.height * sf), 2800);
+          var tctx = target.getContext('2d', { willReadFrequently: true }) || target.getContext('2d');
+          tctx.imageSmoothingEnabled = false;
+          tctx.drawImage(base, 0, 0, target.width, target.height);
+        }
+        var id = target.getContext('2d').getImageData(0, 0, target.width, target.height);
+        var attempts = [id, crozzoPairingEnhanceContrast(id)];
+        for (var ai = 0; ai < attempts.length; ai++) {
+          var code = jsqr(attempts[ai].data, attempts[ai].width, attempts[ai].height, {
+            inversionAttempts: 'attemptBoth',
+          });
+          if (code && code.data) return code.data;
+        }
+      }
+    }
+    return null;
+  }
+  function crozzoPairingTryBarcodeOnCanvas(canvas) {
+    if (typeof window.BarcodeDetector !== 'function') return Promise.resolve('');
+    try {
+      var det = new window.BarcodeDetector({ formats: ['qr_code'] });
+      return det.detect(canvas).then(function (codes) {
+        return codes && codes[0] && codes[0].rawValue ? String(codes[0].rawValue) : '';
+      });
+    } catch (_) {
+      return Promise.resolve('');
+    }
+  }
+  function crozzoPairingDecodeCanvasRobust(canvas) {
+    return crozzoPairingTryBarcodeOnCanvas(canvas).then(function (raw) {
+      if (raw) return raw;
+      return crozzoPairingEnsureJsQR().then(function (jsqr) {
+        if (typeof jsqr !== 'function') return '';
+        return crozzoPairingJsQrOnCanvas(jsqr, canvas) || '';
+      });
+    });
+  }
+  function crozzoPairingLoadBitmapFromFile(file) {
+    if (typeof createImageBitmap === 'function' && file && typeof file.type === 'string') {
+      return createImageBitmap(file, { imageOrientation: 'from-image' })
+        .then(function (bitmap) {
+          return bitmap;
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+    return Promise.resolve(null);
+  }
+  function crozzoPairingLoadImageFromDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          resolve(img);
+        };
+        img.onerror = function () {
+          reject(new Error('img'));
+        };
+        img.src = reader.result;
+      };
+      reader.onerror = function () {
+        reject(new Error('read'));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   function crozzoPairingBindCaptureInput() {
     function bindOne(inputId) {
       var inp = el(inputId);
@@ -38550,11 +38793,21 @@ function init() {
     var photoLbl = el('crozzoPairingBtnPhoto');
     var galLbl = el('crozzoPairingBtnGallery');
     if (liveBtn) {
-      liveBtn.textContent = isApk ? '▶ Abrir cámara (escanear QR)' : '▶ Escanear en vivo';
+      liveBtn.textContent = isApk ? '◎ Escanear en vivo' : '◎ Escáner óptico';
       liveBtn.style.display = '';
     }
-    if (photoLbl) photoLbl.style.display = isApk ? 'inline-flex' : 'none';
-    if (galLbl) galLbl.style.display = isApk ? 'inline-flex' : '';
+    if (photoLbl) {
+      photoLbl.textContent = '📷 Captura rápida';
+      photoLbl.style.display = isApk ? 'inline-flex' : 'none';
+    }
+    if (galLbl) {
+      galLbl.textContent = '🖼️ Galería';
+      galLbl.style.display = isApk ? 'inline-flex' : '';
+    }
+  }
+  function crozzoPairingSetScanZoneActive(on) {
+    var zone = el('crozzoPairingScanZone');
+    if (zone) zone.classList.toggle('is-scanning', !!on);
   }
   function crozzoPairingSetWarn(id, msg) {
     const w = el(id);
@@ -38567,11 +38820,61 @@ function init() {
       w.hidden = true;
     }
   }
-  function crozzoPairingShowStatus(text, isErr) {
+  function crozzoPairingSetPhase(phase) {
+    var rail = el('crozzoPairingPhases');
+    if (!rail) return;
+    var order = ['decode', 'network', 'cloud', 'ready'];
+    var idx = phase ? order.indexOf(phase) : -1;
+    rail.querySelectorAll('[data-pair-phase]').forEach(function (node) {
+      var p = node.getAttribute('data-pair-phase');
+      var pi = order.indexOf(p);
+      node.classList.toggle('is-active', pi === idx);
+      node.classList.toggle('is-done', idx >= 0 && pi < idx);
+    });
+  }
+  function crozzoPairingShowStatus(text, isErrOrOpts) {
+    var opts =
+      isErrOrOpts && typeof isErrOrOpts === 'object'
+        ? isErrOrOpts
+        : { isErr: !!isErrOrOpts };
     const s = el('crozzoPairingStatus');
+    const bar = el('crozzoPairingProgressBar');
+    const hud = el('crozzoPairingHud');
+    const barWrap = hud && hud.querySelector('.crozzo-pairing-hud__bar');
+    const scanLabel = el('crozzoPairingScanLabel');
     if (!s) return;
-    s.textContent = text || '';
-    s.style.color = isErr ? 'var(--danger)' : 'var(--text-secondary)';
+    var isErr = !!opts.isErr;
+    var isOk = !!opts.isOk;
+    var busy = !!opts.busy;
+    var progress = opts.progress;
+    var phase = opts.phase;
+    var msg = String(text || '');
+    s.classList.toggle('is-error', isErr);
+    s.classList.toggle('is-ok', isOk);
+    s.classList.toggle('is-busy', busy);
+    if (busy) {
+      s.innerHTML =
+        '<span class="crozzo-pairing-status__pulse" aria-hidden="true"></span><span>' + msg + '</span>';
+    } else if (isOk) {
+      s.innerHTML =
+        '<span class="crozzo-pairing-status__check" aria-hidden="true">✓</span><span>' + msg + '</span>';
+    } else {
+      s.textContent = msg;
+    }
+    if (hud) hud.hidden = !(busy || progress != null || phase);
+    if (bar && progress != null) {
+      var pct = Math.min(100, Math.max(0, Number(progress) || 0));
+      bar.style.width = pct + '%';
+      if (barWrap) barWrap.setAttribute('aria-valuenow', String(Math.round(pct)));
+    }
+    if (scanLabel) {
+      if (busy) scanLabel.textContent = 'Sincronizando enlace seguro';
+      else if (isOk) scanLabel.textContent = 'Enlace establecido';
+      else if (isErr) scanLabel.textContent = 'Señal interrumpida — reintente';
+      else if (pairingScanner) scanLabel.textContent = 'Escaneo óptico activo';
+      else scanLabel.textContent = 'Esperando código seguro';
+    }
+    crozzoPairingSetPhase(phase);
   }
   function crozzoPairingTargetProfileLabel(profile) {
     var p = String(profile || 'tablet').toLowerCase();
@@ -38869,21 +39172,12 @@ function init() {
     crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
     const qrHost0 = el('crozzoPairingQrHost');
     if (qrHost0) qrHost0.innerHTML = '';
+    var isTabletLike = crozzoPairingIsTabletLikeDevice();
     if (!isTabletLike && typeof crozzoPairingEnsureCajaReady === 'function') {
       crozzoPairingEnsureCajaReady().catch(function () {});
     }
     ov.removeAttribute('hidden');
     document.body.classList.add('crozzo-pairing-open');
-    var rootEl = document.documentElement;
-    var isTabletLike =
-      rootEl &&
-      (rootEl.classList.contains('crozzo-form-tablet') ||
-        rootEl.classList.contains('crozzo-form-mobile') ||
-        rootEl.classList.contains('crozzo-touch-shell') ||
-        rootEl.classList.contains('crozzo-android-apk') ||
-        (window.CrozzoTabletShell &&
-          typeof window.CrozzoTabletShell.isFieldTabletDevice === 'function' &&
-          window.CrozzoTabletShell.isFieldTabletDevice()));
     if (isTabletLike && typeof crozzoPairingSelectReader === 'function') crozzoPairingSelectReader();
     else crozzoPairingSelectChoice();
   };
@@ -38921,10 +39215,18 @@ function init() {
     crozzoPairingSetWizardStep(1);
     crozzoPairingSyncFooters('choice');
     var titleEl = el('crozzoPairingTitle');
-    if (titleEl) titleEl.textContent = 'Conectar dispositivos al sistema';
+    if (titleEl) titleEl.textContent = 'Sincronizar terminales';
     var subEl = el('crozzoPairingReceiverTitle');
     if (subEl) subEl.textContent = '';
   };
+  function crozzoPairingShowQrSkeleton() {
+    var host = el('crozzoPairingQrHost');
+    if (!host) return;
+    host.innerHTML =
+      '<div class="crozzo-pairing-qr-skeleton" aria-busy="true">' +
+      '<div class="crozzo-pairing-qr-skeleton__shimmer"></div>' +
+      '<p>Generando código cifrado…</p></div>';
+  }
   function crozzoPairingRenderReceiverQr(targetProfile, built) {
     if (built.error) {
       crozzoPairingSetWarn('crozzoPairingReceiverWarn', built.error);
@@ -38964,13 +39266,13 @@ function init() {
     el('crozzoPairingStepReader').hidden = true;
     crozzoPairingSetWizardStep(2);
     crozzoPairingSyncFooters('receiver');
-    el('crozzoPairingQrHost').innerHTML = '';
+    crozzoPairingShowQrSkeleton();
     pairingLastQrText = '';
     var titleEl = el('crozzoPairingReceiverTitle') || el('crozzoPairingTitle');
     if (titleEl) {
       titleEl.textContent = 'QR para ' + crozzoPairingTargetProfileLabel(targetProfile);
     }
-    crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Preparando red local y generando QR…');
+    crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Preparando nodo central y sellando código…');
     crozzoPairingEnsureCajaReady()
       .then(function (ready) {
         if (ready && ready.serverOk === false) {
@@ -39117,12 +39419,12 @@ function init() {
     crozzoPairingSyncReaderFoot();
     crozzoPairingShowStatus('');
     var titleEl = el('crozzoPairingTitle');
-    if (titleEl) titleEl.textContent = 'Conectar esta tablet a la caja';
+    if (titleEl) titleEl.textContent = 'Enlazar terminal de campo';
     var hintEl = el('crozzoPairingReaderHint');
     if (hintEl) {
       hintEl.textContent = crozzoPairingReaderIsFieldDevice()
-        ? 'En la caja principal abra «Emparejar» y muestre el QR. Aquí pulse «Foto» para escanearlo con la cámara de esta tablet.'
-        : 'En móvil o tablet, pulse «Foto (cámara del teléfono)»: se abre la cámara para fotografiar el QR. «Escanear en vivo» usa la cámara dentro del navegador (requiere HTTPS o localhost).';
+        ? 'Muestre el código en la caja. Esta tablet lo detecta, valida la criptografía y sincroniza el entorno operativo sin intervención manual.'
+        : 'Use el escáner óptico o capture una foto del código. La validación ocurre en este dispositivo antes de sincronizar.';
     }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
@@ -39133,16 +39435,17 @@ function init() {
     crozzoPairingSyncReaderActions();
     try {
       if (crozzoPairingReaderIsFieldDevice()) {
-        crozzoPairingShowStatus('Pulse «Abrir cámara» y acepte el permiso de cámara si Android lo solicita.', false);
+        crozzoPairingShowStatus('Iniciando escáner óptico…', { busy: true, phase: 'decode', progress: 8 });
         window.setTimeout(function () {
           if (typeof crozzoPairingStartScan === 'function') crozzoPairingStartScan();
         }, 450);
       } else if (typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches) {
-        crozzoPairingShowStatus('En táctil: use «Abrir cámara» o «Foto con cámara» para leer el QR.', false);
+        crozzoPairingShowStatus('Modo táctil: use escáner en vivo o captura rápida.', false);
       }
     } catch (_) {}
   };
   window.crozzoPairingStopScan = function crozzoPairingStopScan() {
+    crozzoPairingSetScanZoneActive(false);
     if (!pairingScanner) return;
     const ps = pairingScanner;
     pairingScanner = null;
@@ -39242,8 +39545,35 @@ function init() {
         return video.play();
       })
       .then(function () {
+        crozzoPairingSetScanZoneActive(true);
+        crozzoPairingShowStatus('Escaneo óptico activo — alinee el código dentro del marco', { busy: true, phase: 'decode', progress: 15 });
         function scheduleNext() {
           if (pairingScanner) pairingScanner.rafId = requestAnimationFrame(tick);
+        }
+        function tryJsQrOnVideoFrame() {
+          return crozzoPairingEnsureJsQR().then(function () {
+            if (!pairingScanner || !pairingScanner.video || !pairingScanner.ctx) return false;
+            var jsqr = window.jsQR;
+            if (typeof jsqr !== 'function') return false;
+            var vv = pairingScanner.video;
+            var vw = vv.videoWidth || 640;
+            var vh = vv.videoHeight || 480;
+            var maxSide = 960;
+            var scale = Math.min(1, maxSide / Math.max(vw, vh));
+            var tw = Math.max(2, Math.floor(vw * scale));
+            var th = Math.max(2, Math.floor(vh * scale));
+            var cv = pairingScanner.canvas;
+            var cx = pairingScanner.ctx;
+            cv.width = tw;
+            cv.height = th;
+            cx.drawImage(vv, 0, 0, tw, th);
+            var raw = crozzoPairingJsQrOnCanvas(jsqr, cv, { scales: [1, 1.35, 1.75], crops: [1, 0.75] });
+            if (raw) {
+              crozzoPairingHandleDecoded(raw);
+              return true;
+            }
+            return false;
+          });
         }
         function tick() {
           if (!pairingScanner || !pairingScanner.video) return;
@@ -39262,48 +39592,21 @@ function init() {
             det
               .detect(v)
               .then(function (codes) {
-                if (!pairingScanner || !codes || !codes.length) return;
-                var raw = codes[0] && codes[0].rawValue;
-                if (raw) crozzoPairingHandleDecoded(raw);
-              })
-              .catch(function () {})
-              .finally(scheduleNext);
-          } else {
-            crozzoPairingEnsureJsQR()
-              .then(function () {
-                if (!pairingScanner || !pairingScanner.video || !pairingScanner.ctx) {
-                  scheduleNext();
+                if (!pairingScanner) return;
+                var raw = codes && codes[0] && codes[0].rawValue;
+                if (raw) {
+                  crozzoPairingHandleDecoded(raw);
                   return;
                 }
-                var jsqr = window.jsQR;
-                if (typeof jsqr !== 'function') {
-                  scheduleNext();
-                  return;
-                }
-                var vv = pairingScanner.video;
-                var vw = vv.videoWidth || 640;
-                var vh = vv.videoHeight || 480;
-                var maxSide = 420;
-                var scale = Math.min(1, maxSide / Math.max(vw, vh));
-                var tw = Math.max(2, Math.floor(vw * scale));
-                var th = Math.max(2, Math.floor(vh * scale));
-                var cv = pairingScanner.canvas;
-                var cx = pairingScanner.ctx;
-                cv.width = tw;
-                cv.height = th;
-                cx.drawImage(vv, 0, 0, tw, th);
-                var id = cx.getImageData(0, 0, tw, th);
-                var code = jsqr(id.data, tw, th, { inversionAttempts: 'attemptBoth' });
-                if (code && code.data) {
-                  crozzoPairingHandleDecoded(code.data);
-                  return;
-                }
-                scheduleNext();
+                return tryJsQrOnVideoFrame();
               })
               .catch(function () {
-                scheduleNext();
-              });
+                return tryJsQrOnVideoFrame();
+              })
+              .finally(scheduleNext);
+            return;
           }
+          tryJsQrOnVideoFrame().finally(scheduleNext);
         }
         pairingScanner.rafId = requestAnimationFrame(tick);
       })
@@ -39320,20 +39623,21 @@ function init() {
       });
   };
   function crozzoPairingHandleDecoded(text) {
+    crozzoPairingShowStatus('Código detectado — verificando integridad…', { busy: true, phase: 'decode', progress: 28 });
     crozzoPairingResolvePayload(text).then(function (obj) {
       if (!obj) {
         var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
-        if (seal && typeof seal.isPairingQr === 'function' && seal.isPairingQr(text)) {
-          if (typeof showToast === 'function') {
-            showToast('Código BONA origen no válido o expirado. Escanee con la app oficial.', 'warning');
-          }
-        } else if (typeof showToast === 'function') {
-          showToast('Use la app BONA origen para leer este código de emparejamiento.', 'warning');
-        }
+        var msg =
+          seal && typeof seal.isPairingQr === 'function' && seal.isPairingQr(text)
+            ? 'Código sellado inválido o expirado. Genere uno nuevo en la caja.'
+            : 'Señal no reconocida. Use el código de emparejamiento emitido por BONA origen.';
+        crozzoPairingShowStatus(msg, { isErr: true });
+        if (typeof showToast === 'function') showToast(msg, 'warning');
         return;
       }
       const v = crozzoPairingValidate(obj);
       if (!v.ok) {
+        crozzoPairingShowStatus(v.message, { isErr: true });
         if (typeof showToast === 'function') showToast(v.message, 'warning');
         return;
       }
@@ -39343,87 +39647,51 @@ function init() {
       if (ab) ab.disabled = false;
       crozzoPairingPreviewFromPayload(v.data);
       crozzoPairingStopScan();
-      if (crozzoIsFieldTabletDevice()) {
-        crozzoPairingShowStatus('Conectando con la caja…', false);
+      crozzoPairingSetWizardStep(2);
+      var autoApply = crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice();
+      if (autoApply) {
+        if (pairingApplying) return;
+        crozzoPairingShowStatus('Código válido — iniciando sincronización…', { busy: true, phase: 'network', progress: 38 });
         window.setTimeout(function () {
           if (typeof window.crozzoPairingApplyFromForm === 'function') window.crozzoPairingApplyFromForm();
-        }, 380);
+        }, 480);
       } else {
-        crozzoPairingShowStatus('QR leído — pulse Aplicar para confirmar', false);
+        crozzoPairingShowStatus('Código validado — pulse «Sincronizar terminal» para confirmar', { isOk: true, progress: 40 });
       }
     });
   }
   function crozzoPairingDecodeFile(file) {
     if (!file) return;
-    crozzoPairingShowStatus('Leyendo imagen…', false);
-    var reader = new FileReader();
-    reader.onload = function () {
-      var dataUrl = reader.result;
-      var img = new Image();
-      img.onload = function () {
-        try {
-          var c = document.createElement('canvas');
-          var w = img.naturalWidth || img.width;
-          var h = img.naturalHeight || img.height;
-          if (w < 2 || h < 2) {
-            crozzoPairingShowStatus('Imagen demasiado pequeña.', true);
-            return;
-          }
-          var maxW = 1200;
-          if (w > maxW) {
-            h = Math.round((h * maxW) / w);
-            w = maxW;
-          }
-          c.width = w;
-          c.height = h;
-          var ctx = c.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          function tryJsQR() {
-            crozzoPairingEnsureJsQR()
-              .then(function () {
-                var jsqr = window.jsQR;
-                if (typeof jsqr !== 'function') throw new Error('jsqr');
-                var id = ctx.getImageData(0, 0, w, h);
-                var res = jsqr(id.data, w, h, { inversionAttempts: 'attemptBoth' });
-                if (res && res.data) crozzoPairingHandleDecoded(res.data);
-                else crozzoPairingShowStatus('No se detectó un QR en la foto. Intenta más cerca y con buena luz.', true);
-              })
-              .catch(function () {
-                crozzoPairingShowStatus('No se pudo decodificar. Pega el JSON del QR abajo.', true);
-              });
-          }
-          if (window.BarcodeDetector) {
-            try {
-              var det = new BarcodeDetector({ formats: ['qr_code'] });
-              det
-                .detect(c)
-                .then(function (codes) {
-                  var raw = codes && codes[0] && codes[0].rawValue;
-                  if (raw) crozzoPairingHandleDecoded(raw);
-                  else tryJsQR();
-                })
-                .catch(function () {
-                  tryJsQR();
-                });
-            } catch (e2) {
-              tryJsQR();
-            }
-          } else {
-            tryJsQR();
-          }
-        } catch (e3) {
-          crozzoPairingShowStatus('Error al procesar la imagen.', true);
+    crozzoPairingShowStatus('Analizando imagen con visión óptica…', { busy: true, phase: 'decode', progress: 12 });
+    crozzoPairingLoadBitmapFromFile(file)
+      .then(function (bitmap) {
+        if (bitmap) {
+          var c = crozzoPairingDrawToCanvas(bitmap, 2600);
+          try {
+            if (bitmap.close) bitmap.close();
+          } catch (_) {}
+          if (!c) throw new Error('canvas');
+          return crozzoPairingDecodeCanvasRobust(c);
         }
-      };
-      img.onerror = function () {
-        crozzoPairingShowStatus('No se pudo abrir la imagen.', true);
-      };
-      img.src = dataUrl;
-    };
-    reader.onerror = function () {
-      crozzoPairingShowStatus('No se pudo leer el archivo.', true);
-    };
-    reader.readAsDataURL(file);
+        return crozzoPairingLoadImageFromDataUrl(file).then(function (img) {
+          var c2 = crozzoPairingDrawToCanvas(img, 2600);
+          if (!c2) throw new Error('canvas');
+          return crozzoPairingDecodeCanvasRobust(c2);
+        });
+      })
+      .then(function (raw) {
+        if (raw) {
+          crozzoPairingHandleDecoded(raw);
+          return;
+        }
+        crozzoPairingShowStatus(
+          'No se detectó código en la imagen. Acerque el marco, evite reflejos en pantalla o use escáner en vivo.',
+          { isErr: true }
+        );
+      })
+      .catch(function () {
+        crozzoPairingShowStatus('No se pudo procesar la imagen. Pruebe escáner en vivo o ingreso manual.', { isErr: true });
+      });
   }
   window.crozzoPairingPickPhoto = function crozzoPairingPickPhoto() {
     crozzoPairingBindCaptureInput();
@@ -39432,7 +39700,7 @@ function init() {
       crozzoPairingShowStatus('Selector de fotos no disponible.', true);
       return;
     }
-    crozzoPairingShowStatus('Abriendo cámara…', false);
+    crozzoPairingShowStatus('Abriendo óptica…', { busy: true, phase: 'decode', progress: 5 });
     try {
       inp.click();
     } catch (e4) {
@@ -39447,7 +39715,7 @@ function init() {
       crozzoPairingShowStatus('Galería no disponible.', true);
       return;
     }
-    crozzoPairingShowStatus('Abriendo galería…', false);
+    crozzoPairingShowStatus('Abriendo galería…', { busy: true, phase: 'decode', progress: 5 });
     try {
       inp.click();
     } catch (_) {
@@ -39481,10 +39749,21 @@ function init() {
       }
       pairingLastPayload = v.data;
       el('crozzoPairingApplyBtn').disabled = false;
-      crozzoPairingShowStatus('Vista previa OK. Pulsa Aplicar y sincronizar.', false);
+      crozzoPairingShowStatus('Vista previa validada — pulse «Sincronizar terminal»', { isOk: true, progress: 40 });
       crozzoPairingPreviewFromPayload(v.data);
     });
   };
+  function crozzoPairingPreviewChip(label, val, wide) {
+    return (
+      '<div class="crozzo-pairing-preview-chip' +
+      (wide ? ' crozzo-pairing-preview-chip--wide' : '') +
+      '"><span class="crozzo-pairing-preview-chip__lbl">' +
+      label +
+      '</span><span class="crozzo-pairing-preview-chip__val">' +
+      val +
+      '</span></div>'
+    );
+  }
   function crozzoPairingPreviewFromPayload(p) {
     const pr = el('crozzoPairingPreview');
     if (!pr) return;
@@ -39494,28 +39773,20 @@ function init() {
     const cip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
     const port = Number(lan.port || p.port) || 3000;
     const redA = (p.network_primary && p.network_primary.ssid_note) || p.network_ssid || '—';
-    const redB = (p.network_fallback_b && p.network_fallback_b.ssid_note) || '—';
-    const red = String(p.supabase_key || '');
-    const redDisp = red.length > 10 ? red.slice(0, 6) + '…' + red.slice(-4) : p.cloud_sync === false ? '(solo LAN)' : '(vacío)';
-    pr.textContent =
-      'Perfil: ' +
-      crozzoPairingTargetProfileLabel(tp) +
-      '\nPrioridad sync: ' +
-      String(p.sync_priority || 'hybrid') +
-      ' (☁️ → 📡 → 💾)' +
-      '\nRed A (principal): ' +
-      redA +
-      '\nRed B (respaldo hotspot caja): ' +
-      redB +
-      '\nCaja central: ' +
-      (cip ? cip + ':' + port : '—') +
-      '\nlocation_id: ' +
-      String(p.location_id || '') +
-      '\nNube: ' +
-      (p.cloud_sync !== false && p.supabase_url ? String(p.supabase_url) : 'desactivada') +
-      '\nAnon key: ' +
-      redDisp +
-      (tp === 'pantalla' && p.pantalla_area_id ? '\nÁrea pantalla: ' + p.pantalla_area_id : '');
+    const syncP = String(p.sync_priority || 'hybrid');
+    const cloud =
+      p.cloud_sync !== false && p.supabase_url ? String(p.supabase_url).replace(/^https?:\/\//, '').slice(0, 42) : 'Solo LAN';
+    pr.innerHTML =
+      '<div class="crozzo-pairing-preview-grid">' +
+      crozzoPairingPreviewChip('Perfil', crozzoPairingTargetProfileLabel(tp)) +
+      crozzoPairingPreviewChip('Nodo central', cip ? cip + ':' + port : '—') +
+      crozzoPairingPreviewChip('Prioridad', syncP.toUpperCase()) +
+      crozzoPairingPreviewChip('Red A', redA) +
+      crozzoPairingPreviewChip('Nube', cloud, true) +
+      (tp === 'pantalla' && p.pantalla_area_id
+        ? crozzoPairingPreviewChip('Área pantalla', String(p.pantalla_area_id), true)
+        : '') +
+      '</div>';
     pr.hidden = false;
   }
   async function crozzoPairingApplyLanFromPayload(p) {
@@ -39599,6 +39870,7 @@ function init() {
     return ok;
   }
   window.crozzoPairingApplyFromForm = async function crozzoPairingApplyFromForm() {
+    if (pairingApplying) return;
     const p = pairingLastPayload;
     if (!p) {
       crozzoPairingShowStatus('No hay configuración validada.', true);
@@ -39609,11 +39881,16 @@ function init() {
       crozzoPairingShowStatus(v.message, true);
       return;
     }
+    pairingApplying = true;
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
     const tp = String(p.target_profile || 'tablet').toLowerCase();
     const cloudOn = p.cloud_sync !== false && String(p.supabase_url || '').trim() && String(p.supabase_key || '').trim();
-    crozzoPairingShowStatus('🔄 Configurando red y perfil…', false);
+    const lan = p.lan || {};
+    const cip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
+    const port = Math.max(1, Number(lan.port || p.port) || 3000);
+    const loc = String(p.location_id || (p.network_primary && p.network_primary.location_id) || '').trim();
+    crozzoPairingShowStatus('Inicializando perfil de red…', { busy: true, phase: 'network', progress: 45 });
     try {
       const newDev =
         'DEV-' +
@@ -39632,9 +39909,28 @@ function init() {
     try {
       await crozzoPairingApplyLanFromPayload(p);
     } catch (eLan) {
-      crozzoPairingShowStatus('No se pudo aplicar la red LAN: ' + (eLan && eLan.message ? eLan.message : 'error'), true);
+      crozzoPairingShowStatus('No se pudo aplicar la red LAN: ' + (eLan && eLan.message ? eLan.message : 'error'), { isErr: true });
       if (ab) ab.disabled = false;
+      pairingApplying = false;
       return;
+    }
+    if (cip && tp !== 'caja') {
+      crozzoPairingShowStatus('Verificando nodo central ' + cip + ':' + port + '…', { busy: true, phase: 'network', progress: 58 });
+      var probe = await crozzoPairingProbeCajaHealth(cip, port);
+      if (!probe.ok) {
+        var warnMsg =
+          '⚠️ Configuración guardada, pero la caja no respondió en ' +
+          cip +
+          ':' +
+          port +
+          '. Confirme misma Wi‑Fi y que BONA origen esté abierto en la caja (servidor LAN activo).';
+        crozzoPairingShowStatus(warnMsg, { isErr: true, progress: 62 });
+        if (typeof showToast === 'function') {
+          showToast('Revise Wi‑Fi y que la caja tenga BONA origen abierto', 'warning');
+        }
+      } else {
+        crozzoPairingShowStatus('Nodo central alcanzable · ' + cip + ':' + port, { busy: true, phase: 'network', progress: 65 });
+      }
     }
     if (p.sync_priority && typeof config.set === 'function') {
       try {
@@ -39652,7 +39948,19 @@ function init() {
     }
     if (p.lan_config && typeof p.lan_config === 'object') {
       try {
-        localStorage.setItem('crozzo_lan_config', JSON.stringify(p.lan_config));
+        var snap = Object.assign({}, p.lan_config, {
+          version: 2,
+          role: 'B',
+          serverIp: '',
+          centralIp: cip,
+          port: port,
+          locationId: loc || String(p.lan_config.locationId || ''),
+          lanSyncEnabled: lan.lan_sync_enabled !== false,
+          allowLan: lan.allow_lan !== false,
+          offlineEnabled: lan.offline_enabled !== false,
+          savedAt: Date.now(),
+        });
+        localStorage.setItem('crozzo_lan_config', JSON.stringify(snap));
       } catch (e3) {
         /* ignore */
       }
@@ -39670,8 +39978,9 @@ function init() {
       try {
         localStorage.setItem('crozzo_supabase_config', JSON.stringify(save));
       } catch (e1) {
-        crozzoPairingShowStatus('No se pudo guardar configuración nube.', true);
+        crozzoPairingShowStatus('No se pudo guardar configuración nube.', { isErr: true });
         if (ab) ab.disabled = false;
+        pairingApplying = false;
         return;
       }
       if (typeof window.__crozzoSyncStandaloneKeys === 'function') {
@@ -39681,7 +39990,7 @@ function init() {
           /* ignore */
         }
       }
-      crozzoPairingShowStatus('🔄 Conectando con Supabase…', false);
+      crozzoPairingShowStatus('Estableciendo canal seguro con la nube…', { busy: true, phase: 'cloud', progress: 72 });
       try {
         if (typeof window.initSupabaseClient === 'function') await window.initSupabaseClient();
       } catch (e5) {
@@ -39693,9 +40002,14 @@ function init() {
         console.warn('[pairing] postInit', e6);
       }
       window.__CROZZO_ONLINE_DATA = !!(typeof crozzoOnlineConfigReady === 'function' && crozzoOnlineConfigReady() && window.__SUPABASE);
-      crozzoPairingShowStatus('🔄 Sincronizando catálogo inicial…', false);
+      crozzoPairingShowStatus('Descargando catálogo operativo…', { busy: true, phase: 'cloud', progress: 78 });
       const n = await crozzoPairingSyncFromSupabase(function (cur, tot, name) {
-        crozzoPairingShowStatus('Descargando ' + name + ' (' + cur + '/' + tot + ')…', false);
+        var pct = 78 + Math.round((cur / Math.max(1, tot)) * 16);
+        crozzoPairingShowStatus('Sincronizando ' + name + ' (' + cur + '/' + tot + ')…', {
+          busy: true,
+          phase: 'cloud',
+          progress: pct,
+        });
       });
       try {
         if (typeof persistCatalogProductosLocal === 'function') persistCatalogProductosLocal();
@@ -39709,10 +40023,10 @@ function init() {
       } catch (eRef) {
         console.warn('[pairing] refresh catalog', eRef);
       }
-      crozzoPairingShowStatus('✅ Red LAN + nube (' + n + ' tablas).', false);
+      crozzoPairingShowStatus('Enlace híbrido activo · ' + n + ' capas sincronizadas', { isOk: true, phase: 'ready', progress: 96 });
     } else {
       window.__CROZZO_ONLINE_DATA = false;
-      crozzoPairingShowStatus('✅ Red LAN configurada (modo local / sin nube obligatoria).', false);
+      crozzoPairingShowStatus('Modo LAN local activo — operación sin nube obligatoria', { isOk: true, phase: 'ready', progress: 92 });
     }
     if (tp === 'pantalla') {
       if (p.pantalla_area_id && typeof crozzoSetDevicePantallaId === 'function') {
@@ -39722,17 +40036,18 @@ function init() {
       }
     }
     if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
+    crozzoPairingSetWizardStep(3);
     if (typeof crozzoShowInstallSuccessSplash === 'function') {
       crozzoShowInstallSuccessSplash({
-        title: tp === 'pantalla' ? 'Pantalla conectada' : 'Tablet configurada',
+        title: tp === 'pantalla' ? 'Pantalla sincronizada' : 'Terminal sincronizada',
         message:
           tp === 'pantalla'
-            ? 'La pantalla está sincronizada con la caja. Entrando al modo comandas…'
-            : 'Red y catálogo sincronizados. Inicie sesión con su usuario para comenzar.',
+            ? 'El nodo de pantalla heredó la topología de la caja. Entrando al modo comandas…'
+            : 'Red, perfil y catálogo alineados con el nodo central. Inicie sesión para operar.',
       });
     }
     if (typeof showToast === 'function') {
-      showToast(tp === 'pantalla' ? 'Pantalla conectada — ya puede usarse' : 'Tablet conectada — inicie sesión', 'success');
+      showToast(tp === 'pantalla' ? 'Pantalla enlazada' : 'Terminal lista — inicie sesión', 'success');
     }
     try {
       if (typeof applyAccessControl === 'function') applyAccessControl();
@@ -39769,20 +40084,16 @@ function init() {
         crozzoKioskEnterComandasFromLogin(p.kiosk_page === 'cocina' ? 'cocina' : 'comandas');
       }, 600);
       if (ab) ab.disabled = false;
+      pairingApplying = false;
       return;
     }
-    crozzoPairingShowStatus('Listo — inicie sesión con su usuario', false);
-    try {
-      if (typeof navigateTo === 'function') {
-        navigateTo(tp === 'tablet' ? 'tablets' : currentPage || 'inicio-operacion');
-      }
-    } catch (e10) {
-      /* ignore */
-    }
+    crozzoPairingShowStatus('Sincronización completa — acceda con su usuario', { isOk: true, phase: 'ready', progress: 100 });
     setTimeout(function () {
       if (typeof crozzoClosePairingModal === 'function') crozzoClosePairingModal();
-    }, 1200);
+      crozzoPairingFocusLoginAfterPairing();
+    }, 900);
     if (ab) ab.disabled = false;
+    pairingApplying = false;
   };
   function crozzoWirePairDeviceBtn() {
     const b = el('btnPairDevice');
