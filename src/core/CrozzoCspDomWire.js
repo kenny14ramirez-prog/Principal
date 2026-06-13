@@ -200,6 +200,7 @@
   function onClick(e) {
     var actEl = e.target && e.target.closest ? e.target.closest('[data-crozzo-act]') : null;
     if (actEl) {
+      if (actEl.disabled) return;
       e.preventDefault();
       if (!crozzoInvokeDomAct(actEl.getAttribute('data-crozzo-act'), actEl, e)) {
         try {

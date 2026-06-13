@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-13T01:33:53.935Z",
+  "updatedAt": "2026-06-13T02:16:46.875Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -748,6 +748,18 @@
       "installMode": "auto",
       "changelog": [
         "11"
+      ]
+    },
+    {
+      "id": "1.0.108-critical",
+      "version": "v1.0.108",
+      "semver": "1.0.108",
+      "type": "critical",
+      "message": "111",
+      "publishedAt": "2026-06-13T02:16:46.875Z",
+      "installMode": "auto",
+      "changelog": [
+        "111"
       ]
     }
   ]

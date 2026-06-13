@@ -38843,6 +38843,9 @@ function init() {
     const ov = el('crozzoPairingOverlay');
     if (!ov) return;
     try {
+      if (typeof window.crozzoCspWireTree === 'function') window.crozzoCspWireTree(ov);
+    } catch (_) {}
+    try {
       if (typeof closeModal === 'function') closeModal();
     } catch (_) {}
     try {
@@ -39093,12 +39096,13 @@ function init() {
     if (!foot) return;
     var backBtn = foot.querySelector('.crozzo-pairing-reader-back');
     if (!backBtn) return;
+    backBtn.removeAttribute('onclick');
     if (crozzoPairingReaderIsFieldDevice()) {
       backBtn.textContent = 'Cancelar';
-      backBtn.setAttribute('onclick', 'crozzoClosePairingModal()');
+      backBtn.setAttribute('data-crozzo-act', 'crozzoClosePairingModal');
     } else {
       backBtn.textContent = 'Volver';
-      backBtn.setAttribute('onclick', 'crozzoPairingSelectChoice()');
+      backBtn.setAttribute('data-crozzo-act', 'crozzoPairingSelectChoice');
     }
   }
   window.crozzoPairingSelectReader = function crozzoPairingSelectReader() {
@@ -39796,23 +39800,28 @@ function init() {
     ov.addEventListener('click', function (ev) {
       if (ev.target === ov && typeof window.crozzoClosePairingModal === 'function') {
         window.crozzoClosePairingModal();
+        return;
+      }
+      var btn =
+        ev.target && ev.target.closest
+          ? ev.target.closest('button[data-crozzo-act], [data-crozzo-act].btn')
+          : null;
+      if (!btn || !ov.contains(btn) || btn.disabled) return;
+      var act = btn.getAttribute('data-crozzo-act');
+      if (!act) return;
+      ev.preventDefault();
+      if (typeof window.crozzoInvokeDomAct === 'function') {
+        window.crozzoInvokeDomAct(act, btn, ev);
+      } else if (typeof window[act] === 'function') {
+        var argsRaw = btn.getAttribute('data-crozzo-args');
+        if (argsRaw) window[act](argsRaw);
+        else window[act](btn, ev);
       }
     });
     document.addEventListener('keydown', function (ev) {
       if (ev.key !== 'Escape') return;
       if (!ov || ov.hasAttribute('hidden')) return;
       if (typeof window.crozzoClosePairingModal === 'function') window.crozzoClosePairingModal();
-    });
-    ov.querySelectorAll('.crozzo-pairing-close, #crozzoPairingFootChoice .btn, #crozzoPairingFootReceiver .btn').forEach(function (btn) {
-      if (!btn || btn._crozzoPairBound) return;
-      btn._crozzoPairBound = true;
-      btn.addEventListener('click', function (ev) {
-        var act = btn.getAttribute('data-crozzo-act') || '';
-        if (/crozzoClosePairingModal/.test(act)) {
-          ev.preventDefault();
-          if (typeof window.crozzoClosePairingModal === 'function') window.crozzoClosePairingModal();
-        }
-      });
     });
   }
   function crozzoWirePairingUi() {

@@ -21889,7 +21889,10 @@ html.crozzo-android-apk #crozzoPairingStepReader .crozzo-pairing-gallery-label {
   z-index: 10060;
   pointer-events: none;
 }
-html.crozzo-android-apk .crozzo-pairing-capture-input {
+html.crozzo-android-apk .crozzo-pairing-capture-input,
+html.crozzo-touch-shell .crozzo-pairing-capture-input,
+html.crozzo-form-tablet .crozzo-pairing-capture-input,
+body.crozzo-pairing-open .crozzo-pairing-capture-input {
   pointer-events: auto;
 }
 .crozzo-pairing-camera-label,
