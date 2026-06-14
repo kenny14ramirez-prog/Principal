@@ -522,11 +522,111 @@
 
 
 
+  function enterNativeScanPresentation() {
+
+    try {
+
+      var root = document.documentElement;
+
+      var body = document.body;
+
+      if (root) root.classList.add('crozzo-native-scan-active');
+
+      if (body) body.classList.add('crozzo-native-scan-active');
+
+      var ov = document.getElementById('crozzoPairingOverlay');
+
+      if (ov) ov.setAttribute('hidden', '');
+
+      if (body) body.classList.remove('crozzo-pairing-open');
+
+      var hud = document.getElementById('crozzoNativeScanHud');
+
+      if (!hud && body) {
+
+        hud = document.createElement('div');
+
+        hud.id = 'crozzoNativeScanHud';
+
+        hud.className = 'crozzo-native-scan-hud';
+
+        hud.innerHTML =
+
+          '<p class="crozzo-native-scan-hud__msg">Enfoque el QR grande de la caja</p>' +
+
+          '<button type="button" class="btn btn-outline crozzo-native-scan-hud__cancel" id="crozzoNativeScanCancel">Cancelar</button>';
+
+        body.appendChild(hud);
+
+        var cancelBtn = hud.querySelector('#crozzoNativeScanCancel');
+
+        if (cancelBtn && !cancelBtn._crozzoBound) {
+
+          cancelBtn._crozzoBound = true;
+
+          cancelBtn.addEventListener('click', function (ev) {
+
+            ev.preventDefault();
+
+            cancelNativeScan();
+
+          });
+
+        }
+
+      }
+
+      if (hud) {
+
+        hud.hidden = false;
+
+        hud.classList.add('is-open');
+
+      }
+
+    } catch (_) {}
+
+  }
+
+
+
+  function exitNativeScanPresentation() {
+
+    try {
+
+      var root = document.documentElement;
+
+      var body = document.body;
+
+      if (root) root.classList.remove('crozzo-native-scan-active');
+
+      if (body) body.classList.remove('crozzo-native-scan-active');
+
+      var hud = document.getElementById('crozzoNativeScanHud');
+
+      if (hud) {
+
+        hud.classList.remove('is-open');
+
+        hud.hidden = true;
+
+      }
+
+    } catch (_) {}
+
+  }
+
+
+
   function scanNative(opts) {
 
     opts = opts || {};
 
     if (!hasNativeScanner()) return Promise.reject(new Error('no_native_scanner'));
+
+    enterNativeScanPresentation();
+
+    var useWindowed = opts.windowed !== false;
 
     return ensureBarcodeCameraPerm()
 
@@ -534,7 +634,7 @@
 
         return tauriCore().invoke('plugin:barcode-scanner|scan', {
 
-          windowed: opts.windowed === true,
+          windowed: useWindowed,
 
           formats: opts.formats || ['QR_CODE'],
 
@@ -554,7 +654,17 @@
 
       .finally(function () {
 
-        return restoreWebViewAfterNativeScan();
+        return new Promise(function (resolve) {
+
+          window.setTimeout(function () {
+
+            exitNativeScanPresentation();
+
+            restoreWebViewAfterNativeScan().then(resolve);
+
+          }, 180);
+
+        });
 
       });
 
@@ -827,6 +937,10 @@
     cancelNativeScan: cancelNativeScan,
 
     restoreWebViewAfterNativeScan: restoreWebViewAfterNativeScan,
+
+    enterNativeScanPresentation: enterNativeScanPresentation,
+
+    exitNativeScanPresentation: exitNativeScanPresentation,
 
     readFile: readFile,
 

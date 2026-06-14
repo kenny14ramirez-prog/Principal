@@ -11,12 +11,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.116">
-<meta name="crozzo-build-stamp" content="2026-06-14T02:49:11.622Z">
+<meta name="crozzo-app-version" content="1.0.117">
+<meta name="crozzo-build-stamp" content="2026-06-14T03:06:14.556Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
-<link rel="stylesheet" href="css/CrozzoPosStyles.css?v=1.0.116-mqd6r2so">
+<link rel="stylesheet" href="css/CrozzoPosStyles.css?v=1.0.117-mqd7d048">
 <script src="core/CrozzoStorageHygiene.js"></script>
 <script src="infra/CrozzoEmulationHarness.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
@@ -446,9 +446,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <span class="crozzo-update-normal-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>
       <p class="crozzo-update-normal-banner__msg" id="crozzoUpdateNormalMsg">Nueva versión disponible. Mejoras de rendimiento.</p>
       <div class="crozzo-update-normal-banner__actions">
-        <button type="button" class="btn btn-outline" id="crozzoUpdateNormalLater">Instalar después</button>
+        <button type="button" class="btn btn-outline" id="crozzoUpdateNormalLater">Recordar después</button>
         <button type="button" class="btn btn-outline" id="crozzoUpdateNormalChanges">Ver cambios</button>
-        <button type="button" class="btn btn-primary" id="crozzoUpdateNormalInstall">Instalar ahora</button>
+        <button type="button" class="btn btn-primary" id="crozzoUpdateNormalInstall">Descargar actualización</button>
       </div>
       <button type="button" class="crozzo-update-normal-banner__dismiss" id="crozzoUpdateNormalDismiss" aria-label="Cerrar aviso de actualización">
         <i data-lucide="x" aria-hidden="true"></i>
@@ -706,7 +706,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
     </div>
     <div id="crozzoPairingStepReader" class="crozzo-pairing-panel" hidden>
-      <p class="form-hint" id="crozzoPairingReaderHint">En <strong>tablet APK</strong>: pulse <strong>«Escanear QR (cámara nativa)»</strong> — se abre la cámara del sistema (no la vista previa de abajo). Si falla, use foto, galería o pegue el código copiado en la caja.</p>
+      <p class="form-hint" id="crozzoPairingReaderHint">En <strong>tablet APK</strong>: pulse <strong>«Escanear QR (cámara nativa)»</strong> — verá la cámara a pantalla completa con texto abajo. Al leer el QR vuelve el panel de emparejamiento. Si falla, use foto, galería o pegue el código.</p>
       <input type="file" id="crozzoPairingCaptureInput" accept="image/*" capture="environment" tabindex="-1" aria-label="Tomar foto del código QR con la cámara" class="crozzo-pairing-capture-input" />
       <input type="file" id="crozzoPairingGalleryInput" accept="image/*" tabindex="-1" aria-label="Elegir foto del QR desde galería" class="crozzo-pairing-capture-input" />
       <div class="crozzo-pairing-scan-zone" id="crozzoPairingScanZone">
@@ -873,12 +873,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <div id="crozzo-update-critical-overlay" class="crozzo-update-critical-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateCriticalTitle" aria-hidden="true">
   <div class="crozzo-update-critical-modal">
     <span class="crozzo-update-critical-modal__badge" id="crozzoUpdateCriticalBadge" aria-hidden="true">🔒 Crítica</span>
-    <h2 id="crozzoUpdateCriticalTitle">Actualización crítica obligatoria</h2>
-    <p id="crozzoUpdateCriticalLead">Al actualizar, Crozzo POS se reiniciará automáticamente con la versión nueva. No cierre la ventana hasta que termine.</p>
+    <h2 id="crozzoUpdateCriticalTitle">Descargando actualización crítica</h2>
+    <p id="crozzoUpdateCriticalLead">Se descarga automáticamente. Al reiniciar BONA origen se instalará sola. No se puede posponer.</p>
     <ul class="crozzo-update-critical-modal__list" id="crozzoUpdateCriticalList"></ul>
     <p class="crozzo-update-critical-modal__version" id="crozzoUpdateCriticalVersion"></p>
-    <button type="button" class="btn btn-outline" id="crozzoUpdateCriticalRetry" style="display:none;margin-bottom:8px;">Reintentar instalación</button>
-    <button type="button" class="btn btn-primary" id="crozzoUpdateCriticalDismiss" disabled>Instalando…</button>
+    <button type="button" class="btn btn-outline" id="crozzoUpdateCriticalRetry" style="display:none;margin-bottom:8px;">Reintentar descarga</button>
+    <button type="button" class="btn btn-primary" id="crozzoUpdateCriticalDismiss" disabled>Descargando…</button>
   </div>
 </div>
 <div id="crozzo-update-detail-overlay" class="crozzo-update-detail-overlay" role="dialog" aria-modal="true" aria-labelledby="crozzoUpdateDetailTitle" aria-hidden="true">
@@ -894,9 +894,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     <div class="crozzo-update-detail-modal__body" id="crozzoUpdateDetailBody"></div>
     <div class="crozzo-update-detail-modal__foot">
       <button type="button" class="btn btn-outline" id="crozzoUpdateDetailBack" style="display:none;">Anterior</button>
-      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailReject">Instalar después</button>
+      <button type="button" class="btn btn-outline" id="crozzoUpdateDetailReject">Recordar después</button>
       <button type="button" class="btn btn-outline" id="crozzoUpdateDetailNext">Siguiente</button>
-      <button type="button" class="btn btn-primary" id="crozzoUpdateDetailAccept">Instalar ahora</button>
+      <button type="button" class="btn btn-primary" id="crozzoUpdateDetailAccept">Descargar actualización</button>
     </div>
   </div>
 </div>
