@@ -788,6 +788,18 @@
     });
   }
 
+  function exitApp() {
+    if (!isTauri()) {
+      try {
+        global.location.reload();
+      } catch (_) {}
+      return Promise.resolve();
+    }
+    return delay(400).then(function () {
+      return invoke('plugin:process|exit', { code: 0 });
+    });
+  }
+
   function relaunchApp() {
     if (!isTauri()) {
       try {
@@ -802,17 +814,22 @@
     });
   }
 
-  /** Tras instalar: NSIS /R suele reabrir solo; si no, restart del proceso. */
+  /** Tras instalar: en Windows plan C un script espera el .exe y reabre solo; resto usa restart. */
   function finishUpdateRelaunch(onProgress, ver, plan) {
+    var useExitOnly = plan === 'C' && isWindowsDesktop();
     if (onProgress) {
       onProgress({
         phase: 'relaunch',
         percent: 98,
-        message: 'Actualización lista. Crozzo POS se reiniciará automáticamente…',
+        message: useExitOnly
+          ? 'Cerrando… BONA origen volverá a abrir sola en unos segundos con la versión nueva.'
+          : 'Actualización lista. BONA origen se reiniciará automáticamente…',
       });
     }
-    return delay(1200).then(function () {
-      return relaunchApp().then(function () {
+    var waitMs = useExitOnly ? 900 : 1200;
+    return delay(waitMs).then(function () {
+      var done = useExitOnly ? exitApp() : relaunchApp();
+      return done.then(function () {
         return { installed: true, version: ver, plan: plan || 'C', exiting: true };
       });
     });

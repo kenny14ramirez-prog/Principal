@@ -587,12 +587,15 @@
     var profile = getUpdateClientProfile();
     if (profile.isDesktopBinary) {
       return (
-        'Al actualizar, Crozzo POS se reiniciará automáticamente con la versión nueva. ' +
-        'No cierre la ventana manualmente; espere a que vuelva a abrir sola.'
+        'Al actualizar, BONA origen se cerrará un momento e volverá a abrir sola con la versión nueva. ' +
+        'No cierre la ventana manualmente; espere a que reaparezca.'
       );
     }
     if (profile.isAndroid) {
-      return 'Descargará el APK o recargará la interfaz. Siga las instrucciones en pantalla.';
+      return (
+        'Descargará el APK. Tras pulsar «Actualizar» en Android, la app se cierra; ' +
+        'ábrala de nuevo desde el icono (el sistema no permite reabrir sola tras instalar).'
+      );
     }
     return 'La aplicación se recargará con la versión nueva del servidor.';
   }

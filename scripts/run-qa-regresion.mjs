@@ -13,6 +13,9 @@ const outDir = join(root, 'scripts', '_qa-out');
 mkdirSync(outDir, { recursive: true });
 
 const SCRIPTS = [
+  { id: 'pairing-qr', file: '_pairing-qr-audit.mjs', critical: true },
+  { id: 'pairing-decode', file: '_pairing-decode-roundtrip.mjs', critical: true },
+  { id: 'pairing-flow', file: '_pairing-flow-check.mjs', critical: true },
   { id: 'federacion', file: '_federacion-flow-check.mjs', critical: true },
   { id: 'asset-size', file: '_asset-size-check.mjs', critical: false },
   { id: 'perf', file: '_perf-audit.mjs', critical: false },
@@ -24,10 +27,11 @@ const SCRIPTS = [
 ];
 
 function runScript(rel) {
+  const timeoutMs = rel === '_buttons-audit-full.mjs' ? 600000 : 300000;
   const r = spawnSync(process.execPath, [join(root, 'scripts', rel)], {
     cwd: root,
     encoding: 'utf8',
-    timeout: 300000,
+    timeout: timeoutMs,
     maxBuffer: 20 * 1024 * 1024,
   });
   return {

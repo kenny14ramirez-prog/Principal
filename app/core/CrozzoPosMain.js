@@ -39258,10 +39258,10 @@ function init() {
         if (obj) return obj;
         if (typeof seal.isPairingQr === 'function' && seal.isPairingQr(raw)) return null;
         try {
-          return JSON.parse(raw);
-        } catch (_) {
-          return null;
-        }
+          var parsed = JSON.parse(raw);
+          if (parsed && parsed.type === CROZZO_CLOUD_PAIRING) return parsed;
+        } catch (_) {}
+        return null;
       });
     }
     try {
@@ -39364,6 +39364,23 @@ function init() {
     }
     return null;
   }
+  function crozzoPairingQrSlotSizes(host) {
+    var frame = host && host.closest ? host.closest('.crozzo-pairing-qr-frame') : null;
+    var w = frame && frame.clientWidth ? frame.clientWidth : 400;
+    if (w < 120) w = 400;
+    var inner = Math.max(300, w - 32);
+    return {
+      fast: Math.min(176, Math.max(140, Math.round(inner * 0.4))),
+      full: Math.min(352, Math.max(272, Math.round(inner * 0.94))),
+    };
+  }
+  function crozzoPairingApplyCanvasSize(canvas, px) {
+    if (!canvas || !px) return;
+    canvas.style.width = px + 'px';
+    canvas.style.height = px + 'px';
+    canvas.style.display = 'block';
+    canvas.style.margin = '0 auto';
+  }
   function crozzoPairingMountQr(host, text, opts) {
     opts = opts || {};
     if (!host || !text || typeof QRCode !== 'function') return null;
@@ -39381,31 +39398,21 @@ function init() {
     } catch (e) {
       return null;
     }
-    return crozzoPairingDedupeQrNode(host);
+    var node = crozzoPairingDedupeQrNode(host);
+    if (node && node.tagName === 'CANVAS') crozzoPairingApplyCanvasSize(node, size);
+    return node;
   }
-  function crozzoPairingMountDualQr(host, fastText, fullText) {
-    if (!host || typeof QRCode !== 'function') return null;
+  function crozzoPairingMountScanQr(host, scanText) {
+    if (!host || !scanText || typeof QRCode !== 'function') return null;
+    var size = Math.min(400, Math.max(300, crozzoPairingQrSlotSizes(host).full));
     host.innerHTML =
-      '<div class="crozzo-pairing-qr-stack" data-pairing-layout="dual">' +
-      '<div class="crozzo-pairing-qr-fast-wrap">' +
-      '<span class="crozzo-pairing-qr-fiducial crozzo-pairing-qr-fiducial--tl" aria-hidden="true"></span>' +
-      '<span class="crozzo-pairing-qr-fiducial crozzo-pairing-qr-fiducial--tr" aria-hidden="true"></span>' +
-      '<span class="crozzo-pairing-qr-fiducial crozzo-pairing-qr-fiducial--bl" aria-hidden="true"></span>' +
-      '<p class="crozzo-pairing-qr-fast-label">Enlace rápido</p>' +
-      '<div class="crozzo-pairing-qr-fast-host" id="crozzoPairingQrFastHost"></div>' +
-      '</div>' +
-      '<p class="crozzo-pairing-qr-divider">Respaldo completo</p>' +
-      '<div class="crozzo-pairing-qr-full-host" id="crozzoPairingQrFullHost"></div>' +
+      '<div class="crozzo-pairing-qr-single" data-pairing-layout="single">' +
+      '<p class="crozzo-pairing-qr-single__label">Escanee este código desde la tablet</p>' +
+      '<div class="crozzo-pairing-qr-single__host" id="crozzoPairingQrScanHost"></div>' +
       '</div>';
-    var fastHost = host.querySelector('#crozzoPairingQrFastHost');
-    var fullHost = host.querySelector('#crozzoPairingQrFullHost');
-    var okFast = fastText && crozzoPairingMountQr(fastHost, fastText, { size: 148, level: QRCode.CorrectLevel.M });
-    var okFull = fullText && crozzoPairingMountQr(fullHost, fullText, { size: 300, level: QRCode.CorrectLevel.H });
-    if (!okFast && !okFull) {
-      host.innerHTML = '';
-      return null;
-    }
-    return host;
+    var slot = host.querySelector('#crozzoPairingQrScanHost');
+    if (!slot) return null;
+    return crozzoPairingMountQr(slot, scanText, { size: size, level: QRCode.CorrectLevel.M });
   }
   function crozzoPairingShowQrSkeleton() {
     var host = el('crozzoPairingQrHost');
@@ -39429,8 +39436,30 @@ function init() {
     if (!host) return;
     var renderToken = ++pairingQrRenderToken;
     var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
-    var fastText =
+    var scanText =
       seal && typeof seal.buildFastQrText === 'function' ? seal.buildFastQrText(built.payload) : '';
+    if (!scanText) {
+      try {
+        var lan0 = built.payload.lan || {};
+        scanText = JSON.stringify({
+          type: CROZZO_CLOUD_PAIRING,
+          version: 4,
+          target_profile: built.payload.target_profile || 'tablet',
+          lan: lan0,
+          location_id: built.payload.location_id || '',
+          timestamp: built.payload.timestamp || Date.now(),
+        });
+      } catch (_) {
+        scanText = '';
+      }
+    }
+    if (scanText && crozzoPairingMountScanQr(host, scanText)) {
+      pairingLastQrFastText = scanText;
+      crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
+    } else {
+      crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo generar el QR.');
+      return;
+    }
     var sealFn =
       seal && typeof seal.sealPayload === 'function'
         ? seal.sealPayload(built.payload)
@@ -39439,12 +39468,6 @@ function init() {
       .then(function (text) {
         if (renderToken !== pairingQrRenderToken) return;
         pairingLastQrText = text;
-        pairingLastQrFastText = fastText || '';
-        if (!crozzoPairingMountDualQr(host, fastText, text)) {
-          if (!crozzoPairingMountQr(host, text, { size: 320, level: QRCode.CorrectLevel.H })) {
-            crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo generar el QR.');
-          }
-        }
       })
       .catch(function () {
         if (renderToken !== pairingQrRenderToken) return;
@@ -39598,7 +39621,7 @@ function init() {
     }
   }
   window.crozzoPairingCopyJson = function crozzoPairingCopyJson() {
-    const text = pairingLastQrText;
+    const text = pairingLastQrFastText || pairingLastQrText;
     if (!text) {
       if (typeof showToast === 'function') showToast('Genera el QR primero en la caja principal.', 'warning');
       return;
@@ -39654,8 +39677,8 @@ function init() {
     var hintEl = el('crozzoPairingReaderHint');
     if (hintEl) {
       hintEl.textContent = crozzoPairingReaderIsFieldDevice()
-        ? 'Enfoque primero el QR pequeño «Enlace rápido» (arriba en la caja). Tiene marcas negras en las esquinas para que la cámara lo detecte al instante.'
-        : 'Centre el QR rápido (arriba) o el completo (abajo). Evite reflejos y genere un código nuevo en la caja si es antiguo.';
+        ? 'Pulse «Captura rápida», enfoque el QR grande de la caja y tome la foto. Sin reflejos ni mucha distancia.'
+        : 'Centre el QR de la caja en el marco. Use «Captura rápida» o galería si la cámara en vivo falla.';
     }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
@@ -39841,41 +39864,36 @@ function init() {
       return;
     }
     var token = ++pairingDecodeToken;
-    var timedOut = false;
-    var timeoutId = window.setTimeout(function () {
-      if (token !== pairingDecodeToken) return;
-      timedOut = true;
-      crozzoPairingShowStatus(
-        'La imagen tardó demasiado. Acerque el QR al marco, evite reflejos o use ingreso manual.',
-        { isErr: true }
-      );
-    }, 28000);
     crozzoPairingShowStatus('Leyendo imagen…', { busy: true, phase: 'decode', progress: 12 });
     reader
       .ensureReady()
       .then(function () {
-        if (timedOut || token !== pairingDecodeToken) return '';
+        if (token !== pairingDecodeToken) return '';
         return reader.readFile(file, function (msg, pct) {
           if (token !== pairingDecodeToken) return;
           crozzoPairingShowStatus(msg, { busy: true, phase: 'decode', progress: pct || 20 });
         });
       })
       .then(function (raw) {
-        if (timedOut || token !== pairingDecodeToken) return;
-        window.clearTimeout(timeoutId);
+        if (token !== pairingDecodeToken) return;
         if (raw) {
           crozzoPairingHandleDecoded(raw);
           return;
         }
         crozzoPairingShowStatus(
-          'No se leyó el código. En la caja genere un QR nuevo (Tablet mesero), llene el marco con el QR y evite reflejos. También puede pegar el código manualmente.',
+          'No se leyó el QR. Acerque más el código, evite reflejos en la pantalla de la caja o pegue el código en «Ingreso manual».',
           { isErr: true }
         );
       })
-      .catch(function () {
-        if (timedOut || token !== pairingDecodeToken) return;
-        window.clearTimeout(timeoutId);
-        crozzoPairingShowStatus('No se pudo procesar la imagen. Pruebe otra captura o ingreso manual.', { isErr: true });
+      .catch(function (err) {
+        if (token !== pairingDecodeToken) return;
+        var msg = err && err.message ? String(err.message) : '';
+        crozzoPairingShowStatus(
+          msg.indexOf('jsQR') >= 0
+            ? 'Motor QR no cargó. Cierre sesión, abra de nuevo BONA origen e intente otra vez.'
+            : 'No se pudo procesar la imagen. Pruebe otra captura.',
+          { isErr: true }
+        );
       });
   }
   window.crozzoPairingPickPhoto = function crozzoPairingPickPhoto() {

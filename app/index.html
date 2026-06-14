@@ -100,6 +100,7 @@ window.crozzoAppDisplayName = function () {
 <script src="vendor/CrozzoLucide.js" defer></script>
 <script src="vendor/CrozzoQRCode.js" defer></script>
 <script src="vendor/CrozzoJsQR.js"></script>
+<script src="core/CrozzoPairingSeal.js"></script>
 <script src="modules/CrozzoPairingQrReader.js"></script>
 <script src="vendor/CrozzoSupabaseUmd.js" defer></script>
 <script>
@@ -470,7 +471,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
   <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
-  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" onclick="toggleSidebar()"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
+  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" data-crozzo-action="open-menu" data-crozzo-act="toggleSidebar"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
 </nav>
 
 <div class="sidebar-backdrop" id="sidebarBackdrop" role="presentation" aria-hidden="true" onclick="crozzoCloseSidebarDrawer()"></div>
@@ -703,7 +704,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <div class="crozzo-pairing-qr-frame">
         <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
       </div>
-      <p class="form-hint crozzo-pairing-meta-line" style="text-align:center;">QR rápido arriba (BOF) · respaldo cifrado abajo (BO1). Escanee cualquiera desde la tablet.</p>
+      <p class="form-hint crozzo-pairing-meta-line" style="text-align:center; margin-bottom:6px !important;">Un solo QR optimizado para la cámara del celular.</p>
       <div class="btn-group" style="flex-direction:column; margin-top:12px;">
         <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingShareQr">Compartir QR (WhatsApp / correo)</button>
         <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingDownloadPng">Descargar QR (PNG)</button>
@@ -1032,7 +1033,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoSystemUpdates.js" defer></script>
 <script src="infra/CrozzoInstallPremium.js" defer></script>
 <script src="infra/CrozzoMobileInstall.js" defer></script>
-<script src="core/CrozzoPairingSeal.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
 <script src="modules/CrozzoPosRuntimeCloud.js" defer></script>

@@ -79,23 +79,51 @@ pub fn install_setup_from_url(url: String) -> Result<(), String> {
         return Err("URL de instalador inválida".into());
     }
 
-    let tmp = std::env::temp_dir().join(format!(
-        "crozzo-setup-{}.exe",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0)
-    ));
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let tmp = std::env::temp_dir().join(format!("crozzo-setup-{stamp}.exe"));
 
     let bytes = download_with_retries(url, validate_exe)?;
     std::fs::write(&tmp, &bytes).map_err(|e| format!("No se pudo guardar instalador: {e}"))?;
 
     #[cfg(windows)]
     {
-        std::process::Command::new(&tmp)
-            .arg("/S")
+        use std::os::windows::process::CommandExt;
+        use std::process::Command;
+
+        let relaunch_exe = std::env::current_exe().ok();
+        let helper = std::env::temp_dir().join(format!("crozzo-relaunch-{stamp}.cmd"));
+        let installer = tmp.to_string_lossy().to_string();
+        let mut script = String::from("@echo off\r\n");
+        script.push_str("REM Espera a que BONA origen cierre antes del instalador silencioso\r\n");
+        script.push_str("timeout /t 2 /nobreak >nul\r\n");
+        script.push_str(&format!("start /wait \"\" \"{installer}\" /S\r\n"));
+        script.push_str("timeout /t 2 /nobreak >nul\r\n");
+        if let Some(exe) = relaunch_exe {
+            script.push_str(&format!("start \"\" \"{}\"\r\n", exe.display()));
+        } else {
+            let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+            if !local.is_empty() {
+                let guess = std::path::PathBuf::from(&local)
+                    .join("BONA origen")
+                    .join("BONA origen.exe");
+                script.push_str(&format!("start \"\" \"{}\"\r\n", guess.display()));
+            }
+            script.push_str(
+                "if exist \"%ProgramFiles%\\BONA origen\\BONA origen.exe\" start \"\" \"%ProgramFiles%\\BONA origen\\BONA origen.exe\"\r\n",
+            );
+        }
+        std::fs::write(&helper, script)
+            .map_err(|e| format!("No se pudo preparar reinicio automático: {e}"))?;
+
+        Command::new("cmd")
+            .args(["/C", helper.to_string_lossy().as_ref()])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
-            .map_err(|e| format!("No se pudo ejecutar instalador: {e}"))?;
+            .map_err(|e| format!("No se pudo lanzar instalador con reinicio: {e}"))?;
         return Ok(());
     }
 
@@ -199,6 +227,11 @@ pub fn install_dmg_from_url(url: String) -> Result<(), String> {
             .status();
 
         let _ = std::fs::remove_file(&dmg_path);
+
+        let _ = Command::new("open")
+            .arg("-a")
+            .arg(&dest)
+            .spawn();
 
         return Ok(());
     }
