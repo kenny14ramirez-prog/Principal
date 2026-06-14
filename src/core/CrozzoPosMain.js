@@ -11628,6 +11628,11 @@ function navigateTo(page) {
     if (typeof crozzoUpdateGlobalStressBanner === 'function') crozzoUpdateGlobalStressBanner();
   } catch (_) {}
   try {
+    if (window.CrozzoOperativePsyche && typeof CrozzoOperativePsyche.refreshChrome === 'function') {
+      CrozzoOperativePsyche.refreshChrome(false);
+    }
+  } catch (_) {}
+  try {
     if (
       typeof crozzoIsSidebarDrawerMode === 'function' &&
       crozzoIsSidebarDrawerMode() &&
@@ -11735,6 +11740,7 @@ function crozzoApplyUnifiedPageChrome(page, content) {
   document.body.classList.toggle('crozzo-unified-chrome', !isFs);
   document.body.classList.toggle('crozzo-unified-chrome--embed', isEmbed);
   document.body.classList.toggle('crozzo-unified-chrome--fullscreen', isFs);
+  document.body.classList.toggle('crozzo-page-operativa', isFs);
   if (!isFs && !isEmbed && !isCustom) {
     crozzoPrepareModuloGestionPage(content);
   }
@@ -37442,10 +37448,8 @@ function crozzoIsDrawerLayoutActive() {
   try {
     const html = document.documentElement;
     if (html && html.classList.contains('crozzo-form-desktop')) return false;
-    if (html && html.classList.contains('crozzo-android-apk')) return true;
-    if (html && html.classList.contains('tauri-shell') && !html.classList.contains('crozzo-form-desktop')) {
-      return true;
-    }
+    if (html && html.classList.contains('crozzo-tauri-rail-ui')) return true;
+    if (html && html.classList.contains('tauri-shell')) return false;
     if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) return true;
     if (
       html.classList.contains('crozzo-touch-shell') ||
@@ -37479,11 +37483,7 @@ function crozzoOpenSidebarDrawer() {
   if (!sidebar) return;
   crozzoDismissBlockingLabOverlay();
   var drawerLayout = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
-  var apkShell = false;
-  try {
-    apkShell = document.documentElement && document.documentElement.classList.contains('crozzo-android-apk');
-  } catch (_) {}
-  if (!drawerLayout && !apkShell) {
+  if (!drawerLayout) {
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(true, true);
@@ -37502,11 +37502,9 @@ function crozzoOpenSidebarDrawer() {
   sidebar.setAttribute('aria-hidden', 'false');
   sidebar.classList.add('expanded', 'is-expanded');
   sidebar.style.removeProperty('pointer-events');
-  if (drawerLayout || apkShell) {
-    sidebar.classList.add('crozzo-drawer-nav');
-  }
+  sidebar.classList.add('crozzo-drawer-nav');
   var needSlide = !sidebar.classList.contains('open');
-  if (needSlide && !apkShell) {
+  if (needSlide) {
     sidebar.classList.remove('open');
     void sidebar.offsetWidth;
   }
@@ -37514,20 +37512,14 @@ function crozzoOpenSidebarDrawer() {
   if (typeof crozzoSidebarMountToggleBtn === 'function') {
     crozzoSidebarMountToggleBtn(sidebar);
   }
-  if (apkShell || drawerLayout) {
-    sidebar.style.setProperty('transform', 'translateX(0)', 'important');
-    sidebar.style.setProperty('visibility', 'visible', 'important');
-    sidebar.style.setProperty('display', 'flex', 'important');
-    sidebar.style.setProperty('z-index', '220', 'important');
-    sidebar.style.setProperty('top', '0', 'important');
-    sidebar.style.setProperty('height', '100dvh', 'important');
-    sidebar.style.setProperty('max-height', '100dvh', 'important');
-    sidebar.style.setProperty('min-height', '100dvh', 'important');
-  } else {
-    sidebar.style.removeProperty('transform');
-    sidebar.style.removeProperty('visibility');
-    sidebar.style.removeProperty('display');
-  }
+  sidebar.style.setProperty('transform', 'translateX(0)', 'important');
+  sidebar.style.setProperty('visibility', 'visible', 'important');
+  sidebar.style.setProperty('display', 'flex', 'important');
+  sidebar.style.setProperty('z-index', '220', 'important');
+  sidebar.style.setProperty('top', '0', 'important');
+  sidebar.style.setProperty('height', '100dvh', 'important');
+  sidebar.style.setProperty('max-height', '100dvh', 'important');
+  sidebar.style.setProperty('min-height', '100dvh', 'important');
   try {
     sessionStorage.setItem('crozzo_sidebar_drawer_open', '1');
   } catch (_) {}

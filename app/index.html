@@ -15,7 +15,7 @@
 <meta name="crozzo-build-stamp" content="2026-06-02T02:21:42.475Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
-<script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
+<script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var ua=String((navigator&&navigator.userAgent)||'');var androidApk=/Android/i.test(ua);var auto=!androidApk&&(window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4));if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <script src="core/CrozzoCspDomWire.js"></script>
 <script src="core/CrozzoStorageHygiene.js"></script>
@@ -26,6 +26,8 @@
 <script src="core/CrozzoDeviceForm.js"></script>
 <script src="ui/CrozzoFormulaInput.js"></script>
 <script src="core/CrozzoTabletShell.js"></script>
+<script src="core/CrozzoAndroidNative.js"></script>
+<script src="core/CrozzoTabletNav.js"></script>
 <script>
 (function () {
   try {
@@ -43,7 +45,7 @@
     localStorage.removeItem('crozzo_user_role');
   } catch (_) {}
   window.__crozzoAuthInteractiveThisBoot = false;
-  window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__);
+  window.__CROZZO_IS_TAURI__ = !!(window.__TAURI__ || window.__TAURI_INTERNALS__) || /tauri/i.test(String((navigator && navigator.userAgent) || ''));
   window.crozzoPosIsOperationBusy = window.crozzoPosIsOperationBusy || function () { return false; };
   window.crozzoPosIsOperationBusyForUpdates = window.crozzoPosIsOperationBusyForUpdates || function () { return false; };
   window.crozzoPosNotifyOperationState = window.crozzoPosNotifyOperationState || function () {};

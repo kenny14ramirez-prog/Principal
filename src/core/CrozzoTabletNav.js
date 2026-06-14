@@ -54,8 +54,19 @@
     }
   }
 
+  function isTauriShell() {
+    try {
+      var doc = document.documentElement;
+      if (doc.classList.contains('tauri-shell')) return true;
+      return !!(global.__TAURI__ || global.__CROZZO_IS_TAURI__);
+    } catch (_) {
+      return false;
+    }
+  }
+
   function isBottomNavShell() {
-    if (isAndroidApkShell()) return true;
+    if (isTauriShell()) return false;
+    if (isAndroidApkShell()) return false;
     if (isPhoneShell()) return false;
     try {
       var doc = document.documentElement;
@@ -215,8 +226,9 @@
     bindBottomNavOnce();
 
     if (!isBottomNavShell()) {
-      root.style.display = 'none';
+      root.style.setProperty('display', 'none', 'important');
       root.setAttribute('aria-hidden', 'true');
+      root.setAttribute('hidden', '');
       root.classList.remove('crozzo-mbn--compact');
       root.querySelectorAll('.crozzo-mbn-btn').forEach(function (btn) {
         btn.hidden = true;

@@ -40,8 +40,24 @@
     }
   }
 
+  function isAndroidApkShell() {
+    try {
+      var doc = document.documentElement;
+      return (
+        doc.classList.contains('crozzo-android-apk') ||
+        doc.classList.contains('crozzo-android-native') ||
+        doc.classList.contains('crozzo-compact-chrome')
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   function measureBottomInset() {
     var bottom = 0;
+    if (isAndroidApkShell()) {
+      return 0;
+    }
     try {
       if (!isTouchNavShell() && isBottomNavVisible()) bottom += navHeight();
     } catch (_) {}
@@ -113,7 +129,7 @@
       }
     } catch (_) {}
     try {
-      if (global.visualViewport) {
+      if (global.visualViewport && !isAndroidApkShell()) {
         var vvh = Math.round(global.visualViewport.height || 0);
         var vvw = Math.round(global.visualViewport.width || 0);
         if (vvh > 0) ih = ih > 0 ? Math.min(ih, vvh) : vvh;
@@ -172,6 +188,10 @@
     var headerH = measureHeaderH();
     var bottom = measureBottomInset();
     var contentH = Math.max(200, ih - bottom);
+    if (isAndroidApkShell()) {
+      contentH = ih;
+      headerH = 44;
+    }
 
     doc.style.setProperty('--crozzo-vh', ih + 'px');
     doc.style.setProperty('--crozzo-vw', iw + 'px');

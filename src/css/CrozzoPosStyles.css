@@ -9438,6 +9438,137 @@ body.crozzo-unified-chrome .crozzo-hfsi {
   border-radius: 12px;
 }
 
+/* Pantallas operativas (POS, tablets, cocina): sin banners flotantes que solapen contenido */
+body.crozzo-unified-chrome--fullscreen #crozzo-psyche-chip-host,
+body.crozzo-unified-chrome--fullscreen #crozzo-peak-breathe-host,
+body.crozzo-page-operativa #crozzo-psyche-chip-host,
+body.crozzo-page-operativa #crozzo-peak-breathe-host {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen .main-content,
+html.crozzo-vp-ready body.crozzo-page-operativa .main-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen .main-header,
+html.crozzo-vp-ready body.crozzo-page-operativa .main-header {
+  flex-shrink: 0;
+}
+
+html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen #crozzo-global-stress,
+html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen #crozzo-update-normal-banner {
+  flex-shrink: 0;
+}
+
+html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen .main-body,
+html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen #mainContent,
+html.crozzo-vp-ready body.crozzo-page-operativa .main-body,
+html.crozzo-vp-ready body.crozzo-page-operativa #mainContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tablets táctil: tarjeta y rejilla con scroll interno, sin pisar textos */
+html.crozzo-touch-shell body.crozzo-page-operativa #mainContent > .card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-touch {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  gap: 10px;
+}
+
+html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-touch .tablet-order-panel {
+  order: -1;
+  flex: 0 1 auto;
+  max-height: min(40vh, 360px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-touch #tabletProducts {
+  flex: 1 1 auto;
+  min-height: 100px;
+  max-height: none !important;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.crozzo-touch-shell body.crozzo-page-operativa .mesas-grid {
+  max-height: min(62vh, 640px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* POS restaurante táctil: columnas proporcionales y pie visible */
+html.crozzo-touch-shell body.crozzo-page-rest-pos .main-body,
+html.crozzo-touch-shell body.crozzo-page-rest-pos #mainContent.main-body--rest-pos {
+  padding: 8px !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+
+html.crozzo-touch-shell body.crozzo-page-rest-pos .crozzo-rest-pos {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html.crozzo-touch-shell body.crozzo-page-rest-pos .crozzo-rest-pos .pos-container,
+html.crozzo-touch-shell body.crozzo-page-rest-pos .crozzo-rest-pos__workspace.pos-container {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 36vw);
+  gap: 8px;
+}
+
+html.crozzo-touch-shell body.crozzo-page-rest-pos .pos-sidebar,
+html.crozzo-touch-shell body.crozzo-page-rest-pos .crozzo-rest-pos__ticket {
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+html.crozzo-touch-shell body.crozzo-page-rest-pos .crozzo-rest-pos__products,
+html.crozzo-touch-shell body.crozzo-page-rest-pos .pos-products {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.crozzo-touch-shell body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  flex-shrink: 0;
+  padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+}
+
+html.crozzo-touch-shell .pos-container {
+  height: auto !important;
+  min-height: 0;
+}
+
 
 /* Pedidos internos — layout mínimo; tabs/cards usan estilos globales de gestión */
 .crozzo-pi-row {
@@ -22590,22 +22721,66 @@ html.crozzo-form-mobile .crozzo-mobile-bottom-nav {
   display: none !important;
 }
 
-html.crozzo-form-tablet .crozzo-mobile-bottom-nav,
-html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav,
-html.crozzo-android-apk .crozzo-mobile-bottom-nav {
+html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-form-tablet .crozzo-mobile-bottom-nav,
+html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
   display: flex !important;
+}
+
+html.crozzo-android-apk .crozzo-mobile-bottom-nav,
+html.crozzo-android-apk #crozzoMobileBottomNav {
+  display: none !important;
+}
+
+/* Tauri móvil/tablet: drawer al pulsar ☰; sin rail fijo que bloquee el panel */
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.sidebar-pro:not(.open),
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar:not(.open) {
+  transform: translateX(-100%) !important;
+}
+
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.open,
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.sidebar-pro.open {
+  transform: translateX(0) !important;
+  width: var(--crozzo-touch-sidebar-max, min(300px, 88vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(300px, 88vw)) !important;
+  top: 0 !important;
+  height: var(--crozzo-content-h, 100dvh) !important;
+  max-height: var(--crozzo-content-h, 100dvh) !important;
+  min-height: var(--crozzo-content-h, 100dvh) !important;
+  z-index: 220 !important;
+}
+
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.open + .main-content,
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.sidebar-pro.open + .main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+html.crozzo-tauri-rail-ui.crozzo-touch-shell .main-content,
+html.crozzo-tauri-rail-ui.crozzo-form-tablet .main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-bottom: 0 !important;
+}
+
+html.crozzo-android-apk.crozzo-tauri-rail-ui.crozzo-touch-shell .main-content,
+html.crozzo-android-native.crozzo-touch-shell .main-content {
+  padding-bottom: 0 !important;
+}
+
+html.crozzo-tauri-rail-ui.crozzo-vp-ready:not(.crozzo-android-native):not(.crozzo-android-apk) .main-content,
+html.crozzo-tauri-rail-ui.crozzo-vp-ready:not(.crozzo-android-native):not(.crozzo-android-apk) .main-body,
+html.crozzo-tauri-rail-ui.crozzo-vp-ready:not(.crozzo-android-native):not(.crozzo-android-apk) #mainContent,
+html.crozzo-tauri-rail-ui:not(.crozzo-android-native):not(.crozzo-android-apk) body.crozzo-vp-mobile-nav .main-body,
+html.crozzo-tauri-rail-ui:not(.crozzo-android-native):not(.crozzo-android-apk) body.crozzo-vp-mobile-nav #mainContent {
+  padding-bottom: max(var(--crozzo-bottom-safe, 0px), env(safe-area-inset-bottom, 0px)) !important;
 }
 
 html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
 html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
 html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
   display: none !important;
-}
-
-html.crozzo-android-apk.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
-html.crozzo-android-apk.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
-html.crozzo-android-apk.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
-  display: flex !important;
 }
 
 html.crozzo-form-mobile .mobile-menu-btn,
@@ -22617,13 +22792,10 @@ html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav {
   display: none !important;
 }
 
-html.crozzo-android-apk.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav {
-  display: flex !important;
-}
-
 html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav,
-html.crozzo-android-apk.tauri-shell .crozzo-mobile-bottom-nav {
-  display: flex !important;
+html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav,
+html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav {
+  display: none !important;
 }
 
 /* ===== Touch shell unificado: móvil + tablet (web y Tauri) ===== */
@@ -22655,12 +22827,12 @@ html.crozzo-touch-shell .main-header {
   gap: var(--crozzo-touch-gap);
 }
 
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .main-header {
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"]:not(.crozzo-compact-chrome) .main-header {
   flex-direction: column;
   align-items: stretch;
 }
 
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .main-header {
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"]:not(.crozzo-compact-chrome) .main-header {
   flex-direction: column;
   align-items: stretch;
 }
@@ -22777,6 +22949,36 @@ html.crozzo-touch-shell aside.sidebar.sidebar-pro:not(.open) {
 html.crozzo-touch-shell #sidebar.sidebar-pro.open,
 html.crozzo-touch-shell aside.sidebar.sidebar-pro.open {
   transform: translateX(0) !important;
+}
+
+/* Tauri móvil/tablet: drawer lateral al pulsar ☰ (prioridad sobre reglas touch-shell) */
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.sidebar-pro:not(.open),
+html.crozzo-tauri-rail-ui.crozzo-form-tablet #sidebar:not(.open),
+html.crozzo-tauri-rail-ui.crozzo-form-tablet .sidebar:not(.open) {
+  transform: translateX(-100%) !important;
+}
+
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.open,
+html.crozzo-tauri-rail-ui.crozzo-touch-shell #sidebar.sidebar-pro.open,
+html.crozzo-tauri-rail-ui.crozzo-form-tablet #sidebar.open {
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: var(--crozzo-touch-sidebar-max, min(300px, 88vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(300px, 88vw)) !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: var(--crozzo-content-h, 100dvh) !important;
+  max-height: var(--crozzo-content-h, 100dvh) !important;
+  min-height: var(--crozzo-content-h, 100dvh) !important;
+  z-index: 220 !important;
+}
+
+html.crozzo-tauri-rail-ui.crozzo-form-tablet .mobile-menu-btn,
+html.crozzo-tauri-rail-ui .mobile-menu-btn {
+  display: inline-flex !important;
+  pointer-events: auto !important;
 }
 
 /* Drawer móvil: anular modo rail 64px de sidebar-elite (labels/submenús invisibles) */
@@ -22908,12 +23110,20 @@ html.crozzo-touch-shell .main-content {
   padding-bottom: calc(var(--crozzo-touch-nav-h) + var(--crozzo-safe-bottom));
 }
 
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .main-content,
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .main-content,
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .main-content,
-html.crozzo-form-mobile .main-content,
-html.crozzo-form-mobile .main-body,
-html.crozzo-form-mobile #mainContent {
+html.crozzo-android-apk.crozzo-touch-shell .main-content,
+html.crozzo-android-native.crozzo-touch-shell .main-content,
+html.crozzo-compact-chrome.crozzo-touch-shell .main-content,
+html.tauri-shell.crozzo-compact-chrome .main-content,
+html.tauri-shell.crozzo-android-apk .main-content {
+  padding-bottom: 0 !important;
+}
+
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"]:not(.crozzo-compact-chrome):not(.crozzo-android-native):not(.crozzo-android-apk) .main-content,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"]:not(.crozzo-compact-chrome):not(.crozzo-android-native):not(.crozzo-android-apk) .main-content,
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"]:not(.crozzo-compact-chrome):not(.crozzo-android-native):not(.crozzo-android-apk) .main-content,
+html.crozzo-form-mobile:not(.crozzo-compact-chrome):not(.crozzo-android-native):not(.crozzo-android-apk) .main-content,
+html.crozzo-form-mobile:not(.crozzo-compact-chrome):not(.crozzo-android-native):not(.crozzo-android-apk) .main-body,
+html.crozzo-form-mobile:not(.crozzo-compact-chrome):not(.crozzo-android-native):not(.crozzo-android-apk) #mainContent {
   padding-bottom: calc(var(--crozzo-touch-pad) + var(--crozzo-safe-bottom, 0px)) !important;
 }
 
@@ -22924,7 +23134,7 @@ html.crozzo-form-mobile .main-content {
   max-width: 100% !important;
 }
 
-html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
+html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
   display: flex !important;
   min-height: var(--crozzo-touch-nav-h);
   padding: 6px 8px calc(6px + var(--crozzo-safe-bottom));
@@ -25448,16 +25658,74 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   border-top: 1px solid var(--border);
 }
 @media (max-width: 1024px) {
-  .crozzo-header-refined {
+  /* Web móvil sin touch-shell: cabecera apilada */
+  html:not(.crozzo-touch-shell):not(.crozzo-compact-chrome):not(.tauri-shell) .crozzo-header-refined {
     grid-template-columns: 1fr;
   }
-  .crozzo-header__cluster {
+  html:not(.crozzo-touch-shell):not(.crozzo-compact-chrome):not(.tauri-shell) .crozzo-header__cluster {
     flex-wrap: wrap;
     width: 100%;
     justify-content: space-between;
     min-width: 0;
     max-width: 100%;
   }
+  html:not(.crozzo-touch-shell):not(.crozzo-compact-chrome):not(.tauri-shell) .crozzo-header__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Tauri + touch: una sola línea, sin barras gruesas */
+  html.crozzo-touch-shell .crozzo-header-refined,
+  html.crozzo-compact-chrome .crozzo-header-refined,
+  html.tauri-shell.crozzo-tauri-rail-ui .crozzo-header-refined {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    grid-template-columns: unset !important;
+    padding: 6px 10px !important;
+    min-height: 0 !important;
+    max-height: 48px !important;
+    gap: 8px !important;
+    overflow: hidden;
+  }
+  html.crozzo-touch-shell .crozzo-header__cluster,
+  html.crozzo-compact-chrome .crozzo-header__cluster,
+  html.tauri-shell.crozzo-tauri-rail-ui .crozzo-header__cluster {
+    flex-wrap: nowrap !important;
+    width: auto !important;
+    max-width: none !important;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  html.crozzo-touch-shell .crozzo-header__actions,
+  html.crozzo-compact-chrome .crozzo-header__actions,
+  html.tauri-shell.crozzo-tauri-rail-ui .crozzo-header__actions {
+    width: auto !important;
+    justify-content: flex-end;
+  }
+  html.crozzo-touch-shell .page-subtitle,
+  html.crozzo-compact-chrome .page-subtitle,
+  html.tauri-shell.crozzo-tauri-rail-ui .page-subtitle,
+  html.crozzo-touch-shell .crozzo-header__status,
+  html.crozzo-compact-chrome .crozzo-header__status,
+  html.tauri-shell.crozzo-tauri-rail-ui .crozzo-header__status {
+    display: none !important;
+  }
+  html.crozzo-touch-shell .main-content,
+  html.crozzo-compact-chrome .main-content,
+  html.tauri-shell.crozzo-tauri-rail-ui .main-content {
+    padding-bottom: 0 !important;
+  }
+  html.crozzo-touch-shell .main-body,
+  html.crozzo-compact-chrome .main-body,
+  html.crozzo-touch-shell #mainContent,
+  html.crozzo-compact-chrome #mainContent,
+  html.tauri-shell.crozzo-tauri-rail-ui .main-body,
+  html.tauri-shell.crozzo-tauri-rail-ui #mainContent {
+    padding-bottom: 0 !important;
+  }
+
   .crozzo-header__status {
     justify-content: flex-start;
   }
@@ -25466,10 +25734,6 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   }
   .crozzo-header__rail {
     display: none;
-  }
-  .crozzo-header__actions {
-    width: 100%;
-    justify-content: flex-end;
   }
   .crozzo-header__toolbar {
     flex-wrap: nowrap;
@@ -29406,10 +29670,18 @@ html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro + .main-content {
 }
 
 html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav,
-html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav {
-  display: flex !important;
-  padding-bottom: calc(8px + var(--crozzo-safe-bottom));
-  min-height: calc(var(--crozzo-touch-nav-h, 72px) + 4px);
+html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav,
+html.tauri-shell #crozzoMobileBottomNav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
 }
 
 html.tauri-shell.crozzo-form-mobile .mobile-menu-btn,
@@ -31444,3 +31716,482 @@ html.crozzo-native-scan-active .crozzo-boot-update-gate {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== APK nativo · diseñado para el dispositivo, no adaptado del escritorio ===== */
+html.crozzo-android-native {
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+  --crozzo-touch-nav-h: 0px;
+  --crozzo-touch-sidebar-max: 100vw;
+  --crozzo-touch-pad: 10px;
+  --crozzo-touch-gap: 8px;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+
+html.crozzo-android-native.crozzo-touch-shell .main-content,
+html.crozzo-android-native.crozzo-tauri-rail-ui .main-content,
+html.crozzo-android-apk.crozzo-touch-shell .main-content,
+html.crozzo-android-native.crozzo-vp-ready .main-content {
+  padding-bottom: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+html.crozzo-android-native.crozzo-touch-shell .main-body,
+html.crozzo-android-native.crozzo-touch-shell #mainContent,
+html.crozzo-android-native.crozzo-tauri-rail-ui .main-body,
+html.crozzo-android-native.crozzo-tauri-rail-ui #mainContent,
+html.crozzo-android-native.crozzo-touch-shell[data-crozzo-touch-tier] .main-body,
+html.crozzo-android-native.crozzo-touch-shell[data-crozzo-touch-tier] #mainContent,
+html.crozzo-android-native.crozzo-form-mobile .main-body,
+html.crozzo-android-native.crozzo-form-mobile #mainContent,
+html.crozzo-android-native .main-body,
+html.crozzo-android-native #mainContent {
+  padding-bottom: 0 !important;
+}
+
+html.crozzo-android-native #crozzoMobileBottomNav {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+html.crozzo-android-native .app-container {
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  background: var(--bg-primary);
+}
+
+html.crozzo-android-native.crozzo-vp-ready {
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+html.crozzo-android-native.crozzo-vp-ready body {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+html.crozzo-android-native.crozzo-vp-ready .app-container {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
+html.crozzo-android-native .main-header,
+html.crozzo-android-native .main-header.crozzo-header-refined,
+html.crozzo-android-native .main-header.crozzo-header-elite {
+  display: flex !important;
+  grid-template-columns: unset !important;
+  grid-template-rows: unset !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 4px 8px !important;
+  padding-top: 4px !important;
+  min-height: 0 !important;
+  height: 44px !important;
+  max-height: 44px !important;
+  gap: 6px !important;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none;
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+html.crozzo-android-native .crozzo-header__primary {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+html.crozzo-android-native .crozzo-header__titles {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+html.crozzo-android-native .page-title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.crozzo-android-native .page-subtitle,
+html.crozzo-android-native .crozzo-header-greeting,
+html.crozzo-android-native .crozzo-header-psyche-line,
+html.crozzo-android-native .crozzo-header__status,
+html.crozzo-android-native .crozzo-header-date,
+html.crozzo-android-native .crozzo-header__meta,
+html.crozzo-android-native .crozzo-header__rail {
+  display: none !important;
+}
+
+html.crozzo-android-native .crozzo-header__cluster {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: auto !important;
+  max-width: none !important;
+  flex-wrap: nowrap !important;
+  gap: 4px !important;
+}
+
+html.crozzo-android-native .crozzo-header__actions,
+html.crozzo-android-native .crozzo-header__actions--elite {
+  width: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  gap: 2px !important;
+}
+
+html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-btn:not([id='crozzoA11yTrigger']) {
+  display: none !important;
+}
+
+html.crozzo-android-native .crozzo-header-theme-details {
+  display: none !important;
+}
+
+html.crozzo-android-native .mobile-menu-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+html.crozzo-android-native .crozzo-header-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 0.82rem;
+}
+
+/* Menú lateral pantalla completa: navegar solo por el menú */
+html.crozzo-android-native #sidebar.crozzo-drawer-nav.open,
+html.crozzo-android-native #sidebar.open,
+html.crozzo-android-native #sidebar.sidebar-pro.open,
+html.crozzo-android-native.crozzo-tauri-rail-ui #sidebar.open {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-width: 100vw !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  z-index: 1200 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.crozzo-android-native body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
+  z-index: 1190 !important;
+  background: var(--bg-primary) !important;
+  opacity: 1 !important;
+}
+
+html.crozzo-android-native body.crozzo-sidebar-drawer-open .main-content {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.crozzo-android-native #sidebar.open .sidebar-nav,
+html.crozzo-android-native #sidebar.open #sidebarNav {
+  padding-bottom: 12px;
+}
+
+html.crozzo-android-native #sidebar.open .nav-item,
+html.crozzo-android-native #sidebar.open .nav-group-toggle {
+  min-height: 48px;
+  font-size: 1rem;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+html.crozzo-android-native body {
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  background: var(--bg-primary);
+}
+
+/* Animaciones cortas y fluidas (no “web congelado” por perf-lite) */
+html.crozzo-android-native.crozzo-perf-lite *,
+html.crozzo-android-native.crozzo-perf-lite *::before,
+html.crozzo-android-native.crozzo-perf-lite *::after {
+  animation-duration: 0.22s !important;
+  transition-duration: 0.16s !important;
+}
+
+html.crozzo-android-native .btn,
+html.crozzo-android-native .nav-item,
+html.crozzo-android-native .product-card,
+html.crozzo-android-native .mesa-card,
+html.crozzo-android-native .service-mode-btn {
+  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+}
+
+html.crozzo-android-native .btn:active,
+html.crozzo-android-native .nav-item:active,
+html.crozzo-android-native .product-card:active,
+html.crozzo-android-native .mesa-card:active,
+html.crozzo-android-native .service-mode-btn:active,
+html.crozzo-android-native .crozzo-native-tap {
+  transform: scale(0.97);
+  opacity: 0.94;
+}
+
+html.crozzo-android-native .modal-overlay,
+html.crozzo-android-native .modal-overlay.active,
+html.crozzo-android-native .login-overlay,
+html.crozzo-android-native .sidebar-backdrop.active,
+html.crozzo-android-native .crozzo-pairing-overlay {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.crozzo-android-native .sidebar-backdrop.active {
+  background: var(--bg-primary) !important;
+  opacity: 1 !important;
+}
+
+html.crozzo-android-native #sidebar.crozzo-drawer-nav {
+  transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1) !important;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.crozzo-android-native #sidebar.crozzo-drawer-nav.open {
+  will-change: transform;
+}
+
+html.crozzo-android-native .pos-container,
+html.crozzo-android-native .pos-container.pos-retail-layout {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+html.crozzo-android-native[data-crozzo-touch-tier='phone'] .main-header,
+html.crozzo-android-native[data-crozzo-touch-tier='phone-sm'] .main-header,
+html.crozzo-android-native[data-crozzo-touch-tier='phone-lg'] .main-header {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+html.crozzo-android-native[data-crozzo-touch-tier='phone'] .crozzo-header__primary,
+html.crozzo-android-native[data-crozzo-touch-tier='phone-sm'] .crozzo-header__primary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+html.crozzo-android-native[data-crozzo-touch-tier='phone'] .page-subtitle,
+html.crozzo-android-native[data-crozzo-touch-tier='phone-sm'] .page-subtitle {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+html.crozzo-android-native .card {
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+html.crozzo-android-native .main-body,
+html.crozzo-android-native #mainContent {
+  padding: 8px 10px !important;
+  padding-bottom: 0 !important;
+}
+
+html.crozzo-android-native .crozzo-psyche-chip-host,
+html.crozzo-android-native .crozzo-peak-breathe-host {
+  display: none !important;
+}
+
+html.crozzo-android-native #crozzo-global-stress,
+html.crozzo-android-native #crozzo-update-normal-banner {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  html.crozzo-android-native .crozzo-header-refined,
+  html.crozzo-android-native .main-header.crozzo-header-refined {
+    display: flex !important;
+    grid-template-columns: unset !important;
+    grid-template-rows: unset !important;
+  }
+
+  html.crozzo-android-native .crozzo-header__cluster {
+    width: auto !important;
+    flex-wrap: nowrap !important;
+  }
+
+  html.crozzo-android-native .crozzo-header__actions {
+    width: auto !important;
+  }
+}
+
+html.crozzo-android-native.crozzo-touch-shell .main-header {
+  padding: 4px 8px !important;
+  padding-top: 4px !important;
+}
+
+/* Compact chrome: Tauri móvil/tablet (y APK si falla la clase android-native) */
+html.crozzo-compact-chrome {
+  --crozzo-touch-nav-h: 0px;
+  --crozzo-touch-sidebar-max: 100vw;
+  --crozzo-touch-pad: 10px;
+  --crozzo-touch-gap: 8px;
+}
+
+html.crozzo-compact-chrome.crozzo-touch-shell .main-content,
+html.crozzo-compact-chrome.crozzo-tauri-rail-ui .main-content,
+html.crozzo-compact-chrome.crozzo-vp-ready .main-content {
+  padding-bottom: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+html.crozzo-compact-chrome .main-body,
+html.crozzo-compact-chrome #mainContent,
+html.crozzo-compact-chrome.crozzo-touch-shell[data-crozzo-touch-tier] .main-body,
+html.crozzo-compact-chrome.crozzo-touch-shell[data-crozzo-touch-tier] #mainContent {
+  padding-bottom: 0 !important;
+}
+
+html.crozzo-compact-chrome #crozzoMobileBottomNav {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+html.crozzo-compact-chrome .main-header,
+html.crozzo-compact-chrome .main-header.crozzo-header-refined,
+html.crozzo-compact-chrome .main-header.crozzo-header-elite {
+  display: flex !important;
+  grid-template-columns: unset !important;
+  grid-template-rows: unset !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 4px 8px !important;
+  padding-top: 4px !important;
+  min-height: 0 !important;
+  height: 44px !important;
+  max-height: 44px !important;
+  gap: 6px !important;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+html.crozzo-compact-chrome .page-subtitle,
+html.crozzo-compact-chrome .crozzo-header-greeting,
+html.crozzo-compact-chrome .crozzo-header-psyche-line,
+html.crozzo-compact-chrome .crozzo-header__status,
+html.crozzo-compact-chrome .crozzo-header-date,
+html.crozzo-compact-chrome .crozzo-header__meta,
+html.crozzo-compact-chrome .crozzo-header__rail {
+  display: none !important;
+}
+
+html.crozzo-compact-chrome .crozzo-header__cluster {
+  width: auto !important;
+  flex-wrap: nowrap !important;
+  gap: 4px !important;
+}
+
+html.crozzo-compact-chrome .crozzo-header__actions,
+html.crozzo-compact-chrome .crozzo-header__actions--elite {
+  width: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.crozzo-compact-chrome .crozzo-header__toolbar .crozzo-toolbar-btn:not([id='crozzoA11yTrigger']) {
+  display: none !important;
+}
+
+html.crozzo-compact-chrome .crozzo-header-theme-details {
+  display: none !important;
+}
+
+html.crozzo-compact-chrome #crozzo-global-stress,
+html.crozzo-compact-chrome #crozzo-update-normal-banner,
+html.crozzo-compact-chrome .crozzo-psyche-chip-host {
+  display: none !important;
+}
+
+html.crozzo-compact-chrome.crozzo-android-native {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+
+html.crozzo-compact-chrome.crozzo-android-native.crozzo-vp-ready {
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+html.crozzo-compact-chrome.crozzo-android-native.crozzo-vp-ready body,
+html.crozzo-compact-chrome.crozzo-android-native.crozzo-vp-ready .app-container {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 1024px) {
+  html.crozzo-compact-chrome .crozzo-header-refined,
+  html.crozzo-compact-chrome .main-header.crozzo-header-refined {
+    display: flex !important;
+    grid-template-columns: unset !important;
+  }
+
+  html.crozzo-compact-chrome .crozzo-header__cluster,
+  html.crozzo-compact-chrome .crozzo-header__actions {
+    width: auto !important;
+  }
+}
+
+html.crozzo-compact-chrome.crozzo-touch-shell .main-header {
+  padding: 4px 8px !important;
+  padding-top: 4px !important;
+}
+

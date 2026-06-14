@@ -47,7 +47,10 @@
     var apk = isAndroidApk();
     doc.classList.toggle('crozzo-android-apk', apk);
     doc.classList.toggle('crozzo-field-tablet', isFieldTabletDevice());
-    if (apk) doc.classList.add('crozzo-perf-lite', 'crozzo-apk-perf');
+    if (apk) {
+      doc.classList.add('crozzo-apk-perf', 'crozzo-android-native');
+      doc.classList.remove('crozzo-perf-lite');
+    }
   }
 
   function applyLoginTabletUx() {

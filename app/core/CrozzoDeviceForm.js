@@ -61,10 +61,11 @@
 
   function applyTouchShellTokens(doc, factor, w) {
     var touch = factor === 'mobile' || factor === 'tablet';
+    var androidApk = isAndroidTauriShell();
     doc.classList.toggle('crozzo-touch-shell', touch);
     var tier = touch ? detectTouchTier(w, factor) : '';
-    if (isAndroidTauriShell() && touch) {
-      tier = 'tablet';
+    if (androidApk && touch) {
+      tier = detectTouchTier(w, factor);
     }
     if (tier) doc.setAttribute('data-crozzo-touch-tier', tier);
     else doc.removeAttribute('data-crozzo-touch-tier');
@@ -87,6 +88,20 @@
       return tier;
     }
     var t = TOUCH_TOKENS[tier] || TOUCH_TOKENS.phone;
+    if (androidApk) {
+      t = {
+        scale: 1,
+        gap: 8,
+        pad: 10,
+        navH: 0,
+        btn: 44,
+        font: 15,
+        icon: 1.3,
+        posCols: t.posCols,
+        sidebarPx: 360,
+        sidebarVw: 100,
+      };
+    }
     doc.style.setProperty('--crozzo-touch-scale', String(t.scale));
     doc.style.setProperty('--crozzo-touch-gap', t.gap + 'px');
     doc.style.setProperty('--crozzo-touch-pad', t.pad + 'px');
@@ -97,7 +112,7 @@
     doc.style.setProperty('--crozzo-touch-pos-cols', String(t.posCols));
     doc.style.setProperty(
       '--crozzo-touch-sidebar-max',
-      'min(' + t.sidebarPx + 'px, ' + t.sidebarVw + 'vw)'
+      androidApk ? '100vw' : 'min(' + t.sidebarPx + 'px, ' + t.sidebarVw + 'vw)'
     );
     return tier;
   }
@@ -108,14 +123,6 @@
     global.__CROZZO_FORM_RESIZE_T__ = setTimeout(function () {
       doc.classList.remove('crozzo-form-resizing');
     }, 380);
-  }
-
-  function isAndroidTauriShell() {
-    try {
-      return isTauriShell() && /Android/i.test(global.navigator && global.navigator.userAgent ? global.navigator.userAgent : '');
-    } catch (_) {
-      return false;
-    }
   }
 
   function readHeight() {
@@ -133,11 +140,21 @@
     }
   }
 
+  function isMobileDevPreview() {
+    try {
+      if (String(global.location && global.location.hash || '').toLowerCase().indexOf('mobile') >= 0) return true;
+      if (global.localStorage && global.localStorage.getItem('crozzo_dev_mobile') === '1') return true;
+    } catch (_) {}
+    return false;
+  }
+
   function detectFormFactor() {
     var w = readWidth();
-    if (isAndroidTauriShell()) {
-      /* APK Android (celular o tablet): misma interfaz táctil POS de campo */
-      return 'tablet';
+    if (isTauriShell() && isMobileDevPreview()) return 'mobile';
+    if (isTauriShell()) {
+      if (w <= BREAK_MOBILE) return 'mobile';
+      if (w <= BREAK_TABLET) return 'tablet';
+      return 'desktop';
     }
     if (w <= BREAK_MOBILE) return 'mobile';
     if (w <= BREAK_TABLET) return 'tablet';
@@ -146,7 +163,25 @@
   }
 
   function isTauriShell() {
-    return !!(global.__TAURI__ || global.__CROZZO_IS_TAURI__);
+    try {
+      var ua = String((global.navigator && global.navigator.userAgent) || '');
+      if (/tauri/i.test(ua)) return true;
+    } catch (_) {}
+    return !!(global.__TAURI__ || global.__TAURI_INTERNALS__ || global.__CROZZO_IS_TAURI__);
+  }
+
+  function isAndroidTauriShell() {
+    try {
+      var ua = String((global.navigator && global.navigator.userAgent) || '');
+      if (!/Android/i.test(ua)) return false;
+      if (global.__TAURI__ || global.__TAURI_INTERNALS__) return true;
+      if (global.__CROZZO_IS_TAURI__) return true;
+      if (/tauri/i.test(ua)) return true;
+      var href = String((global.location && global.location.href) || '');
+      var host = String((global.location && global.location.hostname) || '');
+      if (/tauri\.localhost|asset\.localhost|ipc\.localhost/i.test(href + host)) return true;
+    } catch (_) {}
+    return false;
   }
 
   function isTauriDesktopShell() {
@@ -198,7 +233,13 @@
       if (factor === 'desktop' && prev && prev !== 'desktop') closeSidebarDrawerIfOpen();
     }
 
-    doc.classList.toggle('crozzo-android-apk', isAndroidTauriShell());
+    var androidApk = isAndroidTauriShell();
+    var compactChrome = androidApk || (tauri && factor !== 'desktop');
+    doc.classList.toggle('crozzo-android-apk', androidApk);
+    doc.classList.toggle('crozzo-apk-rail-ui', tauri && factor !== 'desktop');
+    doc.classList.toggle('crozzo-tauri-rail-ui', tauri && factor !== 'desktop');
+    doc.classList.toggle('crozzo-android-native', androidApk);
+    doc.classList.toggle('crozzo-compact-chrome', compactChrome);
 
     try {
       if (typeof global.crozzoTabletShellRefresh === 'function') global.crozzoTabletShellRefresh();
@@ -277,9 +318,20 @@
   }
 
   function init() {
-    global.__CROZZO_IS_TAURI__ = !!(global.__TAURI__);
+    global.__CROZZO_IS_TAURI__ =
+      !!(global.__TAURI__ || global.__TAURI_INTERNALS__) ||
+      /tauri/i.test(String((global.navigator && global.navigator.userAgent) || ''));
     applyFormFactorClasses();
     bindResize();
+    [0, 80, 300, 900].forEach(function (ms) {
+      global.setTimeout(applyFormFactorClasses, ms);
+    });
+    global.addEventListener('load', function () {
+      global.__CROZZO_IS_TAURI__ =
+        !!(global.__TAURI__ || global.__TAURI_INTERNALS__) ||
+        /tauri/i.test(String((global.navigator && global.navigator.userAgent) || ''));
+      applyFormFactorClasses();
+    });
   }
 
   global.crozzoDetectFormFactor = detectFormFactor;

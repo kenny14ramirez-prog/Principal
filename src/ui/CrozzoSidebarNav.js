@@ -25,6 +25,8 @@
       if (typeof global.crozzoIsDrawerLayoutActive === 'function') return global.crozzoIsDrawerLayoutActive();
       var doc = document.documentElement;
       if (doc && doc.classList.contains('crozzo-form-desktop')) return false;
+      if (doc && doc.classList.contains('crozzo-tauri-rail-ui')) return true;
+      if (doc && doc.classList.contains('tauri-shell')) return false;
       if (doc && doc.classList.contains('crozzo-touch-shell')) return true;
       if (doc && (doc.classList.contains('crozzo-form-mobile') || doc.classList.contains('crozzo-form-tablet'))) return true;
       var body = document.body;

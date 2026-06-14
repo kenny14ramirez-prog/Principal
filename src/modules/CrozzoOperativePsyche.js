@@ -612,6 +612,12 @@
 
   function renderConciergeStrip() {
     if (!shouldApplyPsycheLayer()) return '';
+    try {
+      if (
+        document.documentElement.classList.contains('crozzo-android-apk') ||
+        document.documentElement.classList.contains('crozzo-tauri-rail-ui')
+      ) return '';
+    } catch (_) {}
     var first = getFirstName();
     var greet = typeof global.crozzoPremiumGreeting === 'function' ? global.crozzoPremiumGreeting() : 'Bienvenido';
     var s = getPsychState();
@@ -1011,17 +1017,19 @@
 
   function injectPsycheChipHost(force) {
     if (!shouldApplyHumanLayer()) return;
-    injectPeakBreatheStrip();
     if (shouldHideChipOnPage()) {
       _psycheChipHtmlCache = '';
+      _peakStripActive = false;
+      var peakHost = document.getElementById('crozzo-peak-breathe-host');
+      if (peakHost) peakHost.innerHTML = '';
       var h0 = document.getElementById('crozzo-psyche-chip-host');
       if (h0) {
-        if (!h0.innerHTML && h0.hidden) return;
         h0.innerHTML = '';
         h0.hidden = true;
       }
       return;
     }
+    injectPeakBreatheStrip();
     var hostVis = document.getElementById('crozzo-psyche-chip-host');
     if (hostVis) hostVis.hidden = false;
     var html = shouldApplyPsycheLayer() ? renderPsycheChip() : renderMinimalHumanChip();
@@ -1111,6 +1119,7 @@
     humanizeToastMessage: humanizeToastMessage,
     getWellbeingEntries: getWellbeingEntries,
     finishWellbeingSkip: finishWellbeingSkip,
+    refreshChrome: refreshPsycheChrome,
   };
 
   if (document.readyState === 'loading') {
