@@ -40,13 +40,52 @@
     }
   }
 
+  function isAndroidUa() {
+    try {
+      return /Android/i.test(String((global.navigator && global.navigator.userAgent) || ''));
+    } catch (_) {
+      return false;
+    }
+  }
+
   function isAndroidApkShell() {
     try {
       var doc = document.documentElement;
+      if (doc.getAttribute('data-crozzo-android') === '1') return true;
       return (
         doc.classList.contains('crozzo-android-apk') ||
-        doc.classList.contains('crozzo-android-native') ||
-        doc.classList.contains('crozzo-compact-chrome')
+        doc.classList.contains('crozzo-android-native')
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function isTauriShell() {
+    try {
+      if (document.documentElement.classList.contains('tauri-shell')) return true;
+      if (global.__TAURI__ || global.__TAURI_INTERNALS__) return true;
+      if (global.__CROZZO_IS_TAURI__) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function useTauriFillLayout() {
+    if (isTauriShell() || isAndroidApkShell() || isCompactChromeShell()) return true;
+    try {
+      if (global.__CROZZO_IS_TAURI__ || global.__TAURI__ || global.__TAURI_INTERNALS__) return true;
+      if (isAndroidUa() && global.__CROZZO_IS_TAURI__) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function isCompactChromeShell() {
+    try {
+      var doc = document.documentElement;
+      return (
+        doc.classList.contains('crozzo-compact-chrome') ||
+        doc.classList.contains('crozzo-android-apk') ||
+        doc.classList.contains('crozzo-android-native')
       );
     } catch (_) {
       return false;
@@ -54,17 +93,13 @@
   }
 
   function measureBottomInset() {
-    var bottom = 0;
-    if (isAndroidApkShell()) {
+    if (isAndroidApkShell() || isTauriShell()) {
       return 0;
     }
+    var bottom = 0;
     try {
       if (!isTouchNavShell() && isBottomNavVisible()) bottom += navHeight();
     } catch (_) {}
-    /* Tauri escritorio: innerHeight ya es el área útil; no restar barra de tareas otra vez */
-    if (isTauriDesktopShell() && !isBottomNavVisible()) {
-      return 0;
-    }
     try {
       if (global.visualViewport) {
         var vv = global.visualViewport;
@@ -99,6 +134,16 @@
   }
 
   function measureHeaderH() {
+    if (isCompactChromeShell() || isAndroidUa()) {
+      var safeTop = 0;
+      try {
+        safeTop = parseInt(
+          global.getComputedStyle(document.documentElement).getPropertyValue('--crozzo-safe-top') || '0',
+          10
+        ) || 0;
+      } catch (_) {}
+      return Math.max(48, 44 + safeTop);
+    }
     var h =
       document.querySelector('.main-header.crozzo-header-elite') ||
       document.querySelector('.main-header');
@@ -121,6 +166,9 @@
   function readViewportSize() {
     var ih = Math.round(global.innerHeight || 0);
     var iw = Math.round(global.innerWidth || 0);
+    if (isTauriShell() || isAndroidApkShell()) {
+      return { ih: ih, iw: iw };
+    }
     try {
       var docEl = document.documentElement;
       if (docEl) {
@@ -188,11 +236,35 @@
     var headerH = measureHeaderH();
     var bottom = measureBottomInset();
     var contentH = Math.max(200, ih - bottom);
-    if (isAndroidApkShell()) {
+    var tauriFill = useTauriFillLayout();
+
+    if (tauriFill) {
       contentH = ih;
-      headerH = 44;
+      bottom = 0;
+      headerH = isCompactChromeShell() || isAndroidUa() ? 44 : headerH;
+      /* Píxeles reales: en WebView Android los % encogen pantallas operativas */
+      doc.style.setProperty('--crozzo-vh', ih + 'px');
+      doc.style.setProperty('--crozzo-content-h', ih + 'px');
+      doc.style.setProperty('--crozzo-touch-nav-h', '0px');
+      doc.style.setProperty('--crozzo-bottom-safe', '0px');
+      doc.style.setProperty('--crozzo-vw', iw + 'px');
+      doc.style.setProperty('--crozzo-header-h', headerH + 'px');
+      if (isAndroidUa()) {
+        doc.setAttribute('data-crozzo-android', '1');
+        doc.style.height = ih + 'px';
+        doc.style.maxHeight = ih + 'px';
+        body.style.height = ih + 'px';
+        body.style.maxHeight = ih + 'px';
+      }
+      doc.classList.add('crozzo-vp-ready');
+      doc.classList.toggle('crozzo-vp-tauri-fill', tauriFill);
+      body.classList.remove('crozzo-vp-has-bottom');
+      body.classList.remove('crozzo-vp-mobile-nav');
+      detectDisplayScale(doc);
+      return true;
     }
 
+    doc.classList.remove('crozzo-vp-tauri-fill');
     doc.style.setProperty('--crozzo-vh', ih + 'px');
     doc.style.setProperty('--crozzo-vw', iw + 'px');
     doc.style.setProperty('--crozzo-content-h', contentH + 'px');
@@ -235,7 +307,7 @@
     global.addEventListener('orientationchange', function () {
       global.setTimeout(schedule, 250);
     });
-    if (global.visualViewport) {
+    if (global.visualViewport && !isTauriShell()) {
       global.visualViewport.addEventListener('resize', schedule);
       global.visualViewport.addEventListener('scroll', schedule);
     }
@@ -251,6 +323,7 @@
     try {
       document.addEventListener('crozzo-ready', schedule);
       document.addEventListener('crozzo-auth-ready', schedule);
+      document.addEventListener('crozzo-form-factor', schedule);
     } catch (_) {}
   }
 

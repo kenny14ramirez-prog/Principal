@@ -88,7 +88,8 @@
       return tier;
     }
     var t = TOUCH_TOKENS[tier] || TOUCH_TOKENS.phone;
-    if (androidApk) {
+    var tauriTouch = touch && isTauriShell();
+    if (androidApk || tauriTouch) {
       t = {
         scale: 1,
         gap: 8,
@@ -99,7 +100,7 @@
         icon: 1.3,
         posCols: t.posCols,
         sidebarPx: 360,
-        sidebarVw: 100,
+        sidebarVw: androidApk ? 100 : t.sidebarVw,
       };
     }
     doc.style.setProperty('--crozzo-touch-scale', String(t.scale));
@@ -180,6 +181,8 @@
       var href = String((global.location && global.location.href) || '');
       var host = String((global.location && global.location.hostname) || '');
       if (/tauri\.localhost|asset\.localhost|ipc\.localhost/i.test(href + host)) return true;
+      /* APK empaquetada: WebView Android sin UA tauri explícito */
+      if (/wv|WebView/i.test(ua) && !/Chrome\/[\d.]+ Mobile/i.test(ua)) return true;
     } catch (_) {}
     return false;
   }
@@ -198,6 +201,73 @@
         bd.setAttribute('aria-hidden', 'true');
       }
       if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
+    } catch (_) {}
+  }
+
+  function applyCompactChromeInline(compact) {
+    try {
+      var hdr = document.querySelector('.main-header');
+      if (hdr) {
+        if (compact) {
+          hdr.style.setProperty('display', 'flex', 'important');
+          hdr.style.setProperty('flex-direction', 'row', 'important');
+          hdr.style.setProperty('flex-wrap', 'nowrap', 'important');
+          hdr.style.setProperty('align-items', 'center', 'important');
+          hdr.style.setProperty('height', '44px', 'important');
+          hdr.style.setProperty('max-height', '52px', 'important');
+          hdr.style.setProperty('padding', '4px 8px', 'important');
+          hdr.style.setProperty('padding-top', 'max(4px, env(safe-area-inset-top, 0px))', 'important');
+          hdr.style.setProperty('overflow', 'hidden', 'important');
+        } else {
+          hdr.style.removeProperty('display');
+          hdr.style.removeProperty('flex-direction');
+          hdr.style.removeProperty('flex-wrap');
+          hdr.style.removeProperty('align-items');
+          hdr.style.removeProperty('height');
+          hdr.style.removeProperty('max-height');
+          hdr.style.removeProperty('padding');
+          hdr.style.removeProperty('overflow');
+        }
+      }
+      var main = document.querySelector('.main-content');
+      if (main) {
+        if (compact) main.style.setProperty('padding-bottom', '0', 'important');
+        else main.style.removeProperty('padding-bottom');
+      }
+      var bodyEl = document.getElementById('mainContent') || document.querySelector('.main-body');
+      if (bodyEl) {
+        if (compact) bodyEl.style.setProperty('padding-bottom', '0', 'important');
+        else bodyEl.style.removeProperty('padding-bottom');
+      }
+      var app = document.querySelector('.app-container');
+      if (app && !compact) {
+        app.style.removeProperty('height');
+        app.style.removeProperty('max-height');
+        app.style.removeProperty('min-height');
+      }
+      if (compact) {
+        if (document.body) {
+          document.body.style.setProperty('overflow', 'hidden', 'important');
+        }
+      } else if (document.body) {
+        document.body.style.removeProperty('overflow');
+      }
+      try {
+        if (global.CrozzoViewportFit && typeof global.CrozzoViewportFit.schedule === 'function') {
+          global.CrozzoViewportFit.schedule();
+        }
+      } catch (_) {}
+      var nav = document.getElementById('crozzoMobileBottomNav');
+      if (nav) {
+        if (compact) {
+          nav.style.setProperty('display', 'none', 'important');
+          nav.style.setProperty('height', '0', 'important');
+          nav.setAttribute('aria-hidden', 'true');
+        } else {
+          nav.style.removeProperty('display');
+          nav.style.removeProperty('height');
+        }
+      }
     } catch (_) {}
   }
 
@@ -235,14 +305,22 @@
 
     var androidApk = isAndroidTauriShell();
     var compactChrome = androidApk || (tauri && factor !== 'desktop');
+    if (androidApk) doc.setAttribute('data-crozzo-android', '1');
+    else doc.removeAttribute('data-crozzo-android');
     doc.classList.toggle('crozzo-android-apk', androidApk);
     doc.classList.toggle('crozzo-apk-rail-ui', tauri && factor !== 'desktop');
     doc.classList.toggle('crozzo-tauri-rail-ui', tauri && factor !== 'desktop');
     doc.classList.toggle('crozzo-android-native', androidApk);
     doc.classList.toggle('crozzo-compact-chrome', compactChrome);
+    applyCompactChromeInline(compactChrome);
 
     try {
       if (typeof global.crozzoTabletShellRefresh === 'function') global.crozzoTabletShellRefresh();
+    } catch (_) {}
+    try {
+      if (global.CrozzoAndroidNative && typeof global.CrozzoAndroidNative.applyLayoutPolish === 'function') {
+        global.CrozzoAndroidNative.applyLayoutPolish();
+      }
     } catch (_) {}
 
     try {

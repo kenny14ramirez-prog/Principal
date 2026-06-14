@@ -65,6 +65,12 @@
   }
 
   function isBottomNavShell() {
+    try {
+      var doc = document.documentElement;
+      if (doc.classList.contains('crozzo-compact-chrome')) return false;
+      if (doc.classList.contains('crozzo-android-apk')) return false;
+      if (doc.classList.contains('crozzo-android-native')) return false;
+    } catch (_) {}
     if (isTauriShell()) return false;
     if (isAndroidApkShell()) return false;
     if (isPhoneShell()) return false;
