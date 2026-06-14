@@ -9,6 +9,7 @@
     "process:default",
     "allow-crozzo-android-install",
     "allow-crozzo-gossip-udp",
-    "android-package-install:default"
+    "android-package-install:default",
+    "barcode-scanner:default"
   ]
 }

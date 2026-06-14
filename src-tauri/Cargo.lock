@@ -4067,6 +4067,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-android-package-install",
+ "tauri-plugin-barcode-scanner",
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-updater",
@@ -4160,6 +4161,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26adac3ec3483d877a70f9109c21ddbcdaa8f89ec376b25bc72818ed97aa09f6"
 dependencies = [
  "serde",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "tauri-plugin-barcode-scanner"
+version = "2.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3b68f0e3782b61a6e16a67380be40226e2b7233f3e36dadf6e5d03f07d2e7b3"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.18",

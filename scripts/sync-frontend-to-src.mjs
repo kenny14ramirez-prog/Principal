@@ -218,3 +218,23 @@ if (existsSync(dataDir)) {
 const bytes = statSync(destHtml).size;
 console.log('[sync] OK app/ → src/index.html (' + Math.round(bytes / 1024) + ' KB)');
 console.log('[sync] Total archivos copiados:', copied);
+
+const tauriChecks = [
+  'modules/CrozzoPairingQrReader.js',
+  'core/CrozzoPairingSeal.js',
+  'vendor/CrozzoJsQR.js',
+  'vendor/CrozzoQRCode.js',
+];
+let tauriOk = true;
+for (const rel of tauriChecks) {
+  const p = join(srcDir, ...rel.split('/'));
+  if (!existsSync(p)) {
+    console.error('[sync] FALTA para Tauri:', rel);
+    tauriOk = false;
+  }
+}
+if (!tauriOk) process.exit(1);
+if (!readFileSync(destHtml, 'utf8').includes('CrozzoPairingQrReader.js')) {
+  console.error('[sync] index.html sin CrozzoPairingQrReader.js');
+  process.exit(1);
+}

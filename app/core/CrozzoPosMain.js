@@ -38376,6 +38376,7 @@ function init() {
   let pairingApplying = false;
   let pairingQrRenderToken = 0;
   let pairingDecodeToken = 0;
+  let pairingDecodingActive = false;
   let __crozzoJsQRPromise = null;
   function el(id) {
     return document.getElementById(id);
@@ -38894,6 +38895,27 @@ function init() {
       reader.readAsDataURL(file);
     });
   }
+  function crozzoPairingClearCapturePreview() {
+    var host = el('crozzoPairingReaderHost');
+    if (!host) return;
+    try {
+      if (host._previewUrl) URL.revokeObjectURL(host._previewUrl);
+    } catch (_) {}
+    host._previewUrl = null;
+  }
+  function crozzoPairingShowCapturePreview(file) {
+    var host = el('crozzoPairingReaderHost');
+    if (!host || !file) return;
+    crozzoPairingClearCapturePreview();
+    try {
+      var url = URL.createObjectURL(file);
+      host._previewUrl = url;
+      host.innerHTML =
+        '<img class="crozzo-pairing-capture-preview" src="' +
+        url +
+        '" alt="Foto capturada" style="width:100%;max-height:min(55vh,340px);object-fit:contain;border-radius:10px;background:#0a0f18;" />';
+    } catch (_) {}
+  }
   function crozzoPairingBindCaptureInput() {
     function bindOne(inputId) {
       var inp = el(inputId);
@@ -38905,7 +38927,6 @@ function init() {
           inp.value = '';
         } catch (_) {}
         if (f) {
-          crozzoPairingStopScan();
           crozzoPairingDecodeFile(f);
         } else {
           crozzoPairingShowStatus('Captura cancelada. Use escáner en vivo o galería.', { isErr: true });
@@ -38920,17 +38941,26 @@ function init() {
     var liveBtn = el('crozzoPairingBtnLiveScan');
     var photoLbl = el('crozzoPairingBtnPhoto');
     var galLbl = el('crozzoPairingBtnGallery');
+    var nativeBtn = el('crozzoPairingBtnNativeScan');
+    var reader = window.CrozzoPairingQrReader;
+    var hasNative = !!(reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner());
+    if (nativeBtn) {
+      nativeBtn.style.display = hasNative ? '' : 'none';
+      nativeBtn.textContent = '📷 Escanear QR (cámara nativa)';
+    }
     if (liveBtn) {
-      liveBtn.textContent = isApk ? '📷 Captura rápida' : '◎ Escáner óptico';
-      liveBtn.style.display = '';
+      liveBtn.textContent = isApk ? '▶ Cámara en vivo' : '◎ Escáner óptico';
+      liveBtn.style.display = isApk ? 'none' : '';
     }
     if (photoLbl) {
-      photoLbl.textContent = isApk ? '◎ Reintentar captura' : '📷 Captura rápida';
-      photoLbl.style.display = isApk ? 'inline-flex' : 'none';
+      photoLbl.textContent = isApk ? '📷 Tomar foto del QR' : '📷 Foto con cámara';
+      photoLbl.classList.toggle('btn-primary', !hasNative);
+      photoLbl.classList.toggle('btn-outline', !!hasNative);
+      photoLbl.style.display = '';
     }
     if (galLbl) {
       galLbl.textContent = '🖼️ Galería';
-      galLbl.style.display = isApk ? 'inline-flex' : '';
+      galLbl.style.display = '';
     }
   }
   function crozzoPairingSetScanZoneActive(on) {
@@ -39676,9 +39706,13 @@ function init() {
     if (titleEl) titleEl.textContent = 'Enlazar terminal de campo';
     var hintEl = el('crozzoPairingReaderHint');
     if (hintEl) {
+      var reader = window.CrozzoPairingQrReader;
+      var hasNative = !!(reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner());
       hintEl.textContent = crozzoPairingReaderIsFieldDevice()
-        ? 'Pulse «Captura rápida», enfoque el QR grande de la caja y tome la foto. Sin reflejos ni mucha distancia.'
-        : 'Centre el QR de la caja en el marco. Use «Captura rápida» o galería si la cámara en vivo falla.';
+        ? hasNative
+          ? 'Pulse «Escanear QR (cámara nativa)» y apunte al código grande de la caja. Si falla, use foto, galería o pegue el código BOF… copiado en la caja.'
+          : 'Pulse «Tomar foto del QR», enfoque el código grande de la caja y confirme. Si falla, pegue el código copiado en la caja.'
+        : 'Centre el QR de la caja en el marco. Use «Escáner óptico», foto o galería si hace falta.';
     }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
@@ -39692,81 +39726,129 @@ function init() {
       window.CrozzoPairingQrReader.ensureReady().catch(function () {});
     }
     try {
+      var reader0 = window.CrozzoPairingQrReader;
+      var hasNative0 = !!(reader0 && typeof reader0.hasNativeScanner === 'function' && reader0.hasNativeScanner());
       if (crozzoPairingReaderIsFieldDevice()) {
-        crozzoPairingShowStatus('Pulse «Captura rápida» y enfoque el QR de la caja en el marco.', false);
-        window.setTimeout(function () {
-          if (
-            window.CrozzoPairingQrReader &&
-            typeof window.CrozzoPairingQrReader.preferNativeCamera === 'function' &&
-            window.CrozzoPairingQrReader.preferNativeCamera()
-          ) {
-            if (typeof crozzoPairingPickPhoto === 'function') crozzoPairingPickPhoto();
-          } else if (typeof crozzoPairingStartScan === 'function') {
-            crozzoPairingStartScan();
-          }
-        }, 500);
+        crozzoPairingShowStatus(
+          hasNative0
+            ? 'Pulse «Escanear QR (cámara nativa)» para leer el código de la caja.'
+            : 'Pulse «Tomar foto del QR», enfoque el código grande de la caja y confirme.',
+          false
+        );
       } else if (typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches) {
-        crozzoPairingShowStatus('Modo táctil: use escáner en vivo o captura rápida.', false);
+        crozzoPairingShowStatus('Modo táctil: use escáner nativo, foto o galería.', false);
       }
     } catch (_) {}
   };
-  window.crozzoPairingStopScan = function crozzoPairingStopScan() {
+  function crozzoPairingStopLiveOnly() {
     crozzoPairingSetScanZoneActive(false);
+    if (window.CrozzoPairingQrReader && typeof window.CrozzoPairingQrReader.cancelNativeScan === 'function') {
+      window.CrozzoPairingQrReader.cancelNativeScan();
+    }
     if (window.CrozzoPairingQrReader && typeof window.CrozzoPairingQrReader.stopLive === 'function') {
       window.CrozzoPairingQrReader.stopLive();
     }
-    if (!pairingScanner) {
+    if (pairingScanner) {
+      const ps = pairingScanner;
+      pairingScanner = null;
       try {
-        var h0 = el('crozzoPairingReaderHost');
-        if (h0) h0.innerHTML = '';
+        if (ps.rafId) cancelAnimationFrame(ps.rafId);
       } catch (_) {}
+      try {
+        if (ps.scanTimer) clearInterval(ps.scanTimer);
+      } catch (_) {}
+      try {
+        if (ps.stream && ps.stream.getTracks) ps.stream.getTracks().forEach(function (t) { t.stop(); });
+      } catch (_) {}
+      try {
+        if (ps.video) {
+          ps.video.pause();
+          ps.video.removeAttribute('src');
+          ps.video.srcObject = null;
+        }
+      } catch (_) {}
+      try {
+        if (typeof ps.stop === 'function') ps.stop().catch(function () {});
+        if (typeof ps.clear === 'function') ps.clear();
+      } catch (_) {}
+    }
+  }
+  window.crozzoPairingStopScan = function crozzoPairingStopScan() {
+    crozzoPairingStopLiveOnly();
+    if (pairingDecodingActive) return;
+    crozzoPairingClearCapturePreview();
+    try {
+      var h0 = el('crozzoPairingReaderHost');
+      if (h0) h0.innerHTML = '';
+    } catch (_) {}
+  };
+  window.crozzoPairingScanNative = function crozzoPairingScanNative() {
+    var reader = window.CrozzoPairingQrReader;
+    if (!reader || typeof reader.scanNative !== 'function') {
+      crozzoPairingShowStatus('Escáner nativo no disponible. Use foto, galería o pegue el código.', true);
+      if (typeof crozzoPairingPickPhoto === 'function') crozzoPairingPickPhoto();
       return;
     }
-    const ps = pairingScanner;
-    pairingScanner = null;
-    try {
-      if (ps.rafId) cancelAnimationFrame(ps.rafId);
-    } catch (_) {}
-    try {
-      if (ps.scanTimer) clearInterval(ps.scanTimer);
-    } catch (_) {}
-    try {
-      if (ps.stream && ps.stream.getTracks) ps.stream.getTracks().forEach(function (t) { t.stop(); });
-    } catch (_) {}
-    try {
-      if (ps.video) {
-        ps.video.pause();
-        ps.video.removeAttribute('src');
-        ps.video.srcObject = null;
-      }
-    } catch (_) {}
-    try {
-      if (typeof ps.stop === 'function') ps.stop().catch(function () {});
-      if (typeof ps.clear === 'function') ps.clear();
-    } catch (_) {}
-    try {
-      if (ps.canvas) {
-        try {
-          ps.canvas.width = 0;
-        } catch (_) {}
-      }
-    } catch (_) {}
-    try {
-      const h = el('crozzoPairingReaderHost');
-      if (h) h.innerHTML = '';
-    } catch (_) {}
+    if (typeof reader.hasNativeScanner === 'function' && !reader.hasNativeScanner()) {
+      crozzoPairingShowStatus('Escáner nativo solo en APK. Use foto o pegue el código BOF…', true);
+      return;
+    }
+    crozzoPairingStopScan();
+    pairingScanner = { native: true };
+    crozzoPairingSetScanZoneActive(true);
+    crozzoPairingShowStatus('Abriendo cámara nativa… apunte al QR de la caja', { busy: true, phase: 'decode', progress: 12 });
+    reader
+      .scanNative({ windowed: true, formats: ['QR_CODE'] })
+      .then(function (raw) {
+        pairingScanner = null;
+        crozzoPairingSetScanZoneActive(false);
+        if (raw) {
+          crozzoPairingHandleDecoded(raw);
+          return;
+        }
+        crozzoPairingShowStatus('No se detectó QR. Reintente o use foto / pegar código.', { isErr: true });
+      })
+      .catch(function (err) {
+        pairingScanner = null;
+        crozzoPairingSetScanZoneActive(false);
+        var msg = err && err.message ? String(err.message) : '';
+        var hint =
+          msg === 'perm_denied'
+            ? 'Permiso de cámara denegado. Vaya a Ajustes → Apps → BONA origen → Permisos y active Cámara.'
+            : msg.indexOf('cancel') >= 0 || msg.indexOf('Cancel') >= 0
+              ? 'Escaneo cancelado. Puede reintentar o pegar el código.'
+              : 'Escáner nativo: ' + (msg || 'no disponible') + '. Pruebe foto, galería o pegue el código BOF…';
+        crozzoPairingShowStatus(hint, { isErr: msg !== 'perm_denied' && msg.indexOf('cancel') < 0 });
+      });
   };
   window.crozzoPairingStartScan = function crozzoPairingStartScan() {
     const host = el('crozzoPairingReaderHost');
     if (!host) return;
-    crozzoPairingStopScan();
     var reader = window.CrozzoPairingQrReader;
+    if (
+      reader &&
+      typeof reader.hasNativeScanner === 'function' &&
+      reader.hasNativeScanner() &&
+      (crozzoPairingReaderIsFieldDevice() || (typeof reader.preferNativeCamera === 'function' && reader.preferNativeCamera()))
+    ) {
+      if (typeof window.crozzoPairingScanNative === 'function') {
+        window.crozzoPairingScanNative();
+        return;
+      }
+    }
+    crozzoPairingStopScan();
     if (!reader || typeof reader.startLive !== 'function') {
       crozzoPairingShowStatus('Lector QR no cargado. Cierre y vuelva a abrir emparejamiento.', true);
       return;
     }
     if (typeof reader.preferNativeCamera === 'function' && reader.preferNativeCamera()) {
-      crozzoPairingShowStatus('En tablet use «Captura rápida» (cámara nativa, más fiable).', false);
+      if (typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner()) {
+        if (typeof window.crozzoPairingScanNative === 'function') {
+          window.crozzoPairingScanNative();
+          return;
+        }
+      }
+      crozzoPairingShowStatus('En tablet use foto o galería (más fiable que cámara en vivo).', false);
       if (typeof crozzoPairingPickPhoto === 'function') {
         crozzoPairingPickPhoto();
         return;
@@ -39842,6 +39924,7 @@ function init() {
       const ab = el('crozzoPairingApplyBtn');
       if (ab) ab.disabled = false;
       crozzoPairingPreviewFromPayload(v.data);
+      crozzoPairingClearCapturePreview();
       crozzoPairingStopScan();
       crozzoPairingSetWizardStep(2);
       var autoApply = crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice();
@@ -39863,7 +39946,20 @@ function init() {
       crozzoPairingShowStatus('Lector QR no disponible. Recargue la app.', true);
       return;
     }
+    pairingDecodingActive = true;
+    crozzoPairingStopLiveOnly();
+    crozzoPairingShowCapturePreview(file);
     var token = ++pairingDecodeToken;
+    var budget = reader.DECODE_BUDGET_MS || 14000;
+    var watchdog = window.setTimeout(function () {
+      if (token !== pairingDecodeToken) return;
+      pairingDecodeToken++;
+      pairingDecodingActive = false;
+      crozzoPairingShowStatus(
+        'No se leyó a tiempo. Acerque el QR, use Galería o pegue el código copiado en la caja (botón «Copiar código seguro»).',
+        { isErr: true }
+      );
+    }, budget + 2000);
     crozzoPairingShowStatus('Leyendo imagen…', { busy: true, phase: 'decode', progress: 12 });
     reader
       .ensureReady()
@@ -39875,23 +39971,27 @@ function init() {
         });
       })
       .then(function (raw) {
+        window.clearTimeout(watchdog);
+        pairingDecodingActive = false;
         if (token !== pairingDecodeToken) return;
         if (raw) {
           crozzoPairingHandleDecoded(raw);
           return;
         }
         crozzoPairingShowStatus(
-          'No se leyó el QR. Acerque más el código, evite reflejos en la pantalla de la caja o pegue el código en «Ingreso manual».',
+          'No se leyó el QR. Acerque más, pruebe Galería o pegue el código BOF… de la caja en el cuadro de abajo.',
           { isErr: true }
         );
       })
       .catch(function (err) {
+        window.clearTimeout(watchdog);
+        pairingDecodingActive = false;
         if (token !== pairingDecodeToken) return;
         var msg = err && err.message ? String(err.message) : '';
         crozzoPairingShowStatus(
           msg.indexOf('jsQR') >= 0
-            ? 'Motor QR no cargó. Cierre sesión, abra de nuevo BONA origen e intente otra vez.'
-            : 'No se pudo procesar la imagen. Pruebe otra captura.',
+            ? 'Motor QR no cargó. Cierre y abra BONA origen de nuevo.'
+            : 'No se pudo procesar la imagen. Pruebe Galería o pegue el código manualmente.',
           { isErr: true }
         );
       });

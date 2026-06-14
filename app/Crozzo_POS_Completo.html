@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.112">
+<meta name="crozzo-app-version" content="1.0.113">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
@@ -695,8 +695,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p id="crozzoPairingReceiverTitle" class="form-hint" style="font-weight:600; margin-top:0;"></p>
       <p class="form-hint">Código QR cifrado (solo legible por BONA origen). Otros lectores abren «Instalar BONA origen». Válido <strong>24 h</strong>. Prioridad: ☁️ nube → 📡 LAN → 💾 offline.</p>
       <div id="crozzoPairingReceiverWarn" class="login-error" hidden style="margin-top:8px;"></div>
-      <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
-      <p class="form-hint" style="text-align:center;">Escanea con el dispositivo nuevo (Chrome Android / cámara).</p>
+      <div class="crozzo-pairing-qr-frame">
+        <div class="crozzo-pairing-qr-host" id="crozzoPairingQrHost"></div>
+      </div>
+      <p class="form-hint" style="text-align:center;">Un solo QR grande — fotografíelo desde la tablet o copie el código.</p>
       <div class="btn-group" style="flex-direction:column; margin-top:12px;">
         <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingShareQr">Compartir QR (WhatsApp / correo)</button>
         <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingDownloadPng">Descargar QR (PNG)</button>
@@ -704,21 +706,25 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
     </div>
     <div id="crozzoPairingStepReader" class="crozzo-pairing-panel" hidden>
-      <p class="form-hint" id="crozzoPairingReaderHint">En <strong>tablet APK</strong>, pulse <strong>«Abrir cámara»</strong> y acepte el permiso de cámara. También puede usar <strong>«Foto con cámara»</strong> o <strong>«Galería»</strong> si ya fotografió el QR en la caja.</p>
+      <p class="form-hint" id="crozzoPairingReaderHint">En <strong>tablet APK</strong>: pulse <strong>«Escanear QR (cámara nativa)»</strong> y apunte al código grande de la caja. Si falla, use foto, galería o pegue el código copiado en la caja.</p>
       <input type="file" id="crozzoPairingCaptureInput" accept="image/*" capture="environment" tabindex="-1" aria-label="Tomar foto del código QR con la cámara" class="crozzo-pairing-capture-input" />
       <input type="file" id="crozzoPairingGalleryInput" accept="image/*" tabindex="-1" aria-label="Elegir foto del QR desde galería" class="crozzo-pairing-capture-input" />
-      <div id="crozzoPairingReaderHost"></div>
+      <div class="crozzo-pairing-scan-zone" id="crozzoPairingScanZone">
+        <div id="crozzoPairingReaderHost" class="crozzo-pairing-scan-zone__viewport"></div>
+        <p class="crozzo-pairing-scan-zone__label" id="crozzoPairingScanLabel">Vista previa de la foto</p>
+      </div>
       <div class="btn-group crozzo-pairing-reader-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
-        <button type="button" class="btn btn-primary" id="crozzoPairingBtnLiveScan" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingStartScan">▶ Abrir cámara (escanear QR)</button>
-        <label for="crozzoPairingCaptureInput" class="btn btn-outline crozzo-pairing-camera-label" id="crozzoPairingBtnPhoto" style="flex:1; min-width:160px; min-height:48px; margin:0; cursor:pointer; text-align:center;">📷 Foto con cámara</label>
+        <button type="button" class="btn btn-primary" id="crozzoPairingBtnNativeScan" style="flex:1; min-width:200px; min-height:48px;" data-crozzo-act="crozzoPairingScanNative">📷 Escanear QR (cámara nativa)</button>
+        <label for="crozzoPairingCaptureInput" class="btn btn-outline crozzo-pairing-camera-label" id="crozzoPairingBtnPhoto" style="flex:1; min-width:160px; min-height:48px; margin:0; cursor:pointer; text-align:center;">📷 Tomar foto del QR</label>
         <label for="crozzoPairingGalleryInput" class="btn btn-outline crozzo-pairing-gallery-label" id="crozzoPairingBtnGallery" style="flex:1; min-width:130px; min-height:48px; margin:0; cursor:pointer; text-align:center;">🖼️ Galería</label>
+        <button type="button" class="btn btn-outline" id="crozzoPairingBtnLiveScan" style="flex:1; min-width:160px; min-height:48px;" data-crozzo-act="crozzoPairingStartScan">▶ Cámara en vivo</button>
         <button type="button" class="btn btn-outline" style="flex:1; min-width:100px; min-height:44px;" data-crozzo-act="crozzoPairingStopScan">Detener</button>
       </div>
-      <label class="form-label" style="margin-top:12px;">Pegar código manualmente (solo app BONA origen)</label>
-      <textarea class="form-input" id="crozzoPairingPasteJson" rows="4" style="resize:vertical; min-height:88px; font-family:monospace; font-size:0.8rem;" placeholder="Código BO1… o URL bonaorigen.app/instalar#BO1…"></textarea>
-      <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px;" data-crozzo-act="crozzoPairingPreviewPaste">Vista previa</button>
+      <label class="form-label" style="margin-top:12px;">Plan B — pegar código de la caja</label>
+      <textarea class="form-input" id="crozzoPairingPasteJson" rows="3" style="resize:vertical; min-height:72px; font-family:monospace; font-size:0.8rem;" placeholder="BOF.eyJ… (copie con «Copiar código seguro» en la caja Windows)"></textarea>
+      <button type="button" class="btn btn-outline" style="width:100%; margin-top:8px;" data-crozzo-act="crozzoPairingPreviewPaste">Validar código pegado</button>
       <div id="crozzoPairingPreview" class="crozzo-pairing-preview" hidden></div>
-      <div class="crozzo-pairing-progress" id="crozzoPairingStatus"></div>
+      <div class="crozzo-pairing-progress" id="crozzoPairingStatus" aria-live="polite"></div>
     </div>
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReader" hidden>
