@@ -38895,6 +38895,27 @@ function init() {
       reader.readAsDataURL(file);
     });
   }
+  function crozzoPairingEnsurePairingVisible() {
+    var ov = el('crozzoPairingOverlay');
+    if (ov) ov.removeAttribute('hidden');
+    try {
+      document.body.classList.add('crozzo-pairing-open');
+      document.documentElement.classList.remove('crozzo-boot-updates-active');
+      document.body.classList.remove('crozzo-boot-updates-active', 'crozzo-update-install-open');
+      var gate = document.getElementById('crozzo-boot-update-gate');
+      if (gate) gate.classList.remove('is-open');
+    } catch (_) {}
+  }
+  function crozzoPairingShowReaderPlaceholder(msg, ok) {
+    var host = el('crozzoPairingReaderHost');
+    if (!host) return;
+    host.innerHTML =
+      '<p class="crozzo-pairing-scan-placeholder' +
+      (ok ? ' is-ok' : '') +
+      '">' +
+      (msg || 'Enfoque el QR de la caja') +
+      '</p>';
+  }
   function crozzoPairingClearCapturePreview() {
     var host = el('crozzoPairingReaderHost');
     if (!host) return;
@@ -39779,7 +39800,7 @@ function init() {
     crozzoPairingClearCapturePreview();
     try {
       var h0 = el('crozzoPairingReaderHost');
-      if (h0) h0.innerHTML = '';
+      if (h0 && !h0.querySelector('.crozzo-pairing-scan-placeholder')) h0.innerHTML = '';
     } catch (_) {}
   };
   window.crozzoPairingScanNative = function crozzoPairingScanNative() {
@@ -39793,21 +39814,39 @@ function init() {
       crozzoPairingShowStatus('Escáner nativo solo en APK. Use foto o pegue el código BOF…', true);
       return;
     }
-    crozzoPairingStopScan();
+    crozzoPairingStopLiveOnly();
+    crozzoPairingSetScanZoneActive(false);
+    crozzoPairingEnsurePairingVisible();
+    crozzoPairingShowReaderPlaceholder('Abriendo cámara del sistema…');
     pairingScanner = { native: true };
+    var resumeHandler = function () {
+      if (document.visibilityState !== 'visible') return;
+      crozzoPairingEnsurePairingVisible();
+      if (reader.restoreWebViewAfterNativeScan) reader.restoreWebViewAfterNativeScan();
+    };
+    document.addEventListener('visibilitychange', resumeHandler);
     crozzoPairingShowStatus('Se abrirá la cámara del sistema — enfoque el QR grande de la caja', { busy: true, phase: 'decode', progress: 12 });
     reader
       .scanNative({ windowed: false, formats: ['QR_CODE'] })
       .then(function (raw) {
+        document.removeEventListener('visibilitychange', resumeHandler);
         pairingScanner = null;
-        if (raw) {
-          crozzoPairingHandleDecoded(raw);
+        crozzoPairingEnsurePairingVisible();
+        if (!raw) {
+          crozzoPairingShowReaderPlaceholder('No se detectó QR. Reintente.');
+          crozzoPairingShowStatus('No se detectó QR. Reintente o use foto / pegar código.', { isErr: true });
           return;
         }
-        crozzoPairingShowStatus('No se detectó QR. Reintente o use foto / pegar código.', { isErr: true });
+        crozzoPairingShowReaderPlaceholder('✓ QR leído — conectando con la caja…', true);
+        crozzoPairingShowStatus('QR detectado — validando enlace seguro…', { busy: true, phase: 'decode', progress: 32 });
+        window.setTimeout(function () {
+          crozzoPairingHandleDecoded(raw);
+        }, 220);
       })
       .catch(function (err) {
+        document.removeEventListener('visibilitychange', resumeHandler);
         pairingScanner = null;
+        crozzoPairingEnsurePairingVisible();
         var msg = err && err.message ? String(err.message) : '';
         var hint =
           msg === 'perm_denied'
@@ -39815,6 +39854,7 @@ function init() {
             : msg.indexOf('cancel') >= 0 || msg.indexOf('Cancel') >= 0
               ? 'Escaneo cancelado. Puede reintentar o pegar el código.'
               : 'Escáner nativo: ' + (msg || 'no disponible') + '. Pruebe foto, galería o pegue el código BOF…';
+        crozzoPairingShowReaderPlaceholder('Escaneo no completado', false);
         crozzoPairingShowStatus(hint, { isErr: msg !== 'perm_denied' && msg.indexOf('cancel') < 0 });
       });
   };
@@ -39899,7 +39939,8 @@ function init() {
       isFast ? 'Enlace rápido detectado — validando red…' : 'Código detectado — verificando integridad…',
       { busy: true, phase: 'decode', progress: 28 }
     );
-    crozzoPairingResolvePayload(text).then(function (obj) {
+    crozzoPairingResolvePayload(text)
+      .then(function (obj) {
       if (!obj) {
         var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
         var msg =
@@ -39934,7 +39975,14 @@ function init() {
       } else {
         crozzoPairingShowStatus('Código validado — pulse «Sincronizar terminal» para confirmar', { isOk: true, progress: 40 });
       }
-    });
+    })
+      .catch(function (err) {
+        crozzoPairingShowReaderPlaceholder('No se pudo validar el código', false);
+        crozzoPairingShowStatus(
+          'Error al procesar el QR: ' + (err && err.message ? err.message : 'reintente o pegue el código'),
+          { isErr: true }
+        );
+      });
   }
   function crozzoPairingDecodeFile(file) {
     if (!file) return;

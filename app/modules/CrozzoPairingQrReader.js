@@ -550,6 +550,12 @@
 
         return String(result.content || result.text || '').trim();
 
+      })
+
+      .finally(function () {
+
+        return restoreWebViewAfterNativeScan();
+
       });
 
   }
@@ -563,6 +569,76 @@
     if (!core || typeof core.invoke !== 'function') return Promise.resolve();
 
     return core.invoke('plugin:barcode-scanner|cancel', {}).catch(function () {});
+
+  }
+
+
+
+  function restoreWebViewAfterNativeScan() {
+
+    return cancelNativeScan().then(function () {
+
+      try {
+
+        var html = document.documentElement;
+
+        var body = document.body;
+
+        if (html) {
+
+          html.style.removeProperty('background');
+
+          html.style.removeProperty('background-color');
+
+          html.style.opacity = '0.99';
+
+        }
+
+        if (body) {
+
+          body.style.removeProperty('background');
+
+          body.style.removeProperty('background-color');
+
+          body.style.removeProperty('opacity');
+
+        }
+
+      } catch (_) {}
+
+      return new Promise(function (resolve) {
+
+        function finish() {
+
+          try {
+
+            if (document.documentElement) document.documentElement.style.opacity = '';
+
+            window.dispatchEvent(new Event('resize'));
+
+          } catch (_) {}
+
+          resolve();
+
+        }
+
+        if (typeof requestAnimationFrame === 'function') {
+
+          requestAnimationFrame(function () {
+
+            requestAnimationFrame(finish);
+
+          });
+
+        } else {
+
+          window.setTimeout(finish, 32);
+
+        }
+
+      });
+
+    });
 
   }
 
@@ -749,6 +825,8 @@
     scanNative: scanNative,
 
     cancelNativeScan: cancelNativeScan,
+
+    restoreWebViewAfterNativeScan: restoreWebViewAfterNativeScan,
 
     readFile: readFile,
 

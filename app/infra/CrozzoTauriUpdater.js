@@ -472,6 +472,9 @@
       if (mapped) return mapped;
     }
     var msg = err && err.message ? err.message : String(err || '');
+    if (/pospuesta por el usuario|cancelada por el usuario/i.test(msg)) {
+      return 'Actualización pospuesta. Puede seguir operando.';
+    }
     if (/timeout|timed out|abort/i.test(msg)) {
       return 'La conexión tardó demasiado. Intente de nuevo con mejor señal.';
     }
@@ -685,6 +688,9 @@
     maxWaitMs = typeof maxWaitMs === 'number' ? maxWaitMs : RELEASE_WAIT_MS;
 
     function attempt() {
+      if (global.__CROZZO_UPDATE_USER_ABORT__) {
+        return Promise.reject(new Error('Actualización pospuesta por el usuario.'));
+      }
       return resolveReleaseInstallTarget(ver).then(function (hit) {
         if (hit && hit.url) return hit;
         if (Date.now() - started > maxWaitMs) {

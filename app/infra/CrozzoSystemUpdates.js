@@ -72,6 +72,14 @@
   var _optionalWizard = { step: 0, steps: [], entry: null };
   var _deferredAndroidCritical = null;
 
+  function requestUpdateAbort() {
+    global.__CROZZO_UPDATE_USER_ABORT__ = true;
+  }
+
+  function clearUpdateAbort() {
+    global.__CROZZO_UPDATE_USER_ABORT__ = false;
+  }
+
   var INSTALL_STEPS = [
     { id: 'probe', label: 'Verificando paquete en la nube' },
     { id: 'check', label: 'Validando firma de seguridad' },
@@ -508,6 +516,9 @@
     }
     if (/No se pudo abrir la descarga del APK|navegador para descargar/i.test(raw)) {
       return raw;
+    }
+    if (/pospuesta por el usuario|cancelada por el usuario/i.test(raw)) {
+      return 'Actualización pospuesta. Puede seguir operando e instalar al cierre del turno.';
     }
     if (/timeout|timed out|abort/i.test(raw)) {
       return 'La conexión tardó demasiado. Intente de nuevo con mejor señal o use «Continuar al login» si aparece.';
@@ -987,20 +998,16 @@
     _criticalFailCount += 1;
     logInstallFailure(entry, err, 'critica');
     cancelCriticalAutoRetry();
-    var mins = Math.round(CRITICAL_AUTO_RETRY_MS / 60000);
-    setCheckStatus(
-      'Actualización crítica falló. Reintento automático en ~' +
-        mins +
-        ' min (intento ' +
-        _criticalFailCount +
-        ').'
+    var msg = humanizeInstallError(err);
+    _criticalInstallState = 'failed';
+    _installInProgress = false;
+    setCriticalOpen(true);
+    populateCriticalInfo(
+      'failed',
+      msg + ' Puede seguir operando e instalar cuando quiera desde Actualizaciones.'
     );
-    _criticalRetryTimer = setTimeout(function () {
-      _criticalRetryTimer = null;
-      _criticalInstallState = 'idle';
-      _installInProgress = false;
-      scheduleCriticalInstallWhenIdle(entry);
-    }, CRITICAL_AUTO_RETRY_MS);
+    offerPlanBAfterFailure(normEntryVersion(entry), err);
+    setCheckStatus('Actualización pendiente — la caja sigue operando.');
   }
 
   function getManifestUrl() {
@@ -1160,7 +1167,7 @@
     else foot.insertAdjacentHTML('beforeend', html);
     wireOnce(document.getElementById('crozzoUpdateCriticalLater'), function (e) {
       e.preventDefault();
-      crozzoPosponerActualizacionCriticaAndroid();
+      crozzoPosponerActualizacionCritica();
     });
   }
 
@@ -1291,18 +1298,27 @@
   }
 
   function dismissInstallOverlayAndContinue() {
+    requestUpdateAbort();
+    cancelCriticalAutoRetry();
     var entry = _pendingCriticalEntry;
+    var optEntry = findCurrentOptionalEntry();
     closeInstallOverlay();
     _installInProgress = false;
     _criticalInstallState = 'idle';
     setCriticalOpen(false);
-    if (entry && _installUi.state === 'error') {
+    if (entry) {
       snoozeEntry(entry, 6);
       sessionDismissEntry(entry);
     }
+    if (optEntry) {
+      snoozeEntry(optEntry, 6);
+      sessionDismissEntry(optEntry);
+      _currentOptionalId = null;
+    }
+    _pendingCriticalEntry = null;
     if (typeof global.showToast === 'function') {
       global.showToast(
-        'Puede seguir usando la app. Reinstale cuando quiera desde Actualizaciones del sistema.',
+        'Puede seguir usando la app. Instale la actualización al cierre del turno desde Actualizaciones.',
         'info'
       );
     }
@@ -1754,8 +1770,18 @@
           : 'Plan A · actualización automática';
     }
     if (close) {
-      close.style.display = _installUi.state === 'error' || _installUi.state === 'success' ? 'inline-flex' : 'none';
-      close.textContent = _installUi.state === 'error' ? 'Continuar usando la app' : 'Continuar';
+      var canDeferWhileInstalling =
+        _installUi.state === 'installing' &&
+        (_installUi.phase === 'probe' || _installUi.phase === 'check' || (_installUi.percent || 0) < 35);
+      close.style.display =
+        _installUi.state === 'error' || _installUi.state === 'success' || canDeferWhileInstalling
+          ? 'inline-flex'
+          : 'none';
+      close.textContent = canDeferWhileInstalling
+        ? 'Seguir operando — instalar al cierre'
+        : _installUi.state === 'error'
+          ? 'Continuar usando la app'
+          : 'Continuar';
     }
     if (_installUi.state === 'error') {
       var pbErr = document.getElementById('crozzoUpdateInstallPlanB');
@@ -1945,7 +1971,7 @@
       var planBIdle = document.getElementById('crozzoUpdateCriticalPlanB');
       if (planBIdle) planBIdle.style.display = profile.isAndroid ? 'inline-flex' : 'none';
       var laterIdle = document.getElementById('crozzoUpdateCriticalLater');
-      if (laterIdle) laterIdle.style.display = isAndroidSoftCriticalClient(profile) ? 'inline-flex' : 'none';
+      if (laterIdle) laterIdle.style.display = 'inline-flex';
     } else if (state === 'installing') {
       if (badge) {
         badge.className = 'crozzo-update-critical-modal__badge';
@@ -1965,7 +1991,12 @@
       var planBHide = document.getElementById('crozzoUpdateCriticalPlanB');
       if (planBHide) planBHide.style.display = 'none';
       var laterInstalling = document.getElementById('crozzoUpdateCriticalLater');
-      if (laterInstalling) laterInstalling.style.display = 'none';
+      if (laterInstalling) {
+        laterInstalling.style.display =
+          _installUi.phase === 'probe' || _installUi.phase === 'check' || (_installUi.percent || 0) < 35
+            ? 'inline-flex'
+            : 'none';
+      }
       renderCriticalMiniProgress();
     } else if (state === 'success') {
       if (badge) {
@@ -2015,9 +2046,7 @@
       var planB = document.getElementById('crozzoUpdateCriticalPlanB');
       if (planB) planB.style.display = 'inline-flex';
       var laterFail = document.getElementById('crozzoUpdateCriticalLater');
-      if (laterFail) {
-        laterFail.style.display = isAndroidSoftCriticalClient() ? 'inline-flex' : 'none';
-      }
+      if (laterFail) laterFail.style.display = 'inline-flex';
     }
 
     if (list) {
@@ -2860,10 +2889,9 @@
     return profile.kind === 'android' || profile.kind === 'android-web';
   }
 
-  /** Tablet/APK: no auto-instalar al arranque (Windows/Mac siguen con crítica automática). */
+  /** Nunca auto-instalar al arranque: siempre pedir «Instalar ahora» (caja, tablet y Mac). */
   function shouldDeferCriticalAutoOnBoot(profile) {
-    if (!profile) return true;
-    return isAndroidSoftCriticalClient(profile) || profile.kind === 'ios-web';
+    return true;
   }
 
   /** Tras login: instalar críticas pendientes (paridad tauri dev — no bloquear arranque). */
@@ -3073,6 +3101,7 @@
       return Promise.resolve({ deferred: true, reason: 'ota_manual_only' });
     }
     if (_installInProgress) return Promise.resolve();
+    clearUpdateAbort();
     cancelCriticalIdleWait();
     _criticalAutoAttempts = _criticalAutoAttempts || 0;
     var remote = entry.version || 'v' + (entry.semver || '');
@@ -3605,8 +3634,8 @@
     );
   }
 
-  function crozzoPosponerActualizacionCriticaAndroid() {
-    if (!isAndroidSoftCriticalClient()) return;
+  function crozzoPosponerActualizacionCritica() {
+    requestUpdateAbort();
     var entry =
       _pendingCriticalEntry ||
       (_currentCriticalId
@@ -3615,29 +3644,34 @@
           })
         : null);
     if (entry) {
-      snoozeEntry(entry, 24);
+      snoozeEntry(entry, isAndroidSoftCriticalClient() ? 24 : 6);
       sessionDismissEntry(entry);
-      appendLocalLog('critica_pospuesta_android', {
+      appendLocalLog('critica_pospuesta', {
         version: normEntryVersion(entry),
-        type: 'android',
+        type: getUpdateClientProfile().kind || 'desktop',
       });
     }
     cancelCriticalIdleWait();
     cancelCriticalAutoRetry();
     _deferredAndroidCritical = null;
     _installInProgress = false;
+    closeInstallOverlay();
     setCriticalOpen(false);
     _criticalInstallState = 'idle';
     _pendingCriticalEntry = null;
     try {
       if (typeof global.showToast === 'function') {
         global.showToast(
-          'Actualización pospuesta — la caja sigue operando. Instálela cuando pueda desde Actualizaciones.',
+          'Actualización pospuesta — la caja sigue operando. Instálela al cierre desde Actualizaciones.',
           'info'
         );
       }
     } catch (_) {}
     continueAfterCriticalAck();
+  }
+
+  function crozzoPosponerActualizacionCriticaAndroid() {
+    crozzoPosponerActualizacionCritica();
   }
 
   function crozzoPosponerActualizacionOpcional() {
@@ -3762,6 +3796,7 @@
 
   function runClientCriticalInstall(entry) {
     if (!entry || _installInProgress) return Promise.resolve();
+    clearUpdateAbort();
     var remote = entry.version || 'v' + (entry.semver || '');
     _installInProgress = true;
     _criticalInstallState = 'installing';
@@ -3806,6 +3841,7 @@
 
   function crozzoAceptarActualizacion() {
     if (_installInProgress) return;
+    clearUpdateAbort();
     var next = VERSION_AVAIL;
     setDetailOpen(false);
     setNormalOpen(false);
@@ -3838,6 +3874,7 @@
           allowSilentSetup: true,
           userInitiated: true,
           automaticOnly: false,
+          maxWaitMs: 60000,
         }).then(function (res) {
           if (res && res.exiting && res.plan === 'C') {
             resetAcceptBtn();
