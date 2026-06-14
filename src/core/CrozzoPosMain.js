@@ -39710,7 +39710,7 @@ function init() {
       var hasNative = !!(reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner());
       hintEl.textContent = crozzoPairingReaderIsFieldDevice()
         ? hasNative
-          ? 'Pulse «Escanear QR (cámara nativa)» y apunte al código grande de la caja. Si falla, use foto, galería o pegue el código BOF… copiado en la caja.'
+          ? 'Pulse «Escanear QR (cámara nativa)» — se abre la cámara del sistema a pantalla completa. La zona de vista previa de abajo es solo para fotos. Si falla, use galería o pegue el código BOF… de la caja.'
           : 'Pulse «Tomar foto del QR», enfoque el código grande de la caja y confirme. Si falla, pegue el código copiado en la caja.'
         : 'Centre el QR de la caja en el marco. Use «Escáner óptico», foto o galería si hace falta.';
     }
@@ -39731,7 +39731,7 @@ function init() {
       if (crozzoPairingReaderIsFieldDevice()) {
         crozzoPairingShowStatus(
           hasNative0
-            ? 'Pulse «Escanear QR (cámara nativa)» para leer el código de la caja.'
+            ? 'Pulse «Escanear QR (cámara nativa)» — se abre la cámara del sistema, no la caja negra de abajo.'
             : 'Pulse «Tomar foto del QR», enfoque el código grande de la caja y confirme.',
           false
         );
@@ -39795,13 +39795,11 @@ function init() {
     }
     crozzoPairingStopScan();
     pairingScanner = { native: true };
-    crozzoPairingSetScanZoneActive(true);
-    crozzoPairingShowStatus('Abriendo cámara nativa… apunte al QR de la caja', { busy: true, phase: 'decode', progress: 12 });
+    crozzoPairingShowStatus('Se abrirá la cámara del sistema — enfoque el QR grande de la caja', { busy: true, phase: 'decode', progress: 12 });
     reader
-      .scanNative({ windowed: true, formats: ['QR_CODE'] })
+      .scanNative({ windowed: false, formats: ['QR_CODE'] })
       .then(function (raw) {
         pairingScanner = null;
-        crozzoPairingSetScanZoneActive(false);
         if (raw) {
           crozzoPairingHandleDecoded(raw);
           return;
@@ -39810,7 +39808,6 @@ function init() {
       })
       .catch(function (err) {
         pairingScanner = null;
-        crozzoPairingSetScanZoneActive(false);
         var msg = err && err.message ? String(err.message) : '';
         var hint =
           msg === 'perm_denied'

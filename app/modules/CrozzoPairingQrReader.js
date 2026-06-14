@@ -534,7 +534,7 @@
 
         return tauriCore().invoke('plugin:barcode-scanner|scan', {
 
-          windowed: opts.windowed !== false,
+          windowed: opts.windowed === true,
 
           formats: opts.formats || ['QR_CODE'],
 
