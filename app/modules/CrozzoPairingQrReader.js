@@ -643,29 +643,13 @@
       })
 
       .then(function (result) {
-
         if (!result) return '';
-
         if (typeof result === 'string') return String(result).trim();
-
         return String(result.content || result.text || '').trim();
-
       })
-
       .finally(function () {
-
-        return new Promise(function (resolve) {
-
-          window.setTimeout(function () {
-
-            exitNativeScanPresentation();
-
-            restoreWebViewAfterNativeScan().then(resolve);
-
-          }, 180);
-
-        });
-
+        exitNativeScanPresentation();
+        restoreWebViewAfterNativeScan().catch(function () {});
       });
 
   }

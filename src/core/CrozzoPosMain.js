@@ -38377,6 +38377,8 @@ function init() {
   let pairingQrRenderToken = 0;
   let pairingDecodeToken = 0;
   let pairingDecodingActive = false;
+  let pairingNativeScanSeq = 0;
+  let pairingNativeWatchdog = null;
   let __crozzoJsQRPromise = null;
   function el(id) {
     return document.getElementById(id);
@@ -39276,6 +39278,11 @@ function init() {
       return { error: 'No se pudo preparar el QR: ' + String((err && err.message) || err) };
     }
   }
+  function crozzoPairingFailDecoded(msg, shortMsg) {
+    crozzoPairingShowReaderPlaceholder(shortMsg || '✗ Código no válido', false);
+    crozzoPairingShowStatus(msg, { isErr: true });
+    if (typeof showToast === 'function') showToast(msg, 'warning');
+  }
   function crozzoPairingValidate(obj) {
     if (!obj || typeof obj !== 'object') return { ok: false, message: 'JSON vacío o inválido' };
     if (obj.type !== CROZZO_CLOUD_PAIRING) return { ok: false, message: 'QR no es de emparejamiento Crozzo (tipo incorrecto)' };
@@ -39299,8 +39306,16 @@ function init() {
     } catch (_) {
       localLoc = '';
     }
-    if (localLoc && qrLoc && localLoc !== qrLoc) {
-      return { ok: false, message: 'Este QR es de otra sede (location_id no coincide con este dispositivo).' };
+    if (crozzoIsDevicePaired() && localLoc && qrLoc && localLoc !== qrLoc) {
+      return {
+        ok: false,
+        message:
+          'Este QR es de la sede «' +
+          qrLoc +
+          '». Este dispositivo está vinculado a «' +
+          localLoc +
+          '». Use el QR generado en la caja de su sede o resetee el emparejamiento.',
+      };
     }
     const ver = Number(obj.version) || 2;
     if (ver >= 4) {
@@ -39811,6 +39826,11 @@ function init() {
     }
   }
   window.crozzoPairingStopScan = function crozzoPairingStopScan() {
+    pairingNativeScanSeq++;
+    if (pairingNativeWatchdog) {
+      window.clearTimeout(pairingNativeWatchdog);
+      pairingNativeWatchdog = null;
+    }
     crozzoPairingStopLiveOnly();
     if (pairingDecodingActive) return;
     crozzoPairingClearCapturePreview();
@@ -39832,36 +39852,53 @@ function init() {
     }
     crozzoPairingStopLiveOnly();
     crozzoPairingSetScanZoneActive(false);
-    pairingScanner = { native: true };
+    if (pairingNativeWatchdog) {
+      window.clearTimeout(pairingNativeWatchdog);
+      pairingNativeWatchdog = null;
+    }
+    var scanSeq = ++pairingNativeScanSeq;
     var scanDone = false;
-    var watchdog = window.setTimeout(function () {
-      if (scanDone) return;
+    pairingScanner = { native: true, seq: scanSeq };
+    pairingNativeWatchdog = window.setTimeout(function () {
+      pairingNativeWatchdog = null;
+      if (scanDone || scanSeq !== pairingNativeScanSeq) return;
+      scanDone = true;
+      pairingScanner = null;
       if (reader.exitNativeScanPresentation) reader.exitNativeScanPresentation();
       if (reader.restoreWebViewAfterNativeScan) reader.restoreWebViewAfterNativeScan();
       crozzoPairingEnsurePairingVisible();
+      crozzoPairingShowReaderPlaceholder('Tiempo de escaneo agotado', false);
       crozzoPairingShowStatus('Escaneo tardó demasiado. Reintente o use foto / pegar código.', { isErr: true });
-      pairingScanner = null;
-    }, 28000);
+    }, 45000);
     reader
       .scanNative({ windowed: true, formats: ['QR_CODE'] })
       .then(function (raw) {
+        if (scanSeq !== pairingNativeScanSeq) return;
         scanDone = true;
-        window.clearTimeout(watchdog);
+        if (pairingNativeWatchdog) {
+          window.clearTimeout(pairingNativeWatchdog);
+          pairingNativeWatchdog = null;
+        }
         pairingScanner = null;
         crozzoPairingEnsurePairingVisible();
-        crozzoPairingShowReaderPlaceholder('✓ QR leído — conectando con la caja…', true);
         if (!raw) {
-          crozzoPairingShowStatus('No se detectó QR. Reintente o use foto / pegar código.', { isErr: true });
+          crozzoPairingFailDecoded(
+            'No se detectó QR. Reintente o use foto / pegar código.',
+            'Sin código en el escaneo'
+          );
           return;
         }
+        crozzoPairingShowReaderPlaceholder('Validando código…', false);
         crozzoPairingShowStatus('QR detectado — validando enlace seguro…', { busy: true, phase: 'decode', progress: 32 });
-        window.setTimeout(function () {
-          crozzoPairingHandleDecoded(raw);
-        }, 320);
+        crozzoPairingHandleDecoded(raw);
       })
       .catch(function (err) {
+        if (scanSeq !== pairingNativeScanSeq) return;
         scanDone = true;
-        window.clearTimeout(watchdog);
+        if (pairingNativeWatchdog) {
+          window.clearTimeout(pairingNativeWatchdog);
+          pairingNativeWatchdog = null;
+        }
         pairingScanner = null;
         if (reader.exitNativeScanPresentation) reader.exitNativeScanPresentation();
         if (reader.restoreWebViewAfterNativeScan) reader.restoreWebViewAfterNativeScan();
@@ -39966,14 +40003,18 @@ function init() {
           seal && typeof seal.isPairingQr === 'function' && seal.isPairingQr(text)
             ? 'Código sellado inválido o expirado. Genere uno nuevo en la caja.'
             : 'Señal no reconocida. Use el código de emparejamiento emitido por BONA origen.';
-        crozzoPairingShowStatus(msg, { isErr: true });
-        if (typeof showToast === 'function') showToast(msg, 'warning');
+        crozzoPairingFailDecoded(msg, 'Código no reconocido');
         return;
       }
       const v = crozzoPairingValidate(obj);
       if (!v.ok) {
-        crozzoPairingShowStatus(v.message, { isErr: true });
-        if (typeof showToast === 'function') showToast(v.message, 'warning');
+        var shortFail =
+          v.message.indexOf('sede') >= 0
+            ? 'QR de otra sede'
+            : v.message.indexOf('expirado') >= 0
+              ? 'Código expirado'
+              : 'Código no válido';
+        crozzoPairingFailDecoded(v.message, shortFail);
         return;
       }
       pairingLastPayload = v.data;
@@ -39984,6 +40025,7 @@ function init() {
       crozzoPairingClearCapturePreview();
       crozzoPairingStopScan();
       crozzoPairingSetWizardStep(2);
+      crozzoPairingShowReaderPlaceholder('✓ Código válido — conectando con la caja…', true);
       var autoApply = crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice();
       if (autoApply) {
         if (pairingApplying) return;
