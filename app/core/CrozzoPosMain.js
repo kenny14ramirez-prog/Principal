@@ -38415,6 +38415,43 @@ function init() {
     );
   }
   window.crozzoIsDevicePaired = crozzoIsDevicePaired;
+  function crozzoPairingGetLocalLocationId() {
+    var loc = '';
+    try {
+      var md0 =
+        typeof config !== 'undefined' && config && typeof config.get === 'function'
+          ? config.get('multidispositivo')
+          : null;
+      loc = String(md0 && md0.locationId != null ? md0.locationId : '').trim();
+    } catch (_) {
+      loc = '';
+    }
+    if (!loc) {
+      try {
+        var raw = localStorage.getItem('crozzo_lan_config');
+        if (raw) {
+          var L = JSON.parse(raw);
+          loc = String(L && L.locationId != null ? L.locationId : '').trim();
+        }
+      } catch (_) {}
+    }
+    return loc;
+  }
+  function crozzoPairingWipeSedeLocalData(fromLoc, toLoc) {
+    var i;
+    try {
+      for (i = 0; i < PAIR_PULL_TABLES.length; i++) {
+        localStorage.removeItem('crozzo_pair_pull_' + PAIR_PULL_TABLES[i]);
+      }
+      localStorage.removeItem(CROZZO_PAIRING_DONE_KEY);
+      sessionStorage.removeItem('crozzo_pairing_autoprompt_v1');
+    } catch (_) {}
+    try {
+      if (typeof config !== 'undefined' && config && typeof config.addAudit === 'function') {
+        config.addAudit('pairing_cambio_sede', String(fromLoc || '—') + ' → ' + String(toLoc || '—'));
+      }
+    } catch (_) {}
+  }
   function crozzoRefreshLoginPairingHint() {
     var hint = el('loginPairingStatus');
     var btn = el('btnPairDevice');
@@ -39299,23 +39336,10 @@ function init() {
       }
     }
     const qrLoc = String(obj.location_id || (obj.network_primary && obj.network_primary.location_id) || '').trim();
-    let localLoc = '';
-    try {
-      const md0 = typeof config !== 'undefined' && config && typeof config.get === 'function' ? config.get('multidispositivo') : null;
-      localLoc = String(md0 && md0.locationId != null ? md0.locationId : '').trim();
-    } catch (_) {
-      localLoc = '';
-    }
-    if (crozzoIsDevicePaired() && localLoc && qrLoc && localLoc !== qrLoc) {
-      return {
-        ok: false,
-        message:
-          'Este QR es de la sede «' +
-          qrLoc +
-          '». Este dispositivo está vinculado a «' +
-          localLoc +
-          '». Use el QR generado en la caja de su sede o resetee el emparejamiento.',
-      };
+    const prevLoc = crozzoPairingGetLocalLocationId();
+    var sedeSwitch = null;
+    if (prevLoc && qrLoc && prevLoc !== qrLoc) {
+      sedeSwitch = { from: prevLoc, to: qrLoc };
     }
     const ver = Number(obj.version) || 2;
     if (ver >= 4) {
@@ -39329,7 +39353,7 @@ function init() {
         return { ok: false, message: 'Falta IP de la caja central en el QR (configure LAN en la caja emisora).' };
       }
     }
-    return { ok: true, data: obj };
+    return { ok: true, data: obj, sedeSwitch: sedeSwitch };
   }
   function crozzoPairingResolvePayload(text) {
     var raw = String(text || '').trim();
@@ -39352,6 +39376,36 @@ function init() {
       return Promise.resolve(null);
     }
   }
+  window.crozzoPairingResetBinding = function crozzoPairingResetBinding() {
+    var prev = crozzoPairingGetLocalLocationId();
+    crozzoPairingWipeSedeLocalData(prev, '');
+    try {
+      localStorage.removeItem('crozzo_lan_config');
+      localStorage.removeItem('crozzo_supabase_config');
+    } catch (_) {}
+    try {
+      if (typeof config !== 'undefined' && config && typeof config.set === 'function') {
+        var md = config.get('multidispositivo') || {};
+        var cs = config.get('conexionSistemas') || {};
+        config.set(
+          'multidispositivo',
+          Object.assign({}, md, { locationId: '', role: 'B', lanSyncEnabled: false })
+        );
+        config.set('conexionSistemas', Object.assign({}, cs, { role: 'B', centralIp: '', serverIp: '', port: 3000 }));
+      }
+    } catch (_) {}
+    pairingLastPayload = null;
+    pairingLastQrText = '';
+    pairingApplying = false;
+    var ab = el('crozzoPairingApplyBtn');
+    if (ab) ab.disabled = true;
+    if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
+    crozzoPairingShowReaderPlaceholder('Listo para escanear el QR de su caja', false);
+    crozzoPairingShowStatus('Listo. Escanee el QR de la caja de la sede donde usará esta tablet.', { isOk: true });
+    if (typeof showToast === 'function') {
+      showToast('Datos locales borrados. Escanee el QR de la sede nueva.', 'info');
+    }
+  };
   window.crozzoOpenPairingModal = function crozzoOpenPairingModal() {
     const ov = el('crozzoPairingOverlay');
     if (!ov) return;
@@ -40008,16 +40062,11 @@ function init() {
       }
       const v = crozzoPairingValidate(obj);
       if (!v.ok) {
-        var shortFail =
-          v.message.indexOf('sede') >= 0
-            ? 'QR de otra sede'
-            : v.message.indexOf('expirado') >= 0
-              ? 'Código expirado'
-              : 'Código no válido';
-        crozzoPairingFailDecoded(v.message, shortFail);
+        crozzoPairingFailDecoded(v.message, 'Código no válido');
         return;
       }
       pairingLastPayload = v.data;
+      pairingLastPayload.__sedeSwitch = v.sedeSwitch || null;
       el('crozzoPairingPasteJson').value = String(text || '').trim();
       const ab = el('crozzoPairingApplyBtn');
       if (ab) ab.disabled = false;
@@ -40026,15 +40075,25 @@ function init() {
       crozzoPairingStopScan();
       crozzoPairingSetWizardStep(2);
       crozzoPairingShowReaderPlaceholder('✓ Código válido — conectando con la caja…', true);
+      var switchNote = v.sedeSwitch
+        ? 'Cambio de sede «' +
+          v.sedeSwitch.from +
+          '» → «' +
+          v.sedeSwitch.to +
+          '». Se borran los datos locales y se descarga la sede nueva…'
+        : 'Código válido — iniciando sincronización…';
       var autoApply = crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice();
       if (autoApply) {
         if (pairingApplying) return;
-        crozzoPairingShowStatus('Código válido — iniciando sincronización…', { busy: true, phase: 'network', progress: 38 });
+        crozzoPairingShowStatus(switchNote, { busy: true, phase: 'network', progress: 38 });
         window.setTimeout(function () {
           if (typeof window.crozzoPairingApplyFromForm === 'function') window.crozzoPairingApplyFromForm();
         }, 480);
       } else {
-        crozzoPairingShowStatus('Código validado — pulse «Sincronizar terminal» para confirmar', { isOk: true, progress: 40 });
+        crozzoPairingShowStatus(
+          v.sedeSwitch ? switchNote : 'Código validado — pulse «Sincronizar terminal» para confirmar',
+          { isOk: true, progress: 40 }
+        );
       }
     })
       .catch(function (err) {
@@ -40301,7 +40360,21 @@ function init() {
     const cip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
     const port = Math.max(1, Number(lan.port || p.port) || 3000);
     const loc = String(p.location_id || (p.network_primary && p.network_primary.location_id) || '').trim();
-    crozzoPairingShowStatus('Inicializando perfil de red…', { busy: true, phase: 'network', progress: 45 });
+    const prevLoc = crozzoPairingGetLocalLocationId();
+    const sedeSwitch = (p && p.__sedeSwitch) || (prevLoc && loc && prevLoc !== loc ? { from: prevLoc, to: loc } : null);
+    if (sedeSwitch && sedeSwitch.from && sedeSwitch.to) {
+      crozzoPairingWipeSedeLocalData(sedeSwitch.from, sedeSwitch.to);
+      crozzoPairingShowStatus(
+        'Cambio de sede «' +
+          sedeSwitch.from +
+          '» → «' +
+          sedeSwitch.to +
+          '»: borrando datos locales y descargando la sede nueva…',
+        { busy: true, phase: 'cloud', progress: 46 }
+      );
+    } else {
+      crozzoPairingShowStatus('Inicializando perfil de red…', { busy: true, phase: 'network', progress: 45 });
+    }
     try {
       const newDev =
         'DEV-' +
