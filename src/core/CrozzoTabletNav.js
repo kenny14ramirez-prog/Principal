@@ -41,7 +41,21 @@
     }
   }
 
+  function isAndroidApkShell() {
+    try {
+      if (global.CrozzoDeviceForm && typeof global.CrozzoDeviceForm.isAndroidApk === 'function') {
+        return global.CrozzoDeviceForm.isAndroidApk();
+      }
+    } catch (_) {}
+    try {
+      return document.documentElement.classList.contains('crozzo-android-apk');
+    } catch (_) {
+      return false;
+    }
+  }
+
   function isBottomNavShell() {
+    if (isAndroidApkShell()) return true;
     if (isPhoneShell()) return false;
     try {
       var doc = document.documentElement;

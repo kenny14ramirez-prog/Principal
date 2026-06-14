@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-14T03:45:49.575Z",
+  "updatedAt": "2026-06-14T11:19:26.414Z",
   "entries": [
     {
       "id": "1.0.13-critical",
@@ -892,6 +892,18 @@
       "installMode": "auto",
       "changelog": [
         "12456"
+      ]
+    },
+    {
+      "id": "1.0.120-critical",
+      "version": "v1.0.120",
+      "semver": "1.0.120",
+      "type": "critical",
+      "message": "apk",
+      "publishedAt": "2026-06-14T11:19:26.414Z",
+      "installMode": "auto",
+      "changelog": [
+        "apk"
       ]
     }
   ]

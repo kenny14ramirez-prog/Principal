@@ -63,6 +63,9 @@
     var touch = factor === 'mobile' || factor === 'tablet';
     doc.classList.toggle('crozzo-touch-shell', touch);
     var tier = touch ? detectTouchTier(w, factor) : '';
+    if (isAndroidTauriShell() && touch) {
+      tier = 'tablet';
+    }
     if (tier) doc.setAttribute('data-crozzo-touch-tier', tier);
     else doc.removeAttribute('data-crozzo-touch-tier');
 
@@ -133,9 +136,7 @@
   function detectFormFactor() {
     var w = readWidth();
     if (isAndroidTauriShell()) {
-      var h = readHeight();
-      var minSide = Math.min(w, h > 0 ? h : w);
-      if (minSide <= BREAK_PHONE_LG) return 'mobile';
+      /* APK Android (celular o tablet): misma interfaz táctil POS de campo */
       return 'tablet';
     }
     if (w <= BREAK_MOBILE) return 'mobile';

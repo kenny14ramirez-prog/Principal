@@ -22591,7 +22591,8 @@ html.crozzo-form-mobile .crozzo-mobile-bottom-nav {
 }
 
 html.crozzo-form-tablet .crozzo-mobile-bottom-nav,
-html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
+html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav,
+html.crozzo-android-apk .crozzo-mobile-bottom-nav {
   display: flex !important;
 }
 
@@ -22599,6 +22600,12 @@ html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom
 html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
 html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
   display: none !important;
+}
+
+html.crozzo-android-apk.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
+html.crozzo-android-apk.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
+html.crozzo-android-apk.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
+  display: flex !important;
 }
 
 html.crozzo-form-mobile .mobile-menu-btn,
@@ -22610,7 +22617,12 @@ html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav {
   display: none !important;
 }
 
-html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav {
+html.crozzo-android-apk.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav {
+  display: flex !important;
+}
+
+html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav,
+html.crozzo-android-apk.tauri-shell .crozzo-mobile-bottom-nav {
   display: flex !important;
 }
 
