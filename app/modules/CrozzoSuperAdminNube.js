@@ -53,8 +53,8 @@
     },
     {
       id: 'perfiles',
-      label: 'Perfiles y menús del negocio',
-      detail: 'Paso 4: tamaño empresa + roles (caja, cocina, compras…).',
+      label: 'Perfiles login nube (opcional — email/contraseña)',
+      detail: 'Script 13 o crear usuario en Super Admin → Paso 3. Los cajeros con PIN usan pos_staff (no profiles).',
     },
     {
       id: 'seguridad',
@@ -179,9 +179,9 @@
     { table: 'company_config', label: 'Config empresa', script: '1', level: 'critico', required: true },
     { table: 'pos_staff', label: 'Usuarios caja', script: '1', level: 'critico', required: true },
     { table: 'sync_queue', label: 'Cola sync', script: '1', level: 'critico', required: true },
-    { table: 'crozzo_sede_runtime', label: 'Runtime mesas (vivo)', script: '10', level: 'critico', required: true },
+    { table: 'crozzo_sede_runtime', label: 'Runtime mesas (vivo)', script: '10', level: 'critico', required: true, probeCol: 'location_id' },
     { table: 'profiles', label: 'Perfiles (login nube)', script: '1', level: 'recomendado', required: false },
-    { table: 'crozzo_mesa_runtime', label: 'Runtime por mesa (escala)', script: '12', level: 'recomendado', required: false },
+    { table: 'crozzo_mesa_runtime', label: 'Runtime por mesa (escala)', script: '12', level: 'recomendado', required: false, probeCol: 'location_id' },
     { table: 'crozzo_empleados', label: 'Empleados RRHH', script: '2', level: 'opcional', required: false },
     { table: 'crozzo_marcaciones', label: 'Marcaciones', script: '2', level: 'opcional', required: false },
     { table: 'crozzo_pedidos_internos', label: 'Pedidos internos', script: '2', level: 'opcional', required: false },
@@ -952,6 +952,32 @@
     );
   }
 
+  function renderCloudLoginPanel() {
+    return (
+      '<div class="card" style="margin-top:14px;">' +
+      '<div class="card-header"><span class="card-title">🔐 Login nube (profiles)</span></div>' +
+      '<div class="crozzo-nube-callout">' +
+      '<p><strong>profiles=0 es normal</strong> si solo usa login local (usuario + PIN de caja). ' +
+      'La tabla <code>profiles</code> es para entrar con <strong>correo@… + contraseña</strong> (Supabase Auth).</p>' +
+      '<ul class="crozzo-nube-guide-ol" style="margin:8px 0;">' +
+      '<li><strong>Cajeros del día a día</strong> → usuarios locales (<code>pos_staff</code>) sincronizados vía catálogo/QR.</li>' +
+      '<li><strong>Admin remoto / correo</strong> → cree usuario aquí o en Supabase → Authentication → Users.</li>' +
+      '<li>Si ya creó usuarios en Authentication y profiles sigue en 0, ejecute el <strong>Script 13</strong> en Paso 2.</li>' +
+      '</ul></div>' +
+      '<p class="form-hint" id="sanProfilesCount">Perfiles en nube: — (pulse Comprobar tablas)</p>' +
+      '<div class="form-row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
+      '<label class="form-group" style="flex:1;min-width:180px;">Correo<input type="email" id="sanCloudUserEmail" class="form-control" placeholder="admin@negocio.com" autocomplete="off"></label>' +
+      '<label class="form-group" style="flex:1;min-width:140px;">Contraseña<input type="password" id="sanCloudUserPass" class="form-control" placeholder="mín. 6 caracteres" autocomplete="new-password"></label>' +
+      '<label class="form-group" style="min-width:120px;">Rol<select id="sanCloudUserRole" class="form-control">' +
+      '<option value="cajero">Cajero</option><option value="admin">Admin</option><option value="super_admin">Super Admin</option>' +
+      '</select></label>' +
+      '<button type="button" class="btn btn-primary" id="sanBtnCreateCloudUser">➕ Crear usuario nube</button>' +
+      '</div>' +
+      '<p class="form-hint">Tip: en Supabase → Authentication → Providers → Email, desactive «Confirm email» para que el usuario entre de inmediato sin revisar correo.</p>' +
+      '</div>'
+    );
+  }
+
   function renderStepVerify() {
     var rows = PROBE_TABLES.map(function (p) {
       return (
@@ -986,6 +1012,7 @@
       '<div style="overflow-x:auto;"><table class="data-table crozzo-nube-probe-table"><thead><tr><th>Módulo</th><th>Tabla</th><th>Script</th><th>Estado</th></tr></thead><tbody>' +
       rows +
       '</tbody></table></div>' +
+      renderCloudLoginPanel() +
       '<p class="form-hint" id="sanProbeSummary" style="margin-top:10px;"></p></div></div>'
     );
   }
@@ -1304,7 +1331,8 @@
       try {
         var controller = new AbortController();
         var t = global.setTimeout(function () { controller.abort(); }, 5000);
-        var res = await fetch(base + '/rest/v1/' + encodeURIComponent(p.table) + '?limit=0&select=id', {
+        var probeCol = p.probeCol || 'id';
+        var res = await fetch(base + '/rest/v1/' + encodeURIComponent(p.table) + '?limit=0&select=' + encodeURIComponent(probeCol), {
           method: 'GET',
           signal: controller.signal,
           headers: {
@@ -1316,11 +1344,28 @@
         });
         global.clearTimeout(t);
         var ok = res && (res.ok || res.status === 200 || res.status === 206);
+        var rowCount = null;
+        if (p.table === 'profiles' && res && res.headers) {
+          var cr = res.headers.get('content-range') || '';
+          var m = cr.match(/\/(\d+|\*)/);
+          if (m && m[1] !== '*') rowCount = parseInt(m[1], 10);
+        }
         var lk = p.level || (p.required ? 'critico' : 'opcional');
         if (ok) {
           okCount++;
           if (lv[lk]) lv[lk].ok++;
-          if (row) row.innerHTML = '<span class="badge badge-success">OK</span>';
+          var okLbl = 'OK';
+          if (p.table === 'profiles' && rowCount != null) {
+            okLbl = rowCount === 0 ? 'OK (0 — opcional)' : 'OK (' + rowCount + ')';
+            var pc = document.getElementById('sanProfilesCount');
+            if (pc) {
+              pc.textContent =
+                rowCount === 0
+                  ? 'Perfiles en nube: 0 — normal si usa solo PIN local. Cree usuario abajo o ejecute Script 13.'
+                  : 'Perfiles en nube: ' + rowCount + ' usuario(s) con login por correo.';
+            }
+          }
+          if (row) row.innerHTML = '<span class="badge badge-success">' + okLbl + '</span>';
         } else {
           if (p.required) failReq++;
           if (lv[lk]) lv[lk].falta.push(p.label || p.table);
@@ -1454,6 +1499,32 @@
 
     bindOnce(document.getElementById('sanBtnProbeTables'), 'click', function () {
       void probeSupabaseTables();
+    });
+
+    bindOnce(document.getElementById('sanBtnCreateCloudUser'), 'click', function () {
+      if (typeof global.crozzoCreateCloudUser !== 'function') {
+        if (global.showToast) global.showToast('Creación de usuarios nube no disponible.', 'warning');
+        return;
+      }
+      var email = (document.getElementById('sanCloudUserEmail')?.value || '').trim();
+      var pass = document.getElementById('sanCloudUserPass')?.value || '';
+      var role = document.getElementById('sanCloudUserRole')?.value || 'cajero';
+      if (global.showToast) global.showToast('Creando usuario nube…', 'info');
+      global
+        .crozzoCreateCloudUser({ email: email, password: pass, role: role })
+        .then(function (r) {
+          if (!r || !r.ok) {
+            if (global.showToast) global.showToast((r && r.message) || 'No se pudo crear el usuario.', 'warning');
+            return;
+          }
+          if (global.showToast) global.showToast(r.message, r.needsConfirm ? 'info' : 'success');
+          var passEl = document.getElementById('sanCloudUserPass');
+          if (passEl) passEl.value = '';
+          void probeSupabaseTables();
+        })
+        .catch(function () {
+          if (global.showToast) global.showToast('Error al crear usuario nube.', 'warning');
+        });
     });
 
     bindOnce(document.getElementById('sanBtnUploadCatalog'), 'click', function () {

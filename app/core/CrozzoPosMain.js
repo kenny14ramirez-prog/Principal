@@ -38535,7 +38535,7 @@ function init() {
   const CROZZO_PAIRING_DONE_KEY = 'crozzo_device_paired_v1';
   const CROZZO_CLOUD_PAIRING = 'CROZZO_CLOUD_PAIRING';
   const PAIRING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-  const PAIR_PULL_TABLES = ['products', 'clients', 'taxes', 'categories', 'company_config'];
+  const PAIR_PULL_TABLES = ['products', 'clients', 'taxes', 'categories', 'company_config', 'pos_staff'];
   let pairingScanner = null;
   let pairingLastPayload = null;
   let pairingLastQrText = '';
@@ -40565,16 +40565,22 @@ function init() {
       }
     } catch (_) {}
   }
-  async function crozzoPairingSyncFromSupabase(progress) {
+  async function crozzoPairingSyncFromSupabase(progress, opts) {
+    opts = opts || {};
+    const loc = String(opts.locationId || '').trim();
     const tables = PAIR_PULL_TABLES;
     let ok = 0;
+    const mapProd =
+      typeof window.mapRemoteProductToLocal === 'function' ? window.mapRemoteProductToLocal : null;
     for (let i = 0; i < tables.length; i++) {
       const t = tables[i];
       if (typeof progress === 'function') progress(i + 1, tables.length, t);
       if (typeof window.loadTableData !== 'function') break;
       try {
-        const lim = t === 'company_config' ? 5 : 500;
-        const res = await window.loadTableData(t, { limit: lim });
+        const lim = t === 'company_config' ? 5 : t === 'pos_staff' ? 200 : 500;
+        const filters = { limit: lim };
+        if (t === 'pos_staff' && loc) filters.where = { location_id: loc };
+        const res = await window.loadTableData(t, filters);
         if (res && res.error) throw res.error;
         const rows = res && res.data != null ? res.data : [];
         try {
@@ -40582,11 +40588,18 @@ function init() {
         } catch (e2) {
           /* ignore quota */
         }
-        if (t === 'products' && rows.length && typeof window.__crozzoApplyProductsFromRemote === 'function') {
+        if (t === 'products' && rows.length && mapProd && typeof window.__crozzoApplyProductsFromRemote === 'function') {
           try {
-            window.__crozzoApplyProductsFromRemote(rows.map(mapRemoteProductToLocal));
+            window.__crozzoApplyProductsFromRemote(rows.map(mapProd));
           } catch (e3) {
             console.warn('[pairing] apply products', e3);
+          }
+        }
+        if (t === 'pos_staff' && rows.length && typeof window.crozzoApplyPosStaffFromRemote === 'function') {
+          try {
+            window.crozzoApplyPosStaffFromRemote(rows, loc);
+          } catch (e4) {
+            console.warn('[pairing] apply pos_staff', e4);
           }
         }
         ok++;
@@ -40725,13 +40738,43 @@ function init() {
         deviceId: ensureCrozzoDeviceId(),
         savedAt: Date.now()
       };
-      try {
-        localStorage.setItem('crozzo_supabase_config', JSON.stringify(save));
-      } catch (e1) {
-        crozzoPairingShowStatus('No se pudo guardar configuración nube.', { isErr: true });
-        if (ab) ab.disabled = false;
-        pairingApplying = false;
-        return;
+      var cloudSaved = false;
+      if (typeof window.crozzoPersistSupabaseConfigFromPairing === 'function') {
+        cloudSaved = window.crozzoPersistSupabaseConfigFromPairing(save);
+      }
+      if (!cloudSaved) {
+        try {
+          localStorage.setItem('crozzo_supabase_config', JSON.stringify(save));
+          cloudSaved = true;
+        } catch (e1) {
+          crozzoPairingShowStatus('No se pudo guardar configuración nube.', { isErr: true });
+          if (ab) ab.disabled = false;
+          pairingApplying = false;
+          return;
+        }
+      }
+      if (typeof persistMultiDeviceConfig === 'function') {
+        try {
+          const baseMd = getMultiDeviceConfig();
+          persistMultiDeviceConfig({
+            ...baseMd,
+            supabaseSyncEnabled: true,
+            locationId: loc || baseMd.locationId,
+            role: 'B',
+            centralIp: cip,
+            port: port,
+            allowLan: true,
+            cloudPriority: baseMd.cloudPriority !== false,
+            deviceId: save.deviceId,
+            supabase: {
+              ...(baseMd.supabase || {}),
+              url: save.url,
+              anonKey: save.anonKey,
+            },
+          });
+        } catch (eMd) {
+          console.warn('[pairing] persist multidispositivo', eMd);
+        }
       }
       if (typeof window.__crozzoSyncStandaloneKeys === 'function') {
         try {
@@ -40765,14 +40808,17 @@ function init() {
       }
       window.__CROZZO_ONLINE_DATA = !!(typeof crozzoOnlineConfigReady === 'function' && crozzoOnlineConfigReady() && window.__SUPABASE);
       crozzoPairingShowStatus('Descargando catálogo operativo…', { busy: true, phase: 'cloud', progress: 78 });
-      const n = await crozzoPairingSyncFromSupabase(function (cur, tot, name) {
-        var pct = 78 + Math.round((cur / Math.max(1, tot)) * 16);
-        crozzoPairingShowStatus('Sincronizando ' + name + ' (' + cur + '/' + tot + ')…', {
-          busy: true,
-          phase: 'cloud',
-          progress: pct,
-        });
-      });
+      const n = await crozzoPairingSyncFromSupabase(
+        function (cur, tot, name) {
+          var pct = 78 + Math.round((cur / Math.max(1, tot)) * 16);
+          crozzoPairingShowStatus('Sincronizando ' + name + ' (' + cur + '/' + tot + ')…', {
+            busy: true,
+            phase: 'cloud',
+            progress: pct,
+          });
+        },
+        { locationId: loc }
+      );
       try {
         if (typeof persistCatalogProductosLocal === 'function') persistCatalogProductosLocal();
       } catch (ePersist) {
@@ -40889,6 +40935,26 @@ function init() {
       return;
     }
     crozzoPairingShowStatus('Sincronización completa — acceda con su usuario', { isOk: true, phase: 'ready', progress: 100 });
+    try {
+      if (typeof window.updateCrozzoStorageModeBadge === 'function') window.updateCrozzoStorageModeBadge();
+    } catch (_) {}
+    var reloadAfterPair =
+      (crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice()) && tp !== 'pantalla' && !sedeSwitch;
+    if (reloadAfterPair) {
+      crozzoPairingShowStatus('Datos guardados — reiniciando la app para aplicar todo…', {
+        isOk: true,
+        phase: 'ready',
+        progress: 100,
+      });
+      if (ab) ab.disabled = false;
+      pairingApplying = false;
+      setTimeout(function () {
+        try {
+          location.reload();
+        } catch (_) {}
+      }, 1100);
+      return;
+    }
     setTimeout(function () {
       if (typeof crozzoClosePairingModal === 'function') crozzoClosePairingModal();
       crozzoPairingFocusLoginAfterPairing();

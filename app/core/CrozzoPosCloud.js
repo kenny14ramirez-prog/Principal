@@ -111,6 +111,7 @@ window.__CROZZO_SB_TABLES = Object.freeze([
   'crozzo_sede_runtime',
   'audit_logs',
   'company_config',
+  'pos_staff',
   'dian_config',
   'crozzo_empleados',
   'crozzo_marcaciones',
@@ -290,13 +291,49 @@ window.__crozzoApplyStandaloneSupabaseToConfig = function crozzoApplyStandaloneS
 };
 window.__crozzoSyncStandaloneKeys = function crozzoSyncStandaloneKeys(saved) {
   try {
-    const sb = saved?.supabase || {};
-    const u = String(sb.url || '').trim();
-    const k = crozzoSupabaseEffectiveAnonKey(sb) || String(sb.anonKey || '').trim();
+    const sb = saved && saved.supabase && typeof saved.supabase === 'object' ? saved.supabase : saved;
+    const u = String(sb?.url || '').trim();
+    const k = crozzoSupabaseEffectiveAnonKey(sb) || String(sb?.anonKey || '').trim();
     mirrorCredentialsToBothKeys(u || undefined, k || undefined);
-    if (saved?.deviceId) lsSet(LS.DEVICE_ID, String(saved.deviceId).trim());
+    const devId = saved?.deviceId || sb?.deviceId;
+    if (devId) lsSet(LS.DEVICE_ID, String(devId).trim());
   } catch (e) {
     console.warn('[crozzo-sb] sync standalone', e);
+  }
+};
+/** Guarda credenciales Supabase tras emparejamiento QR (sin UI Super Admin). */
+window.crozzoPersistSupabaseConfigFromPairing = function crozzoPersistSupabaseConfigFromPairing(payload) {
+  if (!payload || payload.syncEnabled === false) return false;
+  const url = String(payload.url || '').trim();
+  const key = crozzoSupabaseEffectiveAnonKey(payload);
+  if (!isValidSupabasePair(url, key)) return false;
+  try {
+    const file = {
+      version: 1,
+      syncEnabled: true,
+      url: url,
+      anonKey: key,
+      deviceName: String(payload.deviceName || '').trim(),
+      deviceId: String(payload.deviceId || '').trim(),
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(file));
+    mirrorCredentialsToBothKeys(url, key);
+    if (file.deviceId) lsSet(LS.DEVICE_ID, file.deviceId);
+    if (file.deviceName) {
+      try {
+        localStorage.setItem('device_name', file.deviceName);
+      } catch (_) {}
+    }
+    try {
+      document.dispatchEvent(
+        new CustomEvent('crozzo-supabase-config-saved', { detail: { url: url, syncEnabled: true } })
+      );
+    } catch (_) {}
+    return true;
+  } catch (e) {
+    console.warn('[crozzo-sb] persist pairing cloud', e);
+    return false;
   }
 };
 /** Cliente Supabase (solo si credenciales válidas). Nunca createClient con strings vacíos. */
@@ -989,7 +1026,20 @@ async function hydrateProfileFromSession(session) {
   try {
     const { data, error } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
     if (error) throw error;
-    const profile = data || { id: session.user.id, email: session.user.email, role: 'cajero' };
+    let profile = data;
+    if (!profile) {
+      profile = {
+        id: session.user.id,
+        email: session.user.email,
+        role: String(session.user.user_metadata?.role || 'cajero'),
+        updated_at: new Date().toISOString(),
+      };
+      try {
+        await sb.from('profiles').upsert(profile);
+      } catch (upsertErr) {
+        console.warn('[crozzo-sb] profiles upsert', upsertErr);
+      }
+    }
     const synthetic = buildSyntheticUserFromProfile(profile);
     const pack = { profile, synthetic, email: session.user.email };
     sessionStorage.setItem('crozzo_cloud_profile', JSON.stringify(pack));
@@ -1010,6 +1060,47 @@ async function hydrateProfileFromSession(session) {
     return null;
   }
 }
+/** Crear usuario login nube (email + contraseña). Requiere Auth habilitado en Supabase. */
+window.crozzoCreateCloudUser = async function crozzoCreateCloudUser(opts) {
+  opts = opts || {};
+  const sb = window.__SUPABASE;
+  if (!sb || !sb.auth) {
+    return { ok: false, message: 'Active la nube (Supabase) antes de crear usuarios.' };
+  }
+  const email = String(opts.email || '').trim();
+  const password = String(opts.password || '').trim();
+  const role = String(opts.role || 'cajero').trim() || 'cajero';
+  if (!email.includes('@')) return { ok: false, message: 'Ingrese un correo válido.' };
+  if (password.length < 6) return { ok: false, message: 'La contraseña debe tener al menos 6 caracteres.' };
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: { role } },
+    });
+    if (error) return { ok: false, message: crozzoCloudFacingErr(error) };
+    if (data?.user?.id) {
+      try {
+        await sb.from('profiles').upsert({
+          id: data.user.id,
+          email,
+          role,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (_) {}
+    }
+    const needsConfirm = !data?.session;
+    return {
+      ok: true,
+      needsConfirm,
+      message: needsConfirm
+        ? 'Usuario creado. Si Supabase pide confirmar correo, revise el email o desactive «Confirm email» en Authentication → Providers → Email.'
+        : 'Usuario creado. Ya puede iniciar sesión con ese correo y contraseña.',
+    };
+  } catch (e) {
+    return { ok: false, message: crozzoCloudFacingErr(e) };
+  }
+};
 window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase() {
   if (typeof crozzoSecurityBlocksRealSession === 'function' && crozzoSecurityBlocksRealSession()) {
     return { handled: true, ok: false, error: 'sistema_bloqueado' };
@@ -1110,6 +1201,7 @@ function mapRemoteProductToLocal(row) {
     arrastraProductos: Array.isArray(row.arrastra_productos) ? row.arrastra_productos : row.arrastraProductos,
   };
 }
+window.mapRemoteProductToLocal = mapRemoteProductToLocal;
 /** Fila PostgREST `products` desde el modelo UI (nombres alineados a mapRemoteProductToLocal). */
 function mapLocalProductToSupabaseRow(p) {
   const id = p.id != null ? p.id : null;
@@ -1376,10 +1468,12 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
     if (Array.isArray(bundle.staff_meta) && bundle.staff_meta.length && typeof getUsuariosConfig === 'function' && typeof saveUsuarios === 'function') {
       const conf = getUsuariosConfig();
       const prevStaff = conf.staff || [];
-      const next = prevStaff.map(function (u) {
-        const r = bundle.staff_meta.find(function (x) {
-          return x && x.id === u.id;
-        });
+      const metaById = {};
+      bundle.staff_meta.forEach(function (r) {
+        if (r && r.id) metaById[String(r.id).toUpperCase()] = r;
+      });
+      let next = prevStaff.map(function (u) {
+        const r = metaById[String(u.id || '').toUpperCase()];
         if (!r) return u;
         if (u.rol === 'superadmin' && u.id === 'KENNY') return u;
         return {
@@ -1393,6 +1487,21 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
               ? { ...(u.configDispositivo || {}), ...r.configDispositivo }
               : u.configDispositivo,
         };
+      });
+      Object.keys(metaById).forEach(function (idKey) {
+        if (idKey === 'KENNY') return;
+        if (next.some(function (u) { return String(u.id || '').toUpperCase() === idKey; })) return;
+        const r = metaById[idKey];
+        next.push({
+          id: idKey,
+          nombre: r.nombre || idKey,
+          rol: r.rol || 'caja',
+          activo: r.activo !== false,
+          requiereClaveInicial: true,
+          permisos: r.permisos && typeof r.permisos === 'object' ? r.permisos : { caja: [], comandas: [], admin: [], inventario: [], productos: [] },
+          configDispositivo: r.configDispositivo && typeof r.configDispositivo === 'object' ? r.configDispositivo : {},
+        });
+        changed = true;
       });
       if (JSON.stringify(next) !== JSON.stringify(prevStaff)) {
         saveUsuarios(next);
@@ -1409,6 +1518,60 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
   if (changed && typeof applyAccessControl === 'function') applyAccessControl();
   return changed;
 }
+/** Importa usuarios de caja desde `pos_staff` (nube) tras emparejamiento QR. */
+window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(rows, locationId) {
+  if (!Array.isArray(rows) || !rows.length) return false;
+  if (typeof getUsuariosConfig !== 'function' || typeof saveUsuarios !== 'function') return false;
+  const loc = String(locationId || 'default').trim();
+  const conf = getUsuariosConfig();
+  let staff = (conf.staff || []).slice();
+  let changed = false;
+  rows.forEach(function (row) {
+    if (!row || !row.id) return;
+    if (loc && row.location_id && String(row.location_id) !== loc) return;
+    const id = String(row.id).toUpperCase();
+    if (id === 'KENNY') return;
+    const prev = staff.find(function (s) {
+      return String(s.id || '').toUpperCase() === id;
+    });
+    const merged = {
+      ...(prev || { id: id, requiereClaveInicial: true }),
+      nombre: row.nombre || (prev && prev.nombre) || id,
+      rol: row.rol || (prev && prev.rol) || 'caja',
+      activo: row.activo !== false,
+      permisos:
+        row.permisos && typeof row.permisos === 'object'
+          ? row.permisos
+          : prev && prev.permisos
+            ? prev.permisos
+            : { caja: [], comandas: [], admin: [], inventario: [], productos: [] },
+      configDispositivo:
+        row.config_dispositivo || row.configDispositivo || (prev && prev.configDispositivo) || {},
+    };
+    if (row.pin_hash && typeof row.pin_hash === 'string' && row.pin_hash.indexOf(':') > 0) {
+      const parts = row.pin_hash.split(':');
+      if (parts.length >= 2) {
+        merged.claveHash = parts[0];
+        merged.claveSalt = parts.slice(1).join(':');
+        delete merged.requiereClaveInicial;
+        delete merged.clave;
+      }
+    } else if (!prev) {
+      merged.requiereClaveInicial = true;
+    }
+    if (!prev) {
+      staff.push(merged);
+      changed = true;
+    } else if (JSON.stringify(prev) !== JSON.stringify(merged)) {
+      staff = staff.map(function (s) {
+        return String(s.id || '').toUpperCase() === id ? merged : s;
+      });
+      changed = true;
+    }
+  });
+  if (changed) saveUsuarios(staff);
+  return changed;
+};
 function crozzoTenantHubBroadcast() {
   try {
     if (__crozzoTenantBC) __crozzoTenantBC.postMessage({ t: 'pull', at: Date.now() });

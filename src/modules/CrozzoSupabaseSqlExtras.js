@@ -135,6 +135,47 @@
     '  for all using (true) with check (true);\n\n' +
     'alter publication supabase_realtime add table public.crozzo_mesa_runtime;\n';
 
+  var PROFILES_AUTH_SQL =
+    '-- Crozzo POS — Perfiles de login nube (Supabase Auth → profiles)\n' +
+    '-- Ejecutar DESPUÉS del script 1 (base POS). Idempotente.\n' +
+    '-- Crea fila en profiles automáticamente al registrar usuario en Authentication.\n\n' +
+    'create or replace function public.crozzo_handle_new_user()\n' +
+    'returns trigger\n' +
+    'language plpgsql\n' +
+    'security definer\n' +
+    'set search_path = public\n' +
+    'as $$\n' +
+    'begin\n' +
+    '  insert into public.profiles (id, email, role, updated_at)\n' +
+    '  values (\n' +
+    '    new.id,\n' +
+    '    new.email,\n' +
+    '    coalesce(new.raw_user_meta_data->>\'role\', \'cajero\'),\n' +
+    '    now()\n' +
+    '  )\n' +
+    '  on conflict (id) do update set\n' +
+    '    email = excluded.email,\n' +
+    '    updated_at = now();\n' +
+    '  return new;\n' +
+    'end;\n' +
+    '$$;\n\n' +
+    'drop trigger if exists crozzo_on_auth_user_created on auth.users;\n' +
+    'create trigger crozzo_on_auth_user_created\n' +
+    '  after insert on auth.users\n' +
+    '  for each row execute function public.crozzo_handle_new_user();\n\n' +
+    '-- Rellenar profiles para usuarios Auth ya existentes (Dashboard → Authentication)\n' +
+    'insert into public.profiles (id, email, role, updated_at)\n' +
+    'select\n' +
+    '  u.id,\n' +
+    '  u.email,\n' +
+    '  coalesce(u.raw_user_meta_data->>\'role\', \'cajero\'),\n' +
+    '  now()\n' +
+    'from auth.users u\n' +
+    'where not exists (select 1 from public.profiles p where p.id = u.id);\n\n' +
+    'select public.crozzo_enable_pos_rls(\'profiles\');\n' +
+    'select public.crozzo_fix_all_grants();\n' +
+    'notify pgrst, \'reload schema\';\n';
+
   global.CrozzoSupabaseSqlExtras = {
     list: function () {
       return [
@@ -164,6 +205,15 @@
           required: false,
           order: 12,
           sql: MESA_RUNTIME_SQL,
+        },
+        {
+          key: 'profiles_auth',
+          file: 'docs/SUPABASE-SQL-PROFILES-AUTH.sql',
+          title: '13. Perfiles login nube (Auth → profiles)',
+          desc: 'Trigger automático + relleno de profiles. Ejecute si profiles=0 pero ya tiene usuarios en Authentication.',
+          required: false,
+          order: 13,
+          sql: PROFILES_AUTH_SQL,
         },
       ];
     },
