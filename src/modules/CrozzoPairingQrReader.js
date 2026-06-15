@@ -1,10 +1,12 @@
 /**
- * Lector QR emparejamiento — escáner nativo (APK), cámara en-app, foto y galería.
+ * Lector QR emparejamiento — cámara en-app (getUserMedia), escáner nativo APK, foto y galería.
  *
  * Prioridad en tablet/APK:
- *   1) Escáner nativo ML Kit (scanNative) — más fiable que getUserMedia en WebView.
- *   2) Cámara en vivo en-app (startLive) — respaldo en PC o si el nativo falla.
+ *   1) Cámara en vivo dentro del modal (startLive) — el operador ve el video en el marco.
+ *   2) Escáner nativo pantalla completa (scanNative windowed:false) — sin WebView transparente.
  *   3) Foto / galería / pegar código manualmente.
+ *
+ * Evitar scanNative con windowed:true: deja WebView transparente y muchos equipos muestran pantalla negra.
  */
 (function (global) {
   'use strict';
@@ -343,8 +345,9 @@
   function scanNative(opts) {
     opts = opts || {};
     if (!hasNativeScanner()) return Promise.reject(new Error('no_native_scanner'));
-    enterNativeScanPresentation();
-    var useWindowed = opts.windowed !== false;
+    // windowed:true exige WebView transparente y suele verse negro en Android; solo si se pide explícito.
+    var useWindowed = opts.windowed === true;
+    if (useWindowed) enterNativeScanPresentation();
     return ensureBarcodeCameraPerm()
       .then(function () {
         return tauriCore().invoke('plugin:barcode-scanner|scan', {
@@ -358,12 +361,13 @@
         return String(result.content || result.text || '').trim();
       })
       .finally(function () {
-        exitNativeScanPresentation();
+        if (useWindowed) exitNativeScanPresentation();
         restoreWebViewAfterNativeScan().catch(function () {});
       });
   }
 
   function cancelNativeScan() {
+    exitNativeScanPresentation();
     var core = tauriCore();
     if (!core || typeof core.invoke !== 'function') return Promise.resolve();
     return core.invoke('plugin:barcode-scanner|cancel', {}).catch(function () {});
