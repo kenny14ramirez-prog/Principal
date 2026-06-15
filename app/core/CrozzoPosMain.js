@@ -6516,7 +6516,16 @@ function savePosRuntimeToLocalStorage() {
       console.warn('[runtime] snapshot demasiado grande; no se guardó');
       return;
     }
-    localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
+    try {
+      localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
+    } catch (eSet) {
+      // Memoria llena: liberamos cachés regenerables y reintentamos una vez.
+      if (typeof window.crozzoIsQuotaError === 'function' && window.crozzoIsQuotaError(eSet) && typeof window.crozzoPruneExpendableStorage === 'function' && window.crozzoPruneExpendableStorage() > 0) {
+        localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
+      } else {
+        throw eSet;
+      }
+    }
     try {
       if (!window.__crozzoRuntimeCloudApplying && typeof window.crozzoSchedulePosRuntimeCloudPush === 'function') {
         window.crozzoSchedulePosRuntimeCloudPush('normal');
@@ -27325,6 +27334,12 @@ async function crozzoPingSupabaseForTier(url, anonKey) {
       },
     });
     clearTimeout(t);
+    // Aprovecha el ping para corregir el reloj local (header Date del servidor).
+    try {
+      if (window.CrozzoClockSync && typeof window.CrozzoClockSync.noteResponse === 'function') {
+        window.CrozzoClockSync.noteResponse(res);
+      }
+    } catch (_) {}
     const ok = !!(res && (res.ok || res.status === 200 || res.status === 206));
     if (!ok && res && res.status === 401) crozzoNotifySupabase401Once();
     return { ok, status: res && res.status };
@@ -38584,12 +38599,50 @@ function init() {
     }
     return loc;
   }
+  /**
+   * Respaldo de seguridad: sube a la nube ACTUAL (sede vieja) lo que este pendiente
+   * ANTES de vaciar el cuerpo. "Tarde o temprano todo queda en la nube (el cerebro)".
+   * Best-effort y con tope de tiempo para no congelar el cambio de sede.
+   */
+  async function crozzoSedeSwitchFlushToOldCloud(timeoutMs) {
+    var tasks = [];
+    try {
+      if (typeof window.crozzoPushPosRuntimeCloudNow === 'function') {
+        tasks.push(Promise.resolve(window.crozzoPushPosRuntimeCloudNow()));
+      }
+    } catch (_) {}
+    try {
+      if (typeof syncOfflineQueue === 'function') tasks.push(Promise.resolve(syncOfflineQueue({ force: true })));
+    } catch (_) {}
+    try {
+      if (typeof window.crozzoPushComandasCloudByIds === 'function' && Array.isArray(comandas)) {
+        var ids = comandas
+          .filter(function (c) {
+            return c && c.id != null && c.estado !== 'entregada';
+          })
+          .map(function (c) {
+            return c.id;
+          });
+        if (ids.length) window.crozzoPushComandasCloudByIds(ids);
+      }
+    } catch (_) {}
+    await Promise.race([
+      Promise.allSettled(tasks),
+      new Promise(function (r) {
+        setTimeout(r, timeoutMs || 6000);
+      }),
+    ]);
+  }
+  window.crozzoSedeSwitchFlushToOldCloud = crozzoSedeSwitchFlushToOldCloud;
   function crozzoPairingWipeSedeLocalData(fromLoc, toLoc) {
     var i;
     try {
       for (i = 0; i < PAIR_PULL_TABLES.length; i++) {
         localStorage.removeItem('crozzo_pair_pull_' + PAIR_PULL_TABLES[i]);
       }
+      // Vacia el estado operativo en vivo de la sede vieja para que NO se escriba
+      // en la nube de la sede nueva (se descargara limpio el de la sede nueva).
+      localStorage.removeItem(CROZZO_POS_RUNTIME_LS);
       localStorage.removeItem(CROZZO_PAIRING_DONE_KEY);
       sessionStorage.removeItem('crozzo_pairing_autoprompt_v1');
     } catch (_) {}
@@ -39460,13 +39513,14 @@ function init() {
         pantalla_area_id: pantallaArea,
         kiosk_page: 'comandas',
         lan_config: lanSnap && typeof lanSnap === 'object' ? lanSnap : null,
-        timestamp: Date.now()
+        timestamp: typeof crozzoNow === 'function' ? crozzoNow() : Date.now()
       }
     };
     } catch (err) {
       return { error: 'No se pudo preparar el QR: ' + String((err && err.message) || err) };
     }
   }
+  window.crozzoPairingBuildPayload = crozzoPairingBuildPayload;
   function crozzoPairingFailDecoded(msg, shortMsg) {
     crozzoPairingShowReaderPlaceholder(shortMsg || '✗ Código no válido', false);
     crozzoPairingShowStatus(msg, { isErr: true });
@@ -39477,7 +39531,19 @@ function init() {
     if (obj.type !== CROZZO_CLOUD_PAIRING) return { ok: false, message: 'QR no es de emparejamiento Crozzo (tipo incorrecto)' };
     if (Number(obj.version) < 2) return { ok: false, message: 'Versión de emparejamiento antigua (se requiere ≥ 2)' };
     const ts = Number(obj.timestamp) || 0;
-    if (!ts || Date.now() - ts > PAIRING_MAX_AGE_MS) return { ok: false, message: 'Código expirado (máx. 24 h). Genera uno nuevo en la caja.' };
+    if (!ts) return { ok: false, message: 'QR sin sello de tiempo válido. Genera uno nuevo en la caja.' };
+    // Tolerancia a reloj mal puesto (error humano muy comun en tablets baratas):
+    // usamos la hora corregida si está disponible y NO bloqueamos cuando el desfase
+    // es implausible (negativo = reloj atrasado, o > 30 días = reloj muy adelantado),
+    // porque casi siempre es un reloj desajustado, no un QR realmente viejo. La caja
+    // rota el QR cada día de todos modos, así que el riesgo de replay es bajo.
+    const nowMs = typeof crozzoNow === 'function' ? crozzoNow() : Date.now();
+    const age = nowMs - ts;
+    const GRACE_MS = 6 * 60 * 60 * 1000; // 6 h de gracia sobre las 24 h
+    const CLOCK_SKEW_HINT_MS = 30 * 24 * 60 * 60 * 1000; // 30 días: por encima asumimos reloj roto
+    if (age > PAIRING_MAX_AGE_MS + GRACE_MS && age <= CLOCK_SKEW_HINT_MS) {
+      return { ok: false, message: 'Código expirado (máx. 24 h). Genera uno nuevo en la caja.' };
+    }
     if (obj.certificado || obj.p12 || obj.password || obj.clave) return { ok: false, message: 'Payload rechazado: no se permiten secretos de certificado/contraseña en QR' };
     const cloudOn = obj.cloud_sync !== false && (String(obj.supabase_url || '').trim() || Number(obj.version) < 4);
     if (cloudOn) {
@@ -40549,14 +40615,23 @@ function init() {
     const prevLoc = crozzoPairingGetLocalLocationId();
     const sedeSwitch = (p && p.__sedeSwitch) || (prevLoc && loc && prevLoc !== loc ? { from: prevLoc, to: loc } : null);
     if (sedeSwitch && sedeSwitch.from && sedeSwitch.to) {
+      // 1) Respaldar a la nube ACTUAL (sede vieja) antes de vaciar nada.
+      crozzoPairingShowStatus(
+        'Cambio de sede «' + sedeSwitch.from + '» → «' + sedeSwitch.to + '»: respaldando datos de la sede actual en la nube…',
+        { busy: true, phase: 'cloud', progress: 40 }
+      );
+      try {
+        await crozzoSedeSwitchFlushToOldCloud(7000);
+      } catch (_) {}
+      // 2) Suprimir escrituras de runtime para no contaminar la nube nueva.
+      try {
+        window.__crozzoSuppressRuntimePush = true;
+      } catch (_) {}
+      // 3) Vaciar el cuerpo (estado operativo local de la sede vieja).
       crozzoPairingWipeSedeLocalData(sedeSwitch.from, sedeSwitch.to);
       crozzoPairingShowStatus(
-        'Cambio de sede «' +
-          sedeSwitch.from +
-          '» → «' +
-          sedeSwitch.to +
-          '»: borrando datos locales y descargando la sede nueva…',
-        { busy: true, phase: 'cloud', progress: 46 }
+        'Sede actual respaldada. Descargando la sede «' + sedeSwitch.to + '»…',
+        { busy: true, phase: 'cloud', progress: 48 }
       );
     } else {
       crozzoPairingShowStatus('Inicializando perfil de red…', { busy: true, phase: 'network', progress: 45 });
@@ -40746,6 +40821,26 @@ function init() {
       try {
         await crozzoRunFullReconnectSync({ force: true, source: 'pairing_qr' });
       } catch (_) {}
+    }
+    // Cambio de sede: la sede vieja ya quedó respaldada en su nube y el cuerpo se
+    // vació; reiniciamos para arrancar 100% limpio con la sede nueva (el cerebro).
+    if (sedeSwitch && sedeSwitch.from && sedeSwitch.to) {
+      crozzoPairingShowStatus('Sede «' + sedeSwitch.to + '» lista — reiniciando para empezar limpio…', {
+        isOk: true,
+        phase: 'ready',
+        progress: 100,
+      });
+      if (ab) ab.disabled = false;
+      pairingApplying = false;
+      setTimeout(function () {
+        try {
+          window.__crozzoSuppressRuntimePush = false;
+        } catch (_) {}
+        try {
+          location.reload();
+        } catch (_) {}
+      }, 1400);
+      return;
     }
     if (tp === 'pantalla' && typeof crozzoKioskEnterComandasFromLogin === 'function') {
       crozzoPairingShowStatus('Abriendo modo pantallas…', false);

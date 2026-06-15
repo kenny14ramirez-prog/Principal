@@ -19,6 +19,13 @@
       console.warn('[crozzo] SyncRouter module', e);
     }
     try {
+      if (window.CrozzoStartupReady && typeof CrozzoStartupReady.run === 'function') {
+        CrozzoStartupReady.run();
+      }
+    } catch (eSr) {
+      console.warn('[crozzo] StartupReady', eSr);
+    }
+    try {
       if (typeof updateCrozzoServerConflictBadge === 'function') updateCrozzoServerConflictBadge();
     } catch (e2) {
       /* ignore */

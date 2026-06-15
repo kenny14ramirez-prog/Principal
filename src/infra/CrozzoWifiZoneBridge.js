@@ -9,6 +9,9 @@
   // Vigilancia adaptativa: tranquila cuando todo va bien, ágil al primer problema.
   var WATCH_HEALTHY_MS = 16000;
   var WATCH_DEGRADED_MS = 5000;
+  // Escala: si la nube esta sana no necesitamos la caja; vigilancia muy espaciada
+  // para no martillar el servidor LAN con decenas de tablets.
+  var WATCH_CLOUD_MS = 60000;
   var DISCOVER_COOLDOWN_MS = 8000;
   var __watchTimer = null;
   var __lastDiscoverTry = 0;
@@ -210,6 +213,16 @@
       __degraded = false; // caja localizada: volver a ritmo tranquilo
       return;
     }
+    var tier = '';
+    try {
+      tier = String(global.__CROZZO_TIER_LAST || '');
+    } catch (_) {}
+    if (tier === 'cloud') {
+      // Nube sana: no escaneamos la caja (evita carga inutil sobre el servidor LAN
+      // con muchas tablets); el descubrimiento se reactiva si la nube cae.
+      __degraded = false;
+      return;
+    }
     var hit = await resolveCentral({ force: true });
     __degraded = !hit; // si no se reencontró, seguir ágil
     try {
@@ -226,7 +239,11 @@
   function scheduleNextWatch() {
     if (!__watchStarted) return;
     if (__watchTimer) clearTimeout(__watchTimer);
-    var delay = __degraded ? WATCH_DEGRADED_MS : WATCH_HEALTHY_MS;
+    var tier = '';
+    try {
+      tier = String(global.__CROZZO_TIER_LAST || '');
+    } catch (_) {}
+    var delay = __degraded ? WATCH_DEGRADED_MS : tier === 'cloud' ? WATCH_CLOUD_MS : WATCH_HEALTHY_MS;
     __watchTimer = global.setTimeout(function () {
       watchTick()
         .catch(function () {})

@@ -206,18 +206,47 @@
     return r;
   }
 
+  /**
+   * Escalonado anti-estampida: ante un evento masivo (vuelve la luz/el router y
+   * 100 dispositivos reconectan a la vez), cada equipo espera un retardo
+   * DETERMINISTA por deviceId + un poco de azar, repartiendo la carga en el
+   * tiempo en vez de golpear la nube/caja todos en el mismo instante.
+   */
+  function reconnectStaggerMs(base, spread) {
+    var id = '';
+    try {
+      id = String(
+        (global.localStorage && (global.localStorage.getItem('crozzo_device_id') || global.localStorage.getItem('device_id'))) || ''
+      );
+    } catch (_) {
+      id = '';
+    }
+    var h = 0;
+    for (var i = 0; i < id.length; i++) {
+      h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    var deterministic = spread > 0 ? h % spread : 0;
+    var rand = Math.floor(Math.random() * 400);
+    return (base || 0) + deterministic + rand;
+  }
+
   function bindReconnectEvents() {
     if (global.__crozzoReconnectBound) return;
     global.__crozzoReconnectBound = true;
     global.addEventListener('online', function () {
+      // Reparte la reconexion en ~6s entre dispositivos (estampida controlada).
       global.setTimeout(function () {
         runFullReconnectSync({ source: 'online' }).catch(function () {});
-      }, 900);
+      }, reconnectStaggerMs(700, 6000));
     });
     global.addEventListener('crozzo-lan-up', function () {
-      runFullReconnectSync({ source: 'lan_up', skipPrint: true }).catch(function () {});
+      // LAN es local (menos nodos): ventana de escalonado mas corta.
+      global.setTimeout(function () {
+        runFullReconnectSync({ source: 'lan_up', skipPrint: true }).catch(function () {});
+      }, reconnectStaggerMs(150, 2500));
     });
   }
+  global.crozzoReconnectStaggerMs = reconnectStaggerMs;
 
   global.CrozzoReconnectSync = {
     run: runFullReconnectSync,

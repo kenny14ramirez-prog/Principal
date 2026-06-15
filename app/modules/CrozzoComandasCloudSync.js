@@ -433,6 +433,9 @@
         .order('updated_at', { ascending: false })
         .limit(100);
       if (ctx.businessId) q = q.eq('business_id', ctx.businessId);
+      // Filtro por sede: a escala (varias sedes en un mismo negocio) evita traer
+      // comandas ajenas; rowMatchesTenant igual las descartaria, pero asi no viajan.
+      if (ctx.locationId && ctx.locationId !== 'default') q = q.eq('location_id', ctx.locationId);
       var res = await q;
       if (res.error) {
         console.warn('[crozzo-comanda-cloud] pull', res.error.message || res.error);
@@ -471,6 +474,12 @@
     function scheduleComandaPull() {
       if (__pullTimer) clearInterval(__pullTimer);
       var ms = __realtimeLive ? PULL_MS_LIVE : PULL_MS_FALLBACK;
+      // Escala: bajo presion (429/503/timeout) o si Realtime esta vivo, el polling
+      // de respaldo se espacia para no amplificar la carga con muchos dispositivos.
+      var thr = global.CrozzoCloudThrottle;
+      if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) {
+        ms = Math.min(60000, ms * 3);
+      }
       __pullTimer = global.setInterval(function () {
         pullComandasFromCloud({ skipPrint: false }).catch(function () {});
       }, ms);
@@ -479,11 +488,21 @@
 
     try {
       if (global.__crozzoComandaCloudCh) return;
-      var ch = global.__SUPABASE.channel('crozzo_comandas_live_v1');
-      ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comandas' }, function (payload) {
+      // Canal y filtro por negocio: cada dispositivo solo recibe los eventos de su
+      // tenant, evitando el fan-out N x M (todos recibiendo todo) a gran escala.
+      var bid = String(cloudCtx().businessId || '').trim();
+      var chName = bid && bid !== 'default' ? 'crozzo_comandas_live_' + bid.replace(/[^a-zA-Z0-9_]/g, '_') : 'crozzo_comandas_live_v1';
+      var insOpts = { event: 'INSERT', schema: 'public', table: 'comandas' };
+      var updOpts = { event: 'UPDATE', schema: 'public', table: 'comandas' };
+      if (bid && bid !== 'default') {
+        insOpts.filter = 'business_id=eq.' + bid;
+        updOpts.filter = 'business_id=eq.' + bid;
+      }
+      var ch = global.__SUPABASE.channel(chName);
+      ch.on('postgres_changes', insOpts, function (payload) {
         if (payload.new) applyComandaFromCloudRow(payload.new);
       });
-      ch.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comandas' }, function (payload) {
+      ch.on('postgres_changes', updOpts, function (payload) {
         if (payload.new) applyComandaFromCloudRow(payload.new);
       });
       ch.subscribe(function (status) {

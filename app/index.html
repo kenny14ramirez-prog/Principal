@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.124">
+<meta name="crozzo-app-version" content="1.0.125">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0)document.documentElement.style.colorScheme='light';else if(dark.indexOf(t)>=0)document.documentElement.style.colorScheme='dark';}catch(e){}})();</script>
@@ -1064,6 +1064,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoWifiZoneBridge.js" defer></script>
 <script src="infra/CrozzoReconnectSync.js" defer></script>
 <script src="infra/CrozzoOfflineGossip.js" defer></script>
+<script src="infra/CrozzoClockSync.js" defer></script>
+<script src="infra/CrozzoConnectivityOrchestrator.js" defer></script>
+<script src="infra/CrozzoStartupReady.js" defer></script>
+<script src="modules/CrozzoDailyPairing.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="infra/CrozzoAutomationApi.js" defer></script>

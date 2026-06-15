@@ -380,8 +380,197 @@
     }
   }
 
+  // ------------------------------------------------------------------
+  // Runtime PARTICIONADO por mesa (opcional, auto-detectado).
+  // Si existe la tabla crozzo_mesa_runtime, cada mesa/slot escribe en SU fila
+  // (no en una unica fila por sede), eliminando la contencion a escala. Si la
+  // tabla no existe, todo cae a la fila unica crozzo_sede_runtime (sin cambios).
+  // ------------------------------------------------------------------
+  var MESA_TABLE = 'crozzo_mesa_runtime';
+  var __mesaMode = null; // null=desconocido, true=por-mesa, false=fila unica
+  var __mesaSlotSig = {}; // "kind:ref" -> firma; solo subimos lo que cambia
+  var __mesaPullTimer = null;
+  var CART_KEYS = ['cartsPorMesa', 'cartsPorLlevar', 'cartDirecto'];
+
+  function metaFromSnap(snap) {
+    var meta = {};
+    Object.keys(snap || {}).forEach(function (k) {
+      if (CART_KEYS.indexOf(k) >= 0) return;
+      meta[k] = snap[k];
+    });
+    meta._c = 1;
+    return meta;
+  }
+
+  function mesaRowsFromSnap(snap, c) {
+    var iso = new Date(Number(snap.savedAt) || Date.now()).toISOString();
+    var rows = [];
+    function add(kind, ref, lines) {
+      rows.push({
+        location_id: c.locationId,
+        business_id: c.businessId,
+        kind: kind,
+        ref: String(ref),
+        payload: { lines: lines || [] },
+        source_device_id: c.deviceId,
+        source_role: c.role,
+        updated_at: iso,
+      });
+    }
+    var m = snap.cartsPorMesa || {};
+    Object.keys(m).forEach(function (ref) {
+      if (m[ref] && m[ref].length) add('mesa', ref, m[ref]);
+    });
+    var l = snap.cartsPorLlevar || {};
+    Object.keys(l).forEach(function (ref) {
+      if (l[ref] && l[ref].length) add('llevar', ref, l[ref]);
+    });
+    if (Array.isArray(snap.cartDirecto) && snap.cartDirecto.length) add('directo', '__directo__', snap.cartDirecto);
+    rows.push({
+      location_id: c.locationId,
+      business_id: c.businessId,
+      kind: 'meta',
+      ref: '__meta__',
+      payload: metaFromSnap(snap),
+      source_device_id: c.deviceId,
+      source_role: c.role,
+      updated_at: iso,
+    });
+    return rows;
+  }
+
+  function snapFromMesaRows(rows) {
+    if (!Array.isArray(rows) || !rows.length) return null;
+    var base = null;
+    var maxAt = 0;
+    var carts = { mesa: {}, llevar: {}, directo: [] };
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var at = Date.parse(r.updated_at || 0) || 0;
+      if (at > maxAt) maxAt = at;
+      var lines = r.payload && r.payload.lines;
+      if (r.kind === 'meta') {
+        base = r.payload && typeof r.payload === 'object' ? r.payload : {};
+      } else if (r.kind === 'mesa') {
+        if (lines && lines.length) carts.mesa[r.ref] = lines;
+      } else if (r.kind === 'llevar') {
+        if (lines && lines.length) carts.llevar[r.ref] = lines;
+      } else if (r.kind === 'directo') {
+        if (lines && lines.length) carts.directo = lines;
+      }
+    }
+    if (!base) base = { v: 1, _c: 1 };
+    base._c = 1;
+    base.cartsPorMesa = carts.mesa;
+    base.cartsPorLlevar = carts.llevar;
+    base.cartDirecto = carts.directo;
+    base.savedAt = Number(base.savedAt) || maxAt || Date.now();
+    return { snap: base, savedAt: base.savedAt };
+  }
+
+  async function ensureMesaMode() {
+    if (__mesaMode !== null) return __mesaMode;
+    if (!online()) return false;
+    var sb = global.__SUPABASE;
+    try {
+      var res = await sb.from(MESA_TABLE).select('location_id').limit(1);
+      if (res && res.error) {
+        var msg = String((res.error && res.error.message) || res.error || '');
+        if (/relation|does not exist|404|PGRST205|schema cache/i.test(msg)) {
+          __mesaMode = false;
+          return false;
+        }
+        return false; // error transitorio (RLS/red): reintentar luego
+      }
+      __mesaMode = true;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function pushMesaRows(snap, c) {
+    var sb = global.__SUPABASE;
+    var rows = mesaRowsFromSnap(snap, c);
+    var toUpsert = [];
+    for (var i = 0; i < rows.length; i++) {
+      var key = rows[i].kind + ':' + rows[i].ref;
+      var sig;
+      try {
+        sig = JSON.stringify(rows[i].payload);
+      } catch (_) {
+        sig = String(Date.now());
+      }
+      if (__mesaSlotSig[key] !== sig) {
+        __mesaSlotSig[key] = sig;
+        toUpsert.push(rows[i]);
+      }
+    }
+    if (!toUpsert.length) {
+      __echoUntil = Date.now() + ECHO_MS;
+      __lastPushSig = payloadSig(snap);
+      __lastPushAt = Date.now();
+      return true;
+    }
+    try {
+      var res = await sb.from(MESA_TABLE).upsert(toUpsert, { onConflict: 'location_id,kind,ref' });
+      if (!res.error) {
+        __echoUntil = Date.now() + ECHO_MS;
+        __lastPushSig = payloadSig(snap);
+        __lastPushAt = Date.now();
+        return true;
+      }
+      var msg = String((res.error && res.error.message) || res.error || '');
+      if (/relation|does not exist|404|PGRST205|schema cache/i.test(msg)) __mesaMode = false;
+      toUpsert.forEach(function (r) {
+        delete __mesaSlotSig[r.kind + ':' + r.ref];
+      });
+      return false;
+    } catch (e) {
+      toUpsert.forEach(function (r) {
+        delete __mesaSlotSig[r.kind + ':' + r.ref];
+      });
+      return false;
+    }
+  }
+
+  async function pullMesaRows(opts, c) {
+    c = c || ctx();
+    var sb = global.__SUPABASE;
+    try {
+      var res = await sb
+        .from(MESA_TABLE)
+        .select('kind,ref,payload,updated_at,source_device_id')
+        .eq('location_id', c.locationId);
+      if (res && res.error) {
+        var msg = String((res.error && res.error.message) || res.error || '');
+        if (/relation|does not exist|404|PGRST205/i.test(msg)) __mesaMode = false;
+        return false;
+      }
+      var built = snapFromMesaRows(res.data || []);
+      if (!built) return false;
+      return applyRemoteRow(
+        { payload: built.snap, saved_at: new Date(built.savedAt).toISOString(), source_device_id: '' },
+        opts
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function scheduleMesaPull() {
+    if (__mesaPullTimer) return;
+    __mesaPullTimer = global.setTimeout(function () {
+      __mesaPullTimer = null;
+      pullMesaRows({ quiet: true }).catch(function () {});
+    }, 500);
+  }
+
   async function pushRuntimeNow(opts) {
     opts = opts || {};
+    // Durante un cambio de sede se suprime el push para no contaminar la nube
+    // nueva con datos de la sede anterior (el cuerpo se vacia tras respaldar).
+    if (global.__crozzoSuppressRuntimePush) return false;
     var full = collectFull();
     var snap = packForCloud(full);
     if (!snap) return false;
@@ -391,14 +580,19 @@
     }
     snap.savedAt = Date.now();
     if (online() && !__tableMissing) {
-      var cloudOk = await upsertRuntimeRow(snap);
-      if (cloudOk) return true;
+      if (await ensureMesaMode()) {
+        if (await pushMesaRows(snap, ctx())) return true;
+      } else {
+        var cloudOk = await upsertRuntimeRow(snap);
+        if (cloudOk) return true;
+      }
     }
     if (await lanSegmentUp()) return pushRuntimeLan(snap);
     return false;
   }
 
   function schedulePush(priority) {
+    if (global.__crozzoSuppressRuntimePush) return;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return;
     var p = priority === 'fast' || priority === 'flush' ? priority : 'normal';
@@ -439,6 +633,10 @@
     var remoteAt = Number(pay.savedAt) || Date.parse(row.saved_at || row.updated_at || 0) || 0;
     if (!remoteAt) return false;
     if (Date.now() < __echoUntil) return false;
+    // Anti-pisado: si hay ediciones locales sin enviar (push pendiente), no
+    // aplicamos el remoto todavia para no revertir lo que el usuario acaba de
+    // tocar; se reconcilia en el siguiente ciclo tras enviar nuestros cambios.
+    if (__pushTimer) return false;
     var srcDev = String(row.source_device_id || '').trim();
     var myDev = ctx().deviceId;
     if (srcDev && myDev && srcDev === myDev && remoteAt <= localSavedAt() + 500) return false;
@@ -464,6 +662,11 @@
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return false;
     if (online() && !__tableMissing) {
+      if (await ensureMesaMode()) {
+        var doneMesa = await pullMesaRows(opts, c);
+        if (__mesaMode) return doneMesa; // modo por-mesa activo
+        // si la tabla desaparecio (paso a false), continua a la fila unica
+      }
       var sb = global.__SUPABASE;
       try {
         var res = await sb
@@ -502,6 +705,12 @@
   function schedulePullLoop() {
     if (__pullTimer) clearInterval(__pullTimer);
     var ms = __realtimeLive ? PULL_POLL_LIVE_MS : PULL_POLL_FALLBACK_MS;
+    // Escala: bajo presion de la nube (429/503/timeout) espaciamos el poll de
+    // respaldo para no amplificar la carga con decenas de dispositivos.
+    var thr = global.CrozzoCloudThrottle;
+    if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) {
+      ms = Math.min(90000, ms * 3);
+    }
     __pullTimer = global.setInterval(function () {
       pullRuntime({ quiet: true }).catch(function () {});
     }, ms);
@@ -511,27 +720,38 @@
     if (__pgCh || !online() || __tableMissing) return;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return;
-    try {
-      var filter = 'location_id=eq.' + c.locationId;
-      __pgCh = global.__SUPABASE.channel('crozzo_runtime_live_' + c.locationId.replace(/[^a-zA-Z0-9_]/g, '_'));
-      __pgCh.on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE, filter: filter }, function (p) {
-        if (p.new) applyRemoteRow(p.new, { quiet: true });
-      });
-      __pgCh.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: TABLE, filter: filter }, function (p) {
-        if (p.new) applyRemoteRow(p.new, { quiet: true });
-      });
-      __pgCh.subscribe(function (st) {
-        if (st === 'SUBSCRIBED') {
-          __realtimeLive = true;
-          schedulePullLoop();
-        } else if (st === 'CHANNEL_ERROR' || st === 'CLOSED' || st === 'TIMED_OUT') {
-          __realtimeLive = false;
-          schedulePullLoop();
-        }
-      });
-    } catch (e) {
-      console.warn('[runtime-cloud] subscribe', e);
-    }
+    ensureMesaMode().then(function (useMesa) {
+      if (__pgCh || !online()) return;
+      try {
+        var filter = 'location_id=eq.' + c.locationId;
+        var tbl = useMesa ? MESA_TABLE : TABLE;
+        __pgCh = global.__SUPABASE.channel(
+          'crozzo_runtime_live_' + (useMesa ? 'm_' : '') + c.locationId.replace(/[^a-zA-Z0-9_]/g, '_')
+        );
+        // En modo por-mesa, ante cualquier cambio reconstruimos (pull debounced):
+        // reutiliza la ruta probada applyRemoteRow con un snapshot completo.
+        var onEvt = useMesa
+          ? function () {
+              scheduleMesaPull();
+            }
+          : function (p) {
+              if (p.new) applyRemoteRow(p.new, { quiet: true });
+            };
+        __pgCh.on('postgres_changes', { event: 'INSERT', schema: 'public', table: tbl, filter: filter }, onEvt);
+        __pgCh.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: tbl, filter: filter }, onEvt);
+        __pgCh.subscribe(function (st) {
+          if (st === 'SUBSCRIBED') {
+            __realtimeLive = true;
+            schedulePullLoop();
+          } else if (st === 'CHANNEL_ERROR' || st === 'CLOSED' || st === 'TIMED_OUT') {
+            __realtimeLive = false;
+            schedulePullLoop();
+          }
+        });
+      } catch (e) {
+        console.warn('[runtime-cloud] subscribe', e);
+      }
+    });
   }
 
   function stopRuntimeCloudSync() {
@@ -549,6 +769,11 @@
       clearInterval(__stabilityTimer);
       __stabilityTimer = null;
     }
+    if (__mesaPullTimer) {
+      clearTimeout(__mesaPullTimer);
+      __mesaPullTimer = null;
+    }
+    __mesaSlotSig = {};
     try {
       if (__pgCh && global.__SUPABASE) {
         global.__SUPABASE.removeChannel(__pgCh);
@@ -580,5 +805,13 @@
   global.crozzoStopPosRuntimeCloudSync = stopRuntimeCloudSync;
   global.crozzoPosRuntimeCloudIsLive = function () {
     return __started && !__tableMissing;
+  };
+  global.crozzoPosRuntimeCloudMode = function () {
+    return __mesaMode === true ? 'mesa' : __mesaMode === false ? 'sede' : 'desconocido';
+  };
+  // Funciones puras expuestas para pruebas (extraccion/reconstruccion por mesa).
+  global.__crozzoRuntimeMesaInternals = {
+    mesaRowsFromSnap: mesaRowsFromSnap,
+    snapFromMesaRows: snapFromMesaRows,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

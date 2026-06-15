@@ -134,10 +134,50 @@ function lsGet(k) {
     return null;
   }
 }
+/**
+ * Auto-sanado de almacenamiento lleno (error humano/organico: tablet sin espacio).
+ * Borra cachés regenerables (pull de emparejamiento, QR del día) para liberar
+ * espacio sin perder datos de negocio. Devuelve cuántas claves liberó.
+ */
+function crozzoPruneExpendableStorage() {
+  var removed = 0;
+  try {
+    var toRemove = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      if (!key) continue;
+      if (key.indexOf('crozzo_pair_pull_') === 0) toRemove.push(key);
+    }
+    toRemove.push('crozzo_daily_pairing_v1');
+    for (var j = 0; j < toRemove.length; j++) {
+      try {
+        if (localStorage.getItem(toRemove[j]) != null) {
+          localStorage.removeItem(toRemove[j]);
+          removed++;
+        }
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return removed;
+}
+window.crozzoPruneExpendableStorage = crozzoPruneExpendableStorage;
+function crozzoIsQuotaError(e) {
+  if (!e) return false;
+  var name = String(e.name || '');
+  var msg = String(e.message || e || '');
+  return /quota|exceeded|NS_ERROR_DOM_QUOTA/i.test(name) || /quota|exceeded/i.test(msg) || e.code === 22 || e.code === 1014;
+}
+window.crozzoIsQuotaError = crozzoIsQuotaError;
 function lsSet(k, v) {
   try {
     localStorage.setItem(k, v);
   } catch (e) {
+    if (crozzoIsQuotaError(e) && crozzoPruneExpendableStorage() > 0) {
+      try {
+        localStorage.setItem(k, v);
+        return;
+      } catch (_) {}
+    }
     console.warn('[crozzo-sb] lsSet', k, e);
   }
 }

@@ -36,6 +36,16 @@ function hasAll(rel, needles) {
   return needles.every((n) => (typeof n === 'string' ? t.includes(n) : n.test(t)));
 }
 
+// Mitigaciones de escala presentes en el codigo (cascada + anti-pisado + escalonado).
+const mit = {
+  realtimeFiltered: hasAll('modules/CrozzoComandasCloudSync.js', ['business_id=eq.', 'isUnderPressure']),
+  runtimeAdaptive: hasAll('modules/CrozzoPosRuntimeCloud.js', ['isUnderPressure', 'if (__pushTimer) return false;']),
+  mesaPartition: hasAll('modules/CrozzoPosRuntimeCloud.js', ['crozzo_mesa_runtime', 'ensureMesaMode']),
+  lanCloudSpacing: hasAll('infra/CrozzoWifiZoneBridge.js', ['WATCH_CLOUD_MS']),
+  reconnectStagger: hasAll('infra/CrozzoReconnectSync.js', ['reconnectStaggerMs']),
+  orchestrator: existsSync(join(app, 'infra/CrozzoConnectivityOrchestrator.js')),
+};
+
 /** Simula N dispositivos con perfil y fallos; devuelve score 0–100 por escenario. */
 function simulateScenario(sc) {
   const n = sc.devices;
@@ -53,13 +63,14 @@ function simulateScenario(sc) {
 
   // Comandas path
   if (internetPct >= 0.85 && centralUp) {
-    notes.push('Comandas: cloud Realtime + fan-out unificado OK');
+    notes.push('Comandas: cloud Realtime' + (mit.realtimeFiltered ? ' filtrado por negocio' : '') + ' + fan-out unificado OK');
   } else if (internetPct >= 0.85 && !centralUp) {
     notes.push('Comandas: meseros/cocina siguen por Supabase sin caja');
     score -= 5;
-  } else if (lanUp && centralUp && internetPct < 0.5) {
-    notes.push('Comandas: LAN HTTP + WebSocket :3001 + relay comanda');
-    score -= 8;
+  } else if (centralUp && lanUp) {
+    // Conectividad mixta, pero la caja hace de puente LAN<->nube: hay ruta comun.
+    notes.push('Comandas: caja puente LAN<->nube' + (mit.orchestrator ? ' (orquestador cascada)' : '') + ' para segmentos mixtos');
+    score -= internetPct >= 0.5 ? 8 : 12;
   } else if (!centralUp && !lanUp && offline > 0) {
     notes.push('Comandas: gossip UDP entre islas (misma subred)');
     score -= 35;
@@ -68,22 +79,37 @@ function simulateScenario(sc) {
       score -= 15;
     }
   } else {
-    breaks.push('Segmentos mixtos sin ruta común');
+    breaks.push('Segmentos mixtos sin ruta común (caja caida)');
     score -= 45;
   }
 
-  // Runtime carritos (1 fila LWW por sede)
+  // Runtime carritos: particion por mesa / merge + anti-pisado de edicion activa.
   if (n > 15 && roles.B > 10) {
-    score -= Math.min(25, Math.floor((roles.B - 10) * 1.2));
-    notes.push('Runtime mesas: LWW 1 fila/sede — ediciones simultáneas pueden perderse');
-    if (roles.B > 30) breaks.push('>30 tablets editando carritos = alto riesgo LWW');
+    let pen = Math.min(25, Math.floor((roles.B - 10) * 1.2));
+    if (mit.mesaPartition) pen = Math.round(pen * 0.3); // fila por slot: sin contencion
+    else if (mit.runtimeAdaptive) pen = Math.round(pen * 0.55); // merge + guard
+    score -= pen;
+    notes.push(
+      'Runtime mesas: ' +
+        (mit.mesaPartition
+          ? 'particion por mesa (fila por slot, auto-detectada)'
+          : mit.runtimeAdaptive
+            ? 'merge por mesa + anti-pisado edicion activa'
+            : 'LWW 1 fila/sede')
+    );
+    if (roles.B > 30 && !mit.runtimeAdaptive && !mit.mesaPartition) breaks.push('>30 tablets editando carritos = alto riesgo LWW');
+    else if (roles.B > 60 && !mit.mesaPartition) breaks.push('>60 tablets/sede: ejecute SQL crozzo_mesa_runtime para particionar');
   }
 
-  // Reconnect rush
+  // Reconnect rush (mitigado por escalonado anti-estampida).
   if (internetPct < 1 && online > 20) {
-    score -= Math.min(20, Math.floor((online - 20) / 4));
-    notes.push('Reconnect: push cap ' + limits.reconnectPushComandas + ' comandas + pull cap ' + limits.comandasCloudPull);
-    if (online > 50) breaks.push('Rush reconnect >50 disp. desalinea comandas históricas');
+    let pen = Math.min(20, Math.floor((online - 20) / 4));
+    if (mit.reconnectStagger) pen = Math.round(pen * 0.5);
+    score -= pen;
+    notes.push(
+      'Reconnect: ' + (mit.reconnectStagger ? 'escalonado anti-estampida + ' : '') + 'push cap ' + limits.reconnectPushComandas + ' + pull cap ' + limits.comandasCloudPull
+    );
+    if (online > 50 && !mit.reconnectStagger) breaks.push('Rush reconnect >50 disp. desalinea comandas históricas');
   }
 
   // P2P EmergencyMesh
@@ -92,11 +118,17 @@ function simulateScenario(sc) {
     breaks.push('EmergencyMesh WebRTC: 1 enlace P2P por tablet, no fan-out masivo');
   }
 
-  // Central LAN server capacity
+  // Central LAN server capacity. Con nube sana las tablets usan la nube y la
+  // vigilancia a la caja se espacia (WATCH_CLOUD_MS): la caja no se satura.
   if (centralUp && roles.B > 40) {
-    score -= Math.min(18, Math.floor((roles.B - 40) / 5));
-    notes.push('LAN: WS broadcast + HTTP queue; sin pool de cajas');
-    if (roles.B > 80) breaks.push('>80 tablets en 1 caja LAN — cuello HTTP/WS');
+    const lanPressure = internetPct < 0.85;
+    if (lanPressure || !mit.lanCloudSpacing) {
+      score -= Math.min(18, Math.floor((roles.B - 40) / 5));
+      notes.push('LAN: WS broadcast + HTTP queue; sin pool de cajas');
+      if (roles.B > 80) breaks.push('>80 tablets en 1 caja LAN sin internet — conviene relays LAN');
+    } else {
+      notes.push('LAN: con nube sana las tablets no saturan la caja (vigilancia espaciada)');
+    }
   }
 
   // mDNS discovery
@@ -141,6 +173,12 @@ wire('Merge carritos remoto', hasAll('core/CrozzoPosMain.js', ['crozzoMergeCarts
 wire('LAN central aplica comanda', hasAll('infra/CrozzoLanSyncBridge.js', ['tryApplyLanComanda']));
 wire('Reconnect orquestado', hasAll('infra/CrozzoReconnectSync.js', ['centralAuthorityPush', 'allDevicesPull']));
 wire('Tier sin falso LAN Rol A', !readApp('core/CrozzoPosMain.js').includes("return markOk('role_a')"));
+wire('Escala: Realtime filtrado + polling adaptativo', mit.realtimeFiltered, 'ComandasCloudSync');
+wire('Escala: anti-pisado edicion activa', mit.runtimeAdaptive, 'PosRuntimeCloud');
+wire('Escala: particion runtime por mesa (auto-detectada)', mit.mesaPartition, 'PosRuntimeCloud + SQL');
+wire('Escala: caja no saturada con nube sana', mit.lanCloudSpacing, 'WifiZoneBridge');
+wire('Escala: escalonado anti-estampida', mit.reconnectStagger, 'ReconnectSync');
+wire('Escala: orquestador cascada 5 niveles', mit.orchestrator, 'ConnectivityOrchestrator');
 
 const checks = [
   '_connectivity-flow-check.mjs',

@@ -1657,8 +1657,173 @@
     }
     return Promise.resolve({ tier: 'unknown', reason: 'no detector' });
   }
+  /**
+   * Prueba ACTIVA de ida y vuelta con la nube: escribe → relee → borra una fila
+   * centinela en `crozzo_sede_runtime` (location_id = «__crozzo_diag__<device>»),
+   * por lo que nunca toca mesas, carritos ni comandas reales. Diagnostica el
+   * síntoma «se conecta pero no manda ni recibe» y verifica que businessId /
+   * locationId coincidan con la caja.
+   */
+  async function testCloudIO() {
+    var id = 'cloudio';
+    setCardState(id, 'run');
+    var ready = typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
+    var sb = global.__SUPABASE;
+    if (!ready || !sb) {
+      logLine('muted', 'Nube no activa (crozzoOnlineConfigReady/__SUPABASE). Sin canal Supabase: solo local/LAN.', id);
+      setCardState(id, 'muted');
+      return { level: 'muted', summary: 'Nube off' };
+    }
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    var businessId = String(md.businessId || 'default').trim() || 'default';
+    var locationId = String(md.locationId || 'default').trim() || 'default';
+    var deviceId = '';
+    try {
+      deviceId = String(
+        (typeof global.ensureCrozzoDeviceId === 'function' && global.ensureCrozzoDeviceId()) ||
+          md.deviceId ||
+          global.localStorage.getItem('crozzo_device_id') ||
+          ''
+      ).trim();
+    } catch (e0) { /* ignore */ }
+    var tier = String(global.__CROZZO_TIER_LAST || '—');
+    logLine('ok', 'Identidad sede → businessId=' + businessId + ' · locationId=' + locationId + ' · role=' + (md.role || '?') + ' · tier=' + tier, id);
+    var locWarn = !locationId || locationId === 'default';
+    if (locWarn) {
+      logLine('warn', '⚠️ locationId vacío o «default»: las mesas/carritos NO se sincronizan entre dispositivos. Empareje con un QR que incluya location_id, o configúrelo igual al de la caja.', id);
+    }
+    var diagLoc = '__crozzo_diag__' + (deviceId || 'dev');
+    var stamp = Date.now();
+    var wroteOk = false;
+    try {
+      var body = {
+        location_id: diagLoc,
+        business_id: businessId,
+        payload: { diag: true, stamp: stamp },
+        saved_at: new Date(stamp).toISOString(),
+        source_device_id: deviceId,
+        source_role: md.role === 'B' ? 'B' : 'A',
+        updated_at: new Date(stamp).toISOString()
+      };
+      var w = await withTimeout(sb.from('crozzo_sede_runtime').upsert(body, { onConflict: 'location_id' }), TIMEOUT_MS);
+      if (w && w.error) {
+        var em = String((w.error && (w.error.message || w.error.details || w.error.hint)) || w.error || '');
+        if (/relation|does not exist|404|PGRST205|schema cache/i.test(em)) {
+          logLine('fail', '❌ ENVÍO: falta la tabla crozzo_sede_runtime. Ejecute docs/SUPABASE-SQL-POS-RUNTIME.sql en el SQL Editor.', id);
+        } else if (/401|403|permission denied|rls|jwt|forbidden/i.test(em)) {
+          logLine('fail', '❌ ENVÍO bloqueado por permisos/RLS: ' + em + '. Revise políticas (escritura anon) o la anon key.', id);
+        } else {
+          logLine('fail', '❌ ENVÍO falló: ' + em, id);
+        }
+      } else {
+        wroteOk = true;
+        logLine('ok', '✅ ENVÍO OK: la nube aceptó la escritura (crozzo_sede_runtime).', id);
+      }
+    } catch (e1) {
+      logLine('fail', '❌ ENVÍO excepción/timeout: ' + (e1 && e1.message) + ' (revise internet/CORS en la WebView).', id);
+    }
+    var readBackOk = false;
+    if (wroteOk) {
+      try {
+        var r = await withTimeout(
+          sb.from('crozzo_sede_runtime').select('location_id,payload,updated_at').eq('location_id', diagLoc).limit(1).maybeSingle(),
+          TIMEOUT_MS
+        );
+        if (r && r.error) {
+          logLine('warn', '⚠️ RECEPCIÓN: no se pudo releer la fila de prueba: ' + (r.error.message || r.error), id);
+        } else if (r && r.data && r.data.payload && Number(r.data.payload.stamp) === stamp) {
+          readBackOk = true;
+          logLine('ok', '✅ RECEPCIÓN OK: la nube devolvió la misma fila (ida y vuelta completa).', id);
+        } else {
+          logLine('warn', '⚠️ RECEPCIÓN: la fila no coincide o no se encontró (posible RLS de solo escritura).', id);
+        }
+      } catch (e2) {
+        logLine('warn', '⚠️ RECEPCIÓN excepción/timeout: ' + (e2 && e2.message), id);
+      }
+      try {
+        await withTimeout(sb.from('crozzo_sede_runtime').delete().eq('location_id', diagLoc), TIMEOUT_MS);
+      } catch (e2b) { /* limpieza opcional */ }
+    }
+    if (!locWarn) {
+      try {
+        var rr = await withTimeout(
+          sb.from('crozzo_sede_runtime').select('location_id,source_device_id,updated_at').eq('location_id', locationId).limit(1).maybeSingle(),
+          TIMEOUT_MS
+        );
+        if (rr && rr.error) {
+          logLine('warn', 'Lectura del estado real de la sede falló: ' + (rr.error.message || rr.error), id);
+        } else if (rr && rr.data) {
+          var foreign = rr.data.source_device_id && deviceId && String(rr.data.source_device_id) !== String(deviceId);
+          logLine('ok', 'Estado de la sede «' + locationId + '» presente en la nube (últ. ' + (rr.data.updated_at || '—') + (foreign ? ', de OTRO dispositivo ✅' : ', de este dispositivo') + ').', id);
+        } else {
+          logLine('warn', 'Aún no hay estado de la sede «' + locationId + '» en la nube. Abra una mesa en la caja para generarlo y vuelva a probar.', id);
+        }
+      } catch (e3) {
+        logLine('warn', 'Lectura del estado real de la sede omitida: ' + (e3 && e3.message), id);
+      }
+    }
+    try {
+      var cq = sb.from('comandas').select('id,business_id').neq('status', 'entregada').limit(1);
+      if (businessId) cq = cq.eq('business_id', businessId);
+      var cr = await withTimeout(cq, TIMEOUT_MS);
+      if (cr && cr.error) {
+        logLine('warn', 'Lectura de comandas falló: ' + (cr.error.message || cr.error) + ' (revise tabla/RLS de comandas).', id);
+      } else {
+        logLine('ok', 'Lectura de comandas permitida (filtro business_id=' + businessId + ').', id);
+      }
+    } catch (e4) {
+      logLine('warn', 'Lectura de comandas omitida: ' + (e4 && e4.message), id);
+    }
+    var level = wroteOk && readBackOk ? (locWarn ? 'warn' : 'ok') : 'fail';
+    setCardState(id, level);
+    return {
+      level: level,
+      summary: wroteOk && readBackOk ? (locWarn ? 'Nube OK · falta location_id' : 'Envío/recepción OK') : 'Falla envío/recepción'
+    };
+  }
+  /**
+   * Estado de la cascada de conectividad automatica (orquestador de 5 niveles):
+   * nube -> LAN -> hotspot de la caja -> malla offline -> QR del dia.
+   */
+  async function testCascade() {
+    var id = 'cascade';
+    setCardState(id, 'run');
+    var orch = global.CrozzoConnectivityOrchestrator;
+    if (!orch || typeof orch.getState !== 'function') {
+      logLine('warn', 'Orquestador de conectividad no cargado (CrozzoConnectivityOrchestrator).', id);
+      setCardState(id, 'warn');
+      return { level: 'warn', summary: 'Sin orquestador' };
+    }
+    var st = orch.getState();
+    var levelLabels = {
+      cloud: '1 Nube',
+      lan: '2 LAN local',
+      hotspot: '3 Hotspot de la caja',
+      mesh: '4 Malla offline',
+      qr: '5 QR del dia',
+      unknown: '—',
+    };
+    logLine('ok', 'Nivel activo: ' + (levelLabels[st.level] || st.level) + ' (detector: ' + st.detectorTier + ')' + (st.reason ? ' — ' + st.reason : ''), id);
+    logLine('ok', 'Rol: ' + st.role + ' · puede desplegar hotspot: ' + (st.canDeployHotspot ? 'si (caja Windows)' : 'no (Android/navegador)'), id);
+    var tr = st.transports || {};
+    logLine(
+      'ok',
+      'Transportes: nube=' + !!tr.cloud + ' · lan=' + !!tr.lan + ' · hotspot=' + !!tr.hotspot + ' · malla=' + !!tr.mesh + ' · qr=' + !!tr.qr,
+      id
+    );
+    var dq = global.CrozzoDailyPairing && typeof global.CrozzoDailyPairing.getToday === 'function' ? global.CrozzoDailyPairing.getToday() : null;
+    if (dq) logLine('ok', 'QR del dia listo (' + dq.date + ', sede ' + (dq.locationId || '—') + ').', id);
+    else if (st.role === 'A') logLine('warn', 'QR del dia aun no generado (se crea al detectar IP de la caja).', id);
+    var snap = global.CrozzoStartupReady && typeof global.CrozzoStartupReady.getSnapshot === 'function' ? global.CrozzoStartupReady.getSnapshot() : null;
+    if (snap) logLine('ok', 'Arranque: nube=' + (snap.cloudReady ? 'lista' : (snap.cloudConfigured ? 'config sin iniciar' : 'off')) + ' · envio/recepcion=' + (snap.cloudIo || '—') + ' · lan=' + (snap.lanOk == null ? '—' : snap.lanOk), id);
+    var level = st.level === 'cloud' || st.level === 'lan' ? 'ok' : st.level === 'hotspot' ? 'warn' : 'warn';
+    setCardState(id, level);
+    return { level: level, summary: levelLabels[st.level] || st.level };
+  }
   var TESTS = {
     supabase: testSupabase,
+    cloudio: testCloudIO,
+    cascade: testCascade,
     lan: testLan,
     hotspot: testHotspot,
     storage: testStorage,
@@ -1743,6 +1908,8 @@
       '    </div>' +
       '    <div class="diag-grid">' +
       card('supabase', '🌐 Supabase Cloud') +
+      card('cloudio', '📤 Envío/recepción nube') +
+      card('cascade', '🪜 Estado de cascada') +
       card('lan', '📡 Red LAN Local') +
       card('hotspot', '📶 Hotspot / Servidor A') +
       card('storage', '💾 Almacenamiento Local') +
@@ -1838,6 +2005,7 @@
     global.document.addEventListener('keydown', _state.onKey);
     logLine('ok', 'Panel listo. Pulse una prueba o «Ejecutar todas».', '');
   }
+  global.crozzoRunCloudIoSelfTest = testCloudIO;
   global.renderSuperAdminDiagnosticsHTML = renderSuperAdminDiagnosticsHTML;
   global.initDiagnosticsPanel = initDiagnosticsPanel;
   global.destroyDiagnosticsPanel = destroyDiagnosticsPanel;
