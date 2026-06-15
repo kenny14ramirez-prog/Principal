@@ -39151,6 +39151,23 @@ function init() {
       reader.readAsDataURL(file);
     });
   }
+  function crozzoPairingDismissBlockingOverlays() {
+    try {
+      document.documentElement.classList.remove('crozzo-boot-updates-active', 'crozzo-native-scan-active');
+      document.body.classList.remove(
+        'crozzo-boot-updates-active',
+        'crozzo-update-critical-open',
+        'crozzo-update-install-open',
+        'crozzo-native-scan-active'
+      );
+      var gate = document.getElementById('crozzo-boot-update-gate');
+      if (gate) gate.classList.remove('is-open');
+      var crit = document.querySelector('.crozzo-update-critical-overlay');
+      if (crit) crit.classList.remove('is-open');
+      var inst = document.getElementById('crozzo-update-install-overlay');
+      if (inst) inst.classList.remove('is-open');
+    } catch (_) {}
+  }
   function crozzoPairingEnsurePairingVisible() {
     var ov = el('crozzoPairingOverlay');
     if (ov) {
@@ -39165,7 +39182,7 @@ function init() {
       document.documentElement.classList.remove('crozzo-native-scan-active');
       document.body.classList.remove('crozzo-native-scan-active');
       document.documentElement.classList.remove('crozzo-boot-updates-active');
-      document.body.classList.remove('crozzo-boot-updates-active', 'crozzo-update-install-open');
+      document.body.classList.remove('crozzo-boot-updates-active', 'crozzo-update-install-open', 'crozzo-update-critical-open');
       document.body.style.removeProperty('background-color');
       document.documentElement.style.removeProperty('background-color');
       var gate = document.getElementById('crozzo-boot-update-gate');
@@ -39234,17 +39251,58 @@ function init() {
     var photoLbl = el('crozzoPairingBtnPhoto');
     var galLbl = el('crozzoPairingBtnGallery');
     var nativeBtn = el('crozzoPairingBtnNativeScan');
-    // El lector QR vive dentro de la app: la cámara en vivo es el método principal
-    // en todos los dispositivos. El escáner nativo del sistema ya no se usa por
-    // defecto (causaba pantalla negra en varios equipos).
+    var reader = window.CrozzoPairingQrReader;
+    var isField = crozzoPairingReaderIsFieldDevice();
+    var hasNative =
+      reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner();
+    var actions = document.querySelector('.crozzo-pairing-reader-actions');
+    if (hasNative && !nativeBtn && actions) {
+      nativeBtn = document.createElement('button');
+      nativeBtn.type = 'button';
+      nativeBtn.id = 'crozzoPairingBtnNativeScan';
+      nativeBtn.className = 'btn btn-outline';
+      nativeBtn.style.cssText = 'flex:1; min-width:160px; min-height:48px;';
+      nativeBtn.setAttribute('data-crozzo-act', 'crozzoPairingScanNative');
+      nativeBtn.textContent = '📷 Escáner del sistema';
+      if (liveBtn && liveBtn.parentNode === actions) {
+        actions.insertBefore(nativeBtn, liveBtn.nextSibling);
+      } else {
+        actions.appendChild(nativeBtn);
+      }
+      try {
+        if (typeof window.crozzoCspWireTree === 'function') window.crozzoCspWireTree(actions);
+      } catch (_) {}
+    }
     if (nativeBtn) {
-      nativeBtn.style.display = 'none';
+      nativeBtn.style.display = hasNative ? '' : 'none';
+      if (hasNative) {
+        nativeBtn.textContent = '📷 Escáner del sistema';
+        nativeBtn.classList.remove('btn-primary');
+        nativeBtn.classList.add('btn-outline');
+      }
     }
     if (liveBtn) {
-      liveBtn.textContent = '📷 Escanear con la cámara';
-      liveBtn.classList.add('btn-primary');
-      liveBtn.classList.remove('btn-outline');
+      if (hasNative) {
+        liveBtn.textContent = '📷 Escanear QR';
+        liveBtn.classList.add('btn-primary');
+        liveBtn.classList.remove('btn-outline');
+        liveBtn.setAttribute('data-crozzo-act', 'crozzoPairingBeginFieldScan');
+      } else {
+        liveBtn.textContent = '📷 Escanear con la cámara';
+        liveBtn.classList.add('btn-primary');
+        liveBtn.classList.remove('btn-outline');
+        liveBtn.setAttribute('data-crozzo-act', 'crozzoPairingStartScan');
+      }
       liveBtn.style.display = '';
+    }
+    var inlineLiveBtn = el('crozzoPairingBtnInlineLive');
+    if (inlineLiveBtn) {
+      inlineLiveBtn.style.display = hasNative ? '' : 'none';
+      if (hasNative) {
+        inlineLiveBtn.textContent = '▶ Cámara integrada';
+        inlineLiveBtn.classList.remove('btn-primary');
+        inlineLiveBtn.classList.add('btn-outline');
+      }
     }
     if (photoLbl) {
       photoLbl.textContent = '📸 Tomar foto del QR';
@@ -39654,6 +39712,7 @@ function init() {
   window.crozzoOpenPairingModal = function crozzoOpenPairingModal() {
     const ov = el('crozzoPairingOverlay');
     if (!ov) return;
+    crozzoPairingDismissBlockingOverlays();
     try {
       if (typeof window.crozzoCspWireTree === 'function') window.crozzoCspWireTree(ov);
     } catch (_) {}
@@ -40072,8 +40131,9 @@ function init() {
     if (titleEl) titleEl.textContent = 'Enlazar terminal de campo';
     var hintEl = el('crozzoPairingReaderHint');
     if (hintEl) {
-      hintEl.textContent =
-        'La app lee el QR con su propia cámara. Centre el código grande de la caja en el marco. Si su equipo no muestra la cámara, use «Tomar foto del QR» o «Galería».';
+      hintEl.textContent = crozzoPairingReaderIsFieldDevice()
+        ? 'En tablet/APK se abre el escáner del sistema. Centre el QR grande de la caja. Si no responde, use «Escáner del sistema» de nuevo, «Cámara integrada», foto o galería.'
+        : 'Centre el código grande de la caja en el marco. Si su equipo no muestra la cámara, use «Tomar foto del QR» o «Galería».';
     }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
@@ -40091,12 +40151,12 @@ function init() {
         window.isSecureContext &&
         navigator.mediaDevices &&
         typeof navigator.mediaDevices.getUserMedia === 'function';
-      // En equipos de campo abrimos la cámara en-app automáticamente para un flujo fluido.
-      if (canLiveCam && crozzoPairingReaderIsFieldDevice()) {
-        crozzoPairingShowStatus('Abriendo cámara para escanear el QR…', { busy: true, phase: 'decode', progress: 8 });
+      // En equipos de campo abrimos el escáner automáticamente (nativo en APK).
+      if (crozzoPairingReaderIsFieldDevice()) {
+        crozzoPairingShowStatus('Abriendo escáner para leer el QR…', { busy: true, phase: 'decode', progress: 8 });
         window.setTimeout(function () {
-          if (typeof window.crozzoPairingStartScan === 'function') window.crozzoPairingStartScan();
-        }, 250);
+          if (typeof window.crozzoPairingBeginFieldScan === 'function') window.crozzoPairingBeginFieldScan();
+        }, 280);
       } else if (canLiveCam) {
         crozzoPairingShowStatus('Pulse «Escanear con la cámara» y centre el QR de la caja en el marco.', false);
       } else {
@@ -40262,7 +40322,25 @@ function init() {
     }
     if (btn) btn.style.display = '';
   }
-  window.crozzoPairingStartScan = function crozzoPairingStartScan() {
+  window.crozzoPairingBeginFieldScan = function crozzoPairingBeginFieldScan() {
+    var reader = window.CrozzoPairingQrReader;
+    if (reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner()) {
+      crozzoPairingScanNative();
+      return;
+    }
+    crozzoPairingStartScan(true);
+  };
+  window.crozzoPairingStartLiveScan = function crozzoPairingStartLiveScan() {
+    crozzoPairingStartScan(true);
+  };
+  window.crozzoPairingStartScan = function crozzoPairingStartScan(forceLive) {
+    if (!forceLive && crozzoPairingReaderIsFieldDevice()) {
+      var reader0 = window.CrozzoPairingQrReader;
+      if (reader0 && typeof reader0.hasNativeScanner === 'function' && reader0.hasNativeScanner()) {
+        crozzoPairingScanNative();
+        return;
+      }
+    }
     const host = el('crozzoPairingReaderHost');
     if (!host) return;
     var reader = window.CrozzoPairingQrReader;
@@ -40317,6 +40395,20 @@ function init() {
           );
           if (typeof showToast === 'function') showToast('Active el permiso de Cámara para escanear en vivo.', 'warning');
           return;
+        }
+        if (forceLive !== true && crozzoPairingReaderIsFieldDevice()) {
+          var readerFb = window.CrozzoPairingQrReader;
+          if (readerFb && typeof readerFb.hasNativeScanner === 'function' && readerFb.hasNativeScanner()) {
+            crozzoPairingShowStatus('Cámara integrada no respondió. Abriendo escáner del sistema…', {
+              busy: true,
+              phase: 'decode',
+              progress: 12,
+            });
+            window.setTimeout(function () {
+              crozzoPairingScanNative();
+            }, 350);
+            return;
+          }
         }
         if (name === 'NotFoundError' || name === 'OverconstrainedError' || msg === 'no_camera_api' || msg === 'no_stream') {
           crozzoPairingFallbackToPhoto('No se encontró cámara para video en vivo. Use «Captura rápida» para tomar la foto del QR.');

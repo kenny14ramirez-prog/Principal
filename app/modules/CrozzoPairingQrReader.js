@@ -1,11 +1,10 @@
 /**
- * Lector QR emparejamiento — cámara en-app (getUserMedia + jsQR/BarcodeDetector),
- * foto y galería. El escáner nativo del sistema queda como respaldo opcional.
+ * Lector QR emparejamiento — escáner nativo (APK), cámara en-app, foto y galería.
  *
- * Prioridad de lectura (robusta hasta en equipos viejos):
- *   1) Cámara en vivo dentro de la app (startLive) — visor propio, sin pantalla negra.
- *   2) Foto con la cámara (input capture) → decodificación local.
- *   3) Pegar el código manualmente.
+ * Prioridad en tablet/APK:
+ *   1) Escáner nativo ML Kit (scanNative) — más fiable que getUserMedia en WebView.
+ *   2) Cámara en vivo en-app (startLive) — respaldo en PC o si el nativo falla.
+ *   3) Foto / galería / pegar código manualmente.
  */
 (function (global) {
   'use strict';
@@ -451,6 +450,32 @@
     } catch (_) {}
   }
 
+  function waitVideoReady(video, timeoutMs) {
+    timeoutMs = timeoutMs || 9000;
+    return new Promise(function (resolve, reject) {
+      if (!video) return reject(new Error('no_video'));
+      if (video.readyState >= 2) return resolve();
+      var done = false;
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        video.removeEventListener('loadeddata', onReady);
+        video.removeEventListener('loadedmetadata', onReady);
+        if (ok) resolve();
+        else reject(new Error('video_timeout'));
+      }
+      function onReady() {
+        if (video.readyState >= 2) finish(true);
+      }
+      var timer = window.setTimeout(function () {
+        finish(video.readyState >= 2);
+      }, timeoutMs);
+      video.addEventListener('loadeddata', onReady);
+      video.addEventListener('loadedmetadata', onReady);
+    });
+  }
+
   function getCameraStream() {
     var md = global.navigator.mediaDevices;
     var attempts = [
@@ -498,8 +523,15 @@
     var canvas = document.createElement('canvas');
     var ctx = canvas.getContext('2d', { willReadFrequently: true }) || canvas.getContext('2d');
 
-    // En APK aseguramos el permiso de cámara del sistema antes de getUserMedia.
-    var permStep = tauriCore() ? ensureOsCameraPermission().catch(function () { return ''; }) : Promise.resolve('');
+    // En APK pedimos permiso de cámara del sistema antes de getUserMedia (no ignorar denegación).
+    var permStep = tauriCore()
+      ? ensureOsCameraPermission().then(function (st) {
+          if (st === 'granted' || st === 'not_tauri') return st;
+          var err = new Error('perm_denied');
+          err.name = 'NotAllowedError';
+          throw err;
+        })
+      : Promise.resolve('');
 
     return permStep
       .then(function () {
@@ -530,8 +562,15 @@
         } catch (_) {}
         video.srcObject = stream;
         var played = video.play();
-        if (played && typeof played.catch === 'function') return played.catch(function () {});
-        return played;
+        var playP =
+          played && typeof played.then === 'function'
+            ? played.catch(function () {
+                return video.play();
+              })
+            : Promise.resolve();
+        return playP.then(function () {
+          return waitVideoReady(video);
+        });
       })
       .then(function () {
         if (typeof opts.onReady === 'function') {

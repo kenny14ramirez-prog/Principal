@@ -1,31 +1,16 @@
 {
-  "id": "1.0.133-critical",
-  "version": "v1.0.133",
-  "semver": "1.0.133",
+  "id": "1.0.134-critical",
+  "version": "v1.0.134",
+  "semver": "1.0.134",
   "type": "critical",
-  "message": "FIX: actualizacion critica en PC instala al momento si la caja esta libre + FIX: Continuar operando ya no reabre el panel en la misma sesion + FIX: arranque aplica pendiente antes del login + UPD: descarga silenciosa si hay venta en curso",
-  "publishedAt": "2026-06-15T22:02:22.672Z",
+  "message": "589654",
+  "publishedAt": "2026-06-15T22:09:15.267Z",
   "installMode": "auto",
   "changelog": [
-    "FIX: actualizacion critica en PC instala al momento si la caja esta libre",
-    "FIX: Continuar operando ya no reabre el panel en la misma sesion",
-    "FIX: arranque aplica pendiente antes del login",
-    "UPD: descarga silenciosa si hay venta en curso"
+    "589654"
   ],
-  "updatedAt": "2026-06-15T22:02:22.672Z",
+  "updatedAt": "2026-06-15T22:09:15.267Z",
   "entries": [
-    {
-      "id": "1.0.109-critical",
-      "version": "v1.0.109",
-      "semver": "1.0.109",
-      "type": "critical",
-      "message": "1212",
-      "publishedAt": "2026-06-13T02:48:04.302Z",
-      "installMode": "auto",
-      "changelog": [
-        "1212"
-      ]
-    },
     {
       "id": "1.0.110-critical",
       "version": "v1.0.110",
@@ -319,6 +304,18 @@
         "FIX: Continuar operando ya no reabre el panel en la misma sesion",
         "FIX: arranque aplica pendiente antes del login",
         "UPD: descarga silenciosa si hay venta en curso"
+      ]
+    },
+    {
+      "id": "1.0.134-critical",
+      "version": "v1.0.134",
+      "semver": "1.0.134",
+      "type": "critical",
+      "message": "589654",
+      "publishedAt": "2026-06-15T22:09:15.267Z",
+      "installMode": "auto",
+      "changelog": [
+        "589654"
       ]
     }
   ]
