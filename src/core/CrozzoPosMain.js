@@ -27290,6 +27290,18 @@ function getMultiDeviceConfig() {
   } catch (e) {
     /* ignore */
   }
+  try {
+    const j = typeof window.readCrozzoSupabaseJson === 'function' ? window.readCrozzoSupabaseJson() : null;
+    if (j && j.syncEnabled) {
+      merged.supabaseSyncEnabled = true;
+      if (!merged.supabase.url && j.url) merged.supabase.url = String(j.url).trim();
+      const ak =
+        typeof window.crozzoSupabaseEffectiveAnonKey === 'function'
+          ? window.crozzoSupabaseEffectiveAnonKey(j)
+          : String(j.anonKey || '').trim();
+      if (!merged.supabase.anonKey && ak) merged.supabase.anonKey = ak;
+    }
+  } catch (_) {}
   return merged;
 }
 function persistMultiDeviceConfig(next) {
@@ -39440,16 +39452,26 @@ function init() {
     if (targetProfile !== 'tablet' && targetProfile !== 'pantalla') targetProfile = 'tablet';
     const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : (typeof config !== 'undefined' && config.get ? config.get('multidispositivo') : null) || {};
     const cs = (typeof config !== 'undefined' && config.get ? config.get('conexionSistemas') : null) || {};
+    const creds =
+      typeof window.crozzoResolveSupabaseCredentials === 'function'
+        ? window.crozzoResolveSupabaseCredentials()
+        : null;
     const readJ = typeof window.readCrozzoSupabaseJson === 'function' ? window.readCrozzoSupabaseJson() : null;
-    const cloudOn = !!(readJ && readJ.syncEnabled);
-    const url = cloudOn ? String(readJ.url || '').trim() : '';
-    const key = cloudOn
-      ? typeof window.crozzoSupabaseEffectiveAnonKey === 'function'
-        ? window.crozzoSupabaseEffectiveAnonKey(readJ)
-        : String(readJ.anonKey || '').trim()
-      : '';
+    const cloudOn = !!(creds && creds.syncOn) || !!(readJ && readJ.syncEnabled);
+    const url = creds && creds.url ? creds.url : cloudOn ? String(readJ?.url || md.supabase?.url || '').trim() : '';
+    const key =
+      creds && creds.key
+        ? creds.key
+        : cloudOn
+          ? typeof window.crozzoSupabaseEffectiveAnonKey === 'function'
+            ? window.crozzoSupabaseEffectiveAnonKey(readJ || { anonKey: md.supabase?.anonKey, url: url })
+            : String(readJ?.anonKey || md.supabase?.anonKey || '').trim()
+          : '';
     if (cloudOn && typeof window.isValidSupabasePair === 'function' && !window.isValidSupabasePair(url, key)) {
-      return { error: 'URL o clave anónima de Supabase no válidas. Revise Multi-Dispositivo o genere QR solo LAN.' };
+      return {
+        error:
+          'Supabase no configurado en esta caja. Super Admin → Nube → Paso 1: pegue URL + anon key → «Guardar y conectar» → genere el QR de nuevo.',
+      };
     }
     let lanSnap = null;
     try {
@@ -39761,9 +39783,13 @@ function init() {
     if (node && node.tagName === 'CANVAS') crozzoPairingApplyCanvasSize(node, size);
     return node;
   }
-  function crozzoPairingMountScanQr(host, scanText) {
+  function crozzoPairingMountScanQr(host, scanText, opts) {
+    opts = opts || {};
     if (!host || !scanText || typeof QRCode !== 'function') return null;
-    var size = Math.min(400, Math.max(300, crozzoPairingQrSlotSizes(host).full));
+    var dense = opts.dense || String(scanText).length > 280;
+    var size = dense
+      ? Math.min(480, Math.max(360, crozzoPairingQrSlotSizes(host).full + 80))
+      : Math.min(400, Math.max(300, crozzoPairingQrSlotSizes(host).full));
     host.innerHTML =
       '<div class="crozzo-pairing-qr-single" data-pairing-layout="single">' +
       '<p class="crozzo-pairing-qr-single__label">Escanee este código desde la tablet</p>' +
@@ -39771,7 +39797,10 @@ function init() {
       '</div>';
     var slot = host.querySelector('#crozzoPairingQrScanHost');
     if (!slot) return null;
-    return crozzoPairingMountQr(slot, scanText, { size: size, level: QRCode.CorrectLevel.M });
+    return crozzoPairingMountQr(slot, scanText, {
+      size: size,
+      level: dense ? QRCode.CorrectLevel.L : QRCode.CorrectLevel.M,
+    });
   }
   function crozzoPairingShowQrSkeleton() {
     var host = el('crozzoPairingQrHost');
@@ -39812,9 +39841,17 @@ function init() {
         scanText = '';
       }
     }
-    if (scanText && crozzoPairingMountScanQr(host, scanText)) {
+    if (scanText && crozzoPairingMountScanQr(host, scanText, { dense: !!(built.payload.supabase_url && built.payload.supabase_key) })) {
       pairingLastQrFastText = scanText;
-      crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
+      var hasCloud = !!(built.payload.supabase_url && built.payload.supabase_key);
+      if (!hasCloud) {
+        crozzoPairingSetWarn(
+          'crozzoPairingReceiverWarn',
+          '⚠️ Este QR NO lleva credenciales de nube. En la caja: Super Admin → Nube → Paso 1 → «Guardar y conectar» → genere el QR otra vez.'
+        );
+      } else {
+        crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
+      }
     } else {
       crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'No se pudo generar el QR.');
       return;
@@ -40609,6 +40646,38 @@ function init() {
     }
     return ok;
   }
+  async function crozzoPairingFetchCloudFromLan(cip, port, lanToken) {
+    if (!cip || !port) return null;
+    try {
+      var headers = { Accept: 'application/json' };
+      if (lanToken) {
+        headers['X-Crozzo-Lan-Token'] = lanToken;
+      } else if (typeof window.crozzoLanAuthHeaders === 'function') {
+        headers = window.crozzoLanAuthHeaders(headers);
+      }
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var tid = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+      var res = await fetch('http://' + cip + ':' + port + '/api/pairing-cloud', {
+        method: 'GET',
+        headers: headers,
+        signal: ctrl ? ctrl.signal : undefined,
+      });
+      if (tid) clearTimeout(tid);
+      if (!res.ok) return null;
+      var data = await res.json();
+      var url = String((data && (data.supabase_url || data.url)) || '').trim();
+      var key = String((data && (data.supabase_anon_key || data.anon_key || data.anonKey)) || '').trim();
+      if (
+        typeof window.isValidSupabasePair === 'function' &&
+        window.isValidSupabasePair(url, key)
+      ) {
+        return { url: url, key: key };
+      }
+    } catch (eLanCloud) {
+      console.warn('[pairing] fetch cloud from LAN', eLanCloud);
+    }
+    return null;
+  }
   window.crozzoPairingApplyFromForm = async function crozzoPairingApplyFromForm() {
     if (pairingApplying) return;
     const p = pairingLastPayload;
@@ -40625,7 +40694,7 @@ function init() {
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
     const tp = String(p.target_profile || 'tablet').toLowerCase();
-    const cloudOn = p.cloud_sync !== false && String(p.supabase_url || '').trim() && String(p.supabase_key || '').trim();
+    let cloudOn = p.cloud_sync !== false && String(p.supabase_url || '').trim() && String(p.supabase_key || '').trim();
     const lan = p.lan || {};
     const cip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
     const port = Math.max(1, Number(lan.port || p.port) || 3000);
@@ -40695,6 +40764,21 @@ function init() {
         crozzoPairingShowStatus('Nodo central alcanzable · ' + cip + ':' + port, { busy: true, phase: 'network', progress: 65 });
       }
     }
+    if (!cloudOn && cip && tp !== 'caja') {
+      const lanTok = String(lan.lan_token || p.lan_token || '').trim();
+      crozzoPairingShowStatus('Obteniendo credenciales de nube desde la caja…', {
+        busy: true,
+        phase: 'cloud',
+        progress: 68,
+      });
+      const pulled = await crozzoPairingFetchCloudFromLan(cip, port, lanTok);
+      if (pulled) {
+        p.supabase_url = pulled.url;
+        p.supabase_key = pulled.key;
+        p.cloud_sync = true;
+        cloudOn = true;
+      }
+    }
     if (p.sync_priority && typeof config.set === 'function') {
       try {
         config.set('runtimeSyncModo', String(p.sync_priority));
@@ -40736,51 +40820,26 @@ function init() {
         anonKey: String(p.supabase_key || '').trim(),
         deviceName: (tp === 'pantalla' ? 'Pantalla ' : 'Tablet ') + new Date().toISOString().slice(0, 10),
         deviceId: ensureCrozzoDeviceId(),
-        savedAt: Date.now()
+        savedAt: Date.now(),
       };
-      var cloudSaved = false;
-      if (typeof window.crozzoPersistSupabaseConfigFromPairing === 'function') {
-        cloudSaved = window.crozzoPersistSupabaseConfigFromPairing(save);
-      }
-      if (!cloudSaved) {
+      if (typeof window.crozzoFinalizeCloudConfigAfterPairing === 'function') {
+        window.crozzoFinalizeCloudConfigAfterPairing({
+          supabase_url: save.url,
+          supabase_key: save.anonKey,
+          device_name: save.deviceName,
+          device_id: save.deviceId,
+          location_id: loc,
+        });
+      } else if (typeof window.crozzoPersistSupabaseConfigFromPairing === 'function') {
+        window.crozzoPersistSupabaseConfigFromPairing(save);
+      } else {
         try {
           localStorage.setItem('crozzo_supabase_config', JSON.stringify(save));
-          cloudSaved = true;
         } catch (e1) {
           crozzoPairingShowStatus('No se pudo guardar configuración nube.', { isErr: true });
           if (ab) ab.disabled = false;
           pairingApplying = false;
           return;
-        }
-      }
-      if (typeof persistMultiDeviceConfig === 'function') {
-        try {
-          const baseMd = getMultiDeviceConfig();
-          persistMultiDeviceConfig({
-            ...baseMd,
-            supabaseSyncEnabled: true,
-            locationId: loc || baseMd.locationId,
-            role: 'B',
-            centralIp: cip,
-            port: port,
-            allowLan: true,
-            cloudPriority: baseMd.cloudPriority !== false,
-            deviceId: save.deviceId,
-            supabase: {
-              ...(baseMd.supabase || {}),
-              url: save.url,
-              anonKey: save.anonKey,
-            },
-          });
-        } catch (eMd) {
-          console.warn('[pairing] persist multidispositivo', eMd);
-        }
-      }
-      if (typeof window.__crozzoSyncStandaloneKeys === 'function') {
-        try {
-          window.__crozzoSyncStandaloneKeys(save);
-        } catch (e2) {
-          /* ignore */
         }
       }
       crozzoPairingShowStatus('Estableciendo canal seguro con la nube…', { busy: true, phase: 'cloud', progress: 72 });
@@ -40843,7 +40902,12 @@ function init() {
       crozzoPairingShowStatus('Enlace híbrido activo · ' + n + ' capas sincronizadas', { isOk: true, phase: 'ready', progress: 96 });
     } else {
       window.__CROZZO_ONLINE_DATA = false;
-      crozzoPairingShowStatus('Modo LAN local activo — operación sin nube obligatoria', { isOk: true, phase: 'ready', progress: 92 });
+      var noCloudMsg =
+        'Modo LAN local activo — sin credenciales de nube. En la caja: Super Admin → Nube → «Guardar y conectar» → genere QR nuevo (o actualice la app de caja).';
+      crozzoPairingShowStatus(noCloudMsg, { isErr: true, phase: 'ready', progress: 92 });
+      if (typeof showToast === 'function') {
+        showToast('Sin URL Supabase — configure nube en la caja', 'warning');
+      }
     }
     if (tp === 'pantalla') {
       if (p.pantalla_area_id && typeof crozzoSetDevicePantallaId === 'function') {

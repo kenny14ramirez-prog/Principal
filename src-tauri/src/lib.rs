@@ -135,6 +135,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_update_pairing_cloud,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_stop,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_status,

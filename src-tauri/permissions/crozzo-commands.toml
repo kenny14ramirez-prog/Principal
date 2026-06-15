@@ -29,6 +29,7 @@ identifier = "allow-crozzo-lan-sync"
 description = "Servidor LAN multidispositivo (health, status, sync)"
 commands.allow = [
   "crozzo_lan_sync_start",
+  "crozzo_lan_sync_update_pairing_cloud",
   "crozzo_lan_sync_stop",
   "crozzo_lan_sync_status",
   "crozzo_lan_sync_drain_pending",

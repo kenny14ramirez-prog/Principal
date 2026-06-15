@@ -89,6 +89,44 @@
     return h;
   };
 
+  function readSupabaseForLan() {
+    try {
+      if (typeof global.crozzoResolveSupabaseCredentials === 'function') {
+        var c = global.crozzoResolveSupabaseCredentials();
+        if (c && c.syncOn && c.url && c.key) return { url: String(c.url).trim(), key: String(c.key).trim() };
+      }
+    } catch (_) {}
+    try {
+      var raw = global.localStorage.getItem('crozzo_supabase_config');
+      if (raw) {
+        var j = JSON.parse(raw);
+        if (j && j.syncEnabled && j.url) {
+          var k =
+            typeof global.crozzoSupabaseEffectiveAnonKey === 'function'
+              ? global.crozzoSupabaseEffectiveAnonKey(j)
+              : String(j.anonKey || j.key || '').trim();
+          if (k) return { url: String(j.url).trim(), key: k };
+        }
+      }
+    } catch (_) {}
+    return { url: '', key: '' };
+  }
+
+  function pushPairingCloudToServer() {
+    if (!isDesktopTauri()) return Promise.resolve(false);
+    var sb = readSupabaseForLan();
+    if (!sb.url || !sb.key) return Promise.resolve(false);
+    return invoke('crozzo_lan_sync_update_pairing_cloud', {
+      supabaseUrl: sb.url,
+      supabaseAnonKey: sb.key,
+    }).catch(function (e) {
+      try {
+        console.warn('[lan-sync] pairing-cloud push', e);
+      } catch (_) {}
+      return false;
+    });
+  }
+
   function crozzoIsLocalLanHost(ip) {
     var host = String(ip || '').trim().toLowerCase();
     if (!host || host === '127.0.0.1' || host === 'localhost' || host === '::1') return true;
@@ -400,12 +438,15 @@
       } catch (_) {}
     }
     try {
+      var sb = readSupabaseForLan();
       var st = await invoke('crozzo_lan_sync_start', {
         port: Number(md.port) || 3000,
         locationId: String(md.locationId || '').trim(),
         deviceId: String(md.deviceId || '').trim(),
         businessId: String(md.businessId || '').trim(),
         authToken: lanTokenEnsure(),
+        supabaseUrl: sb.url || '',
+        supabaseAnonKey: sb.key || '',
       });
       startPolling();
       return st;
@@ -425,12 +466,15 @@
     }
     if (!isDesktopTauri()) return { running: false };
     try {
+      var sb = readSupabaseForLan();
       var st = await invoke('crozzo_lan_sync_start', {
         port: Number(md.port) || 3000,
         locationId: String(md.locationId || '').trim(),
         deviceId: String(md.deviceId || '').trim(),
         businessId: String(md.businessId || '').trim(),
         authToken: lanTokenEnsure(),
+        supabaseUrl: sb.url || '',
+        supabaseAnonKey: sb.key || '',
       });
       startPolling();
       await drainPendingOnce();
@@ -525,6 +569,12 @@
   }
   bindOfflineKeepLan();
 
+  try {
+    global.addEventListener('crozzo-supabase-config-saved', function () {
+      pushPairingCloudToServer().catch(function () {});
+    });
+  } catch (_) {}
+
   global.CrozzoLanSyncBridge = {
     isDesktopTauri: isDesktopTauri,
     crozzoIsLocalLanHost: crozzoIsLocalLanHost,
@@ -534,6 +584,7 @@
     ensureServerOnce: ensureServerOnce,
     syncFromConfig: syncFromConfig,
     ensureServerForPairing: ensureServerForPairing,
+    pushPairingCloudToServer: pushPairingCloudToServer,
     probeHealthLocal: probeHealthLocal,
     stopServer: stopServer,
     status: status,

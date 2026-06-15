@@ -46,6 +46,9 @@ struct ServerMeta {
     location_id: String,
     device_id: String,
     business_id: String,
+    /// URL Supabase (anon key es pública; solo se entrega con token LAN de pareo).
+    supabase_url: String,
+    supabase_anon_key: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -294,6 +297,29 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "port": port
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        return;
+    }
+
+    if method == "GET" && (path == "/api/pairing-cloud" || path.starts_with("/api/pairing-cloud?")) {
+        if !auth_ok {
+            let _ = write_http_response(
+                &mut stream,
+                401,
+                "Unauthorized",
+                "application/json",
+                b"{\"ok\":false,\"error\":\"auth_required\"}",
+            );
+            return;
+        }
+        let has_cloud = !meta.supabase_url.is_empty() && !meta.supabase_anon_key.is_empty();
+        let resp = serde_json::json!({
+            "ok": has_cloud,
+            "supabase_url": meta.supabase_url,
+            "supabase_anon_key": meta.supabase_anon_key,
+            "location_id": meta.location_id,
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":false}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
         return;
     }
@@ -550,6 +576,8 @@ pub fn crozzo_lan_sync_start(
     device_id: Option<String>,
     business_id: Option<String>,
     auth_token: Option<String>,
+    supabase_url: Option<String>,
+    supabase_anon_key: Option<String>,
     data_dir: Option<String>,
 ) -> Result<CrozzoLanSyncStatus, String> {
     let port = port.unwrap_or(DEFAULT_PORT);
@@ -561,6 +589,8 @@ pub fn crozzo_lan_sync_start(
         location_id: location_id.unwrap_or_default().trim().to_string(),
         device_id: device_id.unwrap_or_default().trim().to_string(),
         business_id: business_id.unwrap_or_default().trim().to_string(),
+        supabase_url: supabase_url.unwrap_or_default().trim().to_string(),
+        supabase_anon_key: supabase_anon_key.unwrap_or_default().trim().to_string(),
     };
     let loc_id = meta.location_id.clone();
     let dev_id = meta.device_id.clone();
@@ -600,6 +630,25 @@ pub fn crozzo_lan_sync_start(
             "No se pudo abrir el puerto {} (¿otro proceso lo usa?)",
             port
         )),
+    }
+}
+
+#[tauri::command]
+pub fn crozzo_lan_sync_update_pairing_cloud(
+    supabase_url: Option<String>,
+    supabase_anon_key: Option<String>,
+) -> Result<bool, String> {
+    let shared = Arc::clone(shared_state());
+    let mut guard = shared.lock().map_err(|e| e.to_string())?;
+    match guard.as_mut() {
+        Some(inner) => {
+            inner.meta.supabase_url = supabase_url.unwrap_or_default().trim().to_string();
+            inner.meta.supabase_anon_key = supabase_anon_key.unwrap_or_default().trim().to_string();
+            Ok(
+                !inner.meta.supabase_url.is_empty() && !inner.meta.supabase_anon_key.is_empty(),
+            )
+        }
+        None => Ok(false),
     }
 }
 

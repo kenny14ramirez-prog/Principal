@@ -90,7 +90,7 @@
     );
   }
 
-  /** Texto QR pequeño: solo LAN + perfil (la tablet completa vía nube/LAN después). */
+  /** Texto QR compacto: LAN + perfil + credenciales Supabase (anon key es pública). */
   function buildFastQrText(payloadObj) {
     var p = payloadObj || {};
     var lan = p.lan || {};
@@ -108,6 +108,15 @@
       ts: Number(p.timestamp) || Date.now(),
       k: String((lan && lan.lan_token) || p.lan_token || '').trim().slice(0, 96),
     };
+    if (p.cloud_sync !== false) {
+      var su = String(p.supabase_url || '').trim();
+      var sk = String(p.supabase_key || '').trim();
+      if (su && sk) {
+        compact.cb = 1;
+        compact.su = su;
+        compact.sk = sk;
+      }
+    }
     return PAIR_FAST_PREFIX + base64UrlEncode(new TextEncoder().encode(JSON.stringify(compact)));
   }
 
@@ -118,12 +127,15 @@
     var port = Math.max(1, Number(compact.p) || 3000);
     var tp = String(compact.tp || 'tablet').toLowerCase();
     if (tp !== 'tablet' && tp !== 'pantalla') tp = 'tablet';
+    var cloudOn = !!(compact.cb && compact.su && compact.sk);
     return {
       type: 'CROZZO_CLOUD_PAIRING',
       version: 4,
       fast: 1,
       target_profile: tp,
-      cloud_sync: false,
+      cloud_sync: cloudOn,
+      supabase_url: cloudOn ? String(compact.su || '').trim() : '',
+      supabase_key: cloudOn ? String(compact.sk || '').trim() : '',
       sync_priority: 'hybrid',
       network_primary: { ssid_note: String(compact.ss || '').trim(), location_id: String(compact.loc || '').trim() },
       lan: {

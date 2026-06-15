@@ -258,6 +258,100 @@ function isValidSupabasePair(url, key) {
   return u.includes('supabase.co') && k.length >= 20;
 }
 window.isValidSupabasePair = isValidSupabasePair;
+/** Resuelve URL + anon key desde crozzo_supabase_config, multidispositivo o claves legacy. */
+function crozzoResolveSupabaseCredentials() {
+  const readJ = readCrozzoSupabaseJson();
+  let url = '';
+  let key = '';
+  let syncOn = false;
+  let deviceId = '';
+  let deviceName = '';
+  if (readJ && readJ.syncEnabled) {
+    url = String(readJ.url || '').trim();
+    key = crozzoSupabaseEffectiveAnonKey(readJ);
+    syncOn = true;
+    deviceId = String(readJ.deviceId || '').trim();
+    deviceName = String(readJ.deviceName || '').trim();
+  }
+  try {
+    if (typeof getMultiDeviceConfig === 'function') {
+      const md = getMultiDeviceConfig();
+      if (!url) url = String(md.supabase?.url || '').trim();
+      if (!key) key = String(md.supabase?.anonKey || '').trim();
+      if (!deviceId) deviceId = String(md.deviceId || '').trim();
+      if (md.supabaseSyncEnabled) syncOn = true;
+    }
+  } catch (_) {}
+  if (!url) url = (lsGet(LS.URL_PRIMARY) || lsGet(LS.URL_LEGACY) || '').trim();
+  if (!key) key = (lsGet(LS.KEY_PRIMARY) || lsGet(LS.KEY_LEGACY) || '').trim();
+  if (isValidSupabasePair(url, key)) syncOn = true;
+  return { syncOn, url, key, deviceId, deviceName };
+}
+window.crozzoResolveSupabaseCredentials = crozzoResolveSupabaseCredentials;
+/** Escribe crozzo_supabase_config si hay credenciales en cualquier almacén pero falta el archivo. */
+function crozzoEnsureSupabaseConfigFileFromAnySource() {
+  const existing = readCrozzoSupabaseJson();
+  if (existing && existing.syncEnabled && isValidSupabasePair(existing.url, crozzoSupabaseEffectiveAnonKey(existing))) {
+    return existing;
+  }
+  const creds = crozzoResolveSupabaseCredentials();
+  if (!creds.syncOn || !isValidSupabasePair(creds.url, creds.key)) return null;
+  const file = {
+    version: 1,
+    syncEnabled: true,
+    url: creds.url,
+    anonKey: creds.key,
+    deviceId: creds.deviceId || ensureStandaloneDeviceId(),
+    deviceName: creds.deviceName || '',
+    savedAt: Date.now(),
+  };
+  try {
+    localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(file));
+    mirrorCredentialsToBothKeys(creds.url, creds.key);
+  } catch (e) {
+    console.warn('[crozzo-sb] ensure config file', e);
+    return null;
+  }
+  return file;
+}
+window.crozzoEnsureSupabaseConfigFileFromAnySource = crozzoEnsureSupabaseConfigFileFromAnySource;
+/** Tras emparejar QR: persiste nube en todos los almacenes que lee la UI. */
+window.crozzoFinalizeCloudConfigAfterPairing = function crozzoFinalizeCloudConfigAfterPairing(payload) {
+  if (!payload) return false;
+  const url = String(payload.supabase_url || payload.url || '').trim();
+  const key = String(payload.supabase_key || payload.anonKey || payload.key || '').trim();
+  if (!isValidSupabasePair(url, key)) return false;
+  const save = {
+    version: 1,
+    syncEnabled: true,
+    url: url,
+    anonKey: key,
+    deviceName: String(payload.device_name || payload.deviceName || '').trim(),
+    deviceId: String(payload.device_id || payload.deviceId || ensureStandaloneDeviceId()).trim(),
+    savedAt: Date.now(),
+  };
+  if (typeof window.crozzoPersistSupabaseConfigFromPairing === 'function') {
+    window.crozzoPersistSupabaseConfigFromPairing(save);
+  }
+  if (typeof persistMultiDeviceConfig === 'function') {
+    try {
+      const base = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+      persistMultiDeviceConfig({
+        ...base,
+        supabaseSyncEnabled: true,
+        supabase: { ...(base.supabase || {}), url: url, anonKey: key },
+        locationId: String(payload.location_id || base.locationId || '').trim() || base.locationId,
+        role: 'B',
+      });
+    } catch (e) {
+      console.warn('[crozzo-sb] finalize md', e);
+    }
+  }
+  try {
+    if (typeof hydrateMdSupabaseInputsFromLs === 'function') hydrateMdSupabaseInputsFromLs();
+  } catch (_) {}
+  return true;
+};
 window.__crozzoApplyStandaloneSupabaseToConfig = function crozzoApplyStandaloneSupabaseToConfig(cfg) {
   if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return cfg;
   if (!cfg.multidispositivo || typeof cfg.multidispositivo !== 'object') cfg.multidispositivo = {};
@@ -2110,6 +2204,7 @@ try {
 }
 void (async function __crozzoSupabaseBootstrap() {
   try {
+    crozzoEnsureSupabaseConfigFileFromAnySource();
     if (crozzoOnlineConfigReady()) {
       try {
         await initSupabaseClient();
