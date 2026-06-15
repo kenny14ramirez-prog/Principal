@@ -240,6 +240,56 @@
       });
   }
 
+  /**
+   * Instala la mejora opcional AHORA, enrutando por plataforma (lo más rápido,
+   * "un toque"): en APK descarga y abre el instalador del sistema (un solo toque);
+   * en escritorio prepara/instala; en web recarga. Se usa al iniciar sesión / en
+   * pantalla de inicio para no mostrar el letrero "puede seguir operando".
+   */
+  function installOptionalNowAtStartup(entry) {
+    if (!entry || _installInProgress) return Promise.resolve();
+    var remote = normEntryVersion(entry);
+    _currentOptionalId = entryId(entry);
+    _installInProgress = true;
+    openInstallOverlay({
+      mode: 'optional',
+      from: VERSION,
+      to: remote,
+      changelog: (UPDATE_NORMAL && UPDATE_NORMAL.changes) || [],
+    });
+    _installUi.state = 'installing';
+    _installUi.phase = 'download';
+    _installUi.percent = 10;
+    _installUi.message = 'Actualizando…';
+    renderInstallOverlayUi();
+    setCheckStatus('Actualizando a ' + remote + '…');
+    return applyClientUpdate(remote, handleInstallProgress, {
+      automaticOnly: false,
+      userInitiated: true,
+      markInstalled: getUpdateClientProfile().kind !== 'android',
+    })
+      .then(function (res) {
+        if (res && res.exiting && res.plan === 'web_reload') return res;
+        return handleAndroidOtaResult(res, {
+          entry: entry,
+          remote: remote,
+          uiMode: 'optional',
+          allowForceRetry: true,
+        }).then(function () {
+          return res;
+        });
+      })
+      .catch(function (err) {
+        _installUi.state = 'error';
+        handleInstallProgress({ phase: 'error', percent: 0, message: humanizeInstallError(err) });
+        // Respaldo: si la instalación automática falla, mostramos el banner.
+        setNormalOpen(true);
+      })
+      .finally(function () {
+        _installInProgress = false;
+      });
+  }
+
   function applyPendingRestartInstallOnBoot(entries) {
     var pending = loadPendingRestartInstall();
     if (!pending || !pending.ready || !pending.version) return Promise.resolve(false);
@@ -844,6 +894,46 @@
     } catch (_) {}
     return ctx;
   }
+
+  /**
+   * ¿El usuario está TRABAJANDO en la app? (operación en curso)
+   * - Sin sesión / en pantalla de inicio => NO está trabajando.
+   * - Logueado pero sin ventas/carritos/comandas abiertas => NO está trabajando.
+   * - Con carritos o comandas activas => SÍ está trabajando (no interrumpir).
+   * Sirve para: en login/inicio aplicar la actualización; solo mostrar el letrero
+   * "puede seguir operando" cuando ya hay operación en curso.
+   */
+  function crozzoUpdateUserBusy() {
+    try {
+      var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+      if (!u) return false; // pantalla de inicio / sin sesión
+      var s = typeof global.collectPosRuntimeState === 'function' ? global.collectPosRuntimeState() : null;
+      if (!s) return false;
+      var hasCart = function (m) {
+        return (
+          m &&
+          typeof m === 'object' &&
+          Object.keys(m).some(function (k) {
+            return Array.isArray(m[k]) && m[k].length;
+          })
+        );
+      };
+      if (hasCart(s.cartsPorMesa) || hasCart(s.cartsPorLlevar)) return true;
+      if (Array.isArray(s.cartDirecto) && s.cartDirecto.length) return true;
+      if (
+        Array.isArray(s.comandas) &&
+        s.comandas.some(function (c) {
+          return c && c.estado !== 'entregada';
+        })
+      ) {
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+  global.crozzoUpdateUserBusy = crozzoUpdateUserBusy;
 
   function parseChangelogLine(line) {
     var raw = String(line || '').trim();
@@ -3604,6 +3694,18 @@
         'Mejora ' + remote + ' lista. Se mostrará el asistente al terminar el arranque.'
       );
       return true;
+    }
+    // Si NO está trabajando (pantalla de inicio / recién inició sesión, sin ventas
+    // abiertas): actualizar de una, sin mostrar el letrero "puede seguir operando".
+    // El letrero solo aparece cuando ya hay operación en curso (no interrumpir).
+    if (!crozzoUpdateUserBusy()) {
+      var prof = getUpdateClientProfile();
+      if (prof && prof.canAutoInstall) {
+        // En APK: descarga + instalador del sistema (un solo toque). En escritorio:
+        // instala/prepara. Sin el letrero "puede seguir operando".
+        installOptionalNowAtStartup(entry);
+        return true;
+      }
     }
     openOptionalWizard(entry);
     setNormalOpen(true);
