@@ -111,6 +111,30 @@
     '  for all using (true) with check (true);\n\n' +
     'alter publication supabase_realtime add table public.crozzo_sede_runtime;\n';
 
+  var MESA_RUNTIME_SQL =
+    '-- Crozzo POS — Runtime PARTICIONADO por mesa/slot (escala a muchas tablets sin pisarse)\n' +
+    '-- Opcional y compatible: si NO existe, la app usa crozzo_sede_runtime (una fila por sede).\n' +
+    '-- Si existe, cada mesa/slot escribe en SU fila, eliminando la contencion a gran escala.\n\n' +
+    'create table if not exists public.crozzo_mesa_runtime (\n' +
+    '  location_id text not null default \'default\',\n' +
+    '  kind text not null,\n' +
+    '  ref text not null,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  source_device_id text,\n' +
+    '  source_role text,\n' +
+    '  updated_at timestamptz not null default now(),\n' +
+    '  primary key (location_id, kind, ref)\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_loc on public.crozzo_mesa_runtime (location_id);\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_business on public.crozzo_mesa_runtime (business_id);\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_updated on public.crozzo_mesa_runtime (updated_at);\n\n' +
+    'alter table public.crozzo_mesa_runtime enable row level security;\n\n' +
+    'drop policy if exists crozzo_mesa_runtime_all on public.crozzo_mesa_runtime;\n' +
+    'create policy crozzo_mesa_runtime_all on public.crozzo_mesa_runtime\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'alter publication supabase_realtime add table public.crozzo_mesa_runtime;\n';
+
   global.CrozzoSupabaseSqlExtras = {
     list: function () {
       return [
@@ -118,8 +142,8 @@
           key: 'pos_runtime',
           file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',
           title: '10. Runtime sede (mesas en vivo)',
-          desc: 'Mesas, carritos y estado operativo compartido entre cajas. Active Realtime.',
-          required: false,
+          desc: 'OBLIGATORIO para sincronizar mesas/carritos entre cajas y tablets. Active Realtime.',
+          required: true,
           order: 10,
           sql: POS_RUNTIME_SQL,
         },
@@ -131,6 +155,15 @@
           required: false,
           order: 11,
           sql: FEDERACION_SQL,
+        },
+        {
+          key: 'mesa_runtime',
+          file: 'docs/SUPABASE-SQL-MESA-RUNTIME.sql',
+          title: '12. Runtime por mesa (escala a muchas tablets)',
+          desc: 'Una fila por mesa/slot: evita que se pisen ediciones con decenas de tablets. Active Realtime.',
+          required: false,
+          order: 12,
+          sql: MESA_RUNTIME_SQL,
         },
       ];
     },

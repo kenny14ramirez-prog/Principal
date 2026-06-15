@@ -23,7 +23,7 @@ must('app/modules/CrozzoComandasCloudSync.js', [
 ], 'fanout comandas');
 must('app/core/CrozzoPosMain.js', [
   'crozzoFanoutComandasByIds',
-  'health_local',
+  'probeHealthLocal',
   'sameEstado && sameItems',
   'comandaSlotLocks',
   'crozzoTryAcquireComandaSlotLock',

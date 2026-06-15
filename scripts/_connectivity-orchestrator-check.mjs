@@ -96,6 +96,17 @@ function staticChecks() {
   assert(/CLOCK_SKEW_HINT_MS/.test(main) && /crozzoNow/.test(main), 'Humano', 'QR tolerante a reloj desajustado');
   const cloud = readFileSync(join(app, 'core/CrozzoPosCloud.js'), 'utf8');
   assert(/crozzoPruneExpendableStorage/.test(cloud) && /crozzoIsQuotaError/.test(cloud), 'Humano', 'auto-sanado de almacenamiento lleno');
+  assert(/crozzoSubirCatalogoNube/.test(cloud), 'Nube', 'subida masiva de catalogo a la nube');
+  const nube = readFileSync(join(app, 'modules/CrozzoSuperAdminNube.js'), 'utf8');
+  assert(/sanBtnUploadCatalog/.test(nube), 'Nube', "boton 'Subir catalogo a la nube'");
+  // Asistente SQL completo (incluye runtime sede + mesa) cargado en ambos HTML
+  const extras = readFileSync(join(app, 'modules/CrozzoSupabaseSqlExtras.js'), 'utf8');
+  assert(/mesa_runtime/.test(extras) && /crozzo_mesa_runtime/.test(extras), 'SQL', 'script 12 (runtime por mesa) en el asistente');
+  assert(/key: 'pos_runtime'[\s\S]{0,400}required: true/.test(extras), 'SQL', 'runtime sede marcado obligatorio');
+  for (const html of ['app/index.html', 'app/Crozzo_POS_Completo.html']) {
+    const txt = readFileSync(join(root, html), 'utf8');
+    assert(txt.includes('CrozzoSupabaseSqlExtras.js'), 'SQL', 'Extras (runtime/federacion) cargado en ' + html);
+  }
 
   // Cambio de sede: cerebro (nube) primero, luego vaciar cuerpo
   assert(/__crozzoSuppressRuntimePush/.test(rt), 'Sede', 'supresion de escritura durante cambio de sede');

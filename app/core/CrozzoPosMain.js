@@ -27340,9 +27340,14 @@ async function crozzoPingSupabaseForTier(url, anonKey) {
         window.CrozzoClockSync.noteResponse(res);
       }
     } catch (_) {}
-    const ok = !!(res && (res.ok || res.status === 200 || res.status === 206));
-    if (!ok && res && res.status === 401) crozzoNotifySupabase401Once();
-    return { ok, status: res && res.status };
+    // Alcanzabilidad: si el servidor RESPONDIÓ (cualquier status, incl. 401/403/404
+    // por RLS), la nube ESTÁ disponible — hay internet y Supabase responde. Solo un
+    // error de red/timeout (catch) cuenta como caída. Antes, un 401 por RLS en
+    // `devices` provocaba falsos "sin conexión" aunque hubiera internet.
+    const responded = !!(res && Number.isFinite(res.status));
+    const ok = responded;
+    if (res && res.status === 401) crozzoNotifySupabase401Once();
+    return { ok, status: res && res.status, rls: !!(res && (res.status === 401 || res.status === 403)) };
   } catch (e) {
     try {
       console.warn(e && e.message ? e.message : e);

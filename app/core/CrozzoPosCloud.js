@@ -1175,6 +1175,64 @@ function persistCatalogProductos(productId) {
     void pushProductRowToSupabase(productId);
   }
 }
+/**
+ * Sube TODO el catálogo local (productos) a la nube de una sola vez. Útil cuando
+ * la caja construyó su menú offline/antes de activar la nube: la tabla `products`
+ * queda vacía y los equipos nuevos no tienen qué descargar. Los productos llevan
+ * categoría (category_slug) e IVA (iva_rate) embebidos, así que el menú queda
+ * completo. También refresca marca/usuarios (company_config). Best-effort por lotes.
+ */
+async function crozzoSubirCatalogoNube(opts) {
+  opts = opts || {};
+  const sb = window.__SUPABASE;
+  if (!sb || typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) {
+    return { ok: false, reason: 'sin_nube', message: 'Active la nube (Supabase) antes de subir el catálogo.' };
+  }
+  const list = typeof products !== 'undefined' && Array.isArray(products) ? products : [];
+  const rows = [];
+  for (let i = 0; i < list.length; i++) {
+    try {
+      const r = mapLocalProductToSupabaseRow(list[i]);
+      if (r && r.id != null) rows.push(r);
+    } catch (_) {}
+  }
+  let pushed = 0;
+  let failed = 0;
+  const BATCH = 100;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const chunk = rows.slice(i, i + BATCH);
+    if (typeof opts.onProgress === 'function') {
+      try {
+        opts.onProgress(Math.min(i + chunk.length, rows.length), rows.length);
+      } catch (_) {}
+    }
+    try {
+      const res = await sb.from('products').upsert(chunk, { onConflict: 'id' });
+      if (res.error) {
+        // Reintento fila por fila: tolera filas/columnas problemáticas sin abortar.
+        for (let j = 0; j < chunk.length; j++) {
+          try {
+            const r1 = await sb.from('products').upsert(chunk[j], { onConflict: 'id' });
+            if (r1.error) failed++;
+            else pushed++;
+          } catch (_) {
+            failed++;
+          }
+        }
+      } else {
+        pushed += chunk.length;
+      }
+    } catch (e) {
+      failed += chunk.length;
+    }
+  }
+  let tenant = false;
+  try {
+    if (typeof crozzoPushTenantSnapshotToCloud === 'function') tenant = await crozzoPushTenantSnapshotToCloud();
+  } catch (_) {}
+  return { ok: failed === 0, total: rows.length, pushed: pushed, failed: failed, tenant: tenant };
+}
+window.crozzoSubirCatalogoNube = crozzoSubirCatalogoNube;
 window.hydrateCatalogFromConfig = hydrateCatalogFromConfig;
 window.persistCatalogProductos = persistCatalogProductos;
 window.__crozzoBootstrapCloudData = async function bootstrapCloudData() {

@@ -170,25 +170,28 @@
     { menu: 'cierre-caja', label: 'Cierre de caja', tables: 'crozzo_shift_closes (script 9)', step: 4, optionalSql: 'shift_closes' },
   ];
 
+  // level: 'critico' (la conexión NO está lista sin esto) | 'recomendado' | 'opcional' (módulos)
   var PROBE_TABLES = [
-    { table: 'devices', label: 'Dispositivos', script: '1', required: true },
-    { table: 'products', label: 'Productos POS', script: '1', required: true },
-    { table: 'sales', label: 'Ventas', script: '1', required: true },
-    { table: 'comandas', label: 'Comandas', script: '1', required: true },
-    { table: 'company_config', label: 'Config empresa', script: '1', required: true },
-    { table: 'pos_staff', label: 'Usuarios caja', script: '1', required: true },
-    { table: 'sync_queue', label: 'Cola sync', script: '1', required: true },
-    { table: 'crozzo_empleados', label: 'Empleados RRHH', script: '2', required: true },
-    { table: 'crozzo_marcaciones', label: 'Marcaciones', script: '2', required: false },
-    { table: 'crozzo_pedidos_internos', label: 'Pedidos internos', script: '2', required: false },
-    { table: 'proveedores', label: 'Proveedores QyC', script: '3', required: true },
-    { table: 'recepciones', label: 'Recepciones', script: '3', required: true },
-    { table: 'facturas', label: 'Facturas oficina', script: '3', required: false },
-    { table: 'crozzo_matriz_precios', label: 'Matriz costos', script: '7', required: false },
-    { table: 'crozzo_reservorio_sync_queue', label: 'Cola reservorio', script: '8', required: false },
-    { table: 'shift_closes', label: 'Cierres turno', script: '9', required: false },
-    { table: 'crozzo_sede_runtime', label: 'Runtime mesas', script: '10', required: false },
-    { table: 'crozzo_bodegas', label: 'Bodegas federación', script: '11', required: false },
+    { table: 'devices', label: 'Dispositivos', script: '1', level: 'critico', required: true },
+    { table: 'products', label: 'Productos POS', script: '1', level: 'critico', required: true },
+    { table: 'sales', label: 'Ventas', script: '1', level: 'critico', required: true },
+    { table: 'comandas', label: 'Comandas', script: '1', level: 'critico', required: true },
+    { table: 'company_config', label: 'Config empresa', script: '1', level: 'critico', required: true },
+    { table: 'pos_staff', label: 'Usuarios caja', script: '1', level: 'critico', required: true },
+    { table: 'sync_queue', label: 'Cola sync', script: '1', level: 'critico', required: true },
+    { table: 'crozzo_sede_runtime', label: 'Runtime mesas (vivo)', script: '10', level: 'critico', required: true },
+    { table: 'profiles', label: 'Perfiles (login nube)', script: '1', level: 'recomendado', required: false },
+    { table: 'crozzo_mesa_runtime', label: 'Runtime por mesa (escala)', script: '12', level: 'recomendado', required: false },
+    { table: 'crozzo_empleados', label: 'Empleados RRHH', script: '2', level: 'opcional', required: false },
+    { table: 'crozzo_marcaciones', label: 'Marcaciones', script: '2', level: 'opcional', required: false },
+    { table: 'crozzo_pedidos_internos', label: 'Pedidos internos', script: '2', level: 'opcional', required: false },
+    { table: 'proveedores', label: 'Proveedores QyC', script: '3', level: 'opcional', required: false },
+    { table: 'recepciones', label: 'Recepciones', script: '3', level: 'opcional', required: false },
+    { table: 'facturas', label: 'Facturas oficina', script: '3', level: 'opcional', required: false },
+    { table: 'crozzo_matriz_precios', label: 'Matriz costos', script: '7', level: 'opcional', required: false },
+    { table: 'crozzo_reservorio_sync_queue', label: 'Cola reservorio', script: '8', level: 'opcional', required: false },
+    { table: 'shift_closes', label: 'Cierres turno', script: '9', level: 'opcional', required: false },
+    { table: 'crozzo_bodegas', label: 'Bodegas federación', script: '11', level: 'opcional', required: false },
   ];
 
   function esc(s) {
@@ -976,6 +979,7 @@
       '<div class="crozzo-nube-actions" style="margin-bottom:12px;">' +
       '<button type="button" class="btn btn-primary" id="sanBtnTestCloud2">🔌 Probar conexión</button>' +
       '<button type="button" class="btn btn-outline" id="sanBtnProbeTables">🔍 Comprobar tablas</button>' +
+      '<button type="button" class="btn btn-outline" id="sanBtnUploadCatalog">⬆️ Subir catálogo a la nube</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'super-admin-diagnostics\')">🧪 Diagnóstico avanzado</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'pruebas-conexion\')">📡 Pruebas de conexión</button>' +
       '</div>' +
@@ -1284,6 +1288,15 @@
     var base = url.replace(/\/$/, '');
     var okCount = 0;
     var failReq = 0;
+    var lv = {
+      critico: { ok: 0, total: 0, falta: [] },
+      recomendado: { ok: 0, total: 0, falta: [] },
+      opcional: { ok: 0, total: 0, falta: [] },
+    };
+    PROBE_TABLES.forEach(function (p) {
+      var k = p.level || (p.required ? 'critico' : 'opcional');
+      if (lv[k]) lv[k].total++;
+    });
     for (var i = 0; i < PROBE_TABLES.length; i++) {
       var p = PROBE_TABLES[i];
       var row = document.querySelector('[data-probe-table="' + p.table + '"] .crozzo-nube-probe-status');
@@ -1303,34 +1316,50 @@
         });
         global.clearTimeout(t);
         var ok = res && (res.ok || res.status === 200 || res.status === 206);
-        if (row) {
-          if (ok) {
-            row.innerHTML = '<span class="badge badge-success">OK</span>';
-            okCount++;
-          } else if (res && res.status === 404) {
-            row.innerHTML = '<span class="badge badge-warning">No existe</span>';
-            if (p.required) failReq++;
-          } else {
-            row.innerHTML = '<span class="badge badge-warning">HTTP ' + (res && res.status) + '</span>';
-            if (p.required) failReq++;
-          }
+        var lk = p.level || (p.required ? 'critico' : 'opcional');
+        if (ok) {
+          okCount++;
+          if (lv[lk]) lv[lk].ok++;
+          if (row) row.innerHTML = '<span class="badge badge-success">OK</span>';
+        } else {
+          if (p.required) failReq++;
+          if (lv[lk]) lv[lk].falta.push(p.label || p.table);
+          var lbl = res && res.status === 404 ? 'No existe' : 'HTTP ' + (res && res.status);
+          if (row) row.innerHTML = '<span class="badge badge-warning">' + lbl + '</span>';
         }
       } catch (_) {
-        if (row) row.innerHTML = '<span class="badge badge-warning">Error</span>';
+        var lk2 = p.level || (p.required ? 'critico' : 'opcional');
         if (p.required) failReq++;
+        if (lv[lk2]) lv[lk2].falta.push(p.label || p.table);
+        if (row) row.innerHTML = '<span class="badge badge-warning">Error</span>';
       }
     }
-    if (summary) {
-      summary.textContent =
-        okCount +
-        ' tablas accesibles de ' +
-        PROBE_TABLES.length +
-        (failReq ? ' · Faltan ' + failReq + ' tabla(s) obligatoria(s) — ejecute el SQL del paso 2.' : ' · Base lista para operar.');
+    // Veredicto claro por nivel: ¿está lista y adecuada la conexión?
+    var criticosOk = lv.critico.ok === lv.critico.total;
+    var verdict;
+    var tone;
+    if (criticosOk) {
+      verdict = '✅ Conexión LISTA y adecuada — críticos ' + lv.critico.ok + '/' + lv.critico.total + ' completos';
+      var extra = [];
+      if (lv.recomendado.total) extra.push('recomendados ' + lv.recomendado.ok + '/' + lv.recomendado.total);
+      if (lv.opcional.total) extra.push('opcionales ' + lv.opcional.ok + '/' + lv.opcional.total);
+      if (extra.length) verdict += ' · ' + extra.join(' · ');
+      if (lv.recomendado.falta.length) verdict += ' · faltan recomendados: ' + lv.recomendado.falta.join(', ');
+      tone = 'success';
+    } else {
+      verdict =
+        '⛔ Conexión NO lista — faltan ' +
+        lv.critico.falta.length +
+        ' tabla(s) crítica(s): ' +
+        lv.critico.falta.join(', ') +
+        '. Ejecute los scripts obligatorios (1–4 y 10) en el Paso 2.';
+      tone = 'warning';
     }
+    if (summary) summary.textContent = verdict;
     if (global.showToast) {
       global.showToast(
-        failReq ? 'Faltan tablas obligatorias. Revise el paso 2 (SQL).' : 'Verificación de tablas completada.',
-        failReq ? 'warning' : 'success'
+        criticosOk ? 'Conexión lista: críticos completos.' : 'Faltan tablas críticas — revise el Paso 2 (SQL).',
+        tone
       );
     }
   }
@@ -1425,6 +1454,38 @@
 
     bindOnce(document.getElementById('sanBtnProbeTables'), 'click', function () {
       void probeSupabaseTables();
+    });
+
+    bindOnce(document.getElementById('sanBtnUploadCatalog'), 'click', function () {
+      if (typeof global.crozzoSubirCatalogoNube !== 'function') {
+        if (global.showToast) global.showToast('Subida de catálogo no disponible en este equipo.', 'warning');
+        return;
+      }
+      var summary = document.getElementById('sanProbeSummary');
+      if (summary) summary.textContent = '⏳ Subiendo catálogo a la nube…';
+      if (global.showToast) global.showToast('Subiendo catálogo a la nube…', 'info');
+      global
+        .crozzoSubirCatalogoNube({
+          onProgress: function (done, total) {
+            if (summary) summary.textContent = '⏳ Subiendo catálogo… ' + done + '/' + total;
+          },
+        })
+        .then(function (r) {
+          if (!r || r.ok === false) {
+            var msg = (r && r.message) || 'No se pudo subir el catálogo. Active la nube e intente de nuevo.';
+            if (r && r.pushed != null) msg = 'Subida parcial: ' + r.pushed + ' productos OK, ' + r.failed + ' con error.';
+            if (summary) summary.textContent = '⚠️ ' + msg;
+            if (global.showToast) global.showToast(msg, 'warning');
+            return;
+          }
+          var ok = '✅ Catálogo subido: ' + r.pushed + ' productos' + (r.tenant ? ' + marca/usuarios' : '') + '. Los equipos nuevos ya pueden descargarlo.';
+          if (summary) summary.textContent = ok;
+          if (global.showToast) global.showToast(ok, 'success');
+        })
+        .catch(function () {
+          if (summary) summary.textContent = '⚠️ Error al subir el catálogo.';
+          if (global.showToast) global.showToast('Error al subir el catálogo.', 'warning');
+        });
     });
 
     bindOnce(document.getElementById('sanBtnCopySql'), 'click', function () {
