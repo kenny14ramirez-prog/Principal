@@ -113,7 +113,7 @@
     doc.style.setProperty('--crozzo-touch-pos-cols', String(t.posCols));
     doc.style.setProperty(
       '--crozzo-touch-sidebar-max',
-      androidApk ? '100vw' : 'min(' + t.sidebarPx + 'px, ' + t.sidebarVw + 'vw)'
+      androidApk ? 'min(320px, 92vw)' : 'min(' + t.sidebarPx + 'px, ' + t.sidebarVw + 'vw)'
     );
     return tier;
   }
@@ -211,13 +211,15 @@
         if (compact) {
           hdr.style.setProperty('display', 'flex', 'important');
           hdr.style.setProperty('flex-direction', 'row', 'important');
-          hdr.style.setProperty('flex-wrap', 'nowrap', 'important');
           hdr.style.setProperty('align-items', 'center', 'important');
-          hdr.style.setProperty('height', '44px', 'important');
-          hdr.style.setProperty('max-height', '52px', 'important');
-          hdr.style.setProperty('padding', '4px 8px', 'important');
-          hdr.style.setProperty('padding-top', 'max(4px, env(safe-area-inset-top, 0px))', 'important');
-          hdr.style.setProperty('overflow', 'hidden', 'important');
+          hdr.style.setProperty('min-height', '52px', 'important');
+          hdr.style.setProperty('height', 'auto', 'important');
+          hdr.style.setProperty('max-height', 'none', 'important');
+          hdr.style.setProperty('padding-top', 'max(8px, env(safe-area-inset-top, 0px))', 'important');
+          hdr.style.setProperty('padding-bottom', '8px', 'important');
+          hdr.style.setProperty('padding-left', '12px', 'important');
+          hdr.style.setProperty('padding-right', '12px', 'important');
+          hdr.style.removeProperty('overflow');
         } else {
           hdr.style.removeProperty('display');
           hdr.style.removeProperty('flex-direction');

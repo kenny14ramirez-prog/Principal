@@ -11723,67 +11723,22 @@ function crozzoWireEmbedThemeSync(frame) {
   });
 }
 
-/** Fuerza pantallas operativas (tablets, POS, comercial) a llenar la ventana en APK/móvil. */
+/** Pantallas operativas: solo ocultar barra inferior en APK (layout lo maneja CSS). */
 function crozzoApplyOperativaPageFill(content) {
   try {
     var doc = document.documentElement;
-    var compact =
-      doc.classList.contains('crozzo-compact-chrome') ||
+    var apk =
       doc.classList.contains('crozzo-android-apk') ||
       doc.classList.contains('crozzo-android-native') ||
-      doc.getAttribute('data-crozzo-android') === '1' ||
-      /Android/i.test(String((navigator && navigator.userAgent) || ''));
-    if (!compact || !content) return;
-
-    var main = document.querySelector('.main-content');
-    if (main) {
-      main.style.setProperty('display', 'flex', 'important');
-      main.style.setProperty('flex-direction', 'column', 'important');
-      main.style.setProperty('flex', '1 1 auto', 'important');
-      main.style.setProperty('min-height', '0', 'important');
-      main.style.setProperty('padding-bottom', '0', 'important');
-      main.style.setProperty('overflow', 'hidden', 'important');
-    }
-
-    content.style.setProperty('padding', '0', 'important');
-    content.style.setProperty('margin', '0', 'important');
-    content.style.setProperty('flex', '1 1 auto', 'important');
-    content.style.setProperty('min-height', '0', 'important');
-    content.style.setProperty('display', 'flex', 'important');
-    content.style.setProperty('flex-direction', 'column', 'important');
-    content.style.setProperty('overflow', 'hidden', 'important');
-
-    var shells = content.querySelectorAll(':scope > .card, :scope > .crozzo-rest-pos, :scope > .crozzo-retail-pos');
-    shells.forEach(function (el) {
-      el.style.setProperty('flex', '1 1 auto', 'important');
-      el.style.setProperty('min-height', '0', 'important');
-      el.style.setProperty('height', '100%', 'important');
-      el.style.setProperty('max-height', '100%', 'important');
-      el.style.setProperty('margin', '0', 'important');
-      el.style.setProperty('overflow', 'hidden', 'important');
-      if (el.classList.contains('card')) {
-        el.style.setProperty('display', 'flex', 'important');
-        el.style.setProperty('flex-direction', 'column', 'important');
-      }
-    });
-
-    content.querySelectorAll('.pos-container, .crozzo-rest-pos__workspace, .crozzo-retail-pos__body, .tablet-layout').forEach(function (el) {
-      el.style.setProperty('flex', '1 1 auto', 'important');
-      el.style.setProperty('min-height', '0', 'important');
-      el.style.setProperty('height', '100%', 'important');
-      el.style.setProperty('max-height', '100%', 'important');
-      el.style.setProperty('overflow', 'hidden', 'important');
-    });
-
+      doc.getAttribute('data-crozzo-android') === '1';
+    if (!apk) return;
     var nav = document.getElementById('crozzoMobileBottomNav');
     if (nav) {
       nav.style.setProperty('display', 'none', 'important');
       nav.style.setProperty('height', '0', 'important');
-      nav.style.setProperty('min-height', '0', 'important');
       nav.setAttribute('aria-hidden', 'true');
       nav.setAttribute('hidden', '');
     }
-
     if (window.CrozzoViewportFit && typeof CrozzoViewportFit.schedule === 'function') {
       CrozzoViewportFit.schedule();
     }
@@ -11828,15 +11783,6 @@ function crozzoApplyUnifiedPageChrome(page, content) {
   }
   if (isFs && typeof crozzoApplyOperativaPageFill === 'function') {
     crozzoApplyOperativaPageFill(content);
-    requestAnimationFrame(function () {
-      crozzoApplyOperativaPageFill(content);
-    });
-    setTimeout(function () {
-      crozzoApplyOperativaPageFill(content);
-    }, 150);
-    setTimeout(function () {
-      crozzoApplyOperativaPageFill(content);
-    }, 500);
   }
 }
 window.crozzoApplyUnifiedPageChrome = crozzoApplyUnifiedPageChrome;
@@ -12017,7 +11963,7 @@ function renderPage(page) {
     if (typeof crozzoTeardownComandaVisualFx === 'function') crozzoTeardownComandaVisualFx();
   }
   if (document.body) {
-    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub');
+    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open');
   }
   var hdrMod = document.querySelector('.main-header');
   if (hdrMod) hdrMod.classList.remove('main-header--modulo-gestion');
@@ -12320,10 +12266,7 @@ function renderPage(page) {
       crozzoApplyUnifiedPageChrome(page, content);
     }
     if (global.CrozzoAndroidNative && typeof global.CrozzoAndroidNative.applyLayoutPolish === 'function') {
-      global.CrozzoAndroidNative.applyLayoutPolish(content);
-      requestAnimationFrame(function () {
-        global.CrozzoAndroidNative.applyLayoutPolish(content);
-      });
+      global.CrozzoAndroidNative.applyLayoutPolish();
     }
     crozzoStartPageMotion();
     crozzoApplyPageTitleMotion();
@@ -15441,6 +15384,7 @@ function renderVentaComercial() {
     '<div class="crozzo-retail-cats crozzo-retail-cats--elite">' + catChips + '</div>' +
     '<div class="crozzo-retail-rows crozzo-retail-rows--dense" id="posProducts">' + rowsHtml + '</div></section>' +
     '<aside class="crozzo-retail-pos__checkout">' +
+    crozzoPosCartSheetHandleHtml() +
     '<div class="crozzo-retail-checkout-head">' +
     '<strong class="crozzo-retail-checkout-head__label"><i data-lucide="shopping-bag" aria-hidden="true"></i> Carrito</strong>' +
     '<span class="crozzo-retail-checkout-count" id="crozzoRetailItemCount">0 ítems</span>' +
@@ -17881,6 +17825,31 @@ function crozzoTabletProductTileHtml(p) {
     '</div></div>'
   );
 }
+/**
+ * Celular: el panel del carrito del POS funciona como hoja inferior desplegable.
+ * Alterna la clase body 'crozzo-pos-cart-open' (el CSS hace el resto, solo en móvil).
+ */
+function crozzoTogglePosCartSheet(forceOpen) {
+  try {
+    const body = document.body;
+    if (!body) return;
+    const open = typeof forceOpen === 'boolean' ? forceOpen : !body.classList.contains('crozzo-pos-cart-open');
+    body.classList.toggle('crozzo-pos-cart-open', open);
+    try {
+      if (typeof crozzoRefreshLucideIcons === 'function') crozzoRefreshLucideIcons();
+    } catch (_) {}
+  } catch (_) {}
+}
+/** Markup del tirador (handle) de la hoja inferior — visible solo en celular vía CSS. */
+function crozzoPosCartSheetHandleHtml() {
+  return (
+    '<button type="button" class="crozzo-pos-sheet-handle" onclick="crozzoTogglePosCartSheet()" aria-label="Mostrar u ocultar el detalle del pedido">' +
+    '<span class="crozzo-pos-sheet-handle__grip" aria-hidden="true"></span>' +
+    '<span class="crozzo-pos-sheet-handle__txt crozzo-pos-sheet-handle__txt--show"><i data-lucide="chevron-up" aria-hidden="true"></i> Ver detalle del pedido</span>' +
+    '<span class="crozzo-pos-sheet-handle__txt crozzo-pos-sheet-handle__txt--hide"><i data-lucide="chevron-down" aria-hidden="true"></i> Ocultar detalle</span>' +
+    '</button>'
+  );
+}
 function renderCajero() {
   const labFiscalCart = typeof crozzoFiscalEtiquetas === 'function' ? crozzoFiscalEtiquetas() : { gravado: 'Subtotal', impuesto: 'Impuesto' };
   const cartActual = getActiveCart();
@@ -18029,6 +17998,7 @@ function renderCajero() {
       : '<div class="crozzo-rest-pos__empty">Sin productos para el filtro actual.</div>') +
     '</div></section>' +
     '<aside class="cart-panel crozzo-rest-pos__ticket" aria-labelledby="crozzoRestCartHeading">' +
+    crozzoPosCartSheetHandleHtml() +
     '<div class="cart-header crozzo-rest-pos__ticket-head">' +
     '<div><span class="crozzo-rest-pos__ticket-label" id="crozzoRestCartHeading"><i data-lucide="receipt" aria-hidden="true"></i> Pedido actual</span></div>' +
     '<div class="crozzo-rest-pos__ticket-tools">' +

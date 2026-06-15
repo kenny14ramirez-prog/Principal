@@ -142,7 +142,7 @@
           10
         ) || 0;
       } catch (_) {}
-      return Math.max(48, 44 + safeTop);
+      return Math.max(52, 52 + safeTop);
     }
     var h =
       document.querySelector('.main-header.crozzo-header-elite') ||
