@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-15T21:45:21.753Z",
+  "updatedAt": "2026-06-15T21:48:53.353Z",
   "entries": [
-    {
-      "id": "1.0.107-critical",
-      "version": "v1.0.107",
-      "semver": "1.0.107",
-      "type": "critical",
-      "message": "11",
-      "publishedAt": "2026-06-13T01:33:53.935Z",
-      "installMode": "auto",
-      "changelog": [
-        "11"
-      ]
-    },
     {
       "id": "1.0.108-critical",
       "version": "v1.0.108",
@@ -303,6 +291,18 @@
         "FIX: sync app→src con credenciales nube y finalize pairing",
         "UPD: QR más grande cuando lleva nube",
         "UPD: aviso claro si emparejamiento queda sin Supabase"
+      ]
+    },
+    {
+      "id": "1.0.132-critical",
+      "version": "v1.0.132",
+      "semver": "1.0.132",
+      "type": "critical",
+      "message": "14524",
+      "publishedAt": "2026-06-15T21:48:53.353Z",
+      "installMode": "auto",
+      "changelog": [
+        "14524"
       ]
     }
   ]
