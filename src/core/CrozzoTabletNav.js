@@ -64,6 +64,15 @@
     }
   }
 
+  function isPhoneBottomNavShell() {
+    if (!isPhoneShell()) return false;
+    return canSeePage('comandas') || canSeePage('cocina') || canSeePage('cajero');
+  }
+
+  function shouldShowBottomNav() {
+    return isBottomNavShell() || isPhoneBottomNavShell();
+  }
+
   function isBottomNavShell() {
     try {
       var doc = document.documentElement;
@@ -90,8 +99,11 @@
 
     if (action === 'open-menu') return true;
     if (action === 'pantallas-kiosk') return canSeePantallasKiosk();
-    if (nav === 'tablets') return canSeePage('tablets');
-    if (nav === 'inicio-operacion') return canSeePage('inicio-operacion');
+    if (nav === 'comandas') return canSeePage('comandas');
+    if (nav === 'cocina') return canSeePage('cocina');
+    if (nav === 'cajero') return canSeePage('cajero') && !isPhoneShell();
+    if (nav === 'tablets') return canSeePage('tablets') && !isPhoneShell();
+    if (nav === 'inicio-operacion') return canSeePage('inicio-operacion') && !isPhoneShell();
     return false;
   }
 
@@ -119,7 +131,16 @@
       String(btn.className || '');
     var now = Date.now();
     if (global.__crozzoTabletNavLastTap && global.__crozzoTabletNavLastTap.key === tapKey) {
-      if (now - global.__crozzoTabletNavLastTap.at < 450) return false;
+      if (now - global.__crozzoTabletNavLastTap.at < 300) {
+        if (evt) {
+          try {
+            evt.preventDefault();
+            evt.stopPropagation();
+            if (typeof evt.stopImmediatePropagation === 'function') evt.stopImmediatePropagation();
+          } catch (_) {}
+        }
+        return false;
+      }
     }
     global.__crozzoTabletNavLastTap = { key: tapKey, at: now };
 
@@ -192,9 +213,11 @@
     var btn = document.querySelector('.mobile-menu-btn');
     if (!btn || btn._crozzoMobileMenuBound) return;
     btn._crozzoMobileMenuBound = true;
-    btn.addEventListener('touchend', function (e) {
+    btn.addEventListener('pointerup', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
       try {
         e.preventDefault();
+        e.stopPropagation();
       } catch (_) {}
       if (typeof global.crozzoOpenSidebarDrawer === 'function') global.crozzoOpenSidebarDrawer();
       else if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
@@ -231,11 +254,11 @@
 
     bindBottomNavOnce();
 
-    if (!isBottomNavShell()) {
+    if (!shouldShowBottomNav()) {
       root.style.setProperty('display', 'none', 'important');
       root.setAttribute('aria-hidden', 'true');
       root.setAttribute('hidden', '');
-      root.classList.remove('crozzo-mbn--compact');
+      root.classList.remove('crozzo-mbn--compact', 'crozzo-mbn--phone-kitchen');
       root.querySelectorAll('.crozzo-mbn-btn').forEach(function (btn) {
         btn.hidden = true;
         btn.style.display = 'none';
@@ -249,6 +272,8 @@
       } catch (_) {}
       return;
     }
+
+    root.classList.toggle('crozzo-mbn--phone-kitchen', isPhoneBottomNavShell() && !isBottomNavShell());
 
     var visible = 0;
     var shortcutCount = 0;

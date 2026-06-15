@@ -632,11 +632,13 @@
     pay = unpackForApply(pay);
     var remoteAt = Number(pay.savedAt) || Date.parse(row.saved_at || row.updated_at || 0) || 0;
     if (!remoteAt) return false;
-    if (Date.now() < __echoUntil) return false;
-    // Anti-pisado: si hay ediciones locales sin enviar (push pendiente), no
-    // aplicamos el remoto todavia para no revertir lo que el usuario acaba de
-    // tocar; se reconcilia en el siguiente ciclo tras enviar nuestros cambios.
-    if (__pushTimer) return false;
+    if (Date.now() < __echoUntil && !(opts && opts.force)) return false;
+    if (!(opts && opts.force)) {
+      if (__pushTimer) return false;
+    } else if (__pushTimer) {
+      clearTimeout(__pushTimer);
+      __pushTimer = null;
+    }
     var srcDev = String(row.source_device_id || '').trim();
     var myDev = ctx().deviceId;
     if (srcDev && myDev && srcDev === myDev && remoteAt <= localSavedAt() + 500) return false;
@@ -686,7 +688,10 @@
         console.warn('[runtime-cloud] pull cloud', e);
       }
     }
-    if (await lanSegmentUp()) return pullRuntimeLan(opts);
+    if (await lanSegmentUp()) {
+      if (ctx().role === 'A' && online()) return false;
+      return pullRuntimeLan(opts);
+    }
     return false;
   }
 

@@ -552,6 +552,15 @@
         e.stopPropagation();
         navigateFromItem(item);
       });
+      nav.addEventListener('pointerup', function (e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        var item = e.target.closest('.nav-item[data-page]');
+        if (!item || !nav.contains(item)) return;
+        if (item.hidden || item.style.display === 'none' || item.classList.contains('crozzo-nav-filter-hidden')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        navigateFromItem(item);
+      });
     }
     document.querySelectorAll('#sidebarNav .nav-item[data-page]').forEach(function (item) {
       if (item._crozzoNavItemBound) return;
@@ -584,6 +593,13 @@
     nav._crozzoSidebarNavToggles = true;
 
     nav.addEventListener('click', function (e) {
+      var toggle = e.target.closest('.nav-group-toggle');
+      if (!toggle) return;
+      e.preventDefault();
+      toggleGroupFromButton(toggle);
+    });
+    nav.addEventListener('pointerup', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
       var toggle = e.target.closest('.nav-group-toggle');
       if (!toggle) return;
       e.preventDefault();

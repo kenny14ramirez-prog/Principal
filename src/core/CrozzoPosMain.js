@@ -1230,10 +1230,60 @@ function bootstrapCrozzoConexionRuntime() {
     config.set('conexionSistemas', { ...getConexionSistemasDefaults(), ...cs, deviceId: ensureCrozzoDeviceId() });
   }
   refreshWindowCrozzoConfigFromStorage();
+  try {
+    if (typeof crozzoEnsureSedeLocationId === 'function') crozzoEnsureSedeLocationId();
+  } catch (_) {}
   // Si localStorage se borró pero hay credenciales Supabase, intenta restaurar.
   // (No bloquea el arranque: corre en segundo plano).
   setTimeout(() => { restoreConexionFromCloudIfNeeded().catch(() => {}); }, 1000);
 }
+function crozzoEnsureSedeLocationId() {
+  try {
+    const md = getMultiDeviceConfig();
+    let loc = String(md.locationId || '').trim();
+    if (loc && loc !== 'default') return loc;
+    const L = typeof readCrozzoLanJson === 'function' ? readCrozzoLanJson() : null;
+    loc = String((L && L.locationId) || '').trim();
+    if (loc && loc !== 'default') {
+      crozzoPersistSedeLocationId(loc);
+      return loc;
+    }
+    const biz = String(md.businessId || '').trim();
+    const dev = String(md.deviceId || ensureCrozzoDeviceId() || '').trim();
+    loc = biz && biz !== 'default' ? 'loc-' + biz.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48) : '';
+    if (!loc && dev) loc = 'loc-' + dev.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48);
+    if (!loc) loc = 'loc-caja-' + String(Date.now()).slice(-8);
+    crozzoPersistSedeLocationId(loc);
+    return loc;
+  } catch (_) {
+    return '';
+  }
+}
+function crozzoPersistSedeLocationId(loc) {
+  const id = String(loc || '').trim();
+  if (!id || id === 'default') return;
+  try {
+    const md = config.get('multidispositivo') || {};
+    config.set('multidispositivo', { ...md, locationId: id });
+  } catch (_) {}
+  try {
+    const lan = typeof readCrozzoLanJson === 'function' ? readCrozzoLanJson() || {} : {};
+    localStorage.setItem(CROZZO_LAN_CONFIG_KEY, JSON.stringify({ ...lan, locationId: id, savedAt: Date.now() }));
+  } catch (_) {}
+}
+window.crozzoEnsureSedeLocationId = crozzoEnsureSedeLocationId;
+function crozzoIsMobilePhoneUi() {
+  try {
+    const doc = document.documentElement;
+    if (!doc) return false;
+    if (doc.classList.contains('crozzo-form-mobile')) return true;
+    const tier = doc.getAttribute('data-crozzo-touch-tier') || '';
+    return tier === 'phone-sm' || tier === 'phone' || tier === 'phone-lg';
+  } catch (_) {
+    return false;
+  }
+}
+window.crozzoIsMobilePhoneUi = crozzoIsMobilePhoneUi;
 // ==========================================
 // 🔐 SESIÓN DE USUARIO + AUTO-CONFIG DEL DISPOSITIVO
 // ==========================================
@@ -5295,9 +5345,22 @@ function crozzoComandaOperatorUi() {
 function crozzoEnsureComandaAreaOnEnter() {
   if (comandasAreaSelected) return;
   const areas = getComandasConfig().areas || [];
+  const deviceArea = String(crozzoGetDevicePantallaId() || '').trim();
+  if (deviceArea && areas.some(function (a) { return a.id === deviceArea; })) {
+    comandasAreaSelected = deviceArea;
+    return;
+  }
   if (areas.length === 1) {
     comandasAreaSelected = areas[0].id;
     crozzoSetDevicePantallaId(areas[0].id, { silent: true });
+    return;
+  }
+  if (typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi() && areas.length) {
+    const pick = deviceArea || areas[0].id;
+    if (areas.some(function (a) { return a.id === pick; })) {
+      comandasAreaSelected = pick;
+      if (!deviceArea) crozzoSetDevicePantallaId(pick, { silent: true });
+    }
   }
 }
 window.crozzoCanManageComandaSetup = crozzoCanManageComandaSetup;
@@ -5396,7 +5459,18 @@ function crozzoComandaPantallaKioskPrinterBarHtml(areaId) {
 }
 function crozzoComandaPantallaKioskBarHtml() {
   if (!comandasAreaSelected) return '';
-  return crozzoComandaPantallaKioskPrinterBarHtml(comandasAreaSelected);
+  const inner = crozzoComandaPantallaKioskPrinterBarHtml(comandasAreaSelected);
+  const mobile = typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi();
+  const operator = crozzoComandaOperatorUi();
+  if (mobile && operator) {
+    return (
+      '<details class="crozzo-comandas-mobile-setup">' +
+      '<summary class="crozzo-comandas-mobile-setup__toggle">⚙️ Impresora y opciones</summary>' +
+      inner +
+      '</details>'
+    );
+  }
+  return inner;
 }
 function crozzoKioskOnPantallaChanged(areaId) {
   const id = String(areaId || '').trim();

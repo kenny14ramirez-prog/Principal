@@ -86,12 +86,10 @@ function crozzoSupabaseEffectiveAnonKey(obj) {
   return String(obj.anonKey || '').trim();
 }
 window.crozzoSupabaseEffectiveAnonKey = crozzoSupabaseEffectiveAnonKey;
-/** Modo nube solo si el archivo existe, sync activada y credenciales válidas. */
+/** Modo nube si hay credenciales válidas en cualquier almacén (archivo, multidispositivo o legacy). */
 function crozzoOnlineConfigReady() {
-  const j = readCrozzoSupabaseJson();
-  if (!j || !j.syncEnabled) return false;
-  const k = crozzoSupabaseEffectiveAnonKey(j);
-  return isValidSupabasePair(j.url, k);
+  const creds = crozzoResolveSupabaseCredentials();
+  return !!(creds.syncOn && isValidSupabasePair(creds.url, creds.key));
 }
 window.__crozzoIsLocalDataMode = function crozzoIsLocalDataMode() {
   return !crozzoOnlineConfigReady() || !window.__SUPABASE;
@@ -196,22 +194,12 @@ function initConfigPersistence() {
   if (!kNew && kOld) lsSet(LS.KEY_PRIMARY, kOld);
 }
 function readResolvedUrl() {
-  const j = readCrozzoSupabaseJson();
-  if (j && j.syncEnabled) return String(j.url || '').trim();
-  return '';
+  const creds = crozzoResolveSupabaseCredentials();
+  return creds.syncOn ? String(creds.url || '').trim() : '';
 }
 function readResolvedKey() {
-  let j;
-  try {
-    j = JSON.parse(localStorage.getItem(CROZZO_SB_FILE) || '{}');
-  } catch (e) {
-    try {
-      console.warn(e && e.message ? e.message : e);
-    } catch (_) {}
-    return '';
-  }
-  if (!j || !j.syncEnabled) return '';
-  return crozzoSupabaseEffectiveAnonKey(j);
+  const creds = crozzoResolveSupabaseCredentials();
+  return creds.syncOn ? String(creds.key || '').trim() : '';
 }
 function mirrorCredentialsToBothKeys(url, key) {
   if (url) {
@@ -433,11 +421,13 @@ window.crozzoPersistSupabaseConfigFromPairing = function crozzoPersistSupabaseCo
 /** Cliente Supabase (solo si credenciales válidas). Nunca createClient con strings vacíos. */
 async function initSupabaseClient() {
   window.__SUPABASE = null;
-  const urlRaw = readResolvedUrl();
-  const keyRaw = readResolvedKey();
-  const url = String(urlRaw == null ? '' : urlRaw).trim();
-  const key = String(keyRaw == null ? '' : keyRaw).trim();
-  if (!url || !key || !isValidSupabasePair(url, key)) return null;
+  try {
+    crozzoEnsureSupabaseConfigFileFromAnySource();
+  } catch (_) {}
+  const creds = crozzoResolveSupabaseCredentials();
+  const url = String(creds.url || '').trim();
+  const key = String(creds.key || '').trim();
+  if (!creds.syncOn || !url || !key || !isValidSupabasePair(url, key)) return null;
   try {
     const umd =
       typeof window !== 'undefined' && typeof window.supabase !== 'undefined' && window.supabase
@@ -1439,6 +1429,15 @@ window.__crozzoBootstrapCloudData = async function bootstrapCloudData() {
 };
 window.__crozzoPostInitCloud = async function postInitCloud() {
   if (!crozzoOnlineConfigReady() || !window.__SUPABASE) return;
+  try {
+    if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
+    if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
+    if (typeof crozzoPullRemoteTenantState === 'function') {
+      await crozzoPullRemoteTenantState({ skipRender: true, quiet: true });
+    }
+  } catch (ePull) {
+    console.warn('[crozzo-sb] cloud pull init', ePull);
+  }
   if (typeof getCurrentUser === 'function' && !getCurrentUser()) return;
   try {
     await window.__crozzoRegisterDeviceHeartbeat?.();
@@ -1449,11 +1448,6 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
   applyRolePermissions();
   try {
     if (typeof startCrozzoRemoteTenantSync === 'function') startCrozzoRemoteTenantSync();
-    if (typeof crozzoPullRemoteTenantState === 'function') {
-      await crozzoPullRemoteTenantState({ skipRender: true, quiet: true });
-    }
-    if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
-    if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
   } catch (e2) {
     console.warn('[crozzo-sb] tenant sync init', e2);
   }
@@ -2213,6 +2207,11 @@ void (async function __crozzoSupabaseBootstrap() {
           const { data } = await sb.auth.getSession();
           if (data?.session) {
             window.__crozzoSupabaseSessionCached = true;
+          }
+          if (typeof window.__crozzoPostInitCloud === 'function') {
+            window.__crozzoPostInitCloud().catch(function (e3) {
+              console.warn('[crozzo-sb] postInit tras bootstrap', e3);
+            });
           }
         }
       } catch (e) {

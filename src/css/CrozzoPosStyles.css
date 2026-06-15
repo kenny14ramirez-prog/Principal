@@ -22737,6 +22737,10 @@ html.crozzo-form-tablet #sidebar:not(.open) {
 html.crozzo-form-mobile .crozzo-mobile-bottom-nav {
   display: none !important;
 }
+html.crozzo-form-mobile #crozzoMobileBottomNav.crozzo-mbn--phone-kitchen,
+html.crozzo-android-apk.crozzo-form-mobile #crozzoMobileBottomNav.crozzo-mbn--phone-kitchen {
+  display: flex !important;
+}
 
 html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-form-tablet .crozzo-mobile-bottom-nav,
 html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
@@ -33246,3 +33250,38 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
   }
 }
 
+/* Comandas / cocina en celular — botones grandes y setup colapsado */
+html.crozzo-form-mobile .crozzo-comandas-mobile-setup {
+  margin: 8px 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+html.crozzo-form-mobile .crozzo-comandas-mobile-setup__toggle {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 600;
+  list-style: none;
+}
+html.crozzo-form-mobile .crozzo-comandas-mobile-setup[open] .crozzo-comandas-mobile-setup__toggle {
+  border-bottom: 1px solid var(--border);
+}
+html.crozzo-form-mobile .crozzo-sticky-toolbar .btn,
+html.crozzo-form-mobile .crozzo-sticky-done-btn {
+  min-height: 48px;
+  touch-action: manipulation;
+}
+html.crozzo-form-mobile .crozzo-sticky-note {
+  touch-action: manipulation;
+}
+html.crozzo-form-mobile .crozzo-comandas-hub .crozzo-station-note {
+  min-width: 0;
+  width: 100%;
+}
+html.crozzo-form-mobile .crozzo-pantallas-kiosk-setup__actions .crozzo-pantallas-kiosk-setup__btns {
+  flex-direction: column;
+}
+html.crozzo-form-mobile .crozzo-pantallas-kiosk-setup__btns .btn {
+  width: 100%;
+  min-height: 44px;
+}
