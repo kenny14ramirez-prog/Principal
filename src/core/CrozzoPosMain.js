@@ -40741,6 +40741,18 @@ function init() {
       } catch (e5) {
         console.warn('[pairing] initSupabaseClient', e5);
       }
+      // Registrar el dispositivo en la lista de la nube APENAS se empareja: aparece
+      // como "emparejado" en la caja/Super Admin aunque aún no haya iniciado sesión.
+      try {
+        if (save && save.deviceName) localStorage.setItem('device_name', String(save.deviceName));
+      } catch (_) {}
+      try {
+        if (typeof window.__crozzoRegisterDeviceHeartbeat === 'function') {
+          await window.__crozzoRegisterDeviceHeartbeat();
+        }
+      } catch (eHb) {
+        console.warn('[pairing] registrar dispositivo', eHb);
+      }
       try {
         if (typeof window.__crozzoPostInitCloud === 'function') await window.__crozzoPostInitCloud();
       } catch (e6) {
@@ -40767,6 +40779,15 @@ function init() {
         }
       } catch (eRef) {
         console.warn('[pairing] refresh catalog', eRef);
+      }
+      // Aplica de inmediato marca, usuarios y config del negocio (no solo cachear):
+      // así el equipo queda operativo "de una" al escanear, sin esperar al login.
+      try {
+        if (typeof window.crozzoPullRemoteTenantState === 'function') {
+          await window.crozzoPullRemoteTenantState({ quiet: true, skipRender: true });
+        }
+      } catch (eTenant) {
+        console.warn('[pairing] aplicar datos del negocio', eTenant);
       }
       crozzoPairingShowStatus('Enlace híbrido activo · ' + n + ' capas sincronizadas', { isOk: true, phase: 'ready', progress: 96 });
     } else {
@@ -40822,6 +40843,16 @@ function init() {
         await crozzoRunFullReconnectSync({ force: true, source: 'pairing_qr' });
       } catch (_) {}
     }
+    // Arranca/evalúa la cascada de conectividad de inmediato (nube/LAN/hotspot/…)
+    // para que el equipo "busque la conexión y funcione de una", esté en línea o no.
+    try {
+      if (window.CrozzoConnectivityOrchestrator && typeof window.CrozzoConnectivityOrchestrator.start === 'function') {
+        window.CrozzoConnectivityOrchestrator.start();
+        if (typeof window.CrozzoConnectivityOrchestrator.evaluateNow === 'function') {
+          window.CrozzoConnectivityOrchestrator.evaluateNow();
+        }
+      }
+    } catch (_) {}
     // Cambio de sede: la sede vieja ya quedó respaldada en su nube y el cuerpo se
     // vació; reiniciamos para arrancar 100% limpio con la sede nueva (el cerebro).
     if (sedeSwitch && sedeSwitch.from && sedeSwitch.to) {
