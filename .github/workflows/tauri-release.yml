@@ -158,7 +158,46 @@ jobs:
         run: node scripts/patch-android-signing.mjs
 
       - name: Compilar ${{ matrix.label }} y publicar release
+        id: desktop_build
         if: ${{ !matrix.android }}
+        continue-on-error: true
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          NDK_HOME: ${{ matrix.android && steps.android-ndk.outputs.ndk-path || '' }}
+        with:
+          releaseId: ${{ needs.release-meta.outputs.releaseId }}
+          tagName: ${{ github.ref_name }}
+          releaseName: Crozzo POS ${{ github.ref_name }}
+          releaseBody: |
+            Instaladores multiplataforma Crozzo POS.
+
+            | Plataforma | Artefacto | Uso |
+            |------------|-----------|-----|
+            | Windows | `Proyecto_*_x64-setup.exe` | PC caja / mostrador |
+            | macOS Apple Silicon | `.dmg` aarch64 | Mac M1/M2/M3 |
+            | macOS Intel | `.dmg` x86_64 | Mac Intel |
+            | Android (tablets) | `.apk` ARM64 | Instalar en tablet (permitir orígenes desconocidos o MDM) |
+
+            Actualización automática Tauri: Windows y Mac (desde la app).
+            Tablets en navegador: avisos vía `registry.json` en rama **main**.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          includeUpdaterJson: ${{ matrix.label == 'Windows x64' }}
+          updaterJsonPreferNsis: true
+
+      # El empaquetado de macOS (bundle_dmg.sh / hdiutil) falla de forma
+      # intermitente en CI. Si el primer intento falla, esperamos a que se liberen
+      # los recursos del disco y reintentamos una vez (el .app ya está compilado).
+      - name: Esperar antes de reintentar (empaquetado frágil en CI)
+        if: ${{ !matrix.android && steps.desktop_build.outcome == 'failure' }}
+        run: sleep 25
+
+      - name: Reintentar build ${{ matrix.label }} (empaquetado frágil en CI)
+        if: ${{ !matrix.android && steps.desktop_build.outcome == 'failure' }}
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
