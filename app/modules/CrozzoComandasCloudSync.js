@@ -178,15 +178,21 @@
       var timer = controller ? global.setTimeout(function () { controller.abort(); }, 5500) : null;
       var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: (typeof global.crozzoLanAuthHeaders === 'function'
+          ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify(body),
         signal: controller ? controller.signal : undefined,
       });
       if (timer) global.clearTimeout(timer);
-      if (!res.ok) return false;
+      if (!res.ok) {
+        if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
+        return false;
+      }
       var j = await res.json().catch(function () { return null; });
       return !!(j && j.ok !== false);
     } catch (e) {
+      if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
       return false;
     }
   }
@@ -277,13 +283,19 @@
     try {
       var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: (typeof global.crozzoLanAuthHeaders === 'function'
+          ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify(body),
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
+        return false;
+      }
       var j = await res.json().catch(function () { return null; });
       return !!(j && j.ok !== false);
     } catch (_) {
+      if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
       return false;
     }
   }

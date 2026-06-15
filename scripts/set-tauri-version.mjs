@@ -23,6 +23,8 @@ if (!/^\d+\.\d+\.\d+(-[\w.-]+)?$/.test(semver)) {
 const confPath = join(root, 'src-tauri', 'tauri.conf.json');
 const androidConfPath = join(root, 'src-tauri', 'tauri.android.conf.json');
 const htmlPath = join(root, 'app', 'Crozzo_POS_Completo.html');
+const indexHtmlPath = join(root, 'app', 'index.html');
+const pkgPath = join(root, 'package.json');
 
 function semverToVersionCode(semver) {
   const m = String(semver)
@@ -51,14 +53,34 @@ if (existsSync(androidConfPath)) {
   );
 }
 
-if (existsSync(htmlPath)) {
-  let html = readFileSync(htmlPath, 'utf8');
+function syncHtmlMeta(p, label) {
+  if (!existsSync(p)) return;
+  let html = readFileSync(p, 'utf8');
   const meta = `<meta name="crozzo-app-version" content="${semver}">`;
   if (/name=["']crozzo-app-version["']/i.test(html)) {
     html = html.replace(/<meta\s+name=["']crozzo-app-version["'][^>]*>/i, meta);
   } else if (/<head[^>]*>/i.test(html)) {
     html = html.replace(/<head([^>]*)>/i, `<head$1>\n${meta}`);
+  } else {
+    return;
   }
-  writeFileSync(htmlPath, html, 'utf8');
-  console.log(`[version] meta en app/Crozzo_POS_Completo.html -> ${semver}`);
+  writeFileSync(p, html, 'utf8');
+  console.log(`[version] meta en ${label} -> ${semver}`);
+}
+syncHtmlMeta(htmlPath, 'app/Crozzo_POS_Completo.html');
+syncHtmlMeta(indexHtmlPath, 'app/index.html');
+
+// Mantener package.json alineado (evita confusión de versiones entre archivos).
+if (existsSync(pkgPath)) {
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    const pprev = pkg.version;
+    if (pkg.version !== semver) {
+      pkg.version = semver;
+      writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+      console.log(`[version] package.json: ${pprev || '?'} -> ${semver}`);
+    }
+  } catch (e) {
+    console.warn('[version] package.json no actualizado:', e.message);
+  }
 }

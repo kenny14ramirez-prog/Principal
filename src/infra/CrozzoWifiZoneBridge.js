@@ -6,11 +6,15 @@
   'use strict';
 
   var HOTSPOT_GATEWAYS = ['192.168.137.1', '192.168.43.1', '192.168.4.1', '192.168.0.1', '10.0.0.1'];
-  var WATCH_MS = 16000;
+  // Vigilancia adaptativa: tranquila cuando todo va bien, ágil al primer problema.
+  var WATCH_HEALTHY_MS = 16000;
+  var WATCH_DEGRADED_MS = 5000;
   var DISCOVER_COOLDOWN_MS = 8000;
   var __watchTimer = null;
   var __lastDiscoverTry = 0;
   var __watchStarted = false;
+  var __degraded = false;
+  var __troubleT = null;
 
   function md() {
     return typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
@@ -202,8 +206,12 @@
     if (cfg.role !== 'B' || cfg.allowLan === false) return;
     var port = Number(cfg.port) || 3000;
     var ip = String(cfg.centralIp || '').trim();
-    if (ip && (await tryHealth(ip, port, 1100))) return;
-    await resolveCentral({ force: true });
+    if (ip && (await tryHealth(ip, port, 1100))) {
+      __degraded = false; // caja localizada: volver a ritmo tranquilo
+      return;
+    }
+    var hit = await resolveCentral({ force: true });
+    __degraded = !hit; // si no se reencontró, seguir ágil
     try {
       if (global.__crozzoGetMultiSyncRouter) {
         var r = global.__crozzoGetMultiSyncRouter();
@@ -215,25 +223,55 @@
     } catch (_) {}
   }
 
+  function scheduleNextWatch() {
+    if (!__watchStarted) return;
+    if (__watchTimer) clearTimeout(__watchTimer);
+    var delay = __degraded ? WATCH_DEGRADED_MS : WATCH_HEALTHY_MS;
+    __watchTimer = global.setTimeout(function () {
+      watchTick()
+        .catch(function () {})
+        .then(scheduleNextWatch, scheduleNextWatch);
+    }, delay);
+  }
+
   function startWatch() {
     if (__watchStarted) return;
     var cfg = md();
     if (cfg.role !== 'B' && cfg.role !== 'A') return;
     __watchStarted = true;
-    if (__watchTimer) clearInterval(__watchTimer);
-    __watchTimer = global.setInterval(function () {
-      watchTick().catch(function () {});
-    }, WATCH_MS);
-    watchTick().catch(function () {});
+    if (__watchTimer) clearTimeout(__watchTimer);
+    watchTick()
+      .catch(function () {})
+      .then(scheduleNextWatch, scheduleNextWatch);
   }
 
   function stopWatch() {
     __watchStarted = false;
     if (__watchTimer) {
-      clearInterval(__watchTimer);
+      clearTimeout(__watchTimer);
       __watchTimer = null;
     }
   }
+
+  // Reconexión instantánea: cuando una petición LAN falla, no esperamos al
+  // siguiente ciclo — reintentamos localizar la caja en ~1.2s (debounced).
+  function signalLanTrouble() {
+    __degraded = true;
+    if (__troubleT) return;
+    __troubleT = global.setTimeout(function () {
+      __troubleT = null;
+      var cfg = md();
+      if (cfg.role !== 'B' || cfg.allowLan === false) return;
+      resolveCentral({ force: true })
+        .then(function () {
+          if (typeof global.crozzoScheduleConnectivityBadge === 'function') {
+            global.crozzoScheduleConnectivityBadge();
+          }
+        })
+        .catch(function () {});
+    }, 1200);
+  }
+  global.crozzoSignalLanTrouble = signalLanTrouble;
 
   global.CrozzoWifiZoneBridge = {
     resolveCentral: resolveCentral,
@@ -241,6 +279,7 @@
     persistCentralIp: persistCentralIp,
     startWatch: startWatch,
     stopWatch: stopWatch,
+    signalTrouble: signalLanTrouble,
     isHotspotGateway: isHotspotGateway,
     HOTSPOT_GATEWAYS: HOTSPOT_GATEWAYS,
   };

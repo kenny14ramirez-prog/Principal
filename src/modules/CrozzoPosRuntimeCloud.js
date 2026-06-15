@@ -321,7 +321,9 @@
       var res = await global.fetch('http://' + host + ':' + port + '/api/sync', {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: (typeof global.crozzoLanAuthHeaders === 'function'
+          ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify({
           uuid: 'rt_' + String(snap.savedAt || Date.now()),
           businessId: c.businessId,

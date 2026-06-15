@@ -4,13 +4,21 @@
 use crate::crozzo_lan_ws;
 use crate::crozzo_mdns;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
 const DEFAULT_PORT: u16 = 3000;
+/// Cabecera con la que las tablets (Rol B) firman las peticiones de escritura.
+const LAN_AUTH_HEADER: &str = "x-crozzo-lan-token";
+/// Tiempo que una operación drenada espera un ACK antes de volver a ofrecerse (reintento).
+const INFLIGHT_TTL_MS: u128 = 20_000;
+/// Tope de operaciones persistidas para no crecer sin límite.
+const PENDING_MAX: usize = 2000;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,9 +62,15 @@ struct ServerInner {
     port: u16,
     meta: ServerMeta,
     pending: Vec<CrozzoLanSyncSubmission>,
+    /// id → instante (ms) en que se entregó al JS; espera ACK antes de reintentar.
+    in_flight: HashMap<String, u128>,
     runtime_snapshot: Option<serde_json::Value>,
     runtime_saved_at: String,
     p2p_signals: Vec<P2pSignalMsg>,
+    /// Secreto compartido del pareo. Vacío = sin exigir auth (compatibilidad).
+    auth_token: String,
+    /// Archivo donde se persiste `pending` (sobrevive reinicios).
+    pending_path: Option<PathBuf>,
     stop: bool,
 }
 
@@ -71,11 +85,82 @@ fn server_thread() -> &'static Mutex<Option<thread::JoinHandle<()>>> {
 }
 
 fn now_ms() -> String {
+    now_ms_u128().to_string()
+}
+
+fn now_ms_u128() -> u128 {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis().to_string())
-        .unwrap_or_else(|_| "0".into())
+        .map(|d| d.as_millis())
+        .unwrap_or(0)
+}
+
+/// Sufijo monotónico para evitar colisiones de id cuando llegan varias
+/// operaciones en el mismo milisegundo.
+fn rand_suffix() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static CTR: AtomicU64 = AtomicU64::new(0);
+    format!("{:x}", CTR.fetch_add(1, Ordering::Relaxed))
+}
+
+/// Extrae el valor de una cabecera HTTP (nombre en minúsculas) del request crudo.
+fn header_value(raw: &str, name_lower: &str) -> Option<String> {
+    for line in raw.split("\r\n") {
+        if line.is_empty() {
+            break;
+        }
+        if let Some(idx) = line.find(':') {
+            let key = line[..idx].trim().to_ascii_lowercase();
+            if key == name_lower {
+                return Some(line[idx + 1..].trim().to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Ruta del archivo de cola persistida (sobrevive reinicios de la caja).
+fn pending_file_in(dir: &str) -> Option<PathBuf> {
+    let base = dir.trim();
+    let mut p = if base.is_empty() {
+        // Fallback: APPDATA (Windows) / HOME / temp.
+        let env_base = std::env::var("APPDATA")
+            .ok()
+            .or_else(|| std::env::var("HOME").ok())
+            .unwrap_or_else(|| std::env::temp_dir().to_string_lossy().to_string());
+        let mut pb = PathBuf::from(env_base);
+        pb.push("BonaOrigenPOS");
+        pb
+    } else {
+        PathBuf::from(base)
+    };
+    let _ = std::fs::create_dir_all(&p);
+    p.push("crozzo_lan_pending.json");
+    Some(p)
+}
+
+fn load_pending(path: &Option<PathBuf>) -> Vec<CrozzoLanSyncSubmission> {
+    if let Some(p) = path {
+        if let Ok(txt) = std::fs::read_to_string(p) {
+            if let Ok(v) = serde_json::from_str::<Vec<CrozzoLanSyncSubmission>>(&txt) {
+                return v;
+            }
+        }
+    }
+    Vec::new()
+}
+
+fn save_pending(path: &Option<PathBuf>, pending: &[CrozzoLanSyncSubmission]) {
+    if let Some(p) = path {
+        if let Ok(txt) = serde_json::to_string(pending) {
+            // Escritura atómica: archivo temporal + rename para evitar corrupción.
+            let tmp = p.with_extension("json.tmp");
+            if std::fs::write(&tmp, txt.as_bytes()).is_ok() {
+                let _ = std::fs::rename(&tmp, p);
+            }
+        }
+    }
 }
 
 fn write_http_response(
@@ -156,6 +241,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
         Ok(0) | Err(_) => return,
         Ok(n) => n,
     };
+    let raw_text = String::from_utf8_lossy(&buf[..n]).to_string();
     let (method, path, body) = match parse_request(&buf[..n]) {
         Some(v) => v,
         None => return,
@@ -166,10 +252,10 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
         return;
     }
 
-    let (meta, port) = {
+    let (meta, port, auth_token) = {
         let guard = state.lock().unwrap();
         match guard.as_ref() {
-            Some(s) => (s.meta.clone(), s.port),
+            Some(s) => (s.meta.clone(), s.port, s.auth_token.clone()),
             None => {
                 let msg = b"{\"ok\":false,\"error\":\"server_stopped\"}";
                 let _ = write_http_response(
@@ -183,6 +269,12 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             }
         }
     };
+
+    // Auth de escritura: si la caja tiene token de pareo, las peticiones POST de
+    // datos deben firmarse con la cabecera x-crozzo-lan-token. Los GET de
+    // descubrimiento (/health, /status, /mesh-ping) quedan abiertos a propósito.
+    let provided_token = header_value(&raw_text, LAN_AUTH_HEADER).unwrap_or_default();
+    let auth_ok = auth_token.is_empty() || provided_token == auth_token;
 
     if method == "GET" && (path == "/health" || path == "/health/") {
         let msg = b"{\"ok\":true,\"service\":\"crozzo-lan-sync\"}";
@@ -270,6 +362,16 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
     }
 
     if method == "POST" && (path == "/api/p2p/signal" || path == "/api/p2p/signal/") {
+        if !auth_ok {
+            let _ = write_http_response(
+                &mut stream,
+                401,
+                "Unauthorized",
+                "application/json",
+                b"{\"ok\":false,\"error\":\"auth_required\"}",
+            );
+            return;
+        }
         let payload: serde_json::Value = match serde_json::from_str(&body) {
             Ok(v) => v,
             Err(_) => {
@@ -316,6 +418,16 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
 
     if method == "POST" {
         if let Some(endpoint) = normalize_api_path(&path) {
+            if !auth_ok {
+                let _ = write_http_response(
+                    &mut stream,
+                    401,
+                    "Unauthorized",
+                    "application/json",
+                    b"{\"ok\":false,\"error\":\"auth_required\"}",
+                );
+                return;
+            }
             let payload: serde_json::Value = match serde_json::from_str(&body) {
                 Ok(v) => v,
                 Err(_) => {
@@ -356,18 +468,26 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                 let _ = crozzo_lan_ws::broadcast_text(&txt);
             }
             let sub = CrozzoLanSyncSubmission {
-                id: format!("lan_{}", now_ms()),
+                id: format!("lan_{}_{}", now_ms(), rand_suffix()),
                 received_at: now_ms(),
                 endpoint,
                 payload,
             };
+            // Persistir ANTES de responder ok → la tablet recibe un ACK durable
+            // (no se pierde si la caja se reinicia).
             {
                 let mut guard = state.lock().unwrap();
                 if let Some(inner) = guard.as_mut() {
                     inner.pending.push(sub.clone());
+                    if inner.pending.len() > PENDING_MAX {
+                        let overflow = inner.pending.len() - PENDING_MAX;
+                        inner.pending.drain(0..overflow);
+                    }
+                    let path = inner.pending_path.clone();
+                    save_pending(&path, &inner.pending);
                 }
             }
-            let resp = serde_json::json!({ "ok": true, "id": sub.id });
+            let resp = serde_json::json!({ "ok": true, "id": sub.id, "durable": true });
             let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
             let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
             return;
@@ -429,6 +549,8 @@ pub fn crozzo_lan_sync_start(
     location_id: Option<String>,
     device_id: Option<String>,
     business_id: Option<String>,
+    auth_token: Option<String>,
+    data_dir: Option<String>,
 ) -> Result<CrozzoLanSyncStatus, String> {
     let port = port.unwrap_or(DEFAULT_PORT);
     if port < 1024 {
@@ -443,16 +565,21 @@ pub fn crozzo_lan_sync_start(
     let loc_id = meta.location_id.clone();
     let dev_id = meta.device_id.clone();
     let biz_id = meta.business_id.clone();
+    let pending_path = pending_file_in(&data_dir.unwrap_or_default());
+    let restored = load_pending(&pending_path);
     let shared = Arc::clone(shared_state());
     {
         let mut guard = shared.lock().map_err(|e| e.to_string())?;
         *guard = Some(ServerInner {
             port,
             meta,
-            pending: Vec::new(),
+            pending: restored,
+            in_flight: HashMap::new(),
             runtime_snapshot: None,
             runtime_saved_at: String::new(),
             p2p_signals: Vec::new(),
+            auth_token: auth_token.unwrap_or_default().trim().to_string(),
+            pending_path,
             stop: false,
         });
     }
@@ -526,10 +653,50 @@ pub fn crozzo_lan_sync_drain_pending() -> Result<Vec<CrozzoLanSyncSubmission>, S
     let mut guard = shared_state().lock().map_err(|e| e.to_string())?;
     match guard.as_mut() {
         Some(inner) => {
-            let out = std::mem::take(&mut inner.pending);
+            let now = now_ms_u128();
+            // Purgar el registro in-flight de ids que ya no existen.
+            let ids: std::collections::HashSet<String> =
+                inner.pending.iter().map(|s| s.id.clone()).collect();
+            inner.in_flight.retain(|k, _| ids.contains(k));
+            // Ofrecer solo lo que no está in-flight o cuyo ACK venció (reintento).
+            let mut out = Vec::new();
+            for sub in inner.pending.iter() {
+                let df = inner.in_flight.get(&sub.id).copied().unwrap_or(0);
+                if now.saturating_sub(df) >= INFLIGHT_TTL_MS {
+                    out.push(sub.clone());
+                }
+            }
+            for sub in out.iter() {
+                inner.in_flight.insert(sub.id.clone(), now);
+            }
             Ok(out)
         }
         None => Ok(Vec::new()),
+    }
+}
+
+/// Confirma (ACK) que el JS aplicó las operaciones: las elimina de la cola
+/// persistida. Lo que no se confirma se vuelve a ofrecer tras INFLIGHT_TTL_MS.
+#[tauri::command]
+pub fn crozzo_lan_sync_ack(ids: Vec<String>) -> Result<usize, String> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let mut guard = shared_state().lock().map_err(|e| e.to_string())?;
+    match guard.as_mut() {
+        Some(inner) => {
+            let set: std::collections::HashSet<&String> = ids.iter().collect();
+            let before = inner.pending.len();
+            inner.pending.retain(|s| !set.contains(&s.id));
+            for id in ids.iter() {
+                inner.in_flight.remove(id);
+            }
+            let removed = before - inner.pending.len();
+            let path = inner.pending_path.clone();
+            save_pending(&path, &inner.pending);
+            Ok(removed)
+        }
+        None => Ok(0),
     }
 }
 

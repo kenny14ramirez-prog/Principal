@@ -741,6 +741,13 @@ async function syncOfflineQueue(opts) {
       return { ok: true, pushed: 0, skipped: 'throttle_gap' };
     }
   }
+  // Candado de re-entrancia (fail-safe con TTL): evita que dos drenados solapados
+  // de la misma cola inserten el mismo lote a la vez.
+  if (window.__crozzoSyncQueueBusy && Date.now() - window.__crozzoSyncQueueBusy < 30000) {
+    return { ok: true, pushed: 0, skipped: 'busy_reentrant' };
+  }
+  window.__crozzoSyncQueueBusy = Date.now();
+  try {
   let pending = readOfflineQueue();
   if (window.CrozzoIdempotentSync && typeof CrozzoIdempotentSync.deduplicateQueue === 'function') {
     const ded = CrozzoIdempotentSync.deduplicateQueue(pending);
@@ -828,6 +835,9 @@ async function syncOfflineQueue(opts) {
   }
   writeOfflineQueue(remain);
   return { ok: true, pushed, remaining: remain.length, batched: batch.length };
+  } finally {
+    window.__crozzoSyncQueueBusy = 0;
+  }
 }
 function mapDbRoleToAppRole(dbRole) {
   const r = String(dbRole || '').toLowerCase().replace(/\s+/g, '_');

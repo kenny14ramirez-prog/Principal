@@ -106,6 +106,7 @@
       loc: String(p.location_id || (p.network_primary && p.network_primary.location_id) || '').trim(),
       ss: String((p.network_primary && p.network_primary.ssid_note) || p.network_ssid || '').trim().slice(0, 80),
       ts: Number(p.timestamp) || Date.now(),
+      k: String((lan && lan.lan_token) || p.lan_token || '').trim().slice(0, 96),
     };
     return PAIR_FAST_PREFIX + base64UrlEncode(new TextEncoder().encode(JSON.stringify(compact)));
   }
@@ -134,6 +135,7 @@
         allow_lan: true,
         offline_enabled: true,
         cloud_priority: true,
+        lan_token: String(compact.k || '').trim(),
       },
       location_id: String(compact.loc || '').trim(),
       network_ssid: String(compact.ss || '').trim(),

@@ -162,4 +162,4 @@
   global.addEventListener('crozzo-ready', function () {
     setTimeout(applyLayoutPolish, 100);
   });
-})();
+})(typeof window !== 'undefined' ? window : globalThis);

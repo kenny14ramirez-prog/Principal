@@ -31,6 +31,64 @@
     return Promise.reject(new Error('Tauri invoke no disponible'));
   }
 
+  // ---- Token de pareo LAN (autenticación entre dispositivos) ----
+  function genLanToken() {
+    try {
+      var a = new Uint8Array(24);
+      (global.crypto || global.msCrypto).getRandomValues(a);
+      return Array.prototype.map
+        .call(a, function (b) {
+          return ('0' + b.toString(16)).slice(-2);
+        })
+        .join('');
+    } catch (_) {
+      return 'lt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+    }
+  }
+  // Lee el token actual (Rol A o Rol B) de crozzo_lan_config / multidispositivo.
+  function lanAuthToken() {
+    try {
+      var raw = global.localStorage.getItem('crozzo_lan_config');
+      var lan = raw ? JSON.parse(raw) : null;
+      if (lan && lan.lanToken) return String(lan.lanToken);
+    } catch (_) {}
+    try {
+      var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
+      if (md && md.lanToken) return String(md.lanToken);
+    } catch (_) {}
+    return '';
+  }
+  // Rol A: asegura que exista un token; lo crea y persiste si falta.
+  function lanTokenEnsure() {
+    try {
+      var raw = global.localStorage.getItem('crozzo_lan_config');
+      var lan = raw ? JSON.parse(raw) : {};
+      if (!lan.lanToken) {
+        lan.lanToken = genLanToken();
+        lan.savedAt = Date.now();
+        global.localStorage.setItem('crozzo_lan_config', JSON.stringify(lan));
+        try {
+          if (typeof global.getMultiDeviceConfig === 'function' && typeof global.persistMultiDeviceConfig === 'function') {
+            var md = global.getMultiDeviceConfig() || {};
+            md.lanToken = lan.lanToken;
+            global.persistMultiDeviceConfig(md);
+          }
+        } catch (_) {}
+      }
+      return lan.lanToken;
+    } catch (_) {
+      return '';
+    }
+  }
+  // Headers para peticiones LAN (firma con el token si existe).
+  global.crozzoLanAuthToken = lanAuthToken;
+  global.crozzoLanAuthHeaders = function (extra) {
+    var h = extra ? Object.assign({}, extra) : {};
+    var t = lanAuthToken();
+    if (t) h['X-Crozzo-Lan-Token'] = t;
+    return h;
+  };
+
   function crozzoIsLocalLanHost(ip) {
     var host = String(ip || '').trim().toLowerCase();
     if (!host || host === '127.0.0.1' || host === 'localhost' || host === '::1') return true;
@@ -157,15 +215,19 @@
     if (!items || !items.length) return 0;
     var n = 0;
     var comandas = 0;
+    var ackIds = [];
     for (var i = 0; i < items.length; i++) {
+      var itemId = items[i] && items[i].id;
       if (tryApplyLanComandaEstado(items[i])) {
         comandas++;
         n++;
+        if (itemId) ackIds.push(itemId);
         continue;
       }
       if (tryApplyLanComanda(items[i])) {
         comandas++;
         n++;
+        if (itemId) ackIds.push(itemId);
         continue;
       }
       var env = envelopeFromSubmission(items[i]);
@@ -173,12 +235,20 @@
         if (typeof global.crozzoInboundP2PToMirror === 'function') {
           await global.crozzoInboundP2PToMirror(env);
           n++;
+          if (itemId) ackIds.push(itemId);
         }
       } catch (e) {
+        // No confirmamos: el central la volverá a ofrecer tras el TTL (reintento).
         try {
           console.warn('[lan-sync] mirror', e);
         } catch (_) {}
       }
+    }
+    // ACK: confirmar al central lo aplicado para que lo borre de su cola persistida.
+    if (ackIds.length) {
+      try {
+        await invoke('crozzo_lan_sync_ack', { ids: ackIds });
+      } catch (_) {}
     }
     if (n > 0 && typeof global.crozzoWizardTierLogLine === 'function') {
       var msg = 'LAN HTTP → central: ' + n + ' operación(es)';
@@ -291,6 +361,9 @@
         global.persistMultiDeviceConfig(global.getMultiDeviceConfig());
       } catch (_) {}
     }
+    try {
+      lanTokenEnsure();
+    } catch (_) {}
     if (global.CrozzoNetworkGuard && typeof global.CrozzoNetworkGuard.setIsActiveServer === 'function') {
       global.CrozzoNetworkGuard.setIsActiveServer(true);
     }
@@ -332,6 +405,7 @@
         locationId: String(md.locationId || '').trim(),
         deviceId: String(md.deviceId || '').trim(),
         businessId: String(md.businessId || '').trim(),
+        authToken: lanTokenEnsure(),
       });
       startPolling();
       return st;
@@ -356,6 +430,7 @@
         locationId: String(md.locationId || '').trim(),
         deviceId: String(md.deviceId || '').trim(),
         businessId: String(md.businessId || '').trim(),
+        authToken: lanTokenEnsure(),
       });
       startPolling();
       await drainPendingOnce();

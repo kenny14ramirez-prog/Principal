@@ -15,6 +15,8 @@ mod crozzo_print;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_http;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_hotspot;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_silent_install;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_adquiriente;
@@ -139,7 +141,15 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_drain_pending,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_ack,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_health,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_hotspot::crozzo_hotspot_start,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_hotspot::crozzo_hotspot_stop,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_hotspot::crozzo_hotspot_status,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_ws::crozzo_lan_ws_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

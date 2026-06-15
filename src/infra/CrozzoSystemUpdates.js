@@ -3808,6 +3808,12 @@
   function checkForUpdates(opts) {
     opts = opts || {};
 
+    // Backoff offline: en chequeos automáticos (silenciosos) no intentamos ni
+    // hacemos ruido si no hay internet — se reanuda solo al volver la red.
+    if (opts.silent && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return Promise.resolve({ ok: false, reason: 'offline', skipped: true });
+    }
+
     return refreshBinaryVersion()
       .then(function () {
         return fetchRegistryData();
@@ -4390,6 +4396,12 @@
           refreshBinaryVersion().then(function () {
             checkForUpdates({ silent: true });
           });
+        });
+        // Al recuperar la red, ponerse al día (tras el backoff offline).
+        global.addEventListener('online', function () {
+          setTimeout(function () {
+            checkForUpdates({ silent: true });
+          }, 1500);
         });
       }
     });

@@ -4698,10 +4698,11 @@ class CrozzoSyncRouter {
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         await fetch(`http://${ip}:${port}${endpoint}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: (typeof crozzoLanAuthHeaders === 'function'
+            ? crozzoLanAuthHeaders({ 'Content-Type': 'application/json' })
+            : { 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
-          signal: controller.signal,
-          mode: 'no-cors'
+          signal: controller.signal
         });
         clearTimeout(timeoutId);
         payload.status = 'synced';
@@ -4774,10 +4775,11 @@ class CrozzoSyncRouter {
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     await fetch(`http://${ip}:${port}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: (typeof crozzoLanAuthHeaders === 'function'
+        ? crozzoLanAuthHeaders({ 'Content-Type': 'application/json' })
+        : { 'Content-Type': 'application/json' }),
       body: JSON.stringify(item),
-      signal: controller.signal,
-      mode: 'no-cors'
+      signal: controller.signal
     });
     clearTimeout(timeoutId);
     return { success: true };
@@ -27453,7 +27455,27 @@ async function crozzoPingGatewayQuick(gw) {
 window.crozzoGatewayGuessForTier = crozzoGatewayGuessForTier;
 window.crozzoPingGatewayQuick = crozzoPingGatewayQuick;
 window.crozzoPingHealthQuick = crozzoPingHealthQuick;
-var CROZZO_LAN_OK_CACHE_MS = 28000;
+var CROZZO_LAN_OK_CACHE_MS = 8000;
+// Cuenta de operaciones pendientes por sincronizar (ventas en cola local + router).
+function crozzoPendingSyncCount() {
+  var n = 0;
+  try {
+    var raw = localStorage.getItem('crozzo_sync_queue') || localStorage.getItem('sync_queue_temp');
+    if (raw) {
+      var a = JSON.parse(raw);
+      if (Array.isArray(a)) n += a.length;
+    }
+  } catch (_) {}
+  try {
+    if (typeof multiSyncRouter !== 'undefined' && multiSyncRouter && Array.isArray(multiSyncRouter.queue)) {
+      n += multiSyncRouter.queue.filter(function (x) {
+        return x && x.status !== 'synced';
+      }).length;
+    }
+  } catch (_) {}
+  return n;
+}
+window.crozzoPendingSyncCount = crozzoPendingSyncCount;
 /** LAN local (HTTP :3000 / servidor Tauri) — no requiere internet WAN. */
 async function crozzoProbeLocalLanReachable(md, opts) {
   const cfg = md || getMultiDeviceConfig();
@@ -27663,7 +27685,17 @@ function updateConnectivityTierBadge(tierInfo) {
   } catch (_) {}
   var tip = m.title + (tierInfo && tierInfo.reason ? ' — ' + tierInfo.reason : '');
   if (p2pOn) tip += ' — WebRTC enlazado con caja central';
-  crozzoSetStatusPill(el, m.dot, m.text, tip, 'crozzo-status-pill crozzo-mobile-secondary');
+  var text = m.text;
+  var dot = m.dot;
+  try {
+    var pend = crozzoPendingSyncCount();
+    if (pend > 0) {
+      text += ' · ' + pend + ' pend.';
+      tip += ' — ' + pend + ' operación(es) por sincronizar (se envían solas al reconectar)';
+      if (dot === 'ok') dot = 'warn';
+    }
+  } catch (_) {}
+  crozzoSetStatusPill(el, dot, text, tip, 'crozzo-status-pill crozzo-mobile-secondary');
 }
 function crozzoWizardTierLogLine(msg) {
   try {
@@ -27760,7 +27792,9 @@ const CrozzoP2PDataHub = {
     try {
       const res = await fetch(base + '/api/p2p/signal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: (typeof crozzoLanAuthHeaders === 'function'
+          ? crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify(payload),
         cache: 'no-store',
         credentials: 'omit'
@@ -28507,14 +28541,20 @@ class MultiDeviceSyncRouter {
       const res = await fetch(`http://${ip}:${port}${endpoint}`, {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: (typeof crozzoLanAuthHeaders === 'function'
+          ? crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
         body: JSON.stringify({ uuid: item.uuid, businessId: item.businessId, deviceId: item.deviceId, type: item.type, data: item.payload })
       });
       clearTimeout(t);
-      if (!res.ok) return false;
+      if (!res.ok) {
+        if (typeof window.crozzoSignalLanTrouble === 'function') window.crozzoSignalLanTrouble();
+        return false;
+      }
       const j = await res.json().catch(() => null);
       return !!(j && j.ok !== false);
     } catch (err) {
+      if (typeof window.crozzoSignalLanTrouble === 'function') window.crozzoSignalLanTrouble();
       if (err && err.name === 'AbortError') return false;
       return false;
     }
@@ -28810,7 +28850,26 @@ function crozzoOpenServerConflictModal(peers) {
       const ip = p.ip || '';
       return ip ? `${id} @ ${ip}` : String(id);
     });
-    body.textContent = lines.length ? lines.join('\n') : 'Otro Servidor Central respondió vía red / nube.';
+    // Elección de líder determinista: gana la caja con el deviceId más bajo
+    // (estable en todos los dispositivos). La otra debería ceder y pasar a Rol B.
+    let leaderNote = '';
+    let iAmLeader = true;
+    try {
+      const myId = String(
+        (typeof getMultiDeviceConfig === 'function' && (getMultiDeviceConfig().deviceId || '')) ||
+          (typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : '')
+      ).trim();
+      const ids = [myId].concat(
+        (peers || []).map((p) => String((p.payload && p.payload.device_id) || '').trim()).filter(Boolean)
+      );
+      const leader = ids.filter(Boolean).sort()[0] || myId;
+      iAmLeader = !leader || leader === myId;
+      leaderNote = iAmLeader
+        ? '\n\nRecomendado: esta caja es la PRINCIPAL (id más bajo). Mantenga el rol Caja (A) y pase las otras a Rol B.'
+        : '\n\nRecomendado: esta caja debe CEDER. Pulse «Pasar a Rol B» — la otra caja (id más bajo) queda como principal.';
+    } catch (_) {}
+    body.textContent =
+      (lines.length ? lines.join('\n') : 'Otro Servidor Central respondió vía red / nube.') + leaderNote;
     modal.hidden = false;
     const done = (v) => {
       modal.hidden = true;
@@ -28822,6 +28881,11 @@ function crozzoOpenServerConflictModal(peers) {
     const b1 = document.getElementById('crozzoConflictOptB');
     const b2 = document.getElementById('crozzoConflictOptForce');
     const b3 = document.getElementById('crozzoConflictOptCancel');
+    // Resaltar la acción recomendada según la elección de líder.
+    try {
+      if (b1) b1.classList.toggle('btn-primary', !iAmLeader);
+      if (b2) b2.classList.toggle('btn-primary', iAmLeader);
+    } catch (_) {}
     if (b1) b1.onclick = () => done('to_b');
     if (b2) b2.onclick = () => done('force_a');
     if (b3) b3.onclick = () => done('cancel');
@@ -30067,6 +30131,19 @@ function renderConfigMultidispositivo() {
           <button type="button" class="btn btn-primary" onclick="saveLANConfig()">💾 Guardar configuración LAN</button>
         </div>
         <p class="form-hint" style="margin-top:10px;">Si activas LAN con rol <strong>B</strong>, debes indicar una IP válida del servidor antes de guardar. Usa <strong>Probar conexión LAN</strong> para validar.</p>
+        <div class="md-hotspot-card" style="margin-top:16px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--bg-secondary);">
+          <h4 style="margin:0 0 6px;font-size:0.95rem;">📡 Hotspot de respaldo (caja · Windows)</h4>
+          <p class="form-hint" style="margin:0 0 10px;">Si se cae el router o el internet, la caja comparte su propia red Wi‑Fi y las tablets se reconectan solas. (Solo en la app de escritorio.)</p>
+          <label class="md-toggle">
+            <input type="checkbox" id="mdAutoHotspot" ${(function(){try{return localStorage.getItem('crozzo_auto_hotspot_v1')==='1'?'checked':'';}catch(_){return '';}})()} onchange="crozzoSetAutoHotspot(this.checked)">
+            <span>Activar el hotspot automáticamente al quedarse sin red</span>
+          </label>
+          <div class="btn-group" style="margin-top:10px;">
+            <button type="button" class="btn btn-outline" onclick="crozzoHotspotManual('on')">📡 Encender hotspot ahora</button>
+            <button type="button" class="btn btn-outline" onclick="crozzoHotspotManual('off')">⛔ Apagar hotspot</button>
+          </div>
+          <div class="form-hint" id="mdHotspotStatus" style="margin-top:8px;">⏳ Estado del hotspot sin comprobar</div>
+        </div>
       </div>
       <!-- Estado y prioridad -->
       <h3 style="font-size:1rem; margin:22px 0 8px;">Estado en tiempo real</h3>
@@ -39083,25 +39160,26 @@ function init() {
     bindOne('crozzoPairingGalleryInput');
   }
   function crozzoPairingSyncReaderActions() {
-    var isApk = crozzoPairingReaderIsFieldDevice();
     var liveBtn = el('crozzoPairingBtnLiveScan');
     var photoLbl = el('crozzoPairingBtnPhoto');
     var galLbl = el('crozzoPairingBtnGallery');
     var nativeBtn = el('crozzoPairingBtnNativeScan');
-    var reader = window.CrozzoPairingQrReader;
-    var hasNative = !!(reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner());
+    // El lector QR vive dentro de la app: la cámara en vivo es el método principal
+    // en todos los dispositivos. El escáner nativo del sistema ya no se usa por
+    // defecto (causaba pantalla negra en varios equipos).
     if (nativeBtn) {
-      nativeBtn.style.display = hasNative ? '' : 'none';
-      nativeBtn.textContent = '📷 Escanear QR (cámara nativa)';
+      nativeBtn.style.display = 'none';
     }
     if (liveBtn) {
-      liveBtn.textContent = isApk ? '▶ Cámara en vivo' : '◎ Escáner óptico';
-      liveBtn.style.display = isApk ? 'none' : '';
+      liveBtn.textContent = '📷 Escanear con la cámara';
+      liveBtn.classList.add('btn-primary');
+      liveBtn.classList.remove('btn-outline');
+      liveBtn.style.display = '';
     }
     if (photoLbl) {
-      photoLbl.textContent = isApk ? '📷 Tomar foto del QR' : '📷 Foto con cámara';
-      photoLbl.classList.toggle('btn-primary', !hasNative);
-      photoLbl.classList.toggle('btn-outline', !!hasNative);
+      photoLbl.textContent = '📸 Tomar foto del QR';
+      photoLbl.classList.remove('btn-primary');
+      photoLbl.classList.add('btn-outline');
       photoLbl.style.display = '';
     }
     if (galLbl) {
@@ -39365,7 +39443,11 @@ function init() {
           port: port,
           allow_lan: true,
           offline_enabled: true,
-          cloud_priority: md.cloudPriority !== false
+          cloud_priority: md.cloudPriority !== false,
+          lan_token:
+            (lanSnap && lanSnap.lanToken) ||
+            (typeof window.crozzoLanAuthToken === 'function' ? window.crozzoLanAuthToken() : '') ||
+            ''
         },
         supabase_url: cloudOn ? url : '',
         supabase_key: cloudOn ? key : '',
@@ -39882,13 +39964,8 @@ function init() {
     if (titleEl) titleEl.textContent = 'Enlazar terminal de campo';
     var hintEl = el('crozzoPairingReaderHint');
     if (hintEl) {
-      var reader = window.CrozzoPairingQrReader;
-      var hasNative = !!(reader && typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner());
-      hintEl.textContent = crozzoPairingReaderIsFieldDevice()
-        ? hasNative
-          ? 'Pulse «Escanear QR (cámara nativa)» — cámara a pantalla completa. Al leer el QR vuelve este panel automáticamente.'
-          : 'Pulse «Tomar foto del QR», enfoque el código grande de la caja y confirme. Si falla, pegue el código copiado en la caja.'
-        : 'Centre el QR de la caja en el marco. Use «Escáner óptico», foto o galería si hace falta.';
+      hintEl.textContent =
+        'La app lee el QR con su propia cámara. Centre el código grande de la caja en el marco. Si su equipo no muestra la cámara, use «Tomar foto del QR» o «Galería».';
     }
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
@@ -39902,17 +39979,20 @@ function init() {
       window.CrozzoPairingQrReader.ensureReady().catch(function () {});
     }
     try {
-      var reader0 = window.CrozzoPairingQrReader;
-      var hasNative0 = !!(reader0 && typeof reader0.hasNativeScanner === 'function' && reader0.hasNativeScanner());
-      if (crozzoPairingReaderIsFieldDevice()) {
-        crozzoPairingShowStatus(
-          hasNative0
-            ? 'Pulse «Escanear QR (cámara nativa)» — se abre la cámara del sistema, no la caja negra de abajo.'
-            : 'Pulse «Tomar foto del QR», enfoque el código grande de la caja y confirme.',
-          false
-        );
-      } else if (typeof window.matchMedia === 'function' && window.matchMedia('(hover: none)').matches) {
-        crozzoPairingShowStatus('Modo táctil: use escáner nativo, foto o galería.', false);
+      var canLiveCam =
+        window.isSecureContext &&
+        navigator.mediaDevices &&
+        typeof navigator.mediaDevices.getUserMedia === 'function';
+      // En equipos de campo abrimos la cámara en-app automáticamente para un flujo fluido.
+      if (canLiveCam && crozzoPairingReaderIsFieldDevice()) {
+        crozzoPairingShowStatus('Abriendo cámara para escanear el QR…', { busy: true, phase: 'decode', progress: 8 });
+        window.setTimeout(function () {
+          if (typeof window.crozzoPairingStartScan === 'function') window.crozzoPairingStartScan();
+        }, 250);
+      } else if (canLiveCam) {
+        crozzoPairingShowStatus('Pulse «Escanear con la cámara» y centre el QR de la caja en el marco.', false);
+      } else {
+        crozzoPairingShowStatus('Pulse «Tomar foto del QR», enfoque el código de la caja y confirme.', false);
       }
     } catch (_) {}
   };
@@ -40038,59 +40118,78 @@ function init() {
         crozzoPairingShowStatus(hint, { isErr: msg !== 'perm_denied' && msg.indexOf('cancel') < 0 });
       });
   };
+  function crozzoPairingFallbackToPhoto(reason) {
+    if (reason) crozzoPairingShowStatus(reason, false);
+    if (typeof crozzoPairingPickPhoto === 'function') {
+      crozzoPairingPickPhoto();
+    } else {
+      crozzoPairingShowStatus('Use «Captura rápida», «Galería» o pegue el código de la caja.', true);
+    }
+  }
+  function crozzoPairingShowTorchBtn(canTorch) {
+    var actions = document.querySelector('.crozzo-pairing-reader-actions');
+    var btn = el('crozzoPairingBtnTorch');
+    if (!canTorch) {
+      if (btn) btn.style.display = 'none';
+      return;
+    }
+    if (!btn && actions) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'crozzoPairingBtnTorch';
+      btn.className = 'btn btn-outline';
+      btn.style.cssText = 'flex:1; min-width:120px; min-height:44px;';
+      btn.textContent = '🔦 Linterna';
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var reader = window.CrozzoPairingQrReader;
+        if (reader && typeof reader.toggleTorch === 'function') {
+          reader.toggleTorch().then(function (on) {
+            btn.classList.toggle('btn-primary', !!on);
+            btn.classList.toggle('btn-outline', !on);
+          });
+        }
+      });
+      actions.appendChild(btn);
+    }
+    if (btn) btn.style.display = '';
+  }
   window.crozzoPairingStartScan = function crozzoPairingStartScan() {
     const host = el('crozzoPairingReaderHost');
     if (!host) return;
     var reader = window.CrozzoPairingQrReader;
-    if (
-      reader &&
-      typeof reader.hasNativeScanner === 'function' &&
-      reader.hasNativeScanner() &&
-      (crozzoPairingReaderIsFieldDevice() || (typeof reader.preferNativeCamera === 'function' && reader.preferNativeCamera()))
-    ) {
-      if (typeof window.crozzoPairingScanNative === 'function') {
-        window.crozzoPairingScanNative();
-        return;
-      }
-    }
-    crozzoPairingStopScan();
     if (!reader || typeof reader.startLive !== 'function') {
       crozzoPairingShowStatus('Lector QR no cargado. Cierre y vuelva a abrir emparejamiento.', true);
       return;
     }
-    if (typeof reader.preferNativeCamera === 'function' && reader.preferNativeCamera()) {
-      if (typeof reader.hasNativeScanner === 'function' && reader.hasNativeScanner()) {
-        if (typeof window.crozzoPairingScanNative === 'function') {
-          window.crozzoPairingScanNative();
-          return;
-        }
-      }
-      crozzoPairingShowStatus('En tablet use foto o galería (más fiable que cámara en vivo).', false);
-      if (typeof crozzoPairingPickPhoto === 'function') {
-        crozzoPairingPickPhoto();
-        return;
-      }
-    }
-    if (!window.isSecureContext) {
-      crozzoPairingShowStatus(
-        'La cámara en vivo no está permitida aquí (p. ej. archivo local). Usa «Captura rápida» o pega el JSON.',
-        true
-      );
-      if (typeof showToast === 'function') {
-        showToast('Pulsa «Captura rápida» para abrir la cámara y leer el QR.', 'info');
-      }
+    crozzoPairingStopScan();
+    // La app lee el QR con su propia cámara (no depende de un lector externo del equipo).
+    // Si la cámara en vivo no está disponible, caemos a foto (funciona hasta en equipos viejos).
+    var liveUnavailable =
+      !window.isSecureContext ||
+      !navigator.mediaDevices ||
+      typeof navigator.mediaDevices.getUserMedia !== 'function';
+    if (liveUnavailable) {
+      crozzoPairingFallbackToPhoto('Cámara en vivo no disponible aquí. Abriendo cámara para tomar la foto del QR…');
       return;
     }
-    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-      crozzoPairingShowStatus('Cámara en vivo no disponible. Usa «Captura rápida» o pega JSON.', true);
-      return;
-    }
-    crozzoPairingShowStatus('Iniciando lector óptico…', { busy: true, phase: 'decode', progress: 10 });
+    crozzoPairingShowStatus('Iniciando cámara…', { busy: true, phase: 'decode', progress: 10 });
     reader
       .ensureReady()
+      .catch(function () {})
       .then(function () {
         return reader.startLive({
           host: host,
+          onReady: function (info) {
+            pairingScanner = { fromReader: true };
+            crozzoPairingSetScanZoneActive(true);
+            crozzoPairingShowTorchBtn(!!(info && info.canTorch));
+            crozzoPairingShowStatus('Cámara activa — centre el QR de la caja en el marco', {
+              busy: true,
+              phase: 'decode',
+              progress: 18,
+            });
+          },
           onResult: function (raw) {
             if (raw) crozzoPairingHandleDecoded(raw);
           },
@@ -40098,19 +40197,24 @@ function init() {
       })
       .then(function () {
         pairingScanner = { fromReader: true };
-        crozzoPairingSetScanZoneActive(true);
-        crozzoPairingShowStatus('Escaneo activo — centre el código en el marco', { busy: true, phase: 'decode', progress: 15 });
       })
       .catch(function (err) {
+        crozzoPairingSetScanZoneActive(false);
         var name = err && err.name ? String(err.name) : '';
-        var hint =
-          name === 'NotAllowedError' || name === 'PermissionDeniedError'
-            ? 'Permiso de cámara denegado. Vaya a Ajustes → Apps → BONA origen → Permisos y active Cámara. Luego use «Captura rápida».'
-            : 'Cámara: ' + (err && err.message ? err.message : 'no disponible') + '. Pruebe «Captura rápida», «Galería» o pegue el código.';
-        crozzoPairingShowStatus(hint, true);
-        if (typeof showToast === 'function') {
-          showToast(hint, name === 'NotAllowedError' ? 'warning' : 'error');
+        var msg = err && err.message ? String(err.message) : '';
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || msg === 'perm_denied') {
+          crozzoPairingShowStatus(
+            'Permiso de cámara denegado. Actívelo en Ajustes → Apps → BONA origen → Permisos → Cámara, o use «Captura rápida» / «Galería».',
+            true
+          );
+          if (typeof showToast === 'function') showToast('Active el permiso de Cámara para escanear en vivo.', 'warning');
+          return;
         }
+        if (name === 'NotFoundError' || name === 'OverconstrainedError' || msg === 'no_camera_api' || msg === 'no_stream') {
+          crozzoPairingFallbackToPhoto('No se encontró cámara para video en vivo. Use «Captura rápida» para tomar la foto del QR.');
+          return;
+        }
+        crozzoPairingFallbackToPhoto('No se pudo abrir la cámara en vivo. Use «Captura rápida» para tomar la foto del QR.');
       });
   };
   function crozzoPairingHandleDecoded(text) {
@@ -40336,6 +40440,8 @@ function init() {
     const loc = String(p.location_id || (p.network_primary && p.network_primary.location_id) || '').trim();
     const redA = String((p.network_primary && p.network_primary.ssid_note) || p.network_ssid || '').trim();
     const tp = String(p.target_profile || 'tablet').toLowerCase();
+    // Token de pareo LAN: firma las peticiones de esta tablet hacia la caja.
+    const lanToken = String(lan.lan_token || p.lan_token || '').trim();
     const L = {
       lanSyncEnabled: lan.lan_sync_enabled !== false,
       role: 'B',
@@ -40346,7 +40452,8 @@ function init() {
       offlineEnabled: lan.offline_enabled !== false,
       lanDeviceName: tp === 'pantalla' ? 'Pantalla emparejada' : 'Tablet emparejada',
       networkSsidNote: redA,
-      locationId: loc
+      locationId: loc,
+      lanToken: lanToken
     };
     if (typeof persistCrozzoLanFromObject === 'function') {
       const res = await persistCrozzoLanFromObject(L);
@@ -40371,7 +40478,16 @@ function init() {
     md.port = port;
     md.allowLan = true;
     md.cloudPriority = lan.cloud_priority !== false;
+    if (lanToken) md.lanToken = lanToken;
     config.set('multidispositivo', md);
+    if (lanToken) {
+      try {
+        const lanRaw = localStorage.getItem('crozzo_lan_config');
+        const lanObj = lanRaw ? JSON.parse(lanRaw) : {};
+        lanObj.lanToken = lanToken;
+        localStorage.setItem('crozzo_lan_config', JSON.stringify(lanObj));
+      } catch (_) {}
+    }
     try {
       if (p.network_fallback_b && p.network_fallback_b.ssid_note) {
         localStorage.setItem('crozzo_network_fallback_note', String(p.network_fallback_b.ssid_note).trim());

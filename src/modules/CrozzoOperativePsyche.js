@@ -31,7 +31,32 @@
   var WELCOME_BACK_LINES = [
     'De vuelta — siga cuando quiera, sin prisa.',
     'Bienvenido otra vez — todo sigue donde lo dejó.',
+    'Qué bueno tenerle de vuelta. Tómelo con calma.',
   ];
+
+  // Frases cálidas (acogida): se muestra una por día, de forma estable.
+  var WARM_PHRASES = [
+    'Tu trabajo hace que este lugar funcione. Gracias por estar hoy. 💛',
+    'Hazlo a tu ritmo — un paso a la vez, lo estás haciendo bien. 🌿',
+    'No tienes que saberlo todo: el sistema te acompaña en cada paso. 🤝',
+    'Tu calma se contagia al equipo. Gracias por cuidarla. ✨',
+    'Los errores son parte de aprender — aquí te cubrimos. 🌱',
+    'Pequeños detalles, gran servicio. Tú ya los tienes. ⭐',
+    'Respira, sonríe, y disfruta el turno. El resto lo resolvemos juntos. ☀️',
+    'Hoy es un buen día para hacerlo simple y hacerlo bien. 🍃',
+    'Cada cliente que atiendes con cariño deja huella. Gracias. 🌟',
+    'Tu esfuerzo se nota y se valora. Bienvenido al equipo. 💫',
+  ];
+
+  function getWarmPhrase() {
+    try {
+      var d = new Date();
+      var seed = d.getFullYear() * 1000 + (d.getMonth() * 31 + d.getDate());
+      return WARM_PHRASES[seed % WARM_PHRASES.length];
+    } catch (_) {
+      return WARM_PHRASES[0];
+    }
+  }
 
   var STATES = {
     calm: { id: 'calm', label: 'Tranquilo', emoji: '🌿', tone: 'Puede avanzar con calma. El sistema está listo.', color: 'calm' },
@@ -574,9 +599,14 @@
       global.__crozzoWelcomeToastScheduled = false;
       global.__crozzoWelcomeToastDone = greetKey;
       if (typeof global.showToast === 'function') {
-        var line = first
-          ? greet + ', ' + first + '. Su espacio de trabajo está listo.'
-          : greet + '. Su espacio de trabajo está listo.';
+        var closers = [
+          'Su espacio de trabajo está listo. 💛',
+          'Qué bueno tenerle hoy. Vamos con calma. 🌿',
+          'Aquí estamos para acompañarle. ✨',
+          'Listo para un buen turno. Un paso a la vez. ☀️',
+        ];
+        var closer = closers[Math.floor(Math.random() * closers.length)];
+        var line = first ? greet + ', ' + first + '. ' + closer : greet + '. ' + closer;
         global.__crozzoAffirmToastLock = true;
         try {
           global.showToast(line, 'success');
@@ -646,6 +676,9 @@
       '</p>' +
       '<p class="crozzo-concierge-strip__tone">' +
       getRoleLine() +
+      '</p>' +
+      '<p class="crozzo-concierge-strip__warm">' +
+      getWarmPhrase() +
       '</p></div></div>' +
       '<div class="crozzo-concierge-strip__actions">' +
       linksHtml +

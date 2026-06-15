@@ -98,6 +98,12 @@ registry.entries.sort((a, b) => {
   if (ca !== cb) return ca - cb;
   return String(a.publishedAt || '').localeCompare(String(b.publishedAt || ''));
 });
+// Mantener solo el historial reciente para que cada cliente no descargue una
+// lista enorme cada 15 min (el orden es ascendente, así que conservamos la cola).
+const MAX_REGISTRY_ENTRIES = 25;
+if (registry.entries.length > MAX_REGISTRY_ENTRIES) {
+  registry.entries = registry.entries.slice(-MAX_REGISTRY_ENTRIES);
+}
 registry.updatedAt = publishedAt;
 
 const latest = {

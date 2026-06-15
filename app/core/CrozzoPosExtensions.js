@@ -821,6 +821,9 @@
     if (typeof global.updateConnectivityTierBadge === 'function') {
       global.updateConnectivityTierBadge(info);
     }
+    try {
+      crozzoUpdateResilienceUx(tierNow);
+    } catch (_) {}
     var el = document.getElementById('crozzoConnectivityTierBadge');
     if (el) {
       var conflict = hasConflictFlag();
@@ -841,6 +844,247 @@
       global.updateCrozzoServerConflictBadge();
     }
   }
+  // ============================================================
+  // Resiliencia UX: indicador "al día / pendientes" + asistente de
+  // red de respaldo cuando el offline persiste, + hotspot de la caja.
+  // ============================================================
+  var __offlineSinceTs = 0;
+  var __lastPendCount = -1;
+  var __assistantDismissedTs = 0;
+  var __assistantEl = null;
+
+  function crozzoEscBasic(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function crozzoSyncRoleNow() {
+    try {
+      var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+      return String((md && md.role) || 'A').toUpperCase();
+    } catch (_) {
+      return 'A';
+    }
+  }
+  function crozzoBackupSsidNote() {
+    try {
+      return String(global.localStorage.getItem('crozzo_network_fallback_note') || '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+  function crozzoTauriInvokeSafe(cmd) {
+    try {
+      var t = global.__TAURI__;
+      if (t && t.core && typeof t.core.invoke === 'function') return t.core.invoke(cmd, {});
+      if (t && typeof t.invoke === 'function') return t.invoke(cmd, {});
+    } catch (_) {}
+    return null;
+  }
+  function crozzoActivateBackupHotspot() {
+    var p = crozzoTauriInvokeSafe('crozzo_hotspot_start');
+    if (!p) {
+      if (typeof global.showToast === 'function') {
+        global.showToast('El hotspot automático solo está disponible en la app de escritorio (caja).', 'warning');
+      }
+      return;
+    }
+    if (typeof global.showToast === 'function') global.showToast('Activando hotspot de respaldo…', 'info');
+    p.then(function (r) {
+      if (r && r.ok) {
+        var msg = 'Hotspot de respaldo activo: red «' + (r.ssid || '—') + '»';
+        if (r.passphrase) msg += ' · clave: ' + r.passphrase;
+        msg += '. Conecte las tablets a esa red y se reconectan solas.';
+        if (typeof global.showToast === 'function') global.showToast(msg, 'success');
+      } else {
+        if (typeof global.showToast === 'function') {
+          global.showToast(
+            'No se pudo activar el hotspot automático (' + ((r && r.status) || 'sin soporte') +
+              '). Actívelo manual: Windows → Configuración → Red → Zona con cobertura inalámbrica.',
+            'warning'
+          );
+        }
+      }
+    }).catch(function () {
+      if (typeof global.showToast === 'function') {
+        global.showToast(
+          'Hotspot automático no disponible en este equipo. Actívelo manual en Windows (Zona con cobertura inalámbrica).',
+          'warning'
+        );
+      }
+    });
+  }
+  global.crozzoActivateBackupHotspot = crozzoActivateBackupHotspot;
+
+  // ---- Hotspot: modo automático (opt-in) + control manual ----
+  var __autoHotspotLastTry = 0;
+  function crozzoAutoHotspotEnabled() {
+    try {
+      return global.localStorage.getItem('crozzo_auto_hotspot_v1') === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+  global.crozzoSetAutoHotspot = function (on) {
+    try {
+      global.localStorage.setItem('crozzo_auto_hotspot_v1', on ? '1' : '0');
+    } catch (_) {}
+    if (typeof global.showToast === 'function') {
+      global.showToast(
+        on
+          ? 'Hotspot automático activado: la caja compartirá su red si se cae el router.'
+          : 'Hotspot automático desactivado.',
+        on ? 'success' : 'info'
+      );
+    }
+  };
+  function crozzoSetHotspotStatusUi(text) {
+    try {
+      var el = document.getElementById('mdHotspotStatus');
+      if (el) el.textContent = text;
+    } catch (_) {}
+  }
+  global.crozzoHotspotManual = function (action) {
+    var cmd = action === 'off' ? 'crozzo_hotspot_stop' : 'crozzo_hotspot_start';
+    var p = crozzoTauriInvokeSafe(cmd);
+    if (!p) {
+      crozzoSetHotspotStatusUi('⚠️ Solo disponible en la app de escritorio (caja).');
+      return;
+    }
+    crozzoSetHotspotStatusUi(action === 'off' ? '⏳ Apagando hotspot…' : '⏳ Encendiendo hotspot…');
+    p.then(function (r) {
+      if (action === 'off') {
+        crozzoSetHotspotStatusUi('⛔ Hotspot apagado.');
+        return;
+      }
+      if (r && r.ok) {
+        crozzoSetHotspotStatusUi(
+          '📡 Hotspot activo · red «' + (r.ssid || '—') + '»' + (r.passphrase ? ' · clave ' + r.passphrase : '')
+        );
+      } else {
+        crozzoSetHotspotStatusUi(
+          '⚠️ No se pudo encender (' + ((r && r.status) || 'sin soporte') + '). Actívelo manual en Windows.'
+        );
+      }
+    }).catch(function () {
+      crozzoSetHotspotStatusUi('⚠️ Hotspot no disponible en este equipo.');
+    });
+  };
+  function crozzoMaybeAutoStartHotspot() {
+    if (!crozzoAutoHotspotEnabled()) return;
+    if (crozzoSyncRoleNow() !== 'A') return;
+    if (Date.now() - __autoHotspotLastTry < 300000) return; // cooldown 5 min
+    var p = crozzoTauriInvokeSafe('crozzo_hotspot_start');
+    if (!p) return;
+    __autoHotspotLastTry = Date.now();
+    p.then(function (r) {
+      if (r && r.ok && typeof global.showToast === 'function') {
+        global.showToast(
+          '📡 Sin red: hotspot de respaldo activado automáticamente — red «' +
+            (r.ssid || '—') +
+            '»' +
+            (r.passphrase ? ' · clave ' + r.passphrase : '') +
+            '. Las tablets se reconectan solas.',
+          'success'
+        );
+      }
+    }).catch(function () {});
+  }
+
+  function crozzoEnsureBackupAssistant() {
+    if (__assistantEl) return __assistantEl;
+    if (!document.body) return null;
+    var el = document.createElement('div');
+    el.id = 'crozzoBackupNetAssistant';
+    el.className = 'crozzo-backup-assistant';
+    el.hidden = true;
+    el.innerHTML =
+      '<div class="crozzo-backup-assistant__card">' +
+      '<div class="crozzo-backup-assistant__msg" id="crozzoBackupAssistantMsg"></div>' +
+      '<div class="crozzo-backup-assistant__actions" id="crozzoBackupAssistantActions"></div>' +
+      '</div>';
+    document.body.appendChild(el);
+    __assistantEl = el;
+    return el;
+  }
+  function crozzoHideBackupAssistant() {
+    if (__assistantEl) {
+      __assistantEl.hidden = true;
+      __assistantEl.classList.remove('is-open');
+    }
+  }
+  function crozzoShowBackupAssistant() {
+    var el = crozzoEnsureBackupAssistant();
+    if (!el) return;
+    if (el.classList.contains('is-open')) return;
+    var role = crozzoSyncRoleNow();
+    var msgEl = el.querySelector('#crozzoBackupAssistantMsg');
+    var actEl = el.querySelector('#crozzoBackupAssistantActions');
+    if (role === 'B') {
+      var ssid = crozzoBackupSsidNote();
+      msgEl.innerHTML =
+        '<strong>Trabajando sin conexión.</strong> Todo se guarda y se envía solo al reconectar.' +
+        (ssid ? ' Para reconectar ya, únete a la red de respaldo: <b>' + crozzoEscBasic(ssid) + '</b>.' : '');
+      actEl.innerHTML =
+        '<button type="button" class="btn btn-primary" id="crozzoBackupRetryBtn">Reintentar conexión</button>' +
+        '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>';
+    } else {
+      msgEl.innerHTML =
+        '<strong>Sin red.</strong> La caja sigue operando con normalidad. Active el hotspot de respaldo para que las tablets se reconecten.';
+      actEl.innerHTML =
+        '<button type="button" class="btn btn-primary" id="crozzoBackupHotspotBtn">Activar hotspot de respaldo</button>' +
+        '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>';
+    }
+    var retry = el.querySelector('#crozzoBackupRetryBtn');
+    if (retry) retry.onclick = function () {
+      if (global.CrozzoWifiZoneBridge && typeof global.CrozzoWifiZoneBridge.resolveCentral === 'function') {
+        global.CrozzoWifiZoneBridge.resolveCentral({ force: true }).catch(function () {});
+      }
+      if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
+      if (typeof global.showToast === 'function') global.showToast('Buscando la caja en la red…', 'info');
+    };
+    var hot = el.querySelector('#crozzoBackupHotspotBtn');
+    if (hot) hot.onclick = function () { crozzoActivateBackupHotspot(); };
+    var dis = el.querySelector('#crozzoBackupDismissBtn');
+    if (dis) dis.onclick = function () {
+      crozzoHideBackupAssistant();
+      __assistantDismissedTs = Date.now();
+    };
+    el.hidden = false;
+    el.classList.add('is-open');
+  }
+  function crozzoUpdateResilienceUx(tierNow) {
+    // Indicador de sincronización: aviso al quedar "al día".
+    try {
+      var pend = typeof global.crozzoPendingSyncCount === 'function' ? global.crozzoPendingSyncCount() : 0;
+      if (__lastPendCount > 0 && pend === 0 && (tierNow === 'cloud' || tierNow === 'lan')) {
+        if (typeof global.showToast === 'function') {
+          global.showToast('✓ Todo al día — sin pendientes por sincronizar', 'success');
+        }
+      }
+      __lastPendCount = pend;
+    } catch (_) {}
+    // Asistente de respaldo: solo si el offline persiste (no en cortes breves).
+    if (tierNow === 'offline') {
+      if (!__offlineSinceTs) __offlineSinceTs = Date.now();
+      var persisted = Date.now() - __offlineSinceTs;
+      var dismissedRecently = __assistantDismissedTs && Date.now() - __assistantDismissedTs < 120000;
+      if (persisted > 18000 && !dismissedRecently) crozzoShowBackupAssistant();
+      // Modo automático (opt-in): la caja levanta el hotspot sola tras ~35s sin red.
+      if (persisted > 35000) {
+        try {
+          crozzoMaybeAutoStartHotspot();
+        } catch (_) {}
+      }
+    } else {
+      __offlineSinceTs = 0;
+      crozzoHideBackupAssistant();
+    }
+  }
+  global.crozzoScheduleConnectivityBadge = function () {
+    refreshConnectivityBadges().catch(function () {});
+  };
+
   function routeOperation(operation) {
     if (global.SyncRouter && typeof global.SyncRouter.getInstance === 'function') {
       return global.SyncRouter.getInstance().route(operation);
