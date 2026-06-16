@@ -34767,6 +34767,24 @@ body.crozzo-comandas-touch .crozzo-comandas-hub .crozzo-comandas-stations-cork {
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-note {
   touch-action: pan-y;
   cursor: default;
+  overflow: visible;
+  max-height: none;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-masonry > .crozzo-sticky-note {
+  flex: 1 1 100%;
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-items.comanda-items {
+  max-height: min(50vh, 460px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-toolbar {
+  flex-shrink: 0;
 }
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-note .btn,
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-done-btn,
@@ -34836,9 +34854,79 @@ body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-masonry {
   overflow: visible !important;
 }
 body.crozzo-page-comandas .card.comandas-vista-tablero,
-body.crozzo-page-comandas .comandas-layout--tablero {
+body.crozzo-page-comandas .comandas-layout--tablero,
+body.crozzo-page-cocina .card.cocina-vista-tablero {
   overflow: visible !important;
   max-height: none !important;
+}
+/* Comandas/cocina operativa fullscreen — anula recorte táctil/Tauri que bloqueaba scroll del corcho */
+html.crozzo-touch-shell body.crozzo-page-comandas.crozzo-page-operativa #mainContent,
+html.crozzo-touch-shell body.crozzo-page-comandas #mainContent,
+html.crozzo-touch-shell body.crozzo-page-cocina.crozzo-page-operativa #mainContent,
+html.crozzo-touch-shell body.crozzo-page-cocina #mainContent,
+html.crozzo-compact-chrome body.crozzo-page-comandas.crozzo-page-operativa #mainContent,
+html.crozzo-compact-chrome body.crozzo-page-cocina.crozzo-page-operativa #mainContent,
+html.tauri-shell body.crozzo-page-comandas #mainContent,
+html.tauri-shell body.crozzo-page-cocina #mainContent,
+html.crozzo-vp-tauri-fill body.crozzo-page-comandas #mainContent,
+html.crozzo-vp-tauri-fill body.crozzo-page-cocina #mainContent,
+html.crozzo-android-apk body.crozzo-page-comandas #mainContent,
+html.crozzo-android-apk body.crozzo-page-cocina #mainContent,
+html.crozzo-android-native body.crozzo-page-comandas #mainContent,
+html.crozzo-android-native body.crozzo-page-cocina #mainContent,
+body.crozzo-kiosk-active.crozzo-page-comandas #mainContent,
+body.crozzo-kiosk-active.crozzo-page-cocina #mainContent {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: block !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+}
+html.crozzo-touch-shell body.crozzo-page-comandas #mainContent > .card,
+html.crozzo-touch-shell body.crozzo-page-comandas #mainContent > .comandas-vista-tablero,
+html.crozzo-touch-shell body.crozzo-page-cocina #mainContent > .card.cocina-vista-tablero,
+html.crozzo-compact-chrome body.crozzo-page-comandas #mainContent > .card.comandas-vista-tablero,
+html.crozzo-compact-chrome body.crozzo-page-comandas #mainContent > .card.crozzo-comandas-hub,
+html.crozzo-compact-chrome body.crozzo-page-cocina #mainContent > .card.cocina-vista-tablero,
+html.crozzo-android-apk body.crozzo-page-comandas #mainContent > .card,
+html.crozzo-android-apk body.crozzo-page-cocina #mainContent > .card,
+html.crozzo-android-native body.crozzo-page-comandas #mainContent > .card,
+html.crozzo-android-native body.crozzo-page-cocina #mainContent > .card,
+html.tauri-shell body.crozzo-page-comandas #mainContent > .card.comandas-vista-tablero,
+html.tauri-shell body.crozzo-page-comandas #mainContent > .card.crozzo-comandas-hub,
+html.tauri-shell body.crozzo-page-cocina #mainContent > .card.cocina-vista-tablero,
+body.crozzo-kiosk-active.crozzo-page-comandas #mainContent > .card,
+body.crozzo-kiosk-active.crozzo-page-cocina #mainContent > .card {
+  display: block !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+html.crozzo-touch-shell body.crozzo-page-operativa #mainContent > .card.cocina-vista-tablero,
+body.crozzo-page-cocina.crozzo-comandas-touch #mainContent {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-area-toolbar,
+body.crozzo-comandas-touch .crozzo-comandas-area-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+body.crozzo-comandas-touch .crozzo-comandas-pedidos-btn {
+  margin-left: auto;
+}
+body.crozzo-comandas-touch .crozzo-comandas-hub-header .crozzo-comandas-area-toolbar {
+  margin-bottom: 4px;
 }
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-empty {
   padding: 40px 20px;

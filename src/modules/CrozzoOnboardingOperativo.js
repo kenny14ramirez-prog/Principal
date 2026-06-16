@@ -1202,16 +1202,42 @@
     });
   }
 
+  function crozzoOnbFinishComandaSend(pending, touchedIds) {
+    if (!pending || !Array.isArray(touchedIds) || !touchedIds.length) return;
+    if (typeof global.crozzoFinalizeComandaSend !== 'function') return;
+    var cart =
+      pending.origen === 'tablet' && typeof global.getTabletActiveCart === 'function'
+        ? global.getTabletActiveCart()
+        : typeof global.getActiveCart === 'function'
+          ? global.getActiveCart()
+          : [];
+    var ref = pending.referencia;
+    var tipo = pending.tipoServicio;
+    var msg =
+      pending.origen === 'tablet'
+        ? 'Comanda enviada a cocina (' + (tipo === 'mesa' ? 'Mesa' : 'Llevar') + ' ' + ref + ')'
+        : 'Comanda enviada a cocina (' + ref + ')';
+    if (!global.crozzoFinalizeComandaSend(cart, pending.items, touchedIds, msg)) return;
+    if (
+      pending.origen === 'tablet' &&
+      typeof global.currentPage !== 'undefined' &&
+      global.currentPage === 'tablets' &&
+      typeof global.crozzoTabletExitToMesaGrid === 'function'
+    ) {
+      global.crozzoTabletExitToMesaGrid();
+    } else if (typeof global.renderCart === 'function') {
+      global.renderCart();
+    }
+  }
+
   function guardComanda(origen, tipoServicio, referencia, items, total, proceed) {
     function finish() {
       if (global.__crozzoSkipAllComandaGuards) {
-        proceed();
-        return;
+        return proceed();
       }
       var riesgo = detectObservacionRiesgo(items);
       if (!riesgo.length || global.__crozzoSkipObsCheck || typeof global.showModal !== 'function') {
-        proceed();
-        return;
+        return proceed();
       }
       var st = readStore();
       writeStore({ obsWarnCount: (st.obsWarnCount || 0) + 1 });
@@ -1235,16 +1261,15 @@
         total: total,
         proceed: proceed,
       };
+      return null;
     }
     function checkDup() {
       if (global.__crozzoSkipDupCheck || global.__crozzoSkipAllComandaGuards) {
-        finish();
-        return;
+        return finish();
       }
       var dup = detectDuplicateComanda(tipoServicio, referencia, items);
       if (!dup || typeof global.showModal !== 'function') {
-        finish();
-        return;
+        return finish();
       }
       incrementDupBlocked();
       var refLabel = tipoServicio === 'mesa' ? 'Mesa ' + referencia : referencia;
@@ -1269,8 +1294,14 @@
         total: total,
         proceed: finish,
       };
+      return null;
     }
-    checkDup();
+    var ret = checkDup();
+    if (ret === null) {
+      if (typeof global !== 'undefined') global.__crozzoLastComandaSendFailReason = 'pending';
+      return [];
+    }
+    return Array.isArray(ret) ? ret : [];
   }
 
   function confirmDuplicateSend() {
@@ -1280,7 +1311,9 @@
     if (!pending || typeof pending.proceed !== 'function') return;
     global.__crozzoSkipDupCheck = true;
     try {
-      pending.proceed();
+      var ids = pending.proceed();
+      if (ids === null) return;
+      crozzoOnbFinishComandaSend(pending, ids);
     } finally {
       global.__crozzoSkipDupCheck = false;
     }
@@ -1293,7 +1326,8 @@
     if (!pending || typeof pending.proceed !== 'function') return;
     global.__crozzoSkipObsCheck = true;
     try {
-      pending.proceed();
+      var ids = pending.proceed();
+      crozzoOnbFinishComandaSend(pending, ids);
     } finally {
       global.__crozzoSkipObsCheck = false;
     }
@@ -1366,10 +1400,11 @@
     global.crearComanda = function (origen, tipoServicio, referencia, items, total) {
       var args = arguments;
       var run = function () {
-        orig.apply(global, args);
+        var ids = orig.apply(global, args);
         markComandaPrueba();
+        return ids;
       };
-      guardComanda(origen, tipoServicio, referencia, items, total, run);
+      return guardComanda(origen, tipoServicio, referencia, items, total, run);
     };
     global.crearComanda._crozzoOnbPatched = true;
   }
