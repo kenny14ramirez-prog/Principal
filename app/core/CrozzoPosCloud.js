@@ -284,8 +284,19 @@ function crozzoAnonKeyMatchesSupabaseUrl(url, key) {
   return jwtRef === hostRef.toLowerCase();
 }
 window.crozzoAnonKeyMatchesSupabaseUrl = crozzoAnonKeyMatchesSupabaseUrl;
+/** Base del proyecto: `https://{ref}.supabase.co` (sin /rest/v1 ni rutas del dashboard). */
+function crozzoNormalizeSupabaseProjectUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  const dash = raw.match(/supabase\.com\/dashboard\/project\/([^/?#]+)/i);
+  if (dash && dash[1]) return 'https://' + String(dash[1]).trim().toLowerCase() + '.supabase.co';
+  const ref = crozzoSupabaseProjectRefFromUrl(raw);
+  if (ref && !crozzoIsHoneypotChaffUrl(raw)) return 'https://' + ref.toLowerCase() + '.supabase.co';
+  return raw.replace(/\/+$/, '').replace(/\/rest\/v1.*$/i, '').replace(/\/auth\/v1.*$/i, '');
+}
+window.crozzoNormalizeSupabaseProjectUrl = crozzoNormalizeSupabaseProjectUrl;
 function isValidSupabasePair(url, key) {
-  const u = String(url || '').trim();
+  const u = crozzoNormalizeSupabaseProjectUrl(url);
   const k = String(key || '').trim();
   if (!u || !k || k.length < 20) return false;
   if (!/^https:\/\/[^/?#]+\.supabase\.co\/?$/i.test(u)) return false;
@@ -293,6 +304,60 @@ function isValidSupabasePair(url, key) {
   return crozzoAnonKeyMatchesSupabaseUrl(u, k);
 }
 window.isValidSupabasePair = isValidSupabasePair;
+function crozzoSupabasePairRejectMessage(url, key) {
+  const u = crozzoNormalizeSupabaseProjectUrl(url);
+  const k = String(key || '').trim();
+  if (!u && !k) {
+    return 'Supabase no configurado en esta caja. Super Admin → Nube → Paso 1: pegue URL + anon key → «Guardar y conectar» → genere el QR de nuevo.';
+  }
+  if (!u) {
+    return 'Falta la URL del proyecto Supabase. Use el formato https://xxxx.supabase.co (sin /rest/v1). Super Admin → Nube → Paso 1 → «Guardar y conectar».';
+  }
+  if (!k || k.length < 20) {
+    return 'Falta la anon key (clave pública). Super Admin → Nube → Paso 1: pegue la «anon public» del mismo proyecto → «Guardar y conectar».';
+  }
+  if (!/^https:\/\/[^/?#]+\.supabase\.co\/?$/i.test(u)) {
+    return 'URL de Supabase inválida. Debe ser https://xxxx.supabase.co (copie «Project URL», no el enlace /rest/v1). Super Admin → Nube → corrija y guarde.';
+  }
+  if (!crozzoAnonKeyMatchesSupabaseUrl(u, k)) {
+    const payload = crozzoJwtPayload(k);
+    if (!payload || !payload.ref) {
+      return 'La clave pegada no parece una anon key JWT de Supabase. Use «anon public» (empieza por eyJ…), nunca service_role. Super Admin → Nube → Paso 1.';
+    }
+    return 'La anon key no corresponde a ese proyecto Supabase (ref distinto). Verifique URL y clave del mismo proyecto en Super Admin → Nube → «Guardar y conectar».';
+  }
+  return '';
+}
+window.crozzoSupabasePairRejectMessage = crozzoSupabasePairRejectMessage;
+/** Normaliza URL guardada y recupera credenciales desde multidispositivo si hace falta. */
+function crozzoHealSupabaseConfigStorage() {
+  let healed = false;
+  try {
+    const j = readCrozzoSupabaseJson();
+    if (j && j.syncEnabled && !crozzoIsHoneypotChaffConfig(j)) {
+      const normalized = crozzoNormalizeSupabaseProjectUrl(j.url);
+      const key = crozzoSupabaseEffectiveAnonKey(j);
+      if (normalized && normalized !== String(j.url || '').trim() && isValidSupabasePair(normalized, key)) {
+        j.url = normalized;
+        localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(j));
+        mirrorCredentialsToBothKeys(normalized, key);
+        healed = true;
+      }
+    }
+  } catch (e) {
+    console.warn('[crozzo-sb] heal config', e);
+  }
+  if (!crozzoOnlineConfigReady()) {
+    try {
+      if (crozzoRecoverSupabaseFromMultiDevice()) healed = true;
+    } catch (_) {}
+  }
+  try {
+    crozzoEnsureSupabaseConfigFileFromAnySource();
+  } catch (_) {}
+  return healed;
+}
+window.crozzoHealSupabaseConfigStorage = crozzoHealSupabaseConfigStorage;
 
 const CROZZO_HP_CHAFF_LS_KEYS = [
   'crozzo_supabase_config',
@@ -586,6 +651,7 @@ function crozzoResolveSupabaseCredentials() {
     key = '';
     syncOn = false;
   }
+  url = crozzoNormalizeSupabaseProjectUrl(url);
   if (isValidSupabasePair(url, key)) syncOn = true;
   else if (!isValidSupabasePair(url, key)) syncOn = false;
   return { syncOn, url, key, deviceId, deviceName };
@@ -740,7 +806,7 @@ async function initSupabaseClient() {
     crozzoScrubStaleHoneypotChaff();
   } catch (_) {}
   try {
-    crozzoEnsureSupabaseConfigFileFromAnySource();
+    crozzoHealSupabaseConfigStorage();
   } catch (_) {}
   crozzoPurgeExpiredSupabaseAuthStorage();
   const creds = crozzoResolveSupabaseCredentials();

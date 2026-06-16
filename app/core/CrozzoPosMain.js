@@ -29214,9 +29214,13 @@ async function testSupabaseConnection() {
     showToast('Completa URL y anon key para probar.', 'warning');
     return;
   }
+  const base = (
+    typeof window.crozzoNormalizeSupabaseProjectUrl === 'function'
+      ? window.crozzoNormalizeSupabaseProjectUrl(url)
+      : url.replace(/\/$/, '')
+  ).replace(/\/$/, '');
   if (el) el.textContent = '⏳ Probando conexión…';
   try {
-    const base = url.replace(/\/$/, '');
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(`${base}/rest/v1/devices?limit=1&select=id`, {
@@ -30006,8 +30010,12 @@ function persistCrozzoSupabaseConfigFileFromMultidispositivo(next) {
     next.supabase = { ...next.supabase, url: '', anonKey: '' };
     return true;
   }
-  const sbUrl = (next.supabase?.url || '').trim();
+  const sbUrlRaw = (next.supabase?.url || '').trim();
   const sbKey = (next.supabase?.anonKey || '').trim();
+  const sbUrl =
+    typeof window.crozzoNormalizeSupabaseProjectUrl === 'function'
+      ? window.crozzoNormalizeSupabaseProjectUrl(sbUrlRaw)
+      : sbUrlRaw.replace(/\/+$/, '').replace(/\/rest\/v1.*$/i, '');
   if (!sbUrl.toLowerCase().includes('supabase.co')) {
     showToast('La URL de Supabase debe contener "supabase.co"', 'warning');
     document.getElementById('mdSupabaseUrl')?.focus();
@@ -30018,6 +30026,15 @@ function persistCrozzoSupabaseConfigFileFromMultidispositivo(next) {
     document.getElementById('mdSupabaseKey')?.focus();
     return false;
   }
+  if (typeof window.isValidSupabasePair === 'function' && !window.isValidSupabasePair(sbUrl, sbKey)) {
+    const hint =
+      typeof window.crozzoSupabasePairRejectMessage === 'function'
+        ? window.crozzoSupabasePairRejectMessage(sbUrl, sbKey)
+        : 'URL o anon key inválidas para este proyecto.';
+    showToast(hint, 'warning');
+    return false;
+  }
+  next.supabase = { ...next.supabase, url: sbUrl, anonKey: sbKey };
   let devInput = (document.getElementById('mdCloudDeviceIdInput')?.value || '').trim();
   if (!devInput) {
     try {
@@ -39813,6 +39830,11 @@ function init() {
     try {
     targetProfile = String(targetProfile || 'tablet').toLowerCase();
     if (targetProfile !== 'tablet' && targetProfile !== 'pantalla') targetProfile = 'tablet';
+    if (typeof window.crozzoHealSupabaseConfigStorage === 'function') {
+      try {
+        window.crozzoHealSupabaseConfigStorage();
+      } catch (_) {}
+    }
     const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : (typeof config !== 'undefined' && config.get ? config.get('multidispositivo') : null) || {};
     const cs = (typeof config !== 'undefined' && config.get ? config.get('conexionSistemas') : null) || {};
     const creds =
@@ -39820,21 +39842,16 @@ function init() {
         ? window.crozzoResolveSupabaseCredentials()
         : null;
     const readJ = typeof window.readCrozzoSupabaseJson === 'function' ? window.readCrozzoSupabaseJson() : null;
-    const cloudOn = !!(creds && creds.syncOn) || !!(readJ && readJ.syncEnabled);
-    const url = creds && creds.url ? creds.url : cloudOn ? String(readJ?.url || md.supabase?.url || '').trim() : '';
-    const key =
-      creds && creds.key
-        ? creds.key
-        : cloudOn
-          ? typeof window.crozzoSupabaseEffectiveAnonKey === 'function'
-            ? window.crozzoSupabaseEffectiveAnonKey(readJ || { anonKey: md.supabase?.anonKey, url: url })
-            : String(readJ?.anonKey || md.supabase?.anonKey || '').trim()
-          : '';
-    if (cloudOn && typeof window.isValidSupabasePair === 'function' && !window.isValidSupabasePair(url, key)) {
-      return {
-        error:
-          'Supabase no configurado en esta caja. Super Admin → Nube → Paso 1: pegue URL + anon key → «Guardar y conectar» → genere el QR de nuevo.',
-      };
+    const cloudOn = !!(creds && creds.syncOn);
+    const url = creds && creds.url ? String(creds.url).trim() : '';
+    const key = creds && creds.key ? String(creds.key).trim() : '';
+    const syncWanted = cloudOn || !!(readJ && readJ.syncEnabled) || !!md.supabaseSyncEnabled;
+    if (syncWanted && typeof window.isValidSupabasePair === 'function' && !window.isValidSupabasePair(url, key)) {
+      const msg =
+        typeof window.crozzoSupabasePairRejectMessage === 'function'
+          ? window.crozzoSupabasePairRejectMessage(url, key)
+          : 'Supabase no configurado en esta caja. Super Admin → Nube → Paso 1: pegue URL + anon key → «Guardar y conectar» → genere el QR de nuevo.';
+      return { error: msg };
     }
     let lanSnap = null;
     try {
