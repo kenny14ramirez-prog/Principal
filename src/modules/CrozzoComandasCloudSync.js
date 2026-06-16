@@ -472,6 +472,17 @@
     pullComandasFromCloud({ skipPrint: false }).catch(function () {});
 
     function scheduleComandaPull() {
+      if (
+        global.CrozzoPageCloudWatch &&
+        typeof global.CrozzoPageCloudWatch.usesGlobalComandaPoll === 'function' &&
+        !global.CrozzoPageCloudWatch.usesGlobalComandaPoll()
+      ) {
+        if (__pullTimer) {
+          global.clearInterval(__pullTimer);
+          __pullTimer = null;
+        }
+        return;
+      }
       if (__pullTimer) clearInterval(__pullTimer);
       var ms = __realtimeLive ? PULL_MS_LIVE : PULL_MS_FALLBACK;
       // Escala: bajo presion (429/503/timeout) o si Realtime esta vivo, el polling

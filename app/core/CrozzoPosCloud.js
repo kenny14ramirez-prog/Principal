@@ -744,12 +744,16 @@ window.crozzoFinalizeCloudConfigAfterPairing = function crozzoFinalizeCloudConfi
   if (typeof persistMultiDeviceConfig === 'function') {
     try {
       const base = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+      const bid = String(payload.business_id || payload.businessId || '').trim();
+      const bname = String(payload.business_name || payload.businessName || '').trim();
       persistMultiDeviceConfig({
         ...base,
         supabaseSyncEnabled: true,
         supabase: { ...(base.supabase || {}), url: url, anonKey: key },
         locationId: String(payload.location_id || base.locationId || '').trim() || base.locationId,
         role: 'B',
+        businessId: bid || base.businessId,
+        businessName: bname || base.businessName,
       });
     } catch (e) {
       console.warn('[crozzo-sb] finalize md', e);
@@ -757,6 +761,9 @@ window.crozzoFinalizeCloudConfigAfterPairing = function crozzoFinalizeCloudConfi
   }
   try {
     if (typeof hydrateMdSupabaseInputsFromLs === 'function') hydrateMdSupabaseInputsFromLs();
+  } catch (_) {}
+  try {
+    if (typeof window.crozzoRefreshBusinessConnectedUi === 'function') window.crozzoRefreshBusinessConnectedUi();
   } catch (_) {}
   return true;
 };
@@ -1864,8 +1871,20 @@ window.__crozzoBootstrapCloudData = async function bootstrapCloudData() {
     console.warn('[crozzo-sb] products bootstrap (opcional)', e);
   }
 };
+async function crozzoEnsureCloudClientReady() {
+  if (!crozzoOnlineConfigReady()) return false;
+  if (window.__SUPABASE) return true;
+  try {
+    await initSupabaseClient();
+  } catch (e) {
+    console.warn('[crozzo-sb] ensureCloudClientReady', e);
+    return false;
+  }
+  return !!window.__SUPABASE;
+}
+window.crozzoEnsureCloudClientReady = crozzoEnsureCloudClientReady;
 window.__crozzoPostInitCloud = async function postInitCloud() {
-  if (!crozzoOnlineConfigReady() || !window.__SUPABASE) return;
+  if (!(await crozzoEnsureCloudClientReady())) return;
   try {
     if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
     if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
@@ -1891,7 +1910,7 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
 };
 /** Vuelve a leer `products` desde Supabase y opcionalmente repinta la vista actual (otro dispositivo / pestaña). */
 window.__crozzoRefreshCloudCatalogUi = async function crozzoRefreshCloudCatalogUi(opts) {
-  if (!crozzoOnlineConfigReady() || !window.__SUPABASE) return false;
+  if (!(await crozzoEnsureCloudClientReady())) return false;
   try {
     if (typeof window.__crozzoBootstrapCloudData === 'function') await window.__crozzoBootstrapCloudData();
   } catch (e) {
@@ -1921,6 +1940,7 @@ var __crozzoTenantPushTimer = null;
 var __crozzoTenantPushEchoUntil = 0;
 var __crozzoTenantRealtimeLive = false;
 var __crozzoTenantLastPullAt = 0;
+var __crozzoBizLookupCache = {};
 var CROZZO_TENANT_VIS_SKIP_MS = 90000;
 var __crozzoTenantBC =
   typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('crozzo_tenant_v1') : null;
@@ -2265,10 +2285,18 @@ async function crozzoPushTenantSnapshotToCloud() {
       configDispositivo: s.configDispositivo,
     };
   });
+  let bizId = '';
+  let bizName = '';
+  try {
+    const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+    bizId = String(md.businessId || '').trim();
+    bizName = String(md.businessName || '').trim();
+  } catch (_) {}
   const bundle = {
     updated_at: new Date().toISOString(),
     branding: branding,
     staff_meta: staffRaw,
+    negocio: { businessId: bizId, businessName: bizName },
   };
   let loc = 'default';
   try {
@@ -2276,14 +2304,19 @@ async function crozzoPushTenantSnapshotToCloud() {
   } catch (_) {}
   if (loc.length > 120) loc = loc.slice(0, 120);
   const sb = window.__SUPABASE;
+  const rowBase = { id: loc, updated_at: bundle.updated_at };
+  if (bizId) rowBase.business_id = bizId;
   const attempts = [
-    { id: loc, tenant_snapshot: bundle, updated_at: bundle.updated_at },
-    { id: loc, config_json: { tenant_snapshot: bundle, updated_at: bundle.updated_at } },
+    { ...rowBase, tenant_snapshot: bundle },
+    { ...rowBase, config_json: { tenant_snapshot: bundle, updated_at: bundle.updated_at } },
   ];
   for (let a = 0; a < attempts.length; a++) {
     try {
       const r = await sb.from('company_config').upsert(attempts[a], { onConflict: 'id' });
       if (!r.error) {
+        if (bizId && bizName) {
+          crozzoUpsertBusinessRegistryToCloud(bizId, bizName).catch(function () {});
+        }
         crozzoTenantHubBroadcast();
         return true;
       }
@@ -2294,6 +2327,9 @@ async function crozzoPushTenantSnapshotToCloud() {
   try {
     const r2 = await sb.from('company_config').insert(attempts[0]);
     if (!r2.error) {
+      if (bizId && bizName) {
+        crozzoUpsertBusinessRegistryToCloud(bizId, bizName).catch(function () {});
+      }
       crozzoTenantHubBroadcast();
       return true;
     }
@@ -2301,6 +2337,153 @@ async function crozzoPushTenantSnapshotToCloud() {
   crozzoTenantHubBroadcast();
   return false;
 }
+function crozzoNormalizeBusinessLookupKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+function crozzoEscapeIlikeFragment(text) {
+  return String(text || '').replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+function crozzoExtractBusinessNameFromTenantSnapshot(snap) {
+  if (!snap || typeof snap !== 'object') return '';
+  try {
+    if (snap.negocio && typeof snap.negocio === 'object') {
+      const n = String(snap.negocio.businessName || snap.negocio.name || '').trim();
+      if (n) return n;
+    }
+  } catch (_) {}
+  try {
+    if (snap.branding && typeof snap.branding === 'object') {
+      const b = String(snap.branding.empresa || snap.branding.nombre || snap.branding.name || '').trim();
+      if (b) return b;
+    }
+  } catch (_) {}
+  return '';
+}
+function crozzoPickBestBusinessLookupHit(hits, key, rawName) {
+  if (!hits || !hits.length) return null;
+  const rawLower = String(rawName || '').trim().toLowerCase();
+  let exact = hits.find(function (h) {
+    return crozzoNormalizeBusinessLookupKey(h.businessName) === key;
+  });
+  if (exact) return exact;
+  exact = hits.find(function (h) {
+    return String(h.businessName || '').trim().toLowerCase() === rawLower;
+  });
+  if (exact) return exact;
+  exact = hits.find(function (h) {
+    return String(h.businessId || '').trim().toLowerCase() === rawLower;
+  });
+  if (exact) return exact;
+  return hits[0];
+}
+function crozzoBusinessLookupFromRegistry(sb, raw, key) {
+  const hits = [];
+  const needle = crozzoEscapeIlikeFragment(raw);
+  return sb
+    .from('crozzo_business_registry')
+    .select('business_id,business_name')
+    .ilike('business_name', '%' + needle + '%')
+    .limit(8)
+    .then(function (r) {
+      if (r.error) return hits;
+      (r.data || []).forEach(function (row) {
+        const bid = String(row.business_id || '').trim();
+        const bn = String(row.business_name || '').trim();
+        if (!bid) return;
+        hits.push({ businessId: bid, businessName: bn || raw, source: 'registry' });
+      });
+      return hits;
+    })
+    .catch(function () {
+      return hits;
+    });
+}
+function crozzoBusinessLookupFromCompanyConfig(sb, raw, key) {
+  const hits = [];
+  return sb
+    .from('company_config')
+    .select('business_id,tenant_snapshot,config_json,data,settings')
+    .limit(40)
+    .then(function (r) {
+      if (r.error) return hits;
+      (r.data || []).forEach(function (row) {
+        const bid = String(row.business_id || '').trim();
+        const snap = crozzoParseTenantSnapshotFromRow(row);
+        let bn = crozzoExtractBusinessNameFromTenantSnapshot(snap);
+        if (!bn && snap && snap.negocio) {
+          bn = String(snap.negocio.businessName || '').trim();
+        }
+        if (!bn && bid) return;
+        const rowKey = crozzoNormalizeBusinessLookupKey(bn);
+        if (!rowKey) return;
+        if (
+          rowKey === key ||
+          (rowKey.length >= 3 && (rowKey.indexOf(key) >= 0 || key.indexOf(rowKey) >= 0))
+        ) {
+          hits.push({
+            businessId: bid || 'default',
+            businessName: bn,
+            source: 'company_config',
+          });
+        }
+      });
+      return hits;
+    })
+    .catch(function () {
+      return hits;
+    });
+}
+async function crozzoLookupBusinessInCloud(name) {
+  const raw = String(name || '').trim();
+  if (raw.length < 2) return null;
+  const key = crozzoNormalizeBusinessLookupKey(raw);
+  if (!key) return null;
+  if (__crozzoBizLookupCache[key]) return __crozzoBizLookupCache[key];
+  if (!window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) return null;
+  const sb = window.__SUPABASE;
+  const hits = [];
+  try {
+    const regHits = await crozzoBusinessLookupFromRegistry(sb, raw, key);
+    regHits.forEach(function (h) {
+      hits.push(h);
+    });
+  } catch (_) {}
+  try {
+    const ccHits = await crozzoBusinessLookupFromCompanyConfig(sb, raw, key);
+    ccHits.forEach(function (h) {
+      hits.push(h);
+    });
+  } catch (_) {}
+  const best = crozzoPickBestBusinessLookupHit(hits, key, raw);
+  if (best) __crozzoBizLookupCache[key] = best;
+  return best;
+}
+async function crozzoUpsertBusinessRegistryToCloud(businessId, businessName) {
+  const bid = String(businessId || '').trim();
+  const bn = String(businessName || '').trim();
+  if (!bid || !bn || !window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) return false;
+  const sb = window.__SUPABASE;
+  const row = {
+    business_id: bid,
+    business_name: bn,
+    updated_at: new Date().toISOString(),
+  };
+  try {
+    const r = await sb.from('crozzo_business_registry').upsert(row, { onConflict: 'business_id' });
+    if (!r.error) {
+      __crozzoBizLookupCache = {};
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+window.crozzoLookupBusinessInCloud = crozzoLookupBusinessInCloud;
+window.crozzoUpsertBusinessRegistryToCloud = crozzoUpsertBusinessRegistryToCloud;
 function crozzoScheduleTenantSnapshotPush() {
   if (!window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) {
     crozzoTenantHubBroadcast();
@@ -2458,7 +2641,7 @@ function crozzoMdCloudFormHasDraft() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
     }
   } catch (_) {}
-  const ids = ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessId'];
+  const ids = ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessName', 'mdBusinessId'];
   for (let i = 0; i < ids.length; i++) {
     const el = document.getElementById(ids[i]);
     if (el && el.dataset && el.dataset.crozzoDirty === '1') return true;
@@ -2516,6 +2699,20 @@ function hydrateMdSupabaseInputsFromLs(opts) {
     }
     if (did) idEl.value = did;
   }
+  try {
+    if (typeof getMultiDeviceConfig === 'function') {
+      const md = getMultiDeviceConfig();
+      const bnameEl = document.getElementById('mdBusinessName');
+      const bidEl = document.getElementById('mdBusinessId');
+      if (bnameEl && md.businessName && bnameEl.dataset.crozzoDirty !== '1' && !String(bnameEl.value || '').trim()) {
+        bnameEl.value = md.businessName;
+      }
+      if (bidEl && md.businessId && bidEl.dataset.crozzoDirty !== '1' && !String(bidEl.value || '').trim()) {
+        bidEl.value = md.businessId;
+      }
+    }
+    if (typeof window.crozzoRefreshBusinessConnectedUi === 'function') window.crozzoRefreshBusinessConnectedUi();
+  } catch (_) {}
 }
 /** IndexedDB: almacenes espejo de entidades (offline-first). */
 const CROZZO_LOCAL_MAP = {

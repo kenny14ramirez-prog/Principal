@@ -79,6 +79,15 @@
     return null;
   }
 
+  /** Extrae BOF.… desde URL de instalación, deep link o texto pegado (case-insensitive). */
+  function extractFastFromQr(text) {
+    var t = String(text || '').trim();
+    if (!t) return null;
+    var m = t.match(/BOF\.[A-Za-z0-9_-]+/i);
+    if (!m) return null;
+    return m[0];
+  }
+
   function isPairingQr(text) {
     var t = String(text || '').trim();
     if (!t) return false;
@@ -108,6 +117,11 @@
       ts: Number(p.timestamp) || Date.now(),
       k: String((lan && lan.lan_token) || p.lan_token || '').trim().slice(0, 96),
     };
+    var bid = String(p.business_id || p.businessId || '').trim();
+    var bn = String(p.business_name || p.businessName || '').trim();
+    if (bid) compact.bid = bid.slice(0, 64);
+    if (bn) compact.bn = bn.slice(0, 48);
+    if (p.pantalla_area_id) compact.pa = String(p.pantalla_area_id).trim().slice(0, 48);
     if (p.cloud_sync !== false) {
       var su = String(p.supabase_url || '').trim();
       var sk = String(p.supabase_key || '').trim();
@@ -128,11 +142,17 @@
     var tp = String(compact.tp || 'tablet').toLowerCase();
     if (tp !== 'tablet' && tp !== 'pantalla') tp = 'tablet';
     var cloudOn = !!(compact.cb && compact.su && compact.sk);
+    var bid = String(compact.bid || '').trim();
+    var bn = String(compact.bn || '').trim();
     return {
       type: 'CROZZO_CLOUD_PAIRING',
       version: 4,
       fast: 1,
       target_profile: tp,
+      business_id: bid,
+      business_name: bn,
+      businessId: bid,
+      businessName: bn,
       cloud_sync: cloudOn,
       supabase_url: cloudOn ? String(compact.su || '').trim() : '',
       supabase_key: cloudOn ? String(compact.sk || '').trim() : '',
@@ -151,16 +171,23 @@
       },
       location_id: String(compact.loc || '').trim(),
       network_ssid: String(compact.ss || '').trim(),
+      pantalla_area_id: String(compact.pa || '').trim(),
       role: 'B',
       timestamp: Number(compact.ts) || Date.now(),
     };
   }
 
   function parseFastQr(text) {
-    var t = String(text || '').trim();
-    if (t.indexOf(PAIR_FAST_PREFIX) !== 0) return null;
+    var blob = extractFastFromQr(text);
+    if (!blob) {
+      var t = String(text || '').trim();
+      if (t.indexOf(PAIR_FAST_PREFIX) !== 0) return null;
+      blob = t;
+    }
+    var prefixMatch = blob.match(/^BOF\./i);
+    if (!prefixMatch) return null;
     try {
-      var raw = base64UrlDecode(t.slice(PAIR_FAST_PREFIX.length));
+      var raw = base64UrlDecode(blob.slice(prefixMatch[0].length));
       var compact = JSON.parse(new TextDecoder().decode(raw));
       return expandFastPayload(compact);
     } catch (_) {
@@ -200,6 +227,7 @@
     parseFastQr: parseFastQr,
     unsealFromQr: unsealFromQr,
     extractBlobFromQr: extractBlobFromQr,
+    extractFastFromQr: extractFastFromQr,
     isPairingQr: isPairingQr,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

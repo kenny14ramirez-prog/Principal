@@ -267,6 +267,11 @@
         sub.style.transitionDelay = '';
       }
     }
+    if (isDrawerNavMode()) {
+      try {
+        if (typeof global.crozzoFixMobileNavScroll === 'function') global.crozzoFixMobileNavScroll();
+      } catch (_) {}
+    }
   }
 
   function hasOpenNavGroup() {
@@ -480,6 +485,9 @@
     });
 
     if (emptyEl) emptyEl.hidden = matchCount > 0;
+    try {
+      if (isDrawerNavMode() && typeof global.crozzoFixMobileNavScroll === 'function') global.crozzoFixMobileNavScroll();
+    } catch (_) {}
   }
 
   function toggleGroupById(groupId) {

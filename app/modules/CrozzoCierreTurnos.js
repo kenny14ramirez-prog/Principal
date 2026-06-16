@@ -734,7 +734,10 @@
           device_id: crozzoCloudDeviceUuidForRest(),
         });
         if (typeof syncOfflineQueue === 'function' && typeof navigator !== 'undefined' && navigator.onLine) {
-          void syncOfflineQueue();
+          void syncOfflineQueue({ force: true, kind: 'shift_close' });
+        }
+        if (typeof crozzoCloudPushFlush === 'function') {
+          crozzoCloudPushFlush('shift_close');
         }
       }
       if (typeof crozzoTryMirrorShiftCloseToSupabase === 'function' && typeof navigator !== 'undefined' && navigator.onLine) {

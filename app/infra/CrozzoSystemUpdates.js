@@ -9,6 +9,7 @@
   var DEFAULT_REGISTRY_URL =
     'https://raw.githubusercontent.com/kenny14ramirez-prog/Principal/main/releases/registry.json';
   var LS_INSTALLED = 'crozzo_app_installed_version';
+  var LS_CLOUD_SYNC_AFTER_UPDATE = 'crozzo_cloud_sync_after_update_pending';
   var LS_MANIFEST = 'crozzo_update_manifest_url';
   var LS_STATE = 'crozzo_update_state';
   var LS_LOCAL_LOG = 'crozzo_update_local_log';
@@ -469,7 +470,67 @@
     } catch (_) {}
   }
 
+  function scheduleCloudSyncAfterAppUpdate(fromVer, toVer) {
+    fromVer = normEntryVersion({ version: fromVer || '' });
+    toVer = normEntryVersion({ version: toVer || '' });
+    if (!fromVer || !toVer || compareSemver(fromVer, toVer) >= 0) return;
+    try {
+      localStorage.setItem(
+        LS_CLOUD_SYNC_AFTER_UPDATE,
+        JSON.stringify({ from: fromVer, to: toVer, at: Date.now() })
+      );
+    } catch (_) {}
+    setTimeout(function () {
+      runCloudSyncAfterAppUpdate({ reason: 'app_update' });
+    }, 3500);
+  }
+
+  function runCloudSyncAfterAppUpdate(opts) {
+    opts = opts || {};
+    if (typeof global.crozzoOnlineConfigReady !== 'function' || !global.crozzoOnlineConfigReady()) {
+      return Promise.resolve({ ok: false, reason: 'no_cloud_config' });
+    }
+    var chain = Promise.resolve(true);
+    if (typeof global.crozzoEnsureCloudClientReady === 'function') {
+      chain = global.crozzoEnsureCloudClientReady();
+    }
+    return chain.then(function (ready) {
+      if (!ready && !global.__SUPABASE) return { ok: false, reason: 'no_client' };
+      if (typeof global.crozzoRunFullReconnectSync === 'function') {
+        return global.crozzoRunFullReconnectSync({
+          force: true,
+          source: opts.reason || 'app_update',
+          skipPrint: true,
+        });
+      }
+      if (typeof global.__crozzoPostInitCloud === 'function') {
+        return global.__crozzoPostInitCloud().then(function () {
+          return { ok: true };
+        });
+      }
+      return { ok: false, reason: 'no_sync_fn' };
+    }).catch(function (e) {
+      console.warn('[crozzo-updates] cloud sync after update', e);
+      return { ok: false, error: e };
+    });
+  }
+
+  function runCloudSyncAfterAppUpdateIfPending() {
+    try {
+      var raw = localStorage.getItem(LS_CLOUD_SYNC_AFTER_UPDATE);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (!o || !o.to) return;
+      if (compareSemver(VERSION, normEntryVersion({ version: o.to })) < 0) return;
+      localStorage.removeItem(LS_CLOUD_SYNC_AFTER_UPDATE);
+      setTimeout(function () {
+        runCloudSyncAfterAppUpdate({ reason: 'app_update_auth' });
+      }, 1200);
+    } catch (_) {}
+  }
+
   function refreshBinaryVersion() {
+    var prevStored = readStoredInstalledVersion();
     return fetchTauriBinaryVersion().then(function (binaryVer) {
       VERSION = reconcileInstalledVersion(binaryVer);
       global.CROZZO_APP_VERSION = VERSION;
@@ -477,6 +538,9 @@
         localStorage.setItem(LS_INSTALLED, VERSION);
       } catch (_) {}
       syncVersionLabels();
+      if (prevStored && compareSemver(prevStored, VERSION) < 0) {
+        scheduleCloudSyncAfterAppUpdate(prevStored, VERSION);
+      }
       if (getUpdateClientProfile().kind === 'android') {
         finalizeAndroidPendingInstall(VERSION);
       }
@@ -4545,9 +4609,13 @@
   }
 
   function onAuthReady() {
-    if (!otaAutoInstallAllowed()) return;
+    if (!otaAutoInstallAllowed()) {
+      runCloudSyncAfterAppUpdateIfPending();
+      return;
+    }
     setTimeout(function () {
       maybeShowPostUpdateWelcome();
+      runCloudSyncAfterAppUpdateIfPending();
       checkForUpdates({ silent: true, toastOnFound: false });
     }, 1500);
   }

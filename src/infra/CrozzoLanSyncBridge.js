@@ -115,10 +115,15 @@
   function pushPairingCloudToServer() {
     if (!isDesktopTauri()) return Promise.resolve(false);
     var sb = readSupabaseForLan();
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
+    var bid = md && md.businessId ? String(md.businessId).trim() : '';
+    var bname = md && md.businessName ? String(md.businessName).trim() : '';
     if (!sb.url || !sb.key) return Promise.resolve(false);
     return invoke('crozzo_lan_sync_update_pairing_cloud', {
       supabaseUrl: sb.url,
       supabaseAnonKey: sb.key,
+      businessId: bid,
+      businessName: bname,
     }).catch(function (e) {
       try {
         console.warn('[lan-sync] pairing-cloud push', e);
@@ -571,6 +576,11 @@
 
   try {
     global.addEventListener('crozzo-supabase-config-saved', function () {
+      pushPairingCloudToServer().catch(function () {});
+    });
+  } catch (_) {}
+  try {
+    global.addEventListener('crozzo-multidevice-config-saved', function () {
       pushPairingCloudToServer().catch(function () {});
     });
   } catch (_) {}

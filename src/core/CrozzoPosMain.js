@@ -1231,6 +1231,9 @@ function bootstrapCrozzoConexionRuntime() {
   }
   refreshWindowCrozzoConfigFromStorage();
   try {
+    if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+  } catch (_) {}
+  try {
     if (typeof crozzoEnsureSedeLocationId === 'function') crozzoEnsureSedeLocationId();
   } catch (_) {}
   // Si localStorage se borró pero hay credenciales Supabase, intenta restaurar.
@@ -2301,6 +2304,11 @@ function crozzoFinishLoginSuccess(opts) {
     }
   } catch (_) {}
   crozzoRunPostLoginCloudSync();
+  try {
+    if (typeof window.crozzoPageCloudWatchSetPage === 'function' && typeof currentPage !== 'undefined') {
+      window.crozzoPageCloudWatchSetPage(currentPage);
+    }
+  } catch (_) {}
 }
 window.crozzoFinishLoginSuccess = crozzoFinishLoginSuccess;
 function crozzoIsStaffDecoyAccount(userRow) {
@@ -12451,6 +12459,13 @@ function renderPage(page) {
   if (__crozzoScrollRestore && typeof crozzoRestorePosScroll === 'function') {
     crozzoRestorePosScroll(__crozzoScrollRestore);
   }
+  try {
+    if (window.CrozzoPageCloudWatch && typeof window.CrozzoPageCloudWatch.setPage === 'function') {
+      window.CrozzoPageCloudWatch.setPage(page);
+    } else if (typeof window.crozzoPageCloudWatchSetPage === 'function') {
+      window.crozzoPageCloudWatchSetPage(page);
+    }
+  } catch (_) {}
 }
 function crozzoCapturePosScroll(page) {
   var p = String(page || '');
@@ -27444,6 +27459,7 @@ window.recordarAsistenteMasTarde = recordarAsistenteMasTarde;
 // (o un access token con el claim business_id). Las RLS aseguran aislamiento.
 const MULTIDEVICE_LEGACY_KEY = 'crozzo_multidevice_config';
 const MULTIDEVICE_BUSINESS_KEY = 'crozzo_business_id';
+const MULTIDEVICE_BUSINESS_NAME_KEY = 'crozzo_business_name';
 const CROZZO_LAN_CONFIG_KEY = 'crozzo_lan_config';
 let multiSyncRouter = null;
 let multiStatusUnsubscribe = null;
@@ -27463,6 +27479,7 @@ function getMultiDeviceDefaults() {
   return {
     role: 'A',
     businessId: '',
+    businessName: '',
     deviceId: '',
     serverIp: '',
     centralIp: '',
@@ -27502,6 +27519,12 @@ function getMultiDeviceConfig() {
     try { biz = (localStorage.getItem(MULTIDEVICE_BUSINESS_KEY) || '').trim(); } catch (e) { /* ignore */ }
     merged.businessId = biz;
   }
+  merged.businessName = String(merged.businessName != null ? merged.businessName : '').trim();
+  if (!merged.businessName) {
+    let bname = '';
+    try { bname = (localStorage.getItem(MULTIDEVICE_BUSINESS_NAME_KEY) || '').trim(); } catch (e) { /* ignore */ }
+    merged.businessName = bname;
+  }
   try {
     const L = readCrozzoLanJson();
     if (L && L.lanSyncEnabled) {
@@ -27535,18 +27558,98 @@ function getMultiDeviceConfig() {
   } catch (_) {}
   return merged;
 }
+function crozzoGetBusinessDisplayLabel() {
+  const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+  const bid = String(md.businessId || '').trim();
+  const bname = String(md.businessName || '').trim();
+  let label = '';
+  if (bname && bid) label = bname + ' · ' + bid;
+  else if (bname) label = bname;
+  else if (bid) label = bid;
+  else label = 'Sin negocio configurado';
+  return {
+    businessId: bid,
+    businessName: bname,
+    label,
+    short: bname || bid || '—',
+  };
+}
+window.crozzoGetBusinessDisplayLabel = crozzoGetBusinessDisplayLabel;
+window.getBusinessId = function getBusinessId() {
+  const bid = String((typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig().businessId : '') || '').trim();
+  return bid || 'default';
+};
+function crozzoApplyBusinessFromPairing(bid, bname) {
+  bid = String(bid || '').trim();
+  bname = String(bname || '').trim();
+  if (!bid && !bname) return;
+  try {
+    const base = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+    const next = { ...base };
+    if (bid) next.businessId = bid;
+    if (bname) next.businessName = bname;
+    if (typeof persistMultiDeviceConfig === 'function') persistMultiDeviceConfig(next);
+  } catch (_) {}
+  try {
+    if (bid) localStorage.setItem(MULTIDEVICE_BUSINESS_KEY, bid);
+    else localStorage.removeItem(MULTIDEVICE_BUSINESS_KEY);
+    if (bname) localStorage.setItem(MULTIDEVICE_BUSINESS_NAME_KEY, bname);
+    else localStorage.removeItem(MULTIDEVICE_BUSINESS_NAME_KEY);
+  } catch (_) {}
+  try {
+    if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+  } catch (_) {}
+}
+window.crozzoApplyBusinessFromPairing = crozzoApplyBusinessFromPairing;
+function crozzoRefreshBusinessConnectedUi() {
+  const info = crozzoGetBusinessDisplayLabel();
+  const hasBiz = !!(info.businessName || info.businessId);
+  const lineText = hasBiz
+    ? '🏪 Negocio conectado: ' + info.label
+    : 'Sin Business ID — todos los equipos del mismo Supabase comparten «default» si está vacío.';
+  const ids = ['mdBusinessConnectedLine', 'crozzoPairingReceiverBiz', 'crozzoBusinessConnectedChip'];
+  ids.forEach((id) => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    if (id === 'crozzoPairingReceiverBiz') {
+      node.hidden = !hasBiz;
+      node.textContent = hasBiz ? '🏪 Este QR empareja con: ' + info.label : '';
+      return;
+    }
+    if (id === 'crozzoBusinessConnectedChip') {
+      node.hidden = !hasBiz;
+      node.textContent = hasBiz ? info.short : '';
+      return;
+    }
+    node.textContent = lineText;
+  });
+  try {
+    const cEl = document.getElementById('mdCloudConnStatus');
+    if (cEl && hasBiz && cEl.textContent && cEl.textContent.indexOf('Negocio') < 0) {
+      const base = String(cEl.textContent || '').trim();
+      if (base && base.indexOf('🏪') < 0) cEl.textContent = base + ' · 🏪 ' + info.short;
+    }
+  } catch (_) {}
+}
+window.crozzoRefreshBusinessConnectedUi = crozzoRefreshBusinessConnectedUi;
 function persistMultiDeviceConfig(next) {
   const safe = { ...getMultiDeviceDefaults(), ...next };
   if (!safe.deviceId) safe.deviceId = ensureCrozzoDeviceId();
   safe.businessId = String(safe.businessId != null ? safe.businessId : '').trim();
+  safe.businessName = String(safe.businessName != null ? safe.businessName : '').trim();
   config.set('multidispositivo', safe);
   try {
     localStorage.setItem(MULTIDEVICE_LEGACY_KEY, JSON.stringify(safe));
     if (safe.businessId) localStorage.setItem(MULTIDEVICE_BUSINESS_KEY, safe.businessId);
     else localStorage.removeItem(MULTIDEVICE_BUSINESS_KEY);
+    if (safe.businessName) localStorage.setItem(MULTIDEVICE_BUSINESS_NAME_KEY, safe.businessName);
+    else localStorage.removeItem(MULTIDEVICE_BUSINESS_NAME_KEY);
   } catch (e) {
     console.warn('No se pudo persistir multidispositivo en localStorage', e);
   }
+  try {
+    document.dispatchEvent(new CustomEvent('crozzo-multidevice-config-saved', { detail: { businessId: safe.businessId, businessName: safe.businessName } }));
+  } catch (_) {}
   return safe;
 }
 window.persistMultiDeviceConfig = persistMultiDeviceConfig;
@@ -29090,6 +29193,7 @@ function readCloudSavePayload() {
     ...base,
     supabaseSyncEnabled: syncOn,
     businessId: (document.getElementById('mdBusinessId')?.value || '').trim(),
+    businessName: (document.getElementById('mdBusinessName')?.value || '').trim(),
     deviceId,
     cloudPriority: !!document.getElementById('mdCloudPriority')?.checked,
     supabase: {
@@ -29414,7 +29518,7 @@ function crozzoGetEffectiveAnonKeyFromInput(el) {
   return stored;
 }
 function crozzoClearMdCloudFormDirty() {
-  ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessId'].forEach((id) => {
+  ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessName', 'mdBusinessId'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) delete el.dataset.crozzoDirty;
   });
@@ -29452,6 +29556,9 @@ function updateMdConnectionStatus() {
   } catch (e) {
     /* ignore */
   }
+  try {
+    if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+  } catch (_) {}
 }
 async function saveSupabaseConfig() {
   if (!crozzoAssertSuperAdminCloudWrite()) return;
@@ -29490,6 +29597,19 @@ async function saveSupabaseConfig() {
     /* ignore */
   }
   updateMdConnectionStatus();
+  try {
+    if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+  } catch (_) {}
+  try {
+    if (saved.businessId && saved.businessName && typeof window.crozzoUpsertBusinessRegistryToCloud === 'function') {
+      await window.crozzoUpsertBusinessRegistryToCloud(saved.businessId, saved.businessName);
+    }
+  } catch (_) {}
+  try {
+    if (typeof window.CrozzoLanSyncBridge !== 'undefined' && typeof window.CrozzoLanSyncBridge.pushPairingCloudToServer === 'function') {
+      window.CrozzoLanSyncBridge.pushPairingCloudToServer().catch(function () {});
+    }
+  } catch (_) {}
   const cloudActor = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   const cloudProyecto = crozzoSupabaseProjectHostFromUrl(next.supabase?.url || '');
   config.addAudit(
@@ -29699,7 +29819,20 @@ async function persistCrozzoLanFromObject(L) {
     return { ok: false, error: 'storage' };
   }
   const merged = getMultiDeviceConfig();
-  const saved = persistMultiDeviceConfig(L.lanSyncEnabled ? merged : { ...merged, allowLan: false });
+  const mergedWithLan = {
+    ...merged,
+    role: Lsave.role || merged.role,
+    centralIp: Lsave.centralIp || merged.centralIp,
+    serverIp: Lsave.serverIp || merged.serverIp,
+    port: Lsave.port || merged.port,
+    locationId: locationIdFinal || merged.locationId,
+    allowLan: Lsave.allowLan !== false,
+    networkSsidNote: Lsave.networkSsidNote || merged.networkSsidNote,
+    lanToken: Lsave.lanToken || merged.lanToken,
+  };
+  const saved = persistMultiDeviceConfig(
+    L.lanSyncEnabled ? mergedWithLan : { ...mergedWithLan, allowLan: false }
+  );
   if (multiSyncRouter) multiSyncRouter.applyConfig(saved);
   else {
     multiSyncRouter = new MultiDeviceSyncRouter(saved);
@@ -30148,11 +30281,87 @@ function updateMultiStatusUI(st) {
   if (queueCount) queueCount.textContent = String(st.pending || 0);
 }
 function generateBusinessId() {
+  const nameInp = document.getElementById('mdBusinessName');
   const inp = document.getElementById('mdBusinessId');
   if (!inp) return;
-  inp.value = 'BIZ-' + crozzoUuid().substring(0, 8).toUpperCase();
-  showToast('Business ID generado', 'success');
+  const name = (nameInp && nameInp.value || '').trim();
+  if (name && typeof window.crozzoLookupBusinessInCloud === 'function') {
+    void window.crozzoLookupBusinessInCloud(name).then(function (hit) {
+      if (hit && hit.businessId) {
+        inp.value = hit.businessId;
+        showToast('Negocio en nube: ' + (hit.businessName || name) + ' · ' + hit.businessId, 'success');
+        return;
+      }
+      crozzoGenerateBusinessIdLocal(nameInp, inp, name);
+    }).catch(function () {
+      crozzoGenerateBusinessIdLocal(nameInp, inp, name);
+    });
+    return;
+  }
+  crozzoGenerateBusinessIdLocal(nameInp, inp, name);
 }
+function crozzoGenerateBusinessIdLocal(nameInp, inp, name) {
+  if (!inp) return;
+  name = name || (nameInp && nameInp.value || '').trim();
+  if (name) {
+    const slug = name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16).toUpperCase();
+    inp.value = 'BIZ-' + (slug || crozzoUuid().substring(0, 8).toUpperCase());
+  } else {
+    inp.value = 'BIZ-' + crozzoUuid().substring(0, 8).toUpperCase();
+  }
+  showToast('Business ID generado (nuevo negocio)', 'success');
+}
+function crozzoBindBusinessRegistryAutocomplete() {
+  const nameEl = document.getElementById('mdBusinessName');
+  const idEl = document.getElementById('mdBusinessId');
+  const hintEl = document.getElementById('mdBusinessLookupHint');
+  if (!nameEl || nameEl.__crozzoBizLookupBound) return;
+  nameEl.__crozzoBizLookupBound = true;
+  let timer = null;
+  let lastQuery = '';
+  function showHint(msg, ok) {
+    if (!hintEl) return;
+    hintEl.textContent = msg || '';
+    hintEl.hidden = !msg;
+    hintEl.style.color = ok ? 'var(--success, #2e7d32)' : '';
+  }
+  async function runLookup() {
+    const name = (nameEl.value || '').trim();
+    if (name.length < 2) {
+      showHint('');
+      lastQuery = '';
+      return;
+    }
+    if (typeof window.crozzoLookupBusinessInCloud !== 'function') return;
+    if (name !== lastQuery) showHint('Buscando en nube…', false);
+    lastQuery = name;
+    try {
+      const hit = await window.crozzoLookupBusinessInCloud(name);
+      if (!hit || !hit.businessId) {
+        showHint('Sin coincidencia en nube — «Generar» crea un ID nuevo.', false);
+        return;
+      }
+      const curId = (idEl && idEl.value || '').trim();
+      if (!curId || curId === hit.businessId) {
+        if (idEl) idEl.value = hit.businessId;
+        showHint('✓ En nube: ' + (hit.businessName || name) + ' · ' + hit.businessId, true);
+      } else {
+        showHint(
+          '⚠ «' + (hit.businessName || name) + '» en nube usa ' + hit.businessId + ' (distinto del ID actual).',
+          false
+        );
+      }
+    } catch (_) {
+      showHint('');
+    }
+  }
+  nameEl.addEventListener('input', function () {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(runLookup, 520);
+  });
+  nameEl.addEventListener('blur', runLookup);
+}
+window.crozzoBindBusinessRegistryAutocomplete = crozzoBindBusinessRegistryAutocomplete;
 async function multiTestSendDemo() {
   if (!multiSyncRouter) {
     showToast('Guarda primero la configuración', 'warning');
@@ -30302,14 +30511,22 @@ function renderConfigMultidispositivo() {
             </label>
             <input class="form-input" id="mdCloudDeviceIdInput" value="${escMd(cloudDeviceIdDisp)}" placeholder="(vacío = autogenerar)" autocomplete="off">
           </div>
+          <div class="form-group full">
+            <label class="form-label">Nombre del negocio
+              <span class="wizard-tooltip"><span class="wt-icon" tabindex="0">?</span><span class="wt-bubble">Nombre legible del negocio (ej. Álamos). Se muestra en pantalla y viaja en el QR de emparejamiento junto al Business ID.</span></span>
+            </label>
+            <input class="form-input" id="mdBusinessName" value="${escMd(c.businessName || '')}" placeholder="Ej. Álamos" autocomplete="off">
+            <p id="mdBusinessLookupHint" class="form-hint" hidden style="margin-top:6px;"></p>
+          </div>
           <div class="form-group">
             <label class="form-label">Business ID (opcional)
-              <span class="wizard-tooltip"><span class="wt-icon" tabindex="0">?</span><span class="wt-bubble">Solo si compartes un mismo Supabase entre varios negocios y tu esquema/RLS usa business_id. Si cada local tiene su propia base, déjalo vacío: la nube usará solo el ID de dispositivo.</span></span>
+              <span class="wizard-tooltip"><span class="wt-icon" tabindex="0">?</span><span class="wt-bubble">Código único del negocio en Supabase. Mismo ID en caja y tablets. Si cada local tiene su propio proyecto Supabase, puede dejarlo vacío.</span></span>
             </label>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <input class="form-input" id="mdBusinessId" value="${escMd(c.businessId)}" placeholder="(vacío = una base por local)" style="flex:1; min-width:160px;">
+              <input class="form-input" id="mdBusinessId" value="${escMd(c.businessId)}" placeholder="(vacío = default)" style="flex:1; min-width:160px;">
               <button type="button" class="btn btn-outline" onclick="generateBusinessId()">Generar</button>
             </div>
+            <p id="mdBusinessConnectedLine" class="form-hint" style="margin-top:8px;"></p>
           </div>
           <div class="form-group">
             <label class="form-label">Schema</label>
@@ -30494,6 +30711,11 @@ function initConfigMultidispositivo() {
     /* ignore */
   }
   try {
+    if (typeof crozzoBindBusinessRegistryAutocomplete === 'function') crozzoBindBusinessRegistryAutocomplete();
+  } catch (e) {
+    /* ignore */
+  }
+  try {
     switchMdMainTab('cloud');
   } catch (e) {
     /* ignore */
@@ -30501,6 +30723,7 @@ function initConfigMultidispositivo() {
   setTimeout(() => {
     try {
       updateMdConnectionStatus();
+      if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
     } catch (e) {
       /* ignore */
     }
@@ -38013,6 +38236,9 @@ function crozzoOpenSidebarDrawer() {
   try {
     if (typeof global.crozzoRefreshTabletBottomNav === 'function') global.crozzoRefreshTabletBottomNav();
   } catch (_) {}
+  try {
+    if (typeof crozzoFixMobileNavScroll === 'function') crozzoFixMobileNavScroll();
+  } catch (_) {}
 });
 }
 function crozzoBindSidebarDrawerKeys() {
@@ -38365,8 +38591,8 @@ function crozzoNavSubmenuMaxHeightPx() {
   }
 }
 /**
- * Refuerzo móvil/tablet: scroll táctil en el panel lateral y en sublistas abiertas.
- * Solo toca #sidebarNav y .nav-group-items; NO modifica display de .nav-item (permisos por rol).
+ * Refuerzo móvil/tablet: scroll táctil solo en #sidebarNav (sin scroll anidado en submenús).
+ * NO modifica display de .nav-item (permisos por rol).
  */
 function crozzoPatchMobileSidebarMenus() {
   const nav = document.getElementById('sidebarNav');
@@ -38374,7 +38600,7 @@ function crozzoPatchMobileSidebarMenus() {
   const drawerLayout =
     (typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive()) ||
     (document.body && document.body.classList.contains('crozzo-sidebar-drawer-open'));
-  function clearEl(el) {
+  function clearScrollPatch(el) {
     if (!el || el.getAttribute('data-crozzo-scroll-patch') !== '1') return;
     el.removeAttribute('data-crozzo-scroll-patch');
     el.style.maxHeight = '';
@@ -38384,32 +38610,30 @@ function crozzoPatchMobileSidebarMenus() {
     el.style.minHeight = '';
     try {
       el.style.removeProperty('-webkit-overflow-scrolling');
+      el.style.removeProperty('overscroll-behavior');
+      el.style.removeProperty('touch-action');
     } catch (_) {
       /* ignore */
     }
   }
+  nav.querySelectorAll('.nav-group-items[data-crozzo-scroll-patch="1"]').forEach(clearScrollPatch);
   if (!drawerLayout) {
-    clearEl(nav);
-    nav.querySelectorAll('.nav-group-items[data-crozzo-scroll-patch="1"]').forEach(clearEl);
+    clearScrollPatch(nav);
     return;
   }
-  clearEl(nav);
+  nav.setAttribute('data-crozzo-scroll-patch', '1');
+  nav.style.flex = '1 1 auto';
+  nav.style.minHeight = '0';
   nav.style.maxHeight = '';
-  nav.style.overflowY = '';
-  nav.style.flex = '';
-  nav.style.minHeight = '';
-  nav.querySelectorAll('.nav-group-items[data-crozzo-scroll-patch="1"]').forEach(clearEl);
-  nav.querySelectorAll('.nav-group:not(.nav-group-collapsed) .nav-group-items').forEach(function (sub) {
-    sub.setAttribute('data-crozzo-scroll-patch', '1');
-    sub.style.maxHeight = (crozzoNavSubmenuMaxHeightPx ? crozzoNavSubmenuMaxHeightPx() : 280) + 'px';
-    sub.style.overflowY = 'auto';
-    sub.style.overflowX = 'hidden';
-    try {
-      sub.style.setProperty('-webkit-overflow-scrolling', 'touch');
-    } catch (_) {
-      /* ignore */
-    }
-  });
+  nav.style.overflowY = 'auto';
+  nav.style.overflowX = 'hidden';
+  try {
+    nav.style.setProperty('-webkit-overflow-scrolling', 'touch');
+    nav.style.setProperty('overscroll-behavior', 'contain');
+    nav.style.setProperty('touch-action', 'pan-y');
+  } catch (_) {
+    /* ignore */
+  }
 }
 function crozzoFixMobileNavScroll() {
   try {
@@ -38874,6 +39098,7 @@ function init() {
   let pairingLastQrText = '';
   let pairingLastQrFastText = '';
   let pairingApplying = false;
+  let pairingAutoApplyTimer = null;
   let pairingQrRenderToken = 0;
   let pairingDecodeToken = 0;
   let pairingDecodingActive = false;
@@ -38914,6 +39139,16 @@ function init() {
           window.CrozzoTabletShell.isFieldTabletDevice()))
     );
   }
+  function crozzoIsAndroidApkDevice() {
+    try {
+      if (window.CrozzoDeviceForm && typeof window.CrozzoDeviceForm.isAndroidApk === 'function') {
+        return window.CrozzoDeviceForm.isAndroidApk();
+      }
+    } catch (_) {}
+    var rootEl = document.documentElement;
+    return !!(rootEl && rootEl.classList.contains('crozzo-android-apk'));
+  }
+  window.crozzoIsAndroidApkDevice = crozzoIsAndroidApkDevice;
   window.crozzoIsDevicePaired = crozzoIsDevicePaired;
   function crozzoPairingGetLocalLocationId() {
     var loc = '';
@@ -38997,17 +39232,22 @@ function init() {
     var cs = typeof config !== 'undefined' && config && typeof config.get === 'function' ? config.get('conexionSistemas') || {} : {};
     var ip = String(cs.centralIp || cs.serverIp || '').trim();
     var port = Math.max(1, Number(cs.port) || 3000);
+    var biz =
+      typeof crozzoGetBusinessDisplayLabel === 'function' ? crozzoGetBusinessDisplayLabel() : null;
+    var bizNote =
+      biz && (biz.businessName || biz.businessId) ? ' · 🏪 ' + biz.short : '';
     if (hint) {
       if (paired && ip) {
         hint.hidden = false;
         hint.classList.remove('is-warn', 'is-busy');
         hint.textContent =
-          'Enlace activo · nodo ' + ip + ':' + port + ' · ingrese usuario y contraseña';
+          'Enlace activo · nodo ' + ip + ':' + port + bizNote + ' · ingrese usuario y contraseña';
         hint.style.color = '';
-      } else if (crozzoIsFieldTabletDevice()) {
+      } else if (crozzoIsFieldTabletDevice() || crozzoIsAndroidApkDevice()) {
         hint.hidden = false;
         hint.classList.remove('is-warn', 'is-busy');
-        hint.textContent = 'Primera conexión: enlazar con el código seguro de la caja principal';
+        hint.textContent =
+          'Primera conexión: escanee el QR de la caja (incluye negocio, red y nube)';
         hint.style.color = '';
       } else {
         hint.hidden = true;
@@ -39019,7 +39259,7 @@ function init() {
     if (probeBtn) probeBtn.hidden = !(paired && ip);
     if (btn) {
       if (paired) btn.textContent = 'Reconfigurar enlace';
-      else if (crozzoIsFieldTabletDevice()) btn.textContent = '◎ Escanear código de la caja';
+      else if (crozzoIsFieldTabletDevice() || crozzoIsAndroidApkDevice()) btn.textContent = '◎ Escanear QR de la caja';
       else btn.textContent = '◎ Enlazar terminal con la caja';
     }
   }
@@ -39101,7 +39341,8 @@ function init() {
   window.crozzoMaybeAutoOpenPairingOnBoot = function crozzoMaybeAutoOpenPairingOnBoot() {
     crozzoRefreshLoginPairingHint();
     try {
-      var h = String(location.hash || '').replace(/^#/, '').trim().toLowerCase();
+      var hRaw = String(location.hash || '').replace(/^#/, '').trim();
+      var h = hRaw.toLowerCase();
       if (h === 'pair' && typeof window.crozzoOpenPairingModal === 'function') {
         window.setTimeout(function () {
           window.crozzoOpenPairingModal();
@@ -39112,9 +39353,21 @@ function init() {
         } catch (_) {}
         return;
       }
+      var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
+      if (hRaw && seal && typeof seal.isPairingQr === 'function' && seal.isPairingQr(hRaw)) {
+        try {
+          history.replaceState(null, '', location.pathname + location.search);
+        } catch (_) {}
+        if (typeof window.crozzoOpenPairingModal === 'function') window.crozzoOpenPairingModal();
+        if (typeof window.crozzoPairingSelectReader === 'function') window.crozzoPairingSelectReader();
+        window.setTimeout(function () {
+          if (typeof crozzoPairingHandleDecoded === 'function') crozzoPairingHandleDecoded(hRaw);
+        }, 700);
+        return;
+      }
     } catch (_) {}
     if (crozzoIsDevicePaired()) return;
-    if (!crozzoIsFieldTabletDevice()) return;
+    if (!crozzoIsFieldTabletDevice() && !crozzoIsAndroidApkDevice()) return;
     if (document.body && document.body.classList.contains('crozzo-login-open') === false) return;
     try {
       if (sessionStorage.getItem('crozzo_pairing_autoprompt_v1')) return;
@@ -39838,11 +40091,19 @@ function init() {
     const cloudOn = !!(creds && creds.syncOn);
     const url = creds && creds.url ? String(creds.url).trim() : '';
     const key = creds && creds.key ? String(creds.key).trim() : '';
+    const mdUrl = String(md.supabase?.url || '').trim();
+    const mdKey = String(md.supabase?.anonKey || '').trim();
+    const effUrl = url || mdUrl;
+    const effKey = key || mdKey;
     const syncWanted = cloudOn || !!(readJ && readJ.syncEnabled) || !!md.supabaseSyncEnabled;
-    if (syncWanted && typeof window.isValidSupabasePair === 'function' && !window.isValidSupabasePair(url, key)) {
+    const cloudEmbed =
+      syncWanted &&
+      typeof window.isValidSupabasePair === 'function' &&
+      window.isValidSupabasePair(effUrl, effKey);
+    if (syncWanted && !cloudEmbed) {
       const msg =
         typeof window.crozzoSupabasePairRejectMessage === 'function'
-          ? window.crozzoSupabasePairRejectMessage(url, key)
+          ? window.crozzoSupabasePairRejectMessage(effUrl, effKey)
           : 'Supabase no configurado en esta caja. Super Admin → Nube → Paso 1: pegue URL + anon key → «Guardar y conectar» → genere el QR de nuevo.';
       return { error: msg };
     }
@@ -39878,13 +40139,25 @@ function init() {
       targetProfile === 'pantalla' && typeof crozzoGetDevicePantallaId === 'function'
         ? String(crozzoGetDevicePantallaId() || '').trim()
         : '';
+    const bizId = String(md.businessId || '').trim();
+    let bizName = String(md.businessName || '').trim();
+    if (!bizName && typeof config !== 'undefined' && config.getEmpresa) {
+      try {
+        const emp = config.getEmpresa();
+        bizName = String(emp.nombreComercial || emp.razonSocial || '').trim();
+      } catch (_) {}
+    }
     return {
       payload: {
         type: CROZZO_CLOUD_PAIRING,
         version: 4,
         device_profile: 'caja',
         target_profile: targetProfile,
-        cloud_sync: cloudOn,
+        business_id: bizId,
+        business_name: bizName,
+        businessId: bizId,
+        businessName: bizName,
+        cloud_sync: cloudEmbed,
         sync_priority: syncPriority === 'online' || syncPriority === 'offline' ? syncPriority : 'hybrid',
         network_primary: { ssid_note: redANote, location_id: locationId },
         network_fallback_b: { ssid_note: redBNote, owner: 'caja' },
@@ -39902,8 +40175,8 @@ function init() {
             (typeof window.crozzoLanAuthToken === 'function' ? window.crozzoLanAuthToken() : '') ||
             ''
         },
-        supabase_url: cloudOn ? url : '',
-        supabase_key: cloudOn ? key : '',
+        supabase_url: cloudEmbed ? effUrl : '',
+        supabase_key: cloudEmbed ? effKey : '',
         location_id: locationId,
         device_id: String((readJ && readJ.deviceId) || ensureCrozzoDeviceId()).trim(),
         device_name: String((readJ && readJ.deviceName) || 'Caja BONA origen').trim(),
@@ -40217,6 +40490,18 @@ function init() {
     }
     if (scanText && crozzoPairingMountScanQr(host, scanText, { dense: !!(built.payload.supabase_url && built.payload.supabase_key) })) {
       pairingLastQrFastText = scanText;
+      try {
+        if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+      } catch (_) {}
+      var bizEl = el('crozzoPairingReceiverBiz');
+      if (bizEl && built && built.payload) {
+        var bn = String(built.payload.business_name || built.payload.businessName || '').trim();
+        var bid = String(built.payload.business_id || built.payload.businessId || '').trim();
+        if (bn || bid) {
+          bizEl.hidden = false;
+          bizEl.textContent = '🏪 Este QR empareja con: ' + (bn && bid ? bn + ' · ' + bid : bn || bid);
+        }
+      }
       var hasCloud = !!(built.payload.supabase_url && built.payload.supabase_key);
       if (!hasCloud) {
         crozzoPairingSetWarn(
@@ -40314,9 +40599,13 @@ function init() {
       return;
     }
     const title = 'Emparejar tablet — BONA origen';
-    const text = pairingLastQrText
-      ? 'Escanee con la app BONA origen en la tablet nueva.'
-      : 'Código de emparejamiento BONA origen';
+    const biz =
+      typeof crozzoGetBusinessDisplayLabel === 'function' ? crozzoGetBusinessDisplayLabel() : null;
+    const text = biz && biz.businessName || biz && biz.businessId
+      ? 'Negocio: ' + (biz.label || biz.short) + '. Escanee con la app BONA origen en la tablet nueva.'
+      : pairingLastQrText
+        ? 'Escanee con la app BONA origen en la tablet nueva.'
+        : 'Código de emparejamiento BONA origen';
     function fallback() {
       if (typeof crozzoPairingDownloadPng === 'function') crozzoPairingDownloadPng();
       else if (typeof showToast === 'function') showToast('Use «Descargar QR (PNG)» y envíelo por WhatsApp.', 'info');
@@ -40470,7 +40759,22 @@ function init() {
         window.CrozzoPairingQrReader.ensureOsCameraPermission().catch(function () {});
       }
       // En equipos de campo abrimos la cámara en el recuadro (sin escáner nativo transparente).
-      if (canLiveCam && crozzoPairingReaderIsFieldDevice()) {
+      var readerMod = window.CrozzoPairingQrReader;
+      var apkNative =
+        crozzoIsAndroidApkDevice() &&
+        readerMod &&
+        typeof readerMod.hasNativeScanner === 'function' &&
+        readerMod.hasNativeScanner();
+      if (apkNative) {
+        crozzoPairingShowStatus('Abriendo escáner Android… centre el QR de la caja.', {
+          busy: true,
+          phase: 'decode',
+          progress: 8,
+        });
+        window.setTimeout(function () {
+          if (typeof window.crozzoPairingScanNative === 'function') window.crozzoPairingScanNative();
+        }, 380);
+      } else if (canLiveCam && crozzoPairingReaderIsFieldDevice()) {
         crozzoPairingShowStatus('Abriendo cámara para escanear el QR…', { busy: true, phase: 'decode', progress: 8 });
         window.setTimeout(function () {
           if (typeof window.crozzoPairingStartLiveScan === 'function') window.crozzoPairingStartLiveScan();
@@ -40724,7 +41028,7 @@ function init() {
       });
   };
   function crozzoPairingHandleDecoded(text) {
-    var isFast = String(text || '').trim().indexOf('BOF.') === 0;
+    var isFast = /BOF\./i.test(String(text || '').trim());
     crozzoPairingShowStatus(
       isFast ? 'Enlace rápido detectado — validando red…' : 'Código detectado — verificando integridad…',
       { busy: true, phase: 'decode', progress: 28 }
@@ -40733,9 +41037,18 @@ function init() {
       .then(function (obj) {
       if (!obj) {
         var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
+        if (seal && typeof seal.extractFastFromQr === 'function') {
+          var fastBlob = seal.extractFastFromQr(text);
+          if (fastBlob && typeof seal.parseFastQr === 'function') {
+            obj = seal.parseFastQr(fastBlob);
+          }
+        }
+      }
+      if (!obj) {
+        var seal2 = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
         var msg =
-          seal && typeof seal.isPairingQr === 'function' && seal.isPairingQr(text)
-            ? 'Código sellado inválido o expirado. Genere uno nuevo en la caja.'
+          seal2 && typeof seal2.isPairingQr === 'function' && seal2.isPairingQr(text)
+            ? 'Código de emparejamiento no legible. Genere un QR nuevo en la caja o pegue el código BOF… completo.'
             : 'Señal no reconocida. Use el código de emparejamiento emitido por BONA origen.';
         crozzoPairingFailDecoded(msg, 'Código no reconocido');
         return;
@@ -40762,11 +41075,26 @@ function init() {
           v.sedeSwitch.to +
           '». Se borran los datos locales y se descarga la sede nueva…'
         : 'Código válido — iniciando sincronización…';
-      var autoApply = crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice();
+      var bizFromQr =
+        String(v.data.business_name || v.data.businessName || '').trim() ||
+        String(v.data.business_id || v.data.businessId || '').trim();
+      if (bizFromQr) {
+        switchNote = 'Negocio «' + bizFromQr + '» · ' + switchNote;
+      }
+      var autoApply =
+        crozzoIsFieldTabletDevice() ||
+        crozzoPairingReaderIsFieldDevice() ||
+        crozzoIsAndroidApkDevice();
       if (autoApply) {
         if (pairingApplying) return;
+        if (pairingAutoApplyTimer) {
+          window.clearTimeout(pairingAutoApplyTimer);
+          pairingAutoApplyTimer = null;
+        }
         crozzoPairingShowStatus(switchNote, { busy: true, phase: 'network', progress: 38 });
-        window.setTimeout(function () {
+        pairingAutoApplyTimer = window.setTimeout(function () {
+          pairingAutoApplyTimer = null;
+          if (pairingApplying) return;
           if (typeof window.crozzoPairingApplyFromForm === 'function') window.crozzoPairingApplyFromForm();
         }, 480);
       } else {
@@ -40926,8 +41254,13 @@ function init() {
     const syncP = String(p.sync_priority || 'hybrid');
     const cloud =
       p.cloud_sync !== false && p.supabase_url ? String(p.supabase_url).replace(/^https?:\/\//, '').slice(0, 42) : 'Solo LAN';
+    const bizLabel =
+      String(p.business_name || p.businessName || '').trim() ||
+      String(p.business_id || p.businessId || '').trim() ||
+      '—';
     pr.innerHTML =
       '<div class="crozzo-pairing-preview-grid">' +
+      crozzoPairingPreviewChip('Negocio', bizLabel, true) +
       crozzoPairingPreviewChip('Perfil', crozzoPairingTargetProfileLabel(tp)) +
       crozzoPairingPreviewChip('Nodo central', cip ? cip + ':' + port : '—') +
       crozzoPairingPreviewChip('Prioridad', syncP.toUpperCase()) +
@@ -40975,7 +41308,8 @@ function init() {
     if (tp === 'pantalla') cs.tabletName = 'Pantalla ' + (p.pantalla_area_id || 'comandas');
     else cs.tabletName = 'Tablet emparejada';
     config.set('conexionSistemas', cs);
-    const md = { ...(config.get('multidispositivo') || {}) };
+    const baseMd = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : (config.get('multidispositivo') || {});
+    const md = { ...baseMd };
     if (loc) md.locationId = loc;
     if (redA) md.networkSsidNote = redA;
     if (p.network_fallback_b && p.network_fallback_b.ssid_note) md.networkFallbackNote = String(p.network_fallback_b.ssid_note).trim();
@@ -40985,7 +41319,15 @@ function init() {
     md.allowLan = true;
     md.cloudPriority = lan.cloud_priority !== false;
     if (lanToken) md.lanToken = lanToken;
-    config.set('multidispositivo', md);
+    const pairBid = String(p.business_id || p.businessId || '').trim();
+    const pairBname = String(p.business_name || p.businessName || '').trim();
+    if (pairBid) md.businessId = pairBid;
+    if (pairBname) md.businessName = pairBname;
+    try {
+      persistMultiDeviceConfig(md);
+    } catch (eMd) {
+      config.set('multidispositivo', md);
+    }
     if (lanToken) {
       try {
         const lanRaw = localStorage.getItem('crozzo_lan_config');
@@ -40998,6 +41340,9 @@ function init() {
       if (p.network_fallback_b && p.network_fallback_b.ssid_note) {
         localStorage.setItem('crozzo_network_fallback_note', String(p.network_fallback_b.ssid_note).trim());
       }
+    } catch (_) {}
+    try {
+      if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
     } catch (_) {}
   }
   async function crozzoPairingSyncFromSupabase(progress, opts) {
@@ -41069,7 +41414,12 @@ function init() {
         typeof window.isValidSupabasePair === 'function' &&
         window.isValidSupabasePair(url, key)
       ) {
-        return { url: url, key: key };
+        return {
+          url: url,
+          key: key,
+          business_id: String((data && data.business_id) || '').trim(),
+          business_name: String((data && data.business_name) || '').trim(),
+        };
       }
     } catch (eLanCloud) {
       console.warn('[pairing] fetch cloud from LAN', eLanCloud);
@@ -41144,6 +41494,15 @@ function init() {
       pairingApplying = false;
       return;
     }
+    var earlyBid = String(p.business_id || p.businessId || '').trim();
+    var earlyBname = String(p.business_name || p.businessName || '').trim();
+    if (earlyBid || earlyBname) {
+      try {
+        if (typeof crozzoApplyBusinessFromPairing === 'function') {
+          crozzoApplyBusinessFromPairing(earlyBid, earlyBname);
+        }
+      } catch (_) {}
+    }
     if (cip && tp !== 'caja') {
       crozzoPairingShowStatus('Verificando nodo central ' + cip + ':' + port + '…', { busy: true, phase: 'network', progress: 58 });
       var probe = await crozzoPairingProbeCajaHealth(cip, port);
@@ -41175,6 +41534,14 @@ function init() {
         p.supabase_key = pulled.key;
         p.cloud_sync = true;
         cloudOn = true;
+        if (pulled.business_id) {
+          p.business_id = pulled.business_id;
+          p.businessId = pulled.business_id;
+        }
+        if (pulled.business_name) {
+          p.business_name = pulled.business_name;
+          p.businessName = pulled.business_name;
+        }
       }
     }
     if (p.sync_priority && typeof config.set === 'function') {
@@ -41227,6 +41594,8 @@ function init() {
           device_name: save.deviceName,
           device_id: save.deviceId,
           location_id: loc,
+          business_id: String(p.business_id || p.businessId || '').trim(),
+          business_name: String(p.business_name || p.businessName || '').trim(),
         });
       } else if (typeof window.crozzoPersistSupabaseConfigFromPairing === 'function') {
         window.crozzoPersistSupabaseConfigFromPairing(save);
@@ -41315,6 +41684,9 @@ function init() {
       }
     }
     if (typeof crozzoRefreshLoginPairingHint === 'function') crozzoRefreshLoginPairingHint();
+    try {
+      if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+    } catch (_) {}
     crozzoPairingSetWizardStep(3);
     if (typeof crozzoShowInstallSuccessSplash === 'function') {
       crozzoShowInstallSuccessSplash({

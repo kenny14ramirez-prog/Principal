@@ -55,6 +55,8 @@ const payload = {
   type: 'CROZZO_CLOUD_PAIRING',
   version: 4,
   target_profile: 'tablet',
+  business_id: 'BIZ-ALAMOS',
+  business_name: 'Álamos',
   lan: { central_ip: '192.168.10.88', port: 3000, lan_sync_enabled: true, role: 'B' },
   location_id: 'qa-loc',
   network_primary: { ssid_note: 'QA WiFi' },
@@ -94,6 +96,30 @@ step(
   'IP en payload',
   { ip: parsed && parsed.lan ? parsed.lan.central_ip : null }
 );
+step(
+  'payload-business',
+  parsed && parsed.business_id === 'BIZ-ALAMOS' && parsed.business_name === 'Álamos',
+  'Business ID y nombre en payload',
+  { bid: parsed && parsed.business_id, bn: parsed && parsed.business_name }
+);
+
+const urlWrapped = 'https://bonaorigen.app/instalar#' + bof;
+const parsedUrl = seal.unsealFromQr(urlWrapped);
+step(
+  'url-wrap-decode',
+  parsedUrl && typeof parsedUrl.then === 'function',
+  'unsealFromQr acepta URL+#BOF',
+  null
+);
+if (parsedUrl && typeof parsedUrl.then === 'function') {
+  const fromUrl = await parsedUrl;
+  step(
+    'url-wrap-business',
+    fromUrl && fromUrl.business_id === 'BIZ-ALAMOS',
+    'Negocio desde URL instalación',
+    { bid: fromUrl && fromUrl.business_id }
+  );
+}
 
 writeFileSync(join(outDir, 'pairing-decode-roundtrip.json'), JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));

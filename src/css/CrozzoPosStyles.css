@@ -2900,12 +2900,12 @@ html.tauri-desktop .nav-group-collapsed .nav-group-items:not(.open) {
   }
 
   .sidebar .nav-group:not(.nav-group-collapsed) .nav-group-items {
-    max-height: min(55vh, 520px) !important;
-    overflow-y: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
     overflow-x: hidden;
-    -webkit-overflow-scrolling: touch !important;
-    touch-action: pan-y !important;
-    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: auto !important;
+    touch-action: auto !important;
+    overscroll-behavior: auto;
     position: relative;
   }
 
@@ -23229,12 +23229,12 @@ html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group-li.open > .nav-group-i
 html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group.open > .nav-group-items,
 html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group:not(.nav-group-collapsed) > .nav-group-items.is-expanded,
 html.crozzo-touch-shell #sidebar.sidebar-elite .nav-group:not(.nav-group-collapsed) > .nav-group-items.open {
-  max-height: min(55vh, 520px) !important;
+  max-height: none !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   display: flex !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: auto !important;
 }
 
 html.crozzo-touch-shell #sidebar.sidebar-elite .nav-item-label,
@@ -31361,6 +31361,42 @@ body.crozzo-sidebar-drawer-open #sidebar.open .nav-group-items {
 body.crozzo-sidebar-drawer-open #sidebar.open .nav-group-items {
   padding-left: 6px !important;
   padding-right: 6px !important;
+}
+
+/* Touch/tablet/APK: un solo scroll en #sidebarNav; submenús abiertos fluyen sin barra anidada */
+html.crozzo-touch-shell #sidebar .nav-group-li.open > .nav-group-items,
+html.crozzo-touch-shell #sidebar .nav-group.open > .nav-group-items,
+html.crozzo-touch-shell #sidebar .nav-group:not(.nav-group-collapsed) > .nav-group-items,
+html.crozzo-form-tablet #sidebar .nav-group-li.open > .nav-group-items,
+html.crozzo-form-tablet #sidebar .nav-group.open > .nav-group-items,
+html.crozzo-form-tablet #sidebar .nav-group:not(.nav-group-collapsed) > .nav-group-items,
+html.crozzo-form-mobile #sidebar .nav-group-li.open > .nav-group-items,
+html.crozzo-form-mobile #sidebar .nav-group.open > .nav-group-items,
+html.crozzo-form-mobile #sidebar .nav-group:not(.nav-group-collapsed) > .nav-group-items,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-group-li.open > .nav-group-items,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-group.open > .nav-group-items,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-group:not(.nav-group-collapsed) > .nav-group-items,
+#sidebar.is-nav-searching .crozzo-nav-search-has-match .nav-group-items {
+  max-height: none !important;
+  overflow-y: visible !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: auto !important;
+  overscroll-behavior: auto !important;
+  touch-action: auto !important;
+}
+
+html.crozzo-touch-shell #sidebar #sidebarNav,
+html.crozzo-form-tablet #sidebar #sidebarNav,
+html.crozzo-form-mobile #sidebar #sidebarNav,
+body.crozzo-sidebar-drawer-open #sidebar.open #sidebarNav {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  touch-action: pan-y !important;
 }
 
 body.crozzo-sidebar-drawer-open #sidebar.open .nav-item,

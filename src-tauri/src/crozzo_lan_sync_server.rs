@@ -46,6 +46,7 @@ struct ServerMeta {
     location_id: String,
     device_id: String,
     business_id: String,
+    business_name: String,
     /// URL Supabase (anon key es pública; solo se entrega con token LAN de pareo).
     supabase_url: String,
     supabase_anon_key: String,
@@ -318,6 +319,8 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "supabase_url": meta.supabase_url,
             "supabase_anon_key": meta.supabase_anon_key,
             "location_id": meta.location_id,
+            "business_id": meta.business_id,
+            "business_name": meta.business_name,
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":false}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
@@ -589,6 +592,7 @@ pub fn crozzo_lan_sync_start(
         location_id: location_id.unwrap_or_default().trim().to_string(),
         device_id: device_id.unwrap_or_default().trim().to_string(),
         business_id: business_id.unwrap_or_default().trim().to_string(),
+        business_name: String::new(),
         supabase_url: supabase_url.unwrap_or_default().trim().to_string(),
         supabase_anon_key: supabase_anon_key.unwrap_or_default().trim().to_string(),
     };
@@ -637,13 +641,25 @@ pub fn crozzo_lan_sync_start(
 pub fn crozzo_lan_sync_update_pairing_cloud(
     supabase_url: Option<String>,
     supabase_anon_key: Option<String>,
+    business_id: Option<String>,
+    business_name: Option<String>,
 ) -> Result<bool, String> {
     let shared = Arc::clone(shared_state());
     let mut guard = shared.lock().map_err(|e| e.to_string())?;
     match guard.as_mut() {
         Some(inner) => {
-            inner.meta.supabase_url = supabase_url.unwrap_or_default().trim().to_string();
-            inner.meta.supabase_anon_key = supabase_anon_key.unwrap_or_default().trim().to_string();
+            if let Some(u) = supabase_url {
+                inner.meta.supabase_url = u.trim().to_string();
+            }
+            if let Some(k) = supabase_anon_key {
+                inner.meta.supabase_anon_key = k.trim().to_string();
+            }
+            if let Some(bid) = business_id {
+                inner.meta.business_id = bid.trim().to_string();
+            }
+            if let Some(bn) = business_name {
+                inner.meta.business_name = bn.trim().to_string();
+            }
             Ok(
                 !inner.meta.supabase_url.is_empty() && !inner.meta.supabase_anon_key.is_empty(),
             )

@@ -176,6 +176,23 @@
     'select public.crozzo_fix_all_grants();\n' +
     'notify pgrst, \'reload schema\';\n';
 
+  var BUSINESS_REGISTRY_SQL =
+    '-- Crozzo POS — Registro de negocios (nombre ↔ Business ID)\n' +
+    '-- Ejecutar en el mismo proyecto Supabase que caja y tablets.\n' +
+    '-- Permite autocompletar Business ID al escribir el nombre del negocio.\n\n' +
+    'create table if not exists public.crozzo_business_registry (\n' +
+    '  business_id text primary key,\n' +
+    '  business_name text not null default \'\',\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_business_registry_name\n' +
+    '  on public.crozzo_business_registry (business_name);\n\n' +
+    'alter table public.crozzo_business_registry enable row level security;\n\n' +
+    'drop policy if exists crozzo_business_registry_all on public.crozzo_business_registry;\n' +
+    'create policy crozzo_business_registry_all on public.crozzo_business_registry\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'notify pgrst, \'reload schema\';\n';
+
   global.CrozzoSupabaseSqlExtras = {
     list: function () {
       return [
@@ -214,6 +231,15 @@
           required: false,
           order: 13,
           sql: PROFILES_AUTH_SQL,
+        },
+        {
+          key: 'business_registry',
+          file: 'docs/SUPABASE-SQL-BUSINESS-REGISTRY.sql',
+          title: '14. Registro de negocios (nombre ↔ Business ID)',
+          desc: 'Recomendado para muchos dispositivos: autocompleta el Business ID al escribir el nombre del negocio.',
+          required: false,
+          order: 14,
+          sql: BUSINESS_REGISTRY_SQL,
         },
       ];
     },

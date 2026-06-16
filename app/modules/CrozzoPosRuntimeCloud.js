@@ -708,6 +708,17 @@
   }
 
   function schedulePullLoop() {
+    if (
+      global.CrozzoPageCloudWatch &&
+      typeof global.CrozzoPageCloudWatch.usesGlobalRuntimePoll === 'function' &&
+      !global.CrozzoPageCloudWatch.usesGlobalRuntimePoll()
+    ) {
+      if (__pullTimer) {
+        clearInterval(__pullTimer);
+        __pullTimer = null;
+      }
+      return;
+    }
     if (__pullTimer) clearInterval(__pullTimer);
     var ms = __realtimeLive ? PULL_POLL_LIVE_MS : PULL_POLL_FALLBACK_MS;
     // Escala: bajo presion de la nube (429/503/timeout) espaciamos el poll de

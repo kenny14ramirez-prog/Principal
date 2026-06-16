@@ -263,6 +263,7 @@
       deviceId: (sb && sb.deviceId) || md.deviceId || '',
       deviceName: (sb && sb.deviceName) || '',
       businessId: md.businessId || (sb && sb.businessId) || '',
+      businessName: md.businessName || '',
       locationId: md.locationId || '',
       schema: (md.supabase && md.supabase.schema) || 'public',
     };
@@ -761,6 +762,9 @@
       '<dt>Business ID</dt><dd>' +
       esc(s.businessId || '(opcional, multi-sede)') +
       '</dd>' +
+      '<dt>Nombre negocio</dt><dd>' +
+      esc(s.businessName || (s.businessId ? '—' : '(sin configurar)')) +
+      '</dd>' +
       '<dt>Location ID</dt><dd>' +
       esc(s.locationId || '(LAN / vacío)') +
       '</dd>' +
@@ -818,13 +822,18 @@
       '<input class="form-input" id="mdCloudDeviceIdInput" value="' +
       esc(deviceId) +
       '" placeholder="Vacío = autogenerar" autocomplete="off"></div>' +
+      '<div class="form-group"><label class="form-label">Nombre del negocio</label>' +
+      '<input class="form-input" id="mdBusinessName" value="' +
+      esc(c.businessName || '') +
+      '" placeholder="Ej. Álamos" autocomplete="off"></div>' +
+      '<p id="mdBusinessLookupHint" class="form-hint" hidden style="margin-top:6px;"></p>' +
       '<div class="form-group"><label class="form-label">Business ID</label>' +
       '<div class="crozzo-nube-inline-actions">' +
       '<input class="form-input" id="mdBusinessId" value="' +
       esc(c.businessId || '') +
       '">' +
       '<button type="button" class="btn btn-outline" onclick="typeof generateBusinessId===\'function\'&&generateBusinessId()">Generar</button></div>' +
-      '<p class="form-hint">Opcional. Mismo ID en todos los equipos del mismo negocio.</p></div>' +
+      '<p class="form-hint">Mismo nombre e ID en caja y tablets. Viajan en el QR de emparejamiento.</p></div>' +
       '<div class="form-group"><label class="form-label">Schema</label>' +
       '<input class="form-input" id="mdSupabaseSchema" value="' +
       esc((c.supabase && c.supabase.schema) || 'public') +
@@ -1279,6 +1288,8 @@
     }
     var biz = document.getElementById('mdBusinessId');
     if (biz) biz.value = c.businessId || '';
+    var bname = document.getElementById('mdBusinessName');
+    if (bname) bname.value = c.businessName || '';
     var sch = document.getElementById('mdSupabaseSchema');
     if (sch) sch.value = (c.supabase && c.supabase.schema) || 'public';
     var pri = document.getElementById('mdCloudPriority');
@@ -1424,7 +1435,7 @@
   var _empresaPerfilPanelBound = false;
 
   function sanBindCloudFormDirtyTracking() {
-    ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessId'].forEach(function (id) {
+    ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessName', 'mdBusinessId'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el || el._crozzoNubeDirtyBound) return;
       el._crozzoNubeDirtyBound = true;
@@ -1447,6 +1458,11 @@
 
     sanPopulateFormFromConfig(true);
     sanBindCloudFormDirtyTracking();
+    try {
+      if (typeof global.crozzoBindBusinessRegistryAutocomplete === 'function') {
+        global.crozzoBindBusinessRegistryAutocomplete();
+      }
+    } catch (_) {}
     renderSqlWizardProgress();
     var scripts = getAllScripts();
     var firstKey = scripts[0] ? scripts[0].key : '';
