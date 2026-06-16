@@ -404,9 +404,9 @@
       '.crc-empty{padding:32px 20px;text-align:center;border:1px dashed rgba(212,184,74,.25);border-radius:18px;color:var(--text-muted);line-height:1.6}' +
       '.crc-empty svg{width:48px;height:48px;margin-bottom:12px;opacity:.4;color:var(--crc-gold)}' +
       '.crc-empty strong{display:block;color:var(--text-primary);font-size:16px;margin-bottom:8px}' +
-      '.ccp.bona .crc__hero,.ccp.bona .crc__detail,.ccp.bona .crc-card{border-color:var(--bona-line,#e8e4df)}' +
-      '.ccp.bona .crc__hero,.ccp.bona .crc__detail,.ccp.bona .crc-card{background:#fff;box-shadow:var(--bona-shadow-sm,0 4px 20px rgba(45,45,45,.06))}' +
-      '.ccp.bona .crc-detail__title{font-family:var(--bona-font-display,inherit);color:var(--bona-charcoal,#2d2d2d)}' +
+      '.ccp.bona .crc__hero,.ccp.bona .crc__detail,.ccp.bona .crc-card{border-color:var(--border)}' +
+      '.ccp.bona .crc__hero,.ccp.bona .crc__detail,.ccp.bona .crc-card{background:var(--bg-card);box-shadow:var(--bona-shadow-sm,0 4px 20px rgba(45,45,45,.06))}' +
+      '.ccp.bona .crc-detail__title{font-family:var(--bona-font-display,inherit);color:var(--text-primary)}' +
       '.ccp.bona .crc-ing__qty{color:var(--bona-gold,#b59a6d)}' +
       '@media(max-width:960px){.crc__layout{grid-template-columns:1fr}.crc__detail{position:relative;top:0}.crc__sidebar{max-height:280px}}';
     document.head.appendChild(el);

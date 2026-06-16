@@ -484,6 +484,13 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                         inner.runtime_saved_at = now_ms();
                     }
                 }
+                if let Ok(txt) = serde_json::to_string(&serde_json::json!({
+                    "event": "lan_push",
+                    "endpoint": endpoint,
+                    "payload": payload
+                })) {
+                    let _ = crozzo_lan_ws::broadcast_text(&txt);
+                }
                 let resp = serde_json::json!({ "ok": true, "runtime": true });
                 let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
                 let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);

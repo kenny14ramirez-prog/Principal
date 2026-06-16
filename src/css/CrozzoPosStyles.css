@@ -108,6 +108,14 @@
   --crozzo-bottom-safe: 0px;
   --crozzo-dpr: 1;
   --crozzo-system-scale: 1;
+  /* Alias legacy — módulos usan --surface/--bg/--text; sin esto caen en #fff con texto claro ilegible */
+  --surface: var(--bg-card);
+  --surface-elevated: var(--bg-tertiary);
+  --surface-muted: var(--bg-secondary);
+  --surface2: var(--bg-secondary);
+  --surface-2: var(--bg-secondary);
+  --bg: var(--bg-primary);
+  --text: var(--text-primary);
 }
 
 html {
@@ -1482,7 +1490,6 @@ html[data-theme="bona-origen"] #crozzoBrandLoginPlatform .crozzo-brand-txt {
   cursor: pointer;
   box-shadow: none;
   transition: var(--transition);
-  color-scheme: dark;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -1553,6 +1560,163 @@ html[data-theme="coral"],
 html[data-theme="magenta"],
 html[data-theme="emerald"] {
   color-scheme: dark;
+}
+
+/* ========== Coherencia tema oscuro / claro (html + body.crozzo-theme-*) ========== */
+html.crozzo-theme-dark,
+body.crozzo-theme-dark {
+  color-scheme: dark;
+}
+html.crozzo-theme-light,
+body.crozzo-theme-light {
+  color-scheme: light;
+}
+
+html.crozzo-theme-dark select,
+html.crozzo-theme-dark .form-select,
+html.crozzo-theme-dark .crozzo-theme-select,
+body.crozzo-theme-dark select,
+body.crozzo-theme-dark .form-select,
+body.crozzo-theme-dark .crozzo-theme-select {
+  color-scheme: dark;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+html.crozzo-theme-light select,
+html.crozzo-theme-light .form-select,
+html.crozzo-theme-light .crozzo-theme-select,
+body.crozzo-theme-light select,
+body.crozzo-theme-light .form-select,
+body.crozzo-theme-light .crozzo-theme-select {
+  color-scheme: light;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+html.crozzo-theme-dark select option,
+html.crozzo-theme-dark select optgroup,
+html.crozzo-theme-dark .form-select option,
+html.crozzo-theme-dark .form-select optgroup,
+html.crozzo-theme-dark .crozzo-theme-select option,
+html.crozzo-theme-dark .crozzo-theme-select optgroup,
+body.crozzo-theme-dark select option,
+body.crozzo-theme-dark select optgroup,
+body.crozzo-theme-dark .form-select option,
+body.crozzo-theme-dark .form-select optgroup,
+body.crozzo-theme-dark .crozzo-theme-select option,
+body.crozzo-theme-dark .crozzo-theme-select optgroup {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+html.crozzo-theme-light select option,
+html.crozzo-theme-light select optgroup,
+html.crozzo-theme-light .form-select option,
+html.crozzo-theme-light .form-select optgroup,
+html.crozzo-theme-light .crozzo-theme-select option,
+html.crozzo-theme-light .crozzo-theme-select optgroup,
+body.crozzo-theme-light select option,
+body.crozzo-theme-light select optgroup,
+body.crozzo-theme-light .form-select option,
+body.crozzo-theme-light .form-select optgroup,
+body.crozzo-theme-light .crozzo-theme-select option,
+body.crozzo-theme-light .crozzo-theme-select optgroup {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+html.crozzo-theme-dark .card,
+html.crozzo-theme-dark .modal,
+html.crozzo-theme-dark .user-menu__dropdown,
+html.crozzo-theme-dark .crozzo-header-popover,
+html.crozzo-theme-dark .submenu,
+html.crozzo-theme-dark .nav-group-items,
+html.crozzo-theme-dark .dropdown-menu,
+body.crozzo-theme-dark .card,
+body.crozzo-theme-dark .modal,
+body.crozzo-theme-dark .user-menu__dropdown,
+body.crozzo-theme-dark .crozzo-header-popover,
+body.crozzo-theme-dark .submenu,
+body.crozzo-theme-dark .nav-group-items,
+body.crozzo-theme-dark .dropdown-menu {
+  color: var(--text-primary);
+}
+html.crozzo-theme-light .card,
+html.crozzo-theme-light .modal,
+html.crozzo-theme-light .user-menu__dropdown,
+html.crozzo-theme-light .crozzo-header-popover,
+html.crozzo-theme-light .submenu,
+html.crozzo-theme-light .nav-group-items,
+html.crozzo-theme-light .dropdown-menu,
+body.crozzo-theme-light .card,
+body.crozzo-theme-light .modal,
+body.crozzo-theme-light .user-menu__dropdown,
+body.crozzo-theme-light .crozzo-header-popover,
+body.crozzo-theme-light .submenu,
+body.crozzo-theme-light .nav-group-items,
+body.crozzo-theme-light .dropdown-menu {
+  color: var(--text-primary);
+}
+
+html.crozzo-theme-dark .sidebar,
+html.crozzo-theme-dark #sidebar,
+html.crozzo-theme-dark aside.sidebar,
+body.crozzo-theme-dark .sidebar,
+body.crozzo-theme-dark #sidebar,
+body.crozzo-theme-dark aside.sidebar {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+html.crozzo-theme-light .sidebar,
+html.crozzo-theme-light #sidebar,
+html.crozzo-theme-light aside.sidebar,
+body.crozzo-theme-light .sidebar,
+body.crozzo-theme-light #sidebar,
+body.crozzo-theme-light aside.sidebar {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+html.crozzo-theme-dark .sidebar .nav-item,
+html.crozzo-theme-dark #sidebar .nav-item,
+html.crozzo-theme-dark .sidebar .nav-group-toggle,
+html.crozzo-theme-dark #sidebar .nav-group-toggle,
+body.crozzo-theme-dark .sidebar .nav-item,
+body.crozzo-theme-dark #sidebar .nav-item,
+body.crozzo-theme-dark .sidebar .nav-group-toggle,
+body.crozzo-theme-dark #sidebar .nav-group-toggle {
+  color: var(--text-secondary);
+}
+html.crozzo-theme-dark .sidebar .nav-item:hover,
+html.crozzo-theme-dark #sidebar .nav-item:hover,
+html.crozzo-theme-dark .sidebar .nav-group-toggle:hover,
+html.crozzo-theme-dark #sidebar .nav-group-toggle:hover,
+body.crozzo-theme-dark .sidebar .nav-item:hover,
+body.crozzo-theme-dark #sidebar .nav-item:hover,
+body.crozzo-theme-dark .sidebar .nav-group-toggle:hover,
+body.crozzo-theme-dark #sidebar .nav-group-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+html.crozzo-theme-light .sidebar .nav-item,
+html.crozzo-theme-light #sidebar .nav-item,
+html.crozzo-theme-light .sidebar .nav-group-toggle,
+html.crozzo-theme-light #sidebar .nav-group-toggle,
+body.crozzo-theme-light .sidebar .nav-item,
+body.crozzo-theme-light #sidebar .nav-item,
+body.crozzo-theme-light .sidebar .nav-group-toggle,
+body.crozzo-theme-light #sidebar .nav-group-toggle {
+  color: var(--text-secondary);
+}
+html.crozzo-theme-light .sidebar .nav-item:hover,
+html.crozzo-theme-light #sidebar .nav-item:hover,
+html.crozzo-theme-light .sidebar .nav-group-toggle:hover,
+html.crozzo-theme-light #sidebar .nav-group-toggle:hover,
+body.crozzo-theme-light .sidebar .nav-item:hover,
+body.crozzo-theme-light #sidebar .nav-item:hover,
+body.crozzo-theme-light .sidebar .nav-group-toggle:hover,
+body.crozzo-theme-light #sidebar .nav-group-toggle:hover {
+  background: var(--accent-08);
+  color: var(--text-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1631,11 +1795,37 @@ body.super-admin-active:not(.tauri-desktop) .nav-group-li.open .nav-group-items,
 body.super-admin-active:not(.tauri-desktop) .nav-group.open .nav-group-items,
 html:not(.tauri-desktop) body.super-admin-active .nav-group-li.open .nav-group-items,
 html:not(.tauri-desktop) body.super-admin-active .nav-group.open .nav-group-items,
-#sidebar.is-nav-searching .crozzo-nav-search-has-match .nav-group-items {
+#sidebar.is-nav-searching .crozzo-nav-search-has-match .nav-group-items,
+#sidebar.is-nav-searching .nav-group-li.crozzo-nav-search-has-match > .nav-group-items,
+#sidebar.is-nav-searching .nav-group.crozzo-nav-search-has-match > .nav-group-items {
   display: flex !important;
   flex-direction: column !important;
   visibility: visible !important;
   opacity: 1 !important;
+  max-height: 1200px !important;
+  overflow: visible !important;
+  pointer-events: auto !important;
+  padding: 4px 0 8px !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.is-expanded .nav-group-li.crozzo-nav-search-has-match > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.expanded .nav-group-li.crozzo-nav-search-has-match > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.is-expanded .nav-group.crozzo-nav-search-has-match > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.expanded .nav-group.crozzo-nav-search-has-match > .nav-group-items {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 1200px !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching .nav-group-items .nav-item.crozzo-nav-search-match,
+#sidebar.is-nav-searching .nav-item.crozzo-nav-search-match {
+  display: flex !important;
+  visibility: visible !important;
+  max-height: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-item[data-page],
 html.tauri-desktop body.super-admin-active.crozzo-session-superadmin #sidebar.sidebar-pro .nav-group-toggle {
@@ -1948,7 +2138,7 @@ html.tauri-desktop #sidebar.sidebar-pro .nav-item:hover,
 html.tauri-desktop #sidebar.sidebar-pro .menu-item:hover,
 html.tauri-desktop #sidebar.sidebar-pro .nav-group-toggle:hover,
 html.tauri-desktop #sidebar.sidebar-pro .menu-header:hover {
-  background: var(--bg-card) !important;
+  background: var(--bg-tertiary) !important;
   color: var(--text-primary) !important;
 }
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-item:hover,
@@ -2032,7 +2222,7 @@ html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-item > span:not(.nav-icon)
   opacity: 1 !important;
   visibility: visible !important;
   width: auto !important;
-  max-width: 172px !important;
+  max-width: calc(var(--sidebar-width-expanded, 260px) - 88px) !important;
   min-width: 0 !important;
   flex: 1 1 auto !important;
   margin-left: 0 !important;
@@ -2875,13 +3065,13 @@ html.tauri-desktop #menu-toggle-btn.menu-toggle:hover {
   display: none;
 }
 html.tauri-desktop #sidebar.sidebar-elite .nav-group-collapsed .nav-group-items:not(.open) {
-  display: flex !important;
+  display: none !important;
 }
 .nav-group-collapsed .nav-group-items:not(.open) {
   display: none;
 }
 html.tauri-desktop .nav-group-collapsed .nav-group-items:not(.open) {
-  display: flex !important;
+  display: none !important;
 }
 
 /* Drawer / móvil: scroll táctil en el panel lateral (#sidebarNav = “dropdown” real de Crozzo; no forzar display en ítems filtrados por rol). */
@@ -3180,6 +3370,67 @@ html[data-theme="minimalist"] .crozzo-brand-dual--header {
 }
 .crozzo-brand-dual--login .crozzo-brand-fallback .crozzo-brand-txt {
   max-width: 220px;
+}
+
+/* Marca BONA — logo y franja inferior adaptados al tema activo */
+html.crozzo-theme-dark .crozzo-brand-dual--sidebar,
+body.crozzo-theme-dark .crozzo-brand-dual--sidebar {
+  background: linear-gradient(165deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+html.crozzo-theme-dark .crozzo-brand-slot.bona-platform-live,
+html.crozzo-theme-dark #sidebar .crozzo-brand-slot.is-image,
+body.crozzo-theme-dark .crozzo-brand-slot.bona-platform-live,
+body.crozzo-theme-dark #sidebar .crozzo-brand-slot.is-image {
+  background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%) !important;
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border)) !important;
+}
+html.crozzo-theme-dark .bona-sidebar-live__frame,
+body.crozzo-theme-dark .bona-sidebar-live__frame {
+  background: linear-gradient(135deg, var(--accent-08) 0%, var(--bg-tertiary) 52%, var(--accent-08) 100%) !important;
+  border-color: var(--border) !important;
+}
+html.crozzo-theme-dark .bona-sidebar-live__brand,
+body.crozzo-theme-dark .bona-sidebar-live__brand {
+  color: var(--text-primary) !important;
+}
+html.crozzo-theme-dark .bona-sidebar-live__tag,
+body.crozzo-theme-dark .bona-sidebar-live__tag {
+  color: var(--accent) !important;
+  opacity: 0.95;
+}
+html.crozzo-theme-dark .bona-logo-frame,
+body.crozzo-theme-dark .bona-logo-frame {
+  background: linear-gradient(165deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%) !important;
+  border-color: var(--border) !important;
+}
+html.crozzo-theme-dark .bona-header-gem__plate,
+body.crozzo-theme-dark .bona-header-gem__plate {
+  background: linear-gradient(165deg, var(--bg-card), var(--bg-secondary)) !important;
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border)) !important;
+}
+html.crozzo-theme-dark .crozzo-brand-dual--header,
+body.crozzo-theme-dark .crozzo-brand-dual--header {
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent);
+}
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .bona-sidebar-live {
+  padding: 0 6px 10px !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .bona-sidebar-live__frame {
+  padding: 8px !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .bona-sidebar-live__copy {
+  display: none !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .bona-sidebar-live__content {
+  justify-content: center !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .bona-sidebar-live__copy,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .bona-sidebar-live__copy {
+  display: flex !important;
 }
 
 /* Motion “chrome” — solo ambientes muy suaves; por nivel de intensidad */
@@ -3985,7 +4236,7 @@ body.bona-enterprise-chrome .crozzo-identidad-hero::before {
   color: var(--text-secondary);
 }
 
-.form-input, .form-select {
+.form-input, .form-select, .form-control {
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -4005,7 +4256,7 @@ body.bona-enterprise-chrome .crozzo-identidad-hero::before {
   opacity: 0.4;
 }
 
-.form-input:focus, .form-select:focus {
+.form-input:focus, .form-select:focus, .form-control:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
   background: var(--accent-08, var(--bg-primary));
@@ -4141,8 +4392,14 @@ html[data-theme="minimalist"] select.crozzo-identidad-select {
 
 .btn-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 20px;
+  align-items: center;
+}
+.btn-group .md-toggle {
+  flex: 1 1 auto;
+  max-width: 100%;
 }
 
 /* Toggle Switch */
@@ -5230,7 +5487,7 @@ html.crozzo-android-apk .modal-overlay.active {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  background: white;
+  background: var(--bg-card);
   border-radius: var(--radius);
   padding: 14px;
   width: max-content;
@@ -5238,7 +5495,7 @@ html.crozzo-android-apk .modal-overlay.active {
 }
 
 .wizard-qr-box small {
-  color: #475569;
+  color: var(--text-muted);
   font-size: 0.72rem;
 }
 
@@ -5307,15 +5564,15 @@ html.crozzo-android-apk .modal-overlay.active {
 .crozzo-install-qr-modal__hero {
   margin: -4px -4px 16px;
   padding: 20px 16px 18px;
-  background: linear-gradient(180deg, rgba(249, 247, 245, 0.95) 0%, rgba(255, 255, 255, 0.6) 100%);
-  border-bottom: 1px solid rgba(45, 45, 45, 0.06);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid var(--border);
 }
 .crozzo-install-qr-modal__logo {
   width: 56px;
   height: 56px;
   margin: 0 auto 10px;
   border-radius: 14px;
-  background: #f9f7f5;
+  background: var(--bg-tertiary);
   border: 1px solid rgba(181, 154, 109, 0.35);
   display: flex;
   align-items: center;
@@ -5358,8 +5615,8 @@ html.crozzo-android-apk .modal-overlay.active {
 .crozzo-install-qr-modal__qr-frame {
   padding: 14px;
   border-radius: 16px;
-  background: #fff;
-  border: 1px solid rgba(45, 45, 45, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   box-shadow: inset 0 0 0 1px rgba(181, 154, 109, 0.08);
   margin-bottom: 10px;
 }
@@ -5557,7 +5814,7 @@ html.crozzo-android-apk .modal-overlay.active {
   width: min(360px, 100%);
   padding: 32px 28px;
   border-radius: 22px;
-  background: #fff;
+  background: var(--bg-card);
   text-align: center;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
   animation: crozzo-install-qr-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -5739,7 +5996,7 @@ html.crozzo-android-apk .modal-overlay.active {
   height: 64px;
   margin: 0 auto var(--space-3);
   border-radius: 16px;
-  background: #f9f7f5;
+  background: var(--bg-tertiary);
   border: 1px solid rgba(181, 154, 109, 0.3);
   display: flex;
   align-items: center;
@@ -5834,12 +6091,12 @@ html.crozzo-a11y-reduce-motion .crozzo-install-qr-modal__spinner {
   padding: 6px 10px;
   border-radius: var(--radius);
   font-size: 0.75rem;
-  width: 220px;
+  width: min(220px, calc(100vw - 32px));
   text-align: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
-  z-index: 5;
+  z-index: 200;
 }
 
 .wizard-tooltip:hover .wt-bubble,
@@ -5944,9 +6201,45 @@ html.crozzo-a11y-reduce-motion .crozzo-install-qr-modal__spinner {
   cursor: pointer;
   user-select: none;
   font-size: 0.85rem;
+  max-width: 100%;
 }
 
-.md-toggle input { accent-color: var(--accent); }
+.md-toggle input { accent-color: var(--accent); flex-shrink: 0; }
+
+.form-group.full > .md-toggle,
+.form-group.full > label.md-toggle,
+.form-group .md-toggle--block {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  line-height: 1.45;
+}
+.form-group.full > .md-toggle span,
+.form-group.full > label.md-toggle span,
+.md-toggle--block span {
+  flex: 1;
+  min-width: 0;
+}
+
+.crozzo-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.crozzo-form-row .form-group {
+  flex: 1 1 140px;
+  min-width: 0;
+  margin: 0;
+}
+.crozzo-form-row .form-group--action {
+  flex: 0 0 auto;
+}
 
 .md-status-bar {
   display: flex;
@@ -6902,6 +7195,219 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 }
 .crozzo-role-block--super {
   opacity: 0.92;
+}
+.crozzo-perm-policy-card {
+  margin-top: 0;
+}
+.crozzo-perm-policy-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.crozzo-perm-policy-tab {
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.crozzo-perm-policy-tab:hover {
+  color: var(--text-primary);
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+}
+.crozzo-perm-policy-tab--active {
+  color: var(--text-primary);
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.55);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+}
+.crozzo-perm-policy-panels {
+  min-height: 120px;
+}
+.crozzo-perm-policy-panel {
+  display: none;
+}
+.crozzo-perm-policy-panel--active {
+  display: block;
+}
+.crozzo-perm-policy-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.crozzo-perm-policy-table-wrap {
+  overflow-x: auto;
+}
+.crozzo-perm-policy-table {
+  font-size: 0.84rem;
+}
+.crozzo-perm-policy-table th:last-child,
+.crozzo-perm-policy-table td.crozzo-perm-policy-chk {
+  width: 90px;
+  text-align: center;
+}
+.crozzo-perm-policy-cat-row td {
+  padding-top: 14px;
+  padding-bottom: 6px;
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.02);
+}
+.crozzo-perm-policy-grp {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.crozzo-user-perm-policy-hint {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.2);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.05);
+}
+.crozzo-gestion-wizard-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.crozzo-gestion-wizard-tab {
+  padding: 9px 16px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.crozzo-gestion-wizard-tab--active {
+  color: var(--text-primary);
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.5);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.1);
+}
+.crozzo-gestion-wizard-panel[hidden] {
+  display: none !important;
+}
+.crozzo-gestion-quick-tpl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.crozzo-tipo-negocio-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.crozzo-tipo-negocio-group__head {
+  margin-bottom: 10px;
+}
+.crozzo-tipo-negocio-group__head strong {
+  display: block;
+  font-size: 0.92rem;
+}
+.crozzo-tipo-negocio-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.crozzo-tipo-negocio-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.crozzo-tipo-negocio-card:hover {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.35);
+}
+.crozzo-tipo-negocio-card--active {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.55);
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.08);
+}
+.crozzo-tipo-negocio-card__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.crozzo-tipo-negocio-card__title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.crozzo-tipo-negocio-card__tag {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.crozzo-plantillas-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.crozzo-plantillas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crozzo-plantilla-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.crozzo-plantilla-row__btns {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.crozzo-staff-tpl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crozzo-staff-tpl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.crozzo-edit-user-plantilla-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
 }
 @media (max-width: 640px) {
   .crozzo-gestion-cliente-row {
@@ -9042,6 +9548,11 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   .crozzo-rest-pos__ticket {
     order: -1;
     max-height: min(46vh, 420px);
+  }
+  html.crozzo-touch-shell .crozzo-rest-pos__ticket,
+  body.crozzo-page-rest-pos .crozzo-rest-pos__ticket {
+    order: 2;
+    max-height: min(44vh, 420px);
   }
   .crozzo-rest-pos__modes {
     grid-template-columns: 1fr;
@@ -17143,6 +17654,23 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
   color: #fff;
 }
 
+label.service-mode-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+label.service-mode-btn input[type="radio"],
+label.service-mode-btn input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
 .touch-main-btn {
   width: 100%;
   padding: 14px 12px;
@@ -18326,7 +18854,7 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
 }
 .cart-nota-preset-chip {
   border: 1px solid var(--border, rgba(148, 163, 184, 0.45));
-  background: var(--surface, #fff);
+  background: var(--surface);
   color: var(--text-primary, #1e293b);
   border-radius: 999px;
   padding: 6px 12px;
@@ -18393,7 +18921,7 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   padding-top: 12px;
   margin-top: 4px;
   border-top: 1px solid var(--border);
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
 }
 .modal.modal--product-compose .cart-nota-presets,
 .modal.modal--cart-nota .cart-nota-presets,
@@ -18426,7 +18954,7 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   padding: 6px 12px;
   font-size: 0.82rem;
   cursor: pointer;
-  background: var(--surface, #fff);
+  background: var(--surface);
   user-select: none;
 }
 .crozzo-prod-area-chip input {
@@ -19305,6 +19833,8 @@ body.crozzo-corkboard-focus .card:hover,
   justify-content: space-between;
   gap: 14px;
   padding: 0 20px;
+  pointer-events: auto;
+  touch-action: manipulation;
   background: linear-gradient(90deg, #1c1917 0%, #292524 35%, #44403c 50%, #292524 65%, #1c1917 100%);
   color: #fafaf9;
   font-size: 0.9rem;
@@ -19330,8 +19860,11 @@ body.crozzo-corkboard-focus .card:hover,
 }
 .crozzo-cork-focus-bar__exit {
   min-height: 40px;
+  min-width: 44px;
   padding: 8px 18px;
   font-weight: 700;
+  pointer-events: auto;
+  touch-action: manipulation;
   border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45) !important;
   color: #fafaf9 !important;
   background: rgba(var(--accent-rgb, 201, 169, 98), 0.1) !important;
@@ -19359,6 +19892,24 @@ body.crozzo-corkboard-focus .sidebar,
 body.crozzo-corkboard-focus .crozzo-mobile-bottom-nav,
 body.crozzo-corkboard-focus .main-header {
   display: none !important;
+}
+/* Táctil: en pantalla corcho mantener barra inferior para salir a otras módulos */
+html.crozzo-touch-shell body.crozzo-corkboard-focus .crozzo-mobile-bottom-nav.crozzo-mbn--active,
+html.crozzo-android-apk body.crozzo-corkboard-focus .crozzo-mobile-bottom-nav.crozzo-mbn--active,
+html[data-crozzo-android="1"] body.crozzo-corkboard-focus .crozzo-mobile-bottom-nav.crozzo-mbn--active {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 10020 !important;
+}
+html.crozzo-touch-shell body.crozzo-corkboard-focus.crozzo-bottom-nav-active .main-body,
+html.crozzo-touch-shell body.crozzo-corkboard-focus.crozzo-bottom-nav-active #mainContent,
+html.crozzo-android-apk body.crozzo-corkboard-focus.crozzo-bottom-nav-active .main-body,
+html.crozzo-android-apk body.crozzo-corkboard-focus.crozzo-bottom-nav-active #mainContent {
+  padding-bottom: calc(
+    var(--crozzo-touch-nav-h, 56px) + max(var(--crozzo-bottom-safe, 0px), env(safe-area-inset-bottom, 0px)) + 8px
+  ) !important;
 }
 body.crozzo-corkboard-focus .main-content {
   margin-left: 0 !important;
@@ -21333,7 +21884,7 @@ body.crozzo-page-cierre-caja #pageContent {
   padding: 10px 12px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
-  background: var(--surface, #fff);
+  background: var(--surface);
 }
 
 .crozzo-cierre-print-format__lbl {
@@ -21366,7 +21917,7 @@ body.crozzo-page-cierre-caja #pageContent {
   padding: 20px 22px 18px;
   border-radius: calc(var(--radius-lg) + 4px);
   border: 1px solid var(--border);
-  background: var(--surface, #fff);
+  background: var(--surface);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
 }
 
@@ -21659,7 +22210,7 @@ body.crozzo-page-cierre-caja #pageContent {
   justify-content: space-between;
   padding: 8px 10px;
   font-size: 0.82rem;
-  background: var(--surface-elevated, #fff);
+  background: var(--surface-elevated);
   border-bottom: 1px solid var(--border);
 }
 
@@ -21946,7 +22497,7 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   margin-top: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(15, 23, 42, 0.35);
+  background: var(--bg-card);
 }
 
 .permissions-group summary {
@@ -22071,6 +22622,79 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
 .user-toggle input:checked + .slider { background: var(--success); }
 .user-toggle input:checked + .slider::before { transform: translateX(16px); }
 
+/* Toggle con etiqueta — fila completa (tablas usan .user-toggle solo) */
+.crozzo-toggle-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.crozzo-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.28);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.crozzo-toggle-row:hover {
+  border-color: rgba(59, 130, 246, 0.38);
+  background: rgba(59, 130, 246, 0.05);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+.crozzo-toggle-row:has(input:checked) {
+  border-color: rgba(16, 185, 129, 0.42);
+  background: rgba(16, 185, 129, 0.06);
+}
+.crozzo-toggle-row:has(input:checked):hover {
+  border-color: rgba(16, 185, 129, 0.55);
+  background: rgba(16, 185, 129, 0.09);
+}
+.crozzo-toggle-row .user-toggle {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.crozzo-toggle-row__body {
+  flex: 1;
+  min-width: 0;
+}
+.crozzo-toggle-row__title {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.crozzo-toggle-row__hint {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.crozzo-toggle-row__hint code {
+  font-size: 0.78rem;
+}
+.crozzo-toggle-row--danger {
+  border-color: rgba(248, 113, 113, 0.22);
+  background: rgba(127, 29, 29, 0.12);
+}
+.crozzo-toggle-row--danger:hover {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.18);
+}
+.crozzo-toggle-row--danger .crozzo-toggle-row__title {
+  color: #fecaca;
+}
+.crozzo-toggle-row--danger:has(input:checked) {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(127, 29, 29, 0.22);
+}
+
 .users-empty {
   padding: 28px 16px;
   text-align: center;
@@ -22088,12 +22712,18 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   .user-edit-grid { grid-template-columns: 1fr; }
   .users-table thead th:nth-child(2),
   .users-table tbody td:nth-child(2) { display: none; }
+  .users-table tbody td:nth-child(4) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
 }
 
 .user-perms-accordion {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
 }
 
@@ -22120,11 +22750,11 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 12px 8px;
-  padding: 8px 10px;
+  margin: 0 12px 10px;
+  padding: 10px 12px;
   border-radius: var(--radius);
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.28);
+  background: var(--accent-10, rgba(var(--accent-rgb, 201, 169, 98), 0.12));
+  border: 1px solid var(--accent-20, rgba(var(--accent-rgb, 201, 169, 98), 0.28));
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -22143,22 +22773,26 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   padding: 0;
   margin: 0 0 0 4px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+  background: var(--accent-08, rgba(var(--accent-rgb, 201, 169, 98), 0.08));
   color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
   cursor: help;
 }
-.user-perm-help:hover { color: var(--text-primary); border-color: rgba(99, 102, 241, 0.45); }
+.user-perm-help:hover {
+  color: var(--text-primary);
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45);
+  background: var(--accent-10, rgba(var(--accent-rgb, 201, 169, 98), 0.12));
+}
 
 .user-perm-subblock {
-  margin: 0 10px 10px;
-  padding: 8px 10px 10px;
+  margin: 0 12px 10px;
+  padding: 10px 12px 12px;
   border-radius: var(--radius);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
 }
 .user-perm-subblock:last-child { margin-bottom: 12px; }
 .user-perm-subblock-head {
@@ -22167,14 +22801,16 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   flex-wrap: wrap;
   gap: 6px 8px;
   margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
 }
 .user-perm-sub-master-row {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   margin: 0;
 }
@@ -22192,29 +22828,42 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
 
 .user-perms-accordion details {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: rgba(15, 23, 42, 0.35);
+  border-radius: var(--radius-lg, var(--radius));
+  background: var(--bg-card);
+  overflow: hidden;
 }
 
 .user-perms-accordion summary {
   cursor: pointer;
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-weight: 600;
   font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
   list-style: none;
+  transition: background-color var(--motion-fast, 150ms ease);
+}
+.user-perms-accordion summary:hover {
+  background: var(--bg-tertiary);
 }
 
 .user-perms-accordion summary::-webkit-details-marker { display: none; }
 .user-perms-accordion summary::after { content: '▾'; color: var(--text-muted); transition: transform 0.2s; }
 .user-perms-accordion details[open] summary::after { transform: rotate(180deg); display: inline-block; }
+.user-perms-accordion details[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+.user-perms-accordion details > .user-perm-area-master-row {
+  margin-top: 10px;
+}
 
 .user-perms-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 6px 12px;
+  gap: 8px 12px;
   padding: 2px 0 0;
 }
 
@@ -22226,9 +22875,12 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  font-size: 0.84rem;
+  color: var(--text-primary);
   cursor: pointer;
+}
+.user-perms-grid label:hover {
+  color: var(--text-primary);
 }
 
 @media (max-width: 1024px) {
@@ -22377,7 +23029,7 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   }
 
   .tablet-layout.crozzo-tablet-touch .tablet-order-panel {
-    order: -1;
+    order: 2;
     position: relative;
     top: auto;
     max-height: none;
@@ -22607,14 +23259,15 @@ body.crozzo-pairing-open .crozzo-pairing-capture-input {
 .invoice-preview .section {
   margin: 16px 0;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border-radius: var(--radius);
+  color: var(--text-primary);
 }
 
 .invoice-preview .section-title {
   font-weight: 600;
   margin-bottom: 8px;
-  color: #555;
+  color: var(--text-secondary);
   font-size: 0.8rem;
   text-transform: uppercase;
 }
@@ -22626,14 +23279,14 @@ body.crozzo-pairing-open .crozzo-pairing-capture-input {
 
 .invoice-preview th, .invoice-preview td {
   padding: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
   font-size: 0.85rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .invoice-preview th {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 /* Stats */
@@ -23789,6 +24442,21 @@ html.crozzo-android-native.crozzo-touch-shell .pos-container {
 html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--crozzo-touch-gap);
+}
+
+html.crozzo-touch-shell .crozzo-toggle-row {
+  padding: 16px 18px;
+  gap: 16px;
+}
+html.crozzo-touch-shell .crozzo-toggle-row .user-toggle {
+  transform: scale(1.08);
+  transform-origin: left top;
+}
+html.crozzo-touch-shell .crozzo-toggle-row__title {
+  font-size: 0.95rem;
+}
+html.crozzo-touch-shell .crozzo-toggle-row__hint {
+  font-size: 0.85rem;
 }
 
 html.crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .provider-grid {
@@ -25430,7 +26098,7 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   min-height: 0;
   margin: 8px 0;
   padding: 8px;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: var(--radius);
 }
 .crozzo-pairing-qr-host img,
@@ -25785,9 +26453,15 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
   border-left: 2px solid var(--accent);
   border-radius: var(--radius);
 }
-#sidebar.is-nav-searching .nav-group-toggle {
+#sidebar.is-nav-searching .nav-group-li:not(.crozzo-nav-search-has-match) .nav-group-toggle,
+#sidebar.is-nav-searching .nav-group:not(.crozzo-nav-search-has-match) .nav-group-toggle {
   pointer-events: none;
   opacity: 0.92;
+}
+#sidebar.is-nav-searching .crozzo-nav-search-has-match > .nav-group-toggle {
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 1;
 }
 .crozzo-nav-search-empty {
   padding: var(--space-4) var(--space-4) var(--space-2);
@@ -26328,15 +27002,16 @@ html.crozzo-android-native .crozzo-header-theme-details[open] .crozzo-header-pop
     display: none;
   }
   .crozzo-header__toolbar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    overflow-x: visible;
     overflow-y: visible;
     max-width: 100%;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
   }
-  .crozzo-header__toolbar::-webkit-scrollbar {
-    display: none;
+  html.tauri-desktop .user-menu__dropdown.is-open {
+    position: fixed;
+    right: 12px;
+    top: calc(var(--crozzo-header-h, 52px) + var(--crozzo-safe-top, env(safe-area-inset-top, 0px)) + 6px);
+    z-index: 10080;
   }
 }
 
@@ -27132,7 +27807,7 @@ body.crozzo-boot-updates-active:has(#crozzo-boot-update-gate.is-open) {
   width: 100%;
   padding: var(--space-8) var(--space-6);
   border-radius: var(--radius-lg, 16px);
-  background: var(--surface-elevated, #fff);
+  background: var(--surface-elevated);
   box-shadow: var(--shadow-xl, 0 24px 48px rgba(0, 0, 0, 0.2));
   text-align: center;
 }
@@ -27212,7 +27887,7 @@ html.crozzo-a11y-reduce-motion .crozzo-boot-update-gate__spinner {
   width: min(400px, 100%);
   padding: var(--space-7) var(--space-6);
   border-radius: var(--radius-lg, 16px);
-  background: var(--surface-elevated, #fff);
+  background: var(--surface-elevated);
   box-shadow: var(--shadow-xl, 0 20px 40px rgba(15, 23, 42, 0.18));
   text-align: center;
 }
@@ -27366,7 +28041,7 @@ html.crozzo-perf-lite .crozzo-load-topbar__fill {
   padding: var(--space-4);
   border-radius: var(--radius, 12px);
   border: 1px solid var(--border-subtle, rgba(15, 23, 42, 0.08));
-  background: var(--surface-elevated, #fff);
+  background: var(--surface-elevated);
 }
 .crozzo-page-load__card--wide {
   grid-column: 1 / -1;
@@ -28298,7 +28973,7 @@ html.crozzo-perf-lite .main-header {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: linear-gradient(165deg, var(--bg, #fff) 0%, var(--bg-secondary, #f8fafc) 100%);
+  background: linear-gradient(165deg, var(--bg) 0%, var(--bg-secondary) 100%);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
   transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
 }
@@ -28477,7 +29152,7 @@ html.crozzo-perf-lite .main-header {
   min-height: min(70vh, 640px);
   border: 0;
   border-radius: 8px;
-  background: #f1f5f9;
+  background: var(--bg-secondary);
 }
 .crozzo-prov-rut__viewer-img {
   max-width: 100%;
@@ -28492,12 +29167,12 @@ html.crozzo-perf-lite .main-header {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  background: #eef1f5;
+  background: var(--bg-secondary);
   min-height: 100px;
   max-height: 150px;
 }
 .crozzo-rut-mini.has-preview {
-  background: #fff;
+  background: var(--bg-card);
 }
 .crozzo-rut-mini--empty {
   min-height: auto;
@@ -28520,7 +29195,7 @@ html.crozzo-perf-lite .main-header {
   border: none;
   object-fit: contain;
   display: block;
-  background: #fff;
+  background: var(--bg-card);
 }
 .crozzo-rut-mini__iframe,
 .crozzo-rut-mini__img {
@@ -28620,7 +29295,7 @@ html.crozzo-perf-lite .main-header {
   padding: 18px 20px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-elevated, #fff);
+  background: var(--surface-elevated);
 }
 .cxf-modo-card--featured {
   border-color: rgba(99, 102, 241, 0.45);
@@ -28670,7 +29345,7 @@ html.crozzo-perf-lite .main-header {
   font-size: 0.78rem;
   font-weight: 600;
   border: 1px solid var(--border);
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
 }
 .cxf-documento-resumen__chip.is-ok {
   border-color: rgba(16, 185, 129, 0.45);
@@ -29275,7 +29950,7 @@ body.crozzo-premium-psyche .cxf-fe-analisis {
   background: rgba(99, 102, 241, 0.05);
 }
 .cxf-fe-analisis--pending {
-  background: var(--bg-secondary, #f8fafc);
+  background: var(--bg-secondary);
 }
 
 /* Loader análisis FE (barra de progreso integrada) */
@@ -29300,7 +29975,7 @@ body.crozzo-premium-psyche .cxf-fe-analisis {
   max-width: 360px;
   padding: 22px 26px;
   border-radius: 14px;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
   text-align: center;
@@ -29488,7 +30163,7 @@ body.crozzo-premium-psyche .cxf-fe-analisis {
   padding: 12px 16px 14px;
   border-radius: 14px 14px 12px 12px;
   border: 1px solid var(--border);
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.18);
 }
 .cxf-progress-dock__head {
@@ -29630,7 +30305,7 @@ body.cxf-progress-dock-visible .cxf-root {
   overflow: auto;
   padding: 16px 18px 18px;
   border-radius: 14px;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22);
 }
@@ -29703,7 +30378,7 @@ body.cxf-progress-dock-visible .cxf-root {
   overflow: auto;
   padding: 16px 18px 18px;
   border-radius: 14px;
-  background: var(--bg-card, #fff);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22);
 }
@@ -29894,7 +30569,7 @@ body.cxf-progress-dock-visible .cxf-root {
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.2s;
   overflow: hidden;
-  background: var(--bg, #fff);
+  background: var(--bg);
 }
 .crozzo-prov-doc--premium .crozzo-prov-doc__drop:hover {
   box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12);
@@ -30055,7 +30730,7 @@ body.cxf-progress-dock-visible .cxf-root {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg, #fff);
+  background: var(--bg);
   min-height: min(88vh, 980px);
   height: min(88vh, 980px);
   max-height: min(92vh, 1040px);
@@ -30129,7 +30804,7 @@ body.cxf-progress-dock-visible .cxf-root {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg, #fff);
+  background: var(--bg);
   cursor: pointer;
   font-size: 0.82rem;
 }
@@ -30168,7 +30843,7 @@ body.cxf-progress-dock-visible .cxf-root {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg, #fff);
+  background: var(--bg);
   cursor: pointer;
 }
 .crozzo-prov-doc__match.is-selected {
@@ -31686,6 +32361,11 @@ body.crozzo-sidebar-drawer-open #sidebar.open .nav-group:not(.nav-group-collapse
   max-height: none !important;
   overflow-y: visible !important;
   overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
   -webkit-overflow-scrolling: auto !important;
   overscroll-behavior: auto !important;
   touch-action: auto !important;
@@ -32223,7 +32903,7 @@ html.crozzo-native-scan-active .crozzo-boot-update-gate {
 .crozzo-install-success-splash__card--neo {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(165deg, #fff 0%, #f8fafc 100%);
+  background: linear-gradient(165deg, var(--bg-card) 0%, var(--bg-secondary) 100%);
 }
 .crozzo-install-success-splash__ring {
   position: absolute;
@@ -32309,7 +32989,7 @@ html.crozzo-native-scan-active .crozzo-boot-update-gate {
 }
 .crozzo-pairing-qr-col--full {
   border: 1px solid rgba(181, 154, 109, 0.35);
-  background: #fff;
+  background: var(--bg-card);
 }
 .crozzo-pairing-qr-slot-label {
   margin: 0 0 6px;
@@ -33923,7 +34603,7 @@ html.crozzo-form-mobile .crozzo-sticky-done-btn {
   touch-action: manipulation;
 }
 html.crozzo-form-mobile .crozzo-sticky-note {
-  touch-action: manipulation;
+  touch-action: pan-y;
 }
 html.crozzo-form-mobile .crozzo-comandas-hub .crozzo-station-note {
   min-width: 0;
@@ -33937,7 +34617,164 @@ html.crozzo-form-mobile .crozzo-pantallas-kiosk-setup__btns .btn {
   min-height: 44px;
 }
 
+/* Comandas — hub lista (todas las pantallas, scroll en mainContent) */
+body.crozzo-page-comandas #mainContent,
+body.crozzo-page-comandas .main-body,
+html.crozzo-form-desktop body.crozzo-page-comandas #mainContent,
+html.tauri-desktop body.crozzo-page-comandas #mainContent {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  min-height: 0;
+  max-height: none !important;
+}
+body.crozzo-page-comandas .crozzo-comandas-hub {
+  display: block;
+  min-height: 0;
+  overflow: visible;
+  max-height: none !important;
+}
+body.crozzo-page-comandas .crozzo-comandas-hub-list {
+  max-height: none !important;
+  overflow: visible !important;
+}
+.crozzo-comandas-hub-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.crozzo-comandas-hub-sub {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+}
+.crozzo-comandas-hub-panel {
+  padding: 10px 12px 20px;
+  min-height: 0;
+  overflow: visible;
+}
+.crozzo-comandas-hub-intro {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+.crozzo-comandas-hub-search-wrap {
+  margin-bottom: 10px;
+}
+.crozzo-comandas-hub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: visible;
+}
+.crozzo-comandas-hub-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-sizing: border-box;
+}
+.crozzo-comandas-hub-row__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.crozzo-comandas-hub-row__meta {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+}
+.crozzo-comandas-hub-row__badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(234, 88, 12, 0.14);
+  color: #c2410c;
+  font-weight: 700;
+}
+.crozzo-comandas-hub-row__idle {
+  color: var(--text-muted);
+}
+.crozzo-comandas-hub-row__arrow {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  opacity: 0.55;
+}
+.crozzo-comandas-hub-foot {
+  margin: 12px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.crozzo-comandas-hub-row[hidden] {
+  display: none !important;
+}
+.crozzo-comandas-area-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px !important;
+}
+.crozzo-comandas-area-header__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.crozzo-comandas-area-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 /* Comandas táctil — conserva corcho, notas y animaciones; solo scroll y orden */
+body.crozzo-page-comandas.crozzo-comandas-touch #mainContent,
+body.crozzo-page-comandas.crozzo-comandas-touch .main-body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard,
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-masonry,
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-stations-cork,
+body.crozzo-comandas-touch .crozzo-comandas-hub .crozzo-comandas-stations-cork {
+  touch-action: pan-y;
+}
+body.crozzo-comandas-touch .crozzo-comandas-hub .crozzo-comandas-stations-cork {
+  min-height: min(56vh, 520px);
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-note {
+  touch-action: pan-y;
+  cursor: default;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-note .btn,
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-done-btn,
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-icon-btn,
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-call-btn {
+  touch-action: manipulation;
+  cursor: pointer;
+}
 body.crozzo-page-comandas.crozzo-comandas-touch #mainContent {
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
@@ -33990,7 +34827,18 @@ body.crozzo-comandas-touch .comandas-vista-touch .card-header {
   padding-bottom: 8px;
 }
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard.crozzo-comandas-area-cork {
-  min-height: min(52vh, 380px);
+  min-height: 200px;
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-masonry {
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.crozzo-page-comandas .card.comandas-vista-tablero,
+body.crozzo-page-comandas .comandas-layout--tablero {
+  overflow: visible !important;
+  max-height: none !important;
 }
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-empty {
   padding: 40px 20px;
@@ -34025,9 +34873,6 @@ body.crozzo-comandas-touch .comandas-vista-touch .crozzo-pantallas-kiosk-setup__
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-toolbar .btn,
 body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-done-btn {
   min-height: 48px;
-  touch-action: manipulation;
-}
-body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-note {
   touch-action: manipulation;
 }
 html.crozzo-form-mobile .crozzo-comandas-mobile-setup,
@@ -34085,4 +34930,315 @@ body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   opacity: 1 !important;
   pointer-events: auto !important;
   z-index: 10050 !important;
+}
+
+/* =============================================================================
+ * REMEDIACIÓN TEMA OSCURO v2 — anula fondos claros forzados en pantallas/modules
+ * Gana a estilos inyectados por JS (!important). QR/PDF preview: fondo claro OK.
+ * ============================================================================= */
+html.crozzo-theme-dark .main-content,
+html.crozzo-theme-dark .main-body,
+html.crozzo-theme-dark #mainContent,
+body.crozzo-theme-dark .main-content,
+body.crozzo-theme-dark .main-body,
+body.crozzo-theme-dark #mainContent {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary);
+}
+
+html.crozzo-theme-dark .content-section,
+html.crozzo-theme-dark .crozzo-hub-local,
+html.crozzo-theme-dark .crozzo-hub-engine,
+html.crozzo-theme-dark .crozzo-hub-compras,
+html.crozzo-theme-dark .crozzo-oficina-app,
+html.crozzo-theme-dark .crozzo-pl-app,
+html.crozzo-theme-dark .crozzo-lab-page,
+body.crozzo-theme-dark .content-section,
+body.crozzo-theme-dark .crozzo-hub-local,
+body.crozzo-theme-dark .crozzo-hub-engine,
+body.crozzo-theme-dark .crozzo-hub-compras,
+body.crozzo-theme-dark .crozzo-oficina-app,
+body.crozzo-theme-dark .crozzo-pl-app,
+body.crozzo-theme-dark .crozzo-lab-page {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary);
+}
+
+/* Hub compras / producción / recetario (.ccp.bona) */
+html.crozzo-theme-dark .ccp.bona,
+body.crozzo-theme-dark .ccp.bona {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+html.crozzo-theme-dark .ccp.bona .ccp__status,
+html.crozzo-theme-dark .ccp.bona .ccp__hero,
+html.crozzo-theme-dark .ccp.bona .bona-chain,
+html.crozzo-theme-dark .ccp.bona .ccp-kpi,
+html.crozzo-theme-dark .ccp.bona .ccp__rail,
+html.crozzo-theme-dark .ccp.bona .ccp-card,
+html.crozzo-theme-dark .ccp.bona .cps-hist-stat,
+html.crozzo-theme-dark .ccp.bona .cps-wf-pick__btn,
+html.crozzo-theme-dark .ccp.bona .cps-coach__step,
+html.crozzo-theme-dark .ccp.bona .cps .card,
+html.crozzo-theme-dark .ccp.bona .crc__hero,
+html.crozzo-theme-dark .ccp.bona .crc__detail,
+html.crozzo-theme-dark .ccp.bona .crc-card,
+html.crozzo-theme-dark .ccp.bona .ccp-local,
+html.crozzo-theme-dark .ccp.bona .crozzo-oficina-table-wrap,
+html.crozzo-theme-dark .ccp.bona .crozzo-oficina-form-panel,
+html.crozzo-theme-dark .ccp.bona .crozzo-oficina-prov-card,
+body.crozzo-theme-dark .ccp.bona .ccp__status,
+body.crozzo-theme-dark .ccp.bona .ccp__hero,
+body.crozzo-theme-dark .ccp.bona .bona-chain,
+body.crozzo-theme-dark .ccp.bona .ccp-kpi,
+body.crozzo-theme-dark .ccp.bona .ccp__rail,
+body.crozzo-theme-dark .ccp.bona .ccp-card,
+body.crozzo-theme-dark .ccp.bona .cps-hist-stat,
+body.crozzo-theme-dark .ccp.bona .cps-wf-pick__btn,
+body.crozzo-theme-dark .ccp.bona .cps-coach__step,
+body.crozzo-theme-dark .ccp.bona .cps .card,
+body.crozzo-theme-dark .ccp.bona .crc__hero,
+body.crozzo-theme-dark .ccp.bona .crc__detail,
+body.crozzo-theme-dark .ccp.bona .crc-card,
+body.crozzo-theme-dark .ccp.bona .ccp-local,
+body.crozzo-theme-dark .ccp.bona .crozzo-oficina-table-wrap,
+body.crozzo-theme-dark .ccp.bona .crozzo-oficina-form-panel,
+body.crozzo-theme-dark .ccp.bona .crozzo-oficina-prov-card {
+  background: var(--bg-card) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary);
+}
+html.crozzo-theme-dark .ccp.bona .ccp__title,
+html.crozzo-theme-dark .ccp.bona .cps__title,
+html.crozzo-theme-dark .ccp.bona .crc-detail__title,
+html.crozzo-theme-dark .ccp.bona .bona-chain__step.done .bona-chain__lbl,
+body.crozzo-theme-dark .ccp.bona .ccp__title,
+body.crozzo-theme-dark .ccp.bona .cps__title,
+body.crozzo-theme-dark .ccp.bona .crc-detail__title,
+body.crozzo-theme-dark .ccp.bona .bona-chain__step.done .bona-chain__lbl {
+  color: var(--text-primary) !important;
+}
+html.crozzo-theme-dark .ccp.bona .ccp__sub,
+html.crozzo-theme-dark .ccp.bona .ccp-nav,
+html.crozzo-theme-dark .ccp.bona .cps__sub,
+html.crozzo-theme-dark .ccp.bona .bona-chain__lbl,
+html.crozzo-theme-dark .ccp.bona .ccp__crumb,
+body.crozzo-theme-dark .ccp.bona .ccp__sub,
+body.crozzo-theme-dark .ccp.bona .ccp-nav,
+body.crozzo-theme-dark .ccp.bona .cps__sub,
+body.crozzo-theme-dark .ccp.bona .bona-chain__lbl,
+body.crozzo-theme-dark .ccp.bona .ccp__crumb {
+  color: var(--text-secondary) !important;
+}
+html.crozzo-theme-dark .ccp.bona .ccp__welcome,
+html.crozzo-theme-dark .ccp.bona .cps-coach,
+body.crozzo-theme-dark .ccp.bona .ccp__welcome,
+body.crozzo-theme-dark .ccp.bona .cps-coach {
+  background: linear-gradient(135deg, var(--accent-08), var(--bg-card)) !important;
+  border-color: var(--border) !important;
+}
+html.crozzo-theme-dark .ccp.bona .ccp-loader,
+body.crozzo-theme-dark .ccp.bona .ccp-loader {
+  background: color-mix(in srgb, var(--bg-primary) 96%, transparent) !important;
+}
+
+/* Modales, paneles, tablas operativas */
+html.crozzo-theme-dark .modal,
+html.crozzo-theme-dark .modal-dialog,
+html.crozzo-theme-dark .modal-content,
+html.crozzo-theme-dark .crozzo-cuadre-modal__card,
+html.crozzo-theme-dark .crozzo-cierre-print-format,
+html.crozzo-theme-dark .crozzo-boot-shell__card,
+html.crozzo-theme-dark .crozzo-boot-update-gate__card,
+html.crozzo-theme-dark .a11y-panel,
+html.crozzo-theme-dark .crozzo-fa-panel,
+html.crozzo-theme-dark .cart-nota-preset-chip,
+html.crozzo-theme-dark .crozzo-prov-dir__card,
+html.crozzo-theme-dark .crozzo-mobile-install-card,
+html.crozzo-theme-dark .cxf-fe-analisis--pending,
+html.crozzo-theme-dark .cxf-mp-create--modal,
+html.crozzo-theme-dark .crozzo-pairing-card,
+body.crozzo-theme-dark .modal,
+body.crozzo-theme-dark .modal-dialog,
+body.crozzo-theme-dark .modal-content,
+body.crozzo-theme-dark .crozzo-cuadre-modal__card,
+body.crozzo-theme-dark .crozzo-cierre-print-format,
+body.crozzo-theme-dark .crozzo-boot-shell__card,
+body.crozzo-theme-dark .crozzo-boot-update-gate__card,
+body.crozzo-theme-dark .a11y-panel,
+body.crozzo-theme-dark .crozzo-fa-panel,
+body.crozzo-theme-dark .cart-nota-preset-chip,
+body.crozzo-theme-dark .crozzo-prov-dir__card,
+body.crozzo-theme-dark .crozzo-mobile-install-card,
+body.crozzo-theme-dark .cxf-fe-analisis--pending,
+body.crozzo-theme-dark .cxf-mp-create--modal,
+body.crozzo-theme-dark .crozzo-pairing-card {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border);
+}
+
+html.crozzo-theme-dark .crozzo-oficina-pdf-panel__body,
+html.crozzo-theme-dark .crozzo-oficina-pdf-loading,
+html.crozzo-theme-dark .crozzo-rut-mini:not(.has-preview),
+html.crozzo-theme-dark .crozzo-rut-mini--empty,
+body.crozzo-theme-dark .crozzo-oficina-pdf-panel__body,
+body.crozzo-theme-dark .crozzo-oficina-pdf-loading,
+body.crozzo-theme-dark .crozzo-rut-mini:not(.has-preview),
+body.crozzo-theme-dark .crozzo-rut-mini--empty {
+  background: var(--bg-secondary) !important;
+}
+
+html.crozzo-theme-dark .crozzo-install-qr-modal__hero,
+html.crozzo-theme-dark .crozzo-install-success-splash__card--neo,
+body.crozzo-theme-dark .crozzo-install-qr-modal__hero,
+body.crozzo-theme-dark .crozzo-install-success-splash__card--neo {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%) !important;
+  border-color: var(--border) !important;
+}
+
+html.crozzo-theme-dark .form-input,
+html.crozzo-theme-dark .form-select,
+html.crozzo-theme-dark textarea,
+html.crozzo-theme-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+body.crozzo-theme-dark .form-input,
+body.crozzo-theme-dark .form-select,
+body.crozzo-theme-dark textarea,
+body.crozzo-theme-dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border);
+}
+
+html.crozzo-theme-dark table tbody tr:nth-child(even),
+body.crozzo-theme-dark table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--bg-secondary) 65%, transparent);
+}
+
+html.crozzo-theme-dark .invoice-preview,
+body.crozzo-theme-dark .invoice-preview {
+  color: var(--text-primary);
+}
+
+/* Simulación papel / QR: mantener contraste de lectura */
+html.crozzo-theme-dark .crozzo-invoice-doc__paper,
+html.crozzo-theme-dark .cxf-pdf-preview-host,
+html.crozzo-theme-dark .cxf-pdf-canvas-wrap,
+html.crozzo-theme-dark .cxf-preview-frame,
+html.crozzo-theme-dark .crozzo-pairing-qr-host,
+html.crozzo-theme-dark .crozzo-crm-reg-qr-canvas,
+html.crozzo-theme-dark .wizard-qr-box,
+body.crozzo-theme-dark .crozzo-invoice-doc__paper,
+body.crozzo-theme-dark .cxf-pdf-preview-host,
+body.crozzo-theme-dark .cxf-pdf-canvas-wrap,
+body.crozzo-theme-dark .cxf-preview-frame,
+body.crozzo-theme-dark .crozzo-pairing-qr-host,
+body.crozzo-theme-dark .crozzo-crm-reg-qr-canvas,
+body.crozzo-theme-dark .wizard-qr-box {
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+html.crozzo-theme-dark .wizard-qr-box small,
+body.crozzo-theme-dark .wizard-qr-box small {
+  color: #64748b !important;
+}
+
+/* Marca / logo / franja BONA inferior (refuerzo texto sobre estilos inyectados) */
+html.crozzo-theme-dark .bona-sidebar-live__brand,
+body.crozzo-theme-dark .bona-sidebar-live__brand {
+  color: var(--text-primary) !important;
+}
+html.crozzo-theme-dark .bona-sidebar-live__tag,
+body.crozzo-theme-dark .bona-sidebar-live__tag {
+  color: var(--accent) !important;
+}
+
+/* === Búsqueda menú lateral: resultados planos + submenús visibles === */
+.crozzo-nav-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 var(--space-3) var(--space-3);
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+}
+.crozzo-nav-search-results[hidden] {
+  display: none !important;
+}
+.crozzo-nav-search-hit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast), background-color var(--motion-fast);
+}
+.crozzo-nav-search-hit:hover,
+.crozzo-nav-search-hit:focus-visible {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45);
+  background: var(--accent-08, rgba(var(--accent-rgb, 201, 169, 98), 0.08));
+  outline: none;
+}
+.crozzo-nav-search-hit__group {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.crozzo-nav-search-hit__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+#sidebar.is-nav-searching #sidebarNav.crozzo-nav-search-nav-hidden {
+  display: none !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.is-expanded .nav-group-li.open > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.expanded .nav-group-li.open > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group-li.open > .nav-group-items,
+html.tauri-desktop #sidebar.sidebar-pro.expanded .nav-group-li.open > .nav-group-items {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: 1200px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching .nav-item.crozzo-nav-search-match,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group-li.open .nav-item[data-page],
+#sidebar.is-nav-searching .nav-item.crozzo-nav-search-match {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.is-expanded .nav-item.crozzo-nav-search-match .nav-item-label,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded .nav-group-li.open .nav-item-label,
+#sidebar.is-nav-searching.is-expanded .nav-item.crozzo-nav-search-match .nav-item-label {
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: auto !important;
+  max-width: none !important;
+  overflow: visible !important;
+  flex: 1 1 auto !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching .crozzo-nav-search-wrap,
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.is-expanded .crozzo-nav-search-wrap,
+html.tauri-desktop #sidebar.sidebar-pro.is-nav-searching.expanded .crozzo-nav-search-wrap {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }

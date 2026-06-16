@@ -48,6 +48,15 @@
     if (!msg || !msg.payload) return;
     var raw = msg.payload;
     var typ = String(raw.type || '').toLowerCase();
+    if (typ === 'runtime') {
+      var snap = raw.data || raw.payload || raw;
+      if (snap && typeof global.crozzoApplyRemoteRuntimeRow === 'function') {
+        global.crozzoApplyRemoteRuntimeRow(snap, snap.savedAt ? new Date(Number(snap.savedAt)).toISOString() : null, {
+          quiet: true,
+        });
+      }
+      return;
+    }
     if (typ === 'comanda' || typ === 'comanda_new') {
       var snap = raw.data || raw.payload || raw;
       if (snap && snap.id != null && typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
@@ -73,6 +82,14 @@
       } else if (typeof global.updateComandaEstado === 'function') {
         global.updateComandaEstado(c.id, pay.estado, { skipFanout: true });
       }
+      try {
+        if (
+          (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
+          typeof global.renderPage === 'function'
+        ) {
+          global.renderPage(global.currentPage);
+        }
+      } catch (_) {}
     }
   }
 

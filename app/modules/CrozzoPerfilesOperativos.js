@@ -406,6 +406,9 @@
       return client;
     }
     client.roles = buildRolesConfigObject(id);
+    if (typeof global.CrozzoPermisosPolicy !== 'undefined' && global.CrozzoPermisosPolicy.syncClientRolePerms) {
+      global.CrozzoPermisosPolicy.syncClientRolePerms(client);
+    }
     return client;
   }
 

@@ -29,11 +29,11 @@
   };
 
   var PAGE_PROFILES = {
-    cajero: { domains: ['runtime', 'comandas', 'products'], intervalMs: 9000 },
+    cajero: { domains: ['runtime', 'comandas', 'products'], intervalMs: 7500 },
     'venta-comercial': { domains: ['runtime', 'products'], intervalMs: 11000 },
-    tablets: { domains: ['runtime', 'products'], intervalMs: 10000 },
-    comandas: { domains: ['comandas'], intervalMs: 7000 },
-    cocina: { domains: ['comandas'], intervalMs: 7000 },
+    tablets: { domains: ['runtime', 'comandas', 'products'], intervalMs: 5500 },
+    comandas: { domains: ['comandas'], intervalMs: 4500 },
+    cocina: { domains: ['comandas'], intervalMs: 4500 },
     facturas: { domains: ['sales', 'queue'], intervalMs: 14000 },
     'cierre-caja': { domains: ['runtime', 'sales', 'tenant', 'queue'], intervalMs: 10000 },
     'inicio-operacion': { domains: ['tenant', 'runtime'], intervalMs: 22000 },
@@ -376,7 +376,22 @@
     return false;
   }
 
+  function refreshCloudTransports() {
+    safe(function () {
+      if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') global.crozzoStartPosRuntimeCloudSync();
+    });
+    safe(function () {
+      if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
+    });
+    safe(function () {
+      if (global.CrozzoCloudThrottle && typeof global.CrozzoCloudThrottle.clearPressure === 'function') {
+        global.CrozzoCloudThrottle.clearPressure();
+      }
+    });
+  }
+
   global.addEventListener('online', function () {
+    refreshCloudTransports();
     if (__activePage) {
       setTimeout(function () {
         initialPass(__activePage).catch(function () {});
@@ -385,10 +400,13 @@
   });
 
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && __activePage) {
-      setTimeout(function () {
-        initialPass(__activePage).catch(function () {});
-      }, 500);
+    if (!document.hidden) {
+      refreshCloudTransports();
+      if (__activePage) {
+        setTimeout(function () {
+          initialPass(__activePage).catch(function () {});
+        }, 500);
+      }
     }
   });
 

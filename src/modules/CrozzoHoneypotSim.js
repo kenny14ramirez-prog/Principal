@@ -2137,8 +2137,9 @@
       '<li>Respaldo sin contraseñas en JSON</li>' +
       '<li>Bóveda local cifrada (XOR + Base64) en este equipo</li>' +
       '<li>Asistente recuperación nube (7 pasos, cola servidor)</li></ul>' +
-      '<label class="user-toggle" style="margin-top:14px;display:flex;align-items:center;gap:10px;">' +
-      '<input type="checkbox" checked disabled><span>Protección anti-intrusión activa</span></label>' +
+      '<label class="crozzo-toggle-row" style="margin-top:14px;">' +
+      '<span class="user-toggle"><input type="checkbox" checked disabled><span class="slider"></span></span>' +
+      '<span class="crozzo-toggle-row__body"><span class="crozzo-toggle-row__title">Protección anti-intrusión activa</span></span></label>' +
       '<button type="button" class="btn btn-outline" style="margin-top:10px;" onclick="navigateTo(\'hp-recovery-paso-1\')">🔄 Asistente recuperación cloud (7 pasos)</button>' +
       renderHpProtectedVaultSection(ctx) +
       '<button type="button" class="btn btn-outline" style="margin-top:12px;" onclick="crozzoHpFakeExportSecrets()">🔐 Exportar política y hashes de usuarios</button></div>'

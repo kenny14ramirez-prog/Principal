@@ -968,13 +968,13 @@
       '<li>Si ya creó usuarios en Authentication y profiles sigue en 0, ejecute el <strong>Script 13</strong> en Paso 2.</li>' +
       '</ul></div>' +
       '<p class="form-hint" id="sanProfilesCount">Perfiles en nube: — (pulse Comprobar tablas)</p>' +
-      '<div class="form-row" style="gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
-      '<label class="form-group" style="flex:1;min-width:180px;">Correo<input type="email" id="sanCloudUserEmail" class="form-control" placeholder="admin@negocio.com" autocomplete="off"></label>' +
-      '<label class="form-group" style="flex:1;min-width:140px;">Contraseña<input type="password" id="sanCloudUserPass" class="form-control" placeholder="mín. 6 caracteres" autocomplete="new-password"></label>' +
-      '<label class="form-group" style="min-width:120px;">Rol<select id="sanCloudUserRole" class="form-control">' +
+      '<div class="crozzo-form-row">' +
+      '<div class="form-group"><label class="form-label" for="sanCloudUserEmail">Correo</label><input type="email" id="sanCloudUserEmail" class="form-input" placeholder="admin@negocio.com" autocomplete="off"></div>' +
+      '<div class="form-group"><label class="form-label" for="sanCloudUserPass">Contraseña</label><input type="password" id="sanCloudUserPass" class="form-input" placeholder="mín. 6 caracteres" autocomplete="new-password"></div>' +
+      '<div class="form-group" style="flex:0 1 140px;"><label class="form-label" for="sanCloudUserRole">Rol</label><select id="sanCloudUserRole" class="form-select">' +
       '<option value="cajero">Cajero</option><option value="admin">Admin</option><option value="super_admin">Super Admin</option>' +
-      '</select></label>' +
-      '<button type="button" class="btn btn-primary" id="sanBtnCreateCloudUser">➕ Crear usuario nube</button>' +
+      '</select></div>' +
+      '<div class="form-group form-group--action"><label class="form-label" aria-hidden="true">&nbsp;</label><button type="button" class="btn btn-primary" id="sanBtnCreateCloudUser">➕ Crear usuario nube</button></div>' +
       '</div>' +
       '<p class="form-hint">Tip: en Supabase → Authentication → Providers → Email, desactive «Confirm email» para que el usuario entre de inmediato sin revisar correo.</p>' +
       '</div>'
@@ -1037,20 +1037,48 @@
         preview = global.CrozzoPerfilesOperativos.renderRolePreview(cur);
       }
     } catch (_) {}
+    var tipoGrid = '';
+    try {
+      if (global.CrozzoPerfilesBiblioteca && global.CrozzoPerfilesBiblioteca.renderBusinessTypeGrid) {
+        tipoGrid = global.CrozzoPerfilesBiblioteca.renderBusinessTypeGrid(cur);
+      }
+    } catch (_) {}
+    var tplQuick = '';
+    try {
+      if (global.CrozzoPerfilesBiblioteca && typeof global.crozzoLoadMenuProfilesConfig === 'function') {
+        var cfgN = global.crozzoLoadMenuProfilesConfig();
+        var tlist = cfgN.savedTemplates || [];
+        if (tlist.length) {
+          tplQuick =
+            '<div class="crozzo-gestion-quick-tpl" style="margin-top:10px;"><span class="form-hint">Plantillas:</span> ' +
+            tlist
+              .slice(0, 4)
+              .map(function (t) {
+                return (
+                  '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoPerfilesBiblioteca.applyEmpresa(\'' +
+                  t.id +
+                  '\')">' +
+                  esc(t.nombre) +
+                  '</button>'
+                );
+              })
+              .join(' ') +
+            '</div>';
+        }
+      }
+    } catch (_) {}
     return (
       '<div class="card crozzo-nube-empresa-perfil" style="margin-top:14px;">' +
       '<div class="card-header">' +
-      '<span class="card-title">🏢 Tamaño de empresa (cliente activo)</span>' +
-      '<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="navigateTo(\'gestion-perfiles-menus\')">⚙️ Perfiles y menús</button>' +
+      '<span class="card-title">Tipo de negocio (cliente activo)</span>' +
+      '<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="navigateTo(\'gestion-perfiles-menus\')">Configuración completa</button>' +
       '</div>' +
-      '<p class="form-hint">Presets para grupos de aprox. <strong>20</strong>, <strong>250</strong> o <strong>500</strong> personas. ' +
-      'Ajusta ventas, compras, inventario/bodega y administración por rol.</p>' +
-      '<p class="form-hint">Perfil activo: <strong id="sanEmpresaPerfilLabel">' +
+      '<p class="form-hint">Elija el tipo de operación. Guarde plantillas en <strong>Configuración completa</strong> para aplicarlas en un clic a otros clientes.</p>' +
+      '<p class="form-hint">Activo: <strong id="sanEmpresaPerfilLabel">' +
       esc(cur || '—') +
       '</strong></p>' +
-      '<div class="crozzo-perfil-pills" id="sanEmpresaPerfilPills">' +
-      pills +
-      '</div>' +
+      tplQuick +
+      (tipoGrid || '<div class="crozzo-perfil-pills" id="sanEmpresaPerfilPills">' + pills + '</div>') +
       '<div id="sanEmpresaPerfilPreview" style="margin-top:12px;">' +
       preview +
       '</div></div>'

@@ -107,6 +107,17 @@
     };
   }
 
+  /** Retardo escalonado para re-suscribir Realtime sin estampida entre dispositivos. */
+  function resubscribeDelayMs(attempt) {
+    var n = Math.max(0, Number(attempt) || 0);
+    var base = 1800;
+    var spread = 4500;
+    if (typeof global.crozzoReconnectStaggerMs === 'function') {
+      return global.crozzoReconnectStaggerMs(base, spread) + Math.min(n, 10) * 700;
+    }
+    return base + n * 1200;
+  }
+
   global.CrozzoCloudThrottle = {
     readPrefs: readPrefs,
     queueIntervalMs: queueIntervalMs,
@@ -119,5 +130,6 @@
     noteSupabaseError: noteSupabaseError,
     canRunDrain: canRunDrain,
     snapshot: snapshot,
+    resubscribeDelayMs: resubscribeDelayMs,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

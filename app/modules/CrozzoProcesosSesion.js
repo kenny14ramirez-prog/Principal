@@ -205,14 +205,14 @@
       '.cps-wf-pick__btn.is-active{background:var(--accent-08)}' +
       '.cps-wf-pick__title{font-size:14px;font-weight:650;color:var(--text-primary)}' +
       '.cps-wf-pick__desc{font-size:11px;color:var(--text-muted);line-height:1.45}' +
-      '.ccp.bona .cps .card{background:#fff;border-color:var(--bona-line,#e8e4de);box-shadow:var(--bona-shadow-sm,0 1px 3px rgba(0,0,0,.06))}' +
-      '.ccp.bona .cps__title{font-family:var(--bona-font-display,inherit);color:var(--bona-charcoal)}' +
-      '.ccp.bona .cps__sub{color:var(--bona-charcoal-soft)}' +
-      '.ccp.bona .cps-hist-stat{border-color:var(--bona-line);background:#fff;box-shadow:var(--bona-shadow-sm)}' +
-      '.ccp.bona .cps-wf-pick__btn{border-color:var(--bona-line);background:#fff}' +
-      '.ccp.bona .cps-wf-pick__btn.is-active{border-color:var(--bona-gold);background:var(--bona-gold-08)}' +
-      '.ccp.bona .cps-coach{border-color:var(--bona-line);background:linear-gradient(135deg,var(--bona-gold-08,#faf8f5),#fff)}' +
-      '.ccp.bona .cps-coach__step{background:#fff;border-color:var(--bona-line)}' +
+      '.ccp.bona .cps .card{background:var(--bg-card);border-color:var(--border);box-shadow:var(--bona-shadow-sm,0 1px 3px rgba(0,0,0,.06))}' +
+      '.ccp.bona .cps__title{font-family:var(--bona-font-display,inherit);color:var(--text-primary)}' +
+      '.ccp.bona .cps__sub{color:var(--text-secondary)}' +
+      '.ccp.bona .cps-hist-stat{border-color:var(--border);background:var(--bg-card);box-shadow:var(--bona-shadow-sm)}' +
+      '.ccp.bona .cps-wf-pick__btn{border-color:var(--border);background:var(--bg-card)}' +
+      '.ccp.bona .cps-wf-pick__btn.is-active{border-color:var(--accent);background:var(--accent-08)}' +
+      '.ccp.bona .cps-coach{border-color:var(--border);background:linear-gradient(135deg,var(--accent-08),var(--bg-card))}' +
+      '.ccp.bona .cps-coach__step{background:var(--bg-card);border-color:var(--border)}' +
       '@media(max-width:640px){.cps-modo-grid{grid-template-columns:1fr}.cps-wf-pick__grid,.cps-hist-stats{grid-template-columns:1fr}}';
     var el = document.getElementById('crozzo-procesos-sesion-css');
     if (!el) {

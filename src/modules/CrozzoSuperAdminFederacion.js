@@ -107,10 +107,10 @@
       '<li>Marque «SQL ejecutado» y pase a Verificar.</li></ol>' +
       '<p class="form-hint">Archivo: <code>docs/SUPABASE-SQL-FEDERACION.sql</code></p>' +
       '<textarea class="form-input" id="fedSqlTextarea" rows="14" readonly style="font-family:monospace;font-size:11px;margin-top:8px">Cargando SQL…</textarea>' +
-      '<div class="btn-group" style="margin-top:10px;flex-wrap:wrap">' +
+      '<div class="btn-group" style="margin-top:10px;flex-wrap:wrap;align-items:center">' +
       '<button type="button" class="btn btn-outline" id="fedCopySql">📋 Copiar SQL</button>' +
       '<button type="button" class="btn btn-outline" id="fedDownloadSql">⬇ Descargar</button>' +
-      '<label class="md-toggle" style="margin-left:8px"><input type="checkbox" id="fedSqlDone"> SQL ejecutado en este proyecto</label></div></div>'
+      '<label class="md-toggle md-toggle--block" style="flex:1 1 220px;margin:0"><input type="checkbox" id="fedSqlDone"> SQL ejecutado en este proyecto</label></div></div>'
     );
   }
 

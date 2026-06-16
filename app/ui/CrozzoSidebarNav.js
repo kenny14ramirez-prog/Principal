@@ -100,7 +100,44 @@
   }
 
   function isNavItemEligibleForSearch(item) {
-    return !!(item && !item.hasAttribute('hidden'));
+    if (!item) return false;
+    if (item.hasAttribute('hidden') && item.hidden !== false) return false;
+    var row = item.closest('li');
+    if (row && row.hasAttribute('hidden') && row.hidden !== false) return false;
+    var grp = item.closest('.nav-group-li, .nav-group');
+    if (grp && (grp.hidden || grp.style.display === 'none')) {
+      try {
+        if (typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser()) return true;
+      } catch (_) {}
+      return false;
+    }
+    return true;
+  }
+
+  function forceNavItemVisibleForSearch(item) {
+    if (!item) return;
+    item.hidden = false;
+    item.removeAttribute('hidden');
+    item.style.setProperty('display', 'flex', 'important');
+    item.style.setProperty('visibility', 'visible', 'important');
+    item.style.setProperty('opacity', '1', 'important');
+    item.style.setProperty('pointer-events', 'auto', 'important');
+    delete item.dataset.crozzoSearchHidden;
+    var label = item.querySelector('.nav-item-label, .menu-text');
+    if (label) {
+      label.style.setProperty('opacity', '1', 'important');
+      label.style.setProperty('visibility', 'visible', 'important');
+      label.style.setProperty('width', 'auto', 'important');
+      label.style.setProperty('max-width', 'none', 'important');
+      label.style.setProperty('overflow', 'visible', 'important');
+    }
+    var row = item.closest('li');
+    if (row) {
+      row.hidden = false;
+      row.removeAttribute('hidden');
+      row.style.removeProperty('display');
+      delete row.dataset.crozzoSearchHidden;
+    }
   }
 
   function setNavItemSearchVisible(item, match) {
@@ -108,25 +145,41 @@
     item.classList.toggle('crozzo-nav-search-match', match);
     item.setAttribute('aria-hidden', match ? 'false' : 'true');
     if (match) {
-      if (item.dataset.crozzoSearchHidden === '1') {
-        item.style.removeProperty('display');
-        delete item.dataset.crozzoSearchHidden;
-      }
+      forceNavItemVisibleForSearch(item);
     } else {
       item.dataset.crozzoSearchHidden = '1';
       item.style.setProperty('display', 'none', 'important');
-    }
-    var row = item.closest('li');
-    if (row) {
-      if (match) {
-        if (row.dataset.crozzoSearchHidden === '1') {
-          row.style.removeProperty('display');
-          delete row.dataset.crozzoSearchHidden;
-        }
-      } else {
+      var row = item.closest('li');
+      if (row) {
         row.dataset.crozzoSearchHidden = '1';
         row.style.setProperty('display', 'none', 'important');
       }
+    }
+  }
+
+  function syncGroupSubmenuVisible(group, open) {
+    if (!group) return;
+    var sub = group.querySelector('.nav-group-items');
+    if (!sub) return;
+    if (open) {
+      sub.classList.add('open', 'is-expanded');
+      sub.style.setProperty('display', 'flex', 'important');
+      sub.style.setProperty('flex-direction', 'column', 'important');
+      sub.style.setProperty('max-height', '1200px', 'important');
+      sub.style.setProperty('opacity', '1', 'important');
+      sub.style.setProperty('visibility', 'visible', 'important');
+      sub.style.setProperty('overflow', 'visible', 'important');
+      sub.style.setProperty('pointer-events', 'auto', 'important');
+    } else {
+      var sb = getSidebar();
+      if (sb && sb.classList.contains('is-nav-searching')) return;
+      sub.style.removeProperty('display');
+      sub.style.removeProperty('flex-direction');
+      sub.style.removeProperty('max-height');
+      sub.style.removeProperty('opacity');
+      sub.style.removeProperty('visibility');
+      sub.style.removeProperty('overflow');
+      sub.style.removeProperty('pointer-events');
     }
   }
 
@@ -266,6 +319,7 @@
       } else {
         sub.style.transitionDelay = '';
       }
+      syncGroupSubmenuVisible(group, !!open);
     }
     if (isDrawerNavMode()) {
       try {
@@ -410,6 +464,63 @@
     return el;
   }
 
+  function ensureSearchResultsEl() {
+    var nav = getNav();
+    if (!nav || !nav.parentElement) return null;
+    var el = document.getElementById('crozzoNavSearchResults');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'crozzoNavSearchResults';
+    el.className = 'crozzo-nav-search-results';
+    el.setAttribute('role', 'listbox');
+    el.setAttribute('aria-label', 'Resultados de búsqueda en el menú');
+    el.hidden = true;
+    nav.parentElement.insertBefore(el, nav);
+    if (!el._crozzoSearchHitsBound) {
+      el._crozzoSearchHitsBound = true;
+      el.addEventListener('click', function (e) {
+        var btn = e.target.closest('.crozzo-nav-search-hit[data-page]');
+        if (!btn) return;
+        e.preventDefault();
+        var page = btn.getAttribute('data-page');
+        if (!page) return;
+        var item = document.querySelector('#sidebarNav .nav-item[data-page="' + page + '"]');
+        if (item) navigateFromItem(item);
+        else if (typeof global.navigateTo === 'function') {
+          clearNavSearch();
+          global.navigateTo(page);
+        }
+      });
+    }
+    return el;
+  }
+
+  function renderNavSearchResults(hits) {
+    var el = ensureSearchResultsEl();
+    if (!el) return;
+    if (!hits || !hits.length) {
+      el.hidden = true;
+      el.innerHTML = '';
+      return;
+    }
+    el.hidden = false;
+    el.innerHTML = hits
+      .map(function (h) {
+        return (
+          '<button type="button" class="crozzo-nav-search-hit" role="option" data-page="' +
+          String(h.page).replace(/"/g, '&quot;') +
+          '">' +
+          '<span class="crozzo-nav-search-hit__group">' +
+          String(h.group || '').replace(/</g, '&lt;') +
+          '</span>' +
+          '<span class="crozzo-nav-search-hit__label">' +
+          String(h.label || h.page).replace(/</g, '&lt;') +
+          '</span></button>'
+        );
+      })
+      .join('');
+  }
+
   function clearNavSearch() {
     var inp = document.getElementById('crozzoNavSearch');
     var sb = getSidebar();
@@ -418,12 +529,13 @@
     document.querySelectorAll('#sidebarNav .nav-item[data-page]').forEach(function (item) {
       item.classList.remove('crozzo-nav-filter-hidden', 'crozzo-nav-search-match');
       item.removeAttribute('aria-hidden');
-      if (item.dataset.crozzoSearchHidden === '1') {
-        item.style.removeProperty('display');
-        delete item.dataset.crozzoSearchHidden;
-      }
+      item.style.removeProperty('display');
+      item.style.removeProperty('visibility');
+      item.style.removeProperty('opacity');
+      item.style.removeProperty('pointer-events');
+      delete item.dataset.crozzoSearchHidden;
       var row = item.closest('li');
-      if (row && row.dataset.crozzoSearchHidden === '1') {
+      if (row) {
         row.style.removeProperty('display');
         delete row.dataset.crozzoSearchHidden;
       }
@@ -434,10 +546,29 @@
         g.style.removeProperty('display');
         delete g.dataset.crozzoSearchHidden;
       }
+      syncGroupSubmenuVisible(g, false);
+      var sub = g.querySelector('.nav-group-items');
+      if (sub) {
+        sub.classList.remove('open', 'is-expanded');
+      }
+    });
+    document.querySelectorAll('#sidebarNav .nav-item[data-page] .nav-item-label').forEach(function (label) {
+      label.style.removeProperty('opacity');
+      label.style.removeProperty('visibility');
+      label.style.removeProperty('width');
+      label.style.removeProperty('max-width');
+      label.style.removeProperty('overflow');
     });
     collapseAllGroups(false);
     var empty = document.getElementById('crozzoNavSearchEmpty');
     if (empty) empty.hidden = true;
+    var hits = document.getElementById('crozzoNavSearchResults');
+    if (hits) {
+      hits.hidden = true;
+      hits.innerHTML = '';
+    }
+    var nav = getNav();
+    if (nav) nav.classList.remove('crozzo-nav-search-nav-hidden');
   }
 
   function runNavSearch() {
@@ -453,37 +584,65 @@
       return;
     }
 
-    sb.classList.add('is-nav-searching');
+    sb.classList.add('is-nav-searching', 'expanded', 'is-expanded');
+    sb.classList.remove('collapsed');
     setSidebarExpanded(true, false);
 
+    var groupTitleMatches = {};
+    getGroups().forEach(function (g) {
+      var gt = g.querySelector('.nav-group-title');
+      var gHay = normSearch(gt ? gt.textContent : '');
+      var id = g.getAttribute('data-group') || g.getAttribute('data-nav-group') || '';
+      groupTitleMatches[id] = gHay.indexOf(q) >= 0;
+    });
+
     var matchCount = 0;
+    var hitList = [];
     document.querySelectorAll('#sidebarNav .nav-item[data-page]').forEach(function (item) {
       if (!isNavItemEligibleForSearch(item)) {
         setNavItemSearchVisible(item, false);
         return;
       }
+      var group = item.closest('.nav-group-li, .nav-group');
+      var gid = group ? group.getAttribute('data-group') || group.getAttribute('data-nav-group') || '' : '';
       var hay = itemSearchHaystack(item);
-      var match = hay.indexOf(q) >= 0;
+      var match = hay.indexOf(q) >= 0 || !!groupTitleMatches[gid];
       setNavItemSearchVisible(item, match);
-      if (match) matchCount++;
+      if (match) {
+        matchCount++;
+        var labelEl = item.querySelector('.nav-item-label, .menu-text');
+        var gt = group && group.querySelector('.nav-group-title');
+        hitList.push({
+          page: item.getAttribute('data-page') || '',
+          label: labelEl ? labelEl.textContent.trim() : item.textContent.trim(),
+          group: gt ? gt.textContent.trim() : '',
+        });
+      }
     });
 
     getGroups().forEach(function (g) {
+      var gid = g.getAttribute('data-group') || g.getAttribute('data-nav-group') || '';
       var visible = g.querySelectorAll('.nav-item[data-page].crozzo-nav-search-match');
-      var hasVisible = visible.length > 0;
+      var hasVisible = visible.length > 0 || !!groupTitleMatches[gid];
       g.classList.toggle('crozzo-nav-search-has-match', hasVisible);
       if (hasVisible) {
         if (g.dataset.crozzoSearchHidden === '1') {
           g.style.removeProperty('display');
           delete g.dataset.crozzoSearchHidden;
         }
+        applyGroupOpen(g, true, false);
+        syncGroupSubmenuVisible(g, true);
       } else {
         g.dataset.crozzoSearchHidden = '1';
         g.style.setProperty('display', 'none', 'important');
+        applyGroupOpen(g, false, false);
       }
-      applyGroupOpen(g, hasVisible, false);
     });
 
+    renderNavSearchResults(hitList.filter(function (h, i, arr) {
+      return arr.findIndex(function (x) { return x.page === h.page; }) === i;
+    }));
+    nav.classList.add('crozzo-nav-search-nav-hidden');
     if (emptyEl) emptyEl.hidden = matchCount > 0;
     try {
       if (isDrawerNavMode() && typeof global.crozzoFixMobileNavScroll === 'function') global.crozzoFixMobileNavScroll();
@@ -496,7 +655,13 @@
     var group = nav.querySelector('.nav-group-li[data-group="' + groupId + '"]');
     if (!group) return;
     var sb = getSidebar();
-    if (sb && sb.classList.contains('is-nav-searching')) return;
+    if (sb && sb.classList.contains('is-nav-searching')) {
+      if (!group.classList.contains('crozzo-nav-search-has-match')) return;
+      setSidebarExpanded(true, false);
+      var searchOpen = !group.classList.contains('open');
+      applyGroupOpen(group, searchOpen, false);
+      return;
+    }
     var railMode =
       sb &&
       !sb.classList.contains('expanded') &&
@@ -576,7 +741,10 @@
   function expandGroupForPage(page) {
     if (!page) return;
     var sb = getSidebar();
-    if (sb && sb.classList.contains('is-nav-searching')) return;
+    if (sb && sb.classList.contains('is-nav-searching')) {
+      if (typeof runNavSearch === 'function') runNavSearch();
+      return;
+    }
     getGroups().forEach(function (group) {
       var match = group.querySelector('.nav-item[data-page="' + page + '"]');
       if (match) applyGroupOpen(group, true, false);

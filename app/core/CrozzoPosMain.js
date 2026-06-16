@@ -3291,7 +3291,7 @@ function crozzoHpInjectAiDecoyNav() {
     btn.type = 'button';
     btn.className = 'nav-item';
     btn.setAttribute('data-page', item.page);
-    btn.innerHTML = '<span class="nav-icon">' + item.icon + '</span><span class="nav-label">' + item.label + '</span>';
+    btn.innerHTML = '<span class="nav-icon">' + item.icon + '</span><span class="nav-item-label">' + item.label + '</span>';
     btn.addEventListener('click', function () {
       if (typeof navigateTo === 'function') navigateTo(item.page);
     });
@@ -5080,6 +5080,10 @@ function crozzoSyncProductoCosteo(p, opts) {
 
 /** Actualiza precio en caja POS y menú de costos (matriz). */
 window.crozzoSetProductPrecio = function crozzoSetProductPrecio(productId, precio) {
+  if (typeof crozzoHasProductoPermiso === 'function' && !crozzoHasProductoPermiso('catalogo')) {
+    if (typeof showToast === 'function') showToast('No tienes permiso para cambiar precios del catálogo.', 'warning');
+    return false;
+  }
   var pid = Number(productId);
   var p = Math.round(Number(precio) || 0);
   if (!isFinite(pid) || pid <= 0) return false;
@@ -5098,6 +5102,10 @@ window.crozzoSetProductPrecio = function crozzoSetProductPrecio(productId, preci
 
 /** Controla si un producto aparece en caja, mesero, tablets y comandas operativas. */
 window.crozzoSetProductVisibleEnPos = function crozzoSetProductVisibleEnPos(productId, visible, opts) {
+  if (typeof crozzoHasProductoPermiso === 'function' && !crozzoHasProductoPermiso('catalogo')) {
+    if (typeof showToast === 'function') showToast('No tienes permiso para modificar visibilidad en catálogo.', 'warning');
+    return false;
+  }
   var pid = Number(productId);
   if (!isFinite(pid) || pid <= 0) return false;
   var vis = visible !== false;
@@ -5373,26 +5381,116 @@ function crozzoComandaOperatorUi() {
   if (typeof crozzoIsPantallasKioskUi === 'function' && crozzoIsPantallasKioskUi()) return true;
   return !crozzoCanManageComandaSetup();
 }
+/** Celular/tablet en cocina: UI mínima (sin corcho fullscreen ni barras de admin). */
+function crozzoIsComandasFieldTouchUi() {
+  return typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi();
+}
+window.crozzoIsComandasFieldTouchUi = crozzoIsComandasFieldTouchUi;
+/** Solo kiosko persistido en almacenamiento (no auto-saltar al hub). */
+function crozzoShouldAutoOpenDevicePantalla() {
+  try {
+    if (typeof crozzoKioskComandasEffective === 'function' && crozzoKioskComandasEffective()) return true;
+  } catch (_) {}
+  return false;
+}
+window.crozzoShouldAutoOpenDevicePantalla = crozzoShouldAutoOpenDevicePantalla;
+function crozzoResetComandasToHubIfNeeded() {
+  try {
+    const areas = typeof getComandasConfig === 'function' ? getComandasConfig().areas || [] : [];
+    if (areas.length > 1) comandasAreaSelected = '';
+  } catch (_) {}
+}
+window.crozzoResetComandasToHubIfNeeded = crozzoResetComandasToHubIfNeeded;
 function crozzoEnsureComandaAreaOnEnter() {
   if (comandasAreaSelected) return;
   const areas = getComandasConfig().areas || [];
-  const deviceArea = String(crozzoGetDevicePantallaId() || '').trim();
-  if (deviceArea && areas.some(function (a) { return a.id === deviceArea; })) {
-    comandasAreaSelected = deviceArea;
-    return;
-  }
   if (areas.length === 1) {
     comandasAreaSelected = areas[0].id;
-    crozzoSetDevicePantallaId(areas[0].id, { silent: true });
+    if (crozzoShouldAutoOpenDevicePantalla()) {
+      crozzoSetDevicePantallaId(areas[0].id, { silent: true });
+    }
     return;
   }
-  if (typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi() && areas.length) {
-    const pick = deviceArea || areas[0].id;
-    if (areas.some(function (a) { return a.id === pick; })) {
-      comandasAreaSelected = pick;
-      if (!deviceArea) crozzoSetDevicePantallaId(pick, { silent: true });
-    }
-  }
+  /* Varias pantallas: siempre lista primero; no abrir la del localStorage automáticamente. */
+}
+function crozzoComandasHubPendingCount(areaId) {
+  return comandas.filter(function (c) {
+    return c.areaId === areaId && c.estado !== 'entregada';
+  }).length;
+}
+function crozzoComandasHubListHtml(areas) {
+  const esc =
+    typeof escHtml === 'function'
+      ? escHtml
+      : function (s) {
+          return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;');
+        };
+  const escAttr =
+    typeof escUserAttr === 'function'
+      ? escUserAttr
+      : function (s) {
+          return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;');
+        };
+  const rows = (areas || [])
+    .map(function (a) {
+      const pending = crozzoComandasHubPendingCount(a.id);
+      const label = String(a.nombre || a.id || '');
+      const idJson = JSON.stringify(a.id);
+      return (
+        '<button type="button" class="crozzo-comandas-hub-row" role="listitem" data-hub-label="' +
+        escAttr(label + ' ' + a.id) +
+        '" onclick=\'selectComandasArea(' +
+        idJson +
+        ')\'>' +
+        '<span class="crozzo-comandas-hub-row__name">' +
+        esc(label) +
+        '</span>' +
+        '<span class="crozzo-comandas-hub-row__meta">' +
+        (pending > 0
+          ? '<span class="crozzo-comandas-hub-row__badge">' + pending + ' pend.</span>'
+          : '<span class="crozzo-comandas-hub-row__idle">Sin pendientes</span>') +
+        '</span>' +
+        '<span class="crozzo-comandas-hub-row__arrow" aria-hidden="true">→</span>' +
+        '</button>'
+      );
+    })
+    .join('');
+  const search =
+    areas.length > 3
+      ? '<div class="crozzo-comandas-hub-search-wrap">' +
+        '<input type="search" class="form-input crozzo-comandas-hub-search" placeholder="Buscar pantalla…" autocomplete="off" oninput="crozzoFilterComandasHub(this.value)" aria-label="Buscar pantalla">' +
+        '</div>'
+      : '';
+  return (
+    '<div class="crozzo-comandas-hub-panel" id="crozzoComandasHubPanel">' +
+    '<p class="crozzo-comandas-hub-intro">Elija la pantalla de producción. Todas las áreas configuradas aparecen aquí.</p>' +
+    search +
+    '<div class="crozzo-comandas-hub-list" id="crozzoComandasHubList" role="list">' +
+    rows +
+    '</div>' +
+    '<p class="crozzo-comandas-hub-foot">' +
+    areas.length +
+    ' pantalla' +
+    (areas.length === 1 ? '' : 's') +
+    ' · deslice para ver todas</p></div>'
+  );
+}
+function crozzoFilterComandasHub(query) {
+  const q = String(query || '')
+    .toLowerCase()
+    .trim();
+  document.querySelectorAll('.crozzo-comandas-hub-row').forEach(function (row) {
+    const label = String(row.getAttribute('data-hub-label') || '').toLowerCase();
+    row.hidden = q.length > 0 && label.indexOf(q) < 0;
+  });
+}
+window.crozzoFilterComandasHub = crozzoFilterComandasHub;
+function renderComandasHubPanelHtml(areas) {
+  return crozzoComandasHubListHtml(areas);
 }
 window.crozzoCanManageComandaSetup = crozzoCanManageComandaSetup;
 window.crozzoComandaOperatorUi = crozzoComandaOperatorUi;
@@ -5450,11 +5548,25 @@ function crozzoComandaPantallaKioskPrinterBarHtml(areaId) {
     : null;
   if (!area) return '';
   const savedPrinter = String(area.impresora || '').trim();
+  const areas = cmdCfg.areas || [];
+  const canManage = typeof crozzoCanManageComandaSetup === 'function' && crozzoCanManageComandaSetup();
+  const backBtn =
+    areas.length > 1
+      ? '<button type="button" class="btn btn-outline btn-sm crozzo-comandas-toolbar-btn" onclick="backToAreas()">⬅ Todas las pantallas</button>'
+      : '';
+  const adminExtra = canManage
+    ? '<div class="crozzo-pantallas-kiosk-setup__btns crozzo-pantallas-kiosk-setup__btns--touch">' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoKioskTestAreaPrinter()">Probar impresión</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="openPrinterRescue(\'comandas\')">Rescate impresora</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="printAllPendingByArea(' +
+      JSON.stringify(id) +
+      ')">Imprimir pendientes</button>' +
+      '</div>'
+    : '';
   return (
-    '<div class="crozzo-pantallas-kiosk-setup crozzo-pantallas-kiosk-setup--compact" role="region" aria-label="Impresora de esta pantalla">' +
-    '<div class="crozzo-pantallas-kiosk-setup__grid">' +
-    '<div class="form-group" style="margin:0; flex:1;">' +
-    '<label class="form-label" for="crozzoKioskPrinterSelect">🖨️ Impresora · ' +
+    '<div class="crozzo-pantallas-kiosk-setup crozzo-pantallas-kiosk-setup--touch" role="region" aria-label="Impresora">' +
+    '<div class="form-group" style="margin:0;">' +
+    '<label class="form-label" for="crozzoKioskPrinterSelect">🖨️ ' +
     escUserAttr(area.nombre) +
     '</label>' +
     '<select id="crozzoKioskPrinterSelect" class="form-select" data-crozzo-kiosk-printer="' +
@@ -5464,53 +5576,34 @@ function crozzoComandaPantallaKioskPrinterBarHtml(areaId) {
     '" onchange="crozzoKioskOnPrinterChanged(this.value)">' +
     crozzoComandaPrinterOptionsHtml(savedPrinter) +
     '</select>' +
-    '<span class="form-hint" style="margin-top:4px;" data-crozzo-area-printer-label="' +
-    escUserAttr(id) +
-    '">' +
-    escUserAttr(crozzoComandaPrinterDisplayText(area)) +
-    '</span>' +
     '</div>' +
-    '</div>' +
-    '<div class="crozzo-pantallas-kiosk-setup__actions">' +
     '<label class="crozzo-pantallas-kiosk-autoprint">' +
     '<input type="checkbox"' +
     (cmdCfg.autoPrint ? ' checked' : '') +
-    ' onchange="toggleComandaAutoPrint(this.checked)"> Imprimir ticket al llegar un pedido</label>' +
-    '<div class="crozzo-pantallas-kiosk-setup__btns">' +
-    '<button type="button" class="btn btn-primary" onclick="crozzoKioskTestAreaPrinter()">🖨️ Probar impresión</button>' +
-    '<button type="button" class="btn btn-outline" onclick="openPrinterRescue(\'comandas\')">🛠️ Rescate impresora</button>' +
-    '<button type="button" class="btn btn-outline" onclick="printAllPendingByArea(' +
-    JSON.stringify(id) +
-    ')">Imprimir pendientes</button>' +
-    '<button type="button" class="btn btn-outline" onclick="backToAreas()">⬅️ Cambiar pantalla</button>' +
-    '</div>' +
-    '</div>' +
+    ' onchange="toggleComandaAutoPrint(this.checked)"> Auto-imprimir al llegar pedido</label>' +
+    adminExtra +
+    backBtn +
     '</div>'
   );
 }
 function crozzoComandaPantallaKioskBarHtml() {
   if (!comandasAreaSelected) return '';
+  if (
+    crozzoIsComandasFieldTouchUi() &&
+    typeof crozzoCanManageComandaSetup === 'function' &&
+    !crozzoCanManageComandaSetup()
+  ) {
+    return '';
+  }
   const inner = crozzoComandaPantallaKioskPrinterBarHtml(comandasAreaSelected);
-  const touch =
-    typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi();
-  const operator = crozzoComandaOperatorUi();
-  if (touch && operator) {
-    return (
-      '<details class="crozzo-comandas-mobile-setup">' +
-      '<summary class="crozzo-comandas-mobile-setup__toggle">⚙️ Impresora y opciones</summary>' +
-      inner +
-      '</details>'
-    );
-  }
-  if (typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi() && operator) {
-    return (
-      '<details class="crozzo-comandas-mobile-setup">' +
-      '<summary class="crozzo-comandas-mobile-setup__toggle">⚙️ Impresora y opciones</summary>' +
-      inner +
-      '</details>'
-    );
-  }
-  return inner;
+  if (!inner) return '';
+  return (
+    '<details class="crozzo-comandas-mobile-setup crozzo-comandas-mobile-setup--touch">' +
+    '<summary class="crozzo-comandas-mobile-setup__toggle">🖨️ Impresora y opciones</summary>' +
+    '<div class="crozzo-comandas-mobile-setup__body">' +
+    inner +
+    '</div></details>'
+  );
 }
 function crozzoKioskOnPantallaChanged(areaId) {
   const id = String(areaId || '').trim();
@@ -6140,6 +6233,43 @@ function crozzoMigrateStaffCajaSecurity() {
       localStorage.setItem('crozzo_caja_security_v5', '1');
     }
 
+    if (!localStorage.getItem('crozzo_caja_security_v6')) {
+      staff = staff.map(function (u) {
+        const r = crozzoNormalizeAppRol(u.rol);
+        if (r === 'admin' || r === 'superadmin' || r === 'super_admin' || u.id === 'KENNY') {
+          return u;
+        }
+        if (r !== 'caja' && r !== 'mesero' && r !== 'cocina' && r !== 'staff' && r !== 'user') {
+          return u;
+        }
+        const permisos = {
+          caja: [],
+          comandas: [],
+          admin: [],
+          inventario: [],
+          productos: [],
+          ...(u.permisos || {}),
+        };
+        const stripCaja = ['eliminar_item', 'tab_eliminar', 'anular_comandado'];
+        const antesCaja = (permisos.caja || []).length;
+        permisos.caja = (permisos.caja || []).filter(function (p) {
+          return stripCaja.indexOf(p) < 0;
+        });
+        const antesProd = (permisos.productos || []).length;
+        if (r === 'caja' || r === 'mesero' || r === 'cocina') {
+          permisos.productos = (permisos.productos || []).filter(function (p) {
+            return p !== 'catalogo';
+          });
+        }
+        if (permisos.caja.length !== antesCaja || (permisos.productos || []).length !== antesProd) {
+          changed = true;
+          return { ...u, permisos };
+        }
+        return u;
+      });
+      localStorage.setItem('crozzo_caja_security_v6', '1');
+    }
+
     if (changed) config.set('usuarios', { ...base, staff });
   } catch (_) {}
 }
@@ -6209,8 +6339,11 @@ function getUsuariosConfig() {
   const normalized = (base.staff || []).map((u, idx) => {
     const rolUsuario = u.rol || 'staff';
     const cd = u.configDispositivo || {};
-    const merged = { caja: [], comandas: [], admin: [], inventario: [], productos: [], ...(u.permisos || {}) };
+    let merged = { caja: [], comandas: [], admin: [], inventario: [], productos: [], ...(u.permisos || {}) };
     merged.caja = crozzoNormalizeCajaPermisosArray(merged.caja);
+    if (rolUsuario !== 'superadmin' && u.id !== 'KENNY' && typeof crozzoSanitizeUserPermisos === 'function') {
+      merged = crozzoSanitizeUserPermisos(merged, rolUsuario);
+    }
     const row = {
       id: u.id || `USER_${idx + 1}`,
       nombre: u.nombre || `Usuario ${idx + 1}`,
@@ -6388,6 +6521,7 @@ const PERMISOS_CATALOGO = [
     ],
   },
 ];
+window.PERMISOS_CATALOGO = PERMISOS_CATALOGO;
 /** Perfil recomendado de permisos caja por rol (referencia al crear usuarios). */
 const CROZZO_CAJA_PERMISOS_POR_ROL = Object.freeze({
   caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
@@ -6542,8 +6676,8 @@ function crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, opts) {
     expiresAt: now + ttl,
   };
   try {
-    if (typeof crozzoFlushPosRuntimeSave === 'function' && (opts.kind === 'session' || opts.force)) {
-      crozzoFlushPosRuntimeSave();
+    if (opts.kind === 'session' || opts.force) {
+      crozzoSyncPosRuntimeCritical('slot_lock_' + String(opts.kind || 'comanda'));
     } else if (typeof schedulePosRuntimeSave === 'function') {
       schedulePosRuntimeSave();
     }
@@ -6557,8 +6691,7 @@ function crozzoReleaseComandaSlotLock(tipoServicio, referencia) {
   if (row && row.deviceId === myId) {
     delete comandaSlotLocks[tipoServicio][referencia];
     try {
-      if (typeof crozzoFlushPosRuntimeSave === 'function') crozzoFlushPosRuntimeSave();
-      else if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+      crozzoSyncPosRuntimeCritical('slot_unlock');
     } catch (_) {}
   }
 }
@@ -6774,10 +6907,31 @@ function markSlotAsPaid(tipoServicio, referencia) {
   if (!referencia || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return;
   if (!closedSlots[tipoServicio]) closedSlots[tipoServicio] = {};
   closedSlots[tipoServicio][referencia] = new Date().toISOString();
+  crozzoSyncPosRuntimeCritical('slot_paid');
+}
+/** Propaga de inmediato locks, cobros y carritos — evita doble digitación / cobro duplicado. */
+function crozzoSyncPosRuntimeCritical(reason) {
   try {
-    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+    if (typeof crozzoFlushPosRuntimeSave === 'function') crozzoFlushPosRuntimeSave();
+    else if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
+  try {
+    if (typeof window.crozzoSchedulePosRuntimeCloudPush === 'function') {
+      window.crozzoSchedulePosRuntimeCloudPush('flush');
+    }
+  } catch (_) {}
+  try {
+    if (typeof window.crozzoPushPosRuntimeCloudNow === 'function') {
+      window.crozzoPushPosRuntimeCloudNow().catch(function () {});
+    }
+  } catch (_) {}
+  try {
+    if (reason && typeof config !== 'undefined' && config.addAudit) {
+      config.addAudit('runtime_sync_critical', String(reason));
+    }
   } catch (_) {}
 }
+window.crozzoSyncPosRuntimeCritical = crozzoSyncPosRuntimeCritical;
 /** Respaldo local del POS (caja/tablet) para híbrido/offline y cierre de pestaña. Supabase = catálogo/config remoto según tablas activas. */
 const CROZZO_POS_RUNTIME_LS = 'crozzo_pos_runtime_v1';
 const CROZZO_POS_RUNTIME_VER = 1;
@@ -6861,7 +7015,7 @@ function crozzoRuntimeSaveDebounceMs() {
     if (document.body && document.body.classList.contains('crozzo-peak-novice')) return 1800;
     if (document.documentElement && document.documentElement.classList.contains('crozzo-perf-lite')) return 1400;
   } catch (_) {}
-  return 900;
+  return 600;
 }
 function schedulePosRuntimeSave() {
   try {
@@ -6879,7 +7033,7 @@ function schedulePosRuntimeSave() {
 function crozzoFlushPosRuntimeSave() {
   try {
     if (typeof window.crozzoSchedulePosRuntimeCloudPush === 'function') {
-      window.crozzoSchedulePosRuntimeCloudPush('fast');
+      window.crozzoSchedulePosRuntimeCloudPush('flush');
     }
   } catch (_) {}
   if (__crozzoRuntimeSaveTimer) clearTimeout(__crozzoRuntimeSaveTimer);
@@ -7187,6 +7341,28 @@ function applyPosRuntimeSnapshot(s, opts) {
   if (typeof window !== 'undefined') window.comandas = comandas;
   return true;
 }
+function crozzoHandleRemoteRuntimeUiSync() {
+  if (window.__crozzoRuntimeCloudApplying) return;
+  try {
+    if (tabletOrderOpen) {
+      const tipo = tabletModoPedido === 'mesa' ? 'mesa' : 'llevar';
+      const ref = tipo === 'mesa' ? tabletMesaSeleccionada : tabletLlevarSeleccionado;
+      if (closedSlots && closedSlots[tipo] && closedSlots[tipo][ref]) {
+        crozzoReleaseTabletSlotSession(tipo, ref);
+        tabletOrderOpen = false;
+        if (typeof showToast === 'function') {
+          showToast('Este pedido ya fue cobrado en caja. Se cerró la vista.', 'info');
+        }
+      }
+    }
+    const pages = ['tablets', 'cajero', 'comandas', 'cocina', 'mesas'];
+    if (typeof currentPage !== 'undefined' && pages.indexOf(currentPage) >= 0 && typeof renderPage === 'function') {
+      renderPage(currentPage);
+    }
+    if (typeof crozzoPublishComandasGlobal === 'function') crozzoPublishComandasGlobal();
+  } catch (_) {}
+}
+window.crozzoHandleRemoteRuntimeUiSync = crozzoHandleRemoteRuntimeUiSync;
 window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
 window.collectPosRuntimeState = collectPosRuntimeState;
 function loadPosRuntimeFromLocalStorage() {
@@ -7550,10 +7726,14 @@ function renderComandaStickyNoteHtml(c, areaKey, stackOpts) {
         ${delayLabel ? `<div class="late-label">${delayLabel}</div>` : ''}
       </div>
       ${c.envioNum == null ? renderComandaUpdatesHtml(c) : ''}
-      <div class="crozzo-sticky-toolbar">
-        <button type="button" class="crozzo-sticky-icon-btn" onclick="reprintComanda(${c.id})" title="Reimprimir" aria-label="Reimprimir comanda ${c.id}">🖨️</button>
+      <div class="crozzo-sticky-toolbar${crozzoIsComandasFieldTouchUi() ? ' crozzo-sticky-toolbar--touch' : ''}">
+        ${
+          crozzoIsComandasFieldTouchUi()
+            ? `<button type="button" class="crozzo-sticky-done-btn crozzo-sticky-done-btn--touch" onclick="crozzoStickyMarcarListo(${c.id})">LISTO</button>`
+            : `<button type="button" class="crozzo-sticky-icon-btn" onclick="reprintComanda(${c.id})" title="Reimprimir" aria-label="Reimprimir comanda ${c.id}">🖨️</button>
         <button type="button" class="crozzo-sticky-call-btn" onclick="llamarResponsableRapido(${c.id})" title="Llamar responsable">📣 Llamar responsable</button>
-        <button type="button" class="crozzo-sticky-done-btn" onclick="crozzoStickyMarcarListo(${c.id})">LISTO</button>
+        <button type="button" class="crozzo-sticky-done-btn" onclick="crozzoStickyMarcarListo(${c.id})">LISTO</button>`
+        }
       </div>
     </article>
   `;
@@ -7867,6 +8047,7 @@ function crozzoPersistCorkboardOrderFromBoard(board) {
 function crozzoInitCorkboardSortable(boardEl) {
   crozzoDestroyComandasSortable();
   if (!boardEl || typeof Sortable === 'undefined') return;
+  if (typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi()) return;
   comandasSortableInstance = Sortable.create(boardEl, {
     animation: 200,
     easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
@@ -7915,31 +8096,28 @@ function crozzoCorkboardFocusBtnHtml(opts) {
 }
 function crozzoComandasAreaHeaderHtml(title, corkBtn, showBackAreas, touchUi) {
   const titleEsc = typeof escHtml === 'function' ? escHtml(String(title || '')) : String(title || '');
+  const backBtn =
+    showBackAreas
+      ? '<button type="button" class="btn btn-outline btn-sm crozzo-comandas-toolbar-btn crozzo-comandas-back-btn" onclick="backToAreas()">⬅ Todas las pantallas</button>'
+      : '';
   if (touchUi) {
     return (
       '<div class="card-header crozzo-cork-focus-hide crozzo-comandas-area-header crozzo-comandas-area-header--touch">' +
+      backBtn +
       '<h2 class="card-title crozzo-comandas-area-title">' +
       titleEsc +
-      '</h2>' +
-      '<div class="crozzo-comandas-area-toolbar">' +
-      (corkBtn || '') +
-      (showBackAreas
-        ? '<button type="button" class="btn btn-outline btn-sm crozzo-comandas-toolbar-btn" onclick="backToAreas()">⬅ Áreas</button>'
-        : '') +
-      '</div></div>'
+      '</h2></div>'
     );
   }
   return (
-    '<div class="card-header crozzo-cork-focus-hide">' +
-    '<div><h2 class="card-title">' +
+    '<div class="card-header crozzo-cork-focus-hide crozzo-comandas-area-header">' +
+    '<div class="crozzo-comandas-area-header__main">' +
+    backBtn +
+    '<h2 class="card-title">' +
     titleEsc +
-    '</h2>' +
-    '<p class="page-subtitle" style="margin-top:4px;">Arrastra las notas · LISTO las arruga y las lanza a la sestica del corcho</p></div>' +
-    '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
+    '</h2></div>' +
+    '<div class="crozzo-comandas-area-header__actions">' +
     (corkBtn || '') +
-    (showBackAreas
-      ? '<button type="button" class="btn btn-outline" onclick="backToAreas()">⬅️ Corcho principal</button>'
-      : '') +
     '</div></div>'
   );
 }
@@ -7950,6 +8128,7 @@ function crozzoComandaCorkboardPageActive(page) {
 /** Quita overlays/animaciones de comandas y el modo corcho fullscreen fuera de Comandas/Cocina. */
 function crozzoTeardownComandaVisualFx() {
   try {
+    crozzoCorkboardFocus = false;
     document.querySelectorAll('.crozzo-comanda-thread-overlay').forEach(function (el) {
       el.remove();
     });
@@ -7989,6 +8168,12 @@ function crozzoApplyCorkboardFocusUi() {
 }
 function crozzoToggleCorkboardFocus(force) {
   const next = force !== undefined ? !!force : !crozzoCorkboardFocus;
+  if (next && crozzoIsComandasFieldTouchUi()) {
+    if (typeof showToast === 'function') {
+      showToast('En celular/tablet use el tablero normal y la barra inferior para navegar.', 'info');
+    }
+    return;
+  }
   if (next && currentPage === 'cocina' && !cocinaVistaCorcho) {
     cocinaVistaCorcho = true;
     cocinaVistaKds = false;
@@ -7997,6 +8182,14 @@ function crozzoToggleCorkboardFocus(force) {
   crozzoApplyCorkboardFocusUi();
   try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
+  try {
+    if (window.CrozzoTabletNav && typeof window.CrozzoTabletNav.refresh === 'function') {
+      window.CrozzoTabletNav.refresh();
+    }
+    if (window.CrozzoViewportFit && typeof window.CrozzoViewportFit.schedule === 'function') {
+      window.CrozzoViewportFit.schedule();
+    }
   } catch (_) {}
   if (currentPage === 'comandas' || currentPage === 'cocina') {
     renderPage(currentPage);
@@ -8382,11 +8575,53 @@ function crozzoComandaStationNoteHtml(a, areaCount) {
   const isBar =
     String(a.id || '').toUpperCase() === 'BAR' || String(a.id || '').toUpperCase() === 'BARRA';
   const toneCls = isBar ? ' crozzo-station-note--bar' : '';
-  const canDel = areaCount > 1 && (typeof crozzoComandaOperatorUi !== 'function' || !crozzoComandaOperatorUi());
+  const touchField = crozzoIsComandasFieldTouchUi();
+  const canDel =
+    !touchField && areaCount > 1 && (typeof crozzoComandaOperatorUi !== 'function' || !crozzoComandaOperatorUi());
   const idJson = JSON.stringify(a.id);
+  const openHandler = touchField
+    ? 'selectComandasArea(' + idJson + ')'
+    : 'crozzoComandaThreadToArea(' + idJson + ', event)';
+  const keyHandler = touchField
+    ? 'if(event.key==="Enter"||event.key===" "){event.preventDefault();selectComandasArea(' + idJson + ');}'
+    : 'if(event.key==="Enter"||event.key===" "){event.preventDefault();crozzoComandaThreadToArea(' + idJson + ', event);}';
+  let innerTools = '';
+  if (!touchField) {
+    innerTools =
+      '<div class="crozzo-station-note__printer" onclick="event.stopPropagation();">' +
+      '<label class="crozzo-station-note__printer-label">🖨️ Impresora</label>' +
+      '<div class="crozzo-station-note__printer-name" data-crozzo-area-printer-label="' +
+      escUserAttr(a.id) +
+      '">' +
+      escUserAttr(crozzoComandaPrinterDisplayText(a)) +
+      '</div>' +
+      '<select class="form-select crozzo-station-note__printer-select" data-crozzo-area-printer="' +
+      escUserAttr(a.id) +
+      '" onchange=\'setComandaPrinterFromComandas(' +
+      idJson +
+      ', this.value)\'>' +
+      crozzoComandaPrinterOptionsHtml(a.impresora || '') +
+      '</select></div>' +
+      '<div class="crozzo-station-note__tools" onclick="event.stopPropagation();">' +
+      '<button type="button" class="btn btn-primary btn-sm crozzo-station-note-open" onclick=\'crozzoComandaThreadToArea(' +
+      idJson +
+      ', event)\'>Seguir hilo →</button>' +
+      (canDel
+        ? '<button type="button" class="btn btn-danger btn-sm" data-crozzo-delete-area="' +
+          escUserAttr(a.id) +
+          '" onclick=\'event.stopPropagation(); removeComandaArea(' +
+          idJson +
+          ')\'>Borrar pantalla</button>'
+        : '') +
+      '</div>';
+  } else {
+    innerTools =
+      '<div class="crozzo-station-note__tap-hint">Tocar para ver pedidos →</div>';
+  }
   return (
     '<article class="crozzo-station-note' +
     toneCls +
+    (touchField ? ' crozzo-station-note--touch' : '') +
     '" data-crozzo-comanda-area-id="' +
     escUserAttr(a.id) +
     '" data-crozzo-kiosk-area-id="' +
@@ -8397,13 +8632,13 @@ function crozzoComandaStationNoteHtml(a, areaCount) {
     rot +
     'deg)" role="button" tabindex="0" aria-label="Abrir pantalla ' +
     escUserAttr(a.nombre) +
-    '" onclick=\'crozzoComandaThreadToArea(' +
-    idJson +
-    ', event)\' onkeydown=\'if(event.key==="Enter"||event.key===" "){event.preventDefault();crozzoComandaThreadToArea(' +
-    idJson +
-    ', event);}\'>' +
+    '" onclick=\'' +
+    openHandler +
+    '\' onkeydown=\'' +
+    keyHandler +
+    '\'>' +
     '<span class="crozzo-sticky-pin" aria-hidden="true"></span>' +
-    '<span class="crozzo-station-note__thread" aria-hidden="true"></span>' +
+    (touchField ? '' : '<span class="crozzo-station-note__thread" aria-hidden="true"></span>') +
     '<h3 class="crozzo-station-note__title">' +
     escHtml(a.nombre) +
     '</h3>' +
@@ -8414,32 +8649,8 @@ function crozzoComandaStationNoteHtml(a, areaCount) {
     ' pendiente' +
     (count === 1 ? '' : 's') +
     '</div>' +
-    '<div class="crozzo-station-note__printer" onclick="event.stopPropagation();">' +
-    '<label class="crozzo-station-note__printer-label">🖨️ Impresora</label>' +
-    '<div class="crozzo-station-note__printer-name" data-crozzo-area-printer-label="' +
-    escUserAttr(a.id) +
-    '">' +
-    escUserAttr(crozzoComandaPrinterDisplayText(a)) +
-    '</div>' +
-    '<select class="form-select crozzo-station-note__printer-select" data-crozzo-area-printer="' +
-    escUserAttr(a.id) +
-    '" onchange=\'setComandaPrinterFromComandas(' +
-    idJson +
-    ', this.value)\'>' +
-    crozzoComandaPrinterOptionsHtml(a.impresora || '') +
-    '</select></div>' +
-    '<div class="crozzo-station-note__tools" onclick="event.stopPropagation();">' +
-    '<button type="button" class="btn btn-primary btn-sm crozzo-station-note-open" onclick=\'crozzoComandaThreadToArea(' +
-    idJson +
-    ', event)\'>Seguir hilo →</button>' +
-    (canDel
-      ? '<button type="button" class="btn btn-danger btn-sm" data-crozzo-delete-area="' +
-        escUserAttr(a.id) +
-        '" onclick=\'event.stopPropagation(); removeComandaArea(' +
-        idJson +
-        ')\'>Borrar pantalla</button>'
-      : '') +
-    '</div></article>'
+    innerTools +
+    '</article>'
   );
 }
 function crozzoComandaAddStationNoteHtml() {
@@ -8455,19 +8666,24 @@ function crozzoComandaAddStationNoteHtml() {
 }
 function renderComandasHubStationBoardHtml(areas) {
   const canManage = typeof crozzoCanManageComandaSetup === 'function' && crozzoCanManageComandaSetup();
+  const touchField = crozzoIsComandasFieldTouchUi();
   let notes = areas
     .map(function (a) {
       return crozzoComandaStationNoteHtml(a, areas.length);
     })
     .join('');
-  if (canManage) notes += crozzoComandaAddStationNoteHtml();
+  if (canManage && !touchField) notes += crozzoComandaAddStationNoteHtml();
   return (
-    '<div class="crozzo-corkboard crozzo-comandas-stations-cork" role="region" aria-label="Pantallas en el corcho">' +
+    '<div class="crozzo-corkboard crozzo-comandas-stations-cork' +
+    (touchField ? ' crozzo-comandas-stations-cork--touch' : '') +
+    '" role="region" aria-label="Pantallas en el corcho">' +
     '<div class="crozzo-corkboard-masonry crozzo-stations-masonry">' +
     notes +
     '</div>' +
-    '<p class="crozzo-comandas-stations-hint crozzo-cork-focus-hide">Toque una nota — el hilo rojo la lleva al tablero de comandas</p>' +
-    crozzoComandaTrashBinDockHtml() +
+    (touchField
+      ? '<p class="crozzo-comandas-stations-hint">Toca una pantalla para ver sus pedidos</p>'
+      : '<p class="crozzo-comandas-stations-hint crozzo-cork-focus-hide">Toque una nota — el hilo rojo la lleva al tablero de comandas</p>') +
+    (touchField ? '' : crozzoComandaTrashBinDockHtml()) +
     '</div>'
   );
 }
@@ -9287,14 +9503,20 @@ function crozzoNormalizeMenuProfilesConfig(parsed) {
     perfil: 'completo',
     tema: 'executive-elite',
     menus: {},
-    roles: { user: {}, admin: {}, mesero: {}, caja: {}, cocina: {}, inventario: {} }
+    roles: { user: {}, admin: {}, mesero: {}, caja: {}, cocina: {}, inventario: {} },
+    rolePerms: {},
   };
-  var def = { version: 2, activeClientId: 'default', clients: { default: defClient } };
+  var def = { version: 2, activeClientId: 'default', clients: { default: defClient }, savedTemplates: [] };
   if (!parsed || typeof parsed !== 'object') return def;
   if (parsed.version >= 2 && parsed.clients && typeof parsed.clients === 'object') {
     def.activeClientId = parsed.activeClientId || 'default';
     def.clients = parsed.clients;
+    def.savedTemplates = Array.isArray(parsed.savedTemplates) ? parsed.savedTemplates : [];
     if (!def.clients.default) def.clients.default = defClient;
+    Object.keys(def.clients).forEach(function (cid) {
+      var cl = def.clients[cid];
+      if (!cl.rolePerms || typeof cl.rolePerms !== 'object') cl.rolePerms = {};
+    });
     return def;
   }
   def.clients.default.perfil = parsed.perfil || 'completo';
@@ -9923,10 +10145,15 @@ function crozzoApplyVisualTheme(themeId) {
   document.documentElement.setAttribute('data-theme', t);
   if (CROZZO_THEME_LIGHT.indexOf(t) >= 0) {
     document.documentElement.style.colorScheme = 'light';
+    document.documentElement.classList.add('crozzo-theme-light');
+    document.documentElement.classList.remove('crozzo-theme-dark');
   } else if (CROZZO_THEME_DARK.indexOf(t) >= 0) {
     document.documentElement.style.colorScheme = 'dark';
+    document.documentElement.classList.add('crozzo-theme-dark');
+    document.documentElement.classList.remove('crozzo-theme-light');
   } else {
     document.documentElement.style.removeProperty('color-scheme');
+    document.documentElement.classList.remove('crozzo-theme-light', 'crozzo-theme-dark');
   }
   if (document.body) {
     document.body.classList.toggle('crozzo-theme-light', CROZZO_THEME_LIGHT.indexOf(t) >= 0);
@@ -10750,7 +10977,10 @@ function crozzoStaffPermitsPage(page, u) {
   if (!req) return true;
   const lista = (u.permisos && u.permisos[req.categoria]) || [];
   if (req.sub) {
-    if (lista.includes(req.sub)) return true;
+    if (lista.includes(req.sub)) {
+      if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, req.categoria, req.sub)) return false;
+      return true;
+    }
     if (page === 'facturas' && req.sub === 'vista_facturas' && lista.includes('facturar')) return true;
     return false;
   }
@@ -10777,6 +11007,7 @@ function crozzoHasCajaPermiso(sub, opts) {
     }
 
     if (r === 'superadmin' || r === 'super_admin') return true;
+    if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, 'caja', sub)) return false;
     const ctx = o.context || 'pos';
     const tabMap = { abrir_orden: 'tab_abrir', editar_orden: 'tab_editar', eliminar_item: 'tab_eliminar' };
     const hasTabSet = lista.includes('tab_abrir') || lista.includes('tab_editar') || lista.includes('tab_eliminar');
@@ -10815,6 +11046,36 @@ function crozzoRequireCajaPermiso(sub, opts, msg) {
   }
   return false;
 }
+/** Permiso granular catálogo / precios (productos.catalogo). */
+function crozzoHasProductoPermiso(sub) {
+  try {
+    if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
+    const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (!u) return false;
+    const key = sub || 'catalogo';
+    const lista = (u.permisos && u.permisos.productos) || [];
+    if (!lista.includes(key)) return false;
+    if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, 'productos', key)) {
+      return false;
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function crozzoRequireProductoPermiso(sub, msg) {
+  const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!u) {
+    if (typeof showToast === 'function') showToast('Inicie sesión para modificar el catálogo.', 'warning');
+    return false;
+  }
+  if (crozzoHasProductoPermiso(sub)) return true;
+  if (typeof showToast === 'function') {
+    showToast(msg || 'No tienes permiso para modificar el catálogo o precios.', 'warning');
+  }
+  return false;
+}
+window.crozzoHasProductoPermiso = crozzoHasProductoPermiso;
 function crozzoCartItemSentQty(item) {
   return Math.max(0, Number(item && item.sentCantidad) || 0);
 }
@@ -11963,6 +12224,9 @@ function navigateTo(page) {
     navHighlightPage = 'compras-oficina';
   }
   currentPage = page;
+  if (page === 'comandas') {
+    crozzoResetComandasToHubIfNeeded();
+  }
   if (page !== 'comandas' && page !== 'cocina') {
     if (typeof crozzoTeardownComandaVisualFx === 'function') crozzoTeardownComandaVisualFx();
   } else if (typeof crozzoApplyCorkboardFocusUi === 'function') {
@@ -12004,7 +12268,7 @@ function navigateTo(page) {
     'tablets': ['Tablets', 'Toma de pedidos por meseros y dispositivos móviles'],
     'caja-clientes': ['Clientes (FE)', 'Datos para factura electrónica y seguimiento por mesa o venta'],
     'facturas': ['Facturas', 'Historial de facturas electrónicas emitidas'],
-    'comandas': ['Comandas', 'Vista por áreas de producción'],
+    'comandas': ['Pantallas de comandas', 'Todas las áreas de producción — elija una para ver el corcho'],
     'cocina': ['Cocina', 'Comandas entrantes y estado de preparación'],
     'compras-recepcion': ['Entrada de factura', 'Proveedor, documento, materias primas y pago — guardado local o en la nube'],
     'compras-cortes': ['¿Qué hago hoy?', 'Partir carnes, cocinar, salsas y bases'],
@@ -13517,6 +13781,7 @@ function crozzoRepRefreshVentas() {
   }
 }
 function crozzoRepInvPatch(id, field, raw) {
+  if (!crozzoRequireProductoPermiso('catalogo', 'No tienes permiso para editar el catálogo desde reportes.')) return;
   const idx = products.findIndex((p) => String(p.id) === String(id));
   if (idx < 0) return;
   const p = { ...products[idx] };
@@ -15461,6 +15726,9 @@ function setProductComandaArea(productId, areaId) {
 }
 function addCatalogProduct(nextIdHint, opts) {
   opts = opts || {};
+  if (!opts.fromCostos && !crozzoRequireProductoPermiso('catalogo', 'No tienes permiso para crear productos en el catálogo.')) {
+    return;
+  }
   const prefix = opts.prefix || 'newProd';
   const id = (suffix) => document.getElementById(prefix + suffix);
   const nombre = (id('Nombre')?.value || '').trim();
@@ -15544,6 +15812,7 @@ function addCatalogProduct(nextIdHint, opts) {
 }
 window.addCatalogProduct = addCatalogProduct;
 function showEditProductModal(productId) {
+  if (!crozzoRequireProductoPermiso('catalogo', 'No tienes permiso para editar productos del catálogo.')) return;
   const product = products.find(p => p.id === productId);
   if (!product) return;
   showModal(`Editar producto: ${product.nombre}`, `
@@ -15638,6 +15907,7 @@ function removeOptionGroupRow(btn) {
   if (row) row.remove();
 }
 function saveProductAdvancedConfig(productId) {
+  if (!crozzoRequireProductoPermiso('catalogo', 'No tienes permiso para guardar cambios en el catálogo.')) return;
   const nombre = (document.getElementById('editProdNombre')?.value || '').trim();
   const precio = Number(document.getElementById('editProdPrecio')?.value || 0);
   const gramajeVenta = Math.round(Number(document.getElementById('editProdGramajeVenta')?.value || 0)) || 0;
@@ -15761,6 +16031,7 @@ const CROZZO_STAFF_PLANTILLAS = Object.freeze({
     },
   },
 });
+window.CROZZO_STAFF_PLANTILLAS = CROZZO_STAFF_PLANTILLAS;
 function crozzoStaffFromPlantilla(plantillaId, rolFallback) {
   var tpl = CROZZO_STAFF_PLANTILLAS[plantillaId];
   if (!tpl) return { rol: rolFallback || 'caja', permisos: { caja: [], comandas: [], admin: [], inventario: [], productos: [] } };
@@ -17446,7 +17717,8 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   if (ex) {
     ex.items = (snap.items || []).map((i) => ({ ...i }));
     ex.total = snap.total || computeTotals(ex.items).total;
-    ex.lastUpdateAt = new Date().toISOString();
+    ex.lastUpdateAt = snap.lastUpdateAt || new Date().toISOString();
+    if (snap.estado != null && String(snap.estado) !== '') ex.estado = snap.estado;
     if (snap.envioNum != null) ex.envioNum = snap.envioNum;
     if (snap.mesaGroupKey) ex.mesaGroupKey = snap.mesaGroupKey;
   } else {
@@ -18124,9 +18396,9 @@ function crozzoCanVaciarPedidoPos() {
   if (!cart.length) return false;
   const pending = typeof getPendingItemsQty === 'function' ? getPendingItemsQty(cart) : 0;
   const hasSent = crozzoCartHasSentItems(cart);
-  if (pending > 0 && crozzoHasCajaPermiso('editar_orden')) return true;
-  if (hasSent && crozzoHasCajaPermiso('eliminar_item')) return true;
-  if (!hasSent && crozzoHasCajaPermiso('eliminar_item')) return true;
+  const canAnular = typeof crozzoCanAnularComandado === 'function' && crozzoCanAnularComandado();
+  if (pending > 0 && hasSent && !canAnular && crozzoHasCajaPermiso('editar_orden')) return true;
+  if (crozzoHasCajaPermiso('eliminar_item')) return true;
   return false;
 }
 function crozzoCanCobroEfectivoRapido() {
@@ -18235,6 +18507,7 @@ function selectTabletMesa(mesaId) {
   tabletMesaSeleccionada = mesaId;
   mesaSeleccionada = mesaId;
   tabletOrderOpen = true;
+  crozzoSyncPosRuntimeCritical('tablet_open_mesa');
   renderPage('tablets');
 }
 function selectTabletLlevar(llevarId) {
@@ -18247,6 +18520,7 @@ function selectTabletLlevar(llevarId) {
   tabletLlevarSeleccionado = llevarId;
   llevarSeleccionado = llevarId;
   tabletOrderOpen = true;
+  crozzoSyncPosRuntimeCritical('tablet_open_llevar');
   renderPage('tablets');
 }
 function tabletAddToCart(productId, configSig = '') {
@@ -18286,9 +18560,6 @@ function tabletAddToCart(productId, configSig = '') {
   requestAnimationFrame(() => crozzoPosFlashOrderContainer('tabletOrderItems'));
 }
 function tabletRemoveFromCart(productId, configSig = '') {
-  if (!crozzoRequireCajaPermiso('editar_orden', { context: 'tablet' }, 'No tienes permiso para modificar cantidades del pedido.')) {
-    return;
-  }
   const cart = getTabletActiveCart();
   const idx = cart.findIndex(c => c.id === productId && (configSig ? crozzoCartLineSig(c) === configSig : !crozzoCartLineSig(c)));
   if (idx < 0) return;
@@ -18307,10 +18578,23 @@ function tabletRemoveFromCart(productId, configSig = '') {
     crozzoLogCajaVoid('qty_blocked_sin_comandar', nom + ' $' + lt);
     return;
   }
-  if (item.cantidad > 1) cart[idx].cantidad--;
-  else cart.splice(idx, 1);
-  crozzoLogCajaVoid('tablet_qty_down', nom);
+  if (item.cantidad > 1) {
+    if (!crozzoRequireCajaPermiso('editar_orden', { context: 'tablet' }, 'No tienes permiso para modificar cantidades del pedido.')) {
+      return;
+    }
+    cart[idx].cantidad--;
+    crozzoLogCajaVoid('tablet_qty_down', nom);
+  } else {
+    if (!crozzoRequireCajaPermiso('eliminar_item', { context: 'tablet' }, 'No puede quitar ítems del pedido en tablet.')) {
+      return;
+    }
+    cart.splice(idx, 1);
+    crozzoLogCajaVoid('tablet_remove_line', nom);
+  }
   renderTabletCart();
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
 }
 function tabletClearCart() {
   if (!crozzoRequireCajaSession()) return;
@@ -19737,7 +20021,6 @@ function addToCart(productId, configSig = '') {
   requestAnimationFrame(() => crozzoPosFlashOrderContainer('cartItems'));
 }
 function removeFromCart(productId, configSig = '') {
-  if (!crozzoRequireCajaPermiso('editar_orden', {}, 'No tienes permiso para modificar cantidades del pedido.')) return;
   const cart = getActiveCart();
   const pid = Number(productId);
   const sig = configSig != null ? String(configSig) : '';
@@ -19760,17 +20043,21 @@ function removeFromCart(productId, configSig = '') {
     crozzoLogCajaVoid('qty_blocked_sin_comandar', nom + ' $' + lt);
     return;
   }
-  let newQty = 0;
+  const ctx = typeof currentPage !== 'undefined' && currentPage === 'tablets' ? { context: 'tablet' } : {};
   if (item.cantidad > 1) {
+    if (!crozzoRequireCajaPermiso('editar_orden', ctx, 'No tienes permiso para modificar cantidades del pedido.')) return;
     cart[idx].cantidad--;
-    newQty = cart[idx].cantidad;
+    crozzoLogCajaVoid('qty_down', nom + ' · qty=' + cart[idx].cantidad);
   } else {
-    newQty = 0;
+    if (!crozzoRequireCajaPermiso('eliminar_item', ctx, 'No puede quitar ítems del pedido. Pida al encargado.')) return;
     cart.splice(idx, 1);
+    crozzoLogCajaVoid('remove_line', nom + ' x1');
   }
-  crozzoLogCajaVoid('qty_down', nom + ' · qty=' + newQty);
   if (typeof currentPage !== 'undefined' && currentPage === 'tablets') renderTabletCart();
   else renderCart();
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
 }
 function updateCartItemQuantity(productId, quantity) {
   if (!crozzoRequireCajaPermiso('editar_orden', {}, 'No tienes permiso para editar cantidades.')) return;
@@ -19813,6 +20100,7 @@ function removeCartItemCompletely(productId) {
   renderCart();
 }
 function editCartItem(productId) {
+  if (!crozzoRequireCajaPermiso('editar_orden', {}, 'No tienes permiso para editar ítems del pedido.')) return;
   const cart = getActiveCart();
   const item = cart.find(c => c.id === productId);
   if (!item) return;
@@ -19962,6 +20250,9 @@ function renderCart() {
   updateCartTotals();
   try {
     if (typeof crozzoPosNotifyOperationState === 'function') crozzoPosNotifyOperationState();
+  } catch (_) {}
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
 }
 function updateCartTotals() {
@@ -22690,21 +22981,23 @@ function renderComandas() {
   const corkBtn =
     typeof crozzoCorkboardFocusBtnHtml === 'function' ? crozzoCorkboardFocusBtnHtml({ compact: touchUi }) : '';
   if (!comandasAreaSelected) {
+    const hubHeader =
+      '<div class="card-header crozzo-comandas-hub-header' +
+      (touchUi ? ' crozzo-comandas-area-header--touch' : '') +
+      '">' +
+      '<div class="crozzo-comandas-hub-header__text">' +
+      '<h2 class="card-title crozzo-comandas-area-title">Pantallas de comandas</h2>' +
+      '<p class="form-hint crozzo-comandas-hub-sub">Todas las áreas · toque una para ver pedidos en el corcho</p>' +
+      '</div>' +
+      (touchUi ? '' : '<div class="crozzo-comandas-hub-header__actions">' + (corkBtn || '') + '</div>') +
+      '</div>';
     return (
       '<div class="card crozzo-pantallas-kiosk-root crozzo-comandas-hub comandas-vista-tablero' +
       (touchUi ? ' comandas-vista-touch' : '') +
       '">' +
-      (touchUi
-        ? crozzoComandasAreaHeaderHtml('Comandas', corkBtn, false, true)
-        : '<div class="card-header crozzo-cork-focus-hide" style="padding-bottom:8px;">' +
-          '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; width:100%;">' +
-          '<div><h2 class="card-title">Comandas</h2>' +
-          '<p class="form-hint" style="margin:6px 0 0;">Sus pantallas en el corcho · toque una nota para ver los pedidos</p></div>' +
-          corkBtn +
-          '</div></div>') +
-      '<div style="padding:0 12px 16px;">' +
-      renderComandasHubStationBoardHtml(areas) +
-      '</div></div>'
+      hubHeader +
+      renderComandasHubPanelHtml(areas) +
+      '</div>'
     );
   }
   const area = areas.find(function (a) {
@@ -22758,7 +23051,6 @@ function renderComandas() {
   return `
     <div class="card crozzo-pantallas-kiosk-root comandas-vista-tablero${touchUi ? ' comandas-vista-touch' : ''}">
       ${crozzoComandasAreaHeaderHtml(area ? area.nombre : comandasAreaSelected, corkBtn, showBackAreas, touchUi)}
-      ${touchUi ? '' : kioskBar}
       <div class="comandas-layout comandas-layout--tablero">
         <div>
           <div class="crozzo-corkboard crozzo-comandas-area-cork${threadEnterCls}" role="region" aria-label="Comandas pendientes">
@@ -22771,7 +23063,10 @@ function renderComandas() {
             `}
             ${crozzoComandaTrashBinDockHtml()}
           </div>
-          <details class="card crozzo-cork-history crozzo-cork-focus-hide" style="margin-top:12px;"${areaHistory.length ? ' open' : ''}>
+          ${
+            touchUi
+              ? ''
+              : `<details class="card crozzo-cork-history crozzo-cork-focus-hide" style="margin-top:12px;"${areaHistory.length ? ' open' : ''}>
             <summary style="cursor:pointer; list-style:none;" class="card-header">
               <span class="card-title">📚 Listas (${areaHistory.length})</span>
               <span style="font-size:0.8rem; color:var(--text-muted);">Notas verdes · despachadas</span>
@@ -22794,12 +23089,13 @@ function renderComandas() {
                 </div>
               ` : `<div style="color:var(--text-muted);">Aún no hay comandas despachadas para esta área.</div>`}
             </div>
-          </details>
+          </details>`
+          }
           ${
             touchUi
-              ? `<details class="card crozzo-cork-focus-hide crozzo-comandas-calls" style="margin-top:12px;"${pendingCalls ? ' open' : ''}>
+              ? `<details class="card crozzo-cork-focus-hide crozzo-comandas-calls crozzo-comandas-calls--touch" style="margin-top:8px;">
             <summary style="cursor:pointer; list-style:none;" class="card-header">
-              <span class="card-title">🔔 Llamados de cocina (${areaCalls.length})</span>
+              <span class="card-title">🔔 Llamados${pendingCalls ? ' (' + pendingCalls + ')' : ''}</span>
             </summary>
             ${callsBlock}
           </details>`
@@ -22812,7 +23108,7 @@ function renderComandas() {
           }
         </div>
       </div>
-      ${touchUi ? kioskBar : ''}
+      ${kioskBar}
     </div>
   `;
 }
@@ -22825,15 +23121,14 @@ function updateComandaEstado(id, estado, opts) {
   config.addAudit('comanda_estado', `Comanda #${id} -> ${getEstadoLabel(estado)}`);
   if (!opts.skipFanout) {
     try {
-      if (typeof window.crozzoPushComandasCloudByIds === 'function') {
-        window.crozzoPushComandasCloudByIds([id]);
-      }
+      crozzoSyncPosRuntimeCritical('comanda_estado');
+    } catch (_) {}
+  } else {
+    try {
+      if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
     } catch (_) {}
   }
-  try {
-    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
-  } catch (_) {}
-  if (currentPage === 'cocina') renderPage('cocina');
+  if (currentPage === 'cocina' || currentPage === 'comandas') renderPage(currentPage);
   crozzoPublishComandasGlobal();
 }
 function initCocina() {
@@ -22843,6 +23138,9 @@ function initCocina() {
     crozzoDestroyComandasSortable();
     crozzoComandaTrashBinSetVisible(false);
     return;
+  }
+  if (crozzoIsComandasFieldTouchUi() && crozzoCorkboardFocus) {
+    crozzoCorkboardFocus = false;
   }
   crozzoApplyCorkboardFocusUi();
   if (crozzoCorkboardFocus || cocinaVistaCorcho) crozzoInitCorkboardSortableForPage();
@@ -22879,6 +23177,9 @@ function initComandas() {
     crozzoDestroyComandasSortable();
     crozzoComandaTrashBinSetVisible(false);
     return;
+  }
+  if (crozzoIsComandasFieldTouchUi() && crozzoCorkboardFocus) {
+    crozzoCorkboardFocus = false;
   }
   crozzoApplyCorkboardFocusUi();
   if (crozzoCorkboardFocus) crozzoInitCorkboardSortableForPage();
@@ -24830,6 +25131,7 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
     cartsPorMesa[mesaSeleccionada] = [];
   }
   if (typeof crozzoClearActiveDescuento === 'function') crozzoClearActiveDescuento();
+  crozzoSyncPosRuntimeCritical('post_cobro');
 }
 async function facturar(options = {}) {
   if (!crozzoRequireCajaSession()) return;
@@ -35000,6 +35302,38 @@ function rolFuncionalLabel(v) {
 //   configDispositivo: { rolPredeterminado: 'A'|'B'|'auto', autoAplicar: boolean }
 // }
 // El Super Admin (Kenny, id KENNY) no se lista ni se gestiona en esta pantalla: es cuenta interna del sistema.
+function crozzoResolveStaffPlantillaInput(plantillaVal, rolFallback) {
+  if (!plantillaVal) return null;
+  if (typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.resolveStaffPlantillaValue) {
+    var fromLib = CrozzoPerfilesBiblioteca.resolveStaffPlantillaValue(plantillaVal, rolFallback);
+    if (fromLib) return fromLib;
+  }
+  if (String(plantillaVal).indexOf(':') >= 0) return null;
+  return crozzoStaffFromPlantilla(plantillaVal, rolFallback);
+}
+function crozzoApplyUserPlantillaInModal() {
+  var sel = document.getElementById('editUserPlantillaApply');
+  var id = document.getElementById('editUserId') && document.getElementById('editUserId').value;
+  if (!sel || !id || !sel.value) return;
+  var rol = document.getElementById('editUserRol') && document.getElementById('editUserRol').value;
+  var tpl = crozzoResolveStaffPlantillaInput(sel.value, rol || 'caja');
+  if (!tpl) return showToast('Plantilla no encontrada', 'warning');
+  if (sel.value.indexOf('saved:') === 0 && typeof CrozzoPerfilesBiblioteca !== 'undefined') {
+    CrozzoPerfilesBiblioteca.applyStaffPlantilla(id, sel.value.slice(6));
+    closeModal();
+    return;
+  }
+  document.getElementById('editUserRol').value = tpl.rol || rol || 'caja';
+  PERMISOS_CATALOGO.forEach(function (c) {
+    var lista = (tpl.permisos && tpl.permisos[c.id]) || [];
+    document.querySelectorAll('#editUserPermsAccordion input[data-perm-cat="' + c.id + '"][data-perm-sub]').forEach(function (ch) {
+      ch.checked = lista.indexOf(ch.getAttribute('data-perm-sub')) >= 0;
+    });
+  });
+  crozzoInitEditUserPermMasters();
+  showToast('Plantilla aplicada en el formulario — pulse Guardar para confirmar', 'success');
+}
+window.crozzoApplyUserPlantillaInModal = crozzoApplyUserPlantillaInModal;
 function renderConfigUsuarios() {
   const usuarios = (getUsuariosConfig().staff || []).filter(u => u.rol !== 'superadmin' && u.id !== 'KENNY');
   const totalActivos = usuarios.filter(u => u.activo).length;
@@ -35041,10 +35375,19 @@ function renderConfigUsuarios() {
       </tr>
     `;
   }).join('');
-  return `
-    <div class="card">
+  const plantillaOpts =
+    typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderStaffPlantillasSelect
+      ? CrozzoPerfilesBiblioteca.renderStaffPlantillasSelect('', true)
+      : '<option value="">Plantilla…</option><option value="builtin:caja">Cajero estándar</option><option value="builtin:mesero">Mesero estándar</option><option value="builtin:admin_negocio">Admin negocio</option>';
+  const plantillasPanel =
+    typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderUsuariosPlantillasPanel
+      ? CrozzoPerfilesBiblioteca.renderUsuariosPlantillasPanel()
+      : '';
+  return (
+    plantillasPanel +
+    `<div class="card">
       <div class="card-header">
-        <span class="card-title">👥 Usuarios y permisos</span>
+        <span class="card-title">Usuarios y permisos</span>
         <span class="badge" style="background:transparent; border:1px solid var(--border); color:var(--text-muted);">
           ${usuarios.length} gestionables · ${totalActivos} activos
         </span>
@@ -35067,6 +35410,7 @@ function renderConfigUsuarios() {
             <option value="contador">Contador / auditor</option>
             <option value="caja">Cajero estándar</option>
             <option value="mesero">Mesero estándar</option>
+            <option value="cocina">Cocina</option>
           </select>
           <button class="btn btn-primary" onclick="addUser()">➕ Agregar</button>
         </div>
@@ -35096,11 +35440,12 @@ function renderConfigUsuarios() {
         `}
       </div>
       <p class="form-hint" style="margin-top:10px;">
-        Permisos en <strong>Editar</strong>: usa los <strong>?</strong> para ver ayuda. Flujo: <strong>Área</strong> → sub-apartado → permisos. En tablet <strong>B</strong> solo Caja.
+        En <strong>Editar</strong> asigne permisos dentro del marco definido por Super Admin (Gestión de perfiles → Permisos delegables).
+        Un cajero puede ver caja y proveedores, pero no borrar pedidos ni cambiar precios si no están habilitados allí.
         Super Admin no aparece en esta lista.
       </p>
-    </div>
-  `;
+    </div>`
+  );
 }
 function initConfigUsuarios() {
   const search = document.getElementById('searchUsuarios');
@@ -35164,12 +35509,16 @@ async function addUser() {
   }
   if (conf.staff.some(u => u.id === id)) return showToast('Ese usuario ya existe', 'warning');
   var fromTpl = plantilla ? crozzoStaffFromPlantilla(plantilla, rol) : null;
+  var permisosNuevo = fromTpl ? fromTpl.permisos : { caja: [], comandas: [], admin: [], inventario: [], productos: [] };
+  if (typeof crozzoSanitizeUserPermisos === 'function') {
+    permisosNuevo = crozzoSanitizeUserPermisos(permisosNuevo, fromTpl ? fromTpl.rol : rol);
+  }
   let row = {
     id,
     nombre,
     rol: fromTpl ? fromTpl.rol : rol,
     activo: true,
-    permisos: fromTpl ? fromTpl.permisos : { caja: [], comandas: [], admin: [], inventario: [], productos: [] },
+    permisos: permisosNuevo,
     configDispositivo: {
       rolPredeterminado: sugerirRolDispositivo(rol),
       autoAplicar: true
@@ -35385,7 +35734,19 @@ function openEditUserModal(userId) {
     return showToast('🔒 La cuenta Super Admin es interna: no se lista ni se edita en Usuarios y permisos.', 'warning');
   }
   const cd = u.configDispositivo || { rolPredeterminado: 'auto', autoAplicar: true };
-  const permsHtml = PERMISOS_CATALOGO.map(cat => {
+  const permCatalogEdit =
+    typeof crozzoFilterPermCatalogForRole === 'function'
+      ? crozzoFilterPermCatalogForRole(u.rol)
+      : typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.filterCatalogForRole
+        ? CrozzoPermisosPolicy.filterCatalogForRole(u.rol)
+        : PERMISOS_CATALOGO;
+  const policyHint =
+    permCatalogEdit.length < PERMISOS_CATALOGO.length
+      ? '<p class="form-hint crozzo-user-perm-policy-hint">Solo se muestran permisos habilitados para el perfil de empresa y rol «' +
+        escUserAttr(rolFuncionalLabel(u.rol)) +
+        '». El Super Admin los define en Gestión de perfiles → Permisos delegables.</p>'
+      : '';
+  const permsHtml = permCatalogEdit.map(cat => {
     const active = (u.permisos && u.permisos[cat.id]) || [];
     const safeCat = escUserAttr(cat.id);
     const total = crozzoPermCatTotalSubs(cat);
@@ -35460,7 +35821,11 @@ function openEditUserModal(userId) {
       </details>
     `;
   }).join('');
-  showModal(`✏️ Editar usuario · ${escUserAttr(u.nombre)}`, `
+  const staffTplOpts =
+    typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderStaffPlantillasSelect
+      ? CrozzoPerfilesBiblioteca.renderStaffPlantillasSelect('', true)
+      : '<option value="">Elegir perfil…</option>';
+  showModal(`Editar usuario · ${escUserAttr(u.nombre)}`, `
     <input type="hidden" id="editUserId" value="${escUserAttr(u.id)}">
     <div class="user-edit-grid">
       <div class="form-group">
@@ -35496,11 +35861,20 @@ function openEditUserModal(userId) {
         </label>
       </div>
     </div>
+    <div class="crozzo-edit-user-plantilla-bar">
+      <div class="form-group" style="flex:1; min-width:180px; margin:0;">
+        <label class="form-label">Aplicar perfil</label>
+        <select class="form-select" id="editUserPlantillaApply">${staffTplOpts}</select>
+      </div>
+      <button type="button" class="btn btn-outline" onclick="crozzoApplyUserPlantillaInModal()">Aplicar perfil</button>
+      <button type="button" class="btn btn-outline" onclick="CrozzoPerfilesBiblioteca.promptSaveStaff('${escUserAttr(u.id)}')">Guardar como perfil</button>
+    </div>
     <div style="margin-top:14px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-        <strong style="font-size:0.88rem;">🔐 Permisos</strong>
-        <button type="button" class="user-perm-help" title="1) Marca «Área» para ver el grupo en el menú. 2) Marca cada sub-apartado. 3) Elige permisos dentro. Con dispositivo B (tablet) solo aplica Caja." aria-label="Ayuda" tabindex="0">?</button>
+        <strong style="font-size:0.88rem;">Permisos operativos</strong>
+        <button type="button" class="user-perm-help" title="1) Marca «Área» para habilitar el módulo en menú. 2) Marca cada sub-apartado. 3) Elige acciones permitidas. En tablet (B) solo aplica Caja." aria-label="Ayuda" tabindex="0">?</button>
       </div>
+      ${policyHint}
       <div class="user-perms-accordion" id="editUserPermsAccordion">${permsHtml}</div>
     </div>
       <div class="btn-group" style="justify-content:space-between; margin-top:16px; gap:8px; flex-wrap:wrap;">
@@ -35547,6 +35921,9 @@ async function saveEditedUser() {
     if (!permisos[cat]) permisos[cat] = [];
     permisos[cat].push(sub);
   });
+  if (typeof crozzoSanitizeUserPermisos === 'function') {
+    Object.assign(permisos, crozzoSanitizeUserPermisos(permisos, rol));
+  }
   if (rolDisp === 'B') {
     PERMISOS_CATALOGO.forEach(function (c) {
       if (c.id !== 'caja') permisos[c.id] = [];
@@ -36485,92 +36862,129 @@ function renderGestionPerfilesMenus(previewPerfil) {
     typeof CrozzoPerfilesOperativos !== 'undefined' &&
     CrozzoPerfilesOperativos.isPreset &&
     CrozzoPerfilesOperativos.isPreset(perfilActivo);
-  var panelPerfilHtml =
-    typeof CrozzoPerfilesOperativos !== 'undefined' && CrozzoPerfilesOperativos.renderGestionPanel
-      ? CrozzoPerfilesOperativos.renderGestionPanel(perfilActivo, activeClient.nombre || activeId)
-      : '';
   var rolePreviewHtml =
     typeof CrozzoPerfilesOperativos !== 'undefined' && CrozzoPerfilesOperativos.renderRolePreview
       ? CrozzoPerfilesOperativos.renderRolePreview(perfilActivo)
       : '';
   var menuChecks = crozzoBuildMenuCatalogCheckboxes('data-client-menu', activeClient.menus || {}, false);
+  var wizardTabs =
+    typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderGestionWizardTabs
+      ? CrozzoPerfilesBiblioteca.renderGestionWizardTabs('empresa')
+      : '';
+  var tipoGrid =
+    typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderBusinessTypeGrid
+      ? CrozzoPerfilesBiblioteca.renderBusinessTypeGrid(perfilActivo)
+      : '';
+  var plantillasFull =
+    typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderEmpresaPlantillasPanel
+      ? CrozzoPerfilesBiblioteca.renderEmpresaPlantillasPanel(activeClient)
+      : '';
+  var permEditor =
+    typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.renderPolicyEditor
+      ? CrozzoPermisosPolicy.renderPolicyEditor(activeClient)
+      : '';
+  var savedQuick = '';
+  var tplList = cfg.savedTemplates || [];
+  if (tplList.length) {
+    savedQuick =
+      '<div class="crozzo-gestion-quick-tpl"><span class="form-hint">Aplicar plantilla:</span>' +
+      tplList
+        .slice(0, 6)
+        .map(function (t) {
+          return (
+            '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoPerfilesBiblioteca.applyEmpresa(\'' +
+            t.id +
+            '\')">' +
+            escUserAttr(t.nombre) +
+            '</button>'
+          );
+        })
+        .join('') +
+      (tplList.length > 6 ? ' <span class="form-hint">+' + (tplList.length - 6) + ' en pestaña Mis plantillas</span>' : '') +
+      '</div>';
+  }
   return (
-    '<section id="gestion-perfiles" class="crozzo-gestion-page">' +
+    '<section id="gestion-perfiles" class="crozzo-gestion-page" data-gestion-tab="empresa">' +
     '<div class="card crozzo-gestion-page__intro">' +
-    '<h2 class="crozzo-gestion-page__title">📋 Gestión de Perfiles, Clientes y Menús</h2>' +
-    '<p class="form-hint" style="margin:0;">Configure cada <strong>restaurante / cliente</strong>: perfil operativo (pequeño, mediano, grande…), módulos visibles y menú por rol. Los usuarios del cliente activo solo ven lo permitido aquí.</p>' +
+    '<h2 class="crozzo-gestion-page__title">Perfiles de empresa, módulos y permisos</h2>' +
+    '<p class="form-hint" style="margin:0;">Configure el tipo de negocio, qué ve cada rol, qué puede delegar el administrador y guarde plantillas reutilizables.</p>' +
+    savedQuick +
     '</div>' +
+    wizardTabs +
+    '<div class="crozzo-gestion-wizard-panels">' +
+    '<div class="crozzo-gestion-wizard-panel" data-gestion-panel="empresa">' +
     '<div class="crozzo-gestion-page__grid">' +
     '<div class="crozzo-gestion-page__col">' +
     '<div class="card crozzo-gestion-page__card">' +
-    '<h3 class="crozzo-gestion-page__card-title">🏢 Cliente / Negocio</h3>' +
+    '<h3 class="crozzo-gestion-page__card-title">Cliente / negocio</h3>' +
     '<div class="crozzo-gestion-cliente-row">' +
     '<div class="form-group crozzo-gestion-cliente-row__select"><label class="form-label">Cliente activo</label>' +
     '<select id="crozzo-cliente-select" class="form-select">' +
     clientOpts +
     '</select></div>' +
-    '<button type="button" class="btn btn-outline" id="crozzo-cliente-nuevo">➕ Nuevo</button>' +
-    '<button type="button" class="btn btn-outline" id="crozzo-cliente-renombrar">✏️ Renombrar</button>' +
+    '<button type="button" class="btn btn-outline" id="crozzo-cliente-nuevo">Nuevo</button>' +
+    '<button type="button" class="btn btn-outline" id="crozzo-cliente-renombrar">Renombrar</button>' +
     '</div>' +
     '<p class="form-hint" id="crozzo-cliente-hint" style="margin-top:10px;">ID: <code>' +
     activeId +
     '</code></p></div>' +
     '<div class="card crozzo-gestion-page__card">' +
-    '<h3 class="crozzo-gestion-page__card-title">🎨 Modelo visual (tema)</h3>' +
-    '<p class="form-hint">Apariencia que verá este cliente al usar la app.</p>' +
+    '<h3 class="crozzo-gestion-page__card-title">Modelo visual</h3>' +
     '<select id="crozzo-cliente-tema" class="form-select crozzo-gestion-page__select-narrow">' +
     themeOpts +
-    '</select></div>' +
-    '</div>' +
+    '</select></div></div>' +
     '<div class="crozzo-gestion-page__col">' +
     '<div class="card crozzo-gestion-page__card">' +
-    '<h3 class="crozzo-gestion-page__card-title">📦 Perfil de empresa</h3>' +
+    '<h3 class="crozzo-gestion-page__card-title">Selector avanzado</h3>' +
     '<select id="perfil-empresa-select" class="form-select crozzo-gestion-page__select-narrow">' +
     (typeof CrozzoPerfilesOperativos !== 'undefined' && CrozzoPerfilesOperativos.renderSelectOptions
       ? CrozzoPerfilesOperativos.renderSelectOptions(activeClient.perfil || 'completo')
-      : '<option value="completo">Completo (todos los módulos)</option>' +
-        '<option value="pequeno">Pequeño negocio (10–20 cubiertos)</option>' +
-        '<option value="mediano">Restaurante mediano (20–50 cubiertos)</option>' +
-        '<option value="grande">Restaurante grande (50–150+ cubiertos)</option>' +
-        '<option value="restaurante">Restaurante estándar</option>' +
-        '<option value="retail">Retail / Tienda</option>' +
-        '<option value="servicios">Servicios / Mostrador</option>' +
-        '<option value="basico">Básico (solo venta comercial)</option>' +
-        '<option value="personalizado">Personalizado</option>') +
+      : '') +
     '</select>' +
-    '<p class="form-hint crozzo-gestion-page__hint">Perfiles operativos aplican menú por rol automáticamente. Use <em>Personalizado</em> para marcar módulos y roles a mano. Los perfiles de <strong>restaurante</strong> activan también el perfil fiscal «Restaurante / bar» (impuesto al consumo) en precuentas y caja.</p>' +
-    (panelPerfilHtml ? '<div class="crozzo-gestion-page__panel-wrap">' + panelPerfilHtml + '</div>' : '') +
+    '<p class="form-hint" style="margin-top:8px;">Use las tarjetas abajo para elegir por tipo de negocio, o el desplegable para ajuste fino.</p>' +
     '</div></div></div>' +
+    '<div class="card crozzo-gestion-page__card">' +
+    '<h3 class="crozzo-gestion-page__card-title">Tipo de negocio</h3>' +
+    '<p class="form-hint">Gastronomía (tamaño pequeño/mediano/grande), comercio, servicios o configuración manual.</p>' +
+    tipoGrid +
+    '</div></div>' +
+    '<div class="crozzo-gestion-wizard-panel" data-gestion-panel="modulos" hidden>' +
     '<div class="card crozzo-gestion-page__card" id="crozzo-cliente-menus-card"' +
     (esPersonalizado ? '' : ' hidden') +
     '>' +
-    '<h3 class="crozzo-gestion-page__card-title">📂 Módulos visibles (solo personalizado)</h3>' +
-    '<p class="form-hint">Marca lo que este negocio puede usar cuando el perfil es <em>Personalizado</em>.</p>' +
+    '<h3 class="crozzo-gestion-page__card-title">Módulos visibles (personalizado)</h3>' +
     '<div id="crozzo-cliente-menus-list" class="crozzo-menu-catalog">' +
     menuChecks +
     '</div></div>' +
     '<div class="card crozzo-gestion-page__card" id="crozzo-role-menus-section">' +
-    '<h3 class="crozzo-gestion-page__card-title">🔐 Menú por rol</h3>' +
+    '<h3 class="crozzo-gestion-page__card-title">Menú por rol</h3>' +
     (esPreset
-      ? '<p class="form-hint">Vista previa del preset <strong>' +
+      ? '<p class="form-hint">Vista del preset <strong>' +
         escUserAttr(perfilActivo) +
-        '</strong>. Para editar roles a mano, elija perfil <em>Personalizado</em> o aplique otro preset arriba.</p>' +
+        '</strong>. Para editar a mano, elija <em>Personalizado</em> en tipo de negocio.</p>' +
         '<div id="crozzo-role-menus-preview">' +
         rolePreviewHtml +
         '</div>'
       : esPersonalizado
-        ? '<p class="form-hint">Restringe módulos según el rol del usuario (caja, mesero, cocina, inventario, admin).</p>' +
+        ? '<p class="form-hint">Marque qué módulo ve cada rol (caja, mesero, cocina, inventario, admin).</p>' +
           '<div id="crozzo-role-menus-wrap">' +
           crozzoBuildRoleMenusCheckboxes(activeClient) +
           '</div>'
         : '<div id="crozzo-role-menus-preview">' +
           rolePreviewHtml +
           '</div>') +
+    '</div></div>' +
+    '<div class="crozzo-gestion-wizard-panel" data-gestion-panel="permisos" hidden>' +
+    permEditor +
     '</div>' +
+    '<div class="crozzo-gestion-wizard-panel" data-gestion-panel="plantillas" hidden>' +
+    plantillasFull +
+    '</div></div>' +
     '<div class="crozzo-gestion-page__actions">' +
-    '<button type="button" id="guardar-perfil-menus" class="btn btn-primary">💾 Guardar configuración</button>' +
-    '<button type="button" id="crozzo-cliente-aplicar-tema" class="btn btn-outline">🎨 Aplicar modelo ahora</button>' +
-    '<button type="button" id="crozzo-cliente-eliminar" class="btn btn-outline crozzo-gestion-page__btn-danger">🗑️ Eliminar cliente</button>' +
+    '<button type="button" id="guardar-perfil-menus" class="btn btn-primary">Guardar configuración</button>' +
+    '<button type="button" class="btn btn-outline" onclick="CrozzoPerfilesBiblioteca.promptSaveEmpresa()">Guardar como plantilla</button>' +
+    '<button type="button" id="crozzo-cliente-aplicar-tema" class="btn btn-outline">Aplicar tema</button>' +
+    '<button type="button" id="crozzo-cliente-eliminar" class="btn btn-outline crozzo-gestion-page__btn-danger">Eliminar cliente</button>' +
     '</div></section>'
   );
 }
@@ -36637,9 +37051,13 @@ function initGestionPerfilesMenus(previewPerfil) {
         tema: 'executive-elite',
         menus: {},
         roles: { user: {}, admin: {}, mesero: {}, caja: {}, cocina: {}, inventario: {} },
+        rolePerms: {},
       };
       if (typeof CrozzoPerfilesOperativos !== 'undefined' && CrozzoPerfilesOperativos.syncClient) {
         CrozzoPerfilesOperativos.syncClient(nuevo, 'pequeno');
+      }
+      if (typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.syncClientRolePerms) {
+        CrozzoPermisosPolicy.syncClientRolePerms(nuevo);
       }
       cfg.clients[id] = nuevo;
       cfg.activeClientId = id;
@@ -36685,6 +37103,12 @@ function initGestionPerfilesMenus(previewPerfil) {
       if (typeof showToast === 'function') showToast('Modelo visual aplicado', 'success');
     });
   }
+  if (typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.bindPolicyEditor) {
+    CrozzoPermisosPolicy.bindPolicyEditor(document.getElementById('gestion-perfiles'));
+  }
+  if (typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.bindGestionWizard) {
+    CrozzoPerfilesBiblioteca.bindGestionWizard(document.getElementById('gestion-perfiles'));
+  }
   if (btnSave && !btnSave._crozzoPerfilBound) {
     btnSave._crozzoPerfilBound = true;
     btnSave.addEventListener('click', function () {
@@ -36693,6 +37117,9 @@ function initGestionPerfilesMenus(previewPerfil) {
       var perfilVal = selPerfil ? selPerfil.value : 'completo';
       c.perfil = perfilVal;
       c.tema = selTema ? selTema.value : 'executive-elite';
+      if (typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.collectRolePermsFromDom) {
+        c.rolePerms = CrozzoPermisosPolicy.collectRolePermsFromDom();
+      }
       if (perfilVal === 'personalizado') {
         c.menus = {};
         document.querySelectorAll('#gestion-perfiles input[data-client-menu][data-menu]').forEach(function (cb) {
@@ -36710,6 +37137,9 @@ function initGestionPerfilesMenus(previewPerfil) {
       } else {
         c.menus = {};
         c.roles = { user: {}, admin: {}, mesero: {}, caja: {}, cocina: {}, inventario: {} };
+      }
+      if (typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.syncClientRolePerms) {
+        CrozzoPermisosPolicy.syncClientRolePerms(c);
       }
       try {
         localStorage.setItem('crozzo_perfil_empresa', perfilVal);
@@ -37616,28 +38046,38 @@ function renderConfigSeguridad() {
             <input type="number" class="form-input" id="cfgHoneypotLockMin" min="5" max="1440" value="${hp.lockMinutes || 45}">
           </div>
         </div>
-        <label class="user-toggle" style="margin-top:10px;" title="Oculta cebos BACKDOOR, ROOT, SOPORTE, SUPERADMIN ficticio, etc.">
-          <input type="checkbox" id="cfgHoneypotProdStrict" ${hpProdStrict ? 'checked' : ''}>
-          <span class="slider"></span>
-          <span style="margin-left:8px;">Producción estricta (sin cebos de mantenimiento)</span>
-        </label>
-        <p class="form-hint" style="margin:4px 0 0;">
-          Recomendado en equipos en vivo. Se activa solo al cambiar la clave de fábrica KENNY. Sigue disponible el cebo <code>payaso</code> para pruebas.
-        </p>
-        <label class="user-toggle" style="margin-top:10px;" title="Acorta exploración falsa y recolección; también si hay 2ª trampa en 7 días con producción estricta">
-          <input type="checkbox" id="cfgHoneypotContencionRapida" ${hp.contencionRapida ? 'checked' : ''}>
-          <span class="slider"></span>
-          <span style="margin-left:8px;">Contención rápida (auditoría / reincidencia)</span>
-        </label>
-        <p class="form-hint" style="margin:4px 0 0;">
-          Escaneo de cebos: ≥4 usuarios señuelo distintos o ≥8 intentos en 10 min dispara trampa. Ver <code>docs/HONEYPOT-AUDITORIA.md</code>.
-        </p>
-        <label class="user-toggle" style="margin-top:10px;" title="Borra Supabase y certificado del disco al disparar">
-          <input type="checkbox" id="cfgHoneypotWipe" ${hp.wipeSecrets ? 'checked' : ''}>
-          <span class="slider"></span>
-          <span style="margin-left:8px;">Modo extremo: borrar credenciales nube y .p12 del disco</span>
-        </label>
-        <p class="form-hint" style="margin:8px 0 0;">No borra ventas ni productos; solo secretos. Úsalo solo si aceptas reconfigurar el equipo.</p>
+        <div class="crozzo-toggle-stack">
+          <label class="crozzo-toggle-row" title="Oculta cebos BACKDOOR, ROOT, SOPORTE, SUPERADMIN ficticio, etc.">
+            <span class="user-toggle" aria-hidden="true">
+              <input type="checkbox" id="cfgHoneypotProdStrict" ${hpProdStrict ? 'checked' : ''}>
+              <span class="slider"></span>
+            </span>
+            <span class="crozzo-toggle-row__body">
+              <span class="crozzo-toggle-row__title">Producción estricta (sin cebos de mantenimiento)</span>
+              <span class="crozzo-toggle-row__hint">Recomendado en equipos en vivo. Se activa solo al cambiar la clave de fábrica KENNY. Sigue disponible el cebo <code>payaso</code> para pruebas.</span>
+            </span>
+          </label>
+          <label class="crozzo-toggle-row" title="Acorta exploración falsa y recolección; también si hay 2ª trampa en 7 días con producción estricta">
+            <span class="user-toggle" aria-hidden="true">
+              <input type="checkbox" id="cfgHoneypotContencionRapida" ${hp.contencionRapida ? 'checked' : ''}>
+              <span class="slider"></span>
+            </span>
+            <span class="crozzo-toggle-row__body">
+              <span class="crozzo-toggle-row__title">Contención rápida (auditoría / reincidencia)</span>
+              <span class="crozzo-toggle-row__hint">Escaneo de cebos: ≥4 usuarios señuelo distintos o ≥8 intentos en 10 min dispara trampa. Ver <code>docs/HONEYPOT-AUDITORIA.md</code>.</span>
+            </span>
+          </label>
+          <label class="crozzo-toggle-row crozzo-toggle-row--danger" title="Borra Supabase y certificado del disco al disparar">
+            <span class="user-toggle" aria-hidden="true">
+              <input type="checkbox" id="cfgHoneypotWipe" ${hp.wipeSecrets ? 'checked' : ''}>
+              <span class="slider"></span>
+            </span>
+            <span class="crozzo-toggle-row__body">
+              <span class="crozzo-toggle-row__title">Modo extremo: borrar credenciales nube y .p12 del disco</span>
+              <span class="crozzo-toggle-row__hint">No borra ventas ni productos; solo secretos. Úsalo solo si aceptas reconfigurar el equipo.</span>
+            </span>
+          </label>
+        </div>
         <div class="btn-group" style="margin-top:12px;flex-wrap:wrap;gap:8px;">
           <button type="button" class="btn btn-primary" onclick="saveHoneypotSettings()">Guardar trampa</button>
           <button type="button" class="btn btn-outline" onclick="crozzoHpExportForensicReport()">⬇️ Informe forense JSON</button>

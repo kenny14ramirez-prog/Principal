@@ -249,12 +249,12 @@
       '.crozzo-oficina-pdf-doc-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-right:6px}' +
       '.crozzo-oficina-pdf-doc-tab{padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--bg-primary);font-size:.72rem;cursor:pointer;color:var(--text-secondary)}' +
       '.crozzo-oficina-pdf-doc-tab.is-active{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb,59,130,246),.1)}' +
-      '.crozzo-oficina-pdf-panel__body{position:relative;min-height:420px;background:#eef1f5}' +
-      '.crozzo-oficina-pdf-panel__body.has-preview{background:#fff}' +
-      '.crozzo-oficina-pdf-iframe{width:100%;height:min(520px,58vh);border:none;display:none;background:#fff}' +
-      '.crozzo-oficina-pdf-canvas{display:none;max-width:100%;height:auto;margin:0 auto;padding:8px;box-sizing:border-box;background:#fff}' +
-      '.crozzo-oficina-pdf-img{display:none;max-width:100%;max-height:min(520px,58vh);margin:0 auto;padding:12px;box-sizing:border-box;object-fit:contain;background:#fff}' +
-      '.crozzo-oficina-pdf-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.88rem;color:var(--text-secondary);background:#eef1f5;z-index:2}' +
+      '.crozzo-oficina-pdf-panel__body{position:relative;min-height:420px;background:var(--bg-secondary)}' +
+      '.crozzo-oficina-pdf-panel__body.has-preview{background:var(--bg-card)}' +
+      '.crozzo-oficina-pdf-iframe{width:100%;height:min(520px,58vh);border:none;display:none;background:var(--bg-card)}' +
+      '.crozzo-oficina-pdf-canvas{display:none;max-width:100%;height:auto;margin:0 auto;padding:8px;box-sizing:border-box;background:var(--bg-card)}' +
+      '.crozzo-oficina-pdf-img{display:none;max-width:100%;max-height:min(520px,58vh);margin:0 auto;padding:12px;box-sizing:border-box;object-fit:contain;background:var(--bg-card)}' +
+      '.crozzo-oficina-pdf-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.88rem;color:var(--text-secondary);background:var(--bg-secondary);z-index:2}' +
       '.crozzo-oficina-chip-solo{margin-left:6px}' +
       '.crozzo-oficina-filter-banner{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;border:1px solid rgba(var(--warning-rgb,234,179,8),.35);border-radius:var(--radius-lg);background:rgba(var(--warning-rgb,234,179,8),.08);font-size:.82rem;color:var(--text-secondary)}' +
       '.crozzo-oficina-filter-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;margin-bottom:10px;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-card);cursor:pointer;font-size:.84rem;font-weight:600}' +
@@ -284,11 +284,11 @@
       '.crozzo-oficina-prov-card h4{margin:0 0 4px;font-size:.92rem}' +
       '.crozzo-oficina-prov-card p{margin:0;font-size:.78rem;color:var(--text-muted)}' +
       '.crozzo-oficina-prov-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}' +
-      '.crozzo-rut-mini{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#eef1f5;min-height:100px;max-height:160px}' +
-      '.crozzo-rut-mini.has-preview{background:#fff}' +
+      '.crozzo-rut-mini{position:relative;margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-secondary);min-height:100px;max-height:160px}' +
+      '.crozzo-rut-mini.has-preview{background:var(--bg-card)}' +
       '.crozzo-rut-mini--empty{min-height:auto;padding:10px;background:var(--bg-secondary)}' +
       '.crozzo-rut-mini__load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.72rem;color:var(--text-secondary)}' +
-      '.crozzo-rut-mini__iframe,.crozzo-rut-mini__img,.crozzo-rut-mini__canvas{width:100%;height:130px;border:none;object-fit:contain;display:block;background:#fff}' +
+      '.crozzo-rut-mini__iframe,.crozzo-rut-mini__img,.crozzo-rut-mini__canvas{width:100%;height:130px;border:none;object-fit:contain;display:block;background:var(--bg-card)}' +
       '.crozzo-rut-mini__canvas{height:auto;max-height:140px;padding:4px;box-sizing:border-box}' +
       '.crozzo-rut-mini__expand{position:absolute;right:6px;bottom:6px;z-index:2;background:rgba(0,0,0,.55)!important;color:#fff!important;font-size:.68rem;padding:2px 8px}' +
       '.crozzo-of-prov-doc-badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}' +

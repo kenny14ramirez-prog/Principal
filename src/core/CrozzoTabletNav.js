@@ -159,6 +159,11 @@
         if (typeof global.showToast === 'function') global.showToast('No autorizado para esta sección.', 'warning');
         return false;
       }
+      if (page !== 'comandas' && page !== 'cocina' && typeof global.crozzoToggleCorkboardFocus === 'function') {
+        try {
+          global.crozzoToggleCorkboardFocus(false);
+        } catch (_) {}
+      }
       if (typeof global.crozzoNavigateImmediate === 'function') global.crozzoNavigateImmediate(page);
       else if (typeof global.navigateTo === 'function') global.navigateTo(page);
       if (typeof global.crozzoCloseSidebarDrawer === 'function') global.crozzoCloseSidebarDrawer();
