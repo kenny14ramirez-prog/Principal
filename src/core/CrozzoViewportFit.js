@@ -12,6 +12,7 @@
   function isBottomNavVisible() {
     var nav = document.getElementById('crozzoMobileBottomNav');
     if (!nav) return false;
+    if (nav.classList.contains('crozzo-mbn--active')) return true;
     try {
       return global.getComputedStyle(nav).display !== 'none';
     } catch (_) {
@@ -239,13 +240,18 @@
     var tauriFill = useTauriFillLayout();
 
     if (tauriFill) {
-      contentH = ih;
-      bottom = 0;
       headerH = isCompactChromeShell() || isAndroidUa() ? 44 : headerH;
-      /* Píxeles reales: en WebView Android los % encogen pantallas operativas */
+      var navVis = isBottomNavVisible();
+      var navH = 0;
+      if (navVis) {
+        navH = navHeight() || 56;
+        contentH = Math.max(200, ih - navH);
+      } else {
+        contentH = ih;
+      }
       doc.style.setProperty('--crozzo-vh', ih + 'px');
-      doc.style.setProperty('--crozzo-content-h', ih + 'px');
-      doc.style.setProperty('--crozzo-touch-nav-h', '0px');
+      doc.style.setProperty('--crozzo-content-h', contentH + 'px');
+      doc.style.setProperty('--crozzo-touch-nav-h', navH + 'px');
       doc.style.setProperty('--crozzo-bottom-safe', '0px');
       doc.style.setProperty('--crozzo-vw', iw + 'px');
       doc.style.setProperty('--crozzo-header-h', headerH + 'px');
@@ -258,8 +264,8 @@
       }
       doc.classList.add('crozzo-vp-ready');
       doc.classList.toggle('crozzo-vp-tauri-fill', tauriFill);
-      body.classList.remove('crozzo-vp-has-bottom');
-      body.classList.remove('crozzo-vp-mobile-nav');
+      body.classList.toggle('crozzo-vp-has-bottom', navH > 0);
+      body.classList.toggle('crozzo-vp-mobile-nav', navVis);
       detectDisplayScale(doc);
       return true;
     }

@@ -552,15 +552,6 @@
         e.stopPropagation();
         navigateFromItem(item);
       });
-      nav.addEventListener('pointerup', function (e) {
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        var item = e.target.closest('.nav-item[data-page]');
-        if (!item || !nav.contains(item)) return;
-        if (item.hidden || item.style.display === 'none' || item.classList.contains('crozzo-nav-filter-hidden')) return;
-        e.preventDefault();
-        e.stopPropagation();
-        navigateFromItem(item);
-      });
     }
     document.querySelectorAll('#sidebarNav .nav-item[data-page]').forEach(function (item) {
       if (item._crozzoNavItemBound) return;
@@ -598,13 +589,6 @@
       e.preventDefault();
       toggleGroupFromButton(toggle);
     });
-    nav.addEventListener('pointerup', function (e) {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      var toggle = e.target.closest('.nav-group-toggle');
-      if (!toggle) return;
-      e.preventDefault();
-      toggleGroupFromButton(toggle);
-    });
   }
 
   function bindSidebarExpand() {
@@ -612,6 +596,34 @@
     if (!sb || sb._crozzoSidebarEliteBound) return;
     sb._crozzoSidebarEliteBound = true;
     sb.classList.add('sidebar-elite', 'sidebar-pro');
+
+    function ensureMenuToggleBtnBound() {
+      var toggleBtn = document.getElementById('menu-toggle-btn');
+      if (!toggleBtn) {
+        toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.id = 'menu-toggle-btn';
+        toggleBtn.className = 'menu-toggle menu-toggle-btn';
+        toggleBtn.setAttribute('aria-label', 'Expandir o contraer menú lateral');
+        toggleBtn.setAttribute('aria-controls', 'sidebar');
+        toggleBtn.innerHTML = '<span class="menu-toggle-icon" aria-hidden="true">☰</span>';
+        sb.insertBefore(toggleBtn, sb.firstChild);
+      }
+      if (toggleBtn._crozzoToggleBound) return;
+      toggleBtn._crozzoToggleBound = true;
+      toggleBtn.addEventListener(
+        'click',
+        function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
+          else setSidebarExpanded(!isSidebarExpanded(sb), true);
+        },
+        false
+      );
+      if (typeof global.crozzoSidebarMountToggleBtn === 'function') global.crozzoSidebarMountToggleBtn(sb);
+    }
+    ensureMenuToggleBtnBound();
 
     try {
       if (localStorage.getItem('bona_sidebar_rail_default_v1') !== '1') {

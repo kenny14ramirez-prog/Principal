@@ -511,8 +511,15 @@
           scheduleComandaPull();
         } else if (status === 'CHANNEL_ERROR') {
           __realtimeLive = false;
+          if (!online()) {
+            stopComandasCloudSync();
+            return;
+          }
           scheduleComandaPull();
-          console.warn('[crozzo-comanda-cloud] realtime error');
+          if (!global.__crozzoComandaRtErrOnce) {
+            global.__crozzoComandaRtErrOnce = true;
+            console.warn('[crozzo-comanda-cloud] realtime error');
+          }
         }
       });
       global.__crozzoComandaCloudCh = ch;

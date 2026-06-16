@@ -240,12 +240,311 @@ function crozzoCloudDeviceUuidForRest() {
   }
 }
 window.crozzoCloudDeviceUuidForRest = crozzoCloudDeviceUuidForRest;
+
+function crozzoSupabaseHostFromUrl(url) {
+  const u = String(url || '').trim();
+  const m = u.match(/^https:\/\/([^/?#]+)/i);
+  return m ? m[1].toLowerCase() : '';
+}
+function crozzoSupabaseProjectRefFromUrl(url) {
+  const host = crozzoSupabaseHostFromUrl(url);
+  const m = host.match(/^([^.]+)\.supabase\.co$/i);
+  return m ? m[1] : '';
+}
+/** URL de señuelo honeypot: 8 dígitos + x + 4 hex (p. ej. 00004513x656b.supabase.co). */
+function crozzoIsHoneypotChaffUrl(url) {
+  const ref = crozzoSupabaseProjectRefFromUrl(url);
+  return /^\d{8}x[a-f0-9]{4}$/i.test(ref);
+}
+window.crozzoIsHoneypotChaffUrl = crozzoIsHoneypotChaffUrl;
+function crozzoIsHoneypotChaffConfig(obj) {
+  if (!obj || typeof obj !== 'object') return false;
+  if (obj._hpChaff === true) return true;
+  return crozzoIsHoneypotChaffUrl(obj.url || obj.supabaseUrl || '');
+}
+window.crozzoIsHoneypotChaffConfig = crozzoIsHoneypotChaffConfig;
+function crozzoJwtPayload(token) {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b64));
+  } catch (_) {
+    return null;
+  }
+}
+function crozzoAnonKeyMatchesSupabaseUrl(url, key) {
+  const hostRef = crozzoSupabaseProjectRefFromUrl(url);
+  if (!hostRef || crozzoIsHoneypotChaffUrl(url)) return false;
+  const payload = crozzoJwtPayload(key);
+  if (!payload || typeof payload !== 'object') return false;
+  const jwtRef = String(payload.ref || '').trim().toLowerCase();
+  if (!jwtRef) return false;
+  return jwtRef === hostRef.toLowerCase();
+}
+window.crozzoAnonKeyMatchesSupabaseUrl = crozzoAnonKeyMatchesSupabaseUrl;
 function isValidSupabasePair(url, key) {
-  const u = String(url || '').trim().toLowerCase();
+  const u = String(url || '').trim();
   const k = String(key || '').trim();
-  return u.includes('supabase.co') && k.length >= 20;
+  if (!u || !k || k.length < 20) return false;
+  if (!/^https:\/\/[^/?#]+\.supabase\.co\/?$/i.test(u)) return false;
+  if (crozzoIsHoneypotChaffUrl(u)) return false;
+  return crozzoAnonKeyMatchesSupabaseUrl(u, k);
 }
 window.isValidSupabasePair = isValidSupabasePair;
+
+const CROZZO_HP_CHAFF_LS_KEYS = [
+  'crozzo_supabase_config',
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'supabase_url',
+  'supabase_key',
+  'supabase_anon_key',
+  'crozzo_db_direct_url',
+  'crozzo_reservorio_pg_url',
+  'crozzo_hp_env_backup',
+  'crozzo_pg_pooler_url',
+  'crozzo_secrets_vault_v2',
+  'crozzo_vault_key_hint',
+  'crozzo_config_sealed_b64',
+  'crozzo_staff_export_enc',
+];
+function crozzoRecoverSupabaseFromMultiDevice() {
+  let url = '';
+  let key = '';
+  let deviceId = '';
+  let deviceName = '';
+  try {
+    const raw = localStorage.getItem('crozzo_multidevice_config');
+    if (raw) {
+      const md = JSON.parse(raw);
+      url = String(md?.supabase?.url || '').trim();
+      key = String(md?.supabase?.anonKey || '').trim();
+      deviceId = String(md?.deviceId || '').trim();
+    }
+  } catch (_) {}
+  if (!url || !key) {
+    try {
+      const raw = localStorage.getItem('pos_dian_config');
+      if (raw) {
+        const cfg = JSON.parse(raw);
+        const md = cfg?.multidispositivo || {};
+        url = url || String(md?.supabase?.url || '').trim();
+        key = key || String(md?.supabase?.anonKey || '').trim();
+        deviceId = deviceId || String(md?.deviceId || '').trim();
+        deviceName = String(md?.deviceName || '').trim();
+      }
+    } catch (_) {}
+  }
+  if (!isValidSupabasePair(url, key)) return false;
+  const file = {
+    version: 1,
+    syncEnabled: true,
+    url,
+    anonKey: key,
+    deviceId: deviceId || ensureStandaloneDeviceId(),
+    deviceName,
+    savedAt: Date.now(),
+    recoveredFrom: 'multidispositivo',
+  };
+  try {
+    localStorage.setItem(CROZZO_SB_FILE, JSON.stringify(file));
+    mirrorCredentialsToBothKeys(url, key);
+    if (file.deviceId) lsSet(LS.DEVICE_ID, file.deviceId);
+    return true;
+  } catch (e) {
+    console.warn('[crozzo-sb] recover from multidispositivo', e);
+    return false;
+  }
+}
+function crozzoTeardownSupabaseClient() {
+  try {
+    if (typeof window.crozzoStopComandasCloudSync === 'function') window.crozzoStopComandasCloudSync();
+  } catch (_) {}
+  try {
+    if (typeof crozzoStopRemoteTenantSync === 'function') crozzoStopRemoteTenantSync();
+  } catch (_) {}
+  try {
+    const sb = window.__SUPABASE;
+    if (sb && typeof sb.removeAllChannels === 'function') sb.removeAllChannels();
+  } catch (_) {}
+  window.__SUPABASE = null;
+}
+window.crozzoTeardownSupabaseClient = crozzoTeardownSupabaseClient;
+/** Quita credenciales de señuelo honeypot si la sesión de trampa ya terminó. */
+function crozzoScrubStaleHoneypotChaff() {
+  const hpLive =
+    typeof window !== 'undefined' && window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active;
+  if (hpLive) return false;
+  const readJ = readCrozzoSupabaseJson();
+  const legacyUrl = (lsGet(LS.URL_PRIMARY) || lsGet(LS.URL_LEGACY) || '').trim();
+  const contaminated =
+    (readJ && crozzoIsHoneypotChaffConfig(readJ)) || crozzoIsHoneypotChaffUrl(legacyUrl);
+  if (!contaminated) return false;
+  try {
+    if (window.CrozzoHoneypotSim && typeof window.CrozzoHoneypotSim.scrubDbChaffFromStorage === 'function') {
+      window.CrozzoHoneypotSim.scrubDbChaffFromStorage(window);
+    }
+  } catch (_) {}
+  const stillBad =
+    crozzoIsHoneypotChaffConfig(readCrozzoSupabaseJson()) ||
+    crozzoIsHoneypotChaffUrl(lsGet(LS.URL_PRIMARY) || lsGet(LS.URL_LEGACY) || '');
+  if (stillBad) {
+    CROZZO_HP_CHAFF_LS_KEYS.forEach(function (k) {
+      try {
+        localStorage.removeItem(k);
+      } catch (_) {}
+    });
+  }
+  const recovered = crozzoRecoverSupabaseFromMultiDevice();
+  crozzoTeardownSupabaseClient();
+  if (!window.__crozzoHpChaffScrubNotified) {
+    window.__crozzoHpChaffScrubNotified = true;
+    console.warn(
+      '[crozzo-sb] Credenciales de señuelo (honeypot) eliminadas' +
+        (recovered ? ' — restauradas desde Multi-Dispositivo.' : '. Reconfigure nube en Super Admin.')
+    );
+    if (typeof showToast === 'function') {
+      showToast(
+        recovered
+          ? 'Señuelo de seguridad retirado — nube restaurada desde Multi-Dispositivo.'
+          : 'Señuelo de seguridad retirado — configure Supabase en Multi-Dispositivo.',
+        recovered ? 'success' : 'warning'
+      );
+    }
+  }
+  return true;
+}
+window.crozzoScrubStaleHoneypotChaff = crozzoScrubStaleHoneypotChaff;
+
+function crozzoIsSupabaseJwtError(err) {
+  const s = String((err && err.message) || (err && err.error_description) || err || '');
+  return /InvalidJWTToken|JWT claim|invalid.*jwt|jwt expired|token.*expired/i.test(s);
+}
+window.crozzoIsSupabaseJwtError = crozzoIsSupabaseJwtError;
+
+function crozzoJwtExpMs(token) {
+  if (!token || typeof token !== 'string') return 0;
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return 0;
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64));
+    const exp = Number(payload.exp);
+    return Number.isFinite(exp) ? exp * 1000 : 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function crozzoIsJwtExpired(token, skewMs) {
+  const expMs = crozzoJwtExpMs(token);
+  if (!expMs) return false;
+  return Date.now() >= expMs - (skewMs || 60000);
+}
+
+function crozzoFindSupabaseAuthStorageKeys() {
+  const keys = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && /^sb-.+-auth-token/.test(k)) keys.push(k);
+    }
+  } catch (_) {}
+  return keys;
+}
+
+/** Quita sesiones Supabase Auth caducadas (causan InvalidJWTToken en PostgREST). */
+function crozzoPurgeExpiredSupabaseAuthStorage() {
+  let removed = false;
+  crozzoFindSupabaseAuthStorageKeys().forEach(function (k) {
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) return;
+      const pack = JSON.parse(raw);
+      let expired = false;
+      if (pack && typeof pack === 'object') {
+        const access = String(pack.access_token || (pack.currentSession && pack.currentSession.access_token) || '');
+        if (access && crozzoIsJwtExpired(access)) expired = true;
+        else if (pack.expires_at && Date.now() >= Number(pack.expires_at) * 1000 - 60000) expired = true;
+      }
+      if (expired) {
+        localStorage.removeItem(k);
+        removed = true;
+      }
+    } catch (_) {
+      try {
+        localStorage.removeItem(k);
+        removed = true;
+      } catch (_) {}
+    }
+  });
+  if (removed) {
+    try {
+      window.__crozzoSupabaseSessionCached = false;
+    } catch (_) {}
+  }
+  return removed;
+}
+window.crozzoPurgeExpiredSupabaseAuthStorage = crozzoPurgeExpiredSupabaseAuthStorage;
+
+async function crozzoRecoverSupabaseAuthFromJwtError(opts) {
+  opts = opts || {};
+  const hadStale = crozzoPurgeExpiredSupabaseAuthStorage();
+  try {
+    if (window.__SUPABASE && window.__SUPABASE.auth && typeof window.__SUPABASE.auth.signOut === 'function') {
+      await window.__SUPABASE.auth.signOut({ scope: 'local' });
+    }
+  } catch (_) {}
+  crozzoFindSupabaseAuthStorageKeys().forEach(function (k) {
+    try {
+      localStorage.removeItem(k);
+    } catch (_) {}
+  });
+  try {
+    window.__crozzoSupabaseSessionCached = false;
+  } catch (_) {}
+  if (hadStale && !opts.quiet && typeof showToast === 'function') {
+    showToast('Sesión de nube expirada — se limpió. La sync sigue con la clave anónima.', 'info');
+  }
+  return hadStale;
+}
+window.crozzoRecoverSupabaseAuthFromJwtError = crozzoRecoverSupabaseAuthFromJwtError;
+
+async function crozzoEnsureSupabaseAuthHealthy(sb) {
+  if (!sb || !sb.auth || typeof sb.auth.getSession !== 'function') return;
+  try {
+    const res = await sb.auth.getSession();
+    if (res && res.error && crozzoIsSupabaseJwtError(res.error)) {
+      await crozzoRecoverSupabaseAuthFromJwtError({ quiet: true });
+    } else if (res && res.data && res.data.session) {
+      const access = res.data.session.access_token;
+      if (access && crozzoIsJwtExpired(access)) {
+        await crozzoRecoverSupabaseAuthFromJwtError({ quiet: !!window.__crozzoJwtPurgeNotified });
+        window.__crozzoJwtPurgeNotified = true;
+      } else {
+        window.__crozzoSupabaseSessionCached = true;
+      }
+    }
+  } catch (e) {
+    if (crozzoIsSupabaseJwtError(e)) {
+      await crozzoRecoverSupabaseAuthFromJwtError({ quiet: true });
+    } else {
+      console.warn('[crozzo-sb] auth health', e);
+    }
+  }
+  if (!sb.__crozzoAuthHealthHook) {
+    sb.__crozzoAuthHealthHook = true;
+    try {
+      sb.auth.onAuthStateChange(function (event) {
+        if (event === 'SIGNED_OUT') window.__crozzoSupabaseSessionCached = false;
+        if (event === 'TOKEN_REFRESHED') window.__crozzoSupabaseSessionCached = true;
+      });
+    } catch (_) {}
+  }
+}
+
 /** Resuelve URL + anon key desde crozzo_supabase_config, multidispositivo o claves legacy. */
 function crozzoResolveSupabaseCredentials() {
   const readJ = readCrozzoSupabaseJson();
@@ -254,7 +553,8 @@ function crozzoResolveSupabaseCredentials() {
   let syncOn = false;
   let deviceId = '';
   let deviceName = '';
-  if (readJ && readJ.syncEnabled) {
+  const fileIsChaff = readJ && crozzoIsHoneypotChaffConfig(readJ);
+  if (readJ && readJ.syncEnabled && !fileIsChaff) {
     url = String(readJ.url || '').trim();
     key = crozzoSupabaseEffectiveAnonKey(readJ);
     syncOn = true;
@@ -264,15 +564,30 @@ function crozzoResolveSupabaseCredentials() {
   try {
     if (typeof getMultiDeviceConfig === 'function') {
       const md = getMultiDeviceConfig();
-      if (!url) url = String(md.supabase?.url || '').trim();
-      if (!key) key = String(md.supabase?.anonKey || '').trim();
+      const mdUrl = String(md.supabase?.url || '').trim();
+      const mdKey = String(md.supabase?.anonKey || '').trim();
+      if (fileIsChaff || !url) {
+        if (isValidSupabasePair(mdUrl, mdKey)) {
+          url = mdUrl;
+          key = mdKey;
+          syncOn = true;
+        }
+      }
+      if (!url) url = mdUrl;
+      if (!key) key = mdKey;
       if (!deviceId) deviceId = String(md.deviceId || '').trim();
-      if (md.supabaseSyncEnabled) syncOn = true;
+      if (md.supabaseSyncEnabled && isValidSupabasePair(url, key)) syncOn = true;
     }
   } catch (_) {}
   if (!url) url = (lsGet(LS.URL_PRIMARY) || lsGet(LS.URL_LEGACY) || '').trim();
   if (!key) key = (lsGet(LS.KEY_PRIMARY) || lsGet(LS.KEY_LEGACY) || '').trim();
+  if (crozzoIsHoneypotChaffUrl(url)) {
+    url = '';
+    key = '';
+    syncOn = false;
+  }
   if (isValidSupabasePair(url, key)) syncOn = true;
+  else if (!isValidSupabasePair(url, key)) syncOn = false;
   return { syncOn, url, key, deviceId, deviceName };
 }
 window.crozzoResolveSupabaseCredentials = crozzoResolveSupabaseCredentials;
@@ -422,8 +737,12 @@ window.crozzoPersistSupabaseConfigFromPairing = function crozzoPersistSupabaseCo
 async function initSupabaseClient() {
   window.__SUPABASE = null;
   try {
+    crozzoScrubStaleHoneypotChaff();
+  } catch (_) {}
+  try {
     crozzoEnsureSupabaseConfigFileFromAnySource();
   } catch (_) {}
+  crozzoPurgeExpiredSupabaseAuthStorage();
   const creds = crozzoResolveSupabaseCredentials();
   const url = String(creds.url || '').trim();
   const key = String(creds.key || '').trim();
@@ -449,6 +768,7 @@ async function initSupabaseClient() {
         storage: window.localStorage,
       },
     });
+    await crozzoEnsureSupabaseAuthHealthy(window.__SUPABASE);
     return window.__SUPABASE;
   } catch (e) {
     console.warn('[crozzo-sb] initSupabaseClient', e);
@@ -512,6 +832,14 @@ async function loadTableData(tableName, filters = {}) {
     const res = await q;
     if (res && res.error) {
       const msg = String(res.error.message || res.error.details || res.error.hint || res.error || '');
+      if (crozzoIsSupabaseJwtError(res.error) || /InvalidJWTToken|JWT claim.*exp/i.test(msg)) {
+        await crozzoRecoverSupabaseAuthFromJwtError({ quiet: true });
+        try {
+          const res2 = await q;
+          if (res2 && !res2.error) return res2;
+        } catch (_) {}
+        return { data: cached, error: null };
+      }
       if (/401|404|jwt|permission denied|rls|forbidden|invalid|42703|does not exist|column .* does not exist/i.test(msg)) {
         console.warn('[crozzo-sb] loadTableData soft-fail', tableName, res.error);
         return { data: cached, error: null };
@@ -521,6 +849,9 @@ async function loadTableData(tableName, filters = {}) {
     }
     return res;
   } catch (e) {
+    if (crozzoIsSupabaseJwtError(e)) {
+      await crozzoRecoverSupabaseAuthFromJwtError({ quiet: true });
+    }
     console.warn('[crozzo-sb] loadTableData catch', tableName, e);
     return { data: cached, error: null };
   }
@@ -894,6 +1225,7 @@ function crozzoSanitizeSyncQueueInsertBodyForFacturaEstado(insertBody) {
 /** Drena localStorage.sync_queue_temp → tabla sync_queue (payload flexible según tu DDL). */
 async function syncOfflineQueue(opts) {
   opts = opts || {};
+  if (!crozzoOnlineConfigReady()) return { ok: false, reason: 'config_invalida' };
   const sb = window.__SUPABASE;
   if (!sb || typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'offline_o_sin_cliente' };
   const throttle = window.CrozzoCloudThrottle;
@@ -1697,7 +2029,13 @@ function startCrozzoRemoteTenantSync() {
       crozzoTenantDebouncedPull();
     });
     __crozzoTenantHub.subscribe(function (status) {
-      if (status === 'CHANNEL_ERROR') console.warn('[crozzo-tenant] broadcast channel');
+      if (status === 'CHANNEL_ERROR') {
+        if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) {
+          crozzoStopRemoteTenantSync();
+          return;
+        }
+        console.warn('[crozzo-tenant] broadcast channel');
+      }
     });
   } catch (e) {
     console.warn('[crozzo-tenant] hub subscribe', e);
@@ -2192,6 +2530,9 @@ async function crozzoDbDelete(table, id) {
 }
 initConfigPersistence();
 try {
+  crozzoScrubStaleHoneypotChaff();
+} catch (_) {}
+try {
   document.getElementById('crozzoSupabaseRequiredOverlay')?.remove();
 } catch {
   /* ignore */
@@ -2204,9 +2545,12 @@ void (async function __crozzoSupabaseBootstrap() {
         await initSupabaseClient();
         const sb = window.__SUPABASE;
         if (sb) {
-          const { data } = await sb.auth.getSession();
-          if (data?.session) {
-            window.__crozzoSupabaseSessionCached = true;
+          if (crozzoPurgeExpiredSupabaseAuthStorage()) {
+            try {
+              if (typeof showToast === 'function') {
+                showToast('Sesión de nube expirada — limpiada. Sync con clave anónima.', 'info');
+              }
+            } catch (_) {}
           }
           if (typeof window.__crozzoPostInitCloud === 'function') {
             window.__crozzoPostInitCloud().catch(function (e3) {

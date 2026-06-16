@@ -1284,6 +1284,28 @@ function crozzoIsMobilePhoneUi() {
   }
 }
 window.crozzoIsMobilePhoneUi = crozzoIsMobilePhoneUi;
+/** APK / tablet / touch — ajustes de layout sin quitar el corcho ni las animaciones. */
+function crozzoIsComandasTouchUi() {
+  try {
+    if (typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi()) return true;
+    const doc = document.documentElement;
+    if (!doc) return false;
+    if (
+      doc.classList.contains('crozzo-form-tablet') ||
+      doc.classList.contains('crozzo-android-apk') ||
+      doc.classList.contains('crozzo-touch-shell') ||
+      doc.getAttribute('data-crozzo-android') === '1'
+    ) {
+      return true;
+    }
+    const tier = doc.getAttribute('data-crozzo-touch-tier') || '';
+    return tier === 'tablet' || tier === 'tablet-lg';
+  } catch (_) {
+    return false;
+  }
+}
+window.crozzoIsComandasTouchUi = crozzoIsComandasTouchUi;
+window.crozzoIsComandasCompactUi = crozzoIsComandasTouchUi;
 // ==========================================
 // 🔐 SESIÓN DE USUARIO + AUTO-CONFIG DEL DISPOSITIVO
 // ==========================================
@@ -5355,7 +5377,7 @@ function crozzoEnsureComandaAreaOnEnter() {
     crozzoSetDevicePantallaId(areas[0].id, { silent: true });
     return;
   }
-  if (typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi() && areas.length) {
+  if (typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi() && areas.length) {
     const pick = deviceArea || areas[0].id;
     if (areas.some(function (a) { return a.id === pick; })) {
       comandasAreaSelected = pick;
@@ -5460,9 +5482,18 @@ function crozzoComandaPantallaKioskPrinterBarHtml(areaId) {
 function crozzoComandaPantallaKioskBarHtml() {
   if (!comandasAreaSelected) return '';
   const inner = crozzoComandaPantallaKioskPrinterBarHtml(comandasAreaSelected);
-  const mobile = typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi();
+  const touch =
+    typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi();
   const operator = crozzoComandaOperatorUi();
-  if (mobile && operator) {
+  if (touch && operator) {
+    return (
+      '<details class="crozzo-comandas-mobile-setup">' +
+      '<summary class="crozzo-comandas-mobile-setup__toggle">⚙️ Impresora y opciones</summary>' +
+      inner +
+      '</details>'
+    );
+  }
+  if (typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi() && operator) {
     return (
       '<details class="crozzo-comandas-mobile-setup">' +
       '<summary class="crozzo-comandas-mobile-setup__toggle">⚙️ Impresora y opciones</summary>' +
@@ -7634,9 +7665,49 @@ function crozzoInitCorkboardSortableForPage() {
     crozzoInitCocinaCorkboardSortable();
   }
 }
-function crozzoCorkboardFocusBtnHtml() {
+function crozzoCorkboardFocusBtnHtml(opts) {
+  opts = opts || {};
   const on = !!crozzoCorkboardFocus;
+  if (opts.compact) {
+    return (
+      '<button type="button" class="btn btn-sm crozzo-cork-focus-btn crozzo-comandas-toolbar-btn ' +
+      (on ? 'btn-warning is-active' : 'btn-outline') +
+      '" onclick="crozzoToggleCorkboardFocus()" title="Ver solo el tablero a pantalla completa">' +
+      (on ? '⬅ Salir' : '📌 Corcho') +
+      '</button>'
+    );
+  }
   return `<button type="button" class="btn crozzo-cork-focus-btn ${on ? 'btn-warning is-active' : 'btn-primary'}" onclick="crozzoToggleCorkboardFocus()" title="Ver solo el tablero de notas a pantalla completa">${on ? '⬅ Salir pantalla corcho' : '📌 Pantalla corcho'}</button>`;
+}
+function crozzoComandasAreaHeaderHtml(title, corkBtn, showBackAreas, touchUi) {
+  const titleEsc = typeof escHtml === 'function' ? escHtml(String(title || '')) : String(title || '');
+  if (touchUi) {
+    return (
+      '<div class="card-header crozzo-cork-focus-hide crozzo-comandas-area-header crozzo-comandas-area-header--touch">' +
+      '<h2 class="card-title crozzo-comandas-area-title">' +
+      titleEsc +
+      '</h2>' +
+      '<div class="crozzo-comandas-area-toolbar">' +
+      (corkBtn || '') +
+      (showBackAreas
+        ? '<button type="button" class="btn btn-outline btn-sm crozzo-comandas-toolbar-btn" onclick="backToAreas()">⬅ Áreas</button>'
+        : '') +
+      '</div></div>'
+    );
+  }
+  return (
+    '<div class="card-header crozzo-cork-focus-hide">' +
+    '<div><h2 class="card-title">' +
+    titleEsc +
+    '</h2>' +
+    '<p class="page-subtitle" style="margin-top:4px;">Arrastra las notas · LISTO las arruga y las lanza a la sestica del corcho</p></div>' +
+    '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
+    (corkBtn || '') +
+    (showBackAreas
+      ? '<button type="button" class="btn btn-outline" onclick="backToAreas()">⬅️ Corcho principal</button>'
+      : '') +
+    '</div></div>'
+  );
 }
 function crozzoComandaCorkboardPageActive(page) {
   const p = page != null ? String(page) : String(typeof currentPage !== 'undefined' ? currentPage : '');
@@ -9518,13 +9589,19 @@ function crozzoInitCollapsibleSidebar() {
     toggleBtn.hidden = true;
     toggleBtn.setAttribute('hidden', '');
   }
-  toggleBtn.addEventListener('click', function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    var next = !sidebar.classList.contains('is-expanded') && !sidebar.classList.contains('expanded');
-    if (window.CrozzoSidebarNav) CrozzoSidebarNav.setExpanded(next, true);
-    else crozzoSidebarApplyExpanded(sidebar, next);
-  });
+  if (!toggleBtn._crozzoToggleBound) {
+    toggleBtn._crozzoToggleBound = true;
+    toggleBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof toggleSidebar === 'function') toggleSidebar();
+      else {
+        var next = !sidebar.classList.contains('is-expanded') && !sidebar.classList.contains('expanded');
+        if (window.CrozzoSidebarNav) CrozzoSidebarNav.setExpanded(next, true);
+        else crozzoSidebarApplyExpanded(sidebar, next);
+      }
+    });
+  }
   if (!window.CrozzoSidebarNav) {
     sidebar.addEventListener('mouseenter', function () {
       if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') crozzoSidebarSyncNavGroupsOnExpand();
@@ -12048,7 +12125,7 @@ function renderPage(page) {
     if (typeof crozzoTeardownComandaVisualFx === 'function') crozzoTeardownComandaVisualFx();
   }
   if (document.body) {
-    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open');
+    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets');
   }
   var hdrMod = document.querySelector('.main-header');
   if (hdrMod) hdrMod.classList.remove('main-header--modulo-gestion');
@@ -12087,7 +12164,11 @@ function renderPage(page) {
       content.classList.add('main-body--retail-pos');
       initVentaComercial();
       break;
-    case 'tablets': content.innerHTML = renderTablets(); initTablets(); break;
+    case 'tablets':
+      content.innerHTML = renderTablets();
+      if (document.body) document.body.classList.add('crozzo-page-tablets');
+      initTablets();
+      break;
     case 'caja-clientes': content.innerHTML = renderCajaClientes(); initCajaClientes(); break;
     case 'cartera-comercial':
       content.innerHTML =
@@ -12122,7 +12203,17 @@ function renderPage(page) {
           : '<div class="card"><p class="page-subtitle">Laboratorio no disponible. Recargue la aplicación.</p></div>';
       if (window.CrozzoLaboratorio && typeof CrozzoLaboratorio.initPage === 'function') CrozzoLaboratorio.initPage();
       break;
-    case 'comandas': content.innerHTML = renderComandas(); initComandas(); break;
+    case 'comandas':
+      content.innerHTML = renderComandas();
+      if (document.body) {
+        document.body.classList.add('crozzo-page-comandas');
+        document.body.classList.toggle(
+          'crozzo-comandas-touch',
+          typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi()
+        );
+      }
+      initComandas();
+      break;
     case 'cocina': content.innerHTML = renderCocina(); initCocina(); break;
     case 'compras-dashboard':
       window.__crozzoInventariosTab = window.__crozzoInventariosTab || 'compras';
@@ -12454,6 +12545,48 @@ function crozzoTabletOrderPanelInnerHtml(cart) {
   var labTab = typeof crozzoFiscalEtiquetas === 'function' ? crozzoFiscalEtiquetas(totals.ivaIncluidoEnPrecios) : null;
   var tabLabSub = labTab ? labTab.gravado : totals.ivaIncluidoEnPrecios ? 'Neto sin impuesto' : 'Subtotal';
   var tabLabIva = labTab ? labTab.impuesto : 'Impuesto';
+  var touchUi = typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi();
+  var mesaLabel = pedidoTarget ? escHtml(String(pedidoTarget.nombre || '')) : '-';
+  var itemsHtml = crozzoTabletOrderItemsHtml(cart, tabCanEditQty);
+  if (touchUi) {
+    return (
+      '<div class="crozzo-tablet-cart-compact">' +
+      '<div class="crozzo-tablet-cart-compact__head">' +
+      '<span class="crozzo-tablet-cart-compact__mesa">🧾 ' +
+      mesaLabel +
+      '</span>' +
+      '<span class="crozzo-tablet-cart-compact__total">$' +
+      totals.total.toLocaleString('es-CO') +
+      '</span></div>' +
+      (cart.length
+        ? '<div class="tablet-order-items crozzo-tablet-cart-compact__items" id="tabletOrderItems">' +
+          itemsHtml +
+          '</div>'
+        : '<p class="crozzo-tablet-cart-compact__empty">Sin productos — toque un ítem abajo</p>') +
+      '<div class="crozzo-tablet-cart-compact__actions">' +
+      '<button type="button" class="btn btn-outline crozzo-tablet-cart-compact__clear" onclick="tabletClearCart()" ' +
+      (cart.length === 0 || !tabCanClearOrder ? 'disabled' : '') +
+      '>Limpiar</button>' +
+      '<button type="button" class="btn btn-primary" id="btnTabletConfirmComanda" onclick="showTabletConfirmComanda()" ' +
+      (cart.length === 0 ? 'disabled' : '') +
+      '>✅ Enviar a cocina</button></div>' +
+      '<details class="crozzo-tablet-cart-compact__extra">' +
+      '<summary>Cliente y detalle fiscal</summary>' +
+      '<div class="crozzo-tablet-cart-compact__extra-body">' +
+      crozzoCrmPosClientePanelHtml() +
+      '<div class="cart-summary">' +
+      '<div class="cart-row"><span>' +
+      tabLabSub +
+      '</span><span>$' +
+      totals.subtotal.toLocaleString('es-CO') +
+      '</span></div>' +
+      '<div class="cart-row"><span>' +
+      tabLabIva +
+      '</span><span>$' +
+      totals.iva.toLocaleString('es-CO') +
+      '</span></div></div></div></details></div>'
+    );
+  }
   return (
     '<div style="font-weight: 700; margin-bottom: 6px;">🧾 ' +
     (pedidoTarget ? escHtml(String(pedidoTarget.nombre || '')) : '-') +
@@ -12568,19 +12701,20 @@ function renderTablets() {
       </div>
     `;
   }
+  const touchUi = typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi();
   return `
-    <div class="card">
+    <div class="card crozzo-tablet-page${touchUi ? ' crozzo-tablet-page--touch' : ''}">
       <div class="card-header">
         <div>
           <h2 class="card-title">Pedido ${pedidoTarget ? escHtml(String(pedidoTarget.nombre || '')) : '-'}</h2>
-          <p class="page-subtitle" style="margin-top:4px;">Carrito arriba · productos abajo · desliza para ver más</p>
+          ${touchUi ? '' : '<p class="page-subtitle" style="margin-top:4px;">Carrito arriba · productos abajo · desliza para ver más</p>'}
         </div>
         <button class="btn btn-outline" onclick="closeTabletOrderPanel()">✕ Cerrar</button>
       </div>
       <div style="display:flex; gap:8px; margin-bottom: 12px;">
         <input type="text" class="form-input" id="tabletSearchProduct" placeholder="🔎 Buscar producto, código o SKU…" style="flex:1;" title="Atajos: Ctrl+K buscar · Ctrl+Enter confirmar pedido" autocomplete="off">
       </div>
-      <div class="tablet-layout crozzo-tablet-touch">
+      <div class="tablet-layout crozzo-tablet-touch crozzo-tablet-order-open">
         <div class="pos-products" id="tabletProducts">
           ${products.filter(crozzoIsProductVisibleEnPos).map(p => crozzoTabletProductTileHtml(p)).join('')}
         </div>
@@ -17893,21 +18027,26 @@ function crozzoRestProductTileHtml(p) {
   );
 }
 function crozzoTabletProductTileHtml(p) {
+  const price = p.precio != null ? Number(p.precio).toLocaleString('es-CO') : '0';
+  const tileLabel =
+    'Agregar ' + String(p.nombre || '') + ', $' + price;
   return (
-    '<div class="product-card" onclick="tabletAddToCart(' +
+    '<button type="button" class="product-card crozzo-tablet-product" onclick="tabletAddToCart(' +
     p.id +
-    ')" data-name="' +
+    ')" aria-label="' +
+    escUserAttr(tileLabel) +
+    '" data-name="' +
     escUserAttr(String(p.nombre || '').toLowerCase()) +
     '">' +
-    '<div class="product-icon">' +
+    '<span class="crozzo-tablet-product__icon product-icon" aria-hidden="true">' +
     (p.icon || '🍽') +
-    '</div>' +
-    '<div class="product-name">' +
+    '</span>' +
+    '<span class="crozzo-tablet-product__name product-name">' +
     escHtml(String(p.nombre || '')) +
-    '</div>' +
-    '<div class="product-price">$' +
-    (p.precio != null ? Number(p.precio).toLocaleString('es-CO') : '0') +
-    '</div></div>'
+    '</span>' +
+    '<span class="crozzo-tablet-product__price product-price">$' +
+    price +
+    '</span></button>'
   );
 }
 /**
@@ -21951,6 +22090,7 @@ function renderCocina() {
 }
 function renderComandas() {
   const areas = getComandasConfig().areas || [];
+  const touchUi = typeof crozzoIsComandasTouchUi === 'function' && crozzoIsComandasTouchUi();
   if (!areas.length) {
     return (
       '<div class="card">' +
@@ -21960,16 +22100,21 @@ function renderComandas() {
     );
   }
   crozzoEnsureComandaAreaOnEnter();
-  const corkBtn = typeof crozzoCorkboardFocusBtnHtml === 'function' ? crozzoCorkboardFocusBtnHtml() : '';
+  const corkBtn =
+    typeof crozzoCorkboardFocusBtnHtml === 'function' ? crozzoCorkboardFocusBtnHtml({ compact: touchUi }) : '';
   if (!comandasAreaSelected) {
     return (
-      '<div class="card crozzo-pantallas-kiosk-root crozzo-comandas-hub comandas-vista-tablero">' +
-      '<div class="card-header crozzo-cork-focus-hide" style="padding-bottom:8px;">' +
-      '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; width:100%;">' +
-      '<div><h2 class="card-title">Comandas</h2>' +
-      '<p class="form-hint" style="margin:6px 0 0;">Sus pantallas en el corcho · toque una nota para ver los pedidos</p></div>' +
-      corkBtn +
-      '</div></div>' +
+      '<div class="card crozzo-pantallas-kiosk-root crozzo-comandas-hub comandas-vista-tablero' +
+      (touchUi ? ' comandas-vista-touch' : '') +
+      '">' +
+      (touchUi
+        ? crozzoComandasAreaHeaderHtml('Comandas', corkBtn, false, true)
+        : '<div class="card-header crozzo-cork-focus-hide" style="padding-bottom:8px;">' +
+          '<div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; width:100%;">' +
+          '<div><h2 class="card-title">Comandas</h2>' +
+          '<p class="form-hint" style="margin:6px 0 0;">Sus pantallas en el corcho · toque una nota para ver los pedidos</p></div>' +
+          corkBtn +
+          '</div></div>') +
       '<div style="padding:0 12px 16px;">' +
       renderComandasHubStationBoardHtml(areas) +
       '</div></div>'
@@ -21998,21 +22143,35 @@ function renderComandas() {
     .sort(function (a, b) {
       return new Date(b.at) - new Date(a.at);
     });
+  const pendingCalls = areaCalls.filter(function (call) {
+    return call.estado === 'pendiente';
+  }).length;
   const showBackAreas = areas.length > 1;
   const threadEnterCls = window.__crozzoComandaThreadEnter ? ' crozzo-comandas-area-cork--from-thread' : '';
+  const kioskBar = crozzoComandaPantallaKioskBarHtml();
+  const callsBlock = areaCalls.length
+    ? `
+              <div style="display:grid; gap:8px; padding:0 12px 12px;">
+                ${areaCalls.slice(0, 20).map(call => `
+                  <div style="border:1px solid var(--border); border-radius:var(--radius); padding:10px; background:var(--bg-secondary);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                      <strong>Comanda #${call.comandaId} → ${call.destinoNombre}</strong>
+                      <span class="badge ${call.estado === 'atendido' ? 'badge-success' : 'badge-warning'}">${call.estado === 'atendido' ? 'Atendido' : 'Pendiente'}</span>
+                    </div>
+                    <div style="font-size:0.82rem; color:var(--text-secondary); margin:6px 0;">${call.mensaje}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                      <span style="font-size:0.76rem; color:var(--text-muted);">${new Date(call.at).toLocaleString('es-CO')}</span>
+                      ${call.estado === 'pendiente' ? `<button class="btn btn-outline" style="padding:5px 10px; min-height:44px;" onclick="markComandaCallDone(${call.id})">✓ Marcar atendido</button>` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `
+    : `<div style="color:var(--text-muted); padding:12px;">No hay llamados recientes en esta área.</div>`;
   return `
-    <div class="card crozzo-pantallas-kiosk-root comandas-vista-tablero">
-      <div class="card-header crozzo-cork-focus-hide">
-        <div>
-          <h2 class="card-title">${escHtml(area ? area.nombre : comandasAreaSelected)}</h2>
-          <p class="page-subtitle" style="margin-top:4px;">Arrastra las notas · LISTO las arruga y las lanza a la sestica del corcho</p>
-        </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          ${corkBtn}
-          ${showBackAreas ? '<button type="button" class="btn btn-outline" onclick="backToAreas()">⬅️ Corcho principal</button>' : ''}
-        </div>
-      </div>
-      ${crozzoComandaPantallaKioskBarHtml()}
+    <div class="card crozzo-pantallas-kiosk-root comandas-vista-tablero${touchUi ? ' comandas-vista-touch' : ''}">
+      ${crozzoComandasAreaHeaderHtml(area ? area.nombre : comandasAreaSelected, corkBtn, showBackAreas, touchUi)}
+      ${touchUi ? '' : kioskBar}
       <div class="comandas-layout comandas-layout--tablero">
         <div>
           <div class="crozzo-corkboard crozzo-comandas-area-cork${threadEnterCls}" role="region" aria-label="Comandas pendientes">
@@ -22025,7 +22184,7 @@ function renderComandas() {
             `}
             ${crozzoComandaTrashBinDockHtml()}
           </div>
-          <details class="card crozzo-cork-history crozzo-cork-focus-hide" style="margin-top:12px;" ${areaHistory.length ? '' : 'open'}>
+          <details class="card crozzo-cork-history crozzo-cork-focus-hide" style="margin-top:12px;"${areaHistory.length ? ' open' : ''}>
             <summary style="cursor:pointer; list-style:none;" class="card-header">
               <span class="card-title">📚 Listas (${areaHistory.length})</span>
               <span style="font-size:0.8rem; color:var(--text-muted);">Notas verdes · despachadas</span>
@@ -22049,30 +22208,24 @@ function renderComandas() {
               ` : `<div style="color:var(--text-muted);">Aún no hay comandas despachadas para esta área.</div>`}
             </div>
           </details>
-          <div class="card crozzo-cork-focus-hide" style="margin-top:12px;">
+          ${
+            touchUi
+              ? `<details class="card crozzo-cork-focus-hide crozzo-comandas-calls" style="margin-top:12px;"${pendingCalls ? ' open' : ''}>
+            <summary style="cursor:pointer; list-style:none;" class="card-header">
+              <span class="card-title">🔔 Llamados de cocina (${areaCalls.length})</span>
+            </summary>
+            ${callsBlock}
+          </details>`
+              : `<div class="card crozzo-cork-focus-hide" style="margin-top:12px;">
             <div class="card-header">
               <span class="card-title">🔔 Llamados de cocina</span>
             </div>
-            ${areaCalls.length ? `
-              <div style="display:grid; gap:8px; padding:0 12px 12px;">
-                ${areaCalls.slice(0, 20).map(call => `
-                  <div style="border:1px solid var(--border); border-radius:var(--radius); padding:10px; background:var(--bg-secondary);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                      <strong>Comanda #${call.comandaId} → ${call.destinoNombre}</strong>
-                      <span class="badge ${call.estado === 'atendido' ? 'badge-success' : 'badge-warning'}">${call.estado === 'atendido' ? 'Atendido' : 'Pendiente'}</span>
-                    </div>
-                    <div style="font-size:0.82rem; color:var(--text-secondary); margin:6px 0;">${call.mensaje}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                      <span style="font-size:0.76rem; color:var(--text-muted);">${new Date(call.at).toLocaleString('es-CO')}</span>
-                      ${call.estado === 'pendiente' ? `<button class="btn btn-outline" style="padding:5px 10px; min-height:44px;" onclick="markComandaCallDone(${call.id})">✓ Marcar atendido</button>` : ''}
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : `<div style="color:var(--text-muted); padding:12px;">No hay llamados recientes en esta área.</div>`}
-          </div>
+            ${callsBlock}
+          </div>`
+          }
         </div>
       </div>
+      ${touchUi ? kioskBar : ''}
     </div>
   `;
 }
@@ -27366,7 +27519,11 @@ function getMultiDeviceConfig() {
   }
   try {
     const j = typeof window.readCrozzoSupabaseJson === 'function' ? window.readCrozzoSupabaseJson() : null;
-    if (j && j.syncEnabled) {
+    const jIsChaff =
+      j &&
+      typeof window.crozzoIsHoneypotChaffConfig === 'function' &&
+      window.crozzoIsHoneypotChaffConfig(j);
+    if (j && j.syncEnabled && !jIsChaff) {
       merged.supabaseSyncEnabled = true;
       if (!merged.supabase.url && j.url) merged.supabase.url = String(j.url).trim();
       const ak =
@@ -27405,8 +27562,11 @@ function crozzoGatewayGuessForTier(ip) {
 async function crozzoPingSupabaseForTier(url, anonKey) {
   try {
     const supabaseKey = String(anonKey || '').trim();
-    const base = String(url).replace(/\/$/, '');
+    const base = String(url || '').replace(/\/$/, '');
     if (!base || !supabaseKey) return { ok: false, reason: 'missing_credentials' };
+    if (typeof isValidSupabasePair === 'function' && !isValidSupabasePair(base, supabaseKey)) {
+      return { ok: false, reason: 'invalid_credentials' };
+    }
     const u = `${base}/rest/v1/devices?limit=1&select=id`;
     const c = new AbortController();
     const t = setTimeout(() => c.abort(), 4500);
@@ -27435,10 +27595,13 @@ async function crozzoPingSupabaseForTier(url, anonKey) {
     if (res && res.status === 401) crozzoNotifySupabase401Once();
     return { ok, status: res && res.status, rls: !!(res && (res.status === 401 || res.status === 403)) };
   } catch (e) {
-    try {
-      console.warn(e && e.message ? e.message : e);
-    } catch (_) {}
-    return { ok: false, reason: String((e && e.message) || e || 'error') };
+    const msg = String((e && e.message) || e || '');
+    if (!/invalid_credentials|ERR_NAME_NOT_RESOLVED|Failed to fetch|aborted/i.test(msg)) {
+      try {
+        console.warn(msg);
+      } catch (_) {}
+    }
+    return { ok: false, reason: msg || 'error' };
   }
 }
 /** Caché + deduplicación de ping Supabase (seguridad intacta; menos fetch duplicados). */
@@ -27667,6 +27830,9 @@ async function detectConnectivityTier() {
   const lanReach = lanProbe.ok;
   let sbUrl = String(md.supabase?.url || '').trim();
   let sbKey = String(md.supabase?.anonKey || '').trim();
+  try {
+    if (typeof crozzoScrubStaleHoneypotChaff === 'function') crozzoScrubStaleHoneypotChaff();
+  } catch (_) {}
   let jLs = null;
   try {
     jLs = JSON.parse(localStorage.getItem('crozzo_supabase_config') || '{}');
@@ -27676,9 +27842,17 @@ async function detectConnectivityTier() {
     } catch (_) {}
     jLs = null;
   }
-  if (jLs && jLs.syncEnabled) {
+  const jIsChaff =
+    jLs &&
+    typeof crozzoIsHoneypotChaffConfig === 'function' &&
+    crozzoIsHoneypotChaffConfig(jLs);
+  if (jLs && jLs.syncEnabled && !jIsChaff) {
     if (!sbUrl) sbUrl = String(jLs.url || '').trim();
     if (!sbKey) sbKey = crozzoSupabaseEffectiveAnonKey(jLs);
+  }
+  if (sbUrl && sbKey && typeof isValidSupabasePair === 'function' && !isValidSupabasePair(sbUrl, sbKey)) {
+    sbUrl = '';
+    sbKey = '';
   }
   if (sbUrl && sbKey) {
     const cloudPing = await crozzoPingSupabaseCached(sbUrl, sbKey);
@@ -37683,6 +37857,33 @@ function crozzoIsSidebarDrawerMode() {
     return false;
   }
 }
+/** Escritorio Tauri = rail 64px; móvil/tablet = drawer deslizable. */
+function crozzoSidebarUsesDrawer() {
+  try {
+    const html = document.documentElement;
+    if (html.classList.contains('tauri-desktop') || html.classList.contains('crozzo-form-desktop')) {
+      return false;
+    }
+  } catch (_) {}
+  if (typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive()) return true;
+  if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) return true;
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return false;
+  try {
+    const st = window.getComputedStyle(sidebar);
+    const tr = String(st.transform || '');
+    if (/translateX\(\s*-9[0-9]|translateX\(\s*-100|translate3d\(\s*-9[0-9]|translate3d\(\s*-100/i.test(tr)) return true;
+    const r = sidebar.getBoundingClientRect();
+    if (r.width > 8 && r.right <= 4) return true;
+  } catch (_) {}
+  return false;
+}
+window.crozzoSidebarUsesDrawer = crozzoSidebarUsesDrawer;
+/** @deprecated usar crozzoSidebarUsesDrawer */
+function crozzoSidebarNeedsDrawerOpen() {
+  return crozzoSidebarUsesDrawer();
+}
+window.crozzoSidebarNeedsDrawerOpen = crozzoSidebarNeedsDrawerOpen;
 function crozzoIsDrawerLayoutActive() {
   try {
     const html = document.documentElement;
@@ -37732,13 +37933,14 @@ function crozzoOpenSidebarDrawer() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
   crozzoDismissBlockingLabOverlay();
-  var drawerLayout = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
-  if (!drawerLayout) {
+  if (!crozzoSidebarUsesDrawer()) {
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(true, true);
       } else if (typeof crozzoSidebarApplyExpanded === 'function') {
         crozzoSidebarApplyExpanded(sidebar, true);
+      } else {
+        sidebar.classList.add('expanded', 'is-expanded');
       }
     } catch (_) {}
     return;
@@ -37765,12 +37967,13 @@ function crozzoOpenSidebarDrawer() {
   sidebar.style.setProperty('transform', 'translateX(0)', 'important');
   sidebar.style.setProperty('visibility', 'visible', 'important');
   sidebar.style.setProperty('display', 'flex', 'important');
+  sidebar.style.setProperty('pointer-events', 'auto', 'important');
   var apkDrawer =
     document.documentElement &&
     (document.documentElement.classList.contains('crozzo-android-apk') ||
       document.documentElement.classList.contains('crozzo-android-native') ||
       document.documentElement.getAttribute('data-crozzo-android') === '1');
-  sidebar.style.setProperty('z-index', apkDrawer ? '1250' : '220', 'important');
+  sidebar.style.setProperty('z-index', apkDrawer ? '1250' : '10060', 'important');
   sidebar.style.setProperty('top', '0', 'important');
   sidebar.style.setProperty('height', '100dvh', 'important');
   sidebar.style.setProperty('max-height', '100dvh', 'important');
@@ -37794,10 +37997,13 @@ function crozzoOpenSidebarDrawer() {
         CrozzoSidebarNav.expandGroupForPage(pg);
       }
     } catch (_) {}
-    try {
-      if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
-    } catch (_) {}
-  });
+  try {
+    if (typeof crozzoApplyMobileBottomNavAccess === 'function') crozzoApplyMobileBottomNavAccess();
+  } catch (_) {}
+  try {
+    if (typeof global.crozzoRefreshTabletBottomNav === 'function') global.crozzoRefreshTabletBottomNav();
+  } catch (_) {}
+});
 }
 function crozzoBindSidebarDrawerKeys() {
   if (document._crozzoDrawerEscBound) return;
@@ -37894,19 +38100,20 @@ function crozzoSyncSidebarBackdrop() {
   const bd = document.getElementById('sidebarBackdrop');
   if (!sidebar || !bd) return;
   crozzoBindSidebarBackdropClose();
-  const layoutDrawer = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
   const open = sidebar.classList.contains('open');
-  if (layoutDrawer && open) {
+  if (open) {
     bd.classList.add('active');
     bd.setAttribute('aria-hidden', 'false');
+    bd.style.setProperty('pointer-events', 'auto', 'important');
   } else {
     bd.classList.remove('active');
     bd.setAttribute('aria-hidden', 'true');
+    bd.style.removeProperty('pointer-events');
   }
   if (document.body) {
-    document.body.classList.toggle('crozzo-sidebar-drawer-open', !!(layoutDrawer && open));
+    document.body.classList.toggle('crozzo-sidebar-drawer-open', !!open);
   }
-  if (layoutDrawer && open && sidebar) {
+  if (open && sidebar) {
     if (typeof crozzoSidebarMountToggleBtn === 'function') crozzoSidebarMountToggleBtn(sidebar);
     var apkDrawer =
       document.documentElement &&
@@ -37953,30 +38160,60 @@ function crozzoCloseSidebarDrawer() {
   crozzoSyncSidebarBackdrop();
 }
 function toggleSidebar() {
+  const now = Date.now();
+  if (window.__crozzoSidebarToggleLock && now - window.__crozzoSidebarToggleLock < 400) return;
+  window.__crozzoSidebarToggleLock = now;
   if (typeof crozzoKioskIsActive === 'function' && crozzoKioskIsActive()) return;
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
   crozzoDismissBlockingLabOverlay();
-  const drawerLayout = typeof crozzoIsDrawerLayoutActive === 'function' && crozzoIsDrawerLayoutActive();
-  if (!drawerLayout) {
+  if (!crozzoSidebarUsesDrawer()) {
     const next = !sidebar.classList.contains('is-expanded') && !sidebar.classList.contains('expanded');
     try {
       if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.setExpanded === 'function') {
         CrozzoSidebarNav.setExpanded(next, true);
       } else if (typeof crozzoSidebarApplyExpanded === 'function') {
         crozzoSidebarApplyExpanded(sidebar, next);
+      } else {
+        sidebar.classList.toggle('expanded', next);
+        sidebar.classList.toggle('is-expanded', next);
       }
     } catch (_) {}
     return;
   }
-  const willOpen = !sidebar.classList.contains('open');
-  if (!willOpen) {
+  if (sidebar.classList.contains('open')) {
     crozzoCloseSidebarDrawer();
-    crozzoSyncSidebarBackdrop();
     return;
   }
   crozzoOpenSidebarDrawer();
 }
+(function crozzoBindSidebarMenuButtonsHard() {
+  function onMenuClick(e) {
+    var btn =
+      e.target && e.target.closest
+        ? e.target.closest('.mobile-menu-btn, .crozzo-mbn-more[data-crozzo-action="open-menu"]')
+        : null;
+    if (!btn) return;
+    if (btn.disabled || btn.hidden) return;
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+    } catch (_) {}
+    if (typeof toggleSidebar === 'function') toggleSidebar();
+  }
+  function bind() {
+    if (document._crozzoSidebarMenuCaptureBound) return;
+    document._crozzoSidebarMenuCaptureBound = true;
+    document.addEventListener('click', onMenuClick, true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
+  else bind();
+  try {
+    document.addEventListener('crozzo-ready', bind);
+    document.addEventListener('crozzo:auth-ready', bind);
+  } catch (_) {}
+})();
 function crozzoInitSidebarDrawerClosed() {
   crozzoBindSidebarDrawerKeys();
   crozzoCloseSidebarDrawer();

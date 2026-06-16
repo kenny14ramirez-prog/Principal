@@ -372,6 +372,15 @@
   }
 
   function initUserMenu() {
+    var toolbarLo = document.getElementById('crozzoToolbarLogout');
+    if (toolbarLo && !toolbarLo._crozzoToolbarLogoutBound) {
+      toolbarLo._crozzoToolbarLogoutBound = true;
+      toolbarLo.addEventListener('click', function (e) {
+        e.stopPropagation();
+        userMenuLogout();
+      });
+    }
+
     var trigger = document.getElementById('userMenuTrigger');
     if (!trigger || trigger._crozzoUserMenuInit) return;
     trigger._crozzoUserMenuInit = true;

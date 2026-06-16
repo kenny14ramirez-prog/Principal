@@ -1,8 +1,10 @@
 /**
- * Crozzo POS — Barra inferior tablet/APK guiada por permisos (rol + perfil operativo).
+ * Crozzo POS — Barra inferior móvil/tablet/APK (táctil unificado).
  */
 (function (global) {
   'use strict';
+
+  var TAP_MS = 320;
 
   function canSeePage(page) {
     if (!page) return false;
@@ -30,67 +32,58 @@
     return canSeePage('comandas') || canSeePage('cocina');
   }
 
+  function touchTier() {
+    try {
+      return document.documentElement.getAttribute('data-crozzo-touch-tier') || '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   function isPhoneShell() {
     try {
       var doc = document.documentElement;
       if (doc.classList.contains('crozzo-form-mobile')) return true;
-      var tier = doc.getAttribute('data-crozzo-touch-tier') || '';
+      var tier = touchTier();
       return tier === 'phone-sm' || tier === 'phone' || tier === 'phone-lg';
     } catch (_) {
       return false;
     }
   }
 
-  function isAndroidApkShell() {
-    try {
-      if (global.CrozzoDeviceForm && typeof global.CrozzoDeviceForm.isAndroidApk === 'function') {
-        return global.CrozzoDeviceForm.isAndroidApk();
-      }
-    } catch (_) {}
-    try {
-      return document.documentElement.classList.contains('crozzo-android-apk');
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function isTauriShell() {
+  function isTabletTier() {
     try {
       var doc = document.documentElement;
-      if (doc.classList.contains('tauri-shell')) return true;
-      return !!(global.__TAURI__ || global.__CROZZO_IS_TAURI__);
+      return touchTier() === 'tablet' || doc.classList.contains('crozzo-form-tablet');
     } catch (_) {
       return false;
     }
   }
 
-  function isPhoneBottomNavShell() {
-    if (!isPhoneShell()) return false;
-    return canSeePage('comandas') || canSeePage('cocina') || canSeePage('cajero');
+  function isTouchFieldShell() {
+    try {
+      var doc = document.documentElement;
+      return (
+        doc.classList.contains('crozzo-touch-shell') ||
+        doc.classList.contains('crozzo-form-tablet') ||
+        doc.classList.contains('crozzo-form-mobile') ||
+        doc.classList.contains('crozzo-android-apk') ||
+        doc.classList.contains('crozzo-android-native') ||
+        doc.getAttribute('data-crozzo-android') === '1'
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   function shouldShowBottomNav() {
-    return isBottomNavShell() || isPhoneBottomNavShell();
-  }
-
-  function isBottomNavShell() {
     try {
-      var doc = document.documentElement;
-      if (doc.classList.contains('crozzo-compact-chrome')) return false;
-      if (doc.classList.contains('crozzo-android-apk')) return false;
-      if (doc.classList.contains('crozzo-android-native')) return false;
+      if (document.body && document.body.classList.contains('crozzo-kiosk-active')) return false;
+      if (document.documentElement.classList.contains('crozzo-compact-chrome')) return false;
+      if (document.documentElement.classList.contains('crozzo-form-desktop')) return false;
     } catch (_) {}
-    if (isTauriShell()) return false;
-    if (isAndroidApkShell()) return false;
-    if (isPhoneShell()) return false;
-    try {
-      var doc = document.documentElement;
-      if (doc.classList.contains('crozzo-form-tablet')) return true;
-      if (doc.classList.contains('crozzo-touch-shell')) {
-        return (doc.getAttribute('data-crozzo-touch-tier') || '') === 'tablet';
-      }
-    } catch (_) {}
-    return false;
+    if (!isTouchFieldShell()) return false;
+    return isTabletTier() || isPhoneShell();
   }
 
   function buttonAllowed(btn) {
@@ -101,9 +94,9 @@
     if (action === 'pantallas-kiosk') return canSeePantallasKiosk();
     if (nav === 'comandas') return canSeePage('comandas');
     if (nav === 'cocina') return canSeePage('cocina');
-    if (nav === 'cajero') return canSeePage('cajero') && !isPhoneShell();
-    if (nav === 'tablets') return canSeePage('tablets') && !isPhoneShell();
-    if (nav === 'inicio-operacion') return canSeePage('inicio-operacion') && !isPhoneShell();
+    if (nav === 'cajero') return canSeePage('cajero');
+    if (nav === 'tablets') return !isPhoneShell() && canSeePage('tablets');
+    if (nav === 'inicio-operacion') return !isPhoneShell() && canSeePage('inicio-operacion');
     return false;
   }
 
@@ -116,12 +109,18 @@
     return true;
   }
 
+  function openAppMenu() {
+    if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
+    else if (typeof global.crozzoOpenSidebarDrawer === 'function') global.crozzoOpenSidebarDrawer();
+  }
+
   function activateButton(btn, evt) {
     if (!isBtnVisible(btn)) return false;
     if (evt) {
       try {
         evt.preventDefault();
         evt.stopPropagation();
+        if (typeof evt.stopImmediatePropagation === 'function') evt.stopImmediatePropagation();
       } catch (_) {}
     }
 
@@ -131,16 +130,7 @@
       String(btn.className || '');
     var now = Date.now();
     if (global.__crozzoTabletNavLastTap && global.__crozzoTabletNavLastTap.key === tapKey) {
-      if (now - global.__crozzoTabletNavLastTap.at < 300) {
-        if (evt) {
-          try {
-            evt.preventDefault();
-            evt.stopPropagation();
-            if (typeof evt.stopImmediatePropagation === 'function') evt.stopImmediatePropagation();
-          } catch (_) {}
-        }
-        return false;
-      }
+      if (now - global.__crozzoTabletNavLastTap.at < TAP_MS) return false;
     }
     global.__crozzoTabletNavLastTap = { key: tapKey, at: now };
 
@@ -148,17 +138,9 @@
     var page = btn.getAttribute('data-crozzo-nav');
 
     if (action === 'open-menu') {
-      if (evt) {
-        try {
-          evt.preventDefault();
-          evt.stopPropagation();
-          if (typeof evt.stopImmediatePropagation === 'function') evt.stopImmediatePropagation();
-        } catch (_) {}
-      }
-      if (typeof global.crozzoOpenSidebarDrawer === 'function') global.crozzoOpenSidebarDrawer();
-      else if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
+      openAppMenu();
       refreshActiveState();
-      return false;
+      return true;
     }
     if (action === 'pantallas-kiosk') {
       if (!canSeePantallasKiosk()) return false;
@@ -169,7 +151,7 @@
       }
       if (typeof global.crozzoCloseSidebarDrawer === 'function') global.crozzoCloseSidebarDrawer();
       refreshActiveState();
-      return false;
+      return true;
     }
 
     if (page) {
@@ -181,7 +163,7 @@
       else if (typeof global.navigateTo === 'function') global.navigateTo(page);
       if (typeof global.crozzoCloseSidebarDrawer === 'function') global.crozzoCloseSidebarDrawer();
       refreshActiveState();
-      return false;
+      return true;
     }
 
     return false;
@@ -192,15 +174,10 @@
     if (!root || root._crozzoTabletNavBound) return;
     root._crozzoTabletNavBound = true;
 
-    root.addEventListener('click', function (e) {
-      var btn = e.target && e.target.closest ? e.target.closest('.crozzo-mbn-btn') : null;
-      if (!btn || !root.contains(btn)) return;
-      activateButton(btn, e);
-    });
-
     root.addEventListener(
-      'touchend',
+      'pointerup',
       function (e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
         var btn = e.target && e.target.closest ? e.target.closest('.crozzo-mbn-btn') : null;
         if (!btn || !root.contains(btn)) return;
         activateButton(btn, e);
@@ -210,26 +187,14 @@
   }
 
   function bindMobileMenuBtnOnce() {
-    var btn = document.querySelector('.mobile-menu-btn');
-    if (!btn || btn._crozzoMobileMenuBound) return;
-    btn._crozzoMobileMenuBound = true;
-    btn.addEventListener('pointerup', function (e) {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      try {
-        e.preventDefault();
-        e.stopPropagation();
-      } catch (_) {}
-      if (typeof global.crozzoOpenSidebarDrawer === 'function') global.crozzoOpenSidebarDrawer();
-      else if (typeof global.toggleSidebar === 'function') global.toggleSidebar();
-    });
+    /* El menú ☰ lo maneja crozzoBindSidebarMenuButtonsHard en CrozzoPosMain (un solo handler). */
   }
 
   function refreshActiveState() {
     var root = document.getElementById('crozzoMobileBottomNav');
     if (!root) return;
     var page = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
-    var kiosk =
-      typeof global.crozzoKioskIsActive === 'function' && global.crozzoKioskIsActive();
+    var kiosk = typeof global.crozzoKioskIsActive === 'function' && global.crozzoKioskIsActive();
 
     root.querySelectorAll('.crozzo-mbn-btn').forEach(function (btn) {
       if (!isBtnVisible(btn)) {
@@ -248,32 +213,35 @@
     });
   }
 
+  function setBottomNavActive(on) {
+    var root = document.getElementById('crozzoMobileBottomNav');
+    var body = document.body;
+    if (root) root.classList.toggle('crozzo-mbn--active', !!on);
+    if (body) body.classList.toggle('crozzo-bottom-nav-active', !!on);
+    try {
+      if (global.CrozzoViewportFit && typeof global.CrozzoViewportFit.schedule === 'function') {
+        global.CrozzoViewportFit.schedule();
+      }
+    } catch (_) {}
+  }
+
   function applyBottomNavLayout() {
     var root = document.getElementById('crozzoMobileBottomNav');
     if (!root) return;
 
     bindBottomNavOnce();
+    bindMobileMenuBtnOnce();
 
     if (!shouldShowBottomNav()) {
-      root.style.setProperty('display', 'none', 'important');
+      setBottomNavActive(false);
       root.setAttribute('aria-hidden', 'true');
-      root.setAttribute('hidden', '');
-      root.classList.remove('crozzo-mbn--compact', 'crozzo-mbn--phone-kitchen');
       root.querySelectorAll('.crozzo-mbn-btn').forEach(function (btn) {
         btn.hidden = true;
-        btn.style.display = 'none';
         btn.disabled = true;
         btn.setAttribute('aria-hidden', 'true');
       });
-      try {
-        if (global.CrozzoViewportFit && typeof global.CrozzoViewportFit.schedule === 'function') {
-          global.CrozzoViewportFit.schedule();
-        }
-      } catch (_) {}
       return;
     }
-
-    root.classList.toggle('crozzo-mbn--phone-kitchen', isPhoneBottomNavShell() && !isBottomNavShell());
 
     var visible = 0;
     var shortcutCount = 0;
@@ -293,20 +261,12 @@
     });
 
     root.classList.toggle('crozzo-mbn--compact', shortcutCount > 0 && shortcutCount <= 4);
-    if (visible > 0) {
-      root.style.removeProperty('display');
-    } else {
-      root.style.display = 'none';
-    }
+    root.classList.toggle('crozzo-mbn--phone', isPhoneShell() && !isTabletTier());
+    setBottomNavActive(visible > 0);
     root.setAttribute('aria-hidden', visible > 0 ? 'false' : 'true');
+    root.removeAttribute('hidden');
 
     refreshActiveState();
-
-    try {
-      if (global.CrozzoViewportFit && typeof global.CrozzoViewportFit.schedule === 'function') {
-        global.CrozzoViewportFit.schedule();
-      }
-    } catch (_) {}
   }
 
   function refresh() {
@@ -324,6 +284,7 @@
     activateButton: activateButton,
     canSeePage: canSeePage,
     canSeePantallasKiosk: canSeePantallasKiosk,
+    shouldShowBottomNav: shouldShowBottomNav,
   };
   global.crozzoRefreshTabletBottomNav = refresh;
 
@@ -341,10 +302,12 @@
 
   global.addEventListener('load', boot);
   global.addEventListener('crozzo-form-factor', refresh);
-  global.addEventListener('crozzo:auth-ready', function () {
-    setTimeout(refresh, 80);
-  });
   global.addEventListener('crozzo-ready', function () {
     setTimeout(refresh, 80);
+    setTimeout(refresh, 600);
+  });
+  global.addEventListener('crozzo:auth-ready', function () {
+    setTimeout(refresh, 80);
+    setTimeout(refresh, 600);
   });
 })(typeof window !== 'undefined' ? window : globalThis);

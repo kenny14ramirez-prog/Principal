@@ -2704,17 +2704,43 @@
     } catch (_) {}
   }
 
+  function hpChaffHostLooksFake(url) {
+    var host = String(url || '')
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .split('.')[0];
+    return /^\d{8}x[a-f0-9]{4}$/i.test(host);
+  }
+
   function scrubDbChaffFromStorage(g) {
     if (!g) return;
     var activeId = '';
     try {
       activeId = g.sessionStorage.getItem('crozzo_hp_active_chaff_id') || '';
     } catch (_) {}
-    if (!activeId) return;
+    var staleChaff = false;
+    if (!activeId) {
+      try {
+        var cfgRaw = g.localStorage.getItem('crozzo_supabase_config');
+        if (cfgRaw) {
+          var cfg = JSON.parse(cfgRaw);
+          if (cfg && (cfg._hpChaff || hpChaffHostLooksFake(cfg.url))) staleChaff = true;
+        }
+      } catch (_) {}
+      if (!staleChaff) {
+        try {
+          var legacyUrl = g.localStorage.getItem('SUPABASE_URL') || g.localStorage.getItem('supabase_url') || '';
+          if (hpChaffHostLooksFake(legacyUrl)) staleChaff = true;
+        } catch (_) {}
+      }
+    }
+    if (!activeId && !staleChaff) return;
     var snap = { keys: {} };
-    try {
-      snap = JSON.parse(g.sessionStorage.getItem('crozzo_hp_chaff_snapshot') || '{"keys":{}}');
-    } catch (_) {}
+    if (activeId) {
+      try {
+        snap = JSON.parse(g.sessionStorage.getItem('crozzo_hp_chaff_snapshot') || '{"keys":{}}');
+      } catch (_) {}
+    }
     HP_CHAFF_LS_KEYS.forEach(function (k) {
       try {
         if (snap.keys && snap.keys[k] != null) g.localStorage.setItem(k, snap.keys[k]);

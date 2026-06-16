@@ -2187,6 +2187,28 @@ html.tauri-desktop #menu-toggle-btn.menu-toggle {
   padding: 0 !important;
   pointer-events: auto !important;
 }
+html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open,
+html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.sidebar-pro.open,
+html.tauri-shell #sidebar.open.crozzo-drawer-nav {
+  z-index: 10060 !important;
+  pointer-events: auto !important;
+}
+html.tauri-shell body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
+  z-index: 10050 !important;
+  pointer-events: auto !important;
+}
+html.tauri-shell body.crozzo-sidebar-drawer-open .app-container {
+  overflow: visible !important;
+}
+html.tauri-desktop .mobile-menu-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  z-index: 2;
+}
+
 html.tauri-desktop #sidebar.sidebar-pro > #menu-toggle-btn .menu-toggle-icon,
 html.tauri-desktop #sidebar.sidebar-pro .sidebar-header > #menu-toggle-btn .menu-toggle-icon {
   line-height: 1 !important;
@@ -2249,9 +2271,6 @@ html.tauri-desktop #sidebar.sidebar-pro .nav-item.active::before {
   width: 3px !important;
   background: var(--accent) !important;
   border-radius: 0 2px 2px 0 !important;
-}
-html.tauri-desktop .mobile-menu-btn {
-  display: none !important;
 }
 html.tauri-desktop .menu-toggle:hover,
 html.tauri-desktop #menu-toggle-btn.menu-toggle:hover {
@@ -9492,6 +9511,10 @@ html.crozzo-touch-shell body.crozzo-page-operativa #mainContent > .card {
   overflow: hidden;
   margin-bottom: 0;
 }
+html.crozzo-touch-shell body.crozzo-page-tablets #mainContent {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
 
 html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-touch {
   flex: 1 1 auto;
@@ -9501,16 +9524,17 @@ html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-
 }
 
 html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-touch .tablet-order-panel {
-  order: -1;
-  flex: 0 1 auto;
-  max-height: min(40vh, 360px);
-  overflow-y: auto;
+  order: 2;
+  flex: 0 0 auto;
+  max-height: none !important;
+  overflow-y: visible;
   -webkit-overflow-scrolling: touch;
 }
 
 html.crozzo-touch-shell body.crozzo-page-operativa .tablet-layout.crozzo-tablet-touch #tabletProducts {
+  order: 1;
   flex: 1 1 auto;
-  min-height: 100px;
+  min-height: min(48vh, 460px) !important;
   max-height: none !important;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -19520,13 +19544,147 @@ body.crozzo-corkboard-focus .comandas-layout > div {
   }
 }
 
-/* Tablets: targets táctiles un poco mayores (sin duplicar lógica de pedido) */
-.crozzo-tablet-touch .pos-products .product-card {
-  min-height: 96px;
-  padding: 14px 10px;
+/* Tablets — pedido abierto: productos legibles + carrito compacto */
+.crozzo-tablet-product {
+  position: relative;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-sizing: border-box;
 }
-.crozzo-tablet-touch .pos-products .product-card:active {
-  transform: scale(0.98);
+.crozzo-tablet-order-open.tablet-layout.crozzo-tablet-touch {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 10px;
+}
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts {
+  order: 1;
+  flex: 1 1 auto;
+  min-height: min(52vh, 480px);
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-rows: minmax(92px, auto) !important;
+  gap: 8px !important;
+  align-content: start !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px !important;
+}
+.crozzo-tablet-order-open.crozzo-tablet-touch .tablet-order-panel {
+  order: 2;
+  flex: 0 0 auto;
+  max-height: none !important;
+  padding: 10px 12px;
+}
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product,
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-card {
+  display: grid !important;
+  grid-template-columns: 2.5rem 1fr !important;
+  grid-template-rows: auto auto !important;
+  grid-template-areas:
+    'icon name'
+    'icon price' !important;
+  align-items: start !important;
+  gap: 2px 8px !important;
+  min-height: 92px !important;
+  height: auto !important;
+  padding: 10px !important;
+  overflow: visible !important;
+  content-visibility: visible !important;
+  contain-intrinsic-size: auto !important;
+  text-align: left !important;
+  touch-action: manipulation;
+}
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product__icon,
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-icon {
+  grid-area: icon !important;
+  font-size: 1.45rem !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  align-self: center;
+}
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product__name,
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-name {
+  grid-area: name !important;
+  margin: 0 !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  line-height: 1.28 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  word-break: break-word !important;
+}
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product__price,
+.crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-price {
+  grid-area: price !important;
+  margin: 0 !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  color: var(--success) !important;
+  white-space: nowrap !important;
+}
+.crozzo-tablet-cart-compact__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.crozzo-tablet-cart-compact__mesa {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.crozzo-tablet-cart-compact__total {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--success);
+  white-space: nowrap;
+}
+.crozzo-tablet-cart-compact__empty {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.crozzo-tablet-cart-compact__items {
+  max-height: min(22vh, 180px);
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.crozzo-tablet-cart-compact__actions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 8px;
+}
+.crozzo-tablet-cart-compact__actions .btn {
+  min-height: 44px;
+  margin: 0 !important;
+  width: 100%;
+}
+.crozzo-tablet-cart-compact__extra {
+  margin-top: 8px;
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+}
+.crozzo-tablet-cart-compact__extra > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  list-style: none;
+}
+.crozzo-tablet-cart-compact__extra-body {
+  padding-top: 8px;
 }
 .crozzo-tablet-touch .tablet-order-panel .qty-btn {
   width: 40px;
@@ -21789,11 +21947,20 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
 .mesas-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-auto-rows: minmax(72px, auto);
   gap: 8px;
   margin-bottom: 12px;
+  align-items: stretch;
 }
 
 .mesa-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 64px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -21832,13 +21999,17 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
 }
 
 .mesa-card-name {
+  display: block;
   font-size: 0.82rem;
   font-weight: 600;
+  line-height: 1.25;
 }
 
 .mesa-card-status {
-  margin-top: 4px;
+  display: block;
+  margin-top: 0;
   font-size: 0.74rem;
+  line-height: 1.25;
   color: var(--text-muted);
 }
 
@@ -21928,7 +22099,7 @@ html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch {
 }
 
 html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch .tablet-order-panel {
-  order: -1;
+  order: 2;
   position: relative;
   top: auto;
   padding: var(--crozzo-touch-pad, 14px);
@@ -21937,7 +22108,9 @@ html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch .tablet-order-panel {
 
 html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch #tabletProducts {
   order: 1;
-  max-height: min(52vh, 560px);
+  flex: 1 1 auto;
+  min-height: min(45vh, 420px);
+  max-height: none !important;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 8px;
@@ -21948,9 +22121,10 @@ html.crozzo-touch-shell .tablet-layout.crozzo-tablet-touch .tablet-order-items {
 }
 
 html.crozzo-touch-shell .mesa-card {
-  min-height: var(--crozzo-touch-btn-min, 48px);
+  min-height: 72px;
   padding: 12px 10px;
   touch-action: manipulation;
+  overflow: visible;
 }
 
 html.crozzo-touch-shell .mesa-card:active {
@@ -22064,6 +22238,7 @@ body.crozzo-pairing-open .crozzo-pairing-capture-input {
 @media (max-width: 768px) {
   .mesas-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(72px, auto);
   }
 
   .service-mode-btn {
@@ -22470,6 +22645,16 @@ body.crozzo-pairing-open .crozzo-pairing-capture-input {
     padding: 12px 14px;
   }
 
+  .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-card,
+  .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product {
+    display: grid !important;
+    flex-direction: unset !important;
+    align-items: start !important;
+    gap: 2px 8px !important;
+    padding: 10px !important;
+    min-height: 92px !important;
+  }
+
   .product-card .product-icon {
     margin-bottom: 0;
     font-size: 1.75rem;
@@ -22734,22 +22919,29 @@ html.crozzo-form-tablet #sidebar:not(.open) {
   transform: translateX(-100%) !important;
 }
 
-html.crozzo-form-mobile .crozzo-mobile-bottom-nav {
+/* Barra inferior: solo visible cuando JS marca .crozzo-mbn--active */
+#crozzoMobileBottomNav,
+.crozzo-mobile-bottom-nav {
   display: none !important;
+  pointer-events: none !important;
 }
-html.crozzo-form-mobile #crozzoMobileBottomNav.crozzo-mbn--phone-kitchen,
-html.crozzo-android-apk.crozzo-form-mobile #crozzoMobileBottomNav.crozzo-mbn--phone-kitchen {
+#crozzoMobileBottomNav.crozzo-mbn--active,
+.crozzo-mobile-bottom-nav.crozzo-mbn--active {
   display: flex !important;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9600;
+  min-height: var(--crozzo-touch-nav-h, 56px);
+  padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
 }
 
 html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-form-tablet .crozzo-mobile-bottom-nav,
 html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
-  display: flex !important;
-}
-
-html.crozzo-android-apk .crozzo-mobile-bottom-nav,
-html.crozzo-android-apk #crozzoMobileBottomNav {
-  display: none !important;
+  min-height: var(--crozzo-touch-nav-h, 56px);
 }
 
 /* Tauri móvil/tablet: drawer al pulsar ☰; sin rail fijo que bloquee el panel */
@@ -22798,25 +22990,30 @@ html.crozzo-tauri-rail-ui:not(.crozzo-android-native):not(.crozzo-android-apk) b
   padding-bottom: max(var(--crozzo-bottom-safe, 0px), env(safe-area-inset-bottom, 0px)) !important;
 }
 
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active) {
+  display: none !important;
+}
+
+html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active) {
   display: none !important;
 }
 
 html.crozzo-form-mobile .mobile-menu-btn,
-html.crozzo-form-tablet .mobile-menu-btn {
+html.crozzo-form-tablet .mobile-menu-btn,
+html.crozzo-android-apk .mobile-menu-btn,
+html.crozzo-touch-shell .mobile-menu-btn,
+html[data-crozzo-android="1"] .mobile-menu-btn {
   display: inline-flex !important;
-}
-
-html.crozzo-form-mobile.tauri-shell .crozzo-mobile-bottom-nav {
-  display: none !important;
-}
-
-html.crozzo-form-tablet.tauri-shell .crozzo-mobile-bottom-nav,
-html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav,
-html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav {
-  display: none !important;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  min-width: 44px;
+  min-height: 44px;
+  z-index: 120;
 }
 
 /* ===== Touch shell unificado: móvil + tablet (web y Tauri) ===== */
@@ -23159,15 +23356,14 @@ html.crozzo-form-mobile .main-content {
   max-width: 100% !important;
 }
 
-html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav {
-  display: flex !important;
+html:not(.tauri-shell):not(.crozzo-android-apk).crozzo-touch-shell[data-crozzo-touch-tier="tablet"] .crozzo-mobile-bottom-nav.crozzo-mbn--active {
   min-height: var(--crozzo-touch-nav-h);
   padding: 6px 8px calc(6px + var(--crozzo-safe-bottom));
 }
 
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav,
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav,
-html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav {
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-sm"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.crozzo-touch-shell[data-crozzo-touch-tier="phone-lg"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active) {
   display: none !important;
 }
 
@@ -25550,6 +25746,60 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
 }
 .crozzo-header-theme-details > summary::-webkit-details-marker {
   display: none;
+}
+
+/* Táctil / APK: tema junto a accesibilidad; popover fijo para no recortarse */
+html.crozzo-touch-shell .crozzo-header__toolbar,
+html.crozzo-compact-chrome .crozzo-header__toolbar,
+html.crozzo-android-native .crozzo-header__toolbar {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+html.crozzo-touch-shell .crozzo-header-theme-details > summary.crozzo-toolbar-btn--theme,
+html.crozzo-compact-chrome .crozzo-header-theme-details > summary.crozzo-toolbar-btn--theme,
+html.crozzo-android-native .crozzo-header-theme-details > summary.crozzo-toolbar-btn--theme,
+html.crozzo-touch-shell #crozzoA11yTrigger,
+html.crozzo-compact-chrome #crozzoA11yTrigger,
+html.crozzo-android-native #crozzoA11yTrigger,
+html.crozzo-touch-shell #crozzoToolbarLogout,
+html.crozzo-compact-chrome #crozzoToolbarLogout,
+html.crozzo-android-native #crozzoToolbarLogout {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+}
+#crozzoToolbarLogout {
+  display: none;
+}
+html.crozzo-touch-shell #crozzoToolbarLogout,
+html.crozzo-compact-chrome #crozzoToolbarLogout,
+html.crozzo-android-native #crozzoToolbarLogout {
+  display: inline-flex !important;
+}
+html.crozzo-touch-shell .crozzo-header__toolbar .crozzo-toolbar-divider,
+html.crozzo-compact-chrome .crozzo-header__toolbar .crozzo-toolbar-divider,
+html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-divider,
+html.crozzo-touch-shell .crozzo-header__toolbar .user-menu,
+html.crozzo-compact-chrome .crozzo-header__toolbar .user-menu,
+html.crozzo-android-native .crozzo-header__toolbar .user-menu {
+  display: none !important;
+}
+.crozzo-toolbar-btn--logout:hover,
+.crozzo-toolbar-btn--logout:focus-visible {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+html.crozzo-touch-shell .crozzo-header-theme-details[open] .crozzo-header-popover,
+html.crozzo-compact-chrome .crozzo-header-theme-details[open] .crozzo-header-popover,
+html.crozzo-android-native .crozzo-header-theme-details[open] .crozzo-header-popover {
+  position: fixed;
+  right: 12px;
+  top: calc(var(--crozzo-header-h, 52px) + var(--crozzo-safe-top, env(safe-area-inset-top, 0px)) + 6px);
+  z-index: 10080;
+  min-width: min(280px, calc(100vw - 24px));
 }
 .crozzo-header-icon-btn {
   display: inline-flex;
@@ -29702,9 +29952,9 @@ html.tauri-shell.crozzo-form-tablet #sidebar.sidebar-pro + .main-content {
   margin-left: 0 !important;
 }
 
-html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav,
-html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav,
-html.tauri-shell #crozzoMobileBottomNav {
+html.tauri-shell.crozzo-form-tablet .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.tauri-shell.crozzo-form-mobile .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active),
+html.tauri-shell #crozzoMobileBottomNav:not(.crozzo-mbn--active) {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -31908,12 +32158,19 @@ html.crozzo-android-native .crozzo-header__actions--elite {
   gap: 2px !important;
 }
 
-html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-btn:not([id='crozzoA11yTrigger']):not(.mobile-menu-btn) {
+html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-btn:not([id='crozzoA11yTrigger']):not(.mobile-menu-btn):not(.crozzo-toolbar-btn--theme):not(.crozzo-toolbar-btn--logout) {
   display: none !important;
 }
 
 html.crozzo-android-native .crozzo-header-theme-details {
-  display: none !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-shrink: 0;
+}
+
+html.crozzo-android-native .crozzo-header-theme-details > summary.crozzo-toolbar-btn--theme {
+  display: inline-flex !important;
 }
 
 html.crozzo-android-native .mobile-menu-btn {
@@ -32211,12 +32468,19 @@ html.crozzo-compact-chrome .crozzo-header__actions--elite {
   box-shadow: none !important;
 }
 
-html.crozzo-compact-chrome .crozzo-header__toolbar .crozzo-toolbar-btn:not([id='crozzoA11yTrigger']) {
+html.crozzo-compact-chrome .crozzo-header__toolbar .crozzo-toolbar-btn:not([id='crozzoA11yTrigger']):not(.crozzo-toolbar-btn--theme):not(.crozzo-toolbar-btn--logout) {
   display: none !important;
 }
 
 html.crozzo-compact-chrome .crozzo-header-theme-details {
-  display: none !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-shrink: 0;
+}
+
+html.crozzo-compact-chrome .crozzo-header-theme-details > summary.crozzo-toolbar-btn--theme {
+  display: inline-flex !important;
 }
 
 html.crozzo-compact-chrome #crozzo-global-stress,
@@ -32744,11 +33008,26 @@ html.crozzo-android-native .crozzo-retail-pos__body {
 }
 
 /* ===== APK UI v4 — legible, aireado, recuadros visibles ===== */
-html[data-crozzo-android="1"] #crozzoMobileBottomNav,
-html[data-crozzo-android="1"] .crozzo-mobile-bottom-nav {
+html[data-crozzo-android="1"] #crozzoMobileBottomNav:not(.crozzo-mbn--active),
+html[data-crozzo-android="1"] .crozzo-mobile-bottom-nav:not(.crozzo-mbn--active) {
   display: none !important;
   height: 0 !important;
   pointer-events: none !important;
+}
+
+html[data-crozzo-android="1"] #crozzoMobileBottomNav.crozzo-mbn--active,
+html[data-crozzo-android="1"] .crozzo-mobile-bottom-nav.crozzo-mbn--active {
+  display: flex !important;
+  height: auto !important;
+  min-height: 56px !important;
+  pointer-events: auto !important;
+}
+
+html[data-crozzo-android="1"] body.crozzo-vp-mobile-nav .main-content,
+html[data-crozzo-android="1"] body.crozzo-bottom-nav-active .main-content,
+html[data-crozzo-android="1"] body.crozzo-vp-mobile-nav .main-body,
+html[data-crozzo-android="1"] body.crozzo-vp-mobile-nav #mainContent {
+  padding-bottom: calc(var(--crozzo-touch-nav-h, 56px) + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 html[data-crozzo-android="1"] .main-content {
@@ -32756,7 +33035,6 @@ html[data-crozzo-android="1"] .main-content {
   flex-direction: column !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  padding-bottom: 0 !important;
 }
 
 html[data-crozzo-android="1"] .main-body,
@@ -32792,15 +33070,38 @@ html.crozzo-android-native .card {
 }
 
 html[data-crozzo-android="1"] .product-card,
-html[data-crozzo-android="1"] .mesa-card,
-html.crozzo-android-native .product-card,
-html.crozzo-android-native .mesa-card {
+html.crozzo-android-native .product-card {
   border: 1px solid var(--border) !important;
   background: var(--bg-card) !important;
   border-radius: 12px !important;
   padding: 10px !important;
+  overflow: hidden !important;
+  min-height: 0;
+}
+
+html[data-crozzo-android="1"] .mesa-card,
+html.crozzo-android-native .mesa-card {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: stretch !important;
+  gap: 4px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg-card) !important;
+  border-radius: 12px !important;
+  padding: 12px 10px !important;
   overflow: visible !important;
-  min-height: 72px;
+  min-height: 72px !important;
+  box-sizing: border-box !important;
+}
+
+html[data-crozzo-android="1"] .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-card,
+html[data-crozzo-android="1"] .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product,
+html.crozzo-android-native .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-card,
+html.crozzo-android-native .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .crozzo-tablet-product {
+  display: grid !important;
+  min-height: 92px !important;
+  overflow: visible !important;
 }
 
 html[data-crozzo-android="1"] .product-card .product-name,
@@ -32814,16 +33115,19 @@ html[data-crozzo-android="1"] .mesa-card-name,
 html.crozzo-android-native .mesa-card-name {
   font-size: 0.9rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
   word-break: break-word;
+  display: block;
 }
 
 html[data-crozzo-android="1"] .mesa-card-status,
 html.crozzo-android-native .mesa-card-status {
   font-size: 0.76rem;
-  line-height: 1.3;
+  line-height: 1.25;
   color: var(--text-secondary);
   word-break: break-word;
+  margin-top: 0 !important;
+  display: block;
 }
 
 html[data-crozzo-android="1"] #sidebar .nav-item,
@@ -32897,8 +33201,9 @@ html.crozzo-android-native body.crozzo-page-operativa .tablet-order-panel {
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
   background: var(--bg-card) !important;
-  max-height: 42vh !important;
-  overflow-y: auto !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  order: 2 !important;
 }
 
 html[data-crozzo-android="1"] body.crozzo-page-operativa #tabletProducts,
@@ -32907,7 +33212,8 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
   border-radius: 12px !important;
   background: var(--bg-primary) !important;
   flex: 1 1 auto !important;
-  min-height: 120px !important;
+  min-height: min(48vh, 460px) !important;
+  order: 1 !important;
   overflow-y: auto !important;
 }
 
@@ -33284,4 +33590,154 @@ html.crozzo-form-mobile .crozzo-pantallas-kiosk-setup__actions .crozzo-pantallas
 html.crozzo-form-mobile .crozzo-pantallas-kiosk-setup__btns .btn {
   width: 100%;
   min-height: 44px;
+}
+
+/* Comandas táctil — conserva corcho, notas y animaciones; solo scroll y orden */
+body.crozzo-page-comandas.crozzo-comandas-touch #mainContent {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+body.crozzo-comandas-touch #mainContent > .comandas-vista-tablero {
+  margin: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .card-header.crozzo-comandas-area-header--touch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 4px 12px 10px;
+  position: relative;
+  z-index: 2;
+  border-bottom: none;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-area-title {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em;
+  margin: 0;
+  width: 100%;
+  color: var(--text-primary, inherit);
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-area-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-toolbar-btn {
+  min-height: 34px !important;
+  height: auto !important;
+  padding: 5px 10px !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-cork-focus-btn.crozzo-comandas-toolbar-btn {
+  min-height: 34px !important;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .card-header {
+  padding-bottom: 8px;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard.crozzo-comandas-area-cork {
+  min-height: min(52vh, 380px);
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-corkboard-empty {
+  padding: 40px 20px;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comanda-trash-dock {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup {
+  margin: 0 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup__toggle {
+  cursor: pointer;
+  padding: 12px 14px;
+  font-weight: 600;
+  list-style: none;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup[open] .crozzo-comandas-mobile-setup__toggle {
+  border-bottom: 1px solid var(--border);
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-pantallas-kiosk-setup__actions .crozzo-pantallas-kiosk-setup__btns {
+  flex-direction: column;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-pantallas-kiosk-setup__btns .btn {
+  width: 100%;
+  min-height: 44px;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-toolbar .btn,
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-done-btn {
+  min-height: 48px;
+  touch-action: manipulation;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-sticky-note {
+  touch-action: manipulation;
+}
+html.crozzo-form-mobile .crozzo-comandas-mobile-setup,
+body.crozzo-comandas-touch .crozzo-comandas-mobile-setup {
+  margin: 8px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+/* Regla maestra navegación táctil — gana sobre reglas legacy APK/Tauri */
+#crozzoMobileBottomNav.crozzo-mbn--active,
+.crozzo-mobile-bottom-nav.crozzo-mbn--active {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  height: auto !important;
+  min-height: 56px !important;
+  z-index: 9600 !important;
+}
+html.crozzo-touch-shell .crozzo-mbn-btn,
+html.crozzo-android-apk .crozzo-mbn-btn,
+html[data-crozzo-android="1"] .crozzo-mbn-btn {
+  touch-action: manipulation;
+  pointer-events: auto !important;
+  min-height: 48px;
+}
+html.crozzo-touch-shell body.crozzo-sidebar-drawer-open:not(.crozzo-pairing-open) .crozzo-mobile-bottom-nav.crozzo-mbn--active {
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}
+
+/* Menú lateral abierto — regla maestra (drawer móvil/tablet/Tauri) */
+body.crozzo-sidebar-drawer-open #sidebar.open,
+body.crozzo-sidebar-drawer-open #sidebar.sidebar-pro.open,
+body.crozzo-sidebar-drawer-open aside.sidebar.open {
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+  pointer-events: auto !important;
+  z-index: 10060 !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 100dvh !important;
+  width: min(320px, 88vw) !important;
+  max-width: min(320px, 88vw) !important;
+}
+body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
+  display: block !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 10050 !important;
 }
