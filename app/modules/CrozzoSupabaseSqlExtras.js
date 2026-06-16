@@ -109,7 +109,18 @@
     'drop policy if exists crozzo_sede_runtime_all on public.crozzo_sede_runtime;\n' +
     'create policy crozzo_sede_runtime_all on public.crozzo_sede_runtime\n' +
     '  for all using (true) with check (true);\n\n' +
-    'alter publication supabase_realtime add table public.crozzo_sede_runtime;\n';
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_publication_tables\n' +
+    '    where pubname = \'supabase_realtime\'\n' +
+    '      and schemaname = \'public\'\n' +
+    '      and tablename = \'crozzo_sede_runtime\'\n' +
+    '  ) then\n' +
+    '    alter publication supabase_realtime add table public.crozzo_sede_runtime;\n' +
+    '  end if;\n' +
+    'end $$;\n\n' +
+    'notify pgrst, \'reload schema\';\n';
 
   var MESA_RUNTIME_SQL =
     '-- Crozzo POS — Runtime PARTICIONADO por mesa/slot (escala a muchas tablets sin pisarse)\n' +
@@ -133,7 +144,18 @@
     'drop policy if exists crozzo_mesa_runtime_all on public.crozzo_mesa_runtime;\n' +
     'create policy crozzo_mesa_runtime_all on public.crozzo_mesa_runtime\n' +
     '  for all using (true) with check (true);\n\n' +
-    'alter publication supabase_realtime add table public.crozzo_mesa_runtime;\n';
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_publication_tables\n' +
+    '    where pubname = \'supabase_realtime\'\n' +
+    '      and schemaname = \'public\'\n' +
+    '      and tablename = \'crozzo_mesa_runtime\'\n' +
+    '  ) then\n' +
+    '    alter publication supabase_realtime add table public.crozzo_mesa_runtime;\n' +
+    '  end if;\n' +
+    'end $$;\n\n' +
+    'notify pgrst, \'reload schema\';\n';
 
   var PROFILES_AUTH_SQL =
     '-- Crozzo POS — Perfiles de login nube (Supabase Auth → profiles)\n' +

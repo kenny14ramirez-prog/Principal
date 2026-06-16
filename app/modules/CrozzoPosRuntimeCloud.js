@@ -71,9 +71,50 @@
     var row = [Number(it.id), Math.max(1, Number(it.cantidad) || 1)];
     var pr = Number(it.precio);
     if (Number.isFinite(pr) && pr > 0) row.push(Math.round(pr));
-    var nm = String(it.nombre || '').trim();
+    var nm = String(it.nombreVenta || it.nombre || '').trim();
     if (nm) row.push(nm.length > MAX_CART_NAME ? nm.slice(0, MAX_CART_NAME) : nm);
+    var sent = Math.max(0, Number(it.sentCantidad) || 0);
+    var sig = String(it.configSig || '').trim();
+    var nota = String(it.notaLinea || '').trim();
+    var det = String(it.detalleConfig || '').trim();
+    var ext = null;
+    if (sent > 0 || sig || nota || det) {
+      ext = {};
+      if (sent > 0) ext.s = sent;
+      if (sig) ext.g = sig.length > 48 ? sig.slice(0, 48) : sig;
+      if (nota) ext.n = nota.length > 100 ? nota.slice(0, 100) : nota;
+      if (det) ext.d = det.length > 80 ? det.slice(0, 80) : det;
+    }
+    if (ext) row.push(ext);
     return row;
+  }
+
+  function expandCompactCartRow(row) {
+    if (!Array.isArray(row) || !row.length) return null;
+    var ext = null;
+    var cut = row.length;
+    var tail = row[row.length - 1];
+    if (tail && typeof tail === 'object' && !Array.isArray(tail)) {
+      ext = tail;
+      cut = row.length - 1;
+    }
+    var it = { id: row[0], cantidad: row[1] || 1, icon: '🍽️', nombre: '', precio: 0 };
+    if (cut > 2 && typeof row[2] === 'number') {
+      it.precio = row[2];
+      if (cut > 3 && typeof row[3] === 'string') it.nombre = row[3];
+    } else if (cut > 2 && typeof row[2] === 'string') {
+      it.nombre = row[2];
+    }
+    if (ext) {
+      if (ext.s != null) it.sentCantidad = Math.max(0, Number(ext.s) || 0);
+      if (ext.g) it.configSig = String(ext.g);
+      if (ext.n) it.notaLinea = String(ext.n);
+      if (ext.d) it.detalleConfig = String(ext.d);
+    }
+    if (typeof global.crozzoHydrateRuntimeCartLine === 'function') {
+      it = global.crozzoHydrateRuntimeCartLine(it);
+    }
+    return it;
   }
 
   function compactCartsMap(map) {
@@ -81,13 +122,17 @@
     var out = {};
     Object.keys(map).forEach(function (k) {
       var arr = map[k];
-      if (!Array.isArray(arr) || !arr.length) return;
+      if (!Array.isArray(arr)) return;
+      if (!arr.length) {
+        out[k] = [];
+        return;
+      }
       var lines = [];
       for (var i = 0; i < arr.length; i++) {
         var ln = compactCartLine(arr[i]);
         if (ln) lines.push(ln);
       }
-      if (lines.length) out[k] = lines;
+      out[k] = lines;
     });
     return out;
   }
@@ -98,23 +143,13 @@
     Object.keys(compact).forEach(function (k) {
       var rows = compact[k];
       if (!Array.isArray(rows)) return;
+      if (!rows.length) {
+        out[k] = [];
+        return;
+      }
       out[k] = rows
         .map(function (row) {
-          if (!Array.isArray(row) || !row.length) return null;
-          var it = {
-            id: row[0],
-            cantidad: row[1] || 1,
-            icon: '🍽️',
-            nombre: '',
-            precio: 0,
-          };
-          if (row.length > 2 && typeof row[2] === 'number') {
-            it.precio = row[2];
-            if (row.length > 3 && typeof row[3] === 'string') it.nombre = row[3];
-          } else if (row.length > 2 && typeof row[2] === 'string') {
-            it.nombre = row[2];
-          }
-          return it;
+          return expandCompactCartRow(row);
         })
         .filter(Boolean);
     });
@@ -202,19 +237,17 @@
     if (!Array.isArray(rows)) return [];
     return rows
       .map(function (row) {
-        if (!Array.isArray(row)) return compactCartLine(row) ? expandCartsMap({ x: [compactCartLine(row)] }).x[0] : null;
-        var it = { id: row[0], cantidad: row[1] || 1, icon: '🍽️', nombre: '', precio: 0 };
-        if (row.length > 2 && typeof row[2] === 'number') {
-          it.precio = row[2];
-          if (row.length > 3) it.nombre = String(row[3] || '');
-        } else if (row.length > 2) it.nombre = String(row[2] || '');
-        return it;
+        if (!Array.isArray(row)) return compactCartLine(row) ? expandCompactCartRow(compactCartLine(row)) : null;
+        return expandCompactCartRow(row);
       })
       .filter(Boolean);
   }
 
   function payloadSig(snap) {
     try {
+      var locks = snap.comandaSlotLocks || {};
+      var lockN =
+        Object.keys(locks.mesa || {}).length + Object.keys(locks.llevar || {}).length;
       return (
         String(snap.savedAt) +
         '|' +
@@ -222,7 +255,9 @@
         '|' +
         Object.keys(snap.cartsPorLlevar || {}).length +
         '|' +
-        (snap.cartDirecto || []).length
+        (snap.cartDirecto || []).length +
+        '|l' +
+        lockN
       );
     } catch (_) {
       return String(Date.now());
@@ -419,11 +454,11 @@
     }
     var m = snap.cartsPorMesa || {};
     Object.keys(m).forEach(function (ref) {
-      if (m[ref] && m[ref].length) add('mesa', ref, m[ref]);
+      add('mesa', ref, m[ref] || []);
     });
     var l = snap.cartsPorLlevar || {};
     Object.keys(l).forEach(function (ref) {
-      if (l[ref] && l[ref].length) add('llevar', ref, l[ref]);
+      add('llevar', ref, l[ref] || []);
     });
     if (Array.isArray(snap.cartDirecto) && snap.cartDirecto.length) add('directo', '__directo__', snap.cartDirecto);
     rows.push({
@@ -452,18 +487,18 @@
       if (r.kind === 'meta') {
         base = r.payload && typeof r.payload === 'object' ? r.payload : {};
       } else if (r.kind === 'mesa') {
-        if (lines && lines.length) carts.mesa[r.ref] = lines;
+        carts.mesa[r.ref] = Array.isArray(lines) ? lines : [];
       } else if (r.kind === 'llevar') {
-        if (lines && lines.length) carts.llevar[r.ref] = lines;
+        carts.llevar[r.ref] = Array.isArray(lines) ? lines : [];
       } else if (r.kind === 'directo') {
-        if (lines && lines.length) carts.directo = lines;
+        carts.directo = Array.isArray(lines) ? lines : [];
       }
     }
     if (!base) base = { v: 1, _c: 1 };
     base._c = 1;
-    base.cartsPorMesa = carts.mesa;
-    base.cartsPorLlevar = carts.llevar;
-    base.cartDirecto = carts.directo;
+    base.cartsPorMesa = expandCartsMap(carts.mesa);
+    base.cartsPorLlevar = expandCartsMap(carts.llevar);
+    base.cartDirecto = expandCartLines(carts.directo);
     base.savedAt = Number(base.savedAt) || maxAt || Date.now();
     return { snap: base, savedAt: base.savedAt };
   }
@@ -830,4 +865,5 @@
     mesaRowsFromSnap: mesaRowsFromSnap,
     snapFromMesaRows: snapFromMesaRows,
   };
+  global.__crozzoExpandRuntimeCartRow = expandCompactCartRow;
 })(typeof window !== 'undefined' ? window : globalThis);
