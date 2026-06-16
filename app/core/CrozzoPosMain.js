@@ -7411,6 +7411,12 @@ if (typeof window !== 'undefined' && !window.__crozzoRuntimeListeners) {
             } else if (typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
               window.__crozzoRefreshCloudCatalogUi({ skipRender: true }).catch(function () {});
             }
+            if (typeof crozzoPullPosRuntimeCloud === 'function') {
+              crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false }).catch(function () {});
+            }
+            if (typeof crozzoPullComandasFromCloud === 'function') {
+              crozzoPullComandasFromCloud({ skipPrint: true, skipRender: false }).catch(function () {});
+            }
           }
         } catch (_) {}
       }, 650);
@@ -41307,6 +41313,12 @@ function init() {
         var lan = lanRaw ? JSON.parse(lanRaw) : null;
         if (!lan || lan.lanSyncEnabled !== true) {
           var devId = typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : 'caja';
+          var bootLoc = '';
+          if (typeof crozzoEnsureSedeLocationId === 'function') {
+            try {
+              bootLoc = String(crozzoEnsureSedeLocationId() || '').trim();
+            } catch (_) {}
+          }
           var boot = {
             version: 2,
             lanSyncEnabled: true,
@@ -41315,7 +41327,7 @@ function init() {
             port: 3000,
             allowLan: true,
             offlineEnabled: true,
-            locationId: (lan && lan.locationId) || ('loc-' + String(devId).slice(0, 10)),
+            locationId: (lan && lan.locationId) || bootLoc || ('loc-' + String(devId).slice(0, 10)),
             networkSsidNote: (lan && lan.networkSsidNote) || 'Red Wi‑Fi principal',
             savedAt: Date.now()
           };
@@ -41370,6 +41382,12 @@ function init() {
         window.crozzoHealSupabaseConfigStorage();
       } catch (_) {}
     }
+    let ensuredLoc = '';
+    if (typeof window.crozzoEnsureSedeLocationId === 'function') {
+      try {
+        ensuredLoc = String(window.crozzoEnsureSedeLocationId() || '').trim();
+      } catch (_) {}
+    }
     const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : (typeof config !== 'undefined' && config.get ? config.get('multidispositivo') : null) || {};
     const cs = (typeof config !== 'undefined' && config.get ? config.get('conexionSistemas') : null) || {};
     const creds =
@@ -41412,7 +41430,12 @@ function init() {
       };
     }
     const port = Math.max(1, Number((lanSnap && lanSnap.port) || md.port || cs.port) || 3000);
-    const locationId = String((lanSnap && lanSnap.locationId) || md.locationId || '').trim();
+    const locationId = String(
+      ensuredLoc ||
+        (lanSnap && lanSnap.locationId) ||
+        md.locationId ||
+        ''
+    ).trim();
     const redANote = String((lanSnap && lanSnap.networkSsidNote) || md.networkSsidNote || md.subnetNote || 'Red principal Wi‑Fi').trim().slice(0, 120);
     const redBNote = String(md.networkFallbackNote || 'Hotspot caja principal (Red B — respaldo sin router)').trim().slice(0, 120);
     const syncPriority = String(
@@ -42599,7 +42622,6 @@ function init() {
     config.set('conexionSistemas', cs);
     const baseMd = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : (config.get('multidispositivo') || {});
     const md = { ...baseMd };
-    if (loc) md.locationId = loc;
     if (redA) md.networkSsidNote = redA;
     if (p.network_fallback_b && p.network_fallback_b.ssid_note) md.networkFallbackNote = String(p.network_fallback_b.ssid_note).trim();
     md.role = 'B';
@@ -42612,6 +42634,15 @@ function init() {
     const pairBname = String(p.business_name || p.businessName || '').trim();
     if (pairBid) md.businessId = pairBid;
     if (pairBname) md.businessName = pairBname;
+    let locFinal = String(loc || '').trim();
+    if (!locFinal) {
+      try {
+        if (typeof crozzoEnsureSedeLocationId === 'function') {
+          locFinal = String(crozzoEnsureSedeLocationId() || '').trim();
+        }
+      } catch (_) {}
+    }
+    if (locFinal) md.locationId = locFinal;
     try {
       persistMultiDeviceConfig(md);
     } catch (eMd) {
@@ -42782,6 +42813,15 @@ function init() {
       if (ab) ab.disabled = false;
       pairingApplying = false;
       return;
+    }
+    if (!loc) {
+      try {
+        var mdAfterLan = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+        loc = String(mdAfterLan.locationId || '').trim();
+        if (!loc && typeof crozzoEnsureSedeLocationId === 'function') {
+          loc = String(crozzoEnsureSedeLocationId() || '').trim();
+        }
+      } catch (_) {}
     }
     var earlyBid = String(p.business_id || p.businessId || '').trim();
     var earlyBname = String(p.business_name || p.businessName || '').trim();

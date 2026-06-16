@@ -78,6 +78,15 @@
 
   function ctx() {
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    var loc = String(md.locationId || 'default').trim() || 'default';
+    if (!loc || loc === 'default') {
+      try {
+        if (typeof global.crozzoEnsureSedeLocationId === 'function') {
+          var ensured = String(global.crozzoEnsureSedeLocationId() || '').trim();
+          if (ensured && ensured !== 'default') loc = ensured;
+        }
+      } catch (_) {}
+    }
     var deviceId = '';
     try {
       deviceId = String(
@@ -91,7 +100,7 @@
     }
     return {
       businessId: String(md.businessId || 'default').trim() || 'default',
-      locationId: String(md.locationId || 'default').trim() || 'default',
+      locationId: loc,
       deviceId: deviceId,
       role: md.role === 'B' ? 'B' : 'A',
     };
@@ -960,4 +969,18 @@
     snapFromMesaRows: snapFromMesaRows,
   };
   global.__crozzoExpandRuntimeCartRow = expandCompactCartRow;
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('crozzo-multidevice-config-saved', function () {
+      try {
+        if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
+        startRuntimeCloudSync();
+      } catch (_) {}
+    });
+    document.addEventListener('crozzo-supabase-config-saved', function () {
+      try {
+        startRuntimeCloudSync();
+      } catch (_) {}
+    });
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

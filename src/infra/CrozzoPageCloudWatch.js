@@ -70,9 +70,18 @@
 
   function cloudCtx() {
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    var loc = String(md.locationId || 'default').trim() || 'default';
+    if (!loc || loc === 'default') {
+      try {
+        if (typeof global.crozzoEnsureSedeLocationId === 'function') {
+          var ensured = String(global.crozzoEnsureSedeLocationId() || '').trim();
+          if (ensured && ensured !== 'default') loc = ensured;
+        }
+      } catch (_) {}
+    }
     return {
       businessId: String(md.businessId || 'default').trim() || 'default',
-      locationId: String(md.locationId || 'default').trim() || 'default',
+      locationId: loc,
     };
   }
 
@@ -373,7 +382,8 @@
   }
 
   function usesGlobalRuntimePoll() {
-    return false;
+    // Respaldo en PosRuntimeCloud cuando Realtime falla o la vista no está en PAGE_PROFILES.
+    return true;
   }
 
   function refreshCloudTransports() {

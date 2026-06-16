@@ -746,11 +746,19 @@ window.crozzoFinalizeCloudConfigAfterPairing = function crozzoFinalizeCloudConfi
       const base = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
       const bid = String(payload.business_id || payload.businessId || '').trim();
       const bname = String(payload.business_name || payload.businessName || '').trim();
+      let loc = String(payload.location_id || base.locationId || '').trim();
+      if (!loc || loc === 'default') {
+        try {
+          if (typeof window.crozzoEnsureSedeLocationId === 'function') {
+            loc = String(window.crozzoEnsureSedeLocationId() || '').trim() || loc;
+          }
+        } catch (_) {}
+      }
       persistMultiDeviceConfig({
         ...base,
         supabaseSyncEnabled: true,
         supabase: { ...(base.supabase || {}), url: url, anonKey: key },
-        locationId: String(payload.location_id || base.locationId || '').trim() || base.locationId,
+        locationId: loc || base.locationId,
         role: 'B',
         businessId: bid || base.businessId,
         businessName: bname || base.businessName,

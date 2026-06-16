@@ -119,6 +119,15 @@
 
   function cloudCtx() {
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    var loc = String(md.locationId || 'default').trim() || 'default';
+    if (!loc || loc === 'default') {
+      try {
+        if (typeof global.crozzoEnsureSedeLocationId === 'function') {
+          var ensured = String(global.crozzoEnsureSedeLocationId() || '').trim();
+          if (ensured && ensured !== 'default') loc = ensured;
+        }
+      } catch (_) {}
+    }
     var deviceId = '';
     try {
       deviceId = String(localStorage.getItem('device_id') || md.deviceId || '').trim();
@@ -127,7 +136,7 @@
     }
     return {
       businessId: String(md.businessId || 'default').trim() || 'default',
-      locationId: String(md.locationId || 'default').trim() || 'default',
+      locationId: loc,
       deviceUuid:
         typeof global.crozzoCloudDeviceUuidForRest === 'function' ? global.crozzoCloudDeviceUuidForRest() : '',
       deviceId: deviceId,
