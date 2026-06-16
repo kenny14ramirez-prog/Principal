@@ -16549,6 +16549,9 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
 .crozzo-nube-master-guide {
   margin: 14px 0;
 }
+.crozzo-nube-advanced-block {
+  margin: 14px 0 0;
+}
 .crozzo-nube-guide-details {
   border-bottom: 1px solid var(--border);
   padding: 10px 0;

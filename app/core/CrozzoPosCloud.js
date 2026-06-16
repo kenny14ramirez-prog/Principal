@@ -51,13 +51,47 @@ const LS = {
 const CROZZO_SB_FILE = 'crozzo_supabase_config';
 const CROZZO_SYNC_QUEUE_KEY = 'crozzo_sync_queue';
 /** Cabeceras PostgREST (no usar ?apikey= en la URL). */
-function crozzoSupabaseRestHeaders(anonKey) {
+function crozzoIsSupabasePublishableKey(key) {
+  return /^sb_publishable_[A-Za-z0-9_-]{8,}$/.test(String(key || '').trim());
+}
+window.crozzoIsSupabasePublishableKey = crozzoIsSupabasePublishableKey;
+function crozzoIsSupabaseSecretKey(key) {
+  const k = String(key || '').trim();
+  return /^sb_secret_[A-Za-z0-9_-]+/.test(k);
+}
+window.crozzoIsSupabaseSecretKey = crozzoIsSupabaseSecretKey;
+function crozzoIsSupabaseLegacyJwtKey(key) {
+  const k = String(key || '').trim();
+  return k.startsWith('eyJ') && k.split('.').length >= 2;
+}
+function crozzoSupabaseKeyLooksValid(key) {
+  const k = String(key || '').trim();
+  if (!k) return false;
+  if (crozzoIsSupabaseSecretKey(k)) return false;
+  if (crozzoIsSupabasePublishableKey(k)) return true;
+  if (crozzoIsSupabaseLegacyJwtKey(k) && k.length >= 20) {
+    const payload = crozzoJwtPayload(k);
+    if (payload && String(payload.role || '').toLowerCase() === 'service_role') return false;
+    return true;
+  }
+  return false;
+}
+window.crozzoSupabaseKeyLooksValid = crozzoSupabaseKeyLooksValid;
+function crozzoSupabaseRestHeaders(anonKey, opts) {
+  opts = opts || {};
   const k = String(anonKey || '').trim();
-  return {
-    'apikey': k,
-    'Authorization': 'Bearer ' + k,
+  const h = {
+    apikey: k,
     'Content-Type': 'application/json',
   };
+  const userJwt = String(opts.userJwt || '').trim();
+  if (userJwt) {
+    h.Authorization = 'Bearer ' + userJwt;
+  } else if (!crozzoIsSupabasePublishableKey(k)) {
+    // Legacy anon JWT — PostgREST acepta Bearer con la misma anon key.
+    h.Authorization = 'Bearer ' + k;
+  }
+  return h;
 }
 window.crozzoSupabaseRestHeaders = crozzoSupabaseRestHeaders;
 /** Un solo aviso en consola ante 401 de PostgREST (evita spam). */
@@ -277,6 +311,7 @@ function crozzoJwtPayload(token) {
 function crozzoAnonKeyMatchesSupabaseUrl(url, key) {
   const hostRef = crozzoSupabaseProjectRefFromUrl(url);
   if (!hostRef || crozzoIsHoneypotChaffUrl(url)) return false;
+  if (crozzoIsSupabasePublishableKey(key)) return true;
   const payload = crozzoJwtPayload(key);
   if (!payload || typeof payload !== 'object') return false;
   const jwtRef = String(payload.ref || '').trim().toLowerCase();
@@ -298,9 +333,10 @@ window.crozzoNormalizeSupabaseProjectUrl = crozzoNormalizeSupabaseProjectUrl;
 function isValidSupabasePair(url, key) {
   const u = crozzoNormalizeSupabaseProjectUrl(url);
   const k = String(key || '').trim();
-  if (!u || !k || k.length < 20) return false;
+  if (!u || !crozzoSupabaseKeyLooksValid(k)) return false;
   if (!/^https:\/\/[^/?#]+\.supabase\.co\/?$/i.test(u)) return false;
   if (crozzoIsHoneypotChaffUrl(u)) return false;
+  if (crozzoIsSupabasePublishableKey(k)) return true;
   return crozzoAnonKeyMatchesSupabaseUrl(u, k);
 }
 window.isValidSupabasePair = isValidSupabasePair;
@@ -313,18 +349,21 @@ function crozzoSupabasePairRejectMessage(url, key) {
   if (!u) {
     return 'Falta la URL del proyecto Supabase. Use el formato https://xxxx.supabase.co (sin /rest/v1). Super Admin → Nube → Paso 1 → «Guardar y conectar».';
   }
-  if (!k || k.length < 20) {
-    return 'Falta la anon key (clave pública). Super Admin → Nube → Paso 1: pegue la «anon public» del mismo proyecto → «Guardar y conectar».';
+  if (!k || !crozzoSupabaseKeyLooksValid(k)) {
+    if (crozzoIsSupabaseSecretKey(k)) {
+      return 'Esta clave es secreta (sb_secret_). Use la clave pública «Publishable» del dashboard, nunca la secret ni service_role. Super Admin → Nube → Paso 1.';
+    }
+    return 'Clave inválida. Use «Publishable» (sb_publishable_…) o «anon public» legacy (eyJ…) del mismo proyecto. Super Admin → Nube → Paso 1.';
   }
   if (!/^https:\/\/[^/?#]+\.supabase\.co\/?$/i.test(u)) {
     return 'URL de Supabase inválida. Debe ser https://xxxx.supabase.co (copie «Project URL», no el enlace /rest/v1). Super Admin → Nube → corrija y guarde.';
   }
-  if (!crozzoAnonKeyMatchesSupabaseUrl(u, k)) {
+  if (!crozzoIsSupabasePublishableKey(k) && !crozzoAnonKeyMatchesSupabaseUrl(u, k)) {
     const payload = crozzoJwtPayload(k);
     if (!payload || !payload.ref) {
-      return 'La clave pegada no parece una anon key JWT de Supabase. Use «anon public» (empieza por eyJ…), nunca service_role. Super Admin → Nube → Paso 1.';
+      return 'La clave JWT no es válida. Use «Publishable» (sb_publishable_…) o «anon public» (eyJ…). Super Admin → Nube → Paso 1.';
     }
-    return 'La anon key no corresponde a ese proyecto Supabase (ref distinto). Verifique URL y clave del mismo proyecto en Super Admin → Nube → «Guardar y conectar».';
+    return 'La anon key JWT no corresponde a ese proyecto Supabase (ref distinto). Verifique URL y clave del mismo proyecto en Super Admin → Nube → «Guardar y conectar».';
   }
   return '';
 }
@@ -2411,35 +2450,62 @@ function updateCrozzoStorageModeBadge() {
   }
   crozzoSetStatusPill(el, dot, text, title, 'crozzo-status-pill');
 }
-function hydrateMdSupabaseInputsFromLs() {
+function crozzoMdCloudFormHasDraft() {
+  try {
+    const ae = document.activeElement;
+    if (ae && ae.closest && ae.closest('#crozzo-nube-hub, #mdTabPanelCloud')) {
+      const tag = String(ae.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    }
+  } catch (_) {}
+  const ids = ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessId'];
+  for (let i = 0; i < ids.length; i++) {
+    const el = document.getElementById(ids[i]);
+    if (el && el.dataset && el.dataset.crozzoDirty === '1') return true;
+  }
+  return false;
+}
+window.crozzoMdCloudFormHasDraft = crozzoMdCloudFormHasDraft;
+function hydrateMdSupabaseInputsFromLs(opts) {
+  opts = opts || {};
+  const force = !!opts.force;
   const urlEl = document.getElementById('mdSupabaseUrl');
   const keyEl = document.getElementById('mdSupabaseKey');
   const syncEl = document.getElementById('mdSupabaseSyncEnabled');
   const nameEl = document.getElementById('mdCloudDeviceName');
   const idEl = document.getElementById('mdCloudDeviceIdInput');
   if (!urlEl || !keyEl) return;
+  if (!force && crozzoMdCloudFormHasDraft()) return;
   const j = readCrozzoSupabaseJson();
   if (j) {
-    if (j.url) urlEl.value = j.url;
-    const ak = crozzoSupabaseEffectiveAnonKey(j) || j.anonKey || '';
-    if (typeof window.crozzoBindAnonKeyMaskedInput === 'function') {
-      window.crozzoBindAnonKeyMaskedInput(keyEl, ak);
-    } else if (ak) {
-      keyEl.value = ak;
+    if (j.url && urlEl.dataset.crozzoDirty !== '1' && !String(urlEl.value || '').trim()) {
+      urlEl.value = j.url;
     }
-    if (syncEl) syncEl.checked = !!j.syncEnabled;
-    if (nameEl && j.deviceName) nameEl.value = j.deviceName;
+    const ak = crozzoSupabaseEffectiveAnonKey(j) || j.anonKey || '';
+    if (keyEl.dataset.crozzoDirty !== '1' && !String(keyEl.value || '').trim()) {
+      if (typeof window.crozzoBindAnonKeyMaskedInput === 'function') {
+        window.crozzoBindAnonKeyMaskedInput(keyEl, ak);
+      } else if (ak) {
+        keyEl.value = ak;
+      }
+    }
+    if (syncEl && document.activeElement !== syncEl) syncEl.checked = !!j.syncEnabled;
+    if (nameEl && j.deviceName && nameEl.dataset.crozzoDirty !== '1' && !String(nameEl.value || '').trim()) {
+      nameEl.value = j.deviceName;
+    }
     if (idEl && j.deviceId && !idEl.value) idEl.value = j.deviceId;
   } else {
     const u = (lsGet(LS.URL_PRIMARY) || lsGet(LS.URL_LEGACY) || '').trim();
     const k = (lsGet(LS.KEY_PRIMARY) || lsGet(LS.KEY_LEGACY) || '').trim();
-    if (u) urlEl.value = u;
-    if (typeof window.crozzoBindAnonKeyMaskedInput === 'function') {
-      window.crozzoBindAnonKeyMaskedInput(keyEl, k);
-    } else if (k) {
-      keyEl.value = k;
+    if (u && urlEl.dataset.crozzoDirty !== '1' && !String(urlEl.value || '').trim()) urlEl.value = u;
+    if (keyEl.dataset.crozzoDirty !== '1' && !String(keyEl.value || '').trim()) {
+      if (typeof window.crozzoBindAnonKeyMaskedInput === 'function') {
+        window.crozzoBindAnonKeyMaskedInput(keyEl, k);
+      } else if (k) {
+        keyEl.value = k;
+      }
     }
-    if (syncEl) syncEl.checked = false;
+    if (syncEl && document.activeElement !== syncEl) syncEl.checked = false;
   }
   if (idEl && !idEl.value) {
     let did = '';
@@ -2697,18 +2763,30 @@ window.crozzoDb = {
 const __crozzoMainEl = document.getElementById('mainContent');
 if (__crozzoMainEl) {
   let __crozzoMdHydrateT = null;
+  const __crozzoTryHydrateMdOnce = () => {
+    const urlEl = document.getElementById('mdSupabaseUrl');
+    const keyEl = document.getElementById('mdSupabaseKey');
+    if (!urlEl || !keyEl) return;
+    if (urlEl._crozzoLsHydrated && keyEl._crozzoLsHydrated) return;
+    if (crozzoMdCloudFormHasDraft()) return;
+    urlEl._crozzoLsHydrated = true;
+    keyEl._crozzoLsHydrated = true;
+    try {
+      hydrateMdSupabaseInputsFromLs({ force: true });
+    } catch (_) {}
+  };
   const mo = new MutationObserver(() => {
     if (__crozzoMdHydrateT) return;
     __crozzoMdHydrateT = setTimeout(() => {
       __crozzoMdHydrateT = null;
-      try {
-        hydrateMdSupabaseInputsFromLs();
-      } catch (_) {}
-    }, 180);
+      __crozzoTryHydrateMdOnce();
+    }, 250);
   });
   mo.observe(__crozzoMainEl, { childList: true, subtree: true });
 }
 document.addEventListener('DOMContentLoaded', () => {
-  hydrateMdSupabaseInputsFromLs();
+  try {
+    hydrateMdSupabaseInputsFromLs({ force: true });
+  } catch (_) {}
   updateCrozzoStorageModeBadge();
 });

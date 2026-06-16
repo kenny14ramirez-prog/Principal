@@ -29223,14 +29223,14 @@ async function testSupabaseConnection() {
   try {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 6000);
+    const headers =
+      typeof window.crozzoSupabaseRestHeaders === 'function'
+        ? window.crozzoSupabaseRestHeaders(key)
+        : { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' };
     const res = await fetch(`${base}/rest/v1/devices?limit=1&select=id`, {
       method: 'GET',
       signal: controller.signal,
-      headers: {
-        'apikey': key,
-        'Authorization': 'Bearer ' + key,
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
     });
     clearTimeout(t);
     if (res && res.status === 401) crozzoNotifySupabase401Once();
@@ -29386,50 +29386,40 @@ function crozzoAnonKeyMaskedPlaceholder(key) {
 function crozzoBindAnonKeyMaskedInput(el, fullKey) {
   if (!el) return;
   const k = String(fullKey || '').trim();
+  const typed = String(el.value || '').trim();
   if (k) {
     el.setAttribute(CROZZO_ANON_KEY_STORE_ATTR, k);
-    el.value = '';
-    el.type = 'password';
-    el.placeholder = crozzoAnonKeyMaskedPlaceholder(k);
-    el.dataset.crozzoKeyMasked = '1';
-  } else {
+    if (!typed && el.dataset.crozzoDirty !== '1') {
+      el.value = '';
+      el.type = 'password';
+      el.placeholder = crozzoAnonKeyMaskedPlaceholder(k);
+    }
+  } else if (!typed) {
     el.removeAttribute(CROZZO_ANON_KEY_STORE_ATTR);
     delete el.dataset.crozzoKeyMasked;
-    el.value = '';
     el.placeholder = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
   }
   if (el._crozzoAnonKeyMaskBound) return;
   el._crozzoAnonKeyMaskBound = true;
-  el.addEventListener('focus', function () {
-    if (el.dataset.crozzoKeyMasked === '1') {
-      el.value = '';
-      el.placeholder = 'Pegue la anon key (public) de Supabase';
-      delete el.dataset.crozzoKeyMasked;
-    }
-  });
-  el.addEventListener('blur', function () {
-    const stored = String(el.getAttribute(CROZZO_ANON_KEY_STORE_ATTR) || '').trim();
-    const typed = String(el.value || '').trim();
-    if (typed.length >= 20) {
-      el.setAttribute(CROZZO_ANON_KEY_STORE_ATTR, typed);
-      el.value = '';
-      el.placeholder = crozzoAnonKeyMaskedPlaceholder(typed);
-      el.dataset.crozzoKeyMasked = '1';
-    } else if (!typed && stored) {
-      el.value = '';
-      el.placeholder = crozzoAnonKeyMaskedPlaceholder(stored);
-      el.dataset.crozzoKeyMasked = '1';
-    }
+  el.addEventListener('input', function () {
+    el.dataset.crozzoDirty = '1';
+    delete el.dataset.crozzoKeyMasked;
   });
 }
 function crozzoGetEffectiveAnonKeyFromInput(el) {
   if (!el) return '';
   const typed = String(el.value || '').trim();
   const stored = String(el.getAttribute(CROZZO_ANON_KEY_STORE_ATTR) || '').trim();
-  if (typed && el.dataset.crozzoKeyMasked !== '1') return typed;
-  if (typed.length >= 20) return typed;
+  if (typed) return typed;
   return stored;
 }
+function crozzoClearMdCloudFormDirty() {
+  ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessId'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) delete el.dataset.crozzoDirty;
+  });
+}
+window.crozzoClearMdCloudFormDirty = crozzoClearMdCloudFormDirty;
 function crozzoHydrateAnonKeyInputFromStorage() {
   const keyEl = document.getElementById('mdSupabaseKey');
   if (!keyEl) return;
@@ -29522,6 +29512,9 @@ async function saveSupabaseConfig() {
       : '✅ Sincronización Cloud desactivada. El POS queda en modo local para nube.',
     'success'
   );
+  try {
+    if (typeof window.crozzoClearMdCloudFormDirty === 'function') window.crozzoClearMdCloudFormDirty();
+  } catch (_) {}
 }
 async function saveLANConfig() {
   const L = readLANSavePayload();
@@ -30021,8 +30014,8 @@ function persistCrozzoSupabaseConfigFileFromMultidispositivo(next) {
     document.getElementById('mdSupabaseUrl')?.focus();
     return false;
   }
-  if (sbKey.length < 20) {
-    showToast('La anon key debe tener al menos 20 caracteres', 'warning');
+  if (sbKey.length < 20 && !(typeof window.crozzoSupabaseKeyLooksValid === 'function' && window.crozzoSupabaseKeyLooksValid(sbKey))) {
+    showToast('La clave pública debe ser Publishable (sb_publishable_…) o anon JWT (eyJ…)', 'warning');
     document.getElementById('mdSupabaseKey')?.focus();
     return false;
   }

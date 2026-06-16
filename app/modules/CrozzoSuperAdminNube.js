@@ -255,7 +255,9 @@
     return {
       syncOn: syncOn,
       url: String(url).trim(),
-      hasKey: key.length >= 20,
+      hasKey:
+        (typeof global.crozzoSupabaseKeyLooksValid === 'function' && global.crozzoSupabaseKeyLooksValid(key)) ||
+        key.length >= 20,
       clientOk: clientOk,
       ready: ready,
       deviceId: (sb && sb.deviceId) || md.deviceId || '',
@@ -561,7 +563,7 @@
     return (
       '<div class="card crozzo-nube-master-guide">' +
       '<div class="card-header"><span class="card-title">Guía maestra — configuración nube completa</span></div>' +
-      '<details class="crozzo-nube-guide-details" open>' +
+      '<details class="crozzo-nube-guide-details">' +
       '<summary>A. Crear proyecto Supabase (antes del POS)</summary>' +
       '<ol class="crozzo-nube-guide-ol">' +
       '<li>Entrar a <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">supabase.com/dashboard</a> → <strong>New project</strong>.</li>' +
@@ -624,10 +626,7 @@
       '<p class="crozzo-nube-hero__eyebrow">Super Admin · Centro de nube</p>' +
       '<h2 class="crozzo-nube-hero__title">Configuración Supabase paso a paso</h2>' +
       '<p class="form-hint crozzo-nube-hero__lead">' +
-      'Asistente completo para dejar operativos <strong>ventas, comandas, compras, marcación, planilla, costos y federación</strong>. ' +
-      'Incluye <strong>' +
-      scripts.length +
-      ' scripts SQL</strong> embebidos con editor, copiar y descargar. Sin nube el POS sigue en modo local.' +
+      'Pegue URL y anon key de Supabase, guarde, y siga los pasos. El POS funciona sin nube en modo local.' +
       '</p>' +
       '<div class="crozzo-nube-arch-grid">' +
       renderArchitectureCards() +
@@ -795,14 +794,9 @@
       '<div class="crozzo-nube-step-panel" data-nube-panel="1">' +
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">🔌 Paso 1 — Conectar proyecto Supabase</span></div>' +
-      '<div class="crozzo-nube-callout">' +
-      '<p><strong>¿Dónde obtengo esto?</strong> En <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">supabase.com/dashboard</a> → su proyecto → <em>Settings → API</em>:</p>' +
-      '<ol class="crozzo-nube-guide-ol" style="margin:8px 0 0;">' +
-      '<li><strong>Project URL</strong> → campo URL del POS</li>' +
-      '<li><strong>anon public</strong> (Project API keys) → campo Anon key</li>' +
-      '<li><strong>Nunca</strong> pegue <code>service_role</code> en tablets ni cajas</li>' +
-      '<li>Mismo <strong>Business ID</strong> en todos los equipos del negocio (opcional multi-sede)</li>' +
-      '</ol></div>' +
+      '<p class="form-hint" style="margin:0 0 12px;">' +
+      'Supabase → Settings → API → copie <strong>Project URL</strong> y <strong>anon public</strong> (nunca <code>service_role</code>).' +
+      '</p>' +
       '<div class="form-grid">' +
       '<div class="form-group full">' +
       '<label class="md-toggle"><input type="checkbox" id="mdSupabaseSyncEnabled" ' +
@@ -813,9 +807,9 @@
       '<input class="form-input" id="mdSupabaseUrl" value="' +
       esc(url) +
       '" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off"></div>' +
-      '<div class="form-group full"><label class="form-label">Anon key (public)</label>' +
-      '<input class="form-input" type="password" id="mdSupabaseKey" value="" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off" title="La clave guardada no se muestra completa; pegue de nuevo solo para cambiarla."></div>' +
-      '<p class="form-hint">Si ya hay clave guardada verá •••• y los últimos 4 caracteres.</p>' +
+      '<div class="form-group full"><label class="form-label">Clave pública (Publishable o anon)</label>' +
+      '<input class="form-input" type="password" id="mdSupabaseKey" value="" placeholder="sb_publishable_… o eyJhbGciOiJIUzI1NiIs…" autocomplete="off" title="Publishable (sb_publishable_…) o anon public legacy (eyJ…)"></div>' +
+      '<p class="form-hint">Dashboard → Settings → API: copie <strong>Publishable key</strong> (nuevo) o <strong>anon public</strong> (legacy). Nunca <code>sb_secret_</code> ni <code>service_role</code>.</p>' +
       '<div class="form-group"><label class="form-label">Nombre de este equipo</label>' +
       '<input class="form-input" id="mdCloudDeviceName" value="' +
       esc(deviceName) +
@@ -1122,8 +1116,6 @@
     return (
       '<div id="crozzo-nube-hub" class="crozzo-nube-hub">' +
       renderHero() +
-      renderFullGuideAccordion() +
-      renderPerfPanel() +
       renderStatusPanel() +
       renderWizardNav(step) +
       '<div class="crozzo-nube-wizard-body">' +
@@ -1132,6 +1124,11 @@
       renderStepVerify() +
       renderStepModules() +
       '</div>' +
+      '<details class="crozzo-nube-guide-details crozzo-nube-advanced-block">' +
+      '<summary>Guía completa, rendimiento y documentación avanzada</summary>' +
+      renderFullGuideAccordion() +
+      renderPerfPanel() +
+      '</details>' +
       '<div class="crozzo-nube-wizard-footer">' +
       '<button type="button" class="btn btn-outline" id="sanBtnPrevStep" ' +
       (step <= 1 ? 'disabled' : '') +
@@ -1239,15 +1236,20 @@
     return scripts[0] ? scripts[0].key : '';
   }
 
-  function sanPopulateFormFromConfig() {
+  function sanPopulateFormFromConfig(force) {
+    if (!force && typeof global.crozzoMdCloudFormHasDraft === 'function' && global.crozzoMdCloudFormHasDraft()) {
+      return;
+    }
     var c = getMdConfig();
     var sb = getSbFile();
     var syncEl = document.getElementById('mdSupabaseSyncEnabled');
-    if (syncEl) syncEl.checked = !!(sb && sb.syncEnabled);
+    if (syncEl && document.activeElement !== syncEl) syncEl.checked = !!(sb && sb.syncEnabled);
     var urlEl = document.getElementById('mdSupabaseUrl');
-    if (urlEl) urlEl.value = (c.supabase && c.supabase.url) || (sb && sb.url) || '';
+    if (urlEl && urlEl.dataset.crozzoDirty !== '1' && document.activeElement !== urlEl) {
+      urlEl.value = (c.supabase && c.supabase.url) || (sb && sb.url) || '';
+    }
     var keyEl = document.getElementById('mdSupabaseKey');
-    if (keyEl) {
+    if (keyEl && keyEl.dataset.crozzoDirty !== '1' && document.activeElement !== keyEl && !String(keyEl.value || '').trim()) {
       var fullKey = (c.supabase && c.supabase.anonKey) || getAnonKey(sb) || '';
       if (typeof global.crozzoBindAnonKeyMaskedInput === 'function') {
         global.crozzoBindAnonKeyMaskedInput(keyEl, fullKey);
@@ -1335,12 +1337,16 @@
         var res = await fetch(base + '/rest/v1/' + encodeURIComponent(p.table) + '?limit=0&select=' + encodeURIComponent(probeCol), {
           method: 'GET',
           signal: controller.signal,
-          headers: {
-            apikey: key,
-            Authorization: 'Bearer ' + key,
-            'Content-Type': 'application/json',
-            Prefer: 'count=exact',
-          },
+          headers: Object.assign(
+            typeof global.crozzoSupabaseRestHeaders === 'function'
+              ? global.crozzoSupabaseRestHeaders(key)
+              : {
+                  apikey: key,
+                  Authorization: 'Bearer ' + key,
+                  'Content-Type': 'application/json',
+                },
+            { Prefer: 'count=exact' }
+          ),
         });
         global.clearTimeout(t);
         var ok = res && (res.ok || res.status === 200 || res.status === 206);
@@ -1417,6 +1423,17 @@
 
   var _empresaPerfilPanelBound = false;
 
+  function sanBindCloudFormDirtyTracking() {
+    ['mdSupabaseUrl', 'mdSupabaseKey', 'mdCloudDeviceName', 'mdCloudDeviceIdInput', 'mdBusinessId'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el || el._crozzoNubeDirtyBound) return;
+      el._crozzoNubeDirtyBound = true;
+      el.addEventListener('input', function () {
+        el.dataset.crozzoDirty = '1';
+      });
+    });
+  }
+
   function initSuperAdminNubeConfig() {
     if (!_empresaPerfilPanelBound) {
       _empresaPerfilPanelBound = true;
@@ -1428,7 +1445,8 @@
     } catch (_) {}
     setWizardStep(step);
 
-    sanPopulateFormFromConfig();
+    sanPopulateFormFromConfig(true);
+    sanBindCloudFormDirtyTracking();
     renderSqlWizardProgress();
     var scripts = getAllScripts();
     var firstKey = scripts[0] ? scripts[0].key : '';
@@ -1477,8 +1495,9 @@
     bindOnce(document.getElementById('sanBtnSaveCloud'), 'click', function () {
       if (typeof global.saveSupabaseConfig === 'function') {
         void global.saveSupabaseConfig().then(function () {
+          if (typeof global.crozzoClearMdCloudFormDirty === 'function') global.crozzoClearMdCloudFormDirty();
           sanRefreshStatusCards();
-          sanPopulateFormFromConfig();
+          sanPopulateFormFromConfig(true);
         });
       } else if (global.showToast) {
         global.showToast('Función saveSupabaseConfig no disponible.', 'error');
@@ -1636,17 +1655,11 @@
       global.__crozzoNubeConfigListener = true;
       global.addEventListener('crozzo-supabase-config-saved', function () {
         if (global.currentPage === 'super-admin-nube') {
+          if (typeof global.crozzoClearMdCloudFormDirty === 'function') global.crozzoClearMdCloudFormDirty();
           sanRefreshStatusCards();
-          sanPopulateFormFromConfig();
+          sanPopulateFormFromConfig(true);
         }
       });
-    }
-
-    var s = nubeSnapshot();
-    if (s.url && s.hasKey && typeof global.testSupabaseConnection === 'function') {
-      global.setTimeout(function () {
-        if (global.currentPage === 'super-admin-nube') void global.testSupabaseConnection();
-      }, 500);
     }
   }
 
