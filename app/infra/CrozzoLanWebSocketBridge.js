@@ -90,6 +90,19 @@
           global.renderPage(global.currentPage);
         }
       } catch (_) {}
+      return;
+    }
+    if (typ === 'internal_qr_slot' || typ === 'internal_qr_req') {
+      if (typ === 'internal_qr_req') {
+        if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.respondWithOwnSlots === 'function') {
+          global.CrozzoInternalQrRegistry.respondWithOwnSlots();
+        }
+        return;
+      }
+      var slot = raw.data || raw.payload || raw;
+      if (slot && global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.ingestPeerSlotEntry === 'function') {
+        global.CrozzoInternalQrRegistry.ingestPeerSlotEntry(slot, { source: 'lan_ws', apply: true });
+      }
     }
   }
 
@@ -100,7 +113,7 @@
         applyLanPush(msg);
         return;
       }
-      if (msg && (msg.type === 'comanda' || msg.type === 'comanda_estado' || msg.type === 'comanda_new')) {
+      if (msg && (msg.type === 'comanda' || msg.type === 'comanda_estado' || msg.type === 'comanda_new' || msg.type === 'internal_qr_slot' || msg.type === 'internal_qr_req')) {
         applyLanPush({ payload: msg });
       }
     } catch (_) {}
@@ -167,6 +180,109 @@
     }
   }
 
+  function internalQrLanBody(entry) {
+    return {
+      type: 'internal_qr_slot',
+      data: {
+        deviceId: entry.deviceId,
+        deviceRole: entry.deviceRole,
+        deviceName: entry.deviceName,
+        businessId: entry.businessId,
+        locationId: entry.locationId,
+        slot: entry.slot,
+        builtAt: entry.builtAt,
+        validUntil: entry.validUntil,
+        scanText: entry.scanText,
+        payloadJson: entry.payloadJson || null,
+        ip: entry.ip || '',
+        port: entry.port || 3000,
+      },
+    };
+  }
+
+  function pushInternalQrSlotLanHttp(entry) {
+    var cfg = md();
+    if (cfg.role !== 'B') return Promise.resolve(false);
+    var ip = String(cfg.centralIp || '').trim();
+    if (!ip || !entry || !entry.scanText) return Promise.resolve(false);
+    var port = Number(cfg.port) || 3000;
+    var body = internalQrLanBody(entry);
+    try {
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = controller ? global.setTimeout(function () { controller.abort(); }, 5500) : null;
+      return global
+        .fetch('http://' + ip + ':' + port + '/api/sync', {
+          method: 'POST',
+          headers:
+            typeof global.crozzoLanAuthHeaders === 'function'
+              ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+              : { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller ? controller.signal : undefined,
+        })
+        .then(function (res) {
+          if (timer) global.clearTimeout(timer);
+          return !!(res && res.ok);
+        })
+        .catch(function () {
+          if (timer) global.clearTimeout(timer);
+          return false;
+        });
+    } catch (_) {
+      return Promise.resolve(false);
+    }
+  }
+
+  function notifyInternalQrSlot(entry) {
+    if (!entry || !entry.scanText) return false;
+    var cfg = md();
+    if (cfg.role === 'A') {
+      var body = JSON.stringify({
+        event: 'lan_push',
+        endpoint: '/api/sync',
+        payload: internalQrLanBody(entry),
+      });
+      if (isDesktopTauri()) {
+        invoke('crozzo_lan_ws_broadcast', { json: body }).catch(function () {});
+        return true;
+      }
+      return false;
+    }
+    if (cfg.role === 'B') {
+      pushInternalQrSlotLanHttp(entry).catch(function () {});
+      return true;
+    }
+    return false;
+  }
+
+  function requestInternalQrCatalogLan() {
+    var cfg = md();
+    if (cfg.role !== 'B') return Promise.resolve(false);
+    var ip = String(cfg.centralIp || '').trim();
+    if (!ip) return Promise.resolve(false);
+    var port = Number(cfg.port) || 3000;
+    var body = { type: 'internal_qr_req', data: { from: cfg.deviceId || '' } };
+    try {
+      return global
+        .fetch('http://' + ip + ':' + port + '/api/sync', {
+          method: 'POST',
+          headers:
+            typeof global.crozzoLanAuthHeaders === 'function'
+              ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+              : { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+        })
+        .then(function (res) {
+          return !!(res && res.ok);
+        })
+        .catch(function () {
+          return false;
+        });
+    } catch (_) {
+      return Promise.resolve(false);
+    }
+  }
+
   function notifyComandasByIds(ids) {
     if (!Array.isArray(ids) || !ids.length) return;
     var cfg = md();
@@ -228,6 +344,8 @@
     disconnect: disconnect,
     notifyComandasByIds: notifyComandasByIds,
     notifyEstado: notifyEstado,
+    notifyInternalQrSlot: notifyInternalQrSlot,
+    requestInternalQrCatalogLan: requestInternalQrCatalogLan,
     afterMainInit: afterMainInit,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

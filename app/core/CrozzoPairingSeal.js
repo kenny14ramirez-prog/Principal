@@ -122,6 +122,9 @@
     if (bid) compact.bid = bid.slice(0, 64);
     if (bn) compact.bn = bn.slice(0, 48);
     if (p.pantalla_area_id) compact.pa = String(p.pantalla_area_id).trim().slice(0, 48);
+    if (p.device_id) compact.did = String(p.device_id).trim().slice(0, 64);
+    if (p.device_role) compact.dr = String(p.device_role).trim().slice(0, 1);
+    if (p.device_name) compact.dn = String(p.device_name).trim().slice(0, 48);
     if (p.cloud_sync !== false) {
       var su = String(p.supabase_url || '').trim();
       var sk = String(p.supabase_key || '').trim();
@@ -173,6 +176,9 @@
       network_ssid: String(compact.ss || '').trim(),
       pantalla_area_id: String(compact.pa || '').trim(),
       role: 'B',
+      device_id: String(compact.did || '').trim(),
+      device_role: String(compact.dr || '').trim(),
+      device_name: String(compact.dn || '').trim(),
       timestamp: Number(compact.ts) || Date.now(),
     };
   }

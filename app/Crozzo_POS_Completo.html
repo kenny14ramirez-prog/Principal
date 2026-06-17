@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.144">
+<meta name="crozzo-app-version" content="1.0.145">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
@@ -1019,6 +1019,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoMobileInstall.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
+<script src="modules/CrozzoPosRuntimeCloud.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
 <script src="modules/CrozzoOperativePsyche.js" defer></script>
 <script src="modules/CrozzoClienteDocIntel.js" defer></script>
@@ -1030,9 +1031,18 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoSupabaseSqlExtras.js" defer></script>
 <script src="modules/CrozzoSuperAdminNube.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
+<script src="infra/CrozzoMdnsBridge.js" defer></script>
+<script src="infra/CrozzoLanWebSocketBridge.js" defer></script>
+<script src="infra/CrozzoWifiZoneBridge.js" defer></script>
+<script src="infra/CrozzoReconnectSync.js" defer></script>
+<script src="infra/CrozzoPageCloudWatch.js" defer></script>
+<script src="infra/CrozzoOfflineGossip.js" defer></script>
+<script src="infra/CrozzoBlePeerRegistry.js" defer></script>
+<script src="infra/CrozzoBleMesh.js" defer></script>
 <script src="infra/CrozzoClockSync.js" defer></script>
 <script src="infra/CrozzoConnectivityOrchestrator.js" defer></script>
 <script src="infra/CrozzoStartupReady.js" defer></script>
+<script src="modules/CrozzoInternalQrRegistry.js" defer></script>
 <script src="modules/CrozzoDailyPairing.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="infra/CrozzoAutomationApi.js" defer></script>

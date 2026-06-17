@@ -182,6 +182,7 @@ function crozzoPruneExpendableStorage() {
       if (key.indexOf('crozzo_pair_pull_') === 0) toRemove.push(key);
     }
     toRemove.push('crozzo_daily_pairing_v1');
+    toRemove.push('crozzo_daily_pairing_v2');
     for (var j = 0; j < toRemove.length; j++) {
       try {
         if (localStorage.getItem(toRemove[j]) != null) {
@@ -463,6 +464,9 @@ function crozzoRecoverSupabaseFromMultiDevice() {
   }
 }
 function crozzoTeardownSupabaseClient() {
+  try {
+    if (typeof window.crozzoStopPosRuntimeCloudSync === 'function') window.crozzoStopPosRuntimeCloudSync();
+  } catch (_) {}
   try {
     if (typeof window.crozzoStopComandasCloudSync === 'function') window.crozzoStopComandasCloudSync();
   } catch (_) {}
@@ -1658,6 +1662,7 @@ window.__crozzoHandleLoginWithSupabase = async function handleLoginWithSupabase(
 window.__crozzoSupabaseSignOut = async function crozzoSupabaseSignOut() {
   try {
     if (typeof crozzoStopRemoteTenantSync === 'function') crozzoStopRemoteTenantSync();
+    if (typeof crozzoStopPosRuntimeCloudSync === 'function') crozzoStopPosRuntimeCloudSync();
     if (typeof crozzoStopComandasCloudSync === 'function') crozzoStopComandasCloudSync();
     sessionStorage.removeItem('crozzo_cloud_profile');
     if (window.__SUPABASE?.auth) await window.__SUPABASE.auth.signOut();
@@ -1891,11 +1896,46 @@ async function crozzoEnsureCloudClientReady() {
   return !!window.__SUPABASE;
 }
 window.crozzoEnsureCloudClientReady = crozzoEnsureCloudClientReady;
+/** Prueba viva REST contra Supabase (Wi‑Fi o datos móviles). */
+window.crozzoProbeSupabaseLive = async function crozzoProbeSupabaseLive() {
+  if (!(await crozzoEnsureCloudClientReady())) return false;
+  var sb = window.__SUPABASE;
+  if (!sb) return false;
+  try {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var tid = ctrl ? setTimeout(function () { ctrl.abort(); }, 5000) : null;
+    var res = await sb.from('crozzo_sede_runtime').select('location_id').limit(1);
+    if (tid) clearTimeout(tid);
+    if (res && res.error) {
+      var msg = String((res.error && res.error.message) || res.error || '');
+      if (/relation|does not exist|404|PGRST205/i.test(msg)) {
+        res = await sb.from('devices').select('id').limit(1);
+      }
+    }
+    return !!(res && !res.error);
+  } catch (e) {
+    return false;
+  }
+};
 window.__crozzoPostInitCloud = async function postInitCloud() {
   if (!(await crozzoEnsureCloudClientReady())) return;
+  var wait = 0;
+  while (
+    wait < 12 &&
+    (typeof crozzoStartPosRuntimeCloudSync !== 'function' || typeof crozzoStartComandasCloudSync !== 'function')
+  ) {
+    await new Promise(function (r) {
+      setTimeout(r, 150);
+    });
+    wait++;
+  }
   try {
-    if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
-    if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
+    if (typeof window.crozzoEnsureCloudSyncActive === 'function') {
+      await window.crozzoEnsureCloudSyncActive({ source: 'postInit', resetTableMissing: true });
+    } else {
+      if (typeof crozzoStartComandasCloudSync === 'function') crozzoStartComandasCloudSync();
+      if (typeof crozzoStartPosRuntimeCloudSync === 'function') crozzoStartPosRuntimeCloudSync();
+    }
     if (typeof crozzoPullRemoteTenantState === 'function') {
       await crozzoPullRemoteTenantState({ skipRender: true, quiet: true });
     }
@@ -2913,6 +2953,19 @@ void (async function __crozzoSupabaseBootstrap() {
 })();
 window.addEventListener('online', () => {
   syncOfflineQueue().catch((e) => console.warn('[crozzo-sb] syncOfflineQueue', e));
+  try {
+    if (typeof crozzoInvalidateCloudPingCache === 'function') crozzoInvalidateCloudPingCache();
+  } catch (_) {}
+  try {
+    if (
+      typeof crozzoCloudFirstSyncEnabled === 'function' &&
+      crozzoCloudFirstSyncEnabled() &&
+      typeof crozzoEnsureCloudSyncActive === 'function' &&
+      crozzoOnlineConfigReady()
+    ) {
+      crozzoEnsureCloudSyncActive({ source: 'online', resetTableMissing: false }).catch(function () {});
+    }
+  } catch (_) {}
   try {
     if (typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
       window.__crozzoRefreshCloudCatalogUi().catch((e) => console.warn('[crozzo-sb] refresh on online', e));

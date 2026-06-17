@@ -2630,6 +2630,17 @@
   function maybeBleAdvertiseHint(meta) {
     return new Promise(function (resolve) {
       try {
+        if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.getStatus === 'function') {
+          var ble = global.CrozzoBleMesh.getStatus();
+          if (ble && ble.active) {
+            return resolve({
+              supported: true,
+              transport: ble.transport || 'ble-mesh',
+              peers: ble.peerCount || 0,
+              note: 'Malla BLE/gossip activa',
+            });
+          }
+        }
         var gossip =
           global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.getStatus === 'function'
             ? global.CrozzoOfflineGossip.getStatus()
@@ -2639,11 +2650,14 @@
             supported: true,
             transport: gossip.transport || 'udp',
             peers: gossip.peerCount || 0,
-            note: 'Malla gossip UDP activa (tier offline)',
+            note: 'Malla gossip activa (tier offline)',
           });
         }
+        if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.webBtCapable === 'function' && global.CrozzoBleMesh.webBtCapable()) {
+          return resolve({ supported: true, transport: 'web-bt-ready', note: 'Web Bluetooth disponible — active malla' });
+        }
         if (!meta || !global.navigator.bluetooth) return resolve({ supported: false });
-        resolve({ supported: false, note: 'BLE nativo pendiente; gossip UDP disponible sin internet' });
+        resolve({ supported: false, note: 'BLE: active malla en Config o empareje P2P (iOS)' });
       } catch (e) {
         resolve({ supported: false });
       }
@@ -3294,6 +3308,12 @@
       }
       if (msg.type === 'NEW_ORDER' && msg.payload) {
         processKitchenNewOrder(dc, msg);
+      }
+      if (msg.type === 'MESH_FRAME' && msg.raw) {
+        if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.ingestRaw === 'function') {
+          global.CrozzoBleMesh.ingestRaw(String(msg.raw));
+        }
+        return;
       }
       if (msg.type === 'ORDER_ACK') {
         onOrderAckFromPeer(msg);
@@ -3953,6 +3973,16 @@
       reconcileSafe().catch(function () {});
     });
   }
+  function relayMeshFrame(raw) {
+    if (!raw || !state.dc || state.dc.readyState !== 'open') return false;
+    try {
+      state.dc.send(JSON.stringify({ type: 'MESH_FRAME', raw: String(raw) }));
+      return true;
+    } catch (e) {
+      log('relayMeshFrame ' + e);
+      return false;
+    }
+  }
   global.CrozzoEmergencyMesh = {
     init: init,
     evaluateIsolation: evaluateIsolation,
@@ -3970,6 +4000,7 @@
     refreshOutboxCache: refreshOutboxCache,
     pauseBackgroundTimers: pauseBackgroundTimers,
     resumeBackgroundTimers: resumeBackgroundTimers,
+    relayMeshFrame: relayMeshFrame,
     meshLog: meshLog,
     STATUS: STATUS,
     _state: state

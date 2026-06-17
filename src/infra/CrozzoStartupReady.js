@@ -72,6 +72,21 @@
    * instalacion, en APK/tablet. En navegador/escritorio se deja on-demand para
    * no molestar; getUserMedia pedira su propio permiso al usarse.
    */
+  function prewarmBluetoothMesh() {
+    safe(function () {
+      if (!global.CrozzoBlePeerRegistry) return;
+      if (isAndroidApk()) {
+        global.setTimeout(function () {
+          if (typeof global.CrozzoBlePeerRegistry.prewarmBluetoothOnApkBoot === 'function') {
+            global.CrozzoBlePeerRegistry.prewarmBluetoothOnApkBoot().catch(function () {});
+          }
+        }, 1400);
+      } else if (typeof global.CrozzoBlePeerRegistry.prewarmDesktopMesh === 'function') {
+        global.CrozzoBlePeerRegistry.prewarmDesktopMesh();
+      }
+    });
+  }
+
   function prewarmCameraPermission() {
     var asked = safe(function () {
       return global.localStorage.getItem(LS_CAM_ASKED) === '1';
@@ -209,6 +224,7 @@
 
     ensureAutoHotspotDefault();
     prewarmCameraPermission();
+    prewarmBluetoothMesh();
 
     // Corrige el reloj local si esta mal puesto (afecta caducidad de QR y sync).
     safe(function () {
@@ -224,9 +240,24 @@
       }
     });
 
-    // Genera/refresca el QR del dia en la caja.
+    // Sync nube (fase 1): arrancar si hay credenciales e internet (Wi‑Fi o datos).
     safe(function () {
-      if (global.CrozzoDailyPairing && typeof global.CrozzoDailyPairing.ensureToday === 'function') {
+      if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+        global.setTimeout(function () {
+          var wan =
+            typeof global.crozzoWanOnline === 'function' ? global.crozzoWanOnline() : !!global.navigator.onLine;
+          if (wan && cloudConfigured()) {
+            global.crozzoEnsureCloudSyncActive({ source: 'startup', resetTableMissing: true }).catch(function () {});
+          }
+        }, 1200);
+      }
+    });
+
+    // Registro interno de QRs (todos los dispositivos, cada 4 h).
+    safe(function () {
+      if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.start === 'function') {
+        global.CrozzoInternalQrRegistry.start();
+      } else if (global.CrozzoDailyPairing && typeof global.CrozzoDailyPairing.ensureToday === 'function') {
         global.CrozzoDailyPairing.ensureToday();
       }
     });

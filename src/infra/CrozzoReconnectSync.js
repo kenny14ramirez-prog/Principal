@@ -164,7 +164,11 @@
     try {
       logLine('🔄 Sync total (' + (opts.source || 'manual') + ')…');
       var central = await centralAuthorityPush();
-      if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
+      if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+        try {
+          await global.crozzoEnsureCloudSyncActive({ source: opts.source || 'reconnect', resetTableMissing: !!opts.force });
+        } catch (_) {}
+      } else if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
         try {
           global.crozzoStartPosRuntimeCloudSync();
         } catch (_) {}

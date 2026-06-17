@@ -76,6 +76,16 @@
     );
   }
 
+  function cloudTransportActive() {
+    if (!online() || __tableMissing) return false;
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') {
+        return global.crozzoTierAllowsCloudSync();
+      }
+    } catch (_) {}
+    return true;
+  }
+
   function ctx() {
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     var loc = String(md.locationId || 'default').trim() || 'default';
@@ -341,7 +351,7 @@
   }
 
   async function upsertRuntimeRow(snap) {
-    if (!online() || __tableMissing) return false;
+    if (!cloudTransportActive()) return false;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return false;
     var sb = global.__SUPABASE;
@@ -356,6 +366,17 @@
       }
       noteCloudErr(res.error);
       var msg = String((res.error && res.error.message) || res.error || '');
+      if (/401|403|permission denied|rls|jwt|forbidden/i.test(msg)) {
+        if (!global.__crozzoRuntimeRlsWarned) {
+          global.__crozzoRuntimeRlsWarned = true;
+          console.warn('[runtime-cloud] Permiso/RLS rechazó escritura:', msg);
+          try {
+            if (typeof global.showToast === 'function') {
+              global.showToast('Nube: permiso denegado al guardar mesas. Revise RLS en Supabase.', 'warning');
+            }
+          } catch (_) {}
+        }
+      }
       if (/relation|does not exist|404|PGRST205|schema cache/i.test(msg)) {
         __tableMissing = true;
         console.warn('[runtime-cloud] Tabla ' + TABLE + ' no existe. Ejecute docs/SUPABASE-SQL-POS-RUNTIME.sql');
@@ -380,7 +401,15 @@
     return ip;
   }
 
+  function deferLocalCloudSync() {
+    try {
+      return typeof global.crozzoDeferLocalSync === 'function' && global.crozzoDeferLocalSync();
+    } catch (_) {}
+    return false;
+  }
+
   async function lanSegmentUp() {
+    if (deferLocalCloudSync()) return false;
     if (typeof global.crozzoProbeLocalLanReachable !== 'function') return false;
     try {
       var p = await global.crozzoProbeLocalLanReachable();
@@ -669,20 +698,22 @@
     }
     snap.savedAt = Date.now();
     var lanLikely = false;
-    try {
-      if (typeof global.crozzoIsLocalLanSegmentUp === 'function') {
-        lanLikely = global.crozzoIsLocalLanSegmentUp();
-      }
-    } catch (_) {}
-    if (!lanLikely) {
+    if (!deferLocalCloudSync()) {
       try {
-        lanLikely = await lanSegmentUp();
+        if (typeof global.crozzoIsLocalLanSegmentUp === 'function') {
+          lanLikely = global.crozzoIsLocalLanSegmentUp();
+        }
       } catch (_) {}
+      if (!lanLikely) {
+        try {
+          lanLikely = await lanSegmentUp();
+        } catch (_) {}
+      }
     }
     // Dual-write: LAN instantáneo (WS) + nube durable — sin duplicar costo si LAN falla.
     var lanP = lanLikely ? pushRuntimeLan(snap).catch(function () { return false; }) : Promise.resolve(false);
     var cloudOk = false;
-    if (online() && !__tableMissing) {
+    if (cloudTransportActive()) {
       if (await ensureMesaMode()) {
         cloudOk = await pushMesaRows(snap, ctx());
       } else {
@@ -708,16 +739,18 @@
     }
     if (p === 'fast') {
       __pushPending = 'fast';
-      try {
-        if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
-          var fullFast = collectFull();
-          var snapFast = packForCloud(fullFast);
-          if (snapFast) {
-            snapFast.savedAt = Date.now();
-            pushRuntimeLan(snapFast).catch(function () {});
+      if (!deferLocalCloudSync()) {
+        try {
+          if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
+            var fullFast = collectFull();
+            var snapFast = packForCloud(fullFast);
+            if (snapFast) {
+              snapFast.savedAt = Date.now();
+              pushRuntimeLan(snapFast).catch(function () {});
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
     } else if (__pushPending !== 'fast') __pushPending = 'normal';
     if (__pushTimer) clearTimeout(__pushTimer);
     var ms = __pushPending === 'fast' ? DEBOUNCE_FAST_MS : DEBOUNCE_NORMAL_MS;
@@ -782,7 +815,7 @@
   async function pullRuntime(opts) {
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return false;
-    if (online() && !__tableMissing) {
+    if (cloudTransportActive()) {
       if (await ensureMesaMode()) {
         var doneMesa = await pullMesaRows(opts, c);
         if (__mesaMode) return doneMesa; // modo por-mesa activo
@@ -807,9 +840,10 @@
       } catch (e) {
         console.warn('[runtime-cloud] pull cloud', e);
       }
+      // Fase nube: no mezclar pull LAN si Supabase esta activo.
+      return false;
     }
     if (await lanSegmentUp()) {
-      if (ctx().role === 'A' && online()) return false;
       return pullRuntimeLan(opts);
     }
     return false;
@@ -853,12 +887,12 @@
   }
 
   function subscribeRealtime(reason) {
-    if (!online() || __tableMissing) return;
+    if (!cloudTransportActive()) return;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return;
     teardownRuntimeChannel();
     ensureMesaMode().then(function (useMesa) {
-      if (!online() || __tableMissing) return;
+      if (!cloudTransportActive()) return;
       try {
         var filter = 'location_id=eq.' + c.locationId;
         var tbl = useMesa ? MESA_TABLE : TABLE;
@@ -922,13 +956,23 @@
     teardownRuntimeChannel();
   }
 
-  function startRuntimeCloudSync() {
+  function startRuntimeCloudSync(opts) {
+    opts = opts || {};
+    if (typeof global.crozzoEnsureSedeLocationId === 'function') {
+      try {
+        global.crozzoEnsureSedeLocationId();
+      } catch (_) {}
+    }
+    if (opts.resetTableMissing) __tableMissing = false;
     if (__started) {
       subscribeRealtime('refresh');
       return;
     }
     var c = ctx();
-    if (!c.locationId || c.locationId === 'default') return;
+    if (!c.locationId || c.locationId === 'default') {
+      console.warn('[runtime-cloud] Sin location_id válido — sync nube inactiva. Empareje de nuevo o configure sede.');
+      return;
+    }
     __started = true;
     __tableMissing = false;
     pullRuntime({ skipRender: true, quiet: true }).catch(function () {});
@@ -957,6 +1001,55 @@
   };
   global.crozzoStartPosRuntimeCloudSync = startRuntimeCloudSync;
   global.crozzoStopPosRuntimeCloudSync = stopRuntimeCloudSync;
+
+  /** Arranque/reparación central de sync nube (runtime + comandas). */
+  global.crozzoEnsureCloudSyncActive = async function crozzoEnsureCloudSyncActive(opts) {
+    opts = opts || {};
+    try {
+      if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
+    } catch (_) {}
+    if (typeof global.crozzoEnsureCloudClientReady === 'function') {
+      try {
+        await global.crozzoEnsureCloudClientReady();
+      } catch (_) {}
+    }
+    if (
+      typeof global.crozzoTierAllowsCloudSync === 'function' &&
+      !global.crozzoTierAllowsCloudSync()
+    ) {
+      return false;
+    }
+    if (!online()) return false;
+    var wait = 0;
+    while (wait < 8 && typeof global.crozzoStartPosRuntimeCloudSync !== 'function') {
+      await new Promise(function (r) {
+        global.setTimeout(r, 150);
+      });
+      wait++;
+    }
+    try {
+      startRuntimeCloudSync({ resetTableMissing: !!opts.resetTableMissing });
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+        await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false });
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoPullComandasFromCloud === 'function') {
+        await global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: false });
+      }
+    } catch (_) {}
+    try {
+      if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.pullPeersFromCloud === 'function') {
+        await global.CrozzoInternalQrRegistry.pullPeersFromCloud();
+      }
+    } catch (_) {}
+    return online() && !__tableMissing;
+  };
   global.crozzoPosRuntimeCloudIsLive = function () {
     return __started && !__tableMissing;
   };
@@ -974,13 +1067,26 @@
     document.addEventListener('crozzo-multidevice-config-saved', function () {
       try {
         if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
-        startRuntimeCloudSync();
+        startRuntimeCloudSync({ resetTableMissing: true });
       } catch (_) {}
     });
     document.addEventListener('crozzo-supabase-config-saved', function () {
       try {
-        startRuntimeCloudSync();
+        if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+          global.crozzoEnsureCloudSyncActive({ source: 'config_saved', resetTableMissing: true }).catch(function () {});
+        } else {
+          startRuntimeCloudSync({ resetTableMissing: true });
+        }
       } catch (_) {}
+    });
+  }
+  if (typeof global.addEventListener === 'function') {
+    global.addEventListener('online', function () {
+      if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+        global.setTimeout(function () {
+          global.crozzoEnsureCloudSyncActive({ source: 'online' }).catch(function () {});
+        }, 400);
+      }
     });
   }
 })(typeof window !== 'undefined' ? window : globalThis);

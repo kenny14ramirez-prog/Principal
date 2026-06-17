@@ -144,12 +144,20 @@
     applyLayoutPolish();
   }
 
+  function requestBluetoothEnable() {
+    if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.requestBluetoothEnable === 'function') {
+      return global.CrozzoBleMesh.requestBluetoothEnable();
+    }
+    return Promise.resolve({ ok: false, note: 'Malla BLE no cargada' });
+  }
+
   global.CrozzoAndroidNative = {
     isAndroidApk: isAndroidApk,
     applyLayoutPolish: applyLayoutPolish,
     haptic: haptic,
     hapticLight: hapticLight,
     hapticOpen: hapticOpen,
+    requestBluetoothEnable: requestBluetoothEnable,
     refresh: boot,
   };
 

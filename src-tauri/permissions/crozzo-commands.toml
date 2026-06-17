@@ -58,6 +58,18 @@ commands.allow = [
 ]
 
 [[permission]]
+identifier = "allow-crozzo-ble-mesh"
+description = "Malla BLE / gossip epidémico entre dispositivos"
+commands.allow = [
+  "crozzo_ble_mesh_start",
+  "crozzo_ble_mesh_stop",
+  "crozzo_ble_mesh_send",
+  "crozzo_ble_mesh_drain",
+  "crozzo_ble_mesh_status",
+  "crozzo_ble_mesh_request_enable",
+]
+
+[[permission]]
 identifier = "allow-crozzo-lan-ws"
 description = "WebSocket LAN push comandas (puerto HTTP+1)"
 commands.allow = [

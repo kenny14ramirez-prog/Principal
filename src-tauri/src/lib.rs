@@ -25,6 +25,7 @@ mod dian_vpfe;
 mod webview_permissions;
 #[cfg(target_os = "android")]
 mod crozzo_android_install;
+mod crozzo_ble_mesh;
 mod crozzo_gossip_udp;
 
 #[cfg(desktop)]
@@ -113,6 +114,12 @@ pub fn run() {
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_probe_updater,
+            crozzo_ble_mesh::crozzo_ble_mesh_start,
+            crozzo_ble_mesh::crozzo_ble_mesh_stop,
+            crozzo_ble_mesh::crozzo_ble_mesh_send,
+            crozzo_ble_mesh::crozzo_ble_mesh_drain,
+            crozzo_ble_mesh::crozzo_ble_mesh_status,
+            crozzo_ble_mesh::crozzo_ble_mesh_request_enable,
             crozzo_gossip_udp::crozzo_gossip_udp_start,
             crozzo_gossip_udp::crozzo_gossip_udp_stop,
             crozzo_gossip_udp::crozzo_gossip_udp_send,

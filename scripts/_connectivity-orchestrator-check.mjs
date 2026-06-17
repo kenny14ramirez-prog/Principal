@@ -36,6 +36,7 @@ function staticChecks() {
   const files = [
     'app/infra/CrozzoConnectivityOrchestrator.js',
     'app/infra/CrozzoStartupReady.js',
+    'app/modules/CrozzoInternalQrRegistry.js',
     'app/modules/CrozzoDailyPairing.js',
   ];
   for (const f of files) {
@@ -70,9 +71,13 @@ function staticChecks() {
   // Mejoras de escala
   const comandas = readFileSync(join(app, 'modules/CrozzoComandasCloudSync.js'), 'utf8');
   assert(/business_id=eq\./.test(comandas), 'Escala', 'Realtime comandas filtrado por business_id');
+  assert(/tenantIdsReady/.test(comandas), 'Nube', 'comandas exige tenant antes de Realtime');
+  assert(/deferLocalCloudSync/.test(comandas), 'Nube', 'comandas respeta fase nube sin LAN dual');
   assert(/isUnderPressure/.test(comandas), 'Escala', 'polling comandas adaptativo bajo presion');
   const rt = readFileSync(join(app, 'modules/CrozzoPosRuntimeCloud.js'), 'utf8');
   assert(/if \(__pushTimer\) return false;/.test(rt), 'Escala', 'anti-pisado de ediciones locales activas');
+  assert(/deferLocalCloudSync/.test(rt), 'Nube', 'runtime respeta fase nube sin LAN dual');
+  assert(/crozzoTierAllowsCloudSync/.test(rt), 'Nube', 'ensureCloudSyncActive respeta tier');
   assert(/isUnderPressure/.test(rt), 'Escala', 'polling runtime adaptativo bajo presion');
   const recon = readFileSync(join(app, 'infra/CrozzoReconnectSync.js'), 'utf8');
   assert(/reconnectStaggerMs/.test(recon), 'Escala', 'escalonado anti-estampida en reconexion');
@@ -91,6 +96,9 @@ function staticChecks() {
   assert(existsSync(join(app, 'infra/CrozzoClockSync.js')), 'Humano', 'modulo CrozzoClockSync');
   for (const html of ['app/index.html', 'app/Crozzo_POS_Completo.html']) {
     const txt = readFileSync(join(root, html), 'utf8');
+    assert(txt.includes('CrozzoPosRuntimeCloud.js'), 'Nube runtime', 'CrozzoPosRuntimeCloud en ' + html);
+    assert(txt.includes('CrozzoPageCloudWatch.js'), 'Nube page watch', 'CrozzoPageCloudWatch en ' + html);
+    assert(txt.includes('CrozzoReconnectSync.js'), 'Nube reconnect', 'CrozzoReconnectSync en ' + html);
     assert(txt.indexOf('CrozzoClockSync.js') > 0 && txt.indexOf('CrozzoClockSync.js') < txt.indexOf('CrozzoPosBoot.js'), 'Humano', 'ClockSync cargado en ' + html);
   }
   assert(/CLOCK_SKEW_HINT_MS/.test(main) && /crozzoNow/.test(main), 'Humano', 'QR tolerante a reloj desajustado');
@@ -112,7 +120,8 @@ function staticChecks() {
   assert(/__crozzoSuppressRuntimePush/.test(rt), 'Sede', 'supresion de escritura durante cambio de sede');
   assert(/crozzoSedeSwitchFlushToOldCloud/.test(main), 'Sede', 'respaldo a nube vieja antes de vaciar');
   assert(/removeItem\(CROZZO_POS_RUNTIME_LS\)/.test(main), 'Sede', 'vacia estado operativo de la sede vieja');
-  assert(/reiniciando para empezar limpio/.test(main), 'Sede', 'reinicio limpio tras cambio de sede');
+  assert(existsSync(join(root, 'docs/SUPABASE-SQL-DEVICE-QR-SLOTS.sql')), 'QR interno', 'SQL device_qr_slots');
+  assert(/crozzo_device_qr_slots/.test(readFileSync(join(app, 'modules/CrozzoInternalQrRegistry.js'), 'utf8')), 'QR interno', 'modulo registry');
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +259,12 @@ async function orchestratorTests() {
   c.crozzoMaybeAutoStartHotspot = h.spy('hotspotAuto');
   c.CrozzoOfflineGossip = { afterMainInit: h.spy('gossipInit') };
   c.CrozzoEmergencyMesh = { init: h.spy('emergencyInit') };
-  c.CrozzoDailyPairing = { surfaceLastResort: h.spy('qrSurface'), ensureToday: h.spy('qrEnsure') };
+  c.CrozzoDailyPairing = {
+    surfaceLastResort: h.spy('qrSurface'),
+    ensureToday: h.spy('qrEnsure'),
+    ensureCurrent: h.spy('qrEnsureCurrent'),
+  };
+  c.crozzoOnlineConfigReady = () => false;
   c.crozzoRunFullReconnectSync = h.spy('reconnect', () => Promise.resolve());
   c.showToast = h.spy('toast');
 
@@ -291,8 +305,10 @@ async function orchestratorTests() {
   assert(O.getState().level === 'hotspot', 'Nivel hotspot', O.getState().level);
   assert(h.spies['hotspotAuto'] >= 1, 'Caja despliega hotspot', 'crozzoMaybeAutoStartHotspot');
 
-  // Offline -> malla (init una sola vez)
+  // Offline sin nube -> malla (init una sola vez)
   tier = 'offline';
+  c.detectConnectivityTier = () =>
+    Promise.resolve({ tier: 'offline', reason: 'mock offline', lanReach: false, gwReach: false });
   await O.evaluateNow();
   await flush();
   await O.evaluateNow();
@@ -301,12 +317,34 @@ async function orchestratorTests() {
   assert(h.spies['gossipInit'] === 1, 'Malla init una vez', 'runOnce gossip=' + h.spies['gossipInit']);
   assert(h.spies['emergencyInit'] === 1, 'Emergency init una vez', 'runOnce emergency=' + h.spies['emergencyInit']);
 
-  // Aislamiento prolongado -> QR del dia
-  h.advance(95000);
+  // Tras 5 min aislado sin nube -> QR
+  h.advance(301000);
   await O.evaluateNow();
   await flush();
-  assert(O.getState().level === 'qr', 'Nivel QR', O.getState().level);
+  assert(O.getState().level === 'qr', 'Nivel QR (sin nube, 5 min)', O.getState().level);
   assert(h.spies['qrSurface'] >= 1, 'QR ultimo recurso', 'surfaceLastResort');
+
+  // Nube viva + sin LAN -> QR inmediato (operacion; no esperar 5 min)
+  const hCloud = makeSandbox();
+  const cCloud = hCloud.ctx;
+  cCloud.detectConnectivityTier = () =>
+    Promise.resolve({ tier: 'offline', reason: 'mock offline+cloud', lanReach: false, gwReach: false });
+  cCloud.getMultiDeviceConfig = () => ({ role: 'A' });
+  cCloud.crozzoOnlineConfigReady = () => true;
+  cCloud.__SUPABASE = {};
+  cCloud.crozzoCloudFirstSyncEnabled = () => false;
+  cCloud.crozzoStartPosRuntimeCloudSync = hCloud.spy('startRuntimeCloud');
+  cCloud.crozzoStartComandasCloudSync = hCloud.spy('startComandasCloud');
+  cCloud.CrozzoWifiZoneBridge = { startWatch: hCloud.spy('w') };
+  cCloud.CrozzoOfflineGossip = { afterMainInit: hCloud.spy('g') };
+  cCloud.CrozzoEmergencyMesh = { init: hCloud.spy('e') };
+  cCloud.CrozzoDailyPairing = { surfaceLastResort: hCloud.spy('qrSurface'), ensureCurrent: hCloud.spy('qrEnsure') };
+  cCloud.showToast = hCloud.spy('toast');
+  hCloud.load('app/infra/CrozzoConnectivityOrchestrator.js');
+  await cCloud.CrozzoConnectivityOrchestrator.evaluateNow();
+  await flush();
+  assert(cCloud.CrozzoConnectivityOrchestrator.getState().level === 'qr', 'Nivel QR (nube+aislamiento)', cCloud.CrozzoConnectivityOrchestrator.getState().level);
+  assert((hCloud.spies['qrSurface'] || 0) >= 1, 'QR inmediato con nube', 'surfaceLastResort');
 
   // Hotspot en caja Android -> aviso guiado (no auto hotspot)
   const h2 = makeSandbox();
@@ -339,14 +377,18 @@ async function dailyPairingTests() {
       type: 'CROZZO_CLOUD_PAIRING',
       version: 4,
       target_profile: profile,
+      device_id: 'CAJA-1',
+      device_role: 'A',
       lan: { central_ip: '192.168.1.10', port: 3000 },
       location_id: 'SEDE-1',
       cloud_sync: true,
       timestamp: h.now(),
     },
   });
+  c.crozzoPairingBuildDeviceSelfPayload = c.crozzoPairingBuildPayload;
   c.CrozzoPairingSeal = { buildFastQrText: () => 'FASTQR-TOKEN' };
 
+  h.load('app/modules/CrozzoInternalQrRegistry.js');
   h.load('app/modules/CrozzoDailyPairing.js');
   const D = c.CrozzoDailyPairing;
   assert(D && typeof D.ensureToday === 'function', 'QR diario carga', 'expone API');
@@ -354,8 +396,16 @@ async function dailyPairingTests() {
   const rec = D.ensureToday();
   assert(rec && rec.scanText === 'FASTQR-TOKEN', 'Genera QR del dia', 'scanText sellado');
   assert(rec && rec.locationId === 'SEDE-1', 'QR lleva sede', rec && rec.locationId);
+  assert(rec && rec.slot, 'QR usa franja 4h', rec && rec.slot);
   const got = D.getToday();
-  assert(got && got.date === rec.date, 'QR persiste hoy', got && got.date);
+  assert(got && got.slot === rec.slot, 'QR persiste franja actual', got && got.slot);
+
+  // Nueva franja -> regenera y conserva historial
+  h.advance(4 * 60 * 60 * 1000 + 1000);
+  c.CrozzoPairingSeal = { buildFastQrText: () => 'FASTQR-TOKEN-2' };
+  const rec2 = D.ensureCurrent(true);
+  assert(rec2 && rec2.scanText === 'FASTQR-TOKEN-2', 'Regenera cada 4 h', rec2 && rec2.scanText);
+  assert(Array.isArray(rec2.history) && rec2.history.length >= 1, 'Historial QR previo', 'history.length>=' + (rec2.history && rec2.history.length));
 
   // Rol B no emite QR
   const h2 = makeSandbox();

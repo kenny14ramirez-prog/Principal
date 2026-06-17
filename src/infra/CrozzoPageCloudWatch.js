@@ -53,6 +53,12 @@
   }
 
   function onlineReady() {
+    if (
+      typeof global.crozzoTierAllowsCloudSync === 'function' &&
+      !global.crozzoTierAllowsCloudSync()
+    ) {
+      return false;
+    }
     return (
       typeof global.crozzoOnlineConfigReady === 'function' &&
       global.crozzoOnlineConfigReady() &&

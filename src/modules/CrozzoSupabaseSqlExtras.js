@@ -215,6 +215,43 @@
     '  for all using (true) with check (true);\n\n' +
     'notify pgrst, \'reload schema\';\n';
 
+  var DEVICE_QR_SLOTS_SQL =
+    '-- Crozzo POS — Registro de QRs internos de comunicación entre dispositivos\n' +
+    '-- Cada equipo publica su QR cada ~4 h (valido ~24 h). Todos leen los de los demas.\n' +
+    '-- Active Realtime para sincronizacion instantanea del catalogo de QRs.\n\n' +
+    'create table if not exists public.crozzo_device_qr_slots (\n' +
+    '  id text primary key,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  location_id text not null default \'default\',\n' +
+    '  device_id text not null,\n' +
+    '  device_role text not null default \'B\',\n' +
+    '  device_name text not null default \'\',\n' +
+    '  slot_key text not null,\n' +
+    '  scan_text text not null,\n' +
+    '  payload_json jsonb,\n' +
+    '  built_at timestamptz not null,\n' +
+    '  valid_until timestamptz not null,\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_device_qr_loc\n' +
+    '  on public.crozzo_device_qr_slots (business_id, location_id, valid_until desc);\n\n' +
+    'alter table public.crozzo_device_qr_slots enable row level security;\n\n' +
+    'drop policy if exists crozzo_device_qr_slots_all on public.crozzo_device_qr_slots;\n' +
+    'create policy crozzo_device_qr_slots_all on public.crozzo_device_qr_slots\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_publication_tables\n' +
+    '    where pubname = \'supabase_realtime\'\n' +
+    '      and schemaname = \'public\'\n' +
+    '      and tablename = \'crozzo_device_qr_slots\'\n' +
+    '  ) then\n' +
+    '    alter publication supabase_realtime add table public.crozzo_device_qr_slots;\n' +
+    '  end if;\n' +
+    'end $$;\n\n' +
+    'notify pgrst, \'reload schema\';\n';
+
   global.CrozzoSupabaseSqlExtras = {
     list: function () {
       return [
@@ -262,6 +299,15 @@
           required: false,
           order: 14,
           sql: BUSINESS_REGISTRY_SQL,
+        },
+        {
+          key: 'device_qr_slots',
+          file: 'docs/SUPABASE-SQL-DEVICE-QR-SLOTS.sql',
+          title: '15. QRs internos entre dispositivos',
+          desc: 'Cada equipo publica su QR cada 4 h; todos guardan los de los demas. Respaldo ultimo recurso. Active Realtime.',
+          required: false,
+          order: 15,
+          sql: DEVICE_QR_SLOTS_SQL,
         },
       ];
     },

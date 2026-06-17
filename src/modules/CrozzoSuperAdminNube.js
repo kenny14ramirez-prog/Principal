@@ -57,6 +57,11 @@
       detail: 'Script 13 o crear usuario en Super Admin → Paso 3. Los cajeros con PIN usan pos_staff (no profiles).',
     },
     {
+      id: 'device_qr_mesh',
+      label: 'Script 15 — QRs internos / malla entre tablets (recomendado)',
+      detail: 'Tabla crozzo_device_qr_slots: respaldo cuando cae Wi‑Fi; Bluetooth + identidad de dispositivos.',
+    },
+    {
       id: 'seguridad',
       label: 'Seguridad y respaldo',
       detail: 'Anon key enmascarada; backup Supabase; sin service_role en dispositivos.',
@@ -149,12 +154,29 @@
       steps: ['Un proyecto Supabase por negocio', 'Repita en cada sede que intercambie stock'],
       errors: [],
     },
+    device_qr_slots: {
+      tables: 'crozzo_device_qr_slots',
+      depends: 'Script 1 (base POS). Mismo proyecto Supabase que caja y tablets.',
+      modules: 'Comunicación entre dispositivos, malla BLE/LAN, QRs cada 4 h, renombre de tablets',
+      steps: [
+        'Supabase → SQL → New query',
+        'Copie el script 15 desde el Paso 2 (o use «Copiar SQL» en este panel)',
+        'Run ▶ y espere «Success»',
+        'Vuelva aquí → «Comprobar tabla» → «Activar en este equipo»',
+        'Recargue la app (F5) si antes veía error 404 en consola',
+      ],
+      errors: [
+        '404 / schema cache → la tabla no existe: ejecute el script 15 completo',
+        '401 en REST → revise anon key en Paso 1 e inicie sesión (no guest)',
+        'Realtime: Dashboard → Database → Replication → crozzo_device_qr_slots ON',
+      ],
+    },
   };
 
   var NUBE_ARCHITECTURE = [
     { icon: '🏪', title: '1 negocio = 1 proyecto Supabase', body: 'No comparta un proyecto entre marcas distintas. Mismo Business ID en todos los equipos del negocio.' },
     { icon: '🔑', title: 'Solo anon public en el POS', body: 'Nunca pegue service_role en la app. Super Admin confirma contraseña al guardar.' },
-    { icon: '📝', title: 'SQL en orden 1 → 11', body: 'Obligatorios: 1–4. Opcionales según módulos: 5–11. Marque «Ya lo ejecuté» por script.' },
+    { icon: '📝', title: 'SQL en orden 1 → 15', body: 'Obligatorios: 1–4 y 10. Opcionales: 5–15. Script 15 = QRs entre tablets (malla).' },
     { icon: '📡', title: 'LAN + Nube', body: 'Con internet caído, LAN/P2P sigue operando; la nube drena colas al volver.' },
     { icon: '🪣', title: 'Storage', body: 'Buckets: oficina-docs (facturas PDF), fotos-marcaciones (asistencia).' },
   ];
@@ -192,6 +214,14 @@
     { table: 'crozzo_reservorio_sync_queue', label: 'Cola reservorio', script: '8', level: 'opcional', required: false },
     { table: 'shift_closes', label: 'Cierres turno', script: '9', level: 'opcional', required: false },
     { table: 'crozzo_bodegas', label: 'Bodegas federación', script: '11', level: 'opcional', required: false },
+    {
+      table: 'crozzo_device_qr_slots',
+      label: 'QRs internos (malla / BLE)',
+      script: '15',
+      level: 'recomendado',
+      required: false,
+      probeCol: 'id',
+    },
   ];
 
   function esc(s) {
@@ -640,6 +670,7 @@
       ')</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="sanBtnNubeSmoke">Diagnóstico rápido</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="sanBtnScrollSql">Ir a SQL Editor</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnDeviceQrQuick">📲 QRs entre dispositivos</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'super-admin-federacion\')">Federación bodegas</button>' +
       '</div></div></div>'
     );
@@ -883,6 +914,7 @@
         esc(s.title) +
         '</strong>' +
         (s.required ? '' : ' <span class="badge badge-info">opcional</span>') +
+        (s.key === 'device_qr_slots' ? ' <span class="badge badge-warning">malla</span>' : '') +
         (done ? ' <span class="badge badge-success">✓</span>' : '') +
         '<small>' +
         esc(s.desc) +
@@ -938,7 +970,7 @@
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">📝 Paso 2 — Crear la base de datos (SQL Editor)</span></div>' +
       '<div class="crozzo-nube-callout">' +
-      '<p>Ejecute los scripts <strong>en orden</strong> (1 → 11). Obligatorios: <strong>1–4</strong>. Opcionales: costos (7), reservorio (8), cierres (9), runtime mesas (10), federación (11). ' +
+      '<p>Ejecute los scripts <strong>en orden</strong> (1 → 15). Obligatorios: <strong>1–4 y 10</strong>. Recomendado malla: <strong>15 (QRs entre dispositivos)</strong>. Opcionales: costos (7), reservorio (8), cierres (9), federación (11). ' +
       'Cada script incluye editor, guía de tablas y errores frecuentes.</p>' +
       '<div class="crozzo-nube-sql-progress-bar" aria-hidden="true"><span id="crozzoNubeSqlProgressBar"></span></div>' +
       (url
@@ -981,6 +1013,43 @@
     );
   }
 
+  function renderDeviceQrMeshPanel() {
+    var missing =
+      global.CrozzoInternalQrRegistry &&
+      typeof global.CrozzoInternalQrRegistry.isCloudQrTableMissing === 'function' &&
+      global.CrozzoInternalQrRegistry.isCloudQrTableMissing();
+    var done = !!readSqlDoneMap().device_qr_slots;
+    return (
+      '<div class="card crozzo-nube-device-qr" style="margin-bottom:14px;border:1px solid var(--border, #dde3ed);">' +
+      '<div class="card-header"><span class="card-title">📲 Comunicación entre dispositivos (Script 15)</span>' +
+      '<span id="sanDeviceQrStatus" class="badge ' +
+      (missing ? 'badge-warning' : done ? 'badge-success' : 'badge-info') +
+      '">' +
+      (missing ? 'Tabla pendiente' : done ? 'Instalado' : 'Sin comprobar') +
+      '</span></div>' +
+      '<div class="crozzo-nube-callout">' +
+      '<p>Crea la tabla <code>crozzo_device_qr_slots</code> en Supabase para que caja, cocina y tablets se encuentren por nombre ' +
+      '(QR cada 4 h + malla Bluetooth/LAN cuando cae el internet).</p>' +
+      '<p class="form-hint">Si ve en consola <code>404 crozzo_device_qr_slots</code>, siga los pasos de abajo.</p>' +
+      '</div>' +
+      '<ol class="crozzo-nube-guide-ol" style="margin:0 0 12px 1.2rem;">' +
+      '<li><strong>Copiar SQL</strong> del script 15</li>' +
+      '<li><strong>Abrir Supabase</strong> → SQL Editor → pegar → <strong>Run</strong></li>' +
+      '<li><strong>Comprobar tabla</strong> (debe salir OK)</li>' +
+      '<li><strong>Activar en este equipo</strong> y recargar (F5)</li>' +
+      '</ol>' +
+      '<div class="crozzo-nube-actions" style="flex-wrap:wrap;gap:8px;">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="sanBtnDeviceQrOpenScript">1️⃣ Ver script 15</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnDeviceQrCopySql">📋 Copiar SQL</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnDeviceQrOpenSupabase">↗ Abrir Supabase SQL</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnDeviceQrCheck">2️⃣ Comprobar tabla</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanBtnDeviceQrActivate">3️⃣ Activar en este equipo</button>' +
+      '</div>' +
+      '<p class="form-hint" id="sanDeviceQrHint" style="margin-top:10px;">Archivo: <code>docs/SUPABASE-SQL-DEVICE-QR-SLOTS.sql</code></p>' +
+      '</div>'
+    );
+  }
+
   function renderStepVerify() {
     var rows = PROBE_TABLES.map(function (p) {
       return (
@@ -998,6 +1067,7 @@
     }).join('');
     return (
       '<div class="crozzo-nube-step-panel" data-nube-panel="3" hidden>' +
+      renderDeviceQrMeshPanel() +
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">✅ Paso 3 — Verificar conexión y tablas</span></div>' +
       '<p class="form-hint">Comprueba que PostgREST responde y que las tablas principales existen (necesita URL + anon key del paso 1).</p>' +
@@ -1339,6 +1409,171 @@
     renderSqlWizardProgress();
   }
 
+  function getDeviceQrSlotsSql() {
+    var scripts = getAllScripts();
+    var s = scripts.find(function (x) {
+      return x.key === 'device_qr_slots';
+    });
+    return s && s.sql ? s.sql : '';
+  }
+
+  function getRestHeadersFromSanForm(key) {
+    return Object.assign(
+      typeof global.crozzoSupabaseRestHeaders === 'function'
+        ? global.crozzoSupabaseRestHeaders(key)
+        : {
+            apikey: key,
+            Authorization: 'Bearer ' + key,
+            'Content-Type': 'application/json',
+          },
+      { Prefer: 'count=exact' }
+    );
+  }
+
+  function updateDeviceQrStatusBadge(state, hint) {
+    var badge = document.getElementById('sanDeviceQrStatus');
+    var hintEl = document.getElementById('sanDeviceQrHint');
+    if (badge) {
+      if (state === 'ok') {
+        badge.className = 'badge badge-success';
+        badge.textContent = 'Tabla OK';
+      } else if (state === 'missing') {
+        badge.className = 'badge badge-warning';
+        badge.textContent = 'Falta tabla';
+      } else if (state === 'checking') {
+        badge.className = 'badge badge-info';
+        badge.textContent = 'Comprobando…';
+      } else {
+        badge.className = 'badge badge-info';
+        badge.textContent = 'Sin comprobar';
+      }
+    }
+    if (hint && hintEl) hintEl.textContent = hint;
+  }
+
+  function openDeviceQrSqlWizard() {
+    setWizardStep(2);
+    global.setTimeout(function () {
+      selectSqlScript('device_qr_slots');
+      var wiz = document.getElementById('crozzoNubeSqlWizard');
+      if (wiz && wiz.scrollIntoView) wiz.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  }
+
+  function copyDeviceQrSql() {
+    var sql = getDeviceQrSlotsSql();
+    if (!sql) {
+      if (global.showToast) global.showToast('No se encontró el script 15.', 'warning');
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(sql).then(
+        function () {
+          if (global.showToast) global.showToast('SQL script 15 copiado — péguelo en Supabase y Run.', 'success');
+        },
+        function () {
+          if (global.showToast) global.showToast('No se pudo copiar.', 'error');
+        }
+      );
+    }
+  }
+
+  async function activateDeviceQrInPos() {
+    try {
+      if (global.CrozzoInternalQrRegistry) {
+        if (typeof global.CrozzoInternalQrRegistry.resetCloudQrTableMissing === 'function') {
+          global.CrozzoInternalQrRegistry.resetCloudQrTableMissing();
+        }
+        if (typeof global.CrozzoInternalQrRegistry.start === 'function') {
+          global.CrozzoInternalQrRegistry.start();
+        }
+        if (typeof global.CrozzoInternalQrRegistry.ensureOwnSlot === 'function') {
+          global.CrozzoInternalQrRegistry.ensureOwnSlot({ force: true });
+        }
+        if (typeof global.CrozzoInternalQrRegistry.exchangeOnDeviceSetup === 'function') {
+          await global.CrozzoInternalQrRegistry.exchangeOnDeviceSetup({
+            reason: 'super_admin_activate',
+            forceOwn: true,
+          });
+        }
+      }
+      if (global.CrozzoBlePeerRegistry && typeof global.CrozzoBlePeerRegistry.startBackgroundWiring === 'function') {
+        global.CrozzoBlePeerRegistry.startBackgroundWiring();
+      }
+      writeSqlDone('device_qr_slots', true);
+      updateDeviceQrStatusBadge('ok', 'Activado en este equipo. Recargue la app (F5) si aún ve 404 en consola.');
+      if (global.showToast) {
+        global.showToast('QR entre dispositivos activado. Recargue con F5 si hace falta.', 'success');
+      }
+      return true;
+    } catch (e) {
+      if (global.showToast) global.showToast('No se pudo activar: ' + (e && e.message ? e.message : e), 'error');
+      return false;
+    }
+  }
+
+  async function probeDeviceQrSlotsTable(opts) {
+    opts = opts || {};
+    var url = (document.getElementById('mdSupabaseUrl')?.value || '').trim();
+    var keyEl = document.getElementById('mdSupabaseKey');
+    var key =
+      typeof global.crozzoGetEffectiveAnonKeyFromInput === 'function'
+        ? global.crozzoGetEffectiveAnonKeyFromInput(keyEl)
+        : (keyEl?.value || '').trim();
+    if (!url || !key) {
+      updateDeviceQrStatusBadge('missing', 'Configure URL y anon key en el Paso 1.');
+      if (global.showToast) global.showToast('Faltan credenciales en el Paso 1.', 'warning');
+      return false;
+    }
+    updateDeviceQrStatusBadge('checking', 'Comprobando crozzo_device_qr_slots…');
+    try {
+      var controller = new AbortController();
+      var t = global.setTimeout(function () {
+        controller.abort();
+      }, 6000);
+      var res = await fetch(
+        url.replace(/\/$/, '') + '/rest/v1/crozzo_device_qr_slots?limit=0&select=id',
+        {
+          method: 'GET',
+          signal: controller.signal,
+          headers: getRestHeadersFromSanForm(key),
+        }
+      );
+      global.clearTimeout(t);
+      if (res && (res.ok || res.status === 200 || res.status === 206)) {
+        writeSqlDone('device_qr_slots', true);
+        var row = document.querySelector('[data-probe-table="crozzo_device_qr_slots"] .crozzo-nube-probe-status');
+        if (row) row.innerHTML = '<span class="badge badge-success">OK</span>';
+        updateDeviceQrStatusBadge('ok', 'Tabla lista. Pulse «Activar en este equipo» o recargue (F5).');
+        if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.resetCloudQrTableMissing === 'function') {
+          global.CrozzoInternalQrRegistry.resetCloudQrTableMissing();
+        }
+        if (opts.activateAfter) await activateDeviceQrInPos();
+        else if (global.showToast) global.showToast('Tabla crozzo_device_qr_slots OK.', 'success');
+        return true;
+      }
+      updateDeviceQrStatusBadge(
+        'missing',
+        res && res.status === 404
+          ? 'Tabla no existe — ejecute el script 15 en Supabase SQL Editor.'
+          : 'HTTP ' + (res && res.status) + ' — revise anon key o permisos.'
+      );
+      if (global.showToast) {
+        global.showToast(
+          res && res.status === 404
+            ? 'Falta la tabla. Copie el script 15 → Supabase → Run.'
+            : 'Error HTTP ' + (res && res.status),
+          'warning'
+        );
+      }
+      return false;
+    } catch (e) {
+      updateDeviceQrStatusBadge('missing', 'Error de red al comprobar la tabla.');
+      if (global.showToast) global.showToast('Error comprobando tabla.', 'error');
+      return false;
+    }
+  }
+
   async function probeSupabaseTables() {
     var url = (document.getElementById('mdSupabaseUrl')?.value || '').trim();
     var keyEl = document.getElementById('mdSupabaseKey');
@@ -1508,6 +1743,31 @@
       if (sqlBtn && sqlBtn.classList.contains('crozzo-nube-sql-list__item')) {
         selectSqlScript(sqlBtn.getAttribute('data-sql-key'));
       }
+    });
+
+    bindOnce(document.getElementById('sanBtnDeviceQrQuick'), 'click', function () {
+      setWizardStep(3);
+      global.setTimeout(function () {
+        var panel = document.querySelector('.crozzo-nube-device-qr');
+        if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    });
+    bindOnce(document.getElementById('sanBtnDeviceQrOpenScript'), 'click', openDeviceQrSqlWizard);
+    bindOnce(document.getElementById('sanBtnDeviceQrCopySql'), 'click', copyDeviceQrSql);
+    bindOnce(document.getElementById('sanBtnDeviceQrOpenSupabase'), 'click', function () {
+      var url = (document.getElementById('mdSupabaseUrl')?.value || '').trim();
+      var target = supabaseDashboardSqlUrl(url);
+      try {
+        window.open(target, '_blank', 'noopener');
+      } catch (_) {}
+      copyDeviceQrSql();
+      if (global.showToast) global.showToast('Supabase abierto. Pegue el SQL y Run.', 'info');
+    });
+    bindOnce(document.getElementById('sanBtnDeviceQrCheck'), 'click', function () {
+      probeDeviceQrSlotsTable({ activateAfter: false });
+    });
+    bindOnce(document.getElementById('sanBtnDeviceQrActivate'), 'click', function () {
+      probeDeviceQrSlotsTable({ activateAfter: true });
     });
 
     bindOnce(document.getElementById('sanBtnAltaGuia'), 'click', openSanAltaNegocioGuide);
@@ -1711,6 +1971,9 @@
   global.initSuperAdminNubeConfig = initSuperAdminNubeConfig;
   global.crozzoNubeSnapshot = nubeSnapshot;
   global.crozzoNubeProbeTables = probeSupabaseTables;
+  global.crozzoNubeProbeDeviceQrSlots = probeDeviceQrSlotsTable;
+  global.crozzoNubeActivateDeviceQr = activateDeviceQrInPos;
+  global.crozzoNubeOpenDeviceQrScript = openDeviceQrSqlWizard;
   global.openSanAltaNegocioGuide = openSanAltaNegocioGuide;
   global.runSanNubeSmokeSelfCheck = runSanNubeSmokeSelfCheck;
   global.showSanNubeSmokeResults = showSanNubeSmokeResults;

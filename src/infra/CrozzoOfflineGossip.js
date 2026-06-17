@@ -206,6 +206,9 @@
         log('udp send ' + e);
       });
     }
+    if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.sendRaw === 'function') {
+      global.CrozzoBleMesh.sendRaw(raw);
+    }
   }
 
   function relay(frame) {
@@ -287,6 +290,87 @@
     }
   }
 
+  function qrExchangeAllowed() {
+    if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.isEmergencyActive === 'function') {
+      if (global.CrozzoInternalQrRegistry.isEmergencyActive()) return true;
+    }
+    if (shouldRun()) return true;
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function ensureActiveForQr() {
+    if (_active) return;
+    if (shouldRun()) {
+      start();
+      return;
+    }
+    if (!qrExchangeAllowed()) return;
+    var t = tierNow();
+    if (t === 'offline' || t === 'mesh' || t === 'qr') {
+      start();
+      return;
+    }
+    if (
+      global.CrozzoInternalQrRegistry &&
+      typeof global.CrozzoInternalQrRegistry.isEmergencyActive === 'function' &&
+      global.CrozzoInternalQrRegistry.isEmergencyActive()
+    ) {
+      start();
+    }
+  }
+
+  function qrSlotPayload(entry) {
+    return {
+      deviceId: String(entry.deviceId || ''),
+      deviceRole: String(entry.deviceRole || 'B'),
+      deviceName: String(entry.deviceName || ''),
+      businessId: String(entry.businessId || ''),
+      locationId: String(entry.locationId || ''),
+      slot: String(entry.slot || ''),
+      builtAt: Number(entry.builtAt) || 0,
+      validUntil: Number(entry.validUntil) || 0,
+      scanText: String(entry.scanText || ''),
+      payloadJson: entry.payloadJson || null,
+      ip: String(entry.ip || ''),
+      port: Number(entry.port) || 3000,
+    };
+  }
+
+  function publishInternalQrSlot(entry) {
+    if (!entry || !entry.scanText || !entry.deviceId) return false;
+    if (!qrExchangeAllowed()) return false;
+    ensureActiveForQr();
+    if (!_active) return false;
+    sendFrame(buildFrame('INTERNAL_QR_SLOT', qrSlotPayload(entry), 0));
+    return true;
+  }
+
+  function publishInternalQrRequest() {
+    if (!qrExchangeAllowed()) return false;
+    ensureActiveForQr();
+    if (!_active) return false;
+    sendFrame(buildFrame('INTERNAL_QR_REQ', { from: meshCtx().deviceId }, 0));
+    return true;
+  }
+
+  function ingestInternalQrSlot(payload) {
+    if (!payload || !payload.scanText || !payload.deviceId) return;
+    var dedupId = 'qrslot:' + payload.deviceId + ':' + payload.slot;
+    if (!markSeen(dedupId)) return;
+    if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.ingestPeerSlotEntry === 'function') {
+      global.CrozzoInternalQrRegistry.ingestPeerSlotEntry(payload, { source: 'mesh' });
+    }
+  }
+
+  function respondInternalQrCatalog() {
+    if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.respondWithOwnSlots === 'function') {
+      global.CrozzoInternalQrRegistry.respondWithOwnSlots();
+    }
+  }
+
   function ingestFrame(frame) {
     if (!frame || frame.v !== PROTO || !frame.kind || !frame.msgId) return;
     if (!ctxMatch(frame)) return;
@@ -310,6 +394,14 @@
     }
     if (frame.kind === 'COMANDA_ESTADO') {
       applyComandaEstado(frame.payload);
+      return;
+    }
+    if (frame.kind === 'INTERNAL_QR_SLOT') {
+      ingestInternalQrSlot(frame.payload);
+      return;
+    }
+    if (frame.kind === 'INTERNAL_QR_REQ' || frame.kind === 'INTERNAL_QR_BEACON') {
+      respondInternalQrCatalog();
     }
   }
 
@@ -465,12 +557,22 @@
 
   function getStatus() {
     var peerCount = Math.max(Object.keys(_peerIds).length, _udpPeerCount || 0);
+    var transport = _udpOk ? 'udp' : _bc ? 'broadcast' : 'none';
+    try {
+      if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.getStatus === 'function') {
+        var ble = global.CrozzoBleMesh.getStatus();
+        if (ble && ble.active && ble.transport && ble.transport !== 'none') {
+          transport = ble.transport;
+          peerCount = Math.max(peerCount, ble.peerCount || 0);
+        }
+      }
+    } catch (_) {}
     return {
       active: _active,
       tier: tierNow(),
       peerCount: peerCount,
       udp: _udpOk,
-      transport: _udpOk ? 'udp' : _bc ? 'broadcast' : 'none',
+      transport: transport,
     };
   }
 
@@ -492,6 +594,22 @@
     reconcileTier();
   }
 
+  function publishInternalQrBeacon(meta) {
+    if (!_active) return false;
+    meta = meta || {};
+    sendFrame(
+      buildFrame(
+        'INTERNAL_QR_BEACON',
+        {
+          peerCount: meta.peerCount != null ? meta.peerCount : 0,
+          slot: String(meta.slot || ''),
+        },
+        0
+      )
+    );
+    return true;
+  }
+
   global.CrozzoOfflineGossip = {
     init: init,
     afterMainInit: afterMainInit,
@@ -501,6 +619,9 @@
     publishComandaNew: publishComandaNew,
     publishComandaNewByIds: publishComandaNewByIds,
     publishEstado: publishEstado,
+    publishInternalQrBeacon: publishInternalQrBeacon,
+    publishInternalQrSlot: publishInternalQrSlot,
+    publishInternalQrRequest: publishInternalQrRequest,
     ingestRaw: ingestRaw,
     getStatus: getStatus,
     reconcileTier: reconcileTier,

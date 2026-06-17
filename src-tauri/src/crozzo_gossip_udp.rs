@@ -132,6 +132,52 @@ fn send_raw(json: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Arranca el receptor UDP si aún no corre (compartido con malla BLE en escritorio).
+pub fn ensure_started(device_id: &str) -> Result<(), String> {
+    let did = device_id.trim();
+    if did.is_empty() {
+        return Err("device_id vacío".into());
+    }
+    let mut inner = shared().lock().map_err(|e| e.to_string())?;
+    if inner.running {
+        inner.device_id = did.to_string();
+        return Ok(());
+    }
+    inner.device_id = did.to_string();
+    inner.stop = false;
+    inner.running = true;
+    inner.rx_queue.clear();
+    drop(inner);
+    let sock = open_listen_socket()?;
+    let handle = thread::spawn(move || recv_loop(sock));
+    *recv_handle().lock().map_err(|e| e.to_string())? = Some(handle);
+    Ok(())
+}
+
+/// Envío UDP broadcast/multicast (malla escritorio + tablets).
+pub fn send_json(json: &str) -> Result<(), String> {
+    let body = json.trim();
+    if body.is_empty() {
+        return Err("payload vacío".into());
+    }
+    if body.len() > 7800 {
+        return Err("payload gossip demasiado grande".into());
+    }
+    send_raw(body)
+}
+
+/// Drena tramas recibidas por UDP.
+pub fn drain_rx() -> Result<Vec<String>, String> {
+    let mut inner = shared().lock().map_err(|e| e.to_string())?;
+    Ok(std::mem::take(&mut inner.rx_queue))
+}
+
+pub fn peer_count_active() -> Result<usize, String> {
+    let inner = shared().lock().map_err(|e| e.to_string())?;
+    let cutoff = now_ms().saturating_sub(45_000);
+    Ok(inner.peers.values().filter(|t| **t >= cutoff).count())
+}
+
 fn status_locked(inner: &Inner) -> CrozzoGossipUdpStatus {
     let cutoff = now_ms().saturating_sub(45_000);
     let peer_count = inner
@@ -150,24 +196,9 @@ fn status_locked(inner: &Inner) -> CrozzoGossipUdpStatus {
 #[tauri::command]
 pub fn crozzo_gossip_udp_start(device_id: String) -> Result<CrozzoGossipUdpStatus, String> {
     let did = device_id.trim().to_string();
-    if did.is_empty() {
-        return Err("device_id vacío".into());
-    }
-    {
-        let mut inner = shared().lock().unwrap();
-        if inner.running {
-            inner.device_id = did;
-            return Ok(status_locked(&inner));
-        }
-        inner.device_id = did;
-        inner.stop = false;
-        inner.running = true;
-        inner.rx_queue.clear();
-    }
-    let sock = open_listen_socket()?;
-    let handle = thread::spawn(move || recv_loop(sock));
-    *recv_handle().lock().unwrap() = Some(handle);
-    Ok(status_locked(&shared().lock().unwrap()))
+    ensure_started(&did)?;
+    let inner = shared().lock().map_err(|e| e.to_string())?;
+    Ok(status_locked(&inner))
 }
 
 #[tauri::command]
@@ -185,21 +216,12 @@ pub fn crozzo_gossip_udp_stop() -> Result<CrozzoGossipUdpStatus, String> {
 
 #[tauri::command]
 pub fn crozzo_gossip_udp_send(json: String) -> Result<(), String> {
-    let body = json.trim();
-    if body.is_empty() {
-        return Err("payload vacío".into());
-    }
-    if body.len() > 7800 {
-        return Err("payload gossip demasiado grande".into());
-    }
-    send_raw(body)
+    send_json(&json)
 }
 
 #[tauri::command]
 pub fn crozzo_gossip_udp_drain() -> Result<Vec<String>, String> {
-    let mut inner = shared().lock().unwrap();
-    let out = std::mem::take(&mut inner.rx_queue);
-    Ok(out)
+    drain_rx()
 }
 
 #[tauri::command]

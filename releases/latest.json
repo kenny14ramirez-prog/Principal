@@ -1,28 +1,16 @@
 {
-  "id": "1.0.144-critical",
-  "version": "v1.0.144",
-  "semver": "1.0.144",
+  "id": "1.0.145-critical",
+  "version": "v1.0.145",
+  "semver": "1.0.145",
   "type": "critical",
-  "message": "264589",
-  "publishedAt": "2026-06-16T23:11:28.833Z",
+  "message": "12563",
+  "publishedAt": "2026-06-17T23:28:45.286Z",
   "installMode": "auto",
   "changelog": [
-    "264589"
+    "12563"
   ],
-  "updatedAt": "2026-06-16T23:11:28.833Z",
+  "updatedAt": "2026-06-17T23:28:45.286Z",
   "entries": [
-    {
-      "id": "1.0.120-critical",
-      "version": "v1.0.120",
-      "semver": "1.0.120",
-      "type": "critical",
-      "message": "apk",
-      "publishedAt": "2026-06-14T11:19:26.414Z",
-      "installMode": "auto",
-      "changelog": [
-        "apk"
-      ]
-    },
     {
       "id": "1.0.121-critical",
       "version": "v1.0.121",
@@ -316,6 +304,18 @@
       "installMode": "auto",
       "changelog": [
         "264589"
+      ]
+    },
+    {
+      "id": "1.0.145-critical",
+      "version": "v1.0.145",
+      "semver": "1.0.145",
+      "type": "critical",
+      "message": "12563",
+      "publishedAt": "2026-06-17T23:28:45.286Z",
+      "installMode": "auto",
+      "changelog": [
+        "12563"
       ]
     }
   ]

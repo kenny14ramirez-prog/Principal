@@ -13,7 +13,13 @@ const app = join(root, 'app');
 const outDir = join(root, 'scripts', '_qa-out');
 mkdirSync(outDir, { recursive: true });
 
+const CODE_BLE_CAP = 25;
+
 const limits = {
+  bleMeshMaxHops: 12,
+  bleMeshMaxPeers: 100,
+  blePreconnectCap: 12,
+  blePracticalCap: CODE_BLE_CAP,
   comandasCloudPull: 100,
   reconnectPushComandas: 80,
   scanMaxHosts: 64,
@@ -39,11 +45,13 @@ function hasAll(rel, needles) {
 // Mitigaciones de escala presentes en el codigo (cascada + anti-pisado + escalonado).
 const mit = {
   realtimeFiltered: hasAll('modules/CrozzoComandasCloudSync.js', ['business_id=eq.', 'isUnderPressure']),
-  runtimeAdaptive: hasAll('modules/CrozzoPosRuntimeCloud.js', ['isUnderPressure', 'if (__pushTimer) return false;']),
+  runtimeAdaptive: hasAll('modules/CrozzoPosRuntimeCloud.js', ['isUnderPressure', '__pushTimer']),
   mesaPartition: hasAll('modules/CrozzoPosRuntimeCloud.js', ['crozzo_mesa_runtime', 'ensureMesaMode']),
   lanCloudSpacing: hasAll('infra/CrozzoWifiZoneBridge.js', ['WATCH_CLOUD_MS']),
   reconnectStagger: hasAll('infra/CrozzoReconnectSync.js', ['reconnectStaggerMs']),
   orchestrator: existsSync(join(app, 'infra/CrozzoConnectivityOrchestrator.js')),
+  bleMesh: existsSync(join(app, 'infra/CrozzoBleMesh.js')) && hasAll('infra/CrozzoBleMesh.js', ['MESH_NAME_CHANGE', 'MAX_HOPS']),
+  blePeerRegistry: existsSync(join(app, 'infra/CrozzoBlePeerRegistry.js')) && hasAll('infra/CrozzoBlePeerRegistry.js', ['identityRev', 'resolvePeerByName']),
 };
 
 /** Simula N dispositivos con perfil y fallos; devuelve score 0–100 por escenario. */
@@ -118,6 +126,24 @@ function simulateScenario(sc) {
     breaks.push('EmergencyMesh WebRTC: 1 enlace P2P por tablet, no fan-out masivo');
   }
 
+  // BLE mesh (respaldo sin Wi‑Fi)
+  if (!lanUp && offline > 0) {
+    if (mit.bleMesh && mit.blePeerRegistry) {
+      notes.push('BLE mesh: identidad + epidemic relay (MAX_HOPS 12, preconnect cap 12)');
+      if (n > 25) {
+        score -= Math.min(25, Math.floor((n - 25) * 0.8));
+        breaks.push('BLE solo: >25 disp. en un salón — radio limitada; use LAN/nube');
+      }
+      if (n > CODE_BLE_CAP) {
+        breaks.push('>' + CODE_BLE_CAP + ' disp. BLE: no sustituye Wi‑Fi en venue grande');
+        score -= 15;
+      }
+    } else {
+      score -= 12;
+      breaks.push('Malla BLE/identidad no cableada');
+    }
+  }
+
   // Central LAN server capacity. Con nube sana las tablets usan la nube y la
   // vigilancia a la caja se espacia (WATCH_CLOUD_MS): la caja no se satura.
   if (centralUp && roles.B > 40) {
@@ -179,12 +205,15 @@ wire('Escala: particion runtime por mesa (auto-detectada)', mit.mesaPartition, '
 wire('Escala: caja no saturada con nube sana', mit.lanCloudSpacing, 'WifiZoneBridge');
 wire('Escala: escalonado anti-estampida', mit.reconnectStagger, 'ReconnectSync');
 wire('Escala: orquestador cascada 5 niveles', mit.orchestrator, 'ConnectivityOrchestrator');
+wire('Escala: BLE mesh + identidad peers', mit.bleMesh && mit.blePeerRegistry, 'BleMesh + BlePeerRegistry');
 
 const checks = [
   '_connectivity-flow-check.mjs',
   '_connectivity-mixed-flow-check.mjs',
   '_offline-gossip-check.mjs',
   '_lan-mdns-ws-check.mjs',
+  '_ble-mesh-check.mjs',
+  '_ble-mesh-scale-sim.mjs',
 ];
 const subprocess = [];
 for (const c of checks) {

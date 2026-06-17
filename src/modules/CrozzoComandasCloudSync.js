@@ -71,12 +71,40 @@
   }
 
   function tierAllowsCloudPush() {
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') {
+        return global.crozzoTierAllowsCloudSync() && online();
+      }
+    } catch (_) {}
+    if (online()) return true;
     var t = tierNow();
-    return t === 'cloud' || t === 'lan' || t === 'hotspot';
+    return t === 'cloud';
+  }
+
+  function tierAllowsCloudRead() {
+    return tierAllowsCloudPush();
+  }
+
+  function deferLocalCloudSync() {
+    try {
+      return typeof global.crozzoDeferLocalSync === 'function' && global.crozzoDeferLocalSync();
+    } catch (_) {}
+    return false;
+  }
+
+  function tenantIdsReady(ctx) {
+    ctx = ctx || cloudCtx();
+    return !!(
+      ctx.businessId &&
+      ctx.businessId !== 'default' &&
+      ctx.locationId &&
+      ctx.locationId !== 'default'
+    );
   }
 
   /** LAN local disponible (cache o IP de caja) — sin costo nube, push instantáneo. */
   function lanSegmentLikely() {
+    if (deferLocalCloudSync()) return false;
     try {
       if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
         return true;
@@ -130,7 +158,13 @@
     }
     var deviceId = '';
     try {
-      deviceId = String(localStorage.getItem('device_id') || md.deviceId || '').trim();
+      deviceId = String(
+        (typeof global.ensureCrozzoDeviceId === 'function' && global.ensureCrozzoDeviceId()) ||
+          global.localStorage.getItem('crozzo_device_id') ||
+          global.localStorage.getItem('device_id') ||
+          md.deviceId ||
+          ''
+      ).trim();
     } catch (_) {
       deviceId = String(md.deviceId || '').trim();
     }
@@ -322,7 +356,7 @@
       if (tierAllowsCloudPush() && online()) {
         pushComanda(c).catch(function () {});
       }
-      if (lan) pushComandaLan(c).catch(function () {});
+      if (!deferLocalCloudSync() && lan) pushComandaLan(c).catch(function () {});
     });
   }
 
@@ -382,14 +416,16 @@
     if (tierAllowsCloudPush() && online()) {
       pushComanda(comanda).catch(function () {});
     }
-    if (lanSegmentLikely()) {
+    if (!deferLocalCloudSync() && lanSegmentLikely()) {
       pushComandaEstadoLan(comanda, est).catch(function () {});
     }
-    try {
-      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
-        global.CrozzoLanWebSocketBridge.notifyEstado(comanda, est);
-      }
-    } catch (_) {}
+    if (!deferLocalCloudSync()) {
+      try {
+        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
+          global.CrozzoLanWebSocketBridge.notifyEstado(comanda, est);
+        }
+      } catch (_) {}
+    }
   }
 
   function rowMatchesTenant(row) {
@@ -498,8 +534,9 @@
   }
 
   async function pullComandasFromCloud(opts) {
-    if (!online()) return false;
+    if (!tierAllowsCloudRead()) return false;
     var ctx = cloudCtx();
+    if (!tenantIdsReady(ctx)) return false;
     var sb = global.__SUPABASE;
     try {
       var q = sb
@@ -560,15 +597,22 @@
       ms = Math.min(60000, ms * 3);
     }
     __pullTimer = global.setInterval(function () {
+      if (!tierAllowsCloudRead()) return;
       pullComandasFromCloud({ skipPrint: false }).catch(function () {});
     }, ms);
   }
 
   function subscribeComandaRealtime(reason) {
-    if (!online()) return;
+    if (!tierAllowsCloudRead()) return;
+    var ctx = cloudCtx();
+    if (!tenantIdsReady(ctx)) {
+      try {
+        console.warn('[crozzo-comanda-cloud] Realtime omitido: configure businessId y locationId');
+      } catch (_) {}
+      return;
+    }
     teardownComandaChannel();
     try {
-      var ctx = cloudCtx();
       var bid = String(ctx.businessId || '').trim();
       var chName =
         bid && bid !== 'default'
@@ -580,10 +624,14 @@
       var insOpts = { event: 'INSERT', schema: 'public', table: 'comandas' };
       var updOpts = { event: 'UPDATE', schema: 'public', table: 'comandas' };
       var flt = comandaRealtimeFilter(ctx, bid);
-      if (flt) {
-        insOpts.filter = flt;
-        updOpts.filter = flt;
+      if (!flt) {
+        try {
+          console.warn('[crozzo-comanda-cloud] Realtime sin filtro tenant — omitido');
+        } catch (_) {}
+        return;
       }
+      insOpts.filter = flt;
+      updOpts.filter = flt;
       var ch = global.__SUPABASE.channel(chName);
       ch.on('postgres_changes', insOpts, function (payload) {
         if (payload.new) applyComandaFromCloudRow(payload.new, { skipPrint: false });
@@ -624,7 +672,21 @@
       subscribeComandaRealtime('refresh');
       return;
     }
-    if (!online()) return;
+    if (!tierAllowsCloudRead()) {
+      global.setTimeout(function () {
+        if (tierAllowsCloudRead()) startComandasCloudSync();
+      }, 1200);
+      return;
+    }
+    if (!tenantIdsReady()) {
+      try {
+        if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
+      } catch (_) {}
+      global.setTimeout(function () {
+        if (tenantIdsReady()) startComandasCloudSync();
+      }, 800);
+      return;
+    }
     __started = true;
 
     pullComandasFromCloud({ skipPrint: false }).catch(function () {});

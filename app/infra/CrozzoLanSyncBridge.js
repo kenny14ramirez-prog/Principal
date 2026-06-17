@@ -247,6 +247,31 @@
     }
   }
 
+  function tryApplyInternalQrSlot(sub) {
+    var raw = (sub && sub.payload) || {};
+    var typ = String(raw.type || '').toLowerCase();
+    if (typ === 'internal_qr_req') {
+      if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.respondWithOwnSlots === 'function') {
+        global.CrozzoInternalQrRegistry.respondWithOwnSlots();
+      }
+      return true;
+    }
+    if (typ !== 'internal_qr_slot') return false;
+    var slot = raw.data || raw.payload || null;
+    if (!slot || !slot.scanText) return false;
+    try {
+      if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.ingestPeerSlotEntry === 'function') {
+        global.CrozzoInternalQrRegistry.ingestPeerSlotEntry(slot, { source: 'lan_http', apply: true });
+      }
+      return true;
+    } catch (e) {
+      try {
+        console.warn('[lan-sync] internal_qr_slot', e);
+      } catch (_) {}
+      return false;
+    }
+  }
+
   async function drainPendingOnce() {
     if (!isDesktopTauri()) return 0;
     var items = [];
@@ -261,6 +286,11 @@
     var ackIds = [];
     for (var i = 0; i < items.length; i++) {
       var itemId = items[i] && items[i].id;
+      if (tryApplyInternalQrSlot(items[i])) {
+        n++;
+        if (itemId) ackIds.push(itemId);
+        continue;
+      }
       if (tryApplyLanComandaEstado(items[i])) {
         comandas++;
         n++;
