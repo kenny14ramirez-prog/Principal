@@ -7545,9 +7545,9 @@
       updateFacCamThumbs();
       var toastEl = document.getElementById('cxf-fac-cam-snap-toast');
       if (toastEl) { toastEl.textContent = '✅ Foto ' + (idx + 1) + ' guardada'; toastEl.classList.add('is-visible'); setTimeout(function () { toastEl.classList.remove('is-visible'); }, 1800); }
-      setFacCamMsg('📄 Apunte a la siguiente o pulse "Usar facturas →"', false);
+      setFacCamMsg('📄 Apunte a la siguiente factura o pulse "Usar facturas →"', false);
       setFacCamProgress(0);
-      _cxfFacCam.cooldownFrames = 75;
+      _cxfFacCam.cooldownFrames = 180;
       _cxfFacCam._holdFrames = 0;
       setFacCamStatus(_cxfFacCam.captures.length + ' foto' + (_cxfFacCam.captures.length === 1 ? '' : 's') + ' lista' + (_cxfFacCam.captures.length === 1 ? '' : 's'));
     }, 'image/jpeg', 0.92);
@@ -7583,31 +7583,40 @@
     if (v.readyState < 2) return;
     var snap = document.getElementById('cxf-fac-cam-snap');
     if (snap && snap.disabled) snap.disabled = false;
-    if (_cxfFacCam.cooldownFrames > 0) { _cxfFacCam.cooldownFrames--; if (_cxfFacCam.cooldownFrames === 0) { setFacCamProgress(0); setFacCamGuideFrame(0.10, 0.10, 0.90, 0.90); } return; }
+    if (_cxfFacCam.cooldownFrames > 0) { _cxfFacCam.cooldownFrames--; if (_cxfFacCam.cooldownFrames === 0) { setFacCamProgress(0); setFacCamGuideFrame(0.10, 0.10, 0.90, 0.90); setFacCamMsg('📄 Apunte la cámara a la factura', false); } return; }
     if (!_cxfFacCam.autoMode) return;
     _cxfFacCam._tick = ((_cxfFacCam._tick || 0) + 1);
-    if (_cxfFacCam._tick % 3 !== 0) return;
+    if (_cxfFacCam._tick % 6 !== 0) return;
     var sc = document.createElement('canvas'); sc.width = 320; sc.height = 180;
     sc.getContext('2d').drawImage(v, 0, 0, 320, 180);
     var a = analyzeFacCameraFrame(sc.getContext('2d').getImageData(0, 0, 320, 180));
-    if (a.score < 0.06) { setFacCamMsg('📄 Apunte la cámara a la factura', false); setFacCamGuideFrame(0.10,0.10,0.90,0.90); setFacCamProgress(0); _cxfFacCam._holdFrames=0; return; }
-    if (a.score < 0.12) {
-      var hint = a.right-a.left>0.12?'← mueve a la izquierda':a.left-a.right>0.12?'mueve a la derecha →':a.bot-a.top>0.12?'↑ mueve hacia arriba':a.top-a.bot>0.12?'mueve hacia abajo ↓':'acerca más la factura';
+    /* Niveles de confianza más exigentes — evita disparos falsos */
+    var THRESH_NONE = 0.18;   /* por debajo: no hay documento */
+    var THRESH_PARTIAL = 0.28; /* parcial: dar guía */
+    var THRESH_GOOD = 0.38;   /* buen encuadre: iniciar cuenta */
+    var THRESH_FIRE = 0.42;   /* umbral para disparar */
+    var holdNeeded = 30;       /* ~3s a 60fps / throttle×6 */
+    if (a.score < THRESH_NONE) {
+      setFacCamMsg('📄 Apunte la cámara a la factura', false);
+      setFacCamGuideFrame(0.10,0.10,0.90,0.90); setFacCamProgress(0); _cxfFacCam._holdFrames=0; return;
+    }
+    if (a.score < THRESH_PARTIAL) {
+      var hint = a.right-a.left>0.15?'← mueve a la izquierda':a.left-a.right>0.15?'mueve a la derecha →':a.bot-a.top>0.15?'↑ mueve hacia arriba':a.top-a.bot>0.15?'mueve hacia abajo ↓':'acerca más la factura';
       setFacCamMsg(hint, false); setFacCamProgress(0); _cxfFacCam._holdFrames=0;
       var cx=0.5+(a.right-a.left)*0.25, cy=0.5+(a.bot-a.top)*0.25; setFacCamGuideFrame(cx-0.38,cy-0.38,cx+0.38,cy+0.38); return;
     }
-    if (a.score < 0.17) {
+    if (a.score < THRESH_GOOD) {
       var dh=a.right-a.left, dv=a.bot-a.top;
-      var guide=dh>0.10?'← un poco a la izquierda':dh<-0.10?'un poco a la derecha →':dv>0.10?'↑ sube un poco':dv<-0.10?'baja un poco ↓':'🔍 casi — más cerca aún';
-      setFacCamMsg(guide, false); setFacCamProgress(20); _cxfFacCam._holdFrames=0; setFacCamGuideFrame(0.08,0.08,0.92,0.92); return;
+      var guide=dh>0.12?'← un poco a la izquierda':dh<-0.12?'un poco a la derecha →':dv>0.12?'↑ sube un poco':dv<-0.12?'baja un poco ↓':'🔍 casi listo — centra el documento';
+      setFacCamMsg(guide, false); setFacCamProgress(0); _cxfFacCam._holdFrames=0; setFacCamGuideFrame(0.08,0.08,0.92,0.92); return;
     }
     _cxfFacCam._holdFrames = (_cxfFacCam._holdFrames||0)+1;
-    var holdNeeded=9, progress=Math.min(100,(_cxfFacCam._holdFrames/holdNeeded)*100);
+    var progress=Math.min(100,(_cxfFacCam._holdFrames/holdNeeded)*100);
     setFacCamProgress(progress); setFacCamGuideFrame(0.06,0.06,0.94,0.94);
-    if (_cxfFacCam._holdFrames<3) setFacCamMsg('📄 Todo el documento — quieto…', true);
-    else if (_cxfFacCam._holdFrames<6) setFacCamMsg('✅ Perfecto — no muevas…', true);
-    else setFacCamMsg('📸 Tomando foto…', true);
-    if (a.score >= 0.21 && _cxfFacCam._holdFrames >= holdNeeded) { _cxfFacCam._holdFrames=0; snapFacCamera(); }
+    if (_cxfFacCam._holdFrames < holdNeeded*0.33) setFacCamMsg('📄 Todo el documento visible — quieto…', true);
+    else if (_cxfFacCam._holdFrames < holdNeeded*0.66) setFacCamMsg('✅ Perfecto — mantén fijo…', true);
+    else setFacCamMsg('📸 Tomando foto en un momento…', true);
+    if (a.score >= THRESH_FIRE && _cxfFacCam._holdFrames >= holdNeeded) { _cxfFacCam._holdFrames=0; snapFacCamera(); }
   }
 
   function useFacCameraCaptures(host) {
@@ -8675,6 +8684,47 @@
         var fid2 = inImg.getAttribute('data-factura-id');
         cxfIngestFiles(inImg.files, false, pid2, fid2);
         inImg.value = '';
+        return;
+      }
+      var autoFile = e.target.closest('[data-cxf-auto-file]');
+      if (autoFile && autoFile.files && autoFile.files.length) {
+        var files = Array.prototype.slice.call(autoFile.files);
+        if (ui.proveedorIds.indexOf(PROV_AUTO) < 0) ui.proveedorIds.push(PROV_AUTO);
+        ensureBucket(PROV_AUTO);
+        var MAX_AUTO = 20;
+        var bucket = ui.porProveedor[PROV_AUTO];
+        var yaHay = bucket.facturas.filter(function (f) { return f.docs && f.docs.length; }).length;
+        if (yaHay >= MAX_AUTO) {
+          toast('Límite de ' + MAX_AUTO + ' facturas por lote', 'warning');
+          autoFile.value = '';
+          return;
+        }
+        if (yaHay + files.length > MAX_AUTO) {
+          files = files.slice(0, MAX_AUTO - yaHay);
+          toast('Límite de ' + MAX_AUTO + ' facturas por lote', 'warning');
+        }
+        ui.modoEntrada = 'auto';
+        var chain = Promise.resolve();
+        files.forEach(function (file, idx) {
+          chain = chain.then(function () {
+            var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+            var fid = 'f_auto_' + Date.now() + '_' + idx;
+            var firstFac = bucket.facturas[0];
+            var useFirst = !firstFac || !firstFac.docs || !firstFac.docs.length;
+            var targetFid = useFirst ? (firstFac ? firstFac.id : null) : null;
+            if (!targetFid) {
+              var newFac = { id: fid, numeroFactura: '', valorFactura: '', valorCajero: '', docs: [], lines: [], _autoProvAsignado: false, feAnalisis: null, docPreviewIdx: 0 };
+              bucket.facturas.push(newFac);
+              targetFid = fid;
+            }
+            return cxfIngestFiles([file], isPdf, PROV_AUTO, targetFid);
+          });
+        });
+        chain.then(function () {
+          schedulePersistCxfSession();
+          refreshStepHost(host);
+        });
+        autoFile.value = '';
       }
     });
   }
