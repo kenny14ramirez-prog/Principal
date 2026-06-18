@@ -31,9 +31,9 @@
   var PAGE_PROFILES = {
     cajero: { domains: ['runtime', 'comandas', 'products'], intervalMs: 7500 },
     'venta-comercial': { domains: ['runtime', 'products'], intervalMs: 11000 },
-    tablets: { domains: ['runtime', 'comandas', 'products'], intervalMs: 5500 },
-    comandas: { domains: ['comandas'], intervalMs: 4500 },
-    cocina: { domains: ['comandas'], intervalMs: 4500 },
+    tablets: { domains: ['runtime', 'comandas', 'products'], intervalMs: 9000 },
+    comandas: { domains: ['comandas'], intervalMs: 7000 },
+    cocina: { domains: ['comandas'], intervalMs: 7000 },
     facturas: { domains: ['sales', 'queue'], intervalMs: 14000 },
     'cierre-caja': { domains: ['runtime', 'sales', 'tenant', 'queue'], intervalMs: 10000 },
     'inicio-operacion': { domains: ['tenant', 'runtime'], intervalMs: 22000 },
@@ -209,7 +209,7 @@
   async function pullRuntime(opts) {
     __lastPullAt.runtime = Date.now();
     if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-      return await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false });
+      return await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true });
     }
     return false;
   }
@@ -217,8 +217,12 @@
   async function pullComandas(opts) {
     __lastPullAt.comandas = Date.now();
     if (typeof global.crozzoPullComandasFromCloud === 'function') {
-      var skipPrint = __activePage !== 'comandas' && __activePage !== 'cocina';
-      return await global.crozzoPullComandasFromCloud({ skipPrint: skipPrint, skipRender: false });
+      var onKitchen = __activePage === 'comandas' || __activePage === 'cocina';
+      return await global.crozzoPullComandasFromCloud({
+        skipPrint: !onKitchen,
+        skipRender: true,
+        silent: true,
+      });
     }
     return false;
   }

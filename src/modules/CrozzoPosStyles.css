@@ -17252,6 +17252,32 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   box-sizing: border-box;
 }
 
+/* Mobile phones (< 768px): 1 column with optimized sizing */
+@media (max-width: 767px) {
+  .crozzo-corkboard-masonry {
+    gap: 12px;
+    padding: 12px 8px;
+  }
+  .crozzo-corkboard-masonry > .crozzo-sticky-note {
+    flex: 1 1 100%;
+    max-width: 100%;
+    min-width: 100%;
+  }
+}
+
+/* Tablets (768px - 1024px): 2 columns */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .crozzo-corkboard-masonry {
+    gap: 16px;
+  }
+  .crozzo-corkboard-masonry > .crozzo-sticky-note {
+    flex: 0 1 calc(50% - 8px);
+    max-width: calc(50% - 8px);
+    min-width: 280px;
+  }
+}
+
+/* Desktop (900px+): 3 columns */
 @media (min-width: 900px) {
   .crozzo-corkboard-masonry > .crozzo-sticky-note {
     flex: 0 1 calc(33.333% - 15px);
@@ -17259,6 +17285,7 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   }
 }
 
+/* Large desktop (1280px+): 4 columns */
 @media (min-width: 1280px) {
   .crozzo-corkboard-masonry > .crozzo-sticky-note {
     flex: 0 1 calc(25% - 17px);
@@ -17391,13 +17418,13 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   position: relative;
   margin-bottom: 0;
   display: block;
-  padding: var(--space-4) var(--space-3) var(--space-3);
-  padding-top: calc(var(--space-4) + 8px);
-  border-radius: 2px 2px 20px 4px;
+  padding: 10px 12px 8px;
+  padding-top: 16px;
+  border-radius: 3px 3px 18px 5px;
   box-shadow:
-    2px 4px 8px rgba(0, 0, 0, 0.12),
-    4px 8px 22px rgba(0, 0, 0, 0.28),
-    0 1px 0 rgba(255, 255, 255, 0.55) inset;
+    2px 3px 6px rgba(0, 0, 0, 0.1),
+    3px 6px 14px rgba(0, 0, 0, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.5) inset;
   cursor: grab;
   transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.25s ease, filter 0.2s ease;
   color: #292524;
@@ -17509,6 +17536,42 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   background: linear-gradient(172deg, #fffafa 0%, #fee2e2 45%, #fecaca 88%, #f87171 100%);
   color: #450a0a;
   animation: crozzoStickyUrgentPulse 3.2s ease-in-out infinite;
+}
+
+/* Nuevas variantes de colores para las notas */
+.crozzo-sticky-note.sticky-pink {
+  background: linear-gradient(172deg, #fdf2f8 0%, #fbcfe8 45%, #f9a8d4 88%, #f472b6 100%);
+  color: #831843;
+}
+
+.crozzo-sticky-note.sticky-purple {
+  background: linear-gradient(172deg, #faf5ff 0%, #e9d5ff 45%, #d8b4fe 88%, #c084fc 100%);
+  color: #581c87;
+}
+
+.crozzo-sticky-note.sticky-cyan {
+  background: linear-gradient(172deg, #ecfeff 0%, #a5f3fc 45%, #67e8f9 88%, #22d3ee 100%);
+  color: #164e63;
+}
+
+.crozzo-sticky-note.sticky-mint {
+  background: linear-gradient(172deg, #f0fdf4 0%, #bbf7d0 45%, #86efac 88%, #4ade80 100%);
+  color: #14532d;
+}
+
+.crozzo-sticky-note.sticky-lavender {
+  background: linear-gradient(172deg, #f5f3ff 0%, #ddd6fe 45%, #c4b5fd 88%, #a78bfa 100%);
+  color: #4c1d95;
+}
+
+.crozzo-sticky-note.sticky-peach {
+  background: linear-gradient(172deg, #fff7ed 0%, #fed7aa 45%, #fdba74 88%, #fb923c 100%);
+  color: #7c2d12;
+}
+
+.crozzo-sticky-note.sticky-teal {
+  background: linear-gradient(172deg, #f0fdfa 0%, #99f6e4 45%, #5eead4 88%, #2dd4bf 100%);
+  color: #134e4a;
 }
 
 @keyframes crozzoStickyUrgentPulse {
@@ -17799,7 +17862,7 @@ body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
 }
 
 .crozzo-sticky-ref {
-  font-size: clamp(1.35rem, 3.2vw, 1.9rem);
+  font-size: clamp(1.15rem, 2.8vw, 1.6rem);
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: -0.03em;
@@ -17810,8 +17873,8 @@ body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  font-size: 0.68rem;
+  gap: 4px;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -17819,22 +17882,22 @@ body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
   margin-bottom: var(--space-2);
 }
 .crozzo-sticky-sender {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: none;
   opacity: 0.78;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   color: rgba(41, 37, 36, 0.88);
 }
 .crozzo-sticky-area {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.1);
   color: inherit;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   letter-spacing: 0.05em;
 }
 .crozzo-sticky-note.sticky-bar .crozzo-sticky-area {
@@ -17843,7 +17906,7 @@ body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
 }
 
 .crozzo-sticky-timer {
-  font-size: 1.02rem;
+  font-size: 0.92rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   padding: 5px 9px;
@@ -17869,7 +17932,7 @@ body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
 }
 
 .crozzo-sticky-qty {
-  font-size: clamp(1.1rem, 2.5vw, 1.48rem);
+  font-size: clamp(0.95rem, 2.2vw, 1.3rem);
   font-weight: 800;
   margin-bottom: var(--space-2);
   letter-spacing: -0.02em;
@@ -17888,9 +17951,9 @@ body.crozzo-corkboard-focus .crozzo-comanda-trash-dock {
 }
 
 .crozzo-comanda-plato {
-  margin-bottom: 10px;
-  padding: 8px 8px 6px;
-  border-radius: 8px;
+  margin-bottom: 8px;
+  padding: 6px 6px 5px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.22);
   border: 1px solid rgba(0, 0, 0, 0.08);
   display: grid;

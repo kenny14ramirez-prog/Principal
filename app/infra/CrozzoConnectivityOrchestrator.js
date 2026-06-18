@@ -244,10 +244,10 @@
     runOnce('lan_p2p', wireLanP2P);
     safe(function () {
       if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-        global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false }).catch(function () {});
+        global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
       }
       if (typeof global.crozzoPullComandasFromCloud === 'function') {
-        global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: false }).catch(function () {});
+        global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
       }
     });
   }

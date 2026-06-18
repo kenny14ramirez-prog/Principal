@@ -15,6 +15,8 @@
   var TID_TTL_MS = 600000;
   var __rtResubTimer = null;
   var __rtResubAttempt = 0;
+  var __comandaUiNotifyAt = {};
+  var COMANDA_NOTIFY_GAP_MS = 300000;
 
   function noteCloudErr(err) {
     try {
@@ -443,6 +445,32 @@
     return true;
   }
 
+  function shouldNotifyComandaUi(id, kind) {
+    if (!id) return false;
+    var k = String(kind || 'ui') + ':' + String(id);
+    var last = __comandaUiNotifyAt[k] || 0;
+    if (Date.now() - last < COMANDA_NOTIFY_GAP_MS) return false;
+    __comandaUiNotifyAt[k] = Date.now();
+    return true;
+  }
+
+  function scheduleComandaPageRefresh() {
+    try {
+      if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
+        global.crozzoScheduleOperationalPageRefresh(global.currentPage);
+        return;
+      }
+    } catch (_) {}
+    if (
+      typeof global.renderPage === 'function' &&
+      (global.currentPage === 'comandas' || global.currentPage === 'cocina')
+    ) {
+      try {
+        global.renderPage(global.currentPage);
+      } catch (_) {}
+    }
+  }
+
   function applyComandaFromCloudRow(row, opts) {
     opts = opts || {};
     if (!row || !row.payload || row.payload.id == null) return false;
@@ -476,9 +504,19 @@
     var isOwnPush = myUuid && originUuid && myUuid === originUuid;
     var recentOwn = isRecentEcho(String(row.id)) || (tid && isRecentEcho(tid));
 
+    var existed =
+      findComanda(pay.id) ||
+      (pay.transaction_id
+        ? (global.comandas || []).find(function (c) {
+            return c.transaction_id === pay.transaction_id;
+          })
+        : null);
+    var prevEst = existed ? String(existed.estado || '') : '';
+
     if (tidEarly) markComandaTid(tidEarly, 'cloud_pull');
+    var changed = false;
     if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
-      global.__crozzoEmergencyApplyComandaSnapshot(pay, { skipPrint: true });
+      changed = !!global.__crozzoEmergencyApplyComandaSnapshot(pay, { skipPrint: true, skipRender: true });
     }
     var merged =
       findComanda(pay.id) ||
@@ -487,15 +525,31 @@
             return c.transaction_id === pay.transaction_id;
           })
         : null);
+    if (!changed && merged && existed) {
+      var remoteEst = String(row.status || pay.estado || '');
+      if (remoteEst && remoteEst !== prevEst) changed = true;
+    }
+    if (!changed && !existed && merged) changed = true;
+    if (!changed) return false;
+
     var printId = merged ? merged.id : pay.id;
 
     var shouldPrint = false;
-    var shouldNotifyScreen = true;
-    if (!opts.skipPrint && deviceReceivesComandaArea(pay.areaId) && !isOwnPush && !recentOwn) {
+    if (!opts.skipPrint && !opts.silent && deviceReceivesComandaArea(pay.areaId) && !isOwnPush && !recentOwn) {
       var cfg = typeof global.getComandasConfig === 'function' ? global.getComandasConfig() : {};
       if (cfg.autoPrint !== false && deviceCanPrintComandaArea(pay.areaId)) shouldPrint = true;
     }
-    if (shouldNotifyScreen && !shouldPrint && !isOwnPush && !recentOwn && typeof global.showToast === 'function') {
+    var isNew = !existed && !!merged;
+    var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
+    var shouldNotifyScreen =
+      !opts.silent &&
+      opts.notify !== false &&
+      (isNew || estadoChanged) &&
+      !isOwnPush &&
+      !recentOwn &&
+      deviceReceivesComandaArea(pay.areaId) &&
+      !shouldPrint;
+    if (shouldNotifyScreen && typeof global.showToast === 'function' && shouldNotifyComandaUi(printId, 'screen')) {
       try {
         var areaLabel =
           typeof global.crozzoComandaAreaLabel === 'function'
@@ -509,7 +563,7 @@
         __printedTids[tid] = Date.now();
         try {
           if (typeof global.printComandaNow === 'function') global.printComandaNow(printId, true);
-          if (typeof global.showToast === 'function') {
+          if (typeof global.showToast === 'function' && shouldNotifyComandaUi(printId, 'print')) {
             global.showToast('🖨️ Comanda #' + printId + ' — ticket impreso', 'info');
           }
         } catch (e) {
@@ -521,14 +575,8 @@
     try {
       if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
     } catch (_) {}
-    if (
-      !opts.skipRender &&
-      typeof global.renderPage === 'function' &&
-      (global.currentPage === 'comandas' || global.currentPage === 'cocina')
-    ) {
-      try {
-        global.renderPage(global.currentPage);
-      } catch (_) {}
+    if (!opts.skipRender && (global.currentPage === 'comandas' || global.currentPage === 'cocina')) {
+      scheduleComandaPageRefresh();
     }
     return true;
   }
@@ -557,19 +605,28 @@
       }
       var rows = res.data || [];
       var now = Date.now();
+      var anyChanged = false;
       for (var i = rows.length - 1; i >= 0; i--) {
         var row = rows[i];
         var updated = Date.parse(row.updated_at || 0) || 0;
         var skipPrint = !!(opts && opts.skipPrint) || now - updated > 8 * 60 * 1000;
-        applyComandaFromCloudRow(row, { skipPrint: skipPrint, skipRender: true });
+        if (
+          applyComandaFromCloudRow(row, {
+            skipPrint: skipPrint,
+            skipRender: true,
+            silent: !!(opts && opts.silent),
+            notify: opts && opts.notify === false ? false : undefined,
+          })
+        ) {
+          anyChanged = true;
+        }
       }
       if (
-        typeof global.renderPage === 'function' &&
+        anyChanged &&
+        !(opts && opts.skipRender) &&
         (global.currentPage === 'comandas' || global.currentPage === 'cocina')
       ) {
-        try {
-          global.renderPage(global.currentPage);
-        } catch (_) {}
+        scheduleComandaPageRefresh();
       }
       return true;
     } catch (e) {
@@ -598,7 +655,7 @@
     }
     __pullTimer = global.setInterval(function () {
       if (!tierAllowsCloudRead()) return;
-      pullComandasFromCloud({ skipPrint: false }).catch(function () {});
+      pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
     }, ms);
   }
 
@@ -634,10 +691,10 @@
       updOpts.filter = flt;
       var ch = global.__SUPABASE.channel(chName);
       ch.on('postgres_changes', insOpts, function (payload) {
-        if (payload.new) applyComandaFromCloudRow(payload.new, { skipPrint: false });
+        if (payload.new) applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: true });
       });
       ch.on('postgres_changes', updOpts, function (payload) {
-        if (payload.new) applyComandaFromCloudRow(payload.new, { skipPrint: false });
+        if (payload.new) applyComandaFromCloudRow(payload.new, { skipPrint: true, skipRender: true });
       });
       ch.subscribe(function (status) {
         if (status === 'SUBSCRIBED') {
@@ -689,7 +746,7 @@
     }
     __started = true;
 
-    pullComandasFromCloud({ skipPrint: false }).catch(function () {});
+    pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
 
     scheduleComandaPull();
     subscribeComandaRealtime('start');

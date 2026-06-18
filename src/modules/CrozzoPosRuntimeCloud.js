@@ -765,8 +765,8 @@
   function maybeRerender() {
     var pages = ['cajero', 'tablets', 'comandas', 'cocina', 'mesas'];
     try {
-      if (pages.indexOf(global.currentPage) >= 0 && typeof global.renderPage === 'function') {
-        global.renderPage(global.currentPage);
+      if (pages.indexOf(global.currentPage) >= 0 && typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
+        global.crozzoScheduleOperationalPageRefresh(global.currentPage);
       }
     } catch (_) {}
   }
@@ -1035,12 +1035,12 @@
     } catch (_) {}
     try {
       if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-        await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false });
+        await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true });
       }
     } catch (_) {}
     try {
       if (typeof global.crozzoPullComandasFromCloud === 'function') {
-        await global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: false });
+        await global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true });
       }
     } catch (_) {}
     try {

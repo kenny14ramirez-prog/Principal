@@ -7371,6 +7371,108 @@ function applyPosRuntimeSnapshot(s, opts) {
   if (typeof window !== 'undefined') window.comandas = comandas;
   return true;
 }
+var __crozzoPageRefreshTimer = null;
+var __crozzoPageRefreshPage = '';
+function crozzoCorkboardListFingerprint(list) {
+  return (list || [])
+    .map(function (c) {
+      return (
+        String(c.id) +
+        ':' +
+        String(c.estado || '') +
+        ':' +
+        String(c.envioNum || 1) +
+        ':' +
+        String((c.items && c.items.length) || 0) +
+        ':' +
+        String(c.referencia || '')
+      );
+    })
+    .join('|');
+}
+function crozzoCollectComandasCorkboardList(page) {
+  page = String(page || '').trim();
+  if (page === 'comandas') {
+    if (!comandasAreaSelected) return null;
+    return sortComandasListForArea(
+      comandas.filter(function (c) {
+        return c.areaId === comandasAreaSelected && c.estado !== 'entregada';
+      }),
+      comandasAreaSelected
+    );
+  }
+  if (page === 'cocina') {
+    const areas = (getComandasConfig().areas || []).filter(function (a) {
+      return typeof crozzoDeviceShowsComandaArea === 'function' && crozzoDeviceShowsComandaArea(a.id);
+    });
+    const notes = [];
+    areas.forEach(function (area) {
+      sortComandasListForArea(
+        comandas.filter(function (c) {
+          return (
+            c.areaId === area.id &&
+            c.estado !== 'entregada' &&
+            cocinaComandaMatchesFilters(c, { onlyCocinaStation: false })
+          );
+        }),
+        area.id
+      ).forEach(function (c) {
+        notes.push(c);
+      });
+    });
+    return notes;
+  }
+  return null;
+}
+function crozzoPatchCorkboardDom(page) {
+  try {
+    page = String(page || (typeof currentPage !== 'undefined' ? currentPage : '') || '').trim();
+    if (page !== 'comandas' && page !== 'cocina') return false;
+    if (typeof currentPage !== 'undefined' && currentPage !== page) return false;
+    const list = crozzoCollectComandasCorkboardList(page);
+    if (!list) return false;
+    const boardId = page === 'comandas' ? 'comandaCards' : 'cocinaCorkboardCards';
+    const board = document.getElementById(boardId);
+    if (!board || !board.classList.contains('crozzo-corkboard-masonry')) return false;
+    if (!list.length || !board.children.length) return false;
+    const fp = crozzoCorkboardListFingerprint(list);
+    if (board.getAttribute('data-cork-fp') === fp) return true;
+    const scrollEl = document.getElementById('mainContent');
+    const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+    const areaKey = page === 'comandas' ? comandasAreaSelected : '';
+    board.setAttribute('data-cork-fp', fp);
+    board.innerHTML = crozzoRenderComandasMasonryHtml(list, areaKey);
+    if (scrollEl) scrollEl.scrollTop = scrollTop;
+    if (page === 'comandas') crozzoInitComandasCorkboardSortable();
+    else crozzoInitCocinaCorkboardSortable();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+function crozzoScheduleOperationalPageRefresh(page) {
+  page = String(page || (typeof currentPage !== 'undefined' ? currentPage : '') || '').trim();
+  if (!page || typeof renderPage !== 'function') return;
+  __crozzoPageRefreshPage = page;
+  if (__crozzoPageRefreshTimer) return;
+  __crozzoPageRefreshTimer = global.setTimeout(function () {
+    __crozzoPageRefreshTimer = null;
+    var p = __crozzoPageRefreshPage;
+    __crozzoPageRefreshPage = '';
+    try {
+      if (p && typeof currentPage !== 'undefined' && currentPage === p) {
+        if (
+          (p === 'comandas' || p === 'cocina') &&
+          typeof crozzoPatchCorkboardDom === 'function' &&
+          crozzoPatchCorkboardDom(p)
+        ) {
+          return;
+        }
+        renderPage(p);
+      }
+    } catch (_) {}
+  }, 1200);
+}
 function crozzoHandleRemoteRuntimeUiSync() {
   if (window.__crozzoRuntimeCloudApplying) return;
   try {
@@ -7386,12 +7488,14 @@ function crozzoHandleRemoteRuntimeUiSync() {
       }
     }
     const pages = ['tablets', 'cajero', 'comandas', 'cocina', 'mesas'];
-    if (typeof currentPage !== 'undefined' && pages.indexOf(currentPage) >= 0 && typeof renderPage === 'function') {
-      renderPage(currentPage);
+    if (typeof currentPage !== 'undefined' && pages.indexOf(currentPage) >= 0) {
+      crozzoScheduleOperationalPageRefresh(currentPage);
     }
     if (typeof crozzoPublishComandasGlobal === 'function') crozzoPublishComandasGlobal();
   } catch (_) {}
 }
+window.crozzoScheduleOperationalPageRefresh = crozzoScheduleOperationalPageRefresh;
+window.crozzoPatchCorkboardDom = crozzoPatchCorkboardDom;
 window.crozzoHandleRemoteRuntimeUiSync = crozzoHandleRemoteRuntimeUiSync;
 window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
 window.collectPosRuntimeState = collectPosRuntimeState;
@@ -7436,10 +7540,10 @@ if (typeof window !== 'undefined' && !window.__crozzoRuntimeListeners) {
               window.__crozzoRefreshCloudCatalogUi({ skipRender: true }).catch(function () {});
             }
             if (typeof crozzoPullPosRuntimeCloud === 'function') {
-              crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false }).catch(function () {});
+              crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
             }
             if (typeof crozzoPullComandasFromCloud === 'function') {
-              crozzoPullComandasFromCloud({ skipPrint: true, skipRender: false }).catch(function () {});
+              crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
             }
           }
         } catch (_) {}
@@ -7594,8 +7698,22 @@ function crozzoStickyRotationForId(id) {
 function crozzoComandaItemCount(c) {
   return (c.items || []).reduce((sum, i) => sum + (Number(i.cantidad) || 1), 0);
 }
+function crozzoNormalizeMesaReferencia(referencia) {
+  var r = String(referencia || '').trim().toLowerCase();
+  if (!r) return '';
+  var m = r.match(/^mesa\s*#?\s*(\d+)$/);
+  if (m) return 'm' + m[1];
+  m = r.match(/^m\s*#?\s*(\d+)$/);
+  if (m) return 'm' + m[1];
+  return r.replace(/\s+/g, ' ');
+}
 function crozzoComandaMesaGroupKeyFrom(tipoServicio, referencia, areaId) {
-  return String(tipoServicio || '') + '\x1e' + String(referencia || '') + '\x1e' + String(areaId || '');
+  var tipo = String(tipoServicio || '').trim().toLowerCase();
+  var ref =
+    tipo === 'mesa'
+      ? crozzoNormalizeMesaReferencia(referencia)
+      : String(referencia || '').trim().toLowerCase();
+  return tipo + '\x1e' + ref + '\x1e' + String(areaId || '').trim();
 }
 function crozzoComandaMesaGroupKey(c) {
   if (!c) return '';
@@ -7609,14 +7727,19 @@ function crozzoNextEnvioNumForMesa(tipoServicio, referencia, areaId) {
   return n + 1;
 }
 function crozzoGroupComandasIntoMesaStacks(list) {
-  const groups = new Map();
-  (list || []).forEach(function (c) {
-    const k = crozzoComandaMesaGroupKey(c);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(c);
-  });
+  const mesaGroups = new Map();
   const stacks = [];
-  groups.forEach(function (items) {
+  (list || []).forEach(function (c) {
+    const tipo = String(c.tipoServicio || '').trim().toLowerCase();
+    if (tipo !== 'mesa') {
+      stacks.push([c]);
+      return;
+    }
+    const k = crozzoComandaMesaGroupKey(c);
+    if (!mesaGroups.has(k)) mesaGroups.set(k, []);
+    mesaGroups.get(k).push(c);
+  });
+  mesaGroups.forEach(function (items) {
     items.sort(function (a, b) {
       return new Date(a.createdAt) - new Date(b.createdAt);
     });
@@ -7682,6 +7805,7 @@ function crozzoComandaFooterMensaje(seed) {
 }
 window.crozzoComandaFooterMensaje = crozzoComandaFooterMensaje;
 window.crozzoComandaMesaGroupKey = crozzoComandaMesaGroupKey;
+window.crozzoNormalizeMesaReferencia = crozzoNormalizeMesaReferencia;
 window.crozzoComandaEnvioEtiqueta = crozzoComandaEnvioEtiqueta;
 window.crozzoRenderComandasMasonryHtml = crozzoRenderComandasMasonryHtml;
 function sortComandasListForArea(list, areaId) {
@@ -7736,7 +7860,9 @@ function renderComandaStickyNoteHtml(c, areaKey, stackOpts) {
   const envioBadge =
     envioNum > 1
       ? '<span class="crozzo-sticky-envio-badge">Envío ' + envioNum + '</span>'
-      : '';
+      : stackOpts.stackIndex > 0
+        ? '<span class="crozzo-sticky-envio-badge crozzo-sticky-envio-badge--adicion">Adición</span>'
+        : '';
   return `
     <article
       class="crozzo-sticky-note ${tone} ${delayClass}${followCls}"
@@ -9880,7 +10006,6 @@ function getMenusForRole(role, perfil) {
   });
 }
 function renderMenusByRole(role, perfilEmpresa) {
-  console.log('📊 Renderizando menús para rol:', role);
   const hasUser = typeof getCurrentUser === 'function' && !!getCurrentUser();
   const r = crozzoNormalizeAppRol(role);
   const perfil = perfilEmpresa || localStorage.getItem('crozzo_perfil_empresa') || 'completo';
@@ -17920,7 +18045,7 @@ function maybeGossipPublishEstado(c, estado) {
   } catch (_) {}
 }
 window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
-  if (!snap || snap.id == null) return;
+  if (!snap || snap.id == null) return false;
   opts = opts || {};
   const ex = snap.transaction_id
     ? comandas.find(
@@ -17930,7 +18055,7 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   if (ex && !opts.forceApply) {
     const sameEstado = String(ex.estado || '') === String(snap.estado || 'pendiente');
     const sameItems = JSON.stringify(ex.items || []) === JSON.stringify(snap.items || []);
-    if (sameEstado && sameItems) return;
+    if (sameEstado && sameItems) return false;
   }
   if (snap.transaction_id && typeof window.__crozzoComandaTidMark === 'function') {
     window.__crozzoComandaTidMark(snap.transaction_id, opts.source || 'snapshot_apply');
@@ -17987,11 +18112,17 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
       if (typeof printComandaNow === 'function') printComandaNow(snap.id, false);
     } catch (e2) { /* ignore */ }
   }
-  if (currentPage === 'cocina') renderPage('cocina');
-  if (currentPage === 'comandas') renderPage('comandas');
+  if (!opts.skipRender) {
+    if (currentPage === 'cocina' || currentPage === 'comandas') {
+      if (typeof crozzoScheduleOperationalPageRefresh === 'function') {
+        crozzoScheduleOperationalPageRefresh(currentPage);
+      }
+    }
+  }
   try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
+  return true;
 };
 window.__crozzoEmergencyOnOrderAck = function (msg) {
   if (typeof showToast === 'function' && msg && msg.comanda_id != null) {
@@ -23276,7 +23407,7 @@ function renderComandas() {
   });
   const list = sortComandasListForArea(
     comandas.filter(function (c) {
-      return c.areaId === comandasAreaSelected;
+      return c.areaId === comandasAreaSelected && c.estado !== 'entregada';
     }),
     comandasAreaSelected
   );
