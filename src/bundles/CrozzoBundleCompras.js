@@ -6901,7 +6901,8 @@
 
   function canGoStep(id) {
     if (id === 'proveedor') return true;
-    if (!ui.proveedorIds.length) return false;
+    var hasProvOrAuto = ui.proveedorIds.length > 0 || (ui.modoEntrada === 'auto' && ui.porProveedor && ui.porProveedor['__AUTO__']);
+    if (!hasProvOrAuto) return false;
     if (id === 'documento') return true;
     if (id === 'productos') {
       if (!totalDocsCount()) return false;
@@ -7434,6 +7435,268 @@
     );
   }
 
+  var PROV_AUTO = '__AUTO__';
+  var _cxfFacCam = null;
+
+  function openFacCameraModal(host) {
+    _cxfFacCam = { running: false, video: null, captures: [], autoMode: true, cooldownFrames: 0, _holdFrames: 0, _tick: 0, host: host };
+    var backdrop = host.querySelector('#cxf-fac-cam-backdrop');
+    if (!backdrop) return;
+    backdrop.hidden = false;
+    startFacCamera();
+  }
+
+  function closeFacCameraModal() {
+    stopFacCamera();
+    _cxfFacCam = null;
+    var backdrop = document.getElementById('cxf-fac-cam-backdrop');
+    if (backdrop) backdrop.hidden = true;
+  }
+
+  function startFacCamera() {
+    var hostEl = document.getElementById('cxf-fac-cam-host');
+    if (!hostEl || !_cxfFacCam) return;
+    var video = document.createElement('video');
+    video.playsInline = true; video.muted = true; video.autoplay = true;
+    video.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    hostEl.insertBefore(video, hostEl.firstChild);
+    _cxfFacCam.video = video;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } })
+      .then(function (stream) {
+        if (!_cxfFacCam) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+        video.srcObject = stream;
+        _cxfFacCam.stream = stream;
+        _cxfFacCam.running = true;
+        video.play();
+        setFacCamMsg('Apunte la cámara a la factura', false);
+        tickFacCameraFrame();
+      })
+      .catch(function (err) {
+        setFacCamMsg('No se pudo acceder a la cámara: ' + (err.message || err), false);
+      });
+  }
+
+  function stopFacCamera() {
+    if (!_cxfFacCam) return;
+    _cxfFacCam.running = false;
+    if (_cxfFacCam.rafId) cancelAnimationFrame(_cxfFacCam.rafId);
+    if (_cxfFacCam.stream) _cxfFacCam.stream.getTracks().forEach(function (t) { t.stop(); });
+    if (_cxfFacCam.video && _cxfFacCam.video.parentNode) _cxfFacCam.video.parentNode.removeChild(_cxfFacCam.video);
+  }
+
+  function setFacCamMsg(msg, good) {
+    var el = document.getElementById('cxf-fac-cam-msg');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = good ? '#10b981' : '#fff';
+  }
+
+  function setFacCamStatus(msg) {
+    var el = document.getElementById('cxf-fac-cam-status');
+    if (el) el.textContent = msg;
+  }
+
+  function setFacCamProgress(pct) {
+    var bar = document.getElementById('cxf-fac-cam-progress-bar');
+    if (!bar) return;
+    bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    bar.parentElement.hidden = pct <= 0;
+  }
+
+  function setFacCamGuideFrame(left, top, right, bottom) {
+    var frame = document.getElementById('cxf-fac-cam-frame');
+    if (!frame) return;
+    frame.style.left = (left * 100).toFixed(1) + '%';
+    frame.style.top = (top * 100).toFixed(1) + '%';
+    frame.style.right = ((1 - right) * 100).toFixed(1) + '%';
+    frame.style.bottom = ((1 - bottom) * 100).toFixed(1) + '%';
+  }
+
+  function updateFacCamThumbs() {
+    if (!_cxfFacCam) return;
+    var thumbs = document.getElementById('cxf-fac-cam-thumbs');
+    var countEl = document.getElementById('cxf-fac-cam-count');
+    var useBtn = document.getElementById('cxf-fac-cam-use');
+    var clearBtn = document.getElementById('cxf-fac-cam-clear');
+    if (countEl) countEl.textContent = _cxfFacCam.captures.length;
+    if (useBtn) useBtn.disabled = !_cxfFacCam.captures.length;
+    if (clearBtn) clearBtn.disabled = !_cxfFacCam.captures.length;
+    if (!thumbs) return;
+    thumbs.innerHTML = _cxfFacCam.captures.map(function (c, i) {
+      return '<div class="cxf-fac-cam-thumb"><img src="' + c.url + '" alt="Captura ' + (i + 1) + '"><button type="button" class="cxf-fac-cam-thumb-del" data-cxf-fac-del-idx="' + i + '" aria-label="Eliminar">×</button></div>';
+    }).join('');
+  }
+
+  function snapFacCamera() {
+    if (!_cxfFacCam || !_cxfFacCam.video) return;
+    var v = _cxfFacCam.video;
+    if (v.readyState < 2) return;
+    var flash = document.getElementById('cxf-fac-cam-flash');
+    if (flash) { flash.classList.add('is-active'); setTimeout(function () { flash.classList.remove('is-active'); }, 220); }
+    var canvas = document.createElement('canvas');
+    canvas.width = v.videoWidth || 1920; canvas.height = v.videoHeight || 1080;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(v, 0, 0);
+    canvas.toBlob(function (blob) {
+      if (!blob || !_cxfFacCam) return;
+      var url = URL.createObjectURL(blob);
+      var idx = _cxfFacCam.captures.length;
+      _cxfFacCam.captures.push({ blob: blob, url: url, invoiceNum: idx + 1 });
+      updateFacCamThumbs();
+      var toastEl = document.getElementById('cxf-fac-cam-snap-toast');
+      if (toastEl) { toastEl.textContent = '✅ Foto ' + (idx + 1) + ' guardada'; toastEl.classList.add('is-visible'); setTimeout(function () { toastEl.classList.remove('is-visible'); }, 1800); }
+      setFacCamMsg('📄 Apunte a la siguiente o pulse "Usar facturas →"', false);
+      setFacCamProgress(0);
+      _cxfFacCam.cooldownFrames = 75;
+      _cxfFacCam._holdFrames = 0;
+      setFacCamStatus(_cxfFacCam.captures.length + ' foto' + (_cxfFacCam.captures.length === 1 ? '' : 's') + ' lista' + (_cxfFacCam.captures.length === 1 ? '' : 's'));
+    }, 'image/jpeg', 0.92);
+  }
+
+  function analyzeFacCameraFrame(imageData) {
+    var d = imageData.data, w = imageData.width, h = imageData.height, step = 4;
+    var cols = 3, rows = 3, cw = Math.floor(w / cols), ch = Math.floor(h / rows);
+    var grid = [0,0,0,0,0,0,0,0,0], totalPixels = 0;
+    for (var y = step; y < h - step; y += step) {
+      for (var x = step; x < w - step; x += step) {
+        var i = (y * w + x) * 4;
+        var gray = (d[i] * 77 + d[i+1] * 150 + d[i+2] * 29) >> 8;
+        var iR = ((y * w) + (x + step)) * 4, iD = (((y + step) * w) + x) * 4;
+        var gR = (d[iR] * 77 + d[iR+1] * 150 + d[iR+2] * 29) >> 8;
+        var gD = (d[iD] * 77 + d[iD+1] * 150 + d[iD+2] * 29) >> 8;
+        var dx = gray - gR, dy = gray - gD;
+        var mag = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+        if (mag > 28) { grid[Math.min(Math.floor(y / ch), rows-1) * cols + Math.min(Math.floor(x / cw), cols-1)]++; }
+        totalPixels++;
+      }
+    }
+    var totalEdges = grid.reduce(function(a,b){return a+b;},0);
+    var score = totalPixels > 0 ? (totalEdges / totalPixels) : 0;
+    var te = Math.max(totalEdges, 1);
+    return { score: score, center: (grid[4]+grid[3]+grid[5]+grid[1]+grid[7])/te, left: (grid[0]+grid[3]+grid[6])/te, right: (grid[2]+grid[5]+grid[8])/te, top: (grid[0]+grid[1]+grid[2])/te, bot: (grid[6]+grid[7]+grid[8])/te };
+  }
+
+  function tickFacCameraFrame() {
+    if (!_cxfFacCam || !_cxfFacCam.running || !_cxfFacCam.video) return;
+    var v = _cxfFacCam.video;
+    _cxfFacCam.rafId = requestAnimationFrame(tickFacCameraFrame);
+    if (v.readyState < 2) return;
+    var snap = document.getElementById('cxf-fac-cam-snap');
+    if (snap && snap.disabled) snap.disabled = false;
+    if (_cxfFacCam.cooldownFrames > 0) { _cxfFacCam.cooldownFrames--; if (_cxfFacCam.cooldownFrames === 0) { setFacCamProgress(0); setFacCamGuideFrame(0.10, 0.10, 0.90, 0.90); } return; }
+    if (!_cxfFacCam.autoMode) return;
+    _cxfFacCam._tick = ((_cxfFacCam._tick || 0) + 1);
+    if (_cxfFacCam._tick % 3 !== 0) return;
+    var sc = document.createElement('canvas'); sc.width = 320; sc.height = 180;
+    sc.getContext('2d').drawImage(v, 0, 0, 320, 180);
+    var a = analyzeFacCameraFrame(sc.getContext('2d').getImageData(0, 0, 320, 180));
+    if (a.score < 0.06) { setFacCamMsg('📄 Apunte la cámara a la factura', false); setFacCamGuideFrame(0.10,0.10,0.90,0.90); setFacCamProgress(0); _cxfFacCam._holdFrames=0; return; }
+    if (a.score < 0.12) {
+      var hint = a.right-a.left>0.12?'← mueve a la izquierda':a.left-a.right>0.12?'mueve a la derecha →':a.bot-a.top>0.12?'↑ mueve hacia arriba':a.top-a.bot>0.12?'mueve hacia abajo ↓':'acerca más la factura';
+      setFacCamMsg(hint, false); setFacCamProgress(0); _cxfFacCam._holdFrames=0;
+      var cx=0.5+(a.right-a.left)*0.25, cy=0.5+(a.bot-a.top)*0.25; setFacCamGuideFrame(cx-0.38,cy-0.38,cx+0.38,cy+0.38); return;
+    }
+    if (a.score < 0.17) {
+      var dh=a.right-a.left, dv=a.bot-a.top;
+      var guide=dh>0.10?'← un poco a la izquierda':dh<-0.10?'un poco a la derecha →':dv>0.10?'↑ sube un poco':dv<-0.10?'baja un poco ↓':'🔍 casi — más cerca aún';
+      setFacCamMsg(guide, false); setFacCamProgress(20); _cxfFacCam._holdFrames=0; setFacCamGuideFrame(0.08,0.08,0.92,0.92); return;
+    }
+    _cxfFacCam._holdFrames = (_cxfFacCam._holdFrames||0)+1;
+    var holdNeeded=9, progress=Math.min(100,(_cxfFacCam._holdFrames/holdNeeded)*100);
+    setFacCamProgress(progress); setFacCamGuideFrame(0.06,0.06,0.94,0.94);
+    if (_cxfFacCam._holdFrames<3) setFacCamMsg('📄 Todo el documento — quieto…', true);
+    else if (_cxfFacCam._holdFrames<6) setFacCamMsg('✅ Perfecto — no muevas…', true);
+    else setFacCamMsg('📸 Tomando foto…', true);
+    if (a.score >= 0.21 && _cxfFacCam._holdFrames >= holdNeeded) { _cxfFacCam._holdFrames=0; snapFacCamera(); }
+  }
+
+  function useFacCameraCaptures(host) {
+    if (!_cxfFacCam || !_cxfFacCam.captures.length) return;
+    var captures = _cxfFacCam.captures.slice();
+    closeFacCameraModal();
+    if (ui.proveedorIds.indexOf(PROV_AUTO) < 0) ui.proveedorIds.push(PROV_AUTO);
+    if (!ui.porProveedor[PROV_AUTO]) ui.porProveedor[PROV_AUTO] = { facturas: [{ id: 'f_auto_' + Date.now(), numeroFactura: '', valorFactura: '', valorCajero: '', docs: [], lines: [], _autoProvAsignado: false, feAnalisis: null, docPreviewIdx: 0 }], facturaActiva: '' };
+    ui.modoEntrada = 'auto';
+    captures.forEach(function (cap) {
+      var fid = 'f_cam_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      var fileName = 'factura_camara_' + Date.now() + '.jpg';
+      var file = new File([cap.blob], fileName, { type: 'image/jpeg' });
+      URL.revokeObjectURL(cap.url);
+      var bucket = ui.porProveedor[PROV_AUTO];
+      bucket.facturas.push({ id: fid, numeroFactura: '', valorFactura: '', valorCajero: '', docs: [], lines: [], _autoProvAsignado: false, feAnalisis: null, docPreviewIdx: 0 });
+      bucket.facturaActiva = fid;
+      if (typeof cxfIngestFileOne === 'function') cxfIngestFileOne(file, PROV_AUTO, fid, host);
+    });
+    schedulePersistCxfSession();
+    if (typeof refreshStepHost === 'function') refreshStepHost(host);
+    else if (typeof render === 'function' && host) { host.innerHTML = render(); if (typeof init === 'function') init(host); }
+    toast(captures.length + ' foto' + (captures.length===1?'':'s') + ' cargada' + (captures.length===1?'':'s') + ' — listas para analizar', 'success');
+  }
+
+  function renderFacCameraModal() {
+    return '<div class="cxf-fac-cam-backdrop" id="cxf-fac-cam-backdrop" hidden role="dialog" aria-modal="true" aria-label="Captura de factura">' +
+      '<div class="cxf-fac-cam-dialog">' +
+      '<header class="cxf-fac-cam-header">' +
+      '<h2 class="cxf-fac-cam-title">📷 Capturar facturas</h2>' +
+      '<div class="cxf-fac-cam-header-actions">' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-auto-toggle">Auto ✓</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" id="cxf-fac-cam-close" aria-label="Cerrar">×</button></div></header>' +
+      '<div class="cxf-fac-cam-body">' +
+      '<div class="cxf-fac-cam-viewfinder" id="cxf-fac-cam-host">' +
+      '<div class="cxf-fac-cam-frame" id="cxf-fac-cam-frame">' +
+      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--tl"></span>' +
+      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--tr"></span>' +
+      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--bl"></span>' +
+      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--br"></span></div>' +
+      '<div class="cxf-fac-cam-overlay-msg" id="cxf-fac-cam-msg">Preparando cámara…</div>' +
+      '<div class="cxf-fac-cam-progress" id="cxf-fac-cam-progress" hidden><div class="cxf-fac-cam-progress-bar" id="cxf-fac-cam-progress-bar"></div></div>' +
+      '<div class="cxf-fac-cam-flash" id="cxf-fac-cam-flash"></div>' +
+      '<div class="cxf-fac-cam-snap-toast" id="cxf-fac-cam-snap-toast"></div></div>' +
+      '<div class="cxf-fac-cam-sidebar">' +
+      '<p class="cxf-fac-cam-sidebar-title">Capturas <span id="cxf-fac-cam-count">0</span></p>' +
+      '<div class="cxf-fac-cam-thumbs" id="cxf-fac-cam-thumbs"></div>' +
+      '<div class="cxf-fac-cam-sidebar-actions">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="cxf-fac-cam-snap" disabled>📸 Capturar</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-clear" disabled>Limpiar</button>' +
+      '<button type="button" class="btn btn-success" id="cxf-fac-cam-use" disabled>Usar facturas →</button>' +
+      '</div></div></div>' +
+      '<p id="cxf-fac-cam-status" class="cxf-fac-cam-status" role="status">Iniciando…</p></div></div>';
+  }
+
+  function renderProveedorAutoPaneCxf() {
+    var bucketAuto = ui.porProveedor[PROV_AUTO];
+    var factAuto = bucketAuto && bucketAuto.facturas ? bucketAuto.facturas : [];
+    var totalDocs = factAuto.reduce(function(acc, f) { return acc + (f.docs ? f.docs.length : 0); }, 0);
+    var asignados = factAuto.filter(function(f) { return f._autoProvAsignado; }).length;
+    var sinAsignar = factAuto.filter(function(f) { return f.feAnalisis && f.feAnalisis.estado === 'listo' && !f._autoProvAsignado; }).length;
+    return '<div class="cxf-card cxf-card--featured cxf-prov-auto-pane">' +
+      '<div class="cxf-auto-hero">' +
+      '<span class="cxf-auto-hero__icon" aria-hidden="true">🧠</span>' +
+      '<div><h3 class="cxf-auto-hero__title">Auto-detección de proveedores</h3>' +
+      '<p class="cxf-auto-hero__desc">Suba PDFs o tome fotos. El sistema extraerá el NIT y asignará el proveedor automáticamente.</p>' +
+      '</div></div>' +
+      '<div class="cxf-auto-input-row">' +
+      '<div class="cxf-auto-drop-zone cxf-doc-drop" data-cxf-auto-drop data-prov-id="' + PROV_AUTO + '">' +
+      '<span class="cxf-auto-drop-zone__icon" aria-hidden="true">📁</span>' +
+      '<p class="cxf-auto-drop-zone__label">Arrastre PDFs aquí o</p>' +
+      '<label class="btn btn-outline cxf-doc-file-label" for="cxf-auto-file-input">Seleccionar archivos</label>' +
+      '<input type="file" id="cxf-auto-file-input" class="cxf-doc-file-hidden" data-cxf-auto-file accept="application/pdf,image/*" multiple></div>' +
+      '<button type="button" class="btn btn-outline cxf-auto-cam-btn" id="cxf-bundle-open-cam">' +
+      '<span class="cxf-auto-cam-btn__icon" aria-hidden="true">📷</span>' +
+      '<span>Capturar con cámara</span></button></div>' +
+      (totalDocs > 0 ? '<div class="cxf-auto-stats">' +
+        '<span class="cxf-auto-stat"><strong>' + totalDocs + '</strong> archivo' + (totalDocs===1?'':'s') + ' cargado' + (totalDocs===1?'':'s') + '</span>' +
+        '<span class="cxf-auto-stat cxf-auto-stat--ok"><strong>' + asignados + '</strong> asignado' + (asignados===1?'':'s') + '</span>' +
+        (sinAsignar > 0 ? '<span class="cxf-auto-stat cxf-auto-stat--warn"><strong>' + sinAsignar + '</strong> sin proveedor</span>' : '') +
+        '</div>' : '') +
+      '<p class="form-hint">El sistema procesará cada archivo en cola y asignará o creará el proveedor.</p>' +
+      '<div class="cxf-step-actions">' +
+      '<button type="button" class="btn btn-outline btn-lg" id="cxf-auto-iniciar-btn"' + (totalDocs>0?'':' disabled') + '>Analizar y asignar →</button>' +
+      '<button type="button" class="btn btn-primary btn-lg cxf-btn-next" id="cxf-go-documento"' +
+      (totalDocs>0?'':' disabled') + '>Continuar a facturas <span aria-hidden="true">→</span></button>' +
+      '</div></div>';
+  }
+
   function renderProveedorStep() {
     var tab = ui.proveedorTab || 'select';
     var premium = isCxfPremiumPsyche();
@@ -7448,24 +7711,38 @@
       '</h2>' +
       '<p class="cxf-panel-lead">Elija proveedores ya registrados o délos de alta aquí. El directorio completo está en <strong>Compras → Directorio proveedores</strong>.</p>' +
       '</header>' +
-      '<nav class="cxf-prov-tabs crozzo-mod-nav crozzo-mod-nav--segmented cxf-prov-tabs--wrap" role="tablist" aria-label="Modo proveedor">' +
-      '<button type="button" class="crozzo-mod-nav__item' +
+      '<nav class="cxf-prov-tabs cxf-prov-tabs--grid" role="tablist" aria-label="Modo proveedor">' +
+      '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'select' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="select" role="tab">Registrado</button>' +
-      '<button type="button" class="crozzo-mod-nav__item' +
+      '" data-cxf-prov-tab="select" role="tab">' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📄</span>' +
+      '<span class="cxf-prov-tab-btn__label">Registrado</span></button>' +
+      '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'nuevo' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="nuevo" role="tab">Alta rápida</button>' +
-      '<button type="button" class="crozzo-mod-nav__item' +
+      '" data-cxf-prov-tab="nuevo" role="tab">' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">➕</span>' +
+      '<span class="cxf-prov-tab-btn__label">Alta rápida</span></button>' +
+      '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'importar' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="importar" role="tab">Desde certificado</button></nav>' +
-      (tab === 'nuevo'
-        ? renderProveedorCreatePane()
-        : tab === 'importar'
-          ? (typeof global.CrozzoProveedorDocumentos !== 'undefined' &&
-            global.CrozzoProveedorDocumentos.renderImportBlock
-              ? '<div class="cxf-card">' + global.CrozzoProveedorDocumentos.renderImportBlock('cxf-prov-only') + '</div>'
-              : '<p class="form-hint">Módulo de importación no cargado.</p>')
-          : renderProveedorSelectPane()) +
+      '" data-cxf-prov-tab="importar" role="tab">' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📅</span>' +
+      '<span class="cxf-prov-tab-btn__label">Desde certificado</span></button>' +
+      '<button type="button" class="cxf-prov-tab-btn cxf-prov-tab-btn--auto' +
+      (tab === 'auto' ? ' is-active' : '') +
+      '" data-cxf-prov-tab="auto" role="tab">' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">🧠</span>' +
+      '<span class="cxf-prov-tab-btn__label">Auto-detectar</span></button>' +
+      '</nav>' +
+      (tab === 'auto'
+        ? renderProveedorAutoPaneCxf()
+        : tab === 'nuevo'
+          ? renderProveedorCreatePane()
+          : tab === 'importar'
+            ? (typeof global.CrozzoProveedorDocumentos !== 'undefined' &&
+              global.CrozzoProveedorDocumentos.renderImportBlock
+                ? '<div class="cxf-card">' + global.CrozzoProveedorDocumentos.renderImportBlock('cxf-prov-only') + '</div>'
+                : '<p class="form-hint">Módulo de importación no cargado.</p>')
+            : renderProveedorSelectPane()) +
       '</section>'
     );
   }
@@ -10210,6 +10487,7 @@
       renderQrCameraModal() +
       renderQrRegionModal() +
       renderSplitPdfModal() +
+      renderFacCameraModal() +
       renderCxfCommandStrip() +
       renderStorageNote({ retentionDays: 365 }) +
       renderAlertasBanner() +
@@ -10815,6 +11093,58 @@
           refreshStepHost(host);
         }
       };
+    }
+
+    var camBtn = host.querySelector('#cxf-bundle-open-cam');
+    if (camBtn && !camBtn._cxfCamBound) {
+      camBtn._cxfCamBound = true;
+      camBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        openFacCameraModal(host);
+      });
+    }
+
+    if (!global.__cxfFacCamModalInstalled) {
+      global.__cxfFacCamModalInstalled = true;
+      document.addEventListener('click', function (e) {
+        if (e.target.closest('#cxf-fac-cam-close')) {
+          closeFacCameraModal();
+          return;
+        }
+        if (e.target.closest('#cxf-fac-cam-snap')) {
+          snapFacCamera();
+          return;
+        }
+        if (e.target.closest('#cxf-fac-cam-use')) {
+          useFacCameraCaptures(getCxfHost());
+          return;
+        }
+        if (e.target.closest('#cxf-fac-cam-clear')) {
+          if (!_cxfFacCam) return;
+          _cxfFacCam.captures.forEach(function (c) { URL.revokeObjectURL(c.url); });
+          _cxfFacCam.captures = [];
+          updateFacCamThumbs();
+          setFacCamMsg('Apunte la cámara a la factura', false);
+          return;
+        }
+        if (e.target.closest('#cxf-fac-cam-auto-toggle')) {
+          if (!_cxfFacCam) return;
+          _cxfFacCam.autoMode = !_cxfFacCam.autoMode;
+          var tog = document.getElementById('cxf-fac-cam-auto-toggle');
+          if (tog) tog.textContent = _cxfFacCam.autoMode ? 'Auto ✓' : 'Auto ✗';
+          setFacCamMsg(_cxfFacCam.autoMode ? 'Modo automático activado' : 'Modo manual — pulse Capturar', false);
+          return;
+        }
+        var delBtn = e.target.closest('[data-cxf-fac-del-idx]');
+        if (delBtn && _cxfFacCam) {
+          var idx = parseInt(delBtn.getAttribute('data-cxf-fac-del-idx'), 10);
+          if (!isNaN(idx)) {
+            URL.revokeObjectURL(_cxfFacCam.captures[idx].url);
+            _cxfFacCam.captures.splice(idx, 1);
+            updateFacCamThumbs();
+          }
+        }
+      });
     }
   }
 

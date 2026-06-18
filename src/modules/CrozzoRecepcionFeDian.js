@@ -362,16 +362,37 @@
   }
 
   var FE_DOC_SIGNALS = [
-    { re: /factura\s+electr[oó]nica\s+de\s+venta/i, w: 24, label: 'Título FE venta' },
-    { re: /factura\s+electr[oó]nica/i, w: 20, label: 'Factura electrónica' },
-    { re: /\bCUFE\b/i, w: 22, label: 'Etiqueta CUFE' },
-    { re: /c[oó]digo\s+[uú]nico\s+de\s+factura/i, w: 18, label: 'Código único' },
-    { re: /catalogo-vpfe|dian\.gov\.co/i, w: 18, label: 'Portal DIAN' },
-    { re: /documentkey=/i, w: 14, label: 'Clave DIAN' },
-    { re: /PayableAmount|InvoiceTypeCode|AccountingSupplierParty/i, w: 16, label: 'UBL/XML' },
-    { re: /Representaci[oó]n\s+gr[aá]fica/i, w: 12, label: 'Rep. gráfica DIAN' },
-    { re: /NIT\s*(?:del\s+)?(?:emisor|proveedor|vendedor)/i, w: 10, label: 'NIT emisor' },
-    { re: /Total\s+a\s+pagar/i, w: 8, label: 'Total a pagar' },
+    { re: /factura\s+electr[oó]nica\s+de\s+venta/i,                         w: 26, label: 'Título FE venta' },
+    { re: /factura\s+electr[oó]nica/i,                                        w: 22, label: 'Factura electrónica' },
+    { re: /\bCUFE\b/i,                                                         w: 24, label: 'Etiqueta CUFE' },
+    { re: /\bCUDE\b/i,                                                         w: 22, label: 'Etiqueta CUDE' },
+    { re: /c[oó]digo\s+[uú]nico\s+de\s+(?:factura|documento)/i,              w: 20, label: 'Código único FE/DIAN' },
+    { re: /catalogo-vpfe|dian\.gov\.co/i,                                     w: 20, label: 'Portal DIAN' },
+    { re: /documentkey=/i,                                                     w: 16, label: 'Clave DIAN' },
+    { re: /PayableAmount|InvoiceTypeCode|AccountingSupplierParty/i,           w: 18, label: 'UBL/XML DIAN' },
+    { re: /cbc:UUID|cbc:ID|fe:Invoice|AttachedDocument/i,                     w: 18, label: 'XML UBL namespace' },
+    { re: /Representaci[oó]n\s+gr[aá]fica/i,                                  w: 14, label: 'Rep. gráfica DIAN' },
+    { re: /NIT\s*(?:del\s+)?(?:emisor|proveedor|vendedor)/i,                  w: 12, label: 'NIT emisor' },
+    { re: /Total\s+a\s+pagar/i,                                               w: 10, label: 'Total a pagar' },
+    { re: /nota\s+(?:cr[eé]dito|d[eé]bito)\s+electr[oó]nica/i,              w: 22, label: 'Nota electrónica' },
+    { re: /(?:factura|documento)\s+de\s+venta/i,                              w: 10, label: 'Doc. de venta' },
+    { re: /resoluci[oó]n\s+(?:DIAN|de\s+facturaci[oó]n)/i,                  w: 14, label: 'Resolución DIAN' },
+    { re: /[Nn][uú]m(?:ero)?\s*\.?\s*(?:de\s+)?[Rr]esoluci[oó]n/i,        w: 12, label: 'Número resolución' },
+    { re: /autorizaci[oó]n\s+(?:de\s+)?numeraci[oó]n/i,                     w: 12, label: 'Autorización numeración' },
+    { re: /numeraci[oó]n\s+(?:del\s+)?[0-9]+\s+(?:al|a)\s+[0-9]+/i,       w: 10, label: 'Rango numeración' },
+    { re: /r[eé]gimen\s+(?:com[uú]n|simplificado|ordinario)/i,               w: 10, label: 'Régimen tributario' },
+    { re: /responsable\s+(?:de\s+)?IVA/i,                                    w: 10, label: 'Responsable IVA' },
+    { re: /no\s+responsable\s+(?:de\s+)?IVA/i,                              w: 8,  label: 'No resp. IVA' },
+    { re: /gran\s+contribuyente/i,                                             w: 10, label: 'Gran contribuyente' },
+    { re: /declarante\s+de\s+renta/i,                                        w: 8,  label: 'Declarante renta' },
+    { re: /\bIVA\b.*?(?:19|5|0)\s*%/i,                                       w: 8,  label: 'Tasa IVA' },
+    { re: /impuesto\s+sobre\s+las\s+ventas/i,                                w: 10, label: 'IVA descripción' },
+    { re: /(?:subtotal|sub\s+total|valor\s+antes\s+de\s+IVA)/i,             w: 8,  label: 'Subtotal' },
+    { re: /forma\s+(?:de\s+)?pago/i,                                         w: 6,  label: 'Forma de pago' },
+    { re: /(?:cr[eé]dito|contado|transferencia|efectivo)\s+(?:pago|venta)/i, w: 6,  label: 'Tipo pago' },
+    { re: /orden\s+(?:de\s+)?compra/i,                                       w: 6,  label: 'Orden compra' },
+    { re: /(?:dirección|direcci[oó]n|tel[eé]fono|correo)\s+(?:emisor|proveedor)/i, w: 6, label: 'Contacto emisor' },
+    { re: /(?:nit|c\.c\.|c\.e\.|t\.i\.)[:\s]*[0-9]{6,12}/i,               w: 10, label: 'Identificación doc' },
   ];
 
   var FE_LOADER_TRACK = [
@@ -523,14 +544,23 @@
   function feExtractNitsFromText(text) {
     var out = [];
     var seen = {};
-    var re = /(?:NIT|N\.I\.T\.?|Emisor|Proveedor|Vendedor)[:\s#]*([0-9]{3,3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9Kk])/gi;
+    text = String(text || '');
+    function addNit(raw) {
+      var n = normNit(raw);
+      if (!n || n.length < 8) return;
+      if (seen[n]) return;
+      seen[n] = true;
+      out.push(n);
+    }
+    var rePrefixed = /(?:NIT|N\.I\.T\.?|Emisor|Proveedor|Vendedor|Comprador|Adquiriente|Cliente)[:\s#.]*([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9Kk]?)/gi;
     var m;
-    while ((m = re.exec(String(text || '')))) {
-      var n = normNit(m[1]);
-      if (n && !seen[n]) {
-        seen[n] = true;
-        out.push(n);
-      }
+    while ((m = rePrefixed.exec(text))) addNit(m[1]);
+    var reFormato = /\b([0-9]{3}\.[0-9]{3}\.[0-9]{3}[-–][0-9Kk])\b/g;
+    while ((m = reFormato.exec(text))) addNit(m[1]);
+    var reNuda = /\b([0-9]{9,11})\b/g;
+    while ((m = reNuda.exec(text))) {
+      var digits = m[1];
+      if (digits.length >= 9 && digits.length <= 11) addNit(digits);
     }
     return out;
   }
@@ -1020,24 +1050,30 @@
     return isFinite(n) ? n : 0;
   }
 
+  var _NAME_STRIP_RE = /\b(?:S\.?A\.?S\.?|S\.?A\.?|LTDA\.?|SAS|LTDA|S\.?C\.?A\.?|E\.?U\.?|S\.?C\.?S\.?|INC\.?|CORP\.?|CO\.?|DE|DEL|Y|LA|EL|LOS|LAS|UN|UNA|AND|THE|DE\s+LA|DE\s+LOS)\b/g;
+  function normalizeNameForSim(s) {
+    return String(s || '')
+      .toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(_NAME_STRIP_RE, ' ')
+      .replace(/[^A-Z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
   function nameSimilarity(a, b) {
-    a = String(a || '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9 ]/g, '')
-      .trim();
-    b = String(b || '')
-      .toUpperCase()
-      .replace(/[^A-Z0-9 ]/g, '')
-      .trim();
+    a = normalizeNameForSim(a);
+    b = normalizeNameForSim(b);
     if (!a || !b) return 0;
     if (a === b) return 1;
-    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return 0.88;
-    var aw = a.split(/\s+/);
+    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return 0.92;
+    var aw = a.split(/\s+/).filter(function (w) { return w.length >= 3; });
+    var bSet = ' ' + b + ' ';
     var hit = 0;
     aw.forEach(function (w) {
-      if (w.length >= 3 && b.indexOf(w) >= 0) hit++;
+      if (bSet.indexOf(' ' + w + ' ') >= 0) hit += 1;
+      else if (b.indexOf(w) >= 0 && w.length >= 5) hit += 0.6;
     });
-    return hit / Math.max(aw.length, 1);
+    return aw.length ? hit / aw.length : 0;
   }
 
   function resolveFeVendorUrl(path) {
@@ -2932,52 +2968,224 @@
       razonSocial: '',
       numeroFactura: '',
       total: 0,
+      subtotal: 0,
+      totalIva: 0,
+      totalDescuentos: 0,
       fecha: '',
+      fechaVencimiento: '',
+      formaPago: '',
+      ordenCompra: '',
+      resolucionDian: '',
+      rangoDesde: '',
+      rangoHasta: '',
+      regimen: '',
+      nitReceptor: '',
+      nombreReceptor: '',
+      telefonoEmisor: '',
+      emailEmisor: '',
+      direccionEmisor: '',
+      ciudadEmisor: '',
+      notas: '',
+      tipoDocumento: '',
       lineas: [],
       rawExcerpt: text.slice(0, 2000),
     };
+
+    /* ── Tipo de documento ── */
+    if (/nota\s+cr[e\u00e9]dito\s+electr[o\u00f3]nica/i.test(flat)) out.tipoDocumento = 'nota-credito';
+    else if (/nota\s+d[e\u00e9]bito\s+electr[o\u00f3]nica/i.test(flat)) out.tipoDocumento = 'nota-debito';
+    else if (/factura\s+electr[o\u00f3]nica/i.test(flat)) out.tipoDocumento = 'factura-electronica';
+    else if (/factura\s+de\s+venta/i.test(flat)) out.tipoDocumento = 'factura-venta';
+    else if (/factura/i.test(flat)) out.tipoDocumento = 'factura';
+
+    /* ── NIT emisor ── */
     var nitM =
-      flat.match(/NIT[:\s]*([0-9]{3,3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9K])/i) ||
-      flat.match(/Emisor[^0-9]*([0-9]{9,10}[-–]?[0-9K])/i) ||
-      flat.match(/Proveedor[^0-9]*([0-9]{9,10}[-–]?[0-9K])/i);
-    if (nitM) out.nitEmisor = nitM[1].replace(/\s/g, '');
+      flat.match(/NIT[:\s#.]*([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-\u2013]?[0-9Kk])/i) ||
+      flat.match(/(?:Emisor|Proveedor|Vendedor)[^0-9]{0,30}([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-\u2013]?[0-9Kk]?)/i) ||
+      flat.match(/([0-9]{3}\.[0-9]{3}\.[0-9]{3}[-\u2013][0-9Kk])/);
+    if (nitM) out.nitEmisor = nitM[1].replace(/[\s.]/g, '');
     if (!out.nitEmisor) {
       var nits = feExtractNitsFromText(text);
       if (nits.length) out.nitEmisor = nits[0];
     }
+
+    /* ── Razón social emisor ── */
     var rsM =
-      flat.match(/Raz[oó]n\s+social[:\s]*([^|]{4,80}?)(?:\s+NIT|\s+DV|\s+CUFE|$)/i) ||
-      flat.match(/Nombre\s+o\s+raz[oó]n\s+social[:\s]*([^|]{4,80}?)(?:\s+NIT|\s+DV|$)/i) ||
-      flat.match(/Emisor[:\s]*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑa-záéíóúñ0-9 .,&-]{4,70}?)(?:\s+NIT|\s+CUFE|$)/i);
-    if (rsM) out.razonSocial = rsM[1].trim();
+      flat.match(/Raz[o\u00f3]n\s+social[:\s]*([^|\n]{4,80}?)(?:\s{2,}|\s+NIT|\s+DV|\s+CUFE|$)/i) ||
+      flat.match(/Nombre\s+(?:o\s+)?raz[o\u00f3]n\s+social[:\s]*([^|\n]{4,80}?)(?:\s{2,}|\s+NIT|\s+DV|$)/i) ||
+      flat.match(/Emisor[:\s]+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][A-Za-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f10-9 .,&\-]{4,70}?)(?:\s{2,}|\s+NIT|\s+CUFE|$)/i) ||
+      flat.match(/Raz[o\u00f3]n\s+[Ss]ocial\s+del\s+[Vv]endedor[:\s]*([^|\n]{4,80}?)(?:\s{2,}|$)/i);
+    if (rsM) out.razonSocial = rsM[1].trim().replace(/\s{2,}/g, ' ');
+
+    /* ── Número de factura ── */
     var feM =
-      flat.match(/(?:Factura\s+electr[oó]nica|N[uú]mero\s+de\s+factura|FEV|Prefijo)[:\s#]*([A-Z]{0,6}[-\s]?[0-9]{4,12})/i) ||
-      flat.match(/\b(FE[A-Z]?[-_]?\d{4,})\b/i);
-    if (feM) out.numeroFactura = feM[1].replace(/\s/g, '');
+      flat.match(/(?:Factura\s+electr[o\u00f3]nica|N[u\u00fa]mero\s+de\s+factura)[:\s#]*([A-Z]{0,8}[-\s]?[0-9]{3,14})/i) ||
+      flat.match(/(?:Factura\s+de\s+venta|Factura)[:\s#\-]*([A-Z]{1,6}[-\s]?[0-9]{3,14})/i) ||
+      flat.match(/(?:FEV|FETV|FCV|FCEV)[:\s#]*([A-Z]{0,6}[-\s]?[0-9]{3,14})/i) ||
+      flat.match(/Prefijo\s+[:\s]*([A-Z]{1,6})\s*[Nn][u\u00fa]m(?:ero)?[:\s]*([0-9]{3,14})/i) ||
+      flat.match(/N[u\u00fa]mero[:\s#]*([A-Z]{1,6}[-]?[0-9]{4,12})/i) ||
+      flat.match(/\b([A-Z]{2,6}[-]?[0-9]{3,12})\b/);
+    if (feM) {
+      out.numeroFactura = feM[2]
+        ? (feM[1] + feM[2]).replace(/\s/g, '')
+        : feM[1].replace(/\s/g, '');
+    }
+
+    /* ── Totales ── */
     var totM =
       flat.match(/Total\s+a\s+pagar[:\s]*\$?\s*([\d.,]+)/i) ||
-      flat.match(/PayableAmount[^0-9]*([\d.,]+)/i) ||
-      flat.match(/Total\s+factura[:\s]*\$?\s*([\d.,]+)/i) ||
-      flat.match(/Valor\s+total[:\s]*\$?\s*([\d.,]+)/i);
+      flat.match(/PayableAmount[>\s]*([0-9.,]+)/i) ||
+      flat.match(/Total\s+(?:factura|neto|bruto|general|documento)[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/Valor\s+total[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/Gran\s+total[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/TOTAL\s*\$?\s*([\d.,]+)/i);
     if (totM) out.total = parseCopAmount(totM[1]);
+
+    var subM =
+      flat.match(/[Ss]ubtotal[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/[Ss]ub[\s\-][Tt]otal[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/Valor\s+antes\s+de\s+IVA[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/TaxableAmount[>\s]*([0-9.,]+)/i);
+    if (subM) out.subtotal = parseCopAmount(subM[1]);
+
+    var ivaM =
+      flat.match(/Total\s+(?:IVA|impuesto)[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/IVA[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/TaxAmount[>\s]*([0-9.,]+)/i) ||
+      flat.match(/Impuesto\s+(?:IVA|sobre\s+las\s+ventas)[:\s]*\$?\s*([\d.,]+)/i);
+    if (ivaM) out.totalIva = parseCopAmount(ivaM[1]);
+
+    var descM =
+      flat.match(/[Dd]escuento[s]?[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/Total\s+descuento[s]?[:\s]*\$?\s*([\d.,]+)/i) ||
+      flat.match(/AllowanceTotalAmount[>\s]*([0-9.,]+)/i);
+    if (descM) out.totalDescuentos = parseCopAmount(descM[1]);
+
+    /* ── Fecha ── */
+    var fechaM =
+      flat.match(/Fecha\s+(?:de\s+)?(?:emisi[o\u00f3]n|expedici[o\u00f3]n|factura)[:\s]*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})/i) ||
+      flat.match(/Fecha\s+(?:de\s+)?(?:emisi[o\u00f3]n|expedici[o\u00f3]n|factura)[:\s]*([0-9]{2}[-/][0-9]{2}[-/][0-9]{4})/i) ||
+      flat.match(/IssueDate[:\s>]*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})/i) ||
+      flat.match(/([0-9]{4}[-][0-9]{2}[-][0-9]{2})/);
+    if (fechaM) {
+      var fStr = fechaM[1];
+      if (/^\d{2}[-\/]\d{2}[-\/]\d{4}$/.test(fStr)) {
+        var fp = fStr.split(/[-\/]/);
+        fStr = fp[2] + '-' + fp[1] + '-' + fp[0];
+      }
+      out.fecha = fStr;
+    }
+
+    var fvencM =
+      flat.match(/Fecha\s+(?:de\s+)?vencimiento[:\s]*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})/i) ||
+      flat.match(/DueDate[:\s>]*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})/i);
+    if (fvencM) out.fechaVencimiento = fvencM[1];
+
+    /* ── Resolución DIAN ── */
+    var resM =
+      flat.match(/Resoluci[o\u00f3]n[:\s#]*(?:No\.?\s*)?([0-9]{5,20})/i) ||
+      flat.match(/N[u\u00fa]m(?:ero)?\s+resoluci[o\u00f3]n[:\s#]*([0-9]{5,20})/i);
+    if (resM) out.resolucionDian = resM[1].trim();
+
+    var rangoM = flat.match(/(?:del|desde|rango)[:\s]*([0-9]+)\s+(?:al|hasta|a)\s+([0-9]+)/i);
+    if (rangoM) { out.rangoDesde = rangoM[1]; out.rangoHasta = rangoM[2]; }
+
+    /* ── Forma de pago ── */
+    var fpM =
+      flat.match(/Forma\s+(?:de\s+)?pago[:\s]*([^\n,|]{4,40}?)(?:\s{2,}|\s+\$|\||$)/i) ||
+      flat.match(/PaymentMeansCode[:\s>]*([A-Z0-9]{1,10})/i);
+    if (fpM) out.formaPago = fpM[1].trim();
+
+    /* ── Orden de compra ── */
+    var ocM = flat.match(/[Oo]rden\s+(?:de\s+)?[Cc]ompra[:\s#]*([A-Z0-9\-]{3,30})/i);
+    if (ocM) out.ordenCompra = ocM[1].trim();
+
+    /* ── Régimen ── */
+    var regM = flat.match(/r[e\u00e9]gimen\s+(com[u\u00fa]n|simplificado|ordinario|especial)/i);
+    if (regM) out.regimen = regM[1].trim();
+
+    /* ── Datos receptor/comprador ── */
+    var nitRec =
+      flat.match(/(?:Adquiriente|Comprador|Cliente|Receptor)[^0-9]{0,30}([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-\u2013]?[0-9Kk]?)/i) ||
+      flat.match(/NIT\s+(?:del\s+)?(?:[Cc]omprador|[Aa]dquiriente|[Cc]liente)[:\s]*([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-\u2013]?[0-9Kk]?)/i);
+    if (nitRec) out.nitReceptor = nitRec[1].replace(/[\s.]/g, '');
+
+    var nomRec =
+      flat.match(/(?:Adquiriente|Comprador|Cliente)[:\s]+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][A-Za-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1 .,&\-]{4,70}?)(?:\s{2,}|\s+NIT|$)/i);
+    if (nomRec) out.nombreReceptor = nomRec[1].trim().replace(/\s{2,}/g, ' ');
+
+    /* ── Contacto emisor ── */
+    var telM = flat.match(/Tel[e\u00e9]fono[:\s]*([+\s0-9()-]{7,20})/i);
+    if (telM) out.telefonoEmisor = telM[1].trim();
+
+    var emailM = flat.match(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/);
+    if (emailM) out.emailEmisor = emailM[1];
+
+    var dirM =
+      flat.match(/Direcci[o\u00f3]n[:\s]*([^|\n]{5,80}?)(?:\s{2,}|\s+Tel|\s+Fax|$)/i) ||
+      flat.match(/Calle\s+[0-9].*?(?=\s{2,}|NIT|$)/i);
+    if (dirM) out.direccionEmisor = dirM[0].trim().slice(0, 100);
+
+    var ciudadM = flat.match(/(?:Ciudad|Municipio)[:\s]*([A-Za-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1 ]{3,40}?)(?:\s{2,}|\s+Tel|\||$)/i);
+    if (ciudadM) out.ciudadEmisor = ciudadM[1].trim();
+
+    /* ── Notas ── */
+    var notasM = flat.match(/(?:[Oo]bservaci[o\u00f3]n(?:es)?|[Nn]otas?)[:\s]*([^\n]{5,200})/i);
+    if (notasM) out.notas = notasM[1].trim().slice(0, 200);
+
+    /* ── Líneas de producto ── */
     var lines = text.split(/\n/);
+    var inLineas = false;
     lines.forEach(function (ln) {
-      var row = ln.match(/^(.{3,60}?)\s+([\d.,]+)\s+([\d.,]+)\s*$/);
-      if (row && !/total|subtotal|iva|cufe/i.test(row[1])) {
-        out.lineas.push({
-          descripcion: row[1].trim(),
-          cantidad: parseCopAmount(row[2]),
-          valor: parseCopAmount(row[3]),
-        });
+      if (/(?:descripci[o\u00f3]n|producto|art[i\u00ed]culo|concepto|detalle)\s+(?:cant|cantidad|unidad|vr\.?\s*unit)/i.test(ln)) {
+        inLineas = true;
+        return;
+      }
+      if (/(?:subtotal|sub[\s-]total|total\s+a\s+pagar|base\s+gravable|gran\s+total)/i.test(ln)) {
+        inLineas = false;
+      }
+      var row4 = ln.match(/^(.{3,70}?)\s+([\d.,]+)\s+\$?\s*([\d.,]+)\s+\$?\s*([\d.,]+)\s*$/);
+      if (row4 && !/total|subtotal|iva|cufe|descuento|impuesto|tax/i.test(row4[1])) {
+        var qty = parseCopAmount(row4[2]);
+        var vunit = parseCopAmount(row4[3]);
+        var vtot = parseCopAmount(row4[4]);
+        if (qty > 0 && (vunit > 0 || vtot > 0)) {
+          out.lineas.push({
+            descripcion: row4[1].trim(),
+            cantidad: qty,
+            valorUnitario: vunit,
+            valor: vtot || Math.round(qty * vunit),
+          });
+          return;
+        }
+      }
+      var row3 = ln.match(/^(.{3,70}?)\s+([\d.,]+)\s+([\d.,]+)\s*$/);
+      if (row3 && !/total|subtotal|iva|cufe|descuento|impuesto|tax|base/i.test(row3[1])) {
+        var q3 = parseCopAmount(row3[2]);
+        var v3 = parseCopAmount(row3[3]);
+        if (q3 > 0 && v3 > 0) {
+          out.lineas.push({ descripcion: row3[1].trim(), cantidad: q3, valor: v3 });
+        }
       }
     });
+
+    /* ── Fallback descripción ── */
     if (!out.lineas.length) {
-      var descRe = /Descripción[:\s]*([^\n]{4,80})/gi;
+      var descRe = /(?:Descripci[o\u00f3]n|Description)[:\s]*([^\n]{4,120})/gi;
       var m;
-      while ((m = descRe.exec(text)) && out.lineas.length < 12) {
-        out.lineas.push({ descripcion: m[1].trim(), cantidad: 1, valor: 0 });
+      while ((m = descRe.exec(text)) && out.lineas.length < 25) {
+        var descTxt = m[1].trim().replace(/\s{2,}/g, ' ');
+        if (descTxt.length > 3 && !/^(?:total|iva|subtotal|descuento|impuesto|cufe|fecha|nit)/i.test(descTxt)) {
+          out.lineas.push({ descripcion: descTxt, cantidad: 1, valor: 0 });
+        }
       }
     }
+
+    /* ── Inferir subtotal si falta ── */
+    if (!out.subtotal && out.total && out.totalIva) {
+      out.subtotal = out.total - out.totalIva;
+    }
+
     return out;
   }
 
@@ -3660,12 +3868,46 @@
     fullText = String(fullText || fe.rawExcerpt || '');
     var nitP = normNit(prov.nit);
     var nitF = normNit(fe.nitEmisor);
-    var simNombre = nameSimilarity(
-      prov.nombre || prov.name,
-      fe.razonSocial || (prov.legal && prov.legal.razonSocial)
-    );
+    var provNombre = prov.nombre || prov.name || '';
+    var simNombre = nameSimilarity(provNombre, fe.razonSocial || '');
     var simRazon = nameSimilarity(prov.legal && prov.legal.razonSocial, fe.razonSocial);
     var sim = Math.max(simNombre, simRazon);
+
+    /* ── Consultar memoria: NIT → proveedor memorizado ── */
+    var rv = global.CrozzoReservorio;
+    if (!provNombre && !nitP && nitF && rv && rv.resolveProveedorPorNit) {
+      var provMemorizado = rv.resolveProveedorPorNit(nitF);
+      if (provMemorizado && provMemorizado.proveedorId) {
+        return {
+          ok: true,
+          score: 90,
+          etiqueta: 'Proveedor memorizado',
+          detalle: 'El NIT ' + nitF + ' fue vinculado anteriormente (' + (provMemorizado.hits || 1) + ' facturas).',
+          proveedorMemorizadoId: provMemorizado.proveedorId,
+          nitSugerido: nitF,
+          nombreSugerido: provMemorizado.razonSocial || '',
+        };
+      }
+    }
+
+    if (!provNombre && !nitP) {
+      var sugNit = nitF || '';
+      var sugNombre = String(fe.razonSocial || '').trim();
+      return {
+        ok: false,
+        score: 0,
+        etiqueta: 'Sin proveedor seleccionado',
+        detalle: sugNit || sugNombre
+          ? 'La factura indica: ' +
+            (sugNombre ? '\u201c' + sugNombre + '\u201d' : '') +
+            (sugNit ? ' \u00b7 NIT ' + sugNit : '') +
+            '. Puede crear el proveedor con esos datos.'
+          : 'Seleccione un proveedor en el paso 1 para validar la coincidencia.',
+        sugerirCrear: !!(sugNit || sugNombre),
+        nitSugerido: sugNit,
+        nombreSugerido: sugNombre,
+      };
+    }
     if (nitP && nitF && nitP === nitF) {
       return {
         ok: true,
@@ -3769,28 +4011,66 @@
     return '$' + Math.round(Number(n) || 0).toLocaleString('es-CO');
   }
 
-  function suggestMpLines(feLineas, mpCatalog) {
+  function suggestMpLines(feLineas, mpCatalog, opts) {
     feLineas = feLineas || [];
     mpCatalog = mpCatalog || [];
+    opts = opts || {};
+    var proveedorId = opts.proveedorId || '';
+    var nitEmisor = opts.nitEmisor || '';
+    var rv = global.CrozzoReservorio;
+
     return feLineas.map(function (ln) {
       var desc = String(ln.descripcion || '').trim();
+      var qty = ln.cantidad > 0 ? ln.cantidad : 1;
+      var totalVal = ln.valor > 0 ? ln.valor : 0;
+      var precio = totalVal > 0 ? totalVal : 0;
+      if (!precio && ln.valorUnitario > 0) precio = Math.round(ln.valorUnitario * qty);
+
+      /* ── 1. Consultar memoria aprendida (feLinks) ── */
+      var linkMem = rv && rv.queryFeLinks ? rv.queryFeLinks(desc, proveedorId, nitEmisor) : null;
+      if (linkMem && linkMem.mpId) {
+        var mpMem = mpCatalog.find(function (m) { return String(m.id) === String(linkMem.mpId); });
+        if (mpMem) {
+          return {
+            descripcion: desc,
+            mpId: mpMem.id,
+            mpNombre: mpMem.nombre,
+            cant: String(qty),
+            precio: precio > 0 ? String(Math.round(precio)) : '',
+            confianza: 100,
+            memorizado: true,
+            feLinkSource: linkMem.source,
+            feLinkHits: linkMem.hits,
+          };
+        }
+      }
+
+      /* ── 2. Similitud contra catálogo + aliases ── */
       var best = null;
       var bestScore = 0;
+      var bestAlias = null;
+      var bestAliasScore = 0;
       mpCatalog.forEach(function (mp) {
         var sim = nameSimilarity(desc, mp.nombre);
-        if (sim > bestScore) {
-          bestScore = sim;
-          best = mp;
-        }
+        if (sim > bestScore) { bestScore = sim; best = mp; }
+        var aliases = mp.aliases || mp.sinonimos || [];
+        if (typeof aliases === 'string') aliases = aliases.split(',');
+        aliases.forEach(function (al) {
+          var simA = nameSimilarity(desc, String(al || '').trim());
+          if (simA > bestAliasScore) { bestAliasScore = simA; bestAlias = mp; }
+        });
       });
-      var precio = ln.valor > 0 ? ln.valor : ln.cantidad > 0 && ln.valor ? ln.valor / ln.cantidad : 0;
+      if (bestAliasScore > bestScore) { best = bestAlias; bestScore = bestAliasScore; }
+
       return {
         descripcion: desc,
-        mpId: best && bestScore >= 0.35 ? best.id : '',
+        mpId: best && bestScore >= 0.38 ? best.id : '',
         mpNombre: best ? best.nombre : '',
-        cant: ln.cantidad > 0 ? String(ln.cantidad) : '1',
+        cant: String(qty),
         precio: precio > 0 ? String(Math.round(precio)) : '',
         confianza: Math.round(bestScore * 100),
+        memorizado: false,
+        feLinkSource: null,
       };
     });
   }
@@ -3851,7 +4131,8 @@
       titulo: 'Valor cajero vs FE',
       detalle: valorVer.detalle,
     });
-    var sugeridas = suggestMpLines(fe.lineas, mpCatalog);
+    var provId = (prov && (prov.id || prov.proveedorId)) || '';
+    var sugeridas = suggestMpLines(fe.lineas, mpCatalog, { proveedorId: provId, nitEmisor: fe.nitEmisor || '' });
     pasos.push({
       id: 'mp',
       ok: sugeridas.some(function (s) {
@@ -3859,12 +4140,9 @@
       }),
       titulo: 'Materias primas sugeridas',
       detalle: sugeridas.length
-        ? sugeridas.length +
-          ' línea(s) — ' +
-          sugeridas.filter(function (s) {
-            return s.mpId;
-          }).length +
-          ' con match en catálogo'
+        ? sugeridas.length + ' línea(s) — ' +
+          sugeridas.filter(function (s) { return s.mpId && s.memorizado; }).length + ' memorizadas · ' +
+          sugeridas.filter(function (s) { return s.mpId && !s.memorizado; }).length + ' sugeridas'
         : 'Sin ítems detectados — cargue líneas manualmente',
     });
     emitProgress(opts, 100, 'Análisis completado', 'cierre', {
@@ -4392,6 +4670,36 @@
     return html;
   }
 
+  function renderLineasSugeridasHtml(sugeridas, opts) {
+    opts = opts || {};
+    if (!sugeridas || !sugeridas.length) return '';
+    var html = '<div class="cxf-fe-mp-preview"><p class="cxf-eyebrow">Vista previa de líneas (' + sugeridas.length + ')</p><ul class="cxf-fe-mp-list">';
+    sugeridas.forEach(function (s, i) {
+      var hasMp = !!s.mpId;
+      var badge = '';
+      var cls = 'cxf-fe-mp-row';
+      if (s.memorizado) {
+        badge = '<span class="cxf-fe-badge cxf-fe-badge--mem" title="Aprendido de facturas anteriores">🧠 Memorizado</span>';
+        cls += ' cxf-fe-mp-row--mem';
+      } else if (hasMp) {
+        badge = '<span class="cxf-fe-badge cxf-fe-badge--sug" title="Similitud ' + (s.confianza || 0) + '%">' + (s.confianza || 0) + '% coincide</span>';
+        cls += ' cxf-fe-mp-row--sug';
+      } else {
+        badge = '<span class="cxf-fe-badge cxf-fe-badge--new">Sin match</span>';
+        cls += ' cxf-fe-mp-row--new';
+      }
+      html += '<li class="' + cls + '" data-sug-idx="' + i + '">' +
+        '<span class="cxf-fe-mp-desc" title="' + esc(s.descripcion) + '">' + esc(s.descripcion.slice(0, 48)) + '</span>' +
+        '<span class="cxf-fe-mp-arrow">→</span>' +
+        '<span class="cxf-fe-mp-nombre ' + (hasMp ? '' : 'cxf-fe-mp-nombre--empty') + '">' + esc(s.mpNombre || '— sin asignar —') + '</span>' +
+        badge +
+        (s.precio ? '<span class="cxf-fe-mp-precio">' + esc(s.precio) + '</span>' : '') +
+        '</li>';
+    });
+    html += '</ul></div>';
+    return html;
+  }
+
   function renderAnalisisPanel(analisis, opts) {
     opts = opts || {};
     analisis = analisis || {};
@@ -4469,6 +4777,13 @@
         '</div></li>';
     });
     html += '</ol>';
+
+    /* ── Panel de líneas sugeridas (preview antes de aplicar) ── */
+    var sugsPanel = analisis.lineasSugeridas || [];
+    if (sugsPanel.length && (analisis.estado === 'listo' || analisis.estado === 'error')) {
+      html += renderLineasSugeridasHtml(sugsPanel, opts);
+    }
+
     if (analisis.estado === 'listo' || analisis.estado === 'error') {
       var sinQr = !analisis.cufe;
       html += '<div class="cxf-fe-analisis__actions">';
@@ -4507,6 +4822,19 @@
           '" data-factura-id="' +
           esc(fid) +
           '">Aplicar datos al formulario</button> ';
+      }
+      var pm = analisis.proveedorMatch || {};
+      if (pm.sugerirCrear && (pm.nitSugerido || pm.nombreSugerido)) {
+        var nitEnc = encodeURIComponent(pm.nitSugerido || '');
+        var nomEnc = encodeURIComponent(pm.nombreSugerido || '');
+        html +=
+          '<button type="button" class="btn btn-outline btn-sm cxf-fe-crear-prov" ' +
+          'data-cxf-fe-crear-prov ' +
+          'data-nit="' + esc(pm.nitSugerido || '') + '" ' +
+          'data-nombre="' + esc(pm.nombreSugerido || '') + '" ' +
+          'data-prov-id="' + esc(pid) + '" ' +
+          'data-factura-id="' + esc(fid) + '" ' +
+          'title="Crear proveedor con los datos leídos de la factura">✚ Crear proveedor</button> ';
       }
       html +=
         '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-reanalizar data-prov-id="' +

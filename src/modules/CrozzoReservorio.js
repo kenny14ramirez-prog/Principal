@@ -46,6 +46,7 @@
       matrizMp: [],
       planillaFeed: [],
       syncQueue: [],
+      feLinks: [],
       meta: { migrated: false, migrationNotes: [] },
     };
   }
@@ -81,6 +82,7 @@
     if (!Array.isArray(st.matrizMp)) st.matrizMp = [];
     if (!Array.isArray(st.planillaFeed)) st.planillaFeed = [];
     if (!Array.isArray(st.syncQueue)) st.syncQueue = [];
+    if (!Array.isArray(st.feLinks)) st.feLinks = [];
     st.businessId = businessId();
     if (!st.meta) st.meta = { migrated: false, migrationNotes: [] };
     if (!Array.isArray(st.meta.archivoRecepciones)) st.meta.archivoRecepciones = [];
@@ -1953,6 +1955,179 @@
       .replace(/>/g, '&gt;');
   }
 
+  /**
+   * feLinks — motor de aprendizaje del lector de facturas.
+   * Almacena dos tipos de vínculos:
+   *   tipo: 'mp'   → descripcionFe (texto factura) ↔ mpId + proveedorId + nitEmisor
+   *   tipo: 'prov' → nitEmisor ↔ proveedorId (vínculo de proveedor por NIT)
+   *
+   * Con el tiempo el sistema "aprende" qué producto es "solomo sucio" para el proveedor X
+   * y también recuerda que el NIT 123456789 corresponde al proveedor Y en el sistema.
+   */
+
+  function normFeDesc(s) {
+    return String(s || '')
+      .toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
+  }
+
+  /**
+   * Registra un aprendizaje: el usuario vinculó `descripcionFe` con `mpId`
+   * (para el proveedor `proveedorId` / NIT `nitEmisor`).
+   * También puede registrar vínculo NIT→proveedor cuando tipo='prov'.
+   */
+  function registrarFeLink(opts) {
+    opts = opts || {};
+    var tipo = opts.tipo || 'mp';
+    var st = migrateLegacy();
+    if (!Array.isArray(st.feLinks)) st.feLinks = [];
+
+    if (tipo === 'prov') {
+      var nitNorm = normProvNit(opts.nitEmisor);
+      if (!nitNorm || !opts.proveedorId) return null;
+      var existeProv = st.feLinks.find(function (l) {
+        return l.tipo === 'prov' && l.nitEmisor === nitNorm;
+      });
+      if (existeProv) {
+        existeProv.proveedorId = String(opts.proveedorId);
+        existeProv.updatedAt = new Date().toISOString();
+        existeProv.hits = (existeProv.hits || 0) + 1;
+      } else {
+        st.feLinks.push({
+          id: uid('felink'),
+          tipo: 'prov',
+          nitEmisor: nitNorm,
+          proveedorId: String(opts.proveedorId),
+          razonSocial: String(opts.razonSocial || '').slice(0, 100),
+          hits: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      save(st);
+      return nitNorm;
+    }
+
+    /* tipo === 'mp' */
+    var descNorm = normFeDesc(opts.descripcionFe);
+    if (!descNorm || !opts.mpId) return null;
+    var provId = String(opts.proveedorId || '');
+    var nitE = normProvNit(opts.nitEmisor);
+
+    var existe = st.feLinks.find(function (l) {
+      return l.tipo === 'mp' &&
+        l.descNorm === descNorm &&
+        (provId ? l.proveedorId === provId : true);
+    });
+    if (existe) {
+      existe.mpId = String(opts.mpId);
+      existe.hits = (existe.hits || 0) + 1;
+      existe.updatedAt = new Date().toISOString();
+      if (provId && !existe.proveedorId) existe.proveedorId = provId;
+      if (nitE && !existe.nitEmisor) existe.nitEmisor = nitE;
+    } else {
+      st.feLinks.push({
+        id: uid('felink'),
+        tipo: 'mp',
+        descNorm: descNorm,
+        descripcionOriginal: String(opts.descripcionFe || '').slice(0, 200),
+        mpId: String(opts.mpId),
+        proveedorId: provId,
+        nitEmisor: nitE || '',
+        hits: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    if (st.feLinks.length > 2000) {
+      st.feLinks = st.feLinks
+        .sort(function (a, b) { return (b.hits || 0) - (a.hits || 0); })
+        .slice(0, 1500);
+    }
+    save(st);
+    return descNorm;
+  }
+
+  /**
+   * Busca el mpId memorizado para una descripción de línea de factura.
+   * Primero busca específico al proveedor, luego genérico.
+   * Retorna { mpId, hits, source } o null.
+   */
+  function queryFeLinks(descripcionFe, proveedorId, nitEmisor) {
+    var st = migrateLegacy();
+    if (!Array.isArray(st.feLinks) || !st.feLinks.length) return null;
+    var descNorm = normFeDesc(descripcionFe);
+    if (!descNorm) return null;
+    var provId = String(proveedorId || '');
+    var nitE = normProvNit(nitEmisor);
+    var mpLinks = st.feLinks.filter(function (l) { return l.tipo === 'mp'; });
+
+    /* 1 — match exacto para este proveedor */
+    var exactoProv = mpLinks.find(function (l) {
+      return l.descNorm === descNorm && provId && l.proveedorId === provId;
+    });
+    if (exactoProv) return { mpId: exactoProv.mpId, hits: exactoProv.hits, source: 'exacto-proveedor' };
+
+    /* 2 — match exacto por NIT (aunque cambien IDs internos) */
+    if (nitE) {
+      var exactoNit = mpLinks.find(function (l) {
+        return l.descNorm === descNorm && l.nitEmisor === nitE;
+      });
+      if (exactoNit) return { mpId: exactoNit.mpId, hits: exactoNit.hits, source: 'exacto-nit' };
+    }
+
+    /* 3 — match exacto genérico (sin proveedor) */
+    var exactoGen = mpLinks.find(function (l) {
+      return l.descNorm === descNorm && !l.proveedorId;
+    });
+    if (exactoGen) return { mpId: exactoGen.mpId, hits: exactoGen.hits, source: 'exacto-generico' };
+
+    /* 4 — match parcial: todas las palabras de la descripción están en el link memorizado */
+    var words = descNorm.split(' ').filter(function (w) { return w.length >= 4; });
+    if (words.length >= 2) {
+      var mejorParcial = null;
+      var mejorScore = 0;
+      mpLinks.forEach(function (l) {
+        if (!l.descNorm) return;
+        var matchCount = words.filter(function (w) { return l.descNorm.indexOf(w) >= 0; }).length;
+        var score = matchCount / words.length;
+        if (score >= 0.8 && score > mejorScore) {
+          mejorScore = score;
+          mejorParcial = l;
+        }
+      });
+      if (mejorParcial) return { mpId: mejorParcial.mpId, hits: mejorParcial.hits, source: 'parcial-' + Math.round(mejorScore * 100) };
+    }
+    return null;
+  }
+
+  /**
+   * Busca el proveedorId memorizado para un NIT emisor de factura.
+   * Retorna { proveedorId, razonSocial, hits } o null.
+   */
+  function resolveProveedorPorNit(nitEmisor) {
+    var st = migrateLegacy();
+    if (!Array.isArray(st.feLinks)) return null;
+    var nitNorm = normProvNit(nitEmisor);
+    if (!nitNorm) return null;
+    var link = st.feLinks.find(function (l) {
+      return l.tipo === 'prov' && l.nitEmisor === nitNorm;
+    });
+    return link ? { proveedorId: link.proveedorId, razonSocial: link.razonSocial, hits: link.hits } : null;
+  }
+
+  function getFeLinksStats() {
+    var st = migrateLegacy();
+    var links = Array.isArray(st.feLinks) ? st.feLinks : [];
+    var mp = links.filter(function (l) { return l.tipo === 'mp'; });
+    var prov = links.filter(function (l) { return l.tipo === 'prov'; });
+    return { totalMp: mp.length, totalProv: prov.length, total: links.length };
+  }
+
   // Init migration on load
   migrateLegacy();
 
@@ -2026,6 +2201,10 @@
     repairIfNeeded: repairIfNeeded,
     runBlobMigration: runBlobMigration,
     flushBackup: flushBackup,
+    registrarFeLink: registrarFeLink,
+    queryFeLinks: queryFeLinks,
+    resolveProveedorPorNit: resolveProveedorPorNit,
+    getFeLinksStats: getFeLinksStats,
   };
 
   global.crozzoReservorioRegistrarVenta = registrarVenta;
