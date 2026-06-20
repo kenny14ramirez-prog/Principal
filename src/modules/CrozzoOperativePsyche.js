@@ -682,9 +682,11 @@
       '</p></div></div>' +
       '<div class="crozzo-concierge-strip__actions">' +
       linksHtml +
-      (shouldApplyPsycheLayer() && global.CrozzoOnboardingOperativo
-        ? '<button type="button" class="crozzo-concierge-strip__link" onclick="CrozzoOnboardingOperativo.openModal()">Checklist</button>'
-        : '') +
+      (shouldApplyPsycheLayer() && global.CrozzoHelpHub
+        ? '<button type="button" class="crozzo-concierge-strip__link" onclick="CrozzoHelpHub.open()">Ayuda</button>'
+        : shouldApplyPsycheLayer() && global.CrozzoOnboardingOperativo
+          ? '<button type="button" class="crozzo-concierge-strip__link" onclick="CrozzoOnboardingOperativo.openModal()">Checklist</button>'
+          : '') +
       '</div></aside>'
     );
   }

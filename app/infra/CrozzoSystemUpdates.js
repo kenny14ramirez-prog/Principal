@@ -3996,7 +3996,7 @@
       setBootGateMessage('Comprobando actualizaciones…');
     }
 
-    return refreshBinaryVersion()
+    var pipeline = refreshBinaryVersion()
       .then(function (installedVer) {
         return fetchRegistryData().then(function (data) {
           return { data: data, installedVer: installedVer };
@@ -4054,6 +4054,19 @@
         hideBootUpdateGate();
         finishBootUpdatePipeline({ ok: true, reason: 'non_blocking' });
       });
+
+    return Promise.race([
+      pipeline,
+      new Promise(function (resolve) {
+        setTimeout(function () {
+          if (_bootUpdatesReady) return;
+          console.warn('[crozzo-updates] boot pipeline watchdog — liberando login');
+          hideBootUpdateGate();
+          finishBootUpdatePipeline({ ok: false, reason: 'boot_watchdog' });
+          resolve({ ok: false, reason: 'boot_watchdog' });
+        }, BOOT_GATE_MAX_MS + 10000);
+      }),
+    ]);
   }
 
   function cancelCriticalIdleWait() {

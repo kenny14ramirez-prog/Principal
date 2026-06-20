@@ -95,6 +95,16 @@
 
   function ensurePageModules(page, cb) {
     var key = canonicalPage(page);
+    var cbDone = false;
+    function finishCb() {
+      if (cbDone) return;
+      cbDone = true;
+      if (typeof cb === 'function') cb();
+    }
+    var loadTimeout = setTimeout(function () {
+      console.warn('[crozzo-lazy] module load timeout', key);
+      finishCb();
+    }, 25000);
     if (!pageEnsurePromises[key]) {
       pageEnsurePromises[key] = new Promise(function (resolve) {
         var scripts = scriptsForPage(page);
@@ -117,7 +127,8 @@
       });
     }
     pageEnsurePromises[key].then(function () {
-      if (typeof cb === 'function') cb();
+      clearTimeout(loadTimeout);
+      finishCb();
     });
   }
 
@@ -167,6 +178,8 @@
         global.__crozzoLazySkipRenderLoad = true;
         try {
           origNav.apply(global, navArgs);
+        } catch (navErr) {
+          console.warn('[crozzo-lazy] navigate', navErr);
         } finally {
           global.__crozzoLazySkipRenderLoad = false;
           if (typeof global.crozzoHidePageLoading === 'function') {

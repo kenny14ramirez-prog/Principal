@@ -1295,7 +1295,7 @@
       '<td><strong>TOTAL MENÚ</strong>' +
       '<span class="crozzo-matriz-totales__sub">' +
       esc(String(totales.count)) +
-      ' platos · food cost integrado</span></td>' +
+      ' platos · costo y utilidad del menú</span></td>' +
       '<td style="text-align:right" data-total-costo><strong>' +
       engFmt(totales.sumCosto) +
       '</strong></td>' +
@@ -1352,6 +1352,16 @@
   function refreshMatrizResumenTable(root, seed) {
     if (!root) return;
     invalidateMatrizCaches();
+    var resumenPanel = root.querySelector('[data-matriz-panel="resumen"]');
+    if (resumenPanel) {
+      var oldHead = resumenPanel.querySelector('.crozzo-matriz-panel-head');
+      if (oldHead) {
+        var wrap = document.createElement('div');
+        wrap.innerHTML = renderMatrizPanelIntro('resumen', seed);
+        var neu = wrap.firstElementChild;
+        if (neu) oldHead.replaceWith(neu);
+      }
+    }
     var tbody = root.querySelector('#crozzoResumenTbody');
     if (!tbody) return;
     tbody.innerHTML = renderResumenRowsHtml(seed);
@@ -1362,6 +1372,17 @@
     bindFlujoLanzarButtons(root, seed);
     refreshResumenTotales(root, seed);
     refreshMatrizKpis(root, seed);
+    var accBar = root.querySelector('#crozzoMatrizResumenAcciones');
+    if (accBar) {
+      var wrap = document.createElement('div');
+      wrap.innerHTML = renderMatrizResumenAcciones(seed);
+      var neu = wrap.firstElementChild;
+      if (neu) {
+        accBar.replaceWith(neu);
+        root._resumenAccionesBound = false;
+        bindMatrizResumenAcciones(root);
+      }
+    }
     if (typeof root._matrizApplyFilters === 'function') root._matrizApplyFilters();
   }
 
@@ -2655,7 +2676,7 @@
     var alertaMp = Math.round(loadGlobalMpAlertaSubidaPct());
     return (
       '<details class="crozzo-matriz-leyenda">' +
-      '<summary>¿Cómo leer precios y costos?</summary>' +
+      '<summary>¿Cómo leer esta tabla?</summary>' +
       '<div class="crozzo-matriz-leyenda__body">' +
       '<p><strong>Meta de costo MP (' +
       esc(String(metaCosto)) +
@@ -2672,7 +2693,7 @@
       esc(String(alertaMp)) +
       '% → roja.</li>' +
       '<li><strong>Costo MP</strong>: venta directa = costeo unitario; con receta = explosión de insumos. Use «Sincronizar costos» para guardar en menú.</li>' +
-      '<li><strong>TOTAL MENÚ</strong> (fila final): food cost integrado = costo total ÷ venta total.</li>' +
+      '<li><strong>TOTAL MENÚ</strong> (fila final): suma de costos ÷ suma de precios (no es el promedio de arriba).</li>' +
       '<li><strong>Receta</strong> = plato con insumos en pestaña Recetas. <strong>Venta directa</strong> = bebidas empaquetadas, etc.</li>' +
       '<li><strong>Nuevo plato:</strong> queda en <strong>borrador</strong> hasta que lo <strong>lance</strong> o <strong>programe</strong>.</li>' +
       '<li><strong>Programar precio:</strong> al guardar un precio puede fijar fecha para actualizar la caja POS automáticamente.</li>' +
@@ -3025,51 +3046,154 @@
     );
   }
 
+  function renderMatrizTabsNav(activeTab) {
+    activeTab = activeTab || 'resumen';
+    var steps = [
+      { id: 'costeo-mp', num: '1', icon: '⚖', title: 'Insumos', sub: 'Precio por gramo o unidad' },
+      { id: 'demo', num: '2', icon: '🍽', title: 'Recetas', sub: 'Ingredientes del plato' },
+      { id: 'resumen', num: '3', icon: '💰', title: 'Precios menú', sub: 'Márgenes y publicar caja' },
+    ];
+    return (
+      '<div class="crozzo-matriz-tabs-wrap">' +
+      '<p class="crozzo-matriz-tabs__hint">Pasos <strong>1 → 2 → 3</strong>. El <strong>resumen y publicación</strong> están en el paso 3.</p>' +
+      '<div class="crozzo-mod-nav crozzo-mod-nav--segmented crozzo-costos-tabs crozzo-costos-matriz-tabs crozzo-matriz-tabs" role="tablist" aria-label="Pasos para costear">' +
+      steps
+        .map(function (s) {
+          var on = s.id === activeTab;
+          return (
+            '<button type="button" class="crozzo-mod-nav__item' +
+            (on ? ' active' : '') +
+            '" role="tab" aria-selected="' +
+            (on ? 'true' : 'false') +
+            '" data-matriz-tab="' +
+            esc(s.id) +
+            '">' +
+            '<span class="crozzo-matriz-tab__step" aria-hidden="true">' +
+            esc(s.num) +
+            '</span>' +
+            '<span class="crozzo-matriz-tab__icon" aria-hidden="true">' +
+            esc(s.icon) +
+            '</span>' +
+            '<span class="crozzo-matriz-tab__text"><strong>' +
+            esc(s.title) +
+            '</strong><small>' +
+            esc(s.sub) +
+            '</small></span></button>'
+          );
+        })
+        .join('') +
+      '</div></div>'
+    );
+  }
+
+  function renderMatrizPanelIntro(tabId, seed) {
+    seed = seed || hub.seed || { resumen: [] };
+    if (tabId === 'costeo-mp') {
+      var mpN = global.CrozzoCatalogoMp && global.CrozzoCatalogoMp.list ? global.CrozzoCatalogoMp.list().length : 0;
+      return (
+        '<p class="crozzo-matriz-panel-head crozzo-matriz-panel-head--step">' +
+        '<span class="crozzo-matriz-panel-head__badge">Paso 1</span> ' +
+        'Registre cuánto pagó por cada insumo (lote, peso, $/g). Las facturas de compra pueden llenar esto solas.</p>'
+      );
+    }
+    if (tabId === 'demo') {
+      return (
+        '<p class="crozzo-matriz-panel-head crozzo-matriz-panel-head--step">' +
+        '<span class="crozzo-matriz-panel-head__badge">Paso 2</span> ' +
+        'Arme la receta de cada plato de cocina. El sistema suma insumos y calcula el <strong>costo del plato</strong>.</p>'
+      );
+    }
+    var list = mergeResumenList(seed);
+    var conReceta = list.filter(function (r) {
+      return r.tieneReceta;
+    }).length;
+    var ventaDirecta = list.length - conReceta;
+    if (!list.length) {
+      return (
+        '<div class="crozzo-matriz-panel-head crozzo-matriz-panel-head--empty">' +
+        '<p><span class="crozzo-matriz-panel-head__badge">Paso 3</span> <strong>Aún no hay platos para costear.</strong></p>' +
+        '<p class="crozzo-matriz-panel-head__hint">Pulse <strong>↻ Traer platos del POS</strong> o cree uno con <strong>+</strong>. Complete pasos 1 y 2 si hace falta.</p></div>'
+      );
+    }
+    return (
+      '<p class="crozzo-matriz-panel-head crozzo-matriz-panel-head--step">' +
+      '<span class="crozzo-matriz-panel-head__badge">Paso 3</span> ' +
+      '<strong>' +
+      esc(String(list.length)) +
+      ' platos</strong> · ' +
+      esc(String(conReceta)) +
+      ' con receta · ' +
+      esc(String(ventaDirecta)) +
+      ' venta directa (bebidas). ' +
+      'Ajuste precio y margen aquí; la caja cambia solo al <strong>publicar</strong> (Centro de acciones ◈).</p>'
+    );
+  }
+
+  function matrizAlertStateCostoPct(actualFrac, objCostFrac) {
+    if (actualFrac <= objCostFrac + 0.008) return 'ok';
+    if (actualFrac <= objCostFrac * 1.15) return 'warn';
+    return 'crit';
+  }
+
+  function matrizAlertStateUtilPct(actualFrac, objUtilFrac) {
+    if (actualFrac >= objUtilFrac - 0.008) return 'ok';
+    if (actualFrac >= objUtilFrac * 0.85) return 'warn';
+    return 'crit';
+  }
+
+  function matrizAlertStateCumplimiento(portfolio) {
+    if (portfolio.crit > 0) return 'crit';
+    if (portfolio.alert > 0) return 'warn';
+    return 'ok';
+  }
+
+  function matrizKpiGaugeCumplimientoHtml(pctOkFrac, state) {
+    var fillW = Math.min(100, Math.round((pctOkFrac || 0) * 100));
+    return (
+      '<div class="crozzo-matriz-kpi__gauge" title="Verde = bien · naranja = revisar · rojo = fuera de meta">' +
+      '<div class="crozzo-matriz-kpi__gauge-fill crozzo-matriz-kpi__gauge-fill--' +
+      state +
+      '" style="width:' +
+      esc(String(fillW)) +
+      '%"></div>' +
+      '<span class="crozzo-matriz-kpi__gauge-mark" style="left:98%" title="Meta 100% platos cumplen"></span></div>'
+    );
+  }
+
+  function matrizKpiGaugeHtml(actualFrac, objFrac, alertKind) {
+    var scale = alertKind === 'util' ? Math.max(objFrac * 1.5, 0.01) : Math.max(objFrac * 1.75, 0.01);
+    var fillW = Math.min(100, Math.round((actualFrac / scale) * 100));
+    var markW = Math.min(98, Math.round((objFrac / scale) * 100));
+    var state =
+      alertKind === 'util'
+        ? matrizAlertStateUtilPct(actualFrac, objFrac)
+        : matrizAlertStateCostoPct(actualFrac, objFrac);
+    return (
+      '<div class="crozzo-matriz-kpi__gauge" title="Verde = bien · naranja = revisar · rojo = fuera de meta">' +
+      '<div class="crozzo-matriz-kpi__gauge-fill crozzo-matriz-kpi__gauge-fill--' +
+      state +
+      '" style="width:' +
+      esc(String(fillW)) +
+      '%"></div>' +
+      '<span class="crozzo-matriz-kpi__gauge-mark" style="left:' +
+      esc(String(markW)) +
+      '%" title="Meta"></span></div>'
+    );
+  }
+
   function renderMatrizHero(seed, portfolio) {
     portfolio = portfolio || computeMatrizPortfolio(seed);
-    var mpCount = global.CrozzoCatalogoMp && global.CrozzoCatalogoMp.list ? global.CrozzoCatalogoMp.list().length : 0;
     var objCostFrac = portfolio.objetivoMargen;
     var objUtilFrac = 1 - objCostFrac;
     var objCostPct = Math.round(objCostFrac * 100);
     var objUtilPct = Math.round(objUtilFrac * 100);
+    var costoPct = Math.round(portfolio.avgPctCosto * 1000) / 10;
+    var utilPct = Math.round(portfolio.avgPctUtil * 1000) / 10;
+    var alertas = portfolio.alert + portfolio.crit;
+    var costoState = matrizAlertStateCostoPct(portfolio.avgPctCosto, objCostFrac);
+    var utilState = matrizAlertStateUtilPct(portfolio.avgPctUtil, objUtilFrac);
     var okPct = Math.round(portfolio.pctOk * 100);
-    var alertPct = Math.round(portfolio.pctAlert * 100);
-    var critPct = Math.round(portfolio.pctCrit * 100);
-    var fcAvgPct = Math.round(portfolio.avgPctCosto * 100);
-    var fcIntPct = Math.round(portfolio.pctCostoIntegrado * 100);
-    var utilIntPct = Math.round(portfolio.pctUtilIntegrado * 100);
-    var fcAvgState =
-      portfolio.avgPctCosto <= objCostFrac + 0.008
-        ? 'ok'
-        : portfolio.avgPctCosto <= objCostFrac * 1.15
-          ? 'warn'
-          : 'crit';
-    var utilIntState =
-      portfolio.pctUtilIntegrado >= objUtilFrac - 0.008
-        ? 'ok'
-        : portfolio.pctUtilIntegrado >= objUtilFrac * 0.85
-          ? 'warn'
-          : 'crit';
-    var okState = critPct > 0 ? 'crit' : alertPct > 0 ? 'warn' : 'ok';
-    var fcGaugeW = Math.min(
-      100,
-      Math.round((portfolio.avgPctCosto / Math.max(objCostFrac * 1.75, 0.01)) * 100)
-    );
-    var fcMarkW = Math.min(
-      98,
-      Math.round((objCostFrac / Math.max(objCostFrac * 1.75, 0.01)) * 100)
-    );
-    var intGaugeW = Math.min(
-      100,
-      Math.round((portfolio.pctUtilIntegrado / Math.max(objUtilFrac * 1.5, 0.01)) * 100)
-    );
-    var utilMarkW = Math.min(
-      98,
-      Math.round((objUtilFrac / Math.max(objUtilFrac * 1.5, 0.01)) * 100)
-    );
-    var gapFc = fcIntPct - objCostPct;
-    var gapFcLabel =
-      gapFc <= 0 ? Math.abs(gapFc) + ' pts bajo meta costo' : '+' + gapFc + ' pts sobre meta costo';
+    var cumplState = matrizAlertStateCumplimiento(portfolio);
 
     return (
       '<header class="crozzo-matriz-hero" id="crozzoMatrizHero">' +
@@ -3077,177 +3201,202 @@
       '<div class="crozzo-matriz-hero__top">' +
       '<div class="crozzo-matriz-hero__brand">' +
       '<span class="crozzo-matriz-hero__glyph" aria-hidden="true">◈</span>' +
-      '<div><p class="crozzo-matriz-hero__eyebrow">F1 · Matriz de precios</p>' +
+      '<div><p class="crozzo-matriz-hero__eyebrow">Costos del menú</p>' +
       '<h1 class="crozzo-matriz-hero__title">Costos y márgenes</h1>' +
-      '<p class="crozzo-matriz-hero__sub">Cree <strong>platos</strong> y <strong>materias primas</strong> aquí, costee con recetas y deje listo menú, márgenes y punto de venta.</p></div></div>' +
-      '<div class="crozzo-matriz-hero__actions">' +
+      '<p class="crozzo-matriz-hero__sub">Pasos <strong>1 insumos → 2 recetas → 3 precios</strong>. Abajo edita y publica en caja.</p></div></div>' +
       (getRevisionActiva()
-        ? '<span class="crozzo-revision-live"><span class="crozzo-revision-live__dot" aria-hidden="true"></span>Revisión activa</span>'
+        ? '<div class="crozzo-matriz-hero__actions"><span class="crozzo-revision-live"><span class="crozzo-revision-live__dot" aria-hidden="true"></span>Revisión activa</span></div>'
         : '') +
-      '<span class="crozzo-matriz-live"><span class="crozzo-matriz-live__dot" aria-hidden="true"></span>Motor activo</span></div></div>' +
-      '<div class="crozzo-matriz-kpis" id="crozzoMatrizKpis">' +
+      '</div>' +
+      '<div class="crozzo-matriz-kpis crozzo-matriz-kpis--simple" id="crozzoMatrizKpis">' +
       '<article class="crozzo-matriz-kpi crozzo-matriz-kpi--primary">' +
-      '<span class="crozzo-matriz-kpi__label">Food cost · integrado</span>' +
-      '<strong class="crozzo-matriz-kpi__value" data-kpi="pct-fc-int">' +
-      engPct(portfolio.pctCostoIntegrado) +
-      '</strong>' +
-      '<span class="crozzo-matriz-kpi__hint">Costo MP ÷ precio venta · menú completo</span>' +
-      '<span class="crozzo-matriz-kpi__detail" data-kpi="pct-fc-detail">Promedio por plato ' +
-      esc(String(fcAvgPct)) +
-      '% · integrado ' +
-      esc(String(fcIntPct)) +
-      '% · ' +
-      esc(gapFcLabel) +
-      ' · ' +
-      esc(String(mpCount)) +
-      ' insumos</span></article>' +
+      '<span class="crozzo-matriz-kpi__label">Costo MP · promedio</span>' +
+      '<strong class="crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' +
+      costoState +
+      '" data-kpi="avg-costo">' +
+      esc(String(costoPct)) +
+      '%</strong>' +
+      matrizKpiGaugeHtml(portfolio.avgPctCosto, objCostFrac, 'costo') +
+      '<span class="crozzo-matriz-kpi__hint">Promedio de todos los platos · meta ' +
+      esc(String(objCostPct)) +
+      '%</span></article>' +
       '<article class="crozzo-matriz-kpi crozzo-matriz-kpi--primary">' +
-      '<span class="crozzo-matriz-kpi__label">Utilidad integrada · menú</span>' +
-      '<strong class="crozzo-matriz-kpi__value" data-kpi="pct-integrado">' +
-      engPct(portfolio.pctUtilIntegrado) +
-      '</strong>' +
-      '<div class="crozzo-matriz-kpi__gauge"><div class="crozzo-matriz-kpi__gauge-fill crozzo-matriz-kpi__gauge-fill--' +
-      utilIntState +
-      '" data-kpi-gauge="pct-integrado" style="width:' +
-      esc(String(intGaugeW)) +
-      '%"></div><span class="crozzo-matriz-kpi__gauge-mark" data-kpi-mark="objetivo-int" style="left:' +
-      esc(String(utilMarkW)) +
-      '%"></span></div>' +
-      '<span class="crozzo-matriz-kpi__hint">Ponderado por precio de venta · ref. 1 unidad de cada plato</span>' +
-      '<span class="crozzo-matriz-kpi__detail" data-kpi="pct-integrado-detail">' +
-      esc(String(utilIntPct)) +
-      '% integrado · meta utilidad ' +
+      '<span class="crozzo-matriz-kpi__label">Utilidad bruta · promedio</span>' +
+      '<strong class="crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' +
+      utilState +
+      '" data-kpi="avg-util">' +
+      esc(String(utilPct)) +
+      '%</strong>' +
+      matrizKpiGaugeHtml(portfolio.avgPctUtil, objUtilFrac, 'util') +
+      '<span class="crozzo-matriz-kpi__hint">Promedio de todos los platos · meta ' +
       esc(String(objUtilPct)) +
       '%</span></article>' +
       '<article class="crozzo-matriz-kpi">' +
-      '<span class="crozzo-matriz-kpi__label">Food cost medio · por plato</span>' +
-      '<strong class="crozzo-matriz-kpi__value" data-kpi="avg-util">' +
-      engPct(portfolio.avgPctCosto) +
-      '</strong>' +
-      '<div class="crozzo-matriz-kpi__gauge"><div class="crozzo-matriz-kpi__gauge-fill crozzo-matriz-kpi__gauge-fill--' +
-      fcAvgState +
-      '" data-kpi-gauge="avg-util" style="width:' +
-      esc(String(fcGaugeW)) +
-      '%"></div><span class="crozzo-matriz-kpi__gauge-mark" data-kpi-mark="objetivo" style="left:' +
-      esc(String(fcMarkW)) +
-      '%"></span></div>' +
-      '<span class="crozzo-matriz-kpi__hint">Promedio simple · cada plato pesa igual · meta costo <strong data-kpi="obj-pct">' +
-      esc(String(objCostPct)) +
-      '%</strong></span>' +
-      '<span class="crozzo-matriz-kpi__detail" data-kpi="avg-util-detail">Hoy promedia ' +
-      esc(String(fcAvgPct)) +
-      '% costo MP por plato</span></article>' +
-      '<article class="crozzo-matriz-kpi">' +
-      '<span class="crozzo-matriz-kpi__label">Cumplimiento de meta</span>' +
+      '<span class="crozzo-matriz-kpi__label">Cumplimiento de metas</span>' +
       '<strong class="crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' +
-      okState +
+      cumplState +
       '" data-kpi="pct-ok">' +
       esc(String(okPct)) +
       '%</strong>' +
-      '<span class="crozzo-matriz-kpi__hint"><span data-kpi="total">' +
-      esc(String(portfolio.total)) +
-      '</span> platos · <span data-kpi="ok">' +
+      matrizKpiGaugeCumplimientoHtml(portfolio.pctOk, cumplState) +
+      '<span class="crozzo-matriz-kpi__hint"><span data-kpi="ok">' +
       esc(String(portfolio.ok)) +
       '</span> cumplen · <span data-kpi="alert">' +
       esc(String(portfolio.alert)) +
       '</span> revisar · <span data-kpi="crit">' +
       esc(String(portfolio.crit)) +
-      '</span> críticos</span>' +
-      '<span class="crozzo-matriz-kpi__detail" data-kpi="pct-ok-detail">' +
-      esc(String(okPct)) +
-      '% cumplen · ' +
-      esc(String(alertPct)) +
-      '% revisar · ' +
-      esc(String(critPct)) +
-      '% bajo piso</span></article></div></header>'
+      '</span> críticos</span></article></div>' +
+      '<p class="crozzo-matriz-kpi__foot" data-kpi="foot">' +
+      '<span data-kpi="total">' +
+      esc(String(portfolio.total)) +
+      '</span> platos · barra <span class="crozzo-matriz-kpi__foot-ok">verde</span> = bien · ' +
+      '<span class="crozzo-matriz-kpi__foot-warn">naranja</span> = revisar · ' +
+      '<span class="crozzo-matriz-kpi__foot-crit">rojo</span> = fuera de meta · ' +
+      '<span data-kpi="alertas">' +
+      esc(String(alertas)) +
+      '</span> en alerta</p></header>'
     );
+  }
+
+  function renderMatrizResumenAcciones(seed) {
+    seed = seed || hub.seed || { resumen: [] };
+    var p = computeMatrizPortfolio(seed);
+    var cmp = computeComparativaResumen(seed);
+    var diffCount = (cmp.sube || 0) + (cmp.baja || 0);
+    var costoPct = Math.round((p.avgPctCosto || 0) * 1000) / 10;
+    var utilPct = Math.round((p.avgPctUtil || 0) * 1000) / 10;
+    return (
+      '<div class="crozzo-matriz-resumen-acciones" id="crozzoMatrizResumenAcciones">' +
+      '<div class="crozzo-matriz-resumen-acciones__main">' +
+      '<div class="crozzo-matriz-resumen-acciones__stats">' +
+      '<p class="crozzo-matriz-resumen-acciones__title">Resumen del menú costeado</p>' +
+      '<p class="crozzo-matriz-resumen-acciones__meta">' +
+      '<span data-resumen-acciones-total>' +
+      esc(String(p.total)) +
+      '</span> platos · costo prom. <strong data-resumen-acciones-costo>' +
+      esc(String(costoPct)) +
+      '%</strong> · utilidad prom. <strong data-resumen-acciones-util>' +
+      esc(String(utilPct)) +
+      '%</strong> · ' +
+      (diffCount > 0
+        ? '<span data-resumen-acciones-diff>' +
+          esc(String(diffCount)) +
+          ' platos con precio distinto a caja</span>'
+        : '<span data-resumen-acciones-diff">Sin diferencias pendientes con caja</span>') +
+      '</p></div>' +
+      '<div class="crozzo-matriz-resumen-acciones__btns">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoMatrizPublishBarApply">⚡ Publicar en caja</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizPublishBarSchedule">Programar cambio</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizPublishBarMore">◈ Más acciones</button>' +
+      '</div></div>' +
+      '<p class="crozzo-matriz-resumen-acciones__hint">' +
+      '<strong>Tabla abajo</strong> = resumen editable (costo, margen, precio). ' +
+      '<strong>Historial de costeos</strong> = meses guardados. ' +
+      'Fila <strong>TOTAL MENÚ</strong> al final de la tabla. La caja solo cambia al pulsar <strong>Publicar</strong>.</p></div>'
+    );
+  }
+
+  function bindMatrizResumenAcciones(root) {
+    if (!root || root._resumenAccionesBound) return;
+    root._resumenAccionesBound = true;
+    var applyQuick = root.querySelector('#crozzoMatrizPublishBarApply');
+    if (applyQuick) {
+      applyQuick.addEventListener('click', function () {
+        var main = root.querySelector('#crozzoMatrizAplicarCaja');
+        if (main) main.click();
+        else toast('Abra la pestaña Resumen del menú para cargar acciones', 'warn');
+      });
+    }
+    var schedQuick = root.querySelector('#crozzoMatrizPublishBarSchedule');
+    if (schedQuick) {
+      schedQuick.addEventListener('click', function () {
+        if (typeof hub.openMatrizCommandDeck === 'function') hub.openMatrizCommandDeck(true);
+        else {
+          var toggle = root.querySelector('#crozzoMatrizCmdToggle');
+          if (toggle) toggle.click();
+        }
+        var dt = root.querySelector('#crozzoMatrizProgDateTime');
+        if (dt && dt.focus) dt.focus();
+      });
+    }
+    var moreQuick = root.querySelector('#crozzoMatrizPublishBarMore');
+    if (moreQuick) {
+      moreQuick.addEventListener('click', function () {
+        if (typeof hub.openMatrizCommandDeck === 'function') hub.openMatrizCommandDeck(false);
+        else {
+          var toggleM = root.querySelector('#crozzoMatrizCmdToggle');
+          if (toggleM) toggleM.click();
+        }
+      });
+    }
   }
 
   function refreshMatrizKpis(root, seed) {
     if (!root) return;
     var p = computeMatrizPortfolio(seed);
-    var hero = root.querySelector('#crozzoMatrizKpis');
+    var hero = root.querySelector('#crozzoMatrizHero');
     if (!hero) return;
     var objCostFrac = p.objetivoMargen;
     var objUtilFrac = 1 - objCostFrac;
-    var objCostPct = Math.round(objCostFrac * 100);
-    var objUtilPct = Math.round(objUtilFrac * 100);
-    var fcAvgPct = Math.round(p.avgPctCosto * 100);
-    var fcIntPct = Math.round(p.pctCostoIntegrado * 100);
-    var utilIntPct = Math.round(p.pctUtilIntegrado * 100);
+    var costoPct = Math.round(p.avgPctCosto * 1000) / 10;
+    var utilPct = Math.round(p.avgPctUtil * 1000) / 10;
+    var costoState = matrizAlertStateCostoPct(p.avgPctCosto, objCostFrac);
+    var utilState = matrizAlertStateUtilPct(p.avgPctUtil, objUtilFrac);
     var okPct = Math.round(p.pctOk * 100);
-    var alertPct = Math.round(p.pctAlert * 100);
-    var critPct = Math.round(p.pctCrit * 100);
-    var gapFc = fcIntPct - objCostPct;
-    var gapFcLabel =
-      gapFc <= 0 ? Math.abs(gapFc) + ' pts bajo meta costo' : '+' + gapFc + ' pts sobre meta costo';
-    var gauge = hero.querySelector('[data-kpi-gauge="avg-util"]');
-    var intGauge = hero.querySelector('[data-kpi-gauge="pct-integrado"]');
-    var total = hero.querySelector('[data-kpi="total"]');
-    var ok = hero.querySelector('[data-kpi="ok"]');
+    var cumplState = matrizAlertStateCumplimiento(p);
+    var costoVal = hero.querySelector('[data-kpi="avg-costo"]');
+    var utilVal = hero.querySelector('[data-kpi="avg-util"]');
+    if (costoVal) {
+      costoVal.textContent = costoPct + '%';
+      costoVal.className = 'crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' + costoState;
+    }
+    if (utilVal) {
+      utilVal.textContent = utilPct + '%';
+      utilVal.className = 'crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' + utilState;
+    }
+    var okVal = hero.querySelector('[data-kpi="pct-ok"]');
+    if (okVal) {
+      okVal.textContent = okPct + '%';
+      okVal.className = 'crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' + cumplState;
+    }
+    var okEl = hero.querySelector('[data-kpi="ok"]');
     var alertEl = hero.querySelector('[data-kpi="alert"]');
     var critEl = hero.querySelector('[data-kpi="crit"]');
-    var avgUtil = hero.querySelector('[data-kpi="avg-util"]');
-    var pctIntegrado = hero.querySelector('[data-kpi="pct-integrado"]');
-    var pctOk = hero.querySelector('[data-kpi="pct-ok"]');
-    var pctFcInt = hero.querySelector('[data-kpi="pct-fc-int"]');
-    if (avgUtil) avgUtil.textContent = engPct(p.avgPctCosto);
-    if (pctIntegrado) pctIntegrado.textContent = engPct(p.pctUtilIntegrado);
-    if (pctOk) pctOk.textContent = okPct + '%';
-    if (pctFcInt) pctFcInt.textContent = engPct(p.pctCostoIntegrado);
-    if (total) total.textContent = String(p.total);
-    if (ok) ok.textContent = String(p.ok);
+    if (okEl) okEl.textContent = String(p.ok);
     if (alertEl) alertEl.textContent = String(p.alert);
     if (critEl) critEl.textContent = String(p.crit);
-    var avgDetail = hero.querySelector('[data-kpi="avg-util-detail"]');
-    if (avgDetail) avgDetail.textContent = 'Hoy promedia ' + fcAvgPct + '% costo MP por plato';
-    var intDetail = hero.querySelector('[data-kpi="pct-integrado-detail"]');
-    if (intDetail) intDetail.textContent = utilIntPct + '% integrado · meta utilidad ' + objUtilPct + '%';
-    var okDetail = hero.querySelector('[data-kpi="pct-ok-detail"]');
-    if (okDetail) okDetail.textContent = okPct + '% cumplen · ' + alertPct + '% revisar · ' + critPct + '% bajo piso';
-    var fcDetail = hero.querySelector('[data-kpi="pct-fc-detail"]');
-    if (fcDetail) {
-      fcDetail.textContent =
-        'Promedio por plato ' + fcAvgPct + '% · integrado ' + fcIntPct + '% · ' + gapFcLabel;
+    var kpis = hero.querySelector('#crozzoMatrizKpis');
+    if (kpis) {
+      var cards = kpis.querySelectorAll('.crozzo-matriz-kpi');
+      if (cards[0]) {
+        var g0 = cards[0].querySelector('.crozzo-matriz-kpi__gauge');
+        if (g0) g0.outerHTML = matrizKpiGaugeHtml(p.avgPctCosto, objCostFrac, 'costo');
+      }
+      if (cards[1]) {
+        var g1 = cards[1].querySelector('.crozzo-matriz-kpi__gauge');
+        if (g1) g1.outerHTML = matrizKpiGaugeHtml(p.avgPctUtil, objUtilFrac, 'util');
+      }
+      if (cards[2]) {
+        var g2 = cards[2].querySelector('.crozzo-matriz-kpi__gauge');
+        if (g2) g2.outerHTML = matrizKpiGaugeCumplimientoHtml(p.pctOk, cumplState);
+      }
     }
-    var objPctEl = hero.querySelector('[data-kpi="obj-pct"]');
-    if (objPctEl) objPctEl.textContent = String(objCostPct);
-    if (pctOk) {
-      pctOk.className =
-        'crozzo-matriz-kpi__value crozzo-matriz-kpi__value--' +
-        (critPct > 0 ? 'crit' : alertPct > 0 ? 'warn' : 'ok');
-    }
-    if (gauge) {
-      var gw = Math.min(100, Math.round((p.avgPctCosto / Math.max(objCostFrac * 1.75, 0.01)) * 100));
-      gauge.style.width = gw + '%';
-      gauge.className =
-        'crozzo-matriz-kpi__gauge-fill crozzo-matriz-kpi__gauge-fill--' +
-        (p.avgPctCosto <= objCostFrac + 0.008
-          ? 'ok'
-          : p.avgPctCosto <= objCostFrac * 1.15
-            ? 'warn'
-            : 'crit');
-    }
-    if (intGauge) {
-      var igw = Math.min(100, Math.round((p.pctUtilIntegrado / Math.max(objUtilFrac * 1.5, 0.01)) * 100));
-      intGauge.style.width = igw + '%';
-      intGauge.className =
-        'crozzo-matriz-kpi__gauge-fill crozzo-matriz-kpi__gauge-fill--' +
-        (p.pctUtilIntegrado >= objUtilFrac - 0.008
-          ? 'ok'
-          : p.pctUtilIntegrado >= objUtilFrac * 0.85
-            ? 'warn'
-            : 'crit');
-    }
-    var mark = hero.querySelector('[data-kpi-mark="objetivo"]');
-    if (mark) {
-      mark.style.left =
-        Math.min(98, Math.round((objCostFrac / Math.max(objCostFrac * 1.75, 0.01)) * 100)) + '%';
-    }
-    var markInt = hero.querySelector('[data-kpi-mark="objetivo-int"]');
-    if (markInt) {
-      markInt.style.left =
-        Math.min(98, Math.round((objUtilFrac / Math.max(objUtilFrac * 1.5, 0.01)) * 100)) + '%';
+    var totalEl = hero.querySelector('[data-kpi="total"]');
+    if (totalEl) totalEl.textContent = String(p.total);
+    var alertasEl = hero.querySelector('[data-kpi="alertas"]');
+    if (alertasEl) alertasEl.textContent = String(p.alert + p.crit);
+    var accCosto = root.querySelector('[data-resumen-acciones-costo]');
+    if (accCosto) accCosto.textContent = String(costoPct) + '%';
+    var accUtil = root.querySelector('[data-resumen-acciones-util]');
+    if (accUtil) accUtil.textContent = String(utilPct) + '%';
+    var accTot = root.querySelector('[data-resumen-acciones-total]');
+    if (accTot) accTot.textContent = String(p.total);
+    var accDiff = root.querySelector('[data-resumen-acciones-diff]');
+    if (accDiff) {
+      var cmp = computeComparativaResumen(seed || hub.seed);
+      var n = (cmp.sube || 0) + (cmp.baja || 0);
+      accDiff.textContent =
+        n > 0 ? n + ' platos con precio distinto a caja' : 'Sin diferencias pendientes con caja';
     }
   }
 
@@ -3674,6 +3823,12 @@
       '.crozzo-matriz-live__dot{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;animation:crozzoMatrizPulse 2s ease-in-out infinite}' +
       '@keyframes crozzoMatrizPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(.85)}}' +
       '.crozzo-matriz-kpis{position:relative;display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:12px}' +
+      '.crozzo-matriz-kpis--simple{grid-template-columns:repeat(3,minmax(0,1fr));max-width:960px}' +
+      '@media(max-width:900px){.crozzo-matriz-kpis--simple{grid-template-columns:1fr;max-width:none}}' +
+      '.crozzo-matriz-kpi__foot{margin:10px 0 0;font-size:.74rem;line-height:1.5;color:var(--text-secondary)}' +
+      '.crozzo-matriz-kpi__foot-ok{color:#34d399}' +
+      '.crozzo-matriz-kpi__foot-warn{color:#fbbf24}' +
+      '.crozzo-matriz-kpi__foot-crit{color:#f87171}' +
       '.crozzo-matriz-kpi{padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:rgba(0,0,0,.12)}' +
       '.crozzo-matriz-kpi--primary{border-color:rgba(var(--matriz-gold-rgb),.45);background:linear-gradient(160deg,rgba(var(--matriz-gold-rgb),.12),rgba(0,0,0,.08))}' +
       '.crozzo-matriz-kpi__label{display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.72;margin-bottom:6px}' +
@@ -3731,6 +3886,26 @@
       '.crozzo-matriz-status--warn{background:rgba(245,158,11,.14);color:#fbbf24;border:1px solid rgba(245,158,11,.28)}' +
       '.crozzo-matriz-panel-head{margin:0 0 14px;font-size:.84rem;line-height:1.55;color:var(--text-secondary)}' +
       '.crozzo-matriz-panel-head strong{color:var(--text-primary)}' +
+      '.crozzo-matriz-panel-head--step{padding:12px 14px;border-radius:12px;border:1px solid rgba(var(--matriz-gold-rgb),.22);background:rgba(var(--matriz-gold-rgb),.06)}' +
+      '.crozzo-matriz-panel-head--empty{padding:14px 16px;border-radius:12px;border:1px dashed var(--border);background:rgba(0,0,0,.04)}' +
+      '.crozzo-matriz-panel-head__badge{display:inline-block;margin-right:6px;padding:2px 8px;border-radius:999px;font-size:.65rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;background:var(--matriz-gold);color:#111;vertical-align:middle}' +
+      '.crozzo-matriz-panel-head__hint{margin:8px 0 0;font-size:.8rem;line-height:1.5;color:var(--text-secondary)}' +
+      '.crozzo-matriz-tabs-wrap{margin:0 0 18px}' +
+      '.crozzo-matriz-tabs__hint{margin:0 0 10px;padding:10px 14px;border-radius:12px;font-size:.8rem;line-height:1.45;color:var(--text-secondary);background:rgba(var(--matriz-gold-rgb),.08);border:1px solid rgba(var(--matriz-gold-rgb),.18)}' +
+      '.crozzo-matriz-tabs-wrap .crozzo-matriz-tabs{margin-bottom:0}' +
+      '.crozzo-matriz-kpis-wrap{margin-top:4px;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.08)}' +
+      '.crozzo-matriz-kpis-wrap summary{cursor:pointer;padding:10px 14px;font-size:.78rem;font-weight:700;color:var(--text-secondary);list-style:none}' +
+      '.crozzo-matriz-kpis-wrap summary::-webkit-details-marker{display:none}' +
+      '.crozzo-matriz-kpis-wrap[open] summary{border-bottom:1px solid var(--border);margin-bottom:12px}' +
+      '.crozzo-matriz-kpis-wrap .crozzo-matriz-kpis{padding:0 12px 12px}' +
+      '.crozzo-matriz-resumen-acciones{margin:0 0 16px;padding:14px 16px;border-radius:14px;border:1px solid rgba(var(--matriz-gold-rgb),.35);background:linear-gradient(135deg,rgba(var(--matriz-gold-rgb),.1),rgba(0,0,0,.05))}' +
+      '.crozzo-matriz-resumen-acciones__main{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center;justify-content:space-between;margin-bottom:8px}' +
+      '.crozzo-matriz-resumen-acciones__title{margin:0 0 4px;font-size:.92rem;font-weight:800;color:var(--text-primary)}' +
+      '.crozzo-matriz-resumen-acciones__meta{margin:0;font-size:.8rem;line-height:1.45;color:var(--text-secondary)}' +
+      '.crozzo-matriz-resumen-acciones__btns{display:flex;flex-wrap:wrap;gap:8px}' +
+      '.crozzo-matriz-resumen-acciones__hint{margin:0;font-size:.76rem;line-height:1.5;color:var(--text-secondary)}' +
+      '.crozzo-matriz-tab__step{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12)}' +
+      '.crozzo-matriz-tabs .crozzo-mod-nav__item.active .crozzo-matriz-tab__step{background:#111;color:var(--matriz-gold);border-color:#111}' +
       '.crozzo-matriz-premium .crozzo-costos-editable{border-radius:8px;padding:7px 9px;font-weight:600}' +
       '.crozzo-matriz-premium .crozzo-costos-editable:focus{box-shadow:0 0 0 2px rgba(var(--matriz-gold-rgb),.25)}' +
       '.crozzo-matriz-loading{padding:48px 24px;text-align:center}' +
@@ -6980,8 +7155,6 @@
       : 'Vincule el plato al producto POS (nombre o SKU = slug) para inferir área en pedidos.';
 
     return (
-      '<p class="crozzo-costos-note crozzo-receta-plato__intro"><strong>Recetas estándar</strong> — Arme ingredientes, costos y preparación por plato. ' +
-      'Use el selector o el botón <strong>+</strong> para dar de alta un plato con receta.</p>' +
       '<div class="crozzo-receta-plato">' +
       '<div class="crozzo-receta-plato__toolbar crozzo-costos-search-row">' +
       '<label for="crozzoDemoPlatoCombo">Plato</label>' +
@@ -7043,33 +7216,22 @@
     }).length;
     var ventaDirecta = resumenCount - conReceta;
     var portfolio = computeMatrizPortfolio(seed);
+    var activeTab = global.__crozzoCostosMatrizTab || 'resumen';
 
     return (
       '<div class="crozzo-costos-hub crozzo-mod-page crozzo-matriz-premium">' +
       renderMatrizHero(seed, portfolio) +
       renderRevisionAdminPanel(seed) +
-      '<div class="crozzo-mod-nav crozzo-mod-nav--segmented crozzo-costos-tabs crozzo-costos-matriz-tabs crozzo-matriz-tabs">' +
-      '<button type="button" class="crozzo-mod-nav__item active" data-matriz-tab="resumen">' +
-      '<span class="crozzo-matriz-tab__icon" aria-hidden="true">📊</span>' +
-      '<span class="crozzo-matriz-tab__text"><strong>Precios de venta</strong><small>Platos, márgenes y alta</small></span></button>' +
-      '<button type="button" class="crozzo-mod-nav__item" data-matriz-tab="costeo-mp">' +
-      '<span class="crozzo-matriz-tab__icon" aria-hidden="true">⚖</span>' +
-      '<span class="crozzo-matriz-tab__text"><strong>Costeo MP</strong><small>Alta insumos y $/g</small></span></button>' +
-      '<button type="button" class="crozzo-mod-nav__item" data-matriz-tab="demo">' +
-      '<span class="crozzo-matriz-tab__icon" aria-hidden="true">🍽</span>' +
-      '<span class="crozzo-matriz-tab__text"><strong>Recetas estándar</strong><small>Ingredientes y prep</small></span></button></div>' +
-      '<div class="crozzo-costos-panel active" data-matriz-panel="resumen">' +
-      '<p class="crozzo-matriz-panel-head"><strong>' +
-      esc(String(resumenCount)) +
-      ' productos</strong> del catálogo POS · <span data-matriz-count-receta>' +
-      esc(String(conReceta)) +
-      '</span> con receta · <span data-matriz-count-directo>' +
-      esc(String(ventaDirecta)) +
-      '</span> venta directa (bebidas, etc.)</p>' +
+      renderMatrizTabsNav(activeTab) +
+      '<div class="crozzo-costos-panel' +
+      (activeTab === 'resumen' ? ' active' : '') +
+      '" data-matriz-panel="resumen">' +
+      renderMatrizPanelIntro('resumen', seed) +
+      renderMatrizResumenAcciones(seed) +
       '<div class="crozzo-matriz-vista-tabs" role="tablist">' +
-      '<button type="button" class="crozzo-matriz-vista-tab is-active" data-matriz-vista="vigente">Precios vigentes <small>(editable)</small></button>' +
-      '<button type="button" class="crozzo-matriz-vista-tab" data-matriz-vista="historial">Costeos guardados <small>(solo lectura)</small></button>' +
-      '<button type="button" class="crozzo-matriz-vista-tab" data-matriz-vista="programaciones">Programaciones</button></div>' +
+      '<button type="button" class="crozzo-matriz-vista-tab is-active" data-matriz-vista="vigente">Resumen del menú <small>(editable)</small></button>' +
+      '<button type="button" class="crozzo-matriz-vista-tab" data-matriz-vista="historial">Historial de costeos <small>(archivo mensual)</small></button>' +
+      '<button type="button" class="crozzo-matriz-vista-tab" data-matriz-vista="programaciones">Programaciones en caja</button></div>' +
       '<div class="crozzo-matriz-vista-panel is-active" data-matriz-vista-panel="vigente">' +
       renderMargenGlobalBar() +
       renderMatrizAlertsBanner(seed) +
@@ -7078,7 +7240,7 @@
       '<div class="crozzo-costos-search-row">' +
       '<input type="search" class="crozzo-matriz-search" id="crozzoResumenSearch" placeholder="Buscar plato, categoría o código… (ej. queso cocina)" autocomplete="off">' +
       '<button type="button" class="btn btn-primary btn-sm crozzo-costos-create-btn" id="crozzoCostosToggleNewPlato" title="Nuevo plato" aria-label="Nuevo plato">+</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizSyncPos" title="Traer productos del POS">↻ Sincronizar POS</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizSyncPos" title="Traer platos desde el punto de venta">↻ Traer platos del POS</button>' +
       '</div>' +
       (typeof global.renderCostosNewPlatoFormHtml === 'function'
         ? global.renderCostosNewPlatoFormHtml({
@@ -7093,11 +7255,11 @@
       '<button type="button" class="crozzo-matriz-filter is-active" data-matriz-filter-tipo="all">Todos</button>' +
       '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-tipo="receta">Con receta</button>' +
       '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-tipo="directo">Venta directa</button></div>' +
-      '<div class="crozzo-matriz-filters crozzo-matriz-filters--meta" role="group" aria-label="Margen vs meta">' +
-      '<button type="button" class="crozzo-matriz-filter is-active" data-matriz-filter-meta="all">Margen: todos</button>' +
-      '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-meta="ok">Cumplen meta</button>' +
-      '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-meta="warn">Bajo meta</button>' +
-      '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-meta="crit">Pérdida</button></div>' +
+      '<div class="crozzo-matriz-filters crozzo-matriz-filters--meta" role="group" aria-label="Estado vs meta de costo">' +
+      '<button type="button" class="crozzo-matriz-filter is-active" data-matriz-filter-meta="all">Estado: todos</button>' +
+      '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-meta="ok">Dentro de meta</button>' +
+      '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-meta="warn">Sobre meta</button>' +
+      '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-meta="crit">MP subió mucho</button></div>' +
       '<div class="crozzo-matriz-filters crozzo-matriz-filters--cmp" role="group" aria-label="Comparativa caja vs costeo">' +
       '<button type="button" class="crozzo-matriz-filter is-active" data-matriz-filter-cmp="all">Δ precio: todos</button>' +
       '<button type="button" class="crozzo-matriz-filter" data-matriz-filter-cmp="up">Suben</button>' +
@@ -7113,15 +7275,21 @@
       renderResumenTotalesFooterHtml(calcularTotalesResumen(seed)) +
       '</table></div></div></div>' +
       '<div class="crozzo-matriz-vista-panel crozzo-matriz-vista-panel--readonly" data-matriz-vista-panel="historial" data-matriz-lazy="historial">' +
-      '<p class="crozzo-costos-note" style="margin:12px 0">Abra esta pestaña para cargar el historial de costeos guardados.</p></div>' +
+      '<p class="crozzo-costos-note" style="margin:12px 0">Haga clic aquí para ver el <strong>historial mensual</strong> de costeos guardados (solo lectura).</p></div>' +
       '<div class="crozzo-matriz-vista-panel" data-matriz-vista-panel="programaciones" data-matriz-lazy="programaciones">' +
-      '<p class="crozzo-costos-note" style="margin:12px 0">Abra esta pestaña para ver programaciones de precio en caja.</p></div></div>' +
-      '<div class="crozzo-costos-panel" data-matriz-panel="costeo-mp">' +
+      '<p class="crozzo-costos-note" style="margin:12px 0">Haga clic aquí para ver precios <strong>programados</strong> en caja (fecha/hora futura).</p></div></div>' +
+      '<div class="crozzo-costos-panel' +
+      (activeTab === 'costeo-mp' ? ' active' : '') +
+      '" data-matriz-panel="costeo-mp">' +
+      renderMatrizPanelIntro('costeo-mp', seed) +
       (global.CrozzoCosteoMp && global.CrozzoCosteoMp.renderPanel
         ? global.CrozzoCosteoMp.renderPanel({ embedded: true })
         : '<p class="crozzo-costos-note">Módulo de costeo no cargado.</p>') +
       '</div>' +
-      '<div class="crozzo-costos-panel" data-matriz-panel="demo">' +
+      '<div class="crozzo-costos-panel' +
+      (activeTab === 'demo' ? ' active' : '') +
+      '" data-matriz-panel="demo">' +
+      renderMatrizPanelIntro('demo', seed) +
       renderDemoRecetaHtml(seed) +
       '</div></div>'
     );
@@ -7466,6 +7634,11 @@
 
     hub.closeMatrizCommandDeck = function () {
       setCmdOpen(false);
+    };
+    hub.openMatrizCommandDeck = function (focusSchedule) {
+      setCmdOpen(true);
+      if (cmd.scrollIntoView) cmd.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (focusSchedule && schedule) schedule.classList.add('is-highlight');
     };
 
     if (toggle) {
@@ -8634,6 +8807,7 @@
     if (!root || root.querySelector('.crozzo-matriz-loading')) return;
     seed = seed || hub.seed;
     initMatrizGerenciaPanel(root, seed);
+    bindMatrizResumenAcciones(root);
     bindRevisionAdmin(root, seed);
     bindPerdidasProcesoAdmin(root);
     bindCostosNewPlatoForm(root, seed);
@@ -8737,6 +8911,7 @@
           var on = btn.getAttribute('data-matriz-tab') === tabId;
           btn.classList.toggle('active', on);
           btn.classList.toggle('is-active', on);
+          btn.setAttribute('aria-selected', on ? 'true' : 'false');
         });
         root.querySelectorAll('[data-matriz-panel]').forEach(function (panel) {
           panel.classList.toggle('active', panel.getAttribute('data-matriz-panel') === tabId);

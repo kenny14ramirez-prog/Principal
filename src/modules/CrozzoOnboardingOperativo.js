@@ -854,7 +854,7 @@
       esc(cs.label) +
       '</span></div>' +
       '<div class="crozzo-onb-banner__actions">' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openModal()">Detalle</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openModal()">Ayuda</button>' +
       '</div></div>' +
       (wb && wb.total > 0
         ? '<p class="form-hint" style="margin:6px 0 0;">Bienestar equipo (30d): ' + wb.pctGood + '% positivo</p>'
@@ -912,7 +912,8 @@
       p.total +
       ' pasos</span></div>' +
       '<div class="crozzo-onb-banner__actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" onclick="CrozzoOnboardingOperativo.openModal()">Checklist</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" onclick="CrozzoHelpHub.open(\'checklist\')">Checklist</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoHelpHub.open()">Centro de ayuda</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openPerfilesModal()">Perfiles</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.dismissBanner()" title="Ocultar">×</button>' +
       '</div></div>' +
@@ -925,7 +926,92 @@
     );
   }
 
+  function renderChecklistPanelHtml() {
+    var p = getProgress();
+    var rows = p.items
+      .map(function (x) {
+        var s = x.step;
+        var icon = x.done ? '✅' : s.optional ? '○' : '⬜';
+        var cls = x.done ? ' crozzo-onb-row--done' : '';
+        var extra = '';
+        if (s.id === 'perfil_operativo' && typeof global.CrozzoPerfilesOperativos !== 'undefined') {
+          extra =
+            ' <button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openPerfilesModal()">Elegir perfil</button>';
+        }
+        if (s.id === 'marcacion' && !localStorage.getItem(LS_MARCACION_TOUR)) {
+          extra +=
+            ' <button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openMarcacionTour()">Tour</button>';
+        }
+        var go =
+          s.page && typeof global.navigateTo === 'function'
+            ? ' <button type="button" class="btn btn-outline btn-sm" onclick="closeModal();navigateTo(\'' +
+              esc(s.page) +
+              '\')">Ir</button>'
+            : '';
+        var mark =
+          !x.done && !s.optional && s.id !== 'perfil_operativo'
+            ? ' <button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.markManual(\'' +
+              esc(s.id) +
+              '\')">Marcar hecho</button>'
+            : '';
+        return (
+          '<li class="crozzo-onb-row' +
+          cls +
+          '">' +
+          '<span class="crozzo-onb-row__icon">' +
+          icon +
+          '</span>' +
+          '<div class="crozzo-onb-row__body">' +
+          '<strong>' +
+          esc(s.label) +
+          (s.optional ? ' <em>(opcional)</em>' : '') +
+          '</strong>' +
+          '<p class="form-hint">' +
+          esc(s.hint) +
+          '</p>' +
+          extra +
+          go +
+          mark +
+          '</div></li>'
+        );
+      })
+      .join('');
+    var adoptionBlock = '';
+    try {
+      if (typeof global.crozzoShowOperativeMetricsUi === 'function' && global.crozzoShowOperativeMetricsUi()) {
+        adoptionBlock = renderAdoptionPanel();
+      }
+    } catch (_) {}
+    return (
+      adoptionBlock +
+      '<p class="crozzo-help-checklist__lead">Complete estos pasos antes del primer servicio real con clientes.</p>' +
+      '<div class="crozzo-onb-modal__progress">' +
+      '<span>Progreso: <strong>' +
+      p.pct +
+      '%</strong> · ' +
+      p.done +
+      '/' +
+      p.total +
+      ' pasos</span>' +
+      '<div class="crozzo-onb-banner__bar"><span style="width:' +
+      p.pct +
+      '%"></span></div></div>' +
+      '<ul class="crozzo-onb-modal__list crozzo-onb-modal__list--help">' +
+      rows +
+      '</ul>' +
+      '<div class="btn-group crozzo-help-checklist__foot">' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.exportMetricsCsv()">📥 Exportar métricas</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.restoreBanner()">Mostrar banner en inicio</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.dismissBanner()">Ocultar recordatorio</button>' +
+      '</div>'
+    );
+  }
+
   function openModal() {
+    if (global.CrozzoHelpHub && typeof global.CrozzoHelpHub.open === 'function') {
+      global.CrozzoHelpHub.open('checklist');
+      return;
+    }
     if (typeof global.showModal !== 'function') return;
     try {
       var overlay = document.getElementById('modalOverlay');
@@ -1537,6 +1623,7 @@
   var api = {
     init: init,
     renderInicioHtml: renderInicioHtml,
+    renderChecklistPanelHtml: renderChecklistPanelHtml,
     openModal: openModal,
     dismissBanner: dismissBanner,
     restoreBanner: restoreBanner,

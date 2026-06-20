@@ -140,6 +140,26 @@
     return tpl;
   }
 
+  /** Ticket comanda: mesa M# / llevar L# visible en impresión (como en corcho). */
+  function ensureComandaSlotBlock(tpl) {
+    if (!tpl || tpl.docType !== 'ticket' || !Array.isArray(tpl.blocks)) return tpl;
+    var hasSlot = tpl.blocks.some(function (b) {
+      return b && b.v !== false && (b.t === 'comanda_slot' || b.t === 'client');
+    });
+    if (hasSlot) return tpl;
+    var slotBlock = { t: 'comanda_slot', c: '', v: true, o: 3.5, a: 'center', fs: 'xl', fw: true };
+    var consecIdx = -1;
+    for (var i = 0; i < tpl.blocks.length; i++) {
+      if (tpl.blocks[i] && tpl.blocks[i].t === 'consec') {
+        consecIdx = i;
+        break;
+      }
+    }
+    if (consecIdx >= 0) tpl.blocks.splice(consecIdx + 1, 0, slotBlock);
+    else tpl.blocks.unshift(slotBlock);
+    return tpl;
+  }
+
   /** Salón / bodega: logo pequeño a la izquierda del producto (ahorra papel). */
   function applyCompactLabelLogo(tpl) {
     if (!tpl || !Array.isArray(tpl.blocks)) return tpl;
@@ -188,6 +208,7 @@
         { t: 'title', c: 'COMANDA', v: true, o: 1, a: 'center', fs: 'lg', fw: true },
         { t: 'company', c: '', v: true, o: 2, a: 'center', fs: 'xs' },
         { t: 'consec', c: '', v: true, o: 3, a: 'center', fs: 'sm', fw: true },
+        { t: 'comanda_slot', c: '', v: true, o: 3.5, a: 'center', fs: 'xl', fw: true },
         { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
         { t: 'divider', c: '4', v: true, o: 5 },
         { t: 'items', c: '', v: true, o: 6, a: 'left', fs: 'md', fw: true },
@@ -277,6 +298,7 @@
       }
     }
     if (docType === 'salon') tpl = ensureSalonBlocks(tpl);
+    if (docType === 'ticket') tpl = ensureComandaSlotBlock(tpl);
     if (docType === 'inventario') tpl = ensureInventarioTplBlocks(tpl);
     if (docType === 'bodega' || docType === 'bodega_entrada') tpl = normalizeBodegaTplBlocks(tpl);
     if (docType === 'salon' || docType === 'bodega' || docType === 'bodega_entrada') tpl = applyCompactLabelLogo(tpl);
@@ -411,13 +433,49 @@
     return tpl;
   }
 
+  function isTplStudioReady(tpl, docType) {
+    if (!tpl || !Array.isArray(tpl.blocks)) return false;
+    var visible = tpl.blocks.filter(function (b) {
+      return b && b.t && b.v !== false;
+    });
+    if (visible.length < 3) return false;
+    docType = docType || tpl.docType || 'factura';
+    if (docType === 'factura' || docType === 'precuenta') {
+      return visible.some(function (b) {
+        return b.t === 'items' || b.t === 'title' || b.t === 'total';
+      });
+    }
+    if (docType === 'ticket') {
+      return visible.some(function (b) {
+        return b.t === 'items' || b.t === 'comanda_slot' || b.t === 'title';
+      });
+    }
+    if (docType === 'salon') return visible.some(function (b) { return b.t === 'salon_etiqueta'; });
+    if (docType === 'bodega' || docType === 'bodega_entrada') {
+      return visible.some(function (b) { return b.t === 'rotulo_nombre' || b.t === 'fechas_blank'; });
+    }
+    if (docType === 'inventario') {
+      return visible.some(function (b) { return b.t === 'inventario_lines' || b.t === 'title'; });
+    }
+    return visible.length >= 3;
+  }
+
+  function docTypeLabel(key) {
+    var d = DOC_TYPES.find(function (x) { return x.id === key; });
+    return d ? d.label : key;
+  }
+
+  function updatePreviewDocLabel(tplKey) {
+    var el = document.getElementById('crozzoPsPreviewDocLabel');
+    if (el) el.textContent = docTypeLabel(tplKey || studioTplKey());
+  }
+
   function ensureEditorReady(docType) {
     docType = docType || studioTplKey();
     var conf = getFacturacionAdminConfigSafe();
     conf = normalizePlantillas(conf);
     var tpl = getPlantilla(docType, conf);
-    var hasSaved = tpl && tpl.blocks && tpl.blocks.length >= 2;
-    if (!hasSaved) {
+    if (!isTplStudioReady(tpl, docType)) {
       loadPresetIntoEditor(docType, getActivePresetId(docType, conf));
       return;
     }
@@ -446,6 +504,7 @@
 
   function refreshMiniPreview(tpl) {
     var host = document.getElementById('crozzoPsMiniPreview');
+    updatePreviewDocLabel(studioTplKey());
     if (!host) return;
     tpl = cloneTpl(tpl);
     if (!tpl || !tpl.blocks || !tpl.blocks.length) {
@@ -1259,7 +1318,8 @@
     }
     var tpl = conf.termicaPlantillas[docType];
     if (tpl && tpl.blocks && tpl.blocks.length) {
-      return polishTplForDocType(tpl, docType);
+      tpl = polishTplForDocType(tpl, docType);
+      if (isTplStudioReady(tpl, docType)) return tpl;
     }
     if (global.CrozzoPrintPresets && typeof global.CrozzoPrintPresets.getTemplate === 'function') {
       return polishTplForDocType(global.CrozzoPrintPresets.getTemplate(docType, getActivePresetId(docType, conf)), docType);
@@ -1329,7 +1389,8 @@
         nameE: 'Barra / Cocina',
         consecutivo: 'CMD-1042',
         fecha: fechaPlainNow(),
-        cliNom: 'Mesa 5',
+        slotRef: 'M5',
+        cliNom: 'M5',
         lines: [
           { n: 'Hamburguesa especial', q: 2, p: 0 },
           { n: 'Papas', q: 1, p: 0 },
@@ -2170,7 +2231,16 @@
       '<span class="crozzo-print-studio__unsaved" id="crozzoPsUnsavedBadge" hidden>Cambios sin guardar</span>' +
       '<span class="crozzo-print-studio__sync" id="adminTermicaStudioStatus">Cargando editor…</span>' +
       '</div>' +
-      '<div class="crozzo-print-studio__workspace crozzo-print-studio__workspace--solo-editor">' +
+      '<div class="crozzo-print-studio__workspace">' +
+      '<div class="crozzo-print-studio__preview-pane">' +
+      '<div class="crozzo-print-studio__preview-head">Vista del documento · <span id="crozzoPsPreviewDocLabel">' +
+      esc(docTypeLabel(tplKey)) +
+      '</span></div>' +
+      '<div class="crozzo-print-studio__preview-scroll" id="crozzoPsMiniPreview">' +
+      '<p class="crozzo-print-studio__preview-empty">Generando vista…</p>' +
+      '</div>' +
+      '<p class="crozzo-print-studio__preview-note">Cambia <strong>Documento</strong> arriba para ver factura, precuenta, comanda u otro ticket según su elección.</p>' +
+      '</div>' +
       '<div class="crozzo-print-studio__editor-pane">' +
       '<div class="crozzo-print-studio__editor-label">Editor · clic en el ticket para editar cada bloque</div>' +
       '<textarea id="adminTermicaPlantillaJson" class="form-input" style="display:none;" aria-hidden="true"></textarea>' +
@@ -2867,6 +2937,7 @@
     previewInventarioConteo: previewInventarioConteo,
     renderInventarioPanel: renderInventarioPanel,
     ensureSalonBlocks: ensureSalonBlocks,
+    ensureComandaSlotBlock: ensureComandaSlotBlock,
     normalizeBodegaTplBlocks: normalizeBodegaTplBlocks,
     polishTplForDocType: polishTplForDocType,
     tplForPrintOutput: tplForPrintOutput,

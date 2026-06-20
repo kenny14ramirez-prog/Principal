@@ -54,6 +54,13 @@
     } catch (e6) {
       console.warn('[crozzo] OnboardingOperativo', e6);
     }
+    try {
+      if (window.CrozzoHelpHub && typeof CrozzoHelpHub.init === 'function') {
+        CrozzoHelpHub.init();
+      }
+    } catch (e7) {
+      console.warn('[crozzo] HelpHub', e7);
+    }
   }
   window.initPOS = initPOS;
 })();

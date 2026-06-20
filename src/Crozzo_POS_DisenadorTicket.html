@@ -46,6 +46,7 @@
     body.embedded .studio-workspace {
       flex: 1;
       min-height: 0;
+      grid-template-columns: 1fr 260px;
     }
     body.embedded .studio-canvas {
       flex: 1;
@@ -65,6 +66,9 @@
     }
     body.embedded .studio-rail > h2:first-of-type,
     body.embedded .studio-presets {
+      display: none;
+    }
+    body.embedded .studio-rail {
       display: none;
     }
     body.embedded .studio-foot {
@@ -511,13 +515,15 @@
       padding: 0;
       background: transparent;
       box-shadow: none;
-      width: auto;
-      max-width: 100%;
       overflow: visible;
     }
-    .ticket.ticket--premium-preview.sz80,
+    .ticket.ticket--premium-preview.sz80 {
+      width: 72mm;
+      max-width: calc(100% - 16px);
+    }
     .ticket.ticket--premium-preview.sz58 {
-      width: auto;
+      width: 54mm;
+      max-width: calc(100% - 16px);
     }
     .ticket.ticket--premium-preview.zoom-125 {
       transform: none;
@@ -551,6 +557,19 @@
     }
     .studio-premium-ticket .crozzo-label-inline img {
       display: block;
+      max-width: 100%;
+      max-height: 52px;
+      object-fit: contain;
+    }
+    .studio-premium-ticket .crozzo-ticket img {
+      max-width: 92%;
+      max-height: 140px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
     }
     .studio-preview-hit {
       position: relative;
@@ -1426,14 +1445,21 @@
     }
   }
 
+  function shouldUsePremiumPreview() {
+    if (embedded) return false;
+    var prem = window.CrozzoTermicaPremium;
+    return !!(prem && typeof prem.render === 'function');
+  }
+
   function renderPreview() {
     var el = document.getElementById('preview');
     syncPaperChrome();
-    el.className = previewTicketClassName() + ' ticket--premium-preview';
-    var prem = window.CrozzoTermicaPremium;
-    if (prem && typeof prem.render === 'function') {
+    var previewData = payloadForPreview();
+    if (shouldUsePremiumPreview()) {
+      el.className = previewTicketClassName() + ' ticket--premium-preview';
+      var prem = window.CrozzoTermicaPremium;
       var tplP = tplForPreview();
-      var htmlP = prem.render(tplP, payloadForPreview());
+      var htmlP = prem.render(tplP, previewData);
       el.innerHTML =
         '<div class="studio-premium-ticket" title="Vista de impresión">' + (htmlP || '') + '</div>';
       reflowPaperCanvas();
@@ -1444,7 +1470,7 @@
     el.className = previewTicketClassName();
     var sorted = state.blocks.slice().sort(function (a, b) { return a.o - b.o; });
     var parts = sorted.map(function (b) {
-      var html = renderBlockHtml(b, SAMPLE);
+      var html = renderBlockHtml(b, previewData);
       if (!html) return '';
       var i = state.blocks.indexOf(b);
       var sel = selectedIdx === i ? ' is-selected' : '';
@@ -1461,8 +1487,8 @@
       );
     });
     if (!state.studio) {
-      parts.push('<div style="margin-top:6px;font-size:8px;">No: ' + esc(SAMPLE.consecutivo) + '</div>');
-      parts.push('<div style="font-size:8px;">Fecha: ' + esc(SAMPLE.fecha) + '</div>');
+      parts.push('<div style="margin-top:6px;font-size:8px;">No: ' + esc(previewData.consecutivo) + '</div>');
+      parts.push('<div style="font-size:8px;">Fecha: ' + esc(previewData.fecha) + '</div>');
     }
     el.innerHTML = parts.join('');
     reflowPaperCanvas();

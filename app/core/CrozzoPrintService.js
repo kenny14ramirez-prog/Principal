@@ -569,6 +569,12 @@
   function crozzoResolveTicketEndCut(tpl, buildOpts, hadCutBlock) {
     tpl = tpl || {};
     buildOpts = buildOpts || {};
+    if (buildOpts.forceEndCut && !hadCutBlock) {
+      return {
+        cutMode: buildOpts.forceEndCut === 'full' ? 'full' : 'partial',
+        feedBeforeCut: Math.max(1, Math.min(8, Number(buildOpts.feedBeforeCut != null ? buildOpts.feedBeforeCut : 4))),
+      };
+    }
     var end = String(tpl.cutEnd || buildOpts.cutEnd || 'auto').toLowerCase();
     if (end === 'auto') {
       if (hadCutBlock) return null;
@@ -647,15 +653,30 @@
     return p;
   }
 
+  var __CROZZO_LOGO_WARMUP_MS = 4000;
+
   function crozzoWarmTicketLogoEscCache(logoUrl, paperSz, mode) {
     mode = mode || 'full';
     return new Promise(function (resolve) {
       var url = crozzoAbsUrl(logoUrl);
       if (!url || typeof document === 'undefined') return resolve(null);
+      var settled = false;
+      function finish(val) {
+        if (settled) return;
+        settled = true;
+        resolve(val);
+      }
+      var watchdog = setTimeout(function () {
+        console.warn('[crozzo-print] logo timeout', url);
+        finish(null);
+      }, __CROZZO_LOGO_WARMUP_MS);
       var key = url + '|' + (paperSz === '58' ? '58' : '80') + '|logo2x-crop|' + mode;
       var cacheMap = global.__CROZZO_TICKET_LOGO_ESC_MAP || (global.__CROZZO_TICKET_LOGO_ESC_MAP = {});
       var hit = cacheMap[key];
-      if (hit && hit.raster && hit.raster.length) return resolve(hit);
+      if (hit && hit.raster && hit.raster.length) {
+        clearTimeout(watchdog);
+        return finish(hit);
+      }
 
       var img = new Image();
       img.onload = function () {
@@ -671,7 +692,10 @@
           }
           var nw = img.naturalWidth || img.width || 1;
           var nh = img.naturalHeight || img.height || 1;
-          if (!nw || !nh) return resolve(null);
+          if (!nw || !nh) {
+            clearTimeout(watchdog);
+            return finish(null);
+          }
           var scale = Math.min(maxW / nw, maxH / nh, 2);
           var w = Math.max(8, Math.ceil(((nw * scale) | 0) / 8) * 8);
           var h = Math.max(8, Math.round(nh * scale));
@@ -679,7 +703,10 @@
           canvas.width = w;
           canvas.height = h;
           var ctx = canvas.getContext('2d');
-          if (!ctx) return resolve(null);
+          if (!ctx) {
+            clearTimeout(watchdog);
+            return finish(null);
+          }
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, w, h);
           ctx.imageSmoothingEnabled = true;
@@ -723,14 +750,17 @@
           });
           cacheMap[key] = pack;
           if (mode === 'full') global.__CROZZO_TICKET_LOGO_ESC = pack;
-          resolve(pack);
+          clearTimeout(watchdog);
+          finish(pack);
         } catch (err) {
           console.warn('[crozzo-print] logo raster', err);
-          resolve(null);
+          clearTimeout(watchdog);
+          finish(null);
         }
       };
       img.onerror = function () {
-        resolve(null);
+        clearTimeout(watchdog);
+        finish(null);
       };
       img.src = url;
     });
@@ -867,6 +897,9 @@
 
   function crozzoBuildEscPosBytesAsync(tpl, payload, buildOpts) {
     buildOpts = buildOpts || {};
+    if (buildOpts.skipLogoWarmup) {
+      return Promise.resolve(crozzoBuildEscPosFromPayload(tpl, payload, buildOpts));
+    }
     var sz = tpl && tpl.sz === '58' ? '58' : '80';
     var logoUrl = payload && payload.logoUrl;
     return crozzoWarmTicketLogoEscCache(logoUrl, sz, 'full')
@@ -1044,10 +1077,33 @@
           escPushText(chunks, data.fecha || '');
           break;
         case 'client':
+          if (tpl.docType === 'ticket') {
+            var slotClient = String(data.slotRef || data.cliNom || '').trim();
+            if (slotClient) {
+              escAlign(chunks, b.a || 'center');
+              escFont(chunks, b.fs || 'xl');
+              escBold(chunks, true);
+              escPushText(chunks, slotClient);
+              escBold(chunks, false);
+              escFont(chunks, 'sm');
+            }
+            break;
+          }
           escAlign(chunks, 'left');
           escPushText(chunks, data.cliTipo === 'NIT' ? 'Cliente' : data.cliTipo || 'Adquirente');
           escPushText(chunks, data.cliNom || '');
           escPushText(chunks, (data.cliTipo === 'NIT' ? 'NIT ' : 'Doc. ') + (data.cliNit || ''));
+          break;
+        case 'comanda_slot':
+          var slotRef = String(data.slotRef || data.cliNom || '').trim();
+          if (slotRef) {
+            escAlign(chunks, b.a || 'center');
+            escFont(chunks, b.fs || 'xl');
+            escBold(chunks, true);
+            escPushText(chunks, slotRef);
+            escBold(chunks, false);
+            escFont(chunks, 'sm');
+          }
           break;
         case 'items':
           escAlign(chunks, 'left');
@@ -1349,7 +1405,28 @@
     return Promise.resolve(escChunksToUint8(chunks));
   }
 
+  /** M1 / L1 — mismo rótulo que en pantalla de comandas (corcho). */
+  function crozzoComandaSlotRefLabel(comanda) {
+    if (!comanda) return '';
+    var ref = String(comanda.referencia || '').trim();
+    var tipo = String(comanda.tipoServicio || '').trim().toLowerCase();
+    if (ref) {
+      if (/^[ml]\d+$/i.test(ref)) return ref.toUpperCase();
+      if (tipo === 'mesa') {
+        var nm = ref.match(/(\d+)/);
+        return nm ? 'M' + nm[1] : ref;
+      }
+      if (tipo === 'llevar') {
+        var nl = ref.match(/(\d+)/);
+        return nl ? 'L' + nl[1] : ref;
+      }
+      return ref;
+    }
+    return '';
+  }
+
   function crozzoBuildEscPosFromComanda(comanda) {
+    var slotRef = crozzoComandaSlotRefLabel(comanda);
     var conf = getAdminConfig();
     if (global.CrozzoPrintStudioHub) {
       var tpl = global.CrozzoPrintStudioHub.getPlantilla('ticket', conf);
@@ -1359,10 +1436,8 @@
         nameE: emp.nombreComercial || emp.razonSocial || 'Crozzo POS',
         consecutivo: String(comanda.id || ''),
         fecha: new Date(comanda.lastUpdateAt || comanda.createdAt || Date.now()).toLocaleString('es-CO'),
-        cliNom:
-          comanda.tipoServicio === 'mesa'
-            ? 'Mesa ' + (comanda.referencia || '')
-            : String(comanda.referencia || ''),
+        slotRef: slotRef,
+        cliNom: slotRef,
         cliNit: '',
         lines: (comanda.items || []).map(function (it) {
           return {
@@ -1376,8 +1451,13 @@
         tot: 0,
         logoUrl: typeof global.crozzoResolveTicketLogoUrl === 'function' ? global.crozzoResolveTicketLogoUrl() : '',
       };
-      return crozzoBuildEscPosBytesAsync(tpl, payload, {});
+      return crozzoBuildEscPosBytesAsync(tpl, payload, {
+        skipLogoWarmup: true,
+        forceEndCut: 'partial',
+        feedBeforeCut: 4,
+      });
     }
+    var fallbackTpl = { sz: '80', docType: 'ticket' };
     var chunks = [];
     escInit(chunks);
     escAlign(chunks, 'center');
@@ -1386,18 +1466,20 @@
     escPushText(chunks, comanda.areaNombre || 'COMANDA');
     escBold(chunks, false);
     escPushText(chunks, emp.nombreComercial || emp.razonSocial || 'Crozzo POS');
-    escDivider(chunks, tpl);
+    escDivider(chunks, fallbackTpl);
     escAlign(chunks, 'left');
     escPushText(chunks, 'COMANDA #' + (comanda.id || ''));
-    var ref =
-      comanda.tipoServicio === 'mesa'
-        ? 'Mesa ' + (comanda.referencia || '')
-        : comanda.tipoServicio === 'llevar'
-          ? 'Para llevar ' + (comanda.referencia || '')
-          : String(comanda.referencia || '');
-    escPushText(chunks, ref);
+    if (slotRef) {
+      escAlign(chunks, 'center');
+      escFont(chunks, 'xl');
+      escBold(chunks, true);
+      escPushText(chunks, slotRef);
+      escBold(chunks, false);
+      escFont(chunks, 'sm');
+      escAlign(chunks, 'left');
+    }
     escPushText(chunks, escFmtDatePlain(new Date(comanda.lastUpdateAt || comanda.createdAt || Date.now())));
-    escDivider(chunks, tpl);
+    escDivider(chunks, fallbackTpl);
     (comanda.items || []).forEach(function (it) {
       var nom = it.nombreVenta || it.nombre || 'Item';
       var qty = Number(it.cantidad) || 0;
@@ -1415,6 +1497,38 @@
   var __crozzoPrintQueue = [];
   var __crozzoPrintQueueRunning = false;
   var __crozzoPrintQueueId = 0;
+  var __crozzoPrintJobTimeoutMs = 45000;
+  var __crozzoPrintActiveJob = null;
+  var __crozzoPrintActiveTimer = null;
+  var __crozzoPrintActiveAbort = false;
+
+  function crozzoPrintQueueClearActiveTimer() {
+    if (__crozzoPrintActiveTimer) {
+      clearTimeout(__crozzoPrintActiveTimer);
+      __crozzoPrintActiveTimer = null;
+    }
+  }
+
+  function crozzoPrintQueueArmTimeout(job) {
+    crozzoPrintQueueClearActiveTimer();
+    __crozzoPrintActiveJob = job;
+    __crozzoPrintActiveAbort = false;
+    __crozzoPrintActiveTimer = setTimeout(function () {
+      if (!__crozzoPrintActiveJob || __crozzoPrintActiveJob.id !== job.id) return;
+      if (job.status !== 'printing') return;
+      job.status = 'error';
+      job.finishedAt = Date.now();
+      job.cancelReason = 'auto_timeout';
+      __crozzoPrintActiveAbort = true;
+      __crozzoPrintQueueRunning = false;
+      __crozzoPrintActiveJob = null;
+      crozzoNotifyPrintQueueUi();
+      if (typeof global.showToast === 'function') {
+        global.showToast('Impresión en cola expiró (~45 s). Revise la impresora o pulse «Liberar bloqueo».', 'warning');
+      }
+      crozzoPrintQueueRunNext();
+    }, __crozzoPrintJobTimeoutMs);
+  }
 
   function crozzoNotifyPrintQueueUi() {
     try {
@@ -1435,8 +1549,108 @@
       pending: pending,
       printing: printing,
       errors: errors,
+      jobs: __crozzoPrintQueue.slice().reverse(),
       recent: __crozzoPrintQueue.slice(-8).reverse(),
     };
+  }
+
+  function crozzoPrintQueueRecoverStuck(opts) {
+    opts = opts || {};
+    var recovered = false;
+    var now = Date.now();
+    __crozzoPrintQueue.forEach(function (j) {
+      if (j.status === 'printing') {
+        var age = now - (j.at || now);
+        if (age > __crozzoPrintJobTimeoutMs - 2000) {
+          j.status = 'error';
+          j.finishedAt = now;
+          j.cancelReason = j.cancelReason || 'auto_timeout';
+          recovered = true;
+        }
+      }
+    });
+    if (__crozzoPrintQueueRunning) {
+      __crozzoPrintQueueRunning = false;
+      __crozzoPrintActiveAbort = true;
+      crozzoPrintQueueClearActiveTimer();
+      __crozzoPrintActiveJob = null;
+      recovered = true;
+    }
+    if (recovered) {
+      crozzoNotifyPrintQueueUi();
+      crozzoPrintQueueRunNext();
+      if (!opts.silent && typeof global.showToast === 'function') {
+        global.showToast('Cola de impresión liberada.', 'info');
+      }
+    }
+    return recovered;
+  }
+
+  function crozzoPrintStopActivePrint() {
+    if (!__crozzoPrintActiveJob) return false;
+    __crozzoPrintActiveJob.status = 'cancelled';
+    __crozzoPrintActiveJob.finishedAt = Date.now();
+    __crozzoPrintActiveJob.cancelReason = 'user_stop';
+    __crozzoPrintActiveAbort = true;
+    __crozzoPrintQueueRunning = false;
+    crozzoPrintQueueClearActiveTimer();
+    __crozzoPrintActiveJob = null;
+    crozzoNotifyPrintQueueUi();
+    crozzoPrintQueueRunNext();
+    if (typeof global.showToast === 'function') global.showToast('Impresión actual detenida.', 'info');
+    return true;
+  }
+
+  function crozzoPrintCancelJob(jobId) {
+    var id = Number(jobId);
+    var hit = null;
+    __crozzoPrintQueue.forEach(function (j) {
+      if (j.id === id) hit = j;
+    });
+    if (!hit) return false;
+    if (hit.status === 'printing' && __crozzoPrintActiveJob && __crozzoPrintActiveJob.id === id) {
+      return crozzoPrintStopActivePrint();
+    }
+    if (hit.status !== 'pending') return false;
+    hit.status = 'cancelled';
+    hit.finishedAt = Date.now();
+    hit.cancelReason = 'user_cancel';
+    crozzoNotifyPrintQueueUi();
+    return true;
+  }
+
+  function crozzoPrintCancelAllPending() {
+    var n = 0;
+    __crozzoPrintQueue.forEach(function (j) {
+      if (j.status === 'pending') {
+        j.status = 'cancelled';
+        j.finishedAt = Date.now();
+        j.cancelReason = 'user_cancel';
+        n++;
+      }
+    });
+    if (n && typeof global.showToast === 'function') global.showToast(n + ' trabajo(s) cancelado(s) en cola.', 'info');
+    crozzoNotifyPrintQueueUi();
+    return n;
+  }
+
+  function crozzoPrintClearFinished() {
+    __crozzoPrintQueue = __crozzoPrintQueue.filter(function (j) {
+      return j.status === 'pending' || j.status === 'printing';
+    });
+    crozzoNotifyPrintQueueUi();
+  }
+
+  function crozzoPrintVaciateQueue() {
+    crozzoPrintCancelAllPending();
+    crozzoPrintStopActivePrint();
+    __crozzoPrintQueue = [];
+    __crozzoPrintQueueRunning = false;
+    __crozzoPrintActiveAbort = true;
+    crozzoPrintQueueClearActiveTimer();
+    __crozzoPrintActiveJob = null;
+    crozzoNotifyPrintQueueUi();
+    if (typeof global.showToast === 'function') global.showToast('Cola de impresión vaciada.', 'info');
   }
 
   function crozzoPrintQueueRunNext() {
@@ -1452,20 +1666,32 @@
     __crozzoPrintQueueRunning = true;
     next.status = 'printing';
     crozzoNotifyPrintQueueUi();
+    crozzoPrintQueueArmTimeout(next);
     Promise.resolve()
       .then(function () {
+        if (__crozzoPrintActiveAbort) return false;
         return next.run();
       })
       .then(function (ok) {
-        next.status = ok ? 'done' : 'error';
+        if (__crozzoPrintActiveAbort && next.status === 'printing') {
+          next.status = 'cancelled';
+        } else if (next.status === 'printing') {
+          next.status = ok ? 'done' : 'error';
+        }
         next.finishedAt = Date.now();
         return ok;
       })
-      .catch(function () {
-        next.status = 'error';
-        next.finishedAt = Date.now();
+      .catch(function (err) {
+        console.warn('[crozzo-print] cola', err);
+        if (next.status === 'printing') {
+          next.status = 'error';
+          next.finishedAt = Date.now();
+        }
       })
       .finally(function () {
+        crozzoPrintQueueClearActiveTimer();
+        __crozzoPrintActiveJob = null;
+        __crozzoPrintActiveAbort = false;
         __crozzoPrintQueueRunning = false;
         if (__crozzoPrintQueue.length > 40) __crozzoPrintQueue = __crozzoPrintQueue.slice(-25);
         crozzoNotifyPrintQueueUi();
@@ -2197,12 +2423,7 @@
   function crozzoBuildComandaThermalHtml(comanda) {
     if (!comanda) return '';
     var emp = global.config && global.config.getEmpresa ? global.config.getEmpresa() || {} : {};
-    var ref =
-      comanda.tipoServicio === 'mesa'
-        ? 'Mesa ' + (comanda.referencia || '—')
-        : comanda.tipoServicio === 'llevar'
-          ? 'Para llevar · ' + (comanda.referencia || '—')
-          : String(comanda.referencia || '—');
+    var ref = crozzoComandaSlotRefLabel(comanda) || String(comanda.referencia || '—');
     var lines = (comanda.items || [])
       .map(function (it) {
         return (Number(it.cantidad) || 0) + '× ' + (it.nombreVenta || it.nombre || 'Ítem');
@@ -2227,24 +2448,35 @@
     options = options || {};
     if (!comanda) return Promise.resolve(false);
     var printer = String(options.printer || crozzoResolveComandaPrinter(comanda) || '').trim();
-    return crozzoBuildEscPosFromComanda(comanda).then(function (escpos) {
-      if (crozzoIsTauri()) {
-        if (!printer) {
+    return crozzoBuildEscPosFromComanda(comanda)
+      .then(function (escpos) {
+        if (crozzoIsTauri()) {
+          if (!printer) {
+            if (typeof global.showToast === 'function') {
+              global.showToast(
+                'Sin impresora para «' + (comanda.areaNombre || 'comanda') + '». Asigne una en Cocina/Comandas o en Configuración → Cocina/barra.',
+                'warning'
+              );
+            }
+            return false;
+          }
+          if (escpos && escpos.length) {
+            return crozzoPrintRawEscPos(printer, escpos, 1, 'comanda');
+          }
           if (typeof global.showToast === 'function') {
-            global.showToast(
-              'Sin impresora para «' + (comanda.areaNombre || 'comanda') + '». Asigne una en Cocina/Comandas o en Configuración → Cocina/barra.',
-              'warning'
-            );
+            global.showToast('Comanda #' + (comanda.id || '—') + ': ticket vacío. Revise diseño térmico.', 'warning');
           }
           return false;
         }
-        if (escpos && escpos.length) {
-          return crozzoPrintRawEscPos(printer, escpos, 1, 'comanda');
+        return crozzoPrintThermalHtmlFallback(crozzoBuildComandaThermalHtml(comanda), '80mm', 1, options);
+      })
+      .catch(function (err) {
+        console.warn('[crozzo-print] build comanda', err);
+        if (typeof global.showToast === 'function') {
+          global.showToast('Error armando comanda: ' + (err && err.message ? err.message : String(err || 'error')), 'error');
         }
         return false;
-      }
-      return crozzoPrintThermalHtmlFallback(crozzoBuildComandaThermalHtml(comanda), '80mm', 1, options);
-    });
+      });
   }
 
   function crozzoPrintComanda(comanda, options) {
@@ -2254,7 +2486,17 @@
     var label = 'Comanda #' + (comanda.id || '—') + ' · ' + (comanda.referencia || '');
     return new Promise(function (resolve) {
       crozzoPrintEnqueue(label, function () {
-        return crozzoPrintComandaInternal(comanda, options).then(resolve);
+        if (__crozzoPrintActiveAbort) return Promise.resolve(false);
+        return crozzoPrintComandaInternal(comanda, options)
+          .then(function (ok) {
+            resolve(ok);
+            return ok;
+          })
+          .catch(function (err) {
+            console.warn('[crozzo-print] comanda', err);
+            resolve(false);
+            return false;
+          });
       });
     });
   }
@@ -2409,6 +2651,7 @@
   global.crozzoAutoPrintFacturaIfConfigured = crozzoAutoPrintFacturaIfConfigured;
   global.crozzoPrintComanda = crozzoPrintComanda;
   global.crozzoBuildComandaThermalHtml = crozzoBuildComandaThermalHtml;
+  global.crozzoComandaSlotRefLabel = crozzoComandaSlotRefLabel;
   global.crozzoBuildEscPosFromFactura = crozzoBuildEscPosFromFactura;
   global.crozzoBuildEscPosFromPayload = crozzoBuildEscPosFromPayload;
   global.crozzoPrintTestTicket = crozzoPrintTestTicket;
@@ -2419,6 +2662,12 @@
   global.crozzoGetPrintQueueStatus = crozzoGetPrintQueueStatus;
   global.crozzoPrintEnqueue = crozzoPrintEnqueue;
   global.crozzoPrintRetryFailed = crozzoPrintRetryFailed;
+  global.crozzoPrintQueueRecoverStuck = crozzoPrintQueueRecoverStuck;
+  global.crozzoPrintStopActivePrint = crozzoPrintStopActivePrint;
+  global.crozzoPrintCancelJob = crozzoPrintCancelJob;
+  global.crozzoPrintCancelAllPending = crozzoPrintCancelAllPending;
+  global.crozzoPrintClearFinished = crozzoPrintClearFinished;
+  global.crozzoPrintVaciateQueue = crozzoPrintVaciateQueue;
 
   if (!Array.isArray(global.AVAILABLE_PRINTERS) || !global.AVAILABLE_PRINTERS.length) {
     global.AVAILABLE_PRINTERS = DEFAULT_PRINTERS.slice();

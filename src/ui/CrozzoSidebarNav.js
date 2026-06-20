@@ -971,6 +971,9 @@
     if (!item) return;
     var p = item.getAttribute('data-page');
     if (!p || typeof global.navigateTo !== 'function') return;
+    try {
+      global.__crozzoNavFromSidebarAt = Date.now();
+    } catch (_) {}
     var sb = getSidebar();
     if (sb && sb.classList.contains('is-nav-searching')) {
       clearNavSearch();
@@ -1021,7 +1024,11 @@
       if (typeof runNavSearch === 'function') runNavSearch();
       return;
     }
-    if (sb && !isSidebarExpanded(sb) && !readState().pinned) return;
+    if (sb && !isSidebarExpanded(sb) && !readState().pinned) {
+      var recentNav =
+        global.__crozzoNavFromSidebarAt && Date.now() - global.__crozzoNavFromSidebarAt < 800;
+      if (!recentNav) return;
+    }
     getGroups().forEach(function (group) {
       var match = group.querySelector('.nav-item[data-page="' + page + '"]');
       if (match) applyGroupOpen(group, true, false);
@@ -1214,7 +1221,6 @@
     if (!inp._crozzoNavSearchBound) {
       inp._crozzoNavSearchBound = true;
       inp.addEventListener('input', runNavSearch);
-      inp.addEventListener('keyup', runNavSearch);
       inp.addEventListener('search', runNavSearch);
       inp.addEventListener('focus', function () {
         setSidebarExpanded(true, false);
@@ -1265,8 +1271,13 @@
   }
 
   function repairAfterNavigation() {
+    if (global.__crozzoSidebarRepairBusy) return;
+    global.__crozzoSidebarRepairBusy = true;
     var sb = getSidebar();
-    if (!sb) return;
+    if (!sb) {
+      global.__crozzoSidebarRepairBusy = false;
+      return;
+    }
     var hoverLocked =
       isDesktopSidebarLayout() &&
       !readState().pinned &&
@@ -1290,9 +1301,13 @@
         var pgPin = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
         if (pgPin) expandGroupForPage(pgPin);
       } else if (!hoverLocked) {
-        setSidebarExpanded(false, false);
-        collapseGroupsForRail();
-        syncSidebarHoverSessionClasses(sb, false, false);
+        var recentNav =
+          global.__crozzoNavFromSidebarAt && Date.now() - global.__crozzoNavFromSidebarAt < 700;
+        if (!recentNav) {
+          setSidebarExpanded(false, false);
+          collapseGroupsForRail();
+          syncSidebarHoverSessionClasses(sb, false, false);
+        }
       }
     } else {
       ensureLayout();
@@ -1328,16 +1343,9 @@
     if (sb.classList.contains('is-nav-searching')) runNavSearch();
     else {
       var pg = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
-      if (pg && isSidebarExpanded(sb)) expandGroupForPage(pg);
+      if (pg) expandGroupForPage(pg);
     }
-    try {
-      if (
-        typeof global.applyAccessControl === 'function' &&
-        !(typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser())
-      ) {
-        global.applyAccessControl();
-      }
-    } catch (_) {}
+    global.__crozzoSidebarRepairBusy = false;
   }
 
   function refresh() {
@@ -1369,13 +1377,16 @@
   }
 
   function restoreAfterLoginGate() {
+    if (global.__crozzoSidebarRepairBusy) return;
     var sb = getSidebar();
     if (!sb || document.body.classList.contains('crozzo-login-open')) return;
     sb.style.removeProperty('display');
     sb.style.removeProperty('visibility');
     sb.style.removeProperty('pointer-events');
     sb.style.removeProperty('transform');
+    sb.removeAttribute('hidden');
     sb.setAttribute('aria-hidden', 'false');
+    if (typeof global.crozzoClearSidebarDrawerOverlay === 'function') global.crozzoClearSidebarDrawerOverlay();
     if (isDesktopSidebarLayout() && !isDrawerNavMode()) {
       applyDesktopSidebarBootState();
     } else if (isDrawerNavMode()) {

@@ -158,9 +158,9 @@
         : '';
     var panelHead =
       embedded && all.length >= 0
-        ? '<p class="crozzo-costeo-panel-head"><strong>' +
-          all.length +
-          ' insumos</strong> en catálogo · edite precio unitario en la tabla o cree uno nuevo con <strong>+</strong>.</p>'
+        ? '<p class="crozzo-costos-note" style="margin:0 0 12px">Edite <strong>precio del lote</strong> y <strong>peso de referencia</strong>; el sistema calcula $/g o $/ml. ' +
+          esc(String(all.length)) +
+          ' insumos registrados.</p>'
         : '';
     return (
       '<div class="crozzo-mod-page crozzo-costeo-root' +

@@ -420,7 +420,7 @@
         orn('flourish', 0.5),
         { t: 'title', c: 'COMANDA', v: true, o: 1, a: 'center', fs: 'xl', fw: true },
         { t: 'consec', c: '', v: true, o: 2, a: 'center', fs: 'lg', fw: true },
-        { t: 'client', c: '', v: true, o: 3, a: 'center', fs: 'md', fw: true },
+        { t: 'client', c: '', v: true, o: 3, a: 'center', fs: 'xl', fw: true },
         { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
         { t: 'divider', c: '4', v: true, o: 5 },
         { t: 'items', c: '', v: true, o: 6, a: 'left', fs: 'lg', fw: true },
@@ -431,6 +431,7 @@
       return [
         { t: 'title', c: 'COMANDA', v: true, o: 1, a: 'center', fs: 'md', fw: true },
         { t: 'consec', c: '', v: true, o: 2, a: 'center', fs: 'sm' },
+        { t: 'comanda_slot', c: '', v: true, o: 2.5, a: 'center', fs: 'xl', fw: true },
         { t: 'items', c: '', v: true, o: 3, a: 'left', fs: 'md', fw: true },
       ];
     }
@@ -438,6 +439,7 @@
       { t: 'title', c: 'COMANDA', v: true, o: 1, a: 'center', fs: 'lg', fw: true },
       { t: 'company', c: '', v: true, o: 2, a: 'center', fs: 'xs' },
       { t: 'consec', c: '', v: true, o: 3, a: 'center', fs: 'sm', fw: true },
+      { t: 'comanda_slot', c: '', v: true, o: 3.5, a: 'center', fs: 'xl', fw: true },
       { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
       { t: 'items', c: '', v: true, o: 5, a: 'left', fs: 'md', fw: true },
       { t: 'footer', c: 'Prioridad cocina / barra', v: true, o: 6, a: 'center', fs: 'xs' },

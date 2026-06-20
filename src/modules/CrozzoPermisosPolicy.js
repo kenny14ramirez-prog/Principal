@@ -31,10 +31,10 @@
     'compras-proveedores': { inventario: ['proveedores'] },
     'compras-recepcion': { inventario: ['proveedores'] },
     'compras-ordenes': { inventario: ['proveedores'] },
-    'compras-cortes': { inventario: ['proveedores', 'reportes'] },
-    'compras-recetario-cocina': { comandas: ['ver'], inventario: ['reportes', 'proveedores'] },
-    'compras-proceso-sesion': { comandas: ['ver'], inventario: ['reportes', 'proveedores'] },
-    'compras-proceso-historial': { comandas: ['ver'], inventario: ['reportes', 'proveedores'] },
+    'compras-cortes': { comandas: ['ver', 'despachar'] },
+    'compras-recetario-cocina': { comandas: ['ver', 'despachar'] },
+    'compras-proceso-sesion': { comandas: ['ver', 'despachar'] },
+    'compras-proceso-historial': { comandas: ['ver', 'despachar'] },
     'compras-oficina': { inventario: ['proveedores', 'reportes'] },
     'pedidos-internos': { inventario: ['reportes'] },
     'sistema-costos-matriz': { inventario: ['reportes', 'proveedores'] },
@@ -127,6 +127,17 @@
     return p === 'completo' ? 'basico_restaurante' : p;
   }
 
+  function isBasicoClient(client) {
+    if (!client && typeof global.crozzoGetActiveClientProfile === 'function') {
+      client = global.crozzoGetActiveClientProfile();
+    }
+    var perfil = resolveClientPerfil(client || {});
+    if (typeof global.crozzoIsBasicoEmpresaPerfil === 'function') {
+      return global.crozzoIsBasicoEmpresaPerfil(perfil);
+    }
+    return perfil === 'basico_restaurante' || perfil === 'basico_tienda';
+  }
+
   function normalizeRol(rol) {
     if (typeof global.crozzoNormalizeAppRol === 'function') return global.crozzoNormalizeAppRol(rol);
     var r = String(rol || 'caja')
@@ -217,6 +228,32 @@
   function getClientRolePermPolicy(client, role) {
     var r = normalizeRol(role);
     if (!client) client = typeof global.crozzoGetActiveClientProfile === 'function' ? global.crozzoGetActiveClientProfile() : null;
+    if (isBasicoClient(client)) {
+      var maxBasico = computeMaxPolicyFromMenus(client || {}, r);
+      if (client && client.rolePerms && client.rolePerms[r]) {
+        var stored = policyToPlain(client.rolePerms[r]);
+        var hasStored = CAT_IDS.some(function (cat) {
+          return (stored[cat] || []).length > 0;
+        });
+        if (hasStored) {
+          var out = emptyPolicy();
+          CAT_IDS.forEach(function (cat) {
+            var allowedMax = new Set(maxBasico[cat] || []);
+            out[cat] = (stored[cat] || []).filter(function (sub) {
+              return allowedMax.has(sub);
+            });
+          });
+          var hasOut = CAT_IDS.some(function (cat) {
+            return (out[cat] || []).length > 0;
+          });
+          var missingFromPlan = CAT_IDS.some(function (cat) {
+            return (maxBasico[cat] || []).length > (out[cat] || []).length;
+          });
+          if (hasOut && !missingFromPlan) return out;
+        }
+      }
+      return maxBasico;
+    }
     if (client && client.rolePerms && client.rolePerms[r]) {
       return policyToPlain(client.rolePerms[r]);
     }
@@ -227,6 +264,23 @@
     if (!client || typeof client !== 'object') return client;
     if (!client.rolePerms || typeof client.rolePerms !== 'object') client.rolePerms = {};
     ROLE_ORDER.forEach(function (role) {
+      if (isBasicoClient(client)) {
+        var maxPol = computeMaxPolicyFromMenus(client, role);
+        if (!client.rolePerms[role] || !Object.keys(client.rolePerms[role]).length) {
+          client.rolePerms[role] = maxPol;
+          return;
+        }
+        var stored = policyToPlain(client.rolePerms[role]);
+        var out = emptyPolicy();
+        CAT_IDS.forEach(function (cat) {
+          var allowedMax = new Set(maxPol[cat] || []);
+          out[cat] = (stored[cat] || []).filter(function (sub) {
+            return allowedMax.has(sub);
+          });
+        });
+        client.rolePerms[role] = out;
+        return;
+      }
       if (!client.rolePerms[role] || !Object.keys(client.rolePerms[role]).length) {
         client.rolePerms[role] = computeDefaultPolicy(client, role);
       }
@@ -377,7 +431,8 @@
       '<div class="card crozzo-gestion-page__card crozzo-perm-policy-card">' +
       '<h3 class="crozzo-gestion-page__card-title">Permisos delegables por rol</h3>' +
       '<p class="form-hint">Define qué acciones puede otorgar el <strong>administrador del negocio</strong> al crear usuarios. ' +
-      'Se vincula con los módulos habilitados arriba: un cajero puede ver proveedores pero no borrar pedidos ni editar precios si no está marcado.</p>' +
+      'Se vincula con los módulos habilitados arriba: un cajero puede ver proveedores pero no borrar pedidos ni editar precios si no está marcado. ' +
+      'En <strong>plan básico</strong>, el admin del negocio puede delegar todos los permisos de los módulos activos del plan (también desde Usuarios y permisos).</p>' +
       tabs +
       '<div class="crozzo-perm-policy-panels">' +
       panels +
@@ -446,12 +501,17 @@
     });
   }
 
-  function collectRolePermsFromDom() {
+  function collectRolePermsFromDom(root) {
     var out = {};
     ROLE_ORDER.forEach(function (role) {
       out[role] = emptyPolicy();
     });
-    document.querySelectorAll('#gestion-perfiles input[data-role-perm][data-perm-cat][data-perm-sub]').forEach(function (cb) {
+    var scope = root;
+    if (!scope) {
+      scope = document.getElementById('gestion-perfiles') || document;
+    }
+    if (!scope || !scope.querySelectorAll) return out;
+    scope.querySelectorAll('input[data-role-perm][data-perm-cat][data-perm-sub]').forEach(function (cb) {
       if (!cb.checked) return;
       var role = cb.getAttribute('data-role-perm');
       var cat = cb.getAttribute('data-perm-cat');
@@ -472,6 +532,7 @@
     ROLE_PERM_PRESETS: ROLE_PERM_PRESETS,
     ROLE_ORDER: ROLE_ORDER,
     ROLE_LABELS: ROLE_LABELS,
+    isBasicoClient: isBasicoClient,
     computeDefaultPolicy: computeDefaultPolicy,
     computeMaxPolicyFromMenus: computeMaxPolicyFromMenus,
     getClientRolePermPolicy: getClientRolePermPolicy,

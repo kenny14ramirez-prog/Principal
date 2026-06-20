@@ -1244,6 +1244,10 @@ function crozzoEnsureAppShellInteractive() {
   } catch (_) {}
   if (!pairingOpen && typeof window.crozzoRepairLoginShell === 'function') window.crozzoRepairLoginShell();
   if (!crozzoHasActivePosSession() && !pairingOpen) return;
+  var wasLoginOpen = false;
+  try {
+    wasLoginOpen = !!(document.body && document.body.classList.contains('crozzo-login-open'));
+  } catch (_) {}
   crozzoClearAuthGatePending();
   try {
     document.documentElement.classList.remove('crozzo-boot-updates-active');
@@ -1264,6 +1268,27 @@ function crozzoEnsureAppShellInteractive() {
     if (typeof crozzoRestoreLoginChromeLeaks === 'function') crozzoRestoreLoginChromeLeaks();
   } catch (_) {}
   try {
+    var appShell = document.querySelector('.app-container');
+    var mainWrap = document.querySelector('.main-content');
+    var mainBody = document.getElementById('mainContent');
+    [appShell, mainWrap, mainBody].forEach(function (el) {
+      if (!el) return;
+      el.style.removeProperty('pointer-events');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('display');
+      el.style.removeProperty('opacity');
+    });
+    var sbShell = document.getElementById('sidebar');
+    if (sbShell && !document.body.classList.contains('crozzo-login-open')) {
+      sbShell.style.removeProperty('display');
+      sbShell.style.removeProperty('visibility');
+      sbShell.style.removeProperty('pointer-events');
+      sbShell.style.removeProperty('transform');
+      sbShell.removeAttribute('hidden');
+      sbShell.setAttribute('aria-hidden', 'false');
+    }
+  } catch (_) {}
+  try {
     if (!currentSessionUserId) {
       var sid = sessionStorage.getItem('crozzo_session_user');
       if (sid) currentSessionUserId = sid;
@@ -1274,12 +1299,19 @@ function crozzoEnsureAppShellInteractive() {
       crozzoCloseSidebarDrawer();
     }
     if (window.CrozzoSidebarNav) {
-      if (typeof CrozzoSidebarNav.restoreAfterLoginGate === 'function') {
+      var sbGate = document.getElementById('sidebar');
+      var needsLoginGateRestore =
+        wasLoginOpen ||
+        (sbGate &&
+          (sbGate.style.display === 'none' ||
+            sbGate.style.visibility === 'hidden' ||
+            sbGate.getAttribute('aria-hidden') === 'true'));
+      if (needsLoginGateRestore && typeof CrozzoSidebarNav.restoreAfterLoginGate === 'function') {
         CrozzoSidebarNav.restoreAfterLoginGate();
-      } else if (crozzoIsSidebarDrawerMode() && typeof CrozzoSidebarNav.setExpanded === 'function') {
-        CrozzoSidebarNav.setExpanded(true, false);
       } else if (typeof CrozzoSidebarNav.repairAfterNavigation === 'function') {
         CrozzoSidebarNav.repairAfterNavigation();
+      } else if (crozzoIsSidebarDrawerMode() && typeof CrozzoSidebarNav.setExpanded === 'function') {
+        CrozzoSidebarNav.setExpanded(true, false);
       } else if (typeof CrozzoSidebarNav.refresh === 'function') {
         CrozzoSidebarNav.refresh();
       }
@@ -1444,17 +1476,8 @@ function crozzoNavigateAfterLogin() {
   function paintNow() {
     window.__crozzoPostLoginNavigate = true;
     try {
-      // TODO(bug-latente): el `typeof` vuelve la condicion siempre verdadera; la
-      // intencion parece ser `global.__crozzoLazyNavWrapped && ...`. No se cambia
-      // aqui para no alterar el flujo de navegacion durante la reorganizacion.
-      // eslint-disable-next-line no-constant-binary-expression
-      if (typeof global.__crozzoLazyNavWrapped && typeof renderPage === 'function') {
-        global.__crozzoLazySkipRenderLoad = true;
-        try {
-          renderPage(page);
-        } finally {
-          global.__crozzoLazySkipRenderLoad = false;
-        }
+      if (typeof crozzoNavigateImmediate === 'function') {
+        crozzoNavigateImmediate(page);
       } else if (typeof navigateTo === 'function') {
         navigateTo(page);
       } else if (typeof renderPage === 'function') {
@@ -1467,19 +1490,14 @@ function crozzoNavigateAfterLogin() {
       setTimeout(function () {
         window.__crozzoPostLoginNavigate = false;
       }, 600);
+      try {
+        if (typeof crozzoHidePageLoading === 'function') crozzoHidePageLoading();
+      } catch (_) {}
     }
     finishNav();
   }
 
-  if (typeof global.crozzoEnsureModulesForPage === 'function') {
-    global.crozzoEnsureModulesForPage(page).then(paintNow).catch(function (e) {
-      console.warn('[crozzo] navigateAfterLogin modules', e);
-      crozzoForcePaintPage(page);
-      finishNav();
-    });
-  } else {
-    paintNow();
-  }
+  paintNow();
   return page;
 }
 /** Tras login válido: navega de inmediato y sincroniza nube en segundo plano. */
@@ -2150,7 +2168,7 @@ function crozzoHpPageTitles() {
     inventarios: ['Reportes y dashboard', 'Ventas, equipo y alertas del día'],
     'compras-dashboard': ['Resumen compras', 'Órdenes y recepciones'],
     'sistema-costos': ['Costos y márgenes', 'Precios de venta y costeo'],
-    'costos-matriz': ['Costos y márgenes', 'Precios de venta y costeo'],
+    'costos-matriz': ['Costos y márgenes', 'Paso 1 insumos → Paso 2 recetas → Paso 3 precios → publicar caja'],
     'catalogo-mp': ['Materias primas', 'Catálogo de insumos'],
     'costos-inventario': ['Inventario continuo', 'Entradas, salidas y conteo'],
     'costos-federacion': ['Bodegas y remisiones', 'Transferencias, préstamos e intercambio entre sedes'],
@@ -2164,7 +2182,7 @@ function crozzoHpPageTitles() {
     'compras-proceso-historial': ['Lo preparé antes', 'Preparaciones anteriores'],
     'centro-procesos': ['Preparaciones de cocina', '¿Qué vas a preparar hoy?'],
     'centro-compras': ['Centro de compras', 'Órdenes y recepciones'],
-    productos: ['Catálogo', 'Platos de venta'],
+    productos: ['Catálogo y precios', 'Matriz de costos — paso 3 resumen y publicar'],
     'config-empresa': ['Configuración empresa', 'Datos del negocio'],
     'config-dian': ['Configuración DIAN', 'Resolución y rangos de facturación'],
     'config-usuarios': ['Usuarios y permisos', 'Personal del terminal'],
@@ -4236,42 +4254,13 @@ const PRODUCT_ICON_OPTIONS = [
   { value: '💧', label: 'Agua' },
   { value: '🍼', label: 'Bebida para niños' }
 ];
-const PRINTER_RESCUE_DB = {
-  Epson: {
-    support: 'https://download.ebz.epson.net/dsc/search/01/search/',
-    models: ['TM-T20III', 'TM-T82III', 'TM-T88VII', 'TM-m30II', 'TM-U220']
-  },
-  SAT: {
-    support: 'https://satpos.com/soporte/',
-    models: ['SAT-900', 'SAT-800C', 'SAT-Q80', 'SAT-22T']
-  },
-  Zebra: {
-    support: 'https://www.zebra.com/us/en/support-downloads/printers.html',
-    models: ['ZD220', 'ZD421', 'ZD621', 'GK420t', 'ZT230']
-  },
-  Bixolon: {
-    support: 'https://www.bixolon.com/page.php?menu_id=102',
-    models: ['SRP-350III', 'SRP-E300', 'SRP-S300']
-  },
-  Brother: {
-    support: 'https://support.brother.com/',
-    models: ['QL-820NWB', 'QL-1110NWB', 'TD-4410D', 'TD-4550DN']
-  },
-  Xprinter: {
-    support: 'https://www.xprinterglobal.com/support/download/',
-    models: ['XP-58IIH', 'XP-80C', 'XP-Q200III', 'XP-N160II']
-  },
-  Rongta: {
-    support: 'https://www.rongtatech.com/download-center/',
-    models: ['RP806', 'RP588', 'RP410']
+function openPrinterRescue(source) {
+  if (window.CrozzoPrinterRescue && typeof window.CrozzoPrinterRescue.open === "function") {
+    return window.CrozzoPrinterRescue.open(source);
   }
-};
-let printerRescueState = {
-  brand: 'Epson',
-  model: 'TM-T20III',
-  connectionType: 'USB',
-  printerIp: ''
-};
+  if (typeof showToast === "function") showToast("Asistente de impresora no disponible. Recargue la app.", "warning");
+}
+window.openPrinterRescue = openPrinterRescue;
 let products = [
   { id: 1, nombre: 'Bandeja Paisa', precio: 28000, ivaRate: 0, icon: '🍛', categoria: 'platos-fuertes', tieneRecetaProceso: true },
   { id: 2, nombre: 'Ajiaco Santafereño', precio: 25000, ivaRate: 0, icon: '🍲', categoria: 'platos-fuertes', tieneRecetaProceso: true },
@@ -4443,13 +4432,19 @@ function crozzoHasPrinterForComandaArea(areaId) {
   const area = (getComandasConfig().areas || []).find((a) => a.id === areaId);
   return !!(area && crozzoComandaAreaEffectivePrinter(area));
 }
-function crozzoShouldAutoPrintComanda(c, areaCfg) {
+function crozzoShouldAutoPrintComanda(c, areaCfg, opts) {
   const cmdCfg = getComandasConfig();
   if (!cmdCfg.autoPrint) return false;
   const area =
     areaCfg || (getComandasConfig().areas || []).find((a) => a.id === c.areaId);
   const prn = crozzoComandaAreaEffectivePrinter(area);
   if (!prn) return false;
+  if (typeof crozzoResolvePrinterForJob === 'function') {
+    const resolved = String(crozzoResolvePrinterForJob(prn, 'comanda') || '').trim();
+    if (!resolved) return false;
+  }
+  opts = opts || {};
+  if (opts.fromSend) return true;
   return crozzoDeviceShowsComandaArea(c.areaId);
 }
 function crozzoComandaSendPrintsOnDispatch() {
@@ -4816,7 +4811,7 @@ function crozzoComandaPantallaKioskPrinterBarHtml(areaId) {
   const adminExtra = canManage
     ? '<div class="crozzo-pantallas-kiosk-setup__btns crozzo-pantallas-kiosk-setup__btns--touch">' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoKioskTestAreaPrinter()">Probar impresión</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="openPrinterRescue(\'comandas\')">Rescate impresora</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" onclick="openPrinterRescue(\'comandas\')">Impresora no reconocida</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="printAllPendingByArea(' +
       JSON.stringify(id) +
       ')">Imprimir pendientes</button>' +
@@ -7311,7 +7306,8 @@ function crozzoCreateComandaFromTransfer(tipo, destRef, areaId, items, transferM
     itemUpdates: [],
   };
   comandas.unshift(comanda);
-  if (crozzoShouldAutoPrintComanda(comanda, areaCfg)) {
+  const printOnSend = crozzoComandaSendPrintsOnDispatch();
+  if (crozzoShouldAutoPrintComanda(comanda, areaCfg, { fromSend: printOnSend })) {
     printComandaNow(comanda.id, true);
   }
   return comanda;
@@ -8589,11 +8585,19 @@ function printComandaNow(id, silentMode = false) {
   }
   const doPrint = typeof crozzoPrintComanda === 'function' ? crozzoPrintComanda(c, { printer }) : Promise.resolve(false);
   void doPrint.then(function (ok) {
-    if (!ok && !silentMode) showToast(`No se pudo imprimir comanda #${id}`, 'warning');
-    else if (!silentMode) showToast(`🖨️ Comanda #${id} enviada a impresión · ${printer}`, 'info');
+    if (!ok) {
+      const last = global.__CROZZO_LAST_PRINT || {};
+      const detail = last.message ? ' · ' + last.message : '';
+      const msg = `No se pudo imprimir comanda #${id}${detail}`;
+      if (!silentMode) showToast(msg, 'warning');
+      else if (last.ok === false && last.message) showToast(msg, 'warning');
+      return;
+    }
+    if (!silentMode) showToast(`🖨️ Comanda #${id} enviada a impresión · ${printer}`, 'info');
     config.addAudit('comanda_impresa', `Comanda #${id} -> ${printer}`);
   });
 }
+window.printComandaNow = printComandaNow;
 function crozzoStaffCallsChannelName() {
   const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
   const bid = String(md.businessId || 'default').trim() || 'default';
@@ -9167,7 +9171,8 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'costos-planilla-feed': 'sistema-costos',
   'costos-reservorio': 'sistema-costos',
   'costos-federacion': 'sistema-costos',
-  'nomina-planilla': 'nomina-planilla'
+  'nomina-planilla': 'nomina-planilla',
+  'centro-procesos': 'compras-cortes'
 });
 /** ID de menú en preset → data-page real en el sidebar. */
 const CROZZO_NAV_MENU_PAGE_ALIAS = Object.freeze({
@@ -10392,8 +10397,8 @@ function crozzoInitThemePanel() {
       if (summary) summary.setAttribute('aria-expanded', 'true');
       crozzoThemePanelMarkJustOpened();
       try {
-        if (global.CrozzoA11yUser && typeof global.CrozzoA11yUser.closePanel === 'function') {
-          global.CrozzoA11yUser.closePanel();
+        if (window.CrozzoA11yUser && typeof window.CrozzoA11yUser.closePanel === 'function') {
+          window.CrozzoA11yUser.closePanel();
         }
       } catch (_) {}
     } else {
@@ -11170,7 +11175,7 @@ const PAGE_PERMISOS = {
   'catalogo-mp':                { categoria: 'productos', sub: 'catalogo' },
   inventarios:                  { categoria: 'inventario', sub: 'reportes' },
   'compras-recepcion':          { categoria: 'inventario', sub: 'proveedores' },
-  'compras-cortes':             { categoria: 'inventario', sub: 'proveedores' },
+  'compras-cortes':             { categoria: 'comandas', sub: 'ver' },
   'compras-recetario-cocina':   { categoria: 'comandas', sub: 'ver' },
   'compras-proceso-sesion':     { categoria: 'comandas', sub: 'ver' },
   'compras-proceso-historial':  { categoria: 'comandas', sub: 'ver' },
@@ -11196,8 +11201,21 @@ const PAGE_PERMISOS = {
   'costos-inventario':          { categoria: 'inventario', sub: 'reportes' },
   'costos-reservorio':          { categoria: 'inventario', sub: 'reportes' },
   'costos-planilla-feed':       { categoria: 'admin', sub: 'config_usuarios' },
-  'nomina-planilla':            { categoria: 'admin', sub: 'nomina_planilla' }
+  'nomina-planilla':            { categoria: 'admin', sub: 'nomina_planilla' },
+  'centro-procesos':            { categoria: 'comandas', sub: 'ver' }
 };
+/** Pantallas del hub de preparaciones de cocina (plan básico restaurante). */
+const CROZZO_PREP_COCINA_PAGES = new Set([
+  'centro-procesos',
+  'compras-cortes',
+  'compras-recetario-cocina',
+  'compras-proceso-sesion',
+  'compras-proceso-historial'
+]);
+function crozzoIsPrepCocinaPage(page) {
+  return !!(page && CROZZO_PREP_COCINA_PAGES.has(page));
+}
+window.crozzoIsPrepCocinaPage = crozzoIsPrepCocinaPage;
 /** Normaliza rol de app/staff para comparaciones (móvil y escritorio deben coincidir). */
 function crozzoNormalizeAppRol(rol) {
   return String(rol || '')
@@ -11227,6 +11245,14 @@ function crozzoStaffPermitsPage(page, u) {
     return true;
   }
   if (crozzoIsPlanillaPage(page)) return crozzoCanAccessPlanillaPage(page);
+  if (crozzoIsPrepCocinaPage(page)) {
+    var prepRol = crozzoNormalizeAppRol(u.rol);
+    if (prepRol === 'cocina' || prepRol === 'admin' || prepRol === 'administrador' || prepRol === 'superadmin' || prepRol === 'super_admin') {
+      return true;
+    }
+    var prepComandas = (u.permisos && u.permisos.comandas) || [];
+    if (prepComandas.includes('ver') || prepComandas.includes('despachar')) return true;
+  }
   if (crozzoMeseroSinModuloVentas() && CROZZO_FIELD_HIDDEN_VENTAS_PAGES.has(page)) return false;
   if (crozzoFieldVentasHiddenOnThisDevice() && CROZZO_FIELD_HIDDEN_VENTAS_PAGES.has(page)) return false;
   if (crozzoIsCostosPage(page)) {
@@ -12769,6 +12795,8 @@ function navigateTo(page) {
     }
   } catch (_) {}
   try {
+    var shellRepaired =
+      typeof crozzoHasActivePosSession === 'function' && crozzoHasActivePosSession();
     if (
       typeof crozzoIsSidebarDrawerMode === 'function' &&
       crozzoIsSidebarDrawerMode() &&
@@ -12781,9 +12809,14 @@ function navigateTo(page) {
       typeof crozzoCloseSidebarDrawer === 'function'
     ) {
       crozzoCloseSidebarDrawer();
-    } else if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.repairAfterNavigation === 'function') {
+    } else if (
+      !shellRepaired &&
+      window.CrozzoSidebarNav &&
+      typeof CrozzoSidebarNav.repairAfterNavigation === 'function'
+    ) {
       CrozzoSidebarNav.repairAfterNavigation();
     }
+    if (typeof crozzoClearSidebarDrawerOverlay === 'function') crozzoClearSidebarDrawerOverlay();
   } catch (_) {}
 }
 function updateDemoBadge() {
@@ -17552,11 +17585,22 @@ function crozzoInicioOpGo(page) {
   crozzoInicioOpRemember(page);
   navigateTo(page);
 }
+window.crozzoInicioOpGo = crozzoInicioOpGo;
 function initInicioOperacion() {
   var root = document.getElementById('mainContent');
   if (!root) return;
   if (!root._crozzoInicioOpBound) {
     root._crozzoInicioOpBound = true;
+    root.addEventListener('click', function (e) {
+      if (currentPage !== 'inicio-operacion') return;
+      var card = e.target.closest('.crozzo-ventas-card[data-ventas-page]');
+      if (!card) return;
+      var pg = card.getAttribute('data-ventas-page');
+      if (pg) {
+        e.preventDefault();
+        crozzoInicioOpGo(pg);
+      }
+    });
     root.addEventListener('keydown', function (e) {
       if (currentPage !== 'inicio-operacion') return;
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
@@ -19147,8 +19191,9 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
       itemUpdates: [],
     };
     comandas.unshift(comanda);
+    const printOnSend = crozzoComandaSendPrintsOnDispatch();
     const envioLbl = envioNum > 1 ? ' (envío ' + envioNum + ')' : '';
-    if (crozzoShouldAutoPrintComanda(comanda, areaCfg)) {
+    if (crozzoShouldAutoPrintComanda(comanda, areaCfg, { fromSend: printOnSend })) {
       printComandaNow(comanda.id, true);
       showToast(`🖨️ ${comanda.areaNombre}${envioLbl} — solo este pedido en impresora`, 'info');
     } else {
@@ -35937,7 +35982,7 @@ function renderConfigFacturasAdmin() {
             <summary>Notas internas (opcional)</summary>
             <textarea class="form-input" id="adminPrintDetail" rows="3" placeholder="Ej: papel 80 mm, dos copias en mostrador">${conf.detalleImpresion || ''}</textarea>
           </details>
-          <p class="crozzo-print-panel__help">¿Problemas con la impresora? <button type="button" class="btn btn-link" onclick="openPrinterRescue('admin')">Asistente de rescate</button></p>
+          <p class="crozzo-print-panel__help">¿Windows no ve la impresora? <button type="button" class="btn btn-link" onclick="openPrinterRescue('admin')">Impresora no reconocida</button></p>
         </div>
       </div>
       <div class="crozzo-fa-panel" data-fa-panel="estudio">
@@ -36144,142 +36189,6 @@ function initConfigFacturasAdmin() {
       } catch (_) {}
     }
   }
-}
-function openPrinterRescue(source) {
-  const srcLabel = source || 'sistema';
-  const brands = Object.keys(PRINTER_RESCUE_DB);
-  if (!brands.length) {
-    showToast('No hay marcas configuradas para rescate', 'warning');
-    return;
-  }
-  if (!PRINTER_RESCUE_DB[printerRescueState.brand]) {
-    printerRescueState.brand = brands[0];
-  }
-  const models = PRINTER_RESCUE_DB[printerRescueState.brand].models || [];
-  if (!models.includes(printerRescueState.model)) {
-    printerRescueState.model = models[0] || '';
-  }
-  showModal('Rescate de impresora', renderPrinterRescueModal(srcLabel));
-}
-function renderPrinterRescueModal(sourceLabel) {
-  const brands = Object.keys(PRINTER_RESCUE_DB);
-  const brand = PRINTER_RESCUE_DB[printerRescueState.brand] ? printerRescueState.brand : brands[0];
-  const models = PRINTER_RESCUE_DB[brand].models || [];
-  const supportUrl = PRINTER_RESCUE_DB[brand].support;
-  const model = models.includes(printerRescueState.model) ? printerRescueState.model : (models[0] || '');
-  return `
-    <div class="fade-in">
-      <div style="font-size:0.82rem; color:var(--text-muted); margin-bottom:8px;">Origen: ${sourceLabel}</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label class="form-label">Marca</label>
-          <select id="rescueBrand" class="form-select" onchange="onRescueBrandChange(this.value)">
-            ${brands.map(b => `<option value="${b}" ${b === brand ? 'selected' : ''}>${b}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Modelo</label>
-          <select id="rescueModel" class="form-select" onchange="printerRescueState.model=this.value">
-            ${models.map(m => `<option value="${m}" ${m === model ? 'selected' : ''}>${m}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Conexión</label>
-          <select id="rescueConnType" class="form-select" onchange="onRescueConnTypeChange(this.value)">
-            <option value="USB" ${printerRescueState.connectionType === 'USB' ? 'selected' : ''}>USB</option>
-            <option value="LAN" ${printerRescueState.connectionType === 'LAN' ? 'selected' : ''}>LAN (red)</option>
-            <option value="Bluetooth" ${printerRescueState.connectionType === 'Bluetooth' ? 'selected' : ''}>Bluetooth</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">IP impresora (solo LAN)</label>
-          <input id="rescuePrinterIp" class="form-input" placeholder="192.168.1.120" value="${printerRescueState.printerIp || ''}" oninput="printerRescueState.printerIp=this.value.trim()" ${printerRescueState.connectionType === 'LAN' ? '' : 'disabled'}>
-        </div>
-      </div>
-      <div style="margin-top:10px; padding:10px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-primary);">
-        <div style="font-size:0.82rem; color:var(--text-muted);">Soporte oficial</div>
-        <a href="${supportUrl}" target="_blank" rel="noopener">${supportUrl}</a>
-      </div>
-      <div class="btn-group" style="margin-top:12px;">
-        <button class="btn btn-primary" onclick="downloadRescueScript()">⬇️ Descargar comando de rescate (.ps1)</button>
-        <button class="btn btn-outline" onclick="openRescueSupportPage()">🌐 Abrir descarga de drivers</button>
-        <button class="btn btn-outline" onclick="runFullRescueFlow()">⚡ Ejecutar flujo de rescate</button>
-      </div>
-      <div style="margin-top:8px; font-size:0.78rem; color:var(--text-muted);">
-        Nota: Por seguridad del navegador no se puede ejecutar PowerShell automáticamente; sí se genera el comando y se abre la página oficial.
-      </div>
-    </div>
-  `;
-}
-function onRescueBrandChange(brand) {
-  printerRescueState.brand = brand;
-  const models = PRINTER_RESCUE_DB[brand]?.models || [];
-  printerRescueState.model = models[0] || '';
-  showModal('Rescate de impresora', renderPrinterRescueModal('sistema'));
-}
-function onRescueConnTypeChange(type) {
-  printerRescueState.connectionType = type;
-  showModal('Rescate de impresora', renderPrinterRescueModal('sistema'));
-}
-function buildRescueScript() {
-  const brand = printerRescueState.brand;
-  const model = printerRescueState.model;
-  const connection = printerRescueState.connectionType;
-  const ip = (printerRescueState.printerIp || '').trim();
-  const supportUrl = PRINTER_RESCUE_DB[brand]?.support || '';
-  if (connection === 'LAN' && !ip) {
-    showToast('Debes ingresar IP para conexión LAN', 'warning');
-    return null;
-  }
-  let script = '#requires -RunAsAdministrator\n';
-  script += '$ErrorActionPreference = "Stop"\n';
-  script += `$Brand = "${brand}"\n`;
-  script += `$Model = "${model}"\n`;
-  script += `$ConnectionType = "${connection}"\n`;
-  script += `$PrinterIP = "${ip}"\n`;
-  script += `$SupportUrl = "${supportUrl}"\n\n`;
-  script += 'Write-Host "=== RESCATE DE IMPRESORA POS ===" -ForegroundColor Cyan\n';
-  script += 'Write-Host "Marca: $Brand | Modelo: $Model | Conexion: $ConnectionType"\n';
-  script += 'if ($ConnectionType -eq "LAN") {\n';
-  script += '  $portName = "IP_$PrinterIP"\n';
-  script += '  if (-not (Get-PrinterPort -Name $portName -ErrorAction SilentlyContinue)) {\n';
-  script += '    Add-PrinterPort -Name $portName -PrinterHostAddress $PrinterIP\n';
-  script += '    Write-Host "Puerto de red creado: $portName" -ForegroundColor Green\n';
-  script += '  }\n';
-  script += '}\n';
-  script += 'Start-Process $SupportUrl\n';
-  script += 'Write-Host "Se abrió la web oficial del driver. Instálalo y valida impresión de prueba."\n';
-  script += 'Pause\n';
-  return script;
-}
-function downloadRescueScript() {
-  const script = buildRescueScript();
-  if (!script) return;
-  const safeName = `${printerRescueState.brand}_${printerRescueState.model}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const blob = new Blob([script], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Rescate_Impresora_${safeName}.ps1`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('Script de rescate descargado', 'success');
-}
-function openRescueSupportPage() {
-  const brand = printerRescueState.brand;
-  const supportUrl = PRINTER_RESCUE_DB[brand]?.support;
-  if (!supportUrl) {
-    showToast('No hay URL de soporte para la marca', 'warning');
-    return;
-  }
-  window.open(supportUrl, '_blank', 'noopener');
-}
-function runFullRescueFlow() {
-  downloadRescueScript();
-  setTimeout(() => openRescueSupportPage(), 200);
-  showToast('Flujo de rescate ejecutado: descarga + soporte', 'info');
 }
 function crozzoFacturasAdminPersistPrinters(opts) {
   opts = opts || {};
@@ -36522,8 +36431,40 @@ function rolDispositivoLabel(v) {
 function rolFuncionalLabel(v) {
   if (v === 'admin') return 'Admin';
   if (v === 'mesero') return 'Mesero';
+  if (v === 'cocina') return 'Cocina';
+  if (v === 'inventario') return 'Inventario';
   if (v === 'caja') return 'Caja';
   return v || 'Staff';
+}
+function crozzoStaffRolOptionsHtml(selectedRol) {
+  var perfil =
+    (typeof crozzoGetActiveClientProfile === 'function' && crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) ||
+    localStorage.getItem('crozzo_perfil_empresa') ||
+    'basico_restaurante';
+  if (typeof crozzoResolvePerfilEmpresaId === 'function') perfil = crozzoResolvePerfilEmpresaId(perfil);
+  var roles = [
+    { id: 'caja', label: 'Caja' },
+    { id: 'mesero', label: 'Mesero' },
+    { id: 'admin', label: 'Admin' },
+  ];
+  if (perfil === 'basico_restaurante') {
+    roles.splice(2, 0, { id: 'cocina', label: 'Cocina' }, { id: 'inventario', label: 'Inventario / Compras' });
+  } else if (perfil === 'basico_tienda') {
+    roles.splice(2, 0, { id: 'inventario', label: 'Inventario / Compras' });
+  }
+  var sel = String(selectedRol || 'caja');
+  return roles
+    .map(function (r) {
+      return '<option value="' + escUserAttr(r.id) + '"' + (sel === r.id ? ' selected' : '') + '>' + escUserAttr(r.label) + '</option>';
+    })
+    .join('');
+}
+window.crozzoStaffRolOptionsHtml = crozzoStaffRolOptionsHtml;
+function crozzoBasicoAdminCanManageStaffPerms() {
+  var u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!u) return false;
+  if (typeof crozzoIsBasicoAdminUser === 'function' && crozzoIsBasicoAdminUser(u)) return true;
+  return false;
 }
 // Estructura esperada de cada usuario:
 // {
@@ -36620,8 +36561,29 @@ function renderConfigUsuarios() {
     typeof CrozzoPerfilesBiblioteca !== 'undefined' && CrozzoPerfilesBiblioteca.renderUsuariosPlantillasPanel
       ? CrozzoPerfilesBiblioteca.renderUsuariosPlantillasPanel()
       : '';
+  const basicoStaffPolicyPanel =
+    crozzoBasicoAdminCanManageStaffPerms() &&
+    typeof CrozzoPermisosPolicy !== 'undefined' &&
+    typeof CrozzoPermisosPolicy.renderPolicyEditor === 'function'
+      ? CrozzoPermisosPolicy.renderPolicyEditor(
+          typeof crozzoGetActiveClientProfile === 'function' ? crozzoGetActiveClientProfile() : null
+        ) +
+        '<div class="btn-group" style="margin:0 0 16px; justify-content:flex-end;">' +
+        '<button type="button" class="btn btn-primary" id="crozzoBasicoStaffPermsSave">💾 Guardar permisos delegables</button>' +
+        '</div>'
+      : '';
+  const usuariosHintBasico =
+    typeof crozzoIsBasicoEmpresaPerfil === 'function' &&
+    crozzoIsBasicoEmpresaPerfil(
+      (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) ||
+        localStorage.getItem('crozzo_perfil_empresa') ||
+        'basico_restaurante'
+    )
+      ? 'En plan básico puede crear usuarios (caja, mesero, cocina, inventario o admin) y asignar todos los permisos vinculados a los módulos activos del plan. Ajuste abajo qué puede delegar cada rol; al editar un usuario solo verá esas casillas.'
+      : 'En <strong>Editar</strong> asigne permisos dentro del marco definido por Super Admin (Gestión de perfiles → Permisos delegables). Un cajero puede ver caja y proveedores, pero no borrar pedidos ni cambiar precios si no están habilitados allí. Super Admin no aparece en esta lista.';
   return (
     plantillasPanel +
+    basicoStaffPolicyPanel +
     `<div class="card">
       <div class="card-header">
         <span class="card-title">Usuarios y permisos</span>
@@ -36636,9 +36598,7 @@ function renderConfigUsuarios() {
           <input type="text" class="form-input" id="newUserName" placeholder="Nombre" style="max-width:180px;">
           <input type="password" class="form-input" id="newUserPassword" placeholder="Mín. 8 caracteres" style="max-width:140px;" autocomplete="new-password">
           <select class="form-select" id="newUserRole" style="max-width:140px;">
-            <option value="caja">Caja</option>
-            <option value="mesero">Mesero</option>
-            <option value="admin">Admin</option>
+            ${crozzoStaffRolOptionsHtml('caja')}
           </select>
           <select class="form-select" id="newUserPlantilla" style="max-width:180px;" title="Plantilla de permisos">
             <option value="">Plantilla…</option>
@@ -36677,9 +36637,7 @@ function renderConfigUsuarios() {
         `}
       </div>
       <p class="form-hint" style="margin-top:10px;">
-        En <strong>Editar</strong> asigne permisos dentro del marco definido por Super Admin (Gestión de perfiles → Permisos delegables).
-        Un cajero puede ver caja y proveedores, pero no borrar pedidos ni cambiar precios si no están habilitados allí.
-        Super Admin no aparece en esta lista.
+        ${usuariosHintBasico}
       </p>
     </div>`
   );
@@ -36689,6 +36647,41 @@ function initConfigUsuarios() {
   if (search) {
     search.addEventListener('input', filterUsuariosTable);
     search.focus();
+  }
+  if (
+    crozzoBasicoAdminCanManageStaffPerms() &&
+    typeof CrozzoPermisosPolicy !== 'undefined' &&
+    typeof CrozzoPermisosPolicy.bindPolicyEditor === 'function'
+  ) {
+    try {
+      var cfgBasico = typeof crozzoLoadMenuProfilesConfig === 'function' ? crozzoLoadMenuProfilesConfig() : null;
+      if (cfgBasico) {
+        var cBasico = cfgBasico.clients[cfgBasico.activeClientId] || cfgBasico.clients.default;
+        if (cBasico && typeof CrozzoPermisosPolicy.syncClientRolePerms === 'function') {
+          var before = JSON.stringify(cBasico.rolePerms || {});
+          CrozzoPermisosPolicy.syncClientRolePerms(cBasico);
+          if (JSON.stringify(cBasico.rolePerms || {}) !== before && typeof crozzoSaveMenuProfilesConfig === 'function') {
+            crozzoSaveMenuProfilesConfig(cfgBasico);
+          }
+        }
+      }
+    } catch (_) {}
+    CrozzoPermisosPolicy.bindPolicyEditor(document.getElementById('mainContent'));
+    var btnSaveBasicoPerms = document.getElementById('crozzoBasicoStaffPermsSave');
+    if (btnSaveBasicoPerms && !btnSaveBasicoPerms._crozzoBound) {
+      btnSaveBasicoPerms._crozzoBound = true;
+      btnSaveBasicoPerms.addEventListener('click', function () {
+        var cfg = typeof crozzoLoadMenuProfilesConfig === 'function' ? crozzoLoadMenuProfilesConfig() : null;
+        if (!cfg) return;
+        var c = cfg.clients[cfg.activeClientId] || cfg.clients.default;
+        if (!c) return;
+        if (typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.collectRolePermsFromDom) {
+          c.rolePerms = CrozzoPermisosPolicy.collectRolePermsFromDom(document.getElementById('mainContent'));
+        }
+        if (typeof crozzoSaveMenuProfilesConfig === 'function') crozzoSaveMenuProfilesConfig(cfg);
+        if (typeof showToast === 'function') showToast('Permisos delegables guardados', 'success');
+      });
+    }
   }
 }
 function crozzoRefreshUsuariosPage() {
@@ -37014,7 +37007,16 @@ function openEditUserModal(userId) {
         ? CrozzoPermisosPolicy.filterCatalogForRole(u.rol)
         : PERMISOS_CATALOGO;
   const policyHint =
-    permCatalogEdit.length < PERMISOS_CATALOGO.length
+    typeof crozzoIsBasicoEmpresaPerfil === 'function' &&
+    crozzoIsBasicoEmpresaPerfil(
+      (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) ||
+        localStorage.getItem('crozzo_perfil_empresa') ||
+        'basico_restaurante'
+    )
+      ? '<p class="form-hint crozzo-user-perm-policy-hint">Permisos disponibles según los módulos del <strong>plan básico</strong> para el rol «' +
+        escUserAttr(rolFuncionalLabel(u.rol)) +
+        '». Marque «Área» y cada sub-apartado para habilitar acciones concretas.</p>'
+      : permCatalogEdit.length < PERMISOS_CATALOGO.length
       ? '<p class="form-hint crozzo-user-perm-policy-hint">Solo se muestran permisos habilitados para el perfil de empresa y rol «' +
         escUserAttr(rolFuncionalLabel(u.rol)) +
         '». El Super Admin los define en Gestión de perfiles → Permisos delegables.</p>'
@@ -37112,9 +37114,7 @@ function openEditUserModal(userId) {
       <div class="form-group">
         <label class="form-label">Rol funcional</label>
         <select class="form-select" id="editUserRol">
-          <option value="caja" ${u.rol === 'caja' ? 'selected' : ''}>Caja</option>
-          <option value="mesero" ${u.rol === 'mesero' ? 'selected' : ''}>Mesero</option>
-          <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Admin</option>
+          ${crozzoStaffRolOptionsHtml(u.rol)}
         </select>
       </div>
       <div class="form-group">
@@ -38467,7 +38467,7 @@ function initGestionPerfilesMenus(previewPerfil) {
       c.perfil = perfilVal;
       c.tema = selTema ? selTema.value : CROZZO_THEME_DEFAULT;
       if (typeof CrozzoPermisosPolicy !== 'undefined' && CrozzoPermisosPolicy.collectRolePermsFromDom) {
-        c.rolePerms = CrozzoPermisosPolicy.collectRolePermsFromDom();
+        c.rolePerms = CrozzoPermisosPolicy.collectRolePermsFromDom(document.getElementById('gestion-perfiles'));
       }
       c.features = c.features && typeof c.features === 'object' ? c.features : {};
       document.querySelectorAll('#gestion-perfiles input[data-client-feature]').forEach(function (cb) {
@@ -40498,7 +40498,8 @@ function showToast(message, type = 'info') {
 /** Escritorio Windows/Tauri: rail lateral fijo — nunca drawer APK. */
 function crozzoIsDesktopSidebarChrome() {
   try {
-    if (global.__CROZZO_IS_TAURI_DESKTOP__) return true;
+    var g = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : null;
+    if (g && g.__CROZZO_IS_TAURI_DESKTOP__) return true;
     const html = document.documentElement;
     if (html && (html.classList.contains('tauri-desktop') || html.classList.contains('crozzo-form-desktop'))) {
       return true;
@@ -40808,8 +40809,41 @@ function crozzoSyncSidebarBackdrop() {
     sidebar.style.removeProperty('min-height');
   }
 }
+/** Quita backdrop/open del drawer sin colapsar el rail de escritorio. */
+function crozzoClearSidebarDrawerOverlay() {
+  const sidebar = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebarBackdrop');
+  if (sidebar) {
+    sidebar.classList.remove('open', 'crozzo-drawer-nav', 'crozzo-sidebar-hover-active');
+    sidebar.style.removeProperty('transform');
+    sidebar.style.removeProperty('visibility');
+    sidebar.style.removeProperty('pointer-events');
+    sidebar.style.removeProperty('display');
+    sidebar.style.removeProperty('z-index');
+    sidebar.style.removeProperty('top');
+    sidebar.style.removeProperty('height');
+    sidebar.style.removeProperty('max-height');
+    sidebar.style.removeProperty('min-height');
+  }
+  if (bd) {
+    bd.classList.remove('active');
+    bd.setAttribute('aria-hidden', 'true');
+    bd.style.removeProperty('pointer-events');
+  }
+  try {
+    if (document.body) document.body.classList.remove('crozzo-sidebar-drawer-open');
+  } catch (_) {}
+  try {
+    if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
+  } catch (_) {}
+}
+window.crozzoClearSidebarDrawerOverlay = crozzoClearSidebarDrawerOverlay;
+
 function crozzoCloseSidebarDrawer() {
-  if (crozzoIsDesktopSidebarChrome()) return;
+  if (crozzoIsDesktopSidebarChrome()) {
+    crozzoClearSidebarDrawerOverlay();
+    return;
+  }
   try {
     if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.clearHoverTimers === 'function') {
       CrozzoSidebarNav.clearHoverTimers();

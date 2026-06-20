@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.159">
+<meta name="crozzo-app-version" content="1.0.160">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var userChose=localStorage.getItem('crozzo_theme_user_v1')==='1';var t='';if(userChose){t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';}t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-light','crozzo-theme-dark');if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
@@ -157,6 +157,7 @@ window.crozzoAppDisplayName = function () {
     document.documentElement.classList.add('crozzo-auth-gate-pending');
     function armLoginShell() {
       try {
+        if (!document.body) return;
         document.body.classList.add('crozzo-login-open');
         var ov = document.getElementById('loginOverlay');
         if (ov) ov.removeAttribute('hidden');
@@ -421,6 +422,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 </select>
               </div>
             </details>
+            <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--help" id="crozzoToolbarHelp" title="Centro de ayuda (?)" aria-label="Centro de ayuda" onclick="CrozzoHelpHub.open()">
+              <i data-lucide="life-buoy" aria-hidden="true"></i>
+            </button>
             <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--logout" id="crozzoToolbarLogout" title="Cerrar sesión" aria-label="Cerrar sesión" data-i18n-title="menu.logout" data-i18n-aria="menu.logout">
               <i data-lucide="log-out" aria-hidden="true"></i>
             </button>
@@ -444,6 +448,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
               <ul class="user-menu__lang-list" id="userMenuLangList" role="listbox" aria-label="Idiomas"></ul>
             </div>
             <ul class="user-menu__list" role="none">
+              <li role="none">
+                <button type="button" class="user-menu__item" role="menuitem" onclick="CrozzoHelpHub.open(); document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');">
+                  <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+                  <span>Centro de ayuda</span>
+                </button>
+              </li>
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" id="change-password-btn">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="5" y="11" width="14" height="10" rx="2"/></svg></span>
@@ -1065,9 +1075,11 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoInstallPremium.js" defer></script>
 <script src="infra/CrozzoMobileInstall.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
+<script src="modules/CrozzoPrinterRescue.js" defer></script>
 <script src="core/CrozzoPosMain.js" defer></script>
 <script src="modules/CrozzoPosRuntimeCloud.js" defer></script>
 <script src="modules/CrozzoOnboardingOperativo.js" defer></script>
+<script src="modules/CrozzoHelpHub.js" defer></script>
 <script src="modules/CrozzoOperativePsyche.js" defer></script>
 <script src="modules/CrozzoClienteDocIntel.js" defer></script>
 <script src="modules/CrozzoAdquirienteLookup.js" defer></script>
