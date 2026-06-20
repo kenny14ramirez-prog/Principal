@@ -68,7 +68,12 @@ echo     [5] GitHub Actions compila .exe + .dmg + .apk
 echo.
 
 if not defined CROZZO_MSG (
-  set /p CROZZO_MSG=Mensaje para clientes ^(ej: Mejoras tablet y actualizacion APK^): 
+  echo.
+  echo   Escriba cada cambio separado con + ^(recomendado^):
+  echo   Ej: Correccion menu + Correccion mesas + Cola nube
+  echo   Tambien acepta: 1, cambio uno, 2, cambio dos
+  echo.
+  set /p CROZZO_MSG=Mensaje para clientes: 
 )
 if not defined CROZZO_MSG (
   echo [ERROR] Falta el mensaje.

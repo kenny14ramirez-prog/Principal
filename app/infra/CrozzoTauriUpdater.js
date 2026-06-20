@@ -687,32 +687,59 @@
     var started = Date.now();
     maxWaitMs = typeof maxWaitMs === 'number' ? maxWaitMs : RELEASE_WAIT_MS;
 
+    function verifyHit(hit) {
+      if (!hit || !hit.url) return Promise.resolve(null);
+      var kind = getPlatformAssetKind();
+      if (kind === 'exe') {
+        return verifySetupDownloadUrl(hit.url, hit.bytes).then(function (v) {
+          if (!v.ok) return null;
+          return Object.assign({}, hit, { bytes: v.bytes || hit.bytes });
+        });
+      }
+      var check = validateArtifactForPlatform(
+        Object.assign({}, hit, { bytes: hit.bytes || 0 }),
+        kind
+      );
+      if (!check.ok && hit.bytes && hit.bytes > 0) return Promise.resolve(null);
+      if (!check.ok && kind !== 'exe') {
+        return httpHead(hit.url).then(function (res) {
+          if (!res.ok || (res.bytes > 0 && res.bytes < (MIN_ARTIFACT_BYTES[kind] || 0))) return null;
+          return Object.assign({}, hit, { bytes: res.bytes || hit.bytes });
+        });
+      }
+      return Promise.resolve(hit);
+    }
+
     function attempt() {
       if (global.__CROZZO_UPDATE_USER_ABORT__) {
         return Promise.reject(new Error('Actualización pospuesta por el usuario.'));
       }
       return resolveReleaseInstallTarget(ver).then(function (hit) {
-        if (hit && hit.url) return hit;
-        if (Date.now() - started > maxWaitMs) {
-          return Promise.reject(
-            new Error(
-              'No se encontró el instalador v' +
+        return verifyHit(hit).then(function (ready) {
+          if (ready && ready.url) return ready;
+          if (Date.now() - started > maxWaitMs) {
+            return Promise.reject(
+              new Error(
+                'No se encontró el instalador v' +
+                  semverCore(ver) +
+                  ' en GitHub. Espere a que GitHub Actions termine o use Plan B (descarga manual).'
+              )
+            );
+          }
+          if (onProgress) {
+            onProgress({
+              phase: 'probe',
+              percent: Math.min(15, 5 + Math.floor((Date.now() - started) / 4000)),
+              message:
+                'Esperando instalador v' +
                 semverCore(ver) +
-                ' en GitHub. Compruebe que el release exista o use Plan B (descarga manual).'
-            )
-          );
-        }
-        if (onProgress) {
-          onProgress({
-            phase: 'probe',
-            percent: Math.min(15, 5 + Math.floor((Date.now() - started) / 4000)),
-            message:
-              'Buscando instalador v' + semverCore(ver) + ' en GitHub… (' +
-              Math.ceil((maxWaitMs - (Date.now() - started)) / 1000) +
-              ' s restantes)',
-          });
-        }
-        return delay(RELEASE_POLL_MS).then(attempt);
+                ' en GitHub… (' +
+                Math.ceil((maxWaitMs - (Date.now() - started)) / 1000) +
+                ' s restantes)',
+            });
+          }
+          return delay(RELEASE_POLL_MS).then(attempt);
+        });
       });
     }
 

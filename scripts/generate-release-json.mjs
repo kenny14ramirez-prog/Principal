@@ -7,6 +7,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseChangelogMessage } from './lib/changelog-parse.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
@@ -44,11 +45,7 @@ const entry = {
   message,
   publishedAt,
   installMode: type === 'critical' ? 'auto' : 'prompt',
-  changelog: message
-    .replace(/^[\p{Extended_Pictographic}\uFE0F\u200D]+\s*/u, '')
-    .split(/\s*\+\s*|\s*;\s*|\n+/)
-    .map((s) => s.trim())
-    .filter(Boolean),
+  changelog: parseChangelogMessage(message),
 };
 
 const outDir = join(root, 'releases');

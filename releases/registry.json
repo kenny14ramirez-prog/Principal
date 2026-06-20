@@ -1,22 +1,6 @@
 {
-  "updatedAt": "2026-06-20T13:14:06.246Z",
+  "updatedAt": "2026-06-20T13:32:01.756Z",
   "entries": [
-    {
-      "id": "1.0.131-critical",
-      "version": "v1.0.131",
-      "semver": "1.0.131",
-      "type": "critical",
-      "message": "FIX: QR emparejamiento incluye URL y anon key Supabase en BOF + FIX: respaldo LAN /api/pairing-cloud desde la caja + FIX: sync app→src con credenciales nube y finalize pairing + UPD: QR más grande cuando lleva nube + UPD: aviso claro si emparejamiento queda sin Supabase",
-      "publishedAt": "2026-06-15T21:45:21.753Z",
-      "installMode": "auto",
-      "changelog": [
-        "FIX: QR emparejamiento incluye URL y anon key Supabase en BOF",
-        "FIX: respaldo LAN /api/pairing-cloud desde la caja",
-        "FIX: sync app→src con credenciales nube y finalize pairing",
-        "UPD: QR más grande cuando lleva nube",
-        "UPD: aviso claro si emparejamiento queda sin Supabase"
-      ]
-    },
     {
       "id": "1.0.132-critical",
       "version": "v1.0.132",
@@ -306,6 +290,20 @@
       "installMode": "auto",
       "changelog": [
         "1, correcion de menu de estilos, 2, correcion de estados en mesas tablets y celulares, 3, menus de actualizaciones, 4, cargas de estados en cola de aplicacion nube"
+      ]
+    },
+    {
+      "id": "1.0.156-critical",
+      "version": "v1.0.156",
+      "semver": "1.0.156",
+      "type": "critical",
+      "message": "correcion de menu de actualizaciones + correcion de estado de actualizaciones + mejora del menu de apk",
+      "publishedAt": "2026-06-20T13:32:01.756Z",
+      "installMode": "auto",
+      "changelog": [
+        "correcion de menu de actualizaciones",
+        "correcion de estado de actualizaciones",
+        "mejora del menu de apk"
       ]
     }
   ]
