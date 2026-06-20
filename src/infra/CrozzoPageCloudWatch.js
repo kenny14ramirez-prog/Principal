@@ -230,7 +230,11 @@
   async function pullProducts() {
     __lastPullAt.products = Date.now();
     if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
-      return await global.__crozzoRefreshCloudCatalogUi({ skipRender: __activePage === 'cajero' || __activePage === 'tablets' });
+      var ok = await global.__crozzoRefreshCloudCatalogUi({ skipRender: true });
+      if (ok && typeof global.crozzoPatchOperationalPageFromRemote === 'function') {
+        global.crozzoPatchOperationalPageFromRemote(__activePage);
+      }
+      return ok;
     }
     return false;
   }
@@ -281,7 +285,7 @@
         await pullQueue(false);
         if (__activePage === 'facturas' && typeof global.renderPage === 'function') {
           try {
-            global.renderPage('facturas');
+            global.renderPage('facturas', { background: true });
           } catch (_) {}
         }
       }

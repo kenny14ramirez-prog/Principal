@@ -4443,19 +4443,14 @@ function crozzoHasPrinterForComandaArea(areaId) {
   const area = (getComandasConfig().areas || []).find((a) => a.id === areaId);
   return !!(area && crozzoComandaAreaEffectivePrinter(area));
 }
-function crozzoShouldAutoPrintComanda(c, areaCfg, opts) {
+function crozzoShouldAutoPrintComanda(c, areaCfg) {
   const cmdCfg = getComandasConfig();
   if (!cmdCfg.autoPrint) return false;
   const area =
     areaCfg || (getComandasConfig().areas || []).find((a) => a.id === c.areaId);
   const prn = crozzoComandaAreaEffectivePrinter(area);
   if (!prn) return false;
-  opts = opts || {};
-  if (opts.fromSend) return true;
-  const dev = crozzoGetDevicePantallaId();
-  if (!dev) return false;
-  if (dev === 'TODAS') return true;
-  return dev === String(c.areaId || '');
+  return crozzoDeviceShowsComandaArea(c.areaId);
 }
 function crozzoComandaSendPrintsOnDispatch() {
   const cmdCfg = getComandasConfig();
@@ -4567,9 +4562,11 @@ function crozzoComandaAutoPrintStripHtml() {
   const dev = crozzoGetDevicePantallaId();
   const devHint = dev
     ? dev === 'TODAS'
-      ? 'Este equipo imprime tickets de todas las pantallas configuradas.'
-      : 'En esta pantalla solo auto-imprime «' + crozzoComandaAreaLabel(dev) + '». Al comandar desde caja, cada área con impresora recibe su ticket.'
-    : 'Al comandar desde caja se imprime en cada área (Cocina, Bar…) si auto está ON y hay impresora. Fije pantalla aquí para el modo cocina.';
+      ? 'Este equipo imprime al recibir (o enviar) comandas de cualquier área que tenga impresora aquí.'
+      : 'Solo auto-imprime «' +
+        crozzoComandaAreaLabel(dev) +
+        '» en este equipo. La caja u otros tablets imprimen sus áreas al recibir por red.'
+    : 'Sin pantalla fija: imprime aquí cualquier área con impresora (terminal único). Con PC + tablet, fije Cocina en la tablet y quite impresora de cocina en la caja.';
   return (
     '<div class="crozzo-comandas-autoprint-strip" role="region" aria-label="Impresión automática">' +
     '<label class="crozzo-pantallas-kiosk-autoprint">' +
@@ -4952,6 +4949,7 @@ window.updateUserDeviceRole = updateUserDeviceRole;
 window.crozzoSetDevicePantallaId = crozzoSetDevicePantallaId;
 window.crozzoDeviceShowsComandaArea = crozzoDeviceShowsComandaArea;
 window.crozzoHasPrinterForComandaArea = crozzoHasPrinterForComandaArea;
+window.crozzoShouldAutoPrintComanda = crozzoShouldAutoPrintComanda;
 window.crozzoComandaAreaLabel = crozzoComandaAreaLabel;
 window.crozzoRefreshComandasPantallaUi = crozzoRefreshComandasPantallaUi;
 function crozzoComandaGlobalPrinter() {
@@ -6227,15 +6225,37 @@ function crozzoHydrateRuntimeCartLine(item) {
   return typeof crozzoNormalizeCartLine === 'function' ? crozzoNormalizeCartLine(base) : base;
 }
 window.crozzoHydrateRuntimeCartLine = crozzoHydrateRuntimeCartLine;
-function crozzoMergeComandaSlotLocks(local, remote) {
+function crozzoMergeComandaSlotLocks(local, remote, opts) {
+  opts = opts || {};
+  const remoteBag = {
+    mesa: (remote && remote.mesa) || {},
+    llevar: (remote && remote.llevar) || {},
+  };
+  // Sync remoto (nube/LAN): el snapshot remoto es la fuente de verdad; si una mesa
+  // ya no trae lock, el mesero salió y hay que quitar «en uso» en otros equipos.
+  if (opts.remoteAuthoritative) {
+    const out = {
+      mesa: { ...remoteBag.mesa },
+      llevar: { ...remoteBag.llevar },
+    };
+    const preserve = opts.preserveActiveSession;
+    if (preserve && preserve.tipo && preserve.ref) {
+      const tipo = preserve.tipo === 'llevar' ? 'llevar' : 'mesa';
+      const myId = crozzoCurrentDeviceIdForLock();
+      const localRow = local && local[tipo] && local[tipo][preserve.ref];
+      if (localRow && localRow.deviceId === myId) {
+        out[tipo][preserve.ref] = localRow;
+      }
+    }
+    return crozzoPruneComandaSlotLocks(out);
+  }
   const out = {
     mesa: { ...(local && local.mesa ? local.mesa : {}) },
     llevar: { ...(local && local.llevar ? local.llevar : {}) },
   };
   ['mesa', 'llevar'].forEach((tipo) => {
-    const bag = (remote && remote[tipo]) || {};
-    Object.keys(bag).forEach((ref) => {
-      const r = bag[ref];
+    Object.keys(remoteBag[tipo]).forEach((ref) => {
+      const r = remoteBag[tipo][ref];
       const l = out[tipo][ref];
       if (!r) return;
       if (!l || Number(r.expiresAt || 0) >= Number(l.expiresAt || 0)) out[tipo][ref] = r;
@@ -6644,7 +6664,25 @@ function applyPosRuntimeSnapshot(s, opts) {
   nextComandaId = Number.isFinite(s.nextComandaId) ? s.nextComandaId : nextComandaId;
   closedSlots = s.closedSlots && typeof s.closedSlots === 'object' ? s.closedSlots : closedSlots;
   if (s.comandaSlotLocks && typeof s.comandaSlotLocks === 'object') {
-    comandaSlotLocks = crozzoMergeComandaSlotLocks(comandaSlotLocks, s.comandaSlotLocks);
+    let preserveActiveSession = null;
+    if (opts && opts.skipUiFields) {
+      if (tabletOrderOpen) {
+        preserveActiveSession = {
+          tipo: tabletModoPedido === 'mesa' ? 'mesa' : 'llevar',
+          ref: tabletModoPedido === 'mesa' ? tabletMesaSeleccionada : tabletLlevarSeleccionado,
+        };
+      } else if (cajaMesaOrderOpen && tipoServicioCaja === 'mesa') {
+        preserveActiveSession = { tipo: 'mesa', ref: mesaSeleccionada };
+      } else if (cajaLlevarOrderOpen && tipoServicioCaja === 'llevar') {
+        preserveActiveSession = { tipo: 'llevar', ref: llevarSeleccionado };
+      }
+      comandaSlotLocks = crozzoMergeComandaSlotLocks(comandaSlotLocks, s.comandaSlotLocks, {
+        remoteAuthoritative: true,
+        preserveActiveSession,
+      });
+    } else {
+      comandaSlotLocks = crozzoMergeComandaSlotLocks(comandaSlotLocks, s.comandaSlotLocks);
+    }
   } else {
     crozzoPruneComandaSlotLocks();
   }
@@ -6782,6 +6820,43 @@ function crozzoPatchCorkboardDom(page) {
     return false;
   }
 }
+function crozzoPatchOperationalPageFromRemote(page) {
+  page = String(page || (typeof currentPage !== 'undefined' ? currentPage : '') || '').trim();
+  if (!page) return false;
+  try {
+    if (page === 'comandas' || page === 'cocina') {
+      return typeof crozzoPatchCorkboardDom === 'function' && crozzoPatchCorkboardDom(page);
+    }
+    if (page === 'cajero') {
+      var did = false;
+      if (typeof crozzoCajeroRefreshSlotPicker === 'function' && crozzoCajeroRefreshSlotPicker()) did = true;
+      if (document.getElementById('cartItems') && typeof renderCart === 'function') {
+        renderCart();
+        did = true;
+      } else if (typeof crozzoCajeroRefreshProductsGrid === 'function') {
+        crozzoCajeroRefreshProductsGrid();
+        did = true;
+      }
+      if (typeof crozzoUpdatePrintQueueBar === 'function') crozzoUpdatePrintQueueBar();
+      return did;
+    }
+    if (page === 'tablets') {
+      if (tabletOrderOpen && typeof renderTabletCart === 'function') {
+        renderTabletCart();
+        return true;
+      }
+      return false;
+    }
+    if (page === 'venta-comercial') {
+      if (document.getElementById('cartItems') && typeof renderCartComercial === 'function') {
+        renderCartComercial();
+        return true;
+      }
+      return false;
+    }
+  } catch (_) {}
+  return false;
+}
 function crozzoScheduleOperationalPageRefresh(page) {
   page = String(page || (typeof currentPage !== 'undefined' ? currentPage : '') || '').trim();
   if (!page || typeof renderPage !== 'function') return;
@@ -6792,16 +6867,14 @@ function crozzoScheduleOperationalPageRefresh(page) {
     var p = __crozzoPageRefreshPage;
     __crozzoPageRefreshPage = '';
     try {
-      if (p && typeof currentPage !== 'undefined' && currentPage === p) {
-        if (
-          (p === 'comandas' || p === 'cocina') &&
-          typeof crozzoPatchCorkboardDom === 'function' &&
-          crozzoPatchCorkboardDom(p)
-        ) {
-          return;
-        }
-        renderPage(p);
+      if (!p || typeof currentPage === 'undefined' || currentPage !== p) return;
+      if (typeof crozzoPatchOperationalPageFromRemote === 'function' && crozzoPatchOperationalPageFromRemote(p)) {
+        return;
       }
+      if (typeof crozzoPosIsOperationBusy === 'function' && crozzoPosIsOperationBusy()) {
+        return;
+      }
+      renderPage(p, { background: true });
     } catch (_) {}
   }, 350);
 }
@@ -6827,6 +6900,7 @@ function crozzoHandleRemoteRuntimeUiSync() {
   } catch (_) {}
 }
 window.crozzoScheduleOperationalPageRefresh = crozzoScheduleOperationalPageRefresh;
+window.crozzoPatchOperationalPageFromRemote = crozzoPatchOperationalPageFromRemote;
 window.crozzoPatchCorkboardDom = crozzoPatchCorkboardDom;
 window.crozzoHandleRemoteRuntimeUiSync = crozzoHandleRemoteRuntimeUiSync;
 window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
@@ -7218,8 +7292,7 @@ function crozzoCreateComandaFromTransfer(tipo, destRef, areaId, items, transferM
     itemUpdates: [],
   };
   comandas.unshift(comanda);
-  const printOnSend = crozzoComandaSendPrintsOnDispatch();
-  if (crozzoShouldAutoPrintComanda(comanda, areaCfg, { fromSend: printOnSend })) {
+  if (crozzoShouldAutoPrintComanda(comanda, areaCfg)) {
     printComandaNow(comanda.id, true);
   }
   return comanda;
@@ -8832,12 +8905,13 @@ function despacharComanda(id, opts) {
   const idx = comandas.findIndex(x => x.id === id);
   const c = idx >= 0 ? comandas[idx] : null;
   if (!c) return;
-  if (!opts.skipGossip) maybeGossipPublishEstado(c, 'entregada');
   c.estado = 'entregada';
   c.despachadaAt = new Date().toISOString();
+  c.lastUpdateAt = c.despachadaAt;
+  if (!opts.skipGossip) maybeGossipPublishEstado(c, 'entregada');
   try {
     if (typeof window.crozzoPushComandaToCloud === 'function') {
-      window.crozzoPushComandaToCloud(c);
+      window.crozzoPushComandaToCloud(c, { estado: 'entregada', lastUpdateAt: c.lastUpdateAt });
     }
   } catch (_) {}
   comandas.splice(idx, 1);
@@ -11297,9 +11371,11 @@ function crozzoMergeRuntimeComandas(local, remote, remoteSavedAt) {
       if (c.transaction_id) byTid.set(String(c.transaction_id), c);
       return;
     }
-    const rAt = Date.parse(c.lastUpdateAt || c.createdAt || 0) || Number(remoteSavedAt) || 0;
+    const rAt = Date.parse(c.lastUpdateAt || c.createdAt || 0) || 0;
     const lAt = Date.parse(ex.lastUpdateAt || ex.createdAt || 0) || 0;
-    if (rAt >= lAt) {
+    const remoteSaved = Number(remoteSavedAt) || 0;
+    const effectiveRAt = rAt || (remoteSaved && !c.lastUpdateAt ? remoteSaved : 0);
+    if (effectiveRAt >= lAt) {
       Object.keys(c).forEach(function (k) {
         ex[k] = c[k];
       });
@@ -12934,7 +13010,9 @@ function crozzoApplyPageMotionStagger() {
     el.style.animationDelay = Math.min(i * profile.nestedStep, profile.nestedMax) + 'ms';
   });
 }
-function renderPage(page) {
+function renderPage(page, renderOpts) {
+  renderOpts = renderOpts || {};
+  var backgroundRender = !!renderOpts.background;
   if (typeof crozzoHpIsTrapOnlyPage === 'function' && crozzoHpIsTrapOnlyPage(page)) {
     const hpLiveTrap = window.__crozzoHoneypotLive;
     if (!(hpLiveTrap && hpLiveTrap.active)) {
@@ -13020,7 +13098,11 @@ function renderPage(page) {
     return;
   }
   try {
-    if (!content.getAttribute('data-crozzo-loading') && typeof crozzoMaybeShowRenderLoading === 'function') {
+    if (
+      !backgroundRender &&
+      !content.getAttribute('data-crozzo-loading') &&
+      typeof crozzoMaybeShowRenderLoading === 'function'
+    ) {
       crozzoMaybeShowRenderLoading(page);
     }
   } catch (_) {}
@@ -13335,9 +13417,11 @@ function renderPage(page) {
     if (global.CrozzoAndroidNative && typeof global.CrozzoAndroidNative.applyLayoutPolish === 'function') {
       global.CrozzoAndroidNative.applyLayoutPolish();
     }
-    crozzoStartPageMotion();
-    crozzoApplyPageTitleMotion();
-    crozzoApplyPageMotionStagger();
+    if (!backgroundRender) {
+      crozzoStartPageMotion();
+      crozzoApplyPageTitleMotion();
+      crozzoApplyPageMotionStagger();
+    }
   } catch (_) {}
   if (__crozzoScrollRestore && typeof crozzoRestorePosScroll === 'function') {
     crozzoRestorePosScroll(__crozzoScrollRestore);
@@ -19044,9 +19128,8 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
       itemUpdates: [],
     };
     comandas.unshift(comanda);
-    const printOnSend = crozzoComandaSendPrintsOnDispatch();
     const envioLbl = envioNum > 1 ? ' (envío ' + envioNum + ')' : '';
-    if (crozzoShouldAutoPrintComanda(comanda, areaCfg, { fromSend: printOnSend })) {
+    if (crozzoShouldAutoPrintComanda(comanda, areaCfg)) {
       printComandaNow(comanda.id, true);
       showToast(`🖨️ ${comanda.areaNombre}${envioLbl} — solo este pedido en impresora`, 'info');
     } else {
@@ -19165,6 +19248,9 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
       )
     : comandas.find((c) => c.id === snap.id && c.estado !== 'entregada');
   if (ex && !opts.forceApply) {
+    const remoteAt = Date.parse(snap.lastUpdateAt || snap.createdAt || 0) || 0;
+    const localAt = Date.parse(ex.lastUpdateAt || ex.createdAt || 0) || 0;
+    if (localAt > remoteAt + 500) return false;
     const sameEstado = String(ex.estado || '') === String(snap.estado || 'pendiente');
     const sameItems = JSON.stringify(ex.items || []) === JSON.stringify(snap.items || []);
     if (sameEstado && sameItems) return false;
@@ -19172,6 +19258,7 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   if (snap.transaction_id && typeof window.__crozzoComandaTidMark === 'function') {
     window.__crozzoComandaTidMark(snap.transaction_id, opts.source || 'snapshot_apply');
   }
+  let mergedLocalId = ex ? ex.id : null;
   if (ex) {
     ex.items = (snap.items || []).map((i) => ({ ...i }));
     ex.total = snap.total || computeTotals(ex.items).total;
@@ -19184,6 +19271,7 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
     if (!Number.isFinite(localId) || comandas.some((c) => c.id === localId)) {
       localId = nextComandaId++;
     }
+    mergedLocalId = localId;
     const areaId = snap.areaId || 'COCINA';
     const tipo = snap.tipoServicio || 'mesa';
     const ref = snap.referencia || '';
@@ -19221,7 +19309,19 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   } catch (e1) { /* ignore */ }
   if (!opts.skipPrint) {
     try {
-      if (typeof printComandaNow === 'function') printComandaNow(snap.id, false);
+      const merged =
+        ex ||
+        (mergedLocalId != null
+          ? comandas.find((c) => c.id === mergedLocalId && c.estado !== 'entregada')
+          : null) ||
+        (snap.transaction_id
+          ? comandas.find(
+              (c) => c.transaction_id && c.transaction_id === snap.transaction_id && c.estado !== 'entregada'
+            )
+          : null);
+      if (merged && crozzoShouldAutoPrintComanda(merged) && typeof printComandaNow === 'function') {
+        printComandaNow(merged.id, true);
+      }
     } catch (e2) { /* ignore */ }
   }
   if (!opts.skipRender) {
@@ -20207,6 +20307,9 @@ function crozzoTabletExitToMesaGrid() {
     document.body.classList.remove('crozzo-tablet-cart-drawer-open');
   } catch (_) {}
   tabletOrderOpen = false;
+  try {
+    crozzoSyncPosRuntimeCritical('tablet_exit_mesa_grid');
+  } catch (_) {}
   if (typeof currentPage !== 'undefined' && currentPage === 'tablets' && typeof renderPage === 'function') {
     renderPage('tablets');
   }
@@ -24649,7 +24752,6 @@ function updateComandaEstado(id, estado, opts) {
   opts = opts || {};
   const c = comandas.find(x => x.id === id);
   if (!c) return;
-  if (!opts.skipFanout) maybeGossipPublishEstado(c, estado);
   const nowIso = new Date().toISOString();
   c.estado = estado;
   c.lastUpdateAt = nowIso;
@@ -24659,6 +24761,7 @@ function updateComandaEstado(id, estado, opts) {
     if (!c.entregadaAt) c.entregadaAt = nowIso;
     if (!c.despachadaAt) c.despachadaAt = nowIso;
   }
+  if (!opts.skipFanout) maybeGossipPublishEstado(c, estado);
   config.addAudit('comanda_estado', `Comanda #${id} -> ${getEstadoLabel(estado)}`);
   if (!opts.skipFanout) {
     try {
@@ -25215,22 +25318,60 @@ function crozzoPrecuentaRapidaImprimir(opts) {
 function showPrecuenta() {
   crozzoPrecuentaRapidaImprimir();
 }
-function crozzoSendPrecuentaPrintToCaja(preFact, slotRef) {
-  const hub = window.CrozzoP2PDataHub;
-  if (!hub || typeof hub._postLanSig !== 'function') return Promise.resolve(false);
+function crozzoDeviceCanPrintPrecuentaEnCaja() {
   const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+  if (String(md.role || '') !== 'A') return false;
+  const fa = typeof getFacturacionAdminConfig === 'function' ? getFacturacionAdminConfig() : {};
+  const prn = String(fa.impresoraCajaPos || fa.impresoraComandas || '').trim();
+  return !!prn;
+}
+function crozzoResolvePrecuentaCajaPrinter() {
+  const fa = typeof getFacturacionAdminConfig === 'function' ? getFacturacionAdminConfig() : {};
+  return String(fa.impresoraCajaPos || fa.impresoraComandas || '').trim();
+}
+window.crozzoDeviceCanPrintPrecuentaEnCaja = crozzoDeviceCanPrintPrecuentaEnCaja;
+async function crozzoSendPrecuentaPrintToCaja(preFact, slotRef) {
+  const hub = window.CrozzoP2PDataHub;
+  const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+  const fromId = md.deviceId || (typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : '');
   const payload = {
     kind: 'print_precuenta',
-    from: md.deviceId || (typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : ''),
+    from: fromId,
     to: 'central',
     factura: preFact,
     slot: slotRef || null,
     at: Date.now(),
+    location_id: String(md.locationId || '').trim() || undefined,
   };
-  return Promise.resolve(hub._postLanSig(payload));
+  let sent = false;
+  if (hub) {
+    try {
+      if (md.role === 'B' && typeof hub.startClient === 'function') await hub.startClient().catch(() => {});
+      if (typeof hub._ensureCh === 'function') await hub._ensureCh().catch(() => null);
+      if (
+        typeof hub._sendSig === 'function' &&
+        (hub._transport === 'cloud' || (hub._canUseLanSig && hub._canUseLanSig()))
+      ) {
+        hub._sendSig(payload);
+        sent = true;
+      }
+    } catch (_) {}
+    if (!sent && typeof hub._postLanSig === 'function' && String(md.centralIp || '').trim() && md.allowLan !== false) {
+      sent = !!(await hub._postLanSig(payload));
+    }
+  }
+  return sent;
 }
 function crozzoHandleRemotePrecuentaPrint(payload) {
   if (!payload || !payload.factura) return;
+  if (!crozzoDeviceCanPrintPrecuentaEnCaja()) return;
+  const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+  const myId = String(md.deviceId || (typeof ensureCrozzoDeviceId === 'function' ? ensureCrozzoDeviceId() : '') || '').trim();
+  const fromId = String(payload.from || '').trim();
+  if (fromId && myId && fromId === myId) return;
+  const myLoc = String(md.locationId || '').trim();
+  const theirLoc = String(payload.location_id || payload.locationId || '').trim();
+  if (myLoc && theirLoc && myLoc !== 'default' && theirLoc !== 'default' && myLoc !== theirLoc) return;
   const sigKey = String(payload._sigId || payload.at || payload.id || '');
   if (!window.__crozzoRemotePrecuentaPrinted) window.__crozzoRemotePrecuentaPrinted = {};
   if (sigKey && window.__crozzoRemotePrecuentaPrinted[sigKey]) return;
@@ -25244,7 +25385,10 @@ function crozzoHandleRemotePrecuentaPrint(payload) {
     if (typeof showToast === 'function') showToast('Impresión de precuenta no disponible en caja', 'warning');
     return;
   }
-  Promise.resolve(crozzoFacturaPrintThermal(f, { silent: true, preferEscPos: true, skipQueue: true }))
+  const printer = crozzoResolvePrecuentaCajaPrinter();
+  Promise.resolve(
+    crozzoFacturaPrintThermal(f, { silent: true, preferEscPos: true, skipQueue: true, printer: printer })
+  )
     .then(function (ok) {
       if (typeof showToast === 'function') {
         showToast(
@@ -25273,15 +25417,25 @@ function crozzoTabletPrecuentaImprimir() {
   window.__crozzoPrecuentaThermalFactura = preFact;
   const md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
   const slotRef = typeof crozzoGetActiveSlotRef === 'function' ? crozzoGetActiveSlotRef() : null;
-  const isRemoteTablet = md.role === 'B' && String(md.centralIp || '').trim() && md.allowLan !== false;
+  const cloudOk =
+    typeof crozzoOnlineConfigReady === 'function' && crozzoOnlineConfigReady() && !!window.__SUPABASE;
+  const lanOk = md.role === 'B' && String(md.centralIp || '').trim() && md.allowLan !== false;
+  const isRemoteTablet = md.role === 'B' && (cloudOk || lanOk);
   if (isRemoteTablet) {
     return crozzoSendPrecuentaPrintToCaja(preFact, slotRef).then(function (sent) {
       if (sent) {
-        if (typeof showToast === 'function') showToast('Precuenta enviada a impresora de caja', 'success');
+        if (typeof showToast === 'function') {
+          showToast(
+            cloudOk && !lanOk
+              ? 'Precuenta enviada a caja por nube'
+              : 'Precuenta enviada a impresora de caja',
+            'success'
+          );
+        }
         return true;
       }
       if (typeof showToast === 'function') {
-        showToast('No se pudo contactar la caja. Revise la red LAN o imprima desde caja.', 'warning');
+        showToast('No se pudo contactar la caja. Revise conexión nube/LAN o imprima desde caja.', 'warning');
       }
       return false;
     });
@@ -30129,6 +30283,9 @@ const CrozzoP2PDataHub = {
       }
     }
     if (payload.kind === 'print_precuenta' && this._role === 'A') {
+      const myLoc = String(this.cfg.locationId || '').trim();
+      const theirLoc = String(payload.location_id || payload.locationId || '').trim();
+      if (myLoc && theirLoc && myLoc !== 'default' && theirLoc !== 'default' && myLoc !== theirLoc) return;
       if (typeof crozzoHandleRemotePrecuentaPrint === 'function') crozzoHandleRemotePrecuentaPrint(payload);
     }
   },
@@ -35298,7 +35455,7 @@ function renderConfigComandas() {
       <div style="margin-top:14px; padding:12px; border:1px dashed var(--border); border-radius:var(--radius);">
         <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
           <input type="checkbox" ${conf.autoPrint ? 'checked' : ''} onchange="toggleComandaAutoPrint(this.checked)">
-          Imprimir ticket automáticamente cuando esta pantalla reciba comandas (requiere impresora configurada)
+          Imprimir ticket automáticamente cuando este equipo reciba (o envíe) comandas de su pantalla/área (requiere impresora configurada aquí)
         </label>
       </div>
     </div>

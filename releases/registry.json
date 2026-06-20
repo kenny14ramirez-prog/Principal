@@ -1,21 +1,6 @@
 {
-  "updatedAt": "2026-06-20T13:45:21.162Z",
+  "updatedAt": "2026-06-20T14:13:25.179Z",
   "entries": [
-    {
-      "id": "1.0.133-critical",
-      "version": "v1.0.133",
-      "semver": "1.0.133",
-      "type": "critical",
-      "message": "FIX: actualizacion critica en PC instala al momento si la caja esta libre + FIX: Continuar operando ya no reabre el panel en la misma sesion + FIX: arranque aplica pendiente antes del login + UPD: descarga silenciosa si hay venta en curso",
-      "publishedAt": "2026-06-15T22:02:22.672Z",
-      "installMode": "auto",
-      "changelog": [
-        "FIX: actualizacion critica en PC instala al momento si la caja esta libre",
-        "FIX: Continuar operando ya no reabre el panel en la misma sesion",
-        "FIX: arranque aplica pendiente antes del login",
-        "UPD: descarga silenciosa si hay venta en curso"
-      ]
-    },
     {
       "id": "1.0.134-critical",
       "version": "v1.0.134",
@@ -305,6 +290,22 @@
       "changelog": [
         "se ingresas animaciones de estilo dinamico y fluidos",
         "quesitooooooo"
+      ]
+    },
+    {
+      "id": "1.0.158-critical",
+      "version": "v1.0.158",
+      "semver": "1.0.158",
+      "type": "critical",
+      "message": "Corrección de impresión de cocina + impresión de precuentas + usos de las mesas (usuario dentro de la mesa) + pantalla parpadea al actualizarse + corrección de precuentas en cocina duplicada.",
+      "publishedAt": "2026-06-20T14:13:25.179Z",
+      "installMode": "auto",
+      "changelog": [
+        "Corrección de impresión de cocina",
+        "impresión de precuentas",
+        "usos de las mesas (usuario dentro de la mesa)",
+        "pantalla parpadea al actualizarse",
+        "corrección de precuentas en cocina duplicada."
       ]
     }
   ]

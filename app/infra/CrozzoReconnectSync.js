@@ -102,7 +102,7 @@
     }
     if (typeof global.crozzoPullComandasFromCloud === 'function') {
       try {
-        if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint })) pulled++;
+        if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true })) pulled++;
       } catch (_) {}
     }
     if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
@@ -147,8 +147,11 @@
     try {
       if (cfg.role === 'A' && typeof global.CrozzoP2PDataHub.startCentral === 'function') {
         await global.CrozzoP2PDataHub.startCentral();
-      } else if (cfg.role === 'B' && cfg.allowLan !== false && typeof global.CrozzoP2PDataHub.startClient === 'function') {
-        await global.CrozzoP2PDataHub.startClient();
+      } else if (cfg.role === 'B' && typeof global.CrozzoP2PDataHub.startClient === 'function') {
+        var cloudOk =
+          typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
+        var lanOk = cfg.allowLan !== false && !!String(cfg.centralIp || '').trim();
+        if (cloudOk || lanOk) await global.CrozzoP2PDataHub.startClient();
       }
     } catch (_) {}
   }

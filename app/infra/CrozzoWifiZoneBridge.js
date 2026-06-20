@@ -239,7 +239,7 @@
         if (r && typeof r.runHealthChecks === 'function') r.runHealthChecks();
       }
       if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-        global.crozzoPullPosRuntimeCloud({ quiet: true }).catch(function () {});
+        global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
       }
     } catch (_) {}
   }

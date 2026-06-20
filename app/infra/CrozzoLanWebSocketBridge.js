@@ -90,9 +90,14 @@
       try {
         if (
           (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
+          typeof global.crozzoScheduleOperationalPageRefresh === 'function'
+        ) {
+          global.crozzoScheduleOperationalPageRefresh(global.currentPage);
+        } else if (
+          (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
           typeof global.renderPage === 'function'
         ) {
-          global.renderPage(global.currentPage);
+          global.renderPage(global.currentPage, { background: true });
         }
       } catch (_) {}
       return;

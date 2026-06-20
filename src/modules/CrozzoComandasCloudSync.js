@@ -231,7 +231,8 @@
     return false;
   }
 
-  function slimComandaPayload(c) {
+  function slimComandaPayload(c, opts) {
+    opts = opts || {};
     var items = Array.isArray(c.items)
       ? c.items.map(function (it) {
           if (!it) return null;
@@ -244,15 +245,21 @@
           };
         }).filter(Boolean)
       : [];
+    var estado = opts.estado != null ? String(opts.estado) : String(c.estado || 'pendiente');
     return {
       id: c.id,
       transaction_id: c.transaction_id,
       areaId: c.areaId,
-      estado: c.estado,
+      estado: estado,
       items: items,
       mesaRef: c.mesaRef,
       tipoServicio: c.tipoServicio,
+      referencia: c.referencia,
       createdAt: c.createdAt,
+      lastUpdateAt: opts.lastUpdateAt || c.lastUpdateAt || c.createdAt,
+      preparandoAt: c.preparandoAt,
+      listaAt: c.listaAt,
+      entregadaAt: c.entregadaAt,
       notas: c.notas,
       slotRef: c.slotRef,
     };
@@ -315,12 +322,17 @@
     });
   }
 
-  async function pushComanda(comanda) {
+  async function pushComanda(comanda, opts) {
+    opts = opts || {};
     if (!online() || !comanda || !tierAllowsCloudPush()) return false;
     var sb = global.__SUPABASE;
     var ctx = cloudCtx();
     var rowId = rowIdForComanda(comanda);
-    var payload = slimComandaPayload(comanda);
+    var estado = opts.estado != null ? String(opts.estado) : String(comanda.estado || 'pendiente');
+    var payload = slimComandaPayload(comanda, {
+      estado: estado,
+      lastUpdateAt: opts.lastUpdateAt || comanda.lastUpdateAt,
+    });
     payload._cloudOriginDevice = ctx.deviceId;
     payload._cloudDeviceUuid = ctx.deviceUuid;
     payload._cloudSyncedAt = new Date().toISOString();
@@ -329,9 +341,9 @@
       device_id: ctx.deviceUuid || null,
       location_id: ctx.locationId,
       business_id: ctx.businessId,
-      status: String(comanda.estado || 'pendiente'),
+      status: estado,
       payload: payload,
-      updated_at: new Date().toISOString(),
+      updated_at: payload.lastUpdateAt || payload._cloudSyncedAt,
     };
     markPushEcho(comanda, rowId);
     if (comanda.transaction_id) markComandaTid(comanda.transaction_id, 'cloud_push');
@@ -416,7 +428,10 @@
       return;
     }
     if (tierAllowsCloudPush() && online()) {
-      pushComanda(comanda).catch(function () {});
+      pushComanda(comanda, {
+        estado: est,
+        lastUpdateAt: comanda.lastUpdateAt,
+      }).catch(function () {});
     }
     if (!deferLocalCloudSync() && lanSegmentLikely()) {
       pushComandaEstadoLan(comanda, est).catch(function () {});
@@ -480,17 +495,28 @@
     var pay = row.payload;
     if (row.status && pay) pay.estado = row.status;
     var tidEarly = String(pay.transaction_id || row.id || '');
+    var existingEarly =
+      findComanda(pay.id) ||
+      (tidEarly
+        ? (global.comandas || []).find(function (c) {
+            return c.transaction_id && String(c.transaction_id) === tidEarly;
+          })
+        : null);
+    if (existingEarly && !opts.forceApply) {
+      var remoteAtEarly =
+        Date.parse(row.updated_at || pay.lastUpdateAt || pay._cloudSyncedAt || 0) || 0;
+      var localAtEarly =
+        Date.parse(existingEarly.lastUpdateAt || existingEarly.createdAt || 0) || 0;
+      if (localAtEarly > remoteAtEarly + 500) return false;
+    }
     if (tidEarly && comandaTidRecent(tidEarly, 45000)) {
-      var existing =
-        findComanda(pay.id) ||
-        (global.comandas || []).find(function (c) {
-          return c.transaction_id && String(c.transaction_id) === tidEarly;
-        });
+      var existing = existingEarly;
       if (existing && !opts.forceApply) {
         var remoteEst = String(row.status || pay.estado || '');
         var localEst = String(existing.estado || '');
-        var remoteAt = Date.parse(row.updated_at || pay._cloudSyncedAt || 0) || 0;
+        var remoteAt = Date.parse(row.updated_at || pay.lastUpdateAt || pay._cloudSyncedAt || 0) || 0;
         var localAt = Date.parse(existing.lastUpdateAt || existing.createdAt || 0) || 0;
+        if (localAt > remoteAt + 500) return false;
         if (remoteEst === localEst && remoteAt <= localAt + 500) return false;
       } else if (!existing && !opts.forceApply) {
         return false;
@@ -536,8 +562,13 @@
 
     var shouldPrint = false;
     if (!opts.skipPrint && !opts.silent && deviceReceivesComandaArea(pay.areaId) && !isOwnPush && !recentOwn) {
-      var cfg = typeof global.getComandasConfig === 'function' ? global.getComandasConfig() : {};
-      if (cfg.autoPrint !== false && deviceCanPrintComandaArea(pay.areaId)) shouldPrint = true;
+      var mergedForPrint = merged || pay;
+      if (typeof global.crozzoShouldAutoPrintComanda === 'function') {
+        shouldPrint = !!global.crozzoShouldAutoPrintComanda(mergedForPrint);
+      } else {
+        var cfg = typeof global.getComandasConfig === 'function' ? global.getComandasConfig() : {};
+        if (cfg.autoPrint !== false && deviceCanPrintComandaArea(pay.areaId)) shouldPrint = true;
+      }
     }
     var isNew = !existed && !!merged;
     var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;

@@ -1970,8 +1970,14 @@ window.__crozzoRefreshCloudCatalogUi = async function crozzoRefreshCloudCatalogU
   } catch (_) {}
   if (opts && opts.skipRender) return true;
   try {
+    if (
+      typeof crozzoPatchOperationalPageFromRemote === 'function' &&
+      crozzoPatchOperationalPageFromRemote(typeof currentPage !== 'undefined' ? currentPage : '')
+    ) {
+      return true;
+    }
     if (typeof currentPage !== 'undefined' && typeof renderPage === 'function') {
-      renderPage(currentPage || 'cajero');
+      renderPage(currentPage || 'cajero', { background: true });
     }
   } catch (e2) {
     console.warn('[crozzo-sb] refreshCloudCatalogUi render', e2);
@@ -2351,7 +2357,6 @@ async function crozzoPullRemoteTenantState(opts) {
     changed = !!crozzoApplyRemoteTenantBundle(best, { quiet: !!(opts && opts.quiet) });
   }
   await crozzoRefreshSessionProfileFromCloud();
-  if (typeof crozzoRebuildMenusFromRoles === 'function') crozzoRebuildMenusFromRoles();
   try {
     if (typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
       await window.__crozzoRefreshCloudCatalogUi({ skipRender: true });
@@ -2359,7 +2364,14 @@ async function crozzoPullRemoteTenantState(opts) {
   } catch (_) {}
   if (!(opts && opts.skipRender) && typeof currentPage !== 'undefined' && typeof renderPage === 'function') {
     try {
-      renderPage(currentPage || 'cajero');
+      if (
+        typeof crozzoPatchOperationalPageFromRemote === 'function' &&
+        crozzoPatchOperationalPageFromRemote(currentPage)
+      ) {
+        /* parche incremental */
+      } else {
+        renderPage(currentPage || 'cajero', { background: true });
+      }
     } catch (e2) {
       console.warn('[crozzo-tenant] render', e2);
     }

@@ -19,6 +19,7 @@
   var __stabilityTimer = null;
   var __echoUntil = 0;
   var __lastRemoteAt = 0;
+  var __lastAppliedContentSig = '';
   var __lastPushSig = '';
   var __lastPushAt = 0;
   var __realtimeLive = false;
@@ -680,7 +681,7 @@
     if (__mesaPullTimer) return;
     __mesaPullTimer = global.setTimeout(function () {
       __mesaPullTimer = null;
-      pullMesaRows({ quiet: true }).catch(function () {});
+      pullMesaRows({ quiet: true, skipRender: true }).catch(function () {});
     }, 500);
   }
 
@@ -792,10 +793,13 @@
     var myDev = ctx().deviceId;
     if (srcDev && myDev && srcDev === myDev && remoteAt <= localSavedAt() + 500) return false;
     if (remoteAt <= Math.max(localSavedAt(), __lastRemoteAt) - 700) return false;
+    var contentSig = payloadSig(Object.assign({}, pay, { savedAt: 0 }));
+    if (contentSig === __lastAppliedContentSig && !(opts && opts.force)) return false;
     if (typeof global.applyPosRuntimeSnapshot !== 'function') return false;
     var ok = global.applyPosRuntimeSnapshot(pay, { skipUiFields: true });
     if (!ok) return false;
     __lastRemoteAt = remoteAt;
+    __lastAppliedContentSig = contentSig;
     try {
       global.__crozzoRuntimeCloudApplying = true;
       if (typeof global.savePosRuntimeToLocalStorage === 'function') {
@@ -805,7 +809,8 @@
     try {
       global.__crozzoRuntimeCloudApplying = false;
     } catch (_) {}
-    if (!(opts && opts.skipRender)) maybeRerender();
+    var uiQuiet = !!(opts && (opts.skipRender || opts.quiet));
+    if (!uiQuiet) maybeRerender();
     try {
       if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') global.crozzoHandleRemoteRuntimeUiSync();
     } catch (_) {}
@@ -882,7 +887,7 @@
       ms = Math.min(90000, ms * 3);
     }
     __pullTimer = global.setInterval(function () {
-      pullRuntime({ quiet: true }).catch(function () {});
+      pullRuntime({ quiet: true, skipRender: true }).catch(function () {});
     }, ms);
   }
 
