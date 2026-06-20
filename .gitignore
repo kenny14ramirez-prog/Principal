@@ -28,3 +28,7 @@ src-tauri/target/
 
 # Cursor assets locales
 assets/
+
+# Keystore Android local (no versionar el .jks; el .b64 en .github/signing/ es bootstrap CI)
+*.jks
+.crozzo-android/

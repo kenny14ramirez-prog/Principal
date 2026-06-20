@@ -25,7 +25,8 @@
     "maintain:recepcion-fe:sync": "node scripts/maintain-recepcion-fe.mjs sync --consolidate",
     "maintain:recepcion-fe:refresh": "node scripts/maintain-recepcion-fe.mjs refresh",
     "maintain:recepcion-fe:eval": "node scripts/maintain-recepcion-fe.mjs eval",
-    "maintain:recepcion-fe:eval:full": "node scripts/maintain-recepcion-fe.mjs eval --full"
+    "maintain:recepcion-fe:eval:full": "node scripts/maintain-recepcion-fe.mjs eval --full",
+    "android:secrets": "node scripts/publish-android-keystore-secrets.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

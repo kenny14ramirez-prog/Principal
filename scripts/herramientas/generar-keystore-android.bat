@@ -42,16 +42,23 @@ echo   Alias:    %ALIAS%
 echo ============================================================
 echo.
 echo Agregue estos SECRETS en GitHub ^(repo Principal → Settings → Secrets^):
+echo   ^(opcional si usa .github/signing/android-upload.jks.b64 en el repo^)
 echo.
 echo   ANDROID_KEY_ALIAS = %ALIAS%
 echo   ANDROID_KEY_PASSWORD = ^(su contraseña^)
 echo.
 echo   ANDROID_KEY_BASE64 = ^(pegue la salida base64 de abajo^)
 echo.
+echo O publique automáticamente: gh auth login ^&^& npm run android:secrets
+echo.
 echo --- BASE64 inicio ---
 certutil -encode "%KS%" "%TEMP%\crozzo-ks.b64" >nul
 findstr /v /c:"-----" "%TEMP%\crozzo-ks.b64"
 echo --- BASE64 fin ---
+echo.
+echo Actualizando bootstrap CI: .github\signing\android-upload.jks.b64
+if not exist ".github\signing" mkdir ".github\signing"
+findstr /v /c:"-----" "%TEMP%\crozzo-ks.b64" > ".github\signing\android-upload.jks.b64"
 echo.
 echo Guarde una copia de %KS% en lugar seguro. Sin el keystore no podrá
 echo publicar actualizaciones Android en Play Store ni firmar releases.
