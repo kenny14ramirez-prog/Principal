@@ -1975,6 +1975,16 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
   } catch (ePull) {
     console.warn('[crozzo-sb] cloud pull init', ePull);
   }
+  try {
+    if (typeof crozzoPushPosStaffToCloud === 'function') {
+      await crozzoPushPosStaffToCloud();
+    }
+  } catch (_) {}
+  try {
+    if (typeof crozzoPullRemoteStaffState === 'function') {
+      await crozzoPullRemoteStaffState({ quiet: true });
+    }
+  } catch (_) {}
   if (typeof getCurrentUser === 'function' && !getCurrentUser()) return;
   try {
     await window.__crozzoRegisterDeviceHeartbeat?.();
@@ -2193,6 +2203,98 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
   if (changed && typeof applyAccessControl === 'function') applyAccessControl();
   return changed;
 }
+function crozzoPosStaffCloudCtx() {
+  var md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+  var loc = String(md.locationId || 'default').trim() || 'default';
+  try {
+    if (typeof crozzoEnsureSedeLocationId === 'function') {
+      var ensured = String(crozzoEnsureSedeLocationId() || '').trim();
+      if (ensured) loc = ensured;
+    }
+  } catch (_) {}
+  return {
+    locationId: loc,
+    businessId: String(md.businessId || '').trim(),
+  };
+}
+function crozzoLocalStaffToPosStaffRow(u, ctx) {
+  ctx = ctx || crozzoPosStaffCloudCtx();
+  if (!u || !u.id || String(u.id).toUpperCase() === 'KENNY') return null;
+  var row = {
+    id: String(u.id).toUpperCase(),
+    location_id: ctx.locationId || 'default',
+    nombre: u.nombre || u.id,
+    rol: u.rol || 'caja',
+    activo: u.activo !== false,
+    permisos: u.permisos && typeof u.permisos === 'object' ? u.permisos : {},
+    config_dispositivo:
+      u.configDispositivo && typeof u.configDispositivo === 'object' ? u.configDispositivo : {},
+    updated_at: new Date().toISOString(),
+  };
+  if (ctx.businessId) row.business_id = ctx.businessId;
+  if (u.claveHash && u.claveSalt) {
+    row.pin_hash = String(u.claveHash) + ':' + String(u.claveSalt);
+    return row;
+  }
+  return null;
+}
+/** Sube hashes de contraseña (pos_staff) para que tablets/APK usen las mismas credenciales que la caja. */
+async function crozzoPushPosStaffToCloud() {
+  if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
+    return false;
+  }
+  if (typeof getUsuariosConfig !== 'function') return false;
+  var ctx = crozzoPosStaffCloudCtx();
+  var staff = getUsuariosConfig().staff || [];
+  var rows = [];
+  for (var i = 0; i < staff.length; i++) {
+    var r = crozzoLocalStaffToPosStaffRow(staff[i], ctx);
+    if (r) rows.push(r);
+  }
+  if (!rows.length) return false;
+  var sb = window.__SUPABASE;
+  try {
+    var res = await sb.from('pos_staff').upsert(rows, { onConflict: 'id,location_id' });
+    if (res && res.error) {
+      res = await sb.from('pos_staff').upsert(rows, { onConflict: 'id' });
+    }
+    if (res && res.error) {
+      console.warn('[crozzo-sb] push pos_staff', res.error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[crozzo-sb] push pos_staff', e);
+    return false;
+  }
+}
+window.crozzoPushPosStaffToCloud = crozzoPushPosStaffToCloud;
+/** Descarga pos_staff (credenciales) desde Supabase hacia este equipo. */
+async function crozzoPullRemoteStaffState(opts) {
+  opts = opts || {};
+  if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
+    return false;
+  }
+  if (typeof loadTableData !== 'function' || typeof crozzoApplyPosStaffFromRemote !== 'function') return false;
+  var ctx = crozzoPosStaffCloudCtx();
+  var loc = ctx.locationId;
+  var res = null;
+  if (loc && loc !== 'default') {
+    res = await loadTableData('pos_staff', { where: { location_id: loc }, limit: 200 });
+  }
+  var rows = res && Array.isArray(res.data) ? res.data : [];
+  if (!rows.length) {
+    res = await loadTableData('pos_staff', { limit: 200 });
+    rows = res && Array.isArray(res.data) ? res.data : [];
+  }
+  if (!rows.length) return false;
+  var applied = crozzoApplyPosStaffFromRemote(rows, loc);
+  if (applied && !opts.quiet && typeof showToast === 'function') {
+    showToast('Usuarios actualizados desde la nube', 'info');
+  }
+  return applied;
+}
+window.crozzoPullRemoteStaffState = crozzoPullRemoteStaffState;
 /** Importa usuarios de caja desde `pos_staff` (nube) tras emparejamiento QR. */
 window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(rows, locationId) {
   if (!Array.isArray(rows) || !rows.length) return false;
@@ -2230,6 +2332,7 @@ window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(ro
         merged.claveSalt = parts.slice(1).join(':');
         delete merged.requiereClaveInicial;
         delete merged.clave;
+        delete merged.clavePendienteRotacion;
       }
     } else if (!prev) {
       merged.requiereClaveInicial = true;
@@ -2643,6 +2746,7 @@ function crozzoScheduleTenantSnapshotPush() {
   __crozzoTenantPushTimer = setTimeout(function () {
     __crozzoTenantPushTimer = null;
     crozzoPushTenantSnapshotToCloud().catch(function () {});
+    crozzoPushPosStaffToCloud().catch(function () {});
   }, 1600);
 }
 window.crozzoPullRemoteTenantState = crozzoPullRemoteTenantState;

@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.162">
+<meta name="crozzo-app-version" content="1.0.163">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var userChose=localStorage.getItem('crozzo_theme_user_v1')==='1';var t='';if(userChose){t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';}t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-light','crozzo-theme-dark');if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
@@ -591,7 +591,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <p id="loginPairingStatus" class="login-pairing-status" hidden></p>
       <button type="button" class="btn btn-outline login-pairing-probe" id="btnPairingProbeCaja" hidden data-crozzo-act="crozzoPairingTestCajaFromLogin">Probar enlace LAN con la caja</button>
       <button type="button" class="btn btn-outline" id="btnKioskCocinaBar" style="width:100%; min-height:44px;" onclick="if(typeof crozzoKioskEnterComandasFromLogin==='function')crozzoKioskEnterComandasFromLogin('comandas');">Modo pantallas (cocina, bar y fríos)</button>
-      <button type="button" class="btn btn-outline login-install-secondary" id="btnDownloadApk" style="width:100%; min-height:44px;" onclick="crozzoOpenAppDownloadQr()">Instalar aplicación (QR)</button>
+      <button type="button" class="btn btn-outline login-install-secondary" id="btnDownloadApk" style="width:100%; min-height:44px;">Instalar aplicación (QR)</button>
       <p class="form-hint login-post-actions__hint" style="margin:0;text-align:center;font-size:0.72rem;">Enlace cifrado · sincronización inteligente · cero configuración manual</p>
     </div>
   </div>

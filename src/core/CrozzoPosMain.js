@@ -1364,6 +1364,11 @@ function showLoginOverlay() {
   try {
     if (typeof applyCrozzoBrandingChrome === 'function') applyCrozzoBrandingChrome();
   } catch (_) {}
+  try {
+    if (typeof window.crozzoPullRemoteStaffState === 'function') {
+      window.crozzoPullRemoteStaffState({ quiet: true }).catch(function () {});
+    }
+  } catch (_) {}
   setTimeout(() => {
     const u = document.getElementById('loginUsername');
     if (u) u.focus();
@@ -3328,6 +3333,14 @@ function crozzoPresentLoginError(msg) {
     err.removeAttribute('hidden');
   }
 }
+async function crozzoRetryStaffLoginAfterCloudPull(userId, pwd) {
+  if (typeof window.crozzoPullRemoteStaffState !== 'function') return null;
+  try {
+    await window.crozzoPullRemoteStaffState({ quiet: true, force: true });
+  } catch (_) {}
+  return loginWithCredentials(userId, pwd);
+}
+window.crozzoRetryStaffLoginAfterCloudPull = crozzoRetryStaffLoginAfterCloudPull;
 async function crozzoFinishStaffLoginAttempt(res, opts) {
   opts = opts && typeof opts === 'object' ? opts : {};
   const showErr = opts.showErr || crozzoPresentLoginError;
@@ -3438,7 +3451,10 @@ async function handleLoginSubmit() {
   }
   const realStaff = crozzoLoginIsRealStaffCandidate(rawUser);
   if (realStaff) {
-    const staffRes = await loginWithCredentials(realStaff.id, pwd);
+    let staffRes = await loginWithCredentials(realStaff.id, pwd);
+    if (!staffRes.ok && staffRes.error === 'clave_incorrecta') {
+      staffRes = (await crozzoRetryStaffLoginAfterCloudPull(realStaff.id, pwd)) || staffRes;
+    }
     if (await crozzoFinishStaffLoginAttempt(staffRes, { showErr })) return;
     return;
   }
@@ -3505,6 +3521,11 @@ async function handleLoginSubmit() {
     return showErr('Usuario no encontrado en este equipo.');
   }
   const res = await loginWithCredentials(candidate.id, pwd);
+  if (!res.ok && res.error === 'clave_incorrecta') {
+    const retry = await crozzoRetryStaffLoginAfterCloudPull(candidate.id, pwd);
+    await crozzoFinishStaffLoginAttempt(retry || res, { showErr });
+    return;
+  }
   await crozzoFinishStaffLoginAttempt(res, { showErr });
 }
 function handleLogout() {

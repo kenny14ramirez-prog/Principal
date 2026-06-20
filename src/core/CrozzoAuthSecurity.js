@@ -204,7 +204,9 @@
   }
 
   function bytesFromB64(b64) {
-    var bin = atob(String(b64 || ''));
+    var s = String(b64 || '').replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    var bin = atob(s);
     var out = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;

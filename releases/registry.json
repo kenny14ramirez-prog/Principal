@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-20T22:15:21.611Z",
+  "updatedAt": "2026-06-20T22:34:00.994Z",
   "entries": [
-    {
-      "id": "1.0.138-critical",
-      "version": "v1.0.138",
-      "semver": "1.0.138",
-      "type": "critical",
-      "message": "98568",
-      "publishedAt": "2026-06-16T00:35:53.515Z",
-      "installMode": "auto",
-      "changelog": [
-        "98568"
-      ]
-    },
     {
       "id": "1.0.139-critical",
       "version": "v1.0.139",
@@ -309,6 +297,19 @@
       "changelog": [
         "Correccion nombre instalador BONA.origen en GitHub",
         "Boton forzar actualizacion Super Admin"
+      ]
+    },
+    {
+      "id": "1.0.163-critical",
+      "version": "v1.0.163",
+      "semver": "1.0.163",
+      "type": "critical",
+      "message": "12563 + 1236",
+      "publishedAt": "2026-06-20T22:34:00.994Z",
+      "installMode": "auto",
+      "changelog": [
+        "12563",
+        "1236"
       ]
     }
   ]

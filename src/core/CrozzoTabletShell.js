@@ -64,9 +64,11 @@
     }
     if (dlBtn) {
       if (apk) {
-        dlBtn.textContent = '⬆ Actualizar app automáticamente';
-        dlBtn.classList.add('login-action-secondary');
+        dlBtn.hidden = true;
+        dlBtn.style.display = 'none';
       } else {
+        dlBtn.hidden = false;
+        dlBtn.style.display = '';
         dlBtn.textContent = '📱 QR — Descargar app actualizada';
         dlBtn.classList.remove('login-action-secondary');
       }

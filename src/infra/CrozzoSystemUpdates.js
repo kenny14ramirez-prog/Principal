@@ -965,6 +965,15 @@
     return raw || 'No se pudo completar la actualización.';
   }
 
+  function canInstallApkInAppNow() {
+    var TU = global.CrozzoTauriUpdater;
+    return !!(
+      TU &&
+      typeof TU.canUseAndroidInAppUpdater === 'function' &&
+      TU.canUseAndroidInAppUpdater()
+    );
+  }
+
   function getUpdateClientProfile() {
     var TU = global.CrozzoTauriUpdater;
     var kind = TU && TU.getClientKind ? TU.getClientKind() : 'web';
@@ -1415,8 +1424,12 @@
           ctx.experiencia === 'novice'
             ? ctx.isPeak
               ? 'Descargar al cierre'
-              : 'Descargar mejora'
-            : 'Descargar actualización';
+              : canInstallApkInAppNow()
+                ? 'Actualizar ahora'
+                : 'Descargar mejora'
+            : canInstallApkInAppNow()
+              ? 'Actualizar ahora'
+              : 'Descargar actualización';
       }
     }
     if (laterBtn) {
@@ -2500,7 +2513,9 @@
       if (_installUi.state === 'success') {
         sub.textContent =
           _installUi.message ||
-          'Al reiniciar BONA origen se instalará automáticamente. Puede seguir operando la caja.';
+          (getUpdateClientProfile().isAndroid
+            ? 'Instalador de Android abierto. Confirme «Actualizar» en la pantalla del sistema.'
+            : 'Al reiniciar BONA origen se instalará automáticamente. Puede seguir operando la caja.');
       } else if (_installUi.state === 'error') {
         sub.textContent = 'Revise la conexión o espere a que GitHub Actions termine de compilar el release.';
       } else if (_installUi.phase === 'relaunch') {
@@ -2541,16 +2556,29 @@
       planLbl.textContent =
         _installUi.state === 'error'
           ? 'Plan A falló · Plan B disponible'
-          : 'Plan A · actualización automática';
+          : canInstallApkInAppNow() && (_installUi.state === 'installing' || _installUi.state === 'success')
+            ? 'Instalación automática Android'
+            : 'Plan A · actualización automática';
+      if (canInstallApkInAppNow() && _installUi.state !== 'error') {
+        planLbl.style.display = 'none';
+      } else {
+        planLbl.style.display = '';
+      }
     }
     if (close) {
       var isAndroidApkFlow = _installUi.state === 'installing' && getUpdateClientProfile().isAndroid;
+      var isAndroidAwaitingConfirm =
+        getUpdateClientProfile().isAndroid &&
+        _installUi.state === 'success' &&
+        /instalador|android|confirm/i.test(String(_installUi.message || ''));
       var canDeferWhileInstalling =
         isAndroidApkFlow ||
         (_installUi.state === 'installing' &&
         (_installUi.phase === 'probe' || _installUi.phase === 'check' || (_installUi.percent || 0) < 35));
       close.style.display =
-        _installUi.state === 'error' || _installUi.state === 'success' || canDeferWhileInstalling
+        isAndroidAwaitingConfirm
+          ? 'none'
+          : _installUi.state === 'error' || _installUi.state === 'success' || canDeferWhileInstalling
           ? 'inline-flex'
           : 'none';
       close.textContent = isAndroidApkFlow
@@ -2759,7 +2787,9 @@
         var prProfile = getUpdateClientProfile();
         lead.textContent = prProfile.isDesktopBinary
           ? 'La actualización ya está descargada. Al cerrar y volver a abrir BONA origen se instalará sola.'
-          : 'Al reiniciar BONA origen se instalará automáticamente. Puede seguir operando la caja con normalidad.';
+          : prProfile.isAndroid && canInstallApkInAppNow()
+            ? 'Descargando e instalando la actualización en Android…'
+            : 'Al reiniciar BONA origen se instalará automáticamente. Puede seguir operando la caja con normalidad.';
       }
       if (dismiss) {
         dismiss.disabled = false;
@@ -2952,10 +2982,15 @@
     }
     var typeLabel = UPDATE_NORMAL.type || 'Actualización opcional';
     var actionHint = profile.canAutoInstall
-      ? 'descargar en este equipo'
+      ? canInstallApkInAppNow()
+        ? 'actualizar ahora en esta tablet'
+        : 'descargar en este equipo'
       : profile.isAndroid
         ? 'descargar APK'
         : 'recargar la interfaz';
+    var installNote = canInstallApkInAppNow()
+      ? 'Se abrirá el instalador de Android.'
+      : 'Se instalará al reiniciar la app.';
     msg.innerHTML =
       'En uso: <strong>' +
       escapeHtml(VERSION) +
@@ -2963,9 +2998,12 @@
       escapeHtml(typeLabel) +
       ': <strong>' +
       escapeHtml(VERSION_AVAIL) +
-      '</strong> — pulse <strong>Descargar actualización</strong> para ' +
+      '</strong> — pulse <strong>' +
+      (canInstallApkInAppNow() ? 'Actualizar ahora' : 'Descargar actualización') +
+      '</strong> para ' +
       escapeHtml(actionHint) +
-      '. Se instalará al reiniciar la app.';
+      '. ' +
+      escapeHtml(installNote);
   }
 
   function syncVersionLabels() {
@@ -3394,12 +3432,17 @@
       if (remote) offerPlanBAfterFailure(remote, null);
     }
 
-    function applyOptionalAwaiting(msg) {
+    function applyOptionalAwaiting(msg, res) {
       _installUi.state = 'success';
       _installUi.percent = 100;
       _installUi.phase = 'install';
       _installUi.message = msg;
       renderInstallOverlayUi();
+      if (res && res.intentLaunched && canInstallApkInAppNow()) {
+        setTimeout(function () {
+          closeInstallOverlay();
+        }, 1500);
+      }
     }
 
     function applyOptionalFail(msg) {
@@ -3414,7 +3457,7 @@
         'Instalador abierto en Android. ' + androidInstallWarningHtml() +
         (res.installHint ? ' Si falla: ' + androidInstallUninstallGuide(true) : '');
       if (uiMode === 'optional') {
-        applyOptionalAwaiting(awaitingMsg);
+        applyOptionalAwaiting(awaitingMsg, res);
         return Promise.resolve({ handled: true, res: res });
       }
       applyCriticalAwaiting('Esperando confirmación de Android…', awaitingMsg);
@@ -3426,7 +3469,7 @@
         (res.installHint ? res.installHint + ' ' : '') +
         'Descarga del APK iniciada. Al instalar: si falla, desinstale «BONA origen» en Ajustes → Apps e instale el APK de nuevo.';
       if (uiMode === 'optional') {
-        applyOptionalAwaiting(dlMsg);
+        applyOptionalAwaiting(dlMsg, res);
         if (typeof global.showToast === 'function') global.showToast('Descarga del APK iniciada.', 'info');
         return Promise.resolve({ handled: true, res: res });
       }
@@ -3617,6 +3660,10 @@
         })
       );
       if (opt && crozzoUpdateIsPreLogin()) {
+        if (canInstallApkInAppNow()) {
+          installOptionalNowAtStartup(opt);
+          return;
+        }
         syncLoginUpdateBanner({ mode: 'optional', entry: opt, version: normEntryVersion(opt) });
         return;
       }
@@ -3830,14 +3877,19 @@
     return profile.kind === 'android' || profile.kind === 'android-web';
   }
 
-  /** Android: descarga + reinicio. Escritorio: instalar al momento si la caja está libre. */
+  /** Android web: descarga + reinicio. APK nativa: instalar al momento. Escritorio: instalar si la caja está libre. */
   function shouldDeferCriticalAutoOnBoot(profile) {
     profile = profile || getUpdateClientProfile();
+    if (canInstallApkInAppNow()) return false;
     return !!(profile.isAndroid || profile.kind === 'android-web');
   }
 
   function shouldInstallCriticalImmediately(profile) {
     profile = profile || getUpdateClientProfile();
+    if (canInstallApkInAppNow()) {
+      if (crozzoUpdateUserBusy() || posIsOperationBusy()) return false;
+      return true;
+    }
     if (!profile.canAutoInstall || !profile.isDesktopBinary) return false;
     if (shouldDeferCriticalAutoOnBoot(profile)) return false;
     if (_bootUpdatePhase) return false;
@@ -4039,6 +4091,15 @@
               if (!ready) {
                 releaseBootToLoginWhilePreparing(critEntry, 'github_building');
                 return { ok: true, criticalBoot: true, releaseNotReady: true };
+              }
+              if (canInstallApkInAppNow()) {
+                return beginCriticalEntryInstall(critEntry, {
+                  returnPromise: true,
+                  forceAuto: true,
+                  skipInfoDelay: true,
+                }).then(function (res) {
+                  return { ok: true, criticalBoot: true, res: res };
+                });
               }
               return startCriticalDownloadForRestart(critEntry, { silent: false }).then(function (res) {
                 return { ok: true, criticalBoot: true, res: res };
@@ -4385,8 +4446,16 @@
       if (opts.returnPromise) return Promise.resolve({ deferred: true });
       return true;
     }
-    if (opts.returnPromise) return startCriticalDownloadForRestart(entry, opts);
-    startCriticalDownloadForRestart(entry, opts);
+    if (opts.returnPromise) {
+      return canInstallApkInAppNow()
+        ? runCriticalInstall(entry)
+        : startCriticalDownloadForRestart(entry, opts);
+    }
+    if (canInstallApkInAppNow()) {
+      runCriticalInstall(entry);
+    } else {
+      startCriticalDownloadForRestart(entry, opts);
+    }
     return true;
   }
 
@@ -4442,6 +4511,12 @@
       pendingRestart.entryId === id &&
       compareSemver(VERSION, pendingRestart.version) < 0
     ) {
+      if (canInstallApkInAppNow() && !opts.deferOverlay) {
+        clearPendingRestartInstall();
+        if (opts.returnPromise) return runCriticalInstall(entry);
+        runCriticalInstall(entry);
+        return true;
+      }
       _criticalInstallState = 'pending_restart';
       if (opts.deferOverlay) {
         _deferredAndroidCritical = entry;
@@ -4468,6 +4543,11 @@
         return true;
       }
       setCheckStatus('Actualización crítica ' + remote + ' — descarga en segundo plano…');
+      if (canInstallApkInAppNow()) {
+        if (opts.returnPromise) return runCriticalInstall(entry);
+        runCriticalInstall(entry);
+        return true;
+      }
       if (opts.returnPromise) {
         return startCriticalDownloadForRestart(entry, { silent: silentDl });
       }
@@ -4476,6 +4556,12 @@
     }
 
     if (shouldInstallCriticalImmediately(profile)) {
+      if (opts.returnPromise) return runCriticalInstall(entry);
+      runCriticalInstall(entry);
+      return true;
+    }
+
+    if (canInstallApkInAppNow()) {
       if (opts.returnPromise) return runCriticalInstall(entry);
       runCriticalInstall(entry);
       return true;
@@ -4511,7 +4597,11 @@
       );
       return true;
     }
-    // Opcionales: siempre elección del usuario (banner o asistente), nunca auto-instalar.
+    // Opcionales: en APK nativa instalar al momento si no hay operación en curso.
+    if (canInstallApkInAppNow() && !crozzoUpdateUserBusy() && !posIsOperationBusy()) {
+      installOptionalNowAtStartup(entry);
+      return true;
+    }
     if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
       setNormalOpen(true);
       setNormalBannerMessage();
@@ -5145,7 +5235,7 @@
       }
     }
 
-    return startOptionalDownloadForRestart(entry)
+    return (canInstallApkInAppNow() ? installOptionalNowAtStartup(entry) : startOptionalDownloadForRestart(entry))
       .catch(function () {})
       .finally(function () {
         resetBtns();
@@ -5448,20 +5538,24 @@
           _registryEntries = sortEntriesForProcess(normalizeRegistryEntries(data));
           global.CROZZO_UPDATE_REGISTRY = _registryEntries.slice();
           applyAvailabilityFromRegistry(_registryEntries);
+          clearPendingRestartInstall();
           var pending = _registryEntries.filter(entryIsPending);
           var entry =
             pickNextPendingEntry(pending.filter(isCriticalEntry)) || pickNextPendingEntry(pending);
-          if (entry) {
+          if (!entry) {
+            if (typeof global.showToast === 'function') {
+              global.showToast('Ya tiene la versión más reciente instalada.', 'info');
+            }
+            return { upToDate: true };
+          }
+          if (isCriticalEntry(entry)) {
             return beginCriticalEntryInstall(entry, {
               returnPromise: true,
               forceAuto: true,
               skipInfoDelay: true,
             });
           }
-          if (typeof global.showToast === 'function') {
-            global.showToast('Ya tiene la versión más reciente instalada.', 'info');
-          }
-          return { upToDate: true };
+          return installOptionalNowAtStartup(entry);
         })
         .catch(function (err) {
           if (typeof global.showToast === 'function') {

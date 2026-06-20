@@ -24896,11 +24896,9 @@ html.crozzo-android-apk .login-post-actions #btnPairDevice {
   order: 1;
 }
 
-html.crozzo-android-apk .login-post-actions #btnDownloadApk.login-action-secondary {
-  order: 3;
-  font-size: 0.82rem;
-  min-height: 42px;
-  opacity: 0.92;
+html.crozzo-android-apk .login-post-actions #btnDownloadApk.login-action-secondary,
+html.crozzo-android-apk .login-post-actions #btnDownloadApk {
+  display: none !important;
 }
 
 html.crozzo-android-apk .login-post-actions #btnKioskCocinaBar {
@@ -58426,11 +58424,9 @@ html.crozzo-android-apk .login-post-actions #btnPairDevice {
   order: 1;
 }
 
-html.crozzo-android-apk .login-post-actions #btnDownloadApk.login-action-secondary {
-  order: 3;
-  font-size: 0.82rem;
-  min-height: 42px;
-  opacity: 0.92;
+html.crozzo-android-apk .login-post-actions #btnDownloadApk.login-action-secondary,
+html.crozzo-android-apk .login-post-actions #btnDownloadApk {
+  display: none !important;
 }
 
 html.crozzo-android-apk .login-post-actions #btnKioskCocinaBar {
