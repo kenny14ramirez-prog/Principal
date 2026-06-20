@@ -427,6 +427,8 @@
   }
 
   function wanUp() {
+    if (typeof global.crozzoWanLikely === 'function') return global.crozzoWanLikely();
+    if (typeof global.crozzoWanOnline === 'function') return global.crozzoWanOnline();
     return typeof global.navigator !== 'undefined' && !!global.navigator.onLine;
   }
 

@@ -8,6 +8,8 @@
 
   function isBrowserOnline() {
     try {
+      if (typeof global.crozzoWanLikely === 'function') return global.crozzoWanLikely();
+      if (typeof global.crozzoWanOnline === 'function') return global.crozzoWanOnline();
       return global.navigator ? global.navigator.onLine !== false : true;
     } catch (_) {
       return true;
@@ -32,12 +34,12 @@
     return false;
   }
 
-  /** Nube solo si hay config, navegador online y preferencia no es offline puro */
+  /** Nube si hay config y hay internet (Wi‑Fi o datos), salvo preferencia offline puro */
   function shouldUseCloud() {
     if (runtimePrefersOffline()) return false;
-    if (!isBrowserOnline()) return false;
     if (!hasCloudConfig()) return false;
-    return true;
+    if (typeof global.crozzoTierAllowsCloudSync === 'function') return global.crozzoTierAllowsCloudSync();
+    return isBrowserOnline();
   }
 
   function modeInfo() {
@@ -69,6 +71,7 @@
   function onOffline() {
     refreshConnectivity();
     try {
+      if (typeof global.crozzoDeviceFullyIsolated === 'function' && !global.crozzoDeviceFullyIsolated()) return;
       if (typeof global.showToast === 'function') {
         global.showToast('Sin internet — operando en modo local seguro (reservorio)', 'info');
       }

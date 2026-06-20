@@ -71699,3 +71699,117 @@ body.crozzo-page-operativa.crozzo-pantallas-kiosk .crozzo-help-fab {
     bottom: calc(12px + var(--crozzo-mobile-nav-h, 0px));
   }
 }
+
+/* Super Admin — prioridades de sincronización nube */
+.crozzo-sync-pri-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.crozzo-sync-pri-intro {
+  margin-bottom: 0;
+}
+.crozzo-sync-pri-live {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #dde3ed);
+  border-radius: var(--radius, 10px);
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+}
+.crozzo-sync-pri-live__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.crozzo-sync-pri-live__k {
+  color: var(--text-muted, #6b7280);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+.crozzo-sync-pri-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 960px) {
+  .crozzo-sync-pri-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.crozzo-sync-pri-card {
+  border: 1px solid var(--border, #dde3ed);
+  border-radius: var(--radius, 10px);
+  padding: 14px 16px;
+  background: var(--card-bg, var(--surface, #fff));
+}
+.crozzo-sync-pri-card--p0 {
+  border-left: 4px solid var(--danger, #dc3545);
+}
+.crozzo-sync-pri-card--p1 {
+  border-left: 4px solid var(--warning, #f59e0b);
+}
+.crozzo-sync-pri-card--p2 {
+  border-left: 4px solid var(--info, #0ea5e9);
+}
+.crozzo-sync-pri-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.crozzo-sync-pri-card__icon {
+  font-size: 1.25rem;
+}
+.crozzo-sync-pri-card__title {
+  font-weight: 700;
+  flex: 1;
+}
+.crozzo-sync-pri-card__desc {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.crozzo-sync-pri-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.crozzo-sync-pri-filter.is-active {
+  background: var(--accent, #2563eb);
+  color: #fff;
+  border-color: transparent;
+}
+.crozzo-sync-pri-table code.crozzo-sync-pri-dom {
+  margin-right: 4px;
+  font-size: 0.78rem;
+}
+.crozzo-sync-pri-note {
+  max-width: 280px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: var(--text-muted, #6b7280);
+}
+.crozzo-sync-pri-refs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .crozzo-sync-pri-refs {
+    grid-template-columns: 1fr;
+  }
+}
+.crozzo-sync-pri-ref .card-header {
+  padding-bottom: 8px;
+}
+.badge-outline {
+  background: transparent;
+  border: 1px solid var(--border, #cbd5e1);
+  color: var(--text-muted, #64748b);
+}

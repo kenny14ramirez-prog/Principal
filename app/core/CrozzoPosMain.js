@@ -2437,6 +2437,7 @@ const CROZZO_HP_SENSITIVE_PAGE_TRAPS = {
   'config-multidispositivo': { delay: 1100, toast: 'Sincronizando parámetros de nube…' },
   'config-nube-global': { delay: 1100, toast: 'Conectando al proyecto Supabase…' },
   'super-admin-nube': { delay: 800, toast: 'Abriendo consola de nube global…' },
+  'super-admin-sync-priorities': { delay: 400, toast: 'Abriendo mapa de prioridades de sync…' },
   'super-admin-federacion': { delay: 900, toast: 'Abriendo federación entre sedes…' },
   'config-federacion': { delay: 900, toast: 'Cargando puente de remisiones…' },
   'config-seguridad': { delay: 1600, toast: 'Leyendo políticas de seguridad locales…' },
@@ -9037,6 +9038,7 @@ const SUPERADMIN_PAGES = new Set([
   'super-admin-nube',
   'super-admin-federacion',
   'super-admin-diagnostics',
+  'super-admin-sync-priorities',
   'modo-demo',
   'super-admin-identidad',
   'actualizaciones-sistema',
@@ -9144,6 +9146,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'config-proveedor': 'proveedor',
   'config-multidispositivo': 'conexion-multi',
   'super-admin-nube': 'config-nube-global',
+  'super-admin-sync-priorities': 'sync-prioridades-nube',
   'super-admin-federacion': 'config-federacion',
   'super-admin-diagnostics': 'pruebas-conexion',
   'modo-demo': 'modo-operacion',
@@ -12719,6 +12722,7 @@ function navigateTo(page) {
     'config-conexiones-sistemas': ['Conexión de sistemas', 'Central, tablets y sincronización en red local'],
     'config-multidispositivo': ['Conexión Multi-Dispositivo', 'Sincronización Cloud (Supabase) ↔ LAN ↔ Offline para todos los dispositivos del negocio'],
     'super-admin-nube': ['Nube global (Supabase)', 'Asistente: conectar → SQL Editor → verificar tablas → activar módulos'],
+    'super-admin-sync-priorities': ['Prioridades de sincronización', 'Mapa P0 tiempo real · P1 al entrar/salir · P2 background — catálogo por apartado'],
     'super-admin-federacion': ['Federación / remisiones', 'Opción B — SQL, socios y puente mínimo entre Supabase separados'],
     'super-admin-diagnostics': ['Pruebas de Conexión y Sistema', 'Diagnóstico en vivo: red, sync, almacenamiento y permisos (solo lectura)'],
     'config-facturas-admin': ['Facturas e impresión', 'Conexión de impresoras para comandas y facturas'],
@@ -13384,6 +13388,13 @@ function renderPage(page, renderOpts) {
           ? window.renderSuperAdminDiagnosticsHTML()
           : '<div class="card"><p>No se pudo cargar el módulo de diagnóstico (<code>DiagnosticsPanel.js</code>).</p></div>';
       if (typeof window.initDiagnosticsPanel === 'function') window.initDiagnosticsPanel();
+      break;
+    case 'super-admin-sync-priorities':
+      content.innerHTML =
+        typeof window.renderSuperAdminSyncPrioritiesHTML === 'function'
+          ? window.renderSuperAdminSyncPrioritiesHTML()
+          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminSyncPriorities.js</code>.</p></div>';
+      if (typeof window.initSuperAdminSyncPriorities === 'function') window.initSuperAdminSyncPriorities();
       break;
     case 'config-facturas-admin':
       if (document.body) document.body.classList.add('crozzo-page-print-hub');
@@ -19231,7 +19242,10 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
   try {
-    const tierOff = (window.__CROZZO_TIER_LAST || 'offline') === 'offline';
+    const tierOff =
+      typeof crozzoDeviceFullyIsolated === 'function'
+        ? crozzoDeviceFullyIsolated()
+        : (window.__CROZZO_TIER_LAST || 'offline') === 'offline';
     if (tierOff && window.CrozzoOfflineGossip && typeof CrozzoOfflineGossip.getStatus === 'function') {
       const gst = CrozzoOfflineGossip.getStatus();
       if (gst && gst.active && !gst.peerCount) {
@@ -29687,6 +29701,7 @@ async function crozzoPingSupabaseCached(url, anonKey, opts) {
       __crozzoCloudPingCache.result = result;
       __crozzoCloudPingCache.inflight = null;
       __crozzoCloudPingCache.inflightKey = '';
+      if (result && result.ok && typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
       return result;
     })
     .catch(function (e) {
@@ -29709,18 +29724,87 @@ function crozzoCloudFirstSyncEnabled() {
   return true;
 }
 window.crozzoCloudFirstSyncEnabled = crozzoCloudFirstSyncEnabled;
+var CROZZO_WAN_EVIDENCE_MS = 55000;
+function crozzoNoteWanReachable() {
+  try {
+    window.__CROZZO_WAN_LAST_OK = Date.now();
+  } catch (_) {}
+}
+window.crozzoNoteWanReachable = crozzoNoteWanReachable;
+/** Internet WAN: navigator.onLine miente en WebView/APK Android con Wi‑Fi activo. */
 function crozzoWanOnline() {
-  return typeof navigator === 'undefined' || !!navigator.onLine;
+  if (typeof navigator === 'undefined') return true;
+  if (navigator.onLine) return true;
+  try {
+    if (window.__CROZZO_WAN_LAST_OK && Date.now() - window.__CROZZO_WAN_LAST_OK < CROZZO_WAN_EVIDENCE_MS) {
+      return true;
+    }
+  } catch (_) {}
+  return false;
 }
 window.crozzoWanOnline = crozzoWanOnline;
+/** Wi‑Fi, datos móviles o ethernet aunque navigator.onLine sea falso (APK/WebView). */
+function crozzoWanLikely() {
+  if (crozzoWanOnline()) return true;
+  try {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn) {
+      const t = String(conn.type || '').toLowerCase();
+      if (t === 'wifi' || t === 'cellular' || t === 'ethernet' || t === 'wimax') return true;
+      const eff = String(conn.effectiveType || '').toLowerCase();
+      if (eff && eff !== 'slow-2g' && eff !== '2g') return true;
+    }
+  } catch (_) {}
+  return false;
+}
+window.crozzoWanLikely = crozzoWanLikely;
+/** Dispositivo totalmente solo: sin internet, sin LAN, sin peers malla/BLE/P2P. */
+function crozzoDeviceFullyIsolated() {
+  try {
+    const tier = String(window.__CROZZO_TIER_LAST || 'offline').trim();
+    if (tier === 'cloud' || tier === 'lan' || tier === 'hotspot') return false;
+    if (crozzoWanLikely()) return false;
+    if (typeof crozzoIsLocalLanSegmentUp === 'function' && crozzoIsLocalLanSegmentUp()) return false;
+    if (typeof CrozzoP2PDataHub !== 'undefined' && CrozzoP2PDataHub.isLinked && CrozzoP2PDataHub.isLinked()) {
+      return false;
+    }
+    let gst = null;
+    try {
+      if (window.CrozzoOfflineGossip && typeof CrozzoOfflineGossip.getStatus === 'function') {
+        gst = CrozzoOfflineGossip.getStatus();
+        if (gst && (gst.peerCount || 0) > 0) return false;
+      }
+    } catch (_) {}
+    try {
+      if (window.CrozzoBleMesh && typeof CrozzoBleMesh.getStatus === 'function') {
+        const ble = CrozzoBleMesh.getStatus();
+        if (ble && (ble.peerCount || 0) > 0) return false;
+      }
+    } catch (_) {}
+    const orch =
+      window.CrozzoConnectivityOrchestrator &&
+      typeof window.CrozzoConnectivityOrchestrator.getState === 'function'
+        ? window.CrozzoConnectivityOrchestrator.getState()
+        : null;
+    if (orch && (orch.level === 'cloud' || orch.level === 'lan' || orch.level === 'hotspot')) return false;
+    if (window.__CROZZO_WAN_LAST_OK && Date.now() - window.__CROZZO_WAN_LAST_OK < CROZZO_WAN_EVIDENCE_MS) {
+      return false;
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+window.crozzoDeviceFullyIsolated = crozzoDeviceFullyIsolated;
 /** True cuando este equipo debe leer/escribir en Supabase. */
 function crozzoTierAllowsCloudSync() {
   if (crozzoCloudFirstSyncEnabled()) {
-    return !!(
-      crozzoWanOnline() &&
-      typeof crozzoOnlineConfigReady === 'function' &&
-      crozzoOnlineConfigReady()
-    );
+    if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) return false;
+    if (crozzoWanLikely()) return true;
+    try {
+      if (window.__CROZZO_TIER_LAST === 'cloud') return true;
+    } catch (_) {}
+    return false;
   }
   let t = 'cloud';
   try {
@@ -29736,7 +29820,7 @@ window.crozzoTierAllowsCloudSync = crozzoTierAllowsCloudSync;
 function crozzoDeferLocalSync() {
   return !!(
     crozzoCloudFirstSyncEnabled() &&
-    crozzoWanOnline() &&
+    crozzoWanLikely() &&
     typeof crozzoOnlineConfigReady === 'function' &&
     crozzoOnlineConfigReady()
   );
@@ -29753,6 +29837,7 @@ async function crozzoResolveCloudTierInfo(setLast, extra) {
   if (typeof window.crozzoProbeSupabaseLive === 'function') {
     try {
       if (await window.crozzoProbeSupabaseLive()) {
+        if (typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
         setLast('cloud');
         return {
           tier: 'cloud',
@@ -29949,6 +30034,7 @@ async function detectConnectivityTier() {
     } catch (e) { /* ignore */ }
   };
   const navOnline = typeof navigator === 'undefined' || navigator.onLine;
+  const wanLikely = typeof crozzoWanLikely === 'function' ? crozzoWanLikely() : navOnline;
   const lanProbe = await crozzoProbeLocalLanReachable(md);
   const lanReach = lanProbe.ok;
   let sbUrl = String(md.supabase?.url || '').trim();
@@ -29978,21 +30064,22 @@ async function detectConnectivityTier() {
     sbKey = '';
   }
   const cloudFirst = typeof crozzoCloudFirstSyncEnabled === 'function' && crozzoCloudFirstSyncEnabled();
-  const wanExtra = { hotspotUi, lanReach, wanOnline: navOnline };
+  const wanExtra = { hotspotUi, lanReach, wanOnline: wanLikely || navOnline };
   if (sbUrl && sbKey) {
     const cloudPing = await crozzoPingSupabaseCached(sbUrl, sbKey);
     if (cloudPing && cloudPing.ok) {
+      if (typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
       setLast('cloud');
-      return { tier: 'cloud', reason: 'Supabase alcanzable (Wi‑Fi o datos)', ...wanExtra };
+      return { tier: 'cloud', reason: 'Supabase alcanzable (Wi‑Fi o datos)', ...wanExtra, wanOnline: true };
     }
-    // Fase nube-first: con internet, insistir en Supabase antes de LAN/malla.
-    if (cloudFirst && navOnline) {
-      const resolved = await crozzoResolveCloudTierInfo(setLast, wanExtra);
+    // Fase nube-first: con credenciales, insistir en Supabase (Wi‑Fi o datos) antes de LAN/malla.
+    if (cloudFirst) {
+      const resolved = await crozzoResolveCloudTierInfo(setLast, { ...wanExtra, wanOnline: wanLikely || navOnline });
       if (resolved) return resolved;
     }
   }
-  // LAN solo sin internet WAN, o fase 2 (cascada completa).
-  if (lanReach && !(cloudFirst && navOnline)) {
+  // LAN solo sin internet WAN probable, o fase 2 (cascada completa).
+  if (lanReach && !(cloudFirst && sbUrl && sbKey && wanLikely)) {
     setLast('lan');
     const via = lanProbe.via || 'lan';
     const reason = navOnline
@@ -30000,7 +30087,7 @@ async function detectConnectivityTier() {
       : 'LAN local activa aunque el navegador reporta sin internet (' + via + ')';
     return { tier: 'lan', reason, ...wanExtra };
   }
-  if (sbUrl && sbKey && navOnline && !cloudFirst) {
+  if (sbUrl && sbKey && wanLikely && !cloudFirst) {
     if (
       typeof crozzoOnlineConfigReady === 'function' &&
       crozzoOnlineConfigReady() &&
@@ -30015,9 +30102,41 @@ async function detectConnectivityTier() {
       };
     }
   }
-  if (!navOnline) {
+  if (!navOnline && !wanLikely) {
+    if (sbUrl && sbKey) {
+      const resolvedOfflineWan = await crozzoResolveCloudTierInfo(setLast, wanExtra);
+      if (resolvedOfflineWan) {
+        if (typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
+        return resolvedOfflineWan;
+      }
+      const retryPing = await crozzoPingSupabaseCached(sbUrl, sbKey, { force: true });
+      if (retryPing && retryPing.ok) {
+        if (typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
+        setLast('cloud');
+        return {
+          tier: 'cloud',
+          reason: 'Nube alcanzable (red activa; el navegador reportaba sin internet)',
+          ...wanExtra,
+          wanProbeOverride: true,
+        };
+      }
+    }
+    if (lanReach) {
+      setLast('lan');
+      const via = lanProbe.via || 'lan';
+      return {
+        tier: 'lan',
+        reason: 'LAN local activa aunque el navegador reporta sin internet (' + via + ')',
+        ...wanExtra,
+      };
+    }
     setLast('offline');
-    return { tier: 'offline', reason: 'Sin LAN local ni internet', hotspotUi };
+    return {
+      tier: 'offline',
+      reason: 'Dispositivo aislado — sin internet, red local ni otros equipos',
+      hotspotUi,
+      fullyIsolated: typeof crozzoDeviceFullyIsolated === 'function' ? crozzoDeviceFullyIsolated() : true,
+    };
   }
   const allowLan = md.allowLan !== false;
   const port = Number(md.port) || 3000;
@@ -30052,8 +30171,13 @@ async function detectConnectivityTier() {
   } catch (e) {
     /* ignore */
   }
-  if (cloudFirst && navOnline && sbUrl && sbKey) {
-    const resolvedLate = await crozzoResolveCloudTierInfo(setLast, { hotspotUi, lanReach, gwReach, wanOnline: navOnline });
+  if (cloudFirst && sbUrl && sbKey && wanLikely) {
+    const resolvedLate = await crozzoResolveCloudTierInfo(setLast, {
+      hotspotUi,
+      lanReach,
+      gwReach,
+      wanOnline: true,
+    });
     if (resolvedLate) return resolvedLate;
   }
   if (hotspotUi) {
@@ -30061,15 +30185,16 @@ async function detectConnectivityTier() {
     return { tier: 'hotspot', reason: 'Modo hotspot/ad-hoc (marcado en asistente)', lanReach, gwReach };
   }
   if (lanReach || gwReach) {
-    if (cloudFirst && navOnline && sbUrl && sbKey) {
-      setLast('offline');
+    if (cloudFirst && wanLikely && sbUrl && sbKey) {
+      setLast('lan');
       return {
-        tier: 'offline',
-        reason: 'Internet activo pero la base de datos no responde — revise Supabase en Super Admin → Nube',
+        tier: 'lan',
+        reason: 'Red local activa — la nube no respondió; operando por LAN mientras reintenta',
         hotspotUi,
         lanReach,
         gwReach,
-        wanOnline: navOnline,
+        wanOnline: true,
+        cloudDegraded: true,
       };
     }
     setLast('lan');
@@ -30082,7 +30207,12 @@ async function detectConnectivityTier() {
     };
   }
   setLast('offline');
-  return { tier: 'offline', reason: 'Sin cloud ni evidencia de LAN', hotspotUi };
+  return {
+    tier: 'offline',
+    reason: 'Dispositivo aislado — sin internet, red local ni otros equipos',
+    hotspotUi,
+    fullyIsolated: typeof crozzoDeviceFullyIsolated === 'function' ? crozzoDeviceFullyIsolated() : true,
+  };
 }
 function updateConnectivityTierBadge(tierInfo) {
   const el = document.getElementById('crozzoConnectivityTierBadge');
@@ -30091,7 +30221,9 @@ function updateConnectivityTierBadge(tierInfo) {
   window.__CROZZO_TIER_LAST = t;
   const p2pOn =
     typeof CrozzoP2PDataHub !== 'undefined' && CrozzoP2PDataHub.isLinked && CrozzoP2PDataHub.isLinked();
-  const wanDown = tierInfo && tierInfo.wanOnline === false;
+  const wanDown =
+    (tierInfo && tierInfo.wanOnline === false) &&
+    !(typeof crozzoWanOnline === 'function' && crozzoWanOnline());
   const map = {
     cloud: {
       text: 'En línea',
@@ -30111,9 +30243,15 @@ function updateConnectivityTierBadge(tierInfo) {
       title: 'Red directa con la caja (hotspot) — sincronización automática'
     },
     offline: {
-      text: 'Sin red',
+      text:
+        typeof crozzoDeviceFullyIsolated === 'function' && crozzoDeviceFullyIsolated()
+          ? 'Sin red'
+          : 'Buscando…',
       dot: 'warn',
-      title: 'Sin conexión ahora — los pedidos se guardan y se envían solos al reconectar'
+      title:
+        typeof crozzoDeviceFullyIsolated === 'function' && crozzoDeviceFullyIsolated()
+          ? 'Dispositivo aislado — sin internet, red local ni otros equipos detectados'
+          : 'Reconectando — buscando nube, red local o malla entre equipos'
     }
   };
   const orch =
@@ -30792,7 +30930,8 @@ class MultiDeviceSyncRouter {
     try {
       if (typeof document !== 'undefined' && document.hidden) return;
     } catch (_) {}
-    if (typeof navigator !== 'undefined') this.status.online = !!navigator.onLine;
+    if (typeof crozzoWanOnline === 'function') this.status.online = crozzoWanOnline();
+    else if (typeof navigator !== 'undefined') this.status.online = !!navigator.onLine;
     let tierInfo = { tier: 'offline', reason: '' };
     try {
       tierInfo = await detectConnectivityTier();

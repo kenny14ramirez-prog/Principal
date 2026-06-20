@@ -1026,8 +1026,8 @@
     if (role === 'B') {
       var ssid = crozzoBackupSsidNote();
       msgEl.innerHTML =
-        '<strong>Trabajando sin conexión.</strong> Todo se guarda y se envía solo al reconectar.' +
-        (ssid ? ' Para reconectar ya, únete a la red de respaldo: <b>' + crozzoEscBasic(ssid) + '</b>.' : '');
+        '<strong>Dispositivo aislado.</strong> No hay internet, red local ni otros equipos cerca. Todo se guarda aquí y se enviará al reconectar.' +
+        (ssid ? ' Red de respaldo conocida: <b>' + crozzoEscBasic(ssid) + '</b>.' : '');
       actEl.innerHTML =
         '<button type="button" class="btn btn-primary" id="crozzoBackupRetryBtn">Reintentar conexión</button>' +
         '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>';
@@ -1067,8 +1067,12 @@
       }
       __lastPendCount = pend;
     } catch (_) {}
-    // Asistente de respaldo: solo si el offline persiste (no en cortes breves).
-    if (tierNow === 'offline') {
+    // Asistente de respaldo: solo si el dispositivo está totalmente aislado (sin internet, LAN, BLE ni peers).
+    var fullyAlone =
+      typeof global.crozzoDeviceFullyIsolated === 'function'
+        ? global.crozzoDeviceFullyIsolated()
+        : tierNow === 'offline';
+    if (fullyAlone) {
       if (!__offlineSinceTs) __offlineSinceTs = Date.now();
       var persisted = Date.now() - __offlineSinceTs;
       var dismissedRecently = __assistantDismissedTs && Date.now() - __assistantDismissedTs < 120000;

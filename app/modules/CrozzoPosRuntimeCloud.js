@@ -1021,7 +1021,7 @@
     var throttle = global.CrozzoCloudThrottle;
     if (throttle && typeof throttle.isUnderPressure === 'function' && throttle.isUnderPressure()) return;
     if (typeof global.syncOfflineQueue === 'function') {
-      global.syncOfflineQueue({ kind: 'stability' }).catch(function () {});
+      global.syncOfflineQueue({ kind: 'stability', priority: 2 }).catch(function () {});
     }
   }
 

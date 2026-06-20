@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.160">
+<meta name="crozzo-app-version" content="1.0.161">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
@@ -341,6 +341,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="config-certificado" data-menu="certificado-p12" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><span class="nav-item-label">Certificado .p12</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-proveedor" data-menu="proveedor" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="plug"></i></span><span class="nav-item-label">Proveedor FE</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-nube" data-menu="config-nube-global" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span class="nav-item-label">Nube global</span></div></li>
+            <li><div class="nav-item menu-item" data-page="super-admin-sync-priorities" data-menu="sync-prioridades-nube" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layers"></i></span><span class="nav-item-label">Prioridades sync</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-multidispositivo" data-menu="conexion-multi" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wifi"></i></span><span class="nav-item-label">Multi-dispositivo</span></div></li>
             <li><div class="nav-item menu-item" id="menu-test-diagnostics" data-page="super-admin-diagnostics" data-menu="pruebas-conexion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="nav-item-label">Pruebas de sistema</span></div></li>
             <li><div class="nav-item menu-item" data-page="modo-demo" data-menu="modo-operacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="toggle-right"></i></span><span class="nav-item-label">Modo de operación</span></div></li>
@@ -1014,6 +1015,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoOcrLearning.js" defer></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="infra/CrozzoCloudThrottle.js" defer></script>
+<script src="infra/CrozzoCloudSyncPriorities.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="modules/CrozzoComandasCloudSync.js" defer></script>
 <script src="core/CrozzoTermicaColombia.js" defer></script>
@@ -1045,6 +1047,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlExtras.js" defer></script>
 <script src="modules/CrozzoSuperAdminNube.js" defer></script>
+<script src="modules/CrozzoSuperAdminSyncPriorities.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="infra/CrozzoMdnsBridge.js" defer></script>
 <script src="infra/CrozzoLanWebSocketBridge.js" defer></script>

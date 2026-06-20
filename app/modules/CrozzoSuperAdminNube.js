@@ -1079,6 +1079,7 @@
       '<button type="button" class="btn btn-primary" id="sanBtnTestCloud2">🔌 Probar conexión</button>' +
       '<button type="button" class="btn btn-outline" id="sanBtnProbeTables">🔍 Comprobar tablas</button>' +
       '<button type="button" class="btn btn-outline" id="sanBtnUploadCatalog">⬆️ Subir catálogo a la nube</button>' +
+      '<button type="button" class="btn btn-outline" onclick="navigateTo(\'super-admin-sync-priorities\')">📶 Prioridades sync</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'super-admin-diagnostics\')">🧪 Diagnóstico avanzado</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'pruebas-conexion\')">📡 Pruebas de conexión</button>' +
       '</div>' +

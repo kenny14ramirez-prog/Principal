@@ -1007,6 +1007,18 @@ function isSyncQueueUniqueViolation(err) {
 }
 window.__crozzoIsSyncQueueUniqueViolation = isSyncQueueUniqueViolation;
 window.__crozzoNewOfflineSyncTransactionId = newOfflineSyncTransactionId;
+function crozzoSyncPriorityForOp(op) {
+  if (op && op.syncPriority != null && Number.isFinite(Number(op.syncPriority))) {
+    return Math.max(0, Math.min(2, Number(op.syncPriority)));
+  }
+  if (typeof window.crozzoSyncPriorityForType === 'function') {
+    return window.crozzoSyncPriorityForType(op && op.type);
+  }
+  const t = String((op && op.type) || '').toLowerCase();
+  if (t === 'emergency_comanda' || t === 'comanda' || t === 'runtime') return 0;
+  if (t === 'sale' || t === 'shift_close' || t === 'factura' || t === 'client' || t === 'pedido_interno' || t === 'preparation') return 1;
+  return 2;
+}
 /** Encola operación cuando no hay red o falla insert a sync_queue. */
 function enqueueOfflineOperation(op) {
   const q = readOfflineQueue();
@@ -1025,6 +1037,7 @@ function enqueueOfflineOperation(op) {
   const row = {
     ...op,
     transaction_id: effectiveTid,
+    syncPriority: crozzoSyncPriorityForOp(op),
     ts: Date.now(),
     id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
   };
@@ -1148,7 +1161,7 @@ function crozzoQueueFacturaForCloudSync(f) {
     console.warn('[crozzo-sb] cola ventas', e);
   }
   if (typeof navigator !== 'undefined' && navigator.onLine && typeof syncOfflineQueue === 'function') {
-    void Promise.resolve().then(() => syncOfflineQueue());
+    void Promise.resolve().then(() => syncOfflineQueue({ kind: 'sale_enqueue', priority: 1, force: true }));
   }
 }
 async function crozzoTryMirrorShiftCloseToSupabase(rec) {
@@ -1224,7 +1237,7 @@ function crozzoTryMirrorAuditToSupabase(entry) {
     console.warn('[crozzo-sb] audit_logs queue', e);
   }
   if (typeof navigator !== 'undefined' && navigator.onLine && typeof syncOfflineQueue === 'function') {
-    void Promise.resolve().then(() => syncOfflineQueue());
+    void Promise.resolve().then(() => syncOfflineQueue({ kind: 'audit_enqueue', priority: 2 }));
   }
 }
 window.crozzoTryMirrorAuditToSupabase = crozzoTryMirrorAuditToSupabase;
@@ -1353,7 +1366,15 @@ async function syncOfflineQueue(opts) {
   const sb = window.__SUPABASE;
   if (!sb || typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'offline_o_sin_cliente' };
   const throttle = window.CrozzoCloudThrottle;
-  if (throttle && typeof throttle.canRunDrain === 'function' && !opts.force) {
+  const bypassThrottle =
+    !!opts.force ||
+    (window.CrozzoCloudSyncPriorities &&
+      typeof window.CrozzoCloudSyncPriorities.shouldBypassThrottle === 'function' &&
+      window.CrozzoCloudSyncPriorities.shouldBypassThrottle(
+        opts.priority != null ? opts.priority : 2,
+        opts
+      ));
+  if (throttle && typeof throttle.canRunDrain === 'function' && !bypassThrottle) {
     if (!throttle.canRunDrain(opts.kind || 'queue')) {
       return { ok: true, pushed: 0, skipped: 'throttle_gap' };
     }
@@ -1370,6 +1391,16 @@ async function syncOfflineQueue(opts) {
     const ded = CrozzoIdempotentSync.deduplicateQueue(pending);
     if (ded.length !== pending.length) writeOfflineQueue(ded);
     pending = ded;
+  }
+  if (window.CrozzoCloudSyncPriorities && typeof window.CrozzoCloudSyncPriorities.sortQueueByPriority === 'function') {
+    pending = window.CrozzoCloudSyncPriorities.sortQueueByPriority(pending);
+  } else {
+    pending = pending.slice().sort((a, b) => {
+      const pa = crozzoSyncPriorityForOp(a);
+      const pb = crozzoSyncPriorityForOp(b);
+      if (pa !== pb) return pa - pb;
+      return (Number(a.ts) || 0) - (Number(b.ts) || 0);
+    });
   }
   if (!pending.length) return { ok: true, pushed: 0 };
   const batchMax =
@@ -1912,7 +1943,9 @@ window.crozzoProbeSupabaseLive = async function crozzoProbeSupabaseLive() {
         res = await sb.from('devices').select('id').limit(1);
       }
     }
-    return !!(res && !res.error);
+    var ok = !!(res && !res.error);
+    if (ok && typeof window.crozzoNoteWanReachable === 'function') window.crozzoNoteWanReachable();
+    return ok;
   } catch (e) {
     return false;
   }
@@ -2706,7 +2739,12 @@ function updateCrozzoStorageModeBadge() {
   window.__CROZZO_ONLINE_DATA = online;
   let net = true;
   try {
-    net = typeof navigator === 'undefined' || navigator.onLine !== false;
+    net =
+      typeof window.crozzoWanLikely === 'function'
+        ? window.crozzoWanLikely()
+        : typeof window.crozzoWanOnline === 'function'
+          ? window.crozzoWanOnline()
+          : typeof navigator === 'undefined' || navigator.onLine !== false;
   } catch (_) {
     net = true;
   }
@@ -3023,7 +3061,7 @@ void (async function __crozzoSupabaseBootstrap() {
   } catch (_) {}
 })();
 window.addEventListener('online', () => {
-  syncOfflineQueue().catch((e) => console.warn('[crozzo-sb] syncOfflineQueue', e));
+  syncOfflineQueue({ force: true, kind: 'online', priority: 1 }).catch((e) => console.warn('[crozzo-sb] syncOfflineQueue', e));
   try {
     if (typeof crozzoInvalidateCloudPingCache === 'function') crozzoInvalidateCloudPingCache();
   } catch (_) {}

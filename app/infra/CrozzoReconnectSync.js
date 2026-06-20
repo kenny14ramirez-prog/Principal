@@ -65,7 +65,7 @@
     }
     if (typeof global.syncOfflineQueue === 'function') {
       try {
-        var sq = await global.syncOfflineQueue();
+        var sq = await global.syncOfflineQueue({ force: true, kind: 'reconnect_push', priority: 1 });
         if (sq && sq.pushed) pushed += Number(sq.pushed) || 0;
       } catch (_) {}
     }
@@ -135,7 +135,7 @@
     }
     if (typeof global.syncOfflineQueue === 'function') {
       try {
-        await global.syncOfflineQueue();
+        await global.syncOfflineQueue({ force: true, kind: 'reconnect_pull', priority: 1 });
       } catch (_) {}
     }
     if (global.CrozzoEmergencyMesh && typeof global.CrozzoEmergencyMesh.reconcileSafe === 'function') {

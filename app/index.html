@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.160">
+<meta name="crozzo-app-version" content="1.0.161">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var userChose=localStorage.getItem('crozzo_theme_user_v1')==='1';var t='';if(userChose){t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';}t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-light','crozzo-theme-dark');if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
@@ -342,6 +342,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="config-certificado" data-menu="certificado-p12" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><span class="nav-item-label">Certificado .p12</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-proveedor" data-menu="proveedor" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="plug"></i></span><span class="nav-item-label">Proveedor FE</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-nube" data-menu="config-nube-global" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span class="nav-item-label">Nube global</span></div></li>
+            <li><div class="nav-item menu-item" data-page="super-admin-sync-priorities" data-menu="sync-prioridades-nube" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="layers"></i></span><span class="nav-item-label">Prioridades sync</span></div></li>
             <li><div class="nav-item menu-item" data-page="super-admin-federacion" data-menu="config-federacion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="link"></i></span><span class="nav-item-label">Federación / remisiones</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-multidispositivo" data-menu="conexion-multi" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="wifi"></i></span><span class="nav-item-label">Multi-dispositivo</span></div></li>
             <li><div class="nav-item menu-item" id="menu-test-diagnostics" data-page="super-admin-diagnostics" data-menu="pruebas-conexion" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="activity"></i></span><span class="nav-item-label">Pruebas de sistema</span></div></li>
@@ -1057,6 +1058,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoRecepcionBridge.js"></script>
 <script src="core/CrozzoManifest.js" defer></script>
 <script src="infra/CrozzoCloudThrottle.js" defer></script>
+<script src="infra/CrozzoCloudSyncPriorities.js" defer></script>
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="modules/CrozzoComandasCloudSync.js" defer></script>
 <script src="modules/CrozzoCierreTurnos.js"></script>
@@ -1090,6 +1092,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlExtras.js" defer></script>
 <script src="modules/CrozzoSuperAdminNube.js" defer></script>
+<script src="modules/CrozzoSuperAdminSyncPriorities.js" defer></script>
 <script src="modules/CrozzoFederacionSql.js" defer></script>
 <script src="modules/CrozzoFederacionEngine.js" defer></script>
 <script src="modules/CrozzoSuperAdminFederacion.js" defer></script>
