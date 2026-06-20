@@ -56,7 +56,7 @@
     if (!client) return null;
     return {
       perfil: client.perfil || 'basico_restaurante',
-      tema: client.tema || 'executive-elite',
+      tema: client.tema || 'bona-origen',
       menus: JSON.parse(JSON.stringify(client.menus || {})),
       roles: JSON.parse(JSON.stringify(client.roles || {})),
       rolePerms: JSON.parse(JSON.stringify(client.rolePerms || {})),
@@ -66,7 +66,7 @@
   function applySnapshotToClient(client, snap) {
     if (!client || !snap) return client;
     client.perfil = snap.perfil || 'basico_restaurante';
-    client.tema = snap.tema || client.tema || 'executive-elite';
+    client.tema = snap.tema || client.tema || 'bona-origen';
     client.menus = JSON.parse(JSON.stringify(snap.menus || {}));
     client.roles = JSON.parse(JSON.stringify(snap.roles || {}));
     client.rolePerms = JSON.parse(JSON.stringify(snap.rolePerms || {}));

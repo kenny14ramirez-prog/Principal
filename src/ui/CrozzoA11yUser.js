@@ -488,6 +488,7 @@
       return;
     }
     a11yPanelOpen = !!open;
+    if (open && typeof global.crozzoCloseThemePanel === 'function') global.crozzoCloseThemePanel();
     if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
     panel.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (backdrop) backdrop.setAttribute('aria-hidden', open ? 'false' : 'true');

@@ -28,19 +28,11 @@
   var _sidebarSuppressTransition = true;
 
   function isDrawerLayoutActive() {
+    if (isDesktopSidebarLayout()) return false;
     try {
       if (typeof global.crozzoIsDrawerLayoutActive === 'function') return global.crozzoIsDrawerLayoutActive();
-      var doc = document.documentElement;
-      if (doc && doc.classList.contains('crozzo-form-desktop')) return false;
-      if (doc && doc.classList.contains('crozzo-tauri-rail-ui')) return true;
-      if (doc && doc.classList.contains('tauri-shell')) return false;
-      if (doc && doc.classList.contains('crozzo-touch-shell')) return true;
-      if (doc && (doc.classList.contains('crozzo-form-mobile') || doc.classList.contains('crozzo-form-tablet'))) return true;
-      var body = document.body;
-      return !!(body && (body.classList.contains('mobile') || body.classList.contains('tablet')));
-    } catch (_) {
-      return false;
-    }
+    } catch (_) {}
+    return false;
   }
 
   function isDrawerNavMode() {
@@ -62,13 +54,21 @@
     }
     if (_drawerNavPrepared) return;
     _drawerNavPrepared = true;
-    if (!sb.classList.contains('expanded') && !sb.classList.contains('is-expanded')) {
-      setSidebarExpanded(true, false);
-    }
+    document.documentElement.classList.add('crozzo-sidebar-touch');
+    document.documentElement.classList.remove('crozzo-sidebar-desktop');
+    setSidebarExpanded(false, false);
+    sb.classList.remove('open', 'expanded', 'is-expanded');
+    sb.style.removeProperty('transform');
+    sb.style.removeProperty('visibility');
+    sb.style.removeProperty('pointer-events');
     if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
   }
 
   function ensureLayout() {
+    if (isDesktopSidebarLayout()) {
+      prepareDesktopSidebarChrome();
+      return;
+    }
     if (isDrawerNavMode()) applyDrawerNavMode();
     else clearDrawerNavMode();
   }
@@ -82,14 +82,20 @@
     sb.classList.remove('crozzo-drawer-nav', 'open');
     sb.style.removeProperty('transform');
     sb.style.removeProperty('visibility');
+    sb.style.removeProperty('pointer-events');
+    sb.style.removeProperty('display');
     if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
     var btn = document.getElementById('menu-toggle-btn');
     if (btn) {
       btn.style.removeProperty('display');
       btn.removeAttribute('aria-hidden');
+      btn.hidden = false;
+      btn.removeAttribute('hidden');
     }
-    var st = readState();
-    setSidebarExpanded(!!st.pinned, false);
+    if (!isDesktopSidebarLayout()) {
+      var st = readState();
+      setSidebarExpanded(!!st.pinned, false);
+    }
   }
 
   function getSidebar() {
@@ -205,8 +211,10 @@
 
   function readState() {
     var state = { groups: {}, pinned: false };
+    var key = menuStateStorageKey();
     try {
-      var raw = localStorage.getItem(LS_KEY);
+      var raw = localStorage.getItem(key);
+      if (!raw && key.indexOf('_desktop_') >= 0) raw = localStorage.getItem(LS_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
@@ -214,6 +222,10 @@
           state.pinned = !!parsed.pinned;
           return state;
         }
+      }
+      if (isDesktopSidebarLayout()) {
+        state.pinned = false;
+        return state;
       }
       var leg = localStorage.getItem(LS_LEGACY_GROUPS);
       if (leg) {
@@ -231,7 +243,7 @@
 
   function writeState(state) {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(state));
+      localStorage.setItem(menuStateStorageKey(), JSON.stringify(state));
     } catch (_) {}
   }
 
@@ -240,16 +252,99 @@
     return sb.classList.contains('expanded') || sb.classList.contains('is-expanded');
   }
 
+  function isDesktopSidebarLayout() {
+    try {
+      if (typeof global.crozzoIsDesktopSidebarChrome === 'function') return global.crozzoIsDesktopSidebarChrome();
+      var doc = document.documentElement;
+      if (doc && (doc.classList.contains('crozzo-form-desktop') || doc.classList.contains('tauri-desktop'))) {
+        return true;
+      }
+      if (global.__CROZZO_IS_TAURI_DESKTOP__) return true;
+      var body = document.body;
+      if (body && body.classList.contains('tauri-desktop')) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function menuStateStorageKey() {
+    return isDesktopSidebarLayout() ? LS_KEY + '_desktop_v1' : LS_KEY + '_touch_v1';
+  }
+
+  function prepareDesktopSidebarChrome() {
+    if (!isDesktopSidebarLayout() || isDrawerNavMode()) return;
+    var sb = getSidebar();
+    if (!sb) return;
+    sb.classList.remove('crozzo-drawer-nav', 'open');
+    sb.style.removeProperty('transform');
+    sb.style.removeProperty('visibility');
+    sb.style.removeProperty('pointer-events');
+    sb.style.removeProperty('display');
+    sb.style.removeProperty('width');
+    sb.style.removeProperty('max-width');
+    sb.style.removeProperty('top');
+    sb.style.removeProperty('height');
+    sb.style.removeProperty('max-height');
+    sb.style.removeProperty('min-height');
+    sb.style.removeProperty('z-index');
+    sb.removeAttribute('hidden');
+    sb.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('crozzo-sidebar-desktop');
+    document.documentElement.classList.remove('crozzo-sidebar-touch');
+    var btn = document.getElementById('menu-toggle-btn');
+    if (btn) {
+      btn.style.removeProperty('display');
+      btn.removeAttribute('aria-hidden');
+      btn.hidden = false;
+      btn.removeAttribute('hidden');
+    }
+  }
+
+  function applyDesktopSidebarBootState() {
+    prepareDesktopSidebarChrome();
+    var sb = getSidebar();
+    if (!sb) return;
+    var st = readState();
+    if (st.pinned) {
+      setSidebarExpanded(true, false);
+      restoreGroupsState(false);
+      var pg = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
+      if (pg) expandGroupForPage(pg);
+    } else {
+      setSidebarExpanded(false, false);
+      collapseAllGroups(false);
+      syncSidebarHoverSessionClasses(sb, false, false);
+    }
+    syncSidebarLayoutClass(isSidebarExpanded(sb));
+    if (typeof global.crozzoSidebarMountToggleBtn === 'function') global.crozzoSidebarMountToggleBtn(sb);
+  }
+
+  /** Fijar menú expandido (☰ con pin / Ctrl+M). */
+  function ensureDesktopSidebarOpen() {
+    if (!isDesktopSidebarLayout() || isDrawerNavMode()) return;
+    prepareDesktopSidebarChrome();
+    var sb = getSidebar();
+    if (!sb) return;
+    clearHoverTimers();
+    _sidebarPointerInside = false;
+    setSidebarExpanded(true, true);
+    var pg = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
+    if (pg) expandGroupForPage(pg);
+    else restoreGroupsState(false);
+    syncSidebarLayoutClass(true);
+    if (typeof global.crozzoSidebarMountToggleBtn === 'function') global.crozzoSidebarMountToggleBtn(sb);
+  }
+
   function shouldDisableSidebarHover() {
+    if (isDrawerNavMode()) return true;
     try {
       if (typeof global.crozzoIsSidebarDrawerMode === 'function' && global.crozzoIsSidebarDrawerMode()) return true;
     } catch (_) {}
-    if (isDrawerNavMode()) return true;
     var sb = getSidebar();
     if (sb && sb.classList.contains('open')) return true;
     try {
       if (document.body && document.body.classList.contains('crozzo-sidebar-drawer-open')) return true;
     } catch (_) {}
+    if (readState().pinned) return true;
     return false;
   }
 
@@ -293,6 +388,7 @@
 
   function scheduleSidebarPointerLeave() {
     cancelSidebarLeaveDebounce();
+    var debounceMs = isDesktopSidebarLayout() ? 220 : SIDEBAR_LEAVE_DEBOUNCE_MS;
     _sidebarLeaveDebounce = setTimeout(function () {
       _sidebarLeaveDebounce = null;
       var sb = getSidebar();
@@ -305,15 +401,17 @@
       }
       _sidebarPointerInside = false;
       scheduleHoverClose();
-    }, SIDEBAR_LEAVE_DEBOUNCE_MS);
+    }, debounceMs);
   }
 
   function onSidebarPointerEnter() {
+    if (shouldDisableSidebarHover()) return;
     markSidebarPointerInside(true);
     scheduleHoverOpen();
   }
 
   function onSidebarPointerLeave(e) {
+    if (shouldDisableSidebarHover()) return;
     var sb = getSidebar();
     if (!sb) return;
     var rt = e && e.relatedTarget;
@@ -402,6 +500,7 @@
   }
 
   function readHoverOpenMs() {
+    if (isDesktopSidebarLayout()) return 90;
     try {
       var raw = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-hover-open-delay');
       var n = parseInt(String(raw || '').trim(), 10);
@@ -411,6 +510,7 @@
   }
 
   function readHoverCloseMs() {
+    if (isDesktopSidebarLayout()) return 480;
     try {
       var raw = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-hover-close-delay');
       var n = parseInt(String(raw || '').trim(), 10);
@@ -493,7 +593,8 @@
   function collapseSidebarHoverRail() {
     var sb = getSidebar();
     if (!sb || shouldBlockHoverToggleGlobal(sb)) return;
-    if (isSidebarHoveredOrFocused(sb)) return;
+    if (readState().pinned) return;
+    if (isPointerInsideSidebar(sb) || isSidebarHoveredOrFocused(sb)) return;
     _sidebarPointerInside = false;
     cancelSidebarLeaveDebounce();
     clearHoverTimers();
@@ -846,7 +947,7 @@
       !sb.classList.contains('is-expanded') &&
       !isDrawerNavMode();
     var open = !group.classList.contains('open');
-    if (railMode && open) {
+    if ((railMode || (isDesktopSidebarLayout() && !isSidebarExpanded(sb))) && open) {
       setSidebarExpanded(true, !!readState().pinned);
     }
     if (open) {
@@ -882,7 +983,7 @@
     if (typeof global.crozzoNavigateImmediate === 'function') global.crozzoNavigateImmediate(p);
     else if (typeof global.navigateTo === 'function') global.navigateTo(p);
     var drawerOpen = document.body && document.body.classList.contains('crozzo-sidebar-drawer-open');
-    var drawerMode = isDrawerNavMode();
+    var drawerMode = isDrawerNavMode() && !isDesktopSidebarLayout();
     if ((drawerOpen || drawerMode) && typeof global.crozzoCloseSidebarDrawer === 'function') {
       global.crozzoCloseSidebarDrawer();
     }
@@ -943,7 +1044,41 @@
     });
   }
 
+  function bindDesktopSidebarHover() {
+    var sb = getSidebar();
+    if (!sb || sb._crozzoDesktopHoverBound) return;
+    if (!isDesktopSidebarLayout()) return;
+    sb._crozzoDesktopHoverBound = true;
+    sb.addEventListener('pointerenter', onSidebarPointerEnter);
+    sb.addEventListener('pointerleave', onSidebarPointerLeave);
+    sb.addEventListener(
+      'mouseenter',
+      function () {
+        onSidebarPointerEnter();
+      },
+      false
+    );
+    sb.addEventListener(
+      'mouseleave',
+      function (e) {
+        onSidebarPointerLeave(e);
+      },
+      false
+    );
+    sb.addEventListener(
+      'pointerdown',
+      function () {
+        if (!shouldDisableSidebarHover()) markSidebarPointerInside(true);
+      },
+      true
+    );
+    sb.addEventListener('focusin', function () {
+      if (!shouldDisableSidebarHover()) markSidebarPointerInside(true);
+    });
+  }
+
   function bindSidebarHoverTracking() {
+    if (isDesktopSidebarLayout()) return;
     if (document._crozzoSidebarHoverTrack) return;
     document._crozzoSidebarHoverTrack = true;
     document.addEventListener(
@@ -1004,8 +1139,19 @@
     }
     ensureMenuToggleBtnBound();
 
+    resetStoredGroupsCollapsed();
+
     try {
-      if (localStorage.getItem('bona_sidebar_rail_default_v1') !== '1') {
+      if (localStorage.getItem('bona_sidebar_hover_rail_v3') !== '1' && isDesktopSidebarLayout()) {
+        var hoverSt = readState();
+        hoverSt.pinned = false;
+        writeState(hoverSt);
+        localStorage.setItem('bona_sidebar_hover_rail_v3', '1');
+      }
+    } catch (_) {}
+
+    try {
+      if (localStorage.getItem('bona_sidebar_rail_default_v1') !== '1' && !isDesktopSidebarLayout()) {
         var fixSt = readState();
         fixSt.pinned = false;
         writeState(fixSt);
@@ -1013,26 +1159,34 @@
       }
     } catch (_) {}
 
-    resetStoredGroupsCollapsed();
-
     var st = readState();
-    setSidebarExpanded(!!st.pinned, false);
-    if (st.pinned) restoreGroupsState(false);
-    else collapseAllGroups(false);
+    if (isDesktopSidebarLayout() && !isDrawerNavMode()) {
+      applyDesktopSidebarBootState();
+      bindDesktopSidebarHover();
+    } else if (isDrawerNavMode()) {
+      setSidebarExpanded(false, false);
+      collapseAllGroups(false);
+    } else {
+      setSidebarExpanded(!!st.pinned, false);
+      if (st.pinned) restoreGroupsState(false);
+      else collapseAllGroups(false);
+    }
 
-    sb.addEventListener('pointerenter', onSidebarPointerEnter);
-    sb.addEventListener('pointerleave', onSidebarPointerLeave);
-    sb.addEventListener(
-      'pointerdown',
-      function () {
+    if (!isDesktopSidebarLayout() && !shouldDisableSidebarHover()) {
+      sb.addEventListener('pointerenter', onSidebarPointerEnter);
+      sb.addEventListener('pointerleave', onSidebarPointerLeave);
+      sb.addEventListener(
+        'pointerdown',
+        function () {
+          markSidebarPointerInside(true);
+        },
+        true
+      );
+      sb.addEventListener('focusin', function () {
         markSidebarPointerInside(true);
-      },
-      true
-    );
-    sb.addEventListener('focusin', function () {
-      markSidebarPointerInside(true);
-    });
-    bindSidebarHoverTracking();
+      });
+      bindSidebarHoverTracking();
+    }
     if (isDrawerNavMode()) {
       applyDrawerNavMode();
     }
@@ -1089,8 +1243,13 @@
   function init() {
     var firstRun = !_navCoreReady;
     bindSidebarExpand();
-    if (isDrawerNavMode()) applyDrawerNavMode();
-    else clearDrawerNavMode();
+    if (isDrawerNavMode()) {
+      applyDrawerNavMode();
+    } else if (!isDesktopSidebarLayout()) {
+      clearDrawerNavMode();
+    } else {
+      prepareDesktopSidebarChrome();
+    }
     bindGroupToggles();
     bindNavItems();
     if (typeof global.crozzoEnhanceSidebarLabels === 'function') global.crozzoEnhanceSidebarLabels();
@@ -1106,11 +1265,38 @@
   }
 
   function repairAfterNavigation() {
-    clearHoverTimers();
-    cancelScheduledCollapseGroups();
     var sb = getSidebar();
     if (!sb) return;
-    ensureLayout();
+    var hoverLocked =
+      isDesktopSidebarLayout() &&
+      !readState().pinned &&
+      (isPointerInsideSidebar(sb) ||
+        isSidebarHoveredOrFocused(sb) ||
+        sb.classList.contains('crozzo-sidebar-hover-active') ||
+        sb.matches(':hover'));
+    if (!hoverLocked) clearHoverTimers();
+    cancelScheduledCollapseGroups();
+    if (isDrawerNavMode()) {
+      ensureLayout();
+      if (!sb.classList.contains('open')) {
+        sb.classList.remove('expanded', 'is-expanded', 'crozzo-sidebar-hover-active');
+      }
+    } else if (isDesktopSidebarLayout()) {
+      prepareDesktopSidebarChrome();
+      bindDesktopSidebarHover();
+      var st = readState();
+      if (st.pinned) {
+        if (!isSidebarExpanded(sb)) setSidebarExpanded(true, false);
+        var pgPin = typeof global.currentPage !== 'undefined' ? global.currentPage : '';
+        if (pgPin) expandGroupForPage(pgPin);
+      } else if (!hoverLocked) {
+        setSidebarExpanded(false, false);
+        collapseGroupsForRail();
+        syncSidebarHoverSessionClasses(sb, false, false);
+      }
+    } else {
+      ensureLayout();
+    }
     if (!isDrawerNavMode() && !sb.classList.contains('crozzo-drawer-nav')) {
       sb.classList.remove('open');
       sb.style.removeProperty('pointer-events');
@@ -1190,13 +1376,20 @@
     sb.style.removeProperty('pointer-events');
     sb.style.removeProperty('transform');
     sb.setAttribute('aria-hidden', 'false');
-    var st = readState();
-    if (st.pinned) {
-      setSidebarExpanded(true, false);
-      restoreGroupsState(false);
-    } else {
+    if (isDesktopSidebarLayout() && !isDrawerNavMode()) {
+      applyDesktopSidebarBootState();
+    } else if (isDrawerNavMode()) {
       setSidebarExpanded(false, false);
       collapseAllGroups(false);
+    } else {
+      var st = readState();
+      if (st.pinned) {
+        setSidebarExpanded(true, false);
+        restoreGroupsState(false);
+      } else {
+        setSidebarExpanded(false, false);
+        collapseAllGroups(false);
+      }
     }
     repairAfterNavigation();
   }
@@ -1209,6 +1402,8 @@
     prepareForLoginGate: prepareForLoginGate,
     restoreAfterLoginGate: restoreAfterLoginGate,
     ensureLayout: ensureLayout,
+    ensureDesktopSidebarOpen: ensureDesktopSidebarOpen,
+    applyDesktopSidebarBootState: applyDesktopSidebarBootState,
     readState: readState,
     save: saveGroupsState,
     restore: restoreGroupsState,
@@ -1233,5 +1428,16 @@
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+  if (!global._crozzoSidebarFormFactorBound) {
+    global._crozzoSidebarFormFactorBound = true;
+    global.addEventListener('crozzo-form-factor', function () {
+      try {
+        _drawerNavPrepared = false;
+        ensureLayout();
+        if (isDesktopSidebarLayout()) applyDesktopSidebarBootState();
+        else if (isDrawerNavMode()) applyDrawerNavMode();
+      } catch (_) {}
+    });
   }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -11,12 +11,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.152">
+<meta name="crozzo-app-version" content="1.0.153">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
 <script>window.__CROZZO_NAV_ACL_REV='nav-acl-v6-perm-audit';</script>
-<script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='executive-elite';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
+<script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
 <script>(function(){try{var p=localStorage.getItem('crozzo_perf_lite');var auto=window.__CROZZO_IS_TAURI__||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4);if(p==='1'||p==='true'||(p!=='0'&&auto))document.documentElement.classList.add('crozzo-perf-lite');}catch(_){}})();</script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <script src="core/CrozzoStorageHygiene.js"></script>
@@ -252,12 +252,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 <span class="nav-item-label">Comandas</span>
               </div>
             </li>
-            <li>
-              <div class="nav-item menu-item" data-page="cocina" data-menu="cocina" role="button" tabindex="0">
-                <span class="nav-icon" aria-hidden="true"><i data-lucide="flame"></i></span>
-                <span class="nav-item-label">Cocina · KDS</span>
-              </div>
-            </li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="procesos" data-nav-group="procesos" data-nav-category="procesos">
@@ -395,11 +389,16 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 <i data-lucide="palette" aria-hidden="true"></i>
               </summary>
               <div class="crozzo-header-popover">
-                <p class="crozzo-popover-eyebrow">Executive Elite</p>
+                <div class="crozzo-header-popover__head">
+                  <p class="crozzo-popover-eyebrow">Apariencia</p>
+                  <button type="button" class="crozzo-header-popover__close" id="crozzoThemePanelClose" aria-label="Cerrar selector de tema" title="Cerrar">
+                    <i data-lucide="x" aria-hidden="true"></i>
+                  </button>
+                </div>
                 <label class="form-label" for="crozzoThemeSelect">Modelo visual</label>
                 <select id="crozzoThemeSelect" class="crozzo-theme-select form-select" aria-label="Tema visual">
                   <optgroup label="Executive Elite">
-                    <option value="executive-elite" selected>Black Tie</option>
+                    <option value="executive-elite">Black Tie</option>
                     <option value="dark-luxury">Dark Luxury</option>
                     <option value="royal-navy">Royal Navy</option>
                     <option value="platinum">Platinum</option>
@@ -417,7 +416,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                     <option value="minimalist">Minimalist</option>
                   </optgroup>
                   <optgroup label="BONA origen">
-                    <option value="bona-origen">BONA origen · Origen bueno</option>
+                    <option value="bona-origen" selected>BONA origen · Origen bueno</option>
                   </optgroup>
                 </select>
               </div>

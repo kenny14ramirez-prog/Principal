@@ -3256,7 +3256,6 @@ body.touch-device .mobile-menu-btn {
 .main-header .crozzo-header__toolbar,
 .main-header .crozzo-toolbar-btn,
 .main-header .crozzo-header-theme-details,
-.main-header .crozzo-header-popover,
 .main-header .user-menu {
   animation: none !important;
   opacity: 1 !important;
@@ -8134,6 +8133,10 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-global-stress__txt {
   flex: 1;
   color: var(--text-secondary);
+}
+.crozzo-global-stress__dismiss {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .crozzo-admin-hub {
   margin: 0 0 20px;
@@ -28504,6 +28507,25 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
 .crozzo-header-theme-details > summary::-webkit-details-marker {
   display: none;
 }
+.crozzo-header-theme-details:not([open]) .crozzo-header-popover {
+  display: none !important;
+}
+.crozzo-header-theme-details[open] > summary.crozzo-toolbar-btn--theme {
+  color: var(--accent);
+  background: var(--accent-10);
+  border-color: var(--accent-20);
+  box-shadow: 0 0 0 1px var(--accent-20);
+}
+body.crozzo-theme-panel-open {
+  overflow: hidden;
+}
+body.crozzo-theme-panel-open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 10070;
+  background: rgba(15, 23, 42, 0.12);
+}
 
 /* Táctil / APK: tema junto a accesibilidad; popover fijo para no recortarse */
 html.crozzo-touch-shell .crozzo-header__toolbar,
@@ -28590,6 +28612,42 @@ html.crozzo-android-native .crozzo-header-theme-details[open] .crozzo-header-pop
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
+}
+.crozzo-header-popover__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.crozzo-header-popover__head .crozzo-popover-eyebrow {
+  margin: 0;
+}
+.crozzo-header-popover__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.crozzo-header-popover__close:hover,
+.crozzo-header-popover__close:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-20);
+  background: var(--accent-10);
+}
+.crozzo-header-popover__close svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+  pointer-events: none;
 }
 .crozzo-header-popover .crozzo-theme-select {
   width: 100%;
@@ -41467,6 +41525,10 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-global-stress__txt {
   flex: 1;
   color: var(--text-secondary);
+}
+.crozzo-global-stress__dismiss {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 .crozzo-admin-hub {
   margin: 0 0 20px;
@@ -61837,6 +61899,25 @@ body.super-admin-active #sidebar.is-nav-searching .nav-group:not(.crozzo-nav-sea
 .crozzo-header-theme-details > summary::-webkit-details-marker {
   display: none;
 }
+.crozzo-header-theme-details:not([open]) .crozzo-header-popover {
+  display: none !important;
+}
+.crozzo-header-theme-details[open] > summary.crozzo-toolbar-btn--theme {
+  color: var(--accent);
+  background: var(--accent-10);
+  border-color: var(--accent-20);
+  box-shadow: 0 0 0 1px var(--accent-20);
+}
+body.crozzo-theme-panel-open {
+  overflow: hidden;
+}
+body.crozzo-theme-panel-open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 10070;
+  background: rgba(15, 23, 42, 0.12);
+}
 
 /* Táctil / APK: tema junto a accesibilidad; popover fijo para no recortarse */
 html.crozzo-touch-shell .crozzo-header__toolbar,
@@ -61923,6 +62004,42 @@ html.crozzo-android-native .crozzo-header-theme-details[open] .crozzo-header-pop
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
+}
+.crozzo-header-popover__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.crozzo-header-popover__head .crozzo-popover-eyebrow {
+  margin: 0;
+}
+.crozzo-header-popover__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.crozzo-header-popover__close:hover,
+.crozzo-header-popover__close:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-20);
+  background: var(--accent-10);
+}
+.crozzo-header-popover__close svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+  pointer-events: none;
 }
 .crozzo-header-popover .crozzo-theme-select {
   width: 100%;
