@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.153">
+<meta name="crozzo-app-version" content="1.0.154">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
@@ -545,6 +545,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
       <h2 id="loginTitle">Versión</h2>
       <p id="loginSubtitle">Inicia sesión para continuar</p>
+      <div id="loginUpdateBanner" class="login-update-banner" role="status" aria-live="polite" hidden>
+        <span class="login-update-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>
+        <div class="login-update-banner__body">
+          <strong id="loginUpdateBannerTitle">Actualizando el sistema</strong>
+          <p id="loginUpdateBannerMsg">Comprobando actualizaciones…</p>
+        </div>
+      </div>
     </div>
     <form id="loginForm" onsubmit="event.preventDefault(); handleLoginSubmit();" autocomplete="off">
       <div class="form-group">

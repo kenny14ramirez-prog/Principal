@@ -1,28 +1,16 @@
 {
-  "id": "1.0.153-critical",
-  "version": "v1.0.153",
-  "semver": "1.0.153",
+  "id": "1.0.154-critical",
+  "version": "v1.0.154",
+  "semver": "1.0.154",
   "type": "critical",
-  "message": "pantalla de corcho, menu lateral ",
-  "publishedAt": "2026-06-20T12:37:57.618Z",
+  "message": "menu de actualizaciones nueva version ",
+  "publishedAt": "2026-06-20T13:04:34.974Z",
   "installMode": "auto",
   "changelog": [
-    "pantalla de corcho, menu lateral"
+    "menu de actualizaciones nueva version"
   ],
-  "updatedAt": "2026-06-20T12:37:57.618Z",
+  "updatedAt": "2026-06-20T13:04:34.974Z",
   "entries": [
-    {
-      "id": "1.0.129-critical",
-      "version": "v1.0.129",
-      "semver": "1.0.129",
-      "type": "critical",
-      "message": "58625",
-      "publishedAt": "2026-06-15T20:41:00.295Z",
-      "installMode": "auto",
-      "changelog": [
-        "58625"
-      ]
-    },
     {
       "id": "1.0.130-critical",
       "version": "v1.0.130",
@@ -316,6 +304,18 @@
       "installMode": "auto",
       "changelog": [
         "pantalla de corcho, menu lateral"
+      ]
+    },
+    {
+      "id": "1.0.154-critical",
+      "version": "v1.0.154",
+      "semver": "1.0.154",
+      "type": "critical",
+      "message": "menu de actualizaciones nueva version ",
+      "publishedAt": "2026-06-20T13:04:34.974Z",
+      "installMode": "auto",
+      "changelog": [
+        "menu de actualizaciones nueva version"
       ]
     }
   ]

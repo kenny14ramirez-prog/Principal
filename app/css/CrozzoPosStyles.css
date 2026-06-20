@@ -29615,7 +29615,7 @@ html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .demo-b
 .crozzo-boot-update-gate {
   position: fixed;
   inset: 0;
-  z-index: 6000;
+  z-index: 9100;
   display: none;
   align-items: center;
   justify-content: center;
@@ -29693,6 +29693,53 @@ html.crozzo-a11y-reduce-motion .crozzo-boot-update-gate__spinner {
 .crozzo-boot-update-gate__skip:not([hidden]) {
   display: inline-flex;
   justify-content: center;
+}
+
+.login-update-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.1);
+  text-align: left;
+}
+.login-update-banner[hidden] {
+  display: none !important;
+}
+.login-update-banner.is-critical {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.12);
+}
+.login-update-banner.is-busy .login-update-banner__icon {
+  animation: crozzo-boot-spin 0.9s linear infinite;
+}
+.login-update-banner__icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  color: var(--accent, #1e3a8a);
+}
+.login-update-banner.is-critical .login-update-banner__icon {
+  color: #dc2626;
+}
+.login-update-banner__body {
+  min-width: 0;
+}
+.login-update-banner__body strong {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.login-update-banner__body p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
 }
 
 /* --- Carga ligera: boot, navegación lazy, render pesado --- */
@@ -29899,7 +29946,7 @@ html.crozzo-page-loading-active .main-body.focus-zone {
 .crozzo-update-critical-overlay {
   position: fixed;
   inset: 0;
-  z-index: 4800;
+  z-index: 9100;
   display: none;
   align-items: center;
   justify-content: center;
@@ -63007,7 +63054,7 @@ html.tauri-desktop #sidebar.sidebar-pro:not(.is-expanded):not(.expanded) .demo-b
 .crozzo-boot-update-gate {
   position: fixed;
   inset: 0;
-  z-index: 6000;
+  z-index: 9100;
   display: none;
   align-items: center;
   justify-content: center;
@@ -63085,6 +63132,53 @@ html.crozzo-a11y-reduce-motion .crozzo-boot-update-gate__spinner {
 .crozzo-boot-update-gate__skip:not([hidden]) {
   display: inline-flex;
   justify-content: center;
+}
+
+.login-update-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.1);
+  text-align: left;
+}
+.login-update-banner[hidden] {
+  display: none !important;
+}
+.login-update-banner.is-critical {
+  border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.12);
+}
+.login-update-banner.is-busy .login-update-banner__icon {
+  animation: crozzo-boot-spin 0.9s linear infinite;
+}
+.login-update-banner__icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  color: var(--accent, #1e3a8a);
+}
+.login-update-banner.is-critical .login-update-banner__icon {
+  color: #dc2626;
+}
+.login-update-banner__body {
+  min-width: 0;
+}
+.login-update-banner__body strong {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.login-update-banner__body p {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
 }
 
 /* --- Carga ligera: boot, navegación lazy, render pesado --- */
@@ -63291,7 +63385,7 @@ html.crozzo-page-loading-active .main-body.focus-zone {
 .crozzo-update-critical-overlay {
   position: fixed;
   inset: 0;
-  z-index: 4800;
+  z-index: 9100;
   display: none;
   align-items: center;
   justify-content: center;
