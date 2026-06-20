@@ -2825,10 +2825,8 @@
     if (prnSel && !prnSel._crozzoWired) {
       prnSel._crozzoWired = true;
       prnSel.addEventListener('change', function () {
-        var caja = document.getElementById('adminCajaPosPrinter');
-        if (caja) caja.value = prnSel.value;
         if (typeof global.crozzoFacturasAdminPersistPrinters === 'function') {
-          global.crozzoFacturasAdminPersistPrinters({ silent: true });
+          global.crozzoFacturasAdminPersistPrinters({ silent: true, sourceId: 'crozzoPsStudioPrinter' });
         }
       });
     }
