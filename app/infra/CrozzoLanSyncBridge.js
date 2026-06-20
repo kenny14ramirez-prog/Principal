@@ -216,11 +216,19 @@
         try {
           if (
             (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
+            typeof global.crozzoScheduleOperationalPageRefresh === 'function'
+          ) {
+            global.crozzoScheduleOperationalPageRefresh(global.currentPage);
+          } else if (
+            (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
             typeof global.renderPage === 'function'
           ) {
             global.renderPage(global.currentPage);
           }
         } catch (_) {}
+        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
+          global.CrozzoLanWebSocketBridge.notifyEstado(c, pay.estado);
+        }
       }
       if (typeof global.crozzoPushComandaToCloud === 'function' && pay.id != null) {
         var merged =
@@ -248,6 +256,17 @@
       if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
         global.__crozzoEmergencyApplyComandaSnapshot(snap, { source: 'lan_central' });
       }
+      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyComandasByIds === 'function') {
+        global.CrozzoLanWebSocketBridge.notifyComandasByIds([snap.id]);
+      }
+      try {
+        if (
+          (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
+          typeof global.crozzoScheduleOperationalPageRefresh === 'function'
+        ) {
+          global.crozzoScheduleOperationalPageRefresh(global.currentPage);
+        }
+      } catch (_) {}
       if (typeof global.crozzoPushComandaToCloud === 'function') {
         var merged =
           typeof global.__crozzoEmergencyFindComandaById === 'function'

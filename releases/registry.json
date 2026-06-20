@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-20T14:13:25.179Z",
+  "updatedAt": "2026-06-20T14:46:44.273Z",
   "entries": [
-    {
-      "id": "1.0.134-critical",
-      "version": "v1.0.134",
-      "semver": "1.0.134",
-      "type": "critical",
-      "message": "589654",
-      "publishedAt": "2026-06-15T22:09:15.267Z",
-      "installMode": "auto",
-      "changelog": [
-        "589654"
-      ]
-    },
     {
       "id": "1.0.135-critical",
       "version": "v1.0.135",
@@ -306,6 +294,19 @@
         "usos de las mesas (usuario dentro de la mesa)",
         "pantalla parpadea al actualizarse",
         "corrección de precuentas en cocina duplicada."
+      ]
+    },
+    {
+      "id": "1.0.159-critical",
+      "version": "v1.0.159",
+      "semver": "1.0.159",
+      "type": "critical",
+      "message": "1236524 + 123652",
+      "publishedAt": "2026-06-20T14:46:44.273Z",
+      "installMode": "auto",
+      "changelog": [
+        "1236524",
+        "123652"
       ]
     }
   ]

@@ -90,6 +90,11 @@
     opts = opts || {};
     var pulled = 0;
     var lan = await lanReachable();
+    if (typeof global.crozzoResetRuntimeSyncDedup === 'function') {
+      try {
+        global.crozzoResetRuntimeSyncDedup();
+      } catch (_) {}
+    }
     if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
       try {
         if (await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: !!opts.skipRender })) pulled++;

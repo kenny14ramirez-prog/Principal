@@ -6181,8 +6181,12 @@ function crozzoMergeCloudCartWithLocalEdits(localLines, remoteLines) {
     .map((line) => (typeof crozzoNormalizeCartLine === 'function' ? crozzoNormalizeCartLine(line) : line))
     .filter(Boolean);
 }
-function crozzoReplaceCartsMaps(local, remote, protectRef) {
-  const out = { ...(local || {}) };
+function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
+  opts = opts || {};
+  const out = opts.remoteAuthoritative ? {} : { ...(local || {}) };
+  if (opts.remoteAuthoritative && protectRef && protectRef.ref && local && Array.isArray(local[protectRef.ref])) {
+    out[protectRef.ref] = local[protectRef.ref];
+  }
   Object.keys(remote || {}).forEach((ref) => {
     const raw = remote[ref];
     if (!Array.isArray(raw)) {
@@ -6194,7 +6198,7 @@ function crozzoReplaceCartsMaps(local, remote, protectRef) {
       .map((line) => (typeof crozzoNormalizeCartLine === 'function' ? crozzoNormalizeCartLine(line) : line))
       .filter(Boolean);
     if (protectRef && protectRef.ref && String(protectRef.ref) === String(ref)) {
-      out[ref] = crozzoMergeCloudCartWithLocalEdits(out[ref], lines);
+      out[ref] = crozzoMergeCloudCartWithLocalEdits(out[ref] || local?.[ref] || [], lines);
       return;
     }
     out[ref] = lines;
@@ -6623,7 +6627,8 @@ function applyPosRuntimeSnapshot(s, opts) {
     cartsPorMesa = crozzoReplaceCartsMaps(
       cartsPorMesa,
       s.cartsPorMesa,
-      protectCartRef && protectCartRef.tipo === 'mesa' ? protectCartRef : null
+      protectCartRef && protectCartRef.tipo === 'mesa' ? protectCartRef : null,
+      { remoteAuthoritative: true }
     );
   } else if (s.cartsPorMesa && typeof s.cartsPorMesa === 'object') {
     cartsPorMesa = s.cartsPorMesa;
@@ -6632,7 +6637,8 @@ function applyPosRuntimeSnapshot(s, opts) {
     cartsPorLlevar = crozzoReplaceCartsMaps(
       cartsPorLlevar,
       s.cartsPorLlevar,
-      protectCartRef && protectCartRef.tipo === 'llevar' ? protectCartRef : null
+      protectCartRef && protectCartRef.tipo === 'llevar' ? protectCartRef : null,
+      { remoteAuthoritative: true }
     );
   } else if (s.cartsPorLlevar && typeof s.cartsPorLlevar === 'object') {
     cartsPorLlevar = s.cartsPorLlevar;
@@ -6844,6 +6850,19 @@ function crozzoPatchOperationalPageFromRemote(page) {
       if (tabletOrderOpen && typeof renderTabletCart === 'function') {
         renderTabletCart();
         return true;
+      }
+      var grid = document.querySelector('.mesas-grid');
+      if (grid && typeof renderTablets === 'function') {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = renderTablets();
+        var freshGrid = tmp.querySelector('.mesas-grid');
+        if (freshGrid) {
+          grid.innerHTML = freshGrid.innerHTML;
+          try {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ root: grid });
+          } catch (_) {}
+          return true;
+        }
       }
       return false;
     }
@@ -8908,9 +8927,9 @@ function despacharComanda(id, opts) {
   c.estado = 'entregada';
   c.despachadaAt = new Date().toISOString();
   c.lastUpdateAt = c.despachadaAt;
-  if (!opts.skipGossip) maybeGossipPublishEstado(c, 'entregada');
+  if (!opts.skipGossip && !opts.skipFanout) maybeGossipPublishEstado(c, 'entregada');
   try {
-    if (typeof window.crozzoPushComandaToCloud === 'function') {
+    if (!opts.skipFanout && typeof window.crozzoPushComandaToCloud === 'function') {
       window.crozzoPushComandaToCloud(c, { estado: 'entregada', lastUpdateAt: c.lastUpdateAt });
     }
   } catch (_) {}
@@ -19266,6 +19285,11 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
     if (snap.estado != null && String(snap.estado) !== '') ex.estado = snap.estado;
     if (snap.envioNum != null) ex.envioNum = snap.envioNum;
     if (snap.mesaGroupKey) ex.mesaGroupKey = snap.mesaGroupKey;
+    if (snap.creadoPorEtiqueta) ex.creadoPorEtiqueta = snap.creadoPorEtiqueta;
+    if (snap.creadoPorNombre) ex.creadoPorNombre = snap.creadoPorNombre;
+    if (snap.creadoPorRol) ex.creadoPorRol = snap.creadoPorRol;
+    if (snap.creadoPor) ex.creadoPor = snap.creadoPor;
+    if (snap.origen) ex.origen = snap.origen;
   } else {
     let localId = Number(snap.id);
     if (!Number.isFinite(localId) || comandas.some((c) => c.id === localId)) {
@@ -19336,6 +19360,32 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   } catch (_) {}
   return true;
 };
+/** Otro dispositivo eliminó/despachó la comanda — quitar local sin re-fanout. */
+function crozzoApplyComandaRemovedFromRemote(meta) {
+  meta = meta || {};
+  const tid = String(meta.transaction_id || '').trim();
+  let c = null;
+  if (tid) {
+    c = comandas.find(function (x) {
+      return x.transaction_id && String(x.transaction_id) === tid && x.estado !== 'entregada';
+    });
+  }
+  if (!c && meta.id != null) {
+    c = comandas.find(function (x) {
+      return x.id === meta.id && x.estado !== 'entregada';
+    });
+  }
+  if (!c) return false;
+  const remoteAt = Date.parse(meta.lastUpdateAt || 0) || 0;
+  const localAt = Date.parse(c.lastUpdateAt || c.createdAt || 0) || 0;
+  if (remoteAt && localAt > remoteAt + 500) return false;
+  despacharComanda(c.id, { skipToast: true, skipGossip: true, skipFanout: true });
+  try {
+    if (typeof crozzoHandleRemoteRuntimeUiSync === 'function') crozzoHandleRemoteRuntimeUiSync();
+  } catch (_) {}
+  return true;
+}
+window.crozzoApplyComandaRemovedFromRemote = crozzoApplyComandaRemovedFromRemote;
 window.__crozzoEmergencyOnOrderAck = function (msg) {
   if (typeof showToast === 'function' && msg && msg.comanda_id != null) {
     showToast(`✅ Cocina recibió comanda #${msg.comanda_id}`, 'success');

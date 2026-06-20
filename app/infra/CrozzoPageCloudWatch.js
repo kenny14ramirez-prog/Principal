@@ -29,11 +29,11 @@
   };
 
   var PAGE_PROFILES = {
-    cajero: { domains: ['runtime', 'comandas', 'products'], intervalMs: 7500 },
-    'venta-comercial': { domains: ['runtime', 'products'], intervalMs: 11000 },
-    tablets: { domains: ['runtime', 'comandas', 'products'], intervalMs: 9000 },
-    comandas: { domains: ['comandas'], intervalMs: 7000 },
-    cocina: { domains: ['comandas'], intervalMs: 7000 },
+    cajero: { domains: ['runtime', 'comandas', 'products'], intervalMs: 4500 },
+    'venta-comercial': { domains: ['runtime', 'products'], intervalMs: 9000 },
+    tablets: { domains: ['runtime', 'comandas', 'products'], intervalMs: 4500 },
+    comandas: { domains: ['comandas'], intervalMs: 3500 },
+    cocina: { domains: ['comandas'], intervalMs: 3500 },
     facturas: { domains: ['sales', 'queue'], intervalMs: 14000 },
     'cierre-caja': { domains: ['runtime', 'sales', 'tenant', 'queue'], intervalMs: 10000 },
     'inicio-operacion': { domains: ['tenant', 'runtime'], intervalMs: 22000 },
@@ -41,8 +41,30 @@
     'costos-matriz': { domains: ['products'], intervalMs: 40000 },
     'config-multidispositivo': { domains: ['tenant'], intervalMs: 30000 },
     'super-admin-nube': { domains: ['tenant'], intervalMs: 30000 },
-    mesas: { domains: ['runtime'], intervalMs: 12000 },
+    mesas: { domains: ['runtime'], intervalMs: 5000 },
   };
+
+  function notifyRuntimeUiApplied() {
+    safe(function () {
+      if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
+        global.crozzoHandleRemoteRuntimeUiSync();
+      } else if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
+        global.crozzoScheduleOperationalPageRefresh(__activePage);
+      }
+    });
+  }
+
+  function notifyComandasUiApplied() {
+    safe(function () {
+      var onKitchen = __activePage === 'comandas' || __activePage === 'cocina';
+      if (onKitchen && typeof global.crozzoPatchOperationalPageFromRemote === 'function') {
+        if (global.crozzoPatchOperationalPageFromRemote(__activePage)) return;
+      }
+      if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
+        global.crozzoScheduleOperationalPageRefresh(__activePage);
+      }
+    });
+  }
 
   function safe(fn) {
     try {
@@ -209,7 +231,21 @@
   async function pullRuntime(opts) {
     __lastPullAt.runtime = Date.now();
     if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-      return await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true });
+      var applied = await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true });
+      var comApplied = false;
+      if (
+        OPERATIONAL_PAGES[__activePage] &&
+        typeof global.crozzoPullComandasFromCloud === 'function'
+      ) {
+        comApplied = await global.crozzoPullComandasFromCloud({
+          skipPrint: true,
+          skipRender: true,
+          silent: true,
+        });
+      }
+      if (applied || comApplied) notifyRuntimeUiApplied();
+      if (comApplied) notifyComandasUiApplied();
+      return applied || comApplied;
     }
     return false;
   }
@@ -218,11 +254,13 @@
     __lastPullAt.comandas = Date.now();
     if (typeof global.crozzoPullComandasFromCloud === 'function') {
       var onKitchen = __activePage === 'comandas' || __activePage === 'cocina';
-      return await global.crozzoPullComandasFromCloud({
+      var ok = await global.crozzoPullComandasFromCloud({
         skipPrint: !onKitchen,
         skipRender: true,
         silent: true,
       });
+      if (ok) notifyComandasUiApplied();
+      return ok;
     }
     return false;
   }
@@ -401,6 +439,9 @@
   }
 
   function refreshCloudTransports() {
+    safe(function () {
+      if (typeof global.crozzoResetRuntimeSyncDedup === 'function') global.crozzoResetRuntimeSyncDedup();
+    });
     safe(function () {
       if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') global.crozzoStartPosRuntimeCloudSync();
     });
