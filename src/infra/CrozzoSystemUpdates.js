@@ -35,7 +35,7 @@
   var CHECK_INTERVAL_MS = 15 * 60 * 1000; /* reservado; chequeo automático solo al arranque */
   var BOOT_DELAY_MS = 2000;
   var BOOT_GATE_MAX_MS = 12000;
-  var BOOT_RELEASE_PROBE_MS = 8000;
+  var BOOT_RELEASE_PROBE_MS = 30000;
   var _bootUpdatePhase = false;
   var _bootUpdatesReady = false;
   var _bootReadyWaiters = [];
@@ -127,7 +127,29 @@
       if (typeof onProgress === 'function') onProgress({ phase: phase, percent: percent, message: message });
     }
     tick('probe', 8, 'Buscando paquete ' + remote + ' en GitHub…');
-    if (profile.canAutoInstall && TU) {
+    if (canInstallApkInAppNow() && TU) {
+      var apkResolve =
+        typeof TU.probeApkCandidates === 'function'
+          ? TU.probeApkCandidates(remote)
+          : typeof TU.resolveBestApkUrl === 'function'
+            ? TU.resolveBestApkUrl(remote).then(function (info) {
+                if (!info || !info.downloadUrl) return null;
+                return {
+                  version: remote,
+                  url: info.downloadUrl,
+                  bytes: info.bytes || 0,
+                  ready: true,
+                };
+              })
+            : Promise.resolve(null);
+      return apkResolve.then(function (hit) {
+        var url = hit && (hit.url || hit.downloadUrl);
+        if (!url) throw new Error('APK no disponible en GitHub todavía.');
+        tick('download', 92, 'APK verificado — abriendo instalador…');
+        return { version: remote, url: url, ready: true };
+      });
+    }
+    if (profile.canAutoInstall && TU && usesDesktopPendingRestartFlow()) {
       var resolveFn =
         typeof TU.waitUntilReleaseReady === 'function'
           ? function () {
@@ -215,13 +237,13 @@
           _installInProgress = false;
           setCriticalOpen(false);
           updateBootGateSkipButton({ show: true });
-          setCheckStatus('Esperando compilación en GitHub Actions…');
+          setCheckStatus('No se pudo verificar el instalador en GitHub. Reintentando…');
           syncLoginUpdateBanner({
             mode: 'checking',
             message:
-              'Actualización ' +
+              'No se encontró aún el paquete de ' +
               normEntryVersion(entry) +
-              ' en preparación en GitHub. Puede iniciar sesión.',
+              '. Reintento automático (si GitHub ya terminó, suele resolverse en 1–2 minutos).',
             force: true,
           });
           if (!_bootUpdatesReady) {
@@ -231,7 +253,7 @@
           if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
           _criticalRetryTimer = setTimeout(function () {
             _criticalRetryTimer = null;
-            startCriticalDownloadForRestart(entry, { silent: true });
+            startCriticalUpdateDelivery(entry, { silent: true });
           }, 90000);
           return Promise.resolve({ waitingRelease: true });
         }
@@ -296,6 +318,42 @@
    */
   function installOptionalNowAtStartup(entry) {
     if (!entry || _installInProgress) return Promise.resolve();
+    if (crozzoUpdateIsPreLogin() && canInstallApkInAppNow()) {
+      _currentOptionalId = entryId(entry);
+      var optRemote = normEntryVersion(entry);
+      syncLoginUpdateBanner({
+        mode: 'busy',
+        entry: entry,
+        message: 'Actualizando a ' + optRemote + '…',
+        force: true,
+      });
+      applyClientUpdate(
+        optRemote,
+        function (ev) {
+          if (ev && ev.message) {
+            syncLoginUpdateBanner({ mode: 'busy', entry: entry, message: ev.message, force: true });
+          }
+        },
+        { automaticOnly: true, userInitiated: false, markInstalled: false, silent: true }
+      )
+        .then(function (res) {
+          return handleAndroidOtaResult(res, {
+            entry: entry,
+            remote: optRemote,
+            uiMode: 'optional',
+            allowForceRetry: true,
+          });
+        })
+        .catch(function () {
+          syncLoginUpdateBanner({
+            mode: 'optional',
+            entry: entry,
+            message: 'Hay actualización ' + optRemote + '. Puede iniciar sesión.',
+            force: true,
+          });
+        });
+      return Promise.resolve({ androidTryBoot: true });
+    }
     var remote = normEntryVersion(entry);
     _currentOptionalId = entryId(entry);
     _installInProgress = true;
@@ -360,6 +418,22 @@
     }
     _pendingCriticalEntry = entry;
     setCheckStatus('Aplicando actualización pendiente ' + pending.version + '…');
+    if (canInstallApkInAppNow()) {
+      clearPendingRestartInstall();
+      if (crozzoUpdateIsPreLogin()) {
+        runCriticalInstall(entry).catch(function (err) {
+          releaseAndroidUpdateToLogin(entry, humanizeInstallError(err), 'pending_install_failed');
+        });
+        return Promise.resolve(false);
+      }
+      return runCriticalInstall(entry)
+        .then(function () {
+          return true;
+        })
+        .catch(function () {
+          return false;
+        });
+    }
     return probeCriticalReleaseReady(entry, BOOT_RELEASE_PROBE_MS).then(function (ready) {
       if (!ready) {
         clearPendingRestartInstall();
@@ -974,6 +1048,97 @@
     );
   }
 
+  /**
+   * Escritorio: puede bloquear login con pantalla OTA al arranque.
+   * Android APK: nunca bloquear — el usuario debe poder entrar (p. ej. Super Admin → forzar).
+   */
+  function shouldBlockBootLoginForUpdates() {
+    return !canInstallApkInAppNow();
+  }
+
+  function deferAndroidCriticalUntilAfterLogin(entry, opts) {
+    opts = opts || {};
+    if (!entry) return;
+    _pendingCriticalEntry = entry;
+    _currentCriticalId = entryId(entry);
+    _deferredAndroidCritical = entry;
+    _criticalInstallState = 'idle';
+    _installInProgress = false;
+    _criticalDownloadSilent = false;
+    clearUpdateAbort();
+    hideBootUpdateGate();
+    setCriticalOpen(false);
+    closeInstallOverlay();
+    setNormalOpen(false);
+    syncLoginUpdateBanner({
+      mode: 'critical',
+      entry: entry,
+      message:
+        opts.message ||
+        'Versión ' +
+          normEntryVersion(entry) +
+          ' pendiente. Puede iniciar sesión; Super Admin puede forzarla en Actualizaciones.',
+      force: true,
+    });
+    if (!opts.quiet && typeof global.showToast === 'function') {
+      try {
+        global.showToast(
+          'Actualización pendiente. Puede iniciar sesión; Super Admin la fuerza desde Actualizaciones.',
+          'info'
+        );
+      } catch (_) {}
+    }
+  }
+
+  /** APK al arranque: intentó instalar pero falló o no completó — login siempre disponible. */
+  function releaseAndroidUpdateToLogin(entry, message, reason) {
+    entry = entry || _pendingCriticalEntry;
+    _installInProgress = false;
+    _criticalInstallState = 'failed';
+    hideBootUpdateGate();
+    setCriticalOpen(false);
+    closeInstallOverlay();
+    deferAndroidCriticalUntilAfterLogin(entry, {
+      quiet: true,
+      message:
+        message ||
+        (entry
+          ? 'No se pudo actualizar a ' +
+            normEntryVersion(entry) +
+            ' al inicio. Puede iniciar sesión.'
+          : 'No se pudo actualizar al inicio. Puede iniciar sesión.'),
+    });
+    if (!_bootUpdatesReady) {
+      finishBootUpdatePipeline({ ok: true, reason: reason || 'android_fail_open' });
+    }
+  }
+
+  /** Windows/macOS: descarga y aplica al reiniciar. Android APK: instalador del sistema al momento. */
+  function usesDesktopPendingRestartFlow() {
+    if (canInstallApkInAppNow()) return false;
+    var profile = getUpdateClientProfile();
+    return !!(profile.isDesktopBinary || profile.isWindows || profile.isMac);
+  }
+
+  /**
+   * Entrega crítica según plataforma: APK abre el instalador Android; escritorio prepara reinicio.
+   */
+  function startCriticalUpdateDelivery(entry, opts) {
+    opts = opts || {};
+    if (!entry) return Promise.resolve({ skipped: true });
+    if (canInstallApkInAppNow()) {
+      if (!shouldRunCriticalInstallNow()) {
+        _pendingCriticalEntry = entry;
+        _currentCriticalId = entryId(entry);
+        _criticalInstallState = 'idle';
+        scheduleCriticalInstallWhenIdle(entry);
+        return Promise.resolve({ deferred: true, androidIdle: true });
+      }
+      return runCriticalInstall(entry);
+    }
+    return startCriticalDownloadForRestart(entry, opts);
+  }
+
   function getUpdateClientProfile() {
     var TU = global.CrozzoTauriUpdater;
     var kind = TU && TU.getClientKind ? TU.getClientKind() : 'web';
@@ -1225,10 +1390,13 @@
       banner.classList.add('is-critical');
       if (titleEl) titleEl.textContent = 'Actualización crítica lista';
       if (msgEl) {
-        msgEl.textContent =
-          'Versión ' +
-          ver +
-          ' descargada. Se aplicará al reiniciar BONA origen. Puede iniciar sesión mientras tanto.';
+        msgEl.textContent = canInstallApkInAppNow()
+          ? 'Versión ' +
+            ver +
+            ' descargada. Confirme «Actualizar» en el diálogo de Android para completar.'
+          : 'Versión ' +
+            ver +
+            ' descargada. Se aplicará al reiniciar BONA origen. Puede iniciar sesión mientras tanto.';
       }
       return;
     }
@@ -1258,6 +1426,19 @@
       banner.classList.add('is-busy');
       if (titleEl) titleEl.textContent = 'Preparando el sistema';
       if (msgEl) msgEl.textContent = opts.message || 'Comprobando actualizaciones…';
+      return;
+    }
+    if (mode === 'critical') {
+      banner.classList.add('is-critical');
+      if (titleEl) titleEl.textContent = 'Actualización crítica pendiente';
+      if (msgEl) {
+        msgEl.textContent =
+          opts.message ||
+          'Versión ' +
+            ver +
+            ' disponible. Entre al sistema; Super Admin puede forzarla en Configuración → Actualizaciones.';
+      }
+      return;
     }
   }
   global.syncLoginUpdateBanner = syncLoginUpdateBanner;
@@ -3632,6 +3813,11 @@
           pendingRestart.entryId === entryId(deferredEntry) &&
           compareSemver(VERSION, pendingRestart.version) < 0
         ) {
+          if (canInstallApkInAppNow()) {
+            clearPendingRestartInstall();
+            beginCriticalEntryInstall(deferredEntry, { returnPromise: true });
+            return;
+          }
           _pendingCriticalEntry = deferredEntry;
           _currentCriticalId = entryId(deferredEntry);
           _criticalInstallState = 'pending_restart';
@@ -3649,7 +3835,7 @@
           beginCriticalEntryInstall(deferredEntry, { returnPromise: true });
           return;
         }
-        startCriticalDownloadForRestart(deferredEntry, {
+        startCriticalUpdateDelivery(deferredEntry, {
           silent: crozzoUpdateUserBusy() || posIsOperationBusy(),
         });
         return;
@@ -3661,7 +3847,8 @@
       );
       if (opt && crozzoUpdateIsPreLogin()) {
         if (canInstallApkInAppNow()) {
-          installOptionalNowAtStartup(opt);
+          _currentOptionalId = entryId(opt);
+          syncLoginUpdateBanner({ mode: 'optional', entry: opt, version: normEntryVersion(opt), force: true });
           return;
         }
         syncLoginUpdateBanner({ mode: 'optional', entry: opt, version: normEntryVersion(opt) });
@@ -3705,11 +3892,20 @@
     if (skipBtn && !skipBtn._crozzoBound) {
       skipBtn._crozzoBound = true;
       skipBtn.addEventListener('click', function () {
-        if (_criticalInstallState === 'installing' && _installInProgress) return;
-        setBootGateMessage('Entrando al inicio de sesión…');
-        if (_pendingCriticalEntry) {
+        if (_criticalInstallState === 'installing' && _installInProgress && shouldBlockBootLoginForUpdates()) {
+          return;
+        }
+        if (canInstallApkInAppNow()) {
+          requestUpdateAbort();
+          _installInProgress = false;
+          _criticalInstallState = 'idle';
+          if (_pendingCriticalEntry) {
+            deferAndroidCriticalUntilAfterLogin(_pendingCriticalEntry, { quiet: true });
+          }
+        } else if (_pendingCriticalEntry) {
           deferCriticalUntilReleaseReady(_pendingCriticalEntry, { quiet: true });
         }
+        setBootGateMessage('Entrando al inicio de sesión…');
         hideBootUpdateGate();
         notifyBootUpdatesReady({ ok: false, reason: 'user_skip' });
       });
@@ -3747,6 +3943,11 @@
         return !!(hit && hit.url);
       })
       .catch(function () {
+        if (TU && typeof TU.resolveReleaseInstallTarget === 'function') {
+          return TU.resolveReleaseInstallTarget(remote).then(function (hit) {
+            return !!(hit && hit.url);
+          });
+        }
         return false;
       });
   }
@@ -3763,8 +3964,10 @@
     syncLoginUpdateBanner({
       mode: 'checking',
       message: entry
-        ? 'Actualización ' + normEntryVersion(entry) + ' compilándose en GitHub…'
-        : 'Actualización en preparación en la nube…',
+        ? 'Buscando instalador ' +
+          normEntryVersion(entry) +
+          ' en GitHub. Si Actions ya terminó, reintento en unos segundos (red lenta o caché).'
+        : 'Verificando actualización en la nube…',
       force: true,
     });
     hideBootUpdateGate();
@@ -3775,8 +3978,8 @@
       if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
       _criticalRetryTimer = setTimeout(function () {
         _criticalRetryTimer = null;
-        startCriticalDownloadForRestart(entry, { silent: true });
-      }, 45000);
+        startCriticalUpdateDelivery(entry, { silent: true });
+      }, 15000);
     }
   }
 
@@ -3794,6 +3997,10 @@
   }
 
   function showBootUpdateGate() {
+    if (!shouldBlockBootLoginForUpdates()) {
+      hideBootUpdateGate();
+      return;
+    }
     ensureBootUpdateGate();
     try {
       document.documentElement.classList.add('crozzo-boot-updates-active');
@@ -3920,12 +4127,29 @@
     _currentCriticalId = entryId(entry);
     _criticalAutoAttempts = 0;
     _installInProgress = false;
+    if (canInstallApkInAppNow()) {
+      _criticalInstallState = 'idle';
+      setCriticalOpen(false);
+      hideBootUpdateGate();
+      var remoteApk = normEntryVersion(entry);
+      setCheckStatus('Actualización ' + remoteApk + ' lista — se abrirá el instalador Android…');
+      if (!opts.quiet && typeof global.showToast === 'function') {
+        try {
+          global.showToast(
+            'Actualización ' + remoteApk + ': se abrirá el instalador cuando la caja esté libre.',
+            'info'
+          );
+        } catch (_) {}
+      }
+      scheduleCriticalInstallWhenIdle(entry);
+      return Promise.resolve({ deferred: true, androidIdle: true });
+    }
     _criticalInstallState = 'downloading';
     _criticalDownloadSilent = true;
     setCriticalOpen(false);
     hideBootUpdateGate();
     var remote = normEntryVersion(entry);
-    setCheckStatus('Esperando instalador ' + remote + ' en GitHub (Actions en curso)…');
+    setCheckStatus('Verificando instalador ' + remote + ' en GitHub…');
     if (!opts.quiet && typeof global.showToast === 'function') {
       try {
         global.showToast(
@@ -3934,7 +4158,7 @@
         );
       } catch (_) {}
     }
-    return startCriticalDownloadForRestart(entry, { silent: true });
+    return startCriticalUpdateDelivery(entry, { silent: true });
   }
 
   /** Tras login: instalar críticas pendientes (paridad tauri dev — no bloquear arranque). */
@@ -3956,12 +4180,30 @@
           return;
         }
         if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
+        if (
+          canInstallApkInAppNow() &&
+          typeof global.isSuperAdminUser === 'function' &&
+          global.isSuperAdminUser()
+        ) {
+          _pendingCriticalEntry = entry;
+          _currentCriticalId = entryId(entry);
+          setCheckStatus(
+            'Super Admin: actualización ' + remote + ' pendiente — Configuración → Actualizaciones → Forzar.'
+          );
+          if (typeof global.showToast === 'function') {
+            global.showToast(
+              'Actualización pendiente. Abra Actualizaciones del sistema y pulse «Forzar actualización».',
+              'info'
+            );
+          }
+          return;
+        }
         if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
           _pendingCriticalEntry = entry;
           _currentCriticalId = entryId(entry);
           notifyCriticalWaitingForIdle(entry);
           wirePosIdleListener();
-          deferCriticalUntilReleaseReady(entry, { quiet: true });
+          scheduleCriticalInstallWhenIdle(entry);
           return;
         }
         var profile = getUpdateClientProfile();
@@ -4018,6 +4260,11 @@
   }
 
   function waitForBootCriticalWorkThenFinish(detail) {
+    if (!shouldBlockBootLoginForUpdates()) {
+      hideBootUpdateGate();
+      finishBootUpdatePipeline(detail);
+      return;
+    }
     var started = Date.now();
     function poll() {
       syncLoginUpdateBanner();
@@ -4058,7 +4305,7 @@
     scheduleDeferredCriticalAfterLogin();
     _bootUpdatePhase = true;
     global.__crozzoBootUpdatePhase = true;
-    if (otaAutoInstallAllowed()) {
+    if (otaAutoInstallAllowed() && shouldBlockBootLoginForUpdates()) {
       showBootUpdateGate();
       setBootGateMessage('Comprobando actualizaciones…');
     }
@@ -4084,6 +4331,33 @@
           var critical = pending.filter(isCriticalEntry);
           if (critical.length && otaAutoInstallAllowed()) {
             var critEntry = pickNextPendingEntry(critical);
+            if (canInstallApkInAppNow()) {
+              syncLoginUpdateBanner({
+                mode: 'busy',
+                entry: critEntry,
+                message: 'Intentando actualizar a ' + normEntryVersion(critEntry) + '…',
+                force: true,
+              });
+              beginCriticalEntryInstall(critEntry, {
+                returnPromise: true,
+                forceAuto: true,
+                skipInfoDelay: true,
+              })
+                .then(function (res) {
+                  if (res && res.exiting) return;
+                  if (_criticalInstallState === 'failed') {
+                    releaseAndroidUpdateToLogin(critEntry, null, 'boot_install_failed');
+                  }
+                })
+                .catch(function (err) {
+                  releaseAndroidUpdateToLogin(
+                    critEntry,
+                    humanizeInstallError(err),
+                    'boot_install_error'
+                  );
+                });
+              return { ok: true, criticalBoot: true, androidNonBlocking: true };
+            }
             setBootGateMessage(
               'Comprobando instalador ' + normEntryVersion(critEntry) + ' en GitHub…'
             );
@@ -4091,15 +4365,6 @@
               if (!ready) {
                 releaseBootToLoginWhilePreparing(critEntry, 'github_building');
                 return { ok: true, criticalBoot: true, releaseNotReady: true };
-              }
-              if (canInstallApkInAppNow()) {
-                return beginCriticalEntryInstall(critEntry, {
-                  returnPromise: true,
-                  forceAuto: true,
-                  skipInfoDelay: true,
-                }).then(function (res) {
-                  return { ok: true, criticalBoot: true, res: res };
-                });
               }
               return startCriticalDownloadForRestart(critEntry, { silent: false }).then(function (res) {
                 return { ok: true, criticalBoot: true, res: res };
@@ -4119,6 +4384,11 @@
       .finally(function () {
         _bootUpdatePhase = false;
         global.__crozzoBootUpdatePhase = false;
+        if (!shouldBlockBootLoginForUpdates()) {
+          hideBootUpdateGate();
+          finishBootUpdatePipeline({ ok: true, reason: 'android_non_blocking' });
+          return;
+        }
         if (
           _installInProgress ||
           _criticalInstallState === 'installing' ||
@@ -4191,7 +4461,9 @@
         _pendingCriticalEntry = entry;
         _currentCriticalId = entryId(entry);
         notifyCriticalWaitingForIdle(entry);
-        deferCriticalUntilReleaseReady(entry, { quiet: true });
+        if (!canInstallApkInAppNow()) {
+          deferCriticalUntilReleaseReady(entry, { quiet: true });
+        }
         wirePosIdleListener();
       }
       return;
@@ -4268,7 +4540,7 @@
       _currentCriticalId = entryId(entry);
       notifyCriticalWaitingForIdle(entry);
       scheduleCriticalInstallWhenIdle(entry);
-      return deferCriticalUntilReleaseReady(entry, { quiet: true });
+      return Promise.resolve({ deferred: true, waitingIdle: true });
     }
     if (_installInProgress) return Promise.resolve();
     clearUpdateAbort();
@@ -4290,24 +4562,35 @@
     _installUi.percent = 0;
     _installUi.message = 'Preparando instalación crítica…';
     if (crozzoUpdateIsPreLogin()) {
-      showBootUpdateGate();
-      setBootGateMessage('Instalando actualización crítica ' + remote + '…');
+      if (shouldBlockBootLoginForUpdates()) {
+        showBootUpdateGate();
+        setBootGateMessage('Instalando actualización crítica ' + remote + '…');
+      }
       syncLoginUpdateBanner({ mode: 'busy', entry: entry });
     } else {
       hideBootUpdateGate();
     }
-    setCriticalOpen(true);
-    populateCriticalInfo('installing');
+    if (!crozzoUpdateIsPreLogin()) {
+      setCriticalOpen(true);
+      populateCriticalInfo('installing');
+    } else if (shouldBlockBootLoginForUpdates()) {
+      setCriticalOpen(true);
+      populateCriticalInfo('installing');
+    } else {
+      setCriticalOpen(false);
+    }
     setCheckStatus('Actualizando ' + remote + '…');
 
     var profile = getUpdateClientProfile();
-    setBootGateMessage(
-      'Instalando ' +
-        normEntryVersion({ version: remote }) +
-        ' para ' +
-        (profile.artifactLabel || getPlatformUpdateDescriptor()) +
-        '…'
-    );
+    if (shouldBlockBootLoginForUpdates()) {
+      setBootGateMessage(
+        'Instalando ' +
+          normEntryVersion({ version: remote }) +
+          ' para ' +
+          (profile.artifactLabel || getPlatformUpdateDescriptor()) +
+          '…'
+      );
+    }
     return applyClientUpdate(remote, null, {
       silent: true,
       automaticOnly: true,
@@ -4330,6 +4613,16 @@
         if (res && res.plan === 'apk_download' && !res.exiting) {
           _criticalAutoAttempts = 0;
           _criticalInstallState = 'idle';
+          if (canInstallApkInAppNow() && crozzoUpdateIsPreLogin()) {
+            syncLoginUpdateBanner({
+              mode: 'critical',
+              entry: entry,
+              message: 'Descarga del APK iniciada. ' + androidInstallUninstallGuide(true),
+              force: true,
+            });
+            setCheckStatus('Instale el APK descargado para completar la actualización.');
+            return res;
+          }
           setCriticalOpen(true);
           populateCriticalInfo(
             'idle',
@@ -4356,6 +4649,10 @@
         }).then(function (out) {
           if (!out.handled) {
             var failMsg = 'El instalador no se aplicó. Actual: ' + VERSION + ', requerido: ' + remote + '.';
+            if (canInstallApkInAppNow() && crozzoUpdateIsPreLogin()) {
+              releaseAndroidUpdateToLogin(entry, failMsg, 'ota_not_handled');
+              return res;
+            }
             _criticalInstallState = 'failed';
             setCriticalOpen(true);
             populateCriticalInfo('failed', failMsg);
@@ -4369,11 +4666,20 @@
         if (isReleaseNotReadyError(err)) {
           _criticalAutoAttempts = 0;
           _installInProgress = false;
+          if (canInstallApkInAppNow() && crozzoUpdateIsPreLogin()) {
+            releaseAndroidUpdateToLogin(
+              entry,
+              'Instalador aún no listo. Puede iniciar sesión; se reintentará en segundo plano.',
+              'release_not_ready'
+            );
+            scheduleCriticalInstallWhenIdle(entry);
+            return;
+          }
           return deferCriticalUntilReleaseReady(entry);
         }
         _criticalAutoAttempts += 1;
         var msg = humanizeInstallError(err);
-        if (_criticalAutoAttempts < CRITICAL_AUTO_INSTALL_MAX && crozzoUpdateIsPreLogin()) {
+        if (_criticalAutoAttempts < CRITICAL_AUTO_INSTALL_MAX && crozzoUpdateIsPreLogin() && shouldBlockBootLoginForUpdates()) {
           setBootGateMessage('Reintento automático (' + _criticalAutoAttempts + '/' + CRITICAL_AUTO_INSTALL_MAX + ')…');
           return delay(5000 * _criticalAutoAttempts).then(function () {
             _installInProgress = false;
@@ -4382,7 +4688,9 @@
         }
         _criticalInstallState = 'failed';
         _installInProgress = false;
-        if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
+        if (canInstallApkInAppNow() && crozzoUpdateIsPreLogin()) {
+          releaseAndroidUpdateToLogin(entry, msg, 'boot_install_failed');
+        } else if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
           setCriticalOpen(false);
           if (typeof global.showToast === 'function') {
             global.showToast(
@@ -4399,7 +4707,9 @@
         }
         setCheckStatus('Error al instalar: ' + msg);
         console.warn('[crozzo-updates] install failed', err);
-        scheduleCriticalInstallRetry(entry, err);
+        if (!(canInstallApkInAppNow() && crozzoUpdateIsPreLogin())) {
+          scheduleCriticalInstallRetry(entry, err);
+        }
       })
       .finally(function () {
         _installInProgress = false;
@@ -4449,12 +4759,12 @@
     if (opts.returnPromise) {
       return canInstallApkInAppNow()
         ? runCriticalInstall(entry)
-        : startCriticalDownloadForRestart(entry, opts);
+        : startCriticalUpdateDelivery(entry, opts);
     }
     if (canInstallApkInAppNow()) {
       runCriticalInstall(entry);
     } else {
-      startCriticalDownloadForRestart(entry, opts);
+      startCriticalUpdateDelivery(entry, opts);
     }
     return true;
   }
@@ -4494,6 +4804,17 @@
     if (!_bootUpdatePhase) hideBootUpdateGate();
 
     if (opts.forceAuto === true) {
+      if (crozzoUpdateIsPreLogin() && canInstallApkInAppNow()) {
+        syncLoginUpdateBanner({
+          mode: 'busy',
+          entry: entry,
+          message: 'Instalando ' + remote + '…',
+          force: true,
+        });
+        var androidBootP = runCriticalInstall(entry);
+        if (opts.returnPromise) return androidBootP;
+        return true;
+      }
       setCriticalOpen(true);
       populateCriticalInfo('info');
       var forceP = delay(opts.skipInfoDelay ? 0 : CRITICAL_INFO_DELAY_MS).then(function () {
@@ -4511,7 +4832,7 @@
       pendingRestart.entryId === id &&
       compareSemver(VERSION, pendingRestart.version) < 0
     ) {
-      if (canInstallApkInAppNow() && !opts.deferOverlay) {
+      if (canInstallApkInAppNow()) {
         clearPendingRestartInstall();
         if (opts.returnPromise) return runCriticalInstall(entry);
         runCriticalInstall(entry);
@@ -4549,9 +4870,9 @@
         return true;
       }
       if (opts.returnPromise) {
-        return startCriticalDownloadForRestart(entry, { silent: silentDl });
+        return startCriticalUpdateDelivery(entry, { silent: silentDl });
       }
-      startCriticalDownloadForRestart(entry, { silent: silentDl });
+      startCriticalUpdateDelivery(entry, { silent: silentDl });
       return true;
     }
 
@@ -4568,9 +4889,9 @@
     }
 
     if (opts.returnPromise) {
-      return startCriticalDownloadForRestart(entry, { silent: silentDl });
+      return startCriticalUpdateDelivery(entry, { silent: silentDl });
     }
-    startCriticalDownloadForRestart(entry, { silent: silentDl });
+    startCriticalUpdateDelivery(entry, { silent: silentDl });
     return true;
   }
 
@@ -5386,12 +5707,12 @@
         return;
       }
       if (_pendingCriticalEntry) {
-        startCriticalDownloadForRestart(_pendingCriticalEntry);
+        startCriticalUpdateDelivery(_pendingCriticalEntry);
       }
     });
     wireOnce(document.getElementById('crozzoUpdateCriticalRetry'), function (e) {
       e.preventDefault();
-      if (_pendingCriticalEntry) startCriticalDownloadForRestart(_pendingCriticalEntry);
+      if (_pendingCriticalEntry) startCriticalUpdateDelivery(_pendingCriticalEntry);
     });
     wireOnce(document.getElementById('crozzoUpdateNormalLater'), function (e) {
       e.preventDefault();

@@ -130,6 +130,22 @@
       if (slot && global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.ingestPeerSlotEntry === 'function') {
         global.CrozzoInternalQrRegistry.ingestPeerSlotEntry(slot, { source: 'lan_ws', apply: true });
       }
+      return;
+    }
+    if (typ === 'print_caps') {
+      if (global.CrozzoPrintDeviceRegistry && typeof global.CrozzoPrintDeviceRegistry.applyIncomingPrintCaps === 'function') {
+        global.CrozzoPrintDeviceRegistry.applyIncomingPrintCaps(raw);
+      } else if (typeof global.crozzoPublishLocalPrintCaps === 'function') {
+        var payCaps = raw.data || raw.payload || raw;
+        if (payCaps && payCaps.deviceId) {
+          try {
+            var map = JSON.parse(localStorage.getItem('crozzo_print_device_registry_v1') || '{}');
+            map[payCaps.deviceId] = payCaps;
+            localStorage.setItem('crozzo_print_device_registry_v1', JSON.stringify(map));
+          } catch (_) {}
+        }
+      }
+      return;
     }
   }
 
@@ -140,7 +156,7 @@
         applyLanPush(msg);
         return;
       }
-      if (msg && (msg.type === 'comanda' || msg.type === 'comanda_estado' || msg.type === 'comanda_new' || msg.type === 'internal_qr_slot' || msg.type === 'internal_qr_req')) {
+      if (msg && (msg.type === 'comanda' || msg.type === 'comanda_estado' || msg.type === 'comanda_new' || msg.type === 'internal_qr_slot' || msg.type === 'internal_qr_req' || msg.type === 'print_caps')) {
         applyLanPush({ payload: msg });
       }
     } catch (_) {}

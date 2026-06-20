@@ -157,7 +157,24 @@
         };
       }
       onProgress({ phase: 'probe', percent: 8, message: 'Buscando APK en GitHub…' });
-      return resolveBestApkUrl(targetVersion).then(function (info) {
+      var apkResolve =
+        typeof probeApkCandidates === 'function'
+          ? probeApkCandidates(targetVersion)
+          : Promise.resolve(null);
+      return apkResolve
+        .then(function (direct) {
+          if (direct && direct.url) {
+            return {
+              version: normVersion(targetVersion),
+              downloadUrl: direct.url,
+              verified: true,
+              bytes: direct.bytes || 0,
+              assetType: 'apk',
+            };
+          }
+          return resolveBestApkUrl(targetVersion);
+        })
+        .then(function (info) {
         var apkUrl =
           info && info.downloadUrl && /\.apk(\?|$)/i.test(info.downloadUrl) ? info.downloadUrl : '';
         if (!apkUrl) {
@@ -688,33 +705,49 @@
     if (!ver) return Promise.resolve(null);
     var assetKind = getPlatformAssetKind();
 
-    return resolveBestDownloadUrl(ver)
-      .then(function (info) {
-        if (info && info.downloadUrl && info.verified && releaseUrlLooksInstallable(info.downloadUrl)) {
-          return {
-            version: normVersion(info.version || ver),
-            url: info.downloadUrl,
-            releasePageUrl: info.releasePageUrl,
-            assetType: info.assetType || assetKind,
-            verified: true,
-            source: 'platform-' + (info.assetType || assetKind),
-          };
-        }
-        return probeReleaseArtifacts(ver).then(function (probe) {
-          if (probe && probe.url && (releaseUrlLooksInstallable(probe.url) || probe.hasSignature)) {
+    function probeDirect() {
+      if (assetKind === 'exe' && isWindowsDesktop()) {
+        return probeSetupExeCandidates(ver);
+      }
+      if (assetKind === 'apk' && (prefersApkDownload() || isAndroidTablet())) {
+        return probeApkCandidates(ver);
+      }
+      return Promise.resolve(null);
+    }
+
+    return probeDirect()
+      .then(function (direct) {
+        if (direct && direct.url) return direct;
+        return resolveBestDownloadUrl(ver).then(function (info) {
+          if (info && info.downloadUrl && info.verified && releaseUrlLooksInstallable(info.downloadUrl)) {
             return {
-              version: normVersion(probe.version || ver),
-              url: probe.url,
-              releasePageUrl: probe.releasePageUrl,
-              hasSignature: !!probe.hasSignature,
-              assetType: assetKind,
-              source: 'latest-json',
+              version: normVersion(info.version || ver),
+              url: info.downloadUrl,
+              releasePageUrl: info.releasePageUrl,
+              assetType: info.assetType || assetKind,
+              verified: true,
+              source: 'platform-' + (info.assetType || assetKind),
             };
           }
-          if (assetKind === 'exe' && isWindowsDesktop()) {
-            return probeSetupExeCandidates(ver);
-          }
-          return null;
+          return probeReleaseArtifacts(ver).then(function (probe) {
+            if (probe && probe.url && (releaseUrlLooksInstallable(probe.url) || probe.hasSignature)) {
+              return {
+                version: normVersion(probe.version || ver),
+                url: probe.url,
+                releasePageUrl: probe.releasePageUrl,
+                hasSignature: !!probe.hasSignature,
+                assetType: assetKind,
+                source: 'latest-json',
+              };
+            }
+            if (assetKind === 'exe' && isWindowsDesktop()) {
+              return probeSetupExeCandidates(ver);
+            }
+            if (assetKind === 'apk' && (prefersApkDownload() || isAndroidTablet())) {
+              return probeApkCandidates(ver);
+            }
+            return null;
+          });
         });
       })
       .catch(function () {
@@ -763,7 +796,7 @@
               new Error(
                 'No se encontró el instalador v' +
                   semverCore(ver) +
-                  ' en GitHub. Espere a que GitHub Actions termine o use Plan B (descarga manual).'
+                  ' en GitHub. Compruebe su conexión o use Plan B (descarga manual).'
               )
             );
           }
@@ -933,22 +966,53 @@
   }
 
   function predictApkUrl(targetVersion) {
+    var urls = apkUrlCandidates(targetVersion);
+    return urls.length ? urls[0] : '';
+  }
+
+  function apkFilenameCandidates(targetVersion) {
     var ver = semverCore(targetVersion);
-    if (!ver) return '';
-    var candidates = [
-      PRODUCT_NAME + '_' + ver + '_arm64.apk',
-      PRODUCT_NAME + '_' + ver + '_aarch64.apk',
-      PRODUCT_NAME + '_' + ver + '_arm64-v8a.apk',
-      PRODUCT_NAME + '_' + ver + '.apk',
-      PRODUCT_NAME + '-v' + ver + '-aarch64.apk',
-    ];
-    return (
-      GITHUB_RELEASE_BASE +
-      '/v' +
-      ver +
-      '/' +
-      encodeURIComponent(candidates[0])
-    );
+    if (!ver) return [];
+    var seen = {};
+    return [
+      bundleSlugUnderscore(PRODUCT_NAME) + '_' + ver + '_arm64.apk',
+      bundleSlugUnderscore(PRODUCT_NAME) + '_' + ver + '_aarch64.apk',
+      bundleSlugDots(PRODUCT_NAME) + '_' + ver + '_arm64.apk',
+      bundleSlugUnderscore(PRODUCT_NAME) + '_' + ver + '.apk',
+      'Proyecto_' + ver + '_arm64.apk',
+    ].filter(function (name) {
+      if (!name || seen[name]) return false;
+      seen[name] = true;
+      return true;
+    });
+  }
+
+  function apkUrlCandidates(targetVersion) {
+    var ver = semverCore(targetVersion);
+    if (!ver) return [];
+    return apkFilenameCandidates(targetVersion).map(function (name) {
+      return GITHUB_RELEASE_BASE + '/v' + ver + '/' + encodeURIComponent(name);
+    });
+  }
+
+  function probeApkCandidates(targetVersion) {
+    var urls = apkUrlCandidates(targetVersion);
+    function next(i) {
+      if (i >= urls.length) return Promise.resolve(null);
+      return verifyApkDownloadUrl(urls[i]).then(function (v) {
+        if (v.ok) {
+          return {
+            version: normVersion(targetVersion),
+            url: v.url,
+            bytes: v.bytes || 0,
+            assetType: 'apk',
+            source: 'predicted-apk',
+          };
+        }
+        return next(i + 1);
+      });
+    }
+    return next(0);
   }
 
   function verifyApkDownloadUrl(url) {
@@ -991,7 +1055,18 @@
 
   function resolveBestApkUrl(targetVersion) {
     var ver = normVersion(targetVersion);
-    return resolveManualFallback(ver).then(function (info) {
+    return probeApkCandidates(ver).then(function (direct) {
+      if (direct && direct.url) {
+        return {
+          version: ver,
+          downloadUrl: direct.url,
+          releasePageUrl: GITHUB_RELEASES_PAGE + '/tag/' + ver,
+          verified: true,
+          bytes: direct.bytes || 0,
+          assetType: 'apk',
+        };
+      }
+      return resolveManualFallback(ver).then(function (info) {
       var candidates = [];
       if (Array.isArray(info.assets)) {
         var apk = pickApkFromAssets(info.assets);
@@ -999,6 +1074,9 @@
       }
       var predicted = predictApkUrl(ver);
       if (predicted) candidates.push(predicted);
+      apkUrlCandidates(ver).forEach(function (u) {
+        if (candidates.indexOf(u) < 0) candidates.push(u);
+      });
       if (info.downloadUrl && /\.apk$/i.test(info.downloadUrl)) candidates.push(info.downloadUrl);
       return pickVerifiedApkUrl(candidates).then(function (verified) {
         if (verified && verified.url) {
@@ -1019,6 +1097,7 @@
           bytes: 0,
           assetType: 'apk',
         };
+      });
       });
     });
   }
@@ -1724,6 +1803,8 @@
     predictSetupExeUrl: predictSetupExeUrl,
     setupExeUrlCandidates: setupExeUrlCandidates,
     probeSetupExeCandidates: probeSetupExeCandidates,
+    probeApkCandidates: probeApkCandidates,
+    apkUrlCandidates: apkUrlCandidates,
     openExternalUrl: openExternalUrl,
     installLatest: installLatestBinary,
     installAutomatic: installAutomatic,

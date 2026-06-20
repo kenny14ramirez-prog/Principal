@@ -225,6 +225,9 @@
   }
 
   function deviceCanPrintComandaArea(areaId) {
+    if (typeof global.crozzoIsLocalPrintTargetForArea === 'function') {
+      return global.crozzoIsLocalPrintTargetForArea(areaId);
+    }
     if (typeof global.crozzoHasPrinterForComandaArea === 'function') {
       return global.crozzoHasPrinterForComandaArea(areaId);
     }

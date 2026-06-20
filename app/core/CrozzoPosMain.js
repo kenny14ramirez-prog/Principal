@@ -4432,6 +4432,7 @@ function crozzoSetDevicePantallaId(areaId, opts) {
     if (id) localStorage.setItem(CROZZO_PANTALLA_DEVICE_LS, id);
     else localStorage.removeItem(CROZZO_PANTALLA_DEVICE_LS);
   } catch (_) {}
+  if (typeof crozzoPublishLocalPrintCaps === 'function') crozzoPublishLocalPrintCaps({ silent: true });
   if (typeof crozzoRefreshComandasPantallaUi === 'function') crozzoRefreshComandasPantallaUi();
   if (!opts.silent && typeof showToast === 'function') {
     showToast(
@@ -4461,13 +4462,17 @@ function crozzoShouldAutoPrintComanda(c, areaCfg, opts) {
     areaCfg || (getComandasConfig().areas || []).find((a) => a.id === c.areaId);
   const prn = crozzoComandaAreaEffectivePrinter(area);
   if (!prn) return false;
+  opts = opts || {};
+  if (typeof crozzoIsLocalPrintTargetForArea === 'function') {
+    if (!crozzoIsLocalPrintTargetForArea(c.areaId)) return false;
+  } else if (!crozzoDeviceShowsComandaArea(c.areaId)) {
+    return false;
+  }
   if (typeof crozzoResolvePrinterForJob === 'function') {
     const resolved = String(crozzoResolvePrinterForJob(prn, 'comanda') || '').trim();
     if (!resolved) return false;
   }
-  opts = opts || {};
-  if (opts.fromSend) return true;
-  return crozzoDeviceShowsComandaArea(c.areaId);
+  return true;
 }
 function crozzoComandaSendPrintsOnDispatch() {
   const cmdCfg = getComandasConfig();
@@ -4579,11 +4584,11 @@ function crozzoComandaAutoPrintStripHtml() {
   const dev = crozzoGetDevicePantallaId();
   const devHint = dev
     ? dev === 'TODAS'
-      ? 'Este equipo imprime al recibir (o enviar) comandas de cualquier área que tenga impresora aquí.'
+      ? 'Este equipo imprime si es el único con térmica para el área (o compite con otros; gana la pantalla fijada en cocina/barra).'
       : 'Solo auto-imprime «' +
         crozzoComandaAreaLabel(dev) +
-        '» en este equipo. La caja u otros tablets imprimen sus áreas al recibir por red.'
-    : 'Sin pantalla fija: imprime aquí cualquier área con impresora (terminal único). Con PC + tablet, fije Cocina en la tablet y quite impresora de cocina en la caja.';
+        '» si este equipo tiene la impresora conectada. La caja envía el pedido; imprime el sistema que tenga térmica para esa área.'
+    : 'Sin pantalla fija: imprime aquí si este equipo tiene la térmica para el área. En red, gana la tablet de cocina/barra con pantalla fijada e impresora local.';
   return (
     '<div class="crozzo-comandas-autoprint-strip" role="region" aria-label="Impresión automática">' +
     '<label class="crozzo-pantallas-kiosk-autoprint">' +
@@ -8640,7 +8645,16 @@ function printComandaNow(id, silentMode = false) {
       ? crozzoResolveComandaPrinter(c)
       : c.impresora || getFacturacionAdminConfig().impresoraComandas || '';
   if (!printer) {
-    if (!silentMode) showToast(`Comanda #${id} sin impresora configurada`, 'warning');
+    if (!silentMode) {
+      var targetHint = '';
+      if (typeof crozzoFindPrintTargetForArea === 'function') {
+        var tgt = crozzoFindPrintTargetForArea(c.areaId);
+        if (tgt && tgt.deviceId && typeof ensureCrozzoDeviceId === 'function' && tgt.deviceId !== ensureCrozzoDeviceId()) {
+          targetHint = ' — imprime «' + (tgt.deviceName || tgt.deviceId) + '»';
+        }
+      }
+      showToast(`Comanda #${id} sin impresora en este equipo${targetHint}`, 'warning');
+    }
     return;
   }
   const doPrint = typeof crozzoPrintComanda === 'function' ? crozzoPrintComanda(c, { printer }) : Promise.resolve(false);
@@ -37546,6 +37560,7 @@ function setComandaPrinter(id, printer, opts) {
     return a.id === areaId ? Object.assign({}, a, { impresora: prn }) : a;
   });
   saveComandasConfig(conf);
+  if (typeof crozzoPublishLocalPrintCaps === 'function') crozzoPublishLocalPrintCaps({ silent: true });
   if (!opts.silent) {
     showToast(
       prn ? 'Impresora asignada al área «' + areaId + '»' : 'Área usará la impresora predeterminada de comandas',

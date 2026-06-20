@@ -193,6 +193,27 @@
     };
   }
 
+  function tryApplyPrintCaps(sub) {
+    var raw = lanSubmissionRaw(sub);
+    if (String(raw.type || '').toLowerCase() !== 'print_caps') return false;
+    var pay = raw.data || raw.payload || null;
+    if (!pay || !pay.deviceId) return false;
+    try {
+      if (global.CrozzoPrintDeviceRegistry && typeof global.CrozzoPrintDeviceRegistry.applyIncomingPrintCaps === 'function') {
+        global.CrozzoPrintDeviceRegistry.applyIncomingPrintCaps(pay);
+      }
+      if (global.CrozzoPrintDeviceRegistry && typeof global.CrozzoPrintDeviceRegistry.broadcastPrintCaps === 'function') {
+        global.CrozzoPrintDeviceRegistry.broadcastPrintCaps(pay);
+      }
+      return true;
+    } catch (e) {
+      try {
+        console.warn('[lan-sync] print_caps', e);
+      } catch (_) {}
+      return false;
+    }
+  }
+
   function tryApplyLanComandaEstado(sub) {
     var raw = lanSubmissionRaw(sub);
     if (String(raw.type || '').toLowerCase() !== 'comanda_estado') return false;
@@ -323,6 +344,11 @@
     for (var i = 0; i < items.length; i++) {
       var itemId = items[i] && items[i].id;
       if (tryApplyInternalQrSlot(items[i])) {
+        n++;
+        if (itemId) ackIds.push(itemId);
+        continue;
+      }
+      if (tryApplyPrintCaps(items[i])) {
         n++;
         if (itemId) ackIds.push(itemId);
         continue;

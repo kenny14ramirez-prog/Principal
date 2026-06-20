@@ -7,6 +7,7 @@
     "core:default",
     "opener:default",
     "process:default",
+    "allow-crozzo-http",
     "allow-crozzo-android-install",
     "allow-crozzo-gossip-udp",
     "allow-crozzo-ble-mesh",

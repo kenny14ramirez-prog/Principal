@@ -437,6 +437,9 @@
     if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.afterMainInit === 'function') {
       global.CrozzoLanWebSocketBridge.afterMainInit();
     }
+    if (global.CrozzoPrintDeviceRegistry && typeof global.CrozzoPrintDeviceRegistry.afterMainInit === 'function') {
+      global.CrozzoPrintDeviceRegistry.afterMainInit();
+    }
     if (global.CrozzoCentralFailover && typeof global.CrozzoCentralFailover.afterMainInit === 'function') {
       global.CrozzoCentralFailover.afterMainInit();
     }
