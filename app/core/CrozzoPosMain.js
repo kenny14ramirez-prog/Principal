@@ -10244,6 +10244,19 @@ function crozzoCloseThemePanel() {
   var summary = det.querySelector('summary');
   if (summary) summary.setAttribute('aria-expanded', 'false');
 }
+var crozzoThemePanelIgnoreOutsideUntil = 0;
+function crozzoThemePanelMarkJustOpened() {
+  crozzoThemePanelIgnoreOutsideUntil = Date.now() + 280;
+}
+function crozzoThemePanelShouldIgnoreOutsideClick() {
+  return Date.now() < crozzoThemePanelIgnoreOutsideUntil;
+}
+function crozzoThemePanelContainsClickTarget(target) {
+  if (!target || !target.closest) return false;
+  var det = crozzoGetThemeDetailsEl();
+  if (det && det.contains(target)) return true;
+  return !!target.closest('.crozzo-header-popover, .crozzo-header-theme-details');
+}
 function crozzoInitThemePanel() {
   var det = crozzoGetThemeDetailsEl();
   if (!det || det._crozzoThemePanelBound) return;
@@ -10258,6 +10271,7 @@ function crozzoInitThemePanel() {
     if (det.open) {
       document.body.classList.add('crozzo-theme-panel-open');
       if (summary) summary.setAttribute('aria-expanded', 'true');
+      crozzoThemePanelMarkJustOpened();
       try {
         if (global.CrozzoA11yUser && typeof global.CrozzoA11yUser.closePanel === 'function') {
           global.CrozzoA11yUser.closePanel();
@@ -10283,9 +10297,9 @@ function crozzoInitThemePanel() {
       'click',
       function (e) {
         if (!crozzoIsThemePanelOpen()) return;
+        if (crozzoThemePanelShouldIgnoreOutsideClick()) return;
         if (e.target.closest('#crozzoThemePanelClose')) return;
-        var d = crozzoGetThemeDetailsEl();
-        if (d && d.contains(e.target)) return;
+        if (crozzoThemePanelContainsClickTarget(e.target)) return;
         crozzoCloseThemePanel();
       },
       true
@@ -13677,6 +13691,7 @@ function renderTablets() {
             <h2 class="card-title">Tablets - Toma de pedidos</h2>
             <p class="page-subtitle" style="margin-top:4px;">Toca ${tabletModoPedido === 'mesa' ? 'una mesa' : 'un pedido llevar'} para abrir el pedido</p>
           </div>
+          <button type="button" class="btn btn-outline btn-sm crozzo-mesa-estados-btn" onclick="crozzoShowMesaEstadosModal()" title="Significado de los colores de mesa" aria-label="Ver colores de estado de mesas">🎨 Colores</button>
         </div>
         <div class="service-mode-switch">
           <button class="service-mode-btn ${tabletModoPedido === 'mesa' ? 'active' : ''}" onclick="setTabletMode('mesa')">🍽️ Mesas salón</button>
@@ -18081,6 +18096,46 @@ function getSlotCardClass(tipoServicio, referencia) {
   const info = getSlotStateInfo(tipoServicio, referencia);
   return 'status-' + (info.state || 'libre');
 }
+function crozzoMesaEstadosLegendRows() {
+  return [
+    { state: 'libre', label: 'Desocupada', hint: 'Sin pedido activo en la mesa' },
+    { state: 'pendiente', label: 'Pendiente', hint: 'Hay ítems sin comandar a cocina' },
+    { state: 'comandado', label: 'Comandado', hint: 'Pedido enviado · en preparación' },
+    { state: 'salio', label: 'Ya salió', hint: 'Entregado al cliente · pendiente de cobro' },
+    { state: 'en-uso', label: 'En uso', hint: 'Otro mesero tiene la mesa abierta' },
+  ];
+}
+function crozzoShowMesaEstadosModal() {
+  if (typeof showModal !== 'function') return;
+  const rows = crozzoMesaEstadosLegendRows()
+    .map(function (r) {
+      return (
+        '<div class="crozzo-mesa-estados-row">' +
+        '<span class="crozzo-mesa-estados-swatch mesa-card status-' +
+        escUserAttr(r.state) +
+        '" aria-hidden="true"></span>' +
+        '<div class="crozzo-mesa-estados-row__text">' +
+        '<strong>' +
+        escHtml(r.label) +
+        '</strong>' +
+        '<span class="form-hint">' +
+        escHtml(r.hint) +
+        '</span></div></div>'
+      );
+    })
+    .join('');
+  showModal(
+    '🎨 Colores de mesa',
+    '<p class="form-hint crozzo-mesa-estados-intro">Cada tarjeta usa borde y fondo según el estado actual de la mesa o pedido.</p>' +
+      '<div class="crozzo-mesa-estados-legend">' +
+      rows +
+      '</div>' +
+      '<div class="modal-btns crozzo-mesa-estados-foot">' +
+      '<button type="button" class="btn btn-primary" onclick="closeModal()">Entendido</button></div>',
+    { modalClass: 'modal--mesa-estados' }
+  );
+}
+window.crozzoShowMesaEstadosModal = crozzoShowMesaEstadosModal;
 function isMesaOcupada(mesaId) {
   return getSlotStateInfo('mesa', mesaId).state !== 'libre';
 }

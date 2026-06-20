@@ -24702,6 +24702,59 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   color: var(--text-muted);
 }
 
+.crozzo-mesa-estados-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  min-height: var(--crozzo-touch-btn-min, 40px);
+}
+
+.crozzo-mesa-estados-intro {
+  margin: 0 0 14px;
+}
+
+.crozzo-mesa-estados-legend {
+  display: grid;
+  gap: 10px;
+}
+
+.crozzo-mesa-estados-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.crozzo-mesa-estados-swatch {
+  flex-shrink: 0;
+  width: 52px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  pointer-events: none;
+  box-sizing: border-box;
+  cursor: default;
+}
+
+.crozzo-mesa-estados-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crozzo-mesa-estados-row__text .form-hint {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.crozzo-mesa-estados-foot {
+  margin-top: 16px;
+}
+
+.modal--mesa-estados .modal {
+  max-width: min(420px, 100%);
+}
+
 .tablet-layout {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
@@ -28525,6 +28578,12 @@ body.crozzo-theme-panel-open::before {
   inset: 0;
   z-index: 10070;
   background: rgba(15, 23, 42, 0.12);
+}
+body.crozzo-theme-panel-open .main-header {
+  z-index: 10080;
+}
+.crozzo-header-theme-details[open] .crozzo-header-popover {
+  z-index: 10081;
 }
 
 /* Táctil / APK: tema junto a accesibilidad; popover fijo para no recortarse */
@@ -36155,6 +36214,37 @@ html.crozzo-android-native .mesa-card {
   overflow: visible !important;
   min-height: 72px !important;
   box-sizing: border-box !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-libre,
+html.crozzo-android-native .mesa-card.status-libre {
+  border-color: rgba(16, 185, 129, 0.8) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-pendiente,
+html.crozzo-android-native .mesa-card.status-pendiente {
+  border-color: rgba(245, 158, 11, 0.85) !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-en-uso,
+html.crozzo-android-native .mesa-card.status-en-uso {
+  border-color: rgba(245, 158, 11, 0.95) !important;
+  background: rgba(245, 158, 11, 0.2) !important;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.4) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-comandado,
+html.crozzo-android-native .mesa-card.status-comandado {
+  border-color: rgba(139, 92, 246, 0.9) !important;
+  background: rgba(139, 92, 246, 0.13) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-salio,
+html.crozzo-android-native .mesa-card.status-salio {
+  border-color: rgba(239, 68, 68, 0.9) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
 }
 
 html[data-crozzo-android="1"] .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-card,
@@ -58141,6 +58231,59 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   color: var(--text-muted);
 }
 
+.crozzo-mesa-estados-btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+  min-height: var(--crozzo-touch-btn-min, 40px);
+}
+
+.crozzo-mesa-estados-intro {
+  margin: 0 0 14px;
+}
+
+.crozzo-mesa-estados-legend {
+  display: grid;
+  gap: 10px;
+}
+
+.crozzo-mesa-estados-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.crozzo-mesa-estados-swatch {
+  flex-shrink: 0;
+  width: 52px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  pointer-events: none;
+  box-sizing: border-box;
+  cursor: default;
+}
+
+.crozzo-mesa-estados-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crozzo-mesa-estados-row__text .form-hint {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.crozzo-mesa-estados-foot {
+  margin-top: 16px;
+}
+
+.modal--mesa-estados .modal {
+  max-width: min(420px, 100%);
+}
+
 .tablet-layout {
   display: grid;
   grid-template-columns: 1.25fr 1fr;
@@ -61964,6 +62107,12 @@ body.crozzo-theme-panel-open::before {
   inset: 0;
   z-index: 10070;
   background: rgba(15, 23, 42, 0.12);
+}
+body.crozzo-theme-panel-open .main-header {
+  z-index: 10080;
+}
+.crozzo-header-theme-details[open] .crozzo-header-popover {
+  z-index: 10081;
 }
 
 /* Táctil / APK: tema junto a accesibilidad; popover fijo para no recortarse */
@@ -69594,6 +69743,37 @@ html.crozzo-android-native .mesa-card {
   overflow: visible !important;
   min-height: 72px !important;
   box-sizing: border-box !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-libre,
+html.crozzo-android-native .mesa-card.status-libre {
+  border-color: rgba(16, 185, 129, 0.8) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-pendiente,
+html.crozzo-android-native .mesa-card.status-pendiente {
+  border-color: rgba(245, 158, 11, 0.85) !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-en-uso,
+html.crozzo-android-native .mesa-card.status-en-uso {
+  border-color: rgba(245, 158, 11, 0.95) !important;
+  background: rgba(245, 158, 11, 0.2) !important;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.4) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-comandado,
+html.crozzo-android-native .mesa-card.status-comandado {
+  border-color: rgba(139, 92, 246, 0.9) !important;
+  background: rgba(139, 92, 246, 0.13) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-salio,
+html.crozzo-android-native .mesa-card.status-salio {
+  border-color: rgba(239, 68, 68, 0.9) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
 }
 
 html[data-crozzo-android="1"] .crozzo-tablet-order-open.crozzo-tablet-touch #tabletProducts .product-card,

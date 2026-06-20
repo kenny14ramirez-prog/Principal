@@ -170,8 +170,17 @@
     }
   }
 
+  /** Payload HTTP LAN: Tauri aplana `payload` en el objeto raíz al drenar la cola. */
+  function lanSubmissionRaw(sub) {
+    if (!sub || typeof sub !== 'object') return {};
+    var p = sub.payload;
+    if (p && typeof p === 'object' && !Array.isArray(p) && (p.type != null || p.data != null)) return p;
+    if (sub.type != null || sub.data != null) return sub;
+    return p && typeof p === 'object' ? p : {};
+  }
+
   function envelopeFromSubmission(sub) {
-    var p = (sub && sub.payload) || {};
+    var p = lanSubmissionRaw(sub);
     var data = p.data != null ? p.data : p.payload != null ? p.payload : {};
     return {
       uuid: p.uuid || sub.id,
@@ -185,7 +194,7 @@
   }
 
   function tryApplyLanComandaEstado(sub) {
-    var raw = (sub && sub.payload) || {};
+    var raw = lanSubmissionRaw(sub);
     if (String(raw.type || '').toLowerCase() !== 'comanda_estado') return false;
     var pay = raw.data || raw.payload || null;
     if (!pay) return false;
@@ -204,6 +213,14 @@
         } else if (typeof global.updateComandaEstado === 'function') {
           global.updateComandaEstado(c.id, pay.estado, { skipFanout: true });
         }
+        try {
+          if (
+            (global.currentPage === 'comandas' || global.currentPage === 'cocina') &&
+            typeof global.renderPage === 'function'
+          ) {
+            global.renderPage(global.currentPage);
+          }
+        } catch (_) {}
       }
       if (typeof global.crozzoPushComandaToCloud === 'function' && pay.id != null) {
         var merged =
@@ -222,7 +239,7 @@
   }
 
   function tryApplyLanComanda(sub) {
-    var raw = (sub && sub.payload) || {};
+    var raw = lanSubmissionRaw(sub);
     var typ = String(raw.type || '').toLowerCase();
     if (typ !== 'comanda' && typ !== 'comanda_new') return false;
     var snap = raw.data || raw.payload || null;
@@ -248,7 +265,7 @@
   }
 
   function tryApplyInternalQrSlot(sub) {
-    var raw = (sub && sub.payload) || {};
+    var raw = lanSubmissionRaw(sub);
     var typ = String(raw.type || '').toLowerCase();
     if (typ === 'internal_qr_req') {
       if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.respondWithOwnSlots === 'function') {
