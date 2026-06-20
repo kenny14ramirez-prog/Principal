@@ -82,28 +82,45 @@
           }
         }, 1400);
       } else if (typeof global.CrozzoBlePeerRegistry.prewarmDesktopMesh === 'function') {
-        global.CrozzoBlePeerRegistry.prewarmDesktopMesh();
+        // Diferido: no compite con el primer render ni con el orquestador de conectividad.
+        // Con nube activa la malla solo se levanta si cae internet/LAN (fase mesh).
+        global.setTimeout(function () {
+          var wan =
+            typeof global.crozzoWanOnline === 'function' ? global.crozzoWanOnline() : !!global.navigator.onLine;
+          if (wan && cloudConfigured()) return;
+          global.CrozzoBlePeerRegistry.prewarmDesktopMesh();
+        }, 5000);
       }
     });
   }
 
   function prewarmCameraPermission() {
-    var asked = safe(function () {
-      return global.localStorage.getItem(LS_CAM_ASKED) === '1';
-    });
-    if (asked) return;
-    var needsField = isAndroidApk() || roleNow() === 'B';
-    if (!needsField) return;
+    if (isAndroidApk()) {
+      var asked = safe(function () {
+        return global.localStorage.getItem(LS_CAM_ASKED) === '1';
+      });
+      if (asked) return;
+      if (roleNow() !== 'B') return;
+      safe(function () {
+        global.localStorage.setItem(LS_CAM_ASKED, '1');
+      });
+      safe(function () {
+        if (
+          global.CrozzoPairingQrReader &&
+          typeof global.CrozzoPairingQrReader.ensureOsCameraPermission === 'function'
+        ) {
+          global.CrozzoPairingQrReader.ensureOsCameraPermission().catch(function () {});
+        }
+      });
+      return;
+    }
+    if (!isTauri()) return;
     safe(function () {
-      global.localStorage.setItem(LS_CAM_ASKED, '1');
-    });
-    safe(function () {
-      if (
-        global.CrozzoPairingQrReader &&
-        typeof global.CrozzoPairingQrReader.ensureOsCameraPermission === 'function'
-      ) {
-        global.CrozzoPairingQrReader.ensureOsCameraPermission().catch(function () {});
-      }
+      var core = global.__TAURI__ && global.__TAURI__.core;
+      if (!core || typeof core.invoke !== 'function') return;
+      global.setTimeout(function () {
+        core.invoke('cxf_reset_webview_camera_permission').catch(function () {});
+      }, 900);
     });
   }
 
@@ -240,16 +257,17 @@
       }
     });
 
-    // Sync nube (fase 1): arrancar si hay credenciales e internet (Wi‑Fi o datos).
+    // Sync nube: postInitCloud (CrozzoPosCloud) ya lo dispara; aqui solo respaldo si aun no arranco.
     safe(function () {
       if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
         global.setTimeout(function () {
+          if (global.__crozzoCloudSyncBootstrapped) return;
           var wan =
             typeof global.crozzoWanOnline === 'function' ? global.crozzoWanOnline() : !!global.navigator.onLine;
           if (wan && cloudConfigured()) {
             global.crozzoEnsureCloudSyncActive({ source: 'startup', resetTableMissing: true }).catch(function () {});
           }
-        }, 1200);
+        }, 3500);
       }
     });
 

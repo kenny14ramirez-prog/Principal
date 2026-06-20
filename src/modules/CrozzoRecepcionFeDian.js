@@ -48,16 +48,21 @@
           var failN =
             json.summary && json.summary['escaneada-sin-qr-cufe']
               ? json.summary['escaneada-sin-qr-cufe']
-              : 0;
+              : json.summary && json.summary['escaneada-sin-texto']
+                ? json.summary['escaneada-sin-texto']
+                : 0;
           json.scannedFailPct = json.sampleSize ? Math.round((failN / json.sampleSize) * 100) : 58;
+          var nomPct = json.probeNombrePct != null ? json.probeNombrePct : json.okFePct;
           json.hint =
             'Entrenamiento ' +
             json.sampleSize +
             ' facturas (' +
             (json.trainedAt || '') +
-            '): ~' +
-            json.okFePct +
-            '% detectan FE en lote. Escaneos sin QR: use «Reanalizar» o marque el QR.';
+            '): proveedor ~' +
+            nomPct +
+            '% · ' +
+            (json.vendors ? json.vendors.length : 0) +
+            ' proveedores en catálogo.';
           json._loaded = true;
           _feTrainingProfile = json;
         } else {
@@ -95,6 +100,14 @@
     return feResolveAppDataUrl('data/');
   }
 
+  function feOcrWorkerPath() {
+    return resolveFeVendorUrl('vendor/CrozzoTesseract.worker.min.js');
+  }
+
+  function feOcrCorePath() {
+    return resolveFeVendorUrl('vendor/tesseract-core/');
+  }
+
   function feOcrRecognizeOptions(extra) {
     extra = extra || {};
     return Object.assign(
@@ -102,9 +115,291 @@
         logger: function () {},
         langPath: feOcrLangPath(),
         gzip: false,
+        workerPath: feOcrWorkerPath(),
+        corePath: feOcrCorePath(),
       },
       extra
     );
+  }
+
+  var FE_OCR_TESSDATA_CDN = 'https://tessdata.projectnaptha.com/4.0.0';
+  var FE_OCR_AYUDA_LS = 'crozzo_fe_ocr_ayuda_v1';
+  var FE_OCR_SPACE_URL = 'https://api.ocr.space/parse/image';
+
+  function feOcrPuedeUsarCdn() {
+    try {
+      return typeof navigator === 'undefined' || navigator.onLine !== false;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  function feGetOcrAyudaConfig() {
+    try {
+      var raw = localStorage.getItem(FE_OCR_AYUDA_LS);
+      if (!raw) return { nubeActiva: false, ocrSpaceApiKey: '' };
+      var c = JSON.parse(raw);
+      return {
+        nubeActiva: !!c.nubeActiva,
+        ocrSpaceApiKey: String(c.ocrSpaceApiKey || '').trim(),
+      };
+    } catch (_) {
+      return { nubeActiva: false, ocrSpaceApiKey: '' };
+    }
+  }
+
+  function feSetOcrAyudaConfig(patch) {
+    var cur = feGetOcrAyudaConfig();
+    var next = Object.assign({}, cur, patch || {});
+    try {
+      localStorage.setItem(FE_OCR_AYUDA_LS, JSON.stringify(next));
+    } catch (_) {}
+    return next;
+  }
+
+  function feRunOcrTexto(T, dataUrl, extra) {
+    extra = extra || {};
+    if (!feOcrPuedeUsarCdn()) {
+      return feRunOcr(T, dataUrl, extra);
+    }
+    var opts = feOcrRecognizeOptions(extra);
+    opts.langPath = FE_OCR_TESSDATA_CDN;
+    opts.gzip = true;
+    return T.recognize(dataUrl, 'spa+eng', opts).catch(function () {
+      return feRunOcr(T, dataUrl, extra);
+    });
+  }
+
+  function feOcrRenderPageDataUrl(doc, opts) {
+    opts = opts || {};
+    var rotationTurns = opts.rotationTurns || 0;
+    var cropTop = opts.cropTop;
+    if (cropTop === undefined) cropTop = 0.55;
+    var fullPage = cropTop === null || cropTop === false || cropTop >= 0.99;
+    return runPdfExclusive(function () {
+      return openPdfDocument(doc).then(function (pdf) {
+        return pdf.getPage(opts.pageNum || 1).then(function (page) {
+          var scale = opts.scale || 2.8;
+          var vp = page.getViewport({ scale: scale });
+          var full = document.createElement('canvas');
+          full.width = Math.ceil(vp.width);
+          full.height = Math.ceil(vp.height);
+          return page
+            .render({ canvasContext: full.getContext('2d'), viewport: vp })
+            .promise.then(function () {
+              var src = full;
+              if (!fullPage && cropTop > 0) {
+                var cropH = Math.ceil(full.height * cropTop);
+                var crop = document.createElement('canvas');
+                crop.width = full.width;
+                crop.height = cropH;
+                crop
+                  .getContext('2d')
+                  .drawImage(full, 0, 0, full.width, cropH, 0, 0, full.width, cropH);
+                src = crop;
+              }
+              if (rotationTurns) src = rotateCanvas90(src, rotationTurns);
+              return typeof src.toDataURL === 'function' ? src.toDataURL('image/png') : '';
+            });
+        });
+      });
+    }).catch(function () {
+      return '';
+    });
+  }
+
+  function feOcrRenderHeaderDataUrl(doc) {
+    return feOcrRenderPageDataUrl(doc, { cropTop: 0.55, rotationTurns: 0, scale: 3.2 });
+  }
+
+  function feOcrLocalDesdeDataUrl(dataUrl, extra) {
+    if (!dataUrl) return Promise.resolve('');
+    return ensureTesseract()
+      .then(function (T) {
+        return feRunOcrTexto(T, dataUrl, extra || {});
+      })
+      .then(function (res) {
+        return String((res.data && res.data.text) || '').trim();
+      })
+      .catch(function () {
+        return '';
+      });
+  }
+
+  function feOcrNubeDesdeDataUrl(dataUrl, force) {
+    var cfg = feGetOcrAyudaConfig();
+    if (!force && !cfg.nubeActiva) return Promise.resolve('');
+    if (!dataUrl) return Promise.resolve('');
+    var apiKey = cfg.ocrSpaceApiKey || 'helloworld';
+    var body = new FormData();
+    body.append('apikey', apiKey);
+    body.append('language', 'spa');
+    body.append('OCREngine', '2');
+    body.append('scale', 'true');
+    body.append('isOverlayRequired', 'false');
+    body.append('detectOrientation', 'true');
+    body.append('base64Image', dataUrl);
+    return fetch(FE_OCR_SPACE_URL, { method: 'POST', body: body })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j || j.IsErroredOnProcessing) return '';
+        return (j.ParsedResults || [])
+          .map(function (p) {
+            return p.ParsedText || '';
+          })
+          .join('\n')
+          .trim();
+      })
+      .catch(function () {
+        return '';
+      });
+  }
+
+  function feAplicarTextoOcrAFe(fe, pack, meta, ocrText) {
+    if (!ocrText) return fe || {};
+    var feOcr = parseFeFromText(ocrText);
+    fe = feMergeFePreferFill(fe || {}, feOcr);
+    return feComprenderNombresEnFactura(fe, pack, meta, ocrText);
+  }
+
+  function feScoreExtraccionFe(fe, pack) {
+    fe = fe || {};
+    pack = pack || {};
+    var s = 0;
+    if (fe.nitEmisor && normNit(fe.nitEmisor).length >= 8) s += 28;
+    if (fe.razonSocial && String(fe.razonSocial).trim().length >= 4) s += 26;
+    if (fe.direccionEmisor) s += 8;
+    if (fe.telefonoEmisor) s += 6;
+    if (fe.representanteEmisor) s += 6;
+    if (fe.numeroFactura) s += 6;
+    if (fe.total) s += 8;
+    if (fe.cufe) s += 10;
+    if ((pack.textLen || 0) > 400) s += 8;
+    if ((pack.textLen || 0) > 80 && (pack.blockCount || 0) > 8) s += 6;
+    return s;
+  }
+
+  function feProbeNecesitaReintento(probe, pack, nivel) {
+    nivel = nivel == null ? 0 : nivel;
+    probe = probe || {};
+    pack = pack || probe._packRef || {};
+    var fe = probe.fe || {};
+    var score = feScoreExtraccionFe(fe, pack);
+    if (nivel >= 2) return false;
+    if (nivel === 0) {
+      if (score >= 52) return false;
+      if ((probe.confidence || 0) >= 55 && fe.nitEmisor && fe.razonSocial) return false;
+      return true;
+    }
+    if (nivel === 1) {
+      if (score >= 50 && fe.nitEmisor && fe.razonSocial) return false;
+      if ((probe.confidence || 0) >= 58) return false;
+      return score < 48 || !fe.nitEmisor || feNecesitaOcrNombres(fe, pack);
+    }
+    return false;
+  }
+
+  function feOcrCascadeRotaciones(doc, pack, fe, meta, opts) {
+    opts = opts || {};
+    meta = meta || {};
+    fe = fe || {};
+    pack = pack || {};
+    var minScore = opts.minScore || 42;
+    var turns = [0, 1, 2, 3];
+    var best = { fe: fe, score: feScoreExtraccionFe(fe, pack), turns: 0, fuente: '' };
+    var chain = Promise.resolve();
+    turns.forEach(function (t) {
+      chain = chain.then(function () {
+        if (best.score >= minScore + 18) return;
+        return feOcrRenderPageDataUrl(doc, {
+          cropTop: opts.fullPage ? null : 0.92,
+          rotationTurns: t,
+          scale: opts.scale || 2.6,
+        }).then(function (dataUrl) {
+          if (!dataUrl) return;
+          return feOcrLocalDesdeDataUrl(dataUrl).then(function (text) {
+            if (!text || text.replace(/\s/g, '').length < 20) return;
+            var feTry = feAplicarTextoOcrAFe(best.fe, pack, meta, text);
+            var sc = feScoreExtraccionFe(feTry, pack);
+            if (sc > best.score) {
+              best = { fe: feTry, score: sc, turns: t, fuente: 'dispositivo' };
+            }
+          });
+        });
+      });
+    });
+    return chain.then(function () {
+      if (best.turns) {
+        best.fe._ocrRotacion = best.turns * 90;
+        best.fe._ocrAyudaFuente = best.fuente || 'dispositivo';
+      }
+      return best.fe;
+    });
+  }
+
+  function feOcrCascadeNubeRotaciones(doc, pack, fe, meta) {
+    meta = meta || {};
+    fe = fe || {};
+    pack = pack || {};
+    var force = !!(meta.cascadeLevel >= 2 || meta.forceOcrNube);
+    var turns = [0, 1, 2, 3];
+    var best = { fe: fe, score: feScoreExtraccionFe(fe, pack), turns: fe._ocrRotacion ? fe._ocrRotacion / 90 : 0 };
+    var chain = Promise.resolve();
+    turns.forEach(function (t) {
+      chain = chain.then(function () {
+        if (best.score >= 58) return;
+        return feOcrRenderPageDataUrl(doc, { cropTop: null, rotationTurns: t, scale: 2.4 }).then(function (dataUrl) {
+          if (!dataUrl) return;
+          return feOcrNubeDesdeDataUrl(dataUrl, force).then(function (text) {
+            if (!text || text.replace(/\s/g, '').length < 20) return;
+            var feTry = feAplicarTextoOcrAFe(best.fe, pack, meta, text);
+            var sc = feScoreExtraccionFe(feTry, pack);
+            if (sc > best.score) {
+              best = { fe: feTry, score: sc, turns: t };
+            }
+          });
+        });
+      });
+    });
+    return chain.then(function () {
+      if (best.turns) best.fe._ocrRotacion = best.turns * 90;
+      if (best.score > feScoreExtraccionFe(fe, pack)) {
+        best.fe._ocrAyudaFuente = fe._ocrAyudaFuente
+          ? fe._ocrAyudaFuente.indexOf('nube') >= 0
+            ? fe._ocrAyudaFuente
+            : fe._ocrAyudaFuente + '+nube'
+          : 'nube';
+      }
+      return best.fe;
+    });
+  }
+
+  function feOcrAyudaParaProveedor(doc, pack, fe, meta) {
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+    if (!feNecesitaOcrNombres(fe, pack)) return Promise.resolve(fe);
+
+    return feOcrRenderHeaderDataUrl(doc).then(function (dataUrl) {
+      if (!dataUrl) return fe;
+      return feOcrLocalDesdeDataUrl(dataUrl).then(function (localText) {
+        if (localText) {
+          fe = feAplicarTextoOcrAFe(fe, pack, meta, localText);
+          fe._ocrAyudaFuente = 'dispositivo';
+        }
+        if (!feNecesitaOcrNombres(fe, pack)) return fe;
+        if (!feGetOcrAyudaConfig().nubeActiva) return fe;
+        return feOcrNubeDesdeDataUrl(dataUrl).then(function (cloudText) {
+          if (cloudText) {
+            fe = feAplicarTextoOcrAFe(fe, pack, meta, cloudText);
+            fe._ocrAyudaFuente = localText ? 'dispositivo+nube' : 'nube';
+          }
+          return fe;
+        });
+      });
+    });
   }
 
   /** Memoria de zona QR por proveedor (probe + aprendizaje en runtime). */
@@ -547,19 +842,22 @@
     text = String(text || '');
     function addNit(raw) {
       var n = normNit(raw);
-      if (!n || n.length < 8) return;
+      if (!n || n.length < 6) return;
       if (seen[n]) return;
       seen[n] = true;
-      out.push(n);
+      out.push(String(raw).replace(/\s/g, '').trim() || n);
     }
-    var rePrefixed = /(?:NIT|N\.I\.T\.?|Emisor|Proveedor|Vendedor|Comprador|Adquiriente|Cliente)[:\s#.]*([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9Kk]?)/gi;
+    var rePrefixed = /(?:NIT|N\.I\.T\.?|C\.?C\.?|C[eé]dula|Emisor|Proveedor|Vendedor)[:\s#.]*([0-9]{1,3}(?:\.[0-9]{3}){1,2}[-–]?\d{0,2}|[0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-–]?[0-9Kk]?)/gi;
     var m;
     while ((m = rePrefixed.exec(text))) addNit(m[1]);
+    var reCedula = /\b(\d{1,2}\.\d{3}\.\d{3}-\d{1,2})\b/g;
+    while ((m = reCedula.exec(text))) addNit(m[1]);
     var reFormato = /\b([0-9]{3}\.[0-9]{3}\.[0-9]{3}[-–][0-9Kk])\b/g;
     while ((m = reFormato.exec(text))) addNit(m[1]);
     var reNuda = /\b([0-9]{9,11})\b/g;
     while ((m = reNuda.exec(text))) {
       var digits = m[1];
+      if (/^3\d{9}$/.test(digits)) continue;
       if (digits.length >= 9 && digits.length <= 11) addNit(digits);
     }
     return out;
@@ -578,6 +876,7 @@
           (function (pageNum) {
             chain = chain.then(function (acc) {
               return pdf.getPage(pageNum).then(function (page) {
+                var vp = page.getViewport({ scale: 1 });
                 return page.getTextContent().then(function (tc) {
                   var pageText = '';
                   (tc.items || []).forEach(function (it) {
@@ -589,7 +888,15 @@
                       .replace(/[^a-zA-Z0-9 _-]/g, '')
                       .trim();
                     fontCounts[fn] = (fontCounts[fn] || 0) + 1;
-                    blocks.push({ text: s, font: fn, page: pageNum, h: it.height || 0 });
+                    blocks.push({
+                      text: s,
+                      font: fn,
+                      page: pageNum,
+                      h: it.height || 0,
+                      x: (it.transform && it.transform[4]) || 0,
+                      y: (it.transform && it.transform[5]) || 0,
+                      pageH: pageNum === 1 ? vp.height : 0,
+                    });
                   });
                   return acc + '\n--- p' + pageNum + ' ---\n' + pageText;
                 });
@@ -2959,6 +3266,798 @@
     return 'Sin QR ni CUFE válido — no parece FE';
   }
 
+  function feCleanDireccion(raw) {
+    raw = String(raw || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    raw = raw.replace(
+      /^(?:Direcci[oó]n(?:\s+de\s+(?:correspondencia|facturaci[oó]n|domicilio|sede))?|Dir(?:ecci[oó]n)?\.?|Domicilio(?:\s+fiscal)?|Address)[:\s]*/i,
+      ''
+    );
+    raw = raw.replace(/\s+actividad\s+econ[oó]mica\s*:\s*\d[\d\s]*.*$/i, '').trim();
+    raw = raw.replace(/\s+act\.?\s*econ[oó]mica\s*:\s*\d[\d\s]*.*$/i, '').trim();
+    return raw.replace(/\s{2,}/g, ' ').trim();
+  }
+
+  function feLineLooksLikeProductLine(s) {
+    s = String(s || '').trim();
+    if (!s) return true;
+    if (/\$|[\d]{1,3}[.,][\d]{2,}/.test(s)) return true;
+    if (/^(?:descripci|producto|art[ií]culo|cantidad|vr\.?\s*unit|subtotal|total|iva)\b/i.test(s)) return true;
+    return false;
+  }
+
+  function feLooksLikeColAddress(s) {
+    s = String(s || '').replace(/\s+/g, ' ').trim();
+    if (!s || s.length < 6 || s.length > 160) return false;
+    if (feEsTextoFormaPago(s) || feIsRepresentanteGarbage(s)) return false;
+    if (/^(?:total|subtotal|iva|nit|cufe|fecha|factura|cliente|comprador|adquiriente|resoluci)/i.test(s)) {
+      return false;
+    }
+    var streetMark =
+      /\b(?:CALLE|CLL?\.?|C\.|CARRERA|CRA\.|CRA\s+\d|CR\.?\s+\d|CAR\.?|CAR\s+\d|AVENIDA|AV\.?|DIAGONAL|DG\.?|TRANSVERSAL|TV\.?|TRONCAL|VARIANTE|KILOMETRO|KM\.?|BARRIO|BRR?\.?|BR\.?|MZ\.?|MANZANA|LOCAL|LOC\.?|OFICINA|OF\.?|APARTAMENTO|APTO?\.?|INTERIOR|INT\.?|SECTOR|VEREDA|VDA\.?|V[IÍ]A|URBANIZACI[ÓO]N|URB\.?|EDIFICIO|EDIF\.?|TORRE|PISO|PS\.?)\b/i;
+    var numMark = /(?:#\s*[\dA-Z]+|\bN[oº°O]?\s*\.?\s*\d+|\bN[UÚ]M(?:ERO)?\.?\s*\d+|\d+\s*[-–]\s*\d+)/i;
+    if (streetMark.test(s) && (numMark.test(s) || /\d{1,4}/.test(s))) return true;
+    if (/\bDIRECCI[OÓ]N\b/i.test(s) && s.length > 12) return true;
+    return false;
+  }
+
+  function feScoreDireccionCandidate(s) {
+    s = String(s || '');
+    if (!s) return -1;
+    var score = 0;
+    if (/\b(?:CALLE|CLL?|CARRERA|CRA?|CR|CAR)\b/i.test(s)) score += 18;
+    if (/\b(?:AVENIDA|AV|DIAGONAL|DG|TRANSVERSAL|TV)\b/i.test(s)) score += 14;
+    if (/#\s*[\dA-Z]/.test(s)) score += 24;
+    if (/\bN[oº°O]?\s*\.?\s*\d/.test(s)) score += 16;
+    if (/\d+\s*[-–]\s*\d+/.test(s)) score += 12;
+    if (/\b(?:LOCAL|LOC|APTO|INT|BRR|BARRIO|OFICINA)\b/i.test(s)) score += 6;
+    if (/^\d{9,}$/.test(s.replace(/[\s#.\-]/g, ''))) score -= 25;
+    if (/total|subtotal|factura\s+electr|cufe|payableamount/i.test(s)) score -= 40;
+    if (s.length >= 10 && s.length <= 90) score += 4;
+    return score;
+  }
+
+  function feExpandAddressSlice(flat, idx, seed) {
+    flat = String(flat || '');
+    seed = String(seed || '').trim();
+    var rest = flat.slice(idx, idx + 150);
+    var m = rest.match(
+      /^((?:CALLE|CLL?\.?|C\.|CARRERA|CRA?\.?|CR\.?|CAR\.?|CAR\s+|AVENIDA|AV\.?|DIAGONAL|DG\.?|TRANSVERSAL|TV\.?)[^|,]{4,110}?)(?:\s{2,}|\s+Tel|\s+NIT|\s+Ciudad|\s+Dept|,|\||$)/i
+    );
+    if (m && m[1]) return feCleanDireccion(m[1]);
+    return feCleanDireccion(seed);
+  }
+
+  function feExtractDireccionFromText(text, opts) {
+    opts = opts || {};
+    text = String(text || '');
+    if (!text.trim()) return '';
+    var flat = text.replace(/\s+/g, ' ');
+    var maxLen = opts.maxLen || 140;
+    var candidates = [];
+
+    function pushCandidate(raw, bonus) {
+      var cleaned = feCleanDireccion(raw);
+      if (!cleaned || cleaned.length < 6) return;
+      if (!feLooksLikeColAddress(cleaned) && bonus < 20) return;
+      var score = feScoreDireccionCandidate(cleaned) + (bonus || 0);
+      if (score < 8) return;
+      candidates.push({ text: cleaned, score: score });
+    }
+
+    var labeledPatterns = [
+      /Direcci[oó]n(?:\s+de\s+(?:correspondencia|facturaci[oó]n|domicilio|sede))?[:\s]+([^|\n]{6,120}?)(?=\s{2,}|\s+Tel|\s+Cel|\s+NIT|\s+Ciudad|\||$)/i,
+      /Dir(?:ecci[oó]n)?\.?[:\s]+([^|\n]{6,120}?)(?=\s{2,}|\s+Tel|\s+NIT|\||$)/i,
+      /Domicilio(?:\s+fiscal)?[:\s]+([^|\n]{6,120}?)(?=\s{2,}|\s+Tel|\||$)/i,
+      /Address[:\s]+([^|\n]{6,120}?)(?=\s{2,}|\s+Phone|\||$)/i,
+      /StreetAddress[>\s]*([^<\n|]{6,120}?)(?:<|\||$)/i,
+    ];
+    for (var li = 0; li < labeledPatterns.length; li++) {
+      var lm = flat.match(labeledPatterns[li]);
+      if (lm && lm[1]) pushCandidate(lm[1], 28);
+    }
+
+    var anchorRe =
+      /\b(?:CALLE|CLL?\.?|C\.|CARRERA|CRA?\.?|CR\.?|CAR\.?|CAR\s+|AVENIDA|AV\.?|DIAGONAL|DG\.?|TRANSVERSAL|TV\.?)\s*(?:\d+[A-Z]?|\d+\s*[A-Z])(?:\s*(?:#|N[oº°O]?\s*\.?\s*|N[UÚ]M\.?\s*)\s*[\dA-Z]+(?:\s*[-–]\s*[\dA-Z]+)?)?(?:\s*(?:,|\s+)(?:BRR?|BARRIO|BR\.?|LOCAL|LOC\.?|APTO?\.?|INT\.?)\s+[\wÁÉÍÓÚáéíóúñ.\- ]+)?/gi;
+    var am;
+    while ((am = anchorRe.exec(flat))) {
+      pushCandidate(feExpandAddressSlice(flat, am.index, am[0]), 20);
+    }
+
+    var hashM = flat.match(
+      /((?:CALLE|CLL?|CARRERA|CRA?|CR|CAR|AV|AVENIDA|DG|DIAGONAL|TV|TRANSVERSAL)[^.,|]{0,35}?(?:#\s*[\dA-Z]+(?:\s*[-–]\s*[\dA-Z]+)?)[^.,|]{0,45})/i
+    );
+    if (hashM) pushCandidate(hashM[1], 22);
+
+    var lines = text.split(/\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i].replace(/\s+/g, ' ').trim();
+      if (!ln || feLineLooksLikeProductLine(ln)) continue;
+      if (!feLooksLikeColAddress(ln)) continue;
+      pushCandidate(ln, 12);
+    }
+
+    if (!candidates.length) return '';
+    candidates.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    return candidates[0].text.slice(0, maxLen);
+  }
+
+  function fePickCiudadFromText(text) {
+    var flat = String(text || '').replace(/\s+/g, ' ');
+    var ciudadM =
+      flat.match(/(?:Ciudad|Municipio)[:\s]+([A-Za-záéíóúñ ]{3,40}?)(?=\s{2,}|\s+Tel|\s+Dept|\||$)/i) ||
+      flat.match(/(?:City)[:\s]+([A-Za-záéíóúñ ]{3,40}?)(?=\s{2,}|\||$)/i);
+    return ciudadM ? ciudadM[1].trim() : '';
+  }
+
+  function feRepresentanteStopword(w) {
+    var x = String(w || '')
+      .toLowerCase()
+      .replace(/[^a-záéíóúñ]/g, '');
+    if (!x) return true;
+    var stops = {
+      cuenta: 1,
+      pago: 1,
+      pagos: 1,
+      banco: 1,
+      bancaria: 1,
+      bancario: 1,
+      nombre: 1,
+      razon: 1,
+      razón: 1,
+      social: 1,
+      pesos: 1,
+      peso: 1,
+      mil: 1,
+      millon: 1,
+      millón: 1,
+      mcte: 1,
+      cte: 1,
+      emisor: 1,
+      comprador: 1,
+      adquiriente: 1,
+      cliente: 1,
+      factura: 1,
+      cuarenta: 1,
+      treinta: 1,
+      veinte: 1,
+      cincuenta: 1,
+      sesenta: 1,
+      setenta: 1,
+      ochenta: 1,
+      noventa: 1,
+      cien: 1,
+      ciento: 1,
+      uno: 1,
+      dos: 1,
+      tres: 1,
+      cuatro: 1,
+      cinco: 1,
+      seis: 1,
+      siete: 1,
+      ocho: 1,
+      nueve: 1,
+      diez: 1,
+      once: 1,
+      doce: 1,
+      trece: 1,
+      catorce: 1,
+      quince: 1,
+      transferencia: 1,
+      consignacion: 1,
+      consignación: 1,
+      nequi: 1,
+      daviplata: 1,
+      efectivo: 1,
+      credito: 1,
+      crédito: 1,
+      debito: 1,
+      débito: 1,
+      titular: 1,
+      representante: 1,
+      legal: 1,
+      empresa: 1,
+      sociedad: 1,
+      nit: 1,
+      cufe: 1,
+      firma: 1,
+      sello: 1,
+      autoriza: 1,
+      tributario: 1,
+      iva: 1,
+      total: 1,
+      valor: 1,
+      son: 1,
+      solo: 1,
+      del: 1,
+      de: 1,
+      la: 1,
+      el: 1,
+      los: 1,
+      las: 1,
+      y: 1,
+      o: 1,
+    };
+    return !!stops[x];
+  }
+
+  function feIsRepresentanteGarbage(s) {
+    s = String(s || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    if (!s || s.length < 3) return true;
+    var garbagePatterns = [
+      /cuenta\s+de\s+pago/,
+      /representante\s+cuenta/,
+      /nombre\s+o\s+raz[oó]n\s+social/,
+      /raz[oó]n\s+social/,
+      /m\s*\/?\s*cte/,
+      /\bpesos?\b/,
+      /\b(mil|mill[oó]n|bill[oó]n)\b/,
+      /\b(cuarenta|treinta|veinte|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento)\b/,
+      /\b(uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+y\s+(uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta|cuarenta|cincuenta|mil)\b/,
+      /forma\s+de\s+pago/,
+      /medio\s+de\s+pago/,
+      /\bcuota\s+no\.?\s*\d/,
+      /\bvence\s+el\s+\d{4}-\d{2}-\d{2}/,
+      /^otro\s*[-–]\s*cr[eé]dito/,
+      /transferencia|consignaci[oó]n|nequi|daviplata|bancolombia|\bbanco\b/,
+      /tributario|gravamen|retenci|autorretenedor/,
+      /firma\s+del|sello\s+del|huella/,
+      /adquiriente|comprador|cliente\b/,
+      /son:\s*\$/,
+      /valor\s+en\s+letras/,
+      /autorizaci[oó]n\s+numeraci/,
+      /^nombre\s+comercial$/i,
+      /^raz[oó]n\s+social$/i,
+      /^nombre\s+o\s+raz[oó]n\s+social$/i,
+      /^representante\s+legal$/i,
+      /^nit$/i,
+      /^direcci[oó]n$/i,
+    ];
+    for (var gi = 0; gi < garbagePatterns.length; gi++) {
+      if (garbagePatterns[gi].test(s)) return true;
+    }
+    return false;
+  }
+
+  function feCleanRepresentanteName(raw) {
+    raw = String(raw || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    raw = raw.replace(/^(?:señor(?:a)?|sr\.?|sra\.?|don|doña)\s+/i, '');
+    raw = raw.replace(/\s*(?:C\.?C\.?|N\.?I\.?T\.?|C[eé]dula|Identificaci[oó]n)[:\s#]*[\d.\s\-]+.*$/i, '');
+    raw = raw.replace(/[.,;|:]+$/g, '').trim();
+    return raw.slice(0, 80);
+  }
+
+  function feLooksLikePersonName(s, opts) {
+    opts = opts || {};
+    var allowSingle = !!opts.allowSingle;
+    s = feCleanRepresentanteName(s);
+    if (!s || s.length < 3 || s.length > 80) return false;
+    if (feIsRepresentanteGarbage(s)) return false;
+    if (
+      /nit|cufe|factura|dian|total|subtotal|iva|correo|tel[eé]fono|direcci[oó]n|@|https?:|sas|ltda|s\.a\.|e\.u\.|inc\b|cia\b/i.test(
+        s
+      )
+    ) {
+      return false;
+    }
+    if (/\d{3,}/.test(s)) return false;
+    var words = s.split(/\s+/).filter(Boolean);
+    if (!words.length || words.length > 5) return false;
+
+    var meaningful = [];
+    for (var wi = 0; wi < words.length; wi++) {
+      var w = words[wi];
+      if (feRepresentanteStopword(w)) continue;
+      if (!/^[A-ZÁÉÍÓÚÑa-záéíóúñ]{2,}([.\-'][A-ZÁÉÍÓÚÑa-záéíóúñ]+)?$/.test(w)) return false;
+      meaningful.push(w);
+    }
+    if (!meaningful.length) return false;
+    if (meaningful.length >= 2) return true;
+    if (allowSingle && meaningful.length === 1) {
+      return meaningful[0].length >= 4;
+    }
+    return false;
+  }
+
+  function feScoreRepresentanteCandidate(s, opts) {
+    opts = opts || {};
+    s = feCleanRepresentanteName(s);
+    if (!feLooksLikePersonName(s, opts)) return -1;
+    var score = 10;
+    var words = s.split(/\s+/).filter(function (w) {
+      return !feRepresentanteStopword(w);
+    });
+    if (words.length >= 2) score += 14;
+    if (words.length >= 3) score += 6;
+    if (words.length === 1) score += 4;
+    if (words[0] && /^[A-ZÁÉÍÓÚÑ]/.test(words[0])) score += 4;
+    return score;
+  }
+
+  function feSanitizeRepresentanteEmisor(val, opts) {
+    opts = opts || {};
+    var s = feCleanRepresentanteName(val);
+    if (!s) return '';
+    if (!feLooksLikePersonName(s, opts)) return '';
+    return s;
+  }
+
+  function feExtractRepresentanteFromText(text, opts) {
+    opts = opts || {};
+    text = String(text || '');
+    if (!text.trim()) return '';
+    var flat = text.replace(/\s+/g, ' ');
+    var lines = text.split(/\n/);
+    var candidates = [];
+
+    function pushCandidate(raw, bonus) {
+      var cleaned = feCleanRepresentanteName(raw);
+      var nameOpts = { allowSingle: bonus >= 22 };
+      if (!feLooksLikePersonName(cleaned, nameOpts)) return;
+      var score = feScoreRepresentanteCandidate(cleaned, nameOpts) + (bonus || 0);
+      if (score < 12) return;
+      candidates.push({ text: cleaned, score: score });
+    }
+
+    var labeledPatterns = [
+      /Representante\s+legal(?:\s+de\s+la\s+empresa)?[:\s]+([A-Za-zÁÉÍÓÚáéíóúñ .'\-]{3,70}?)(?=\s{2,}|\s+Tel|\s+NIT|\s+Direcci|\s+C\.?C|\s+Ciudad|\||$)/i,
+      /Rep\.?\s*Legal[:\s]+([A-Za-zÁÉÍÓÚáéíóúñ .'\-]{3,70}?)(?=\s{2,}|\s+Tel|\s+NIT|\s+C\.?C|\||$)/i,
+      /R\.?\s*L\.?[:\s]+([A-Za-zÁÉÍÓÚáéíóúñ .'\-]{3,70}?)(?=\s{2,}|\s+Tel|\s+NIT|\||$)/i,
+      /Nombre\s+del\s+representante\s+legal[:\s]+([A-Za-zÁÉÍÓÚáéíóúñ .'\-]{3,70}?)(?=\s{2,}|\||$)/i,
+      /Gerente\s+general[:\s]+([A-Za-zÁÉÍÓÚáéíóúñ .'\-]{3,70}?)(?=\s{2,}|\s+Tel|\s+NIT|\||$)/i,
+    ];
+    for (var li = 0; li < labeledPatterns.length; li++) {
+      var lm = flat.match(labeledPatterns[li]);
+      if (lm && lm[1]) pushCandidate(lm[1], 30);
+    }
+
+    var labelLineRe =
+      /^(?:Representante\s+legal|Rep\.?\s*Legal|R\.?\s*L\.?|Nombre\s+del\s+representante\s+legal|Gerente\s+general)\b/i;
+    for (var i = 0; i < lines.length; i++) {
+      var ln = String(lines[i] || '').replace(/\s+/g, ' ').trim();
+      if (!ln || !labelLineRe.test(ln)) continue;
+      if (/cuenta\s+de\s+pago|nombre\s+o\s+raz[oó]n\s+social/i.test(ln)) continue;
+      var afterColon = ln.replace(/^[^:]{3,55}:\s*/, '').trim();
+      if (afterColon && afterColon !== ln) pushCandidate(afterColon, 26);
+      else if (lines[i + 1]) {
+        var nextLn = String(lines[i + 1]).replace(/\s+/g, ' ').trim();
+        if (nextLn && !feIsRepresentanteGarbage(nextLn)) pushCandidate(nextLn, 22);
+      }
+    }
+
+    if (!candidates.length) return '';
+    candidates.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    return feSanitizeRepresentanteEmisor(candidates[0].text, { allowSingle: true });
+  }
+
+  function feCleanNombreCampo(s) {
+    return String(s || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/[.,;|:]+$/g, '')
+      .slice(0, 90);
+  }
+
+  function feCleanRazonSocialEmisor(s) {
+    s = String(s || '').replace(/\s+/g, ' ').trim();
+    var m = s.match(/^(.+?)\s+nombre\s+comercial\s*:\s*(.+)$/i);
+    if (m) {
+      var a = m[1].trim();
+      var b = m[2].trim();
+      if (!b || feNormNombreCmp(a) === feNormNombreCmp(b)) s = a;
+      else s = a;
+    }
+    s = s.replace(/\s*nombre\s+comercial\s*:\s*[^|]+$/i, '').trim();
+    s = s.replace(/\s*nombre\s+comercial\s*:\s*/gi, ' ').trim();
+    return feCleanNombreCampo(s);
+  }
+
+  function feEsSoloEtiquetaCampo(s) {
+    s = String(s || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[.:]+$/g, '');
+    return /^(nombre\s+comercial|raz[oó]n\s+social|nombre\s+o\s+raz[oó]n\s+social|representante\s+legal|nit|direcci[oó]n|tel[eé]fono|correo|e-?mail|m[oó]vil)$/.test(
+      s
+    );
+  }
+
+  function feExtractCompradorNombre(compradorText, fe) {
+    fe = fe || {};
+    compradorText = String(compradorText || '');
+    if (fe.nombreReceptor && !feEsSoloEtiquetaCampo(fe.nombreReceptor)) {
+      var nr = feCleanNombreCampo(fe.nombreReceptor);
+      if (nr && !feEsSoloEtiquetaCampo(nr)) return nr;
+    }
+    var lines = compradorText.split(/\n/);
+    var labelRe = /nombre\s+o\s+raz[oó]n\s+social|adquiriente|comprador/i;
+    for (var i = 0; i < lines.length; i++) {
+      var ln = String(lines[i] || '').replace(/\s+/g, ' ').trim();
+      if (!ln || !labelRe.test(ln)) continue;
+      if (/^nombre\s+o\s+raz[oó]n\s+social\s*$/i.test(ln)) {
+        if (lines[i + 1]) {
+          var nxt = feCleanNombreCampo(lines[i + 1]);
+          if (nxt && !feEsSoloEtiquetaCampo(nxt)) return nxt;
+        }
+        continue;
+      }
+      var val = feExtractValorTrasEtiqueta(ln, labelRe);
+      if (val && !feEsSoloEtiquetaCampo(val)) return val;
+      if (lines[i + 1]) {
+        var nxt2 = feCleanNombreCampo(lines[i + 1]);
+        if (
+          nxt2 &&
+          !feEsSoloEtiquetaCampo(nxt2) &&
+          !/^(?:nit|n[uú]mero|documento|tel|direcci)/i.test(nxt2)
+        ) {
+          return nxt2;
+        }
+      }
+    }
+    var mCom = compradorText.match(
+      /(?:nombre\s+o\s+raz[oó]n\s+social)[:\s]+([^\n]{4,80}?)(?:\s+nit|\s+n[uú]mero|\s+documento|\||$)/i
+    );
+    if (mCom && mCom[1] && !feEsSoloEtiquetaCampo(mCom[1].trim())) return feCleanNombreCampo(mCom[1]);
+    var mCli = compradorText.match(
+      /cliente\s*:\s*([^\n]{4,90}?)(?:\s+nit|\s+tel[eé]fono|\s+direcci|\s+correo|\||$)/i
+    );
+    if (mCli && mCli[1] && !feEsSoloEtiquetaCampo(mCli[1].trim())) {
+      var cliNom = feCleanNombreCampo(mCli[1]);
+      if (cliNom && !/declara\s+haber\s+recibido/i.test(cliNom)) return cliNom;
+    }
+    return '';
+  }
+
+  function feCompradorZoneText(text) {
+    text = String(text || '');
+    var splitRe =
+      /\b(?:ADQUIRIENTE|COMPRADOR|CLIENTE|DESTINATARIO|FACTURAR\s+A|DATOS\s+DEL\s+(?:CLIENTE|COMPRADOR|ADQUIRIENTE)|INFORMACI[ÓO]N\s+DEL\s+COMPRADOR|NOMBRE\s+DEL\s+CLIENTE)\b/i;
+    var idx = text.search(splitRe);
+    if (idx > 40) return text.slice(idx);
+    return '';
+  }
+
+  function feValorApareceEnTexto(val, zoneText) {
+    if (!val || !zoneText) return false;
+    var v = String(val).replace(/\s+/g, ' ').trim();
+    if (!v) return false;
+    if (/^\d+$/.test(v.replace(/\D/g, ''))) {
+      return zoneText.replace(/\D/g, '').indexOf(v.replace(/\D/g, '')) >= 0;
+    }
+    return zoneText.toUpperCase().indexOf(v.toUpperCase()) >= 0;
+  }
+
+  function feLooksLikeTelefonoColombia(val) {
+    var d = String(val || '').replace(/\D/g, '');
+    if (!d || d.length < 7) return false;
+    if (/^3\d{9}$/.test(d)) return true;
+    if (/^60[1-8]\d{7}$/.test(d)) return true;
+    if (/^1\d{9}$/.test(d) && d.length === 10) return false;
+    if (d.length === 10 && !/^3/.test(d)) return false;
+    return d.length >= 7 && d.length <= 11 && /^3/.test(d);
+  }
+
+  function feNitCoincideTelefono(nitVal, telefonos, nitMeta) {
+    nitMeta = nitMeta || {};
+    if (nitMeta.fuente === 'nit-emisor-etiqueta' || nitMeta.fuente === 'etiqueta-nit') {
+      return false;
+    }
+    var n = String(nitVal || '').replace(/\D/g, '');
+    if (!n || n.length < 8) return false;
+    if (/^3\d{9}$/.test(n) && feLooksLikeTelefonoColombia(n)) return true;
+    var list = telefonos || [];
+    for (var i = 0; i < list.length; i++) {
+      var tRaw = (list[i] && list[i].valor) || list[i] || '';
+      var t = String(tRaw).replace(/\D/g, '');
+      if (!t || t.length < 7) continue;
+      if (!feLooksLikeTelefonoColombia(tRaw)) continue;
+      if (n === t) return true;
+    }
+    return false;
+  }
+
+  function feEsDireccionGenerica(s) {
+    s = String(s || '')
+      .trim()
+      .toLowerCase();
+    return /^calle\s+0+\b/.test(s) || /^calle\s+000/.test(s) || /^n\.?\/?\s*a\.?$/.test(s) || s === 's/n';
+  }
+
+  function feEsTextoFormaPago(s) {
+    s = String(s || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    if (!s || s.length < 8) return false;
+    return (
+      /\b(?:forma\s+de\s+pago|medio\s+de\s+pago|cuenta\s+de\s+pago)\b/i.test(s) ||
+      /\b(?:otro|cr[eé]dito|d[eé]bito|contado|transferencia|consignaci[oó]n)\b.*\b(?:cuota|vence)\b/i.test(s) ||
+      /\bcuota\s+no\.?\s*\d+/i.test(s) ||
+      /\bvence\s+el\s+\d{4}-\d{2}-\d{2}\b/i.test(s) ||
+      /^otro\s*[-–]\s*cr[eé]dito/i.test(s)
+    );
+  }
+
+  function feExtractNitEmisorEtiquetado(text) {
+    text = String(text || '');
+    var patterns = [
+      /Nit\s+del\s+Emisor[:\s#]*([0-9.\-\s]{5,16})/i,
+      /N\.?I\.?T\.?\s*(?:del\s+)?(?:Emisor|Vendedor|Proveedor)[:\s#]*([0-9.\-\s]{5,16})/i,
+      /Emisor\s*\/\s*Vendedor[^0-9]{0,80}?Nit[:\s#]*([0-9.\-\s]{5,16})/i,
+    ];
+    for (var pi = 0; pi < patterns.length; pi++) {
+      var m = text.match(patterns[pi]);
+      if (m && m[1]) {
+        var raw = m[1].replace(/\s/g, '').trim();
+        var n = normNit(raw);
+        if (n.length >= 6 && n.length <= 11) return raw;
+      }
+    }
+    return '';
+  }
+
+  function feLooksLikeEmpresaNombre(s) {
+    s = feCleanNombreCampo(s);
+    if (!s || s.length < 3) return false;
+    if (feIsRepresentanteGarbage(s)) return false;
+    if (/S\.?A\.?S|LTDA|S\.?A\.|E\.U\.|INC\b|CIA\b|&/i.test(s)) return true;
+    if (feLooksLikePersonName(s, { allowSingle: false })) return false;
+    if (/^[A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9\s.&\-]{2,}$/.test(s) && s.split(/\s+/).length <= 8) return true;
+    return s.length >= 5 && !feLooksLikePersonName(s, { allowSingle: true });
+  }
+
+  function feMergeBlocksToLines(blocks, pageNum) {
+    pageNum = pageNum || 1;
+    var items = [];
+    for (var bi = 0; bi < (blocks || []).length; bi++) {
+      var b = blocks[bi];
+      if (b.page !== pageNum) continue;
+      var t = String(b.text || '').trim();
+      if (!t) continue;
+      items.push({
+        text: t,
+        x: b.x || 0,
+        y: b.y || 0,
+        pageH: b.pageH || 0,
+      });
+    }
+    if (!items.length) return [];
+
+    items.sort(function (a, b) {
+      var dy = b.y - a.y;
+      if (Math.abs(dy) > 5) return dy > 0 ? 1 : -1;
+      return a.x - b.x;
+    });
+
+    var lines = [];
+    var cur = null;
+    for (var ii = 0; ii < items.length; ii++) {
+      var it = items[ii];
+      if (!cur || Math.abs(it.y - cur.y) > 6) {
+        if (cur) lines.push(cur);
+        cur = { y: it.y, parts: [it.text], pageH: it.pageH };
+      } else {
+        cur.parts.push(it.text);
+      }
+    }
+    if (cur) lines.push(cur);
+
+    return lines.map(function (ln) {
+      return {
+        y: ln.y,
+        pageH: ln.pageH,
+        text: ln.parts.join(' ').replace(/\s+/g, ' ').trim(),
+      };
+    });
+  }
+
+  function feExtractValorTrasEtiqueta(lineText, labelRe) {
+    lineText = String(lineText || '').replace(/\s+/g, ' ').trim();
+    if (!lineText || !labelRe.test(lineText)) return '';
+
+    var colonVal = lineText.replace(/^[^:]{2,72}:\s*/, '').trim();
+    if (colonVal !== lineText && colonVal.length >= 2 && !labelRe.test(colonVal)) {
+      return feCleanNombreCampo(colonVal);
+    }
+
+    var m = lineText.match(labelRe);
+    if (m) {
+      var rest = lineText.slice(m.index + m[0].length).replace(/^[\s:.\-–]+/, '').trim();
+      if (rest.length >= 2 && !labelRe.test(rest)) return feCleanNombreCampo(rest);
+    }
+    return '';
+  }
+
+  function feComprenderNombresDesdeLineas(lines) {
+    lines = lines || [];
+    var out = { razonSocial: '', representanteEmisor: '' };
+    var labelRazon =
+      /nombre\s+o\s+raz[oó]n\s+social|raz[oó]n\s+social(?:\s+del\s+(?:emisor|vendedor|proveedor))?|nombre\s+comercial(?:\s+del\s+emisor)?/i;
+    var labelRep = /representante\s+legal|rep\.?\s*legal|r\.?\s*l\.?/i;
+    var labelGer = /gerente\s+general/i;
+
+    for (var i = 0; i < lines.length; i++) {
+      var ln = String(lines[i].text || '').replace(/\s+/g, ' ').trim();
+      if (!ln) continue;
+      if (/adquiriente|comprador|cliente\b|destinatario|facturar\s+a/i.test(ln) && !labelRep.test(ln)) continue;
+      if (/cuenta\s+de\s+pago|medio\s+de\s+pago|forma\s+de\s+pago/i.test(ln)) continue;
+
+      if (labelRazon.test(ln)) {
+        var emp = feExtractValorTrasEtiqueta(ln, labelRazon);
+        if (!emp && i + 1 < lines.length) {
+          var nxt = String(lines[i + 1].text || '').trim();
+          if (
+            nxt &&
+            !labelRazon.test(nxt) &&
+            !labelRep.test(nxt) &&
+            !/^(?:nit|tel|direcci|ciudad|departamento|email|dv)\b/i.test(nxt)
+          ) {
+            emp = feCleanNombreCampo(nxt);
+          }
+        }
+        if (
+          emp &&
+          (feLooksLikeEmpresaNombre(emp) || feLooksLikePersonName(emp, { allowSingle: false })) &&
+          !out.razonSocial
+        ) {
+          out.razonSocial = emp;
+        }
+      }
+
+      if (labelRep.test(ln) || labelGer.test(ln)) {
+        if (/nombre\s+o\s+raz[oó]n\s+social/i.test(ln)) continue;
+        var repRe = labelRep.test(ln) ? labelRep : labelGer;
+        var rep = feExtractValorTrasEtiqueta(ln, repRe);
+        if (!rep && i + 1 < lines.length) {
+          var nxtRep = String(lines[i + 1].text || '').trim();
+          if (
+            nxtRep &&
+            !labelRazon.test(nxtRep) &&
+            !labelRep.test(nxtRep) &&
+            !/^(?:nit|tel|direcci|ciudad|departamento|email|dv)\b/i.test(nxtRep)
+          ) {
+            rep = feCleanNombreCampo(nxtRep);
+          }
+        }
+        rep = feSanitizeRepresentanteEmisor(rep, { allowSingle: true });
+        if (rep && !out.representanteEmisor) out.representanteEmisor = rep;
+      }
+    }
+    return out;
+  }
+
+  /** Paso final: entender nombres emisor/representante desde líneas PDF + texto. */
+  function feComprenderNombresEnFactura(fe, pack, meta, extraText) {
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+    if (
+      fe.representanteEmisor &&
+      !feSanitizeRepresentanteEmisor(fe.representanteEmisor, { allowSingle: true })
+    ) {
+      fe.representanteEmisor = '';
+    }
+    var text = String(pack.text || '') + '\n' + String(extraText || '');
+    var pageH = 0;
+    (pack.blocks || []).some(function (b) {
+      if (b.pageH) {
+        pageH = b.pageH;
+        return true;
+      }
+      return false;
+    });
+
+    var blockLines = feMergeBlocksToLines(pack.blocks || [], 1);
+    var emisorLines = pageH
+      ? blockLines.filter(function (l) {
+          return l.y >= pageH * 0.28;
+        })
+      : blockLines;
+
+    var parsed = feComprenderNombresDesdeLineas(emisorLines);
+    if (parsed.razonSocial && !feEsDatoComprador(parsed.razonSocial, fe)) {
+      if (
+        !fe._razonSocialFromEncabezado &&
+        !fe._razonSocialFromTraining &&
+        (!fe.razonSocial || feIsRepresentanteGarbage(fe.razonSocial))
+      ) {
+        fe.razonSocial = parsed.razonSocial;
+        fe._razonSocialExplicit = true;
+        fe._razonSocialFromBlocks = true;
+      }
+    }
+
+    if (!fe.representanteEmisor && parsed.representanteEmisor) {
+      fe.representanteEmisor = parsed.representanteEmisor;
+      fe._representanteFromBlocks = true;
+    }
+
+    if (!fe.representanteEmisor) {
+      var repTxt =
+        feExtractRepresentanteFromText(feEmisorZoneText(text)) ||
+        feBlocksEmisorRepresentante(pack.blocks || []);
+      if (repTxt) {
+        fe.representanteEmisor = repTxt;
+        fe._representanteFromBlocks = true;
+      }
+    }
+
+    if (!fe.razonSocial) {
+      var blockEmp = feBlocksEmisorNombre(pack.blocks || []);
+      if (
+        blockEmp &&
+        (feLooksLikeEmpresaNombre(blockEmp) ||
+          feLooksLikePersonName(blockEmp, { allowSingle: false }) ||
+          blockEmp.length >= 8)
+      ) {
+        fe.razonSocial = feCleanRazonSocialEmisor(blockEmp);
+        fe._razonSocialFromBlocks = true;
+      }
+    }
+
+    if (!fe.razonSocial && meta.nombreArchivo) {
+      var fromFile = feRazonSocialFromFilename(meta.nombreArchivo);
+      if (
+        fromFile &&
+        (feLooksLikeEmpresaNombre(fromFile) ||
+          feLooksLikePersonName(fromFile, { allowSingle: false }) ||
+          fromFile.length >= 6)
+      ) {
+        fe.razonSocial = fromFile.toUpperCase();
+        fe._razonSocialFromFilename = true;
+      }
+    }
+
+    if (fe.representanteEmisor) {
+      fe.representanteEmisor = feSanitizeRepresentanteEmisor(fe.representanteEmisor, {
+        allowSingle: !!fe._representanteFromBlocks,
+      });
+      if (!fe.representanteEmisor) delete fe._representanteFromBlocks;
+    }
+
+    if (fe.razonSocial && fe.representanteEmisor) {
+      if (!feNombresDifieren(fe.razonSocial, fe.representanteEmisor)) {
+        if (
+          feLooksLikeEmpresaNombre(fe.razonSocial) &&
+          feLooksLikePersonName(fe.representanteEmisor, { allowSingle: true })
+        ) {
+          /* empresa + persona: correcto */
+        } else if (feLooksLikePersonName(fe.razonSocial, { allowSingle: true })) {
+          fe.representanteEmisor = '';
+        }
+      }
+    }
+
+    return fe;
+  }
+
+  function feNecesitaOcrNombres(fe, pack) {
+    fe = fe || {};
+    pack = pack || {};
+    var text = String(pack.text || '');
+    if (pack.likelyScanned || (pack.textLen || 0) < 120) return true;
+    if (!fe.razonSocial && /nombre\s+o\s+raz[oó]n\s+social|raz[oó]n\s+social/i.test(text)) return true;
+    if (!fe.representanteEmisor && /representante\s+legal|rep\.?\s*legal/i.test(text)) return true;
+    if (
+      fe.representanteEmisor &&
+      !feSanitizeRepresentanteEmisor(fe.representanteEmisor, { allowSingle: true })
+    ) {
+      return true;
+    }
+    if (!fe.razonSocial && !fe.representanteEmisor && (pack.textLen || 0) < 600) return true;
+    return false;
+  }
+
   function parseFeFromText(text) {
     text = String(text || '');
     var flat = text.replace(/\s+/g, ' ');
@@ -2985,6 +4084,9 @@
       emailEmisor: '',
       direccionEmisor: '',
       ciudadEmisor: '',
+      departamentoEmisor: '',
+      nombreComercialEmisor: '',
+      representanteEmisor: '',
       notas: '',
       tipoDocumento: '',
       lineas: [],
@@ -3000,10 +4102,13 @@
 
     /* ── NIT emisor ── */
     var nitM =
+      flat.match(/\b(\d{1,2}\.\d{3}\.\d{3}-\d{1,2})\b/) ||
+      flat.match(/\b(\d{3}\.\d{3}\.\d{3}-\d{1,2})\b/) ||
+      flat.match(/NIT[:\s#.]*([0-9]{1,3}(?:\.[0-9]{3}){1,2}[-\u2013]?\d{0,2})/i) ||
       flat.match(/NIT[:\s#.]*([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-\u2013]?[0-9Kk])/i) ||
       flat.match(/(?:Emisor|Proveedor|Vendedor)[^0-9]{0,30}([0-9]{3}\.?[0-9]{3}\.?[0-9]{3}[-\u2013]?[0-9Kk]?)/i) ||
       flat.match(/([0-9]{3}\.[0-9]{3}\.[0-9]{3}[-\u2013][0-9Kk])/);
-    if (nitM) out.nitEmisor = nitM[1].replace(/[\s.]/g, '');
+    if (nitM) out.nitEmisor = nitM[1].replace(/[\s]/g, '');
     if (!out.nitEmisor) {
       var nits = feExtractNitsFromText(text);
       if (nits.length) out.nitEmisor = nits[0];
@@ -3015,7 +4120,10 @@
       flat.match(/Nombre\s+(?:o\s+)?raz[o\u00f3]n\s+social[:\s]*([^|\n]{4,80}?)(?:\s{2,}|\s+NIT|\s+DV|$)/i) ||
       flat.match(/Emisor[:\s]+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1][A-Za-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f10-9 .,&\-]{4,70}?)(?:\s{2,}|\s+NIT|\s+CUFE|$)/i) ||
       flat.match(/Raz[o\u00f3]n\s+[Ss]ocial\s+del\s+[Vv]endedor[:\s]*([^|\n]{4,80}?)(?:\s{2,}|$)/i);
-    if (rsM) out.razonSocial = rsM[1].trim().replace(/\s{2,}/g, ' ');
+    if (rsM) {
+      out.razonSocial = rsM[1].trim().replace(/\s{2,}/g, ' ');
+      out._razonSocialExplicit = true;
+    }
 
     /* ── Número de factura ── */
     var feM =
@@ -3121,13 +4229,19 @@
     var emailM = flat.match(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/);
     if (emailM) out.emailEmisor = emailM[1];
 
-    var dirM =
-      flat.match(/Direcci[o\u00f3]n[:\s]*([^|\n]{5,80}?)(?:\s{2,}|\s+Tel|\s+Fax|$)/i) ||
-      flat.match(/Calle\s+[0-9].*?(?=\s{2,}|NIT|$)/i);
-    if (dirM) out.direccionEmisor = dirM[0].trim().slice(0, 100);
+    out.direccionEmisor = feExtractDireccionFromText(text);
 
     var ciudadM = flat.match(/(?:Ciudad|Municipio)[:\s]*([A-Za-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1 ]{3,40}?)(?:\s{2,}|\s+Tel|\||$)/i);
     if (ciudadM) out.ciudadEmisor = ciudadM[1].trim();
+    if (!out.ciudadEmisor) out.ciudadEmisor = fePickCiudadFromText(text);
+
+    var deptoM = flat.match(/Departamento[:\s]*([A-Za-z\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1 ]{3,35}?)(?:\s{2,}|\s+Ciudad|\||$)/i);
+    if (deptoM) out.departamentoEmisor = deptoM[1].trim();
+
+    var ncM =
+      flat.match(/Nombre\s+comercial[:\s]*([^|\n]{4,80}?)(?:\s{2,}|\s+NIT|\s+Tel|$)/i) ||
+      flat.match(/Establecimiento[:\s]*([^|\n]{4,80}?)(?:\s{2,}|$)/i);
+    if (ncM) out.nombreComercialEmisor = ncM[1].trim().replace(/\s{2,}/g, ' ');
 
     /* ── Notas ── */
     var notasM = flat.match(/(?:[Oo]bservaci[o\u00f3]n(?:es)?|[Nn]otas?)[:\s]*([^\n]{5,200})/i);
@@ -3186,7 +4300,2817 @@
       out.subtotal = out.total - out.totalIva;
     }
 
+    /* ── Representante legal emisor ── */
+    out.representanteEmisor = feExtractRepresentanteFromText(text);
+
+    /* ── NIT emisor: evitar confundir con receptor/comprador ── */
+    if (out.nitEmisor && out.nitReceptor && normNit(out.nitEmisor) === normNit(out.nitReceptor)) {
+      var allNits = feExtractNitsFromText(text);
+      for (var nxi = 0; nxi < allNits.length; nxi++) {
+        if (normNit(allNits[nxi]) !== normNit(out.nitReceptor)) {
+          out.nitEmisor = allNits[nxi];
+          break;
+        }
+      }
+    }
+
+    /* ── Razón social: bloque superior del documento ── */
+    if (!out.razonSocial) {
+      for (var rsi = 0; rsi < Math.min(lines.length, 14); rsi++) {
+        var rsl = String(lines[rsi] || '').trim();
+        if (rsl.length < 6 || rsl.length > 90) continue;
+        if (/factura|nit|fecha|cufe|cliente|adquiriente|comprador|dian|resoluci|total|subtotal/i.test(rsl)) {
+          continue;
+        }
+        if (/S\.?A\.?S|LTDA|S\.?A\.|E\.U\.|INC\b/i.test(rsl) && /[A-ZÁÉÍÓÚ]{3,}/.test(rsl)) {
+          out.razonSocial = rsl.replace(/\s{2,}/g, ' ').trim();
+          break;
+        }
+      }
+    }
+
     return out;
+  }
+
+  function feTextoEncabezadoProveedorDesdeBlocks(blocks) {
+    blocks = blocks || [];
+    var pageH = 0;
+    var clienteY = -1;
+    var parts = [];
+
+    blocks.forEach(function (b) {
+      if (b.page !== 1) return;
+      if (b.pageH) pageH = b.pageH;
+      var s = String(b.text || '').trim();
+      if (/^cliente\s*:/i.test(s) || /^cliente\b/i.test(s)) {
+        if (clienteY < 0 || b.y < clienteY) clienteY = b.y;
+      }
+    });
+
+    blocks.forEach(function (b) {
+      if (b.page !== 1) return;
+      var s = String(b.text || '').trim();
+      if (!s || s.length < 2 || s.length > 120) return;
+      if (/^cliente\s*:/i.test(s)) return;
+      if (/factura\s+electr|total\s+a\s+pagar|descripci[oó]n|cantidad|vendedor\s*:/i.test(s)) return;
+      if (pageH && b.y < pageH * 0.42) return;
+      if (clienteY >= 0 && b.y < clienteY - 8) return;
+      parts.push({ text: s, y: b.y || 0, x: b.x || 0 });
+    });
+
+    if (!parts.length) return '';
+
+    parts.sort(function (a, b) {
+      if (b.y !== a.y) return b.y - a.y;
+      return b.x - a.x;
+    });
+
+    var seen = {};
+    return parts
+      .map(function (p) {
+        return p.text;
+      })
+      .filter(function (t) {
+        if (seen[t]) return false;
+        seen[t] = true;
+        return true;
+      })
+      .join('\n');
+  }
+
+  function feLineasAntesDeCliente(text) {
+    text = String(text || '');
+    var lines = text.split(/\n/);
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i].replace(/\s+/g, ' ').trim();
+      if (/^cliente\s*:/i.test(ln) || /^cliente\b/i.test(ln)) break;
+      if (ln) out.push(ln);
+    }
+    return out;
+  }
+
+  /** Facturas comerciales (ferretería, POS): proveedor en encabezado antes de «Cliente:». */
+  function feExtraerProveedorEncabezadoComercial(text, pack) {
+    pack = pack || {};
+    text = String(text || '');
+    var out = {};
+    var zoneLines = feLineasAntesDeCliente(text);
+    var blockHdr = feTextoEncabezadoProveedorDesdeBlocks(pack.blocks || []);
+    if (blockHdr) {
+      blockHdr.split(/\n/).forEach(function (ln) {
+        ln = ln.replace(/\s+/g, ' ').trim();
+        if (ln && zoneLines.indexOf(ln) < 0) zoneLines.push(ln);
+      });
+    }
+    if (!zoneLines.length) return out;
+
+    var bizName = '';
+    var personName = '';
+    var nit = '';
+    var flat = zoneLines.join(' ').replace(/\s+/g, ' ');
+
+    zoneLines.forEach(function (ln) {
+      if (
+        /ferreter[ií]a|ferreteria|distribuidor|comercial|ltda|s\.a\.s|sas\b|tienda|almac[eé]n|arcolores/i.test(ln) &&
+        ln.length >= 6 &&
+        ln.length < 90 &&
+        !/@|\.com|tel|nit\b/i.test(ln)
+      ) {
+        var bn = feCleanNombreCampo(ln);
+        if (!bizName || bn.length > bizName.length) bizName = bn;
+      }
+      if (
+        feLooksLikePersonName(ln, { allowSingle: false }) &&
+        !feIsRepresentanteGarbage(ln) &&
+        !/ferreter[ií]a|factura|electr/i.test(ln)
+      ) {
+        if (!personName) personName = feCleanNombreCampo(ln);
+      }
+      var nitLn = ln.match(/\b(\d{1,2}\.\d{3}\.\d{3}-\d{1,2})\b/) || ln.match(/\b(\d{3}\.\d{3}\.\d{3}-\d{1,2})\b/);
+      if (nitLn && !nit) nit = nitLn[1];
+    });
+
+    if (!nit) {
+      var nitFlat = flat.match(/\b(\d{1,2}\.\d{3}\.\d{3}-\d{1,2})\b/) || flat.match(/\b(\d{3}\.\d{3}\.\d{3}-\d{1,2})\b/);
+      if (nitFlat) nit = nitFlat[1];
+    }
+
+    if (personName) {
+      out.razonSocial = personName;
+      out._razonSocialFromEncabezado = true;
+      out._razonSocialExplicit = true;
+      if (bizName && feNombresDifieren(personName, bizName)) out.nombreComercialEmisor = bizName;
+    } else if (bizName) {
+      out.razonSocial = bizName;
+      out._razonSocialFromEncabezado = true;
+      out._razonSocialExplicit = true;
+    }
+
+    if (nit) {
+      out.nitEmisor = nit;
+      out._nitFromEncabezado = true;
+    }
+
+    if (!out.telefonoEmisor) out.telefonoEmisor = fePickTelefonoEmisor(flat);
+    if (!out.emailEmisor) out.emailEmisor = fePickEmailEmisor(flat);
+    if (!out.direccionEmisor) out.direccionEmisor = feExtractDireccionFromText(flat);
+
+    return out;
+  }
+
+  function feEmisorZoneText(text, pack) {
+    text = String(text || '');
+    pack = pack || {};
+    var splitRe =
+      /\b(?:ADQUIRIENTE|COMPRADOR|CLIENTE\s*:|CLIENTE\b|DESTINATARIO|FACTURAR\s+A|SEÑOR(?:ES)?|DATOS\s+DEL\s+(?:CLIENTE|COMPRADOR|ADQUIRIENTE)|INFORMACI[ÓO]N\s+DEL\s+COMPRADOR|DATOS\s+DEL\s+ADQUIRIENTE|NOMBRE\s+DEL\s+CLIENTE)\b/i;
+    var idx = text.search(splitRe);
+    var pre = idx > 40 ? text.slice(0, idx) : '';
+    var blockHdr = feTextoEncabezadoProveedorDesdeBlocks(pack.blocks || []);
+    var lineHdr = feLineasAntesDeCliente(text).join('\n');
+    var merged = [pre, lineHdr, blockHdr].filter(Boolean).join('\n');
+    if (merged.length > 12) return merged;
+    var p1 = text.split(/\n---\s*p2\s*---\n/i)[0];
+    return p1 || text;
+  }
+
+  function feGetEmpresaContext() {
+    var nit = '';
+    var nombre = '';
+    var displayNombre = '';
+    var displayNit = '';
+    try {
+      var emp = null;
+      if (global.config && typeof global.config.getEmpresa === 'function') {
+        emp = global.config.getEmpresa() || null;
+      }
+      if (!emp && global.getEmpresaConfig && typeof global.getEmpresaConfig === 'function') {
+        emp = global.getEmpresaConfig() || null;
+      }
+      if (emp) {
+        displayNit = String(emp.nit || emp.identificacion || emp.documento || '').trim();
+        displayNombre = String(
+          emp.razonSocial || emp.nombreComercial || emp.nombre || emp.name || ''
+        ).trim();
+        nit = normNit(displayNit);
+        nombre = feNormNombreCmp(displayNombre);
+      }
+    } catch (_) {}
+    return { nit: nit, nombre: nombre, displayNombre: displayNombre, displayNit: displayNit };
+  }
+
+  /** ¿Aparece la empresa del POS (comprador) en el documento? Solo nota informativa. */
+  function feCheckEmpresaEnFactura(fe, pack) {
+    fe = fe || {};
+    pack = pack || {};
+    var empresa = feGetEmpresaContext();
+    if (!empresa.displayNombre && !empresa.nit) {
+      return { found: true, skip: true, empresaNombre: '', mensaje: '' };
+    }
+
+    var found = false;
+    var textRaw = String(pack.text || '');
+    var textCmp = feNormNombreCmp(textRaw);
+    var textDigits = textRaw.replace(/[^0-9]/g, '');
+
+    if (empresa.nit && empresa.nit.length >= 8) {
+      if (fe.nitReceptor && normNit(fe.nitReceptor) === empresa.nit) found = true;
+      var nitDigits = empresa.nit.replace(/[^0-9]/g, '');
+      if (nitDigits.length >= 8 && textDigits.indexOf(nitDigits) >= 0) found = true;
+    }
+
+    if (!found && empresa.displayNombre) {
+      var nomCmp = feNormNombreCmp(empresa.displayNombre);
+      if (nomCmp.length >= 5 && textCmp.indexOf(nomCmp) >= 0) found = true;
+      if (
+        fe.nombreReceptor &&
+        !feNombresDifieren(fe.nombreReceptor, empresa.displayNombre)
+      ) {
+        found = true;
+      }
+      if (!found) {
+        var words = empresa.displayNombre
+          .toUpperCase()
+          .replace(/[^A-ZÁÉÍÓÚÑ0-9 ]/g, ' ')
+          .split(/\s+/)
+          .filter(function (w) {
+            return w.length >= 4 && !/^(DEL|LOS|LAS|DE|LA|EL|Y|SAS|LTDA|CIA)$/.test(w);
+          });
+        var hits = 0;
+        for (var wi = 0; wi < words.length; wi++) {
+          var wc = feNormNombreCmp(words[wi]);
+          if (wc.length >= 4 && textCmp.indexOf(wc) >= 0) hits++;
+        }
+        if (words.length && hits >= Math.max(1, Math.ceil(words.length * 0.5))) found = true;
+      }
+    }
+
+    var mensaje = '';
+    if (!found) {
+      mensaje =
+        'No aparece «' +
+        (empresa.displayNombre || 'su empresa') +
+        '»' +
+        (empresa.displayNit ? ' (NIT ' + empresa.displayNit + ')' : '') +
+        ' como comprador. Verifique que el documento sea para su negocio.';
+      if (pack.likelyScanned && (pack.textLen || 0) < 120) {
+        mensaje += ' PDF con poco texto legible.';
+      }
+      mensaje += ' Puede continuar.';
+    }
+
+    return {
+      found: found,
+      skip: false,
+      empresaNombre: empresa.displayNombre,
+      empresaNit: empresa.displayNit,
+      mensaje: mensaje,
+    };
+  }
+
+  function feEsDatoComprador(val, fe, empresa) {
+    if (val == null || val === '') return false;
+    fe = fe || {};
+    empresa = empresa || feGetEmpresaContext();
+    var vNom = feNormNombreCmp(val);
+    var vNit = normNit(val);
+
+    if (fe.nombreReceptor && vNom && !feNombresDifieren(val, fe.nombreReceptor)) return true;
+    if (fe.nitReceptor && vNit && vNit === normNit(fe.nitReceptor)) return true;
+    if (empresa.nit && vNit && vNit.length >= 8 && vNit === empresa.nit) return true;
+    if (empresa.nombre && vNom && vNom.length >= 6) {
+      if (vNom === empresa.nombre) return true;
+      if (vNom.indexOf(empresa.nombre) >= 0 || empresa.nombre.indexOf(vNom) >= 0) return true;
+    }
+    if (typeof val === 'string' && /TIENDA\s+DE\s+CAF[eéÉ]/i.test(val)) return true;
+    return false;
+  }
+
+  /** Quita del emisor datos que coinciden con comprador o con la empresa en sesión. */
+  function feSanitizeEmisorVsComprador(fe, pack, meta) {
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+    var empresa = feGetEmpresaContext();
+    var emisorText = feEmisorZoneText(pack.text || '', pack);
+
+    if (fe.razonSocial && !fe._razonSocialFromTraining && feEsDatoComprador(fe.razonSocial, fe, empresa)) {
+      if (!fe.nombreReceptor) fe.nombreReceptor = fe.razonSocial;
+      fe._compradorConflicto = fe.razonSocial;
+      fe.razonSocial = '';
+      fe._razonSocialExplicit = false;
+      fe._razonSocialFromBlocks = false;
+      var encHdr = feExtraerProveedorEncabezadoComercial(pack.text || '', pack);
+      if (encHdr.razonSocial && !feEsDatoComprador(encHdr.razonSocial, fe, empresa)) {
+        fe.razonSocial = encHdr.razonSocial;
+        fe._razonSocialFromEncabezado = true;
+        fe._razonSocialExplicit = true;
+      } else {
+        var rsEm = parseFeFromText(emisorText);
+        if (rsEm.razonSocial && !feEsDatoComprador(rsEm.razonSocial, fe, empresa)) {
+          fe.razonSocial = rsEm.razonSocial;
+          fe._razonSocialExplicit = !!rsEm._razonSocialExplicit;
+        } else if (meta.nombreArchivo) {
+          var fromFile = feRazonSocialFromFilename(meta.nombreArchivo);
+          if (fromFile && !feEsDatoComprador(fromFile, fe, empresa)) {
+            fe.razonSocial = fromFile.toUpperCase();
+            fe._razonSocialFromFilename = true;
+          }
+        }
+      }
+    }
+
+    if (fe.direccionEmisor && (feEsTextoFormaPago(fe.direccionEmisor) || feEsDireccionGenerica(fe.direccionEmisor))) {
+      fe.direccionEmisor = '';
+      var encDir = feExtraerProveedorEncabezadoComercial(pack.text || '', pack);
+      if (encDir.direccionEmisor && feLooksLikeColAddress(encDir.direccionEmisor)) {
+        fe.direccionEmisor = encDir.direccionEmisor;
+      } else {
+        var dirEm = feExtractDireccionFromText(emisorText);
+        if (dirEm && feLooksLikeColAddress(dirEm)) fe.direccionEmisor = dirEm;
+      }
+    }
+
+    if (fe.nitEmisor && feEsDatoComprador(fe.nitEmisor, fe, empresa)) {
+      fe.nitEmisor = '';
+      var nits = feExtractNitsFromText(emisorText);
+      var rec = fe.nitReceptor ? normNit(fe.nitReceptor) : '';
+      var empNit = empresa.nit || '';
+      for (var ni = 0; ni < nits.length; ni++) {
+        var nn = normNit(nits[ni]);
+        if (nn === rec || (empNit && nn === empNit)) continue;
+        fe.nitEmisor = nits[ni];
+        break;
+      }
+    }
+
+    if (fe.nombreReceptor && fe.razonSocial && !feNombresDifieren(fe.razonSocial, fe.nombreReceptor)) {
+      fe._posibleComprador = true;
+      fe._proveedorIgualComprador = fe.razonSocial;
+    }
+
+    return fe;
+  }
+
+  function feBlockLooksLikeProduct(s) {
+    s = String(s || '').trim();
+    if (!s || s.length < 4) return true;
+    if (/\$|[\d]{1,3}[.,][\d]{2,}/.test(s)) return true;
+    if (/^\d+([.,]\d+)?$/.test(s)) return true;
+    if (/\b(kg|gr|und|unid|cant|x\s*\d|valor|unitario|subtotal)\b/i.test(s)) return true;
+    if (/^(descripci|producto|art[ií]culo|cantidad|vr\.?\s*unit)/i.test(s)) return true;
+    return false;
+  }
+
+  function feNormNombreCmp(s) {
+    return String(s || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-ZÁÉÍÓÚÑ0-9 ]/g, '');
+  }
+
+  function feNombresDifieren(a, b) {
+    var na = feNormNombreCmp(a);
+    var nb = feNormNombreCmp(b);
+    if (!na || !nb) return false;
+    if (na === nb) return false;
+    if (na.indexOf(nb) >= 0 || nb.indexOf(na) >= 0) return false;
+    return true;
+  }
+
+  function feIsGenericEmail(email) {
+    email = String(email || '').toLowerCase();
+    return /dian\.gov|facturaelectronica|noreply|no-reply|notificaciones|soporte\.dian|@fe\.|facturacion@/i.test(
+      email
+    );
+  }
+
+  function fePickEmailEmisor(text) {
+    var re = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/g;
+    var m;
+    while ((m = re.exec(text))) {
+      if (!feIsGenericEmail(m[1])) return m[1];
+    }
+    return '';
+  }
+
+  function fePickTelefonoEmisor(text) {
+    var patterns = [
+      /(?:Cel(?:ular)?|M[oó]vil|Tel(?:[eé]fono)?|Phone|Fax)[:\s]*([+\d][\d\s().\-]{6,18})/i,
+      /(\+57\s*3\d{2}\s*\d{3}\s*\d{4})/,
+      /(3\d{2}[\s.-]?\d{3}[\s.-]?\d{4})/,
+      /(\(\d{3,4}\)\s*\d{3,7})/,
+      /Tel[eé]fono[:\s]*([+\s0-9()-]{7,20})/i,
+    ];
+    for (var pi = 0; pi < patterns.length; pi++) {
+      var m = text.match(patterns[pi]);
+      if (m && m[1]) return m[1].replace(/\s{2,}/g, ' ').trim();
+    }
+    return '';
+  }
+
+  function feBlocksEmisorNombre(blocks) {
+    blocks = blocks || [];
+    var p1 = [];
+    var pageH = 0;
+    for (var bi = 0; bi < blocks.length; bi++) {
+      var b = blocks[bi];
+      if (b.page !== 1) continue;
+      if (b.pageH) pageH = b.pageH;
+      var s = String(b.text || '').trim();
+      if (s.length < 4 || s.length > 90) continue;
+      if (feBlockLooksLikeProduct(s)) continue;
+      if (
+        /factura|nit|cufe|fecha|cliente|adquiriente|comprador|resoluci|total|p[aá]gina|page|dian|n[uú]mero|electr[oó]nica/i.test(
+          s
+        )
+      ) {
+        continue;
+      }
+      p1.push({ text: s, h: b.h || 0, y: b.y || 0, idx: bi });
+    }
+    if (!p1.length) return '';
+
+    var yCut = pageH ? pageH * 0.62 : 0;
+    var nitIdx = p1.length;
+    for (var ni = 0; ni < p1.length; ni++) {
+      if (/^NIT\b|N\.I\.T/i.test(p1[ni].text)) {
+        nitIdx = ni;
+        break;
+      }
+    }
+
+    var best = '';
+    var bestScore = -1;
+    for (var ci = 0; ci < p1.length; ci++) {
+      var cand = p1[ci];
+      var t = cand.text.replace(/\s{2,}/g, ' ').trim();
+      if (yCut && cand.y < yCut) continue;
+      if (cand.idx > nitIdx + 10) continue;
+      var score = (cand.h || 0) * 2;
+      if (cand.idx <= nitIdx + 2) score += 40;
+      if (/S\.?A\.?S|LTDA|S\.?A\.|E\.U\.|INC|CIA\b/i.test(t)) score += 25;
+      if (/[A-ZÁÉÍÓÚÑ]{4,}/.test(t)) score += 10;
+      if (score > bestScore) {
+        bestScore = score;
+        best = t;
+      }
+    }
+    return best.replace(/\s{2,}/g, ' ').trim().replace(/\s*nombre\s+comercial\s*:.*$/i, '').trim();
+  }
+
+  function feBlocksEmisorDireccion(blocks) {
+    blocks = blocks || [];
+    var best = '';
+    var bestScore = -1;
+    for (var bi = 0; bi < blocks.length; bi++) {
+      var b = blocks[bi];
+      if (b.page !== 1) continue;
+      var s = String(b.text || '').replace(/\s+/g, ' ').trim();
+      if (s.length < 8 || s.length > 130) continue;
+      if (!feLooksLikeColAddress(s)) continue;
+      if (feBlockLooksLikeProduct(s)) continue;
+      if (/^(?:cliente|comprador|adquiriente|factura|nit|cufe)\b/i.test(s)) continue;
+      var score = feScoreDireccionCandidate(s);
+      if (/#\s*\d/.test(s)) score += 8;
+      if (b.y && b.pageH && b.y < b.pageH * 0.58) score += 10;
+      if (score > bestScore) {
+        bestScore = score;
+        best = feCleanDireccion(s);
+      }
+    }
+    return best;
+  }
+
+  function feBlocksEmisorRepresentante(blocks) {
+    blocks = blocks || [];
+    var labelRe = /representante\s+legal|rep\.?\s*legal|r\.?\s*l\.?|nombre\s+del\s+representante\s+legal|gerente\s+general/i;
+    var best = '';
+    var bestScore = -1;
+
+    for (var bi = 0; bi < blocks.length; bi++) {
+      var b = blocks[bi];
+      if (b.page !== 1) continue;
+      var s = String(b.text || '').replace(/\s+/g, ' ').trim();
+      if (!s || feIsRepresentanteGarbage(s)) continue;
+
+      if (labelRe.test(s)) {
+        if (/cuenta\s+de\s+pago|nombre\s+o\s+raz[oó]n\s+social/i.test(s)) continue;
+        var after = s.replace(/^[^:]{2,55}:\s*/, '').trim();
+        if (after !== s) {
+          var scLabel = feScoreRepresentanteCandidate(after, { allowSingle: true }) + 18;
+          if (scLabel > bestScore) {
+            bestScore = scLabel;
+            best = feSanitizeRepresentanteEmisor(after, { allowSingle: true });
+          }
+        }
+        if (bi + 1 < blocks.length && blocks[bi + 1].page === 1) {
+          var next = String(blocks[bi + 1].text || '').replace(/\s+/g, ' ').trim();
+          if (next && !feIsRepresentanteGarbage(next)) {
+            var scNext = feScoreRepresentanteCandidate(next, { allowSingle: true }) + 14;
+            if (scNext > bestScore) {
+              bestScore = scNext;
+              best = feSanitizeRepresentanteEmisor(next, { allowSingle: true });
+            }
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  function feMergeFePreferFill(primary, extra) {
+    primary = primary || {};
+    extra = extra || {};
+    Object.keys(extra).forEach(function (k) {
+      if (k.indexOf('_') === 0 && extra[k]) {
+        primary[k] = extra[k];
+        return;
+      }
+      if (k === 'lineas' && Array.isArray(extra.lineas) && extra.lineas.length) {
+        if (!primary.lineas || !primary.lineas.length) primary.lineas = extra.lineas.slice();
+        return;
+      }
+      if (k === 'rawExcerpt') return;
+      var v = extra[k];
+      if (v === null || v === undefined || v === '' || v === 0) return;
+      if (!primary[k] || primary[k] === '' || primary[k] === 0) primary[k] = v;
+    });
+    return primary;
+  }
+
+  function feEnrichFeProveedor(fe, pack, meta) {
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+    var text = pack.text || '';
+    var encabezado = feExtraerProveedorEncabezadoComercial(text, pack);
+    fe = feMergeFePreferFill(fe, encabezado);
+    var emisorText = feEmisorZoneText(text, pack);
+    var feDoc = fe;
+    var feEm = parseFeFromText(emisorText);
+    var out = feMergeFePreferFill(Object.assign({}, feDoc), feEm);
+
+    out.lineas =
+      feDoc.lineas && feDoc.lineas.length ? feDoc.lineas : feEm.lineas && feEm.lineas.length ? feEm.lineas : [];
+    if (feEm.nitEmisor && !out._nitFromEncabezado) out.nitEmisor = feEm.nitEmisor;
+    if (feEm._razonSocialExplicit && feEm.razonSocial && !out._razonSocialFromEncabezado) {
+      out.razonSocial = feEm.razonSocial;
+      out._razonSocialExplicit = true;
+    } else if (feEm.razonSocial && !out.razonSocial) {
+      out.razonSocial = feEm.razonSocial;
+    }
+
+    if (!out.telefonoEmisor) {
+      out.telefonoEmisor = fePickTelefonoEmisor(emisorText) || fePickTelefonoEmisor(text);
+    }
+    if (!out.emailEmisor) {
+      out.emailEmisor = fePickEmailEmisor(emisorText) || fePickEmailEmisor(text);
+    }
+    if (!out.direccionEmisor) {
+      out.direccionEmisor =
+        feExtractDireccionFromText(emisorText) ||
+        feExtractDireccionFromText(text) ||
+        feBlocksEmisorDireccion(pack.blocks || []);
+    }
+    if (!out.ciudadEmisor) {
+      out.ciudadEmisor = fePickCiudadFromText(emisorText) || fePickCiudadFromText(text);
+    }
+    if (!out.representanteEmisor) {
+      out.representanteEmisor =
+        feExtractRepresentanteFromText(emisorText) ||
+        feExtractRepresentanteFromText(text) ||
+        feBlocksEmisorRepresentante(pack.blocks || []);
+    }
+
+    var blockName = feBlocksEmisorNombre(pack.blocks || []);
+    if (blockName && !out.razonSocial) {
+      out.razonSocial = feCleanRazonSocialEmisor(blockName);
+      out._razonSocialFromBlocks = true;
+    } else if (blockName && out.razonSocial && !out._razonSocialExplicit && feNombresDifieren(out.razonSocial, blockName)) {
+      /* Mantener nombre del emisor ya leído; no reemplazar por comprador/ítem con fuente más grande */
+    }
+
+    if (!out.razonSocial && meta.nombreArchivo) {
+      out.razonSocial = feRazonSocialFromFilename(meta.nombreArchivo);
+      if (out.razonSocial) out.razonSocial = out.razonSocial.toUpperCase();
+    }
+
+    if (out._nitFromEncabezado && out.nitEmisor) {
+      /* keep */
+    } else if (out.nitEmisor && out.nitReceptor && normNit(out.nitEmisor) === normNit(out.nitReceptor)) {
+      var emisorNits = feExtractNitsFromText(emisorText);
+      var rec = normNit(out.nitReceptor);
+      for (var eni = 0; eni < emisorNits.length; eni++) {
+        if (normNit(emisorNits[eni]) !== rec) {
+          out.nitEmisor = emisorNits[eni];
+          break;
+        }
+      }
+    }
+
+    if (!out.nitEmisor && text) {
+      var emisorNits2 = feExtractNitsFromText(emisorText);
+      var rec2 = out.nitReceptor ? normNit(out.nitReceptor) : '';
+      for (var eni2 = 0; eni2 < emisorNits2.length; eni2++) {
+        if (!rec2 || normNit(emisorNits2[eni2]) !== rec2) {
+          out.nitEmisor = emisorNits2[eni2];
+          break;
+        }
+      }
+      if (!out.nitEmisor) {
+        var allNits = feExtractNitsFromText(text);
+        for (var ani = 0; ani < allNits.length; ani++) {
+          if (!rec2 || normNit(allNits[ani]) !== rec2) {
+            out.nitEmisor = allNits[ani];
+            break;
+          }
+        }
+      }
+    }
+
+    out = feComprenderNombresEnFactura(out, pack, meta);
+
+    return out;
+  }
+
+  function feTrainingGetVendors() {
+    var p = getFeTrainingProfile();
+    return (p && p.vendors) || [];
+  }
+
+  /** Aplica catálogo entrenado (facturas de pruebas) para corregir emisor en auto-detect. */
+  function feTrainingResolveVendor(text, meta, fe) {
+    var vendors = feTrainingGetVendors();
+    if (!vendors.length) return null;
+    meta = meta || {};
+    fe = fe || {};
+    var emisorText = feEmisorZoneText(text || '');
+    var fileSlug = feSupplierSlugFromFilename(meta.nombreArchivo || '');
+    var nitFe = fe.nitEmisor ? normNit(fe.nitEmisor) : '';
+    var textUp = String(emisorText || '').toUpperCase();
+    var best = null;
+    var bestScore = 0;
+
+    for (var vi = 0; vi < vendors.length; vi++) {
+      var v = vendors[vi];
+      var score = 0;
+      if (fileSlug && v.slug && fileSlug === v.slug) score += 52;
+      if (nitFe && v.nits && v.nits.length) {
+        for (var ni = 0; ni < v.nits.length; ni++) {
+          if (nitFe === normNit(v.nits[ni])) score += 48;
+        }
+      }
+      if (v.tokens && v.tokens.length) {
+        for (var ti = 0; ti < v.tokens.length; ti++) {
+          var tok = String(v.tokens[ti] || '').toUpperCase();
+          if (tok.length >= 4 && textUp.indexOf(tok) >= 0) score += 9;
+        }
+      }
+      if (v.aliases && v.aliases.length && fe.razonSocial) {
+        for (var ai = 0; ai < v.aliases.length; ai++) {
+          if (!feNombresDifieren(fe.razonSocial, v.aliases[ai])) score += 20;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = v;
+      }
+    }
+    if (!best || bestScore < 42) return null;
+    return { vendor: best, score: bestScore };
+  }
+
+  function feTrainingPickAlias(v, meta) {
+    v = v || {};
+    meta = meta || {};
+    var fileSlug = feSupplierSlugFromFilename(meta.nombreArchivo || '');
+    if (v.slug && fileSlug === v.slug && v.label) {
+      return String(v.label).toUpperCase();
+    }
+    if (v.aliases && v.aliases.length) return String(v.aliases[0]);
+    return String(v.label || '').toUpperCase();
+  }
+
+  function feTrainingApplyToFe(fe, pack, meta) {
+    fe = fe || {};
+    pack = pack || {};
+    var Banco = global.CrozzoRecepcionFeBanco;
+    if (Banco && typeof Banco.feBancoApplyLearnedToFe === 'function') {
+      fe = Banco.feBancoApplyLearnedToFe(fe, pack, meta);
+    }
+    var hit = feTrainingResolveVendor(pack.text, meta, fe);
+    if (!hit || !hit.vendor) return fe;
+    var v = hit.vendor;
+    var alias = feTrainingPickAlias(v, meta);
+
+    if (v.nits && v.nits.length) {
+      var known = false;
+      if (fe.nitEmisor) {
+        var n0 = normNit(fe.nitEmisor);
+        for (var i = 0; i < v.nits.length; i++) {
+          if (n0 === normNit(v.nits[i])) known = true;
+        }
+      }
+      if (!fe.nitEmisor || (!known && hit.score >= 50)) fe.nitEmisor = v.nits[0];
+    }
+
+    if (alias && !fe._razonSocialExplicit) {
+      if (!fe.razonSocial) {
+        fe.razonSocial = alias;
+        fe._razonSocialFromTraining = true;
+      } else if (feNombresDifieren(fe.razonSocial, alias) && hit.score >= 48) {
+        fe.razonSocial = alias;
+        fe._razonSocialFromTraining = true;
+      }
+    }
+    return fe;
+  }
+
+  function feComputeProbeConfidence(fe, pack) {
+    fe = fe || {};
+    pack = pack || {};
+    var fields = [];
+    var score = 0;
+    if (fe.nitEmisor) {
+      score += 22;
+      fields.push('nit');
+    }
+    if (fe.razonSocial) {
+      score += 20;
+      fields.push('razonSocial');
+    }
+    if (fe.telefonoEmisor) {
+      score += 10;
+      fields.push('telefono');
+    }
+    if (fe.emailEmisor) {
+      score += 10;
+      fields.push('email');
+    }
+    if (fe.direccionEmisor) {
+      score += 8;
+      fields.push('direccion');
+    }
+    if (fe.representanteEmisor) {
+      score += 5;
+      fields.push('representante');
+    }
+    if (fe.numeroFactura) {
+      score += 8;
+      fields.push('numeroFactura');
+    }
+    if (fe.fecha) {
+      score += 5;
+      fields.push('fecha');
+    }
+    if (fe.total) {
+      score += 7;
+      fields.push('total');
+    }
+    if (fe.cufe) {
+      score += 5;
+      fields.push('cufe');
+    }
+    if (fe.lineas && fe.lineas.length) {
+      score += Math.min(10, fe.lineas.length * 2);
+      fields.push('lineas');
+    }
+    if (pack.likelyScanned && (pack.textLen || 0) < 80) score = Math.max(0, score - 15);
+    if ((pack.textLen || 0) > 200) score += 5;
+    score = Math.min(100, score);
+    var label = score >= 70 ? 'Alta' : score >= 45 ? 'Media' : 'Baja';
+    return { score: score, label: label, fieldsFound: fields };
+  }
+
+  function feProbeHeaderOcr(doc) {
+    return feOcrRenderHeaderDataUrl(doc).then(feOcrLocalDesdeDataUrl);
+  }
+
+  function feBolsaUniq(arr, item, keyFn) {
+    keyFn =
+      keyFn ||
+      function (x) {
+        return String((x && x.valor) || x || '');
+      };
+    var k = keyFn(item);
+    if (!k) return;
+    for (var i = 0; i < arr.length; i++) {
+      if (keyFn(arr[i]) === k) return;
+    }
+    arr.push(item);
+  }
+
+  /** Fase 1: sacar todo lo que se pueda (números, cuentas, nombres, etiquetas…) sin filtrar aún. */
+  function feExtraerBolsaCandidatos(pack, fe, meta) {
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+    var text = String(pack.text || '');
+    var flat = text.replace(/\s+/g, ' ');
+    var lines = text
+      .split(/\n/)
+      .map(function (ln) {
+        return ln.replace(/\s+/g, ' ').trim();
+      })
+      .filter(Boolean);
+
+    var bolsa = {
+      nombres: [],
+      nits: [],
+      telefonos: [],
+      emails: [],
+      cuentas: [],
+      montos: [],
+      numerosFactura: [],
+      fechas: [],
+      direcciones: [],
+      cufes: [],
+      lineasEtiquetadas: [],
+      numerosSueltos: [],
+    };
+
+    var emisorText = feEmisorZoneText(text, pack);
+    var compradorText = feCompradorZoneText(text);
+
+    var nitEmisorEtq = feExtractNitEmisorEtiquetado(emisorText);
+    if (nitEmisorEtq) {
+      feBolsaUniq(bolsa.nits, { valor: nitEmisorEtq, fuente: 'nit-emisor-etiqueta', zona: 'emisor' });
+    }
+
+    feExtractNitsFromText(emisorText).forEach(function (n) {
+      feBolsaUniq(bolsa.nits, { valor: n, fuente: 'texto-emisor', zona: 'emisor' });
+    });
+    feExtractNitsFromText(compradorText).forEach(function (n) {
+      feBolsaUniq(bolsa.nits, { valor: n, fuente: 'texto-comprador', zona: 'comprador' });
+    });
+    feExtractNitsFromText(text).forEach(function (n) {
+      feBolsaUniq(bolsa.nits, { valor: n, fuente: 'texto', zona: 'mixto' });
+    });
+
+    var telRe = /(?:tel[eé]fono|telf\.?|cel(?:ular)?|m[oó]vil|fax)[:\s#]*([+\d\s().-]{7,22})/gi;
+    var tm;
+    while ((tm = telRe.exec(text))) {
+      feBolsaUniq(bolsa.telefonos, { valor: tm[1].trim(), fuente: 'etiqueta' });
+    }
+    (flat.match(/(?:\+57\s?)?3\d{2}[\s.-]?\d{3}[\s.-]?\d{4}/g) || []).forEach(function (t) {
+      if (feLooksLikeTelefonoColombia(t)) {
+        feBolsaUniq(bolsa.telefonos, { valor: t.trim(), fuente: 'patron-movil' });
+      }
+    });
+
+    (flat.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || []).forEach(function (e) {
+      feBolsaUniq(bolsa.emails, { valor: e.toLowerCase(), fuente: 'patron', len: e.length });
+    });
+
+    var cuentaRe =
+      /(?:cuenta\s+(?:de\s+)?(?:ahorros|corriente|bancaria)?|cta\.?|no\.?\s*cuenta|n[uú]mero\s+de\s+cuenta)[:\s#]*([*\d\s\-]{8,28})/gi;
+    var cm;
+    while ((cm = cuentaRe.exec(text))) {
+      feBolsaUniq(bolsa.cuentas, { valor: cm[1].replace(/\s/g, ''), fuente: 'etiqueta', contexto: cm[0].slice(0, 40) });
+    }
+    (flat.match(/\b\d{9,16}\b/g) || []).forEach(function (num) {
+      if (num.length >= 10 && num.length <= 11 && normNit(num).length >= 9) return;
+      feBolsaUniq(bolsa.numerosSueltos, { valor: num, fuente: 'texto' });
+    });
+
+    var montoRe = /(?:total\s+a\s+pagar|valor\s+total|total\s+factura|total)[:\s$#]*([\d.,]+)/gi;
+    var mm;
+    while ((mm = montoRe.exec(flat))) {
+      feBolsaUniq(bolsa.montos, { valor: mm[1], fuente: 'etiqueta-total' });
+    }
+    (flat.match(/\$\s*[\d.,]+/g) || []).slice(0, 12).forEach(function (m) {
+      feBolsaUniq(bolsa.montos, { valor: m.replace(/[^\d.,]/g, ''), fuente: 'simbolo-peso' });
+    });
+
+    var facRe = /(?:factura\s*(?:electr[oó]nica|de\s+venta)?|n[uú]mero\s+de\s+factura|no\.?\s*factura)[:\s#]*([A-Z0-9\-]+)/gi;
+    var fm;
+    while ((fm = facRe.exec(flat))) {
+      feBolsaUniq(bolsa.numerosFactura, { valor: fm[1], fuente: 'etiqueta' });
+    }
+
+    (flat.match(/\b\d{4}[-/]\d{2}[-/]\d{2}\b/g) || []).forEach(function (d) {
+      feBolsaUniq(bolsa.fechas, { valor: d, fuente: 'patron' });
+    });
+
+    lines.forEach(function (ln) {
+      var em = ln.match(
+        /^(raz[oó]n\s+social|nombre(?:\s+o\s+raz[oó]n\s+social)?|representante(?:\s+legal)?|nit|direcci[oó]n|tel[eé]fono|correo|e-?mail|cuenta|factura|fecha|total)\s*[:\s]\s*(.+)$/i
+      );
+      if (em) {
+        bolsa.lineasEtiquetadas.push({ etiqueta: em[1], valor: em[2].trim() });
+      }
+      if (feLooksLikeColAddress(ln) && ln.length >= 12 && ln.length < 120) {
+        feBolsaUniq(bolsa.direcciones, { valor: ln, fuente: 'linea' });
+      }
+    });
+
+    extractAllCufeCandidates(text).forEach(function (c) {
+      var hex = typeof c === 'string' ? c : c.cufe;
+      if (hex) feBolsaUniq(bolsa.cufes, { valor: hex, fuente: 'texto' });
+    });
+
+    if (pack.blocks && pack.blocks.length) {
+      var blockNom = feBlocksEmisorNombre(pack.blocks);
+      if (blockNom) {
+        feBolsaUniq(bolsa.nombres, {
+          valor: blockNom,
+          tipo: 'empresa',
+          fuente: 'bloque-pdf',
+        });
+      }
+      var blockDir = feBlocksEmisorDireccion(pack.blocks);
+      if (blockDir) feBolsaUniq(bolsa.direcciones, { valor: blockDir, fuente: 'bloque-pdf' });
+      var blockRep = feBlocksEmisorRepresentante(pack.blocks);
+      if (blockRep) {
+        feBolsaUniq(bolsa.nombres, { valor: blockRep, tipo: 'persona', fuente: 'bloque-pdf' });
+      }
+    }
+
+    [
+      { v: fe.razonSocial, tipo: 'empresa', fuente: 'parser' },
+      { v: fe.representanteEmisor, tipo: 'persona', fuente: 'parser' },
+      { v: fe.nombreComercialEmisor, tipo: 'empresa', fuente: 'parser' },
+    ].forEach(function (row) {
+      if (!row.v) return;
+      feBolsaUniq(bolsa.nombres, { valor: String(row.v).trim(), tipo: row.tipo, fuente: row.fuente });
+    });
+    if (fe.nitEmisor) feBolsaUniq(bolsa.nits, { valor: fe.nitEmisor, fuente: 'parser' });
+    if (fe.telefonoEmisor) feBolsaUniq(bolsa.telefonos, { valor: fe.telefonoEmisor, fuente: 'parser' });
+    if (fe.emailEmisor) feBolsaUniq(bolsa.emails, { valor: fe.emailEmisor, fuente: 'parser' });
+    if (fe.direccionEmisor) feBolsaUniq(bolsa.direcciones, { valor: fe.direccionEmisor, fuente: 'parser' });
+    if (fe.cufe) feBolsaUniq(bolsa.cufes, { valor: fe.cufe, fuente: 'parser' });
+    if (fe.total) feBolsaUniq(bolsa.montos, { valor: String(fe.total), fuente: 'parser' });
+    if (fe.numeroFactura) feBolsaUniq(bolsa.numerosFactura, { valor: fe.numeroFactura, fuente: 'parser' });
+
+    bolsa.lineasEtiquetadas.forEach(function (le) {
+      var et = String(le.etiqueta || '').toLowerCase();
+      var val = le.valor;
+      if (/raz[oó]n|nombre/.test(et) && !/representante/.test(et)) {
+        feBolsaUniq(bolsa.nombres, {
+          valor: val,
+          tipo: feLooksLikeEmpresaNombre(val) ? 'empresa' : 'otro',
+          fuente: 'etiqueta-' + et,
+        });
+      } else if (/representante/.test(et)) {
+        feBolsaUniq(bolsa.nombres, { valor: val, tipo: 'persona', fuente: 'etiqueta-representante' });
+      } else if (/nit/.test(et)) {
+        feBolsaUniq(bolsa.nits, { valor: val, fuente: 'etiqueta-nit' });
+      } else if (/direcci/.test(et)) {
+        feBolsaUniq(bolsa.direcciones, { valor: val, fuente: 'etiqueta-direccion' });
+      } else if (/tel/.test(et)) {
+        feBolsaUniq(bolsa.telefonos, { valor: val, fuente: 'etiqueta-telefono' });
+      } else if (/correo|mail/.test(et)) {
+        feBolsaUniq(bolsa.emails, { valor: val, fuente: 'etiqueta-email' });
+      } else if (/cuenta/.test(et)) {
+        feBolsaUniq(bolsa.cuentas, { valor: val.replace(/\s/g, ''), fuente: 'etiqueta-cuenta' });
+      }
+    });
+
+    bolsa.nombres.forEach(function (n) {
+      if (feEsSoloEtiquetaCampo(n.valor)) {
+        n.tipo = 'etiqueta';
+        return;
+      }
+      if (!n.tipo || n.tipo === 'otro') {
+        if (feLooksLikeEmpresaNombre(n.valor)) n.tipo = 'empresa';
+        else if (feLooksLikePersonName(n.valor, { allowSingle: true })) n.tipo = 'persona';
+        else n.tipo = 'otro';
+      }
+    });
+
+    bolsa.resumen =
+      bolsa.nombres.length +
+      ' nombres · ' +
+      bolsa.nits.length +
+      ' NIT · ' +
+      bolsa.cuentas.length +
+      ' cuentas · ' +
+      bolsa.montos.length +
+      ' montos';
+    return bolsa;
+  }
+
+  function feBolsaEtiquetarParte(bolsa, parteId) {
+    if (!bolsa || !parteId) return bolsa;
+    var keys = [
+      'nombres',
+      'nits',
+      'telefonos',
+      'emails',
+      'cuentas',
+      'montos',
+      'numerosFactura',
+      'fechas',
+      'direcciones',
+      'cufes',
+      'numerosSueltos',
+    ];
+    keys.forEach(function (k) {
+      (bolsa[k] || []).forEach(function (item) {
+        if (item && !item.parte) item.parte = parteId;
+      });
+    });
+    (bolsa.lineasEtiquetadas || []).forEach(function (le) {
+      if (le && !le.parte) le.parte = parteId;
+    });
+    return bolsa;
+  }
+
+  function feBolsaFusionar(base, extra) {
+    base = base || feExtraerBolsaCandidatos({ text: '' }, {}, {});
+    extra = extra || {};
+    var keys = [
+      'nombres',
+      'nits',
+      'telefonos',
+      'emails',
+      'cuentas',
+      'montos',
+      'numerosFactura',
+      'fechas',
+      'direcciones',
+      'cufes',
+      'numerosSueltos',
+    ];
+    keys.forEach(function (k) {
+      (extra[k] || []).forEach(function (item) {
+        feBolsaUniq(base[k], item, function (x) {
+          return String((x && x.valor) || x || '') + '|' + String((x && x.parte) || '');
+        });
+      });
+    });
+    (extra.lineasEtiquetadas || []).forEach(function (le) {
+      var dup = false;
+      for (var i = 0; i < (base.lineasEtiquetadas || []).length; i++) {
+        if (
+          base.lineasEtiquetadas[i].etiqueta === le.etiqueta &&
+          base.lineasEtiquetadas[i].valor === le.valor
+        ) {
+          dup = true;
+          break;
+        }
+      }
+      if (!dup) base.lineasEtiquetadas.push(le);
+    });
+    base.resumen =
+      base.nombres.length +
+      ' nombres · ' +
+      base.nits.length +
+      ' NIT · ' +
+      base.cuentas.length +
+      ' cuentas · ' +
+      base.montos.length +
+      ' montos';
+    return base;
+  }
+
+  /** Divide el PDF en 4 zonas lógicas para revisión a lupa. */
+  function feDividirDocumentoCuatroPartes(pack, text) {
+    text = String(text || '');
+    pack = pack || {};
+    var emisorText = feEmisorZoneText(text, pack);
+    var compradorText = feCompradorZoneText(text);
+
+    var idxEmisorLbl = text.search(/\b(?:emisor\s*\/\s*vendedor|datos\s+del\s+emisor|vendedor)\b/i);
+    var idxComprador = compradorText ? text.indexOf(compradorText.slice(0, Math.min(40, compradorText.length))) : -1;
+    if (idxComprador < 0) {
+      idxComprador = text.search(
+        /\b(?:ADQUIRIENTE|COMPRADOR|CLIENTE|DESTINATARIO|FACTURAR\s+A|DATOS\s+DEL\s+(?:CLIENTE|COMPRADOR|ADQUIRIENTE))\b/i
+      );
+    }
+    var idxDetalle = text.search(
+      /(?:descripci[oó]n|producto|art[ií]culo|concepto|cantidad|vr\.?\s*unit|detalle\s+de\s+productos)/i
+    );
+    var idxTotales = text.search(/(?:subtotal|total\s+a\s+pagar|valor\s+total|total\s+factura|gran\s+total)/i);
+
+    var encabezadoEnd = idxEmisorLbl > 60 ? idxEmisorLbl : Math.min(text.length, Math.max(400, Math.floor(text.length * 0.12)));
+    if (idxComprador > 60 && idxComprador < encabezadoEnd) encabezadoEnd = idxComprador;
+
+    var encabezadoText = text.slice(0, encabezadoEnd).trim();
+    if (!encabezadoText && emisorText) encabezadoText = emisorText.slice(0, Math.min(450, emisorText.length));
+
+    var detalleStart = idxDetalle > 0 ? idxDetalle : idxTotales > 0 ? idxTotales : -1;
+    if (compradorText && idxComprador >= 0) {
+      var afterCom = text.slice(idxComprador + compradorText.length);
+      if (afterCom.length > 80) {
+        detalleStart = detalleStart > 0 ? Math.min(detalleStart, idxComprador + compradorText.length) : idxComprador + compradorText.length;
+      }
+    }
+    if (detalleStart < 0 && emisorText.length + (compradorText || '').length < text.length) {
+      detalleStart = (compradorText ? idxComprador + compradorText.length : emisorText.length) || Math.floor(text.length * 0.55);
+    }
+    var detalleText = detalleStart > 0 && detalleStart < text.length ? text.slice(detalleStart).trim() : '';
+
+    var partes = [
+      {
+        id: 'encabezado',
+        label: '1 · Encabezado',
+        titulo: 'Encabezado y metadatos DIAN',
+        rol: 'metadatos',
+        text: encabezadoText,
+      },
+      {
+        id: 'emisor',
+        label: '2 · Emisor',
+        titulo: 'Emisor / proveedor (quien vende)',
+        rol: 'proveedor',
+        text: String(emisorText || '').trim(),
+      },
+      {
+        id: 'comprador',
+        label: '3 · Comprador',
+        titulo: 'Adquiriente / comprador (quien recibe)',
+        rol: 'comprador',
+        text: String(compradorText || '').trim(),
+      },
+      {
+        id: 'detalle',
+        label: '4 · Detalle y totales',
+        titulo: 'Ítems, IVA, total y pago',
+        rol: 'items_pago',
+        text: detalleText,
+      },
+    ];
+
+    if (pack.blocks && pack.blocks.length) {
+      var pageH = 0;
+      pack.blocks.some(function (b) {
+        if (b.pageH) {
+          pageH = b.pageH;
+          return true;
+        }
+        return false;
+      });
+      if (pageH > 0) {
+        partes.forEach(function (p) {
+          var yMin = 0;
+          var yMax = pageH;
+          if (p.id === 'encabezado') yMax = pageH * 0.22;
+          else if (p.id === 'emisor') {
+            yMin = pageH * 0.18;
+            yMax = pageH * 0.48;
+          } else if (p.id === 'comprador') {
+            yMin = pageH * 0.4;
+            yMax = pageH * 0.62;
+          } else {
+            yMin = pageH * 0.55;
+          }
+          var blockTexts = [];
+          pack.blocks.forEach(function (b) {
+            if (b.page !== 1) return;
+            var y = b.y || 0;
+            if (y >= yMin && y <= yMax) {
+              var t = String(b.text || '').trim();
+              if (t.length >= 2) blockTexts.push(t);
+            }
+          });
+          if (blockTexts.length && blockTexts.join(' ').length > (p.text || '').length * 0.6) {
+            p.textBlocks = blockTexts.slice(0, 40);
+            p.textPdf = blockTexts.join('\n');
+          }
+        });
+      }
+    }
+
+    partes.forEach(function (p) {
+      p.text = String(p.textPdf || p.text || '').trim();
+      p.chars = p.text.length;
+      p.vacia = p.chars < 12;
+    });
+
+    return partes;
+  }
+
+  /** Revisión a lupa de una de las 4 partes. */
+  function feAnalizarParteALupa(parte, pack, fe, meta) {
+    parte = parte || {};
+    pack = pack || {};
+    fe = fe || {};
+    meta = meta || {};
+    var text = String(parte.text || '');
+    var miniPack = {
+      text: text,
+      textLen: text.length,
+      blocks: pack.blocks || [],
+      likelyScanned: pack.likelyScanned,
+    };
+    var feParcial = text.length >= 8 ? parseFeFromText(text) : {};
+    var bolsaParcial = text.length >= 8 ? feExtraerBolsaCandidatos(miniPack, feParcial, meta) : null;
+    if (bolsaParcial) feBolsaEtiquetarParte(bolsaParcial, parte.id);
+
+    var hallazgos = [];
+    var preguntas = [];
+    var flat = text.replace(/\s+/g, ' ');
+
+    function hall(clave, valor, ok) {
+      hallazgos.push({ clave: clave, valor: valor || '', ok: !!ok });
+    }
+
+    if (parte.id === 'encabezado') {
+      var tipo = /factura\s+electr[oó]nica\s+de\s+venta/i.test(flat)
+        ? 'Factura electrónica de venta'
+        : feParcial.tipoDocumento || '';
+      hall('tipoDocumento', tipo, !!tipo);
+      preguntas.push(
+        feRazonarPregunta(
+          '[Lupa parte 1] ¿Qué tipo de documento veo en el encabezado?',
+          tipo || 'No identificado — revisar título DIAN',
+          tipo ? 'plausible' : 'dudoso',
+          null,
+          tipo,
+          { fase: 'lupa', patron: 'parte1:tipo-documento', parte: 'encabezado' }
+        )
+      );
+      if (feParcial.numeroFactura) {
+        hall('numeroFactura', feParcial.numeroFactura, true);
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 1] ¿El número «' + feParcial.numeroFactura + '» es el de la factura?',
+            'Sí — aparece en encabezado',
+            'plausible',
+            'numeroFactura',
+            feParcial.numeroFactura,
+            { fase: 'lupa', patron: 'parte1:numero-factura', parte: 'encabezado' }
+          )
+        );
+      }
+      if (feParcial.fecha) {
+        hall('fecha', feParcial.fecha, true);
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 1] ¿La fecha «' + feParcial.fecha + '» es la de emisión?',
+            'Sí — patrón fecha en encabezado',
+            'plausible',
+            'fecha',
+            feParcial.fecha,
+            { fase: 'lupa', patron: 'parte1:fecha-emision', parte: 'encabezado' }
+          )
+        );
+      }
+      if (feParcial.cufe || (bolsaParcial && bolsaParcial.cufes && bolsaParcial.cufes[0])) {
+        var cufeV = feParcial.cufe || (bolsaParcial.cufes[0] && bolsaParcial.cufes[0].valor);
+        hall('cufe', cufeV, isValidCufeHex(cufeV));
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 1] ¿Hay CUFE válido en el encabezado?',
+            isValidCufeHex(cufeV) ? 'Sí — formato hex válido' : 'Dudoso — revisar QR o texto',
+            isValidCufeHex(cufeV) ? 'plausible' : 'dudoso',
+            'cufe',
+            cufeV,
+            { fase: 'lupa', patron: 'parte1:cufe', parte: 'encabezado' }
+          )
+        );
+      }
+      if (parte.vacia) {
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 1] ¿El encabezado tiene texto legible?',
+            'No — poca información; confiar en OCR o otras partes',
+            'improbable',
+            null,
+            '',
+            { fase: 'lupa', patron: 'parte1:vacio', parte: 'encabezado' }
+          )
+        );
+      }
+    }
+
+    if (parte.id === 'emisor') {
+      var encHdr = feExtraerProveedorEncabezadoComercial(text, pack);
+      if (encHdr.razonSocial) {
+        hall('razonSocial', encHdr.razonSocial, true);
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 2] En el encabezado (antes de «Cliente») veo al proveedor «' +
+              encHdr.razonSocial.slice(0, 45) +
+              '» — ¿es quien vende?',
+            'Sí — layout comercial ferretería/POS',
+            'plausible',
+            'razonSocial',
+            encHdr.razonSocial,
+            { fase: 'lupa', patron: 'parte2:encabezado-comercial', parte: 'emisor' }
+          )
+        );
+        if (!feParcial.razonSocial) feParcial.razonSocial = encHdr.razonSocial;
+      }
+      var nitEtq = feExtractNitEmisorEtiquetado(text) || encHdr.nitEmisor;
+      if (nitEtq) hall('nitEmisor', nitEtq, true);
+      var nomE = '';
+      if (!encHdr.razonSocial && (feParcial.razonSocial || (bolsaParcial && bolsaParcial.nombres && bolsaParcial.nombres[0]))) {
+        nomE = feCleanRazonSocialEmisor(feParcial.razonSocial || bolsaParcial.nombres[0].valor);
+      }
+      if (nomE && !feEsDatoComprador(nomE, feParcial) && !feIsRepresentanteGarbage(nomE)) {
+        hall('razonSocial', nomE, !!nomE);
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 2] En zona emisor, ¿«' + nomE.slice(0, 45) + '» es quien vende?',
+            nomE ? 'Sí — nombre en bloque emisor' : 'No legible',
+            nomE ? 'plausible' : 'improbable',
+            'razonSocial',
+            nomE,
+            { fase: 'lupa', patron: 'parte2:razon-social-emisor', parte: 'emisor' }
+          )
+        );
+      }
+      if (nitEtq) {
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 2] ¿El NIT «' + nitEtq + '» está etiquetado como del emisor?',
+            'Sí — «Nit del Emisor»',
+            'plausible',
+            'nitEmisor',
+            nitEtq,
+            { fase: 'lupa', patron: 'parte2:nit-etiqueta', parte: 'emisor' }
+          )
+        );
+      }
+      if (feParcial.telefonoEmisor) hall('telefono', feParcial.telefonoEmisor, true);
+      if (feParcial.emailEmisor) hall('email', feParcial.emailEmisor, true);
+      if (feParcial.direccionEmisor) {
+        var dirE = feCleanDireccion(feParcial.direccionEmisor);
+        hall('direccion', dirE, feLooksLikeColAddress(dirE));
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 2] ¿La dirección del emisor es «' + dirE.slice(0, 40) + '»?',
+            feLooksLikeColAddress(dirE) ? 'Sí — formato colombiano' : 'Dudosa',
+            feLooksLikeColAddress(dirE) ? 'plausible' : 'dudoso',
+            'direccionEmisor',
+            dirE,
+            { fase: 'lupa', patron: 'parte2:direccion-emisor', parte: 'emisor' }
+          )
+        );
+      }
+      if (parte.vacia) {
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 2] ¿Se lee la zona del emisor?',
+            'No — usar bloques PDF u OCR del encabezado',
+            'improbable',
+            null,
+            '',
+            { fase: 'lupa', patron: 'parte2:vacio', parte: 'emisor' }
+          )
+        );
+      }
+    }
+
+    if (parte.id === 'comprador') {
+      var compNom = feExtractCompradorNombre(text, feParcial);
+      if (compNom) {
+        hall('nombreReceptor', compNom, true);
+        var empresa = feGetEmpresaContext();
+        var esMia =
+          (empresa.nombre && !feNombresDifieren(compNom, empresa.displayNombre)) ||
+          (empresa.nit && feParcial.nitReceptor && normNit(feParcial.nitReceptor) === empresa.nit);
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 3] ¿A quién se factura? Veo «' + compNom.slice(0, 45) + '»',
+            esMia ? 'Es mi negocio (sesión)' : 'Otro adquiriente — no es el proveedor',
+            esMia ? 'plausible' : 'dudoso',
+            null,
+            compNom,
+            { fase: 'lupa', patron: 'parte3:adquiriente', parte: 'comprador' }
+          )
+        );
+      }
+      if (feParcial.nitReceptor) hall('nitReceptor', feParcial.nitReceptor, true);
+      if (parte.vacia) {
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 3] ¿Hay bloque comprador legible?',
+            'No — no mezclar datos del comprador con el proveedor',
+            'dudoso',
+            null,
+            '',
+            { fase: 'lupa', patron: 'parte3:vacio', parte: 'comprador' }
+          )
+        );
+      }
+    }
+
+    if (parte.id === 'detalle') {
+      var nLineas = (feParcial.lineas || []).length;
+      if (nLineas) hall('lineas', nLineas + ' ítem(s)', true);
+      if (feParcial.total) hall('total', String(feParcial.total), true);
+      if (feParcial.subtotal) hall('subtotal', String(feParcial.subtotal), true);
+      if (feParcial.totalIva) hall('iva', String(feParcial.totalIva), true);
+      if (bolsaParcial && bolsaParcial.cuentas && bolsaParcial.cuentas.length) {
+        hall('cuentas', bolsaParcial.cuentas.length + ' cuenta(s)', true);
+      }
+      var coherente =
+        feParcial.total &&
+        feParcial.subtotal &&
+        feParcial.totalIva &&
+        Math.abs(feParcial.total - (feParcial.subtotal + feParcial.totalIva)) < 2;
+      if (feParcial.total && feParcial.subtotal) {
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 4] ¿Subtotal + IVA cuadra con el total?',
+            coherente
+              ? 'Sí — ' + feParcial.subtotal + ' + ' + (feParcial.totalIva || 0) + ' ≈ ' + feParcial.total
+              : 'No cuadra — revisar montos',
+            coherente ? 'plausible' : 'dudoso',
+            'total',
+            String(feParcial.total),
+            { fase: 'lupa', patron: 'parte4:coherencia-montos', parte: 'detalle' }
+          )
+        );
+      }
+      if (feParcial.formaPago) hall('formaPago', feParcial.formaPago, true);
+      if (parte.vacia) {
+        preguntas.push(
+          feRazonarPregunta(
+            '[Lupa parte 4] ¿Hay detalle de ítems o totales?',
+            'No legible — total puede venir del encabezado',
+            'dudoso',
+            null,
+            '',
+            { fase: 'lupa', patron: 'parte4:vacio', parte: 'detalle' }
+          )
+        );
+      }
+    }
+
+    var resumen =
+      hallazgos.length +
+      ' hallazgo(s)' +
+      (parte.vacia ? ' · zona vacía' : '') +
+      ' · ' +
+      text.length +
+      ' caracteres';
+
+    return {
+      parte: parte,
+      feParcial: feParcial,
+      bolsaParcial: bolsaParcial,
+      hallazgos: hallazgos,
+      preguntas: preguntas,
+      resumen: resumen,
+    };
+  }
+
+  /** Unifica las 4 revisiones en un solo fe + bolsa enriquecida. */
+  function feUnificarCuatroPartes(analisisPartes, feBase) {
+    feBase = feBase || {};
+    var fe = Object.assign({}, feBase);
+    var bolsa = null;
+    var preguntasLupa = [];
+    var partesResumen = [];
+    var mapFe = {
+      encabezado: ['numeroFactura', 'fecha', 'fechaVencimiento', 'cufe', 'tipoDocumento', 'resolucionDian'],
+      emisor: [
+        'razonSocial',
+        'nitEmisor',
+        'telefonoEmisor',
+        'emailEmisor',
+        'direccionEmisor',
+        'representanteEmisor',
+        'nombreComercialEmisor',
+        'ciudadEmisor',
+        'departamentoEmisor',
+      ],
+      comprador: ['nombreReceptor', 'nitReceptor'],
+      detalle: ['subtotal', 'totalIva', 'total', 'totalDescuentos', 'formaPago', 'lineas', 'notas'],
+    };
+
+    analisisPartes.forEach(function (ap) {
+      partesResumen.push({
+        id: ap.parte.id,
+        label: ap.parte.label,
+        titulo: ap.parte.titulo,
+        resumen: ap.resumen,
+        hallazgos: ap.hallazgos,
+        chars: ap.parte.chars,
+        vacia: ap.parte.vacia,
+        nPreguntas: (ap.preguntas || []).length,
+      });
+      preguntasLupa = preguntasLupa.concat(ap.preguntas || []);
+      if (ap.bolsaParcial) {
+        bolsa = bolsa ? feBolsaFusionar(bolsa, ap.bolsaParcial) : ap.bolsaParcial;
+      }
+      var keys = mapFe[ap.parte.id] || [];
+      var fp = ap.feParcial || {};
+      keys.forEach(function (k) {
+        var v = fp[k];
+        if (v == null || v === '' || v === 0) return;
+        if (k === 'lineas' && (!v.length || (fe.lineas && fe.lineas.length))) return;
+        if (!fe[k] || (k === 'nitEmisor' && ap.parte.id === 'emisor')) fe[k] = v;
+        else if (k === 'razonSocial' && ap.parte.id === 'emisor' && !fe.razonSocial) fe[k] = v;
+        else if (
+          k === 'razonSocial' &&
+          ap.parte.id === 'emisor' &&
+          fe.razonSocial &&
+          feEsDatoComprador(fe.razonSocial, fe) &&
+          !feEsDatoComprador(v, fe)
+        ) {
+          fe[k] = v;
+        }
+        else if (k === 'direccionEmisor' && ap.parte.id === 'emisor' && feEsTextoFormaPago(fe.direccionEmisor) && v) {
+          fe[k] = v;
+        }
+        else if (k === 'total' && !fe.total) fe[k] = v;
+        else if (k === 'numeroFactura' && !fe.numeroFactura) fe[k] = v;
+        else if (k === 'cufe' && !fe.cufe) fe[k] = v;
+      });
+    });
+
+    if (fe.direccionEmisor) fe.direccionEmisor = feCleanDireccion(fe.direccionEmisor);
+    if (fe.razonSocial) fe.razonSocial = feCleanRazonSocialEmisor(fe.razonSocial);
+    if (fe.razonSocial && mapFe.emisor.indexOf('razonSocial') >= 0) {
+      fe._razonSocialAsignadoRazonamiento = true;
+    }
+
+    var preguntasUnificacion = [
+      feRazonarPregunta(
+        'Unifico 4 partes — ¿el proveedor sale solo de la parte 2 (emisor), no de la 3 (comprador)?',
+        fe.razonSocial && !feEsDatoComprador(fe.razonSocial, fe)
+          ? 'Sí — emisor separado del adquiriente'
+          : 'Revisar — posible mezcla emisor/comprador',
+        fe.razonSocial && !feEsDatoComprador(fe.razonSocial, fe) ? 'plausible' : 'improbable',
+        null,
+        fe.razonSocial || '',
+        { fase: 'unificacion', patron: 'cuatro-partes:emisor-vs-comprador' }
+      ),
+      feRazonarPregunta(
+        'Unifico 4 partes — ¿número/fecha (parte 1) y total (parte 4) son del mismo documento?',
+        fe.numeroFactura && fe.total
+          ? 'Sí — metadatos + total presentes'
+          : fe.numeroFactura || fe.total
+            ? 'Parcial — falta número o total'
+            : 'No — datos incompletos',
+        fe.numeroFactura && fe.total ? 'plausible' : fe.numeroFactura || fe.total ? 'dudoso' : 'improbable',
+        null,
+        [fe.numeroFactura, fe.total].filter(Boolean).join(' · '),
+        { fase: 'unificacion', patron: 'cuatro-partes:metadatos-total' }
+      ),
+    ];
+
+    return {
+      fe: fe,
+      bolsa: bolsa,
+      partes: partesResumen,
+      preguntasLupa: preguntasLupa,
+      preguntasUnificacion: preguntasUnificacion,
+    };
+  }
+
+  /** Orquestador: divide → lupa ×4 → unifica. */
+  function feAnalisisDocumentoCuatroPartes(pack, fe, meta) {
+    pack = pack || {};
+    fe = fe || {};
+    meta = meta || {};
+    var text = String(pack.text || '');
+    var partes = feDividirDocumentoCuatroPartes(pack, text);
+    var analisisPartes = partes.map(function (parte) {
+      return feAnalizarParteALupa(parte, pack, fe, meta);
+    });
+    var unificado = feUnificarCuatroPartes(analisisPartes, fe);
+    return {
+      partes: unificado.partes,
+      fe: unificado.fe,
+      bolsa: unificado.bolsa,
+      preguntasLupa: unificado.preguntasLupa,
+      preguntasUnificacion: unificado.preguntasUnificacion,
+      analisisPartes: analisisPartes,
+    };
+  }
+
+  function feValorCampoPresente(v) {
+    if (v == null || v === '') return false;
+    if (typeof v === 'number' && (isNaN(v) || v === 0)) return false;
+    return true;
+  }
+
+  function feNombreEmisorProtegido(fe) {
+    fe = fe || {};
+    return !!(
+      fe._razonSocialAsignadoRazonamiento ||
+      fe._razonSocialFromBlocks ||
+      fe._razonSocialFromFilename ||
+      fe._razonSocialFromEncabezado ||
+      fe._razonSocialFromBolsa ||
+      fe._razonSocialFromTraining ||
+      fe._razonSocialExplicit
+    );
+  }
+
+  /** Aplica al fe los campos que el razonamiento ya eligió (evita perderlos en fusión/sanitize). */
+  function feAplicarCamposDesdeAsignaciones(fe, asignaciones, bolsa, pack, meta) {
+    fe = fe || {};
+    asignaciones = asignaciones || {};
+    pack = pack || {};
+    meta = meta || {};
+    var emisorText = feEmisorZoneText(pack.text || '', pack);
+
+    function valAsig(asig) {
+      if (!asig) return '';
+      if (typeof asig === 'string') return asig;
+      if (asig.valor != null && asig.valor !== '') return asig.valor;
+      if (asig.d && asig.d.valor) return asig.d.valor;
+      return '';
+    }
+
+    var campos = [
+      ['razonSocial', feCleanRazonSocialEmisor],
+      ['nitEmisor', null],
+      ['direccionEmisor', feCleanDireccion],
+      ['telefonoEmisor', null],
+      ['emailEmisor', null],
+      ['representanteEmisor', null],
+    ];
+
+    campos.forEach(function (row) {
+      var key = row[0];
+      var cleanFn = row[1];
+      if (feValorCampoPresente(fe[key])) return;
+      var raw = valAsig(asignaciones[key]);
+      if (!feValorCampoPresente(raw)) return;
+      fe[key] = cleanFn ? cleanFn(raw) : raw;
+      if (key === 'razonSocial') fe._razonSocialAsignadoRazonamiento = true;
+    });
+
+    if (!fe.razonSocial && bolsa && bolsa.nombres && bolsa.nombres.length) {
+      var bestVal = '';
+      var bestScore = -999;
+      (bolsa.nombres || []).forEach(function (n) {
+        if (!n || n.tipo === 'etiqueta' || feEsSoloEtiquetaCampo(n.valor)) return;
+        var sc = fePuntuarNombreEmisorCandidato(n, pack, fe, meta, emisorText, feCompradorZoneText(pack.text || ''));
+        if (sc.score > bestScore && sc.val && !feEsDatoComprador(sc.val, fe)) {
+          bestScore = sc.score;
+          bestVal = sc.val;
+        }
+      });
+      if (bestVal && bestScore > 6) {
+        fe.razonSocial = bestVal;
+        fe._razonSocialFromBolsa = true;
+        fe._razonSocialAsignadoRazonamiento = true;
+      }
+    }
+
+    if (!fe.razonSocial && meta.nombreArchivo) {
+      var nomArch = feRazonSocialFromFilename(meta.nombreArchivo);
+      if (nomArch && nomArch.length >= 4 && !feEsDatoComprador(nomArch, fe)) {
+        fe.razonSocial = nomArch.toUpperCase();
+        fe._razonSocialFromFilename = true;
+        fe._razonSocialAsignadoRazonamiento = true;
+      }
+    }
+
+    return fe;
+  }
+
+  function feRazonarPregunta(texto, respuesta, confianza, campo, valor, opts) {
+    opts = opts || {};
+    return {
+      pregunta: texto,
+      respuesta: respuesta,
+      confianza: confianza,
+      campo: campo || null,
+      valor: valor != null ? valor : '',
+      fase: opts.fase || 'asignacion',
+      patron: opts.patron || null,
+      comparaciones: opts.comparaciones || null,
+    };
+  }
+
+  function fePuntuarNombreEmisorCandidato(cand, pack, fe, meta, emisorText, compradorText) {
+    cand = cand || {};
+    meta = meta || {};
+    var val = feCleanRazonSocialEmisor(cand.valor);
+    var score = 0;
+    var notas = [];
+    if (!val || feEsSoloEtiquetaCampo(val) || feIsRepresentanteGarbage(val)) {
+      return { score: -99, val: val, notas: ['texto inválido o etiqueta'], cand: cand };
+    }
+    if (cand.fuente === 'bloque-pdf') {
+      score += 32;
+      notas.push('bloque PDF en zona emisor');
+    }
+    if (cand.fuente && /etiqueta/.test(cand.fuente) && !/representante/.test(cand.fuente)) {
+      score += 28;
+      notas.push('línea «Razón social» etiquetada');
+    }
+    if (cand.fuente === 'parser') score += 8;
+    if (feLooksLikeEmpresaNombre(val)) {
+      score += 16;
+      notas.push('formato empresa');
+    }
+    if (feLooksLikePersonName(val, { allowSingle: false })) {
+      score += 20;
+      notas.push('persona natural (emisor habitual en FE)');
+    }
+    if (emisorText && feValorApareceEnTexto(val, emisorText)) {
+      score += 24;
+      notas.push('aparece en bloque emisor');
+    }
+    if (compradorText && feValorApareceEnTexto(val, compradorText) && !feValorApareceEnTexto(val, emisorText)) {
+      score -= 55;
+      notas.push('solo en bloque comprador');
+    }
+    if (feEsDatoComprador(val, fe)) {
+      score -= 65;
+      notas.push('coincide con adquiriente');
+    }
+    var fromFile = meta.nombreArchivo ? feRazonSocialFromFilename(meta.nombreArchivo) : '';
+    if (fromFile && !feNombresDifieren(val, fromFile)) {
+      score += 22;
+      notas.push('coincide con nombre del archivo');
+    }
+    return { score: score, val: val, notas: notas, cand: cand };
+  }
+
+  /** Fase 0–1: contexto del documento, roles emisor/comprador y comparación de candidatos en bolsa. */
+  function feRazonarContextoYComparaciones(bolsa, fe, pack, meta) {
+    bolsa = bolsa || {};
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+    var preguntas = [];
+    var empresa = feGetEmpresaContext();
+    var text = String(pack.text || '');
+    var emisorText = feEmisorZoneText(text, pack);
+    var compradorText = feCompradorZoneText(text);
+    var flat = text.replace(/\s+/g, ' ');
+
+    if (meta.nombreArchivo) {
+      var fromFile = feRazonSocialFromFilename(meta.nombreArchivo);
+      preguntas.push(
+        feRazonarPregunta(
+          'El nombre del documento es «' +
+            String(meta.nombreArchivo).replace(/^.*[/\\]/, '') +
+            '» — ¿sugiere quién es el proveedor?',
+          fromFile
+            ? 'Sí — el patrón fecha_proveedor_hash da «' + fromFile + '»'
+            : 'No — el archivo no trae pista clara del emisor',
+          fromFile ? 'plausible' : 'dudoso',
+          null,
+          fromFile || '',
+          { fase: 'documento', patron: 'archivo:fecha_slug_hash' }
+        )
+      );
+    }
+
+    var tipoDoc = /factura\s+electr[oó]nica\s+de\s+venta/i.test(flat)
+      ? 'Factura electrónica de venta (DIAN)'
+      : /factura\s+electr[oó]nica/i.test(flat)
+        ? 'Factura electrónica'
+        : /nota\s+(?:cr[eé]dito|d[eé]bito)/i.test(flat)
+          ? 'Nota crédito/débito'
+          : '';
+    preguntas.push(
+      feRazonarPregunta(
+        '¿Qué tipo de documento es este?',
+        tipoDoc || 'Documento tributario — revisar encabezado',
+        tipoDoc ? 'plausible' : 'dudoso',
+        null,
+        tipoDoc,
+        { fase: 'documento', patron: 'encabezado:tipo-factura-dian' }
+      )
+    );
+
+    var hayEmisor = /\b(?:emisor|vendedor)\b/i.test(emisorText || text);
+    preguntas.push(
+      feRazonarPregunta(
+        'En la factura, ¿veo la sección del emisor / vendedor?',
+        hayEmisor ? 'Sí — hay bloque Emisor/Vendedor antes del comprador' : 'No claro — usar texto completo',
+        hayEmisor ? 'plausible' : 'dudoso',
+        null,
+        '',
+        { fase: 'lectura', patron: 'zona:emisor-antes-adquiriente' }
+      )
+    );
+
+    var compradorNom = feExtractCompradorNombre(compradorText, fe);
+    if (compradorNom && feEsSoloEtiquetaCampo(compradorNom)) compradorNom = '';
+    if (compradorNom) {
+      var esMiEmpresa =
+        (empresa.nombre && !feNombresDifieren(compradorNom, empresa.displayNombre || empresa.nombre)) ||
+        (empresa.nit && fe.nitReceptor && normNit(fe.nitReceptor) === empresa.nit);
+      preguntas.push(
+        feRazonarPregunta(
+          'Veo que la factura se emite a «' +
+            compradorNom.slice(0, 55) +
+            (compradorNom.length > 55 ? '…' : '') +
+            '» — ¿es mi negocio?',
+          esMiEmpresa
+            ? 'Sí — coincide con la empresa en sesión'
+            : 'No — es otro adquiriente; el proveedor es quien emite',
+          esMiEmpresa ? 'plausible' : 'dudoso',
+          null,
+          compradorNom,
+          { fase: 'roles', patron: 'comparar:adquiriente-vs-empresa-sesion' }
+        )
+      );
+    }
+
+    var nombresBolsa = (bolsa.nombres || []).filter(function (n) {
+      return n.tipo !== 'etiqueta' && !feEsSoloEtiquetaCampo(n.valor);
+    });
+    if (nombresBolsa.length) {
+      var comps = nombresBolsa.slice(0, 6).map(function (n) {
+        var sc = fePuntuarNombreEmisorCandidato(n, pack, fe, meta, emisorText, compradorText);
+        return {
+          valor: sc.val,
+          score: sc.score,
+          fuente: (n.fuente || '') + (n.tipo ? '/' + n.tipo : ''),
+          nota: sc.notas[0] || '',
+        };
+      });
+      comps.sort(function (a, b) {
+        return b.score - a.score;
+      });
+      var top = comps[0];
+      var detalle = comps
+        .map(function (c) {
+          return '«' + (c.valor || '').slice(0, 40) + '» (' + c.score + ' pts, ' + (c.nota || c.fuente) + ')';
+        })
+        .join(' · ');
+      preguntas.push(
+        feRazonarPregunta(
+          'En el PDF encontré ' +
+            nombresBolsa.length +
+            ' nombre(s) — ¿cuál es el comerciante emisor y cuál el comprador?',
+          top && top.score > 10
+            ? 'Mejor candidato emisor: «' + top.valor + '» — ' + (top.nota || 'mayor puntaje')
+            : 'Ninguno destaca — buscar etiqueta Razón social en zona emisor',
+          top && top.score > 22 ? 'plausible' : top && top.score > 8 ? 'dudoso' : 'improbable',
+          null,
+          top ? top.valor : '',
+          { fase: 'comparacion', patron: 'bolsa:nombres-vs-zona-emisor-comprador', comparaciones: comps }
+        )
+      );
+    }
+
+    (bolsa.nits || []).slice(0, 5).forEach(function (n, idx) {
+      if (idx > 2) return;
+      var esTel =
+        n.fuente !== 'nit-emisor-etiqueta' && feNitCoincideTelefono(n.valor, bolsa.telefonos, n);
+      var rol =
+        n.fuente === 'nit-emisor-etiqueta' || n.zona === 'emisor' || n.fuente === 'texto-emisor'
+          ? 'emisor'
+          : n.zona === 'comprador'
+            ? 'comprador'
+            : 'mixto';
+      preguntas.push(
+        feRazonarPregunta(
+          'El número «' +
+            n.valor +
+            '» — ¿qué es y con qué patrón lo analizo?',
+          n.fuente === 'nit-emisor-etiqueta'
+            ? 'NIT del emisor — etiqueta «Nit del Emisor» en PDF'
+            : esTel
+              ? 'Parece teléfono móvil colombiano (3xx), no NIT'
+              : rol === 'emisor'
+                ? 'NIT del emisor — patrón etiqueta/zona emisor'
+                : rol === 'comprador'
+                  ? 'NIT del comprador — descartar para proveedor'
+                  : 'NIT suelto — contrastar con teléfono y zona',
+          n.fuente === 'nit-emisor-etiqueta'
+            ? 'plausible'
+            : esTel
+              ? 'improbable'
+              : rol === 'emisor'
+                ? 'plausible'
+                : rol === 'comprador'
+                  ? 'improbable'
+                  : 'dudoso',
+          null,
+          n.valor,
+          {
+            fase: 'comparacion',
+            patron:
+              n.fuente === 'nit-emisor-etiqueta'
+                ? 'nit:etiqueta-emisor'
+                : esTel
+                  ? 'nit-vs-telefono:movil-3xx'
+                  : 'nit:zona-' + rol,
+            comparaciones: [{ valor: n.valor, zona: rol, fuente: n.fuente }],
+          }
+        )
+      );
+    });
+
+    (bolsa.direcciones || []).slice(0, 3).forEach(function (d) {
+      var gen = feEsDireccionGenerica(d.valor);
+      var enCom =
+        compradorText && feValorApareceEnTexto(d.valor, compradorText) && !feValorApareceEnTexto(d.valor, emisorText);
+      preguntas.push(
+        feRazonarPregunta(
+          'La dirección «' +
+            String(d.valor).slice(0, 45) +
+            (d.valor.length > 45 ? '…' : '') +
+            '» — ¿de quién es?',
+          gen
+            ? 'Genérica (Calle 000) — suele ser placeholder del comprador'
+            : enCom
+              ? 'Parece del adquiriente — no asignar al emisor'
+              : 'Candidata del emisor — formato dirección colombiana',
+          gen || enCom ? 'improbable' : 'plausible',
+          null,
+          d.valor,
+          {
+            fase: 'comparacion',
+            patron: gen ? 'direccion:generica-calle-000' : enCom ? 'direccion:zona-comprador' : 'direccion:colombiana-emisor',
+          }
+        )
+      );
+    });
+
+    return preguntas;
+  }
+
+  /** Fase 2: preguntarse qué va en cada rol y asignar lo más lógico. */
+  function feRazonarSobreBolsa(bolsa, fe, pack, meta) {
+    fe = Object.assign({}, fe || {});
+    bolsa = bolsa || {};
+    pack = pack || {};
+    meta = meta || {};
+    var preguntas = feRazonarContextoYComparaciones(bolsa, fe, pack, meta);
+    var asignaciones = {};
+    var empresa = feGetEmpresaContext();
+    var emisorText = feEmisorZoneText(pack.text || '', pack);
+    var compradorText = feCompradorZoneText(pack.text || '');
+
+    var nitEtq = null;
+    for (var nei = 0; nei < (bolsa.nits || []).length; nei++) {
+      if (bolsa.nits[nei].fuente === 'nit-emisor-etiqueta') {
+        nitEtq = bolsa.nits[nei];
+        break;
+      }
+    }
+    if (!nitEtq) {
+      var nitEtqVal = feExtractNitEmisorEtiquetado(emisorText);
+      if (nitEtqVal) nitEtq = { valor: nitEtqVal, fuente: 'nit-emisor-etiqueta', zona: 'emisor' };
+    }
+
+    var nitScores = [];
+    (bolsa.nits || []).forEach(function (n) {
+      var nNorm = normNit(n.valor);
+      var score = 10;
+      var notas = [];
+      if (n.fuente === 'nit-emisor-etiqueta') {
+        score += 55;
+        notas.push('etiqueta «Nit del Emisor»');
+      }
+      if (n.zona === 'emisor' || n.fuente === 'texto-emisor') {
+        score += 28;
+        notas.push('en zona emisor');
+      }
+      if (n.zona === 'comprador' || n.fuente === 'texto-comprador') {
+        score -= 50;
+        notas.push('en zona comprador');
+      }
+      if (nNorm.length >= 6 && nNorm.length <= 11) {
+        score += 12;
+        notas.push('longitud ID válida');
+      }
+      if (feNitCoincideTelefono(n.valor, bolsa.telefonos, n)) {
+        score -= 85;
+        notas.push('coincide con teléfono — no es NIT');
+      }
+      if (fe.telefonoEmisor && feNitCoincideTelefono(n.valor, [{ valor: fe.telefonoEmisor }], n)) {
+        score -= 85;
+        notas.push('es el teléfono del emisor');
+      }
+      if (empresa.nit && nNorm === empresa.nit) {
+        score -= 55;
+        notas.push('NIT de su empresa (comprador)');
+      }
+      if (fe.nitReceptor && normNit(fe.nitReceptor) === nNorm) {
+        score -= 50;
+        notas.push('NIT del adquiriente');
+      }
+      if (compradorText && feValorApareceEnTexto(n.valor, compradorText) && !feValorApareceEnTexto(n.valor, emisorText)) {
+        score -= 45;
+        notas.push('solo aparece en bloque comprador');
+      }
+      if (emisorText && feValorApareceEnTexto(n.valor, emisorText)) {
+        score += 18;
+        notas.push('aparece en bloque emisor');
+      }
+      nitScores.push({ valor: n.valor, score: score, notas: notas, fuente: n.fuente });
+    });
+    nitScores.sort(function (a, b) {
+      return b.score - a.score;
+    });
+
+    if (nitEtq && nitEtq.valor) {
+      fe.nitEmisor = nitEtq.valor;
+      fe._nitFromEtiqueta = true;
+      asignaciones.nitEmisor = nitEtq;
+      preguntas.push(
+        feRazonarPregunta(
+          '¿El NIT «' + nitEtq.valor + '» es del proveedor (emisor)?',
+          'Sí — leído de la etiqueta «Nit del Emisor»',
+          'plausible',
+          'nitEmisor',
+          nitEtq.valor,
+          { fase: 'asignacion', patron: 'nit:etiqueta-emisor-prioritario' }
+        )
+      );
+    } else if (nitScores[0] && nitScores[0].score > 22) {
+      var nBest = nitScores[0];
+      var nBestMeta = null;
+      for (var nbi = 0; nbi < (bolsa.nits || []).length; nbi++) {
+        if (bolsa.nits[nbi].valor === nBest.valor) {
+          nBestMeta = bolsa.nits[nbi];
+          break;
+        }
+      }
+      var nitOk = !feNitCoincideTelefono(nBest.valor, bolsa.telefonos, nBestMeta || nBest);
+      preguntas.push(
+        feRazonarPregunta(
+          '¿El NIT «' + nBest.valor + '» es del proveedor (emisor)?',
+          nitOk
+            ? 'Sí — ' + (nBest.notas[0] || 'mejor candidato')
+            : 'No — parece teléfono, no NIT',
+          nitOk ? feVeredictoDesdeScore(Math.min(100, nBest.score + 30)) : 'improbable',
+          'nitEmisor',
+          nitOk ? nBest.valor : '',
+          { fase: 'asignacion', patron: nitOk ? 'nit:emisor-etiqueta-zona' : 'nit:confundido-con-telefono' }
+        )
+      );
+      if (nitOk) {
+        fe.nitEmisor = nBest.valor;
+        asignaciones.nitEmisor = nBest;
+      } else if (fe.nitEmisor && feNitCoincideTelefono(fe.nitEmisor, bolsa.telefonos, { fuente: fe._nitFromEtiqueta ? 'nit-emisor-etiqueta' : '' })) {
+        fe.nitEmisor = '';
+      }
+    }
+
+    var blockNom = pack.blocks && pack.blocks.length ? feBlocksEmisorNombre(pack.blocks) : '';
+    var nombreScores = [];
+    if (blockNom) {
+      nombreScores.push(fePuntuarNombreEmisorCandidato({ valor: blockNom, fuente: 'bloque-pdf' }, pack, fe, meta, emisorText, compradorText));
+    }
+    (bolsa.nombres || []).forEach(function (n) {
+      if (n.tipo === 'etiqueta' || feEsSoloEtiquetaCampo(n.valor)) return;
+      nombreScores.push(fePuntuarNombreEmisorCandidato(n, pack, fe, meta, emisorText, compradorText));
+    });
+    if (meta.nombreArchivo) {
+      var nomArch = feRazonSocialFromFilename(meta.nombreArchivo);
+      if (nomArch) {
+        nombreScores.push(
+          fePuntuarNombreEmisorCandidato({ valor: nomArch, fuente: 'archivo' }, pack, fe, meta, emisorText, compradorText)
+        );
+      }
+    }
+    nombreScores.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    var nBest = nombreScores[0];
+    if (nBest && nBest.score > 6 && nBest.val) {
+      var rsClean = nBest.val;
+      var empOk = !feEsDatoComprador(rsClean, fe) && !feIsRepresentanteGarbage(rsClean);
+      var tipoNom = feLooksLikeEmpresaNombre(rsClean)
+        ? 'empresa'
+        : feLooksLikePersonName(rsClean, { allowSingle: false })
+          ? 'persona natural'
+          : 'nombre';
+      preguntas.push(
+        feRazonarPregunta(
+          'En la factura miro «' +
+            rsClean.slice(0, 50) +
+            (rsClean.length > 50 ? '…' : '') +
+            '» — ¿es el comerciante que emite (no el comprador)?',
+          empOk
+            ? 'Sí — ' + tipoNom + ': ' + (nBest.notas[0] || 'mejor candidato')
+            : 'No — parece adquiriente o texto inválido',
+          empOk ? feVeredictoDesdeScore(Math.min(100, nBest.score + 35)) : 'improbable',
+          'razonSocial',
+          empOk ? rsClean : '',
+          {
+            fase: 'asignacion',
+            patron: 'nombre:emisor-vs-comprador',
+            comparaciones: nombreScores.slice(0, 4).map(function (s) {
+              return { valor: s.val, score: s.score, nota: (s.notas || [])[0] };
+            }),
+          }
+        )
+      );
+      if (empOk && (!feNombreEmisorProtegido(fe) || !fe.razonSocial || feEsDatoComprador(fe.razonSocial, fe))) {
+        fe.razonSocial = rsClean;
+        fe._razonSocialAsignadoRazonamiento = true;
+        asignaciones.razonSocial = nBest.cand || { valor: rsClean, fuente: nBest.cand && nBest.cand.fuente };
+      }
+    } else {
+      preguntas.push(
+        feRazonarPregunta(
+          '¿Hay un nombre de proveedor legible en la factura?',
+          'No — ningún candidato supera el umbral; revise manualmente o use el nombre del archivo',
+          'improbable',
+          'razonSocial',
+          '',
+          { fase: 'asignacion', patron: 'nombre:sin-candidato-fiable' }
+        )
+      );
+    }
+
+    var perCands = (bolsa.nombres || []).filter(function (n) {
+      if (n.tipo === 'etiqueta' || feEsSoloEtiquetaCampo(n.valor)) return false;
+      if (!feLooksLikePersonName(n.valor, { allowSingle: true })) return false;
+      if (feLooksLikeEmpresaNombre(n.valor)) return false;
+      if (!feNombresDifieren(n.valor, fe.razonSocial)) return false;
+      if (feScoreRepresentanteCandidate(n.valor, { allowSingle: true }) < 12) return false;
+      return n.tipo === 'persona';
+    });
+    if (perCands[0]) {
+      var pBest = perCands[0];
+      var repVal = feSanitizeRepresentanteEmisor(pBest.valor, { allowSingle: true });
+      if (repVal) {
+        preguntas.push(
+          feRazonarPregunta(
+            '¿«' + repVal + '» es el representante legal del emisor?',
+            'Sí — nombre de persona distinto a la empresa',
+            'plausible',
+            'representanteEmisor',
+            repVal,
+            { fase: 'asignacion', patron: 'persona:representante-legal' }
+          )
+        );
+        fe.representanteEmisor = repVal;
+        asignaciones.representanteEmisor = pBest;
+      } else {
+        preguntas.push(
+          feRazonarPregunta(
+            '¿Hay representante legal legible en el bloque emisor?',
+            'No — solo etiquetas o texto inválido',
+            'improbable',
+            'representanteEmisor',
+            '',
+            { fase: 'asignacion', patron: 'persona:sin-representante' }
+          )
+        );
+      }
+    }
+
+    var dirScores = [];
+    (bolsa.direcciones || []).forEach(function (d) {
+      var score = feLooksLikeColAddress(d.valor) ? 18 : 0;
+      if (feEsTextoFormaPago(d.valor)) score -= 90;
+      if (feEsDireccionGenerica(d.valor)) {
+        score -= 60;
+      }
+      if (feEsDatoComprador(d.valor, fe)) score -= 45;
+      if (compradorText && feValorApareceEnTexto(d.valor, compradorText) && !feValorApareceEnTexto(d.valor, emisorText)) {
+        score -= 55;
+      }
+      if (emisorText && feValorApareceEnTexto(d.valor, emisorText)) score += 28;
+      if (d.fuente === 'bloque-pdf') score += 15;
+      dirScores.push({ d: d, score: score });
+    });
+    dirScores.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    if (dirScores[0] && dirScores[0].score > 18) {
+      var dBest = dirScores[0].d;
+      var puedeDir =
+        !fe.direccionEmisor ||
+        feEsTextoFormaPago(fe.direccionEmisor) ||
+        feEsDireccionGenerica(fe.direccionEmisor) ||
+        feIsRepresentanteGarbage(fe.direccionEmisor);
+      preguntas.push(
+        feRazonarPregunta(
+          '¿La dirección «' +
+            dBest.valor.slice(0, 50) +
+            (dBest.valor.length > 50 ? '…' : '') +
+            '» es del emisor (no del comprador)?',
+          puedeDir ? 'Sí — en zona emisor, no genérica' : 'No — ya hay dirección del encabezado',
+          puedeDir ? 'plausible' : 'dudoso',
+          'direccionEmisor',
+          puedeDir ? dBest.valor : fe.direccionEmisor || '',
+          { fase: 'asignacion', patron: 'direccion:zona-emisor' }
+        )
+      );
+      if (puedeDir) {
+        fe.direccionEmisor = feCleanDireccion(dBest.valor);
+        asignaciones.direccionEmisor = dBest;
+      }
+    } else if (fe.direccionEmisor && (feEsDireccionGenerica(fe.direccionEmisor) || feEsDatoComprador(fe.direccionEmisor, fe) || feEsTextoFormaPago(fe.direccionEmisor))) {
+      fe.direccionEmisor = '';
+      preguntas.push(
+        feRazonarPregunta(
+          '¿La dirección detectada es del emisor?',
+          'No — «Calle 000» u otra dirección del comprador descartada',
+          'improbable',
+          'direccionEmisor',
+          ''
+        )
+      );
+    }
+
+    if ((bolsa.telefonos || []).length) {
+      var telScores = bolsa.telefonos.map(function (t) {
+        var score = 10;
+        if (emisorText && feValorApareceEnTexto(t.valor, emisorText)) score += 20;
+        if (compradorText && feValorApareceEnTexto(t.valor, compradorText) && !feValorApareceEnTexto(t.valor, emisorText)) {
+          score -= 25;
+        }
+        return { t: t, score: score };
+      });
+      telScores.sort(function (a, b) {
+        return b.score - a.score;
+      });
+      if (telScores[0] && telScores[0].score > 5) {
+        fe.telefonoEmisor = telScores[0].t.valor;
+        asignaciones.telefonoEmisor = telScores[0].t;
+        preguntas.push(
+          feRazonarPregunta(
+            '¿El teléfono «' + fe.telefonoEmisor + '» es del emisor?',
+            'Sí — en zona proveedor',
+            'plausible',
+            'telefonoEmisor',
+            fe.telefonoEmisor
+          )
+        );
+      }
+    }
+
+    if ((bolsa.emails || []).length) {
+      var mails = bolsa.emails.slice().sort(function (a, b) {
+        return (b.len || b.valor.length) - (a.len || a.valor.length);
+      });
+      var mailPick = mails[0];
+      for (var mi = 0; mi < mails.length; mi++) {
+        if (emisorText && feValorApareceEnTexto(mails[mi].valor, emisorText)) {
+          mailPick = mails[mi];
+          break;
+        }
+      }
+      if (mailPick && !feIsGenericEmail(mailPick.valor)) {
+        fe.emailEmisor = mailPick.valor;
+        asignaciones.emailEmisor = mailPick;
+        preguntas.push(
+          feRazonarPregunta(
+            '¿El correo «' + fe.emailEmisor + '» es del emisor?',
+            /\.com$/i.test(fe.emailEmisor) ? 'Sí — correo completo' : 'Dudoso — dominio incompleto',
+            /\.com$/i.test(fe.emailEmisor) ? 'plausible' : 'dudoso',
+            'emailEmisor',
+            fe.emailEmisor
+          )
+        );
+      }
+    }
+
+    if ((bolsa.cuentas || []).length) {
+      fe._cuentasDetectadas = bolsa.cuentas.map(function (c) {
+        return c.valor;
+      });
+      preguntas.push(
+        feRazonarPregunta(
+          'Se detectaron ' + bolsa.cuentas.length + ' cuenta(s) bancaria(s). ¿Son del proveedor?',
+          'Información de pago — no se mezcla con nombre/NIT',
+          'plausible',
+          null,
+          bolsa.cuentas
+            .map(function (c) {
+              return c.valor;
+            })
+            .join(', ')
+        )
+      );
+    }
+
+    if ((bolsa.cufes || []).length && !fe.cufe) {
+      fe.cufe = bolsa.cufes[0].valor;
+      preguntas.push(
+        feRazonarPregunta(
+          '¿El CUFE detectado pertenece a esta factura?',
+          isValidCufeHex(fe.cufe) ? 'Sí — formato válido' : 'Dudoso',
+          isValidCufeHex(fe.cufe) ? 'plausible' : 'dudoso',
+          'cufe',
+          fe.cufe
+        )
+      );
+    }
+
+    if ((bolsa.montos || []).length && !fe.total) {
+      var mNum = Number(String(bolsa.montos[0].valor).replace(/[^\d.,-]/g, '').replace(/\./g, '').replace(',', '.'));
+      if (!isNaN(mNum) && mNum > 0) {
+        fe.total = mNum;
+        preguntas.push(
+          feRazonarPregunta(
+            '¿El total de la factura es $' + mNum + '?',
+            'Tomado del primer monto etiquetado',
+            'dudoso',
+            'total',
+            String(mNum)
+          )
+        );
+      }
+    }
+
+    fe = feAutoFixIntercambioNombreRep(fe);
+
+    var razonOk = 0;
+    preguntas.forEach(function (p) {
+      if (p.confianza === 'plausible') razonOk++;
+    });
+    var coherenciaRazon = preguntas.length ? Math.round((razonOk / preguntas.length) * 100) : 0;
+
+    return {
+      fe: fe,
+      preguntas: preguntas,
+      asignaciones: asignaciones,
+      coherencia: coherenciaRazon,
+      fases: ['documento', 'lectura', 'roles', 'comparacion', 'asignacion'],
+    };
+  }
+
+  function feVeredictoDesdeScore(score) {
+    if (score >= 62) return 'plausible';
+    if (score >= 38) return 'dudoso';
+    return 'improbable';
+  }
+
+  function feAutoFixIntercambioNombreRep(fe) {
+    fe = fe || {};
+    if (!fe.razonSocial || !fe.representanteEmisor) return fe;
+    var rs = String(fe.razonSocial).trim();
+    var rep = String(fe.representanteEmisor).trim();
+    if (
+      feLooksLikeEmpresaNombre(rep) &&
+      feLooksLikePersonName(rs, { allowSingle: false }) &&
+      !feLooksLikeEmpresaNombre(rs)
+    ) {
+      fe.razonSocial = feCleanNombreCampo(rep);
+      fe.representanteEmisor = feSanitizeRepresentanteEmisor(rs, { allowSingle: true });
+      fe._autoFixIntercambio = true;
+    }
+    return fe;
+  }
+
+  function feEvalCampoRazonSocial(fe, pack, meta) {
+    var val = feCleanRazonSocialEmisor((fe && fe.razonSocial) || '');
+    var motivos = [];
+    var score = 50;
+    if (!val) return { valor: '', rol: 'empresa', veredicto: 'improbable', score: 0, motivos: ['Vacío'] };
+
+    if (feLooksLikeEmpresaNombre(val)) {
+      score += 28;
+      motivos.push('Parece razón social / nombre comercial');
+    }
+    if (feIsRepresentanteGarbage(val)) {
+      score -= 45;
+      motivos.push('Texto típico de otra sección (pago, letras, etiquetas)');
+    }
+    if (feLooksLikePersonName(val, { allowSingle: false }) && !/S\.?A\.?S|LTDA|S\.?A\.|E\.U\./i.test(val)) {
+      var enEmisor =
+        (pack && pack.text && feValorApareceEnTexto(val, feEmisorZoneText(pack.text))) ||
+        fe._razonSocialFromBlocks ||
+        fe._razonSocialExplicit ||
+        fe._razonSocialAsignadoRazonamiento;
+      if (enEmisor) {
+        score += 28;
+        motivos.push('Persona natural como emisor (común en factura electrónica)');
+      } else {
+        score -= 8;
+        motivos.push('Parece persona — verificar que sea quien emite');
+      }
+    }
+    if (fe.representanteEmisor && !feNombresDifieren(val, fe.representanteEmisor) && val.length < 40) {
+      score -= 18;
+      motivos.push('Igual al representante — posible duplicado');
+    }
+    if (feEsDatoComprador(val, fe)) {
+      score -= 35;
+      motivos.push('Coincide con comprador / su empresa');
+    }
+    var fromFile = meta && meta.nombreArchivo ? feRazonSocialFromFilename(meta.nombreArchivo) : '';
+    if (fromFile && !feNombresDifieren(val, fromFile)) {
+      score += 18;
+      motivos.push('Coincide con proveedor en nombre del archivo');
+    }
+    var trainHit = feTrainingResolveVendor(pack && pack.text, meta, fe);
+    if (trainHit && trainHit.vendor && trainHit.score >= 42) {
+      score += 12;
+      motivos.push('Reconocido en catálogo entrenado');
+    }
+    score = Math.max(0, Math.min(100, score));
+    return { valor: val, rol: 'empresa', veredicto: feVeredictoDesdeScore(score), score: score, motivos: motivos };
+  }
+
+  function feEvalCampoRepresentante(fe, pack, meta) {
+    var val = String((fe && fe.representanteEmisor) || '').trim();
+    var motivos = [];
+    var score = 50;
+    if (!val) return { valor: '', rol: 'representante', veredicto: 'improbable', score: 0, motivos: ['Vacío'] };
+
+    if (feLooksLikePersonName(val, { allowSingle: true })) {
+      score += 30;
+      motivos.push('Parece nombre de persona');
+    } else {
+      score -= 25;
+      motivos.push('No encaja como nombre de persona');
+    }
+    if (feIsRepresentanteGarbage(val)) {
+      score -= 50;
+      motivos.push('Basura de factura (montos, pagos, etiquetas)');
+    }
+    if (feLooksLikeEmpresaNombre(val)) {
+      score -= 28;
+      motivos.push('Parece razón social, no representante');
+    }
+    if (fe.razonSocial && !feNombresDifieren(val, fe.razonSocial) && val.length < 40) {
+      score -= 20;
+      motivos.push('Duplicado de razón social');
+    }
+    if (feEsDatoComprador(val, fe)) {
+      score -= 30;
+      motivos.push('Coincide con comprador');
+    }
+    if (fe._representanteDesdeCatalogo) {
+      score += 15;
+      motivos.push('Tomado del catálogo de proveedores');
+    }
+    score = Math.max(0, Math.min(100, score));
+    return { valor: val, rol: 'representante', veredicto: feVeredictoDesdeScore(score), score: score, motivos: motivos };
+  }
+
+  function feEvalCampoNit(fe) {
+    var val = String((fe && fe.nitEmisor) || '').trim();
+    var motivos = [];
+    var score = 40;
+    if (!val) return { valor: '', rol: 'nit', veredicto: 'improbable', score: 0, motivos: ['Vacío'] };
+    var n = normNit(val);
+    if (feNitCoincideTelefono(val, fe.telefonoEmisor ? [{ valor: fe.telefonoEmisor }] : [], {
+      fuente: fe._nitFromEtiqueta ? 'nit-emisor-etiqueta' : '',
+    })) {
+      score -= 70;
+      motivos.push('Coincide con teléfono — no es NIT');
+    } else if (n.length >= 6 && n.length <= 11) {
+      score += 35;
+      motivos.push('Formato de identificación válido');
+    } else {
+      score -= 25;
+      motivos.push('Longitud de NIT inusual');
+    }
+    if (feEsDatoComprador(val, fe)) {
+      score -= 40;
+      motivos.push('Es el NIT del comprador, no del emisor');
+    }
+    if (fe.nitReceptor && normNit(fe.nitReceptor) === n) {
+      score -= 35;
+      motivos.push('Igual al NIT receptor');
+    }
+    score = Math.max(0, Math.min(100, score));
+    return { valor: val, rol: 'nit', veredicto: feVeredictoDesdeScore(score), score: score, motivos: motivos };
+  }
+
+  function feEvalCampoDireccion(fe) {
+    var val = String((fe && fe.direccionEmisor) || '').trim();
+    var motivos = [];
+    var score = 45;
+    if (!val) return { valor: '', rol: 'direccion', veredicto: 'improbable', score: 0, motivos: ['Vacío'] };
+    if (feLooksLikeColAddress(val)) {
+      score += 32;
+      motivos.push('Formato de dirección colombiana');
+    }
+    if (feEsDireccionGenerica(val)) {
+      score -= 55;
+      motivos.push('Dirección genérica (ej. Calle 000) — suele ser del comprador');
+    }
+    if (feEsTextoFormaPago(val)) {
+      score -= 70;
+      motivos.push('Parece forma de pago / cuota, no dirección');
+    }
+    if (feIsRepresentanteGarbage(val)) {
+      score -= 40;
+      motivos.push('No parece dirección');
+    }
+    if (/@|https?:|factura|total|nit\b/i.test(val)) {
+      score -= 30;
+      motivos.push('Contiene texto ajeno a dirección');
+    }
+    score = Math.max(0, Math.min(100, score));
+    return { valor: val, rol: 'direccion', veredicto: feVeredictoDesdeScore(score), score: score, motivos: motivos };
+  }
+
+  function feEvalCampoSimple(fe, key, rol, testFn, okMsg) {
+    var val = fe && fe[key];
+    if (val == null || val === '' || val === 0) {
+      return { valor: val || '', rol: rol, veredicto: 'improbable', score: 0, motivos: ['Vacío'] };
+    }
+    var ok = testFn(val, fe);
+    return {
+      valor: val,
+      rol: rol,
+      veredicto: ok ? 'plausible' : 'dudoso',
+      score: ok ? 72 : 42,
+      motivos: ok ? [okMsg] : ['Formato poco habitual'],
+    };
+  }
+
+  /**
+   * Autoevaluación: ¿este valor es lógico para ese rol? (empresa, representante, NIT…)
+   */
+  function feAutoEvaluarExtraccion(fe, pack, meta) {
+    fe = fe || {};
+    pack = pack || {};
+    meta = meta || {};
+
+    var campos = {
+      razonSocial: feEvalCampoRazonSocial(fe, pack, meta),
+      representanteEmisor: feEvalCampoRepresentante(fe, pack, meta),
+      nitEmisor: feEvalCampoNit(fe),
+      direccionEmisor: feEvalCampoDireccion(fe),
+      telefonoEmisor: feEvalCampoSimple(
+        fe,
+        'telefonoEmisor',
+        'telefono',
+        function (v) {
+          return /\d{7,}/.test(String(v).replace(/\D/g, ''));
+        },
+        'Teléfono con dígitos suficientes'
+      ),
+      emailEmisor: feEvalCampoSimple(
+        fe,
+        'emailEmisor',
+        'email',
+        function (v) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v));
+        },
+        'Correo con formato válido'
+      ),
+    };
+
+    var alertas = [];
+    if (fe._autoFixIntercambio) {
+      alertas.push({
+        tipo: 'correccion',
+        mensaje: 'Se intercambiaron razón social y representante (estaban invertidos).',
+      });
+    }
+    if (
+      campos.razonSocial.veredicto !== 'improbable' &&
+      campos.representanteEmisor.veredicto !== 'improbable' &&
+      campos.razonSocial.veredicto === 'dudoso' &&
+      campos.representanteEmisor.veredicto === 'dudoso'
+    ) {
+      alertas.push({
+        tipo: 'coherencia',
+        mensaje: 'Empresa y representante son dudosos — conviene revisar manualmente.',
+      });
+    }
+    if (campos.razonSocial.veredicto === 'improbable' && fe.razonSocial) {
+      alertas.push({ tipo: 'empresa', mensaje: 'La razón social detectada no parece confiable.' });
+    }
+    if (campos.representanteEmisor.veredicto === 'improbable' && fe.representanteEmisor) {
+      alertas.push({ tipo: 'representante', mensaje: 'El representante detectado no parece un nombre válido.' });
+    }
+
+    var sum = 0;
+    var n = 0;
+    Object.keys(campos).forEach(function (k) {
+      if (!campos[k].valor) return;
+      sum += campos[k].score;
+      n++;
+    });
+    var coherencia = n ? Math.round(sum / n) : 0;
+
+    var resumen =
+      coherencia >= 65
+        ? 'Lectura coherente — los campos encajan con su rol.'
+        : coherencia >= 45
+          ? 'Lectura mixta — revise empresa y representante.'
+          : 'Lectura poco confiable — corrija manualmente.';
+
+    return {
+      campos: campos,
+      alertas: alertas,
+      coherencia: coherencia,
+      resumen: resumen,
+      evaluadoAt: new Date().toISOString(),
+    };
+  }
+
+  function feAutoAplicarEvaluacion(fe, ev) {
+    fe = fe || {};
+    ev = ev || {};
+    if (!ev.campos) return fe;
+    ['razonSocial', 'representanteEmisor', 'direccionEmisor'].forEach(function (k) {
+      var c = ev.campos[k];
+      if (k === 'razonSocial' && fe[k] && feEsDatoComprador(fe[k], fe)) {
+        fe['_rechazadoAuto_' + k] = fe[k];
+        if (!fe.nombreReceptor) fe.nombreReceptor = fe[k];
+        fe[k] = '';
+        return;
+      }
+      if (k === 'direccionEmisor' && fe[k] && feEsTextoFormaPago(fe[k])) {
+        fe['_rechazadoAuto_' + k] = fe[k];
+        fe[k] = '';
+        return;
+      }
+      if (!c || c.veredicto !== 'improbable' || !fe[k]) return;
+      if (k === 'razonSocial' && feNombreEmisorProtegido(fe)) return;
+      if (
+        k === 'razonSocial' &&
+        fe._razonamiento &&
+        fe._razonamiento.asignaciones &&
+        fe._razonamiento.asignaciones.razonSocial
+      ) {
+        return;
+      }
+      fe['_rechazadoAuto_' + k] = fe[k];
+      fe[k] = '';
+    });
+    if (ev.campos.nitEmisor && ev.campos.nitEmisor.veredicto === 'improbable' && fe.nitEmisor) {
+      if (fe._nitFromEtiqueta || fe._nitFromEncabezado) return;
+      fe._rechazadoAuto_nitEmisor = fe.nitEmisor;
+      fe.nitEmisor = '';
+    }
+    return fe;
+  }
+
+  function feProbeEnrichQrCufe(doc, pack, probeResult, meta) {
+    meta = meta || {};
+    if (meta.skipQrCufe) return Promise.resolve(probeResult);
+    var text = probeResult.text || (pack && pack.text) || '';
+    var fromText = extractAllCufeCandidates(text);
+    probeResult.cufeCandidatos = fromText;
+    var quick = null;
+    for (var ci = 0; ci < fromText.length; ci++) {
+      var cand = fromText[ci];
+      var hex = typeof cand === 'string' ? cand : cand && cand.cufe;
+      if (hex && isValidCufeHex(hex)) {
+        quick = hex;
+        break;
+      }
+    }
+    if (quick) {
+      probeResult.qrCufe = buildCufeResolution(null, fromText);
+      if (probeResult.fe && !probeResult.fe.cufe) {
+        probeResult.fe.cufe = probeResult.qrCufe.cufe || quick;
+      }
+      return Promise.resolve(probeResult);
+    }
+    if (!docHasBinary(doc)) return Promise.resolve(probeResult);
+    global.__cxfFeBatchMode = true;
+    return detectFeElectronica(doc, { batchMode: true })
+      .then(function (det) {
+        var qr = det && det.qr;
+        var cands = det && det.fromQuick && det.fromQuick.length ? det.fromQuick : fromText;
+        probeResult.qr = qr;
+        probeResult.qrCufe = buildCufeResolution(qr, cands);
+        probeResult.cufeCandidatos = cands;
+        if (probeResult.qrCufe && probeResult.qrCufe.cufe && probeResult.fe && !probeResult.fe.cufe) {
+          probeResult.fe.cufe = probeResult.qrCufe.cufe;
+        }
+        return probeResult;
+      })
+      .catch(function () {
+        return probeResult;
+      });
+  }
+
+  function feFinalizeProbeResult(pack, fe, meta) {
+    fe = feEnrichFeProveedor(fe, pack, meta);
+    fe = feTrainingApplyToFe(fe, pack, meta);
+    fe = feSanitizeEmisorVsComprador(fe, pack, meta);
+    fe = feComprenderNombresEnFactura(fe, pack, meta);
+    var analisis4 = feAnalisisDocumentoCuatroPartes(pack, fe, meta);
+    fe = analisis4.fe;
+    fe._analisisCuatroPartes = analisis4.partes;
+    var bolsa = feExtraerBolsaCandidatos(pack, fe, meta);
+    if (analisis4.bolsa) bolsa = feBolsaFusionar(bolsa, analisis4.bolsa);
+    var razon = feRazonarSobreBolsa(bolsa, fe, pack, meta);
+    fe = razon.fe;
+    fe._bolsaExtraccion = bolsa;
+    var preguntasCompletas = (analisis4.preguntasLupa || [])
+      .concat(analisis4.preguntasUnificacion || [])
+      .concat(razon.preguntas || []);
+    fe._razonamiento = {
+      preguntas: preguntasCompletas,
+      asignaciones: razon.asignaciones,
+      coherencia: razon.coherencia,
+      fases: ['lupa', 'unificacion'].concat(razon.fases || []),
+      analisisCuatroPartes: analisis4.partes,
+    };
+    fe = feSanitizeEmisorVsComprador(fe, pack, meta);
+    fe = feAplicarCamposDesdeAsignaciones(fe, razon.asignaciones, bolsa, pack, meta);
+    fe = feAutoFixIntercambioNombreRep(fe);
+    var empCheck = feCheckEmpresaEnFactura(fe, pack);
+    fe._empresaFacturaCheck = empCheck;
+    if (fe.representanteEmisor) {
+      fe.representanteEmisor = feSanitizeRepresentanteEmisor(fe.representanteEmisor, { allowSingle: true });
+    }
+    fe = feAplicarCamposDesdeAsignaciones(fe, razon.asignaciones, bolsa, pack, meta);
+    var autoEval = feAutoEvaluarExtraccion(fe, pack, meta);
+    fe = feAutoAplicarEvaluacion(fe, autoEval);
+    fe._autoEvaluacion = autoEval;
+    var conf = feComputeProbeConfidence(fe, pack);
+    return {
+      fe: fe,
+      text: pack.text,
+      textLen: pack.textLen,
+      likelyScanned: pack.likelyScanned,
+      confidence: conf.score,
+      confidenceLabel: conf.label,
+      fieldsFound: conf.fieldsFound,
+      empresaEnFactura: empCheck,
+      autoEvaluacion: autoEval,
+      bolsaExtraccion: bolsa,
+      razonamiento: fe._razonamiento,
+      analisisCuatroPartes: analisis4.partes,
+      ok: !!(
+        fe.nitEmisor ||
+        fe.razonSocial ||
+        fe.telefonoEmisor ||
+        fe.emailEmisor ||
+        fe.direccionEmisor ||
+        fe.numeroFactura ||
+        fe.total
+      ),
+    };
+  }
+
+  function feRazonSocialFromFilename(nombre) {
+    var base = String(nombre || '')
+      .replace(/^.*[/\\]/, '')
+      .replace(/\.(pdf|jpg|jpeg|png|webp)$/i, '');
+    var m = base.match(/^\d{4}-\d{2}-\d{2}_(.+?)_[a-f0-9]{6,16}$/i);
+    if (m) return m[1].replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    m = base.match(/^(.+?)_[a-f0-9]{6,16}$/i);
+    if (m && m[1].length >= 4) return m[1].replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    return '';
+  }
+
+  /** Extracción enfocada en datos del proveedor (auto-detectar, sin exigir FE/CUFE). */
+  function probeProveedorFromFacturaDoc(doc, meta) {
+    meta = meta || {};
+    var nivel = meta.cascadeLevel != null ? meta.cascadeLevel : 1;
+    meta.skipQrCufe = nivel < 2 && !meta.forceQrCufe;
+    var maxPages = nivel === 0 ? 2 : 3;
+    return extractStructuredPdfText(doc, maxPages)
+      .then(function (pack) {
+        var fe = parseFeFromText(pack.text || '');
+        fe = feComprenderNombresEnFactura(fe, pack, meta);
+
+        function terminar(feIn) {
+          var probeResult = feFinalizeProbeResult(pack, feIn, meta);
+          probeResult._packRef = {
+            text: pack.text,
+            fontStats: pack.fontStats,
+            blockCount: pack.blockCount,
+            textLen: pack.textLen,
+            likelyScanned: pack.likelyScanned,
+            blocks: pack.blocks,
+          };
+          probeResult.cascadeLevel = nivel;
+          probeResult.extraccionScore = feScoreExtraccionFe(probeResult.fe, pack);
+          probeResult.necesitaReintento = feProbeNecesitaReintento(probeResult, pack, nivel);
+          return feProbeEnrichQrCufe(doc, pack, probeResult, meta).then(function (enriched) {
+            if (enriched.fe && enriched.fe.cufe) {
+              var conf2 = feComputeProbeConfidence(enriched.fe, pack);
+              enriched.confidence = conf2.score;
+              enriched.confidenceLabel = conf2.label;
+              enriched.fieldsFound = conf2.fieldsFound;
+              enriched.extraccionScore = feScoreExtraccionFe(enriched.fe, pack);
+            }
+            enriched.necesitaReintento = feProbeNecesitaReintento(enriched, pack, nivel);
+            return enriched;
+          });
+        }
+
+        if (nivel === 0) {
+          return terminar(fe);
+        }
+        if (nivel === 1) {
+          return feOcrCascadeRotaciones(doc, pack, fe, meta, { fullPage: true }).then(terminar);
+        }
+        return feOcrCascadeRotaciones(doc, pack, fe, meta, { fullPage: true })
+          .then(function (feRot) {
+            return feOcrCascadeNubeRotaciones(doc, pack, feRot, meta);
+          })
+          .then(terminar);
+      })
+      .catch(function () {
+        var feFallback = {
+          nitEmisor: '',
+          razonSocial: '',
+          telefonoEmisor: '',
+          emailEmisor: '',
+          direccionEmisor: '',
+          representanteEmisor: '',
+        };
+        if (meta.nombreArchivo) {
+          feFallback.razonSocial = feRazonSocialFromFilename(meta.nombreArchivo);
+          if (feFallback.razonSocial) feFallback.razonSocial = feFallback.razonSocial.toUpperCase();
+        }
+        var conf = feComputeProbeConfidence(feFallback, { textLen: 0, likelyScanned: true });
+        return {
+          fe: feFallback,
+          text: '',
+          textLen: 0,
+          likelyScanned: true,
+          confidence: conf.score,
+          confidenceLabel: conf.label,
+          fieldsFound: conf.fieldsFound,
+          ok: !!feFallback.razonSocial,
+        };
+      });
   }
 
   function isTauriDianFetch() {
@@ -3491,8 +7415,7 @@
   }
 
   var _tesseractPromise = null;
-  var FE_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  var FE_TESSERACT_WORKER_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+  var FE_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js';
 
   function ensureTesseract() {
     if (global.Tesseract && typeof global.Tesseract.recognize === 'function') {
@@ -3541,11 +7464,10 @@
 
   function feRunOcr(T, dataUrl, extra) {
     var opts = feOcrRecognizeOptions(extra);
-    if (feIsBrowserOcrContext()) {
-      if (!opts.workerPath) opts.workerPath = FE_TESSERACT_WORKER_CDN;
-    } else {
+    if (!feIsBrowserOcrContext()) {
       delete opts.workerPath;
       delete opts.langPath;
+      delete opts.corePath;
     }
     return T.recognize(dataUrl, 'eng', opts);
   }
@@ -4890,5 +8812,25 @@
     buildFeIdentidad: buildFeIdentidad,
     renderFeIdentidadCard: renderFeIdentidadCard,
     renderFeIdentidadInline: renderFeIdentidadInline,
+    probeProveedorFromFacturaDoc: probeProveedorFromFacturaDoc,
+    feProbeNecesitaReintento: feProbeNecesitaReintento,
+    feScoreExtraccionFe: feScoreExtraccionFe,
+    feOcrRenderPageDataUrl: feOcrRenderPageDataUrl,
+    feOcrCascadeRotaciones: feOcrCascadeRotaciones,
+    feRazonSocialFromFilename: feRazonSocialFromFilename,
+    feSanitizeRepresentanteEmisor: feSanitizeRepresentanteEmisor,
+    feComprenderNombresEnFactura: feComprenderNombresEnFactura,
+    feGetOcrAyudaConfig: feGetOcrAyudaConfig,
+    feSetOcrAyudaConfig: feSetOcrAyudaConfig,
+    feLooksLikeRepresentantePersona: function (name, allowSingle) {
+      return !!feSanitizeRepresentanteEmisor(name, { allowSingle: !!allowSingle });
+    },
+    feAutoEvaluarExtraccion: feAutoEvaluarExtraccion,
+    feExtraerBolsaCandidatos: feExtraerBolsaCandidatos,
+    feAnalisisDocumentoCuatroPartes: feAnalisisDocumentoCuatroPartes,
+    feAplicarCamposDesdeAsignaciones: feAplicarCamposDesdeAsignaciones,
+    feRazonarSobreBolsa: feRazonarSobreBolsa,
+    feLooksLikeEmpresaNombre: feLooksLikeEmpresaNombre,
+    feLooksLikePersonName: feLooksLikePersonName,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

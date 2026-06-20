@@ -1,0 +1,1710 @@
+{
+  "trainedAt": "2026-06-19",
+  "rows": [
+    {
+      "file": "1523231562336251.pdf",
+      "slug": "1523231562336251",
+      "expectedName": "",
+      "detectedName": "TIENDA DE CAFÉ BOGOTÁ S.A.S.",
+      "nitEmisor": "3216362904",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 1650,
+      "likelyScanned": false,
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-04_Panificadora_a9e89b30.pdf",
+      "slug": "PANIFICADORA",
+      "expectedName": "Panificadora",
+      "detectedName": "PANIFICADORA",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 16,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-04_Reposteros_6244f83c.pdf",
+      "slug": "REPOSTEROS",
+      "expectedName": "Reposteros",
+      "detectedName": "REPOSTEROS",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-06_Alejandro_Varon_204ec090.pdf",
+      "slug": "ALEJANDRO_VARON",
+      "expectedName": "Alejandro Varon",
+      "detectedName": "ALEJANDRO VARON",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-09_FRESPOLLO_Y_MAR_a6bdb5f6.pdf",
+      "slug": "FRESPOLLO_Y_MAR",
+      "expectedName": "FRESPOLLO Y MAR",
+      "detectedName": "FRESPOLLO Y MAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-09_Hielo_Polar_0e943aa5.pdf",
+      "slug": "HIELO_POLAR",
+      "expectedName": "Hielo Polar",
+      "detectedName": "HIELO POLAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-09_SILVIO_LUCERO_CUARAN_71163e6b.pdf",
+      "slug": "SILVIO_LUCERO_CUARAN",
+      "expectedName": "SILVIO LUCERO CUARAN",
+      "detectedName": "LUCERO CUARAN LAUREANO SILVIO Nombre Comercial: LUCERO CUARAN LAUREANO SILVIO",
+      "nitEmisor": "1085634299",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": true,
+      "textLen": 2359,
+      "likelyScanned": false,
+      "profile": "fe-texto-pdf",
+      "nombreOk": true,
+      "nitOk": true,
+      "explicitRs": true
+    },
+    {
+      "file": "2026-06-09_SMART_FOOD_S_A_S_ea3ca88d.pdf",
+      "slug": "SMART_FOOD_S_A_S",
+      "expectedName": "SMART FOOD S A S",
+      "detectedName": "SMART FOOD S A S",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-09_THOMBRY_e0af3967.pdf",
+      "slug": "THOMBRY",
+      "expectedName": "THOMBRY",
+      "detectedName": "THOMBRY",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-09_choriju_f7697e9a.pdf",
+      "slug": "CHORIJU",
+      "expectedName": "choriju",
+      "detectedName": "CHORIJU",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-10_CARNES_LA_GRACIELA_477e04c6.pdf",
+      "slug": "CARNES_LA_GRACIELA",
+      "expectedName": "CARNES LA GRACIELA",
+      "detectedName": "CARNES LA GRACIELA",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Avicola_Del_Eje_Cafetero_JM_S_A_S_cb2ecc52.pdf",
+      "slug": "AVICOLA_DEL_EJE_CAFETERO_JM_S_A_S",
+      "expectedName": "Avicola Del Eje Cafetero JM S A S",
+      "detectedName": "AVICOLA DEL EJE CAFETERO JM S A S",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Charcureira_Santa_Isabel_e9ea3a1f.pdf",
+      "slug": "CHARCUREIRA_SANTA_ISABEL",
+      "expectedName": "Charcureira Santa Isabel",
+      "detectedName": "CHARCUREIRA SANTA ISABEL",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_DISPAPELES_5c94b5cd.pdf",
+      "slug": "DISPAPELES",
+      "expectedName": "DISPAPELES",
+      "detectedName": "DISPAPELES",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 16,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Distribuidora_de_Huevos_c3f01877.pdf",
+      "slug": "DISTRIBUIDORA_DE_HUEVOS",
+      "expectedName": "Distribuidora de Huevos",
+      "detectedName": "LOPEZ FERNANDEZ FABIAN ARLEX Nombre Comercial: LOPEZ FERNANDEZ FABIAN ARLEX",
+      "nitEmisor": "3155488762",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": true,
+      "textLen": 2334,
+      "likelyScanned": false,
+      "profile": "fe-texto-pdf",
+      "nombreOk": false,
+      "nitOk": true,
+      "explicitRs": true
+    },
+    {
+      "file": "2026-06-12_FRESPOLLO_Y_MAR_29e918bb.pdf",
+      "slug": "FRESPOLLO_Y_MAR",
+      "expectedName": "FRESPOLLO Y MAR",
+      "detectedName": "FRESPOLLO Y MAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_FRUGY_S_A_S_f54fc20e.pdf",
+      "slug": "FRUGY_S_A_S",
+      "expectedName": "FRUGY S A S",
+      "detectedName": "FRUGY S A S",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_FrutGo_685b76a8.pdf",
+      "slug": "FRUTGO",
+      "expectedName": "FrutGo",
+      "detectedName": "FRUTGO",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_4b60c4bc.pdf",
+      "slug": "HIELO_POLAR",
+      "expectedName": "Hielo Polar",
+      "detectedName": "TIENDA DE CAFÉ BOGOTÁ S.A.S-ALAMOS",
+      "nitEmisor": "3164827571",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 1292,
+      "likelyScanned": false,
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_7c414032.pdf",
+      "slug": "HIELO_POLAR",
+      "expectedName": "Hielo Polar",
+      "detectedName": "TIENDA DE CAFÉ BOGOTÁ S.A.S-ALAMOS",
+      "nitEmisor": "3164827571",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 1295,
+      "likelyScanned": false,
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_9224f855.pdf",
+      "slug": "HIELO_POLAR",
+      "expectedName": "Hielo Polar",
+      "detectedName": "TIENDA DE CAFÉ BOGOTÁ S.A.S-ALAMOS",
+      "nitEmisor": "3164827571",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 1295,
+      "likelyScanned": false,
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_b8a620b2.pdf",
+      "slug": "HIELO_POLAR",
+      "expectedName": "Hielo Polar",
+      "detectedName": "HIELO POLAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_MARSAL__DISTRIBUCIONES_4700698e.pdf",
+      "slug": "MARSAL_DISTRIBUCIONES",
+      "expectedName": "MARSAL DISTRIBUCIONES",
+      "detectedName": "MARSAL DISTRIBUCIONES",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_MAR_MARISCOS_f3b06135.pdf",
+      "slug": "MAR_MARISCOS",
+      "expectedName": "MAR MARISCOS",
+      "detectedName": "MAR MARISCOS",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_Reposteros_19488e34.pdf",
+      "slug": "REPOSTEROS",
+      "expectedName": "Reposteros",
+      "detectedName": "REPOSTEROS",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_SILVIO_LUCERO_CUARAN_9e66a126.pdf",
+      "slug": "SILVIO_LUCERO_CUARAN",
+      "expectedName": "SILVIO LUCERO CUARAN",
+      "detectedName": "SILVIO LUCERO CUARAN",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_SURTIFRIOS_LH_d880805c.pdf",
+      "slug": "SURTIFRIOS_LH",
+      "expectedName": "SURTIFRIOS LH",
+      "detectedName": "SURTIFRIOS LH",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-12_choriju_45e6d5e2.pdf",
+      "slug": "CHORIJU",
+      "expectedName": "choriju",
+      "detectedName": "CHORIJU",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-13_CARNES_LA_GRACIELA_9a09d4aa.pdf",
+      "slug": "CARNES_LA_GRACIELA",
+      "expectedName": "CARNES LA GRACIELA",
+      "detectedName": "CARNES LA GRACIELA",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-13_NOE_DE_JESUS_VARGAS_FRANCO_6022c7d9.pdf",
+      "slug": "NOE_DE_JESUS_VARGAS_FRANCO",
+      "expectedName": "NOE DE JESUS VARGAS FRANCO",
+      "detectedName": "NOE DE JESUS VARGAS FRANCO",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-13_SIGRA_b438a7c1.pdf",
+      "slug": "SIGRA",
+      "expectedName": "SIGRA",
+      "detectedName": "SIGRA",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-13_cooperativa_colanta_49e85b35.pdf",
+      "slug": "COOPERATIVA_COLANTA",
+      "expectedName": "cooperativa colanta",
+      "detectedName": "COOPERATIVA COLANTA",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-15_Distribuidora_de_Huevos_a6c8ab75.pdf",
+      "slug": "DISTRIBUIDORA_DE_HUEVOS",
+      "expectedName": "Distribuidora de Huevos",
+      "detectedName": "DISTRIBUIDORA DE HUEVOS",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-15_SILVIO_LUCERO_CUARAN_7d997992.pdf",
+      "slug": "SILVIO_LUCERO_CUARAN",
+      "expectedName": "SILVIO LUCERO CUARAN",
+      "detectedName": "SILVIO LUCERO CUARAN",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_Charcureira_Santa_Isabel_b1bd9aa3.pdf",
+      "slug": "CHARCUREIRA_SANTA_ISABEL",
+      "expectedName": "Charcureira Santa Isabel",
+      "detectedName": "CHARCUREIRA SANTA ISABEL",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_FRESPOLLO_Y_MAR_1bdb3b1f.pdf",
+      "slug": "FRESPOLLO_Y_MAR",
+      "expectedName": "FRESPOLLO Y MAR",
+      "detectedName": "FRESPOLLO Y MAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_FRESPOLLO_Y_MAR_85cd0c0f.pdf",
+      "slug": "FRESPOLLO_Y_MAR",
+      "expectedName": "FRESPOLLO Y MAR",
+      "detectedName": "FRESPOLLO Y MAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_FrutGo_e0a41c93.pdf",
+      "slug": "FRUTGO",
+      "expectedName": "FrutGo",
+      "detectedName": "FRUTGO",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 16,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_GRAFICAS_Y_EMPAQUES_UNIVERSAL_d43f81f4.pdf",
+      "slug": "GRAFICAS_Y_EMPAQUES_UNIVERSAL",
+      "expectedName": "GRAFICAS Y EMPAQUES UNIVERSAL",
+      "detectedName": "GRAFICAS Y EMPAQUES UNIVERSAL",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_MARSAL__DISTRIBUCIONES_ed9dc000.pdf",
+      "slug": "MARSAL_DISTRIBUCIONES",
+      "expectedName": "MARSAL DISTRIBUCIONES",
+      "detectedName": "MARSAL DISTRIBUCIONES",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_MAR_MARISCOS_ba9151f9.pdf",
+      "slug": "MAR_MARISCOS",
+      "expectedName": "MAR MARISCOS",
+      "detectedName": "MAR MARISCOS",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_NOE_DE_JESUS_VARGAS_FRANCO_0d241159.pdf",
+      "slug": "NOE_DE_JESUS_VARGAS_FRANCO",
+      "expectedName": "NOE DE JESUS VARGAS FRANCO",
+      "detectedName": "NOE DE JESUS VARGAS FRANCO",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_Reposteros_d74e29dd.pdf",
+      "slug": "REPOSTEROS",
+      "expectedName": "Reposteros",
+      "detectedName": "REPOSTEROS",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-16_THOMBRY_945e0c5f.pdf",
+      "slug": "THOMBRY",
+      "expectedName": "THOMBRY",
+      "detectedName": "THOMBRY",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-17_Alejandro_Varon_a8dba520.pdf",
+      "slug": "ALEJANDRO_VARON",
+      "expectedName": "Alejandro Varon",
+      "detectedName": "ALEJANDRO VARON",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-17_CARDILICORES_48466609.pdf",
+      "slug": "CARDILICORES",
+      "expectedName": "CARDILICORES",
+      "detectedName": "CARDILICORES",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-17_CARNES_LA_GRACIELA_f36527d2.pdf",
+      "slug": "CARNES_LA_GRACIELA",
+      "expectedName": "CARNES LA GRACIELA",
+      "detectedName": "CARNES LA GRACIELA",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-17_COCOFRUT_f3055011.pdf",
+      "slug": "COCOFRUT",
+      "expectedName": "COCOFRUT",
+      "detectedName": "COCOFRUT",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-17_Hielo_Polar_77c8aba2.pdf",
+      "slug": "HIELO_POLAR",
+      "expectedName": "Hielo Polar",
+      "detectedName": "HIELO POLAR",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "2026-06-17_choriju_b836c01d.pdf",
+      "slug": "CHORIJU",
+      "expectedName": "choriju",
+      "detectedName": "CHORIJU",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false,
+      "explicitRs": false
+    },
+    {
+      "file": "facturas.pdf",
+      "slug": "FACTURAS",
+      "expectedName": "",
+      "detectedName": "TIENDA DE CAFÉ BOGOTÁ S.A.S.",
+      "nitEmisor": "3216362904",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 1902,
+      "likelyScanned": false,
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true,
+      "explicitRs": false
+    },
+    {
+      "file": "ssadsdada.pdf",
+      "slug": "SSADSDADA",
+      "expectedName": "",
+      "detectedName": "",
+      "nitEmisor": "",
+      "nitReceptor": "",
+      "total": 0,
+      "cufe": false,
+      "textLen": 8,
+      "likelyScanned": true,
+      "profile": "escaneada-sin-texto",
+      "nombreOk": false,
+      "nitOk": false,
+      "explicitRs": false
+    }
+  ],
+  "failures": [
+    {
+      "file": "1523231562336251.pdf",
+      "expected": "",
+      "detected": "TIENDA DE CAFÉ BOGOTÁ S.A.S.",
+      "nit": "3216362904",
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true
+    },
+    {
+      "file": "2026-06-04_Panificadora_a9e89b30.pdf",
+      "expected": "Panificadora",
+      "detected": "PANIFICADORA",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-04_Reposteros_6244f83c.pdf",
+      "expected": "Reposteros",
+      "detected": "REPOSTEROS",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-06_Alejandro_Varon_204ec090.pdf",
+      "expected": "Alejandro Varon",
+      "detected": "ALEJANDRO VARON",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-09_FRESPOLLO_Y_MAR_a6bdb5f6.pdf",
+      "expected": "FRESPOLLO Y MAR",
+      "detected": "FRESPOLLO Y MAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-09_Hielo_Polar_0e943aa5.pdf",
+      "expected": "Hielo Polar",
+      "detected": "HIELO POLAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-09_SMART_FOOD_S_A_S_ea3ca88d.pdf",
+      "expected": "SMART FOOD S A S",
+      "detected": "SMART FOOD S A S",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-09_THOMBRY_e0af3967.pdf",
+      "expected": "THOMBRY",
+      "detected": "THOMBRY",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-09_choriju_f7697e9a.pdf",
+      "expected": "choriju",
+      "detected": "CHORIJU",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-10_CARNES_LA_GRACIELA_477e04c6.pdf",
+      "expected": "CARNES LA GRACIELA",
+      "detected": "CARNES LA GRACIELA",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_Avicola_Del_Eje_Cafetero_JM_S_A_S_cb2ecc52.pdf",
+      "expected": "Avicola Del Eje Cafetero JM S A S",
+      "detected": "AVICOLA DEL EJE CAFETERO JM S A S",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_Charcureira_Santa_Isabel_e9ea3a1f.pdf",
+      "expected": "Charcureira Santa Isabel",
+      "detected": "CHARCUREIRA SANTA ISABEL",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_DISPAPELES_5c94b5cd.pdf",
+      "expected": "DISPAPELES",
+      "detected": "DISPAPELES",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_Distribuidora_de_Huevos_c3f01877.pdf",
+      "expected": "Distribuidora de Huevos",
+      "detected": "LOPEZ FERNANDEZ FABIAN ARLEX Nombre Comercial: LOPEZ FERNANDEZ FABIAN ARLEX",
+      "nit": "3155488762",
+      "profile": "fe-texto-pdf",
+      "nombreOk": false,
+      "nitOk": true
+    },
+    {
+      "file": "2026-06-12_FRESPOLLO_Y_MAR_29e918bb.pdf",
+      "expected": "FRESPOLLO Y MAR",
+      "detected": "FRESPOLLO Y MAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_FRUGY_S_A_S_f54fc20e.pdf",
+      "expected": "FRUGY S A S",
+      "detected": "FRUGY S A S",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_FrutGo_685b76a8.pdf",
+      "expected": "FrutGo",
+      "detected": "FRUTGO",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_4b60c4bc.pdf",
+      "expected": "Hielo Polar",
+      "detected": "TIENDA DE CAFÉ BOGOTÁ S.A.S-ALAMOS",
+      "nit": "3164827571",
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_7c414032.pdf",
+      "expected": "Hielo Polar",
+      "detected": "TIENDA DE CAFÉ BOGOTÁ S.A.S-ALAMOS",
+      "nit": "3164827571",
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_9224f855.pdf",
+      "expected": "Hielo Polar",
+      "detected": "TIENDA DE CAFÉ BOGOTÁ S.A.S-ALAMOS",
+      "nit": "3164827571",
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true
+    },
+    {
+      "file": "2026-06-12_Hielo_Polar_b8a620b2.pdf",
+      "expected": "Hielo Polar",
+      "detected": "HIELO POLAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_MARSAL__DISTRIBUCIONES_4700698e.pdf",
+      "expected": "MARSAL DISTRIBUCIONES",
+      "detected": "MARSAL DISTRIBUCIONES",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_MAR_MARISCOS_f3b06135.pdf",
+      "expected": "MAR MARISCOS",
+      "detected": "MAR MARISCOS",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_Reposteros_19488e34.pdf",
+      "expected": "Reposteros",
+      "detected": "REPOSTEROS",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_SILVIO_LUCERO_CUARAN_9e66a126.pdf",
+      "expected": "SILVIO LUCERO CUARAN",
+      "detected": "SILVIO LUCERO CUARAN",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_SURTIFRIOS_LH_d880805c.pdf",
+      "expected": "SURTIFRIOS LH",
+      "detected": "SURTIFRIOS LH",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-12_choriju_45e6d5e2.pdf",
+      "expected": "choriju",
+      "detected": "CHORIJU",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-13_CARNES_LA_GRACIELA_9a09d4aa.pdf",
+      "expected": "CARNES LA GRACIELA",
+      "detected": "CARNES LA GRACIELA",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-13_NOE_DE_JESUS_VARGAS_FRANCO_6022c7d9.pdf",
+      "expected": "NOE DE JESUS VARGAS FRANCO",
+      "detected": "NOE DE JESUS VARGAS FRANCO",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-13_SIGRA_b438a7c1.pdf",
+      "expected": "SIGRA",
+      "detected": "SIGRA",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-13_cooperativa_colanta_49e85b35.pdf",
+      "expected": "cooperativa colanta",
+      "detected": "COOPERATIVA COLANTA",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-15_Distribuidora_de_Huevos_a6c8ab75.pdf",
+      "expected": "Distribuidora de Huevos",
+      "detected": "DISTRIBUIDORA DE HUEVOS",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-15_SILVIO_LUCERO_CUARAN_7d997992.pdf",
+      "expected": "SILVIO LUCERO CUARAN",
+      "detected": "SILVIO LUCERO CUARAN",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_Charcureira_Santa_Isabel_b1bd9aa3.pdf",
+      "expected": "Charcureira Santa Isabel",
+      "detected": "CHARCUREIRA SANTA ISABEL",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_FRESPOLLO_Y_MAR_1bdb3b1f.pdf",
+      "expected": "FRESPOLLO Y MAR",
+      "detected": "FRESPOLLO Y MAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_FRESPOLLO_Y_MAR_85cd0c0f.pdf",
+      "expected": "FRESPOLLO Y MAR",
+      "detected": "FRESPOLLO Y MAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_FrutGo_e0a41c93.pdf",
+      "expected": "FrutGo",
+      "detected": "FRUTGO",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_GRAFICAS_Y_EMPAQUES_UNIVERSAL_d43f81f4.pdf",
+      "expected": "GRAFICAS Y EMPAQUES UNIVERSAL",
+      "detected": "GRAFICAS Y EMPAQUES UNIVERSAL",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_MARSAL__DISTRIBUCIONES_ed9dc000.pdf",
+      "expected": "MARSAL DISTRIBUCIONES",
+      "detected": "MARSAL DISTRIBUCIONES",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_MAR_MARISCOS_ba9151f9.pdf",
+      "expected": "MAR MARISCOS",
+      "detected": "MAR MARISCOS",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_NOE_DE_JESUS_VARGAS_FRANCO_0d241159.pdf",
+      "expected": "NOE DE JESUS VARGAS FRANCO",
+      "detected": "NOE DE JESUS VARGAS FRANCO",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_Reposteros_d74e29dd.pdf",
+      "expected": "Reposteros",
+      "detected": "REPOSTEROS",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-16_THOMBRY_945e0c5f.pdf",
+      "expected": "THOMBRY",
+      "detected": "THOMBRY",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-17_Alejandro_Varon_a8dba520.pdf",
+      "expected": "Alejandro Varon",
+      "detected": "ALEJANDRO VARON",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-17_CARDILICORES_48466609.pdf",
+      "expected": "CARDILICORES",
+      "detected": "CARDILICORES",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-17_CARNES_LA_GRACIELA_f36527d2.pdf",
+      "expected": "CARNES LA GRACIELA",
+      "detected": "CARNES LA GRACIELA",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-17_COCOFRUT_f3055011.pdf",
+      "expected": "COCOFRUT",
+      "detected": "COCOFRUT",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-17_Hielo_Polar_77c8aba2.pdf",
+      "expected": "Hielo Polar",
+      "detected": "HIELO POLAR",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "2026-06-17_choriju_b836c01d.pdf",
+      "expected": "choriju",
+      "detected": "CHORIJU",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": true,
+      "nitOk": false
+    },
+    {
+      "file": "facturas.pdf",
+      "expected": "",
+      "detected": "TIENDA DE CAFÉ BOGOTÁ S.A.S.",
+      "nit": "3216362904",
+      "profile": "texto-sin-cufe",
+      "nombreOk": false,
+      "nitOk": true
+    },
+    {
+      "file": "ssadsdada.pdf",
+      "expected": "",
+      "detected": "",
+      "nit": "",
+      "profile": "escaneada-sin-texto",
+      "nombreOk": false,
+      "nitOk": false
+    }
+  ],
+  "vendorList": [
+    {
+      "slug": "HIELO_POLAR",
+      "label": "Hielo Polar",
+      "aliases": [
+        "HIELO POLAR"
+      ],
+      "nits": [
+        "3164827571"
+      ],
+      "tokens": [
+        "HIELO",
+        "POLAR"
+      ],
+      "samples": 6,
+      "nombreOkPct": 50,
+      "nitOkPct": 50
+    },
+    {
+      "slug": "FRESPOLLO_Y_MAR",
+      "label": "FRESPOLLO Y MAR",
+      "aliases": [
+        "FRESPOLLO Y MAR"
+      ],
+      "nits": [],
+      "tokens": [
+        "FRESPOLLO"
+      ],
+      "samples": 4,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "REPOSTEROS",
+      "label": "Reposteros",
+      "aliases": [
+        "REPOSTEROS"
+      ],
+      "nits": [],
+      "tokens": [
+        "REPOSTEROS"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SILVIO_LUCERO_CUARAN",
+      "label": "SILVIO LUCERO CUARAN",
+      "aliases": [
+        "LUCERO CUARAN LAUREANO SILVIO Nombre Comercial: LUCERO CUARAN LAUREANO SILVIO",
+        "SILVIO LUCERO CUARAN"
+      ],
+      "nits": [
+        "1085634299"
+      ],
+      "tokens": [
+        "SILVIO",
+        "LUCERO",
+        "CUARAN",
+        "LAUREANO",
+        "NOMBRE",
+        "COMERCIAL"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 33
+    },
+    {
+      "slug": "CHORIJU",
+      "label": "choriju",
+      "aliases": [
+        "CHORIJU"
+      ],
+      "nits": [],
+      "tokens": [
+        "CHORIJU"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "CARNES_LA_GRACIELA",
+      "label": "CARNES LA GRACIELA",
+      "aliases": [
+        "CARNES LA GRACIELA"
+      ],
+      "nits": [],
+      "tokens": [
+        "CARNES",
+        "GRACIELA"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "ALEJANDRO_VARON",
+      "label": "Alejandro Varon",
+      "aliases": [
+        "ALEJANDRO VARON"
+      ],
+      "nits": [],
+      "tokens": [
+        "ALEJANDRO",
+        "VARON"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "THOMBRY",
+      "label": "THOMBRY",
+      "aliases": [
+        "THOMBRY"
+      ],
+      "nits": [],
+      "tokens": [
+        "THOMBRY"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "CHARCUREIRA_SANTA_ISABEL",
+      "label": "Charcureira Santa Isabel",
+      "aliases": [
+        "CHARCUREIRA SANTA ISABEL"
+      ],
+      "nits": [],
+      "tokens": [
+        "CHARCUREIRA",
+        "SANTA",
+        "ISABEL"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "DISTRIBUIDORA_DE_HUEVOS",
+      "label": "Distribuidora de Huevos",
+      "aliases": [
+        "DISTRIBUIDORA DE HUEVOS"
+      ],
+      "nits": [
+        "3155488762"
+      ],
+      "tokens": [
+        "DISTRIBUIDORA",
+        "HUEVOS"
+      ],
+      "samples": 2,
+      "nombreOkPct": 50,
+      "nitOkPct": 50
+    },
+    {
+      "slug": "FRUTGO",
+      "label": "FrutGo",
+      "aliases": [
+        "FRUTGO"
+      ],
+      "nits": [],
+      "tokens": [
+        "FRUTGO"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "MARSAL_DISTRIBUCIONES",
+      "label": "MARSAL DISTRIBUCIONES",
+      "aliases": [
+        "MARSAL DISTRIBUCIONES"
+      ],
+      "nits": [],
+      "tokens": [
+        "MARSAL",
+        "DISTRIBUCIONES"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "MAR_MARISCOS",
+      "label": "MAR MARISCOS",
+      "aliases": [
+        "MAR MARISCOS"
+      ],
+      "nits": [],
+      "tokens": [
+        "MARISCOS"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "NOE_DE_JESUS_VARGAS_FRANCO",
+      "label": "NOE DE JESUS VARGAS FRANCO",
+      "aliases": [
+        "NOE DE JESUS VARGAS FRANCO"
+      ],
+      "nits": [],
+      "tokens": [
+        "JESUS",
+        "VARGAS",
+        "FRANCO"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "1523231562336251",
+      "label": "1523231562336251",
+      "aliases": [],
+      "nits": [
+        "3216362904"
+      ],
+      "tokens": [],
+      "samples": 1,
+      "nombreOkPct": 0,
+      "nitOkPct": 100
+    },
+    {
+      "slug": "PANIFICADORA",
+      "label": "Panificadora",
+      "aliases": [
+        "PANIFICADORA"
+      ],
+      "nits": [],
+      "tokens": [
+        "PANIFICADORA"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SMART_FOOD_S_A_S",
+      "label": "SMART FOOD S A S",
+      "aliases": [
+        "SMART FOOD S A S"
+      ],
+      "nits": [],
+      "tokens": [
+        "SMART",
+        "FOOD"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "AVICOLA_DEL_EJE_CAFETERO_JM_S_A_S",
+      "label": "Avicola Del Eje Cafetero JM S A S",
+      "aliases": [
+        "AVICOLA DEL EJE CAFETERO JM S A S"
+      ],
+      "nits": [],
+      "tokens": [
+        "AVICOLA",
+        "CAFETERO"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "DISPAPELES",
+      "label": "DISPAPELES",
+      "aliases": [
+        "DISPAPELES"
+      ],
+      "nits": [],
+      "tokens": [
+        "DISPAPELES"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "FRUGY_S_A_S",
+      "label": "FRUGY S A S",
+      "aliases": [
+        "FRUGY S A S"
+      ],
+      "nits": [],
+      "tokens": [
+        "FRUGY"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SURTIFRIOS_LH",
+      "label": "SURTIFRIOS LH",
+      "aliases": [
+        "SURTIFRIOS LH"
+      ],
+      "nits": [],
+      "tokens": [
+        "SURTIFRIOS"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SIGRA",
+      "label": "SIGRA",
+      "aliases": [
+        "SIGRA"
+      ],
+      "nits": [],
+      "tokens": [
+        "SIGRA"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "COOPERATIVA_COLANTA",
+      "label": "cooperativa colanta",
+      "aliases": [
+        "COOPERATIVA COLANTA"
+      ],
+      "nits": [],
+      "tokens": [
+        "COOPERATIVA",
+        "COLANTA"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "GRAFICAS_Y_EMPAQUES_UNIVERSAL",
+      "label": "GRAFICAS Y EMPAQUES UNIVERSAL",
+      "aliases": [
+        "GRAFICAS Y EMPAQUES UNIVERSAL"
+      ],
+      "nits": [],
+      "tokens": [
+        "GRAFICAS",
+        "EMPAQUES",
+        "UNIVERSAL"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "CARDILICORES",
+      "label": "CARDILICORES",
+      "aliases": [
+        "CARDILICORES"
+      ],
+      "nits": [],
+      "tokens": [
+        "CARDILICORES"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "COCOFRUT",
+      "label": "COCOFRUT",
+      "aliases": [
+        "COCOFRUT"
+      ],
+      "nits": [],
+      "tokens": [
+        "COCOFRUT"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "FACTURAS",
+      "label": "FACTURAS",
+      "aliases": [],
+      "nits": [
+        "3216362904"
+      ],
+      "tokens": [],
+      "samples": 1,
+      "nombreOkPct": 0,
+      "nitOkPct": 100
+    },
+    {
+      "slug": "SSADSDADA",
+      "label": "SSADSDADA",
+      "aliases": [],
+      "nits": [],
+      "tokens": [],
+      "samples": 1,
+      "nombreOkPct": 0,
+      "nitOkPct": 0
+    }
+  ]
+}

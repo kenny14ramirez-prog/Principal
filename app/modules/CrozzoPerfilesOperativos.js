@@ -6,268 +6,147 @@
 
   var ROLE_FALLBACK = ['caja', 'user'];
 
-  /** Módulos permitidos por perfil (cliente / negocio). */
-  var PERFIL_CLIENT_MENUS = {
-    completo: ['all'],
-    pequeno: [
-      'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
-      'productos', 'inventarios', 'centro-compras', 'pedidos-internos', 'control-acceso', 'admin',
-      'config-empresa', 'config-comandas', 'nomina-planilla',
-    ],
-    mediano: [
-      'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
-      'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed', 'centro-compras',
-      'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa',
-      'config-comandas', 'nomina-planilla',
-    ],
-    grande: [
-      'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
-      'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'sistema-costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed',
-      'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
-      'compras-cortes', 'compras-proceso-sesion', 'compras-proceso-historial',
-      'compras-oficina', 'pedidos-internos', 'control-acceso', 'nomina-planilla', 'admin', 'config-empresa',
-      'config-comandas',
-    ],
-    restaurante: [
-      'inicio-operacion', 'caja', 'punto-venta', 'tablets', 'facturas', 'cierre-caja', 'comandas', 'cocina',
-      'inventarios', 'productos', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones',
-      'compras-recepcion', 'compras-proveedores', 'compras-cortes', 'compras-proceso-sesion',
-      'compras-proceso-historial', 'compras-oficina', 'pedidos-internos',
-      'control-acceso', 'nomina-planilla', 'admin', 'config-empresa', 'config-comandas',
-    ],
-    retail: [
-      'inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'cierre-caja', 'inventarios', 'productos',
-      'admin', 'config-empresa', 'impuestos', 'nomina-planilla', 'compras-oficina', 'control-acceso',
-      'centro-compras', 'compras-ordenes',
-    ],
-    servicios: [
-      'inicio-operacion', 'caja', 'venta-comercial', 'facturas', 'cierre-caja', 'productos', 'admin',
-      'config-empresa', 'impuestos', 'control-acceso',
-    ],
-    basico: ['caja', 'venta-comercial', 'productos', 'admin', 'config-empresa'],
+  /** Perfiles legacy → plan básico de lanzamiento. */
+  var LEGACY_PERFIL_MAP = {
+    completo: 'basico_restaurante',
+    pequeno: 'basico_restaurante',
+    mediano: 'basico_restaurante',
+    grande: 'basico_restaurante',
+    restaurante: 'basico_restaurante',
+    retail: 'basico_tienda',
+    servicios: 'basico_tienda',
+    basico: 'basico_tienda',
   };
 
-  /** Menú lateral por rol (solo perfiles con roles definidos; completo/personalizado = sin filtro). */
+  /** Módulos compartidos del plan básico (sin bodegas/remisiones, sin planilla, compras básicas). */
+  var BASICO_SHARED = [
+    'inventarios',
+    'productos',
+    'catalogo-mp',
+    'sistema-costos-matriz',
+    'sistema-costos-inv',
+    'compras-oficina',
+    'centro-compras',
+    'compras-proveedores',
+    'config-empresa',
+    'impuestos',
+    'conexion-sistemas',
+    'facturas-admin',
+    'admin',
+  ];
+
+  var BASICO_RESTAURANTE_EXTRA = [
+    'inicio-operacion',
+    'punto-venta',
+    'tablets',
+    'facturas',
+    'cierre-caja',
+    'caja',
+    'comandas',
+    'cocina',
+    'compras-cortes',
+    'compras-recetario-cocina',
+    'compras-proceso-sesion',
+    'compras-proceso-historial',
+    'config-comandas',
+  ];
+
+  var BASICO_TIENDA_EXTRA = ['inicio-operacion', 'venta-comercial', 'facturas', 'cierre-caja', 'caja'];
+
+  /** Módulos permitidos por perfil (cliente / negocio). */
+  var PERFIL_CLIENT_MENUS = {
+    basico_restaurante: BASICO_SHARED.concat(BASICO_RESTAURANTE_EXTRA),
+    basico_tienda: BASICO_SHARED.concat(BASICO_TIENDA_EXTRA),
+  };
+
+  /** Menú lateral por rol (solo perfiles con roles definidos; personalizado = sin filtro). */
   var PERFIL_ROLE_MENUS = {
-    pequeno: {
-      caja: ['inicio-operacion', 'punto-venta', 'cierre-caja', 'facturas', 'caja'],
-      mesero: ['tablets', 'comandas'],
-      cocina: ['cocina', 'comandas', 'pedidos-internos'],
-      inventario: ['centro-compras', 'pedidos-internos', 'inventarios'],
-      admin: [
-        'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'productos',
-        'inventarios', 'centro-compras', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa',
-        'config-comandas', 'nomina-planilla',
-      ],
-      user: ['inicio-operacion', 'punto-venta', 'cierre-caja'],
-    },
-    mediano: {
+    basico_restaurante: {
       caja: ['inicio-operacion', 'punto-venta', 'cierre-caja', 'facturas', 'caja', 'comandas'],
-      mesero: ['tablets', 'comandas'],
-      cocina: ['cocina', 'comandas', 'pedidos-internos'],
-      inventario: [
-        'centro-compras', 'compras-cotizaciones', 'compras-proveedores', 'pedidos-internos', 'inventarios',
-        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed',
-      ],
-      admin: [
-        'inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'comandas', 'cocina', 'facturas', 'caja',
-        'productos', 'inventarios', 'catalogo-mp', 'costos-matriz', 'centro-compras', 'compras-cotizaciones',
-        'compras-proveedores', 'pedidos-internos', 'control-acceso', 'admin', 'config-empresa', 'config-comandas',
-        'nomina-planilla',
-      ],
-      user: ['inicio-operacion', 'punto-venta', 'cierre-caja'],
-    },
-    grande: {
-      caja: ['inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja', 'facturas', 'caja', 'comandas', 'inventarios'],
       mesero: ['tablets', 'comandas'],
       cocina: [
-        'cocina', 'comandas', 'pedidos-internos', 'compras-cortes', 'compras-proceso-sesion',
-        'compras-recepcion',
+        'cocina',
+        'comandas',
+        'compras-cortes',
+        'compras-recetario-cocina',
+        'compras-proceso-sesion',
+        'compras-proceso-historial',
       ],
       inventario: [
-        'centro-compras', 'compras-cotizaciones', 'compras-recepcion', 'compras-proveedores', 'compras-ordenes',
-        'compras-cortes', 'compras-proceso-historial', 'pedidos-internos', 'inventarios',
-        'catalogo-mp', 'costos-matriz', 'sistema-costos-inv', 'sistema-costos-fed',
+        'centro-compras',
+        'compras-proveedores',
+        'inventarios',
+        'productos',
+        'catalogo-mp',
+        'sistema-costos-matriz',
+        'sistema-costos-inv',
+        'compras-oficina',
       ],
-      admin: PERFIL_CLIENT_MENUS.grande.filter(function (m) {
-        return m !== 'all';
-      }),
+      admin: PERFIL_CLIENT_MENUS.basico_restaurante.slice(),
       user: ['inicio-operacion', 'punto-venta', 'cierre-caja'],
     },
-    restaurante: {
-      caja: ['inicio-operacion', 'punto-venta', 'cierre-caja', 'facturas', 'caja', 'comandas'],
-      mesero: ['tablets', 'comandas', 'cocina'],
-      cocina: ['cocina', 'comandas', 'pedidos-internos'],
-      inventario: [
-        'centro-compras', 'compras-recepcion', 'compras-proveedores', 'inventarios', 'catalogo-mp', 'costos-matriz',
-        'pedidos-internos',
-      ],
-      admin: PERFIL_CLIENT_MENUS.restaurante.filter(function (m) {
-        return m !== 'all';
-      }),
-      user: ['inicio-operacion', 'punto-venta', 'tablets', 'cierre-caja'],
-    },
-    retail: {
+    basico_tienda: {
       caja: ['inicio-operacion', 'venta-comercial', 'cierre-caja', 'facturas', 'caja'],
       mesero: ['venta-comercial'],
-      inventario: ['inventarios', 'productos', 'centro-compras', 'compras-ordenes', 'compras-oficina'],
-      admin: PERFIL_CLIENT_MENUS.retail.filter(function (m) {
-        return m !== 'all';
-      }),
+      inventario: [
+        'centro-compras',
+        'compras-proveedores',
+        'inventarios',
+        'productos',
+        'catalogo-mp',
+        'sistema-costos-matriz',
+        'sistema-costos-inv',
+        'compras-oficina',
+      ],
+      admin: PERFIL_CLIENT_MENUS.basico_tienda.slice(),
       user: ['venta-comercial', 'cierre-caja'],
-    },
-    servicios: {
-      caja: ['inicio-operacion', 'venta-comercial', 'cierre-caja', 'facturas', 'caja'],
-      admin: PERFIL_CLIENT_MENUS.servicios.filter(function (m) {
-        return m !== 'all';
-      }),
-      user: ['venta-comercial', 'cierre-caja'],
-    },
-    basico: {
-      caja: ['venta-comercial', 'caja'],
-      admin: ['venta-comercial', 'caja', 'productos', 'admin', 'config-empresa'],
-      user: ['venta-comercial'],
     },
   };
 
   /** Metadatos operativos: guardas, onboarding, página inicio. */
   var PERFIL_META = {
-    completo: {
-      id: 'completo',
-      label: 'Completo',
-      desc: 'Todos los módulos; sin restricción por rol.',
-      icon: '🌐',
-      tipo: 'general',
-      tamano: null,
-      experiencia: 'expert',
-      home: 'inicio-operacion',
-      roleMenus: false,
-      onboarding: false,
-      debounceMs: 400,
-      dupWindowMs: 60000,
-      dupRatio: 0.88,
-      shiftTip: false,
-    },
-    pequeno: {
-      id: 'pequeno',
-      label: 'Pequeño negocio',
-      desc: '~20 personas · operación compacta · menú mínimo por rol (caja, compras básicas).',
-      icon: '🏠',
+    basico_restaurante: {
+      id: 'basico_restaurante',
+      label: 'Plan básico · Restaurante',
+      desc:
+        'Operación gastronómica, cocina/KDS, preparaciones, gestión, costos (sin planilla) y compras básicas.',
+      icon: '🍽️',
       tipo: 'restaurante',
-      tamano: 'pequeno',
+      tamano: 'basico',
       experiencia: 'novice',
       home: 'inicio-operacion',
       roleMenus: true,
       onboarding: true,
-      debounceMs: 900,
-      dupWindowMs: 120000,
-      dupRatio: 0.75,
-      shiftTip: true,
-    },
-    mediano: {
-      id: 'mediano',
-      label: 'Restaurante mediano',
-      desc: '~250 personas · compras, cotizaciones, costos e inventario de bodega.',
-      icon: '🍽️',
-      tipo: 'restaurante',
-      tamano: 'mediano',
-      experiencia: 'expert',
-      home: 'inicio-operacion',
-      roleMenus: true,
-      onboarding: false,
-      debounceMs: 650,
-      dupWindowMs: 90000,
+      debounceMs: 750,
+      dupWindowMs: 100000,
       dupRatio: 0.78,
       shiftTip: true,
     },
-    grande: {
-      id: 'grande',
-      label: 'Restaurante grande',
-      desc: '~500 personas · producción, órdenes de compra y bodega continua.',
-      icon: '🏨',
-      tipo: 'restaurante',
-      tamano: 'grande',
-      experiencia: 'expert',
-      home: 'inicio-operacion',
-      roleMenus: true,
-      onboarding: false,
-      debounceMs: 450,
-      dupWindowMs: 60000,
-      dupRatio: 0.85,
-      shiftTip: false,
-    },
-    restaurante: {
-      id: 'restaurante',
-      label: 'Restaurante estándar',
-      desc: 'Operación gastronómica completa con roles definidos (equipo con experiencia).',
-      icon: '👨‍🍳',
-      tipo: 'restaurante',
-      tamano: 'mediano',
-      experiencia: 'expert',
-      home: 'inicio-operacion',
-      roleMenus: true,
-      onboarding: false,
-      debounceMs: 500,
-      dupWindowMs: 75000,
-      dupRatio: 0.82,
-      shiftTip: false,
-    },
-    retail: {
-      id: 'retail',
-      label: 'Retail / Tienda',
-      desc: 'Venta comercial, inventario y cierre; roles caja vs bodega.',
+    basico_tienda: {
+      id: 'basico_tienda',
+      label: 'Plan básico · Tienda comercial',
+      desc:
+        'Venta comercial, gestión, costos (sin planilla), compras básicas, administración y marcación de personal (sin cocina).',
       icon: '🏪',
       tipo: 'retail',
-      tamano: null,
-      experiencia: 'mixed',
-      home: 'venta-comercial',
-      roleMenus: true,
-      onboarding: true,
-      debounceMs: 600,
-      dupWindowMs: 90000,
-      dupRatio: 0.8,
-      shiftTip: true,
-    },
-    servicios: {
-      id: 'servicios',
-      label: 'Servicios / Mostrador',
-      desc: 'Venta rápida sin comandas de cocina.',
-      icon: '💼',
-      tipo: 'servicios',
-      tamano: null,
-      experiencia: 'mixed',
-      home: 'venta-comercial',
-      roleMenus: true,
-      onboarding: true,
-      debounceMs: 550,
-      dupWindowMs: 80000,
-      dupRatio: 0.8,
-      shiftTip: false,
-    },
-    basico: {
-      id: 'basico',
-      label: 'Básico',
-      desc: 'Solo mostrador y catálogo mínimo.',
-      icon: '⚡',
-      tipo: 'retail',
-      tamano: 'pequeno',
+      tamano: 'basico',
       experiencia: 'novice',
       home: 'venta-comercial',
       roleMenus: true,
       onboarding: true,
-      debounceMs: 800,
+      debounceMs: 700,
       dupWindowMs: 100000,
-      dupRatio: 0.76,
+      dupRatio: 0.78,
       shiftTip: true,
     },
     personalizado: {
       id: 'personalizado',
-      label: 'Personalizado',
-      desc: 'Módulos marcados manualmente por cliente.',
+      label: 'Personalizado (Super Admin)',
+      desc: 'Marcado manual de módulos — solo para ajustes internos.',
       icon: '⚙️',
       tipo: 'general',
       tamano: null,
-      experiencia: 'mixed',
+      experiencia: 'expert',
       home: 'inicio-operacion',
       roleMenus: false,
       onboarding: false,
@@ -291,22 +170,28 @@
     return r;
   }
 
+  function normalizePerfilId(perfil) {
+    var p = String(perfil || '').toLowerCase();
+    if (LEGACY_PERFIL_MAP[p]) return LEGACY_PERFIL_MAP[p];
+    return p;
+  }
+
   function getPerfilId(perfil) {
     var p = String(perfil || '').toLowerCase();
     if (!p && typeof global.crozzoGetPerfilEmpresa === 'function') p = global.crozzoGetPerfilEmpresa();
     if (!p) {
       try {
-        p = String(localStorage.getItem('crozzo_perfil_empresa') || 'completo').toLowerCase();
+        p = String(localStorage.getItem('crozzo_perfil_empresa') || 'basico_restaurante').toLowerCase();
       } catch (_) {
-        p = 'completo';
+        p = 'basico_restaurante';
       }
     }
-    return p;
+    return normalizePerfilId(p);
   }
 
   function getMeta(perfil) {
     var id = getPerfilId(perfil);
-    return PERFIL_META[id] || PERFIL_META.completo;
+    return PERFIL_META[id] || PERFIL_META.basico_restaurante;
   }
 
   function usesRoleMenus(perfil) {
@@ -337,13 +222,7 @@
   }
 
   function listPerfiles() {
-    return Object.keys(PERFIL_META)
-      .filter(function (id) {
-        return id !== 'personalizado';
-      })
-      .map(function (id) {
-        return PERFIL_META[id];
-      });
+    return [PERFIL_META.basico_restaurante, PERFIL_META.basico_tienda];
   }
 
   function listPerfilesRestaurante() {
@@ -399,13 +278,17 @@
     if (!client || typeof client !== 'object') return client;
     var id = getPerfilId(perfilId);
     client.perfil = id;
-    if (id === 'personalizado') return client;
-    client.menus = {};
-    if (id === 'completo') {
-      client.roles = { user: {}, mesero: {}, admin: {}, caja: {}, cocina: {}, inventario: {} };
+    if (id === 'personalizado') {
+      if (typeof global.crozzoSyncClientFeaturesDefault === 'function') {
+        global.crozzoSyncClientFeaturesDefault(client, id);
+      }
       return client;
     }
+    client.menus = {};
     client.roles = buildRolesConfigObject(id);
+    if (typeof global.crozzoSyncClientFeaturesDefault === 'function') {
+      global.crozzoSyncClientFeaturesDefault(client, id);
+    }
     if (typeof global.CrozzoPermisosPolicy !== 'undefined' && global.CrozzoPermisosPolicy.syncClientRolePerms) {
       global.CrozzoPermisosPolicy.syncClientRolePerms(client);
     }
@@ -451,7 +334,7 @@
 
   function renderGestionQuickPills(currentId) {
     var cur = getPerfilId(currentId);
-    var targets = ['pequeno', 'mediano', 'grande', 'restaurante', 'retail', 'servicios', 'basico', 'completo'];
+    var targets = ['basico_restaurante', 'basico_tienda'];
     return targets
       .map(function (pid) {
         var m = PERFIL_META[pid];
@@ -477,12 +360,6 @@
   function renderRolePreview(perfilId) {
     var id = getPerfilId(perfilId);
     var meta = getMeta(id);
-    if (id === 'completo') {
-      return (
-        '<div class="crozzo-gestion-role-preview crozzo-gestion-role-preview--info">' +
-        '<p><strong>Perfil completo</strong> — todos los roles ven todos los módulos del sistema (sin recorte automático).</p></div>'
-      );
-    }
     if (id === 'personalizado') {
       return (
         '<div class="crozzo-gestion-role-preview crozzo-gestion-role-preview--info">' +
@@ -588,11 +465,15 @@
     return true;
   }
 
-  function renderPerfilSelectOptions(selected) {
+  function renderPerfilSelectOptions(selected, opts) {
+    opts = opts || {};
     var sel = getPerfilId(selected);
-    return Object.keys(PERFIL_META)
+    var ids = ['basico_restaurante', 'basico_tienda'];
+    if (opts.includePersonalizado) ids.push('personalizado');
+    return ids
       .map(function (id) {
         var m = PERFIL_META[id];
+        if (!m) return '';
         return (
           '<option value="' +
           id +
@@ -612,7 +493,7 @@
 
   function renderQuickApplyButtons(excludeCurrent) {
     var cur = getPerfilId();
-    var targets = ['pequeno', 'mediano', 'grande', 'restaurante', 'retail', 'servicios', 'basico'];
+    var targets = ['basico_restaurante', 'basico_tienda'];
     return targets
       .filter(function (id) {
         return !excludeCurrent || id !== cur;
@@ -639,6 +520,7 @@
   }
 
   global.CROZZO_PERFIL_CLIENT_MENUS = PERFIL_CLIENT_MENUS;
+  global.CROZZO_PERFIL_LEGACY_MAP = LEGACY_PERFIL_MAP;
   global.CROZZO_PERFIL_ROLE_MENUS = PERFIL_ROLE_MENUS;
   global.CROZZO_PERFIL_META = PERFIL_META;
 
@@ -672,8 +554,9 @@
     ROLE_LABELS: ROLE_LABELS,
   };
 
-  /** Compat alias simulación pequeño inexperto */
+  /** Compat alias simulación / onboarding */
   global.crozzoApplyPerfilPequenoNegocio = function () {
-    return applyPerfil('pequeno');
+    return applyPerfil('basico_restaurante');
   };
+  global.crozzoNormalizePerfilEmpresaId = normalizePerfilId;
 })(typeof window !== 'undefined' ? window : globalThis);

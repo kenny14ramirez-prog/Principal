@@ -162,6 +162,16 @@ function injectCssCacheBust(html, semver) {
   );
 }
 
+/** Cache-busting de scripts locales: WebView2/Tauri suele servir JS viejo sin ?v= tras npm run sync. */
+function injectJsCacheBust(html, semver) {
+  if (!html) return html;
+  const v = encodeURIComponent(semver || Date.now().toString(36));
+  return html.replace(
+    /(<script\b[^>]*\bsrc=")(?!https?:\/\/)([^"?]+\.js)(?:\?[^"]*)?(")/gi,
+    `$1$2?v=${v}$3`
+  );
+}
+
 let htmlBody = readFileSync(mainHtml, 'utf8');
 let appSemver = '';
 try {
@@ -177,7 +187,9 @@ try {
 } catch (e) {
   console.warn('[sync] No se pudo inyectar versión de build:', e.message);
 }
-htmlBody = injectCssCacheBust(htmlBody, appSemver ? appSemver + '-' + Date.now().toString(36) : '');
+const cacheToken = appSemver ? appSemver + '-' + Date.now().toString(36) : String(Date.now());
+htmlBody = injectCssCacheBust(htmlBody, cacheToken);
+htmlBody = injectJsCacheBust(htmlBody, cacheToken);
 
 const destHtml = join(srcDir, 'index.html');
 writeFileSync(destHtml, htmlBody, 'utf8');

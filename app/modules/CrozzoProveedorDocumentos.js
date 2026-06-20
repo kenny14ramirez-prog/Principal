@@ -285,8 +285,7 @@
   }
 
   var _provTesseractPromise = null;
-  var PROV_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  var PROV_TESSERACT_WORKER_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+  var PROV_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js';
   var PROV_OCR_MIN_CHARS = 25;
   var PROV_OCR_EXTRA_MAX_MS = 12000;
   var _provExtraExtractBusy = false;
@@ -327,12 +326,34 @@
     return _provTesseractPromise;
   }
 
+  function provDocOcrWorkerPath() {
+    return resolveVendorUrl('vendor/CrozzoTesseract.worker.min.js');
+  }
+
+  function provDocOcrCorePath() {
+    return resolveVendorUrl('vendor/tesseract-core/');
+  }
+
+  function provDocOcrLangPath() {
+    try {
+      var a = document.createElement('a');
+      a.href = 'data/';
+      return a.href;
+    } catch (e) {
+      return 'data/';
+    }
+  }
+
   function runProvDocOcr(dataUrl, lang) {
     lang = lang || 'spa';
     return ensureProvDocTesseract().then(function (T) {
       var opts = {
         tessedit_pageseg_mode: '6',
-        workerPath: PROV_TESSERACT_WORKER_CDN,
+        workerPath: provDocOcrWorkerPath(),
+        corePath: provDocOcrCorePath(),
+        langPath: provDocOcrLangPath(),
+        gzip: false,
+        logger: function () {},
       };
       return T.recognize(dataUrl, lang, opts).then(function (res) {
         return ((res.data && res.data.text) || '').trim();

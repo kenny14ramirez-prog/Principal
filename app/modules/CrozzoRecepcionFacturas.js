@@ -5,7 +5,8 @@
 (function (global) {
   'use strict';
 
-  if (global.__cxfRecepcionModuleLive) {
+  /* Solo omitir re-init si ya cargó el módulo canónico (no una copia embebida en el bundle). */
+  if (global.__cxfRecepcionModuleLive && global.__cxfRecepcionModuleLive.__fromModule) {
     var live = global.__cxfRecepcionModuleLive;
     global.CrozzoRecepcionFacturas = live.api;
     global.renderRecepcionFacturas = live.render;
@@ -632,6 +633,7 @@
   function repairRecepcionSession(opts) {
     opts = opts || {};
     restoreCxfSessionIfNeeded();
+    clampModoEntradaToFeatures();
     syncProveedorIdsFromBuckets();
     if (_feBackgroundJob && _feBackgroundJob.modoEntrada && !ui.modoEntrada) {
       ui.modoEntrada = _feBackgroundJob.modoEntrada;
@@ -639,7 +641,8 @@
     if (
       (_feBatchSession && (_feBatchSession.awaitingContinue || _feBatchSession.complete)) &&
       hasActiveRecepcionWork() &&
-      !ui.modoEntrada
+      !ui.modoEntrada &&
+      cxfMotorFeAvailable()
     ) {
       ui.modoEntrada = 'complejo';
     }
@@ -2524,6 +2527,36 @@
      ───────────────────────────────────────────────────────────── */
   var _cxfFacCam = null;
 
+  function renderCamaraTabPane() {
+    return (
+      '<section class="cxf-panel cxf-panel--full" id="cxf-camera-panel">' +
+      '<header class="cxf-prov-hero">' +
+      '<p class="cxf-eyebrow">Paso 1 · Foto</p>' +
+      '<h2 class="cxf-panel-title">Cámara en vivo</h2>' +
+      '<p class="cxf-panel-lead">Visor a pantalla completa con detección de bordes. Se abre solo al entrar aquí.</p>' +
+      '</header>' +
+      '<div style="padding:0 24px 24px;text-align:center">' +
+      '<button type="button" class="btn btn-primary btn-lg" data-cxf-auto-cam>📷 Abrir cámara en vivo</button>' +
+      '</div></section>'
+    );
+  }
+
+  function scheduleOpenFacCamera(host) {
+    if (!cxfCamaraAvailable()) return;
+    if (_cxfFacCamUserClosed) return;
+    if (_cxfFacCamOpenTimer) clearTimeout(_cxfFacCamOpenTimer);
+    _cxfFacCamOpenTimer = setTimeout(function () {
+      _cxfFacCamOpenTimer = null;
+      if (_cxfFacCamUserClosed) return;
+      var modal = document.getElementById('cxf-fac-cam-modal');
+      if (modal && !modal.hidden && _cxfFacCam) return;
+      openFacCameraModal(PROV_AUTO, host || getCxfHost());
+    }, 160);
+  }
+
+  var _cxfFacCamOpenTimer = null;
+  var _cxfFacCamUserClosed = false;
+
   function renderFacCameraModal() {
     return (
       '<div id="cxf-fac-cam-modal" class="cxf-mp-modal-backdrop cxf-fac-cam-backdrop" hidden aria-hidden="true">' +
@@ -2535,6 +2568,7 @@
       '<button type="button" class="btn btn-sm cxf-fac-cam-mode-btn" data-cxf-fac-cam-mode="manual">Manual</button>' +
       '</div>' +
       '<button type="button" class="cxf-qr-cam-close" data-cxf-fac-cam-close aria-label="Cerrar">×</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-retry" hidden data-cxf-fac-cam-retry>Reintentar cámara</button>' +
       '</header>' +
       '<div class="cxf-fac-cam-body">' +
       '<div class="cxf-fac-cam-viewfinder" id="cxf-fac-cam-host">' +
@@ -2544,6 +2578,7 @@
       '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--bl"></span>' +
       '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--br"></span>' +
       '</div>' +
+      '<canvas id="cxf-fac-cam-overlay" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4"></canvas>' +
       '<div class="cxf-fac-cam-overlay-msg" id="cxf-fac-cam-msg">Preparando cámara…</div>' +
       '<div class="cxf-fac-cam-progress" id="cxf-fac-cam-progress" hidden>' +
       '<div class="cxf-fac-cam-progress-bar" id="cxf-fac-cam-progress-bar"></div>' +
@@ -2554,20 +2589,41 @@
       '<div class="cxf-fac-cam-sidebar">' +
       '<p class="cxf-fac-cam-sidebar-title">Capturas <span id="cxf-fac-cam-count">0</span></p>' +
       '<div class="cxf-fac-cam-thumbs" id="cxf-fac-cam-thumbs"></div>' +
+      '<div class="cxf-fac-cam-ocr" id="cxf-fac-cam-ocr" hidden style="margin:8px 0;padding:8px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(0,0,0,0.25)">' +
+      '<p class="cxf-fac-cam-ocr-title" style="margin:0 0 4px;font-size:12px;opacity:0.85">📝 Texto detectado</p>' +
+      '<div style="height:4px;background:rgba(255,255,255,0.15);border-radius:2px;overflow:hidden"><div id="cxf-fac-cam-ocr-bar" style="height:100%;width:0;background:#22c55e;transition:width .2s"></div></div>' +
+      '<pre id="cxf-fac-cam-ocr-text" style="white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto;font-size:11px;line-height:1.35;margin:6px 0 0;opacity:0.92"></pre>' +
+      '</div>' +
       '<div class="cxf-fac-cam-sidebar-actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="cxf-fac-cam-snap" disabled>📸 Capturar</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="cxf-fac-cam-snap">📸 Capturar</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-pick-file">📁 Elegir foto</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-cxf-fac-cam-close>Cancelar</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-clear" disabled>Limpiar</button>' +
       '<button type="button" class="btn btn-success" id="cxf-fac-cam-use" disabled>Usar facturas →</button>' +
       '</div></div></div>' +
+      '<input type="file" id="cxf-fac-cam-file-input" accept="image/*,.jpg,.jpeg,.png,.webp" hidden multiple>' +
       '<p id="cxf-fac-cam-status" class="cxf-fac-cam-status" role="status">Iniciando…</p>' +
       '</div></div>'
     );
   }
 
+  function setFacCamSnapEnabled(on) {
+    var snap = document.getElementById('cxf-fac-cam-snap');
+    if (snap) snap.disabled = !on;
+  }
+
   function openFacCameraModal(provId, host) {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return toast('Cámara no disponible en este dispositivo', 'warning');
+    if (!global.isSecureContext) {
+      return toast('Cámara requiere contexto seguro (app Tauri o HTTPS)', 'warning');
     }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return toast('Cámara no disponible — use Elegir foto', 'warning');
+    }
+    var modal = document.getElementById('cxf-fac-cam-modal');
+    if (!modal) return;
+    if (!modal.hidden && _cxfFacCam && (_cxfFacCam.stream || _cxfFacCam._starting)) return;
+    _cxfFacCamUserClosed = false;
+    console.warn('[CXF] fac-cam: abriendo visor');
     _cxfFacCam = {
       provId: provId || getActiveProvId(),
       host: host || getCxfHost(),
@@ -2579,26 +2635,60 @@
       video: null,
       lastScore: 0,
       cooldownFrames: 0,
+      detectedQuad: null,
+      scanReady: false,
+      _starting: true,
     };
-    var modal = document.getElementById('cxf-fac-cam-modal');
-    if (!modal) return;
     modal.hidden = false;
     modal.removeAttribute('aria-hidden');
+    setFacCamSnapEnabled(false);
     startFacCamera();
+    /* Precarga perezosa de OpenCV.js (deteccion de bordes + perspectiva). No
+       bloquea: si no llega a estar listo se usa la heuristica de respaldo. */
+    if (global.CrozzoDocScanner && typeof global.CrozzoDocScanner.ready === 'function') {
+      global.CrozzoDocScanner.ready()
+        .then(function () {
+          if (_cxfFacCam) _cxfFacCam.scanReady = true;
+          setFacCamStatus('Detección de bordes lista · Modo ' + (_cxfFacCam && _cxfFacCam.autoMode ? 'automático' : 'manual'));
+        })
+        .catch(function () {});
+    }
   }
 
-  function closeFacCameraModal() {
+  function closeFacCameraModal(userDismissed) {
+    if (_cxfFacCamOpenTimer) {
+      clearTimeout(_cxfFacCamOpenTimer);
+      _cxfFacCamOpenTimer = null;
+    }
+    if (userDismissed !== false) _cxfFacCamUserClosed = true;
     stopFacCamera();
     var modal = document.getElementById('cxf-fac-cam-modal');
-    if (modal) { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); }
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
     _cxfFacCam = null;
+    console.warn('[CXF] fac-cam: modal cerrado');
   }
 
   function stopFacCamera() {
     if (!_cxfFacCam) return;
+    if (_cxfFacCam._mediaAbort) {
+      try {
+        _cxfFacCam._mediaAbort.abort();
+      } catch (_) {}
+      _cxfFacCam._mediaAbort = null;
+    }
     if (_cxfFacCam.rafId) cancelAnimationFrame(_cxfFacCam.rafId);
-    if (_cxfFacCam.stream) { _cxfFacCam.stream.getTracks().forEach(function (t) { t.stop(); }); }
+    if (_cxfFacCam.stream) {
+      _cxfFacCam.stream.getTracks().forEach(function (t) {
+        try {
+          t.stop();
+        } catch (_) {}
+      });
+    }
     _cxfFacCam.running = false;
+    _cxfFacCam._starting = false;
     _cxfFacCam.stream = null;
   }
 
@@ -2649,12 +2739,26 @@
     canvas.height = v.videoHeight || 1080;
     var ctx = canvas.getContext('2d');
     ctx.drawImage(v, 0, 0);
-    canvas.toBlob(function (blob) {
+    /* Si se detectó el documento, recorta y corrige la perspectiva (CamScanner). */
+    var finalCanvas = canvas;
+    if (_cxfFacCam.detectedQuad && global.CrozzoDocScanner && global.CrozzoDocScanner.isReady()) {
+      try {
+        finalCanvas = global.CrozzoDocScanner.warpToCanvas(canvas, _cxfFacCam.detectedQuad) || canvas;
+      } catch (e) {
+        finalCanvas = canvas;
+      }
+    }
+    _cxfFacCam.detectedQuad = null;
+    drawFacDetectedQuad(null);
+    finalCanvas.toBlob(function (blob) {
       if (!blob || !_cxfFacCam) return;
       var url = URL.createObjectURL(blob);
       var idx = _cxfFacCam.captures.length;
-      _cxfFacCam.captures.push({ blob: blob, url: url, invoiceNum: idx + 1 });
+      var cap = { blob: blob, url: url, invoiceNum: idx + 1, ocrText: '' };
+      _cxfFacCam.captures.push(cap);
       updateFacCamThumbs();
+      /* OCR progresivo en vivo sobre el documento ya recortado/enderezado */
+      cxfCamLiveOcr(finalCanvas, cap);
       /* Toast de confirmación en el visor */
       var toastEl = document.getElementById('cxf-fac-cam-snap-toast');
       if (toastEl) {
@@ -2726,6 +2830,112 @@
     bar.parentElement.hidden = pct <= 0;
   }
 
+  /* Dibuja el cuadrilatero detectado (coords en pixeles del video) sobre el visor.
+     Asume object-fit: cover para mapear video -> overlay. quadVideo=null limpia. */
+  function drawFacDetectedQuad(quadVideo) {
+    var overlay = document.getElementById('cxf-fac-cam-overlay');
+    var v = _cxfFacCam && _cxfFacCam.video;
+    if (!overlay || !v) return;
+    var rect = overlay.getBoundingClientRect();
+    if (overlay.width !== Math.round(rect.width)) overlay.width = Math.round(rect.width);
+    if (overlay.height !== Math.round(rect.height)) overlay.height = Math.round(rect.height);
+    var ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    if (!quadVideo || quadVideo.length !== 4) return;
+    var vw = v.videoWidth || 1;
+    var vh = v.videoHeight || 1;
+    var scale = Math.max(overlay.width / vw, overlay.height / vh);
+    var offX = (overlay.width - vw * scale) / 2;
+    var offY = (overlay.height - vh * scale) / 2;
+    var q = quadVideo.map(function (p) {
+      return { x: p.x * scale + offX, y: p.y * scale + offY };
+    });
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#22c55e';
+    ctx.fillStyle = 'rgba(34,197,94,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(q[0].x, q[0].y);
+    for (var i = 1; i < 4; i++) ctx.lineTo(q[i].x, q[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#22c55e';
+    for (var k = 0; k < 4; k++) {
+      ctx.beginPath();
+      ctx.arc(q[k].x, q[k].y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /* ── OCR progresivo en vivo (Fase B): lee texto del documento recién capturado
+       y lo muestra en el panel lateral mientras la cámara sigue abierta. Reutiliza
+       Tesseract (ya vendorizado) con los mismos paths que el flujo de ingesta. ── */
+  var _cxfCamTess = null;
+
+  function cxfEnsureCamTesseract() {
+    if (global.Tesseract && typeof global.Tesseract.recognize === 'function') {
+      return Promise.resolve(global.Tesseract);
+    }
+    if (_cxfCamTess) return _cxfCamTess;
+    _cxfCamTess = new Promise(function (resolve, reject) {
+      var cands = [
+        resolveVendorUrl('vendor/CrozzoTesseract.min.js'),
+        'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+      ];
+      var i = 0;
+      (function next() {
+        if (i >= cands.length) return reject(new Error('OCR no disponible'));
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = cands[i++];
+        s.onload = function () {
+          if (global.Tesseract && global.Tesseract.recognize) resolve(global.Tesseract);
+          else next();
+        };
+        s.onerror = next;
+        document.head.appendChild(s);
+      })();
+    });
+    return _cxfCamTess;
+  }
+
+  function cxfSetCamOcr(text, progress, done) {
+    var panel = document.getElementById('cxf-fac-cam-ocr');
+    if (!panel) return;
+    panel.hidden = false;
+    var bar = document.getElementById('cxf-fac-cam-ocr-bar');
+    if (bar) bar.style.width = Math.round(Math.min(1, Math.max(0, progress || 0)) * 100) + '%';
+    var txt = document.getElementById('cxf-fac-cam-ocr-text');
+    if (txt && typeof text === 'string') txt.textContent = text.slice(0, 800);
+  }
+
+  function cxfCamLiveOcr(canvas, cap) {
+    if (!canvas) return;
+    cxfSetCamOcr('Leyendo texto…', 0.03, false);
+    cxfEnsureCamTesseract()
+      .then(function (T) {
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        return T.recognize(dataUrl, 'spa', {
+          tessedit_pageseg_mode: '6',
+          workerPath: resolveVendorUrl('vendor/CrozzoTesseract.worker.min.js'),
+          corePath: resolveVendorUrl('vendor/tesseract-core/'),
+          langPath: resolveVendorUrl('data/'),
+          gzip: false,
+          logger: function (m) {
+            if (m && m.status === 'recognizing text') cxfSetCamOcr(undefined, m.progress, false);
+          },
+        });
+      })
+      .then(function (res) {
+        var text = ((res && res.data && res.data.text) || '').trim();
+        if (cap) cap.ocrText = text;
+        cxfSetCamOcr(text || '(sin texto legible — reintente con mejor luz)', 1, true);
+      })
+      .catch(function () {
+        cxfSetCamOcr('OCR no disponible en este dispositivo', 0, true);
+      });
+  }
+
   function tickFacCameraFrame() {
     if (!_cxfFacCam || !_cxfFacCam.running || !_cxfFacCam.video) return;
     var v = _cxfFacCam.video;
@@ -2758,6 +2968,25 @@
     var imgData = sCtx.getImageData(0, 0, 320, 180);
     var a = analyzeFacCameraFrame(imgData);
     _cxfFacCam.lastScore = a.score;
+
+    /* Detección real de bordes con OpenCV (si ya cargó). Dibuja el contorno verde
+       siguiendo el documento y guarda el cuadrilátero a resolución de video para
+       el recorte con corrección de perspectiva al capturar. Es aditivo: la lógica
+       de auto-captura por heurística sigue intacta como respaldo. */
+    if (_cxfFacCam.scanReady && global.CrozzoDocScanner && global.CrozzoDocScanner.isReady()) {
+      var det = global.CrozzoDocScanner.detectQuad(sc, {
+        scaleX: (v.videoWidth || 1280) / sc.width,
+        scaleY: (v.videoHeight || 720) / sc.height,
+        minAreaRatio: 0.15,
+      });
+      if (det && det.confidence >= 0.2) {
+        _cxfFacCam.detectedQuad = det.quad;
+        drawFacDetectedQuad(det.quad);
+      } else {
+        _cxfFacCam.detectedQuad = null;
+        drawFacDetectedQuad(null);
+      }
+    }
 
     var THRESH_LOW  = 0.06;
     var THRESH_MID  = 0.12;
@@ -2828,19 +3057,73 @@
     }
   }
 
+  function tryCxfGetUserMediaWithTimeout(ms, signal) {
+    var limit = ms || 9000;
+    return Promise.race([
+      tryCxfGetUserMedia(signal),
+      new Promise(function (_resolve, reject) {
+        setTimeout(function () {
+          reject(new Error('Timeout: la webcam no respondió a tiempo'));
+        }, limit);
+      }),
+    ]);
+  }
+
+  function cxfMediaConstraintsWithSignal(base, signal) {
+    if (!signal) return base;
+    var out = { audio: base.audio };
+    out.video = base.video;
+    out.signal = signal;
+    return out;
+  }
+
   function startFacCamera() {
     var hostEl = document.getElementById('cxf-fac-cam-host');
     if (!hostEl || !_cxfFacCam) return;
+    var retryBtn = document.getElementById('cxf-fac-cam-retry');
+    if (retryBtn) retryBtn.hidden = true;
+    if (_cxfFacCam.rafId) {
+      cancelAnimationFrame(_cxfFacCam.rafId);
+      _cxfFacCam.rafId = null;
+    }
+    if (_cxfFacCam.stream) {
+      _cxfFacCam.stream.getTracks().forEach(function (t) {
+        try {
+          t.stop();
+        } catch (_) {}
+      });
+      _cxfFacCam.stream = null;
+    }
+    _cxfFacCam.running = false;
+    hostEl.querySelectorAll('video.cxf-fac-cam-video').forEach(function (v) {
+      try {
+        v.remove();
+      } catch (_) {}
+    });
     var video = document.createElement('video');
     video.playsInline = true;
     video.muted = true;
     video.autoplay = true;
     video.className = 'cxf-fac-cam-video';
+    video.style.objectFit = 'cover';
     hostEl.insertBefore(video, hostEl.firstChild);
     _cxfFacCam.video = video;
-    tryCxfGetUserMedia()
+    _cxfFacCam._starting = true;
+    _cxfFacCam._mediaAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var mediaSignal = _cxfFacCam._mediaAbort ? _cxfFacCam._mediaAbort.signal : null;
+    setFacCamSnapEnabled(false);
+    setFacCamMsg('Preparando cámara…', false);
+    setFacCamStatus('Conectando webcam… (Esc para cancelar)');
+    console.warn('[CXF] fac-cam: solicitando getUserMedia…');
+    resetCxfWebviewCameraPermission().catch(function () {});
+    tryCxfGetUserMediaWithTimeout(9000, mediaSignal)
       .then(function (stream) {
-        if (!_cxfFacCam) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+        if (!_cxfFacCam) {
+          stream.getTracks().forEach(function (t) {
+            t.stop();
+          });
+          return;
+        }
         _cxfFacCam.stream = stream;
         video.srcObject = stream;
         return video.play();
@@ -2848,14 +3131,68 @@
       .then(function () {
         if (!_cxfFacCam) return;
         _cxfFacCam.running = true;
+        _cxfFacCam._starting = false;
+        _cxfFacCam._mediaAbort = null;
+        setFacCamSnapEnabled(true);
         setFacCamMsg('Apunte la cámara a la factura', false);
-        setFacCamStatus('Cámara lista · Modo ' + (_cxfFacCam.autoMode ? 'automático' : 'manual'));
+        setFacCamStatus('Cámara en vivo · pulse 📸 Capturar');
+        console.warn('[CXF] fac-cam: stream activo');
         _cxfFacCam.rafId = requestAnimationFrame(tickFacCameraFrame);
       })
       .catch(function (err) {
+        if (!_cxfFacCam) return;
+        if (mediaSignal && mediaSignal.aborted) return;
+        _cxfFacCam._starting = false;
+        _cxfFacCam._mediaAbort = null;
+        _cxfFacCam.running = false;
+        setFacCamSnapEnabled(false);
+        console.warn('[CXF] fac-cam: fallo cámara', err && err.name, err && err.message);
         setFacCamMsg(cxfCameraErrorMessage(err), false);
-        setFacCamStatus('Error de cámara');
+        setFacCamStatus('Sin webcam — use 📁 Elegir foto o Reintentar');
+        if (retryBtn) retryBtn.hidden = false;
+        if (/NotAllowed|Permission denied|PermissionDenied/i.test(String((err && err.name) || '') + ' ' + String((err && err.message) || ''))) {
+          openCxfWindowsCameraSettings();
+        }
+        toast('No se abrió la cámara — puede elegir una foto del disco', 'warning');
       });
+  }
+
+  function ingestFacCamFiles(fileList) {
+    if (!fileList || !fileList.length) return;
+    var host = (_cxfFacCam && _cxfFacCam.host) || getCxfHost();
+    var provId = (_cxfFacCam && _cxfFacCam.provId) || getActiveProvId();
+    var files = Array.prototype.slice.call(fileList);
+    closeFacCameraModal();
+    if (isModoAuto()) {
+      if (ui.proveedorIds.indexOf(PROV_AUTO) < 0) ui.proveedorIds.push(PROV_AUTO);
+      ensureBucket(PROV_AUTO);
+      provId = PROV_AUTO;
+    }
+    files.forEach(function (file, i) {
+      if (isModoAuto()) {
+        var fid = 'cam_file_' + Date.now() + '_' + i;
+        var bucket = ui.porProveedor[PROV_AUTO];
+        var newFac = {
+          id: fid,
+          numeroFactura: '',
+          valorFactura: '',
+          valorCajero: '',
+          fechaFactura: '',
+          metodoPago: 'transferencia',
+          comentarios: '',
+          docs: [],
+          lines: [{ mpId: '', cant: '', precio: '' }],
+          feAnalisis: null,
+          _autoProvAsignado: false,
+        };
+        bucket.facturas.push(newFac);
+        cxfIngestFileOne(file, false, PROV_AUTO, fid, { host: host, useFacturaId: true, skipAutoFe: true });
+      } else {
+        cxfIngestFileOne(file, false, provId, null, { host: host });
+      }
+    });
+    toast(files.length + ' foto(s) cargada(s)', 'success');
+    if (isModoAuto() && host) refreshStepHost(host);
   }
 
   function useFacCameraCaptures() {
@@ -2883,9 +3220,9 @@
           feAnalisis: null, _autoProvAsignado: false,
         };
         bucket.facturas.push(newFac);
-        cxfIngestFileOne(file, true, PROV_AUTO, fid, { host: host, useFacturaId: true, skipAutoFe: true });
+        cxfIngestFileOne(file, false, PROV_AUTO, fid, { host: host, useFacturaId: true, skipAutoFe: true });
       } else {
-        cxfIngestFileOne(file, true, provId, null, { host: host });
+        cxfIngestFileOne(file, false, provId, null, { host: host });
       }
     });
     toast(captures.length + ' foto' + (captures.length === 1 ? '' : 's') + ' cargada' + (captures.length === 1 ? '' : 's') + ' — listas para analizar', 'success');
@@ -2920,22 +3257,44 @@
     if (/NotFound|DevicesNotFound/i.test(blob)) {
       return 'No se detectó ninguna cámara en este equipo.';
     }
+    if (/Timeout|no respondió a tiempo/i.test(blob)) {
+      return (
+        'La webcam no respondió. Compruebe que ninguna otra app la esté usando, ' +
+        'revise Configuración → Privacidad → Cámara en Windows y pulse Reintentar.'
+      );
+    }
     return 'No se pudo abrir la cámara: ' + (msg || 'error desconocido');
   }
 
-  function tryCxfGetUserMedia() {
-    var tries = [
-      { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-      { video: { facingMode: 'environment' }, audio: false },
-      { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
-      { video: true, audio: false },
-      { video: { facingMode: 'user' }, audio: false },
-    ];
+  function openCxfWindowsCameraSettings() {
+    if (!isCxfTauriDesktop()) return;
+    global.__TAURI__.core.invoke('cxf_open_windows_camera_settings').catch(function () {});
+  }
+
+  function tryCxfGetUserMedia(signal) {
+    var isDesktop = !/android|iphone|ipad|ipod|mobile/i.test(String(navigator.userAgent || ''));
+    var tries = isDesktop
+      ? [
+          { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: 'user' }, audio: false },
+          { video: true, audio: false },
+        ]
+      : [
+          { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+          { video: { facingMode: 'environment' }, audio: false },
+          { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: true, audio: false },
+          { video: { facingMode: 'user' }, audio: false },
+        ];
     var i = 0;
     var lastErr;
     function next() {
+      if (signal && signal.aborted) {
+        return Promise.reject(lastErr || new DOMException('Aborted', 'AbortError'));
+      }
       if (i >= tries.length) return Promise.reject(lastErr || new Error('Sin cámara'));
-      return navigator.mediaDevices.getUserMedia(tries[i]).catch(function (err) {
+      return navigator.mediaDevices.getUserMedia(cxfMediaConstraintsWithSignal(tries[i], signal)).catch(function (err) {
+        if (signal && signal.aborted) return Promise.reject(err);
         lastErr = err;
         i++;
         return next();
@@ -4248,6 +4607,21 @@
   function renderProveedorStep() {
     var tab = ui.proveedorTab || 'select';
     var premium = isCxfPremiumPsyche();
+    var autoLocked = !cxfAutoDetectAvailable();
+    var camLocked = !cxfCamaraAvailable();
+    var importLocked = !cxfImportarRutAvailable();
+    if (autoLocked && tab === 'auto') {
+      tab = 'select';
+      ui.proveedorTab = 'select';
+    }
+    if (camLocked && tab === 'camara') {
+      tab = 'select';
+      ui.proveedorTab = 'select';
+    }
+    if (importLocked && tab === 'importar') {
+      tab = 'select';
+      ui.proveedorTab = 'select';
+    }
     return (
       '<section class="cxf-panel cxf-panel--proveedor cxf-panel--full">' +
       '<header class="cxf-prov-hero' +
@@ -4272,17 +4646,41 @@
       '<span class="cxf-prov-tab-btn__label">Alta rápida</span></button>' +
       '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'importar' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="importar" role="tab">' +
+      (importLocked ? ' cxf-prov-tab-btn--locked' : '') +
+      '" data-cxf-prov-tab="importar" role="tab"' +
+      cxfFeatureLockedAttr('cxf_importar_rut') +
+      '>' +
       '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📅</span>' +
-      '<span class="cxf-prov-tab-btn__label">Desde certificado</span></button>' +
+      '<span class="cxf-prov-tab-btn__label">Desde certificado</span>' +
+      (importLocked ? cxfFeatureLockedChip() : '') +
+      '</button>' +
       '<button type="button" class="cxf-prov-tab-btn cxf-prov-tab-btn--auto' +
       (tab === 'auto' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="auto" role="tab">' +
+      (autoLocked ? ' cxf-prov-tab-btn--locked' : '') +
+      '" data-cxf-prov-tab="auto" role="tab"' +
+      cxfFeatureLockedAttr('cxf_auto_detect') +
+      '>' +
       '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">🧠</span>' +
-      '<span class="cxf-prov-tab-btn__label">Auto-detectar</span></button>' +
+      '<span class="cxf-prov-tab-btn__label">Auto-detectar</span>' +
+      (autoLocked ? cxfFeatureLockedChip() : '') +
+      '</button>' +
+      '<button type="button" class="cxf-prov-tab-btn' +
+      (tab === 'camara' ? ' is-active' : '') +
+      (camLocked ? ' cxf-prov-tab-btn--locked' : '') +
+      '" data-cxf-prov-tab="camara" role="tab"' +
+      cxfFeatureLockedAttr('cxf_camara') +
+      '>' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📷</span>' +
+      '<span class="cxf-prov-tab-btn__label">Tomar foto</span>' +
+      (camLocked ? cxfFeatureLockedChip() : '') +
+      '</button>' +
       '</nav>' +
       (tab === 'auto'
-        ? renderProveedorAutoPane()
+        ? typeof global.renderAutoDetectPanel === 'function'
+          ? global.renderAutoDetectPanel()
+          : renderProveedorAutoPane()
+        : tab === 'camara'
+          ? renderCamaraTabPane()
         : tab === 'nuevo'
           ? renderProveedorCreatePane()
           : tab === 'importar'
@@ -4631,6 +5029,60 @@
     return !!(typeof document !== 'undefined' && document.body && document.body.classList.contains('crozzo-premium-psyche'));
   }
 
+  function cxfFeatureEnabled(featureId) {
+    return typeof global.crozzoClientFeatureEnabled === 'function'
+      ? global.crozzoClientFeatureEnabled(featureId)
+      : true;
+  }
+
+  function cxfFeatureLockedAttr(featureId) {
+    return cxfFeatureEnabled(featureId) ? '' : ' data-crozzo-feature-locked="' + featureId + '"';
+  }
+
+  function cxfNotifyFeatureLocked(label) {
+    if (typeof global.crozzoNotifyFeatureLocked === 'function') global.crozzoNotifyFeatureLocked(label);
+    else toast('Próximamente en versiones avanzadas', 'info');
+  }
+
+  function cxfFeatureLockedHint(extraClass) {
+    if (typeof global.crozzoRenderFeatureLockedHint === 'function') {
+      return global.crozzoRenderFeatureLockedHint(extraClass || '');
+    }
+    return '<p class="crozzo-feature-locked-hint' + (extraClass ? ' ' + extraClass : '') + '">Próximamente en versiones avanzadas</p>';
+  }
+
+  function cxfFeatureLockedChip() {
+    return '<span class="crozzo-feature-locked-chip">Versión avanzada</span>';
+  }
+
+  function clampModoEntradaToFeatures() {
+    if (ui.modoEntrada === 'complejo' && !cxfFeatureEnabled('cxf_motor_fe')) ui.modoEntrada = 'simple';
+    if (ui.modoEntrada === 'auto' && !cxfFeatureEnabled('cxf_auto_detect')) ui.modoEntrada = 'simple';
+    if (!ui.modoEntrada && !cxfFeatureEnabled('cxf_motor_fe')) ui.modoEntrada = 'simple';
+  }
+
+  /** Plan básico: paso 2 entra directo a modo manual (sin picker FE). */
+  function ensureDocumentoModoBasico() {
+    clampModoEntradaToFeatures();
+    if (!cxfMotorFeAvailable()) ui.modoEntrada = 'simple';
+  }
+
+  function cxfMotorFeAvailable() {
+    return cxfFeatureEnabled('cxf_motor_fe');
+  }
+
+  function cxfAutoDetectAvailable() {
+    return cxfFeatureEnabled('cxf_auto_detect');
+  }
+
+  function cxfCamaraAvailable() {
+    return cxfFeatureEnabled('cxf_camara');
+  }
+
+  function cxfImportarRutAvailable() {
+    return cxfFeatureEnabled('cxf_importar_rut');
+  }
+
   function collectCxfSessionMetrics() {
     var m = {
       provs: ui.proveedorIds.length,
@@ -4850,6 +5302,7 @@
 
   function renderModoEntradaPicker() {
     var premium = isCxfPremiumPsyche();
+    var feLocked = !cxfMotorFeAvailable();
     return (
       '<section class="cxf-panel cxf-panel--documento cxf-panel--full cxf-panel--modo">' +
       '<header class="cxf-prov-hero' +
@@ -4873,16 +5326,20 @@
       '<button type="button" class="btn btn-outline btn-lg" data-cxf-modo-entrada="simple">Modo manual</button></article>' +
       '<article class="cxf-modo-card cxf-modo-card--featured' +
       (premium ? ' cxf-modo-card--power' : '') +
+      (feLocked ? ' cxf-modo-card--locked' : '') +
       '">' +
       (premium ? '<div class="cxf-modo-card__glow" aria-hidden="true"></div>' : '') +
       '<span class="cxf-modo-card__tier">' +
-      (premium ? 'Recomendado · Poder FE' : 'Recomendado FE') +
+      (feLocked ? cxfFeatureLockedChip() : premium ? 'Recomendado · Poder FE' : 'Recomendado FE') +
       '</span>' +
       (premium ? '<div class="cxf-modo-card__icon cxf-modo-card__icon--power" aria-hidden="true">⚡</div>' : '') +
       '<h3 class="cxf-modo-card__title">Inteligencia FE</h3>' +
       '<p class="cxf-modo-card__desc">Analiza facturas electrónicas: lee <strong>QR y CUFE</strong>, consulta DIAN, valida proveedor y total del cajero, y sugiere materias primas.</p>' +
       '<ul class="cxf-modo-card__list form-hint"><li>Detección automática FE</li><li>Enlace a catálogo DIAN</li><li>Match proveedor y valor</li><li>Sugerencia de líneas MP</li></ul>' +
-      '<button type="button" class="btn btn-primary btn-lg cxf-btn-power" data-cxf-modo-entrada="complejo">Activar motor FE</button></article>' +
+      (feLocked ? cxfFeatureLockedHint('cxf-modo-card__locked-hint') : '') +
+      '<button type="button" class="btn btn-primary btn-lg cxf-btn-power" data-cxf-modo-entrada="complejo"' +
+      cxfFeatureLockedAttr('cxf_motor_fe') +
+      '>Activar motor FE</button></article>' +
       '</div>' +
       '<div class="cxf-nav-row">' +
       '<button type="button" class="btn btn-outline" data-cxf-step="proveedor">← Proveedores</button></div></section>'
@@ -4967,6 +5424,7 @@
   }
 
   function isCxfFeBatchWork() {
+    if (isModoSimple()) return false;
     return !!(
       isFeBatchUi() ||
       global.__cxfFeBatchMode ||
@@ -5166,7 +5624,7 @@
       return Promise.resolve();
     }
     _cxfMassIngestMode = multi || files.length >= 2 || totalMb > 12;
-    if (files.length >= 2) global.__cxfFeBatchMode = true;
+    if (files.length >= 2 && (isModoComplejo() || isModoAuto())) global.__cxfFeBatchMode = true;
     if (files.length > 24) {
       toast(
         'Lote grande (' +
@@ -5175,10 +5633,12 @@
         'info'
       );
     }
-    global.__cxfFeBatchPaused = true;
-    if (_feDrainTimer) {
-      clearTimeout(_feDrainTimer);
-      _feDrainTimer = null;
+    if (isModoComplejo() || isModoAuto()) {
+      global.__cxfFeBatchPaused = true;
+      if (_feDrainTimer) {
+        clearTimeout(_feDrainTimer);
+        _feDrainTimer = null;
+      }
     }
     _cxfIngestBatch++;
     _pdfPreviewQueue = [];
@@ -5254,6 +5714,7 @@
       toast('Seleccione un proveedor antes de subir archivos', 'warning');
       return Promise.resolve();
     }
+    if (ui.step === 'documento') ensureDocumentoModoBasico();
     var files = Array.prototype.slice.call(fileList || []);
     if (!files.length) return Promise.resolve();
     return enqueueCxfIngestJob(function () {
@@ -5308,6 +5769,13 @@
       .then(function () {
         refreshDocumentoCards(hDone);
         patchCxfCommandStrip(hDone);
+        if (isModoSimple()) {
+          patchDocumentoNavUi(hDone);
+          setTimeout(function () {
+            enqueueAllPdfPreviewsDeferred();
+          }, 320);
+          return;
+        }
         if (isModoComplejo()) {
           return new Promise(function (resolve) {
             setTimeout(function () {
@@ -5405,6 +5873,10 @@
   }
 
   function syncCxfFeBatchModeFlag() {
+    if (isModoSimple()) {
+      global.__cxfFeBatchMode = false;
+      return;
+    }
     global.__cxfFeBatchMode =
       !!(_feBatchSession && _feBatchSession.active) ||
       _feAnalisisQueue.length >= 2 ||
@@ -6783,9 +7255,14 @@
   }
 
   function renderDocumentoStep() {
-    if (!ui.modoEntrada) return renderModoEntradaPicker();
+    ensureDocumentoModoBasico();
+    if (!ui.modoEntrada) {
+      if (cxfMotorFeAvailable()) return renderModoEntradaPicker();
+      ui.modoEntrada = 'simple';
+    }
     var provs = getSelectedProviders();
     var premium = isCxfPremiumPsyche();
+    var canChangeModo = cxfMotorFeAvailable();
     var modoBanner =
       ui.modoEntrada === 'complejo'
         ? '<div class="alert alert-info cxf-modo-banner cxf-modo-banner--fe' +
@@ -6811,7 +7288,8 @@
       (isModoComplejo()
         ? 'Suba el <strong>PDF de la factura electrónica</strong>. El sistema leerá QR/CUFE, consultará DIAN cuando sea posible y completará datos para productos.'
         : 'Escriba el <strong>número de factura</strong> y continúe; PDF y fotos son opcionales. Use <strong>+ Otra factura</strong> para varias del mismo proveedor.') +
-      ' <button type="button" class="btn btn-link btn-sm" data-cxf-modo-cambiar>Cambiar modo</button></p>' +
+      (canChangeModo ? ' <button type="button" class="btn btn-link btn-sm" data-cxf-modo-cambiar>Cambiar modo</button>' : '') +
+      '</p>' +
       '</header>' +
       modoBanner +
       '<div class="cxf-prov-facturas-stack">' +
@@ -7669,6 +8147,9 @@
       var slotIdx = b.facturas.indexOf(f);
       enqueuePdfPreview(doc, slotIdx >= 0 ? slotIdx : 99);
     }
+    if (isModoSimple() && ui.step === 'documento' && _cxfIngestBatch === 0 && !_cxfIngestJobBusy) {
+      scheduleDocumentoRefresh(getCxfHost(), { force: true, immediate: true });
+    }
   }
 
   /** Marca pendiente de FE; la cola se vacía al terminar de importar todos los archivos. */
@@ -7709,6 +8190,7 @@
       hasActiveRecepcionWork()
     ) {
       ui.step = 'documento';
+      ensureDocumentoModoBasico();
       global.__crozzoRecepcionResumeStep = null;
     } else if (global.__crozzoRecepcionResumeStep) {
       ui.step = global.__crozzoRecepcionResumeStep;
@@ -7728,6 +8210,7 @@
     }
     host = host || getCxfHost();
     if (host && ui.step === 'documento') {
+      ensureDocumentoModoBasico();
       attachDocBlobsFromVault();
       refreshDocumentoStackHtml(host, { skipPreviews: isFeBlockingPdfPreviews(), skipStepper: true });
       if (!isFeBlockingPdfPreviews()) applyPdfPreviews(host);
@@ -7804,9 +8287,19 @@
       }
 
       /* ── Cámara de factura ── */
+      if (e.target && e.target.id === 'cxf-fac-cam-modal') {
+        e.preventDefault();
+        closeFacCameraModal(true);
+        return;
+      }
       if (e.target.closest('[data-cxf-fac-cam-close]')) {
         e.preventDefault();
-        closeFacCameraModal();
+        closeFacCameraModal(true);
+        return;
+      }
+      if (e.target.closest('[data-cxf-fac-cam-retry]')) {
+        e.preventDefault();
+        if (_cxfFacCam) startFacCamera();
         return;
       }
       var facCamModeBtn = e.target.closest('[data-cxf-fac-cam-mode]');
@@ -7838,7 +8331,14 @@
     document.addEventListener('click', function (e) {
       if (e.target && e.target.id === 'cxf-fac-cam-snap') {
         e.preventDefault();
+        if (e.target.disabled) return;
         snapFacCamera();
+        return;
+      }
+      if (e.target && e.target.id === 'cxf-fac-cam-pick-file') {
+        e.preventDefault();
+        var pickInp = document.getElementById('cxf-fac-cam-file-input');
+        if (pickInp) pickInp.click();
         return;
       }
       if (e.target && e.target.id === 'cxf-fac-cam-clear') {
@@ -7856,7 +8356,20 @@
         useFacCameraCaptures();
       }
     });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var facModal = document.getElementById('cxf-fac-cam-modal');
+      if (facModal && !facModal.hidden) {
+        e.preventDefault();
+        closeFacCameraModal(true);
+      }
+    });
     document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'cxf-fac-cam-file-input') {
+        ingestFacCamFiles(e.target.files);
+        e.target.value = '';
+        return;
+      }
       if (e.target && e.target.id === 'cxf-qr-cam-file-input') {
         var f = e.target.files && e.target.files[0];
         if (f) onCxfQrPhotoFileSelected(f);
@@ -7925,18 +8438,39 @@
       if (btn._cxfBound) return;
       btn._cxfBound = true;
       btn.addEventListener('click', function () {
-        ui.proveedorTab = btn.getAttribute('data-cxf-prov-tab') || 'select';
+        if (btn.hasAttribute('data-crozzo-feature-locked')) {
+          cxfNotifyFeatureLocked(btn.querySelector('.cxf-prov-tab-btn__label') ? btn.querySelector('.cxf-prov-tab-btn__label').textContent.trim() : '');
+          return;
+        }
+        var tab = btn.getAttribute('data-cxf-prov-tab') || 'select';
+        if (tab === 'camara') {
+          _cxfFacCamUserClosed = false;
+        } else if (_cxfFacCamOpenTimer) {
+          clearTimeout(_cxfFacCamOpenTimer);
+          _cxfFacCamOpenTimer = null;
+        }
+        ui.proveedorTab = tab;
         refreshStepHost(host);
       });
     });
 
     /* ── Handler: botón cámara para captura de factura ── */
-    var autoCamBtn = host.querySelector('[data-cxf-auto-cam]');
-    if (autoCamBtn && !autoCamBtn._cxfBound) {
+    host.querySelectorAll('[data-cxf-auto-cam]').forEach(function (autoCamBtn) {
+      if (autoCamBtn._cxfBound) return;
       autoCamBtn._cxfBound = true;
       autoCamBtn.addEventListener('click', function () {
+        if (!cxfCamaraAvailable()) {
+          cxfNotifyFeatureLocked('Cámara en vivo');
+          return;
+        }
+        _cxfFacCamUserClosed = false;
         openFacCameraModal(PROV_AUTO, host);
       });
+    });
+
+    if (ui.proveedorTab === 'camara' && cxfCamaraAvailable()) {
+      var facModal = document.getElementById('cxf-fac-cam-modal');
+      if (!facModal || facModal.hidden) scheduleOpenFacCamera(host);
     }
 
     /* ── Handler: botón "Analizar y asignar automáticamente" ── */
@@ -7944,6 +8478,10 @@
     if (autoIniciarBtn && !autoIniciarBtn._cxfBound) {
       autoIniciarBtn._cxfBound = true;
       autoIniciarBtn.addEventListener('click', function () {
+        if (!cxfAutoDetectAvailable()) {
+          cxfNotifyFeatureLocked('Auto-detectar proveedor');
+          return;
+        }
         var bucketAuto = ui.porProveedor[PROV_AUTO];
         if (!bucketAuto || !bucketAuto.facturas.length) {
           return toast('Suba al menos una factura primero', 'warning');
@@ -8061,6 +8599,7 @@
         var hasProvOrAuto = ui.proveedorIds.length > 0 || (isModoAuto() && ui.porProveedor && ui.porProveedor[PROV_AUTO]);
         if (!hasProvOrAuto) return toast('Agregue al menos un proveedor o suba facturas en Auto-detectar', 'warning');
         if (!ui.proveedorActivo && ui.proveedorIds.length) ui.proveedorActivo = ui.proveedorIds[0];
+        ensureDocumentoModoBasico();
         ui.step = 'documento';
         refreshStepHost(host);
       };
@@ -8150,6 +8689,10 @@
       var modoBtn = e.target.closest('[data-cxf-modo-entrada]');
       if (modoBtn) {
         e.preventDefault();
+        if (modoBtn.hasAttribute('data-crozzo-feature-locked')) {
+          cxfNotifyFeatureLocked('Inteligencia FE');
+          return;
+        }
         ui.modoEntrada = modoBtn.getAttribute('data-cxf-modo-entrada') === 'complejo' ? 'complejo' : 'simple';
         if (ui.modoEntrada === 'complejo') recordFeBackgroundJob();
         schedulePersistCxfSession();
@@ -9206,6 +9749,87 @@
     remountRecepcionModule();
   }
 
+  /* ── Fase C (aprendizaje): registra las correcciones del usuario respecto a lo
+       que la extracción automática (feAnalisis) propuso, para alimentar el perfil
+       de entrenamiento. Totalmente protegido: jamás debe romper el guardado. ── */
+  function _feProposed(fe, keys) {
+    if (!fe || typeof fe !== 'object') return '';
+    for (var i = 0; i < keys.length; i++) {
+      var path = keys[i].split('.');
+      var v = fe;
+      var ok = true;
+      for (var j = 0; j < path.length; j++) {
+        if (v && typeof v === 'object' && path[j] in v) v = v[path[j]];
+        else {
+          ok = false;
+          break;
+        }
+      }
+      if (ok && v != null && v !== '') return String(v);
+    }
+    return '';
+  }
+
+  function cxfRecordOcrCorrections(provId, facturaId, provNombre) {
+    try {
+      if (!global.CrozzoOcrLearning || typeof global.CrozzoOcrLearning.record !== 'function') return;
+      var f = getFactura(provId, facturaId);
+      if (!f || !f.feAnalisis) return;
+      var fe = f.feAnalisis;
+      var nit = _feProposed(fe, ['nit', 'proveedorNit', 'identidad.nit', 'datos.nit']);
+      var ocrText = '';
+      if (f.docs && f.docs.length) {
+        for (var d = 0; d < f.docs.length; d++) {
+          if (f.docs[d] && f.docs[d].ocrText) {
+            ocrText = f.docs[d].ocrText;
+            break;
+          }
+        }
+      }
+      var campos = [
+        {
+          campo: 'numeroFactura',
+          orig: _feProposed(fe, [
+            'numeroFactura',
+            'numero',
+            'factura.numero',
+            'datos.numeroFactura',
+            'identidad.numero',
+          ]),
+          fin: String(f.numeroFactura || ''),
+        },
+        {
+          campo: 'valorFactura',
+          orig: _feProposed(fe, [
+            'total',
+            'valor',
+            'valorFactura',
+            'factura.total',
+            'datos.total',
+            'identidad.total',
+          ]),
+          fin: String(f.valorFactura || ''),
+        },
+      ];
+      campos.forEach(function (c) {
+        if (c.orig && c.fin && c.orig.trim() !== c.fin.trim()) {
+          global.CrozzoOcrLearning.record({
+            campo: c.campo,
+            valorOriginal: c.orig,
+            valorCorregido: c.fin,
+            proveedorNit: nit,
+            proveedorNombre: provNombre,
+            facturaId: String(facturaId || ''),
+            fuente: 'recepcion-fe',
+            ocrText: ocrText,
+          });
+        }
+      });
+    } catch (e) {
+      /* el aprendizaje es best-effort: nunca interrumpe el guardado */
+    }
+  }
+
   function confirmarIngresoFactura() {
     var host = getCxfHost();
     closeAllCxfOverlays(host);
@@ -9277,6 +9901,7 @@
         }
         saved.push({ entry: entry, out: out });
         highlightIds.push(out.recepcion.id);
+        cxfRecordOcrCorrections(entry.provId, entry.facturaId, entry.provNombre);
         if (!entry.editingId) {
           removeSavedFacturaFromSession(entry.provId, entry.facturaId);
         }
@@ -9419,6 +10044,7 @@
         }
         flushLinesBeforeLeaveProductos(host);
         if (id === 'cierre' && !ui.editingId) ensureRecIdForSave();
+        if (id === 'documento') ensureDocumentoModoBasico();
         ui.step = id;
         refreshStepHost(host);
       });
@@ -9439,6 +10065,7 @@
         }
         flushLinesBeforeLeaveProductos(host);
         if (id === 'cierre' && !ui.editingId) ensureRecIdForSave();
+        if (id === 'documento') ensureDocumentoModoBasico();
         ui.step = id;
         refreshStepHost(host);
       });
@@ -9594,6 +10221,30 @@
     initRecepcion: global.initRecepcionFacturas,
     guardar: global.cxfGuardarRecepcion,
     pdfWork: global.CrozzoRecepcionPdfWork,
+    __fromModule: true,
+  };
+
+  global.openCxfLiveCamera = function (provId, host) {
+    if (!cxfFeatureEnabled('cxf_camara')) {
+      cxfNotifyFeatureLocked('Tomar foto');
+      return;
+    }
+    host = host || getCxfHost();
+    if (!host) {
+      toast('Abra Entrada de factura primero', 'warning');
+      return;
+    }
+    _cxfFacCamUserClosed = false;
+    if (ui.step !== 'proveedor') {
+      ui.step = 'proveedor';
+    }
+    ui.proveedorTab = 'camara';
+    refreshStepHost(host);
+    scheduleOpenFacCamera(host);
+  };
+
+  global.tomarFotoFactura = function () {
+    global.openCxfLiveCamera(PROV_AUTO);
   };
 
   installCxfGlobalUi();

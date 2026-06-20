@@ -9,36 +9,12 @@
 
   var TIPO_GRUPOS = [
     {
-      id: 'gastronomia',
-      label: 'Gastronomía y comida',
-      desc: 'Restaurantes, cafés, comida rápida, bares.',
+      id: 'lanzamiento',
+      label: 'Plan básico (lanzamiento)',
+      desc: 'Perfiles incluidos en la oferta inicial. Solo cambia la operación (restaurante vs tienda).',
       presets: [
-        { id: 'pequeno', tag: 'Pequeño · ~20 pax' },
-        { id: 'mediano', tag: 'Mediano · ~250 pax' },
-        { id: 'grande', tag: 'Grande · ~500 pax' },
-        { id: 'restaurante', tag: 'Estándar' },
-        { id: 'basico', tag: 'Mostrador mínimo' },
-      ],
-    },
-    {
-      id: 'comercio',
-      label: 'Comercio y retail',
-      desc: 'Tiendas, boutiques, venta de productos.',
-      presets: [{ id: 'retail', tag: 'Tienda / inventario' }],
-    },
-    {
-      id: 'servicios',
-      label: 'Servicios',
-      desc: 'Mostrador, servicios sin cocina.',
-      presets: [{ id: 'servicios', tag: 'Venta rápida' }],
-    },
-    {
-      id: 'avanzado',
-      label: 'Avanzado',
-      desc: 'Sin límites o configuración manual.',
-      presets: [
-        { id: 'completo', tag: 'Todos los módulos' },
-        { id: 'personalizado', tag: 'Manual' },
+        { id: 'basico_restaurante', tag: 'Restaurante · mesas y cocina' },
+        { id: 'basico_tienda', tag: 'Tienda comercial · mostrador' },
       ],
     },
   ];
@@ -79,7 +55,7 @@
   function captureClientSnapshot(client) {
     if (!client) return null;
     return {
-      perfil: client.perfil || 'completo',
+      perfil: client.perfil || 'basico_restaurante',
       tema: client.tema || 'executive-elite',
       menus: JSON.parse(JSON.stringify(client.menus || {})),
       roles: JSON.parse(JSON.stringify(client.roles || {})),
@@ -89,7 +65,7 @@
 
   function applySnapshotToClient(client, snap) {
     if (!client || !snap) return client;
-    client.perfil = snap.perfil || 'completo';
+    client.perfil = snap.perfil || 'basico_restaurante';
     client.tema = snap.tema || client.tema || 'executive-elite';
     client.menus = JSON.parse(JSON.stringify(snap.menus || {}));
     client.roles = JSON.parse(JSON.stringify(snap.roles || {}));
@@ -125,7 +101,7 @@
       nombre: name,
       descripcion: String(descripcion || '').trim(),
       tipo: meta.tipo || 'general',
-      basePreset: client.perfil || 'completo',
+      basePreset: client.perfil || 'basico_restaurante',
       snapshot: captureClientSnapshot(client),
       createdAt: new Date().toISOString(),
     });
@@ -146,7 +122,7 @@
     applySnapshotToClient(client, tpl.snapshot);
     saveCfg(cfg);
     try {
-      localStorage.setItem('crozzo_perfil_empresa', client.perfil || 'completo');
+      localStorage.setItem('crozzo_perfil_empresa', client.perfil || 'basico_restaurante');
     } catch (_) {}
     if (typeof global.crozzoRebuildMenusFromRoles === 'function') global.crozzoRebuildMenusFromRoles();
     if (typeof global.crozzoGestionPerfilesRefreshUI === 'function') global.crozzoGestionPerfilesRefreshUI();
@@ -260,7 +236,7 @@
   }
 
   function renderBusinessTypeGrid(activePresetId) {
-    var cur = String(activePresetId || 'completo');
+    var cur = String(activePresetId || 'basico_restaurante');
     var html = '<div class="crozzo-tipo-negocio-grid">';
     TIPO_GRUPOS.forEach(function (grupo) {
       html +=

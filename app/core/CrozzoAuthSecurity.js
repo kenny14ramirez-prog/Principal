@@ -127,12 +127,6 @@
 
   function crozzoValidateAuthProof(userId) {
     try {
-      if (String(userId || '').toUpperCase() === 'KENNY') {
-        try {
-          var sidKenny = sessionStorage.getItem('crozzo_session_user') || '';
-          if (sidKenny && String(sidKenny).toUpperCase() === 'KENNY') return true;
-        } catch (_) {}
-      }
       var raw = sessionStorage.getItem(AUTH_PROOF_LS);
       if (!raw) return false;
       var proof = JSON.parse(raw);

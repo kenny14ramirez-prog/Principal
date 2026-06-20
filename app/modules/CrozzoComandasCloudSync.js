@@ -749,7 +749,10 @@
     pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
 
     scheduleComandaPull();
-    subscribeComandaRealtime('start');
+    global.setTimeout(function () {
+      if (!__started || !tierAllowsCloudRead() || !global.__SUPABASE) return;
+      subscribeComandaRealtime('start');
+    }, 900);
   }
 
   function stopComandasCloudSync() {

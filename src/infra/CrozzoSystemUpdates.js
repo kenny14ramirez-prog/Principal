@@ -842,13 +842,47 @@
   }
 
   function androidInstallUninstallGuide(short) {
-    var TU = global.CrozzoTauriUpdater;
-    if (!short && TU && typeof TU.androidInstallConflictHelp === 'function') {
-      return TU.androidInstallConflictHelp();
+    if (short) {
+      return 'Si falla: Ajustes → Apps → «BONA origen» → Desinstalar, luego reinstale el APK.';
     }
     return (
-      'Si Android dice «no se pudo instalar» o «conflicto de paquetes»: Ajustes → Apps → busque «BONA origen» → Desinstalar. ' +
-      'Luego instale el APK BONA_origen_*_arm64.apk desde GitHub Releases (no use «Actualizar» sobre la app vieja).'
+      'Conflicto de firma: la APK nueva fue compilada con una clave diferente. ' +
+      'Solución: (1) Abra Ajustes del teléfono → Apps (o Aplicaciones). ' +
+      '(2) Busque «BONA origen» y pulse Desinstalar. ' +
+      '(3) Descargue e instale el nuevo APK desde GitHub Releases. ' +
+      'Sus datos de caja están en la nube y no se perderán.'
+    );
+  }
+
+  function androidInstallUninstallGuideHtml() {
+    return (
+      '<div style="margin-top:10px;text-align:left">' +
+      '<p style="font-weight:600;margin:0 0 8px">⚠️ Conflicto de firma de la APK</p>' +
+      '<p style="margin:0 0 10px;font-size:0.85rem;color:var(--text-secondary,#94a3b8)">La APK fue compilada con una clave diferente. Debe desinstalar la versión anterior.</p>' +
+      '<ol style="margin:0 0 10px;padding-left:1.2rem;font-size:0.85rem;line-height:1.7">' +
+      '<li>Abra <strong>Ajustes</strong> del teléfono</li>' +
+      '<li>Vaya a <strong>Apps</strong> (o Aplicaciones)</li>' +
+      '<li>Busque <strong>«BONA origen»</strong> y pulse <strong>Desinstalar</strong></li>' +
+      '<li>Descargue e instale la nueva APK desde <strong>GitHub Releases</strong></li>' +
+      '</ol>' +
+      '<p style="margin:0;font-size:0.78rem;color:var(--text-muted,#64748b)">✅ Sus datos de caja están en la nube y no se perderán al desinstalar.</p>' +
+      '</div>'
+    );
+  }
+
+  function androidInstallWarningHtml() {
+    return (
+      '<div style="margin-top:10px;text-align:left">' +
+      '<p style="font-weight:600;margin:0 0 8px">📱 Android le mostrará varias advertencias</p>' +
+      '<p style="margin:0 0 8px;font-size:0.85rem;color:var(--text-secondary,#94a3b8)">Es normal — las APKs fuera de Play Store siempre generan estas pantallas. Siga estos pasos:</p>' +
+      '<ol style="margin:0 0 8px;padding-left:1.2rem;font-size:0.85rem;line-height:1.8">' +
+      '<li>Pulse <strong>«Más detalles»</strong> o <strong>«Instalar de todas formas»</strong></li>' +
+      '<li>Si dice «fuente desconocida»: pulse <strong>«Configuración»</strong> → active <strong>«Permitir de esta fuente»</strong> → regrese</li>' +
+      '<li>Pulse <strong>«Instalar»</strong></li>' +
+      '<li>Cuando termine, pulse <strong>«Abrir»</strong></li>' +
+      '</ol>' +
+      '<p style="margin:0;font-size:0.78rem;color:var(--text-muted,#64748b)">🔒 La app es segura — solo Android protege las instalaciones externas a Play Store.</p>' +
+      '</div>'
     );
   }
 
@@ -2151,10 +2185,15 @@
     if (msg) msg.textContent = _installUi.message || '';
     if (fill) fill.style.width = Math.max(0, Math.min(100, _installUi.percent)) + '%';
     if (log) {
-      var items = _installUi.changelog || [];
-      log.innerHTML = items.length
-        ? '<ul>' + items.map(function (c) { return '<li>' + escapeHtml(c) + '</li>'; }).join('') + '</ul>'
-        : '';
+      var isAndroidAwaiting = _installUi.state === 'success' && getUpdateClientProfile().isAndroid;
+      if (isAndroidAwaiting) {
+        log.innerHTML = androidInstallWarningHtml();
+      } else {
+        var items = _installUi.changelog || [];
+        log.innerHTML = items.length
+          ? '<ul>' + items.map(function (c) { return '<li>' + escapeHtml(c) + '</li>'; }).join('') + '</ul>'
+          : '';
+      }
     }
     if (retry) {
       retry.style.display = _installUi.state === 'error' ? 'inline-flex' : 'none';
@@ -2170,14 +2209,18 @@
           : 'Plan A · actualización automática';
     }
     if (close) {
+      var isAndroidApkFlow = _installUi.state === 'installing' && getUpdateClientProfile().isAndroid;
       var canDeferWhileInstalling =
-        _installUi.state === 'installing' &&
-        (_installUi.phase === 'probe' || _installUi.phase === 'check' || (_installUi.percent || 0) < 35);
+        isAndroidApkFlow ||
+        (_installUi.state === 'installing' &&
+        (_installUi.phase === 'probe' || _installUi.phase === 'check' || (_installUi.percent || 0) < 35));
       close.style.display =
         _installUi.state === 'error' || _installUi.state === 'success' || canDeferWhileInstalling
           ? 'inline-flex'
           : 'none';
-      close.textContent = canDeferWhileInstalling
+      close.textContent = isAndroidApkFlow
+        ? 'Seguir usando la app (APK en segundo plano)'
+        : canDeferWhileInstalling
         ? 'Seguir operando — descargar al cierre'
         : _installUi.state === 'error'
           ? 'Continuar usando la app'
@@ -2468,8 +2511,12 @@
       if (lead) {
         var failProfile = getUpdateClientProfile();
         if (failProfile.isAndroid) {
-          lead.textContent =
-            (errMsg ? errMsg + ' ' : '') + androidInstallUninstallGuide(false);
+          var isConflict = errMsg && /conflicto|INCOMPATIBLE|firma|signature|paquete/i.test(errMsg);
+          if (isConflict || !errMsg) {
+            lead.innerHTML = androidInstallUninstallGuideHtml();
+          } else {
+            lead.textContent = errMsg + ' ' + androidInstallUninstallGuide(true);
+          }
         } else {
           lead.textContent =
             (errMsg || 'El instalador no se descargó.') +
@@ -2997,8 +3044,8 @@
 
     if (res && res.plan === 'android_apk') {
       var awaitingMsg =
-        (res.installHint ? res.installHint + ' ' : androidInstallUninstallGuide(true) + ' ') +
-        'Instalador abierto: confirme en Android. Si falla, desinstale «BONA origen» e instale el APK de GitHub.';
+        'Instalador abierto en Android. ' + androidInstallWarningHtml() +
+        (res.installHint ? ' Si falla: ' + androidInstallUninstallGuide(true) : '');
       if (uiMode === 'optional') {
         applyOptionalAwaiting(awaitingMsg);
         return Promise.resolve({ handled: true, res: res });

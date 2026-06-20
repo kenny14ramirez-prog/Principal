@@ -2598,7 +2598,9 @@ function crozzoInitClarityUX() {
   crozzoInitNavSearch();
   crozzoRefreshLucideIcons();
   try {
-    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.init === 'function') CrozzoSidebarNav.init();
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.isReady === 'function' && !CrozzoSidebarNav.isReady() && typeof CrozzoSidebarNav.init === 'function') {
+      CrozzoSidebarNav.init();
+    }
   } catch (_) {}
   try {
     if (window.CrozzoA11yUser && typeof CrozzoA11yUser.init === 'function') CrozzoA11yUser.init();

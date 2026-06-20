@@ -100,6 +100,14 @@
     return feResolveAppDataUrl('data/');
   }
 
+  function feOcrWorkerPath() {
+    return resolveFeVendorUrl('vendor/CrozzoTesseract.worker.min.js');
+  }
+
+  function feOcrCorePath() {
+    return resolveFeVendorUrl('vendor/tesseract-core/');
+  }
+
   function feOcrRecognizeOptions(extra) {
     extra = extra || {};
     return Object.assign(
@@ -107,6 +115,8 @@
         logger: function () {},
         langPath: feOcrLangPath(),
         gzip: false,
+        workerPath: feOcrWorkerPath(),
+        corePath: feOcrCorePath(),
       },
       extra
     );
@@ -2732,8 +2742,7 @@
   }
 
   var _tesseractPromise = null;
-  var FE_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  var FE_TESSERACT_WORKER_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+  var FE_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js';
 
   function ensureTesseract() {
     if (global.Tesseract && typeof global.Tesseract.recognize === 'function') {
@@ -2782,11 +2791,10 @@
 
   function feRunOcr(T, dataUrl, extra) {
     var opts = feOcrRecognizeOptions(extra);
-    if (feIsBrowserOcrContext()) {
-      if (!opts.workerPath) opts.workerPath = FE_TESSERACT_WORKER_CDN;
-    } else {
+    if (!feIsBrowserOcrContext()) {
       delete opts.workerPath;
       delete opts.langPath;
+      delete opts.corePath;
     }
     return T.recognize(dataUrl, 'eng', opts);
   }
@@ -3743,7 +3751,7 @@
 (function (global) {
   'use strict';
 
-  if (global.__cxfRecepcionModuleLive) {
+  if (global.__cxfRecepcionModuleLive && global.__cxfRecepcionModuleLive.__fromModule) {
     var live = global.__cxfRecepcionModuleLive;
     global.CrozzoRecepcionFacturas = live.api;
     global.renderRecepcionFacturas = live.render;
@@ -6901,8 +6909,7 @@
 
   function canGoStep(id) {
     if (id === 'proveedor') return true;
-    var hasProvOrAuto = ui.proveedorIds.length > 0 || (ui.modoEntrada === 'auto' && ui.porProveedor && ui.porProveedor['__AUTO__']);
-    if (!hasProvOrAuto) return false;
+    if (!ui.proveedorIds.length) return false;
     if (id === 'documento') return true;
     if (id === 'productos') {
       if (!totalDocsCount()) return false;
@@ -7258,19 +7265,6 @@
     modal.style.pointerEvents = '';
     modal.style.visibility = '';
     var nom = modal.querySelector('#cxf-mp-nombre');
-    var catSel = modal.querySelector('#cxf-mp-cat');
-    if (nom && catSel && ui.mpEditorMode !== 'edit') {
-      var catApi = C();
-      nom.addEventListener('input', function () {
-        if (catSel.dataset.userPicked === '1' || !catApi || !catApi.guessCategoriaFromNombre) return;
-        catSel.value = catApi.normalizeCategoriaMp
-          ? catApi.normalizeCategoriaMp(catApi.guessCategoriaFromNombre(nom.value))
-          : catApi.guessCategoriaFromNombre(nom.value);
-      });
-      catSel.addEventListener('change', function () {
-        catSel.dataset.userPicked = '1';
-      });
-    }
     if (nom) {
       try {
         nom.focus();
@@ -7435,277 +7429,6 @@
     );
   }
 
-  var PROV_AUTO = '__AUTO__';
-  var _cxfFacCam = null;
-
-  function openFacCameraModal(host) {
-    _cxfFacCam = { running: false, video: null, captures: [], autoMode: true, cooldownFrames: 0, _holdFrames: 0, _tick: 0, host: host };
-    var backdrop = host.querySelector('#cxf-fac-cam-backdrop');
-    if (!backdrop) return;
-    backdrop.hidden = false;
-    startFacCamera();
-  }
-
-  function closeFacCameraModal() {
-    stopFacCamera();
-    _cxfFacCam = null;
-    var backdrop = document.getElementById('cxf-fac-cam-backdrop');
-    if (backdrop) backdrop.hidden = true;
-  }
-
-  function startFacCamera() {
-    var hostEl = document.getElementById('cxf-fac-cam-host');
-    if (!hostEl || !_cxfFacCam) return;
-    var video = document.createElement('video');
-    video.playsInline = true; video.muted = true; video.autoplay = true;
-    video.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
-    hostEl.insertBefore(video, hostEl.firstChild);
-    _cxfFacCam.video = video;
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } })
-      .then(function (stream) {
-        if (!_cxfFacCam) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
-        video.srcObject = stream;
-        _cxfFacCam.stream = stream;
-        _cxfFacCam.running = true;
-        video.play();
-        setFacCamMsg('Apunte la cámara a la factura', false);
-        tickFacCameraFrame();
-      })
-      .catch(function (err) {
-        setFacCamMsg('No se pudo acceder a la cámara: ' + (err.message || err), false);
-      });
-  }
-
-  function stopFacCamera() {
-    if (!_cxfFacCam) return;
-    _cxfFacCam.running = false;
-    if (_cxfFacCam.rafId) cancelAnimationFrame(_cxfFacCam.rafId);
-    if (_cxfFacCam.stream) _cxfFacCam.stream.getTracks().forEach(function (t) { t.stop(); });
-    if (_cxfFacCam.video && _cxfFacCam.video.parentNode) _cxfFacCam.video.parentNode.removeChild(_cxfFacCam.video);
-  }
-
-  function setFacCamMsg(msg, good) {
-    var el = document.getElementById('cxf-fac-cam-msg');
-    if (!el) return;
-    el.textContent = msg;
-    el.style.color = good ? '#10b981' : '#fff';
-  }
-
-  function setFacCamStatus(msg) {
-    var el = document.getElementById('cxf-fac-cam-status');
-    if (el) el.textContent = msg;
-  }
-
-  function setFacCamProgress(pct) {
-    var bar = document.getElementById('cxf-fac-cam-progress-bar');
-    if (!bar) return;
-    bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
-    bar.parentElement.hidden = pct <= 0;
-  }
-
-  function setFacCamGuideFrame(left, top, right, bottom) {
-    var frame = document.getElementById('cxf-fac-cam-frame');
-    if (!frame) return;
-    frame.style.left = (left * 100).toFixed(1) + '%';
-    frame.style.top = (top * 100).toFixed(1) + '%';
-    frame.style.right = ((1 - right) * 100).toFixed(1) + '%';
-    frame.style.bottom = ((1 - bottom) * 100).toFixed(1) + '%';
-  }
-
-  function updateFacCamThumbs() {
-    if (!_cxfFacCam) return;
-    var thumbs = document.getElementById('cxf-fac-cam-thumbs');
-    var countEl = document.getElementById('cxf-fac-cam-count');
-    var useBtn = document.getElementById('cxf-fac-cam-use');
-    var clearBtn = document.getElementById('cxf-fac-cam-clear');
-    if (countEl) countEl.textContent = _cxfFacCam.captures.length;
-    if (useBtn) useBtn.disabled = !_cxfFacCam.captures.length;
-    if (clearBtn) clearBtn.disabled = !_cxfFacCam.captures.length;
-    if (!thumbs) return;
-    thumbs.innerHTML = _cxfFacCam.captures.map(function (c, i) {
-      return '<div class="cxf-fac-cam-thumb"><img src="' + c.url + '" alt="Captura ' + (i + 1) + '"><button type="button" class="cxf-fac-cam-thumb-del" data-cxf-fac-del-idx="' + i + '" aria-label="Eliminar">×</button></div>';
-    }).join('');
-  }
-
-  function snapFacCamera() {
-    if (!_cxfFacCam || !_cxfFacCam.video) return;
-    var v = _cxfFacCam.video;
-    if (v.readyState < 2) return;
-    var flash = document.getElementById('cxf-fac-cam-flash');
-    if (flash) { flash.classList.add('is-active'); setTimeout(function () { flash.classList.remove('is-active'); }, 220); }
-    var canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth || 1920; canvas.height = v.videoHeight || 1080;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(v, 0, 0);
-    canvas.toBlob(function (blob) {
-      if (!blob || !_cxfFacCam) return;
-      var url = URL.createObjectURL(blob);
-      var idx = _cxfFacCam.captures.length;
-      _cxfFacCam.captures.push({ blob: blob, url: url, invoiceNum: idx + 1 });
-      updateFacCamThumbs();
-      var toastEl = document.getElementById('cxf-fac-cam-snap-toast');
-      if (toastEl) { toastEl.textContent = '✅ Foto ' + (idx + 1) + ' guardada'; toastEl.classList.add('is-visible'); setTimeout(function () { toastEl.classList.remove('is-visible'); }, 1800); }
-      setFacCamMsg('📄 Apunte a la siguiente factura o pulse "Usar facturas →"', false);
-      setFacCamProgress(0);
-      _cxfFacCam.cooldownFrames = 180;
-      _cxfFacCam._holdFrames = 0;
-      setFacCamStatus(_cxfFacCam.captures.length + ' foto' + (_cxfFacCam.captures.length === 1 ? '' : 's') + ' lista' + (_cxfFacCam.captures.length === 1 ? '' : 's'));
-    }, 'image/jpeg', 0.92);
-  }
-
-  function analyzeFacCameraFrame(imageData) {
-    var d = imageData.data, w = imageData.width, h = imageData.height, step = 4;
-    var cols = 3, rows = 3, cw = Math.floor(w / cols), ch = Math.floor(h / rows);
-    var grid = [0,0,0,0,0,0,0,0,0], totalPixels = 0;
-    for (var y = step; y < h - step; y += step) {
-      for (var x = step; x < w - step; x += step) {
-        var i = (y * w + x) * 4;
-        var gray = (d[i] * 77 + d[i+1] * 150 + d[i+2] * 29) >> 8;
-        var iR = ((y * w) + (x + step)) * 4, iD = (((y + step) * w) + x) * 4;
-        var gR = (d[iR] * 77 + d[iR+1] * 150 + d[iR+2] * 29) >> 8;
-        var gD = (d[iD] * 77 + d[iD+1] * 150 + d[iD+2] * 29) >> 8;
-        var dx = gray - gR, dy = gray - gD;
-        var mag = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
-        if (mag > 28) { grid[Math.min(Math.floor(y / ch), rows-1) * cols + Math.min(Math.floor(x / cw), cols-1)]++; }
-        totalPixels++;
-      }
-    }
-    var totalEdges = grid.reduce(function(a,b){return a+b;},0);
-    var score = totalPixels > 0 ? (totalEdges / totalPixels) : 0;
-    var te = Math.max(totalEdges, 1);
-    return { score: score, center: (grid[4]+grid[3]+grid[5]+grid[1]+grid[7])/te, left: (grid[0]+grid[3]+grid[6])/te, right: (grid[2]+grid[5]+grid[8])/te, top: (grid[0]+grid[1]+grid[2])/te, bot: (grid[6]+grid[7]+grid[8])/te };
-  }
-
-  function tickFacCameraFrame() {
-    if (!_cxfFacCam || !_cxfFacCam.running || !_cxfFacCam.video) return;
-    var v = _cxfFacCam.video;
-    _cxfFacCam.rafId = requestAnimationFrame(tickFacCameraFrame);
-    if (v.readyState < 2) return;
-    var snap = document.getElementById('cxf-fac-cam-snap');
-    if (snap && snap.disabled) snap.disabled = false;
-    if (_cxfFacCam.cooldownFrames > 0) { _cxfFacCam.cooldownFrames--; if (_cxfFacCam.cooldownFrames === 0) { setFacCamProgress(0); setFacCamGuideFrame(0.10, 0.10, 0.90, 0.90); setFacCamMsg('📄 Apunte la cámara a la factura', false); } return; }
-    if (!_cxfFacCam.autoMode) return;
-    _cxfFacCam._tick = ((_cxfFacCam._tick || 0) + 1);
-    if (_cxfFacCam._tick % 6 !== 0) return;
-    var sc = document.createElement('canvas'); sc.width = 320; sc.height = 180;
-    sc.getContext('2d').drawImage(v, 0, 0, 320, 180);
-    var a = analyzeFacCameraFrame(sc.getContext('2d').getImageData(0, 0, 320, 180));
-    /* Niveles de confianza más exigentes — evita disparos falsos */
-    var THRESH_NONE = 0.18;   /* por debajo: no hay documento */
-    var THRESH_PARTIAL = 0.28; /* parcial: dar guía */
-    var THRESH_GOOD = 0.38;   /* buen encuadre: iniciar cuenta */
-    var THRESH_FIRE = 0.42;   /* umbral para disparar */
-    var holdNeeded = 30;       /* ~3s a 60fps / throttle×6 */
-    if (a.score < THRESH_NONE) {
-      setFacCamMsg('📄 Apunte la cámara a la factura', false);
-      setFacCamGuideFrame(0.10,0.10,0.90,0.90); setFacCamProgress(0); _cxfFacCam._holdFrames=0; return;
-    }
-    if (a.score < THRESH_PARTIAL) {
-      var hint = a.right-a.left>0.15?'← mueve a la izquierda':a.left-a.right>0.15?'mueve a la derecha →':a.bot-a.top>0.15?'↑ mueve hacia arriba':a.top-a.bot>0.15?'mueve hacia abajo ↓':'acerca más la factura';
-      setFacCamMsg(hint, false); setFacCamProgress(0); _cxfFacCam._holdFrames=0;
-      var cx=0.5+(a.right-a.left)*0.25, cy=0.5+(a.bot-a.top)*0.25; setFacCamGuideFrame(cx-0.38,cy-0.38,cx+0.38,cy+0.38); return;
-    }
-    if (a.score < THRESH_GOOD) {
-      var dh=a.right-a.left, dv=a.bot-a.top;
-      var guide=dh>0.12?'← un poco a la izquierda':dh<-0.12?'un poco a la derecha →':dv>0.12?'↑ sube un poco':dv<-0.12?'baja un poco ↓':'🔍 casi listo — centra el documento';
-      setFacCamMsg(guide, false); setFacCamProgress(0); _cxfFacCam._holdFrames=0; setFacCamGuideFrame(0.08,0.08,0.92,0.92); return;
-    }
-    _cxfFacCam._holdFrames = (_cxfFacCam._holdFrames||0)+1;
-    var progress=Math.min(100,(_cxfFacCam._holdFrames/holdNeeded)*100);
-    setFacCamProgress(progress); setFacCamGuideFrame(0.06,0.06,0.94,0.94);
-    if (_cxfFacCam._holdFrames < holdNeeded*0.33) setFacCamMsg('📄 Todo el documento visible — quieto…', true);
-    else if (_cxfFacCam._holdFrames < holdNeeded*0.66) setFacCamMsg('✅ Perfecto — mantén fijo…', true);
-    else setFacCamMsg('📸 Tomando foto en un momento…', true);
-    if (a.score >= THRESH_FIRE && _cxfFacCam._holdFrames >= holdNeeded) { _cxfFacCam._holdFrames=0; snapFacCamera(); }
-  }
-
-  function useFacCameraCaptures(host) {
-    if (!_cxfFacCam || !_cxfFacCam.captures.length) return;
-    var captures = _cxfFacCam.captures.slice();
-    closeFacCameraModal();
-    if (ui.proveedorIds.indexOf(PROV_AUTO) < 0) ui.proveedorIds.push(PROV_AUTO);
-    if (!ui.porProveedor[PROV_AUTO]) ui.porProveedor[PROV_AUTO] = { facturas: [{ id: 'f_auto_' + Date.now(), numeroFactura: '', valorFactura: '', valorCajero: '', docs: [], lines: [], _autoProvAsignado: false, feAnalisis: null, docPreviewIdx: 0 }], facturaActiva: '' };
-    ui.modoEntrada = 'auto';
-    captures.forEach(function (cap) {
-      var fid = 'f_cam_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-      var fileName = 'factura_camara_' + Date.now() + '.jpg';
-      var file = new File([cap.blob], fileName, { type: 'image/jpeg' });
-      URL.revokeObjectURL(cap.url);
-      var bucket = ui.porProveedor[PROV_AUTO];
-      bucket.facturas.push({ id: fid, numeroFactura: '', valorFactura: '', valorCajero: '', docs: [], lines: [], _autoProvAsignado: false, feAnalisis: null, docPreviewIdx: 0 });
-      bucket.facturaActiva = fid;
-      if (typeof cxfIngestFileOne === 'function') cxfIngestFileOne(file, PROV_AUTO, fid, host);
-    });
-    schedulePersistCxfSession();
-    if (typeof refreshStepHost === 'function') refreshStepHost(host);
-    else if (typeof render === 'function' && host) { host.innerHTML = render(); if (typeof init === 'function') init(host); }
-    toast(captures.length + ' foto' + (captures.length===1?'':'s') + ' cargada' + (captures.length===1?'':'s') + ' — listas para analizar', 'success');
-  }
-
-  function renderFacCameraModal() {
-    return '<div class="cxf-fac-cam-backdrop" id="cxf-fac-cam-backdrop" hidden role="dialog" aria-modal="true" aria-label="Captura de factura">' +
-      '<div class="cxf-fac-cam-dialog">' +
-      '<header class="cxf-fac-cam-header">' +
-      '<h2 class="cxf-fac-cam-title">📷 Capturar facturas</h2>' +
-      '<div class="cxf-fac-cam-header-actions">' +
-      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-auto-toggle">Auto ✓</button>' +
-      '<button type="button" class="btn btn-ghost btn-sm" id="cxf-fac-cam-close" aria-label="Cerrar">×</button></div></header>' +
-      '<div class="cxf-fac-cam-body">' +
-      '<div class="cxf-fac-cam-viewfinder" id="cxf-fac-cam-host">' +
-      '<div class="cxf-fac-cam-frame" id="cxf-fac-cam-frame">' +
-      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--tl"></span>' +
-      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--tr"></span>' +
-      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--bl"></span>' +
-      '<span class="cxf-fac-cam-corner cxf-fac-cam-corner--br"></span></div>' +
-      '<div class="cxf-fac-cam-overlay-msg" id="cxf-fac-cam-msg">Preparando cámara…</div>' +
-      '<div class="cxf-fac-cam-progress" id="cxf-fac-cam-progress" hidden><div class="cxf-fac-cam-progress-bar" id="cxf-fac-cam-progress-bar"></div></div>' +
-      '<div class="cxf-fac-cam-flash" id="cxf-fac-cam-flash"></div>' +
-      '<div class="cxf-fac-cam-snap-toast" id="cxf-fac-cam-snap-toast"></div></div>' +
-      '<div class="cxf-fac-cam-sidebar">' +
-      '<p class="cxf-fac-cam-sidebar-title">Capturas <span id="cxf-fac-cam-count">0</span></p>' +
-      '<div class="cxf-fac-cam-thumbs" id="cxf-fac-cam-thumbs"></div>' +
-      '<div class="cxf-fac-cam-sidebar-actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="cxf-fac-cam-snap" disabled>📸 Capturar</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-clear" disabled>Limpiar</button>' +
-      '<button type="button" class="btn btn-success" id="cxf-fac-cam-use" disabled>Usar facturas →</button>' +
-      '</div></div></div>' +
-      '<p id="cxf-fac-cam-status" class="cxf-fac-cam-status" role="status">Iniciando…</p></div></div>';
-  }
-
-  function renderProveedorAutoPaneCxf() {
-    var bucketAuto = ui.porProveedor[PROV_AUTO];
-    var factAuto = bucketAuto && bucketAuto.facturas ? bucketAuto.facturas : [];
-    var totalDocs = factAuto.reduce(function(acc, f) { return acc + (f.docs ? f.docs.length : 0); }, 0);
-    var asignados = factAuto.filter(function(f) { return f._autoProvAsignado; }).length;
-    var sinAsignar = factAuto.filter(function(f) { return f.feAnalisis && f.feAnalisis.estado === 'listo' && !f._autoProvAsignado; }).length;
-    return '<div class="cxf-card cxf-card--featured cxf-prov-auto-pane">' +
-      '<div class="cxf-auto-hero">' +
-      '<span class="cxf-auto-hero__icon" aria-hidden="true">🧠</span>' +
-      '<div><h3 class="cxf-auto-hero__title">Auto-detección de proveedores</h3>' +
-      '<p class="cxf-auto-hero__desc">Suba PDFs o tome fotos. El sistema extraerá el NIT y asignará el proveedor automáticamente.</p>' +
-      '</div></div>' +
-      '<div class="cxf-auto-input-row">' +
-      '<div class="cxf-auto-drop-zone cxf-doc-drop" data-cxf-auto-drop data-prov-id="' + PROV_AUTO + '">' +
-      '<span class="cxf-auto-drop-zone__icon" aria-hidden="true">📁</span>' +
-      '<p class="cxf-auto-drop-zone__label">Arrastre PDFs aquí o</p>' +
-      '<label class="btn btn-outline cxf-doc-file-label" for="cxf-auto-file-input">Seleccionar archivos</label>' +
-      '<input type="file" id="cxf-auto-file-input" class="cxf-doc-file-hidden" data-cxf-auto-file accept="application/pdf,image/*" multiple></div>' +
-      '<button type="button" class="btn btn-outline cxf-auto-cam-btn" id="cxf-bundle-open-cam">' +
-      '<span class="cxf-auto-cam-btn__icon" aria-hidden="true">📷</span>' +
-      '<span>Capturar con cámara</span></button></div>' +
-      (totalDocs > 0 ? '<div class="cxf-auto-stats">' +
-        '<span class="cxf-auto-stat"><strong>' + totalDocs + '</strong> archivo' + (totalDocs===1?'':'s') + ' cargado' + (totalDocs===1?'':'s') + '</span>' +
-        '<span class="cxf-auto-stat cxf-auto-stat--ok"><strong>' + asignados + '</strong> asignado' + (asignados===1?'':'s') + '</span>' +
-        (sinAsignar > 0 ? '<span class="cxf-auto-stat cxf-auto-stat--warn"><strong>' + sinAsignar + '</strong> sin proveedor</span>' : '') +
-        '</div>' : '') +
-      '<p class="form-hint">El sistema procesará cada archivo en cola y asignará o creará el proveedor.</p>' +
-      '<div class="cxf-step-actions">' +
-      '<button type="button" class="btn btn-outline btn-lg" id="cxf-auto-iniciar-btn"' + (totalDocs>0?'':' disabled') + '>Analizar y asignar →</button>' +
-      '<button type="button" class="btn btn-primary btn-lg cxf-btn-next" id="cxf-go-documento"' +
-      (totalDocs>0?'':' disabled') + '>Continuar a facturas <span aria-hidden="true">→</span></button>' +
-      '</div></div>';
-  }
-
   function renderProveedorStep() {
     var tab = ui.proveedorTab || 'select';
     var premium = isCxfPremiumPsyche();
@@ -7720,38 +7443,34 @@
       '</h2>' +
       '<p class="cxf-panel-lead">Elija proveedores ya registrados o délos de alta aquí. El directorio completo está en <strong>Compras → Directorio proveedores</strong>.</p>' +
       '</header>' +
-      '<nav class="cxf-prov-tabs cxf-prov-tabs--grid" role="tablist" aria-label="Modo proveedor">' +
-      '<button type="button" class="cxf-prov-tab-btn' +
+      '<nav class="cxf-prov-tabs crozzo-mod-nav crozzo-mod-nav--segmented cxf-prov-tabs--wrap" role="tablist" aria-label="Modo proveedor">' +
+      '<button type="button" class="crozzo-mod-nav__item' +
       (tab === 'select' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="select" role="tab">' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📄</span>' +
-      '<span class="cxf-prov-tab-btn__label">Registrado</span></button>' +
-      '<button type="button" class="cxf-prov-tab-btn' +
+      '" data-cxf-prov-tab="select" role="tab">Registrado</button>' +
+      '<button type="button" class="crozzo-mod-nav__item' +
       (tab === 'nuevo' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="nuevo" role="tab">' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">➕</span>' +
-      '<span class="cxf-prov-tab-btn__label">Alta rápida</span></button>' +
-      '<button type="button" class="cxf-prov-tab-btn' +
+      '" data-cxf-prov-tab="nuevo" role="tab">Alta rápida</button>' +
+      '<button type="button" class="crozzo-mod-nav__item' +
       (tab === 'importar' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="importar" role="tab">' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📅</span>' +
-      '<span class="cxf-prov-tab-btn__label">Desde certificado</span></button>' +
-      '<button type="button" class="cxf-prov-tab-btn cxf-prov-tab-btn--auto' +
+      '" data-cxf-prov-tab="importar" role="tab">Desde certificado</button>' +
+      '<button type="button" class="crozzo-mod-nav__item' +
       (tab === 'auto' ? ' is-active' : '') +
-      '" data-cxf-prov-tab="auto" role="tab">' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">🧠</span>' +
-      '<span class="cxf-prov-tab-btn__label">Auto-detectar</span></button>' +
-      '</nav>' +
-      (tab === 'auto'
-        ? renderProveedorAutoPaneCxf()
-        : tab === 'nuevo'
-          ? renderProveedorCreatePane()
-          : tab === 'importar'
-            ? (typeof global.CrozzoProveedorDocumentos !== 'undefined' &&
-              global.CrozzoProveedorDocumentos.renderImportBlock
-                ? '<div class="cxf-card">' + global.CrozzoProveedorDocumentos.renderImportBlock('cxf-prov-only') + '</div>'
-                : '<p class="form-hint">Módulo de importación no cargado.</p>')
-            : renderProveedorSelectPane()) +
+      '" data-cxf-prov-tab="auto" role="tab">📄 Auto-detectar</button>' +
+      '<button type="button" class="crozzo-mod-nav__item' +
+      (tab === 'camara' ? ' is-active' : '') +
+      '" data-cxf-prov-tab="camara" role="tab">📷 Tomar foto</button></nav>' +
+      (tab === 'nuevo'
+        ? renderProveedorCreatePane()
+        : tab === 'importar'
+          ? (typeof global.CrozzoProveedorDocumentos !== 'undefined' &&
+            global.CrozzoProveedorDocumentos.renderImportBlock
+              ? '<div class="cxf-card">' + global.CrozzoProveedorDocumentos.renderImportBlock('cxf-prov-only') + '</div>'
+              : '<p class="form-hint">Módulo de importación no cargado.</p>')
+          : tab === 'auto'
+            ? global.renderAutoDetectPanel()
+            : tab === 'camara'
+              ? global.renderCameraInteligentePanel()
+              : renderProveedorSelectPane()) +
       '</section>'
     );
   }
@@ -8684,47 +8403,6 @@
         var fid2 = inImg.getAttribute('data-factura-id');
         cxfIngestFiles(inImg.files, false, pid2, fid2);
         inImg.value = '';
-        return;
-      }
-      var autoFile = e.target.closest('[data-cxf-auto-file]');
-      if (autoFile && autoFile.files && autoFile.files.length) {
-        var files = Array.prototype.slice.call(autoFile.files);
-        if (ui.proveedorIds.indexOf(PROV_AUTO) < 0) ui.proveedorIds.push(PROV_AUTO);
-        ensureBucket(PROV_AUTO);
-        var MAX_AUTO = 20;
-        var bucket = ui.porProveedor[PROV_AUTO];
-        var yaHay = bucket.facturas.filter(function (f) { return f.docs && f.docs.length; }).length;
-        if (yaHay >= MAX_AUTO) {
-          toast('Límite de ' + MAX_AUTO + ' facturas por lote', 'warning');
-          autoFile.value = '';
-          return;
-        }
-        if (yaHay + files.length > MAX_AUTO) {
-          files = files.slice(0, MAX_AUTO - yaHay);
-          toast('Límite de ' + MAX_AUTO + ' facturas por lote', 'warning');
-        }
-        ui.modoEntrada = 'auto';
-        var chain = Promise.resolve();
-        files.forEach(function (file, idx) {
-          chain = chain.then(function () {
-            var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-            var fid = 'f_auto_' + Date.now() + '_' + idx;
-            var firstFac = bucket.facturas[0];
-            var useFirst = !firstFac || !firstFac.docs || !firstFac.docs.length;
-            var targetFid = useFirst ? (firstFac ? firstFac.id : null) : null;
-            if (!targetFid) {
-              var newFac = { id: fid, numeroFactura: '', valorFactura: '', valorCajero: '', docs: [], lines: [], _autoProvAsignado: false, feAnalisis: null, docPreviewIdx: 0 };
-              bucket.facturas.push(newFac);
-              targetFid = fid;
-            }
-            return cxfIngestFiles([file], isPdf, PROV_AUTO, targetFid);
-          });
-        });
-        chain.then(function () {
-          schedulePersistCxfSession();
-          refreshStepHost(host);
-        });
-        autoFile.value = '';
       }
     });
   }
@@ -10029,17 +9707,6 @@
     if (ui.creatingMpLine == null) return '';
     var isEdit = ui.mpEditorMode === 'edit' && ui.editingMpId;
     var mp = isEdit ? getMp(ui.editingMpId) : null;
-    var catApi = C();
-    var catVal = mp && mp.categoria ? mp.categoria : 'OTRO';
-    var nombreSug = mp ? mp.nombre : getMpLineFilter(ui.creatingMpLine) || '';
-    if (!isEdit && catApi && catApi.guessCategoriaFromNombre && nombreSug) {
-      catVal = catApi.guessCategoriaFromNombre(nombreSug);
-    }
-    if (catApi && catApi.normalizeCategoriaMp) catVal = catApi.normalizeCategoriaMp(catVal);
-    var catOptions =
-      catApi && catApi.renderCategoriaMpOptionsHtml
-        ? catApi.renderCategoriaMpOptionsHtml(catVal)
-        : '<option value="OTRO">Otro</option>';
     return (
       '<div class="cxf-mp-create cxf-mp-create--modal" id="cxf-mp-create-panel">' +
       '<header class="cxf-mp-create__head">' +
@@ -10056,11 +9723,11 @@
       '</p></div></header>' +
       '<div class="cxf-form-grid cxf-form-grid--mp-modal">' +
       '<div class="cxf-field-span-2"><label class="cxf-label">Nombre *</label><input class="form-input" id="cxf-mp-nombre" placeholder="Ej. Pechuga fresca" value="' +
-      esc(mp ? mp.nombre : nombreSug) +
+      esc(mp ? mp.nombre : '') +
       '"></div>' +
-      '<div><label class="cxf-label">Categoría</label><select class="form-input" id="cxf-mp-cat" title="Define dónde aparece en cocina">' +
-      catOptions +
-      '</select></div>' +
+      '<div><label class="cxf-label">Categoría</label><input class="form-input" id="cxf-mp-cat" placeholder="Carnes" value="' +
+      esc((mp && mp.categoria) || 'General') +
+      '"></div>' +
       '<div><label class="cxf-label">Unidad</label><select class="form-input" id="cxf-mp-und">' +
       '<option value="GR"' +
       (mp && mp.und === 'GR' ? ' selected' : !mp ? ' selected' : '') +
@@ -10537,7 +10204,6 @@
       renderQrCameraModal() +
       renderQrRegionModal() +
       renderSplitPdfModal() +
-      renderFacCameraModal() +
       renderCxfCommandStrip() +
       renderStorageNote({ retentionDays: 365 }) +
       renderAlertasBanner() +
@@ -11144,58 +10810,6 @@
         }
       };
     }
-
-    var camBtn = host.querySelector('#cxf-bundle-open-cam');
-    if (camBtn && !camBtn._cxfCamBound) {
-      camBtn._cxfCamBound = true;
-      camBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        openFacCameraModal(host);
-      });
-    }
-
-    if (!global.__cxfFacCamModalInstalled) {
-      global.__cxfFacCamModalInstalled = true;
-      document.addEventListener('click', function (e) {
-        if (e.target.closest('#cxf-fac-cam-close')) {
-          closeFacCameraModal();
-          return;
-        }
-        if (e.target.closest('#cxf-fac-cam-snap')) {
-          snapFacCamera();
-          return;
-        }
-        if (e.target.closest('#cxf-fac-cam-use')) {
-          useFacCameraCaptures(getCxfHost());
-          return;
-        }
-        if (e.target.closest('#cxf-fac-cam-clear')) {
-          if (!_cxfFacCam) return;
-          _cxfFacCam.captures.forEach(function (c) { URL.revokeObjectURL(c.url); });
-          _cxfFacCam.captures = [];
-          updateFacCamThumbs();
-          setFacCamMsg('Apunte la cámara a la factura', false);
-          return;
-        }
-        if (e.target.closest('#cxf-fac-cam-auto-toggle')) {
-          if (!_cxfFacCam) return;
-          _cxfFacCam.autoMode = !_cxfFacCam.autoMode;
-          var tog = document.getElementById('cxf-fac-cam-auto-toggle');
-          if (tog) tog.textContent = _cxfFacCam.autoMode ? 'Auto ✓' : 'Auto ✗';
-          setFacCamMsg(_cxfFacCam.autoMode ? 'Modo automático activado' : 'Modo manual — pulse Capturar', false);
-          return;
-        }
-        var delBtn = e.target.closest('[data-cxf-fac-del-idx]');
-        if (delBtn && _cxfFacCam) {
-          var idx = parseInt(delBtn.getAttribute('data-cxf-fac-del-idx'), 10);
-          if (!isNaN(idx)) {
-            URL.revokeObjectURL(_cxfFacCam.captures[idx].url);
-            _cxfFacCam.captures.splice(idx, 1);
-            updateFacCamThumbs();
-          }
-        }
-      });
-    }
   }
 
   function bindDocumento(host) {
@@ -11544,12 +11158,9 @@
       });
       if (!has) provs.push({ nombre: prov.nombre, id: prov.id });
     }
-    var catSel = host.querySelector('#cxf-mp-cat');
-    var catVal = catSel ? catSel.value : 'OTRO';
-    if (cat.normalizeCategoriaMp) catVal = cat.normalizeCategoriaMp(catVal);
     var payload = {
       nombre: nom.value.trim(),
-      categoria: catVal,
+      categoria: ((host.querySelector('#cxf-mp-cat') || {}).value || 'General').trim(),
       proveedores: provs,
       und: (host.querySelector('#cxf-mp-und') || {}).value || 'GR',
       peso: Number((host.querySelector('#cxf-mp-peso') || {}).value) || 1000,
@@ -12612,6 +12223,16 @@
     initRecepcion: global.initRecepcionFacturas,
     guardar: global.cxfGuardarRecepcion,
     pdfWork: global.CrozzoRecepcionPdfWork,
+    getUi: function () {
+      return ui;
+    },
+    ensureBucket: ensureBucket,
+    newFactura: newFactura,
+    proveedoresList: proveedoresList,
+    refreshStepHost: refreshStepHost,
+    getCxfHost: getCxfHost,
+    syncUiFromBucket: syncUiFromBucket,
+    schedulePersistCxfSession: schedulePersistCxfSession,
   };
 
   installCxfGlobalUi();
@@ -15975,6 +15596,7 @@
       page === 'compras-cortes' ||
       page === 'centro-procesos' ||
       page === 'compras-proceso-sesion' ||
+      page === 'compras-proceso-entrada' ||
       page === 'compras-proceso-historial'
     ) {
       return 'procesos';
@@ -16058,7 +15680,6 @@
     if (page === 'compras-proveedores') return { page: 'compras-proveedores', module: null };
     if (page === 'compras-cotizaciones') return { page: 'compras-cotizaciones', module: null };
     if (page === 'compras-recepcion') return { page: 'compras-recepcion', module: null };
-    if (page === 'compras-proceso-entrada') return { page: 'compras-recepcion', module: null };
     if (page === 'compras-ordenes') return { page: 'compras-ordenes', module: null };
     return { page: page, module: null };
   };
@@ -16413,13 +16034,6 @@
       '.ccp.bona .ccp-card__go{color:var(--bona-gold-dark);font-weight:600;letter-spacing:.04em}' +
       '.ccp.bona .ccp-card__badge{background:var(--bona-gold-08);color:var(--bona-gold-dark);border:1px solid rgba(181,154,109,.2);font-size:10px;letter-spacing:.06em}' +
       '.ccp.bona .ccp-loader{background:rgba(250,249,247,.96);backdrop-filter:blur(6px)}' +
-      '.ccp.bona .ccp-local{background:transparent;padding:20px 32px 32px;color:var(--bona-charcoal)}' +
-      '.ccp.bona .ccp-nav{color:var(--bona-charcoal-soft)}' +
-      '.ccp.bona .ccp-nav:hover{background:var(--bona-gold-08);color:var(--bona-charcoal)}' +
-      '.ccp.bona .ccp__crumb{color:var(--bona-charcoal-soft);padding:8px 32px 0}' +
-      '.ccp.bona .ccp__crumb button{color:var(--bona-gold-dark)}' +
-      '.ccp.bona .cps .card{border-color:var(--bona-line);box-shadow:var(--bona-shadow-sm)}' +
-      '.ccp.bona .cps__badge{border-color:rgba(181,154,109,.28);color:var(--bona-gold-dark);background:var(--bona-gold-08)}' +
       'html[data-crozzo-theme="bona-origen"],html.bona-origen-hub{--bg:var(--bona-cream);--surface-solid:#fff;--text:var(--bona-charcoal);--accent:var(--bona-gold);--sans:var(--bona-font)}' +
       'html.bona-origen-hub .bona-qyc-strip{display:flex!important;align-items:center;gap:16px;padding:14px 24px;background:linear-gradient(180deg,#fff,var(--bona-cream));border-bottom:1px solid var(--bona-line);box-shadow:var(--bona-shadow-sm)}' +
       'html.bona-origen-hub .bona-qyc-strip .bona-logo-frame--hero{width:52px;height:52px;padding:8px}' +
@@ -16487,7 +16101,12 @@
   function enhanceLoginChrome() {
     var card = document.querySelector('.login-card');
     if (card) card.classList.add('bona-login-card');
-    if (typeof crozzoRefreshLoginBuildStamp === 'function') crozzoRefreshLoginBuildStamp();
+    var title = document.getElementById('loginTitle');
+    if (title && (title.textContent === 'Crozzo POS' || title.textContent === 'Proyecto')) title.textContent = 'BONA origen';
+    var sub = title && title.nextElementSibling;
+    if (sub && sub.tagName === 'P' && !document.getElementById('bonaLoginPowered')) {
+      /* Sin línea de powered-by de plataforma en login */
+    }
   }
 
   function clearDynamicChrome() {
@@ -16697,48 +16316,60 @@
   };
 
   var VIEWS = {
-    home: { label: 'Inicio', icon: 'home', sub: null, desc: 'Elige qué vas a preparar' },
-    form: { label: 'Anotar prep', icon: 'utensils', sub: 'form', desc: 'Registrar lo que acabas de preparar' },
-    hist: { label: 'Lo prepé', icon: 'clipboard-list', sub: 'hist', desc: 'Ver preparaciones anteriores' },
-    jefe: { label: 'Mercado', icon: 'truck', sub: 'jefe', desc: 'Entrada de factura' }
+    home: { label: 'Inicio', icon: 'layout-grid', sub: null, desc: 'Elige qué harás hoy' },
+    form: { label: 'Nueva sesión', icon: 'sparkles', sub: 'form', desc: 'Registrar transformación' },
+    hist: { label: 'Historial', icon: 'history', sub: 'hist', desc: 'Ver procesos guardados' },
+    jefe: { label: 'Llegó del proveedor', icon: 'package-check', sub: 'jefe', desc: 'Entrada de factura' }
   };
 
   var WORKFLOWS = [
     {
       id: 'despiece',
-      title: 'Partir carnes',
-      desc: 'Pesa la carne entera, anota qué sacaste y cuánto pesó cada corte.',
+      title: 'Despiece de carnes',
+      desc: 'Un solomo (o pieza madre) se convierte en varios cortes. Lo que no cuadra queda como merma.',
       icon: 'beef',
       tone: 'amber',
-      badge: 'Más usado',
+      badge: 'Recomendado',
       badgeClass: '',
       sub: 'form',
       hint: 'despiece',
-      steps: ['1. Pesar pieza', '2. Anotar cortes', '3. Guardar']
+      steps: ['Pesar pieza', 'Elegir cortes', 'Guardar']
     },
     {
       id: 'coccion',
-      title: 'Cocinar y porcionar',
-      desc: 'Anoto peso crudo, peso cocido y cuánto empaqueto para reservar.',
+      title: 'Cocción y porcionado',
+      desc: 'Registra peso crudo, cocido y lo que empacas. Las mermas se calculan solas.',
       icon: 'flame',
       tone: 'rose',
-      badge: 'Rápido',
+      badge: '~5 min',
       badgeClass: 'time',
       sub: 'form',
       hint: 'coccion',
-      steps: ['1. Pesos', '2. Porciones', '3. Guardar']
+      steps: ['Pesos', 'Porciones', 'Guardar']
     },
     {
       id: 'elaboracion',
-      title: 'Salsas y bases',
-      desc: 'Ej. salsa, caldo, aderezo — lo dejo listo en bodega para el servicio.',
-      icon: 'soup',
+      title: 'Salsas y elaborados',
+      desc: 'Ej. salsa napolitana: sumas ingredientes y obtienes el producto terminado.',
+      icon: 'flask-conical',
       tone: 'violet',
       badge: 'Con receta',
       badgeClass: 'time',
       sub: 'form',
       hint: 'elaboracion',
-      steps: ['1. Ingredientes', '2. Peso final', '3. Guardar']
+      steps: ['Ingredientes', 'Peso final', 'Guardar']
+    },
+    {
+      id: 'entrada',
+      title: 'Llegó del proveedor',
+      desc: 'Cuando entra la factura: kilos y cómo viene la materia prima.',
+      icon: 'truck',
+      tone: 'cyan',
+      badge: 'Jefe cocina',
+      badgeClass: 'time',
+      sub: 'jefe',
+      hint: null,
+      steps: ['Abrir recepción', 'Kg', 'Confirmar']
     }
   ];
 
@@ -16779,7 +16410,7 @@
       '.ccp{display:flex;flex-direction:column;height:100%;max-height:100%;min-height:0;overflow:hidden;box-sizing:border-box}' +
       '.ccp__status,.ccp__rail,#ccp-crumb,.ccp__crumb{flex-shrink:0}' +
       '.ccp:not(.bona){--ccp-gold:#d4b84a;--ccp-gold-soft:rgba(212,184,74,.22);--ccp-glass:rgba(14,16,26,.78);background:radial-gradient(1100px 520px at 6% -8%,rgba(212,184,74,.16),transparent 58%),var(--bg-primary,#080a10);font-family:inherit}' +
-      '.ccp__status{padding:8px 20px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.28);color:var(--text-muted);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}' +
+      '.ccp__status{padding:8px 20px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.28);color:var(--text-muted)}' +
       '.ccp__status strong{color:var(--text-primary)}' +
       '.ccp__hero{position:relative;padding:22px 24px 18px;border-bottom:1px solid rgba(255,255,255,.06)}' +
       '.ccp__hero::after{content:"";position:absolute;inset:auto 0 0 0;height:1px;background:linear-gradient(90deg,transparent,var(--ccp-gold),transparent);opacity:.35}' +
@@ -16790,7 +16421,6 @@
       '.ccp__welcome strong{color:var(--text-primary)}' +
       '@keyframes ccpFadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}' +
       '.ccp__kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 24px 16px}' +
-      '.ccp__kpis--chef{grid-template-columns:repeat(3,minmax(0,1fr))}' +
       '.ccp-kpi{background:var(--ccp-glass);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px 15px;backdrop-filter:blur(16px);transition:transform .25s,border-color .25s}' +
       '.ccp-kpi:hover{transform:translateY(-2px);border-color:rgba(212,184,74,.2)}' +
       '.ccp-kpi__lbl{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}' +
@@ -16798,7 +16428,7 @@
       '.ccp-kpi__val--gold{color:var(--ccp-gold)}' +
       '.ccp__body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}' +
       '.ccp__rail{display:flex;align-items:center;gap:8px;padding:12px 20px 14px;border-bottom:1px solid rgba(255,255,255,.05);flex-wrap:wrap;background:rgba(0,0,0,.12)}' +
-      '.ccp-nav{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:999px;border:1px solid transparent;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .25s cubic-bezier(.22,1,.36,1);font-family:inherit;min-height:44px}' +
+      '.ccp-nav{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;border:1px solid transparent;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .25s cubic-bezier(.22,1,.36,1);font-family:inherit}' +
       '.ccp-nav:hover{color:var(--text-primary);background:rgba(255,255,255,.05);transform:translateY(-1px)}' +
       '.ccp-nav.is-active{color:var(--text-primary);background:linear-gradient(135deg,rgba(212,184,74,.22),rgba(99,102,241,.12));border-color:var(--ccp-gold-soft);box-shadow:0 6px 24px rgba(0,0,0,.2)}' +
       '.ccp-nav i,.ccp-nav svg{width:15px;height:15px}' +
@@ -16811,7 +16441,7 @@
       '.ccp-home .ccp__kpis{padding:12px 24px 16px}' +
       '.ccp-home__lead{margin:16px 24px 18px;font-size:14px;color:var(--text-muted);line-height:1.55}' +
       '.ccp-wf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:0 24px 8px}' +
-      '.ccp-card{position:relative;text-align:left;padding:22px 22px 58px;border-radius:20px;border:1px solid rgba(255,255,255,.08);background:var(--ccp-glass);backdrop-filter:blur(18px);cursor:pointer;font-family:inherit;color:inherit;overflow:hidden;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s;min-height:168px}' +
+      '.ccp-card{position:relative;text-align:left;padding:20px 20px 56px;border-radius:18px;border:1px solid rgba(255,255,255,.08);background:var(--ccp-glass);backdrop-filter:blur(18px);cursor:pointer;font-family:inherit;color:inherit;overflow:hidden;transition:transform .3s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s}' +
       '.ccp-card::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(125deg,rgba(212,184,74,.14),transparent 50%);transition:opacity .35s;pointer-events:none}' +
       '.ccp-card:hover{transform:translateY(-5px);box-shadow:0 24px 56px rgba(0,0,0,.38);border-color:rgba(212,184,74,.25)}' +
       '.ccp-card:hover::before{opacity:1}' +
@@ -16820,11 +16450,11 @@
       '.ccp-card--amber::after{background:#f59e0b}.ccp-card--rose::after{background:#fb7185}.ccp-card--violet::after{background:#a78bfa}.ccp-card--cyan::after{background:#22d3ee}' +
       '.ccp-card::after{content:"";position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;opacity:.15;filter:blur(24px);pointer-events:none}' +
       '.ccp-card__icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}' +
-      '.ccp-card__title{font-size:16px;font-weight:700;margin:0 0 8px;letter-spacing:-.02em;padding-right:80px;line-height:1.25}' +
-      '.ccp-card__desc{font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.55}' +
+      '.ccp-card__title{font-size:15px;font-weight:650;margin:0 0 8px;letter-spacing:-.02em;padding-right:80px}' +
+      '.ccp-card__desc{font-size:12px;color:var(--text-muted);margin:0 0 14px;line-height:1.5}' +
       '.ccp-card__steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}' +
       '.ccp-card__steps li{font-size:10px;font-weight:600;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--text-muted)}' +
-      '.ccp-card__go{position:absolute;left:22px;bottom:20px;font-size:12px;font-weight:700;color:var(--ccp-gold);letter-spacing:.02em}' +
+      '.ccp-card__go{position:absolute;left:20px;bottom:18px;font-size:11px;font-weight:650;color:var(--ccp-gold);letter-spacing:.03em}' +
       '.ccp-engine{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;opacity:0;transition:opacity .35s ease}' +
       '.ccp-engine.is-open{display:flex;opacity:1}' +
       '.ccp-engine__frame{flex:1;min-height:0;width:100%;height:100%;border:0;background:var(--bg-primary);display:block}' +
@@ -16866,7 +16496,10 @@
   function statusBarHtml() {
     return (
       '<div class="ccp__status" id="ccp-status">' +
-      '<span>👨‍🍳 Solo anota lo que preparas <strong>antes</strong> del servicio (salsas, bases, despiece)</span></div>'
+      (cloudOk()
+        ? '<span>✓ Conectado — tus registros se guardan en la nube del negocio</span>'
+        : '<span>Modo sin conexión · Activa <strong>Cloud</strong> en Configuración para guardar en todos los equipos</span>') +
+      '</div>'
     );
   }
 
@@ -16876,17 +16509,18 @@
     } catch (_) {}
     return (
       '<p class="ccp__welcome" id="ccp-welcome">' +
-      '<strong>¿Primera vez en cocina?</strong> Toca una tarjeta (partir carnes, cocinar, salsas). Te guiamos paso a paso — no hay que memorizar nada. ' +
+      '<strong>¿Primera vez?</strong> No hace falta memorizar nada: elige una tarjeta abajo y te guiamos paso a paso con textos claros. ' +
       '<button type="button" style="margin-left:6px;background:none;border:none;color:var(--ccp-gold);cursor:pointer;font-weight:600;font-size:12px" id="ccp-welcome-dismiss">Entendido</button></p>'
     );
   }
 
   function kpiHtml() {
     return (
-      '<div class="ccp__kpis ccp__kpis--chef">' +
-      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Preps hoy</div><div class="ccp-kpi__val ccp-kpi__val--gold" id="ccp-kpi-hoy">—</div></div>' +
+      '<div class="ccp__kpis">' +
+      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Hoy registraste</div><div class="ccp-kpi__val ccp-kpi__val--gold" id="ccp-kpi-hoy">—</div></div>' +
       '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Kg este mes</div><div class="ccp-kpi__val" id="ccp-kpi-kg">—</div></div>' +
-      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Revisar diferencias</div><div class="ccp-kpi__val" id="ccp-kpi-alert">—</div></div>' +
+      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Revisar merma</div><div class="ccp-kpi__val" id="ccp-kpi-alert">—</div></div>' +
+      '<div class="ccp-kpi"><div class="ccp-kpi__lbl">Facturas pendientes</div><div class="ccp-kpi__val" id="ccp-kpi-pend">—</div></div>' +
       '</div>'
     );
   }
@@ -16896,7 +16530,7 @@
     var v = VIEWS[view] || VIEWS.form;
     return (
       '<div class="ccp__crumb">' +
-      '<button type="button" data-ccp-view="home">← Volver al menú</button>' +
+      '<button type="button" data-ccp-view="home">← Volver al inicio</button>' +
       ' · <span>' +
       esc(v.label) +
       '</span></div>'
@@ -16904,10 +16538,7 @@
   }
 
   function railHtml(active) {
-    return ['home', 'form', 'hist']
-      .filter(function (k) {
-        return VIEWS[k];
-      })
+    return Object.keys(VIEWS)
       .map(function (k) {
         var v = VIEWS[k];
         return (
@@ -16961,7 +16592,7 @@
         '<ul class="ccp-card__steps">' +
         steps +
         '</ul>' +
-        '<span class="ccp-card__go">Empezar →</span>' +
+        '<span class="ccp-card__go">Toca para empezar →</span>' +
         '</button>'
       );
     }).join('');
@@ -16997,22 +16628,10 @@
       } catch (_) {}
     }
 
-    if (view === 'form' && global.CrozzoProcesosSesion) {
-      setLoading(false);
-      showProcesosSesion(opts);
-      return;
-    }
-
-    if (view === 'hist' && global.CrozzoProcesosSesion && global.CrozzoProcesosSesion.renderHistorial) {
-      setLoading(false);
-      showProcesosHistorial();
-      return;
-    }
-
     if (cloudOk()) {
       setLoading(true, 'Preparando tu pantalla de cocina…');
       if (!hub.loadedQyc) {
-        showLocalFallback(opts);
+        showLocalFallback(hub.view === 'jefe' ? 'recepcion' : 'procesado');
       }
       ensureFrame(function () {
         var loc = document.getElementById('ccp-local-host');
@@ -17026,64 +16645,18 @@
       });
     } else {
       setLoading(false);
-      showLocalFallback(opts);
+      showLocalFallback(hub.view === 'jefe' ? 'recepcion' : 'procesado');
+      toast('Modo local seguro — datos en reservorio de este equipo', 'info');
     }
   }
 
-  function workflowHint(opts) {
-    if (opts && opts.hint) return opts.hint;
-    try {
-      return sessionStorage.getItem('qca_pro_workflow') || '';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  function showProcesosSesion(opts) {
-    opts = opts || {};
-    var loc = document.getElementById('ccp-local-host');
-    var eng = document.getElementById('ccp-engine');
-    var fr = document.getElementById('ccp-qyc-frame');
-    var Ses = global.CrozzoProcesosSesion;
-    if (!loc || !eng || !Ses) return;
-    eng.classList.add('is-open');
-    loc.style.display = 'block';
-    if (fr) fr.style.display = 'none';
-    var hint = workflowHint(opts);
-    if (Ses.resetForWorkflow) Ses.resetForWorkflow(hint);
-    loc.innerHTML = Ses.render({ workflow: hint });
-    Ses.init(loc, { workflow: hint });
-  }
-
-  function showProcesosHistorial() {
-    var loc = document.getElementById('ccp-local-host');
-    var eng = document.getElementById('ccp-engine');
-    var fr = document.getElementById('ccp-qyc-frame');
-    var Ses = global.CrozzoProcesosSesion;
-    if (!loc || !eng || !Ses || !Ses.renderHistorial) return;
-    eng.classList.add('is-open');
-    loc.style.display = 'block';
-    if (fr) fr.style.display = 'none';
-    loc.innerHTML = Ses.renderHistorial();
-    if (Ses.initHistorial) Ses.initHistorial(loc);
-  }
-
-  function showLocalFallback(opts) {
-    opts = opts || {};
+  function showLocalFallback(mod) {
+    mod = mod || (hub.view === 'jefe' ? 'recepcion' : 'procesado');
     var loc = document.getElementById('ccp-local-host');
     var eng = document.getElementById('ccp-engine');
     if (!loc || !eng) return;
     eng.classList.add('is-open');
     loc.style.display = 'block';
-    if (hub.view === 'hist') {
-      showProcesosHistorial();
-      return;
-    }
-    var mod = hub.view === 'jefe' ? 'recepcion' : 'procesado';
-    if (mod === 'procesado' && global.CrozzoProcesosSesion) {
-      showProcesosSesion(opts);
-      return;
-    }
     if (mod === 'recepcion' && global.CrozzoRecepcionFacturas && global.CrozzoRecepcionFacturas.render) {
       loc.innerHTML = global.CrozzoRecepcionFacturas.render();
       global.CrozzoRecepcionFacturas.init(loc);
@@ -17162,10 +16735,10 @@
     root.querySelectorAll('[data-ccp-wf]').forEach(function (card) {
       card.addEventListener('click', function () {
         var sub = card.getAttribute('data-ccp-sub') || 'form';
-        var hint = card.getAttribute('data-ccp-hint') || card.getAttribute('data-ccp-wf');
+        var hint = card.getAttribute('data-ccp-hint');
         var view = sub === 'jefe' ? 'jefe' : sub === 'hist' ? 'hist' : 'form';
         setView(view, { hint: hint });
-        if (hint) toast('Sigue los pasos en pantalla', 'success');
+        if (hint) toast('Te guiamos paso a paso — sigue los números en pantalla', 'success');
       });
     });
 
@@ -17173,7 +16746,7 @@
       reloadFrame();
       var st = document.getElementById('ccp-status');
       if (st) st.outerHTML = statusBarHtml();
-      toast('Listo — cocina sincronizada', 'success');
+      toast('Listo — cocina sincronizada con la nube', 'success');
     });
   }
 
@@ -17214,11 +16787,13 @@
           if (pe > 0 && Math.abs(d / pe) > 0.05) alert++;
         });
         var el = document.getElementById('ccp-kpi-hoy');
-        if (el) el.textContent = today === 0 ? '0' : today + ' prep' + (today > 1 ? 's' : '');
+        if (el) el.textContent = today === 0 ? '0' : today + ' ses.';
         el = document.getElementById('ccp-kpi-kg');
         if (el) el.textContent = kg.toFixed(1) + ' kg';
         el = document.getElementById('ccp-kpi-alert');
-        if (el) el.textContent = alert === 0 ? 'Todo bien' : alert + ' lote' + (alert > 1 ? 's' : '');
+        if (el) el.textContent = alert === 0 ? 'Ninguna' : alert + ' lote' + (alert > 1 ? 's' : '');
+        el = document.getElementById('ccp-kpi-pend');
+        if (el) el.textContent = pend === 0 ? 'Al día' : String(pend);
       });
     } catch (_) {}
   }
@@ -17233,9 +16808,9 @@
     return (
       '<header class="ccp__hero">' +
       '<div class="ccp__hero-inner">' +
-      (B ? B.brandHero() : '<div class="ccp__eyebrow">Cocina</div>') +
-      '<h1 class="ccp__title">¿Qué vas a preparar hoy?</h1>' +
-      '<p class="ccp__sub">Toca lo que estás haciendo. Solo anotas lo que se hace antes del servicio y queda guardado en bodega.</p>' +
+      (B ? B.brandHero() : '<div class="ccp__eyebrow">Origen bueno</div>') +
+      '<h1 class="ccp__title">¿Qué vas a hacer hoy?</h1>' +
+      '<p class="ccp__sub">Cada paso queda trazado: del proveedor al plato. Elige una tarjeta y te guiamos con claridad.</p>' +
       '</div></header>' +
       chain
     );
@@ -17255,7 +16830,7 @@
         (bona() ? bona().renderCcpWatermark() : '') +
         statusBarHtml() +
         '<div class="ccp__body">' +
-        '<nav class="ccp__rail" aria-label="Cocina">' +
+        '<nav class="ccp__rail" aria-label="Producción">' +
         railHtml(hub.view) +
         '</nav>' +
         '<div id="ccp-crumb">' +
@@ -17266,12 +16841,12 @@
         heroHtml() +
         welcomeHtml() +
         kpiHtml() +
-        '<p class="ccp-home__lead">Los platos que se arman al pedir (huevos, pastas al momento, etc.) <strong>no</strong> se anotan aquí — el sistema los descuenta solos al vender.</p>' +
+        '<p class="ccp-home__lead">Origen bueno: registras quién, cuándo y cuánto en cada etapa. Toca la tarjeta de tu tarea.</p>' +
         '<div class="ccp-wf">' +
         workflowCardsHtml() +
         '</div></div>' +
         '<div class="ccp-engine" id="ccp-engine">' +
-        '<div class="ccp-loader" id="ccp-loader"><div class="ccp-loader__ring"></div><div class="ccp-loader__txt">Abriendo formulario…</div></div>' +
+        '<div class="ccp-loader" id="ccp-loader"><div class="ccp-loader__ring"></div><div class="ccp-loader__txt">Abriendo guía de cocina…</div></div>' +
         '<iframe id="ccp-qyc-frame" class="ccp-engine__frame" title="Procesado cocina"></iframe>' +
         '<div class="ccp-local" id="ccp-local-host"></div></div></div></div></section>'
       );
@@ -17327,2776 +16902,2741 @@
     var lh = document.getElementById('ccp-local-host');
     if (lh) lh.innerHTML = '';
   };
-})(typeof window !== 'undefined' ? window : globalThis);
 
+  // ============================================================================
+  // FLUJO AUTO-DETECCIÓN DE FACTURAS - NUEVO DESDE CERO
+  // ============================================================================
+  // Este flujo permite:
+  // 1. Subir facturas en modo auto
+  // 2. Analizar automáticamente cada factura (NIT, razón social, totales)
+  // 3. Sugerir proveedores existentes o crear nuevos
+  // 4. Continuar al flujo normal de materias primas
+  // ============================================================================
 
-
-/* --- CrozzoProcesosSesion.js --- */
-
-/**
- * Crozzo POS — Nueva sesión de producción enlazada a recetas de Costos.
- * Porciones · ajuste proporcional · varias producciones · responsables.
- */
-(function (global) {
-  'use strict';
-
-  var state = {
-    workflow: '',
-    host: null,
-    responsables: [],
-    batch: [],
-    edit: null,
-  };
-
-  var WF = {
-    despiece: {
-      title: 'Partir carnes',
-      icon: 'beef',
-      tone: 'amber',
-      sub: 'Pesa la pieza, anota qué sacaste y cuánto pesó cada cosa.',
-      pickLabel: '¿Qué carne partiste?',
-      steps: ['Pesar pieza', 'Anotar cada corte', 'Guardar'],
-    },
-    coccion: {
-      title: 'Cocinar y porcionar',
-      icon: 'flame',
-      tone: 'rose',
-      sub: 'Anota peso crudo, peso cocido y cuánto empaquetas para bodega.',
-      pickLabel: '¿Qué estás cocinando?',
-      steps: ['Pesos', 'Porciones', 'Guardar'],
-    },
-    elaboracion: {
-      title: 'Salsas y bases',
-      icon: 'soup',
-      tone: 'violet',
-      sub: 'Suma ingredientes y anota cuánto salió la salsa, caldo o base.',
-      pickLabel: '¿Qué salsa o base preparaste?',
-      steps: ['Ingredientes', 'Peso final', 'Guardar'],
-    },
-  };
-
-  function esc(s) {
-    if (typeof escUserAttr === 'function') return escUserAttr(s);
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+  // Helper para acceder al módulo FE (duplicado aquí para scope local)
+  function feDian() {
+    return global.CrozzoRecepcionFeDian;
   }
 
-  function toast(m, t) {
-    if (typeof showToast === 'function') showToast(m, t || 'info');
+  // Helper para formatear números (duplicado aquí para scope local)
+  function formatNumber(n) {
+    if (typeof n !== 'number') return n;
+    return n.toLocaleString('es-CO');
   }
 
-  function fmtMoney(n) {
-    var v = Math.round(Number(n) || 0);
+  var _autoDetectState = {
+    activo: false,
+    facturas: [],
+    analizando: false,
+    resultados: [],
+    proveedoresSugeridos: []
+  };
+  var _autoDetectNavGuardOn = false;
+
+  function cxfLive() {
+    return global.__cxfRecepcionModuleLive || null;
+  }
+
+  function autoDetectProveedoresList() {
     try {
-      if (typeof global.crozzoFormatCop === 'function') return global.crozzoFormatCop(v);
-    } catch (_) {}
-    return '$' + v.toLocaleString('es-CO');
-  }
-
-  function R() {
-    return global.CrozzoReservorio;
-  }
-
-  function C() {
-    return global.CrozzoCatalogoMp;
-  }
-
-  function E() {
-    return global.CrozzoCostosEngine;
-  }
-
-  function num(v, d) {
-    var n = Number(v);
-    return isFinite(n) ? n : d != null ? d : 0;
-  }
-
-  function injectStyles() {
-    var css =
-      '.cps{max-width:960px;margin:0 auto;color:var(--text-primary)}' +
-      '.cps__head{margin-bottom:16px}' +
-      '.cps__badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 12px;border-radius:999px;border:1px solid var(--accent-12);color:var(--accent);background:var(--accent-08);margin-bottom:10px}' +
-      '.cps__title{margin:0 0 6px;font-size:1.35rem;font-weight:650;letter-spacing:-.03em;color:var(--text-primary)}' +
-      '.cps__sub{margin:0;font-size:14px;color:var(--text-muted);line-height:1.55}' +
-      '.cps .form-label{font-size:13px;font-weight:600}' +
-      '.cps .form-input,.cps .form-select{min-height:44px;font-size:15px}' +
-      '.cps .btn{min-height:44px;font-size:14px}' +
-      '.cps .btn-sm{min-height:36px}' +
-      '.cps__head-actions{margin-top:12px}' +
-      '.cps .card h3,.cps .card .card-title{margin:0 0 12px;font-size:13px;font-weight:650;color:var(--text-primary)}' +
-      '.cps-total{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:var(--radius-md,12px);background:var(--accent-08);border:1px solid var(--accent-12);margin-top:12px}' +
-      '.cps-total__lbl{font-size:12px;color:var(--text-muted)}' +
-      '.cps-total__val{font-size:1.15rem;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}' +
-      '.cps-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;align-items:center}' +
-      '.cps-hint{font-size:12px;color:var(--text-muted);margin:8px 0 0;line-height:1.5}' +
-      '.cps-empty{font-size:13px;color:var(--text-muted);padding:12px 0}' +
-      '.cps-link{background:none;border:none;padding:0;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:2px}' +
-      '.cps-tag{display:inline-block;font-size:10px;padding:3px 8px;border-radius:999px;background:var(--bg-tertiary);color:var(--text-muted);margin-left:6px;vertical-align:middle}' +
-      '.cps-tag--ok{background:var(--success-bg);color:var(--success)}' +
-      '.cps-tag--warn{background:var(--warning-bg);color:var(--warning)}' +
-      '.cps-tag--lock{background:var(--accent-08);color:var(--accent);font-size:9px}' +
-      '.cps .table td.num,.cps .table th.num{text-align:right;font-variant-numeric:tabular-nums}' +
-      '.cps .table input[type=number]{max-width:96px;text-align:right}' +
-      '.cps-porc-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}' +
-      '.cps-porc-btns .btn{padding:4px 12px;font-size:11px;min-height:28px}' +
-      '.cps-porc-btns .btn.is-active{background:var(--accent-08);border-color:var(--accent);color:var(--accent)}' +
-      '.cps-resp-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}' +
-      '.cps-resp-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--bg-card);font-size:12px}' +
-      '.cps-resp-chip.is-primary{border-color:var(--accent-12);background:var(--accent-08)}' +
-      '.cps-resp-chip button{background:none;border:none;padding:0;cursor:pointer;color:var(--text-muted);font-size:14px;line-height:1}' +
-      '.cps-batch-list{list-style:none;margin:0;padding:0}' +
-      '.cps-batch-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px}' +
-      '.cps-batch-item:last-child{border-bottom:none}' +
-      '.cps-line-locked{opacity:.92}' +
-      '.cps-line-unlock{font-size:10px;padding:2px 6px;margin-left:4px}' +
-      '.cps-modo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}' +
-      '.cps-modo-opt{display:block;padding:12px 14px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:var(--bg-card);transition:border-color .2s,background .2s;position:relative}' +
-      '.cps-modo-opt.is-active{border-color:var(--accent);background:var(--accent-08);box-shadow:inset 0 0 0 1px var(--accent-12)}' +
-      '.cps-modo-opt input{position:absolute;opacity:0;width:0;height:0}' +
-      '.cps-modo-opt__title{display:block;font-size:13px;font-weight:650;margin-bottom:4px;color:var(--text-primary)}' +
-      '.cps-modo-opt__desc{display:block;font-size:11px;color:var(--text-muted);line-height:1.45}' +
-      '.cps-tipo-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-tertiary);font-size:12px;color:var(--text-muted);line-height:1.45}' +
-      '.cps-vender-check{display:inline-flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-size:12px;color:var(--text-primary);font-weight:600}' +
-      '.cps-vender-check input{margin:0;accent-color:var(--accent)}' +
-      '.cps-merma{margin:12px 0 0;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:var(--bg-tertiary)}' +
-      '.cps-merma__title{font-size:12px;font-weight:650;margin:0 0 8px;color:var(--text-primary)}' +
-      '.cps-merma__esp{font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.45}' +
-      '.cps-merma-live{display:flex;flex-wrap:wrap;gap:10px 16px;font-size:12px;margin-top:10px}' +
-      '.cps-merma-live span{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--bg-card);border:1px solid var(--border)}' +
-      '.cps-merma-live .is-warn{border-color:var(--warning);color:var(--warning);background:var(--warning-bg)}' +
-      '.cps-despiece-table input[type=text]{min-width:120px}' +
-      '.cps-despiece-resumen{margin:14px 0 0;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--bg-card)}' +
-      '.cps-despiece-resumen--ok{border-color:var(--success);background:var(--success-bg)}' +
-      '.cps-despiece-resumen--warn{border-color:var(--warning);background:var(--warning-bg)}' +
-      '.cps-despiece-resumen__stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px 16px;margin-bottom:10px}' +
-      '.cps-despiece-resumen__stats .lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:2px}' +
-      '.cps-despiece-resumen__stats .val{display:block;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-primary)}' +
-      '.cps-despiece-resumen__stats .val.is-warn{color:var(--warning)}' +
-      '.cps-despiece-resumen__cortes{margin:0 0 10px;padding-left:18px;font-size:12px;line-height:1.55;color:var(--text-muted)}' +
-      '.cps-despiece-verdict{margin:0;font-size:12px;font-weight:600;line-height:1.45}' +
-      '.cps-despiece-verdict.is-ok{color:var(--success)}' +
-      '.cps-despiece-verdict.is-warn{color:var(--warning)}' +
-      '.cps-cortes-save-hint{font-size:11px;color:var(--success);font-weight:600;opacity:0;transition:opacity .2s}' +
-      '.cps-cortes-save-hint.is-visible{opacity:1}' +
-      '.cps-despiece-step{margin:0 0 20px;padding:16px;border-radius:14px;border:1px solid var(--border);background:var(--bg-card)}' +
-      '.cps-despiece-step__badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:var(--accent-08);color:var(--accent);margin-bottom:10px}' +
-      '.cps-despiece-step__title{margin:0 0 4px;font-size:16px;font-weight:650;color:var(--text-primary)}' +
-      '.cps-despiece-step__help{margin:0 0 12px;font-size:13px;color:var(--text-muted);line-height:1.5}' +
-      '.cps-despiece-step .form-input{font-size:18px;font-weight:600;text-align:center;max-width:200px}' +
-      '.cps-corte-cards{display:flex;flex-direction:column;gap:12px;margin:12px 0}' +
-      '.cps-corte-card{padding:14px 16px;border-radius:14px;border:1px solid var(--border);background:var(--bg-tertiary)}' +
-      '.cps-corte-card .form-label{display:block;font-size:13px;font-weight:600;margin:0 0 6px;color:var(--text-primary)}' +
-      '.cps-corte-card .form-label:not(:first-of-type){margin-top:12px}' +
-      '.cps-corte-card .form-input{width:100%;min-height:48px;font-size:17px}' +
-      '.cps-corte-card__grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-top:12px}' +
-      '@media(max-width:520px){.cps-corte-card__grid{grid-template-columns:1fr}}' +
-      '.cps-corte-total-box{margin:12px 0 0;padding:12px 14px;border-radius:12px;border:2px solid var(--accent);background:var(--accent-08);text-align:center}' +
-      '.cps-corte-total-box__lbl{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:4px}' +
-      '.cps-corte-total-box__val{display:block;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1.3}' +
-      '.cps-corte-total-box.is-empty{border-color:var(--border);background:var(--bg-card)}' +
-      '.cps-corte-total-box.is-empty .cps-corte-total-box__val{font-size:14px;font-weight:500;color:var(--text-muted)}' +
-      '.cps-corte-balanza{margin-top:12px;padding:12px;border-radius:12px;border:2px solid var(--warning);background:var(--warning-bg)}' +
-      '.cps-corte-balanza .form-label{font-size:13px;font-weight:700;color:var(--text-primary)}' +
-      '.cps-corte-balanza .form-label .cps-req{color:var(--warning);font-weight:800}' +
-      '.cps-corte-balanza .form-input{font-size:20px;font-weight:800;min-height:52px;border-color:var(--warning)}' +
-      '.cps-corte-balanza.is-done{border-color:var(--success);background:var(--success-bg)}' +
-      '.cps-corte-balanza.is-done .form-input{border-color:var(--success)}' +
-      '.cps-corte-diff{margin:10px 0 0;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.55;background:var(--bg-card);border:1px solid var(--border)}' +
-      '.cps-corte-diff.is-ok{border-color:var(--success);background:var(--success-bg);color:var(--success)}' +
-      '.cps-corte-diff.is-warn{border-color:var(--warning);background:var(--warning-bg);color:var(--warning)}' +
-      '.cps-corte-diff.is-bad{border-color:var(--danger,#e5484d);background:rgba(229,72,77,.08);color:var(--danger,#e5484d)}' +
-      '.cps-corte-diff strong{font-weight:800}' +
-      '.cps-cortes-barra{margin:14px 0 0;padding:12px 14px;border-radius:12px;background:var(--bg-tertiary);border:1px solid var(--border);font-size:14px;line-height:1.55;color:var(--text-primary)}' +
-      '.cps-cortes-barra strong{font-weight:750;color:var(--accent)}' +
-      '.cps-cortes-barra.is-ok{border-color:var(--success);background:var(--success-bg)}' +
-      '.cps-corte-porciones{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:var(--accent-08);font-size:14px;font-weight:650;color:var(--accent);min-height:20px}' +
-      '.cps-corte-porciones.is-muted{font-weight:500;color:var(--text-muted);background:var(--bg-card)}' +
-      '.cps-corte-porciones.is-ready{color:var(--success);background:var(--success-bg)}' +
-      '.cps-corte-card__foot{display:flex;justify-content:flex-end;margin-top:12px}' +
-      '.cps-corte-card__foot .btn{font-size:12px;color:var(--text-muted);border-color:transparent;background:transparent}' +
-      '.cps-despiece-story{margin:0 0 12px;font-size:15px;line-height:1.65;color:var(--text-primary)}' +
-      '.cps-despiece-story strong{font-weight:700;color:var(--accent)}' +
-      '.cps-despiece-list{margin:0 0 12px;padding:0;list-style:none;font-size:14px;line-height:1.7}' +
-      '.cps-despiece-list li{padding:8px 12px;border-radius:10px;background:var(--bg-tertiary);margin-bottom:6px;display:flex;justify-content:space-between;gap:10px}' +
-      '.cps-despiece-list li span:last-child{font-weight:700;font-variant-numeric:tabular-nums}' +
-      '.cps-coach{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg-tertiary)}' +
-      '.cps-coach__step{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--bg-card);border:1px solid var(--border);font-size:12px;color:var(--text-muted)}' +
-      '.cps-coach__step span.num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-08);color:var(--accent);font-size:11px;font-weight:700}' +
-      '@media(max-width:640px){.cps-modo-grid{grid-template-columns:1fr}}';
-    var el = document.getElementById('crozzo-procesos-sesion-css');
-    if (!el) {
-      el = document.createElement('style');
-      el.id = 'crozzo-procesos-sesion-css';
-      document.head.appendChild(el);
-    }
-    el.textContent = css;
-  }
-
-  function wfMeta(wf) {
-    return (
-      WF[wf] || {
-        title: 'Anotar prep',
-        icon: 'utensils',
-        tone: 'violet',
-        sub: 'Elige qué preparaste y completa pesos o ingredientes.',
-        pickLabel: '¿Qué preparaste?',
-        steps: ['Elegir', 'Completar', 'Guardar'],
+      var live = cxfLive();
+      if (live && typeof live.proveedoresList === 'function') {
+        return live.proveedoresList() || [];
       }
-    );
-  }
-
-  function coachHtml(wf) {
-    var meta = wfMeta(wf);
-    if (!wf || !meta.steps || !meta.steps.length) return '';
-    var steps = meta.steps
-      .map(function (s, i) {
-        return (
-          '<span class="cps-coach__step"><span class="num">' +
-          (i + 1) +
-          '</span>' +
-          esc(s) +
-          '</span>'
-        );
-      })
-      .join('');
-    return '<div class="cps-coach" id="cps-coach">' + steps + '</div>';
-  }
-
-  function resetForWorkflow(wf) {
-    state.workflow = wf || '';
-    state.batch = [];
-    state.edit = null;
-    state.host = null;
-  }
-
-  function workflowFootnoteHtml(wf) {
-    if (wf === 'despiece') {
-      return '<p class="cps-hint">Elige la carne que vas a partir. Solo aparecen carnes y piezas enteras.</p>';
-    }
-    if (wf === 'coccion') {
-      return '<p class="cps-hint">Pesa crudo, cocido y cuánto empaquetas para reservar.</p>';
-    }
-    if (wf === 'elaboracion') {
-      return (
-        '<p class="cps-hint">Salsas y bases con receta.' +
-        (canVerValoresProcesos()
-          ? ' <button type="button" class="cps-link" id="cps-goto-costos">¿Falta algo? Configurar receta</button>'
-          : '') +
-        '</p>'
-      );
-    }
-    return (
-      '<p class="cps-hint">Solo lo que guardas en bodega.' +
-      (canVerValoresProcesos()
-        ? ' <button type="button" class="cps-link" id="cps-goto-costos">¿Falta algo en la lista? Configurar receta</button>'
-        : '') +
-      '</p>'
-    );
-  }
-
-  function isMpElaborado(mp) {
-    if (!mp) return false;
-    var catName = String(mp.categoria || '').toUpperCase();
-    return mp.esElaborado || catName === 'ELABORADOS' || catName.indexOf('ELABOR') >= 0;
-  }
-
-  function listMpCoccion() {
-    var cat = C();
-    if (!cat || !cat.list) return [];
-    var out = [];
-    cat.list().forEach(function (mp) {
-      if (!mp || !mp.nombre) return;
-      if (cat.mpAptoCoccion ? cat.mpAptoCoccion(mp) : !isMpElaborado(mp)) out.push(mp);
-    });
-    out.sort(function (a, b) {
-      return String(a.nombre).localeCompare(String(b.nombre), 'es');
-    });
-    return out;
-  }
-
-  function getMe() {
-    return typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-  }
-
-  function listStaffActivos() {
-    if (typeof getUsuariosConfig !== 'function') return [];
-    return (getUsuariosConfig().staff || []).filter(function (u) {
-      return u && u.activo !== false;
-    });
-  }
-
-  function initResponsables() {
-    var me = getMe();
-    if (!me) {
-      return [{ id: 'OPERADOR', nombre: 'Operador', rol: '', principal: true }];
-    }
-    return [
-      {
-        id: me.id,
-        nombre: String(me.nombre || me.id).trim(),
-        rol: me.rol || '',
-        principal: true,
-      },
-    ];
-  }
-
-  function responsableLabel(r) {
-    if (!r) return '';
-    var rol = String(r.rol || '').toLowerCase();
-    var pref =
-      rol.indexOf('coc') >= 0
-        ? 'Cocina'
-        : rol.indexOf('mes') >= 0
-          ? 'Mesero/a'
-          : rol.indexOf('caj') >= 0
-            ? 'Caja'
-            : rol.indexOf('admin') >= 0
-              ? 'Admin'
-              : 'Equipo';
-    return pref + ' ' + String(r.nombre || r.id);
-  }
-
-  function responsablesPayload() {
-    return (state.responsables || []).map(function (r) {
-      return {
-        id: r.id,
-        nombre: r.nombre,
-        rol: r.rol || '',
-        principal: !!r.principal,
-      };
-    });
-  }
-
-  function primaryResponsable() {
-    var list = state.responsables || [];
-    return list.filter(function (r) {
-      return r.principal;
-    })[0] || list[0] || null;
-  }
-
-  function loadBaseLineas(slug) {
-    var cat = C();
-    var eng = E();
-    if (!cat || !eng || !slug) return [];
-    var pack =
-      global.CrozzoCostosRecetaLineasCalc &&
-      typeof global.CrozzoCostosRecetaLineasCalc === 'function'
-        ? global.CrozzoCostosRecetaLineasCalc(slug, null, { readOnly: true })
-        : null;
-    if (!pack || !pack.lineas || !pack.lineas.length) {
-      var rec = cat.getRecetaPlato(slug);
-      if (!rec || !rec.lineas.length) return [];
-      var store = cat.buildPreciosStore();
-      var resolve = global.CrozzoCostosResolveCostoUnitarioLinea;
-      pack = {
-        lineas: rec.lineas.map(function (ln) {
-          return {
-            ingrediente: ln.ingrediente,
-            unidad: ln.unidad || ln.und || 'GR',
-            cantidad: ln.cantidad,
-            mpId: ln.mpId,
-            costoXUnidad: resolve ? resolve(ln, eng, cat, store) : 0,
-          };
-        }),
-        opts: rec.opts || {},
-      };
-    }
-    return pack.lineas.map(function (ln) {
-      return Object.assign({}, ln, { cantidadBase: num(ln.cantidad, 0) });
-    });
-  }
-
-  function inferModoForSlug(slug) {
-    var cat = C();
-    if (!cat || !slug) return 'prep_anticipado';
-    var menu = cat.getMenuPlato(slug);
-    if (cat.inferModoProcesoFromMenu) return cat.inferModoProcesoFromMenu(menu);
-    return 'prep_anticipado';
-  }
-
-  function modoProcesoLabel(m) {
-    return m === 'bajo_demanda' ? 'Al momento' : 'Prep anticipado';
-  }
-
-  function modoProcesoHint(m) {
-    if (m === 'bajo_demanda') {
-      return 'Consume MP y elaborados ya guardados (ej. salsa prep). No suma stock — va directo al plato o vaso.';
-    }
-    return 'Descuenta MP cruda y suma el resultado en inventario ELABORADOS para usar después.';
-  }
-
-  function readModoFromHost(host) {
-    var r = host && host.querySelector('input[name="cps-modo"]:checked');
-    return r ? r.value : null;
-  }
-
-  function prepOnlyBannerHtml() {
-    return (
-      '<div class="cps-tipo-banner" id="cps-tipo-banner">' +
-      '<span class="cps-tag">Para bodega</span>' +
-      '<span>Lo que preparas hoy y guardas para el servicio. ' +
-      'Los platos al pedido (huevos, pastas al momento…) se descuentan solos en caja — no los anotes aquí.</span></div>'
-    );
-  }
-
-  function syncVenderCheckFromModo(host, modo) {
-    var chk = host.querySelector('#cps-vender-al-momento');
-    if (!chk || chk._cpsSyncing) return;
-    chk._cpsSyncing = true;
-    chk.checked = modo === 'bajo_demanda';
-    chk._cpsSyncing = false;
-  }
-
-  function applyModoToHost(host, modo) {
-    modo = modo || 'prep_anticipado';
-    if (state.edit) state.edit.modoProceso = modo;
-    host.querySelectorAll('input[name="cps-modo"]').forEach(function (radio) {
-      radio.checked = radio.value === modo;
-    });
-    host.querySelectorAll('.cps-modo-opt').forEach(function (lbl) {
-      var radio = lbl.querySelector('input[name="cps-modo"]');
-      lbl.classList.toggle('is-active', !!(radio && radio.checked));
-    });
-    var hint = host.querySelector('#cps-modo-hint');
-    if (hint) hint.textContent = modoProcesoHint(modo);
-    if (state.edit && state.edit.tipoReceta === 'base') syncVenderCheckFromModo(host, modo);
-  }
-
-  function persistVendeAlCliente(slug, checked) {
-    var cat = C();
-    if (!cat || !slug || !cat.updateMenuPlato) return;
-    cat.updateMenuPlato(slug, { vendeAlCliente: !!checked });
-    if (state.edit && state.edit.slug === slug) state.edit.vendeAlCliente = !!checked;
-  }
-
-  function calcMermasLive(ent, coc, util) {
-    var cat = C();
-    if (cat && cat.calcMermasProceso) return cat.calcMermasProceso(ent, coc, util);
-    return {
-      mermaCoccionPct: null,
-      mermaDespostePct: null,
-      mermaCoccionKg: 0,
-      mermaDesposteKg: 0,
-      mermaTotalKg: 0,
-    };
-  }
-
-  var DESPIECE_TPL_KEY = 'crozzo_despiece_tpl_';
-  var persistCortesTimer = null;
-
-  function despieceCorteId() {
-    return 'corte_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
-  }
-
-  function loadCortesTemplateLocal(mpId) {
-    try {
-      var raw = localStorage.getItem(DESPIECE_TPL_KEY + mpId);
-      if (raw) {
-        var arr = JSON.parse(raw);
-        if (Array.isArray(arr) && arr.length) return arr;
+      if (global.CrozzoReservorio) {
+        var res = global.CrozzoReservorio;
+        if (typeof res.syncProveedoresBidirectional === 'function') {
+          var synced = res.syncProveedoresBidirectional();
+          if (synced && synced.length) return synced;
+        }
+        if (typeof res.listProveedores === 'function') return res.listProveedores() || [];
       }
     } catch (_) {}
+    if (global.proveedores && Array.isArray(global.proveedores)) return global.proveedores;
     return [];
   }
 
-  function saveCortesTemplateLocal(mpId, cortes) {
-    if (!mpId || !cortes) return;
-    try {
-      localStorage.setItem(
-        DESPIECE_TPL_KEY + mpId,
-        JSON.stringify(
-          (cortes || []).map(function (c) {
-            return {
-              id: c.id,
-              nombre: String(c.nombre || '').trim(),
-              pctRef: c.pctRef !== '' && c.pctRef != null ? num(c.pctRef) : null,
-              grPorPorcion:
-                c.grPorPorcion !== '' && c.grPorPorcion != null && num(c.grPorPorcion) > 0
-                  ? num(c.grPorPorcion)
-                  : null,
-            };
-          })
-        )
-      );
-    } catch (_) {}
-  }
-
-  function loadCortesTemplate(mpId) {
-    var cat = C();
-    var mp = cat && cat.get ? cat.get(mpId) : null;
-    var fromCat = mp && Array.isArray(mp.cortesDespiece) && mp.cortesDespiece.length ? mp.cortesDespiece : null;
-    if (!fromCat || !fromCat.length) {
-      fromCat = loadCortesTemplateLocal(mpId);
-      if (fromCat.length && cat && cat.saveCortesDespiece) {
-        cat.saveCortesDespiece(mpId, fromCat);
-      }
-    }
-    if (!fromCat || !fromCat.length) {
-      return [{ id: despieceCorteId(), nombre: '', pctRef: '', grPorPorcion: '', cantPorciones: '', kgReal: 0 }];
-    }
-    return fromCat.map(function (c) {
-      return {
-        id: c.id || despieceCorteId(),
-        nombre: c.nombre || '',
-        pctRef: c.pctRef != null && c.pctRef !== '' ? num(c.pctRef) : '',
-        grPorPorcion: c.grPorPorcion > 0 ? num(c.grPorPorcion) : '',
-        cantPorciones: '',
-        kgReal: 0,
-        grReal: 0,
-      };
-    });
-  }
-
-  function persistCortesDespiece(host, mpId, cortes, opts) {
-    opts = opts || {};
-    if (!mpId) return;
-    cortes = cortes || [];
-    var cat = C();
-    var payload = cat && cat.normalizeCortesDespiece ? cat.normalizeCortesDespiece(cortes) : cortes;
-    if (cat && cat.saveCortesDespiece) {
-      cat.saveCortesDespiece(mpId, cortes);
-    }
-    saveCortesTemplateLocal(mpId, cortes);
-    if (opts.toastDelete) toast('Listo, quitamos ese corte', 'info');
-    else if (opts.silent !== true && payload.length) showCortesSavedHint(host);
-  }
-
-  function showCortesSavedHint(host) {
-    if (!host) return;
-    var el = host.querySelector('#cps-cortes-save-hint');
-    if (!el) return;
-    el.textContent = '✓ Guardado';
-    el.classList.add('is-visible');
-    clearTimeout(el._hideT);
-    el._hideT = setTimeout(function () {
-      el.classList.remove('is-visible');
-    }, 1800);
-  }
-
-  function schedulePersistCortes(host, mpId, cortes) {
-    clearTimeout(persistCortesTimer);
-    persistCortesTimer = setTimeout(function () {
-      persistCortesDespiece(host, mpId, cortes, { silent: false });
-    }, 400);
-  }
-
-  function readCortesFromHost(host, edit) {
-    if (!edit || !edit.cortesDespiece) return [];
-    return edit.cortesDespiece.map(function (c) {
-      var row = host.querySelector('[data-corte-id="' + c.id + '"]');
-      if (!row) return c;
-      var nom = (row.querySelector('.cps-corte-nom') || {}).value || '';
-      var pctInp = row.querySelector('.cps-corte-pct');
-      var pctRaw = pctInp ? pctInp.value : null;
-      var pct =
-        pctRaw === '' || pctRaw == null
-          ? c.pctRef !== '' && c.pctRef != null
-            ? num(c.pctRef)
-            : ''
-          : num(pctRaw);
-      var undRaw = (row.querySelector('.cps-corte-und') || {}).value;
-      var und =
-        undRaw === '' || undRaw == null
-          ? c.cantPorciones !== '' && c.cantPorciones != null
-            ? num(c.cantPorciones)
-            : ''
-          : num(undRaw);
-      var grBalanza = Math.round(num((row.querySelector('.cps-corte-gr') || {}).value, 0));
-      var grPorRaw = (row.querySelector('.cps-corte-gr-porcion') || {}).value;
-      var grPor =
-        grPorRaw === '' || grPorRaw == null
-          ? c.grPorPorcion !== '' && c.grPorPorcion != null
-            ? num(c.grPorPorcion)
-            : ''
-          : num(grPorRaw);
-      var resolved = resolveCortePeso({
-        cantPorciones: und,
-        grPorPorcion: grPor,
-        grBalanza: grBalanza,
-      });
-      return {
-        id: c.id,
-        nombre: nom.trim(),
-        pctRef: pct,
-        cantPorciones: und,
-        grPorPorcion: grPor,
-        grBalanza: grBalanza,
-        grReal: resolved.grReal,
-        kgReal: resolved.kgReal,
-      };
-    });
-  }
-
-  /** Tolerancia por corte: balanza vs porciones × g (lee tolerancia admin). */
-  function corteToleranciaGr(esperadoGr) {
-    esperadoGr = Math.round(num(esperadoGr));
-    var pctTol = 0.03;
-    var cat = C();
-    if (cat && cat.getPerdidasProcesoRef) {
-      pctTol = num(cat.getPerdidasProcesoRef().toleranciaPct, 3) / 100;
-    }
-    if (esperadoGr <= 0) return 30;
-    return Math.max(30, Math.round(esperadoGr * pctTol));
-  }
-
-  /** Diferencia grave — no deja guardar sin corregir. */
-  function corteDeltaGraveGr(esperadoGr) {
-    esperadoGr = Math.round(num(esperadoGr));
-    if (esperadoGr <= 0) return 50;
-    return Math.max(50, Math.round(esperadoGr * 0.1));
-  }
-
-  function calcPorcionesCorte(grTotal, grPorPorcion, cantUnd) {
-    grTotal = num(grTotal);
-    grPorPorcion = num(grPorPorcion);
-    cantUnd = num(cantUnd);
-    if (cantUnd > 0 && grPorPorcion > 0) {
-      var calcGr = cantUnd * grPorPorcion;
-      var grEfectivo = grTotal > 0 ? grTotal : calcGr;
-      var restoUnd = grEfectivo > 0 ? Math.round(grEfectivo - cantUnd * grPorPorcion) : 0;
-      return { porciones: cantUnd, restoGr: restoUnd > 0 ? restoUnd : 0, grCalc: calcGr };
-    }
-    if (grTotal <= 0 || grPorPorcion <= 0) return { porciones: null, restoGr: 0, grCalc: 0 };
-    var porciones = Math.floor(grTotal / grPorPorcion);
-    var restoGr = Math.round(grTotal - porciones * grPorPorcion);
-    return { porciones: porciones, restoGr: restoGr, grCalc: porciones * grPorPorcion };
-  }
-
-  function resolveCortePeso(c) {
-    c = c || {};
-    var und = c.cantPorciones === '' || c.cantPorciones == null ? 0 : num(c.cantPorciones);
-    var grPor = c.grPorPorcion === '' || c.grPorPorcion == null ? 0 : num(c.grPorPorcion);
-    var grBalanza =
-      c.grBalanza != null && c.grBalanza !== ''
-        ? Math.round(num(c.grBalanza))
-        : num(c.grReal) > 0
-          ? Math.round(num(c.grReal))
-          : num(c.kgReal) > 0
-            ? Math.round(num(c.kgReal) * 1000)
-            : 0;
-    var grCalc = und > 0 && grPor > 0 ? und * grPor : 0;
-    var grReal = grBalanza;
-    var deltaGr = grBalanza > 0 && grCalc > 0 ? grBalanza - grCalc : null;
-    var tol = corteToleranciaGr(grCalc);
-    var graveLim = corteDeltaGraveGr(grCalc);
-    var deltaOk = deltaGr != null && Math.abs(deltaGr) <= tol;
-    var deltaGrave = deltaGr != null && Math.abs(deltaGr) > graveLim;
-    var porc = calcPorcionesCorte(grBalanza, grPor, und);
-    var restoGr = und > 0 && grPor > 0 && grBalanza > 0 ? Math.max(0, Math.round(grBalanza - und * grPor)) : porc.restoGr;
-    return {
-      cantPorciones: und > 0 ? und : porc.porciones,
-      grPorPorcion: grPor > 0 ? grPor : null,
-      grBalanza: grBalanza,
-      grCalc: grCalc,
-      grReal: grReal,
-      kgReal: grReal > 0 ? grReal / 1000 : 0,
-      porciones: und > 0 ? und : porc.porciones,
-      restoGr: restoGr,
-      deltaGr: deltaGr,
-      deltaOk: deltaOk,
-      deltaGrave: deltaGrave,
-      tieneBalanza: grBalanza > 0,
-      tienePorciones: und > 0 && grPor > 0,
-    };
-  }
-
-  function fmtCorteDiffHtml(resolved) {
-    resolved = resolved || {};
-    var und = num(resolved.cantPorciones || resolved.porciones);
-    var grPor = num(resolved.grPorPorcion);
-    var grCalc = num(resolved.grCalc);
-    var grBalanza = num(resolved.grBalanza);
-    if (!(grCalc > 0) && !(grBalanza > 0)) return '';
+  function autoDetectCrozzoArgs() {
     var parts = [];
-    if (grCalc > 0) {
-      parts.push(
-        'Por porciones: <strong>' +
-          und.toLocaleString('es-CO') +
-          ' × ' +
-          grPor.toLocaleString('es-CO') +
-          ' g = ' +
-          fmtPesoGr(grCalc) +
-          '</strong>'
-      );
+    for (var i = 0; i < arguments.length; i++) {
+      parts.push(JSON.stringify(arguments[i] == null ? '' : String(arguments[i])));
     }
-    if (grBalanza > 0) {
-      parts.push('Balanza: <strong>' + fmtPesoGr(grBalanza) + '</strong>');
-    } else if (grCalc > 0) {
-      return parts.join(' · ') + ' — <strong>falta pesar en balanza</strong>';
-    }
-    if (grCalc > 0 && grBalanza > 0 && resolved.deltaGr != null) {
-      var d = Math.round(resolved.deltaGr);
-      if (d === 0) {
-        parts.push('Cuadra perfecto ✓');
-      } else {
-        var sign = d > 0 ? '+' : '';
-        parts.push('Diferencia: <strong>' + sign + d + ' g</strong>');
-      }
-    }
-    return parts.join(' · ');
+    return parts.join('|');
   }
 
-  function fmtCorteTotalFormula(und, grPor, grTotal) {
-    und = num(und);
-    grPor = num(grPor);
-    grTotal = Math.round(num(grTotal));
-    if (und > 0 && grPor > 0) {
-      var total = grTotal > 0 ? grTotal : und * grPor;
-      return (
-        und.toLocaleString('es-CO') +
-        ' × ' +
-        grPor.toLocaleString('es-CO') +
-        ' g = ' +
-        fmtPesoGr(total)
-      );
-    }
-    if (grTotal > 0 && grPor > 0) {
-      var p = Math.floor(grTotal / grPor);
-      if (p > 0) {
-        return (
-          p.toLocaleString('es-CO') +
-          ' × ' +
-          grPor.toLocaleString('es-CO') +
-          ' g = ' +
-          fmtPesoGr(p * grPor) +
-          (grTotal > p * grPor ? ' (+ ' + (grTotal - p * grPor) + ' g)' : '')
-        );
+  function autoDetectNormNit(n) {
+    return String(n || '')
+      .replace(/[\s.\-]/g, '')
+      .toLowerCase();
+  }
+
+  function autoDetectNormNombre(n) {
+    return String(n || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function autoDetectFindFactura(facturaId) {
+    var id = String(facturaId || '').trim();
+    var m = id.match(/^\(\s*['"]([^'"]+)['"]/);
+    if (m) id = m[1];
+    return (
+      _autoDetectState.facturas.find(function (f) {
+        return f.id === id;
+      }) || null
+    );
+  }
+
+  var _autoDetectPreviewUrls = {};
+
+  function autoDetectIsPdfFactura(factura) {
+    if (!factura || !factura.file) return false;
+    var f = factura.file;
+    return f.type === 'application/pdf' || /\.pdf$/i.test(String(f.name || ''));
+  }
+
+  function autoDetectIsImageFactura(factura) {
+    if (!factura) return false;
+    if (factura.imagen) return true;
+    var f = factura.file;
+    return !!(f && f.type && String(f.type).indexOf('image/') === 0);
+  }
+
+  function autoDetectFacturaTieneDocumento(factura) {
+    return !!(factura && (factura.file || factura.imagen));
+  }
+
+  function autoDetectRevokeAllPreviewUrls() {
+    Object.keys(_autoDetectPreviewUrls).forEach(function (id) {
+      var url = _autoDetectPreviewUrls[id];
+      if (url && /^blob:/i.test(url)) {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (_) {}
       }
+    });
+    _autoDetectPreviewUrls = {};
+    (_autoDetectState.facturas || []).forEach(function (f) {
+      delete f._autoPreviewUrl;
+    });
+  }
+
+  function autoDetectEnsurePreviewUrl(factura) {
+    if (!factura) return '';
+    if (factura._autoPreviewUrl) return factura._autoPreviewUrl;
+    if (_autoDetectPreviewUrls[factura.id]) {
+      factura._autoPreviewUrl = _autoDetectPreviewUrls[factura.id];
+      return factura._autoPreviewUrl;
     }
+    try {
+      if (autoDetectIsPdfFactura(factura) && factura.file) {
+        var pdfUrl = URL.createObjectURL(factura.file);
+        _autoDetectPreviewUrls[factura.id] = pdfUrl;
+        factura._autoPreviewUrl = pdfUrl;
+        return pdfUrl;
+      }
+      if (autoDetectIsImageFactura(factura)) {
+        var imgUrl = factura.imagen || (factura.file ? URL.createObjectURL(factura.file) : '');
+        if (imgUrl) {
+          _autoDetectPreviewUrls[factura.id] = imgUrl;
+          factura._autoPreviewUrl = imgUrl;
+          return imgUrl;
+        }
+      }
+    } catch (_) {}
     return '';
   }
 
-  function fmtPorcionesLinea(l) {
-    if (!l || l.porciones == null || l.porciones <= 0) return '';
-    var esperado =
-      num(l.grCalc) > 0
-        ? l.porciones + ' × ' + num(l.grPorPorcion) + ' g = ' + fmtPesoGr(l.grCalc)
-        : l.porciones + ' porc. de ' + num(l.grPorPorcion) + ' g';
-    if (num(l.grBalanza) > 0) {
-      esperado += ' · balanza ' + fmtPesoGr(l.grBalanza);
-      if (l.deltaGr != null && Math.round(l.deltaGr) !== 0) {
-        esperado += ' (' + (l.deltaGr > 0 ? '+' : '') + Math.round(l.deltaGr) + ' g)';
-      }
-    }
-    if (l.restoGr > 0) esperado += ' (' + l.restoGr + ' g sin empaquetar)';
-    return esperado;
+  function installAutoDetectPdfToggle() {
+    /* reservado: vista PDF ahora carga al montar la tarjeta */
   }
 
-  function validateDespieceCortes(host, edit) {
-    edit = edit || state.edit;
-    if (!host || !edit) return { ok: false, msg: 'Completa el despiece' };
-    var cortes = readCortesFromHost(host, edit);
-    var activos = cortes.filter(function (c) {
-      return (c.nombre || '').trim();
-    });
-    if (!activos.length) return { ok: false, msg: 'Anota al menos un corte con nombre' };
-    for (var i = 0; i < activos.length; i++) {
-      var c = activos[i];
-      var r = resolveCortePeso(c);
-      var nom = c.nombre;
-      if (!r.tieneBalanza) return { ok: false, msg: 'Pesa «' + nom + '» en la balanza (g) — es obligatorio' };
-      if (!r.tienePorciones) {
-        return { ok: false, msg: 'Cuenta porciones y gramos de «' + nom + '» para comparar con la balanza' };
-      }
-      if (r.deltaGrave) {
-        return {
-          ok: false,
-          msg:
-            '«' +
-            nom +
-            '»: la balanza (' +
-            r.grBalanza +
-            ' g) no cuadra con ' +
-            r.porciones +
-            ' × ' +
-            r.grPorPorcion +
-            ' g (= ' +
-            r.grCalc +
-            ' g). Vuelve a pesar o corrige el conteo.',
-        };
-      }
-    }
-    return { ok: true, cortes: cortes };
-  }
-
-  function readEntradaGrFromHost(host) {
-    if (!host) return 0;
-    var grInp = host.querySelector('#cps-mp-entrada-gr');
-    if (grInp && grInp.value !== '' && grInp.value != null) {
-      return Math.round(num(grInp.value, 0));
-    }
-    var kgInp = host.querySelector('#cps-mp-entrada');
-    if (kgInp && num(kgInp.value) > 0) return Math.round(num(kgInp.value) * 1000);
-    return 0;
-  }
-
-  function syncEntradaKgHidden(host) {
+  function autoDetectMountFacturaPreview(factura) {
+    if (!autoDetectFacturaTieneDocumento(factura)) return;
+    var card = document.querySelector('[data-cxf-auto-factura-id="' + factura.id + '"]');
+    if (!card) return;
+    var host = card.querySelector('[data-cxf-auto-pdf-mount="' + factura.id + '"]');
     if (!host) return;
-    var gr = readEntradaGrFromHost(host);
-    var hid = host.querySelector('#cps-mp-entrada');
-    if (hid) hid.value = gr > 0 ? String(gr / 1000) : '';
+    var url = autoDetectEnsurePreviewUrl(factura);
+    if (!url) return;
+    if (autoDetectIsPdfFactura(factura)) {
+      var iframe = host.querySelector('iframe');
+      if (iframe && !iframe.getAttribute('src')) {
+        iframe.src = url + '#toolbar=1&navpanes=0';
+      }
+      return;
+    }
+    var img = host.querySelector('img');
+    if (img && !img.getAttribute('src')) img.src = url;
   }
 
-  function fmtPesoGr(gr) {
-    gr = Math.round(num(gr));
-    if (gr <= 0) return '0 g';
-    if (gr >= 1000) {
-      var kg = gr / 1000;
-      return (kg >= 10 ? kg.toFixed(1) : kg.toFixed(2)) + ' kg';
-    }
-    return gr.toLocaleString('es-CO') + ' g';
-  }
-
-  /** Tolerancia al pesar: diferencias pequeñas no son “merma grave”. */
-  function mermaToleranciaGr(entGr) {
-    entGr = Math.round(num(entGr));
-    if (entGr <= 0) return 30;
-    return Math.max(30, Math.round(entGr * 0.005));
-  }
-
-  function describeSobranteGlobal(mermaGr, entGr) {
-    mermaGr = Math.round(num(mermaGr));
-    entGr = Math.round(num(entGr));
-    if (mermaGr <= 0) {
-      return { txt: ' No sobró nada — cuadra perfecto.', esMinima: true, esGrave: false };
-    }
-    if (mermaGr <= mermaToleranciaGr(entGr)) {
-      return {
-        txt: ' Diferencia al pesar: <strong>' + mermaGr + ' g</strong> — normal entre balanzas.',
-        esMinima: true,
-        esGrave: false,
-      };
-    }
-    return {
-      txt: ' Sobró o se perdió <strong>' + fmtPesoGr(mermaGr) + '</strong> (no quedó en ningún corte).',
-      esMinima: false,
-      esGrave: true,
-    };
-  }
-
-  function calcDespieceSummary(entKg, cortes, mp, opts) {
-    opts = opts || {};
-    var entGr = opts.entGr != null ? Math.round(num(opts.entGr)) : Math.round(num(entKg) * 1000);
-    cortes = cortes || [];
-    var sumGr = 0;
-    var pctRefSum = 0;
-    var lineas = cortes.map(function (c) {
-      var resolved = resolveCortePeso(c);
-      var gr = Math.round(resolved.grReal);
-      var kg = resolved.kgReal;
-      var grPor = num(resolved.grPorPorcion);
-      var porc = {
-        porciones: resolved.porciones,
-        restoGr: resolved.restoGr,
-      };
-      var pctRef = num(c.pctRef);
-      var pctReal = entGr > 0 && gr > 0 ? (gr / entGr) * 100 : null;
-      sumGr += gr;
-      if (pctRef > 0) pctRefSum += pctRef;
-      return {
-        id: c.id,
-        nombre: c.nombre,
-        pctRef: pctRef > 0 ? pctRef : null,
-        kgReal: kg,
-        grReal: gr,
-        grBalanza: resolved.grBalanza,
-        grCalc: resolved.grCalc,
-        grPorPorcion: grPor > 0 ? grPor : null,
-        porciones: porc.porciones,
-        restoGr: resolved.restoGr,
-        deltaGr: resolved.deltaGr,
-        deltaOk: resolved.deltaOk,
-        deltaGrave: resolved.deltaGrave,
-        pctReal: pctReal,
-      };
-    });
-    var mermaGr = entGr > 0 ? Math.max(0, entGr - sumGr) : 0;
-    var entradaKg = entGr / 1000;
-    var sumKg = sumGr / 1000;
-    var mermaKg = mermaGr / 1000;
-    var mermaPct = entGr > 0 && sumGr > 0 ? (mermaGr / entGr) * 100 : null;
-    var utilPct = entGr > 0 && sumGr > 0 ? (sumGr / entGr) * 100 : null;
-    var mermas = calcMermasLive(entradaKg, 0, sumKg);
-    var cat = C();
-    var alertaRaw =
-      canVerMermaReferencias() && cat && cat.evalMermaProcesoAlerta && mp
-        ? cat.evalMermaProcesoAlerta(mp, mermas)
-        : { ok: true };
-    var esMinima = mermaGr <= mermaToleranciaGr(entGr);
-    var alerta = esMinima ? { ok: true } : alertaRaw;
-    var espD =
-      canVerMermaReferencias() && cat && cat.perdidaEsperadaPct
-        ? num(cat.perdidaEsperadaPct(mp, 'despiece'))
-        : mp && canVerMermaReferencias()
-          ? num(mp.mermaDespostePct)
-          : 0;
-    var deltaPp = espD > 0 && mermaPct != null ? mermaPct - espD : null;
-    return {
-      entradaKg: entradaKg,
-      entradaGr: entGr,
-      sumKg: sumKg,
-      sumGr: sumGr,
-      utilPct: utilPct,
-      mermaKg: mermaKg,
-      mermaGr: mermaGr,
-      mermaPct: mermaPct,
-      mermaEsMinima: esMinima,
-      pctRefSum: pctRefSum,
-      lineas: lineas,
-      mermas: mermas,
-      alerta: alerta,
-      espDespostePct: espD > 0 ? espD : null,
-      deltaPp: deltaPp,
-    };
-  }
-
-  function despieceResumenHtml(summary, mp) {
-    summary = summary || {};
-    var mpNom = mp && mp.nombre ? String(mp.nombre) : 'la carne';
-    if (summary.entradaGr <= 0) {
-      return (
-        '<div class="cps-despiece-step" id="cps-despiece-resumen">' +
-        '<span class="cps-despiece-step__badge">Paso 3</span>' +
-        '<p class="cps-despiece-step__title">¿Cómo quedó?</p>' +
-        '<p class="cps-despiece-step__help">Primero pon cuánto pesó toda la pieza (paso 1).</p></div>'
-      );
-    }
-    var hasCortes = summary.sumGr > 0;
-    if (!hasCortes) {
-      return (
-        '<div class="cps-despiece-step" id="cps-despiece-resumen">' +
-        '<span class="cps-despiece-step__badge">Paso 3</span>' +
-        '<p class="cps-despiece-step__title">¿Cómo quedó?</p>' +
-        '<p class="cps-despiece-step__help">Anota al menos un corte con su peso (paso 2).</p></div>'
-      );
-    }
-    var sobrante = describeSobranteGlobal(summary.mermaGr, summary.entradaGr);
-    var okCls = '';
-    var warnCls = '';
-    if (canVerMermaReferencias()) {
-      okCls = summary.alerta && summary.alerta.ok ? ' cps-despiece-resumen--ok' : '';
-      warnCls = summary.alerta && !summary.alerta.ok ? ' cps-despiece-resumen--warn' : '';
+  function renderAutoDetectFacturaPreview(factura) {
+    if (!autoDetectFacturaTieneDocumento(factura)) return '';
+    var isPdf = autoDetectIsPdfFactura(factura);
+    var isImg = !isPdf && autoDetectIsImageFactura(factura);
+    if (!isPdf && !isImg) return '';
+    var inner = '';
+    if (isPdf) {
+      inner =
+        '<div class="cxf-pdf-preview-host cxf-pdf-preview-host--blob cxf-auto-factura-pdf-host">' +
+        '<iframe class="cxf-pdf-preview-iframe" title="' +
+        esc(factura.nombre || 'Factura PDF') +
+        '"></iframe></div>';
     } else {
-      okCls = !sobrante.esGrave ? ' cps-despiece-resumen--ok' : '';
-      warnCls = sobrante.esGrave ? ' cps-despiece-resumen--warn' : '';
-    }
-    var lineasHtml = (summary.lineas || [])
-      .filter(function (l) {
-        return l.grReal > 0 && l.nombre;
-      })
-      .map(function (l) {
-        var pesoTxt = num(l.grBalanza) > 0 ? fmtPesoGr(l.grBalanza) + ' (balanza)' : num(l.grReal) > 0 ? num(l.grReal).toFixed(0) + ' g' : '';
-        var porcTxt = fmtPorcionesLinea(l);
-        return (
-          '<li><span>' +
-          esc(l.nombre) +
-          (porcTxt ? ' · ' + esc(porcTxt) : '') +
-          '</span><span>' +
-          pesoTxt +
-          '</span></li>'
-        );
-      })
-      .join('');
-    var veredicto = '';
-    if (sobrante.esGrave) {
-      veredicto =
-        '<p class="cps-despiece-verdict is-warn">⚠ Falta anotar ' +
-        fmtPesoGr(summary.mermaGr) +
-        ' en algún corte (hueso, grasa, recorte…). Cuéntale al jefe de cocina.</p>';
-    } else if (sobrante.esMinima && summary.mermaGr > 0) {
-      veredicto =
-        '<p class="cps-despiece-verdict is-ok">✓ Cuadra — ' + summary.mermaGr + ' g de diferencia al pesar (normal).</p>';
-    } else {
-      veredicto = '<p class="cps-despiece-verdict is-ok">✓ Todo cuadra.</p>';
-    }
-    var ayudaSobrante = canVerMermaReferencias()
-      ? '<p class="cps-despiece-step__help" style="margin-top:8px">La merma es lo que <em>no</em> pusiste en ningún corte.</p>'
-      : '<p class="cps-despiece-step__help" style="margin-top:8px">Lo que no anotaste en un corte (hueso, grasa…) va en otro corte o en recorte.</p>';
-    var refPerdida =
-      canVerMermaReferencias() && summary.espDespostePct
-        ? '<p class="cps-hint">Referencia al partir: ~' + summary.espDespostePct.toFixed(0) + '%</p>'
-        : '';
-    return (
-      '<div class="cps-despiece-step cps-despiece-resumen' +
-      okCls +
-      warnCls +
-      '" id="cps-despiece-resumen">' +
-      '<span class="cps-despiece-step__badge">Paso 3</span>' +
-      '<p class="cps-despiece-step__title">Así quedó</p>' +
-      '<p class="cps-despiece-story">Entraste con <strong>' +
-      fmtPesoGr(summary.entradaGr) +
-      '</strong> de ' +
-      esc(mpNom) +
-      '. En cortes anotaste <strong>' +
-      fmtPesoGr(summary.sumGr) +
-      '</strong>.' +
-      sobrante.txt +
-      '</p>' +
-      ayudaSobrante +
-      refPerdida +
-      (lineasHtml ? '<ul class="cps-despiece-list">' + lineasHtml + '</ul>' : '') +
-      veredicto +
-      '</div>'
-    );
-  }
-
-  function despieceCortesCardsHtml(edit) {
-    var cortes = edit.cortesDespiece || [];
-    var cards = cortes
-      .map(function (c, idx) {
-        var grPorVal = c.grPorPorcion !== '' && c.grPorPorcion != null && num(c.grPorPorcion) > 0 ? num(c.grPorPorcion) : '';
-        var undVal =
-          c.cantPorciones !== '' && c.cantPorciones != null && num(c.cantPorciones) > 0 ? num(c.cantPorciones) : '';
-        var grBalanza = num(c.grBalanza) > 0 ? num(c.grBalanza) : num(c.grReal) > 0 ? num(c.grReal) : '';
-        return (
-          '<div class="cps-corte-card" data-corte-id="' +
-          esc(c.id) +
-          '" data-corte-idx="' +
-          idx +
-          '">' +
-          '<label class="form-label">¿Cómo se llama este corte?</label>' +
-          '<input type="text" class="form-input cps-corte-nom" placeholder="Ej: Filete, Churrasco, Molida" value="' +
-          esc(c.nombre || '') +
-          '">' +
-          '<div class="cps-corte-balanza' +
-          (grBalanza ? ' is-done' : '') +
-          '">' +
-          '<label class="form-label">Pesa todo este corte en la balanza (g) <span class="cps-req">*</span></label>' +
-          '<input type="number" class="form-input cps-corte-gr" min="0" step="1" inputmode="numeric" required placeholder="Ej: 987 — lo que marque la balanza" value="' +
-          esc(grBalanza) +
-          '"></div>' +
-          '<div class="cps-corte-card__grid">' +
-          '<div><label class="form-label">¿Cuántas salieron?</label>' +
-          '<input type="number" class="form-input cps-corte-und" min="0" step="1" inputmode="numeric" placeholder="Ej: 10" value="' +
-          esc(undVal) +
-          '"></div>' +
-          '<div><label class="form-label">¿Cuánto pesa cada una? (g)</label>' +
-          '<input type="number" class="form-input cps-corte-gr-porcion" min="0" step="1" inputmode="numeric" placeholder="Ej: 100" value="' +
-          esc(grPorVal) +
-          '"></div></div>' +
-          '<div class="cps-corte-total-box is-empty" data-corte-total>' +
-          '<span class="cps-corte-total-box__lbl">Comparación</span>' +
-          '<span class="cps-corte-total-box__val" data-corte-total-val>Pesa en balanza y cuenta las porciones</span></div>' +
-          '<div class="cps-corte-diff is-muted" data-corte-diff aria-live="polite"></div>' +
-          '<div class="cps-corte-porciones is-muted" data-corte-porciones>1) Pesa en balanza · 2) Cuenta porciones × gramos</div>' +
-          '<div class="cps-corte-card__foot">' +
-          '<button type="button" class="btn btn-outline btn-sm cps-corte-rm" data-corte-rm="' +
-          esc(c.id) +
-          '">Quitar este corte</button></div></div>'
-        );
-      })
-      .join('');
-    return (
-      '<div class="cps-despiece-cortes" id="cps-despiece-cortes">' +
-      '<div class="cps-despiece-step">' +
-      '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:4px">' +
-      '<span class="cps-despiece-step__badge">Paso 2</span>' +
-      '<span class="cps-cortes-save-hint" id="cps-cortes-save-hint" aria-live="polite"></span></div>' +
-      '<p class="cps-despiece-step__title">¿Qué sacaste? Pesa y cuenta</p>' +
-      '<p class="cps-despiece-step__help">Por cada corte: <strong>1)</strong> pesa en balanza (obligatorio) · <strong>2)</strong> cuenta cuántas salieron y cuánto pesa cada una. Si no cuadra, el sistema avisa.</p>' +
-      '<div class="cps-corte-cards" id="cps-cortes-tbody">' +
-      cards +
-      '</div>' +
-      '<div class="cps-cortes-barra" id="cps-cortes-barra" aria-live="polite">Pesa cada corte en balanza y anota las porciones.</div>' +
-      '<button type="button" class="btn btn-outline" id="cps-corte-add">+ Agregar otro corte</button></div>' +
-      '<input type="hidden" id="cps-output-kg" value="0">' +
-      '</div>'
-    );
-  }
-
-  function refreshDespieceLive(host) {
-    if (!host || !state.edit || state.edit.mode !== 'mp' || state.workflow !== 'despiece') return;
-    state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
-    syncEntradaKgHidden(host);
-    var entGr = readEntradaGrFromHost(host);
-    var mp = C().get(state.edit.mpId);
-    var summary = calcDespieceSummary(0, state.edit.cortesDespiece, mp, { entGr: entGr });
-    summary.lineas.forEach(function (l) {
-      var row = host.querySelector('[data-corte-id="' + l.id + '"]');
-      if (!row) return;
-      var resolved = resolveCortePeso({
-        cantPorciones: l.porciones,
-        grPorPorcion: l.grPorPorcion,
-        grBalanza: l.grBalanza,
-        grCalc: l.grCalc,
-        deltaGr: l.deltaGr,
-        deltaOk: l.deltaOk,
-        deltaGrave: l.deltaGrave,
-      });
-      var balWrap = row.querySelector('.cps-corte-balanza');
-      if (balWrap) {
-        if (num(l.grBalanza) > 0) balWrap.classList.add('is-done');
-        else balWrap.classList.remove('is-done');
-      }
-      var totalBox = row.querySelector('[data-corte-total]');
-      var totalVal = row.querySelector('[data-corte-total-val]');
-      var diffEl = row.querySelector('[data-corte-diff]');
-      if (totalBox && totalVal) {
-        if (num(l.grCalc) > 0) {
-          totalBox.classList.remove('is-empty');
-          totalVal.textContent =
-            num(l.porciones).toLocaleString('es-CO') +
-            ' × ' +
-            num(l.grPorPorcion).toLocaleString('es-CO') +
-            ' g = ' +
-            fmtPesoGr(l.grCalc);
-        } else if (num(l.grPorPorcion) > 0 && !(num(l.porciones) > 0)) {
-          totalBox.classList.add('is-empty');
-          totalVal.textContent = 'Falta poner cuántas salieron';
-        } else if (num(l.porciones) > 0 && !(num(l.grPorPorcion) > 0)) {
-          totalBox.classList.add('is-empty');
-          totalVal.textContent = 'Falta poner cuánto pesa cada una (g)';
-        } else {
-          totalBox.classList.add('is-empty');
-          totalVal.textContent = 'Cuenta porciones y gramos';
-        }
-      }
-      if (diffEl) {
-        diffEl.classList.remove('is-ok', 'is-warn', 'is-bad', 'is-muted');
-        var diffHtml = fmtCorteDiffHtml(resolved);
-        if (!num(l.grBalanza)) {
-          diffEl.classList.add('is-warn');
-          diffEl.innerHTML = num(l.grCalc) > 0 ? diffHtml || 'Falta pesar en balanza' : 'Primero pesa este corte en la balanza';
-        } else if (num(l.grCalc) > 0 && l.deltaGr != null) {
-          if (l.deltaGrave) {
-            diffEl.classList.add('is-bad');
-            diffEl.innerHTML = diffHtml + ' — <strong>corrige antes de guardar</strong>';
-          } else if (!l.deltaOk && l.deltaGr !== 0) {
-            diffEl.classList.add('is-warn');
-            diffEl.innerHTML = diffHtml + ' — revisa conteo o vuelve a pesar';
-          } else {
-            diffEl.classList.add('is-ok');
-            diffEl.innerHTML = diffHtml;
-          }
-        } else if (num(l.grBalanza) > 0) {
-          diffEl.classList.add('is-warn');
-          diffEl.innerHTML = 'Balanza: <strong>' + fmtPesoGr(l.grBalanza) + '</strong> — falta contar porciones';
-        } else {
-          diffEl.classList.add('is-muted');
-          diffEl.textContent = '';
-        }
-      }
-      var el = row.querySelector('[data-corte-porciones]');
-      if (!el) return;
-      el.classList.remove('is-ready', 'is-muted');
-      if (num(l.grBalanza) > 0 && l.porciones != null && l.porciones > 0 && num(l.grPorPorcion) > 0) {
-        if (l.deltaGrave) {
-          el.classList.add('is-muted');
-          el.textContent = '⚠ Balanza y porciones no cuadran — corrige';
-        } else if (l.deltaOk || l.deltaGr === 0) {
-          el.classList.add('is-ready');
-          el.textContent = '✓ Balanza y porciones cuadran';
-        } else {
-          el.classList.add('is-muted');
-          el.textContent = '⚠ Diferencia de ' + Math.abs(Math.round(l.deltaGr)) + ' g — revisa';
-        }
-      } else if (!num(l.grBalanza)) {
-        el.classList.add('is-muted');
-        el.textContent = 'Primero pesa este corte en la balanza (g)';
-      } else if (num(l.grPorPorcion) > 0 && !(num(l.porciones) > 0)) {
-        el.classList.add('is-muted');
-        el.textContent = 'Falta poner cuántas porciones salieron';
-      } else if (num(l.porciones) > 0 && !(num(l.grPorPorcion) > 0)) {
-        el.classList.add('is-muted');
-        el.textContent = 'Falta poner cuánto pesa cada porción (g)';
-      } else {
-        el.classList.add('is-muted');
-        el.textContent = '1) Pesa en balanza · 2) Cuenta porciones × gramos';
-      }
-    });
-    var barra = host.querySelector('#cps-cortes-barra');
-    if (barra) {
-      barra.classList.remove('is-ok');
-      if (entGr <= 0) {
-        barra.textContent = 'Primero pesa toda la pieza en el paso 1.';
-      } else if (summary.sumGr <= 0) {
-        barra.textContent = 'Llevas 0 g — pesa cada corte en la balanza (obligatorio).';
-      } else {
-        var falta = Math.max(0, entGr - summary.sumGr);
-        var tol = mermaToleranciaGr(entGr);
-        if (falta <= tol) {
-          barra.classList.add('is-ok');
-          barra.innerHTML =
-            'Llevas <strong>' +
-            fmtPesoGr(summary.sumGr) +
-            '</strong> en cortes de <strong>' +
-            fmtPesoGr(entGr) +
-            '</strong> que entraron — cuadra bien.';
-        } else {
-          barra.innerHTML =
-            'Llevas <strong>' +
-            fmtPesoGr(summary.sumGr) +
-            '</strong> en cortes de <strong>' +
-            fmtPesoGr(entGr) +
-            '</strong> — faltan <strong>' +
-            fmtPesoGr(falta) +
-            '</strong> por anotar (hueso, grasa, otro corte…).';
-        }
-      }
-    }
-    var out = host.querySelector('#cps-output-kg');
-    if (out) out.value = String(summary.sumKg);
-    var resumen = host.querySelector('#cps-despiece-resumen');
-    if (resumen) resumen.outerHTML = despieceResumenHtml(summary, mp);
-    refreshMermaLive(host);
-  }
-
-  function rerenderDespieceCortes(host) {
-    if (!host || !state.edit || state.edit.mode !== 'mp') return;
-    var wrap = host.querySelector('#cps-despiece-cortes');
-    if (!wrap) return;
-    wrap.outerHTML = despieceCortesCardsHtml(state.edit);
-    bindDespieceCortes(host);
-    refreshDespieceLive(host);
-  }
-
-  function bindDespieceCortes(host) {
-    if (!host || state.workflow !== 'despiece') return;
-    var mpId = state.edit && state.edit.mpId;
-    var add = host.querySelector('#cps-corte-add');
-    if (add && !add._cpsBound) {
-      add._cpsBound = true;
-      add.addEventListener('click', function () {
-        if (!state.edit) return;
-        state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
-        state.edit.cortesDespiece.push({
-          id: despieceCorteId(),
-          nombre: '',
-          pctRef: '',
-          grPorPorcion: '',
-          cantPorciones: '',
-          kgReal: 0,
-        });
-        rerenderDespieceCortes(host);
-        persistCortesDespiece(host, mpId, state.edit.cortesDespiece);
-      });
-    }
-    host.querySelectorAll('.cps-corte-rm').forEach(function (btn) {
-      if (btn._cpsBound) return;
-      btn._cpsBound = true;
-      btn.addEventListener('click', function () {
-        if (!state.edit) return;
-        var id = btn.getAttribute('data-corte-rm');
-        state.edit.cortesDespiece = readCortesFromHost(host, state.edit).filter(function (c) {
-          return c.id !== id;
-        });
-        if (!state.edit.cortesDespiece.length) {
-          state.edit.cortesDespiece.push({
-            id: despieceCorteId(),
-            nombre: '',
-            pctRef: '',
-            grPorPorcion: '',
-            cantPorciones: '',
-            kgReal: 0,
-          });
-        }
-        rerenderDespieceCortes(host);
-        persistCortesDespiece(host, mpId, state.edit.cortesDespiece, { toastDelete: true });
-      });
-    });
-    host.querySelectorAll('.cps-corte-nom, .cps-corte-gr, .cps-corte-gr-porcion, .cps-corte-und').forEach(function (inp) {
-      if (inp._cpsBound) return;
-      inp._cpsBound = true;
-      inp.addEventListener('input', function () {
-        refreshDespieceLive(host);
-        refreshTotals(host);
-        if (!state.edit) return;
-        state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
-        schedulePersistCortes(host, mpId, state.edit.cortesDespiece);
-      });
-      inp.addEventListener('blur', function () {
-        if (!state.edit) return;
-        state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
-        if (
-          inp.classList.contains('cps-corte-nom') ||
-          inp.classList.contains('cps-corte-gr-porcion') ||
-          inp.classList.contains('cps-corte-und')
-        ) {
-          persistCortesDespiece(host, mpId, state.edit.cortesDespiece);
-        }
-      });
-    });
-  }
-
-  function mermaEspHintHtml(mp) {
-    if (!mp) return '';
-    var parts = [];
-    if (mp.mermaCoccionPct > 0) parts.push('cocinado ~' + num(mp.mermaCoccionPct).toFixed(1) + '%');
-    if (mp.mermaDespostePct > 0) parts.push('desposte ~' + num(mp.mermaDespostePct).toFixed(1) + '%');
-    if (!parts.length) return '<p class="cps-merma__esp">Pesa entrada → cocido → listo. La diferencia se calcula sola.</p>';
-    return '<p class="cps-merma__esp">Esperado en catálogo: ' + esc(parts.join(' · ')) + '</p>';
-  }
-
-  function mermaLiveHtml(mermas, mp) {
-    mermas = mermas || {};
-    var cat = C();
-    var alerta = cat && cat.evalMermaProcesoAlerta && mp ? cat.evalMermaProcesoAlerta(mp, mermas) : { ok: true };
-    if (state.workflow === 'despiece') {
-      var md =
-        mermas.mermaDespostePct != null
-          ? 'Merma ' + num(mermas.mermaDespostePct).toFixed(1) + '% (' + num(mermas.mermaDesposteKg).toFixed(2) + ' kg)'
-          : 'Merma —';
-      var espD = cat && cat.perdidaEsperadaPct ? num(cat.perdidaEsperadaPct(mp, 'despiece')) : 0;
-      var esp = espD > 0 ? 'Esperado ~' + espD.toFixed(1) + '%' : 'Sin referencia';
-      return (
-        '<div class="cps-merma-live" id="cps-merma-live">' +
-        '<span' +
-        (alerta.ok ? '' : ' class="is-warn"') +
-        '>' +
-        esc(md) +
-        '</span><span>' +
-        esc(esp) +
-        '</span></div>'
-      );
-    }
-    var mc =
-      mermas.mermaCoccionPct != null
-        ? 'Cocinado ' + num(mermas.mermaCoccionPct).toFixed(1) + '% (' + num(mermas.mermaCoccionKg).toFixed(2) + ' kg)'
-        : 'Cocinado —';
-    var md =
-      mermas.mermaDespostePct != null
-        ? 'Desposte ' + num(mermas.mermaDespostePct).toFixed(1) + '% (' + num(mermas.mermaDesposteKg).toFixed(2) + ' kg)'
-        : 'Desposte —';
-    var tot =
-      mermas.mermaTotalKg > 0
-        ? 'Total merma ' + num(mermas.mermaTotalKg).toFixed(2) + ' kg'
-        : 'Total merma —';
-    return (
-      '<div class="cps-merma-live" id="cps-merma-live">' +
-      '<span' +
-      (alerta.ok ? '' : ' class="is-warn"') +
-      '>' +
-      esc(mc) +
-      '</span><span>' +
-      esc(md) +
-      '</span><span>' +
-      esc(tot) +
-      '</span></div>'
-    );
-  }
-
-  function mermaBlockHtml(mp, wf) {
-    wf = wf || state.workflow || '';
-    if (wf === 'despiece') return '';
-    var showCoc = wf === 'coccion' || wf === 'elaboracion';
-    if (!showCoc) return '';
-    if (!canVerMermaReferencias()) {
-      if (wf === 'coccion') {
-        return (
-          '<div class="form-group" style="margin-top:8px"><label class="form-label">Peso después de cocinar (kg)</label>' +
-          '<input type="number" class="form-input" id="cps-peso-cocido" min="0" step="0.01" placeholder="Pesa cuando salga de la cocina"></div>'
-        );
-      }
-      return '';
+      inner =
+        '<div class="cxf-auto-factura-img-host">' +
+        '<img alt="' +
+        esc(factura.nombre || 'Documento') +
+        '"></div>';
     }
     return (
-      '<div class="cps-merma" id="cps-merma-block">' +
-      '<p class="cps-merma__title">¿Cuánto se perdió?</p>' +
-      mermaEspHintHtml(mp) +
-      (showCoc
-        ? '<div class="form-group" style="margin-top:8px"><label class="form-label">Peso después de cocinar (kg)</label>' +
-          '<input type="number" class="form-input" id="cps-peso-cocido" min="0" step="0.01" placeholder="Si hubo cocción"></div>'
-        : '') +
-      mermaLiveHtml({}, mp) +
-      '</div>'
-    );
-  }
-
-  function refreshMermaLive(host) {
-    if (!host) return;
-    var block = host.querySelector('#cps-merma-block');
-    if (!block) return;
-    var ent = num((host.querySelector('#cps-mp-entrada') || {}).value, 0);
-    if (ent <= 0) ent = num((host.querySelector('#cps-peso-bruto') || {}).value, 0);
-    var coc = num((host.querySelector('#cps-peso-cocido') || {}).value, 0);
-    var util = num((host.querySelector('#cps-output-kg') || {}).value, 0);
-    var mp = null;
-    if (state.edit && state.edit.mpId) mp = C().get(state.edit.mpId);
-    else if (state.edit && state.edit.slug) {
-      var menu = C().getMenuPlato(state.edit.slug);
-      if (menu && menu.costeoMpSourceId) mp = C().get(menu.costeoMpSourceId);
-    }
-    var mermas = calcMermasLive(ent, coc, util);
-    var live = block.querySelector('#cps-merma-live');
-    if (live) live.outerHTML = mermaLiveHtml(mermas, mp);
-  }
-
-  function attachMermaPayload(item, host, mp) {
-    var ent = num(item.pesoEntradaKg || item.kg, 0);
-    if (ent <= 0) ent = num((host.querySelector('#cps-peso-bruto') || {}).value, 0);
-    var coc = num((host.querySelector('#cps-peso-cocido') || {}).value, 0);
-    var util = num((host.querySelector('#cps-output-kg') || {}).value, 0);
-    if (util <= 0) util = num(item.kg, 0);
-    var m = calcMermasLive(ent, coc, util);
-    item.pesoEntradaKg = ent > 0 ? ent : item.pesoEntradaKg;
-    item.pesoCocidoKg = coc > 0 ? coc : null;
-    item.pesoUtilKg = util > 0 ? util : null;
-    item.mermaCoccionRealPct = m.mermaCoccionPct;
-    item.mermaDesposteRealPct = m.mermaDespostePct;
-    item.mermaCoccionKg = m.mermaCoccionKg;
-    item.mermaDesposteKg = m.mermaDesposteKg;
-    item.mermaTotalKg = m.mermaTotalKg;
-    var cat = C();
-    if (cat && cat.evalMermaProcesoAlerta && mp && canVerMermaReferencias()) {
-      var ev = cat.evalMermaProcesoAlerta(mp, m);
-      if (!ev.ok) item.mermaAlerta = ev.mensaje;
-    }
-    return item;
-  }
-
-  function modoSelectorHtml(modo) {
-    modo = modo || 'prep_anticipado';
-    return (
-      '<div class="cps-modo-grid" id="cps-modo-grid">' +
-      '<label class="cps-modo-opt' +
-      (modo === 'prep_anticipado' ? ' is-active' : '') +
+      '<aside class="cxf-auto-factura-split__doc">' +
+      '<div class="cxf-auto-factura-doc-head">' +
+      '<span class="cxf-auto-factura-doc-head__title">Documento</span>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-crozzo-act="verFacturaAutoDetect" data-crozzo-args=\'' +
+      autoDetectCrozzoArgs(factura.id) +
+      "'>Ampliar</button></div>" +
+      '<div data-cxf-auto-pdf-mount="' +
+      esc(factura.id) +
       '">' +
-      '<input type="radio" name="cps-modo" value="prep_anticipado"' +
-      (modo === 'prep_anticipado' ? ' checked' : '') +
-      '>' +
-      '<span class="cps-modo-opt__title">Prep anticipado</span>' +
-      '<span class="cps-modo-opt__desc">Salsas, bases — queda en bodega ELABORADOS</span></label>' +
-      '<label class="cps-modo-opt' +
-      (modo === 'bajo_demanda' ? ' is-active' : '') +
-      '">' +
-      '<input type="radio" name="cps-modo" value="bajo_demanda"' +
-      (modo === 'bajo_demanda' ? ' checked' : '') +
-      '>' +
-      '<span class="cps-modo-opt__title">Al momento</span>' +
-      '<span class="cps-modo-opt__desc">Jugos, spaguetis al pedir — consume y sale</span></label></div>' +
-      '<p class="cps-hint" id="cps-modo-hint">' +
-      esc(modoProcesoHint(modo)) +
-      '</p>'
+      inner +
+      '</div></aside>'
     );
   }
 
-  function lineaEsElaborado(ln, slugPlato) {
-    var cat = C();
-    if (!cat || !ln) return false;
-    if (ln.mpId) {
-      var mp = cat.get(ln.mpId);
-      if (mp && (mp.esElaborado || String(mp.categoria || '').toUpperCase() === 'ELABORADOS')) return true;
-    }
-    if (ln.ingrediente && cat.slugPlato && cat.getMenuPlato) {
-      var s = cat.slugPlato(ln.ingrediente);
-      if (s && s !== slugPlato && cat.getMenuPlato(s)) return true;
-    }
+  function autoDetectFeMatchGrupo(fe, nit, razonSocial) {
+    fe = fe || {};
+    var nNit = autoDetectNormNit(nit);
+    var feNit = autoDetectNormNit(fe.nitEmisor);
+    if (nNit && feNit && nNit === feNit) return true;
+    var nNom = autoDetectNormNombre(razonSocial);
+    var feNom = autoDetectNormNombre(fe.razonSocial);
+    if (nNom && feNom && nNom === feNom) return true;
     return false;
   }
 
-  function newEditReceta(slug) {
-    var cat = C();
-    return {
-      mode: 'receta',
-      slug: slug,
-      mpId: '',
-      factor: 1,
-      tipoReceta: 'base',
-      vendeAlCliente: false,
-      modoProceso: 'prep_anticipado',
-      baseLineas: loadBaseLineas(slug),
-      locked: {},
-      overrides: {},
-      scaleRatio: 1,
-      opts: (function () {
-        var rec = C() && C().getRecetaPlato(slug);
-        return (rec && rec.opts) || {};
-      })(),
-    };
+  function autoDetectFinalizeAsignacion(factura, proveedorId, bucket, nuevaFactura, prov) {
+    bucket.facturas.push(nuevaFactura);
+    bucket.facturaActiva = nuevaFactura.id;
+    factura.proveedorAsignado = proveedorId;
+    factura.facturaSistemaId = nuevaFactura.id;
+    toast('Factura asignada a ' + (prov.nombre || prov.name), 'success');
+    refrescarListaFacturas();
+    if (typeof renderProveedoresSugeridosResumen === 'function') renderProveedoresSugeridosResumen();
+    var live = cxfLive();
+    if (live && live.schedulePersistCxfSession) live.schedulePersistCxfSession();
   }
 
-  function newEditMp(mpId) {
-    return {
-      mode: 'mp',
-      slug: '',
-      mpId: mpId,
-      factor: 1,
-      modoProceso: 'prep_anticipado',
-      baseLineas: [],
-      locked: {},
-      overrides: {},
-      scaleRatio: 1,
-      opts: {},
-      cortesDespiece: state.workflow === 'despiece' ? loadCortesTemplate(mpId) : [],
-    };
+  function showAutoDetectBusy() {
+    var bar = document.getElementById('cxf-auto-busy-bar');
+    var upload = document.getElementById('cxf-auto-upload-zone');
+    if (bar) bar.style.display = 'block';
+    if (upload) upload.style.display = 'none';
+    document.body.classList.add('cxf-auto-detect--locked');
   }
 
-  function computeDisplayLineas(edit) {
-    if (!edit || edit.mode !== 'receta') return [];
-    var factor = num(edit.factor, 1) || 1;
-    var ratio = num(edit.scaleRatio, 1) || 1;
-    return (edit.baseLineas || []).map(function (ln, i) {
-      if (edit.locked[i] && edit.overrides[i] != null) {
-        return Object.assign({}, ln, { cantidad: num(edit.overrides[i]), locked: true, idx: i });
-      }
-      return Object.assign({}, ln, {
-        cantidad: num(ln.cantidadBase) * factor * ratio,
-        locked: false,
-        idx: i,
+  function updateAutoDetectBusyLabel(nombre, idx, total, extra) {
+    var fileEl = document.getElementById('cxf-auto-busy-file');
+    var titleEl = document.getElementById('cxf-auto-busy-title');
+    if (fileEl) fileEl.textContent = nombre || '';
+    if (titleEl) {
+      titleEl.textContent =
+        'Analizando facturas' +
+        (total ? ' (' + idx + ' / ' + total + ')' : '') +
+        (extra ? ' · ' + extra : '') +
+        '…';
+    }
+    updateAutoDetectProgress();
+  }
+
+  function autoDetectCascadeNivel(factura) {
+    if (!factura) return 0;
+    if (factura.estado === 'pendiente') return 0;
+    if (factura.estado === 'pendiente_pass2') return 1;
+    if (factura.estado === 'pendiente_pass3') return 2;
+    return factura._cascadeNivel || 0;
+  }
+
+  function autoDetectCascadeLabel(nivel) {
+    if (nivel === 0) return 'Paso 1 · lectura rápida';
+    if (nivel === 1) return 'Paso 2 · OCR y giro';
+    return 'Paso 3 · OCR avanzado + QR';
+  }
+
+  function autoDetectPickSiguienteFactura() {
+    var orden = ['pendiente', 'pendiente_pass2', 'pendiente_pass3'];
+    for (var i = 0; i < orden.length; i++) {
+      var f = _autoDetectState.facturas.find(function (x) {
+        return x.estado === orden[i];
       });
-    });
-  }
-
-  function calcCostoFromLineas(lineas, opts) {
-    var eng = E();
-    if (!eng || !lineas.length) return 0;
-    var calc = eng.calcularReceta(
-      lineas.map(function (ln) {
-        return {
-          ingrediente: ln.ingrediente,
-          unidad: ln.unidad,
-          cantidad: ln.cantidad,
-          costoXUnidad: ln.costoXUnidad,
-        };
-      }),
-      opts || {}
-    );
-    return calc ? num(calc.totalMp) : 0;
-  }
-
-  function costoMpPorKg(mp) {
-    if (!mp) return 0;
-    var peso = num(mp.peso, 1);
-    if (peso <= 0) peso = 1;
-    if (mp.precioTotal != null && num(mp.precioTotal) > 0) return num(mp.precioTotal) / peso;
-    var und = String(mp.und || '').toUpperCase();
-    if (und === 'GR' || und === 'ML') return num(mp.precioUnit) * 1000;
-    return num(mp.precioUnit) || 0;
-  }
-
-  function costoEntradaKg(mp, entradaKg) {
-    return Math.round(costoMpPorKg(mp) * num(entradaKg));
-  }
-
-  function isProcesoPrepRow(row) {
-    var cat = C();
-    if (!cat || !row) return false;
-    if (cat.requiresSesionProceso) return cat.requiresSesionProceso(row);
-    if (cat.inferModoProcesoFromMenu) return cat.inferModoProcesoFromMenu(row) === 'prep_anticipado';
-    return row.tipoCosteo !== 'directo';
-  }
-
-  function listCatalogo() {
-    var cat = C();
-    if (!cat || !cat.buildSeedForCostos) return { recetas: [], directos: [], sinReceta: [], mpDespiece: [] };
-    var seed = cat.buildSeedForCostos();
-    var recetas = [];
-    var directos = [];
-    var sinReceta = [];
-    (seed.resumen || []).forEach(function (row) {
-      if (!row || !row.slug) return;
-      if (!isProcesoPrepRow(row)) return;
-      var rec = cat.getRecetaPlato(row.slug);
-      var hasLineas = !!(rec && rec.lineas && rec.lineas.length);
-      var item = { row: row, rec: rec, hasLineas: hasLineas };
-      if (row.tipoCosteo === 'directo') directos.push(item);
-      else if (hasLineas) recetas.push(item);
-      else sinReceta.push(item);
-    });
-    recetas.sort(function (a, b) {
-      return String(a.row.producto).localeCompare(String(b.row.producto), 'es');
-    });
-    var mpDespiece = [];
-    if (cat.list) {
-      cat.list().forEach(function (mp) {
-        if (!mp || !mp.nombre) return;
-        if (cat.mpAptoDespiece ? cat.mpAptoDespiece(mp) : false) mpDespiece.push(mp);
-      });
-    }
-    mpDespiece.sort(function (a, b) {
-      return String(a.nombre).localeCompare(String(b.nombre), 'es');
-    });
-    return { recetas: recetas, directos: directos, sinReceta: sinReceta, mpDespiece: mpDespiece };
-  }
-
-  function mpOptionsHtml(mps, emptyLabel) {
-    if (!mps.length) {
-      return '<option value="" disabled>' + esc(emptyLabel || 'Sin opciones en catálogo') + '</option>';
-    }
-    return mps
-      .map(function (mp) {
-        return (
-          '<option value="mp:' +
-          esc(mp.id) +
-          '">' +
-          esc(mp.nombre) +
-          (mp.categoria ? ' · ' + esc(mp.categoria) : '') +
-          '</option>'
-        );
-      })
-      .join('');
-  }
-
-  function filterRecetasForWorkflow(recetas, workflow) {
-    var cat = C();
-    if (!workflow || !cat || !cat.menuRowMatchesPrepWorkflow) return recetas;
-    return recetas.filter(function (it) {
-      return cat.menuRowMatchesPrepWorkflow(it.row, workflow);
-    });
-  }
-
-  function recetaOptionsHtml(recetas, sinReceta) {
-    var html = '';
-    if (recetas.length) {
-      html +=
-        recetas
-          .map(function (it) {
-            var n = (it.rec && it.rec.lineas && it.rec.lineas.length) || 0;
-            return (
-              '<option value="rec:' +
-              esc(it.row.slug) +
-              '">' +
-              esc(it.row.producto) +
-              ' · ' +
-              n +
-              ' ingr.</option>'
-            );
-          })
-          .join('');
-    }
-    if (sinReceta.length) {
-      html += sinReceta
-        .map(function (it) {
-          return (
-            '<option value="rec:' +
-            esc(it.row.slug) +
-            '" disabled>' +
-            esc(it.row.producto) +
-            ' — sin ingredientes</option>'
-          );
-        })
-        .join('');
-    }
-    return html;
-  }
-
-  function productOptionsHtml(workflow) {
-    var data = listCatalogo();
-    var meta = wfMeta(workflow);
-    var html = '<option value="">— ' + esc(meta.pickLabel) + ' —</option>';
-
-    if (workflow === 'despiece') {
-      html +=
-        '<optgroup label="Carnes y piezas">' +
-        mpOptionsHtml(data.mpDespiece, 'Agrega carnes en catálogo MP') +
-        '</optgroup>';
-      return html;
-    }
-
-    if (workflow === 'coccion') {
-      var mpCoc = listMpCoccion();
-      if (mpCoc.length) {
-        html +=
-          '<optgroup label="Materia prima a cocinar">' +
-          mpOptionsHtml(mpCoc, 'Agrega materias primas en catálogo') +
-          '</optgroup>';
-      }
-      var recCoc = filterRecetasForWorkflow(data.recetas, 'coccion');
-      var sinCoc = filterRecetasForWorkflow(data.sinReceta, 'coccion');
-      if (recCoc.length || sinCoc.length) {
-        html +=
-          '<optgroup label="Preps cocidos (con receta)">' +
-          recetaOptionsHtml(recCoc, sinCoc) +
-          '</optgroup>';
-      }
-      if (!mpCoc.length && !recCoc.length && !sinCoc.length) {
-        html +=
-          '<option value="" disabled>Agrega MP en catálogo o recetas en «Cocinar y porcionar» (Costos)</option>';
-      }
-      return html;
-    }
-
-    if (workflow === 'elaboracion') {
-      var recElab = filterRecetasForWorkflow(data.recetas, 'elaboracion');
-      var sinElab = filterRecetasForWorkflow(data.sinReceta, 'elaboracion');
-      if (recElab.length || sinElab.length) {
-        html +=
-          '<optgroup label="Salsas y bases (con receta)">' +
-          recetaOptionsHtml(recElab, sinElab) +
-          '</optgroup>';
-      } else {
-        html +=
-          '<option value="" disabled>Define recetas con «Aparece en prep cocina → Salsas y bases» en Costos</option>';
-      }
-      return html;
-    }
-
-    if (data.mpDespiece.length) {
-      html +=
-        '<optgroup label="Carnes y piezas">' +
-        mpOptionsHtml(data.mpDespiece, '') +
-        '</optgroup>';
-    }
-    var mpCocAll = listMpCoccion();
-    if (mpCocAll.length) {
-      html +=
-        '<optgroup label="Cocinar y porcionar">' +
-        mpOptionsHtml(mpCocAll, '') +
-        '</optgroup>';
-    }
-    if (data.recetas.length || data.sinReceta.length) {
-      html +=
-        '<optgroup label="Salsas y bases">' +
-        recetaOptionsHtml(data.recetas, data.sinReceta) +
-        '</optgroup>';
-    }
-    return html;
-  }
-
-  function staffAddOptionsHtml() {
-    var ids = {};
-    (state.responsables || []).forEach(function (r) {
-      ids[String(r.id)] = true;
-    });
-    return (
-      '<option value="">— Sumar compañero —</option>' +
-      listStaffActivos()
-        .filter(function (u) {
-          return !ids[String(u.id)];
-        })
-        .map(function (u) {
-          return (
-            '<option value="' +
-            esc(u.id) +
-            '">' +
-            esc(u.nombre || u.id) +
-            (u.rol ? ' · ' + esc(u.rol) : '') +
-            '</option>'
-          );
-        })
-        .join('')
-    );
-  }
-
-  function responsablesCardHtml() {
-    var chips = (state.responsables || [])
-      .map(function (r) {
-        return (
-          '<span class="cps-resp-chip' +
-          (r.principal ? ' is-primary' : '') +
-          '" data-resp-id="' +
-          esc(r.id) +
-          '">' +
-          esc(responsableLabel(r)) +
-          (r.principal ? ' <span class="cps-tag">Responsable</span>' : '') +
-          (!r.principal
-            ? ' <button type="button" class="cps-resp-rm" data-resp-rm="' +
-              esc(r.id) +
-              '" title="Quitar">×</button>'
-            : '') +
-          '</span>'
-        );
-      })
-      .join('');
-    return (
-      '<div class="card" id="cps-resp-card">' +
-      '<h3 class="card-title">Equipo en cocina</h3>' +
-      '<div class="cps-resp-chips" id="cps-resp-chips">' +
-      (chips || '<span class="cps-hint">Sin usuario en sesión</span>') +
-      '</div>' +
-      '<div class="form-group" style="margin:0">' +
-      '<label class="form-label">¿Quién más ayudó?</label>' +
-      '<select class="form-input form-select" id="cps-resp-add">' +
-      staffAddOptionsHtml() +
-      '</select></div></div>'
-    );
-  }
-
-  function batchCardHtml() {
-    if (!state.batch.length) return '';
-    var items = state.batch
-      .map(function (it, i) {
-        return (
-          '<li class="cps-batch-item" data-batch-idx="' +
-          i +
-          '">' +
-          '<span><strong>' +
-          esc(it.producto) +
-          '</strong>' +
-          (it.porciones != null ? ' · ' + esc(it.porciones) + ' porc.' : '') +
-          ' · ' +
-          esc(modoProcesoLabel(it.modoProceso)) +
-          (canVerValoresProcesos() ? ' · ' + fmtMoney(it.costoMpTotal) : '') +
-          '</span>' +
-          '<button type="button" class="btn btn-outline btn-sm cps-batch-rm" data-batch-rm="' +
-          i +
-          '">Quitar</button></li>'
-        );
-      })
-      .join('');
-    var sum = state.batch.reduce(function (s, it) {
-      return s + num(it.costoMpTotal);
-    }, 0);
-    return (
-      '<div class="card" id="cps-batch-card">' +
-      '<h3 class="card-title">En esta anotación <span class="cps-tag">' +
-      state.batch.length +
-      '</span></h3>' +
-      '<ul class="cps-batch-list">' +
-      items +
-      '</ul>' +
-      costoTotalBlockHtml('Total insumos usados', sum, 'cps-costo-total') +
-      '</div>'
-    );
-  }
-
-  function porcionesBtnsHtml(factor) {
-    var presets = [0.5, 1, 1.5, 2, 3, 5];
-    return presets
-      .map(function (p) {
-        var active = Math.abs(num(factor) - p) < 0.001 ? ' is-active' : '';
-        return (
-          '<button type="button" class="btn btn-outline btn-sm cps-porc-pick' +
-          active +
-          '" data-porc="' +
-          p +
-          '">' +
-          (p === 0.5 ? '½' : String(p)) +
-          '</button>'
-        );
-      })
-      .join('');
-  }
-
-  function lineasTableHtml(edit) {
-    var lineas = computeDisplayLineas(edit);
-    if (!lineas.length) {
-      return '<p class="cps-empty">Este plato no tiene ingredientes en Costos. Créela allí primero.</p>';
-    }
-    var slugPlato = edit && edit.slug ? edit.slug : '';
-    var verVal = canVerValoresProcesos();
-    var rows = lineas
-      .map(function (ln) {
-        var i = ln.idx;
-        var total = num(ln.costoXUnidad) * num(ln.cantidad);
-        var esElab = lineaEsElaborado(ln, slugPlato);
-        return (
-          '<tr data-cps-line="' +
-          i +
-          '"' +
-          (ln.locked ? ' class="cps-line-locked"' : '') +
-          '>' +
-          '<td>' +
-          esc(ln.ingrediente) +
-          (esElab ? ' <span class="cps-tag cps-tag--ok">Elaborado</span>' : '') +
-          (ln.locked ? ' <span class="cps-tag cps-tag--lock">Fijo</span>' : '') +
-          '</td>' +
-          '<td><input type="number" class="form-input cps-line-qty" data-idx="' +
-          i +
-          '" min="0" step="0.01" value="' +
-          esc(Number(num(ln.cantidad).toFixed(4))) +
-          '"> ' +
-          esc(ln.unidad || '') +
-          (ln.locked
-            ? ' <button type="button" class="btn btn-outline btn-sm cps-line-unlock" data-unlock="' +
-              i +
-              '" title="Volver a calcular auto">↺</button>'
-            : '') +
-          '</td>' +
-          (verVal
-            ? '<td class="num">' +
-              fmtMoney(ln.costoXUnidad) +
-              '</td><td class="num cps-line-total" data-idx="' +
-              i +
-              '">' +
-              fmtMoney(total) +
-              '</td>'
-            : '') +
-          '</tr>'
-        );
-      })
-      .join('');
-    return (
-      '<table class="table"><thead><tr><th>Ingrediente</th><th>Cantidad usada</th>' +
-      (verVal ? '<th class="num">Costo unit.</th><th class="num">Subtotal</th>' : '') +
-      '</tr></thead><tbody>' +
-      rows +
-      '</tbody></table>'
-    );
-  }
-
-  function recetaPanelHtml(edit) {
-    var cat = C();
-    var slug = edit.slug;
-    var rec = cat && slug ? cat.getRecetaPlato(slug) : null;
-    var menu = cat && slug ? cat.getMenuPlato(slug) : null;
-    var lineas = computeDisplayLineas(edit);
-    var costo = calcCostoFromLineas(lineas, edit.opts);
-    var porBase = (rec && rec.opts && rec.opts.porciones) || 1;
-    return (
-      '<div class="card" id="cps-receta-panel">' +
-      '<h3 class="card-title">Ingredientes · ' +
-      esc((menu && menu.producto) || (rec && rec.producto) || slug) +
-      '<span class="cps-tag cps-tag--ok">Receta</span></h3>' +
-      prepOnlyBannerHtml() +
-      '<div class="form-grid">' +
-      '<div class="form-group"><label class="form-label">¿Cuántas porciones salieron?</label>' +
-      '<input type="number" class="form-input" id="cps-factor" min="0.01" step="0.01" value="' +
-      esc(num(edit.factor, 1)) +
-      '">' +
-      '<div class="cps-porc-btns" id="cps-porc-btns">' +
-      porcionesBtnsHtml(edit.factor) +
-      '</div></div>' +
-      '<div class="form-group"><label class="form-label">Receta base (porciones)</label>' +
-      '<input type="number" class="form-input" readonly value="' +
-      esc(porBase) +
-      '"></div>' +
-      '<div class="form-group"><label class="form-label">¿Cuánto pesó al final? (kg / und)</label>' +
-      '<input type="number" class="form-input" id="cps-output-kg" min="0" step="0.01" placeholder="Peso listo para guardar"></div>' +
-      '<div class="form-group"><label class="form-label">Peso antes de cocinar (kg)</label>' +
-      '<input type="number" class="form-input" id="cps-peso-bruto" min="0" step="0.01" placeholder="Opcional"></div>' +
-      '<div class="form-group"><label class="form-label">Notas (turno, lote…)</label>' +
-      '<input type="text" class="form-input" id="cps-notas" placeholder="Turno, lote…"></div>' +
-      '</div>' +
-      '<p class="cps-hint">Si cambias porciones o un ingrediente, el resto se ajusta solo. Lo que ya tenías preparado (ej. salsa hecha) se descuenta del stock.</p>' +
-      mermaBlockHtml(
-        (function () {
-          var m = menu;
-          return m && m.costeoMpSourceId ? cat.get(m.costeoMpSourceId) : null;
-        })(),
-        state.workflow
-      ) +
-      '<div id="cps-lineas-wrap">' +
-      lineasTableHtml(edit) +
-      '</div>' +
-      costoTotalBlockHtml('Valor materia prima', costo, 'cps-costo-total') +
-      '</div>'
-    );
-  }
-
-  function mpPanelHtml(edit) {
-    var cat = C();
-    var mp = cat && edit.mpId ? cat.get(edit.mpId) : null;
-    if (!mp) return '<p class="cps-empty">Elige una carne de la lista.</p>';
-    var unit = costoMpPorKg(mp);
-    var isDespiece = state.workflow === 'despiece';
-    var entradaVal = num(mp.peso) || '';
-    if (isDespiece) {
-      var entGr = num(entradaVal) > 0 ? Math.round(num(entradaVal) * 1000) : '';
-      return (
-        '<div class="card" id="cps-mp-panel">' +
-        '<h3 class="card-title">' +
-        esc(mp.nombre) +
-        '</h3>' +
-        '<div class="cps-despiece-step">' +
-        '<span class="cps-despiece-step__badge">Paso 1</span>' +
-        '<p class="cps-despiece-step__title">Pesa toda la pieza junta</p>' +
-        '<p class="cps-despiece-step__help">Usa gramos (g) como en la balanza. Ej: 10 kg = <strong>10000</strong> g.</p>' +
-        (function () {
-          if (!canVerMermaReferencias()) return '';
-          var cat = C();
-          var esp = cat && cat.perdidaEsperadaPct ? cat.perdidaEsperadaPct(mp, 'despiece') : 0;
-          return esp > 0 ? '<p class="cps-hint">Referencia al partir: ~' + num(esp).toFixed(0) + '%</p>' : '';
-        })() +
-        '<label class="form-label">Peso total (g)</label>' +
-        '<input type="number" class="form-input" id="cps-mp-entrada-gr" min="0" step="1" inputmode="numeric" placeholder="Ej: 10000" value="' +
-        esc(entGr) +
-        '">' +
-        '<input type="hidden" id="cps-mp-entrada" value="' +
-        esc(entGr ? num(entGr) / 1000 : '') +
-        '"></div>' +
-        despieceCortesCardsHtml(edit) +
-        despieceResumenHtml(
-          calcDespieceSummary(0, edit.cortesDespiece || [], mp, { entGr: num(entGr) || 0 }),
-          mp
-        ) +
-        '<div class="form-group" style="margin-top:12px">' +
-        '<label class="form-label">Notas (opcional)</label>' +
-        '<input type="text" class="form-input" id="cps-notas" placeholder="Ej: turno mañana"></div>' +
-        costoTotalBlockEmptyHtml('Insumo usado', 'cps-costo-total') +
-        '</div>'
-      );
-    }
-    return (
-      '<div class="card" id="cps-mp-panel">' +
-      '<h3 class="card-title">Pieza entera · ' +
-      esc(mp.nombre) +
-      '<span class="cps-tag">Despiece</span></h3>' +
-      '<div class="form-grid">' +
-      '<div class="form-group"><label class="form-label">¿Cuánto pesó la pieza? (kg)</label><input type="number" class="form-input" id="cps-mp-entrada" min="0" step="0.01" value="' +
-      esc(entradaVal) +
-      '"></div>' +
-      '<div class="form-group"><label class="form-label">¿Cuánto salió en cortes? (kg)</label><input type="number" class="form-input" id="cps-output-kg" min="0" step="0.01"></div>' +
-      (canVerValoresProcesos()
-        ? '<div class="form-group"><label class="form-label">Costo por kg (referencia)</label><input type="text" class="form-input" readonly value="' +
-          esc(fmtMoney(unit)) +
-          '"></div>'
-        : '') +
-      '<div class="form-group"><label class="form-label">Notas</label><input type="text" class="form-input" id="cps-notas"></div>' +
-      '</div>' +
-      mermaBlockHtml(mp, state.workflow) +
-      costoTotalBlockEmptyHtml('Valor insumos usados', 'cps-costo-total') +
-      '</div>'
-    );
-  }
-
-  function canAdminProcesos() {
-    if (typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser()) return true;
-    if (typeof global.getCurrentUser !== 'function') return false;
-    var u = global.getCurrentUser();
-    if (!u) return false;
-    var r =
-      typeof global.crozzoNormalizeAppRol === 'function'
-        ? global.crozzoNormalizeAppRol(u.rol)
-        : String(u.rol || '').toLowerCase();
-    return r === 'admin' || r === 'superadmin' || r === 'super_admin';
-  }
-
-  /** Valores $ — jefe compras, admin, gerente; no cocina operativa. */
-  function canVerValoresProcesos() {
-    if (canAdminProcesos()) return true;
-    if (typeof global.getCurrentUser !== 'function') return false;
-    var u = global.getCurrentUser();
-    if (!u) return false;
-    var r =
-      typeof global.crozzoNormalizeAppRol === 'function'
-        ? global.crozzoNormalizeAppRol(u.rol)
-        : String(u.rol || '').toLowerCase();
-    if (r === 'gerente' || r === 'jefe_compras' || r === 'jefe-compras') return true;
-    var inv = (u.permisos && u.permisos.inventario) || [];
-    if (
-      inv.indexOf('proveedores') >= 0 ||
-      inv.indexOf('reportes') >= 0 ||
-      inv.indexOf('recepcion') >= 0 ||
-      inv.indexOf('ordenes') >= 0
-    ) {
-      return true;
-    }
-    var adm = (u.permisos && u.permisos.admin) || [];
-    if (adm.length) return true;
-    return false;
-  }
-
-  /** % merma / pérdidas de referencia — no cocina operativa. */
-  function canVerMermaReferencias() {
-    return canVerValoresProcesos();
-  }
-
-  function costoTotalBlockHtml(label, amount, id) {
-    if (!canVerValoresProcesos()) return '';
-    return (
-      '<div class="cps-total"><span class="cps-total__lbl">' +
-      esc(label) +
-      '</span><span class="cps-total__val"' +
-      (id ? ' id="' + esc(id) + '"' : '') +
-      '>' +
-      fmtMoney(amount) +
-      '</span></div>'
-    );
-  }
-
-  function costoTotalBlockEmptyHtml(label, id) {
-    if (!canVerValoresProcesos()) return '';
-    return (
-      '<div class="cps-total"><span class="cps-total__lbl">' +
-      esc(label) +
-      '</span><span class="cps-total__val"' +
-      (id ? ' id="' + esc(id) + '"' : '') +
-      '>—</span></div>'
-    );
-  }
-
-  function historialRowsHtml(limit) {
-    var res = R();
-    if (!res) return '';
-    limit = limit || 20;
-    var admin = canAdminProcesos();
-    var verVal = canVerValoresProcesos();
-    return res
-      .load()
-      .cortes.filter(function (c) {
-        return (c.modoProceso || 'prep_anticipado') !== 'bajo_demanda';
-      })
-      .slice(0, limit)
-      .map(function (c) {
-        var costo =
-          verVal && c.costoMpTotal != null && c.costoMpTotal > 0 ? fmtMoney(c.costoMpTotal) : verVal ? '—' : '';
-        var resp = c.responsableNombre || (c.responsables && c.responsables[0] && c.responsables[0].nombre) || '—';
-        var mermaTxt = '—';
-        if (Array.isArray(c.cortesDespiece) && c.cortesDespiece.length) {
-          mermaTxt = c.cortesDespiece
-            .map(function (cr) {
-              var gr = cr.grReal != null ? num(cr.grReal) : num(cr.kgReal) * 1000;
-              var base = (cr.nombre || '?') + ' ' + (gr > 0 ? gr.toFixed(0) + ' g' : num(cr.kgReal).toFixed(1) + ' kg');
-              if (cr.porciones > 0) base += ' · ' + cr.porciones + ' porc.';
-              return base;
-            })
-            .join(' · ');
-          if (c.mermaDesposteKg > 0) {
-            var mGr = Math.round(num(c.mermaDesposteKg) * 1000);
-            mermaTxt += mGr >= 1000 ? ' · sobró ' + (mGr / 1000).toFixed(2) + ' kg' : ' · sobró ' + mGr + ' g';
-          }
-        } else if (canVerMermaReferencias() && c.mermaTotalKg > 0) {
-          mermaTxt =
-            'MC ' +
-            (c.mermaCoccionRealPct != null ? num(c.mermaCoccionRealPct).toFixed(1) + '%' : '—') +
-            ' · MD ' +
-            (c.mermaDesposteRealPct != null ? num(c.mermaDesposteRealPct).toFixed(1) + '%' : '—');
-        }
-        var delCell = admin
-          ? '<td><button type="button" class="btn btn-outline btn-sm cps-proc-rm" data-proc-rm="' +
-            esc(c.id) +
-            '" title="Borrar prep">Borrar</button></td>'
-          : '';
-        return (
-          '<tr data-proc-id="' +
-          esc(c.id) +
-          '"><td>' +
-          esc(c.fecha) +
-          '</td><td>' +
-          esc(c.producto) +
-          '</td><td>' +
-          (c.porciones != null ? esc(c.porciones) : c.factor != null ? esc(c.factor) : '—') +
-          '</td>' +
-          (verVal ? '<td class="num">' + costo + '</td>' : '') +
-          '<td style="font-size:11px">' +
-          esc(mermaTxt) +
-          '</td><td>' +
-          esc(resp) +
-          '</td>' +
-          delCell +
-          '</tr>'
-        );
-      })
-      .join('');
-  }
-
-  function historialHtml() {
-    var admin = canAdminProcesos();
-    var verVal = canVerValoresProcesos();
-    var rows = historialRowsHtml(admin ? 50 : 20);
-    var colSpan = (verVal ? 1 : 0) + 5 + (admin ? 1 : 0);
-    return (
-      '<div class="card" id="cps-historial-card"><h3 class="card-title">Últimos preps</h3>' +
-      '<table class="table"><thead><tr><th>Fecha</th><th>Qué</th><th>Porc.</th>' +
-      (verVal ? '<th class="num">Insumos</th>' : '') +
-      '<th>Detalle</th><th>Quién</th>' +
-      (admin ? '<th></th>' : '') +
-      '</tr></thead><tbody id="cps-historial-tbody">' +
-      (rows || '<tr><td colspan="' + colSpan + '">Sin preparaciones registradas</td></tr>') +
-      '</tbody></table></div>'
-    );
-  }
-
-  function refreshHistorial(host) {
-    if (!host) return;
-    var tbody = host.querySelector('#cps-historial-tbody');
-    if (!tbody) return;
-    var admin = canAdminProcesos();
-    var verVal = canVerValoresProcesos();
-    var rows = historialRowsHtml(admin ? 50 : 20);
-    var colSpan = (verVal ? 1 : 0) + 5 + (admin ? 1 : 0);
-    tbody.innerHTML = rows || '<tr><td colspan="' + colSpan + '">Sin preparaciones registradas</td></tr>';
-    bindHistorialAdmin(host);
-  }
-
-  function bindHistorialAdmin(host) {
-    if (!host || !canAdminProcesos()) return;
-    host.querySelectorAll('.cps-proc-rm').forEach(function (btn) {
-      if (btn._cpsBound) return;
-      btn._cpsBound = true;
-      btn.addEventListener('click', function () {
-        var id = btn.getAttribute('data-proc-rm');
-        if (!id) return;
-        if (
-          !confirm(
-            '¿Borrar este prep?\n\nTambién se quitan los movimientos de bodega ligados a este registro.'
-          )
-        ) {
-          return;
-        }
-        var res = R();
-        if (!res || !res.eliminarProceso) return toast('No se puede borrar', 'error');
-        if (res.eliminarProceso(id)) {
-          toast('Prep eliminado', 'success');
-          refreshHistorial(host);
-        } else toast('No se encontró el registro', 'warning');
-      });
-    });
-  }
-
-  function renderHistorial() {
-    injectStyles();
-    return (
-      '<div class="crozzo-compras-local cps" id="crozzo-procesos-historial">' +
-      '<header class="cps__head">' +
-      '<div class="cps__badge">Lo prepé</div>' +
-      '<h2 class="cps__title">Preparaciones anteriores</h2>' +
-      '<p class="cps__sub page-subtitle">Lo que registraste en cocina — salsas, bases y despiece.</p>' +
-      '<div class="cps__head-actions">' +
-      (canVerValoresProcesos()
-        ? '<button type="button" class="btn btn-outline btn-sm" id="cps-goto-recetas">Ver recetas e ingredientes</button>'
-        : '') +
-      '</div>' +
-      '</header>' +
-      historialHtml() +
-      '</div>'
-    );
-  }
-
-  function initHistorial(host) {
-    state.host = host || null;
-    bindHistorialAdmin(host);
-  }
-
-  function goRecetasEstandar(host) {
-    var slug = '';
-    if (state.edit && state.edit.slug) slug = state.edit.slug;
-    else if (host) {
-      var sel = host.querySelector('#cps-producto');
-      var v = sel && sel.value ? String(sel.value) : '';
-      if (v.indexOf('rec:') === 0) slug = v.slice(4);
-    }
-    if (typeof global.crozzoNavigateToRecetasEstandar === 'function') {
-      global.crozzoNavigateToRecetasEstandar(slug ? { slug: slug } : {});
-    } else if (typeof global.navigateTo === 'function') {
-      global.__crozzoCostosMatrizTab = 'demo';
-      global.navigateTo('costos-matriz');
-    }
-  }
-
-  function render(opts) {
-    opts = opts || {};
-    injectStyles();
-    state.workflow = opts.workflow || '';
-    if (!state.responsables.length) state.responsables = initResponsables();
-    var meta = wfMeta(state.workflow);
-    var ready = !!(C() && E());
-    return (
-      '<div class="crozzo-compras-local cps" id="crozzo-procesos-sesion">' +
-      '<header class="cps__head">' +
-      '<div class="cps__badge">' +
-      esc(meta.title) +
-      '</div>' +
-      '<h2 class="cps__title">' +
-      esc(meta.title) +
-      '</h2>' +
-      '<p class="cps__sub page-subtitle">' +
-      esc(meta.sub) +
-      '</p>' +
-      '<div class="cps__head-actions">' +
-      (state.workflow === 'elaboracion' || !state.workflow
-        ? canVerValoresProcesos()
-          ? '<button type="button" class="btn btn-outline btn-sm" id="cps-goto-recetas">Ver receta e ingredientes</button>'
-          : ''
-        : '') +
-      '</div>' +
-      (!ready ? '<p class="cps-hint"><span class="cps-tag cps-tag--warn">Cargando catálogo…</span></p>' : '') +
-      '</header>' +
-      coachHtml(state.workflow) +
-      responsablesCardHtml() +
-      '<div id="cps-batch-host">' +
-      batchCardHtml() +
-      '</div>' +
-      '<div class="card">' +
-      '<h3 class="card-title">' +
-      esc(meta.pickLabel) +
-      '</h3>' +
-      '<div class="form-group"><label class="form-label">Elige de la lista</label>' +
-      '<select class="form-input form-select" id="cps-producto">' +
-      productOptionsHtml(state.workflow) +
-      '</select></div>' +
-      workflowFootnoteHtml(state.workflow) +
-      '</div>' +
-      '<div id="cps-detail-host"></div>' +
-      '<div class="cps-actions" id="cps-actions" style="display:none">' +
-      '<button type="button" class="btn btn-outline" id="cps-add-batch">+ Otro prep en esta anotación</button>' +
-      '<button type="button" class="btn btn-primary" id="cps-save">Guardar en bodega</button></div>' +
-      historialHtml() +
-      '</div>'
-    );
-  }
-
-  function refreshBatchHost(host) {
-    var el = host.querySelector('#cps-batch-host');
-    if (el) el.innerHTML = batchCardHtml();
-    bindBatch(host);
-    var save = host.querySelector('#cps-save');
-    if (save) {
-      var n = state.batch.length + (state.edit ? 1 : 0);
-      save.textContent = n > 1 ? 'Guardar en bodega (' + n + ')' : 'Guardar en bodega';
-    }
-  }
-
-  function refreshRespCard(host) {
-    var el = host.querySelector('#cps-resp-card');
-    if (el) el.outerHTML = responsablesCardHtml();
-    bindResponsables(host);
-  }
-
-  function refreshDetailPanel(host) {
-    if (!state.edit) return;
-    var detail = host.querySelector('#cps-detail-host');
-    if (!detail) return;
-    if (state.edit.mode === 'receta') detail.innerHTML = recetaPanelHtml(state.edit);
-    else if (state.edit.mode === 'mp') detail.innerHTML = mpPanelHtml(state.edit);
-    bindDetail(host);
-    refreshTotals(host);
-  }
-
-  function refreshLineasTable(host) {
-    if (!state.edit || state.edit.mode !== 'receta') return;
-    var wrap = host.querySelector('#cps-lineas-wrap');
-    if (!wrap) return;
-    wrap.innerHTML = lineasTableHtml(state.edit);
-    bindLineInputs(host);
-    refreshTotals(host);
-  }
-
-  function refreshTotals(host) {
-    if (!host || !state.edit) return;
-    if (!canVerValoresProcesos()) return;
-    if (state.edit.mode === 'receta') {
-      var lineas = computeDisplayLineas(state.edit);
-      lineas.forEach(function (ln) {
-        var cell = host.querySelector('.cps-line-total[data-idx="' + ln.idx + '"]');
-        if (cell) cell.textContent = fmtMoney(num(ln.costoXUnidad) * num(ln.cantidad));
-      });
-      var tot = host.querySelector('#cps-costo-total');
-      if (tot) tot.textContent = fmtMoney(calcCostoFromLineas(lineas, state.edit.opts));
-    } else if (state.edit.mode === 'mp') {
-      var mp = C().get(state.edit.mpId);
-      var entGr = readEntradaGrFromHost(host);
-      var ent = entGr > 0 ? entGr / 1000 : num((host.querySelector('#cps-mp-entrada') || {}).value, 0);
-      var totMp = host.querySelector('#cps-costo-total');
-      if (totMp) totMp.textContent = ent > 0 ? fmtMoney(costoEntradaKg(mp, ent)) : '—';
-    }
-  }
-
-  function onFactorChange(host, val) {
-    if (!state.edit) return;
-    state.edit.factor = num(val, 1) || 1;
-    refreshLineasTable(host);
-    var btns = host.querySelector('#cps-porc-btns');
-    if (btns) btns.innerHTML = porcionesBtnsHtml(state.edit.factor);
-    bindPorcBtns(host);
-  }
-
-  function onLineQtyChange(host, idx, rawVal) {
-    if (!state.edit || state.edit.mode !== 'receta') return;
-    var edit = state.edit;
-    var val = num(rawVal, 0);
-    var base = edit.baseLineas[idx];
-    if (!base) return;
-    var expected = num(base.cantidadBase) * num(edit.factor, 1) * num(edit.scaleRatio, 1);
-    if (Math.abs(val - expected) < 0.0001) {
-      delete edit.locked[idx];
-      delete edit.overrides[idx];
-    } else {
-      var r = expected > 0 ? val / expected : 1;
-      edit.scaleRatio = num(edit.scaleRatio, 1) * r;
-      edit.locked[idx] = true;
-      edit.overrides[idx] = val;
-    }
-    refreshLineasTable(host);
-  }
-
-  function unlockLine(host, idx) {
-    if (!state.edit) return;
-    delete state.edit.locked[idx];
-    delete state.edit.overrides[idx];
-    refreshLineasTable(host);
-    toast('Ingrediente vuelve al cálculo automático', 'info');
-  }
-
-  function collectCurrentItem(host) {
-    if (!state.edit) return null;
-    var primary = primaryResponsable();
-    if (state.edit.mode === 'receta') {
-      var cat = C();
-      var slug = state.edit.slug;
-      var menu = cat.getMenuPlato(slug);
-      var rec = cat.getRecetaPlato(slug);
-      var lineasDisp = computeDisplayLineas(state.edit);
-      if (!lineasDisp.length) return null;
-      var lineas = lineasDisp.map(function (ln) {
-        return {
-          mpId: ln.mpId || null,
-          ingrediente: ln.ingrediente,
-          unidad: ln.unidad || 'GR',
-          cantidadUsada: num(ln.cantidad),
-          costoXUnidad: num(ln.costoXUnidad),
-          subtotal: Math.round(num(ln.costoXUnidad) * num(ln.cantidad)),
-          manual: !!ln.locked,
-        };
-      });
-      var costoTotal = calcCostoFromLineas(lineasDisp, state.edit.opts);
-      var outputKg = num((host.querySelector('#cps-output-kg') || {}).value, 0);
-      if (outputKg <= 0) outputKg = num(state.edit.factor, 1);
-      var bruto = num((host.querySelector('#cps-peso-bruto') || {}).value, 0);
-      var item = {
-        producto: (menu && menu.producto) || (rec && rec.producto) || slug,
-        slug: slug,
-        workflow: state.workflow || 'elaboracion',
-        kg: outputKg,
-        porciones: num(state.edit.factor, 1),
-        factor: num(state.edit.factor, 1),
-        modoProceso: 'prep_anticipado',
-        costoMpTotal: costoTotal,
-        lineas: lineas,
-        notas: ((host.querySelector('#cps-notas') || {}).value || '').trim(),
-        responsables: responsablesPayload(),
-        responsableId: primary ? primary.id : null,
-        responsableNombre: primary ? primary.nombre : null,
-        pesoEntradaKg: bruto > 0 ? bruto : null,
-      };
-      var mpRef = menu && menu.costeoMpSourceId ? cat.get(menu.costeoMpSourceId) : null;
-      return attachMermaPayload(item, host, mpRef);
-    }
-    if (state.edit.mode === 'mp') {
-      var mp = C().get(state.edit.mpId);
-      if (!mp) return null;
-      var entradaGr = readEntradaGrFromHost(host);
-      var entrada = entradaGr > 0 ? entradaGr / 1000 : num((host.querySelector('#cps-mp-entrada') || {}).value, 0);
-      syncEntradaKgHidden(host);
-      var salida = 0;
-      var cortesPayload = [];
-      if (state.workflow === 'despiece') {
-        state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
-        cortesPayload = (state.edit.cortesDespiece || [])
-          .filter(function (c) {
-            return (c.nombre || '').trim() && num(c.grBalanza) > 0;
-          })
-          .map(function (c) {
-            var resolved = resolveCortePeso(c);
-            var gr = resolved.grReal;
-            var kg = resolved.kgReal;
-            return {
-              nombre: String(c.nombre).trim(),
-              pctRef: num(c.pctRef) > 0 ? num(c.pctRef) : null,
-              grPorPorcion: num(c.grPorPorcion) > 0 ? num(c.grPorPorcion) : null,
-              grEsperado: resolved.grCalc > 0 ? resolved.grCalc : null,
-              grBalanza: resolved.grBalanza > 0 ? resolved.grBalanza : null,
-              deltaGr: resolved.deltaGr,
-              grReal: gr > 0 ? gr : null,
-              kgReal: kg,
-              porciones: resolved.porciones,
-              restoGr: resolved.restoGr,
-              pctReal: entrada > 0 ? (kg / entrada) * 100 : null,
-            };
-          });
-        salida = cortesPayload.reduce(function (s, c) {
-          return s + num(c.kgReal);
-        }, 0);
-      } else {
-        salida = num((host.querySelector('#cps-output-kg') || {}).value, 0);
-      }
-      if (entrada <= 0) return null;
-      if (state.workflow === 'despiece' && salida <= 0) return null;
-      var costoMp = costoEntradaKg(mp, entrada);
-      var itemMp = {
-        producto: mp.nombre,
-        mpId: state.edit.mpId,
-        workflow: state.workflow || 'despiece',
-        kg: salida || entrada,
-        pesoEntradaKg: entrada,
-        pesoUtilKg: salida > 0 ? salida : null,
-        cortesDespiece: cortesPayload,
-        costoMpTotal: costoMp,
-        lineas: [
-          {
-            mpId: state.edit.mpId,
-            ingrediente: mp.nombre,
-            unidad: 'kg',
-            cantidadUsada: entrada,
-            costoXUnidad: costoMpPorKg(mp),
-            subtotal: costoMp,
-          },
-        ],
-        notas: ((host.querySelector('#cps-notas') || {}).value || '').trim(),
-        responsables: responsablesPayload(),
-        responsableId: primary ? primary.id : null,
-        responsableNombre: primary ? primary.nombre : null,
-        modoProceso: 'prep_anticipado',
-      };
-      return attachMermaPayload(itemMp, host, mp);
+      if (f) return f;
     }
     return null;
   }
 
-  function addCurrentToBatch(host) {
-    if (state.edit && state.edit.mode === 'mp' && state.workflow === 'despiece') {
-      var val = validateDespieceCortes(host);
-      if (!val.ok) return toast(val.msg, 'warning');
-    }
-    var item = collectCurrentItem(host);
-    if (!item) {
-      if (state.edit && state.edit.mode === 'mp' && state.workflow === 'despiece') {
-        return toast('Pesa la pieza y anota cada corte en balanza', 'warning');
-      }
-      return toast('Completa pesos e ingredientes antes de agregar', 'warning');
-    }
-    if (state.edit.mode === 'mp' && item.pesoEntradaKg <= 0) return toast('Indica cuánto pesó la pieza', 'warning');
-    if (canVerMermaReferencias() && item.mermaAlerta) toast(item.mermaAlerta, 'warning');
-    state.batch.push(item);
-    state.edit = null;
-    var detail = host.querySelector('#cps-detail-host');
-    var actions = host.querySelector('#cps-actions');
-    var sel = host.querySelector('#cps-producto');
-    if (detail) detail.innerHTML = '';
-    if (actions) actions.style.display = 'none';
-    if (sel) sel.value = '';
-    refreshBatchHost(host);
-    toast('Agregado — puedes anotar otro prep', 'success');
+  function autoDetectContarProgreso() {
+    var total = _autoDetectState.facturas.length;
+    var hechos = _autoDetectState.facturas.filter(function (f) {
+      return f.estado === 'completado' || f.estado === 'error';
+    }).length;
+    var enCola = _autoDetectState.facturas.filter(function (f) {
+      return f.estado === 'pendiente_pass2' || f.estado === 'pendiente_pass3';
+    }).length;
+    return { total: total, hechos: hechos, enCola: enCola };
   }
 
-  function saveSession(host) {
-    var res = R();
-    if (!res || !res.registrarProceso) return toast('Reservorio no disponible', 'error');
-    var items = state.batch.slice();
-    var current = collectCurrentItem(host);
-    if (current) items.push(current);
-    if (!items.length) return toast('Anota al menos un prep antes de guardar', 'warning');
-    var sesionId = 'ses_' + Date.now();
-    var totalCosto = 0;
-    items.forEach(function (item) {
-      if (canVerMermaReferencias() && item.mermaAlerta) toast(item.mermaAlerta, 'warning');
-      res.registrarProceso(
-        Object.assign({}, item, {
-          sesionId: sesionId,
-          responsables: item.responsables || responsablesPayload(),
-        })
-      );
-      totalCosto += num(item.costoMpTotal);
-    });
-    toast(
-      items.length +
-        ' prep' +
-        (items.length > 1 ? 's' : '') +
-        ' guardado' +
-        (items.length > 1 ? 's' : '') +
-        (canVerValoresProcesos() ? ' · ' + fmtMoney(totalCosto) + ' en insumos' : ''),
-      'success'
-    );
-    state.batch = [];
-    state.edit = null;
-    state.responsables = initResponsables();
-    host.innerHTML = render({ workflow: state.workflow });
-    init(host, { workflow: state.workflow });
+  function renderOrUpdateFacturaAnalizada(factura, resultado) {
+    var existing = document.querySelector('[data-cxf-auto-factura-id="' + factura.id + '"]');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    renderFacturaAnalizada(factura, resultado);
   }
 
-  function onProductChange(host) {
-    var sel = host.querySelector('#cps-producto');
-    var detail = host.querySelector('#cps-detail-host');
-    var actions = host.querySelector('#cps-actions');
-    if (!sel || !detail) return;
-    var val = sel.value || '';
-    state.edit = null;
-    detail.innerHTML = '';
-    if (actions) actions.style.display = 'none';
-    if (!val) return;
-    if (val.indexOf('rec:') === 0) {
-      state.edit = newEditReceta(val.slice(4));
-      detail.innerHTML = recetaPanelHtml(state.edit);
-      if (actions) actions.style.display = 'flex';
-      bindDetail(host);
+  function hideAutoDetectBusy() {
+    var bar = document.getElementById('cxf-auto-busy-bar');
+    if (bar) bar.style.display = 'none';
+    document.body.classList.remove('cxf-auto-detect--locked');
+  }
+
+  function onAutoDetectBeforeUnload(e) {
+    if (!_autoDetectState.analizando) return;
+    e.preventDefault();
+    e.returnValue = 'El análisis de facturas sigue en curso.';
+    return e.returnValue;
+  }
+
+  function installAutoDetectNavGuard() {
+    if (_autoDetectNavGuardOn) return;
+    _autoDetectNavGuardOn = true;
+    document.addEventListener('click', onAutoDetectNavBlockClick, true);
+    window.addEventListener('beforeunload', onAutoDetectBeforeUnload);
+  }
+
+  function removeAutoDetectNavGuard() {
+    if (!_autoDetectNavGuardOn) return;
+    _autoDetectNavGuardOn = false;
+    document.removeEventListener('click', onAutoDetectNavBlockClick, true);
+    window.removeEventListener('beforeunload', onAutoDetectBeforeUnload);
+  }
+
+  function onAutoDetectNavBlockClick(e) {
+    if (!_autoDetectState.analizando) return;
+    var tab = e.target.closest('[data-cxf-prov-tab]');
+    if (tab && tab.getAttribute('data-cxf-prov-tab') !== 'auto') {
+      e.preventDefault();
+      e.stopPropagation();
+      toast('Espere a que termine el análisis de facturas…', 'warning');
       return;
     }
-    if (val.indexOf('mp:') === 0) {
-      state.edit = newEditMp(val.slice(3));
-      detail.innerHTML = mpPanelHtml(state.edit);
-      if (actions) actions.style.display = 'flex';
-      bindDetail(host);
-      bindDespieceCortes(host);
-      refreshTotals(host);
-      refreshDespieceLive(host);
+    var step = e.target.closest('[data-cxf-step]');
+    if (step) {
+      e.preventDefault();
+      e.stopPropagation();
+      toast('Espere a que termine el análisis de facturas…', 'warning');
+      return;
+    }
+    if (e.target.closest('[data-crozzo-act="resetAutoDetect"]')) {
+      e.preventDefault();
+      e.stopPropagation();
+      toast('El análisis está en curso — espere a que finalice', 'warning');
+    }
+    if (e.target.closest('#cxf-go-documento')) {
+      e.preventDefault();
+      e.stopPropagation();
+      toast('Complete primero el análisis automático de facturas', 'warning');
     }
   }
 
-  function bindLineInputs(host) {
-    host.querySelectorAll('.cps-line-qty').forEach(function (inp) {
-      if (inp._cpsBound) return;
-      inp._cpsBound = true;
-      inp.addEventListener('change', function () {
-        onLineQtyChange(host, num(inp.getAttribute('data-idx')), inp.value);
-      });
-      inp.addEventListener('blur', function () {
-        onLineQtyChange(host, num(inp.getAttribute('data-idx')), inp.value);
+  // Exponer funciones al window global para que CSP DomWire las encuentre
+  var root = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined') ? globalThis : global;
+  
+  root.renderAutoDetectPanel = function() {
+    var premium = (typeof isCxfPremiumPsyche === 'function') ? isCxfPremiumPsyche() : false;
+    var host = (typeof getCxfHost === 'function') ? getCxfHost() : null;
+    
+    var html =
+      '<section class="cxf-panel cxf-panel--proveedor cxf-panel--full" id="cxf-auto-detect-panel">' +
+      '<header class="cxf-prov-hero' + (premium ? ' cxf-prov-hero--power' : '') + '">' +
+      '<p class="cxf-eyebrow">Paso 1A · Auto-detección</p>' +
+      '<h2 class="cxf-panel-title">' +
+      (premium ? 'Recepción inteligente de facturas' : 'Análisis automático de facturas') +
+      '</h2>' +
+      '<p class="cxf-panel-lead">' +
+      'Suba sus facturas electrónicas (PDF). El sistema analizará automáticamente cada documento, detectará el proveedor por NIT, y preparará todo para la recepción de materias primas.' +
+      '</p>' +
+      '</header>' +
+      
+      '<div class="cxf-auto-detect__container" style="padding: 0 24px 24px;">' +
+      
+      '<div id="cxf-auto-busy-bar" style="display:none;margin-bottom:20px;padding:16px 20px;border-radius:12px;border:1px solid rgba(var(--matriz-gold-rgb,212,175,55),0.45);background:linear-gradient(145deg,rgba(var(--matriz-gold-rgb,212,175,55),0.12),var(--bg-card));">' +
+      '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+      '<div class="cxf-fe-loader__spinner" style="flex-shrink:0;margin-top:2px;" aria-hidden="true"></div>' +
+      '<div style="flex:1;min-width:0;">' +
+      '<p id="cxf-auto-busy-title" style="margin:0 0 6px;font-weight:700;font-size:1rem;">Analizando facturas…</p>' +
+      '<p id="cxf-auto-busy-file" style="margin:0 0 8px;font-size:0.85rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></p>' +
+      '<p style="margin:0;font-size:0.8rem;color:var(--text-secondary);">No cambie de pestaña ni salga de esta pantalla. Puede <strong>crear proveedores</strong> en las facturas que ya aparezcan abajo.</p>' +
+      '</div></div></div>' +
+      
+      // Zona de carga
+      '<div id="cxf-auto-upload-zone" class="cxf-auto-detect__upload-zone" style="border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center; background: linear-gradient(145deg, var(--bg-secondary), var(--bg-card)); margin-bottom: 24px; transition: all 0.3s ease;" ondragover="this.style.borderColor=\'var(--matriz-gold)\';this.style.background=\'rgba(var(--matriz-gold-rgb),0.05)\'" ondragleave="this.style.borderColor=\'var(--border)\';this.style.background=\'linear-gradient(145deg, var(--bg-secondary), var(--bg-card))\'">' +
+      '<div style="font-size: 48px; margin-bottom: 16px; opacity: 0.6;">📄</div>' +
+      '<h3 style="margin: 0 0 8px; font-size: 1.1rem;">Arrastre sus facturas aquí</h3>' +
+      '<p style="margin: 0 0 20px; color: var(--text-secondary); font-size: 0.9rem;">O seleccione archivos desde su dispositivo</p>' +
+      '<button type="button" class="btn btn-primary btn-lg" data-crozzo-act="abrirSelectorArchivos">' +
+      'Seleccionar facturas PDF' +
+      '</button>' +
+      '<button type="button" class="btn btn-outline btn-lg" style="margin-left:10px" data-crozzo-act="tomarFotoFactura">' +
+      '📷 Tomar foto' +
+      '</button>' +
+      '<p class="form-hint" style="margin-top: 16px;">Puede seleccionar múltiples archivos a la vez</p>' +
+      '<details class="cxf-auto-ocr-ayuda" style="margin-top:18px;text-align:left;max-width:520px;margin-left:auto;margin-right:auto;">' +
+      '<summary style="cursor:pointer;font-size:0.88rem;font-weight:600;color:var(--primary,#6366f1);">Ayuda de lectura (OCR) — opcional</summary>' +
+      '<div style="margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);">' +
+      '<p style="margin:0 0 10px;font-size:0.8rem;color:var(--text-secondary);">1º el <strong>dispositivo</strong> (privado, sin internet). Si no alcanza y activa la opción, 2º <strong>OCR.space</strong> en la nube.</p>' +
+      '<label style="display:flex;align-items:flex-start;gap:8px;font-size:0.82rem;margin-bottom:10px;cursor:pointer;">' +
+      '<input type="checkbox" id="cxf-ocr-nube-activa" style="margin-top:3px;">' +
+      '<span>Usar ayuda en la nube si el dispositivo no lee bien la factura</span></label>' +
+      '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:4px;">API key OCR.space <span style="font-weight:400;color:var(--text-secondary);">(gratis en ocr.space/ocrapi)</span></label>' +
+      '<input type="password" class="form-control" id="cxf-ocr-space-key" placeholder="Opcional — deje vacío para prueba limitada" style="font-size:0.85rem;margin-bottom:8px;">' +
+      '<button type="button" class="btn btn-outline btn-sm" data-crozzo-act="guardarOcrAyudaAutoDetect">Guardar preferencia OCR</button>' +
+      '</div></details>' +
+      '</div>' +
+      
+      // Área de resultados (inicialmente oculta)
+      '<div id="cxf-auto-results" style="display: none;">' +
+      '<div class="cxf-auto-detect__progress" style="margin-bottom: 24px;">' +
+      '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">' +
+      '<span class="cxf-eyebrow" style="margin: 0;">Analizando facturas...</span>' +
+      '<span id="cxf-auto-counter" style="font-weight: 600; color: var(--matriz-gold);">0 / 0</span>' +
+      '</div>' +
+      '<div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">' +
+      '<div id="cxf-auto-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--matriz-gold), #e8d4a8); transition: width 0.3s ease;"></div>' +
+      '</div>' +
+      '</div>' +
+      
+      '<div id="cxf-auto-facturas-list" style="margin-bottom: 24px;"></div>' +
+      
+      '<div id="cxf-auto-proveedores-sugeridos" style="margin-bottom: 24px;"></div>' +
+      
+      '<div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">' +
+      '<button type="button" class="btn btn-outline" id="cxf-auto-reset-btn" data-crozzo-act="resetAutoDetect">↺ Analizar otras facturas</button>' +
+      '<button type="button" class="btn btn-primary btn-lg" id="cxf-auto-continue-btn" data-crozzo-act="continuarAMateriasPrimas">Continuar a materias primas →</button>' +
+      '</div>' +
+      '</div>' +
+      
+      '</div>' +
+      '</section>';
+    setTimeout(function () {
+      if (typeof root.syncOcrAyudaAutoDetectPanel === 'function') root.syncOcrAyudaAutoDetectPanel();
+    }, 0);
+    return html;
+  }
+
+  root.syncOcrAyudaAutoDetectPanel = function () {
+    var FD = feDian();
+    if (!FD || typeof FD.feGetOcrAyudaConfig !== 'function') return;
+    var cfg = FD.feGetOcrAyudaConfig();
+    var chk = document.getElementById('cxf-ocr-nube-activa');
+    var key = document.getElementById('cxf-ocr-space-key');
+    if (chk) chk.checked = !!cfg.nubeActiva;
+    if (key) key.value = cfg.ocrSpaceApiKey || '';
+  };
+
+  root.guardarOcrAyudaAutoDetect = function () {
+    var FD = feDian();
+    if (!FD || typeof FD.feSetOcrAyudaConfig !== 'function') {
+      toast('Módulo de lectura no disponible', 'warning');
+      return;
+    }
+    var chk = document.getElementById('cxf-ocr-nube-activa');
+    var key = document.getElementById('cxf-ocr-space-key');
+    FD.feSetOcrAyudaConfig({
+      nubeActiva: !!(chk && chk.checked),
+      ocrSpaceApiKey: key ? String(key.value || '').trim() : '',
+    });
+    toast('Preferencia OCR guardada', 'success');
+  };
+
+  function cxfAutoDetectEnsureAutoTab(cb) {
+    var live = cxfLive();
+    if (live && live.getUi && live.refreshStepHost && live.getCxfHost) {
+      if (live.getUi().proveedorTab !== 'auto') {
+        live.getUi().proveedorTab = 'auto';
+        live.refreshStepHost(live.getCxfHost());
+        setTimeout(cb, 120);
+        return;
+      }
+    }
+    cb();
+  }
+
+  function cxfEnsureCameraTab(cb) {
+    var live = cxfLive();
+    if (live && live.getUi && live.refreshStepHost && live.getCxfHost) {
+      if (live.getUi().proveedorTab !== 'camara') {
+        live.getUi().proveedorTab = 'camara';
+        live.refreshStepHost(live.getCxfHost());
+        setTimeout(cb, 180);
+        return;
+      }
+    }
+    cb();
+  }
+
+  function cxfAutoDetectPickFiles(accept, multiple) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = multiple !== false;
+    input.accept = accept || 'image/*,.jpg,.jpeg,.png,.webp,.pdf,application/pdf';
+    input.style.display = 'none';
+    input.addEventListener('change', function (e) {
+      var files = e.target.files;
+      if (!files || !files.length) return;
+      cxfAutoDetectEnsureAutoTab(function () {
+        root.handleAutoDetectFiles(files);
       });
     });
-    host.querySelectorAll('.cps-line-unlock').forEach(function (btn) {
-      btn.onclick = function () {
-        unlockLine(host, num(btn.getAttribute('data-unlock')));
-      };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(function () {
+      if (input.parentNode) input.parentNode.removeChild(input);
+    }, 60000);
+  }
+
+  function cxfCamIsMobileUa() {
+    return /android|iphone|ipad|ipod|mobile/i.test(String(navigator.userAgent || ''));
+  }
+
+  function cxfCamIsAndroidApk() {
+    return !!(cxfCamIsTauri() && /android/i.test(String(navigator.userAgent || '')));
+  }
+
+  function cxfEnsureOsCameraPermission() {
+    var reader = global.CrozzoPairingQrReader;
+    if (reader && typeof reader.ensureOsCameraPermission === 'function') {
+      return reader.ensureOsCameraPermission();
+    }
+    return Promise.resolve('not_tauri');
+  }
+
+  function cxfIngestNativeCameraFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+    cxfAutoDetectEnsureAutoTab(function () {
+      root.handleAutoDetectFiles(files);
     });
   }
 
-  function bindPorcBtns(host) {
-    host.querySelectorAll('.cps-porc-pick').forEach(function (btn) {
-      if (btn._cpsBound) return;
-      btn._cpsBound = true;
-      btn.addEventListener('click', function () {
-        var p = num(btn.getAttribute('data-porc'), 1);
-        var factor = host.querySelector('#cps-factor');
-        if (factor) factor.value = String(p);
-        onFactorChange(host, p);
-      });
+  function cxfGetNativeCameraInput() {
+    var input = document.getElementById('cxf-cam-native-input');
+    if (input) return input;
+    input = document.createElement('input');
+    input.id = 'cxf-cam-native-input';
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.setAttribute('capture', 'environment');
+    input.hidden = true;
+    input.addEventListener('change', function (e) {
+      if (e.target.files && e.target.files.length) {
+        cxfIngestNativeCameraFiles(e.target.files);
+      }
+      e.target.value = '';
     });
+    document.body.appendChild(input);
+    return input;
   }
 
-  function bindModo(host) {
-    host.querySelectorAll('input[name="cps-modo"]').forEach(function (inp) {
-      if (inp._cpsBound) return;
-      inp._cpsBound = true;
-      inp.addEventListener('change', function () {
-        var modo = readModoFromHost(host) || 'prep_anticipado';
-        applyModoToHost(host, modo);
-        if (state.edit && state.edit.tipoReceta === 'base' && state.edit.slug) {
-          persistVendeAlCliente(state.edit.slug, modo === 'bajo_demanda');
+  function cxfCamIsWindowsDesktop() {
+    return cxfCamIsTauri() && !cxfCamIsMobileUa();
+  }
+
+  function cxfCamOpenWindowsCameraSettings() {
+    if (!cxfCamIsTauri()) return Promise.resolve();
+    return global.__TAURI__.core.invoke('cxf_open_windows_camera_settings').catch(function () {});
+  }
+
+  function cxfCamPrepareDesktopPermission() {
+    if (!cxfCamIsWindowsDesktop()) return Promise.resolve();
+    var lsKey = 'crozzo_webcam_ask_v2';
+    var askP = Promise.resolve();
+    if (!localStorage.getItem(lsKey)) {
+      try {
+        localStorage.setItem(lsKey, '1');
+      } catch (_) {}
+      askP = new Promise(function (resolve, reject) {
+        var ok = confirm(
+          'BONA origen necesita usar la cámara para fotografiar facturas.\n\n' +
+            'Pulse Aceptar para continuar. Windows o el visor embebido le pedirán permiso si hace falta.\n\n' +
+            'Si cancela, abriremos Configuración → Privacidad → Cámara.'
+        );
+        if (ok) resolve();
+        else {
+          cxfCamOpenWindowsCameraSettings().finally(function () {
+            reject(new Error('cancelled'));
+          });
         }
       });
-    });
-    var vendeChk = host.querySelector('#cps-vender-al-momento');
-    if (vendeChk && !vendeChk._cpsBound) {
-      vendeChk._cpsBound = true;
-      vendeChk.addEventListener('change', function () {
-        if (vendeChk._cpsSyncing) return;
-        var modo = vendeChk.checked ? 'bajo_demanda' : 'prep_anticipado';
-        applyModoToHost(host, modo);
-        if (state.edit && state.edit.slug) persistVendeAlCliente(state.edit.slug, vendeChk.checked);
-      });
     }
+    return askP
+      .then(function () {
+        return cxfCamResetWebviewPermission();
+      })
+      .then(function () {
+        return cxfCamDelay(220);
+      });
   }
 
-  function bindDetail(host) {
-    var factor = host.querySelector('#cps-factor');
-    if (factor && !factor._cpsBound) {
-      factor._cpsBound = true;
-      factor.addEventListener('input', function () {
-        onFactorChange(host, factor.value);
-      });
+  /** Móvil: cámara nativa. PC: selector de imagen (sin toast). */
+  root.abrirCamaraSistemaFactura = function () {
+    if (!cxfCamIsMobileUa()) {
+      cxfAutoDetectPickFiles('image/*,.jpg,.jpeg,.png,.webp', true);
+      return;
     }
-    bindPorcBtns(host);
-    bindLineInputs(host);
-    ['#cps-mp-entrada-gr', '#cps-mp-entrada', '#cps-output-kg', '#cps-peso-cocido', '#cps-peso-bruto'].forEach(function (sel) {
-      var el = host.querySelector(sel);
-      if (el && !el._cpsBound) {
-        el._cpsBound = true;
-        el.addEventListener('input', function () {
-          if (sel === '#cps-mp-entrada-gr') syncEntradaKgHidden(host);
-          refreshTotals(host);
-          if (state.workflow === 'despiece' && (sel === '#cps-mp-entrada-gr' || sel === '#cps-mp-entrada')) {
-            refreshDespieceLive(host);
-          } else refreshMermaLive(host);
+    var openNative = function () {
+      var input = cxfGetNativeCameraInput();
+      try {
+        input.click();
+      } catch (err) {
+        console.warn('[CXF] native camera input', err);
+        cxfAutoDetectPickFiles('image/*,.jpg,.jpeg,.png,.webp', true);
+      }
+    };
+    if (cxfCamIsAndroidApk()) {
+      cxfEnsureOsCameraPermission()
+        .then(function (st) {
+          if (st === 'granted' || st === 'not_tauri' || st === 'unknown') {
+            openNative();
+            return;
+          }
+          cxfAutoDetectPickFiles('image/*,.jpg,.jpeg,.png,.webp', true);
+        })
+        .catch(openNative);
+      return;
+    }
+    openNative();
+  };
+
+  function cxfCamFallbackElegirFoto(msg) {
+    if (typeof root.detenerCamaraInteligente === 'function') root.detenerCamaraInteligente();
+    var startDiv = document.getElementById('cxf-camera-start');
+    if (startDiv) startDiv.style.display = 'flex';
+    cxfCamSetPermError(msg || 'No se pudo abrir la webcam — elija una imagen guardada.', false);
+    toast(msg || 'No se abrió la cámara — elija la foto del disco', 'warning');
+    cxfAutoDetectPickFiles('image/*,.jpg,.jpeg,.png,.webp', true);
+  }
+
+  /** Un solo botón: delega al visor en vivo del módulo si está cargado. */
+  root.tomarFotoFactura = function () {
+    if (typeof global.openCxfLiveCamera === 'function') {
+      global.openCxfLiveCamera();
+      return;
+    }
+    if (cxfCamIsMobileUa()) {
+      root.abrirCamaraSistemaFactura();
+      return;
+    }
+    cxfEnsureCameraTab(function () {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        cxfAutoDetectPickFiles('image/*,.jpg,.jpeg,.png,.webp', true);
+        return;
+      }
+      cxfCamSetPermError('', false);
+      var attempt = 0;
+      var startLive = function () {
+        cxfCamOpenLiveStream().catch(function (err) {
+          if (err && err.message === 'panel') {
+            toast('Espere un momento y pulse Tomar foto otra vez', 'warning');
+            return;
+          }
+          var blob = String((err && err.name) || '') + ' ' + String((err && err.message) || '');
+          var isPerm =
+            /NotAllowed|Permission denied|PermissionDenied|NotFound|DevicesNotFound/i.test(blob);
+          if (isPerm && attempt < 1 && cxfCamIsWindowsDesktop()) {
+            attempt++;
+            console.warn('[CXF] cámara reintento', err);
+            toast('Reintentando acceso a la cámara…', 'info');
+            return cxfCamResetWebviewPermission()
+              .then(function () {
+                return cxfCamDelay(280);
+              })
+              .then(startLive);
+          }
+          if (isPerm) {
+            console.warn('[CXF] cámara → elegir imagen', err);
+            if (cxfCamIsWindowsDesktop()) {
+              cxfCamOpenWindowsCameraSettings();
+            }
+            cxfCamFallbackElegirFoto(cxfCamErrorMessage(err));
+            return;
+          }
+          console.error('[CXF] cámara inteligente', err);
+          toast(cxfCamErrorMessage(err), 'error');
         });
+      };
+      cxfCamPrepareDesktopPermission()
+        .then(startLive)
+        .catch(function (err) {
+          if (err && err.message === 'cancelled') return;
+          startLive();
+        });
+    });
+  };
+
+  root.abrirSelectorArchivos = function() {
+    cxfAutoDetectPickFiles('.pdf,application/pdf', true);
+  };
+
+  root.abrirSelectorFotosAutoDetect = function () {
+    root.tomarFotoFactura();
+  };
+
+  root.handleAutoDetectFiles = function(files) {
+    if (!files || files.length === 0) return;
+    
+    console.log('[AUTO-DETECT] Iniciando análisis de', files.length, 'archivos');
+
+    autoDetectRevokeAllPreviewUrls();
+    installAutoDetectPdfToggle();
+    
+    _autoDetectState.facturas = [];
+    _autoDetectState.resultados = [];
+    _autoDetectState.activo = true;
+    _autoDetectState.analizando = true;
+    
+    var resultsDiv = document.getElementById('cxf-auto-results');
+    var listDiv = document.getElementById('cxf-auto-facturas-list');
+    var provDiv = document.getElementById('cxf-auto-proveedores-sugeridos');
+    if (resultsDiv) resultsDiv.style.display = 'block';
+    if (listDiv) listDiv.innerHTML = '';
+    if (provDiv) provDiv.innerHTML = '';
+    
+    showAutoDetectBusy();
+    installAutoDetectNavGuard();
+    setAutoDetectActionButtons(false);
+    
+    // Preparar facturas
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var facturaItem = {
+        id: 'auto_' + Date.now() + '_' + i,
+        file: f,
+        nombre: f.name,
+        estado: 'pendiente',
+        resultado: null,
+        extraccionCandidatos: [],
+      };
+      if (f.type && f.type.indexOf('image/') === 0) {
+        try {
+          facturaItem.imagen = URL.createObjectURL(f);
+        } catch (_) {}
+      }
+      _autoDetectState.facturas.push(facturaItem);
+    }
+    
+    updateAutoDetectProgress();
+    
+    // Iniciar análisis secuencial
+    analizarSiguienteFactura();
+  };
+
+  function analizarSiguienteFactura() {
+    var factura = autoDetectPickSiguienteFactura();
+
+    if (!factura) {
+      finalizarAutoDetect();
+      return;
+    }
+
+    var cascadeNivel = autoDetectCascadeNivel(factura);
+    factura.estado = 'analizando';
+    factura._cascadeNivel = cascadeNivel;
+    updateAutoDetectProgress();
+
+    console.log('[AUTO-DETECT] Analizando:', factura.nombre, '·', autoDetectCascadeLabel(cascadeNivel));
+    var prog = autoDetectContarProgreso();
+    updateAutoDetectBusyLabel(
+      factura.nombre,
+      prog.hechos + 1,
+      prog.total,
+      autoDetectCascadeLabel(cascadeNivel) + (prog.enCola ? ' · ' + prog.enCola + ' en cola profunda' : '')
+    );
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var arrayBuffer = e.target.result;
+      analizarDocBuffer(arrayBuffer, factura, { cascadeLevel: cascadeNivel }, function (resultado, done) {
+        if (!done) {
+          setTimeout(analizarSiguienteFactura, 180);
+          return;
+        }
+        factura.estado = 'completado';
+        factura.resultado = resultado;
+        _autoDetectState.resultados.push(resultado);
+        renderOrUpdateFacturaAnalizada(factura, resultado);
+        setTimeout(analizarSiguienteFactura, 280);
+      });
+    };
+    reader.onerror = function () {
+      factura.estado = 'error';
+      factura.error = 'No se pudo leer el archivo';
+      renderOrUpdateFacturaAnalizada(factura, null);
+      setTimeout(analizarSiguienteFactura, 100);
+    };
+    reader.readAsArrayBuffer(factura.file);
+  }
+
+  function mergeAutoDetectFe(fusionFe, probeFe) {
+    fusionFe = fusionFe || {};
+    probeFe = probeFe || {};
+    var out = Object.assign({}, probeFe);
+    Object.keys(fusionFe).forEach(function (k) {
+      if (k.charAt(0) === '_') return;
+      var pv = probeFe[k];
+      if (pv != null && pv !== '' && !(typeof pv === 'number' && (isNaN(pv) || pv === 0))) return;
+      var v = fusionFe[k];
+      if (v != null && v !== '' && !(typeof v === 'number' && (isNaN(v) || v === 0))) {
+        out[k] = v;
       }
     });
-    bindDespieceCortes(host);
-  }
-
-  function bindResponsables(host) {
-    var add = host.querySelector('#cps-resp-add');
-    if (add && !add._cpsBound) {
-      add._cpsBound = true;
-      add.addEventListener('change', function () {
-        var id = add.value;
-        if (!id) return;
-        var u = listStaffActivos().find(function (s) {
-          return String(s.id) === String(id);
-        });
-        if (!u) return;
-        var exists = (state.responsables || []).some(function (r) {
-          return String(r.id) === String(id);
-        });
-        if (exists) return;
-        state.responsables.push({
-          id: u.id,
-          nombre: String(u.nombre || u.id).trim(),
-          rol: u.rol || '',
-          principal: false,
-        });
-        add.value = '';
-        refreshRespCard(host);
-      });
+    Object.keys(probeFe).forEach(function (k) {
+      if (k.charAt(0) === '_' && out[k] == null) out[k] = probeFe[k];
+    });
+    [
+      'cufe',
+      'nitEmisor',
+      'razonSocial',
+      'numeroFactura',
+      'total',
+      'fecha',
+      'telefonoEmisor',
+      'emailEmisor',
+      'direccionEmisor',
+      'ciudadEmisor',
+      'representanteEmisor',
+    ].forEach(function (k) {
+      if (!out[k] && probeFe[k]) out[k] = probeFe[k];
+      if (!out[k] && fusionFe[k]) out[k] = fusionFe[k];
+    });
+    if (probeFe.razonSocial && probeFe._razonSocialFromEncabezado) {
+      out.razonSocial = probeFe.razonSocial;
+      out._razonSocialFromEncabezado = true;
+      out._razonSocialExplicit = probeFe._razonSocialExplicit;
     }
-    host.querySelectorAll('.cps-resp-rm').forEach(function (btn) {
-      btn.onclick = function () {
-        var id = btn.getAttribute('data-resp-rm');
-        state.responsables = (state.responsables || []).filter(function (r) {
-          return String(r.id) !== String(id);
+    if (probeFe.nitEmisor && probeFe._nitFromEncabezado) {
+      out.nitEmisor = probeFe.nitEmisor;
+      out._nitFromEncabezado = true;
+    }
+    return out;
+  }
+
+  function feTieneProveedorDetectado(fe) {
+    fe = fe || {};
+    return !!(
+      fe.nitEmisor ||
+      fe.razonSocial ||
+      fe.telefonoEmisor ||
+      fe.emailEmisor ||
+      fe.direccionEmisor ||
+      fe.representanteEmisor
+    );
+  }
+
+  function feTieneDatosFactura(fe) {
+    fe = fe || {};
+    return !!(
+      fe.total ||
+      fe.numeroFactura ||
+      fe.fecha ||
+      fe.cufe ||
+      (fe.lineas && fe.lineas.length)
+    );
+  }
+
+  function autoDetectTipoDocLabel(tipo) {
+    var map = {
+      'factura-electronica': 'Factura electrónica',
+      'factura-venta': 'Factura de venta',
+      factura: 'Factura',
+      'nota-credito': 'Nota crédito',
+      'nota-debito': 'Nota débito',
+    };
+    return map[tipo] || tipo || '';
+  }
+
+  function renderFacturaLeidaDetalle(fe, resultado) {
+    fe = fe || {};
+    resultado = resultado || {};
+    var html =
+      '<details class="cxf-auto-factura-detalles" style="margin-top:12px; font-size:0.82rem;">' +
+      '<summary style="cursor:pointer; color:var(--matriz-gold); font-weight:500;">Ver más datos leídos del documento</summary>' +
+      '<div style="margin-top:8px; padding:10px 12px; background:var(--bg-secondary); border-radius:6px; display:grid; gap:6px;">';
+
+    if (fe.tipoDocumento) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Tipo:</span> ' +
+        esc(autoDetectTipoDocLabel(fe.tipoDocumento)) +
+        '</p>';
+    }
+    if (fe.fecha) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Fecha emisión:</span> ' +
+        esc(fe.fecha) +
+        '</p>';
+    }
+    if (fe.fechaVencimiento) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Vencimiento:</span> ' +
+        esc(fe.fechaVencimiento) +
+        '</p>';
+    }
+    if (fe.subtotal) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Subtotal:</span> $' +
+        formatNumber(fe.subtotal) +
+        '</p>';
+    }
+    if (fe.totalIva) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">IVA:</span> $' +
+        formatNumber(fe.totalIva) +
+        '</p>';
+    }
+    if (fe.formaPago) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Forma de pago:</span> ' +
+        esc(fe.formaPago) +
+        '</p>';
+    }
+    if (fe.resolucionDian) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Resolución DIAN:</span> ' +
+        esc(fe.resolucionDian) +
+        '</p>';
+    }
+    if (fe.cufe) {
+      var cufeShort = String(fe.cufe).length > 24 ? String(fe.cufe).slice(0, 12) + '…' + String(fe.cufe).slice(-8) : fe.cufe;
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">CUFE:</span> <code style="font-size:0.75rem;">' +
+        esc(cufeShort) +
+        '</code></p>';
+    }
+    if (fe.nombreReceptor || fe.nitReceptor) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Comprador:</span> ' +
+        esc(fe.nombreReceptor || '—') +
+        (fe.nitReceptor ? ' · NIT ' + esc(fe.nitReceptor) : '') +
+        '</p>';
+    }
+    if (fe.direccionEmisor) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Dirección:</span> ' +
+        esc(fe.direccionEmisor) +
+        (fe.ciudadEmisor ? ' · ' + esc(fe.ciudadEmisor) : '') +
+        '</p>';
+    } else if (fe.ciudadEmisor) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Ciudad:</span> ' +
+        esc(fe.ciudadEmisor) +
+        '</p>';
+    }
+    if (fe.telefonoEmisor) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Teléfono:</span> ' +
+        esc(fe.telefonoEmisor) +
+        '</p>';
+    }
+    if (fe.emailEmisor) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Correo:</span> ' +
+        esc(fe.emailEmisor) +
+        '</p>';
+    }
+    if (fe.representanteEmisor) {
+      html +=
+        '<p style="margin:0;"><span style="color:var(--text-secondary);">Representante legal:</span> ' +
+        esc(fe.representanteEmisor) +
+        (fe._representanteDesdeCatalogo ? ' <span style="font-size:0.72rem;color:var(--text-secondary);">(catálogo)</span>' : '') +
+        '</p>';
+    }
+    if (fe.lineas && fe.lineas.length) {
+      html +=
+        '<div style="margin-top:4px;"><p style="margin:0 0 4px; font-weight:600;">Ítems detectados (' +
+        fe.lineas.length +
+        ')</p><ul style="margin:0; padding-left:18px;">';
+      fe.lineas.slice(0, 5).forEach(function (ln) {
+        html +=
+          '<li style="margin-bottom:2px;">' +
+          esc(ln.descripcion || 'Ítem') +
+          (ln.cantidad ? ' · ' + ln.cantidad + ' u.' : '') +
+          (ln.valor ? ' · $' + formatNumber(ln.valor) : '') +
+          '</li>';
+      });
+      if (fe.lineas.length > 5) {
+        html += '<li style="color:var(--text-secondary);">… y ' + (fe.lineas.length - 5) + ' más</li>';
+      }
+      html += '</ul></div>';
+    }
+    if (resultado.confidence != null) {
+      html +=
+        '<p style="margin:8px 0 0; font-size:0.78rem; color:var(--text-secondary);">Confianza de lectura: ' +
+        resultado.confidence +
+        '% (' +
+        esc(resultado.confidenceLabel || '') +
+        ')' +
+        (resultado.likelyScanned ? ' · PDF posiblemente escaneado' : '') +
+        '</p>';
+    }
+    html += '</div></details>';
+    return html;
+  }
+
+  function renderAutoDetectEmpresaNota(fe, resultado) {
+    var chk =
+      (fe && fe._empresaFacturaCheck) ||
+      (resultado && resultado.empresaEnFactura) ||
+      null;
+    if (!chk || chk.skip || chk.found || !chk.mensaje) return '';
+    return (
+      '<div class="cxf-auto-empresa-nota" style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:8px 10px;margin-bottom:12px;font-size:0.78rem;color:#5b21b6;line-height:1.35;">' +
+      '<p style="margin:0;"><strong>Nota:</strong> ' +
+      esc(chk.mensaje) +
+      '</p></div>'
+    );
+  }
+
+  function renderAutoDetectCompradorAviso(fe) {
+    fe = fe || {};
+    var comprador = String(fe.nombreReceptor || '').trim();
+    var conflictoLectura = !!(fe._compradorConflicto || fe._posibleComprador);
+    var empChk = fe._empresaFacturaCheck;
+    var esSuNegocio =
+      comprador &&
+      empChk &&
+      !empChk.skip &&
+      empChk.found &&
+      empChk.empresaNombre;
+
+    if (!comprador && !conflictoLectura) return '';
+
+    if (conflictoLectura) {
+      var dest = comprador || fe._compradorConflicto || 'el comprador del documento';
+      var html =
+        '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:10px;margin-bottom:10px;font-size:0.8rem;color:#9a3412;">';
+      html += '<p style="margin:0;"><strong>Revise el comerciante</strong> — factura para <em>' + esc(dest) + '</em>';
+      if (esSuNegocio) html += ' (su negocio en el POS)';
+      html += '.';
+      if (fe._compradorConflicto) {
+        html += ' «' + esc(fe._compradorConflicto) + '» es comprador, no proveedor.';
+      } else if (fe._posibleComprador) {
+        html += ' El nombre leído como proveedor coincide con el comprador.';
+      }
+      html += ' Corrija abajo si hace falta.</p></div>';
+      return html;
+    }
+
+    if (comprador) {
+      return (
+        '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;margin-bottom:10px;font-size:0.78rem;color:#475569;">' +
+        '<p style="margin:0;">Factura dirigida a: <em>' +
+        esc(comprador) +
+        '</em>' +
+        (esSuNegocio ? ' · su empresa en el POS' : '') +
+        '</p></div>'
+      );
+    }
+    return '';
+  }
+
+  function autoDetectInputVal(val) {
+    return esc(String(val == null ? '' : val));
+  }
+
+  function renderProveedorEditableForm(facturaId, fe) {
+    fe = fe || {};
+    var html =
+      '<div class="cxf-auto-prov-form" data-cxf-auto-factura-id="' +
+      esc(facturaId) +
+      '" style="display:grid;gap:8px;margin-top:8px;">';
+    html +=
+      '<p style="margin:0;font-size:0.78rem;color:var(--text-secondary);">Revise y corrija ortografía antes de crear el proveedor (comerciante, no cliente).</p>';
+    html += '<label style="font-size:0.78rem;font-weight:600;">Razón social / comerciante</label>';
+    html +=
+      '<input type="text" class="form-control" data-cxf-auto-field="razonSocial" value="' +
+      autoDetectInputVal(fe.razonSocial) +
+      '" placeholder="Nombre del proveedor" style="font-size:0.85rem;">';
+    html += '<label style="font-size:0.78rem;font-weight:600;">NIT</label>';
+    html +=
+      '<input type="text" class="form-control" data-cxf-auto-field="nitEmisor" value="' +
+      autoDetectInputVal(fe.nitEmisor) +
+      '" placeholder="NIT del comerciante" style="font-size:0.85rem;">';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+    html += '<div><label style="font-size:0.78rem;">Teléfono</label>';
+    html +=
+      '<input type="text" class="form-control" data-cxf-auto-field="telefonoEmisor" value="' +
+      autoDetectInputVal(fe.telefonoEmisor) +
+      '" style="font-size:0.85rem;"></div>';
+    html += '<div><label style="font-size:0.78rem;">Correo</label>';
+    html +=
+      '<input type="text" class="form-control" data-cxf-auto-field="emailEmisor" value="' +
+      autoDetectInputVal(fe.emailEmisor) +
+      '" title="' +
+      autoDetectInputVal(fe.emailEmisor) +
+      '" style="font-size:0.85rem;"></div></div>';
+    html += '<label style="font-size:0.78rem;">Dirección</label>';
+    html +=
+      '<input type="text" class="form-control" data-cxf-auto-field="direccionEmisor" value="' +
+      autoDetectInputVal(fe.direccionEmisor) +
+      '" style="font-size:0.85rem;">';
+    html += '<label style="font-size:0.78rem;">Representante</label>';
+    html +=
+      '<input type="text" class="form-control" data-cxf-auto-field="representanteEmisor" value="' +
+      autoDetectInputVal(fe.representanteEmisor) +
+      '" placeholder="Nombre del representante legal" style="font-size:0.85rem;">';
+    if (fe._representanteDesdeCatalogo) {
+      html +=
+        '<p style="margin:0;font-size:0.72rem;color:#166534;">✓ Tomado del proveedor ya registrado en el sistema</p>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function autoDetectReadFeFromCard(facturaId, baseFe) {
+    baseFe = baseFe || {};
+    var fe = Object.assign({}, baseFe);
+    var card = document.querySelector('[data-cxf-auto-factura-id="' + facturaId + '"]');
+    if (!card) return fe;
+    var fields = card.querySelectorAll('[data-cxf-auto-field]');
+    for (var i = 0; i < fields.length; i++) {
+      var inp = fields[i];
+      var key = inp.getAttribute('data-cxf-auto-field');
+      if (!key) continue;
+      fe[key] = String(inp.value || '').trim();
+    }
+    fe._editadoManual = true;
+    return fe;
+  }
+
+  function autoDetectApplyFeToFactura(facturaId, fe) {
+    var factura = autoDetectFindFactura(facturaId);
+    if (!factura || !factura.resultado) return false;
+    factura.resultado.fe = fe;
+    return true;
+  }
+
+  function renderProveedorDetectadoDetalle(fe) {
+    fe = fe || {};
+    var html = '';
+    if (fe.razonSocial) {
+      html += '<p style="margin: 0; font-weight: 600;">' + esc(fe.razonSocial) + '</p>';
+    }
+    if (fe.nombreComercialEmisor && fe.nombreComercialEmisor !== fe.razonSocial) {
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">Nombre comercial: ' +
+        esc(fe.nombreComercialEmisor) +
+        '</p>';
+    }
+    if (fe.nitEmisor) {
+      html += '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">NIT: ' + esc(fe.nitEmisor) + '</p>';
+    }
+    if (fe.representanteEmisor) {
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">Representante: ' +
+        esc(fe.representanteEmisor) +
+        '</p>';
+    }
+    if (fe.telefonoEmisor) {
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">Teléfono: ' +
+        esc(fe.telefonoEmisor) +
+        '</p>';
+    }
+    if (fe.direccionEmisor) {
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">Dirección: ' +
+        esc(fe.direccionEmisor) +
+        '</p>';
+    }
+    if (fe.emailEmisor) {
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">Correo: ' +
+        esc(fe.emailEmisor) +
+        '</p>';
+    }
+    if (fe.ciudadEmisor) {
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">Ciudad: ' +
+        esc(fe.ciudadEmisor) +
+        (fe.departamentoEmisor ? ' · ' + esc(fe.departamentoEmisor) : '') +
+        '</p>';
+    }
+    return html;
+  }
+
+  function buildProveedorFromFe(fe, facturaId) {
+    fe = fe || {};
+    var nit = String(fe.nitEmisor || '').trim();
+    var nombre = String(fe.razonSocial || '').trim() || (nit ? 'Proveedor ' + nit : 'Proveedor detectado');
+    return {
+      id: 'prov_auto_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      nombre: nombre,
+      nit: nit,
+      identificador: nit,
+      telefono: String(fe.telefonoEmisor || '').trim(),
+      email: String(fe.emailEmisor || '').trim(),
+      representante: String(fe.representanteEmisor || '').trim(),
+      direccion: String(fe.direccionEmisor || '').trim(),
+      tipo: 'persona_juridica',
+      estado: 'activo',
+      origen: 'auto_detect',
+      facturaOrigen: facturaId || '',
+      creado: new Date().toISOString(),
+      legal: {
+        razonSocial: String(fe.razonSocial || nombre).trim(),
+        representanteLegal: String(fe.representanteEmisor || '').trim(),
+        ciudad: String(fe.ciudadEmisor || '').trim(),
+        direccion: String(fe.direccionEmisor || '').trim(),
+      },
+    };
+  }
+
+  function autoDetectFusionarCandidatos(factura, probe, cascadeLevel) {
+    var FB = global.CrozzoRecepcionFeBanco;
+    if (!factura.extraccionCandidatos) factura.extraccionCandidatos = [];
+    if (FB && typeof FB.feBancoCandidatoDesdeProbe === 'function' && probe) {
+      factura.extraccionCandidatos.push(FB.feBancoCandidatoDesdeProbe(probe, cascadeLevel));
+    }
+    if (!FB || typeof FB.feBancoFusionarCandidatos !== 'function') {
+      return { fe: (probe && probe.fe) || {}, fusion: null };
+    }
+    var fusion = FB.feBancoFusionarCandidatos(factura.extraccionCandidatos, {
+      proveedorCatalogo: null,
+    });
+    factura.fusionExtraccion = fusion;
+    return fusion;
+  }
+
+  function autoDetectBuildResultadoFromFusion(factura, probe, cascadeLevel) {
+    var fusion = autoDetectFusionarCandidatos(factura, probe, cascadeLevel);
+    var feProbe = (probe && probe.fe) || {};
+    var fe = mergeAutoDetectFe(fusion.fe || {}, feProbe);
+    if (feProbe._razonamiento) fe._razonamiento = feProbe._razonamiento;
+    if (feProbe._bolsaExtraccion) fe._bolsaExtraccion = feProbe._bolsaExtraccion;
+    if (feProbe._analisisCuatroPartes) fe._analisisCuatroPartes = feProbe._analisisCuatroPartes;
+    if (feProbe._autoEvaluacion) fe._autoEvaluacion = feProbe._autoEvaluacion;
+    var FDapply = feDian();
+    if (FDapply && typeof FDapply.feAplicarCamposDesdeAsignaciones === 'function') {
+      fe = FDapply.feAplicarCamposDesdeAsignaciones(
+        fe,
+        fe._razonamiento && fe._razonamiento.asignaciones,
+        fe._bolsaExtraccion,
+        probe && probe._packRef,
+        { nombreArchivo: factura.nombre }
+      );
+    }
+    if (!fe.numeroFactura && feProbe.numeroFactura) {
+      fe.numeroFactura = feProbe.numeroFactura;
+    }
+    if (!fe.numeroFactura) fe.numeroFactura = extraerNumeroDeNombre(factura.nombre);
+
+    var resultado = {
+      ok: true,
+      fe: fe,
+      proveedorSugerido: null,
+      proveedoresCoincidentes: [],
+      likelyScanned: !!(probe && probe.likelyScanned),
+      textLen: (probe && probe.textLen) || 0,
+      confidence: fusion.confianzaGlobal != null ? fusion.confianzaGlobal : probe && probe.confidence,
+      confidenceLabel:
+        fusion.confianzaGlobal >= 75 ? 'Alta' : fusion.confianzaGlobal >= 50 ? 'Media' : 'Baja',
+      fieldsFound: probe && probe.fieldsFound ? probe.fieldsFound.slice() : [],
+      empresaEnFactura: (probe && probe.empresaEnFactura) || null,
+      cascadeLevel: cascadeLevel,
+      extraccionScore: fusion.confianzaGlobal,
+      _cascadePasos: factura.extraccionCandidatos
+        ? factura.extraccionCandidatos.map(function (c) {
+            return c.cascadeLevel;
+          })
+        : [cascadeLevel],
+      fusionExtraccion: fusion,
+      validacionExtraccion: fusion.validacion,
+      contrastesExtraccion: fusion.contrastes,
+      extraccionCandidatos: factura.extraccionCandidatos,
+    };
+
+    if (probe && probe.qrCufe) resultado.qrCufe = probe.qrCufe;
+
+    if (fe.nitEmisor) {
+      try {
+        resultado.proveedoresCoincidentes = buscarProveedoresPorNIT(fe.nitEmisor);
+        if (resultado.proveedoresCoincidentes.length > 0) {
+          var sugerido = resultado.proveedoresCoincidentes[0];
+          if (autoDetectProveedorCoincideFe(sugerido, fe)) {
+            resultado.proveedorSugerido = sugerido;
+          } else {
+            resultado.proveedoresCoincidentes = [];
+          }
+        }
+      } catch (nitErr) {
+        console.warn('[AUTO-DETECT] buscarProveedoresPorNIT', nitErr);
+      }
+    }
+
+    if (!resultado.proveedorSugerido && fe.razonSocial) {
+      try {
+        var porNombre = buscarProveedoresPorNombre(fe.razonSocial);
+        if (porNombre.length === 1) {
+          resultado.proveedorSugerido = porNombre[0];
+          resultado.proveedoresCoincidentes = porNombre;
+        } else if (porNombre.length > 1) {
+          resultado.proveedoresCoincidentes = porNombre;
+        }
+      } catch (nomErr) {
+        console.warn('[AUTO-DETECT] buscarProveedoresPorNombre', nomErr);
+      }
+    }
+
+    if (resultado.proveedorSugerido && global.CrozzoRecepcionFeBanco) {
+      var FB = global.CrozzoRecepcionFeBanco;
+      if (typeof FB.feBancoFusionarCandidatos === 'function') {
+        var fusion2 = FB.feBancoFusionarCandidatos(factura.extraccionCandidatos, {
+          proveedorCatalogo: resultado.proveedorSugerido,
         });
-        refreshRespCard(host);
-      };
-    });
+        fe = mergeAutoDetectFe(fusion2.fe || {}, fe);
+        resultado.fe = fe;
+        resultado.fusionExtraccion = fusion2;
+        resultado.validacionExtraccion = fusion2.validacion;
+        resultado.contrastesExtraccion = fusion2.contrastes;
+        resultado.confidence = fusion2.confianzaGlobal;
+        factura.fusionExtraccion = fusion2;
+      }
+    }
+
+    fe = autoDetectEnriquecerFeDesdeCatalogo(fe);
+    if (fe.representanteEmisor) {
+      var FDrep = feDian();
+      if (FDrep && typeof FDrep.feSanitizeRepresentanteEmisor === 'function') {
+        fe.representanteEmisor = FDrep.feSanitizeRepresentanteEmisor(fe.representanteEmisor, {
+          allowSingle: !!fe._representanteDesdeCatalogo,
+        });
+        if (!fe.representanteEmisor) delete fe._representanteDesdeCatalogo;
+      }
+    }
+    if (fe._ocrAyudaFuente) resultado._ocrAyudaFuente = fe._ocrAyudaFuente;
+    if (fe._ocrRotacion) resultado._ocrRotacion = fe._ocrRotacion;
+    resultado.fe = fe;
+
+    var FDae = feDian();
+    if (FDae && typeof FDae.feAutoEvaluarExtraccion === 'function') {
+      resultado.autoEvaluacion =
+        fe._autoEvaluacion ||
+        FDae.feAutoEvaluarExtraccion(fe, (probe && probe._packRef) || {}, { nombreArchivo: factura.nombre });
+      fe._autoEvaluacion = resultado.autoEvaluacion;
+    }
+    if (fe._bolsaExtraccion) resultado.bolsaExtraccion = fe._bolsaExtraccion;
+    if (fe._razonamiento) resultado.razonamiento = fe._razonamiento;
+    if (fe._analisisCuatroPartes) resultado.analisisCuatroPartes = fe._analisisCuatroPartes;
+    if (probe && probe.bolsaExtraccion) resultado.bolsaExtraccion = probe.bolsaExtraccion;
+    if (probe && probe.razonamiento) resultado.razonamiento = probe.razonamiento;
+    resultado.fe = fe;
+    return resultado;
   }
 
-  function bindBatch(host) {
-    host.querySelectorAll('.cps-batch-rm').forEach(function (btn) {
-      btn.onclick = function () {
-        var idx = num(btn.getAttribute('data-batch-rm'), -1);
-        if (idx < 0) return;
-        state.batch.splice(idx, 1);
-        refreshBatchHost(host);
-      };
-    });
-  }
-
-  function init(host, opts) {
+  function analizarDocBuffer(buffer, factura, opts, callback) {
+    if (typeof opts === 'function') {
+      callback = opts;
+      opts = {};
+    }
     opts = opts || {};
-    if (opts.workflow != null && opts.workflow !== state.workflow) {
-      resetForWorkflow(opts.workflow);
+    var cascadeLevel = opts.cascadeLevel != null ? opts.cascadeLevel : 0;
+    var blob;
+    var mime = 'application/pdf';
+    if (buffer instanceof Blob) {
+      blob = buffer;
+      mime = blob.type || mime;
+    } else if (buffer && buffer._pdfBlob instanceof Blob) {
+      blob = buffer._pdfBlob;
+      mime = blob.type || mime;
+    } else if (buffer instanceof ArrayBuffer || ArrayBuffer.isView(buffer)) {
+      if (autoDetectIsImageFactura(factura) || (factura.file && factura.file.type && factura.file.type.indexOf('image/') === 0)) {
+        mime = (factura.file && factura.file.type) || 'image/jpeg';
+      }
+      blob = new Blob([buffer], { type: mime });
     } else {
-      state.workflow = opts.workflow || state.workflow || '';
+      blob = new Blob([buffer], { type: mime });
     }
-    state.host = host;
-    if (!host) return;
-    if (!state.responsables.length) state.responsables = initResponsables();
-    var cat = C();
-    if (cat && cat.ensureReady) {
-      cat.ensureReady(function () {
-        var sel = host.querySelector('#cps-producto');
-        if (sel) sel.innerHTML = productOptionsHtml(state.workflow);
+    var doc = {
+      _pdfBlob: blob,
+      name: factura.nombre,
+      type: mime || blob.type || 'application/pdf',
+    };
+
+    var FD = feDian();
+    var probeP =
+      FD && typeof FD.probeProveedorFromFacturaDoc === 'function'
+        ? FD.probeProveedorFromFacturaDoc(doc, {
+            nombreArchivo: factura.nombre,
+            cascadeLevel: cascadeLevel,
+            forceOcrNube: cascadeLevel >= 2,
+          })
+        : Promise.resolve({ fe: {}, ok: false });
+
+    probeP
+      .then(function (probe) {
+        if (!factura.extraccionCandidatos) factura.extraccionCandidatos = [];
+
+        var necesita =
+          probe &&
+          (probe.necesitaReintento ||
+            (FD &&
+              typeof FD.feProbeNecesitaReintento === 'function' &&
+              FD.feProbeNecesitaReintento(probe, probe._packRef, cascadeLevel)));
+
+        if (necesita && cascadeLevel < 2) {
+          var FBp = global.CrozzoRecepcionFeBanco;
+          if (FBp && typeof FBp.feBancoCandidatoDesdeProbe === 'function') {
+            factura.extraccionCandidatos.push(FBp.feBancoCandidatoDesdeProbe(probe, cascadeLevel));
+          }
+          if (!factura._cascadePasos) factura._cascadePasos = [];
+          factura._cascadePasos.push(cascadeLevel);
+          factura.estado = cascadeLevel === 0 ? 'pendiente_pass2' : 'pendiente_pass3';
+          console.log(
+            '[AUTO-DETECT] Poca lectura — cola paso',
+            cascadeLevel + 2,
+            ':',
+            factura.nombre,
+            '· candidatos:',
+            factura.extraccionCandidatos.length
+          );
+          callback({ ok: true, _pendiente: true }, false);
+          return;
+        }
+
+        var resultado = autoDetectBuildResultadoFromFusion(factura, probe, cascadeLevel);
+        var FB = global.CrozzoRecepcionFeBanco;
+        if (FB && typeof FB.feBancoAprenderDesdeFusion === 'function' && resultado.fusionExtraccion) {
+          try {
+            resultado.fusionExtraccion.candidatos = factura.extraccionCandidatos;
+            FB.feBancoAprenderDesdeFusion(resultado.fusionExtraccion, {
+              facturaId: factura.id,
+              proveedorCatalogo: resultado.proveedorSugerido,
+            });
+          } catch (learnErr) {
+            console.warn('[AUTO-DETECT] aprender fusión', learnErr);
+          }
+        }
+
+        autoDetectEntregarResultadoAnalisis(factura, blob, probe, resultado.fe, resultado, function (finalRes) {
+          callback(finalRes, true);
+        });
+      })
+      .catch(function (err) {
+        console.error('[AUTO-DETECT] Error análisis:', err);
+        var feFallback = {
+          nitEmisor: '',
+          razonSocial: '',
+          numeroFactura: extraerNumeroDeNombre(factura.nombre),
+          total: 0,
+        };
+        if (FD && typeof FD.feRazonSocialFromFilename === 'function') {
+          feFallback.razonSocial = FD.feRazonSocialFromFilename(factura.nombre) || '';
+        }
+        callback({
+          ok: true,
+          fe: feFallback,
+          proveedorSugerido: null,
+          proveedoresCoincidentes: [],
+        }, true);
       });
-    }
-    var sel = host.querySelector('#cps-producto');
-    if (sel && !sel._cpsBound) {
-      sel._cpsBound = true;
-      sel.addEventListener('change', function () {
-        onProductChange(host);
-      });
-    }
-    var addBatch = host.querySelector('#cps-add-batch');
-    if (addBatch && !addBatch._cpsBound) {
-      addBatch._cpsBound = true;
-      addBatch.addEventListener('click', function () {
-        addCurrentToBatch(host);
-      });
-    }
-    var save = host.querySelector('#cps-save');
-    if (save && !save._cpsBound) {
-      save._cpsBound = true;
-      save.addEventListener('click', function () {
-        saveSession(host);
-      });
-    }
-    var goto = host.querySelector('#cps-goto-costos');
-    if (goto && !goto._cpsBound) {
-      goto._cpsBound = true;
-      goto.addEventListener('click', function () {
-        goRecetasEstandar(host);
-      });
-    }
-    host.querySelectorAll('#cps-goto-recetas').forEach(function (btn) {
-      if (btn._cpsBound) return;
-      btn._cpsBound = true;
-      btn.addEventListener('click', function () {
-        goRecetasEstandar(host);
-      });
-    });
-    bindResponsables(host);
-    bindBatch(host);
-    bindHistorialAdmin(host);
   }
 
-  global.CrozzoProcesosSesion = {
-    render: render,
-    renderHistorial: renderHistorial,
-    init: init,
-    initHistorial: initHistorial,
-    resetForWorkflow: resetForWorkflow,
-    listCatalogo: listCatalogo,
+  function extraerNumeroDeNombre(nombre) {
+    var match = nombre.match(/(\d+)/);
+    return match ? match[1] : '';
+  }
+
+  function buscarProveedoresPorNIT(nit) {
+    var provs = autoDetectProveedoresList();
+    var nitLimpio = String(nit || '').replace(/[^0-9]/g, '');
+    if (!nitLimpio || nitLimpio.length < 8) return [];
+
+    return provs.filter(function (p) {
+      var pNit = String(p.nit || p.identificador || '').replace(/[^0-9]/g, '');
+      return pNit.length >= 8 && pNit === nitLimpio;
+    });
+  }
+
+  function autoDetectNombreProveedorMatch(razonFe, nombreProv) {
+    var nomFe = autoDetectNormNombre(razonFe);
+    var nomP = autoDetectNormNombre(nombreProv);
+    if (!nomFe || !nomP || nomFe.length < 4 || nomP.length < 4) return false;
+    if (nomFe === nomP) return true;
+    if (nomFe.indexOf(nomP) >= 0 || nomP.indexOf(nomFe) >= 0) return true;
+    if (nomFe.length >= 5 && nomP.length >= 5 && nomFe.slice(0, 5) === nomP.slice(0, 5)) return true;
+    return false;
+  }
+
+  function buscarProveedoresPorNombre(razonSocial) {
+    var provs = autoDetectProveedoresList();
+    var nombre = String(razonSocial || '').trim();
+    if (!nombre) return [];
+    return provs.filter(function (p) {
+      var campos = [
+        p.nombre,
+        p.name,
+        p.razonSocial,
+        p.legal && p.legal.razonSocial,
+        p.nombreComercial,
+      ];
+      for (var i = 0; i < campos.length; i++) {
+        if (campos[i] && autoDetectNombreProveedorMatch(nombre, campos[i])) return true;
+      }
+      return false;
+    });
+  }
+
+  function autoDetectRepresentanteDeProveedor(prov) {
+    if (!prov) return '';
+    var rep = String(
+      prov.representante ||
+        (prov.legal && prov.legal.representanteLegal) ||
+        prov.representanteLegal ||
+        prov.nombrePersonaNatural ||
+        ''
+    ).trim();
+    if (!rep) return '';
+    var FD = feDian();
+    if (FD && typeof FD.feSanitizeRepresentanteEmisor === 'function') {
+      return FD.feSanitizeRepresentanteEmisor(rep, { allowSingle: true });
+    }
+    if (/cuenta|pago|pesos|raz[oó]n\s+social|m\s*\/?\s*cte|nombre\s+o/i.test(rep)) return '';
+    return rep;
+  }
+
+  function autoDetectEnriquecerFeDesdeCatalogo(fe) {
+    fe = fe || {};
+    var candidatos = [];
+    if (fe.nitEmisor) candidatos = buscarProveedoresPorNIT(fe.nitEmisor);
+    if (!candidatos.length && fe.razonSocial) candidatos = buscarProveedoresPorNombre(fe.razonSocial);
+    if (!candidatos.length) return fe;
+    if (candidatos.length > 1) return fe;
+
+    var prov = candidatos[0];
+    if (!fe.representanteEmisor) {
+      var rep = autoDetectRepresentanteDeProveedor(prov);
+      if (rep) {
+        fe.representanteEmisor = rep;
+        fe._representanteDesdeCatalogo = true;
+      }
+    }
+    if (!fe.direccionEmisor && prov.direccion) fe.direccionEmisor = String(prov.direccion).trim();
+    if (!fe.telefonoEmisor && prov.telefono) fe.telefonoEmisor = String(prov.telefono).trim();
+    if (!fe.emailEmisor && prov.email) fe.emailEmisor = String(prov.email).trim();
+    if (!fe.nitEmisor && (prov.nit || prov.identificador)) {
+      fe.nitEmisor = String(prov.nit || prov.identificador).trim();
+    }
+    return fe;
+  }
+
+  function autoDetectProveedorCoincideFe(prov, fe) {
+    if (!prov || !fe) return false;
+    var nitFe = String(fe.nitEmisor || '').replace(/[^0-9]/g, '');
+    var nitP = String(prov.nit || prov.identificador || '').replace(/[^0-9]/g, '');
+    if (!nitFe || nitFe.length < 8 || nitP !== nitFe) return false;
+    if (!fe.razonSocial) return true;
+    var nomFe = autoDetectNormNombre(fe.razonSocial);
+    var nomP = autoDetectNormNombre(prov.nombre || prov.name || '');
+    if (!nomP) return true;
+    if (nomFe === nomP) return true;
+    if (nomFe.indexOf(nomP) >= 0 || nomP.indexOf(nomFe) >= 0) return true;
+    if (nomFe.length >= 5 && nomP.length >= 5) {
+      if (nomFe.slice(0, 5) === nomP.slice(0, 5)) return true;
+    }
+    return false;
+  }
+
+  function setAutoDetectActionButtons(enabled) {
+    var resetBtn = document.getElementById('cxf-auto-reset-btn');
+    var contBtn = document.getElementById('cxf-auto-continue-btn');
+    if (resetBtn) resetBtn.disabled = !enabled;
+    if (contBtn) contBtn.disabled = !enabled;
+  }
+
+  function renderAutoDetectEvaluacion(resultado) {
+    var fe = (resultado && resultado.fe) || {};
+    var ev = (resultado && resultado.autoEvaluacion) || fe._autoEvaluacion;
+    var raz = (resultado && resultado.razonamiento) || fe._razonamiento;
+    var bolsa = (resultado && resultado.bolsaExtraccion) || fe._bolsaExtraccion;
+    var partes4 = (resultado && resultado.analisisCuatroPartes) || fe._analisisCuatroPartes;
+    if (!ev && !raz && !bolsa && !partes4) return '';
+
+    var html = '<details class="cxf-auto-evaluacion" open>';
+    html +=
+      '<summary class="cxf-auto-evaluacion__summary">🧠 Lectura inteligente' +
+      (ev && ev.coherencia != null ? ' · coherencia ' + esc(String(ev.coherencia)) + '%' : '') +
+      '</summary>';
+    html += '<div class="cxf-auto-evaluacion__body">';
+
+    if (partes4 && partes4.length) {
+      html += '<p class="cxf-auto-evaluacion__lead"><strong>Análisis en 4 partes</strong> — cada zona revisada a lupa y luego unificada:</p>';
+      html += '<div class="cxf-auto-evaluacion__cuatro-partes">';
+      partes4.forEach(function (p) {
+        html += '<div class="cxf-auto-evaluacion__parte' + (p.vacia ? ' cxf-auto-evaluacion__parte--vacia' : '') + '">';
+        html += '<div class="cxf-auto-evaluacion__parte-head">' + esc(p.label || p.id) + '</div>';
+        html += '<div class="cxf-auto-evaluacion__parte-titulo">' + esc(p.titulo || '') + '</div>';
+        html += '<div class="cxf-auto-evaluacion__parte-res">' + esc(p.resumen || '') + '</div>';
+        if (p.hallazgos && p.hallazgos.length) {
+          html += '<ul class="cxf-auto-evaluacion__parte-hallazgos">';
+          p.hallazgos.slice(0, 8).forEach(function (h) {
+            var hcls = h.ok ? 'cxf-auto-evaluacion__v--ok' : 'cxf-auto-evaluacion__v--warn';
+            html +=
+              '<li><span class="' +
+              hcls +
+              '">' +
+              esc(h.clave) +
+              '</span>: ' +
+              esc(String(h.valor).slice(0, 42)) +
+              '</li>';
+          });
+          html += '</ul>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (bolsa && bolsa.resumen) {
+      html += '<p class="cxf-auto-evaluacion__bolsa"><strong>Detectado en el PDF:</strong> ' + esc(bolsa.resumen);
+      if (bolsa.cuentas && bolsa.cuentas.length) {
+        html +=
+          ' · Cuentas: ' +
+          esc(
+            bolsa.cuentas
+              .map(function (c) {
+                return c.valor;
+              })
+              .join(', ')
+          );
+      }
+      html += '</p>';
+    }
+
+    if (raz && raz.preguntas && raz.preguntas.length) {
+      html += '<p class="cxf-auto-evaluacion__lead">El sistema se preguntó en varias fases y comparó candidatos:</p>';
+      var faseLbl = {
+        lupa: 'Lupa (4 partes)',
+        unificacion: 'Unificación',
+        documento: 'Documento',
+        lectura: 'Lectura',
+        roles: 'Roles',
+        comparacion: 'Comparación',
+        asignacion: 'Asignación',
+      };
+      var faseActual = '';
+      html += '<ul class="cxf-auto-evaluacion__preguntas">';
+      raz.preguntas.forEach(function (p) {
+        if (p.fase && p.fase !== faseActual) {
+          faseActual = p.fase;
+          html +=
+            '<li class="cxf-auto-evaluacion__fase"><span class="cxf-auto-evaluacion__fase-tag">' +
+            esc(faseLbl[p.fase] || p.fase) +
+            '</span></li>';
+        }
+        var cls =
+          p.confianza === 'plausible'
+            ? 'cxf-auto-evaluacion__v--ok'
+            : p.confianza === 'dudoso'
+              ? 'cxf-auto-evaluacion__v--warn'
+              : 'cxf-auto-evaluacion__v--bad';
+        html += '<li class="cxf-auto-evaluacion__pregunta">';
+        html += '<span class="cxf-auto-evaluacion__preg">' + esc(p.pregunta || '') + '</span> ';
+        html += '<span class="cxf-auto-evaluacion__resp ' + cls + '">→ ' + esc(p.respuesta || '') + '</span>';
+        if (p.patron) {
+          html += '<span class="cxf-auto-evaluacion__patron"> · patrón: ' + esc(p.patron) + '</span>';
+        }
+        if (p.campo && p.valor) {
+          html +=
+            '<span class="cxf-auto-evaluacion__motivo"> · asignado a <em>' +
+            esc(p.campo) +
+            '</em></span>';
+        }
+        if (p.comparaciones && p.comparaciones.length) {
+          html +=
+            '<span class="cxf-auto-evaluacion__comps"> · comparó: ' +
+            esc(
+              p.comparaciones
+                .slice(0, 4)
+                .map(function (c) {
+                  return (c.valor || c).toString().slice(0, 28);
+                })
+                .join(' | ')
+            ) +
+            '</span>';
+        }
+        html += '</li>';
+      });
+      html += '</ul>';
+      if (raz.coherencia != null) {
+        html +=
+          '<p class="cxf-auto-evaluacion__coherencia-razon">Coherencia del razonamiento: ' +
+          esc(String(raz.coherencia)) +
+          '% · guardado para entrenamiento local</p>';
+      }
+    }
+
+    if (ev && ev.resumen) {
+      html += '<p class="cxf-auto-evaluacion__lead">' + esc(ev.resumen) + '</p>';
+    }
+
+    if (ev && ev.alertas && ev.alertas.length) {
+      ev.alertas.forEach(function (a) {
+        html += '<p class="cxf-auto-evaluacion__alerta">⚠ ' + esc(a.mensaje || '') + '</p>';
+      });
+    }
+
+    if (ev && ev.campos) {
+      html += '<p class="cxf-auto-evaluacion__sub">Validación final por campo:</p>';
+      html += '<ul class="cxf-auto-evaluacion__list">';
+      Object.keys(ev.campos).forEach(function (k) {
+        var c = ev.campos[k];
+        if (!c || !c.valor) return;
+        var cls =
+          c.veredicto === 'plausible'
+            ? 'cxf-auto-evaluacion__v--ok'
+            : c.veredicto === 'dudoso'
+              ? 'cxf-auto-evaluacion__v--warn'
+              : 'cxf-auto-evaluacion__v--bad';
+        html += '<li class="cxf-auto-evaluacion__item">';
+        html += '<span class="cxf-auto-evaluacion__rol">' + esc(c.rol || k) + '</span> ';
+        html += '<span class="cxf-auto-evaluacion__val ' + cls + '">' + esc(String(c.valor)) + '</span> ';
+        html += '<span class="cxf-auto-evaluacion__veredicto ' + cls + '">' + esc(c.veredicto || '') + '</span>';
+        if (c.motivos && c.motivos.length) {
+          html += '<span class="cxf-auto-evaluacion__motivo"> — ' + esc(c.motivos.join(' · ')) + '</span>';
+        }
+        html += '</li>';
+      });
+      html += '</ul>';
+    }
+
+    html += '</div></details>';
+    return html;
+  }
+
+  function renderAutoDetectExtraccionRespaldo(resultado) {
+    var eb = resultado && resultado.extraccionBanco;
+    var fe = (resultado && resultado.fe) || {};
+    var qrCufe = resultado && resultado.qrCufe;
+    var val = resultado && resultado.validacionExtraccion;
+    var contrastes = (resultado && resultado.contrastesExtraccion) || [];
+    var candidatos = (resultado && resultado.extraccionCandidatos) || [];
+    if (
+      !eb &&
+      !fe.cufe &&
+      !(resultado && resultado.fieldsFound && resultado.fieldsFound.length) &&
+      !val
+    ) {
+      return '';
+    }
+
+    var html = '<details class="cxf-auto-extraccion-banco">';
+    html += '<summary class="cxf-auto-extraccion-banco__summary">';
+    html += eb ? '💾 Respaldo y validación de extracción' : '📋 Información extraída y validada';
+    if (resultado && resultado.confidence != null) {
+      html +=
+        ' <span class="cxf-auto-extraccion-banco__id">· confianza ' +
+        esc(String(resultado.confidence)) +
+        '%</span>';
+    }
+    if (eb && eb.id) {
+      html += ' <span class="cxf-auto-extraccion-banco__id">· …' + esc(String(eb.id).slice(-10)) + '</span>';
+    }
+    html += '</summary>';
+    html += '<div class="cxf-auto-extraccion-banco__body">';
+    html +=
+      '<p class="cxf-auto-extraccion-banco__lead">El sistema contrastó ' +
+      esc(String(candidatos.length || 1)) +
+      ' lectura(s) (PDF, OCR dispositivo, OCR nube, QR) y eligió el valor más respaldado en cada campo.</p>';
+
+    if (candidatos.length > 1) {
+      html += '<p class="cxf-auto-extraccion-banco__meta">Fuentes analizadas: ';
+      html += esc(
+        candidatos
+          .map(function (c) {
+            return c.fuente || 'paso-' + (c.cascadeLevel + 1);
+          })
+          .join(' · ')
+      );
+      html += '</p>';
+    }
+
+    html += '<div class="cxf-auto-extraccion-banco__grid">';
+    var rows = [
+      ['Razón social', 'razonSocial', fe.razonSocial],
+      ['NIT', 'nitEmisor', fe.nitEmisor],
+      ['Representante', 'representanteEmisor', fe.representanteEmisor],
+      ['Dirección', 'direccionEmisor', fe.direccionEmisor],
+      ['Teléfono', 'telefonoEmisor', fe.telefonoEmisor],
+      ['Correo', 'emailEmisor', fe.emailEmisor],
+      ['Factura #', 'numeroFactura', fe.numeroFactura],
+      ['Fecha', 'fecha', fe.fecha],
+      ['Total', 'total', fe.total ? '$' + formatNumber(fe.total) : ''],
+      ['CUFE', 'cufe', fe.cufe],
+    ];
+    rows.forEach(function (r) {
+      if (!r[2]) return;
+      var v = val && val[r[1]];
+      var conf = v && v.confianza ? v.confianza : '';
+      var confCls =
+        conf === 'alta' ? 'cxf-auto-extraccion-banco__conf--alta' : conf === 'media' ? 'cxf-auto-extraccion-banco__conf--media' : 'cxf-auto-extraccion-banco__conf--baja';
+      html +=
+        '<div class="cxf-auto-extraccion-banco__row"><span class="cxf-auto-extraccion-banco__lbl">' +
+        esc(r[0]) +
+        (conf ? ' <span class="cxf-auto-extraccion-banco__conf ' + confCls + '">' + esc(conf) + '</span>' : '') +
+        '</span><span class="cxf-auto-extraccion-banco__val">' +
+        esc(String(r[2])) +
+        '</span></div>';
+    });
+    html += '</div>';
+
+    if (contrastes.length) {
+      html += '<details class="cxf-auto-extraccion-banco__contraste"><summary>Contrastes entre lecturas (' + contrastes.length + ')</summary><ul class="cxf-auto-extraccion-banco__contraste-list">';
+      contrastes.forEach(function (c) {
+        html += '<li><strong>' + esc(c.campo) + ':</strong> elegido «' + esc(String(c.elegido)) + '»';
+        if (c.alternativas && c.alternativas.length) {
+          html +=
+            ' — otras lecturas: ' +
+            esc(
+              c.alternativas
+                .map(function (a) {
+                  return String(a.valor) + ' (' + (a.fuentes || []).join(', ') + ')';
+                })
+                .join(' · ')
+            );
+        }
+        html += '</li>';
+      });
+      html += '</ul></details>';
+    }
+
+    if (qrCufe && qrCufe.qr && qrCufe.qr.raw) {
+      html +=
+        '<p class="cxf-auto-extraccion-banco__meta">QR leído · ' +
+        esc(String(qrCufe.qr.technique || 'lectura')) +
+        '</p>';
+    }
+    if (eb && eb.id) {
+      html +=
+        '<p class="cxf-auto-extraccion-banco__ok">✓ PDF, candidatos y validación guardados en el banco local. El sistema aprende con cada consenso y corrección.</p>';
+    }
+    html += '</div></details>';
+    return html;
+  }
+
+  function autoDetectEntregarResultadoAnalisis(factura, blob, probe, fe, resultado, callback) {
+    if (probe && probe.qrCufe) resultado.qrCufe = probe.qrCufe;
+    if (probe && probe.cufeCandidatos) resultado.cufeCandidatos = probe.cufeCandidatos;
+
+    var FB = global.CrozzoRecepcionFeBanco;
+    if (!FB || typeof FB.feBancoGuardarDesdeAnalisis !== 'function') {
+      callback(resultado);
+      return;
+    }
+    FB.feBancoGuardarDesdeAnalisis({
+      nombreArchivo: factura.nombre,
+      mime: 'application/pdf',
+      blob: blob,
+      probe: probe,
+      fe: fe,
+      pack: probe && probe._packRef ? probe._packRef : null,
+      proveedorSugerido: resultado.proveedorSugerido,
+      proveedoresCoincidentes: resultado.proveedoresCoincidentes,
+      source: 'auto_detect',
+      facturaId: factura.id,
+      fusion: resultado.fusionExtraccion,
+      candidatos: resultado.extraccionCandidatos,
+      autoEvaluacion: resultado.autoEvaluacion,
+      bolsaExtraccion: resultado.bolsaExtraccion,
+      razonamiento: resultado.razonamiento,
+      analisisCuatroPartes: resultado.analisisCuatroPartes,
+    })
+      .then(function (snap) {
+        resultado.extraccionBanco = {
+          id: snap.id,
+          blobRef: snap.archivo && snap.archivo.blobRef,
+          guardadoAt: snap.createdAt,
+        };
+        if (snap.cufe && snap.cufe.valor && !resultado.fe.cufe) resultado.fe.cufe = snap.cufe.valor;
+        factura.extraccionBancoId = snap.id;
+        callback(resultado);
+      })
+      .catch(function (err) {
+        console.warn('[AUTO-DETECT] banco extracción', err);
+        callback(resultado);
+      });
+  }
+
+  function renderFacturaAnalizada(factura, resultado) {
+    var container = document.getElementById('cxf-auto-facturas-list');
+    if (!container) return;
+    
+    var fe = (resultado && resultado.fe) || {};
+    var proveedorSugerido = resultado && resultado.proveedorSugerido;
+    var colorEstado = factura.estado === 'completado' ? '#22c55e' : '#ef4444';
+    var iconoEstado = factura.estado === 'completado' ? '✓' : '✗';
+    
+    var html = '<div class="cxf-auto-factura-card" data-cxf-auto-factura-id="' + esc(factura.id) + '" style="border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; background: var(--bg-card);">';
+    html += '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">';
+    html += '<div>';
+    html += '<h4 style="margin: 0 0 4px; font-size: 1rem;">' + esc(factura.nombre) + '</h4>';
+    html += '<p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">';
+    if (fe.tipoDocumento) html += esc(autoDetectTipoDocLabel(fe.tipoDocumento)) + ' · ';
+    if (fe.numeroFactura) html += 'Factura #' + esc(fe.numeroFactura) + ' · ';
+    if (fe.fecha) html += esc(fe.fecha) + ' · ';
+    if (fe.total) html += '$' + formatNumber(fe.total) + ' · ';
+    html += 'NIT: ' + esc(fe.nitEmisor || 'No detectado');
+    html += '</p>';
+    if (resultado && resultado.confidence != null) {
+      var confColor = resultado.confidence >= 70 ? '#166534' : resultado.confidence >= 45 ? '#854d0e' : '#991b1b';
+      html +=
+        '<p style="margin: 4px 0 0; font-size: 0.75rem; color: ' +
+        confColor +
+        ';">Lectura ' +
+        resultado.confidence +
+        '% (' +
+        esc(resultado.confidenceLabel || '') +
+        ')</p>';
+    }
+    if (fe._ocrAyudaFuente || (resultado && resultado._ocrAyudaFuente)) {
+      var ocrSrc = fe._ocrAyudaFuente || (resultado && resultado._ocrAyudaFuente) || '';
+      var ocrLbl =
+        ocrSrc === 'dispositivo'
+          ? 'OCR en este equipo'
+          : ocrSrc === 'nube'
+            ? 'OCR en la nube'
+            : ocrSrc.indexOf('nube') >= 0
+              ? 'OCR dispositivo + nube'
+              : 'OCR dispositivo + nube';
+      html +=
+        '<p style="margin:4px 0 0;font-size:0.72rem;color:var(--text-secondary);">📖 ' +
+        esc(ocrLbl) +
+        '</p>';
+    }
+    if (fe._ocrRotacion || (resultado && resultado._ocrRotacion)) {
+      var rot = fe._ocrRotacion || (resultado && resultado._ocrRotacion) || 0;
+      html +=
+        '<p style="margin:4px 0 0;font-size:0.72rem;color:#1e40af;">↻ Documento leído rotado ' +
+        esc(String(rot)) +
+        '°</p>';
+    }
+    if (resultado && resultado._cascadePasos && resultado._cascadePasos.length > 1) {
+      html +=
+        '<p style="margin:4px 0 0;font-size:0.72rem;color:var(--text-secondary);">Cascada: ' +
+        esc(resultado._cascadePasos.map(function (n) { return 'paso ' + (n + 1); }).join(' → ')) +
+        '</p>';
+    }
+    html += '</div>';
+    html += '<span style="color: ' + colorEstado + '; font-size: 20px; font-weight: bold; flex-shrink:0;">' + iconoEstado + '</span>';
+    html += '</div>';
+
+    var datosHtml = '';
+    datosHtml += renderAutoDetectEmpresaNota(fe, resultado);
+    
+    if (factura.proveedorAsignado && factura.facturaSistemaId) {
+      var provAsig = autoDetectProveedoresList().find(function (p) {
+        return String(p.id) === String(factura.proveedorAsignado);
+      });
+      datosHtml += '<div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 12px; margin-bottom: 12px;">';
+      datosHtml += '<p style="margin: 0; font-size: 0.85rem; color: #166534;">✓ Asignada a ';
+      datosHtml += esc((provAsig && (provAsig.nombre || provAsig.name)) || 'proveedor en sesión');
+      datosHtml += '</p></div>';
+      datosHtml += renderFacturaLeidaDetalle(fe, resultado);
+    } else if (proveedorSugerido) {
+      datosHtml += '<div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 12px; margin-bottom: 12px;">';
+      datosHtml += '<p style="margin: 0 0 8px; font-size: 0.85rem; color: #166534;">✓ Proveedor encontrado:</p>';
+      datosHtml += '<p style="margin: 0; font-weight: 600;">' + esc(proveedorSugerido.nombre || proveedorSugerido.name) + '</p>';
+      datosHtml += '<p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-secondary);">NIT: ' + esc(proveedorSugerido.nit || proveedorSugerido.identificador) + '</p>';
+      datosHtml += '</div>';
+      datosHtml +=
+        '<button type="button" class="btn btn-primary btn-sm" data-crozzo-act="asignarProveedorAuto" data-crozzo-args=\'' +
+        autoDetectCrozzoArgs(factura.id, proveedorSugerido.id) +
+        "'>Usar este proveedor</button>";
+      datosHtml += renderFacturaLeidaDetalle(fe, resultado);
+    } else if (feTieneProveedorDetectado(fe) || fe._compradorConflicto) {
+      datosHtml += '<div style="background: #fefce8; border: 1px solid #fde047; border-radius: 6px; padding: 12px; margin-bottom: 12px;">';
+      datosHtml += '<p style="margin: 0 0 8px; font-size: 0.85rem; color: #854d0e;">⚠ Proveedor detectado — no está en el sistema</p>';
+      datosHtml += renderAutoDetectCompradorAviso(fe);
+      datosHtml += renderProveedorEditableForm(factura.id, fe);
+      datosHtml += '</div>';
+      datosHtml +=
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+        '<button type="button" class="btn btn-outline btn-sm" data-crozzo-act="guardarCorreccionProveedorAuto" data-crozzo-args=\'' +
+        autoDetectCrozzoArgs(factura.id) +
+        "'>Guardar corrección</button>" +
+        '<button type="button" class="btn btn-primary btn-sm" data-crozzo-act="crearProveedorAuto" data-crozzo-args=\'' +
+        autoDetectCrozzoArgs(factura.id) +
+        "'>+ Crear proveedor con estos datos</button></div>";
+      datosHtml += renderFacturaLeidaDetalle(fe, resultado);
+    } else if (feTieneDatosFactura(fe)) {
+      datosHtml += '<div style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 6px; padding: 12px; margin-bottom: 12px;">';
+      datosHtml += '<p style="margin: 0 0 8px; font-size: 0.85rem; color: #1e40af;">ℹ Pocos datos del proveedor — complete manualmente</p>';
+      datosHtml += renderAutoDetectCompradorAviso(fe);
+      datosHtml += renderProveedorEditableForm(factura.id, fe);
+      datosHtml += '</div>';
+      datosHtml +=
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+        '<button type="button" class="btn btn-outline btn-sm" data-crozzo-act="guardarCorreccionProveedorAuto" data-crozzo-args=\'' +
+        autoDetectCrozzoArgs(factura.id) +
+        "'>Guardar corrección</button>" +
+        '<button type="button" class="btn btn-primary btn-sm" data-crozzo-act="crearProveedorAuto" data-crozzo-args=\'' +
+        autoDetectCrozzoArgs(factura.id) +
+        "'>+ Crear proveedor con estos datos</button></div>";
+      datosHtml += renderFacturaLeidaDetalle(fe, resultado);
+    } else {
+      datosHtml += '<div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px;">';
+      datosHtml += '<p style="margin: 0; font-size: 0.85rem; color: #991b1b;">⚠ No se pudo detectar información del proveedor</p>';
+      datosHtml += '</div>';
+    }
+
+    datosHtml += renderAutoDetectEvaluacion(resultado);
+    datosHtml += renderAutoDetectExtraccionRespaldo(resultado);
+
+    var tieneDoc = autoDetectFacturaTieneDocumento(factura);
+    html +=
+      '<div class="cxf-auto-factura-split' +
+      (tieneDoc ? '' : ' cxf-auto-factura-split--solo-datos') +
+      '">';
+    html += '<div class="cxf-auto-factura-split__datos">' + datosHtml + '</div>';
+    if (tieneDoc) html += renderAutoDetectFacturaPreview(factura);
+    html += '</div>';
+    
+    html += '</div>';
+    
+    container.insertAdjacentHTML('beforeend', html);
+    autoDetectMountFacturaPreview(factura);
+  }
+
+  function updateAutoDetectProgress() {
+    var total = _autoDetectState.facturas.length;
+    var completados = _autoDetectState.facturas.filter(function (f) {
+      return f.estado === 'completado' || f.estado === 'error';
+    }).length;
+    var enProfundo = _autoDetectState.facturas.filter(function (f) {
+      return f.estado === 'pendiente_pass2' || f.estado === 'pendiente_pass3';
+    }).length;
+    var porcentaje = total > 0 ? (completados / total) * 100 : 0;
+
+    var counter = document.getElementById('cxf-auto-counter');
+    var bar = document.getElementById('cxf-auto-progress-bar');
+
+    if (counter) {
+      counter.textContent =
+        completados + ' / ' + total + (enProfundo ? ' · ' + enProfundo + ' en cola OCR' : '');
+    }
+    if (bar) bar.style.width = porcentaje + '%';
+  }
+
+  function finalizarAutoDetect() {
+    _autoDetectState.analizando = false;
+    console.log('[AUTO-DETECT] Análisis completado:', _autoDetectState.resultados.length, 'facturas');
+    
+    hideAutoDetectBusy();
+    removeAutoDetectNavGuard();
+    setAutoDetectActionButtons(true);
+    
+    var titleEl = document.getElementById('cxf-auto-busy-title');
+    if (titleEl) titleEl.textContent = 'Análisis completado';
+    
+    // Mostrar resumen de proveedores sugeridos
+    renderProveedoresSugeridosResumen();
+    toast('Análisis terminado — revise proveedores y continúe cuando esté listo', 'success');
+  }
+
+  function renderProveedoresSugeridosResumen() {
+    var container = document.getElementById('cxf-auto-proveedores-sugeridos');
+    if (!container) return;
+    
+    // Agrupar por NIT (no mezclar proveedores distintos aunque el nombre se parezca)
+    var agrupados = {};
+    _autoDetectState.resultados.forEach(function(res, resIdx) {
+      var fe = res && res.fe;
+      if (!fe || !feTieneProveedorDetectado(fe)) return;
+
+      var key = fe.nitEmisor
+        ? 'nit_' + autoDetectNormNit(fe.nitEmisor)
+        : 'nom_' + autoDetectNormNombre(fe.razonSocial || 'sin-nombre') + '_' + resIdx;
+      if (!agrupados[key]) {
+        agrupados[key] = {
+          nit: fe.nitEmisor,
+          razonSocial: fe.razonSocial || 'Proveedor sin nombre',
+          facturas: [],
+          tieneProveedor: res.proveedorSugerido !== null
+        };
+      } else if (fe.razonSocial && fe.razonSocial.length > (agrupados[key].razonSocial || '').length) {
+        agrupados[key].razonSocial = fe.razonSocial;
+      }
+      agrupados[key].facturas.push(res);
+      if (res.proveedorSugerido) agrupados[key].tieneProveedor = true;
+    });
+
+    _autoDetectState.facturas.forEach(function (f) {
+      if (!f.proveedorAsignado || !f.resultado || !f.resultado.fe) return;
+      var feF = f.resultado.fe;
+      var keyF = feF.nitEmisor ? 'nit_' + autoDetectNormNit(feF.nitEmisor) : '';
+      if (keyF && agrupados[keyF]) agrupados[keyF].tieneProveedor = true;
+    });
+    
+    var grupos = Object.values(agrupados);
+    if (grupos.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No se detectaron proveedores en las facturas.</p>';
+      return;
+    }
+    
+    var html = '<h3 style="margin: 0 0 16px; font-size: 1.1rem;">Resumen por proveedor detectado</h3>';
+    html += '<div style="display: grid; gap: 12px;">';
+    
+    grupos.forEach(function(grupo) {
+      var colorFondo = grupo.tieneProveedor ? '#f0fdf4' : '#fefce8';
+      var colorBorde = grupo.tieneProveedor ? '#86efac' : '#fde047';
+      var estado = grupo.tieneProveedor ? '✓ En sistema' : '⚠ Nuevo proveedor';
+      
+      html += '<div style="background: ' + colorFondo + '; border: 1px solid ' + colorBorde + '; border-radius: 8px; padding: 16px;">';
+      html += '<div style="display: flex; justify-content: space-between; align-items: flex-start;">';
+      html += '<div>';
+      html += '<h4 style="margin: 0 0 4px; font-size: 1rem;">' + esc(grupo.razonSocial) + '</h4>';
+      html += '<p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">NIT: ' + esc(grupo.nit) + '</p>';
+      html += '<p style="margin: 8px 0 0; font-size: 0.8rem;">' + grupo.facturas.length + ' factura(s) · ' + estado + '</p>';
+      if (!grupo.tieneProveedor) {
+        var fe0 = grupo.facturas[0] && grupo.facturas[0].fe;
+        if (fe0) html += '<div style="margin-top:8px;">' + renderProveedorDetectadoDetalle(fe0) + '</div>';
+      }
+      html += '</div>';
+      
+      if (!grupo.tieneProveedor) {
+        html +=
+          '<button type="button" class="btn btn-primary btn-sm" data-crozzo-act="crearProveedorDesdeGrupo" data-crozzo-args=\'' +
+          autoDetectCrozzoArgs(grupo.nit || '', grupo.razonSocial || '') +
+          "'>Crear proveedor</button>";
+      }
+      
+      html += '</div>';
+      html += '</div>';
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  root.asignarProveedorAuto = function(facturaId, proveedorId) {
+    console.log('[AUTO-DETECT] Asignando factura', facturaId, 'a proveedor', proveedorId);
+    
+    var factura = autoDetectFindFactura(facturaId);
+    if (!factura) {
+      toast('Factura no encontrada', 'warning');
+      return;
+    }
+    if (factura.facturaSistemaId && String(factura.proveedorAsignado) === String(proveedorId)) {
+      toast('Esta factura ya está asignada', 'info');
+      return;
+    }
+    
+    var prov = autoDetectProveedoresList().find(function (p) {
+      return String(p.id) === String(proveedorId);
+    });
+    if (!prov) {
+      toast('Proveedor no encontrado', 'error');
+      return;
+    }
+    
+    var live = cxfLive();
+    if (!live || typeof live.ensureBucket !== 'function' || typeof live.newFactura !== 'function') {
+      toast('Sistema de recepción no listo', 'error');
+      return;
+    }
+    var bucket = live.ensureBucket(proveedorId);
+    if (!bucket) { toast('Error al crear bucket', 'error'); return; }
+    var res = factura.resultado || {};
+    var fe = res.fe || {};
+    if (factura.extraccionBancoId && global.CrozzoRecepcionFeBanco) {
+      try {
+        global.CrozzoRecepcionFeBanco.feBancoRegistrarContrasteCatalogo(factura.extraccionBancoId, prov);
+      } catch (bancoErr) {
+        console.warn('[AUTO-DETECT] contraste banco', bancoErr);
+      }
+    }
+    var nuevaFactura = live.newFactura({
+      numeroFactura: fe.numeroFactura || '',
+      valorFactura: fe.total || 0,
+      proveedorId: proveedorId,
+      proveedorNombre: prov.nombre || prov.name,
+      feAnalisis: fe,
+      _autoDetect: true
+    });
+    
+    if (factura.file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var pdfDoc = {
+          id: 'doc_' + Date.now(),
+          nombre: factura.nombre,
+          mime: 'application/pdf',
+          dataUrl: e.target.result,
+          _pdfBlob: factura.file
+        };
+        nuevaFactura.docs = [pdfDoc];
+        autoDetectFinalizeAsignacion(factura, proveedorId, bucket, nuevaFactura, prov);
+      };
+      reader.onerror = function () {
+        nuevaFactura.docs = nuevaFactura.docs || [];
+        autoDetectFinalizeAsignacion(factura, proveedorId, bucket, nuevaFactura, prov);
+      };
+      reader.readAsDataURL(factura.file);
+    } else {
+      nuevaFactura.docs = nuevaFactura.docs || [];
+      autoDetectFinalizeAsignacion(factura, proveedorId, bucket, nuevaFactura, prov);
+    }
   };
+
+  root.guardarCorreccionProveedorAuto = function (facturaId) {
+    var factura = autoDetectFindFactura(facturaId);
+    if (!factura || !factura.resultado) {
+      toast('Factura no encontrada', 'warning');
+      return;
+    }
+    var fe = autoDetectReadFeFromCard(facturaId, factura.resultado.fe || {});
+    if (!fe.razonSocial && !fe.nitEmisor) {
+      toast('Indique al menos nombre o NIT del comerciante', 'warning');
+      return;
+    }
+    autoDetectApplyFeToFactura(facturaId, fe);
+    var FB = global.CrozzoRecepcionFeBanco;
+    if (FB && typeof FB.feBancoAprenderCorreccion === 'function') {
+      try {
+        FB.feBancoAprenderCorreccion(fe, factura.resultado && factura.resultado.fusionExtraccion, {
+          facturaId: facturaId,
+        });
+      } catch (corrErr) {
+        console.warn('[AUTO-DETECT] aprender corrección', corrErr);
+      }
+    }
+    toast('Corrección guardada para esta factura', 'success');
+  };
+
+  root.crearProveedorAuto = function(facturaId) {
+    var factura = autoDetectFindFactura(facturaId);
+    if (!factura) {
+      toast('Factura no encontrada', 'warning');
+      return;
+    }
+    if (!factura.resultado) {
+      toast('No hay datos del proveedor para crear', 'warning');
+      return;
+    }
+    var fe = autoDetectReadFeFromCard(facturaId, factura.resultado.fe || {});
+    autoDetectApplyFeToFactura(facturaId, fe);
+    if (!fe.razonSocial && !fe.nitEmisor) {
+      toast('Indique nombre o NIT del comerciante (no del cliente)', 'warning');
+      return;
+    }
+    if (!feTieneProveedorDetectado(fe) && !fe._editadoManual) {
+      toast('No hay datos del proveedor para crear', 'warning');
+      return;
+    }
+    console.log('[AUTO-DETECT] Creando proveedor:', fe.nitEmisor, fe.razonSocial);
+    
+    var nuevoProveedor = buildProveedorFromFe(fe, facturaId);
+    var nombre = nuevoProveedor.nombre;
+    
+    try {
+      if (global.CrozzoReservorio && typeof global.CrozzoReservorio.upsertProveedor === 'function') {
+        var saved = global.CrozzoReservorio.upsertProveedor({
+          nombre: nombre,
+          nit: nuevoProveedor.nit,
+          telefono: nuevoProveedor.telefono,
+          email: nuevoProveedor.email,
+          representante: nuevoProveedor.representante,
+          legal: nuevoProveedor.legal,
+        });
+        if (saved && saved.id) nuevoProveedor.id = saved.id;
+      }
+    } catch (saveErr) {
+      console.warn('[AUTO-DETECT] upsertProveedor', saveErr);
+    }
+    
+    var live = cxfLive();
+    if (live && live.getUi) {
+      var cxfUi = live.getUi();
+      if (cxfUi && live.ensureBucket) {
+        var bucket = live.ensureBucket(nuevoProveedor.id);
+        if (bucket && cxfUi.proveedorIds.indexOf(nuevoProveedor.id) < 0) {
+          cxfUi.proveedorIds.push(nuevoProveedor.id);
+        }
+      }
+    }
+    
+    toast('Proveedor "' + nombre + '" creado y asignado', 'success');
+    
+    root.asignarProveedorAuto(facturaId, nuevoProveedor.id);
+    
+    if (live && live.schedulePersistCxfSession) live.schedulePersistCxfSession();
+  };
+
+  root.crearProveedorDesdeGrupo = function(nit, razonSocial) {
+    var feGrupo = null;
+    var facturaRef = null;
+    _autoDetectState.facturas.forEach(function (f) {
+      if (feGrupo || !f.resultado || !f.resultado.fe) return;
+      var fe = f.resultado.fe;
+      var matchNit = nit && fe.nitEmisor === nit;
+      var matchNombre = razonSocial && fe.razonSocial === razonSocial;
+      if (matchNit || matchNombre) {
+        feGrupo = fe;
+        facturaRef = f;
+      }
+    });
+    var fe = feGrupo || { nitEmisor: nit, razonSocial: razonSocial };
+    if (facturaRef) {
+      fe = autoDetectReadFeFromCard(facturaRef.id, fe);
+      autoDetectApplyFeToFactura(facturaRef.id, fe);
+    }
+    var nuevoProveedor = buildProveedorFromFe(fe);
+    var nombre = nuevoProveedor.nombre;
+    
+    try {
+      if (global.CrozzoReservorio && typeof global.CrozzoReservorio.upsertProveedor === 'function') {
+        var savedG = global.CrozzoReservorio.upsertProveedor({
+          nombre: nombre,
+          nit: nuevoProveedor.nit,
+          telefono: nuevoProveedor.telefono,
+          email: nuevoProveedor.email,
+          representante: nuevoProveedor.representante,
+          legal: nuevoProveedor.legal,
+        });
+        if (savedG && savedG.id) nuevoProveedor.id = savedG.id;
+      }
+    } catch (_) {}
+    
+    var liveG = cxfLive();
+    if (liveG && liveG.getUi && liveG.ensureBucket) {
+      var cxfUiG = liveG.getUi();
+      liveG.ensureBucket(nuevoProveedor.id);
+      if (cxfUiG && cxfUiG.proveedorIds.indexOf(nuevoProveedor.id) < 0) {
+        cxfUiG.proveedorIds.push(nuevoProveedor.id);
+      }
+    }
+    
+    toast('Proveedor "' + nombre + '" creado', 'success');
+
+    var asignadas = 0;
+    _autoDetectState.facturas.forEach(function (f) {
+      if (!f.resultado || !f.resultado.fe) return;
+      if (f.facturaSistemaId && String(f.proveedorAsignado) === String(nuevoProveedor.id)) return;
+      if (autoDetectFeMatchGrupo(f.resultado.fe, nit, razonSocial)) {
+        root.asignarProveedorAuto(f.id, nuevoProveedor.id);
+        asignadas++;
+      }
+    });
+
+    if (!asignadas) {
+      toast('Proveedor creado — asigne las facturas manualmente', 'warning');
+    }
+  };
+
+  root.continuarAMateriasPrimas = function() {
+    if (_autoDetectState.analizando) {
+      toast('Espere a que termine el análisis de facturas', 'warning');
+      return;
+    }
+    console.log('[AUTO-DETECT] Continuando al flujo de materias primas');
+    
+    var facturasValidas = _autoDetectState.facturas.filter(function(f) {
+      return f.proveedorAsignado && f.resultado && f.facturaSistemaId;
+    });
+    
+    if (facturasValidas.length === 0) {
+      toast('Primero debe asignar proveedores a las facturas', 'warning');
+      return;
+    }
+    
+    var live = cxfLive();
+    if (!live || !live.getUi || !live.refreshStepHost || !live.getCxfHost) {
+      toast('Sistema de recepción no listo', 'error');
+      return;
+    }
+    var cxfUi = live.getUi();
+    
+    console.log('[AUTO-DETECT] Procesando', facturasValidas.length, 'facturas para el flujo normal');
+    
+    var primeraFactura = facturasValidas[0];
+    cxfUi.proveedorActivo = String(primeraFactura.proveedorAsignado);
+    if (cxfUi.proveedorIds.indexOf(cxfUi.proveedorActivo) < 0) {
+      cxfUi.proveedorIds.push(cxfUi.proveedorActivo);
+    }
+    
+    if (live.syncUiFromBucket) live.syncUiFromBucket();
+    
+    cxfUi.step = 'documento';
+    cxfUi.modoEntrada = 'simple';
+    
+    live.refreshStepHost(live.getCxfHost());
+    
+    toast('✓ ' + facturasValidas.length + ' facturas listas en el flujo de recepción', 'success');
+    
+    console.log('[AUTO-DETECT] Transición completada al flujo normal');
+  };
+
+  root.verFacturaAutoDetect = function (facturaId) {
+    var factura = autoDetectFindFactura(facturaId);
+    if (!autoDetectFacturaTieneDocumento(factura)) {
+      toast('No hay documento disponible para previsualizar', 'warning');
+      return;
+    }
+    var url = autoDetectEnsurePreviewUrl(factura);
+    if (!url) {
+      toast('No se pudo abrir el documento', 'warning');
+      return;
+    }
+    var safeUrl = esc(url);
+    var title = esc(factura.nombre || 'Factura');
+    var body = '';
+    if (autoDetectIsPdfFactura(factura)) {
+      body =
+        '<div class="cxf-auto-factura-modal-pdf">' +
+        '<iframe class="cxf-pdf-preview-iframe cxf-auto-factura-modal-pdf__frame" src="' +
+        safeUrl +
+        '#toolbar=1&navpanes=0" title="' +
+        title +
+        '"></iframe></div>';
+    } else {
+      body =
+        '<div class="cxf-auto-factura-modal-pdf cxf-auto-factura-modal-pdf--img">' +
+        '<img src="' +
+        safeUrl +
+        '" alt="' +
+        title +
+        '"></div>';
+    }
+    if (typeof global.showModal === 'function') {
+      global.showModal('Factura · ' + (factura.nombre || ''), body, {
+        wide: true,
+        modalClass: 'modal--cxf-auto-pdf'
+      });
+    } else {
+      window.open(url, '_blank', 'noopener');
+    }
+  };
+
+  root.resetAutoDetect = function() {
+    if (_autoDetectState.analizando) {
+      toast('Espere a que termine el análisis en curso', 'warning');
+      return;
+    }
+    autoDetectRevokeAllPreviewUrls();
+    _autoDetectState = {
+      activo: false,
+      facturas: [],
+      analizando: false,
+      resultados: [],
+      proveedoresSugeridos: []
+    };
+    
+    var resultsDiv = document.getElementById('cxf-auto-results');
+    var container = document.getElementById('cxf-auto-facturas-list');
+    var provContainer = document.getElementById('cxf-auto-proveedores-sugeridos');
+    var upload = document.getElementById('cxf-auto-upload-zone');
+    
+    if (resultsDiv) resultsDiv.style.display = 'none';
+    if (container) container.innerHTML = '';
+    if (provContainer) provContainer.innerHTML = '';
+    if (upload) upload.style.display = 'block';
+    
+    hideAutoDetectBusy();
+    removeAutoDetectNavGuard();
+    setAutoDetectActionButtons(true);
+    
+    // Reset progress
+    var counter = document.getElementById('cxf-auto-counter');
+    var bar = document.getElementById('cxf-auto-progress-bar');
+    if (counter) counter.textContent = '0 / 0';
+    if (bar) bar.style.width = '0%';
+  };
+
+  function refrescarListaFacturas() {
+    var container = document.getElementById('cxf-auto-facturas-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    _autoDetectState.facturas.forEach(function(f) {
+      renderFacturaAnalizada(f, f.resultado);
+    });
+  }
+
+  // ============================================================================
+  // FIN FLUJO AUTO-DETECCIÓN
+  // ============================================================================
+
+  // ============================================================================
+  // FLUJO CÁMARA INTELIGENTE - RECONOCIMIENTO EN TIEMPO REAL
+  // ============================================================================
+
+  var _cameraState = { activo: false, stream: null, video: null, canvas: null, context: null, procesando: false, estabilidad: 0, ultimaCaptura: null };
+
+  root.renderCameraInteligentePanel = function() {
+    return '<section class="cxf-panel cxf-panel--full" id="cxf-camera-panel"><header class="cxf-prov-hero"><p class="cxf-eyebrow">Paso 1 · Foto</p><h2 class="cxf-panel-title">Tomar foto de la factura</h2><p class="cxf-panel-lead">Un toque abre la cámara. Si no hay permiso o webcam, podrá elegir una imagen guardada.</p></header><div style="padding: 0 24px 24px;"><div style="position: relative; width: 100%; max-width: 640px; margin: 0 auto; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 4/3;"><video id="cxf-camera-video" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline></video><canvas id="cxf-camera-canvas" style="display: none;"></canvas><div id="cxf-camera-start" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(145deg, var(--bg-secondary), var(--bg-card)); padding: 16px; text-align: center;"><div style="font-size: 64px; margin-bottom: 16px;">📷</div><h3 style="margin: 0 0 8px;">Tomar foto</h3><p class="form-hint" style="max-width:420px;margin:0 0 14px">Apunte a la factura con buena luz.</p><p id="cxf-camera-perm-msg" class="form-hint" style="display:none;max-width:420px;margin:0 0 12px;color:var(--danger,#ef4444);"></p><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;"><button type="button" class="btn btn-primary btn-lg" data-crozzo-act="tomarFotoFactura">📷 Tomar foto</button></div></div><div id="cxf-camera-guia" style="position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 12px 24px; border-radius: 24px; font-weight: 500; display: none;">Iniciando...</div><div id="cxf-camera-flash" style="position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.1s;"></div><div id="cxf-camera-controls" style="position: absolute; bottom: 20px; left: 0; right: 0; display: none; justify-content: center; gap: 16px;"><button type="button" class="btn btn-outline" data-crozzo-act="detenerCamaraInteligente">Cancelar</button><button type="button" class="btn btn-primary btn-lg" data-crozzo-act="capturarManualmente">📷 Capturar</button></div></div><div id="cxf-camera-results" style="display: none; margin-top: 24px;"><h3 style="margin: 0 0 16px;">Factura capturada</h3><div id="cxf-camera-preview-img" style="border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px;"></div><div style="display: flex; gap: 12px; justify-content: center;"><button type="button" class="btn btn-outline" data-crozzo-act="retomarCamara">↺ Otra foto</button><button type="button" class="btn btn-primary" data-crozzo-act="procesarFotoCamara">✓ Usar esta foto</button></div></div></div></section>';
+  }
+
+  function cxfCamIsTauri() {
+    return !!(global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke);
+  }
+
+  function cxfCamResetWebviewPermission() {
+    if (!cxfCamIsTauri()) return Promise.resolve();
+    return global.__TAURI__.core.invoke('cxf_reset_webview_camera_permission').catch(function () {});
+  }
+
+  function cxfCamSetPermError(msg, showRetry) {
+    var el = document.getElementById('cxf-camera-perm-msg');
+    var retry = document.getElementById('cxf-camera-perm-retry');
+    if (el) {
+      el.textContent = msg || '';
+      el.style.display = msg ? 'block' : 'none';
+    }
+    if (retry) retry.style.display = showRetry ? 'inline-block' : 'none';
+  }
+
+  function cxfCamDelay(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms || 0);
+    });
+  }
+
+  function cxfCamTryGetUserMedia() {
+    var isDesktop = !cxfCamIsMobileUa();
+    var tries = isDesktop
+      ? [
+          { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: 'user' }, audio: false },
+          { video: true, audio: false },
+        ]
+      : [
+          { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+          { video: { facingMode: 'environment' }, audio: false },
+          { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: true, audio: false },
+          { video: { facingMode: 'user' }, audio: false },
+        ];
+    var i = 0;
+    var lastErr;
+    function next() {
+      if (i >= tries.length) return Promise.reject(lastErr || new Error('Sin cámara'));
+      return navigator.mediaDevices.getUserMedia(tries[i]).catch(function (err) {
+        lastErr = err;
+        i++;
+        return next();
+      });
+    }
+    return next();
+  }
+
+  function cxfCamErrorMessage(err) {
+    var name = err && err.name ? err.name : '';
+    var msg = err && err.message ? err.message : String(err || '');
+    var blob = name + ' ' + msg;
+    if (/NotAllowed|Permission denied|PermissionDenied/i.test(blob)) {
+      return 'Sin permiso de cámara en vivo — use «Cámara del sistema» o «Elegir foto o PDF».';
+    }
+    if (/NotFound|DevicesNotFound/i.test(blob)) {
+      return 'No se detectó ninguna cámara en este equipo.';
+    }
+    return 'No se pudo abrir la cámara' + (msg ? ': ' + msg : '');
+  }
+
+  function cxfCamOpenLiveStream() {
+    var video = document.getElementById('cxf-camera-video');
+    var canvas = document.getElementById('cxf-camera-canvas');
+    if (!video || !canvas) {
+      toast('Panel de cámara no listo — vuelva a abrir la pestaña Cámara', 'warning');
+      return Promise.reject(new Error('panel'));
+    }
+    return cxfCamTryGetUserMedia()
+      .then(function (stream) {
+        _cameraState.stream = stream;
+        _cameraState.activo = true;
+        var startDiv = document.getElementById('cxf-camera-start');
+        if (startDiv) startDiv.style.display = 'none';
+        video.srcObject = stream;
+        video.style.display = 'block';
+        var guia = document.getElementById('cxf-camera-guia');
+        var controls = document.getElementById('cxf-camera-controls');
+        if (guia) guia.style.display = 'block';
+        if (controls) controls.style.display = 'flex';
+        _cameraState.canvas = canvas;
+        _cameraState.context = canvas.getContext('2d');
+        _cameraState.video = video;
+        cxfCamSetPermError('', false);
+        return video.play();
+      })
+      .then(function () {
+        var v = _cameraState.video;
+        if (!v) return;
+        v.onloadedmetadata = function () {
+          if (!_cameraState.canvas || !v) return;
+          _cameraState.canvas.width = v.videoWidth || 1280;
+          _cameraState.canvas.height = v.videoHeight || 720;
+          _cameraState.procesando = true;
+          analizarFrameCamara();
+        };
+        if (v.readyState >= 1 && _cameraState.canvas) {
+          _cameraState.canvas.width = v.videoWidth || 1280;
+          _cameraState.canvas.height = v.videoHeight || 720;
+          _cameraState.procesando = true;
+          analizarFrameCamara();
+        }
+        toast('Cámara activada', 'success');
+      });
+  }
+
+  root.iniciarCamaraInteligente = function() {
+    root.tomarFotoFactura();
+  };
+
+  root.reintentarCamaraInteligente = function () {
+    detenerCamaraInteligente();
+    var startDiv = document.getElementById('cxf-camera-start');
+    if (startDiv) startDiv.style.display = 'flex';
+    cxfCamSetPermError('Restableciendo permiso de cámara…', false);
+    cxfCamResetWebviewPermission()
+      .then(function () {
+        return cxfCamDelay(180);
+      })
+      .then(function () {
+        return cxfCamOpenLiveStream();
+      })
+      .catch(function (err) {
+        if (err && err.message === 'panel') return;
+        console.error('[CXF] cámara inteligente retry', err);
+        var isPerm = /NotAllowed|Permission denied|PermissionDenied/i.test(
+          (err && err.name) + ' ' + (err && err.message)
+        );
+        var msg = cxfCamErrorMessage(err);
+        cxfCamSetPermError(msg, isPerm);
+        toast(msg, 'error');
+      });
+  };
+
+  root.elegirFotoCamaraInteligente = function () {
+    root.tomarFotoFactura();
+  };
+
+  function analizarFrameCamara() {
+    if (!_cameraState.activo || !_cameraState.procesando) return;
+    var video = _cameraState.video, canvas = _cameraState.canvas, context = _cameraState.context;
+    if (!video || !canvas || !context || video.paused || video.ended) { requestAnimationFrame(analizarFrameCamara); return; }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    var imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    var analisis = analizarImagenSimple(imageData.data, canvas.width, canvas.height);
+    actualizarGuiaCamara(analisis);
+    if (analisis.listoParaCaptura) { _cameraState.estabilidad++; if (_cameraState.estabilidad > 30) { capturarAutomaticamente(); return; } } else { _cameraState.estabilidad = 0; }
+    requestAnimationFrame(analizarFrameCamara);
+  }
+
+  function analizarImagenSimple(data, width, height) {
+    var resultado = { brillo: 0, bordes: 0, documentoDetectado: false, listoParaCaptura: false };
+    var step = 8, total = 0, suma = 0, bordes = 0, margenX = Math.floor(width * 0.2), margenY = Math.floor(height * 0.2);
+    for (var y = margenY; y < height - margenY; y += step) {
+      for (var x = margenX; x < width - margenX; x += step) {
+        var idx = (y * width + x) * 4; var brillo = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+        suma += brillo; total++;
+        if (x < width - step) { var idxR = (y * width + (x + step)) * 4; var brilloR = 0.299 * data[idxR] + 0.587 * data[idxR + 1] + 0.114 * data[idxR + 2]; if (Math.abs(brillo - brilloR) > 30) bordes++; }
+      }
+    }
+    resultado.brillo = suma / total; resultado.bordes = bordes;
+    var area = ((width - 2 * margenX) / step) * ((height - 2 * margenY) / step);
+    resultado.documentoDetectado = bordes > area * 0.03;
+    resultado.listoParaCaptura = resultado.documentoDetectado && resultado.brillo > 50 && resultado.brillo < 200;
+    return resultado;
+  }
+
+  function actualizarGuiaCamara(analisis) {
+    var guia = document.getElementById('cxf-camera-guia'); if (!guia) return;
+    var msg = !analisis.documentoDetectado ? '⬜ Acérquese a la factura' : analisis.brillo < 50 ? '💡 Más luz' : analisis.brillo > 200 ? '🌞 Menos luz' : !analisis.listoParaCaptura ? '⏳ Enfocando...' : _cameraState.estabilidad < 30 ? '🛑 No se mueva...' : '✓ Capturando!';
+    if (guia.textContent !== msg) {
+      guia.textContent = msg;
+      if (analisis.listoParaCaptura) guia.style.background = 'rgba(34, 197, 94, 0.9)'; else if (analisis.documentoDetectado) guia.style.background = 'rgba(234, 179, 8, 0.9)'; else guia.style.background = 'rgba(0, 0, 0, 0.7)';
+    }
+  }
+
+  function capturarAutomaticamente() {
+    _cameraState.procesando = false;
+    var flash = document.getElementById('cxf-camera-flash'); if (flash) { flash.style.opacity = '1'; setTimeout(function() { flash.style.opacity = '0'; }, 100); }
+    _cameraState.ultimaCaptura = _cameraState.canvas.toDataURL('image/jpeg', 0.9);
+    detenerCamaraInteligente(); mostrarResultadoCamara(_cameraState.ultimaCaptura);
+    toast('Factura capturada automáticamente', 'success');
+  }
+
+  root.capturarManualmente = function() {
+    if (!_cameraState.canvas) return;
+    var flash = document.getElementById('cxf-camera-flash'); if (flash) { flash.style.opacity = '1'; setTimeout(function() { flash.style.opacity = '0'; }, 100); }
+    _cameraState.ultimaCaptura = _cameraState.canvas.toDataURL('image/jpeg', 0.9);
+    detenerCamaraInteligente(); mostrarResultadoCamara(_cameraState.ultimaCaptura);
+  };
+
+  function mostrarResultadoCamara(imagen) {
+    var results = document.getElementById('cxf-camera-results'); var preview = document.getElementById('cxf-camera-preview-img');
+    if (results) results.style.display = 'block'; if (preview) preview.innerHTML = '<img src="' + imagen + '" style="width: 100%; display: block;">';
+    var controls = document.getElementById('cxf-camera-controls'); var guia = document.getElementById('cxf-camera-guia');
+    if (controls) controls.style.display = 'none'; if (guia) guia.style.display = 'none';
+  }
+
+  root.detenerCamaraInteligente = function() {
+    _cameraState.activo = false; _cameraState.procesando = false;
+    if (_cameraState.stream) { _cameraState.stream.getTracks().forEach(function(t) { t.stop(); }); _cameraState.stream = null; }
+    var video = document.getElementById('cxf-camera-video'); if (video) { video.pause(); video.srcObject = null; video.style.display = 'none'; }
+    var guia = document.getElementById('cxf-camera-guia'); var controls = document.getElementById('cxf-camera-controls');
+    if (guia) guia.style.display = 'none'; if (controls) controls.style.display = 'none';
+  };
+
+  root.retomarCamara = function() {
+    _cameraState.ultimaCaptura = null; _cameraState.estabilidad = 0;
+    var results = document.getElementById('cxf-camera-results'); if (results) results.style.display = 'none';
+    var start = document.getElementById('cxf-camera-start'); if (start) start.style.display = 'flex';
+    root.tomarFotoFactura();
+  };
+
+  root.procesarFotoCamara = function() {
+    if (!_cameraState.ultimaCaptura) {
+      toast('No hay imagen capturada', 'error');
+      return;
+    }
+    var parts = _cameraState.ultimaCaptura.split(',');
+    if (parts.length < 2) {
+      toast('Imagen inválida — tome la foto de nuevo', 'error');
+      return;
+    }
+    var byteString = atob(parts[1]);
+    var mime = (parts[0].split(':')[1] || 'image/jpeg').split(';')[0];
+    var ab = new ArrayBuffer(byteString.length);
+    var ia = new Uint8Array(ab);
+    for (var i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    var blob = new Blob([ab], { type: mime });
+    var file = new File([blob], 'camara_' + Date.now() + '.jpg', { type: mime.indexOf('image/') === 0 ? mime : 'image/jpeg' });
+    detenerCamaraInteligente();
+    var live = cxfLive();
+    if (live && live.getUi && live.refreshStepHost && live.getCxfHost) {
+      live.getUi().proveedorTab = 'auto';
+      live.refreshStepHost(live.getCxfHost());
+    }
+    setTimeout(function () {
+      if (typeof root.handleAutoDetectFiles === 'function') {
+        root.handleAutoDetectFiles([file]);
+      } else {
+        toast('Análisis automático no disponible — recargue la página', 'error');
+      }
+    }, 120);
+    toast('Analizando foto…', 'info');
+  };
+
+  // ============================================================================
+  // FIN FLUJO CÁMARA INTELIGENTE
+  // ============================================================================
+
 })(typeof window !== 'undefined' ? window : globalThis);
 

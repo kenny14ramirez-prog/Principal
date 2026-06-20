@@ -15,7 +15,7 @@
       caja: ['vista_pos', 'abrir_orden', 'editar_orden', 'eliminar_item', 'descuento_autorizado', 'facturar'],
     },
     tablets: {
-      caja: ['vista_tablets', 'tab_abrir', 'tab_editar', 'tab_eliminar'],
+      caja: ['vista_tablets', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'],
     },
     facturas: { caja: ['vista_facturas', 'facturar'] },
     'cierre-caja': { caja: ['vista_pos', 'vista_facturas'] },
@@ -32,6 +32,9 @@
     'compras-recepcion': { inventario: ['proveedores'] },
     'compras-ordenes': { inventario: ['proveedores'] },
     'compras-cortes': { inventario: ['proveedores', 'reportes'] },
+    'compras-recetario-cocina': { comandas: ['ver'], inventario: ['reportes', 'proveedores'] },
+    'compras-proceso-sesion': { comandas: ['ver'], inventario: ['reportes', 'proveedores'] },
+    'compras-proceso-historial': { comandas: ['ver'], inventario: ['reportes', 'proveedores'] },
     'compras-oficina': { inventario: ['proveedores', 'reportes'] },
     'pedidos-internos': { inventario: ['reportes'] },
     'sistema-costos-matriz': { inventario: ['reportes', 'proveedores'] },
@@ -44,7 +47,7 @@
     'conexion-sistemas': { admin: ['config_conexiones'] },
     'facturas-admin': { admin: ['config_facturas_admin'] },
     admin: { admin: ['config_usuarios'] },
-    'control-acceso': { admin: ['config_usuarios', 'nomina_planilla'] },
+    'control-acceso': { admin: ['marcacion_personal'] },
     auditoria: { admin: ['auditoria'] },
     'nomina-planilla': { admin: ['nomina_planilla'] },
     'planilla-2026': { admin: ['nomina_planilla'] },
@@ -53,14 +56,14 @@
   /** Presets por rol: qué puede delegar el admin por defecto (sin permisos sensibles). */
   var ROLE_PERM_PRESETS = {
     caja: {
-      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
+      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
       comandas: ['ver'],
       inventario: ['reportes', 'proveedores'],
       productos: [],
       admin: [],
     },
     mesero: {
-      caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar'],
+      caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'],
       comandas: ['ver', 'despachar'],
       inventario: [],
       productos: [],
@@ -88,11 +91,11 @@
       admin: [],
     },
     admin: {
-      caja: ['vista_pos', 'vista_tablets', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'anular_comandado', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'facturar'],
+      caja: ['vista_pos', 'vista_tablets', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'anular_comandado', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta', 'facturar'],
       comandas: ['ver', 'despachar', 'reimprimir'],
       inventario: ['reportes', 'proveedores'],
       productos: ['catalogo'],
-      admin: ['config_empresa', 'config_impuestos', 'config_comandas', 'config_conexiones', 'config_facturas_admin', 'config_usuarios', 'auditoria', 'nomina_planilla'],
+      admin: ['config_empresa', 'config_impuestos', 'config_comandas', 'config_usuarios', 'marcacion_personal'],
     },
   };
 
@@ -114,6 +117,14 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function resolveClientPerfil(client) {
+    var raw = (client && client.perfil) || 'basico_restaurante';
+    if (typeof global.crozzoResolvePerfilEmpresaId === 'function') return global.crozzoResolvePerfilEmpresaId(raw);
+    if (typeof global.crozzoNormalizePerfilEmpresaId === 'function') return global.crozzoNormalizePerfilEmpresaId(raw);
+    var p = String(raw).toLowerCase();
+    return p === 'completo' ? 'basico_restaurante' : p;
   }
 
   function normalizeRol(rol) {
@@ -156,7 +167,7 @@
   function getRoleMenuIds(client, role) {
     if (!client) return [];
     var r = normalizeRol(role);
-    var perfil = String(client.perfil || 'completo').toLowerCase();
+    var perfil = resolveClientPerfil(client);
     if (perfil !== 'personalizado' && typeof global.crozzoResolveRoleMenus === 'function') {
       var fromPreset = global.crozzoResolveRoleMenus(perfil, r);
       if (fromPreset && fromPreset.length) return fromPreset.slice();
@@ -179,12 +190,12 @@
     var r = normalizeRol(role);
     var preset = ROLE_PERM_PRESETS[r] || ROLE_PERM_PRESETS.user;
     var maxFromMenus = computeMaxPolicyFromMenus(client, role);
-    var perfil = String((client && client.perfil) || 'completo').toLowerCase();
+    var perfil = resolveClientPerfil(client);
     var out = emptyPolicy();
     CAT_IDS.forEach(function (cat) {
       var allowedMax = new Set(maxFromMenus[cat] || []);
       var presetList = preset[cat] || [];
-      if (perfil === 'completo' && !getRoleMenuIds(client, role).length) {
+      if (perfil === 'personalizado' && !getRoleMenuIds(client, role).length) {
         out[cat] = presetList.slice();
         return;
       }

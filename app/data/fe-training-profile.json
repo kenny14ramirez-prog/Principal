@@ -1,31 +1,435 @@
 {
-  "version": 3,
-  "trainedAt": "2026-05-30",
-  "sampleSize": 83,
-  "okFePct": 45.8,
-  "okQrPct": 15.7,
-  "scannedFailPct": 51,
+  "version": 4,
+  "trainedAt": "2026-06-19",
+  "sampleSize": 52,
+  "sourceDir": "facturas de pruebas",
+  "okFePct": 3.8,
+  "okQrPct": 0,
+  "scannedFailPct": 87,
+  "probeNombrePct": 86.5,
+  "probeNitPct": 13.5,
   "summary": {
-    "escaneada-sin-qr-cufe": 42,
-    "fe-qr": 10,
-    "fe-ocr": 9,
-    "fe-qr-sin-cufe": 2,
-    "fe-texto-pdf": 19,
-    "sin-fe-detectada": 1
+    "texto-sin-cufe": 5,
+    "escaneada-sin-texto": 45,
+    "fe-texto-pdf": 2
   },
-  "qrZones": {
-    "esquina-sup-der": 1,
-    "centro": 4,
-    "esquina-inf-izq": 3,
-    "borde-sup": 3,
-    "esquina-inf-der": 1
-  },
-  "hint": "Entrenamiento 83 facturas (2026-05-30): ~45.8% CUFE · ~15.7% QR. Escaneos difíciles: marque QR o cámara.",
+  "vendors": [
+    {
+      "slug": "HIELO_POLAR",
+      "label": "Hielo Polar",
+      "aliases": [
+        "HIELO POLAR"
+      ],
+      "nits": [
+        "3164827571"
+      ],
+      "tokens": [
+        "HIELO",
+        "POLAR"
+      ],
+      "samples": 6,
+      "nombreOkPct": 50,
+      "nitOkPct": 50
+    },
+    {
+      "slug": "FRESPOLLO_Y_MAR",
+      "label": "FRESPOLLO Y MAR",
+      "aliases": [
+        "FRESPOLLO Y MAR"
+      ],
+      "nits": [],
+      "tokens": [
+        "FRESPOLLO"
+      ],
+      "samples": 4,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "REPOSTEROS",
+      "label": "Reposteros",
+      "aliases": [
+        "REPOSTEROS"
+      ],
+      "nits": [],
+      "tokens": [
+        "REPOSTEROS"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SILVIO_LUCERO_CUARAN",
+      "label": "SILVIO LUCERO CUARAN",
+      "aliases": [
+        "LUCERO CUARAN LAUREANO SILVIO Nombre Comercial: LUCERO CUARAN LAUREANO SILVIO",
+        "SILVIO LUCERO CUARAN"
+      ],
+      "nits": [
+        "1085634299"
+      ],
+      "tokens": [
+        "SILVIO",
+        "LUCERO",
+        "CUARAN",
+        "LAUREANO",
+        "NOMBRE",
+        "COMERCIAL"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 33
+    },
+    {
+      "slug": "CHORIJU",
+      "label": "choriju",
+      "aliases": [
+        "CHORIJU"
+      ],
+      "nits": [],
+      "tokens": [
+        "CHORIJU"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "CARNES_LA_GRACIELA",
+      "label": "CARNES LA GRACIELA",
+      "aliases": [
+        "CARNES LA GRACIELA"
+      ],
+      "nits": [],
+      "tokens": [
+        "CARNES",
+        "GRACIELA"
+      ],
+      "samples": 3,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "ALEJANDRO_VARON",
+      "label": "Alejandro Varon",
+      "aliases": [
+        "ALEJANDRO VARON"
+      ],
+      "nits": [],
+      "tokens": [
+        "ALEJANDRO",
+        "VARON"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "THOMBRY",
+      "label": "THOMBRY",
+      "aliases": [
+        "THOMBRY"
+      ],
+      "nits": [],
+      "tokens": [
+        "THOMBRY"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "CHARCUREIRA_SANTA_ISABEL",
+      "label": "Charcureira Santa Isabel",
+      "aliases": [
+        "CHARCUREIRA SANTA ISABEL"
+      ],
+      "nits": [],
+      "tokens": [
+        "CHARCUREIRA",
+        "SANTA",
+        "ISABEL"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "DISTRIBUIDORA_DE_HUEVOS",
+      "label": "Distribuidora de Huevos",
+      "aliases": [
+        "DISTRIBUIDORA DE HUEVOS"
+      ],
+      "nits": [
+        "3155488762"
+      ],
+      "tokens": [
+        "DISTRIBUIDORA",
+        "HUEVOS"
+      ],
+      "samples": 2,
+      "nombreOkPct": 50,
+      "nitOkPct": 50
+    },
+    {
+      "slug": "FRUTGO",
+      "label": "FrutGo",
+      "aliases": [
+        "FRUTGO"
+      ],
+      "nits": [],
+      "tokens": [
+        "FRUTGO"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "MARSAL_DISTRIBUCIONES",
+      "label": "MARSAL DISTRIBUCIONES",
+      "aliases": [
+        "MARSAL DISTRIBUCIONES"
+      ],
+      "nits": [],
+      "tokens": [
+        "MARSAL",
+        "DISTRIBUCIONES"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "MAR_MARISCOS",
+      "label": "MAR MARISCOS",
+      "aliases": [
+        "MAR MARISCOS"
+      ],
+      "nits": [],
+      "tokens": [
+        "MARISCOS"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "NOE_DE_JESUS_VARGAS_FRANCO",
+      "label": "NOE DE JESUS VARGAS FRANCO",
+      "aliases": [
+        "NOE DE JESUS VARGAS FRANCO"
+      ],
+      "nits": [],
+      "tokens": [
+        "JESUS",
+        "VARGAS",
+        "FRANCO"
+      ],
+      "samples": 2,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "1523231562336251",
+      "label": "1523231562336251",
+      "aliases": [],
+      "nits": [
+        "3216362904"
+      ],
+      "tokens": [],
+      "samples": 1,
+      "nombreOkPct": 0,
+      "nitOkPct": 100
+    },
+    {
+      "slug": "PANIFICADORA",
+      "label": "Panificadora",
+      "aliases": [
+        "PANIFICADORA"
+      ],
+      "nits": [],
+      "tokens": [
+        "PANIFICADORA"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SMART_FOOD_S_A_S",
+      "label": "SMART FOOD S A S",
+      "aliases": [
+        "SMART FOOD S A S"
+      ],
+      "nits": [],
+      "tokens": [
+        "SMART",
+        "FOOD"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "AVICOLA_DEL_EJE_CAFETERO_JM_S_A_S",
+      "label": "Avicola Del Eje Cafetero JM S A S",
+      "aliases": [
+        "AVICOLA DEL EJE CAFETERO JM S A S"
+      ],
+      "nits": [],
+      "tokens": [
+        "AVICOLA",
+        "CAFETERO"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "DISPAPELES",
+      "label": "DISPAPELES",
+      "aliases": [
+        "DISPAPELES"
+      ],
+      "nits": [],
+      "tokens": [
+        "DISPAPELES"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "FRUGY_S_A_S",
+      "label": "FRUGY S A S",
+      "aliases": [
+        "FRUGY S A S"
+      ],
+      "nits": [],
+      "tokens": [
+        "FRUGY"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SURTIFRIOS_LH",
+      "label": "SURTIFRIOS LH",
+      "aliases": [
+        "SURTIFRIOS LH"
+      ],
+      "nits": [],
+      "tokens": [
+        "SURTIFRIOS"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "SIGRA",
+      "label": "SIGRA",
+      "aliases": [
+        "SIGRA"
+      ],
+      "nits": [],
+      "tokens": [
+        "SIGRA"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "COOPERATIVA_COLANTA",
+      "label": "cooperativa colanta",
+      "aliases": [
+        "COOPERATIVA COLANTA"
+      ],
+      "nits": [],
+      "tokens": [
+        "COOPERATIVA",
+        "COLANTA"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "GRAFICAS_Y_EMPAQUES_UNIVERSAL",
+      "label": "GRAFICAS Y EMPAQUES UNIVERSAL",
+      "aliases": [
+        "GRAFICAS Y EMPAQUES UNIVERSAL"
+      ],
+      "nits": [],
+      "tokens": [
+        "GRAFICAS",
+        "EMPAQUES",
+        "UNIVERSAL"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "CARDILICORES",
+      "label": "CARDILICORES",
+      "aliases": [
+        "CARDILICORES"
+      ],
+      "nits": [],
+      "tokens": [
+        "CARDILICORES"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "COCOFRUT",
+      "label": "COCOFRUT",
+      "aliases": [
+        "COCOFRUT"
+      ],
+      "nits": [],
+      "tokens": [
+        "COCOFRUT"
+      ],
+      "samples": 1,
+      "nombreOkPct": 100,
+      "nitOkPct": 0
+    },
+    {
+      "slug": "FACTURAS",
+      "label": "FACTURAS",
+      "aliases": [],
+      "nits": [
+        "3216362904"
+      ],
+      "tokens": [],
+      "samples": 1,
+      "nombreOkPct": 0,
+      "nitOkPct": 100
+    },
+    {
+      "slug": "SSADSDADA",
+      "label": "SSADSDADA",
+      "aliases": [],
+      "nits": [],
+      "tokens": [],
+      "samples": 1,
+      "nombreOkPct": 0,
+      "nitOkPct": 0
+    }
+  ],
+  "hint": "Entrenamiento 52 facturas (2026-06-19): proveedor ~86.5% · NIT ~13.5%. Perfil usado en auto-detección.",
   "recommendations": [
-    "QR arriba/abajo: bandas sup/inf + rejilla 6×6 antes que centro.",
-    "Modo lote: edges → lite → standard → high (sin OCR si ya hay QR URL).",
-    "QR sin CUFE: badge «QR detectado» — confirme en DIAN o Reanalizar.",
-    "PDF escaneado sin QR: marque zona en vista o use cámara alta resolución.",
-    "Re-entrenar: npm run train:recepcion-fe [--full] [--retry-failed]"
+    "Re-entrenar tras nuevas facturas: npm run train:recepcion-fe",
+    "Evaluación rápida: npm run maintain:recepcion-fe:eval",
+    "PDF escaneado: marque QR o use cámara; el perfil no sustituye OCR.",
+    "Nombres de archivo YYYY-MM-DD_PROVEEDOR_hash.pdf mejoran el fallback."
   ]
 }

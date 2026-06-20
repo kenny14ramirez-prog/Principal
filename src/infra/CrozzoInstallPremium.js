@@ -318,9 +318,6 @@
     var name = opts.businessName || resolveBusinessName();
     var eyebrow = global.document.querySelector('.crozzo-install-success-splash__eyebrow');
     if (eyebrow) eyebrow.textContent = name || 'BONA origen';
-    if (opts.title && name && !opts.titleHasBrand) {
-      opts.title = opts.title;
-    }
     return opts;
   }
 

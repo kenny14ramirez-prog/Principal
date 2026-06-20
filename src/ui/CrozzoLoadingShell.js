@@ -31,7 +31,7 @@
     'centro-procesos': 'Centro de procesos',
     'centro-compras': 'Centro de compras',
     'compras-recepcion': 'Recepción de facturas',
-    'inventarios': 'Reportes e inventario',
+    'inventarios': 'Reportes y dashboard',
     'planilla-2026': 'Planilla',
     'pedidos-internos': 'Pedidos internos',
     'costos-federacion': 'Federación de bodegas',

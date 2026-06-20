@@ -358,11 +358,12 @@
     }
     if (!global.confirm(msg('logout.confirm', '¿Seguro que deseas salir?'))) return;
     if (typeof global.logoutCurrentUser === 'function') global.logoutCurrentUser();
-    if (typeof global.applyAccessControl === 'function') global.applyAccessControl();
     if (typeof global.shouldRequireLogin === 'function' && global.shouldRequireLogin()) {
       if (typeof global.showLoginOverlay === 'function') global.showLoginOverlay();
-    } else if (typeof global.navigateTo === 'function') {
-      global.navigateTo('cajero');
+    }
+    if (typeof global.applyAccessControl === 'function') global.applyAccessControl();
+    if (typeof global.shouldRequireLogin === 'function' && !global.shouldRequireLogin()) {
+      if (typeof global.navigateTo === 'function') global.navigateTo('cajero');
       if (typeof global.showToast === 'function') global.showToast(msg('logout.done', 'Sesión cerrada'), 'info');
     }
     try {

@@ -59,6 +59,29 @@
     }
   }
 
+  /** En PC (Tauri) la malla BLE usa el mismo socket UDP; gossip no debe pararlo. */
+  function desktopUdpOwnedByBleMesh() {
+    if (!isTauri()) return false;
+    try {
+      if (global.CrozzoDeviceForm && typeof global.CrozzoDeviceForm.isAndroidApk === 'function') {
+        if (global.CrozzoDeviceForm.isAndroidApk()) return false;
+      }
+      if (global.CrozzoAndroidNative && typeof global.CrozzoAndroidNative.isAndroidApk === 'function') {
+        if (global.CrozzoAndroidNative.isAndroidApk()) return false;
+      }
+    } catch (_) {}
+    return !!(global.CrozzoBleMesh && typeof global.CrozzoBleMesh.getStatus === 'function');
+  }
+
+  function bleMeshUdpActive() {
+    if (!desktopUdpOwnedByBleMesh()) return false;
+    try {
+      var st = global.CrozzoBleMesh.getStatus();
+      return !!(st && (st.active || st.gossipUdp || st.native));
+    } catch (_) {}
+    return false;
+  }
+
   function invoke(cmd, args) {
     return global.__TAURI__.core.invoke(cmd, args || {});
   }
@@ -201,7 +224,7 @@
         _bc.postMessage(raw);
       } catch (_) {}
     }
-    if (_udpOk && isTauri()) {
+    if (_udpOk && isTauri() && !desktopUdpOwnedByBleMesh()) {
       invoke('crozzo_gossip_udp_send', { json: raw }).catch(function (e) {
         log('udp send ' + e);
       });
@@ -417,7 +440,7 @@
   }
 
   function drainTransports() {
-    if (_udpOk && isTauri()) {
+    if (_udpOk && isTauri() && !desktopUdpOwnedByBleMesh()) {
       invoke('crozzo_gossip_udp_drain')
         .then(function (rows) {
           (rows || []).forEach(ingestRaw);
@@ -503,7 +526,9 @@
       _bc = null;
     }
     if (_udpOk && isTauri()) {
-      invoke('crozzo_gossip_udp_stop').catch(function () {});
+      if (!bleMeshUdpActive()) {
+        invoke('crozzo_gossip_udp_stop').catch(function () {});
+      }
       _udpOk = false;
     }
     log('detenido');
@@ -526,7 +551,7 @@
       }
     }
 
-    if (isTauri()) {
+    if (isTauri() && !desktopUdpOwnedByBleMesh()) {
       invoke('crozzo_gossip_udp_start', { deviceId: ctx.deviceId })
         .then(function () {
           _udpOk = true;

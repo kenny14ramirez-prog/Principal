@@ -38,8 +38,11 @@ commands.allow = [
 
 [[permission]]
 identifier = "allow-crozzo-webview-camera"
-description = "Reset permiso cámara WebView2"
-commands.allow = ["cxf_reset_webview_camera_permission"]
+description = "Permiso cámara WebView2 y ajustes Windows"
+commands.allow = [
+  "cxf_reset_webview_camera_permission",
+  "cxf_open_windows_camera_settings",
+]
 
 [[permission]]
 identifier = "allow-crozzo-devtools"

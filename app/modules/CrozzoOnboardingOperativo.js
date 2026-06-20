@@ -229,7 +229,7 @@
       if (id === 'perfil_operativo') {
         var pe = getPerfilEmpresa();
         if (st.perfilApplied || st.manual.perfil_operativo) return true;
-        return pe && pe !== 'completo' && pe !== 'personalizado';
+        return pe && pe !== 'personalizado';
       }
       if (id === 'empresa') {
         var cfg = global.config;
@@ -782,7 +782,7 @@
       logins: m.logins,
       dupBlocked: m.dupBlocked,
       obsWarnCount: st.obsWarnCount || 0,
-      perfil: getPerfilEmpresa() || 'completo',
+      perfil: getPerfilEmpresa() || 'basico_restaurante',
       perfilLabel: getOperativoConfig().label || getPerfilEmpresa(),
     };
   }
@@ -1075,7 +1075,7 @@
   }
 
   function applyPequenoNegocio(fromModal) {
-    applyPerfil('pequeno', fromModal);
+    applyPerfil('basico_restaurante', fromModal);
   }
 
   function openMarcacionTour() {
@@ -1341,7 +1341,7 @@
   }
 
   function day0WizardApplyAll() {
-    applyPerfil('pequeno', false);
+    applyPerfil('basico_restaurante', false);
     try {
       if (global.config && typeof global.config.setOperacionModo === 'function') {
         global.config.setOperacionModo('demo');
@@ -1352,7 +1352,7 @@
     writeStore({ manual: { modo_practica: true, perfil_operativo: true }, perfilApplied: true });
     ensureTimelineStart();
     day0WizardDone();
-    if (typeof global.showToast === 'function') global.showToast('Día 0: perfil Pequeño + modo DEMO activos', 'success');
+    if (typeof global.showToast === 'function') global.showToast('Día 0: Plan básico restaurante + modo DEMO activos', 'success');
     refreshInicioIfActive();
     setTimeout(openModal, 400);
   }
@@ -1381,7 +1381,7 @@
           '🏁 Asistente Día 0 — Apertura',
           '<p>Simulación <strong>restaurante pequeño + personal inexperto</strong>. Configure en un clic lo mínimo para operar sin riesgo fiscal.</p>' +
             '<ol class="crozzo-onb-tour">' +
-            '<li>Perfil <strong>Pequeño negocio</strong> (menú por rol)</li>' +
+            '<li>Perfil <strong>Plan básico · Restaurante</strong> (menú por rol)</li>' +
             '<li>Modo <strong>DEMO</strong> para capacitación</li>' +
             '<li>Checklist de apertura (30 días)</li>' +
             '</ol>' +

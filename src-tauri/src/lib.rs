@@ -110,6 +110,7 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::probe_platform_installer,
             webview_permissions::cxf_reset_webview_camera_permission,
+            webview_permissions::cxf_open_windows_camera_settings,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]

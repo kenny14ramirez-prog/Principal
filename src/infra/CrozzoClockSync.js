@@ -91,7 +91,15 @@
       var j = typeof global.readCrozzoSupabaseJson === 'function' ? global.readCrozzoSupabaseJson() : null;
       if (j && j.syncEnabled && j.url) {
         var base = String(j.url).replace(/\/$/, '');
-        var res = await global.fetch(base + '/rest/v1/', { method: 'HEAD' });
+        var headers = {};
+        if (typeof global.crozzoSupabaseRestHeaders === 'function') {
+          var key =
+            typeof global.crozzoSupabaseEffectiveAnonKey === 'function'
+              ? global.crozzoSupabaseEffectiveAnonKey(j)
+              : String(j.key || j.anonKey || '').trim();
+          if (key) headers = global.crozzoSupabaseRestHeaders(key);
+        }
+        var res = await global.fetch(base + '/rest/v1/', { method: 'HEAD', headers: headers });
         got = noteResponse(res);
       }
     } catch (_) {}

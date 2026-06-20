@@ -1003,52 +1003,66 @@
   global.crozzoStopPosRuntimeCloudSync = stopRuntimeCloudSync;
 
   /** Arranque/reparación central de sync nube (runtime + comandas). */
+  var __ensureCloudSyncInflight = null;
   global.crozzoEnsureCloudSyncActive = async function crozzoEnsureCloudSyncActive(opts) {
     opts = opts || {};
-    try {
-      if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
-    } catch (_) {}
-    if (typeof global.crozzoEnsureCloudClientReady === 'function') {
+    if (__ensureCloudSyncInflight && !opts.force) {
+      return __ensureCloudSyncInflight;
+    }
+    __ensureCloudSyncInflight = (async function () {
       try {
-        await global.crozzoEnsureCloudClientReady();
+        if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
       } catch (_) {}
-    }
-    if (
-      typeof global.crozzoTierAllowsCloudSync === 'function' &&
-      !global.crozzoTierAllowsCloudSync()
-    ) {
-      return false;
-    }
-    if (!online()) return false;
-    var wait = 0;
-    while (wait < 8 && typeof global.crozzoStartPosRuntimeCloudSync !== 'function') {
-      await new Promise(function (r) {
-        global.setTimeout(r, 150);
-      });
-      wait++;
-    }
-    try {
-      startRuntimeCloudSync({ resetTableMissing: !!opts.resetTableMissing });
-    } catch (_) {}
-    try {
-      if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
-    } catch (_) {}
-    try {
-      if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-        await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true });
+      if (typeof global.crozzoEnsureCloudClientReady === 'function') {
+        try {
+          await global.crozzoEnsureCloudClientReady();
+        } catch (_) {}
       }
-    } catch (_) {}
-    try {
-      if (typeof global.crozzoPullComandasFromCloud === 'function') {
-        await global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true });
+      if (
+        typeof global.crozzoTierAllowsCloudSync === 'function' &&
+        !global.crozzoTierAllowsCloudSync()
+      ) {
+        return false;
       }
-    } catch (_) {}
-    try {
-      if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.pullPeersFromCloud === 'function') {
-        await global.CrozzoInternalQrRegistry.pullPeersFromCloud();
+      if (!online()) return false;
+      var wait = 0;
+      while (wait < 8 && typeof global.crozzoStartPosRuntimeCloudSync !== 'function') {
+        await new Promise(function (r) {
+          global.setTimeout(r, 150);
+        });
+        wait++;
       }
-    } catch (_) {}
-    return online() && !__tableMissing;
+      try {
+        startRuntimeCloudSync({ resetTableMissing: !!opts.resetTableMissing });
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+          await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true });
+        }
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoPullComandasFromCloud === 'function') {
+          await global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true });
+        }
+      } catch (_) {}
+      try {
+        if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.pullPeersFromCloud === 'function') {
+          await global.CrozzoInternalQrRegistry.pullPeersFromCloud();
+        }
+      } catch (_) {}
+      try {
+        global.__crozzoCloudSyncBootstrapped = true;
+      } catch (_) {}
+      return online() && !__tableMissing;
+    })();
+    try {
+      return await __ensureCloudSyncInflight;
+    } finally {
+      __ensureCloudSyncInflight = null;
+    }
   };
   global.crozzoPosRuntimeCloudIsLive = function () {
     return __started && !__tableMissing;
