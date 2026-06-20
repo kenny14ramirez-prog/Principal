@@ -9365,7 +9365,14 @@ function crozzoNormalizeMenuProfilesConfig(parsed) {
   def.clients.default.perfil = crozzoResolvePerfilEmpresaId(parsed.perfil || 'basico_restaurante');
   if (parsed.roles) def.clients.default.roles = parsed.roles;
   try {
-    def.clients.default.tema = localStorage.getItem('crozzo_theme') || CROZZO_THEME_DEFAULT;
+    try {
+      def.clients.default.tema =
+        crozzoHasUserThemeChoice() && localStorage.getItem('crozzo_theme')
+          ? localStorage.getItem('crozzo_theme')
+          : CROZZO_THEME_DEFAULT;
+    } catch (_) {
+      def.clients.default.tema = CROZZO_THEME_DEFAULT;
+    }
   } catch (_) {}
   return def;
 }
@@ -10142,6 +10149,8 @@ function crozzoScheduleSuperAdminMenusInit() {
 crozzoScheduleSuperAdminMenusInit();
 var CROZZO_THEME_LS_KEY = 'crozzo_theme';
 var CROZZO_THEME_LEGACY_LS_KEY = 'crozzo-theme';
+/** Solo si el usuario eligió tema en «Modelo visual»; sin esto arranca BONA origen. */
+var CROZZO_THEME_USER_LS_KEY = 'crozzo_theme_user_v1';
 var CROZZO_THEME_IDS = [
   'executive-elite', 'royal-navy', 'dark-luxury', 'platinum',
   'clear-elegance', 'clear-light',
@@ -10168,7 +10177,22 @@ var CROZZO_THEME_QYC_MAP = {
   'royal-navy': 'deepspace',
   'clear-elegance': 'deepspace'
 };
+function crozzoHasUserThemeChoice() {
+  try {
+    return localStorage.getItem(CROZZO_THEME_USER_LS_KEY) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+function crozzoMarkUserThemeChoice() {
+  try {
+    localStorage.setItem(CROZZO_THEME_USER_LS_KEY, '1');
+  } catch (e) {
+    /* ignore */
+  }
+}
 function crozzoReadSavedVisualTheme() {
+  if (!crozzoHasUserThemeChoice()) return '';
   var saved = '';
   try {
     saved = localStorage.getItem(CROZZO_THEME_LS_KEY) || localStorage.getItem(CROZZO_THEME_LEGACY_LS_KEY) || '';
@@ -10192,7 +10216,9 @@ function crozzoBroadcastThemeToEmbeds(themeId) {
     } catch (_) {}
   });
 }
-function crozzoApplyVisualTheme(themeId) {
+function crozzoApplyVisualTheme(themeId, opts) {
+  opts = opts || {};
+  if (opts.userChoice) crozzoMarkUserThemeChoice();
   var t = String(themeId || '').toLowerCase().trim();
   if (CROZZO_THEME_IDS.indexOf(t) < 0) t = CROZZO_THEME_DEFAULT;
   document.documentElement.setAttribute('data-theme', t);
@@ -10324,7 +10350,7 @@ function crozzoInitVisualTheme() {
   if (sel && !sel._crozzoThemeBound) {
     sel._crozzoThemeBound = true;
     sel.addEventListener('change', function () {
-      crozzoApplyVisualTheme(sel.value);
+      crozzoApplyVisualTheme(sel.value, { userChoice: true });
       crozzoCloseThemePanel();
     });
   }

@@ -35,6 +35,7 @@
   var CHECK_INTERVAL_MS = 15 * 60 * 1000; /* reservado; chequeo automático solo al arranque */
   var BOOT_DELAY_MS = 2000;
   var BOOT_GATE_MAX_MS = 12000;
+  var BOOT_RELEASE_PROBE_MS = 8000;
   var _bootUpdatePhase = false;
   var _bootUpdatesReady = false;
   var _bootReadyWaiters = [];
@@ -167,7 +168,7 @@
     _installUi.message = 'Descargando actualización crítica…';
     setDetailOpen(false);
     setNormalOpen(false);
-    if (preLogin) {
+    if (preLogin && !opts.silent) {
       showBootUpdateGate();
       setBootGateMessage('Descargando actualización crítica ' + normEntryVersion(entry) + '…');
     } else {
@@ -213,7 +214,20 @@
           _criticalInstallState = 'idle';
           _installInProgress = false;
           setCriticalOpen(false);
+          updateBootGateSkipButton({ show: true });
           setCheckStatus('Esperando compilación en GitHub Actions…');
+          syncLoginUpdateBanner({
+            mode: 'checking',
+            message:
+              'Actualización ' +
+              normEntryVersion(entry) +
+              ' en preparación en GitHub. Puede iniciar sesión.',
+            force: true,
+          });
+          if (!_bootUpdatesReady) {
+            hideBootUpdateGate();
+            finishBootUpdatePipeline({ ok: true, reason: 'release_not_ready' });
+          }
           if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
           _criticalRetryTimer = setTimeout(function () {
             _criticalRetryTimer = null;
@@ -346,14 +360,21 @@
     }
     _pendingCriticalEntry = entry;
     setCheckStatus('Aplicando actualización pendiente ' + pending.version + '…');
-    return runCriticalInstall(entry)
-      .then(function () {
+    return probeCriticalReleaseReady(entry, BOOT_RELEASE_PROBE_MS).then(function (ready) {
+      if (!ready) {
         clearPendingRestartInstall();
-        return true;
-      })
-      .catch(function () {
+        releaseBootToLoginWhilePreparing(entry, 'pending_invalid');
         return false;
-      });
+      }
+      return runCriticalInstall(entry)
+        .then(function () {
+          clearPendingRestartInstall();
+          return true;
+        })
+        .catch(function () {
+          return false;
+        });
+    });
   }
 
   var INSTALL_STEPS = [
@@ -3622,21 +3643,83 @@
     if (skipBtn && !skipBtn._crozzoBound) {
       skipBtn._crozzoBound = true;
       skipBtn.addEventListener('click', function () {
-        if (_installInProgress || _criticalInstallState === 'installing') return;
-        setBootGateMessage('Continuando al inicio de sesión…');
+        if (_criticalInstallState === 'installing' && _installInProgress) return;
+        setBootGateMessage('Entrando al inicio de sesión…');
+        if (_pendingCriticalEntry) {
+          deferCriticalUntilReleaseReady(_pendingCriticalEntry, { quiet: true });
+        }
+        hideBootUpdateGate();
         notifyBootUpdatesReady({ ok: false, reason: 'user_skip' });
       });
     }
     return el;
   }
 
-  function showBootUpdateGateSlowOptions() {
+  function updateBootGateSkipButton(opts) {
+    opts = opts || {};
     var skip = document.getElementById('crozzoBootUpdateSkip');
     if (!skip) return;
-    var profile = getUpdateClientProfile();
-    if (profile.isWeb || profile.kind === 'ios-web' || profile.kind === 'android-web') {
-      skip.hidden = false;
+    var show = !!opts.show;
+    skip.hidden = !show;
+    if (show) {
+      skip.textContent =
+        opts.label || 'Entrar — la actualización se aplicará sola cuando GitHub termine';
     }
+  }
+
+  function probeCriticalReleaseReady(entry, maxWaitMs) {
+    maxWaitMs = typeof maxWaitMs === 'number' ? maxWaitMs : BOOT_RELEASE_PROBE_MS;
+    var TU = global.CrozzoTauriUpdater;
+    if (!entry || !TU || typeof TU.waitUntilReleaseReady !== 'function') {
+      return Promise.resolve(false);
+    }
+    var remote = normEntryVersion(entry);
+    return TU.waitUntilReleaseReady(
+      remote,
+      function (p) {
+        if (p && p.message) setBootGateMessage(p.message);
+      },
+      maxWaitMs
+    )
+      .then(function (hit) {
+        return !!(hit && hit.url);
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
+  function releaseBootToLoginWhilePreparing(entry, reason) {
+    entry = entry || _pendingCriticalEntry;
+    if (entry) {
+      _pendingCriticalEntry = entry;
+      _currentCriticalId = entryId(entry);
+    }
+    _criticalInstallState = 'idle';
+    _installInProgress = false;
+    updateBootGateSkipButton({ show: true });
+    syncLoginUpdateBanner({
+      mode: 'checking',
+      message: entry
+        ? 'Actualización ' + normEntryVersion(entry) + ' compilándose en GitHub…'
+        : 'Actualización en preparación en la nube…',
+      force: true,
+    });
+    hideBootUpdateGate();
+    if (!_bootUpdatesReady) {
+      finishBootUpdatePipeline({ ok: true, reason: reason || 'release_not_ready' });
+    }
+    if (entry) {
+      if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
+      _criticalRetryTimer = setTimeout(function () {
+        _criticalRetryTimer = null;
+        startCriticalDownloadForRestart(entry, { silent: true });
+      }, 45000);
+    }
+  }
+
+  function showBootUpdateGateSlowOptions() {
+    updateBootGateSkipButton({ show: true });
   }
 
   function setBootGateMessage(msg) {
@@ -3663,10 +3746,11 @@
     var hint = document.getElementById('crozzoBootUpdateHint');
     if (hint) {
       hint.textContent =
-        'Este equipo recibirá ' +
-        getPlatformUpdateDescriptor() +
-        '. No cierre la aplicación hasta que termine.';
+        'Si GitHub aún compila la versión nueva, puede entrar al login. La actualización se aplicará sola cuando el instalador esté listo.';
     }
+    setTimeout(function () {
+      updateBootGateSkipButton({ show: true });
+    }, 5000);
   }
 
   function hideBootUpdateGate() {
@@ -3741,7 +3825,7 @@
     profile = profile || getUpdateClientProfile();
     if (!profile.canAutoInstall || !profile.isDesktopBinary) return false;
     if (shouldDeferCriticalAutoOnBoot(profile)) return false;
-    // Instalación en caliente solo antes del login; con sesión activa → descarga y reinicio.
+    if (_bootUpdatePhase) return false;
     if (!crozzoUpdateIsPreLogin()) return false;
     if (crozzoUpdateUserBusy() || posIsOperationBusy()) return false;
     return true;
@@ -3870,29 +3954,29 @@
     var started = Date.now();
     function poll() {
       syncLoginUpdateBanner();
+      var elapsed = Date.now() - started;
+      if (elapsed > 5000) updateBootGateSkipButton({ show: true });
       if (_installInProgress || _criticalInstallState === 'installing') {
         if (crozzoUpdateIsPreLogin()) {
           showBootUpdateGate();
           setBootGateMessage(_installUi.message || 'Instalando actualización crítica…');
         }
-        if (Date.now() - started < BOOT_GATE_MAX_MS * 3) {
+        if (elapsed < BOOT_GATE_MAX_MS) {
           setTimeout(poll, 450);
         } else {
-          hideBootUpdateGate();
-          finishBootUpdatePipeline(Object.assign({}, detail || {}, { reason: 'critical_timeout' }));
+          releaseBootToLoginWhilePreparing(_pendingCriticalEntry, 'critical_timeout');
         }
         return;
       }
       if (_criticalInstallState === 'downloading') {
         if (crozzoUpdateIsPreLogin()) {
           showBootUpdateGate();
-          setBootGateMessage(_installUi.message || 'Descargando actualización crítica…');
+          setBootGateMessage(_installUi.message || 'Esperando instalador en GitHub…');
         }
-        if (Date.now() - started < BOOT_GATE_MAX_MS * 3) {
+        if (elapsed < BOOT_GATE_MAX_MS) {
           setTimeout(poll, 450);
         } else {
-          hideBootUpdateGate();
-          finishBootUpdatePipeline(Object.assign({}, detail || {}, { reason: 'download_timeout' }));
+          releaseBootToLoginWhilePreparing(_pendingCriticalEntry, 'download_timeout');
         }
         return;
       }
@@ -3934,10 +4018,16 @@
           if (critical.length && otaAutoInstallAllowed()) {
             var critEntry = pickNextPendingEntry(critical);
             setBootGateMessage(
-              'Actualización crítica ' + normEntryVersion(critEntry) + ' — preparando instalación…'
+              'Comprobando instalador ' + normEntryVersion(critEntry) + ' en GitHub…'
             );
-            return runBootCriticalInstallLoop().then(function (res) {
-              return { ok: true, criticalBoot: true, res: res };
+            return probeCriticalReleaseReady(critEntry, BOOT_RELEASE_PROBE_MS).then(function (ready) {
+              if (!ready) {
+                releaseBootToLoginWhilePreparing(critEntry, 'github_building');
+                return { ok: true, criticalBoot: true, releaseNotReady: true };
+              }
+              return startCriticalDownloadForRestart(critEntry, { silent: false }).then(function (res) {
+                return { ok: true, criticalBoot: true, res: res };
+              });
             });
           }
           var optionalOnly = pending.filter(function (e) {
@@ -4304,7 +4394,7 @@
     setDetailOpen(false);
     setNormalOpen(false);
     _criticalAutoAttempts = 0;
-    hideBootUpdateGate();
+    if (!_bootUpdatePhase) hideBootUpdateGate();
 
     if (opts.forceAuto === true) {
       setCriticalOpen(true);

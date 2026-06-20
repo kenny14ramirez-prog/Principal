@@ -1,30 +1,17 @@
 {
-  "id": "1.0.156-critical",
-  "version": "v1.0.156",
-  "semver": "1.0.156",
-  "type": "critical",
-  "message": "correcion de menu de actualizaciones + correcion de estado de actualizaciones + mejora del menu de apk",
-  "publishedAt": "2026-06-20T13:32:01.756Z",
-  "installMode": "auto",
+  "id": "1.0.157-optional",
+  "version": "v1.0.157",
+  "semver": "1.0.157",
+  "type": "optional",
+  "message": "se ingresas animaciones de estilo dinamico y fluidos + quesitooooooo",
+  "publishedAt": "2026-06-20T13:45:21.162Z",
+  "installMode": "prompt",
   "changelog": [
-    "correcion de menu de actualizaciones",
-    "correcion de estado de actualizaciones",
-    "mejora del menu de apk"
+    "se ingresas animaciones de estilo dinamico y fluidos",
+    "quesitooooooo"
   ],
-  "updatedAt": "2026-06-20T13:32:01.756Z",
+  "updatedAt": "2026-06-20T13:45:21.162Z",
   "entries": [
-    {
-      "id": "1.0.132-critical",
-      "version": "v1.0.132",
-      "semver": "1.0.132",
-      "type": "critical",
-      "message": "14524",
-      "publishedAt": "2026-06-15T21:48:53.353Z",
-      "installMode": "auto",
-      "changelog": [
-        "14524"
-      ]
-    },
     {
       "id": "1.0.133-critical",
       "version": "v1.0.133",
@@ -316,6 +303,19 @@
         "correcion de menu de actualizaciones",
         "correcion de estado de actualizaciones",
         "mejora del menu de apk"
+      ]
+    },
+    {
+      "id": "1.0.157-optional",
+      "version": "v1.0.157",
+      "semver": "1.0.157",
+      "type": "optional",
+      "message": "se ingresas animaciones de estilo dinamico y fluidos + quesitooooooo",
+      "publishedAt": "2026-06-20T13:45:21.162Z",
+      "installMode": "prompt",
+      "changelog": [
+        "se ingresas animaciones de estilo dinamico y fluidos",
+        "quesitooooooo"
       ]
     }
   ]
