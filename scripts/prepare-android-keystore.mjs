@@ -62,9 +62,25 @@ function main() {
       keystorePath ||
       join(process.env.RUNNER_TEMP || process.env.TEMP || join(root, '.crozzo-android'), 'crozzo-upload.jks');
     const devPass = password || 'crozzo-pos-tablet-2026';
+    const inCi =
+      String(process.env.GITHUB_ACTIONS || process.env.CI || '').toLowerCase() === 'true';
     if (!existsSync(keystorePath)) {
+      if (inCi) {
+        console.error(
+          [
+            '[prepare-android-keystore] ABORTANDO: no hay ANDROID_KEY_BASE64 y el caché del keystore está vacío.',
+            'Generar una llave nueva aquí firmaría el APK con un certificado distinto y las tablets verían',
+            '"conflicto de paquetes" al actualizar. Configure firma estable en GitHub Secrets:',
+            '  ANDROID_KEY_BASE64  (keystore .jks en base64)',
+            '  ANDROID_KEY_ALIAS   (ej. upload)',
+            '  ANDROID_KEY_PASSWORD',
+            'Genere el keystore con keytool y publíquelo como secret (ver cabecera de este script).',
+          ].join('\n')
+        );
+        process.exit(1);
+      }
       console.warn(
-        '[prepare-android-keystore] ATENCIÓN: se creará un keystore NUEVO. Las tablets con APK anterior deberán DESINSTALAR la app antes de instalar este build (conflicto de firma). Configure ANDROID_KEY_BASE64 en GitHub Secrets para firma estable.'
+        '[prepare-android-keystore] ATENCIÓN (solo dev local): se creará un keystore NUEVO. Las tablets con APK anterior deberán DESINSTALAR la app antes de instalar este build (conflicto de firma). Configure ANDROID_KEY_BASE64 en GitHub Secrets para firma estable.'
       );
       console.log('[prepare-android-keystore] Generando keystore Crozzo (primera vez / cache vacía)…');
       runKeytool(keystorePath, alias, devPass);

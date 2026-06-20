@@ -1990,6 +1990,10 @@ var __crozzoTenantRealtimeLive = false;
 var __crozzoTenantLastPullAt = 0;
 var __crozzoBizLookupCache = {};
 var CROZZO_TENANT_VIS_SKIP_MS = 90000;
+var __crozzoTenantReconnectT = null;
+var __crozzoTenantReconnectTry = 0;
+var __crozzoTenantWatchdogT = null;
+var CROZZO_TENANT_RECONNECT_MAX = 6;
 var __crozzoTenantBC =
   typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('crozzo_tenant_v1') : null;
 function crozzoTenantRealtimeIsLive() {
@@ -2017,6 +2021,14 @@ function crozzoTenantDebouncedProductsSync() {
 function crozzoStopRemoteTenantSync() {
   __crozzoTenantSyncStarted = false;
   __crozzoTenantRealtimeLive = false;
+  if (__crozzoTenantReconnectT) {
+    clearTimeout(__crozzoTenantReconnectT);
+    __crozzoTenantReconnectT = null;
+  }
+  if (__crozzoTenantWatchdogT) {
+    clearInterval(__crozzoTenantWatchdogT);
+    __crozzoTenantWatchdogT = null;
+  }
   try {
     if (__crozzoTenantPgCh && typeof __crozzoTenantPgCh.unsubscribe === 'function') {
       __crozzoTenantPgCh.unsubscribe();
@@ -2031,6 +2043,37 @@ function crozzoStopRemoteTenantSync() {
   __crozzoTenantHub = null;
 }
 window.crozzoStopRemoteTenantSync = crozzoStopRemoteTenantSync;
+/**
+ * Reconexión del realtime de la sub base (tenant) con backoff exponencial.
+ * Solo actúa si la nube está configurada, hay cliente y hay red; nunca resucita
+ * un sync detenido a propósito (logout / sync apagado dejan __SUPABASE/config off).
+ */
+function crozzoScheduleTenantRealtimeReconnect(reason) {
+  if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (__crozzoTenantReconnectT) return;
+  var tryN = Math.min(__crozzoTenantReconnectTry, CROZZO_TENANT_RECONNECT_MAX);
+  var delay = Math.min(30000, 1500 * Math.pow(2, tryN)) + Math.floor(Math.random() * 600);
+  __crozzoTenantReconnectT = setTimeout(function () {
+    __crozzoTenantReconnectT = null;
+    if (crozzoTenantRealtimeIsLive()) {
+      __crozzoTenantReconnectTry = 0;
+      return;
+    }
+    __crozzoTenantReconnectTry++;
+    console.warn('[crozzo-tenant] realtime reconnect (' + (reason || 'auto') + ') intento ' + __crozzoTenantReconnectTry);
+    try {
+      crozzoStopRemoteTenantSync();
+    } catch (_) {}
+    try {
+      startCrozzoRemoteTenantSync();
+    } catch (_) {}
+    if (typeof crozzoPullRemoteTenantState === 'function') {
+      crozzoPullRemoteTenantState({ skipRender: true, quiet: true }).catch(function () {});
+    }
+  }, delay);
+}
+window.crozzoScheduleTenantRealtimeReconnect = crozzoScheduleTenantRealtimeReconnect;
 function crozzoParseTenantSnapshotFromRow(row) {
   if (!row || typeof row !== 'object') return null;
   if (row.tenant_snapshot && typeof row.tenant_snapshot === 'object') return row.tenant_snapshot;
@@ -2239,12 +2282,26 @@ function startCrozzoRemoteTenantSync() {
     __crozzoTenantPgCh.subscribe(function (st) {
       if (st === 'SUBSCRIBED') {
         __crozzoTenantRealtimeLive = true;
+        __crozzoTenantReconnectTry = 0;
+        if (__crozzoTenantReconnectT) {
+          clearTimeout(__crozzoTenantReconnectT);
+          __crozzoTenantReconnectT = null;
+        }
       } else if (st === 'CHANNEL_ERROR' || st === 'CLOSED' || st === 'TIMED_OUT') {
         __crozzoTenantRealtimeLive = false;
+        crozzoScheduleTenantRealtimeReconnect(st);
       }
     });
   } catch (e2) {
     __crozzoTenantRealtimeLive = false;
+    crozzoScheduleTenantRealtimeReconnect('subscribe_throw');
+  }
+  if (!__crozzoTenantWatchdogT) {
+    __crozzoTenantWatchdogT = setInterval(function () {
+      if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (!crozzoTenantRealtimeIsLive()) crozzoScheduleTenantRealtimeReconnect('watchdog');
+    }, 45000);
   }
 }
 async function crozzoRefreshSessionProfileFromCloud() {
@@ -2971,6 +3028,17 @@ window.addEventListener('online', () => {
   try {
     if (typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
       window.__crozzoRefreshCloudCatalogUi().catch((e) => console.warn('[crozzo-sb] refresh on online', e));
+    }
+  } catch (_) {}
+  try {
+    if (
+      typeof crozzoOnlineConfigReady === 'function' &&
+      crozzoOnlineConfigReady() &&
+      typeof crozzoTenantRealtimeIsLive === 'function' &&
+      !crozzoTenantRealtimeIsLive()
+    ) {
+      __crozzoTenantReconnectTry = 0;
+      crozzoScheduleTenantRealtimeReconnect('online');
     }
   } catch (_) {}
   try {

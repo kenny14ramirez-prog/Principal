@@ -437,6 +437,9 @@
     if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.afterMainInit === 'function') {
       global.CrozzoLanWebSocketBridge.afterMainInit();
     }
+    if (global.CrozzoCentralFailover && typeof global.CrozzoCentralFailover.afterMainInit === 'function') {
+      global.CrozzoCentralFailover.afterMainInit();
+    }
     if (typeof global.crozzoRunFullReconnectSync === 'function') {
       global.setTimeout(function () {
         global.crozzoRunFullReconnectSync({ source: 'after_main_init' }).catch(function () {});

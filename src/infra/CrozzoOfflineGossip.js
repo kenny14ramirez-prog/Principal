@@ -234,11 +234,16 @@
     }
   }
 
+  var RELAY_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, INTERNAL_QR_SLOT: 1 };
+
+  // Reenvío epidémico: preserva msgId y origen para que el dedup por msgId
+  // detenga la propagación; solo incrementa el contador de saltos.
   function relay(frame) {
-    if (!frame || frame.hop >= (frame.ttl || MAX_HOPS)) return;
+    if (!frame || !RELAY_KINDS[frame.kind]) return;
+    var hop = frame.hop || 0;
+    if (hop >= (frame.ttl || MAX_HOPS)) return;
     var next = JSON.parse(JSON.stringify(frame));
-    next.hop = (next.hop || 0) + 1;
-    next.msgId = newMsgId('relay');
+    next.hop = hop + 1;
     sendFrame(next);
   }
 

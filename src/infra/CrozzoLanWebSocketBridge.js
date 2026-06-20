@@ -8,6 +8,11 @@
   var _reconnectTimer = null;
   var _url = '';
   var RECONNECT_MS = 4200;
+  // Jitter anti-estampida: si la caja reinicia, las tablets no reconectan todas
+  // en el mismo instante (reparte el pico sobre el servidor LAN).
+  function reconnectDelay() {
+    return RECONNECT_MS + Math.floor(Math.random() * 2600);
+  }
 
   function md() {
     return typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
@@ -124,7 +129,7 @@
     _reconnectTimer = global.setTimeout(function () {
       _reconnectTimer = null;
       connect();
-    }, RECONNECT_MS);
+    }, reconnectDelay());
   }
 
   function disconnect() {

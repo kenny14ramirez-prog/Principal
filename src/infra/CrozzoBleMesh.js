@@ -17,6 +17,13 @@
   var MAX_DEDUP = 800;
   var INV_MAX = 24;
 
+  // Tramas propagadas multi-salto por esta capa. Las comandas las relaya
+  // CrozzoOfflineGossip (capa de aplicación) para evitar reenvíos duplicados;
+  // aquí solo se relaya el cambio de identidad, que es propio de la malla BLE.
+  var RELAY_KINDS = { MESH_NAME_CHANGE: 1 };
+  // Tramas que se guardan para anti-entropía (INV/WANT) y sanar particiones.
+  var STORE_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, MESH_NAME_CHANGE: 1 };
+
   var SVC_UUID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
   var CH_UUID = 'f47ac10b-58cc-4372-a567-0e02b2c3d480';
 
@@ -27,7 +34,8 @@
   var _seen = {};
   var _peerIds = {};
   var _peerHas = {};
-  var _inventory = [];
+  var _store = {};
+  var _storeOrder = [];
   var _nativeOk = false;
   var _webBtOk = false;
   var _webrtcOk = false;
@@ -212,15 +220,18 @@
     return true;
   }
 
-  function rememberInventory(msgId) {
-    if (!msgId) return;
-    _inventory.push({ id: msgId, at: Date.now() });
-    if (_inventory.length > INV_MAX) _inventory = _inventory.slice(-INV_MAX);
+  function storeFrame(frame, raw) {
+    if (!frame || !frame.msgId || !STORE_KINDS[frame.kind]) return;
+    if (_store[frame.msgId]) return;
+    _store[frame.msgId] = { raw: raw || rawFromFrame(frame), at: Date.now() };
+    _storeOrder.push(frame.msgId);
+    while (_storeOrder.length > INV_MAX) {
+      delete _store[_storeOrder.shift()];
+    }
   }
 
-  function peerKnows(peerId, msgId) {
-    var bag = _peerHas[peerId];
-    return !!(bag && bag[msgId]);
+  function storeIds() {
+    return _storeOrder.slice();
   }
 
   function notePeerHas(peerId, msgIds) {
@@ -297,19 +308,18 @@
     } catch (_) {
       return;
     }
-    rememberInventory(frame.msgId);
+    storeFrame(frame, raw);
     sendRaw(raw);
   }
 
+  // Reenvío epidémico: preserva msgId y origen para que el dedup por msgId
+  // detenga la propagación; solo incrementa el contador de saltos.
   function relay(frame) {
-    if (!frame || frame.hop >= (frame.ttl || MAX_HOPS)) return;
-    var peers = Object.keys(_peerHas[frame.deviceId] || {});
-    if (frame.msgId && peers.length && peerKnows(frame.deviceId, frame.msgId)) {
-      return;
-    }
+    if (!frame || !RELAY_KINDS[frame.kind]) return;
+    var hop = frame.hop || 0;
+    if (hop >= (frame.ttl || MAX_HOPS)) return;
     var next = JSON.parse(JSON.stringify(frame));
-    next.hop = (next.hop || 0) + 1;
-    next.msgId = newMsgId('relay');
+    next.hop = hop + 1;
     sendFrame(next);
   }
 
@@ -410,9 +420,7 @@
       buildFrame(
         'MESH_INV',
         {
-          have: _inventory.map(function (x) {
-            return x.id;
-          }),
+          have: storeIds(),
         },
         0
       )
@@ -435,6 +443,7 @@
     if (!ctxMatch(frame)) return;
     if (!markSeen(frame.msgId)) return;
     touchPeer(frame.deviceId);
+    storeFrame(frame, rawFromFrame(frame));
     relay(frame);
 
     if (frame.kind === 'HELLO' || frame.kind === 'HELLO_ACK') {
@@ -446,9 +455,7 @@
           buildFrame(
             'MESH_INV',
             {
-              have: _inventory.map(function (x) {
-                return x.id;
-              }),
+              have: storeIds(),
             },
             0
           )
@@ -484,14 +491,20 @@
     if (frame.kind === 'MESH_INV') {
       var have = (frame.payload && frame.payload.have) || [];
       notePeerHas(frame.deviceId, have);
+      var missing = have.filter(function (id) {
+        return id && !_seen[id] && !_store[id];
+      });
+      if (missing.length) {
+        sendFrame(buildFrame('MESH_WANT', { want: missing.slice(0, INV_MAX) }, 0));
+      }
       return;
     }
 
     if (frame.kind === 'MESH_WANT') {
       var want = (frame.payload && frame.payload.want) || [];
-      if (!want.length) return;
       want.forEach(function (id) {
-        if (peerKnows(meshCtx().deviceId, id)) return;
+        var rec = id && _store[id];
+        if (rec && rec.raw) sendRaw(rec.raw);
       });
       return;
     }
@@ -509,23 +522,61 @@
     }
   }
 
-  function chunkString(str, size) {
-    var out = [];
-    for (var i = 0; i < str.length; i += size) out.push(str.slice(i, i + size));
-    return out;
-  }
+  var WB_CHUNK = 180;
 
+  // Troceo binario con cabecera de 4 bytes: [total(16b BE)][indice(16b BE)][payload].
   async function wbWriteToDevice(deviceIdKey, raw) {
     var conn = _wbConnections[deviceIdKey];
-    if (!conn || !conn.server || !conn.char) return false;
+    if (!conn || !conn.char) return false;
     var enc = new TextEncoder().encode(raw);
-    var parts = chunkString(String.fromCharCode.apply(null, enc), 180);
-    for (var i = 0; i < parts.length; i++) {
-      var header = String.fromCharCode(parts.length, i) + parts[i];
-      var buf = new TextEncoder().encode(header);
-      await conn.char.writeValue(buf);
+    var total = Math.max(1, Math.ceil(enc.length / WB_CHUNK));
+    if (total > 65535) return false;
+    for (var i = 0; i < total; i++) {
+      var slice = enc.subarray(i * WB_CHUNK, Math.min(enc.length, (i + 1) * WB_CHUNK));
+      var out = new Uint8Array(4 + slice.length);
+      out[0] = (total >> 8) & 0xff;
+      out[1] = total & 0xff;
+      out[2] = (i >> 8) & 0xff;
+      out[3] = i & 0xff;
+      out.set(slice, 4);
+      await conn.char.writeValue(out);
     }
     return true;
+  }
+
+  // Reensambla los trozos recibidos por conexión y entrega el JSON completo.
+  function wbOnChunk(conn, dv) {
+    if (!conn || !dv) return;
+    try {
+      var bytes = new Uint8Array(dv.buffer.slice(dv.byteOffset, dv.byteOffset + dv.byteLength));
+      if (bytes.length < 4) return;
+      var total = (bytes[0] << 8) | bytes[1];
+      var idx = (bytes[2] << 8) | bytes[3];
+      if (!total || idx >= total) return;
+      var payload = bytes.subarray(4);
+      if (!conn.rx || conn.rx.total !== total || idx === 0) {
+        conn.rx = { total: total, parts: new Array(total), count: 0 };
+      }
+      var rx = conn.rx;
+      if (!rx.parts[idx]) {
+        rx.parts[idx] = payload;
+        rx.count++;
+      }
+      if (rx.count < rx.total) return;
+      var len = 0;
+      var k;
+      for (k = 0; k < rx.total; k++) len += rx.parts[k] ? rx.parts[k].length : 0;
+      var all = new Uint8Array(len);
+      var off = 0;
+      for (k = 0; k < rx.total; k++) {
+        if (rx.parts[k]) {
+          all.set(rx.parts[k], off);
+          off += rx.parts[k].length;
+        }
+      }
+      conn.rx = null;
+      ingestRaw(new TextDecoder().decode(all));
+    } catch (_) {}
   }
 
   async function wbBroadcast(raw) {
@@ -547,18 +598,16 @@
       var server = await device.gatt.connect();
       var svc = await server.getPrimaryService(SVC_UUID);
       var ch = await svc.getCharacteristic(CH_UUID);
+      var conn = { device: device, server: server, char: ch, rx: null };
       try {
         await ch.startNotifications();
         ch.addEventListener('characteristicvaluechanged', function (ev) {
-          try {
-            var txt = new TextDecoder().decode(ev.target.value);
-            ingestRaw(txt);
-          } catch (_) {}
+          wbOnChunk(conn, ev.target.value);
         });
       } catch (_) {}
-      _wbConnections[key] = { device: device, server: server, char: ch };
+      _wbConnections[key] = conn;
       touchPeer(key);
-      return _wbConnections[key];
+      return conn;
     } catch (e) {
       log('wb connect ' + e);
       return null;
@@ -839,7 +888,7 @@
       desktop: isDesktopTauri(),
       windows: isWindowsDesktop(),
       webBtCapable: webBtCapable(),
-      inventory: _inventory.length,
+      inventory: _storeOrder.length,
       role: (function () {
         try {
           var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};

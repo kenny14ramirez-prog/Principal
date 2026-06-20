@@ -43,6 +43,10 @@
   var __meshGuidedAt = 0;
   var __levelToastAt = 0;
   var __lastLevelToast = '';
+  // anti-flapping: una degradación debe persistir este tiempo antes de avisar al
+  // usuario o disparar una resincronización (el failover de transporte sí es
+  // inmediato para no perder conectividad en un corte real).
+  var DEGRADE_HOLD_MS = 10000;
 
   var __state = {
     level: 'unknown',
@@ -187,6 +191,14 @@
   global.crozzoEnsureCloudIfConfigured = ensureCloudIfConfigured;
 
   function guideLevelOnce(level) {
+    // Transparencia: las transiciones operativamente equivalentes
+    // (cloud/lan/hotspot) son silenciosas — la operación sigue igual y el badge
+    // pasivo refleja el estado. Solo se avisa en mesh/qr, donde una acción del
+    // usuario realmente ayuda.
+    if (level !== 'mesh' && level !== 'qr') return;
+    // Anti-flapping: no avisar si el nivel degradado aún no ha persistido
+    // (un parpadeo de red entra y sale de mesh/qr sin molestar al usuario).
+    if (__state.level === level && __state.since && Date.now() - __state.since < DEGRADE_HOLD_MS) return;
     var now = Date.now();
     if (__lastLevelToast === level && now - __levelToastAt < 120000) return;
     __lastLevelToast = level;
@@ -242,6 +254,11 @@
       }
     });
     runOnce('lan_p2p', wireLanP2P);
+    runOnce('central_failover', function () {
+      if (global.CrozzoCentralFailover && typeof global.CrozzoCentralFailover.afterMainInit === 'function') {
+        global.CrozzoCentralFailover.afterMainInit();
+      }
+    });
     safe(function () {
       if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
         global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
@@ -493,6 +510,7 @@
       }
       var level = levelFromTier(tier, info);
       var prev = __state.level;
+      var prevSince = __state.since;
 
       __state.detectorTier = tier;
       __state.reason = reason;
@@ -501,19 +519,23 @@
       __state.lastEvalAt = Date.now();
 
       if (level !== prev) {
+        // El failover de transporte es inmediato (no perder conectividad real).
         __state.level = level;
         __state.since = Date.now();
         applyLevel(level);
         emitChange(prev, level);
-        // Recuperación hacia nube/LAN mejor.
+        // Recuperación hacia nube/LAN mejor: resync inmediato.
         if (prev !== 'unknown' && levelRank(level) < levelRank(prev)) {
           maybeReconnect('recover:' + level);
         }
-        // Degradación (ej. tablet perdio internet pero sigue en Wi‑Fi de caja).
+        // Degradación: solo resincroniza si el nivel previo estuvo estable
+        // (anti-flapping: un parpadeo de red no dispara reconexiones).
         else if (
           prev !== 'unknown' &&
           levelRank(level) > levelRank(prev) &&
-          levelRank(prev) <= levelRank('cloud')
+          levelRank(prev) <= levelRank('cloud') &&
+          prevSince &&
+          Date.now() - prevSince >= DEGRADE_HOLD_MS
         ) {
           maybeReconnect('degrade:' + level);
         }

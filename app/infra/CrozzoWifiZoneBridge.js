@@ -111,6 +111,14 @@
     }
     var cur = md();
     add(cur.centralIp, 'saved');
+    // Failover de caja: respaldo predefinido y primaria original como anclas
+    // estables, para reencontrar al central activo tras una promoción/regreso.
+    add(cur.backupIp, 'backup');
+    add(cur.primaryIp, 'primary');
+    try {
+      var fp = global.localStorage.getItem('crozzo_failover_primary_ip');
+      add(fp, 'primary_ok');
+    } catch (_) {}
     try {
       var last = global.localStorage.getItem('crozzo_wifi_zone_last_ip');
       add(last, 'last_ok');
