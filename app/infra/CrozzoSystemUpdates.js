@@ -1843,6 +1843,21 @@
     }, null);
   }
 
+  /** Super Admin: elige la versión a forzar aunque avisos estén ocultos o pospuestos. */
+  function pickForceUpdateEntry(entries) {
+    var pool = (entries || []).filter(function (e) {
+      if (!e) return false;
+      return compareSemver(normEntryVersion(e), VERSION) > 0 || entryNeedsInstall(e);
+    });
+    if (!pool.length) return null;
+    var critical = pool.filter(isCriticalEntry);
+    var list = critical.length ? critical : pool;
+    return list.reduce(function (best, e) {
+      if (!best) return e;
+      return compareSemver(normEntryVersion(e), normEntryVersion(best)) > 0 ? e : best;
+    }, null);
+  }
+
   function mergeRegistryEntries(primary, secondary) {
     var map = {};
     (primary || []).concat(secondary || []).forEach(function (entry) {
@@ -2388,7 +2403,7 @@
       '<div class="card-header"><span class="card-title">Plan B — Respaldo manual</span></div>' +
       '<p class="form-hint" style="margin:0 0 12px;" id="crozzoUpdatePlanBHint">Si el Plan A (automático) falla, descargue el instalador desde GitHub.</p>' +
       '<div class="crozzo-updates-actions" style="flex-wrap:wrap;gap:8px;display:flex;margin-bottom:10px">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoUpdatePlanAForce">Reintentar Plan A</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoUpdatePlanAForce">Forzar actualización (Plan A)</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBResolve">Resolver enlace manual</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBOpen">Abrir descarga</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBCopy">Copiar enlace</button>' +
@@ -2398,7 +2413,7 @@
     root.appendChild(card);
     wireOnce(document.getElementById('crozzoUpdatePlanAForce'), function (e) {
       e.preventDefault();
-      crozzoAceptarActualizacion();
+      crozzoForceSystemUpdateNow({ clearPendingRestart: true });
     });
     wireOnce(document.getElementById('crozzoUpdatePlanBResolve'), function (e) {
       e.preventDefault();
@@ -5010,6 +5025,89 @@
       });
   }
 
+  function crozzoForceSystemUpdateNow(opts) {
+    opts = opts || {};
+    if (typeof global.isSuperAdminUser === 'function' && !global.isSuperAdminUser()) {
+      if (typeof global.showToast === 'function') {
+        global.showToast('Solo Super Admin puede forzar actualizaciones.', 'warning');
+      }
+      return Promise.resolve({ ok: false, reason: 'forbidden' });
+    }
+    if (_installInProgress) {
+      if (_criticalInstallState === 'failed' || _criticalInstallState === 'idle') {
+        _installInProgress = false;
+      } else {
+        if (typeof global.showToast === 'function') {
+          global.showToast('Ya hay una actualización en curso. Espere o reinicie la app.', 'info');
+        }
+        return Promise.resolve({ ok: false, reason: 'busy' });
+      }
+    }
+
+    clearUpdateAbort();
+    cancelCriticalIdleWait();
+    if (_criticalRetryTimer) {
+      clearTimeout(_criticalRetryTimer);
+      _criticalRetryTimer = null;
+    }
+    _criticalAutoAttempts = 0;
+    _criticalInstallState = 'idle';
+    if (opts.clearPendingRestart !== false) {
+      clearPendingRestartInstall();
+    }
+
+    setCheckStatus('Forzando comprobación e instalación…');
+    hideBootUpdateGate();
+
+    return refreshBinaryVersion()
+      .then(function () {
+        return fetchRegistryData();
+      })
+      .then(function (data) {
+        _registryEntries = sortEntriesForProcess(normalizeRegistryEntries(data));
+        global.CROZZO_UPDATE_REGISTRY = _registryEntries.slice();
+        applyAvailabilityFromRegistry(_registryEntries);
+        renderRegistryPanel();
+        renderLocalLogPanel();
+
+        var entry = pickForceUpdateEntry(_registryEntries) || pickNextPendingEntry(_registryEntries);
+        if (!entry) {
+          setCheckStatus('Sin actualizaciones pendientes. Versión actual: ' + VERSION + '.');
+          if (typeof global.showToast === 'function') {
+            global.showToast('Este equipo ya tiene la versión más reciente del registro.', 'info');
+          }
+          return { ok: true, upToDate: true };
+        }
+
+        var remote = normEntryVersion(entry);
+        _pendingCriticalEntry = entry;
+        _currentCriticalId = entryId(entry);
+        VERSION_AVAIL = remote;
+        global.CROZZO_APP_VERSION_DISPONIBLE = remote;
+
+        setCheckStatus('Forzando instalación de ' + remote + '…');
+        if (typeof global.showToast === 'function') {
+          global.showToast(
+            'Forzando actualización a ' + remote + '. No cierre la app hasta que termine.',
+            'info'
+          );
+        }
+        appendLocalLog('force_update_admin', entry);
+
+        return runClientCriticalInstall(entry).then(function (res) {
+          return { ok: true, entry: entry, version: remote, res: res };
+        });
+      })
+      .catch(function (err) {
+        var msg = humanizeInstallError(err);
+        setCheckStatus('Error al forzar actualización: ' + msg);
+        if (typeof global.showToast === 'function') {
+          global.showToast('No se pudo forzar la actualización: ' + msg, 'error');
+        }
+        return { ok: false, error: err };
+      });
+  }
+
   function crozzoAceptarActualizacion() {
     if (_installInProgress) return;
     clearUpdateAbort();
@@ -5135,6 +5233,11 @@
       if (urlInput) setManifestUrl(urlInput.value);
       setCheckStatus('Comprobando registro…');
       checkForUpdates({ toastIfNoUrl: true, toastOnFound: true });
+    });
+
+    wireOnce(document.getElementById('crozzoUpdateForceNow'), function (e) {
+      e.preventDefault();
+      crozzoForceSystemUpdateNow({ clearPendingRestart: true });
     });
 
     wireOnce(document.getElementById('crozzoUpdateResetAlerts'), function (e) {
@@ -5377,6 +5480,7 @@
   }
 
   global.crozzoTriggerAppUpdate = crozzoTriggerAppUpdate;
+  global.crozzoForceSystemUpdateNow = crozzoForceSystemUpdateNow;
   global.checkForUpdates = checkForUpdates;
   global.crozzoWhenBootUpdatesReady = crozzoWhenBootUpdatesReady;
   global.startCrozzoUpdateChecks = startCrozzoUpdateChecks;
@@ -5397,6 +5501,7 @@
     getOperativeContext: getUpdateOperativeContext,
     humanizeChangelog: buildHumanChangelogHtml,
     runAudit: runInternalUpdateAudit,
+    forceUpdateNow: crozzoForceSystemUpdateNow,
   };
 
   function wirePendingRestartOnAppExit() {

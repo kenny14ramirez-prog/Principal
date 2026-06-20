@@ -485,16 +485,66 @@
     return msg || 'Error de actualización.';
   }
 
-  function predictSetupExeUrl(targetVersion) {
+  /** NSIS/Tauri sustituye espacios del productName por punto en el nombre del .exe. */
+  function bundleSlugDots(name) {
+    return String(name || PRODUCT_NAME)
+      .trim()
+      .replace(/\s+/g, '.');
+  }
+
+  function bundleSlugUnderscore(name) {
+    return String(name || PRODUCT_NAME)
+      .trim()
+      .replace(/\s+/g, '_');
+  }
+
+  function setupExeFilenameCandidates(targetVersion) {
     var ver = semverCore(targetVersion);
-    if (!ver) return '';
-    return (
-      GITHUB_RELEASE_BASE +
-      '/v' +
-      ver +
-      '/' +
-      encodeURIComponent(PRODUCT_NAME + '_' + ver + '_x64-setup.exe')
-    );
+    if (!ver) return [];
+    var seen = {};
+    return [
+      bundleSlugDots(PRODUCT_NAME) + '_' + ver + '_x64-setup.exe',
+      bundleSlugUnderscore(PRODUCT_NAME) + '_' + ver + '_x64-setup.exe',
+      String(PRODUCT_NAME).trim() + '_' + ver + '_x64-setup.exe',
+      'Proyecto_' + ver + '_x64-setup.exe',
+    ].filter(function (name) {
+      if (!name || seen[name]) return false;
+      seen[name] = true;
+      return true;
+    });
+  }
+
+  function setupExeUrlCandidates(targetVersion) {
+    var ver = semverCore(targetVersion);
+    if (!ver) return [];
+    return setupExeFilenameCandidates(ver).map(function (name) {
+      return GITHUB_RELEASE_BASE + '/v' + ver + '/' + encodeURIComponent(name);
+    });
+  }
+
+  function predictSetupExeUrl(targetVersion) {
+    var urls = setupExeUrlCandidates(targetVersion);
+    return urls.length ? urls[0] : '';
+  }
+
+  function probeSetupExeCandidates(targetVersion) {
+    var urls = setupExeUrlCandidates(targetVersion);
+    function next(i) {
+      if (i >= urls.length) return Promise.resolve(null);
+      return verifySetupDownloadUrl(urls[i]).then(function (v) {
+        if (v.ok) {
+          return {
+            version: normVersion(targetVersion),
+            url: v.url,
+            bytes: v.bytes || 0,
+            assetType: 'exe',
+            source: 'predicted-exe',
+          };
+        }
+        return next(i + 1);
+      });
+    }
+    return next(0);
   }
 
   function verifySetupDownloadUrl(url, knownBytes) {
@@ -545,8 +595,9 @@
     return resolveManualFallback(ver).then(function (info) {
       var candidates = [];
       if (info.downloadUrl) candidates.push(info.downloadUrl);
-      var predicted = predictSetupExeUrl(ver);
-      if (predicted) candidates.push(predicted);
+      setupExeUrlCandidates(ver).forEach(function (u) {
+        if (candidates.indexOf(u) < 0) candidates.push(u);
+      });
       var sizeByUrl = {};
       if (Array.isArray(info.assets)) {
         info.assets.forEach(function (a) {
@@ -565,9 +616,10 @@
             bytes: verified.bytes || 0,
           };
         }
+        var fallbackUrl = info.downloadUrl || predictSetupExeUrl(ver) || GITHUB_RELEASES_LATEST;
         return {
           version: ver,
-          downloadUrl: info.downloadUrl || predicted || GITHUB_RELEASES_LATEST,
+          downloadUrl: fallbackUrl,
           releasePageUrl: info.releasePageUrl || GITHUB_RELEASES_LATEST,
           verified: false,
           bytes: 0,
@@ -638,13 +690,13 @@
 
     return resolveBestDownloadUrl(ver)
       .then(function (info) {
-        if (info && info.downloadUrl && releaseUrlLooksInstallable(info.downloadUrl)) {
+        if (info && info.downloadUrl && info.verified && releaseUrlLooksInstallable(info.downloadUrl)) {
           return {
             version: normVersion(info.version || ver),
             url: info.downloadUrl,
             releasePageUrl: info.releasePageUrl,
             assetType: info.assetType || assetKind,
-            verified: !!info.verified,
+            verified: true,
             source: 'platform-' + (info.assetType || assetKind),
           };
         }
@@ -660,18 +712,7 @@
             };
           }
           if (assetKind === 'exe' && isWindowsDesktop()) {
-            var predicted = predictSetupExeUrl(ver);
-            if (!predicted) return null;
-            return verifySetupDownloadUrl(predicted).then(function (v) {
-              if (!v.ok) return null;
-              return {
-                version: ver,
-                url: v.url,
-                bytes: v.bytes || 0,
-                assetType: 'exe',
-                source: 'predicted-exe',
-              };
-            });
+            return probeSetupExeCandidates(ver);
           }
           return null;
         });
@@ -1681,6 +1722,8 @@
     verifySetupDownloadUrl: verifySetupDownloadUrl,
     verifyApkDownloadUrl: verifyApkDownloadUrl,
     predictSetupExeUrl: predictSetupExeUrl,
+    setupExeUrlCandidates: setupExeUrlCandidates,
+    probeSetupExeCandidates: probeSetupExeCandidates,
     openExternalUrl: openExternalUrl,
     installLatest: installLatestBinary,
     installAutomatic: installAutomatic,

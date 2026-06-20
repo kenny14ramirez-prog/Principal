@@ -39254,10 +39254,12 @@ function renderActualizacionesSistema() {
     '</div>' +
     '<div class="crozzo-updates-actions" style="margin-bottom:var(--space-4);flex-wrap:wrap;gap:8px;display:flex;">' +
     '<button type="button" class="btn btn-primary" id="crozzoUpdateCheckNow">Comprobar ahora</button>' +
+    '<button type="button" class="btn btn-danger" id="crozzoUpdateForceNow">Forzar actualización ahora</button>' +
     '<button type="button" class="btn btn-outline" id="crozzoUpdateSaveManifestUrl">Guardar URL</button>' +
     '<button type="button" class="btn btn-outline" id="crozzoUpdateResetAlerts">Restablecer avisos ocultos</button>' +
     '<button type="button" class="btn btn-outline" onclick="crozzoOpenAppDownloadQr()">📱 QR app actualizada</button>' +
     '</div>' +
+    '<p class="form-hint" style="margin:0 0 var(--space-3);">Si el arranque quedó en «Esperando GitHub» o la instalación automática falló, use <strong>Forzar actualización ahora</strong>. Vuelve a buscar el instalador en GitHub e intenta instalar de inmediato (Windows/Mac/Android).</p>' +
     '<p class="form-hint" id="crozzoUpdateCheckStatus" style="margin:0 0 var(--space-4);min-height:1.2em;"></p>' +
     '<label class="form-label" style="display:flex;align-items:center;gap:8px;margin:0 0 var(--space-4);cursor:pointer;">' +
     '<input type="checkbox" id="crozzoUpdateDesktopAutoInstall" checked>' +

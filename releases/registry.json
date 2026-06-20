@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-20T21:57:58.907Z",
+  "updatedAt": "2026-06-20T22:15:21.611Z",
   "entries": [
-    {
-      "id": "1.0.137-critical",
-      "version": "v1.0.137",
-      "semver": "1.0.137",
-      "type": "critical",
-      "message": "85645",
-      "publishedAt": "2026-06-16T00:19:37.247Z",
-      "installMode": "auto",
-      "changelog": [
-        "85645"
-      ]
-    },
     {
       "id": "1.0.138-critical",
       "version": "v1.0.138",
@@ -308,6 +296,19 @@
       "changelog": [
         "muchos arreglos -_-",
         "quesooooooo"
+      ]
+    },
+    {
+      "id": "1.0.162-critical",
+      "version": "v1.0.162",
+      "semver": "1.0.162",
+      "type": "critical",
+      "message": "Correccion nombre instalador BONA.origen en GitHub + Boton forzar actualizacion Super Admin",
+      "publishedAt": "2026-06-20T22:15:21.611Z",
+      "installMode": "auto",
+      "changelog": [
+        "Correccion nombre instalador BONA.origen en GitHub",
+        "Boton forzar actualizacion Super Admin"
       ]
     }
   ]
