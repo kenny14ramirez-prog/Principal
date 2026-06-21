@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-20T23:18:58.966Z",
+  "updatedAt": "2026-06-21T01:22:21.675Z",
   "entries": [
-    {
-      "id": "1.0.141-critical",
-      "version": "v1.0.141",
-      "semver": "1.0.141",
-      "type": "critical",
-      "message": "589654",
-      "publishedAt": "2026-06-16T18:40:48.822Z",
-      "installMode": "auto",
-      "changelog": [
-        "589654"
-      ]
-    },
     {
       "id": "1.0.142-critical",
       "version": "v1.0.142",
@@ -313,6 +301,18 @@
         "correccion URL APK BONA_origen",
         "permiso HTTP tablet",
         "fail-open si falla instalacion"
+      ]
+    },
+    {
+      "id": "1.0.166-critical",
+      "version": "v1.0.166",
+      "semver": "1.0.166",
+      "type": "critical",
+      "message": "1023",
+      "publishedAt": "2026-06-21T01:22:21.675Z",
+      "installMode": "auto",
+      "changelog": [
+        "1023"
       ]
     }
   ]

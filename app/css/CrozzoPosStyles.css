@@ -1942,6 +1942,30 @@ html.tauri-desktop #sidebar.sidebar-pro.crozzo-sidebar-hover-active {
     0 14px 44px rgba(0, 0, 0, 0.16) !important;
   z-index: 10000 !important;
 }
+/* Zona de hover: ancho total expandido + margen extra; evita cierre al pasar por huecos */
+html.tauri-desktop #sidebar.sidebar-pro.crozzo-sidebar-hover-active::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: -12px -22px -12px -10px !important;
+  pointer-events: auto !important;
+  z-index: 0 !important;
+  background: transparent !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded:not(.crozzo-drawer-nav):not(.crozzo-sidebar-hover-active)::before,
+html.tauri-desktop #sidebar.sidebar-pro.expanded:not(.crozzo-drawer-nav):not(.crozzo-sidebar-hover-active)::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: auto !important;
+  z-index: 0 !important;
+  background: transparent !important;
+}
+html.tauri-desktop #sidebar.sidebar-pro.crozzo-sidebar-hover-active > *,
+html.tauri-desktop #sidebar.sidebar-pro.is-expanded:not(.crozzo-drawer-nav) > *,
+html.tauri-desktop #sidebar.sidebar-pro.expanded:not(.crozzo-drawer-nav) > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
 html.tauri-desktop.crozzo-sidebar-hover-session #sidebar.sidebar-pro.is-expanded + .main-content,
 html.tauri-desktop.crozzo-sidebar-hover-session #sidebar.sidebar-pro.expanded + .main-content {
   transition: margin-left var(--sidebar-duration) var(--sidebar-ease) !important;
@@ -6979,6 +7003,7 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 3;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -6987,6 +7012,9 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
 }
 .crozzo-psyche-chip__close:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -7081,17 +7109,39 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
 }
 
 .crozzo-concierge-strip {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 14px 40px 14px 18px;
   margin-bottom: 14px;
   border-radius: 14px;
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
   background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.1) 0%, rgba(var(--accent-rgb, 201, 169, 98), 0.03) 100%);
   animation: crozzoComfortPageIn 480ms var(--ease-calm, ease) forwards;
+}
+.crozzo-concierge-strip__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
+}
+.crozzo-concierge-strip__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
 }
 .crozzo-concierge-strip__mark {
   font-size: 1.1rem;
@@ -28042,14 +28092,17 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 2000;
+  z-index: 50000;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  pointer-events: none;
 }
 
 .toast {
-  padding: var(--space-3) var(--space-5);
+  position: relative;
+  pointer-events: auto;
+  padding: var(--space-3) calc(var(--space-5) + 28px) var(--space-3) var(--space-5);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--bg-card) 92%, transparent);
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.18);
@@ -28063,11 +28116,38 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   gap: var(--space-3);
   min-width: min(300px, 92vw);
   min-height: 44px;
+  cursor: pointer;
   animation: crozzoToastIn 0.36s var(--ease-calm) forwards;
   transition:
     opacity 0.32s var(--ease-premium),
     transform 0.32s var(--ease-premium),
     filter 0.32s var(--ease-premium);
+}
+.crozzo-toast__msg {
+  flex: 1;
+  min-width: 0;
+}
+.crozzo-toast__close {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  z-index: 2;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
+}
+.crozzo-toast__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
 }
 .toast.crozzo-toast-exit {
   animation: crozzoToastOut 0.32s var(--ease-premium) forwards;
@@ -40507,6 +40587,7 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 3;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -40515,6 +40596,9 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
 }
 .crozzo-psyche-chip__close:hover {
   background: rgba(0, 0, 0, 0.06);
@@ -40609,17 +40693,39 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
 }
 
 .crozzo-concierge-strip {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 14px 40px 14px 18px;
   margin-bottom: 14px;
   border-radius: 14px;
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
   background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.1) 0%, rgba(var(--accent-rgb, 201, 169, 98), 0.03) 100%);
   animation: crozzoComfortPageIn 480ms var(--ease-calm, ease) forwards;
+}
+.crozzo-concierge-strip__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
+}
+.crozzo-concierge-strip__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
 }
 .crozzo-concierge-strip__mark {
   font-size: 1.1rem;
@@ -61570,14 +61676,17 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   position: fixed;
   top: 20px;
   right: 20px;
-  z-index: 2000;
+  z-index: 50000;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  pointer-events: none;
 }
 
 .toast {
-  padding: var(--space-3) var(--space-5);
+  position: relative;
+  pointer-events: auto;
+  padding: var(--space-3) calc(var(--space-5) + 28px) var(--space-3) var(--space-5);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--bg-card) 92%, transparent);
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.18);
@@ -61591,11 +61700,38 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   gap: var(--space-3);
   min-width: min(300px, 92vw);
   min-height: 44px;
+  cursor: pointer;
   animation: crozzoToastIn 0.36s var(--ease-calm) forwards;
   transition:
     opacity 0.32s var(--ease-premium),
     transform 0.32s var(--ease-premium),
     filter 0.32s var(--ease-premium);
+}
+.crozzo-toast__msg {
+  flex: 1;
+  min-width: 0;
+}
+.crozzo-toast__close {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  z-index: 2;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
+}
+.crozzo-toast__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
 }
 .toast.crozzo-toast-exit {
   animation: crozzoToastOut 0.32s var(--ease-premium) forwards;
@@ -71808,4 +71944,532 @@ body.crozzo-page-operativa.crozzo-pantallas-kiosk .crozzo-help-fab {
   background: transparent;
   border: 1px solid var(--border, #cbd5e1);
   color: var(--text-muted, #64748b);
+}
+
+/* Mesas y llevar — config admin + etiquetas tablet */
+.crozzo-salon-config__intro {
+  margin: 0 0 16px;
+}
+.crozzo-salon-config__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 900px) {
+  .crozzo-salon-config__grid {
+    grid-template-columns: 1fr;
+  }
+}
+.crozzo-salon-config__panel {
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.35));
+  border-radius: var(--radius, 12px);
+  padding: 14px 16px;
+  background: var(--bg-secondary, rgba(15, 23, 42, 0.35));
+}
+.crozzo-salon-config__panel-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+.crozzo-salon-names-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.crozzo-salon-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.crozzo-salon-name-row__id {
+  flex: 0 0 28px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+}
+.crozzo-salon-name-row__input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+.mesa-card.crozzo-slot--solo-numero .mesa-card-name,
+.crozzo-rest-slot.crozzo-slot--solo-numero .crozzo-rest-slot__name {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.mesa-card.crozzo-slot--solo-numero .mesa-card-name:empty {
+  min-height: 1.2em;
+}
+
+/* === Staff Access Hub (Usuarios y permisos) === */
+.crozzo-staff-hub {
+  --staff-accent-rgb: var(--accent-rgb, 99, 102, 241);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1180px;
+}
+.crozzo-staff-hub__hero {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  border: 1px solid rgba(var(--staff-accent-rgb), 0.28);
+  background: linear-gradient(145deg, rgba(var(--staff-accent-rgb), 0.14) 0%, rgba(var(--staff-accent-rgb), 0.03) 42%, var(--bg-card) 100%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.crozzo-staff-hub__hero-glow {
+  position: absolute;
+  top: -50%;
+  right: -5%;
+  width: min(360px, 50vw);
+  height: min(360px, 50vw);
+  background: radial-gradient(circle, rgba(var(--staff-accent-rgb), 0.2) 0%, transparent 68%);
+  pointer-events: none;
+}
+.crozzo-staff-hub__hero-main {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+.crozzo-staff-hub__eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--staff-accent-rgb), 1);
+  opacity: 0.92;
+}
+.crozzo-staff-hub__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.35rem, 2.6vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+.crozzo-staff-hub__sub {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 38rem;
+}
+.crozzo-staff-hub__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.crozzo-staff-kpi {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--elevation-1, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+.crozzo-staff-kpi--accent {
+  border-color: rgba(var(--staff-accent-rgb), 0.35);
+  background: linear-gradient(135deg, rgba(var(--staff-accent-rgb), 0.1), var(--bg-card));
+}
+.crozzo-staff-kpi__lbl {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.crozzo-staff-kpi__val {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.crozzo-staff-hub__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.crozzo-staff-hub__tab {
+  padding: 9px 16px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.crozzo-staff-hub__tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+.crozzo-staff-hub__tab--active {
+  color: var(--text-primary);
+  border-color: rgba(var(--staff-accent-rgb), 0.4);
+  background: var(--bg-card);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.crozzo-staff-hub__panels {
+  min-height: 200px;
+}
+.crozzo-staff-hub__panel {
+  display: none;
+  animation: crozzoStaffPanelIn 0.22s ease;
+}
+.crozzo-staff-hub__panel--active {
+  display: block;
+}
+@keyframes crozzoStaffPanelIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.crozzo-staff-directorio__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.crozzo-staff-search-wrap {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+.crozzo-staff-search {
+  width: 100%;
+  padding-left: 12px;
+}
+.crozzo-staff-add-panel {
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--staff-accent-rgb), 0.25);
+  background: linear-gradient(180deg, rgba(var(--staff-accent-rgb), 0.06), var(--bg-card));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.crozzo-staff-add-panel__head h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.crozzo-staff-add-panel__head .form-hint {
+  margin: 0 0 14px;
+}
+.crozzo-staff-add-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 14px;
+}
+.crozzo-staff-add-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.crozzo-staff-table-shell {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+  overflow: hidden;
+  box-shadow: var(--elevation-1, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+.crozzo-staff-table-shell .users-table-wrap,
+.crozzo-staff-table-shell.users-table-wrap {
+  border: none;
+  border-radius: 0;
+  max-height: 58vh;
+  overflow-y: auto;
+  background: transparent;
+}
+.crozzo-staff-table thead th {
+  background: var(--bg-secondary);
+  font-size: 0.7rem;
+  letter-spacing: 0.07em;
+}
+.crozzo-staff-table__actions-h {
+  text-align: right;
+}
+.crozzo-staff-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.crozzo-staff-avatar {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(var(--staff-accent-rgb), 1);
+  background: rgba(var(--staff-accent-rgb), 0.14);
+  border: 1px solid rgba(var(--staff-accent-rgb), 0.28);
+}
+.crozzo-staff-user-cell__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.crozzo-staff-user-cell__text strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+.crozzo-staff-user-cell__text code {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.crozzo-staff-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.crozzo-staff-badge--admin {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.14);
+  border-color: rgba(139, 92, 246, 0.35);
+}
+.crozzo-staff-badge--caja {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.crozzo-staff-badge--mesero {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.crozzo-staff-badge--cocina {
+  color: #fdba74;
+  background: rgba(249, 115, 22, 0.14);
+  border-color: rgba(249, 115, 22, 0.35);
+}
+.crozzo-staff-badge--inventario {
+  color: #67e8f9;
+  background: rgba(6, 182, 212, 0.14);
+  border-color: rgba(6, 182, 212, 0.35);
+}
+.crozzo-staff-badge--default {
+  color: var(--text-secondary);
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.28);
+}
+.crozzo-staff-device-select {
+  max-width: 150px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+.crozzo-staff-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.crozzo-staff-status__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.crozzo-staff-status__label.is-active { color: #4ade80; }
+.crozzo-staff-status__label.is-inactive { color: var(--text-muted); }
+.crozzo-staff-row-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.crozzo-staff-row-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.btn.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.crozzo-staff-empty,
+.crozzo-staff-empty-search {
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.crozzo-staff-empty__title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.crozzo-staff-hub__foot-hint {
+  margin: 12px 4px 0;
+}
+.crozzo-staff-policy-wrap .crozzo-perm-policy-card {
+  margin: 0;
+  border-radius: 14px;
+}
+.crozzo-staff-policy-wrap .crozzo-perm-policy-card--usuarios {
+  border: 1px solid var(--border);
+  box-shadow: var(--elevation-1, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+.crozzo-staff-policy-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.crozzo-staff-profiles__intro {
+  margin: 0 0 14px;
+}
+.crozzo-staff-profiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.crozzo-staff-profile-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--elevation-1, 0 1px 3px rgba(0, 0, 0, 0.06));
+}
+.crozzo-staff-profile-card__main {
+  min-width: 0;
+}
+.crozzo-staff-profile-card__title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.crozzo-staff-edit__tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.crozzo-staff-edit__tab {
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.crozzo-staff-edit__tab--active {
+  color: var(--text-primary);
+  border-color: rgba(var(--accent-rgb, 99, 102, 241), 0.4);
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.08);
+}
+.crozzo-staff-edit__panel {
+  display: none;
+}
+.crozzo-staff-edit__panel--active {
+  display: block;
+}
+.crozzo-staff-edit-device {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.crozzo-staff-edit-device__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.crozzo-staff-edit-perms-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.crozzo-staff-edit__footer {
+  justify-content: space-between;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.crozzo-staff-edit__footer-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+body.crozzo-page-config-usuarios #pageTitle {
+  display: none;
+}
+body.crozzo-page-config-usuarios #pageSubtitle {
+  display: none;
+}
+@media (max-width: 768px) {
+  .crozzo-staff-hub__hero {
+    padding: 18px 16px;
+  }
+  .crozzo-staff-table thead th:nth-child(2),
+  .crozzo-staff-table tbody td:nth-child(2) {
+    display: none;
+  }
+  .crozzo-staff-directorio__bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crozzo-staff-search-wrap {
+    max-width: none;
+  }
+  .crozzo-staff-policy-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crozzo-staff-policy-footer .btn {
+    width: 100%;
+  }
 }

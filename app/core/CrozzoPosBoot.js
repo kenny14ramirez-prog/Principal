@@ -41,6 +41,11 @@
       /* ignore */
     }
     try {
+      if (typeof applySalonSlotsToRuntime === 'function') applySalonSlotsToRuntime({ silent: true });
+    } catch (eSalon) {
+      console.warn('[crozzo] SalonSlots', eSalon);
+    }
+    try {
       if (window.CrozzoEmergencyMesh && typeof CrozzoEmergencyMesh.init === 'function') {
         window.CrozzoEmergencyMesh.init();
       }

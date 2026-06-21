@@ -306,6 +306,14 @@
       intervalMs: 70000,
       navOnly: true,
     },
+    'config-salon': {
+      p: P2,
+      basico: 'restaurante',
+      note: 'Mesas del salón y pedidos llevar',
+      domains: ['tenant'],
+      intervalMs: 70000,
+      navOnly: true,
+    },
     'config-dian': {
       p: P2,
       basico: false,

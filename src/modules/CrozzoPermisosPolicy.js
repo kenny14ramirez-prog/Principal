@@ -44,6 +44,7 @@
     'config-empresa': { admin: ['config_empresa'] },
     impuestos: { admin: ['config_impuestos'] },
     'config-comandas': { admin: ['config_comandas'] },
+    'config-salon': { admin: ['config_salon'] },
     'conexion-sistemas': { admin: ['config_conexiones'] },
     'facturas-admin': { admin: ['config_facturas_admin'] },
     admin: { admin: ['config_usuarios'] },
@@ -95,7 +96,7 @@
       comandas: ['ver', 'despachar', 'reimprimir'],
       inventario: ['reportes', 'proveedores'],
       productos: ['catalogo'],
-      admin: ['config_empresa', 'config_impuestos', 'config_comandas', 'config_usuarios', 'marcacion_personal'],
+      admin: ['config_empresa', 'config_impuestos', 'config_comandas', 'config_salon', 'config_usuarios', 'marcacion_personal'],
     },
   };
 
@@ -331,7 +332,8 @@
       .filter(Boolean);
   }
 
-  function renderPolicyEditor(client) {
+  function renderPolicyEditor(client, opts) {
+    opts = opts || {};
     if (!client) client = typeof global.crozzoGetActiveClientProfile === 'function' ? global.crozzoGetActiveClientProfile() : {};
     syncClientRolePerms(client);
     var catalog = getPermCatalog();
@@ -427,12 +429,21 @@
       );
     }).join('');
 
+    var intro =
+      opts.context === 'usuarios'
+        ? 'Marque qué acciones puede delegar el administrador del negocio al crear usuarios. Solo aplica a módulos activos del plan.'
+        : 'Define qué acciones puede otorgar el <strong>administrador del negocio</strong> al crear usuarios. ' +
+          'Se vincula con los módulos habilitados arriba: un cajero puede ver proveedores pero no borrar pedidos ni editar precios si no está marcado. ' +
+          'En <strong>plan básico</strong>, el admin del negocio puede delegar todos los permisos de los módulos activos del plan (también desde Usuarios y permisos).';
+
     return (
-      '<div class="card crozzo-gestion-page__card crozzo-perm-policy-card">' +
+      '<div class="card crozzo-gestion-page__card crozzo-perm-policy-card' +
+      (opts.context === 'usuarios' ? ' crozzo-perm-policy-card--usuarios' : '') +
+      '">' +
       '<h3 class="crozzo-gestion-page__card-title">Permisos delegables por rol</h3>' +
-      '<p class="form-hint">Define qué acciones puede otorgar el <strong>administrador del negocio</strong> al crear usuarios. ' +
-      'Se vincula con los módulos habilitados arriba: un cajero puede ver proveedores pero no borrar pedidos ni editar precios si no está marcado. ' +
-      'En <strong>plan básico</strong>, el admin del negocio puede delegar todos los permisos de los módulos activos del plan (también desde Usuarios y permisos).</p>' +
+      '<p class="form-hint">' +
+      intro +
+      '</p>' +
       tabs +
       '<div class="crozzo-perm-policy-panels">' +
       panels +

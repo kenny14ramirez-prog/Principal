@@ -49,6 +49,7 @@
     'compras-proceso-sesion',
     'compras-proceso-historial',
     'config-comandas',
+    'config-salon',
   ];
 
   var BASICO_TIENDA_EXTRA = ['inicio-operacion', 'venta-comercial', 'facturas', 'cierre-caja', 'caja'];

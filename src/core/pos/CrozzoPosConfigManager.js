@@ -24,7 +24,7 @@ class ConfigManager {
   applyCoreSectionsMigration(cfg) {
     const c = cfg || {};
     const d = this.getDefaultConfig();
-    ['empresa', 'dian', 'certificado', 'proveedor', 'impuestos', 'comandas', 'seguridad', 'usuarios'].forEach(function (k) {
+    ['empresa', 'dian', 'certificado', 'proveedor', 'impuestos', 'comandas', 'salon', 'seguridad', 'usuarios'].forEach(function (k) {
       if (!c[k] || typeof c[k] !== 'object') {
         c[k] = JSON.parse(JSON.stringify(d[k]));
       } else if (d[k] && typeof d[k] === 'object') {
@@ -230,6 +230,14 @@ class ConfigManager {
           { id: 'COCINA', nombre: 'Cocina', impresora: '', estilo: { fontSize: 12, showPrice: false, showHeader: true } },
           { id: 'BAR', nombre: 'Bar', impresora: '', estilo: { fontSize: 12, showPrice: false, showHeader: true } }
         ]
+      },
+      salon: {
+        mesaCount: 40,
+        llevarCount: 10,
+        mesaEtiquetaTablet: 'solo_numero',
+        llevarEtiquetaTablet: 'solo_numero',
+        mesaNombres: {},
+        llevarNombres: {},
       },
       facturacionAdmin: {
         impresoraCajaPos: '',

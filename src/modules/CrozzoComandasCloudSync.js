@@ -138,6 +138,15 @@
 
   global.__crozzoComandaTidMark = markComandaTid;
   global.__crozzoComandaTidRecent = comandaTidRecent;
+  global.__crozzoComandaMarkPrinted = function (tid) {
+    if (!tid) return;
+    __printedTids[String(tid)] = Date.now();
+  };
+  global.__crozzoComandaWasPrintedRecently = function (tid, maxMs) {
+    if (!tid) return false;
+    var t = __printedTids[String(tid)];
+    return !!(t && Date.now() - t < (maxMs || 90000));
+  };
 
   function online() {
     return (
@@ -540,7 +549,12 @@
       var remoteAt = Date.parse(row.updated_at || pay.lastUpdateAt || pay._cloudSyncedAt || 0) || 0;
       var localAt = Date.parse(existingEarly.lastUpdateAt || existingEarly.createdAt || 0) || 0;
       if (localAt > remoteAt + 500) return false;
-      if (remoteEst === localEst && remoteAt <= localAt + 500) return false;
+      if (remoteEst === localEst && remoteAt <= localAt + 500) {
+        if (!opts.skipPrint && !opts.silent && typeof global.crozzoTryAutoPrintComanda === 'function') {
+          global.crozzoTryAutoPrintComanda(existingEarly);
+        }
+        return false;
+      }
     }
     if (!deviceReceivesComandaArea(pay.areaId)) return false;
     var ctx = cloudCtx();
@@ -558,6 +572,7 @@
           })
         : null);
     var prevEst = existed ? String(existed.estado || '') : '';
+    var prevItemsJson = existed ? JSON.stringify(existed.items || []) : '';
 
     if (tidEarly) markComandaTid(tidEarly, 'cloud_pull');
     var changed = false;
@@ -576,22 +591,30 @@
       if (remoteEst && remoteEst !== prevEst) changed = true;
     }
     if (!changed && !existed && merged) changed = true;
-    if (!changed) return false;
+    if (!changed) {
+      if (!opts.skipPrint && !opts.silent && !isOwnPush && !recentOwn && merged && typeof global.crozzoTryAutoPrintComanda === 'function') {
+        global.crozzoTryAutoPrintComanda(merged);
+      }
+      return false;
+    }
 
     var printId = merged ? merged.id : pay.id;
 
+    var isNew = !existed && !!merged;
+    var itemsChanged = !!(
+      existed &&
+      merged &&
+      JSON.stringify(merged.items || []) !== prevItemsJson
+    );
+    var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
+
     var shouldPrint = false;
-    if (!opts.skipPrint && !opts.silent && deviceReceivesComandaArea(pay.areaId) && !isOwnPush && !recentOwn) {
-      var mergedForPrint = merged || pay;
-      if (typeof global.crozzoShouldAutoPrintComanda === 'function') {
-        shouldPrint = !!global.crozzoShouldAutoPrintComanda(mergedForPrint);
-      } else {
-        var cfg = typeof global.getComandasConfig === 'function' ? global.getComandasConfig() : {};
-        if (cfg.autoPrint !== false && deviceCanPrintComandaArea(pay.areaId)) shouldPrint = true;
+    if (!opts.skipPrint && !opts.silent && !isOwnPush && !recentOwn && merged) {
+      if (typeof global.crozzoTryAutoPrintComanda === 'function') {
+        global.crozzoTryAutoPrintComanda(merged);
+        shouldPrint = typeof global.crozzoComandaHasPrinter === 'function' && global.crozzoComandaHasPrinter(merged);
       }
     }
-    var isNew = !existed && !!merged;
-    var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
     var shouldNotifyScreen =
       !opts.silent &&
       opts.notify !== false &&
@@ -609,18 +632,8 @@
         global.showToast('📺 Comanda #' + printId + ' en pantalla ' + areaLabel, 'info');
       } catch (_) {}
     }
-    if (shouldPrint && tid) {
-      if (!__printedTids[tid] || Date.now() - __printedTids[tid] > 90000) {
-        __printedTids[tid] = Date.now();
-        try {
-          if (typeof global.printComandaNow === 'function') global.printComandaNow(printId, true);
-          if (typeof global.showToast === 'function' && shouldNotifyComandaUi(printId, 'print')) {
-            global.showToast('🖨️ Comanda #' + printId + ' — ticket impreso', 'info');
-          }
-        } catch (e) {
-          console.warn('[crozzo-comanda-cloud] print', e);
-        }
-      }
+    if (shouldPrint && typeof global.showToast === 'function' && shouldNotifyComandaUi(printId, 'print')) {
+      global.showToast('🖨️ Comanda #' + printId + ' — ticket impreso', 'info');
     }
 
     try {
@@ -778,7 +791,7 @@
           }
           return;
         }
-        if (applyComandaFromCloudRow(payload.new, { skipPrint: true, skipRender: false })) {
+        if (applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false })) {
           scheduleComandaPageRefresh();
         }
       });

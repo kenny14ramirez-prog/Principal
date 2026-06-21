@@ -62,7 +62,85 @@
     return '';
   }
 
+  /** Tablet/APK mesero: no registrar ni enrutar impresión desde aquí. */
+  function isMeseroTabletShell() {
+    try {
+      var doc = global.document && global.document.documentElement;
+      if (!doc) return false;
+      if (doc.classList.contains('crozzo-android-apk') || doc.classList.contains('crozzo-android-native')) return true;
+      if (doc.getAttribute('data-crozzo-android') === '1') return true;
+      if (typeof global.crozzoIsMobilePhoneUi === 'function' && global.crozzoIsMobilePhoneUi()) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  /** Solo estaciones con térmica real (Tauri escritorio con impresora detectada o configurada). */
+  function localHasSystemComandaPrinter() {
+    var list = global.__CROZZO_SYSTEM_PRINTERS || [];
+    if (!list.length) return null;
+    var areas = comandasAreas();
+    var i;
+    for (i = 0; i < areas.length; i++) {
+      var cfgName = areaEffectivePrinter(areas[i]);
+      if (!cfgName) continue;
+      var resolved =
+        typeof global.crozzoResolvePrinterForJob === 'function'
+          ? String(global.crozzoResolvePrinterForJob(cfgName, 'comanda') || '').trim()
+          : String(cfgName).trim();
+      if (!resolved) continue;
+      var n = resolved.toLowerCase();
+      var j;
+      for (j = 0; j < list.length; j++) {
+        if (String(list[j]).toLowerCase() === n) return true;
+      }
+    }
+    try {
+      var conf = typeof global.getFacturacionAdminConfig === 'function' ? global.getFacturacionAdminConfig() : {};
+      var g = String(conf.impresoraComandas || '').trim();
+      if (g) {
+        var rg =
+          typeof global.crozzoResolvePrinterForJob === 'function'
+            ? String(global.crozzoResolvePrinterForJob(g, 'comanda') || '').trim()
+            : g;
+        if (rg) {
+          var gn = rg.toLowerCase();
+          for (j = 0; j < list.length; j++) {
+            if (String(list[j]).toLowerCase() === gn) return true;
+          }
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function canDevicePrintPhysically() {
+    if (isMeseroTabletShell()) return false;
+    try {
+      if (typeof global.crozzoIsTauriPrint !== 'function' || !global.crozzoIsTauriPrint()) return false;
+      var sys = localHasSystemComandaPrinter();
+      if (sys === true) return true;
+      if (sys === false) return false;
+      var areas = comandasAreas();
+      var i;
+      for (i = 0; i < areas.length; i++) {
+        if (String(areas[i].impresora || '').trim()) return true;
+      }
+      var conf = typeof global.getFacturacionAdminConfig === 'function' ? global.getFacturacionAdminConfig() : {};
+      if (String(conf.impresoraComandas || conf.impresoraCajaPos || '').trim()) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  function entryIsPrintStation(entry) {
+    if (!entry || !entry.deviceId) return false;
+    if (entry.canPrintPhysically === true) return true;
+    if (entry.canPrintPhysically === false) return false;
+    var my = deviceId();
+    return !!(my && String(entry.deviceId) === String(my) && canDevicePrintPhysically());
+  }
+
   function resolvesLocally(printerName, role) {
+    if (!canDevicePrintPhysically()) return '';
     var name = String(printerName || '').trim();
     if (!name) return '';
     if (typeof global.crozzoResolvePrinterForJob === 'function') {
@@ -103,12 +181,14 @@
   }
 
   function buildLocalEntry() {
+    var canPrint = canDevicePrintPhysically();
     return {
       deviceId: deviceId(),
       deviceName: deviceName(),
       pantallaId: pantallaId(),
       updatedAt: Date.now(),
-      areas: collectLocalAreas(),
+      canPrintPhysically: canPrint,
+      areas: canPrint ? collectLocalAreas() : {},
     };
   }
 
@@ -153,6 +233,9 @@
   function getRegistryMap() {
     var local = buildLocalEntry();
     var map = pruneStale(readPersistedRegistry());
+    Object.keys(map).forEach(function (k) {
+      if (!entryIsPrintStation(map[k])) delete map[k];
+    });
     map[local.deviceId] = local;
     global.__CROZZO_PRINT_DEVICE_REGISTRY = map;
     return map;
@@ -166,7 +249,12 @@
         return map[k];
       })
       .filter(function (e) {
-        return e && e.deviceId && now - Number(e.updatedAt || 0) <= STALE_MS;
+        return (
+          e &&
+          e.deviceId &&
+          entryIsPrintStation(e) &&
+          now - Number(e.updatedAt || 0) <= STALE_MS
+        );
       });
   }
 
@@ -191,15 +279,34 @@
   function findPrintTargetForArea(areaId) {
     areaId = String(areaId || '').trim();
     if (!areaId) return null;
+    var myId = deviceId();
+    var localFresh = buildLocalEntry();
     var entries = listRegistryEntries().filter(function (e) {
       return entryCanPrintArea(e, areaId);
     });
+    if (localFresh && entryCanPrintArea(localFresh, areaId)) {
+      var hasLocal = false;
+      entries = entries.map(function (e) {
+        if (String(e.deviceId) === String(localFresh.deviceId)) {
+          hasLocal = true;
+          return localFresh;
+        }
+        return e;
+      });
+      if (!hasLocal) entries.push(localFresh);
+    }
     if (!entries.length) {
-      var local = buildLocalEntry();
-      return entryCanPrintArea(local, areaId) ? local : null;
+      return entryCanPrintArea(localFresh, areaId) ? localFresh : null;
     }
     entries.sort(function (a, b) {
-      return scoreEntry(b, areaId) - scoreEntry(a, areaId);
+      var sb = scoreEntry(b, areaId);
+      var sa = scoreEntry(a, areaId);
+      if (sb !== sa) return sb - sa;
+      if (myId) {
+        if (String(a.deviceId) === String(myId) && String(b.deviceId) !== String(myId)) return -1;
+        if (String(b.deviceId) === String(myId) && String(a.deviceId) !== String(myId)) return 1;
+      }
+      return Number(b.updatedAt || 0) - Number(a.updatedAt || 0);
     });
     return entries[0] || null;
   }
@@ -345,4 +452,5 @@
   global.crozzoFindPrintTargetForArea = findPrintTargetForArea;
   global.crozzoIsLocalPrintTargetForArea = isLocalPrintTargetForArea;
   global.crozzoPublishLocalPrintCaps = publishLocalPrintCaps;
+  global.crozzoDeviceCanPhysicallyPrint = canDevicePrintPhysically;
 })(typeof window !== 'undefined' ? window : globalThis);

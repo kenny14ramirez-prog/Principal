@@ -6,6 +6,7 @@
 
   var LS = 'crozzo_operative_psyche_v1';
   var SS_CHIP = 'crozzo_psyche_chip_dismiss';
+  var SS_CONCIERGE = 'crozzo_concierge_strip_dismiss';
   var SS_SESSION = 'crozzo_comfort_session_start';
   var LS_BREAK_SNOOZE = 'crozzo_break_snooze_until';
   var LS_BREAK_INTERVAL = 'crozzo_break_interval_min';
@@ -259,7 +260,7 @@
     wrap.setAttribute('role', 'status');
     wrap.setAttribute('aria-live', 'polite');
     wrap.innerHTML =
-      '<button type="button" class="crozzo-break-nudge__close" aria-label="Cerrar recordatorio" onclick="CrozzoOperativePsyche.dismissBreakNudge(45)">×</button>' +
+      '<button type="button" class="crozzo-break-nudge__close" aria-label="Cerrar recordatorio" data-crozzo-act="crozzoDismissBreakNudge" data-crozzo-args="45">×</button>' +
       '<p class="crozzo-break-nudge__text">' +
       escBreakHtml(line) +
       '</p>' +
@@ -269,6 +270,9 @@
       '</div>';
     document.body.appendChild(wrap);
     global.__crozzoBreakNudgeEl = wrap;
+    try {
+      if (typeof global.crozzoCspWireTree === 'function') global.crozzoCspWireTree(wrap);
+    } catch (_) {}
     wrap._autoTimer = setTimeout(function () {
       closeBreakNudge(45);
     }, BREAK_NUDGE_AUTO_MS);
@@ -636,12 +640,54 @@
       ' · ' +
       s.tone +
       '</span>' +
-      '<button type="button" class="crozzo-psyche-chip__close" onclick="CrozzoOperativePsyche.dismissChip()" aria-label="Ocultar">×</button></div>'
+      '<button type="button" class="crozzo-psyche-chip__close" data-crozzo-act="crozzoDismissPsycheChip" aria-label="Ocultar">×</button></div>'
     );
+  }
+
+  function bindPsycheDismissCapture() {
+    if (global.__crozzoPsycheDismissCapture) return;
+    global.__crozzoPsycheDismissCapture = true;
+    document.addEventListener(
+      'click',
+      function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        if (t.closest('.crozzo-concierge-strip__close')) {
+          e.preventDefault();
+          e.stopPropagation();
+          dismissConciergeStrip();
+          return;
+        }
+        if (t.closest('.crozzo-psyche-chip__close')) {
+          e.preventDefault();
+          e.stopPropagation();
+          dismissChip();
+          return;
+        }
+        if (t.closest('.crozzo-break-nudge__close')) {
+          e.preventDefault();
+          e.stopPropagation();
+          dismissBreakNudge(45);
+        }
+      },
+      true
+    );
+  }
+
+  function dismissConciergeStrip() {
+    try {
+      sessionStorage.setItem(SS_CONCIERGE, '1');
+    } catch (_) {}
+    if (typeof global.navigateTo === 'function' && global.currentPage === 'inicio-operacion') {
+      global.navigateTo('inicio-operacion');
+    }
   }
 
   function renderConciergeStrip() {
     if (!shouldApplyPsycheLayer()) return '';
+    try {
+      if (sessionStorage.getItem(SS_CONCIERGE) === '1') return '';
+    } catch (_) {}
     try {
       if (
         document.documentElement.classList.contains('crozzo-android-apk') ||
@@ -687,7 +733,8 @@
         : shouldApplyPsycheLayer() && global.CrozzoOnboardingOperativo
           ? '<button type="button" class="crozzo-concierge-strip__link" onclick="CrozzoOnboardingOperativo.openModal()">Checklist</button>'
           : '') +
-      '</div></aside>'
+      '</div>' +
+      '<button type="button" class="crozzo-concierge-strip__close" data-crozzo-act="crozzoDismissConciergeStrip" title="Ocultar mensaje" aria-label="Ocultar mensaje de bienvenida">×</button></aside>'
     );
   }
 
@@ -754,7 +801,7 @@
       (tip ? '<span class="crozzo-psyche-chip__tip">' + tip + '</span>' : '') +
       (st.wins > 0 ? '<span class="crozzo-psyche-chip__wins">🏆 ' + st.wins + ' aciertos con apoyo del sistema</span>' : '') +
       '</div>' +
-      '<button type="button" class="crozzo-psyche-chip__close" onclick="CrozzoOperativePsyche.dismissChip()" title="Ocultar por esta sesión" aria-label="Ocultar">×</button></div>'
+      '<button type="button" class="crozzo-psyche-chip__close" data-crozzo-act="crozzoDismissPsycheChip" title="Ocultar por esta sesión" aria-label="Ocultar">×</button></div>'
     );
   }
 
@@ -1108,6 +1155,10 @@
       return;
     }
     global.__crozzoPsycheInitDone = true;
+    global.crozzoDismissPsycheChip = dismissChip;
+    global.crozzoDismissConciergeStrip = dismissConciergeStrip;
+    global.crozzoDismissBreakNudge = dismissBreakNudge;
+    bindPsycheDismissCapture();
     patchHumanToasts();
     applyComfortClasses();
     patchIntegrations();
@@ -1138,6 +1189,7 @@
     getWellbeingSummary: getWellbeingSummary,
     renderPsycheChip: renderPsycheChip,
     dismissChip: dismissChip,
+    dismissConciergeStrip: dismissConciergeStrip,
     maybeAffirm: maybeAffirm,
     onLoginWelcome: onLoginWelcome,
     onShiftClose: onShiftClose,

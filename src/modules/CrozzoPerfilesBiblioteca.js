@@ -374,9 +374,31 @@
     return html;
   }
 
-  function renderUsuariosPlantillasPanel() {
+  function renderUsuariosPlantillasPanel(hubMode) {
     var list = loadStaffTemplates();
     if (!list.length) return '';
+    if (hubMode) {
+      var cards = list
+        .map(function (t) {
+          return (
+            '<article class="crozzo-staff-profile-card">' +
+            '<div class="crozzo-staff-profile-card__main">' +
+            '<h4 class="crozzo-staff-profile-card__title">' +
+            esc(t.nombre) +
+            '</h4>' +
+            '<span class="crozzo-staff-badge ' +
+            (typeof global.crozzoStaffRolBadgeClass === 'function' ? global.crozzoStaffRolBadgeClass(t.rol) : '') +
+            '">' +
+            esc(t.rol) +
+            '</span></div>' +
+            '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoPerfilesBiblioteca.confirmDeleteStaff(\'' +
+            esc(t.id) +
+            '\')">Eliminar</button></article>'
+          );
+        })
+        .join('');
+      return '<div class="crozzo-staff-profiles-grid">' + cards + '</div>';
+    }
     var rows = list
       .map(function (t) {
         return (

@@ -1537,6 +1537,7 @@ function buildSyntheticUserFromProfile(profile) {
       'config_empresa',
       'config_impuestos',
       'config_comandas',
+      'config_salon',
       'config_conexiones',
       'config_facturas_admin',
       'config_usuarios',

@@ -153,6 +153,29 @@
     refreshInicioIfActive();
   }
 
+  function bindOnbDismissCapture() {
+    if (global.__crozzoOnbDismissCapture) return;
+    global.__crozzoOnbDismissCapture = true;
+    document.addEventListener(
+      'click',
+      function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        var actBtn = t.closest('[data-crozzo-act="crozzoDismissOnbBanner"]');
+        var clsBtn = t.closest('.crozzo-onb-banner__dismiss');
+        var btn = actBtn || clsBtn;
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dismissBanner();
+        if (btn.getAttribute('data-crozzo-close-modal') === '1' && typeof global.closeModal === 'function') {
+          global.closeModal();
+        }
+      },
+      true
+    );
+  }
+
   function restoreBanner() {
     try {
       localStorage.removeItem(LS_DISMISS);
@@ -855,6 +878,7 @@
       '</span></div>' +
       '<div class="crozzo-onb-banner__actions">' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openModal()">Ayuda</button>' +
+      '<button type="button" class="btn btn-outline btn-sm crozzo-onb-banner__dismiss" data-crozzo-act="crozzoDismissOnbBanner" title="Ocultar">×</button>' +
       '</div></div>' +
       (wb && wb.total > 0
         ? '<p class="form-hint" style="margin:6px 0 0;">Bienestar equipo (30d): ' + wb.pctGood + '% positivo</p>'
@@ -872,10 +896,7 @@
         return '';
       }
     }
-    if (isDismissed()) {
-      if (op.experiencia === 'novice' || op.onboarding) return renderInicioCompactHfsi();
-      return '';
-    }
+    if (isDismissed()) return '';
     var p = getProgress();
     if (p.pct >= 100) {
       return renderInicioCompactHfsi();
@@ -915,7 +936,7 @@
       '<button type="button" class="btn btn-primary btn-sm" onclick="CrozzoHelpHub.open(\'checklist\')">Checklist</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoHelpHub.open()">Centro de ayuda</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.openPerfilesModal()">Perfiles</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.dismissBanner()" title="Ocultar">×</button>' +
+      '<button type="button" class="btn btn-outline btn-sm crozzo-onb-banner__dismiss" data-crozzo-act="crozzoDismissOnbBanner" title="Ocultar">×</button>' +
       '</div></div>' +
       (pills ? '<div class="crozzo-perfil-pills">' + pills + '</div>' : '') +
       '<div class="crozzo-onb-banner__bar" aria-hidden="true"><span style="width:' +
@@ -1002,7 +1023,7 @@
       '<div class="btn-group crozzo-help-checklist__foot">' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.exportMetricsCsv()">📥 Exportar métricas</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.restoreBanner()">Mostrar banner en inicio</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOnboardingOperativo.dismissBanner()">Ocultar recordatorio</button>' +
+      '<button type="button" class="btn btn-outline btn-sm crozzo-onb-banner__dismiss" data-crozzo-act="crozzoDismissOnbBanner">Ocultar recordatorio</button>' +
       '</div>'
     );
   }
@@ -1092,7 +1113,7 @@
         '<div class="btn-group" style="justify-content:flex-end;margin-top:14px;flex-wrap:wrap;gap:8px;">' +
         '<button type="button" class="btn btn-outline" onclick="CrozzoOnboardingOperativo.exportMetricsCsv()">📥 Exportar CSV</button>' +
         '<button type="button" class="btn btn-outline" onclick="CrozzoOnboardingOperativo.restoreBanner();closeModal();">Mostrar banner</button>' +
-        '<button type="button" class="btn btn-outline" onclick="CrozzoOnboardingOperativo.dismissBanner();closeModal();">Ocultar recordatorio</button>' +
+        '<button type="button" class="btn btn-outline crozzo-onb-banner__dismiss" data-crozzo-act="crozzoDismissOnbBanner" data-crozzo-close-modal="1">Ocultar recordatorio</button>' +
         '<button type="button" class="btn btn-primary" onclick="closeModal()">Cerrar</button></div>'
     );
   }
@@ -1593,6 +1614,8 @@
   }
 
   function init() {
+    global.crozzoDismissOnbBanner = dismissBanner;
+    bindOnbDismissCapture();
     ensureTimelineStart();
     recordDailySnapshotIfNeeded();
     detectStaffRotation();

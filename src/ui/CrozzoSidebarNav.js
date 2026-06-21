@@ -15,6 +15,8 @@
   var SIDEBAR_LEAVE_DEBOUNCE_MS = 160;
   var SIDEBAR_OUTSIDE_CHECK_MS = 72;
   var SIDEBAR_TRANSITION_MS = 280;
+  var SIDEBAR_HIT_PAD_RAIL = 10;
+  var SIDEBAR_HIT_PAD_EXPANDED = 22;
   var _hoverOpenTimer = null;
   var _hoverCloseTimer = null;
   var _sidebarTransitionTimer = null;
@@ -388,7 +390,7 @@
 
   function scheduleSidebarPointerLeave() {
     cancelSidebarLeaveDebounce();
-    var debounceMs = isDesktopSidebarLayout() ? 220 : SIDEBAR_LEAVE_DEBOUNCE_MS;
+    var debounceMs = isDesktopSidebarLayout() ? 320 : SIDEBAR_LEAVE_DEBOUNCE_MS;
     _sidebarLeaveDebounce = setTimeout(function () {
       _sidebarLeaveDebounce = null;
       var sb = getSidebar();
@@ -528,18 +530,50 @@
     return SIDEBAR_TRANSITION_MS;
   }
 
+  function readSidebarWidthVar(name, fallback) {
+    try {
+      var raw = getComputedStyle(document.documentElement).getPropertyValue(name);
+      var n = parseInt(String(raw || '').trim(), 10);
+      if (n > 0) return n;
+    } catch (_) {}
+    return fallback;
+  }
+
+  /** Rectángulo de hover: ancho lógico expandido/rail + margen extra para no cerrar en transición o huecos. */
+  function getSidebarHitRect(sb) {
+    if (!sb) return null;
+    var r = sb.getBoundingClientRect();
+    var railW = readSidebarWidthVar('--sidebar-width-rail', 64);
+    var expW = readSidebarWidthVar('--sidebar-width-expanded', 260);
+    var hoverSession =
+      sb.classList.contains('crozzo-sidebar-hover-active') ||
+      (document.documentElement && document.documentElement.classList.contains('crozzo-sidebar-hover-session'));
+    var expanded = isSidebarExpanded(sb) || hoverSession;
+    var pad = expanded ? SIDEBAR_HIT_PAD_EXPANDED : SIDEBAR_HIT_PAD_RAIL;
+    var logicalW = expanded ? expW : railW;
+    var measuredW = Math.max(0, r.right - r.left);
+    var width = Math.max(logicalW, measuredW);
+    return {
+      left: r.left - pad,
+      right: r.left + width + pad,
+      top: r.top - pad,
+      bottom: r.bottom + pad,
+    };
+  }
+
   function pointerInSidebarRect(sb, x, y) {
     if (!sb || x == null || y == null) return false;
-    var r = sb.getBoundingClientRect();
-    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    var hit = getSidebarHitRect(sb);
+    if (!hit) return false;
+    return x >= hit.left && x <= hit.right && y >= hit.top && y <= hit.bottom;
   }
 
   function isSidebarHoveredOrFocused(sb, pt) {
     if (!sb) sb = getSidebar();
     if (!sb) return false;
-    if (sb.matches(':hover')) return true;
     if (pt && pointerInSidebarRect(sb, pt.x, pt.y)) return true;
     if (_lastPointer.x != null && pointerInSidebarRect(sb, _lastPointer.x, _lastPointer.y)) return true;
+    if (sb.matches(':hover')) return true;
     var active = document.activeElement;
     return !!(active && active !== document.body && sb.contains(active));
   }
@@ -1082,10 +1116,10 @@
     sb.addEventListener('focusin', function () {
       if (!shouldDisableSidebarHover()) markSidebarPointerInside(true);
     });
+    bindSidebarHoverTracking();
   }
 
   function bindSidebarHoverTracking() {
-    if (isDesktopSidebarLayout()) return;
     if (document._crozzoSidebarHoverTrack) return;
     document._crozzoSidebarHoverTrack = true;
     document.addEventListener(
@@ -1095,7 +1129,18 @@
         _lastPointer.x = e.clientX;
         _lastPointer.y = e.clientY;
         var side = getSidebar();
-        if (!side || !isSidebarExpanded(side) || shouldBlockHoverToggleGlobal(side)) return;
+        if (!side || shouldDisableSidebarHover()) return;
+        if (pointerInSidebarRect(side, e.clientX, e.clientY)) {
+          markSidebarPointerInside(true);
+          if (!isSidebarExpanded(side) && !shouldBlockHoverToggleGlobal(side)) {
+            scheduleHoverOpen();
+          }
+        }
+        var hoverActive =
+          isSidebarExpanded(side) ||
+          side.classList.contains('crozzo-sidebar-hover-active') ||
+          _sidebarPointerInside;
+        if (!hoverActive || shouldBlockHoverToggleGlobal(side)) return;
         var now = Date.now();
         if (now - _outsideCheckAt < SIDEBAR_OUTSIDE_CHECK_MS) return;
         _outsideCheckAt = now;
@@ -1179,19 +1224,21 @@
       else collapseAllGroups(false);
     }
 
-    if (!isDesktopSidebarLayout() && !shouldDisableSidebarHover()) {
-      sb.addEventListener('pointerenter', onSidebarPointerEnter);
-      sb.addEventListener('pointerleave', onSidebarPointerLeave);
-      sb.addEventListener(
-        'pointerdown',
-        function () {
+    if (!shouldDisableSidebarHover()) {
+      if (!isDesktopSidebarLayout()) {
+        sb.addEventListener('pointerenter', onSidebarPointerEnter);
+        sb.addEventListener('pointerleave', onSidebarPointerLeave);
+        sb.addEventListener(
+          'pointerdown',
+          function () {
+            markSidebarPointerInside(true);
+          },
+          true
+        );
+        sb.addEventListener('focusin', function () {
           markSidebarPointerInside(true);
-        },
-        true
-      );
-      sb.addEventListener('focusin', function () {
-        markSidebarPointerInside(true);
-      });
+        });
+      }
       bindSidebarHoverTracking();
     }
     if (isDrawerNavMode()) {
