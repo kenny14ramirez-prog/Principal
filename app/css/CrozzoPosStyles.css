@@ -8944,6 +8944,61 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
   border-color: rgba(239, 68, 68, 0.45);
   background: linear-gradient(160deg, rgba(239, 68, 68, 0.12), var(--bg-card));
 }
+.crozzo-rest-slot--en-uso {
+  border-color: rgba(245, 158, 11, 0.65);
+  background: linear-gradient(160deg, rgba(245, 158, 11, 0.22), var(--bg-card));
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35);
+  animation: crozzo-rest-slot-en-uso-pulse 2.5s ease-in-out infinite;
+}
+@keyframes crozzo-rest-slot-en-uso-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35); }
+  50% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.48); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-rest-slot--en-uso {
+    animation: none;
+  }
+}
+.crozzo-rest-slot--session-peer {
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+}
+.crozzo-rest-slot--session-mine {
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
+}
+.crozzo-rest-slot__device {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.18);
+  color: rgb(59, 130, 246);
+  pointer-events: none;
+}
+.crozzo-rest-slot--session-peer .crozzo-rest-slot__device {
+  background: rgba(245, 158, 11, 0.2);
+  color: rgb(245, 158, 11);
+}
+.crozzo-rest-slot__device [data-lucide] {
+  width: 15px;
+  height: 15px;
+}
+.crozzo-rest-slot__hint {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--warning, #f59e0b);
+  margin-top: 2px;
+}
+.crozzo-tablet-slots .crozzo-rest-pos__slots {
+  margin: 0;
+}
 .crozzo-rest-pos__picker-foot {
   display: flex;
   justify-content: flex-end;
@@ -42528,6 +42583,61 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
   border-color: rgba(239, 68, 68, 0.45);
   background: linear-gradient(160deg, rgba(239, 68, 68, 0.12), var(--bg-card));
 }
+.crozzo-rest-slot--en-uso {
+  border-color: rgba(245, 158, 11, 0.65);
+  background: linear-gradient(160deg, rgba(245, 158, 11, 0.22), var(--bg-card));
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35);
+  animation: crozzo-rest-slot-en-uso-pulse 2.5s ease-in-out infinite;
+}
+@keyframes crozzo-rest-slot-en-uso-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35); }
+  50% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.48); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-rest-slot--en-uso {
+    animation: none;
+  }
+}
+.crozzo-rest-slot--session-peer {
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+}
+.crozzo-rest-slot--session-mine {
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
+}
+.crozzo-rest-slot__device {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.18);
+  color: rgb(59, 130, 246);
+  pointer-events: none;
+}
+.crozzo-rest-slot--session-peer .crozzo-rest-slot__device {
+  background: rgba(245, 158, 11, 0.2);
+  color: rgb(245, 158, 11);
+}
+.crozzo-rest-slot__device [data-lucide] {
+  width: 15px;
+  height: 15px;
+}
+.crozzo-rest-slot__hint {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--warning, #f59e0b);
+  margin-top: 2px;
+}
+.crozzo-tablet-slots .crozzo-rest-pos__slots {
+  margin: 0;
+}
 .crozzo-rest-pos__picker-foot {
   display: flex;
   justify-content: flex-end;
@@ -72006,6 +72116,182 @@ body.crozzo-page-operativa.crozzo-pantallas-kiosk .crozzo-help-fab {
 }
 .mesa-card.crozzo-slot--solo-numero .mesa-card-name:empty {
   min-height: 1.2em;
+}
+.crozzo-rest-slot.crozzo-slot--solo-numero .crozzo-rest-slot__name:empty {
+  min-height: 1.2em;
+}
+.crozzo-rest-slot.crozzo-slot--solo-numero .crozzo-rest-slot__state {
+  font-size: 0.7rem;
+}
+
+/* Ocupación en vivo — mesa / tablet / PC */
+.crozzo-rest-slot--has-occupant {
+  min-height: 108px;
+}
+.crozzo-rest-slot--occupied-peer {
+  border-width: 2px;
+  box-shadow: 0 8px 22px rgba(245, 158, 11, 0.14);
+}
+.crozzo-rest-slot--occupied-mine {
+  border-width: 2px;
+  box-shadow: 0 8px 22px rgba(59, 130, 246, 0.14);
+}
+.crozzo-rest-slot__occupant {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.04);
+  animation: crozzo-slot-occupant-in 0.35s ease-out;
+}
+@keyframes crozzo-slot-occupant-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-rest-slot__occupant {
+    animation: none;
+  }
+}
+.crozzo-rest-slot__occupant--peer {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(245, 158, 11, 0.06));
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.crozzo-rest-slot__occupant--mine {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(59, 130, 246, 0.06));
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.crozzo-rest-slot__occupant-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(145deg, #f59e0b, #d97706);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+.crozzo-rest-slot__occupant--mine .crozzo-rest-slot__occupant-avatar {
+  background: linear-gradient(145deg, #3b82f6, #2563eb);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+.crozzo-rest-slot__occupant-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.crozzo-rest-slot__occupant-status {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(245, 158, 11);
+}
+.crozzo-rest-slot__occupant--mine .crozzo-rest-slot__occupant-status {
+  color: rgb(59, 130, 246);
+}
+.crozzo-rest-slot__occupant-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crozzo-rest-slot__occupant-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+.crozzo-rest-slot__occupant-meta [data-lucide] {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.crozzo-rest-slot__occupant-live {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(245, 158, 11);
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55);
+  animation: crozzo-slot-live-pulse 1.8s ease-in-out infinite;
+}
+.crozzo-rest-slot__occupant--mine .crozzo-rest-slot__occupant-live {
+  background: rgb(59, 130, 246);
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55);
+  animation-name: crozzo-slot-live-pulse-blue;
+}
+@keyframes crozzo-slot-live-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+}
+@keyframes crozzo-slot-live-pulse-blue {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45); }
+  50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0); }
+}
+.crozzo-rest-session-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(59, 130, 246, 0.05));
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: var(--text-secondary);
+  max-width: 100%;
+}
+.crozzo-rest-session-chip--mine {
+  position: relative;
+}
+.crozzo-rest-session-chip__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(59, 130, 246);
+  flex-shrink: 0;
+  animation: crozzo-slot-live-pulse-blue 1.8s ease-in-out infinite;
+}
+.crozzo-rest-session-chip [data-lucide] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: rgb(59, 130, 246);
+}
+.crozzo-rest-session-chip__text {
+  min-width: 0;
+}
+.crozzo-rest-session-chip__text strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.crozzo-rest-pos__catalog-ctx .crozzo-rest-session-chip {
+  margin-top: 0;
+}
+.crozzo-tablet-page__header .crozzo-rest-session-chip {
+  margin-top: 4px;
 }
 
 /* === Staff Access Hub (Usuarios y permisos) === */

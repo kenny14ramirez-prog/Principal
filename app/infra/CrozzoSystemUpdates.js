@@ -441,11 +441,22 @@
         return false;
       }
       return runCriticalInstall(entry)
-        .then(function () {
+        .then(function (res) {
+          if (res && (res.exiting || res.installed)) {
+            clearPendingRestartInstall();
+            return true;
+          }
           clearPendingRestartInstall();
-          return true;
+          releaseDesktopUpdateToLogin(entry, null, 'pending_install_incomplete');
+          return false;
         })
-        .catch(function () {
+        .catch(function (err) {
+          clearPendingRestartInstall();
+          releaseDesktopUpdateToLogin(
+            entry,
+            humanizeInstallError(err),
+            'pending_install_failed'
+          );
           return false;
         });
     });
@@ -1049,11 +1060,10 @@
   }
 
   /**
-   * Escritorio: puede bloquear login con pantalla OTA al arranque.
-   * Android APK: nunca bloquear — el usuario debe poder entrar (p. ej. Super Admin → forzar).
+   * Nunca bloquear login al arranque: APK y Windows/Mac intentan OTA en segundo plano (fail-open).
    */
   function shouldBlockBootLoginForUpdates() {
-    return !canInstallApkInAppNow();
+    return false;
   }
 
   function deferAndroidCriticalUntilAfterLogin(entry, opts) {
@@ -1087,6 +1097,31 @@
           'info'
         );
       } catch (_) {}
+    }
+  }
+
+  /** Escritorio al arranque: OTA falló o sigue en GitHub — login siempre disponible. */
+  function releaseDesktopUpdateToLogin(entry, message, reason) {
+    entry = entry || _pendingCriticalEntry;
+    _installInProgress = false;
+    _criticalInstallState = 'idle';
+    hideBootUpdateGate();
+    setCriticalOpen(false);
+    closeInstallOverlay();
+    syncLoginUpdateBanner({
+      mode: 'critical',
+      entry: entry,
+      message:
+        message ||
+        (entry
+          ? 'Versión ' +
+            normEntryVersion(entry) +
+            ' pendiente. Puede iniciar sesión; Super Admin puede forzarla en Actualizaciones.'
+          : 'Actualización pendiente. Puede iniciar sesión.'),
+      force: true,
+    });
+    if (!_bootUpdatesReady) {
+      finishBootUpdatePipeline({ ok: true, reason: reason || 'desktop_fail_open' });
     }
   }
 
@@ -1133,6 +1168,17 @@
         _criticalInstallState = 'idle';
         scheduleCriticalInstallWhenIdle(entry);
         return Promise.resolve({ deferred: true, androidIdle: true });
+      }
+      return runCriticalInstall(entry);
+    }
+    var profile = getUpdateClientProfile();
+    if (profile.isDesktopBinary && otaAutoInstallAllowed()) {
+      if (!shouldRunCriticalInstallNow()) {
+        _pendingCriticalEntry = entry;
+        _currentCriticalId = entryId(entry);
+        _criticalInstallState = 'idle';
+        scheduleCriticalInstallWhenIdle(entry);
+        return Promise.resolve({ deferred: true, desktopIdle: true });
       }
       return runCriticalInstall(entry);
     }
@@ -4144,12 +4190,20 @@
       scheduleCriticalInstallWhenIdle(entry);
       return Promise.resolve({ deferred: true, androidIdle: true });
     }
-    _criticalInstallState = 'downloading';
-    _criticalDownloadSilent = true;
+    _criticalInstallState = 'idle';
+    _criticalDownloadSilent = false;
     setCriticalOpen(false);
     hideBootUpdateGate();
     var remote = normEntryVersion(entry);
-    setCheckStatus('Verificando instalador ' + remote + ' en GitHub…');
+    setCheckStatus('Esperando instalador ' + remote + ' en GitHub…');
+    syncLoginUpdateBanner({
+      mode: 'checking',
+      message:
+        'Instalador ' +
+        remote +
+        ' aún no listo en GitHub. Reintento automático en ~1 min (puede iniciar sesión).',
+      force: true,
+    });
     if (!opts.quiet && typeof global.showToast === 'function') {
       try {
         global.showToast(
@@ -4158,7 +4212,12 @@
         );
       } catch (_) {}
     }
-    return startCriticalUpdateDelivery(entry, { silent: true });
+    if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
+    _criticalRetryTimer = setTimeout(function () {
+      _criticalRetryTimer = null;
+      startCriticalUpdateDelivery(entry, { silent: true });
+    }, 90000);
+    return Promise.resolve({ deferred: true, waitingRelease: true });
   }
 
   /** Tras login: instalar críticas pendientes (paridad tauri dev — no bloquear arranque). */
@@ -4358,18 +4417,31 @@
                 });
               return { ok: true, criticalBoot: true, androidNonBlocking: true };
             }
-            setBootGateMessage(
-              'Comprobando instalador ' + normEntryVersion(critEntry) + ' en GitHub…'
-            );
-            return probeCriticalReleaseReady(critEntry, BOOT_RELEASE_PROBE_MS).then(function (ready) {
-              if (!ready) {
-                releaseBootToLoginWhilePreparing(critEntry, 'github_building');
-                return { ok: true, criticalBoot: true, releaseNotReady: true };
-              }
-              return startCriticalDownloadForRestart(critEntry, { silent: false }).then(function (res) {
-                return { ok: true, criticalBoot: true, res: res };
-              });
+            syncLoginUpdateBanner({
+              mode: 'busy',
+              entry: critEntry,
+              message: 'Intentando actualizar a ' + normEntryVersion(critEntry) + '…',
+              force: true,
             });
+            beginCriticalEntryInstall(critEntry, {
+              returnPromise: true,
+              forceAuto: true,
+              skipInfoDelay: true,
+            })
+              .then(function (res) {
+                if (res && res.exiting) return;
+                if (_criticalInstallState === 'failed') {
+                  releaseDesktopUpdateToLogin(critEntry, null, 'boot_install_failed');
+                }
+              })
+              .catch(function (err) {
+                releaseDesktopUpdateToLogin(
+                  critEntry,
+                  humanizeInstallError(err),
+                  'boot_install_error'
+                );
+              });
+            return { ok: true, criticalBoot: true, desktopNonBlocking: true };
           }
           var optionalOnly = pending.filter(function (e) {
             return !isCriticalEntry(e);
@@ -4675,7 +4747,11 @@
             scheduleCriticalInstallWhenIdle(entry);
             return;
           }
-          return deferCriticalUntilReleaseReady(entry);
+          deferCriticalUntilReleaseReady(entry, { quiet: crozzoUpdateIsPreLogin() });
+          if (crozzoUpdateIsPreLogin() && !_bootUpdatesReady) {
+            finishBootUpdatePipeline({ ok: true, reason: 'release_not_ready' });
+          }
+          return;
         }
         _criticalAutoAttempts += 1;
         var msg = humanizeInstallError(err);
@@ -4690,6 +4766,8 @@
         _installInProgress = false;
         if (canInstallApkInAppNow() && crozzoUpdateIsPreLogin()) {
           releaseAndroidUpdateToLogin(entry, msg, 'boot_install_failed');
+        } else if (crozzoUpdateIsPreLogin() && getUpdateClientProfile().isDesktopBinary) {
+          releaseDesktopUpdateToLogin(entry, msg, 'boot_install_failed');
         } else if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
           setCriticalOpen(false);
           if (typeof global.showToast === 'function') {
