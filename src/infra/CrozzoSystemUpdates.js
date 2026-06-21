@@ -77,6 +77,8 @@
   var _optionalWizard = { step: 0, steps: [], entry: null };
   var _deferredAndroidCritical = null;
   var _criticalDownloadSilent = false;
+  var _criticalInfoCardShownSession = false;
+  var _optionalPostLoginCardShownSession = false;
 
   function requestUpdateAbort() {
     global.__CROZZO_UPDATE_USER_ABORT__ = true;
@@ -150,10 +152,11 @@
       });
     }
     if (profile.canAutoInstall && TU && usesDesktopPendingRestartFlow()) {
+      var preLoginWait = crozzoUpdateIsPreLogin() ? 25000 : 90000;
       var resolveFn =
         typeof TU.waitUntilReleaseReady === 'function'
           ? function () {
-              return TU.waitUntilReleaseReady(remote, onProgress, 90000);
+              return TU.waitUntilReleaseReady(remote, onProgress, preLoginWait);
             }
           : function () {
               return TU.resolveReleaseInstallTarget
@@ -196,9 +199,11 @@
     } else {
       hideBootUpdateGate();
     }
-    if (!_criticalDownloadSilent) {
+    if (!_criticalDownloadSilent && !crozzoUpdateIsPreLogin()) {
       setCriticalOpen(true);
       populateCriticalInfo('downloading');
+    } else {
+      setCriticalOpen(false);
     }
     syncLoginUpdateBanner({ mode: 'busy', entry: entry, message: _installUi.message });
     setCheckStatus('Descargando actualización crítica ' + normEntryVersion(entry) + '…');
@@ -207,7 +212,8 @@
       if (p.phase) _installUi.phase = p.phase;
       if (typeof p.percent === 'number') _installUi.percent = p.percent;
       if (p.message) _installUi.message = p.message;
-      populateCriticalInfo('downloading');
+      if (preLogin && p.message) setBootGateMessage(p.message);
+      if (!crozzoUpdateIsPreLogin()) populateCriticalInfo('downloading');
       renderCriticalMiniProgress();
     })
       .then(function (meta) {
@@ -434,32 +440,15 @@
           return false;
         });
     }
-    return probeCriticalReleaseReady(entry, BOOT_RELEASE_PROBE_MS).then(function (ready) {
-      if (!ready) {
-        clearPendingRestartInstall();
-        releaseBootToLoginWhilePreparing(entry, 'pending_invalid');
-        return false;
-      }
-      return runCriticalInstall(entry)
-        .then(function (res) {
-          if (res && (res.exiting || res.installed)) {
-            clearPendingRestartInstall();
-            return true;
-          }
-          clearPendingRestartInstall();
-          releaseDesktopUpdateToLogin(entry, null, 'pending_install_incomplete');
-          return false;
-        })
-        .catch(function (err) {
-          clearPendingRestartInstall();
-          releaseDesktopUpdateToLogin(
-            entry,
-            humanizeInstallError(err),
-            'pending_install_failed'
-          );
-          return false;
-        });
+    clearPendingRestartInstall();
+    syncLoginUpdateBanner({
+      mode: 'busy',
+      entry: entry,
+      message: 'Instalando ' + normEntryVersion(entry) + '…',
+      force: true,
     });
+    runCriticalInstall(entry).catch(function () {});
+    return Promise.resolve(true);
   }
 
   var INSTALL_STEPS = [
@@ -801,6 +790,7 @@
   }
 
   function shouldShowCriticalOverlay(entry) {
+    if (crozzoUpdateIsPreLogin() || isDesktopBinaryClient()) return false;
     if (_criticalInstallState === 'downloading' && _criticalDownloadSilent) return false;
     if (_criticalInstallState === 'pending_restart') return !isCriticalOverlayAcked(entry);
     return true;
@@ -1059,11 +1049,78 @@
     );
   }
 
-  /**
-   * Nunca bloquear login al arranque: APK y Windows/Mac intentan OTA en segundo plano (fail-open).
-   */
+  /** Nunca pantalla completa al arranque: solo banner pequeño en login; APK y Windows igual. */
   function shouldBlockBootLoginForUpdates() {
     return false;
+  }
+
+  function isDesktopBinaryClient() {
+    var p = getUpdateClientProfile();
+    return !!(p.isDesktopBinary || p.isWindows || p.isMac);
+  }
+
+  /** Escritorio: falló OTA al arranque — login libre, reintento en segundo plano. */
+  function releaseDesktopUpdateToLogin(entry, message, reason) {
+    entry = entry || _pendingCriticalEntry;
+    _installInProgress = false;
+    _criticalInstallState = 'idle';
+    hideBootUpdateGate();
+    setCriticalOpen(false);
+    closeInstallOverlay();
+    syncLoginUpdateBanner({
+      mode: 'critical',
+      entry: entry,
+      message:
+        message ||
+        (entry
+          ? 'Actualización ' +
+            normEntryVersion(entry) +
+            ' pendiente. Puede iniciar sesión; se reintentará sola.'
+          : 'Puede iniciar sesión.'),
+      force: true,
+    });
+    if (!_bootUpdatesReady) {
+      finishBootUpdatePipeline({ ok: true, reason: reason || 'desktop_fail_open' });
+    }
+  }
+
+  /** Windows/Mac al arranque: banner + instalar ya (segundos), sin modales ni esperas largas. */
+  function beginDesktopBootCriticalInstall(entry) {
+    if (!entry) return;
+    var ver = normEntryVersion(entry);
+    _pendingCriticalEntry = entry;
+    _currentCriticalId = entryId(entry);
+    hideBootUpdateGate();
+    setCriticalOpen(false);
+    syncLoginUpdateBanner({
+      mode: 'busy',
+      entry: entry,
+      message: 'Instalando ' + ver + '…',
+      force: true,
+    });
+    runCriticalInstall(entry)
+      .then(function (res) {
+        if (res && res.exiting) return;
+        if (_criticalInstallState === 'failed') {
+          releaseDesktopUpdateToLogin(entry, null, 'boot_install_failed');
+        }
+      })
+      .catch(function (err) {
+        if (isReleaseNotReadyError(err)) {
+          releaseDesktopUpdateToLogin(
+            entry,
+            'Instalador ' + ver + ' aún no en GitHub. Puede ingresar; reintento en 2 min.',
+            'release_not_ready'
+          );
+          if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
+          _criticalRetryTimer = setTimeout(function () {
+            _criticalRetryTimer = null;
+            beginDesktopBootCriticalInstall(entry);
+          }, 120000);
+          return;
+        }
+        releaseDesktopUpdateToLogin(entry, humanizeInstallError(err), 'boot_install_error');
+      });
   }
 
   function deferAndroidCriticalUntilAfterLogin(entry, opts) {
@@ -1100,31 +1157,6 @@
     }
   }
 
-  /** Escritorio al arranque: OTA falló o sigue en GitHub — login siempre disponible. */
-  function releaseDesktopUpdateToLogin(entry, message, reason) {
-    entry = entry || _pendingCriticalEntry;
-    _installInProgress = false;
-    _criticalInstallState = 'idle';
-    hideBootUpdateGate();
-    setCriticalOpen(false);
-    closeInstallOverlay();
-    syncLoginUpdateBanner({
-      mode: 'critical',
-      entry: entry,
-      message:
-        message ||
-        (entry
-          ? 'Versión ' +
-            normEntryVersion(entry) +
-            ' pendiente. Puede iniciar sesión; Super Admin puede forzarla en Actualizaciones.'
-          : 'Actualización pendiente. Puede iniciar sesión.'),
-      force: true,
-    });
-    if (!_bootUpdatesReady) {
-      finishBootUpdatePipeline({ ok: true, reason: reason || 'desktop_fail_open' });
-    }
-  }
-
   /** APK al arranque: intentó instalar pero falló o no completó — login siempre disponible. */
   function releaseAndroidUpdateToLogin(entry, message, reason) {
     entry = entry || _pendingCriticalEntry;
@@ -1156,11 +1188,29 @@
   }
 
   /**
-   * Entrega crítica según plataforma: APK abre el instalador Android; escritorio prepara reinicio.
+   * Entrega crítica según plataforma.
+   * Post-login: nunca bloquea. Descarga en background y muestra card ameno de aviso.
+   * Pre-login: banner pequeño + descarga silenciosa, login libre siempre.
    */
   function startCriticalUpdateDelivery(entry, opts) {
     opts = opts || {};
     if (!entry) return Promise.resolve({ skipped: true });
+
+    var postLogin = !crozzoUpdateIsPreLogin();
+
+    /* Post-login: card ameno + descarga silenciosa en background — no bloquea nada */
+    if (postLogin && !opts.silent) {
+      _pendingCriticalEntry = entry;
+      _currentCriticalId = entryId(entry);
+      /* Mostrar el card ameno informativo */
+      setTimeout(function () {
+        try { showCriticalInfoCard(entry); } catch (_) {}
+      }, 800);
+      /* Disparar descarga silenciosa en background */
+      startCriticalDownloadForRestart(entry, { silent: true }).catch(function () {});
+      return Promise.resolve({ ok: true, amiableCard: true });
+    }
+
     if (canInstallApkInAppNow()) {
       if (!shouldRunCriticalInstallNow()) {
         _pendingCriticalEntry = entry;
@@ -1171,8 +1221,7 @@
       }
       return runCriticalInstall(entry);
     }
-    var profile = getUpdateClientProfile();
-    if (profile.isDesktopBinary && otaAutoInstallAllowed()) {
+    if (isDesktopBinaryClient() && otaAutoInstallAllowed()) {
       if (!shouldRunCriticalInstallNow()) {
         _pendingCriticalEntry = entry;
         _currentCriticalId = entryId(entry);
@@ -1428,7 +1477,7 @@
         msgEl.textContent =
           opts.message ||
           _installUi.message ||
-          'Descargando actualización crítica ' + ver + '. No cierre la aplicación.';
+          'Instalando ' + ver + '…';
       }
       return;
     }
@@ -3832,6 +3881,8 @@
       document.body.classList.remove('crozzo-boot-updates-active');
     } catch (_) {}
     hideBootUpdateGate();
+    setCriticalOpen(false);
+    closeInstallOverlay();
     syncLoginUpdateBanner();
     var waiters = _bootReadyWaiters.slice();
     _bootReadyWaiters = [];
@@ -4006,6 +4057,8 @@
     }
     _criticalInstallState = 'idle';
     _installInProgress = false;
+    setCriticalOpen(false);
+    closeInstallOverlay();
     updateBootGateSkipButton({ show: true });
     syncLoginUpdateBanner({
       mode: 'checking',
@@ -4065,7 +4118,7 @@
     }
     setTimeout(function () {
       updateBootGateSkipButton({ show: true });
-    }, 5000);
+    }, 1500);
   }
 
   function hideBootUpdateGate() {
@@ -4190,20 +4243,12 @@
       scheduleCriticalInstallWhenIdle(entry);
       return Promise.resolve({ deferred: true, androidIdle: true });
     }
-    _criticalInstallState = 'idle';
-    _criticalDownloadSilent = false;
+    _criticalInstallState = 'downloading';
+    _criticalDownloadSilent = true;
     setCriticalOpen(false);
     hideBootUpdateGate();
     var remote = normEntryVersion(entry);
-    setCheckStatus('Esperando instalador ' + remote + ' en GitHub…');
-    syncLoginUpdateBanner({
-      mode: 'checking',
-      message:
-        'Instalador ' +
-        remote +
-        ' aún no listo en GitHub. Reintento automático en ~1 min (puede iniciar sesión).',
-      force: true,
-    });
+    setCheckStatus('Verificando instalador ' + remote + ' en GitHub…');
     if (!opts.quiet && typeof global.showToast === 'function') {
       try {
         global.showToast(
@@ -4212,12 +4257,7 @@
         );
       } catch (_) {}
     }
-    if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
-    _criticalRetryTimer = setTimeout(function () {
-      _criticalRetryTimer = null;
-      startCriticalUpdateDelivery(entry, { silent: true });
-    }, 90000);
-    return Promise.resolve({ deferred: true, waitingRelease: true });
+    return startCriticalUpdateDelivery(entry, { silent: true });
   }
 
   /** Tras login: instalar críticas pendientes (paridad tauri dev — no bloquear arranque). */
@@ -4257,24 +4297,15 @@
           }
           return;
         }
-        if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
-          _pendingCriticalEntry = entry;
-          _currentCriticalId = entryId(entry);
-          notifyCriticalWaitingForIdle(entry);
-          wirePosIdleListener();
-          scheduleCriticalInstallWhenIdle(entry);
-          return;
-        }
-        var profile = getUpdateClientProfile();
-        if (shouldDeferCriticalAutoOnBoot(profile)) {
-          beginCriticalEntryInstall(entry, { returnPromise: true, forceAuto: false, deferOverlay: true });
-          return;
-        }
-        beginCriticalEntryInstall(entry, {
-          returnPromise: true,
-          forceAuto: false,
-          deferOverlay: false,
-        });
+        /* Post-login: NUNCA cerrar la app automáticamente sin que el usuario lo confirme.
+           Descarga silenciosa en background + card ameno informativo. El usuario cierra
+           la app cuando él quiera; al reabrir se aplica la actualización. */
+        _pendingCriticalEntry = entry;
+        _currentCriticalId = entryId(entry);
+        startCriticalDownloadForRestart(entry, { silent: true }).catch(function () {});
+        setTimeout(function () {
+          try { showCriticalInfoCard(entry); } catch (_) {}
+        }, 900);
       });
     }
 
@@ -4417,30 +4448,7 @@
                 });
               return { ok: true, criticalBoot: true, androidNonBlocking: true };
             }
-            syncLoginUpdateBanner({
-              mode: 'busy',
-              entry: critEntry,
-              message: 'Intentando actualizar a ' + normEntryVersion(critEntry) + '…',
-              force: true,
-            });
-            beginCriticalEntryInstall(critEntry, {
-              returnPromise: true,
-              forceAuto: true,
-              skipInfoDelay: true,
-            })
-              .then(function (res) {
-                if (res && res.exiting) return;
-                if (_criticalInstallState === 'failed') {
-                  releaseDesktopUpdateToLogin(critEntry, null, 'boot_install_failed');
-                }
-              })
-              .catch(function (err) {
-                releaseDesktopUpdateToLogin(
-                  critEntry,
-                  humanizeInstallError(err),
-                  'boot_install_error'
-                );
-              });
+            beginDesktopBootCriticalInstall(critEntry);
             return { ok: true, criticalBoot: true, desktopNonBlocking: true };
           }
           var optionalOnly = pending.filter(function (e) {
@@ -4620,6 +4628,12 @@
     _criticalAutoAttempts = _criticalAutoAttempts || 0;
     var remote = entry.version || 'v' + (entry.semver || '');
     var changes = normalizeEntryChangelog(entry);
+    UPDATE_CRITICAL_INSTALLED = {
+      version: remote,
+      previous: VERSION,
+      date: formatManifestDate(entry.publishedAt),
+      installed: changes,
+    };
     _installInProgress = true;
     _criticalInstallState = 'installing';
     setNormalOpen(false);
@@ -4634,42 +4648,36 @@
     _installUi.percent = 0;
     _installUi.message = 'Preparando instalación crítica…';
     if (crozzoUpdateIsPreLogin()) {
-      if (shouldBlockBootLoginForUpdates()) {
-        showBootUpdateGate();
-        setBootGateMessage('Instalando actualización crítica ' + remote + '…');
-      }
-      syncLoginUpdateBanner({ mode: 'busy', entry: entry });
+      setCriticalOpen(false);
+      hideBootUpdateGate();
+      syncLoginUpdateBanner({ mode: 'busy', entry: entry, message: 'Instalando ' + remote + '…' });
+    } else if (isDesktopBinaryClient()) {
+      hideBootUpdateGate();
+      setCriticalOpen(false);
+      syncLoginUpdateBanner({ mode: 'busy', entry: entry, message: 'Instalando ' + remote + '…', force: true });
     } else {
       hideBootUpdateGate();
-    }
-    if (!crozzoUpdateIsPreLogin()) {
       setCriticalOpen(true);
       populateCriticalInfo('installing');
-    } else if (shouldBlockBootLoginForUpdates()) {
-      setCriticalOpen(true);
-      populateCriticalInfo('installing');
-    } else {
-      setCriticalOpen(false);
     }
     setCheckStatus('Actualizando ' + remote + '…');
 
     var profile = getUpdateClientProfile();
-    if (shouldBlockBootLoginForUpdates()) {
-      setBootGateMessage(
-        'Instalando ' +
-          normEntryVersion({ version: remote }) +
-          ' para ' +
-          (profile.artifactLabel || getPlatformUpdateDescriptor()) +
-          '…'
-      );
-    }
-    return applyClientUpdate(remote, null, {
+    return applyClientUpdate(
+      remote,
+      function (p) {
+        if (p && p.message && (crozzoUpdateIsPreLogin() || isDesktopBinaryClient())) {
+          _installUi.message = p.message;
+          syncLoginUpdateBanner({ mode: 'busy', entry: entry, message: p.message, force: true });
+        }
+      },
+      {
       silent: true,
       automaticOnly: true,
       allowSilentSetup: profile.isWindows || profile.isMac,
       preferSilentSetup: profile.isWindows,
-      skipReleaseWait: false,
-      maxWaitMs: 90000,
+      skipReleaseWait: true,
+      maxWaitMs: 15000,
     })
       .then(function (res) {
         if (res && res.exiting && (res.plan === 'C' || res.plan === 'D' || res.plan === 'web_reload')) {
@@ -4747,11 +4755,20 @@
             scheduleCriticalInstallWhenIdle(entry);
             return;
           }
-          deferCriticalUntilReleaseReady(entry, { quiet: crozzoUpdateIsPreLogin() });
-          if (crozzoUpdateIsPreLogin() && !_bootUpdatesReady) {
-            finishBootUpdatePipeline({ ok: true, reason: 'release_not_ready' });
+          if (isDesktopBinaryClient() && crozzoUpdateIsPreLogin()) {
+            releaseDesktopUpdateToLogin(
+              entry,
+              'Instalador aún no en GitHub. Puede ingresar; reintento en 2 min.',
+              'release_not_ready'
+            );
+            if (_criticalRetryTimer) clearTimeout(_criticalRetryTimer);
+            _criticalRetryTimer = setTimeout(function () {
+              _criticalRetryTimer = null;
+              beginDesktopBootCriticalInstall(entry);
+            }, 120000);
+            return;
           }
-          return;
+          return deferCriticalUntilReleaseReady(entry);
         }
         _criticalAutoAttempts += 1;
         var msg = humanizeInstallError(err);
@@ -4766,7 +4783,7 @@
         _installInProgress = false;
         if (canInstallApkInAppNow() && crozzoUpdateIsPreLogin()) {
           releaseAndroidUpdateToLogin(entry, msg, 'boot_install_failed');
-        } else if (crozzoUpdateIsPreLogin() && getUpdateClientProfile().isDesktopBinary) {
+        } else if (isDesktopBinaryClient() && crozzoUpdateIsPreLogin()) {
           releaseDesktopUpdateToLogin(entry, msg, 'boot_install_failed');
         } else if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
           setCriticalOpen(false);
@@ -4893,8 +4910,12 @@
         if (opts.returnPromise) return androidBootP;
         return true;
       }
-      setCriticalOpen(true);
-      populateCriticalInfo('info');
+      if (!crozzoUpdateIsPreLogin()) {
+        setCriticalOpen(true);
+        populateCriticalInfo('info');
+      } else {
+        setCriticalOpen(false);
+      }
       var forceP = delay(opts.skipInfoDelay ? 0 : CRITICAL_INFO_DELAY_MS).then(function () {
         populateCriticalInfo('installing');
         return runCriticalInstall(entry);
@@ -4996,19 +5017,11 @@
       );
       return true;
     }
-    // Opcionales: en APK nativa instalar al momento si no hay operación en curso.
-    if (canInstallApkInAppNow() && !crozzoUpdateUserBusy() && !posIsOperationBusy()) {
-      installOptionalNowAtStartup(entry);
-      return true;
-    }
-    if (crozzoUpdateUserBusy() || posIsOperationBusy()) {
-      setNormalOpen(true);
-      setNormalBannerMessage();
-      return true;
-    }
-    openOptionalWizard(entry);
-    setNormalOpen(true);
-    setNormalBannerMessage();
+    /* Post-login: card elegante ameno — no bloquea, el usuario decide cuando quiera */
+    setTimeout(function () {
+      try { showOptionalPostLoginCard(entry); } catch (_) {}
+    }, 1200);
+    setCheckStatus('Mejora ' + remote + ' disponible. El asistente se muestra en breve.');
     return true;
   }
 
@@ -5767,6 +5780,209 @@
     });
   }
 
+  /* ─── Nuevo overlay ameno: notificación post-login de actualización crítica ─── */
+
+  function ensureCriticalInfoCard() {
+    var id = 'crozzo-critical-info-card';
+    var el = document.getElementById(id);
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = id;
+    el.className = 'crozzo-critical-info-card';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'false');
+    el.setAttribute('aria-labelledby', 'crozzoCritInfoTitle');
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML =
+      '<div class="crozzo-critical-info-card__inner">' +
+      '<div class="crozzo-critical-info-card__stripe" aria-hidden="true"></div>' +
+      '<div class="crozzo-critical-info-card__body">' +
+      '<div class="crozzo-critical-info-card__icon" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>' +
+      '</div>' +
+      '<div class="crozzo-critical-info-card__text">' +
+      '<h3 id="crozzoCritInfoTitle" class="crozzo-critical-info-card__title">Nueva versión disponible</h3>' +
+      '<p id="crozzoCritInfoMsg" class="crozzo-critical-info-card__msg">Ya estoy descargando la actualización en segundo plano. Cuando reinicies la app se aplica sola — no tienes que hacer nada.</p>' +
+      '<p id="crozzoCritInfoVersion" class="crozzo-critical-info-card__version"></p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="crozzo-critical-info-card__actions">' +
+      '<button type="button" id="crozzoCritInfoDismiss" class="crozzo-critical-info-card__btn">Entendido, seguir trabajando →</button>' +
+      '</div>' +
+      '</div>';
+    document.body.appendChild(el);
+    var btn = document.getElementById('crozzoCritInfoDismiss');
+    if (btn && !btn._crozzoBound) {
+      btn._crozzoBound = true;
+      btn.addEventListener('click', function () {
+        closeCriticalInfoCard();
+      });
+    }
+    return el;
+  }
+
+  function showCriticalInfoCard(entry) {
+    if (_criticalInfoCardShownSession) return;
+    _criticalInfoCardShownSession = true;
+    var card = ensureCriticalInfoCard();
+    var msgEl = document.getElementById('crozzoCritInfoMsg');
+    var verEl = document.getElementById('crozzoCritInfoVersion');
+    var ver = entry ? normEntryVersion(entry) : VERSION_AVAIL;
+    var profile = getUpdateClientProfile();
+    var how = canInstallApkInAppNow()
+      ? 'Cuando tú cierres y vuelvas a abrir la app, se instala sola — nada se interrumpe.'
+      : profile.isDesktopBinary
+        ? 'Cuando tú decidas cerrar la app y volver a abrirla, se aplica automáticamente.'
+        : 'Se aplica la próxima vez que recargues la interfaz, cuando tú quieras.';
+    if (msgEl) {
+      msgEl.textContent = 'Descargando en segundo plano, sin interrumpirte. ' + how + ' Sigue trabajando con total tranquilidad.';
+    }
+    if (verEl) {
+      verEl.textContent = VERSION && ver && VERSION !== ver ? 'Actual: ' + VERSION + ' · Nueva: ' + ver : '';
+    }
+    card.classList.add('is-open');
+    card.setAttribute('aria-hidden', 'false');
+    setTimeout(function () {
+      var btn = document.getElementById('crozzoCritInfoDismiss');
+      if (btn) try { btn.focus(); } catch (_) {}
+    }, 120);
+  }
+
+  function closeCriticalInfoCard() {
+    var card = document.getElementById('crozzo-critical-info-card');
+    if (!card) return;
+    card.classList.remove('is-open');
+    card.setAttribute('aria-hidden', 'true');
+  }
+
+  /* ─── Nuevo overlay ameno: notificación post-login de actualización opcional ─── */
+
+  function ensureOptionalPostLoginCard() {
+    var id = 'crozzo-optional-post-card';
+    var el = document.getElementById(id);
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = id;
+    el.className = 'crozzo-optional-post-card';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'crozzoOptCardTitle');
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML =
+      '<div class="crozzo-optional-post-card__backdrop" id="crozzoOptCardBackdrop"></div>' +
+      '<div class="crozzo-optional-post-card__panel">' +
+      '<div class="crozzo-optional-post-card__head">' +
+      '<div class="crozzo-optional-post-card__badge" id="crozzoOptCardBadge">✨ Mejora disponible</div>' +
+      '<button type="button" class="crozzo-optional-post-card__close" id="crozzoOptCardClose" aria-label="Cerrar">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>' +
+      '</button>' +
+      '</div>' +
+      '<h2 id="crozzoOptCardTitle" class="crozzo-optional-post-card__title">¿Instalamos la mejora?</h2>' +
+      '<div id="crozzoOptCardVersionRow" class="crozzo-optional-post-card__version-row"></div>' +
+      '<p id="crozzoOptCardSummary" class="crozzo-optional-post-card__summary"></p>' +
+      '<ul id="crozzoOptCardChanges" class="crozzo-optional-post-card__changes"></ul>' +
+      '<p class="crozzo-optional-post-card__note" id="crozzoOptCardNote">Si instalas ahora, la app se cerrará brevemente y volverá con todo actualizado. Si prefieres, dilo y lo hacemos después.</p>' +
+      '<div class="crozzo-optional-post-card__actions">' +
+      '<button type="button" id="crozzoOptCardInstall" class="crozzo-optional-post-card__btn-primary">Sí, instalar mejora</button>' +
+      '<button type="button" id="crozzoOptCardSnooze" class="crozzo-optional-post-card__btn-ghost">Ahora no, seguir</button>' +
+      '</div>' +
+      '</div>';
+    document.body.appendChild(el);
+    var closeBtn = document.getElementById('crozzoOptCardClose');
+    var snoozeBtn = document.getElementById('crozzoOptCardSnooze');
+    var backdrop = document.getElementById('crozzoOptCardBackdrop');
+    var installBtn = document.getElementById('crozzoOptCardInstall');
+    function doClose() { closeOptionalPostLoginCard(); }
+    function doSnooze() {
+      closeOptionalPostLoginCard();
+      var entry = _optionalWizard && _optionalWizard.entry;
+      if (entry) { sessionDismissEntry(entry); snoozeEntry(entry, 6); }
+    }
+    function doInstall() {
+      closeOptionalPostLoginCard();
+      var entry = _optionalWizard && _optionalWizard.entry;
+      if (entry) {
+        installOptionalNowAtStartup(entry);
+      }
+    }
+    if (closeBtn && !closeBtn._crozzoBound) { closeBtn._crozzoBound = true; closeBtn.addEventListener('click', doClose); }
+    if (snoozeBtn && !snoozeBtn._crozzoBound) { snoozeBtn._crozzoBound = true; snoozeBtn.addEventListener('click', doSnooze); }
+    if (installBtn && !installBtn._crozzoBound) { installBtn._crozzoBound = true; installBtn.addEventListener('click', doInstall); }
+    if (backdrop && !backdrop._crozzoBound) { backdrop._crozzoBound = true; backdrop.addEventListener('click', doSnooze); }
+    return el;
+  }
+
+  function showOptionalPostLoginCard(entry) {
+    if (_optionalPostLoginCardShownSession) return;
+    _optionalPostLoginCardShownSession = true;
+    var card = ensureOptionalPostLoginCard();
+    var remote = normEntryVersion(entry);
+    _currentOptionalId = entryId(entry);
+    VERSION_AVAIL = remote;
+    global.CROZZO_APP_VERSION_DISPONIBLE = remote;
+    UPDATE_NORMAL = buildUpdateNormalFromEntry(entry, VERSION);
+    _optionalWizard.entry = entry;
+    var verRow = document.getElementById('crozzoOptCardVersionRow');
+    var summaryEl = document.getElementById('crozzoOptCardSummary');
+    var changesList = document.getElementById('crozzoOptCardChanges');
+    var noteEl = document.getElementById('crozzoOptCardNote');
+    var badge = document.getElementById('crozzoOptCardBadge');
+    if (verRow) {
+      verRow.innerHTML =
+        '<span class="crozzo-optional-post-card__ver-chip">' + escapeHtml(VERSION) + '</span>' +
+        '<span class="crozzo-optional-post-card__ver-arrow" aria-hidden="true">→</span>' +
+        '<span class="crozzo-optional-post-card__ver-chip crozzo-optional-post-card__ver-chip--new">' + escapeHtml(remote) + '</span>' +
+        (UPDATE_NORMAL.date ? '<span class="crozzo-optional-post-card__ver-date">' + escapeHtml(UPDATE_NORMAL.date) + '</span>' : '');
+    }
+    if (badge) badge.textContent = '✨ Mejora disponible · ' + remote;
+    var changes = normalizeEntryChangelog(entry);
+    if (summaryEl) summaryEl.textContent = UPDATE_NORMAL.summary || 'Mejoras de rendimiento y experiencia.';
+    if (changesList) {
+      var html = '';
+      (changes.length ? changes.slice(0, 5) : ['Mejoras de rendimiento y estabilidad.']).forEach(function (c) {
+        html += '<li class="crozzo-optional-post-card__change-item">' +
+          '<span class="crozzo-optional-post-card__change-dot" aria-hidden="true"></span>' +
+          escapeHtml(c) + '</li>';
+      });
+      changesList.innerHTML = html;
+    }
+    var profile = getUpdateClientProfile();
+    var installNote = canInstallApkInAppNow()
+      ? 'Al instalar se abrirá el instalador de Android. La app vuelve actualizada al abrirla de nuevo.'
+      : profile.isDesktopBinary
+        ? 'Al aceptar se descarga el paquete y se instala al cerrar la app.'
+        : 'Al instalar la interfaz se recargará con la versión nueva.';
+    if (noteEl) noteEl.textContent = installNote;
+    card.classList.add('is-open');
+    card.setAttribute('aria-hidden', 'false');
+    if (document.body) document.body.classList.add('crozzo-optional-post-open');
+    setTimeout(function () {
+      var btn = document.getElementById('crozzoOptCardInstall');
+      if (btn) try { btn.focus(); } catch (_) {}
+    }, 120);
+    enrichEntryChangelog(entry).then(function (enriched) {
+      if (!enriched || entryId(enriched) !== _currentOptionalId) return;
+      var enrichedChanges = normalizeEntryChangelog(enriched);
+      if (changesList && enrichedChanges.length) {
+        var html2 = '';
+        enrichedChanges.slice(0, 5).forEach(function (c) {
+          html2 += '<li class="crozzo-optional-post-card__change-item">' +
+            '<span class="crozzo-optional-post-card__change-dot" aria-hidden="true"></span>' +
+            escapeHtml(c) + '</li>';
+        });
+        changesList.innerHTML = html2;
+      }
+    });
+  }
+
+  function closeOptionalPostLoginCard() {
+    var card = document.getElementById('crozzo-optional-post-card');
+    if (!card) return;
+    card.classList.remove('is-open');
+    card.setAttribute('aria-hidden', 'true');
+    if (document.body) document.body.classList.remove('crozzo-optional-post-open');
+  }
+
   function initCrozzoUpdateOverlays() {
     ensureUpdatePortals();
     refreshUpdateIcons();
@@ -5979,6 +6195,22 @@
   global.startCrozzoUpdateChecks = startCrozzoUpdateChecks;
   global.initActualizacionesSistema = initActualizacionesSistema;
   global.initCrozzoUpdateOverlays = initCrozzoUpdateOverlays;
+  global.showCriticalInfoCard = showCriticalInfoCard;
+  global.closeCriticalInfoCard = closeCriticalInfoCard;
+  global.showOptionalPostLoginCard = showOptionalPostLoginCard;
+  global.closeOptionalPostLoginCard = closeOptionalPostLoginCard;
+
+  /* Resetear banderas de sesión en cada nuevo login para que los cards vuelvan a aparecer */
+  global.addEventListener('crozzo-ready', function (ev) {
+    if (ev && ev.detail && ev.detail.session) {
+      _criticalInfoCardShownSession = false;
+      _optionalPostLoginCardShownSession = false;
+    }
+  });
+  global.addEventListener('crozzo:auth-ready', function () {
+    _criticalInfoCardShownSession = false;
+    _optionalPostLoginCardShownSession = false;
+  });
   global.CrozzoSystemUpdates = {
     check: checkForUpdates,
     start: startCrozzoUpdateChecks,

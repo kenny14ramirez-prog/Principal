@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
  * CLEAR ELEGANCE + EXECUTIVE ELITE — sistema de diseño Crozzo POS
  * - Executive Elite: negro/carbón + acento dorado (#C9A962). Regla 60-30-10.
  * - Clear Elegance: azul Apple. Temas legado conservados.
@@ -29887,6 +29887,247 @@ html.crozzo-a11y-reduce-motion .crozzo-boot-update-gate__spinner {
   display: inline-flex;
   justify-content: center;
 }
+
+/* ── Card ameno post-login: actualización crítica (no bloquea, solo informa) ── */
+.crozzo-critical-info-card {
+  display: none;
+  position: fixed;
+  bottom: var(--space-6, 24px);
+  right: var(--space-6, 24px);
+  z-index: 9200;
+  max-width: 380px;
+  width: calc(100% - 48px);
+}
+.crozzo-critical-info-card.is-open {
+  display: block;
+  animation: crozzoCritCardIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes crozzoCritCardIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+html.crozzo-a11y-reduce-motion .crozzo-critical-info-card.is-open { animation: none; }
+.crozzo-critical-info-card__inner {
+  background: var(--surface-elevated, #1e293b);
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(251,191,36,0.1);
+  overflow: hidden;
+}
+.crozzo-critical-info-card__stripe {
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 60%, #f97316 100%);
+}
+.crozzo-critical-info-card__body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px) var(--space-5, 20px) var(--space-2, 8px);
+}
+.crozzo-critical-info-card__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(251,191,36,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fbbf24;
+}
+.crozzo-critical-info-card__icon svg { width: 18px; height: 18px; }
+.crozzo-critical-info-card__text { flex: 1; min-width: 0; }
+.crozzo-critical-info-card__title {
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  letter-spacing: 0.01em;
+}
+.crozzo-critical-info-card__msg {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.5;
+}
+.crozzo-critical-info-card__version {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--text-muted, #64748b);
+}
+.crozzo-critical-info-card__actions {
+  padding: var(--space-3, 12px) var(--space-5, 20px) var(--space-4, 16px);
+  display: flex;
+  justify-content: flex-end;
+}
+.crozzo-critical-info-card__btn {
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.35);
+  color: #fbbf24;
+  border-radius: var(--radius-md, 10px);
+  padding: 7px 16px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.12s;
+  letter-spacing: 0.02em;
+}
+.crozzo-critical-info-card__btn:hover {
+  background: rgba(251,191,36,0.24);
+  transform: translateY(-1px);
+}
+
+/* ── Card ameno post-login: actualización opcional ── */
+.crozzo-optional-post-card {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9150;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 var(--space-4, 16px) var(--space-6, 24px);
+}
+.crozzo-optional-post-card.is-open { display: flex; }
+.crozzo-optional-post-card__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: crozzoBdIn 0.3s ease forwards;
+}
+@keyframes crozzoBdIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+html.crozzo-a11y-reduce-motion .crozzo-optional-post-card__backdrop { animation: none; }
+.crozzo-optional-post-card__panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface-elevated, #1e293b);
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.4);
+  animation: crozzoOptPanelIn 0.4s cubic-bezier(0.34, 1.42, 0.64, 1) forwards;
+  overflow: hidden;
+}
+@keyframes crozzoOptPanelIn {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+html.crozzo-a11y-reduce-motion .crozzo-optional-post-card__panel { animation: none; }
+.crozzo-optional-post-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4, 16px) var(--space-5, 20px) var(--space-2, 8px);
+}
+.crozzo-optional-post-card__badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent, #3b82f6);
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.crozzo-optional-post-card__close {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-muted, #64748b);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.crozzo-optional-post-card__close svg { width: 14px; height: 14px; }
+.crozzo-optional-post-card__close:hover { background: rgba(255,255,255,0.12); color: var(--text-primary, #f1f5f9); }
+.crozzo-optional-post-card__title {
+  margin: 0 var(--space-5, 20px) var(--space-2, 8px);
+  font-size: 1.0625rem; font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+}
+.crozzo-optional-post-card__version-row {
+  display: flex; align-items: center; gap: var(--space-2, 8px);
+  padding: 0 var(--space-5, 20px);
+  margin-bottom: var(--space-3, 12px);
+}
+.crozzo-optional-post-card__ver-chip {
+  font-size: 0.72rem; font-weight: 600;
+  padding: 2px 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-secondary, #94a3b8);
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+}
+.crozzo-optional-post-card__ver-chip--new {
+  background: rgba(59,130,246,0.15);
+  color: var(--accent, #3b82f6);
+  border-color: rgba(59,130,246,0.3);
+}
+.crozzo-optional-post-card__ver-arrow { color: var(--text-muted, #64748b); font-size: 0.85rem; }
+.crozzo-optional-post-card__ver-date { font-size: 0.68rem; color: var(--text-muted, #64748b); margin-left: auto; }
+.crozzo-optional-post-card__summary {
+  margin: 0 var(--space-5, 20px) var(--space-2, 8px);
+  font-size: 0.84rem; color: var(--text-secondary, #94a3b8); line-height: 1.5;
+}
+.crozzo-optional-post-card__changes {
+  margin: 0 var(--space-5, 20px) var(--space-3, 12px);
+  padding: 0; list-style: none;
+}
+.crozzo-optional-post-card__change-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 4px 0; font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8); line-height: 1.45;
+}
+.crozzo-optional-post-card__change-dot {
+  flex-shrink: 0; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--accent, #3b82f6); margin-top: 5px;
+}
+.crozzo-optional-post-card__note {
+  margin: 0 var(--space-5, 20px) var(--space-3, 12px);
+  padding: var(--space-3, 12px);
+  font-size: 0.76rem; color: var(--text-muted, #64748b);
+  background: rgba(255,255,255,0.03);
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  line-height: 1.45;
+}
+.crozzo-optional-post-card__actions {
+  display: flex; gap: var(--space-2, 8px);
+  padding: 0 var(--space-5, 20px) var(--space-5, 20px);
+  flex-direction: column;
+}
+.crozzo-optional-post-card__btn-primary {
+  width: 100%; padding: 11px 20px;
+  background: var(--accent, #3b82f6); color: #fff;
+  border: none; border-radius: var(--radius-md, 10px);
+  font-size: 0.875rem; font-weight: 700; cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+  box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+}
+.crozzo-optional-post-card__btn-primary:hover {
+  background: #2563eb; transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(59,130,246,0.45);
+}
+.crozzo-optional-post-card__btn-primary:active { transform: translateY(0); }
+.crozzo-optional-post-card__btn-ghost {
+  width: 100%; padding: 9px 20px;
+  background: transparent; color: var(--text-muted, #64748b);
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+  border-radius: var(--radius-md, 10px);
+  font-size: 0.8125rem; font-weight: 500; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.crozzo-optional-post-card__btn-ghost:hover {
+  background: rgba(255,255,255,0.05); color: var(--text-secondary, #94a3b8);
+}
+body.crozzo-optional-post-open { overflow: hidden; }
 
 .login-update-banner {
   display: flex;

@@ -1730,6 +1730,18 @@
             if (hit && hit.url && /setup\.exe$/i.test(hit.url)) {
               return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts);
             }
+            if (skipWait) {
+              return probeSetupExeCandidates(targetVersion).then(function (direct) {
+                if (direct && direct.url) {
+                  return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts);
+                }
+                return trySilentFallback(
+                  new Error('Instalador Windows aún no disponible en GitHub.'),
+                  targetVersion,
+                  current
+                );
+              });
+            }
             return waitUntilReleaseReady(targetVersion, onProgress, opts.maxWaitMs || RELEASE_WAIT_MS).then(
               function (hit2) {
                 if (hit2 && hit2.url && /setup\.exe$/i.test(hit2.url)) {
