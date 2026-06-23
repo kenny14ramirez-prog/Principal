@@ -215,6 +215,47 @@
     '  for all using (true) with check (true);\n\n' +
     'notify pgrst, \'reload schema\';\n';
 
+  var POS_STAFF_BUSINESS_ID_SQL =
+    '-- =============================================================================\n' +
+    '-- CROZZO POS — pos_staff.business_id (sync usuarios / PIN entre caja y tablets)\n' +
+    '-- =============================================================================\n' +
+    '-- Ejecutar si en F12 aparece: Could not find the \'business_id\' column of \'pos_staff\'\n' +
+    '-- Proyecto: el mismo Supabase de caja, tablets y Super Admin nube.\n' +
+    '-- =============================================================================\n\n' +
+    'alter table if exists public.pos_staff\n' +
+    '  add column if not exists business_id text;\n\n' +
+    'comment on column public.pos_staff.business_id is\n' +
+    '  \'Negocio (emparejamiento QR). Opcional en sedes simples; recomendado multi-dispositivo.\';\n\n' +
+    'create index if not exists idx_pos_staff_business_location\n' +
+    '  on public.pos_staff (business_id, location_id);\n\n' +
+    '-- Recarga caché PostgREST (evita PGRST204 tras el ALTER)\n' +
+    'notify pgrst, \'reload schema\';\n\n' +
+    '-- Verificación\n' +
+    'select column_name, data_type, is_nullable\n' +
+    'from information_schema.columns\n' +
+    'where table_schema = \'public\' and table_name = \'pos_staff\'\n' +
+    'order by ordinal_position;\n';
+
+  var POS_FACTURAS_SHARE_STORAGE_SQL =
+    '-- =============================================================================\n' +
+    '-- CROZZO POS — Enlaces temporales de facturas PDF (WhatsApp, hasta 7 días)\n' +
+    '-- =============================================================================\n' +
+    '-- Bucket PRIVADO: el cliente recibe URL firmada que caduca (no enlace público eterno).\n' +
+    '-- Ejecutar en el mismo proyecto Supabase del POS (después de scripts 1–3).\n' +
+    '-- =============================================================================\n\n' +
+    'insert into storage.buckets (id, name, public)\n' +
+    "values ('pos-facturas-share', 'pos-facturas-share', false)\n" +
+    'on conflict (id) do update set public = false;\n\n' +
+    'drop policy if exists crozzo_pos_facturas_share_select on storage.objects;\n' +
+    'drop policy if exists crozzo_pos_facturas_share_insert on storage.objects;\n\n' +
+    'drop policy if exists crozzo_pos_facturas_share_update on storage.objects;\n\n' +
+    'create policy crozzo_pos_facturas_share_insert on storage.objects\n' +
+    "  for insert to anon, authenticated with check (bucket_id = 'pos-facturas-share');\n\n" +
+    'create policy crozzo_pos_facturas_share_update on storage.objects\n' +
+    "  for update to anon, authenticated using (bucket_id = 'pos-facturas-share') with check (bucket_id = 'pos-facturas-share');\n\n" +
+    'create policy crozzo_pos_facturas_share_select on storage.objects\n' +
+    "  for select to anon, authenticated using (bucket_id = 'pos-facturas-share');\n";
+
   var DEVICE_QR_SLOTS_SQL =
     '-- Crozzo POS — Registro de QRs internos de comunicación entre dispositivos\n' +
     '-- Cada equipo publica su QR cada ~4 h (valido ~24 h). Todos leen los de los demas.\n' +
@@ -308,6 +349,24 @@
           required: false,
           order: 15,
           sql: DEVICE_QR_SLOTS_SQL,
+        },
+        {
+          key: 'pos_staff_business_id',
+          file: 'docs/SUPABASE-SQL-POS-STAFF-BUSINESS-ID.sql',
+          title: '16. pos_staff — columna business_id',
+          desc: 'Corrige error PGRST204 al subir usuarios/PIN a la nube. Ejecutar si F12 muestra business_id en pos_staff.',
+          required: false,
+          order: 16,
+          sql: POS_STAFF_BUSINESS_ID_SQL,
+        },
+        {
+          key: 'pos_facturas_share_storage',
+          file: 'docs/SUPABASE-SQL-POS-FACTURAS-SHARE-STORAGE.sql',
+          title: '17. Storage facturas WhatsApp (enlace ~7 días)',
+          desc: 'Bucket privado pos-facturas-share. Si no existe, el POS usa oficina-docs (script 3).',
+          required: false,
+          order: 17,
+          sql: POS_FACTURAS_SHARE_STORAGE_SQL,
         },
       ];
     },

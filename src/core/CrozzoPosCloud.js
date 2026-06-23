@@ -2239,6 +2239,18 @@ function crozzoLocalStaffToPosStaffRow(u, ctx) {
   }
   return null;
 }
+function crozzoPosStaffSchemaMismatch(err) {
+  if (!err) return false;
+  var msg = String((err && (err.message || err.details || err.hint || err.code)) || err);
+  return /business_id|PGRST204|schema cache|Could not find|column/i.test(msg);
+}
+function crozzoPosStaffRowsWithoutBusinessId(rows) {
+  return (rows || []).map(function (row) {
+    var copy = Object.assign({}, row);
+    delete copy.business_id;
+    return copy;
+  });
+}
 /** Sube hashes de contraseña (pos_staff) para que tablets/APK usen las mismas credenciales que la caja. */
 async function crozzoPushPosStaffToCloud() {
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
@@ -2254,10 +2266,22 @@ async function crozzoPushPosStaffToCloud() {
   }
   if (!rows.length) return false;
   var sb = window.__SUPABASE;
+  var payloadRows = rows;
   try {
-    var res = await sb.from('pos_staff').upsert(rows, { onConflict: 'id,location_id' });
+    var res = await sb.from('pos_staff').upsert(payloadRows, { onConflict: 'id,location_id' });
     if (res && res.error) {
-      res = await sb.from('pos_staff').upsert(rows, { onConflict: 'id' });
+      if (crozzoPosStaffSchemaMismatch(res.error) && payloadRows.some(function (r) { return r.business_id; })) {
+        payloadRows = crozzoPosStaffRowsWithoutBusinessId(rows);
+        res = await sb.from('pos_staff').upsert(payloadRows, { onConflict: 'id,location_id' });
+      } else {
+        res = await sb.from('pos_staff').upsert(payloadRows, { onConflict: 'id' });
+      }
+    }
+    if (res && res.error) {
+      if (crozzoPosStaffSchemaMismatch(res.error) && payloadRows.some(function (r) { return r.business_id; })) {
+        payloadRows = crozzoPosStaffRowsWithoutBusinessId(rows);
+      }
+      res = await sb.from('pos_staff').upsert(payloadRows, { onConflict: 'id' });
     }
     if (res && res.error) {
       console.warn('[crozzo-sb] push pos_staff', res.error);

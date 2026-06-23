@@ -43,10 +43,21 @@
 
   function buildUrl() {
     var cfg = md();
-    if (cfg.role === 'A') return '';
+    if (cfg.role === 'A') {
+      if (!isDesktopTauri()) return '';
+      return 'ws://127.0.0.1:' + wsPort(cfg) + '/';
+    }
     var ip = String(cfg.centralIp || '').trim();
     if (!ip) return '';
     return 'ws://' + ip + ':' + wsPort(cfg) + '/';
+  }
+
+  function canUseLanWs() {
+    var cfg = md();
+    if (cfg.allowLan === false) return false;
+    if (cfg.role === 'A') return isDesktopTauri();
+    if (cfg.role === 'B') return !!String(cfg.centralIp || '').trim();
+    return false;
   }
 
   function applyLanPush(msg) {
@@ -190,8 +201,7 @@
       disconnect();
       return false;
     }
-    var cfg = md();
-    if (cfg.role !== 'B' || cfg.allowLan === false) return false;
+    if (!canUseLanWs()) return false;
     var url = buildUrl();
     if (!url || typeof WebSocket === 'undefined') return false;
     if (_ws && _url === url && (_ws.readyState === WebSocket.OPEN || _ws.readyState === WebSocket.CONNECTING)) {

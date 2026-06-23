@@ -95,7 +95,7 @@ function crozzoGetFacturasFiltradas() {
 }
 function setFacturasFilter(estado) {
   facturasFilterEstado = estado || 'todos';
-  renderPage('facturas');
+  refreshFacturasFilteredView();
 }
 function crozzoNegocioFeHabilitada() {
   if (typeof global.CrozzoTermicaColombia !== 'undefined' && global.CrozzoTermicaColombia.negocioFeHabilitada) {
@@ -510,8 +510,15 @@ function crozzoBuildInvoiceModalActionsHtml(f, idx, extra) {
     (f.metodoPago === 'efectivo' ? '<p style="margin:6px 0 0;font-size:0.78rem;">Recibido: $' + Number(f.paymentMeta && f.paymentMeta.valorRecibido || 0).toLocaleString('es-CO') + ' · Cambio: $' + Number(f.paymentMeta && f.paymentMeta.devueltas || 0).toLocaleString('es-CO') + '</p>' : '') +
     '</div>' +
     '<div class="crozzo-invoice-action-card"><h4>Enviar e imprimir</h4>' +
-    '<div class="btn-group" style="flex-direction:column;gap:8px;">' + histBtns + '</div>' +
-    '<p class="form-hint" style="margin:8px 0 0;font-size:0.72rem;">WhatsApp con mensaje de agradecimiento + PDF oficio con nombre del cliente.</p>' +
+    '<div class="btn-group" style="flex-direction:column;gap:8px;">' +
+    (postCobro && typeof crozzoCajeroPostCobroWhatsAppNextBtnHtml === 'function'
+      ? crozzoCajeroPostCobroWhatsAppNextBtnHtml({ fullWidth: true })
+      : '') +
+    histBtns +
+    '</div>' +
+    '<p class="form-hint" style="margin:8px 0 0;font-size:0.72rem;">' +
+    (postCobro ? 'Verde: enlace WhatsApp y siguiente pedido. ' : '') +
+    'WhatsApp: teléfono → enlace (~7 días) o adjuntar PDF.</p>' +
     (printBtns
       ? '<p class="form-hint" style="margin:10px 0 6px;">Reimprimir otro formato</p>' + printBtns
       : '') +
@@ -703,55 +710,187 @@ function openFacturaFullscreen(idx) {
   });
   crozzoInitInvoiceModalQr(f, qrId);
 }
+function buildFacturasTableRowsHtml(filtered) {
+  return filtered
+    .map(function (row) {
+      var f = row.f;
+      var i = row.idx;
+      var sel = facturaPreviewIdx === i ? ' is-selected' : '';
+      var fecha = f.fecha
+        ? (function () {
+            try {
+              return new Date(f.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+            } catch (_) {
+              return f.fecha;
+            }
+          })()
+        : '—';
+      var tipoDoc =
+        f.tipoComprobante === 'electronica' || f.estado === 'timbrada'
+          ? '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--fe">FE</span>'
+          : '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--pos">POS</span>';
+      var nItems = Array.isArray(f.items) ? f.items.length : 0;
+      return (
+        '<tr data-factura-idx="' +
+        i +
+        '" class="crozzo-invoice-row' +
+        sel +
+        '" onclick="selectFacturaForPreview(' +
+        i +
+        ')" title="Abrir comprobante debajo de esta fila">' +
+        '<td class="col-date">' +
+        fecha +
+        '</td>' +
+        '<td class="col-cons">' +
+        escUserAttr(f.consecutivo || '—') +
+        '</td>' +
+        '<td class="col-tipo">' +
+        tipoDoc +
+        '</td>' +
+        '<td class="col-client"><strong>' +
+        escUserAttr(f.compradorNombre || '—') +
+        '</strong><span class="crozzo-invoice-sub">' +
+        escUserAttr(f.compradorNit || '—') +
+        '</span></td>' +
+        '<td class="col-serv">' +
+        escUserAttr(crozzoFacturaServicioLabel(f)) +
+        '</td>' +
+        '<td class="col-pago" title="' +
+        escUserAttr(crozzoFacturaPagoCorto(f)) +
+        '">' +
+        escUserAttr(crozzoFacturaPagoCorto(f)) +
+        '</td>' +
+        '<td class="col-items">' +
+        nItems +
+        '</td>' +
+        '<td class="col-total">$' +
+        Number(f.total || f.totalFactura || 0).toLocaleString('es-CO') +
+        '</td>' +
+        '<td class="col-estado">' +
+        crozzoFacturaEstadoBadgeHtml(f) +
+        '</td>' +
+        '<td class="col-ref" title="' +
+        escUserAttr(f.uuid || f.cufe || '') +
+        '">' +
+        escUserAttr((f.uuid || f.cufe || '').slice(0, 14)) +
+        '</td>' +
+        '<td class="col-act"><button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaBelow(' +
+        i +
+        ')">Abrir</button></td></tr>'
+      );
+    })
+    .join('');
+}
+function buildFacturasListBlockHtml(facturas, filtered) {
+  if (facturas.length === 0) {
+    return (
+      '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><div class="crozzo-invoice-empty__illus">📄</div><p><strong>Sin comprobantes aún</strong></p><p style="font-size:0.88rem;margin-top:8px;">Las ventas cobradas aparecerán aquí.</p></div></div>'
+    );
+  }
+  if (filtered.length === 0) {
+    return (
+      '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><p>Sin resultados para este filtro.</p></div></div>'
+    );
+  }
+  return (
+    '<div class="crozzo-invoice-table-wrap crozzo-invoice-table-wrap--facturas"><table class="crozzo-invoice-table crozzo-invoice-table--wide"><thead><tr>' +
+    '<th>Fecha</th><th>Nº</th><th>Tipo</th><th>Cliente</th><th>Servicio</th><th>Pago</th><th>Ítems</th><th>Total</th><th>Estado</th><th>Ref.</th><th></th></tr></thead><tbody>' +
+    buildFacturasTableRowsHtml(filtered) +
+    '</tbody></table></div>'
+  );
+}
+function buildFacturasKpisHtml(facturas, resumen, remaining) {
+  return (
+    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Registros</div><div class="crozzo-invoice-kpi__value">' +
+    facturas.length +
+    '</div></div>' +
+    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--success"><div class="crozzo-invoice-kpi__label">Timbradas</div><div class="crozzo-invoice-kpi__value">' +
+    facturas.filter(function (x) {
+      return x.estado === 'timbrada';
+    }).length +
+    '</div></div>' +
+    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--info"><div class="crozzo-invoice-kpi__label">POS</div><div class="crozzo-invoice-kpi__value">' +
+    facturas.filter(function (x) {
+      return x.estado === 'pos';
+    }).length +
+    '</div></div>' +
+    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--warn"><div class="crozzo-invoice-kpi__label">Por cobrar</div><div class="crozzo-invoice-kpi__value">' +
+    resumen.pendientes +
+    '</div></div>' +
+    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Total filtro</div><div class="crozzo-invoice-kpi__value">$' +
+    resumen.total.toLocaleString('es-CO') +
+    '</div></div>' +
+    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">FE restantes</div><div class="crozzo-invoice-kpi__value">' +
+    (remaining === Infinity ? '∞' : remaining) +
+    '</div></div>'
+  );
+}
+function buildFacturasResultBarHtml(resumen, totalFacturas) {
+  return (
+    'Mostrando <strong>' +
+    resumen.count +
+    '</strong> de <strong>' +
+    totalFacturas +
+    '</strong> · ' +
+    resumen.items +
+    ' líneas · <strong>$' +
+    resumen.total.toLocaleString('es-CO') +
+    '</strong>'
+  );
+}
+function buildFacturasFilterChipHtml(id, label) {
+  var active = facturasFilterEstado === id ? ' is-active' : '';
+  return (
+    '<button type="button" class="crozzo-invoice-filter-chip' +
+    active +
+    '" data-facturas-filter="' +
+    id +
+    '" onclick="setFacturasFilter(\'' +
+    id +
+    '\')">' +
+    label +
+    '</button>'
+  );
+}
+function crozzoSyncFacturasFilterChips() {
+  document.querySelectorAll('.crozzo-invoice-filter-chip[data-facturas-filter]').forEach(function (btn) {
+    btn.classList.toggle('is-active', btn.getAttribute('data-facturas-filter') === facturasFilterEstado);
+  });
+}
+function refreshFacturasFilteredView() {
+  if (typeof currentPage !== 'undefined' && currentPage !== 'facturas') return;
+  var page = document.querySelector('.crozzo-facturas-page');
+  if (!page) return;
+  var facturas = config.getFacturas();
+  var filtered = crozzoGetFacturasFiltradas();
+  var resumen = crozzoFacturasResumenFiltrado(filtered);
+  var remaining = config.getFacturasRestantes();
+  var previewIdx = facturaPreviewIdx;
+  var kpis = document.getElementById('facturasKpis');
+  if (kpis) kpis.innerHTML = buildFacturasKpisHtml(facturas, resumen, remaining);
+  var bar = document.getElementById('facturasResultBar');
+  if (bar) bar.innerHTML = buildFacturasResultBarHtml(resumen, facturas.length);
+  var host = document.getElementById('facturasListHost');
+  if (host) host.innerHTML = buildFacturasListBlockHtml(facturas, filtered);
+  crozzoSyncFacturasFilterChips();
+  if (previewIdx != null) {
+    var stillVisible = filtered.some(function (row) {
+      return row.idx === previewIdx;
+    });
+    if (stillVisible) {
+      crozzoMountFacturaDetailBelowRow(previewIdx);
+      crozzoRenderFacturaPreviewPane();
+    } else {
+      facturaPreviewIdx = null;
+      crozzoCloseFacturaDetailSlot();
+    }
+  }
+}
 function renderFacturas() {
   var facturas = config.getFacturas();
   var remaining = config.getFacturasRestantes();
   var filtered = crozzoGetFacturasFiltradas();
   var resumen = crozzoFacturasResumenFiltrado(filtered);
-  var chip = function (id, label) {
-    var active = facturasFilterEstado === id ? ' is-active' : '';
-    return '<button type="button" class="crozzo-invoice-filter-chip' + active + '" onclick="setFacturasFilter(\'' + id + '\')">' + label + '</button>';
-  };
-  var rows = filtered.map(function (row) {
-    var f = row.f;
-    var i = row.idx;
-    var sel = facturaPreviewIdx === i ? ' is-selected' : '';
-    var fecha = f.fecha
-      ? (function () {
-          try {
-            return new Date(f.fecha).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
-          } catch (_) {
-            return f.fecha;
-          }
-        })()
-      : '—';
-    var tipoDoc =
-      f.tipoComprobante === 'electronica' || f.estado === 'timbrada'
-        ? '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--fe">FE</span>'
-        : '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--pos">POS</span>';
-    var nItems = Array.isArray(f.items) ? f.items.length : 0;
-    return (
-      '<tr data-factura-idx="' + i + '" class="crozzo-invoice-row' + sel + '" onclick="selectFacturaForPreview(' + i + ')" title="Abrir comprobante debajo de esta fila">' +
-      '<td class="col-date">' + fecha + '</td>' +
-      '<td class="col-cons">' + escUserAttr(f.consecutivo || '—') + '</td>' +
-      '<td class="col-tipo">' + tipoDoc + '</td>' +
-      '<td class="col-client"><strong>' + escUserAttr(f.compradorNombre || '—') + '</strong><span class="crozzo-invoice-sub">' + escUserAttr(f.compradorNit || '—') + '</span></td>' +
-      '<td class="col-serv">' + escUserAttr(crozzoFacturaServicioLabel(f)) + '</td>' +
-      '<td class="col-pago" title="' + escUserAttr(crozzoFacturaPagoCorto(f)) + '">' + escUserAttr(crozzoFacturaPagoCorto(f)) + '</td>' +
-      '<td class="col-items">' + nItems + '</td>' +
-      '<td class="col-total">$' + Number(f.total || f.totalFactura || 0).toLocaleString('es-CO') + '</td>' +
-      '<td class="col-estado">' + crozzoFacturaEstadoBadgeHtml(f) + '</td>' +
-      '<td class="col-ref" title="' + escUserAttr(f.uuid || f.cufe || '') + '">' + escUserAttr((f.uuid || f.cufe || '').slice(0, 14)) + '</td>' +
-      '<td class="col-act"><button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaBelow(' + i + ')">Abrir</button></td></tr>'
-    );
-  }).join('');
-  var listBlock = facturas.length === 0
-    ? '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><div class="crozzo-invoice-empty__illus">📄</div><p><strong>Sin comprobantes aún</strong></p><p style="font-size:0.88rem;margin-top:8px;">Las ventas cobradas aparecerán aquí.</p></div></div>'
-    : filtered.length === 0
-      ? '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><p>Sin resultados para este filtro.</p></div></div>'
-      : '<div class="crozzo-invoice-table-wrap crozzo-invoice-table-wrap--facturas"><table class="crozzo-invoice-table crozzo-invoice-table--wide"><thead><tr>' +
-        '<th>Fecha</th><th>Nº</th><th>Tipo</th><th>Cliente</th><th>Servicio</th><th>Pago</th><th>Ítems</th><th>Total</th><th>Estado</th><th>Ref.</th><th></th></tr></thead><tbody>' +
-        rows + '</tbody></table></div>';
   return (
     '<div class="crozzo-mod-page crozzo-facturas-page">' +
     '<div class="card crozzo-facturas-card">' +
@@ -765,21 +904,27 @@ function renderFacturas() {
     (typeof CrozzoFacturasArchivo !== 'undefined' && CrozzoFacturasArchivo.renderBannerHtml
       ? CrozzoFacturasArchivo.renderBannerHtml()
       : '') +
-    '<div class="crozzo-invoice-kpis">' +
-    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Registros</div><div class="crozzo-invoice-kpi__value">' + facturas.length + '</div></div>' +
-    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--success"><div class="crozzo-invoice-kpi__label">Timbradas</div><div class="crozzo-invoice-kpi__value">' + facturas.filter(function (x) { return x.estado === 'timbrada'; }).length + '</div></div>' +
-    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--info"><div class="crozzo-invoice-kpi__label">POS</div><div class="crozzo-invoice-kpi__value">' + facturas.filter(function (x) { return x.estado === 'pos'; }).length + '</div></div>' +
-    '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--warn"><div class="crozzo-invoice-kpi__label">Por cobrar</div><div class="crozzo-invoice-kpi__value">' + resumen.pendientes + '</div></div>' +
-    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Total filtro</div><div class="crozzo-invoice-kpi__value">$' + resumen.total.toLocaleString('es-CO') + '</div></div>' +
-    '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">FE restantes</div><div class="crozzo-invoice-kpi__value">' + (remaining === Infinity ? '∞' : remaining) + '</div></div></div>' +
+    '<div class="crozzo-invoice-kpis" id="facturasKpis">' +
+    buildFacturasKpisHtml(facturas, resumen, remaining) +
+    '</div>' +
     '<div class="crozzo-invoice-toolbar">' +
-    '<div class="crozzo-invoice-toolbar__search"><input type="search" id="facturasSearchInput" value="' + escUserAttr(facturasFilterQ) + '" placeholder="Buscar consecutivo, cliente, NIT, mesa, pago…" autocomplete="off"></div>' +
+    '<div class="crozzo-invoice-toolbar__search"><input type="search" id="facturasSearchInput" value="' +
+    escUserAttr(facturasFilterQ) +
+    '" placeholder="Buscar consecutivo, cliente, NIT, mesa, pago…" autocomplete="off"></div>' +
     '<div class="crozzo-invoice-filters">' +
-    chip('todos', 'Todos') + chip('cobro_pendiente', 'Por cobrar') + chip('timbrada', 'Timbradas') + chip('pos', 'POS') + chip('demo', 'Demo') + chip('precuenta', 'Precuenta') +
+    buildFacturasFilterChipHtml('todos', 'Todos') +
+    buildFacturasFilterChipHtml('cobro_pendiente', 'Por cobrar') +
+    buildFacturasFilterChipHtml('timbrada', 'Timbradas') +
+    buildFacturasFilterChipHtml('pos', 'POS') +
+    buildFacturasFilterChipHtml('demo', 'Demo') +
+    buildFacturasFilterChipHtml('precuenta', 'Precuenta') +
     '</div></div>' +
-    '<div class="crozzo-invoice-result-bar">Mostrando <strong>' + resumen.count + '</strong> de <strong>' + facturas.length + '</strong> · ' +
-    resumen.items + ' líneas · <strong>$' + resumen.total.toLocaleString('es-CO') + '</strong></div>' +
-    listBlock +
+    '<div class="crozzo-invoice-result-bar" id="facturasResultBar">' +
+    buildFacturasResultBarHtml(resumen, facturas.length) +
+    '</div>' +
+    '<div id="facturasListHost">' +
+    buildFacturasListBlockHtml(facturas, filtered) +
+    '</div>' +
     '</div></div>'
   );
 }
@@ -789,12 +934,10 @@ function initFacturas() {
   if (inp && !inp._crozzoBound) {
     inp._crozzoBound = true;
     var t = null;
-    inp.addEventListener('input', function (e) {
+    inp.addEventListener('input', function () {
+      facturasFilterQ = inp.value;
       if (t) clearTimeout(t);
-      t = setTimeout(function () {
-        facturasFilterQ = e.target.value;
-        renderPage('facturas');
-      }, 200);
+      t = setTimeout(refreshFacturasFilteredView, 120);
     });
   }
   if (facturaPreviewIdx != null) {

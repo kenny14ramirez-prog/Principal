@@ -328,6 +328,13 @@
     try {
       global.dispatchEvent(new CustomEvent('crozzo-form-factor', { detail: { factor: factor, tier: tier } }));
     } catch (_) {}
+    try {
+      if (typeof global.crozzoQuickAppsFabRefresh === 'function') {
+        global.crozzoQuickAppsFabRefresh();
+      } else if (typeof global.crozzoWhatsAppDockRefreshChrome === 'function') {
+        global.crozzoWhatsAppDockRefreshChrome();
+      }
+    } catch (_) {}
 
     if ((prev && prev !== factor) || (prevTier && prevTier !== tier)) {
       markFormResizeTransition(doc);

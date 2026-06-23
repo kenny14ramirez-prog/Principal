@@ -129,7 +129,8 @@ pub fn html_to_pdf_b64_sync(
         .title("Crozzo PDF")
         .visible(false)
         .focused(false)
-        .inner_size(850.0, 1320.0)
+        .inner_size(640.0, 900.0)
+        .position(-12000.0, -12000.0)
         .decorations(false)
         .skip_taskbar(true)
         .build()
@@ -194,7 +195,7 @@ pub fn html_to_pdf_b64_sync(
                                 }
                             };
                             apply_pdf_print_settings(&settings, &fmt_nav);
-                            std::thread::sleep(Duration::from_millis(1200));
+                            std::thread::sleep(Duration::from_millis(700));
 
                             let pdf_w = HSTRING::from(
                                 pdf_target.to_string_lossy().to_string().as_str(),
@@ -255,7 +256,7 @@ pub fn html_to_pdf_b64_sync(
     let deadline = Instant::now() + Duration::from_secs(75);
     let mut pdf_b64: Option<String> = None;
     while Instant::now() < deadline {
-        match rx.try_recv() {
+        match rx.recv_timeout(Duration::from_millis(250)) {
             Ok(Ok(b64)) => {
                 pdf_b64 = Some(b64);
                 break;
@@ -265,10 +266,8 @@ pub fn html_to_pdf_b64_sync(
                 let _ = std::fs::remove_file(&pdf_file);
                 return Err(e);
             }
-            Err(mpsc::TryRecvError::Empty) => {
-                std::thread::sleep(Duration::from_millis(80));
-            }
-            Err(mpsc::TryRecvError::Disconnected) => break,
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
     }
 
@@ -298,11 +297,7 @@ pub fn html_to_pdf_b64_sync(
 
     Ok(CrozzoHtmlPdfResult {
         ok: true,
-        pdf_b64: if saved_path.is_empty() {
-            b64
-        } else {
-            String::new()
-        },
+        pdf_b64: b64,
         saved_path: saved_path.clone(),
         message: if !saved_path.is_empty() {
             format!("PDF guardado: {saved_path}")

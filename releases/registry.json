@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-21T12:59:15.526Z",
+  "updatedAt": "2026-06-23T15:18:47.456Z",
   "entries": [
-    {
-      "id": "1.0.147-critical",
-      "version": "v1.0.147",
-      "semver": "1.0.147",
-      "type": "critical",
-      "message": "256325",
-      "publishedAt": "2026-06-18T05:19:46.871Z",
-      "installMode": "auto",
-      "changelog": [
-        "256325"
-      ]
-    },
     {
       "id": "1.0.148-critical",
       "version": "v1.0.148",
@@ -313,6 +301,20 @@
       "installMode": "prompt",
       "changelog": [
         "12365"
+      ]
+    },
+    {
+      "id": "1.0.172-critical",
+      "version": "v1.0.172",
+      "semver": "1.0.172",
+      "type": "critical",
+      "message": "whassap + gmail + drive!!",
+      "publishedAt": "2026-06-23T15:18:47.456Z",
+      "installMode": "auto",
+      "changelog": [
+        "whassap",
+        "gmail",
+        "drive!!"
       ]
     }
   ]

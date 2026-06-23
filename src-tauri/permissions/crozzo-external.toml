@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-crozzo-external"
+description = "Abrir URLs externas y panel WhatsApp Web integrado"
+commands.allow = ["crozzo_open_external_url", "crozzo_open_whatsapp_web", "crozzo_whatsapp_dock_sync"]

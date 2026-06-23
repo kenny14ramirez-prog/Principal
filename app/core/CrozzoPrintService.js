@@ -129,6 +129,11 @@
   }
 
   function crozzoIsTauri() {
+    if (global.__CROZZO_IS_TAURI__ || global.__CROZZO_IS_TAURI_DESKTOP__) {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        return true;
+      }
+    }
     return !!(global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function');
   }
 
@@ -2323,6 +2328,84 @@
     });
   }
 
+  function crozzoOpenSavedFile(path) {
+    var p = String(path || '').trim();
+    if (!p || !crozzoIsTauri()) return Promise.resolve(false);
+    return crozzoTauriInvoke('plugin:opener|open_path', { path: p })
+      .then(function () {
+        return true;
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
+  /** HTML → PDF en Descargas (Tauri/WebView2) o cuadro «Guardar como PDF» en navegador. */
+  function crozzoExportHtmlToPdf(htmlDocument, options) {
+    options = options || {};
+    if (!htmlDocument) return Promise.reject(new Error('Sin documento HTML'));
+    var filename = String(options.filename || 'documento.pdf');
+    var pageFormat = String(options.pageFormat || 'legal').toLowerCase();
+    var fmt = pageFormat === 'a4' || pageFormat === 'carta' ? 'a4' : 'legal';
+    var timeoutMs = Number(options.timeoutMs) || 95000;
+
+    if (crozzoIsTauri()) {
+      var saveToDisk = options.saveToDownloads !== false;
+      var pdfJob = crozzoTauriInvoke('crozzo_html_to_pdf_b64', {
+        htmlB64: crozzoUtf8ToBase64(htmlDocument),
+        pageFormat: fmt,
+        saveFilename: saveToDisk ? filename : null,
+      });
+      if (timeoutMs > 0) {
+        pdfJob = Promise.race([
+          pdfJob,
+          new Promise(function (_, reject) {
+            setTimeout(function () {
+              reject(new Error('Tiempo agotado al generar el PDF (' + Math.round(timeoutMs / 1000) + ' s)'));
+            }, timeoutMs);
+          }),
+        ]);
+      }
+      return pdfJob.then(function (res) {
+        if (!res || !res.ok) {
+          throw new Error((res && res.message) || 'No se pudo generar el PDF');
+        }
+        var savedPath = String(res.saved_path || res.savedPath || '').trim();
+        var pdfB64 = String(res.pdf_b64 || res.pdfB64 || '').trim();
+        return {
+          ok: true,
+          filename: filename,
+          savedPath: savedPath,
+          pdfB64: pdfB64,
+          mode: savedPath ? 'tauri-downloads' : pdfB64 ? 'tauri-b64' : 'tauri-ok',
+          message: (res && res.message) || '',
+        };
+      });
+    }
+
+    if (options.saveToDownloads === false) {
+      return Promise.reject(new Error('Enlace PDF solo disponible en la app de escritorio (Tauri)'));
+    }
+
+    if (typeof crozzoPrintHtmlDocument === 'function') {
+      return crozzoPrintHtmlDocument(htmlDocument, {
+        allowDialog: true,
+        silent: false,
+        pageFormat: fmt,
+        printOutput: fmt === 'legal' ? 'oficio' : 'carta',
+        toast: options.toast !== false,
+      }).then(function (ok) {
+        if (!ok) throw new Error('No se abrió el cuadro para guardar PDF');
+        return { ok: true, filename: filename, mode: 'print-dialog' };
+      });
+    }
+
+    return crozzoPrintHtmlWindowOpen(htmlDocument, { toast: options.toast !== false }).then(function (ok) {
+      if (!ok) throw new Error('No se pudo abrir la vista previa del PDF');
+      return { ok: true, filename: filename, mode: 'window-print' };
+    });
+  }
+
   function crozzoPrintThermalContent(innerHtml, pageW, options) {
     options = options || {};
     if (!innerHtml && !(options.escpos && options.escpos.length)) return Promise.resolve(false);
@@ -2643,6 +2726,8 @@
   global.crozzoLoadSystemPrintersAsync = crozzoLoadSystemPrintersAsync;
   global.crozzoPrintThermalContent = crozzoPrintThermalContent;
   global.crozzoPrintHtmlDocument = crozzoPrintHtmlDocument;
+  global.crozzoExportHtmlToPdf = crozzoExportHtmlToPdf;
+  global.crozzoOpenSavedFile = crozzoOpenSavedFile;
   global.crozzoPrintTemplateHtml = crozzoPrintTemplateHtml;
   global.crozzoPrintBatchLabelsHtml = crozzoPrintBatchLabelsHtml;
   global.crozzoPrintRollLabelsHtml = crozzoPrintRollLabelsHtml;

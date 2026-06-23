@@ -176,9 +176,9 @@
   var NUBE_ARCHITECTURE = [
     { icon: '🏪', title: '1 negocio = 1 proyecto Supabase', body: 'No comparta un proyecto entre marcas distintas. Mismo Business ID en todos los equipos del negocio.' },
     { icon: '🔑', title: 'Solo anon public en el POS', body: 'Nunca pegue service_role en la app. Super Admin confirma contraseña al guardar.' },
-    { icon: '📝', title: 'SQL en orden 1 → 15', body: 'Obligatorios: 1–4 y 10. Opcionales: 5–15. Script 15 = QRs entre tablets (malla).' },
+    { icon: '📝', title: 'SQL en orden 1 → 16', body: 'Obligatorios: 1–4 y 10. Opcionales: 5–16. Script 16 = pos_staff business_id (usuarios/PIN nube).' },
     { icon: '📡', title: 'LAN + Nube', body: 'Con internet caído, LAN/P2P sigue operando; la nube drena colas al volver.' },
-    { icon: '🪣', title: 'Storage', body: 'Buckets: oficina-docs (facturas PDF), fotos-marcaciones (asistencia).' },
+    { icon: '🪣', title: 'Storage', body: 'Buckets: oficina-docs (QyC/oficina), pos-facturas-share (WhatsApp PDF 30 días), fotos-marcaciones.' },
   ];
 
   var MODULES_CLOUD = [
@@ -970,7 +970,7 @@
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">📝 Paso 2 — Crear la base de datos (SQL Editor)</span></div>' +
       '<div class="crozzo-nube-callout">' +
-      '<p>Ejecute los scripts <strong>en orden</strong> (1 → 15). Obligatorios: <strong>1–4 y 10</strong>. Recomendado malla: <strong>15 (QRs entre dispositivos)</strong>. Opcionales: costos (7), reservorio (8), cierres (9), federación (11). ' +
+      '<p>Ejecute los scripts <strong>en orden</strong> (1 → 16). Obligatorios: <strong>1–4 y 10</strong>. Si F12 muestra error <code>business_id</code> en <code>pos_staff</code>: script <strong>16</strong>. Recomendado malla: <strong>15 (QRs entre dispositivos)</strong>. Opcionales: costos (7), reservorio (8), cierres (9), federación (11). ' +
       'Cada script incluye editor, guía de tablas y errores frecuentes.</p>' +
       '<div class="crozzo-nube-sql-progress-bar" aria-hidden="true"><span id="crozzoNubeSqlProgressBar"></span></div>' +
       (url

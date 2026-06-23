@@ -23,6 +23,7 @@ mod dian_adquiriente;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_vpfe;
 mod webview_permissions;
+mod crozzo_external;
 #[cfg(target_os = "android")]
 mod crozzo_android_install;
 mod crozzo_ble_mesh;
@@ -78,6 +79,11 @@ pub fn run() {
                 if let Some(win) = app.get_webview_window("main") {
                     webview_permissions::install_camera_permission_handler(&win);
                 }
+                crozzo_external::close_legacy_whatsapp_windows(app.handle());
+                let warm = app.handle().clone();
+                std::thread::spawn(move || {
+                    crozzo_external::prewarm_whatsapp_dock(&warm);
+                });
             }
             #[cfg(not(desktop))]
             let _ = &app;
@@ -111,6 +117,11 @@ pub fn run() {
             crozzo_silent_install::probe_platform_installer,
             webview_permissions::cxf_reset_webview_camera_permission,
             webview_permissions::cxf_open_windows_camera_settings,
+    crozzo_external::crozzo_open_external_url,
+    crozzo_external::crozzo_open_whatsapp_web,
+    crozzo_external::crozzo_whatsapp_dock_sync,
+    crozzo_external::crozzo_gmail_dock_sync,
+    crozzo_external::crozzo_drive_dock_sync,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]

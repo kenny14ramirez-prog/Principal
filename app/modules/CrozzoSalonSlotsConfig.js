@@ -53,8 +53,14 @@
 
   function saveSalonConfig(next) {
     var cm = getCfg();
-    if (!cm || typeof cm.set !== 'function') return normalizeSalonConfig(next);
     var normalized = normalizeSalonConfig(next);
+    if (!cm || typeof cm.set !== 'function') {
+      console.warn('[salon] ConfigManager no disponible al guardar mesas');
+      if (typeof global.showToast === 'function') {
+        global.showToast('No se guardaron las mesas. Recargue la app e intente de nuevo.', 'error');
+      }
+      return normalized;
+    }
     cm.set('salon', normalized);
     if (typeof cm.addAudit === 'function') {
       cm.addAudit('config_salon_actualizada', 'Mesas: ' + normalized.mesaCount + ' · Llevar: ' + normalized.llevarCount);

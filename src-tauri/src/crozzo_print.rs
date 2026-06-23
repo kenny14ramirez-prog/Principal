@@ -120,19 +120,41 @@ pub fn crozzo_print_html_b64(
 }
 
 /// HTML → PDF (WebView2 PrintToPdf en Windows; stub en macOS/Linux).
+/// Async para no bloquear el event loop mientras WebView2 renderiza.
 #[tauri::command]
-pub fn crozzo_html_to_pdf_b64(
+pub async fn crozzo_html_to_pdf_b64(
     app: tauri::AppHandle,
     html_b64: String,
     page_format: Option<String>,
     save_filename: Option<String>,
 ) -> Result<crozzo_print_html_pdf::CrozzoHtmlPdfResult, String> {
-    crozzo_print_html_pdf::html_to_pdf_b64_sync(
-        app,
-        html_b64,
-        page_format.unwrap_or_else(|| "legal".into()),
-        save_filename,
-    )
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    let fmt = page_format.unwrap_or_else(|| "legal".into());
+    let (tx, rx) = mpsc::sync_channel(1);
+    std::thread::spawn(move || {
+        let result = crozzo_print_html_pdf::html_to_pdf_b64_sync(
+            app,
+            html_b64,
+            fmt,
+            save_filename,
+        );
+        let _ = tx.send(result);
+    });
+
+    let deadline = Instant::now() + Duration::from_secs(95);
+    loop {
+        if let Ok(result) = rx.try_recv() {
+            return result;
+        }
+        if Instant::now() >= deadline {
+            return Err(
+                "Tiempo agotado al generar PDF. Reinicie la app e intente de nuevo.".into(),
+            );
+        }
+        std::thread::sleep(Duration::from_millis(45));
+    }
 }
 
 #[cfg(windows)]

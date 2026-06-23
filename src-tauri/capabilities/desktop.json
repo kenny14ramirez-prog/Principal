@@ -6,10 +6,12 @@
     "linux"
   ],
   "windows": [
-    "main"
+    "main",
+    "crozzo-whatsapp-dock"
   ],
   "permissions": [
     "core:default",
+    "allow-crozzo-external",
     "updater:default",
     "process:default",
     "allow-crozzo-list-printers",

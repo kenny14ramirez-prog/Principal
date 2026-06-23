@@ -326,7 +326,7 @@
   }
 
   function injectStyles() {
-    var id = 'crozzo-recetario-cocina-css-v3';
+    var id = 'crozzo-recetario-cocina-css-v4';
     var old =
       document.getElementById(id) ||
       document.getElementById('crozzo-recetario-cocina-css-v2') ||
@@ -394,7 +394,8 @@
       '.crc-chip svg{width:12px;height:12px;opacity:.85}' +
       '.crc-detail__body{padding:8px 16px 20px}' +
       '.crc-ing{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:14px;border:1px solid transparent;transition:background .18s}' +
-      '.crc-ing:hover{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.05)}' +
+      '.crc-ing:nth-child(even){background:rgba(255,255,255,.025)}' +
+      '.crc-ing:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.06)}' +
       '.crc-ing__num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:750;background:rgba(212,184,74,.15);color:var(--crc-gold);flex-shrink:0}' +
       '.crc-ing__name{flex:1;font-size:15px;font-weight:550;line-height:1.35}' +
       '.crc-ing__name-emo{font-size:1rem;margin-right:6px;vertical-align:-2px}' +
@@ -610,8 +611,8 @@
       icon('refresh-cw') +
       'Sincronizado con Costos</span>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crc-pdf-one-inline">' +
-      icon('download') +
-      ' PDF de esta receta</button></div>'
+      icon('printer') +
+      ' Imprimir esta receta</button></div>'
     );
   }
 
@@ -707,7 +708,7 @@
         return r.slug === state.selected;
       })[0];
       if (!one) return toast('Seleccione una receta', 'warning');
-      exportPdf([one]);
+      exportPrint([one]);
     });
   }
 
@@ -725,7 +726,7 @@
       pdfAll._crcBound = true;
       pdfAll.addEventListener('click', function () {
         var items = filteredRecipes();
-        exportPdf(items.length ? items : listKitchenRecipes());
+        exportPrint(items.length ? items : listKitchenRecipes());
       });
     }
   }
@@ -1091,6 +1092,281 @@
       if (order.indexOf(k) < 0) out.push(map[k]);
     });
     return out;
+  }
+
+  function recetarioBrandInitials(title) {
+    var parts = String(title || 'B')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length >= 2) return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    return (parts[0] || 'B').slice(0, 2).toUpperCase();
+  }
+
+  var REC_PRINT_CSS =
+    '@page{size:A4;margin:14mm 16mm 20mm}' +
+    '*,*::before,*::after{box-sizing:border-box}' +
+    'html{-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    'body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;color:#2a2a2a;background:#fff;line-height:1.45;font-size:11px}' +
+    '.rp-doc{max-width:100%;margin:0;padding:0}' +
+    '.rp-cover-page{min-height:calc(100vh - 28mm);display:flex;flex-direction:column;page-break-after:always;break-after:page;margin:0 0 8mm}' +
+    '.rp-cover-band{height:5px;background:linear-gradient(90deg,#9a7b4f 0%,#c9a962 45%,#dfc88a 100%)}' +
+    '.rp-cover-panel{flex:1;display:flex;flex-direction:column;justify-content:center;padding:36px 8px 28px;background:linear-gradient(180deg,#faf7f2 0%,#fff 38%)}' +
+    '.rp-cover-inner{max-width:520px;margin:0 auto;text-align:center}' +
+    '.rp-logo{width:72px;height:72px;object-fit:contain;border-radius:14px;border:1px solid #e8dcc8;background:#fff;padding:6px;margin:0 auto 22px;display:block;box-shadow:0 8px 28px rgba(154,123,79,.12)}' +
+    '.rp-cover-mark{width:72px;height:72px;margin:0 auto 22px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#f5efe4,#fff);border:1px solid #e8dcc8;font-family:Georgia,"Times New Roman",serif;font-size:1.35rem;font-weight:650;color:#9a7b4f;letter-spacing:.04em}' +
+    '.rp-kicker{margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9a7b4f}' +
+    '.rp-title{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:2rem;font-weight:650;letter-spacing:-.02em;line-height:1.15;color:#1a1a1a}' +
+    '.rp-sub{margin:14px auto 0;max-width:420px;font-size:13px;color:#666;line-height:1.6}' +
+    '.rp-stats{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin:28px 0 0}' +
+    '.rp-stat{min-width:108px;padding:12px 16px;border-radius:12px;border:1px solid #ebe4d8;background:#fff;box-shadow:0 2px 12px rgba(45,45,45,.04)}' +
+    '.rp-stat strong{display:block;font-size:1.35rem;font-weight:750;color:#9a7b4f;font-variant-numeric:tabular-nums;line-height:1.1}' +
+    '.rp-stat span{display:block;margin-top:4px;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#888}' +
+    '.rp-cover-date{margin-top:32px;font-size:11px;color:#999}' +
+    '.rp-cover-date strong{display:block;color:#555;font-weight:600;margin-bottom:4px;font-size:12px}' +
+    '.rp-section{margin:0 0 18px;page-break-inside:avoid}' +
+    '.rp-section+.rp-section{margin-top:26px}' +
+    '.rp-section-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px;padding:12px 16px;border-radius:10px;background:linear-gradient(135deg,#f8f4ec,#fff);border:1px solid #ebe4d8;border-left:4px solid #c9a962;page-break-after:avoid}' +
+    '.rp-section-banner h2{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:15px;font-weight:650;letter-spacing:.01em;color:#3d3428;text-transform:none}' +
+    '.rp-section-badge{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#9a7b4f;background:rgba(201,169,98,.12);padding:5px 10px;border-radius:999px;white-space:nowrap}' +
+    '.rp-recipe{margin:0 0 18px;padding:0 0 16px;border-bottom:1px solid #f0ebe3;page-break-inside:avoid;break-inside:avoid-page}' +
+    '.rp-recipe:last-child{border-bottom:none;padding-bottom:0;margin-bottom:0}' +
+    '.rp-recipe-hd{margin:0 0 10px;padding-left:12px;border-left:3px solid #c9a962}' +
+    '.rp-recipe__name{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:16px;font-weight:650;color:#1f1f1f;line-height:1.25;letter-spacing:-.01em}' +
+    '.rp-recipe__meta{margin:4px 0 0;font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:#8a7a68}' +
+    '.rp-ing-table{width:100%;border-collapse:collapse;margin:0}' +
+    '.rp-ing-table tr{border-bottom:1px solid #f3eee6}' +
+    '.rp-ing-table tr:last-child{border-bottom:none}' +
+    '.rp-ing-table td{padding:8px 6px;vertical-align:middle}' +
+    '.rp-n{width:28px;text-align:center;font-size:10px;font-weight:700;color:#b59a6d;font-variant-numeric:tabular-nums}' +
+    '.rp-name{font-size:12px;font-weight:550;color:#333;padding-right:12px}' +
+    '.rp-qty{width:96px;text-align:right;font-size:13px;font-weight:700;color:#8a6b42;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+    '.rp-hint{display:block;font-size:9px;font-weight:500;color:#aaa;margin-top:2px;text-transform:none;letter-spacing:0}' +
+    '.rp-running-foot{position:fixed;left:16mm;right:16mm;bottom:6mm;display:flex;justify-content:space-between;gap:16px;padding-top:8px;border-top:1px solid #e8e0d4;font-size:9px;color:#999}' +
+    '.rp-running-foot span{white-space:nowrap}' +
+    '.rp-single-hero{margin:0 0 24px;padding:20px 18px 18px;border-radius:12px;background:linear-gradient(135deg,#faf7f2,#fff);border:1px solid #ebe4d8}' +
+    '.rp-single-hero .rp-title{font-size:1.75rem;text-align:left}' +
+    '.rp-single-hero .rp-sub{text-align:left;margin-left:0;max-width:none}' +
+    '@media print{' +
+    'body{background:#fff}' +
+    '.rp-cover-page{min-height:calc(100vh - 28mm)}' +
+    '.rp-recipe{page-break-inside:avoid;break-inside:avoid-page}' +
+    '.rp-section-banner{page-break-after:avoid}' +
+    '}';
+
+  function buildRecetarioCoverStatsHtml(recipes) {
+    var groups = groupRecipesForPdf(recipes);
+    var pills = [
+      { n: recipes.length, label: 'Recetas' },
+    ];
+    groups.forEach(function (g) {
+      if (g.items && g.items.length) {
+        pills.push({ n: g.items.length, label: g.label });
+      }
+    });
+    if (pills.length > 5) pills = pills.slice(0, 5);
+    return (
+      '<div class="rp-stats">' +
+      pills
+        .map(function (p) {
+          return (
+            '<div class="rp-stat"><strong>' +
+            p.n +
+            '</strong><span>' +
+            esc(p.label) +
+            '</span></div>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  function buildRecetarioRecipeTableHtml(rec) {
+    var rows = (rec.lineas || [])
+      .map(function (ln) {
+        return (
+          '<tr>' +
+          '<td class="rp-n">' +
+          ln.idx +
+          '</td><td class="rp-name">' +
+          esc(ln.nombre) +
+          '</td><td class="rp-qty">' +
+          esc(ln.display) +
+          (ln.hint ? '<span class="rp-hint">' + esc(ln.hint) + '</span>' : '') +
+          '</td></tr>'
+        );
+      })
+      .join('');
+    return '<table class="rp-ing-table"><tbody>' + rows + '</tbody></table>';
+  }
+
+  function buildRecetarioRecipeBlockHtml(rec, withTitle) {
+    var metaBits = [rec.workflowLabel];
+    if (rec.porciones > 1) metaBits.push(rec.porciones + ' porciones');
+    if (rec.categoria) metaBits.push(rec.categoria);
+    var titlePart = withTitle
+      ? '<header class="rp-recipe-hd"><h3 class="rp-recipe__name">' +
+        esc(rec.nombre) +
+        '</h3><p class="rp-recipe__meta">' +
+        esc(metaBits.join(' · ')) +
+        '</p></header>'
+      : '';
+    return '<article class="rp-recipe">' + titlePart + buildRecetarioRecipeTableHtml(rec) + '</article>';
+  }
+
+  function buildRecetarioPrintHtml(recipes, brandMeta) {
+    brandMeta = brandMeta || { title: recetarioBrandTitle(), logoData: '', logoFormat: 'PNG' };
+    var brandTitle = String(brandMeta.title || recetarioBrandTitle()).trim() || 'BONA origen';
+    var single = recipes.length === 1;
+    var stamp = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+    var docTitle = single
+      ? 'Receta — ' + recipes[0].nombre + ' — ' + brandTitle
+      : 'Recetario de cocina — ' + brandTitle;
+    var logoBlock = brandMeta.logoData
+      ? '<img class="rp-logo" src="' + brandMeta.logoData + '" alt="' + esc(brandTitle) + '">'
+      : '<div class="rp-cover-mark" aria-hidden="true">' + esc(recetarioBrandInitials(brandTitle)) + '</div>';
+
+    var coverHtml = '';
+    var bodyContent = '';
+
+    if (single) {
+      var rec = recipes[0];
+      var metaBits = [rec.workflowLabel];
+      if (rec.porciones > 1) metaBits.push(rec.porciones + ' porciones');
+      if (rec.categoria) metaBits.push(rec.categoria);
+      coverHtml =
+        '<div class="rp-single-hero">' +
+        '<p class="rp-kicker">Receta de cocina</p>' +
+        '<h1 class="rp-title">' +
+        esc(rec.nombre) +
+        '</h1>' +
+        '<p class="rp-sub">' +
+        esc(metaBits.join(' · ')) +
+        ' · Ingredientes y pesos para preparación</p></div>';
+      bodyContent = buildRecetarioRecipeBlockHtml(rec, false);
+    } else {
+      coverHtml =
+        '<div class="rp-cover-page">' +
+        '<div class="rp-cover-band"></div>' +
+        '<div class="rp-cover-panel">' +
+        '<div class="rp-cover-inner">' +
+        logoBlock +
+        '<p class="rp-kicker">Recetario de cocina</p>' +
+        '<h1 class="rp-title">' +
+        esc(brandTitle) +
+        '</h1>' +
+        '<p class="rp-sub">Ingredientes y pesos para el equipo de cocina · Documento operativo sin costos</p>' +
+        buildRecetarioCoverStatsHtml(recipes) +
+        '<div class="rp-cover-date"><strong>Generado</strong>' +
+        esc(stamp) +
+        '</div></div></div></div>';
+      groupRecipesForPdf(recipes).forEach(function (group) {
+        bodyContent +=
+          '<section class="rp-section">' +
+          '<header class="rp-section-banner">' +
+          '<h2>' +
+          esc(group.label) +
+          '</h2>' +
+          '<span class="rp-section-badge">' +
+          group.items.length +
+          ' receta' +
+          (group.items.length === 1 ? '' : 's') +
+          '</span></header>';
+        group.items.forEach(function (r) {
+          bodyContent += buildRecetarioRecipeBlockHtml(r, true);
+        });
+        bodyContent += '</section>';
+      });
+    }
+
+    return (
+      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>' +
+      esc(docTitle) +
+      '</title><style>' +
+      REC_PRINT_CSS +
+      '</style></head><body><div class="rp-doc">' +
+      coverHtml +
+      bodyContent +
+      '<div class="rp-running-foot">' +
+      '<span>' +
+      esc(brandTitle) +
+      ' · Recetario operativo</span>' +
+      '<span>Sincronizado con Costos · Crozzo POS</span></div></div></body></html>'
+    );
+  }
+
+  function printRecetarioWindowFallback(html) {
+    var w = window.open('', '_blank', 'width=960,height=720');
+    if (!w) {
+      toast('Permita ventanas emergentes para imprimir o guardar el recetario.', 'warning');
+      return Promise.resolve(false);
+    }
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    return new Promise(function (resolve) {
+      global.setTimeout(function () {
+        try {
+          w.print();
+          resolve(true);
+        } catch (e) {
+          console.warn('[recetario-print]', e);
+          resolve(false);
+        }
+      }, 450);
+    });
+  }
+
+  function exportPrint(recipes) {
+    if (!recipes || !recipes.length) {
+      toast('No hay recetas para imprimir', 'warning');
+      return Promise.resolve(false);
+    }
+    var n = recipes.length;
+    toast('Preparando ' + (n === 1 ? 'receta' : 'recetario') + '…', 'info');
+    return loadRecetarioBrandForPdf()
+      .then(function (brandMeta) {
+        var html;
+        try {
+          html = buildRecetarioPrintHtml(recipes, brandMeta);
+        } catch (buildErr) {
+          throw new Error('Error al armar el documento: ' + (buildErr.message || buildErr));
+        }
+        var docOpts = {
+          allowDialog: true,
+          silent: false,
+          landscape: false,
+          pageFormat: 'a4',
+          printOutput: 'carta',
+          role: 'caja',
+          toast: false,
+        };
+        if (typeof global.crozzoPrintHtmlDocument === 'function') {
+          return global.crozzoPrintHtmlDocument(html, docOpts).then(function (ok) {
+            if (ok) {
+              toast(
+                n === 1
+                  ? 'En el cuadro de impresión elija «Guardar como PDF» o imprimir'
+                  : 'Recetario listo — desactive «Encabezados» en el cuadro de impresión para un PDF más limpio',
+                'success'
+              );
+              return true;
+            }
+            toast('Abriendo vista previa… Elija imprimir o «Guardar como PDF».', 'warning');
+            return printRecetarioWindowFallback(html);
+          });
+        }
+        return printRecetarioWindowFallback(html).then(function (ok) {
+          if (ok) toast('Vista previa lista — imprima o guarde como PDF', 'info');
+          return ok;
+        });
+      })
+      .catch(function (e) {
+        console.error('[recetario-print]', e);
+        toast((e && e.message) || 'No se pudo abrir la impresión del recetario', 'error');
+        return false;
+      });
   }
 
   var _pdfEmojiCache = {};
@@ -1487,8 +1763,8 @@
       '</div>' +
       '<div class="crc__hero-actions">' +
       '<button type="button" class="btn btn-primary" id="crc-pdf-all">' +
-      icon('download') +
-      ' Descargar recetario PDF</button>' +
+      icon('printer') +
+      ' Imprimir recetario</button>' +
       '</div></div></header>' +
       '<div class="crc__toolbar">' +
       '<div class="crc__search-wrap">' +
@@ -1514,6 +1790,7 @@
       };
       document.addEventListener('crozzo-catalogo-mp:changed', refresh);
       document.addEventListener('crozzo-costos:receta-actualizada', refresh);
+      document.addEventListener('crozzo-costos:matriz-recalculada', refresh);
     }
     refreshIcons(host);
   }
@@ -1523,5 +1800,6 @@
     init: init,
     listKitchenRecipes: listKitchenRecipes,
     exportPdf: exportPdf,
+    exportPrint: exportPrint,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

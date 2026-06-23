@@ -439,7 +439,15 @@
             .sort()
             .map(function (ref) {
               var l = bag[ref];
-              return ref + '@' + (l && l.deviceId ? String(l.deviceId) : '');
+              return (
+                ref +
+                '@' +
+                (l && l.deviceId ? String(l.deviceId) : '') +
+                ':' +
+                String((l && l.kind) || '') +
+                ':' +
+                String((l && l.userName) || '')
+              );
             })
             .join(',');
         })
@@ -838,7 +846,7 @@
       pullMesaRows({ quiet: true, skipRender: true })
         .then(notifyRuntimeUiIfApplied)
         .catch(function () {});
-    }, 280);
+    }, 90);
   }
 
   async function pushRuntimeNow(opts) {
@@ -941,8 +949,13 @@
       if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
       return false;
     }
+    if (!(opts && opts.force)) {
+      var localAtGuard = localSavedAt();
+      if (localAtGuard && remoteAt && remoteAt < localAtGuard - 500) return false;
+    }
     if (Date.now() < __echoUntil && !(opts && opts.force)) {
-      if (sameContent && remoteAt <= localSavedAt() + 1200) return false;
+      var localAtEcho = localSavedAt();
+      if (!remoteAt || remoteAt <= localAtEcho + 1200) return false;
     }
     if (!(opts && opts.force)) {
       var localAt = localSavedAt();
@@ -1150,6 +1163,9 @@
   }
 
   global.crozzoSchedulePosRuntimeCloudPush = schedulePush;
+  global.crozzoBumpRuntimeCloudEcho = function (ms) {
+    __echoUntil = Date.now() + (Number(ms) > 0 ? Number(ms) : ECHO_MS);
+  };
   global.crozzoPushPosRuntimeCloudNow = function () {
     return pushRuntimeNow({ force: true });
   };

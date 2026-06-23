@@ -2990,6 +2990,13 @@
       setNormalBannerMessage();
       refreshUpdateIcons();
     }
+    try {
+      if (typeof global.crozzoWebEmbedLayoutSync === 'function' && typeof global.currentPage !== 'undefined') {
+        global.crozzoWebEmbedLayoutSync(global.currentPage);
+      } else if (typeof global.crozzoWhatsAppDockRequestLayoutSync === 'function') {
+        global.crozzoWhatsAppDockRequestLayoutSync();
+      }
+    } catch (_) {}
   }
 
   function populateCriticalInfo(state, errMsg) {

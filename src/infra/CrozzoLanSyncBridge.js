@@ -5,7 +5,9 @@
   'use strict';
 
   var _pollTimer = null;
+  var _runtimePollTimer = null;
   var POLL_MS = 4200;
+  var RUNTIME_POLL_MS = 900;
 
   function isDesktopTauri() {
     try {
@@ -329,6 +331,32 @@
     }
   }
 
+  async function pullLocalRuntimeOnce() {
+    if (!isDesktopTauri()) return false;
+    var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
+    if (!mdCfg || mdCfg.role !== 'A') return false;
+    var port = Number(mdCfg.port) || 3000;
+    try {
+      var res = await global.fetch('http://127.0.0.1:' + port + '/api/runtime', {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return false;
+      var j = await res.json().catch(function () {
+        return null;
+      });
+      if (!j || !j.payload) return false;
+      if (typeof global.crozzoApplyRemoteRuntimeRow !== 'function') return false;
+      var applied = global.crozzoApplyRemoteRuntimeRow(j.payload, j.saved_at || null, { quiet: true });
+      if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
+        global.crozzoHandleRemoteRuntimeUiSync();
+      }
+      return applied;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function drainPendingOnce() {
     if (!isDesktopTauri()) return 0;
     var items = [];
@@ -398,11 +426,32 @@
       clearInterval(_pollTimer);
       _pollTimer = null;
     }
+    if (_runtimePollTimer) {
+      clearInterval(_runtimePollTimer);
+      _runtimePollTimer = null;
+    }
+  }
+
+  function startRuntimePolling() {
+    if (_runtimePollTimer) {
+      clearInterval(_runtimePollTimer);
+      _runtimePollTimer = null;
+    }
+    var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
+    if (!isDesktopTauri() || !mdCfg || mdCfg.role !== 'A') return;
+    _runtimePollTimer = setInterval(function () {
+      try {
+        if (typeof document !== 'undefined' && document.hidden) return;
+      } catch (_) {}
+      pullLocalRuntimeOnce().catch(function () {});
+    }, RUNTIME_POLL_MS);
+    pullLocalRuntimeOnce().catch(function () {});
   }
 
   function startPolling() {
     stopPolling();
     if (!isDesktopTauri()) return;
+    startRuntimePolling();
     _pollTimer = setInterval(function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;
@@ -691,6 +740,7 @@
     stopServer: stopServer,
     status: status,
     drainPendingOnce: drainPendingOnce,
+    pullLocalRuntimeOnce: pullLocalRuntimeOnce,
     afterMainInit: afterMainInit,
   };
 })(typeof window !== 'undefined' ? window : this);
