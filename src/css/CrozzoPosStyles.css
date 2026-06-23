@@ -73287,6 +73287,18 @@ html.tauri-desktop .crozzo-quick-apps-fab__badge {
   background: linear-gradient(145deg, #4285f4, #1967d2);
 }
 
+.crozzo-quick-apps-fab__badge--dataico {
+  background: linear-gradient(145deg, #8b5cf6, #6d28d9);
+}
+
+.crozzo-quick-apps-fab__badge--dian {
+  background: linear-gradient(145deg, #00a651, #008043);
+}
+
+.crozzo-quick-apps-fab__badge--spotify {
+  background: linear-gradient(145deg, #1ed760, #1db954);
+}
+
 .crozzo-quick-apps-fab__main {
   background: linear-gradient(145deg, #fff8ef, #f3e8d8);
   border: 2px solid rgba(180, 140, 90, 0.35);
@@ -73769,6 +73781,18 @@ html.crozzo-page-drive-web .crozzo-wa-page__brand-icon {
   color: #4285f4 !important;
 }
 
+html.crozzo-page-dataico-web .crozzo-wa-page__brand-icon {
+  color: #7c3aed !important;
+}
+
+html.crozzo-page-dian-vpfe-web .crozzo-wa-page__brand-icon {
+  color: #008043 !important;
+}
+
+html.crozzo-page-spotify-web .crozzo-wa-page__brand-icon {
+  color: #1db954 !important;
+}
+
 html.crozzo-page-gmail-web .crozzo-wa-page__btn:hover,
 html.crozzo-page-gmail-web .crozzo-wa-page__btn:focus-visible {
   background: #fce8e6 !important;
@@ -73779,6 +73803,24 @@ html.crozzo-page-drive-web .crozzo-wa-page__btn:hover,
 html.crozzo-page-drive-web .crozzo-wa-page__btn:focus-visible {
   background: #e8f0fe !important;
   border-color: #4285f4 !important;
+}
+
+html.crozzo-page-dataico-web .crozzo-wa-page__btn:hover,
+html.crozzo-page-dataico-web .crozzo-wa-page__btn:focus-visible {
+  background: #ede9fe !important;
+  border-color: #7c3aed !important;
+}
+
+html.crozzo-page-dian-vpfe-web .crozzo-wa-page__btn:hover,
+html.crozzo-page-dian-vpfe-web .crozzo-wa-page__btn:focus-visible {
+  background: #e6f5ec !important;
+  border-color: #008043 !important;
+}
+
+html.crozzo-page-spotify-web .crozzo-wa-page__btn:hover,
+html.crozzo-page-spotify-web .crozzo-wa-page__btn:focus-visible {
+  background: #e8f9ef !important;
+  border-color: #1db954 !important;
 }
 
 body.crozzo-page-web-embed .toast-container,
@@ -73845,6 +73887,9 @@ html.crozzo-page-web-embed .crozzo-wa-page__shell {
 html.crozzo-page-web-embed #crozzoWaEmbedHost,
 html.crozzo-page-web-embed #crozzoGmailEmbedHost,
 html.crozzo-page-web-embed #crozzoDriveEmbedHost,
+html.crozzo-page-web-embed #crozzoDataicoEmbedHost,
+html.crozzo-page-web-embed #crozzoDianVpfeEmbedHost,
+html.crozzo-page-web-embed #crozzoSpotifyEmbedHost,
 html.crozzo-page-web-embed .crozzo-wa-page__host {
   position: absolute !important;
   top: 0 !important;
@@ -73962,6 +74007,18 @@ html.crozzo-page-web-embed .crozzo-quick-apps-fab {
   background: linear-gradient(145deg, #4285f4, #1967d2);
 }
 
+.crozzo-web-embed-tabs__btn--dataico.is-active {
+  background: linear-gradient(145deg, #8b5cf6, #6d28d9);
+}
+
+.crozzo-web-embed-tabs__btn--dian.is-active {
+  background: linear-gradient(145deg, #00a651, #008043);
+}
+
+.crozzo-web-embed-tabs__btn--spotify.is-active {
+  background: linear-gradient(145deg, #1ed760, #1db954);
+}
+
 .crozzo-web-embed-tabs__btn--home {
   background: linear-gradient(145deg, #fff8ef, #f3e8d8);
   border-color: rgba(180, 140, 90, 0.35);
@@ -73973,10 +74030,32 @@ html.crozzo-page-web-embed .crozzo-quick-apps-fab {
   background: linear-gradient(145deg, #fff3e0, #eddcc4);
 }
 
-html.crozzo-page-web-embed #crozzoWaEmbedHost,
-html.crozzo-page-web-embed #crozzoGmailEmbedHost,
-html.crozzo-page-web-embed #crozzoDriveEmbedHost,
-html.crozzo-page-web-embed .crozzo-wa-page__host {
-  bottom: 0 !important;
+.crozzo-quick-apps-fab--no-access,
+.crozzo-wa-fab-stack.crozzo-quick-apps-fab--no-access {
+  display: none !important;
+}
+
+.crozzo-quick-apps-policy-card {
+  margin-top: 16px;
+}
+
+.crozzo-quick-apps-policy-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.crozzo-quick-apps-policy-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+}
+
+.crozzo-quick-apps-policy-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 

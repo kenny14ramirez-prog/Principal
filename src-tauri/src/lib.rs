@@ -122,6 +122,9 @@ pub fn run() {
     crozzo_external::crozzo_whatsapp_dock_sync,
     crozzo_external::crozzo_gmail_dock_sync,
     crozzo_external::crozzo_drive_dock_sync,
+    crozzo_external::crozzo_dataico_dock_sync,
+    crozzo_external::crozzo_dian_vpfe_dock_sync,
+    crozzo_external::crozzo_spotify_dock_sync,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]

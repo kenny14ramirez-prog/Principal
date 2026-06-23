@@ -678,11 +678,33 @@
         global.crozzoDriveDockHideEmbed();
       }
     }
+    if (typeof global.crozzoDataicoDockHideEmbed === 'function') {
+      if (typeof global.crozzoDataicoDockIsOpen === 'function' && global.crozzoDataicoDockIsOpen()) {
+        global.crozzoDataicoDockHideEmbed();
+      }
+    }
+    if (typeof global.crozzoDianVpfeDockHideEmbed === 'function') {
+      if (typeof global.crozzoDianVpfeDockIsOpen === 'function' && global.crozzoDianVpfeDockIsOpen()) {
+        global.crozzoDianVpfeDockHideEmbed();
+      }
+    }
+    if (typeof global.crozzoSpotifyDockHideEmbed === 'function') {
+      if (typeof global.crozzoSpotifyDockIsOpen === 'function' && global.crozzoSpotifyDockIsOpen()) {
+        global.crozzoSpotifyDockHideEmbed();
+      }
+    }
   }
 
   function openDock(url) {
     if (!isDesktopPc()) return Promise.resolve(false);
     if (isLoginOpen()) return Promise.resolve(false);
+    if (
+      typeof global.crozzoUserCanAccessWebEmbedPage === 'function' &&
+      !global.crozzoUserCanAccessWebEmbedPage(PAGE_ID)
+    ) {
+      if (typeof global.showToast === 'function') global.showToast('No tiene permiso para esta app', 'warning');
+      return Promise.resolve(false);
+    }
     url = url || DEFAULT_URL;
     global.__crozzoWaTargetUrl = url;
     closeOtherEmbeds();

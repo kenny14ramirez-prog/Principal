@@ -7,7 +7,12 @@
   ],
   "windows": [
     "main",
-    "crozzo-whatsapp-dock"
+    "crozzo-whatsapp-dock",
+    "crozzo-gmail-dock",
+    "crozzo-drive-dock",
+    "crozzo-dataico-dock",
+    "crozzo-dian-vpfe-dock",
+    "crozzo-spotify-dock"
   ],
   "permissions": [
     "core:default",

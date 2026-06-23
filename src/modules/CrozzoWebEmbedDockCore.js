@@ -664,11 +664,27 @@
       if (PAGE_ID !== 'drive-web' && typeof global.crozzoDriveDockIsOpen === 'function' && global.crozzoDriveDockIsOpen()) {
         if (typeof global.crozzoDriveDockHideEmbed === 'function') global.crozzoDriveDockHideEmbed();
       }
+      if (PAGE_ID !== 'dataico-web' && typeof global.crozzoDataicoDockIsOpen === 'function' && global.crozzoDataicoDockIsOpen()) {
+        if (typeof global.crozzoDataicoDockHideEmbed === 'function') global.crozzoDataicoDockHideEmbed();
+      }
+      if (PAGE_ID !== 'dian-vpfe-web' && typeof global.crozzoDianVpfeDockIsOpen === 'function' && global.crozzoDianVpfeDockIsOpen()) {
+        if (typeof global.crozzoDianVpfeDockHideEmbed === 'function') global.crozzoDianVpfeDockHideEmbed();
+      }
+      if (PAGE_ID !== 'spotify-web' && typeof global.crozzoSpotifyDockIsOpen === 'function' && global.crozzoSpotifyDockIsOpen()) {
+        if (typeof global.crozzoSpotifyDockHideEmbed === 'function') global.crozzoSpotifyDockHideEmbed();
+      }
     }
 
     function openDock(url) {
       if (!isDesktopPc()) return Promise.resolve(false);
       if (isLoginOpen()) return Promise.resolve(false);
+      if (
+        typeof global.crozzoUserCanAccessWebEmbedPage === 'function' &&
+        !global.crozzoUserCanAccessWebEmbedPage(PAGE_ID)
+      ) {
+        if (typeof global.showToast === 'function') global.showToast('No tiene permiso para esta app', 'warning');
+        return Promise.resolve(false);
+      }
       url = url || DEFAULT_URL;
       global[TARGET_URL_KEY] = url;
       closeOtherEmbeds();
