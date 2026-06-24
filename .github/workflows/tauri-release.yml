@@ -8,6 +8,22 @@ on:
       - 'v*'
 
 jobs:
+  deploy-crm-registro:
+    name: Formulario QR clientes (nube Crozzo)
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Deploy crm-registro-cliente
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: npm run deploy:crm-qr
+        continue-on-error: true
+
   release-meta:
     name: Crear release GitHub (una sola vez)
     runs-on: ubuntu-latest

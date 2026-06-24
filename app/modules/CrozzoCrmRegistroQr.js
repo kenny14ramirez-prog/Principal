@@ -1,15 +1,36 @@
 /**
- * Crozzo POS — QR de autoregistro de clientes (LAN + importación a clientesCrm).
- * El cajero sigue usando el buscador CRM habitual; aquí se genera el QR para el cliente.
+ * Crozzo POS — QR de autoregistro de clientes vía Supabase (token ~1 h).
+ * Caja o tablet generan el QR; el cliente escanea con datos móviles (sin Wi‑Fi del local).
  */
 (function (global) {
   'use strict';
 
   var CFG_KEY = 'crmRegistroQr';
-  var DEFAULT_PORT = 8765;
-  var POLL_MS = 4000;
+  var TOKENS_TABLE = 'crozzo_crm_registro_tokens';
+  var INTAKE_TABLE = 'crozzo_crm_registro_intake';
+  var STORAGE_BUCKET = 'crozzo-public';
+  var STORAGE_OBJECT = 'crm-registro-cliente.html';
+  var STORAGE_FALLBACK_BUCKET = 'oficina-docs';
+  var STORAGE_FALLBACK_OBJECT = 'crozzo/crm-registro-cliente.html';
+  var TTL_MS = 60 * 60 * 1000;
+  var POLL_MS = 5000;
+  var HTML_VERSION = 5;
+  var URL_MODE_FUNCTION = 'function';
+  var URL_MODE_STORAGE = 'storage';
+  var URL_MODE_RELAY = 'relay';
+  /** Formulario web central Crozzo — un solo deploy en nube (no por PC). */
+  var CRM_REG_RELAY_FN = 'https://usookdisddnqsahtepce.supabase.co/functions/v1/crm-registro-cliente';
   var _pollTimer = null;
-  var _panelOpen = false;
+  var _tableMissing = false;
+  var _tableMissingNotified = false;
+  var STORAGE_UPLOAD_CANDIDATES = [
+    { bucket: 'crozzo-public', object: 'crm-registro-cliente.html' },
+    { bucket: 'crozzo-public', object: 'crm-registro/index.html' },
+    { bucket: 'crozzo-public', object: 'crm-registro-cliente.htm' },
+    { bucket: 'oficina-docs', object: 'crozzo/crm-registro-cliente.html' },
+  ];
+  var _kioskEl = null;
+  var _kioskRetryTimer = null;
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -17,15 +38,6 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
-  }
-
-  function isTauri() {
-    return !!(global.__TAURI__ && global.__TAURI__.core && global.__TAURI__.core.invoke);
-  }
-
-  function tauriInvoke(cmd, args) {
-    if (!isTauri()) return Promise.reject(new Error('Solo disponible en app de escritorio'));
-    return global.__TAURI__.core.invoke(cmd, args || {});
   }
 
   function readCfg() {
@@ -51,37 +63,619 @@
 
   function randomToken() {
     var a = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    var out = 'crm_';
-    for (var i = 0; i < 24; i++) out += a.charAt(Math.floor(Math.random() * a.length));
+    var out = 'crmq_';
+    for (var i = 0; i < 22; i++) out += a.charAt(Math.floor(Math.random() * a.length));
     return out;
   }
 
-  function ensureCfg() {
-    var c = readCfg();
-    if (c && c.token && String(c.token).length >= 8) return c;
-    return writeCfg({
-      token: randomToken(),
-      port: DEFAULT_PORT,
-      autoStart: true,
-      createdAt: new Date().toISOString(),
-    });
+  function cloudCreds() {
+    if (typeof global.crozzoResolveSupabaseCredentials !== 'function') return null;
+    var c = global.crozzoResolveSupabaseCredentials();
+    if (!c || !c.syncOn || !c.url || !c.key) return null;
+    if (typeof global.isValidSupabasePair === 'function' && !global.isValidSupabasePair(c.url, c.key)) return null;
+    return c;
+  }
+
+  function cloudReady() {
+    return (
+      typeof global.crozzoTierAllowsCloudSync === 'function' &&
+      global.crozzoTierAllowsCloudSync() &&
+      !!global.__SUPABASE &&
+      !!cloudCreds()
+    );
+  }
+
+  function sbBase() {
+    var c = cloudCreds();
+    if (!c) return '';
+    return typeof global.crozzoNormalizeSupabaseProjectUrl === 'function'
+      ? global.crozzoNormalizeSupabaseProjectUrl(c.url)
+      : String(c.url || '').replace(/\/+$/, '');
+  }
+
+  function cloudProjectRef() {
+    var base = sbBase();
+    var m = base.match(/https?:\/\/([^.]+)\.supabase\.co/i);
+    return m ? m[1] : '';
+  }
+
+  function renderStaffQrWaitHtml() {
+    return (
+      '<p class="form-hint" style="text-align:center;margin:12px 0;">Generando codigo QR…</p>'
+    );
+  }
+
+  function staffToast(msg, kind) {
+    if (typeof global.showToast === 'function') global.showToast(msg, kind || 'info');
+  }
+
+  function isCustomerKioskContext(statusId, qrHostId) {
+    var s = String(statusId || '') + String(qrHostId || '');
+    return s.indexOf('Kiosk') >= 0;
+  }
+
+  function renderCustomerKioskWaitHtml(soft) {
+    return (
+      '<div class="crozzo-crm-reg-kiosk__wait' +
+      (soft ? ' is-soft' : '') +
+      '">' +
+      '<div class="crozzo-crm-reg-kiosk__wait-pulse" aria-hidden="true"></div>' +
+      '<p class="crozzo-crm-reg-kiosk__wait-title">' +
+      (soft ? 'QR en un momento' : 'Preparando codigo QR…') +
+      '</p>' +
+      '<p class="crozzo-crm-reg-kiosk__wait-sub">' +
+      (soft ? 'Si tarda, avise al personal en caja' : 'Un instante, por favor') +
+      '</p>' +
+      '</div>'
+    );
+  }
+
+  function stopKioskAutoRetry() {
+    if (_kioskRetryTimer) {
+      clearInterval(_kioskRetryTimer);
+      _kioskRetryTimer = null;
+    }
+  }
+
+  function startKioskAutoRetry(qrSize) {
+    stopKioskAutoRetry();
+    _kioskRetryTimer = setInterval(function () {
+      if (!_kioskEl) {
+        stopKioskAutoRetry();
+        return;
+      }
+      var cfg = readCfg() || {};
+      if (!cfg.token || tokenExpired(cfg)) return;
+      safeQrUrlForToken(cfg.token).then(function (url) {
+        if (!url) return;
+        var qrHost = document.getElementById('crozzoCrmRegKioskQr');
+        var statusEl = document.getElementById('crozzoCrmRegKioskStatus');
+        if (qrHost) qrHost.innerHTML = renderQrImg(url, qrSize || 280, 'crozzoCrmRegKioskQrCanvas');
+        if (statusEl) {
+          statusEl.textContent = formatExpiryLabel(cfg);
+          statusEl.className = 'crozzo-crm-reg-kiosk__status is-on';
+        }
+        stopKioskAutoRetry();
+      });
+    }, 12000);
+  }
+
+  function notifyStaffQrPending() {
+    staffToast('No se pudo mostrar el QR. Avise a administracion del local.', 'warning');
+  }
+
+  function bindSetupHintActions() {
+    /* reservado — configuracion solo en Super Admin → Nube */
+  }
+
+  function openCrmRegistroSqlWizard() {
+    if (typeof global.crozzoNubeOpenCrmRegistroSql === 'function') {
+      global.crozzoNubeOpenCrmRegistroSql();
+      return;
+    }
+    if (typeof global.navigateTo === 'function') {
+      global.__crozzoPendingSqlScriptKey = 'crm_registro_qr';
+      global.navigateTo('super-admin-nube');
+    }
+  }
+
+  function getCrmRegistroSqlText() {
+    try {
+      if (global.CrozzoSupabaseSqlExtras && global.CrozzoSupabaseSqlExtras.list) {
+        var list = global.CrozzoSupabaseSqlExtras.list();
+        var s = list.find(function (x) {
+          return x.key === 'crm_registro_qr';
+        });
+        if (s && s.sql) return s.sql;
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  function copyCrmRegistroSql() {
+    var sql = getCrmRegistroSqlText();
+    if (!sql) {
+      if (typeof global.showToast === 'function') global.showToast('Script 18 no cargado — recargue F5', 'warning');
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(sql).then(
+        function () {
+          if (typeof global.showToast === 'function') {
+            global.showToast('SQL script 18 copiado — pegue en Supabase SQL Editor → Run', 'success');
+          }
+        },
+        function () {
+          if (typeof global.showToast === 'function') global.showToast('No se pudo copiar', 'error');
+        }
+      );
+    }
+  }
+
+  function businessId() {
+    return typeof global.getBusinessId === 'function' ? global.getBusinessId() : 'default';
   }
 
   function businessLabel() {
     try {
       var emp = (global.config && global.config.get && global.config.get('empresa')) || {};
-      return String(emp.nombreComercial || emp.razonSocial || emp.nombre || (typeof global.crozzoAppDisplayName === 'function' ? global.crozzoAppDisplayName() : '') || 'Local').trim();
+      var md =
+        typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() || {} : {};
+      return String(
+        md.businessName ||
+          emp.nombreComercial ||
+          emp.razonSocial ||
+          emp.nombre ||
+          (typeof global.crozzoAppDisplayName === 'function' ? global.crozzoAppDisplayName() : '') ||
+          'Local'
+      ).trim();
     } catch (_) {
       return 'Local';
     }
   }
 
-  function buildRegistroUrl(ip, port, token) {
-    var host = String(ip || '127.0.0.1').trim();
-    var p = Number(port) || DEFAULT_PORT;
-    var t = encodeURIComponent(token || '');
-    var b = encodeURIComponent(businessLabel());
-    return 'http://' + host + ':' + p + '/registro?t=' + t + '&b=' + b;
+  function tokenExpired(cfg) {
+    cfg = cfg || readCfg() || {};
+    var exp = cfg.expiresAt || cfg.expires_at;
+    if (!exp) return true;
+    return Date.parse(exp) <= Date.now();
+  }
+
+  function isTableMissingError(err) {
+    var msg = String((err && err.message) || err || '');
+    return /relation|does not exist|PGRST205|schema cache|Could not find the table|404/i.test(msg);
+  }
+
+  function notifyTableMissingOnce() {
+    if (_tableMissingNotified) return;
+    _tableMissingNotified = true;
+    staffToast('QR no disponible. Avise a administracion del local.', 'warning');
+  }
+
+  function markTableMissing(err) {
+    if (_tableMissing) return;
+    if (!isTableMissingError(err)) return;
+    _tableMissing = true;
+    notifyTableMissingOnce();
+  }
+
+  function relayFunctionUrl() {
+    if (global.CROZZO_CRM_REG_RELAY_FN) return String(global.CROZZO_CRM_REG_RELAY_FN).replace(/\/+$/, '');
+    return CRM_REG_RELAY_FN;
+  }
+
+  function ownRegistroFunctionUrl() {
+    return sbBase() + '/functions/v1/crm-registro-cliente';
+  }
+
+  function publicRegistroFunctionUrl() {
+    return relayFunctionUrl() || ownRegistroFunctionUrl();
+  }
+
+  function registroFunctionCandidates() {
+    var out = [];
+    var relay = relayFunctionUrl();
+    var own = ownRegistroFunctionUrl();
+    if (relay) out.push(relay);
+    if (!relay || relay !== own) out.push(own);
+    return out;
+  }
+
+  function buildRegistroProbeUrl(base) {
+    var c = cloudCreds();
+    var url = String(base || '').split('?')[0] + '?t=probe&bid=default&b=probe';
+    if (c) {
+      url += '&sb=' + encodeURIComponent(sbBase());
+      url += '&ak=' + encodeURIComponent(c.key);
+    }
+    return url;
+  }
+
+  function publicRegistroStorageUrl(bucket, object) {
+    bucket = bucket || readCfg()?.storageBucket || STORAGE_BUCKET;
+    object = object || readCfg()?.storageObject || STORAGE_OBJECT;
+    return sbBase() + '/storage/v1/object/public/' + bucket + '/' + object;
+  }
+
+  function publicRegistroPageUrl() {
+    return publicRegistroFunctionUrl();
+  }
+
+  function isPublicCloudRegistroUrl(url) {
+    var u = String(url || '').trim().toLowerCase();
+    return (
+      u.indexOf('.supabase.co/functions/v1/crm-registro-cliente') > 0 ||
+      (u.indexOf('.supabase.co/storage/v1/object/public/') > 0 && u.indexOf('crm-registro') > 0)
+    );
+  }
+
+  function registroPageBaseUrl(cfg) {
+    cfg = cfg || readCfg() || {};
+    if (cfg.qrBaseUrl) {
+      return String(cfg.qrBaseUrl).split('?')[0];
+    }
+    if (cfg.qrBaseMode === URL_MODE_RELAY || cfg.urlMode === URL_MODE_RELAY) {
+      return relayFunctionUrl() || publicRegistroFunctionUrl();
+    }
+    if (cfg.functionAvailable === true || cfg.qrBaseMode === URL_MODE_FUNCTION) {
+      return ownRegistroFunctionUrl();
+    }
+    return relayFunctionUrl() || ownRegistroFunctionUrl();
+  }
+
+  function persistQrBase(base, mode, bucket, object) {
+    var patch = {
+      qrBaseUrl: base,
+      qrBaseMode: mode,
+      pageReady: true,
+      urlMode: mode === URL_MODE_RELAY ? URL_MODE_RELAY : mode === 'function' ? URL_MODE_FUNCTION : URL_MODE_STORAGE,
+      functionAvailable: mode === 'function' || mode === URL_MODE_RELAY,
+      storagePageReady: mode === 'storage',
+    };
+    if (bucket) patch.storageBucket = bucket;
+    if (object) patch.storageObject = object;
+    writeCfg(patch);
+  }
+
+  /** El celular solo debe escanear URLs que Supabase sirva como text/html (Storage no sirve HTML). */
+  function checkUrlServesHtmlPage(url) {
+    var raw = String(url || '').trim();
+    if (!raw) return Promise.resolve(false);
+    var testUrl = raw.indexOf('?') >= 0 ? raw : buildRegistroProbeUrl(raw);
+    return fetch(testUrl, { method: 'GET', cache: 'no-store' })
+      .then(function (res) {
+        var ct = String(res.headers.get('content-type') || '').toLowerCase();
+        return res.text().then(function (body) {
+          var looksHtml = body.indexOf('<!DOCTYPE') >= 0 || body.indexOf('<html') >= 0;
+          if (!res.ok || !looksHtml) return false;
+          return ct.indexOf('text/html') >= 0 || ct.indexOf('application/xhtml') >= 0;
+        });
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
+  function probeRegistroFunctionAt(base) {
+    return checkUrlServesHtmlPage(buildRegistroProbeUrl(base));
+  }
+
+  function resolveQrBaseUrl(opts) {
+    opts = opts || {};
+    var cfg = readCfg() || {};
+    if (!opts.forceUpload && cfg.qrBaseUrl) {
+      return probeRegistroFunctionAt(cfg.qrBaseUrl).then(function (ok) {
+        if (ok) {
+          return { ok: true, base: cfg.qrBaseUrl, mode: cfg.qrBaseMode || URL_MODE_RELAY };
+        }
+        writeCfg({ qrBaseUrl: null, pageReady: false, functionAvailable: false });
+        return resolveQrBaseUrl({ forceUpload: true });
+      });
+    }
+    var candidates = registroFunctionCandidates();
+    var chain = Promise.reject(new Error('start'));
+    candidates.forEach(function (base) {
+      chain = chain.catch(function () {
+        return probeRegistroFunctionAt(base).then(function (ok) {
+          if (!ok) throw new Error('no_html');
+          var mode = base === relayFunctionUrl() ? URL_MODE_RELAY : URL_MODE_FUNCTION;
+          persistQrBase(base, mode);
+          return { ok: true, base: base, mode: mode };
+        });
+      });
+    });
+    return chain.catch(function () {
+      return {
+        ok: false,
+        needsFunction: true,
+        message: 'No se pudo preparar el QR. Avise a administracion del local.',
+      };
+    });
+  }
+
+  function buildCloudRegistroUrl(token) {
+    if (!token) return '';
+    var base = registroPageBaseUrl();
+    if (!base || !isPublicCloudRegistroUrl(base)) return '';
+    var c = cloudCreds();
+    var url =
+      base +
+      '?t=' +
+      encodeURIComponent(token) +
+      '&bid=' +
+      encodeURIComponent(businessId()) +
+      '&b=' +
+      encodeURIComponent(businessLabel());
+    if (c) {
+      url += '&sb=' + encodeURIComponent(sbBase());
+      url += '&ak=' + encodeURIComponent(c.key);
+    }
+    return url;
+  }
+
+  function safeQrUrlForToken(token) {
+    var url = buildCloudRegistroUrl(token);
+    if (!url) return Promise.resolve('');
+    return checkUrlServesHtmlPage(url).then(function (ok) {
+      return ok ? url : '';
+    });
+  }
+
+  function utf8HtmlBlob(html) {
+    return new Blob([sanitizeRegistroHtml(html)], { type: 'text/html;charset=utf-8' });
+  }
+
+  function getRegistroHtmlTemplate() {
+    var tpl = global.__CROZZO_CRM_REG_HTML_TEMPLATE;
+    if (tpl && String(tpl).indexOf('<!DOCTYPE') >= 0) {
+      return Promise.resolve(String(tpl));
+    }
+    return Promise.reject(
+      new Error('Plantilla de registro no cargada. Recargue la app (F5) e intente de nuevo.')
+    );
+  }
+
+  function buildRegistroHtmlForUpload() {
+    var c = cloudCreds();
+    if (!c) return Promise.reject(new Error('Supabase no configurado'));
+    var inject = JSON.stringify({
+      sb: sbBase(),
+      ak: c.key,
+      bid: businessId(),
+      biz: businessLabel(),
+      v: HTML_VERSION,
+    });
+    return getRegistroHtmlTemplate().then(function (html) {
+      html = sanitizeRegistroHtml(html);
+      return html.replace('/*CROZZO_REG_INJECT*/null', inject);
+    });
+  }
+
+  /** Quita scripts que Tauri dev inyecta al leer HTML local (no deben subirse a Supabase). */
+  function sanitizeRegistroHtml(html) {
+    return String(html || '')
+      .replace(/<script[\s\S]*?__tauri_cli[\s\S]*?<\/script>\s*/gi, '')
+      .replace(/<script[\s\S]*?trunk[\s\S]*?autoreload[\s\S]*?<\/script>\s*/gi, '')
+      .replace(/^\uFEFF/, '');
+  }
+
+  function fixHtmlMimetypeRpc(bucket, object) {
+    var sb = global.__SUPABASE;
+    if (!sb || typeof sb.rpc !== 'function') return Promise.resolve();
+    return sb
+      .rpc('crozzo_crm_registro_fix_html_mimetype', { p_bucket: bucket, p_path: object })
+      .then(function () {})
+      .catch(function () {});
+  }
+
+  function probeFunctionUrl() {
+    var relay = relayFunctionUrl();
+    return probeRegistroFunctionAt(relay || ownRegistroFunctionUrl()).then(function (ok) {
+      if (ok) {
+        writeCfg({
+          urlMode: relay ? URL_MODE_RELAY : URL_MODE_FUNCTION,
+          functionAvailable: true,
+          pageReady: true,
+        });
+        return true;
+      }
+      return probeRegistroFunctionAt(ownRegistroFunctionUrl()).then(function (ok2) {
+        writeCfg({
+          urlMode: ok2 ? URL_MODE_FUNCTION : URL_MODE_STORAGE,
+          functionAvailable: !!ok2,
+          pageReady: !!ok2,
+        });
+        return ok2;
+      });
+    });
+  }
+
+  function backgroundUploadRegistroHtml() {
+    if (!cloudReady()) return;
+    uploadRegistroPageHtml().catch(function () {});
+  }
+
+  function verifyPublicRegistroPage(bucket, object) {
+    var cfg = readCfg() || {};
+    var url =
+      cfg.urlMode === URL_MODE_STORAGE
+        ? publicRegistroStorageUrl(bucket, object)
+        : publicRegistroFunctionUrl() + '?t=verify&bid=default&b=verify';
+    return fetch(url, { method: 'GET', cache: 'no-store' })
+      .then(function (res) {
+        var ct = String(res.headers.get('content-type') || '').toLowerCase();
+        if (!res.ok) {
+          throw new Error('Formulario publico no accesible (' + res.status + ')');
+        }
+        if (ct.indexOf('text/html') < 0) {
+          throw new Error('Supabase sirve HTML como ' + (ct || 'texto') + ' — corrija mimetype o active la funcion en la nube (Supabase).');
+        }
+        return res.text();
+      })
+      .then(function (body) {
+        if (body.indexOf('<!DOCTYPE') < 0 && body.indexOf('<html') < 0) {
+          throw new Error('El enlace publico no devuelve una pagina web.');
+        }
+        if (body.indexOf('__tauri_cli') >= 0) {
+          throw new Error('Formulario contaminado con script de desarrollo.');
+        }
+        return cfg.urlMode === URL_MODE_STORAGE
+          ? publicRegistroStorageUrl(bucket, object)
+          : publicRegistroFunctionUrl();
+      });
+  }
+
+  function uploadViaRest(bucket, object, html) {
+    var c = cloudCreds();
+    if (!c) return Promise.reject(new Error('Supabase no configurado'));
+    var base = sbBase();
+    var clean = sanitizeRegistroHtml(html);
+    return fetch(base + '/storage/v1/object/' + bucket + '/' + object, {
+      method: 'POST',
+      headers: {
+        apikey: c.key,
+        Authorization: 'Bearer ' + c.key,
+        'Content-Type': 'text/html',
+        'x-upsert': 'true',
+      },
+      body: clean,
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (body) {
+          throw new Error(body || 'Error subiendo HTML (' + res.status + ')');
+        });
+      }
+      return fixHtmlMimetypeRpc(bucket, object);
+    });
+  }
+
+  function uploadToBucket(bucket, object, html) {
+    var sb = global.__SUPABASE;
+    if (!sb || !sb.storage) {
+      return Promise.reject(new Error('Cliente Supabase no listo'));
+    }
+    return uploadViaRest(bucket, object, html)
+      .catch(function () {
+        var blob = utf8HtmlBlob(html);
+        return sb.storage
+          .from(bucket)
+          .upload(object, blob, {
+            contentType: 'text/html; charset=utf-8',
+            cacheControl: '120',
+            upsert: true,
+          })
+          .then(function (res) {
+            if (res.error) throw res.error;
+            return fixHtmlMimetypeRpc(bucket, object);
+          });
+      })
+      .then(function () {
+        writeCfg({
+          storageBucket: bucket,
+          storageObject: object,
+          htmlVersion: HTML_VERSION,
+          htmlUploadedAt: new Date().toISOString(),
+          storagePageReady: true,
+          pageReady: true,
+          urlMode: URL_MODE_STORAGE,
+        });
+        return publicRegistroStorageUrl(bucket, object);
+      });
+  }
+
+  function storageRlsHint(msg) {
+    var m = String(msg || '');
+    if (/row-level security|42501|403|401/i.test(m)) {
+      return (
+        'Storage Supabase sin permiso (RLS). Super Admin → SQL → script 18 (Autoregistro CRM) y ejecute de nuevo. ' +
+        'Alternativa: active la funcion en la nube crm-registro-cliente (docs/SUPABASE-EDGE-CRM-REGISTRO.md).'
+      );
+    }
+    return m || 'No se pudo publicar formulario en Supabase Storage';
+  }
+
+  function uploadRegistroPageHtml() {
+    if (!cloudReady()) return Promise.reject(new Error('Supabase no configurado'));
+    return buildRegistroHtmlForUpload().then(function (html) {
+      return uploadToBucket(STORAGE_BUCKET, STORAGE_OBJECT, html).catch(function (err) {
+        return uploadToBucket(STORAGE_FALLBACK_BUCKET, STORAGE_FALLBACK_OBJECT, html).catch(function (err2) {
+          var msg = (err && err.message) || (err2 && err2.message) || 'No se pudo publicar formulario en Supabase Storage';
+          throw new Error(storageRlsHint(msg));
+        });
+      });
+    });
+  }
+
+  function verifyStoragePageHtml(bucket, object, retry) {
+    var url = publicRegistroStorageUrl(bucket, object);
+    return fetch(url, { method: 'GET', cache: 'no-store' })
+      .then(function (res) {
+        return res.text().then(function (body) {
+          var ct = String(res.headers.get('content-type') || '').toLowerCase();
+          var looksHtml = body.indexOf('<!DOCTYPE') >= 0 || body.indexOf('<html') >= 0;
+          if (!res.ok) {
+            throw new Error('Formulario no accesible (' + res.status + ')');
+          }
+          if (!looksHtml) {
+            throw new Error('El enlace no devuelve una pagina web valida');
+          }
+          if (ct.indexOf('text/html') >= 0) {
+            writeCfg({
+              storagePageReady: true,
+              urlMode: URL_MODE_STORAGE,
+              storageBucket: bucket,
+              storageObject: object,
+              pageReady: true,
+            });
+            return true;
+          }
+          if (retry > 0) {
+            return fixHtmlMimetypeRpc(bucket, object).then(function () {
+              return verifyStoragePageHtml(bucket, object, retry - 1);
+            });
+          }
+          writeCfg({
+            storagePageReady: true,
+            urlMode: URL_MODE_STORAGE,
+            storageBucket: bucket,
+            storageObject: object,
+            pageReady: true,
+          });
+          return true;
+        });
+      });
+  }
+
+  /** Publica y verifica URL segura para celular (text/html, no codigo fuente). */
+  function activateRegistroPage(opts) {
+    opts = opts || {};
+    if (!cloudReady()) {
+      return Promise.reject(new Error('Configure Supabase en Super Admin → Nube'));
+    }
+    return resolveQrBaseUrl({ forceUpload: !!opts.forceUpload }).catch(function (err) {
+      var msg = String((err && err.message) || err || '');
+      if (/row-level security|42501|403|401|permission|does not exist|PGRST/i.test(msg)) {
+        return {
+          ok: false,
+          needsSql: true,
+          message:
+            'Falta ejecutar SQL script 18 en Supabase (Super Admin → Nube → Autoregistro clientes QR). Luego pulse Activar de nuevo.',
+        };
+      }
+      return {
+        ok: false,
+        needsFunction: /codigo|edge function|mime|text\/plain/i.test(msg),
+        message: msg || 'No se pudo publicar el formulario',
+      };
+    });
+  }
+
+  function prepareRegistroDelivery(opts) {
+    return activateRegistroPage(opts || {});
+  }
+
+  function ensurePublicRegistroPage() {
+    return prepareRegistroDelivery({ strict: false }).then(function () {});
   }
 
   function renderQrImg(url, size, hostId) {
@@ -117,7 +711,15 @@
         sz +
         '" alt="QR registro cliente" style="image-rendering:pixelated;border-radius:8px;"/>';
     }, 80);
-    return '<div id="' + elId + '" class="crozzo-crm-reg-qr-canvas" style="margin:0 auto;width:' + sz + 'px;height:' + sz + 'px;"></div>';
+    return (
+      '<div id="' +
+      elId +
+      '" class="crozzo-crm-reg-qr-canvas" style="margin:0 auto;width:' +
+      sz +
+      'px;height:' +
+      sz +
+      'px;"></div>'
+    );
   }
 
   function importPayloadToCrm(payload, meta) {
@@ -195,29 +797,46 @@
     return { ok: true, client: c, created: true };
   }
 
-  function processSubmissions(subs) {
-    if (!Array.isArray(subs) || !subs.length) return 0;
-    var n = 0;
-    subs.forEach(function (sub) {
-      var payload = sub.payload || sub;
-      var r = importPayloadToCrm(payload, { origen: 'qr_registro', subId: sub.id });
-      if (r.ok) {
-        n++;
-        var msg = r.created ? 'Cliente nuevo: ' + payload.nombre : 'Cliente actualizado: ' + payload.nombre;
-        if (typeof global.showToast === 'function') global.showToast('📲 ' + msg, 'success');
-      }
-    });
-    if (n && typeof global.crozzoCajaClientesRefreshTable === 'function') {
-      global.crozzoCajaClientesRefreshTable();
-    }
-    return n;
-  }
-
-  function pollIntakeOnce() {
-    if (!isTauri()) return Promise.resolve(0);
-    return tauriInvoke('crm_registro_drain_pending')
-      .then(function (subs) {
-        return processSubmissions(subs);
+  function pollCloudIntakeOnce() {
+    if (!cloudReady() || _tableMissing) return Promise.resolve(0);
+    var sb = global.__SUPABASE;
+    var bid = businessId();
+    return sb
+      .from(INTAKE_TABLE)
+      .select('id,payload,created_at')
+      .eq('business_id', bid)
+      .eq('processed', false)
+      .order('created_at', { ascending: true })
+      .limit(25)
+      .then(function (res) {
+        if (res.error) {
+          markTableMissing(res.error);
+          return 0;
+        }
+        var rows = res.data || [];
+        if (!rows.length) return 0;
+        var n = 0;
+        var chain = Promise.resolve();
+        rows.forEach(function (row) {
+          chain = chain.then(function () {
+            var payload = row.payload || {};
+            var r = importPayloadToCrm(payload, { origen: 'qr_registro', intakeId: row.id });
+            if (!r.ok) return;
+            n++;
+            var msg = r.created ? 'Cliente nuevo: ' + payload.nombre : 'Cliente actualizado: ' + payload.nombre;
+            if (typeof global.showToast === 'function') global.showToast('📲 ' + msg, 'success');
+            return sb
+              .from(INTAKE_TABLE)
+              .update({ processed: true, processed_at: new Date().toISOString() })
+              .eq('id', row.id);
+          });
+        });
+        return chain.then(function () {
+          if (n && typeof global.crozzoCajaClientesRefreshTable === 'function') {
+            global.crozzoCajaClientesRefreshTable();
+          }
+          return n;
+        });
       })
       .catch(function () {
         return 0;
@@ -226,9 +845,11 @@
 
   function startPolling() {
     stopPolling();
+    if (!cloudReady()) return;
     _pollTimer = setInterval(function () {
-      pollIntakeOnce();
+      pollCloudIntakeOnce();
     }, POLL_MS);
+    pollCloudIntakeOnce();
   }
 
   function stopPolling() {
@@ -238,212 +859,335 @@
     }
   }
 
-  function detectIpForQr() {
-    if (typeof global.detectLocalIP === 'function') {
-      return global.detectLocalIP().then(function (ip) {
-        return ip || '127.0.0.1';
-      });
+  function ensureCrmRegistroSchema() {
+    if (!cloudReady() || !global.__SUPABASE || typeof global.__SUPABASE.rpc !== 'function') {
+      return Promise.resolve(false);
     }
-    return Promise.resolve('127.0.0.1');
+    return global.__SUPABASE.rpc('crozzo_crm_registro_bootstrap')
+      .then(function (res) {
+        if (res.error) return false;
+        return !!(res.data && res.data.ok);
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
-  /** IP que debe usar el QR: central en tablet B, local en caja A. */
-  function getDisplayHostIp() {
-    try {
-      if (typeof global.getMultiDeviceConfig === 'function') {
-        var md = global.getMultiDeviceConfig();
-        if (md && md.role === 'B') {
-          var cip = String(md.centralIp || '').trim();
-          if (cip) return Promise.resolve(cip);
+  function insertCloudTokenOnly() {
+    if (!cloudReady()) {
+      return Promise.reject(new Error('QR no disponible'));
+    }
+    var sb = global.__SUPABASE;
+    var token = randomToken();
+    var expiresAt = new Date(Date.now() + TTL_MS).toISOString();
+    var deviceId =
+      typeof global.crozzoCloudDeviceUuidForRest === 'function' ? global.crozzoCloudDeviceUuidForRest() : '';
+    return ensureCrmRegistroSchema().then(function () {
+      return sb
+        .from(TOKENS_TABLE)
+        .insert({
+          token: token,
+          business_id: businessId(),
+          business_name: businessLabel(),
+          expires_at: expiresAt,
+          created_by_device: deviceId,
+          revoked: false,
+        })
+        .select('token,expires_at')
+        .single()
+        .then(function (res) {
+          if (res.error) {
+            markTableMissing(res.error);
+            throw new Error('No se pudo crear el codigo QR');
+          }
+          var row = res.data || {};
+          writeCfg({
+            token: row.token || token,
+            expiresAt: row.expires_at || expiresAt,
+            createdAt: new Date().toISOString(),
+          });
+          return readCfg();
+        });
+    });
+  }
+
+  function createCloudToken(opts) {
+    opts = opts || {};
+    var forceUpload = opts.forceUpload !== false;
+    return insertCloudTokenOnly().then(function () {
+      return activateRegistroPage({ forceUpload: forceUpload }).then(function (pack) {
+        if (pack && pack.ok === false && pack.message && typeof global.showToast === 'function') {
+          staffToast('No se pudo preparar el QR. Avise a administracion del local.', 'warning');
         }
-        if (md && md.role === 'A') {
-          var sip = String(md.serverIp || '').trim();
-          if (sip) return Promise.resolve(sip);
-        }
+        return readCfg();
+      });
+    });
+  }
+
+  function ensureActiveToken(forceNew) {
+    var cfg = readCfg() || {};
+    if (!forceNew && cfg.token && !tokenExpired(cfg)) {
+      return activateRegistroPage({ forceUpload: false }).then(function () {
+        return readCfg();
+      });
+    }
+    return createCloudToken({ forceUpload: true });
+  }
+
+  function tryShowQrAfterActivate(act, cfg, statusId, urlId, qrHostId, qrSize) {
+    cfg = cfg || readCfg() || {};
+    if (tokenExpired(cfg)) {
+      return Promise.all([countPendingIntake(), Promise.resolve(cfg)]).then(function (arr) {
+        return { pending: arr[0], cfg: arr[1], url: '', act: act };
+      });
+    }
+    return safeQrUrlForToken(cfg.token).then(function (url) {
+      if (url) {
+        return countPendingIntake().then(function (pending) {
+          return { pending: pending, cfg: cfg, url: url, act: act };
+        });
       }
-    } catch (_) {}
-    var cfg = readCfg();
-    if (cfg && cfg.lastKnownIp) return Promise.resolve(String(cfg.lastKnownIp).trim());
-    return detectIpForQr();
-  }
-
-  function isTabletContext() {
-    try {
-      return typeof global.currentPage !== 'undefined' && global.currentPage === 'tablets';
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function serverStatus() {
-    if (!isTauri()) {
-      return Promise.resolve({ running: false, port: DEFAULT_PORT, token: ensureCfg().token, pendingCount: 0 });
-    }
-    return tauriInvoke('crm_registro_status').catch(function () {
-      return { running: false, port: DEFAULT_PORT, token: ensureCfg().token, pendingCount: 0 };
-    });
-  }
-
-  function startServer() {
-    var cfg = ensureCfg();
-    if (!isTauri()) {
-      return Promise.reject(new Error('Active el servidor desde la app de escritorio (Tauri)'));
-    }
-    return detectIpForQr().then(function (ip) {
-      writeCfg({ lastKnownIp: ip });
-      return tauriInvoke('crm_registro_start', {
-        token: cfg.token,
-        port: cfg.port || DEFAULT_PORT,
-        staticDir: null,
+      if (act && act.ok === false) {
+        var statusEl0 = statusId ? document.getElementById(statusId) : null;
+        var qrHost0 = qrHostId ? document.getElementById(qrHostId) : null;
+        var urlEl0 = urlId ? document.getElementById(urlId) : null;
+        var isKiosk = isCustomerKioskContext(statusId, qrHostId);
+        if (statusEl0) {
+          statusEl0.textContent = isKiosk
+            ? 'QR en un momento · avise al cajero si tarda'
+            : cfg.token && !tokenExpired(cfg)
+              ? 'Generando codigo QR…'
+              : 'Pulse «Mostrar QR al cliente»';
+          statusEl0.className = isKiosk ? 'crozzo-crm-reg-kiosk__status' : 'crozzo-crm-reg-status';
+        }
+        if (urlEl0) urlEl0.textContent = '';
+        if (qrHost0) {
+          if (isKiosk) {
+            qrHost0.innerHTML = renderCustomerKioskWaitHtml(true);
+            if (act && act.needsFunction) notifyStaffQrPending();
+            startKioskAutoRetry(qrSize);
+          } else {
+            qrHost0.innerHTML = renderStaffQrWaitHtml();
+          }
+        }
+        return null;
+      }
+      return countPendingIntake().then(function (pending) {
+        return { pending: pending, cfg: cfg, url: '', act: act };
       });
     });
   }
 
-  function stopServer() {
-    stopPolling();
-    if (!isTauri()) return Promise.resolve();
-    return tauriInvoke('crm_registro_stop');
+  function formatExpiryLabel(cfg, forKiosk) {
+    cfg = cfg || readCfg() || {};
+    if (!cfg.expiresAt) return forKiosk ? 'Preparando codigo…' : 'Sin QR activo';
+    var ms = Date.parse(cfg.expiresAt) - Date.now();
+    if (ms <= 0) return forKiosk ? 'Codigo expirado · avise al cajero' : 'QR expirado · renueve el codigo';
+    var min = Math.ceil(ms / 60000);
+    return forKiosk
+      ? 'Escanea aqui · valido ~' + min + ' min'
+      : 'QR listo · expira en ~' + min + ' min';
   }
 
-  function refreshPanelUi() {
-    var wrap = document.getElementById('crozzoCrmRegPanel');
-    if (!wrap) return;
-    refreshQrDisplay('crozzoCrmRegQrHost', 'crozzoCrmRegStatus', 'crozzoCrmRegUrl', 196, true);
+  function countPendingIntake() {
+    if (!cloudReady() || _tableMissing) return Promise.resolve(0);
+    return global.__SUPABASE
+      .from(INTAKE_TABLE)
+      .select('id', { count: 'exact', head: true })
+      .eq('business_id', businessId())
+      .eq('processed', false)
+      .then(function (res) {
+        if (res.error) {
+          markTableMissing(res.error);
+          return 0;
+        }
+        return res.count || 0;
+      })
+      .catch(function () {
+        return 0;
+      });
   }
 
-  function refreshQrDisplay(qrHostId, statusId, urlId, qrSize, adminControls) {
-    var cfg = ensureCfg();
-    Promise.all([serverStatus(), getDisplayHostIp()])
-      .then(function (arr) {
-        var st = arr[0] || {};
-        var ip = arr[1] || '127.0.0.1';
-        var port = st.port || cfg.port || DEFAULT_PORT;
-        var url = buildRegistroUrl(ip, port, cfg.token);
+  function refreshQrDisplay(qrHostId, statusId, urlId, qrSize) {
+    if (!cloudReady()) {
+      var statusElOff = statusId ? document.getElementById(statusId) : null;
+      if (statusElOff) {
+        statusElOff.textContent = isCustomerKioskContext(statusId, qrHostId)
+          ? 'QR no disponible · avise al cajero'
+          : 'QR no disponible · avise a administracion';
+        statusElOff.className = isCustomerKioskContext(statusId, qrHostId)
+          ? 'crozzo-crm-reg-kiosk__status'
+          : 'crozzo-crm-reg-status';
+      }
+      return Promise.resolve();
+    }
+    return ensureActiveToken(false)
+      .then(function (cfg) {
+        return activateRegistroPage({ forceUpload: false }).then(function (act) {
+          return tryShowQrAfterActivate(act, cfg, statusId, urlId, qrHostId, qrSize);
+        });
+      })
+      .then(function (pack) {
+        if (!pack) return;
+        var pending = pack.pending || 0;
+        var cfg = pack.cfg || readCfg() || {};
+        var url = pack.url || '';
         var statusEl = statusId ? document.getElementById(statusId) : null;
         var urlEl = urlId ? document.getElementById(urlId) : null;
         var qrHost = qrHostId ? document.getElementById(qrHostId) : null;
         if (statusEl) {
-          if (st.running) {
-            statusEl.textContent =
-              '🟢 Servidor activo · puerto ' + port + ' · pendientes: ' + (st.pendingCount || st.pending_count || 0);
-            statusEl.className = 'crozzo-crm-reg-status is-on';
-          } else if (isTauri() && !isTabletContext()) {
-            statusEl.textContent = '⚪ Servidor detenido — active para que clientes escaneen en el Wi‑Fi del local';
-            statusEl.className = 'crozzo-crm-reg-status';
+          var expiryTxt = formatExpiryLabel(cfg, isKiosk);
+          var isKiosk = statusId && String(statusId).indexOf('Kiosk') >= 0;
+          statusEl.textContent = isKiosk ? expiryTxt : expiryTxt + ' · pendientes: ' + pending;
+          if (isKiosk) {
+            statusEl.className = 'crozzo-crm-reg-kiosk__status' + (tokenExpired(cfg) ? '' : ' is-on');
           } else {
-            statusEl.textContent =
-              '📲 Muestre este QR al cliente (misma red Wi‑Fi). El central debe tener el servidor activo en Caja → Clientes.';
-            statusEl.className = 'crozzo-crm-reg-status';
+            statusEl.className = 'crozzo-crm-reg-status' + (tokenExpired(cfg) ? '' : ' is-on');
           }
         }
-        if (urlEl) urlEl.textContent = url;
+        if (urlEl) urlEl.textContent = '';
         if (qrHost) {
-          qrHost.innerHTML = renderQrImg(url, qrSize || 196, qrHostId + 'Canvas');
+          var isKioskView = isCustomerKioskContext(statusId, qrHostId);
+          if (url) {
+            qrHost.innerHTML = renderQrImg(url, qrSize || 196, qrHostId + 'Canvas');
+            if (isKioskView) stopKioskAutoRetry();
+          } else if (isKioskView) {
+            qrHost.innerHTML = renderCustomerKioskWaitHtml(!!(cfg.token && !tokenExpired(cfg)));
+            if (cfg.token && !tokenExpired(cfg)) startKioskAutoRetry(qrSize);
+          } else if (cfg.token && !tokenExpired(cfg)) {
+            qrHost.innerHTML = renderStaffQrWaitHtml();
+          } else {
+            qrHost.innerHTML =
+              '<p class="form-hint" style="text-align:center;margin:0;">Pulse <strong>Mostrar QR al cliente</strong></p>';
+          }
         }
-        if (adminControls) {
-          var btnStart = document.getElementById('crozzoCrmRegBtnStart');
-          var btnStop = document.getElementById('crozzoCrmRegBtnStop');
-          if (btnStart) btnStart.disabled = !!st.running;
-          if (btnStop) btnStop.disabled = !st.running;
-          if (st.running && isTauri()) startPolling();
-          else if (!st.running && !document.getElementById('crozzoCrmRegModal')) stopPolling();
-        }
+        startPolling();
       })
-      .catch(function () {});
+      .catch(function (e) {
+        var statusEl = statusId ? document.getElementById(statusId) : null;
+        var qrHost = qrHostId ? document.getElementById(qrHostId) : null;
+        if (statusEl) {
+          statusEl.textContent = isCustomerKioskContext(statusId, qrHostId)
+            ? 'QR no disponible · avise al cajero'
+            : 'No se pudo preparar el QR. Avise a administracion.';
+          statusEl.className = isCustomerKioskContext(statusId, qrHostId)
+            ? 'crozzo-crm-reg-kiosk__status'
+            : 'crozzo-crm-reg-status';
+        }
+        if (qrHost) {
+          if (isCustomerKioskContext(statusId, qrHostId)) {
+            qrHost.innerHTML = renderCustomerKioskWaitHtml(true);
+            notifyStaffQrPending();
+            startKioskAutoRetry(qrSize);
+          } else {
+            qrHost.innerHTML = renderStaffQrWaitHtml();
+          }
+        }
+      });
+  }
+
+  function refreshPanelUi() {
+    refreshQrDisplay('crozzoCrmRegQrHost', 'crozzoCrmRegStatus', 'crozzoCrmRegUrl', 196);
   }
 
   function renderPanelHtml() {
-    var cfg = ensureCfg();
     return (
       '<div class="crozzo-crm-reg-panel card" id="crozzoCrmRegPanel" style="margin-top:16px;">' +
       '<div class="card-header" style="padding-bottom:8px;">' +
-      '<div><h3 class="card-title" style="font-size:1rem;margin:0;">📲 QR autoregistro de clientes</h3>' +
-      '<p class="form-hint" style="margin:6px 0 0;">Imprima o muestre este QR en caja. El cliente escanea, llena datos o sube su RUT, y entra al directorio automáticamente.</p></div></div>' +
+      '<div><h3 class="card-title" style="font-size:1rem;margin:0;">📲 QR para clientes</h3>' +
+      '<p class="form-hint" style="margin:6px 0 0;">El cliente escanea con su celular y completa sus datos. Usted solo muestra el codigo.</p></div></div>' +
       '<div class="crozzo-crm-reg-body crozzo-crm-reg-body--compact">' +
       '<div class="crozzo-crm-reg-qr-col">' +
       '<div id="crozzoCrmRegQrHost"></div>' +
       '</div>' +
       '<div class="crozzo-crm-reg-meta">' +
       '<p id="crozzoCrmRegStatus" class="crozzo-crm-reg-status">…</p>' +
-      '<p id="crozzoCrmRegUrl" class="crozzo-crm-reg-url form-hint"></p>' +
+      '<p id="crozzoCrmRegUrl" class="crozzo-crm-reg-url form-hint" hidden aria-hidden="true"></p>' +
       '<div class="crozzo-crm-reg-actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoCrmRegBtnStart">Activar</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnStop">Detener</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnCopy">Copiar enlace</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnPoll">↻ Revisar</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoCrmRegBtnKiosk">Mostrar QR al cliente</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoCrmRegBtnNew" title="Genera un codigo nuevo (valido 1 hora)">Renovar QR</button>' +
       '</div>' +
-      '<details class="form-hint crozzo-crm-reg-advanced"><summary>Token y opciones avanzadas</summary>' +
-      '<button type="button" class="btn btn-outline btn-sm" style="margin-top:8px;" id="crozzoCrmRegBtnNewToken">Renovar token QR</button></details>' +
-      (!isTauri()
-        ? '<p class="form-hint" style="color:var(--warning,#f59e0b);margin-top:10px;">⚠️ Abra la app de escritorio para servir el formulario a celulares en la red local.</p>'
-        : '') +
       '</div></div></div>'
     );
   }
 
+  function closeCustomerKiosk() {
+    stopKioskAutoRetry();
+    if (_kioskEl) {
+      _kioskEl.remove();
+      _kioskEl = null;
+    }
+    document.body.classList.remove('crozzo-crm-reg-kiosk-open');
+  }
+
+  function openCustomerKiosk() {
+    if (!cloudReady()) {
+      staffToast('QR no disponible. Avise a administracion del local.', 'warning');
+      return;
+    }
+    closeCustomerKiosk();
+    var biz = esc(businessLabel());
+    var initial = biz ? biz.charAt(0).toUpperCase() : '?';
+    _kioskEl = document.createElement('div');
+    _kioskEl.id = 'crozzoCrmRegKiosk';
+    _kioskEl.className = 'crozzo-crm-reg-kiosk';
+    _kioskEl.innerHTML =
+      '<div class="crozzo-crm-reg-kiosk__inner">' +
+      '<button type="button" class="crozzo-crm-reg-kiosk__close" id="crozzoCrmRegKioskClose" aria-label="Cerrar">✕</button>' +
+      '<div class="crozzo-crm-reg-kiosk__hero">' +
+      '<div class="crozzo-crm-reg-kiosk__logo">' +
+      initial +
+      '</div>' +
+      '<h1 class="crozzo-crm-reg-kiosk__title">' +
+      biz +
+      '</h1>' +
+      '<p class="crozzo-crm-reg-kiosk__sub">Escanea el codigo con la camara de tu celular y completa tus datos.</p>' +
+      '</div>' +
+      '<div class="crozzo-crm-reg-kiosk__qr-wrap">' +
+      '<div id="crozzoCrmRegKioskQr">' +
+      renderCustomerKioskWaitHtml(false) +
+      '</div>' +
+      '</div>' +
+      '<p id="crozzoCrmRegKioskStatus" class="crozzo-crm-reg-kiosk__status">Preparando codigo…</p>' +
+      '<p class="crozzo-crm-reg-kiosk__foot">Valido 1 hora · Funciona con datos moviles</p>' +
+      '</div>';
+    document.body.appendChild(_kioskEl);
+    document.body.classList.add('crozzo-crm-reg-kiosk-open');
+    var closeBtn = document.getElementById('crozzoCrmRegKioskClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeCustomerKiosk);
+    createCloudToken({ forceUpload: false })
+      .catch(function () {})
+      .finally(function () {
+        refreshQrDisplay('crozzoCrmRegKioskQr', 'crozzoCrmRegKioskStatus', null, 280);
+        startKioskAutoRetry(280);
+        startPolling();
+      });
+  }
+
   function bindPanelEvents() {
-    var startBtn = document.getElementById('crozzoCrmRegBtnStart');
-    var stopBtn = document.getElementById('crozzoCrmRegBtnStop');
-    var copyBtn = document.getElementById('crozzoCrmRegBtnCopy');
-    var pollBtn = document.getElementById('crozzoCrmRegBtnPoll');
-    var newTokBtn = document.getElementById('crozzoCrmRegBtnNewToken');
-    if (startBtn && !startBtn._bound) {
-      startBtn._bound = true;
-      startBtn.addEventListener('click', function () {
-        startBtn.disabled = true;
-        startServer()
+    var kioskBtn = document.getElementById('crozzoCrmRegBtnKiosk');
+    var newBtn = document.getElementById('crozzoCrmRegBtnNew');
+    if (kioskBtn && !kioskBtn._bound) {
+      kioskBtn._bound = true;
+      kioskBtn.addEventListener('click', openCustomerKiosk);
+    }
+    if (newBtn && !newBtn._bound) {
+      newBtn._bound = true;
+      newBtn.addEventListener('click', function () {
+        newBtn.disabled = true;
+        createCloudToken({ forceUpload: true })
           .then(function () {
-            if (typeof global.showToast === 'function') global.showToast('Servidor de registro activo', 'success');
+            staffToast('QR renovado', 'success');
+            refreshPanelUi();
+            openCustomerKiosk();
+          })
+          .catch(function () {
+            staffToast('No se pudo renovar el QR. Avise a administracion.', 'warning');
             refreshPanelUi();
           })
-          .catch(function (e) {
-            if (typeof global.showToast === 'function') global.showToast(e.message || 'No se pudo iniciar', 'error');
-            refreshPanelUi();
+          .finally(function () {
+            newBtn.disabled = false;
           });
-      });
-    }
-    if (stopBtn && !stopBtn._bound) {
-      stopBtn._bound = true;
-      stopBtn.addEventListener('click', function () {
-        stopServer().then(function () {
-          if (typeof global.showToast === 'function') global.showToast('Servidor detenido', 'info');
-          refreshPanelUi();
-        });
-      });
-    }
-    if (copyBtn && !copyBtn._bound) {
-      copyBtn._bound = true;
-      copyBtn.addEventListener('click', function () {
-        var t = document.getElementById('crozzoCrmRegUrl');
-        var url = t ? t.textContent : '';
-        if (!url) return;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url).then(function () {
-            if (typeof global.showToast === 'function') global.showToast('Enlace copiado', 'success');
-          });
-        }
-      });
-    }
-    if (pollBtn && !pollBtn._bound) {
-      pollBtn._bound = true;
-      pollBtn.addEventListener('click', function () {
-        pollIntakeOnce().then(function (n) {
-          if (typeof global.showToast === 'function') {
-            global.showToast(n ? n + ' registro(s) importados' : 'Sin registros nuevos', n ? 'success' : 'info');
-          }
-          refreshPanelUi();
-        });
-      });
-    }
-    if (newTokBtn && !newTokBtn._bound) {
-      newTokBtn._bound = true;
-      newTokBtn.addEventListener('click', function () {
-        if (!confirm('¿Generar nuevo token? El QR impreso dejará de funcionar.')) return;
-        writeCfg({ token: randomToken(), createdAt: new Date().toISOString() });
-        stopServer().then(function () {
-          refreshPanelUi();
-          if (typeof global.showToast === 'function') global.showToast('Token renovado', 'info');
-        });
       });
     }
   }
@@ -505,79 +1249,7 @@
   }
 
   function openQrModal() {
-    ensureCfg();
-    var body =
-      '<div class="crozzo-crm-reg-modal" id="crozzoCrmRegModal">' +
-      '<p id="crozzoCrmRegModalStatus" class="crozzo-crm-reg-status">Preparando QR…</p>' +
-      '<div id="crozzoCrmRegModalQrHost" style="display:flex;justify-content:center;margin:12px 0;"></div>' +
-      '<p class="form-hint" style="text-align:center;margin:0 0 12px;font-size:0.78rem;">El cliente escanea en el mismo Wi‑Fi, completa datos o sube RUT. En caja se activa el servidor automáticamente.</p>' +
-      '<label class="form-label">Enlace</label>' +
-      '<p id="crozzoCrmRegModalUrl" class="crozzo-crm-reg-url form-hint" style="word-break:break-all;font-size:0.75rem;"></p>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center;">' +
-      '<button type="button" class="btn btn-outline" id="crozzoCrmRegModalCopy">Copiar enlace</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCrmRegModalManual" onclick="crozzoCrmToggleCreatePanel(true);closeModal();">✏️ Rellenar manual</button>' +
-      '<button type="button" class="btn btn-outline" id="crozzoCrmRegModalRut">📄 Subir RUT</button>' +
-      '</div>' +
-      '<input type="file" id="crozzoCrmRegModalRutFile" accept=".pdf,image/*,application/pdf" style="display:none;">' +
-      '</div>';
-    if (typeof global.showModal === 'function') {
-      global.showModal('QR · Registro de cliente', body, { wide: false });
-    }
-    setTimeout(function () {
-      var boot = Promise.resolve();
-      if (isTauri() && !isTabletContext()) {
-        boot = serverStatus().then(function (st) {
-          if (st && st.running) return st;
-          return startServer().catch(function (e) {
-            if (typeof global.showToast === 'function') {
-              global.showToast(e && e.message ? e.message : 'No se pudo activar el servidor QR', 'warning');
-            }
-            return st;
-          });
-        });
-      }
-      boot.finally(function () {
-        refreshQrDisplay('crozzoCrmRegModalQrHost', 'crozzoCrmRegModalStatus', 'crozzoCrmRegModalUrl', 220, false);
-        if (isTauri()) startPolling();
-      });
-      var copyBtn = document.getElementById('crozzoCrmRegModalCopy');
-      if (copyBtn && !copyBtn._bound) {
-        copyBtn._bound = true;
-        copyBtn.addEventListener('click', function () {
-          var u = document.getElementById('crozzoCrmRegModalUrl');
-          var url = u ? u.textContent : '';
-          if (url && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(url).then(function () {
-              if (typeof global.showToast === 'function') global.showToast('Enlace copiado', 'success');
-            });
-          }
-        });
-      }
-      var rutBtn = document.getElementById('crozzoCrmRegModalRut');
-      var rutIn = document.getElementById('crozzoCrmRegModalRutFile');
-      if (rutBtn && rutIn && !rutBtn._bound) {
-        rutBtn._bound = true;
-        rutBtn.addEventListener('click', function () {
-          rutIn.click();
-        });
-        rutIn.addEventListener('change', function () {
-          var f = rutIn.files && rutIn.files[0];
-          if (!f) return;
-          rutBtn.disabled = true;
-          importRutToNewClient(f)
-            .then(function () {
-              if (typeof global.closeModal === 'function') global.closeModal();
-            })
-            .catch(function (e) {
-              if (typeof global.showToast === 'function') global.showToast(e.message || 'Error RUT', 'error');
-            })
-            .finally(function () {
-              rutBtn.disabled = false;
-              rutIn.value = '';
-            });
-        });
-      }
-    }, 100);
+    openCustomerKiosk();
   }
 
   function bindNewClientRutInput() {
@@ -605,9 +1277,7 @@
 
   function mountTabletCrmExtras() {
     bindNewClientRutInput();
-    if (isTabletContext() && isTauri()) {
-      pollIntakeOnce();
-    }
+    if (cloudReady()) startPolling();
   }
 
   function mountInClientesPage() {
@@ -616,50 +1286,40 @@
     anchor.innerHTML = renderPanelHtml();
     bindPanelEvents();
     refreshPanelUi();
-    var cfg = readCfg();
-    if (cfg && cfg.autoStart !== false && isTauri()) {
-      serverStatus().then(function (st) {
-        if (!st.running) {
-          startServer()
-            .then(function () {
-              refreshPanelUi();
-            })
-            .catch(function () {
-              refreshPanelUi();
-            });
-        }
-      });
-    }
   }
 
   function initBoot() {
-    if (_panelOpen) return;
     document.addEventListener('crozzo:page-caja-clientes', function () {
       setTimeout(mountInClientesPage, 50);
     });
+    if (cloudReady()) startPolling();
   }
 
   global.CrozzoCrmRegistroQr = {
-    ensureCfg: ensureCfg,
-    buildRegistroUrl: buildRegistroUrl,
+    buildCloudRegistroUrl: buildCloudRegistroUrl,
     renderPanelHtml: renderPanelHtml,
     mountInClientesPage: mountInClientesPage,
     mountTabletCrmExtras: mountTabletCrmExtras,
     openQrModal: openQrModal,
+    openCustomerKiosk: openCustomerKiosk,
+    closeCustomerKiosk: closeCustomerKiosk,
     importRutToNewClient: importRutToNewClient,
     fillNewClientFormFromParsed: fillNewClientFormFromParsed,
-    getDisplayHostIp: getDisplayHostIp,
-    startServer: startServer,
-    stopServer: stopServer,
-    pollIntakeOnce: pollIntakeOnce,
+    insertCloudTokenOnly: insertCloudTokenOnly,
+    createCloudToken: createCloudToken,
+    activateRegistroPage: activateRegistroPage,
+    openCrmRegistroSqlWizard: openCrmRegistroSqlWizard,
+    copyCrmRegistroSql: copyCrmRegistroSql,
+    pollCloudIntakeOnce: pollCloudIntakeOnce,
     importPayloadToCrm: importPayloadToCrm,
     refreshPanelUi: refreshPanelUi,
     refreshQrDisplay: refreshQrDisplay,
     initBoot: initBoot,
+    cloudReady: cloudReady,
   };
 
   global.crozzoCrmImportRegistroPayload = importPayloadToCrm;
-  global.crozzoCrmRegistroOpenQrModal = openQrModal;
+  global.crozzoCrmRegistroOpenQrModal = openCustomerKiosk;
   global.crozzoCrmRegistroImportRutToNewClient = function () {
     var inp = document.getElementById('crozzoCrmNewRutFile');
     if (inp) inp.click();

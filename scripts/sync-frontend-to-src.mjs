@@ -92,6 +92,12 @@ code = runOptionalPrep('Planilla template', 'extract-planilla-template.mjs', {
 });
 if (code !== 0) process.exit(code);
 
+code = runOptionalPrep('CRM registro template', 'gen-crm-registro-template.mjs', {
+  inputs: ['app/crm-registro-cliente.html'],
+  output: 'app/modules/CrozzoCrmRegistroTemplate.js',
+});
+if (code !== 0) process.exit(code);
+
 const consolidateScript = join(root, 'scripts', 'consolidate-crozzo-bundles.mjs');
 if (existsSync(consolidateScript)) {
   const cRun = spawnSync(process.execPath, [consolidateScript], { cwd: root, stdio: 'inherit' });

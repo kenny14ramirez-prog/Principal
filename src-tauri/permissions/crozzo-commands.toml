@@ -14,17 +14,6 @@ description = "Consultas DIAN VPFE y adquiriente"
 commands.allow = ["fetch_dian_vpfe", "fetch_dian_adquiriente"]
 
 [[permission]]
-identifier = "allow-crozzo-crm-registro"
-description = "Servidor LAN registro CRM por QR"
-commands.allow = [
-  "crm_registro_start",
-  "crm_registro_stop",
-  "crm_registro_status",
-  "crm_registro_drain_pending",
-  "crm_registro_push_pending",
-]
-
-[[permission]]
 identifier = "allow-crozzo-lan-sync"
 description = "Servidor LAN multidispositivo (health, status, sync)"
 commands.allow = [

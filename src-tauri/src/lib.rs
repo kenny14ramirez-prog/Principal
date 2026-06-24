@@ -1,8 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-mod crm_registro_server;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_sync_server;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_ws;
@@ -144,16 +142,6 @@ pub fn run() {
             dian_vpfe::fetch_dian_vpfe,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_adquiriente::fetch_dian_adquiriente,
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            crm_registro_server::crm_registro_start,
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            crm_registro_server::crm_registro_stop,
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            crm_registro_server::crm_registro_status,
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            crm_registro_server::crm_registro_drain_pending,
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            crm_registro_server::crm_registro_push_pending,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

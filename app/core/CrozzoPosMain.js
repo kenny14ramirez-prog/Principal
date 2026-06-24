@@ -14429,6 +14429,11 @@ window.renderTabletCart = renderTabletCart;
 // ==========================================
 // INVENTARIOS / PRODUCTOS (placeholders)
 // ==========================================
+function crozzoTabletQrClientesBtnHtml() {
+  return (
+    '<button type="button" class="btn btn-outline btn-sm crozzo-mesa-estados-btn crozzo-tablet-qr-btn" onclick="crozzoCrmRegistroOpenQrModal()" title="Mostrar QR para que el cliente registre sus datos" aria-label="QR clientes">📲 QR clientes</button>'
+  );
+}
 function renderTablets() {
   const pedidoTarget = tabletModoPedido === 'mesa'
     ? mesasCaja.find(m => m.id === tabletMesaSeleccionada)
@@ -14437,12 +14442,15 @@ function renderTablets() {
   if (!tabletOrderOpen) {
     return `
       <div class="card">
-        <div class="card-header">
+        <div class="card-header crozzo-tablet-page__header">
           <div>
             <h2 class="card-title">Tablets - Toma de pedidos</h2>
             <p class="page-subtitle" style="margin-top:4px;">Toca ${tabletModoPedido === 'mesa' ? 'una mesa' : 'un pedido llevar'} para abrir el pedido</p>
           </div>
-          <button type="button" class="btn btn-outline btn-sm crozzo-mesa-estados-btn" onclick="crozzoShowMesaEstadosModal()" title="Significado de los colores de mesa" aria-label="Ver colores de estado de mesas">🎨 Colores</button>
+          <div class="crozzo-tablet-page__header-actions">
+            ${crozzoTabletQrClientesBtnHtml()}
+            <button type="button" class="btn btn-outline btn-sm crozzo-mesa-estados-btn" onclick="crozzoShowMesaEstadosModal()" title="Significado de los colores de mesa" aria-label="Ver colores de estado de mesas">🎨 Colores</button>
+          </div>
         </div>
         <div class="service-mode-switch">
           <button class="service-mode-btn ${tabletModoPedido === 'mesa' ? 'active' : ''}" onclick="setTabletMode('mesa')">🍽️ Mesas salón</button>
@@ -14484,6 +14492,7 @@ function renderTablets() {
       (typeof crozzoRestActiveSessionChipHtml === 'function' ? crozzoRestActiveSessionChipHtml() : '') +
       '</div>' +
       '<div class="crozzo-tablet-page__header-actions">' +
+      crozzoTabletQrClientesBtnHtml() +
       '<button type="button" class="btn btn-primary" id="crozzoTabletCartToggleBtn" onclick="crozzoTabletCartDrawerToggle()" aria-expanded="' +
       (crozzoTabletCartDrawerOpen ? 'true' : 'false') +
       '">' +
@@ -14541,13 +14550,16 @@ function renderTablets() {
   }
   return `
     <div class="card crozzo-tablet-page${touchUi ? ' crozzo-tablet-page--touch' : ''}">
-      <div class="card-header">
+      <div class="card-header crozzo-tablet-page__header">
         <div>
           <h2 class="card-title">Pedido ${pedidoTarget ? escHtml(String(pedidoTarget.nombre || '')) : '-'}</h2>
           ${typeof crozzoRestActiveSessionChipHtml === 'function' ? crozzoRestActiveSessionChipHtml() : ''}
           ${touchUi ? '' : '<p class="page-subtitle" style="margin-top:4px;">Carrito arriba · productos abajo · desliza para ver más</p>'}
         </div>
-        <button class="btn btn-outline" onclick="closeTabletOrderPanel()">✕ Cerrar</button>
+        <div class="crozzo-tablet-page__header-actions">
+          ${crozzoTabletQrClientesBtnHtml()}
+          <button class="btn btn-outline" onclick="closeTabletOrderPanel()">✕ Cerrar</button>
+        </div>
       </div>
       <div style="display:flex; gap:8px; margin-bottom: 12px;">
         <input type="text" class="form-input" id="tabletSearchProduct" placeholder="🔎 Buscar producto, código o SKU…" style="flex:1;" title="Atajos: Ctrl+K buscar · Ctrl+Enter confirmar pedido" autocomplete="off">
@@ -18841,12 +18853,18 @@ function getSlotStateInfo(tipoServicio, referencia) {
     crozzoSlotHasUnpaidConsumption(tipoServicio, referencia)
   ) {
     state = 'salio';
+  } else if (crozzoGetSlotSessionLock(tipoServicio, referencia)) {
+    state = 'atendiendo';
   }
   const cartItems = cart.reduce((n, i) => n + i.cantidad, 0);
   const comandaItems = (latestComanda?.items || []).reduce((n, i) => n + (Number(i.cantidad) || 0), 0);
   const items = cartItems || comandaItems;
+  const sessionRow = crozzoGetSlotSessionLock(tipoServicio, referencia);
   const labels = {
     libre: 'Desocupada',
+    atendiendo: sessionRow
+      ? 'Atendiendo · ' + (String(sessionRow.userName || '').trim() || 'Operador')
+      : 'Atendiendo',
     pendiente: `Pendiente${pendingQty ? ` (${pendingQty} ítems)` : ''}`,
     comandado: `Comandado${items ? ` (${items} ítems)` : ''}`,
     salio: 'Ya salió',
@@ -18861,6 +18879,7 @@ function getSlotCardClass(tipoServicio, referencia) {
 function crozzoMesaEstadosLegendRows() {
   return [
     { state: 'libre', label: 'Desocupada', hint: 'Sin pedido activo en la mesa' },
+    { state: 'atendiendo', label: 'Atendiendo', hint: 'Un mesero abrió la mesa · aún sin ítems' },
     { state: 'pendiente', label: 'Pendiente', hint: 'Hay ítems sin comandar a cocina' },
     { state: 'comandado', label: 'Comandado', hint: 'Pedido enviado · en preparación' },
     { state: 'salio', label: 'Ya salió', hint: 'Entregado al cliente · pendiente de cobro' },
@@ -18873,7 +18892,7 @@ function crozzoShowMesaEstadosModal() {
     .map(function (r) {
       return (
         '<div class="crozzo-mesa-estados-row">' +
-        '<span class="crozzo-mesa-estados-swatch mesa-card status-' +
+        '<span class="crozzo-mesa-estados-swatch crozzo-rest-slot crozzo-rest-slot--' +
         escUserAttr(r.state) +
         '" aria-hidden="true"></span>' +
         '<div class="crozzo-mesa-estados-row__text">' +
@@ -21677,12 +21696,12 @@ function initTablets() {
   if (targetSearchEl) {
     targetSearchEl.addEventListener('input', (e) => setTabletTargetSearch(e.target.value));
   }
+  if (typeof CrozzoCrmRegistroQr !== 'undefined' && CrozzoCrmRegistroQr.mountTabletCrmExtras) {
+    CrozzoCrmRegistroQr.mountTabletCrmExtras();
+  }
   if (document.getElementById('crozzoCrmWrap')) {
     if (typeof crozzoHydrateClienteSlotToForm === 'function') crozzoHydrateClienteSlotToForm();
     crozzoCrmLiteBindCartUi();
-    if (typeof CrozzoCrmRegistroQr !== 'undefined' && CrozzoCrmRegistroQr.mountTabletCrmExtras) {
-      CrozzoCrmRegistroQr.mountTabletCrmExtras();
-    }
     if (typeof CrozzoAdquirienteLookup !== 'undefined') {
       if (typeof CrozzoAdquirienteLookup.bindForm === 'function') CrozzoAdquirienteLookup.bindForm('crm_new');
       if (typeof CrozzoAdquirienteLookup.bindAllVisible === 'function') CrozzoAdquirienteLookup.bindAllVisible();

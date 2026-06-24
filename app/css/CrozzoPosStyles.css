@@ -8953,6 +8953,11 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
   border-color: rgba(16, 185, 129, 0.45);
   background: linear-gradient(160deg, rgba(16, 185, 129, 0.12), var(--bg-card));
 }
+.crozzo-rest-slot--atendiendo {
+  border-color: rgba(59, 130, 246, 0.55);
+  background: linear-gradient(160deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.06));
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
 .crozzo-rest-slot--pendiente {
   border-color: rgba(245, 158, 11, 0.5);
   background: linear-gradient(160deg, rgba(245, 158, 11, 0.14), var(--bg-card));
@@ -24818,6 +24823,11 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   background: rgba(16,185,129,0.08);
 }
 
+.mesa-card.status-atendiendo {
+  border-color: rgba(59,130,246,0.85);
+  background: rgba(59,130,246,0.12);
+}
+
 .mesa-card.status-pendiente {
   border-color: rgba(245,158,11,0.85);
   background: rgba(245,158,11,0.12);
@@ -24872,6 +24882,12 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   min-height: var(--crozzo-touch-btn-min, 40px);
 }
 
+.crozzo-tablet-qr-btn {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .crozzo-mesa-estados-intro {
   margin: 0 0 14px;
 }
@@ -24897,6 +24913,7 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   pointer-events: none;
   box-sizing: border-box;
   cursor: default;
+  gap: 0;
 }
 
 .crozzo-mesa-estados-row__text {
@@ -33891,6 +33908,174 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty {
   text-align: center;
   padding: 4px 0 8px;
 }
+body.crozzo-crm-reg-kiosk-open {
+  overflow: hidden !important;
+}
+.crozzo-crm-reg-kiosk {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background:
+    radial-gradient(ellipse 100% 70% at 50% -10%, rgba(56, 189, 248, 0.28), transparent 55%),
+    linear-gradient(165deg, #0c4a6e 0%, #0369a1 50%, #0f766e 100%);
+  color: #f8fafc;
+}
+.crozzo-crm-reg-kiosk__inner {
+  width: min(520px, 100%);
+  text-align: center;
+  position: relative;
+}
+.crozzo-crm-reg-kiosk__close {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.25);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.crozzo-crm-reg-kiosk__logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  background: #fff;
+  color: #0369a1;
+  font-size: 1.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+}
+.crozzo-crm-reg-kiosk__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.crozzo-crm-reg-kiosk__sub {
+  margin: 0 auto 20px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: rgba(248, 250, 252, 0.88);
+  max-width: 420px;
+}
+.crozzo-crm-reg-kiosk__qr-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.crozzo-crm-reg-kiosk__qr-wrap .crozzo-crm-reg-qr-canvas {
+  padding: 12px;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+}
+.crozzo-crm-reg-kiosk__status {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: rgba(248, 250, 252, 0.85);
+}
+.crozzo-crm-reg-kiosk__actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.crozzo-crm-reg-kiosk__btn {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #fff !important;
+  background: rgba(15, 23, 42, 0.2) !important;
+}
+.crozzo-crm-reg-kiosk__foot {
+  margin: 16px 0 0;
+  font-size: 0.72rem;
+  color: rgba(248, 250, 252, 0.6);
+}
+.crozzo-crm-reg-kiosk__wait {
+  text-align: center;
+  padding: 28px 16px;
+  color: #f8fafc;
+}
+.crozzo-crm-reg-kiosk__wait-pulse {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 16px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.12);
+  border: 2px dashed rgba(248, 250, 252, 0.35);
+  animation: crozzoCrmRegKioskPulse 1.6s ease-in-out infinite;
+}
+.crozzo-crm-reg-kiosk__wait.is-soft .crozzo-crm-reg-kiosk__wait-pulse {
+  animation: none;
+  opacity: 0.55;
+}
+.crozzo-crm-reg-kiosk__wait-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.crozzo-crm-reg-kiosk__wait-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+@keyframes crozzoCrmRegKioskPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+.crozzo-crm-reg-deploy-details {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+}
+.crozzo-crm-reg-deploy-details summary {
+  cursor: pointer;
+  opacity: 0.9;
+}
+.crozzo-crm-reg-deploy-hint {
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(248, 250, 252, 0.2);
+  color: #f8fafc;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.crozzo-crm-reg-deploy-hint p {
+  margin: 0 0 8px;
+}
+.crozzo-crm-reg-deploy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.crozzo-crm-reg-deploy-steps code {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.72rem;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.crozzo-crm-reg-panel .crozzo-crm-reg-deploy-hint {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
 .crozzo-crm-wrap .crozzo-crm-tb-btn {
   min-height: 36px;
   padding: 6px 10px;
@@ -36670,6 +36855,12 @@ html[data-crozzo-android="1"] .mesa-card.status-libre,
 html.crozzo-android-native .mesa-card.status-libre {
   border-color: rgba(16, 185, 129, 0.8) !important;
   background: rgba(16, 185, 129, 0.08) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-atendiendo,
+html.crozzo-android-native .mesa-card.status-atendiendo {
+  border-color: rgba(59, 130, 246, 0.85) !important;
+  background: rgba(59, 130, 246, 0.12) !important;
 }
 
 html[data-crozzo-android="1"] .mesa-card.status-pendiente,
@@ -42898,6 +43089,11 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
 .crozzo-rest-slot--libre {
   border-color: rgba(16, 185, 129, 0.45);
   background: linear-gradient(160deg, rgba(16, 185, 129, 0.12), var(--bg-card));
+}
+.crozzo-rest-slot--atendiendo {
+  border-color: rgba(59, 130, 246, 0.55);
+  background: linear-gradient(160deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.06));
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
 }
 .crozzo-rest-slot--pendiente {
   border-color: rgba(245, 158, 11, 0.5);
@@ -58764,6 +58960,11 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   background: rgba(16,185,129,0.08);
 }
 
+.mesa-card.status-atendiendo {
+  border-color: rgba(59,130,246,0.85);
+  background: rgba(59,130,246,0.12);
+}
+
 .mesa-card.status-pendiente {
   border-color: rgba(245,158,11,0.85);
   background: rgba(245,158,11,0.12);
@@ -58818,6 +59019,12 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   min-height: var(--crozzo-touch-btn-min, 40px);
 }
 
+.crozzo-tablet-qr-btn {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .crozzo-mesa-estados-intro {
   margin: 0 0 14px;
 }
@@ -58843,6 +59050,7 @@ body.crozzo-session-comfort .crozzo-rep-kpi:hover {
   pointer-events: none;
   box-sizing: border-box;
   cursor: default;
+  gap: 0;
 }
 
 .crozzo-mesa-estados-row__text {
@@ -67596,6 +67804,174 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty {
   text-align: center;
   padding: 4px 0 8px;
 }
+body.crozzo-crm-reg-kiosk-open {
+  overflow: hidden !important;
+}
+.crozzo-crm-reg-kiosk {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background:
+    radial-gradient(ellipse 100% 70% at 50% -10%, rgba(56, 189, 248, 0.28), transparent 55%),
+    linear-gradient(165deg, #0c4a6e 0%, #0369a1 50%, #0f766e 100%);
+  color: #f8fafc;
+}
+.crozzo-crm-reg-kiosk__inner {
+  width: min(520px, 100%);
+  text-align: center;
+  position: relative;
+}
+.crozzo-crm-reg-kiosk__close {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.25);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.crozzo-crm-reg-kiosk__logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  border-radius: 18px;
+  background: #fff;
+  color: #0369a1;
+  font-size: 1.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+}
+.crozzo-crm-reg-kiosk__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.35rem, 4vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.crozzo-crm-reg-kiosk__sub {
+  margin: 0 auto 20px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: rgba(248, 250, 252, 0.88);
+  max-width: 420px;
+}
+.crozzo-crm-reg-kiosk__qr-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.crozzo-crm-reg-kiosk__qr-wrap .crozzo-crm-reg-qr-canvas {
+  padding: 12px;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.28);
+}
+.crozzo-crm-reg-kiosk__status {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: rgba(248, 250, 252, 0.85);
+}
+.crozzo-crm-reg-kiosk__actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.crozzo-crm-reg-kiosk__btn {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #fff !important;
+  background: rgba(15, 23, 42, 0.2) !important;
+}
+.crozzo-crm-reg-kiosk__foot {
+  margin: 16px 0 0;
+  font-size: 0.72rem;
+  color: rgba(248, 250, 252, 0.6);
+}
+.crozzo-crm-reg-kiosk__wait {
+  text-align: center;
+  padding: 28px 16px;
+  color: #f8fafc;
+}
+.crozzo-crm-reg-kiosk__wait-pulse {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 16px;
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.12);
+  border: 2px dashed rgba(248, 250, 252, 0.35);
+  animation: crozzoCrmRegKioskPulse 1.6s ease-in-out infinite;
+}
+.crozzo-crm-reg-kiosk__wait.is-soft .crozzo-crm-reg-kiosk__wait-pulse {
+  animation: none;
+  opacity: 0.55;
+}
+.crozzo-crm-reg-kiosk__wait-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.crozzo-crm-reg-kiosk__wait-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+@keyframes crozzoCrmRegKioskPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+.crozzo-crm-reg-deploy-details {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+}
+.crozzo-crm-reg-deploy-details summary {
+  cursor: pointer;
+  opacity: 0.9;
+}
+.crozzo-crm-reg-deploy-hint {
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(248, 250, 252, 0.2);
+  color: #f8fafc;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.crozzo-crm-reg-deploy-hint p {
+  margin: 0 0 8px;
+}
+.crozzo-crm-reg-deploy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.crozzo-crm-reg-deploy-steps code {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.72rem;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+.crozzo-crm-reg-panel .crozzo-crm-reg-deploy-hint {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
 .crozzo-crm-wrap .crozzo-crm-tb-btn {
   min-height: 36px;
   padding: 6px 10px;
@@ -70375,6 +70751,12 @@ html[data-crozzo-android="1"] .mesa-card.status-libre,
 html.crozzo-android-native .mesa-card.status-libre {
   border-color: rgba(16, 185, 129, 0.8) !important;
   background: rgba(16, 185, 129, 0.08) !important;
+}
+
+html[data-crozzo-android="1"] .mesa-card.status-atendiendo,
+html.crozzo-android-native .mesa-card.status-atendiendo {
+  border-color: rgba(59, 130, 246, 0.85) !important;
+  background: rgba(59, 130, 246, 0.12) !important;
 }
 
 html[data-crozzo-android="1"] .mesa-card.status-pendiente,

@@ -1461,6 +1461,15 @@
     }, 60);
   }
 
+  function openCrmRegistroSqlWizard() {
+    setWizardStep(2);
+    global.setTimeout(function () {
+      selectSqlScript('crm_registro_qr');
+      var wiz = document.getElementById('crozzoNubeSqlWizard');
+      if (wiz && wiz.scrollIntoView) wiz.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 60);
+  }
+
   function copyDeviceQrSql() {
     var sql = getDeviceQrSlotsSql();
     if (!sql) {
@@ -1732,6 +1741,14 @@
     var firstKey = scripts[0] ? scripts[0].key : '';
     hubStoreActiveSqlKey(hubGetActiveSqlKey() || firstKey);
     if (firstKey) selectSqlScript(hubGetActiveSqlKey() || firstKey);
+    if (global.__crozzoPendingSqlScriptKey) {
+      var pendingKey = global.__crozzoPendingSqlScriptKey;
+      global.__crozzoPendingSqlScriptKey = '';
+      setWizardStep(2);
+      global.setTimeout(function () {
+        selectSqlScript(pendingKey);
+      }, 80);
+    }
     updateSqlProgressBar();
 
     document.getElementById('crozzo-nube-hub')?.addEventListener('click', function (ev) {
@@ -1975,6 +1992,7 @@
   global.crozzoNubeProbeDeviceQrSlots = probeDeviceQrSlotsTable;
   global.crozzoNubeActivateDeviceQr = activateDeviceQrInPos;
   global.crozzoNubeOpenDeviceQrScript = openDeviceQrSqlWizard;
+  global.crozzoNubeOpenCrmRegistroSql = openCrmRegistroSqlWizard;
   global.openSanAltaNegocioGuide = openSanAltaNegocioGuide;
   global.runSanNubeSmokeSelfCheck = runSanNubeSmokeSelfCheck;
   global.showSanNubeSmokeResults = showSanNubeSmokeResults;

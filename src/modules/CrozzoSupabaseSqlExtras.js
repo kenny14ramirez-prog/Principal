@@ -120,6 +120,59 @@
     '    alter publication supabase_realtime add table public.crozzo_sede_runtime;\n' +
     '  end if;\n' +
     'end $$;\n\n' +
+    '-- QR clientes (autoregistro FE) — la app llama crozzo_crm_registro_bootstrap() al primer uso\n' +
+    'create extension if not exists "pgcrypto" with schema extensions;\n\n' +
+    'create table if not exists public.crozzo_crm_registro_tokens (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  token text not null unique,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  business_name text not null default \'\',\n' +
+    '  expires_at timestamptz not null,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  created_by_device text,\n' +
+    '  revoked boolean not null default false\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_crm_reg_tokens_bid\n' +
+    '  on public.crozzo_crm_registro_tokens (business_id, expires_at desc);\n\n' +
+    'create table if not exists public.crozzo_crm_registro_intake (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  token text not null,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  processed boolean not null default false,\n' +
+    '  processed_at timestamptz,\n' +
+    '  created_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_crm_reg_intake_pending\n' +
+    '  on public.crozzo_crm_registro_intake (business_id, processed, created_at asc);\n\n' +
+    'create or replace function public.crozzo_crm_registro_intake_validate()\n' +
+    'returns trigger language plpgsql as $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from public.crozzo_crm_registro_tokens t\n' +
+    '    where t.token = new.token and t.business_id = new.business_id\n' +
+    '      and t.expires_at > now() and not t.revoked\n' +
+    '  ) then raise exception \'invalid_or_expired_token\'; end if;\n' +
+    '  return new;\n' +
+    'end;\n' +
+    '$$;\n\n' +
+    'drop trigger if exists trg_crozzo_crm_registro_intake_validate on public.crozzo_crm_registro_intake;\n' +
+    'create trigger trg_crozzo_crm_registro_intake_validate\n' +
+    '  before insert on public.crozzo_crm_registro_intake\n' +
+    '  for each row execute function public.crozzo_crm_registro_intake_validate();\n\n' +
+    'create or replace function public.crozzo_crm_registro_bootstrap()\n' +
+    'returns json language plpgsql security definer set search_path = public as $$\n' +
+    'begin\n' +
+    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
+    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
+    '  perform public.crozzo_fix_all_grants();\n' +
+    '  return json_build_object(\'ok\', true);\n' +
+    'end;\n' +
+    '$$;\n\n' +
+    'grant execute on function public.crozzo_crm_registro_bootstrap() to anon, authenticated;\n\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
+    'select public.crozzo_fix_all_grants();\n\n' +
     'notify pgrst, \'reload schema\';\n';
 
   var MESA_RUNTIME_SQL =
@@ -236,6 +289,101 @@
     'where table_schema = \'public\' and table_name = \'pos_staff\'\n' +
     'order by ordinal_position;\n';
 
+  var CRM_REGISTRO_QR_SQL =
+    '-- =============================================================================\n' +
+    '-- CROZZO POS — Autoregistro de clientes por QR (token ~1 h)\n' +
+    '-- =============================================================================\n' +
+    '-- Opcional si ya ejecutó script 10 (Runtime sede): incluye las mismas tablas.\n' +
+    '-- El formulario web lo hospeda Crozzo (sin deploy en cada PC).\n' +
+    '-- =============================================================================\n\n' +
+    'create extension if not exists "pgcrypto" with schema extensions;\n\n' +
+    'create table if not exists public.crozzo_crm_registro_tokens (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  token text not null unique,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  business_name text not null default \'\',\n' +
+    '  expires_at timestamptz not null,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  created_by_device text,\n' +
+    '  revoked boolean not null default false\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_crm_reg_tokens_bid\n' +
+    '  on public.crozzo_crm_registro_tokens (business_id, expires_at desc);\n\n' +
+    'create table if not exists public.crozzo_crm_registro_intake (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  token text not null,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  processed boolean not null default false,\n' +
+    '  processed_at timestamptz,\n' +
+    '  created_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_crm_reg_intake_pending\n' +
+    '  on public.crozzo_crm_registro_intake (business_id, processed, created_at asc);\n\n' +
+    'create or replace function public.crozzo_crm_registro_intake_validate()\n' +
+    'returns trigger language plpgsql as $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from public.crozzo_crm_registro_tokens t\n' +
+    '    where t.token = new.token\n' +
+    '      and t.business_id = new.business_id\n' +
+    '      and t.expires_at > now()\n' +
+    '      and not t.revoked\n' +
+    '  ) then\n' +
+    '    raise exception \'invalid_or_expired_token\';\n' +
+    '  end if;\n' +
+    '  return new;\n' +
+    'end;\n' +
+    '$$;\n\n' +
+    'drop trigger if exists trg_crozzo_crm_registro_intake_validate on public.crozzo_crm_registro_intake;\n' +
+    'create trigger trg_crozzo_crm_registro_intake_validate\n' +
+    '  before insert on public.crozzo_crm_registro_intake\n' +
+    '  for each row execute function public.crozzo_crm_registro_intake_validate();\n\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
+    'select public.crozzo_fix_all_grants();\n\n' +
+    'insert into storage.buckets (id, name, public)\n' +
+    "values ('crozzo-public', 'crozzo-public', true)\n" +
+    'on conflict (id) do update set public = true;\n\n' +
+    'drop policy if exists crozzo_crm_reg_pub_sel on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_pub_ins on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_pub_upd on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_ofi_ins on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_ofi_upd on storage.objects;\n\n' +
+    'create policy crozzo_crm_reg_pub_sel on storage.objects\n' +
+    "  for select to anon, authenticated using (bucket_id = 'crozzo-public');\n\n" +
+    'create policy crozzo_crm_reg_pub_ins on storage.objects\n' +
+    "  for insert to anon, authenticated with check (bucket_id = 'crozzo-public');\n\n" +
+    'create policy crozzo_crm_reg_pub_upd on storage.objects\n' +
+    "  for update to anon, authenticated using (bucket_id = 'crozzo-public') with check (bucket_id = 'crozzo-public');\n\n" +
+    'create policy crozzo_crm_reg_ofi_ins on storage.objects\n' +
+    "  for insert to anon, authenticated with check (bucket_id = 'oficina-docs' and name like 'crozzo/%');\n\n" +
+    'create policy crozzo_crm_reg_ofi_upd on storage.objects\n' +
+    "  for update to anon, authenticated using (bucket_id = 'oficina-docs' and name like 'crozzo/%') with check (bucket_id = 'oficina-docs' and name like 'crozzo/%');\n\n" +
+    '-- Corrige mimetype text/plain -> text/html en archivos .html de Storage\n' +
+    'create or replace function public.crozzo_crm_registro_fix_html_mimetype(p_bucket text, p_path text)\n' +
+    'returns void language plpgsql security definer set search_path = public, storage as $$\n' +
+    'begin\n' +
+    '  update storage.objects\n' +
+    '  set metadata = jsonb_set(\n' +
+    '    jsonb_set(coalesce(metadata, \'{}\'::jsonb), \'{mimetype}\', \'"text/html"\'),\n' +
+    '    \'{contentType}\', \'"text/html"\')\n' +
+    '  where bucket_id = p_bucket and name = p_path;\n' +
+    'end;\n' +
+    '$$;\n\n' +
+    'grant execute on function public.crozzo_crm_registro_fix_html_mimetype(text, text) to anon, authenticated;\n\n' +
+    'create or replace function public.crozzo_crm_registro_bootstrap()\n' +
+    'returns json language plpgsql security definer set search_path = public as $$\n' +
+    'begin\n' +
+    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
+    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
+    '  perform public.crozzo_fix_all_grants();\n' +
+    '  return json_build_object(\'ok\', true);\n' +
+    'end;\n' +
+    '$$;\n\n' +
+    'grant execute on function public.crozzo_crm_registro_bootstrap() to anon, authenticated;\n\n' +
+    'notify pgrst, \'reload schema\';\n';
+
   var POS_FACTURAS_SHARE_STORAGE_SQL =
     '-- =============================================================================\n' +
     '-- CROZZO POS — Enlaces temporales de facturas PDF (WhatsApp, hasta 7 días)\n' +
@@ -299,8 +447,8 @@
         {
           key: 'pos_runtime',
           file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',
-          title: '10. Runtime sede (mesas en vivo)',
-          desc: 'OBLIGATORIO para sincronizar mesas/carritos entre cajas y tablets. Active Realtime.',
+          title: '10. Runtime sede (mesas en vivo + QR clientes)',
+          desc: 'OBLIGATORIO: mesas/carritos en vivo + tablas QR autoregistro clientes. Active Realtime.',
           required: true,
           order: 10,
           sql: POS_RUNTIME_SQL,
@@ -367,6 +515,15 @@
           required: false,
           order: 17,
           sql: POS_FACTURAS_SHARE_STORAGE_SQL,
+        },
+        {
+          key: 'crm_registro_qr',
+          file: 'docs/SUPABASE-SQL-CRM-REGISTRO-QR.sql',
+          title: '18. Autoregistro clientes QR',
+          desc: 'Solo si NO ejecutó script 10 reciente. Tablas QR + permisos. Sin deploy por PC.',
+          required: false,
+          order: 18,
+          sql: CRM_REGISTRO_QR_SQL,
         },
       ];
     },

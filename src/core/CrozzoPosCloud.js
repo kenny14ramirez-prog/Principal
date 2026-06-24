@@ -153,6 +153,8 @@ window.__CROZZO_SB_TABLES = Object.freeze([
   'crozzo_nomina_periodos',
   'crozzo_proveedores_ops',
   'crozzo_recepciones',
+  'crozzo_crm_registro_tokens',
+  'crozzo_crm_registro_intake',
 ]);
 function crozzoRandomIdFallback() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {

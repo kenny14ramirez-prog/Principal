@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+(function (global) {
+  'use strict';
+  global.__CROZZO_CRM_REG_HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -266,7 +268,7 @@
     var biz = params.get('b') || cfg.biz || '';
 
     if (biz) {
-      try { biz = decodeURIComponent(String(biz).replace(/\+/g, ' ')); } catch (_) {}
+      try { biz = decodeURIComponent(String(biz).replace(/\\+/g, ' ')); } catch (_) {}
       var h = document.getElementById('crmRegBizName');
       if (h) h.textContent = biz;
       var logo = document.getElementById('crmRegLogo');
@@ -394,7 +396,7 @@
       var payload = collectPayload();
       if (!payload.nombre) { setStatus(st, 'Indique nombre o razon social', 'err'); return; }
       if (!payload.nit) { setStatus(st, 'Indique NIT o documento', 'err'); return; }
-      if (!payload.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+      if (!payload.email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(payload.email)) {
         setStatus(st, 'Indique un correo valido', 'err');
         return;
       }
@@ -411,3 +413,5 @@
   </script>
 </body>
 </html>
+`;
+})(typeof window !== 'undefined' ? window : globalThis);
