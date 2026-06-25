@@ -464,6 +464,8 @@
     pedido_interno: P1,
     preparation: P1,
     recepcion: P2,
+    oficina_factura: P2,
+    planilla_feed: P2,
     product: P2,
     catalog: P2,
     tenant: P2,

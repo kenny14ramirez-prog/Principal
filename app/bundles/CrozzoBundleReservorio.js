@@ -1,6 +1,5 @@
 /* Crozzo bundle: CrozzoBundleReservorio.js — generado, no editar */
 
-
 /* --- CrozzoBlobStore.js --- */
 
 /**
@@ -201,6 +200,56 @@
     });
   }
 
+  function normalizeBlobId(ref) {
+    if (!ref) return null;
+    if (typeof ref === 'object') return ref.blobRef || ref.blobId || ref.id || null;
+    return String(ref);
+  }
+
+  /** URL lista para iframe/img/canvas + metadatos del archivo en IDB */
+  function getViewUrl(id) {
+    var rid = normalizeBlobId(id);
+    if (!rid) return Promise.resolve(null);
+    return getRecord(rid).then(function (rec) {
+      if (!rec) return null;
+      var mime = String(rec.mime || '').toLowerCase();
+      var nombre = rec.nombre || '';
+      var isPdf = mime.indexOf('pdf') >= 0 || /\.pdf$/i.test(nombre);
+      var isImage = mime.indexOf('image') >= 0;
+      if (rec.blob) {
+        try {
+          return {
+            url: URL.createObjectURL(rec.blob),
+            revoke: true,
+            mime: rec.mime,
+            nombre: nombre,
+            kind: isPdf ? 'pdf' : isImage ? 'image' : 'file',
+            rec: rec,
+          };
+        } catch (_) {}
+      }
+      if (rec.thumbDataUrl) {
+        return {
+          url: rec.thumbDataUrl,
+          revoke: false,
+          mime: rec.mime || 'image/jpeg',
+          nombre: nombre,
+          kind: 'image',
+          rec: rec,
+        };
+      }
+      return null;
+    });
+  }
+
+  function blobExists(id) {
+    var rid = normalizeBlobId(id);
+    if (!rid) return Promise.resolve(false);
+    return getRecord(rid).then(function (rec) {
+      return !!(rec && (rec.blob || rec.thumbDataUrl));
+    });
+  }
+
   function toAdjuntoRef(rec) {
     if (!rec) return null;
     return {
@@ -380,6 +429,9 @@
     putBlob: putBlob,
     getBlobUrl: getBlobUrl,
     getDataUrl: getDataUrl,
+    getViewUrl: getViewUrl,
+    normalizeBlobId: normalizeBlobId,
+    blobExists: blobExists,
     persistAdjuntos: persistAdjuntos,
     loadAdjuntosForUi: loadAdjuntosForUi,
     migrateReservorioAdjuntos: migrateReservorioAdjuntos,
@@ -392,12 +444,11 @@
 })(typeof window !== 'undefined' ? window : globalThis);
 
 
-
 /* --- CrozzoProveedorDocumentos.js --- */
 
 /**
  * Crozzo — importación de proveedores desde certificado RUT/NIT (PDF o imagen).
- * Extracción local (pdf.js texto / OCR básico futuro), match y wizard crear/actualizar.
+ * PDF con texto: pdf.js · PDF escaneado / foto: OCR local (Tesseract, mismo motor que recepción FE).
  */
 (function (global) {
   'use strict';
@@ -442,6 +493,12 @@
 
   function labelIdentificador() {
     return getPaisTributario() === 'CL' ? 'RUT' : 'NIT';
+  }
+
+  function certificadoImportEnabled() {
+    return typeof global.crozzoClientFeatureEnabled === 'function'
+      ? global.crozzoClientFeatureEnabled('cxf_importar_rut')
+      : true;
   }
 
   /** Solo dígitos + DV (K) para comparar */
@@ -681,8 +738,281 @@
     });
   }
 
-  function extractImageText(_dataUrl) {
-    return Promise.resolve({ text: '', numPages: 1, metodo: 'image-pending', ocrRequerido: true });
+  var _provTesseractPromise = null;
+  var PROV_TESSERACT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js';
+  var PROV_OCR_MIN_CHARS = 25;
+  var PROV_OCR_EXTRA_MAX_MS = 12000;
+  var _provExtraExtractBusy = false;
+  var _provExtraExtractQueue = [];
+
+  function provDocOcrUsable() {
+    return typeof document !== 'undefined' && !!document.head;
+  }
+
+  function ensureProvDocTesseract() {
+    if (!provDocOcrUsable()) {
+      return Promise.reject(new Error('OCR no disponible en este entorno'));
+    }
+    if (global.Tesseract && typeof global.Tesseract.recognize === 'function') {
+      return Promise.resolve(global.Tesseract);
+    }
+    if (_provTesseractPromise) return _provTesseractPromise;
+    _provTesseractPromise = new Promise(function (resolve, reject) {
+      var candidates = [resolveVendorUrl('vendor/CrozzoTesseract.min.js'), PROV_TESSERACT_CDN];
+      var idx = 0;
+      function tryNext() {
+        if (idx >= candidates.length) {
+          reject(new Error('No se pudo cargar OCR (Tesseract)'));
+          return;
+        }
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = candidates[idx++];
+        s.onload = function () {
+          if (global.Tesseract && typeof global.Tesseract.recognize === 'function') resolve(global.Tesseract);
+          else tryNext();
+        };
+        s.onerror = tryNext;
+        document.head.appendChild(s);
+      }
+      tryNext();
+    });
+    return _provTesseractPromise;
+  }
+
+  function provDocOcrWorkerPath() {
+    return resolveVendorUrl('vendor/CrozzoTesseract.worker.min.js');
+  }
+
+  function provDocOcrCorePath() {
+    return resolveVendorUrl('vendor/tesseract-core/');
+  }
+
+  function provDocOcrLangPath() {
+    try {
+      var a = document.createElement('a');
+      a.href = 'data/';
+      return a.href;
+    } catch (e) {
+      return 'data/';
+    }
+  }
+
+  function runProvDocOcr(dataUrl, lang) {
+    lang = lang || 'spa';
+    return ensureProvDocTesseract().then(function (T) {
+      var opts = {
+        tessedit_pageseg_mode: '6',
+        workerPath: provDocOcrWorkerPath(),
+        corePath: provDocOcrCorePath(),
+        langPath: provDocOcrLangPath(),
+        gzip: false,
+        logger: function () {},
+      };
+      return T.recognize(dataUrl, lang, opts).then(function (res) {
+        return ((res.data && res.data.text) || '').trim();
+      });
+    });
+  }
+
+  function ocrDataUrlBestEffort(dataUrl, opts) {
+    opts = opts || {};
+    if (!dataUrl || !provDocOcrUsable()) {
+      return Promise.resolve({ text: '', metodo: 'ocr-no-disponible', ocrRequerido: true });
+    }
+    var chain = runProvDocOcr(dataUrl, 'spa').then(function (textSpa) {
+      if (textSpa.replace(/\s/g, '').length >= PROV_OCR_MIN_CHARS) {
+        return { text: textSpa, metodo: 'ocr-tesseract-spa', ocrRequerido: false };
+      }
+      if (opts.light) {
+        return { text: textSpa, metodo: 'ocr-vacio', ocrRequerido: true };
+      }
+      return runProvDocOcr(dataUrl, 'eng').then(function (textEng) {
+        var best = textEng.length > textSpa.length ? textEng : textSpa;
+        var ok = best.replace(/\s/g, '').length >= PROV_OCR_MIN_CHARS;
+        return {
+          text: best,
+          metodo: ok ? 'ocr-tesseract' : 'ocr-vacio',
+          ocrRequerido: !ok,
+        };
+      });
+    });
+    if (opts.timeoutMs) {
+      chain = Promise.race([
+        chain,
+        new Promise(function (resolve) {
+          setTimeout(function () {
+            resolve({ text: '', metodo: 'ocr-timeout', ocrRequerido: true });
+          }, opts.timeoutMs);
+        }),
+      ]);
+    }
+    return chain.catch(function () {
+      return { text: '', metodo: 'ocr-error', ocrRequerido: true };
+    });
+  }
+
+  function renderPdfPageForOcr(page, scale) {
+    scale = scale || 2.4;
+    var viewport = page.getViewport({ scale: scale });
+    var maxSide = 3200;
+    var side = Math.max(viewport.width, viewport.height);
+    if (side > maxSide) {
+      scale = scale * (maxSide / side);
+      viewport = page.getViewport({ scale: scale });
+    }
+    var canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    return page
+      .render({ canvasContext: canvas.getContext('2d'), viewport: viewport })
+      .promise.then(function () {
+        return canvas;
+      });
+  }
+
+  function extractPdfScannedText(arrayBuffer, maxPages, ocrOpts) {
+    maxPages = maxPages || 2;
+    ocrOpts = ocrOpts || {};
+    if (!provDocOcrUsable()) {
+      return Promise.resolve({ text: '', lines: [], numPages: 0, metodo: 'pdf-sin-texto', ocrRequerido: true });
+    }
+    var scale = maxPages <= 1 ? 2 : 2.4;
+    return loadPdfJs().then(function (pdfjsLib) {
+      var data = arrayBuffer instanceof Uint8Array ? arrayBuffer : new Uint8Array(arrayBuffer);
+      return pdfjsLib.getDocument({ data: data }).promise.then(function (pdf) {
+        var pages = Math.min(pdf.numPages, maxPages);
+        var chain = Promise.resolve('');
+        for (var i = 1; i <= pages; i++) {
+          (function (pageNum) {
+            chain = chain.then(function (acc) {
+              return pdf.getPage(pageNum).then(function (page) {
+                return renderPdfPageForOcr(page, scale).then(function (canvas) {
+                  return ocrDataUrlBestEffort(canvas.toDataURL('image/png'), ocrOpts).then(function (ocr) {
+                    var t = ocr.text || '';
+                    return acc + (acc && t ? '\n\n' : '') + t;
+                  });
+                });
+              });
+            });
+          })(i);
+        }
+        return chain.then(function (text) {
+          var lines = String(text || '')
+            .split(/\r?\n/)
+            .map(function (l) {
+              return l.replace(/\s+/g, ' ').trim();
+            })
+            .filter(Boolean);
+          var ok = text.replace(/\s/g, '').length >= PROV_OCR_MIN_CHARS;
+          return {
+            text: text,
+            lines: lines,
+            numPages: pdf.numPages,
+            metodo: ok ? 'pdf-ocr' : 'pdf-sin-texto',
+            ocrRequerido: !ok,
+          };
+        });
+      });
+    });
+  }
+
+  function extractTextFromFile(file, opts) {
+    opts = opts || {};
+    var maxPages = opts.maxPages != null ? opts.maxPages : 3;
+    var ocrPages = opts.ocrPages != null ? opts.ocrPages : maxPages;
+    var ocrOpts = {
+      light: !!opts.lightOcr,
+      timeoutMs: opts.ocrTimeoutMs || (opts.lightOcr ? PROV_OCR_EXTRA_MAX_MS : 0),
+    };
+    if (!file) return Promise.reject(new Error('Sin archivo'));
+    var mime = file.type || '';
+    var isPdf = mime.indexOf('pdf') >= 0 || /\.pdf$/i.test(file.name);
+    return fileToArrayBuffer(file).then(function (buf) {
+      if (isPdf) {
+        return extractPdfText(buf, maxPages).then(function (pdfOut) {
+          if (!pdfOut.text || pdfOut.text.replace(/\s/g, '').length < 40) {
+            return extractPdfScannedText(buf, ocrPages, ocrOpts).then(function (ocrOut) {
+              var hasText = ocrOut.text && ocrOut.text.replace(/\s/g, '').length >= PROV_OCR_MIN_CHARS;
+              return {
+                text: hasText ? ocrOut.text : '',
+                lines: ocrOut.lines || [],
+                numPages: ocrOut.numPages || pdfOut.numPages,
+                metodo: hasText ? ocrOut.metodo : 'pdf-sin-texto',
+                ocrRequerido: !hasText,
+              };
+            });
+          }
+          return {
+            text: pdfOut.text,
+            lines: pdfOut.lines || [],
+            numPages: pdfOut.numPages,
+            metodo: pdfOut.metodo,
+            ocrRequerido: false,
+          };
+        });
+      }
+      return fileToDataUrl(file).then(function (dataUrl) {
+        return extractImageText(dataUrl, ocrOpts).then(function (imgOut) {
+          return {
+            text: imgOut.text || '',
+            lines: (imgOut.text || '')
+              .split(/\r?\n/)
+              .map(function (l) {
+                return l.trim();
+              })
+              .filter(Boolean),
+            numPages: 1,
+            metodo: imgOut.metodo,
+            ocrRequerido: !!imgOut.ocrRequerido,
+            dataUrl: dataUrl,
+          };
+        });
+      });
+    });
+  }
+
+  function legalDocKindFromSlot(tipo) {
+    if (tipo === 'certificadoBancario') return 'certificado_bancario';
+    if (tipo === 'camaraComercio') return 'camara_comercio';
+    if (tipo === 'cedulaRepresentante') return 'cedula_representante';
+    return null;
+  }
+
+  function extractFromLegalDoc(file, slotTipo) {
+    var kind = legalDocKindFromSlot(slotTipo);
+    return extractTextFromFile(file, {
+      maxPages: 1,
+      ocrPages: 1,
+      lightOcr: true,
+      ocrTimeoutMs: PROV_OCR_EXTRA_MAX_MS,
+    }).then(function (pack) {
+      return fileToDataUrl(file).then(function (dataUrl) {
+        var meta = {
+          nombreArchivo: file.name,
+          lineasPdf: pack.lines || [],
+          tipoDocHint: kind,
+        };
+        return {
+          parsed: parseTextoCertificado(pack.text, meta, { tipoDoc: kind }),
+          metodo: pack.metodo,
+          ocrRequerido: pack.ocrRequerido,
+          dataUrl: pack.dataUrl || dataUrl,
+          archivo: { nombre: file.name, mime: file.type || '' },
+        };
+      });
+    });
+  }
+
+  function extractImageText(dataUrl, ocrOpts) {
+    return ocrDataUrlBestEffort(dataUrl, ocrOpts || {}).then(function (ocr) {
+      return {
+        text: ocr.text || '',
+        numPages: 1,
+        metodo: ocr.metodo || 'image-ocr',
+        ocrRequerido: !!ocr.ocrRequerido,
+      };
+    });
   }
 
   function parseFecha(str) {
@@ -1978,17 +2308,332 @@
     };
   }
 
-  function parseTextoCertificado(text, meta) {
+  function detectDocumentoKind(text, meta) {
+    meta = meta || {};
+    var upper = String(text || '').toUpperCase();
+    var name = String(meta.nombreArchivo || '').toUpperCase();
+    if (meta.tipoDocHint) return meta.tipoDocHint;
+    if (/BANCAR|CERTIFICAD[OA].*BANC|CUENTA\s+BANC|TITULAR\s+DE\s+LA\s+CUENTA|CERTIFICACI[ÓO]N\s+BANC/i.test(upper)) {
+      return 'certificado_bancario';
+    }
+    if (/BANCOLOMBIA|DAVIVIENDA|BBVA|OCCIDENTE|BANAGRARIO|NEQUI|DAVIPLATA/i.test(upper) && /CUENTA|TITULAR|AHORR|CORRIENTE/i.test(upper)) {
+      return 'certificado_bancario';
+    }
+    if (/C[AÁ]MARA\s+DE\s+COMERCIO|CERTIFICADO\s+DE\s+EXISTENCIA|MATR[IÍ]CULA\s+MERCANTIL|REPRESENTACI[ÓO]N\s+LEGAL/i.test(upper)) {
+      return 'camara_comercio';
+    }
+    if (/C[EÉ]DULA|CIUDADAN[IÍ]A|NUIP|REGISTRADUR[IÍ]A|IDENTIFICACI[ÓO]N\s+PERSONAL/i.test(upper)) {
+      return 'cedula_representante';
+    }
+    if (/BANC/i.test(name) && /CERT|CUENTA/i.test(name)) return 'certificado_bancario';
+    if (/CAMARA|CCB|COMERCIO/i.test(name)) return 'camara_comercio';
+    if (/CEDULA|CC\.|NUIP/i.test(name)) return 'cedula_representante';
+    if (/DIAN|REGISTRO\s+ÚNICO|IMPUESTOS\s+Y\s+ADUANAS/i.test(upper)) return 'dian_rut_co';
+    return 'desconocido';
+  }
+
+  function inferBancoFromText(text) {
+    var upper = String(text || '').toUpperCase();
+    var map = [
+      ['Bancolombia', /BANCOLOMBIA/i],
+      ['Davivienda', /DAVIVIENDA/i],
+      ['Banco de Bogotá', /BANCO\s+DE\s+BOGOT/i],
+      ['BBVA Colombia', /BBVA/i],
+      ['Banco de Occidente', /OCCIDENTE/i],
+      ['Banco AV Villas', /AV\s+VILLAS|VILLAS/i],
+      ['Scotiabank Colpatria', /COLPATRIA|SCOTIABANK/i],
+      ['Banco Agrario', /AGRARIO/i],
+      ['Banco Caja Social', /CAJA\s+SOCIAL/i],
+      ['Nequi', /NEQUI/i],
+      ['Daviplata', /DAVIPLATA/i],
+      ['Itaú', /ITA[ÚU]/i],
+    ];
+    for (var i = 0; i < map.length; i++) {
+      if (map[i][1].test(upper)) return map[i][0];
+    }
+    return 'Otro';
+  }
+
+  function extractNumeroCuenta(text) {
+    var patterns = [
+      /(?:N[°ºo\.]\s*(?:de\s*)?cuenta|cuenta\s*(?:de\s*)?(?:ahorros|corriente|No\.?))[:\s#-]*(\d[\d\s-]{7,17}\d)/i,
+      /(?:CTA\.?|CUENTA)[:\s#-]*(\d{8,20})/i,
+    ];
+    var i;
+    for (i = 0; i < patterns.length; i++) {
+      var m = String(text || '').match(patterns[i]);
+      if (m && m[1]) {
+        var n = m[1].replace(/\D/g, '');
+        if (n.length >= 8 && n.length <= 20) return n;
+      }
+    }
+    var nums = String(text || '').match(/\b(\d{9,16})\b/g) || [];
+    for (i = 0; i < nums.length; i++) {
+      var raw = nums[i];
+      if (/^900|^901|^890|^830/.test(raw)) continue;
+      if (raw.length >= 9 && raw.length <= 16) return raw;
+    }
+    return '';
+  }
+
+  function parseCertificadoBancario(text, lines, meta) {
+    var base = parseTextoCertificadoCore(text, meta, lines);
+    base.tipoDoc = 'certificado_bancario';
+    var banco = inferBancoFromText(text);
+    var numero = extractNumeroCuenta(text);
+    var tipoCuenta = /CORRIENTE/i.test(text) ? 'Corriente' : /AHORR/i.test(text) ? 'Ahorros' : 'Ahorros';
+    var titular = cleanFieldValue(
+      fieldFromPatterns(text, [
+        /TITULAR(?:\s+DE\s+LA\s+CUENTA)?\s*[:\s]+([^\n\r]{4,100})/i,
+        /NOMBRE\s+(?:DEL\s+)?TITULAR\s*[:\s]+([^\n\r]{4,100})/i,
+        /BENEFICIARIO(?:\s+DE\s+LA\s+CUENTA)?\s*[:\s]+([^\n\r]{4,100})/i,
+        /RAZ[ÓO]N\s+SOCIAL\s*[:\s]+([^\n\r]{4,100})/i,
+      ])
+    );
+    if (!titular) titular = base.nombreParaBanco || base.razonSocial || base.nombrePersonaNatural || '';
+    base.cuentaBancaria = {
+      banco: banco,
+      numero: numero,
+      tipoCuenta: tipoCuenta,
+      titular: titular,
+      esPrincipal: true,
+    };
+    if (titular && !base.nombreParaBanco) base.nombreParaBanco = titular;
+    if (base.confianza) {
+      if (numero) base.confianza.cuenta = 0.75;
+      if (banco && banco !== 'Otro') base.confianza.banco = 0.8;
+    }
+    return base;
+  }
+
+  function parseCamaraComercio(text, lines, meta) {
+    var parsed;
+    if (/DIAN|REGISTRO\s+ÚNICO\s+TRIBUTARIO|IMPUESTOS\s+Y\s+ADUANAS/i.test(text)) {
+      parsed = parseDianRutColombia(text, lines, meta);
+    } else {
+      parsed = parseTextoCertificadoCore(text, meta, lines);
+    }
+    parsed.tipoDoc = 'camara_comercio';
+    if (!parsed.representante) {
+      parsed.representante = cleanFieldValue(
+        fieldFromPatterns(text, [
+          /REPRESENTANTE\s+LEGAL\s*[:\s]+([^\n\r]{4,100})/i,
+          /NOMBRE\s+DEL\s+REPRESENTANTE\s+LEGAL\s*[:\s]+([^\n\r]{4,100})/i,
+          /GERENTE\s*[:\s]+([^\n\r]{4,80})/i,
+        ])
+      );
+    }
+    parsed.matriculaMercantil =
+      fieldFromPatterns(text, [
+        /MATR[ÍI]CULA\s+(?:MERCANTIL|No\.?\s*5)[:\s#]*([^\n\r]{3,40})/i,
+        /N[°º]\.?\s*5[\.\s][^\n]{0,40}?[:\s]+([^\n\r]{3,40})/i,
+      ]) || parsed.matriculaMercantil || '';
+    if (!parsed.razonSocial) {
+      parsed.razonSocial = cleanFieldValue(
+        fieldFromPatterns(text, [
+          /RAZ[ÓO]N\s+SOCIAL\s*[:\s]+([^\n\r]{4,120})/i,
+          /NOMBRE\s+(?:O\s+)?RAZ[ÓO]N\s+SOCIAL\s*[:\s]+([^\n\r]{4,120})/i,
+        ])
+      );
+    }
+    return parsed;
+  }
+
+  function parseCedulaRepresentante(text, lines, meta) {
+    var confianza = { global: 0.45 };
+    var cedulaRaw =
+      fieldFromPatterns(text, [
+        /(?:C[eé]dula|C\.C\.?|NUIP|Documento)[:\s#]*(\d[\d\.\s]{5,12})/i,
+        /N[úu]mero\s*[:\s]+(\d{6,12})/i,
+      ]) || '';
+    cedulaRaw = String(cedulaRaw).replace(/\D/g, '');
+    var identificador = { raw: '', norm: '', display: '', validacion: null };
+    if (cedulaRaw.length >= 6 && cedulaRaw.length <= 12) {
+      identificador.raw = cedulaRaw;
+      identificador.norm = cedulaRaw;
+      identificador.display = cedulaRaw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      confianza.cedula = 0.7;
+    }
+    var nombres = cleanFieldValue(
+      fieldFromPatterns(text, [
+        /NOMBRES?\s*[:\s]+([^\n\r]{3,80})/i,
+        /PRIMER\s+NOMBRE\s*[:\s]+([^\n\r]{2,40})/i,
+      ])
+    );
+    var apellidos = cleanFieldValue(
+      fieldFromPatterns(text, [
+        /APELLIDOS?\s*[:\s]+([^\n\r]{3,80})/i,
+        /PRIMER\s+APELLIDO\s*[:\s]+([^\n\r]{2,40})/i,
+      ])
+    );
+    var nombreCompleto = [apellidos, nombres].filter(Boolean).join(' ').trim();
+    if (!nombreCompleto) {
+      nombreCompleto = cleanFieldValue(
+        fieldFromPatterns(text, [/APELLIDOS?\s+Y\s+NOMBRES?\s*[:\s]+([^\n\r]{4,100})/i])
+      );
+    }
+    return {
+      identificador: identificador,
+      razonSocial: '',
+      nombreComercial: '',
+      nombrePersonaNatural: nombreCompleto,
+      nombreParaBanco: nombreCompleto,
+      representante: nombreCompleto,
+      cedulaNumero: cedulaRaw,
+      fechaDocumento: null,
+      vigencia: evaluarVigencia(null, null),
+      tipoDoc: 'cedula_representante',
+      confianza: confianza,
+      textoMuestra: String(text || '').slice(0, 800),
+      lineasPdf: (lines || []).slice(0, 40),
+    };
+  }
+
+  function parseTextoCertificadoCore(text, meta, lines) {
     meta = meta || {};
     text = String(text || '');
-    var lines = meta.lineasPdf || text.split(/\n+/).map(function (l) {
-      return l.trim();
-    }).filter(Boolean);
+    lines =
+      lines ||
+      meta.lineasPdf ||
+      text.split(/\n+/).map(function (l) {
+        return l.trim();
+      }).filter(Boolean);
 
     if (/DIAN|REGISTRO\s+ÚNICO\s+TRIBUTARIO|IMPUESTOS\s+Y\s+ADUANAS|NIT/i.test(text)) {
       var dian = parseDianRutColombia(text, lines, meta);
       if (dian.identificador.norm || dian.razonSocial) return dian;
     }
+
+    var upper = text.toUpperCase();
+    var confianza = { global: 0.5 };
+    var rutMatch =
+      text.match(/\b(\d{1,2}\.?\d{3}\.?\d{3}\s*-\s*[\dkK])\b/i) ||
+      text.match(/\b(\d{7,9}\s*-\s*[\dkK])\b/i) ||
+      (getPaisTributario() !== 'CL'
+        ? text.match(/\b(\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\.]?\d)\b/)
+        : null);
+    var identificador = { raw: '', norm: '', display: '', validacion: null };
+    if (rutMatch) {
+      identificador.raw = rutMatch[1].replace(/\s/g, '');
+      identificador.validacion = validarIdentificador(identificador.raw);
+      identificador.norm = identificador.validacion.norm || normIdentificador(identificador.raw);
+      identificador.display = formatIdentificadorDisplay(identificador.norm);
+      confianza.rut = identificador.validacion.ok ? 0.95 : 0.75;
+    }
+
+    var fechas = [];
+    var reFecha = /\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/g;
+    var fm;
+    while ((fm = reFecha.exec(text)) !== null) {
+      var iso = parseFecha(fm[0]);
+      if (iso) fechas.push(iso);
+    }
+    fechas.sort();
+    var fechaDocumento = fechas.length ? fechas[fechas.length - 1] : null;
+    if (fechaDocumento) confianza.fecha = 0.7;
+
+    var anioMatch = upper.match(/(?:ACTUALIZAD[OA]|VIGENTE|AÑO|ANO)\s*(?:AL?\s*)?(\d{4})/);
+    var anioTributario = anioMatch ? parseInt(anioMatch[1], 10) : null;
+    if (!anioTributario && fechaDocumento) anioTributario = parseInt(fechaDocumento.slice(0, 4), 10);
+    var vigencia = evaluarVigencia(fechaDocumento, anioTributario, new Date());
+
+    var razonSocial = '';
+    var rsPatterns = [
+      /RAZ[ÓO]N\s+SOCIAL\s*[:\s]+([^\n\r]{4,120})/i,
+      /NOMBRE\s+(?:O\s+)?RAZ[ÓO]N\s+SOCIAL\s*[:\s]+([^\n\r]{4,120})/i,
+      /CONTRIBUYENTE\s*[:\s]+([^\n\r]{4,120})/i,
+    ];
+    for (var ri = 0; ri < rsPatterns.length; ri++) {
+      var rm = text.match(rsPatterns[ri]);
+      if (rm && rm[1]) {
+        razonSocial = cleanFieldValue(rm[1]);
+        if (razonSocial) {
+          confianza.razonSocial = 0.85;
+          break;
+        }
+      }
+    }
+    if (!razonSocial) {
+      var rsFn = razonFromFilename(meta.nombreArchivo);
+      if (rsFn) {
+        razonSocial = rsFn;
+        confianza.razonSocial = 0.8;
+      }
+    }
+
+    var emails = [];
+    var em;
+    var reMail = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+    while ((em = reMail.exec(text)) !== null) emails.push(em[0].toLowerCase());
+
+    var telefono =
+      fieldFromPatterns(text, [
+        /TEL[ÉE]FONO(?:\s+COMERCIAL)?\s*[:\s]+([+\d\s\-()]{8,22})/i,
+        /(\+?57\s?\d{3}\s?\d{3}\s?\d{4})/,
+        /(\b[29]\d{8}\b)/,
+      ]) || '';
+    telefono = telefono.replace(/\s{2,}/g, ' ').trim();
+
+    var representante = cleanFieldValue(
+      fieldFromPatterns(text, [
+        /REPRESENTANTE\s+LEGAL\s*[:\s]+([^\n\r]{4,80})/i,
+        /NOMBRE\s+REPRESENTANTE\s*[:\s]+([^\n\r]{4,80})/i,
+      ])
+    );
+
+    var nombreParaBanco = resolveNombreParaBanco({
+      razonSocial: razonSocial,
+      nombrePersonaNatural: '',
+      nombreComercial: '',
+    });
+
+    return {
+      identificador: identificador,
+      razonSocial: razonSocial,
+      nombreComercial: '',
+      nombrePersonaNatural: '',
+      nombreParaBanco: nombreParaBanco,
+      fechaDocumento: fechaDocumento,
+      vigencia: vigencia,
+      tipoDoc: 'desconocido',
+      email: emails[0] || '',
+      telefono: telefono,
+      representante: representante,
+      confianza: confianza,
+      textoMuestra: text.slice(0, 1200),
+      lineasPdf: lines.slice(0, 80),
+    };
+  }
+
+  function parseTextoCertificado(text, meta, opts) {
+    meta = meta || {};
+    opts = opts || {};
+    text = String(text || '');
+    var lines = meta.lineasPdf || text.split(/\n+/).map(function (l) {
+      return l.trim();
+    }).filter(Boolean);
+    var kind = opts.tipoDoc || meta.tipoDocHint || detectDocumentoKind(text, meta);
+    if (kind === 'certificado_bancario') return parseCertificadoBancario(text, lines, meta);
+    if (kind === 'camara_comercio') return parseCamaraComercio(text, lines, meta);
+    if (kind === 'cedula_representante') return parseCedulaRepresentante(text, lines, meta);
+
+    if (/DIAN|REGISTRO\s+ÚNICO\s+TRIBUTARIO|IMPUESTOS\s+Y\s+ADUANAS|NIT/i.test(text)) {
+      var dian = parseDianRutColombia(text, lines, meta);
+      if (dian.identificador.norm || dian.razonSocial) return dian;
+    }
+
+    return parseTextoCertificadoLegacy(text, meta, lines);
+  }
+
+  function parseTextoCertificadoLegacy(text, meta, lines) {
+    meta = meta || {};
+    text = String(text || '');
+    lines =
+      lines ||
+      meta.lineasPdf ||
+      text.split(/\n+/).map(function (l) {
+        return l.trim();
+      }).filter(Boolean);
 
     var upper = text.toUpperCase();
     var confianza = { global: 0.5 };
@@ -2268,9 +2913,12 @@
       '<p class="crozzo-prov-rut__vig-text">' +
       esc(formatVigenciaTexto(vig)) +
       '</p>' +
+      renderRutMiniPreview(provId, leg) +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoProvViewRut(\'' +
       sid +
       '\')">Ver certificado</button>' +
+      '</div>' +
       '</div>'
     );
   }
@@ -2286,45 +2934,7 @@
       if (global.showToast) global.showToast('Este proveedor no tiene RUT archivado', 'warning');
       return;
     }
-    if (!global.CrozzoBlobStore || !global.CrozzoBlobStore.getDataUrl) {
-      if (global.showToast) global.showToast('Almacén de documentos no disponible', 'error');
-      return;
-    }
-    if (global.showToast) global.showToast('Abriendo certificado…', 'info');
-    global.CrozzoBlobStore.getDataUrl(blobId)
-      .then(function (url) {
-        if (!url) {
-          if (global.showToast) global.showToast('No se encontró el archivo del RUT', 'error');
-          return;
-        }
-        var nombre = (leg.document && leg.document.nombre) || 'RUT.pdf';
-        var esPdf = /\.pdf$/i.test(nombre) || String(url).indexOf('application/pdf') >= 0;
-        var viewer = esPdf
-          ? '<iframe class="crozzo-prov-rut__viewer" src="' +
-            esc(url) +
-            '" title="Certificado RUT"></iframe>'
-          : '<img class="crozzo-prov-rut__viewer-img" src="' +
-            esc(url) +
-            '" alt="Certificado RUT">';
-        var body =
-          '<div class="crozzo-prov-rut-view">' +
-          '<p class="form-hint" style="margin-bottom:8px">' +
-          esc(nombre) +
-          ' · ' +
-          vigenciaBadge((leg.vigencia && leg.vigencia.estado) || 'desconocido') +
-          '</p>' +
-          viewer +
-          '</div>';
-        if (global.showModal) {
-          global.showModal('RUT · ' + (prov.nombre || 'Proveedor'), body, {
-            wide: true,
-            modalClass: 'modal--prov-rut-view',
-          });
-        }
-      })
-      .catch(function () {
-        if (global.showToast) global.showToast('Error al abrir el certificado', 'error');
-      });
+    openProveedorDocView(blobId, 'RUT · ' + ((prov && prov.nombre) || 'Proveedor'));
   }
 
   function listProveedores() {
@@ -2437,44 +3047,22 @@
 
   function extractFromFile(file) {
     if (!file) return Promise.reject(new Error('Sin archivo'));
-    var mime = file.type || '';
-    var isPdf = mime.indexOf('pdf') >= 0 || /\.pdf$/i.test(file.name);
-    return fileToArrayBuffer(file).then(function (buf) {
-      if (isPdf) {
-        return extractPdfText(buf).then(function (pdfOut) {
-          var meta = { nombreArchivo: file.name, lineasPdf: pdfOut.lines || [] };
-          if (!pdfOut.text || pdfOut.text.replace(/\s/g, '').length < 40) {
-            return {
-              parsed: parseTextoCertificado('', meta),
-              metodo: 'pdf-sin-texto',
-              ocrRequerido: true,
-              archivo: { nombre: file.name, mime: mime },
-            };
-          }
-          return {
-            parsed: parseTextoCertificado(pdfOut.text, meta),
-            metodo: pdfOut.metodo,
-            numPages: pdfOut.numPages,
-            ocrRequerido: false,
-            archivo: { nombre: file.name, mime: mime },
-          };
-        });
-      }
+    return extractTextFromFile(file, { maxPages: 3, ocrPages: 2 }).then(function (pack) {
       return fileToDataUrl(file).then(function (dataUrl) {
-        return extractImageText(dataUrl).then(function (imgOut) {
-          return {
-            parsed: parseTextoCertificado(imgOut.text, { nombreArchivo: file.name }),
-            metodo: imgOut.metodo,
-            ocrRequerido: true,
-            dataUrl: dataUrl,
-            archivo: { nombre: file.name, mime: mime || 'image/jpeg' },
-          };
-        });
+        var meta = { nombreArchivo: file.name, lineasPdf: pack.lines || [] };
+        return {
+          parsed: parseTextoCertificado(pack.text, meta),
+          metodo: pack.metodo,
+          numPages: pack.numPages,
+          ocrRequerido: !!pack.ocrRequerido,
+          dataUrl: pack.dataUrl || dataUrl,
+          archivo: { nombre: file.name, mime: file.type || '' },
+        };
       });
     });
   }
 
-  function persistDocumento(file, dataUrl, proveedorId) {
+  function persistDocumento(file, dataUrl, proveedorId, refTipo) {
     var store = global.CrozzoBlobStore;
     if (!store || !store.putBlob) {
       return fileToDataUrl(file).then(function (url) {
@@ -2489,7 +3077,7 @@
           mime: file.type || 'application/octet-stream',
           dataUrl: url,
           proveedorId: proveedorId || null,
-          refTipo: 'proveedor_legal',
+          refTipo: refTipo || 'proveedor_legal',
         })
         .then(function (rec) {
           return { blobRef: rec.id, dataUrl: url };
@@ -2621,6 +3209,16 @@
         ciudad: ciudadFinal,
       }
     );
+    if (form.cuentasBancarias && form.cuentasBancarias.length) {
+      legal.cuentasBancarias = form.cuentasBancarias;
+      var principal =
+        form.cuentasBancarias.find(function (c) {
+          return c.esPrincipal;
+        }) || form.cuentasBancarias[0];
+      if (principal && principal.titular && !legal.nombreParaTransferencias) {
+        legal.nombreParaTransferencias = principal.titular;
+      }
+    }
 
     var existing = null;
     if (mode === 'update' && provId) {
@@ -2677,6 +3275,17 @@
 
   function renderImportBlock(prefix) {
     prefix = prefix || 'crozzo-prov-doc';
+    if (!certificadoImportEnabled()) {
+      return (
+        '<div class="crozzo-prov-doc crozzo-prov-doc--locked">' +
+        (typeof global.crozzoRenderFeatureLockedHint === 'function'
+          ? global.crozzoRenderFeatureLockedHint()
+          : '<p class="form-hint">Importar certificado ' +
+            esc(labelIdentificador()) +
+            ' — disponible en versión avanzada.</p>') +
+        '</div>'
+      );
+    }
     var idLabel = labelIdentificador();
     return (
       '<div class="crozzo-prov-doc crozzo-prov-doc--premium" id="' +
@@ -2688,7 +3297,7 @@
       '<h3 class="crozzo-prov-doc__title">Importar certificado ' +
       esc(idLabel) +
       '</h3>' +
-      '<p class="form-hint">Lectura inteligente del RUT DIAN: identificación, nombres, banco, actividades y retenciones. Revise en el panel editable antes de guardar.</p>' +
+      '<p class="form-hint">Lectura del RUT DIAN y documentos legales opcionales (banco, cámara, cédula). Revise antes de guardar.</p>' +
       '</div>' +
       '<div class="crozzo-prov-doc__status crozzo-prov-doc__status--info" data-prov-doc-status role="status">' +
       'Preparando… haga clic en la zona o arrastre archivos.' +
@@ -2708,7 +3317,8 @@
       '<li>Razón social y vigencia tributaria</li>' +
       '<li>Tipo persona, actividades CIIU y obligaciones</li>' +
       '<li>Régimen Simple → sin retenciones</li>' +
-      '<li>Match con proveedores existentes</li></ul>' +
+      '<li>Match con proveedores existentes</li>' +
+      '<li>Opcional: certificado bancario, cámara de comercio y cédula</li></ul>' +
       '<div class="crozzo-prov-doc__queue" data-prov-doc-queue hidden></div>' +
       '<div class="crozzo-prov-doc__wizard" data-prov-doc-wizard hidden></div>' +
       '</div>'
@@ -2791,7 +3401,7 @@
     if (!item || !item.previewUrl) {
       return (
         '<div class="crozzo-prov-doc__viewer crozzo-prov-doc__viewer--empty">' +
-        '<p class="form-hint">Sin vista previa del archivo. Si es PDF escaneado, use los datos del formulario a la derecha.</p>' +
+        '<p class="form-hint">Sin vista previa del archivo. Si es escaneo o foto, el sistema intentará OCR al cargar.</p>' +
         '</div>'
       );
     }
@@ -2833,6 +3443,7 @@
       if (st.active) {
         bindDocumentPreview(wizardEl, st.active);
         bindInlineFieldChips(wizardEl);
+        bindProveedorExtrasRoot(wizardEl, { provId: '', importPrefix: prefix, importItem: st.active });
       }
     }
   }
@@ -3111,6 +3722,165 @@
       .join('');
   }
 
+  function buildProvFromImportItem(item) {
+    var p = (item && item.parsed) || {};
+    var leg = {
+      nombreParaTransferencias: p.nombreParaBanco || '',
+      cuentasBancarias: p.cuentaBancaria ? [p.cuentaBancaria] : [],
+    };
+    if (item && item.pendingExtras) {
+      PROV_LEGAL_DOC_KEYS.forEach(function (k) {
+        var pe = item.pendingExtras[k];
+        if (pe && pe.nombre) leg[k] = { nombre: pe.nombre, blobId: pe.blobId || '' };
+      });
+    }
+    return { id: '', legal: leg };
+  }
+
+  function mergeImportWizardField(wizardEl, key, val) {
+    if (!wizardEl || !val) return;
+    var el = wizardEl.querySelector('[data-prov-f="' + key + '"]');
+    if (el && !String(el.value || '').trim()) el.value = val;
+  }
+
+  function mergeBankIntoImportWizard(wizardEl, prefix, cuenta) {
+    if (!wizardEl || !cuenta) return;
+    prefix = prefix || 'crozzo-prov-import';
+    var list = wizardEl.querySelector('[data-bank-list="' + prefix + '"]');
+    if (!list) return;
+    var row = list.querySelector('[data-bank-row]');
+    if (!row) return;
+    function set(field, val) {
+      if (!val) return;
+      var inp = row.querySelector('[data-bank-field="' + field + '"]');
+      if (!inp || String(inp.value || '').trim()) return;
+      if (field === 'banco' && inp.tagName === 'SELECT') {
+        var opts = inp.options;
+        var i;
+        for (i = 0; i < opts.length; i++) {
+          if (opts[i].value === val || opts[i].text.indexOf(val) >= 0) {
+            inp.value = opts[i].value;
+            return;
+          }
+        }
+        inp.value = val;
+      } else {
+        inp.value = val;
+      }
+    }
+    set('banco', cuenta.banco);
+    set('tipo', cuenta.tipoCuenta || 'Ahorros');
+    set('numero', cuenta.numero);
+    set('titular', cuenta.titular);
+  }
+
+  function mergeParsedIntoImportWizard(wizardEl, parsed, sourceTipo) {
+    if (!wizardEl || !parsed) return;
+    mergeImportWizardField(wizardEl, 'nombre-banco', parsed.nombreParaBanco);
+    mergeImportWizardField(wizardEl, 'nombre-persona', parsed.nombrePersonaNatural);
+    mergeImportWizardField(wizardEl, 'razon-social', parsed.razonSocial);
+    mergeImportWizardField(wizardEl, 'nombre-comercial', parsed.nombreComercial);
+    mergeImportWizardField(
+      wizardEl,
+      'nombre-directorio',
+      parsed.nombreComercial || parsed.razonSocial || parsed.nombreParaBanco || parsed.nombrePersonaNatural
+    );
+    mergeImportWizardField(
+      wizardEl,
+      'nit',
+      parsed.identificador && (parsed.identificador.display || parsed.identificador.norm)
+    );
+    mergeImportWizardField(wizardEl, 'tel', parsed.telefono);
+    mergeImportWizardField(wizardEl, 'email', parsed.email);
+    mergeImportWizardField(wizardEl, 'rep', parsed.representante);
+    mergeImportWizardField(wizardEl, 'ciudad', parsed.ciudad);
+    if (parsed.cuentaBancaria) mergeBankIntoImportWizard(wizardEl, 'crozzo-prov-import', parsed.cuentaBancaria);
+    if (sourceTipo === 'cedulaRepresentante' && parsed.nombrePersonaNatural) {
+      mergeImportWizardField(wizardEl, 'rep', parsed.nombrePersonaNatural);
+      mergeImportWizardField(wizardEl, 'nombre-persona', parsed.nombrePersonaNatural);
+    }
+    bindInlineFieldChips(wizardEl);
+  }
+
+  function mergeParsedIntoOpQuickForm(root, parsed) {
+    if (!root || !parsed) return;
+    function setId(id, val) {
+      if (!val) return;
+      var el = root.querySelector('#' + id);
+      if (el && !String(el.value || '').trim()) el.value = val;
+    }
+    setId(
+      'crozzo-op-prov-name',
+      parsed.nombreComercial || parsed.razonSocial || parsed.nombreParaBanco || parsed.nombrePersonaNatural
+    );
+    setId(
+      'crozzo-op-prov-nit',
+      parsed.identificador && (parsed.identificador.display || parsed.identificador.norm)
+    );
+    setId('crozzo-op-prov-tel', parsed.telefono);
+    if (parsed.cuentaBancaria) mergeBankIntoImportWizard(root, 'crozzo-op-new', parsed.cuentaBancaria);
+  }
+
+  function drainProvExtraExtractQueue() {
+    if (_provExtraExtractBusy || !_provExtraExtractQueue.length) return;
+    _provExtraExtractBusy = true;
+    var job = _provExtraExtractQueue.shift();
+    var labels = {
+      certificadoBancario: 'certificado bancario',
+      camaraComercio: 'cámara de comercio',
+      cedulaRepresentante: 'cédula',
+    };
+    toast('Leyendo ' + (labels[job.tipo] || job.tipo) + '…', 'info');
+    extractFromLegalDoc(job.file, job.tipo)
+      .then(function (result) {
+        if (job.fileInput) job.fileInput._pendingFile = job.file;
+        if (job.item) {
+          if (!job.item.pendingExtras) job.item.pendingExtras = {};
+          job.item.pendingExtras[job.tipo] = {
+            file: job.file,
+            dataUrl: result.dataUrl,
+            nombre: job.file.name,
+          };
+        }
+        if (job.mergeTarget === 'op-quick') {
+          mergeParsedIntoOpQuickForm(job.wizardEl, result.parsed);
+        } else if (job.wizardEl) {
+          mergeParsedIntoImportWizard(job.wizardEl, result.parsed, job.tipo);
+        }
+        if (result.ocrRequerido) {
+          toast('Documento archivado — complete datos manualmente si faltan', 'warning');
+        } else {
+          toast('Datos de ' + (labels[job.tipo] || 'documento') + ' aplicados — revise', 'success');
+        }
+      })
+      .catch(function () {
+        if (job.fileInput) job.fileInput._pendingFile = job.file;
+        toast('No se pudo leer el documento — quedará archivado al guardar', 'warning');
+      })
+      .then(function () {
+        _provExtraExtractBusy = false;
+        drainProvExtraExtractQueue();
+      });
+  }
+
+  function enqueueProvExtraExtract(job) {
+    _provExtraExtractQueue.push(job);
+    drainProvExtraExtractQueue();
+  }
+
+  function savePendingExtrasFromImport(wizardEl, provId, item) {
+    if (!wizardEl || !provId) return Promise.resolve();
+    var wrap = wizardEl.querySelector('[data-prov-extras="crozzo-prov-import"]') || wizardEl.querySelector('[data-prov-extras]');
+    if (!wrap) return Promise.resolve();
+    wrap.setAttribute('data-prov-id', String(provId));
+    ['certificadoBancario', 'camaraComercio', 'cedulaRepresentante'].forEach(function (tipo) {
+      var inp = wrap.querySelector('[data-prov-extra-file="' + tipo + '"]');
+      var pend = item && item.pendingExtras && item.pendingExtras[tipo];
+      if (inp && pend && pend.file) inp._pendingFile = pend.file;
+    });
+    return saveProveedorExtrasFromForm(wizardEl, provId, 'crozzo-prov-import');
+  }
+
   function renderWizardPanel(st, prefix) {
     var item = st.active;
     if (!item) return '<p class="form-hint">Seleccione un archivo de la cola.</p>';
@@ -3184,8 +3954,10 @@
       esc(item.archivo && item.archivo.nombre) +
       '</span>' +
       (item.ocrRequerido
-        ? ' <span class="badge badge-warning">PDF escaneado o imagen — complete lo que falte</span>'
-        : ' <span class="badge badge-success">Texto leído</span>') +
+        ? ' <span class="badge badge-warning">Escaneo o imagen — revise y complete lo que falte</span>'
+        : item.metodo && /ocr/i.test(item.metodo)
+          ? ' <span class="badge badge-success">Leído con OCR</span>'
+          : ' <span class="badge badge-success">Texto leído</span>') +
       '</div>' +
       '<p class="form-hint crozzo-prov-doc__split-hint">Compare el certificado (izquierda) con los datos detectados (derecha) antes de guardar.</p>' +
       '<div class="crozzo-prov-doc__split">' +
@@ -3198,6 +3970,11 @@
       renderEditableResumen(p) +
       renderRetencionesAlert(p) +
       '</div></div>' +
+      '<div class="crozzo-prov-doc__extras">' +
+      '<p class="form-label">Documentos legales (opcional)</p>' +
+      '<p class="form-hint">Adjunte certificado bancario, cámara de comercio o cédula. El sistema intentará leer datos sin bloquear la pantalla (un archivo a la vez).</p>' +
+      renderProveedorExtrasBlock(buildProvFromImportItem(item), 'crozzo-prov-import', '') +
+      '</div>' +
       '<div class="crozzo-prov-doc__modes">' +
       '<span class="form-label">¿Qué desea hacer?</span>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">' +
@@ -3263,7 +4040,16 @@
     if (!files.length) return;
 
     files.forEach(function (file) {
-      setImportStatus(root, 'Leyendo «' + file.name + '»…', 'loading');
+      var mime = file.type || '';
+      var isImg = mime.indexOf('image') >= 0;
+      var isPdf = mime.indexOf('pdf') >= 0 || /\.pdf$/i.test(file.name);
+      setImportStatus(
+        root,
+        isImg || isPdf
+          ? 'Leyendo «' + file.name + '»… (OCR si es foto o escaneo, puede tardar)'
+          : 'Leyendo «' + file.name + '»…',
+        'loading'
+      );
       extractFromFile(file)
         .then(function (result) {
           return fileToDataUrl(file).then(function (dataUrl) {
@@ -3304,10 +4090,17 @@
             if (result.ocrRequerido) {
               setImportStatus(
                 root,
-                'Archivo cargado. Complete RUT/NIT y razón social en el formulario inferior.',
+                'OCR no detectó suficiente texto — complete RUT/NIT y razón social manualmente.',
                 'warn'
               );
-              toast('Documento sin texto automático — revise los campos', 'warning');
+              toast('Documento escaneado — revise y complete los campos', 'warning');
+            } else if (/ocr/i.test(result.metodo || '')) {
+              setImportStatus(
+                root,
+                'OCR aplicado — confirme NIT/RUT y razón social antes de guardar.',
+                'ok'
+              );
+              toast('Datos leídos por OCR — confirme abajo', 'success');
             } else if (idOk) {
               setImportStatus(
                 root,
@@ -3440,6 +4233,8 @@
             return;
           }
           setImportStatus(root, 'Guardando proveedor y certificado…', 'loading');
+          var extrasWrap = wizardEl.querySelector('[data-prov-extras="crozzo-prov-import"]') || wizardEl.querySelector('[data-prov-extras]');
+          var cuentas = extrasWrap ? readCuentasBancariasFromForm(extrasWrap, 'crozzo-prov-import') : [];
           persistDocumento(item.file, item.dataUrl, provId)
             .then(function (blobOut) {
               var res = applyProveedor({
@@ -3460,9 +4255,20 @@
                   email: email,
                   representante: rep,
                   ciudad: form.ciudad,
+                  cuentasBancarias: cuentas,
                 },
               });
-              if (res.ok) {
+              if (!res.ok) return res;
+              return savePendingExtrasFromImport(wizardEl, res.row && res.row.id, item).then(function () {
+                return res;
+              });
+            })
+            .then(function (res) {
+              if (!res || !res.ok) {
+                setImportStatus(root, (res && res.error) || 'No se pudo guardar', 'error');
+                toast((res && res.error) || 'Error al guardar', 'error');
+                return;
+              }
                 item.status = 'done';
                 var pend = st.items.filter(function (x) {
                   return x.status !== 'done';
@@ -3495,15 +4301,12 @@
                 }
                 if (reg && reg.opts && typeof reg.opts.onSaved === 'function') reg.opts.onSaved(res);
                 refreshImportUi(prefix);
-              } else {
-                setImportStatus(root, res.error || 'No se pudo guardar', 'error');
-                toast(res.error || 'Error al guardar', 'error');
-              }
             })
             .catch(function (err) {
               setImportStatus(root, 'Error al guardar archivo', 'error');
               toast(err.message || 'Error', 'error');
             });
+          return;
         }
       },
       true
@@ -3544,6 +4347,7 @@
 
   function bindImportRoot(root, opts) {
     if (!root) return;
+    if (!certificadoImportEnabled()) return;
     opts = opts || {};
     var prefix = root.getAttribute('data-prov-doc-root') || 'crozzo-prov-doc';
     _importRegistry[prefix] = { root: root, opts: opts };
@@ -3576,6 +4380,941 @@
       nit.value = p.identificador.display || p.identificador.norm;
     }
     if (email && p.email) email.value = p.email;
+  }
+
+  var BANCOS_CO = [
+    'Bancolombia',
+    'Banco de Bogotá',
+    'Davivienda',
+    'BBVA Colombia',
+    'Banco de Occidente',
+    'Banco AV Villas',
+    'Scotiabank Colpatria',
+    'Banco Agrario',
+    'Banco Caja Social',
+    'Banco Popular',
+    'Itaú',
+    'Citibank',
+    'Nequi',
+    'Daviplata',
+    'Lulo Bank',
+    'RappiPay',
+    'Otro',
+  ];
+  var TIPOS_CUENTA = ['Ahorros', 'Corriente'];
+  var PROV_LEGAL_DOC_KEYS = ['certificadoBancario', 'camaraComercio', 'cedulaRepresentante'];
+  var PROV_DOC_CATALOG = [
+    {
+      key: 'rut',
+      label: 'RUT',
+      short: 'RUT',
+      icon: '📄',
+      resolve: function (leg) {
+        return (leg && leg.document) || null;
+      },
+    },
+    {
+      key: 'certificadoBancario',
+      label: 'Certificado bancario',
+      short: 'Banco',
+      icon: '🏦',
+      resolve: function (leg) {
+        return (leg && leg.certificadoBancario) || null;
+      },
+    },
+    {
+      key: 'cedulaRepresentante',
+      label: 'Cédula representante',
+      short: 'Cédula',
+      icon: '🪪',
+      resolve: function (leg) {
+        return (leg && leg.cedulaRepresentante) || null;
+      },
+    },
+    {
+      key: 'camaraComercio',
+      label: 'Cámara de comercio',
+      short: 'Cámara',
+      icon: '🏛️',
+      resolve: function (leg) {
+        return (leg && leg.camaraComercio) || null;
+      },
+    },
+  ];
+
+  function resolveProvDocState(entry, leg) {
+    leg = leg || {};
+    var raw = entry.resolve(leg);
+    if (!raw) return { ok: false, blobId: null, nombre: '', subidoAt: null };
+    var blobId = raw.blobId || raw.blobRef || null;
+    return {
+      ok: !!blobId,
+      blobId: blobId,
+      nombre: raw.nombre || '',
+      subidoAt: raw.subidoAt || null,
+    };
+  }
+
+  function listProveedorDocumentos(prov) {
+    prov = prov || {};
+    var leg = prov.legal && typeof prov.legal === 'object' ? prov.legal : {};
+    return PROV_DOC_CATALOG.map(function (entry) {
+      var st = resolveProvDocState(entry, leg);
+      return {
+        key: entry.key,
+        label: entry.label,
+        short: entry.short,
+        icon: entry.icon,
+        ok: st.ok,
+        blobId: st.blobId,
+        nombre: st.nombre,
+        subidoAt: st.subidoAt,
+      };
+    });
+  }
+
+  function proveedorDocsSummary(prov) {
+    var docs = listProveedorDocumentos(prov);
+    var present = docs.filter(function (d) {
+      return d.ok;
+    });
+    var missing = docs.filter(function (d) {
+      return !d.ok;
+    });
+    return {
+      docs: docs,
+      present: present,
+      missing: missing,
+      count: present.length,
+      total: docs.length,
+      tieneTexto:
+        present.length > 0
+          ? 'Tiene: ' +
+            present
+              .map(function (d) {
+                return d.label;
+              })
+              .join(', ')
+          : 'Sin documentos del proveedor archivados',
+      faltaTexto:
+        missing.length > 0
+          ? 'Falta: ' +
+            missing
+              .map(function (d) {
+                return d.label;
+              })
+              .join(', ')
+          : 'Expediente completo',
+    };
+  }
+
+  function renderProveedorDocsRowBadges(prov) {
+    var sum = proveedorDocsSummary(prov);
+    if (!sum.docs.length) return '';
+    return (
+      '<div class="crozzo-of-prov-doc-badges" title="' +
+      esc(sum.tieneTexto + (sum.missing.length ? ' · ' + sum.faltaTexto : '')) +
+      '">' +
+      sum.docs
+        .map(function (d) {
+          return (
+            '<span class="crozzo-of-prov-doc-badge' +
+            (d.ok ? ' is-ok' : ' is-miss') +
+            '">' +
+            esc(d.short) +
+            '</span>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  function renderProveedorDocsPanel(prov, provId, opts) {
+    opts = opts || {};
+    var sum = proveedorDocsSummary(prov);
+    var pid = esc(String(provId || (prov && prov.id) || ''));
+    var activeKey = esc(String(opts.activeKey || ''));
+    var chips = sum.docs
+      .map(function (d) {
+        var cls = d.ok ? ' is-ok' : ' is-miss';
+        if (activeKey && activeKey === d.key) cls += ' is-active';
+        var action = d.ok
+          ? '<button type="button" class="btn btn-outline btn-sm ccl-of-view-prov-doc" data-prov-id="' +
+            pid +
+            '" data-doc-key="' +
+            esc(d.key) +
+            '">Ver</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm ccl-of-expand-prov-doc" data-prov-id="' +
+            pid +
+            '" data-doc-key="' +
+            esc(d.key) +
+            '" title="Abrir grande">↗</button>'
+          : '<span class="crozzo-of-doc-chip__miss">Pendiente</span>';
+        return (
+          '<div class="crozzo-of-doc-chip' +
+          cls +
+          '" data-doc-chip="' +
+          esc(d.key) +
+          '">' +
+          '<span class="crozzo-of-doc-chip__icon">' +
+          d.icon +
+          '</span>' +
+          '<div class="crozzo-of-doc-chip__body">' +
+          '<strong>' +
+          esc(d.label) +
+          '</strong>' +
+          (d.ok
+            ? '<span class="form-hint">' +
+              esc(String(d.nombre || 'Archivado').slice(0, 32)) +
+              '</span>'
+            : '<span class="form-hint">No cargado</span>') +
+          '</div>' +
+          '<div class="crozzo-of-doc-chip__acts">' +
+          action +
+          '</div></div>'
+        );
+      })
+      .join('');
+    var preview =
+      opts.withPreview !== false
+        ? '<div class="crozzo-of-docs-preview" data-prov-docs-preview="' +
+          pid +
+          '">' +
+          '<p class="form-hint crozzo-of-docs-preview__hint">Seleccione un documento para previsualizarlo aquí</p>' +
+          '<div class="crozzo-of-docs-preview__box crozzo-rut-mini" style="display:none" data-doc-preview-box="' +
+          pid +
+          '">' +
+          '<div class="crozzo-rut-mini__load" data-blob-preview-load></div>' +
+          '<canvas class="crozzo-rut-mini__canvas" data-blob-preview-canvas aria-label="Vista documento"></canvas>' +
+          '<iframe class="crozzo-rut-mini__iframe" data-blob-preview-iframe style="display:none" title="Documento"></iframe>' +
+          '<img class="crozzo-rut-mini__img" data-blob-preview-img style="display:none" alt="Documento">' +
+          '</div></div>'
+        : '';
+    return (
+      '<div class="crozzo-of-docs-panel" data-prov-docs="' +
+      pid +
+      '">' +
+      '<p class="crozzo-oficina-edit__title">Expediente documentos</p>' +
+      '<p class="crozzo-of-docs-summary"><strong>' +
+      sum.count +
+      '/' +
+      sum.total +
+      '</strong> archivados · ' +
+      esc(sum.tieneTexto) +
+      '</p>' +
+      (sum.missing.length
+        ? '<p class="form-hint crozzo-of-docs-missing">⚠ ' + esc(sum.faltaTexto) + '</p>'
+        : '<p class="form-hint crozzo-of-docs-complete">✓ Expediente documental completo</p>') +
+      '<div class="crozzo-of-doc-chips">' +
+      chips +
+      '</div>' +
+      preview +
+      '</div>'
+    );
+  }
+
+  function getProveedorDocBlobId(prov, key) {
+    var docs = listProveedorDocumentos(prov);
+    var hit = docs.find(function (d) {
+      return d.key === key;
+    });
+    return hit && hit.blobId ? hit.blobId : null;
+  }
+
+  function openProveedorDocByKey(provId, key) {
+    var prov = getProveedorById(provId);
+    if (!prov) {
+      toast('Proveedor no encontrado', 'warning');
+      return;
+    }
+    var blobId = getProveedorDocBlobId(prov, key);
+    if (!blobId) {
+      var entry = PROV_DOC_CATALOG.find(function (e) {
+        return e.key === key;
+      });
+      toast((entry && entry.label) || 'Documento' + ' no archivado', 'warning');
+      return;
+    }
+    var entryLabel =
+      (PROV_DOC_CATALOG.find(function (e) {
+        return e.key === key;
+      }) || {}).label || 'Documento';
+    openProveedorDocView(blobId, entryLabel + ' · ' + (prov.nombre || ''));
+  }
+
+  function uidProvExtra() {
+    return 'cb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function getProveedorById(provId) {
+    if (global.CrozzoReservorio && global.CrozzoReservorio.getProveedor) {
+      return global.CrozzoReservorio.getProveedor(provId);
+    }
+    return null;
+  }
+
+  function renderCuentaBancariaRow(cuenta, prefix, idx) {
+    cuenta = cuenta || {};
+    var banco = cuenta.banco || '';
+    var tipo = cuenta.tipoCuenta || cuenta.tipo || 'Ahorros';
+    var principal = cuenta.esPrincipal ? ' checked' : idx === 0 ? ' checked' : '';
+    var bancoOpts = BANCOS_CO.map(function (b) {
+      return (
+        '<option value="' +
+        esc(b) +
+        '"' +
+        (b === banco ? ' selected' : '') +
+        '>' +
+        esc(b) +
+        '</option>'
+      );
+    }).join('');
+    var tipoOpts = TIPOS_CUENTA.map(function (t) {
+      return (
+        '<option value="' +
+        esc(t) +
+        '"' +
+        (t === tipo ? ' selected' : '') +
+        '>' +
+        esc(t) +
+        '</option>'
+      );
+    }).join('');
+    return (
+      '<div class="crozzo-prov-bank-row" data-bank-row data-prefix="' +
+      esc(prefix) +
+      '">' +
+      '<select class="form-input crozzo-prov-bank-row__bank" data-bank-field="banco">' +
+      bancoOpts +
+      '</select>' +
+      '<select class="form-input crozzo-prov-bank-row__tipo" data-bank-field="tipo">' +
+      tipoOpts +
+      '</select>' +
+      '<input class="form-input crozzo-prov-bank-row__num" data-bank-field="numero" placeholder="Nº cuenta" value="' +
+      esc(cuenta.numero || '') +
+      '">' +
+      '<input class="form-input crozzo-prov-bank-row__tit" data-bank-field="titular" placeholder="Titular cuenta" value="' +
+      esc(cuenta.titular || '') +
+      '">' +
+      '<label class="crozzo-prov-bank-row__pri" title="Cuenta principal para pagos">' +
+      '<input type="radio" name="bank-primary-' +
+      esc(prefix) +
+      '" data-bank-primary' +
+      principal +
+      '> ★</label>' +
+      '<button type="button" class="btn btn-ghost btn-sm crozzo-prov-bank-row__rm" data-bank-rm title="Quitar">×</button>' +
+      '</div>'
+    );
+  }
+
+  function renderDocLegalSlot(tipo, label, hint, doc, prefix) {
+    doc = doc || {};
+    var blobId = doc.blobId || '';
+    var nombre = doc.nombre || '';
+    var has = !!blobId;
+    return (
+      '<div class="crozzo-prov-doc-slot" data-doc-tipo="' +
+      esc(tipo) +
+      '">' +
+      '<div class="crozzo-prov-doc-slot__head">' +
+      '<p class="form-label" style="margin:0">' +
+      esc(label) +
+      '</p>' +
+      (has
+        ? '<span class="badge badge-success">Archivado</span>'
+        : '<span class="badge" style="opacity:.7">Pendiente</span>') +
+      '</div>' +
+      '<p class="form-hint" style="margin:4px 0 8px">' +
+      esc(hint) +
+      '</p>' +
+      '<div class="crozzo-prov-doc-slot__body">' +
+      '<input type="file" class="crozzo-prov-doc-slot__file" accept=".pdf,image/jpeg,image/png,image/webp" data-prov-extra-file="' +
+      esc(tipo) +
+      '">' +
+      '<input type="hidden" data-prov-extra-blob="' +
+      esc(tipo) +
+      '" value="' +
+      esc(blobId) +
+      '" data-nombre="' +
+      esc(nombre) +
+      '">' +
+      (has
+        ? '<p class="form-hint crozzo-prov-doc-slot__name">📎 ' +
+          esc(nombre || 'Documento') +
+          '</p>' +
+          '<button type="button" class="btn btn-outline btn-sm" data-prov-extra-view="' +
+          esc(tipo) +
+          '">Ver</button>'
+        : '<p class="form-hint crozzo-prov-doc-slot__name">Sin archivo</p>') +
+      '</div></div>'
+    );
+  }
+
+  function renderProveedorExtrasBlock(prov, prefix, provId) {
+    prov = prov || {};
+    prefix = prefix || 'crozzo-prov-extra';
+    var leg = prov.legal && typeof prov.legal === 'object' ? prov.legal : {};
+    var cuentas = Array.isArray(leg.cuentasBancarias) ? leg.cuentasBancarias : [];
+    if (!cuentas.length && leg.nombreParaTransferencias) {
+      cuentas = [{ titular: leg.nombreParaTransferencias, esPrincipal: true }];
+    }
+    if (!cuentas.length) cuentas = [{}];
+    var bankRows = cuentas
+      .map(function (c, i) {
+        return renderCuentaBancariaRow(c, prefix, i);
+      })
+      .join('');
+    return (
+      '<div class="crozzo-prov-extras" data-prov-extras="' +
+      esc(prefix) +
+      '" data-prov-id="' +
+      esc(String(provId || prov.id || '')) +
+      '">' +
+      '<div class="crozzo-prov-extras__section">' +
+      '<div class="crozzo-prov-extras__head">' +
+      '<p class="form-label" style="margin:0">Cuentas bancarias</p>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-prov-bank-add data-prefix="' +
+      esc(prefix) +
+      '">＋ Agregar cuenta</button>' +
+      '</div>' +
+      '<p class="form-hint">Registre una o varias cuentas para pagos por transferencia.</p>' +
+      '<div class="crozzo-prov-bank-list" data-bank-list="' +
+      esc(prefix) +
+      '">' +
+      bankRows +
+      '</div></div>' +
+      (certificadoImportEnabled()
+        ? '<div class="crozzo-prov-extras__section">' +
+          '<p class="form-label">Documentos legales</p>' +
+          '<div class="crozzo-prov-doc-slots">' +
+          renderDocLegalSlot(
+            'certificadoBancario',
+            'Certificado bancario',
+            'Certificación bancaria — el sistema intentará leer banco, Nº cuenta y titular.',
+            leg.certificadoBancario,
+            prefix
+          ) +
+          renderDocLegalSlot(
+            'camaraComercio',
+            'Cámara de comercio',
+            'Certificado de existencia — lectura de NIT, razón social y representante legal.',
+            leg.camaraComercio,
+            prefix
+          ) +
+          renderDocLegalSlot(
+            'cedulaRepresentante',
+            'Fotocopia cédula representante',
+            'Cédula del representante — lectura de nombre y número (solo archivo, sin bloquear el sistema).',
+            leg.cedulaRepresentante,
+            prefix
+          ) +
+          '</div></div>'
+        : '') +
+      '</div>'
+    );
+  }
+
+  function readCuentasBancariasFromForm(wrap, prefix) {
+    if (!wrap) return [];
+    var list = wrap.querySelector('[data-bank-list="' + prefix + '"]') || wrap.querySelector('[data-bank-list]');
+    if (!list) return [];
+    var rows = list.querySelectorAll('[data-bank-row]');
+    var out = [];
+    rows.forEach(function (row) {
+      var banco = (row.querySelector('[data-bank-field="banco"]') || {}).value || '';
+      var tipo = (row.querySelector('[data-bank-field="tipo"]') || {}).value || 'Ahorros';
+      var numero = String((row.querySelector('[data-bank-field="numero"]') || {}).value || '').trim();
+      var titular = String((row.querySelector('[data-bank-field="titular"]') || {}).value || '').trim();
+      var pri = row.querySelector('[data-bank-primary]');
+      if (!banco && !numero && !titular) return;
+      out.push({
+        id: uidProvExtra(),
+        banco: banco,
+        tipoCuenta: tipo,
+        numero: numero,
+        titular: titular,
+        esPrincipal: !!(pri && pri.checked),
+      });
+    });
+    if (out.length && !out.some(function (c) {
+      return c.esPrincipal;
+    })) {
+      out[0].esPrincipal = true;
+    }
+    return out;
+  }
+
+  function saveProveedorExtrasFromForm(root, provId, prefix) {
+    prefix = prefix || 'crozzo-prov-extra';
+    if (!root || !provId) return Promise.resolve(null);
+    var wrap = root.querySelector('[data-prov-extras="' + prefix + '"]');
+    if (!wrap) return Promise.resolve(null);
+    var cuentas = readCuentasBancariasFromForm(wrap, prefix);
+    var uploads = [];
+    ['certificadoBancario', 'camaraComercio', 'cedulaRepresentante'].forEach(function (tipo) {
+      var input = wrap.querySelector('[data-prov-extra-file="' + tipo + '"]');
+      if (input && input._pendingFile) {
+        uploads.push(
+          persistDocumento(input._pendingFile, null, provId, 'proveedor_' + tipo).then(function (r) {
+            return {
+              tipo: tipo,
+              blobId: r.blobRef,
+              nombre: input._pendingFile.name,
+            };
+          })
+        );
+      }
+    });
+    return Promise.all(uploads).then(function (uploaded) {
+      var prov = getProveedorById(provId) || {};
+      var leg = Object.assign({}, prov.legal && typeof prov.legal === 'object' ? prov.legal : {});
+      leg.cuentasBancarias = cuentas;
+      uploaded.forEach(function (u) {
+        if (u.blobId) {
+          leg[u.tipo] = {
+            blobId: u.blobId,
+            nombre: u.nombre,
+            subidoAt: new Date().toISOString(),
+          };
+        }
+      });
+      ['certificadoBancario', 'camaraComercio', 'cedulaRepresentante'].forEach(function (tipo) {
+        var hidden = wrap.querySelector('[data-prov-extra-blob="' + tipo + '"]');
+        if (hidden && hidden.value && !uploaded.some(function (u) {
+          return u.tipo === tipo;
+        })) {
+          leg[tipo] = {
+            blobId: hidden.value,
+            nombre: hidden.getAttribute('data-nombre') || tipo,
+            subidoAt: (leg[tipo] && leg[tipo].subidoAt) || new Date().toISOString(),
+          };
+        }
+      });
+      var principal =
+        cuentas.find(function (c) {
+          return c.esPrincipal;
+        }) || cuentas[0];
+      if (principal && principal.titular) leg.nombreParaTransferencias = principal.titular;
+      return upsertProveedorFinal({ id: provId, legal: leg });
+    });
+  }
+
+  function openProveedorDocExtra(provId, tipo) {
+    var prov = getProveedorById(provId);
+    var leg = prov && prov.legal;
+    var doc = leg && leg[tipo];
+    var blobId = doc && doc.blobId;
+    if (!blobId) {
+      toast('No hay documento archivado', 'warning');
+      return;
+    }
+    var labels = {
+      certificadoBancario: 'Certificado bancario',
+      camaraComercio: 'Cámara de comercio',
+      cedulaRepresentante: 'Cédula representante',
+    };
+    openProveedorDocView(blobId, (doc && doc.nombre) || labels[tipo] || 'Documento');
+  }
+
+  function bindProveedorExtrasRoot(root, opts) {
+    opts = opts || {};
+    if (!root || root._provExtrasBound) return;
+    root._provExtrasBound = true;
+    root.addEventListener('click', function (e) {
+      var addBtn = e.target.closest('[data-prov-bank-add]');
+      if (addBtn && root.contains(addBtn)) {
+        var prefix = addBtn.getAttribute('data-prefix') || 'crozzo-prov-extra';
+        var list = root.querySelector('[data-bank-list="' + prefix + '"]');
+        if (list) {
+          var div = document.createElement('div');
+          div.innerHTML = renderCuentaBancariaRow({}, prefix, list.querySelectorAll('[data-bank-row]').length);
+          list.appendChild(div.firstElementChild);
+        }
+        return;
+      }
+      var rm = e.target.closest('[data-bank-rm]');
+      if (rm && root.contains(rm)) {
+        var row = rm.closest('[data-bank-row]');
+        var listRm = row && row.parentNode;
+        if (row && listRm && listRm.querySelectorAll('[data-bank-row]').length > 1) row.remove();
+        return;
+      }
+      var viewBtn = e.target.closest('[data-prov-extra-view]');
+      if (viewBtn && root.contains(viewBtn)) {
+        var wrap = viewBtn.closest('[data-prov-extras]');
+        var pid = (wrap && wrap.getAttribute('data-prov-id')) || opts.provId;
+        var tipo = viewBtn.getAttribute('data-prov-extra-view');
+        if (pid && tipo) openProveedorDocExtra(pid, tipo);
+      }
+    });
+    root.addEventListener('change', function (e) {
+      var fileInput = e.target.closest('[data-prov-extra-file]');
+      if (!fileInput || !root.contains(fileInput)) return;
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var wrap = fileInput.closest('[data-prov-extras]');
+      var tipo = fileInput.getAttribute('data-prov-extra-file');
+      var pid = (wrap && wrap.getAttribute('data-prov-id')) || opts.provId;
+      var nameEl = fileInput.closest('.crozzo-prov-doc-slot');
+      nameEl = nameEl && nameEl.querySelector('.crozzo-prov-doc-slot__name');
+      if (nameEl) nameEl.textContent = '📎 ' + file.name + ' (pendiente guardar)';
+      var prefixExtra = wrap && wrap.getAttribute('data-prov-extras');
+      if (!pid) {
+        fileInput._pendingFile = file;
+        if (opts.importItem) {
+          enqueueProvExtraExtract({
+            file: file,
+            tipo: tipo,
+            fileInput: fileInput,
+            item: opts.importItem,
+            wizardEl: root,
+            mergeTarget: 'import',
+          });
+        } else if (prefixExtra === 'crozzo-op-new') {
+          enqueueProvExtraExtract({
+            file: file,
+            tipo: tipo,
+            fileInput: fileInput,
+            wizardEl: document.getElementById('crozzo-op-root') || root,
+            mergeTarget: 'op-quick',
+          });
+        } else {
+          toast('Documento listo — guarde el proveedor para archivarlo', 'info');
+        }
+        return;
+      }
+      toast('Subiendo ' + file.name + '…', 'info');
+      persistDocumento(file, null, pid, 'proveedor_' + tipo)
+        .then(function (r) {
+          var hidden = wrap.querySelector('[data-prov-extra-blob="' + tipo + '"]');
+          if (hidden && r.blobRef) {
+            hidden.value = r.blobRef;
+            hidden.setAttribute('data-nombre', file.name);
+          }
+          fileInput._pendingFile = null;
+          var prov = getProveedorById(pid) || {};
+          var leg = Object.assign({}, prov.legal || {});
+          leg[tipo] = { blobId: r.blobRef, nombre: file.name, subidoAt: new Date().toISOString() };
+          upsertProveedorFinal({ id: pid, legal: leg });
+          if (nameEl) nameEl.textContent = '📎 ' + file.name;
+          toast('Documento archivado', 'success');
+        })
+        .catch(function () {
+          fileInput._pendingFile = file;
+          toast('No se pudo archivar — se guardará al confirmar', 'warning');
+        });
+    });
+  }
+
+  function renderRutMiniPreview(provId, leg) {
+    leg = leg || {};
+    var doc = leg.document || {};
+    if (!doc.blobId) {
+      return (
+        '<div class="crozzo-rut-mini crozzo-rut-mini--empty">' +
+        '<span class="form-hint">Sin RUT archivado</span></div>'
+      );
+    }
+    var pid = esc(String(provId || ''));
+    return (
+      '<div class="crozzo-rut-mini" data-rut-mini-for="' +
+      pid +
+      '" id="crozzo-rut-mini-' +
+      pid +
+      '">' +
+      '<div class="crozzo-rut-mini__load" data-blob-preview-load>Cargando RUT…</div>' +
+      '<canvas class="crozzo-rut-mini__canvas" data-blob-preview-canvas aria-label="Vista previa RUT"></canvas>' +
+      '<iframe class="crozzo-rut-mini__iframe" data-blob-preview-iframe title="Vista RUT" style="display:none"></iframe>' +
+      '<img class="crozzo-rut-mini__img" data-blob-preview-img alt="RUT" style="display:none">' +
+      '<button type="button" class="btn btn-ghost btn-sm crozzo-rut-mini__expand" data-rut-expand="' +
+      pid +
+      '">Ampliar</button>' +
+      '</div>'
+    );
+  }
+
+  function blobKindFromRec(rec) {
+    if (!rec) return 'file';
+    var mime = String(rec.mime || '').toLowerCase();
+    var nombre = rec.nombre || '';
+    if (mime.indexOf('pdf') >= 0 || /\.pdf$/i.test(nombre)) return 'pdf';
+    if (mime.indexOf('image') >= 0 || rec.thumbDataUrl) return 'image';
+    return 'file';
+  }
+
+  function renderPdfFirstPageToCanvas(source, canvas, maxWidth) {
+    if (!canvas) return Promise.reject(new Error('Sin canvas'));
+    maxWidth = maxWidth || 720;
+    var bufPromise;
+    if (source instanceof ArrayBuffer) {
+      bufPromise = Promise.resolve(new Uint8Array(source));
+    } else if (source instanceof Uint8Array) {
+      bufPromise = Promise.resolve(source);
+    } else if (source && typeof source.arrayBuffer === 'function') {
+      bufPromise = source.arrayBuffer().then(function (b) {
+        return new Uint8Array(b);
+      });
+    } else if (typeof source === 'string') {
+      bufPromise = fetch(source)
+        .then(function (r) {
+          return r.arrayBuffer();
+        })
+        .then(function (b) {
+          return new Uint8Array(b);
+        });
+    } else {
+      return Promise.reject(new Error('Fuente no válida'));
+    }
+    return loadPdfJs().then(function (pdfjsLib) {
+      return bufPromise
+        .then(function (data) {
+          return pdfjsLib.getDocument({ data: data }).promise;
+        })
+        .then(function (pdf) {
+          return pdf.getPage(1).then(function (page) {
+            var vp = page.getViewport({ scale: 1 });
+            var scale = Math.min(Math.max(maxWidth / vp.width, 0.3), 2);
+            var viewport = page.getViewport({ scale: scale });
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            canvas.style.display = 'block';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
+            return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+          });
+        });
+    });
+  }
+
+  function revokeContainerPreviewUrl(container) {
+    if (!container || !container._previewBlobUrl) return;
+    try {
+      URL.revokeObjectURL(container._previewBlobUrl);
+    } catch (_) {}
+    container._previewBlobUrl = null;
+  }
+
+  function mountBlobPreview(container, blobId, opts) {
+    opts = opts || {};
+    if (!container || !blobId || !global.CrozzoBlobStore) return Promise.resolve(false);
+    var loadEl =
+      container.querySelector('[data-blob-preview-load]') ||
+      container.querySelector('.crozzo-rut-mini__load') ||
+      container.querySelector('.crozzo-oficina-pdf-loading');
+    var canvas =
+      container.querySelector('[data-blob-preview-canvas]') ||
+      container.querySelector('.crozzo-rut-mini__canvas') ||
+      container.querySelector('.crozzo-oficina-pdf-canvas');
+    var iframe =
+      container.querySelector('[data-blob-preview-iframe]') ||
+      container.querySelector('.crozzo-rut-mini__iframe') ||
+      container.querySelector('.crozzo-oficina-pdf-iframe');
+    var img =
+      container.querySelector('[data-blob-preview-img]') ||
+      container.querySelector('.crozzo-rut-mini__img') ||
+      container.querySelector('.crozzo-oficina-pdf-img');
+    var showErr = function (msg) {
+      if (loadEl) {
+        loadEl.style.display = 'flex';
+        loadEl.textContent = msg || 'No se pudo cargar';
+      }
+      if (canvas) canvas.style.display = 'none';
+      if (iframe) iframe.style.display = 'none';
+      if (img) img.style.display = 'none';
+    };
+    if (loadEl) {
+      loadEl.style.display = 'flex';
+      loadEl.textContent = opts.loadingText || 'Cargando documento…';
+    }
+    if (canvas) canvas.style.display = 'none';
+    if (iframe) {
+      iframe.style.display = 'none';
+      iframe.removeAttribute('src');
+    }
+    if (img) {
+      img.style.display = 'none';
+      img.removeAttribute('src');
+    }
+    revokeContainerPreviewUrl(container);
+    var getView = global.CrozzoBlobStore.getViewUrl;
+    if (!getView) {
+      showErr('Almacén de archivos no disponible');
+      return Promise.resolve(false);
+    }
+    return getView(blobId).then(function (view) {
+      if (!view || !view.url) {
+        showErr('Archivo no guardado en este equipo — vuelva a cargarlo');
+        return false;
+      }
+      if (view.revoke) {
+        container._previewBlobUrl = view.url;
+        if (opts.trackUrls && opts.trackUrls.push) opts.trackUrls.push(view.url);
+      }
+      var kind = view.kind || blobKindFromRec(view.rec);
+      var maxW = opts.maxWidth || container.clientWidth || 900;
+      if (kind === 'pdf' && canvas) {
+        var src = view.rec && view.rec.blob ? view.rec.blob : view.url;
+        return renderPdfFirstPageToCanvas(src, canvas, maxW)
+          .then(function () {
+            if (loadEl) loadEl.style.display = 'none';
+            if (iframe) iframe.style.display = 'none';
+            if (img) img.style.display = 'none';
+            container.classList.add('has-preview');
+            return true;
+          })
+          .catch(function () {
+            if (iframe) {
+              iframe.src = view.url;
+              iframe.style.display = 'block';
+              if (loadEl) loadEl.style.display = 'none';
+              container.classList.add('has-preview');
+              return true;
+            }
+            showErr('No se pudo renderizar el PDF');
+            return false;
+          });
+      }
+      if (kind === 'image' && img) {
+        img.src = view.url;
+        img.style.display = 'block';
+        if (loadEl) loadEl.style.display = 'none';
+        container.classList.add('has-preview');
+        return true;
+      }
+      if (iframe) {
+        iframe.src = view.url;
+        iframe.style.display = 'block';
+        if (loadEl) loadEl.style.display = 'none';
+        container.classList.add('has-preview');
+        return true;
+      }
+      showErr('Formato no soportado');
+      return false;
+    }).catch(function () {
+      showErr('Error al leer el archivo');
+      return false;
+    });
+  }
+
+  function mountRutMiniPreview(container, provId) {
+    if (!container || !provId) return;
+    var prov = getProveedorById(provId);
+    var leg = prov && prov.legal;
+    var blobId = leg && leg.document && leg.document.blobId;
+    if (!blobId) {
+      var load = container.querySelector('.crozzo-rut-mini__load');
+      if (load) load.textContent = 'Sin certificado RUT';
+      return;
+    }
+    mountBlobPreview(container, blobId, {
+      maxWidth: Math.min(container.clientWidth || 320, 360),
+      loadingText: 'Cargando RUT…',
+    });
+    var expand = container.querySelector('[data-rut-expand]');
+    if (expand && !expand._bound) {
+      expand._bound = true;
+      expand.addEventListener('click', function () {
+        openProveedorRut(provId);
+      });
+    }
+  }
+
+  function openProveedorDocView(blobId, titulo) {
+    if (!blobId) {
+      toast('No hay documento archivado', 'warning');
+      return;
+    }
+    var body =
+      '<div class="crozzo-prov-rut-view crozzo-blob-preview-modal">' +
+      '<div class="crozzo-oficina-pdf-panel__body" style="min-height:420px;border-radius:8px">' +
+      '<div class="crozzo-oficina-pdf-loading" data-blob-preview-load>Cargando…</div>' +
+      '<canvas class="crozzo-oficina-pdf-canvas" data-blob-preview-canvas></canvas>' +
+      '<iframe class="crozzo-prov-rut__viewer" data-blob-preview-iframe style="display:none"></iframe>' +
+      '<img class="crozzo-prov-rut__viewer-img" data-blob-preview-img style="display:none" alt="Documento">' +
+      '</div></div>';
+    if (global.showModal) {
+      global.showModal(titulo || 'Documento', body, { wide: true, modalClass: 'modal--prov-rut-view' });
+      setTimeout(function () {
+        var panel = document.querySelector('.crozzo-blob-preview-modal .crozzo-oficina-pdf-panel__body');
+        if (panel) mountBlobPreview(panel, blobId, { maxWidth: 860 });
+      }, 60);
+    }
+  }
+
+  function formatCuentasBancariasFicha(cuentas) {
+    if (!Array.isArray(cuentas) || !cuentas.length) return '—';
+    return cuentas
+      .map(function (c) {
+        var parts = [];
+        if (c.banco) parts.push(c.banco);
+        if (c.tipoCuenta || c.tipo) parts.push(c.tipoCuenta || c.tipo);
+        if (c.numero) parts.push('****' + String(c.numero).slice(-4));
+        if (c.titular) parts.push(c.titular);
+        if (c.esPrincipal) parts.push('(principal)');
+        return parts.join(' · ');
+      })
+      .join(' | ');
+  }
+
+  function fmtMoneyProv(n) {
+    var v = Math.round(Number(n) || 0);
+    try {
+      return '$' + v.toLocaleString('es-CO');
+    } catch (_) {
+      return '$' + v;
+    }
+  }
+
+  function renderProveedorHistorialPagos(prov) {
+    prov = prov || {};
+    var res = global.CrozzoReservorio;
+    if (!res || !res.resumenPagosProveedor) return '';
+    var sum = res.resumenPagosProveedor(prov.id, { proveedorNombre: prov.nombre });
+    if (!sum.facturas.length) {
+      return (
+        '<div class="crozzo-prov-historial">' +
+        '<p class="form-label">Historial de pagos (oficina)</p>' +
+        '<p class="form-hint" style="margin:0">Sin facturas ni pagos registrados para este proveedor.</p></div>'
+      );
+    }
+    var rows = sum.facturas
+      .slice(0, 10)
+      .map(function (f) {
+        var fecha = f.fecha || (f.createdAt && String(f.createdAt).slice(0, 10)) || '—';
+        return (
+          '<tr><td>' +
+          esc(formatFechaIsoDisplay(fecha)) +
+          '</td><td>' +
+          esc(f.numeroFactura || '—') +
+          '</td><td style="text-align:right">' +
+          esc(fmtMoneyProv(f.valor)) +
+          '</td><td>' +
+          esc(String(f.estado || '—')) +
+          '</td></tr>'
+        );
+      })
+      .join('');
+    return (
+      '<div class="crozzo-prov-historial">' +
+      '<p class="form-label">Historial de pagos (oficina)</p>' +
+      '<p class="form-hint">' +
+      sum.pagadas +
+      ' pagadas · ' +
+      fmtMoneyProv(sum.montoPagado) +
+      ' total' +
+      (sum.pendientes ? ' · ' + sum.pendientes + ' pendientes (' + fmtMoneyProv(sum.montoPendiente) + ')' : '') +
+      '</p>' +
+      '<div class="table-container"><table class="crozzo-of-historial-table"><thead><tr>' +
+      '<th>Fecha</th><th>Factura</th><th>Valor</th><th>Estado</th>' +
+      '</tr></thead><tbody>' +
+      rows +
+      '</tbody></table></div>' +
+      (sum.facturas.length > 10
+        ? '<p class="form-hint">+' + (sum.facturas.length - 10) + ' movimientos más en Oficina y pagos.</p>'
+        : '') +
+      '</div>'
+    );
   }
 
   function fichaRow(label, value) {
@@ -3623,6 +5362,23 @@
       renderRutCertificadoSection(leg, prov.id) +
       '<div class="crozzo-prov-ficha__grid">' +
       fichaRow('Nombre transferencias / banco', leg.nombreParaTransferencias) +
+      fichaRow('Cuentas bancarias', formatCuentasBancariasFicha(leg.cuentasBancarias)) +
+      fichaRow(
+        'Certificado bancario',
+        leg.certificadoBancario && leg.certificadoBancario.blobId
+          ? leg.certificadoBancario.nombre || 'Archivado'
+          : '—'
+      ) +
+      fichaRow(
+        'Cámara de comercio',
+        leg.camaraComercio && leg.camaraComercio.blobId ? leg.camaraComercio.nombre || 'Archivado' : '—'
+      ) +
+      fichaRow(
+        'Cédula representante',
+        leg.cedulaRepresentante && leg.cedulaRepresentante.blobId
+          ? leg.cedulaRepresentante.nombre || 'Archivado'
+          : '—'
+      ) +
       fichaRow('Razón social (RUT)', leg.razonSocial) +
       fichaRow('Nombre comercial / tienda', leg.nombreComercial) +
       fichaRow('Persona natural (31–34)', leg.nombrePersonaNatural) +
@@ -3654,6 +5410,7 @@
         esc(formatObligacionesLista(leg.obligaciones)) +
         '</p></div>';
     }
+    html += renderProveedorHistorialPagos(prov);
     html += '</div>';
     return html;
   }
@@ -3704,10 +5461,6 @@
         })
         .join('') +
       '</select></div>' +
-      '<div class="form-group cxf-field-span-2"><label class="form-label">Nombre banco / transferencias</label>' +
-      '<input class="form-input" id="crozzo-prov-edit-banco" value="' +
-      esc(leg.nombreParaTransferencias || '') +
-      '"></div>' +
       '<div class="form-group cxf-field-span-2"><label class="form-label">Razón social</label>' +
       '<input class="form-input" id="crozzo-prov-edit-razon" value="' +
       esc(leg.razonSocial || '') +
@@ -3726,6 +5479,7 @@
       '" placeholder="Ej. Pereira">' +
       '<span class="form-hint">Usada para evaluar RETE ICA vs sede de la empresa.</span></div>' +
       '</div>' +
+      renderProveedorExtrasBlock(prov, 'crozzo-prov-edit', prov.id) +
       '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">' +
       '<button type="button" class="btn btn-primary" onclick="crozzoProvSaveEdit()">Guardar cambios</button>' +
       '<button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>' +
@@ -3762,9 +5516,25 @@
     getImpuestosEmpresaConfig: getImpuestosEmpresaConfig,
     renderProveedorFicha: renderProveedorFicha,
     renderProveedorEditForm: renderProveedorEditForm,
+    renderProveedorExtrasBlock: renderProveedorExtrasBlock,
+    bindProveedorExtrasRoot: bindProveedorExtrasRoot,
+    saveProveedorExtrasFromForm: saveProveedorExtrasFromForm,
+    readCuentasBancariasFromForm: readCuentasBancariasFromForm,
+    renderRutMiniPreview: renderRutMiniPreview,
+    mountRutMiniPreview: mountRutMiniPreview,
+    mountBlobPreview: mountBlobPreview,
+    renderPdfFirstPageToCanvas: renderPdfFirstPageToCanvas,
+    openProveedorDocView: openProveedorDocView,
+    openProveedorDocExtra: openProveedorDocExtra,
+    openProveedorDocByKey: openProveedorDocByKey,
+    listProveedorDocumentos: listProveedorDocumentos,
+    proveedorDocsSummary: proveedorDocsSummary,
+    renderProveedorDocsPanel: renderProveedorDocsPanel,
+    renderProveedorDocsRowBadges: renderProveedorDocsRowBadges,
+    getProveedorDocBlobId: getProveedorDocBlobId,
+    renderProveedorHistorialPagos: renderProveedorHistorialPagos,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
-
 
 
 /* --- CrozzoReservorioSql.js --- */
@@ -3792,7 +5562,7 @@
   {
     "key": "reservorio",
     "label": "Reservorio unificado + sync",
-    "sql": "-- Crozzo POS — Reservorio unificado + flujos conectados\r\n-- Ejecutar EN ORDEN en SQL Editor de Supabase (proyecto del POS)\r\n--\r\n-- 1. docs/SUPABASE-SQL-EDITOR.sql\r\n-- 2. docs/SUPABASE-SQL-INTEGRACION.sql\r\n-- 3. docs/SUPABASE-SQL-QYC.sql\r\n-- 4. docs/SUPABASE-STORAGE-FOTOS-MARCACIONES.sql\r\n-- 5. docs/SUPABASE-SQL-QYC-FIX-TARJETA.sql\r\n-- 6. docs/SUPABASE-SQL-COSTOS.sql\r\n-- 7. ESTE ARCHIVO (reservorio + cola sync + puente proveedores)\r\n\r\n-- ── Puente proveedores POS ↔ QyC ───────────────────────────────────────────\r\n\r\nalter table if exists public.proveedores\r\n  add column if not exists pos_proveedor_id text,\r\n  add column if not exists categoria text default '',\r\n  add column if not exists activo boolean not null default true;\r\n\r\ncreate unique index if not exists idx_proveedores_pos_id\r\n  on public.proveedores (pos_proveedor_id)\r\n  where pos_proveedor_id is not null and pos_proveedor_id <> '';\r\n\r\ncomment on column public.proveedores.pos_proveedor_id is\r\n  'ID del proveedor en POS (proveedoresOC) para sincronizar offline → nube';\r\n\r\n-- ── Cola de sincronización (reservorio offline → nube) ───────────────────────\r\n\r\ncreate table if not exists public.crozzo_reservorio_sync_queue (\r\n  id uuid primary key default gen_random_uuid(),\r\n  business_id text not null default 'default',\r\n  op text not null check (op in ('insert', 'update', 'upsert', 'delete')),\r\n  tabla text not null,\r\n  payload jsonb not null default '{}'::jsonb,\r\n  estado text not null default 'pendiente'\r\n    check (estado in ('pendiente', 'procesando', 'ok', 'error')),\r\n  intentos int not null default 0,\r\n  error_msg text,\r\n  local_id text,\r\n  created_at timestamptz not null default now(),\r\n  processed_at timestamptz\r\n);\r\n\r\ncreate index if not exists idx_crozzo_sync_queue_pend\r\n  on public.crozzo_reservorio_sync_queue (business_id, estado, created_at desc);\r\n\r\n-- ── Snapshot reservorio (backup opcional por dispositivo) ────────────────────\r\n\r\ncreate table if not exists public.crozzo_reservorio_snapshots (\r\n  id uuid primary key default gen_random_uuid(),\r\n  business_id text not null default 'default',\r\n  device_id text,\r\n  version int not null default 1,\r\n  snapshot jsonb not null,\r\n  stats jsonb default '{}'::jsonb,\r\n  created_at timestamptz not null default now()\r\n);\r\n\r\ncreate index if not exists idx_crozzo_reservorio_snap\r\n  on public.crozzo_reservorio_snapshots (business_id, created_at desc);\r\n\r\n-- ── Vista operativa: flujo compras conectado ─────────────────────────────────\r\n\r\ncreate or replace view public.crozzo_v_flujo_compras as\r\nselect\r\n  r.id as recepcion_id,\r\n  r.fecha as recepcion_fecha,\r\n  r.proveedor_id,\r\n  p.nombre as proveedor_nombre,\r\n  r.total as recepcion_total,\r\n  f.id as factura_id,\r\n  f.estado as factura_estado,\r\n  f.metodo_pago,\r\n  f.total as factura_total\r\nfrom public.recepciones r\r\nleft join public.proveedores p on p.id = r.proveedor_id\r\nleft join public.facturas f on f.recepcion_id = r.id;\r\n\r\ncomment on view public.crozzo_v_flujo_compras is\r\n  'Recepción → proveedor → factura oficina (cadena F4/F5)';\r\n\r\n-- ── RLS ──────────────────────────────────────────────────────────────────────\r\n\r\nselect public.crozzo_enable_pos_rls('crozzo_reservorio_sync_queue');\r\nselect public.crozzo_enable_pos_rls('crozzo_reservorio_snapshots');\r\n\r\n-- ── Función auxiliar: marcar sync procesado ──────────────────────────────────\r\n\r\ncreate or replace function public.crozzo_sync_queue_done(p_id uuid, p_ok boolean, p_error text default null)\r\nreturns void\r\nlanguage plpgsql\r\nsecurity definer\r\nas $$\r\nbegin\r\n  update public.crozzo_reservorio_sync_queue\r\n  set\r\n    estado = case when p_ok then 'ok' else 'error' end,\r\n    error_msg = p_error,\r\n    processed_at = now(),\r\n    intentos = intentos + 1\r\n  where id = p_id;\r\nend;\r\n$$;\r\n"
+    "sql": "-- Crozzo POS — Reservorio unificado + flujos conectados\r\n-- Ejecutar EN ORDEN en SQL Editor de Supabase (proyecto del POS)\r\n--\r\n-- 1. docs/SUPABASE-SQL-EDITOR.sql\r\n-- 2. docs/SUPABASE-SQL-INTEGRACION.sql\r\n-- 3. docs/SUPABASE-SQL-QYC.sql\r\n-- 4. docs/SUPABASE-STORAGE-FOTOS-MARCACIONES.sql\r\n-- 5. docs/SUPABASE-SQL-QYC-FIX-TARJETA.sql\r\n-- 6. docs/SUPABASE-SQL-COSTOS.sql\r\n-- 7. ESTE ARCHIVO (reservorio + cola sync + puente proveedores)\r\n\r\n-- ── Puente proveedores POS ↔ QyC ───────────────────────────────────────────\r\n\r\nalter table if exists public.proveedores\r\n  add column if not exists pos_proveedor_id text,\r\n  add column if not exists categoria text default '',\r\n  add column if not exists activo boolean not null default true;\r\n\r\ncreate unique index if not exists idx_proveedores_pos_id\r\n  on public.proveedores (pos_proveedor_id)\r\n  where pos_proveedor_id is not null and pos_proveedor_id <> '';\r\n\r\ncomment on column public.proveedores.pos_proveedor_id is\r\n  'ID del proveedor en POS (proveedoresOC) para sincronizar offline → nube';\r\n\r\n-- ── Cola de sincronización (reservorio offline → nube) ───────────────────────\r\n\r\ncreate table if not exists public.crozzo_reservorio_sync_queue (\r\n  id uuid primary key default gen_random_uuid(),\r\n  business_id text not null default 'default',\r\n  op text not null check (op in ('insert', 'update', 'upsert', 'delete')),\r\n  tabla text not null,\r\n  payload jsonb not null default '{}'::jsonb,\r\n  estado text not null default 'pendiente'\r\n    check (estado in ('pendiente', 'procesando', 'ok', 'error')),\r\n  intentos int not null default 0,\r\n  error_msg text,\r\n  local_id text,\r\n  created_at timestamptz not null default now(),\r\n  processed_at timestamptz\r\n);\r\n\r\ncreate index if not exists idx_crozzo_sync_queue_pend\r\n  on public.crozzo_reservorio_sync_queue (business_id, estado, created_at desc);\r\n\r\n-- ── Snapshot reservorio (backup opcional por dispositivo) ────────────────────\r\n\r\ncreate table if not exists public.crozzo_reservorio_snapshots (\r\n  id uuid primary key default gen_random_uuid(),\r\n  business_id text not null default 'default',\r\n  device_id text,\r\n  version int not null default 1,\r\n  snapshot jsonb not null,\r\n  stats jsonb default '{}'::jsonb,\r\n  created_at timestamptz not null default now()\r\n);\r\n\r\ncreate index if not exists idx_crozzo_reservorio_snap\r\n  on public.crozzo_reservorio_snapshots (business_id, created_at desc);\r\n\r\n-- ── Vista operativa: flujo compras conectado ─────────────────────────────────\r\n\r\ncreate or replace view public.crozzo_v_flujo_compras as\r\nselect\r\n  r.id as recepcion_id,\r\n  r.fecha as recepcion_fecha,\r\n  r.proveedor_id,\r\n  p.nombre as proveedor_nombre,\r\n  r.valor_factura as recepcion_total,\r\n  f.id as factura_id,\r\n  f.estado as factura_estado,\r\n  f.metodo_pago,\r\n  f.valor as factura_total\r\nfrom public.recepciones r\r\nleft join public.proveedores p on p.id = r.proveedor_id\r\nleft join public.facturas f on f.recepcion_id = r.id;\r\n\r\ncomment on view public.crozzo_v_flujo_compras is\r\n  'Recepción → proveedor → factura oficina (cadena F4/F5)';\r\n\r\n-- ── RLS ──────────────────────────────────────────────────────────────────────\r\n\r\nselect public.crozzo_enable_pos_rls('crozzo_reservorio_sync_queue');\r\nselect public.crozzo_enable_pos_rls('crozzo_reservorio_snapshots');\r\n\r\n-- ── Función auxiliar: marcar sync procesado ──────────────────────────────────\r\n\r\ncreate or replace function public.crozzo_sync_queue_done(p_id uuid, p_ok boolean, p_error text default null)\r\nreturns void\r\nlanguage plpgsql\r\nsecurity definer\r\nas $$\r\nbegin\r\n  update public.crozzo_reservorio_sync_queue\r\n  set\r\n    estado = case when p_ok then 'ok' else 'error' end,\r\n    error_msg = p_error,\r\n    processed_at = now(),\r\n    intentos = intentos + 1\r\n  where id = p_id;\r\nend;\r\n$$;\r\n"
   }
 ],
     getFullScript: function () {
@@ -3806,7 +5576,6 @@
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
-
 
 
 /* --- CrozzoReservorio.js --- */
@@ -3859,6 +5628,7 @@
       matrizMp: [],
       planillaFeed: [],
       syncQueue: [],
+      feLinks: [],
       meta: { migrated: false, migrationNotes: [] },
     };
   }
@@ -3894,6 +5664,7 @@
     if (!Array.isArray(st.matrizMp)) st.matrizMp = [];
     if (!Array.isArray(st.planillaFeed)) st.planillaFeed = [];
     if (!Array.isArray(st.syncQueue)) st.syncQueue = [];
+    if (!Array.isArray(st.feLinks)) st.feLinks = [];
     st.businessId = businessId();
     if (!st.meta) st.meta = { migrated: false, migrationNotes: [] };
     if (!Array.isArray(st.meta.archivoRecepciones)) st.meta.archivoRecepciones = [];
@@ -4171,6 +5942,9 @@
         new CustomEvent('crozzo-reservorio-updated', { detail: { updatedAt: st.updatedAt, saveOk: r.ok } })
       );
     } catch (_) {}
+    if (r.ok && st.syncQueue && st.syncQueue.some(function (q) { return q && q.estado === 'pendiente'; })) {
+      scheduleFlushSyncQueueToCloud({ kind: 'reservorio_save' });
+    }
     return st;
   }
 
@@ -4251,6 +6025,127 @@
       if (typeof global.crozzoCostosEmit === 'function') global.crozzoCostosEmit(eventName, detail);
       else if (global.CrozzoSistemaCostos && global.CrozzoSistemaCostos.emit) global.CrozzoSistemaCostos.emit(eventName, detail);
     } catch (_) {}
+  }
+
+  var __reservorioCloudFlushTimer = null;
+
+  /** Evita colisión con ventas FE en sync_queue (tabla `sales`). */
+  function reservorioCloudTableName(tabla) {
+    var t = String(tabla || '').trim();
+    if (t === 'facturas') return 'facturas_proveedor';
+    return t;
+  }
+
+  function reservorioCloudOpType(tabla) {
+    var t = String(tabla || '');
+    if (t === 'facturas') return 'oficina_factura';
+    if (t === 'recepciones') return 'recepcion';
+    if (t === 'crozzo_planilla_feed') return 'planilla_feed';
+    return 'reservorio_' + t;
+  }
+
+  function reservorioSyncTransactionId(entry) {
+    var p = entry && entry.payload ? entry.payload : {};
+    var pid = p.id || p.recepcionId || p.referencia_id || (entry && entry.id);
+    return (
+      'resv-' +
+      String((entry && entry.tabla) || 'x') +
+      '-' +
+      String((entry && (entry.op || entry.tipo)) || 'sync') +
+      '-' +
+      String(pid || 'na')
+    );
+  }
+
+  /** Espeja una fila del reservorio local → cola offline global (sync_queue_temp). */
+  function mirrorSyncEntryToOfflineQueue(entry) {
+    if (!entry || entry.estado !== 'pendiente') return false;
+    if (typeof global.enqueueOfflineOperation !== 'function') return false;
+    var tabla = entry.tabla || '';
+    var opRaw = String(entry.op || entry.tipo || 'insert').toLowerCase();
+    var operation = opRaw === 'upsert' ? 'upsert' : opRaw;
+    if (['insert', 'update', 'delete', 'upsert'].indexOf(operation) < 0) operation = 'insert';
+    var tid = reservorioSyncTransactionId(entry);
+    var type = reservorioCloudOpType(tabla);
+    var pri = 2;
+    if (type === 'oficina_factura' || type === 'recepcion') pri = 2;
+    try {
+      global.enqueueOfflineOperation({
+        operation: operation,
+        table_name: reservorioCloudTableName(tabla),
+        type: type,
+        syncPriority: pri,
+        transaction_id: tid,
+        payload: {
+          reservorio: true,
+          tabla: tabla,
+          op: operation,
+          data: entry.payload || {},
+          transaction_id: tid,
+          at: Date.now(),
+        },
+        device_id:
+          typeof global.crozzoCloudDeviceUuidForRest === 'function' ? global.crozzoCloudDeviceUuidForRest() : undefined,
+      });
+      return true;
+    } catch (e) {
+      console.warn('[reservorio] mirror sync nube', e);
+      return false;
+    }
+  }
+
+  /**
+   * Drena syncQueue del reservorio hacia la cola offline global y dispara syncOfflineQueue.
+   * Paridad con ventas (crozzoQueueFacturaForCloudSync → syncOfflineQueue).
+   */
+  function flushSyncQueueToCloud(opts) {
+    opts = opts || {};
+    if (
+      typeof global.crozzoShouldUseCloud === 'function' &&
+      !global.crozzoShouldUseCloud() &&
+      !opts.force
+    ) {
+      return { ok: false, reason: 'local_only', mirrored: 0 };
+    }
+    if (typeof global.enqueueOfflineOperation !== 'function') {
+      return { ok: false, reason: 'sin_cola_global', mirrored: 0 };
+    }
+    var st = load();
+    var mirrored = 0;
+    var changed = false;
+    (st.syncQueue || []).forEach(function (entry) {
+      if (!entry || entry.estado !== 'pendiente') return;
+      if (mirrorSyncEntryToOfflineQueue(entry)) {
+        entry.estado = 'encolado_nube';
+        entry.encoladoAt = new Date().toISOString();
+        mirrored++;
+        changed = true;
+      }
+    });
+    if (changed) {
+      try {
+        saveSafe(st);
+      } catch (_) {}
+    }
+    if (mirrored > 0 && typeof global.syncOfflineQueue === 'function') {
+      var pri = opts.priority != null ? opts.priority : 2;
+      void Promise.resolve().then(function () {
+        return global.syncOfflineQueue({
+          kind: opts.kind || 'reservorio_flush',
+          priority: pri,
+          force: !!opts.force,
+        });
+      });
+    }
+    return { ok: true, mirrored: mirrored };
+  }
+
+  function scheduleFlushSyncQueueToCloud(opts) {
+    if (__reservorioCloudFlushTimer) clearTimeout(__reservorioCloudFlushTimer);
+    __reservorioCloudFlushTimer = setTimeout(function () {
+      __reservorioCloudFlushTimer = null;
+      flushSyncQueueToCloud(opts || { kind: 'reservorio_debounce' });
+    }, 450);
   }
 
   function pushSync(st, op) {
@@ -4354,6 +6249,25 @@
     var prev = idx >= 0 ? st.proveedores[idx] : {};
     var legalNew = p.legal && typeof p.legal === 'object' ? p.legal : {};
     var legalPrev = prev.legal && typeof prev.legal === 'object' ? prev.legal : {};
+    var legalMerged = Object.assign({}, legalPrev, legalNew);
+    if (Array.isArray(legalNew.cuentasBancarias)) legalMerged.cuentasBancarias = legalNew.cuentasBancarias;
+    if (legalNew.camaraComercio && typeof legalNew.camaraComercio === 'object') {
+      legalMerged.camaraComercio = Object.assign({}, legalPrev.camaraComercio || {}, legalNew.camaraComercio);
+    }
+    if (legalNew.cedulaRepresentante && typeof legalNew.cedulaRepresentante === 'object') {
+      legalMerged.cedulaRepresentante = Object.assign(
+        {},
+        legalPrev.cedulaRepresentante || {},
+        legalNew.cedulaRepresentante
+      );
+    }
+    if (legalNew.certificadoBancario && typeof legalNew.certificadoBancario === 'object') {
+      legalMerged.certificadoBancario = Object.assign(
+        {},
+        legalPrev.certificadoBancario || {},
+        legalNew.certificadoBancario
+      );
+    }
     var row = {
       id: id,
       nombre: nombre,
@@ -4363,7 +6277,7 @@
       tipoRubro: p.tipoRubro || p.categoria || prev.tipoRubro || '',
       representante: p.representante || prev.representante || '',
       email: p.email || prev.email || '',
-      legal: Object.assign({}, legalPrev, legalNew),
+      legal: legalMerged,
       activo: p.activo !== false,
       updatedAt: new Date().toISOString(),
     };
@@ -4452,6 +6366,7 @@
       tipoRubro: p.tipoRubro || p.categoria || '',
       representante: p.representante || '',
       email: p.email || '',
+      legal: p.legal,
     };
   }
 
@@ -4493,6 +6408,8 @@
       unidad: mov.unidad || 'und',
       costoUnitario: Number(mov.costoUnitario) || 0,
       notas: mov.notas || '',
+      bodegaId: mov.bodegaId ? String(mov.bodegaId) : '',
+      bodegaDestinoId: mov.bodegaDestinoId ? String(mov.bodegaDestinoId) : '',
       createdAt: new Date().toISOString(),
     };
     st.inventarioMovimientos.unshift(row);
@@ -4935,33 +6852,170 @@
   }
 
   function actualizarEstadoOficina(facturaId, estado, extra) {
+    return actualizarFacturaOficina(facturaId, Object.assign({ estado: estado }, extra || {}));
+  }
+
+  function actualizarFacturaOficina(facturaId, patch) {
     var st = migrateLegacy();
-    var fac = st.facturasOficina.find(function (f) { return f.id === facturaId; });
-    if (!fac) return null;
-    fac.estado = estado;
-    if (extra) Object.assign(fac, extra);
+    var fac = st.facturasOficina.find(function (f) {
+      return String(f.id) === String(facturaId);
+    });
+    if (!fac || !patch) return null;
+    if (patch.proveedorId) {
+      var prov = getProveedor(patch.proveedorId);
+      if (prov) {
+        fac.proveedorId = prov.id;
+        fac.proveedorNombre = prov.nombre || fac.proveedorNombre;
+      }
+    }
+    if (patch.proveedorNombre) fac.proveedorNombre = String(patch.proveedorNombre).trim();
+    if (patch.numeroFactura !== undefined) fac.numeroFactura = String(patch.numeroFactura || '').trim();
+    if (patch.valor !== undefined) fac.valor = Number(patch.valor) || 0;
+    if (patch.fecha) fac.fecha = String(patch.fecha).slice(0, 10);
+    if (patch.metodo) fac.metodo = patch.metodo;
+    if (patch.estado) fac.estado = patch.estado;
+    if (patch.notas !== undefined) fac.notas = String(patch.notas || '');
+    if (patch.comprobantePago !== undefined) fac.comprobantePago = patch.comprobantePago || null;
+    if (patch.oficinaMeta && typeof patch.oficinaMeta === 'object') {
+      fac.oficinaMeta = Object.assign({}, fac.oficinaMeta || {}, patch.oficinaMeta);
+    }
+    if (patch.estado === 'pagada') {
+      fac.pagadaEn = patch.pagadaEn || fac.pagadaEn || new Date().toISOString();
+    } else if (patch.pagadaEn) {
+      fac.pagadaEn = patch.pagadaEn;
+    }
     fac.updatedAt = new Date().toISOString();
     pushSync(st, { tipo: 'update', tabla: 'facturas', payload: fac });
     save(st);
-    if (estado === 'pagada') onFacturaPagada(fac);
+    if (fac.estado === 'pagada') onFacturaPagada(fac);
     return fac;
   }
 
+  function listFacturasOficinaPorProveedor(provId, opts) {
+    opts = opts || {};
+    var pid = String(provId || '');
+    if (!pid && !opts.proveedorNombre) return [];
+    var st = migrateLegacy();
+    var nomNorm = opts.proveedorNombre
+      ? String(opts.proveedorNombre || '')
+          .trim()
+          .toUpperCase()
+      : '';
+    var list = (st.facturasOficina || []).filter(function (f) {
+      if (!f) return false;
+      if (pid && String(f.proveedorId || '') === pid) return true;
+      if (nomNorm && String(f.proveedorNombre || '').trim().toUpperCase() === nomNorm) return true;
+      return false;
+    });
+    if (opts.soloPagadas) {
+      list = list.filter(function (f) {
+        return String(f.estado || '').toLowerCase() === 'pagada';
+      });
+    }
+    list.sort(function (a, b) {
+      var da = String(a.fecha || a.updatedAt || a.createdAt || '');
+      var db = String(b.fecha || b.updatedAt || b.createdAt || '');
+      return db.localeCompare(da);
+    });
+    return list;
+  }
+
+  function resumenPagosProveedor(provId, opts) {
+    opts = opts || {};
+    var list = listFacturasOficinaPorProveedor(provId, opts);
+    var pagadas = [];
+    var pendientes = [];
+    list.forEach(function (f) {
+      var e = String(f.estado || '').toLowerCase();
+      if (e === 'pagada') pagadas.push(f);
+      else if (e === 'pendiente' || e === 'en_proceso') pendientes.push(f);
+    });
+    function sumVal(arr, pick) {
+      return arr.reduce(function (s, f) {
+        return s + (Number(pick(f)) || 0);
+      }, 0);
+    }
+    return {
+      total: list.length,
+      pagadas: pagadas.length,
+      pendientes: pendientes.length,
+      montoPagado: sumVal(pagadas, function (f) {
+        return f.valor;
+      }),
+      montoPendiente: sumVal(pendientes, function (f) {
+        return f.valor;
+      }),
+      montoNetoPagado: sumVal(pagadas, function (f) {
+        var m = f.oficinaMeta || {};
+        if (m.retencionesConfirmadas && m.netoPagar != null) return m.netoPagar;
+        return f.valor;
+      }),
+      facturas: list,
+    };
+  }
+
+  function facturaOficinaPagada(fac) {
+    if (!fac) return false;
+    if (String(fac.estado || '').toLowerCase() !== 'pagada') return false;
+    var m = String(fac.metodo || '').toLowerCase().trim();
+    if (!m || m.indexOf('por_definir') >= 0) return false;
+    if (m.indexOf('pend') >= 0 && m.indexOf('pagad') < 0) return false;
+    if (m.indexOf('proceso') >= 0) return false;
+    return (
+      m.indexOf('efec') >= 0 ||
+      m.indexOf('trans') >= 0 ||
+      m.indexOf('tarj') >= 0 ||
+      m.indexOf('card') >= 0 ||
+      m.indexOf('credit') >= 0 ||
+      m.indexOf('créd') >= 0
+    );
+  }
+
   function onFacturaPagada(fac) {
+    if (!facturaOficinaPagada(fac)) return;
     emitCostos('crozzo-costos:factura-pagada', { factura: fac });
     var st = load();
     var exists = st.planillaFeed.some(function (f) {
       return f.referencia_id === fac.id && f.origen === 'oficina' && f.estado !== 'rechazado';
     });
     if (exists) return;
+    var prov = getProveedor(fac.proveedorId);
+    var meta = fac.oficinaMeta || {};
+    var rec = null;
+    var recItems = 0;
+    var recHasMp = false;
+    if (fac.recepcionId) {
+      rec = (st.recepciones || []).find(function (r) {
+        return r && String(r.id) === String(fac.recepcionId);
+      });
+      if (rec && Array.isArray(rec.items)) {
+        recItems = rec.items.length;
+        recHasMp = rec.items.some(function (it) {
+          return it && (it.mpId || it.materiaPrimaId || it.productoRefTipo === 'materia_prima');
+        });
+      }
+    }
+    var monto =
+      meta.retencionesConfirmadas && meta.netoPagar != null ? Number(meta.netoPagar) || fac.valor : fac.valor;
     enqueuePlanilla(st, {
       origen: 'oficina',
-      concepto: 'Pago proveedor: ' + (fac.proveedorNombre || ''),
-      monto: fac.valor,
+      concepto: recHasMp
+        ? 'Compra materia prima: ' + (fac.proveedorNombre || '')
+        : rec
+          ? 'Compra / recepción: ' + (fac.proveedorNombre || '')
+          : 'Pago proveedor: ' + (fac.proveedorNombre || ''),
+      monto: monto,
+      fecha: new Date().toISOString().slice(0, 10),
       tipo_movimiento: 'egreso',
       referencia_tipo: 'factura_oficina',
       referencia_id: fac.id,
-      payload: fac,
+      pagoConfirmado: true,
+      payload: Object.assign({}, fac, {
+        proveedorNit: (prov && prov.legal && prov.legal.nit) || fac.proveedorNit || '',
+        recepcionItems: recItems,
+        recepcionHasMp: recHasMp,
+        proveedorRubro: (prov && (prov.tipoRubro || prov.categoria)) || '',
+      }),
     });
     save(st);
   }
@@ -5145,6 +7199,10 @@
       porciones: input.porciones != null ? Number(input.porciones) : input.factor != null ? Number(input.factor) : null,
       factor: input.factor != null ? Number(input.factor) : null,
       cortesDespiece: Array.isArray(input.cortesDespiece) ? input.cortesDespiece.slice() : [],
+      mermaHuesoGr: input.mermaHuesoGr != null ? Math.round(Number(input.mermaHuesoGr)) : null,
+      mermaRecorteGr: input.mermaRecorteGr != null ? Math.round(Number(input.mermaRecorteGr)) : null,
+      mermaCoccionParcialGr:
+        input.mermaCoccionParcialGr != null ? Math.round(Number(input.mermaCoccionParcialGr)) : null,
       costoMpTotal: input.costoMpTotal != null ? Math.round(Number(input.costoMpTotal)) : null,
       lineas: Array.isArray(input.lineas) ? input.lineas.slice() : [],
       notas: input.notas || '',
@@ -5285,25 +7343,38 @@
 
   function registrarVenta(input) {
     var st = migrateLegacy();
+    var opts = input.opts || {};
     var total = Number(input.monto || input.total) || 0;
     var items = input.items || [];
+    var skipPosLedger = null;
+    if (opts.skipPosLedgerIds && opts.skipPosLedgerIds.length) {
+      skipPosLedger = {};
+      opts.skipPosLedgerIds.forEach(function (id) {
+        skipPosLedger[String(id)] = true;
+      });
+    }
+
     consumirIngredientesAlVender(st, input);
 
-    items.forEach(function (line) {
-      var qty = Number(line.cantidad || line.qty) || 0;
-      if (qty <= 0) return;
-      addInventarioMovimiento(st, {
-        tipo: 'salida_venta',
-        refTipo: 'venta',
-        refId: input.saleId || input.uuid,
-        productoRefTipo: 'producto_pos',
-        productoRefId: line.id || line.productId,
-        productoNombre: line.nombre || '',
-        cantidad: qty,
-        unidad: 'und',
-        notas: 'Venta POS',
+    if (!opts.skipPosLedger) {
+      items.forEach(function (line) {
+        var pid = line.id != null ? line.id : line.productId;
+        if (skipPosLedger && skipPosLedger[String(pid)]) return;
+        var qty = Number(line.cantidad || line.qty) || 0;
+        if (qty <= 0) return;
+        addInventarioMovimiento(st, {
+          tipo: 'salida_venta',
+          refTipo: 'venta',
+          refId: input.saleId || input.uuid,
+          productoRefTipo: 'producto_pos',
+          productoRefId: pid,
+          productoNombre: line.nombre || '',
+          cantidad: qty,
+          unidad: 'und',
+          notas: opts.orquestado ? 'Venta POS (stock catálogo)' : 'Venta POS',
+        });
       });
-    });
+    }
 
     if (total > 0) {
       enqueuePlanilla(st, {
@@ -5613,6 +7684,179 @@
       .replace(/>/g, '&gt;');
   }
 
+  /**
+   * feLinks — motor de aprendizaje del lector de facturas.
+   * Almacena dos tipos de vínculos:
+   *   tipo: 'mp'   → descripcionFe (texto factura) ↔ mpId + proveedorId + nitEmisor
+   *   tipo: 'prov' → nitEmisor ↔ proveedorId (vínculo de proveedor por NIT)
+   *
+   * Con el tiempo el sistema "aprende" qué producto es "solomo sucio" para el proveedor X
+   * y también recuerda que el NIT 123456789 corresponde al proveedor Y en el sistema.
+   */
+
+  function normFeDesc(s) {
+    return String(s || '')
+      .toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120);
+  }
+
+  /**
+   * Registra un aprendizaje: el usuario vinculó `descripcionFe` con `mpId`
+   * (para el proveedor `proveedorId` / NIT `nitEmisor`).
+   * También puede registrar vínculo NIT→proveedor cuando tipo='prov'.
+   */
+  function registrarFeLink(opts) {
+    opts = opts || {};
+    var tipo = opts.tipo || 'mp';
+    var st = migrateLegacy();
+    if (!Array.isArray(st.feLinks)) st.feLinks = [];
+
+    if (tipo === 'prov') {
+      var nitNorm = normProvNit(opts.nitEmisor);
+      if (!nitNorm || !opts.proveedorId) return null;
+      var existeProv = st.feLinks.find(function (l) {
+        return l.tipo === 'prov' && l.nitEmisor === nitNorm;
+      });
+      if (existeProv) {
+        existeProv.proveedorId = String(opts.proveedorId);
+        existeProv.updatedAt = new Date().toISOString();
+        existeProv.hits = (existeProv.hits || 0) + 1;
+      } else {
+        st.feLinks.push({
+          id: uid('felink'),
+          tipo: 'prov',
+          nitEmisor: nitNorm,
+          proveedorId: String(opts.proveedorId),
+          razonSocial: String(opts.razonSocial || '').slice(0, 100),
+          hits: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      save(st);
+      return nitNorm;
+    }
+
+    /* tipo === 'mp' */
+    var descNorm = normFeDesc(opts.descripcionFe);
+    if (!descNorm || !opts.mpId) return null;
+    var provId = String(opts.proveedorId || '');
+    var nitE = normProvNit(opts.nitEmisor);
+
+    var existe = st.feLinks.find(function (l) {
+      return l.tipo === 'mp' &&
+        l.descNorm === descNorm &&
+        (provId ? l.proveedorId === provId : true);
+    });
+    if (existe) {
+      existe.mpId = String(opts.mpId);
+      existe.hits = (existe.hits || 0) + 1;
+      existe.updatedAt = new Date().toISOString();
+      if (provId && !existe.proveedorId) existe.proveedorId = provId;
+      if (nitE && !existe.nitEmisor) existe.nitEmisor = nitE;
+    } else {
+      st.feLinks.push({
+        id: uid('felink'),
+        tipo: 'mp',
+        descNorm: descNorm,
+        descripcionOriginal: String(opts.descripcionFe || '').slice(0, 200),
+        mpId: String(opts.mpId),
+        proveedorId: provId,
+        nitEmisor: nitE || '',
+        hits: 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    if (st.feLinks.length > 2000) {
+      st.feLinks = st.feLinks
+        .sort(function (a, b) { return (b.hits || 0) - (a.hits || 0); })
+        .slice(0, 1500);
+    }
+    save(st);
+    return descNorm;
+  }
+
+  /**
+   * Busca el mpId memorizado para una descripción de línea de factura.
+   * Primero busca específico al proveedor, luego genérico.
+   * Retorna { mpId, hits, source } o null.
+   */
+  function queryFeLinks(descripcionFe, proveedorId, nitEmisor) {
+    var st = migrateLegacy();
+    if (!Array.isArray(st.feLinks) || !st.feLinks.length) return null;
+    var descNorm = normFeDesc(descripcionFe);
+    if (!descNorm) return null;
+    var provId = String(proveedorId || '');
+    var nitE = normProvNit(nitEmisor);
+    var mpLinks = st.feLinks.filter(function (l) { return l.tipo === 'mp'; });
+
+    /* 1 — match exacto para este proveedor */
+    var exactoProv = mpLinks.find(function (l) {
+      return l.descNorm === descNorm && provId && l.proveedorId === provId;
+    });
+    if (exactoProv) return { mpId: exactoProv.mpId, hits: exactoProv.hits, source: 'exacto-proveedor' };
+
+    /* 2 — match exacto por NIT (aunque cambien IDs internos) */
+    if (nitE) {
+      var exactoNit = mpLinks.find(function (l) {
+        return l.descNorm === descNorm && l.nitEmisor === nitE;
+      });
+      if (exactoNit) return { mpId: exactoNit.mpId, hits: exactoNit.hits, source: 'exacto-nit' };
+    }
+
+    /* 3 — match exacto genérico (sin proveedor) */
+    var exactoGen = mpLinks.find(function (l) {
+      return l.descNorm === descNorm && !l.proveedorId;
+    });
+    if (exactoGen) return { mpId: exactoGen.mpId, hits: exactoGen.hits, source: 'exacto-generico' };
+
+    /* 4 — match parcial: todas las palabras de la descripción están en el link memorizado */
+    var words = descNorm.split(' ').filter(function (w) { return w.length >= 4; });
+    if (words.length >= 2) {
+      var mejorParcial = null;
+      var mejorScore = 0;
+      mpLinks.forEach(function (l) {
+        if (!l.descNorm) return;
+        var matchCount = words.filter(function (w) { return l.descNorm.indexOf(w) >= 0; }).length;
+        var score = matchCount / words.length;
+        if (score >= 0.8 && score > mejorScore) {
+          mejorScore = score;
+          mejorParcial = l;
+        }
+      });
+      if (mejorParcial) return { mpId: mejorParcial.mpId, hits: mejorParcial.hits, source: 'parcial-' + Math.round(mejorScore * 100) };
+    }
+    return null;
+  }
+
+  /**
+   * Busca el proveedorId memorizado para un NIT emisor de factura.
+   * Retorna { proveedorId, razonSocial, hits } o null.
+   */
+  function resolveProveedorPorNit(nitEmisor) {
+    var st = migrateLegacy();
+    if (!Array.isArray(st.feLinks)) return null;
+    var nitNorm = normProvNit(nitEmisor);
+    if (!nitNorm) return null;
+    var link = st.feLinks.find(function (l) {
+      return l.tipo === 'prov' && l.nitEmisor === nitNorm;
+    });
+    return link ? { proveedorId: link.proveedorId, razonSocial: link.razonSocial, hits: link.hits } : null;
+  }
+
+  function getFeLinksStats() {
+    var st = migrateLegacy();
+    var links = Array.isArray(st.feLinks) ? st.feLinks : [];
+    var mp = links.filter(function (l) { return l.tipo === 'mp'; });
+    var prov = links.filter(function (l) { return l.tipo === 'prov'; });
+    return { totalMp: mp.length, totalProv: prov.length, total: links.length };
+  }
+
   // Init migration on load
   migrateLegacy();
 
@@ -5645,6 +7889,9 @@
     },
     registrarOficina: registrarOficina,
     actualizarEstadoOficina: actualizarEstadoOficina,
+    actualizarFacturaOficina: actualizarFacturaOficina,
+    listFacturasOficinaPorProveedor: listFacturasOficinaPorProveedor,
+    resumenPagosProveedor: resumenPagosProveedor,
     registrarProceso: registrarProceso,
     eliminarProceso: eliminarProceso,
     registrarVenta: registrarVenta,
@@ -5683,12 +7930,17 @@
     repairIfNeeded: repairIfNeeded,
     runBlobMigration: runBlobMigration,
     flushBackup: flushBackup,
+    flushSyncQueueToCloud: flushSyncQueueToCloud,
+    registrarFeLink: registrarFeLink,
+    queryFeLinks: queryFeLinks,
+    resolveProveedorPorNit: resolveProveedorPorNit,
+    getFeLinksStats: getFeLinksStats,
   };
 
   global.crozzoReservorioRegistrarVenta = registrarVenta;
   global.crozzoReservorioUpsertProveedor = upsertProveedor;
+  global.crozzoFlushReservorioSyncQueue = flushSyncQueueToCloud;
 })(typeof window !== 'undefined' ? window : globalThis);
-
 
 
 /* --- CrozzoReservorioOffline.js --- */
@@ -5703,6 +7955,8 @@
 
   function isBrowserOnline() {
     try {
+      if (typeof global.crozzoWanLikely === 'function') return global.crozzoWanLikely();
+      if (typeof global.crozzoWanOnline === 'function') return global.crozzoWanOnline();
       return global.navigator ? global.navigator.onLine !== false : true;
     } catch (_) {
       return true;
@@ -5727,12 +7981,12 @@
     return false;
   }
 
-  /** Nube solo si hay config, navegador online y preferencia no es offline puro */
+  /** Nube si hay config y hay internet (Wi‑Fi o datos), salvo preferencia offline puro */
   function shouldUseCloud() {
     if (runtimePrefersOffline()) return false;
-    if (!isBrowserOnline()) return false;
     if (!hasCloudConfig()) return false;
-    return true;
+    if (typeof global.crozzoTierAllowsCloudSync === 'function') return global.crozzoTierAllowsCloudSync();
+    return isBrowserOnline();
   }
 
   function modeInfo() {
@@ -5764,6 +8018,7 @@
   function onOffline() {
     refreshConnectivity();
     try {
+      if (typeof global.crozzoDeviceFullyIsolated === 'function' && !global.crozzoDeviceFullyIsolated()) return;
       if (typeof global.showToast === 'function') {
         global.showToast('Sin internet — operando en modo local seguro (reservorio)', 'info');
       }
@@ -5772,6 +8027,11 @@
 
   function onOnline() {
     refreshConnectivity();
+    try {
+      if (typeof global.crozzoFlushReservorioSyncQueue === 'function') {
+        global.crozzoFlushReservorioSyncQueue({ force: true, kind: 'online_reservorio', priority: 2 });
+      }
+    } catch (_) {}
     try {
       if (typeof global.showToast === 'function') {
         global.showToast('Conexión restablecida', 'success');
@@ -5877,7 +8137,9 @@
     refreshConnectivity: refreshConnectivity,
   };
 
-  if (document.readyState === 'loading') {
+  if (global.__crozzoOfflineInited) {
+    global.addEventListener('online', onOnline);
+  } else if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();

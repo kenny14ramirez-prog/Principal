@@ -87,10 +87,11 @@
   }
 
   function getShiftSettings() {
+    var base;
     try {
       if (typeof config !== 'undefined' && config.get) {
         var c = config.get('cierreTurnos') || {};
-        return {
+        base = {
           mananaEndHour: Number(c.mananaEndHour) || 14,
           tardeEndHour: Number(c.tardeEndHour) || 22,
           autoCloseHour: Number(c.autoCloseHour) || 3,
@@ -100,20 +101,32 @@
           stressComandasRush: Number(c.stressComandasRush) || 16,
           stressVentasHoraBusy: Number(c.stressVentasHoraBusy) || 15,
           stressVentasHoraRush: Number(c.stressVentasHoraRush) || 30,
+          stressAutoScale: c.stressAutoScale !== false,
+          stressManual: c.stressManual === true,
         };
       }
     } catch (_) {}
-    return {
-      mananaEndHour: 14,
-      tardeEndHour: 22,
-      autoCloseHour: 3,
-      diffAlertThreshold: DIFF_ALERT_DEFAULT,
-      histLimit: HIST_LIMIT_DEFAULT,
-      stressComandasBusy: 8,
-      stressComandasRush: 16,
-      stressVentasHoraBusy: 15,
-      stressVentasHoraRush: 30,
-    };
+    if (!base) {
+      base = {
+        mananaEndHour: 14,
+        tardeEndHour: 22,
+        autoCloseHour: 3,
+        diffAlertThreshold: DIFF_ALERT_DEFAULT,
+        histLimit: HIST_LIMIT_DEFAULT,
+        stressComandasBusy: 8,
+        stressComandasRush: 16,
+        stressVentasHoraBusy: 15,
+        stressVentasHoraRush: 30,
+        stressAutoScale: true,
+        stressManual: false,
+      };
+    }
+    try {
+      if (typeof global.crozzoMergeOperativeStressThresholds === 'function') {
+        base = global.crozzoMergeOperativeStressThresholds(base);
+      }
+    } catch (_) {}
+    return base;
   }
 
   function getActiveComandasCount() {
@@ -164,6 +177,15 @@
       hint: hint,
       activeComandas: activeComandas,
       salesHour: salesHour,
+      thresholds: {
+        busyCom: s.stressComandasBusy,
+        rushCom: s.stressComandasRush,
+        busySales: s.stressVentasHoraBusy,
+        rushSales: s.stressVentasHoraRush,
+      },
+      tempoScale: s._tempoScale || null,
+      tempoCapacity: s._tempoCapacity || null,
+      tempoAuto: !!s._tempoAuto,
     };
   }
 

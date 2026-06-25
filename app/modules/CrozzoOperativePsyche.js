@@ -184,8 +184,550 @@
     return getExperiencia() === 'novice' || getExperiencia() === 'mixed';
   }
 
+  /** Humanización suave (header, toasts, confort) — todos con sesión activa. */
   function shouldApplyHumanLayer() {
+    if (shouldApplyComfortUx()) return true;
     return shouldApplyPsycheLayer();
+  }
+
+  /** Cabina premium: sensación de estabilidad y baja fatiga (todos los roles). */
+  function shouldApplyLuxuryCockpit() {
+    return shouldApplyComfortUx();
+  }
+
+  var SESSION_WARMTH_MS = 2 * 3600000;
+  var SESSION_DEEP_WARMTH_MS = 5 * 3600000;
+
+  var TEMPO_CALM = 'calm';
+  var TEMPO_FLOW = 'flow';
+  var TEMPO_RUSH = 'rush';
+  var TEMPO_RANK = { calm: 0, flow: 1, rush: 2 };
+  var TEMPO_DEESCALATE_MS = { 'rush->flow': 70000, 'rush->calm': 120000, 'flow->calm': 90000 };
+  var _lastOperationalTempo = '';
+  var _tempoResolved = TEMPO_CALM;
+  var _tempoRawLowerSince = 0;
+  var _tempoRawLowerTarget = '';
+  var _tempoMorphTimer = null;
+  var _tempoThresholdsCache = null;
+  var _tempoThresholdsCacheKey = '';
+
+  var STABILITY_LINES = {
+    ok: [
+      'Espacio tranquilo · avance sin presión',
+      'Todo bajo control · el sistema le acompaña',
+      'Puede tomarse su tiempo · datos respaldados',
+      'Turno sereno · precisión sin prisa',
+    ],
+    flow: ['Ritmo activo · respuesta inmediata', 'Servicio en movimiento · control total', 'Operación fluida · sync en segundo plano'],
+    rush: ['Alta demanda · respuesta priorizada', 'Modo intenso · cada acción registrada al instante', 'Pico operativo · datos seguros en local'],
+    offline: ['Modo local seguro · cola respaldada', 'Sin red · operación continua en local', 'Sync al reconectar · sin pérdida de datos'],
+    queue: ['Sync en cola · todo guardado localmente', 'Pendientes en cola · se enviarán solos'],
+  };
+
+  var CALM_CARE_LINES = [
+    'Estamos aquí — avance con calma',
+    'Su turno, su ritmo — sin presión',
+    'Todo listo para cuidarle el trabajo',
+    'Respire: el sistema vigila por usted',
+  ];
+
+  var CALM_CARE_BY_ROLE = {
+    caja: 'Caja tranquila — cada paso con respaldo',
+    mesero: 'Sala serena — el cliente espera, usted no',
+    cocina: 'Cocina al ritmo justo — sin prisa falsa',
+    chef: 'Producción en calma — orden antes que velocidad',
+    admin: 'Visión clara — delegue con confianza',
+    gerente: 'Equipo en calma — usted marca el pulso',
+    inventario: 'Compras sin afán — todo queda trazado',
+    user: 'Su espacio protegido — avance con calma',
+  };
+
+  var TEMPO_HEADER_CUE = {
+    calm: { txt: 'Acompañado', title: 'Espacio tranquilo — avance sin presión, el sistema le cuida' },
+  };
+
+  var TEMPO_SCALE_HINT = {
+    pequeno: 'local íntimo',
+    mediano: 'operación ágil',
+    grande: 'salón amplio',
+    xl: 'alta capacidad',
+  };
+
+  var CALM_CARE_BY_PHASE = {
+    manana: 'Buen arranque — sin prisa, con respaldo',
+    mediodia: 'Mediodía sereno — un paso a la vez',
+    tarde: 'Tarde fluida — el sistema le acompaña',
+    noche: 'Turno nocturno — vaya con calma',
+    madrugada: 'Madrugada tranquila — aquí estamos',
+  };
+
+  var CALM_AFTER_RUSH = {
+    manana: 'bajó el ritmo — buen arranque de nuevo.',
+    mediodia: 'bajó el ritmo — respire un momento.',
+    tarde: 'bajó el ritmo — retome con calma.',
+    noche: 'bajó el ritmo — respire, lo hizo bien.',
+    madrugada: 'bajó el ritmo — aquí seguimos.',
+  };
+
+  var RUSH_TOAST_SUCCESS = [
+    { re: /comanda enviada|comanda #\d+ creada|cocina recibió|comanda.*actualizada/i, msg: '✓ Cocina' },
+    { re: /venta registrada|cobro exitoso|pago registrado|cobrado/i, msg: '✓ Cobrado' },
+    { re: /guardado|actualizado|sincroniz/i, msg: '✓ Listo' },
+  ];
+
+  var FLOW_TOAST_SUCCESS = [
+    { re: /comanda enviada|comanda #\d+ creada|cocina recibió/i, msg: 'Comanda en cocina' },
+    { re: /venta registrada|cobro exitoso|pago registrado/i, msg: 'Cobro registrado' },
+    { re: /comanda.*actualizada/i, msg: 'Comanda actualizada' },
+  ];
+
+  function isTempoHighLoad() {
+    if (!shouldApplyLuxuryCockpit()) return false;
+    var t = getOperationalTempo();
+    return t === TEMPO_FLOW || t === TEMPO_RUSH;
+  }
+
+  function isTempoCalmCare() {
+    return shouldApplyLuxuryCockpit() && getOperationalTempo() === TEMPO_CALM;
+  }
+
+  function pickCalmCareLine() {
+    var r = getRoleNorm();
+    var phase = getOperativeDayPhase();
+    if (CALM_CARE_BY_ROLE[r] && Math.floor(Date.now() / 240000) % 3 !== 0) {
+      return CALM_CARE_BY_ROLE[r];
+    }
+    if (CALM_CARE_BY_PHASE[phase]) return CALM_CARE_BY_PHASE[phase];
+    return CALM_CARE_LINES[Math.floor(Date.now() / 180000) % CALM_CARE_LINES.length];
+  }
+
+  function getOperativeDayPhase() {
+    var h = new Date().getHours();
+    if (h >= 5 && h < 11) return 'manana';
+    if (h >= 11 && h < 15) return 'mediodia';
+    if (h >= 15 && h < 20) return 'tarde';
+    if (h >= 20 || h < 2) return 'noche';
+    return 'madrugada';
+  }
+
+  function buildTempoCueTitle(cue) {
+    var parts = [cue.title];
+    var th = getTempoThresholds();
+    if (th.scale && TEMPO_SCALE_HINT[th.scale]) parts.push(TEMPO_SCALE_HINT[th.scale]);
+    var phase = getOperativeDayPhase();
+    if (phase === 'noche' || phase === 'madrugada') parts.push('turno nocturno');
+    return parts.join(' · ');
+  }
+
+  function pickStabilityLine(pool) {
+    var lines = pool || STABILITY_LINES.ok;
+    return lines[Math.floor(Date.now() / 120000) % lines.length];
+  }
+
+  function detectOperacionTipo() {
+    try {
+      if (typeof global.crozzoGetPerfilEmpresa === 'function') {
+        var p = String(global.crozzoGetPerfilEmpresa() || '').toLowerCase();
+        if (p.indexOf('tienda') >= 0 || p === 'basico_tienda' || p === 'retail') return 'retail';
+      }
+      if (typeof global.crozzoGetPerfilOperativo === 'function') {
+        var m = global.crozzoGetPerfilOperativo();
+        if (m && m.tipo === 'retail') return 'retail';
+      }
+    } catch (_) {}
+    return 'restaurante';
+  }
+
+  function detectSalonCapacity() {
+    try {
+      if (Array.isArray(global.mesasCaja) && global.mesasCaja.length > 0) {
+        return global.mesasCaja.length;
+      }
+      if (typeof global.getSalonConfig === 'function') {
+        var sc = global.getSalonConfig();
+        if (sc && Number(sc.mesaCount) > 0) return Number(sc.mesaCount);
+      }
+      if (typeof global.config !== 'undefined' && global.config && typeof global.config.get === 'function') {
+        var salon = global.config.get('salon') || global.config.get('salonConfig') || {};
+        var n = Number(salon.mesaCount || salon.mesas);
+        if (n > 0) return n;
+      }
+    } catch (_) {}
+    return 12;
+  }
+
+  function computeAutoStressThresholds(capacity, tipo) {
+    var cap = Math.max(4, Math.min(80, Number(capacity) || 12));
+    if (tipo === 'retail') {
+      return {
+        stressComandasBusy: 9999,
+        stressComandasRush: 9999,
+        stressVentasHoraBusy: Math.max(6, Math.round(cap * 0.45)),
+        stressVentasHoraRush: Math.max(12, Math.round(cap * 0.85)),
+        scale: cap <= 8 ? 'pequeno' : cap <= 18 ? 'mediano' : cap <= 32 ? 'grande' : 'xl',
+        capacity: cap,
+        tipo: 'retail',
+      };
+    }
+    var busyCom = Math.max(3, Math.round(cap * 0.32));
+    var rushCom = Math.max(busyCom + 2, Math.round(cap * 0.62));
+    var busySales = Math.max(6, Math.round(cap * 0.85));
+    var rushSales = Math.max(busySales + 4, Math.round(cap * 1.55));
+    return {
+      stressComandasBusy: busyCom,
+      stressComandasRush: rushCom,
+      stressVentasHoraBusy: busySales,
+      stressVentasHoraRush: rushSales,
+      scale: cap <= 8 ? 'pequeno' : cap <= 18 ? 'mediano' : cap <= 32 ? 'grande' : 'xl',
+      capacity: cap,
+      tipo: 'restaurante',
+    };
+  }
+
+  function invalidateTempoThresholdsCache() {
+    _tempoThresholdsCache = null;
+    _tempoThresholdsCacheKey = '';
+  }
+
+  function getTempoThresholds() {
+    var cap = detectSalonCapacity();
+    var tipo = detectOperacionTipo();
+    var cacheKey = cap + '|' + tipo;
+    if (_tempoThresholdsCache && _tempoThresholdsCacheKey === cacheKey) return _tempoThresholdsCache;
+    var auto = computeAutoStressThresholds(cap, tipo);
+    var out = {
+      busyCom: auto.stressComandasBusy,
+      rushCom: auto.stressComandasRush,
+      busySales: auto.stressVentasHoraBusy,
+      rushSales: auto.stressVentasHoraRush,
+      scale: auto.scale,
+      capacity: auto.capacity,
+      tipo: auto.tipo,
+      auto: true,
+    };
+    try {
+      if (typeof global.crozzoShiftGetRestaurantStress === 'function') {
+        var rs = global.crozzoShiftGetRestaurantStress();
+        if (rs && rs.thresholds) {
+          out = Object.assign({}, out, {
+            busyCom: rs.thresholds.busyCom,
+            rushCom: rs.thresholds.rushCom,
+            busySales: rs.thresholds.busySales,
+            rushSales: rs.thresholds.rushSales,
+            scale: rs.tempoScale || out.scale,
+            capacity: rs.tempoCapacity || out.capacity,
+            auto: rs.tempoAuto !== false,
+          });
+        }
+      }
+    } catch (_) {}
+    _tempoThresholdsCache = out;
+    _tempoThresholdsCacheKey = cacheKey;
+    return out;
+  }
+
+  function mergeOperativeStressThresholds(base) {
+    if (!base || base.stressManual === true || base.stressAutoScale === false) return base;
+    invalidateTempoThresholdsCache();
+    var cap = detectSalonCapacity();
+    var auto = computeAutoStressThresholds(cap, detectOperacionTipo());
+    return Object.assign({}, base, {
+      stressComandasBusy: auto.stressComandasBusy,
+      stressComandasRush: auto.stressComandasRush,
+      stressVentasHoraBusy: auto.stressVentasHoraBusy,
+      stressVentasHoraRush: auto.stressVentasHoraRush,
+      _tempoScale: auto.scale,
+      _tempoCapacity: auto.capacity,
+      _tempoAuto: true,
+    });
+  }
+
+  function getDeescalateHoldMs(from, to) {
+    var key = from + '->' + to;
+    var base = TEMPO_DEESCALATE_MS[key] || 90000;
+    var cap = detectSalonCapacity();
+    if (cap <= 8) return Math.round(base * 0.82);
+    if (cap >= 32) return Math.round(base * 1.12);
+    return base;
+  }
+
+  function getRawStressSnapshot() {
+    try {
+      if (global.CrozzoOnboardingOperativo && global.CrozzoOnboardingOperativo.getCombinedStress) {
+        return global.CrozzoOnboardingOperativo.getCombinedStress();
+      }
+      if (typeof global.crozzoShiftGetRestaurantStress === 'function') {
+        return global.crozzoShiftGetRestaurantStress();
+      }
+    } catch (_) {}
+    return { level: 'calm', combined: 'calm', activeComandas: 0, salesHour: 0 };
+  }
+
+  function getRawOperationalTempo() {
+    var snap = getRawStressSnapshot();
+    if (snap.combined === 'critical' || snap.level === 'rush') return TEMPO_RUSH;
+    if (snap.level === 'busy') return TEMPO_FLOW;
+    return TEMPO_CALM;
+  }
+
+  function getTempoIntensity() {
+    var snap = getRawStressSnapshot();
+    var th = snap.thresholds || getTempoThresholds();
+    var com = Number(snap.activeComandas) || 0;
+    var sales = Number(snap.salesHour) || 0;
+    var rushCom = Math.max(1, Number(th.rushCom) || 16);
+    var rushSales = Math.max(1, Number(th.rushSales) || 30);
+    var busyCom = Math.max(1, Number(th.busyCom) || 8);
+    var busySales = Math.max(1, Number(th.busySales) || 15);
+    var comPct = (com / rushCom) * 100;
+    var salesPct = (sales / rushSales) * 100;
+    var pct = Math.max(comPct, salesPct);
+    if (snap.combined === 'critical' || snap.level === 'rush') {
+      return Math.min(100, Math.max(82, Math.round(pct)));
+    }
+    if (snap.level === 'busy') {
+      var busyPct = Math.max(com / busyCom, sales / busySales) * 78;
+      return Math.min(81, Math.max(42, Math.round(busyPct)));
+    }
+    return Math.min(38, Math.round(pct * 0.38));
+  }
+
+  function resolveOperationalTempo() {
+    var raw = getRawOperationalTempo();
+    var now = Date.now();
+    var rawRank = TEMPO_RANK[raw] || 0;
+    var curRank = TEMPO_RANK[_tempoResolved] || 0;
+    if (rawRank > curRank) {
+      _tempoResolved = raw;
+      _tempoRawLowerSince = 0;
+      _tempoRawLowerTarget = '';
+      return _tempoResolved;
+    }
+    if (rawRank === curRank) {
+      _tempoRawLowerSince = 0;
+      _tempoRawLowerTarget = '';
+      return _tempoResolved;
+    }
+    if (_tempoRawLowerTarget !== raw) {
+      _tempoRawLowerTarget = raw;
+      _tempoRawLowerSince = now;
+    }
+    var hold = getDeescalateHoldMs(_tempoResolved, raw);
+    if (now - _tempoRawLowerSince >= hold) {
+      _tempoResolved = raw;
+      _tempoRawLowerSince = 0;
+      _tempoRawLowerTarget = '';
+    }
+    return _tempoResolved;
+  }
+
+  function getOperationalTempo() {
+    if (!shouldApplyLuxuryCockpit()) return getRawOperationalTempo();
+    return resolveOperationalTempo();
+  }
+
+  function pulseTempoMorph() {
+    if (!document.body) return;
+    document.body.classList.add('crozzo-tempo-morph');
+    if (_tempoMorphTimer) clearTimeout(_tempoMorphTimer);
+    _tempoMorphTimer = setTimeout(function () {
+      _tempoMorphTimer = null;
+      if (document.body) document.body.classList.remove('crozzo-tempo-morph');
+    }, 720);
+  }
+
+  function scheduleTempoPulse() {
+    if (global.__crozzoTempoPulseTimer) return;
+    global.__crozzoTempoPulseTimer = setTimeout(function () {
+      global.__crozzoTempoPulseTimer = null;
+      syncOperationalTempo();
+    }, 600);
+  }
+
+  function syncOperationalTempo() {
+    if (!document.body || !shouldApplyLuxuryCockpit()) return;
+    var tempo = getOperationalTempo();
+    var intensity = getTempoIntensity();
+    var th = getTempoThresholds();
+    document.body.setAttribute('data-crozzo-tempo', tempo);
+    document.body.setAttribute('data-crozzo-tempo-intensity', String(intensity));
+    if (th.scale) document.body.setAttribute('data-crozzo-tempo-scale', th.scale);
+    if (th.capacity) document.body.setAttribute('data-crozzo-tempo-capacity', String(th.capacity));
+    document.body.setAttribute('data-crozzo-tempo-phase', getOperativeDayPhase());
+    document.body.style.setProperty('--crozzo-tempo-intensity', String(intensity / 100));
+    document.body.classList.toggle('crozzo-tempo-calm', tempo === TEMPO_CALM);
+    document.body.classList.toggle('crozzo-tempo-flow', tempo === TEMPO_FLOW);
+    document.body.classList.toggle('crozzo-tempo-rush', tempo === TEMPO_RUSH);
+    document.body.classList.toggle('crozzo-tempo-care', tempo === TEMPO_CALM);
+    document.body.classList.toggle('crozzo-tempo-shield', tempo === TEMPO_FLOW || tempo === TEMPO_RUSH);
+    if (document.documentElement) {
+      var forceOff = false;
+      try {
+        forceOff = localStorage.getItem('crozzo_perf_lite') === '0';
+      } catch (_) {}
+      if ((tempo === TEMPO_RUSH || tempo === TEMPO_FLOW) && !forceOff) {
+        document.documentElement.classList.add('crozzo-perf-lite');
+        document.documentElement.setAttribute('data-crozzo-tempo-perf', '1');
+      } else if (document.documentElement.getAttribute('data-crozzo-tempo-perf') === '1') {
+        document.documentElement.classList.remove('crozzo-perf-lite');
+        document.documentElement.removeAttribute('data-crozzo-tempo-perf');
+      }
+    }
+    updateTempoHeaderCue(tempo);
+    updateTempoRailCue(intensity, tempo);
+    if (tempo !== _lastOperationalTempo) {
+      var prev = _lastOperationalTempo;
+      _lastOperationalTempo = tempo;
+      pulseTempoMorph();
+      if (tempo === TEMPO_FLOW || tempo === TEMPO_RUSH) {
+        try {
+          sessionStorage.removeItem('crozzo_calm_after_rush');
+        } catch (_) {}
+      }
+      updateHeaderPsycheLine();
+      updateStabilityHint();
+      injectPeakBreatheStrip();
+      injectPsycheChipHost(false);
+      maybeCareAfterRush(prev, tempo);
+      try {
+        document.dispatchEvent(
+          new CustomEvent('crozzo-tempo-changed', {
+            detail: { from: prev || null, to: tempo, intensity: intensity },
+            bubbles: true,
+          })
+        );
+      } catch (_) {}
+    }
+  }
+
+  function maybeCareAfterRush(prev, tempo) {
+    if (tempo !== TEMPO_CALM || (prev !== TEMPO_RUSH && prev !== TEMPO_FLOW)) return;
+    if (!shouldApplyLuxuryCockpit()) return;
+    try {
+      if (sessionStorage.getItem('crozzo_calm_after_rush') === '1') return;
+      sessionStorage.setItem('crozzo_calm_after_rush', '1');
+    } catch (_) {}
+    if (typeof global.showToast !== 'function') return;
+    var first = getFirstName();
+    var phase = getOperativeDayPhase();
+    var closer = CALM_AFTER_RUSH[phase] || 'bajó el ritmo — respire. Estamos aquí.';
+    var msg = first ? first + ', ' + closer : 'Bajó el ritmo — respire. Estamos aquí.';
+    global.__crozzoAffirmToastLock = true;
+    try {
+      global.showToast(msg, 'success');
+    } finally {
+      global.__crozzoAffirmToastLock = false;
+    }
+  }
+
+  function updateTempoHeaderCue(tempo) {
+    if (!shouldApplyLuxuryCockpit()) return;
+    var cluster = document.querySelector('.crozzo-header__status--elite');
+    if (!cluster) return;
+    var cue = TEMPO_HEADER_CUE[tempo];
+    var el = document.getElementById('crozzoTempoBadge');
+    if (!cue) {
+      if (el) el.hidden = true;
+      return;
+    }
+    if (!el) {
+      el = document.createElement('span');
+      el.id = 'crozzoTempoBadge';
+      el.className = 'crozzo-status-pill crozzo-tempo-pill crozzo-mobile-secondary';
+      el.innerHTML =
+        '<span class="crozzo-status-dot" aria-hidden="true"></span><span class="crozzo-status-txt"></span>';
+      cluster.insertBefore(el, cluster.firstChild);
+    }
+    el.hidden = false;
+    el.classList.remove('crozzo-tempo-pill--flow', 'crozzo-tempo-pill--rush');
+    el.classList.add('crozzo-tempo-pill--calm');
+    el.title = buildTempoCueTitle(cue);
+    el.setAttribute('aria-label', el.title);
+    var dot = el.querySelector('.crozzo-status-dot');
+    var txt = el.querySelector('.crozzo-status-txt');
+    if (dot) {
+      dot.className = 'crozzo-status-dot ok';
+    }
+    if (txt) txt.textContent = cue.txt;
+  }
+
+  function updateTempoRailCue(intensity, tempo) {
+    if (!shouldApplyLuxuryCockpit()) return;
+    var rail = document.querySelector('.crozzo-header__rail');
+    if (!rail) return;
+    if (tempo === TEMPO_CALM) {
+      rail.style.removeProperty('--crozzo-rail-fill');
+      rail.removeAttribute('data-crozzo-rail-tempo');
+      return;
+    }
+    rail.setAttribute('data-crozzo-rail-tempo', tempo);
+    rail.style.setProperty('--crozzo-rail-fill', String(Math.max(0.08, Math.min(1, intensity / 100))));
+    rail.title =
+      tempo === TEMPO_RUSH
+        ? 'Demanda alta · ' + intensity + '% de capacidad operativa'
+        : 'Ritmo activo · ' + intensity + '% de capacidad operativa';
+  }
+
+  function getStabilityNarrative() {
+    var offline = false;
+    var queue = 0;
+    try {
+      if (typeof global.crozzoWanOnline === 'function') offline = !global.crozzoWanOnline();
+      else if (typeof global.navigator !== 'undefined') offline = global.navigator.onLine === false;
+    } catch (_) {}
+    try {
+      if (typeof global.readOfflineQueue === 'function') {
+        queue = (global.readOfflineQueue() || []).length;
+      }
+    } catch (_) {}
+    if (offline) return pickStabilityLine(STABILITY_LINES.offline);
+    if (queue > 0) return pickStabilityLine(STABILITY_LINES.queue);
+    var tempo = shouldApplyLuxuryCockpit() ? getOperationalTempo() : TEMPO_CALM;
+    if (tempo === TEMPO_RUSH) return pickStabilityLine(STABILITY_LINES.rush);
+    if (tempo === TEMPO_FLOW) return pickStabilityLine(STABILITY_LINES.flow);
+    return pickStabilityLine(STABILITY_LINES.ok);
+  }
+
+  function isOperativaPage(page) {
+    var p = page;
+    try {
+      if (!p && global.currentPage) p = global.currentPage;
+    } catch (_) {}
+    p = String(p || '');
+    return (
+      p === 'cajero' ||
+      p === 'venta-comercial' ||
+      p === 'tablets' ||
+      p === 'cocina' ||
+      p === 'comandas' ||
+      p === 'cierre-caja'
+    );
+  }
+
+  function applySessionWarmthClasses() {
+    if (!document.body || !shouldApplyLuxuryCockpit()) return;
+    var elapsed = Date.now() - getSessionStartMs();
+    document.body.classList.toggle('crozzo-session-warmth', elapsed >= SESSION_WARMTH_MS);
+    document.body.classList.toggle('crozzo-session-deep-warmth', elapsed >= SESSION_DEEP_WARMTH_MS);
+  }
+
+  function syncOperativaAmbience(page) {
+    if (!document.body) return;
+    var op = isOperativaPage(page);
+    document.body.classList.toggle('crozzo-cockpit-operativa', shouldApplyLuxuryCockpit() && op);
+  }
+
+  function updateStabilityHint() {
+    if (!shouldApplyLuxuryCockpit()) return;
+    var cluster = document.querySelector('.crozzo-header__status--elite');
+    if (cluster) {
+      cluster.setAttribute('data-crozzo-stability', getStabilityNarrative());
+      cluster.title = getStabilityNarrative();
+    }
+    var rail = document.querySelector('.crozzo-header__rail');
+    if (rail && shouldApplyLuxuryCockpit()) {
+      rail.setAttribute('title', getStabilityNarrative());
+    }
   }
 
   function isComfortOptedOut() {
@@ -311,6 +853,7 @@
   function maybeShowBreakReminder() {
     if (!shouldApplyComfortUx()) return;
     if (typeof document !== 'undefined' && document.hidden) return;
+    if (shouldApplyLuxuryCockpit() && getOperationalTempo() !== TEMPO_CALM) return;
     if (Date.now() < getBreakSnoozeUntil()) return;
     if (Date.now() - getSessionStartMs() < BREAK_GRACE_MS) return;
     if (isBusyOperationalPage()) return;
@@ -416,7 +959,19 @@
   function humanizeToastMessage(message, type) {
     if (!shouldApplyHumanToasts() || !message) return message;
     var msg = String(message);
+    var tempo = shouldApplyLuxuryCockpit() ? getOperationalTempo() : TEMPO_CALM;
     if (type === 'success') {
+      if (tempo === TEMPO_RUSH) {
+        for (var r = 0; r < RUSH_TOAST_SUCCESS.length; r++) {
+          if (RUSH_TOAST_SUCCESS[r].re.test(msg)) return RUSH_TOAST_SUCCESS[r].msg;
+        }
+        if (msg.length > 36) return msg.split(/[.—!]/)[0].slice(0, 28).trim() || msg;
+      }
+      if (tempo === TEMPO_FLOW) {
+        for (var f = 0; f < FLOW_TOAST_SUCCESS.length; f++) {
+          if (FLOW_TOAST_SUCCESS[f].re.test(msg)) return FLOW_TOAST_SUCCESS[f].msg;
+        }
+      }
       for (var j = 0; j < HUMAN_TOAST_SUCCESS.length; j++) {
         if (HUMAN_TOAST_SUCCESS[j].re.test(msg)) return HUMAN_TOAST_SUCCESS[j].msg;
       }
@@ -425,7 +980,11 @@
       for (var i = 0; i < HUMAN_TOAST_SOFT.length; i++) {
         if (HUMAN_TOAST_SOFT[i].re.test(msg)) return HUMAN_TOAST_SOFT[i].msg;
       }
-      if (type === 'error' && !/—|gracias|calma|juntos/i.test(msg)) {
+      if (
+        type === 'error' &&
+        !/—|gracias|calma|juntos/i.test(msg) &&
+        !(shouldApplyLuxuryCockpit() && getOperationalTempo() === TEMPO_RUSH)
+      ) {
         return msg.replace(/\.$/, '') + ' — estamos aquí para ayudarle.';
       }
     }
@@ -433,6 +992,7 @@
   }
 
   function celebrateWinMilestones(wins) {
+    if (isTempoHighLoad()) return;
     var milestones = { 5: '5 aciertos con apoyo del sistema — va tomando confianza.', 10: '10 aciertos — el equipo y el POS ya trabajan en equipo.', 25: '25 aciertos — dominio sólido sin presión innecesaria.' };
     var keys = Object.keys(milestones).map(Number).sort(function (a, b) { return a - b; });
     for (var i = 0; i < keys.length; i++) {
@@ -447,13 +1007,19 @@
   function applyComfortClasses() {
     if (!document.body) return;
     var comfort = shouldApplyComfortUx();
-    var human = comfort || shouldApplyHumanLayer();
-    var psyche = human && shouldApplyPsycheLayer();
+    var human = shouldApplyHumanLayer();
+    var psyche = shouldApplyPsycheLayer();
+    var cockpit = shouldApplyLuxuryCockpit();
     document.body.classList.toggle('crozzo-comfort-ux', comfort);
     document.body.classList.toggle('crozzo-session-comfort', human);
     document.body.classList.toggle('crozzo-premium-human', human);
     document.body.classList.toggle('crozzo-premium-psyche', psyche);
     document.body.classList.toggle('crozzo-psyche-active', psyche);
+    document.body.classList.toggle('crozzo-luxury-cockpit', cockpit);
+    applySessionWarmthClasses();
+    syncOperativaAmbience();
+    syncOperationalTempo();
+    updateStabilityHint();
   }
 
   function schedulePsycheChromeRefresh() {
@@ -465,6 +1031,10 @@
   }
 
   function refreshPsycheChrome(force) {
+    applySessionWarmthClasses();
+    syncOperativaAmbience();
+    syncOperationalTempo();
+    updateStabilityHint();
     updateHeaderPsycheLine();
     injectPsycheChipHost(!!force);
   }
@@ -484,18 +1054,57 @@
     });
   }
 
+  function shouldSuppressToast(message, type) {
+    if (!shouldApplyLuxuryCockpit() || !isTempoHighLoad()) return false;
+    if (global.__crozzoAffirmToastLock) return false;
+    var t = type || 'info';
+    var msg = String(message || '');
+    var dedupeKey = t + '|' + msg.slice(0, 48);
+    var now = Date.now();
+    if (global.__crozzoLastToastKey === dedupeKey && now - (global.__crozzoLastToastAt || 0) < 2800) {
+      return true;
+    }
+    global.__crozzoLastToastKey = dedupeKey;
+    global.__crozzoLastToastAt = now;
+    if (t === 'error' || t === 'warning') return false;
+    if (t === 'info') return true;
+    if (t === 'success') {
+      if (/bienvenid|turno|espacio de trabajo|respire|estamos aquí/i.test(msg)) return true;
+    }
+    return false;
+  }
+
+  function isToastMinimal(message, type) {
+    if (!isTempoHighLoad()) return false;
+    var t = type || 'info';
+    return t === 'success';
+  }
+
+  function trimToastStack(container, max) {
+    if (!container || !max) return;
+    while (container.children.length >= max) {
+      var first = container.firstElementChild;
+      if (!first) break;
+      if (typeof first._crozzoDismiss === 'function') first._crozzoDismiss();
+      else first.remove();
+    }
+  }
+
   function patchHumanToasts() {
     if (global.__crozzoHumanToastPatched || typeof global.showToast !== 'function') return;
     global.__crozzoHumanToastPatched = true;
     var orig = global.showToast;
     global.showToast = function (message, type) {
       var t = type || 'info';
+      if (shouldSuppressToast(message, t)) return;
       if (!global.__crozzoAffirmToastLock) maybeAffirmComandaFromToast(message);
       var msg = humanizeToastMessage(message, t);
       if (document.body && document.body.classList.contains('crozzo-premium-human') && (t === 'warning' || t === 'error')) {
-        return orig.call(global, msg, t === 'error' ? 'warning' : t);
+        orig.call(global, msg, t === 'error' ? 'warning' : t);
+      } else {
+        orig.call(global, msg, t);
       }
-      return orig.call(global, msg, t);
+      if (t === 'success' && shouldApplyLuxuryCockpit()) scheduleTempoPulse();
     };
   }
 
@@ -523,6 +1132,7 @@
 
   function maybeAffirm(key, message) {
     if (!shouldApplyPsycheLayer()) return;
+    if (isTempoHighLoad()) return;
     var st = readStore();
     var today = new Date().toISOString().slice(0, 10);
     var dedupeKey = key + '_' + today + '_' + (getRoleNorm() || 'all');
@@ -559,8 +1169,25 @@
 
   function updateHeaderPsycheLine() {
     if (!shouldApplyHumanLayer()) return;
-    var line = getRoleLine();
     var el = document.getElementById('crozzoHeaderPsycheLine');
+    if (shouldApplyLuxuryCockpit() && isTempoHighLoad()) {
+      if (el) {
+        el.textContent = '';
+        el.hidden = true;
+      }
+      _psycheHeaderCache = '';
+      return;
+    }
+    var line = getRoleLine();
+    if (shouldApplyLuxuryCockpit()) {
+      var tempo = getOperationalTempo();
+      if (tempo === TEMPO_CALM) {
+        var care = pickCalmCareLine();
+        line = shouldApplyPsycheLayer() ? care : getRoleLine() + ' · ' + care;
+      } else if (!shouldApplyPsycheLayer()) {
+        line = line + ' · ' + getStabilityNarrative();
+      }
+    }
     if (el && line === _psycheHeaderCache && !el.hidden) return;
     _psycheHeaderCache = line;
     if (!el) {
@@ -571,6 +1198,7 @@
       el.className = 'crozzo-header-psyche-line';
       greet.parentNode.insertBefore(el, greet.nextSibling);
     }
+    el.classList.toggle('crozzo-header-psyche-line--care', shouldApplyLuxuryCockpit() && getOperationalTempo() === TEMPO_CALM);
     el.textContent = line;
     el.hidden = false;
   }
@@ -624,6 +1252,7 @@
 
   function renderMinimalHumanChip() {
     if (!shouldApplyHumanLayer() || shouldApplyPsycheLayer()) return '';
+    if (shouldApplyLuxuryCockpit()) return '';
     try {
       if (sessionStorage.getItem(SS_CHIP) === '1') return '';
     } catch (_) {}
@@ -740,9 +1369,36 @@
 
   function injectPeakBreatheStrip() {
     if (!shouldApplyComfortUx() && !shouldApplyHumanLayer()) return;
+    if (isOperativaPage()) return;
+    var host = document.getElementById('crozzo-peak-breathe-host');
+    if (shouldApplyLuxuryCockpit()) {
+      if (getOperationalTempo() !== TEMPO_CALM) {
+        if (_peakStripActive === false) return;
+        _peakStripActive = false;
+        if (host) host.innerHTML = '';
+        return;
+      }
+      if (_peakStripActive === true && host && host.innerHTML) return;
+      _peakStripActive = true;
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'crozzo-peak-breathe-host';
+        host.className = 'crozzo-peak-breathe-host';
+        var chip = document.getElementById('crozzo-psyche-chip-host');
+        var main = document.getElementById('mainContent');
+        var anchor = chip || main;
+        if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
+      }
+      host.innerHTML =
+        '<div class="crozzo-peak-breathe crozzo-peak-breathe--soft crozzo-calm-care-strip crozzo-calm-care-strip--enter" role="status" aria-live="polite">' +
+        '<span class="crozzo-calm-care-strip__icon" aria-hidden="true">🌿</span>' +
+        '<span class="crozzo-calm-care-strip__txt">' +
+        pickCalmCareLine() +
+        ' — sin prisa, todo queda respaldado.</span></div>';
+      return;
+    }
     var s = getPsychState();
     var critical = s.id === 'peak';
-    var host = document.getElementById('crozzo-peak-breathe-host');
     if (!critical) {
       if (_peakStripActive === false) return;
       _peakStripActive = false;
@@ -760,14 +1416,25 @@
       var anchor = chip || main;
       if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
     }
+    var stripCls = critical ? 'crozzo-peak-breathe--rush' : 'crozzo-peak-breathe--flow';
+    var icon = critical ? '⚡' : '✨';
+    var msg = critical
+      ? 'Alta demanda — enfoque esencial. Cada acción queda registrada al instante.'
+      : 'Ritmo activo — respuesta ágil con la precisión de siempre.';
     host.innerHTML =
-      '<div class="crozzo-peak-breathe crozzo-peak-breathe--soft" role="status" aria-live="polite">' +
-      '<span aria-hidden="true">🌿</span>' +
-      '<span>Rush de servicio — un respiro y lo esencial primero. Sin prisa falsa.</span></div>';
+      '<div class="crozzo-peak-breathe crozzo-peak-breathe--soft ' +
+      stripCls +
+      '" role="status" aria-live="polite">' +
+      '<span aria-hidden="true">' +
+      icon +
+      '</span>' +
+      '<span>' +
+      msg +
+      '</span></div>';
   }
 
   function maybeAffirmComandaFromToast(message) {
-    if (!shouldApplyPsycheLayer() || !message) return;
+    if (!shouldApplyPsycheLayer() || !message || isTempoHighLoad()) return;
     if (/comanda enviada|cocina recibió|comanda #\d+ creada/i.test(String(message))) {
       maybeAffirm('comanda_ok');
     }
@@ -1099,6 +1766,18 @@
 
   function injectPsycheChipHost(force) {
     if (!shouldApplyHumanLayer()) return;
+    if (shouldApplyLuxuryCockpit() && isTempoHighLoad()) {
+      _psycheChipHtmlCache = '';
+      _peakStripActive = false;
+      var peakHostShield = document.getElementById('crozzo-peak-breathe-host');
+      if (peakHostShield) peakHostShield.innerHTML = '';
+      var hShield = document.getElementById('crozzo-psyche-chip-host');
+      if (hShield) {
+        hShield.innerHTML = '';
+        hShield.hidden = true;
+      }
+      return;
+    }
     if (shouldHideChipOnPage()) {
       _psycheChipHtmlCache = '';
       _peakStripActive = false;
@@ -1171,15 +1850,68 @@
     }
     if (!global.__crozzoPsychePoll) {
       global.__crozzoPsychePoll = setInterval(function () {
+        applySessionWarmthClasses();
+        syncOperationalTempo();
+        updateStabilityHint();
         injectPsycheChipHost(false);
       }, 45000);
     }
+    if (!global.__crozzoCockpitStabilityPoll) {
+      global.__crozzoCockpitStabilityPoll = setInterval(function () {
+        if (!shouldApplyLuxuryCockpit()) return;
+        updateStabilityHint();
+        updateHeaderPsycheLine();
+      }, 120000);
+    }
+    if (!global.__crozzoCockpitStabilityBound) {
+      global.__crozzoCockpitStabilityBound = true;
+      var onStabilityChange = function () {
+        updateStabilityHint();
+        updateHeaderPsycheLine();
+        scheduleTempoPulse();
+      };
+      try {
+        global.addEventListener('online', onStabilityChange);
+        global.addEventListener('offline', onStabilityChange);
+        global.addEventListener('crozzo:pos-operation-state', onStabilityChange);
+      } catch (_) {}
+      document.addEventListener('crozzo-sync-queue-changed', onStabilityChange);
+      document.addEventListener('crozzo-connectivity-changed', onStabilityChange);
+      document.addEventListener('crozzo-salon-config-changed', function () {
+        invalidateTempoThresholdsCache();
+        scheduleTempoPulse();
+      });
+      document.addEventListener('crozzo-tempo-changed', function () {
+        injectPsycheChipHost(false);
+      });
+    }
+    if (!global.__crozzoTempoFastPoll) {
+      global.__crozzoTempoFastPoll = setInterval(function () {
+        if (!shouldApplyLuxuryCockpit()) return;
+        syncOperationalTempo();
+      }, 12000);
+    }
   }
+
+  global.crozzoMergeOperativeStressThresholds = mergeOperativeStressThresholds;
 
   global.CrozzoOperativePsyche = {
     init: init,
     shouldApplyComfortUx: shouldApplyComfortUx,
+    shouldApplyLuxuryCockpit: shouldApplyLuxuryCockpit,
     comfortMotionSoft: comfortMotionSoft,
+    syncOperativaAmbience: syncOperativaAmbience,
+    syncOperationalTempo: syncOperationalTempo,
+    getOperationalTempo: getOperationalTempo,
+    getRawOperationalTempo: getRawOperationalTempo,
+    getTempoIntensity: getTempoIntensity,
+    getTempoThresholds: getTempoThresholds,
+    detectSalonCapacity: detectSalonCapacity,
+    isTempoHighLoad: isTempoHighLoad,
+    shouldSuppressToast: shouldSuppressToast,
+    isToastMinimal: isToastMinimal,
+    trimToastStack: trimToastStack,
+    getStabilityNarrative: getStabilityNarrative,
     snoozeBreakReminder: snoozeBreakReminder,
     dismissBreakNudge: dismissBreakNudge,
     snoozeBreakAndClose: snoozeBreakAndClose,

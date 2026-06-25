@@ -3842,6 +3842,509 @@ body.crozzo-session-comfort .crozzo-skeleton-block {
   }
 }
 
+/* ---------- Luxury cockpit — estabilidad, baja fatiga, sensación premium (todos los roles) ---------- */
+@keyframes crozzoCockpitPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(0.92); }
+}
+@keyframes crozzoCockpitAmbient {
+  0%, 100% { opacity: 0.38; }
+  50% { opacity: 0.52; }
+}
+body.crozzo-luxury-cockpit {
+  --cockpit-gold: var(--gold-primary, #c9a962);
+  --cockpit-gold-soft: rgba(var(--accent-rgb, 201, 169, 98), 0.1);
+  --cockpit-gold-ring: rgba(var(--accent-rgb, 201, 169, 98), 0.28);
+  --cockpit-surface: color-mix(in srgb, var(--bg-primary) 97%, var(--cockpit-gold) 3%);
+  --cockpit-warmth: 0%;
+}
+body.crozzo-luxury-cockpit .main-header.crozzo-header-refined.crozzo-header-elite {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-secondary) 90%, var(--cockpit-gold) 10%) 0%,
+    color-mix(in srgb, var(--bg-secondary) 98%, transparent) 100%
+  );
+  box-shadow: inset 0 1px 0 var(--cockpit-gold-soft);
+}
+body.crozzo-luxury-cockpit .crozzo-header__rail {
+  background: linear-gradient(180deg, transparent, var(--cockpit-gold-ring), transparent);
+}
+body.crozzo-luxury-cockpit .crozzo-header-greeting {
+  color: color-mix(in srgb, var(--text-secondary) 55%, var(--cockpit-gold) 45%);
+  letter-spacing: 0.02em;
+}
+body.crozzo-luxury-cockpit .crozzo-header-psyche-line {
+  font-size: 0.68rem;
+  letter-spacing: 0.015em;
+  color: color-mix(in srgb, var(--text-muted) 82%, var(--cockpit-gold) 18%);
+  opacity: 0.95;
+}
+body.crozzo-luxury-cockpit .crozzo-header__status--elite .crozzo-status-dot {
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 201, 169, 98), 0.14);
+  animation: crozzoCockpitPulse 3.6s var(--ease-calm) infinite;
+}
+body.crozzo-luxury-cockpit .crozzo-header__status--elite .crozzo-status-pill {
+  border-color: color-mix(in srgb, var(--border-subtle) 75%, var(--cockpit-gold) 25%);
+  background: color-mix(in srgb, var(--bg-card) 88%, var(--cockpit-gold-soft) 12%);
+}
+body.crozzo-luxury-cockpit .user-menu__trigger.crozzo-toolbar-btn--user {
+  border-color: color-mix(in srgb, var(--border-default) 78%, var(--cockpit-gold) 22%);
+  box-shadow: 0 0 0 1px var(--cockpit-gold-soft);
+}
+body.crozzo-luxury-cockpit .user-menu__avatar {
+  background: linear-gradient(145deg, var(--cockpit-gold-soft), rgba(var(--accent-rgb, 201, 169, 98), 0.04));
+  box-shadow: inset 0 0 0 1px var(--cockpit-gold-ring);
+}
+body.crozzo-luxury-cockpit #sidebar .nav-item.active {
+  border-left-color: var(--cockpit-gold);
+  background: linear-gradient(90deg, var(--cockpit-gold-soft), transparent 72%);
+}
+body.crozzo-luxury-cockpit .card,
+body.crozzo-luxury-cockpit .crozzo-ventas-card {
+  border-color: color-mix(in srgb, var(--border) 88%, var(--cockpit-gold) 12%);
+  box-shadow: var(--elevation-1);
+}
+body.crozzo-luxury-cockpit .btn-primary {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--cockpit-gold) 35%, transparent);
+}
+body.crozzo-luxury-cockpit .toast.toast-success {
+  border-left: 3px solid var(--cockpit-gold);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+}
+body.crozzo-luxury-cockpit.crozzo-cockpit-operativa .main-body,
+body.crozzo-luxury-cockpit.crozzo-cockpit-operativa #mainContent {
+  background: var(--cockpit-surface);
+}
+body.crozzo-luxury-cockpit.crozzo-cockpit-operativa .main-header.crozzo-header-refined::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cockpit-gold-ring), transparent);
+  pointer-events: none;
+  opacity: 0.55;
+}
+body.crozzo-luxury-cockpit.crozzo-cockpit-operativa .page-title {
+  letter-spacing: -0.018em;
+}
+body.crozzo-luxury-cockpit.crozzo-cockpit-operativa .crozzo-psyche-chip-host {
+  display: none !important;
+}
+body.crozzo-luxury-cockpit.crozzo-session-warmth {
+  --cockpit-warmth: 2%;
+  --cockpit-surface: color-mix(in srgb, var(--bg-primary) 95%, #e8dcc8 var(--cockpit-warmth));
+}
+body.crozzo-luxury-cockpit.crozzo-session-warmth .main-body,
+body.crozzo-luxury-cockpit.crozzo-session-warmth #mainContent {
+  background: color-mix(in srgb, var(--bg-primary) 96%, #e8dcc8 4%);
+}
+body.crozzo-luxury-cockpit.crozzo-session-warmth .page-subtitle,
+body.crozzo-luxury-cockpit.crozzo-session-warmth .form-hint {
+  color: color-mix(in srgb, var(--text-muted) 92%, #8b7355 8%);
+}
+body.crozzo-luxury-cockpit.crozzo-session-deep-warmth {
+  --cockpit-warmth: 4%;
+  --cockpit-surface: color-mix(in srgb, var(--bg-primary) 93%, #e8dcc8 var(--cockpit-warmth));
+}
+body.crozzo-luxury-cockpit.crozzo-session-deep-warmth .main-body,
+body.crozzo-luxury-cockpit.crozzo-session-deep-warmth #mainContent {
+  background: color-mix(in srgb, var(--bg-primary) 94%, #e8dcc8 6%);
+}
+body.crozzo-luxury-cockpit.crozzo-session-deep-warmth .crozzo-header__status--elite .crozzo-status-dot {
+  animation-duration: 4.8s;
+}
+@media (hover: hover) and (pointer: fine) {
+  body.crozzo-luxury-cockpit .crozzo-header__status--elite[data-crozzo-stability]:hover::after {
+    content: attr(data-crozzo-stability);
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    max-width: 240px;
+    padding: 6px 10px;
+    font-size: 0.625rem;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border: 1px solid color-mix(in srgb, var(--border) 80%, var(--cockpit-gold) 20%);
+    border-radius: 8px;
+    box-shadow: var(--elevation-2);
+    white-space: normal;
+    z-index: 40;
+    pointer-events: none;
+    animation: crozzoCockpitAmbient 0.28s var(--ease-calm) forwards;
+  }
+  body.crozzo-luxury-cockpit .crozzo-header__status--elite {
+    position: relative;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.crozzo-luxury-cockpit .crozzo-header__status--elite .crozzo-status-dot {
+    animation: none;
+  }
+}
+
+/* ---------- Tempo operativo: calma · flujo · pico (luxury cockpit) ---------- */
+body.crozzo-luxury-cockpit.crozzo-tempo-calm .crozzo-header__status--elite .crozzo-status-dot.ok {
+  animation: crozzoCockpitPulse 5.2s var(--ease-calm) infinite;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-calm .page-subtitle,
+body.crozzo-luxury-cockpit.crozzo-tempo-calm .crozzo-header-psyche-line {
+  letter-spacing: 0.02em;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-calm.crozzo-cockpit-operativa .main-body,
+body.crozzo-luxury-cockpit.crozzo-tempo-calm.crozzo-cockpit-operativa #mainContent {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cockpit-surface, var(--bg-primary)) 98%, var(--cockpit-gold, #c9a962) 2%) 0%,
+    var(--cockpit-surface, var(--bg-primary)) 48%
+  );
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-calm .card,
+body.crozzo-luxury-cockpit.crozzo-tempo-calm .crozzo-ventas-card {
+  transition: border-color 0.32s var(--ease-calm), box-shadow 0.32s var(--ease-calm);
+}
+
+body.crozzo-luxury-cockpit.crozzo-tempo-flow .crozzo-header__status--elite .crozzo-status-dot.ok {
+  animation: crozzoCockpitPulse 2.6s var(--ease-calm) infinite;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 201, 169, 98), 0.2);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-flow .btn-primary {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--cockpit-gold, #c9a962) 45%, transparent),
+    0 4px 14px rgba(var(--accent-rgb, 201, 169, 98), 0.12);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-flow .main-body.crozzo-page-enter {
+  animation-duration: 300ms;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-flow .toast {
+  animation-duration: 0.28s;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-flow .crozzo-tempo-pill--flow {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-08) 70%, var(--bg-card) 30%);
+}
+
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .crozzo-header__status--elite .crozzo-status-dot {
+  animation: none;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .crozzo-header__status--elite .crozzo-status-dot.warn {
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.42);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .main-header.crozzo-header-refined {
+  padding-top: calc(var(--space-3, 12px) - 2px);
+  padding-bottom: calc(var(--space-3, 12px) - 2px);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush.crozzo-cockpit-operativa .main-body,
+body.crozzo-luxury-cockpit.crozzo-tempo-rush.crozzo-cockpit-operativa #mainContent {
+  background: color-mix(in srgb, var(--bg-primary) 98%, var(--bg-secondary) 2%);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .btn-primary {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-height: 44px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cockpit-gold, #c9a962) 28%, transparent);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .btn-primary:active:not(:disabled) {
+  transform: scale(0.988);
+  transition-duration: 0.08s;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .card,
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .crozzo-ventas-card {
+  box-shadow: none;
+  border-color: var(--border);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .toast {
+  animation-duration: 0.22s;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .crozzo-header-psyche-line {
+  font-size: 0.66rem;
+  opacity: 0.88;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .crozzo-tempo-pill--rush {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.1);
+  color: color-mix(in srgb, var(--warning) 80%, var(--text-primary) 20%);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush .crozzo-tempo-pill--rush .crozzo-status-txt {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.58rem;
+}
+.crozzo-peak-breathe--flow {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: color-mix(in srgb, var(--accent-08) 55%, var(--bg-card) 45%);
+}
+.crozzo-peak-breathe--rush {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+}
+body.crozzo-luxury-cockpit .crozzo-tempo-pill .crozzo-status-dot {
+  width: 6px;
+  height: 6px;
+}
+
+/* Calma — sensación de cuidado y espacio protegido */
+body.crozzo-luxury-cockpit.crozzo-tempo-care {
+  transition: background-color 0.6s var(--ease-calm), color 0.5s var(--ease-calm);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-morph .main-body,
+body.crozzo-luxury-cockpit.crozzo-tempo-morph #mainContent,
+body.crozzo-luxury-cockpit.crozzo-tempo-morph .main-header.crozzo-header-refined {
+  transition: background 0.65s var(--ease-calm), box-shadow 0.5s var(--ease-calm), border-color 0.5s var(--ease-calm);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .main-body,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa #mainContent {
+  box-shadow: inset 0 0 0 1px color-mix(
+    in srgb,
+    var(--accent) calc(var(--crozzo-tempo-intensity, 0) * 18%),
+    transparent
+  );
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-care .crozzo-header-greeting {
+  color: color-mix(in srgb, var(--cockpit-gold, #c9a962) 62%, var(--text-secondary) 38%);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-care .crozzo-header-psyche-line {
+  color: color-mix(in srgb, var(--text-muted) 70%, #8b7355 30%);
+  font-style: normal;
+  opacity: 0.98;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-care .crozzo-tempo-pill--calm {
+  border-color: color-mix(in srgb, #6ee7b7 35%, var(--border-subtle));
+  background: color-mix(in srgb, rgba(16, 185, 129, 0.1) 80%, var(--bg-card) 20%);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-care .crozzo-tempo-pill--calm .crozzo-status-txt {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--success) 75%, var(--text-secondary) 25%);
+}
+.crozzo-calm-care-strip {
+  border-color: color-mix(in srgb, #6ee7b7 28%, var(--border));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, rgba(16, 185, 129, 0.08) 90%, var(--bg-card) 10%),
+    color-mix(in srgb, var(--cockpit-gold-soft, rgba(201, 169, 98, 0.1)) 60%, var(--bg-card) 40%)
+  );
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.crozzo-calm-care-strip__icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.92;
+}
+.crozzo-calm-care-strip__txt {
+  line-height: 1.45;
+}
+.crozzo-calm-care-strip--enter {
+  animation: crozzoCalmCareIn 0.55s var(--ease-calm) forwards;
+}
+@keyframes crozzoCalmCareIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.crozzo-header-psyche-line--care {
+  padding-left: 8px;
+  border-left: 2px solid color-mix(in srgb, #6ee7b7 45%, var(--cockpit-gold, #c9a962) 55%);
+  margin-left: 1px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-care .crozzo-tempo-pill--calm .crozzo-status-dot.ok {
+  animation: crozzoCalmDot 4.8s var(--ease-calm) infinite;
+}
+@keyframes crozzoCalmDot {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); }
+  50% { opacity: 0.82; transform: scale(0.94); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12); }
+}
+body.crozzo-luxury-cockpit[data-crozzo-tempo-scale="pequeno"].crozzo-tempo-care .main-body,
+body.crozzo-luxury-cockpit[data-crozzo-tempo-scale="pequeno"].crozzo-tempo-care #mainContent {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-primary) 96%, #e8dcc8 4%) 0%,
+    var(--bg-primary) 55%
+  );
+}
+body.crozzo-luxury-cockpit[data-crozzo-tempo-phase="noche"].crozzo-tempo-care .crozzo-header-greeting,
+body.crozzo-luxury-cockpit[data-crozzo-tempo-phase="madrugada"].crozzo-tempo-care .crozzo-header-greeting {
+  color: color-mix(in srgb, var(--cockpit-gold, #c9a962) 48%, var(--text-secondary) 52%);
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield .crozzo-header__rail[data-crozzo-rail-tempo] {
+  position: relative;
+  overflow: hidden;
+  width: 2px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield .crozzo-header__rail[data-crozzo-rail-tempo]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--crozzo-rail-fill, 0.2) * 100%);
+  min-height: 12%;
+  background: linear-gradient(180deg, transparent, rgba(var(--accent-rgb, 201, 169, 98), 0.55));
+  border-radius: 1px;
+  transition: height 0.55s var(--ease-calm);
+  pointer-events: none;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield .crozzo-header__rail[data-crozzo-rail-tempo="rush"]::after {
+  background: linear-gradient(180deg, transparent, rgba(245, 158, 11, 0.62));
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .btn-primary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, white 35%);
+  outline-offset: 2px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #toastContainer {
+  bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  right: max(12px, env(safe-area-inset-right, 12px));
+  left: auto;
+  top: auto;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: min(300px, 92vw);
+  pointer-events: none;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #crozzoHeaderPsycheLine,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #crozzoTempoBadge,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #crozzo-peak-breathe-host,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield .crozzo-psyche-chip-host {
+  display: none !important;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa #pageSubtitle {
+  display: none;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .btn,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .btn-sm,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .btn-primary {
+  min-height: 46px;
+  min-width: 46px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .form-input,
+body.crozzo-luxury-cockpit.crozzo-tempo-shield.crozzo-cockpit-operativa .form-select {
+  min-height: 44px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #toastContainer .toast {
+  pointer-events: auto;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #toastContainer .toast {
+  max-width: min(280px, 88vw);
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #toastContainer .toast.toast-tempo-minimal {
+  max-width: min(160px, 52vw);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-left-width: 2px;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield #toastContainer .toast.toast-tempo-minimal .crozzo-toast__icon {
+  font-size: 0.875rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-calm-care-strip--enter,
+  body.crozzo-luxury-cockpit.crozzo-tempo-care .crozzo-tempo-pill--calm .crozzo-status-dot.ok {
+    animation: none !important;
+  }
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-rush.crozzo-cockpit-operativa .main-header .page-title {
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+}
+
+/* ---------- Asistencia operativa por área — micro UI (sin ocupar pantalla) ---------- */
+.crozzo-flow-micro-cue {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(168px, 42vw);
+  padding: 2px 7px;
+  margin: 0 4px 0 0;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  background: color-mix(in srgb, var(--bg-primary) 88%, #64748b 12%);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+.crozzo-flow-micro-cue.crozzo-flow-lvl--busy {
+  background: color-mix(in srgb, var(--bg-primary) 82%, #f59e0b 18%);
+  color: var(--text-primary);
+}
+.crozzo-flow-micro-cue.crozzo-flow-lvl--saturated {
+  background: color-mix(in srgb, var(--bg-primary) 78%, #f97316 22%);
+  color: var(--text-primary);
+}
+.crozzo-flow-micro-cue.crozzo-flow-lvl--collapsed {
+  background: color-mix(in srgb, var(--bg-primary) 72%, #ef4444 28%);
+  color: #fff;
+}
+.crozzo-station-note__flow-micro {
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.92;
+}
+.crozzo-station-note__flow-micro.crozzo-flow-lvl--saturated,
+.crozzo-station-note__flow-micro.crozzo-flow-lvl--collapsed {
+  color: #ef4444;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield .crozzo-flow-micro-cue {
+  max-width: min(120px, 36vw);
+  font-size: 0.58rem;
+  padding: 1px 6px;
+}
+html.crozzo-touch-shell .crozzo-flow-micro-cue {
+  max-width: min(140px, 38vw);
+}
+.crozzo-caja-micro-cue {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(156px, 40vw);
+  padding: 2px 7px;
+  margin: 0 4px 0 0;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  background: color-mix(in srgb, var(--bg-primary) 86%, #3b82f6 14%);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+.crozzo-caja-micro-cue--busy {
+  background: color-mix(in srgb, var(--bg-primary) 82%, #f59e0b 18%);
+  color: var(--text-primary);
+}
+.crozzo-caja-micro-cue--warn {
+  background: color-mix(in srgb, var(--bg-primary) 78%, #ef4444 22%);
+  color: #fff;
+}
+body.crozzo-luxury-cockpit.crozzo-tempo-shield .crozzo-caja-micro-cue {
+  max-width: min(112px, 34vw);
+  font-size: 0.58rem;
+}
+@media (max-width: 520px) {
+  .crozzo-caja-micro-cue {
+    max-width: min(100px, 32vw);
+  }
+}
+
 /* ---------- Premium psyche — estatus, pertenencia y valor personal (sin fatiga) ---------- */
 body.crozzo-premium-psyche {
   --premium-gold: var(--gold-primary, #c9a962);
@@ -16050,6 +16553,42 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
   box-shadow: 0 4px 14px rgba(var(--retail-gold-rgb), 0.3);
 }
 .crozzo-retail-row__add:hover { filter: brightness(1.08); }
+.crozzo-retail-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+.crozzo-retail-stock-badge--ok {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.crozzo-retail-stock-badge--low {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+.crozzo-retail-stock-badge--out {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.crozzo-retail-row--stock-low {
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+.crozzo-retail-row--stock-out {
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  opacity: 0.92;
+}
+.crozzo-retail-stock-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.crozzo-retail-stock-hint--low { color: var(--warning); }
+.crozzo-retail-stock-hint--out { color: var(--danger); }
 .crozzo-retail-checkout-head {
   padding: 14px 16px;
   border-bottom: 1px solid rgba(var(--retail-gold-rgb), 0.14);
@@ -50187,6 +50726,42 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
   box-shadow: 0 4px 14px rgba(var(--retail-gold-rgb), 0.3);
 }
 .crozzo-retail-row__add:hover { filter: brightness(1.08); }
+.crozzo-retail-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+}
+.crozzo-retail-stock-badge--ok {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.crozzo-retail-stock-badge--low {
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+.crozzo-retail-stock-badge--out {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.crozzo-retail-row--stock-low {
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+.crozzo-retail-row--stock-out {
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  opacity: 0.92;
+}
+.crozzo-retail-stock-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.crozzo-retail-stock-hint--low { color: var(--warning); }
+.crozzo-retail-stock-hint--out { color: var(--danger); }
 .crozzo-retail-checkout-head {
   padding: 14px 16px;
   border-bottom: 1px solid rgba(var(--retail-gold-rgb), 0.14);

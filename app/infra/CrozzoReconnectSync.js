@@ -63,6 +63,12 @@
         } catch (_) {}
       }
     }
+    if (typeof global.crozzoFlushReservorioSyncQueue === 'function') {
+      try {
+        var rf = global.crozzoFlushReservorioSyncQueue({ force: true, kind: 'reconnect_push', priority: 2 });
+        if (rf && rf.mirrored) pushed += Number(rf.mirrored) || 0;
+      } catch (_) {}
+    }
     if (typeof global.syncOfflineQueue === 'function') {
       try {
         var sq = await global.syncOfflineQueue({ force: true, kind: 'reconnect_push', priority: 1 });

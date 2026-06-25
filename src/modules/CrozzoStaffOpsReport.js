@@ -7,10 +7,12 @@
   var FAULTS_KEY = 'staffFaultLog';
   var SESSIONS_KEY = 'staffSessionLog';
   var MESA_SESSION_KEY = 'mesaSessionLog';
+  var CAJA_CHECKOUT_KEY = 'cajaCheckoutLog';
   var OPEN_SESS_KEY = 'crozzo_staff_ops_open_sess';
   var FAULT_LIMIT = 600;
   var SESS_LIMIT = 400;
   var MESA_SESS_LIMIT = 800;
+  var CAJA_CHECKOUT_LIMIT = 1500;
   var openMesas = {};
   var VOID_TYPES = {
     remove_line: 1,
@@ -405,6 +407,59 @@
     return (Array.isArray(log) ? log : []).filter(function (s) {
       return s && s.businessDate === range.key;
     });
+  }
+
+  function collectCajaCheckouts(range) {
+    var c = cfg();
+    var log = c ? c.get(CAJA_CHECKOUT_KEY) || [] : [];
+    return (Array.isArray(log) ? log : []).filter(function (e) {
+      return e && e.businessDate === range.key;
+    });
+  }
+
+  function collectDeclaraciones(range) {
+    var c = cfg();
+    var log = c ? c.get('cajaDeclaracionesTurno') || [] : [];
+    return filterByDayRange(Array.isArray(log) ? log : [], function (e) {
+      return new Date(e.at || 0).getTime();
+    }, range);
+  }
+
+  function recordCajaCheckout(factura, opts) {
+    opts = opts || {};
+    if (!factura) return;
+    var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+    if (!u) return;
+    var dur = opts.checkoutDurationMs;
+    if (dur != null) {
+      dur = Math.max(0, Math.min(45 * 60000, num(dur)));
+    } else {
+      dur = null;
+    }
+    pushConfigList(
+      CAJA_CHECKOUT_KEY,
+      {
+        at: factura.fecha || factura.fechaEmision || new Date().toISOString(),
+        businessDate: businessDate(),
+        userId: u.id,
+        userName: String(u.nombre || u.id),
+        facturaUuid: factura.uuid || '',
+        total: num(factura.total),
+        metodo: String(factura.metodoPago || ''),
+        tipoServicio: String(factura.tipoServicio || ''),
+        checkoutDurationMs: dur,
+        pendingCobroSlots: num(opts.pendingCobroSlots),
+      },
+      CAJA_CHECKOUT_LIMIT
+    );
+    try {
+      if (global.CrozzoOperativeCajaAssist && typeof global.CrozzoOperativeCajaAssist.clearOrderOpen === 'function') {
+        global.CrozzoOperativeCajaAssist.clearOrderOpen();
+      }
+      if (global.CrozzoOperativeCajaAssist && typeof global.CrozzoOperativeCajaAssist.onCheckout === 'function') {
+        global.CrozzoOperativeCajaAssist.onCheckout();
+      }
+    } catch (_) {}
   }
 
   function estimateDwellBeforeSale(mesaId, saleTs, comandaList) {
@@ -888,6 +943,8 @@
     var sessions = collectSessions(range);
     var comandas = collectComandas(range);
     var facturas = collectFacturas(range);
+    var cajaCheckouts = collectCajaCheckouts(range);
+    var declaraciones = collectDeclaraciones(range);
 
     var deletedProducts = {};
     voids.forEach(function (e) {
@@ -1059,6 +1116,12 @@
           voids: 0,
           abortados: 0,
           hoursMs: 0,
+          checkoutSum: 0,
+          checkoutCount: 0,
+          pendingSum: 0,
+          pendingSamples: 0,
+          declaracionDiffSum: 0,
+          declaracionCount: 0,
         };
       }
       return cajeroMap[id];
@@ -1086,12 +1149,35 @@
       var row = ensureCajero(s.userId, s.userName);
       row.hoursMs += num(s.durationMs);
     });
+    cajaCheckouts.forEach(function (e) {
+      var uid = e.userId || matchStaffId(staff, e.userName);
+      var row = ensureCajero(uid, e.userName);
+      if (e.checkoutDurationMs != null && isFinite(e.checkoutDurationMs)) {
+        row.checkoutSum += num(e.checkoutDurationMs);
+        row.checkoutCount += 1;
+      }
+      if (e.pendingCobroSlots != null) {
+        row.pendingSum += num(e.pendingCobroSlots);
+        row.pendingSamples += 1;
+      }
+    });
+    declaraciones.forEach(function (d) {
+      var uid = d.userId || matchStaffId(staff, d.user);
+      var row = ensureCajero(uid, d.user);
+      row.declaracionDiffSum += Math.abs(num(d.diff));
+      row.declaracionCount += 1;
+    });
     var cajeroRows = Object.keys(cajeroMap)
       .map(function (k) {
         var r = cajeroMap[k];
         var avg = r.count > 0 ? r.ventas / r.count : 0;
         var err = r.voids + r.abortados * 2;
         var score = computeScore(r.count > 0 ? Math.min(100, r.count * 12) : 0, err, r.count, r.hoursMs);
+        var hours = Math.max(0.25, r.hoursMs / 3600000);
+        var cobrosHoraCount = r.count > 0 && r.hoursMs > 0 ? Math.round((r.count / hours) * 10) / 10 : 0;
+        var avgCheckoutMs = r.checkoutCount > 0 ? r.checkoutSum / r.checkoutCount : null;
+        var avgPending =
+          r.pendingSamples > 0 ? Math.round((r.pendingSum / r.pendingSamples) * 10) / 10 : null;
         return {
           id: r.id,
           name: r.name,
@@ -1103,7 +1189,12 @@
           abortados: r.abortados,
           hoursMs: r.hoursMs,
           hoursLabel: formatMs(r.hoursMs),
-          ventasHora: r.hoursMs > 0 ? '$' + Math.round(r.ventas / (r.hoursMs / 3600000)).toLocaleString('es-CO') : '—',
+          ventasHora: r.hoursMs > 0 ? '$' + Math.round(r.ventas / hours).toLocaleString('es-CO') : '—',
+          cobrosHoraCount: cobrosHoraCount,
+          avgCheckoutMin: avgCheckoutMs != null ? (avgCheckoutMs / 60000).toFixed(1) : '—',
+          avgPendingCobro: avgPending != null ? avgPending : '—',
+          declaracionDiffAvg:
+            r.declaracionCount > 0 ? Math.round(r.declaracionDiffSum / r.declaracionCount) : null,
           score: score,
           scoreClass: scoreClass(score),
         };
@@ -1182,7 +1273,7 @@
     }
     return (
       '<div class="crozzo-rep-table-wrap"><table class="crozzo-rep-staff-table">' +
-      '<thead><tr><th>Cajero</th><th class="num">Score</th><th class="num">Ventas</th><th class="num">#</th><th class="num">Ticket</th><th class="num">Efectivo</th><th class="num">Errores</th><th class="num">Abortados</th><th class="num">Conectado</th><th class="num">$/h</th></tr></thead><tbody>' +
+      '<thead><tr><th>Cajero</th><th class="num">Score</th><th class="num">Ventas</th><th class="num">#</th><th class="num">Cob/h</th><th class="num">T. cobro</th><th class="num">Pend.</th><th class="num">Ticket</th><th class="num">Errores</th><th class="num">Abort.</th><th class="num">$/h</th></tr></thead><tbody>' +
       rows
         .map(function (r) {
           return (
@@ -1201,11 +1292,17 @@
             '<td class="num">' +
             r.count +
             '</td>' +
-            '<td class="num">$' +
-            Math.round(r.avg).toLocaleString('es-CO') +
+            '<td class="num">' +
+            (r.cobrosHoraCount ? r.cobrosHoraCount : '—') +
+            '</td>' +
+            '<td class="num">' +
+            esc(r.avgCheckoutMin === '—' ? '—' : r.avgCheckoutMin + 'm') +
+            '</td>' +
+            '<td class="num">' +
+            esc(r.avgPendingCobro === '—' ? '—' : String(r.avgPendingCobro)) +
             '</td>' +
             '<td class="num">$' +
-            Math.round(r.cash).toLocaleString('es-CO') +
+            Math.round(r.avg).toLocaleString('es-CO') +
             '</td>' +
             '<td class="num">' +
             r.voids +
@@ -1214,10 +1311,7 @@
             r.abortados +
             '</td>' +
             '<td class="num">' +
-            esc(r.hoursLabel) +
-            '</td>' +
-            '<td class="num">' +
-            r.ventasHora +
+            esc(r.ventasHora) +
             '</td></tr>'
           );
         })
@@ -1245,7 +1339,9 @@
       '</div>' +
       '<div class="crozzo-rep-dash-block"><h3 class="crozzo-rep-dash-title">Productos más vendidos</h3><div id="crozzo-rep-staff-top"></div></div>' +
       '<div class="crozzo-rep-dash-block"><h3 class="crozzo-rep-dash-title">Rendimiento meseros</h3><div id="crozzo-rep-staff-meseros"></div></div>' +
-      '<div class="crozzo-rep-dash-block"><h3 class="crozzo-rep-dash-title">Rendimiento cajeros</h3><div id="crozzo-rep-staff-cajeros"></div></div>' +
+      '<div class="crozzo-rep-dash-block"><h3 class="crozzo-rep-dash-title">Rendimiento cajeros</h3>' +
+      '<p class="form-hint" style="margin:0 0 10px;">Cobros/h, tiempo medio por cobro (desde abrir mesa hasta facturar), cola pendiente al cobrar, errores y abortados. Score = volumen + precisión.</p>' +
+      '<div id="crozzo-rep-staff-cajeros"></div></div>' +
       '<div class="crozzo-rep-dash-block"><h3 class="crozzo-rep-dash-title">Pantallas de producción (cocina, bar, fríos…)</h3>' +
       '<p class="form-hint" style="margin:0 0 10px;">Cada pantalla que crea el cliente · tiempos meta en Config. Comandas · plausibilidad revisa si los datos cuadran.</p>' +
       '<div id="crozzo-rep-staff-pantallas"></div></div>' +
@@ -1535,7 +1631,19 @@
       rows.push(['mesero', r.id, r.name, r.score, r.mesas, r.comandas, r.ventasMesa, r.faults, r.voids, r.hoursMs]);
     });
     m.cajeroRows.forEach(function (r) {
-      rows.push(['cajero', r.id, r.name, r.score, r.count, r.ventas, r.avg, r.voids, r.abortados, r.hoursMs]);
+      rows.push([
+        'cajero',
+        r.id,
+        r.name,
+        r.score,
+        r.count,
+        r.ventas,
+        r.cobrosHoraCount,
+        r.avgCheckoutMin,
+        r.avgPendingCobro,
+        r.voids,
+        r.abortados,
+      ]);
     });
     m.pantallaRows.forEach(function (r) {
       rows.push([
@@ -1581,6 +1689,7 @@
     mesaOpenSession: mesaOpenSession,
     mesaTrackComanda: mesaTrackComanda,
     recordMesaSale: recordMesaSale,
+    recordCajaCheckout: recordCajaCheckout,
     computeMetrics: computeMetrics,
     renderDashboardPanelHtml: renderDashboardPanelHtml,
     refreshDashboard: refreshDashboard,

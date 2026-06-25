@@ -81,6 +81,11 @@
   function onOnline() {
     refreshConnectivity();
     try {
+      if (typeof global.crozzoFlushReservorioSyncQueue === 'function') {
+        global.crozzoFlushReservorioSyncQueue({ force: true, kind: 'online_reservorio', priority: 2 });
+      }
+    } catch (_) {}
+    try {
       if (typeof global.showToast === 'function') {
         global.showToast('Conexión restablecida', 'success');
       }
@@ -185,7 +190,9 @@
     refreshConnectivity: refreshConnectivity,
   };
 
-  if (document.readyState === 'loading') {
+  if (global.__crozzoOfflineInited) {
+    global.addEventListener('online', onOnline);
+  } else if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();

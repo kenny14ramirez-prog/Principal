@@ -360,6 +360,9 @@
         new CustomEvent('crozzo-reservorio-updated', { detail: { updatedAt: st.updatedAt, saveOk: r.ok } })
       );
     } catch (_) {}
+    if (r.ok && st.syncQueue && st.syncQueue.some(function (q) { return q && q.estado === 'pendiente'; })) {
+      scheduleFlushSyncQueueToCloud({ kind: 'reservorio_save' });
+    }
     return st;
   }
 
@@ -440,6 +443,127 @@
       if (typeof global.crozzoCostosEmit === 'function') global.crozzoCostosEmit(eventName, detail);
       else if (global.CrozzoSistemaCostos && global.CrozzoSistemaCostos.emit) global.CrozzoSistemaCostos.emit(eventName, detail);
     } catch (_) {}
+  }
+
+  var __reservorioCloudFlushTimer = null;
+
+  /** Evita colisión con ventas FE en sync_queue (tabla `sales`). */
+  function reservorioCloudTableName(tabla) {
+    var t = String(tabla || '').trim();
+    if (t === 'facturas') return 'facturas_proveedor';
+    return t;
+  }
+
+  function reservorioCloudOpType(tabla) {
+    var t = String(tabla || '');
+    if (t === 'facturas') return 'oficina_factura';
+    if (t === 'recepciones') return 'recepcion';
+    if (t === 'crozzo_planilla_feed') return 'planilla_feed';
+    return 'reservorio_' + t;
+  }
+
+  function reservorioSyncTransactionId(entry) {
+    var p = entry && entry.payload ? entry.payload : {};
+    var pid = p.id || p.recepcionId || p.referencia_id || (entry && entry.id);
+    return (
+      'resv-' +
+      String((entry && entry.tabla) || 'x') +
+      '-' +
+      String((entry && (entry.op || entry.tipo)) || 'sync') +
+      '-' +
+      String(pid || 'na')
+    );
+  }
+
+  /** Espeja una fila del reservorio local → cola offline global (sync_queue_temp). */
+  function mirrorSyncEntryToOfflineQueue(entry) {
+    if (!entry || entry.estado !== 'pendiente') return false;
+    if (typeof global.enqueueOfflineOperation !== 'function') return false;
+    var tabla = entry.tabla || '';
+    var opRaw = String(entry.op || entry.tipo || 'insert').toLowerCase();
+    var operation = opRaw === 'upsert' ? 'upsert' : opRaw;
+    if (['insert', 'update', 'delete', 'upsert'].indexOf(operation) < 0) operation = 'insert';
+    var tid = reservorioSyncTransactionId(entry);
+    var type = reservorioCloudOpType(tabla);
+    var pri = 2;
+    if (type === 'oficina_factura' || type === 'recepcion') pri = 2;
+    try {
+      global.enqueueOfflineOperation({
+        operation: operation,
+        table_name: reservorioCloudTableName(tabla),
+        type: type,
+        syncPriority: pri,
+        transaction_id: tid,
+        payload: {
+          reservorio: true,
+          tabla: tabla,
+          op: operation,
+          data: entry.payload || {},
+          transaction_id: tid,
+          at: Date.now(),
+        },
+        device_id:
+          typeof global.crozzoCloudDeviceUuidForRest === 'function' ? global.crozzoCloudDeviceUuidForRest() : undefined,
+      });
+      return true;
+    } catch (e) {
+      console.warn('[reservorio] mirror sync nube', e);
+      return false;
+    }
+  }
+
+  /**
+   * Drena syncQueue del reservorio hacia la cola offline global y dispara syncOfflineQueue.
+   * Paridad con ventas (crozzoQueueFacturaForCloudSync → syncOfflineQueue).
+   */
+  function flushSyncQueueToCloud(opts) {
+    opts = opts || {};
+    if (
+      typeof global.crozzoShouldUseCloud === 'function' &&
+      !global.crozzoShouldUseCloud() &&
+      !opts.force
+    ) {
+      return { ok: false, reason: 'local_only', mirrored: 0 };
+    }
+    if (typeof global.enqueueOfflineOperation !== 'function') {
+      return { ok: false, reason: 'sin_cola_global', mirrored: 0 };
+    }
+    var st = load();
+    var mirrored = 0;
+    var changed = false;
+    (st.syncQueue || []).forEach(function (entry) {
+      if (!entry || entry.estado !== 'pendiente') return;
+      if (mirrorSyncEntryToOfflineQueue(entry)) {
+        entry.estado = 'encolado_nube';
+        entry.encoladoAt = new Date().toISOString();
+        mirrored++;
+        changed = true;
+      }
+    });
+    if (changed) {
+      try {
+        saveSafe(st);
+      } catch (_) {}
+    }
+    if (mirrored > 0 && typeof global.syncOfflineQueue === 'function') {
+      var pri = opts.priority != null ? opts.priority : 2;
+      void Promise.resolve().then(function () {
+        return global.syncOfflineQueue({
+          kind: opts.kind || 'reservorio_flush',
+          priority: pri,
+          force: !!opts.force,
+        });
+      });
+    }
+    return { ok: true, mirrored: mirrored };
+  }
+
+  function scheduleFlushSyncQueueToCloud(opts) {
+    if (__reservorioCloudFlushTimer) clearTimeout(__reservorioCloudFlushTimer);
+    __reservorioCloudFlushTimer = setTimeout(function () {
+      __reservorioCloudFlushTimer = null;
+      flushSyncQueueToCloud(opts || { kind: 'reservorio_debounce' });
+    }, 450);
   }
 
   function pushSync(st, op) {
@@ -1169,8 +1293,14 @@
     if (patch.metodo) fac.metodo = patch.metodo;
     if (patch.estado) fac.estado = patch.estado;
     if (patch.notas !== undefined) fac.notas = String(patch.notas || '');
+    if (patch.comprobantePago !== undefined) fac.comprobantePago = patch.comprobantePago || null;
     if (patch.oficinaMeta && typeof patch.oficinaMeta === 'object') {
       fac.oficinaMeta = Object.assign({}, fac.oficinaMeta || {}, patch.oficinaMeta);
+    }
+    if (patch.estado === 'pagada') {
+      fac.pagadaEn = patch.pagadaEn || fac.pagadaEn || new Date().toISOString();
+    } else if (patch.pagadaEn) {
+      fac.pagadaEn = patch.pagadaEn;
     }
     fac.updatedAt = new Date().toISOString();
     pushSync(st, { tipo: 'update', tabla: 'facturas', payload: fac });
@@ -1631,25 +1761,38 @@
 
   function registrarVenta(input) {
     var st = migrateLegacy();
+    var opts = input.opts || {};
     var total = Number(input.monto || input.total) || 0;
     var items = input.items || [];
+    var skipPosLedger = null;
+    if (opts.skipPosLedgerIds && opts.skipPosLedgerIds.length) {
+      skipPosLedger = {};
+      opts.skipPosLedgerIds.forEach(function (id) {
+        skipPosLedger[String(id)] = true;
+      });
+    }
+
     consumirIngredientesAlVender(st, input);
 
-    items.forEach(function (line) {
-      var qty = Number(line.cantidad || line.qty) || 0;
-      if (qty <= 0) return;
-      addInventarioMovimiento(st, {
-        tipo: 'salida_venta',
-        refTipo: 'venta',
-        refId: input.saleId || input.uuid,
-        productoRefTipo: 'producto_pos',
-        productoRefId: line.id || line.productId,
-        productoNombre: line.nombre || '',
-        cantidad: qty,
-        unidad: 'und',
-        notas: 'Venta POS',
+    if (!opts.skipPosLedger) {
+      items.forEach(function (line) {
+        var pid = line.id != null ? line.id : line.productId;
+        if (skipPosLedger && skipPosLedger[String(pid)]) return;
+        var qty = Number(line.cantidad || line.qty) || 0;
+        if (qty <= 0) return;
+        addInventarioMovimiento(st, {
+          tipo: 'salida_venta',
+          refTipo: 'venta',
+          refId: input.saleId || input.uuid,
+          productoRefTipo: 'producto_pos',
+          productoRefId: pid,
+          productoNombre: line.nombre || '',
+          cantidad: qty,
+          unidad: 'und',
+          notas: opts.orquestado ? 'Venta POS (stock catálogo)' : 'Venta POS',
+        });
       });
-    });
+    }
 
     if (total > 0) {
       enqueuePlanilla(st, {
@@ -2205,6 +2348,7 @@
     repairIfNeeded: repairIfNeeded,
     runBlobMigration: runBlobMigration,
     flushBackup: flushBackup,
+    flushSyncQueueToCloud: flushSyncQueueToCloud,
     registrarFeLink: registrarFeLink,
     queryFeLinks: queryFeLinks,
     resolveProveedorPorNit: resolveProveedorPorNit,
@@ -2213,4 +2357,5 @@
 
   global.crozzoReservorioRegistrarVenta = registrarVenta;
   global.crozzoReservorioUpsertProveedor = upsertProveedor;
+  global.crozzoFlushReservorioSyncQueue = flushSyncQueueToCloud;
 })(typeof window !== 'undefined' ? window : globalThis);

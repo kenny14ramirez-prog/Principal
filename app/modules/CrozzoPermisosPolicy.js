@@ -57,7 +57,7 @@
   /** Presets por rol: qué puede delegar el admin por defecto (sin permisos sensibles). */
   var ROLE_PERM_PRESETS = {
     caja: {
-      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado', 'cierre_arqueo'],
+      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
       comandas: ['ver'],
       inventario: ['reportes', 'proveedores'],
       productos: [],

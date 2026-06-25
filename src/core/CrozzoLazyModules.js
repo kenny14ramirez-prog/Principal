@@ -141,7 +141,13 @@
     idle(function () {
       var bundles =
         global.CrozzoManifest && global.CrozzoManifest.bundles ? global.CrozzoManifest.bundles : {};
-      if (bundles.reservorio) loadOne(bundles.reservorio).catch(function () {});
+      if (bundles.reservorio) {
+        loadOne(bundles.reservorio)
+          .then(function () {
+            return loadAll(['modules/CrozzoReservorio.js', 'modules/CrozzoReservorioOffline.js']);
+          })
+          .catch(function () {});
+      }
       if (bundles.costos) loadOne(bundles.costos).catch(function () {});
       var hp =
         global.CrozzoManifest && global.CrozzoManifest.modules

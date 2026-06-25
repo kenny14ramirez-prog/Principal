@@ -343,6 +343,9 @@
       llevarNombres: llevarNombres,
     });
     applySalonSlotsToRuntime();
+    try {
+      document.dispatchEvent(new CustomEvent('crozzo-salon-config-changed', { bubbles: true }));
+    } catch (_) {}
     if (typeof global.showToast === 'function') {
       global.showToast('Mesas y llevar actualizados (' + mesaCount + ' mesas · ' + llevarCount + ' llevar)', 'success');
     }

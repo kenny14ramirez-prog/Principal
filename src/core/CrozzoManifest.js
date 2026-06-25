@@ -14,6 +14,9 @@
     costos: B + 'CrozzoBundleCostos.js',
   };
 
+  /** Tras el bundle, fuente en modules/ gana (dev sin re-consolidar). */
+  var RESERVORIO_CANONICAL = [M + 'CrozzoReservorio.js', M + 'CrozzoReservorioOffline.js'];
+
   /** Dependencias de bundles + módulos canónicos (sobreescriben copias embebidas en bundles). */
   var PROCESOS_STACK = [
     BUNDLES.compras,
@@ -191,13 +194,21 @@
     return p;
   }
 
+  function appendReservorioCanonical(list) {
+    if (!list || list.indexOf(BUNDLES.reservorio) < 0) return list;
+    RESERVORIO_CANONICAL.forEach(function (src) {
+      if (list.indexOf(src) < 0) list.push(src);
+    });
+    return list;
+  }
+
   function scriptsForPage(page) {
     var canonical = resolvePageAlias(page);
     var list = PAGE_SCRIPTS[canonical] ? PAGE_SCRIPTS[canonical].slice() : [];
     if (global.__crozzoHoneypotLive && global.__crozzoHoneypotLive.active) {
       if (list.indexOf(MODULES.honeypot) < 0) list.unshift(MODULES.honeypot);
     }
-    return list;
+    return appendReservorioCanonical(list);
   }
 
   global.CrozzoManifest = {

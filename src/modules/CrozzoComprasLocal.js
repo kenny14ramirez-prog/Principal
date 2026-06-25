@@ -241,6 +241,12 @@
       '.crozzo-oficina-doc-btn:hover,.crozzo-oficina-doc-btn.is-active{background:rgba(var(--accent-rgb,59,130,246),.18);border-color:var(--accent);box-shadow:0 2px 10px rgba(var(--accent-rgb,59,130,246),.15)}' +
       '.crozzo-oficina-doc-btn__icon{font-size:.95rem;line-height:1}' +
       '.crozzo-oficina-doc-none{font-size:.72rem;color:var(--text-muted);opacity:.65}' +
+      '.crozzo-oficina-doc-cell{display:flex;flex-wrap:wrap;gap:4px;align-items:center}' +
+      '.crozzo-oficina-comp{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}' +
+      '.crozzo-oficina-comp__has{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}' +
+      '.crozzo-oficina-comp__badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid rgba(var(--success-rgb,34,197,94),.35);background:rgba(var(--success-rgb,34,197,94),.08);font-size:.78rem;font-weight:600;color:var(--text-primary)}' +
+      '.crozzo-oficina-comp__actions{display:flex;flex-wrap:wrap;gap:6px}' +
+      '.crozzo-oficina-comp-panel{padding:14px}' +
       '.crozzo-oficina-pdf-row td{padding:0!important;border-bottom:1px solid var(--border)}' +
       '.crozzo-oficina-pdf-panel{border-top:2px solid rgba(var(--accent-rgb,59,130,246),.25);background:linear-gradient(180deg,rgba(var(--accent-rgb,59,130,246),.04),var(--bg-card))}' +
       '.crozzo-oficina-pdf-panel__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg-secondary)}' +
@@ -564,6 +570,219 @@
 
   function ofHasDocument(f) {
     return ofResolveAdjuntos(f).length > 0;
+  }
+
+  function ofHasComprobantePago(f) {
+    var cp = f && f.comprobantePago;
+    if (!cp) return false;
+    return !!(cp.blobRef || cp.blobId || cp.url || cp.supabasePath);
+  }
+
+  function ofComprobanteBlobId(f) {
+    var cp = f && f.comprobantePago;
+    if (!cp) return null;
+    return ofAdjBlobId(cp);
+  }
+
+  function ofReadFileDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file) return reject(new Error('Sin archivo'));
+      var fr = new FileReader();
+      fr.onload = function () {
+        resolve(fr.result);
+      };
+      fr.onerror = function () {
+        reject(fr.error || new Error('No se pudo leer el archivo'));
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function ofStoreComprobantePago(facturaId, file) {
+    var B = global.CrozzoBlobStore;
+    var res = R();
+    if (!B || !B.putBlob) return Promise.reject(new Error('Almacén local no disponible'));
+    if (!res || !res.actualizarFacturaOficina) return Promise.reject(new Error('Reservorio no disponible'));
+    var fac = ofListAll().find(function (x) {
+      return String(x.id) === String(facturaId);
+    });
+    return ofReadFileDataUrl(file).then(function (dataUrl) {
+      return B.putBlob({
+        dataUrl: dataUrl,
+        mime: file.type || 'application/octet-stream',
+        nombre: file.name || 'comprobante-pago',
+        refTipo: 'oficina_comprobante',
+        proveedorId: fac && fac.proveedorId,
+      });
+    }).then(function (rec) {
+      var adj = {
+        id: rec.id,
+        blobRef: rec.id,
+        blobId: rec.id,
+        nombre: String(rec.nombre || file.name || 'comprobante-pago').slice(0, 120),
+        mime: rec.mime || file.type || 'application/octet-stream',
+        uploadedAt: new Date().toISOString(),
+        tipo: 'comprobante_pago',
+      };
+      res.actualizarFacturaOficina(facturaId, { comprobantePago: adj });
+      return adj;
+    });
+  }
+
+  function ofComprobantePagoHtml(f) {
+    var fid = esc(f.id);
+    var cp = f.comprobantePago;
+    var has = ofHasComprobantePago(f);
+    var name = has ? esc(String(cp.nombre || 'Comprobante').slice(0, 48)) : '';
+    var uploaded =
+      has && cp.uploadedAt ? esc(ofFormatFecha(String(cp.uploadedAt).slice(0, 10))) : '';
+    return (
+      '<div class="crozzo-oficina-comp">' +
+      '<p class="crozzo-oficina-edit__title">Comprobante de pago</p>' +
+      (has
+        ? '<div class="crozzo-oficina-comp__has">' +
+          '<span class="crozzo-oficina-comp__badge">🧾 ' +
+          name +
+          '</span>' +
+          (uploaded ? '<span class="form-hint">Subido ' + uploaded + '</span>' : '') +
+          '<div class="crozzo-oficina-comp__actions">' +
+          '<button type="button" class="btn btn-outline btn-sm ccl-of-comp-ver" data-id="' +
+          fid +
+          '">Ver comprobante</button>' +
+          '<label class="btn btn-ghost btn-sm">Reemplazar<input type="file" class="ccl-of-comp-file" data-id="' +
+          fid +
+          '" accept="application/pdf,image/*,.jpg,.jpeg,.png,.webp" hidden></label>' +
+          '</div></div>'
+        : '<p class="form-hint" style="margin:0 0 8px">Adjunte transferencia, consignación o soporte bancario (PDF o imagen). Puede hacerlo al confirmar el pago o después.</p>' +
+          '<label class="btn btn-outline btn-sm">📎 Subir comprobante<input type="file" class="ccl-of-comp-file" data-id="' +
+          fid +
+          '" accept="application/pdf,image/*,.jpg,.jpeg,.png,.webp" hidden></label>') +
+      '</div>'
+    );
+  }
+
+  function ofComprobantePanelHtml(f) {
+    var fid = esc(f.id);
+    var has = ofHasComprobantePago(f);
+    return (
+      '<div class="crozzo-oficina-comp-panel">' +
+      ofComprobantePagoHtml(f) +
+      (has
+        ? '<div class="crozzo-oficina-pdf-panel__body has-preview" data-comp-panel="' +
+          fid +
+          '">' +
+          '<div class="crozzo-oficina-pdf-loading" data-comp-preview-load>Cargando comprobante…</div>' +
+          '<canvas class="crozzo-oficina-pdf-canvas" data-comp-preview-canvas aria-label="Comprobante de pago"></canvas>' +
+          '<iframe class="crozzo-oficina-pdf-iframe" data-comp-preview-iframe title="Comprobante de pago"></iframe>' +
+          '<img class="crozzo-oficina-pdf-img" data-comp-preview-img alt="Comprobante de pago">' +
+          '</div>'
+        : '<div class="crozzo-oficina-empty">Sin comprobante adjunto.</div>') +
+      '</div>'
+    );
+  }
+
+  function ofMountComprobantePreview(host, facturaId) {
+    var fac = ofListAll().find(function (x) {
+      return String(x.id) === String(facturaId);
+    });
+    if (!fac || !ofHasComprobantePago(fac) || !host) return;
+    var panelBody = host.querySelector('[data-comp-panel="' + facturaId + '"]');
+    if (!panelBody) return;
+    var PDm = PD();
+    var blobId = ofComprobanteBlobId(fac);
+    var load = panelBody.querySelector('[data-comp-preview-load]');
+    if (blobId && PDm && PDm.mountBlobPreview) {
+      PDm.mountBlobPreview(panelBody, blobId, {
+        maxWidth: panelBody.clientWidth || 900,
+        trackUrls: ofUi._blobUrls,
+        loadingText: 'Cargando comprobante…',
+      }).then(function (ok) {
+        if (!ok && load) {
+          load.style.display = 'flex';
+          load.textContent = 'Comprobante no disponible — vuelva a subirlo';
+        }
+      });
+    }
+  }
+
+  function ofOpenModalPago(host, facPay) {
+    var prov = ofGetProveedor(facPay);
+    var calc = ofCalcRetenciones(facPay, prov);
+    var neto = calc.neto != null ? calc.neto : facPay.valor;
+    var body =
+      '<p class="form-hint" style="margin:0">Confirme el pago de <strong>' +
+      esc(facPay.proveedorNombre || 'proveedor') +
+      '</strong> · neto sugerido <strong>' +
+      fmtMoney(neto) +
+      '</strong>.</p>' +
+      '<div class="crozzo-oficina-comp" style="margin-top:14px;border-top:none;padding-top:0">' +
+      '<label class="form-label" for="ccl-of-modal-comp-file">Comprobante de pago (opcional)</label>' +
+      '<input type="file" id="ccl-of-modal-comp-file" class="form-input" accept="application/pdf,image/*,.jpg,.jpeg,.png,.webp">' +
+      '<p class="form-hint" style="margin:8px 0 0">PDF o foto de transferencia, consignación o soporte bancario.</p>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap">' +
+      '<button type="button" class="btn btn-outline" id="ccl-of-modal-pago-cancel">Cancelar</button>' +
+      '<button type="button" class="btn btn-primary" id="ccl-of-modal-pago-ok">Confirmar pago</button>' +
+      '</div>';
+    if (typeof global.showModal !== 'function') {
+      R().actualizarEstadoOficina(facPay.id, 'pagada');
+      toast('Pago registrado → cola planilla', 'success');
+      refreshOficina(host);
+      return;
+    }
+    global.showModal('Registrar pago', body, { wide: true, showClose: true });
+    setTimeout(function () {
+      var okBtn = document.getElementById('ccl-of-modal-pago-ok');
+      var cancelBtn = document.getElementById('ccl-of-modal-pago-cancel');
+      var fileInp = document.getElementById('ccl-of-modal-comp-file');
+      function closeM() {
+        if (typeof global.closeModal === 'function') global.closeModal();
+      }
+      if (cancelBtn) cancelBtn.onclick = closeM;
+      if (!okBtn) return;
+      okBtn.onclick = function () {
+        okBtn.disabled = true;
+        var file = fileInp && fileInp.files && fileInp.files[0];
+        function donePago(withComp) {
+          R().actualizarEstadoOficina(facPay.id, 'pagada');
+          closeM();
+          toast(
+            withComp ? 'Pago registrado con comprobante → planilla' : 'Pago registrado → cola planilla',
+            'success'
+          );
+          refreshOficina(host);
+        }
+        if (file) {
+          ofStoreComprobantePago(facPay.id, file)
+            .then(function () {
+              donePago(true);
+            })
+            .catch(function (e) {
+              toast('Comprobante no guardado: ' + (e.message || e) + ' — pago registrado igual', 'warning');
+              donePago(false);
+            });
+        } else {
+          donePago(false);
+        }
+      };
+    }, 0);
+  }
+
+  function ofHandleComprobanteFile(host, facturaId, file) {
+    if (!file || !facturaId) return;
+    ofStoreComprobantePago(facturaId, file)
+      .then(function () {
+        toast('Comprobante guardado', 'success');
+        refreshOficina(host, true);
+        if (String(ofUi.expandedId) === String(facturaId) && ofUi.expandedTab === 'comprobante') {
+          setTimeout(function () {
+            ofMountComprobantePreview(host, facturaId);
+          }, 0);
+        }
+      })
+      .catch(function (e) {
+        toast('No se pudo guardar comprobante: ' + (e.message || e), 'warning');
+      });
   }
 
   function ofSupabasePublicUrl(path) {
@@ -1235,6 +1454,7 @@
       '<button type="button" class="btn btn-primary btn-sm ccl-of-save-edit" data-id="' +
       fid +
       '">Guardar correcciones</button>' +
+      ofComprobantePagoHtml(f) +
       '</div>'
     );
   }
@@ -1270,6 +1490,7 @@
     var tabPdfCls = tab === 'pdf' ? ' is-active' : '';
     var tabOfCls = tab === 'oficina' ? ' is-active' : '';
     var tabHistCls = tab === 'historial' ? ' is-active' : '';
+    var tabCompCls = tab === 'comprobante' ? ' is-active' : '';
     var provId = prov ? prov.id : f.proveedorId;
     var provNom = (prov && prov.nombre) || f.proveedorNombre || '';
     var docTabs = '';
@@ -1317,6 +1538,7 @@
       tab === 'historial'
         ? ofProvHistorialHtml(provId, provNom, f.id)
         : '';
+    var comprobanteBlock = tab === 'comprobante' ? ofComprobantePanelHtml(f) : '';
     var oficinaBlock =
       tab === 'oficina'
         ? '<div class="crozzo-oficina-review">' +
@@ -1347,6 +1569,13 @@
       ' ccl-of-tab-oficina" data-id="' +
       fid +
       '">🏛️ Revisión oficina</button>' +
+      '<button type="button" class="crozzo-oficina-detail-tab' +
+      tabCompCls +
+      ' ccl-of-tab-comprobante" data-id="' +
+      fid +
+      '">🧾 Comprobante' +
+      (ofHasComprobantePago(f) ? '' : '') +
+      '</button>' +
       (provId || provNom
         ? '<button type="button" class="crozzo-oficina-detail-tab' +
           tabHistCls +
@@ -1370,6 +1599,7 @@
       '"></span></div>' +
       pdfBlock +
       oficinaBlock +
+      comprobanteBlock +
       historialBlock +
       '</div></td></tr>'
     );
@@ -1398,13 +1628,27 @@
       : f.recepcionId
         ? '<div class="crozzo-oficina-ref">Recepción · ' + esc(String(f.recepcionId).slice(-8)) + '</div>'
         : '';
-    var docCell = hasDoc
-      ? '<button type="button" class="crozzo-oficina-doc-btn ccl-of-ver-pdf' +
-        (expanded && ofUi.expandedTab === 'pdf' ? ' is-active' : '') +
-        '" data-id="' +
-        esc(f.id) +
-        '" title="Ver PDF">📄</button>'
-      : '<span class="crozzo-oficina-doc-none">—</span>';
+    var docCell =
+      '<div class="crozzo-oficina-doc-cell">' +
+      (hasDoc
+        ? '<button type="button" class="crozzo-oficina-doc-btn ccl-of-ver-pdf' +
+          (expanded && ofUi.expandedTab === 'pdf' ? ' is-active' : '') +
+          '" data-id="' +
+          esc(f.id) +
+          '" title="Ver factura PDF">📄</button>'
+        : '<span class="crozzo-oficina-doc-none">—</span>') +
+      (ofHasComprobantePago(f)
+        ? '<button type="button" class="crozzo-oficina-doc-btn ccl-of-comp-ver' +
+          (expanded && ofUi.expandedTab === 'comprobante' ? ' is-active' : '') +
+          '" data-id="' +
+          esc(f.id) +
+          '" title="Ver comprobante de pago">🧾</button>'
+        : est === 'pagada'
+          ? '<label class="crozzo-oficina-doc-btn" title="Adjuntar comprobante" style="cursor:pointer">📎<input type="file" class="ccl-of-comp-file" data-id="' +
+            esc(f.id) +
+            '" accept="application/pdf,image/*,.jpg,.jpeg,.png,.webp" hidden></label>'
+          : '') +
+      '</div>';
     var rowClass = 'crozzo-oficina-data-row' + (pending ? ' is-pending' : '') + (expanded ? ' is-expanded' : '');
     var provForRow = ofGetProveedor(f);
     var provBadges =
@@ -1499,6 +1743,7 @@
     host.innerHTML = renderOficina();
     if (ofUi.expandedTab === 'pdf') ofMountPdfPreview(host, facturaId, 0);
     if (ofUi.expandedTab === 'oficina') ofMountProvDocPreview(host, facturaId);
+    if (ofUi.expandedTab === 'comprobante') ofMountComprobantePreview(host, facturaId);
     setTimeout(function () {
       var panel = host.querySelector('[data-pdf-for="' + facturaId + '"]');
       if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1542,7 +1787,7 @@
 
   function ofExportCsv(list) {
     if (!list.length) return toast('No hay registros para exportar', 'warning');
-    var lines = ['Fecha,Proveedor,NumeroFactura,Valor,Metodo,Estado,Notas'];
+    var lines = ['Fecha,Proveedor,NumeroFactura,Valor,Metodo,Estado,Comprobante,Notas'];
     list.forEach(function (f) {
       lines.push(
         [
@@ -1552,6 +1797,7 @@
           Number(f.valor) || 0,
           ofNormMetodo(f.metodo),
           f.estado || '',
+          ofHasComprobantePago(f) ? 'si' : 'no',
           '"' + String(f.notas || '').replace(/"/g, '""') + '"',
         ].join(',')
       );
@@ -1746,7 +1992,7 @@
       '</div></div>' +
       '<div class="crozzo-oficina-table-wrap">' +
       '<table class="crozzo-oficina-table"><thead><tr>' +
-      '<th>Fecha</th><th>Proveedor</th><th>Valor</th><th>Método</th><th>Estado</th><th>Documento</th><th style="text-align:right">Acciones</th>' +
+      '<th>Fecha</th><th>Proveedor</th><th>Valor</th><th>Método</th><th>Estado</th><th>Docs</th><th style="text-align:right">Acciones</th>' +
       '</tr></thead><tbody>' +
       (rows || '<tr><td colspan="7"><div class="crozzo-oficina-empty">' + esc(emptyMsg) + '</div></td></tr>') +
       '</tbody></table></div>' +
@@ -1999,11 +2245,12 @@
     if (res && res.runBlobMigration) res.runBlobMigration(res.load());
     if (host._cclOfClick) host.removeEventListener('click', host._cclOfClick);
     if (host._cclOfKey) host.removeEventListener('keydown', host._cclOfKey);
+    if (host._cclOfChange) host.removeEventListener('change', host._cclOfChange);
 
     host._cclOfClick = function (ev) {
       var t = ev.target && ev.target.closest
         ? ev.target.closest(
-            '[data-of-tab],[data-of-preset],#ccl-of-apply,#ccl-of-clear,#ccl-of-show-all,#ccl-of-solo-pdf,#ccl-of-refresh,#ccl-of-toggle-form,#ccl-of-toggle-filters,#ccl-of-open-filters,#ccl-of-save,#ccl-of-export,#ccl-of-go-planilla,#ccl-of-go-recepcion,.ccl-of-pagar,.ccl-of-proceso,.ccl-of-ver-pdf,.ccl-of-revisar,.ccl-of-cerrar-pdf,.ccl-of-pdf-doc,.ccl-of-tab-pdf,.ccl-of-tab-oficina,.ccl-of-tab-historial,.ccl-of-goto-historial,.ccl-of-hist-open,.ccl-of-save-edit,.ccl-of-open-prov,.ccl-of-open-rut,.ccl-of-open-impuestos,.ccl-of-view-prov-doc,.ccl-of-expand-prov-doc'
+            '[data-of-tab],[data-of-preset],#ccl-of-apply,#ccl-of-clear,#ccl-of-show-all,#ccl-of-solo-pdf,#ccl-of-refresh,#ccl-of-toggle-form,#ccl-of-toggle-filters,#ccl-of-open-filters,#ccl-of-save,#ccl-of-export,#ccl-of-go-planilla,#ccl-of-go-recepcion,.ccl-of-pagar,.ccl-of-proceso,.ccl-of-ver-pdf,.ccl-of-revisar,.ccl-of-cerrar-pdf,.ccl-of-pdf-doc,.ccl-of-tab-pdf,.ccl-of-tab-oficina,.ccl-of-tab-historial,.ccl-of-tab-comprobante,.ccl-of-comp-ver,.ccl-of-goto-historial,.ccl-of-hist-open,.ccl-of-save-edit,.ccl-of-open-prov,.ccl-of-open-rut,.ccl-of-open-impuestos,.ccl-of-view-prov-doc,.ccl-of-expand-prov-doc'
           )
         : null;
       if (!t) return;
@@ -2058,6 +2305,23 @@
       if (t.classList.contains('ccl-of-tab-historial')) {
         ofUi.expandedTab = 'historial';
         refreshOficina(host, true);
+        return;
+      }
+      if (t.classList.contains('ccl-of-tab-comprobante')) {
+        ofUi.expandedTab = 'comprobante';
+        refreshOficina(host, true);
+        return;
+      }
+      if (t.classList.contains('ccl-of-comp-ver')) {
+        var idComp = t.getAttribute('data-id');
+        if (!idComp) return;
+        if (String(ofUi.expandedId) === String(idComp) && ofUi.expandedTab === 'comprobante') {
+          ofRevokeAllPdfUrls();
+          ofUi.expandedId = null;
+          refreshOficina(host);
+          return;
+        }
+        ofExpandFactura(host, idComp, 'comprobante');
         return;
       }
       if (t.classList.contains('ccl-of-goto-historial')) {
@@ -2225,9 +2489,7 @@
             }
           }
         }
-        R().actualizarEstadoOficina(idPay, 'pagada');
-        toast('Pago registrado → cola planilla', 'success');
-        refreshOficina(host);
+        ofOpenModalPago(host, facPay);
         return;
       }
       if (t.classList.contains('ccl-of-proceso')) {
@@ -2277,6 +2539,16 @@
 
     host.addEventListener('click', host._cclOfClick);
     host.addEventListener('keydown', host._cclOfKey);
+    host._cclOfChange = function (ev) {
+      var t = ev.target;
+      if (!t || !t.classList || !t.classList.contains('ccl-of-comp-file')) return;
+      var fid = t.getAttribute('data-id');
+      var file = t.files && t.files[0];
+      if (!fid || !file) return;
+      ofHandleComprobanteFile(host, fid, file);
+      t.value = '';
+    };
+    host.addEventListener('change', host._cclOfChange);
     if (ofUi.expandedId && ofUi.expandedTab === 'pdf') {
       setTimeout(function () {
         ofMountPdfPreview(host, ofUi.expandedId, ofUi.expandedAdjIdx || 0);
@@ -2285,6 +2557,13 @@
     if (ofUi.expandedId && ofUi.expandedTab === 'oficina') {
       setTimeout(function () {
         ofMountProvDocPreview(host, ofUi.expandedId);
+        var panel = host.querySelector('[data-pdf-for="' + ofUi.expandedId + '"]');
+        if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 0);
+    }
+    if (ofUi.expandedId && ofUi.expandedTab === 'comprobante') {
+      setTimeout(function () {
+        ofMountComprobantePreview(host, ofUi.expandedId);
         var panel = host.querySelector('[data-pdf-for="' + ofUi.expandedId + '"]');
         if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 0);
