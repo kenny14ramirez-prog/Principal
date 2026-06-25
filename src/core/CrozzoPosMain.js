@@ -1953,7 +1953,7 @@ function crozzoHpMapDecoyRol(rol) {
 function crozzoHpBuildFakePermisos(rol) {
   const r = crozzoNormalizeAppRol(rol);
   if (r === 'mesero') {
-    return { caja: ['vista_tablets'], comandas: ['comandas'] };
+    return { caja: ['vista_tablets'] };
   }
   if (r === 'cocina') {
     return { comandas: ['comandas'] };
@@ -5809,6 +5809,31 @@ function crozzoMigrateNonKennySuperadminRol() {
     localStorage.setItem('crozzo_non_kenny_superadmin_v1', '1');
   } catch (_) {}
 }
+/** Mesero sin tablero de comandas (RBAC): quita comandas heredadas del preset antiguo. */
+function crozzoMigrateMeseroStaffSinComandas() {
+  try {
+    if (localStorage.getItem('crozzo_mesero_staff_sin_comandas_v1')) return;
+  } catch (_) {
+    return;
+  }
+  try {
+    const base = config.get('usuarios') || { staff: [] };
+    let staff = base.staff || [];
+    let changed = false;
+    staff = staff.map(function (u) {
+      if (!u || String(u.id || '').toUpperCase() === 'KENNY') return u;
+      const r = crozzoNormalizeAppRol(u.rol);
+      if (r !== 'mesero') return u;
+      const permisos = Object.assign({}, u.permisos || {});
+      if (!Array.isArray(permisos.comandas) || !permisos.comandas.length) return u;
+      changed = true;
+      permisos.comandas = [];
+      return Object.assign({}, u, { permisos: permisos });
+    });
+    if (changed) config.set('usuarios', { ...base, staff });
+    localStorage.setItem('crozzo_mesero_staff_sin_comandas_v1', '1');
+  } catch (_) {}
+}
 /** Cajero sin tablero de comandas (RBAC): quita comandas heredadas del preset antiguo. */
 function crozzoMigrateCajaStaffSinComandas() {
   try {
@@ -5970,6 +5995,7 @@ function getUsuariosConfig() {
   crozzoMigrateStaffRbacGranular();
   crozzoMigrateNonKennySuperadminRol();
   crozzoMigrateCajaStaffSinComandas();
+  crozzoMigrateMeseroStaffSinComandas();
   const base = config.get('usuarios') || { staff: [] };
   const deletedSet = crozzoGetDeletedStaffIdSet();
   const rawStaff = (base.staff || []).filter(u => !deletedSet.has(crozzoNormStaffId(u.id)));
@@ -6246,7 +6272,7 @@ let comandasSortableInstance = null;
 let comandaHistory = [];
 let comandaCalls = [];
 let closedSlots = { mesa: {}, llevar: {} };
-/** Candado corto al comandar — evita dos tablets comandando la misma mesa a la vez (sync vía runtime). */
+/** Presencia en mesa/llevar (varios meseros permitidos). Candado corto exclusivo solo al comandar. */
 let comandaSlotLocks = { mesa: {}, llevar: {} };
 const CROZZO_COMANDA_LOCK_TTL_MS = 90000;
 const CROZZO_ORDER_SESSION_LOCK_TTL_MS = 240000;
@@ -6288,14 +6314,77 @@ function crozzoGetDeviceDisplayName() {
     return 'Dispositivo';
   }
 }
+function crozzoSlotLockPageKind() {
+  return typeof currentPage === 'string' && currentPage === 'tablets'
+    ? 'tablet'
+    : typeof currentPage === 'string' && currentPage === 'cajero'
+      ? 'caja'
+      : 'other';
+}
+function crozzoNormalizeSlotLockRow(row) {
+  if (!row || typeof row !== 'object') return null;
+  if (row.participants && typeof row.participants === 'object') {
+    return { kind: row.kind || 'session', participants: row.participants };
+  }
+  if (!row.deviceId) return null;
+  return {
+    kind: row.kind || 'session',
+    participants: {
+      [row.deviceId]: {
+        deviceId: row.deviceId,
+        userName: row.userName,
+        deviceName: row.deviceName,
+        pageKind: row.pageKind,
+        at: row.at,
+        expiresAt: row.expiresAt,
+      },
+    },
+  };
+}
+function crozzoSlotLockLiveParticipants(row, now) {
+  const norm = crozzoNormalizeSlotLockRow(row);
+  if (!norm) return [];
+  const ts = Number.isFinite(now) ? now : Date.now();
+  return Object.keys(norm.participants || {})
+    .map(function (id) {
+      return norm.participants[id];
+    })
+    .filter(function (p) {
+      return p && Number(p.expiresAt || 0) > ts;
+    });
+}
+function crozzoSlotLockBuildParticipant(ttl) {
+  const now = Date.now();
+  return {
+    deviceId: crozzoCurrentDeviceIdForLock(),
+    userName: crozzoComandaLockUserLabel(),
+    deviceName: crozzoGetDeviceDisplayName(),
+    pageKind: crozzoSlotLockPageKind(),
+    at: now,
+    expiresAt: now + (Number(ttl) > 0 ? Number(ttl) : CROZZO_ORDER_SESSION_LOCK_TTL_MS),
+  };
+}
 function crozzoPruneComandaSlotLocks(store) {
   const bag = store || comandaSlotLocks;
   const now = Date.now();
   ['mesa', 'llevar'].forEach((tipo) => {
     if (!bag[tipo] || typeof bag[tipo] !== 'object') bag[tipo] = {};
     Object.keys(bag[tipo]).forEach((ref) => {
-      const row = bag[tipo][ref];
-      if (!row || !row.expiresAt || row.expiresAt <= now) delete bag[tipo][ref];
+      const norm = crozzoNormalizeSlotLockRow(bag[tipo][ref]);
+      if (!norm) {
+        delete bag[tipo][ref];
+        return;
+      }
+      const live = crozzoSlotLockLiveParticipants(norm, now);
+      if (!live.length) {
+        delete bag[tipo][ref];
+        return;
+      }
+      const participants = {};
+      live.forEach(function (p) {
+        participants[p.deviceId] = p;
+      });
+      bag[tipo][ref] = { kind: norm.kind || 'session', participants: participants };
     });
   });
   return bag;
@@ -6303,17 +6392,44 @@ function crozzoPruneComandaSlotLocks(store) {
 function crozzoGetComandaSlotLock(tipoServicio, referencia) {
   if (!referencia || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return null;
   crozzoPruneComandaSlotLocks();
-  return (comandaSlotLocks[tipoServicio] && comandaSlotLocks[tipoServicio][referencia]) || null;
+  const raw = comandaSlotLocks[tipoServicio] && comandaSlotLocks[tipoServicio][referencia];
+  const live = crozzoSlotLockLiveParticipants(raw);
+  if (!live.length) return null;
+  live.sort(function (a, b) {
+    return Number(b.expiresAt || 0) - Number(a.expiresAt || 0);
+  });
+  const norm = crozzoNormalizeSlotLockRow(raw);
+  return Object.assign({}, live[0], { kind: (norm && norm.kind) || 'session' });
 }
 function crozzoSlotLockPeerInfo(tipoServicio, referencia) {
-  const row = crozzoGetComandaSlotLock(tipoServicio, referencia);
-  if (!row) return null;
-  const mine = row.deviceId === crozzoCurrentDeviceIdForLock();
+  const raw = comandaSlotLocks[tipoServicio] && comandaSlotLocks[tipoServicio][referencia];
+  const live = crozzoSlotLockLiveParticipants(raw);
+  if (!live.length) return null;
+  const myId = crozzoCurrentDeviceIdForLock();
+  const mine = live.find(function (p) {
+    return p.deviceId === myId;
+  });
+  const others = live.filter(function (p) {
+    return p.deviceId !== myId;
+  });
+  const norm = crozzoNormalizeSlotLockRow(raw);
+  if (others.length) {
+    const o = others[0];
+    return {
+      mine: !!mine,
+      userName: String(o.userName || '').trim() || 'Otro mesero',
+      deviceName: String(o.deviceName || '').trim() || 'otra tablet',
+      kind: (norm && norm.kind) || 'session',
+      count: others.length,
+    };
+  }
+  if (!mine) return null;
   return {
-    mine,
-    userName: String(row.userName || '').trim() || 'Otro mesero',
-    deviceName: String(row.deviceName || '').trim() || 'otra tablet',
-    kind: row.kind || 'comanda',
+    mine: true,
+    userName: String(mine.userName || '').trim() || 'Tú',
+    deviceName: String(mine.deviceName || '').trim() || 'este dispositivo',
+    kind: (norm && norm.kind) || 'session',
+    count: 0,
   };
 }
 window.crozzoSlotLockPeerInfo = crozzoSlotLockPeerInfo;
@@ -6331,18 +6447,34 @@ function crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, opts) {
   const now = Date.now();
   const ttl = Number(opts.ttl) > 0 ? Number(opts.ttl) : CROZZO_COMANDA_LOCK_TTL_MS;
   if (!comandaSlotLocks[tipoServicio]) comandaSlotLocks[tipoServicio] = {};
-  const existing = comandaSlotLocks[tipoServicio][referencia];
-  if (existing && existing.deviceId === myId && opts.renew) {
-    existing.expiresAt = now + ttl;
-    existing.at = now;
-    if (opts.kind) existing.kind = opts.kind;
-    existing.deviceName = crozzoGetDeviceDisplayName();
-    existing.pageKind =
-      typeof currentPage === 'string' && currentPage === 'tablets'
-        ? 'tablet'
-        : typeof currentPage === 'string' && currentPage === 'cajero'
-          ? 'caja'
-          : existing.pageKind || 'other';
+  const existingRaw = comandaSlotLocks[tipoServicio][referencia];
+  const existing = crozzoNormalizeSlotLockRow(existingRaw);
+  const lockKind = opts.kind || 'comanda';
+
+  if (lockKind === 'session' || opts.shared) {
+    const participants = existing && existing.kind === 'session' ? Object.assign({}, existing.participants || {}) : {};
+    participants[myId] = crozzoSlotLockBuildParticipant(
+      Number(opts.ttl) > 0 ? Number(opts.ttl) : CROZZO_ORDER_SESSION_LOCK_TTL_MS
+    );
+    comandaSlotLocks[tipoServicio][referencia] = { kind: 'session', participants: participants };
+    try {
+      if (opts.kind === 'session' || opts.force) {
+        crozzoSyncPosRuntimeCritical('slot_lock_' + String(opts.kind || 'session'));
+      } else if (typeof schedulePosRuntimeSave === 'function') {
+        schedulePosRuntimeSave();
+      }
+    } catch (_) {}
+    if (opts.kind === 'session') crozzoRefreshSlotLocksUi();
+    return { ok: true };
+  }
+
+  const existingPrimary = crozzoGetComandaSlotLock(tipoServicio, referencia);
+  if (existingPrimary && existingPrimary.deviceId === myId && opts.renew) {
+    const row = crozzoNormalizeSlotLockRow(existingRaw) || { kind: lockKind, participants: {} };
+    row.kind = lockKind;
+    row.participants = row.participants || {};
+    row.participants[myId] = crozzoSlotLockBuildParticipant(ttl);
+    comandaSlotLocks[tipoServicio][referencia] = row;
     if (!opts.silent) {
       try {
         if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
@@ -6351,27 +6483,19 @@ function crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, opts) {
     return { ok: true };
   }
   if (
-    existing &&
-    existing.deviceId !== myId &&
-    existing.expiresAt > now &&
+    existingPrimary &&
+    existingPrimary.deviceId !== myId &&
+    Number(existingPrimary.expiresAt || 0) > now &&
     !opts.force &&
     !crozzoCanOverrideComandaSlotLock()
   ) {
-    return { ok: false, holder: existing };
+    return { ok: false, holder: existingPrimary };
   }
   comandaSlotLocks[tipoServicio][referencia] = {
-    deviceId: myId,
-    userName: crozzoComandaLockUserLabel(),
-    deviceName: crozzoGetDeviceDisplayName(),
-    pageKind:
-      typeof currentPage === 'string' && currentPage === 'tablets'
-        ? 'tablet'
-        : typeof currentPage === 'string' && currentPage === 'cajero'
-          ? 'caja'
-          : 'other',
-    kind: opts.kind || 'comanda',
-    at: now,
-    expiresAt: now + ttl,
+    kind: lockKind,
+    participants: {
+      [myId]: crozzoSlotLockBuildParticipant(ttl),
+    },
   };
   try {
     if (opts.kind === 'session' || opts.force) {
@@ -6386,15 +6510,27 @@ function crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, opts) {
 function crozzoReleaseComandaSlotLock(tipoServicio, referencia) {
   if (!referencia || !comandaSlotLocks[tipoServicio]) return;
   const myId = crozzoCurrentDeviceIdForLock();
-  const row = comandaSlotLocks[tipoServicio][referencia];
-  if (row && row.deviceId === myId) {
-    const wasSession = row.kind === 'session';
-    delete comandaSlotLocks[tipoServicio][referencia];
-    try {
-      crozzoSyncPosRuntimeCritical('slot_unlock');
-    } catch (_) {}
-    if (wasSession) crozzoRefreshSlotLocksUi();
+  const raw = comandaSlotLocks[tipoServicio][referencia];
+  const norm = crozzoNormalizeSlotLockRow(raw);
+  if (!norm) return;
+  const wasSession = norm.kind === 'session';
+  if (norm.participants && norm.participants[myId]) {
+    delete norm.participants[myId];
   }
+  const live = crozzoSlotLockLiveParticipants(norm);
+  if (!live.length) {
+    delete comandaSlotLocks[tipoServicio][referencia];
+  } else {
+    const participants = {};
+    live.forEach(function (p) {
+      participants[p.deviceId] = p;
+    });
+    comandaSlotLocks[tipoServicio][referencia] = { kind: norm.kind || 'session', participants: participants };
+  }
+  try {
+    crozzoSyncPosRuntimeCritical('slot_unlock');
+  } catch (_) {}
+  if (wasSession) crozzoRefreshSlotLocksUi();
 }
 function crozzoStopOrderSessionLockHeartbeat() {
   if (__crozzoOrderSessionLockTimer) {
@@ -6456,37 +6592,25 @@ function crozzoReleaseCajaSlotSession(tipoServicio, referencia) {
   crozzoReleaseOrderSlotSession(tipoServicio, referencia);
 }
 function crozzoTryEnterOrderSlotSession(tipoServicio, referencia) {
-  const lock = crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, {
+  const peer = crozzoSlotLockPeerInfo(tipoServicio, referencia);
+  if (peer && !peer.mine) {
+    const who = String(peer.userName || '').trim() || 'Otro operador';
+    const dev = String(peer.deviceName || '').trim() || 'otro dispositivo';
+    const slotLabel = tipoServicio === 'mesa' ? 'mesa' : 'pedido llevar';
+    const extra =
+      Number(peer.count || 0) > 1 ? ' (+' + (Number(peer.count) - 1) + ' más)' : '';
+    if (typeof showToast === 'function') {
+      showToast(
+        '⚠️ Cuidado: ' + who + ' también está tomando pedido en esta ' + slotLabel + ' (' + dev + ')' + extra + '.',
+        'warning'
+      );
+    }
+  }
+  crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, {
     kind: 'session',
     ttl: CROZZO_ORDER_SESSION_LOCK_TTL_MS,
+    shared: true,
   });
-  if (!lock.ok && lock.holder) {
-    const who = String(lock.holder.userName || '').trim() || 'Otro operador';
-    const dev = String(lock.holder.deviceName || '').trim() || 'otro dispositivo';
-    const slotLabel = tipoServicio === 'mesa' ? 'mesa' : 'pedido llevar';
-    if (typeof showToast === 'function') {
-      showToast('⚠️ Cuidado: ' + who + ' está tomando pedido en esta ' + slotLabel + ' (' + dev + ').', 'warning');
-    }
-    if (!crozzoCanOverrideComandaSlotLock()) return false;
-    if (typeof confirm !== 'function') return false;
-    if (
-      !confirm(
-        who +
-          ' está usando esta ' +
-          slotLabel +
-          ' desde ' +
-          dev +
-          '.\n\n¿Entrar de todos modos? (solo supervisor)'
-      )
-    ) {
-      return false;
-    }
-    crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, {
-      kind: 'session',
-      ttl: CROZZO_ORDER_SESSION_LOCK_TTL_MS,
-      force: true,
-    });
-  }
   crozzoStartOrderSessionLockHeartbeat();
   return true;
 }
@@ -6503,9 +6627,17 @@ function crozzoComandaSlotLockHint(tipoServicio, referencia) {
   return peer.userName + ' · ' + peer.deviceName;
 }
 function crozzoGetSlotSessionLock(tipoServicio, referencia) {
-  const row = crozzoGetComandaSlotLock(tipoServicio, referencia);
-  if (!row || row.kind !== 'session') return null;
-  return row;
+  const raw = comandaSlotLocks[tipoServicio] && comandaSlotLocks[tipoServicio][referencia];
+  const norm = crozzoNormalizeSlotLockRow(raw);
+  if (!norm || norm.kind !== 'session') return null;
+  const live = crozzoSlotLockLiveParticipants(norm);
+  if (!live.length) return null;
+  const myId = crozzoCurrentDeviceIdForLock();
+  return (
+    live.find(function (p) {
+      return p.deviceId === myId;
+    }) || live[0]
+  );
 }
 function crozzoSlotSessionDeviceIcon(pageKind) {
   return pageKind === 'tablet' ? 'tablet' : 'monitor';
@@ -6748,26 +6880,52 @@ function crozzoHydrateRuntimeCartLine(item) {
   return typeof crozzoNormalizeCartLine === 'function' ? crozzoNormalizeCartLine(base) : base;
 }
 window.crozzoHydrateRuntimeCartLine = crozzoHydrateRuntimeCartLine;
+function crozzoMergeSlotLockRows(localRow, remoteRow) {
+  const l = crozzoNormalizeSlotLockRow(localRow);
+  const r = crozzoNormalizeSlotLockRow(remoteRow);
+  if (!l && !r) return null;
+  if (!l) return r;
+  if (!r) return l;
+  const participants = Object.assign({}, r.participants || {});
+  Object.keys(l.participants || {}).forEach(function (id) {
+    const lp = l.participants[id];
+    const rp = participants[id];
+    if (!lp) return;
+    if (!rp || Number(lp.expiresAt || 0) >= Number(rp.expiresAt || 0)) participants[id] = lp;
+  });
+  const kind =
+    r.kind === 'comanda' && crozzoSlotLockLiveParticipants({ kind: 'comanda', participants: r.participants }).length
+      ? 'comanda'
+      : l.kind === 'session' || r.kind === 'session'
+        ? 'session'
+        : r.kind || l.kind || 'session';
+  return { kind: kind, participants: participants };
+}
 function crozzoMergeComandaSlotLocks(local, remote, opts) {
   opts = opts || {};
   const remoteBag = {
     mesa: (remote && remote.mesa) || {},
     llevar: (remote && remote.llevar) || {},
   };
-  // Sync remoto (nube/LAN): el snapshot remoto es la fuente de verdad; si una mesa
-  // ya no trae lock, el mesero salió y hay que quitar «en uso» en otros equipos.
+  // Sync remoto (nube/LAN): combina participantes; al salir un mesero no borra a los demás.
   if (opts.remoteAuthoritative) {
-    const out = {
-      mesa: { ...remoteBag.mesa },
-      llevar: { ...remoteBag.llevar },
-    };
+    const out = { mesa: {}, llevar: {} };
+    ['mesa', 'llevar'].forEach(function (tipo) {
+      const refs = new Set([
+        ...Object.keys(remoteBag[tipo] || {}),
+        ...Object.keys((local && local[tipo]) || {}),
+      ]);
+      refs.forEach(function (ref) {
+        const merged = crozzoMergeSlotLockRows(local && local[tipo] && local[tipo][ref], remoteBag[tipo][ref]);
+        if (merged) out[tipo][ref] = merged;
+      });
+    });
     const preserve = opts.preserveActiveSession;
     if (preserve && preserve.tipo && preserve.ref) {
       const tipo = preserve.tipo === 'llevar' ? 'llevar' : 'mesa';
-      const myId = crozzoCurrentDeviceIdForLock();
       const localRow = local && local[tipo] && local[tipo][preserve.ref];
-      if (localRow && localRow.deviceId === myId) {
-        out[tipo][preserve.ref] = localRow;
+      if (localRow) {
+        out[tipo][preserve.ref] = crozzoMergeSlotLockRows(out[tipo][preserve.ref], localRow);
       }
     }
     return crozzoPruneComandaSlotLocks(out);
@@ -6777,11 +6935,11 @@ function crozzoMergeComandaSlotLocks(local, remote, opts) {
     llevar: { ...(local && local.llevar ? local.llevar : {}) },
   };
   ['mesa', 'llevar'].forEach((tipo) => {
-    Object.keys(remoteBag[tipo]).forEach((ref) => {
-      const r = remoteBag[tipo][ref];
-      const l = out[tipo][ref];
-      if (!r) return;
-      if (!l || Number(r.expiresAt || 0) >= Number(l.expiresAt || 0)) out[tipo][ref] = r;
+    const refs = new Set([...Object.keys(out[tipo] || {}), ...Object.keys(remoteBag[tipo] || {})]);
+    refs.forEach(function (ref) {
+      const merged = crozzoMergeSlotLockRows(out[tipo][ref], remoteBag[tipo][ref]);
+      if (merged) out[tipo][ref] = merged;
+      else delete out[tipo][ref];
     });
   });
   return crozzoPruneComandaSlotLocks(out);
@@ -9995,7 +10153,7 @@ const CROZZO_MENU_CATALOG = [
 ];
 const CROZZO_ROLES_MENU_CONFIG = [
   { id: 'caja', label: 'Caja / POS', defaults: { 'inicio-operacion': true, 'punto-venta': true, 'cierre-caja': false, facturas: true, caja: true } },
-  { id: 'mesero', label: 'Mesero / Tablet', defaults: { tablets: true, comandas: true } },
+  { id: 'mesero', label: 'Mesero / Tablet', defaults: { tablets: true } },
   { id: 'cocina', label: 'Cocina / KDS', defaults: { 'compras-cortes': true, 'compras-recetario-cocina': true, 'compras-proceso-sesion': true, 'compras-proceso-historial': true, comandas: true, cocina: false, 'pedidos-internos': false } },
   { id: 'inventario', label: 'Inventario / Compras', defaults: { 'centro-compras': true, inventarios: true, 'pedidos-internos': true } },
   { id: 'user', label: 'Usuario básico', defaults: { 'punto-venta': true, caja: true } },
@@ -10063,10 +10221,39 @@ function crozzoNormalizeMenuProfilesConfig(parsed) {
   } catch (_) {}
   return def;
 }
+function crozzoMigrateMeseroClientSinComandas(cfg) {
+  if (!cfg || !cfg.clients || typeof cfg.clients !== 'object') return false;
+  try {
+    if (localStorage.getItem('crozzo_mesero_client_sin_comandas_v1')) return false;
+  } catch (_) {
+    return false;
+  }
+  var changed = false;
+  Object.keys(cfg.clients).forEach(function (cid) {
+    var cl = cfg.clients[cid];
+    if (!cl || typeof cl !== 'object') return;
+    if (cl.roles && cl.roles.mesero && cl.roles.mesero.comandas) {
+      cl.roles.mesero.comandas = false;
+      changed = true;
+    }
+    if (cl.rolePerms && cl.rolePerms.mesero && Array.isArray(cl.rolePerms.mesero.comandas) && cl.rolePerms.mesero.comandas.length) {
+      cl.rolePerms.mesero.comandas = [];
+      changed = true;
+    }
+  });
+  try {
+    localStorage.setItem('crozzo_mesero_client_sin_comandas_v1', '1');
+  } catch (_) {}
+  return changed;
+}
 function crozzoLoadMenuProfilesConfig() {
   try {
     var raw = localStorage.getItem(CROZZO_MENU_PROFILES_LS);
-    if (raw) return crozzoNormalizeMenuProfilesConfig(JSON.parse(raw));
+    if (raw) {
+      var cfg = crozzoNormalizeMenuProfilesConfig(JSON.parse(raw));
+      if (crozzoMigrateMeseroClientSinComandas(cfg)) crozzoSaveMenuProfilesConfig(cfg);
+      return cfg;
+    }
   } catch (_) {}
   return crozzoNormalizeMenuProfilesConfig(null);
 }
@@ -10576,7 +10763,7 @@ function getMenusForRole(role, perfil) {
     if (!roleMenus.length) {
       const menus = {
         caja: ['inicio-operacion', 'punto-venta', 'facturas', 'caja'],
-        mesero: ['tablets', 'comandas', 'cocina'],
+        mesero: ['tablets'],
         cocina: ['compras-cortes', 'compras-recetario-cocina', 'compras-proceso-sesion', 'compras-proceso-historial', 'comandas'],
         inventario: ['centro-compras', 'inventarios', 'pedidos-internos'],
         user: ['caja', 'punto-venta'],
@@ -11935,9 +12122,14 @@ function crozzoHasCajaPermiso(sub, opts) {
     }
 
     if (r === 'superadmin' || r === 'super_admin') return true;
-    if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, 'caja', sub)) return false;
     const ctx = o.context || 'pos';
     const tabMap = { abrir_orden: 'tab_abrir', editar_orden: 'tab_editar', eliminar_item: 'tab_eliminar' };
+    var delegableSub = sub;
+    if (ctx === 'tablet') {
+      if (sub === 'tab_precuenta' || sub === 'precuenta') delegableSub = 'tab_precuenta';
+      else if (tabMap[sub]) delegableSub = tabMap[sub];
+    }
+    if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, 'caja', delegableSub)) return false;
     const hasTabSet =
       lista.includes('tab_abrir') ||
       lista.includes('tab_editar') ||
@@ -12325,6 +12517,9 @@ function crozzoSlotHasUnpaidConsumption(tipoServicio, referencia) {
   }
 }
 function crozzoGuardLeaveUnpaidSlot(tipoServicio, referencia) {
+  try {
+    if (typeof currentPage !== 'undefined' && currentPage === 'tablets') return true;
+  } catch (_) {}
   if (!crozzoSlotHasUnpaidConsumption(tipoServicio, referencia)) return true;
   if (typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('anular_comandado')) return true;
   const label = tipoServicio === 'mesa' ? 'Mesa ' + referencia : 'Pedido ' + referencia;
@@ -18391,7 +18586,7 @@ const CROZZO_STAFF_PLANTILLAS = Object.freeze({
     rol: 'mesero',
     permisos: {
       caja: CROZZO_CAJA_PERMISOS_POR_ROL.mesero,
-      comandas: ['ver'],
+      comandas: [],
       admin: [],
       inventario: [],
       productos: [],

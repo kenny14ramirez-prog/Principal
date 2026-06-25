@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-25T22:58:00.954Z",
+  "updatedAt": "2026-06-25T23:28:31.292Z",
   "entries": [
-    {
-      "id": "1.0.155-critical",
-      "version": "v1.0.155",
-      "semver": "1.0.155",
-      "type": "critical",
-      "message": "1, correcion de menu de estilos, 2, correcion de estados en mesas tablets y celulares, 3, menus de actualizaciones, 4, cargas de estados en cola de aplicacion nube",
-      "publishedAt": "2026-06-20T13:14:06.246Z",
-      "installMode": "auto",
-      "changelog": [
-        "1, correcion de menu de estilos, 2, correcion de estados en mesas tablets y celulares, 3, menus de actualizaciones, 4, cargas de estados en cola de aplicacion nube"
-      ]
-    },
     {
       "id": "1.0.156-critical",
       "version": "v1.0.156",
@@ -315,6 +303,18 @@
       "installMode": "auto",
       "changelog": [
         "159654"
+      ]
+    },
+    {
+      "id": "1.0.180-critical",
+      "version": "v1.0.180",
+      "semver": "1.0.180",
+      "type": "critical",
+      "message": "58965",
+      "publishedAt": "2026-06-25T23:28:31.292Z",
+      "installMode": "auto",
+      "changelog": [
+        "58965"
       ]
     }
   ]

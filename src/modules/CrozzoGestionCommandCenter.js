@@ -178,11 +178,12 @@
       });
     });
 
-    if (roleHas(state, 'mesero', 'comandas') === true && roleHas(state, 'mesero', 'tablets') !== true) {
+    if (roleHas(state, 'mesero', 'comandas') === true) {
       issues.push({
-        severity: 'info',
-        code: 'MESERO_SIN_TABLET',
-        message: 'Mesero con comandas pero sin Tablets — flujo posible pero subóptimo (doble digitación).',
+        severity: 'warn',
+        code: 'MESERO_CON_COMANDAS',
+        message: 'Mesero con Comandas en menú — use Tablets; comandas es pantalla de cocina/bar.',
+        fix: { type: 'disable_role', role: 'mesero', menus: ['comandas'] },
       });
     }
     if (

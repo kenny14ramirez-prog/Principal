@@ -77,7 +77,7 @@
     },
     mesero: {
       caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'],
-      comandas: ['ver'],
+      comandas: [],
       inventario: [],
       productos: [],
       admin: [],
@@ -345,6 +345,12 @@
           client.rolePerms.caja.comandas = [];
         }
         localStorage.setItem('crozzo_caja_role_perms_sin_comandas_v1', '1');
+      }
+      if (!localStorage.getItem('crozzo_mesero_role_perms_sin_comandas_v1') && client.rolePerms.mesero) {
+        if (Array.isArray(client.rolePerms.mesero.comandas) && client.rolePerms.mesero.comandas.length) {
+          client.rolePerms.mesero.comandas = [];
+        }
+        localStorage.setItem('crozzo_mesero_role_perms_sin_comandas_v1', '1');
       }
     } catch (_) {}
     ROLE_ORDER.forEach(function (role) {

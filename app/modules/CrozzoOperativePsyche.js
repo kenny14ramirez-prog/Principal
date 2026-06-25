@@ -89,7 +89,7 @@
   };
 
   var ROLE_QUICK = {
-    mesero: [{ page: 'tablets', label: 'Tablets' }, { page: 'comandas', label: 'Comandas' }],
+    mesero: [{ page: 'tablets', label: 'Tablets' }],
     caja: [{ page: 'cajero', label: 'POS' }, { page: 'cierre-caja', label: 'Cierre' }],
     cocina: [{ page: 'cocina', label: 'Cocina' }, { page: 'comandas', label: 'Comandas' }],
     admin: [{ page: 'cajero', label: 'POS' }, { page: 'cierre-caja', label: 'Cierre' }],

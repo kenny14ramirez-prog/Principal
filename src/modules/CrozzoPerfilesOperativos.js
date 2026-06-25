@@ -62,7 +62,7 @@
   var PERFIL_ROLE_MENUS = {
     basico_restaurante: {
       caja: ['inicio-operacion', 'punto-venta', 'facturas', 'cierre-caja', 'caja'],
-      mesero: ['tablets', 'comandas'],
+      mesero: ['tablets'],
       cocina: [
         'compras-cortes',
         'compras-recetario-cocina',

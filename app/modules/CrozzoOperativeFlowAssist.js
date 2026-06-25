@@ -376,7 +376,7 @@
   }
 
   function shouldShowHeaderCue(role, page) {
-    if (role === 'mesero') return page === 'tablets' || page === 'comandas';
+    if (role === 'mesero') return page === 'tablets';
     if (role === 'cocina' || role === 'chef') return page === 'comandas' || page === 'cocina';
     if (isCajaRole(role)) return page === 'cajero' || page === 'comandas' || page === 'tablets';
     return page === 'comandas';
