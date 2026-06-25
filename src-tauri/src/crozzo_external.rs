@@ -13,6 +13,29 @@ const WA_DOCK_LABEL: &str = "crozzo-whatsapp-dock";
 const WA_EMBED_LABEL: &str = "crozzo-whatsapp-embed";
 const WA_DEFAULT_URL: &str = "https://web.whatsapp.com/";
 
+/// Opciones de ventana auxiliar embebida (Tauri 2: solo disponibles en desktop).
+#[cfg(desktop)]
+fn apply_embed_dock_desktop_options<R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: WebviewWindowBuilder<'_, R, M>,
+) -> WebviewWindowBuilder<'_, R, M> {
+    builder
+        .visible(false)
+        .focused(false)
+        .skip_taskbar(true)
+        .resizable(false)
+        .always_on_top(false)
+        .decorations(false)
+        .enable_clipboard_access()
+        .inner_size(320.0, 240.0)
+}
+
+#[cfg(not(desktop))]
+fn apply_embed_dock_desktop_options<R: tauri::Runtime, M: tauri::Manager<R>>(
+    builder: WebviewWindowBuilder<'_, R, M>,
+) -> WebviewWindowBuilder<'_, R, M> {
+    builder
+}
+
 static WA_DOCK_CREATING: AtomicBool = AtomicBool::new(false);
 static WA_WANT_VISIBLE: AtomicBool = AtomicBool::new(false);
 static WA_LAST_LEFT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -145,19 +168,13 @@ fn build_whatsapp_dock(
 
     let data_dir = whatsapp_data_dir(app)?;
 
-    let mut builder = WebviewWindowBuilder::new(app, WA_DOCK_LABEL, WebviewUrl::External(parsed))
-        .title("")
-        .visible(false)
-        .focused(false)
-        .skip_taskbar(true)
-        .resizable(false)
-        .always_on_top(false)
-        .background_color(Color(255, 255, 255, 255))
-        .user_agent(WA_CHROME_UA)
-        .data_directory(data_dir)
-        .enable_clipboard_access()
-        .inner_size(320.0, 240.0)
-        .on_page_load(|window, payload| {
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, WA_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
             if payload.event() == PageLoadEvent::Finished && WA_WANT_VISIBLE.load(Ordering::SeqCst) {
                 let app = window.app_handle();
                 if let (Some(main), Some(dock)) = (
@@ -173,12 +190,8 @@ fn build_whatsapp_dock(
                     let _ = window.show();
                 }
             }
-        });
-
-    #[cfg(desktop)]
-    {
-        builder = builder.decorations(false);
-    }
+        }),
+    );
 
     #[cfg(debug_assertions)]
     {
@@ -415,19 +428,13 @@ fn build_gmail_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
         .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
     let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
     let data_dir = gmail_data_dir(app)?;
-    let mut builder = WebviewWindowBuilder::new(app, GMAIL_DOCK_LABEL, WebviewUrl::External(parsed))
-        .title("")
-        .visible(false)
-        .focused(false)
-        .skip_taskbar(true)
-        .resizable(false)
-        .always_on_top(false)
-        .background_color(Color(255, 255, 255, 255))
-        .user_agent(WA_CHROME_UA)
-        .data_directory(data_dir)
-        .enable_clipboard_access()
-        .inner_size(320.0, 240.0)
-        .on_page_load(|window, payload| {
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, GMAIL_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
             if payload.event() == PageLoadEvent::Finished && GMAIL_WANT_VISIBLE.load(Ordering::SeqCst) {
                 let app = window.app_handle();
                 if let (Some(main), Some(dock)) = (
@@ -443,11 +450,8 @@ fn build_gmail_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
                     let _ = window.show();
                 }
             }
-        });
-    #[cfg(desktop)]
-    {
-        builder = builder.decorations(false);
-    }
+        }),
+    );
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -609,19 +613,13 @@ fn build_drive_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
         .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
     let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
     let data_dir = drive_data_dir(app)?;
-    let mut builder = WebviewWindowBuilder::new(app, DRIVE_DOCK_LABEL, WebviewUrl::External(parsed))
-        .title("")
-        .visible(false)
-        .focused(false)
-        .skip_taskbar(true)
-        .resizable(false)
-        .always_on_top(false)
-        .background_color(Color(255, 255, 255, 255))
-        .user_agent(WA_CHROME_UA)
-        .data_directory(data_dir)
-        .enable_clipboard_access()
-        .inner_size(320.0, 240.0)
-        .on_page_load(|window, payload| {
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, DRIVE_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
             if payload.event() == PageLoadEvent::Finished && DRIVE_WANT_VISIBLE.load(Ordering::SeqCst) {
                 let app = window.app_handle();
                 if let (Some(main), Some(dock)) = (
@@ -637,11 +635,8 @@ fn build_drive_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
                     let _ = window.show();
                 }
             }
-        });
-    #[cfg(desktop)]
-    {
-        builder = builder.decorations(false);
-    }
+        }),
+    );
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -803,19 +798,13 @@ fn build_dataico_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
         .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
     let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
     let data_dir = dataico_data_dir(app)?;
-    let mut builder = WebviewWindowBuilder::new(app, DATAICO_DOCK_LABEL, WebviewUrl::External(parsed))
-        .title("")
-        .visible(false)
-        .focused(false)
-        .skip_taskbar(true)
-        .resizable(false)
-        .always_on_top(false)
-        .background_color(Color(255, 255, 255, 255))
-        .user_agent(WA_CHROME_UA)
-        .data_directory(data_dir)
-        .enable_clipboard_access()
-        .inner_size(320.0, 240.0)
-        .on_page_load(|window, payload| {
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, DATAICO_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
             if payload.event() == PageLoadEvent::Finished && DATAICO_WANT_VISIBLE.load(Ordering::SeqCst) {
                 let app = window.app_handle();
                 if let (Some(main), Some(dock)) = (
@@ -831,11 +820,8 @@ fn build_dataico_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
                     let _ = window.show();
                 }
             }
-        });
-    #[cfg(desktop)]
-    {
-        builder = builder.decorations(false);
-    }
+        }),
+    );
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -997,19 +983,12 @@ fn build_dian_vpfe_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webv
         .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
     let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
     let data_dir = dian_vpfe_data_dir(app)?;
-    let mut builder =
+    let mut builder = apply_embed_dock_desktop_options(
         WebviewWindowBuilder::new(app, DIAN_VPFE_DOCK_LABEL, WebviewUrl::External(parsed))
             .title("")
-            .visible(false)
-            .focused(false)
-            .skip_taskbar(true)
-            .resizable(false)
-            .always_on_top(false)
             .background_color(Color(255, 255, 255, 255))
             .user_agent(WA_CHROME_UA)
             .data_directory(data_dir)
-            .enable_clipboard_access()
-            .inner_size(320.0, 240.0)
             .on_page_load(|window, payload| {
                 if payload.event() == PageLoadEvent::Finished
                     && DIAN_VPFE_WANT_VISIBLE.load(Ordering::SeqCst)
@@ -1028,11 +1007,8 @@ fn build_dian_vpfe_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webv
                         let _ = window.show();
                     }
                 }
-            });
-    #[cfg(desktop)]
-    {
-        builder = builder.decorations(false);
-    }
+            }),
+    );
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -1194,19 +1170,12 @@ fn build_spotify_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
         .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
     let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
     let data_dir = spotify_data_dir(app)?;
-    let mut builder =
+    let mut builder = apply_embed_dock_desktop_options(
         WebviewWindowBuilder::new(app, SPOTIFY_DOCK_LABEL, WebviewUrl::External(parsed))
             .title("")
-            .visible(false)
-            .focused(false)
-            .skip_taskbar(true)
-            .resizable(false)
-            .always_on_top(false)
             .background_color(Color(255, 255, 255, 255))
             .user_agent(WA_CHROME_UA)
             .data_directory(data_dir)
-            .enable_clipboard_access()
-            .inner_size(320.0, 240.0)
             .on_page_load(|window, payload| {
                 if payload.event() == PageLoadEvent::Finished
                     && SPOTIFY_WANT_VISIBLE.load(Ordering::SeqCst)
@@ -1225,11 +1194,8 @@ fn build_spotify_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
                         let _ = window.show();
                     }
                 }
-            });
-    #[cfg(desktop)]
-    {
-        builder = builder.decorations(false);
-    }
+            }),
+    );
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
