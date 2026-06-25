@@ -1622,7 +1622,7 @@
 
     var filterBanner = filterHidden
       ? '<div class="crozzo-oficina-filter-banner">' +
-        '<span>⚠️ Los filtros ocultan <strong>' +
+        '<span>Los filtros ocultan <strong>' +
         (all.length - filtered.length) +
         '</strong> factura(s). Mostrando <strong>' +
         filtered.length +
@@ -1631,16 +1631,50 @@
         '</div>'
       : '';
 
+    var hubTop =
+      global.CrozzoOficinaHub && global.CrozzoOficinaHub.renderShell
+        ? global.CrozzoOficinaHub.renderShell({
+            kpis: kpis,
+            colaPlan: colaPlan,
+            colaMonto: colaMonto,
+          })
+        : '<div class="crozzo-of-hub__bar">' +
+          '<div class="crozzo-of-hub__stats">' +
+          '<span class="crozzo-of-hub__stat crozzo-of-hub__stat--warn"><strong>' +
+          kpis.pendientes +
+          '</strong> pendientes</span>' +
+          '<span class="crozzo-of-hub__stat"><strong>' +
+          fmtMoney(kpis.valorPend) +
+          '</strong> por pagar</span>' +
+          '<span class="crozzo-of-hub__stat crozzo-of-hub__stat--ok"><strong>' +
+          kpis.pagadasHoy +
+          '</strong> pagadas hoy</span>' +
+          '<span class="crozzo-of-hub__stat' +
+          (colaPlan ? ' crozzo-of-hub__stat--warn' : '') +
+          '"><strong>' +
+          (colaPlan ? colaPlan + ' · ' + fmtMoney(colaMonto) : '—') +
+          '</strong> planilla</span>' +
+          '</div>' +
+          '<div class="crozzo-of-hub__actions">' +
+          '<button type="button" class="btn btn-outline btn-sm' +
+          (colaPlan ? ' crozzo-of-planilla-queue' : '') +
+          '" id="ccl-of-go-planilla">Planilla' +
+          (colaPlan ? ' <span class="crozzo-pl-tab-badge">' + colaPlan + '</span>' : '') +
+          '</button>' +
+          '<button type="button" class="btn btn-outline btn-sm" id="ccl-of-go-recepcion">Recepción</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" id="ccl-of-export">CSV</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" id="ccl-of-refresh" title="Actualizar">↻</button>' +
+          '</div></div>';
+
     var filtersBlock =
       '<button type="button" class="crozzo-oficina-filter-toggle" id="ccl-of-toggle-filters" aria-expanded="' +
       (ofUi.filtersOpen ? 'true' : 'false') +
       '">' +
-      '<span>🔍 Filtros y búsqueda</span><span>' +
+      '<span>Filtros</span><span>' +
       (ofUi.filtersOpen ? '▲' : '▼') +
       '</span></button>' +
       (ofUi.filtersOpen
         ? '<div class="crozzo-oficina-filter crozzo-oficina-filter-panel">' +
-          '<div class="crozzo-oficina-filter__title">Criterios</div>' +
           '<div class="crozzo-oficina-filter__grid">' +
           '<div class="form-group" style="margin:0"><label class="form-label">Rango fechas</label>' +
           '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
@@ -1689,61 +1723,27 @@
           '<button type="button" class="btn btn-outline btn-sm crozzo-oficina-chip-solo' +
           (ofUi.soloPdf ? ' btn-primary' : '') +
           '" id="ccl-of-solo-pdf">' +
-          (ofUi.soloPdf ? '✓ Solo con PDF' : 'Solo con PDF') +
+          (ofUi.soloPdf ? '✓ Con PDF' : 'Con PDF') +
           '</button>' +
           '<span class="crozzo-oficina-filter__summary">' +
           summary +
           '</span></div></div>'
-        : '<p class="form-hint" style="margin:0 0 12px">' +
+        : '<p class="form-hint crozzo-of-hub__filter-hint">' +
           summary +
-          ' · <button type="button" class="btn btn-link btn-sm" id="ccl-of-open-filters" style="padding:0;min-height:0">Abrir filtros</button></p>');
+          ' · <button type="button" class="btn btn-link btn-sm" id="ccl-of-open-filters" style="padding:0;min-height:0">Filtros</button></p>');
 
     return (
-      '<div class="crozzo-compras-local crozzo-oficina-app">' +
-      '<header class="crozzo-oficina-hero">' +
-      '<div><h2>Oficina y pagos</h2>' +
-      '<p>Revise facturas cargadas, despliegue el PDF en la misma pantalla y confirme pagos. Cada recepción con adjunto queda enlazada aquí automáticamente.</p></div>' +
-      '<div class="crozzo-oficina-hero__actions">' +
-      '<button type="button" class="btn btn-outline btn-sm' +
-      (colaPlan ? ' crozzo-of-planilla-queue' : '') +
-      '" id="ccl-of-go-planilla">📋 Cola planilla' +
-      (colaPlan ? ' <span class="crozzo-pl-tab-badge">' + colaPlan + '</span>' : '') +
-      '</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="ccl-of-go-recepcion">📥 Recepción facturas</button>' +
-      '<button type="button" class="btn btn-ghost btn-sm" id="ccl-of-export">⬇ CSV</button>' +
-      '</div></header>' +
-      '<div class="crozzo-invoice-kpis">' +
-      '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--warn"><div class="crozzo-invoice-kpi__label">Pendientes</div><div class="crozzo-invoice-kpi__value">' +
-      kpis.pendientes +
-      '</div></div>' +
-      '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Por pagar</div><div class="crozzo-invoice-kpi__value">' +
-      fmtMoney(kpis.valorPend) +
-      '</div></div>' +
-      '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--success"><div class="crozzo-invoice-kpi__label">Pagadas hoy</div><div class="crozzo-invoice-kpi__value">' +
-      kpis.pagadasHoy +
-      '</div></div>' +
-      '<div class="crozzo-invoice-kpi' +
-      (colaPlan ? ' crozzo-invoice-kpi--warn' : '') +
-      '"><div class="crozzo-invoice-kpi__label">En cola planilla</div><div class="crozzo-invoice-kpi__value">' +
-      (colaPlan ? colaPlan + ' · ' + fmtMoney(colaMonto) : '—') +
-      '</div></div>' +
-      '<div class="crozzo-invoice-kpi crozzo-invoice-kpi--info"><div class="crozzo-invoice-kpi__label">Total mes</div><div class="crozzo-invoice-kpi__value">' +
-      fmtMoney(kpis.totalMes) +
-      '</div></div>' +
-      '<div class="crozzo-invoice-kpi"><div class="crozzo-invoice-kpi__label">Con PDF</div><div class="crozzo-invoice-kpi__value">' +
-      conPdf +
-      '</div></div>' +
-      '</div>' +
+      '<div class="crozzo-compras-local crozzo-oficina-app crozzo-oficina-hub">' +
+      hubTop +
       filterBanner +
-      '<div class="crozzo-oficina-toolbar">' +
+      filtersBlock +
+      '<div class="crozzo-oficina-toolbar crozzo-of-hub__tabs">' +
       '<div class="crozzo-oficina-tabs">' +
       tabBtn('todas', 'Todas', counts.todas) +
       tabBtn('transferencias', 'Transferencias', counts.transferencias) +
       tabBtn('efectivo', 'Efectivo', counts.efectivo) +
       tabBtn('tarjetas', 'Tarjetas', counts.tarjetas) +
-      '</div>' +
-      '<button type="button" class="btn btn-ghost btn-sm" id="ccl-of-refresh">↻ Actualizar</button>' +
-      '</div>' +
+      '</div></div>' +
       '<div class="crozzo-oficina-table-wrap">' +
       '<table class="crozzo-oficina-table"><thead><tr>' +
       '<th>Fecha</th><th>Proveedor</th><th>Valor</th><th>Método</th><th>Estado</th><th>Documento</th><th style="text-align:right">Acciones</th>' +
@@ -1751,9 +1751,8 @@
       (rows || '<tr><td colspan="7"><div class="crozzo-oficina-empty">' + esc(emptyMsg) + '</div></td></tr>') +
       '</tbody></table></div>' +
       (filtered.length > 120 ? '<p class="form-hint">Mostrando 120 de ' + filtered.length + ' — acote filtros o exporte CSV.</p>' : '') +
-      filtersBlock +
       '<button type="button" class="crozzo-oficina-form-toggle" id="ccl-of-toggle-form" aria-expanded="' + (ofUi.formOpen ? 'true' : 'false') + '">' +
-      '<span>➕ Registrar pago manual</span><span>' + (ofUi.formOpen ? '▲' : '▼') + '</span></button>' +
+      '<span>Pago manual</span><span>' + (ofUi.formOpen ? '▲' : '▼') + '</span></button>' +
       (ofUi.formOpen
         ? '<div class="crozzo-oficina-form-panel">' +
           '<div class="form-grid">' +

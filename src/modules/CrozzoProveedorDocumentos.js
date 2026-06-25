@@ -47,6 +47,12 @@
     return getPaisTributario() === 'CL' ? 'RUT' : 'NIT';
   }
 
+  function certificadoImportEnabled() {
+    return typeof global.crozzoClientFeatureEnabled === 'function'
+      ? global.crozzoClientFeatureEnabled('cxf_importar_rut')
+      : true;
+  }
+
   /** Solo dígitos + DV (K) para comparar */
   function normIdentificador(raw) {
     var s = String(raw || '').trim().toUpperCase();
@@ -2821,6 +2827,17 @@
 
   function renderImportBlock(prefix) {
     prefix = prefix || 'crozzo-prov-doc';
+    if (!certificadoImportEnabled()) {
+      return (
+        '<div class="crozzo-prov-doc crozzo-prov-doc--locked">' +
+        (typeof global.crozzoRenderFeatureLockedHint === 'function'
+          ? global.crozzoRenderFeatureLockedHint()
+          : '<p class="form-hint">Importar certificado ' +
+            esc(labelIdentificador()) +
+            ' — disponible en versión avanzada.</p>') +
+        '</div>'
+      );
+    }
     var idLabel = labelIdentificador();
     return (
       '<div class="crozzo-prov-doc crozzo-prov-doc--premium" id="' +
@@ -3882,6 +3899,7 @@
 
   function bindImportRoot(root, opts) {
     if (!root) return;
+    if (!certificadoImportEnabled()) return;
     opts = opts || {};
     var prefix = root.getAttribute('data-prov-doc-root') || 'crozzo-prov-doc';
     _importRegistry[prefix] = { root: root, opts: opts };
@@ -4318,31 +4336,34 @@
       '">' +
       bankRows +
       '</div></div>' +
-      '<div class="crozzo-prov-extras__section">' +
-      '<p class="form-label">Documentos legales</p>' +
-      '<div class="crozzo-prov-doc-slots">' +
-      renderDocLegalSlot(
-        'certificadoBancario',
-        'Certificado bancario',
-        'Certificación bancaria — el sistema intentará leer banco, Nº cuenta y titular.',
-        leg.certificadoBancario,
-        prefix
-      ) +
-      renderDocLegalSlot(
-        'camaraComercio',
-        'Cámara de comercio',
-        'Certificado de existencia — lectura de NIT, razón social y representante legal.',
-        leg.camaraComercio,
-        prefix
-      ) +
-      renderDocLegalSlot(
-        'cedulaRepresentante',
-        'Fotocopia cédula representante',
-        'Cédula del representante — lectura de nombre y número (solo archivo, sin bloquear el sistema).',
-        leg.cedulaRepresentante,
-        prefix
-      ) +
-      '</div></div></div>'
+      (certificadoImportEnabled()
+        ? '<div class="crozzo-prov-extras__section">' +
+          '<p class="form-label">Documentos legales</p>' +
+          '<div class="crozzo-prov-doc-slots">' +
+          renderDocLegalSlot(
+            'certificadoBancario',
+            'Certificado bancario',
+            'Certificación bancaria — el sistema intentará leer banco, Nº cuenta y titular.',
+            leg.certificadoBancario,
+            prefix
+          ) +
+          renderDocLegalSlot(
+            'camaraComercio',
+            'Cámara de comercio',
+            'Certificado de existencia — lectura de NIT, razón social y representante legal.',
+            leg.camaraComercio,
+            prefix
+          ) +
+          renderDocLegalSlot(
+            'cedulaRepresentante',
+            'Fotocopia cédula representante',
+            'Cédula del representante — lectura de nombre y número (solo archivo, sin bloquear el sistema).',
+            leg.cedulaRepresentante,
+            prefix
+          ) +
+          '</div></div>'
+        : '') +
+      '</div>'
     );
   }
 

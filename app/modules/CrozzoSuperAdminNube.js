@@ -642,7 +642,7 @@
       '</ul></details>' +
       '<details class="crozzo-nube-guide-details">' +
       '<summary>G. Módulos y perfiles (Paso 4)</summary>' +
-      '<p class="form-hint">Super Admin → Perfiles y menús: active solo lo que el negocio usa (restaurante, compras, costos…).</p>' +
+      '<p class="form-hint">Active solo los módulos que el negocio usa (restaurante, compras, costos…).</p>' +
       '</details>' +
       '</div>'
     );
@@ -1142,9 +1142,8 @@
       '<div class="card crozzo-nube-empresa-perfil" style="margin-top:14px;">' +
       '<div class="card-header">' +
       '<span class="card-title">Tipo de negocio (cliente activo)</span>' +
-      '<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="navigateTo(\'gestion-perfiles-menus\')">Configuración completa</button>' +
       '</div>' +
-      '<p class="form-hint">Elija el tipo de operación. Guarde plantillas en <strong>Configuración completa</strong> para aplicarlas en un clic a otros clientes.</p>' +
+      '<p class="form-hint">Elija el tipo de operación y guarde plantillas para aplicarlas en un clic a otros clientes.</p>' +
       '<p class="form-hint">Activo: <strong id="sanEmpresaPerfilLabel">' +
       esc(cur || '—') +
       '</strong></p>' +
@@ -1196,7 +1195,6 @@
       '<div class="card">' +
       '<div class="card-header">' +
       '<span class="card-title">🧩 Paso 4 — Activar módulos en el POS</span>' +
-      '<button type="button" class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="navigateTo(\'gestion-perfiles-menus\')">Ir a Perfiles y menús</button>' +
       '</div>' +
       '<p class="form-hint">Tras conectar Supabase, habilite estos módulos por <strong>perfil de empresa</strong> y por <strong>rol</strong> (caja, cocina, inventario…).</p>' +
       '<div style="overflow-x:auto;"><table class="data-table"><thead><tr><th>Módulo</th><th>ID menú</th><th>Cuándo</th><th>Tablas en nube</th></tr></thead><tbody>' +

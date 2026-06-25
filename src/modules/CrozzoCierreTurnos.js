@@ -648,12 +648,55 @@
     };
   }
 
+  function shiftBoundaryTs(businessDate, hour) {
+    try {
+      var h = String(Math.max(0, Math.min(23, Number(hour) || 0))).padStart(2, '0');
+      return new Date(String(businessDate || todayKey()) + 'T' + h + ':00:00').getTime();
+    } catch (_) {
+      return 0;
+    }
+  }
+
   function shiftWindow(day, shiftType) {
     if (!day || !day.shifts || !day.shifts[shiftType]) return { from: 0, to: null };
+    if (shiftType === 'dia') return dayWindow(day);
     var slot = day.shifts[shiftType];
-    var from = slot.openedAt ? new Date(slot.openedAt).getTime() : new Date(day.openedAt).getTime();
+    var settings = getShiftSettings();
+    var dayStart = day.openedAt ? new Date(day.openedAt).getTime() : 0;
+    var from = dayStart;
+    if (slot.openedAt && slot.status !== 'pending') {
+      from = new Date(slot.openedAt).getTime();
+    } else if (shiftType === 'manana') {
+      from = dayStart;
+    } else if (shiftType === 'tarde') {
+      var manana = day.shifts.manana;
+      if (manana && manana.closedAt) from = new Date(manana.closedAt).getTime();
+      else {
+        var boundary = shiftBoundaryTs(day.businessDate, settings.mananaEndHour);
+        from = boundary > dayStart ? boundary : dayStart;
+      }
+    }
     var to = slot.closedAt ? new Date(slot.closedAt).getTime() : null;
     return { from: from, to: to };
+  }
+
+  function computeExpectedInCaja(fondo, cashSales, gastos) {
+    return Math.max(0, (Number(fondo) || 0) + (Number(cashSales) || 0) - (Number(gastos) || 0));
+  }
+
+  function syncArqueoExpectedHint() {
+    var el = document.getElementById('crozzo-arqueo-expected-hint');
+    if (!el) return;
+    var type = selectedArqueoType();
+    var m = metricsForScope(type);
+    var fondo = Number(document.getElementById('crozzo-shift-fondo') && document.getElementById('crozzo-shift-fondo').value) || 0;
+    var gastos = Number(document.getElementById('crozzo-shift-gastos') && document.getElementById('crozzo-shift-gastos').value) || 0;
+    var expected = computeExpectedInCaja(fondo, m.cash, gastos);
+    el.innerHTML =
+      'Esperado en caja: <strong>' +
+      formatMoney(expected) +
+      '</strong>' +
+      (gastos > 0 ? '<span class="crozzo-arqueo-expected-hint__sub"> (fondo + efectivo ventas − gastos)</span>' : '');
   }
 
   function dayWindow(day) {
@@ -864,16 +907,41 @@
     return '';
   }
 
-  function canPerformArqueo() {
-    if (typeof getCurrentUser !== 'function' || !getCurrentUser()) return false;
-    if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
+  function roleIsEncargado() {
     var r = normalizeRole();
     return r === 'admin' || r === 'superadmin' || r === 'super_admin' || r === 'gerente';
   }
 
-  /** Revisión de caja sin cerrar turno — el cajero sigue vendiendo con calma. */
+  function isCajeroOperativo() {
+    var r = normalizeRole();
+    return r === 'caja' || r === 'cajero' || r === 'user';
+  }
+
+  function userCanSeeCierrePage() {
+    if (typeof currentUserCanSeePage === 'function') return currentUserCanSeePage('cierre-caja');
+    return true;
+  }
+
+  /** Cierre formal de turno / día — cajeros con menú habilitado y encargados. */
+  function canPerformArqueo() {
+    if (typeof getCurrentUser !== 'function' || !getCurrentUser()) return false;
+    if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
+    if (roleIsEncargado()) return true;
+    if (isCajeroOperativo()) return userCanSeeCierrePage();
+    return false;
+  }
+
+  /** Revisión de caja sin cerrar turno — solo encargados; el cajero sigue vendiendo. */
   function canPerformSupervisionArqueo() {
-    return canPerformArqueo();
+    if (typeof getCurrentUser !== 'function' || !getCurrentUser()) return false;
+    if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
+    return roleIsEncargado();
+  }
+
+  function canPerformCajeroDeclaracion() {
+    if (typeof getCurrentUser !== 'function' || !getCurrentUser()) return false;
+    if (isCajeroOperativo() && userCanSeeCierrePage()) return true;
+    return false;
   }
 
   function isSupervisionMode() {
@@ -1324,7 +1392,14 @@
         return;
       }
     } else if (!canPerformArqueo()) {
-      if (typeof showToast === 'function') showToast('Solo administradores y encargados pueden hacer arqueo', 'warning');
+      if (typeof showToast === 'function') {
+        showToast(
+          canPerformCajeroDeclaracion()
+            ? 'Use «Declarar efectivo» o pida al encargado el cierre formal'
+            : 'No tiene permiso para arqueo de caja',
+          'warning'
+        );
+      }
       return;
     }
     if (__arqueoMode === 'cierre') {
@@ -1464,6 +1539,7 @@
       gastosEl.placeholder = gHint > 0 ? String(gHint) : '0';
     }
     if (cnt) cnt.value = '';
+    syncArqueoExpectedHint();
   }
 
   function closeArqueo() {
@@ -1507,7 +1583,7 @@
     }
     sh.cashOpen = fondo;
     saveTurn(sh);
-    var expected = fondo + m.cash;
+    var expected = computeExpectedInCaja(fondo, m.cash, gastosTurno);
     var diff = actual - expected;
     __arqueoPending = {
       shiftType: type,
@@ -1899,7 +1975,9 @@
   function renderCierrePanelHtml(opts) {
     opts = opts || {};
     var full = !!opts.full;
-    var can = canPerformArqueo();
+    var canArqueo = canPerformArqueo();
+    var canSuper = canPerformSupervisionArqueo();
+    var canDecl = canPerformCajeroDeclaracion();
     var settings = getShiftSettings();
     var sync = cloudSyncLabel();
     var histSum = summarizeHistory(getHistoryRows());
@@ -1911,9 +1989,11 @@
         '<div><h3 class="crozzo-cierre-panel__title">Cierre de turnos</h3>' +
         '<p class="crozzo-cierre-panel__lead">Resumen operativo del día.</p></div>' +
         '<div class="crozzo-cierre-panel__actions">' +
-        (can
+        (canArqueo
           ? '<button type="button" class="btn btn-primary btn-sm" id="crozzo-cierre-btn-arqueo" onclick="crozzoShiftOpenArqueo()"><i data-lucide="vault"></i> Arqueo</button>'
-          : '<span class="crozzo-cierre-badge-readonly">Solo lectura</span>') +
+          : canDecl
+            ? '<span class="crozzo-cierre-badge-readonly">Solo lectura — declare al salir</span>'
+            : '<span class="crozzo-cierre-badge-readonly">Solo lectura</span>') +
         '</div></div>' +
         '<div class="crozzo-cierre-kpi-grid" id="crozzo-cierre-kpis">' +
         '<div class="crozzo-cierre-kpi"><span class="lbl">Día</span><strong class="val" id="crozzo-cierre-kpi-date">—</strong></div>' +
@@ -1967,20 +2047,22 @@
       esc(sync.text) +
       '</div></div>' +
       '<div class="crozzo-cierre-hero__actions crozzo-cierre-panel__actions">' +
-      (can
+      (canSuper
         ? '<button type="button" class="btn btn-outline crozzo-cierre-cta crozzo-cierre-cta--supervision" onclick="crozzoShiftOpenSupervisionArqueo()"><i data-lucide="eye"></i> Revisión de caja</button>'
         : '') +
-      (can
+      (canArqueo
         ? '<button type="button" class="btn btn-primary crozzo-cierre-cta" id="crozzo-cierre-btn-arqueo" onclick="crozzoShiftOpenArqueo()"><i data-lucide="vault"></i> Cierre formal</button>'
-        : '<span class="crozzo-cierre-badge-readonly"><i data-lucide="eye"></i> Solo lectura — encargado</span>') +
-      (can
+        : canDecl
+          ? '<span class="crozzo-cierre-badge-readonly"><i data-lucide="eye"></i> Sin cierre formal — declare efectivo al salir</span>'
+          : '<span class="crozzo-cierre-badge-readonly"><i data-lucide="eye"></i> Solo lectura</span>') +
+      (canArqueo
         ? '<button type="button" class="btn btn-outline" onclick="typeof crozzoRepExportTurnos===\'function\'&&crozzoRepExportTurnos()"><i data-lucide="download"></i> Exportar</button>'
         : '') +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'planilla-2026\')"><i data-lucide="calculator"></i> Planilla</button>' +
-      (can
+      (canArqueo
         ? '<button type="button" class="btn btn-outline crozzo-cierre-btn-muted" onclick="crozzoShiftNuevoTurno()"><i data-lucide="rotate-ccw"></i> Emergencia</button>'
         : '') +
-      (!can
+      (canDecl
         ? '<button type="button" class="btn btn-outline" onclick="typeof crozzoShowDeclaracionEfectivoModal===\'function\'&&crozzoShowDeclaracionEfectivoModal()"><i data-lucide="banknote"></i> Declarar efectivo</button>'
         : '') +
       '</div></header>' +
@@ -2031,7 +2113,7 @@
       '<div class="crozzo-cierre-section-head"><h3>Turnos operativos</h3><p>Tarjetas = cierre formal · Revisión = conteo sin interrumpir caja</p></div>' +
       '<div class="crozzo-cierre-shift-cards">' +
       ['manana', 'tarde', 'dia'].map(function (k) {
-        return renderShiftCard(k, SHIFT_META[k], can);
+        return renderShiftCard(k, SHIFT_META[k], canArqueo);
       }).join('') +
       '</div>' +
       '<div class="crozzo-cierre-pay-block"><div class="crozzo-cierre-section-head crozzo-cierre-section-head--compact"><h4>Medios de pago · día</h4></div><div class="crozzo-cierre-pay-grid" id="crozzo-cierre-pay-grid">—</div></div>' +
@@ -2057,7 +2139,7 @@
       '<section class="crozzo-cierre-seguridad" aria-label="Alertas cajeros" id="crozzo-cierre-seguridad-wrap">' +
       '<div class="crozzo-cierre-section-head"><h3>Seguridad de cajeros</h3><p>Declaraciones al salir · el cajero no ve las revisiones de administración</p></div>' +
       '<div id="crozzo-cierre-seguridad">—</div></section>' +
-      (can
+      (canSuper
         ? '<section class="crozzo-cierre-supervision" aria-label="Revisiones de caja" id="crozzo-cierre-supervision-wrap">' +
           '<div class="crozzo-cierre-section-head"><h3>Revisiones de administración</h3><p>Conteos sin cerrar turno — registro separado del cierre formal</p></div>' +
           '<div id="crozzo-cierre-supervision">—</div></section>'
@@ -2543,5 +2625,9 @@
 
   global.addEventListener('change', function (e) {
     if (e.target && e.target.name === 'crozzo-arqueo-type') refreshArqueoSummary(e.target.value);
+  });
+  global.addEventListener('input', function (e) {
+    if (!e.target) return;
+    if (e.target.id === 'crozzo-shift-fondo' || e.target.id === 'crozzo-shift-gastos') syncArqueoExpectedHint();
   });
 })(typeof window !== 'undefined' ? window : globalThis);

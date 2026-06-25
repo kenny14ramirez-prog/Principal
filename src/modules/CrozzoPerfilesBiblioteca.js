@@ -325,10 +325,10 @@
   function renderGestionWizardTabs(activeTab) {
     var tab = activeTab || 'empresa';
     var tabs = [
-      { id: 'empresa', label: '1. Tipo de negocio' },
-      { id: 'modulos', label: '2. Módulos y roles' },
-      { id: 'permisos', label: '3. Permisos delegables' },
-      { id: 'plantillas', label: '4. Mis plantillas' },
+      { id: 'empresa', label: '1. Misión · negocio' },
+      { id: 'modulos', label: '2. Despliegue · módulos' },
+      { id: 'permisos', label: '3. Delegación · permisos' },
+      { id: 'plantillas', label: '4. Plantillas · respaldo' },
     ];
     var html = '<div class="crozzo-gestion-wizard-tabs" role="tablist">';
     tabs.forEach(function (t) {

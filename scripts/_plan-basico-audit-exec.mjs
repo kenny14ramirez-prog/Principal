@@ -153,7 +153,7 @@ const setup = await page.evaluate(async () => {
         activo: true,
         permisos: tpl.permisos || {},
       };
-      if (typeof crozzoSanitizeUserPermisos === 'function') row.permisos = crozzoSanitizeUserPermisos(row.rol, row.permisos);
+      if (typeof crozzoSanitizeUserPermisos === 'function') row.permisos = crozzoSanitizeUserPermisos(row.permisos, row.rol);
       return row;
     });
     const uc = typeof getUsuariosConfig === 'function' ? getUsuariosConfig() : { staff: [] };
@@ -332,9 +332,9 @@ if (!report.flows.cierre.hasTurno) issue('P1', 'Cierre', 'Pantalla cierre sin co
 
 /** Roles */
 const ROLE_TESTS = [
-  { id: 'QA-CAJA', rol: 'caja', mustNav: ['cajero', 'cierre-caja'], mustNotNav: ['admin'], perms: { facturar: true, eliminar_item: false } },
+  { id: 'QA-CAJA', rol: 'caja', mustNav: ['cajero'], mustNotNav: ['admin', 'cierre-caja'], perms: { facturar: true, eliminar_item: false, cierre_arqueo: false } },
   { id: 'QA-MESERO', rol: 'mesero', mustNav: ['tablets'], mustNotNav: ['cajero', 'cierre-caja', 'admin'], perms: { facturar: false, vista_tablets: true } },
-  { id: 'QA-COCINA', rol: 'cocina', mustNav: ['comandas'], mustNotNav: ['cajero', 'cierre-caja'], perms: {} },
+  { id: 'QA-COCINA', rol: 'cocina', mustNav: ['compras-cortes', 'compras-recetario-cocina', 'comandas'], mustNotNav: ['cajero', 'cierre-caja', 'cocina'], perms: {} },
   { id: 'QA-JEFE_COMPRAS', rol: 'inventario', mustNav: ['productos'], mustNotNav: ['cajero', 'cierre-caja'], perms: {} },
   { id: 'QA-ADMIN', rol: 'admin', mustNav: ['admin', 'config-salon'], mustNotNav: [], perms: {} },
 ];
@@ -361,6 +361,7 @@ for (const rt of ROLE_TESTS) {
         facturar: crozzoHasCajaPermiso('facturar'),
         eliminar_item: crozzoHasCajaPermiso('eliminar_item'),
         vista_tablets: crozzoHasCajaPermiso('vista_tablets'),
+        cierre_arqueo: crozzoHasCajaPermiso('cierre_arqueo'),
       },
       missingMust: mustNav.filter((p) => !can(p)),
       forbiddenVisible: mustNotNav.filter((p) => can(p)),
@@ -371,6 +372,8 @@ for (const rt of ROLE_TESTS) {
   if (rt.perms.facturar === true && !audit.perm.facturar) issues.push('Sin facturar');
   if (rt.perms.eliminar_item === false && audit.perm.eliminar_item) issues.push('Tiene eliminar_item');
   if (rt.perms.vista_tablets === true && !audit.perm.vista_tablets) issues.push('Sin vista_tablets');
+  if (rt.perms.cierre_arqueo === false && audit.perm.cierre_arqueo) issues.push('Tiene cierre_arqueo sin delegar');
+  if (rt.perms.cierre_arqueo === true && !audit.perm.cierre_arqueo) issues.push('Sin cierre_arqueo');
   report.roles[rt.rol] = { login: lr, ...audit, issues, ok: issues.length === 0 && lr.ok };
   if (issues.length) issue('P1', `Rol ${rt.rol}`, issues.join('; '), JSON.stringify(audit.nav));
   execLog(`rol ${rt.rol}`, report.roles[rt.rol].ok, issues.join('; ') || 'ok');

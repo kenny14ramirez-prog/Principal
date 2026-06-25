@@ -54,6 +54,12 @@
 
   var MP_COCINA_EXCLUIDAS = ['BEBIDAS Y LICORES', 'DESECHABLES', 'ASEO', 'TERCERIZADOS', 'ELABORADOS', 'OTRO'];
   var MP_COCCION_CATS = ['PROTEINAS', 'PULPAS Y CONGELADOS', 'FRUVER', 'PROCESADOS', 'LACTEOS', 'ABARROTES'];
+  var MP_PREP_ROLES = ['despiece', 'coccion', 'insumo'];
+  var MP_PREP_ROLE_LABELS = {
+    despiece: 'Partir carnes',
+    coccion: 'Cocinar y porcionar',
+    insumo: 'Solo ingrediente en recetas',
+  };
 
   var demoCache = null;
   var ready = false;
@@ -1718,6 +1724,8 @@
             : raw.merma_desposte_pct != null
               ? num(raw.merma_desposte_pct)
               : null,
+      prepRoles: normalizePrepRoles(raw.prepRoles),
+      prepRolesManual: raw.prepRolesManual === true,
       updatedAt: raw.updatedAt || new Date().toISOString(),
     };
     if (raw.cortesDespiece != null) {
@@ -1782,6 +1790,8 @@
       procesoVenta: catRow.procesoVenta || null,
       mermaCoccionPct: catRow.mermaCoccionPct != null ? num(catRow.mermaCoccionPct) : null,
       mermaDespostePct: catRow.mermaDespostePct != null ? num(catRow.mermaDespostePct) : null,
+      prepRoles: normalizePrepRoles(catRow.prepRoles),
+      prepRolesManual: catRow.prepRolesManual === true,
       cortesDespiece: Array.isArray(catRow.cortesDespiece) ? catRow.cortesDespiece.slice() : [],
       precioAnterior: c.precioAnterior,
       ultimaRecepcionId: c.ultimaRecepcionId,
@@ -2972,22 +2982,54 @@
     return mp.esElaborado === true || cat === 'ELABORADOS';
   }
 
+  function normalizePrepRoles(raw) {
+    if (!raw) return [];
+    var list = Array.isArray(raw) ? raw : String(raw).split(/[,;|]+/);
+    var out = [];
+    list.forEach(function (r) {
+      var k = String(r || '')
+        .trim()
+        .toLowerCase();
+      if (MP_PREP_ROLES.indexOf(k) >= 0 && out.indexOf(k) < 0) out.push(k);
+    });
+    return out;
+  }
+
+  function inferPrepRolesFromMp(mp) {
+    if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return ['insumo'];
+    var cat = normalizeCategoriaMp(mp.categoria);
+    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return ['insumo'];
+    var roles = [];
+    if (cat === 'PROTEINAS' || num(mp.mermaDespostePct) > 0) roles.push('despiece');
+    if (MP_COCCION_CATS.indexOf(cat) >= 0 || num(mp.mermaCoccionPct) > 0) roles.push('coccion');
+    if (!roles.length) roles.push('insumo');
+    return roles;
+  }
+
+  function effectivePrepRoles(mp) {
+    if (!mp) return [];
+    if (mp.prepRolesManual && mp.prepRoles && mp.prepRoles.length) return normalizePrepRoles(mp.prepRoles);
+    return inferPrepRolesFromMp(mp);
+  }
+
+  function prepRolesLabel(roles) {
+    roles = roles || [];
+    if (!roles.length) return 'Automático';
+    return roles
+      .map(function (r) {
+        return MP_PREP_ROLE_LABELS[r] || r;
+      })
+      .join(' · ');
+  }
+
   function mpAptoDespiece(mp) {
     if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return false;
-    var cat = normalizeCategoriaMp(mp.categoria);
-    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return false;
-    if (cat === 'PROTEINAS') return true;
-    if (num(mp.mermaDespostePct) > 0) return true;
-    return false;
+    return effectivePrepRoles(mp).indexOf('despiece') >= 0;
   }
 
   function mpAptoCoccion(mp) {
     if (!mp || !mp.nombre || mp.esReventaPos || isMpElaboradoCatalog(mp)) return false;
-    var cat = normalizeCategoriaMp(mp.categoria);
-    if (MP_COCINA_EXCLUIDAS.indexOf(cat) >= 0) return false;
-    if (MP_COCCION_CATS.indexOf(cat) >= 0) return true;
-    if (num(mp.mermaCoccionPct) > 0) return true;
-    return false;
+    return effectivePrepRoles(mp).indexOf('coccion') >= 0;
   }
 
   function mpIdForPosReventa(p) {
@@ -3415,6 +3457,12 @@
     renderCategoriaMpOptionsHtml: renderCategoriaMpOptionsHtml,
     mpAptoDespiece: mpAptoDespiece,
     mpAptoCoccion: mpAptoCoccion,
+    normalizePrepRoles: normalizePrepRoles,
+    inferPrepRolesFromMp: inferPrepRolesFromMp,
+    effectivePrepRoles: effectivePrepRoles,
+    prepRolesLabel: prepRolesLabel,
+    MP_PREP_ROLES: MP_PREP_ROLES,
+    MP_PREP_ROLE_LABELS: MP_PREP_ROLE_LABELS,
     listMenuSlugsAffectedByMp: listMenuSlugsAffectedByMp,
     resolveMpIdForMenuRow: resolveMpIdForMenuRow,
     costoMenuDesdeMpItem: costoMenuDesdeMpItem,

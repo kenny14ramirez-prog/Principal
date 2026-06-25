@@ -4531,16 +4531,24 @@
   }
 
   function renderProveedorCreatePane() {
+    var importOn = cxfImportarRutAvailable();
     return (
       '<div class="cxf-card cxf-prov-pane cxf-prov-pane--nuevo">' +
-      '<p class="form-hint" style="margin:0 0 12px">Alta mínima para esta recepción. Para certificado RUT/NIT use la pestaña <strong>Desde certificado</strong> o el <button type="button" class="btn btn-link btn-sm" onclick="typeof crozzoNavProveedores===\'function\'&&crozzoNavProveedores(\'import\')">directorio de proveedores</button>.</p>' +
+      '<p class="form-hint" style="margin:0 0 12px">' +
+      (importOn
+        ? 'Alta mínima para esta recepción. Para leer el RUT/NIT desde PDF use <strong>Desde certificado</strong> o el <button type="button" class="btn btn-link btn-sm" onclick="typeof crozzoNavProveedores===\'function\'&&crozzoNavProveedores(\'import\')">directorio de proveedores</button>.'
+        : 'Complete nombre y rubro para esta recepción. El NIT es opcional si lo conoce.') +
+      '</p>' +
       '<div class="cxf-form-grid cxf-form-grid--wide">' +
       '<div class="cxf-field-span-2"><label class="cxf-label">Nombre / razón social *</label><input class="form-input" id="cxf-new-nombre" placeholder="Distribuidora Sol Naciente"></div>' +
       '<div><label class="cxf-label">' +
       (typeof global.CrozzoProveedorDocumentos !== 'undefined' && global.CrozzoProveedorDocumentos.labelIdentificador
-        ? esc(global.CrozzoProveedorDocumentos.labelIdentificador())
-        : 'NIT / RUT') +
-      '</label><input class="form-input" id="cxf-new-nit" placeholder="12.345.678-9"></div>' +
+        ? esc(global.CrozzoProveedorDocumentos.labelIdentificador()) +
+          (importOn ? '' : ' (opcional)')
+        : 'NIT / RUT' + (importOn ? '' : ' (opcional)')) +
+      '</label><input class="form-input" id="cxf-new-nit" placeholder="' +
+      (importOn ? '12.345.678-9' : 'Opcional') +
+      '"></div>' +
       '<div><label class="cxf-label">Rubro *</label><select class="form-input" id="cxf-new-rubro">' +
       TIPOS_RUBRO.map(function (t) {
         return '<option value="' + esc(t) + '">' + esc(t) + '</option>';

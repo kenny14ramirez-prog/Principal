@@ -2093,6 +2093,12 @@
       if (typeof navigateTo === 'function') navigateTo('laboratorio-admin');
       return;
     }
+    if (global.CrozzoGestionCommandCenter && typeof global.CrozzoGestionCommandCenter.openLabVaultGate === 'function') {
+      global.CrozzoGestionCommandCenter.openLabVaultGate({
+        stealth: Core().isStealthMode && Core().isStealthMode(),
+      });
+      return;
+    }
     var gateHtml =
       '<div class="crozzo-lab-pin-modal" role="dialog" aria-modal="true">' +
       '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseGate()" aria-label="Cerrar"><i data-lucide="x"></i></button>' +

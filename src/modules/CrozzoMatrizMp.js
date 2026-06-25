@@ -58,9 +58,12 @@
   }
 
   function injectStyles() {
-    if (document.getElementById('crozzo-matriz-mp-css')) return;
-    var el = document.createElement('style');
-    el.id = 'crozzo-matriz-mp-css';
+    var el = document.getElementById('crozzo-matriz-mp-css');
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'crozzo-matriz-mp-css';
+      document.head.appendChild(el);
+    }
     el.textContent =
       '.crozzo-mp-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px}' +
       '.crozzo-mp-search{flex:1;min-width:200px;max-width:420px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:14px}' +
@@ -90,8 +93,92 @@
       '.crozzo-mp-cat-field{display:flex;flex-direction:column;gap:6px}' +
       '.crozzo-mp-cat-new{display:none;flex-wrap:wrap;gap:6px;align-items:center}' +
       '.crozzo-mp-cat-new.is-open{display:flex}' +
-      '.crozzo-mp-cat-new input{flex:1;min-width:140px}';
-    document.head.appendChild(el);
+      '.crozzo-mp-cat-new input{flex:1;min-width:140px}' +
+      '.crozzo-mp-prep-grid{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:4px}' +
+      '.crozzo-mp-prep-chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text-primary);cursor:pointer;white-space:nowrap}' +
+      '.crozzo-mp-prep-chk input{margin:0;accent-color:var(--accent)}' +
+      '.crozzo-mp-prep-cell{min-width:168px}' +
+      '.crozzo-mp-prep-cell .crozzo-mp-prep-grid{flex-direction:column;align-items:flex-start;gap:4px}' +
+      '.crozzo-mp-prep-auto{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);opacity:.85}' +
+      '.crozzo-mp-prep-suggest{margin-top:8px}' +
+      '.crozzo-mp-prep-model{font-size:12px;color:var(--text-muted);line-height:1.55;margin:0 0 8px;max-width:560px}';
+  }
+
+  function prepRoleShort(role) {
+    if (role === 'despiece') return 'Partir carnes';
+    if (role === 'coccion') return 'Cocinar';
+    return 'Solo en recetas';
+  }
+
+  function renderPrepRolesChecksHtml(opts) {
+    opts = opts || {};
+    var C = cat();
+    var roles = opts.roles || [];
+    var prefix = opts.prefix || '';
+    var useId = !!opts.useId;
+    return (C && C.MP_PREP_ROLES ? C.MP_PREP_ROLES : ['despiece', 'coccion', 'insumo'])
+      .map(function (role) {
+        var idAttr = useId && prefix ? ' id="' + esc(prefix + 'Prep' + role) + '"' : '';
+        return (
+          '<label class="crozzo-mp-prep-chk"' +
+          (useId && prefix ? ' for="' + esc(prefix + 'Prep' + role) + '"' : '') +
+          '><input type="checkbox" data-mp-prep-role="' +
+          role +
+          '"' +
+          idAttr +
+          (roles.indexOf(role) >= 0 ? ' checked' : '') +
+          '> ' +
+          esc(prepRoleShort(role)) +
+          '</label>'
+        );
+      })
+      .join('');
+  }
+
+  function readPrepRolesFromRoot(root, scope) {
+    scope = scope || root;
+    var roles = [];
+    scope.querySelectorAll('[data-mp-prep-role]').forEach(function (inp) {
+      if (inp.checked) roles.push(inp.getAttribute('data-mp-prep-role'));
+    });
+    var C = cat();
+    return C && C.normalizePrepRoles ? C.normalizePrepRoles(roles) : roles;
+  }
+
+  function suggestPrepRolesForForm(root, prefix) {
+    var C = cat();
+    if (!C || !C.inferPrepRolesFromMp) return;
+    var I = mpFormIds(prefix);
+    var categoria =
+      typeof global.crozzoReadMpCategoriaFromPicker === 'function'
+        ? global.crozzoReadMpCategoriaFromPicker(root, prefix)
+        : (root.querySelector('#' + I.cat) || {}).value || 'OTRO';
+    var mc = num((root.querySelector('#' + I.mc) || {}).value);
+    var md = num((root.querySelector('#' + I.md) || {}).value);
+    var roles = C.inferPrepRolesFromMp({ categoria: categoria, mermaCoccionPct: mc, mermaDespostePct: md });
+    root.querySelectorAll('[data-mp-prep-role]').forEach(function (inp) {
+      var r = inp.getAttribute('data-mp-prep-role');
+      inp.checked = roles.indexOf(r) >= 0;
+    });
+    toast('Sugerido según categoría y mermas', 'info');
+  }
+
+  function renderPrepRolesCell(it) {
+    var C = cat();
+    if (!C) return '<td class="crozzo-mp-proc-empty">—</td>';
+    if (it.esElaborado || String(it.categoria || '').toUpperCase() === 'ELABORADOS') {
+      return '<td class="crozzo-mp-proc-empty" title="Salida de sub-receta — no es insumo comprado">Sub-receta</td>';
+    }
+    var eff = C.effectivePrepRoles ? C.effectivePrepRoles(it) : [];
+    return (
+      '<td class="crozzo-mp-prep-cell"><div class="crozzo-mp-prep-grid">' +
+      renderPrepRolesChecksHtml({ roles: eff }) +
+      '</div>' +
+      (it.prepRolesManual
+        ? ''
+        : '<span class="crozzo-mp-prep-auto" title="Inferido por categoría y mermas">Automático</span>') +
+      '</td>'
+    );
   }
 
   function chipLabel(c, C) {
@@ -257,7 +344,7 @@
   function renderRows(items) {
     var C = cat();
     if (!items.length) {
-      return '<tr><td colspan="6" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use + Materia prima.</td></tr>';
+      return '<tr><td colspan="7" style="text-align:center;padding:24px;opacity:.7">Sin insumos. Use + Materia prima.</td></tr>';
     }
     return items
       .map(function (it) {
@@ -272,6 +359,7 @@
           '<td><input class="crozzo-mp-inp" data-mp-field="nombre" value="' +
           esc(it.nombre) +
           '"></td>' +
+          renderPrepRolesCell(it) +
           renderProcesoCell(it) +
           renderMermaCell(it) +
           '<td><input class="crozzo-mp-inp" data-mp-field="proveedores" value="' +
@@ -321,9 +409,9 @@
       '<div class="crozzo-mod-chip-row crozzo-mp-chips">' +
       chips +
       '</div>' +
-      '<p class="crozzo-mp-meta">Clasifique cada insumo: <strong>Proteínas</strong> = partir carnes · <strong>Bebidas</strong> = no va a prep cocina · <strong>Fruver / Abarrotes</strong> = cocinar y porcionar.</p>' +
+      '<p class="crozzo-mp-meta"><strong>Insumo comprado</strong> → marque dónde aparece en Centro de producción. <strong>Sub-receta</strong> (salsa, adobo, cocido) se crea en Recetas con ingredientes — no aquí. <strong>Plato de carta</strong> = lo que sale a mesas.</p>' +
       '<div class="crozzo-mp-scroll"><table class="crozzo-mp-table"><thead><tr>' +
-      '<th>Categoría</th><th>Materia prima</th><th>Proceso / venta</th><th>Mermas esp.</th><th>Proveedor(es)</th><th></th>' +
+      '<th>Categoría</th><th>Materia prima</th><th>Cocina bodega</th><th>Proceso / venta</th><th>Mermas esp.</th><th>Proveedor(es)</th><th></th>' +
       '</tr></thead><tbody id="crozzoMpTbody">' +
       renderRows(filtered) +
       '</tbody></table></div></div>'
@@ -349,6 +437,8 @@
       else if (f === 'mermaCoccionPct' || f === 'mermaDespostePct') row[f] = inp.value === '' ? null : num(inp.value);
       else row[f] = inp.value;
     });
+    row.prepRoles = readPrepRolesFromRoot(null, tr);
+    if (base.prepRolesManual) row.prepRolesManual = true;
     return row;
   }
 
@@ -420,6 +510,18 @@
     root.addEventListener(
       'change',
       function (e) {
+        var prepInp = e.target.closest('[data-mp-prep-role]');
+        if (prepInp) {
+          var trPrep = prepInp.closest('tr[data-mp-id]');
+          if (!trPrep) return;
+          var itemPrep = getItemFromRow(trPrep);
+          if (!itemPrep) return;
+          itemPrep.prepRolesManual = true;
+          C.upsertCatalog(itemPrep, { skipInvMov: true, skipIdCheck: true });
+          toast('Uso en cocina actualizado', 'success');
+          refreshTable(root);
+          return;
+        }
         var inp = e.target.closest('[data-mp-field]');
         if (!inp) return;
         var tr = inp.closest('tr[data-mp-id]');
@@ -493,6 +595,7 @@
       precio: prefix + 'NewPrecioTotal',
       save: prefix + 'SaveNew',
       cancel: prefix + 'CancelNew',
+      prSuggest: prefix + 'SuggestPrep',
     };
   }
 
@@ -594,6 +697,21 @@
           I.addCat +
           '">Crear categoría</button></div></div>') +
       '<span class="crozzo-mp-create__hint">Define en qué pantalla de cocina aparece el insumo. Puede crear categorías nuevas.</span></div></div></section>' +
+      '<section class="crozzo-mp-create__section">' +
+      '<div class="crozzo-mp-create__section-head">' +
+      '<span class="crozzo-mp-create__section-icon" aria-hidden="true">👨‍🍳</span>' +
+      '<h4 class="crozzo-mp-create__section-title">Uso en cocina (bodega)</h4></div>' +
+      '<p class="crozzo-mp-prep-model">Insumo <strong>comprado</strong> sin receta. Las <strong>sub-recetas</strong> (salsa, adobo, carne cocida) se arman en <em>Recetas</em> con ingredientes. Puede marcar varios usos.</p>' +
+      '<div class="crozzo-mp-prep-grid" id="' +
+      I.form +
+      '-prep">' +
+      renderPrepRolesChecksHtml({ prefix: prefix, useId: true }) +
+      '</div>' +
+      '<div class="crozzo-mp-prep-suggest">' +
+      '<button type="button" class="btn btn-outline btn-sm" id="' +
+      I.prSuggest +
+      '">Sugerir según categoría</button>' +
+      '<span class="crozzo-mp-create__hint" style="display:inline;margin-left:8px">Sin marcar = automático al guardar.</span></div></section>' +
       costeoSection +
       '<section class="crozzo-mp-create__section">' +
       '<div class="crozzo-mp-create__section-head">' +
@@ -683,6 +801,9 @@
       typeof global.crozzoReadMpProveedoresFromPicker === 'function'
         ? global.crozzoReadMpProveedoresFromPicker(root, opts.prefix)
         : [];
+    var prepScope = root.querySelector('#' + I.form + '-prep') || root;
+    var prepRoles = readPrepRolesFromRoot(root, prepScope);
+    var anyPrepChecked = prepScope.querySelector('[data-mp-prep-role]:checked');
     var item = {
       id: C.slugId(nombre),
       nombre: nombre,
@@ -691,6 +812,10 @@
       mermaCoccionPct: num((root.querySelector('#' + I.mc) || {}).value),
       mermaDespostePct: num((root.querySelector('#' + I.md) || {}).value),
     };
+    if (anyPrepChecked && prepRoles.length) {
+      item.prepRoles = prepRoles;
+      item.prepRolesManual = true;
+    }
     C.upsertCatalog(item);
     if (opts.includeCosteo && C.upsertCosteo) {
       var undEl = root.querySelector('#' + I.und);
@@ -786,6 +911,9 @@
       }
       if (e.target.id === I.save) {
         saveNewMpFromForm(root, C, opts);
+      }
+      if (e.target.id === I.prSuggest) {
+        suggestPrepRolesForForm(root, prefix);
       }
     });
     root.addEventListener('change', function (e) {

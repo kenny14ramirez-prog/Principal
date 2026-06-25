@@ -18,7 +18,7 @@
       caja: ['vista_tablets', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'],
     },
     facturas: { caja: ['vista_facturas', 'facturar'] },
-    'cierre-caja': { caja: ['vista_pos', 'vista_facturas'] },
+    'cierre-caja': { caja: ['vista_pos', 'vista_facturas', 'cierre_arqueo'] },
     caja: { caja: ['vista_clientes'] },
     comandas: { comandas: ['ver', 'despachar', 'reimprimir'] },
     cocina: { comandas: ['ver', 'despachar'] },
@@ -57,7 +57,7 @@
   /** Presets por rol: qué puede delegar el admin por defecto (sin permisos sensibles). */
   var ROLE_PERM_PRESETS = {
     caja: {
-      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
+      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado', 'cierre_arqueo'],
       comandas: ['ver'],
       inventario: ['reportes', 'proveedores'],
       productos: [],
@@ -73,7 +73,7 @@
     cocina: {
       caja: [],
       comandas: ['ver', 'despachar'],
-      inventario: ['reportes', 'proveedores'],
+      inventario: [],
       productos: [],
       admin: [],
     },
@@ -253,7 +253,7 @@
           if (hasOut && !missingFromPlan) return out;
         }
       }
-      return maxBasico;
+      return computeDefaultPolicy(client || {}, r);
     }
     if (client && client.rolePerms && client.rolePerms[r]) {
       return policyToPlain(client.rolePerms[r]);
@@ -268,7 +268,7 @@
       if (isBasicoClient(client)) {
         var maxPol = computeMaxPolicyFromMenus(client, role);
         if (!client.rolePerms[role] || !Object.keys(client.rolePerms[role]).length) {
-          client.rolePerms[role] = maxPol;
+          client.rolePerms[role] = computeDefaultPolicy(client, role);
           return;
         }
         var stored = policyToPlain(client.rolePerms[role]);
@@ -491,7 +491,7 @@
         var mode = btn.getAttribute('data-perm-preset-mode');
         var panel = root.querySelector('[data-perm-role-panel="' + role + '"]');
         if (!panel) return;
-        var sensibles = { eliminar_item: 1, tab_eliminar: 1, anular_comandado: 1, catalogo: 1, config_usuarios: 1 };
+        var sensibles = { eliminar_item: 1, tab_eliminar: 1, anular_comandado: 1, cierre_arqueo: 1, catalogo: 1, config_usuarios: 1 };
         panel.querySelectorAll('input[data-role-perm][data-perm-sub]').forEach(function (cb) {
           var sub = cb.getAttribute('data-perm-sub');
           if (mode === 'seguro' && sensibles[sub]) {

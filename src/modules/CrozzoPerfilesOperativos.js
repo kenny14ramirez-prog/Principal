@@ -21,8 +21,6 @@
   /** Módulos compartidos del plan básico (sin bodegas/remisiones, sin planilla, compras básicas). */
   var BASICO_SHARED = [
     'inventarios',
-    'productos',
-    'catalogo-mp',
     'sistema-costos-matriz',
     'sistema-costos-inv',
     'compras-oficina',
@@ -63,44 +61,39 @@
   /** Menú lateral por rol (solo perfiles con roles definidos; personalizado = sin filtro). */
   var PERFIL_ROLE_MENUS = {
     basico_restaurante: {
-      caja: ['inicio-operacion', 'punto-venta', 'cierre-caja', 'facturas', 'caja', 'comandas'],
+      caja: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'comandas'],
       mesero: ['tablets', 'comandas'],
       cocina: [
-        'cocina',
-        'comandas',
         'compras-cortes',
         'compras-recetario-cocina',
         'compras-proceso-sesion',
         'compras-proceso-historial',
+        'comandas',
       ],
       inventario: [
         'centro-compras',
         'compras-proveedores',
         'inventarios',
-        'productos',
-        'catalogo-mp',
         'sistema-costos-matriz',
         'sistema-costos-inv',
         'compras-oficina',
       ],
       admin: PERFIL_CLIENT_MENUS.basico_restaurante.slice(),
-      user: ['inicio-operacion', 'punto-venta', 'cierre-caja'],
+      user: ['inicio-operacion', 'punto-venta'],
     },
     basico_tienda: {
-      caja: ['inicio-operacion', 'venta-comercial', 'cierre-caja', 'facturas', 'caja'],
+      caja: ['inicio-operacion', 'venta-comercial', 'facturas', 'caja'],
       mesero: ['venta-comercial'],
       inventario: [
         'centro-compras',
         'compras-proveedores',
         'inventarios',
-        'productos',
-        'catalogo-mp',
         'sistema-costos-matriz',
         'sistema-costos-inv',
         'compras-oficina',
       ],
       admin: PERFIL_CLIENT_MENUS.basico_tienda.slice(),
-      user: ['venta-comercial', 'cierre-caja'],
+      user: ['venta-comercial'],
     },
   };
 

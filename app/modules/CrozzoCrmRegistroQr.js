@@ -754,6 +754,9 @@
       if (payload.telefono) dup.telefono = String(payload.telefono).trim();
       if (payload.ciudad) dup.ciudad = String(payload.ciudad).trim();
       if (payload.direccion) dup.direccion = String(payload.direccion).trim();
+      if (payload.fechaNacimiento && !String(dup.fechaNacimiento || '').trim()) {
+        dup.fechaNacimiento = String(payload.fechaNacimiento).trim();
+      }
       if (!dup.notas) dup.notas = '';
       if (meta.origen === 'qr_registro' && dup.notas.indexOf('QR') < 0) {
         dup.notas = (dup.notas ? dup.notas + ' · ' : '') + 'Autoregistro QR';
@@ -779,6 +782,10 @@
       totalCompras: 0,
       historial: [],
     };
+    if (typeof global.CrozzoCrmIntel !== 'undefined' && global.CrozzoCrmIntel.applyDefaultClientFields) {
+      global.CrozzoCrmIntel.applyDefaultClientFields(c);
+    }
+    if (payload.fechaNacimiento) c.fechaNacimiento = String(payload.fechaNacimiento).trim();
     if (typeof global.crozzoCrmApplyEmailsToClientRecord === 'function') {
       global.crozzoCrmApplyEmailsToClientRecord(c, req.emails);
     } else {

@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.174">
+<meta name="crozzo-app-version" content="1.0.175">
 <meta name="crozzo-build-stamp" content="2026-06-03T19:30:45.261Z">
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
@@ -277,8 +277,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="caja-clientes" data-menu="caja" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="users"></i></span><span class="nav-item-label">Clientes (FE)</span></div></li>
             <li><div class="nav-item menu-item" data-page="inventarios" data-menu="inventarios" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="bar-chart-3"></i></span><span class="nav-item-label">Reportes y dashboard</span></div></li>
             <li><div class="nav-item menu-item" data-page="compras-dashboard" data-menu="centro-compras" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="pie-chart"></i></span><span class="nav-item-label">Resumen compras</span></div></li>
-            <li><div class="nav-item menu-item" data-page="productos" data-menu="productos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="utensils-crossed"></i></span><span class="nav-item-label">Catálogo · platos</span></div></li>
-            <li><div class="nav-item menu-item" data-page="catalogo-mp" data-menu="productos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="package"></i></span><span class="nav-item-label">Catálogo · materias primas</span></div></li>
           </ul>
         </li>
         <li class="nav-group-li nav-group nav-group-collapsed" data-group="costos" data-nav-group="costos" data-nav-category="costos">
@@ -349,7 +347,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="super-admin-identidad" data-menu="identidad-logos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="palette"></i></span><span class="nav-item-label">Identidad y logos</span></div></li>
             <li><div class="nav-item menu-item" data-page="actualizaciones-sistema" data-menu="actualizaciones-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span><span class="nav-item-label">Actualizaciones del sistema</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-seguridad" data-menu="config-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="nav-item-label">Sesión y acceso</span></div></li>
-            <li><div class="nav-item menu-item super-admin-only" data-page="gestion-perfiles-menus" data-menu="gestion-perfiles" data-section="gestion-perfiles" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="sliders-horizontal"></i></span><span class="nav-item-label">Perfiles y menús</span></div></li>
             <li><div class="nav-item menu-item super-admin-only" data-page="auditoria" data-menu="auditoria" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Auditoría (eventos)</span></div></li>
             <li class="crozzo-lab-nav-li" hidden><div class="nav-item menu-item crozzo-lab-nav-item" id="nav-laboratorio-admin" data-page="laboratorio-admin" data-menu="laboratorio-admin" role="button" tabindex="0" title="Laboratorio (Ctrl+Shift+L)"><span class="nav-icon" aria-hidden="true"><i data-lucide="flask-conical"></i></span><span class="nav-item-label">Lab</span></div></li>
           </ul>
@@ -1062,6 +1059,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   </div>
 </div>
 <script src="modules/CrozzoCierreTurnos.js"></script>
+<script src="modules/CrozzoReportesDashboard.js" defer></script>
+<script src="modules/CrozzoComprasDashboard.js" defer></script>
+<script src="modules/CrozzoInventarioContinuo.js" defer></script>
+<script src="modules/CrozzoOficinaHub.js" defer></script>
 <script src="modules/CrozzoStaffOpsReport.js"></script>
 <script src="modules/CrozzoCierrePrint.js"></script>
 <script src="core/CrozzoLaboratorioCore.js"></script>
@@ -1102,6 +1103,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoCarteraComercial.js" defer></script>
 <script src="modules/CrozzoCrmRegistroTemplate.js" defer></script>
 <script src="modules/CrozzoCrmRegistroQr.js" defer></script>
+<script src="modules/CrozzoCrmIntel.js" defer></script>
+<script src="modules/CrozzoStaffCelebrations.js" defer></script>
 <script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlExtras.js" defer></script>

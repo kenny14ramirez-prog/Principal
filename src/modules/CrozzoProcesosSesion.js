@@ -18,27 +18,34 @@
       title: 'Partir carnes',
       icon: 'beef',
       tone: 'amber',
-      sub: 'Pesa la pieza, anota qué sacaste y cuánto pesó cada cosa.',
+      badge: 'Más usado',
+      sub: 'Pesa la pieza, anota qué sacaste y cuánto pesó cada corte.',
       pickLabel: '¿Qué carne partiste?',
-      steps: ['Pesar pieza', 'Anotar cada corte', 'Guardar'],
+      steps: ['Pesar pieza', 'Anotar cortes', 'Guardar en bodega'],
     },
     coccion: {
       title: 'Cocinar y porcionar',
       icon: 'flame',
       tone: 'rose',
-      sub: 'Anota peso crudo, peso cocido y cuánto empaquetas para bodega.',
+      badge: 'Rápido',
+      sub: 'Anota peso crudo, peso cocido y cuánto empaquetas para reservar.',
       pickLabel: '¿Qué estás cocinando?',
-      steps: ['Pesos', 'Porciones', 'Guardar'],
+      steps: ['Pesos crudo/cocido', 'Porciones', 'Guardar en bodega'],
     },
     elaboracion: {
       title: 'Salsas y bases',
       icon: 'soup',
       tone: 'violet',
+      badge: 'Con receta',
       sub: 'Suma ingredientes y anota cuánto salió la salsa, caldo o base.',
       pickLabel: '¿Qué salsa o base preparaste?',
-      steps: ['Ingredientes', 'Peso final', 'Guardar'],
+      steps: ['Ingredientes', 'Peso final', 'Guardar en bodega'],
     },
   };
+
+  function navIcon(name) {
+    return '<i data-lucide="' + esc(name) + '" aria-hidden="true"></i>';
+  }
 
   function esc(s) {
     if (typeof escUserAttr === 'function') return escUserAttr(s);
@@ -181,15 +188,21 @@
       '.cps-corte-porciones.is-ready{color:var(--success);background:var(--success-bg)}' +
       '.cps-corte-card__foot{display:flex;justify-content:flex-end;margin-top:12px}' +
       '.cps-corte-card__foot .btn{font-size:12px;color:var(--text-muted);border-color:transparent;background:transparent}' +
+      '.cps-mermas-despiece{margin:16px 0 0;padding:14px 16px;border-radius:14px;border:1px dashed var(--border);background:var(--bg-card)}' +
+      '.cps-mermas-despiece__title{margin:0 0 4px;font-size:13px;font-weight:650;color:var(--text-primary)}' +
+      '.cps-mermas-despiece__help{margin:0 0 12px;font-size:12px;color:var(--text-muted);line-height:1.45}' +
+      '.cps-mermas-despiece__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 12px}' +
+      '.cps-mermas-despiece__grid .form-label{font-size:12px;margin-bottom:4px}' +
+      '.cps-mermas-despiece__grid .form-input{min-height:44px;font-size:16px}' +
+      '.cps-despiece-actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0;align-items:center}' +
+      '.cps-corte-card .form-input[readonly]{opacity:.88;background:var(--bg-card);cursor:default}' +
+      '.cps-corte-tanda{margin-top:8px}' +
       '.cps-despiece-story{margin:0 0 12px;font-size:15px;line-height:1.65;color:var(--text-primary)}' +
       '.cps-despiece-story strong{font-weight:700;color:var(--accent)}' +
       '.cps-despiece-list{margin:0 0 12px;padding:0;list-style:none;font-size:14px;line-height:1.7}' +
       '.cps-despiece-list li{padding:8px 12px;border-radius:10px;background:var(--bg-tertiary);margin-bottom:6px;display:flex;justify-content:space-between;gap:10px}' +
       '.cps-despiece-list li span:last-child{font-weight:700;font-variant-numeric:tabular-nums}' +
-      '.cps-coach{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;padding:12px 14px;border-radius:14px;border:1px solid var(--border);background:var(--bg-tertiary)}' +
-      '.cps-coach__step{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:var(--bg-card);border:1px solid var(--border);font-size:12px;color:var(--text-muted)}' +
-      '.cps-coach__step span.num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-08);color:var(--accent);font-size:11px;font-weight:700}' +
-      '.cps.crozzo-procesos-host{max-width:920px;margin:0 auto}' +
+      '.cps.crozzo-procesos-host{max-width:1040px;margin:0 auto;padding:0 4px 28px}' +
       '.cps-hist-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 20px}' +
       '.cps-hist-stat{padding:16px 18px;border-radius:14px;border:1px solid var(--border);background:var(--bg-card)}' +
       '.cps-hist-stat__lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted)}' +
@@ -198,22 +211,77 @@
       '.cps .table-container .table{margin:0}' +
       '.cps-hist-empty{text-align:center;padding:36px 24px;color:var(--text-muted);border:1px dashed var(--border);border-radius:14px;background:var(--bg-tertiary)}' +
       '.cps-hist-empty strong{display:block;font-size:15px;font-weight:650;color:var(--text-primary);margin-bottom:8px}' +
-      '.cps-wf-pick{margin-bottom:16px}' +
-      '.cps-wf-pick__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}' +
-      '.cps-wf-pick__btn{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);cursor:pointer;font-family:inherit;text-align:left;transition:border-color .22s,box-shadow .22s,transform .22s;color:inherit}' +
-      '.cps-wf-pick__btn:hover,.cps-wf-pick__btn.is-active{border-color:var(--accent);box-shadow:0 4px 18px rgba(0,0,0,.06);transform:translateY(-1px)}' +
-      '.cps-wf-pick__btn.is-active{background:var(--accent-08)}' +
-      '.cps-wf-pick__title{font-size:14px;font-weight:650;color:var(--text-primary)}' +
-      '.cps-wf-pick__desc{font-size:11px;color:var(--text-muted);line-height:1.45}' +
+      '.cps-hero{display:flex;align-items:flex-start;gap:16px;margin:0 0 20px;padding:20px 22px;border-radius:18px;border:1px solid var(--border);background:linear-gradient(135deg,var(--accent-08),var(--bg-card));position:relative;overflow:hidden}' +
+      '.cps-hero::after{content:"";position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;opacity:.12;filter:blur(20px);pointer-events:none;background:var(--accent)}' +
+      '.cps-hero--amber{--cps-tone:#f59e0b}.cps-hero--rose{--cps-tone:#fb7185}.cps-hero--violet{--cps-tone:#a78bfa}.cps-hero--neutral{--cps-tone:var(--accent)}' +
+      '.cps-hero::after{background:var(--cps-tone,var(--accent))}' +
+      '.cps-hero__icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,.7);border:1px solid var(--border);color:var(--cps-tone,var(--accent));box-shadow:0 4px 16px rgba(0,0,0,.06)}' +
+      '.cps-hero__icon svg,.cps-hero__icon i{width:26px;height:26px}' +
+      '.cps-hero__body{flex:1;min-width:0;position:relative;z-index:1}' +
+      '.cps-hero__eyebrow{display:block;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px}' +
+      '.cps-hero__actions{flex-shrink:0;position:relative;z-index:1}' +
+      '.cps-hero__switch{background:none;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;font-family:inherit;transition:all .2s;white-space:nowrap}' +
+      '.cps-hero__switch:hover{color:var(--text-primary);border-color:var(--accent);background:var(--accent-08)}' +
+      '.cps-wf-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;padding:6px;border-radius:14px;background:var(--bg-tertiary);border:1px solid var(--border)}' +
+      '.cps-wf-tab{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .22s cubic-bezier(.22,1,.36,1);min-height:44px}' +
+      '.cps-wf-tab svg,.cps-wf-tab i{width:16px;height:16px;opacity:.85}' +
+      '.cps-wf-tab:hover{color:var(--text-primary);background:rgba(255,255,255,.5)}' +
+      '.cps-wf-tab.is-active{color:var(--text-primary);background:var(--bg-card);border-color:var(--border);box-shadow:0 2px 12px rgba(0,0,0,.06)}' +
+      '.cps-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start;margin-bottom:8px}' +
+      '.cps-main{display:flex;flex-direction:column;gap:0;min-width:0}' +
+      '.cps-sidebar{display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}' +
+      '.cps-sidebar .card{margin:0}' +
+      '.cps-pick-card .cps-product-filter-wrap{position:relative;margin-bottom:10px}' +
+      '.cps-pick-card .cps-product-filter-wrap svg,.cps-pick-card .cps-product-filter-wrap i{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none;opacity:.7}' +
+      '.cps-pick-card #cps-product-filter{padding-left:42px}' +
+      '.cps-sticky-bar{display:none;margin:0;padding:0;background:none;backdrop-filter:none;border:none}' +
+      '.cps-sticky-bar.is-visible{display:block;position:sticky;bottom:0;z-index:30;margin:12px 0 4px;padding:10px 0 8px;background:linear-gradient(to top,var(--bg-primary,#faf9f7) 70%,transparent);backdrop-filter:blur(8px)}' +
+      '.cps-sticky-bar.is-visible .cps-actions{display:flex!important;margin:0;padding:12px 16px;border-radius:14px;border:1px solid var(--border);background:var(--bg-card);box-shadow:0 -4px 24px rgba(0,0,0,.08)}' +
+      '.cps-sticky-bar .cps-actions #cps-save{flex:1;min-width:160px;font-weight:650}' +
+      '.cps-wf-pick{margin-bottom:20px;padding:20px 22px!important}' +
+      '.cps-wf-pick__lead{margin:0 0 16px;font-size:13px;color:var(--text-muted);line-height:1.55;max-width:520px}' +
+      '.cps-wf-pick__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:4px}' +
+      '.cps-wf-pick__btn{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:20px 18px 52px;border:1px solid var(--border);border-radius:16px;background:var(--bg-card);cursor:pointer;font-family:inherit;text-align:left;transition:transform .28s cubic-bezier(.22,1,.36,1),box-shadow .28s,border-color .28s;color:inherit;overflow:hidden;min-height:148px}' +
+      '.cps-wf-pick__btn::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(125deg,var(--accent-08),transparent 55%);transition:opacity .3s;pointer-events:none}' +
+      '.cps-wf-pick__btn:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.1);border-color:rgba(181,154,109,.35)}' +
+      '.cps-wf-pick__btn:hover::before{opacity:1}' +
+      '.cps-wf-pick__btn.is-active{border-color:var(--accent);box-shadow:0 8px 28px rgba(0,0,0,.08);background:var(--accent-08)}' +
+      '.cps-wf-pick__btn.is-active::before{opacity:1}' +
+      '.cps-wf-pick__badge{position:absolute;top:14px;right:14px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:var(--accent-08);color:var(--accent);border:1px solid var(--accent-12)}' +
+      '.cps-wf-pick__icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary)}' +
+      '.cps-wf-pick__icon svg,.cps-wf-pick__icon i{width:22px;height:22px}' +
+      '.cps-wf-pick__btn--amber .cps-wf-pick__icon{color:#d97706;background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.2)}' +
+      '.cps-wf-pick__btn--rose .cps-wf-pick__icon{color:#e11d48;background:rgba(251,113,133,.1);border-color:rgba(251,113,133,.2)}' +
+      '.cps-wf-pick__btn--violet .cps-wf-pick__icon{color:#7c3aed;background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.25)}' +
+      '.cps-wf-pick__title{font-size:15px;font-weight:700;color:var(--text-primary);letter-spacing:-.02em;padding-right:72px;line-height:1.25}' +
+      '.cps-wf-pick__desc{font-size:12px;color:var(--text-muted);line-height:1.5;margin-top:6px}' +
+      '.cps-wf-pick__steps{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;list-style:none;padding:0}' +
+      '.cps-wf-pick__steps li{font-size:10px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-muted)}' +
+      '.cps-wf-pick__go{position:absolute;left:18px;bottom:16px;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.02em}' +
+      '.cps-coach{display:flex;flex-wrap:nowrap;gap:0;margin:0 0 18px;padding:0;border-radius:14px;border:1px solid var(--border);background:var(--bg-card);overflow:hidden}' +
+      '.cps-coach__step{flex:1;display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:12px;color:var(--text-muted);border-right:1px solid var(--border);position:relative;min-width:0}' +
+      '.cps-coach__step:last-child{border-right:none}' +
+      '.cps-coach__step span.num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;flex-shrink:0;background:var(--bg-tertiary);color:var(--text-muted);font-size:11px;font-weight:700;border:1px solid var(--border);transition:all .25s}' +
+      '.cps-coach__step span.lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}' +
+      '.cps-coach__step.is-active{background:var(--accent-08);color:var(--text-primary)}' +
+      '.cps-coach__step.is-active span.num{background:var(--accent);color:#fff;border-color:var(--accent)}' +
+      '.cps-coach__step.is-done{color:var(--success)}' +
+      '.cps-coach__step.is-done span.num{background:var(--success-bg);color:var(--success);border-color:var(--success)}' +
       '.ccp.bona .cps .card{background:var(--bg-card);border-color:var(--border);box-shadow:var(--bona-shadow-sm,0 1px 3px rgba(0,0,0,.06))}' +
       '.ccp.bona .cps__title{font-family:var(--bona-font-display,inherit);color:var(--text-primary)}' +
       '.ccp.bona .cps__sub{color:var(--text-secondary)}' +
       '.ccp.bona .cps-hist-stat{border-color:var(--border);background:var(--bg-card);box-shadow:var(--bona-shadow-sm)}' +
-      '.ccp.bona .cps-wf-pick__btn{border-color:var(--border);background:var(--bg-card)}' +
-      '.ccp.bona .cps-wf-pick__btn.is-active{border-color:var(--accent);background:var(--accent-08)}' +
-      '.ccp.bona .cps-coach{border-color:var(--border);background:linear-gradient(135deg,var(--accent-08),var(--bg-card))}' +
-      '.ccp.bona .cps-coach__step{background:var(--bg-card);border-color:var(--border)}' +
-      '@media(max-width:640px){.cps-modo-grid{grid-template-columns:1fr}.cps-wf-pick__grid,.cps-hist-stats{grid-template-columns:1fr}}';
+      '.ccp.bona .cps-hero{background:linear-gradient(135deg,var(--bona-gold-08,#f5f0e8),#fff);border-color:var(--bona-line,var(--border))}' +
+      '.ccp.bona .cps-hero__icon{background:#fff;border-color:var(--bona-line,var(--border))}' +
+      '.ccp.bona .cps-hero__switch{border-color:var(--bona-line);background:#fff}' +
+      '.ccp.bona .cps-coach{border-color:var(--border);background:#fff}' +
+      '.ccp.bona .cps-coach__step.is-active{background:var(--bona-gold-08,var(--accent-08))}' +
+      '.ccp.bona .cps-wf-pick__btn{background:#fff;border-color:var(--bona-line,var(--border));box-shadow:var(--bona-shadow-sm)}' +
+      '.ccp.bona .cps-wf-pick__btn:hover{box-shadow:var(--bona-shadow-lg)}' +
+      '.ccp.bona .cps-sticky-bar.is-visible .cps-actions{background:#fff;border-color:var(--bona-line);box-shadow:var(--bona-shadow)}' +
+      '.ccp.bona .cps-wf-tabs{background:var(--bona-cream,#faf9f7);border-color:var(--bona-line)}' +
+      '@media(max-width:900px){.cps-layout{grid-template-columns:1fr}.cps-sidebar{position:static;order:-1}}' +
+      '@media(max-width:640px){.cps-modo-grid{grid-template-columns:1fr}.cps-wf-pick__grid,.cps-hist-stats{grid-template-columns:1fr}.cps-coach{flex-direction:column}.cps-coach__step{border-right:none;border-bottom:1px solid var(--border)}.cps-coach__step:last-child{border-bottom:none}.cps-hero{flex-wrap:wrap}.cps-hero__actions{width:100%;margin-top:4px}}';
     var el = document.getElementById('crozzo-procesos-sesion-css');
     if (!el) {
       el = document.createElement('style');
@@ -228,12 +296,21 @@
       WF[wf] || {
         title: 'Anotar preparación',
         icon: 'utensils',
-        tone: 'violet',
+        tone: 'neutral',
+        badge: '',
         sub: 'Elige qué preparaste y completa pesos o ingredientes.',
         pickLabel: '¿Qué preparaste?',
-        steps: ['Elegir', 'Completar', 'Guardar'],
+        steps: ['Elegir tipo', 'Completar datos', 'Guardar en bodega'],
       }
     );
+  }
+
+  function coachStepIndex(host) {
+    if (!state.workflow) return -1;
+    if (state.batch.length) return 2;
+    var sel = host && host.querySelector ? host.querySelector('#cps-producto') : null;
+    if (state.edit || (sel && sel.value)) return 1;
+    return 0;
   }
 
   function workflowPickerHtml(active) {
@@ -241,28 +318,102 @@
     var btns = ids
       .map(function (id) {
         var m = WF[id];
+        var steps = (m.steps || [])
+          .map(function (s) {
+            return '<li>' + esc(s) + '</li>';
+          })
+          .join('');
         return (
-          '<button type="button" class="cps-wf-pick__btn' +
+          '<button type="button" class="cps-wf-pick__btn cps-wf-pick__btn--' +
+          m.tone +
           (active === id ? ' is-active' : '') +
           '" data-cps-wf="' +
           id +
           '">' +
+          (m.badge ? '<span class="cps-wf-pick__badge">' + esc(m.badge) + '</span>' : '') +
+          '<div class="cps-wf-pick__icon">' +
+          navIcon(m.icon) +
+          '</div>' +
           '<span class="cps-wf-pick__title">' +
           esc(m.title) +
           '</span>' +
           '<span class="cps-wf-pick__desc">' +
           esc(m.sub) +
-          '</span></button>'
+          '</span>' +
+          '<ul class="cps-wf-pick__steps">' +
+          steps +
+          '</ul>' +
+          '<span class="cps-wf-pick__go">Empezar →</span></button>'
         );
       })
       .join('');
     return (
       '<div class="card cps-wf-pick" id="cps-wf-pick">' +
-      '<h3 class="card-title">¿Qué tipo de preparación vas a anotar?</h3>' +
-      '<p class="cps-hint" style="margin:0">Elige para ver la lista correcta y los pasos guiados.</p>' +
+      '<h3 class="card-title">¿Qué vas a anotar hoy?</h3>' +
+      '<p class="cps-wf-pick__lead">Tres flujos guiados — elige el que corresponda a lo que estás haciendo ahora. Te llevamos paso a paso sin memorizar nada.</p>' +
       '<div class="cps-wf-pick__grid">' +
       btns +
       '</div></div>'
+    );
+  }
+
+  function wfTabsHtml(active) {
+    if (!active) return '';
+    var ids = ['despiece', 'coccion', 'elaboracion'];
+    return (
+      '<div class="cps-wf-tabs" id="cps-wf-tabs" role="tablist" aria-label="Tipo de preparación">' +
+      ids
+        .map(function (id) {
+          var m = WF[id];
+          return (
+            '<button type="button" class="cps-wf-tab' +
+            (active === id ? ' is-active' : '') +
+            '" data-cps-wf="' +
+            id +
+            '" role="tab"' +
+            (active === id ? ' aria-selected="true"' : '') +
+            '>' +
+            navIcon(m.icon) +
+            '<span>' +
+            esc(m.title) +
+            '</span></button>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  function headHtml() {
+    var meta = wfMeta(state.workflow);
+    var tone = meta.tone || 'neutral';
+    return (
+      '<header class="cps-hero cps-hero--' +
+      esc(tone) +
+      '">' +
+      '<div class="cps-hero__icon">' +
+      navIcon(meta.icon) +
+      '</div>' +
+      '<div class="cps-hero__body">' +
+      '<span class="cps-hero__eyebrow">' +
+      (state.workflow ? 'Centro de producción' : 'Anotar preparación') +
+      '</span>' +
+      '<h2 class="cps__title">' +
+      esc(meta.title) +
+      '</h2>' +
+      '<p class="cps__sub page-subtitle">' +
+      esc(meta.sub) +
+      '</p>' +
+      (state.workflow === 'elaboracion' || !state.workflow
+        ? canVerValoresProcesos()
+          ? '<div class="cps__head-actions"><button type="button" class="btn btn-outline btn-sm" id="cps-goto-recetas">Ver receta e ingredientes</button></div>'
+          : ''
+        : '') +
+      '</div>' +
+      (state.workflow
+        ? '<div class="cps-hero__actions"><button type="button" class="cps-hero__switch" id="cps-switch-wf">Cambiar tipo</button></div>'
+        : '') +
+      '</header>'
     );
   }
 
@@ -296,21 +447,39 @@
     );
   }
 
-  function coachHtml(wf) {
+  function coachHtml(wf, activeStep) {
     var meta = wfMeta(wf);
     if (!wf || !meta.steps || !meta.steps.length) return '';
+    if (activeStep == null) activeStep = coachStepIndex(state.host);
     var steps = meta.steps
       .map(function (s, i) {
+        var cls = 'cps-coach__step';
+        if (i < activeStep) cls += ' is-done';
+        else if (i === activeStep) cls += ' is-active';
         return (
-          '<span class="cps-coach__step"><span class="num">' +
-          (i + 1) +
-          '</span>' +
+          '<span class="' +
+          cls +
+          '"><span class="num">' +
+          (i < activeStep ? '✓' : i + 1) +
+          '</span><span class="lbl">' +
           esc(s) +
-          '</span>'
+          '</span></span>'
         );
       })
       .join('');
-    return '<div class="cps-coach" id="cps-coach">' + steps + '</div>';
+    return '<div class="cps-coach" id="cps-coach" role="list">' + steps + '</div>';
+  }
+
+  function refreshCoach(host) {
+    if (!host || !state.workflow) return;
+    var el = host.querySelector('#cps-coach');
+    if (!el) return;
+    el.outerHTML = coachHtml(state.workflow, coachStepIndex(host));
+  }
+
+  function refreshLucideIn(host) {
+    if (typeof global.refreshLucideIcons === 'function') global.refreshLucideIcons(host);
+    else if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [host] });
   }
 
   function resetForWorkflow(wf) {
@@ -583,7 +752,17 @@
       }
     }
     if (!fromCat || !fromCat.length) {
-      return [{ id: despieceCorteId(), nombre: '', pctRef: '', grPorPorcion: '', cantPorciones: '', kgReal: 0 }];
+      return [
+        {
+          id: despieceCorteId(),
+          nombre: '',
+          pctRef: '',
+          grPorPorcion: '',
+          cantPorciones: '',
+          kgReal: 0,
+          _tpl: false,
+        },
+      ];
     }
     return fromCat.map(function (c) {
       return {
@@ -594,14 +773,99 @@
         cantPorciones: '',
         kgReal: 0,
         grReal: 0,
+        _tpl: true,
       };
     });
   }
 
+  function resetDespieceSession(host) {
+    if (!host || !state.edit || !state.edit.mpId) return;
+    var mpId = state.edit.mpId;
+    state.edit.cortesDespiece = loadCortesTemplate(mpId);
+    var entGr = host.querySelector('#cps-mp-entrada-gr');
+    if (entGr) entGr.value = '';
+    syncEntradaKgHidden(host);
+    var notas = host.querySelector('#cps-notas');
+    if (notas) notas.value = '';
+    host.querySelectorAll('.cps-merma-desp-input').forEach(function (inp) {
+      inp.value = '';
+    });
+    rerenderDespieceCortes(host);
+    toast('Listo — puedes pesar otra pieza', 'info');
+  }
+
+  /** Plantilla de cortes (catálogo): admin, gerente o jefe compras — no cocina operativa. */
+  function canEditCortesPlantilla() {
+    return canVerValoresProcesos();
+  }
+
+  function cortePlantillaReadonly(c) {
+    if (canEditCortesPlantilla()) return false;
+    if (!c) return false;
+    return !!(c._tpl && ((c.nombre || '').trim() || (num(c.grPorPorcion) > 0)));
+  }
+
+  function readMermasDespieceFromHost(host) {
+    if (!host) return { huesoGr: 0, recorteGr: 0, coccionGr: 0 };
+    return {
+      huesoGr: Math.round(num((host.querySelector('#cps-merma-hueso') || {}).value, 0)),
+      recorteGr: Math.round(num((host.querySelector('#cps-merma-recorte') || {}).value, 0)),
+      coccionGr: Math.round(num((host.querySelector('#cps-merma-coccion') || {}).value, 0)),
+    };
+  }
+
+  function mermasDespieceBlockHtml() {
+    return (
+      '<div class="cps-mermas-despiece" id="cps-mermas-despiece">' +
+      '<p class="cps-mermas-despiece__title">Mermas (opcional)</p>' +
+      '<p class="cps-mermas-despiece__help">Pesa hueso, piel, recorte o lo que no va a venta. Se suma con los cortes para cuadrar la pieza.</p>' +
+      '<div class="cps-mermas-despiece__grid">' +
+      '<div><label class="form-label">Hueso y piel (g)</label>' +
+      '<input type="number" class="form-input cps-merma-desp-input" id="cps-merma-hueso" min="0" step="1" inputmode="numeric" placeholder="0"></div>' +
+      '<div><label class="form-label">Recorte / grasa (g)</label>' +
+      '<input type="number" class="form-input cps-merma-desp-input" id="cps-merma-recorte" min="0" step="1" inputmode="numeric" placeholder="0"></div>' +
+      '<div><label class="form-label">Cocinado parcial (g)</label>' +
+      '<input type="number" class="form-input cps-merma-desp-input" id="cps-merma-coccion" min="0" step="1" inputmode="numeric" placeholder="0"></div>' +
+      '</div></div>'
+    );
+  }
+
+  function despieceActionsHtml() {
+    var html =
+      '<div class="cps-despiece-actions">' +
+      '<button type="button" class="btn btn-outline" id="cps-despiece-nueva-pieza">Nueva pieza</button>';
+    if (canEditCortesPlantilla()) {
+      html +=
+        '<button type="button" class="btn btn-outline btn-sm" id="cps-cortes-guardar-tpl">Guardar plantilla de cortes</button>' +
+        '<span class="cps-hint" style="margin:0">Define los tipos de corte para todo el equipo.</span>';
+    } else {
+      html += '<span class="cps-hint" style="margin:0">Solo anota pesos y porciones — la plantilla la define el encargado.</span>';
+    }
+    return html + '</div>';
+  }
+
+  function dedupeCortesPlantilla(cortes) {
+    var seen = {};
+    var out = [];
+    (cortes || []).forEach(function (c) {
+      if (!c) return;
+      if (c._tpl === false) return;
+      var nom = String(c.nombre || '').trim();
+      var key = nom ? nom.toUpperCase() : String(c.id || '');
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      out.push(c);
+    });
+    return out.length
+      ? out
+      : [{ id: despieceCorteId(), nombre: '', pctRef: '', grPorPorcion: '' }];
+  }
+
   function persistCortesDespiece(host, mpId, cortes, opts) {
     opts = opts || {};
+    if (!canEditCortesPlantilla()) return;
     if (!mpId) return;
-    cortes = cortes || [];
+    cortes = dedupeCortesPlantilla(cortes || []);
     var cat = C();
     var payload = cat && cat.normalizeCortesDespiece ? cat.normalizeCortesDespiece(cortes) : cortes;
     if (cat && cat.saveCortesDespiece) {
@@ -609,14 +873,16 @@
     }
     saveCortesTemplateLocal(mpId, cortes);
     if (opts.toastDelete) toast('Listo, quitamos ese corte', 'info');
-    else if (opts.silent !== true && payload.length) showCortesSavedHint(host);
+    else if (opts.plantilla) {
+      showCortesSavedHint(host, '✓ Plantilla guardada');
+    } else if (opts.silent !== true && payload.length) showCortesSavedHint(host);
   }
 
-  function showCortesSavedHint(host) {
+  function showCortesSavedHint(host, msg) {
     if (!host) return;
     var el = host.querySelector('#cps-cortes-save-hint');
     if (!el) return;
-    el.textContent = '✓ Guardado';
+    el.textContent = msg || '✓ Guardado';
     el.classList.add('is-visible');
     clearTimeout(el._hideT);
     el._hideT = setTimeout(function () {
@@ -929,7 +1195,12 @@
     opts = opts || {};
     var entGr = opts.entGr != null ? Math.round(num(opts.entGr)) : Math.round(num(entKg) * 1000);
     cortes = cortes || [];
-    var sumGr = 0;
+    var mermasExp = opts.mermasExplicitas || {};
+    var mermaHuesoGr = Math.round(num(mermasExp.huesoGr));
+    var mermaRecorteGr = Math.round(num(mermasExp.recorteGr));
+    var mermaCoccionGr = Math.round(num(mermasExp.coccionGr));
+    var mermasExplicitasGr = mermaHuesoGr + mermaRecorteGr + mermaCoccionGr;
+    var sumCortesGr = 0;
     var pctRefSum = 0;
     var lineas = cortes.map(function (c) {
       var resolved = resolveCortePeso(c);
@@ -942,7 +1213,7 @@
       };
       var pctRef = num(c.pctRef);
       var pctReal = entGr > 0 && gr > 0 ? (gr / entGr) * 100 : null;
-      sumGr += gr;
+      sumCortesGr += gr;
       if (pctRef > 0) pctRefSum += pctRef;
       return {
         id: c.id,
@@ -961,6 +1232,7 @@
         pctReal: pctReal,
       };
     });
+    var sumGr = sumCortesGr + mermasExplicitasGr;
     var mermaGr = entGr > 0 ? Math.max(0, entGr - sumGr) : 0;
     var entradaKg = entGr / 1000;
     var sumKg = sumGr / 1000;
@@ -987,6 +1259,11 @@
       entradaGr: entGr,
       sumKg: sumKg,
       sumGr: sumGr,
+      sumCortesGr: sumCortesGr,
+      mermasExplicitasGr: mermasExplicitasGr,
+      mermaHuesoGr: mermaHuesoGr,
+      mermaRecorteGr: mermaRecorteGr,
+      mermaCoccionGr: mermaCoccionGr,
       utilPct: utilPct,
       mermaKg: mermaKg,
       mermaGr: mermaGr,
@@ -1012,7 +1289,7 @@
         '<p class="cps-despiece-step__help">Primero pon cuánto pesó toda la pieza (paso 1).</p></div>'
       );
     }
-    var hasCortes = summary.sumGr > 0;
+    var hasCortes = summary.sumCortesGr > 0 || summary.mermasExplicitasGr > 0;
     if (!hasCortes) {
       return (
         '<div class="cps-despiece-step" id="cps-despiece-resumen">' +
@@ -1048,6 +1325,19 @@
         );
       })
       .join('');
+    var mermasHtml = '';
+    if (summary.mermasExplicitasGr > 0) {
+      var mParts = [];
+      if (summary.mermaHuesoGr > 0) mParts.push('Hueso/piel ' + fmtPesoGr(summary.mermaHuesoGr));
+      if (summary.mermaRecorteGr > 0) mParts.push('Recorte ' + fmtPesoGr(summary.mermaRecorteGr));
+      if (summary.mermaCoccionGr > 0) mParts.push('Cocinado ' + fmtPesoGr(summary.mermaCoccionGr));
+      mermasHtml =
+        '<p class="cps-despiece-step__help" style="margin-top:8px">Mermas anotadas: <strong>' +
+        esc(mParts.join(' · ')) +
+        '</strong> (' +
+        fmtPesoGr(summary.mermasExplicitasGr) +
+        ' total)</p>';
+    }
     var veredicto = '';
     if (sobrante.esGrave) {
       veredicto =
@@ -1079,11 +1369,18 @@
       '</strong> de ' +
       esc(mpNom) +
       '. En cortes anotaste <strong>' +
+      fmtPesoGr(summary.sumCortesGr) +
+      '</strong>' +
+      (summary.mermasExplicitasGr > 0
+        ? ' + <strong>' + fmtPesoGr(summary.mermasExplicitasGr) + '</strong> en mermas'
+        : '') +
+      ' = <strong>' +
       fmtPesoGr(summary.sumGr) +
-      '</strong>.' +
+      '</strong> contabilizado.' +
       sobrante.txt +
       '</p>' +
       ayudaSobrante +
+      mermasHtml +
       refPerdida +
       (lineasHtml ? '<ul class="cps-despiece-list">' + lineasHtml + '</ul>' : '') +
       veredicto +
@@ -1093,12 +1390,23 @@
 
   function despieceCortesCardsHtml(edit) {
     var cortes = edit.cortesDespiece || [];
+    var adminTpl = canEditCortesPlantilla();
     var cards = cortes
       .map(function (c, idx) {
         var grPorVal = c.grPorPorcion !== '' && c.grPorPorcion != null && num(c.grPorPorcion) > 0 ? num(c.grPorPorcion) : '';
         var undVal =
           c.cantPorciones !== '' && c.cantPorciones != null && num(c.cantPorciones) > 0 ? num(c.cantPorciones) : '';
         var grBalanza = num(c.grBalanza) > 0 ? num(c.grBalanza) : num(c.grReal) > 0 ? num(c.grReal) : '';
+        var nomReadonly = cortePlantillaReadonly(c);
+        var grPorReadonly = cortePlantillaReadonly(c) && grPorVal;
+        var nomAttrs = nomReadonly ? ' readonly tabindex="-1"' : '';
+        var grPorAttrs = grPorReadonly ? ' readonly tabindex="-1"' : '';
+        var tandaBtn =
+          (c.nombre || '').trim() && !adminTpl
+            ? '<button type="button" class="btn btn-outline btn-sm cps-corte-tanda cps-corte-tanda-btn" data-corte-tanda="' +
+              esc(c.id) +
+              '">+ Otra tanda de este corte</button>'
+            : '';
         return (
           '<div class="cps-corte-card" data-corte-id="' +
           esc(c.id) +
@@ -1108,7 +1416,9 @@
           '<label class="form-label">¿Cómo se llama este corte?</label>' +
           '<input type="text" class="form-input cps-corte-nom" placeholder="Ej: Filete, Churrasco, Molida" value="' +
           esc(c.nombre || '') +
-          '">' +
+          '"' +
+          nomAttrs +
+          '>' +
           '<div class="cps-corte-balanza' +
           (grBalanza ? ' is-done' : '') +
           '">' +
@@ -1124,16 +1434,22 @@
           '<div><label class="form-label">¿Cuánto pesa cada una? (g)</label>' +
           '<input type="number" class="form-input cps-corte-gr-porcion" min="0" step="1" inputmode="numeric" placeholder="Ej: 100" value="' +
           esc(grPorVal) +
-          '"></div></div>' +
+          '"' +
+          grPorAttrs +
+          '></div></div>' +
           '<div class="cps-corte-total-box is-empty" data-corte-total>' +
           '<span class="cps-corte-total-box__lbl">Comparación</span>' +
           '<span class="cps-corte-total-box__val" data-corte-total-val>Pesa en balanza y cuenta las porciones</span></div>' +
           '<div class="cps-corte-diff is-muted" data-corte-diff aria-live="polite"></div>' +
           '<div class="cps-corte-porciones is-muted" data-corte-porciones>1) Pesa en balanza · 2) Cuenta porciones × gramos</div>' +
+          (tandaBtn ? '<div class="cps-corte-tanda">' + tandaBtn + '</div>' : '') +
           '<div class="cps-corte-card__foot">' +
-          '<button type="button" class="btn btn-outline btn-sm cps-corte-rm" data-corte-rm="' +
-          esc(c.id) +
-          '">Quitar este corte</button></div></div>'
+          (adminTpl
+            ? '<button type="button" class="btn btn-outline btn-sm cps-corte-rm" data-corte-rm="' +
+              esc(c.id) +
+              '">Quitar este corte</button>'
+            : '') +
+          '</div></div>'
         );
       })
       .join('');
@@ -1148,8 +1464,13 @@
       '<div class="cps-corte-cards" id="cps-cortes-tbody">' +
       cards +
       '</div>' +
+      mermasDespieceBlockHtml() +
+      despieceActionsHtml() +
       '<div class="cps-cortes-barra" id="cps-cortes-barra" aria-live="polite">Pesa cada corte en balanza y anota las porciones.</div>' +
-      '<button type="button" class="btn btn-outline" id="cps-corte-add">+ Agregar otro corte</button></div>' +
+      (adminTpl
+        ? '<button type="button" class="btn btn-outline" id="cps-corte-add" style="margin-top:10px">+ Agregar tipo de corte a la plantilla</button>'
+        : '') +
+      '</div>' +
       '<input type="hidden" id="cps-output-kg" value="0">' +
       '</div>'
     );
@@ -1161,7 +1482,10 @@
     syncEntradaKgHidden(host);
     var entGr = readEntradaGrFromHost(host);
     var mp = C().get(state.edit.mpId);
-    var summary = calcDespieceSummary(0, state.edit.cortesDespiece, mp, { entGr: entGr });
+    var summary = calcDespieceSummary(0, state.edit.cortesDespiece, mp, {
+      entGr: entGr,
+      mermasExplicitas: readMermasDespieceFromHost(host),
+    });
     summary.lineas.forEach(function (l) {
       var row = host.querySelector('[data-corte-id="' + l.id + '"]');
       if (!row) return;
@@ -1265,19 +1589,27 @@
       } else {
         var falta = Math.max(0, entGr - summary.sumGr);
         var tol = mermaToleranciaGr(entGr);
+        var mermaNote =
+          summary.mermasExplicitasGr > 0
+            ? ' (incl. ' + fmtPesoGr(summary.mermasExplicitasGr) + ' mermas)'
+            : '';
         if (falta <= tol) {
           barra.classList.add('is-ok');
           barra.innerHTML =
             'Llevas <strong>' +
             fmtPesoGr(summary.sumGr) +
-            '</strong> en cortes de <strong>' +
+            '</strong>' +
+            mermaNote +
+            ' de <strong>' +
             fmtPesoGr(entGr) +
             '</strong> que entraron — cuadra bien.';
         } else {
           barra.innerHTML =
             'Llevas <strong>' +
             fmtPesoGr(summary.sumGr) +
-            '</strong> en cortes de <strong>' +
+            '</strong>' +
+            mermaNote +
+            ' de <strong>' +
             fmtPesoGr(entGr) +
             '</strong> — faltan <strong>' +
             fmtPesoGr(falta) +
@@ -1286,7 +1618,7 @@
       }
     }
     var out = host.querySelector('#cps-output-kg');
-    if (out) out.value = String(summary.sumKg);
+    if (out) out.value = String(summary.sumCortesGr > 0 ? summary.sumCortesGr / 1000 : summary.sumKg / 1000);
     var resumen = host.querySelector('#cps-despiece-resumen');
     if (resumen) resumen.outerHTML = despieceResumenHtml(summary, mp);
     refreshMermaLive(host);
@@ -1308,7 +1640,7 @@
     if (add && !add._cpsBound) {
       add._cpsBound = true;
       add.addEventListener('click', function () {
-        if (!state.edit) return;
+        if (!state.edit || !canEditCortesPlantilla()) return;
         state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
         state.edit.cortesDespiece.push({
           id: despieceCorteId(),
@@ -1317,16 +1649,41 @@
           grPorPorcion: '',
           cantPorciones: '',
           kgReal: 0,
+          _tpl: true,
         });
         rerenderDespieceCortes(host);
         persistCortesDespiece(host, mpId, state.edit.cortesDespiece);
       });
     }
-    host.querySelectorAll('.cps-corte-rm').forEach(function (btn) {
+    host.querySelectorAll('.cps-corte-tanda-btn').forEach(function (btn) {
       if (btn._cpsBound) return;
       btn._cpsBound = true;
       btn.addEventListener('click', function () {
         if (!state.edit) return;
+        var id = btn.getAttribute('data-corte-tanda');
+        state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
+        var src = state.edit.cortesDespiece.find(function (c) {
+          return c.id === id;
+        });
+        if (!src) return;
+        state.edit.cortesDespiece.push({
+          id: despieceCorteId(),
+          nombre: src.nombre,
+          pctRef: src.pctRef,
+          grPorPorcion: src.grPorPorcion,
+          cantPorciones: '',
+          kgReal: 0,
+          grBalanza: 0,
+          _tpl: false,
+        });
+        rerenderDespieceCortes(host);
+      });
+    });
+    host.querySelectorAll('.cps-corte-rm').forEach(function (btn) {
+      if (btn._cpsBound) return;
+      btn._cpsBound = true;
+      btn.addEventListener('click', function () {
+        if (!state.edit || !canEditCortesPlantilla()) return;
         var id = btn.getAttribute('data-corte-rm');
         state.edit.cortesDespiece = readCortesFromHost(host, state.edit).filter(function (c) {
           return c.id !== id;
@@ -1339,6 +1696,7 @@
             grPorPorcion: '',
             cantPorciones: '',
             kgReal: 0,
+            _tpl: true,
           });
         }
         rerenderDespieceCortes(host);
@@ -1351,12 +1709,18 @@
       inp.addEventListener('input', function () {
         refreshDespieceLive(host);
         refreshTotals(host);
-        if (!state.edit) return;
+        if (!state.edit || !canEditCortesPlantilla()) return;
+        if (inp.readOnly) return;
         state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
-        schedulePersistCortes(host, mpId, state.edit.cortesDespiece);
+        if (
+          inp.classList.contains('cps-corte-nom') ||
+          inp.classList.contains('cps-corte-gr-porcion')
+        ) {
+          schedulePersistCortes(host, mpId, state.edit.cortesDespiece);
+        }
       });
       inp.addEventListener('blur', function () {
-        if (!state.edit) return;
+        if (!state.edit || !canEditCortesPlantilla() || inp.readOnly) return;
         state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
         if (
           inp.classList.contains('cps-corte-nom') ||
@@ -1367,6 +1731,31 @@
         }
       });
     });
+    host.querySelectorAll('.cps-merma-desp-input').forEach(function (inp) {
+      if (inp._cpsBound) return;
+      inp._cpsBound = true;
+      inp.addEventListener('input', function () {
+        refreshDespieceLive(host);
+        refreshTotals(host);
+      });
+    });
+    var nuevaPieza = host.querySelector('#cps-despiece-nueva-pieza');
+    if (nuevaPieza && !nuevaPieza._cpsBound) {
+      nuevaPieza._cpsBound = true;
+      nuevaPieza.addEventListener('click', function () {
+        if (!confirm('¿Empezar otra pieza? Se borran los pesos de esta sesión (la plantilla de cortes no cambia).')) return;
+        resetDespieceSession(host);
+      });
+    }
+    var guardarTpl = host.querySelector('#cps-cortes-guardar-tpl');
+    if (guardarTpl && !guardarTpl._cpsBound) {
+      guardarTpl._cpsBound = true;
+      guardarTpl.addEventListener('click', function () {
+        if (!state.edit || !canEditCortesPlantilla()) return;
+        state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
+        persistCortesDespiece(host, mpId, state.edit.cortesDespiece, { silent: false, plantilla: true });
+      });
+    }
   }
 
   function mermaEspHintHtml(mp) {
@@ -2177,6 +2566,11 @@
             var mGr = Math.round(num(c.mermaDesposteKg) * 1000);
             mermaTxt += mGr >= 1000 ? ' · sobró ' + (mGr / 1000).toFixed(2) + ' kg' : ' · sobró ' + mGr + ' g';
           }
+          var mExp = [];
+          if (num(c.mermaHuesoGr) > 0) mExp.push('hueso ' + num(c.mermaHuesoGr) + ' g');
+          if (num(c.mermaRecorteGr) > 0) mExp.push('recorte ' + num(c.mermaRecorteGr) + ' g');
+          if (num(c.mermaCoccionParcialGr) > 0) mExp.push('cocinado ' + num(c.mermaCoccionParcialGr) + ' g');
+          if (mExp.length) mermaTxt += (mermaTxt !== '—' ? ' · ' : '') + mExp.join(', ');
         } else if (canVerMermaReferencias() && c.mermaTotalKg > 0) {
           mermaTxt =
             'MC ' +
@@ -2330,52 +2724,54 @@
     if (!state.responsables.length) state.responsables = initResponsables();
     var meta = wfMeta(state.workflow);
     var ready = !!(C() && E());
+    var coachStep = state.workflow ? (state.batch.length ? 2 : 0) : -1;
     return (
       '<div class="crozzo-compras-local cps crozzo-procesos-host" id="crozzo-procesos-sesion">' +
-      '<header class="cps__head">' +
-      '<div class="cps__badge">' +
-      esc(meta.title) +
-      '</div>' +
-      '<h2 class="cps__title">' +
-      esc(meta.title) +
-      '</h2>' +
-      '<p class="cps__sub page-subtitle">' +
-      esc(meta.sub) +
-      '</p>' +
-      '<div class="cps__head-actions">' +
-      (state.workflow === 'elaboracion' || !state.workflow
-        ? canVerValoresProcesos()
-          ? '<button type="button" class="btn btn-outline btn-sm" id="cps-goto-recetas">Ver receta e ingredientes</button>'
-          : ''
-        : '') +
-      '</div>' +
+      headHtml() +
       (!ready ? '<p class="cps-hint"><span class="cps-tag cps-tag--warn">Cargando catálogo…</span></p>' : '') +
-      '</header>' +
-      (!state.workflow ? workflowPickerHtml('') : '') +
-      coachHtml(state.workflow) +
-      responsablesCardHtml() +
-      '<div id="cps-batch-host">' +
-      batchCardHtml() +
-      '</div>' +
-      '<div class="card">' +
+      (!state.workflow ? workflowPickerHtml('') : wfTabsHtml(state.workflow) + coachHtml(state.workflow, coachStep)) +
+      '<div class="cps-layout">' +
+      '<div class="cps-main">' +
+      '<div class="card cps-pick-card">' +
       '<h3 class="card-title">' +
       esc(meta.pickLabel) +
       '</h3>' +
       (state.workflow
-        ? '<div class="form-group"><label class="form-label">Elige de la lista</label>' +
+        ? '<div class="cps-product-filter-wrap">' +
+          navIcon('search') +
+          '<input type="search" class="form-input" id="cps-product-filter" placeholder="Buscar en la lista…" autocomplete="off" enterkeyhint="search">' +
+          '</div>' +
+          '<div class="form-group" style="margin:0"><label class="form-label">Producto o preparación</label>' +
           '<select class="form-input form-select" id="cps-producto">' +
           productOptionsHtml(state.workflow) +
           '</select></div>' +
           workflowFootnoteHtml(state.workflow)
-        : '<p class="cps-hint" style="margin:0">Primero elige el tipo de preparación arriba para ver productos y pasos.</p>') +
+        : '<p class="cps-hint" style="margin:0">Elige arriba el tipo de preparación para ver la lista y los pasos guiados.</p>') +
       '</div>' +
       '<div id="cps-detail-host"></div>' +
-      '<div class="cps-actions" id="cps-actions" style="display:none">' +
-      '<button type="button" class="btn btn-outline" id="cps-add-batch">+ Otra preparación en este registro</button>' +
-      '<button type="button" class="btn btn-primary" id="cps-save">Guardar en bodega</button></div>' +
+      '</div>' +
+      '<aside class="cps-sidebar">' +
+      responsablesCardHtml() +
+      '<div id="cps-batch-host">' +
+      batchCardHtml() +
+      '</div></aside></div>' +
+      '<div class="cps-sticky-bar" id="cps-sticky-bar">' +
+      '<div class="cps-actions" id="cps-actions">' +
+      '<button type="button" class="btn btn-outline" id="cps-add-batch">+ Otra en este registro</button>' +
+      '<button type="button" class="btn btn-primary" id="cps-save">Guardar en bodega</button></div></div>' +
       historialHtml() +
       '</div>'
     );
+  }
+
+  function syncActionsVisibility(host) {
+    var actions = host.querySelector('#cps-actions');
+    var bar = host.querySelector('#cps-sticky-bar');
+    if (!actions) return;
+    var show = !!(state.edit || state.batch.length);
+    if (bar) bar.classList.toggle('is-visible', show);
+    actions.style.display = show ? 'flex' : 'none';
+    refreshCoach(host);
   }
 
   function refreshBatchHost(host) {
@@ -2387,6 +2783,7 @@
       var n = state.batch.length + (state.edit ? 1 : 0);
       save.textContent = n > 1 ? 'Guardar en bodega (' + n + ')' : 'Guardar en bodega';
     }
+    syncActionsVisibility(host);
   }
 
   function refreshRespCard(host) {
@@ -2522,6 +2919,7 @@
       syncEntradaKgHidden(host);
       var salida = 0;
       var cortesPayload = [];
+      var mermasDesp = null;
       if (state.workflow === 'despiece') {
         state.edit.cortesDespiece = readCortesFromHost(host, state.edit);
         cortesPayload = (state.edit.cortesDespiece || [])
@@ -2549,20 +2947,31 @@
         salida = cortesPayload.reduce(function (s, c) {
           return s + num(c.kgReal);
         }, 0);
+        mermasDesp = readMermasDespieceFromHost(host);
       } else {
         salida = num((host.querySelector('#cps-output-kg') || {}).value, 0);
       }
       if (entrada <= 0) return null;
-      if (state.workflow === 'despiece' && salida <= 0) return null;
+      if (state.workflow === 'despiece') {
+        var mTot =
+          (mermasDesp ? mermasDesp.huesoGr + mermasDesp.recorteGr + mermasDesp.coccionGr : 0) || 0;
+        if (salida <= 0 && mTot <= 0) return null;
+      } else if (salida <= 0) return null;
       var costoMp = costoEntradaKg(mp, entrada);
       var itemMp = {
         producto: mp.nombre,
         mpId: state.edit.mpId,
         workflow: state.workflow || 'despiece',
-        kg: salida || entrada,
+        kg: salida > 0 ? salida : entrada,
         pesoEntradaKg: entrada,
         pesoUtilKg: salida > 0 ? salida : null,
         cortesDespiece: cortesPayload,
+        mermaHuesoGr:
+          state.workflow === 'despiece' && mermasDesp && mermasDesp.huesoGr > 0 ? mermasDesp.huesoGr : null,
+        mermaRecorteGr:
+          state.workflow === 'despiece' && mermasDesp && mermasDesp.recorteGr > 0 ? mermasDesp.recorteGr : null,
+        mermaCoccionParcialGr:
+          state.workflow === 'despiece' && mermasDesp && mermasDesp.coccionGr > 0 ? mermasDesp.coccionGr : null,
         costoMpTotal: costoMp,
         lineas: [
           {
@@ -2602,10 +3011,8 @@
     state.batch.push(item);
     state.edit = null;
     var detail = host.querySelector('#cps-detail-host');
-    var actions = host.querySelector('#cps-actions');
     var sel = host.querySelector('#cps-producto');
     if (detail) detail.innerHTML = '';
-    if (actions) actions.style.display = 'none';
     if (sel) sel.value = '';
     refreshBatchHost(host);
     toast('Agregado — puedes registrar otra preparación', 'success');
@@ -2645,28 +3052,29 @@
   function onProductChange(host) {
     var sel = host.querySelector('#cps-producto');
     var detail = host.querySelector('#cps-detail-host');
-    var actions = host.querySelector('#cps-actions');
     if (!sel || !detail) return;
     var val = sel.value || '';
     state.edit = null;
     detail.innerHTML = '';
-    if (actions) actions.style.display = 'none';
-    if (!val) return;
+    if (!val) {
+      syncActionsVisibility(host);
+      return;
+    }
     if (val.indexOf('rec:') === 0) {
       state.edit = newEditReceta(val.slice(4));
       detail.innerHTML = recetaPanelHtml(state.edit);
-      if (actions) actions.style.display = 'flex';
       bindDetail(host);
+      syncActionsVisibility(host);
       return;
     }
     if (val.indexOf('mp:') === 0) {
       state.edit = newEditMp(val.slice(3));
       detail.innerHTML = mpPanelHtml(state.edit);
-      if (actions) actions.style.display = 'flex';
       bindDetail(host);
       bindDespieceCortes(host);
       refreshTotals(host);
       refreshDespieceLive(host);
+      syncActionsVisibility(host);
     }
   }
 
@@ -2798,6 +3206,64 @@
     });
   }
 
+  function bindProductFilter(host) {
+    var inp = host.querySelector('#cps-product-filter');
+    var sel = host.querySelector('#cps-producto');
+    if (!inp || !sel || inp._cpsBound) return;
+    inp._cpsBound = true;
+    inp._cpsCache = sel.innerHTML;
+    inp.addEventListener('input', function () {
+      var q = inp.value.trim().toLowerCase();
+      var cacheHtml = inp._cpsCache || sel.innerHTML;
+      if (!q) {
+        sel.innerHTML = cacheHtml;
+        sel.value = '';
+        return;
+      }
+      var wrap = document.createElement('div');
+      wrap.innerHTML = cacheHtml;
+      var first = wrap.querySelector('option[value=""]');
+      var out = first ? first.outerHTML : '<option value="">—</option>';
+      wrap.querySelectorAll('optgroup').forEach(function (og) {
+        var kept = [];
+        og.querySelectorAll('option').forEach(function (opt) {
+          if (!opt.value) return;
+          if (
+            String(opt.textContent || '')
+              .toLowerCase()
+              .indexOf(q) >= 0
+          ) {
+            kept.push(opt.outerHTML);
+          }
+        });
+        if (kept.length) {
+          out += '<optgroup label="' + esc(og.label || '') + '">' + kept.join('') + '</optgroup>';
+        }
+      });
+      var prev = sel.value;
+      sel.innerHTML = out;
+      if (prev) {
+        var match = sel.querySelector('option[value="' + CSS.escape(prev) + '"]');
+        if (match) sel.value = prev;
+      }
+    });
+  }
+
+  function bindSwitchWorkflow(host) {
+    var btn = host.querySelector('#cps-switch-wf');
+    if (!btn || btn._cpsBound) return;
+    btn._cpsBound = true;
+    btn.addEventListener('click', function () {
+      resetForWorkflow('');
+      try {
+        sessionStorage.removeItem('qca_pro_workflow');
+      } catch (_) {}
+      host.innerHTML = render({ workflow: '' });
+      init(host, { workflow: '' });
+      refreshLucideIn(host);
+    });
+  }
+
   function bindWorkflowPick(host) {
     host.querySelectorAll('[data-cps-wf]').forEach(function (btn) {
       if (btn._cpsWfBound) return;
@@ -2811,7 +3277,8 @@
         } catch (_) {}
         host.innerHTML = render({ workflow: wf });
         init(host, { workflow: wf });
-        if (typeof global.refreshLucideIcons === 'function') global.refreshLucideIcons(host);
+        refreshLucideIn(host);
+        toast('Listo — completa los pasos en pantalla', 'info');
       });
     });
   }
@@ -2831,6 +3298,8 @@
       cat.ensureReady(function () {
         var sel = host.querySelector('#cps-producto');
         if (sel) sel.innerHTML = productOptionsHtml(state.workflow);
+        var filt = host.querySelector('#cps-product-filter');
+        if (filt && sel) filt._cpsCache = sel.innerHTML;
       });
     }
     var sel = host.querySelector('#cps-producto');
@@ -2869,9 +3338,13 @@
       });
     });
     bindWorkflowPick(host);
+    bindSwitchWorkflow(host);
+    bindProductFilter(host);
     bindResponsables(host);
     bindBatch(host);
     bindHistorialAdmin(host);
+    refreshLucideIn(host);
+    syncActionsVisibility(host);
   }
 
   global.CrozzoProcesosSesion = {

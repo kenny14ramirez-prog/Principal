@@ -2178,6 +2178,7 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
       });
       Object.keys(metaById).forEach(function (idKey) {
         if (idKey === 'KENNY') return;
+        if (typeof crozzoGetDeletedStaffIdSet === 'function' && crozzoGetDeletedStaffIdSet().has(idKey)) return;
         if (next.some(function (u) { return String(u.id || '').toUpperCase() === idKey; })) return;
         const r = metaById[idKey];
         next.push({
@@ -2253,6 +2254,76 @@ function crozzoPosStaffRowsWithoutBusinessId(rows) {
     return copy;
   });
 }
+async function crozzoPruneOrphanPosStaffInCloud(ctx) {
+  if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return false;
+  if (typeof getUsuariosConfig !== 'function') return false;
+  ctx = ctx || crozzoPosStaffCloudCtx();
+  var loc = ctx.locationId || 'default';
+  var sb = window.__SUPABASE;
+  var keepIds = new Set();
+  var staff = getUsuariosConfig().staff || [];
+  for (var i = 0; i < staff.length; i++) {
+    if (staff[i] && staff[i].id) keepIds.add(String(staff[i].id).toUpperCase());
+  }
+  var deleted =
+    typeof crozzoGetDeletedStaffIdSet === 'function' ? crozzoGetDeletedStaffIdSet() : new Set();
+  var rows = [];
+  try {
+    if (typeof loadTableData === 'function') {
+      var res = await loadTableData('pos_staff', { where: { location_id: loc }, limit: 200 });
+      rows = res && Array.isArray(res.data) ? res.data : [];
+    }
+    if (!rows.length) {
+      var res2 = await sb.from('pos_staff').select('id,location_id').eq('location_id', loc).limit(200);
+      rows = res2 && Array.isArray(res2.data) ? res2.data : [];
+    }
+  } catch (e) {
+    console.warn('[crozzo-sb] prune pos_staff list', e);
+    return false;
+  }
+  var pruned = false;
+  for (var j = 0; j < rows.length; j++) {
+    var row = rows[j];
+    if (!row || !row.id) continue;
+    var rid = String(row.id).toUpperCase();
+    if (rid === 'KENNY') continue;
+    if (deleted.has(rid) || !keepIds.has(rid)) {
+      try {
+        var q = sb.from('pos_staff').delete().eq('id', rid);
+        if (row.location_id) q = q.eq('location_id', row.location_id);
+        else if (loc) q = q.eq('location_id', loc);
+        var del = await q;
+        if (del && !del.error) pruned = true;
+      } catch (e2) {
+        console.warn('[crozzo-sb] prune pos_staff delete', rid, e2);
+      }
+    }
+  }
+  return pruned;
+}
+async function crozzoDeletePosStaffFromCloud(userId) {
+  if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
+    return false;
+  }
+  var id = String(userId || '').toUpperCase();
+  if (!id || id === 'KENNY') return false;
+  var ctx = crozzoPosStaffCloudCtx();
+  var sb = window.__SUPABASE;
+  try {
+    var q = sb.from('pos_staff').delete().eq('id', id);
+    if (ctx.locationId) q = q.eq('location_id', ctx.locationId);
+    var r = await q;
+    if (r && r.error && ctx.locationId) {
+      r = await sb.from('pos_staff').delete().eq('id', id);
+    }
+    await crozzoPruneOrphanPosStaffInCloud(ctx);
+    return !(r && r.error);
+  } catch (e) {
+    console.warn('[crozzo-sb] delete pos_staff', e);
+    return false;
+  }
+}
+window.crozzoDeletePosStaffFromCloud = crozzoDeletePosStaffFromCloud;
 /** Sube hashes de contraseña (pos_staff) para que tablets/APK usen las mismas credenciales que la caja. */
 async function crozzoPushPosStaffToCloud() {
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
@@ -2289,6 +2360,7 @@ async function crozzoPushPosStaffToCloud() {
       console.warn('[crozzo-sb] push pos_staff', res.error);
       return false;
     }
+    await crozzoPruneOrphanPosStaffInCloud(ctx);
     return true;
   } catch (e) {
     console.warn('[crozzo-sb] push pos_staff', e);
@@ -2315,7 +2387,7 @@ async function crozzoPullRemoteStaffState(opts) {
     rows = res && Array.isArray(res.data) ? res.data : [];
   }
   if (!rows.length) return false;
-  var applied = crozzoApplyPosStaffFromRemote(rows, loc);
+  var applied = crozzoApplyPosStaffFromRemote(rows, loc, { allowImportNew: false });
   if (applied && !opts.quiet && typeof showToast === 'function') {
     showToast('Usuarios actualizados desde la nube', 'info');
   }
@@ -2323,11 +2395,15 @@ async function crozzoPullRemoteStaffState(opts) {
 }
 window.crozzoPullRemoteStaffState = crozzoPullRemoteStaffState;
 /** Importa usuarios de caja desde `pos_staff` (nube) tras emparejamiento QR. */
-window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(rows, locationId) {
+window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(rows, locationId, opts) {
+  opts = opts || {};
+  var allowImportNew = opts.allowImportNew === true;
   if (!Array.isArray(rows) || !rows.length) return false;
   if (typeof getUsuariosConfig !== 'function' || typeof saveUsuarios !== 'function') return false;
   const loc = String(locationId || 'default').trim();
   const conf = getUsuariosConfig();
+  const deletedSet =
+    typeof crozzoGetDeletedStaffIdSet === 'function' ? crozzoGetDeletedStaffIdSet() : new Set();
   let staff = (conf.staff || []).slice();
   let changed = false;
   rows.forEach(function (row) {
@@ -2335,6 +2411,7 @@ window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(ro
     if (loc && row.location_id && String(row.location_id) !== loc) return;
     const id = String(row.id).toUpperCase();
     if (id === 'KENNY') return;
+    if (deletedSet.has(id)) return;
     const prev = staff.find(function (s) {
       return String(s.id || '').toUpperCase() === id;
     });
@@ -2365,6 +2442,7 @@ window.crozzoApplyPosStaffFromRemote = function crozzoApplyPosStaffFromRemote(ro
       merged.requiereClaveInicial = true;
     }
     if (!prev) {
+      if (!allowImportNew) return;
       staff.push(merged);
       changed = true;
     } else if (JSON.stringify(prev) !== JSON.stringify(merged)) {

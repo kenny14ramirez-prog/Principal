@@ -126,7 +126,7 @@
     recetaDraftBySlug: {},
     recetaMpCombo: { openLine: null, filters: {}, platoFilter: '', platoOpen: false },
     precioVentaSyncLock: false,
-    inventarioUi: { q: '', cat: 'all', tab: 'stock', conteoFecha: '', conteoPor: '', conteoId: null, conteoLineas: null },
+    inventarioUi: { q: '', cat: 'all', tab: 'stock', modo: 'perpetuo', conteoCiego: false, ciclicoAbc: 'pendientes', conteoFecha: '', conteoPor: '', conteoId: null, conteoLineas: null },
     matrizApplying: false,
     matrizCatalogTimer: null,
     matrizAggTimer: null,
@@ -1512,6 +1512,9 @@
     if (badge) badge.hidden = !dirty;
     var saveBtn = root.querySelector('#crozzoRecetaSave');
     var saveBtn2 = root.querySelector('#crozzoRecetaSaveFoot');
+    root.querySelectorAll('[data-receta-action="save"]').forEach(function (btn) {
+      btn.classList.toggle('crozzo-receta-btn--pending', !!dirty);
+    });
     if (saveBtn) saveBtn.classList.toggle('crozzo-receta-btn--pending', !!dirty);
     if (saveBtn2) saveBtn2.classList.toggle('crozzo-receta-btn--pending', !!dirty);
   }
@@ -1992,7 +1995,51 @@
     return html;
   }
 
-  function refreshRecetaPlatoPanel(root, seed) {
+  function addRecetaLine(root, seed) {
+    var tbody = root.querySelector('#crozzoDemoTbody');
+    if (!tbody) return;
+    var lineas = collectRecetaLineasFromDom(root, seed);
+    var C = global.CrozzoCatalogoMp;
+    var firstMp = C && C.list && C.list()[0];
+    lineas.push({
+      mpId: firstMp ? firstMp.id : '',
+      ingrediente: firstMp ? firstMp.nombre : '',
+      unidad: firstMp && firstMp.und ? firstMp.und : 'GR',
+      cantidad: 1,
+    });
+    var slug = getActiveRecetaSlug(seed);
+    setRecetaDraft(slug, lineas, getRecetaOptsMerged(null, seed, slug));
+    refreshRecetaPlatoPanel(root, seed, { focusLastLine: true });
+    recalcDemoReceta(root, seed, { previewOnly: true });
+  }
+
+  function focusRecetaLastLine(root) {
+    if (!root) return;
+    requestAnimationFrame(function () {
+      var panel = root.querySelector('[data-receta-vista-panel="edicion"]');
+      var dock = root.querySelector('[data-receta-dock]');
+      if (dock && dock.scrollIntoView) dock.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      var tbody = root.querySelector('#crozzoDemoTbody');
+      if (!tbody) return;
+      var rows = tbody.querySelectorAll('tr[data-demo-line]');
+      var last = rows.length ? rows[rows.length - 1] : null;
+      if (!last) return;
+      if (last.scrollIntoView) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      var focusEl =
+        last.querySelector('[data-mp-combo-input]') ||
+        last.querySelector('.crozzo-receta-mp-combo input') ||
+        last.querySelector('[data-demo-cant]');
+      if (focusEl && focusEl.focus) {
+        setTimeout(function () {
+          focusEl.focus();
+          if (focusEl.select) focusEl.select();
+        }, 80);
+      }
+    });
+  }
+
+  function refreshRecetaPlatoPanel(root, seed, panelOpts) {
+    panelOpts = panelOpts || {};
     if (!root) return;
     var panel = root.querySelector('[data-matriz-panel="demo"]');
     if (!panel) return;
@@ -2000,6 +2047,7 @@
     initMatrizGerenciaPanel(root, seed);
     bindRecetaNewPlatoForm(root);
     bindPerdidasProcesoAdmin(root);
+    if (panelOpts.focusLastLine) focusRecetaLastLine(root);
   }
 
   function loadDemoRecetaLineas(seed) {
@@ -3100,7 +3148,7 @@
       return (
         '<p class="crozzo-matriz-panel-head crozzo-matriz-panel-head--step">' +
         '<span class="crozzo-matriz-panel-head__badge">Paso 2</span> ' +
-        'Arme la receta de cada plato de cocina. El sistema suma insumos y calcula el <strong>costo del plato</strong>.</p>'
+        'Elija un plato, agregue insumos con cantidades y guarde. El costo y precio sugerido salen solos.</p>'
       );
     }
     var list = mergeResumenList(seed);
@@ -4073,6 +4121,7 @@
       '.crozzo-receta-proceso{margin:0 0 18px;padding:14px 16px;border-radius:14px;border:2px solid rgba(var(--matriz-gold-rgb),.45);background:rgba(var(--matriz-gold-rgb),.1);box-shadow:0 0 0 1px rgba(var(--matriz-gold-rgb),.12)}' +
       '.crozzo-receta-proceso--muted{font-size:.82rem;line-height:1.55;color:var(--text-secondary)}' +
       '.crozzo-receta-proceso__row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-bottom:8px}' +
+      '.crozzo-receta-proceso__model{margin:0 0 10px;font-size:.78rem;line-height:1.55;color:var(--text-secondary)}' +
       '.crozzo-receta-proceso__lbl{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--matriz-gold);white-space:nowrap}' +
       '.crozzo-receta-proceso__sel{flex:1;min-width:min(100%,280px);max-width:520px;font-weight:600}' +
       '.crozzo-receta-proceso__hint{margin:0;font-size:.78rem;line-height:1.5;color:var(--text-secondary)}' +
@@ -4159,7 +4208,42 @@
       '.crozzo-inv-conteo-opt{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;cursor:pointer;margin-right:8px}' +
       '.crozzo-inv-hist-meta{font-size:.72rem;opacity:.75;margin-top:2px}' +
       '.crozzo-inv-row--filled td{background:rgba(16,185,129,.04)}' +
-      '.crozzo-inv-row--diff td{background:rgba(251,191,36,.06)}';
+      '.crozzo-inv-row--diff td{background:rgba(251,191,36,.06)}' +
+      '.crozzo-costos-bulk{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:0 0 16px;padding:14px 16px;border-radius:14px;border:1px solid rgba(var(--matriz-gold-rgb),.22);background:linear-gradient(135deg,rgba(var(--matriz-gold-rgb),.08),rgba(0,0,0,.03))}' +
+      '.crozzo-costos-bulk__icon{font-size:1.6rem;line-height:1;flex-shrink:0}' +
+      '.crozzo-costos-bulk__copy{flex:1;min-width:200px}' +
+      '.crozzo-costos-bulk__title{margin:0 0 4px;font-size:.92rem;font-weight:700;color:var(--text-primary)}' +
+      '.crozzo-costos-bulk__sub{margin:0;font-size:.78rem;line-height:1.45;color:var(--text-secondary)}' +
+      '.crozzo-costos-bulk__actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}' +
+      '.crozzo-receta-wizard{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0 0 16px;padding:0;list-style:none;counter-reset:none}' +
+      '.crozzo-receta-wizard__step{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;color:var(--text-secondary);opacity:.75}' +
+      '.crozzo-receta-wizard__step.is-active,.crozzo-receta-wizard__step.is-done{opacity:1;color:var(--text-primary)}' +
+      '.crozzo-receta-wizard__step.is-active .crozzo-receta-wizard__num,.crozzo-receta-wizard__step.is-done .crozzo-receta-wizard__num{background:var(--matriz-gold);color:#111;border-color:var(--matriz-gold)}' +
+      '.crozzo-receta-wizard__num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;border:1px solid var(--border);font-size:.68rem;font-weight:800}' +
+      '.crozzo-receta-foot-advanced{opacity:.75;font-size:.72rem}' +
+      '.crozzo-plato-create__advanced{margin-top:4px;border:none}' +
+      '.crozzo-plato-create__advanced>summary{cursor:pointer;padding:12px 0;font-size:.82rem;font-weight:700;color:var(--matriz-gold);list-style:none}' +
+      '.crozzo-plato-create__advanced>summary::-webkit-details-marker{display:none}' +
+      '.crozzo-plato-create__excel-link{margin:0;padding:0 0 12px;font-size:.8rem;color:var(--text-secondary)}' +
+      '.crozzo-plato-create__excel-btn{background:none;border:none;padding:0;font:inherit;font-weight:700;color:var(--accent);cursor:pointer;text-decoration:underline}' +
+      '.crozzo-receta-dock{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;margin:0 0 12px;border-radius:12px;border:1px solid rgba(var(--matriz-gold-rgb),.28);background:linear-gradient(180deg,var(--bg-card),rgba(var(--matriz-gold-rgb),.04));box-shadow:0 6px 24px rgba(0,0,0,.12)}' +
+      '.crozzo-receta-dock__add{font-weight:800;letter-spacing:.02em}' +
+      '.crozzo-receta-dock__meta{font-size:.76rem;font-weight:600;color:var(--text-secondary);opacity:.85}' +
+      '.crozzo-receta-dock__spacer{flex:1;min-width:12px}' +
+      '.crozzo-receta-plato__ing-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}' +
+      '.crozzo-receta-plato__ing-title{font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary)}' +
+      '.crozzo-receta-ing-add{font-weight:700}' +
+      '.crozzo-receta-ing-scroll{max-height:min(46vh,420px)}' +
+      '.crozzo-receta-sync-hint{margin:10px 0 0;padding:0;font-size:.72rem;text-align:right}' +
+      '.crozzo-receta-sync-link{background:none;border:none;padding:0;font:inherit;color:var(--text-secondary);cursor:pointer;text-decoration:underline;opacity:.75}' +
+      '.crozzo-receta-sync-link:hover{opacity:1;color:var(--matriz-gold)}' +
+      '.crozzo-receta-btn--pending{box-shadow:0 0 0 2px rgba(var(--matriz-gold-rgb),.45)}' +
+      '.crozzo-receta-plato__head--compact{margin-bottom:14px;padding:16px 18px}' +
+      '.crozzo-receta-plato__head--compact .crozzo-receta-plato__nombre{font-size:clamp(1.05rem,2vw,1.35rem)}' +
+      '.crozzo-receta-plato__config{margin:0 0 14px;border:1px solid var(--border);border-radius:12px;background:rgba(0,0,0,.03)}' +
+      '.crozzo-receta-plato__config>summary{cursor:pointer;padding:10px 14px;font-size:.78rem;font-weight:700;color:var(--text-secondary);list-style:none}' +
+      '.crozzo-receta-plato__config>summary::-webkit-details-marker{display:none}' +
+      '.crozzo-receta-plato__config-body{padding:0 14px 12px}';
   }
 
   function goPage(page) {
@@ -5520,8 +5604,13 @@
     }
     var diff = Math.round((fis - teo) * 100) / 100;
     var cls = inventarioConteoDiffClass(diff);
-    diffCell.textContent = inventarioConteoDiffFmt(diff);
-    diffCell.className = 'num crozzo-inv-diff crozzo-inv-diff--' + cls;
+    if (hub.inventarioUi && hub.inventarioUi.conteoCiego) {
+      diffCell.textContent = '—';
+      diffCell.className = 'num crozzo-inv-diff crozzo-inv-diff--ok';
+    } else {
+      diffCell.textContent = inventarioConteoDiffFmt(diff);
+      diffCell.className = 'num crozzo-inv-diff crozzo-inv-diff--' + cls;
+    }
     tr.classList.add('crozzo-inv-row--filled');
     tr.classList.toggle('crozzo-inv-row--diff', Math.abs(diff) > 0.001);
   }
@@ -5558,12 +5647,13 @@
     if (!items.length) {
       return '<tr><td colspan="6" style="text-align:center;padding:28px;opacity:.75">Sin materias primas — revise el catálogo MP o el filtro.</td></tr>';
     }
+    var ciego = !!(hub.inventarioUi && hub.inventarioUi.conteoCiego);
     return items
       .map(function (it) {
         var l = (lineas || {})[it.mpId] || {};
         var fisVal = l.fisico != null && l.fisico !== '' && isFinite(Number(l.fisico)) ? String(l.fisico) : '';
         var diff =
-          fisVal !== ''
+          !ciego && fisVal !== ''
             ? Math.round((Number(fisVal) - it.teorico) * 100) / 100
             : null;
         var diffCls = diff != null ? inventarioConteoDiffClass(diff) : 'ok';
@@ -5590,11 +5680,13 @@
           '<td class="inv-unit">' +
           esc(it.undLabel) +
           '</td>' +
-          '<td class="num crozzo-inv-teorico">' +
-          formatInvQty(it.teorico) +
-          ' <span style="opacity:.65;font-size:.85em">' +
-          esc(it.undLabel) +
-          '</span></td>' +
+          (ciego
+            ? '<td class="num crozzo-inv-teorico crozzo-inv-teorico--blind" title="Conteo ciego">—</td>'
+            : '<td class="num crozzo-inv-teorico">' +
+              formatInvQty(it.teorico) +
+              ' <span style="opacity:.65;font-size:.85em">' +
+              esc(it.undLabel) +
+              '</span></td>') +
           '<td class="num"><input type="number" class="crozzo-inv-conteo-input crozzo-inv-conteo-fisico" inputmode="decimal" step="any" min="0" placeholder="—" value="' +
           esc(fisVal) +
           '" aria-label="Conteo físico ' +
@@ -5603,7 +5695,7 @@
           '<td class="num crozzo-inv-diff crozzo-inv-diff--' +
           diffCls +
           '">' +
-          (diff != null ? inventarioConteoDiffFmt(diff) : '—') +
+          (ciego ? '—' : diff != null ? inventarioConteoDiffFmt(diff) : '—') +
           '</td>' +
           '<td><input type="text" class="crozzo-inv-conteo-obs" placeholder="Obs." value="' +
           esc(l.obs || '') +
@@ -5737,7 +5829,7 @@
   }
 
   function renderInventarioPanel() {
-    if (!hub.inventarioUi) hub.inventarioUi = { q: '', cat: 'all', tab: 'stock', bodega: '' };
+    if (!hub.inventarioUi) hub.inventarioUi = { q: '', cat: 'all', tab: 'stock', modo: 'perpetuo', conteoCiego: false, ciclicoAbc: 'pendientes' };
     var ui = hub.inventarioUi;
     var snap = buildInventarioSnapshot({ bodegaId: ui.bodega || '' });
     var filtered = filterInventarioItems(snap.items, ui.q, ui.cat);
@@ -5747,6 +5839,8 @@
     var conteoStats = tab === 'conteo' ? inventarioConteoStats(filtered, conteoUi.conteoLineas) : null;
     var rv = reservorio();
     var histConteos = rv && rv.listInventarioConteos ? rv.listInventarioConteos(30) : [];
+    var IC = global.CrozzoInventarioContinuo;
+    var extStats = IC && IC.computeExtendedStats ? IC.computeExtendedStats(snap, histConteos) : null;
     var chips =
       '<button type="button" class="crozzo-inv-chip' +
       (ui.cat === 'all' ? ' is-active' : '') +
@@ -5791,9 +5885,11 @@
       '<header class="crozzo-inv-hero">' +
       '<div class="crozzo-inv-hero__glow" aria-hidden="true"></div>' +
       '<p class="crozzo-inv-hero__eyebrow">F3 · Inventario continuo</p>' +
-      '<h1 class="crozzo-inv-hero__title">Control de materia prima</h1>' +
-      '<p class="crozzo-inv-hero__sub">Mismo catálogo que costos y recetas. Registre el conteo físico aquí o descargue la hoja para bodega. Cada recepción suma y cada venta resta del teórico.</p>' +
+      '<h1 class="crozzo-inv-hero__title">Centro de control de bodega</h1>' +
+      '<p class="crozzo-inv-hero__sub">Cuatro métodos operativos: perpetuo, conteo físico, cíclico ABC y ajustes. Mismo catálogo que costos · impresión térmica o hoja · ledger unificado.</p>' +
       '</header>' +
+      (IC && IC.renderMethodHub ? IC.renderMethodHub(ui, extStats) : '') +
+      (IC && IC.renderExtendedKpis ? IC.renderExtendedKpis(extStats) : '') +
       '<div class="crozzo-inv-kpis">' +
       '<div class="crozzo-inv-kpi"><span class="crozzo-inv-kpi__lbl">Materias primas</span><span class="crozzo-inv-kpi__val">' +
       esc(String(snap.stats.totalMp)) +
@@ -5801,11 +5897,11 @@
       '<div class="crozzo-inv-kpi"><span class="crozzo-inv-kpi__lbl">Con movimientos</span><span class="crozzo-inv-kpi__val">' +
       esc(String(snap.stats.conMov)) +
       '</span></div>' +
-      '<div class="crozzo-inv-kpi"><span class="crozzo-inv-kpi__lbl">Valor teórico</span><span class="crozzo-inv-kpi__val crozzo-inv-kpi__val--gold">' +
-      engFmt(snap.stats.valorTotal) +
+      '<div class="crozzo-inv-kpi"><span class="crozzo-inv-kpi__lbl">Entradas mes</span><span class="crozzo-inv-kpi__val">' +
+      formatInvQty(snap.stats.entradasMes || 0) +
       '</span></div>' +
-      '<div class="crozzo-inv-kpi"><span class="crozzo-inv-kpi__lbl">Mov. registrados</span><span class="crozzo-inv-kpi__val">' +
-      esc(String(snap.stats.movCount)) +
+      '<div class="crozzo-inv-kpi"><span class="crozzo-inv-kpi__lbl">Salidas mes</span><span class="crozzo-inv-kpi__val">' +
+      formatInvQty(snap.stats.salidasMes || 0) +
       '</span></div>' +
       '</div>' +
       '<p class="crozzo-inv-formula">' +
@@ -5825,6 +5921,12 @@
       '" data-inv-tab="conteo">Conteo físico' +
       (conteoStats && conteoStats.contadas ? ' <small>(' + conteoStats.contadas + ')</small>' : '') +
       '</button>' +
+      '<button type="button" class="crozzo-inv-tab' +
+      (tab === 'ciclico' ? ' is-active' : '') +
+      '" data-inv-tab="ciclico">Cíclico ABC</button>' +
+      '<button type="button" class="crozzo-inv-tab' +
+      (tab === 'ajustes' ? ' is-active' : '') +
+      '" data-inv-tab="ajustes">Ajustes</button>' +
       '<button type="button" class="crozzo-inv-tab' +
       (tab === 'movs' ? ' is-active' : '') +
       '" data-inv-tab="movs">Libro de movimientos</button>' +
@@ -5870,6 +5972,9 @@
       (conteoStats && conteoStats.total ? Math.round((conteoStats.contadas / conteoStats.total) * 100) : 0) +
       '%"></div></div></div>' +
       (conteoUi.conteoId ? '<span class="form-hint" style="margin:0;align-self:center">Borrador guardado</span>' : '') +
+      '<label class="crozzo-inv-conteo-opt"><input type="checkbox" id="crozzoInvConteoCiego"' +
+      (ui.conteoCiego ? ' checked' : '') +
+      '> Conteo ciego (ocultar teórico)</label>' +
       '</div>' +
       '<div class="crozzo-inv-toolbar">' +
       '<input type="search" class="crozzo-inv-search" id="crozzoInvConteoSearch" placeholder="Filtrar materias a contar…" value="' +
@@ -5893,6 +5998,16 @@
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvConteoClose">✓ Cerrar conteo</button>' +
       '</div></div>' +
       '<div class="crozzo-inv-panel' +
+      (tab === 'ciclico' ? ' is-active' : '') +
+      '" data-inv-panel="ciclico">' +
+      (IC && IC.renderCiclicoPanel ? IC.renderCiclicoPanel(snap.items, ui, histConteos) : '<p class="form-hint">Cargue CrozzoInventarioContinuo.js</p>') +
+      '</div>' +
+      '<div class="crozzo-inv-panel' +
+      (tab === 'ajustes' ? ' is-active' : '') +
+      '" data-inv-panel="ajustes">' +
+      (IC && IC.renderAjustesPanel ? IC.renderAjustesPanel(snap.items, bodegas) : '') +
+      '</div>' +
+      '<div class="crozzo-inv-panel' +
       (tab === 'movs' ? ' is-active' : '') +
       '" data-inv-panel="movs">' +
       '<div class="crozzo-inv-table-shell">' +
@@ -5912,7 +6027,7 @@
       '</tbody></table></div></div></div>' +
       '<div class="crozzo-inv-foot">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoRecepcion">Recepción facturas →</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoCatalogo">Costeo MP →</button></div></div>'
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvGoCatalogo">Costos y márgenes →</button></div></div>'
     );
   }
 
@@ -5972,6 +6087,8 @@
       btn.addEventListener('click', function () {
         var tab = btn.getAttribute('data-inv-tab') || 'stock';
         hub.inventarioUi.tab = tab;
+        var modoMap = { stock: 'perpetuo', conteo: 'conteo', ciclico: 'ciclico', ajustes: 'ajustes' };
+        if (modoMap[tab]) hub.inventarioUi.modo = modoMap[tab];
         if (tab === 'conteo') ensureInventarioConteoSession(buildInventarioSnapshot());
         refreshInventarioPanel();
       });
@@ -6169,13 +6286,41 @@
     if (goCat && !goCat._bound) {
       goCat._bound = true;
       goCat.addEventListener('click', function () {
-        goPage('catalogo-mp');
+        goPage('costos-matriz');
       });
     }
 
     applyInventarioFilters(root);
     if (hub.inventarioUi.tab === 'conteo') updateInventarioConteoProgress(root);
     refreshInventarioPrintGuide(root);
+    if (global.CrozzoInventarioContinuo && global.CrozzoInventarioContinuo.initExtras) {
+      global.CrozzoInventarioContinuo.initExtras(root, {
+        hub: hub,
+        ui: hub.inventarioUi,
+        refresh: refreshInventarioPanel,
+        toast: toast,
+        printCiclico: function () {
+          var snap = buildInventarioSnapshot({ bodegaId: hub.inventarioUi.bodega || '' });
+          var IC = global.CrozzoInventarioContinuo;
+          var rvLocal = reservorio();
+          var items =
+            IC && IC.getCiclicoItemsForPrint
+              ? IC.getCiclicoItemsForPrint(
+                  snap.items,
+                  hub.inventarioUi,
+                  rvLocal && rvLocal.listInventarioConteos ? rvLocal.listInventarioConteos(30) : []
+                )
+              : snap.items;
+          if (!items.length) {
+            toast('No hay ítems en la lista cíclica actual', 'warning');
+            return;
+          }
+          printInventarioConteo(items, {
+            meta: { filtro: 'Conteo cíclico ABC · ' + (hub.inventarioUi.ciclicoAbc || 'pendientes') },
+          });
+        },
+      });
+    }
   }
 
   function renderReservorioPanel() {
@@ -6445,13 +6590,13 @@
     tipoRec = tipoRec === 'base' ? 'base' : 'full';
     var html =
       '<span class="crozzo-matriz-tipo-receta-wrap">' +
-      '<select class="crozzo-costos-editable crozzo-matriz-tipo-receta-sel" data-resumen-field="tipoReceta" title="Base = preparación en bodega · Plato = venta al cliente">' +
+      '<select class="crozzo-costos-editable crozzo-matriz-tipo-receta-sel" data-resumen-field="tipoReceta" title="Sub-receta = bodega con ingredientes · Plato = venta al cliente">' +
       '<option value="base"' +
       (tipoRec === 'base' ? ' selected' : '') +
-      '>Preparación anticipada</option>' +
+      '>Sub-receta (bodega)</option>' +
       '<option value="full"' +
       (tipoRec === 'full' ? ' selected' : '') +
-      '>Al vender</option>' +
+      '>Plato de carta</option>' +
       '</select>';
     if (tipoRec === 'base') {
       html +=
@@ -6745,6 +6890,26 @@
     return resolveRecetaCalcOpts(lineas, baseOpts, e);
   }
 
+  function renderRecetaWizardHtml(pack) {
+    var n = pack && pack.lineas ? pack.lineas.length : 0;
+    var precio = pack && pack.row ? Number(pack.row.precioVenta) || 0 : 0;
+    var step3 = precio > 0 ? 'done' : n > 0 ? 'active' : '';
+    var step2 = n > 0 ? 'done' : 'active';
+    return (
+      '<ol class="crozzo-receta-wizard" aria-label="Pasos para costear">' +
+      '<li class="crozzo-receta-wizard__step is-done"><span class="crozzo-receta-wizard__num">1</span> Elija el plato</li>' +
+      '<li class="crozzo-receta-wizard__step' +
+      (step2 === 'done' ? ' is-done' : ' is-active') +
+      '"><span class="crozzo-receta-wizard__num">2</span> Agregue insumos (' +
+      esc(String(n)) +
+      ')</li>' +
+      '<li class="crozzo-receta-wizard__step' +
+      (step3 === 'done' ? ' is-done' : step3 === 'active' ? ' is-active' : '') +
+      '"><span class="crozzo-receta-wizard__num">3</span> Revise costo y precio</li>' +
+      '</ol>'
+    );
+  }
+
   function renderRecetaResumenHtml(calc, opts, row, e, vistaOpts) {
     vistaOpts = vistaOpts || {};
     var readOnly = !!vistaOpts.readOnly;
@@ -6760,25 +6925,30 @@
     var pesoDisabled = pesoAuto || readOnly ? ' disabled' : '';
     var inpDis = readOnly ? ' disabled readonly' : '';
 
+    var showTech = !!global.__crozzoCostosRecetaExperto;
+    var hint = function (code) {
+      return showTech ? ' <span class="crozzo-receta-block__hint">' + code + '</span>' : '';
+    };
+
     return (
       '<table class="crozzo-receta-block"' +
       (readOnly ? '' : ' id="crozzoRecetaResumen"') +
       '>' +
       '<tbody>' +
-      '<tr><th>Total costo materia prima <span class="crozzo-receta-block__hint">K3</span></th><td data-receta-kpi="k3">' +
+      '<tr><th>Costo ingredientes' + hint('K3') + '</th><td data-receta-kpi="k3">' +
       engFmt(calc.totalMp) +
       '</td></tr>' +
-      '<tr><th>Margen de error <span class="crozzo-receta-block__hint">J4</span><br><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp" data-receta-opt="margenErrorPct" min="0" max="100" step="0.1" value="' +
+      '<tr><th>Colchón merma' + hint('J4') + '<br><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp" data-receta-opt="margenErrorPct" min="0" max="100" step="0.1" value="' +
       esc(String(pctFracToInput(calc.margenErrorPct))) +
       '"' +
       inpDis +
       '><span class="crozzo-receta-block__pct-suffix">%</span></th><td><span data-receta-kpi="k4">' +
       engFmt(calc.margenErrorMonto) +
-      '</span><span class="crozzo-receta-block__sub">buffer merma / sazón · auto desde mermas MP si no está fijado</span></td></tr>' +
-      '<tr><th>Total al costo <span class="crozzo-receta-block__hint">K5</span></th><td data-receta-kpi="k5">' +
+      '</span><span class="crozzo-receta-block__sub">pequeño extra por sazón o variación</span></td></tr>' +
+      '<tr><th>Costo total del plato' + hint('K5') + '</th><td data-receta-kpi="k5">' +
       engFmt(calc.totalAlCosto) +
       '</td></tr>' +
-      '<tr class="crozzo-receta-block__row--warn"><th>Total peso o unidades <span class="crozzo-receta-block__hint">K6</span>' +
+      '<tr class="crozzo-receta-block__row--warn"><th>Porciones o peso' + hint('K6') +
       (readOnly
         ? ''
         : '<label class="crozzo-receta-peso-auto"><input type="checkbox" data-receta-peso-auto' +
@@ -6790,20 +6960,20 @@
       pesoDisabled +
       inpDis +
       '><span class="crozzo-receta-block__sub" data-receta-peso-hint>' +
-      (pesoAuto && pesoSum > 0 ? recetaPesoAutoHint(pesoSum) : 'Porciones o peso de la receta') +
+      (pesoAuto && pesoSum > 0 ? recetaPesoAutoHint(pesoSum) : 'Cuántas porciones rinde esta receta') +
       '</span></td></tr>' +
-      '<tr class="crozzo-receta-block__row--accent"><th>Precio por gramo / unidad <span class="crozzo-receta-block__hint">K7 → RESUMEN</span></th><td data-receta-kpi="k7">' +
+      '<tr class="crozzo-receta-block__row--accent"><th>Costo por gramo / unidad' + hint('K7') + '</th><td data-receta-kpi="k7">' +
       engFmt(calc.costoReferencia) +
       '</td></tr>' +
-      '<tr class="crozzo-receta-block__row--primary"><th>% adecuado de M.P. <span class="crozzo-receta-block__hint">K9 food cost</span><br><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp" data-receta-opt="porcentajeMpObjetivo" min="1" max="99" step="0.1" value="' +
+      '<tr class="crozzo-receta-block__row--primary"><th>Meta food cost (% MP)' + hint('K9') + '<br><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp" data-receta-opt="porcentajeMpObjetivo" min="1" max="99" step="0.1" value="' +
       esc(String(pctFracToInput(calc.porcentajeMpObjetivo))) +
       '"' +
       inpDis +
-      '><span class="crozzo-receta-block__pct-suffix">%</span></th><td><span class="crozzo-receta-block__sub">precio = costo ÷ %</span></td></tr>' +
-      '<tr><th>Precio sugerido de venta <span class="crozzo-receta-block__hint">K10</span></th><td data-receta-kpi="k10">' +
+      '><span class="crozzo-receta-block__pct-suffix">%</span></th><td><span class="crozzo-receta-block__sub">Cuánto del precio puede ser ingrediente</span></td></tr>' +
+      '<tr><th>Precio sugerido' + hint('K10') + '</th><td data-receta-kpi="k10">' +
       engFmt(calc.precioSugerido) +
       '</td></tr>' +
-      '<tr class="crozzo-receta-block__row--accent"><th>Precio venta + impuesto <span class="crozzo-receta-block__hint">K11</span><br><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp" data-receta-opt="impuestoPct" min="0" max="100" step="0.1" value="' +
+      '<tr class="crozzo-receta-block__row--accent"><th>Precio con impuesto' + hint('K11') + '<br><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp" data-receta-opt="impuestoPct" min="0" max="100" step="0.1" value="' +
       esc(String(pctFracToInput(calc.impuestoPct))) +
       '"' +
       inpDis +
@@ -6812,31 +6982,56 @@
       '</td></tr>' +
       '<tr' +
       (evalMp && !evalMp.dentroObjetivo && res && res.precioVenta > 0 ? ' class="crozzo-receta-block__row--warn"' : '') +
-      '><th>% de M.P. real <span class="crozzo-receta-block__hint">E = C ÷ G</span></th><td data-receta-kpi="pct-mp">' +
+      '><th>% ingrediente real' + hint('E') + '</th><td data-receta-kpi="pct-mp">' +
       (res && res.precioVenta > 0 ? engPct(res.pctCostoMp) : '—') +
-      (evalMp ? '<span class="crozzo-receta-block__sub">' + (evalMp.dentroObjetivo ? 'Dentro del objetivo' : 'Sobre objetivo food cost') + '</span>' : '') +
+      (evalMp ? '<span class="crozzo-receta-block__sub">' + (evalMp.dentroObjetivo ? 'Dentro de la meta' : 'Por encima de la meta') + '</span>' : '') +
       '</td></tr>' +
-      '<tr class="crozzo-receta-block__row--accent"><th>Utilidad bruta <span class="crozzo-receta-block__hint">D = G − C</span></th><td data-receta-kpi="util"><span data-receta-kpi-val="util">' +
+      '<tr class="crozzo-receta-block__row--accent"><th>Ganancia por plato' + hint('D') + '</th><td data-receta-kpi="util"><span data-receta-kpi-val="util">' +
       (res && res.precioVenta > 0 ? engFmt(res.utilidadBruta) : '—') +
-      '</span><span class="crozzo-receta-block__sub">ganancia por unidad vendida</span></td></tr>' +
-      '<tr><th>% utilidad <span class="crozzo-receta-block__hint">F = D ÷ G</span></th><td data-receta-kpi="pct-util"><span data-receta-kpi-val="pct-util">' +
+      '</span><span class="crozzo-receta-block__sub">lo que queda después del costo</span></td></tr>' +
+      '<tr><th>% ganancia' + hint('F') + '</th><td data-receta-kpi="pct-util"><span data-receta-kpi-val="pct-util">' +
       (res && res.precioVenta > 0 ? engPct(res.pctUtilidad) : '—') +
-      '</span><span class="crozzo-receta-block__sub">margen sobre precio de venta</span></td></tr>' +
-      '<tr class="crozzo-receta-block__row--decision"><th>Precio venta <span class="crozzo-receta-block__hint">G manual</span><br><span class="crozzo-receta-block__sub" style="text-align:left;margin-top:4px">Define el precio en caja</span></th><td><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp crozzo-matriz-precio-inp" data-receta-opt="precioVenta" min="0" step="100" value="' +
+      '</span><span class="crozzo-receta-block__sub">margen sobre el precio de venta</span></td></tr>' +
+      '<tr class="crozzo-receta-block__row--decision"><th>Precio en carta' + hint('G') + '</th><td><input type="number" class="crozzo-costos-editable crozzo-receta-block__inp crozzo-matriz-precio-inp" data-receta-opt="precioVenta" min="0" step="100" value="' +
       esc(String(Math.round(precioVenta))) +
       '"' +
       inpDis +
       '></td></tr>' +
       '</tbody></table>' +
       (readOnly
-        ? '<p class="crozzo-costos-note" style="margin:12px 14px;font-size:.78rem">Versión oficial guardada · solo lectura. Edite en la pestaña <em>En edición</em>.</p>'
+        ? '<p class="crozzo-costos-note" style="margin:12px 14px;font-size:.78rem">Versión guardada · solo lectura.</p>'
         : '<div class="crozzo-receta-resumen-actions">' +
-          '<button type="button" class="btn btn-outline btn-sm" data-receta-action="usar-sugerido">Usar precio sugerido (K10)</button>' +
-          '<button type="button" class="btn btn-outline btn-sm" data-receta-action="usar-con-imp">Usar K11 con impuesto</button>' +
-          '<button type="button" class="btn btn-outline btn-sm" data-receta-action="redondear-100">Redondear a $100</button></div>' +
-          '<div class="crozzo-receta-plato__actions crozzo-receta-plato__actions--foot">' +
-          '<button type="button" class="btn btn-outline btn-sm crozzo-receta-btn--probar" id="crozzoRecetaProbarFoot">Probar cambios</button>' +
-          '<button type="button" class="btn btn-primary btn-sm" id="crozzoRecetaSaveFoot">Guardar receta</button></div>')
+          '<button type="button" class="btn btn-outline btn-sm" data-receta-action="usar-sugerido">Usar precio sugerido</button>' +
+          '<button type="button" class="btn btn-outline btn-sm" data-receta-action="usar-con-imp">Con impuesto</button>' +
+          '<button type="button" class="btn btn-outline btn-sm" data-receta-action="redondear-100">Redondear a $100</button>' +
+          '<button type="button" class="btn btn-outline btn-sm" id="crozzoRecetaToggleExperto" title="Mostrar códigos K3, J4…">' +
+          (showTech ? 'Modo simple' : 'Modo experto') +
+          '</button></div>')
+    );
+  }
+
+  function renderRecetaDockHtml(pack) {
+    var n = pack && pack.lineas ? pack.lineas.length : 0;
+    return (
+      '<div class="crozzo-receta-dock" data-receta-dock role="toolbar" aria-label="Acciones rápidas de receta">' +
+      '<button type="button" class="btn btn-primary btn-sm crozzo-receta-dock__add" data-receta-action="add-line">+ Agregar insumo</button>' +
+      '<span class="crozzo-receta-dock__meta" data-receta-dock-meta>' +
+      esc(String(n)) +
+      ' insumo' +
+      (n === 1 ? '' : 's') +
+      '</span>' +
+      '<span class="crozzo-receta-dock__spacer" aria-hidden="true"></span>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-receta-action="probar">Ver costo</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" data-receta-action="save">Guardar</button></div>'
+    );
+  }
+
+  function renderRecetaIngEmptyHtml(colCount) {
+    return (
+      '<tr class="crozzo-receta-table__empty"><td colspan="' +
+      colCount +
+      '"><p style="margin:0 0 12px;opacity:.75">Aún no hay ingredientes en esta receta.</p>' +
+      '<button type="button" class="btn btn-primary btn-sm" data-receta-action="add-line">+ Agregar primer insumo</button></td></tr>'
     );
   }
 
@@ -6957,20 +7152,23 @@
             '</span>'
           : '') +
         '</div>'
-      : '<div class="crozzo-receta-plato__foot">' +
-        '<button type="button" class="btn btn-outline btn-sm" id="crozzoRecetaAddLine">+ Insumo</button>' +
-        '<button type="button" class="btn btn-outline btn-sm" id="crozzoRecetaSyncPedidos">↻ Sincronizar pedidos internos</button></div>';
+      : '';
     return (
       '<div class="crozzo-receta-plato__grid">' +
       '<section class="crozzo-receta-plato__ing">' +
-      '<div class="crozzo-receta-plato__ing-head">Desglose de ingredientes</div>' +
-      '<div class="crozzo-costos-scroll"><table class="crozzo-receta-table"><thead><tr>' +
+      '<div class="crozzo-receta-plato__ing-head crozzo-receta-plato__ing-bar">' +
+      '<span class="crozzo-receta-plato__ing-title">Ingredientes</span>' +
+      (readOnly
+        ? ''
+        : '<button type="button" class="btn btn-primary btn-sm crozzo-receta-ing-add" data-receta-action="add-line">+ Insumo</button>') +
+      '</div>' +
+      '<div class="crozzo-costos-scroll crozzo-receta-ing-scroll"><table class="crozzo-receta-table"><thead><tr>' +
       '<th>Producto</th><th class="crozzo-receta-table__th--num">Cantidad</th><th class="crozzo-receta-table__th--mid">U. medida</th><th class="crozzo-receta-table__th--num">Costo × u.</th><th class="crozzo-receta-table__th--num">%</th><th class="crozzo-receta-table__th--num">Total</th>' +
       (readOnly ? '' : '<th></th>') +
       '</tr></thead><tbody id="' +
       (readOnly ? 'crozzoRecetaGuardadaTbody' : 'crozzoDemoTbody') +
       '">' +
-      (demoRows || '<tr class="crozzo-receta-table__empty"><td colspan="' + colCount + '">Sin líneas guardadas</td></tr>') +
+      (demoRows || renderRecetaIngEmptyHtml(colCount)) +
       '</tbody></table></div>' +
       footHtml +
       '</section>' +
@@ -7040,18 +7238,18 @@
 
   function prepCocinaTipoHintText(tipo) {
     if (tipo === 'prep_cocinar') {
-      return 'El cocinero lo ve en Preparaciones de cocina → Cocinar y porcionar. Se detectó por nombre e ingredientes.';
+      return 'Sub-receta de bodega: el cocinero la anota en Centro de producción → Cocinar y porcionar. Lleva ingredientes (MP y otras sub-recetas).';
     }
     if (tipo === 'prep_salsas') {
-      return 'El cocinero lo ve en Preparaciones de cocina → Salsas y bases. Se detectó por nombre e ingredientes.';
+      return 'Sub-receta de bodega: salsas, adobos, bases y caldos. Se anota en Salsas y bases. Ej.: adobo de carne = sub-receta usada al partir/cocinar.';
     }
-    return 'No va a preparaciones de cocina: al cobrar en caja se descuentan los ingredientes solos.';
+    return 'Plato de carta al momento: no va a preparaciones de bodega; al cobrar se descuentan los ingredientes.';
   }
 
   function prepCocinaTipoLabel(tipo) {
-    if (tipo === 'prep_cocinar') return 'Preparación anticipada · Cocinar y porcionar';
-    if (tipo === 'prep_salsas') return 'Preparación anticipada · Salsas y bases';
-    return 'Al vender · inmediata';
+    if (tipo === 'prep_cocinar') return 'Sub-receta · Cocinar y porcionar';
+    if (tipo === 'prep_salsas') return 'Sub-receta · Salsas y bases';
+    return 'Plato de carta · al vender';
   }
 
   function renderRecetaProcesoVentaHtml(row) {
@@ -7068,23 +7266,24 @@
     var showVende = tipo === 'prep_salsas' || tipo === 'prep_cocinar';
     return (
       '<div class="crozzo-receta-proceso" data-receta-proceso-wrap id="crozzoRecetasEstandarPrep">' +
+      '<p class="crozzo-receta-proceso__model"><strong>Sub-receta</strong> = preparación en bodega (con ingredientes). <strong>Plato de carta</strong> = sale a mesas / POS.</p>' +
       (isAuto
         ? '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill">✦ Automático</span> ' +
           'Por nombre, categoría e ingredientes. Cambie solo si no cuadra.</p>'
         : '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill">Manual</span> ' +
           '<button type="button" class="crozzo-receta-proceso__auto-link" data-receta-field="prepAutoReset">Volver a automático</button></p>') +
       '<div class="crozzo-receta-proceso__row">' +
-      '<label class="crozzo-receta-proceso__lbl" for="crozzoRecetaPrepCocina">En cocina</label>' +
+      '<label class="crozzo-receta-proceso__lbl" for="crozzoRecetaPrepCocina">Tipo en cocina</label>' +
       '<select id="crozzoRecetaPrepCocina" class="form-input form-select crozzo-receta-proceso__sel" data-receta-field="prepCocinaTipo">' +
       '<option value="al_vender"' +
       (tipo === 'al_vender' ? ' selected' : '') +
-      '>Al vender · inmediata (caja)</option>' +
+      '>Plato de carta · al vender (caja)</option>' +
       '<option value="prep_salsas"' +
       (tipo === 'prep_salsas' ? ' selected' : '') +
-      '>Preparación anticipada · Salsas y bases</option>' +
+      '>Sub-receta · Salsas y bases</option>' +
       '<option value="prep_cocinar"' +
       (tipo === 'prep_cocinar' ? ' selected' : '') +
-      '>Preparación anticipada · Cocinar y porcionar</option>' +
+      '>Sub-receta · Cocinar y porcionar</option>' +
       '</select></div>' +
       '<p class="crozzo-receta-proceso__hint" data-receta-proceso-hint>' +
       esc(prepCocinaTipoHintText(tipo)) +
@@ -7163,8 +7362,8 @@
       '</div>' +
       '<button type="button" class="btn btn-primary btn-sm crozzo-costos-create-btn" id="crozzoRecetaToggleNewPlato" title="Nuevo plato con receta" aria-label="Nuevo plato con receta">+</button>' +
       '<div class="crozzo-receta-plato__actions">' +
-      '<button type="button" class="btn btn-outline btn-sm crozzo-receta-btn--probar" id="crozzoRecetaProbar" title="Recalcular borrador sin guardar">Probar cambios</button>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoRecetaSave" title="Guardar borrador como receta oficial">Guardar receta</button></div></div>' +
+      '<button type="button" class="btn btn-outline btn-sm crozzo-receta-btn--probar" id="crozzoRecetaProbar" title="Recalcular sin guardar">Ver costo</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoRecetaSave" title="Guardar receta">Guardar</button></div></div>' +
       (typeof global.renderCostosNewPlatoFormHtml === 'function'
         ? global.renderCostosNewPlatoFormHtml({
             prefix: 'crozzoRecetaNewProd',
@@ -7174,16 +7373,21 @@
             hidePrecioCaja: true,
           })
         : '') +
+      renderRecetaWizardHtml(packEdicion) +
+      '<details class="crozzo-receta-plato__config">' +
+      '<summary>Preparación en cocina (opcional)</summary>' +
+      '<div class="crozzo-receta-plato__config-body">' +
       renderRecetaProcesoVentaHtml(packEdicion.row) +
       renderPerdidasProcesoAdminPanel() +
-      '<header class="crozzo-receta-plato__head">' +
+      '</div></details>' +
+      '<header class="crozzo-receta-plato__head crozzo-receta-plato__head--compact">' +
       '<div class="crozzo-receta-plato__head-top">' +
       '<span class="crozzo-receta-plato__badge crozzo-receta-plato__badge--gold">Costeo activo</span>' +
       '<span class="crozzo-receta-plato__badge crozzo-receta-plato__badge--draft" data-receta-draft-badge hidden>Borrador sin guardar</span>' +
       '<span class="crozzo-receta-plato__badge">' +
       esc(String(packEdicion.lineas.length)) +
       ' insumos</span></div>' +
-      '<p class="crozzo-receta-plato__eyebrow">Receta · food cost</p>' +
+      '<p class="crozzo-receta-plato__eyebrow">Receta</p>' +
       '<h2 class="crozzo-receta-plato__nombre" id="crozzoDemoTitulo">' +
       esc(packEdicion.nombre) +
       '</h2>' +
@@ -7195,8 +7399,10 @@
       '<button type="button" class="crozzo-matriz-vista-tab" data-receta-vista="guardado">Receta guardada <small>(oficial)</small></button>' +
       '<button type="button" class="crozzo-matriz-vista-tab" data-receta-vista="programaciones">Programaciones</button></div>' +
       '<div class="crozzo-matriz-vista-panel is-active" data-receta-vista-panel="edicion">' +
+      renderRecetaDockHtml(packEdicion) +
       renderRecetaGridHtml(packEdicion, 'edicion') +
-      '</div>' +
+      '<p class="crozzo-receta-sync-hint">' +
+      '<button type="button" class="crozzo-receta-sync-link" id="crozzoRecetaSyncPedidos">↻ Actualizar pedidos internos de cocina</button></p></div>' +
       '<div class="crozzo-matriz-vista-panel crozzo-matriz-vista-panel--readonly" data-receta-vista-panel="guardado">' +
       renderRecetaGridHtml(packGuardado, 'guardado') +
       '</div>' +
@@ -7228,6 +7434,9 @@
       '" data-matriz-panel="resumen">' +
       renderMatrizPanelIntro('resumen', seed) +
       renderMatrizResumenAcciones(seed) +
+      (global.CrozzoCostosBulkImport && global.CrozzoCostosBulkImport.renderBulkBarHtml
+        ? global.CrozzoCostosBulkImport.renderBulkBarHtml()
+        : '') +
       '<div class="crozzo-matriz-vista-tabs" role="tablist">' +
       '<button type="button" class="crozzo-matriz-vista-tab is-active" data-matriz-vista="vigente">Resumen del menú <small>(editable)</small></button>' +
       '<button type="button" class="crozzo-matriz-vista-tab" data-matriz-vista="historial">Historial de costeos <small>(archivo mensual)</small></button>' +
@@ -8054,6 +8263,13 @@
       if (cu) cu.textContent = engFmt(ln.costoXUnidad);
     });
     refreshRecetaResumenPanel(root, calc, calcOpts, row, e);
+    var dockMeta = root.querySelector('[data-receta-dock-meta]');
+    if (dockMeta) {
+      var n = lineas.length;
+      dockMeta.textContent = n + ' insumo' + (n === 1 ? '' : 's');
+    }
+    var badgeCount = root.querySelector('.crozzo-receta-plato__badge:not(.crozzo-receta-plato__badge--gold):not(.crozzo-receta-plato__badge--draft)');
+    if (badgeCount) badgeCount.textContent = lineas.length + ' insumos';
     var persist = !!optsExtra.persist;
     var previewOnly = !!optsExtra.previewOnly || !persist;
     if (persist) {
@@ -8268,6 +8484,24 @@
     if (!root._gerenciaBound) {
       root._gerenciaBound = true;
       root.addEventListener('click', function (e) {
+        var addLineBtn = e.target.closest('[data-receta-action="add-line"]');
+        if (addLineBtn) {
+          e.preventDefault();
+          addRecetaLine(root, hub.seed || seed);
+          return;
+        }
+        var probarDock = e.target.closest('[data-receta-action="probar"]');
+        if (probarDock) {
+          e.preventDefault();
+          probarRecetaPlato(root, hub.seed || seed);
+          return;
+        }
+        var saveDock = e.target.closest('[data-receta-action="save"]');
+        if (saveDock) {
+          e.preventDefault();
+          persistRecetaPlato(root, hub.seed || seed);
+          return;
+        }
         var resetAuto = e.target.closest('[data-receta-field="prepAutoReset"]');
         if (resetAuto) {
           e.preventDefault();
@@ -8468,43 +8702,12 @@
         persistRecetaPlato(root, seed);
       });
     }
+
     var probarRec = document.getElementById('crozzoRecetaProbar');
     if (probarRec && !probarRec._bound) {
       probarRec._bound = true;
       probarRec.addEventListener('click', function () {
         probarRecetaPlato(root, seed);
-      });
-    }
-    var probarRecFoot = document.getElementById('crozzoRecetaProbarFoot');
-    if (probarRecFoot && !probarRecFoot._bound) {
-      probarRecFoot._bound = true;
-      probarRecFoot.addEventListener('click', function () {
-        probarRecetaPlato(root, seed);
-      });
-    }
-
-    var addLine = document.getElementById('crozzoRecetaAddLine');
-    if (addLine && !addLine._bound) {
-      addLine._bound = true;
-      addLine.addEventListener('click', function () {
-        var tbody = root.querySelector('#crozzoDemoTbody');
-        if (!tbody) return;
-        var lineas = collectRecetaLineasFromDom(root, seed);
-        var C = global.CrozzoCatalogoMp;
-        var firstMp = C && C.list && C.list()[0];
-        lineas.push({
-          mpId: firstMp ? firstMp.id : '',
-          ingrediente: firstMp ? firstMp.nombre : '',
-          unidad: firstMp && firstMp.und ? firstMp.und : 'GR',
-          cantidad: 1,
-        });
-        var slug = getActiveRecetaSlug(seed);
-        var row = mergeResumenList(seed).find(function (r) {
-          return r.slug === slug;
-        });
-        setRecetaDraft(slug, lineas, getRecetaOptsMerged(null, seed, slug));
-        refreshRecetaPlatoPanel(root, seed);
-        recalcDemoReceta(root, seed, { previewOnly: true });
       });
     }
 
@@ -8796,6 +8999,17 @@
     }
   }
 
+  function bindRecetaExpertoToggle(root, seed) {
+    if (!root || root._recetaExpertoBound) return;
+    root._recetaExpertoBound = true;
+    root.addEventListener('click', function (ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('#crozzoRecetaToggleExperto') : null;
+      if (!btn) return;
+      global.__crozzoCostosRecetaExperto = !global.__crozzoCostosRecetaExperto;
+      refreshRecetaPlatoPanel(root, seed || hub.seed);
+    });
+  }
+
   function openRecetasEstandar(opts) {
     opts = opts || {};
     global.__crozzoCostosMatrizTab = 'demo';
@@ -8812,6 +9026,17 @@
     bindPerdidasProcesoAdmin(root);
     bindCostosNewPlatoForm(root, seed);
     bindRecetaNewPlatoForm(root);
+    if (global.CrozzoCostosBulkImport && global.CrozzoCostosBulkImport.bindBulkBar) {
+      global.CrozzoCostosBulkImport.bindBulkBar(root, function () {
+        invalidateSeed();
+        ensureMatrizMenuCompleto(function (fresh) {
+          hub.seed = fresh;
+          refreshMatrizResumenTable(root, fresh);
+          refreshRecetaPlatoPanel(root, fresh);
+        });
+      });
+    }
+    bindRecetaExpertoToggle(root, seed);
     var costeoPanel = root.querySelector('[data-matriz-panel="costeo-mp"]');
     if (costeoPanel && global.CrozzoCosteoMp && global.CrozzoCosteoMp.init) {
       global.CrozzoCosteoMp.init(costeoPanel);

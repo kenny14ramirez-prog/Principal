@@ -1487,6 +1487,10 @@
       porciones: input.porciones != null ? Number(input.porciones) : input.factor != null ? Number(input.factor) : null,
       factor: input.factor != null ? Number(input.factor) : null,
       cortesDespiece: Array.isArray(input.cortesDespiece) ? input.cortesDespiece.slice() : [],
+      mermaHuesoGr: input.mermaHuesoGr != null ? Math.round(Number(input.mermaHuesoGr)) : null,
+      mermaRecorteGr: input.mermaRecorteGr != null ? Math.round(Number(input.mermaRecorteGr)) : null,
+      mermaCoccionParcialGr:
+        input.mermaCoccionParcialGr != null ? Math.round(Number(input.mermaCoccionParcialGr)) : null,
       costoMpTotal: input.costoMpTotal != null ? Math.round(Number(input.costoMpTotal)) : null,
       lineas: Array.isArray(input.lineas) ? input.lineas.slice() : [],
       notas: input.notas || '',

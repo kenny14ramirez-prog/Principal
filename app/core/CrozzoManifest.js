@@ -59,7 +59,7 @@
   /** Pantallas → scripts (orden importa) */
   var PAGE_SCRIPTS = {
     inventarios: [BUNDLES.compras, BUNDLES.reservorio],
-    'compras-dashboard': [BUNDLES.compras, BUNDLES.reservorio, M + 'CrozzoComprasLocal.js'],
+    'compras-dashboard': [BUNDLES.compras, BUNDLES.reservorio, M + 'CrozzoComprasDashboard.js'],
     'compras-proveedores': ['vendor/CrozzoPdfJs.js', BUNDLES.compras, BUNDLES.reservorio],
     'compras-recepcion': [
       'vendor/CrozzoJsQR.js',
@@ -73,12 +73,13 @@
     ],
     'compras-ordenes': ['vendor/CrozzoPdfJs.js', BUNDLES.compras, BUNDLES.reservorio],
     'compras-cotizaciones': ['vendor/CrozzoPdfJs.js', BUNDLES.compras, BUNDLES.costos, BUNDLES.reservorio],
-    'centro-compras': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados, M + 'CrozzoComprasLocal.js'],
+    'centro-compras': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados, M + 'CrozzoOficinaHub.js', M + 'CrozzoComprasLocal.js'],
     'compras-oficina': [
       BUNDLES.compras,
       BUNDLES.reservorio,
       MODULES.integrados,
       M + 'CrozzoProveedorDocumentos.js',
+      M + 'CrozzoOficinaHub.js',
       M + 'CrozzoComprasLocal.js',
     ],
     'operaciones-qyc': [BUNDLES.compras, BUNDLES.reservorio, MODULES.integrados, M + 'CrozzoComprasLocal.js'],
@@ -104,6 +105,7 @@
       M + 'CrozzoCatalogoMp.js',
       M + 'CrozzoMatrizMp.js',
       M + 'CrozzoCosteoMp.js',
+      M + 'CrozzoCostosBulkImport.js',
       M + 'CrozzoSistemaCostos.js',
       M + 'CrozzoFlujosMapaPdf.js',
       M + 'CrozzoCostosReportesPdf.js',
@@ -116,6 +118,7 @@
       M + 'CrozzoCatalogoMp.js',
       M + 'CrozzoMatrizMp.js',
       M + 'CrozzoCosteoMp.js',
+      M + 'CrozzoCostosBulkImport.js',
       M + 'CrozzoSistemaCostos.js',
       M + 'CrozzoFlujosMapaPdf.js',
       M + 'CrozzoCostosReportesPdf.js',
@@ -125,6 +128,8 @@
       BUNDLES.reservorio,
       M + 'CrozzoCatalogoMp.js',
       M + 'CrozzoCosteoMp.js',
+      M + 'CrozzoCostosBulkImport.js',
+      M + 'CrozzoInventarioContinuo.js',
       M + 'CrozzoSistemaCostos.js',
     ],
     'costos-reservorio': [BUNDLES.costos, BUNDLES.reservorio],

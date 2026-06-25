@@ -28,7 +28,7 @@
       phase: 0,
       label: 'Perfil operativo configurado',
       hint: 'Elija pequeño, mediano, grande, retail, etc. El menú se adapta por rol automáticamente.',
-      page: 'gestion-perfiles-menus',
+      page: 'config-usuarios',
       optional: false,
     },
     {
@@ -50,17 +50,17 @@
     {
       id: 'catalogo',
       phase: 0,
-      label: 'Catálogo con al menos 5 productos',
-      hint: 'Gestión → Catálogo. Puede cargar datos demo desde Sistema de costos.',
-      page: 'productos',
+      label: 'Matriz de costos con al menos 5 platos',
+      hint: 'Costos → Costos y márgenes. Puede cargar datos demo desde el mismo módulo.',
+      page: 'costos-matriz',
       optional: false,
     },
     {
       id: 'alergenos_catalogo',
       phase: 0,
       label: 'Alérgenos en platos sensibles',
-      hint: 'En cada producto declare gluten, lacteos, nueces, etc. Cocina los verá en comanda.',
-      page: 'productos',
+      hint: 'En Costos y márgenes edite cada plato y declare gluten, lacteos, nueces, etc. Cocina los verá en comanda.',
+      page: 'costos-matriz',
       optional: false,
     },
     {
@@ -1155,7 +1155,6 @@
         cards +
         '</div>' +
         '<div class="btn-group" style="justify-content:flex-end;margin-top:14px;">' +
-        '<button type="button" class="btn btn-outline" onclick="closeModal();navigateTo(\'gestion-perfiles-menus\')">Super Admin → Perfiles y menús</button>' +
         '<button type="button" class="btn btn-primary" onclick="closeModal()">Cerrar</button></div>'
     );
   }

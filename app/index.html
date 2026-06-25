@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.174">
+<meta name="crozzo-app-version" content="1.0.175">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var userChose=localStorage.getItem('crozzo_theme_user_v1')==='1';var t='';if(userChose){t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';}t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-light','crozzo-theme-dark');if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
@@ -351,7 +351,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
             <li><div class="nav-item menu-item" data-page="super-admin-identidad" data-menu="identidad-logos" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="palette"></i></span><span class="nav-item-label">Identidad y logos</span></div></li>
             <li><div class="nav-item menu-item" data-page="actualizaciones-sistema" data-menu="actualizaciones-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span><span class="nav-item-label">Actualizaciones del sistema</span></div></li>
             <li><div class="nav-item menu-item" data-page="config-seguridad" data-menu="config-sistema" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="nav-item-label">Sesión y acceso</span></div></li>
-            <li><div class="nav-item menu-item super-admin-only" data-page="gestion-perfiles-menus" data-menu="gestion-perfiles" data-section="gestion-perfiles" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="sliders-horizontal"></i></span><span class="nav-item-label">Perfiles y menús</span></div></li>
             <li><div class="nav-item menu-item super-admin-only" data-page="auditoria" data-menu="auditoria" role="button" tabindex="0"><span class="nav-icon" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="nav-item-label">Auditoría (eventos)</span></div></li>
           </ul>
         </li>
@@ -1118,6 +1117,10 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="modules/CrozzoComandasCloudSync.js" defer></script>
 <script src="modules/CrozzoCierreTurnos.js"></script>
+<script src="modules/CrozzoReportesDashboard.js" defer></script>
+<script src="modules/CrozzoComprasDashboard.js" defer></script>
+<script src="modules/CrozzoInventarioContinuo.js" defer></script>
+<script src="modules/CrozzoOficinaHub.js" defer></script>
 <script src="modules/CrozzoStaffOpsReport.js"></script>
 <script src="modules/CrozzoCierrePrint.js"></script>
 <script src="core/CrozzoTermicaColombia.js" defer></script>
@@ -1127,6 +1130,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoPrintPresets.js" defer></script>
 <script src="modules/CrozzoPrintStudioHub.js" defer></script>
 <script src="modules/CrozzoPerfilesOperativos.js" defer></script>
+<script src="modules/CrozzoGestionCommandCenter.js" defer></script>
 <script src="modules/CrozzoPermisosPolicy.js" defer></script>
 <script src="modules/CrozzoPerfilesBiblioteca.js" defer></script>
 <script src="infra/CrozzoTauriUpdater.js" defer></script>
@@ -1151,6 +1155,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoCuposClientes.js" defer></script>
 <script src="modules/CrozzoCrmRegistroTemplate.js" defer></script>
 <script src="modules/CrozzoCrmRegistroQr.js" defer></script>
+<script src="modules/CrozzoCrmIntel.js" defer></script>
+<script src="modules/CrozzoStaffCelebrations.js" defer></script>
 <script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlExtras.js" defer></script>

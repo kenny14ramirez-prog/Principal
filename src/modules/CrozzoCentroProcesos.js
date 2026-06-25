@@ -14,7 +14,7 @@
   };
 
   var VIEWS = {
-    home: { label: 'Inicio', icon: 'home', sub: null, desc: 'Elige qué vas a preparar' },
+    home: { label: 'Inicio', icon: 'layout-dashboard', sub: null, desc: 'Panel del día · resumen y accesos rápidos' },
     form: { label: 'Anotar preparación', icon: 'utensils', sub: 'form', desc: 'Registrar lo que acabas de preparar' },
     hist: { label: 'Lo preparé antes', icon: 'clipboard-list', sub: 'hist', desc: 'Historial de preparaciones en bodega' },
     recetario: { label: 'Recetario', icon: 'book-open', sub: 'recetario', desc: 'Ingredientes y pesos para cocina' },
@@ -88,9 +88,12 @@
 
   function injectStyles() {
     if (bona()) bona().injectStyles();
-    if (document.getElementById('crozzo-centro-procesos-css')) return;
-    var el = document.createElement('style');
-    el.id = 'crozzo-centro-procesos-css';
+    var el = document.getElementById('crozzo-centro-procesos-css');
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'crozzo-centro-procesos-css';
+      document.head.appendChild(el);
+    }
     el.textContent =
       'body.crozzo-page-centro-procesos .main-body,#mainContent.main-body--centro-procesos{padding:0!important;overflow:hidden!important;min-height:0!important;height:auto!important;flex:1 1 auto!important;background:var(--bg-primary,#080a10)}' +
       'html.crozzo-vp-ready body.crozzo-page-centro-procesos .main-body,html.crozzo-vp-ready #mainContent.main-body--centro-procesos{overflow:hidden!important;min-height:0!important;-webkit-overflow-scrolling:auto!important}' +
@@ -158,12 +161,55 @@
       '.ccp-loader__ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(212,184,74,.2);border-top-color:var(--ccp-gold);animation:ccpSpin .9s linear infinite}' +
       '@keyframes ccpSpin{to{transform:rotate(360deg)}}' +
       '.ccp-loader__txt{font-size:13px;color:var(--text-muted)}' +
-      '.ccp-local{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px 24px 32px;display:none;background:var(--bg-primary,#080a10)}' +
-      '.ccp-local .cps{max-width:980px}' +
-      '@media(max-width:1100px){.ccp-wf{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
-      '@media(max-width:900px){.ccp__kpis{grid-template-columns:repeat(2,1fr)}.ccp-home__lead,.ccp-home__section,.ccp-wf{padding-left:20px;padding-right:20px}}' +
+      '.ccp-local{position:absolute;inset:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px 28px 32px;display:none;background:var(--bg-primary,#080a10)}' +
+      '.ccp-local .cps{max-width:1040px}' +
+      '.ccp.bona .ccp-local{background:var(--bona-cream,#faf9f7);padding:24px 32px 40px}' +
+      '.ccp-dash{padding:0 32px 28px}' +
+      '.ccp-dash__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:20px}' +
+      '.ccp-dash-act{display:flex;align-items:flex-start;gap:14px;padding:18px 18px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:var(--ccp-glass);cursor:pointer;font-family:inherit;color:inherit;text-align:left;transition:transform .25s,box-shadow .25s,border-color .25s;min-height:88px}' +
+      '.ccp-dash-act:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.12);border-color:rgba(212,184,74,.25)}' +
+      '.ccp-dash-act--primary{grid-column:1/-1;padding:20px 22px;border-color:rgba(212,184,74,.35);background:linear-gradient(135deg,rgba(212,184,74,.14),var(--ccp-glass))}' +
+      '.ccp-dash-act__icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}' +
+      '.ccp-dash-act--primary .ccp-dash-act__icon{background:rgba(212,184,74,.18);color:var(--ccp-gold,#d4b84a)}' +
+      '.ccp-dash-act__icon svg,.ccp-dash-act__icon i{width:22px;height:22px}' +
+      '.ccp-dash-act__title{display:block;font-size:15px;font-weight:700;margin:0 0 4px;letter-spacing:-.02em}' +
+      '.ccp-dash-act__desc{display:block;font-size:12px;color:var(--text-muted);line-height:1.45;margin:0}' +
+      '.ccp-dash-act__go{margin-left:auto;align-self:center;font-size:12px;font-weight:700;color:var(--ccp-gold,#d4b84a);flex-shrink:0}' +
+      '.ccp-dash-act--primary .ccp-dash-act__body{flex:1}' +
+      '.ccp-dash-act--primary{display:flex;align-items:center}' +
+      '.ccp-wf-short{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--ccp-glass);cursor:pointer;font-family:inherit;color:inherit;text-align:left;transition:border-color .2s,transform .2s;width:100%}' +
+      '.ccp-wf-short:hover{border-color:rgba(212,184,74,.3);transform:translateY(-1px)}' +
+      '.ccp-wf-short__icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,.06)}' +
+      '.ccp-wf-short__icon svg,.ccp-wf-short__icon i{width:18px;height:18px}' +
+      '.ccp-wf-short--amber .ccp-wf-short__icon{color:#d97706;background:rgba(245,158,11,.12)}' +
+      '.ccp-wf-short--rose .ccp-wf-short__icon{color:#e11d48;background:rgba(251,113,133,.12)}' +
+      '.ccp-wf-short--violet .ccp-wf-short__icon{color:#7c3aed;background:rgba(167,139,250,.12)}' +
+      '.ccp-wf-short__body{flex:1;min-width:0}' +
+      '.ccp-wf-short__title{display:block;font-size:13px;font-weight:650}' +
+      '.ccp-wf-short__meta{display:block;font-size:11px;color:var(--text-muted);margin-top:2px}' +
+      '.ccp-wf-short__count{font-size:12px;font-weight:700;color:var(--ccp-gold,#d4b84a);flex-shrink:0}' +
+      '.ccp-wf-shorts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:20px}' +
+      '.ccp-recent{border:1px solid rgba(255,255,255,.08);border-radius:16px;background:var(--ccp-glass);overflow:hidden;margin-bottom:16px}' +
+      '.ccp-recent__head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.06)}' +
+      '.ccp-recent__title{margin:0;font-size:13px;font-weight:650}' +
+      '.ccp-recent__link{background:none;border:none;padding:0;font-size:12px;font-weight:600;color:var(--ccp-gold,#d4b84a);cursor:pointer;font-family:inherit;text-decoration:underline;text-underline-offset:3px}' +
+      '.ccp-recent__list{list-style:none;margin:0;padding:0}' +
+      '.ccp-recent__item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px}' +
+      '.ccp-recent__item:last-child{border-bottom:none}' +
+      '.ccp-recent__name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.ccp-recent__meta{font-size:11px;color:var(--text-muted);flex-shrink:0;text-align:right}' +
+      '.ccp-recent__empty{padding:28px 18px;text-align:center;font-size:13px;color:var(--text-muted);line-height:1.55}' +
+      '.ccp-recent__empty strong{display:block;font-size:14px;color:var(--text-primary);margin-bottom:6px;font-weight:650}' +
+      '.ccp-alert{margin:0 32px 16px;padding:12px 16px;border-radius:12px;border:1px solid rgba(251,191,36,.35);background:rgba(251,191,36,.1);font-size:13px;color:var(--text-primary);display:flex;align-items:flex-start;gap:10px;line-height:1.5}' +
+      '.ccp-alert svg,.ccp-alert i{width:18px;height:18px;flex-shrink:0;color:#f59e0b;margin-top:1px}' +
+      '.ccp-alert button{margin-left:auto;background:none;border:none;color:var(--ccp-gold,#d4b84a);font-weight:600;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}' +
+      '.ccp-dash__section-title{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted)}' +
+      '.ccp.bona .ccp-dash-act,.ccp.bona .ccp-wf-short,.ccp.bona .ccp-recent{background:#fff;border-color:var(--bona-line,rgba(0,0,0,.08));box-shadow:var(--bona-shadow-sm)}' +
+      '.ccp.bona .ccp-dash-act--primary{background:linear-gradient(135deg,var(--bona-gold-08,#f5f0e8),#fff);border-color:rgba(181,154,109,.35)}' +
+      '.ccp.bona .ccp-alert{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.25)}' +
+      '@media(max-width:1100px){.ccp-wf{grid-template-columns:repeat(2,minmax(0,1fr))}.ccp-wf-shorts{grid-template-columns:1fr}}' +
+      '@media(max-width:900px){.ccp__kpis{grid-template-columns:repeat(2,1fr)}.ccp-home__lead,.ccp-home__section,.ccp-wf,.ccp-dash,.ccp-alert{padding-left:20px;padding-right:20px}.ccp-alert{margin-left:20px;margin-right:20px}.ccp-dash__grid{grid-template-columns:1fr}}' +
       '@media(max-width:640px){.ccp-wf{grid-template-columns:1fr}.ccp__kpis{grid-template-columns:1fr}}';
-    document.head.appendChild(el);
   }
 
   function qycUrl() {
@@ -227,7 +273,7 @@
     var v = VIEWS[view] || VIEWS.form;
     return (
       '<div class="ccp__crumb">' +
-      '<button type="button" data-ccp-view="home">← Volver al menú</button>' +
+      '<button type="button" data-ccp-view="home">← Volver al panel</button>' +
       ' · <span>' +
       esc(v.label) +
       '</span></div>'
@@ -258,44 +304,184 @@
       .join('');
   }
 
-  function workflowCardsHtml() {
-    return WORKFLOWS.map(function (w) {
-      var steps = (w.steps || [])
-        .map(function (s) {
-          return '<li>' + esc(s) + '</li>';
+  function loadCortesPrep() {
+    try {
+      var Res = global.CrozzoReservorio;
+      if (!Res || typeof Res.load !== 'function') return [];
+      return (Res.load().cortes || [])
+        .filter(function (c) {
+          return (c.modoProceso || 'prep_anticipado') !== 'bajo_demanda';
         })
-        .join('');
-      return (
-        '<button type="button" class="ccp-card ccp-card--' +
-        w.tone +
-        '" data-ccp-wf="' +
-        w.id +
-        '" data-ccp-sub="' +
-        w.sub +
-        '"' +
-        (w.hint ? ' data-ccp-hint="' + w.hint + '"' : '') +
-        '>' +
-        '<span class="ccp-card__badge' +
-        (w.badgeClass ? ' ' + w.badgeClass : '') +
-        '">' +
-        esc(w.badge) +
-        '</span>' +
-        '<div class="ccp-card__icon">' +
-        navIcon(w.icon) +
-        '</div>' +
-        '<h3 class="ccp-card__title">' +
-        esc(w.title) +
-        '</h3>' +
-        '<p class="ccp-card__desc">' +
-        esc(w.desc) +
-        '</p>' +
-        '<ul class="ccp-card__steps">' +
-        steps +
-        '</ul>' +
-        '<span class="ccp-card__go">Empezar →</span>' +
-        '</button>'
-      );
-    }).join('');
+        .sort(function (a, b) {
+          return String(b.fecha || '').localeCompare(String(a.fecha || ''));
+        });
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function prepStats(cortes) {
+    var hoy = new Date().toISOString().slice(0, 10);
+    var mes = hoy.slice(0, 7);
+    var stats = {
+      today: 0,
+      kg: 0,
+      alertCount: 0,
+      byWf: { despiece: 0, coccion: 0, elaboracion: 0 },
+      recent: cortes.slice(0, 6)
+    };
+    cortes.forEach(function (c) {
+      var f = String(c.fecha || '').slice(0, 10);
+      if (f === hoy) {
+        stats.today++;
+        var wf = c.workflow || 'elaboracion';
+        if (stats.byWf[wf] != null) stats.byWf[wf]++;
+      }
+      if (String(c.fecha || '').slice(0, 7) === mes) {
+        var pe = Number(c.pesoEntradaKg) || 0;
+        stats.kg += pe;
+        if (pe > 0 && Number(c.mermaTotalKg) > 0) {
+          var ratio = Number(c.mermaTotalKg) / pe;
+          if (ratio > 0.05) stats.alertCount++;
+        }
+      }
+    });
+    return stats;
+  }
+
+  function alertBannerHtml(alertCount) {
+    if (!alertCount) return '';
+    return (
+      '<div class="ccp-alert" id="ccp-alert-banner">' +
+      navIcon('alert-triangle') +
+      '<span><strong>' +
+      alertCount +
+      ' lote' +
+      (alertCount > 1 ? 's' : '') +
+      '</strong> con diferencia de peso superior al 5% este mes — conviene revisarlos.</span>' +
+      '<button type="button" data-ccp-view="hist">Ver historial</button></div>'
+    );
+  }
+
+  function quickActionsHtml() {
+    return (
+      '<div class="ccp-dash__grid">' +
+      '<button type="button" class="ccp-dash-act ccp-dash-act--primary" data-ccp-view="form">' +
+      '<span class="ccp-dash-act__icon">' +
+      navIcon('utensils') +
+      '</span>' +
+      '<span class="ccp-dash-act__body">' +
+      '<span class="ccp-dash-act__title">Anotar preparación</span>' +
+      '<span class="ccp-dash-act__desc">Registra despiece, cocción o salsas — el formulario te guía paso a paso.</span>' +
+      '</span>' +
+      '<span class="ccp-dash-act__go">Abrir →</span></button>' +
+      '<button type="button" class="ccp-dash-act" data-ccp-view="recetario">' +
+      '<span class="ccp-dash-act__icon">' +
+      navIcon('book-open') +
+      '</span>' +
+      '<span class="ccp-dash-act__body">' +
+      '<span class="ccp-dash-act__title">Recetario</span>' +
+      '<span class="ccp-dash-act__desc">Ingredientes y pesos para consultar o imprimir.</span></span></button>' +
+      '<button type="button" class="ccp-dash-act" data-ccp-view="hist">' +
+      '<span class="ccp-dash-act__icon">' +
+      navIcon('clipboard-list') +
+      '</span>' +
+      '<span class="ccp-dash-act__body">' +
+      '<span class="ccp-dash-act__title">Lo preparé antes</span>' +
+      '<span class="ccp-dash-act__desc">Historial completo con pesos y responsables.</span></span></button></div>'
+    );
+  }
+
+  function wfShortcutsHtml(byWf) {
+    byWf = byWf || {};
+    return (
+      '<p class="ccp-dash__section-title">Atajo por tipo · hoy</p>' +
+      '<div class="ccp-wf-shorts">' +
+      WORKFLOWS.map(function (w) {
+        var n = byWf[w.id] || 0;
+        return (
+          '<button type="button" class="ccp-wf-short ccp-wf-short--' +
+          w.tone +
+          '" data-ccp-view="form" data-ccp-hint="' +
+          w.hint +
+          '">' +
+          '<span class="ccp-wf-short__icon">' +
+          navIcon(w.icon) +
+          '</span>' +
+          '<span class="ccp-wf-short__body">' +
+          '<span class="ccp-wf-short__title">' +
+          esc(w.title) +
+          '</span>' +
+          '<span class="ccp-wf-short__meta">' +
+          (n ? n + ' registrada' + (n > 1 ? 's' : '') + ' hoy' : 'Sin registros hoy') +
+          '</span></span>' +
+          '<span class="ccp-wf-short__count">+ Anotar</span></button>'
+        );
+      }).join('') +
+      '</div>'
+    );
+  }
+
+  function recentActivityHtml(recent) {
+    var items = (recent || [])
+      .map(function (c) {
+        var wf = WORKFLOWS.filter(function (w) {
+          return w.id === (c.workflow || 'elaboracion');
+        })[0];
+        var wfLabel = wf ? wf.title : 'Preparación';
+        var resp = c.responsableNombre || (c.responsables && c.responsables[0] && c.responsables[0].nombre) || '';
+        return (
+          '<li class="ccp-recent__item">' +
+          '<span class="ccp-recent__name">' +
+          esc(c.producto || '—') +
+          '</span>' +
+          '<span class="ccp-recent__meta">' +
+          esc(String(c.fecha || '').slice(0, 10)) +
+          ' · ' +
+          esc(wfLabel) +
+          (resp ? ' · ' + esc(resp) : '') +
+          '</span></li>'
+        );
+      })
+      .join('');
+    return (
+      '<div class="ccp-recent">' +
+      '<div class="ccp-recent__head">' +
+      '<h3 class="ccp-recent__title">Actividad reciente</h3>' +
+      '<button type="button" class="ccp-recent__link" data-ccp-view="hist">Ver todo</button></div>' +
+      (items
+        ? '<ul class="ccp-recent__list">' + items + '</ul>'
+        : '<div class="ccp-recent__empty"><strong>Sin preparaciones aún</strong>Cuando anotes la primera, aparecerá aquí al instante.</div>') +
+      '</div>'
+    );
+  }
+
+  function homeDashboardHtml(stats) {
+    stats = stats || prepStats(loadCortesPrep());
+    return (
+      alertBannerHtml(stats.alertCount) +
+      '<div class="ccp-dash">' +
+      quickActionsHtml() +
+      wfShortcutsHtml(stats.byWf) +
+      recentActivityHtml(stats.recent) +
+      '<p class="ccp-home__lead">Lo que se arma al pedir (huevos, pastas al momento, etc.) <strong>no</strong> va aquí — el POS lo descuenta al vender.</p></div>'
+    );
+  }
+
+  function refreshHomeDashboard() {
+    var host = document.getElementById('ccp-home-dynamic');
+    if (!host) return;
+    var stats = prepStats(loadCortesPrep());
+    host.innerHTML = homeDashboardHtml(stats);
+    refreshKpisFromStats(stats);
+    var root = document.getElementById('crozzo-centro-procesos');
+    if (root) bindNavClicks(root);
+    if (typeof global.refreshLucideIcons === 'function') global.refreshLucideIcons(host);
+    else if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [host] });
+  }
+
+  function refreshKpisFromStats(stats) {
+    applyKpiDom(stats.today, stats.kg, stats.alertCount);
   }
 
   function setView(view, opts) {
@@ -315,6 +501,7 @@
       home.style.display = 'block';
       eng.classList.remove('is-open');
       setLoading(false);
+      refreshHomeDashboard();
       return;
     }
 
@@ -498,37 +685,26 @@
     fr.src = qycUrl();
   }
 
+  function bindNavClicks(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-ccp-view]').forEach(function (btn) {
+      if (btn._ccpNavBound) return;
+      btn._ccpNavBound = true;
+      btn.addEventListener('click', function () {
+        var v = btn.getAttribute('data-ccp-view');
+        if (!v) return;
+        var hint = btn.getAttribute('data-ccp-hint') || '';
+        setView(v, hint ? { hint: hint } : {});
+        if (hint && v === 'form') toast('Listo — completa los pasos en pantalla', 'info');
+      });
+    });
+  }
+
   function bindUi(root) {
     if (!root || root._ccpBound) return;
     root._ccpBound = true;
 
-    var dismiss = document.getElementById('ccp-welcome-dismiss');
-    if (dismiss) {
-      dismiss.addEventListener('click', function () {
-        try {
-          localStorage.setItem('ccp_welcome_seen', '1');
-        } catch (_) {}
-        var w = document.getElementById('ccp-welcome');
-        if (w) w.remove();
-      });
-    }
-
-    root.querySelectorAll('.ccp-nav,[data-ccp-view]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var v = btn.getAttribute('data-ccp-view');
-        if (v) setView(v);
-      });
-    });
-
-    root.querySelectorAll('[data-ccp-wf]').forEach(function (card) {
-      card.addEventListener('click', function () {
-        var sub = card.getAttribute('data-ccp-sub') || 'form';
-        var hint = card.getAttribute('data-ccp-hint') || card.getAttribute('data-ccp-wf');
-        var view = sub === 'jefe' ? 'jefe' : sub === 'hist' ? 'hist' : 'form';
-        setView(view, { hint: hint });
-        if (hint) toast('Listo — completa los pasos en pantalla', 'info');
-      });
-    });
+    bindNavClicks(root);
 
     document.addEventListener('crozzo-supabase-config-saved', function () {
       reloadFrame();
@@ -632,19 +808,13 @@
 
   function heroHtml() {
     var B = bona();
-    var wf = '';
-    try {
-      wf = sessionStorage.getItem('qca_pro_workflow') || '';
-    } catch (_) {}
-    var chain = B ? B.renderOrigenChain(B.mapWorkflowToOrigen(wf)) : '';
     return (
       '<header class="ccp__hero">' +
       '<div class="ccp__hero-inner">' +
-      (B ? B.brandHero() : '<div class="ccp__eyebrow">Cocina</div>') +
-      '<h1 class="ccp__title">¿Qué vas a preparar hoy?</h1>' +
-      '<p class="ccp__sub">Elige la tarea, anota pesos o ingredientes y queda registrado en bodega para el servicio.</p>' +
-      '</div></header>' +
-      chain
+      (B ? B.brandHero() : '<div class="ccp__eyebrow">Centro de producción</div>') +
+      '<h1 class="ccp__title">Panel de cocina</h1>' +
+      '<p class="ccp__sub">Resumen del día, accesos rápidos y lo último que registraste en bodega.</p>' +
+      '</div></header>'
     );
   }
 
@@ -671,18 +841,9 @@
         '<div class="ccp__panel">' +
         '<div class="ccp-home" id="ccp-panel-home">' +
         heroHtml() +
-        welcomeHtml() +
         kpiHtml() +
-        '<p class="ccp-home__lead">Lo que se arma al pedir (huevos, pastas al momento, etc.) <strong>no</strong> va aquí — el POS lo descuenta al vender.</p>' +
-        '<div class="ccp-home__section">' +
-        '<h2 class="ccp-home__section-title">Recetario de cocina</h2>' +
-        '<p class="ccp-home__section-lead">Ingredientes y pesos sincronizados con Costos — listo para imprimir o consultar en tablet.</p>' +
-        '<button type="button" class="btn btn-outline" data-ccp-view="recetario" style="margin:0 32px 8px">Abrir recetario</button></div>' +
-        '<div class="ccp-home__section">' +
-        '<h2 class="ccp-home__section-title">Tareas de preparación</h2>' +
-        '<p class="ccp-home__section-lead">Tres flujos guiados. Toca la tarjeta que corresponda a lo que estás haciendo ahora.</p></div>' +
-        '<div class="ccp-wf">' +
-        workflowCardsHtml() +
+        '<div id="ccp-home-dynamic">' +
+        homeDashboardHtml(prepStats(loadCortesPrep())) +
         '</div></div>' +
         '<div class="ccp-engine" id="ccp-engine">' +
         '<div class="ccp-loader" id="ccp-loader"><div class="ccp-loader__ring"></div><div class="ccp-loader__txt">Abriendo formulario…</div></div>' +
@@ -694,6 +855,7 @@
     init: function (startView) {
       var root = document.getElementById('crozzo-centro-procesos');
       bindUi(root);
+      refreshHomeDashboard();
       refreshKpis();
       if (typeof global.refreshLucideIcons === 'function') global.refreshLucideIcons(root);
       else if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();

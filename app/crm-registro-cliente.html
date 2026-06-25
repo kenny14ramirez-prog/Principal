@@ -245,6 +245,11 @@
             <label for="crmRegDir">Direccion (opcional)</label>
             <input type="text" id="crmRegDir" placeholder="Solo si la necesita en factura">
           </div>
+          <div class="field">
+            <label for="crmRegCumple">Fecha de cumpleaños (opcional)</label>
+            <input type="date" id="crmRegCumple" autocomplete="bday">
+            <p class="field-hint" style="margin:6px 0 0;font-size:.78rem;color:var(--muted);">Si la comparte, el local puede sorprenderle en su día especial.</p>
+          </div>
           <div id="crmRegFormStatus" class="status"></div>
           <button type="submit" class="btn-send" id="crmRegSubmit">Enviar mis datos</button>
         </form>
@@ -349,6 +354,7 @@
         telefono: (document.getElementById('crmRegTel').value || '').trim(),
         ciudad: (document.getElementById('crmRegCiudad').value || '').trim(),
         direccion: (document.getElementById('crmRegDir').value || '').trim(),
+        fechaNacimiento: (document.getElementById('crmRegCumple').value || '').trim(),
         origen: 'qr_registro',
       };
     }
