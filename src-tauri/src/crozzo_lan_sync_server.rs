@@ -533,18 +533,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
     let _ = write_http_response(&mut stream, 404, "Not Found", "application/json", b"{\"ok\":false,\"error\":\"not_found\"}");
 }
 
-fn run_server(state: Arc<Mutex<Option<ServerInner>>>, port: u16) {
-    let addr = format!("0.0.0.0:{}", port);
-    let listener = match TcpListener::bind(&addr) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("[lan-sync] bind {}: {}", addr, e);
-            let mut guard = state.lock().unwrap();
-            *guard = None;
-            return;
-        }
-    };
-    let _ = listener.set_nonblocking(true);
+fn run_server(state: Arc<Mutex<Option<ServerInner>>>, listener: TcpListener) {
     loop {
         {
             let guard = state.lock().unwrap();
@@ -595,6 +584,11 @@ pub fn crozzo_lan_sync_start(
         return Err("Puerto inválido (use ≥ 1024)".into());
     }
     crozzo_lan_sync_stop()?;
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr).map_err(|e| {
+        format!("No se pudo abrir el puerto {}: {}", port, e)
+    })?;
+    let _ = listener.set_nonblocking(true);
     let meta = ServerMeta {
         location_id: location_id.unwrap_or_default().trim().to_string(),
         device_id: device_id.unwrap_or_default().trim().to_string(),
@@ -625,15 +619,17 @@ pub fn crozzo_lan_sync_start(
         });
     }
     let st = Arc::clone(&shared);
-    let handle = thread::spawn(move || run_server(st, port));
+    let handle = thread::spawn(move || run_server(st, listener));
     {
         let mut th = server_thread().lock().map_err(|e| e.to_string())?;
         *th = Some(handle);
     }
     let ws_port = port.saturating_add(1);
-    let _ = crozzo_lan_ws::crozzo_lan_ws_start(Some(ws_port));
+    if let Err(e) = crozzo_lan_ws::crozzo_lan_ws_start(Some(ws_port)) {
+        let _ = crozzo_lan_sync_stop();
+        return Err(e);
+    }
     crozzo_mdns::start_with_lan(port, ws_port, &loc_id, &dev_id, &biz_id);
-    thread::sleep(Duration::from_millis(80));
     let guard = shared.lock().map_err(|e| e.to_string())?;
     match guard.as_ref() {
         Some(inner) => Ok(status_from_inner(inner)),

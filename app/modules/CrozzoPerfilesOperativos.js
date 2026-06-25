@@ -61,7 +61,7 @@
   /** Menú lateral por rol (solo perfiles con roles definidos; personalizado = sin filtro). */
   var PERFIL_ROLE_MENUS = {
     basico_restaurante: {
-      caja: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'comandas'],
+      caja: ['inicio-operacion', 'punto-venta', 'facturas', 'cierre-caja', 'caja'],
       mesero: ['tablets', 'comandas'],
       cocina: [
         'compras-cortes',
@@ -69,6 +69,16 @@
         'compras-proceso-sesion',
         'compras-proceso-historial',
         'comandas',
+      ],
+      encargado: [
+        'inicio-operacion',
+        'punto-venta',
+        'tablets',
+        'facturas',
+        'cierre-caja',
+        'caja',
+        'comandas',
+        'inventarios',
       ],
       inventario: [
         'centro-compras',

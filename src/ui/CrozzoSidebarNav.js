@@ -850,6 +850,7 @@
     if (inp) inp.value = '';
     if (sb) sb.classList.remove('is-nav-searching');
     document.querySelectorAll('#sidebarNav .nav-item[data-page]').forEach(function (item) {
+      if (item.classList.contains('crozzo-nav-acl-hidden')) return;
       item.classList.remove('crozzo-nav-filter-hidden', 'crozzo-nav-search-match');
       item.removeAttribute('aria-hidden');
       item.style.removeProperty('display');
@@ -858,7 +859,7 @@
       item.style.removeProperty('pointer-events');
       delete item.dataset.crozzoSearchHidden;
       var row = item.closest('li');
-      if (row) {
+      if (row && !row.classList.contains('crozzo-nav-acl-hidden')) {
         row.style.removeProperty('display');
         delete row.dataset.crozzoSearchHidden;
       }
@@ -892,6 +893,9 @@
     }
     var nav = getNav();
     if (nav) nav.classList.remove('crozzo-nav-search-nav-hidden');
+    try {
+      if (typeof global.applyAccessControl === 'function') global.applyAccessControl();
+    } catch (_) {}
   }
 
   function runNavSearch() {

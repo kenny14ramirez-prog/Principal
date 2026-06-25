@@ -931,7 +931,13 @@
 
   function roleIsEncargado() {
     var r = normalizeRole();
-    return r === 'admin' || r === 'superadmin' || r === 'super_admin' || r === 'gerente';
+    return (
+      r === 'encargado' ||
+      r === 'admin' ||
+      r === 'superadmin' ||
+      r === 'super_admin' ||
+      r === 'gerente'
+    );
   }
 
   function isCajeroOperativo() {

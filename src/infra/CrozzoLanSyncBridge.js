@@ -557,17 +557,23 @@
   async function probeHealthLocal(port) {
     port = Number(port) || 3000;
     if (!isDesktopTauri()) {
-      return { ok: false, running: false, via: null, error: 'Abra la app de escritorio BONA origen (.exe), no el navegador' };
+      return { ok: false, running: false, via: null, error: 'Solo app Tauri de escritorio' };
     }
     var st = await nativeHealth(port);
     if (st.ok) return st;
+    if (lanBindCooldownActive()) {
+      return { ok: false, running: false, port: port, via: 'native', error: global.__CROZZO_LAN_LAST_ERROR || 'Puerto LAN ocupado' };
+    }
     await ensureServerForPairing();
     st = await nativeHealth(port);
     return st;
   }
 
   async function ensureServerForPairing() {
-    if (!isDesktopTauri()) return { running: false, error: 'Solo disponible en la app de escritorio' };
+    if (!isDesktopTauri()) return { running: false, error: 'Solo app Tauri de escritorio' };
+    if (lanBindCooldownActive()) {
+      return { running: false, error: global.__CROZZO_LAN_LAST_ERROR || 'Puerto LAN ocupado', cached: true };
+    }
     await bootstrapLanConfigForCaja();
     var md =
       typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : { role: 'A', port: 3000 };
@@ -575,6 +581,8 @@
     try {
       var st0 = await invoke('crozzo_lan_sync_status');
       if (st0 && st0.running) {
+        _lanBindFailUntil = 0;
+        _ensureLastOk = true;
         startPolling();
         return st0;
       }
@@ -594,9 +602,16 @@
         supabaseUrl: sb.url || '',
         supabaseAnonKey: sb.key || '',
       });
-      startPolling();
-      return st;
+      if (st && st.running) {
+        _lanBindFailUntil = 0;
+        _ensureLastOk = true;
+        startPolling();
+        return st;
+      }
+      markLanBindFailed('Puerto LAN no disponible');
+      return { running: false, error: global.__CROZZO_LAN_LAST_ERROR };
     } catch (e) {
+      if (lanPortBusyError(e)) markLanBindFailed(e);
       try {
         console.warn('[lan-sync] ensureServerForPairing', e);
       } catch (_) {}
@@ -611,6 +626,17 @@
       return { running: false };
     }
     if (!isDesktopTauri()) return { running: false };
+    if (lanBindCooldownActive()) {
+      return { running: false, error: global.__CROZZO_LAN_LAST_ERROR || 'Puerto LAN ocupado', cached: true };
+    }
+    try {
+      var st0 = await invoke('crozzo_lan_sync_status');
+      if (st0 && st0.running) {
+        startPolling();
+        await drainPendingOnce();
+        return st0;
+      }
+    } catch (_) {}
     try {
       var sb = readSupabaseForLan();
       var st = await invoke('crozzo_lan_sync_start', {
@@ -622,10 +648,16 @@
         supabaseUrl: sb.url || '',
         supabaseAnonKey: sb.key || '',
       });
-      startPolling();
-      await drainPendingOnce();
-      return st;
+      if (st && st.running) {
+        _lanBindFailUntil = 0;
+        startPolling();
+        await drainPendingOnce();
+        return st;
+      }
+      markLanBindFailed('Puerto LAN no disponible');
+      return { running: false, error: global.__CROZZO_LAN_LAST_ERROR };
     } catch (e) {
+      if (lanPortBusyError(e)) markLanBindFailed(e);
       try {
         console.warn('[lan-sync] start', e);
       } catch (_) {}
@@ -663,6 +695,33 @@
   var _ensureCooldownMs = 9000;
   var _ensureLastAt = 0;
   var _ensureLastOk = false;
+  var _lanBindFailUntil = 0;
+  var _lanBindFailWarned = false;
+  var LAN_BIND_FAIL_COOLDOWN_MS = 120000;
+
+  function lanPortBusyError(err) {
+    var s = String((err && err.message) || err || '');
+    return /10048|already in use|EADDRINUSE|en uso|addr.*use/i.test(s);
+  }
+
+  function markLanBindFailed(err) {
+    _lanBindFailUntil = Date.now() + LAN_BIND_FAIL_COOLDOWN_MS;
+    _ensureLastOk = false;
+    try {
+      global.__CROZZO_LAN_LAST_ERROR = String((err && err.message) || err || 'Puerto LAN ocupado');
+      if (!_lanBindFailWarned && typeof global.showToast === 'function') {
+        _lanBindFailWarned = true;
+        global.showToast(
+          'Puerto LAN 3000/3001 ocupado. Cierre otras ventanas BONA/Tauri abiertas y reinicie.',
+          'warning'
+        );
+      }
+    } catch (_) {}
+  }
+
+  function lanBindCooldownActive() {
+    return Date.now() < _lanBindFailUntil;
+  }
 
   async function ensureServerOnce(force) {
     if (!isDesktopTauri()) return { running: false, skipped: true };

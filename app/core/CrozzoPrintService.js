@@ -616,7 +616,7 @@
   }
 
   function crozzoResolveComandaPrinter(comanda) {
-    if (!comanda) return getComandaPrinter();
+    if (!comanda) return '';
     var p = String(comanda.impresora || '').trim();
     if (p) return crozzoResolvePrinterForJob(p, 'comanda');
     var areas = crozzoGetComandasAreas();
@@ -627,7 +627,7 @@
         }
       }
     }
-    return getComandaPrinter();
+    return '';
   }
 
   function escQr(chunks, data) {

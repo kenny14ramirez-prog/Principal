@@ -28986,6 +28986,27 @@ html.tauri-desktop #sidebar.sidebar-pro [data-nav-group="super-admin"].crozzo-na
   pointer-events: none !important;
 }
 
+/* ACL en drawer táctil / APK: las reglas touch no deben mostrar ítems prohibidos */
+html.crozzo-touch-shell #sidebar .nav-item.crozzo-nav-acl-hidden,
+html.crozzo-touch-shell #sidebar .menu-item.crozzo-nav-acl-hidden,
+html.crozzo-android-apk #sidebar .nav-item.crozzo-nav-acl-hidden,
+html.crozzo-android-apk #sidebar .menu-item.crozzo-nav-acl-hidden,
+html.crozzo-android-native #sidebar .nav-item.crozzo-nav-acl-hidden,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-item.crozzo-nav-acl-hidden,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-group-li.crozzo-nav-acl-hidden,
+html.crozzo-touch-shell #sidebar .nav-group-items > li.crozzo-nav-acl-hidden,
+html.crozzo-android-apk #sidebar .nav-group-items > li.crozzo-nav-acl-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 /* Búsqueda: anular reglas Tauri / Super Admin que fuerzan visibilidad */
 #sidebar.is-nav-searching .nav-item.crozzo-nav-filter-hidden,
 html.tauri-desktop #sidebar.is-nav-searching.sidebar-pro .nav-item.crozzo-nav-filter-hidden,
@@ -63159,6 +63180,27 @@ html.tauri-desktop #sidebar.sidebar-pro [data-nav-group="super-admin"].crozzo-na
   pointer-events: none !important;
 }
 
+/* ACL en drawer táctil / APK: las reglas touch no deben mostrar ítems prohibidos */
+html.crozzo-touch-shell #sidebar .nav-item.crozzo-nav-acl-hidden,
+html.crozzo-touch-shell #sidebar .menu-item.crozzo-nav-acl-hidden,
+html.crozzo-android-apk #sidebar .nav-item.crozzo-nav-acl-hidden,
+html.crozzo-android-apk #sidebar .menu-item.crozzo-nav-acl-hidden,
+html.crozzo-android-native #sidebar .nav-item.crozzo-nav-acl-hidden,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-item.crozzo-nav-acl-hidden,
+body.crozzo-sidebar-drawer-open #sidebar.open .nav-group-li.crozzo-nav-acl-hidden,
+html.crozzo-touch-shell #sidebar .nav-group-items > li.crozzo-nav-acl-hidden,
+html.crozzo-android-apk #sidebar .nav-group-items > li.crozzo-nav-acl-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 /* Búsqueda: anular reglas Tauri / Super Admin que fuerzan visibilidad */
 #sidebar.is-nav-searching .nav-item.crozzo-nav-filter-hidden,
 html.tauri-desktop #sidebar.is-nav-searching.sidebar-pro .nav-item.crozzo-nav-filter-hidden,
@@ -73910,6 +73952,11 @@ body.crozzo-page-operativa.crozzo-pantallas-kiosk .crozzo-help-fab {
   color: #fdba74;
   background: rgba(249, 115, 22, 0.14);
   border-color: rgba(249, 115, 22, 0.35);
+}
+.crozzo-staff-badge--encargado {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
 }
 .crozzo-staff-badge--inventario {
   color: #67e8f9;

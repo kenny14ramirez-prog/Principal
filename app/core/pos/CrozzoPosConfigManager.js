@@ -319,8 +319,9 @@ class ConfigManager {
                 'abrir_orden',
                 'editar_orden',
                 'facturar',
+                'cierre_arqueo',
               ],
-              comandas: ['ver', 'despachar'],
+              comandas: [],
               admin: []
             }
           },

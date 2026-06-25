@@ -82,19 +82,7 @@ fn handle_ws_client(stream: TcpStream, shared: Arc<Mutex<Option<WsInner>>>) {
     }
 }
 
-fn run_ws_server(shared: Arc<Mutex<Option<WsInner>>>, port: u16) {
-    let addr = format!("0.0.0.0:{port}");
-    let listener = match TcpListener::bind(&addr) {
-        Ok(l) => l,
-        Err(e) => {
-            eprintln!("[lan-ws] bind {addr}: {e}");
-            if let Ok(mut g) = shared.lock() {
-                *g = None;
-            }
-            return;
-        }
-    };
-    let _ = listener.set_nonblocking(true);
+fn run_ws_server(shared: Arc<Mutex<Option<WsInner>>>, listener: TcpListener) {
     loop {
         let stop = shared
             .lock()
@@ -127,6 +115,9 @@ pub fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Value, St
     if port < 1024 {
         return Err("Puerto WS inválido".into());
     }
+    let addr = format!("0.0.0.0:{port}");
+    let listener = TcpListener::bind(&addr).map_err(|e| format!("No se pudo abrir el puerto WS {port}: {e}"))?;
+    let _ = listener.set_nonblocking(true).map_err(|e| e.to_string())?;
     let shared = Arc::clone(hub());
     {
         let mut g = shared.lock().map_err(|e| e.to_string())?;
@@ -137,11 +128,10 @@ pub fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Value, St
         });
     }
     let sh = Arc::clone(&shared);
-    let handle = thread::spawn(move || run_ws_server(sh, port));
+    let handle = thread::spawn(move || run_ws_server(sh, listener));
     if let Ok(mut th) = ws_thread_handle().lock() {
         *th = Some(handle);
     }
-    thread::sleep(Duration::from_millis(60));
     crozzo_lan_ws_status()
 }
 

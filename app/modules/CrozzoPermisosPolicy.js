@@ -57,15 +57,27 @@
   /** Presets por rol: qué puede delegar el admin por defecto (sin permisos sensibles). */
   var ROLE_PERM_PRESETS = {
     caja: {
-      caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'facturar', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado'],
-      comandas: ['ver'],
-      inventario: ['reportes', 'proveedores'],
+      caja: [
+        'vista_pos',
+        'vista_facturas',
+        'vista_clientes',
+        'abrir_orden',
+        'editar_orden',
+        'eliminar_item',
+        'facturar',
+        'unir_cuenta',
+        'dividir_cuenta',
+        'descuento_autorizado',
+        'cierre_arqueo',
+      ],
+      comandas: [],
+      inventario: [],
       productos: [],
       admin: [],
     },
     mesero: {
       caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'],
-      comandas: ['ver', 'despachar'],
+      comandas: ['ver'],
       inventario: [],
       productos: [],
       admin: [],
@@ -77,9 +89,34 @@
       productos: [],
       admin: [],
     },
+    encargado: {
+      caja: [
+        'vista_pos',
+        'vista_tablets',
+        'vista_facturas',
+        'vista_clientes',
+        'abrir_orden',
+        'editar_orden',
+        'eliminar_item',
+        'anular_comandado',
+        'unir_cuenta',
+        'dividir_cuenta',
+        'descuento_autorizado',
+        'tab_abrir',
+        'tab_editar',
+        'tab_eliminar',
+        'tab_precuenta',
+        'facturar',
+        'cierre_arqueo',
+      ],
+      comandas: ['ver', 'despachar', 'reimprimir'],
+      inventario: ['reportes'],
+      productos: [],
+      admin: ['auditoria'],
+    },
     inventario: {
       caja: [],
-      comandas: ['ver'],
+      comandas: [],
       inventario: ['reportes', 'proveedores'],
       productos: ['catalogo'],
       admin: [],
@@ -92,21 +129,50 @@
       admin: [],
     },
     admin: {
-      caja: ['vista_pos', 'vista_tablets', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'eliminar_item', 'anular_comandado', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta', 'facturar'],
+      caja: [
+        'vista_pos',
+        'vista_tablets',
+        'vista_facturas',
+        'vista_clientes',
+        'abrir_orden',
+        'editar_orden',
+        'eliminar_item',
+        'anular_comandado',
+        'unir_cuenta',
+        'dividir_cuenta',
+        'descuento_autorizado',
+        'tab_abrir',
+        'tab_editar',
+        'tab_eliminar',
+        'tab_precuenta',
+        'facturar',
+        'cierre_arqueo',
+      ],
       comandas: ['ver', 'despachar', 'reimprimir'],
       inventario: ['reportes', 'proveedores'],
       productos: ['catalogo'],
-      admin: ['config_empresa', 'config_impuestos', 'config_comandas', 'config_salon', 'config_usuarios', 'marcacion_personal'],
+      admin: [
+        'config_empresa',
+        'config_impuestos',
+        'config_comandas',
+        'config_salon',
+        'config_conexiones',
+        'config_facturas_admin',
+        'config_usuarios',
+        'marcacion_personal',
+        'auditoria',
+        'nomina_planilla',
+      ],
     },
   };
 
-  var ROLE_ORDER = ['caja', 'mesero', 'cocina', 'inventario', 'user', 'admin'];
+  var ROLE_ORDER = ['caja', 'mesero', 'cocina', 'encargado', 'inventario', 'admin'];
   var ROLE_LABELS = {
-    caja: 'Caja / POS',
+    caja: 'Cajero / POS',
     mesero: 'Mesero / Tablet',
     cocina: 'Cocina / KDS',
+    encargado: 'Encargado de turno',
     inventario: 'Inventario / Compras',
-    user: 'Usuario básico',
     admin: 'Administrador',
   };
 
@@ -147,6 +213,7 @@
       .replace(/\s+/g, '_')
       .replace(/-/g, '_');
     if (r === 'jefe_compras') return 'inventario';
+    if (r === 'encargado') return 'encargado';
     return r;
   }
 
@@ -264,6 +331,22 @@
   function syncClientRolePerms(client) {
     if (!client || typeof client !== 'object') return client;
     if (!client.rolePerms || typeof client.rolePerms !== 'object') client.rolePerms = {};
+    try {
+      if (isBasicoClient(client) && !localStorage.getItem('crozzo_rbac_basico_roles_v2')) {
+        ROLE_ORDER.forEach(function (role) {
+          client.rolePerms[role] = computeDefaultPolicy(client, role);
+        });
+        localStorage.setItem('crozzo_rbac_basico_roles_v2', '1');
+      }
+    } catch (_) {}
+    try {
+      if (!localStorage.getItem('crozzo_caja_role_perms_sin_comandas_v1') && client.rolePerms.caja) {
+        if (Array.isArray(client.rolePerms.caja.comandas) && client.rolePerms.caja.comandas.length) {
+          client.rolePerms.caja.comandas = [];
+        }
+        localStorage.setItem('crozzo_caja_role_perms_sin_comandas_v1', '1');
+      }
+    } catch (_) {}
     ROLE_ORDER.forEach(function (role) {
       if (isBasicoClient(client)) {
         var maxPol = computeMaxPolicyFromMenus(client, role);
