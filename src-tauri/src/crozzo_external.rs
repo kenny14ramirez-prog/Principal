@@ -147,7 +147,6 @@ fn build_whatsapp_dock(
 
     let mut builder = WebviewWindowBuilder::new(app, WA_DOCK_LABEL, WebviewUrl::External(parsed))
         .title("")
-        .decorations(false)
         .visible(false)
         .focused(false)
         .skip_taskbar(true)
@@ -175,6 +174,11 @@ fn build_whatsapp_dock(
                 }
             }
         });
+
+    #[cfg(desktop)]
+    {
+        builder = builder.decorations(false);
+    }
 
     #[cfg(debug_assertions)]
     {
@@ -413,7 +417,6 @@ fn build_gmail_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
     let data_dir = gmail_data_dir(app)?;
     let mut builder = WebviewWindowBuilder::new(app, GMAIL_DOCK_LABEL, WebviewUrl::External(parsed))
         .title("")
-        .decorations(false)
         .visible(false)
         .focused(false)
         .skip_taskbar(true)
@@ -441,6 +444,10 @@ fn build_gmail_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
                 }
             }
         });
+    #[cfg(desktop)]
+    {
+        builder = builder.decorations(false);
+    }
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -604,7 +611,6 @@ fn build_drive_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
     let data_dir = drive_data_dir(app)?;
     let mut builder = WebviewWindowBuilder::new(app, DRIVE_DOCK_LABEL, WebviewUrl::External(parsed))
         .title("")
-        .decorations(false)
         .visible(false)
         .focused(false)
         .skip_taskbar(true)
@@ -632,6 +638,10 @@ fn build_drive_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
                 }
             }
         });
+    #[cfg(desktop)]
+    {
+        builder = builder.decorations(false);
+    }
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -795,7 +805,6 @@ fn build_dataico_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
     let data_dir = dataico_data_dir(app)?;
     let mut builder = WebviewWindowBuilder::new(app, DATAICO_DOCK_LABEL, WebviewUrl::External(parsed))
         .title("")
-        .decorations(false)
         .visible(false)
         .focused(false)
         .skip_taskbar(true)
@@ -823,6 +832,10 @@ fn build_dataico_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
                 }
             }
         });
+    #[cfg(desktop)]
+    {
+        builder = builder.decorations(false);
+    }
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -987,7 +1000,6 @@ fn build_dian_vpfe_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webv
     let mut builder =
         WebviewWindowBuilder::new(app, DIAN_VPFE_DOCK_LABEL, WebviewUrl::External(parsed))
             .title("")
-            .decorations(false)
             .visible(false)
             .focused(false)
             .skip_taskbar(true)
@@ -1017,6 +1029,10 @@ fn build_dian_vpfe_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webv
                     }
                 }
             });
+    #[cfg(desktop)]
+    {
+        builder = builder.decorations(false);
+    }
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -1181,7 +1197,6 @@ fn build_spotify_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
     let mut builder =
         WebviewWindowBuilder::new(app, SPOTIFY_DOCK_LABEL, WebviewUrl::External(parsed))
             .title("")
-            .decorations(false)
             .visible(false)
             .focused(false)
             .skip_taskbar(true)
@@ -1211,6 +1226,10 @@ fn build_spotify_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::Webvie
                     }
                 }
             });
+    #[cfg(desktop)]
+    {
+        builder = builder.decorations(false);
+    }
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
