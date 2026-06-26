@@ -8,8 +8,9 @@
   var TABLE = 'crozzo_sede_runtime';
   var DEBOUNCE_FAST_MS = 180;
   var DEBOUNCE_NORMAL_MS = 650;
-  var PULL_POLL_LIVE_MS = 14000;
+  var PULL_POLL_LIVE_MS = 10000;
   var PULL_POLL_FALLBACK_MS = 5000;
+  var SILENCE_WATCHDOG_MS = 30000;
   var ECHO_MS = 2600;
   var STABILITY_MS = 26000;
   var MAX_CART_NAME = 36;
@@ -23,6 +24,7 @@
   var __lastPushSig = '';
   var __lastPushAt = 0;
   var __realtimeLive = false;
+  var __lastRtEventAt = 0;
   var __started = false;
   var __tableMissing = false;
   var __pgCh = null;
@@ -1103,7 +1105,11 @@
       ms = Math.min(90000, ms * 3);
     }
     __pullTimer = global.setInterval(function () {
-      pullRuntime({ quiet: true, skipRender: true })
+      // Watchdog: si el canal dice estar vivo pero lleva mucho tiempo
+      // sin entregar eventos, forzar pull de reconciliación.
+      var silenceSinceEvt = __lastRtEventAt ? Date.now() - __lastRtEventAt : Infinity;
+      var watchdogFired = __realtimeLive && silenceSinceEvt > SILENCE_WATCHDOG_MS;
+      pullRuntime({ quiet: true, skipRender: !watchdogFired })
         .then(notifyRuntimeUiIfApplied)
         .catch(function () {});
     }, ms);
@@ -1111,6 +1117,8 @@
 
   function subscribeRealtime(reason) {
     if (!cloudTransportActive()) return;
+    // Si el canal ya está vivo no destruirlo — evita loop CLOSED.
+    if (__realtimeLive && __pgCh) return;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return;
     teardownRuntimeChannel();
@@ -1124,9 +1132,11 @@
         );
         var onEvt = useMesa
           ? function () {
+              __lastRtEventAt = Date.now();
               scheduleMesaPull();
             }
           : function (p) {
+              __lastRtEventAt = Date.now();
               if (p.new) applyRemoteRow(p.new, { quiet: true });
             };
         __pgCh.on('postgres_changes', { event: 'INSERT', schema: 'public', table: tbl, filter: filter }, onEvt);
@@ -1188,7 +1198,9 @@
     }
     if (opts.resetTableMissing) __tableMissing = false;
     if (__started) {
-      subscribeRealtime('refresh');
+      // No re-suscribir si el canal ya está vivo — el teardown generaría
+      // un CLOSED innecesario que corta la sincronización de mesas.
+      if (!__realtimeLive) subscribeRealtime('refresh');
       return;
     }
     var c = ctx();

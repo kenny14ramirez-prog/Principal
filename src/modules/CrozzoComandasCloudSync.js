@@ -8,6 +8,8 @@
   var __started = false;
   var __pullTimer = null;
   var __realtimeLive = false;
+  var __lastRtEventAt = 0;
+  var SILENCE_WATCHDOG_MS = 30000;
   var PULL_MS_LIVE = 12000;
   var PULL_MS_FALLBACK = 4500;
   var __pushEcho = {};
@@ -756,20 +758,19 @@
       return;
     }
     if (__pullTimer) clearInterval(__pullTimer);
-    var ms = __realtimeLive ? PULL_MS_LIVE : PULL_MS_FALLBACK;
+    var silenceSinceEvt = __lastRtEventAt ? Date.now() - __lastRtEventAt : Infinity;
+    var watchdogStale = __realtimeLive && silenceSinceEvt > SILENCE_WATCHDOG_MS;
+    var ms = (watchdogStale || !__realtimeLive) ? PULL_MS_FALLBACK : PULL_MS_LIVE;
     var thr = global.CrozzoCloudThrottle;
     if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) {
       ms = Math.min(60000, ms * 3);
     }
     __pullTimer = global.setInterval(function () {
       if (!tierAllowsCloudRead()) return;
-      // Cuando el canal realtime está vivo el poll es solo de respaldo;
-      // siempre skipPrint para no duplicar tickets que ya llegaron vía push.
-      // Sin realtime (fallback) puede que comandas recientes no se hayan
-      // impreso aún (ej. reconexión tras corte de red), así que dejamos
-      // que applyComandaFromCloudRow decida según edad + dedup.
+      var stale = __lastRtEventAt ? Date.now() - __lastRtEventAt : Infinity;
+      var rtSilent = __realtimeLive && stale > SILENCE_WATCHDOG_MS;
       pullComandasFromCloud({
-        skipPrint: __realtimeLive,
+        skipPrint: __realtimeLive && !rtSilent,
         skipRender: true,
         silent: true,
       }).catch(function () {});
@@ -829,6 +830,7 @@
       updOpts.filter = flt;
       var ch = global.__SUPABASE.channel(chName);
       ch.on('postgres_changes', insOpts, function (payload) {
+        __lastRtEventAt = Date.now();
         try { console.log('[crozzo-rt] INSERT comanda', payload.new && payload.new.id); } catch (_) {}
         var applied = !!(payload.new && applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false }));
         try { console.log('[crozzo-rt] INSERT aplicado:', applied); } catch (_) {}
@@ -836,6 +838,7 @@
       });
       ch.on('postgres_changes', updOpts, function (payload) {
         if (!payload.new) return;
+        __lastRtEventAt = Date.now();
         try { console.log('[crozzo-rt] UPDATE comanda', payload.new.id, payload.new.status); } catch (_) {}
         var st = String(payload.new.status || (payload.new.payload && payload.new.payload.estado) || '');
         if (st === 'entregada') {
