@@ -288,7 +288,7 @@
           global.crozzoCanStationPrintComandas();
         comApplied = await global.crozzoPullComandasFromCloud({
           skipPrint: !canPrintStation,
-          skipRender: true,
+          skipRender: false,
           silent: true,
         });
       }
@@ -303,11 +303,12 @@
     __lastPullAt.comandas = Date.now();
     if (typeof global.crozzoPullComandasFromCloud === 'function') {
       var onKitchen = __activePage === 'comandas' || __activePage === 'cocina';
+      var onOps = __activePage === 'cajero' || __activePage === 'tablets';
       var printStation =
         typeof global.crozzoIsTauriPosDesktop === 'function' && global.crozzoIsTauriPosDesktop();
       var ok = await global.crozzoPullComandasFromCloud({
         skipPrint: !(onKitchen || printStation),
-        skipRender: true,
+        skipRender: !(onKitchen || onOps),
         silent: true,
       });
       if (ok) notifyComandasUiApplied();
@@ -383,18 +384,36 @@
     var domainPri = pri().getDomainPriority(domain);
 
     if (domain === 'runtime') {
+      var rtSilentRun = false;
+      try {
+        if (typeof global.crozzoRuntimeRealtimeStatus === 'function') {
+          var rrs = global.crozzoRuntimeRealtimeStatus();
+          if (rrs && rrs.live && rrs.lastEventAgoMs != null && rrs.lastEventAgoMs > 28000) {
+            rtSilentRun = true;
+          }
+        }
+      } catch (_) {}
       if (domainPri === pri().P0 && !firstPass && !navPull) {
         var pr = await probeRuntime();
-        if (pr.changed) await pullRuntime({ quiet: true });
+        if (pr.changed || rtSilentRun) await pullRuntime({ quiet: true });
       } else if (firstPass || navPull) {
         await pullRuntime({ quiet: true });
       }
       return;
     }
     if (domain === 'comandas') {
+      var rtSilentCom = false;
+      try {
+        if (typeof global.crozzoComandaRealtimeStatus === 'function') {
+          var crs = global.crozzoComandaRealtimeStatus();
+          if (crs && crs.live && crs.lastEventAgoMs != null && crs.lastEventAgoMs > 28000) {
+            rtSilentCom = true;
+          }
+        }
+      } catch (_) {}
       if (domainPri === pri().P0 && !firstPass && !navPull) {
         var pc = await probeComandas();
-        if (pc.changed) await pullComandas();
+        if (pc.changed || rtSilentCom) await pullComandas();
       } else if (firstPass || navPull) {
         await pullComandas();
       }
@@ -550,18 +569,16 @@
   }
 
   function usesGlobalComandaPoll() {
-    var p = pri();
+    // Igual que antes del refactor P0: el poll global de comandas queda apagado;
+    // PageCloudWatch + Realtime cubren la vista activa.
     var profile = pageProfiles()[__activePage];
-    if (p.isOperationalPage(__activePage)) return false;
     if (profile && profile.domains && profile.domains.indexOf('comandas') >= 0) return false;
     return true;
   }
 
   function usesGlobalRuntimePoll() {
-    var p = pri();
-    var profile = pageProfiles()[__activePage];
-    if (p.isOperationalPage(__activePage)) return false;
-    if (profile && profile.domains && profile.domains.indexOf('runtime') >= 0) return false;
+    // CRÍTICO: mantener poll de respaldo de mesas/carritos SIEMPRE activo.
+    // Desactivarlo en cajero/tablets dejó tablet↔caja mudo si Realtime fallaba.
     return true;
   }
 
@@ -576,6 +593,14 @@
       if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
     });
     safe(function () {
+      // Segunda vía de tiempo real (pulso broadcast operativo).
+      if (typeof global.crozzoStartOpsPulse === 'function') global.crozzoStartOpsPulse();
+    });
+    safe(function () {
+      // Respaldo de entrega: al recuperar transporte, drenar comandas pendientes.
+      if (typeof global.crozzoFlushComandaOutbox === 'function') global.crozzoFlushComandaOutbox();
+    });
+    safe(function () {
       if (global.CrozzoCloudThrottle && typeof global.CrozzoCloudThrottle.clearPressure === 'function') {
         global.CrozzoCloudThrottle.clearPressure();
       }
@@ -586,6 +611,9 @@
     var to = ev && ev.detail && ev.detail.to;
     if (to !== 'cloud') return;
     refreshCloudTransports();
+    // Al recuperar nube, re-publicar el estado local (mesas/carritos) además de
+    // bajarlo: así ningún equipo queda con datos que nunca llegaron a la nube.
+    if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_tier');
     if (__activePage) {
       setTimeout(function () {
         initialPass(__activePage, pri().isNavPage(__activePage)).catch(function () {});
@@ -595,6 +623,7 @@
 
   global.addEventListener('online', function () {
     refreshCloudTransports();
+    if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_online');
     if (__activePage) {
       setTimeout(function () {
         initialPass(__activePage, pri().isNavPage(__activePage)).catch(function () {});

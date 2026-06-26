@@ -32,6 +32,36 @@
   var _kioskEl = null;
   var _kioskRetryTimer = null;
 
+  function crmQrFeatureEnabled() {
+    return typeof global.crozzoClientFeatureEnabled === 'function'
+      ? global.crozzoClientFeatureEnabled('crm_registro_qr')
+      : false;
+  }
+
+  function notifyQrFeatureLocked() {
+    if (typeof global.crozzoNotifyFeatureLocked === 'function') {
+      global.crozzoNotifyFeatureLocked('QR clientes');
+    } else if (typeof global.showToast === 'function') {
+      global.showToast('Próximamente en versiones avanzadas', 'info');
+    }
+  }
+
+  function renderPanelHtmlLocked() {
+    var hint =
+      typeof global.crozzoRenderFeatureLockedHint === 'function'
+        ? global.crozzoRenderFeatureLockedHint()
+        : '<p class="crozzo-feature-locked-hint">Próximamente en versiones avanzadas</p>';
+    return (
+      '<div class="crozzo-crm-reg-panel card crozzo-crm-reg-panel--locked" id="crozzoCrmRegPanel" style="margin-top:16px;">' +
+      '<div class="card-header" style="padding-bottom:8px;">' +
+      '<div><h3 class="card-title" style="font-size:1rem;margin:0;">📲 QR para clientes</h3>' +
+      '<p class="form-hint" style="margin:6px 0 0;">Autoregistro desde el celular del cliente.</p></div></div>' +
+      '<div class="crozzo-crm-reg-body crozzo-crm-reg-body--compact">' +
+      hint +
+      '</div></div>'
+    );
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
@@ -1128,6 +1158,10 @@
   }
 
   function openCustomerKiosk() {
+    if (!crmQrFeatureEnabled()) {
+      notifyQrFeatureLocked();
+      return;
+    }
     if (!cloudReady()) {
       staffToast('QR no disponible. Avise a administracion del local.', 'warning');
       return;
@@ -1284,12 +1318,16 @@
 
   function mountTabletCrmExtras() {
     bindNewClientRutInput();
-    if (cloudReady()) startPolling();
+    if (crmQrFeatureEnabled() && cloudReady()) startPolling();
   }
 
   function mountInClientesPage() {
     var anchor = document.getElementById('crozzoCrmRegMount');
     if (!anchor) return;
+    if (!crmQrFeatureEnabled()) {
+      anchor.innerHTML = renderPanelHtmlLocked();
+      return;
+    }
     anchor.innerHTML = renderPanelHtml();
     bindPanelEvents();
     refreshPanelUi();
@@ -1299,7 +1337,7 @@
     document.addEventListener('crozzo:page-caja-clientes', function () {
       setTimeout(mountInClientesPage, 50);
     });
-    if (cloudReady()) startPolling();
+    if (crmQrFeatureEnabled() && cloudReady()) startPolling();
   }
 
   global.CrozzoCrmRegistroQr = {
@@ -1326,7 +1364,13 @@
   };
 
   global.crozzoCrmImportRegistroPayload = importPayloadToCrm;
-  global.crozzoCrmRegistroOpenQrModal = openCustomerKiosk;
+  global.crozzoCrmRegistroOpenQrModal = function () {
+    if (!crmQrFeatureEnabled()) {
+      notifyQrFeatureLocked();
+      return;
+    }
+    openCustomerKiosk();
+  };
   global.crozzoCrmRegistroImportRutToNewClient = function () {
     var inp = document.getElementById('crozzoCrmNewRutFile');
     if (inp) inp.click();

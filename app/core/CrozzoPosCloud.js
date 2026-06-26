@@ -2235,6 +2235,54 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
   } catch (e2) {
     console.warn('[crozzo-tenant] staff_meta', e2);
   }
+  try {
+    // Configuración de mesas/llevar (cantidad y etiquetas) propagada desde otro
+    // equipo: aplicarla y reconstruir los slots para que caja y tablets tengan
+    // exactamente el mismo número de mesas (1–100). Evita que un carrito en M85
+    // de caja no se pueda abrir en una tablet que solo mostraba 40 mesas.
+    if (bundle.salon && typeof bundle.salon === 'object') {
+      let prevSalon = '';
+      try {
+        prevSalon = JSON.stringify(
+          typeof getSalonConfig === 'function'
+            ? getSalonConfig()
+            : (typeof config !== 'undefined' && config.get ? config.get('salon') || null : null)
+        );
+      } catch (_) {}
+      let incoming = '';
+      try { incoming = JSON.stringify(bundle.salon); } catch (_) {}
+      // Solo aplica si cambió (evita re-guardar/auditar en cada pull idéntico).
+      if (incoming && incoming !== prevSalon) {
+        try {
+          if (typeof saveSalonConfig === 'function') saveSalonConfig(bundle.salon); // normaliza (1–100) + persiste
+          else if (typeof config !== 'undefined' && config.set) config.set('salon', bundle.salon);
+        } catch (_) {}
+        try {
+          if (typeof applySalonSlotsToRuntime === 'function') applySalonSlotsToRuntime({ silent: true });
+        } catch (_) {}
+        try {
+          if (typeof crozzoCajeroRefreshSlotPicker === 'function') crozzoCajeroRefreshSlotPicker();
+        } catch (_) {}
+        try {
+          document.dispatchEvent(new CustomEvent('crozzo-salon-slots-applied', { bubbles: true }));
+        } catch (_) {}
+        // Repinta la vista operativa para que el nuevo número de mesas aparezca
+        // de inmediato (sin tener que re-navegar) en caja/tablets/mesas.
+        try {
+          if (
+            typeof currentPage !== 'undefined' &&
+            ['cajero', 'tablets', 'mesas'].indexOf(currentPage) >= 0 &&
+            typeof crozzoScheduleOperationalPageRefresh === 'function'
+          ) {
+            crozzoScheduleOperationalPageRefresh(currentPage);
+          }
+        } catch (_) {}
+        changed = true;
+      }
+    }
+  } catch (eSalon) {
+    console.warn('[crozzo-tenant] salon', eSalon);
+  }
   if (changed && !quiet && typeof showToast === 'function') {
     showToast('Cambios del negocio aplicados desde la nube', 'info');
   }
@@ -2734,12 +2782,20 @@ async function crozzoPushTenantSnapshotToCloud() {
     bizId = String(md.businessId || '').trim();
     bizName = String(md.businessName || '').trim();
   } catch (_) {}
+  let salonCfg = null;
+  try {
+    if (typeof getSalonConfig === 'function') salonCfg = getSalonConfig();
+    else if (typeof config !== 'undefined' && config.get) salonCfg = config.get('salon') || null;
+  } catch (_) {
+    salonCfg = null;
+  }
   const bundle = {
     updated_at: new Date().toISOString(),
     branding: branding,
     staff_meta: staffRaw,
     deletedStaffIds: deletedStaffIds,
     negocio: { businessId: bizId, businessName: bizName },
+    salon: salonCfg,
   };
   let loc = 'default';
   try {

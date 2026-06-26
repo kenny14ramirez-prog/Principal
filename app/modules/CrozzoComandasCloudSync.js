@@ -228,6 +228,159 @@
     return t && Date.now() - t < 12000;
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  // OUTBOX DURABLE DE COMANDAS — plan de respaldo de entrega.
+  //
+  // Problema que resuelve: el push de una comanda a la nube era
+  // "fire-and-forget" (pushComanda(...).catch(()=>{})). Si ese push fallaba
+  // por un bache de red, un JWT vencido o un 503 transitorio, la fila NUNCA
+  // quedaba en la nube y caja jamás veía la comanda — la operación se partía.
+  //
+  // Solución: toda comanda/cambio de estado se registra en un outbox que
+  // sobrevive recargas (localStorage) y se reintenta con backoff hasta
+  // CONFIRMAR que la fila quedó en Supabase. Mientras haya entradas
+  // pendientes el lazo sigue trabajando; al reconectar, drena solo.
+  // ─────────────────────────────────────────────────────────────────────
+  var OUTBOX_LS_KEY = 'crozzo_comanda_outbox_v1';
+  var __outbox = {}; // key(tid|id) -> { id, tid, attempts, firstAt, nextAt, lastErr }
+  var __outboxTimer = null;
+  var __outboxLoaded = false;
+  var OUTBOX_BASE_MS = 2500;
+  var OUTBOX_MAX_MS = 30000;
+  var OUTBOX_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 h: descarta zombies
+
+  function outboxKey(c) {
+    if (!c) return '';
+    return String(c.transaction_id || c.id || '');
+  }
+
+  function loadOutbox() {
+    if (__outboxLoaded) return;
+    __outboxLoaded = true;
+    try {
+      var raw = global.localStorage.getItem(OUTBOX_LS_KEY);
+      if (!raw) return;
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      arr.forEach(function (e) {
+        if (!e || (e.id == null && !e.tid)) return;
+        var k = String(e.tid || e.id);
+        __outbox[k] = {
+          id: e.id,
+          tid: e.tid || '',
+          attempts: Number(e.attempts) || 0,
+          firstAt: Number(e.firstAt) || Date.now(),
+          nextAt: 0,
+          lastErr: '',
+        };
+      });
+    } catch (_) {}
+  }
+
+  function persistOutbox() {
+    try {
+      var arr = Object.keys(__outbox).map(function (k) {
+        var e = __outbox[k];
+        return { id: e.id, tid: e.tid, attempts: e.attempts, firstAt: e.firstAt };
+      });
+      if (arr.length) global.localStorage.setItem(OUTBOX_LS_KEY, JSON.stringify(arr));
+      else global.localStorage.removeItem(OUTBOX_LS_KEY);
+    } catch (_) {}
+  }
+
+  function outboxPending() {
+    return Object.keys(__outbox).length;
+  }
+
+  function outboxEnqueue(comanda) {
+    loadOutbox();
+    if (!comanda) return;
+    var k = outboxKey(comanda);
+    if (!k) return;
+    var existing = __outbox[k];
+    __outbox[k] = {
+      id: comanda.id,
+      tid: String(comanda.transaction_id || ''),
+      attempts: existing ? existing.attempts : 0,
+      firstAt: existing ? existing.firstAt : Date.now(),
+      nextAt: 0,
+      lastErr: existing ? existing.lastErr : '',
+    };
+    persistOutbox();
+    scheduleOutboxDrain(60);
+  }
+
+  function outboxRemove(key) {
+    if (__outbox[key]) {
+      delete __outbox[key];
+      persistOutbox();
+    }
+  }
+
+  function outboxFindComanda(e) {
+    if (!e) return null;
+    var c = findComanda(e.id);
+    if (c) return c;
+    if (e.tid) {
+      var list = global.comandas || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i] && String(list[i].transaction_id) === e.tid) return list[i];
+      }
+    }
+    return null;
+  }
+
+  async function drainOutbox() {
+    __outboxTimer = null;
+    var keys = Object.keys(__outbox);
+    if (!keys.length) return;
+    if (!online() || !tierAllowsCloudPush()) {
+      scheduleOutboxDrain(OUTBOX_BASE_MS);
+      return;
+    }
+    var now = Date.now();
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var e = __outbox[k];
+      if (!e) continue;
+      if (now - e.firstAt > OUTBOX_MAX_AGE_MS) {
+        outboxRemove(k);
+        continue;
+      }
+      if (e.nextAt && e.nextAt > now) continue;
+      var c = outboxFindComanda(e);
+      if (!c) {
+        // La comanda ya no existe localmente (entregada/eliminada): nada que entregar.
+        outboxRemove(k);
+        continue;
+      }
+      var ok = false;
+      try {
+        ok = await pushComanda(c, { estado: c.estado, lastUpdateAt: c.lastUpdateAt });
+      } catch (err) {
+        ok = false;
+        e.lastErr = String((err && err.message) || err || '');
+      }
+      if (ok) {
+        outboxRemove(k);
+      } else {
+        e.attempts = (e.attempts || 0) + 1;
+        var backoff = Math.min(OUTBOX_MAX_MS, OUTBOX_BASE_MS * Math.pow(1.7, Math.min(e.attempts, 8)));
+        e.nextAt = Date.now() + backoff;
+        persistOutbox();
+      }
+    }
+    if (outboxPending()) scheduleOutboxDrain(OUTBOX_BASE_MS);
+  }
+
+  function scheduleOutboxDrain(ms) {
+    if (__outboxTimer) return;
+    if (!outboxPending()) return;
+    __outboxTimer = global.setTimeout(function () {
+      drainOutbox().catch(function () {});
+    }, Math.max(50, ms || OUTBOX_BASE_MS));
+  }
+
   function findComandaForCloudPay(pay, row) {
     if (!pay) return null;
     var tid = String(pay.transaction_id || (row && row.id) || '').trim();
@@ -242,14 +395,28 @@
     return null;
   }
 
-  function scheduleComandaUiIfKitchen() {
+  function scheduleComandaOperationalUiRefresh() {
     try {
-      if (global.currentPage !== 'comandas' && global.currentPage !== 'cocina') return;
+      var pg = global.currentPage;
+      if (pg === 'cajero' || pg === 'tablets') {
+        if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
+          global.crozzoHandleRemoteRuntimeUiSync();
+        }
+        if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+          global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
+        }
+        return;
+      }
+      if (pg !== 'comandas' && pg !== 'cocina') return;
       if (typeof global.crozzoPatchOperationalPageFromRemote === 'function') {
-        if (global.crozzoPatchOperationalPageFromRemote(global.currentPage)) return;
+        if (global.crozzoPatchOperationalPageFromRemote(pg)) return;
       }
       scheduleComandaPageRefresh();
     } catch (_) {}
+  }
+
+  function scheduleComandaUiIfKitchen() {
+    scheduleComandaOperationalUiRefresh();
   }
 
   function deviceReceivesComandaArea(areaId) {
@@ -407,6 +574,11 @@
         noteCloudErr(res.error);
         return false;
       }
+      // Segunda vía de tiempo real: avisa por pulso broadcast a los demás
+      // equipos para que bajen al instante (no depende de postgres_changes).
+      try {
+        if (typeof global.crozzoOpsPulseEmit === 'function') global.crozzoOpsPulseEmit('comanda');
+      } catch (_) {}
       return true;
     } catch (e) {
       console.warn('[crozzo-comanda-cloud] push', e);
@@ -420,11 +592,12 @@
     ids.forEach(function (id) {
       var c = findComanda(id);
       if (!c) return;
-      if (tierAllowsCloudPush() && online()) {
-        pushComanda(c).catch(function () {});
-      }
+      // Entrega garantizada a la nube: el outbox reintenta hasta confirmar.
+      // Se encola incluso sin red — al reconectar drena solo.
+      outboxEnqueue(c);
       if (!deferLocalCloudSync() && lan) pushComandaLan(c).catch(function () {});
     });
+    scheduleOutboxDrain(40);
   }
 
   async function pushComandaEstadoLan(comanda, estado) {
@@ -478,14 +651,12 @@
           global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id);
         }
       } catch (_) {}
+      // Aun sin red: registrar en el outbox para entregar el estado al reconectar.
+      outboxEnqueue(comanda);
       return;
     }
-    if (tierAllowsCloudPush() && online()) {
-      pushComanda(comanda, {
-        estado: est,
-        lastUpdateAt: comanda.lastUpdateAt,
-      }).catch(function () {});
-    }
+    // Entrega garantizada del cambio de estado por la nube (outbox con reintento).
+    outboxEnqueue(comanda);
     if (!deferLocalCloudSync() && lanSegmentLikely()) {
       pushComandaEstadoLan(comanda, est).catch(function () {});
     }
@@ -718,10 +889,8 @@
     try {
       if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
     } catch (_) {}
-    if (!opts.skipRender && (global.currentPage === 'comandas' || global.currentPage === 'cocina')) {
-      scheduleComandaUiIfKitchen();
-    } else if (!opts.skipRender) {
-      scheduleComandaPageRefresh();
+    if (!opts.skipRender) {
+      scheduleComandaOperationalUiRefresh();
     }
     return true;
   }
@@ -962,6 +1131,11 @@
     }
     __started = true;
 
+    // Recupera el outbox de sesiones anteriores y drena lo pendiente: cualquier
+    // comanda cuyo push quedó sin confirmar antes de un cierre/recarga se reenvía.
+    loadOutbox();
+    if (outboxPending()) scheduleOutboxDrain(300);
+
     pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
 
     scheduleComandaPull();
@@ -1051,6 +1225,30 @@
       lastEventAt: __lastRtEventAt,
       lastEventAgoMs: __lastRtEventAt ? Date.now() - __lastRtEventAt : null,
       started: __started,
+    };
+  };
+  /** Fuerza un intento de drenado del outbox (p. ej. al reconectar). */
+  global.crozzoFlushComandaOutbox = function () {
+    loadOutbox();
+    if (outboxPending()) {
+      if (__outboxTimer) {
+        global.clearTimeout(__outboxTimer);
+        __outboxTimer = null;
+      }
+      scheduleOutboxDrain(40);
+    }
+    return outboxPending();
+  };
+  /** Estado del outbox para diagnóstico de comunicación. */
+  global.crozzoComandaOutboxStatus = function () {
+    loadOutbox();
+    var keys = Object.keys(__outbox);
+    return {
+      pending: keys.length,
+      entries: keys.map(function (k) {
+        var e = __outbox[k];
+        return { id: e.id, tid: e.tid, attempts: e.attempts, ageMs: Date.now() - e.firstAt, lastErr: e.lastErr || '' };
+      }),
     };
   };
 })(typeof window !== 'undefined' ? window : globalThis);

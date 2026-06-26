@@ -327,6 +327,55 @@
       )
     );
 
+    // 5a-bis. Pulso operativo (segunda vía de tiempo real, independiente de la réplica).
+    var pulse = safe(function () {
+      return global.CrozzoCloudOpsPulse && typeof global.CrozzoCloudOpsPulse.status === 'function'
+        ? global.CrozzoCloudOpsPulse.status()
+        : null;
+    }, null);
+    if (onlineReady() && pulse) {
+      rows.push(
+        row(
+          'pulso',
+          'Pulso operativo (2ª vía tiempo real)',
+          pulse.live ? 'ok' : 'warn',
+          pulse.live
+            ? 'Canal de pulso EN VIVO: cuando un equipo guarda, los demás bajan al instante aunque la réplica de la tabla se atrase.'
+            : 'Canal de pulso aún no confirmado. Es un refuerzo; el Realtime y el respaldo siguen cubriendo. Se reabre solo al recuperar red.'
+        )
+      );
+    }
+
+    // 5b. Respaldo de entrega (outbox): comandas que aún no confirman en la nube.
+    var ob = safe(function () {
+      return typeof global.crozzoComandaOutboxStatus === 'function' ? global.crozzoComandaOutboxStatus() : null;
+    }, null) || { pending: 0, entries: [] };
+    if (!ob.pending) {
+      rows.push(
+        row(
+          'respaldo',
+          'Respaldo de entrega (outbox)',
+          'ok',
+          'Sin comandas pendientes: todo lo enviado quedó confirmado en la nube. Si un push falla, el outbox reintenta solo hasta confirmar.'
+        )
+      );
+    } else {
+      var maxAge = 0;
+      (ob.entries || []).forEach(function (e) { if (e.ageMs > maxAge) maxAge = e.ageMs; });
+      var ageS = Math.round(maxAge / 1000);
+      rows.push(
+        row(
+          'respaldo',
+          'Respaldo de entrega (outbox)',
+          maxAge > 60000 ? 'warn' : 'ok',
+          ob.pending + ' comanda(s) reintentando entrega (la más antigua hace ' + (ageS < 60 ? ageS + 's' : Math.round(ageS / 60) + 'min') + '). El outbox sigue intentando hasta confirmar; no se pierden.',
+          maxAge > 60000
+            ? 'Llevan rato sin confirmar: revise conexión a internet y que la tabla `comandas` acepte escritura (RLS). Al recuperar red se entregan solas.'
+            : ''
+        )
+      );
+    }
+
     // 6. Impresión
     var ps = printState();
     if (!ps.isTauri) {

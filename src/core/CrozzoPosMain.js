@@ -4606,6 +4606,11 @@ function crozzoStationCanPrintArea(areaId) {
 function crozzoDeviceShouldIngestComandaArea(areaId) {
   areaId = String(areaId || '').trim();
   if (!areaId) return true;
+  try {
+    if (typeof currentPage !== 'undefined' && (currentPage === 'cajero' || currentPage === 'tablets')) {
+      return true;
+    }
+  } catch (_) {}
   if (crozzoDeviceShowsComandaArea(areaId)) return true;
   if (crozzoStationCanPrintArea(areaId)) return true;
   return false;
@@ -10443,6 +10448,13 @@ const CROZZO_CLIENT_FEATURES = Object.freeze([
     basicoDefault: false,
     group: 'Proveedores',
   },
+  {
+    id: 'crm_registro_qr',
+    label: 'QR autoregistro de clientes',
+    desc: 'El cliente escanea un código y completa sus datos desde el celular.',
+    basicoDefault: false,
+    group: 'CRM',
+  },
 ]);
 const CROZZO_FEATURE_LOCKED_MSG = 'Próximamente en versiones avanzadas';
 function crozzoIsBasicoEmpresaPerfil(perfil) {
@@ -15167,11 +15179,40 @@ window.renderTabletCart = renderTabletCart;
 // ==========================================
 // INVENTARIOS / PRODUCTOS (placeholders)
 // ==========================================
-function crozzoTabletQrClientesBtnHtml() {
+function crozzoCrmRegistroQrEnabled() {
+  return typeof crozzoClientFeatureEnabled === 'function' && crozzoClientFeatureEnabled('crm_registro_qr');
+}
+function crozzoCrmRegistroQrBtnHtml(opts) {
+  opts = opts && typeof opts === 'object' ? opts : {};
+  var compact = !!opts.compact;
+  if (crozzoCrmRegistroQrEnabled()) {
+    if (compact) {
+      return (
+        '<button type="button" class="btn btn-outline crozzo-crm-tb-btn" onclick="crozzoCrmRegistroOpenQrModal()" title="QR para que el cliente complete sus datos">QR</button>'
+      );
+    }
+    return (
+      '<button type="button" class="btn btn-outline btn-sm crozzo-mesa-estados-btn crozzo-tablet-qr-btn" onclick="crozzoCrmRegistroOpenQrModal()" title="Mostrar QR para que el cliente registre sus datos" aria-label="QR clientes">📲 QR clientes</button>'
+    );
+  }
+  var label = compact ? 'QR' : '📲 QR clientes';
+  var cls = compact
+    ? 'btn btn-outline crozzo-crm-tb-btn crozzo-crm-tb-btn--locked'
+    : 'btn btn-outline btn-sm crozzo-mesa-estados-btn crozzo-tablet-qr-btn crozzo-crm-tb-btn--locked';
   return (
-    '<button type="button" class="btn btn-outline btn-sm crozzo-mesa-estados-btn crozzo-tablet-qr-btn" onclick="crozzoCrmRegistroOpenQrModal()" title="Mostrar QR para que el cliente registre sus datos" aria-label="QR clientes">📲 QR clientes</button>'
+    '<button type="button" class="' +
+    cls +
+    '" onclick="crozzoNotifyFeatureLocked(\'QR clientes\')" title="' +
+    escUserAttr(CROZZO_FEATURE_LOCKED_MSG) +
+    '" aria-label="QR clientes — versión avanzada">' +
+    label +
+    ' <span class="crozzo-feature-locked-chip">Avanzada</span></button>'
   );
 }
+function crozzoTabletQrClientesBtnHtml() {
+  return crozzoCrmRegistroQrBtnHtml({ compact: false });
+}
+window.crozzoCrmRegistroQrEnabled = crozzoCrmRegistroQrEnabled;
 function renderTablets() {
   const pedidoTarget = tabletModoPedido === 'mesa'
     ? mesasCaja.find(m => m.id === tabletMesaSeleccionada)
@@ -27599,7 +27640,7 @@ function crozzoCrmPosClientePanelHtml(opts) {
     '    <div class="crozzo-crm-toolbar-actions">' +
     toolbarPrimaryBtn +
     '      <button type="button" class="btn btn-outline crozzo-crm-tb-btn" id="crozzoCrmBtnEdit" disabled onclick="crozzoCrmOpenEditSelected()" title="Editar seleccionado">✏️</button>' +
-    '      <button type="button" class="btn btn-outline crozzo-crm-tb-btn" onclick="crozzoCrmRegistroOpenQrModal()" title="QR para que el cliente complete sus datos">QR</button>' +
+    crozzoCrmRegistroQrBtnHtml({ compact: true }) +
     '    </div>' +
     '  </div>' +
     retailSummary +

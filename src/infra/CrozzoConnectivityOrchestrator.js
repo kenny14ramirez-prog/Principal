@@ -171,6 +171,9 @@
     safe(function () {
       if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
     });
+    safe(function () {
+      if (typeof global.crozzoStartOpsPulse === 'function') global.crozzoStartOpsPulse();
+    });
   }
 
   /** Nube solo cuando el nivel activo es cloud (hay internet/Supabase). Reservado para arranque manual. */

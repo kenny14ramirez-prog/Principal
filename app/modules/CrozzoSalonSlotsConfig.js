@@ -36,7 +36,7 @@
       llevarNombres: {},
     };
     var c = raw && typeof raw === 'object' ? Object.assign({}, base, raw) : base;
-    c.mesaCount = Math.max(1, Math.min(99, Number(c.mesaCount) || DEFAULT_MESA_COUNT));
+    c.mesaCount = Math.max(1, Math.min(100, Number(c.mesaCount) || DEFAULT_MESA_COUNT));
     c.llevarCount = Math.max(1, Math.min(30, Number(c.llevarCount) || DEFAULT_LLEVAR_COUNT));
     c.mesaEtiquetaTablet = normalizeEtiquetaTablet(c.mesaEtiquetaTablet);
     c.llevarEtiquetaTablet = normalizeEtiquetaTablet(c.llevarEtiquetaTablet);
@@ -204,7 +204,7 @@
       '<h3 class="crozzo-salon-config__panel-title">Mesas del salón</h3>' +
       '<div class="form-group">' +
       '<label class="form-label" for="cfgSalonMesaCount">Cantidad de mesas</label>' +
-      '<input type="number" min="1" max="99" class="form-input" id="cfgSalonMesaCount" value="' +
+      '<input type="number" min="1" max="100" class="form-input" id="cfgSalonMesaCount" value="' +
       escUserAttr(cfg.mesaCount) +
       '">' +
       '</div>' +
@@ -300,7 +300,7 @@
   }
 
   function saveSalonConfigFromForm() {
-    var mesaCount = Math.max(1, Math.min(99, Number(document.getElementById('cfgSalonMesaCount')?.value) || DEFAULT_MESA_COUNT));
+    var mesaCount = Math.max(1, Math.min(100, Number(document.getElementById('cfgSalonMesaCount')?.value) || DEFAULT_MESA_COUNT));
     var llevarCount = Math.max(1, Math.min(30, Number(document.getElementById('cfgSalonLlevarCount')?.value) || DEFAULT_LLEVAR_COUNT));
     var mesaEtiquetaTablet = normalizeEtiquetaTablet(document.getElementById('cfgSalonMesaEtiqueta')?.value);
     var llevarEtiquetaTablet = normalizeEtiquetaTablet(document.getElementById('cfgSalonLlevarEtiqueta')?.value);
@@ -345,6 +345,15 @@
     applySalonSlotsToRuntime();
     try {
       document.dispatchEvent(new CustomEvent('crozzo-salon-config-changed', { bubbles: true }));
+    } catch (_) {}
+    // Propaga la nueva configuración de mesas a los demás equipos vía la nube
+    // (tenant snapshot). Sin esto, caja y tablets quedaban con conteos distintos.
+    try {
+      if (typeof global.crozzoScheduleTenantSnapshotPush === 'function') {
+        global.crozzoScheduleTenantSnapshotPush();
+      } else if (typeof global.crozzoPushTenantSnapshotToCloud === 'function') {
+        global.crozzoPushTenantSnapshotToCloud().catch(function () {});
+      }
     } catch (_) {}
     if (typeof global.showToast === 'function') {
       global.showToast('Mesas y llevar actualizados (' + mesaCount + ' mesas · ' + llevarCount + ' llevar)', 'success');

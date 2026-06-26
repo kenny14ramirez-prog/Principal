@@ -30,6 +30,14 @@
   var __pgCh = null;
   var __rtResubTimer = null;
   var __rtResubAttempt = 0;
+  // Respaldo de entrega del estado de mesas: si un push a la nube no se
+  // confirma (red intermitente, RLS transitoria, 503), se reintenta forzado
+  // con backoff hasta que la fila quede en la nube. Sin esto, una mesa cuyo
+  // único push falló quedaba invisible para caja hasta el siguiente cambio.
+  var __pushRetryTimer = null;
+  var __pushRetryAttempt = 0;
+  var PUSH_RETRY_BASE_MS = 2200;
+  var PUSH_RETRY_MAX_MS = 25000;
 
   function noteCloudErr(err) {
     try {
@@ -950,7 +958,39 @@
         global.__crozzoRuntimeForceEmptySlots = { mesa: {}, llevar: {} };
       }
     } catch (_) {}
+    // Confirmación de entrega: si la nube estaba activa pero no confirmó la
+    // escritura, reintentar forzado con backoff hasta que el estado quede
+    // guardado (caja tiene que poder cobrar la mesa sí o sí).
+    if (cloudTransportActive() && !cloudOk) {
+      scheduleRuntimePushRetry();
+    } else if (cloudOk) {
+      __pushRetryAttempt = 0;
+      if (__pushRetryTimer) {
+        clearTimeout(__pushRetryTimer);
+        __pushRetryTimer = null;
+      }
+      // Segunda vía de tiempo real: pulso broadcast para que los demás equipos
+      // bajen el estado de mesas al instante (independiente de la réplica).
+      try {
+        if (typeof global.crozzoOpsPulseEmit === 'function') global.crozzoOpsPulseEmit('runtime');
+      } catch (_) {}
+    }
     return cloudOk || lanOk;
+  }
+
+  function scheduleRuntimePushRetry() {
+    if (__pushRetryTimer) return;
+    __pushRetryAttempt = Math.min(__pushRetryAttempt + 1, 10);
+    var ms = Math.min(PUSH_RETRY_MAX_MS, PUSH_RETRY_BASE_MS * Math.pow(1.6, __pushRetryAttempt));
+    __pushRetryTimer = global.setTimeout(function () {
+      __pushRetryTimer = null;
+      if (!cloudTransportActive()) {
+        // Sin transporte: reintenta más tarde sin contar como intento agresivo.
+        scheduleRuntimePushRetry();
+        return;
+      }
+      pushRuntimeNow({ force: true }).catch(function () {});
+    }, ms);
   }
 
   function schedulePush(priority) {
@@ -1206,6 +1246,11 @@
       clearTimeout(__pushTimer);
       __pushTimer = null;
     }
+    if (__pushRetryTimer) {
+      clearTimeout(__pushRetryTimer);
+      __pushRetryTimer = null;
+    }
+    __pushRetryAttempt = 0;
     if (__pullTimer) {
       clearInterval(__pullTimer);
       __pullTimer = null;
@@ -1318,6 +1363,9 @@
       } catch (_) {}
       try {
         if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoStartOpsPulse === 'function') global.crozzoStartOpsPulse();
       } catch (_) {}
       try {
         if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
