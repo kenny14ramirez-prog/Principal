@@ -54,6 +54,11 @@
 
   function tierAllowsCloud() {
     try {
+      if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
+        return false;
+      }
+    } catch (_) {}
+    try {
       if (typeof global.crozzoTierAllowsCloudSync === 'function') return global.crozzoTierAllowsCloudSync();
     } catch (_) {}
     return online();

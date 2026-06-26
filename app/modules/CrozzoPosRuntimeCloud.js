@@ -89,6 +89,12 @@
 
   function cloudTransportActive() {
     if (!online() || __tableMissing) return false;
+    // No sincronizar antes del login (evita 401 sin sesión y push de estado viejo).
+    try {
+      if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
+        return false;
+      }
+    } catch (_) {}
     try {
       if (typeof global.crozzoTierAllowsCloudSync === 'function') {
         return global.crozzoTierAllowsCloudSync();
@@ -544,11 +550,75 @@
     };
   }
 
+  /**
+   * MERGE-ON-WRITE para modo SEDE (una sola fila por sede).
+   *
+   * El problema raíz de "comando en una mesa y otra no se ve": en modo sede
+   * todos los equipos escriben la MISMA fila; un upsert ciego pisa las mesas de
+   * los demás (el último que escribe gana). Las COMANDAS no sufren esto porque
+   * cada una es su propia fila. Aquí replicamos esa idea: antes de escribir,
+   * fusionamos con lo que ya hay en la nube para NO borrar mesas de otros
+   * equipos. Lo local manda para sus mesas; lo de otros se preserva; lo cobrado
+   * localmente (closedSlots) no se resucita.
+   */
+  function mergeSedeSnapshots(cloudPay, localSnap) {
+    if (!cloudPay || typeof cloudPay !== 'object') return localSnap;
+    var merged = localSnap;
+    ['cartsPorMesa', 'cartsPorLlevar'].forEach(function (mapKey) {
+      var tipo = mapKey === 'cartsPorMesa' ? 'mesa' : 'llevar';
+      var localMap = merged[mapKey] && typeof merged[mapKey] === 'object' ? merged[mapKey] : {};
+      var cloudMap = cloudPay[mapKey] && typeof cloudPay[mapKey] === 'object' ? cloudPay[mapKey] : {};
+      var localClosed = (merged.closedSlots && merged.closedSlots[tipo]) || {};
+      Object.keys(cloudMap).forEach(function (ref) {
+        var cloudLines = cloudMap[ref];
+        if (!Array.isArray(cloudLines) || !cloudLines.length) return;
+        var localLines = localMap[ref];
+        if (Array.isArray(localLines) && localLines.length) return; // local manda para su mesa
+        if (localClosed[ref]) return; // local la cobró → no resucitar
+        localMap[ref] = cloudLines; // mesa de OTRO equipo → preservar (no pisar)
+      });
+      merged[mapKey] = localMap;
+    });
+    // closedSlots: lo pagado por cualquiera se respeta, salvo que ahora tenga
+    // consumo (mesa reabierta). Así el cobro se propaga sin re-resucitar.
+    ['mesa', 'llevar'].forEach(function (tipo) {
+      var mapKey = tipo === 'mesa' ? 'cartsPorMesa' : 'cartsPorLlevar';
+      var cloudClosed = (cloudPay.closedSlots && cloudPay.closedSlots[tipo]) || {};
+      if (!merged.closedSlots) merged.closedSlots = { mesa: {}, llevar: {} };
+      if (!merged.closedSlots[tipo]) merged.closedSlots[tipo] = {};
+      var mergedClosed = merged.closedSlots[tipo];
+      var carts = merged[mapKey] || {};
+      Object.keys(cloudClosed).forEach(function (ref) {
+        if (!cloudClosed[ref]) return;
+        var lines = carts[ref];
+        if (Array.isArray(lines) && lines.length) return; // reabierta con consumo
+        mergedClosed[ref] = true;
+      });
+    });
+    return merged;
+  }
+
   async function upsertRuntimeRow(snap) {
     if (!cloudTransportActive()) return false;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return false;
     var sb = global.__SUPABASE;
+    // MERGE-ON-WRITE: leer el estado actual en la nube y fusionar, para no pisar
+    // las mesas de otros equipos (la fila es única por sede).
+    try {
+      var cur = await sb
+        .from(TABLE)
+        .select('payload')
+        .eq('location_id', c.locationId)
+        .limit(1)
+        .maybeSingle();
+      if (cur && !cur.error && cur.data && cur.data.payload) {
+        var before = Object.keys((snap && snap.cartsPorMesa) || {}).length;
+        snap = mergeSedeSnapshots(cur.data.payload, snap);
+        var after = Object.keys((snap && snap.cartsPorMesa) || {}).length;
+        try { console.log('[runtime-cloud] sede merge mesas ' + before + '→' + after + ' (preserva otras mesas)'); } catch (_) {}
+      }
+    } catch (_) {}
     var body = rowFromSnapshot(snap, c);
     try {
       var res = await sb.from(TABLE).upsert(body, { onConflict: 'location_id' });
@@ -707,6 +777,12 @@
     var meta = {};
     Object.keys(snap || {}).forEach(function (k) {
       if (CART_KEYS.indexOf(k) >= 0) return;
+      // savedAt es VOLÁTIL (cambia en cada push). Si va en el payload de la fila
+      // meta, su firma cambia siempre → la fila meta se re-escribe en CADA push →
+      // evento realtime → pull → tormenta de "mismo contenido". Lo excluimos: el
+      // orden/tiempo lo da la columna updated_at de la fila (y snapFromMesaRows
+      // reconstruye savedAt desde el max(updated_at)).
+      if (k === 'savedAt') return;
       meta[k] = snap[k];
     });
     meta._c = 1;
@@ -831,6 +907,10 @@
     try {
       var res = await sb.from(MESA_TABLE).upsert(toUpsert, { onConflict: 'location_id,kind,ref' });
       if (!res.error) {
+        try {
+          var refsUp = toUpsert.filter(function (r) { return r.kind !== 'meta'; }).map(function (r) { return r.kind + ':' + r.ref; });
+          console.log('[runtime-cloud] pushMesaRows OK · filas=' + toUpsert.length + ' [' + refsUp.join(',') + ']');
+        } catch (_) {}
         __echoUntil = Date.now() + ECHO_MS;
         __lastPushSig = payloadSig(snap);
         __lastPushAt = Date.now();
@@ -838,6 +918,10 @@
       }
       noteCloudErr(res.error);
       var msg = String((res.error && res.error.message) || res.error || '');
+      console.warn('[runtime-cloud] pushMesaRows ERROR (las mesas NO llegan a la nube): ' + msg);
+      if (/401|403|permission denied|rls|jwt|forbidden/i.test(msg)) {
+        console.warn('[runtime-cloud] → RLS/permiso bloquea crozzo_mesa_runtime. Ejecute el SQL "9. REPARAR comunicación en vivo" en Supabase.');
+      }
       if (/relation|does not exist|404|PGRST205|schema cache/i.test(msg)) __mesaMode = false;
       toUpsert.forEach(function (r) {
         delete __mesaSlotSig[r.kind + ':' + r.ref];
@@ -852,6 +936,7 @@
   }
 
   async function pullMesaRows(opts, c) {
+    if (!opRealtimeActive()) return false;
     c = c || ctx();
     var sb = global.__SUPABASE;
     try {
@@ -882,7 +967,7 @@
       } catch (_) {}
       return applyRemoteRow(
         { payload: built.snap, saved_at: new Date(built.savedAt).toISOString(), source_device_id: originDev },
-        opts
+        Object.assign({ aggregate: true }, opts || {})
       );
     } catch (e) {
       return false;
@@ -900,12 +985,16 @@
 
   function scheduleMesaPull() {
     if (__mesaPullTimer) return;
+    // Coalescer: cada escritura en crozzo_mesa_runtime dispara un evento realtime
+    // → un pull. Con muchos equipos/escrituras eso producía una TORMENTA de pulls
+    // (cientos de "mismo contenido, descartado"). Una ventana de ~700ms junta las
+    // ráfagas en un solo pull, sin perder responsividad real (sigue siendo <1s).
     __mesaPullTimer = global.setTimeout(function () {
       __mesaPullTimer = null;
       pullMesaRows({ quiet: true, skipRender: true })
         .then(notifyRuntimeUiIfApplied)
         .catch(function () {});
-    }, 90);
+    }, 700);
   }
 
   async function pushRuntimeNow(opts) {
@@ -917,14 +1006,30 @@
     var full = collectFull();
     var snap = packForCloud(full);
     if (!snap) { console.warn('[runtime-cloud] push: snap null, collectFull falló'); return false; }
+    // Anti-spam: si el contenido es IDÉNTICO al último push, no repetir.
+    // - Push normal: ventana 4s.
+    // - Push forzado (reconexión, abrir mesa, etc.): ventana corta 1.2s para
+    //   coalescer ráfagas (las reconexiones en cadena por LAN inestable
+    //   disparaban 16 push idénticos). Un cambio real (firma distinta) SIEMPRE
+    //   pasa; solo se frena lo idéntico repetido. El log va DESPUÉS del dedup
+    //   para no ensuciar la consola con pushes que en realidad no se envían.
+    var sig = payloadSig(snap);
+    var dedupWindow = opts.force ? 1200 : 4000;
+    if (sig === __lastPushSig && Date.now() - __lastPushAt < dedupWindow) {
+      return true;
+    }
     try {
       var mesaKeys = Object.keys(snap.cartsPorMesa || {});
-      console.log('[runtime-cloud] push snap v=' + snap.v + ' mesas=' + mesaKeys.length + ' loc=' + (ctx().locationId || '?'));
+      var mesaConItems = mesaKeys.filter(function (k) {
+        return Array.isArray(snap.cartsPorMesa[k]) && snap.cartsPorMesa[k].length;
+      });
+      console.log(
+        '[runtime-cloud] push snap v=' + snap.v +
+        ' mesas=' + mesaKeys.length +
+        ' conItems=[' + mesaConItems.join(',') + ']' +
+        ' loc=' + (ctx().locationId || '?')
+      );
     } catch (_) {}
-    if (!opts.force) {
-      var sig = payloadSig(snap);
-      if (sig === __lastPushSig && Date.now() - __lastPushAt < 4000) return true;
-    }
     snap.savedAt = Date.now();
     var lanLikely = false;
     if (!deferLocalCloudSync()) {
@@ -1061,10 +1166,17 @@
       try { console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado'); } catch (_) {}
       return false;
     }
+    // opts.aggregate: el pull por-mesa reconstruye un snapshot que MEZCLA mesas
+    // de TODOS los equipos. No tiene un solo "dueño", así que NO se le puede
+    // aplicar el guard de "mismo equipo + más viejo" (rechazaba TODO el agregado
+    // —incluida la mesa que comandó el otro equipo— solo porque la fila más
+    // reciente resultaba ser de este equipo). La deduplicación por contenido y
+    // el merge de carritos ya evitan reaplicar lo propio o pisar lo local.
+    var isAggregate = !!(opts && opts.aggregate);
     var srcDevGuard = String(row.source_device_id || pay._cloudOriginDevice || '').trim();
     var myDevGuard = ctx().deviceId;
     var sameDeviceGuard = !!(srcDevGuard && myDevGuard && srcDevGuard === myDevGuard);
-    if (!(opts && opts.force)) {
+    if (!(opts && opts.force) && !isAggregate) {
       var localAtGuard = localSavedAt();
       /* Solo el mismo equipo rechaza por savedAt viejo; tablet→caja puede traer carrito más reciente con timestamp anterior. */
       if (sameDeviceGuard && localAtGuard && remoteAt && remoteAt < localAtGuard - 500) {
@@ -1072,7 +1184,7 @@
         return false;
       }
     }
-    if (Date.now() < __echoUntil && !(opts && opts.force)) {
+    if (Date.now() < __echoUntil && !(opts && opts.force) && !isAggregate) {
       var localAtEcho = localSavedAt();
       if (!remoteAt || remoteAt <= localAtEcho + 1200) return false;
     }
@@ -1108,7 +1220,19 @@
     return true;
   }
 
+  /** Tiempo real solo en pantallas operativas (cajero/tablets/comandas/cocina/mesas/venta). */
+  function opRealtimeActive() {
+    try {
+      if (typeof global.crozzoOperationalRealtimeActive === 'function') {
+        return global.crozzoOperationalRealtimeActive();
+      }
+    } catch (_) {}
+    return true;
+  }
+
   async function pullRuntime(opts) {
+    // Fuera de operación (Inicio, Gestión, Costos, Config…) no se sincroniza en vivo.
+    if (!opRealtimeActive()) return false;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return false;
     if (cloudTransportActive()) {
@@ -1206,10 +1330,12 @@
         var onEvt = useMesa
           ? function () {
               __lastRtEventAt = Date.now();
+              if (!opRealtimeActive()) return; // realtime solo en operación
               scheduleMesaPull();
             }
           : function (p) {
               __lastRtEventAt = Date.now();
+              if (!opRealtimeActive()) return;
               if (p.new) applyRemoteRow(p.new, { quiet: true });
             };
         __pgCh.on('postgres_changes', { event: 'INSERT', schema: 'public', table: tbl, filter: filter }, onEvt);
@@ -1414,7 +1540,9 @@
   global.__crozzoRuntimeMesaInternals = {
     mesaRowsFromSnap: mesaRowsFromSnap,
     snapFromMesaRows: snapFromMesaRows,
+    mergeSedeSnapshots: mergeSedeSnapshots,
   };
+  global.__crozzoMergeSedeSnapshots = mergeSedeSnapshots;
   global.__crozzoExpandRuntimeCartRow = expandCompactCartRow;
 
   if (typeof document !== 'undefined') {

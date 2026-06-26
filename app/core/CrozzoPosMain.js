@@ -840,6 +840,15 @@ async function loginWithCredentials(userId, clave) {
     }
   } catch (_) {}
   if (typeof crozzoMarkInteractiveLoginBoot === 'function') crozzoMarkInteractiveLoginBoot();
+  // Sesión iniciada: el gate de sync ya está abierto. Arrancar la nube de
+  // inmediato (no esperar al orquestador) para que mesas/comandas fluyan al entrar.
+  try {
+    setTimeout(function () {
+      if (typeof window.crozzoEnsureCloudSyncActive === 'function') {
+        window.crozzoEnsureCloudSyncActive({ source: 'post_login' }).catch(function () {});
+      }
+    }, 400);
+  } catch (_) {}
   const seg = config.get('seguridad') || {};
   config.set('seguridad', { ...seg, ultimoLoginAt: new Date().toISOString() });
   config.addAudit('login_exitoso', `Usuario ${u.nombre} inició sesión en este dispositivo`);
@@ -6925,10 +6934,13 @@ function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
   if (opts.remoteAuthoritative && local && typeof local === 'object') {
     Object.keys(local).forEach(function (ref) {
       const localLines = local[ref];
-      // Solo protegemos del vaciado remoto si lo editamos AQUÍ hace muy poco
-      // (aún podría no estar empujado). Si no, el estado remoto manda y el
-      // vaciado/cobro hecho en otro equipo se aplica (la mesa se libera).
-      if (!crozzoCartMapHasRecentLocalEdit(localLines)) return;
+      // RED DE SEGURIDAD (estabilidad): no dejar que un snapshot remoto VACÍO o
+      // que NO incluye este slot borre un carrito con consumo. Como cada push
+      // sella savedAt=Date.now(), un estado viejo/parcial puede llegar con fecha
+      // "fresca"; sin esta protección pisaría mesas activas (una mesa se
+      // comunicaba y la siguiente no). El vaciado por COBRO se aplica aparte, de
+      // forma explícita, vía closedSlots (no por inferir "carrito vacío").
+      if (!crozzoCartMapHasConsumo(localLines)) return;
       const remoteLines = remote && remote[ref];
       const remoteEmpty = !Array.isArray(remoteLines) || !remoteLines.length;
       if (remoteEmpty) out[ref] = localLines;
@@ -6959,16 +6971,14 @@ function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
     const localLines = local && local[ref];
     const localScore = crozzoCartConsumoScore(localLines);
     const remoteScore = crozzoCartConsumoScore(lines);
-    const editadoAqui = crozzoCartMapHasRecentLocalEdit(localLines);
-    // Anti-pérdida de ediciones locales recientes: si lo tocamos AQUÍ hace poco
-    // y el remoto trae menos (borrado en otro equipo aún no reflejado aquí),
-    // fusionamos. Si NO lo editamos aquí, el remoto manda → el borrado/cobro de
-    // otro equipo se propaga (antes quedaba bloqueado y la mesa no se vaciaba).
-    if (editadoAqui && localScore > 0 && (remoteScore <= 0 || remoteScore < localScore)) {
+    // Anti-pérdida: si el local tiene más consumo que el remoto, fusionamos en
+    // vez de pisar (un snapshot viejo/parcial no debe reducir un carrito activo).
+    // El cobro/vaciado real se aplica vía closedSlots de forma explícita.
+    if (localScore > 0 && (remoteScore <= 0 || remoteScore < localScore)) {
       out[ref] = crozzoMergeCloudCartWithLocalEdits(out[ref] || localLines || [], lines);
       return;
     }
-    if (!lines.length && crozzoCartMapHasRecentLocalEdit(out[ref] || local?.[ref])) {
+    if (!lines.length && crozzoCartMapHasConsumo(out[ref] || local?.[ref])) {
       out[ref] = out[ref] || local[ref];
       return;
     }
@@ -32825,6 +32835,56 @@ function crozzoTierAllowsCloudSync() {
   return t === 'cloud';
 }
 window.crozzoTierAllowsCloudSync = crozzoTierAllowsCloudSync;
+/**
+ * GATE de sesión para la sincronización con la nube.
+ *
+ * Problema: el sync (push/pull/realtime) corría ANTES del login → 401 (sin
+ * usuario autenticado), churn del canal realtime y push del carrito viejo de la
+ * sesión anterior. Aquí bloqueamos el sync hasta que haya sesión real:
+ *   - Login NO requerido (crozzo-app-ready) → permitido.
+ *   - Login requerido (crozzo-auth-gate-pending) → permitido SOLO si ya hay
+ *     sesión activa: usuario logueado, kiosko (pantalla cocina/barra), o auth
+ *     interactiva en curso.
+ * Ante cualquier duda devuelve true (no bloquear de más).
+ */
+function crozzoCloudSyncSessionGateOpen() {
+  try {
+    const d = typeof document !== 'undefined' ? document.documentElement : null;
+    if (!d) return true;
+    if (d.classList.contains('crozzo-app-ready')) return true;
+    if (d.classList.contains('crozzo-auth-gate-pending')) {
+      try {
+        if (window.__crozzoKioskChosenThisBoot) return true;
+        const sid = sessionStorage.getItem('crozzo_session_user');
+        if (sid && String(sid).trim()) return true;
+        if (window.__crozzoAuthInteractiveThisBoot) return true;
+      } catch (_) {}
+      return false; // login requerido y sin sesión aún → no sincronizar
+    }
+    return true;
+  } catch (_) {
+    return true;
+  }
+}
+window.crozzoCloudSyncSessionGateOpen = crozzoCloudSyncSessionGateOpen;
+/**
+ * ¿Estamos en una pantalla OPERATIVA? El tiempo real (poll + realtime de mesas y
+ * comandas) solo debe dispararse en operación: cajero, tablets, comandas, cocina,
+ * mesas, venta-comercial. En el hub (Inicio), Gestión, Costos, Config, etc. NO
+ * debe haber actividad de sincronización en vivo. Ante duda devuelve true.
+ */
+function crozzoOperationalRealtimeActive() {
+  try {
+    const sp = window.CrozzoCloudSyncPriorities;
+    let page = typeof currentPage !== 'undefined' && currentPage ? currentPage : '';
+    if (!page && window.CrozzoPageCloudWatch && typeof window.CrozzoPageCloudWatch.getActivePage === 'function') {
+      page = window.CrozzoPageCloudWatch.getActivePage();
+    }
+    if (sp && typeof sp.isOperationalPage === 'function') return !!sp.isOperationalPage(page);
+  } catch (_) {}
+  return true;
+}
+window.crozzoOperationalRealtimeActive = crozzoOperationalRealtimeActive;
 /** Fase 1: no usar LAN/malla mientras haya internet y Supabase configurado. */
 function crozzoDeferLocalSync() {
   return !!(

@@ -61,16 +61,17 @@ const result = await page.evaluate(async () => {
   const applyRemote = (snap, future) =>
     window.crozzoApplyRemoteRuntimeRow(Object.assign({ v: VER }, snap), new Date(Date.now() + future).toISOString(), { force: true });
 
-  // A) Borrado remoto: local 3 (no editado por mí), remoto 1 → debe quedar 1.
+  // A) RED DE SEGURIDAD: la mesa tiene consumo y llega un snapshot remoto que NO
+  //    la incluye (viejo/parcial con fecha fresca). NO debe pisar/vaciar la mesa.
   window.applyPosRuntimeSnapshot(
     { v: VER, tipoServicioCaja: 'directa', mesaSeleccionada: null, cajaMesaOrderOpen: false,
       cartsPorMesa: { '40': [{ id: 1, nombre: 'Hamburguesa', precio: 10000, cantidad: 3, sentCantidad: 3 }] } },
     {}
   );
-  applyRemote({ cartsPorMesa: { '40': [{ id: 1, nombre: 'Hamburguesa', precio: 10000, cantidad: 1, sentCantidad: 1 }] } }, 20000);
-  out.A_borrado_remoto = cartQty('40'); // esperado 1
+  applyRemote({ cartsPorMesa: {} }, 20000); // remoto sin la mesa 40
+  out.A_red_seguridad_no_pisa = cartQty('40'); // esperado 3 (se conserva)
 
-  // B) Cobro remoto: slot cerrado + carrito vacío → mesa liberada (0).
+  // B) COBRO remoto explícito: closedSlots marca la mesa pagada → se libera (0).
   window.applyPosRuntimeSnapshot(
     { v: VER, cartsPorMesa: { '41': [{ id: 1, nombre: 'Hamburguesa', precio: 10000, cantidad: 2, sentCantidad: 2 }] } },
     {}
@@ -78,31 +79,16 @@ const result = await page.evaluate(async () => {
   applyRemote({ cartsPorMesa: {}, closedSlots: { mesa: { '41': true }, llevar: {} } }, 40000);
   out.B_cobro_remoto_libera = cartQty('41'); // esperado 0
 
-  // C) Protección de edición local reciente: marco edición local y llega remoto menor.
-  window.applyPosRuntimeSnapshot(
-    { v: VER, cartsPorMesa: { '42': [{ id: 1, nombre: 'Hamburguesa', precio: 10000, cantidad: 3, sentCantidad: 0 }] } },
-    {}
-  );
-  // Simular que ESTE equipo acaba de editar la mesa 42 (marca de edición local).
-  const st = window.collectPosRuntimeState();
-  // marcar __crozzoLocalEdit en la línea viva no es accesible directo; usamos la API de edición:
-  if (typeof window.crozzoMarkCartLineLocalEdit === 'function') {
-    // no expuesta; en su lugar añadimos vía runtime con timestamp de edición simulado
-  }
-  // Forzamos edición reciente reaplicando con una bandera de edición:
-  applyRemote({ cartsPorMesa: { '42': [{ id: 1, nombre: 'Hamburguesa', precio: 10000, cantidad: 1, sentCantidad: 0 }] } }, 60000);
-  out.C_sin_marca_remoto_manda = cartQty('42'); // sin marca local reciente → remoto manda → 1
-
   return out;
 });
 
-const A = result.A_borrado_remoto;
+const A = result.A_red_seguridad_no_pisa;
 const B = result.B_cobro_remoto_libera;
-const ok = A === 1 && B === 0;
+const ok = A === 3 && B === 0;
 
 console.log(JSON.stringify(result, null, 2));
 console.log('Errores de página:', errors.length, errors.slice(0, 5));
-console.log(ok ? 'RESULTADO: OK — borrados y cobros remotos se propagan (mesa se libera)' : 'RESULTADO: FALLO');
+console.log(ok ? 'RESULTADO: OK — red de seguridad protege mesas activas y el cobro las libera' : 'RESULTADO: FALLO');
 
 await browser.close();
 server.close();

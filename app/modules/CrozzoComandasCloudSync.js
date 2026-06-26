@@ -75,6 +75,12 @@
   }
 
   function tierAllowsCloudPush() {
+    // No sincronizar comandas antes del login (evita 401 / canal CLOSED sin sesión).
+    try {
+      if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
+        return false;
+      }
+    } catch (_) {}
     try {
       if (typeof global.crozzoTierAllowsCloudSync === 'function') {
         return global.crozzoTierAllowsCloudSync() && online();
@@ -1043,6 +1049,14 @@
     }
     __pullTimer = global.setInterval(function () {
       if (!tierAllowsCloudRead()) return;
+      // Poll periódico de comandas: solo en pantallas operativas. Fuera de
+      // operación (Inicio, Gestión, etc.) no se sondea en vivo. Los eventos
+      // realtime (crear/cambiar comanda) siguen llegando si el canal está vivo.
+      try {
+        if (typeof global.crozzoOperationalRealtimeActive === 'function' && !global.crozzoOperationalRealtimeActive()) {
+          return;
+        }
+      } catch (_) {}
       var stale = __lastRtEventAt ? Date.now() - __lastRtEventAt : Infinity;
       var rtSilent = __realtimeLive && stale > SILENCE_WATCHDOG_MS;
       pullComandasFromCloud({
