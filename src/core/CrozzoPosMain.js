@@ -4557,19 +4557,28 @@ function crozzoIsTauriPosDesktop() {
 }
 function crozzoHasPrinterForComandaArea(areaId) {
   const area = (getComandasConfig().areas || []).find((a) => a.id === areaId);
-  return !!(area && crozzoComandaAreaOwnPrinter(area));
+  return !!(area && crozzoComandaAreaEffectivePrinter(area));
 }
 function crozzoComandaHasPrinter(c, areaCfg) {
   if (!c) return false;
   const area =
     areaCfg || (getComandasConfig().areas || []).find((a) => a.id === c.areaId);
-  return !!crozzoComandaAreaOwnPrinter(area);
+  return !!crozzoComandaAreaEffectivePrinter(area);
 }
 function crozzoPantallaHasPrintConfig(areaId, areaCfg) {
   const area =
     areaCfg ||
     (getComandasConfig().areas || []).find((a) => a.id === String(areaId || '').trim());
-  return !!crozzoComandaAreaOwnPrinter(area);
+  return !!crozzoComandaAreaEffectivePrinter(area);
+}
+function crozzoDeviceShouldIngestComandaArea(areaId) {
+  areaId = String(areaId || '').trim();
+  if (!areaId) return true;
+  if (crozzoDeviceShowsComandaArea(areaId)) return true;
+  if (crozzoIsTauriPosDesktop() && crozzoHasPrinterForComandaArea(areaId)) {
+    return crozzoDeviceHandlesComandaArea(areaId);
+  }
+  return false;
 }
 /** Tauri: pantalla fija del área, hub TODAS, o PC sin pantalla (caja con térmica). */
 function crozzoDeviceHandlesComandaArea(areaId) {
@@ -4619,6 +4628,8 @@ window.crozzoShouldDevicePrintComanda = crozzoShouldDevicePrintComanda;
 window.crozzoDeviceHandlesComandaArea = crozzoDeviceHandlesComandaArea;
 window.crozzoIsTauriPosDesktop = crozzoIsTauriPosDesktop;
 window.crozzoDeviceIsAssignedPantallaForArea = crozzoDeviceIsAssignedPantallaForArea;
+window.crozzoDeviceShouldIngestComandaArea = crozzoDeviceShouldIngestComandaArea;
+window.crozzoHasPrinterForComandaArea = crozzoHasPrinterForComandaArea;
 function crozzoComandaSendPrintsOnDispatch() {
   const cmdCfg = getComandasConfig();
   return cmdCfg.autoPrint !== false;
@@ -8089,9 +8100,11 @@ function crozzoCreateComandaFromTransfer(tipo, destRef, areaId, items, transferM
     pedidoTransferido: transferMeta || null,
     notaRasgada: true,
     impresora:
-      (typeof crozzoComandaAreaOwnPrinter === 'function'
-        ? crozzoComandaAreaOwnPrinter(areaCfg)
-        : areaCfg && areaCfg.impresora) || '',
+      (typeof crozzoComandaAreaEffectivePrinter === 'function'
+        ? crozzoComandaAreaEffectivePrinter(areaCfg)
+        : typeof crozzoComandaAreaOwnPrinter === 'function'
+          ? crozzoComandaAreaOwnPrinter(areaCfg)
+          : areaCfg && areaCfg.impresora) || '',
     estilo: (areaCfg && areaCfg.estilo) || { fontSize: 12, showPrice: false, showHeader: true },
     ...crozzoComandaCaptureSender('caja'),
     items: items.map(function (i) {
@@ -13777,6 +13790,13 @@ function navigateTo(page) {
     navHighlightPage = 'compras-oficina';
   }
   currentPage = page;
+  try {
+    if (typeof window.crozzoPageCloudWatchSetPage === 'function') {
+      window.crozzoPageCloudWatchSetPage(page);
+    } else if (window.CrozzoPageCloudWatch && typeof window.CrozzoPageCloudWatch.setPage === 'function') {
+      window.CrozzoPageCloudWatch.setPage(page);
+    }
+  } catch (_) {}
   if (page === 'comandas') {
     crozzoResetComandasToHubIfNeeded();
   }
@@ -20741,9 +20761,11 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
       mesaGroupKey,
       envioNum,
       impresora:
-        (typeof crozzoComandaAreaOwnPrinter === 'function'
-          ? crozzoComandaAreaOwnPrinter(areaCfg)
-          : areaCfg?.impresora) || '',
+        (typeof crozzoComandaAreaEffectivePrinter === 'function'
+          ? crozzoComandaAreaEffectivePrinter(areaCfg)
+          : typeof crozzoComandaAreaOwnPrinter === 'function'
+            ? crozzoComandaAreaOwnPrinter(areaCfg)
+            : areaCfg?.impresora) || '',
       estilo: areaCfg?.estilo || { fontSize: 12, showPrice: false, showHeader: true },
       ...crozzoComandaCaptureSender(origen),
       items: areaItems.map(function (i) {
@@ -20925,7 +20947,11 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
     });
     const areaPrinter =
       snap.impresora ||
-      (typeof crozzoComandaAreaOwnPrinter === 'function' ? crozzoComandaAreaOwnPrinter(areaCfg) : '') ||
+      (typeof crozzoComandaAreaEffectivePrinter === 'function'
+        ? crozzoComandaAreaEffectivePrinter(areaCfg)
+        : typeof crozzoComandaAreaOwnPrinter === 'function'
+          ? crozzoComandaAreaOwnPrinter(areaCfg)
+          : '') ||
       '';
     comandas.unshift({
       id: localId,

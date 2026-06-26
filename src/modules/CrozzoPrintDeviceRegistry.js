@@ -49,6 +49,9 @@
   }
 
   function areaEffectivePrinter(area) {
+    if (typeof global.crozzoComandaAreaEffectivePrinter === 'function') {
+      return String(global.crozzoComandaAreaEffectivePrinter(area) || '').trim();
+    }
     if (typeof global.crozzoComandaAreaOwnPrinter === 'function') {
       return String(global.crozzoComandaAreaOwnPrinter(area) || '').trim();
     }

@@ -300,8 +300,10 @@
     __lastPullAt.comandas = Date.now();
     if (typeof global.crozzoPullComandasFromCloud === 'function') {
       var onKitchen = __activePage === 'comandas' || __activePage === 'cocina';
+      var printStation =
+        typeof global.crozzoIsTauriPosDesktop === 'function' && global.crozzoIsTauriPosDesktop();
       var ok = await global.crozzoPullComandasFromCloud({
-        skipPrint: !onKitchen,
+        skipPrint: !(onKitchen || printStation),
         skipRender: true,
         silent: true,
       });
@@ -508,6 +510,15 @@
     startTick();
     pri().startBackgroundScheduler();
     var plan = syncPlan(page);
+    if (plan.priority === pri().P0) {
+      safe(function () {
+        if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+          global.crozzoEnsureCloudSyncActive({ source: 'page_p0_' + page }).catch(function () {});
+        } else {
+          refreshCloudTransports();
+        }
+      });
+    }
     setTimeout(function () {
       initialPass(
         page,
@@ -536,12 +547,18 @@
   }
 
   function usesGlobalComandaPoll() {
-    return false;
+    var p = pri();
+    var profile = pageProfiles()[__activePage];
+    if (p.isOperationalPage(__activePage)) return false;
+    if (profile && profile.domains && profile.domains.indexOf('comandas') >= 0) return false;
+    return true;
   }
 
   function usesGlobalRuntimePoll() {
     var p = pri();
+    var profile = pageProfiles()[__activePage];
     if (p.isOperationalPage(__activePage)) return false;
+    if (profile && profile.domains && profile.domains.indexOf('runtime') >= 0) return false;
     return true;
   }
 
@@ -561,6 +578,17 @@
       }
     });
   }
+
+  global.addEventListener('crozzo-tier-changed', function (ev) {
+    var to = ev && ev.detail && ev.detail.to;
+    if (to !== 'cloud') return;
+    refreshCloudTransports();
+    if (__activePage) {
+      setTimeout(function () {
+        initialPass(__activePage, pri().isNavPage(__activePage)).catch(function () {});
+      }, 600);
+    }
+  });
 
   global.addEventListener('online', function () {
     refreshCloudTransports();

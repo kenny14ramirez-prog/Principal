@@ -61,7 +61,8 @@ function staticChecks() {
   assert(/CrozzoStartupReady\s*&&[\s\S]{0,80}\.run\(\)/.test(boot), 'initPOS engancha arranque', 'CrozzoStartupReady.run()');
 
   const main = readFileSync(join(app, 'core/CrozzoPosMain.js'), 'utf8');
-  assert(/window\.crozzoPairingBuildPayload\s*=\s*crozzoPairingBuildPayload/.test(main), 'Expuesto', 'crozzoPairingBuildPayload global');
+  assert(/crozzoPageCloudWatchSetPage\s*=\s*setPage/.test(readFileSync(join(app, 'infra/CrozzoPageCloudWatch.js'), 'utf8')), 'Nube', 'PageCloudWatch expone crozzoPageCloudWatchSetPage');
+  assert(/crozzoPageCloudWatchSetPage\(page\)/.test(main), 'Nube', 'navigateTo engancha PageCloudWatch por pantalla');
 
   const ext = readFileSync(join(app, 'core/CrozzoPosExtensions.js'), 'utf8');
   assert(/global\.crozzoRunCloudIoSelfTest\s*=\s*testCloudIO/.test(ext), 'Expuesto', 'crozzoRunCloudIoSelfTest global');

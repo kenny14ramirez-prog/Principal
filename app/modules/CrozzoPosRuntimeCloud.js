@@ -894,7 +894,11 @@
     } catch (_) {}
     var full = collectFull();
     var snap = packForCloud(full);
-    if (!snap) return false;
+    if (!snap) { console.warn('[runtime-cloud] push: snap null, collectFull falló'); return false; }
+    try {
+      var mesaKeys = Object.keys(snap.cartsPorMesa || {});
+      console.log('[runtime-cloud] push snap v=' + snap.v + ' mesas=' + mesaKeys.length + ' loc=' + (ctx().locationId || '?'));
+    } catch (_) {}
     if (!opts.force) {
       var sig = payloadSig(snap);
       if (sig === __lastPushSig && Date.now() - __lastPushAt < 4000) return true;
@@ -922,8 +926,11 @@
       } else {
         cloudOk = await upsertRuntimeRow(snap);
       }
+    } else {
+      console.warn('[runtime-cloud] push: cloudTransport inactivo, online=' + (typeof online === 'function' ? online() : '?'));
     }
     var lanOk = await lanP;
+    try { console.log('[runtime-cloud] push resultado cloudOk=' + cloudOk + ' lanOk=' + lanOk); } catch (_) {}
     try {
       if (global.__crozzoRuntimeForceEmptySlots) {
         global.__crozzoRuntimeForceEmptySlots = { mesa: {}, llevar: {} };
@@ -985,19 +992,27 @@
   function applyRemoteRow(row, opts) {
     if (!row) return false;
     var pay = row.payload || row.payload_json;
-    if (!pay || typeof pay !== 'object') return false;
+    if (!pay || typeof pay !== 'object') { console.warn('[runtime-cloud] applyRemoteRow: payload inválido', row); return false; }
     pay = unpackForApply(pay);
     var remoteAt = Number(pay.savedAt) || Date.parse(row.saved_at || row.updated_at || 0) || 0;
-    if (!remoteAt) return false;
+    if (!remoteAt) { console.warn('[runtime-cloud] applyRemoteRow: sin timestamp remoto'); return false; }
+    try {
+      var mesaKeys2 = Object.keys(pay.cartsPorMesa || {});
+      console.log('[runtime-cloud] applyRemoteRow v=' + pay.v + ' mesas=' + mesaKeys2.length + ' remoteAt=' + remoteAt);
+    } catch (_) {}
     var contentSig = payloadSig(pay);
     var sameContent = contentSig === __lastAppliedContentSig;
     if (sameContent && !(opts && opts.force)) {
       if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
+      try { console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado'); } catch (_) {}
       return false;
     }
     if (!(opts && opts.force)) {
       var localAtGuard = localSavedAt();
-      if (localAtGuard && remoteAt && remoteAt < localAtGuard - 500) return false;
+      if (localAtGuard && remoteAt && remoteAt < localAtGuard - 500) {
+        try { console.warn('[runtime-cloud] applyRemoteRow: remoto más viejo que local, descartado. remote=' + remoteAt + ' local=' + localAtGuard); } catch (_) {}
+        return false;
+      }
     }
     if (Date.now() < __echoUntil && !(opts && opts.force)) {
       var localAtEcho = localSavedAt();

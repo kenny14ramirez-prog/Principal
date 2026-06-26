@@ -235,6 +235,14 @@
     return true;
   }
 
+  function deviceShouldIngestComandaArea(areaId) {
+    if (typeof global.crozzoDeviceShouldIngestComandaArea === 'function') {
+      return global.crozzoDeviceShouldIngestComandaArea(areaId);
+    }
+    if (deviceReceivesComandaArea(areaId)) return true;
+    return deviceCanPrintComandaArea(areaId);
+  }
+
   function deviceCanPrintComandaArea(areaId) {
     if (typeof global.crozzoIsLocalPrintTargetForArea === 'function') {
       return global.crozzoIsLocalPrintTargetForArea(areaId);
@@ -518,6 +526,36 @@
     return false;
   }
 
+  function hydrateComandaPrinter(comanda) {
+    if (!comanda || comanda.areaId == null) return comanda;
+    if (String(comanda.impresora || '').trim()) return comanda;
+    try {
+      var areas =
+        typeof global.getComandasConfig === 'function' ? global.getComandasConfig().areas || [] : [];
+      var areaCfg = areas.find(function (a) {
+        return a && a.id === comanda.areaId;
+      });
+      if (areaCfg) {
+        if (typeof global.crozzoComandaAreaEffectivePrinter === 'function') {
+          comanda.impresora = global.crozzoComandaAreaEffectivePrinter(areaCfg) || comanda.impresora;
+        } else if (areaCfg.impresora) {
+          comanda.impresora = areaCfg.impresora;
+        }
+      }
+    } catch (_) {}
+    return comanda;
+  }
+
+  function tryAutoPrintMerged(merged, opts) {
+    if (!merged || opts.skipPrint || opts.silent) return false;
+    hydrateComandaPrinter(merged);
+    if (typeof global.crozzoTryAutoPrintComanda === 'function') {
+      global.crozzoTryAutoPrintComanda(merged);
+      return typeof global.crozzoComandaHasPrinter === 'function' && global.crozzoComandaHasPrinter(merged);
+    }
+    return false;
+  }
+
   function applyComandaFromCloudRow(row, opts) {
     opts = opts || {};
     if (!row || !row.payload || row.payload.id == null) return false;
@@ -555,13 +593,19 @@
       if (localAt > remoteAt + 500) return false;
       if (remoteEst === localEst && remoteAt <= localAt + 500) {
         if (!opts.skipPrint && !opts.silent && typeof global.crozzoTryAutoPrintComanda === 'function') {
-          global.crozzoTryAutoPrintComanda(existingEarly);
+          tryAutoPrintMerged(existingEarly, opts);
         }
         return false;
       }
     }
-    if (!deviceReceivesComandaArea(pay.areaId)) {
-      try { console.log('[crozzo-rt] comanda descartada por área:', pay.areaId, '— este dispositivo no la recibe'); } catch (_) {}
+    if (!deviceShouldIngestComandaArea(pay.areaId)) {
+      try {
+        console.log(
+          '[crozzo-rt] comanda descartada por área:',
+          pay.areaId,
+          '— pantalla/impresora no corresponde a este equipo'
+        );
+      } catch (_) {}
       return false;
     }
     // Si el payload del cloud indica que otro dispositivo ya imprimió esta
@@ -612,9 +656,7 @@
     }
     if (!changed && !existed && merged) changed = true;
     if (!changed) {
-      if (!opts.skipPrint && !opts.silent && !isOwnPush && !recentOwn && merged && typeof global.crozzoTryAutoPrintComanda === 'function') {
-        global.crozzoTryAutoPrintComanda(merged);
-      }
+      if (!isOwnPush && !recentOwn && merged) tryAutoPrintMerged(merged, opts);
       return false;
     }
 
@@ -629,11 +671,8 @@
     var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
 
     var shouldPrint = false;
-    if (!opts.skipPrint && !opts.silent && !isOwnPush && !recentOwn && merged) {
-      if (typeof global.crozzoTryAutoPrintComanda === 'function') {
-        global.crozzoTryAutoPrintComanda(merged);
-        shouldPrint = typeof global.crozzoComandaHasPrinter === 'function' && global.crozzoComandaHasPrinter(merged);
-      }
+    if (!isOwnPush && !recentOwn && merged) {
+      shouldPrint = tryAutoPrintMerged(merged, opts);
     }
     var shouldNotifyScreen =
       !opts.silent &&

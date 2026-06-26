@@ -622,11 +622,23 @@
     var areas = crozzoGetComandasAreas();
     if (Array.isArray(areas) && comanda.areaId) {
       for (var i = 0; i < areas.length; i++) {
-        if (areas[i].id === comanda.areaId && areas[i].impresora) {
-          return crozzoResolvePrinterForJob(String(areas[i].impresora).trim(), 'comanda');
+        if (areas[i].id === comanda.areaId) {
+          var eff = '';
+          if (typeof global.crozzoComandaAreaEffectivePrinter === 'function') {
+            eff = String(global.crozzoComandaAreaEffectivePrinter(areas[i]) || '').trim();
+          } else if (areas[i].impresora) {
+            eff = String(areas[i].impresora).trim();
+          }
+          if (eff) return crozzoResolvePrinterForJob(eff, 'comanda');
         }
       }
     }
+    try {
+      if (typeof global.crozzoComandaGlobalPrinter === 'function') {
+        var g = String(global.crozzoComandaGlobalPrinter() || '').trim();
+        if (g) return crozzoResolvePrinterForJob(g, 'comanda');
+      }
+    } catch (_) {}
     return '';
   }
 
