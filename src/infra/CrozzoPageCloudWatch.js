@@ -283,8 +283,11 @@
         pri().isOperationalPage(__activePage) &&
         typeof global.crozzoPullComandasFromCloud === 'function'
       ) {
+        var canPrintStation =
+          typeof global.crozzoCanStationPrintComandas === 'function' &&
+          global.crozzoCanStationPrintComandas();
         comApplied = await global.crozzoPullComandasFromCloud({
-          skipPrint: true,
+          skipPrint: !canPrintStation,
           skipRender: true,
           silent: true,
         });

@@ -4537,14 +4537,18 @@ function crozzoDeviceIsAssignedPantallaForArea(areaId) {
 function crozzoIsMeseroTabletDevice() {
   try {
     const doc = document.documentElement;
-    if (
+    const isAndroidShell =
       doc &&
       (doc.classList.contains('crozzo-android-apk') ||
         doc.classList.contains('crozzo-android-native') ||
-        doc.getAttribute('data-crozzo-android') === '1')
-    ) {
-      return true;
+        doc.getAttribute('data-crozzo-android') === '1');
+    if (!isAndroidShell) return false;
+    if (String(crozzoGetDevicePantallaId() || '').trim()) return false;
+    if (typeof currentPage !== 'undefined') {
+      if (currentPage === 'cocina' || currentPage === 'comandas' || currentPage === 'cajero') return false;
+      if (currentPage === 'tablets') return true;
     }
+    return false;
   } catch (_) {}
   return false;
 }
@@ -4554,6 +4558,13 @@ function crozzoIsTauriPosDesktop() {
     crozzoIsTauriPrint() &&
     !crozzoIsMeseroTabletDevice()
   );
+}
+/** Estación con térmica: Tauri/PC caja, cocina fija o KDS en APK — no tablet mesero tomando pedidos. */
+function crozzoCanStationPrintComandas() {
+  if (typeof crozzoIsTauriPrint !== 'function' || !crozzoIsTauriPrint()) return false;
+  if (typeof currentPage !== 'undefined' && currentPage === 'tablets') return false;
+  if (crozzoIsMeseroTabletDevice()) return false;
+  return true;
 }
 function crozzoHasPrinterForComandaArea(areaId) {
   const area = (getComandasConfig().areas || []).find((a) => a.id === areaId);
@@ -4571,13 +4582,18 @@ function crozzoPantallaHasPrintConfig(areaId, areaCfg) {
     (getComandasConfig().areas || []).find((a) => a.id === String(areaId || '').trim());
   return !!crozzoComandaAreaEffectivePrinter(area);
 }
+function crozzoStationCanPrintArea(areaId) {
+  areaId = String(areaId || '').trim();
+  if (!areaId) return false;
+  if (!crozzoCanStationPrintComandas()) return false;
+  if (!getComandasConfig().autoPrint) return false;
+  return crozzoHasPrinterForComandaArea(areaId);
+}
 function crozzoDeviceShouldIngestComandaArea(areaId) {
   areaId = String(areaId || '').trim();
   if (!areaId) return true;
   if (crozzoDeviceShowsComandaArea(areaId)) return true;
-  if (crozzoIsTauriPosDesktop() && crozzoHasPrinterForComandaArea(areaId)) {
-    return crozzoDeviceHandlesComandaArea(areaId);
-  }
+  if (crozzoStationCanPrintArea(areaId)) return true;
   return false;
 }
 /** Tauri: pantalla fija del área, hub TODAS, o PC sin pantalla (caja con térmica). */
@@ -4590,10 +4606,11 @@ function crozzoDeviceHandlesComandaArea(areaId) {
   return pid === areaId;
 }
 function crozzoShouldDevicePrintComanda(c, areaCfg) {
-  if (!c || !crozzoIsTauriPosDesktop()) return false;
+  if (!c || !crozzoCanStationPrintComandas()) return false;
   if (!getComandasConfig().autoPrint) return false;
   if (!crozzoComandaHasPrinter(c, areaCfg)) return false;
-  return crozzoDeviceHandlesComandaArea(c.areaId);
+  if (crozzoDeviceHandlesComandaArea(c.areaId)) return true;
+  return crozzoStationCanPrintArea(c.areaId);
 }
 function crozzoShouldAutoPrintComanda(c, areaCfg, opts) {
   return crozzoShouldDevicePrintComanda(c, areaCfg);
@@ -4622,6 +4639,8 @@ function crozzoTryAutoPrintComanda(c) {
   if (typeof printComandaNow === 'function') printComandaNow(c.id, true);
 }
 window.crozzoTryAutoPrintComanda = crozzoTryAutoPrintComanda;
+window.crozzoCanStationPrintComandas = crozzoCanStationPrintComandas;
+window.crozzoStationCanPrintArea = crozzoStationCanPrintArea;
 window.crozzoComandaHasPrinter = crozzoComandaHasPrinter;
 window.crozzoPantallaHasPrintConfig = crozzoPantallaHasPrintConfig;
 window.crozzoShouldDevicePrintComanda = crozzoShouldDevicePrintComanda;
@@ -6838,9 +6857,8 @@ function crozzoMergeCloudCartWithLocalEdits(localLines, remoteLines) {
     if (localPending > remotePending) {
       rm.cantidad = Number(rm.cantidad) + (localPending - remotePending);
     }
-    if (localSent > Math.max(0, Number(rm.sentCantidad) || 0)) {
-      rm.sentCantidad = localSent;
-    }
+    rm.sentCantidad = Math.max(localSent, Math.max(0, Number(rm.sentCantidad) || 0));
+    if (rm.sentCantidad > (Number(rm.cantidad) || 0)) rm.sentCantidad = Number(rm.cantidad) || 0;
   });
   return remote
     .map((line) => (typeof crozzoNormalizeCartLine === 'function' ? crozzoNormalizeCartLine(line) : line))

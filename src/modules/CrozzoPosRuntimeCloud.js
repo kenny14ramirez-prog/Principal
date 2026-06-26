@@ -858,8 +858,22 @@
       }
       var built = snapFromMesaRows(res.data || []);
       if (!built) return false;
+      var originDev = '';
+      try {
+        var rowsIn = res.data || [];
+        var bestAt = 0;
+        for (var ri = 0; ri < rowsIn.length; ri++) {
+          var rr = rowsIn[ri];
+          if (!rr || rr.kind === 'meta') continue;
+          var rat = Date.parse(rr.updated_at || 0) || 0;
+          if (rat >= bestAt && rr.source_device_id) {
+            bestAt = rat;
+            originDev = String(rr.source_device_id).trim();
+          }
+        }
+      } catch (_) {}
       return applyRemoteRow(
-        { payload: built.snap, saved_at: new Date(built.savedAt).toISOString(), source_device_id: '' },
+        { payload: built.snap, saved_at: new Date(built.savedAt).toISOString(), source_device_id: originDev },
         opts
       );
     } catch (e) {
@@ -1007,10 +1021,14 @@
       try { console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado'); } catch (_) {}
       return false;
     }
+    var srcDevGuard = String(row.source_device_id || pay._cloudOriginDevice || '').trim();
+    var myDevGuard = ctx().deviceId;
+    var sameDeviceGuard = !!(srcDevGuard && myDevGuard && srcDevGuard === myDevGuard);
     if (!(opts && opts.force)) {
       var localAtGuard = localSavedAt();
-      if (localAtGuard && remoteAt && remoteAt < localAtGuard - 500) {
-        try { console.warn('[runtime-cloud] applyRemoteRow: remoto más viejo que local, descartado. remote=' + remoteAt + ' local=' + localAtGuard); } catch (_) {}
+      /* Solo el mismo equipo rechaza por savedAt viejo; tablet→caja puede traer carrito más reciente con timestamp anterior. */
+      if (sameDeviceGuard && localAtGuard && remoteAt && remoteAt < localAtGuard - 500) {
+        try { console.warn('[runtime-cloud] applyRemoteRow: remoto más viejo que local (mismo equipo), descartado. remote=' + remoteAt + ' local=' + localAtGuard); } catch (_) {}
         return false;
       }
     }

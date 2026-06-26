@@ -58,9 +58,12 @@
     return String((area && area.impresora) || '').trim();
   }
 
-  /** Tablet/APK mesero: no registrar ni enrutar impresión desde aquí. */
+  /** Tablet mesero tomando pedidos — no estación de impresión cocina/caja. */
   function isMeseroTabletShell() {
     try {
+      if (typeof global.crozzoCanStationPrintComandas === 'function' && global.crozzoCanStationPrintComandas()) {
+        return false;
+      }
       var doc = global.document && global.document.documentElement;
       if (!doc) return false;
       if (doc.classList.contains('crozzo-android-apk') || doc.classList.contains('crozzo-android-native')) return true;
@@ -306,20 +309,14 @@
     if (typeof global.crozzoShouldDevicePrintComanda === 'function') {
       return global.crozzoShouldDevicePrintComanda({ areaId: areaId });
     }
-    if (typeof global.crozzoIsTauriPrint !== 'function' || !global.crozzoIsTauriPrint()) return false;
-    if (typeof global.crozzoPantallaHasPrintConfig === 'function') {
-      if (!global.crozzoPantallaHasPrintConfig(areaId)) return false;
+    if (typeof global.crozzoStationCanPrintArea === 'function') {
+      return global.crozzoStationCanPrintArea(areaId);
     }
+    if (typeof global.crozzoIsTauriPrint !== 'function' || !global.crozzoIsTauriPrint()) return false;
     if (typeof global.crozzoComandaHasPrinter === 'function') {
       if (!global.crozzoComandaHasPrinter({ areaId: areaId })) return false;
     }
-    if (
-      typeof global.crozzoDeviceShowsComandaArea === 'function' &&
-      !global.crozzoDeviceShowsComandaArea(areaId)
-    ) {
-      return false;
-    }
-    return true;
+    return canDevicePrintPhysically();
   }
 
   function ingestRemoteEntry(entry, opts) {

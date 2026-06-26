@@ -228,6 +228,30 @@
     return t && Date.now() - t < 12000;
   }
 
+  function findComandaForCloudPay(pay, row) {
+    if (!pay) return null;
+    var tid = String(pay.transaction_id || (row && row.id) || '').trim();
+    var list = global.comandas || [];
+    if (tid) {
+      var byTid = list.find(function (c) {
+        return c && c.transaction_id && String(c.transaction_id) === tid && c.estado !== 'entregada';
+      });
+      if (byTid) return byTid;
+    }
+    if (pay.id != null) return findComanda(pay.id);
+    return null;
+  }
+
+  function scheduleComandaUiIfKitchen() {
+    try {
+      if (global.currentPage !== 'comandas' && global.currentPage !== 'cocina') return;
+      if (typeof global.crozzoPatchOperationalPageFromRemote === 'function') {
+        if (global.crozzoPatchOperationalPageFromRemote(global.currentPage)) return;
+      }
+      scheduleComandaPageRefresh();
+    } catch (_) {}
+  }
+
   function deviceReceivesComandaArea(areaId) {
     if (typeof global.crozzoDeviceShowsComandaArea === 'function') {
       return global.crozzoDeviceShowsComandaArea(areaId);
@@ -571,21 +595,25 @@
     }
 
     var tidEarly = String(pay.transaction_id || row.id || '');
-    var existingEarly =
-      findComanda(pay.id) ||
-      (tidEarly
-        ? (global.comandas || []).find(function (c) {
-            return c.transaction_id && String(c.transaction_id) === tidEarly;
-          })
-        : null);
+    var existingEarly = findComandaForCloudPay(pay, row);
     if (existingEarly && !opts.forceApply) {
       var remoteAtEarly =
         Date.parse(row.updated_at || pay.lastUpdateAt || pay._cloudSyncedAt || 0) || 0;
       var localAtEarly =
         Date.parse(existingEarly.lastUpdateAt || existingEarly.createdAt || 0) || 0;
-      if (localAtEarly > remoteAtEarly + 500) return false;
+      if (localAtEarly > remoteAtEarly + 500) {
+        if (!opts.skipPrint && !opts.silent) tryAutoPrintMerged(existingEarly, opts);
+        return false;
+      }
     }
-    if (tidEarly && comandaTidRecent(tidEarly, 45000) && existingEarly && !opts.forceApply) {
+    if (
+      tidEarly &&
+      comandaTidRecent(tidEarly, 45000) &&
+      existingEarly &&
+      !opts.forceApply &&
+      existingEarly.transaction_id &&
+      String(existingEarly.transaction_id) === tidEarly
+    ) {
       var remoteEst = String(row.status || pay.estado || '');
       var localEst = String(existingEarly.estado || '');
       var remoteAt = Date.parse(row.updated_at || pay.lastUpdateAt || pay._cloudSyncedAt || 0) || 0;
@@ -628,13 +656,7 @@
     var isOwnPush = myUuid && originUuid && myUuid === originUuid;
     var recentOwn = isRecentEcho(String(row.id)) || (tid && isRecentEcho(tid));
 
-    var existed =
-      findComanda(pay.id) ||
-      (pay.transaction_id
-        ? (global.comandas || []).find(function (c) {
-            return c.transaction_id === pay.transaction_id;
-          })
-        : null);
+    var existed = findComandaForCloudPay(pay, row);
     var prevEst = existed ? String(existed.estado || '') : '';
     var prevItemsJson = existed ? JSON.stringify(existed.items || []) : '';
 
@@ -643,20 +665,18 @@
     if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
       changed = !!global.__crozzoEmergencyApplyComandaSnapshot(pay, { skipPrint: true, skipRender: true });
     }
-    var merged =
-      findComanda(pay.id) ||
-      (pay.transaction_id
-        ? (global.comandas || []).find(function (c) {
-            return c.transaction_id === pay.transaction_id;
-          })
-        : null);
+    var merged = findComandaForCloudPay(pay, row);
     if (!changed && merged && existed) {
-      var remoteEst = String(row.status || pay.estado || '');
-      if (remoteEst && remoteEst !== prevEst) changed = true;
+      var remoteEst2 = String(row.status || pay.estado || '');
+      if (remoteEst2 && remoteEst2 !== prevEst) changed = true;
+      if (JSON.stringify(merged.items || []) !== prevItemsJson) changed = true;
     }
     if (!changed && !existed && merged) changed = true;
     if (!changed) {
-      if (!isOwnPush && !recentOwn && merged) tryAutoPrintMerged(merged, opts);
+      if (!isOwnPush && !recentOwn && merged && !opts.skipPrint && !opts.silent) {
+        tryAutoPrintMerged(merged, opts);
+      }
+      if (merged && !opts.skipRender) scheduleComandaUiIfKitchen();
       return false;
     }
 
@@ -671,7 +691,7 @@
     var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
 
     var shouldPrint = false;
-    if (!isOwnPush && !recentOwn && merged) {
+    if (!isOwnPush && !recentOwn && merged && !opts.skipPrint && !opts.silent) {
       shouldPrint = tryAutoPrintMerged(merged, opts);
     }
     var shouldNotifyScreen =
@@ -699,6 +719,8 @@
       if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
     } catch (_) {}
     if (!opts.skipRender && (global.currentPage === 'comandas' || global.currentPage === 'cocina')) {
+      scheduleComandaUiIfKitchen();
+    } else if (!opts.skipRender) {
       scheduleComandaPageRefresh();
     }
     return true;
@@ -766,10 +788,9 @@
       } catch (_) {}
       if (
         anyChanged &&
-        !(opts && opts.skipRender) &&
         (global.currentPage === 'comandas' || global.currentPage === 'cocina')
       ) {
-        scheduleComandaPageRefresh();
+        scheduleComandaUiIfKitchen();
       }
       return anyChanged;
     } catch (e) {
@@ -810,7 +831,7 @@
       var rtSilent = __realtimeLive && stale > SILENCE_WATCHDOG_MS;
       pullComandasFromCloud({
         skipPrint: __realtimeLive && !rtSilent,
-        skipRender: true,
+        skipRender: rtSilent,
         silent: true,
       }).catch(function () {});
     }, ms);
@@ -873,7 +894,7 @@
         try { console.log('[crozzo-rt] INSERT comanda', payload.new && payload.new.id); } catch (_) {}
         var applied = !!(payload.new && applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false }));
         try { console.log('[crozzo-rt] INSERT aplicado:', applied); } catch (_) {}
-        if (applied) scheduleComandaPageRefresh();
+        scheduleComandaUiIfKitchen();
       });
       ch.on('postgres_changes', updOpts, function (payload) {
         if (!payload.new) return;
@@ -882,13 +903,13 @@
         var st = String(payload.new.status || (payload.new.payload && payload.new.payload.estado) || '');
         if (st === 'entregada') {
           if (applyComandaRemovedFromCloud(payload.new.payload || {}, payload.new)) {
-            scheduleComandaPageRefresh();
+            scheduleComandaUiIfKitchen();
           }
           return;
         }
         var applied2 = applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false });
         try { console.log('[crozzo-rt] UPDATE aplicado:', applied2); } catch (_) {}
-        if (applied2) scheduleComandaPageRefresh();
+        scheduleComandaUiIfKitchen();
       });
       ch.subscribe(function (status) {
         try { console.log('[crozzo-rt] canal estado:', status); } catch (_) {}
