@@ -4592,11 +4592,30 @@ function crozzoShouldAutoPrintComanda(c, areaCfg, opts) {
 function crozzoTryAutoPrintComanda(c) {
   if (!c || c.id == null) return;
   if (!crozzoShouldDevicePrintComanda(c)) return;
-  const key = String(c.id);
+  // Dedup local: evita reimprimir la misma comanda en ventana de 90 s.
+  // Se indexa por id numérico Y por transaction_id (UUID) para cubrir
+  // el caso en que el id local difiere entre dispositivos.
+  const PRINT_DEDUP_MS = 90000;
   window.__crozzoComandaPrintDedup = window.__crozzoComandaPrintDedup || {};
-  const last = window.__crozzoComandaPrintDedup[key] || 0;
-  if (Date.now() - last < 30000) return;
-  window.__crozzoComandaPrintDedup[key] = Date.now();
+  const keyId = String(c.id);
+  const keyTid = c.transaction_id ? 'tid:' + String(c.transaction_id) : '';
+  const now = Date.now();
+  if (now - (window.__crozzoComandaPrintDedup[keyId] || 0) < PRINT_DEDUP_MS) return;
+  if (keyTid && now - (window.__crozzoComandaPrintDedup[keyTid] || 0) < PRINT_DEDUP_MS) return;
+  // Dedup distribuido: si otro dispositivo de red ya confirmó impresión
+  // en los últimos 90 s, este dispositivo no reimprime.
+  if (typeof window.__crozzoComandaWasPrintedRecently === 'function') {
+    const printKey = c.transaction_id || String(c.id);
+    if (window.__crozzoComandaWasPrintedRecently(printKey, PRINT_DEDUP_MS)) return;
+  }
+  window.__crozzoComandaPrintDedup[keyId] = now;
+  if (keyTid) window.__crozzoComandaPrintDedup[keyTid] = now;
+  // Registrar impresión en el tracker global para que otros dispositivos
+  // que reciban la misma comanda sepan que ya fue impresa aquí.
+  if (typeof window.__crozzoComandaMarkPrinted === 'function') {
+    const printKey = c.transaction_id || String(c.id);
+    window.__crozzoComandaMarkPrinted(printKey);
+  }
   if (typeof printComandaNow === 'function') printComandaNow(c.id, true);
 }
 window.crozzoTryAutoPrintComanda = crozzoTryAutoPrintComanda;
@@ -6822,6 +6841,15 @@ function crozzoMergeCloudCartWithLocalEdits(localLines, remoteLines) {
     .map((line) => (typeof crozzoNormalizeCartLine === 'function' ? crozzoNormalizeCartLine(line) : line))
     .filter(Boolean);
 }
+function crozzoCartConsumoScore(lines) {
+  if (!Array.isArray(lines) || !lines.length) return 0;
+  return lines.reduce(function (n, l) {
+    if (!l) return n;
+    const sent = Math.max(0, Number(l.sentCantidad) || 0);
+    const qty = Math.max(0, Number(l.cantidad) || 0);
+    return n + Math.max(qty, sent);
+  }, 0);
+}
 function crozzoCartMapHasConsumo(lines) {
   if (!Array.isArray(lines) || !lines.length) return false;
   return lines.some(function (l) {
@@ -6863,6 +6891,13 @@ function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
     const pinTipo = opts.cartTipo || (protectRef && protectRef.tipo) || null;
     if (pinTipo && crozzoSlotCartMergePinned(pinTipo, ref)) {
       out[ref] = crozzoMergeCloudCartWithLocalEdits(out[ref] || local?.[ref] || [], lines);
+      return;
+    }
+    const localLines = local && local[ref];
+    const localScore = crozzoCartConsumoScore(localLines);
+    const remoteScore = crozzoCartConsumoScore(lines);
+    if (localScore > 0 && (remoteScore <= 0 || remoteScore < localScore)) {
+      out[ref] = crozzoMergeCloudCartWithLocalEdits(out[ref] || localLines || [], lines);
       return;
     }
     if (!lines.length && crozzoCartMapHasConsumo(out[ref] || local?.[ref])) {
@@ -7673,6 +7708,11 @@ function crozzoHandleRemoteRuntimeUiSync() {
       }
     } catch (_) {}
     if (typeof crozzoPublishComandasGlobal === 'function') crozzoPublishComandasGlobal();
+    try {
+      if (typeof window.crozzoPullComandasFromCloud === 'function') {
+        window.crozzoPullComandasFromCloud({ skipRender: true, silent: true }).catch(function () {});
+      }
+    } catch (_) {}
   } catch (_) {}
 }
 window.crozzoScheduleOperationalPageRefresh = crozzoScheduleOperationalPageRefresh;
@@ -9364,6 +9404,13 @@ function printComandaNow(id, silentMode = false) {
     }
     if (!silentMode) showToast(`🖨️ Comanda #${id} enviada a impresión · ${printer}`, 'info');
     config.addAudit('comanda_impresa', `Comanda #${id} -> ${printer}`);
+    // Notificar al cloud que este dispositivo imprimió esta comanda,
+    // para que otros dispositivos no la reimpriman (anti-duplicado distribuido).
+    try {
+      if (typeof window.crozzoComandaPrintedAck === 'function') {
+        window.crozzoComandaPrintedAck(c).catch(function () {});
+      }
+    } catch (_) {}
   });
 }
 window.printComandaNow = printComandaNow;
@@ -19736,15 +19783,15 @@ function getLlevarStatus(llevarId) {
   return info.label;
 }
 function getSlotStateInfo(tipoServicio, referencia) {
+  const cart = tipoServicio === 'mesa' ? (cartsPorMesa[referencia] || []) : (cartsPorLlevar[referencia] || []);
+  const pendingQty = getPendingItemsQty(cart);
   const peer = crozzoSlotLockPeerInfo(tipoServicio, referencia);
-  if (peer && !peer.mine) {
+  if (peer && !peer.mine && pendingQty <= 0 && !crozzoCartHasSentItems(cart)) {
     return {
       state: 'en-uso',
       label: 'En uso · ' + peer.userName + ' (' + peer.deviceName + ')',
     };
   }
-  const cart = tipoServicio === 'mesa' ? (cartsPorMesa[referencia] || []) : (cartsPorLlevar[referencia] || []);
-  const pendingQty = getPendingItemsQty(cart);
   const latestComanda = comandas
     .filter(c => c.tipoServicio === tipoServicio && c.referencia === referencia)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
@@ -20745,6 +20792,11 @@ function crearComanda(origen, tipoServicio, referencia, items, total) {
     console.warn('[comanda-fanout]', eFanout);
   }
   try {
+    if (touchedIds.length && typeof window.crozzoPushPosRuntimeCloudNow === 'function') {
+      window.crozzoPushPosRuntimeCloudNow().catch(function () {});
+    }
+  } catch (_) {}
+  try {
     if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
   try {
@@ -21122,6 +21174,11 @@ function setCajaSlotFilter(value) {
 }
 function crozzoCajeroRefreshSlotPicker() {
   if (typeof currentPage === 'undefined' || currentPage !== 'cajero') return false;
+  try {
+    if (typeof window.crozzoPullPosRuntimeCloud === 'function') {
+      window.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
+    }
+  } catch (_) {}
   const orderOpen =
     tipoServicioCaja !== 'directa' &&
     ((tipoServicioCaja === 'mesa' && cajaMesaOrderOpen) || (tipoServicioCaja === 'llevar' && cajaLlevarOrderOpen));
@@ -21627,6 +21684,11 @@ function selectMesa(mesaId) {
   }
   mesaSeleccionada = mesaId;
   cajaMesaOrderOpen = true;
+  try {
+    if (typeof window.crozzoPullPosRuntimeCloud === 'function') {
+      window.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
+    }
+  } catch (_) {}
   if (!crozzoTryEnterCajaSlot('mesa', mesaId)) {
     cajaMesaOrderOpen = false;
     return;
@@ -21825,6 +21887,9 @@ function tabletAddToCart(productId, configSig = '') {
       crozzoMarkCartLineLocalEdit(existingConfigured);
       crozzoPosHapticLight();
       renderTabletCart();
+      try {
+        if (typeof crozzoSyncPosRuntimeCritical === 'function') crozzoSyncPosRuntimeCritical('tablet_cart_add');
+      } catch (_) {}
       requestAnimationFrame(() => crozzoPosFlashOrderContainer('tabletOrderItems'));
       return;
     }
@@ -21840,6 +21905,9 @@ function tabletAddToCart(productId, configSig = '') {
   } else addItemToCartWithConfig(cart, product);
   crozzoPosHapticLight();
   renderTabletCart();
+  try {
+    if (typeof crozzoSyncPosRuntimeCritical === 'function') crozzoSyncPosRuntimeCritical('tablet_cart_add');
+  } catch (_) {}
   requestAnimationFrame(() => crozzoPosFlashOrderContainer('tabletOrderItems'));
 }
 function tabletRemoveFromCart(productId, configSig = '') {
@@ -28808,9 +28876,17 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
     cartDirecto = [];
   } else if (tipoServicioCaja === 'llevar') {
     markSlotAsPaid('llevar', llevarSeleccionado);
+    try {
+      if (!window.__crozzoRuntimeForceEmptySlots) window.__crozzoRuntimeForceEmptySlots = { mesa: {}, llevar: {} };
+      window.__crozzoRuntimeForceEmptySlots.llevar[llevarSeleccionado] = true;
+    } catch (_) {}
     cartsPorLlevar[llevarSeleccionado] = [];
   } else {
-    markSlotAsPaid('mesa', mesaSeleccionada);
+    markSlotAsPaid('mesa', mesaSeleccionado);
+    try {
+      if (!window.__crozzoRuntimeForceEmptySlots) window.__crozzoRuntimeForceEmptySlots = { mesa: {}, llevar: {} };
+      window.__crozzoRuntimeForceEmptySlots.mesa[mesaSeleccionada] = true;
+    } catch (_) {}
     cartsPorMesa[mesaSeleccionada] = [];
   }
   if (typeof crozzoClearActiveDescuento === 'function') crozzoClearActiveDescuento();

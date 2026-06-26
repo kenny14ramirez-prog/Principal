@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-06-26T00:00:24.795Z",
+  "updatedAt": "2026-06-26T00:54:45.647Z",
   "entries": [
-    {
-      "id": "1.0.157-optional",
-      "version": "v1.0.157",
-      "semver": "1.0.157",
-      "type": "optional",
-      "message": "se ingresas animaciones de estilo dinamico y fluidos + quesitooooooo",
-      "publishedAt": "2026-06-20T13:45:21.162Z",
-      "installMode": "prompt",
-      "changelog": [
-        "se ingresas animaciones de estilo dinamico y fluidos",
-        "quesitooooooo"
-      ]
-    },
     {
       "id": "1.0.158-critical",
       "version": "v1.0.158",
@@ -313,6 +300,18 @@
       "installMode": "auto",
       "changelog": [
         "2562"
+      ]
+    },
+    {
+      "id": "1.0.182-critical",
+      "version": "v1.0.182",
+      "semver": "1.0.182",
+      "type": "critical",
+      "message": "54485",
+      "publishedAt": "2026-06-26T00:54:45.647Z",
+      "installMode": "auto",
+      "changelog": [
+        "54485"
       ]
     }
   ]

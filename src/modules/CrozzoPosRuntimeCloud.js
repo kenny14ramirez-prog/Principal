@@ -179,14 +179,16 @@
     return it;
   }
 
-  function compactCartsMap(map) {
+  function compactCartsMap(map, opts) {
+    opts = opts || {};
+    var forceEmpty = opts.forceEmpty || {};
     if (!map || typeof map !== 'object') return {};
     var out = {};
     Object.keys(map).forEach(function (k) {
       var arr = map[k];
       if (!Array.isArray(arr)) return;
       if (!arr.length) {
-        out[k] = [];
+        if (forceEmpty[k]) out[k] = [];
         return;
       }
       var lines = [];
@@ -194,7 +196,7 @@
         var ln = compactCartLine(arr[i]);
         if (ln) lines.push(ln);
       }
-      out[k] = lines;
+      if (lines.length) out[k] = lines;
     });
     return out;
   }
@@ -231,6 +233,7 @@
   function packForCloud(full) {
     if (!full || typeof full !== 'object') return null;
     var ts = Date.now();
+    var forceEmpty = global.__crozzoRuntimeForceEmptySlots || { mesa: {}, llevar: {} };
     var snap = {
       v: 1,
       _c: 1,
@@ -239,8 +242,8 @@
       mesaSeleccionada: full.mesaSeleccionada,
       llevarSeleccionado: full.llevarSeleccionado,
       cartDirecto: (full.cartDirecto || []).map(compactCartLine).filter(Boolean),
-      cartsPorMesa: compactCartsMap(full.cartsPorMesa),
-      cartsPorLlevar: compactCartsMap(full.cartsPorLlevar),
+      cartsPorMesa: compactCartsMap(full.cartsPorMesa, { forceEmpty: forceEmpty.mesa || {} }),
+      cartsPorLlevar: compactCartsMap(full.cartsPorLlevar, { forceEmpty: forceEmpty.llevar || {} }),
       tabletModoPedido: full.tabletModoPedido,
       tabletMesaSeleccionada: full.tabletMesaSeleccionada,
       tabletLlevarSeleccionado: full.tabletLlevarSeleccionado,
@@ -703,6 +706,7 @@
   function mesaRowsFromSnap(snap, c) {
     var iso = new Date(Number(snap.savedAt) || Date.now()).toISOString();
     var rows = [];
+    var forceEmpty = global.__crozzoRuntimeForceEmptySlots || { mesa: {}, llevar: {} };
     function add(kind, ref, lines) {
       rows.push({
         location_id: c.locationId,
@@ -717,11 +721,15 @@
     }
     var m = snap.cartsPorMesa || {};
     Object.keys(m).forEach(function (ref) {
-      add('mesa', ref, m[ref] || []);
+      var lines = m[ref] || [];
+      if (!lines.length && !(forceEmpty.mesa && forceEmpty.mesa[ref])) return;
+      add('mesa', ref, lines);
     });
     var l = snap.cartsPorLlevar || {};
     Object.keys(l).forEach(function (ref) {
-      add('llevar', ref, l[ref] || []);
+      var lines = l[ref] || [];
+      if (!lines.length && !(forceEmpty.llevar && forceEmpty.llevar[ref])) return;
+      add('llevar', ref, lines);
     });
     if (Array.isArray(snap.cartDirecto) && snap.cartDirecto.length) add('directo', '__directo__', snap.cartDirecto);
     rows.push({
@@ -878,9 +886,10 @@
 
   async function pushRuntimeNow(opts) {
     opts = opts || {};
-    // Durante un cambio de sede se suprime el push para no contaminar la nube
-    // nueva con datos de la sede anterior (el cuerpo se vacia tras respaldar).
     if (global.__crozzoSuppressRuntimePush) return false;
+    try {
+      if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
+    } catch (_) {}
     var full = collectFull();
     var snap = packForCloud(full);
     if (!snap) return false;
@@ -913,11 +922,19 @@
       }
     }
     var lanOk = await lanP;
+    try {
+      if (global.__crozzoRuntimeForceEmptySlots) {
+        global.__crozzoRuntimeForceEmptySlots = { mesa: {}, llevar: {} };
+      }
+    } catch (_) {}
     return cloudOk || lanOk;
   }
 
   function schedulePush(priority) {
     if (global.__crozzoSuppressRuntimePush) return;
+    try {
+      if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
+    } catch (_) {}
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return;
     var p = priority === 'fast' || priority === 'flush' ? priority : 'normal';

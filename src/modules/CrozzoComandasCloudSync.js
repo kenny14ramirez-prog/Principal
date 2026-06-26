@@ -279,6 +279,8 @@
       creadoPorNombre: c.creadoPorNombre,
       creadoPorRol: c.creadoPorRol,
       creadoPorEtiqueta: c.creadoPorEtiqueta,
+      printed_by: opts.printed_by || c.printed_by || null,
+      printed_at: opts.printed_at || c.printed_at || null,
     };
   }
 
@@ -557,6 +559,19 @@
       }
     }
     if (!deviceReceivesComandaArea(pay.areaId)) return false;
+    // Si el payload del cloud indica que otro dispositivo ya imprimió esta
+    // comanda, registrar en el tracker distribuido local para evitar duplicado.
+    if (pay.printed_by && pay.printed_at) {
+      try {
+        var printKey = pay.transaction_id || String(pay.id || '');
+        if (printKey && typeof global.__crozzoComandaMarkPrinted === 'function') {
+          var myCtx = cloudCtx();
+          if (String(pay.printed_by) !== String(myCtx.deviceId || '')) {
+            global.__crozzoComandaMarkPrinted(printKey);
+          }
+        }
+      } catch (_) {}
+    }
     var ctx = cloudCtx();
     var tid = String(pay.transaction_id || row.id || '');
     var myUuid = String(ctx.deviceUuid || '');
@@ -719,6 +734,12 @@
     }
   }
 
+  /** Ventana en ms dentro de la cual una comanda recién actualizada
+   *  puede activar impresión automática aunque venga del poll periódico.
+   *  Evita reimprimir comandas viejas al reconectar, pero sí imprime
+   *  las que llegaron mientras el dispositivo estaba sin red. */
+  var POLL_PRINT_WINDOW_MS = 8 * 60 * 1000;
+
   function scheduleComandaPull() {
     if (
       global.CrozzoPageCloudWatch &&
@@ -739,7 +760,16 @@
     }
     __pullTimer = global.setInterval(function () {
       if (!tierAllowsCloudRead()) return;
-      pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
+      // Cuando el canal realtime está vivo el poll es solo de respaldo;
+      // siempre skipPrint para no duplicar tickets que ya llegaron vía push.
+      // Sin realtime (fallback) puede que comandas recientes no se hayan
+      // impreso aún (ej. reconexión tras corte de red), así que dejamos
+      // que applyComandaFromCloudRow decida según edad + dedup.
+      pullComandasFromCloud({
+        skipPrint: __realtimeLive,
+        skipRender: true,
+        silent: true,
+      }).catch(function () {});
     }, ms);
   }
 
@@ -896,6 +926,28 @@
     } catch (_) {}
   }
 
+  /** Notifica al cloud que este dispositivo ya imprimió la comanda,
+   *  propagando printed_by + printed_at. Otros dispositivos que reciban
+   *  esta fila marcarán la comanda como impresa y no duplicarán el ticket. */
+  async function pushComandaPrintedAck(comanda) {
+    if (!comanda || !tierAllowsCloudPush() || !online()) return false;
+    var ctx = cloudCtx();
+    var deviceLabel = ctx.deviceId || ctx.deviceUuid || 'unknown';
+    try {
+      var c = Object.assign({}, comanda, {
+        printed_by: deviceLabel,
+        printed_at: new Date().toISOString(),
+      });
+      return await pushComanda(c, {
+        estado: comanda.estado,
+        printed_by: deviceLabel,
+        printed_at: c.printed_at,
+      });
+    } catch (_) {
+      return false;
+    }
+  }
+
   global.crozzoFanoutComandasByIds = fanoutComandasByIds;
   global.crozzoFanoutComandaEstado = fanoutComandaEstado;
   global.crozzoPushComandaToCloud = pushComanda;
@@ -904,4 +956,5 @@
   global.crozzoPullComandasFromCloud = pullComandasFromCloud;
   global.crozzoStartComandasCloudSync = startComandasCloudSync;
   global.crozzoStopComandasCloudSync = stopComandasCloudSync;
+  global.crozzoComandaPrintedAck = pushComandaPrintedAck;
 })(typeof window !== 'undefined' ? window : globalThis);

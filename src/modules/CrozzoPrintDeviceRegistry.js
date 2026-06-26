@@ -5,8 +5,8 @@
   'use strict';
 
   var LS_KEY = 'crozzo_print_device_registry_v1';
-  var STALE_MS = 120000;
-  var HEARTBEAT_MS = 45000;
+  var STALE_MS = 60000;
+  var HEARTBEAT_MS = 20000;
   var __timer = null;
 
   function deviceId() {

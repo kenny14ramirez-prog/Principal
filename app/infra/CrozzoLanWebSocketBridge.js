@@ -93,6 +93,23 @@
               global.renderPage(global.currentPage, { background: true });
             }
           } catch (_) {}
+          // Si este dispositivo imprimió la comanda (detectado via dedup tracker),
+          // propagar el ack al cloud para que la caja y otras tablets no reimpriman.
+          try {
+            var printKey = snap.transaction_id || String(snap.id || '');
+            if (
+              printKey &&
+              typeof global.__crozzoComandaWasPrintedRecently === 'function' &&
+              global.__crozzoComandaWasPrintedRecently(printKey, 5000) &&
+              typeof global.crozzoComandaPrintedAck === 'function'
+            ) {
+              var mergedSnap =
+                typeof global.__crozzoEmergencyFindComandaById === 'function'
+                  ? global.__crozzoEmergencyFindComandaById(snap.id)
+                  : null;
+              if (mergedSnap) global.crozzoComandaPrintedAck(mergedSnap).catch(function () {});
+            }
+          } catch (_) {}
         }
       }
       return;

@@ -277,8 +277,26 @@
     if (!snap || snap.id == null) return false;
     try {
       if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
-        global.__crozzoEmergencyApplyComandaSnapshot(snap, { source: 'lan_central' });
+        global.__crozzoEmergencyApplyComandaSnapshot(snap, { source: 'lan_central', skipPrint: true });
       }
+      // Obtener la comanda mergeada para usarla en autoprint y cloud push.
+      var merged =
+        typeof global.__crozzoEmergencyFindComandaById === 'function'
+          ? global.__crozzoEmergencyFindComandaById(snap.id)
+          : null;
+      if (!merged && snap.transaction_id && global.comandas) {
+        merged = global.comandas.find(function (x) {
+          return x.transaction_id && String(x.transaction_id) === String(snap.transaction_id);
+        }) || null;
+      }
+      // Intentar autoprint en esta estación (caja central si tiene térmica
+      // de cocina configurada). El broadcast WS que viene a continuación
+      // hará lo mismo en cada tablet de cocina Rol B conectada.
+      try {
+        if (merged && typeof global.crozzoTryAutoPrintComanda === 'function') {
+          global.crozzoTryAutoPrintComanda(merged);
+        }
+      } catch (_) {}
       if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyComandasByIds === 'function') {
         global.CrozzoLanWebSocketBridge.notifyComandasByIds([snap.id]);
       }
@@ -291,10 +309,6 @@
         }
       } catch (_) {}
       if (typeof global.crozzoPushComandaToCloud === 'function') {
-        var merged =
-          typeof global.__crozzoEmergencyFindComandaById === 'function'
-            ? global.__crozzoEmergencyFindComandaById(snap.id)
-            : null;
         global.crozzoPushComandaToCloud(merged || snap).catch(function () {});
       }
       return true;
