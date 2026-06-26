@@ -895,6 +895,44 @@
     return true;
   }
 
+  /**
+   * Reconciliación por AUSENCIA (anti-resurrección / anti-duplicado).
+   *
+   * Tras un pull autoritativo de la nube, una comanda local que YA NO está en el
+   * conjunto activo de la nube fue cobrada/entregada/eliminada en otro equipo (o
+   * hace días). Si además es vieja y NO está pendiente de subir (outbox), se
+   * elimina localmente: así el equipo que vuelve de estar apagado no la resucita,
+   * no la re-comanda ni la vuelve a subir. Lo reciente y lo no confirmado se
+   * conserva (debe subir, no borrarse) — nunca se pierde información en vuelo.
+   */
+  function reconcileStaleLocalComandas(cloudRows) {
+    // Conjuntos de comandas ACTIVAS en la nube (por tid y por id).
+    var activeTids = {};
+    var activeIds = {};
+    (cloudRows || []).forEach(function (r) {
+      if (!r) return;
+      var pay = r.payload || {};
+      var tid = String(pay.transaction_id || r.id || '').trim();
+      if (tid) activeTids[tid] = 1;
+      if (pay.id != null) activeIds[String(pay.id)] = 1;
+      if (r.id != null) activeIds[String(r.id)] = 1;
+    });
+    // Claves pendientes de subir (outbox): NO se deben eliminar (van en vuelo).
+    var pendingKeys = {};
+    Object.keys(__outbox).forEach(function (k) {
+      pendingKeys[String(k)] = 1;
+      var e = __outbox[k];
+      if (e && e.tid) pendingKeys[String(e.tid)] = 1;
+      if (e && e.id != null) pendingKeys[String(e.id)] = 1;
+    });
+    // La eliminación la hace CrozzoPosMain sobre el array REAL de comandas
+    // (evita operar sobre una referencia vieja de global.comandas tras un merge).
+    if (typeof global.crozzoRemoveStaleComandas === 'function') {
+      return global.crozzoRemoveStaleComandas(activeTids, activeIds, pendingKeys, 120000);
+    }
+    return false;
+  }
+
   async function pullComandasFromCloud(opts) {
     if (!tierAllowsCloudRead()) return false;
     var ctx = cloudCtx();
@@ -955,6 +993,15 @@
           }
         }
       } catch (_) {}
+      // Reconciliación por ausencia: solo en pases explícitos (reconexión,
+      // arranque, volver a la pestaña). Limpia comandas viejas ya cobradas que
+      // el tombstone de 45 min no alcanza (p. ej. un equipo que estuvo días
+      // apagado). No corre en cada poll para no arriesgar nada en operación.
+      if (opts && opts.reconcileStale) {
+        try {
+          if (reconcileStaleLocalComandas(rows)) anyChanged = true;
+        } catch (_) {}
+      }
       if (
         anyChanged &&
         (global.currentPage === 'comandas' || global.currentPage === 'cocina')
@@ -1136,7 +1183,9 @@
     loadOutbox();
     if (outboxPending()) scheduleOutboxDrain(300);
 
-    pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
+    // Arranque: pull autoritativo + reconciliación por ausencia (limpia comandas
+    // viejas ya cobradas si el equipo estuvo apagado).
+    pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true, reconcileStale: true }).catch(function () {});
 
     scheduleComandaPull();
     global.setTimeout(function () {
@@ -1209,6 +1258,7 @@
     }
   }
 
+  global.crozzoReconcileStaleLocalComandas = reconcileStaleLocalComandas;
   global.crozzoFanoutComandasByIds = fanoutComandasByIds;
   global.crozzoFanoutComandaEstado = fanoutComandaEstado;
   global.crozzoPushComandaToCloud = pushComanda;

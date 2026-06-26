@@ -611,22 +611,29 @@
     var to = ev && ev.detail && ev.detail.to;
     if (to !== 'cloud') return;
     refreshCloudTransports();
-    // Al recuperar nube, re-publicar el estado local (mesas/carritos) además de
-    // bajarlo: así ningún equipo queda con datos que nunca llegaron a la nube.
-    if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_tier');
     if (__activePage) {
       setTimeout(function () {
-        initialPass(__activePage, pri().isNavPage(__activePage)).catch(function () {});
+        // PULL primero (baja y reconcilia el estado autoritativo de la nube),
+        // y SOLO DESPUÉS re-publicar. Así un equipo que vuelve de estar offline
+        // no sube su estado viejo (mesas ya cobradas) y resucita datos.
+        initialPass(__activePage, pri().isNavPage(__activePage))
+          .then(function () {
+            if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_tier');
+          })
+          .catch(function () {});
       }, 600);
     }
   });
 
   global.addEventListener('online', function () {
     refreshCloudTransports();
-    if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_online');
     if (__activePage) {
       setTimeout(function () {
-        initialPass(__activePage, pri().isNavPage(__activePage)).catch(function () {});
+        initialPass(__activePage, pri().isNavPage(__activePage))
+          .then(function () {
+            if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_online');
+          })
+          .catch(function () {});
       }, 800);
     }
   });

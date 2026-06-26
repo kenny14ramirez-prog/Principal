@@ -6905,13 +6905,30 @@ function crozzoCartMapHasConsumo(lines) {
     return pending > 0 || sent > 0 || crozzoIsRecentLocalCartEdit(l);
   });
 }
+/**
+ * ¿Este slot fue editado AQUÍ hace poco (ventana corta)? Solo en ese caso se
+ * protege del estado remoto. Antes se protegía cualquier carrito con ítems
+ * comandados "para siempre", lo que IMPEDÍA que se propagaran borrados, cobros
+ * y vaciados hechos en otro equipo (la mesa quedaba pegada). Como cada edición
+ * local se empuja al instante, una ventana corta basta para no perder lo propio
+ * sin bloquear los cambios autoritativos de los demás.
+ */
+function crozzoCartMapHasRecentLocalEdit(lines, maxMs) {
+  if (!Array.isArray(lines) || !lines.length) return false;
+  return lines.some(function (l) {
+    return l && crozzoIsRecentLocalCartEdit(l, maxMs);
+  });
+}
 function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
   opts = opts || {};
   const out = opts.remoteAuthoritative ? {} : { ...(local || {}) };
   if (opts.remoteAuthoritative && local && typeof local === 'object') {
     Object.keys(local).forEach(function (ref) {
       const localLines = local[ref];
-      if (!crozzoCartMapHasConsumo(localLines)) return;
+      // Solo protegemos del vaciado remoto si lo editamos AQUÍ hace muy poco
+      // (aún podría no estar empujado). Si no, el estado remoto manda y el
+      // vaciado/cobro hecho en otro equipo se aplica (la mesa se libera).
+      if (!crozzoCartMapHasRecentLocalEdit(localLines)) return;
       const remoteLines = remote && remote[ref];
       const remoteEmpty = !Array.isArray(remoteLines) || !remoteLines.length;
       if (remoteEmpty) out[ref] = localLines;
@@ -6942,11 +6959,16 @@ function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
     const localLines = local && local[ref];
     const localScore = crozzoCartConsumoScore(localLines);
     const remoteScore = crozzoCartConsumoScore(lines);
-    if (localScore > 0 && (remoteScore <= 0 || remoteScore < localScore)) {
+    const editadoAqui = crozzoCartMapHasRecentLocalEdit(localLines);
+    // Anti-pérdida de ediciones locales recientes: si lo tocamos AQUÍ hace poco
+    // y el remoto trae menos (borrado en otro equipo aún no reflejado aquí),
+    // fusionamos. Si NO lo editamos aquí, el remoto manda → el borrado/cobro de
+    // otro equipo se propaga (antes quedaba bloqueado y la mesa no se vaciaba).
+    if (editadoAqui && localScore > 0 && (remoteScore <= 0 || remoteScore < localScore)) {
       out[ref] = crozzoMergeCloudCartWithLocalEdits(out[ref] || localLines || [], lines);
       return;
     }
-    if (!lines.length && crozzoCartMapHasConsumo(out[ref] || local?.[ref])) {
+    if (!lines.length && crozzoCartMapHasRecentLocalEdit(out[ref] || local?.[ref])) {
       out[ref] = out[ref] || local[ref];
       return;
     }
@@ -7460,6 +7482,21 @@ function applyPosRuntimeSnapshot(s, opts) {
     s.comandasOrderByArea && typeof s.comandasOrderByArea === 'object' ? s.comandasOrderByArea : comandasOrderByArea;
   nextComandaId = Number.isFinite(s.nextComandaId) ? s.nextComandaId : nextComandaId;
   closedSlots = s.closedSlots && typeof s.closedSlots === 'object' ? s.closedSlots : closedSlots;
+  // Cobro remoto: si un slot quedó cerrado (pagado) en otro equipo, liberar su
+  // carrito aquí para que la mesa NO quede pegada. No se toca si lo estamos
+  // reabriendo/editando aquí mismo (edición local reciente).
+  if (opts && opts.skipUiFields && closedSlots && typeof closedSlots === 'object') {
+    ['mesa', 'llevar'].forEach(function (tipo) {
+      const bag = closedSlots[tipo] || {};
+      const map = tipo === 'mesa' ? cartsPorMesa : cartsPorLlevar;
+      Object.keys(bag).forEach(function (ref) {
+        if (!bag[ref]) return;
+        if (Array.isArray(map[ref]) && map[ref].length && !crozzoCartMapHasRecentLocalEdit(map[ref])) {
+          map[ref] = [];
+        }
+      });
+    });
+  }
   crozzoMigrateLegacySlotLocksOnLoad();
   let preserveActiveSession = null;
   if (opts && opts.skipUiFields) {
@@ -7811,7 +7848,7 @@ if (typeof window !== 'undefined' && !window.__crozzoRuntimeListeners) {
               crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
             }
             if (typeof crozzoPullComandasFromCloud === 'function') {
-              crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true }).catch(function () {});
+              crozzoPullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true, reconcileStale: true }).catch(function () {});
             }
           }
         } catch (_) {}
@@ -21214,6 +21251,79 @@ function crozzoReconcileAllSlotCartsFromComandas() {
   return changed;
 }
 window.crozzoReconcileAllSlotCartsFromComandas = crozzoReconcileAllSlotCartsFromComandas;
+/**
+ * Reconciliación por AUSENCIA sobre el array REAL de comandas.
+ *
+ * Una comanda local activa que YA NO está en el conjunto activo de la nube fue
+ * cobrada/entregada/eliminada en otro equipo (o hace días, si este equipo
+ * estuvo apagado). Si además es vieja y NO está pendiente de subir (outbox), se
+ * elimina aquí para no resucitarla, no re-comandarla ni volver a subirla.
+ * Lo reciente y lo no confirmado (en vuelo) se conserva → no se pierde nada.
+ */
+function crozzoRemoveStaleComandas(activeTids, activeIds, pendingKeys, graceMs) {
+  if (!Array.isArray(comandas) || !comandas.length) return false;
+  activeTids = activeTids || {};
+  activeIds = activeIds || {};
+  pendingKeys = pendingKeys || {};
+  const GRACE_MS = Number(graceMs) > 0 ? Number(graceMs) : 120000;
+  const now = Date.now();
+  const keep = [];
+  let removed = 0;
+  for (let i = 0; i < comandas.length; i++) {
+    const c = comandas[i];
+    if (!c) continue;
+    if (c.estado === 'entregada') {
+      keep.push(c);
+      continue;
+    }
+    const tid = String(c.transaction_id || '').trim();
+    const idStr = String(c.id);
+    // Sigue activa en la nube → conservar.
+    if ((tid && activeTids[tid]) || activeIds[idStr]) {
+      keep.push(c);
+      continue;
+    }
+    // Muy reciente (podría no haber llegado aún a la nube) → conservar.
+    const createdAt = Date.parse(c.createdAt || c.lastUpdateAt || 0) || 0;
+    const updAt = Date.parse(c.lastUpdateAt || 0) || 0;
+    if ((createdAt && now - createdAt < GRACE_MS) || (updAt && now - updAt < GRACE_MS)) {
+      keep.push(c);
+      continue;
+    }
+    // Pendiente de subir (outbox) → conservar (debe subir, no borrarse).
+    if ((tid && pendingKeys[tid]) || pendingKeys[idStr]) {
+      keep.push(c);
+      continue;
+    }
+    // Ausente de la nube + vieja + no pendiente → ya no existe. Eliminar.
+    removed++;
+    try {
+      if (typeof crozzoArchiveComandaToHistory === 'function') {
+        crozzoArchiveComandaToHistory(c, 'sync_obsoleta');
+      }
+    } catch (_) {}
+  }
+  if (!removed) return false;
+  comandas = keep;
+  if (typeof window !== 'undefined') window.comandas = comandas;
+  try {
+    if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+  } catch (_) {}
+  try {
+    if (
+      typeof currentPage !== 'undefined' &&
+      ['cajero', 'tablets', 'comandas', 'cocina', 'mesas'].indexOf(currentPage) >= 0 &&
+      typeof crozzoScheduleOperationalPageRefresh === 'function'
+    ) {
+      crozzoScheduleOperationalPageRefresh(currentPage);
+    }
+  } catch (_) {}
+  try {
+    console.log('[crozzo] comandas obsoletas eliminadas (ausentes en nube):', removed);
+  } catch (_) {}
+  return true;
+}
+window.crozzoRemoveStaleComandas = crozzoRemoveStaleComandas;
 /** Otro dispositivo eliminó/despachó la comanda — quitar local sin re-fanout. */
 function crozzoApplyComandaRemovedFromRemote(meta) {
   meta = meta || {};

@@ -75,13 +75,14 @@
         if (sq && sq.pushed) pushed += Number(sq.pushed) || 0;
       } catch (_) {}
     }
-    if (typeof global.crozzoPushComandasCloudByIds === 'function' && global.comandas && global.comandas.length) {
+    // Antes se re-empujaban TODAS las comandas locales aquí, lo que podía
+    // RESUCITAR en la nube comandas ya cobradas/eliminadas (un equipo que vuelve
+    // de estar apagado). Ahora solo drenamos el outbox: contiene únicamente las
+    // comandas cuyo envío no se confirmó (las realmente pendientes), nunca las
+    // ya entregadas. Lo obsoleto se limpia en el pull con reconcileStale.
+    if (typeof global.crozzoFlushComandaOutbox === 'function') {
       try {
-        var ids = [];
-        for (var i = 0; i < global.comandas.length && ids.length < 80; i++) {
-          if (global.comandas[i] && global.comandas[i].id != null) ids.push(global.comandas[i].id);
-        }
-        if (ids.length) global.crozzoPushComandasCloudByIds(ids);
+        global.crozzoFlushComandaOutbox();
       } catch (_) {}
     }
     if (global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.drainPendingOnce === 'function') {
@@ -113,7 +114,9 @@
     }
     if (typeof global.crozzoPullComandasFromCloud === 'function') {
       try {
-        if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true })) pulled++;
+        // reconcileStale: al reconectar, limpia comandas locales obsoletas
+        // (ya cobradas/eliminadas en la nube) para no resucitarlas ni duplicarlas.
+        if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: true })) pulled++;
       } catch (_) {}
     }
     if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
