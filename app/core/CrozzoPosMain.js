@@ -21062,6 +21062,13 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   try {
     config.addAudit('comanda_emergencia_p2p', `Comanda #${snap.id} vía mesh`);
   } catch (e1) { /* ignore */ }
+  // Blindaje: que lo comandado aparezca en el carrito del slot para poder cobrar
+  // aunque el runtime (carrito) no haya sincronizado por la nube.
+  try {
+    const _tipo = (ex && ex.tipoServicio) || snap.tipoServicio;
+    const _ref = (ex && ex.referencia) || snap.referencia;
+    if (_tipo && _ref) crozzoReconcileSlotCartFromComandas(_tipo, _ref);
+  } catch (_) {}
   if (!opts.skipPrint) {
     try {
       const merged =
@@ -21089,6 +21096,124 @@ window.__crozzoEmergencyApplyComandaSnapshot = function (snap, opts) {
   } catch (_) {}
   return true;
 };
+/**
+ * BLINDAJE "sí o sí": reconstruye el carrito de un slot a partir de sus comandas.
+ *
+ * Las comandas SIEMPRE sincronizan (tabla `comandas`). El carrito de mesa viaja
+ * por otra tabla (runtime); si esa no sincroniza (tabla ausente, RLS, sede
+ * divergente), caja se quedaba sin lo que cobrar aunque la comanda llegara.
+ * Aquí garantizamos que lo comandado aparezca en el carrito para poder cobrar,
+ * sin depender del runtime. Idempotente: solo agrega lo que falte (compara por
+ * id contra lo que ya hay en el carrito), nunca duplica ni resucita lo cobrado.
+ */
+function crozzoReconcileSlotCartFromComandas(tipoServicio, ref) {
+  tipoServicio = String(tipoServicio || '').trim();
+  ref = String(ref || '').trim();
+  if (!ref || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return false;
+  // No resucitar items de un slot ya cobrado.
+  if (closedSlots && closedSlots[tipoServicio] && closedSlots[tipoServicio][ref]) return false;
+  const activas = (comandas || []).filter(function (c) {
+    return c && c.tipoServicio === tipoServicio && String(c.referencia) === ref && c.estado !== 'entregada';
+  });
+  if (!activas.length) return false;
+  // Comandado agregado por id (las comandas no guardan configSig).
+  const wantById = {};
+  const sampleById = {};
+  activas.forEach(function (c) {
+    (c.items || []).forEach(function (it) {
+      if (!it || it.id == null) return;
+      const id = Number(it.id);
+      if (!Number.isFinite(id)) return;
+      wantById[id] = (wantById[id] || 0) + Math.max(0, Number(it.cantidad) || 0);
+      if (!sampleById[id]) sampleById[id] = it;
+    });
+  });
+  const map = tipoServicio === 'mesa' ? cartsPorMesa : cartsPorLlevar;
+  if (!Array.isArray(map[ref])) map[ref] = [];
+  const cart = map[ref];
+  let changed = false;
+  Object.keys(wantById).forEach(function (idStr) {
+    const id = Number(idStr);
+    const want = wantById[id];
+    if (want <= 0) return;
+    const lines = cart.filter(function (l) {
+      return Number(l.id) === id;
+    });
+    const haveQty = lines.reduce(function (s, l) {
+      return s + Math.max(0, Number(l.cantidad) || 0);
+    }, 0);
+    const haveSent = lines.reduce(function (s, l) {
+      return s + Math.max(0, Number(l.sentCantidad) || 0);
+    }, 0);
+    if (haveQty >= want) {
+      // El carrito ya tiene la cantidad (runtime sí sincronizó): solo asegurar
+      // que lo comandado quede marcado como enviado (no re-comandar de nuevo).
+      if (haveSent < want) {
+        let need = want - haveSent;
+        for (let i = 0; i < lines.length && need > 0; i++) {
+          const room = Math.max(0, (Number(lines[i].cantidad) || 0) - (Number(lines[i].sentCantidad) || 0));
+          const add = Math.min(room, need);
+          if (add > 0) {
+            lines[i].sentCantidad = (Number(lines[i].sentCantidad) || 0) + add;
+            need -= add;
+            changed = true;
+          }
+        }
+      }
+      return;
+    }
+    // Falta cantidad (el runtime no trajo el carrito): reconstruir el faltante.
+    const missing = want - haveQty;
+    const base = sampleById[id] || { id: id };
+    const nueva =
+      typeof crozzoNormalizeCartLine === 'function'
+        ? crozzoNormalizeCartLine(Object.assign({}, base, { cantidad: missing, sentCantidad: missing, configSig: '', notaLinea: '' }))
+        : Object.assign({}, base, { cantidad: missing, sentCantidad: missing });
+    if (nueva) {
+      const hyd =
+        typeof crozzoHydrateRuntimeCartLine === 'function' ? crozzoHydrateRuntimeCartLine(nueva) : nueva;
+      hyd.cantidad = missing;
+      hyd.sentCantidad = missing;
+      hyd._fromComanda = true;
+      cart.push(hyd);
+      changed = true;
+    }
+  });
+  return changed;
+}
+window.crozzoReconcileSlotCartFromComandas = crozzoReconcileSlotCartFromComandas;
+/** Reconcilia el slot actualmente abierto en caja (mesa/llevar). */
+function crozzoReconcileOpenSlotCartFromComandas() {
+  let changed = false;
+  try {
+    if (tipoServicioCaja === 'mesa' && mesaSeleccionada) {
+      changed = crozzoReconcileSlotCartFromComandas('mesa', mesaSeleccionada) || changed;
+    } else if (tipoServicioCaja === 'llevar' && llevarSeleccionado) {
+      changed = crozzoReconcileSlotCartFromComandas('llevar', llevarSeleccionado) || changed;
+    }
+  } catch (_) {}
+  return changed;
+}
+window.crozzoReconcileOpenSlotCartFromComandas = crozzoReconcileOpenSlotCartFromComandas;
+/** Reconcilia TODOS los slots con comandas activas (al bajar comandas de la nube). */
+function crozzoReconcileAllSlotCartsFromComandas() {
+  let changed = false;
+  try {
+    const vistos = {};
+    (comandas || []).forEach(function (c) {
+      if (!c || c.estado === 'entregada') return;
+      if (c.tipoServicio !== 'mesa' && c.tipoServicio !== 'llevar') return;
+      const ref = String(c.referencia || '').trim();
+      if (!ref) return;
+      const k = c.tipoServicio + ':' + ref;
+      if (vistos[k]) return;
+      vistos[k] = 1;
+      if (crozzoReconcileSlotCartFromComandas(c.tipoServicio, ref)) changed = true;
+    });
+  } catch (_) {}
+  return changed;
+}
+window.crozzoReconcileAllSlotCartsFromComandas = crozzoReconcileAllSlotCartsFromComandas;
 /** Otro dispositivo eliminó/despachó la comanda — quitar local sin re-fanout. */
 function crozzoApplyComandaRemovedFromRemote(meta) {
   meta = meta || {};
@@ -21790,13 +21915,30 @@ function selectMesa(mesaId) {
   cajaMesaOrderOpen = true;
   try {
     if (typeof window.crozzoPullPosRuntimeCloud === 'function') {
-      window.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
+      window.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true })
+        .then(function () {
+          // Tras intentar bajar el carrito, garantizar lo comandado desde las
+          // comandas (que sí sincronizan) y repintar si cambió.
+          try {
+            if (crozzoReconcileSlotCartFromComandas('mesa', mesaId) && currentPage === 'cajero') {
+              if (typeof crozzoScheduleOperationalPageRefresh === 'function') {
+                crozzoScheduleOperationalPageRefresh('cajero');
+              }
+            }
+          } catch (_) {}
+        })
+        .catch(function () {});
     }
   } catch (_) {}
   if (!crozzoTryEnterCajaSlot('mesa', mesaId)) {
     cajaMesaOrderOpen = false;
     return;
   }
+  // Reconciliación inmediata (síncrona) para que el carrito muestre lo comandado
+  // al instante aunque el runtime no sincronice.
+  try {
+    crozzoReconcileSlotCartFromComandas('mesa', mesaId);
+  } catch (_) {}
   crozzoCajaMarkOrderOpen('mesa', mesaId);
   try {
     crozzoSyncPosRuntimeCritical('caja_open_mesa');
@@ -21811,10 +21953,28 @@ function selectLlevar(llevarId) {
   }
   llevarSeleccionado = llevarId;
   cajaLlevarOrderOpen = true;
+  try {
+    if (typeof window.crozzoPullPosRuntimeCloud === 'function') {
+      window.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true })
+        .then(function () {
+          try {
+            if (crozzoReconcileSlotCartFromComandas('llevar', llevarId) && currentPage === 'cajero') {
+              if (typeof crozzoScheduleOperationalPageRefresh === 'function') {
+                crozzoScheduleOperationalPageRefresh('cajero');
+              }
+            }
+          } catch (_) {}
+        })
+        .catch(function () {});
+    }
+  } catch (_) {}
   if (!crozzoTryEnterCajaSlot('llevar', llevarId)) {
     cajaLlevarOrderOpen = false;
     return;
   }
+  try {
+    crozzoReconcileSlotCartFromComandas('llevar', llevarId);
+  } catch (_) {}
   crozzoCajaMarkOrderOpen('llevar', llevarId);
   try {
     crozzoSyncPosRuntimeCritical('caja_open_llevar');
@@ -21954,6 +22114,10 @@ function selectTabletMesa(mesaId) {
     tabletOrderOpen = false;
     return;
   }
+  // Blindaje: muestra lo comandado (p. ej. desde caja) aunque el runtime no sincronice.
+  try {
+    crozzoReconcileSlotCartFromComandas('mesa', mesaId);
+  } catch (_) {}
   crozzoSyncPosRuntimeCritical('tablet_open_mesa');
   renderPage('tablets');
 }
@@ -21970,6 +22134,9 @@ function selectTabletLlevar(llevarId) {
     tabletOrderOpen = false;
     return;
   }
+  try {
+    crozzoReconcileSlotCartFromComandas('llevar', llevarId);
+  } catch (_) {}
   crozzoSyncPosRuntimeCritical('tablet_open_llevar');
   renderPage('tablets');
 }
