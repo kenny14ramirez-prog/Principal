@@ -4610,12 +4610,6 @@ function crozzoTryAutoPrintComanda(c) {
   }
   window.__crozzoComandaPrintDedup[keyId] = now;
   if (keyTid) window.__crozzoComandaPrintDedup[keyTid] = now;
-  // Registrar impresión en el tracker global para que otros dispositivos
-  // que reciban la misma comanda sepan que ya fue impresa aquí.
-  if (typeof window.__crozzoComandaMarkPrinted === 'function') {
-    const printKey = c.transaction_id || String(c.id);
-    window.__crozzoComandaMarkPrinted(printKey);
-  }
   if (typeof printComandaNow === 'function') printComandaNow(c.id, true);
 }
 window.crozzoTryAutoPrintComanda = crozzoTryAutoPrintComanda;
@@ -9404,8 +9398,15 @@ function printComandaNow(id, silentMode = false) {
     }
     if (!silentMode) showToast(`🖨️ Comanda #${id} enviada a impresión · ${printer}`, 'info');
     config.addAudit('comanda_impresa', `Comanda #${id} -> ${printer}`);
-    // Notificar al cloud que este dispositivo imprimió esta comanda,
-    // para que otros dispositivos no la reimpriman (anti-duplicado distribuido).
+    // Marcar en el tracker distribuido DESPUÉS de impresión exitosa,
+    // para que otros dispositivos no reimpriman (anti-duplicado distribuido).
+    try {
+      var printKey = (c.transaction_id) ? String(c.transaction_id) : String(c.id);
+      if (printKey && typeof window.__crozzoComandaMarkPrinted === 'function') {
+        window.__crozzoComandaMarkPrinted(printKey);
+      }
+    } catch (_) {}
+    // Notificar al cloud que este dispositivo imprimió esta comanda.
     try {
       if (typeof window.crozzoComandaPrintedAck === 'function') {
         window.crozzoComandaPrintedAck(c).catch(function () {});

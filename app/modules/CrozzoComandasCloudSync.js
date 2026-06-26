@@ -558,7 +558,10 @@
         return false;
       }
     }
-    if (!deviceReceivesComandaArea(pay.areaId)) return false;
+    if (!deviceReceivesComandaArea(pay.areaId)) {
+      try { console.log('[crozzo-rt] comanda descartada por área:', pay.areaId, '— este dispositivo no la recibe'); } catch (_) {}
+      return false;
+    }
     // Si el payload del cloud indica que otro dispositivo ya imprimió esta
     // comanda, registrar en el tracker distribuido local para evitar duplicado.
     if (pay.printed_by && pay.printed_at) {
@@ -775,6 +778,8 @@
 
   function subscribeComandaRealtime(reason) {
     if (!tierAllowsCloudRead()) return;
+    // Si ya hay canal activo y vivo, no destruirlo — evita loop CLOSED.
+    if (__realtimeLive && global.__crozzoComandaCloudCh) return;
     var ctx = cloudCtx();
     if (!tenantIdsReady(ctx)) {
       try {
@@ -783,6 +788,25 @@
       return;
     }
     teardownComandaChannel();
+    // Sanear sesión JWT antes de conectar — evita el loop 401→CLOSED→resub.
+    // crozzoEnsureSupabaseAuthHealthy limpia tokens expirados y vuelve a
+    // la clave anónima si hace falta. La suscripción del canal se hace en
+    // el callback para no bloquear el hilo principal.
+    if (global.__SUPABASE && typeof global.crozzoEnsureSupabaseAuthHealthy === 'function') {
+      global.crozzoEnsureSupabaseAuthHealthy(global.__SUPABASE).then(function () {
+        _doSubscribeComandaRealtime(reason);
+      }).catch(function () {
+        _doSubscribeComandaRealtime(reason);
+      });
+      return;
+    }
+    _doSubscribeComandaRealtime(reason);
+  }
+
+  function _doSubscribeComandaRealtime(reason) {
+    if (!tierAllowsCloudRead()) return;
+    var ctx = cloudCtx();
+    if (!tenantIdsReady(ctx)) return;
     try {
       var bid = String(ctx.businessId || '').trim();
       var chName =
@@ -805,15 +829,14 @@
       updOpts.filter = flt;
       var ch = global.__SUPABASE.channel(chName);
       ch.on('postgres_changes', insOpts, function (payload) {
-        if (
-          payload.new &&
-          applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false })
-        ) {
-          scheduleComandaPageRefresh();
-        }
+        try { console.log('[crozzo-rt] INSERT comanda', payload.new && payload.new.id); } catch (_) {}
+        var applied = !!(payload.new && applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false }));
+        try { console.log('[crozzo-rt] INSERT aplicado:', applied); } catch (_) {}
+        if (applied) scheduleComandaPageRefresh();
       });
       ch.on('postgres_changes', updOpts, function (payload) {
         if (!payload.new) return;
+        try { console.log('[crozzo-rt] UPDATE comanda', payload.new.id, payload.new.status); } catch (_) {}
         var st = String(payload.new.status || (payload.new.payload && payload.new.payload.estado) || '');
         if (st === 'entregada') {
           if (applyComandaRemovedFromCloud(payload.new.payload || {}, payload.new)) {
@@ -821,11 +844,12 @@
           }
           return;
         }
-        if (applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false })) {
-          scheduleComandaPageRefresh();
-        }
+        var applied2 = applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false });
+        try { console.log('[crozzo-rt] UPDATE aplicado:', applied2); } catch (_) {}
+        if (applied2) scheduleComandaPageRefresh();
       });
       ch.subscribe(function (status) {
+        try { console.log('[crozzo-rt] canal estado:', status); } catch (_) {}
         if (status === 'SUBSCRIBED') {
           __realtimeLive = true;
           __rtResubAttempt = 0;
@@ -839,10 +863,7 @@
             return;
           }
           scheduleComandaRealtimeResubscribe(status);
-          if (!global.__crozzoComandaRtErrOnce) {
-            global.__crozzoComandaRtErrOnce = true;
-            console.warn('[crozzo-comanda-cloud] realtime ' + status + (reason ? ' (' + reason + ')' : ''));
-          }
+          console.warn('[crozzo-comanda-cloud] realtime ' + status + (reason ? ' (' + reason + ')' : ''));
         }
       });
       global.__crozzoComandaCloudCh = ch;
@@ -855,7 +876,10 @@
 
   function startComandasCloudSync() {
     if (__started) {
-      subscribeComandaRealtime('refresh');
+      // Si el canal realtime ya está vivo no lo destruir — el teardown
+      // que hace subscribeComandaRealtime generaría un CLOSED innecesario
+      // y reiniciaría el loop que el ConnectivityOrchestrator puede provocar.
+      if (!__realtimeLive) subscribeComandaRealtime('refresh');
       return;
     }
     if (!tierAllowsCloudRead()) {

@@ -1,22 +1,6 @@
 {
-  "updatedAt": "2026-06-26T00:54:45.647Z",
+  "updatedAt": "2026-06-26T01:30:17.272Z",
   "entries": [
-    {
-      "id": "1.0.158-critical",
-      "version": "v1.0.158",
-      "semver": "1.0.158",
-      "type": "critical",
-      "message": "Corrección de impresión de cocina + impresión de precuentas + usos de las mesas (usuario dentro de la mesa) + pantalla parpadea al actualizarse + corrección de precuentas en cocina duplicada.",
-      "publishedAt": "2026-06-20T14:13:25.179Z",
-      "installMode": "auto",
-      "changelog": [
-        "Corrección de impresión de cocina",
-        "impresión de precuentas",
-        "usos de las mesas (usuario dentro de la mesa)",
-        "pantalla parpadea al actualizarse",
-        "corrección de precuentas en cocina duplicada."
-      ]
-    },
     {
       "id": "1.0.159-critical",
       "version": "v1.0.159",
@@ -312,6 +296,18 @@
       "installMode": "auto",
       "changelog": [
         "54485"
+      ]
+    },
+    {
+      "id": "1.0.183-critical",
+      "version": "v1.0.183",
+      "semver": "1.0.183",
+      "type": "critical",
+      "message": "874587",
+      "publishedAt": "2026-06-26T01:30:17.272Z",
+      "installMode": "auto",
+      "changelog": [
+        "874587"
       ]
     }
   ]
