@@ -320,6 +320,20 @@ function crozzoPersistSedeLocationId(loc) {
 }
 window.crozzoEnsureSedeLocationId = crozzoEnsureSedeLocationId;
 window.crozzoCanonicalLocationFromBusiness = crozzoCanonicalLocationFromBusiness;
+/** Fuerza la sede a la canónica del negocio (unifica tablet/caja/cocina en una misma sede). */
+function crozzoForceSedeCanonical() {
+  try {
+    const md = getMultiDeviceConfig();
+    const biz = String(md.businessId || '').trim();
+    const canonical = crozzoCanonicalLocationFromBusiness(biz);
+    if (!canonical) return '';
+    crozzoPersistSedeLocationId(canonical);
+    return canonical;
+  } catch (_) {
+    return '';
+  }
+}
+window.crozzoForceSedeCanonical = crozzoForceSedeCanonical;
 function crozzoIsMobilePhoneUi() {
   try {
     const doc = document.documentElement;
