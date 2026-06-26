@@ -1229,7 +1229,11 @@
         global.crozzoEnsureSedeLocationId();
       } catch (_) {}
     }
-    if (opts.resetTableMissing) __tableMissing = false;
+    if (opts.resetTableMissing) {
+      __tableMissing = false;
+      __mesaMode = null; // re-detectar modo por-mesa tras reparar RLS/tabla
+      __mesaSlotSig = {};
+    }
     if (__started) {
       // No re-suscribir si el canal ya está vivo — el teardown generaría
       // un CLOSED innecesario que corta la sincronización de mesas.

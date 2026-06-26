@@ -1,21 +1,6 @@
 {
-  "updatedAt": "2026-06-26T13:33:48.644Z",
+  "updatedAt": "2026-06-26T14:30:16.803Z",
   "entries": [
-    {
-      "id": "1.0.165-critical",
-      "version": "v1.0.165",
-      "semver": "1.0.165",
-      "type": "critical",
-      "message": "OTA Android intenta actualizar al inicio sin bloquear login + correccion URL APK BONA_origen + permiso HTTP tablet + fail-open si falla instalacion",
-      "publishedAt": "2026-06-20T23:18:58.966Z",
-      "installMode": "auto",
-      "changelog": [
-        "OTA Android intenta actualizar al inicio sin bloquear login",
-        "correccion URL APK BONA_origen",
-        "permiso HTTP tablet",
-        "fail-open si falla instalacion"
-      ]
-    },
     {
       "id": "1.0.166-critical",
       "version": "v1.0.166",
@@ -304,6 +289,18 @@
       "installMode": "auto",
       "changelog": [
         "pruebas de conexion"
+      ]
+    },
+    {
+      "id": "1.0.190-critical",
+      "version": "v1.0.190",
+      "semver": "1.0.190",
+      "type": "critical",
+      "message": "correciones de comunicacion ",
+      "publishedAt": "2026-06-26T14:30:16.803Z",
+      "installMode": "auto",
+      "changelog": [
+        "correciones de comunicacion"
       ]
     }
   ]

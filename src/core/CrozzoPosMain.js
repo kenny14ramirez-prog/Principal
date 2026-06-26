@@ -4620,11 +4620,15 @@ function crozzoDeviceHandlesComandaArea(areaId) {
   return pid === areaId;
 }
 function crozzoShouldDevicePrintComanda(c, areaCfg) {
-  if (!c || !crozzoCanStationPrintComandas()) return false;
+  if (!c) return false;
   if (!getComandasConfig().autoPrint) return false;
-  if (!crozzoComandaHasPrinter(c, areaCfg)) return false;
-  if (crozzoDeviceHandlesComandaArea(c.areaId)) return true;
-  return crozzoStationCanPrintArea(c.areaId);
+  const area = areaCfg || (getComandasConfig().areas || []).find((a) => a.id === c.areaId);
+  if (!crozzoComandaAreaEffectivePrinter(area)) return false;
+  const dev = String(crozzoGetDevicePantallaId() || '').trim();
+  if (dev === 'TODAS') return true;
+  if (dev && dev === String(c.areaId || '')) return true;
+  if (!dev && crozzoCanStationPrintComandas()) return true;
+  return false;
 }
 function crozzoShouldAutoPrintComanda(c, areaCfg, opts) {
   return crozzoShouldDevicePrintComanda(c, areaCfg);

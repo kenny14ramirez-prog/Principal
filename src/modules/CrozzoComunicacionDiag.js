@@ -257,6 +257,28 @@
       }
     }
 
+    // 4c. Modo de escritura de mesas (sede = destructivo entre equipos)
+    var modeSt = safe(function () {
+      return typeof global.crozzoRuntimeRealtimeStatus === 'function' ? global.crozzoRuntimeRealtimeStatus() : null;
+    }, null) || {};
+    if (onlineReady()) {
+      if (modeSt.mode === 'mesa') {
+        rows.push(row('modo-mesas', 'Modo de mesas (escritura)', 'ok', 'Por-mesa: cada mesa es un registro independiente. Comandar desde varios equipos NO se pisa.'));
+      } else if (modeSt.mode === 'sede') {
+        rows.push(
+          row(
+            'modo-mesas',
+            'Modo de mesas (escritura)',
+            'fail',
+            'Modo SEDE (un solo registro para toda la sede): el último equipo que guarda PISA lo de los demás. Por eso al comandar desde tablet, caja no ve los items (y viceversa) y no puedes cobrar. Causa: la tabla crozzo_mesa_runtime no acepta escritura (RLS/401) o no existe.',
+            'Ejecute el script "9. REPARAR comunicación en vivo" (Super Admin → Nube → SQL): crea crozzo_mesa_runtime con permisos y Realtime, lo que activa el modo por-mesa NO destructivo. Luego pulse "Reparar automáticamente".'
+          )
+        );
+      } else {
+        rows.push(row('modo-mesas', 'Modo de mesas (escritura)', 'warn', 'Modo de mesas aún sin determinar (' + (modeSt.mode || '?') + '). Si persiste, ejecute el script "9. REPARAR comunicación en vivo".'));
+      }
+    }
+
     // 5. Tiempo real P0 (canal Realtime instantáneo: mesas + comandas)
     var rtRun = safe(function () {
       return typeof global.crozzoRuntimeRealtimeStatus === 'function' ? global.crozzoRuntimeRealtimeStatus() : null;
