@@ -1347,6 +1347,17 @@
   global.crozzoPosRuntimeCloudMode = function () {
     return __mesaMode === true ? 'mesa' : __mesaMode === false ? 'sede' : 'desconocido';
   };
+  global.crozzoRuntimeRealtimeStatus = function () {
+    return {
+      live: __realtimeLive,
+      hasChannel: !!__pgCh,
+      lastEventAt: __lastRtEventAt,
+      lastEventAgoMs: __lastRtEventAt ? Date.now() - __lastRtEventAt : null,
+      started: __started,
+      tableMissing: __tableMissing,
+      mode: __mesaMode === true ? 'mesa' : __mesaMode === false ? 'sede' : 'desconocido',
+    };
+  };
   // Funciones puras expuestas para pruebas (extraccion/reconstruccion por mesa).
   global.__crozzoRuntimeMesaInternals = {
     mesaRowsFromSnap: mesaRowsFromSnap,

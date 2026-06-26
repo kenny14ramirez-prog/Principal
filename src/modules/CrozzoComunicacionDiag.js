@@ -257,21 +257,51 @@
       }
     }
 
-    // 5. Sincronización viva
-    var rtLive = safe(function () {
-      return typeof global.crozzoPosRuntimeCloudIsLive === 'function' && global.crozzoPosRuntimeCloudIsLive();
-    }, false);
-    var rtMode = safe(function () {
-      return typeof global.crozzoPosRuntimeCloudMode === 'function' ? global.crozzoPosRuntimeCloudMode() : '?';
-    }, '?');
-    var comCh = !!global.__crozzoComandaCloudCh;
+    // 5. Tiempo real P0 (canal Realtime instantáneo: mesas + comandas)
+    var rtRun = safe(function () {
+      return typeof global.crozzoRuntimeRealtimeStatus === 'function' ? global.crozzoRuntimeRealtimeStatus() : null;
+    }, null) || {};
+    var rtCom = safe(function () {
+      return typeof global.crozzoComandaRealtimeStatus === 'function' ? global.crozzoComandaRealtimeStatus() : null;
+    }, null) || {};
+    var ageTxt = function (ms) {
+      if (ms == null) return 'sin eventos aún';
+      var s = Math.round(ms / 1000);
+      return 'último evento hace ' + (s < 60 ? s + 's' : Math.round(s / 60) + 'min');
+    };
+    var runLive = !!rtRun.live;
+    var comLive = !!rtCom.live;
+    var mesaTxt = runLive
+      ? 'EN VIVO (' + ageTxt(rtRun.lastEventAgoMs) + ', modo ' + (rtRun.mode || '?') + ')'
+      : rtRun.hasChannel
+      ? 'canal abierto pero NO confirmado (solo respaldo)'
+      : 'sin canal (solo respaldo cada ~2.5s)';
+    var comTxt = comLive
+      ? 'EN VIVO (' + ageTxt(rtCom.lastEventAgoMs) + ')'
+      : rtCom.hasChannel
+      ? 'canal abierto pero NO confirmado (solo respaldo)'
+      : 'sin canal (solo respaldo cada ~4s)';
+    var bothLive = runLive && comLive;
+    var pg = safe(function () {
+      return global.CrozzoPageCloudWatch && global.CrozzoPageCloudWatch.getActivePage
+        ? global.CrozzoPageCloudWatch.getActivePage()
+        : '';
+    }, '');
+    var pgPri = safe(function () {
+      return global.CrozzoCloudSyncPriorities && pg
+        ? global.CrozzoCloudSyncPriorities.priorityLabel(global.CrozzoCloudSyncPriorities.getPagePriority(pg))
+        : '';
+    }, '');
     rows.push(
       row(
         'sync',
-        'Sincronización activa',
-        rtLive || comCh ? 'ok' : onlineReady() ? 'warn' : 'warn',
-        'Mesas: ' + (rtLive ? 'activa (modo ' + rtMode + ')' : 'inactiva') + ' · Comandas: ' + (comCh ? 'canal abierto' : 'sin canal') + '.',
-        rtLive || comCh ? '' : 'Pulse "Reparar automáticamente" para reiniciar la sincronización.'
+        'Tiempo real P0 (instantáneo)',
+        bothLive ? 'ok' : onlineReady() ? 'fail' : 'warn',
+        'Mesas→caja: ' + mesaTxt + ' · Comandas→cocina: ' + comTxt + '.' +
+          (pg ? ' Pantalla actual: ' + pg + (pgPri ? ' [' + pgPri + ']' : '') + '.' : ''),
+        bothLive
+          ? ''
+          : 'Si NO está EN VIVO, el dato llega por respaldo lento (se siente "no en tiempo real"). Causa típica: Realtime no habilitado en la tabla en Supabase. Ejecute el script "9. REPARAR comunicación en vivo" (Super Admin → Nube → SQL) que habilita Realtime, y pulse "Reparar automáticamente".'
       )
     );
 

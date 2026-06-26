@@ -1044,4 +1044,13 @@
   global.crozzoStartComandasCloudSync = startComandasCloudSync;
   global.crozzoStopComandasCloudSync = stopComandasCloudSync;
   global.crozzoComandaPrintedAck = pushComandaPrintedAck;
+  global.crozzoComandaRealtimeStatus = function () {
+    return {
+      live: __realtimeLive,
+      hasChannel: !!global.__crozzoComandaCloudCh,
+      lastEventAt: __lastRtEventAt,
+      lastEventAgoMs: __lastRtEventAt ? Date.now() - __lastRtEventAt : null,
+      started: __started,
+    };
+  };
 })(typeof window !== 'undefined' ? window : globalThis);
