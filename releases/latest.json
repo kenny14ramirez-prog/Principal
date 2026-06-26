@@ -1,29 +1,16 @@
 {
-  "id": "1.0.187-critical",
-  "version": "v1.0.187",
-  "semver": "1.0.187",
+  "id": "1.0.188-critical",
+  "version": "v1.0.188",
+  "semver": "1.0.188",
   "type": "critical",
-  "message": "456987",
-  "publishedAt": "2026-06-26T03:40:32.561Z",
+  "message": "14525",
+  "publishedAt": "2026-06-26T04:07:12.075Z",
   "installMode": "auto",
   "changelog": [
-    "456987"
+    "14525"
   ],
-  "updatedAt": "2026-06-26T03:40:32.561Z",
+  "updatedAt": "2026-06-26T04:07:12.075Z",
   "entries": [
-    {
-      "id": "1.0.163-critical",
-      "version": "v1.0.163",
-      "semver": "1.0.163",
-      "type": "critical",
-      "message": "12563 + 1236",
-      "publishedAt": "2026-06-20T22:34:00.994Z",
-      "installMode": "auto",
-      "changelog": [
-        "12563",
-        "1236"
-      ]
-    },
     {
       "id": "1.0.164-critical",
       "version": "v1.0.164",
@@ -315,6 +302,18 @@
       "installMode": "auto",
       "changelog": [
         "456987"
+      ]
+    },
+    {
+      "id": "1.0.188-critical",
+      "version": "v1.0.188",
+      "semver": "1.0.188",
+      "type": "critical",
+      "message": "14525",
+      "publishedAt": "2026-06-26T04:07:12.075Z",
+      "installMode": "auto",
+      "changelog": [
+        "14525"
       ]
     }
   ]

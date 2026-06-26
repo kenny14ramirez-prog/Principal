@@ -441,9 +441,108 @@
     'end $$;\n\n' +
     'notify pgrst, \'reload schema\';\n';
 
+  var COMUNICACION_REPAIR_SQL =
+    '-- ============================================================\n' +
+    '-- Crozzo POS — REPARAR comunicacion en vivo (mesas -> caja + comandas)\n' +
+    '-- Crea/repara tablas + POLITICAS DE ESCRITURA (RLS) + Realtime.\n' +
+    '-- Idempotente: ejecutar las veces que haga falta sin romper nada.\n' +
+    '-- Ejecutar UNA vez en Supabase; aplica para TODOS los dispositivos.\n' +
+    '-- ============================================================\n\n' +
+    '-- 1) Estado operativo por sede (mesas/carritos en vivo)\n' +
+    'create table if not exists public.crozzo_sede_runtime (\n' +
+    '  location_id text primary key,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  saved_at timestamptz not null default now(),\n' +
+    '  source_device_id text,\n' +
+    '  source_role text,\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_sede_runtime_business\n' +
+    '  on public.crozzo_sede_runtime (business_id);\n\n' +
+    'alter table public.crozzo_sede_runtime enable row level security;\n' +
+    'drop policy if exists crozzo_sede_runtime_all on public.crozzo_sede_runtime;\n' +
+    'create policy crozzo_sede_runtime_all on public.crozzo_sede_runtime\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_publication_tables\n' +
+    '    where pubname = \'supabase_realtime\' and schemaname = \'public\'\n' +
+    '      and tablename = \'crozzo_sede_runtime\'\n' +
+    '  ) then\n' +
+    '    alter publication supabase_realtime add table public.crozzo_sede_runtime;\n' +
+    '  end if;\n' +
+    'end $$;\n\n' +
+    '-- 2) Runtime por mesa/slot (escala a muchas tablets sin pisarse)\n' +
+    'create table if not exists public.crozzo_mesa_runtime (\n' +
+    '  location_id text not null default \'default\',\n' +
+    '  kind text not null,\n' +
+    '  ref text not null,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  source_device_id text,\n' +
+    '  source_role text,\n' +
+    '  updated_at timestamptz not null default now(),\n' +
+    '  primary key (location_id, kind, ref)\n' +
+    ');\n\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_loc on public.crozzo_mesa_runtime (location_id);\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_business on public.crozzo_mesa_runtime (business_id);\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_updated on public.crozzo_mesa_runtime (updated_at);\n\n' +
+    'alter table public.crozzo_mesa_runtime enable row level security;\n' +
+    'drop policy if exists crozzo_mesa_runtime_all on public.crozzo_mesa_runtime;\n' +
+    'create policy crozzo_mesa_runtime_all on public.crozzo_mesa_runtime\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_publication_tables\n' +
+    '    where pubname = \'supabase_realtime\' and schemaname = \'public\'\n' +
+    '      and tablename = \'crozzo_mesa_runtime\'\n' +
+    '  ) then\n' +
+    '    alter publication supabase_realtime add table public.crozzo_mesa_runtime;\n' +
+    '  end if;\n' +
+    'end $$;\n\n' +
+    '-- 3) Comandas a cocina (si la tabla no existe la crea)\n' +
+    'create table if not exists public.comandas (\n' +
+    '  id uuid primary key,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  location_id text not null default \'default\',\n' +
+    '  device_id uuid,\n' +
+    '  status text not null default \'pendiente\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n\n' +
+    'create index if not exists idx_comandas_tenant on public.comandas (business_id, location_id, status);\n' +
+    'create index if not exists idx_comandas_updated on public.comandas (updated_at desc);\n\n' +
+    'alter table public.comandas enable row level security;\n' +
+    'drop policy if exists comandas_all on public.comandas;\n' +
+    'create policy comandas_all on public.comandas\n' +
+    '  for all using (true) with check (true);\n\n' +
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_publication_tables\n' +
+    '    where pubname = \'supabase_realtime\' and schemaname = \'public\'\n' +
+    '      and tablename = \'comandas\'\n' +
+    '  ) then\n' +
+    '    alter publication supabase_realtime add table public.comandas;\n' +
+    '  end if;\n' +
+    'end $$;\n\n' +
+    'notify pgrst, \'reload schema\';\n';
+
   global.CrozzoSupabaseSqlExtras = {
     list: function () {
       return [
+        {
+          key: 'comunicacion_repair',
+          file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',
+          title: '9. REPARAR comunicación en vivo (mesas→caja + comandas)',
+          desc: 'EJECUTE ESTE si la comanda no llega a caja o no se guarda la mesa. Crea/arregla tablas + permisos de escritura + Realtime. Una vez, sirve para todos los dispositivos.',
+          required: true,
+          order: 9,
+          sql: COMUNICACION_REPAIR_SQL,
+        },
         {
           key: 'pos_runtime',
           file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',

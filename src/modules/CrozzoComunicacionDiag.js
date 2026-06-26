@@ -234,6 +234,27 @@
       } else {
         rows.push(row('comandas', 'Comandas a cocina (nube)', 'warn', 'No se pudo verificar la tabla de comandas: ' + (com.msg || 'error transitorio') + '.'));
       }
+
+      // 4b. Escritura real (RLS puede permitir leer pero bloquear guardar)
+      if (typeof global.crozzoPushPosRuntimeCloudNow === 'function' && best.state === 'ok') {
+        var wrote = false;
+        try {
+          wrote = await global.crozzoPushPosRuntimeCloudNow();
+        } catch (_) {}
+        if (wrote) {
+          rows.push(row('escritura', 'Guardado en la nube (escritura)', 'ok', 'Este equipo SÍ puede guardar la mesa/cuenta en la nube.'));
+        } else {
+          rows.push(
+            row(
+              'escritura',
+              'Guardado en la nube (escritura)',
+              'fail',
+              'Este equipo puede LEER pero NO logró GUARDAR en la nube. Por eso lo que se comanda no llega a caja.',
+              'Casi siempre es RLS de escritura: ejecute el script "10. Runtime sede" (incluye políticas de escritura) y verifique que la sede coincide en todos los equipos.'
+            )
+          );
+        }
+      }
     }
 
     // 5. Sincronización viva
