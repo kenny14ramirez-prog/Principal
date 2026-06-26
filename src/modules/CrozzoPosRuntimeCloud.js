@@ -249,6 +249,7 @@
       cajaLlevarOrderOpen: !!full.cajaLlevarOrderOpen,
       closedSlots: full.closedSlots,
       comandaSlotLocks: full.comandaSlotLocks,
+      slotSessionPresence: full.slotSessionPresence,
     };
     var cps = full.clientePorSlot;
     if (cps && typeof cps === 'object') {
@@ -361,6 +362,7 @@
       cajaLlevarOrderOpen: pay.cajaLlevarOrderOpen,
       closedSlots: pay.closedSlots,
       comandaSlotLocks: pay.comandaSlotLocks,
+      slotSessionPresence: pay.slotSessionPresence,
       clientePorSlot: pay.clientePorSlot,
       descuentosPorSlot: pay.descuentosPorSlot,
       descuentoDirecto: pay.descuentoDirecto,
@@ -452,6 +454,29 @@
             .join(',');
         })
         .join(';');
+      var presence = snap.slotSessionPresence || {};
+      var presS = ['mesa', 'llevar']
+        .map(function (tipo) {
+          var bag = presence[tipo] || {};
+          return Object.keys(bag)
+            .sort()
+            .map(function (ref) {
+              var peers = bag[ref] || {};
+              return (
+                ref +
+                '=' +
+                Object.keys(peers)
+                  .sort()
+                  .map(function (devId) {
+                    var p = peers[devId];
+                    return devId + '@' + String((p && p.userName) || '');
+                  })
+                  .join('+')
+              );
+            })
+            .join(',');
+        })
+        .join(';');
       var closed = snap.closedSlots || {};
       var closedS = ['mesa', 'llevar']
         .map(function (tipo) {
@@ -469,6 +494,8 @@
         (snap.cartDirecto || []).length +
         '||l' +
         lockS +
+        '||p' +
+        presS +
         '||c' +
         closedS +
         '||a' +

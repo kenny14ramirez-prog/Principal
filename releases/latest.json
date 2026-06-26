@@ -1,30 +1,16 @@
 {
-  "id": "1.0.180-critical",
-  "version": "v1.0.180",
-  "semver": "1.0.180",
+  "id": "1.0.181-critical",
+  "version": "v1.0.181",
+  "semver": "1.0.181",
   "type": "critical",
-  "message": "58965",
-  "publishedAt": "2026-06-25T23:28:31.292Z",
+  "message": "2562",
+  "publishedAt": "2026-06-26T00:00:24.795Z",
   "installMode": "auto",
   "changelog": [
-    "58965"
+    "2562"
   ],
-  "updatedAt": "2026-06-25T23:28:31.292Z",
+  "updatedAt": "2026-06-26T00:00:24.795Z",
   "entries": [
-    {
-      "id": "1.0.156-critical",
-      "version": "v1.0.156",
-      "semver": "1.0.156",
-      "type": "critical",
-      "message": "correcion de menu de actualizaciones + correcion de estado de actualizaciones + mejora del menu de apk",
-      "publishedAt": "2026-06-20T13:32:01.756Z",
-      "installMode": "auto",
-      "changelog": [
-        "correcion de menu de actualizaciones",
-        "correcion de estado de actualizaciones",
-        "mejora del menu de apk"
-      ]
-    },
     {
       "id": "1.0.157-optional",
       "version": "v1.0.157",
@@ -325,6 +311,18 @@
       "installMode": "auto",
       "changelog": [
         "58965"
+      ]
+    },
+    {
+      "id": "1.0.181-critical",
+      "version": "v1.0.181",
+      "semver": "1.0.181",
+      "type": "critical",
+      "message": "2562",
+      "publishedAt": "2026-06-26T00:00:24.795Z",
+      "installMode": "auto",
+      "changelog": [
+        "2562"
       ]
     }
   ]
