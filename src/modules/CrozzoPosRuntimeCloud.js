@@ -836,6 +836,10 @@
     var base = null;
     var maxAt = 0;
     var carts = { mesa: {}, llevar: {}, directo: [] };
+    // Timestamp por slot (updated_at de su fila): permite al receptor decidir si
+    // un slot VACÍO remoto es un vaciado AUTORITATIVO más nuevo (caja borró/
+    // liquidó/movió) que debe aplicarse, vs un dato viejo que no debe pisar.
+    var slotTs = {};
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
       var at = Date.parse(r.updated_at || 0) || 0;
@@ -845,8 +849,10 @@
         base = r.payload && typeof r.payload === 'object' ? r.payload : {};
       } else if (r.kind === 'mesa') {
         carts.mesa[r.ref] = Array.isArray(lines) ? lines : [];
+        slotTs['mesa:' + r.ref] = at;
       } else if (r.kind === 'llevar') {
         carts.llevar[r.ref] = Array.isArray(lines) ? lines : [];
+        slotTs['llevar:' + r.ref] = at;
       } else if (r.kind === 'directo') {
         carts.directo = Array.isArray(lines) ? lines : [];
       }
@@ -857,6 +863,7 @@
     base.cartsPorLlevar = expandCartsMap(carts.llevar);
     base.cartDirecto = expandCartLines(carts.directo);
     base.savedAt = Number(base.savedAt) || maxAt || Date.now();
+    base._slotUpdatedAt = slotTs;
     return { snap: base, savedAt: base.savedAt };
   }
 
@@ -884,6 +891,36 @@
   async function pushMesaRows(snap, c) {
     var sb = global.__SUPABASE;
     var rows = mesaRowsFromSnap(snap, c);
+    // VACIADO AUTORITATIVO: una mesa/llevar que ANTES empujamos (está en
+    // __mesaSlotSig) y que YA NO aparece en el snap (caja la borró/liquidó/movió/
+    // dividió/juntó) debe escribirse como fila VACÍA en la nube, con timestamp
+    // fresco. Sin esto, su fila quedaba con los ítems viejos y los demás equipos
+    // seguían viendo la mesa ocupada. Se hace una sola vez (luego su firma ya es
+    // vacía y no se repite).
+    var emptySig = JSON.stringify({ lines: [] });
+    var presentKeys = {};
+    for (var ri = 0; ri < rows.length; ri++) {
+      presentKeys[rows[ri].kind + ':' + rows[ri].ref] = 1;
+    }
+    var nowIso = new Date().toISOString();
+    Object.keys(__mesaSlotSig).forEach(function (key) {
+      if (presentKeys[key]) return;
+      var parts = key.split(':');
+      var kind = parts[0];
+      if (kind !== 'mesa' && kind !== 'llevar') return;
+      if (__mesaSlotSig[key] === emptySig) return; // ya está vacía en la nube
+      var ref = parts.slice(1).join(':');
+      rows.push({
+        location_id: c.locationId,
+        business_id: c.businessId,
+        kind: kind,
+        ref: ref,
+        payload: { lines: [] },
+        source_device_id: c.deviceId,
+        source_role: c.role,
+        updated_at: nowIso,
+      });
+    });
     var toUpsert = [];
     for (var i = 0; i < rows.length; i++) {
       var key = rows[i].kind + ':' + rows[i].ref;
@@ -1152,6 +1189,7 @@
     if (!row) return false;
     var pay = row.payload || row.payload_json;
     if (!pay || typeof pay !== 'object') { console.warn('[runtime-cloud] applyRemoteRow: payload inválido', row); return false; }
+    var slotTs = pay._slotUpdatedAt || null; // timestamp por slot (modo por-mesa)
     pay = unpackForApply(pay);
     var remoteAt = Number(pay.savedAt) || Date.parse(row.saved_at || row.updated_at || 0) || 0;
     if (!remoteAt) { console.warn('[runtime-cloud] applyRemoteRow: sin timestamp remoto'); return false; }
@@ -1199,7 +1237,7 @@
     var myDev = ctx().deviceId;
     if (srcDev && myDev && srcDev === myDev && sameContent && remoteAt <= localSavedAt() + 500) return false;
     if (typeof global.applyPosRuntimeSnapshot !== 'function') return false;
-    var ok = global.applyPosRuntimeSnapshot(pay, { skipUiFields: true });
+    var ok = global.applyPosRuntimeSnapshot(pay, { skipUiFields: true, slotUpdatedAt: slotTs });
     if (!ok) return false;
     __lastRemoteAt = remoteAt;
     __lastAppliedContentSig = contentSig;

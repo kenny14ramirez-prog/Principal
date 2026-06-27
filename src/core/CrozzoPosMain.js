@@ -6931,6 +6931,23 @@ function crozzoCartMapHasRecentLocalEdit(lines, maxMs) {
 function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
   opts = opts || {};
   const out = opts.remoteAuthoritative ? {} : { ...(local || {}) };
+  const __slotTs = opts.slotUpdatedAt || null;
+  const __tipo = opts.cartTipo || (protectRef && protectRef.tipo) || 'mesa';
+  // ¿El VACIADO remoto de este slot es AUTORITATIVO (más nuevo que la edición
+  // local)? Solo con timestamps por-slot (modo por-mesa). Permite que caja
+  // borre/liquide/mueva/divida/junte una mesa y se propague el vaciado, sin
+  // pisar una edición que ESTE equipo haya hecho después.
+  function remoteClearIsAuthoritative(ref, localLines) {
+    if (!__slotTs) return false;
+    const ts = Number(__slotTs[__tipo + ':' + String(ref)]) || 0;
+    if (!ts) return false;
+    let localEdit = 0;
+    (localLines || []).forEach(function (l) {
+      const t = Number(l && l.__crozzoLocalEdit) || 0;
+      if (t > localEdit) localEdit = t;
+    });
+    return ts > localEdit + 250;
+  }
   if (opts.remoteAuthoritative && local && typeof local === 'object') {
     Object.keys(local).forEach(function (ref) {
       const localLines = local[ref];
@@ -6969,6 +6986,13 @@ function crozzoReplaceCartsMaps(local, remote, protectRef, opts) {
       return;
     }
     const localLines = local && local[ref];
+    // VACIADO AUTORITATIVO: si el remoto trae el slot VACÍO con timestamp más
+    // nuevo que la edición local, es un borrado/liquidación/movimiento real de
+    // otro equipo → limpiar aquí (override de la protección de consumo).
+    if (!lines.length && remoteClearIsAuthoritative(ref, localLines)) {
+      out[ref] = [];
+      return;
+    }
     const localScore = crozzoCartConsumoScore(localLines);
     const remoteScore = crozzoCartConsumoScore(lines);
     // Anti-pérdida: si el local tiene más consumo que el remoto, fusionamos en
@@ -7443,12 +7467,13 @@ function applyPosRuntimeSnapshot(s, opts) {
             }
           : null
       : null;
+  const __slotTs = opts && opts.slotUpdatedAt ? opts.slotUpdatedAt : null;
   if (opts && opts.skipUiFields && s.cartsPorMesa && typeof s.cartsPorMesa === 'object') {
     cartsPorMesa = crozzoReplaceCartsMaps(
       cartsPorMesa,
       s.cartsPorMesa,
       protectCartRef && protectCartRef.tipo === 'mesa' ? protectCartRef : null,
-      { remoteAuthoritative: true, cartTipo: 'mesa' }
+      { remoteAuthoritative: true, cartTipo: 'mesa', slotUpdatedAt: __slotTs }
     );
   } else if (s.cartsPorMesa && typeof s.cartsPorMesa === 'object') {
     cartsPorMesa = s.cartsPorMesa;
@@ -7458,7 +7483,7 @@ function applyPosRuntimeSnapshot(s, opts) {
       cartsPorLlevar,
       s.cartsPorLlevar,
       protectCartRef && protectCartRef.tipo === 'llevar' ? protectCartRef : null,
-      { remoteAuthoritative: true, cartTipo: 'llevar' }
+      { remoteAuthoritative: true, cartTipo: 'llevar', slotUpdatedAt: __slotTs }
     );
   } else if (s.cartsPorLlevar && typeof s.cartsPorLlevar === 'object') {
     cartsPorLlevar = s.cartsPorLlevar;
