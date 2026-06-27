@@ -23,6 +23,7 @@ commands.allow = [
   "crozzo_lan_sync_status",
   "crozzo_lan_sync_drain_pending",
   "crozzo_lan_sync_health",
+  "crozzo_lan_sync_post",
 ]
 
 [[permission]]

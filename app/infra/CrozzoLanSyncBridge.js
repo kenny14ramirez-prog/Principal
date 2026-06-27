@@ -91,6 +91,59 @@
     return h;
   };
 
+  /** POST /api/sync — caja Tauri usa invoke nativo (sin CORS); tablets vía HTTP. */
+  async function postLanSync(payload, opts) {
+    opts = opts || {};
+    if (!payload || typeof payload !== 'object') return false;
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    if (isDesktopTauri() && md.role === 'A') {
+      try {
+        var j = await invoke('crozzo_lan_sync_post', { body: JSON.stringify(payload) });
+        return !!(j && j.ok !== false);
+      } catch (e) {
+        try {
+          console.warn('[lan-sync] post nativo', e);
+        } catch (_) {}
+      }
+    }
+    var host = md.role === 'A' ? '127.0.0.1' : String(md.centralIp || '').trim();
+    if (!host) {
+      try {
+        host = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+      } catch (_) {}
+    }
+    if (!host) return false;
+    var port = Number(md.port) || 3000;
+    var timeout = Number(opts.timeoutMs) || 5500;
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = controller ? global.setTimeout(function () { controller.abort(); }, timeout) : null;
+    try {
+      var res = await global.fetch('http://' + host + ':' + port + '/api/sync', {
+        method: 'POST',
+        headers:
+          typeof global.crozzoLanAuthHeaders === 'function'
+            ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+            : { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller ? controller.signal : undefined,
+      });
+      if (timer) global.clearTimeout(timer);
+      if (!res.ok) {
+        if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
+        return false;
+      }
+      var jr = await res.json().catch(function () {
+        return null;
+      });
+      return !!(jr && jr.ok !== false);
+    } catch (_) {
+      if (timer) global.clearTimeout(timer);
+      if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
+      return false;
+    }
+  }
+  global.crozzoLanPostSync = postLanSync;
+
   function readSupabaseForLan() {
     try {
       if (typeof global.crozzoResolveSupabaseCredentials === 'function') {

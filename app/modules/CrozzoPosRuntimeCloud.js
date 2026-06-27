@@ -689,11 +689,29 @@
   }
 
   async function pushRuntimeLan(snap) {
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    var c = ctx();
+    var body = {
+      uuid: 'rt_' + String(snap.savedAt || Date.now()),
+      businessId: c.businessId,
+      deviceId: c.deviceId,
+      type: 'runtime',
+      data: snap,
+    };
+    if (typeof global.crozzoLanPostSync === 'function') {
+      try {
+        var okNative = await global.crozzoLanPostSync(body, { timeoutMs: 5000 });
+        if (okNative) {
+          __echoUntil = Date.now() + ECHO_MS;
+          __lastPushSig = payloadSig(snap);
+          __lastPushAt = Date.now();
+          return true;
+        }
+      } catch (_) {}
+    }
     var host = lanCentralHost();
     if (!host) return false;
-    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     var port = Number(md.port) || 3000;
-    var c = ctx();
     var controller = new AbortController();
     var t = global.setTimeout(function () {
       controller.abort();
@@ -705,13 +723,7 @@
         headers: (typeof global.crozzoLanAuthHeaders === 'function'
           ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
           : { 'Content-Type': 'application/json', Accept: 'application/json' }),
-        body: JSON.stringify({
-          uuid: 'rt_' + String(snap.savedAt || Date.now()),
-          businessId: c.businessId,
-          deviceId: c.deviceId,
-          type: 'runtime',
-          data: snap,
-        }),
+        body: JSON.stringify(body),
       });
       global.clearTimeout(t);
       if (!res.ok) return false;
@@ -1515,6 +1527,11 @@
         return false;
       }
       if (!online()) return false;
+      if (opts.restartRealtime && typeof global.crozzoStopComandasCloudSync === 'function') {
+        try {
+          global.crozzoStopComandasCloudSync();
+        } catch (_) {}
+      }
       var wait = 0;
       while (wait < 8 && typeof global.crozzoStartPosRuntimeCloudSync !== 'function') {
         await new Promise(function (r) {

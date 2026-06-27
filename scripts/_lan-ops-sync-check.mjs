@@ -84,7 +84,8 @@ assert(existsSync(srcOps), 'Sync src', 'CrozzoLanOpsSync en src/ (npm run sync)'
 // Compatibilidad con flujo existente (no roto)
 mustInclude('app/modules/CrozzoComandasCloudSync.js', ['pushComandaLan', 'outboxEnqueue', 'deferLocalCloudSync'], 'Comandas cloud intacto');
 mustInclude('app/infra/CrozzoReconnectSync.js', ['reconcileStale: true', 'crozzoFlushComandaOutbox'], 'Reconnect intacto');
-mustInclude('app/infra/CrozzoLanSyncBridge.js', ['tryApplyLanComanda', 'crozzoPushComandaToCloud'], 'LAN bridge puente nube');
+mustInclude('app/infra/CrozzoLanSyncBridge.js', ['tryApplyLanComanda', 'crozzoPushComandaToCloud', 'crozzoLanPostSync'], 'LAN bridge puente nube');
+mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', ['crozzo_lan_sync_post', 'ingest_api_sync'], 'Rust post LAN nativo');
 
 try {
   execSync('cargo check -q', { cwd: join(root, 'src-tauri'), stdio: 'pipe' });

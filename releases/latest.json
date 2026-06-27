@@ -1,28 +1,16 @@
 {
-  "id": "1.0.199-critical",
-  "version": "v1.0.199",
-  "semver": "1.0.199",
+  "id": "1.0.200-critical",
+  "version": "v1.0.200",
+  "semver": "1.0.200",
   "type": "critical",
-  "message": "conxecion v8",
-  "publishedAt": "2026-06-27T19:28:04.379Z",
+  "message": "2",
+  "publishedAt": "2026-06-27T20:01:31.348Z",
   "installMode": "auto",
   "changelog": [
-    "conxecion v8"
+    "2"
   ],
-  "updatedAt": "2026-06-27T19:28:04.379Z",
+  "updatedAt": "2026-06-27T20:01:31.348Z",
   "entries": [
-    {
-      "id": "1.0.175-critical",
-      "version": "v1.0.175",
-      "semver": "1.0.175",
-      "type": "critical",
-      "message": "123654",
-      "publishedAt": "2026-06-25T14:20:01.300Z",
-      "installMode": "auto",
-      "changelog": [
-        "123654"
-      ]
-    },
     {
       "id": "1.0.176-critical",
       "version": "v1.0.176",
@@ -310,6 +298,18 @@
       "installMode": "auto",
       "changelog": [
         "conxecion v8"
+      ]
+    },
+    {
+      "id": "1.0.200-critical",
+      "version": "v1.0.200",
+      "semver": "1.0.200",
+      "type": "critical",
+      "message": "2",
+      "publishedAt": "2026-06-27T20:01:31.348Z",
+      "installMode": "auto",
+      "changelog": [
+        "2"
       ]
     }
   ]

@@ -309,6 +309,81 @@ fn mesh_ping_json(meta: &ServerMeta, port: u16) -> Vec<u8> {
     serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec())
 }
 
+/// Aplica POST /api/sync en memoria (cola + WS). Usado por HTTP y por invoke IPC
+/// de la caja (evita CORS tauri.localhost → 127.0.0.1).
+fn ingest_api_sync(
+    state: &Arc<Mutex<Option<ServerInner>>>,
+    payload: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let endpoint = "/api/sync".to_string();
+    let is_runtime = payload
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|t| t == "runtime")
+        .unwrap_or(false);
+    let is_pulse = payload
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|t| t == "lan_ops_pulse")
+        .unwrap_or(false);
+    if is_pulse {
+        if let Ok(txt) = serde_json::to_string(&payload.get("data").cloned().unwrap_or(payload.clone())) {
+            let wrapped = format!("{{\"event\":\"lan_ops_pulse\",\"payload\":{}}}", txt);
+            let _ = crozzo_lan_ws::broadcast_text(&wrapped);
+        }
+        return Ok(serde_json::json!({ "ok": true, "pulse": true }));
+    }
+    if is_runtime {
+        if let Some(data) = payload.get("data") {
+            let mut guard = state.lock().map_err(|e| e.to_string())?;
+            if let Some(inner) = guard.as_mut() {
+                inner.runtime_snapshot = Some(data.clone());
+                inner.runtime_saved_at = now_ms();
+            }
+        }
+        if let Ok(txt) = serde_json::to_string(&serde_json::json!({
+            "event": "lan_push",
+            "endpoint": endpoint,
+            "payload": payload
+        })) {
+            let _ = crozzo_lan_ws::broadcast_text(&txt);
+        }
+        return Ok(serde_json::json!({ "ok": true, "runtime": true }));
+    }
+    {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        if let Some(inner) = guard.as_mut() {
+            upsert_comanda_snapshot(inner, &payload);
+        }
+    }
+    if let Ok(txt) = serde_json::to_string(&serde_json::json!({
+        "event": "lan_push",
+        "endpoint": endpoint,
+        "payload": payload
+    })) {
+        let _ = crozzo_lan_ws::broadcast_text(&txt);
+    }
+    let sub = CrozzoLanSyncSubmission {
+        id: format!("lan_{}_{}", now_ms(), rand_suffix()),
+        received_at: now_ms(),
+        endpoint: endpoint.clone(),
+        payload: payload.clone(),
+    };
+    {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        if let Some(inner) = guard.as_mut() {
+            inner.pending.push(sub.clone());
+            if inner.pending.len() > PENDING_MAX {
+                let overflow = inner.pending.len() - PENDING_MAX;
+                inner.pending.drain(0..overflow);
+            }
+            let path = inner.pending_path.clone();
+            save_pending(&path, &inner.pending);
+        }
+    }
+    Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true }))
+}
+
 fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<ServerInner>>>) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(8)));
     let mut buf = vec![0u8; 65536];
@@ -561,82 +636,22 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                     return;
                 }
             };
-            let is_runtime = payload
-                .get("type")
-                .and_then(|t| t.as_str())
-                .map(|t| t == "runtime")
-                .unwrap_or(false);
-            let is_pulse = payload
-                .get("type")
-                .and_then(|t| t.as_str())
-                .map(|t| t == "lan_ops_pulse")
-                .unwrap_or(false);
-            if is_pulse {
-                if let Ok(txt) = serde_json::to_string(&payload.get("data").cloned().unwrap_or(payload.clone())) {
-                    let wrapped = format!("{{\"event\":\"lan_ops_pulse\",\"payload\":{}}}", txt);
-                    let _ = crozzo_lan_ws::broadcast_text(&wrapped);
+            match ingest_api_sync(&state, payload) {
+                Ok(resp) => {
+                    let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
+                    let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
                 }
-                let resp = serde_json::json!({ "ok": true, "pulse": true });
-                let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
-                let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
-                return;
-            }
-            if is_runtime {
-                if let Some(data) = payload.get("data") {
-                    let mut guard = state.lock().unwrap();
-                    if let Some(inner) = guard.as_mut() {
-                        inner.runtime_snapshot = Some(data.clone());
-                        inner.runtime_saved_at = now_ms();
-                    }
-                }
-                if let Ok(txt) = serde_json::to_string(&serde_json::json!({
-                    "event": "lan_push",
-                    "endpoint": endpoint,
-                    "payload": payload
-                })) {
-                    let _ = crozzo_lan_ws::broadcast_text(&txt);
-                }
-                let resp = serde_json::json!({ "ok": true, "runtime": true });
-                let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
-                let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
-                return;
-            }
-            {
-                let mut guard = state.lock().unwrap();
-                if let Some(inner) = guard.as_mut() {
-                    upsert_comanda_snapshot(inner, &payload);
+                Err(err) => {
+                    let msg = format!("{{\"ok\":false,\"error\":\"{}\"}}", err.replace('"', "'"));
+                    let _ = write_http_response(
+                        &mut stream,
+                        503,
+                        "Service Unavailable",
+                        "application/json",
+                        msg.as_bytes(),
+                    );
                 }
             }
-            if let Ok(txt) = serde_json::to_string(&serde_json::json!({
-                "event": "lan_push",
-                "endpoint": endpoint,
-                "payload": payload
-            })) {
-                let _ = crozzo_lan_ws::broadcast_text(&txt);
-            }
-            let sub = CrozzoLanSyncSubmission {
-                id: format!("lan_{}_{}", now_ms(), rand_suffix()),
-                received_at: now_ms(),
-                endpoint,
-                payload,
-            };
-            // Persistir ANTES de responder ok → la tablet recibe un ACK durable
-            // (no se pierde si la caja se reinicia).
-            {
-                let mut guard = state.lock().unwrap();
-                if let Some(inner) = guard.as_mut() {
-                    inner.pending.push(sub.clone());
-                    if inner.pending.len() > PENDING_MAX {
-                        let overflow = inner.pending.len() - PENDING_MAX;
-                        inner.pending.drain(0..overflow);
-                    }
-                    let path = inner.pending_path.clone();
-                    save_pending(&path, &inner.pending);
-                }
-            }
-            let resp = serde_json::json!({ "ok": true, "id": sub.id, "durable": true });
-            let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
-            let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
             return;
         }
     }
@@ -898,4 +913,12 @@ pub fn crozzo_lan_sync_health() -> Result<serde_json::Value, String> {
             "service": "crozzo-lan-sync"
         })),
     }
+}
+
+/// Escritura LAN desde el WebView de la caja (IPC nativo, sin CORS HTTP).
+#[tauri::command]
+pub fn crozzo_lan_sync_post(body: String) -> Result<serde_json::Value, String> {
+    let payload: serde_json::Value =
+        serde_json::from_str(body.trim()).map_err(|e| format!("invalid_json: {}", e))?;
+    ingest_api_sync(shared_state(), payload)
 }

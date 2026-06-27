@@ -157,6 +157,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_health,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_sync_server::crozzo_lan_sync_post,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_hotspot::crozzo_hotspot_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_hotspot::crozzo_hotspot_stop,

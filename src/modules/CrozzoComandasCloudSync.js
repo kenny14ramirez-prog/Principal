@@ -518,6 +518,12 @@
     try {
       var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       var timer = controller ? global.setTimeout(function () { controller.abort(); }, 5500) : null;
+      if (typeof global.crozzoLanPostSync === 'function') {
+        var okLan = await global.crozzoLanPostSync(body, { timeoutMs: 5500 });
+        if (timer) global.clearTimeout(timer);
+        if (!okLan && typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
+        return okLan;
+      }
       var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
         method: 'POST',
         headers: (typeof global.crozzoLanAuthHeaders === 'function'
