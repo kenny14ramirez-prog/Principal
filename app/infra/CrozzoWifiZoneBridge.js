@@ -225,7 +225,11 @@
     try {
       tier = String(global.__CROZZO_TIER_LAST || '');
     } catch (_) {}
-    if (tier === 'cloud') {
+    var tierInfo = null;
+    try {
+      tierInfo = global.__CROZZO_LAST_TIER_INFO || null;
+    } catch (_) {}
+    if (tier === 'cloud' && !(tierInfo && (tierInfo.cloudPingFailed || tierInfo.cloudDegraded))) {
       // Nube sana: no escaneamos la caja (evita carga inutil sobre el servidor LAN
       // con muchas tablets); el descubrimiento se reactiva si la nube cae.
       __degraded = false;

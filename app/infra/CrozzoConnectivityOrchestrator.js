@@ -446,12 +446,23 @@
     return typeof global.crozzoCloudFirstSyncEnabled === 'function' && global.crozzoCloudFirstSyncEnabled();
   }
 
+  function lanEvidenceForLevel(level, info) {
+    info = info || __lastDetectInfo || {};
+    if (level === 'lan' || level === 'hotspot') return true;
+    var dt = String(__state.detectorTier || '');
+    if (dt === 'lan' || dt === 'hotspot') return true;
+    if (info.lanReach === true || info.gwReach === true) return true;
+    if (info.cloudPingFailed || info.cloudDegraded) return true;
+    return false;
+  }
+
   function applyLevel(level) {
     // Reinicia banderas de transporte; se vuelven a fijar segun el nivel activo.
     __state.transports = { cloud: false, lan: false, hotspot: false, mesh: false, qr: false };
 
-    // Fase 1 — nube full: con internet (Wi‑Fi o datos) solo Supabase; LAN/malla en fase 2.
-    if (cloudFirstMode() && wanUp() && cloudCredentialsReady()) {
+    // Fase 1 — nube full mientras Supabase responde. Si el detector degradó a LAN
+    // (Wi‑Fi local sin internet/DB), activar puente local aunque haya WAN aparente.
+    if (cloudFirstMode() && wanUp() && cloudCredentialsReady() && !lanEvidenceForLevel(level, __lastDetectInfo)) {
       guideLevelOnce('cloud');
       ensureCloud();
       if (shouldSurfaceQrNow(__state.detectorTier || 'cloud', __lastDetectInfo)) {

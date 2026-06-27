@@ -33006,7 +33006,7 @@ async function crozzoResolveCloudTierInfo(setLast, extra) {
       }
     } catch (_) {}
   }
-  if (window.__SUPABASE) {
+  if (window.__SUPABASE && !extra.cloudPingFailed) {
     setLast('cloud');
     return {
       tier: 'cloud',
@@ -33240,9 +33240,28 @@ async function detectConnectivityTier() {
         cloudPingFailed: true,
       };
     }
+    // Tablet B sin IP fija: reintentar descubrimiento antes de declarar solo-nube/offline.
+    if (md.role === 'B' && md.allowLan !== false) {
+      const rediscover = await crozzoProbeLocalLanReachable(md, { timeoutMs: 4500, forceDiscover: true });
+      if (rediscover.ok) {
+        setLast('lan');
+        return {
+          tier: 'lan',
+          reason: 'Caja localizada en la red — operando por LAN sin nube',
+          ...wanExtra,
+          cloudDegraded: true,
+          cloudPingFailed: true,
+          lanDiscovered: true,
+        };
+      }
+    }
     // Fase nube-first: sin LAN, insistir en Supabase antes de malla.
     if (cloudFirst) {
-      const resolved = await crozzoResolveCloudTierInfo(setLast, { ...wanExtra, wanOnline: wanLikely || navOnline });
+      const resolved = await crozzoResolveCloudTierInfo(setLast, {
+        ...wanExtra,
+        wanOnline: wanLikely || navOnline,
+        cloudPingFailed: true,
+      });
       if (resolved) return resolved;
     }
   }
@@ -33339,7 +33358,7 @@ async function detectConnectivityTier() {
   } catch (e) {
     /* ignore */
   }
-  if (cloudFirst && sbUrl && sbKey && wanLikely) {
+  if (cloudFirst && sbUrl && sbKey && wanLikely && !lanReach && !gwReach) {
     const resolvedLate = await crozzoResolveCloudTierInfo(setLast, {
       hotspotUi,
       lanReach,

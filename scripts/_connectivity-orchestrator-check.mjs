@@ -291,6 +291,30 @@ async function orchestratorTests() {
   assert(h.spies['wifiStartWatch'] >= 1, 'LAN vigila caja', 'startWatch');
   assert((h.spies['reconnect'] || 0) === reconnectBefore, 'Sin reconnect al degradar', 'cloud->lan no resincroniza');
 
+  // Cloud-first + Wi‑Fi aparente sin Supabase: tier LAN debe levantar puente local.
+  const hCf = makeSandbox();
+  const cCf = hCf.ctx;
+  cCf.crozzoCloudFirstSyncEnabled = () => true;
+  cCf.crozzoOnlineConfigReady = () => true;
+  cCf.crozzoWanLikely = () => true;
+  cCf.crozzoWanOnline = () => true;
+  cCf.__SUPABASE = {};
+  cCf.detectConnectivityTier = () =>
+    Promise.resolve({ tier: 'lan', reason: 'DB caida LAN ok', lanReach: true, cloudPingFailed: true });
+  cCf.getMultiDeviceConfig = () => ({ role: 'A' });
+  cCf.CrozzoWifiZoneBridge = { startWatch: hCf.spy('wifiCf') };
+  cCf.CrozzoLanWebSocketBridge = { afterMainInit: hCf.spy('lanWsCf') };
+  cCf.CrozzoLanSyncBridge = { afterMainInit: hCf.spy('lanBridgeCf'), syncFromConfig: () => Promise.resolve() };
+  cCf.CrozzoLanOpsSync = { afterMainInit: hCf.spy('lanOpsCf') };
+  cCf.crozzoStartPosRuntimeCloudSync = hCf.spy('startRuntimeCf');
+  hCf.load('app/infra/CrozzoConnectivityOrchestrator.js');
+  await cCf.CrozzoConnectivityOrchestrator.evaluateNow();
+  await flush();
+  const stCf = cCf.CrozzoConnectivityOrchestrator.getState();
+  assert(stCf.level === 'lan', 'Cloud-first respeta LAN', stCf.level);
+  assert(stCf.transports.lan === true, 'Cloud-first activa transporte LAN', 'lan=true');
+  assert(stCf.transports.cloud === false, 'Cloud-first no bloquea LAN', 'cloud=false');
+
   // Recuperacion: lan -> cloud debe disparar reconnect (escalonado por setTimeout)
   tier = 'cloud';
   await O.evaluateNow();

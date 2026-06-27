@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-27T17:09:55.926Z",
+  "updatedAt": "2026-06-27T19:06:43.244Z",
   "entries": [
-    {
-      "id": "1.0.173-critical",
-      "version": "v1.0.173",
-      "semver": "1.0.173",
-      "type": "critical",
-      "message": "12312",
-      "publishedAt": "2026-06-23T17:15:16.935Z",
-      "installMode": "auto",
-      "changelog": [
-        "12312"
-      ]
-    },
     {
       "id": "1.0.174-critical",
       "version": "v1.0.174",
@@ -299,6 +287,19 @@
       "installMode": "auto",
       "changelog": [
         "actualizacion del cemonucaciones v2"
+      ]
+    },
+    {
+      "id": "1.0.198-critical",
+      "version": "v1.0.198",
+      "semver": "1.0.198",
+      "type": "critical",
+      "message": "parche de coneciones v4 + actualizacion de reconocimiento wifi",
+      "publishedAt": "2026-06-27T19:06:43.244Z",
+      "installMode": "auto",
+      "changelog": [
+        "parche de coneciones v4",
+        "actualizacion de reconocimiento wifi"
       ]
     }
   ]
