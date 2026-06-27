@@ -63,6 +63,13 @@
   function applyLanPush(msg) {
     if (!msg || !msg.payload) return;
     var raw = msg.payload;
+    if (msg.event === 'lan_ops_pulse' || raw.event === 'lan_ops_pulse') {
+      var pulse = raw.kind ? raw : raw.data || raw;
+      if (typeof global.__crozzoLanOpsHandlePulse === 'function') {
+        global.__crozzoLanOpsHandlePulse(pulse);
+      }
+      return;
+    }
     var typ = String(raw.type || '').toLowerCase();
     if (typ === 'runtime') {
       var snap = raw.data || raw.payload || raw;
@@ -180,6 +187,12 @@
   function onMessage(ev) {
     try {
       var msg = JSON.parse(ev.data);
+      if (msg && msg.event === 'lan_ops_pulse') {
+        if (typeof global.__crozzoLanOpsHandlePulse === 'function') {
+          global.__crozzoLanOpsHandlePulse(msg.payload || msg);
+        }
+        return;
+      }
       if (msg && msg.event === 'lan_push') {
         applyLanPush(msg);
         return;
@@ -353,22 +366,55 @@
     }
   }
 
+  function postComandaToCentralStore(c) {
+    if (!c || c.id == null) return Promise.resolve(false);
+    var cfg = md();
+    var host = cfg.role === 'A' ? '127.0.0.1' : String(cfg.centralIp || '').trim();
+    if (!host) return Promise.resolve(false);
+    var port = Number(cfg.port) || 3000;
+    try {
+      return global
+        .fetch('http://' + host + ':' + port + '/api/sync', {
+          method: 'POST',
+          headers:
+            typeof global.crozzoLanAuthHeaders === 'function'
+              ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+              : { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            uuid: String(c.transaction_id || c.id),
+            type: 'comanda',
+            data: c,
+          }),
+        })
+        .then(function (res) {
+          return !!(res && res.ok);
+        })
+        .catch(function () {
+          return false;
+        });
+    } catch (_) {
+      return Promise.resolve(false);
+    }
+  }
+
   function notifyComandasByIds(ids) {
     if (!Array.isArray(ids) || !ids.length) return;
     var cfg = md();
-    if (cfg.role !== 'A') return;
     ids.forEach(function (id) {
       var c =
         typeof global.__crozzoEmergencyFindComandaById === 'function'
           ? global.__crozzoEmergencyFindComandaById(id)
           : null;
       if (!c) return;
+      if (cfg.role === 'A') {
+        postComandaToCentralStore(c).catch(function () {});
+      }
       var body = JSON.stringify({
         event: 'lan_push',
         endpoint: '/api/sync',
         payload: { type: 'comanda', data: c },
       });
-      if (isDesktopTauri()) {
+      if (isDesktopTauri() && cfg.role === 'A') {
         invoke('crozzo_lan_ws_broadcast', { json: body }).catch(function () {});
       }
     });
@@ -378,17 +424,21 @@
     if (!comanda) return;
     var cfg = md();
     if (cfg.role !== 'A') return;
+    var pay = {
+      id: comanda.id,
+      transaction_id: comanda.transaction_id,
+      estado: estado || comanda.estado,
+      lastUpdateAt: new Date().toISOString(),
+    };
+    postComandaToCentralStore(
+      Object.assign({}, comanda, { estado: pay.estado, lastUpdateAt: pay.lastUpdateAt })
+    ).catch(function () {});
     var body = JSON.stringify({
       event: 'lan_push',
       endpoint: '/api/sync',
       payload: {
         type: 'comanda_estado',
-        data: {
-          id: comanda.id,
-          transaction_id: comanda.transaction_id,
-          estado: estado || comanda.estado,
-          lastUpdateAt: new Date().toISOString(),
-        },
+        data: pay,
       },
     });
     if (isDesktopTauri()) {

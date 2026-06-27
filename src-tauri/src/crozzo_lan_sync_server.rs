@@ -70,6 +70,8 @@ struct ServerInner {
     in_flight: HashMap<String, u128>,
     runtime_snapshot: Option<serde_json::Value>,
     runtime_saved_at: String,
+    /// Comandas activas en LAN (id → payload) para GET /api/comandas.
+    comandas_active: HashMap<String, serde_json::Value>,
     p2p_signals: Vec<P2pSignalMsg>,
     /// Secreto compartido del pareo. Vacío = sin exigir auth (compatibilidad).
     auth_token: String,
@@ -211,6 +213,72 @@ fn normalize_api_path(path: &str) -> Option<String> {
 fn prune_old_signals(signals: &mut Vec<P2pSignalMsg>) {
     let cutoff = now_ms().parse::<u128>().unwrap_or(0).saturating_sub(300_000);
     signals.retain(|s| s.at_ms.parse::<u128>().unwrap_or(0) >= cutoff);
+}
+
+fn comanda_store_key(payload: &serde_json::Value) -> Option<String> {
+    let data = payload.get("data").unwrap_or(payload);
+    if let Some(tid) = data.get("transaction_id").and_then(|v| v.as_str()) {
+        let t = tid.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    if let Some(id) = data.get("id") {
+        return Some(id.to_string());
+    }
+    None
+}
+
+fn upsert_comanda_snapshot(inner: &mut ServerInner, payload: &serde_json::Value) {
+    let typ = payload
+        .get("type")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let data = payload.get("data").cloned().unwrap_or_else(|| payload.clone());
+    if typ == "comanda_estado" {
+        let est = data
+            .get("estado")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if est == "entregada" {
+            if let Some(k) = comanda_store_key(payload) {
+                inner.comandas_active.remove(&k);
+            }
+            return;
+        }
+        if let Some(k) = comanda_store_key(payload) {
+            if let Some(existing) = inner.comandas_active.get_mut(&k) {
+                if let Some(obj) = existing.as_object_mut() {
+                    if let Some(estado) = data.get("estado") {
+                        obj.insert("estado".into(), estado.clone());
+                    }
+                    if let Some(lu) = data.get("lastUpdateAt") {
+                        obj.insert("lastUpdateAt".into(), lu.clone());
+                    }
+                }
+            }
+        }
+        return;
+    }
+    if typ == "comanda" || typ == "comanda_new" {
+        if let Some(k) = comanda_store_key(payload) {
+            inner.comandas_active.insert(k, data);
+            if inner.comandas_active.len() > 800 {
+                let overflow = inner.comandas_active.len() - 800;
+                let keys: Vec<String> = inner
+                    .comandas_active
+                    .keys()
+                    .take(overflow)
+                    .cloned()
+                    .collect();
+                for rk in keys {
+                    inner.comandas_active.remove(&rk);
+                }
+            }
+        }
+    }
 }
 
 fn query_param(path: &str, key: &str) -> Option<String> {
@@ -372,6 +440,25 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
         return;
     }
 
+    if method == "GET" && (path == "/api/comandas" || path.starts_with("/api/comandas?")) {
+        let rows: Vec<serde_json::Value> = {
+            let guard = state.lock().unwrap();
+            match guard.as_ref() {
+                Some(inner) => inner.comandas_active.values().cloned().collect(),
+                None => Vec::new(),
+            }
+        };
+        let resp = serde_json::json!({
+            "ok": true,
+            "comandas": rows,
+            "count": rows.len(),
+            "saved_at": now_ms()
+        });
+        let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"comandas\":[]}".to_vec());
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        return;
+    }
+
     if method == "GET" && (path == "/api/runtime" || path.starts_with("/api/runtime?")) {
         let (snap, saved) = {
             let guard = state.lock().unwrap();
@@ -476,6 +563,21 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                 .and_then(|t| t.as_str())
                 .map(|t| t == "runtime")
                 .unwrap_or(false);
+            let is_pulse = payload
+                .get("type")
+                .and_then(|t| t.as_str())
+                .map(|t| t == "lan_ops_pulse")
+                .unwrap_or(false);
+            if is_pulse {
+                if let Ok(txt) = serde_json::to_string(&payload.get("data").cloned().unwrap_or(payload.clone())) {
+                    let wrapped = format!("{{\"event\":\"lan_ops_pulse\",\"payload\":{}}}", txt);
+                    let _ = crozzo_lan_ws::broadcast_text(&wrapped);
+                }
+                let resp = serde_json::json!({ "ok": true, "pulse": true });
+                let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
+                let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+                return;
+            }
             if is_runtime {
                 if let Some(data) = payload.get("data") {
                     let mut guard = state.lock().unwrap();
@@ -495,6 +597,12 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                 let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
                 let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
                 return;
+            }
+            {
+                let mut guard = state.lock().unwrap();
+                if let Some(inner) = guard.as_mut() {
+                    upsert_comanda_snapshot(inner, &payload);
+                }
             }
             if let Ok(txt) = serde_json::to_string(&serde_json::json!({
                 "event": "lan_push",
@@ -612,6 +720,7 @@ pub fn crozzo_lan_sync_start(
             in_flight: HashMap::new(),
             runtime_snapshot: None,
             runtime_saved_at: String::new(),
+            comandas_active: HashMap::new(),
             p2p_signals: Vec::new(),
             auth_token: auth_token.unwrap_or_default().trim().to_string(),
             pending_path,

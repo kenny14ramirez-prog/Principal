@@ -2450,8 +2450,14 @@ html.tauri-shell #sidebar.open.crozzo-drawer-nav {
 html.tauri-shell body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   z-index: 10050 !important;
   pointer-events: auto !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 html.tauri-shell body.crozzo-sidebar-drawer-open .app-container {
   overflow: visible !important;
@@ -21362,6 +21368,29 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   }
 }
 
+/* Rendimiento adaptativo: cocina/comandas en tablets modestas */
+html[data-crozzo-perf-tier='low'] .crozzo-comanda-thread-overlay,
+html.crozzo-perf-minimal .crozzo-comanda-thread-overlay {
+  display: none !important;
+}
+html[data-crozzo-perf-tier='low'] .crozzo-sticky-note.sticky-listo-exit,
+html.crozzo-perf-minimal .crozzo-sticky-note.sticky-listo-exit {
+  animation-duration: 0.12s !important;
+}
+html[data-crozzo-perf-tier='medium'] .crozzo-sticky-note.sticky-listo-exit {
+  animation-duration: 0.22s !important;
+}
+html[data-crozzo-perf-tier='low'] .crozzo-sticky-throw-clone,
+html.crozzo-perf-minimal .crozzo-sticky-throw-clone,
+html[data-crozzo-perf-tier='medium'] .crozzo-sticky-throw-lite {
+  filter: none !important;
+  will-change: transform, opacity;
+}
+html[data-crozzo-perf-tier='low'] .crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__wrap,
+html.crozzo-perf-minimal .crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__wrap {
+  animation-duration: 0.18s !important;
+}
+
 .crozzo-sticky-throw-clone {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38) !important;
   will-change: transform, left, top, opacity, border-radius, filter;
@@ -35256,8 +35285,8 @@ html.crozzo-form-mobile body.crozzo-sidebar-drawer-open #sidebar.open {
   height: 100dvh !important;
   max-height: 100dvh !important;
   min-height: 100dvh !important;
-  width: min(380px, 90vw) !important;
-  max-width: min(380px, 90vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
   transform: translateX(0) !important;
   z-index: 220 !important;
   padding-top: env(safe-area-inset-top, 0px) !important;
@@ -35422,9 +35451,15 @@ body.crozzo-sidebar-drawer-open #sidebar.open .menu-arrow {
 
 body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   z-index: 210 !important;
-  /* No tapar el panel lateral: el scroll táctil va en #sidebarNav */
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  /* Corte al borde real del panel (JS fija --crozzo-sidebar-backdrop-left) */
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 
 /* Drawer tablet/APK: una sola animación rápida (sin rail elite 400ms ni perf-lite inconsistente) */
@@ -35434,8 +35469,8 @@ html.crozzo-form-mobile #sidebar.crozzo-drawer-nav,
 html.crozzo-touch-shell #sidebar.crozzo-drawer-nav.sidebar-elite,
 html.crozzo-form-tablet #sidebar.crozzo-drawer-nav.sidebar-elite,
 html.crozzo-form-mobile #sidebar.crozzo-drawer-nav.sidebar-pro.sidebar-elite {
-  width: min(380px, 90vw) !important;
-  max-width: min(380px, 90vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
   transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1) !important;
   will-change: transform;
 }
@@ -36525,8 +36560,14 @@ html.crozzo-android-native body.crozzo-sidebar-drawer-open .sidebar-backdrop.act
   z-index: 1200 !important;
   background: rgba(0, 0, 0, 0.5) !important;
   opacity: 1 !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 
 html.crozzo-android-native body.crozzo-sidebar-drawer-open .main-content {
@@ -36595,11 +36636,6 @@ html.crozzo-android-native .sidebar-backdrop.active,
 html.crozzo-android-native .crozzo-pairing-overlay {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-html.crozzo-android-native .sidebar-backdrop.active {
-  background: var(--bg-primary) !important;
-  opacity: 1 !important;
 }
 
 html.crozzo-android-native #sidebar.crozzo-drawer-nav {
@@ -37502,8 +37538,14 @@ html.crozzo-android-native #sidebar.open {
 html[data-crozzo-android="1"] body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   z-index: 1200 !important;
   background: rgba(0, 0, 0, 0.5) !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 
 html[data-crozzo-android="1"] body.crozzo-sidebar-drawer-open .main-content {
@@ -38337,16 +38379,29 @@ body.crozzo-sidebar-drawer-open aside.sidebar.open {
   height: 100dvh !important;
   max-height: 100dvh !important;
   min-height: 100dvh !important;
-  width: min(320px, 88vw) !important;
-  max-width: min(320px, 88vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
 }
 body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   display: block !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   z-index: 10050 !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
+}
+
+body:not(.crozzo-sidebar-drawer-open) .sidebar-backdrop,
+body:not(.crozzo-sidebar-drawer-open) .sidebar-backdrop.active {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 /* =============================================================================
@@ -55556,6 +55611,29 @@ body.crozzo-thread-journey-active.crozzo-thread-arrival .main-content {
   }
 }
 
+/* Rendimiento adaptativo: cocina/comandas en tablets modestas */
+html[data-crozzo-perf-tier='low'] .crozzo-comanda-thread-overlay,
+html.crozzo-perf-minimal .crozzo-comanda-thread-overlay {
+  display: none !important;
+}
+html[data-crozzo-perf-tier='low'] .crozzo-sticky-note.sticky-listo-exit,
+html.crozzo-perf-minimal .crozzo-sticky-note.sticky-listo-exit {
+  animation-duration: 0.12s !important;
+}
+html[data-crozzo-perf-tier='medium'] .crozzo-sticky-note.sticky-listo-exit {
+  animation-duration: 0.22s !important;
+}
+html[data-crozzo-perf-tier='low'] .crozzo-sticky-throw-clone,
+html.crozzo-perf-minimal .crozzo-sticky-throw-clone,
+html[data-crozzo-perf-tier='medium'] .crozzo-sticky-throw-lite {
+  filter: none !important;
+  will-change: transform, opacity;
+}
+html[data-crozzo-perf-tier='low'] .crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__wrap,
+html.crozzo-perf-minimal .crozzo-comanda-trash-bin--catch .crozzo-comanda-trash-bin__wrap {
+  animation-duration: 0.18s !important;
+}
+
 .crozzo-sticky-throw-clone {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.38) !important;
   will-change: transform, left, top, opacity, border-radius, filter;
@@ -69209,8 +69287,8 @@ html.crozzo-form-mobile body.crozzo-sidebar-drawer-open #sidebar.open {
   height: 100dvh !important;
   max-height: 100dvh !important;
   min-height: 100dvh !important;
-  width: min(380px, 90vw) !important;
-  max-width: min(380px, 90vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
   transform: translateX(0) !important;
   z-index: 220 !important;
   padding-top: env(safe-area-inset-top, 0px) !important;
@@ -69375,9 +69453,15 @@ body.crozzo-sidebar-drawer-open #sidebar.open .menu-arrow {
 
 body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   z-index: 210 !important;
-  /* No tapar el panel lateral: el scroll táctil va en #sidebarNav */
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  /* Corte al borde real del panel (JS fija --crozzo-sidebar-backdrop-left) */
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 
 /* Drawer tablet/APK: una sola animación rápida (sin rail elite 400ms ni perf-lite inconsistente) */
@@ -69387,8 +69471,8 @@ html.crozzo-form-mobile #sidebar.crozzo-drawer-nav,
 html.crozzo-touch-shell #sidebar.crozzo-drawer-nav.sidebar-elite,
 html.crozzo-form-tablet #sidebar.crozzo-drawer-nav.sidebar-elite,
 html.crozzo-form-mobile #sidebar.crozzo-drawer-nav.sidebar-pro.sidebar-elite {
-  width: min(380px, 90vw) !important;
-  max-width: min(380px, 90vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
   transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1) !important;
   will-change: transform;
 }
@@ -70478,8 +70562,14 @@ html.crozzo-android-native body.crozzo-sidebar-drawer-open .sidebar-backdrop.act
   z-index: 1200 !important;
   background: rgba(0, 0, 0, 0.5) !important;
   opacity: 1 !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 
 html.crozzo-android-native body.crozzo-sidebar-drawer-open .main-content {
@@ -70548,11 +70638,6 @@ html.crozzo-android-native .sidebar-backdrop.active,
 html.crozzo-android-native .crozzo-pairing-overlay {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-html.crozzo-android-native .sidebar-backdrop.active {
-  background: var(--bg-primary) !important;
-  opacity: 1 !important;
 }
 
 html.crozzo-android-native #sidebar.crozzo-drawer-nav {
@@ -71455,8 +71540,14 @@ html.crozzo-android-native #sidebar.open {
 html[data-crozzo-android="1"] body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   z-index: 1200 !important;
   background: rgba(0, 0, 0, 0.5) !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
 }
 
 html[data-crozzo-android="1"] body.crozzo-sidebar-drawer-open .main-content {
@@ -72290,16 +72381,29 @@ body.crozzo-sidebar-drawer-open aside.sidebar.open {
   height: 100dvh !important;
   max-height: 100dvh !important;
   min-height: 100dvh !important;
-  width: min(320px, 88vw) !important;
-  max-width: min(320px, 88vw) !important;
+  width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
+  max-width: var(--crozzo-touch-sidebar-max, min(320px, 92vw)) !important;
 }
 body.crozzo-sidebar-drawer-open .sidebar-backdrop.active {
   display: block !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   z-index: 10050 !important;
-  clip-path: inset(0 0 0 min(380px, 90vw));
-  -webkit-clip-path: inset(0 0 0 min(380px, 90vw));
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  inset: auto !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: var(--crozzo-sidebar-backdrop-left, var(--crozzo-touch-sidebar-max, min(320px, 92vw))) !important;
+  width: auto !important;
+}
+
+body:not(.crozzo-sidebar-drawer-open) .sidebar-backdrop,
+body:not(.crozzo-sidebar-drawer-open) .sidebar-backdrop.active {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 /* =============================================================================

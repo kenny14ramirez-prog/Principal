@@ -38,6 +38,9 @@
     } else if (sb) {
       sb.style.removeProperty('z-index');
     }
+    try {
+      if (typeof global.crozzoSyncSidebarBackdrop === 'function') global.crozzoSyncSidebarBackdrop();
+    } catch (_) {}
   }
 
   /** Solo lo esencial: sin inline styles que oculten texto o recuadros. */
@@ -76,9 +79,11 @@
     doc.classList.toggle('crozzo-android-native', apk);
     if (apk) {
       doc.classList.add('crozzo-apk-perf');
-      doc.classList.remove('crozzo-perf-lite');
       doc.setAttribute('data-crozzo-android', '1');
     }
+    try {
+      if (typeof global.crozzoDevicePerfApply === 'function') global.crozzoDevicePerfApply();
+    } catch (_) {}
     try {
       if (typeof global.crozzoApplyFormFactorClasses === 'function') {
         global.crozzoApplyFormFactorClasses();

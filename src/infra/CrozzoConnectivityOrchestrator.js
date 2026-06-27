@@ -257,6 +257,13 @@
       }
     });
     runOnce('lan_p2p', wireLanP2P);
+    runOnce('lan_ops_sync', function () {
+      if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.afterMainInit === 'function') {
+        global.CrozzoLanOpsSync.afterMainInit();
+      } else if (typeof global.crozzoStartLanOpsSync === 'function') {
+        global.crozzoStartLanOpsSync('orchestrator');
+      }
+    });
     runOnce('central_failover', function () {
       if (global.CrozzoCentralFailover && typeof global.CrozzoCentralFailover.afterMainInit === 'function') {
         global.CrozzoCentralFailover.afterMainInit();

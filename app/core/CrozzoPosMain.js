@@ -8591,13 +8591,65 @@ function crozzoComandaTrashBinCelebrate() {
   }, 620);
   crozzoComandaTrashBinRefreshBadge(crozzoComandaTrashBinAreaFilter());
 }
+function crozzoAnimateStickyToTrashLite(el, bin, onDone) {
+  onDone = onDone || function () {};
+  if (!el || !bin) {
+    onDone();
+    return;
+  }
+  const from = el.getBoundingClientRect();
+  const to = bin.getBoundingClientRect();
+  el.style.visibility = 'hidden';
+  el.style.pointerEvents = 'none';
+  const clone = el.cloneNode(true);
+  clone.classList.add('crozzo-sticky-throw-clone', 'crozzo-sticky-throw-lite');
+  clone.classList.remove('sticky-throwing');
+  clone.style.cssText =
+    'position:fixed;left:' +
+    from.left +
+    'px;top:' +
+    from.top +
+    'px;width:' +
+    from.width +
+    'px;height:' +
+    from.height +
+    'px;margin:0;z-index:10040;pointer-events:none;transform-origin:center center;';
+  document.body.appendChild(clone);
+  const endX = to.left + to.width * 0.5 - from.width * 0.18;
+  const endY = to.top + to.height * 0.38 - from.height * 0.18;
+  const dx = endX - from.left;
+  const dy = endY - from.top;
+  const rotMatch = (el.style.transform || '').match(/rotate\(([^)]+)\)/);
+  const startRot = rotMatch ? rotMatch[1] : el.style.getPropertyValue('--sticky-rot') || '0deg';
+  const anim = clone.animate(
+    [
+      { transform: 'rotate(' + startRot + ') translate(0, 0) scale(1)', opacity: 1 },
+      {
+        transform: 'rotate(' + startRot + ') translate(' + dx * 0.55 + 'px, ' + (dy * 0.55 - 36) + 'px) scale(0.42)',
+        opacity: 0.92,
+        offset: 0.62,
+      },
+      { transform: 'rotate(' + startRot + ') translate(' + dx + 'px, ' + dy + 'px) scale(0.1)', opacity: 0 },
+    ],
+    { duration: 300, easing: 'cubic-bezier(0.32, 0.72, 0, 1)', fill: 'forwards' }
+  );
+  anim.onfinish = function () {
+    clone.remove();
+    crozzoComandaTrashBinCelebrate();
+    onDone();
+  };
+}
 function crozzoAnimateStickyToTrash(el, id, onDone) {
   onDone = onDone || function () {};
-  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fxMode = typeof crozzoComandaFxMode === 'function' ? crozzoComandaFxMode() : 'full';
   const bin = crozzoEnsureComandaTrashBin();
-  if (reduced || !bin || bin.hidden) {
+  if (fxMode === 'minimal' || !bin || bin.hidden) {
     if (el) el.classList.add('sticky-listo', 'sticky-listo-exit');
-    window.setTimeout(onDone, reduced ? 60 : 360);
+    window.setTimeout(onDone, fxMode === 'minimal' ? 60 : 360);
+    return;
+  }
+  if (fxMode === 'lite') {
+    crozzoAnimateStickyToTrashLite(el, bin, onDone);
     return;
   }
   const from = el.getBoundingClientRect();
@@ -8770,7 +8822,7 @@ function crozzoInitCorkboardSortable(boardEl) {
   if (!boardEl || typeof Sortable === 'undefined') return;
   if (typeof crozzoIsComandasFieldTouchUi === 'function' && crozzoIsComandasFieldTouchUi()) return;
   comandasSortableInstance = Sortable.create(boardEl, {
-    animation: 200,
+    animation: typeof crozzoDeviceSortableAnimMs === 'function' ? crozzoDeviceSortableAnimMs() : 200,
     easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
     ghostClass: 'crozzo-sticky-ghost',
     dragClass: 'crozzo-sticky-dragging',
@@ -9013,7 +9065,8 @@ function crozzoPlayComandaThreadAnimation(fromEl, onDone, opts) {
   }
   const reduced =
     typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced) {
+  const fxMode = typeof crozzoComandaFxMode === 'function' ? crozzoComandaFxMode() : 'full';
+  if (reduced || fxMode !== 'full') {
     if (typeof onDone === 'function') onDone();
     return;
   }
@@ -10846,9 +10899,10 @@ function crozzoEnsureSidebarShellVisible() {
   const sb = document.getElementById('sidebar');
   if (!sb) return;
   if (typeof crozzoIsSidebarDrawerMode === 'function' && crozzoIsSidebarDrawerMode()) {
-    sb.style.removeProperty('transform');
-    sb.style.removeProperty('visibility');
-    sb.classList.add('open');
+    /* Drawer móvil/APK: no abrir overlay aquí (evita franja de backdrop pegada). */
+    if (!sb.classList.contains('open')) {
+      sb.style.removeProperty('visibility');
+    }
     if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
     return;
   }
@@ -32844,6 +32898,14 @@ window.crozzoDeviceFullyIsolated = crozzoDeviceFullyIsolated;
 function crozzoTierAllowsCloudSync() {
   if (crozzoCloudFirstSyncEnabled()) {
     if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) return false;
+    // Cascada nivel 2+: si el detector ya degradó a LAN/hotspot/malla, no
+    // insistir en Supabase aunque el router reporte internet (WAN sin DB).
+    try {
+      const activeTier = String(window.__CROZZO_TIER_LAST || '').trim();
+      if (activeTier === 'lan' || activeTier === 'hotspot' || activeTier === 'offline' || activeTier === 'mesh') {
+        return false;
+      }
+    } catch (_) {}
     if (crozzoWanLikely()) return true;
     try {
       if (window.__CROZZO_TIER_LAST === 'cloud') return true;
@@ -32910,8 +32972,9 @@ function crozzoOperationalRealtimeActive() {
   return true;
 }
 window.crozzoOperationalRealtimeActive = crozzoOperationalRealtimeActive;
-/** Fase 1: no usar LAN/malla mientras haya internet y Supabase configurado. */
+/** Fase 1: no usar LAN/malla mientras la nube esté activa y alcanzable. */
 function crozzoDeferLocalSync() {
+  if (typeof crozzoTierAllowsCloudSync === 'function' && !crozzoTierAllowsCloudSync()) return false;
   return !!(
     crozzoCloudFirstSyncEnabled() &&
     crozzoWanLikely() &&
@@ -33166,13 +33229,24 @@ async function detectConnectivityTier() {
       setLast('cloud');
       return { tier: 'cloud', reason: 'Supabase alcanzable (Wi‑Fi o datos)', ...wanExtra, wanOnline: true };
     }
-    // Fase nube-first: con credenciales, insistir en Supabase (Wi‑Fi o datos) antes de LAN/malla.
+    // Nivel 2 cascada: DB caída pero red local con caja → LAN de inmediato.
+    if (lanReach) {
+      setLast('lan');
+      return {
+        tier: 'lan',
+        reason: 'Base de datos no alcanzable — operando por red local (LAN)',
+        ...wanExtra,
+        cloudDegraded: true,
+        cloudPingFailed: true,
+      };
+    }
+    // Fase nube-first: sin LAN, insistir en Supabase antes de malla.
     if (cloudFirst) {
       const resolved = await crozzoResolveCloudTierInfo(setLast, { ...wanExtra, wanOnline: wanLikely || navOnline });
       if (resolved) return resolved;
     }
   }
-  // LAN solo sin internet WAN probable, o fase 2 (cascada completa).
+  // LAN sin credenciales nube o fase 2 (cascada completa).
   if (lanReach && !(cloudFirst && sbUrl && sbKey && wanLikely)) {
     setLast('lan');
     const via = lanProbe.via || 'lan';
@@ -44369,7 +44443,15 @@ function crozzoOpenSidebarDrawer() {
     try {
       if (typeof crozzoFixMobileNavScroll === 'function') crozzoFixMobileNavScroll();
     } catch (_) {}
+    try {
+      if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
+    } catch (_) {}
   });
+  global.setTimeout(function () {
+    try {
+      if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
+    } catch (_) {}
+  }, 220);
 }
 function crozzoBindSidebarDrawerKeys() {
   if (document._crozzoDrawerEscBound) return;
@@ -44481,20 +44563,75 @@ function crozzoBindMainContentDrawerClose() {
     true
   );
 }
+function crozzoMeasureSidebarBackdropLeft(sidebar) {
+  if (!sidebar) return '';
+  try {
+    var rect = sidebar.getBoundingClientRect();
+    if (rect && rect.width > 0) return Math.max(0, Math.round(rect.right)) + 'px';
+  } catch (_) {}
+  try {
+    var doc = document.documentElement;
+    if (doc) {
+      var token = global.getComputedStyle(doc).getPropertyValue('--crozzo-touch-sidebar-max').trim();
+      if (token) return token;
+    }
+  } catch (_) {}
+  return 'min(320px, 92vw)';
+}
+function crozzoBindSidebarBackdropResize() {
+  if (global._crozzoSidebarBackdropResizeBound) return;
+  global._crozzoSidebarBackdropResizeBound = true;
+  var resync = function () {
+    try {
+      if (!document.body || !document.body.classList.contains('crozzo-sidebar-drawer-open')) return;
+      if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();
+    } catch (_) {}
+  };
+  global.addEventListener('resize', resync);
+  global.addEventListener('orientationchange', function () {
+    global.setTimeout(resync, 120);
+  });
+  try {
+    global.addEventListener('crozzo-form-factor', resync);
+  } catch (_) {}
+}
 function crozzoSyncSidebarBackdrop() {
   const sidebar = document.getElementById('sidebar');
   const bd = document.getElementById('sidebarBackdrop');
   if (!sidebar || !bd) return;
   crozzoBindSidebarBackdropClose();
-  const open = sidebar.classList.contains('open');
+  crozzoBindSidebarBackdropResize();
+  const drawerMode = typeof crozzoSidebarUsesDrawer === 'function' && crozzoSidebarUsesDrawer();
+  const open = drawerMode && sidebar.classList.contains('open');
   if (open) {
+    const leftCut = crozzoMeasureSidebarBackdropLeft(sidebar);
     bd.classList.add('active');
     bd.setAttribute('aria-hidden', 'false');
     bd.style.setProperty('pointer-events', 'auto', 'important');
+    bd.style.setProperty('left', leftCut, 'important');
+    bd.style.setProperty('right', '0', 'important');
+    bd.style.setProperty('top', '0', 'important');
+    bd.style.setProperty('bottom', '0', 'important');
+    bd.style.setProperty('width', 'auto', 'important');
+    bd.style.removeProperty('clip-path');
+    bd.style.removeProperty('-webkit-clip-path');
+    try {
+      document.documentElement.style.setProperty('--crozzo-sidebar-backdrop-left', leftCut);
+    } catch (_) {}
   } else {
     bd.classList.remove('active');
     bd.setAttribute('aria-hidden', 'true');
     bd.style.removeProperty('pointer-events');
+    bd.style.removeProperty('left');
+    bd.style.removeProperty('right');
+    bd.style.removeProperty('top');
+    bd.style.removeProperty('bottom');
+    bd.style.removeProperty('width');
+    bd.style.removeProperty('clip-path');
+    bd.style.removeProperty('-webkit-clip-path');
+    try {
+      document.documentElement.style.removeProperty('--crozzo-sidebar-backdrop-left');
+    } catch (_) {}
   }
   if (document.body) {
     document.body.classList.toggle('crozzo-sidebar-drawer-open', !!open);
@@ -44541,9 +44678,17 @@ function crozzoClearSidebarDrawerOverlay() {
     bd.classList.remove('active');
     bd.setAttribute('aria-hidden', 'true');
     bd.style.removeProperty('pointer-events');
+    bd.style.removeProperty('left');
+    bd.style.removeProperty('right');
+    bd.style.removeProperty('top');
+    bd.style.removeProperty('bottom');
+    bd.style.removeProperty('width');
+    bd.style.removeProperty('clip-path');
+    bd.style.removeProperty('-webkit-clip-path');
   }
   try {
     if (document.body) document.body.classList.remove('crozzo-sidebar-drawer-open');
+    if (document.documentElement) document.documentElement.style.removeProperty('--crozzo-sidebar-backdrop-left');
   } catch (_) {}
   try {
     if (typeof crozzoSyncSidebarBackdrop === 'function') crozzoSyncSidebarBackdrop();

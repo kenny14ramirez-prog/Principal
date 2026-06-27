@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-27T00:17:05.102Z",
+  "updatedAt": "2026-06-27T16:40:32.239Z",
   "entries": [
-    {
-      "id": "1.0.171-optional",
-      "version": "v1.0.171",
-      "semver": "1.0.171",
-      "type": "optional",
-      "message": "12365",
-      "publishedAt": "2026-06-21T12:59:15.526Z",
-      "installMode": "prompt",
-      "changelog": [
-        "12365"
-      ]
-    },
     {
       "id": "1.0.172-critical",
       "version": "v1.0.172",
@@ -301,6 +289,18 @@
       "installMode": "auto",
       "changelog": [
         "correcion de comunicacion v6"
+      ]
+    },
+    {
+      "id": "1.0.196-critical",
+      "version": "v1.0.196",
+      "semver": "1.0.196",
+      "type": "critical",
+      "message": "sistema de comunicacio por malla wifi sin internet v1",
+      "publishedAt": "2026-06-27T16:40:32.239Z",
+      "installMode": "auto",
+      "changelog": [
+        "sistema de comunicacio por malla wifi sin internet v1"
       ]
     }
   ]
