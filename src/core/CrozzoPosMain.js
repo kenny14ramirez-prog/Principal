@@ -33545,6 +33545,7 @@ const CrozzoP2PDataHub = {
   _transport: null,
   _lanPollInt: null,
   _lanSinceMs: 0,
+  _icePending: [],
   get cfg() {
     return getMultiDeviceConfig();
   },
@@ -33623,6 +33624,33 @@ const CrozzoP2PDataHub = {
       this._pollLanSigOnce().catch(() => {});
     }, 900);
   },
+  _iceCandInit(candidate) {
+    if (!candidate) return null;
+    if (typeof candidate === 'object' && candidate.candidate != null) return candidate;
+    return null;
+  },
+  _flushIcePending() {
+    if (!this._pc || !this._pc.remoteDescription) return;
+    const q = this._icePending.splice(0);
+    for (let i = 0; i < q.length; i++) {
+      const init = this._iceCandInit(q[i]);
+      if (!init) continue;
+      try {
+        this._pc.addIceCandidate(new RTCIceCandidate(init)).catch(() => {});
+      } catch (e) { /* ignore */ }
+    }
+  },
+  _addIceSafe(candidate) {
+    const init = this._iceCandInit(candidate);
+    if (!this._pc || !init) return;
+    if (!this._pc.remoteDescription) {
+      this._icePending.push(init);
+      return;
+    }
+    try {
+      this._pc.addIceCandidate(new RTCIceCandidate(init)).catch(() => {});
+    } catch (e) { /* ignore */ }
+  },
   _networkLikely() {
     const navOnline = typeof navigator !== 'undefined' ? !!navigator.onLine : true;
     if (navOnline) return true;
@@ -33680,14 +33708,15 @@ const CrozzoP2PDataHub = {
       this._handleOffer(payload);
     }
     if (payload.kind === 'answer' && this._role === 'B' && payload.from !== my && this._pc) {
-      this._pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp }).catch(() => {});
+      this._pc
+        .setRemoteDescription({ type: 'answer', sdp: payload.sdp })
+        .then(() => {
+          this._flushIcePending();
+        })
+        .catch(() => {});
     }
     if (payload.kind === 'ice' && this._pc && payload.from !== my) {
-      try {
-        if (payload.candidate) this._pc.addIceCandidate(payload.candidate);
-      } catch (e) {
-        /* ignore */
-      }
+      this._addIceSafe(payload.candidate);
     }
     if (payload.kind === 'print_precuenta' && this._role === 'A') {
       const myLoc = String(this.cfg.locationId || '').trim();
@@ -33711,6 +33740,7 @@ const CrozzoP2PDataHub = {
   },
   async _handleOffer(payload) {
     try {
+      this._icePending = [];
       if (this._pc) {
         try { this._pc.close(); } catch (e) { /* ignore */ }
       }
@@ -33726,6 +33756,7 @@ const CrozzoP2PDataHub = {
         crozzoWizardTierLogLine('P2P: canal de datos desde tablet');
       };
       await this._pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp });
+      this._flushIcePending();
       const ans = await this._pc.createAnswer();
       await this._pc.setLocalDescription(ans);
       this._sendSig({ kind: 'answer', sdp: ans.sdp, from: this.cfg.deviceId, to: payload.from });
@@ -33745,6 +33776,7 @@ const CrozzoP2PDataHub = {
   },
   async startClient() {
     this._role = 'B';
+    this._icePending = [];
     const ch = await this._ensureCh();
     if (!ch) return;
     if (this._pc) {
@@ -33776,6 +33808,7 @@ const CrozzoP2PDataHub = {
   },
   stop() {
     this._stopLanPoll();
+    this._icePending = [];
     try {
       if (this._dc) this._dc.close();
     } catch (e) { /* ignore */ }

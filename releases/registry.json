@@ -1,20 +1,6 @@
 {
-  "updatedAt": "2026-06-27T16:40:32.239Z",
+  "updatedAt": "2026-06-27T17:09:55.926Z",
   "entries": [
-    {
-      "id": "1.0.172-critical",
-      "version": "v1.0.172",
-      "semver": "1.0.172",
-      "type": "critical",
-      "message": "whassap + gmail + drive!!",
-      "publishedAt": "2026-06-23T15:18:47.456Z",
-      "installMode": "auto",
-      "changelog": [
-        "whassap",
-        "gmail",
-        "drive!!"
-      ]
-    },
     {
       "id": "1.0.173-critical",
       "version": "v1.0.173",
@@ -301,6 +287,18 @@
       "installMode": "auto",
       "changelog": [
         "sistema de comunicacio por malla wifi sin internet v1"
+      ]
+    },
+    {
+      "id": "1.0.197-critical",
+      "version": "v1.0.197",
+      "semver": "1.0.197",
+      "type": "critical",
+      "message": "actualizacion del cemonucaciones v2 ",
+      "publishedAt": "2026-06-27T17:09:55.926Z",
+      "installMode": "auto",
+      "changelog": [
+        "actualizacion del cemonucaciones v2"
       ]
     }
   ]
