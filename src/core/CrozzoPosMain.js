@@ -32772,6 +32772,9 @@ function crozzoInvalidateCloudPingCache() {
   __crozzoCloudPingCache.at = 0;
   __crozzoCloudPingCache.result = null;
   __crozzoCloudPingCache.key = '';
+  try {
+    window.__CROZZO_WAN_LAST_OK = 0;
+  } catch (_) {}
 }
 async function crozzoPingSupabaseCached(url, anonKey, opts) {
   const force = !!(opts && opts.force);

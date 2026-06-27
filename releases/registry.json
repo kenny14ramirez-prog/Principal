@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-27T19:06:43.244Z",
+  "updatedAt": "2026-06-27T19:28:04.379Z",
   "entries": [
-    {
-      "id": "1.0.174-critical",
-      "version": "v1.0.174",
-      "semver": "1.0.174",
-      "type": "critical",
-      "message": "15236545",
-      "publishedAt": "2026-06-24T00:00:21.630Z",
-      "installMode": "auto",
-      "changelog": [
-        "15236545"
-      ]
-    },
     {
       "id": "1.0.175-critical",
       "version": "v1.0.175",
@@ -300,6 +288,18 @@
       "changelog": [
         "parche de coneciones v4",
         "actualizacion de reconocimiento wifi"
+      ]
+    },
+    {
+      "id": "1.0.199-critical",
+      "version": "v1.0.199",
+      "semver": "1.0.199",
+      "type": "critical",
+      "message": "conxecion v8",
+      "publishedAt": "2026-06-27T19:28:04.379Z",
+      "installMode": "auto",
+      "changelog": [
+        "conxecion v8"
       ]
     }
   ]

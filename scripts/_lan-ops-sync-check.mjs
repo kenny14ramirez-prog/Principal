@@ -64,7 +64,9 @@ mustInclude('app/infra/CrozzoLanOpsSync.js', [
 
 mustInclude('app/infra/CrozzoConnectivityOrchestrator.js', ['lan_ops_sync', 'CrozzoLanOpsSync'], 'Orquestador → LanOps');
 mustInclude('app/infra/CrozzoLanWebSocketBridge.js', ['lan_ops_pulse', '__crozzoLanOpsHandlePulse', 'postComandaToCentralStore'], 'WS pulso LAN');
+mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', ['x-crozzo-lan-token', 'CORS_ALLOW_HEADERS'], 'Rust CORS LAN token');
 mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', ['/api/comandas', 'comandas_active', 'upsert_comanda_snapshot'], 'Rust comandas snapshot');
+mustInclude('src-tauri/tauri.conf.json', ['ws:', 'wss:'], 'CSP permite WebSocket LAN');
 
 const main = readFileSync(join(app, 'core/CrozzoPosMain.js'), 'utf8');
 assert(/cloudPingFailed/.test(main) && /Base de datos no alcanzable/.test(main), 'Tier cascada', 'ping falla → LAN inmediato');

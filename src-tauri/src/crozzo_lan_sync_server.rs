@@ -15,6 +15,9 @@ use std::time::Duration;
 const DEFAULT_PORT: u16 = 3000;
 /// Cabecera con la que las tablets (Rol B) firman las peticiones de escritura.
 const LAN_AUTH_HEADER: &str = "x-crozzo-lan-token";
+/// Cabeceras permitidas en preflight CORS (tablets + webview Tauri → :3000).
+const CORS_ALLOW_HEADERS: &str =
+    "Content-Type, Accept, x-crozzo-lan-token, X-Crozzo-Lan-Token";
 /// Tiempo que una operación drenada espera un ACK antes de volver a ofrecerse (reintento).
 const INFLIGHT_TTL_MS: u128 = 20_000;
 /// Tope de operaciones persistidas para no crecer sin límite.
@@ -177,8 +180,8 @@ fn write_http_response(
     body: &[u8],
 ) -> std::io::Result<()> {
     let headers = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: Content-Type, Accept\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
-        status, status_text, content_type, body.len()
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
+        status, status_text, content_type, body.len(), CORS_ALLOW_HEADERS
     );
     stream.write_all(headers.as_bytes())?;
     stream.write_all(body)?;
