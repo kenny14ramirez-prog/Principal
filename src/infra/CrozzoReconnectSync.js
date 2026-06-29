@@ -183,12 +183,7 @@
       var central = await centralAuthorityPush();
       if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
         try {
-          await global.crozzoEnsureCloudSyncActive({
-            source: opts.source || 'reconnect',
-            resetTableMissing: !!opts.force,
-            force: !!opts.force,
-            restartRealtime: !!opts.force,
-          });
+          await global.crozzoEnsureCloudSyncActive({ source: opts.source || 'reconnect', resetTableMissing: !!opts.force });
         } catch (_) {}
       } else if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
         try {

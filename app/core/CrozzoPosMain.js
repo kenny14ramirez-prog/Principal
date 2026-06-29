@@ -33009,7 +33009,7 @@ async function crozzoResolveCloudTierInfo(setLast, extra) {
       }
     } catch (_) {}
   }
-  if (window.__SUPABASE && !extra.cloudPingFailed) {
+  if (window.__SUPABASE && !extra.cloudPingFailed && !extra.cloudDegraded) {
     setLast('cloud');
     return {
       tier: 'cloud',
@@ -33264,6 +33264,7 @@ async function detectConnectivityTier() {
         ...wanExtra,
         wanOnline: wanLikely || navOnline,
         cloudPingFailed: true,
+        cloudDegraded: true,
       });
       if (resolved) return resolved;
     }
@@ -33644,7 +33645,7 @@ const CrozzoP2PDataHub = {
     this._pollLanSigOnce().catch(() => {});
     this._lanPollInt = setInterval(() => {
       this._pollLanSigOnce().catch(() => {});
-    }, 900);
+    }, 3200);
   },
   _iceCandInit(candidate) {
     if (!candidate) return null;

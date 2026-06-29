@@ -1134,13 +1134,13 @@
 
   function scheduleRuntimePushRetry() {
     if (__pushRetryTimer) return;
+    if (!cloudTransportActive()) return;
     __pushRetryAttempt = Math.min(__pushRetryAttempt + 1, 10);
     var ms = Math.min(PUSH_RETRY_MAX_MS, PUSH_RETRY_BASE_MS * Math.pow(1.6, __pushRetryAttempt));
     __pushRetryTimer = global.setTimeout(function () {
       __pushRetryTimer = null;
       if (!cloudTransportActive()) {
-        // Sin transporte: reintenta más tarde sin contar como intento agresivo.
-        scheduleRuntimePushRetry();
+        __pushRetryAttempt = 0;
         return;
       }
       pushRuntimeNow({ force: true }).catch(function () {});

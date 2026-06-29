@@ -369,14 +369,6 @@
   function postComandaToCentralStore(c) {
     if (!c || c.id == null) return Promise.resolve(false);
     var cfg = md();
-    var body = {
-      uuid: String(c.transaction_id || c.id),
-      type: 'comanda',
-      data: c,
-    };
-    if (typeof global.crozzoLanPostSync === 'function') {
-      return global.crozzoLanPostSync(body, { timeoutMs: 5500 });
-    }
     var host = cfg.role === 'A' ? '127.0.0.1' : String(cfg.centralIp || '').trim();
     if (!host) return Promise.resolve(false);
     var port = Number(cfg.port) || 3000;
@@ -388,7 +380,11 @@
             typeof global.crozzoLanAuthHeaders === 'function'
               ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
               : { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            uuid: String(c.transaction_id || c.id),
+            type: 'comanda',
+            data: c,
+          }),
         })
         .then(function (res) {
           return !!(res && res.ok);

@@ -234,27 +234,20 @@
       invoke('crozzo_lan_ws_broadcast', { json: body }).catch(function () {});
       return;
     }
-    if (cfg.role === 'B') {
-      var pulseBody = { type: 'lan_ops_pulse', data: payload };
-      if (typeof global.crozzoLanPostSync === 'function') {
-        global.crozzoLanPostSync(pulseBody, { timeoutMs: 5500 }).catch(function () {});
-        return;
-      }
-      var ip = lanHost();
-      if (!ip) return;
-      try {
-        global
-          .fetch('http://' + ip + ':' + lanPort() + '/api/sync', {
-            method: 'POST',
-            headers:
-              typeof global.crozzoLanAuthHeaders === 'function'
-                ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
-                : { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify(pulseBody),
-          })
-          .catch(function () {});
-      } catch (_) {}
-    }
+    var ip = lanHost();
+    if (!ip || cfg.role !== 'B') return;
+    try {
+      global
+        .fetch('http://' + ip + ':' + lanPort() + '/api/sync', {
+          method: 'POST',
+          headers:
+            typeof global.crozzoLanAuthHeaders === 'function'
+              ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
+              : { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ type: 'lan_ops_pulse', data: payload }),
+        })
+        .catch(function () {});
+    } catch (_) {}
   }
 
   function emit(kind) {
@@ -282,23 +275,17 @@
       var c = list[i];
       if (!c || c.id == null || String(c.estado || '') === 'entregada') continue;
       try {
-        var body = {
-          uuid: String(c.transaction_id || c.id),
-          type: 'comanda',
-          data: c,
-        };
-        if (typeof global.crozzoLanPostSync === 'function') {
-          var ok = await global.crozzoLanPostSync(body, { timeoutMs: 5200 });
-          if (ok) n++;
-          continue;
-        }
         var res = await global.fetch('http://127.0.0.1:' + port + '/api/sync', {
           method: 'POST',
           headers:
             typeof global.crozzoLanAuthHeaders === 'function'
               ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
               : { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            uuid: String(c.transaction_id || c.id),
+            type: 'comanda',
+            data: c,
+          }),
         });
         if (res && res.ok) n++;
       } catch (_) {}

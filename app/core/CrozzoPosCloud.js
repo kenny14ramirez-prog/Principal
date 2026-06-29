@@ -3439,25 +3439,12 @@ window.addEventListener('online', () => {
   } catch (_) {}
   try {
     if (
-      global.CrozzoConnectivityOrchestrator &&
-      typeof global.CrozzoConnectivityOrchestrator.evaluateNow === 'function'
-    ) {
-      global.CrozzoConnectivityOrchestrator.evaluateNow().catch(function () {});
-    }
-  } catch (_) {}
-  try {
-    if (
       typeof crozzoCloudFirstSyncEnabled === 'function' &&
       crozzoCloudFirstSyncEnabled() &&
       typeof crozzoEnsureCloudSyncActive === 'function' &&
       crozzoOnlineConfigReady()
     ) {
-      crozzoEnsureCloudSyncActive({
-        source: 'online',
-        resetTableMissing: false,
-        force: true,
-        restartRealtime: true,
-      }).catch(function () {});
+      crozzoEnsureCloudSyncActive({ source: 'online', resetTableMissing: false }).catch(function () {});
     }
   } catch (_) {}
   try {

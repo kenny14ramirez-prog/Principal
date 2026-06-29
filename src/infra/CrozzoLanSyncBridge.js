@@ -6,8 +6,9 @@
 
   var _pollTimer = null;
   var _runtimePollTimer = null;
+  var _runtimePullInFlight = false;
   var POLL_MS = 4200;
-  var RUNTIME_POLL_MS = 900;
+  var RUNTIME_POLL_MS = 5200;
 
   function isDesktopTauri() {
     try {
@@ -400,8 +401,10 @@
 
   async function pullLocalRuntimeOnce() {
     if (!isDesktopTauri()) return false;
+    if (_runtimePullInFlight) return false;
     var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
     if (!mdCfg || mdCfg.role !== 'A') return false;
+    _runtimePullInFlight = true;
     var port = Number(mdCfg.port) || 3000;
     try {
       var res = await global.fetch('http://127.0.0.1:' + port + '/api/runtime', {
@@ -421,6 +424,8 @@
       return applied;
     } catch (_) {
       return false;
+    } finally {
+      _runtimePullInFlight = false;
     }
   }
 
