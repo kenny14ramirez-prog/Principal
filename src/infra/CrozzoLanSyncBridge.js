@@ -98,6 +98,8 @@
   var _lanBackoffUntil = 0;
   var _lanBackoffStep = 0;
   var _lanPostChain = Promise.resolve();
+  var _lanLastPostAt = 0;
+  var LAN_MIN_GAP_MS = 180;
 
   /** ¿Permitir escrituras LAN? Respeta tier (offline/mesh = no) y backoff por presión. */
   function crozzoLanTransportAllowed() {
@@ -143,10 +145,12 @@
 
   function clearLanFetchPressure() {
     _lanBackoffStep = 0;
+    _lanBackoffUntil = 0;
   }
 
   global.crozzoLanTransportAllowed = crozzoLanTransportAllowed;
   global.crozzoNoteLanFetchPressure = noteLanFetchPressure;
+  global.crozzoClearLanFetchPressure = clearLanFetchPressure;
 
   async function postLanSyncInner(payload, opts) {
     opts = opts || {};
@@ -216,7 +220,19 @@
   async function postLanSync(payload, opts) {
     if (!crozzoLanTransportAllowed()) return false;
     var run = function () {
-      return postLanSyncInner(payload, opts);
+      var wait = Math.max(0, LAN_MIN_GAP_MS - (Date.now() - _lanLastPostAt));
+      if (wait <= 0) {
+        _lanLastPostAt = Date.now();
+        return postLanSyncInner(payload, opts);
+      }
+      return new Promise(function (resolve) {
+        global.setTimeout(function () {
+          _lanLastPostAt = Date.now();
+          postLanSyncInner(payload, opts).then(resolve, function () {
+            resolve(false);
+          });
+        }, wait);
+      });
     };
     var p = _lanPostChain.then(run, run);
     _lanPostChain = p.catch(function () {});
@@ -389,6 +405,8 @@
       if (
         typeof global.crozzoPushComandasCloudByIds === 'function' &&
         pay.id != null &&
+        typeof global.crozzoCloudWanReady === 'function' &&
+        global.crozzoCloudWanReady() &&
         typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
         global.crozzoCloudBackgroundSyncAllowed()
       ) {
@@ -444,6 +462,8 @@
       } catch (_) {}
       if (
         typeof global.crozzoPushComandasCloudByIds === 'function' &&
+        typeof global.crozzoCloudWanReady === 'function' &&
+        global.crozzoCloudWanReady() &&
         typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
         global.crozzoCloudBackgroundSyncAllowed()
       ) {

@@ -282,6 +282,7 @@
     for (var i = 0; i < list.length && i < 24; i++) {
       var c = list[i];
       if (!c || c.id == null || String(c.estado || '') === 'entregada') continue;
+      if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) break;
       try {
         if (typeof global.crozzoLanPostSync === 'function') {
           var ok = await global.crozzoLanPostSync({
@@ -292,19 +293,6 @@
           if (ok) n++;
           continue;
         }
-        var res = await global.fetch('http://127.0.0.1:' + port + '/api/sync', {
-          method: 'POST',
-          headers:
-            typeof global.crozzoLanAuthHeaders === 'function'
-              ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
-              : { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            uuid: String(c.transaction_id || c.id),
-            type: 'comanda',
-            data: c,
-          }),
-        });
-        if (res && res.ok) n++;
       } catch (_) {}
     }
     return n;

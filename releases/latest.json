@@ -1,28 +1,16 @@
 {
-  "id": "1.0.202-critical",
-  "version": "v1.0.202",
-  "semver": "1.0.202",
+  "id": "1.0.203-critical",
+  "version": "v1.0.203",
+  "semver": "1.0.203",
   "type": "critical",
-  "message": "parche de sostenibilidad",
-  "publishedAt": "2026-06-29T19:35:16.576Z",
+  "message": "parche de comunicaxiones escala 3.1V",
+  "publishedAt": "2026-06-29T20:15:09.607Z",
   "installMode": "auto",
   "changelog": [
-    "parche de sostenibilidad"
+    "parche de comunicaxiones escala 3.1V"
   ],
-  "updatedAt": "2026-06-29T19:35:16.576Z",
+  "updatedAt": "2026-06-29T20:15:09.607Z",
   "entries": [
-    {
-      "id": "1.0.178-critical",
-      "version": "v1.0.178",
-      "semver": "1.0.178",
-      "type": "critical",
-      "message": "123456",
-      "publishedAt": "2026-06-25T19:42:58.569Z",
-      "installMode": "auto",
-      "changelog": [
-        "123456"
-      ]
-    },
     {
       "id": "1.0.179-critical",
       "version": "v1.0.179",
@@ -310,6 +298,18 @@
       "installMode": "auto",
       "changelog": [
         "parche de sostenibilidad"
+      ]
+    },
+    {
+      "id": "1.0.203-critical",
+      "version": "v1.0.203",
+      "semver": "1.0.203",
+      "type": "critical",
+      "message": "parche de comunicaxiones escala 3.1V",
+      "publishedAt": "2026-06-29T20:15:09.607Z",
+      "installMode": "auto",
+      "changelog": [
+        "parche de comunicaxiones escala 3.1V"
       ]
     }
   ]

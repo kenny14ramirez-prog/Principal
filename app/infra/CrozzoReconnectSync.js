@@ -14,9 +14,17 @@
   }
 
   function cloudBgAllowed(opts) {
+    opts = opts || {};
+    if (!opts.kind) {
+      var src = String(opts.source || '');
+      if (src === 'online') opts.kind = 'online';
+      else if (/reconnect|recover|orchestrator|lan_up|page_watch|startup|postInit/i.test(src)) {
+        opts.kind = 'reconnect';
+      }
+    }
     try {
       if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
-        return global.crozzoCloudBackgroundSyncAllowed(opts || {});
+        return global.crozzoCloudBackgroundSyncAllowed(opts);
       }
     } catch (_) {}
     return false;
@@ -201,6 +209,17 @@
     __running = true;
     __lastRun = Date.now();
     try {
+      try {
+        if (typeof global.crozzoInvalidateCloudPingCache === 'function') {
+          global.crozzoInvalidateCloudPingCache();
+        }
+      } catch (_) {}
+      try {
+        var thr0 = global.CrozzoCloudThrottle;
+        if (thr0 && typeof thr0.maybeClearPressureOnHealthySignal === 'function') {
+          thr0.maybeClearPressureOnHealthySignal('online_recovery');
+        }
+      } catch (_) {}
       logLine('🔄 Sync total (' + (opts.source || 'manual') + ')…');
       var central = await centralAuthorityPush();
       if (cloudBgAllowed(opts)) {

@@ -70,21 +70,42 @@
     return 2500 + __rtResubAttempt * 900;
   }
 
-  function teardownRuntimeChannel() {
+  function cloudWanReady() {
     try {
-      if (__pgCh && global.__SUPABASE) global.__SUPABASE.removeChannel(__pgCh);
+      if (typeof global.crozzoCloudWanReady === 'function') return global.crozzoCloudWanReady();
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') return global.crozzoTierAllowsCloudSync();
     } catch (_) {}
+    return false;
+  }
+
+  function teardownRuntimeChannel(opts) {
+    opts = opts || {};
+    var oldCh = __pgCh;
     __pgCh = null;
+    var wasLive = __realtimeLive;
     __realtimeLive = false;
+    if (!oldCh || !global.__SUPABASE) return;
+    if (opts.skipRemove || !wasLive) return;
+    if (__runtimeTeardownTimer) global.clearTimeout(__runtimeTeardownTimer);
+    __runtimeTeardownTimer = global.setTimeout(function () {
+      __runtimeTeardownTimer = null;
+      try {
+        global.__SUPABASE.removeChannel(oldCh);
+      } catch (_) {}
+    }, 0);
   }
 
   function scheduleRuntimeResubscribe(reason) {
     if (__rtResubTimer) return;
+    if (!cloudWanReady()) return;
     if (cloudUnderPressure()) return;
     __rtResubAttempt = Math.min((__rtResubAttempt || 0) + 1, 14);
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!online() || __tableMissing) return;
+      if (!cloudTransportActive() || !cloudWanReady()) {
+        stopRuntimeCloudSync();
+        return;
+      }
       subscribeRealtime(reason || 'resub');
     }, rtResubscribeDelayMs());
   }
@@ -115,7 +136,12 @@
         return global.crozzoTierAllowsCloudSync();
       }
     } catch (_) {}
-    return true;
+    try {
+      if (typeof global.crozzoCloudWanReady === 'function') {
+        return global.crozzoCloudWanReady();
+      }
+    } catch (_) {}
+    return false;
   }
 
   function ctx() {
@@ -804,6 +830,9 @@
   var __mesaMode = null; // null=desconocido, true=por-mesa, false=fila unica
   var __mesaSlotSig = {}; // "kind:ref" -> firma; solo subimos lo que cambia
   var __mesaPullTimer = null;
+  var __runtimeTeardownTimer = null;
+  var __runtimeSubscribing = false;
+  var __lastDiscardLogAt = 0;
   var CART_KEYS = ['cartsPorMesa', 'cartsPorLlevar', 'cartDirecto'];
 
   function metaFromSnap(snap) {
@@ -1222,7 +1251,11 @@
     var sameContent = contentSig === __lastAppliedContentSig;
     if (sameContent && !(opts && opts.force)) {
       if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
-      try { console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado'); } catch (_) {}
+      var nowLog = Date.now();
+      if (nowLog - __lastDiscardLogAt > 8000) {
+        __lastDiscardLogAt = nowLog;
+        try { console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado (throttled)'); } catch (_) {}
+      }
       return false;
     }
     // opts.aggregate: el pull por-mesa reconstruye un snapshot que MEZCLA mesas
@@ -1376,13 +1409,18 @@
 
   function subscribeRealtime(reason) {
     if (!cloudTransportActive()) return;
+    if (__runtimeSubscribing) return;
     // Si el canal ya está vivo no destruirlo — evita loop CLOSED.
     if (__realtimeLive && __pgCh) return;
     var c = ctx();
     if (!c.locationId || c.locationId === 'default') return;
-    teardownRuntimeChannel();
+    teardownRuntimeChannel({ skipRemove: !__realtimeLive });
+    __runtimeSubscribing = true;
     ensureMesaMode().then(function (useMesa) {
-      if (!cloudTransportActive()) return;
+      if (!cloudTransportActive()) {
+        __runtimeSubscribing = false;
+        return;
+      }
       try {
         var filter = 'location_id=eq.' + c.locationId;
         var tbl = useMesa ? MESA_TABLE : TABLE;
@@ -1406,17 +1444,32 @@
           if (st === 'SUBSCRIBED') {
             __realtimeLive = true;
             __rtResubAttempt = 0;
+            try {
+              var thrOk = global.CrozzoCloudThrottle;
+              if (thrOk && typeof thrOk.maybeClearPressureOnHealthySignal === 'function') {
+                thrOk.maybeClearPressureOnHealthySignal('subscribed');
+              }
+            } catch (_) {}
             schedulePullLoop();
           } else if (st === 'CHANNEL_ERROR' || st === 'CLOSED' || st === 'TIMED_OUT') {
             __realtimeLive = false;
             schedulePullLoop();
-            scheduleRuntimeResubscribe(st);
+            global.setTimeout(function () {
+              if (!cloudTransportActive() || !cloudWanReady()) {
+                stopRuntimeCloudSync();
+                return;
+              }
+              if (cloudUnderPressure()) return;
+              scheduleRuntimeResubscribe(st);
+            }, 0);
           }
         });
       } catch (e) {
         console.warn('[runtime-cloud] subscribe', e);
         noteCloudErr(e);
         scheduleRuntimeResubscribe('exception');
+      } finally {
+        __runtimeSubscribing = false;
       }
     });
   }
@@ -1424,6 +1477,7 @@
   function stopRuntimeCloudSync() {
     __started = false;
     __realtimeLive = false;
+    __runtimeSubscribing = false;
     if (__rtResubTimer) {
       clearTimeout(__rtResubTimer);
       __rtResubTimer = null;

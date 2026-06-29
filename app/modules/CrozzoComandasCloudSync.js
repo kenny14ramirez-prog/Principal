@@ -61,24 +61,48 @@
     return 2500 + __rtResubAttempt * 900;
   }
 
-  function teardownComandaChannel() {
+  var __comandaTeardownTimer = null;
+  var __comandaSubscribing = false;
+
+  function cloudWanReady() {
     try {
-      if (global.__crozzoComandaCloudCh && global.__SUPABASE) {
-        global.__SUPABASE.removeChannel(global.__crozzoComandaCloudCh);
-      }
+      if (typeof global.crozzoCloudWanReady === 'function') return global.crozzoCloudWanReady();
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') return global.crozzoTierAllowsCloudSync();
     } catch (_) {}
+    return false;
+  }
+
+  function teardownComandaChannel(opts) {
+    opts = opts || {};
+    var oldCh = global.__crozzoComandaCloudCh;
     global.__crozzoComandaCloudCh = null;
+    var wasLive = __realtimeLive;
     __realtimeLive = false;
+    if (!oldCh || !global.__SUPABASE) return;
+    // Canal ya muerto o skip explícito: soltar referencia sin removeChannel
+    // (evita tormenta CLOSED/CHANNEL_ERROR en cascada cuando DNS cae).
+    if (opts.skipRemove || !wasLive) return;
+    if (__comandaTeardownTimer) global.clearTimeout(__comandaTeardownTimer);
+    __comandaTeardownTimer = global.setTimeout(function () {
+      __comandaTeardownTimer = null;
+      try {
+        global.__SUPABASE.removeChannel(oldCh);
+      } catch (_) {}
+    }, 0);
   }
 
   function scheduleComandaRealtimeResubscribe(reason) {
     if (__rtResubTimer) return;
+    if (!cloudWanReady()) return;
     if (cloudUnderPressure()) return;
     __rtResubAttempt = Math.min((__rtResubAttempt || 0) + 1, 14);
     var ms = rtResubscribeDelayMs();
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!tierAllowsCloudRead()) return;
+      if (!tierAllowsCloudRead() || !cloudWanReady()) {
+        stopComandasCloudSync();
+        return;
+      }
       subscribeComandaRealtime(reason || 'resub');
     }, ms);
   }
@@ -1147,6 +1171,7 @@
 
   function subscribeComandaRealtime(reason) {
     if (!tierAllowsCloudRead()) return;
+    if (__comandaSubscribing) return;
     // Si ya hay canal activo y vivo, no destruirlo — evita loop CLOSED.
     if (__realtimeLive && global.__crozzoComandaCloudCh) return;
     var ctx = cloudCtx();
@@ -1156,7 +1181,7 @@
       } catch (_) {}
       return;
     }
-    teardownComandaChannel();
+    teardownComandaChannel({ skipRemove: !__realtimeLive });
     // Sanear sesión JWT antes de conectar — evita el loop 401→CLOSED→resub.
     // crozzoEnsureSupabaseAuthHealthy limpia tokens expirados y vuelve a
     // la clave anónima si hace falta. La suscripción del canal se hace en
@@ -1174,8 +1199,10 @@
 
   function _doSubscribeComandaRealtime(reason) {
     if (!tierAllowsCloudRead()) return;
+    if (__comandaSubscribing) return;
     var ctx = cloudCtx();
     if (!tenantIdsReady(ctx)) return;
+    __comandaSubscribing = true;
     try {
       var bid = String(ctx.businessId || '').trim();
       var chName =
@@ -1226,15 +1253,24 @@
         if (status === 'SUBSCRIBED') {
           __realtimeLive = true;
           __rtResubAttempt = 0;
+          try {
+            var thrOk = global.CrozzoCloudThrottle;
+            if (thrOk && typeof thrOk.maybeClearPressureOnHealthySignal === 'function') {
+              thrOk.maybeClearPressureOnHealthySignal('subscribed');
+            }
+          } catch (_) {}
           scheduleComandaPull();
         } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
           __realtimeLive = false;
           scheduleComandaPull();
-          if (!tierAllowsCloudRead()) {
-            stopComandasCloudSync();
-            return;
-          }
-          scheduleComandaRealtimeResubscribe(status);
+          global.setTimeout(function () {
+            if (!tierAllowsCloudRead() || !cloudWanReady()) {
+              stopComandasCloudSync();
+              return;
+            }
+            if (cloudUnderPressure()) return;
+            scheduleComandaRealtimeResubscribe(status);
+          }, 0);
           console.warn('[crozzo-comanda-cloud] realtime ' + status + (reason ? ' (' + reason + ')' : ''));
         }
       });
@@ -1243,6 +1279,8 @@
       console.warn('[crozzo-comanda-cloud] subscribe', e);
       noteCloudErr(e);
       scheduleComandaRealtimeResubscribe('exception');
+    } finally {
+      __comandaSubscribing = false;
     }
   }
 
@@ -1297,6 +1335,7 @@
 
   function stopComandasCloudSync() {
     __started = false;
+    __comandaSubscribing = false;
     if (__startRetryTimer) {
       global.clearTimeout(__startRetryTimer);
       __startRetryTimer = null;

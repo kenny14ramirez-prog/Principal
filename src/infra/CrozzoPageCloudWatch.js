@@ -601,10 +601,11 @@
     return true;
   }
 
-  function cloudBgAllowed() {
+  function cloudBgAllowed(opts) {
+    opts = opts || {};
     try {
       if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
-        return global.crozzoCloudBackgroundSyncAllowed();
+        return global.crozzoCloudBackgroundSyncAllowed(opts);
       }
     } catch (_) {}
     return false;
@@ -654,6 +655,10 @@
 
   global.addEventListener('crozzo-tier-changed', function (ev) {
     var to = ev && ev.detail && ev.detail.to;
+    if (to === 'offline' || to === 'lan' || to === 'mesh' || to === 'hotspot') {
+      stopCloudTransportsQuiet();
+      return;
+    }
     if (to !== 'cloud') return;
     refreshCloudTransports();
     if (__activePage) {
@@ -667,22 +672,6 @@
           })
           .catch(function () {});
       }, 600);
-    }
-  });
-
-  global.addEventListener('online', function () {
-    if (!cloudBgAllowed()) return;
-    var thr = global.CrozzoCloudThrottle;
-    if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) return;
-    refreshCloudTransports();
-    if (__activePage) {
-      setTimeout(function () {
-        initialPass(__activePage, pri().isNavPage(__activePage))
-          .then(function () {
-            if (isZone0Page(__activePage)) cloudPushFlush('reconnect_online');
-          })
-          .catch(function () {});
-      }, 800);
     }
   });
 

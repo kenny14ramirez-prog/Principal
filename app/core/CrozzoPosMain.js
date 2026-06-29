@@ -32803,6 +32803,11 @@ async function crozzoPingSupabaseCached(url, anonKey, opts) {
       __crozzoCloudPingCache.inflight = null;
       __crozzoCloudPingCache.inflightKey = '';
       if (result && result.ok && typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
+      else {
+        try {
+          window.__CROZZO_WAN_LAST_OK = 0;
+        } catch (_) {}
+      }
       return result;
     })
     .catch(function (e) {
@@ -32817,6 +32822,47 @@ async function crozzoPingSupabaseCached(url, anonKey, opts) {
 window.crozzoPingSupabaseForTier = crozzoPingSupabaseForTier;
 window.crozzoPingSupabaseCached = crozzoPingSupabaseCached;
 window.crozzoInvalidateCloudPingCache = crozzoInvalidateCloudPingCache;
+/** Nube alcanzable de verdad: tier cloud + ping/WAN reciente (no solo Wi‑Fi sin DNS). */
+function crozzoCloudWanReady() {
+  try {
+    if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) return false;
+    const tier = String(window.__CROZZO_TIER_LAST || '').trim();
+    if (tier !== 'cloud') return false;
+    if (window.__CROZZO_WAN_LAST_OK && Date.now() - window.__CROZZO_WAN_LAST_OK < CROZZO_WAN_EVIDENCE_MS) {
+      return true;
+    }
+    if (
+      __crozzoCloudPingCache.result &&
+      __crozzoCloudPingCache.result.ok &&
+      Date.now() - __crozzoCloudPingCache.at < 12000
+    ) {
+      return true;
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+window.crozzoCloudWanReady = crozzoCloudWanReady;
+try {
+  if (typeof window !== 'undefined' && !window.__crozzoNetCacheBound) {
+    window.__crozzoNetCacheBound = true;
+    window.addEventListener('online', function () {
+      crozzoInvalidateCloudPingCache();
+    });
+    window.addEventListener('offline', function () {
+      crozzoInvalidateCloudPingCache();
+    });
+    try {
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn && typeof conn.addEventListener === 'function') {
+        conn.addEventListener('change', function () {
+          crozzoInvalidateCloudPingCache();
+        });
+      }
+    } catch (_) {}
+  }
+} catch (_) {}
 /** Fase 1 (default): nube full por internet (Wi‑Fi o datos). Fase 2: localStorage crozzo_sync_phase=cascade */
 function crozzoCloudFirstSyncEnabled() {
   try {
@@ -32901,19 +32947,8 @@ window.crozzoDeviceFullyIsolated = crozzoDeviceFullyIsolated;
 function crozzoTierAllowsCloudSync() {
   if (crozzoCloudFirstSyncEnabled()) {
     if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) return false;
-    // Cascada nivel 2+: si el detector ya degradó a LAN/hotspot/malla, no
-    // insistir en Supabase aunque el router reporte internet (WAN sin DB).
-    try {
-      const activeTier = String(window.__CROZZO_TIER_LAST || '').trim();
-      if (activeTier === 'lan' || activeTier === 'hotspot' || activeTier === 'offline' || activeTier === 'mesh') {
-        return false;
-      }
-    } catch (_) {}
-    if (crozzoWanLikely()) return true;
-    try {
-      if (window.__CROZZO_TIER_LAST === 'cloud') return true;
-    } catch (_) {}
-    return false;
+    // No confiar en navigator.onLine / type=wifi sin ping: rompe-muros WiFi ≠ internet.
+    return crozzoCloudWanReady();
   }
   let t = 'cloud';
   try {
@@ -33316,6 +33351,17 @@ async function detectConnectivityTier() {
         cloudDegraded: true,
       });
       if (resolved) return resolved;
+      try {
+        window.__CROZZO_WAN_LAST_OK = 0;
+      } catch (_) {}
+      setLast('offline');
+      return {
+        tier: 'offline',
+        reason: 'Nube no alcanzable — ping falló (sin LAN alternativa)',
+        ...wanExtra,
+        cloudPingFailed: true,
+        cloudDegraded: true,
+      };
     }
   }
   // LAN sin credenciales nube o fase 2 (cascada completa).

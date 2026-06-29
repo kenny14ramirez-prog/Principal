@@ -616,7 +616,6 @@
       var thr0 = global.CrozzoCloudThrottle;
       underPressure = !!(thr0 && typeof thr0.isUnderPressure === 'function' && thr0.isUnderPressure());
     } catch (_) {}
-    if (underPressure) return false;
 
     var bypassKinds = [
       'nav_enter',
@@ -631,20 +630,32 @@
       'reconnect_pull',
       'page_watch',
     ];
-    if (opts.force || bypassKinds.indexOf(kind) >= 0) {
-      try {
-        if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
-          return false;
-        }
-      } catch (_) {}
-      return true;
+    var recoveryKinds = ['online', 'reconnect', 'reconnect_push', 'reconnect_pull', 'page_watch', 'startup', 'postInit'];
+    var tierOk = true;
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') {
+        tierOk = global.crozzoTierAllowsCloudSync();
+      }
+    } catch (_) {
+      tierOk = false;
     }
 
-    try {
-      if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
-        return false;
+    if (underPressure) {
+      // Bajo presión se bloquea el tráfico normal, pero NO la recuperación cuando
+      // vuelve internet/tier cloud — si no, el throttle se auto-perpetúa.
+      if (opts.force || recoveryKinds.indexOf(kind) >= 0) {
+        return tierOk;
       }
-    } catch (_) {}
+      return false;
+    }
+
+    if (opts.force || bypassKinds.indexOf(kind) >= 0) {
+      return tierOk;
+    }
+
+    if (!tierOk) {
+      return false;
+    }
 
     var zone = getPageZone(activePageNow());
 

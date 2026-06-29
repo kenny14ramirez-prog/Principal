@@ -157,10 +157,6 @@
 
   function cloudSyncAllowedNow() {
     try {
-      var thr = global.CrozzoCloudThrottle;
-      if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) {
-        return false;
-      }
       if (typeof global.crozzoTierAllowsCloudSync === 'function') {
         return global.crozzoTierAllowsCloudSync();
       }
@@ -621,6 +617,16 @@
         applyLevel(level);
         __lastApplyAt = Date.now();
         emitChange(prev, level);
+        if (level === 'cloud') {
+          global.setTimeout(function () {
+            safe(function () {
+              var thr = global.CrozzoCloudThrottle;
+              if (thr && typeof thr.maybeClearPressureOnHealthySignal === 'function') {
+                thr.maybeClearPressureOnHealthySignal('tier_cloud');
+              }
+            });
+          }, typeof global.crozzoReconnectStaggerMs === 'function' ? global.crozzoReconnectStaggerMs(600, 2500) : 1200);
+        }
         // Recuperación hacia nube/LAN mejor: resync inmediato.
         if (prev !== 'unknown' && levelRank(level) < levelRank(prev)) {
           maybeReconnect('recover:' + level);

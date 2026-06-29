@@ -9,7 +9,7 @@
   var pressureUntil = 0;
   var lastDrainAt = 0;
   var lastPressureStopAt = 0;
-  var SEVERE_STOP_REASONS = { auth: 1, fetch_exhausted: 1, '429': 1, query_timeout: 1 };
+  var SEVERE_STOP_REASONS = { auth: 1, '429': 1, query_timeout: 1 };
   var DEFAULT_BATCH = 8;
   var DEFAULT_MIN_GAP_MS = 900;
   var DEFAULT_QUEUE_SEC = 20;
@@ -72,6 +72,26 @@
     pressureUntil = 0;
     try {
       delete global.__CROZZO_CLOUD_PRESSURE_REASON;
+    } catch (_) {}
+  }
+
+  /** Tras reconexión real (tier cloud / canal SUBSCRIBED), levantar presión de red. */
+  function maybeClearPressureOnHealthySignal(signal) {
+    if (!isUnderPressure()) return;
+    var reason = String(global.__CROZZO_CLOUD_PRESSURE_REASON || '');
+    if (reason === 'auth' || reason === '429') return;
+    var sig = String(signal || '');
+    if (sig !== 'subscribed' && sig !== 'tier_cloud' && sig !== 'online_recovery') return;
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
+        return;
+      }
+    } catch (_) {
+      return;
+    }
+    clearPressure();
+    try {
+      if (typeof global.crozzoClearLanFetchPressure === 'function') global.crozzoClearLanFetchPressure();
     } catch (_) {}
   }
 
@@ -168,6 +188,7 @@
     isUnderPressure: isUnderPressure,
     markPressure: markPressure,
     clearPressure: clearPressure,
+    maybeClearPressureOnHealthySignal: maybeClearPressureOnHealthySignal,
     noteHttpStatus: noteHttpStatus,
     noteFetchFailure: noteFetchFailure,
     noteSupabaseError: noteSupabaseError,
