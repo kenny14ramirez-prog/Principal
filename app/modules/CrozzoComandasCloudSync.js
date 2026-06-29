@@ -24,6 +24,12 @@
 
   function noteCloudErr(err) {
     try {
+      var msg = String((err && err.message) || err || '');
+      if (/INSUFFICIENT_RESOURCES/i.test(msg)) {
+        if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(err);
+      } else if (/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|Failed to fetch|network/i.test(msg)) {
+        if (typeof global.crozzoNoteWanUnreachable === 'function') global.crozzoNoteWanUnreachable(msg);
+      }
       var thr = global.CrozzoCloudThrottle;
       if (thr && typeof thr.noteSupabaseError === 'function') thr.noteSupabaseError(err);
       else if (thr && typeof thr.noteFetchFailure === 'function') thr.noteFetchFailure(err);
@@ -93,16 +99,11 @@
 
   function scheduleComandaRealtimeResubscribe(reason) {
     if (__rtResubTimer) return;
-    if (!cloudWanReady()) return;
-    if (cloudUnderPressure()) return;
     __rtResubAttempt = Math.min((__rtResubAttempt || 0) + 1, 14);
     var ms = rtResubscribeDelayMs();
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!tierAllowsCloudRead() || !cloudWanReady()) {
-        stopComandasCloudSync();
-        return;
-      }
+      if (!online()) return;
       subscribeComandaRealtime(reason || 'resub');
     }, ms);
   }
@@ -119,12 +120,7 @@
   }
 
   function tierAllowsCloudPush() {
-    if (cloudUnderPressure()) return false;
-    try {
-      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
-        return global.crozzoCloudBackgroundSyncAllowed();
-      }
-    } catch (_) {}
+    // No sincronizar comandas antes del login (evita 401 / canal CLOSED sin sesión).
     try {
       if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
         return false;
@@ -135,8 +131,9 @@
         return global.crozzoTierAllowsCloudSync() && online();
       }
     } catch (_) {}
-    if (online()) return tierNow() === 'cloud';
-    return false;
+    if (online()) return true;
+    var t = tierNow();
+    return t === 'cloud';
   }
 
   function tierAllowsCloudRead() {
@@ -160,12 +157,9 @@
     );
   }
 
-  /** LAN local disponible — respeta tier y backoff (no disparar en offline). */
+  /** LAN local disponible (cache o IP de caja) — sin costo nube, push instantáneo. */
   function lanSegmentLikely() {
     if (deferLocalCloudSync()) return false;
-    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
-      return false;
-    }
     try {
       if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
         return true;
@@ -394,10 +388,12 @@
     if (__outboxDraining) return;
     var keys = Object.keys(__outbox);
     if (!keys.length) return;
-    if (!online() || !tierAllowsCloudPush()) {
+    var cloudOk = online() && tierAllowsCloudPush();
+    var lanOk = lanSegmentLikely();
+    if (!cloudOk && !lanOk) {
       return;
     }
-    if (cloudUnderPressure()) {
+    if (cloudOk && cloudUnderPressure()) {
       scheduleOutboxDrain(12000);
       return;
     }
@@ -406,7 +402,7 @@
       var now = Date.now();
       var processed = 0;
       for (var i = 0; i < keys.length; i++) {
-        if (!tierAllowsCloudPush() || cloudUnderPressure()) break;
+        if (cloudOk && cloudUnderPressure()) break;
         if (processed >= OUTBOX_BATCH_NORMAL) break;
         var k = keys[i];
         var e = __outbox[k];
@@ -422,12 +418,21 @@
           continue;
         }
         var ok = false;
-        try {
-          ok = await pushComanda(c, { estado: c.estado, lastUpdateAt: c.lastUpdateAt });
-        } catch (err) {
-          ok = false;
-          e.lastErr = String((err && err.message) || err || '');
-          noteCloudErr(err);
+        if (cloudOk) {
+          try {
+            ok = await pushComanda(c, { estado: c.estado, lastUpdateAt: c.lastUpdateAt });
+          } catch (err) {
+            ok = false;
+            e.lastErr = String((err && err.message) || err || '');
+            noteCloudErr(err);
+          }
+        }
+        if (!ok && lanOk) {
+          try {
+            ok = await pushComandaLan(c);
+          } catch (_) {
+            ok = false;
+          }
         }
         processed++;
         if (ok) {
@@ -440,8 +445,8 @@
           if (cloudUnderPressure()) break;
         }
       }
-      if (outboxPending() && tierAllowsCloudPush()) {
-        scheduleOutboxDrain(cloudUnderPressure() ? 12000 : OUTBOX_BASE_MS);
+      if (outboxPending() && (cloudOk || lanOk)) {
+        scheduleOutboxDrain(cloudOk && cloudUnderPressure() ? 12000 : OUTBOX_BASE_MS);
       }
     } finally {
       __outboxDraining = false;
@@ -450,7 +455,9 @@
 
   function scheduleOutboxDrain(ms) {
     if (!outboxPending()) return;
-    if (!tierAllowsCloudPush()) return;
+    var cloudOk = online() && tierAllowsCloudPush();
+    var lanOk = lanSegmentLikely();
+    if (!cloudOk && !lanOk) return;
     if (cloudUnderPressure()) {
       ms = Math.max(ms || 0, 12000);
     }
@@ -585,35 +592,19 @@
     var ctx = cloudCtx();
     var body = {
       uuid: String(comanda.transaction_id || comanda.id || ''),
+      action_id: String(comanda.transaction_id || comanda.id || ''),
       businessId: ctx.businessId,
       deviceId: ctx.deviceId,
       location_id: ctx.locationId,
       type: 'comanda',
       data: fullComandaLanPayload(comanda),
     };
+    if (typeof global.crozzoLanEnsureActionId === 'function') global.crozzoLanEnsureActionId(body);
     try {
-      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      var timer = controller ? global.setTimeout(function () { controller.abort(); }, 5500) : null;
       if (typeof global.crozzoLanPostSync === 'function') {
-        var okLan = await global.crozzoLanPostSync(body, { timeoutMs: 5500 });
-        if (timer) global.clearTimeout(timer);
-        return !!okLan;
+        return !!(await global.crozzoLanPostSync(body, { timeoutMs: 5500 }));
       }
-      var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
-        method: 'POST',
-        headers: (typeof global.crozzoLanAuthHeaders === 'function'
-          ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
-          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
-        body: JSON.stringify(body),
-        signal: controller ? controller.signal : undefined,
-      });
-      if (timer) global.clearTimeout(timer);
-      if (!res.ok) {
-        if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
-        return false;
-      }
-      var j = await res.json().catch(function () { return null; });
-      return !!(j && j.ok !== false);
+      return false;
     } catch (e) {
       if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
       return false;
@@ -675,7 +666,10 @@
   }
 
   function pushComanda(comanda, opts) {
-    if (cloudUnderPressure() || !tierAllowsCloudPush()) return Promise.resolve(false);
+    if (cloudUnderPressure() || !tierAllowsCloudPush()) {
+      if (lanSegmentLikely()) return pushComandaLan(comanda);
+      return Promise.resolve(false);
+    }
     var run = function () {
       return pushComandaInner(comanda, opts);
     };
@@ -691,9 +685,9 @@
       var c = findComanda(id);
       if (!c) return;
       outboxEnqueue(c);
-      if (!deferLocalCloudSync() && lan) pushComandaLan(c).catch(function () {});
+      if (lan) pushComandaLan(c).catch(function () {});
     });
-    if (online() && tierAllowsCloudPush()) scheduleOutboxDrain(600);
+    if (outboxPending() && (tierAllowsCloudPush() || lan)) scheduleOutboxDrain(600);
   }
 
   async function pushComandaEstadoLan(comanda, estado) {
@@ -707,8 +701,15 @@
     if (!ip) return false;
     var port = Number(md.port) || 3000;
     var ctx = cloudCtx();
+    var estActionId =
+      String(comanda.transaction_id || comanda.id || '') +
+      ':' +
+      String(estado || comanda.estado || '') +
+      ':' +
+      String(comanda.lastUpdateAt || new Date().toISOString());
     var body = {
-      uuid: String(comanda.transaction_id || comanda.id || '') + ':' + String(estado || comanda.estado || ''),
+      uuid: estActionId,
+      action_id: estActionId,
       businessId: ctx.businessId,
       deviceId: ctx.deviceId,
       location_id: ctx.locationId,
@@ -720,20 +721,12 @@
         lastUpdateAt: new Date().toISOString(),
       },
     };
+    if (typeof global.crozzoLanEnsureActionId === 'function') global.crozzoLanEnsureActionId(body);
     try {
-      var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
-        method: 'POST',
-        headers: (typeof global.crozzoLanAuthHeaders === 'function'
-          ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
-          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
-        return false;
+      if (typeof global.crozzoLanPostSync === 'function') {
+        return !!(await global.crozzoLanPostSync(body, { timeoutMs: 5500 }));
       }
-      var j = await res.json().catch(function () { return null; });
-      return !!(j && j.ok !== false);
+      return false;
     } catch (e) {
       if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(e);
       if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
@@ -744,26 +737,27 @@
   function fanoutComandaEstado(comanda, estado) {
     if (!comanda) return;
     var est = estado || comanda.estado;
-    var tier = tierNow();
-    if (tier === 'offline') {
-      try {
-        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
-          global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id);
-        }
-      } catch (_) {}
-      // Aun sin red: registrar en el outbox para entregar el estado al reconectar.
-      outboxEnqueue(comanda);
-      return;
-    }
-    // Entrega garantizada del cambio de estado por la nube (outbox con reintento).
+    var lan = lanSegmentLikely();
     outboxEnqueue(comanda);
-    if (!deferLocalCloudSync() && lanSegmentLikely()) {
+    if (lan) {
       pushComandaEstadoLan(comanda, est).catch(function () {});
-    }
-    if (!deferLocalCloudSync()) {
       try {
         if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
           global.CrozzoLanWebSocketBridge.notifyEstado(comanda, est);
+        }
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+          global.crozzoActivateLocalSyncPath('comanda_estado').catch(function () {});
+        }
+      } catch (_) {}
+      return;
+    }
+    var tier = tierNow();
+    if (tier === 'offline' || tier === 'mesh') {
+      try {
+        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
+          global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id);
         }
       } catch (_) {}
     }
@@ -1262,6 +1256,13 @@
           scheduleComandaPull();
         } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
           __realtimeLive = false;
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            try {
+              if (typeof global.crozzoNoteWanUnreachable === 'function') {
+                global.crozzoNoteWanUnreachable('comanda_realtime_' + status);
+              }
+            } catch (_) {}
+          }
           scheduleComandaPull();
           global.setTimeout(function () {
             if (!tierAllowsCloudRead() || !cloudWanReady()) {
@@ -1320,7 +1321,7 @@
     // Recupera el outbox de sesiones anteriores y drena lo pendiente: cualquier
     // comanda cuyo push quedó sin confirmar antes de un cierre/recarga se reenvía.
     loadOutbox();
-    if (outboxPending() && tierAllowsCloudPush()) scheduleOutboxDrain(300);
+    if (outboxPending() && (tierAllowsCloudPush() || lanSegmentLikely())) scheduleOutboxDrain(300);
 
     // Arranque: pull autoritativo + reconciliación por ausencia (limpia comandas
     // viejas ya cobradas si el equipo estuvo apagado).
@@ -1367,8 +1368,23 @@
         global.maybeEmergencyBroadcastComandas(ids);
       }
     } catch (_) {}
+    var lan = lanSegmentLikely();
+    if (lan) {
+      try {
+        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+          global.crozzoActivateLocalSyncPath('comanda_new').catch(function () {});
+        }
+      } catch (_) {}
+      pushComandasByIds(ids);
+      try {
+        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyComandasByIds === 'function') {
+          global.CrozzoLanWebSocketBridge.notifyComandasByIds(ids);
+        }
+      } catch (_) {}
+      return;
+    }
     var tier = tierNow();
-    if (tier === 'offline') {
+    if (tier === 'offline' || tier === 'mesh') {
       try {
         if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishComandaNewByIds === 'function') {
           global.CrozzoOfflineGossip.publishComandaNewByIds(ids);
@@ -1427,8 +1443,10 @@
   };
   /** Fuerza un intento de drenado del outbox (p. ej. al reconectar). */
   global.crozzoFlushComandaOutbox = function () {
-    if (!tierAllowsCloudPush()) return false;
-    if (cloudUnderPressure()) return outboxPending();
+    var cloudOk = tierAllowsCloudPush();
+    var lanOk = lanSegmentLikely();
+    if (!cloudOk && !lanOk) return false;
+    if (cloudOk && cloudUnderPressure()) return outboxPending();
     loadOutbox();
     if (outboxPending()) {
       if (__outboxTimer) {
@@ -1438,6 +1456,12 @@
       scheduleOutboxDrain(800);
     }
     return outboxPending();
+  };
+  global.crozzoScheduleComandaOutboxLanDrain = function () {
+    loadOutbox();
+    if (!outboxPending()) return;
+    if (__outboxTimer) return;
+    scheduleOutboxDrain(lanSegmentLikely() ? 400 : 1200);
   };
   /** Estado del outbox para diagnóstico de comunicación. */
   global.crozzoComandaOutboxStatus = function () {
@@ -1462,7 +1486,9 @@
         }
         if (!__started) startComandasCloudSync();
         else if (!__realtimeLive) subscribeComandaRealtime('tier_up');
-        if (outboxPending() && tierAllowsCloudPush() && !cloudUnderPressure()) scheduleOutboxDrain(1200);
+        if (outboxPending() && (tierAllowsCloudPush() || lanSegmentLikely()) && !cloudUnderPressure()) {
+          scheduleOutboxDrain(1200);
+        }
       } catch (_) {}
     };
     global.addEventListener('crozzo-tier-changed', onTierShift);

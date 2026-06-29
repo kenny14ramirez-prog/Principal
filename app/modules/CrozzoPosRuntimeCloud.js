@@ -41,9 +41,25 @@
 
   function noteCloudErr(err) {
     try {
+      var msg = String((err && err.message) || err || '');
+      if (/INSUFFICIENT_RESOURCES/i.test(msg)) {
+        if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(err);
+      } else if (/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|Failed to fetch|network/i.test(msg)) {
+        if (typeof global.crozzoNoteWanUnreachable === 'function') global.crozzoNoteWanUnreachable(msg);
+      }
       var thr = global.CrozzoCloudThrottle;
       if (thr && typeof thr.noteSupabaseError === 'function') thr.noteSupabaseError(err);
     } catch (_) {}
+  }
+
+  function runtimeLanPushAllowed() {
+    if (typeof global.crozzoLocalSyncPathReady === 'function' && !global.crozzoLocalSyncPathReady()) {
+      return false;
+    }
+    if (typeof global.crozzoCloudSyncPathReady === 'function' && global.crozzoCloudSyncPathReady()) {
+      return false;
+    }
+    return true;
   }
 
   function clearCloudPressure() {
@@ -97,15 +113,10 @@
 
   function scheduleRuntimeResubscribe(reason) {
     if (__rtResubTimer) return;
-    if (!cloudWanReady()) return;
-    if (cloudUnderPressure()) return;
     __rtResubAttempt = Math.min((__rtResubAttempt || 0) + 1, 14);
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!cloudTransportActive() || !cloudWanReady()) {
-        stopRuntimeCloudSync();
-        return;
-      }
+      if (!online() || __tableMissing) return;
       subscribeRealtime(reason || 'resub');
     }, rtResubscribeDelayMs());
   }
@@ -120,11 +131,6 @@
 
   function cloudTransportActive() {
     if (!online() || __tableMissing) return false;
-    try {
-      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
-        return global.crozzoCloudBackgroundSyncAllowed();
-      }
-    } catch (_) {}
     // No sincronizar antes del login (evita 401 sin sesión y push de estado viejo).
     try {
       if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
@@ -136,12 +142,7 @@
         return global.crozzoTierAllowsCloudSync();
       }
     } catch (_) {}
-    try {
-      if (typeof global.crozzoCloudWanReady === 'function') {
-        return global.crozzoCloudWanReady();
-      }
-    } catch (_) {}
-    return false;
+    return true;
   }
 
   function ctx() {
@@ -308,6 +309,7 @@
       cajaMesaOrderOpen: !!full.cajaMesaOrderOpen,
       cajaLlevarOrderOpen: !!full.cajaLlevarOrderOpen,
       closedSlots: full.closedSlots,
+      slotCartDetachedFromComandas: full.slotCartDetachedFromComandas,
       comandaSlotLocks: full.comandaSlotLocks,
       slotSessionPresence: full.slotSessionPresence,
     };
@@ -421,6 +423,7 @@
       cajaMesaOrderOpen: pay.cajaMesaOrderOpen,
       cajaLlevarOrderOpen: pay.cajaLlevarOrderOpen,
       closedSlots: pay.closedSlots,
+      slotCartDetachedFromComandas: pay.slotCartDetachedFromComandas,
       comandaSlotLocks: pay.comandaSlotLocks,
       slotSessionPresence: pay.slotSessionPresence,
       clientePorSlot: pay.clientePorSlot,
@@ -730,62 +733,28 @@
   }
 
   async function pushRuntimeLan(snap) {
-    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
-      return false;
-    }
-    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    if (!runtimeLanPushAllowed()) return false;
     var c = ctx();
+    var rtId = 'rt:' + String(snap.savedAt || snap.v || Date.now());
     var body = {
-      uuid: 'rt_' + String(snap.savedAt || Date.now()),
+      uuid: rtId,
+      action_id: rtId,
       businessId: c.businessId,
       deviceId: c.deviceId,
       type: 'runtime',
       data: snap,
     };
-    if (typeof global.crozzoLanPostSync === 'function') {
-      try {
-        var okNative = await global.crozzoLanPostSync(body, { timeoutMs: 5000 });
-        if (okNative) {
-          __echoUntil = Date.now() + ECHO_MS;
-          __lastPushSig = payloadSig(snap);
-          __lastPushAt = Date.now();
-          return true;
-        }
-        if (md.role === 'A') return false;
-      } catch (_) {
-        if (md.role === 'A') return false;
-      }
-    }
-    var host = lanCentralHost();
-    if (!host) return false;
-    var port = Number(md.port) || 3000;
-    var controller = new AbortController();
-    var t = global.setTimeout(function () {
-      controller.abort();
-    }, 5000);
+    if (typeof global.crozzoLanEnsureActionId === 'function') global.crozzoLanEnsureActionId(body);
+    if (typeof global.crozzoLanPostSync !== 'function') return false;
     try {
-      var res = await global.fetch('http://' + host + ':' + port + '/api/sync', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: (typeof global.crozzoLanAuthHeaders === 'function'
-          ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
-          : { 'Content-Type': 'application/json', Accept: 'application/json' }),
-        body: JSON.stringify(body),
-      });
-      global.clearTimeout(t);
-      if (!res.ok) return false;
-      var j = await res.json().catch(function () {
-        return null;
-      });
-      if (j && j.ok !== false) {
+      var okNative = await global.crozzoLanPostSync(body, { timeoutMs: 5000 });
+      if (okNative) {
         __echoUntil = Date.now() + ECHO_MS;
         __lastPushSig = payloadSig(snap);
         __lastPushAt = Date.now();
         return true;
       }
-    } catch (e) {
-      global.clearTimeout(t);
-    }
+    } catch (_) {}
     return false;
   }
 
@@ -1103,9 +1072,7 @@
       if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
     } catch (_) {}
     var allowCloud = cloudTransportActive();
-    var allowLan =
-      !deferLocalCloudSync() &&
-      (typeof global.crozzoLanTransportAllowed === 'function' ? global.crozzoLanTransportAllowed() : false);
+    var allowLan = runtimeLanPushAllowed();
     if (!allowCloud && !allowLan) return false;
     var full = collectFull();
     var snap = packForCloud(full);
@@ -1199,12 +1166,7 @@
     }
     if (p === 'fast') {
       __pushPending = 'fast';
-      if (
-        typeof global.crozzoLanTransportAllowed === 'function' &&
-        global.crozzoLanTransportAllowed() &&
-        typeof global.crozzoIsLocalLanSegmentUp === 'function' &&
-        global.crozzoIsLocalLanSegmentUp()
-      ) {
+      if (runtimeLanPushAllowed()) {
         try {
           var fullFast = collectFull();
           var snapFast = packForCloud(fullFast);
@@ -1258,13 +1220,35 @@
       }
       return false;
     }
+    var isAggregate = !!(opts && opts.aggregate);
+    if (!(opts && opts.force) && !isAggregate && mesaKeys2.length === 0) {
+      if (__lastRemoteAt && remoteAt && remoteAt < __lastRemoteAt - 400) {
+        return false;
+      }
+      var localMesas = 0;
+      try {
+        var lm = global.cartsPorMesa || {};
+        localMesas = Object.keys(lm).filter(function (k) {
+          return Array.isArray(lm[k]) && lm[k].length;
+        }).length;
+      } catch (_) {}
+      if (localMesas > 0) {
+        var nowEmpty = Date.now();
+        if (nowEmpty - __lastDiscardLogAt > 8000) {
+          __lastDiscardLogAt = nowEmpty;
+          try {
+            console.warn('[runtime-cloud] applyRemoteRow: snapshot vacío ignorado (local mesas=' + localMesas + ')');
+          } catch (_) {}
+        }
+        return false;
+      }
+    }
     // opts.aggregate: el pull por-mesa reconstruye un snapshot que MEZCLA mesas
     // de TODOS los equipos. No tiene un solo "dueño", así que NO se le puede
     // aplicar el guard de "mismo equipo + más viejo" (rechazaba TODO el agregado
     // —incluida la mesa que comandó el otro equipo— solo porque la fila más
     // reciente resultaba ser de este equipo). La deduplicación por contenido y
     // el merge de carritos ya evitan reaplicar lo propio o pisar lo local.
-    var isAggregate = !!(opts && opts.aggregate);
     var srcDevGuard = String(row.source_device_id || pay._cloudOriginDevice || '').trim();
     var myDevGuard = ctx().deviceId;
     var sameDeviceGuard = !!(srcDevGuard && myDevGuard && srcDevGuard === myDevGuard);
@@ -1351,8 +1335,14 @@
         }
       } catch (e) {
         console.warn('[runtime-cloud] pull cloud', e);
+        noteCloudErr(e);
       }
-      // Fase nube: no mezclar pull LAN si Supabase esta activo.
+      if (!cloudWanReady()) {
+        try {
+          if (await lanSegmentUp()) return pullRuntimeLan(opts);
+        } catch (_) {}
+      }
+      // Fase nube: no mezclar pull LAN si Supabase responde bien.
       return false;
     }
     if (await lanSegmentUp()) {

@@ -32,12 +32,18 @@
 
   function tierAllows() {
     try {
+      if (typeof global.crozzoCloudSyncPathReady === 'function' && global.crozzoCloudSyncPathReady()) {
+        return false;
+      }
+    } catch (_) {}
+    if (canUseLanWs()) return true;
+    try {
       if (typeof global.crozzoLanTransportAllowed === 'function') {
         return global.crozzoLanTransportAllowed();
       }
     } catch (_) {}
     var t = String(global.__CROZZO_TIER_LAST || 'offline');
-    return t === 'lan' || t === 'hotspot';
+    return t === 'lan' || t === 'hotspot' || t === 'offline' || t === 'mesh';
   }
 
   function wsPort(cfg) {
@@ -75,7 +81,21 @@
       }
       return;
     }
-    var typ = String(raw.type || '').toLowerCase();
+    var typEarly = String(raw.type || '').toLowerCase();
+    if (typEarly === 'lan_action_ack') {
+      if (typeof global.crozzoLanHandleActionAck === 'function') global.crozzoLanHandleActionAck(raw);
+      return;
+    }
+    if (typeof global.crozzoLanShouldApplyAction === 'function') {
+      var gate = global.crozzoLanShouldApplyAction(raw, { source: 'lan_ws' });
+      if (!gate.apply) {
+        if (gate.reason === 'already_seen' && typeof global.crozzoLanEmitActionAck === 'function') {
+          global.crozzoLanEmitActionAck(gate.actionId);
+        }
+        return;
+      }
+    }
+    var typ = typEarly;
     if (typ === 'runtime') {
       var snap = raw.data || raw.payload || raw;
       if (snap && typeof global.crozzoApplyRemoteRuntimeRow === 'function') {
@@ -87,6 +107,7 @@
         if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
           global.crozzoHandleRemoteRuntimeUiSync();
         }
+        if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_runtime');
       }
       return;
     }
@@ -123,6 +144,7 @@
             }
           } catch (_) {}
         }
+        if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_comanda');
       }
       return;
     }
@@ -157,6 +179,7 @@
           global.renderPage(global.currentPage, { background: true });
         }
       } catch (_) {}
+      if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_estado');
       return;
     }
     if (typ === 'internal_qr_slot' || typ === 'internal_qr_req') {
@@ -376,34 +399,16 @@
   function postComandaToCentralStore(c) {
     if (!c || c.id == null) return Promise.resolve(false);
     if (!tierAllows()) return Promise.resolve(false);
-    var cfg = md();
-    var host = cfg.role === 'A' ? '127.0.0.1' : String(cfg.centralIp || '').trim();
-    if (!host) return Promise.resolve(false);
-    var port = Number(cfg.port) || 3000;
-    try {
-      return global
-        .fetch('http://' + host + ':' + port + '/api/sync', {
-          method: 'POST',
-          headers:
-            typeof global.crozzoLanAuthHeaders === 'function'
-              ? global.crozzoLanAuthHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' })
-              : { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({
-            uuid: String(c.transaction_id || c.id),
-            type: 'comanda',
-            data: c,
-          }),
-        })
-        .then(function (res) {
-          return !!(res && res.ok);
-        })
-        .catch(function (e) {
-          if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(e);
-          return false;
-        });
-    } catch (_) {
-      return Promise.resolve(false);
-    }
+    if (typeof global.crozzoLanPostSync !== 'function') return Promise.resolve(false);
+    return global
+      .crozzoLanPostSync({
+        uuid: String(c.transaction_id || c.id),
+        type: 'comanda',
+        data: c,
+      })
+      .catch(function () {
+        return false;
+      });
   }
 
   function notifyComandasByIds(ids) {

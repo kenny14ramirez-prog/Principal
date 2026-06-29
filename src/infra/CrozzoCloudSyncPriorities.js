@@ -688,6 +688,105 @@
     return crozzoCloudBackgroundSyncAllowed(Object.assign({ kind: 'realtime' }, opts || {}));
   }
 
+  var __SYNC_BYPASS_KINDS = [
+    'nav_enter',
+    'nav_leave',
+    'flush',
+    'beforeunload',
+    'startup',
+    'postInit',
+    'post_login',
+    'online',
+    'reconnect',
+    'reconnect_push',
+    'reconnect_pull',
+    'page_watch',
+    'operational',
+  ];
+
+  function localPathReady() {
+    try {
+      if (typeof global.crozzoLocalSyncPathReady === 'function') return global.crozzoLocalSyncPathReady();
+    } catch (_) {}
+    return false;
+  }
+
+  function cloudPathReady() {
+    try {
+      if (typeof global.crozzoCloudSyncPathReady === 'function') return global.crozzoCloudSyncPathReady();
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') return global.crozzoTierAllowsCloudSync();
+    } catch (_) {}
+    return false;
+  }
+
+  /**
+   * Misma regla de zonas Z0/Z1/Z3 que la nube, pero por LAN cuando no hay internet.
+   * Si la nube ya lleva el transporte en Z0, LAN realtime queda en standby (sin duplicar).
+   */
+  function crozzoLocalSyncAllowed(opts) {
+    opts = opts || {};
+    var kind = String(opts.kind || '');
+
+    try {
+      if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
+        if (!opts.force) return false;
+      }
+    } catch (_) {}
+
+    if (!localPathReady()) return false;
+
+    if (!opts.force && (kind === 'realtime' || kind === 'transport' || !kind)) {
+      try {
+        if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
+          return false;
+        }
+      } catch (_) {}
+    }
+
+    if (opts.force || __SYNC_BYPASS_KINDS.indexOf(kind) >= 0) {
+      return true;
+    }
+
+    var zone = getPageZone(activePageNow());
+    if (!kind || kind === 'realtime' || kind === 'transport') {
+      return zone === Z0;
+    }
+    if (kind === 'background') {
+      return zone !== Z3;
+    }
+    if (kind === 'queue') {
+      return zone !== Z3;
+    }
+    return zone === Z0 || zone === Z1;
+  }
+
+  function crozzoLocalRealtimeAllowed(opts) {
+    return crozzoLocalSyncAllowed(Object.assign({ kind: 'realtime' }, opts || {}));
+  }
+
+  /** Transporte activo: cloud primero; si no, LAN con las mismas zonas. */
+  function crozzoActiveSyncTransport(opts) {
+    opts = opts || {};
+    try {
+      if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed(Object.assign({ kind: 'transport' }, opts))) {
+        return 'cloud';
+      }
+    } catch (_) {}
+    try {
+      if (localPathReady() && crozzoLocalSyncAllowed(Object.assign({ kind: 'transport' }, opts))) {
+        return 'lan';
+      }
+    } catch (_) {}
+    return 'none';
+  }
+
+  function crozzoOpsSyncAllowed(opts) {
+    opts = opts || {};
+    return crozzoActiveSyncTransport(opts) !== 'none';
+  }
+
   function getDomainPriority(domain) {
     var d = String(domain || '').trim();
     return DOMAIN_PRIORITY[d] != null ? DOMAIN_PRIORITY[d] : P2;
@@ -914,6 +1013,10 @@
     pushQueueNow: pushQueueNow,
     startBackgroundScheduler: startBackgroundScheduler,
     stopBackgroundScheduler: stopBackgroundScheduler,
+    crozzoLocalSyncAllowed: crozzoLocalSyncAllowed,
+    crozzoLocalRealtimeAllowed: crozzoLocalRealtimeAllowed,
+    crozzoActiveSyncTransport: crozzoActiveSyncTransport,
+    crozzoOpsSyncAllowed: crozzoOpsSyncAllowed,
   };
 
   global.crozzoSyncPriorityForType = getOperationPriority;
@@ -922,6 +1025,21 @@
   global.crozzoResolveCloudSyncPage = resolvePage;
   global.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
   global.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
+  global.crozzoLocalSyncAllowed = crozzoLocalSyncAllowed;
+  global.crozzoLocalRealtimeAllowed = crozzoLocalRealtimeAllowed;
+  global.crozzoActiveSyncTransport = crozzoActiveSyncTransport;
+  global.crozzoOpsSyncAllowed = crozzoOpsSyncAllowed;
+  global.crozzoOperationalRealtimeActive = function () {
+    try {
+      return isOperationalPage(activePageNow());
+    } catch (_) {
+      return false;
+    }
+  };
   global.CrozzoCloudSyncPriorities.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
   global.CrozzoCloudSyncPriorities.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
+  global.CrozzoCloudSyncPriorities.crozzoLocalSyncAllowed = crozzoLocalSyncAllowed;
+  global.CrozzoCloudSyncPriorities.crozzoLocalRealtimeAllowed = crozzoLocalRealtimeAllowed;
+  global.CrozzoCloudSyncPriorities.crozzoActiveSyncTransport = crozzoActiveSyncTransport;
+  global.CrozzoCloudSyncPriorities.crozzoOpsSyncAllowed = crozzoOpsSyncAllowed;
 })(typeof window !== 'undefined' ? window : globalThis);

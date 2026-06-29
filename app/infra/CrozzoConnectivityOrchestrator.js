@@ -464,6 +464,12 @@
     }
     if (tier === 'lan') return 'lan';
     if (tier === 'hotspot') return 'hotspot';
+    if (info.lanReach === true || info.gwReach === true) return 'lan';
+    try {
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
+        return 'lan';
+      }
+    } catch (_) {}
     // offline / unknown -> malla; con nube viva + sin LAN -> QR de inmediato
     if (shouldSurfaceQrNow(tier, info)) return 'qr';
     var now = Date.now();
@@ -538,6 +544,7 @@
       return;
     }
     if (level === 'mesh') {
+      if (lanEvidenceForLevel('lan', __lastDetectInfo)) ensureLan();
       ensureHotspot(); // intenta que la caja levante hotspot mientras tanto
       ensureMesh();
       return;

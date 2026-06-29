@@ -1,28 +1,16 @@
 {
-  "id": "1.0.204-critical",
-  "version": "v1.0.204",
-  "semver": "1.0.204",
+  "id": "1.0.205-critical",
+  "version": "v1.0.205",
+  "semver": "1.0.205",
   "type": "critical",
-  "message": "parche de comunicacion v10",
-  "publishedAt": "2026-06-29T20:39:23.064Z",
+  "message": "parche de comunicacion v11",
+  "publishedAt": "2026-06-29T22:47:37.145Z",
   "installMode": "auto",
   "changelog": [
-    "parche de comunicacion v10"
+    "parche de comunicacion v11"
   ],
-  "updatedAt": "2026-06-29T20:39:23.064Z",
+  "updatedAt": "2026-06-29T22:47:37.145Z",
   "entries": [
-    {
-      "id": "1.0.180-critical",
-      "version": "v1.0.180",
-      "semver": "1.0.180",
-      "type": "critical",
-      "message": "58965",
-      "publishedAt": "2026-06-25T23:28:31.292Z",
-      "installMode": "auto",
-      "changelog": [
-        "58965"
-      ]
-    },
     {
       "id": "1.0.181-critical",
       "version": "v1.0.181",
@@ -310,6 +298,18 @@
       "installMode": "auto",
       "changelog": [
         "parche de comunicacion v10"
+      ]
+    },
+    {
+      "id": "1.0.205-critical",
+      "version": "v1.0.205",
+      "semver": "1.0.205",
+      "type": "critical",
+      "message": "parche de comunicacion v11",
+      "publishedAt": "2026-06-29T22:47:37.145Z",
+      "installMode": "auto",
+      "changelog": [
+        "parche de comunicacion v11"
       ]
     }
   ]

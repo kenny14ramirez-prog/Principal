@@ -22,6 +22,8 @@ const CORS_ALLOW_HEADERS: &str =
 const INFLIGHT_TTL_MS: u128 = 20_000;
 /// Tope de operaciones persistidas para no crecer sin límite.
 const PENDING_MAX: usize = 2000;
+const SEEN_ACTION_TTL_MS: u128 = 6 * 60 * 60 * 1000;
+const SEEN_ACTION_MAX: usize = 4000;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -78,6 +80,8 @@ struct ServerInner {
     runtime_saved_at: String,
     /// Comandas activas en LAN (id → payload) para GET /api/comandas.
     comandas_active: HashMap<String, serde_json::Value>,
+    /// action_id/uuid ya ingeridos — evita re-broadcast infinito P2P.
+    seen_actions: HashMap<String, u128>,
     p2p_signals: Vec<P2pSignalMsg>,
     /// Secreto compartido del pareo. Vacío = sin exigir auth (compatibilidad).
     auth_token: String,
@@ -312,6 +316,53 @@ fn mesh_ping_json(meta: &ServerMeta, port: u16) -> Vec<u8> {
     serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec())
 }
 
+fn extract_action_id(payload: &serde_json::Value) -> Option<String> {
+    for key in ["action_id", "uuid"] {
+        if let Some(v) = payload.get(key).and_then(|x| x.as_str()) {
+            let s = v.trim();
+            if !s.is_empty() {
+                return Some(s.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn prune_seen_actions(seen: &mut HashMap<String, u128>, now: u128) {
+    seen.retain(|_, ts| now.saturating_sub(*ts) < SEEN_ACTION_TTL_MS);
+    if seen.len() > SEEN_ACTION_MAX {
+        let mut items: Vec<(String, u128)> = seen.iter().map(|(k, v)| (k.clone(), *v)).collect();
+        items.sort_by_key(|(_, v)| *v);
+        let drop_n = seen.len().saturating_sub(SEEN_ACTION_MAX);
+        for (k, _) in items.into_iter().take(drop_n) {
+            seen.remove(&k);
+        }
+    }
+}
+
+/// true = duplicado reciente (no re-broadcast ni re-cola).
+fn register_action_or_duplicate(inner: &mut ServerInner, action_id: &str) -> bool {
+    let now = now_ms_u128();
+    prune_seen_actions(&mut inner.seen_actions, now);
+    if let Some(ts) = inner.seen_actions.get(action_id) {
+        if now.saturating_sub(*ts) < SEEN_ACTION_TTL_MS {
+            return true;
+        }
+    }
+    inner.seen_actions.insert(action_id.to_string(), now);
+    false
+}
+
+fn broadcast_lan_push(endpoint: &str, payload: &serde_json::Value) {
+    if let Ok(txt) = serde_json::to_string(&serde_json::json!({
+        "event": "lan_push",
+        "endpoint": endpoint,
+        "payload": payload
+    })) {
+        let _ = crozzo_lan_ws::broadcast_text(&txt);
+    }
+}
+
 /// Aplica POST /api/sync en memoria (cola + WS). Usado por HTTP y por invoke IPC
 /// de la caja (evita CORS tauri.localhost → 127.0.0.1).
 fn ingest_api_sync(
@@ -329,12 +380,35 @@ fn ingest_api_sync(
         .and_then(|t| t.as_str())
         .map(|t| t == "lan_ops_pulse")
         .unwrap_or(false);
+    let is_ack = payload
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|t| t == "lan_action_ack")
+        .unwrap_or(false);
+    if is_ack {
+        broadcast_lan_push(&endpoint, &payload);
+        return Ok(serde_json::json!({ "ok": true, "ack": true }));
+    }
     if is_pulse {
         if let Ok(txt) = serde_json::to_string(&payload.get("data").cloned().unwrap_or(payload.clone())) {
             let wrapped = format!("{{\"event\":\"lan_ops_pulse\",\"payload\":{}}}", txt);
             let _ = crozzo_lan_ws::broadcast_text(&wrapped);
         }
         return Ok(serde_json::json!({ "ok": true, "pulse": true }));
+    }
+    if let Some(aid) = extract_action_id(&payload) {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        if let Some(inner) = guard.as_mut() {
+            if register_action_or_duplicate(inner, &aid) {
+                return Ok(serde_json::json!({
+                    "ok": true,
+                    "duplicate": true,
+                    "action_id": aid,
+                    "message": "already_have"
+                }));
+            }
+        }
+        drop(guard);
     }
     if is_runtime {
         if let Some(data) = payload.get("data") {
@@ -344,13 +418,7 @@ fn ingest_api_sync(
                 inner.runtime_saved_at = now_ms();
             }
         }
-        if let Ok(txt) = serde_json::to_string(&serde_json::json!({
-            "event": "lan_push",
-            "endpoint": endpoint,
-            "payload": payload
-        })) {
-            let _ = crozzo_lan_ws::broadcast_text(&txt);
-        }
+        broadcast_lan_push(&endpoint, &payload);
         return Ok(serde_json::json!({ "ok": true, "runtime": true }));
     }
     {
@@ -359,13 +427,7 @@ fn ingest_api_sync(
             upsert_comanda_snapshot(inner, &payload);
         }
     }
-    if let Ok(txt) = serde_json::to_string(&serde_json::json!({
-        "event": "lan_push",
-        "endpoint": endpoint,
-        "payload": payload
-    })) {
-        let _ = crozzo_lan_ws::broadcast_text(&txt);
-    }
+    broadcast_lan_push(&endpoint, &payload);
     let sub = CrozzoLanSyncSubmission {
         id: format!("lan_{}_{}", now_ms(), rand_suffix()),
         received_at: now_ms(),
@@ -384,7 +446,7 @@ fn ingest_api_sync(
             save_pending(&path, &inner.pending);
         }
     }
-    Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true }))
+    Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true, "action_id": extract_action_id(&payload) }))
 }
 
 fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<ServerInner>>>) {
@@ -753,6 +815,7 @@ pub fn crozzo_lan_sync_start(
             runtime_snapshot: None,
             runtime_saved_at: String::new(),
             comandas_active: HashMap::new(),
+            seen_actions: HashMap::new(),
             p2p_signals: Vec::new(),
             auth_token: auth_token.unwrap_or_default().trim().to_string(),
             pending_path,

@@ -11,7 +11,7 @@
   var _runtimeBackoffMs = 0;
   var _cloudAnchorTimer = null;
   var POLL_MS = 4200;
-  var RUNTIME_POLL_MS = 5200;
+  var RUNTIME_POLL_MS = 900;
 
   function isDesktopTauri() {
     try {
@@ -99,9 +99,10 @@
   var _lanBackoffStep = 0;
   var _lanPostChain = Promise.resolve();
   var _lanLastPostAt = 0;
-  var LAN_MIN_GAP_MS = 180;
+  var _lanPressureLogAt = 0;
+  var LAN_MIN_GAP_MS = 650;
 
-  /** ¿Permitir escrituras LAN? Respeta tier (offline/mesh = no) y backoff por presión. */
+  /** ¿Permitir escrituras LAN HTTP? Nube viva → solo tablets; sin WAN → LAN es primario. */
   function crozzoLanTransportAllowed() {
     try {
       if (Date.now() < _lanBackoffUntil) return false;
@@ -110,20 +111,24 @@
         return false;
       }
       if (typeof global.crozzoDeferLocalSync === 'function' && global.crozzoDeferLocalSync()) return false;
-      var tier = String(global.__CROZZO_TIER_LAST || 'offline');
-      if (tier === 'offline' || tier === 'mesh') return false;
-      if (tier === 'cloud') {
-        var md0 = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
-        if (md0.role !== 'A') return false;
-        if (
-          typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
-          !global.crozzoCloudBackgroundSyncAllowed()
-        ) {
-          return false;
+      var md0 = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+      if (md0.allowLan === false) return false;
+      var hasTarget = md0.role === 'A';
+      if (!hasTarget) {
+        var ip = String(md0.centralIp || '').trim();
+        if (!ip) {
+          try {
+            ip = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+          } catch (_) {}
         }
-        return true;
+        hasTarget = !!ip;
       }
-      return tier === 'lan' || tier === 'hotspot';
+      if (!hasTarget) return false;
+      var tier = String(global.__CROZZO_TIER_LAST || 'offline');
+      var wanReady =
+        typeof global.crozzoCloudWanReady === 'function' ? global.crozzoCloudWanReady() : tier === 'cloud';
+      if (tier === 'cloud' && wanReady) return md0.role === 'B';
+      return true;
     } catch (_) {
       return false;
     }
@@ -131,37 +136,71 @@
 
   function noteLanFetchPressure(err) {
     var msg = String((err && err.message) || err || '');
-    if (/INSUFFICIENT_RESOURCES|Failed to fetch|ERR_|aborted|network/i.test(msg)) {
+    if (/INSUFFICIENT_RESOURCES/i.test(msg)) {
+      _lanBackoffStep = Math.min(_lanBackoffStep + 3, 12);
+      _lanBackoffUntil = Date.now() + Math.max(180000, 8000 * Math.pow(2, _lanBackoffStep));
+      if (Date.now() - _lanPressureLogAt > 15000) {
+        _lanPressureLogAt = Date.now();
+        try {
+          console.warn('[lan-sync] pausa LAN por presión de red (~' + Math.round((_lanBackoffUntil - Date.now()) / 1000) + 's)');
+        } catch (_) {}
+      }
+    } else if (/Failed to fetch|ERR_|aborted|network/i.test(msg)) {
       _lanBackoffStep = Math.min(_lanBackoffStep + 1, 8);
       _lanBackoffUntil = Date.now() + Math.min(90000, 4000 * Math.pow(2, _lanBackoffStep));
-      try {
-        var thr = global.CrozzoCloudThrottle;
-        if (thr && typeof thr.noteFetchFailure === 'function') thr.noteFetchFailure(err);
-      } catch (_) {}
-      return true;
+    } else {
+      return false;
     }
-    return false;
+    try {
+      var thr = global.CrozzoCloudThrottle;
+      if (thr && typeof thr.noteFetchFailure === 'function') thr.noteFetchFailure(err);
+    } catch (_) {}
+    return true;
   }
 
   function clearLanFetchPressure() {
     _lanBackoffStep = 0;
     _lanBackoffUntil = 0;
+    try {
+      global.__CROZZO_LAN_LAST_OK = Date.now();
+    } catch (_) {}
   }
 
   global.crozzoLanTransportAllowed = crozzoLanTransportAllowed;
   global.crozzoNoteLanFetchPressure = noteLanFetchPressure;
   global.crozzoClearLanFetchPressure = clearLanFetchPressure;
 
+  function lanActionGate(payload, source) {
+    if (typeof global.crozzoLanShouldApplyAction !== 'function') return true;
+    var typ = String((payload && payload.type) || '').toLowerCase();
+    if (typ === 'lan_ops_pulse' || typ === 'lan_action_ack') return true;
+    var gate = global.crozzoLanShouldApplyAction(payload, { source: source });
+    if (!gate.apply) {
+      if (gate.reason === 'already_seen' && typeof global.crozzoLanEmitActionAck === 'function') {
+        global.crozzoLanEmitActionAck(gate.actionId);
+      }
+      return false;
+    }
+    return true;
+  }
+
+  function lanActionApplied(payload, source) {
+    if (typeof global.crozzoLanMarkActionApplied === 'function') {
+      global.crozzoLanMarkActionApplied(payload, source);
+    }
+  }
+
   async function postLanSyncInner(payload, opts) {
     opts = opts || {};
     if (!payload || typeof payload !== 'object') return false;
-    if (!crozzoLanTransportAllowed()) return false;
+    if (typeof global.crozzoLanEnsureActionId === 'function') global.crozzoLanEnsureActionId(payload);
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     if (isDesktopTauri() && md.role === 'A') {
       try {
         var j = await invoke('crozzo_lan_sync_post', { body: JSON.stringify(payload) });
         if (j && j.ok !== false) {
           clearLanFetchPressure();
+          if (typeof global.crozzoLanMarkActionPushed === 'function') global.crozzoLanMarkActionPushed(payload);
           return true;
         }
         return false;
@@ -173,6 +212,7 @@
         return false;
       }
     }
+    if (!crozzoLanTransportAllowed()) return false;
     var host = md.role === 'A' ? '127.0.0.1' : String(md.centralIp || '').trim();
     if (!host) {
       try {
@@ -205,6 +245,7 @@
       });
       if (jr && jr.ok !== false) {
         clearLanFetchPressure();
+        if (typeof global.crozzoLanMarkActionPushed === 'function') global.crozzoLanMarkActionPushed(payload);
         return true;
       }
       return false;
@@ -218,7 +259,9 @@
 
   /** POST /api/sync — caja Tauri usa invoke nativo (sin CORS); tablets vía HTTP. Cola serial anti-tormenta. */
   async function postLanSync(payload, opts) {
-    if (!crozzoLanTransportAllowed()) return false;
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    var nativeA = isDesktopTauri() && md.role === 'A';
+    if (!nativeA && !crozzoLanTransportAllowed()) return false;
     var run = function () {
       var wait = Math.max(0, LAN_MIN_GAP_MS - (Date.now() - _lanLastPostAt));
       if (wait <= 0) {
@@ -368,6 +411,7 @@
   function tryApplyLanComandaEstado(sub) {
     var raw = lanSubmissionRaw(sub);
     if (String(raw.type || '').toLowerCase() !== 'comanda_estado') return false;
+    if (!lanActionGate(raw, 'lan_http_estado')) return true;
     var pay = raw.data || raw.payload || null;
     if (!pay) return false;
     try {
@@ -412,6 +456,7 @@
       ) {
         global.crozzoPushComandasCloudByIds([pay.id]);
       }
+      lanActionApplied(raw, 'lan_http_estado');
       return true;
     } catch (e) {
       try {
@@ -425,6 +470,7 @@
     var raw = lanSubmissionRaw(sub);
     var typ = String(raw.type || '').toLowerCase();
     if (typ !== 'comanda' && typ !== 'comanda_new') return false;
+    if (!lanActionGate(raw, 'lan_http_comanda')) return true;
     var snap = raw.data || raw.payload || null;
     if (!snap || snap.id == null) return false;
     try {
@@ -469,6 +515,7 @@
       ) {
         global.crozzoPushComandasCloudByIds([snap.id]);
       }
+      lanActionApplied(raw, 'lan_http_comanda');
       return true;
     } catch (e) {
       try {
@@ -505,18 +552,8 @@
 
   async function pullLocalRuntimeOnce() {
     if (!isDesktopTauri()) return false;
-    if (_runtimePullInFlight) return false;
-    if (Date.now() < _runtimeBackoffUntil) return false;
     var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
     if (!mdCfg || mdCfg.role !== 'A') return false;
-    try {
-      if (typeof global.crozzoOperationalRealtimeActive === 'function' && !global.crozzoOperationalRealtimeActive()) {
-        return false;
-      }
-    } catch (_) {}
-    var tier = String(global.__CROZZO_TIER_LAST || '');
-    if (tier !== 'cloud' && tier !== 'lan' && tier !== 'hotspot') return false;
-    _runtimePullInFlight = true;
     var port = Number(mdCfg.port) || 3000;
     try {
       var res = await global.fetch('http://127.0.0.1:' + port + '/api/runtime', {
@@ -543,8 +580,6 @@
         _runtimeBackoffUntil = Date.now() + _runtimeBackoffMs;
       }
       return false;
-    } finally {
-      _runtimePullInFlight = false;
     }
   }
 
@@ -985,6 +1020,11 @@
     global.__crozzoLanBridgeOfflineBound = true;
     try {
       global.addEventListener('offline', function () {
+        try {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('browser_offline').catch(function () {});
+          }
+        } catch (_) {}
         syncFromConfig().catch(function () {});
       });
     } catch (_) {}
