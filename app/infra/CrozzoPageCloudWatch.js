@@ -546,12 +546,19 @@
     var plan = syncPlan(page);
     if (isZone0Page(page)) {
       safe(function () {
-        if (!cloudBgAllowed()) {
+        if (typeof global.crozzoStartLanOpsSync === 'function') {
+          try {
+            if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
+              global.crozzoStartLanOpsSync('page_z0_' + page);
+            }
+          } catch (_) {}
+        }
+        if (!cloudBgAllowed({ kind: 'operational' })) {
           stopCloudTransportsQuiet();
           return;
         }
         if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
-          global.crozzoEnsureCloudSyncActive({ source: 'page_z0_' + page }).catch(function () {});
+          global.crozzoEnsureCloudSyncActive({ source: 'page_z0_' + page, force: true }).catch(function () {});
         } else {
           refreshCloudTransports();
         }
@@ -603,6 +610,7 @@
 
   function cloudBgAllowed(opts) {
     opts = opts || {};
+    if (!opts.kind) opts.kind = 'operational';
     try {
       if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
         return global.crozzoCloudBackgroundSyncAllowed(opts);

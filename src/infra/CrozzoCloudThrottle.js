@@ -81,7 +81,14 @@
     var reason = String(global.__CROZZO_CLOUD_PRESSURE_REASON || '');
     if (reason === 'auth' || reason === '429') return;
     var sig = String(signal || '');
-    if (sig !== 'subscribed' && sig !== 'tier_cloud' && sig !== 'online_recovery') return;
+    if (sig !== 'subscribed' && sig !== 'tier_cloud' && sig !== 'online_recovery' && sig !== 'post_login') return;
+    if (sig === 'post_login' && reason === 'auth') {
+      clearPressure();
+      try {
+        if (typeof global.crozzoClearLanFetchPressure === 'function') global.crozzoClearLanFetchPressure();
+      } catch (_) {}
+      return;
+    }
     try {
       if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
         return;
@@ -141,6 +148,14 @@
     if (!err) return false;
     var msg = String(err.message || err.details || err.hint || err || '');
     var code = String(err.code || err.status || '');
+    var st = Number(err.status || err.statusCode || code) || 0;
+    if (
+      (st === 401 || st === 403) &&
+      typeof global.crozzoCloudSyncSessionGateOpen === 'function' &&
+      !global.crozzoCloudSyncSessionGateOpen()
+    ) {
+      return false;
+    }
     if (/PGRST003|57014|query.?timeout/i.test(msg)) {
       markPressure(40000, 'query_timeout');
       return true;

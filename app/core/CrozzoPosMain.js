@@ -845,7 +845,7 @@ async function loginWithCredentials(userId, clave) {
   try {
     setTimeout(function () {
       if (typeof window.crozzoEnsureCloudSyncActive === 'function') {
-        window.crozzoEnsureCloudSyncActive({ source: 'post_login' }).catch(function () {});
+        window.crozzoEnsureCloudSyncActive({ source: 'post_login', force: true }).catch(function () {});
       }
     }, 400);
   } catch (_) {}
@@ -1584,6 +1584,12 @@ function crozzoFinishLoginSuccess(opts) {
     }
   } catch (_) {}
   crozzoRunPostLoginCloudSync();
+  try {
+    var thrLogin = window.CrozzoCloudThrottle;
+    if (thrLogin && typeof thrLogin.maybeClearPressureOnHealthySignal === 'function') {
+      thrLogin.maybeClearPressureOnHealthySignal('post_login');
+    }
+  } catch (_) {}
   try {
     if (typeof CrozzoStaffCelebrations !== 'undefined' && CrozzoStaffCelebrations.onLoginSuccess) {
       var loginUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
@@ -32960,31 +32966,23 @@ function crozzoTierAllowsCloudSync() {
   return t === 'cloud';
 }
 window.crozzoTierAllowsCloudSync = crozzoTierAllowsCloudSync;
-/** Gate unificado: ¿permitir sync nube en background (cola, tenant, staff)? */
+/** Gate unificado: delegado a CrozzoCloudSyncPriorities (zonas Z0/Z1/Z3 + recovery). */
 function crozzoCloudBackgroundSyncAllowed(opts) {
+  try {
+    if (global.CrozzoCloudSyncPriorities && typeof global.CrozzoCloudSyncPriorities.crozzoCloudBackgroundSyncAllowed === 'function') {
+      return global.CrozzoCloudSyncPriorities.crozzoCloudBackgroundSyncAllowed(opts);
+    }
+  } catch (_) {}
   opts = opts || {};
   try {
     if (typeof crozzoCloudSyncSessionGateOpen === 'function' && !crozzoCloudSyncSessionGateOpen()) {
-      return false;
+      return !!opts.force;
     }
     if (typeof crozzoTierAllowsCloudSync === 'function' && !crozzoTierAllowsCloudSync()) {
       return false;
     }
-    if (
-      !opts.force &&
-      global.CrozzoConnectivityDirector &&
-      typeof global.CrozzoConnectivityDirector.shouldDeferCloudStaffSync === 'function' &&
-      global.CrozzoConnectivityDirector.shouldDeferCloudStaffSync()
-    ) {
-      return false;
-    }
     var throttle = global.CrozzoCloudThrottle;
-    if (
-      !opts.force &&
-      throttle &&
-      typeof throttle.isUnderPressure === 'function' &&
-      throttle.isUnderPressure()
-    ) {
+    if (!opts.force && throttle && typeof throttle.isUnderPressure === 'function' && throttle.isUnderPressure()) {
       return false;
     }
   } catch (_) {

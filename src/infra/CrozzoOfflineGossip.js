@@ -105,7 +105,26 @@
   function shouldRun() {
     if (global.__CROZZO_GOSSIP_FORCE === true) return true;
     var t = tierNow();
-    if (t === 'cloud' || t === 'lan' || t === 'hotspot') return false;
+    if (t === 'lan' || t === 'hotspot') return false;
+    if (t === 'cloud') {
+      // Tier cloud por ping (p. ej. 401) no basta: mantener gossip hasta realtime nube vivo
+      // o hasta que el gate de sesión abra y el transporte arranque en Z0.
+      try {
+        if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
+          return true;
+        }
+        if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+          if (!global.crozzoCloudBackgroundSyncAllowed({ kind: 'realtime' })) return true;
+        }
+        var rt = typeof global.crozzoRuntimeRealtimeStatus === 'function' ? global.crozzoRuntimeRealtimeStatus() : null;
+        var cm = typeof global.crozzoComandaRealtimeStatus === 'function' ? global.crozzoComandaRealtimeStatus() : null;
+        if (rt && rt.live) return false;
+        if (cm && cm.live) return false;
+      } catch (_) {
+        return true;
+      }
+      return true;
+    }
     return true;
   }
 

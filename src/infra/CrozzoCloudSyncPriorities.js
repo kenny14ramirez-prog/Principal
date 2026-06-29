@@ -624,13 +624,25 @@
       'beforeunload',
       'startup',
       'postInit',
+      'post_login',
       'online',
       'reconnect',
       'reconnect_push',
       'reconnect_pull',
       'page_watch',
+      'operational',
     ];
-    var recoveryKinds = ['online', 'reconnect', 'reconnect_push', 'reconnect_pull', 'page_watch', 'startup', 'postInit'];
+    var recoveryKinds = [
+      'online',
+      'reconnect',
+      'reconnect_push',
+      'reconnect_pull',
+      'page_watch',
+      'startup',
+      'postInit',
+      'post_login',
+      'operational',
+    ];
     var tierOk = true;
     try {
       if (typeof global.crozzoTierAllowsCloudSync === 'function') {
@@ -910,4 +922,6 @@
   global.crozzoResolveCloudSyncPage = resolvePage;
   global.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
   global.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
+  global.CrozzoCloudSyncPriorities.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
+  global.CrozzoCloudSyncPriorities.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
 })(typeof window !== 'undefined' ? window : globalThis);
