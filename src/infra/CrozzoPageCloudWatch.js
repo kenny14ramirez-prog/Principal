@@ -46,6 +46,12 @@
       isNavPage: function () {
         return false;
       },
+      getPageZone: function () {
+        return 1;
+      },
+      Z0: 0,
+      Z1: 1,
+      Z3: 3,
       onPageLeave: function () {},
       onPageEnter: function () {},
       startBackgroundScheduler: function () {},
@@ -515,6 +521,11 @@
     await initialPass(page, true);
   }
 
+  function isZone0Page(page) {
+    if (pri().getPageZone) return pri().getPageZone(page) === pri().Z0;
+    return pri().isOperationalPage(page);
+  }
+
   function setPage(page) {
     page = canonPage(page);
     if (page === __activePage) return;
@@ -526,20 +537,27 @@
     var profile = pageProfiles()[page];
     if (!profile || !profile.domains || !profile.domains.length) {
       stopTick();
+      if (!isZone0Page(page)) stopCloudTransportsQuiet();
       return;
     }
     pri().onPageEnter(page);
     startTick();
     pri().startBackgroundScheduler();
     var plan = syncPlan(page);
-    if (plan.priority === pri().P0) {
+    if (isZone0Page(page)) {
       safe(function () {
+        if (!cloudBgAllowed()) {
+          stopCloudTransportsQuiet();
+          return;
+        }
         if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
-          global.crozzoEnsureCloudSyncActive({ source: 'page_p0_' + page }).catch(function () {});
+          global.crozzoEnsureCloudSyncActive({ source: 'page_z0_' + page }).catch(function () {});
         } else {
           refreshCloudTransports();
         }
       });
+    } else {
+      stopCloudTransportsQuiet();
     }
     setTimeout(function () {
       initialPass(
@@ -551,6 +569,7 @@
 
   function cloudPushFlush(reason) {
     reason = reason || 'flush';
+    if (!cloudBgAllowed()) return;
     safe(function () {
       if (typeof global.crozzoSchedulePosRuntimeCloudPush === 'function') {
         global.crozzoSchedulePosRuntimeCloudPush('flush');
@@ -582,7 +601,38 @@
     return true;
   }
 
+  function cloudBgAllowed() {
+    try {
+      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+        return global.crozzoCloudBackgroundSyncAllowed();
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function stopCloudTransportsQuiet() {
+    safe(function () {
+      if (typeof global.crozzoStopComandasCloudSync === 'function') global.crozzoStopComandasCloudSync();
+    });
+    safe(function () {
+      if (typeof global.crozzoStopPosRuntimeCloudSync === 'function') global.crozzoStopPosRuntimeCloudSync();
+    });
+    safe(function () {
+      if (global.CrozzoCloudOpsPulse && typeof global.CrozzoCloudOpsPulse.stop === 'function') {
+        global.CrozzoCloudOpsPulse.stop();
+      }
+    });
+  }
+
   function refreshCloudTransports() {
+    if (!cloudBgAllowed()) {
+      stopCloudTransportsQuiet();
+      return;
+    }
+    if (!isZone0Page(__activePage)) {
+      stopCloudTransportsQuiet();
+      return;
+    }
     safe(function () {
       if (typeof global.crozzoResetRuntimeSyncDedup === 'function') global.crozzoResetRuntimeSyncDedup();
     });
@@ -600,11 +650,6 @@
       // Respaldo de entrega: al recuperar transporte, drenar comandas pendientes.
       if (typeof global.crozzoFlushComandaOutbox === 'function') global.crozzoFlushComandaOutbox();
     });
-    safe(function () {
-      if (global.CrozzoCloudThrottle && typeof global.CrozzoCloudThrottle.clearPressure === 'function') {
-        global.CrozzoCloudThrottle.clearPressure();
-      }
-    });
   }
 
   global.addEventListener('crozzo-tier-changed', function (ev) {
@@ -618,7 +663,7 @@
         // no sube su estado viejo (mesas ya cobradas) y resucita datos.
         initialPass(__activePage, pri().isNavPage(__activePage))
           .then(function () {
-            if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_tier');
+            if (isZone0Page(__activePage)) cloudPushFlush('reconnect_tier');
           })
           .catch(function () {});
       }, 600);
@@ -626,12 +671,15 @@
   });
 
   global.addEventListener('online', function () {
+    if (!cloudBgAllowed()) return;
+    var thr = global.CrozzoCloudThrottle;
+    if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) return;
     refreshCloudTransports();
     if (__activePage) {
       setTimeout(function () {
         initialPass(__activePage, pri().isNavPage(__activePage))
           .then(function () {
-            if (pri().isOperationalPage(__activePage)) cloudPushFlush('reconnect_online');
+            if (isZone0Page(__activePage)) cloudPushFlush('reconnect_online');
           })
           .catch(function () {});
       }, 800);
@@ -640,7 +688,9 @@
 
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {
-      refreshCloudTransports();
+      var thr = global.CrozzoCloudThrottle;
+      if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) return;
+      if (cloudBgAllowed()) refreshCloudTransports();
       if (__activePage) {
         setTimeout(function () {
           initialPass(__activePage, pri().isNavPage(__activePage)).catch(function () {});

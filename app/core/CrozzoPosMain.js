@@ -32925,6 +32925,39 @@ function crozzoTierAllowsCloudSync() {
   return t === 'cloud';
 }
 window.crozzoTierAllowsCloudSync = crozzoTierAllowsCloudSync;
+/** Gate unificado: ¿permitir sync nube en background (cola, tenant, staff)? */
+function crozzoCloudBackgroundSyncAllowed(opts) {
+  opts = opts || {};
+  try {
+    if (typeof crozzoCloudSyncSessionGateOpen === 'function' && !crozzoCloudSyncSessionGateOpen()) {
+      return false;
+    }
+    if (typeof crozzoTierAllowsCloudSync === 'function' && !crozzoTierAllowsCloudSync()) {
+      return false;
+    }
+    if (
+      !opts.force &&
+      global.CrozzoConnectivityDirector &&
+      typeof global.CrozzoConnectivityDirector.shouldDeferCloudStaffSync === 'function' &&
+      global.CrozzoConnectivityDirector.shouldDeferCloudStaffSync()
+    ) {
+      return false;
+    }
+    var throttle = global.CrozzoCloudThrottle;
+    if (
+      !opts.force &&
+      throttle &&
+      typeof throttle.isUnderPressure === 'function' &&
+      throttle.isUnderPressure()
+    ) {
+      return false;
+    }
+  } catch (_) {
+    return false;
+  }
+  return true;
+}
+window.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
 /**
  * GATE de sesión para la sincronización con la nube.
  *
@@ -32961,7 +32994,7 @@ window.crozzoCloudSyncSessionGateOpen = crozzoCloudSyncSessionGateOpen;
  * ¿Estamos en una pantalla OPERATIVA? El tiempo real (poll + realtime de mesas y
  * comandas) solo debe dispararse en operación: cajero, tablets, comandas, cocina,
  * mesas, venta-comercial. En el hub (Inicio), Gestión, Costos, Config, etc. NO
- * debe haber actividad de sincronización en vivo. Ante duda devuelve true.
+ * debe haber actividad de sincronización en vivo. Fuera de operación → false.
  */
 function crozzoOperationalRealtimeActive() {
   try {
@@ -32970,9 +33003,10 @@ function crozzoOperationalRealtimeActive() {
     if (!page && window.CrozzoPageCloudWatch && typeof window.CrozzoPageCloudWatch.getActivePage === 'function') {
       page = window.CrozzoPageCloudWatch.getActivePage();
     }
+    if (sp && typeof sp.getPageZone === 'function') return sp.getPageZone(page) === sp.Z0;
     if (sp && typeof sp.isOperationalPage === 'function') return !!sp.isOperationalPage(page);
   } catch (_) {}
-  return true;
+  return false;
 }
 window.crozzoOperationalRealtimeActive = crozzoOperationalRealtimeActive;
 /** Fase 1: no usar LAN/malla mientras la nube esté activa y alcanzable. */
@@ -33171,6 +33205,11 @@ async function crozzoProbeLocalLanReachable(md, opts) {
 window.crozzoProbeLocalLanReachable = crozzoProbeLocalLanReachable;
 window.crozzoIsLocalLanSegmentUp = function crozzoIsLocalLanSegmentUp() {
   try {
+    var tier = String(window.__CROZZO_TIER_LAST || 'offline');
+    if (tier === 'offline' || tier === 'mesh') return false;
+    if (typeof window.crozzoLanTransportAllowed === 'function' && !window.crozzoLanTransportAllowed()) {
+      return false;
+    }
     return !!(window.__CROZZO_LAN_LAST_OK && Date.now() - window.__CROZZO_LAN_LAST_OK < CROZZO_LAN_OK_CACHE_MS);
   } catch (_) {
     return false;
@@ -33190,7 +33229,17 @@ async function detectConnectivityTier() {
   }
   const setLast = (tier) => {
     try {
-      if (typeof window !== 'undefined') window.__CROZZO_TIER_LAST = tier;
+      if (typeof window !== 'undefined') {
+        var prev = String(window.__CROZZO_TIER_LAST || '');
+        var next = String(tier || '');
+        window.__CROZZO_TIER_LAST = tier;
+        if (tier === 'offline' || tier === 'mesh') window.__CROZZO_LAN_LAST_OK = 0;
+        if (prev !== next && typeof window.dispatchEvent === 'function') {
+          var detail = { from: prev, to: next, source: 'detector' };
+          window.dispatchEvent(new CustomEvent('crozzo-detector-tier-changed', { detail: detail }));
+          window.dispatchEvent(new CustomEvent('crozzo-tier-changed', { detail: detail }));
+        }
+      }
     } catch (e) { /* ignore */ }
   };
   const navOnline = typeof navigator === 'undefined' || navigator.onLine;

@@ -315,21 +315,43 @@
   // API corta usada por los módulos de transporte tras un push confirmado.
   global.crozzoOpsPulseEmit = emit;
   global.crozzoStartOpsPulse = start;
+  global.crozzoStopOpsPulse = stop;
 
-  // Reabre solo al recuperar conectividad.
+  function cloudPulseAllowed() {
+    try {
+      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+        return global.crozzoCloudBackgroundSyncAllowed();
+      }
+    } catch (_) {}
+    return tierAllowsCloud() && online();
+  }
+
+  // Reabre solo al recuperar conectividad y tier cloud.
   if (typeof global.addEventListener === 'function') {
     global.addEventListener('online', function () {
       global.setTimeout(function () {
-        if (online()) start();
+        if (cloudPulseAllowed()) start();
       }, 500);
     });
     global.addEventListener('crozzo-tier-changed', function (ev) {
       var to = ev && ev.detail && ev.detail.to;
-      if (to === 'cloud') {
+      if (to === 'cloud' && cloudPulseAllowed()) {
         global.setTimeout(function () {
-          if (online()) start();
+          if (cloudPulseAllowed()) start();
         }, 600);
+        return;
       }
+      if (to && to !== 'cloud') stop();
+    });
+    global.addEventListener('crozzo-detector-tier-changed', function (ev) {
+      var to = ev && ev.detail && ev.detail.to;
+      if (to === 'cloud' && cloudPulseAllowed()) {
+        global.setTimeout(function () {
+          if (cloudPulseAllowed()) start();
+        }, 600);
+        return;
+      }
+      if (to && to !== 'cloud') stop();
     });
   }
 })(typeof window !== 'undefined' ? window : globalThis);

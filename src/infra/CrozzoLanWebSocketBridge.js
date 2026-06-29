@@ -31,8 +31,13 @@
   }
 
   function tierAllows() {
+    try {
+      if (typeof global.crozzoLanTransportAllowed === 'function') {
+        return global.crozzoLanTransportAllowed();
+      }
+    } catch (_) {}
     var t = String(global.__CROZZO_TIER_LAST || 'offline');
-    return t === 'lan' || t === 'hotspot' || t === 'cloud';
+    return t === 'lan' || t === 'hotspot';
   }
 
   function wsPort(cfg) {
@@ -284,6 +289,7 @@
   }
 
   function pushInternalQrSlotLanHttp(entry) {
+    if (!tierAllows()) return Promise.resolve(false);
     var cfg = md();
     if (cfg.role !== 'B') return Promise.resolve(false);
     var ip = String(cfg.centralIp || '').trim();
@@ -339,6 +345,7 @@
   }
 
   function requestInternalQrCatalogLan() {
+    if (!tierAllows()) return Promise.resolve(false);
     var cfg = md();
     if (cfg.role !== 'B') return Promise.resolve(false);
     var ip = String(cfg.centralIp || '').trim();
@@ -368,6 +375,7 @@
 
   function postComandaToCentralStore(c) {
     if (!c || c.id == null) return Promise.resolve(false);
+    if (!tierAllows()) return Promise.resolve(false);
     var cfg = md();
     var host = cfg.role === 'A' ? '127.0.0.1' : String(cfg.centralIp || '').trim();
     if (!host) return Promise.resolve(false);
@@ -389,7 +397,8 @@
         .then(function (res) {
           return !!(res && res.ok);
         })
-        .catch(function () {
+        .catch(function (e) {
+          if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(e);
           return false;
         });
     } catch (_) {
@@ -399,6 +408,7 @@
 
   function notifyComandasByIds(ids) {
     if (!Array.isArray(ids) || !ids.length) return;
+    if (!tierAllows()) return;
     var cfg = md();
     ids.forEach(function (id) {
       var c =
@@ -422,6 +432,7 @@
 
   function notifyEstado(comanda, estado) {
     if (!comanda) return;
+    if (!tierAllows()) return;
     var cfg = md();
     if (cfg.role !== 'A') return;
     var pay = {
@@ -452,6 +463,10 @@
       global.__crozzoLanWsTierBound = true;
       global.addEventListener('crozzo-lan-up', function () {
         connect();
+      });
+      global.addEventListener('crozzo-tier-changed', function () {
+        if (!tierAllows()) disconnect();
+        else connect();
       });
       global.setInterval(function () {
         if (tierAllows()) connect();

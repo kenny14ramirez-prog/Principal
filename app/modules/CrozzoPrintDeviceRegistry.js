@@ -362,7 +362,17 @@
     return false;
   }
 
+  function lanTransportAllowed() {
+    try {
+      if (typeof global.crozzoLanTransportAllowed === 'function') {
+        return global.crozzoLanTransportAllowed();
+      }
+    } catch (_) {}
+    return false;
+  }
+
   function pushPrintCapsLanHttp(entry) {
+    if (!lanTransportAllowed()) return Promise.resolve(false);
     var cfg = md();
     if (cfg.role !== 'B') return Promise.resolve(false);
     var ip = String(cfg.centralIp || '').trim();

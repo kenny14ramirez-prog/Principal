@@ -1,28 +1,16 @@
 {
-  "id": "1.0.201-critical",
-  "version": "v1.0.201",
-  "semver": "1.0.201",
+  "id": "1.0.202-critical",
+  "version": "v1.0.202",
+  "semver": "1.0.202",
   "type": "critical",
-  "message": "parche de inicio de seccion",
-  "publishedAt": "2026-06-29T15:54:53.373Z",
+  "message": "parche de sostenibilidad",
+  "publishedAt": "2026-06-29T19:35:16.576Z",
   "installMode": "auto",
   "changelog": [
-    "parche de inicio de seccion"
+    "parche de sostenibilidad"
   ],
-  "updatedAt": "2026-06-29T15:54:53.373Z",
+  "updatedAt": "2026-06-29T19:35:16.576Z",
   "entries": [
-    {
-      "id": "1.0.177-critical",
-      "version": "v1.0.177",
-      "semver": "1.0.177",
-      "type": "critical",
-      "message": "589658",
-      "publishedAt": "2026-06-25T19:10:14.953Z",
-      "installMode": "auto",
-      "changelog": [
-        "589658"
-      ]
-    },
     {
       "id": "1.0.178-critical",
       "version": "v1.0.178",
@@ -310,6 +298,18 @@
       "installMode": "auto",
       "changelog": [
         "parche de inicio de seccion"
+      ]
+    },
+    {
+      "id": "1.0.202-critical",
+      "version": "v1.0.202",
+      "semver": "1.0.202",
+      "type": "critical",
+      "message": "parche de sostenibilidad",
+      "publishedAt": "2026-06-29T19:35:16.576Z",
+      "installMode": "auto",
+      "changelog": [
+        "parche de sostenibilidad"
       ]
     }
   ]

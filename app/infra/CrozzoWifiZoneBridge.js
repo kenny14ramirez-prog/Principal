@@ -140,6 +140,17 @@
 
     var syncIp = async function (ip, via) {
       if (!(await tryHealth(ip, port, timeout))) return null;
+      var statusJson = null;
+      try {
+        var stRes = await global.fetch('http://' + ip + ':' + port + '/status', {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+        if (stRes && stRes.ok) statusJson = await stRes.json().catch(function () { return null; });
+      } catch (_) {}
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.noteLanReachable === 'function') {
+        global.CrozzoPeerDirectory.noteLanReachable(ip, via, statusJson);
+      }
       var prev = String(cfg.centralIp || '').trim();
       var ipChanged = prev !== ip;
       if (ipChanged) persistCentralIp(ip, via);
@@ -157,6 +168,32 @@
     if (global.CrozzoMdnsBridge && typeof global.CrozzoMdnsBridge.pickCentralFromMdns === 'function') {
       var mdnsHit = await global.CrozzoMdnsBridge.pickCentralFromMdns({ port: port, timeoutMs: timeout });
       if (mdnsHit && mdnsHit.ip) return mdnsHit;
+    }
+
+    if (
+      global.CrozzoConnectivityDirector &&
+      typeof global.CrozzoConnectivityDirector.resolveCentralFromMemory === 'function'
+    ) {
+      var memHit = await global.CrozzoConnectivityDirector.resolveCentralFromMemory({
+        port: port,
+        timeoutMs: timeout,
+      });
+      if (memHit && memHit.ip) {
+        var viaMem = memHit.via || 'peer_memory';
+        var prevMem = String(cfg.centralIp || '').trim();
+        if (prevMem !== memHit.ip) persistCentralIp(memHit.ip, viaMem);
+        else markHotspotMode(memHit.ip);
+        try {
+          global.__CROZZO_LAN_LAST_OK = Date.now();
+          global.__CROZZO_LAN_LAST_VIA = viaMem;
+        } catch (_) {}
+        try {
+          global.dispatchEvent(
+            new CustomEvent('crozzo-lan-up', { detail: { ip: memHit.ip, via: viaMem, changed: prevMem !== memHit.ip } })
+          );
+        } catch (_) {}
+        return { ip: memHit.ip, via: viaMem };
+      }
     }
 
     for (var i = 0; i < gatewayCandidates().length; i++) {

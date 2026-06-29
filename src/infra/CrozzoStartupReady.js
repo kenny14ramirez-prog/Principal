@@ -264,7 +264,11 @@
           if (global.__crozzoCloudSyncBootstrapped) return;
           var wan =
             typeof global.crozzoWanOnline === 'function' ? global.crozzoWanOnline() : !!global.navigator.onLine;
-          if (wan && cloudConfigured()) {
+          var cloudOk =
+            typeof global.crozzoCloudBackgroundSyncAllowed === 'function'
+              ? global.crozzoCloudBackgroundSyncAllowed({ force: true, kind: 'startup' })
+              : wan;
+          if (wan && cloudConfigured() && cloudOk) {
             global.crozzoEnsureCloudSyncActive({ source: 'startup', resetTableMissing: true }).catch(function () {});
           }
         }, 3500);

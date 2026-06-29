@@ -13,6 +13,22 @@
     return typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
   }
 
+  function cloudBgAllowed(opts) {
+    try {
+      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+        return global.crozzoCloudBackgroundSyncAllowed(opts || {});
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function lanDrainAllowed() {
+    try {
+      if (typeof global.crozzoLanTransportAllowed === 'function') return global.crozzoLanTransportAllowed();
+    } catch (_) {}
+    return false;
+  }
+
   function logLine(msg) {
     try {
       if (typeof global.crozzoWizardTierLogLine === 'function') global.crozzoWizardTierLogLine(msg);
@@ -39,53 +55,56 @@
     var cfg = md();
     if (cfg.role !== 'A') return { role: 'B', pushed: 0 };
     var pushed = 0;
-    if (typeof global.crozzoPushPosRuntimeCloudNow === 'function') {
-      try {
-        if (await global.crozzoPushPosRuntimeCloudNow()) pushed++;
-      } catch (_) {}
-    }
-    if (typeof global.crozzoSchedulePosRuntimeCloudPush === 'function') {
-      try {
-        global.crozzoSchedulePosRuntimeCloudPush('flush');
-      } catch (_) {}
-    }
-    var router = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
-    if (router) {
-      if (typeof router.drainPendingCloudMirror === 'function') {
+    var cloudOk = cloudBgAllowed({ force: false });
+    if (cloudOk) {
+      if (typeof global.crozzoPushPosRuntimeCloudNow === 'function') {
         try {
-          await router.drainPendingCloudMirror();
-          pushed++;
+          if (await global.crozzoPushPosRuntimeCloudNow()) pushed++;
         } catch (_) {}
       }
-      if (typeof router.processQueue === 'function') {
+      if (typeof global.crozzoSchedulePosRuntimeCloudPush === 'function') {
         try {
-          await router.processQueue();
+          global.crozzoSchedulePosRuntimeCloudPush('flush');
+        } catch (_) {}
+      }
+      var router = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
+      if (router) {
+        if (typeof router.drainPendingCloudMirror === 'function') {
+          try {
+            await router.drainPendingCloudMirror();
+            pushed++;
+          } catch (_) {}
+        }
+        if (typeof router.processQueue === 'function') {
+          try {
+            await router.processQueue();
+          } catch (_) {}
+        }
+      }
+      if (typeof global.crozzoFlushReservorioSyncQueue === 'function') {
+        try {
+          var rf = global.crozzoFlushReservorioSyncQueue({ force: true, kind: 'reconnect_push', priority: 2 });
+          if (rf && rf.mirrored) pushed += Number(rf.mirrored) || 0;
+        } catch (_) {}
+      }
+      if (typeof global.syncOfflineQueue === 'function') {
+        try {
+          var sq = await global.syncOfflineQueue({ force: true, kind: 'reconnect_push', priority: 1 });
+          if (sq && sq.pushed) pushed += Number(sq.pushed) || 0;
+        } catch (_) {}
+      }
+      // Antes se re-empujaban TODAS las comandas locales aquí, lo que podía
+      // RESUCITAR en la nube comandas ya cobradas/eliminadas (un equipo que vuelve
+      // de estar apagado). Ahora solo drenamos el outbox: contiene únicamente las
+      // comandas cuyo envío no se confirmó (las realmente pendientes), nunca las
+      // ya entregadas. Lo obsoleto se limpia en el pull con reconcileStale.
+      if (typeof global.crozzoFlushComandaOutbox === 'function') {
+        try {
+          global.crozzoFlushComandaOutbox();
         } catch (_) {}
       }
     }
-    if (typeof global.crozzoFlushReservorioSyncQueue === 'function') {
-      try {
-        var rf = global.crozzoFlushReservorioSyncQueue({ force: true, kind: 'reconnect_push', priority: 2 });
-        if (rf && rf.mirrored) pushed += Number(rf.mirrored) || 0;
-      } catch (_) {}
-    }
-    if (typeof global.syncOfflineQueue === 'function') {
-      try {
-        var sq = await global.syncOfflineQueue({ force: true, kind: 'reconnect_push', priority: 1 });
-        if (sq && sq.pushed) pushed += Number(sq.pushed) || 0;
-      } catch (_) {}
-    }
-    // Antes se re-empujaban TODAS las comandas locales aquí, lo que podía
-    // RESUCITAR en la nube comandas ya cobradas/eliminadas (un equipo que vuelve
-    // de estar apagado). Ahora solo drenamos el outbox: contiene únicamente las
-    // comandas cuyo envío no se confirmó (las realmente pendientes), nunca las
-    // ya entregadas. Lo obsoleto se limpia en el pull con reconcileStale.
-    if (typeof global.crozzoFlushComandaOutbox === 'function') {
-      try {
-        global.crozzoFlushComandaOutbox();
-      } catch (_) {}
-    }
-    if (global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.drainPendingOnce === 'function') {
+    if (lanDrainAllowed() && global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.drainPendingOnce === 'function') {
       try {
         await global.CrozzoLanSyncBridge.drainPendingOnce();
       } catch (_) {}
@@ -97,37 +116,40 @@
     opts = opts || {};
     var pulled = 0;
     var lan = await lanReachable();
+    var cloudOk = cloudBgAllowed(opts);
     if (typeof global.crozzoResetRuntimeSyncDedup === 'function') {
       try {
         global.crozzoResetRuntimeSyncDedup();
       } catch (_) {}
     }
-    if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-      try {
-        if (await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: !!opts.skipRender })) pulled++;
-      } catch (_) {}
-    }
-    if (typeof global.crozzoStartComandasCloudSync === 'function') {
-      try {
-        global.crozzoStartComandasCloudSync();
-      } catch (_) {}
-    }
-    if (typeof global.crozzoPullComandasFromCloud === 'function') {
-      try {
-        // reconcileStale: al reconectar, limpia comandas locales obsoletas
-        // (ya cobradas/eliminadas en la nube) para no resucitarlas ni duplicarlas.
-        if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: true })) pulled++;
-      } catch (_) {}
-    }
-    if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
-      try {
-        if (await global.__crozzoRefreshCloudCatalogUi({ skipRender: !!opts.skipRender })) pulled++;
-      } catch (_) {}
-    }
-    if (typeof global.crozzoPullRemoteTenantState === 'function') {
-      try {
-        if (await global.crozzoPullRemoteTenantState({ skipRender: true, quiet: true })) pulled++;
-      } catch (_) {}
+    if (cloudOk) {
+      if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+        try {
+          if (await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: !!opts.skipRender })) pulled++;
+        } catch (_) {}
+      }
+      if (typeof global.crozzoStartComandasCloudSync === 'function') {
+        try {
+          global.crozzoStartComandasCloudSync();
+        } catch (_) {}
+      }
+      if (typeof global.crozzoPullComandasFromCloud === 'function') {
+        try {
+          // reconcileStale: al reconectar, limpia comandas locales obsoletas
+          // (ya cobradas/eliminadas en la nube) para no resucitarlas ni duplicarlas.
+          if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: true })) pulled++;
+        } catch (_) {}
+      }
+      if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
+        try {
+          if (await global.__crozzoRefreshCloudCatalogUi({ skipRender: !!opts.skipRender })) pulled++;
+        } catch (_) {}
+      }
+      if (typeof global.crozzoPullRemoteTenantState === 'function') {
+        try {
+          if (await global.crozzoPullRemoteTenantState({ skipRender: true, quiet: true })) pulled++;
+        } catch (_) {}
+      }
     }
     var router = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
     if (router) {
@@ -142,7 +164,7 @@
         } catch (_) {}
       }
     }
-    if (typeof global.syncOfflineQueue === 'function') {
+    if (cloudOk && typeof global.syncOfflineQueue === 'function') {
       try {
         await global.syncOfflineQueue({ force: true, kind: 'reconnect_pull', priority: 1 });
       } catch (_) {}
@@ -181,14 +203,16 @@
     try {
       logLine('🔄 Sync total (' + (opts.source || 'manual') + ')…');
       var central = await centralAuthorityPush();
-      if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
-        try {
-          await global.crozzoEnsureCloudSyncActive({ source: opts.source || 'reconnect', resetTableMissing: !!opts.force });
-        } catch (_) {}
-      } else if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
-        try {
-          global.crozzoStartPosRuntimeCloudSync();
-        } catch (_) {}
+      if (cloudBgAllowed(opts)) {
+        if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+          try {
+            await global.crozzoEnsureCloudSyncActive({ source: opts.source || 'reconnect', resetTableMissing: !!opts.force });
+          } catch (_) {}
+        } else if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
+          try {
+            global.crozzoStartPosRuntimeCloudSync();
+          } catch (_) {}
+        }
       }
       var pull = await allDevicesPull(opts);
       await wireP2P();

@@ -68,6 +68,9 @@ struct P2pSignalMsg {
 struct ServerInner {
     port: u16,
     meta: ServerMeta,
+    /// Caja reporta si alcanzó Supabase recientemente (tablets leen /status).
+    cloud_reachable: bool,
+    cloud_reachable_at_ms: u128,
     pending: Vec<CrozzoLanSyncSubmission>,
     /// id → instante (ms) en que se entregó al JS; espera ACK antes de reintentar.
     in_flight: HashMap<String, u128>,
@@ -433,6 +436,13 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
     }
 
     if method == "GET" && (path == "/status" || path == "/status/") {
+        let (cloud_ok, cloud_at) = {
+            let guard = state.lock().unwrap();
+            guard
+                .as_ref()
+                .map(|s| (s.cloud_reachable, s.cloud_reachable_at_ms))
+                .unwrap_or((false, 0))
+        };
         let resp = serde_json::json!({
             "ok": true,
             "role": "A",
@@ -441,7 +451,9 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "device_id": meta.device_id,
             "business_id": meta.business_id,
             "service": "crozzo-lan-sync",
-            "port": port
+            "port": port,
+            "cloud_reachable": cloud_ok,
+            "cloud_reachable_at_ms": cloud_at
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
@@ -734,6 +746,8 @@ pub fn crozzo_lan_sync_start(
         *guard = Some(ServerInner {
             port,
             meta,
+            cloud_reachable: false,
+            cloud_reachable_at_ms: 0,
             pending: restored,
             in_flight: HashMap::new(),
             runtime_snapshot: None,
@@ -825,6 +839,19 @@ pub fn crozzo_lan_sync_stop() -> Result<CrozzoLanSyncStatus, String> {
         device_id: String::new(),
         business_id: String::new(),
     })
+}
+
+#[tauri::command]
+pub fn crozzo_lan_sync_set_cloud_reachable(reachable: bool) -> Result<bool, String> {
+    let mut guard = shared_state().lock().map_err(|e| e.to_string())?;
+    if let Some(inner) = guard.as_mut() {
+        inner.cloud_reachable = reachable;
+        if reachable {
+            inner.cloud_reachable_at_ms = now_ms_u128();
+        }
+        return Ok(inner.cloud_reachable);
+    }
+    Ok(false)
 }
 
 #[tauri::command]

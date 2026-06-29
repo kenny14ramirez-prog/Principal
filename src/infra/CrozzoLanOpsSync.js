@@ -28,7 +28,7 @@
   var __emitTimers = {};
   var __pendingEmit = {};
   var __lastComandaSig = '';
-  var RUNTIME_POLL_MS = 1100;
+  var RUNTIME_POLL_MS = 5200;
   var COMANDA_POLL_MS = 3800;
   var COMANDA_POLL_FAST_MS = 2200;
   var WATCHDOG_MS = 22000;
@@ -60,7 +60,12 @@
         return global.crozzoOperationalRealtimeActive();
       }
     } catch (_) {}
-    return true;
+    return false;
+  }
+
+  /** Solo tablets (Rol B) hacen poll runtime LAN; la caja usa CrozzoLanSyncBridge. */
+  function rolePollsRuntime() {
+    return md().role === 'B';
   }
 
   function md() {
@@ -264,17 +269,29 @@
     }, EMIT_DEBOUNCE_MS);
   }
 
-  /** Registra comandas locales en el snapshot de la caja (Rol A). */
+  /** Registra comandas locales en el snapshot de la caja (Rol A). Throttled. */
   async function seedCentralComandasFromLocal() {
     if (!isDesktopTauri() || md().role !== 'A') return 0;
+    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+      return 0;
+    }
     var list = global.comandas || [];
     if (!list.length) return 0;
     var port = lanPort();
     var n = 0;
-    for (var i = 0; i < list.length; i++) {
+    for (var i = 0; i < list.length && i < 24; i++) {
       var c = list[i];
       if (!c || c.id == null || String(c.estado || '') === 'entregada') continue;
       try {
+        if (typeof global.crozzoLanPostSync === 'function') {
+          var ok = await global.crozzoLanPostSync({
+            uuid: String(c.transaction_id || c.id),
+            type: 'comanda',
+            data: c,
+          });
+          if (ok) n++;
+          continue;
+        }
         var res = await global.fetch('http://127.0.0.1:' + port + '/api/sync', {
           method: 'POST',
           headers:
@@ -296,19 +313,21 @@
   function startPollLoops() {
     stopPollLoops();
     if (!tierAllowsLan()) return;
-    __runtimePoll = global.setInterval(function () {
-      if (!tierAllowsLan() || !opRealtimeActive()) return;
-      try {
-        if (typeof document !== 'undefined' && document.hidden) return;
-      } catch (_) {}
-      pullRuntimeLan({ quiet: true, skipRender: false })
-        .then(function (applied) {
-          if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-            global.crozzoHandleRemoteRuntimeUiSync();
-          }
-        })
-        .catch(function () {});
-    }, RUNTIME_POLL_MS);
+    if (rolePollsRuntime()) {
+      __runtimePoll = global.setInterval(function () {
+        if (!tierAllowsLan() || !opRealtimeActive()) return;
+        try {
+          if (typeof document !== 'undefined' && document.hidden) return;
+        } catch (_) {}
+        pullRuntimeLan({ quiet: true, skipRender: false })
+          .then(function (applied) {
+            if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
+              global.crozzoHandleRemoteRuntimeUiSync();
+            }
+          })
+          .catch(function () {});
+      }, RUNTIME_POLL_MS);
+    }
     var comMs = COMANDA_POLL_MS;
     __comandaPoll = global.setInterval(function () {
       if (!tierAllowsLan() || !opRealtimeActive()) return;
@@ -419,13 +438,6 @@
     pullComandasLan({ skipPrint: true, skipRender: true, force: true }).catch(function () {});
     startPollLoops();
     startWatchdog();
-    if (!global.__crozzoLanOpsTierBound) {
-      global.__crozzoLanOpsTierBound = true;
-      global.addEventListener('crozzo-tier-changed', onTierChanged);
-      global.addEventListener('crozzo-lan-up', function () {
-        if (tierAllowsLan()) startLanOpsSync('lan-up');
-      });
-    }
   }
 
   function stopLanOpsSync() {
@@ -445,6 +457,14 @@
     if (tierAllowsLan()) startLanOpsSync('init');
   }
 
+  if (!global.__crozzoLanOpsTierBound) {
+    global.__crozzoLanOpsTierBound = true;
+    global.addEventListener('crozzo-tier-changed', onTierChanged);
+    global.addEventListener('crozzo-lan-up', function () {
+      if (tierAllowsLan()) startLanOpsSync('lan-up');
+    });
+  }
+
   global.crozzoLanOpsPulseEmit = emit;
   global.crozzoPullComandasFromLan = pullComandasLan;
   global.crozzoStartLanOpsSync = startLanOpsSync;
@@ -460,6 +480,7 @@
     seedCentralComandas: seedCentralComandasFromLocal,
     afterMainInit: afterMainInit,
     tierAllows: tierAllowsLan,
+    rolePollsRuntime: rolePollsRuntime,
     status: function () {
       return {
         started: __started,

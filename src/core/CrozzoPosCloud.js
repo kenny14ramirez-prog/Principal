@@ -1365,6 +1365,13 @@ function crozzoSanitizeSyncQueueInsertBodyForFacturaEstado(insertBody) {
 async function syncOfflineQueue(opts) {
   opts = opts || {};
   if (!crozzoOnlineConfigReady()) return { ok: false, reason: 'config_invalida' };
+  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+    if (!global.crozzoCloudBackgroundSyncAllowed({ force: !!opts.force, kind: opts.kind })) {
+      return { ok: true, pushed: 0, skipped: 'cloud_gate' };
+    }
+  } else if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
+    return { ok: true, pushed: 0, skipped: 'tier_lan' };
+  }
   const sb = window.__SUPABASE;
   if (!sb || typeof navigator !== 'undefined' && !navigator.onLine) return { ok: false, reason: 'offline_o_sin_cliente' };
   const throttle = window.CrozzoCloudThrottle;
@@ -1708,9 +1715,17 @@ window.__crozzoSupabaseSignOut = async function crozzoSupabaseSignOut() {
   }
 };
 window.__crozzoRegisterDeviceHeartbeat = async function registerDeviceHeartbeat() {
+  try {
+    if (typeof crozzoCloudBackgroundSyncAllowed === 'function' && !crozzoCloudBackgroundSyncAllowed()) return;
+    const thr = window.CrozzoCloudThrottle;
+    if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) return;
+  } catch (_) {
+    return;
+  }
   const sb = window.__SUPABASE;
   if (!sb) return;
   const deviceId = crozzoCloudDeviceUuidForRest();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(deviceId)) return;
   const name = (lsGet(LS.DEVICE_NAME) || 'POS').trim() || 'POS';
   const ts = new Date().toISOString();
   let deviceType = 'central';
@@ -1725,18 +1740,44 @@ window.__crozzoRegisterDeviceHeartbeat = async function registerDeviceHeartbeat(
   /** Alineado a devices_type_check típico: central, tablet, pos, terminal, register, sync, mobile, desktop, A, B. */
   const allowedTypes = ['central', 'tablet', 'pos', 'terminal', 'register', 'sync', 'mobile', 'desktop', 'A', 'B'];
   const orderedTypes = [deviceType, ...allowedTypes.filter((t) => t !== deviceType)];
+  const afterHeartbeatOk = function () {
+    try {
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.noteSelf === 'function') {
+        global.CrozzoPeerDirectory.noteSelf({ cloudOk: true, name: name, via: 'heartbeat' });
+      }
+      if (
+        global.CrozzoPeerDirectory &&
+        typeof global.CrozzoPeerDirectory.publishPresenceToCloud === 'function'
+      ) {
+        global.CrozzoPeerDirectory.publishPresenceToCloud(sb, { name: name }).catch(function () {});
+      }
+    } catch (_) {}
+  };
   try {
     for (let i = 0; i < orderedTypes.length; i++) {
       const typ = orderedTypes[i];
       const upd = await sb.from('devices').update({ ...patch, type: typ }).eq('id', deviceId).select('id');
-      if (!upd.error && Array.isArray(upd.data) && upd.data.length) return;
+      if (!upd.error && Array.isArray(upd.data) && upd.data.length) {
+        afterHeartbeatOk();
+        return;
+      }
+      if (upd.error && window.CrozzoCloudThrottle && typeof CrozzoCloudThrottle.noteSupabaseError === 'function') {
+        CrozzoCloudThrottle.noteSupabaseError(upd.error);
+        if (typeof CrozzoCloudThrottle.isUnderPressure === 'function' && CrozzoCloudThrottle.isUnderPressure()) return;
+      }
       const ins = await sb.from('devices').insert({ id: deviceId, name, last_sync_at: ts, type: typ, is_active: true }).select('id');
-      if (!ins.error) return;
+      if (!ins.error) {
+        afterHeartbeatOk();
+        return;
+      }
       const msg = String(ins.error.message || ins.error.details || ins.error.code || '');
       const dup = /duplicate|unique|23505|409/i.test(msg);
       if (dup) {
         const u2 = await sb.from('devices').update({ ...patch, type: typ }).eq('id', deviceId).select('id');
-        if (!u2.error) return;
+        if (!u2.error) {
+          afterHeartbeatOk();
+          return;
+        }
       }
       const isCheck = String(ins.error.code || '') === '23514' || /check constraint|devices_type_check/i.test(msg);
       if (!isCheck) {
@@ -1969,6 +2010,12 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
     wait++;
   }
   try {
+    if (
+      typeof window.crozzoCloudBackgroundSyncAllowed === 'function' &&
+      !window.crozzoCloudBackgroundSyncAllowed({ force: true, kind: 'postInit' })
+    ) {
+      return;
+    }
     if (typeof window.crozzoEnsureCloudSyncActive === 'function') {
       await window.crozzoEnsureCloudSyncActive({ source: 'postInit', resetTableMissing: true });
     } else {
@@ -2588,6 +2635,9 @@ function crozzoTenantDebouncedPull() {
 function startCrozzoRemoteTenantSync() {
   if (__crozzoTenantSyncStarted) return;
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return;
+  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
+    return;
+  }
   __crozzoTenantSyncStarted = true;
   if (__crozzoTenantBC) {
     try {
@@ -2689,6 +2739,9 @@ async function crozzoRefreshSessionProfileFromCloud() {
 }
 async function crozzoPullRemoteTenantState(opts) {
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return false;
+  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
+    return false;
+  }
   if (typeof loadTableData !== 'function') return false;
   let rows = [];
   try {
@@ -2988,6 +3041,9 @@ function crozzoScheduleTenantSnapshotPush() {
     crozzoTenantHubBroadcast();
     return;
   }
+  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
+    return;
+  }
   if (__crozzoTenantPushTimer) clearTimeout(__crozzoTenantPushTimer);
   __crozzoTenantPushTimer = setTimeout(function () {
     __crozzoTenantPushTimer = null;
@@ -3001,6 +3057,9 @@ function crozzoFlushStaffCloudSync() {
   }
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
     crozzoTenantHubBroadcast();
+    return Promise.resolve(false);
+  }
+  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
     return Promise.resolve(false);
   }
   return Promise.all([
@@ -3433,12 +3492,21 @@ void (async function __crozzoSupabaseBootstrap() {
   } catch (_) {}
 })();
 window.addEventListener('online', () => {
-  syncOfflineQueue({ force: true, kind: 'online', priority: 1 }).catch((e) => console.warn('[crozzo-sb] syncOfflineQueue', e));
+  var cloudOk =
+    typeof crozzoCloudBackgroundSyncAllowed === 'function'
+      ? crozzoCloudBackgroundSyncAllowed({ force: true, kind: 'online' })
+      : typeof crozzoTierAllowsCloudSync === 'function'
+        ? crozzoTierAllowsCloudSync()
+        : true;
+  if (cloudOk) {
+    syncOfflineQueue({ force: true, kind: 'online', priority: 1 }).catch((e) => console.warn('[crozzo-sb] syncOfflineQueue', e));
+  }
   try {
     if (typeof crozzoInvalidateCloudPingCache === 'function') crozzoInvalidateCloudPingCache();
   } catch (_) {}
   try {
     if (
+      cloudOk &&
       typeof crozzoCloudFirstSyncEnabled === 'function' &&
       crozzoCloudFirstSyncEnabled() &&
       typeof crozzoEnsureCloudSyncActive === 'function' &&
@@ -3448,7 +3516,7 @@ window.addEventListener('online', () => {
     }
   } catch (_) {}
   try {
-    if (typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
+    if (cloudOk && typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
       window.__crozzoRefreshCloudCatalogUi().catch((e) => console.warn('[crozzo-sb] refresh on online', e));
     }
   } catch (_) {}

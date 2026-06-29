@@ -1,11 +1,11 @@
 /**
  * Crozzo — Prioridades de sincronización con la nube (catálogo completo).
  *
- * P0 · REALTIME — operación en vivo (mesas, carritos, comandas KDS/corcho).
- * P1 · NAV       — al entrar/salir (facturas, cierre, clientes, preparaciones).
- * P2 · BACKGROUND — catálogo, compras, costos, config, auditoría.
+ * Zona 0 · OPERACIÓN — tiempo real siempre (mesas, comandas, KDS).
+ * Zona 1 · FUERA OPERACIÓN — sync al navegar + background moderado.
+ * Zona 3 · DIFERIDO — solo al abrir la pantalla; sin tick ambiental fuera de ella.
  *
- * Referencia: apartados del menú (básico lanzamiento + versión completa).
+ * P0/P1/P2 se mantienen para colas y throttle; Z0/Z1/Z3 gobiernan transportes.
  */
 (function (global) {
   'use strict';
@@ -13,6 +13,29 @@
   var P0 = 0;
   var P1 = 1;
   var P2 = 2;
+  var Z0 = 0;
+  var Z1 = 1;
+  var Z3 = 3;
+
+  /** Pantallas admin/diag/lab: no mantener sync de fondo fuera de operación. */
+  var Z3_DEFER_PAGES = {
+    auditoria: 1,
+    'laboratorio-admin': 1,
+    'modo-demo': 1,
+    'super-admin-nube': 1,
+    'super-admin-sync-priorities': 1,
+    'super-admin-diagnostics': 1,
+    'super-admin-federacion': 1,
+    'gestion-perfiles-menus': 1,
+    'costos-reservorio': 1,
+    'costos-federacion': 1,
+    'costos-planilla-feed': 1,
+    'planilla-2026': 1,
+    'control-acceso': 1,
+    'config-seguridad': 1,
+    'operaciones-qyc': 1,
+    'compras-cotizaciones': 1,
+  };
 
   /** Alias navigateTo / sidebar → clave canónica de sync. */
   var PAGE_ALIASES = {
@@ -548,6 +571,100 @@
     return 'background';
   }
 
+  function zoneLabel(z) {
+    if (z === Z0) return 'operacion';
+    if (z === Z1) return 'nav';
+    return 'defer';
+  }
+
+  function getPageZone(page) {
+    page = resolvePage(page);
+    if (!page) return Z1;
+    if (P0_PAGES[page]) return Z0;
+    if (Z3_DEFER_PAGES[page]) return Z3;
+    return Z1;
+  }
+
+  function isDeferredPage(page) {
+    return getPageZone(page) === Z3;
+  }
+
+  function activePageNow() {
+    try {
+      if (global.CrozzoPageCloudWatch && typeof global.CrozzoPageCloudWatch.getActivePage === 'function') {
+        return resolvePage(global.CrozzoPageCloudWatch.getActivePage());
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.currentPage !== 'undefined') return resolvePage(global.currentPage);
+    } catch (_) {}
+    return '';
+  }
+
+  function crozzoCloudBackgroundSyncAllowed(opts) {
+    opts = opts || {};
+    var kind = String(opts.kind || '');
+
+    try {
+      if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
+        if (!opts.force) return false;
+      }
+    } catch (_) {}
+
+    var underPressure = false;
+    try {
+      var thr0 = global.CrozzoCloudThrottle;
+      underPressure = !!(thr0 && typeof thr0.isUnderPressure === 'function' && thr0.isUnderPressure());
+    } catch (_) {}
+    if (underPressure) return false;
+
+    var bypassKinds = [
+      'nav_enter',
+      'nav_leave',
+      'flush',
+      'beforeunload',
+      'startup',
+      'postInit',
+      'online',
+      'reconnect',
+      'reconnect_push',
+      'reconnect_pull',
+      'page_watch',
+    ];
+    if (opts.force || bypassKinds.indexOf(kind) >= 0) {
+      try {
+        if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
+          return false;
+        }
+      } catch (_) {}
+      return true;
+    }
+
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
+        return false;
+      }
+    } catch (_) {}
+
+    var zone = getPageZone(activePageNow());
+
+    // Sin kind: transportes realtime (runtime/comandas/ops pulse) — solo en operación.
+    if (!kind || kind === 'realtime' || kind === 'transport') {
+      return zone === Z0;
+    }
+    if (kind === 'background') {
+      return zone !== Z3;
+    }
+    if (kind === 'queue') {
+      return zone !== Z3;
+    }
+    return zone === Z0 || zone === Z1;
+  }
+
+  function crozzoCloudRealtimeAllowed(opts) {
+    return crozzoCloudBackgroundSyncAllowed(Object.assign({ kind: 'realtime' }, opts || {}));
+  }
+
   function getDomainPriority(domain) {
     var d = String(domain || '').trim();
     return DOMAIN_PRIORITY[d] != null ? DOMAIN_PRIORITY[d] : P2;
@@ -633,6 +750,8 @@
       out.push({
         page: pg,
         priority: e.p,
+        zone: getPageZone(pg),
+        zoneLabel: zoneLabel(getPageZone(pg)),
         label: priorityLabel(e.p),
         basico: e.basico,
         domains: e.domains || [],
@@ -706,6 +825,7 @@
     if (__bgTimer) return;
     __bgTimer = global.setInterval(function () {
       if (typeof document !== 'undefined' && document.hidden) return;
+      if (getPageZone(activePageNow()) === Z3) return;
       var thr = global.CrozzoCloudThrottle;
       if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) return;
       safe(function () {
@@ -727,9 +847,16 @@
     P0: P0,
     P1: P1,
     P2: P2,
+    Z0: Z0,
+    Z1: Z1,
+    Z3: Z3,
     REALTIME: P0,
     NAV: P1,
     BACKGROUND: P2,
+    ZONE_OPERATION: Z0,
+    ZONE_NAV: Z1,
+    ZONE_DEFER: Z3,
+    Z3_DEFER_PAGES: Z3_DEFER_PAGES,
     PAGE_ALIASES: PAGE_ALIASES,
     PAGE_REGISTRY: PAGE_REGISTRY,
     DOMAIN_PRIORITY: DOMAIN_PRIORITY,
@@ -754,6 +881,10 @@
     sortQueueByPriority: sortQueueByPriority,
     tagOperation: tagOperation,
     priorityLabel: priorityLabel,
+    zoneLabel: zoneLabel,
+    getPageZone: getPageZone,
+    isDeferredPage: isDeferredPage,
+    activePageNow: activePageNow,
     onPageLeave: onPageLeave,
     onPageEnter: onPageEnter,
     pushOperationalNow: pushOperationalNow,
@@ -764,5 +895,8 @@
 
   global.crozzoSyncPriorityForType = getOperationPriority;
   global.crozzoSyncPriorityForPage = getPagePriority;
+  global.crozzoSyncZoneForPage = getPageZone;
   global.crozzoResolveCloudSyncPage = resolvePage;
+  global.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
+  global.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
 })(typeof window !== 'undefined' ? window : globalThis);

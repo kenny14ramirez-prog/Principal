@@ -7,6 +7,9 @@
   var _pollTimer = null;
   var _runtimePollTimer = null;
   var _runtimePullInFlight = false;
+  var _runtimeBackoffUntil = 0;
+  var _runtimeBackoffMs = 0;
+  var _cloudAnchorTimer = null;
   var POLL_MS = 4200;
   var RUNTIME_POLL_MS = 5200;
 
@@ -92,19 +95,78 @@
     return h;
   };
 
-  /** POST /api/sync — caja Tauri usa invoke nativo (sin CORS); tablets vía HTTP. */
-  async function postLanSync(payload, opts) {
+  var _lanBackoffUntil = 0;
+  var _lanBackoffStep = 0;
+  var _lanPostChain = Promise.resolve();
+
+  /** ¿Permitir escrituras LAN? Respeta tier (offline/mesh = no) y backoff por presión. */
+  function crozzoLanTransportAllowed() {
+    try {
+      if (Date.now() < _lanBackoffUntil) return false;
+      var throttle = global.CrozzoCloudThrottle;
+      if (throttle && typeof throttle.isUnderPressure === 'function' && throttle.isUnderPressure()) {
+        return false;
+      }
+      if (typeof global.crozzoDeferLocalSync === 'function' && global.crozzoDeferLocalSync()) return false;
+      var tier = String(global.__CROZZO_TIER_LAST || 'offline');
+      if (tier === 'offline' || tier === 'mesh') return false;
+      if (tier === 'cloud') {
+        var md0 = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+        if (md0.role !== 'A') return false;
+        if (
+          typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+          !global.crozzoCloudBackgroundSyncAllowed()
+        ) {
+          return false;
+        }
+        return true;
+      }
+      return tier === 'lan' || tier === 'hotspot';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function noteLanFetchPressure(err) {
+    var msg = String((err && err.message) || err || '');
+    if (/INSUFFICIENT_RESOURCES|Failed to fetch|ERR_|aborted|network/i.test(msg)) {
+      _lanBackoffStep = Math.min(_lanBackoffStep + 1, 8);
+      _lanBackoffUntil = Date.now() + Math.min(90000, 4000 * Math.pow(2, _lanBackoffStep));
+      try {
+        var thr = global.CrozzoCloudThrottle;
+        if (thr && typeof thr.noteFetchFailure === 'function') thr.noteFetchFailure(err);
+      } catch (_) {}
+      return true;
+    }
+    return false;
+  }
+
+  function clearLanFetchPressure() {
+    _lanBackoffStep = 0;
+  }
+
+  global.crozzoLanTransportAllowed = crozzoLanTransportAllowed;
+  global.crozzoNoteLanFetchPressure = noteLanFetchPressure;
+
+  async function postLanSyncInner(payload, opts) {
     opts = opts || {};
     if (!payload || typeof payload !== 'object') return false;
+    if (!crozzoLanTransportAllowed()) return false;
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     if (isDesktopTauri() && md.role === 'A') {
       try {
         var j = await invoke('crozzo_lan_sync_post', { body: JSON.stringify(payload) });
-        return !!(j && j.ok !== false);
+        if (j && j.ok !== false) {
+          clearLanFetchPressure();
+          return true;
+        }
+        return false;
       } catch (e) {
+        noteLanFetchPressure(e);
         try {
           console.warn('[lan-sync] post nativo', e);
         } catch (_) {}
+        return false;
       }
     }
     var host = md.role === 'A' ? '127.0.0.1' : String(md.centralIp || '').trim();
@@ -130,18 +192,35 @@
       });
       if (timer) global.clearTimeout(timer);
       if (!res.ok) {
+        noteLanFetchPressure('http_' + res.status);
         if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
         return false;
       }
       var jr = await res.json().catch(function () {
         return null;
       });
-      return !!(jr && jr.ok !== false);
-    } catch (_) {
+      if (jr && jr.ok !== false) {
+        clearLanFetchPressure();
+        return true;
+      }
+      return false;
+    } catch (e) {
       if (timer) global.clearTimeout(timer);
+      noteLanFetchPressure(e);
       if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
       return false;
     }
+  }
+
+  /** POST /api/sync — caja Tauri usa invoke nativo (sin CORS); tablets vía HTTP. Cola serial anti-tormenta. */
+  async function postLanSync(payload, opts) {
+    if (!crozzoLanTransportAllowed()) return false;
+    var run = function () {
+      return postLanSyncInner(payload, opts);
+    };
+    var p = _lanPostChain.then(run, run);
+    _lanPostChain = p.catch(function () {});
+    return p;
   }
   global.crozzoLanPostSync = postLanSync;
 
@@ -307,12 +386,13 @@
           global.CrozzoLanWebSocketBridge.notifyEstado(c, pay.estado);
         }
       }
-      if (typeof global.crozzoPushComandaToCloud === 'function' && pay.id != null) {
-        var merged =
-          typeof global.__crozzoEmergencyFindComandaById === 'function'
-            ? global.__crozzoEmergencyFindComandaById(pay.id)
-            : null;
-        if (merged) global.crozzoPushComandaToCloud(merged).catch(function () {});
+      if (
+        typeof global.crozzoPushComandasCloudByIds === 'function' &&
+        pay.id != null &&
+        typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+        global.crozzoCloudBackgroundSyncAllowed()
+      ) {
+        global.crozzoPushComandasCloudByIds([pay.id]);
       }
       return true;
     } catch (e) {
@@ -362,8 +442,12 @@
           global.crozzoScheduleOperationalPageRefresh(global.currentPage);
         }
       } catch (_) {}
-      if (typeof global.crozzoPushComandaToCloud === 'function') {
-        global.crozzoPushComandaToCloud(merged || snap).catch(function () {});
+      if (
+        typeof global.crozzoPushComandasCloudByIds === 'function' &&
+        typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+        global.crozzoCloudBackgroundSyncAllowed()
+      ) {
+        global.crozzoPushComandasCloudByIds([snap.id]);
       }
       return true;
     } catch (e) {
@@ -402,8 +486,16 @@
   async function pullLocalRuntimeOnce() {
     if (!isDesktopTauri()) return false;
     if (_runtimePullInFlight) return false;
+    if (Date.now() < _runtimeBackoffUntil) return false;
     var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
     if (!mdCfg || mdCfg.role !== 'A') return false;
+    try {
+      if (typeof global.crozzoOperationalRealtimeActive === 'function' && !global.crozzoOperationalRealtimeActive()) {
+        return false;
+      }
+    } catch (_) {}
+    var tier = String(global.__CROZZO_TIER_LAST || '');
+    if (tier !== 'cloud' && tier !== 'lan' && tier !== 'hotspot') return false;
     _runtimePullInFlight = true;
     var port = Number(mdCfg.port) || 3000;
     try {
@@ -417,16 +509,44 @@
       });
       if (!j || !j.payload) return false;
       if (typeof global.crozzoApplyRemoteRuntimeRow !== 'function') return false;
+      _runtimeBackoffMs = 0;
+      _runtimeBackoffUntil = 0;
       var applied = global.crozzoApplyRemoteRuntimeRow(j.payload, j.saved_at || null, { quiet: true });
       if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
         global.crozzoHandleRemoteRuntimeUiSync();
       }
       return applied;
-    } catch (_) {
+    } catch (e) {
+      var msg = String((e && e.message) || e || '');
+      if (/INSUFFICIENT_RESOURCES|Failed to fetch|ERR_/i.test(msg)) {
+        _runtimeBackoffMs = Math.min(_runtimeBackoffMs ? _runtimeBackoffMs * 2 : 8000, 60000);
+        _runtimeBackoffUntil = Date.now() + _runtimeBackoffMs;
+      }
       return false;
     } finally {
       _runtimePullInFlight = false;
     }
+  }
+
+  function pushCloudAnchorToServer() {
+    if (!isDesktopTauri()) return;
+    var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
+    if (!mdCfg || mdCfg.role !== 'A') return;
+    var ok =
+      typeof global.crozzoTierAllowsCloudSync === 'function' && global.crozzoTierAllowsCloudSync();
+    invoke('crozzo_lan_sync_set_cloud_reachable', { reachable: !!ok }).catch(function () {});
+  }
+
+  function startCloudAnchorPulse() {
+    if (_cloudAnchorTimer) {
+      clearInterval(_cloudAnchorTimer);
+      _cloudAnchorTimer = null;
+    }
+    if (!isDesktopTauri()) return;
+    var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
+    if (!mdCfg || mdCfg.role !== 'A') return;
+    pushCloudAnchorToServer();
+    _cloudAnchorTimer = setInterval(pushCloudAnchorToServer, 90000);
   }
 
   async function drainPendingOnce() {
@@ -502,6 +622,10 @@
       clearInterval(_runtimePollTimer);
       _runtimePollTimer = null;
     }
+    if (_cloudAnchorTimer) {
+      clearInterval(_cloudAnchorTimer);
+      _cloudAnchorTimer = null;
+    }
   }
 
   function startRuntimePolling() {
@@ -524,6 +648,7 @@
     stopPolling();
     if (!isDesktopTauri()) return;
     startRuntimePolling();
+    startCloudAnchorPulse();
     _pollTimer = setInterval(function () {
       try {
         if (typeof document !== 'undefined' && document.hidden) return;

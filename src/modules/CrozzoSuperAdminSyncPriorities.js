@@ -89,6 +89,8 @@
     var tier = String(global.__CROZZO_TIER_LAST || 'offline');
     var pagePri = sp() && sp().getPagePriority ? sp().getPagePriority(page) : '—';
     var priLbl = sp() && sp().priorityLabel ? sp().priorityLabel(pagePri) : pagePri;
+    var pageZone = sp() && sp().getPageZone ? sp().getPageZone(page) : '—';
+    var zoneLbl = sp() && sp().zoneLabel ? sp().zoneLabel(pageZone) : pageZone;
 
     return (
       '<div class="crozzo-sync-pri-live">' +
@@ -102,7 +104,11 @@
       '</code></div>' +
       '<div class="crozzo-sync-pri-live__item"><span class="crozzo-sync-pri-live__k">Pantalla activa</span><code>' +
       esc(page) +
-      '</code> <span class="badge badge-outline">P' +
+      '</code> <span class="badge badge-outline">Z' +
+      esc(pageZone) +
+      ' · ' +
+      esc(zoneLbl) +
+      '</span> <span class="badge badge-outline">P' +
       esc(pagePri) +
       ' · ' +
       esc(priLbl) +

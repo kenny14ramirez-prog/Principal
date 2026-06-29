@@ -17,6 +17,8 @@
   var TID_TTL_MS = 600000;
   var __rtResubTimer = null;
   var __rtResubAttempt = 0;
+  var __startRetryTimer = null;
+  var __outboxDraining = false;
   var __comandaUiNotifyAt = {};
   var COMANDA_NOTIFY_GAP_MS = 300000;
 
@@ -24,6 +26,14 @@
     try {
       var thr = global.CrozzoCloudThrottle;
       if (thr && typeof thr.noteSupabaseError === 'function') thr.noteSupabaseError(err);
+      else if (thr && typeof thr.noteFetchFailure === 'function') thr.noteFetchFailure(err);
+    } catch (_) {}
+  }
+
+  function rtLog() {
+    if (!tierAllowsCloudRead()) return;
+    try {
+      console.log.apply(console, arguments);
     } catch (_) {}
   }
 
@@ -32,6 +42,15 @@
       var thr = global.CrozzoCloudThrottle;
       if (thr && typeof thr.clearPressure === 'function') thr.clearPressure();
     } catch (_) {}
+  }
+
+  function cloudUnderPressure() {
+    try {
+      var thr = global.CrozzoCloudThrottle;
+      return !!(thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure());
+    } catch (_) {
+      return false;
+    }
   }
 
   function rtResubscribeDelayMs() {
@@ -54,11 +73,12 @@
 
   function scheduleComandaRealtimeResubscribe(reason) {
     if (__rtResubTimer) return;
+    if (cloudUnderPressure()) return;
     __rtResubAttempt = Math.min((__rtResubAttempt || 0) + 1, 14);
     var ms = rtResubscribeDelayMs();
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!online()) return;
+      if (!tierAllowsCloudRead()) return;
       subscribeComandaRealtime(reason || 'resub');
     }, ms);
   }
@@ -75,7 +95,12 @@
   }
 
   function tierAllowsCloudPush() {
-    // No sincronizar comandas antes del login (evita 401 / canal CLOSED sin sesión).
+    if (cloudUnderPressure()) return false;
+    try {
+      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+        return global.crozzoCloudBackgroundSyncAllowed();
+      }
+    } catch (_) {}
     try {
       if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
         return false;
@@ -86,9 +111,8 @@
         return global.crozzoTierAllowsCloudSync() && online();
       }
     } catch (_) {}
-    if (online()) return true;
-    var t = tierNow();
-    return t === 'cloud';
+    if (online()) return tierNow() === 'cloud';
+    return false;
   }
 
   function tierAllowsCloudRead() {
@@ -112,9 +136,12 @@
     );
   }
 
-  /** LAN local disponible (cache o IP de caja) — sin costo nube, push instantáneo. */
+  /** LAN local disponible — respeta tier y backoff (no disparar en offline). */
   function lanSegmentLikely() {
     if (deferLocalCloudSync()) return false;
+    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+      return false;
+    }
     try {
       if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
         return true;
@@ -254,6 +281,8 @@
   var OUTBOX_BASE_MS = 2500;
   var OUTBOX_MAX_MS = 30000;
   var OUTBOX_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 h: descarta zombies
+  var OUTBOX_BATCH_NORMAL = 2;
+  var __comandaPushChain = Promise.resolve();
 
   function outboxKey(c) {
     if (!c) return '';
@@ -313,7 +342,7 @@
       lastErr: existing ? existing.lastErr : '',
     };
     persistOutbox();
-    scheduleOutboxDrain(60);
+    if (tierAllowsCloudPush()) scheduleOutboxDrain(600);
   }
 
   function outboxRemove(key) {
@@ -338,53 +367,73 @@
 
   async function drainOutbox() {
     __outboxTimer = null;
+    if (__outboxDraining) return;
     var keys = Object.keys(__outbox);
     if (!keys.length) return;
     if (!online() || !tierAllowsCloudPush()) {
-      scheduleOutboxDrain(OUTBOX_BASE_MS);
       return;
     }
-    var now = Date.now();
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      var e = __outbox[k];
-      if (!e) continue;
-      if (now - e.firstAt > OUTBOX_MAX_AGE_MS) {
-        outboxRemove(k);
-        continue;
-      }
-      if (e.nextAt && e.nextAt > now) continue;
-      var c = outboxFindComanda(e);
-      if (!c) {
-        // La comanda ya no existe localmente (entregada/eliminada): nada que entregar.
-        outboxRemove(k);
-        continue;
-      }
-      var ok = false;
-      try {
-        ok = await pushComanda(c, { estado: c.estado, lastUpdateAt: c.lastUpdateAt });
-      } catch (err) {
-        ok = false;
-        e.lastErr = String((err && err.message) || err || '');
-      }
-      if (ok) {
-        outboxRemove(k);
-      } else {
-        e.attempts = (e.attempts || 0) + 1;
-        var backoff = Math.min(OUTBOX_MAX_MS, OUTBOX_BASE_MS * Math.pow(1.7, Math.min(e.attempts, 8)));
-        e.nextAt = Date.now() + backoff;
-        persistOutbox();
-      }
+    if (cloudUnderPressure()) {
+      scheduleOutboxDrain(12000);
+      return;
     }
-    if (outboxPending()) scheduleOutboxDrain(OUTBOX_BASE_MS);
+    __outboxDraining = true;
+    try {
+      var now = Date.now();
+      var processed = 0;
+      for (var i = 0; i < keys.length; i++) {
+        if (!tierAllowsCloudPush() || cloudUnderPressure()) break;
+        if (processed >= OUTBOX_BATCH_NORMAL) break;
+        var k = keys[i];
+        var e = __outbox[k];
+        if (!e) continue;
+        if (now - e.firstAt > OUTBOX_MAX_AGE_MS) {
+          outboxRemove(k);
+          continue;
+        }
+        if (e.nextAt && e.nextAt > now) continue;
+        var c = outboxFindComanda(e);
+        if (!c) {
+          outboxRemove(k);
+          continue;
+        }
+        var ok = false;
+        try {
+          ok = await pushComanda(c, { estado: c.estado, lastUpdateAt: c.lastUpdateAt });
+        } catch (err) {
+          ok = false;
+          e.lastErr = String((err && err.message) || err || '');
+          noteCloudErr(err);
+        }
+        processed++;
+        if (ok) {
+          outboxRemove(k);
+        } else {
+          e.attempts = (e.attempts || 0) + 1;
+          var backoff = Math.min(OUTBOX_MAX_MS, OUTBOX_BASE_MS * Math.pow(1.7, Math.min(e.attempts, 8)));
+          e.nextAt = Date.now() + backoff;
+          persistOutbox();
+          if (cloudUnderPressure()) break;
+        }
+      }
+      if (outboxPending() && tierAllowsCloudPush()) {
+        scheduleOutboxDrain(cloudUnderPressure() ? 12000 : OUTBOX_BASE_MS);
+      }
+    } finally {
+      __outboxDraining = false;
+    }
   }
 
   function scheduleOutboxDrain(ms) {
-    if (__outboxTimer) return;
     if (!outboxPending()) return;
+    if (!tierAllowsCloudPush()) return;
+    if (cloudUnderPressure()) {
+      ms = Math.max(ms || 0, 12000);
+    }
+    if (__outboxTimer) return;
     __outboxTimer = global.setTimeout(function () {
       drainOutbox().catch(function () {});
-    }, Math.max(50, ms || OUTBOX_BASE_MS));
+    }, Math.max(250, ms || OUTBOX_BASE_MS));
   }
 
   function findComandaForCloudPay(pay, row) {
@@ -501,6 +550,9 @@
 
   async function pushComandaLan(comanda) {
     if (!comanda) return false;
+    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+      return false;
+    }
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     if (!md || md.role === 'A') return false;
     var ip = String(md.centralIp || '').trim();
@@ -521,8 +573,7 @@
       if (typeof global.crozzoLanPostSync === 'function') {
         var okLan = await global.crozzoLanPostSync(body, { timeoutMs: 5500 });
         if (timer) global.clearTimeout(timer);
-        if (!okLan && typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
-        return okLan;
+        return !!okLan;
       }
       var res = await fetch('http://' + ip + ':' + port + '/api/sync', {
         method: 'POST',
@@ -554,7 +605,7 @@
     });
   }
 
-  async function pushComanda(comanda, opts) {
+  async function pushComandaInner(comanda, opts) {
     opts = opts || {};
     if (!online() || !comanda || !tierAllowsCloudPush()) return false;
     var sb = global.__SUPABASE;
@@ -594,8 +645,19 @@
       return true;
     } catch (e) {
       console.warn('[crozzo-comanda-cloud] push', e);
+      noteCloudErr(e);
       return false;
     }
+  }
+
+  function pushComanda(comanda, opts) {
+    if (cloudUnderPressure() || !tierAllowsCloudPush()) return Promise.resolve(false);
+    var run = function () {
+      return pushComandaInner(comanda, opts);
+    };
+    var p = __comandaPushChain.then(run, run);
+    __comandaPushChain = p.catch(function () {});
+    return p;
   }
 
   function pushComandasByIds(ids) {
@@ -604,16 +666,17 @@
     ids.forEach(function (id) {
       var c = findComanda(id);
       if (!c) return;
-      // Entrega garantizada a la nube: el outbox reintenta hasta confirmar.
-      // Se encola incluso sin red — al reconectar drena solo.
       outboxEnqueue(c);
       if (!deferLocalCloudSync() && lan) pushComandaLan(c).catch(function () {});
     });
-    scheduleOutboxDrain(40);
+    if (online() && tierAllowsCloudPush()) scheduleOutboxDrain(600);
   }
 
   async function pushComandaEstadoLan(comanda, estado) {
     if (!comanda) return false;
+    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+      return false;
+    }
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     if (!md || md.role === 'A') return false;
     var ip = String(md.centralIp || '').trim();
@@ -647,7 +710,8 @@
       }
       var j = await res.json().catch(function () { return null; });
       return !!(j && j.ok !== false);
-    } catch (_) {
+    } catch (e) {
+      if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(e);
       if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
       return false;
     }
@@ -1034,6 +1098,13 @@
   var POLL_PRINT_WINDOW_MS = 8 * 60 * 1000;
 
   function scheduleComandaPull() {
+    if (cloudUnderPressure()) {
+      if (__pullTimer) {
+        global.clearInterval(__pullTimer);
+        __pullTimer = null;
+      }
+      return;
+    }
     if (
       global.CrozzoPageCloudWatch &&
       typeof global.CrozzoPageCloudWatch.usesGlobalComandaPoll === 'function' &&
@@ -1055,6 +1126,7 @@
     }
     __pullTimer = global.setInterval(function () {
       if (!tierAllowsCloudRead()) return;
+      if (cloudUnderPressure()) return;
       // Poll periódico de comandas: solo en pantallas operativas. Fuera de
       // operación (Inicio, Gestión, etc.) no se sondea en vivo. Los eventos
       // realtime (crear/cambiar comanda) siguen llegando si el canal está vivo.
@@ -1126,16 +1198,18 @@
       updOpts.filter = flt;
       var ch = global.__SUPABASE.channel(chName);
       ch.on('postgres_changes', insOpts, function (payload) {
+        if (!tierAllowsCloudRead()) return;
         __lastRtEventAt = Date.now();
-        try { console.log('[crozzo-rt] INSERT comanda', payload.new && payload.new.id); } catch (_) {}
+        rtLog('[crozzo-rt] INSERT comanda', payload.new && payload.new.id);
         var applied = !!(payload.new && applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false }));
-        try { console.log('[crozzo-rt] INSERT aplicado:', applied); } catch (_) {}
+        rtLog('[crozzo-rt] INSERT aplicado:', applied);
         scheduleComandaUiIfKitchen();
       });
       ch.on('postgres_changes', updOpts, function (payload) {
+        if (!tierAllowsCloudRead()) return;
         if (!payload.new) return;
         __lastRtEventAt = Date.now();
-        try { console.log('[crozzo-rt] UPDATE comanda', payload.new.id, payload.new.status); } catch (_) {}
+        rtLog('[crozzo-rt] UPDATE comanda', payload.new.id, payload.new.status);
         var st = String(payload.new.status || (payload.new.payload && payload.new.payload.estado) || '');
         if (st === 'entregada') {
           if (applyComandaRemovedFromCloud(payload.new.payload || {}, payload.new)) {
@@ -1144,20 +1218,19 @@
           return;
         }
         var applied2 = applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false });
-        try { console.log('[crozzo-rt] UPDATE aplicado:', applied2); } catch (_) {}
+        if (applied2) rtLog('[crozzo-rt] UPDATE aplicado:', applied2);
         scheduleComandaUiIfKitchen();
       });
       ch.subscribe(function (status) {
-        try { console.log('[crozzo-rt] canal estado:', status); } catch (_) {}
+        rtLog('[crozzo-rt] canal estado:', status);
         if (status === 'SUBSCRIBED') {
           __realtimeLive = true;
           __rtResubAttempt = 0;
-          clearCloudPressure();
           scheduleComandaPull();
         } else if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
           __realtimeLive = false;
           scheduleComandaPull();
-          if (!online()) {
+          if (!tierAllowsCloudRead()) {
             stopComandasCloudSync();
             return;
           }
@@ -1173,18 +1246,26 @@
     }
   }
 
+  function scheduleStartRetry(ms) {
+    if (__startRetryTimer) return;
+    if (cloudUnderPressure()) return;
+    __startRetryTimer = global.setTimeout(function () {
+      __startRetryTimer = null;
+      if (cloudUnderPressure()) return;
+      if (tierAllowsCloudRead()) startComandasCloudSync();
+    }, Math.max(400, ms || 1200));
+  }
+
   function startComandasCloudSync() {
     if (__started) {
-      // Si el canal realtime ya está vivo no lo destruir — el teardown
-      // que hace subscribeComandaRealtime generaría un CLOSED innecesario
-      // y reiniciaría el loop que el ConnectivityOrchestrator puede provocar.
+      if (!tierAllowsCloudRead()) {
+        stopComandasCloudSync();
+        return;
+      }
       if (!__realtimeLive) subscribeComandaRealtime('refresh');
       return;
     }
     if (!tierAllowsCloudRead()) {
-      global.setTimeout(function () {
-        if (tierAllowsCloudRead()) startComandasCloudSync();
-      }, 1200);
       return;
     }
     if (!tenantIdsReady()) {
@@ -1201,7 +1282,7 @@
     // Recupera el outbox de sesiones anteriores y drena lo pendiente: cualquier
     // comanda cuyo push quedó sin confirmar antes de un cierre/recarga se reenvía.
     loadOutbox();
-    if (outboxPending()) scheduleOutboxDrain(300);
+    if (outboxPending() && tierAllowsCloudPush()) scheduleOutboxDrain(300);
 
     // Arranque: pull autoritativo + reconciliación por ausencia (limpia comandas
     // viejas ya cobradas si el equipo estuvo apagado).
@@ -1216,6 +1297,14 @@
 
   function stopComandasCloudSync() {
     __started = false;
+    if (__startRetryTimer) {
+      global.clearTimeout(__startRetryTimer);
+      __startRetryTimer = null;
+    }
+    if (__outboxTimer) {
+      global.clearTimeout(__outboxTimer);
+      __outboxTimer = null;
+    }
     if (__rtResubTimer) {
       global.clearTimeout(__rtResubTimer);
       __rtResubTimer = null;
@@ -1299,13 +1388,15 @@
   };
   /** Fuerza un intento de drenado del outbox (p. ej. al reconectar). */
   global.crozzoFlushComandaOutbox = function () {
+    if (!tierAllowsCloudPush()) return false;
+    if (cloudUnderPressure()) return outboxPending();
     loadOutbox();
     if (outboxPending()) {
       if (__outboxTimer) {
         global.clearTimeout(__outboxTimer);
         __outboxTimer = null;
       }
-      scheduleOutboxDrain(40);
+      scheduleOutboxDrain(800);
     }
     return outboxPending();
   };
@@ -1321,4 +1412,21 @@
       }),
     };
   };
+
+  if (!global.__crozzoComandaCloudTierBound) {
+    global.__crozzoComandaCloudTierBound = true;
+    var onTierShift = function () {
+      try {
+        if (!tierAllowsCloudRead()) {
+          stopComandasCloudSync();
+          return;
+        }
+        if (!__started) startComandasCloudSync();
+        else if (!__realtimeLive) subscribeComandaRealtime('tier_up');
+        if (outboxPending() && tierAllowsCloudPush() && !cloudUnderPressure()) scheduleOutboxDrain(1200);
+      } catch (_) {}
+    };
+    global.addEventListener('crozzo-tier-changed', onTierShift);
+    global.addEventListener('crozzo-detector-tier-changed', onTierShift);
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

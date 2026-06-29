@@ -8,6 +8,8 @@
   var LS_PREFS = 'crozzo_sync_prefs';
   var pressureUntil = 0;
   var lastDrainAt = 0;
+  var lastPressureStopAt = 0;
+  var SEVERE_STOP_REASONS = { auth: 1, fetch_exhausted: 1, '429': 1, query_timeout: 1 };
   var DEFAULT_BATCH = 8;
   var DEFAULT_MIN_GAP_MS = 900;
   var DEFAULT_QUEUE_SEC = 20;
@@ -49,9 +51,21 @@
 
   function markPressure(ms, reason) {
     pressureUntil = Math.max(pressureUntil, Date.now() + (ms || 30000));
+    var r = reason || 'rate_limit';
     try {
-      global.__CROZZO_CLOUD_PRESSURE_REASON = reason || 'rate_limit';
+      global.__CROZZO_CLOUD_PRESSURE_REASON = r;
     } catch (_) {}
+    if (SEVERE_STOP_REASONS[r]) {
+      var now = Date.now();
+      if (now - lastPressureStopAt > 8000) {
+        lastPressureStopAt = now;
+        try {
+          if (typeof global.crozzoStopCloudTransportsQuiet === 'function') {
+            global.crozzoStopCloudTransportsQuiet();
+          }
+        } catch (_) {}
+      }
+    }
   }
 
   function clearPressure() {
@@ -68,9 +82,36 @@
       s === 429 ||
       s === 503 ||
       s === 502 ||
-      /rate.?limit|too many requests|timeout|timed out|ECONNRESET|fetch failed/i.test(msg)
+      s === 401 ||
+      s === 403 ||
+      s === 400 ||
+      s === 409 ||
+      /rate.?limit|too many requests|timeout|timed out|ECONNRESET|fetch failed|INSUFFICIENT_RESOURCES|Failed to fetch/i.test(
+        msg
+      )
     ) {
-      markPressure(s === 429 ? 60000 : 35000, s === 429 ? '429' : 'upstream');
+      var ms = 35000;
+      var reason = 'upstream';
+      if (s === 429) {
+        ms = 60000;
+        reason = '429';
+      } else if (s === 401 || s === 403) {
+        ms = 45000;
+        reason = 'auth';
+      } else if (s === 400 || s === 409) {
+        ms = 30000;
+        reason = 'client_' + s;
+      }
+      markPressure(ms, reason);
+      return true;
+    }
+    return false;
+  }
+
+  function noteFetchFailure(err) {
+    var msg = String((err && err.message) || err || '');
+    if (/INSUFFICIENT_RESOURCES|Failed to fetch|ERR_|network|aborted/i.test(msg)) {
+      markPressure(50000, 'fetch_exhausted');
       return true;
     }
     return false;
@@ -84,6 +125,7 @@
       markPressure(40000, 'query_timeout');
       return true;
     }
+    if (noteFetchFailure(err)) return true;
     return noteHttpStatus(code, msg);
   }
 
@@ -127,6 +169,7 @@
     markPressure: markPressure,
     clearPressure: clearPressure,
     noteHttpStatus: noteHttpStatus,
+    noteFetchFailure: noteFetchFailure,
     noteSupabaseError: noteSupabaseError,
     canRunDrain: canRunDrain,
     snapshot: snapshot,
