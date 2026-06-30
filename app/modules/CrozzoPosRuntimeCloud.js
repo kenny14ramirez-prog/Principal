@@ -11,8 +11,8 @@
   var PULL_POLL_LIVE_MS = 12000;
   var PULL_POLL_FALLBACK_MS = 5000;
   var SILENCE_WATCHDOG_MS = 30000;
-  var MESA_PULL_COALESCE_MS = 1200;
-  var MESA_PULL_MIN_GAP_MS = 2800;
+  var MESA_PULL_COALESCE_MS = 1800;
+  var MESA_PULL_MIN_GAP_MS = 3500;
   var ECHO_MS = 2600;
   var STABILITY_MS = 26000;
   var MAX_CART_NAME = 36;
@@ -23,6 +23,8 @@
   var __echoUntil = 0;
   var __lastRemoteAt = 0;
   var __lastAppliedContentSig = '';
+  var __lastAppliedPickerSig = '';
+  var __lastApplyRemoteLogAt = 0;
   var __lastPushSig = '';
   var __lastPushAt = 0;
   var __realtimeLive = false;
@@ -651,6 +653,30 @@
   /** Presencia parcial por equipo: vacío en un tipo = no tocar ese tipo en nube.
    *  Ref vacío local = no tocar ese slot (nunca borrar peers ajenos).
    *  Peer con _remove = quitar solo ese deviceId del slot en nube. */
+  /** Quita peers expirados del meta remoto antes de aplicar (TTL presencia sesión). */
+  function pruneExpiredSlotPresence(presence) {
+    if (!presence || typeof presence !== 'object') return { mesa: {}, llevar: {} };
+    var now = Date.now();
+    var out = { mesa: {}, llevar: {} };
+    ['mesa', 'llevar'].forEach(function (tipo) {
+      var bag = presence[tipo] && typeof presence[tipo] === 'object' ? presence[tipo] : {};
+      var mergedBag = {};
+      Object.keys(bag).forEach(function (ref) {
+        var peers = bag[ref];
+        if (!peers || typeof peers !== 'object') return;
+        var kept = {};
+        Object.keys(peers).forEach(function (devId) {
+          var p = peers[devId];
+          if (!p || p._remove === true) return;
+          if (Number(p.expiresAt || 0) > now) kept[devId] = p;
+        });
+        if (Object.keys(kept).length) mergedBag[ref] = kept;
+      });
+      out[tipo] = mergedBag;
+    });
+    return out;
+  }
+
   function mergeSedePresence(cloudPresence, localPresence) {
     var cloud =
       cloudPresence && typeof cloudPresence === 'object' ? cloudPresence : { mesa: {}, llevar: {} };
@@ -849,11 +875,34 @@
   var __runtimeSubscribing = false;
   var __lastDiscardLogAt = 0;
   var CART_KEYS = ['cartsPorMesa', 'cartsPorLlevar', 'cartDirecto'];
+  /** Estado de navegación local por terminal — no sincronizar en fila meta de nube. */
+  var UI_LOCAL_KEYS = [
+    'tipoServicioCaja',
+    'mesaSeleccionada',
+    'llevarSeleccionado',
+    'tabletModoPedido',
+    'tabletMesaSeleccionada',
+    'tabletLlevarSeleccionado',
+    'tabletOrderOpen',
+    'cajaMesaOrderOpen',
+    'cajaLlevarOrderOpen',
+    'cajaMesaSearch',
+    'cajaLlevarSearch',
+    'cajaSlotFilter',
+    'directSaveMenuOpen',
+    'directSaveMode',
+    'directSaveTargetId',
+    'productCategoryOpen',
+    'selectedProductCategory',
+    'productSearchTerm',
+    'tabletTargetSearch',
+  ];
 
   function metaFromSnap(snap) {
     var meta = {};
     Object.keys(snap || {}).forEach(function (k) {
       if (CART_KEYS.indexOf(k) >= 0) return;
+      if (UI_LOCAL_KEYS.indexOf(k) >= 0) return;
       // savedAt es VOLÁTIL (cambia en cada push). Si va en el payload de la fila
       // meta, su firma cambia siempre → la fila meta se re-escribe en CADA push →
       // evento realtime → pull → tormenta de "mismo contenido". Lo excluimos: el
@@ -924,6 +973,9 @@
       var lines = r.payload && r.payload.lines;
       if (r.kind === 'meta') {
         base = r.payload && typeof r.payload === 'object' ? r.payload : {};
+        if (base.slotSessionPresence) {
+          base.slotSessionPresence = pruneExpiredSlotPresence(base.slotSessionPresence);
+        }
       } else if (r.kind === 'mesa') {
         carts.mesa[r.ref] = Array.isArray(lines) ? lines : [];
         slotTs['mesa:' + r.ref] = at;
@@ -1017,6 +1069,31 @@
       __lastPushSig = payloadSig(snap);
       __lastPushAt = Date.now();
       return true;
+    }
+    var metaPushIdx = -1;
+    for (var mj = 0; mj < toUpsert.length; mj++) {
+      if (toUpsert[mj].kind === 'meta') {
+        metaPushIdx = mj;
+        break;
+      }
+    }
+    if (metaPushIdx >= 0) {
+      try {
+        var curMeta = await sb
+          .from(MESA_TABLE)
+          .select('payload')
+          .eq('location_id', c.locationId)
+          .eq('kind', 'meta')
+          .eq('ref', '__meta__')
+          .maybeSingle();
+        if (curMeta && !curMeta.error && curMeta.data && curMeta.data.payload) {
+          var mergedMeta = mergeSedeSnapshots(curMeta.data.payload, toUpsert[metaPushIdx].payload);
+          toUpsert[metaPushIdx].payload = mergedMeta;
+          try {
+            __mesaSlotSig['meta:__meta__'] = JSON.stringify(mergedMeta);
+          } catch (_) {}
+        }
+      } catch (_) {}
     }
     try {
       var res = await sb.from(MESA_TABLE).upsert(toUpsert, { onConflict: 'location_id,kind,ref' });
@@ -1274,18 +1351,37 @@
     pay = unpackForApply(pay);
     var remoteAt = Number(pay.savedAt) || Date.parse(row.saved_at || row.updated_at || 0) || 0;
     if (!remoteAt) { console.warn('[runtime-cloud] applyRemoteRow: sin timestamp remoto'); return false; }
-    try {
-      var mesaKeys2 = Object.keys(pay.cartsPorMesa || {});
-      console.log('[runtime-cloud] applyRemoteRow v=' + pay.v + ' mesas=' + mesaKeys2.length + ' remoteAt=' + remoteAt);
-    } catch (_) {}
+    var mesaKeys2 = Object.keys(pay.cartsPorMesa || {});
+    if (pay.slotSessionPresence) {
+      pay.slotSessionPresence = pruneExpiredSlotPresence(pay.slotSessionPresence);
+    }
     var contentSig = payloadSig(pay);
+    var pickerSig = '';
+    try {
+      if (typeof global.crozzoBuildPickerVisibleSig === 'function') {
+        pickerSig = global.crozzoBuildPickerVisibleSig(pay) || '';
+      }
+    } catch (_) {}
+    var localPickerSig = '';
+    try {
+      if (typeof global.crozzoBuildPickerVisibleSig === 'function') {
+        localPickerSig = global.crozzoBuildPickerVisibleSig() || '';
+      }
+    } catch (_) {}
+    var samePicker = !!(pickerSig && localPickerSig && pickerSig === localPickerSig);
     var sameContent = contentSig === __lastAppliedContentSig;
-    if (sameContent && !(opts && opts.force)) {
+    if ((sameContent || samePicker) && !(opts && opts.force)) {
       if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
       var nowLog = Date.now();
       if (nowLog - __lastDiscardLogAt > 8000) {
         __lastDiscardLogAt = nowLog;
-        try { console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado (throttled)'); } catch (_) {}
+        try {
+          console.log(
+            '[runtime-cloud] applyRemoteRow: descartado (' +
+              (samePicker ? 'picker sin cambio' : 'mismo contenido') +
+              ')'
+          );
+        } catch (_) {}
       }
       return false;
     }
@@ -1344,10 +1440,26 @@
     var myDev = ctx().deviceId;
     if (srcDev && myDev && srcDev === myDev && sameContent && remoteAt <= localSavedAt() + 500) return false;
     if (typeof global.applyPosRuntimeSnapshot !== 'function') return false;
+    try {
+      var nowApplyLog = Date.now();
+      if (nowApplyLog - __lastApplyRemoteLogAt > 4000) {
+        __lastApplyRemoteLogAt = nowApplyLog;
+        console.log(
+          '[runtime-cloud] applyRemoteRow: aplicando v=' +
+            pay.v +
+            ' mesas=' +
+            mesaKeys2.length +
+            ' remoteAt=' +
+            remoteAt
+        );
+      }
+    } catch (_) {}
     var ok = global.applyPosRuntimeSnapshot(pay, { skipUiFields: true, slotUpdatedAt: slotTs });
     if (!ok) return false;
     __lastRemoteAt = remoteAt;
     __lastAppliedContentSig = contentSig;
+    if (pickerSig) __lastAppliedPickerSig = pickerSig;
+    else if (localPickerSig) __lastAppliedPickerSig = localPickerSig;
     try {
       global.__crozzoRuntimeCloudApplying = true;
       if (typeof global.savePosRuntimeToLocalStorage === 'function') {
@@ -1359,9 +1471,11 @@
     } catch (_) {}
     var uiQuiet = !!(opts && (opts.skipRender || opts.quiet));
     if (!uiQuiet) maybeRerender();
-    try {
-      if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') global.crozzoHandleRemoteRuntimeUiSync();
-    } catch (_) {}
+    if (!uiQuiet) {
+      try {
+        if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') global.crozzoHandleRemoteRuntimeUiSync();
+      } catch (_) {}
+    }
     return true;
   }
 
@@ -1395,7 +1509,9 @@
           .limit(1)
           .maybeSingle();
         if (!res.error && res.data) {
-          return applyRemoteRow(res.data, opts);
+          var applied = applyRemoteRow(res.data, opts);
+          if (applied) __lastMesaPullAt = Date.now();
+          return applied;
         }
         if (res.error) {
           noteCloudErr(res.error);
@@ -1616,7 +1732,10 @@
     return pushRuntimeNow({ force: true });
   };
   /** Solo metadatos de frescura remota (savedAt), sin aplicar snapshot. */
-  async function probeRemoteRuntimeMeta() {
+  async function probeRemoteRuntimeMeta(opts) {
+    opts = opts || {};
+    var skipLan = !!opts.skipLan;
+    var lanTimeoutMs = Number(opts.lanTimeoutMs) > 0 ? Number(opts.lanTimeoutMs) : 4500;
     var out = { found: false, savedAt: 0, remoteAt: 0, source: '', slotUpdatedAt: {}, remoteSlotLines: {} };
     function fillSlotMetaFromSnap(snap) {
       if (!snap || typeof snap !== 'object') return;
@@ -1680,14 +1799,14 @@
       }
     }
     var host = lanCentralHost();
-    if (host) {
+    if (!skipLan && host) {
       try {
         var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
         var port = Number(md.port) || 3000;
         var controller = new AbortController();
         var t = global.setTimeout(function () {
           controller.abort();
-        }, 4500);
+        }, lanTimeoutMs);
         var lanRes = await global.fetch('http://' + host + ':' + port + '/api/runtime', {
           method: 'GET',
           signal: controller.signal,
@@ -1732,6 +1851,7 @@
   global.crozzoStopPosRuntimeCloudSync = stopRuntimeCloudSync;
   global.crozzoResetRuntimeSyncDedup = function () {
     __lastAppliedContentSig = '';
+    __lastAppliedPickerSig = '';
     __lastRemoteAt = 0;
     __lastPushSig = '';
     __mesaSlotSig = {};
@@ -1821,6 +1941,9 @@
   };
   global.crozzoPosRuntimeCloudIsLive = function () {
     return __started && !__tableMissing;
+  };
+  global.crozzoRuntimeCloudLastPullAt = function () {
+    return __lastMesaPullAt || 0;
   };
   global.crozzoPosRuntimeCloudMode = function () {
     return __mesaMode === true ? 'mesa' : __mesaMode === false ? 'sede' : 'desconocido';

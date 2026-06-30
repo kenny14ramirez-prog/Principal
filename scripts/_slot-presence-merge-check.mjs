@@ -113,6 +113,12 @@ assert(/crozzoPresenceRemovalPeer/.test(main), 'removal peer', '_remove en expor
 assert(/CROZZO_PRESENCE_PRUNE_GRACE_MS/.test(main), 'UI grace', 'gracia TTL display');
 assert(/if \(!peerKeys\.length\) return/.test(rtcSrc), 'ref vacío skip', 'no borra ref por peers vacíos');
 assert(!/if \(!localPeers[\s\S]{0,80}delete mergedBag\[ref\]/.test(rtcSrc), 'sin delete ref vacío', 'mergeSedePresence corregido');
+assert(/scope\.mode === 'picker'/.test(main), 'picker no republica bag', 'solo tombstones en grilla');
+assert(/pruneExpiredSlotPresence/.test(rtcSrc), 'prune remoto TTL', 'meta/pull sin peers vencidos');
+assert(/metaPushIdx/.test(rtcSrc), 'meta merge-on-write', 'pushMesaRows fusiona meta en nube');
+assert(/if \(!\(opts && opts\.skipUiFields\)\)/.test(main), 'skipUiFields navegación', 'bloque UI remoto');
+assert(/UI_LOCAL_KEYS/.test(rtcSrc), 'meta sin UI local', 'mesaSeleccionada no en fila meta nube');
+assert(/mesaSeleccionada = assign\('mesaSeleccionada'/.test(main), 'mesa local assign', 'solo restauración localStorage');
 
 console.log('\n=== slot-presence-merge-check ===\n');
 results.forEach((r) => {

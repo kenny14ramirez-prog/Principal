@@ -10,6 +10,63 @@
   var __pending = null;
   var __operativeInitialSyncDone = false;
   var __sessionKey = '';
+  var OVERLAY_MAX_MS = 4500;
+  var RECENT_CLOUD_PULL_MS = 15000;
+
+  function withTimeout(promise, ms, fallback) {
+    var timer;
+    return Promise.race([
+      promise,
+      new Promise(function (resolve) {
+        timer = global.setTimeout(function () {
+          resolve(fallback);
+        }, ms);
+      }),
+    ]).finally(function () {
+      if (timer) global.clearTimeout(timer);
+    });
+  }
+
+  function cloudLikelyUp() {
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) return false;
+      return (
+        typeof global.crozzoOnlineConfigReady === 'function' &&
+        global.crozzoOnlineConfigReady() &&
+        !!global.__SUPABASE
+      );
+    } catch (_) {}
+    return false;
+  }
+
+  function lanSegmentLikelyUp() {
+    try {
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) return true;
+      if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.syncAllowed === 'function') {
+        return !!global.CrozzoLanOpsSync.syncAllowed({ kind: 'realtime' });
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function cloudSyncRecentlyFresh(maxMs) {
+    maxMs = Number(maxMs) > 0 ? Number(maxMs) : RECENT_CLOUD_PULL_MS;
+    try {
+      if (typeof global.crozzoRuntimeCloudLastPullAt === 'function') {
+        var at = Number(global.crozzoRuntimeCloudLastPullAt()) || 0;
+        if (at && Date.now() - at < maxMs) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function buildRemoteMetaFromAppliedRuntime() {
+    var savedAt = 0;
+    try {
+      if (typeof global.crozzoGetLocalRuntimeSavedAt === 'function') savedAt = Number(global.crozzoGetLocalRuntimeSavedAt()) || 0;
+    } catch (_) {}
+    return { found: savedAt > 0, savedAt: savedAt, remoteAt: savedAt, source: 'applied_runtime' };
+  }
 
   function currentSessionKey() {
     try {
@@ -89,11 +146,14 @@
     return false;
   }
 
-  async function analyzeAndDiscardStale(phase) {
+  async function analyzeAndDiscardStale(phase, aOpts) {
+    aOpts = aOpts || {};
     var remoteMeta = { found: false, savedAt: 0 };
-    if (typeof global.crozzoProbeRemoteRuntimeMeta === 'function') {
+    if (aOpts.remoteMeta) {
+      remoteMeta = aOpts.remoteMeta;
+    } else if (!aOpts.skipProbe && typeof global.crozzoProbeRemoteRuntimeMeta === 'function') {
       try {
-        remoteMeta = await global.crozzoProbeRemoteRuntimeMeta();
+        remoteMeta = await global.crozzoProbeRemoteRuntimeMeta(aOpts.probeOpts || {});
       } catch (_) {}
     }
     if (typeof global.crozzoAnalyzeOperationalFreshness !== 'function') return null;
@@ -115,58 +175,85 @@
 
   async function pullOperationalTruth(opts) {
     opts = opts || {};
+    var fastEntry = !!opts.fastEntry;
+    var skipHeavyPull = !!opts.skipHeavyPull;
     var pulled = 0;
     if (typeof global.crozzoResetRuntimeSyncDedup === 'function') {
       try {
         global.crozzoResetRuntimeSyncDedup();
       } catch (_) {}
     }
-    if (!opts.skipFreshnessPurge) {
+    var deferPush = fastEntry || !!opts.deferPush;
+    if (!opts.skipFreshnessPurge && !deferPush) {
       try {
         if (typeof global.crozzoPushPosRuntimeCloudNow === 'function') {
-          await global.crozzoPushPosRuntimeCloudNow();
-        }
-      } catch (_) {}
-      try {
-        await analyzeAndDiscardStale('pre');
-      } catch (_) {}
-    }
-    if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-      try {
-        if (await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true, force: !!opts.force })) {
-          pulled++;
+          await withTimeout(global.crozzoPushPosRuntimeCloudNow(), 3500, false);
         }
       } catch (_) {}
     }
-    if (typeof global.crozzoPullComandasFromCloud === 'function') {
+    if (!opts.skipFreshnessPurge && !fastEntry && !opts.skipPreAnalyze) {
       try {
-        if (
-          await global.crozzoPullComandasFromCloud({
-            skipPrint: true,
-            skipRender: true,
-            silent: true,
-            reconcileStale: true,
-            notify: false,
-          })
-        ) {
-          pulled++;
-        }
+        await analyzeAndDiscardStale('pre', {
+          probeOpts: { skipLan: cloudLikelyUp(), lanTimeoutMs: 1500 },
+        });
       } catch (_) {}
     }
-    if (typeof global.crozzoPullComandasFromLan === 'function') {
-      try {
-        await global.crozzoPullComandasFromLan({ skipPrint: true, skipRender: true, force: true });
-      } catch (_) {}
+    if (!skipHeavyPull) {
+      var pullMs = fastEntry ? 4500 : 8000;
+      var runtimeP =
+        typeof global.crozzoPullPosRuntimeCloud === 'function'
+          ? withTimeout(
+              global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true, force: !!opts.force }),
+              pullMs,
+              false
+            )
+          : Promise.resolve(false);
+      var comandasP =
+        typeof global.crozzoPullComandasFromCloud === 'function'
+          ? withTimeout(
+              global.crozzoPullComandasFromCloud({
+                skipPrint: true,
+                skipRender: true,
+                silent: true,
+                reconcileStale: !fastEntry,
+                notify: false,
+              }),
+              pullMs,
+              false
+            )
+          : Promise.resolve(false);
+      var pair = await Promise.all([runtimeP, comandasP]);
+      if (pair[0]) pulled++;
+      if (pair[1]) pulled++;
+      if (lanSegmentLikelyUp() && typeof global.crozzoPullComandasFromLan === 'function') {
+        try {
+          await withTimeout(
+            global.crozzoPullComandasFromLan({
+              skipPrint: true,
+              skipRender: true,
+              force: !!opts.force,
+            }),
+            fastEntry ? 1800 : 3500,
+            false
+          );
+        } catch (_) {}
+      }
     }
     if (!opts.skipFreshnessPurge) {
       try {
-        await analyzeAndDiscardStale('post');
+        await analyzeAndDiscardStale('post', {
+          remoteMeta: buildRemoteMetaFromAppliedRuntime(),
+          skipProbe: true,
+        });
       } catch (_) {}
       try {
         if (typeof global.crozzoPurgeGhostComandasForClearedSlots === 'function') {
           global.crozzoPurgeGhostComandasForClearedSlots();
         }
       } catch (_) {}
+    }
+    if (deferPush && typeof global.crozzoPushPosRuntimeCloudNow === 'function') {
+      global.crozzoPushPosRuntimeCloudNow().catch(function () {});
     }
     return pulled;
   }
@@ -209,24 +296,39 @@
       if (__ready[pageKind] && !opts.force) return { ok: true, cached: true };
     }
     var run = (async function () {
-      var showUi = !opts.quiet && !opts.background;
+      var skipHeavyPull = !opts.force && cloudSyncRecentlyFresh(RECENT_CLOUD_PULL_MS);
+      var fastEntry = !__operativeInitialSyncDone;
+      var showUi = !opts.quiet && !opts.background && !skipHeavyPull;
+      var overlayReleased = false;
+      var overlayTimer = null;
       if (showUi) showOverlay(opts.message || 'Verificando nube y mesas…');
+      if (showUi) {
+        overlayTimer = global.setTimeout(function () {
+          overlayReleased = true;
+          hideOverlay();
+        }, OVERLAY_MAX_MS);
+      }
       try {
-        await pullOperationalTruth({ force: !!opts.force });
+        await pullOperationalTruth({
+          force: !!opts.force,
+          fastEntry: fastEntry,
+          skipHeavyPull: skipHeavyPull,
+        });
         __operativeInitialSyncDone = true;
         __ready.tablets = true;
         __ready.cajero = true;
         if (myGen === __syncGen && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
           global.crozzoHandleRemoteRuntimeUiSync();
         }
-        return { ok: true };
+        return { ok: true, skipHeavyPull: skipHeavyPull };
       } catch (e) {
         __operativeInitialSyncDone = true;
         __ready.tablets = true;
         __ready.cajero = true;
         return { ok: false, error: e };
       } finally {
-        if (myGen === __syncGen && showUi) hideOverlay();
+        if (overlayTimer) global.clearTimeout(overlayTimer);
+        if (myGen === __syncGen && showUi && !overlayReleased) hideOverlay();
         __pending = null;
       }
     })();

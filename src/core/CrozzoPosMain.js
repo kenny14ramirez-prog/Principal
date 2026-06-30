@@ -7253,13 +7253,34 @@ function crozzoNotifySlotCartUserEdit() {
     }
   } catch (_) {}
 }
+function crozzoKnownSalonSlotIds(tipo) {
+  const list =
+    tipo === 'mesa'
+      ? typeof mesasCaja !== 'undefined' && Array.isArray(mesasCaja)
+        ? mesasCaja
+        : []
+      : typeof llevarCaja !== 'undefined' && Array.isArray(llevarCaja)
+        ? llevarCaja
+        : [];
+  const out = {};
+  list.forEach(function (slot) {
+    if (slot && slot.id != null && String(slot.id).trim()) out[String(slot.id).trim()] = 1;
+  });
+  return out;
+}
 function crozzoPruneSlotSessionPresence(store, opts) {
   const bag = store || slotSessionPresence;
   const now = Date.now();
   const grace = Number(opts && opts.graceMs) || 0;
   ['mesa', 'llevar'].forEach(function (tipo) {
     if (!bag[tipo] || typeof bag[tipo] !== 'object') bag[tipo] = {};
+    const known = crozzoKnownSalonSlotIds(tipo);
+    const hasKnown = Object.keys(known).length > 0;
     Object.keys(bag[tipo]).forEach(function (ref) {
+      if (hasKnown && !known[String(ref)]) {
+        delete bag[tipo][ref];
+        return;
+      }
       const peers = bag[tipo][ref];
       if (!peers || typeof peers !== 'object') {
         delete bag[tipo][ref];
@@ -7691,6 +7712,15 @@ function crozzoExportSlotSessionPresenceForCloud() {
         if (!out[tipo][vRef]) out[tipo][vRef] = {};
         out[tipo][vRef][myId] = crozzoPresenceRemovalPeer(myId);
         delete vacated[vRef];
+      });
+    } else if (scope.mode === 'picker') {
+      // Grilla mesas/llevar: no republicar presencia acumulada local (evita pegar
+      // fantasmas en una sola mesa en la nube). Solo tombstones de salidas recientes.
+      var vacatedPicker = __crozzoPresenceVacatedRefs[tipo] || {};
+      Object.keys(vacatedPicker).forEach(function (vRef) {
+        if (!out[tipo][vRef]) out[tipo][vRef] = {};
+        out[tipo][vRef][myId] = crozzoPresenceRemovalPeer(myId);
+        delete vacatedPicker[vRef];
       });
     } else {
       out[tipo] = JSON.parse(JSON.stringify(bag));
@@ -8685,9 +8715,20 @@ function applyPosRuntimeSnapshot(s, opts) {
     if (s[k] !== undefined && s[k] !== null) return s[k];
     return def;
   };
-  tipoServicioCaja = assign('tipoServicioCaja', tipoServicioCaja);
-  mesaSeleccionada = assign('mesaSeleccionada', mesaSeleccionada);
-  llevarSeleccionado = assign('llevarSeleccionado', llevarSeleccionado);
+  /* Navegación mesa/llevar/tablet: solo localStorage en ESTE equipo. Sync remoto
+   * no debe reasignar mesaSeleccionada (p. ej. M2 de otro terminal) mientras el
+   * cajero abrió M20 — provocaba salto de mesa y carrito protegido en slot erróneo. */
+  if (!(opts && opts.skipUiFields)) {
+    tipoServicioCaja = assign('tipoServicioCaja', tipoServicioCaja);
+    mesaSeleccionada = assign('mesaSeleccionada', mesaSeleccionada);
+    llevarSeleccionado = assign('llevarSeleccionado', llevarSeleccionado);
+    tabletModoPedido = assign('tabletModoPedido', tabletModoPedido);
+    tabletMesaSeleccionada = assign('tabletMesaSeleccionada', tabletMesaSeleccionada);
+    tabletLlevarSeleccionado = assign('tabletLlevarSeleccionado', tabletLlevarSeleccionado);
+    tabletOrderOpen = !!s.tabletOrderOpen;
+    cajaMesaOrderOpen = !!s.cajaMesaOrderOpen;
+    cajaLlevarOrderOpen = !!s.cajaLlevarOrderOpen;
+  }
   if (Array.isArray(s.cartDirecto)) {
     const fromRemote = !!(opts && opts.skipUiFields);
     const inDirect =
@@ -8752,15 +8793,6 @@ function applyPosRuntimeSnapshot(s, opts) {
     );
   } else if (s.cartsPorLlevar && typeof s.cartsPorLlevar === 'object') {
     cartsPorLlevar = s.cartsPorLlevar;
-  }
-  tabletModoPedido = assign('tabletModoPedido', tabletModoPedido);
-  tabletMesaSeleccionada = assign('tabletMesaSeleccionada', tabletMesaSeleccionada);
-  tabletLlevarSeleccionado = assign('tabletLlevarSeleccionado', tabletLlevarSeleccionado);
-  /* Panel mesa/llevar abierto: solo restaurar desde localStorage (misma terminal). Sync remoto no reabre la vista. */
-  if (!(opts && opts.skipUiFields)) {
-    tabletOrderOpen = !!s.tabletOrderOpen;
-    cajaMesaOrderOpen = !!s.cajaMesaOrderOpen;
-    cajaLlevarOrderOpen = !!s.cajaLlevarOrderOpen;
   }
   if (Array.isArray(s.comandas)) {
     const skipComandaMerge =
@@ -23337,13 +23369,130 @@ function setCajaSlotFilter(value) {
   if (typeof crozzoCajeroRefreshSlotPicker === 'function' && crozzoCajeroRefreshSlotPicker()) return;
   renderPage('cajero');
 }
+var __lastCajeroSlotPickerDomSig = '';
+function crozzoSlotPickerStateFromSnap(tipo, ref, snap) {
+  snap = snap || {};
+  var cartsM = snap.cartsPorMesa || {};
+  var cartsL = snap.cartsPorLlevar || {};
+  var cart = tipo === 'mesa' ? cartsM[ref] || [] : cartsL[ref] || [];
+  var pendingQty = typeof getPendingItemsQty === 'function' ? getPendingItemsQty(cart) : 0;
+  var locks = snap.comandaSlotLocks || {};
+  var lockRow = locks[tipo] && locks[tipo][ref];
+  var myDev = typeof crozzoDeviceId === 'function' ? crozzoDeviceId() : '';
+  if (
+    lockRow &&
+    lockRow.deviceId &&
+    String(lockRow.deviceId) !== String(myDev) &&
+    pendingQty <= 0 &&
+    typeof crozzoCartHasSentItems === 'function' &&
+    !crozzoCartHasSentItems(cart)
+  ) {
+    return 'en-uso';
+  }
+  var comList = snap.comandas || snap.activeComandas || [];
+  var histList = snap.comandaHistory || [];
+  var latestComanda = null;
+  for (var ci = 0; ci < comList.length; ci++) {
+    var c = comList[ci];
+    if (!c || c.tipoServicio !== tipo || c.referencia !== ref) continue;
+    if (!latestComanda || new Date(c.createdAt) > new Date(latestComanda.createdAt)) latestComanda = c;
+  }
+  var latestHistoryComanda = null;
+  for (var hi = 0; hi < histList.length; hi++) {
+    var h = histList[hi];
+    if (!h || h.tipoServicio !== tipo || h.referencia !== ref) continue;
+    var hAt = new Date(h.despachadaAt || h.createdAt);
+    if (!latestHistoryComanda || hAt > new Date(latestHistoryComanda.despachadaAt || latestHistoryComanda.createdAt)) {
+      latestHistoryComanda = h;
+    }
+  }
+  var closed = snap.closedSlots || {};
+  var wasPaid = Boolean(closed[tipo] && closed[tipo][ref]);
+  var pres = snap.slotSessionPresence || {};
+  var peers = (pres[tipo] && pres[tipo][ref]) || {};
+  var hasSession = false;
+  Object.keys(peers).forEach(function (devId) {
+    var p = peers[devId];
+    if (!p || p._remove) return;
+    if (p.expiresAt && Number(p.expiresAt) < Date.now()) return;
+    hasSession = true;
+  });
+  if (pendingQty > 0) return 'pendiente';
+  if (latestComanda) return 'comandado';
+  if (
+    latestHistoryComanda &&
+    latestHistoryComanda.estado === 'entregada' &&
+    !wasPaid &&
+    typeof crozzoSlotHasUnpaidConsumption === 'function' &&
+    crozzoSlotHasUnpaidConsumption(tipo, ref)
+  ) {
+    return 'salio';
+  }
+  if (hasSession) return 'atendiendo';
+  return 'libre';
+}
+function crozzoBuildPickerVisibleSig(payOpt) {
+  try {
+    if (!payOpt && typeof crozzoPruneSlotSessionPresence === 'function') crozzoPruneSlotSessionPresence();
+  } catch (_) {}
+  var snap = payOpt;
+  if (!snap) {
+    snap = {
+      cartsPorMesa: typeof cartsPorMesa !== 'undefined' ? cartsPorMesa : {},
+      cartsPorLlevar: typeof cartsPorLlevar !== 'undefined' ? cartsPorLlevar : {},
+      slotSessionPresence: typeof slotSessionPresence !== 'undefined' ? slotSessionPresence : { mesa: {}, llevar: {} },
+      closedSlots: typeof closedSlots !== 'undefined' ? closedSlots : { mesa: {}, llevar: {} },
+      comandas: typeof comandas !== 'undefined' ? comandas : [],
+      comandaHistory: typeof comandaHistory !== 'undefined' ? comandaHistory : [],
+      comandaSlotLocks: typeof comandaSlotLocks !== 'undefined' ? comandaSlotLocks : { mesa: {}, llevar: {} },
+    };
+  }
+  var parts = [];
+  ['mesa', 'llevar'].forEach(function (tipo) {
+    var list =
+      tipo === 'mesa'
+        ? typeof mesasCaja !== 'undefined'
+          ? mesasCaja
+          : []
+        : typeof llevarCaja !== 'undefined'
+          ? llevarCaja
+          : [];
+    (list || []).forEach(function (slot) {
+      if (!slot || !slot.id) return;
+      var ref = slot.id;
+      var cart = tipo === 'mesa' ? (snap.cartsPorMesa || {})[ref] || [] : (snap.cartsPorLlevar || {})[ref] || [];
+      var cartSig = (cart || [])
+        .map(function (it) {
+          return String(it.productoId || it.id || '') + 'x' + String(it.cantidad || 0) + '@' + String(it.estado || '');
+        })
+        .join(',');
+      var pres = snap.slotSessionPresence || {};
+      var peers = (pres[tipo] && pres[tipo][ref]) || {};
+      var pSig = Object.keys(peers)
+        .filter(function (devId) {
+          var p = peers[devId];
+          if (!p || p._remove) return false;
+          if (p.expiresAt && Number(p.expiresAt) < Date.now()) return false;
+          return true;
+        })
+        .sort()
+        .map(function (devId) {
+          var p = peers[devId];
+          return devId + '@' + String((p && p.userName) || '') + ':' + String((p && p.deviceName) || '');
+        })
+        .join('+');
+      var state = crozzoSlotPickerStateFromSnap(tipo, ref, snap);
+      parts.push(tipo + ':' + ref + '=' + state + '/' + cartSig + '/' + pSig);
+    });
+  });
+  var filter = typeof cajaSlotFilter !== 'undefined' ? cajaSlotFilter : 'todas';
+  var svc = typeof tipoServicioCaja !== 'undefined' ? tipoServicioCaja : '';
+  var directMode = typeof directSaveMode !== 'undefined' ? directSaveMode : '';
+  return parts.join('|') + '##' + filter + '##' + svc + '##' + directMode;
+}
+window.crozzoBuildPickerVisibleSig = crozzoBuildPickerVisibleSig;
 function crozzoCajeroRefreshSlotPicker() {
   if (typeof currentPage === 'undefined' || currentPage !== 'cajero') return false;
-  try {
-    if (typeof window.crozzoPullPosRuntimeCloud === 'function') {
-      window.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
-    }
-  } catch (_) {}
   const orderOpen =
     tipoServicioCaja !== 'directa' &&
     ((tipoServicioCaja === 'mesa' && cajaMesaOrderOpen) || (tipoServicioCaja === 'llevar' && cajaLlevarOrderOpen));
@@ -23354,8 +23503,9 @@ function crozzoCajeroRefreshSlotPicker() {
   const tipo = tipoServicioCaja === 'directa' ? directSaveMode : tipoServicioCaja;
   const sourceList = tipo === 'mesa' ? mesasCaja : llevarCaja;
   const filteredList = crozzoFilterCajaSlotList(tipo, sourceList);
+  var slotsHtml;
   if (tipoServicioCaja === 'directa') {
-    slotsEl.innerHTML = filteredList.length
+    slotsHtml = filteredList.length
       ? filteredList
           .map(function (s) {
             return crozzoRestSlotCardHtml(
@@ -23367,7 +23517,7 @@ function crozzoCajeroRefreshSlotPicker() {
           .join('')
       : '<p class="crozzo-rest-pos__empty">Sin resultados para esta búsqueda.</p>';
   } else {
-    slotsEl.innerHTML = filteredList.length
+    slotsHtml = filteredList.length
       ? filteredList
           .map(function (s) {
             var click =
@@ -23379,10 +23529,16 @@ function crozzoCajeroRefreshSlotPicker() {
           .join('')
       : '<p class="crozzo-rest-pos__empty">Sin resultados para esta búsqueda.</p>';
   }
+  var filtersHtml = crozzoRestSlotFilterHtml(tipo);
+  var modesHtml = crozzoRestServiceTabsHtml();
+  var domSig = slotsHtml + '##' + filtersHtml + '##' + modesHtml;
+  if (domSig === __lastCajeroSlotPickerDomSig) return true;
+  __lastCajeroSlotPickerDomSig = domSig;
+  slotsEl.innerHTML = slotsHtml;
   const filtersEl = document.querySelector('.crozzo-rest-pos__slot-filters');
-  if (filtersEl) filtersEl.outerHTML = crozzoRestSlotFilterHtml(tipo);
+  if (filtersEl) filtersEl.outerHTML = filtersHtml;
   const modesEl = document.querySelector('.crozzo-rest-pos__modes');
-  if (modesEl) modesEl.outerHTML = crozzoRestServiceTabsHtml();
+  if (modesEl) modesEl.outerHTML = modesHtml;
   try {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
       var root = document.querySelector('.crozzo-rest-pos--picker') || document.getElementById('mainContent');

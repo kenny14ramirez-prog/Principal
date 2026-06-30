@@ -61,6 +61,8 @@
 
   var __lastHybridHealAt = 0;
   var HYBRID_HEAL_GAP_MS = 90000;
+  /** Inicializaciones idempotentes (runOnce): LAN, gossip, etc. */
+  var __onceDone = {};
 
   function safe(fn) {
     try {
