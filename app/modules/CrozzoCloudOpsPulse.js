@@ -113,7 +113,7 @@
       if (kind === 'comanda') {
         safe(function () {
           if (typeof global.crozzoPullComandasFromCloud === 'function') {
-            global.crozzoPullComandasFromCloud({ skipPrint: false, skipRender: false, silent: true }).catch(function () {});
+            global.crozzoPullComandasFromCloud({ skipPrint: true, skipRender: false, silent: true }).catch(function () {});
           }
         });
       } else if (kind === 'runtime') {

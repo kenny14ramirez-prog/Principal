@@ -11,12 +11,13 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.207">
+<meta name="crozzo-app-version" content="1.0.208">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var userChose=localStorage.getItem('crozzo_theme_user_v1')==='1';var t='';if(userChose){t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';}t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-light','crozzo-theme-dark');if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
 <script src="core/CrozzoDevicePerf.js"></script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
+<link rel="stylesheet" href="css/CrozzoPantallasShell.css">
 <script src="core/CrozzoCspDomWire.js"></script>
 <script src="core/CrozzoStorageHygiene.js"></script>
 <script src="infra/CrozzoEmulationHarness.js"></script>
@@ -423,6 +424,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 </select>
               </div>
             </details>
+            <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--tablet-qr" id="crozzoToolbarTabletQr" title="QR para tablet mesero" aria-label="QR para tablet mesero" hidden onclick="if(typeof crozzoOpenTabletQrQuick==='function')crozzoOpenTabletQrQuick();">
+              <i data-lucide="qr-code" aria-hidden="true"></i>
+            </button>
             <button type="button" class="crozzo-toolbar-btn crozzo-toolbar-btn--help" id="crozzoToolbarHelp" title="Centro de ayuda (?)" aria-label="Centro de ayuda" onclick="CrozzoHelpHub.open()">
               <i data-lucide="life-buoy" aria-hidden="true"></i>
             </button>
@@ -449,6 +453,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
               <ul class="user-menu__lang-list" id="userMenuLangList" role="listbox" aria-label="Idiomas"></ul>
             </div>
             <ul class="user-menu__list" role="none">
+              <li role="none" id="userMenuTabletQrItem" hidden>
+                <button type="button" class="user-menu__item" role="menuitem" onclick="if(typeof crozzoOpenTabletQrQuick==='function'){crozzoOpenTabletQrQuick();document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');}">
+                  <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h.01"/><path d="M20 14h.01"/><path d="M14 20h.01"/><path d="M20 20h.01"/><path d="M17 17h.01"/></svg></span>
+                  <span>QR para tablet mesero</span>
+                </button>
+              </li>
               <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" onclick="CrozzoHelpHub.open(); document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
@@ -725,7 +735,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 </div>
 
 <div id="crozzoKioskBar" class="crozzo-kiosk-bar" hidden role="region" aria-label="Modo kiosko">
-  <span id="crozzoKioskBarLabel">📺 Modo pantallas — solo comandas</span>
+  <span id="crozzoKioskBarLabel" class="crozzo-kiosk-bar__label">📺 Modo pantallas — cocina, bar y fríos</span>
   <button type="button" class="btn btn-outline" style="min-height:36px;padding:6px 12px;border-color:#475569;color:#e2e8f0;" onclick="crozzoKioskPromptExit()">Salir</button>
 </div>
 <div id="crozzoCorkFocusBar" class="crozzo-cork-focus-bar" hidden role="region" aria-label="Tablero corcho pantalla completa">
@@ -771,18 +781,17 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         <div id="crozzoPairingStep1Video" class="crozzo-pairing-step1-video"></div>
         <button type="button" class="btn btn-primary crozzo-pairing-cta" data-crozzo-act="crozzoOpenAppDownloadQr">Descargar aplicación (QR)</button>
       </div>
-      <div class="crozzo-pairing-role-grid">
-        <div class="crozzo-pairing-role-card">
+      <div class="crozzo-pairing-role-grid crozzo-pairing-role-grid--tablet-only">
+        <div class="crozzo-pairing-role-card crozzo-pairing-role-card--emitter">
           <span class="crozzo-pairing-step-badge">Fase 2 · Emisor</span>
           <p class="crozzo-pairing-role-card__title">Desde la caja principal</p>
-          <p class="form-hint crozzo-pairing-role-card__desc">Emite un código cifrado con topología de red, nodo central y prioridad de sincronización.</p>
-          <button type="button" class="btn btn-primary crozzo-pairing-cta" data-crozzo-act="crozzoPairingSelectReceiver" data-crozzo-args="tablet">Tablet mesero</button>
-          <button type="button" class="btn btn-outline crozzo-pairing-cta" data-crozzo-act="crozzoPairingSelectReceiver" data-crozzo-args="pantalla">Pantalla cocina / bar</button>
+          <p class="form-hint crozzo-pairing-role-card__desc">Un solo código cifrado para tablets mesero: red local, nube y perfil operativo. Solo la app BONA origen puede leerlo.</p>
+          <button type="button" class="btn btn-primary crozzo-pairing-cta" data-crozzo-act="crozzoPairingSelectReceiver" data-crozzo-args="tablet">Generar QR para tablet mesero</button>
         </div>
         <div class="crozzo-pairing-role-card crozzo-pairing-role-card--reader">
           <span class="crozzo-pairing-step-badge">Fase 2 · Receptor</span>
-          <p class="crozzo-pairing-role-card__title">En el dispositivo nuevo</p>
-          <p class="form-hint crozzo-pairing-role-card__desc">Escanea el código de la caja. La terminal hereda red, perfil operativo y catálogo sin teclear datos.</p>
+          <p class="crozzo-pairing-role-card__title">En la tablet nueva</p>
+          <p class="form-hint crozzo-pairing-role-card__desc">Escanea el código de la caja. La tablet hereda red, perfil operativo y catálogo sin teclear datos.</p>
           <button type="button" class="btn btn-outline crozzo-pairing-cta" data-crozzo-act="crozzoPairingSelectReader">Escanear enlace de la caja</button>
         </div>
       </div>
@@ -853,8 +862,32 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       <button type="button" class="btn btn-outline" style="width:100%;" data-crozzo-act="crozzoClosePairingModal">Cancelar</button>
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReceiver" hidden>
-      <button type="button" class="btn btn-outline" style="width:100%;" data-crozzo-act="crozzoPairingSelectChoice">Volver</button>
+      <button type="button" class="btn btn-outline" style="width:100%;" data-crozzo-act="crozzoPairingSelectChoice">Asistente completo</button>
       <button type="button" class="btn btn-outline" style="width:100%;" data-crozzo-act="crozzoClosePairingModal">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="crozzoTabletQrQuick" class="crozzo-tablet-qr-quick" hidden aria-modal="true" role="dialog" aria-labelledby="crozzoTabletQrQuickTitle">
+  <div class="crozzo-tablet-qr-quick__backdrop" data-crozzo-act="crozzoCloseTabletQrQuick" aria-hidden="true"></div>
+  <div class="crozzo-tablet-qr-quick__card crozzo-tablet-qr-quick__card--pairing">
+    <button type="button" class="crozzo-tablet-qr-quick__close" data-crozzo-act="crozzoCloseTabletQrQuick" aria-label="Cerrar">✕</button>
+    <p class="crozzo-tablet-qr-quick__eyebrow">Enlace seguro · solo BONA origen</p>
+    <h3 id="crozzoTabletQrQuickTitle" class="crozzo-tablet-qr-quick__title">QR para tablet mesero</h3>
+    <p id="crozzoTabletQrQuickBiz" class="form-hint crozzo-pairing-meta-line" hidden></p>
+    <p class="form-hint crozzo-pairing-meta-line">Código sellado · solo legible por BONA origen · vigencia <strong>24 h</strong> · prioridad <span class="crozzo-pairing-sync-tier">☁️ nube</span> → <span class="crozzo-pairing-sync-tier">📡 LAN</span> → <span class="crozzo-pairing-sync-tier">💾 offline</span></p>
+    <div id="crozzoTabletQrQuickWarn" class="crozzo-pairing-alert" hidden></div>
+    <div class="crozzo-pairing-qr-frame">
+      <div class="crozzo-pairing-qr-host" id="crozzoTabletQrQuickHost"></div>
+    </div>
+    <p class="form-hint crozzo-pairing-meta-line crozzo-tablet-qr-quick__foot-hint">Un solo QR grande — fotografíelo desde la tablet o copie el código.</p>
+    <div class="btn-group crozzo-tablet-qr-quick__actions" style="flex-direction:column; margin-top:12px;">
+      <button type="button" class="btn btn-primary" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingShareQr">Compartir QR (WhatsApp / correo)</button>
+      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingDownloadPng">Descargar QR (PNG)</button>
+      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingCopyJson">Copiar código seguro</button>
+      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoTabletQrQuickRefresh">Actualizar QR</button>
+      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoPairingOpenFullAssistant">Asistente completo</button>
+      <button type="button" class="btn btn-outline" style="width:100%; min-height:44px;" data-crozzo-act="crozzoCloseTabletQrQuick">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1190,6 +1223,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoConnectivityOrchestrator.js" defer></script>
 <script src="infra/CrozzoStartupReady.js" defer></script>
 <script src="modules/CrozzoInternalQrRegistry.js" defer></script>
+<script src="modules/CrozzoPairingQuickQr.js" defer></script>
 <script src="modules/CrozzoDailyPairing.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>

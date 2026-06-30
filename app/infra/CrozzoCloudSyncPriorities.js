@@ -592,7 +592,14 @@
   function activePageNow() {
     try {
       if (global.CrozzoPageCloudWatch && typeof global.CrozzoPageCloudWatch.getActivePage === 'function') {
-        return resolvePage(global.CrozzoPageCloudWatch.getActivePage());
+        var watchPg = resolvePage(global.CrozzoPageCloudWatch.getActivePage());
+        if (watchPg) return watchPg;
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoGetActivePageId === 'function') {
+        var posPg = resolvePage(global.crozzoGetActivePageId());
+        if (posPg) return posPg;
       }
     } catch (_) {}
     try {

@@ -27,6 +27,10 @@
   var PURGE_MAX_BATCHES = 8;
   var PURGE_MAX_BATCHES_CATCHUP = 30;
   var __comandaPurgeTimer = null;
+  var BOOT_PRINT_GRACE_MS = 3 * 60 * 1000;
+  var PRINTED_LS_KEY = 'crozzo_comanda_printed_v1';
+  var PRINTED_LS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  if (!global.__crozzoPosBootAt) global.__crozzoPosBootAt = Date.now();
 
   function noteCloudErr(err) {
     try {
@@ -197,10 +201,53 @@
 
   global.__crozzoComandaTidMark = markComandaTid;
   global.__crozzoComandaTidRecent = comandaTidRecent;
+
+  function readPrintedPersist() {
+    try {
+      var raw = global.localStorage.getItem(PRINTED_LS_KEY);
+      var o = raw ? JSON.parse(raw) : {};
+      return o && typeof o === 'object' ? o : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function writePrintedPersist(map) {
+    try {
+      global.localStorage.setItem(PRINTED_LS_KEY, JSON.stringify(map || {}));
+    } catch (_) {}
+  }
+
+  function persistPrintedKey(tid) {
+    if (!tid) return;
+    var key = String(tid);
+    var map = readPrintedPersist();
+    map[key] = Date.now();
+    var cutoff = Date.now() - PRINTED_LS_TTL_MS;
+    Object.keys(map).forEach(function (k) {
+      if (!map[k] || map[k] < cutoff) delete map[k];
+    });
+    writePrintedPersist(map);
+  }
+
   global.__crozzoComandaMarkPrinted = function (tid) {
     if (!tid) return;
     __printedTids[String(tid)] = Date.now();
+    persistPrintedKey(tid);
   };
+
+  global.__crozzoComandaWasPrintedPersisted = function (tid, maxMs) {
+    if (!tid) return false;
+    maxMs = maxMs || PRINTED_LS_TTL_MS;
+    var map = readPrintedPersist();
+    var t = map[String(tid)];
+    return !!(t && Date.now() - t < maxMs);
+  };
+
+  global.__crozzoComandaInBootPrintGrace = function () {
+    return Date.now() - (global.__crozzoPosBootAt || 0) < BOOT_PRINT_GRACE_MS;
+  };
+
   global.__crozzoComandaWasPrintedRecently = function (tid, maxMs) {
     if (!tid) return false;
     var t = __printedTids[String(tid)];
@@ -473,6 +520,27 @@
     }, Math.max(250, ms || OUTBOX_BASE_MS));
   }
 
+  /** Página POS visible (comandas/cocina). global.currentPage no existe — usar crozzoGetActivePageId. */
+  function activePosPage() {
+    var pg = '';
+    try {
+      if (typeof global.crozzoGetActivePageId === 'function') {
+        pg = String(global.crozzoGetActivePageId() || '').trim();
+        if (pg) return pg;
+      }
+    } catch (_) {}
+    try {
+      if (global.CrozzoPageCloudWatch && typeof global.CrozzoPageCloudWatch.getActivePage === 'function') {
+        pg = String(global.CrozzoPageCloudWatch.getActivePage() || '').trim();
+        if (pg) return pg;
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.currentPage !== 'undefined') pg = String(global.currentPage || '').trim();
+    } catch (_) {}
+    return pg || '';
+  }
+
   function findComandaForCloudPay(pay, row) {
     if (!pay) return null;
     var tid = String(pay.transaction_id || (row && row.id) || '').trim();
@@ -489,7 +557,7 @@
 
   function scheduleComandaOperationalUiRefresh() {
     try {
-      var pg = global.currentPage;
+      var pg = activePosPage();
       if (pg === 'cajero' || pg === 'tablets') {
         if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
           global.crozzoHandleRemoteRuntimeUiSync();
@@ -796,16 +864,17 @@
   function scheduleComandaPageRefresh() {
     try {
       if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
-        global.crozzoScheduleOperationalPageRefresh(global.currentPage);
+        global.crozzoScheduleOperationalPageRefresh(activePosPage());
         return;
       }
     } catch (_) {}
+    var pgRefresh = activePosPage();
     if (
       typeof global.renderPage === 'function' &&
-      (global.currentPage === 'comandas' || global.currentPage === 'cocina')
+      (pgRefresh === 'comandas' || pgRefresh === 'cocina')
     ) {
       try {
-        global.renderPage(global.currentPage);
+        global.renderPage(pgRefresh);
       } catch (_) {}
     }
   }
@@ -841,8 +910,17 @@
     return comanda;
   }
 
-  function tryAutoPrintMerged(merged, opts) {
+  function tryAutoPrintMerged(merged, opts, reason) {
     if (!merged || opts.skipPrint || opts.silent) return false;
+    if (global.__crozzoComandaInBootPrintGrace && global.__crozzoComandaInBootPrintGrace()) return false;
+    var printKey = merged.transaction_id || String(merged.id || '');
+    if (printKey && global.__crozzoComandaWasPrintedPersisted && global.__crozzoComandaWasPrintedPersisted(printKey)) {
+      return false;
+    }
+    if (merged.printed_at || merged.printed_by) {
+      if (printKey && global.__crozzoComandaMarkPrinted) global.__crozzoComandaMarkPrinted(printKey);
+      return false;
+    }
     hydrateComandaPrinter(merged);
     if (typeof global.crozzoTryAutoPrintComanda === 'function') {
       global.crozzoTryAutoPrintComanda(merged);
@@ -873,7 +951,6 @@
       var localAtEarly =
         Date.parse(existingEarly.lastUpdateAt || existingEarly.createdAt || 0) || 0;
       if (localAtEarly > remoteAtEarly + 500) {
-        if (!opts.skipPrint && !opts.silent) tryAutoPrintMerged(existingEarly, opts);
         return false;
       }
     }
@@ -891,9 +968,6 @@
       var localAt = Date.parse(existingEarly.lastUpdateAt || existingEarly.createdAt || 0) || 0;
       if (localAt > remoteAt + 500) return false;
       if (remoteEst === localEst && remoteAt <= localAt + 500) {
-        if (!opts.skipPrint && !opts.silent && typeof global.crozzoTryAutoPrintComanda === 'function') {
-          tryAutoPrintMerged(existingEarly, opts);
-        }
         return false;
       }
     }
@@ -907,16 +981,12 @@
       } catch (_) {}
       return false;
     }
-    // Si el payload del cloud indica que otro dispositivo ya imprimió esta
-    // comanda, registrar en el tracker distribuido local para evitar duplicado.
+    // Comanda ya impresa (local o remoto): no reimprimir al sync/arranque.
     if (pay.printed_by && pay.printed_at) {
       try {
         var printKey = pay.transaction_id || String(pay.id || '');
         if (printKey && typeof global.__crozzoComandaMarkPrinted === 'function') {
-          var myCtx = cloudCtx();
-          if (String(pay.printed_by) !== String(myCtx.deviceId || '')) {
-            global.__crozzoComandaMarkPrinted(printKey);
-          }
+          global.__crozzoComandaMarkPrinted(printKey);
         }
       } catch (_) {}
     }
@@ -944,9 +1014,6 @@
     }
     if (!changed && !existed && merged) changed = true;
     if (!changed) {
-      if (!isOwnPush && !recentOwn && merged && !opts.skipPrint && !opts.silent) {
-        tryAutoPrintMerged(merged, opts);
-      }
       if (merged && !opts.skipRender) scheduleComandaUiIfKitchen();
       return false;
     }
@@ -962,8 +1029,8 @@
     var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
 
     var shouldPrint = false;
-    if (!isOwnPush && !recentOwn && merged && !opts.skipPrint && !opts.silent) {
-      shouldPrint = tryAutoPrintMerged(merged, opts);
+    if (!isOwnPush && !recentOwn && merged && !opts.skipPrint && !opts.silent && (isNew || itemsChanged)) {
+      shouldPrint = tryAutoPrintMerged(merged, opts, isNew ? 'new' : 'items');
     }
     var shouldNotifyScreen =
       !opts.silent &&
@@ -1102,11 +1169,9 @@
           if (reconcileStaleLocalComandas(rows)) anyChanged = true;
         } catch (_) {}
       }
-      if (
-        anyChanged &&
-        (global.currentPage === 'comandas' || global.currentPage === 'cocina')
-      ) {
-        scheduleComandaUiIfKitchen();
+      if (anyChanged) {
+        var pgPull = activePosPage();
+        if (pgPull === 'comandas' || pgPull === 'cocina') scheduleComandaUiIfKitchen();
       }
       return anyChanged;
     } catch (e) {
@@ -1347,7 +1412,13 @@
         if (!tierAllowsCloudRead()) return;
         __lastRtEventAt = Date.now();
         rtLog('[crozzo-rt] INSERT comanda', payload.new && payload.new.id);
-        var applied = !!(payload.new && applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false }));
+        var applied = !!(
+          payload.new &&
+          applyComandaFromCloudRow(payload.new, {
+            skipPrint: global.__crozzoComandaInBootPrintGrace && global.__crozzoComandaInBootPrintGrace(),
+            skipRender: false,
+          })
+        );
         rtLog('[crozzo-rt] INSERT aplicado:', applied);
         scheduleComandaUiIfKitchen();
       });
@@ -1363,7 +1434,10 @@
           }
           return;
         }
-        var applied2 = applyComandaFromCloudRow(payload.new, { skipPrint: false, skipRender: false });
+        var applied2 = applyComandaFromCloudRow(payload.new, {
+          skipPrint: global.__crozzoComandaInBootPrintGrace && global.__crozzoComandaInBootPrintGrace(),
+          skipRender: false,
+        });
         if (applied2) rtLog('[crozzo-rt] UPDATE aplicado:', applied2);
         scheduleComandaUiIfKitchen();
       });

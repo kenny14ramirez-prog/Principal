@@ -648,7 +648,9 @@
     return merged;
   }
 
-  /** Presencia parcial por equipo: vacío en un tipo = no tocar ese tipo en nube. */
+  /** Presencia parcial por equipo: vacío en un tipo = no tocar ese tipo en nube.
+   *  Ref vacío local = no tocar ese slot (nunca borrar peers ajenos).
+   *  Peer con _remove = quitar solo ese deviceId del slot en nube. */
   function mergeSedePresence(cloudPresence, localPresence) {
     var cloud =
       cloudPresence && typeof cloudPresence === 'object' ? cloudPresence : { mesa: {}, llevar: {} };
@@ -665,14 +667,19 @@
       }
       Object.keys(localBag).forEach(function (ref) {
         var localPeers = localBag[ref];
-        if (!localPeers || typeof localPeers !== 'object' || !Object.keys(localPeers).length) {
-          delete mergedBag[ref];
-          return;
-        }
+        if (!localPeers || typeof localPeers !== 'object') return;
+        var peerKeys = Object.keys(localPeers);
+        if (!peerKeys.length) return;
         if (!mergedBag[ref]) mergedBag[ref] = {};
-        Object.keys(localPeers).forEach(function (devId) {
-          mergedBag[ref][devId] = localPeers[devId];
+        peerKeys.forEach(function (devId) {
+          var peer = localPeers[devId];
+          if (!peer || peer._remove === true) {
+            delete mergedBag[ref][devId];
+            return;
+          }
+          mergedBag[ref][devId] = peer;
         });
+        if (!Object.keys(mergedBag[ref]).length) delete mergedBag[ref];
       });
       out[tipo] = mergedBag;
     });

@@ -1,0 +1,1104 @@
+/**
+
+ * Crozzo — Shell unificado pantallas / kiosko / corcho operativo.
+
+ * Carga después de CrozzoPosStyles.css; no duplica reglas base del corcho.
+
+ */
+
+
+
+/* ── Barra kiosko: texto sin cortes ── */
+
+.crozzo-kiosk-bar {
+
+  gap: 12px;
+
+}
+
+.crozzo-kiosk-bar__label {
+
+  flex: 1 1 auto;
+
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  font-weight: 600;
+
+  letter-spacing: 0.01em;
+
+}
+
+.crozzo-kiosk-bar .btn {
+
+  flex-shrink: 0;
+
+}
+
+
+
+/* ── Kiosko pantallas: viewport completo bajo barra fija (46px) ── */
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk {
+
+  padding-top: 46px !important;
+
+  overflow: hidden !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .app-container {
+
+  min-height: calc(100dvh - 46px) !important;
+
+  height: calc(100dvh - 46px) !important;
+
+  max-height: calc(100dvh - 46px) !important;
+
+  overflow: hidden !important;
+
+  display: flex !important;
+
+  flex-direction: column !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .main-content {
+
+  flex: 1 1 auto !important;
+
+  min-height: 0 !important;
+
+  height: 100% !important;
+
+  max-height: 100% !important;
+
+  overflow: hidden !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .main-body {
+
+  padding: 10px 10px 10px !important;
+
+  display: flex !important;
+
+  flex-direction: column !important;
+
+  flex: 1 1 auto !important;
+
+  min-height: 0 !important;
+
+  height: 100% !important;
+
+  max-height: 100% !important;
+
+  overflow: hidden !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk.crozzo-page-comandas #mainContent,
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk.crozzo-page-cocina #mainContent {
+
+  display: flex !important;
+
+  flex-direction: column !important;
+
+  flex: 1 1 auto !important;
+
+  min-height: 0 !important;
+
+  height: 100% !important;
+
+  max-height: 100% !important;
+
+  overflow: hidden !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk #mainContent > .card.crozzo-pantallas-kiosk-root {
+
+  flex: 1 1 auto !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  max-height: 100% !important;
+
+  display: flex !important;
+
+  flex-direction: column !important;
+
+  overflow: hidden !important;
+
+}
+
+
+
+/* Hub kiosko: tablero ocupa todo el alto disponible */
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .crozzo-comandas-hub.crozzo-pantallas-kiosk-root {
+
+  flex: 1 1 auto !important;
+
+  min-height: 0 !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .crozzo-comandas-hub .crozzo-comandas-stations-cork,
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .crozzo-comandas-hub .crozzo-pantallas-board-shell {
+
+  flex: 1 1 auto !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  max-height: 100% !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .crozzo-comandas-hub .crozzo-comandas-stations-cork {
+
+  min-height: 0 !important;
+
+}
+
+
+
+body.crozzo-kiosk-active .card.crozzo-pantallas-kiosk-root .comandas-layout--tablero {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  padding: 0 !important;
+
+  overflow: hidden;
+
+}
+
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk.crozzo-page-comandas #mainContent:has(.crozzo-pantallas-area-stack),
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk.crozzo-page-cocina #mainContent:has(.crozzo-pantallas-area-stack) {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: block !important;
+  height: 100% !important;
+  max-height: 100% !important;
+}
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk #mainContent:has(.crozzo-pantallas-area-stack) > .card.crozzo-pantallas-kiosk-root {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk #mainContent:has(.crozzo-pantallas-area-stack) .comandas-layout--tablero,
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk #mainContent:has(.crozzo-pantallas-area-stack) .crozzo-pantallas-area-stack {
+  overflow: visible !important;
+  flex: 0 0 auto !important;
+  min-height: auto !important;
+  height: auto !important;
+}
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk #mainContent:has(.crozzo-pantallas-area-stack) .crozzo-pantallas-area-stack > .crozzo-comandas-area-cork {
+  flex: 0 0 auto !important;
+  min-height: min(50dvh, 500px) !important;
+  max-height: none !important;
+}
+
+/* ── Marco corcho clásico (hub + área + focus kiosko) ── */
+
+.crozzo-pantallas-board-shell,
+
+body.crozzo-kiosk-active .crozzo-comandas-hub .crozzo-comandas-stations-cork,
+
+body.crozzo-kiosk-active .crozzo-comandas-area-cork {
+
+  position: relative;
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  margin: 0;
+
+  border-radius: 20px !important;
+
+  border: 4px solid #2f2114 !important;
+
+  outline: 2px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35) !important;
+
+  outline-offset: -8px !important;
+
+  box-shadow:
+
+    inset 0 0 100px rgba(0, 0, 0, 0.45),
+
+    inset 0 4px 24px rgba(255, 220, 180, 0.05),
+
+    0 0 0 6px #1a120c,
+
+    0 0 0 10px #3d2817,
+
+    0 20px 56px rgba(0, 0, 0, 0.55) !important;
+
+  padding: 0 !important;
+
+  overflow: hidden;
+
+}
+
+
+
+.crozzo-pantallas-board-shell > .crozzo-stations-masonry,
+
+.crozzo-pantallas-board-shell > .crozzo-corkboard-masonry,
+
+.crozzo-comandas-area-cork > .crozzo-corkboard-masonry {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow: auto;
+
+  padding: 14px 16px 88px;
+
+  -webkit-overflow-scrolling: touch;
+
+}
+
+
+
+/* ── Toolbar integrada dentro del tablero ── */
+
+.crozzo-pantallas-board-toolbar {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px 14px;
+
+  padding: 10px 14px 12px;
+
+  margin: 0;
+
+  border-bottom: 1px solid rgba(255, 220, 180, 0.12);
+
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.12) 100%);
+
+  flex-shrink: 0;
+
+  position: relative;
+
+  z-index: 2;
+
+}
+
+.crozzo-pantallas-board-toolbar__brand {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  min-width: 0;
+
+  flex: 1 1 200px;
+
+}
+
+.crozzo-pantallas-board-toolbar__titles {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 2px;
+
+  min-width: 0;
+
+}
+
+.crozzo-pantallas-board-toolbar__title {
+
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+
+  font-weight: 800;
+
+  color: #faf6ee;
+
+  letter-spacing: -0.02em;
+
+  line-height: 1.15;
+
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+
+}
+
+.crozzo-pantallas-board-toolbar__sub {
+
+  font-size: 0.78rem;
+
+  color: rgba(250, 246, 238, 0.72);
+
+  line-height: 1.25;
+
+  max-width: 42ch;
+
+}
+
+.crozzo-pantallas-board-toolbar__actions {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  align-items: center;
+
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  flex-shrink: 0;
+
+}
+
+.crozzo-pantallas-board-toolbar .crozzo-cork-focus-btn,
+
+.crozzo-pantallas-board-toolbar .crozzo-comandas-toolbar-btn {
+
+  min-height: 40px;
+
+  white-space: nowrap;
+
+}
+
+.crozzo-pantallas-board-toolbar .btn-outline {
+
+  border-color: rgba(250, 246, 238, 0.35) !important;
+
+  color: #faf6ee !important;
+
+  background: rgba(0, 0, 0, 0.22) !important;
+
+}
+
+
+
+/* Hub: sin card-header externo — todo dentro del marco */
+
+.crozzo-comandas-hub .crozzo-comandas-hub-header {
+
+  display: none !important;
+
+}
+
+body.crozzo-kiosk-active .crozzo-comandas-hub {
+
+  padding: 0 !important;
+
+}
+
+
+
+/* Impresora / opciones — panel corcho integrado (tema oscuro, legible) */
+.crozzo-comandas-mobile-setup--board {
+  flex-shrink: 0;
+  margin: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 220, 180, 0.12) !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.14) 100%) !important;
+  position: relative;
+  z-index: 1;
+}
+.crozzo-comandas-mobile-setup--board > summary.crozzo-comandas-mobile-setup__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px !important;
+  margin: 0;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  color: #faf6ee !important;
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.crozzo-comandas-mobile-setup--board > summary.crozzo-comandas-mobile-setup__toggle::-webkit-details-marker {
+  display: none;
+}
+.crozzo-comandas-mobile-setup--board > summary.crozzo-comandas-mobile-setup__toggle::before {
+  content: '🖨️';
+  margin-right: 6px;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+.crozzo-comandas-mobile-setup--board > summary.crozzo-comandas-mobile-setup__toggle::after {
+  content: '▾';
+  flex-shrink: 0;
+  margin-left: 8px;
+  font-size: 0.9rem;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+}
+.crozzo-comandas-mobile-setup--board[open] > summary.crozzo-comandas-mobile-setup__toggle::after {
+  transform: rotate(180deg);
+}
+.crozzo-comandas-mobile-setup--board .crozzo-comandas-mobile-setup__toggle-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crozzo-comandas-mobile-setup--board .crozzo-comandas-mobile-setup__toggle-value {
+  flex-shrink: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(250, 246, 238, 0.72);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 220, 180, 0.18);
+}
+.crozzo-comandas-mobile-setup--board[open] > summary.crozzo-comandas-mobile-setup__toggle {
+  border-bottom: 1px solid rgba(255, 220, 180, 0.1) !important;
+  background: rgba(0, 0, 0, 0.18);
+}
+.crozzo-comandas-mobile-setup--board > .crozzo-comandas-mobile-setup__body {
+  padding: 12px 14px 14px !important;
+  margin: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.08) 100%) !important;
+  border: none !important;
+  color: #faf6ee;
+}
+.crozzo-pantallas-board-setup {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: grid;
+  gap: 12px;
+}
+.crozzo-pantallas-board-setup .form-label {
+  color: rgba(250, 246, 238, 0.82) !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.crozzo-pantallas-board-setup .form-select,
+.crozzo-pantallas-board-setup .form-input {
+  width: 100%;
+  max-width: 100%;
+  min-height: 42px;
+  background: rgba(0, 0, 0, 0.38) !important;
+  border: 1px solid rgba(255, 220, 180, 0.22) !important;
+  border-radius: 10px !important;
+  color: #faf6ee !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.crozzo-pantallas-board-setup .form-select:focus,
+.crozzo-pantallas-board-setup .form-input:focus {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.55) !important;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 201, 169, 98), 0.22);
+}
+.crozzo-pantallas-board-setup .crozzo-pantallas-kiosk-autoprint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 220, 180, 0.1);
+  color: rgba(250, 246, 238, 0.92) !important;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+.crozzo-pantallas-board-setup .crozzo-pantallas-kiosk-autoprint input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: rgba(var(--accent-rgb, 201, 169, 98), 1);
+  flex-shrink: 0;
+}
+.crozzo-pantallas-board-setup .crozzo-pantallas-kiosk-setup__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+.crozzo-pantallas-board-setup .crozzo-pantallas-kiosk-setup__btns .btn {
+  min-height: 40px;
+  border-color: rgba(250, 246, 238, 0.32) !important;
+  color: #faf6ee !important;
+  background: rgba(0, 0, 0, 0.26) !important;
+}
+.crozzo-pantallas-board-setup .crozzo-pantallas-kiosk-setup__btns .btn:hover {
+  background: rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(250, 246, 238, 0.5) !important;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup--board,
+html.crozzo-form-mobile .crozzo-comandas-mobile-setup--board,
+body.crozzo-comandas-touch .crozzo-comandas-mobile-setup--board {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.14) 100%) !important;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup--board > summary,
+body.crozzo-comandas-touch .crozzo-comandas-mobile-setup--board > summary {
+  color: #faf6ee !important;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup--board[open] > summary,
+body.crozzo-comandas-touch .crozzo-comandas-mobile-setup--board[open] > summary {
+  border-bottom-color: rgba(255, 220, 180, 0.1) !important;
+}
+body.crozzo-kiosk-active .crozzo-pantallas-board-setup .crozzo-pantallas-kiosk-setup__btns .btn {
+  min-height: 44px;
+}
+
+/* Notas de estación — minimal kiosko + grid escalable (1–20+ pantallas) */
+
+body.crozzo-kiosk-active .crozzo-stations-masonry,
+
+.crozzo-pantallas-board-shell .crozzo-stations-masonry {
+
+  display: grid !important;
+
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 188px), 1fr));
+
+  gap: clamp(12px, 1.4vw, 22px);
+
+  align-items: stretch;
+
+  align-content: start;
+
+  padding: 14px 16px 88px;
+
+}
+
+body.crozzo-kiosk-active .crozzo-station-note,
+
+.crozzo-pantallas-board-shell .crozzo-station-note {
+
+  max-width: none !important;
+
+  min-width: 0 !important;
+
+  flex: none !important;
+
+  transform: rotate(var(--sticky-rot, 0deg)) !important;
+
+  padding: 14px 12px 12px;
+
+}
+
+body.crozzo-kiosk-active .crozzo-station-note__printer,
+
+body.crozzo-kiosk-active .crozzo-station-note__tools .crozzo-station-note-open {
+
+  display: none !important;
+
+}
+
+body.crozzo-kiosk-active .crozzo-station-note__tap-hint {
+
+  margin-top: 8px;
+
+  font-size: 0.82rem;
+
+  font-weight: 700;
+
+  color: rgba(66, 32, 6, 0.85);
+
+  letter-spacing: 0.02em;
+
+}
+
+body.crozzo-kiosk-active .crozzo-station-note--bar .crozzo-station-note__tap-hint {
+
+  color: rgba(12, 74, 110, 0.9);
+
+}
+
+body.crozzo-kiosk-active .crozzo-station-note__count {
+
+  font-size: 0.88rem;
+
+  font-weight: 700;
+
+}
+
+body.crozzo-kiosk-active .crozzo-station-note__title {
+
+  font-size: 1.15rem;
+
+  margin-bottom: 4px;
+
+}
+
+
+
+/* Área: tablero crece, historial compacto abajo */
+
+.crozzo-pantallas-area-stack {
+
+  display: flex;
+
+  flex-direction: column;
+
+  min-height: 0;
+
+  gap: 8px;
+
+}
+
+.crozzo-pantallas-area-stack > .crozzo-pantallas-board-shell,
+
+.crozzo-pantallas-area-stack > .crozzo-comandas-area-cork {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+}
+
+.crozzo-pantallas-area-stack > .crozzo-cork-history,
+.crozzo-pantallas-area-stack > .crozzo-pantallas-cork-panel {
+  flex-shrink: 0;
+  margin-top: 0 !important;
+}
+
+/* Kiosko área: 3 tableros apilados — scroll en mainContent */
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .comandas-vista-tablero:not(.crozzo-comandas-hub) .comandas-layout--tablero {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+body.crozzo-kiosk-active.crozzo-pantallas-kiosk .comandas-vista-tablero:not(.crozzo-comandas-hub) .crozzo-pantallas-area-stack {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 18px;
+}
+
+/* Tableros apilados (Listas + Llamados) — mismo corcho que el principal */
+.crozzo-pantallas-board-shell--stacked {
+  flex-shrink: 0;
+  min-height: 0 !important;
+  padding: 0 !important;
+  animation: none !important;
+}
+.crozzo-pantallas-board-shell--stacked:not([open]) {
+  min-height: auto !important;
+}
+.crozzo-pantallas-board-shell--stacked.crozzo-cork-history {
+  margin-top: 0 !important;
+  padding: 0 !important;
+  backdrop-filter: none !important;
+}
+.crozzo-pantallas-board-shell--stacked.crozzo-corkboard {
+  background:
+    radial-gradient(ellipse at 12% 10%, rgba(180, 83, 9, 0.28), transparent 48%),
+    radial-gradient(ellipse at 88% 88%, rgba(0, 0, 0, 0.24), transparent 52%),
+    radial-gradient(circle at 50% 42%, rgba(139, 90, 43, 0.12) 0%, transparent 62%),
+    repeating-linear-gradient(93deg, transparent, transparent 16px, rgba(0, 0, 0, 0.038) 16px, rgba(0, 0, 0, 0.038) 17px),
+    repeating-linear-gradient(3deg, transparent, transparent 13px, rgba(255, 255, 255, 0.018) 13px, rgba(255, 255, 255, 0.018) 14px),
+    linear-gradient(168deg, #2a1f16 0%, #5c3d24 22%, #8b5a2b 46%, #6b4423 72%, #1a1410 100%) !important;
+}
+.crozzo-pantallas-cork-panel.crozzo-pantallas-board-shell--stacked {
+  margin: 0 !important;
+  border-radius: 20px !important;
+  border: 4px solid #2f2114 !important;
+  outline: 2px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35) !important;
+  outline-offset: -8px !important;
+  box-shadow:
+    inset 0 0 100px rgba(0, 0, 0, 0.45),
+    inset 0 4px 24px rgba(255, 220, 180, 0.05),
+    0 0 0 6px #1a120c,
+    0 0 0 10px #3d2817,
+    0 20px 56px rgba(0, 0, 0, 0.55) !important;
+}
+.crozzo-pantallas-board-shell--stacked.crozzo-comandas-area-cork {
+  padding-bottom: 0 !important;
+  animation: none !important;
+}
+.crozzo-pantallas-cork-panel__head.crozzo-pantallas-board-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.crozzo-pantallas-cork-panel__head::-webkit-details-marker {
+  display: none;
+}
+.crozzo-pantallas-cork-panel__head::after {
+  content: '▾';
+  flex-shrink: 0;
+  margin-left: 8px;
+  font-size: 0.9rem;
+  color: rgba(250, 246, 238, 0.7);
+  transition: transform 0.15s ease;
+}
+.crozzo-pantallas-cork-panel[open] > .crozzo-pantallas-cork-panel__head::after {
+  transform: rotate(180deg);
+}
+.crozzo-pantallas-cork-panel__title.crozzo-pantallas-board-toolbar__title {
+  font-size: clamp(1rem, 2vw, 1.2rem);
+}
+.crozzo-pantallas-cork-panel__sub {
+  font-size: 0.76rem;
+  color: rgba(250, 246, 238, 0.68);
+  flex-shrink: 0;
+}
+.crozzo-pantallas-cork-panel__body {
+  padding: 12px 14px 16px;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+.crozzo-pantallas-cork-panel__empty {
+  margin: 0;
+  padding: 10px 6px;
+  font-size: 0.84rem;
+  color: rgba(250, 246, 238, 0.65);
+  text-align: center;
+}
+.crozzo-pantallas-cork-panel .crozzo-corkboard-masonry--listas,
+.crozzo-pantallas-cork-panel .crozzo-corkboard-masonry {
+  padding: 6px 4px 10px;
+  overflow: visible;
+  max-height: none;
+}
+.crozzo-pantallas-cork-panel--listas .crozzo-corkboard-masonry {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr)) !important;
+  gap: 12px;
+}
+.crozzo-pantallas-cork-calls {
+  display: grid;
+  gap: 10px;
+}
+.crozzo-pantallas-cork-call {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 220, 180, 0.16);
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 220, 180, 0.08);
+}
+.crozzo-pantallas-cork-call__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.crozzo-pantallas-cork-call__title {
+  font-size: 0.88rem;
+  color: #faf6ee;
+  font-weight: 700;
+}
+.crozzo-pantallas-cork-call__msg {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: rgba(250, 246, 238, 0.78);
+  line-height: 1.35;
+}
+.crozzo-pantallas-cork-call__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+.crozzo-pantallas-cork-call__time {
+  font-size: 0.74rem;
+  color: rgba(250, 246, 238, 0.55);
+}
+.crozzo-pantallas-cork-call__btn {
+  min-height: 40px;
+  border-color: rgba(250, 246, 238, 0.32) !important;
+  color: #faf6ee !important;
+  background: rgba(0, 0, 0, 0.22) !important;
+}
+
+/* Sesión con usuario (touch): tablero proporcional sin solapamientos */
+
+body.crozzo-comandas-touch .comandas-vista-touch.crozzo-pantallas-kiosk-root {
+
+  display: flex;
+
+  flex-direction: column;
+
+  min-height: 0;
+
+}
+
+body.crozzo-comandas-touch .comandas-vista-touch .comandas-layout--tablero {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  padding: 0 12px 12px !important;
+
+  box-sizing: border-box;
+
+}
+
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-pantallas-area-stack {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 10px;
+}
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-pantallas-board-shell:not(.crozzo-pantallas-board-shell--stacked) {
+  flex: 0 0 auto;
+  min-height: min(48dvh, 560px);
+  max-height: min(62dvh, 680px);
+}
+
+body.crozzo-comandas-touch .comandas-vista-touch .crozzo-comandas-mobile-setup {
+
+  margin: 0 !important;
+
+}
+
+
+
+/* Focus corcho + kiosko: una sola barra (kiosko), marco visible, tablero lleno */
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus {
+
+  padding-top: 46px !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus .crozzo-cork-focus-bar {
+
+  display: none !important;
+
+}
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus .main-body {
+
+  padding: 8px 8px 8px !important;
+
+  overflow: hidden;
+
+}
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus .crozzo-corkboard {
+
+  min-height: 0 !important;
+
+  max-height: 100% !important;
+
+  border-radius: 18px !important;
+
+  border: 4px solid #2f2114 !important;
+
+  outline: 2px solid rgba(var(--accent-rgb, 201, 169, 98), 0.32) !important;
+
+  outline-offset: -8px !important;
+
+  box-shadow:
+
+    inset 0 0 100px rgba(0, 0, 0, 0.45),
+
+    0 0 0 6px #1a120c,
+
+    0 0 0 10px #3d2817 !important;
+
+  padding: 0 !important;
+
+  overflow: hidden;
+
+  display: flex;
+
+  flex-direction: column;
+
+}
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus .crozzo-corkboard-masonry {
+
+  flex: 1 1 auto;
+
+  min-height: 0;
+
+  overflow: auto;
+
+  padding: 12px 14px 80px;
+
+}
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus .crozzo-pantallas-board-toolbar {
+
+  padding: 6px 10px 8px;
+
+  border-bottom-color: rgba(255, 220, 180, 0.08);
+
+}
+
+body.crozzo-kiosk-active.crozzo-corkboard-focus .crozzo-pantallas-board-toolbar__actions {
+
+  width: 100%;
+
+  justify-content: flex-end;
+
+}
+
+
+
+/* Historial: anclado dentro del marco */
+
+.crozzo-pantallas-board-shell .crozzo-comanda-trash-dock,
+
+.crozzo-comandas-area-cork .crozzo-comanda-trash-dock {
+
+  right: 18px;
+
+  bottom: 16px;
+
+}
+
+.crozzo-comandas-stations-hint {
+
+  position: absolute;
+
+  left: 50%;
+
+  bottom: 72px;
+
+  transform: translateX(-50%);
+
+  margin: 0;
+
+  padding: 6px 12px;
+
+  border-radius: 999px;
+
+  font-size: 0.76rem;
+
+  color: rgba(250, 246, 238, 0.55);
+
+  background: rgba(0, 0, 0, 0.28);
+
+  pointer-events: none;
+
+  z-index: 1;
+
+}
+
+
+
+/* Sesión normal: misma toolbar integrada */
+
+.crozzo-comandas-area-cork > .crozzo-pantallas-board-toolbar + .crozzo-comandas-mobile-setup + .crozzo-corkboard-masonry,
+
+.crozzo-comandas-area-cork > .crozzo-pantallas-board-toolbar + .crozzo-corkboard-masonry {
+
+  padding-top: 8px;
+
+}
+
+
+
+@media (max-width: 640px) {
+
+  .crozzo-pantallas-board-toolbar {
+
+    padding: 8px 10px 10px;
+
+  }
+
+  .crozzo-pantallas-board-toolbar__actions {
+
+    width: 100%;
+
+    justify-content: flex-start;
+
+  }
+
+  body.crozzo-kiosk-active .crozzo-stations-masonry {
+
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+
+  }
+
+  body.crozzo-kiosk-active.crozzo-pantallas-kiosk .main-body {
+
+    padding: 8px 8px 8px !important;
+
+  }
+
+}
+
+
+
+@media (min-width: 1400px) {
+
+  body.crozzo-kiosk-active .crozzo-stations-masonry {
+
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+
+  }
+
+}
+
+

@@ -328,7 +328,7 @@
     global.addEventListener('online', function () {
       // Reparte la reconexion en ~6s entre dispositivos (estampida controlada).
       global.setTimeout(function () {
-        runFullReconnectSync({ source: 'online' }).catch(function () {});
+        runFullReconnectSync({ source: 'online', skipPrint: true }).catch(function () {});
       }, reconnectStaggerMs(700, 6000));
     });
     global.addEventListener('crozzo-lan-up', function () {

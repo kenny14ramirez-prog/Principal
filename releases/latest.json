@@ -1,29 +1,16 @@
 {
-  "id": "1.0.207-critical",
-  "version": "v1.0.207",
-  "semver": "1.0.207",
+  "id": "1.0.208-critical",
+  "version": "v1.0.208",
+  "semver": "1.0.208",
   "type": "critical",
-  "message": "parche de estabilidad v2 + parche de comunicaxion v12",
-  "publishedAt": "2026-06-30T11:16:29.450Z",
+  "message": "parche de estabilidad v5",
+  "publishedAt": "2026-06-30T15:03:25.831Z",
   "installMode": "auto",
   "changelog": [
-    "parche de estabilidad v2",
-    "parche de comunicaxion v12"
+    "parche de estabilidad v5"
   ],
-  "updatedAt": "2026-06-30T11:16:29.450Z",
+  "updatedAt": "2026-06-30T15:03:25.831Z",
   "entries": [
-    {
-      "id": "1.0.183-critical",
-      "version": "v1.0.183",
-      "semver": "1.0.183",
-      "type": "critical",
-      "message": "874587",
-      "publishedAt": "2026-06-26T01:30:17.272Z",
-      "installMode": "auto",
-      "changelog": [
-        "874587"
-      ]
-    },
     {
       "id": "1.0.184-critical",
       "version": "v1.0.184",
@@ -312,6 +299,18 @@
       "changelog": [
         "parche de estabilidad v2",
         "parche de comunicaxion v12"
+      ]
+    },
+    {
+      "id": "1.0.208-critical",
+      "version": "v1.0.208",
+      "semver": "1.0.208",
+      "type": "critical",
+      "message": "parche de estabilidad v5",
+      "publishedAt": "2026-06-30T15:03:25.831Z",
+      "installMode": "auto",
+      "changelog": [
+        "parche de estabilidad v5"
       ]
     }
   ]

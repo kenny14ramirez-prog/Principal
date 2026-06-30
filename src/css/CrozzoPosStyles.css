@@ -76173,3 +76173,102 @@ html.crozzo-page-web-embed .crozzo-quick-apps-fab {
 .crozzo-oficina-hub .crozzo-oficina-filter-toggle {
   margin-bottom: 0;
 }
+
+/* QR rápido tablet — acceso desde caja sin cerrar sesión */
+.crozzo-tablet-qr-quick {
+  position: fixed;
+  inset: 0;
+  z-index: 12050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.crozzo-tablet-qr-quick[hidden] {
+  display: none !important;
+}
+.crozzo-tablet-qr-quick__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+.crozzo-tablet-qr-quick__card {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 100%);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  padding: 20px 18px 16px;
+  border-radius: 18px;
+  background: var(--surface-elevated, #fff);
+  border: 1px solid rgba(181, 154, 109, 0.35);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+}
+.crozzo-tablet-qr-quick__card--pairing .crozzo-pairing-qr-frame {
+  margin: 10px 0 4px;
+}
+.crozzo-tablet-qr-quick__foot-hint {
+  text-align: center;
+  margin: 0 0 4px !important;
+  font-size: 0.78rem;
+}
+.crozzo-tablet-qr-quick__actions .btn {
+  width: 100%;
+}
+.crozzo-tablet-qr-quick__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  font-size: 1rem;
+}
+.crozzo-tablet-qr-quick__close:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+.crozzo-tablet-qr-quick__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b59a6d;
+  font-weight: 600;
+}
+.crozzo-tablet-qr-quick__title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.crozzo-tablet-qr-quick__meta {
+  margin: 0 0 10px !important;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.crozzo-tablet-qr-quick__actions .btn {
+  width: 100%;
+}
+.crozzo-toolbar-btn--tablet-qr[hidden] {
+  display: none !important;
+}
+body.crozzo-tablet-qr-quick-open {
+  overflow: hidden;
+}
+html[data-theme='deepspace'] .crozzo-tablet-qr-quick__card,
+html[data-theme='dark-luxury'] .crozzo-tablet-qr-quick__card,
+html[data-theme='bona-origen'] .crozzo-tablet-qr-quick__card {
+  background: var(--surface-elevated, #1e293b);
+  color: var(--text-primary, #f8fafc);
+}
+html[data-theme='deepspace'] .crozzo-tablet-qr-quick__host,
+html[data-theme='dark-luxury'] .crozzo-tablet-qr-quick__host,
+html[data-theme='bona-origen'] .crozzo-tablet-qr-quick__host {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(181, 154, 109, 0.25);
+}
