@@ -155,7 +155,35 @@
       }
       if (typeof global.crozzoPullRemoteTenantState === 'function') {
         try {
-          if (await global.crozzoPullRemoteTenantState({ skipRender: true, quiet: true })) pulled++;
+          if (
+            await global.crozzoPullRemoteTenantState({
+              skipRender: true,
+              quiet: true,
+              force: true,
+              kind: 'reconnect_pull',
+            })
+          ) {
+            pulled++;
+          }
+        } catch (_) {}
+      }
+      if (typeof global.crozzoPullRemoteStaffState === 'function') {
+        try {
+          if (
+            await global.crozzoPullRemoteStaffState({
+              skipRender: true,
+              quiet: true,
+              force: true,
+              kind: 'reconnect_pull',
+            })
+          ) {
+            pulled++;
+          }
+        } catch (_) {}
+      }
+      if (typeof global.crozzoFlushPendingStaffSyncIfNeeded === 'function') {
+        try {
+          await global.crozzoFlushPendingStaffSyncIfNeeded();
         } catch (_) {}
       }
     }

@@ -2094,6 +2094,7 @@ var __crozzoTenantPgCh = null;
 var __crozzoTenantDebounceT = null;
 var __crozzoTenantProductsDebounceT = null;
 var __crozzoTenantPushTimer = null;
+var __crozzoStaffSyncPending = false;
 var __crozzoTenantPushEchoUntil = 0;
 var __crozzoTenantRealtimeLive = false;
 var __crozzoTenantLastPullAt = 0;
@@ -2516,6 +2517,15 @@ async function crozzoPullRemoteStaffState(opts) {
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
     return false;
   }
+  if (
+    typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+    !global.crozzoCloudBackgroundSyncAllowed({
+      force: !!opts.force,
+      kind: opts.kind || 'page_watch',
+    })
+  ) {
+    return false;
+  }
   if (typeof loadTableData !== 'function' || typeof crozzoApplyPosStaffFromRemote !== 'function') return false;
   var ctx = crozzoPosStaffCloudCtx();
   var loc = ctx.locationId;
@@ -2529,7 +2539,7 @@ async function crozzoPullRemoteStaffState(opts) {
     rows = res && Array.isArray(res.data) ? res.data : [];
   }
   if (!rows.length) return false;
-  var applied = crozzoApplyPosStaffFromRemote(rows, loc, { allowImportNew: false });
+  var applied = crozzoApplyPosStaffFromRemote(rows, loc, { allowImportNew: true });
   if (applied) {
     try {
       if (typeof crozzoRebuildMenusFromRoles === 'function') crozzoRebuildMenusFromRoles();
@@ -2634,15 +2644,22 @@ function crozzoTenantHubBroadcast() {
     }
   } catch (_) {}
 }
-function crozzoTenantDebouncedPull() {
+function crozzoStaffDebouncedPull() {
   if (__crozzoTenantDebounceT) clearTimeout(__crozzoTenantDebounceT);
   __crozzoTenantDebounceT = setTimeout(function () {
     __crozzoTenantDebounceT = null;
     if (Date.now() < __crozzoTenantPushEchoUntil) return;
+    var pullOpts = { skipRender: true, quiet: true, kind: 'page_watch' };
     if (typeof crozzoPullRemoteTenantState === 'function') {
-      crozzoPullRemoteTenantState({ skipRender: true, quiet: true }).catch(function () {});
+      crozzoPullRemoteTenantState(pullOpts).catch(function () {});
+    }
+    if (typeof crozzoPullRemoteStaffState === 'function') {
+      crozzoPullRemoteStaffState(pullOpts).catch(function () {});
     }
   }, 750);
+}
+function crozzoTenantDebouncedPull() {
+  crozzoStaffDebouncedPull();
 }
 function startCrozzoRemoteTenantSync() {
   if (__crozzoTenantSyncStarted) return;
@@ -2689,6 +2706,13 @@ function startCrozzoRemoteTenantSync() {
       { event: '*', schema: 'public', table: 'profiles' },
       function () {
         crozzoTenantDebouncedPull();
+      }
+    );
+    __crozzoTenantPgCh.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'pos_staff' },
+      function () {
+        crozzoStaffDebouncedPull();
       }
     );
     __crozzoTenantPgCh.on(
@@ -2753,8 +2777,15 @@ async function crozzoRefreshSessionProfileFromCloud() {
   }
 }
 async function crozzoPullRemoteTenantState(opts) {
+  opts = opts || {};
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return false;
-  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
+  if (
+    typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+    !global.crozzoCloudBackgroundSyncAllowed({
+      force: !!opts.force,
+      kind: opts.kind || 'page_watch',
+    })
+  ) {
     return false;
   }
   if (typeof loadTableData !== 'function') return false;
@@ -3051,21 +3082,38 @@ async function crozzoUpsertBusinessRegistryToCloud(businessId, businessName) {
 }
 window.crozzoLookupBusinessInCloud = crozzoLookupBusinessInCloud;
 window.crozzoUpsertBusinessRegistryToCloud = crozzoUpsertBusinessRegistryToCloud;
-function crozzoScheduleTenantSnapshotPush() {
+function crozzoStaffSyncGateAllowed(opts) {
+  opts = opts || {};
+  if (typeof global.crozzoCloudBackgroundSyncAllowed !== 'function') return true;
+  return global.crozzoCloudBackgroundSyncAllowed({
+    force: !!opts.force,
+    kind: opts.kind || 'flush',
+  });
+}
+function crozzoScheduleTenantSnapshotPush(opts) {
+  opts = opts || {};
   if (!window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) {
     crozzoTenantHubBroadcast();
     return;
   }
-  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
+  if (!crozzoStaffSyncGateAllowed({ force: !!opts.force, kind: opts.kind || 'flush' })) {
+    __crozzoStaffSyncPending = true;
     return;
   }
   if (__crozzoTenantPushTimer) clearTimeout(__crozzoTenantPushTimer);
   __crozzoTenantPushTimer = setTimeout(function () {
     __crozzoTenantPushTimer = null;
-    crozzoFlushStaffCloudSync().catch(function () {});
-  }, 1600);
+    crozzoFlushStaffCloudSync({ force: !!opts.force, kind: opts.kind || 'flush' }).catch(function () {});
+  }, opts.immediate ? 0 : 1600);
 }
-function crozzoFlushStaffCloudSync() {
+function crozzoFlushPendingStaffSyncIfNeeded() {
+  if (!__crozzoStaffSyncPending) return Promise.resolve(false);
+  if (!window.__CROZZO_ONLINE_DATA || !window.__SUPABASE) return Promise.resolve(false);
+  if (!crozzoStaffSyncGateAllowed({ force: true, kind: 'flush' })) return Promise.resolve(false);
+  return crozzoFlushStaffCloudSync({ force: true, kind: 'flush' });
+}
+function crozzoFlushStaffCloudSync(opts) {
+  opts = opts || {};
   if (__crozzoTenantPushTimer) {
     clearTimeout(__crozzoTenantPushTimer);
     __crozzoTenantPushTimer = null;
@@ -3074,7 +3122,8 @@ function crozzoFlushStaffCloudSync() {
     crozzoTenantHubBroadcast();
     return Promise.resolve(false);
   }
-  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
+  if (!crozzoStaffSyncGateAllowed({ force: !!opts.force, kind: opts.kind || 'flush' })) {
+    __crozzoStaffSyncPending = true;
     return Promise.resolve(false);
   }
   return Promise.all([
@@ -3082,15 +3131,18 @@ function crozzoFlushStaffCloudSync() {
     crozzoPushPosStaffToCloud().catch(function () { return false; }),
   ]).then(function (res) {
     var ok = !!(res && (res[0] || res[1]));
+    if (ok) __crozzoStaffSyncPending = false;
     if (typeof crozzoPruneOrphanPosStaffInCloud !== 'function') return ok;
     return crozzoPruneOrphanPosStaffInCloud()
       .catch(function () { return false; })
       .then(function (pruned) {
+        if (pruned) __crozzoStaffSyncPending = false;
         return ok || !!pruned;
       });
   });
 }
 window.crozzoFlushStaffCloudSync = crozzoFlushStaffCloudSync;
+window.crozzoFlushPendingStaffSyncIfNeeded = crozzoFlushPendingStaffSyncIfNeeded;
 window.crozzoPullRemoteTenantState = crozzoPullRemoteTenantState;
 window.crozzoPushTenantSnapshotToCloud = crozzoPushTenantSnapshotToCloud;
 window.startCrozzoRemoteTenantSync = startCrozzoRemoteTenantSync;

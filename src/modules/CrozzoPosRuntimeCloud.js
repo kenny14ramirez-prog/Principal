@@ -1546,6 +1546,107 @@
   global.crozzoPushPosRuntimeCloudNow = function () {
     return pushRuntimeNow({ force: true });
   };
+  /** Solo metadatos de frescura remota (savedAt), sin aplicar snapshot. */
+  async function probeRemoteRuntimeMeta() {
+    var out = { found: false, savedAt: 0, remoteAt: 0, source: '', slotUpdatedAt: {}, remoteSlotLines: {} };
+    function fillSlotMetaFromSnap(snap) {
+      if (!snap || typeof snap !== 'object') return;
+      out.slotUpdatedAt = snap._slotUpdatedAt && typeof snap._slotUpdatedAt === 'object' ? snap._slotUpdatedAt : {};
+      try {
+        var cm = snap.cartsPorMesa || {};
+        Object.keys(cm).forEach(function (ref) {
+          out.remoteSlotLines['mesa:' + ref] = Array.isArray(cm[ref]) ? cm[ref].length : 0;
+        });
+        var cl = snap.cartsPorLlevar || {};
+        Object.keys(cl).forEach(function (ref) {
+          out.remoteSlotLines['llevar:' + ref] = Array.isArray(cl[ref]) ? cl[ref].length : 0;
+        });
+      } catch (_) {}
+    }
+    var c = ctx();
+    if (!c.locationId || c.locationId === 'default') return out;
+    if (cloudTransportActive()) {
+      var sb = global.__SUPABASE;
+      if (sb) {
+        try {
+          if (await ensureMesaMode()) {
+            var mres = await sb
+              .from(MESA_TABLE)
+              .select('updated_at,payload,kind')
+              .eq('location_id', c.locationId);
+            if (!mres.error && Array.isArray(mres.data)) {
+              var built = snapFromMesaRows(mres.data);
+              if (built && built.savedAt) {
+                out.found = true;
+                out.savedAt = Number(built.savedAt) || 0;
+                out.remoteAt = out.savedAt;
+                out.source = 'cloud_mesa';
+                fillSlotMetaFromSnap(built.snap);
+                return out;
+              }
+            }
+          }
+          var res = await sb
+            .from(TABLE)
+            .select('saved_at,updated_at,payload')
+            .eq('location_id', c.locationId)
+            .limit(1)
+            .maybeSingle();
+          if (!res.error && res.data) {
+            var pay = res.data.payload || {};
+            var remoteAt =
+              Number(pay.savedAt) ||
+              Date.parse(res.data.saved_at || res.data.updated_at || 0) ||
+              0;
+            if (remoteAt) {
+              out.found = true;
+              out.savedAt = remoteAt;
+              out.remoteAt = remoteAt;
+              out.source = 'cloud';
+              fillSlotMetaFromSnap(pay);
+              return out;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    var host = lanCentralHost();
+    if (host) {
+      try {
+        var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+        var port = Number(md.port) || 3000;
+        var controller = new AbortController();
+        var t = global.setTimeout(function () {
+          controller.abort();
+        }, 4500);
+        var lanRes = await global.fetch('http://' + host + ':' + port + '/api/runtime', {
+          method: 'GET',
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        });
+        global.clearTimeout(t);
+        if (lanRes.ok) {
+          var j = await lanRes.json().catch(function () {
+            return null;
+          });
+          if (j) {
+            var lanAt = Number(j.payload && j.payload.savedAt) || Date.parse(j.saved_at || 0) || 0;
+            if (lanAt) {
+              out.found = true;
+              out.savedAt = lanAt;
+              out.remoteAt = lanAt;
+              out.source = 'lan';
+              fillSlotMetaFromSnap(j.payload || {});
+              return out;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  global.crozzoProbeRemoteRuntimeMeta = probeRemoteRuntimeMeta;
   global.crozzoPullPosRuntimeCloud = pullRuntime;
   global.crozzoApplyRemoteRuntimeRow = function (payload, savedAt, opts) {
     if (!payload) return false;

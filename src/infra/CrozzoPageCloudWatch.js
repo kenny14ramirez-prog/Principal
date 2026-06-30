@@ -356,7 +356,12 @@
   async function pullTenant() {
     __lastPullAt.tenant = Date.now();
     if (typeof global.crozzoPullRemoteTenantState === 'function') {
-      return await global.crozzoPullRemoteTenantState({ quiet: true, skipRender: true });
+      return await global.crozzoPullRemoteTenantState({
+        quiet: true,
+        skipRender: true,
+        force: true,
+        kind: 'page_watch',
+      });
     }
     return false;
   }
@@ -375,7 +380,12 @@
   async function pullStaff() {
     __lastPullAt.staff = Date.now();
     if (typeof global.crozzoPullRemoteStaffState === 'function') {
-      return await global.crozzoPullRemoteStaffState({ quiet: true, skipRender: true });
+      return await global.crozzoPullRemoteStaffState({
+        quiet: true,
+        skipRender: true,
+        force: true,
+        kind: 'page_watch',
+      });
     }
     return pullTenant();
   }
@@ -562,6 +572,11 @@
     pri().startBackgroundScheduler();
     var plan = syncPlan(page);
     refreshOpsTransports({ source: 'page_' + page, force: isZone0Page(page) });
+    safe(function () {
+      if (typeof global.crozzoFlushPendingStaffSyncIfNeeded === 'function') {
+        global.crozzoFlushPendingStaffSyncIfNeeded().catch(function () {});
+      }
+    });
     setTimeout(function () {
       initialPass(
         page,

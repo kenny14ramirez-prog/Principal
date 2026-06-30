@@ -73787,6 +73787,52 @@ body.crozzo-page-operativa.crozzo-pantallas-kiosk .crozzo-help-fab {
   margin-top: 4px;
 }
 
+.crozzo-operative-sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg-primary, #0f172a) 72%, transparent);
+  backdrop-filter: blur(4px);
+}
+.crozzo-operative-sync-overlay__card {
+  width: min(360px, 100%);
+  padding: 22px 20px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent, #6366f1) 35%, var(--border));
+  background: var(--bg-secondary, #111827);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+.crozzo-operative-sync-overlay__spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--accent, #6366f1) 18%, transparent);
+  border-top-color: var(--accent, #6366f1);
+  animation: crozzo-operative-sync-spin 0.85s linear infinite;
+}
+.crozzo-operative-sync-overlay__title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.crozzo-operative-sync-overlay__msg {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+@keyframes crozzo-operative-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* === Staff Access Hub (Usuarios y permisos) === */
 .crozzo-staff-hub {
   --staff-accent-rgb: var(--accent-rgb, 99, 102, 241);
