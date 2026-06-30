@@ -1850,6 +1850,26 @@
       );
     });
     if (vis.summary) logLine('ok', vis.summary.verdict, id);
+    if (Array.isArray(vis.devices) && vis.devices.length) {
+      vis.devices.slice(0, 8).forEach(function (d) {
+        var ch = d.channels || {};
+        logLine(
+          d.overall === 'ok' ? 'ok' : d.overall === 'warn' ? 'warn' : 'fail',
+          (d.displayName || d.deviceId) +
+            ' · ' +
+            (d.userName || 'sin usuario') +
+            ' · ' +
+            (d.ip || 'sin IP') +
+            ' · nube=' +
+            (ch.cloud && ch.cloud.status) +
+            ' lan=' +
+            (ch.lan && ch.lan.status) +
+            ' qr=' +
+            (ch.qr && ch.qr.status),
+          id
+        );
+      });
+    }
     var level = vis.summary && vis.summary.channelsOk >= 2 ? 'ok' : vis.summary && vis.summary.channelsOk >= 1 ? 'warn' : 'fail';
     setCardState(id, level);
     return { level: level, summary: (vis.summary && vis.summary.channelsOk) + '/6 canales OK' };

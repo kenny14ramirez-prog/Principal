@@ -14,6 +14,13 @@
       console.warn('[crozzo] NetworkGuard', e);
     }
     try {
+      if (window.CrozzoFleetCommState && typeof CrozzoFleetCommState.afterMainInit === 'function') {
+        CrozzoFleetCommState.afterMainInit();
+      }
+    } catch (eFleet) {
+      console.warn('[crozzo] FleetCommState', eFleet);
+    }
+    try {
       if (window.CrozzoSyncRouterModule) CrozzoSyncRouterModule.init();
     } catch (e) {
       console.warn('[crozzo] SyncRouter module', e);

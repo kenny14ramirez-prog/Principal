@@ -23,7 +23,8 @@ mustContain('app/index.html', 'CrozzoConnectivityVisibilityProbe.js', 'index sin
 mustContain('app/modules/CrozzoComunicacionDiag.js', 'CrozzoConnectivityVisibilityProbe', 'diag sin probe');
 mustContain('app/core/CrozzoPosExtensions.js', 'visibility', 'Pruebas sistema sin tarjeta visibility');
 mustContain('app/infra/CrozzoConnectivityVisibilityProbe.js', 'probeAll', 'API probeAll');
-mustContain('app/infra/CrozzoConnectivityVisibilityProbe.js', 'crozzoProbeDeviceVisibility', 'global export');
+mustContain('app/infra/CrozzoConnectivityVisibilityProbe.js', 'buildDeviceMatrix', 'API buildDeviceMatrix');
+mustContain('app/modules/CrozzoComunicacionDiag.js', 'devicesTableHtml', 'diag sin tabla equipos');
 
 function makeSandbox() {
   const store = new Map();
@@ -67,6 +68,14 @@ function makeSandbox() {
         cloudOk: true,
         lastSeenAt: Date.now() - 5000,
       },
+      {
+        deviceId: 'stale-tablet-uuid',
+        role: 'B',
+        name: 'Tablet 2026-06-15',
+        cloudOk: true,
+        lastSeenAt: Date.now() - 86400000 * 10,
+        lastCloudOkAt: Date.now() - 86400000 * 10,
+      },
     ],
     getCentralCandidates: () => [{ ip: '192.168.1.10', via: 'config', score: 1000 }],
     pullPresenceFromCloud: async () => ({ ok: true, merged: 1 }),
@@ -83,6 +92,7 @@ function makeSandbox() {
     getStatus: () => ({ active: true, peerCount: 2, transport: 'broadcast' }),
     reconcileTier: () => {},
     bootstrapCluster: () => true,
+    listRecentPeers: () => [{ deviceId: 'caja-1', lastSeenAt: Date.now() - 2000 }],
   };
   ctx.CrozzoBleMesh = {
     getStatus: () => ({ active: false, peerCount: 0, transport: 'none' }),
@@ -101,6 +111,16 @@ async function sandboxProbe() {
   if (!vis.channels.lan || vis.channels.lan.status === 'fail') failures.push('LAN probe debería ver caja en sandbox');
   if (!vis.channels.gossip || vis.channels.gossip.peerCount < 1) failures.push('Gossip probe sin peers en sandbox');
   if (!vis.summary || vis.summary.channelsOk < 2) failures.push('Resumen visibilidad insuficiente en sandbox');
+  if (!Array.isArray(vis.devices) || !vis.devices.length) failures.push('probeAll sin devices[]');
+  if (!vis.devices.some((d) => d.deviceId === 'tablet-test-1' || d.deviceId === 'caja-1')) {
+    failures.push('device matrix sin equipos esperados');
+  }
+  if (vis.devices.some((d) => d.deviceId === 'stale-tablet-uuid')) {
+    failures.push('device matrix no debe incluir peers stale');
+  }
+  if (!vis.deviceMatrix || vis.deviceMatrix.hiddenStaleCount < 1) {
+    failures.push('device matrix debe reportar hiddenStaleCount');
+  }
 }
 
 await sandboxProbe();

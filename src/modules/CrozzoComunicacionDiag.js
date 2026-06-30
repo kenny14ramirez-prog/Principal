@@ -200,6 +200,11 @@
 
   async function run() {
     var rows = [];
+    if (typeof global.crozzoPublishFleetCommState === 'function') {
+      try {
+        await global.crozzoPublishFleetCommState({ force: true });
+      } catch (_) {}
+    }
     var biz = bizId();
     var loc = locId();
     var can = canonicalSede();
@@ -324,7 +329,9 @@
                 ? 'Conecte todas las tablets a la misma red del restaurante o escanee el QR de la caja.'
                 : c.status === 'warn'
                   ? 'Canal activo pero sin peers — espere unos segundos o pulse Reparar automáticamente.'
-                  : ''
+                  : c.status === 'na'
+                    ? 'Canal no aplicable en el modo de conexión actual (normal con nube/LAN activos).'
+                    : ''
             )
           );
         });
@@ -342,6 +349,54 @@
                 ' aviso · ' +
                 vis.summary.peerSignals +
                 ' señales totales)'
+            )
+          );
+        }
+        if (vis.devices && vis.devices.length) {
+          var devOk = vis.devices.filter(function (d) {
+            return d.overall === 'ok';
+          }).length;
+          var devWarn = vis.devices.filter(function (d) {
+            return d.overall === 'warn';
+          }).length;
+          var devFail = vis.devices.filter(function (d) {
+            return d.overall === 'fail';
+          }).length;
+          var devReported = vis.devices.filter(function (d) {
+            return d.reportedByPeer;
+          }).length;
+          rows.push(
+            row(
+              'vis-devices',
+              'Equipos en la partida',
+              devFail ? 'warn' : 'ok',
+              vis.devices.length +
+                ' equipo(s): ' +
+                devOk +
+                ' comunicación OK · ' +
+                devWarn +
+                ' parcial · ' +
+                devFail +
+                ' sin canal fiable · ' +
+                devReported +
+                ' con estado reportado por el propio equipo.'
+            )
+          );
+        }
+        var fleetStates = safe(function () {
+          return typeof global.crozzoListFleetCommStates === 'function' ? global.crozzoListFleetCommStates() : [];
+        }, []);
+        if (fleetStates.length) {
+          rows.push(
+            row(
+              'fleet-share',
+              'Estados compartidos (flota)',
+              fleetStates.length >= 2 ? 'ok' : 'warn',
+              fleetStates.length +
+                ' equipo(s) publicaron su estado en la última hora — visible en la tabla como «(reportado)».',
+              fleetStates.length < 2
+                ? 'Abra la app en más tablets/celulares (misma sede) para ver el reporte consolidado desde este equipo.'
+                : ''
             )
           );
         }
@@ -484,6 +539,9 @@
       ? 'canal abierto pero NO confirmado (solo respaldo)'
       : 'sin canal (solo respaldo cada ~4s)';
     var bothLive = runLive && comLive;
+    var opsActive = safe(function () {
+      return typeof global.crozzoOperationalRealtimeActive === 'function' && global.crozzoOperationalRealtimeActive();
+    }, false);
     var pg = safe(function () {
       return global.CrozzoPageCloudWatch && global.CrozzoPageCloudWatch.getActivePage
         ? global.CrozzoPageCloudWatch.getActivePage()
@@ -498,12 +556,14 @@
       row(
         'sync',
         'Tiempo real P0 (instantáneo)',
-        bothLive ? 'ok' : onlineReady() ? 'fail' : 'warn',
+        bothLive ? 'ok' : !opsActive && onlineReady() ? 'warn' : onlineReady() ? 'fail' : 'warn',
         'Mesas→caja: ' + mesaTxt + ' · Comandas→cocina: ' + comTxt + '.' +
           (pg ? ' Pantalla actual: ' + pg + (pgPri ? ' [' + pgPri + ']' : '') + '.' : ''),
         bothLive
           ? ''
-          : 'Si NO está EN VIVO, el dato llega por respaldo lento (se siente "no en tiempo real"). Causa típica: Realtime no habilitado en la tabla en Supabase. Ejecute el script "10. Runtime en vivo" (Super Admin → Nube → SQL) y pulse "Reparar automáticamente".'
+          : !opsActive
+            ? 'Tiempo real pausado en pantallas de navegación (Inicio, Config…). Abra Cajero, Comandas o Cocina para medir EN VIVO.'
+            : 'Si NO está EN VIVO, el dato llega por respaldo lento (se siente "no en tiempo real"). Causa típica: Realtime no habilitado en la tabla en Supabase. Ejecute el script "10. Runtime en vivo" (Super Admin → Nube → SQL) y pulse "Reparar automáticamente".'
       )
     );
 
@@ -600,7 +660,28 @@
     var verdict = fails.length
       ? 'Se encontraron ' + fails.length + ' problema(s) que rompen la comunicación. Revise los puntos en rojo.'
       : 'Comunicación en buen estado en este equipo. Si el problema persiste, ejecute este diagnóstico también en la tablet y en cocina.';
-    return { generatedAt: new Date().toISOString(), rows: rows, ok: !fails.length, verdict: verdict };
+    var devices = safe(function () {
+      return global.__crozzoLastVisibilityProbe && Array.isArray(global.__crozzoLastVisibilityProbe.devices)
+        ? global.__crozzoLastVisibilityProbe.devices
+        : [];
+    }, []);
+    var hiddenStaleCount = safe(function () {
+      return global.__crozzoLastVisibilityProbe && global.__crozzoLastVisibilityProbe.deviceMatrix
+        ? Number(global.__crozzoLastVisibilityProbe.deviceMatrix.hiddenStaleCount) || 0
+        : 0;
+    }, 0);
+    var fleetStates = safe(function () {
+      return typeof global.crozzoListFleetCommStates === 'function' ? global.crozzoListFleetCommStates() : [];
+    }, []);
+    return {
+      generatedAt: new Date().toISOString(),
+      rows: rows,
+      devices: devices,
+      fleetStates: fleetStates,
+      hiddenStaleCount: hiddenStaleCount,
+      ok: !fails.length,
+      verdict: verdict,
+    };
   }
 
   async function repair() {
@@ -674,6 +755,12 @@
         steps.push('Comandas re-sincronizadas.');
       } catch (_) {}
     }
+    if (typeof global.crozzoPublishFleetCommState === 'function') {
+      try {
+        await global.crozzoPublishFleetCommState({ force: true });
+        steps.push('Estado de comunicación publicado a la flota.');
+      } catch (_) {}
+    }
     if (!steps.length) steps.push('No había nada automático que reparar; revise los puntos en rojo del diagnóstico.');
     return steps;
   }
@@ -696,13 +783,108 @@
   }
 
   // ---------------- UI ----------------
-  var COLORS = { ok: '#16a34a', warn: '#d97706', fail: '#dc2626' };
-  var ICON = { ok: '✓', warn: '!', fail: '✕' };
+  var COLORS = { ok: '#16a34a', warn: '#d97706', fail: '#dc2626', na: '#94a3b8' };
+  var ICON = { ok: '✓', warn: '!', fail: '✕', na: '—' };
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  function chanCell(ch) {
+    if (!ch) return '<td style="text-align:center;color:#94a3b8">—</td>';
+    var st = ch.status || 'na';
+    var title = esc(ch.detail || '');
+    return (
+      '<td style="text-align:center;padding:6px 4px" title="' +
+      title +
+      '"><span style="display:inline-block;min-width:28px;padding:2px 6px;border-radius:6px;font-size:11px;font-weight:700;color:#fff;background:' +
+      (COLORS[st] || COLORS.na) +
+      '">' +
+      (ICON[st] || '—') +
+      '</span></td>'
+    );
+  }
+
+  function devicesTableHtml(devices, hiddenStaleCount) {
+    hiddenStaleCount = Number(hiddenStaleCount) || 0;
+    if (!devices || !devices.length) {
+      return (
+        '<div style="padding:14px 16px;border-top:1px solid #eee;background:#f8fafc">' +
+        '<div style="font-weight:700;color:#0f172a;margin-bottom:6px">Equipos detectados</div>' +
+        '<div style="color:#64748b;font-size:13px">Sin equipos con señal reciente (última hora).' +
+        (hiddenStaleCount
+          ? ' <span style="color:#475569">(' +
+            hiddenStaleCount +
+            ' registro(s) histórico(s) oculto(s) — emparejamientos viejos en nube/QR.)</span>'
+          : '') +
+        ' Encienda tablets, espere ~30s y pulse <strong>Reparar automáticamente</strong>.</div>' +
+        '</div>'
+      );
+    }
+    var head =
+      '<thead><tr style="background:#f1f5f9;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#475569">' +
+      '<th style="text-align:left;padding:8px 10px">Equipo</th>' +
+      '<th style="text-align:left;padding:8px 10px">Usuario</th>' +
+      '<th style="text-align:left;padding:8px 10px">ID</th>' +
+      '<th style="text-align:left;padding:8px 10px">IP</th>' +
+      '<th style="padding:8px 4px">Nube</th>' +
+      '<th style="padding:8px 4px">LAN</th>' +
+      '<th style="padding:8px 4px">Wi‑Fi</th>' +
+      '<th style="padding:8px 4px">Gossip</th>' +
+      '<th style="padding:8px 4px">BT</th>' +
+      '<th style="padding:8px 4px">QR</th>' +
+      '<th style="padding:8px 6px">Estado</th>' +
+      '</tr></thead>';
+    var body = devices
+      .map(function (d) {
+        var ch = d.channels || {};
+        var overall = d.overall || 'fail';
+        return (
+          '<tr style="border-bottom:1px solid #eee;font-size:12px">' +
+          '<td style="padding:8px 10px;font-weight:600;color:#0f172a">' +
+          esc(d.displayName || d.name || d.deviceId) +
+          '</td>' +
+          '<td style="padding:8px 10px;color:#334155">' +
+          esc(d.userName || '—') +
+          '</td>' +
+          '<td style="padding:8px 10px;color:#475569;font-family:ui-monospace,monospace;font-size:11px">' +
+          esc(d.deviceId) +
+          '</td>' +
+          '<td style="padding:8px 10px;color:#334155;font-family:ui-monospace,monospace;font-size:11px">' +
+          esc(d.ip || '—') +
+          '</td>' +
+          chanCell(ch.cloud) +
+          chanCell(ch.lan) +
+          chanCell(ch.hotspot) +
+          chanCell(ch.gossip) +
+          chanCell(ch.ble) +
+          chanCell(ch.qr) +
+          '<td style="text-align:center;padding:8px 6px"><span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;background:' +
+          (COLORS[overall] || COLORS.fail) +
+          '">' +
+          (overall === 'ok' ? 'OK' : overall === 'warn' ? 'Parcial' : 'Fallo') +
+          '</span></td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+    return (
+      '<div style="padding:12px 16px 8px;border-top:1px solid #eee;background:#f8fafc">' +
+      '<div style="font-weight:700;color:#0f172a;margin-bottom:4px">Equipos con señal reciente · comunicación por canal</div>' +
+      '<div style="color:#64748b;font-size:12px;margin-bottom:10px">Solo equipos activos en la última hora (nube, LAN, QR reciente o gossip).' +
+      (hiddenStaleCount
+        ? ' <span style="color:#475569">' + hiddenStaleCount + ' histórico(s) oculto(s).</span>'
+        : '') +
+      ' Pase el cursor sobre cada celda para el detalle.</div>' +
+      '<div style="overflow:auto;max-height:42vh;border:1px solid #e2e8f0;border-radius:10px;background:#fff">' +
+      '<table style="width:100%;border-collapse:collapse;min-width:860px">' +
+      head +
+      '<tbody>' +
+      body +
+      '</tbody></table></div></div>'
+    );
   }
 
   function reportHtml(rep) {
@@ -711,9 +893,9 @@
         return (
           '<div style="display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid #eee;align-items:flex-start">' +
           '<span style="flex:0 0 22px;height:22px;border-radius:50%;background:' +
-          COLORS[r.status] +
+          (COLORS[r.status] || COLORS.na) +
           ';color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px">' +
-          ICON[r.status] +
+          (ICON[r.status] || '—') +
           '</span>' +
           '<div style="flex:1">' +
           '<div style="font-weight:700;color:#111">' + esc(r.label) + '</div>' +
@@ -732,7 +914,8 @@
       '">' +
       esc(rep.verdict) +
       '</div>' +
-      items
+      items +
+      devicesTableHtml(rep.devices, rep.hiddenStaleCount)
     );
   }
 
@@ -745,7 +928,7 @@
     el.style.cssText =
       'position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif';
     el.innerHTML =
-      '<div style="background:#fff;width:min(640px,94vw);max-height:88vh;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
+      '<div style="background:#fff;width:min(980px,96vw);max-height:90vh;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#1e3a8a;color:#fff">' +
       '<strong>Diagnóstico de comunicación en tiempo real</strong>' +
       '<button data-diag-close style="background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1">×</button>' +

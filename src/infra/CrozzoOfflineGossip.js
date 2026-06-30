@@ -277,7 +277,7 @@
     }
   }
 
-  var RELAY_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, INTERNAL_QR_SLOT: 1 };
+  var RELAY_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, INTERNAL_QR_SLOT: 1, PEER_COMM: 1 };
 
   // Reenvío epidémico: preserva msgId y origen para que el dedup por msgId
   // detenga la propagación; solo incrementa el contador de saltos.
@@ -471,6 +471,12 @@
       ingestInternalQrSlot(frame.payload);
       return;
     }
+    if (frame.kind === 'PEER_COMM') {
+      if (typeof global.crozzoIngestRemoteCommState === 'function') {
+        global.crozzoIngestRemoteCommState(frame.payload || {}, 'gossip');
+      }
+      return;
+    }
     if (frame.kind === 'INTERNAL_QR_REQ' || frame.kind === 'INTERNAL_QR_BEACON') {
       respondInternalQrCatalog();
     }
@@ -628,6 +634,21 @@
     else stop();
   }
 
+  function listRecentPeers(maxAgeMs) {
+    maxAgeMs = Number(maxAgeMs) > 0 ? Number(maxAgeMs) : 45000;
+    var now = Date.now();
+    var out = [];
+    Object.keys(_peerIds).forEach(function (k) {
+      var at = Number(_peerIds[k]) || 0;
+      if (!k || now - at > maxAgeMs) return;
+      out.push({ deviceId: k, lastSeenAt: at });
+    });
+    out.sort(function (a, b) {
+      return (b.lastSeenAt || 0) - (a.lastSeenAt || 0);
+    });
+    return out;
+  }
+
   function getStatus() {
     var peerCount = Math.max(Object.keys(_peerIds).length, _udpPeerCount || 0);
     var transport = _udpOk ? 'udp' : _bc ? 'broadcast' : 'none';
@@ -667,6 +688,24 @@
     reconcileTier();
   }
 
+  function publishPeerCommState(state) {
+    if (!_active || !state) return false;
+    var ctx = meshCtx();
+    sendFrame(
+      buildFrame(
+        'PEER_COMM',
+        {
+          deviceId: state.deviceId || ctx.deviceId,
+          role: state.role || ctx.role,
+          name: '',
+          commState: state,
+        },
+        0
+      )
+    );
+    return true;
+  }
+
   function publishInternalQrBeacon(meta) {
     if (!_active) return false;
     meta = meta || {};
@@ -693,10 +732,12 @@
     publishComandaNewByIds: publishComandaNewByIds,
     publishEstado: publishEstado,
     publishInternalQrBeacon: publishInternalQrBeacon,
+    publishPeerCommState: publishPeerCommState,
     publishInternalQrSlot: publishInternalQrSlot,
     publishInternalQrRequest: publishInternalQrRequest,
     ingestRaw: ingestRaw,
     getStatus: getStatus,
+    listRecentPeers: listRecentPeers,
     reconcileTier: reconcileTier,
     bootstrapCluster: bootstrapCluster,
     sameSubnetLikely: sameSubnetLikely,

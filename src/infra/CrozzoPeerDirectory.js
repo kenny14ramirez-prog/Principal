@@ -18,6 +18,7 @@
   var STALE_MS = 86400000 * 7;
   var CLOUD_PULL_MIN_MS = 360000;
   var CLOUD_PUBLISH_MIN_MS = 600000;
+  var CLOUD_DEVICE_MAX_AGE_MS = 86400000;
   var __cloudPullInflight = null;
   var __cloudPublishInflight = null;
 
@@ -116,6 +117,8 @@
       lastLanOkAt: Number(prev.lastLanOkAt) || 0,
       lastSeenAt: Date.now(),
       via: String(opts.via || prev.via || 'self'),
+      commState: opts.commState || prev.commState || null,
+      commStateAt: opts.commState ? Number(opts.commState.at) || Date.now() : Number(prev.commStateAt) || 0,
     };
     prune(store);
     writeStore(store);
@@ -143,6 +146,12 @@
       lastLanOkAt: opts.lanOk !== false ? Date.now() : Number(prev.lastLanOkAt) || 0,
       lastSeenAt: Date.now(),
       via: String(opts.via || prev.via || 'lan'),
+      commState: opts.commState || prev.commState || null,
+      commStateAt: opts.commState
+        ? Number(opts.commState.at) || Date.now()
+        : opts.commStateAt
+          ? Number(opts.commStateAt)
+          : Number(prev.commStateAt) || 0,
     };
     prune(store);
     writeStore(store);
@@ -163,6 +172,8 @@
         lanIp: ip,
         lanOk: true,
         cloudOk: statusJson.cloud_reachable === true,
+        name: statusJson.name || statusJson.device_name,
+        commState: statusJson.comm_state || statusJson.commState || null,
         via: via || 'status',
       });
       return;
@@ -278,8 +289,9 @@
       lanIp: String(opts.lanIp || resolveSelfLanIp() || '').trim(),
       centralIp: String(cfg.centralIp || opts.centralIp || '').trim(),
       cloudOk: opts.cloudOk !== false,
+      commState: opts.commState || null,
       at: new Date().toISOString(),
-      v: 1,
+      v: opts.commState ? 2 : 1,
     };
   }
 
@@ -296,6 +308,7 @@
       name: presence.name,
       lanIp: role === 'A' ? lanIp || centralIp : centralIp || lanIp,
       cloudOk: presence.cloudOk !== false,
+      commState: presence.commState || null,
       via: via || 'cloud',
     });
     if (centralIp && role === 'B') {
@@ -360,15 +373,30 @@
       return false;
     }
     var now = Date.now();
-    if (!opts.force) {
+    if (!opts.force && !opts.fleetPulse) {
       var lastPub = Number(safe(function () { return global.localStorage.getItem(LS_CLOUD_PUBLISH_AT); }) || 0);
       if (lastPub && now - lastPub < CLOUD_PUBLISH_MIN_MS) return false;
+    } else if (!opts.force && opts.fleetPulse) {
+      var lastFleet = Number(safe(function () { return global.localStorage.getItem(LS_CLOUD_PUBLISH_AT + '_fleet'); }) || 0);
+      if (lastFleet && now - lastFleet < 120000) return false;
     }
     if (__cloudPublishInflight) return __cloudPublishInflight;
     var ctx = selfCtx();
     if (!ctx.deviceId || !ctx.locationId || ctx.locationId === 'default') return false;
     var presence = buildPresencePayload(opts);
-    noteSelf({ cloudOk: true, name: presence.name, lanIp: presence.lanIp, via: 'cloud_publish' });
+    if (!presence.commState && typeof global.crozzoCaptureLocalCommState === 'function') {
+      try {
+        presence.commState = global.crozzoCaptureLocalCommState();
+        presence.v = 2;
+      } catch (_) {}
+    }
+    noteSelf({
+      cloudOk: true,
+      name: presence.name,
+      lanIp: presence.lanIp,
+      commState: presence.commState || null,
+      via: 'cloud_publish',
+    });
 
     __cloudPublishInflight = (async function () {
       var ok = false;
@@ -426,6 +454,7 @@
 
       safe(function () {
         global.localStorage.setItem(LS_CLOUD_PUBLISH_AT, String(Date.now()));
+        if (opts.fleetPulse) global.localStorage.setItem(LS_CLOUD_PUBLISH_AT + '_fleet', String(Date.now()));
       });
       return ok;
     })();
@@ -476,27 +505,36 @@
         if (typeof global.loadTableData === 'function') {
           var res = await global.loadTableData('devices', { limit: 60 });
           var rows = res && Array.isArray(res.data) ? res.data : [];
+          var nowMs = Date.now();
           for (var i = 0; i < rows.length; i++) {
             var pr = parsePresenceFromDeviceRow(rows[i]);
+            var lastSync = rows[i] && rows[i].last_sync_at ? Date.parse(rows[i].last_sync_at) : 0;
             if (pr) {
+              var at = pr.at ? Date.parse(pr.at) : 0;
+              var seenAt = Math.max(at || 0, lastSync || 0);
+              if (seenAt && nowMs - seenAt > CLOUD_DEVICE_MAX_AGE_MS) continue;
               ingestPresenceObject(pr, 'devices_row');
               merged++;
             } else if (rows[i] && rows[i].id) {
+              if (!lastSync || nowMs - lastSync > CLOUD_DEVICE_MAX_AGE_MS) continue;
               var typ = String(rows[i].type || '').toLowerCase();
-              var isCentral = typ === 'central' || typ === 'a' || typ === 'desktop';
-              if (isCentral && rows[i].last_sync_at) {
-                ingestPresenceObject(
-                  {
-                    deviceId: rows[i].id,
-                    role: 'A',
-                    name: rows[i].name,
-                    cloudOk: true,
-                    at: rows[i].last_sync_at,
-                  },
-                  'devices_active'
-                );
-                merged++;
-              }
+              var devRole =
+                typ === 'tablet' || typ === 'mobile' || typ === 'b' || typ === 'phone'
+                  ? 'B'
+                  : typ === 'central' || typ === 'a' || typ === 'desktop' || typ === 'pc'
+                    ? 'A'
+                    : 'B';
+              ingestPresenceObject(
+                {
+                  deviceId: rows[i].id,
+                  role: devRole,
+                  name: rows[i].name,
+                  cloudOk: true,
+                  at: rows[i].last_sync_at,
+                },
+                'devices_active'
+              );
+              merged++;
             }
           }
         }
@@ -521,6 +559,14 @@
     noteLanReachable: noteLanReachable,
     getCentralCandidates: getCentralCandidates,
     listPeers: listPeers,
+    listPeerCommStates: function (opts) {
+      opts = opts || {};
+      var maxAge = Number(opts.maxAgeMs) > 0 ? Number(opts.maxAgeMs) : 3600000;
+      var now = Date.now();
+      return listPeers().filter(function (p) {
+        return p && p.commState && p.commStateAt && now - Number(p.commStateAt) <= maxAge;
+      });
+    },
     pickCloudAnchorPeer: pickCloudAnchorPeer,
     readStore: readStore,
     buildPresencePayload: buildPresencePayload,
