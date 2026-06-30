@@ -784,9 +784,16 @@
     return crozzoLocalSyncAllowed(Object.assign({ kind: 'realtime' }, opts || {}));
   }
 
-  /** Transporte activo: cloud primero; si no, LAN con las mismas zonas. */
+  /** Transporte activo: cloud → LAN → malla → QR (cadena híbrida). */
   function crozzoActiveSyncTransport(opts) {
     opts = opts || {};
+    try {
+      if (typeof global.crozzoShouldFunnelCloudThroughHub === 'function' && global.crozzoShouldFunnelCloudThroughHub()) {
+        if (localPathReady() && crozzoLocalSyncAllowed(Object.assign({ kind: 'transport' }, opts))) {
+          return 'lan';
+        }
+      }
+    } catch (_) {}
     try {
       if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed(Object.assign({ kind: 'transport' }, opts))) {
         return 'cloud';
@@ -796,6 +803,19 @@
       if (localPathReady() && crozzoLocalSyncAllowed(Object.assign({ kind: 'transport' }, opts))) {
         return 'lan';
       }
+    } catch (_) {}
+    try {
+      if (global.CrozzoCapabilityMatrix && typeof global.CrozzoCapabilityMatrix.getSnapshot === 'function') {
+        var snap = global.CrozzoCapabilityMatrix.getSnapshot();
+        var mesh = snap && snap.transports && snap.transports.mesh;
+        if (mesh && mesh.ready) return 'mesh';
+        var qr = snap && snap.transports && snap.transports.qr;
+        if (qr && qr.active) return 'qr';
+      }
+    } catch (_) {}
+    try {
+      var gossip = global.CrozzoOfflineGossip && global.CrozzoOfflineGossip.getStatus && global.CrozzoOfflineGossip.getStatus();
+      if (gossip && gossip.active) return 'mesh';
     } catch (_) {}
     return 'none';
   }

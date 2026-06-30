@@ -1308,6 +1308,7 @@
       '<button type="button" class="btn btn-outline" id="sanBtnUploadCatalog">⬆️ Subir catálogo a la nube</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'super-admin-sync-priorities\')">📶 Prioridades sync</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'super-admin-diagnostics\')">🧪 Diagnóstico avanzado</button>' +
+      '<button type="button" class="btn btn-outline" onclick="if(typeof crozzoAbrirDiagnostico===\'function\')crozzoAbrirDiagnostico()">📡 Comunicación en vivo</button>' +
       '<button type="button" class="btn btn-outline" onclick="navigateTo(\'pruebas-conexion\')">📡 Pruebas de conexión</button>' +
       '</div>' +
       '<div style="overflow-x:auto;"><table class="data-table crozzo-nube-probe-table"><thead><tr><th>Módulo</th><th>Tabla</th><th>Script</th><th>Estado</th></tr></thead><tbody>' +

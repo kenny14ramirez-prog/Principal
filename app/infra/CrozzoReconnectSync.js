@@ -250,6 +250,11 @@
       } catch (_) {}
       logLine('🔄 Sync total (' + (opts.source || 'manual') + ')…');
       var cfgRec = md();
+      if (cfgRec.role === 'B' && typeof global.crozzoHealRoleBCloudFromCaja === 'function') {
+        try {
+          await global.crozzoHealRoleBCloudFromCaja({ force: !!(opts.force || opts.source === 'online'), source: opts.source });
+        } catch (_) {}
+      }
       if (cfgRec.role === 'B' && cfgRec.allowLan !== false && typeof global.crozzoWifiZoneResolveCentral === 'function') {
         try {
           await global.crozzoWifiZoneResolveCentral({ force: !!(opts.force || opts.source === 'online') });

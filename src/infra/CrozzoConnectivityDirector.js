@@ -243,6 +243,14 @@
         } else {
           mode = 'lan_seek';
           reason = 'Sin nube propia; buscando caja en memoria del proyecto';
+          var gossipSt = safe(function () {
+            return global.CrozzoOfflineGossip && global.CrozzoOfflineGossip.getStatus();
+          }, null);
+          if (gossipSt && (gossipSt.active || gossipSt.peerCount > 0)) {
+            mode = 'lan_seek';
+            reason = 'Malla local activa (' + (gossipSt.peerCount || 0) + ' peers) — buscando caja';
+            selfLan = false;
+          }
         }
       }
 

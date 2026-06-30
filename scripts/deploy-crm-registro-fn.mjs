@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ref = process.argv[2] || process.env.SUPABASE_PROJECT_REF || 'usookdisddnqsahtepce';
+const ref = process.argv[2] || process.env.SUPABASE_PROJECT_REF || 'kcksmffoxdtusyebarrs';
 
 console.log('[deploy-crm-registro] Generando plantilla HTML embebida…');
 spawnSync('node', ['scripts/gen-crm-registro-template.mjs'], { cwd: root, stdio: 'inherit' });

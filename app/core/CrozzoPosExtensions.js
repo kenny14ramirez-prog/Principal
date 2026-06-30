@@ -1830,10 +1830,36 @@
     setCardState(id, level);
     return { level: level, summary: levelLabels[st.level] || st.level };
   }
+  async function testVisibility() {
+    var id = 'visibility';
+    setCardState(id, 'run');
+    if (!global.CrozzoConnectivityVisibilityProbe || typeof global.CrozzoConnectivityVisibilityProbe.probeAll !== 'function') {
+      logLine('fail', 'Módulo CrozzoConnectivityVisibilityProbe no cargado.', id);
+      setCardState(id, 'fail');
+      return { level: 'fail', summary: 'Sin probe' };
+    }
+    var vis = await global.CrozzoConnectivityVisibilityProbe.probeAll({ force: true, activeLan: true, bootstrap: true });
+    var ch = vis.channels || {};
+    Object.keys(ch).forEach(function (k) {
+      var c = ch[k];
+      if (!c) return;
+      logLine(
+        c.status === 'ok' ? 'ok' : c.status === 'warn' ? 'warn' : 'fail',
+        c.label + ': ' + (c.peerCount != null ? c.peerCount + ' señal(es) · ' : '') + c.detail,
+        id
+      );
+    });
+    if (vis.summary) logLine('ok', vis.summary.verdict, id);
+    var level = vis.summary && vis.summary.channelsOk >= 2 ? 'ok' : vis.summary && vis.summary.channelsOk >= 1 ? 'warn' : 'fail';
+    setCardState(id, level);
+    return { level: level, summary: (vis.summary && vis.summary.channelsOk) + '/6 canales OK' };
+  }
+
   var TESTS = {
     supabase: testSupabase,
     cloudio: testCloudIO,
     cascade: testCascade,
+    visibility: testVisibility,
     lan: testLan,
     hotspot: testHotspot,
     storage: testStorage,
@@ -1913,6 +1939,7 @@
       '      <p class="form-hint" style="margin-top:6px;">Solo lectura. No modifica ventas, inventario ni colas de negocio.</p></div>' +
       '      <div class="btn-group">' +
       '        <button type="button" class="btn btn-primary" id="diag-run-all">🚀 Ejecutar todas las pruebas</button>' +
+      '        <button type="button" class="btn btn-outline" id="diag-open-comunicacion">📡 Diagnóstico comunicación en vivo</button>' +
       '        <button type="button" class="btn btn-outline" id="diag-copy">📋 Copiar reporte</button>' +
       '      </div>' +
       '    </div>' +
@@ -1920,6 +1947,7 @@
       card('supabase', '🌐 Supabase Cloud') +
       card('cloudio', '📤 Envío/recepción nube') +
       card('cascade', '🪜 Estado de cascada') +
+      card('visibility', '👁 Visibilidad entre equipos') +
       card('lan', '📡 Red LAN Local') +
       card('hotspot', '📶 Hotspot / Servidor A') +
       card('storage', '💾 Almacenamiento Local') +
@@ -1989,6 +2017,10 @@
     });
     global.document.getElementById('diag-copy')?.addEventListener('click', function () {
       copyReport();
+    });
+    global.document.getElementById('diag-open-comunicacion')?.addEventListener('click', function () {
+      if (typeof global.crozzoAbrirDiagnostico === 'function') global.crozzoAbrirDiagnostico();
+      else if (global.showToast) global.showToast('Diagnóstico de comunicación no disponible.', 'warning');
     });
     global.document.getElementById('crozzo-readiness-run')?.addEventListener('click', function () {
       if (typeof global.crozzoRunProductionReadiness === 'function') global.crozzoRunProductionReadiness();

@@ -7,7 +7,7 @@
  * ausente, RLS, impresión mal configurada) y repara lo común sin tocar el
  * flujo que ya funciona.
  *
- * Abrir el panel: Ctrl+Alt+D · window.crozzoAbrirDiagnostico() · URL #diagnostico
+ * Abrir el panel: botón menú (admin/super admin) · window.crozzoAbrirDiagnostico()
  */
 (function (global) {
   'use strict';
@@ -72,6 +72,66 @@
   }
   function role() {
     return md().role === 'B' ? 'B' : 'A';
+  }
+
+  /** Solo administrador del negocio o Super Admin (KENNY). */
+  function canOpenComunicacionDiag() {
+    if (typeof global.isSuperAdminUser === 'function' && global.isSuperAdminUser()) return true;
+    if (typeof global.crozzoCanAccessGestionPerfilesMenus === 'function' && global.crozzoCanAccessGestionPerfilesMenus()) {
+      return true;
+    }
+    if (typeof global.getCurrentUser === 'function' && typeof global.crozzoIsNegocioAdminRol === 'function') {
+      var u = global.getCurrentUser();
+      return !!(u && global.crozzoIsNegocioAdminRol(u.rol));
+    }
+    return false;
+  }
+
+  function syncNavButton() {
+    if (!doc) return;
+    var li = doc.getElementById('li-menu-diag-comunicacion');
+    var btn = doc.getElementById('menu-diag-comunicacion');
+    if (!li || !btn) return;
+    var ok = canOpenComunicacionDiag();
+    if (typeof global.crozzoSetNavItemAccessVisible === 'function') {
+      global.crozzoSetNavItemAccessVisible(btn, ok);
+      if (typeof global.crozzoSetNavGroupAccessVisible === 'function') {
+        var grp = li.closest('.nav-group-li');
+        if (grp && ok) global.crozzoSetNavGroupAccessVisible(grp, true);
+      }
+    } else {
+      li.hidden = !ok;
+      li.style.display = ok ? '' : 'none';
+    }
+  }
+
+  function patchAccessControlHook() {
+    if (global.__crozzoDiagNavPatched || typeof global.applyAccessControl !== 'function') return;
+    global.__crozzoDiagNavPatched = true;
+    var orig = global.applyAccessControl;
+    global.applyAccessControl = function () {
+      var out = orig.apply(global, arguments);
+      syncNavButton();
+      return out;
+    };
+  }
+
+  function bindNavButton() {
+    if (!doc) return;
+    var btn = doc.getElementById('menu-diag-comunicacion');
+    if (!btn || btn._crozzoDiagBound) return;
+    btn._crozzoDiagBound = true;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      open();
+    });
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        open();
+      }
+    });
   }
 
   function classifyDbError(err) {
@@ -168,6 +228,126 @@
       );
     } else {
       rows.push(row('identidad', 'Negocio y sede', 'ok', 'Negocio ' + biz + ' · sede ' + loc + ' · rol ' + role() + ' · equipo ' + dev));
+    }
+
+    // 1b. Matriz de capacidades (plataforma + rutas A→E)
+    if (global.CrozzoCapabilityMatrix && typeof global.CrozzoCapabilityMatrix.evaluate === 'function') {
+      try {
+        await global.CrozzoCapabilityMatrix.evaluate({ fast: true, force: true });
+      } catch (_) {}
+    }
+    var cap = safe(function () {
+      return global.CrozzoCapabilityMatrix && global.CrozzoCapabilityMatrix.getSnapshot
+        ? global.CrozzoCapabilityMatrix.getSnapshot()
+        : null;
+    }, null);
+    if (cap && cap.platform) {
+      var plat = cap.platform;
+      rows.push(
+        row(
+          'cap-plat',
+          'Plataforma',
+          'ok',
+          (plat.shell || '?') + ' · ' + (plat.os || '?') + ' · ' + (plat.formFactor || '?') + (plat.canDeployHotspot ? ' · puede hotspot' : '')
+        )
+      );
+      var pathTxt = (cap.plan && cap.plan.primary) || tier();
+      if (cap.hub && cap.hub.funnelCloud) {
+        pathTxt += ' · embudo vía caja (presión DB)';
+      } else if (cap.hub && cap.hub.relayViaCentral) {
+        pathTxt += ' · relay estrella → ' + (cap.hub.ip || 'caja');
+      }
+      rows.push(
+        row(
+          'cap-ruta',
+          'Ruta activa (cadena híbrida)',
+          cap.plan && cap.plan.primary && cap.plan.primary !== 'none' ? 'ok' : 'warn',
+          pathTxt + (cap.plan && cap.plan.borrowedCloud ? ' · nube prestada vía caja' : ''),
+          'A=nube · B=LAN · C=hotspot · D=malla · E=QR. El sistema elige solo sin bloquear la operación.'
+        )
+      );
+      if (cap.brain) {
+        var b = cap.brain;
+        rows.push(
+          row(
+            'cap-cerebro',
+            'Cerebro ' + b.kind + (b.kind === 'A' ? ' (central)' : ' (terminal)'),
+            b.deficits && b.deficits.length ? 'warn' : 'ok',
+            b.mode === 'borrow'
+              ? 'Pide al cerebro A: ' + (b.deficits || []).join(', ')
+              : b.kind === 'A'
+                ? 'Sirve LAN, nube, QR y relay a tablets.'
+                : 'Operación autónoma (nube/LAN propios).',
+            b.borrowed && b.borrowed.length
+              ? 'Prestado: ' +
+                b.borrowed
+                  .map(function (x) {
+                    return x.cap + ' via ' + x.via;
+                  })
+                  .join(' · ')
+              : ''
+          )
+        );
+      }
+      ['cloud', 'lan', 'mesh'].forEach(function (k) {
+        var t = cap.transports && cap.transports[k];
+        if (!t) return;
+        rows.push(
+          row(
+            'cap-' + k,
+            'Transporte ' + k.toUpperCase(),
+            t.ready ? 'ok' : t.available ? 'warn' : 'fail',
+            t.label + ' · ' + (t.reason || '') + (t.active ? ' · ACTIVO' : '') +
+              (k === 'mesh' && t.peerCount != null ? ' · ' + t.peerCount + ' peer(s)' : '')
+          )
+        );
+      });
+    }
+
+    // 1c. Visibilidad entre equipos (¿se ven por nube, LAN, Wi‑Fi, gossip, BLE?)
+    if (global.CrozzoConnectivityVisibilityProbe && typeof global.CrozzoConnectivityVisibilityProbe.probeAll === 'function') {
+      try {
+        var vis = await global.CrozzoConnectivityVisibilityProbe.probeAll({ force: true, activeLan: true, bootstrap: true });
+        global.__crozzoLastVisibilityProbe = vis;
+        var ch = vis.channels || {};
+        var order = ['cloud', 'lan', 'hotspot', 'gossip', 'ble', 'qr'];
+        order.forEach(function (key) {
+          var c = ch[key];
+          if (!c) return;
+          rows.push(
+            row(
+              'vis-' + key,
+              'Visibilidad · ' + c.label,
+              c.status,
+              (c.peerCount != null ? c.peerCount + ' señal(es) · ' : '') + c.detail,
+              c.status === 'fail'
+                ? 'Conecte todas las tablets a la misma red del restaurante o escanee el QR de la caja.'
+                : c.status === 'warn'
+                  ? 'Canal activo pero sin peers — espere unos segundos o pulse Reparar automáticamente.'
+                  : ''
+            )
+          );
+        });
+        if (vis.summary) {
+          rows.push(
+            row(
+              'vis-resumen',
+              'Resumen visibilidad',
+              vis.summary.channelsOk >= 2 ? 'ok' : vis.summary.channelsOk >= 1 ? 'warn' : 'fail',
+              vis.summary.verdict +
+                ' (' +
+                vis.summary.channelsOk +
+                ' OK · ' +
+                vis.summary.channelsWarn +
+                ' aviso · ' +
+                vis.summary.peerSignals +
+                ' señales totales)'
+            )
+          );
+        }
+      } catch (eVis) {
+        rows.push(row('vis-error', 'Visibilidad entre equipos', 'warn', 'No se pudo ejecutar la sonda: ' + (eVis && eVis.message)));
+      }
     }
 
     // 2. Nube conectada
@@ -434,6 +614,38 @@
       safe(global.crozzoEnsureSedeLocationId, '');
     }
     if (typeof global.crozzoResetRuntimeSyncDedup === 'function') safe(global.crozzoResetRuntimeSyncDedup, null);
+    if (typeof global.crozzoRunFullReconnectSync === 'function') {
+      try {
+        await global.crozzoRunFullReconnectSync({ force: true, source: 'diag_repair' });
+        steps.push('Cadena híbrida re-evaluada (nube + LAN + malla).');
+      } catch (_) {}
+    }
+    if (global.CrozzoBrainPolicy && typeof global.CrozzoBrainPolicy.applyBorrowSeek === 'function') {
+      try {
+        if (role() === 'B') await global.CrozzoBrainPolicy.applyBorrowSeek({ force: true });
+        else if (typeof global.CrozzoBrainPolicy.enforceBrainServe === 'function') {
+          await global.CrozzoBrainPolicy.enforceBrainServe({ force: true });
+        }
+        steps.push('Política de cerebro A/B re-evaluada.');
+      } catch (_) {}
+    }
+    if (global.CrozzoCapabilityMatrix && typeof global.CrozzoCapabilityMatrix.evaluate === 'function') {
+      try {
+        await global.CrozzoCapabilityMatrix.evaluate({ force: true });
+      } catch (_) {}
+    }
+    if (global.CrozzoHumanConnectivityPredict && typeof global.CrozzoHumanConnectivityPredict.runRecovery === 'function') {
+      try {
+        await global.CrozzoHumanConnectivityPredict.runRecovery({ force: true });
+        steps.push('Predicciones humanas de conectividad re-evaluadas.');
+      } catch (_) {}
+    }
+    if (global.CrozzoConnectivityVisibilityProbe && typeof global.CrozzoConnectivityVisibilityProbe.probeAll === 'function') {
+      try {
+        await global.CrozzoConnectivityVisibilityProbe.probeAll({ force: true, activeLan: true, bootstrap: true });
+        steps.push('Sonda de visibilidad entre equipos ejecutada.');
+      } catch (_) {}
+    }
     if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
       try {
         await global.crozzoEnsureCloudSyncActive({ force: true, resetTableMissing: true, source: 'diag_repair' });
@@ -586,6 +798,14 @@
   }
 
   function open() {
+    if (!canOpenComunicacionDiag()) {
+      safe(function () {
+        if (typeof global.showToast === 'function') {
+          global.showToast('Solo administradores pueden abrir el diagnóstico de comunicación.', 'warning');
+        }
+      });
+      return;
+    }
     ensureOverlay();
     refresh();
   }
@@ -597,43 +817,27 @@
   global.crozzoDiagComunicacion = run;
   global.crozzoRepararComunicacion = repair;
   global.crozzoAbrirDiagnostico = open;
+  global.crozzoCanOpenComunicacionDiag = canOpenComunicacionDiag;
 
   if (doc) {
+    patchAccessControlHook();
+    bindNavButton();
     doc.addEventListener('keydown', function (e) {
+      if (!canOpenComunicacionDiag()) return;
       if ((e.ctrlKey || e.metaKey) && e.altKey && String(e.key || '').toLowerCase() === 'd') {
         e.preventDefault();
         open();
       }
     });
-    // Gesto táctil para tablets/APK sin teclado: 5 toques rápidos en la esquina superior izquierda.
-    var tapCount = 0;
-    var tapTimer = null;
-    doc.addEventListener(
-      'pointerdown',
-      function (e) {
-        if (e.clientX > 70 || e.clientY > 70) {
-          tapCount = 0;
-          return;
-        }
-        tapCount++;
-        if (tapTimer) global.clearTimeout(tapTimer);
-        tapTimer = global.setTimeout(function () {
-          tapCount = 0;
-        }, 2000);
-        if (tapCount >= 5) {
-          tapCount = 0;
-          open();
-        }
-      },
-      true
-    );
     var onReady = function () {
+      syncNavButton();
       try {
-        if (String(global.location && global.location.hash) === '#diagnostico') open();
+        if (String(global.location && global.location.hash) === '#diagnostico' && canOpenComunicacionDiag()) open();
       } catch (_) {}
       global.setTimeout(bootSelfHeal, 4000);
     };
     if (doc.readyState === 'complete' || doc.readyState === 'interactive') onReady();
     else doc.addEventListener('DOMContentLoaded', onReady);
+    global.addEventListener('crozzo-login-success', syncNavButton);
   }
 })(typeof window !== 'undefined' ? window : globalThis);

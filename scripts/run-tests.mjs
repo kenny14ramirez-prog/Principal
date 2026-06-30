@@ -23,6 +23,7 @@ const CHECKS = [
   '_connectivity-mixed-flow-check.mjs',
   '_connectivity-scale-resilience.mjs',
   '_offline-gossip-check.mjs',
+  '_connectivity-visibility-check.mjs',
   '_lan-mdns-ws-check.mjs',
   '_ble-mesh-check.mjs',
   '_ble-mesh-scale-sim.mjs',

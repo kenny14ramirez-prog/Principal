@@ -34060,12 +34060,23 @@ function renderConfigConexionesSistemas() {
   const c = getConexionSistemasConfig();
   const roleA = c.role !== 'B';
   const esc = escConexionAttr;
+  const showDiagBtn =
+    (typeof crozzoCanOpenComunicacionDiag === 'function' && crozzoCanOpenComunicacionDiag()) ||
+    (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) ||
+    (() => {
+      const u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+      return !!(u && typeof crozzoIsNegocioAdminRol === 'function' && crozzoIsNegocioAdminRol(u.rol));
+    })();
+  const diagBtnHtml = showDiagBtn
+    ? '<button type="button" class="btn btn-outline" onclick="if(typeof crozzoAbrirDiagnostico===\'function\')crozzoAbrirDiagnostico()">📡 Diagnóstico comunicación</button>'
+    : '';
   return `
     <div class="card">
       <div class="card-header">
         <span class="card-title">🔗 Conexión de sistemas</span>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="btn btn-outline" onclick="openAsistentePasoAPasoBloqueado()">🧭 Asistente Paso a Paso</button>
+          ${diagBtnHtml}
           <button type="button" class="btn btn-primary" onclick="wizardOpen()">🔧 Configurar este dispositivo</button>
         </div>
       </div>
@@ -34783,6 +34794,14 @@ window.crozzoDeviceFullyIsolated = crozzoDeviceFullyIsolated;
 function crozzoTierAllowsCloudSync() {
   if (crozzoCloudFirstSyncEnabled()) {
     if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady()) return false;
+    try {
+      var mdHybrid = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+      var syncModo =
+        typeof config !== 'undefined' && config.get ? String(config.get('runtimeSyncModo') || 'hybrid').toLowerCase() : 'hybrid';
+      if (syncModo === 'hybrid' && mdHybrid.role === 'A' && typeof crozzoWanLikely === 'function' && crozzoWanLikely()) {
+        return true;
+      }
+    } catch (_) {}
     // No confiar en navigator.onLine / type=wifi sin ping: rompe-muros WiFi ≠ internet.
     return crozzoCloudWanReady();
   }
@@ -47641,6 +47660,7 @@ function init() {
   let pairingApplying = false;
   let pairingAutoApplyTimer = null;
   let pairingQrRenderToken = 0;
+  let pairingLastReceiverProfile = 'tablet';
   let pairingDecodeToken = 0;
   let pairingDecodingActive = false;
   let pairingNativeScanSeq = 0;
@@ -48845,6 +48865,36 @@ function init() {
     }
   }
   window.crozzoPairingBuildPayload = crozzoPairingBuildPayload;
+  async function crozzoPairingBuildPayloadAsync(targetProfile) {
+    var built = crozzoPairingBuildPayload(targetProfile);
+    if (built.error || !built.payload) return built;
+    var url = String(built.payload.supabase_url || '').trim();
+    var key = String(built.payload.supabase_key || '').trim();
+    if (!url || !key) return built;
+    if (typeof crozzoPingSupabaseForTier !== 'function') {
+      built.probeSkipped = true;
+      return built;
+    }
+    var probe = await crozzoPingSupabaseForTier(url, key);
+    if (!probe || !probe.ok) {
+      var dnsFail = !!(probe && probe.dnsError);
+      if (dnsFail) {
+        return {
+          error:
+            'El dominio Supabase no existe o no resuelve. Super Admin → Nube → pegue la URL exacta del Dashboard → «Guardar y conectar» → genere el QR de nuevo.',
+          probe: probe,
+        };
+      }
+      built.probeWarning =
+        '⚠️ Nube no respondió en este momento — el QR incluye credenciales, pero confirme internet en la caja antes de emparejar tablets.';
+      built.probe = probe;
+      return built;
+    }
+    built.probeOk = true;
+    built.probe = probe;
+    return built;
+  }
+  window.crozzoPairingBuildPayloadAsync = crozzoPairingBuildPayloadAsync;
   function crozzoPairingFailDecoded(msg, shortMsg) {
     crozzoPairingShowReaderPlaceholder(shortMsg || '✗ Código no válido', false);
     crozzoPairingShowStatus(msg, { isErr: true });
@@ -49163,6 +49213,16 @@ function init() {
         warnId,
         '⚠️ Este QR NO lleva credenciales de nube. En la caja: Super Admin → Nube → Paso 1 → «Guardar y conectar» → genere el QR otra vez.'
       );
+    } else if (built.probeOk) {
+      var projHost = String(built.payload.supabase_url || '')
+        .replace(/^https?:\/\//i, '')
+        .split('/')[0];
+      crozzoPairingSetWarn(
+        warnId,
+        '✅ Nube verificada · ' + (projHost || 'Supabase') + ' — el QR transmite credenciales válidas a la tablet.'
+      );
+    } else if (built.probeWarning) {
+      crozzoPairingSetWarn(warnId, built.probeWarning);
     }
   }
   function crozzoPairingRenderScanQrIntoHost(host, built) {
@@ -49225,6 +49285,7 @@ function init() {
   }
   window.crozzoPairingSelectReceiver = function crozzoPairingSelectReceiver(targetProfile) {
     targetProfile = String(targetProfile || 'tablet').toLowerCase();
+    pairingLastReceiverProfile = targetProfile;
     pairingQrRenderToken++;
     el('crozzoPairingStepChoice').hidden = true;
     el('crozzoPairingStepReceiver').hidden = false;
@@ -49239,7 +49300,7 @@ function init() {
     }
     crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Preparando nodo central y sellando código…');
     crozzoPairingEnsureCajaReady()
-      .then(function (ready) {
+      .then(async function (ready) {
         if (ready && ready.serverOk === false) {
           crozzoPairingSetWarn(
             'crozzoPairingReceiverWarn',
@@ -49248,13 +49309,41 @@ function init() {
               ' El QR se genera igual, pero la tablet podría no conectar hasta que el servidor esté activo.'
           );
         }
-        var built = crozzoPairingBuildPayload(targetProfile);
+        var built =
+          typeof crozzoPairingBuildPayloadAsync === 'function'
+            ? await crozzoPairingBuildPayloadAsync(targetProfile)
+            : crozzoPairingBuildPayload(targetProfile);
         crozzoPairingRenderReceiverQr(targetProfile, built);
       })
-      .catch(function () {
-        crozzoPairingRenderReceiverQr(targetProfile, crozzoPairingBuildPayload(targetProfile));
+      .catch(async function () {
+        var builtFallback =
+          typeof crozzoPairingBuildPayloadAsync === 'function'
+            ? await crozzoPairingBuildPayloadAsync(targetProfile)
+            : crozzoPairingBuildPayload(targetProfile);
+        crozzoPairingRenderReceiverQr(targetProfile, builtFallback);
       });
   };
+  function crozzoPairingRefreshReceiverQrIfVisible() {
+    var step = el('crozzoPairingStepReceiver');
+    if (!step || step.hidden) return;
+    var profile = pairingLastReceiverProfile || 'tablet';
+    pairingQrRenderToken++;
+    crozzoPairingShowQrSkeleton();
+    pairingLastQrText = '';
+    crozzoPairingSetWarn('crozzoPairingReceiverWarn', 'Actualizando QR con credenciales de nube…');
+    var buildFn =
+      typeof crozzoPairingBuildPayloadAsync === 'function'
+        ? crozzoPairingBuildPayloadAsync(profile)
+        : Promise.resolve(crozzoPairingBuildPayload(profile));
+    buildFn
+      .then(function (built) {
+        crozzoPairingRenderReceiverQr(profile, built);
+      })
+      .catch(function () {
+        crozzoPairingRenderReceiverQr(profile, crozzoPairingBuildPayload(profile));
+      });
+  }
+  window.crozzoPairingRefreshReceiverQrIfVisible = crozzoPairingRefreshReceiverQrIfVisible;
   function crozzoPairingQrCanvas(hostId) {
     var host = el(hostId || 'crozzoPairingQrHost');
     if (!host) return null;
@@ -50144,6 +50233,55 @@ function init() {
     }
     return null;
   }
+  window.crozzoPairingFetchCloudFromLan = crozzoPairingFetchCloudFromLan;
+  window.crozzoHealRoleBCloudFromCaja = async function crozzoHealRoleBCloudFromCaja(opts) {
+    opts = opts || {};
+    var md = typeof getMultiDeviceConfig === 'function' ? getMultiDeviceConfig() : {};
+    if (md.role !== 'B') return { healed: false, reason: 'not_role_b' };
+    var cip = String(md.centralIp || '').trim();
+    var port = Math.max(1, Number(md.port) || 3000);
+    if (!cip) return { healed: false, reason: 'no_central_ip' };
+    var creds =
+      typeof window.crozzoResolveSupabaseCredentials === 'function'
+        ? window.crozzoResolveSupabaseCredentials()
+        : null;
+    var url = creds && creds.url ? String(creds.url).trim() : '';
+    var key = creds && creds.key ? String(creds.key).trim() : '';
+    var needsHeal = !url || !key;
+    if (!needsHeal && typeof crozzoPingSupabaseCached === 'function') {
+      var ping = await crozzoPingSupabaseCached(url, key, { force: !!(opts && opts.force) });
+      needsHeal = !ping || !ping.ok;
+    }
+    if (!needsHeal) return { healed: false, reason: 'cloud_ok' };
+    var lanTok = String(md.lanToken || '').trim();
+    if (!lanTok && typeof window.crozzoLanAuthToken === 'function') {
+      try {
+        lanTok = String(window.crozzoLanAuthToken() || '').trim();
+      } catch (_) {}
+    }
+    var pulled = await crozzoPairingFetchCloudFromLan(cip, port, lanTok);
+    if (!pulled) return { healed: false, reason: 'lan_pull_failed' };
+    if (url === pulled.url && key === pulled.key) return { healed: false, reason: 'same_creds_still_down' };
+    if (typeof window.crozzoFinalizeCloudConfigAfterPairing === 'function') {
+      window.crozzoFinalizeCloudConfigAfterPairing({
+        supabase_url: pulled.url,
+        supabase_key: pulled.key,
+        business_id: pulled.business_id,
+        business_name: pulled.business_name,
+        location_id: String(md.locationId || '').trim(),
+      });
+    }
+    try {
+      if (typeof window.initSupabaseClient === 'function') await window.initSupabaseClient();
+    } catch (_) {}
+    if (typeof window.crozzoEnsureCloudSyncActive === 'function') {
+      await window.crozzoEnsureCloudSyncActive({ source: 'heal_lan_cloud', resetTableMissing: false }).catch(function () {});
+    }
+    if (typeof window.crozzoRunFullReconnectSync === 'function') {
+      window.crozzoRunFullReconnectSync({ source: 'heal_lan_cloud', skipPrint: true }).catch(function () {});
+    }
+    return { healed: true, url: pulled.url };
+  };
   window.crozzoPairingApplyFromForm = async function crozzoPairingApplyFromForm() {
     if (pairingApplying) return;
     const p = pairingLastPayload;
@@ -50341,6 +50479,57 @@ function init() {
         if (typeof window.initSupabaseClient === 'function') await window.initSupabaseClient();
       } catch (e5) {
         console.warn('[pairing] initSupabaseClient', e5);
+      }
+      var cloudProbeOk = false;
+      try {
+        if (typeof crozzoPingSupabaseForTier === 'function') {
+          var postProbe = await crozzoPingSupabaseForTier(save.url, save.anonKey);
+          cloudProbeOk = !!(postProbe && postProbe.ok);
+          if (!cloudProbeOk && cip && tp !== 'caja') {
+            crozzoPairingShowStatus('Nube no responde — obteniendo credenciales actuales desde la caja…', {
+              busy: true,
+              phase: 'cloud',
+              progress: 74,
+            });
+            var lanTokHeal = String(lan.lan_token || p.lan_token || '').trim();
+            var healedPull = await crozzoPairingFetchCloudFromLan(cip, port, lanTokHeal);
+            if (
+              healedPull &&
+              (healedPull.url !== save.url ||
+                healedPull.key !== save.anonKey ||
+                !!(postProbe && postProbe.dnsError))
+            ) {
+              save.url = healedPull.url;
+              save.anonKey = healedPull.key;
+              p.supabase_url = healedPull.url;
+              p.supabase_key = healedPull.key;
+              if (typeof window.crozzoFinalizeCloudConfigAfterPairing === 'function') {
+                window.crozzoFinalizeCloudConfigAfterPairing({
+                  supabase_url: healedPull.url,
+                  supabase_key: healedPull.key,
+                  device_name: save.deviceName,
+                  device_id: save.deviceId,
+                  location_id: loc,
+                  business_id: String(healedPull.business_id || p.business_id || p.businessId || '').trim(),
+                  business_name: String(healedPull.business_name || p.business_name || p.businessName || '').trim(),
+                });
+              }
+              try {
+                if (typeof window.initSupabaseClient === 'function') await window.initSupabaseClient();
+              } catch (_) {}
+              postProbe = await crozzoPingSupabaseForTier(save.url, save.anonKey);
+              cloudProbeOk = !!(postProbe && postProbe.ok);
+            }
+          }
+          if (!cloudProbeOk) {
+            crozzoPairingShowStatus(
+              '⚠️ Nube no alcanzable — LAN activo. Verifique internet o regenere QR en la caja con Super Admin → Nube.',
+              { isErr: true, phase: 'cloud', progress: 76 }
+            );
+          }
+        }
+      } catch (eProbe) {
+        console.warn('[pairing] cloud probe', eProbe);
       }
       // Registrar el dispositivo en la lista de la nube APENAS se empareja: aparece
       // como "emparejado" en la caja/Super Admin aunque aún no haya iniciado sesión.
@@ -50581,6 +50770,14 @@ function init() {
   function crozzoWirePairingUi() {
     crozzoWirePairDeviceBtn();
     crozzoWirePairingOverlayControls();
+    try {
+      window.addEventListener('crozzo-supabase-config-saved', function () {
+        try {
+          if (typeof crozzoInvalidateCloudPingCache === 'function') crozzoInvalidateCloudPingCache();
+        } catch (_) {}
+        crozzoPairingRefreshReceiverQrIfVisible();
+      });
+    } catch (_) {}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', crozzoWirePairingUi);
   else crozzoWirePairingUi();

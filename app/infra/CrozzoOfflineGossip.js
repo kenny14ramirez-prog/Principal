@@ -102,10 +102,53 @@
     }
   }
 
+  function hybridBackupNeeded() {
+    try {
+      if (typeof global.config === 'undefined' || !global.config.get) return false;
+      if (String(global.config.get('runtimeSyncModo') || 'hybrid').toLowerCase() !== 'hybrid') return false;
+      var last = global.__CROZZO_LAN_LAST_OK;
+      if (!last || Date.now() - last > 28000) return true;
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && !global.crozzoIsLocalLanSegmentUp()) {
+        return true;
+      }
+      var ds = global.__CROZZO_DIRECTOR_STATE;
+      if (ds && (ds.mode === 'lan_seek' || ds.mode === 'isolated')) return true;
+    } catch (_) {}
+    return false;
+  }
+
   function shouldRun() {
     if (global.__CROZZO_GOSSIP_FORCE === true) return true;
     var t = tierNow();
-    if (t === 'cloud' || t === 'lan' || t === 'hotspot') return false;
+    // Apagar gossip cuando cloud/lan/hotspot son la ruta primaria estable
+    if (t === 'cloud' || t === 'lan' || t === 'hotspot') {
+      if (t === 'cloud') return false;
+      if (cloudPathLikely() && !hybridBackupNeeded()) return false;
+      return hybridBackupNeeded();
+    }
+    return true;
+  }
+
+  /** Tablets en la misma pestaña/subred: BroadcastChannel permite malla sin caja. */
+  function sameSubnetLikely() {
+    if (typeof global.BroadcastChannel !== 'function') return false;
+    try {
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
+        return true;
+      }
+    } catch (_) {}
+    return tierNow() === 'offline' || tierNow() === 'mesh';
+  }
+
+  /** Arranque agresivo de malla cuando humanos dejan tablets en la misma Wi‑Fi sin caja. */
+  function bootstrapCluster() {
+    if (!shouldRun() && !sameSubnetLikely()) return false;
+    global.__CROZZO_GOSSIP_FORCE = false;
+    if (!_active) start();
+    sendHello();
+    if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.requestPeerQrCatalog === 'function') {
+      global.CrozzoInternalQrRegistry.requestPeerQrCatalog({ force: true });
+    }
     return true;
   }
 
@@ -541,7 +584,7 @@
 
   function start() {
     if (_active) return;
-    if (!shouldRun()) return;
+    if (!shouldRun() && !sameSubnetLikely()) return;
     _active = true;
     var ctx = meshCtx();
 
@@ -655,6 +698,8 @@
     ingestRaw: ingestRaw,
     getStatus: getStatus,
     reconcileTier: reconcileTier,
+    bootstrapCluster: bootstrapCluster,
+    sameSubnetLikely: sameSubnetLikely,
   };
 
   if (typeof document !== 'undefined') {

@@ -52,6 +52,8 @@ const mit = {
   orchestrator: existsSync(join(app, 'infra/CrozzoConnectivityOrchestrator.js')),
   bleMesh: existsSync(join(app, 'infra/CrozzoBleMesh.js')) && hasAll('infra/CrozzoBleMesh.js', ['MESH_NAME_CHANGE', 'MAX_HOPS']),
   blePeerRegistry: existsSync(join(app, 'infra/CrozzoBlePeerRegistry.js')) && hasAll('infra/CrozzoBlePeerRegistry.js', ['identityRev', 'resolvePeerByName']),
+  humanPredict: hasAll('infra/CrozzoHumanConnectivityPredict.js', ['bootstrap_gossip_cluster', 'H1_wrong_wifi']),
+  gossipCluster: hasAll('infra/CrozzoOfflineGossip.js', ['bootstrapCluster', 'sameSubnetLikely']),
 };
 
 /** Simula N dispositivos con perfil y fallos; devuelve score 0–100 por escenario. */
@@ -82,6 +84,10 @@ function simulateScenario(sc) {
   } else if (!centralUp && !lanUp && offline > 0) {
     notes.push('Comandas: gossip UDP entre islas (misma subred)');
     score -= 35;
+    if (mit.humanPredict && mit.gossipCluster) {
+      notes.push('Predicción humana: misma Wi‑Fi → malla gossip auto + guía al operador');
+      score += 18;
+    }
     if (offline > limits.gossipMaxPeers) {
       breaks.push('Gossip >' + limits.gossipMaxPeers + ' peers — dedup/relay degradado');
       score -= 15;
@@ -206,11 +212,13 @@ wire('Escala: caja no saturada con nube sana', mit.lanCloudSpacing, 'WifiZoneBri
 wire('Escala: escalonado anti-estampida', mit.reconnectStagger, 'ReconnectSync');
 wire('Escala: orquestador cascada 5 niveles', mit.orchestrator, 'ConnectivityOrchestrator');
 wire('Escala: BLE mesh + identidad peers', mit.bleMesh && mit.blePeerRegistry, 'BleMesh + BlePeerRegistry');
+wire('Escala: predicción humana conectividad', mit.humanPredict && mit.gossipCluster, 'HumanPredict + gossip cluster');
 
 const checks = [
   '_connectivity-flow-check.mjs',
   '_connectivity-mixed-flow-check.mjs',
   '_offline-gossip-check.mjs',
+  '_connectivity-visibility-check.mjs',
   '_lan-mdns-ws-check.mjs',
   '_ble-mesh-check.mjs',
   '_ble-mesh-scale-sim.mjs',
