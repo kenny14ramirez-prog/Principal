@@ -34545,13 +34545,15 @@ async function crozzoPingSupabaseForTier(url, anonKey) {
         console.warn(msg);
       } catch (_) {}
     }
-    return { ok: false, reason: msg || 'error' };
+    const dnsError = /ERR_NAME_NOT_RESOLVED|ENOTFOUND|getaddrinfo|NXDOMAIN|Name not resolved/i.test(msg);
+    return { ok: false, reason: msg || 'error', dnsError: dnsError };
   }
 }
 /** Caché + deduplicación de ping Supabase (seguridad intacta; menos fetch duplicados). */
 var __crozzoCloudPingCache = { key: '', at: 0, result: null, inflight: null, inflightKey: '' };
 var CROZZO_CLOUD_PING_TTL_OK_MS = 22000;
 var CROZZO_CLOUD_PING_TTL_FAIL_MS = 7000;
+var CROZZO_CLOUD_PING_TTL_DNS_FAIL_MS = 120000;
 function crozzoInvalidateCloudPingCache() {
   __crozzoCloudPingCache.at = 0;
   __crozzoCloudPingCache.result = null;
@@ -34567,14 +34569,16 @@ async function crozzoPingSupabaseCached(url, anonKey, opts) {
   if (!u || !k) return { ok: false, reason: 'missing_credentials' };
   const cacheKey = u + '|' + k.length;
   const now = Date.now();
+  const cached = __crozzoCloudPingCache.result;
+  const failTtl =
+    cached && cached.dnsError ? CROZZO_CLOUD_PING_TTL_DNS_FAIL_MS : CROZZO_CLOUD_PING_TTL_FAIL_MS;
   if (
     !force &&
     __crozzoCloudPingCache.key === cacheKey &&
-    __crozzoCloudPingCache.result &&
-    now - __crozzoCloudPingCache.at <
-      (__crozzoCloudPingCache.result.ok ? CROZZO_CLOUD_PING_TTL_OK_MS : CROZZO_CLOUD_PING_TTL_FAIL_MS)
+    cached &&
+    now - __crozzoCloudPingCache.at < (cached.ok ? CROZZO_CLOUD_PING_TTL_OK_MS : failTtl)
   ) {
-    return __crozzoCloudPingCache.result;
+    return cached;
   }
   if (!force && __crozzoCloudPingCache.inflight && __crozzoCloudPingCache.inflightKey === cacheKey) {
     return __crozzoCloudPingCache.inflight;
@@ -34639,8 +34643,21 @@ function crozzoNoteWanUnreachable(reason) {
     window.__CROZZO_WAN_LAST_OK = 0;
     window.__CROZZO_WAN_LAST_FAIL = now;
     crozzoInvalidateCloudPingCache();
+    try {
+      if (typeof window.crozzoQuietDisconnectSupabaseRealtime === 'function') {
+        window.crozzoQuietDisconnectSupabaseRealtime();
+      }
+      if (typeof window.crozzoStopCloudTransportsQuiet === 'function') {
+        window.crozzoStopCloudTransportsQuiet();
+      }
+    } catch (_) {}
     if (now - __crozzoWanUnreachableLastAt > 5000) {
       __crozzoWanUnreachableLastAt = now;
+      try {
+        if (typeof crozzoActivateLocalSyncPath === 'function') {
+          crozzoActivateLocalSyncPath('wan_unreachable').catch(function () {});
+        }
+      } catch (_) {}
       if (
         typeof window.crozzoStartLanOpsSync === 'function' &&
         typeof crozzoIsLocalLanSegmentUp === 'function' &&
@@ -36847,8 +36864,21 @@ async function testSupabaseConnection() {
     try {
       console.warn(err && err.message ? err.message : err);
     } catch (_) {}
-    if (el) el.textContent = '🔴 Desconectado · No se pudo contactar';
-    showToast(err.name === 'AbortError' ? 'Timeout al contactar Supabase' : 'Error: ' + (err.message || err), 'warning');
+    const msg = String((err && err.message) || err || '');
+    const dnsFail = /ERR_NAME_NOT_RESOLVED|ENOTFOUND|getaddrinfo|NXDOMAIN|Name not resolved/i.test(msg);
+    if (el) {
+      el.textContent = dnsFail
+        ? '🔴 Dominio Supabase no existe — copie Project URL del dashboard'
+        : '🔴 Desconectado · No se pudo contactar';
+    }
+    showToast(
+      dnsFail
+        ? 'El dominio Supabase no resuelve en DNS. Dashboard → Settings → API → Project URL (https://xxxx.supabase.co).'
+        : err.name === 'AbortError'
+          ? 'Timeout al contactar Supabase'
+          : 'Error: ' + (err.message || err),
+      'warning'
+    );
   }
 }
 async function testLANConnection() {
@@ -37066,6 +37096,34 @@ async function saveSupabaseConfig() {
     return;
   }
   const next = readCloudSavePayload();
+  if (next.supabaseSyncEnabled) {
+    const sbUrlRaw = (next.supabase?.url || '').trim();
+    const sbKey = (next.supabase?.anonKey || '').trim();
+    const sbUrl =
+      typeof window.crozzoNormalizeSupabaseProjectUrl === 'function'
+        ? window.crozzoNormalizeSupabaseProjectUrl(sbUrlRaw)
+        : sbUrlRaw.replace(/\/+$/, '').replace(/\/rest\/v1.*$/i, '');
+    if (typeof window.crozzoPingSupabaseForTier === 'function') {
+      const probe = await window.crozzoPingSupabaseForTier(sbUrl, sbKey);
+      if (!probe || !probe.ok) {
+        const r = probe && probe.reason ? String(probe.reason) : '';
+        const dnsFail = !!(probe && probe.dnsError) || /ERR_NAME_NOT_RESOLVED|ENOTFOUND|getaddrinfo/i.test(r);
+        showToast(
+          dnsFail
+            ? 'El dominio Supabase no existe o no resuelve. Copie la URL exacta de Supabase Dashboard → Settings → API.'
+            : 'No se pudo contactar Supabase con esas credenciales. Corrija URL/clave antes de guardar.',
+          'error'
+        );
+        const el = document.getElementById('sanCloudConnStatus') || document.getElementById('mdCloudConnStatus');
+        if (el) {
+          el.textContent = dnsFail
+            ? '🔴 Dominio inválido — verifique Project URL en Supabase'
+            : '🔴 Supabase no alcanzable';
+        }
+        return;
+      }
+    }
+  }
   if (!persistCrozzoSupabaseConfigFileFromMultidispositivo(next)) return;
   const saved = persistMultiDeviceConfig(next);
   try {

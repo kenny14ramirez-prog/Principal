@@ -118,7 +118,7 @@
     __rtResubAttempt = Math.min((__rtResubAttempt || 0) + 1, 14);
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!online() || __tableMissing) return;
+      if (!online() || __tableMissing || !cloudTransportActive()) return;
       subscribeRealtime(reason || 'resub');
     }, rtResubscribeDelayMs());
   }

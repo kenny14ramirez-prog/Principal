@@ -113,7 +113,7 @@
     var ms = rtResubscribeDelayMs();
     __rtResubTimer = global.setTimeout(function () {
       __rtResubTimer = null;
-      if (!online()) return;
+      if (!online() || !tierAllowsCloudRead()) return;
       subscribeComandaRealtime(reason || 'resub');
     }, ms);
   }

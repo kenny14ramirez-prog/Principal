@@ -18,8 +18,6 @@
   var URL_MODE_FUNCTION = 'function';
   var URL_MODE_STORAGE = 'storage';
   var URL_MODE_RELAY = 'relay';
-  /** Formulario web central Crozzo — un solo deploy en nube (no por PC). */
-  var CRM_REG_RELAY_FN = 'https://usookdisddnqsahtepce.supabase.co/functions/v1/crm-registro-cliente';
   var _pollTimer = null;
   var _tableMissing = false;
   var _tableMissingNotified = false;
@@ -291,7 +289,9 @@
 
   function relayFunctionUrl() {
     if (global.CROZZO_CRM_REG_RELAY_FN) return String(global.CROZZO_CRM_REG_RELAY_FN).replace(/\/+$/, '');
-    return CRM_REG_RELAY_FN;
+    var own = ownRegistroFunctionUrl();
+    if (own && /^https:\/\/[^/?#]+\.supabase\.co\/functions\/v1\//i.test(own)) return own;
+    return '';
   }
 
   function ownRegistroFunctionUrl() {

@@ -902,6 +902,23 @@ async function initSupabaseClient() {
     return null;
   }
 }
+/** Corta canales Realtime de Supabase (evita tormenta WebSocket cuando WAN/DNS cae). */
+function crozzoQuietDisconnectSupabaseRealtime() {
+  try {
+    const sb = window.__SUPABASE;
+    if (sb && typeof sb.removeAllChannels === 'function') sb.removeAllChannels();
+  } catch (e) {
+    console.warn('[crozzo-sb] disconnect realtime', e);
+  }
+}
+window.crozzoQuietDisconnectSupabaseRealtime = crozzoQuietDisconnectSupabaseRealtime;
+/** Alias para wizard Super Admin: probe REST incluyendo fallos DNS. */
+window.crozzoProbeSupabaseHostReachable = async function crozzoProbeSupabaseHostReachable(url, anonKey) {
+  if (typeof window.crozzoPingSupabaseForTier === 'function') {
+    return window.crozzoPingSupabaseForTier(url, anonKey);
+  }
+  return { ok: false, reason: 'ping_unavailable' };
+};
 /**
  * Ejecuta una consulta PostgREST con tolerancia a fallos (sin propagar errores duros a la UI).
  * @param {string} tableName
