@@ -129,6 +129,73 @@
     );
   }
 
+  function archiveStatusHtml() {
+    var A = global.CrozzoComandaArchive;
+    if (!A || typeof A.status !== 'function') {
+      return (
+        '<div class="card"><div class="card-header"><span class="card-title">📦 Archivo comandas</span></div>' +
+        '<p class="form-hint">Módulo <code>CrozzoComandaArchive.js</code> no cargado.</p></div>'
+      );
+    }
+    var st = A.status();
+    var gzip = st.gzip ? 'gzip activo' : 'sin gzip (JSON plano)';
+    return (
+      '<div class="card">' +
+      '<div class="card-header"><span class="card-title">📦 Archivo comandas (12 h)</span></div>' +
+      '<p class="form-hint">Entregadas &gt;12 h se archivan comprimidas por mes (IndexedDB). Purge automático en nube cada <strong>6 h</strong> (manual abajo). Cocina activa no se toca.</p>' +
+      '<ul class="form-hint" style="margin:8px 0 12px;padding-left:1.2rem;">' +
+      '<li>Buffer pendiente: <strong>' +
+      esc(st.pending) +
+      '</strong></li>' +
+      '<li>Compresión: <strong>' +
+      esc(gzip) +
+      '</strong></li>' +
+      '<li>Retención operativa: <strong>12 horas</strong> (más viejo = fuera de tope, se archiva y elimina)</li>' +
+      '</ul>' +
+      '<div class="crozzo-nube-actions" style="flex-wrap:wrap;gap:8px;">' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanComandaArchiveView">📂 Ver mes actual</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanComandaArchiveMaint">🧹 Mantenimiento archivo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanComandaCloudPurge">☁️ Purge nube 12 h</button>' +
+      '</div></div>'
+    );
+  }
+
+  function syncQueueStatusHtml() {
+    var H = global.CrozzoSyncQueueHygiene;
+    if (!H || typeof H.status !== 'function') {
+      return (
+        '<div class="card"><div class="card-header"><span class="card-title">🧹 Cola sync_queue</span></div>' +
+        '<p class="form-hint">Módulo <code>CrozzoSyncQueueHygiene.js</code> no cargado.</p></div>'
+      );
+    }
+    var st = H.status();
+    var last =
+      st.lastPurgeAt && st.lastPurgeAt > 0
+        ? new Date(st.lastPurgeAt).toLocaleString('es-CO')
+        : '—';
+    return (
+      '<div class="card">' +
+      '<div class="card-header"><span class="card-title">🧹 Cola sync_queue (nube)</span></div>' +
+      '<p class="form-hint">Buffer de operaciones offline ya replicadas al servidor. <strong>No toca pending</strong> — solo filas terminadas (synced/failed) con más de ' +
+      esc(st.retentionDays) +
+      ' días.</p>' +
+      '<ul class="form-hint" style="margin:8px 0 12px;padding-left:1.2rem;">' +
+      '<li>Última limpieza: <strong>' +
+      esc(last) +
+      '</strong></li>' +
+      '<li>Último barrido: <strong>' +
+      esc(st.lastPurged || 0) +
+      ' filas</strong></li>' +
+      '<li>Automático cada <strong>' +
+      esc(st.intervalHours) +
+      ' h</strong></li>' +
+      '</ul>' +
+      '<div class="crozzo-nube-actions" style="flex-wrap:wrap;gap:8px;">' +
+      '<button type="button" class="btn btn-outline btn-sm" id="sanSyncQueuePurge">🧹 Purge sync_queue ahora</button>' +
+      '</div></div>'
+    );
+  }
+
   function basicoBadge(b) {
     if (!b) return '<span class="badge badge-outline">Completo</span>';
     if (b === 'both') return '<span class="badge badge-success">Básico ambos</span>';
@@ -315,6 +382,8 @@
       renderDomainRef() +
       renderOperationRef() +
       '</div>' +
+      archiveStatusHtml() +
+      syncQueueStatusHtml() +
       '<div class="card">' +
       '<div class="card-header"><span class="card-title">Acciones</span></div>' +
       '<div class="crozzo-nube-actions" style="flex-wrap:wrap;gap:8px;">' +
@@ -382,6 +451,78 @@
           global.crozzoCloudPushFlush('super_admin_manual');
         }
         if (global.showToast) global.showToast('Sincronización forzada enviada', 'info');
+      });
+    }
+
+    var archView = document.getElementById('sanComandaArchiveView');
+    if (archView) {
+      archView.addEventListener('click', function () {
+        var mk =
+          global.CrozzoComandaArchive && global.CrozzoComandaArchive.monthKey
+            ? global.CrozzoComandaArchive.monthKey()
+            : '';
+        if (typeof global.crozzoOpenComandaArchiveViewer === 'function') {
+          global.crozzoOpenComandaArchiveViewer(mk);
+        }
+      });
+    }
+    var archMaint = document.getElementById('sanComandaArchiveMaint');
+    if (archMaint) {
+      archMaint.addEventListener('click', function () {
+        if (typeof global.crozzoRunComandaArchiveMaintenance === 'function') {
+          global
+            .crozzoRunComandaArchiveMaintenance({ force: true, forceFlush: true })
+            .then(function (r) {
+              if (global.showToast) {
+                global.showToast(
+                  'Archivo: ' +
+                    (r && r.histTrim != null ? r.histTrim + ' hist. ' : '') +
+                    (r && r.flush && r.flush.flushed != null ? r.flush.flushed + ' comprimidas' : 'ok'),
+                  'success'
+                );
+              }
+            })
+            .catch(function () {
+              if (global.showToast) global.showToast('Mantenimiento archivo falló', 'warning');
+            });
+        }
+      });
+    }
+    var archPurge = document.getElementById('sanComandaCloudPurge');
+    if (archPurge) {
+      archPurge.addEventListener('click', function () {
+        if (typeof global.crozzoPurgeDeliveredComandasFromCloud === 'function') {
+          global
+            .crozzoPurgeDeliveredComandasFromCloud({ force: true })
+            .then(function (r) {
+              if (global.showToast) {
+                global.showToast('Purge nube: ' + (r && r.purged != null ? r.purged + ' filas' : '0'), 'info');
+              }
+            })
+            .catch(function () {
+              if (global.showToast) global.showToast('Purge nube falló', 'warning');
+            });
+        }
+      });
+    }
+    var sqPurge = document.getElementById('sanSyncQueuePurge');
+    if (sqPurge) {
+      sqPurge.addEventListener('click', function () {
+        if (typeof global.crozzoPurgeCloudSyncQueue === 'function') {
+          global
+            .crozzoPurgeCloudSyncQueue({ force: true })
+            .then(function (r) {
+              if (global.showToast) {
+                global.showToast(
+                  'sync_queue: ' + (r && r.purged != null ? r.purged + ' filas purgadas' : '0'),
+                  'info'
+                );
+              }
+            })
+            .catch(function () {
+              if (global.showToast) global.showToast('Purge sync_queue falló', 'warning');
+            });
+        }
       });
     }
   }

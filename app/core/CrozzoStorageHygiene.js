@@ -109,6 +109,16 @@
     migrateOfflineQueues();
     trimPosRuntimeSnapshot();
     if (global.CrozzoBlobStore) migrateReservorioBlobs();
+    try {
+      if (global.CrozzoComandaArchive && typeof global.CrozzoComandaArchive.runMaintenance === 'function') {
+        global.CrozzoComandaArchive.runMaintenance().catch(function () {});
+      }
+    } catch (_) {}
+    try {
+      if (global.CrozzoFacturasArchivo && typeof global.CrozzoFacturasArchivo.maybeAutoArchive === 'function') {
+        global.CrozzoFacturasArchivo.maybeAutoArchive();
+      }
+    } catch (_) {}
   }
 
   global.CrozzoStorageHygiene = {

@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-06-30T00:34:04.770Z",
+  "updatedAt": "2026-06-30T11:16:29.450Z",
   "entries": [
-    {
-      "id": "1.0.182-critical",
-      "version": "v1.0.182",
-      "semver": "1.0.182",
-      "type": "critical",
-      "message": "54485",
-      "publishedAt": "2026-06-26T00:54:45.647Z",
-      "installMode": "auto",
-      "changelog": [
-        "54485"
-      ]
-    },
     {
       "id": "1.0.183-critical",
       "version": "v1.0.183",
@@ -300,6 +288,19 @@
       "installMode": "auto",
       "changelog": [
         "estabilidad de nube"
+      ]
+    },
+    {
+      "id": "1.0.207-critical",
+      "version": "v1.0.207",
+      "semver": "1.0.207",
+      "type": "critical",
+      "message": "parche de estabilidad v2 + parche de comunicaxion v12",
+      "publishedAt": "2026-06-30T11:16:29.450Z",
+      "installMode": "auto",
+      "changelog": [
+        "parche de estabilidad v2",
+        "parche de comunicaxion v12"
       ]
     }
   ]

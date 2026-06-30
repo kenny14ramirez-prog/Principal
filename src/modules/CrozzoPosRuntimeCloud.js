@@ -8,9 +8,11 @@
   var TABLE = 'crozzo_sede_runtime';
   var DEBOUNCE_FAST_MS = 180;
   var DEBOUNCE_NORMAL_MS = 650;
-  var PULL_POLL_LIVE_MS = 10000;
+  var PULL_POLL_LIVE_MS = 12000;
   var PULL_POLL_FALLBACK_MS = 5000;
   var SILENCE_WATCHDOG_MS = 30000;
+  var MESA_PULL_COALESCE_MS = 1200;
+  var MESA_PULL_MIN_GAP_MS = 2800;
   var ECHO_MS = 2600;
   var STABILITY_MS = 26000;
   var MAX_CART_NAME = 36;
@@ -639,7 +641,42 @@
         mergedClosed[ref] = true;
       });
     });
+    merged.slotSessionPresence = mergeSedePresence(
+      cloudPay.slotSessionPresence,
+      merged.slotSessionPresence
+    );
     return merged;
+  }
+
+  /** Presencia parcial por equipo: vacío en un tipo = no tocar ese tipo en nube. */
+  function mergeSedePresence(cloudPresence, localPresence) {
+    var cloud =
+      cloudPresence && typeof cloudPresence === 'object' ? cloudPresence : { mesa: {}, llevar: {} };
+    var local =
+      localPresence && typeof localPresence === 'object' ? localPresence : { mesa: {}, llevar: {} };
+    var out = { mesa: {}, llevar: {} };
+    ['mesa', 'llevar'].forEach(function (tipo) {
+      var cloudBag = cloud[tipo] && typeof cloud[tipo] === 'object' ? cloud[tipo] : {};
+      var localBag = local[tipo] && typeof local[tipo] === 'object' ? local[tipo] : {};
+      var mergedBag = JSON.parse(JSON.stringify(cloudBag));
+      if (!Object.keys(localBag).length) {
+        out[tipo] = mergedBag;
+        return;
+      }
+      Object.keys(localBag).forEach(function (ref) {
+        var localPeers = localBag[ref];
+        if (!localPeers || typeof localPeers !== 'object' || !Object.keys(localPeers).length) {
+          delete mergedBag[ref];
+          return;
+        }
+        if (!mergedBag[ref]) mergedBag[ref] = {};
+        Object.keys(localPeers).forEach(function (devId) {
+          mergedBag[ref][devId] = localPeers[devId];
+        });
+      });
+      out[tipo] = mergedBag;
+    });
+    return out;
   }
 
   async function upsertRuntimeRow(snap) {
@@ -799,6 +836,8 @@
   var __mesaMode = null; // null=desconocido, true=por-mesa, false=fila unica
   var __mesaSlotSig = {}; // "kind:ref" -> firma; solo subimos lo que cambia
   var __mesaPullTimer = null;
+  var __mesaPullPending = false;
+  var __lastMesaPullAt = 0;
   var __runtimeTeardownTimer = null;
   var __runtimeSubscribing = false;
   var __lastDiscardLogAt = 0;
@@ -1005,6 +1044,23 @@
 
   async function pullMesaRows(opts, c) {
     if (!opRealtimeActive()) return false;
+    opts = opts || {};
+    var now = Date.now();
+    if (!opts.force) {
+      var minGap = MESA_PULL_MIN_GAP_MS;
+      var thrGap = global.CrozzoCloudThrottle;
+      if (thrGap && typeof thrGap.isUnderPressure === 'function' && thrGap.isUnderPressure()) {
+        minGap = Math.min(15000, minGap * 2);
+      }
+      if (__lastMesaPullAt && now - __lastMesaPullAt < minGap) {
+        __mesaPullPending = true;
+        if (!__mesaPullTimer) {
+          scheduleMesaPull({ deferMs: minGap - (now - __lastMesaPullAt) + 80 });
+        }
+        return false;
+      }
+    }
+    __lastMesaPullAt = now;
     c = c || ctx();
     var sb = global.__SUPABASE;
     try {
@@ -1051,18 +1107,24 @@
     } catch (_) {}
   }
 
-  function scheduleMesaPull() {
+  function scheduleMesaPull(opts) {
+    opts = opts || {};
     if (__mesaPullTimer) return;
-    // Coalescer: cada escritura en crozzo_mesa_runtime dispara un evento realtime
-    // → un pull. Con muchos equipos/escrituras eso producía una TORMENTA de pulls
-    // (cientos de "mismo contenido, descartado"). Una ventana de ~700ms junta las
-    // ráfagas en un solo pull, sin perder responsividad real (sigue siendo <1s).
+    // Coalescer ráfagas Realtime → un pull. Min-gap en pullMesaRows evita SELECT
+    // repetidos cuando muchos equipos renuevan presencia (equilibrio meses en nube).
+    var delay = Number(opts.deferMs) || MESA_PULL_COALESCE_MS;
     __mesaPullTimer = global.setTimeout(function () {
       __mesaPullTimer = null;
       pullMesaRows({ quiet: true, skipRender: true })
-        .then(notifyRuntimeUiIfApplied)
+        .then(function (applied) {
+          if (__mesaPullPending) {
+            __mesaPullPending = false;
+            scheduleMesaPull({ deferMs: 120 });
+          }
+          notifyRuntimeUiIfApplied(applied);
+        })
         .catch(function () {});
-    }, 700);
+    }, delay);
   }
 
   async function pushRuntimeNow(opts) {
@@ -1391,7 +1453,7 @@
       // sin entregar eventos, forzar pull de reconciliación.
       var silenceSinceEvt = __lastRtEventAt ? Date.now() - __lastRtEventAt : Infinity;
       var watchdogFired = __realtimeLive && silenceSinceEvt > SILENCE_WATCHDOG_MS;
-      pullRuntime({ quiet: true, skipRender: !watchdogFired })
+      pullRuntime({ quiet: true, skipRender: !watchdogFired, force: watchdogFired })
         .then(notifyRuntimeUiIfApplied)
         .catch(function () {});
     }, ms);

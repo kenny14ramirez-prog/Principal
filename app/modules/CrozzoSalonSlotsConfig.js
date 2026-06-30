@@ -37,7 +37,7 @@
     };
     var c = raw && typeof raw === 'object' ? Object.assign({}, base, raw) : base;
     c.mesaCount = Math.max(1, Math.min(100, Number(c.mesaCount) || DEFAULT_MESA_COUNT));
-    c.llevarCount = Math.max(1, Math.min(30, Number(c.llevarCount) || DEFAULT_LLEVAR_COUNT));
+    c.llevarCount = Math.max(1, Math.min(60, Number(c.llevarCount) || DEFAULT_LLEVAR_COUNT));
     c.mesaEtiquetaTablet = normalizeEtiquetaTablet(c.mesaEtiquetaTablet);
     c.llevarEtiquetaTablet = normalizeEtiquetaTablet(c.llevarEtiquetaTablet);
     c.mesaNombres = c.mesaNombres && typeof c.mesaNombres === 'object' ? c.mesaNombres : {};
@@ -231,7 +231,7 @@
       '<h3 class="crozzo-salon-config__panel-title">Pedidos para llevar</h3>' +
       '<div class="form-group">' +
       '<label class="form-label" for="cfgSalonLlevarCount">Cantidad de slots llevar</label>' +
-      '<input type="number" min="1" max="30" class="form-input" id="cfgSalonLlevarCount" value="' +
+      '<input type="number" min="1" max="60" class="form-input" id="cfgSalonLlevarCount" value="' +
       escUserAttr(cfg.llevarCount) +
       '">' +
       '</div>' +
@@ -301,7 +301,7 @@
 
   function saveSalonConfigFromForm() {
     var mesaCount = Math.max(1, Math.min(100, Number(document.getElementById('cfgSalonMesaCount')?.value) || DEFAULT_MESA_COUNT));
-    var llevarCount = Math.max(1, Math.min(30, Number(document.getElementById('cfgSalonLlevarCount')?.value) || DEFAULT_LLEVAR_COUNT));
+    var llevarCount = Math.max(1, Math.min(60, Number(document.getElementById('cfgSalonLlevarCount')?.value) || DEFAULT_LLEVAR_COUNT));
     var mesaEtiquetaTablet = normalizeEtiquetaTablet(document.getElementById('cfgSalonMesaEtiqueta')?.value);
     var llevarEtiquetaTablet = normalizeEtiquetaTablet(document.getElementById('cfgSalonLlevarEtiqueta')?.value);
     var mesaNombres = mesaEtiquetaTablet === 'nombre' ? collectNamesFromForm('cfgSalonMesaName', mesaCount, 'mesa') : {};

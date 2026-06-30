@@ -422,7 +422,7 @@
       try {
         if (typeof global.crozzoRuntimeRealtimeStatus === 'function') {
           var rrs = global.crozzoRuntimeRealtimeStatus();
-          if (rrs && rrs.live && rrs.lastEventAgoMs != null && rrs.lastEventAgoMs > 28000) {
+          if (rrs && rrs.live && rrs.lastEventAgoMs != null && rrs.lastEventAgoMs > 20000) {
             rtSilentRun = true;
           }
         }
@@ -440,7 +440,7 @@
       try {
         if (typeof global.crozzoComandaRealtimeStatus === 'function') {
           var crs = global.crozzoComandaRealtimeStatus();
-          if (crs && crs.live && crs.lastEventAgoMs != null && crs.lastEventAgoMs > 28000) {
+          if (crs && crs.live && crs.lastEventAgoMs != null && crs.lastEventAgoMs > 20000) {
             rtSilentCom = true;
           }
         }

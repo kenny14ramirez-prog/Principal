@@ -8,6 +8,8 @@
   var LS_INDEX = 'crozzo_facturas_archivo_index_v1';
   var LS_PREFIX = 'crozzo_facturas_archivo_';
   var __autoTimer = null;
+  var __periodArchiveCache = [];
+  var __periodArchiveKey = '';
 
   function getConfig() {
     try {
@@ -23,7 +25,8 @@
     return {
       enabled: c.enabled !== false,
       maxActivas: Math.max(500, Number(c.maxActivas) || 2500),
-      minAgeDays: Math.max(30, Number(c.minAgeDays) || 60),
+      minAgeDays: Math.max(1, Number(c.minAgeDays) || 3),
+      defaultViewDays: Math.max(1, Number(c.defaultViewDays) || 1),
       autoOnBoot: c.autoOnBoot !== false,
       keepMonths: Math.max(1, Number(c.keepMonths) || 24),
     };
@@ -206,14 +209,141 @@
     return null;
   }
 
+  function todayIso() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function periodBounds(days) {
+    days = Math.max(1, Number(days) || 1);
+    var end = new Date();
+    end.setHours(23, 59, 59, 999);
+    var start = new Date(end);
+    start.setDate(start.getDate() - (days - 1));
+    start.setHours(0, 0, 0, 0);
+    var pad = function (n) {
+      return String(n).padStart(2, '0');
+    };
+    return {
+      from:
+        start.getFullYear() + '-' + pad(start.getMonth() + 1) + '-' + pad(start.getDate()),
+      to: end.getFullYear() + '-' + pad(end.getMonth() + 1) + '-' + pad(end.getDate()),
+    };
+  }
+
+  function facturaInBounds(f, fromIso, toIso) {
+    var dk = facturaDateKey(f);
+    if (!dk) return false;
+    return dk >= fromIso && dk <= toIso;
+  }
+
+  function monthsBetween(fromIso, toIso) {
+    var out = [];
+    if (!fromIso || !toIso) return out;
+    var p = fromIso.slice(0, 7);
+    var end = toIso.slice(0, 7);
+    while (p <= end) {
+      out.push(p);
+      var y = parseInt(p.slice(0, 4), 10);
+      var m = parseInt(p.slice(5, 7), 10);
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+      p = y + '-' + String(m).padStart(2, '0');
+    }
+    return out;
+  }
+
+  function oldestActiveDate(facturas) {
+    var min = '';
+    (facturas || []).forEach(function (f) {
+      var dk = facturaDateKey(f);
+      if (dk && (!min || dk < min)) min = dk;
+    });
+    return min;
+  }
+
+  function loadArchiveMonths(monthKeys) {
+    var loaded = [];
+    (monthKeys || []).forEach(function (mk) {
+      var blob = readMonthBlob(mk);
+      if (!blob || !Array.isArray(blob.facturas)) return;
+      blob.facturas.forEach(function (f, i) {
+        loaded.push({ f: f, archived: true, archId: mk + ':' + i });
+      });
+    });
+    return loaded;
+  }
+
+  /** Carga facturas archivadas necesarias para el rango de días (solo bajo demanda). */
+  function loadForPeriod(days) {
+    days = Math.max(1, Number(days) || settings().defaultViewDays);
+    var key = String(days);
+    if (__periodArchiveKey === key) {
+      return Promise.resolve(__periodArchiveCache);
+    }
+    var bounds = periodBounds(days);
+    var monthKeys = monthsBetween(bounds.from, bounds.to);
+    var currentMonth = monthKey(todayIso());
+    var archivedMonths = readIndex().map(function (r) {
+      return r && r.month;
+    });
+    monthKeys = monthKeys.filter(function (mk) {
+      return mk < currentMonth && archivedMonths.indexOf(mk) >= 0;
+    });
+    return new Promise(function (resolve) {
+      try {
+        __periodArchiveCache = loadArchiveMonths(monthKeys).filter(function (row) {
+          return facturaInBounds(row.f, bounds.from, bounds.to);
+        });
+        __periodArchiveKey = key;
+        resolve(__periodArchiveCache);
+      } catch (e) {
+        console.warn('[facturas-archivo] loadForPeriod', e);
+        resolve([]);
+      }
+    });
+  }
+
+  function clearPeriodCache() {
+    __periodArchiveKey = '';
+    __periodArchiveCache = [];
+  }
+
+  /** Archiva meses calendario ya cerrados (fin de mes + política minAgeDays). */
+  function archiveCompleteMonths() {
+    var all = typeof config !== 'undefined' && config.getFacturas ? config.getFacturas() || [] : [];
+    if (!all.length) return { archived: 0 };
+    var groups = groupMonths(all);
+    var months = Object.keys(groups).sort();
+    var currentMonth = monthKey(todayIso());
+    var n = 0;
+    for (var i = 0; i < months.length; i++) {
+      var mk = months[i];
+      if (mk >= currentMonth) continue;
+      var endIso = lastDayOfMonth(mk);
+      if (daysAgo(endIso) < settings().minAgeDays) continue;
+      var r = archiveMonth(mk, { force: false });
+      if (r.ok) n += r.archived || 0;
+    }
+    if (n) clearPeriodCache();
+    return { archived: n };
+  }
+
   function maybeAutoArchive() {
     var s = settings();
     if (!s.enabled) return { ok: false, skipped: 'disabled' };
+    var closed = archiveCompleteMonths();
+    if (closed.archived > 0) return { ok: true, auto: true, archived: closed.archived, reason: 'month_close' };
     var all = typeof config !== 'undefined' && config.getFacturas ? config.getFacturas() || [] : [];
     if (all.length <= s.maxActivas) return { ok: false, skipped: 'under_limit', active: all.length };
     var mk = pickMonthToArchive(all);
     if (!mk) return { ok: false, skipped: 'no_eligible_month', active: all.length };
-    return archiveMonth(mk, { force: false, auto: true });
+    var r = archiveMonth(mk, { force: false, auto: true });
+    if (r.ok) clearPeriodCache();
+    return r;
   }
 
   function scheduleAutoArchive() {
@@ -262,11 +392,11 @@
     var warn = st.active >= s.maxActivas * 0.9;
     var idxRows =
       st.index.length === 0
-        ? '<p class="crozzo-fact-archivo__empty">Sin meses archivados aún. Al superar ' +
-          s.maxActivas +
-          ' comprobantes activos, el mes más antiguo (≥ ' +
+        ? '<p class="crozzo-fact-archivo__empty">Sin meses archivados aún. Meses calendario cerrados (≥ ' +
           s.minAgeDays +
-          ' días) se archiva solo.</p>'
+          ' días) se archivan solos; también si supera ' +
+          s.maxActivas +
+          ' comprobantes activos.</p>'
         : '<ul class="crozzo-fact-archivo__list">' +
           st.index
             .slice(0, 6)
@@ -307,10 +437,16 @@
     settings: settings,
     stats: stats,
     archiveMonth: archiveMonth,
+    archiveCompleteMonths: archiveCompleteMonths,
     maybeAutoArchive: maybeAutoArchive,
     scheduleAutoArchive: scheduleAutoArchive,
     exportMonthJson: exportMonthJson,
     renderBannerHtml: renderFacturasArchivoBannerHtml,
+    periodBounds: periodBounds,
+    facturaInBounds: facturaInBounds,
+    loadForPeriod: loadForPeriod,
+    clearPeriodCache: clearPeriodCache,
+    todayIso: todayIso,
   };
 
   global.crozzoFacturasArchivoRunAuto = function () {

@@ -21,6 +21,12 @@
   var __outboxDraining = false;
   var __comandaUiNotifyAt = {};
   var COMANDA_NOTIFY_GAP_MS = 300000;
+  var COMANDA_CLOUD_RETENTION_MS = 12 * 60 * 60 * 1000;
+  var COMANDA_PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+  var PURGE_BATCH_SIZE = 100;
+  var PURGE_MAX_BATCHES = 8;
+  var PURGE_MAX_BATCHES_CATCHUP = 30;
+  var __comandaPurgeTimer = null;
 
   function noteCloudErr(err) {
     try {
@@ -1109,6 +1115,125 @@
     }
   }
 
+  /** Archiva y borra en nube comandas entregadas con más de 12 h (incluye días/semanas atrás). */
+  async function purgeDeliveredComandasFromCloud(opts) {
+    opts = opts || {};
+    if (!tierAllowsCloudPush()) return { purged: 0 };
+    if (!opts.force && !opts.catchUp && cloudUnderPressure()) return { purged: 0, skipped: 'pressure' };
+    var now = Date.now();
+    try {
+      if (!opts.force && !opts.catchUp && global.CrozzoComandaArchive && global.CrozzoComandaArchive.status) {
+        var st = global.CrozzoComandaArchive.status();
+        var last = (st.meta && st.meta.lastCloudPurgeAt) || 0;
+        if (last && now - last < COMANDA_PURGE_INTERVAL_MS) {
+          return { purged: 0, skipped: 'throttle' };
+        }
+      }
+    } catch (_) {}
+    var ctx = cloudCtx();
+    if (!tenantIdsReady(ctx)) return { purged: 0 };
+    var sb = global.__SUPABASE;
+    if (!sb) return { purged: 0 };
+    var cutoff = new Date(now - COMANDA_CLOUD_RETENTION_MS).toISOString();
+    var maxBatches = opts.catchUp ? PURGE_MAX_BATCHES_CATCHUP : opts.force ? PURGE_MAX_BATCHES * 2 : PURGE_MAX_BATCHES;
+    var totalPurged = 0;
+    var batches = 0;
+    try {
+      while (batches < maxBatches) {
+        if (batches > 0 && cloudUnderPressure()) break;
+        var q = sb
+          .from('comandas')
+          .select('id,status,payload,updated_at')
+          .eq('status', 'entregada')
+          .lt('updated_at', cutoff)
+          .order('updated_at', { ascending: true })
+          .limit(PURGE_BATCH_SIZE);
+        if (ctx.businessId) q = q.eq('business_id', ctx.businessId);
+        if (ctx.locationId && ctx.locationId !== 'default') q = q.eq('location_id', ctx.locationId);
+        var res = await q;
+        if (res.error) {
+          noteCloudErr(res.error);
+          return { purged: totalPurged, error: res.error.message || String(res.error), batches: batches };
+        }
+        var rows = res.data || [];
+        if (!rows.length) break;
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          var pay = row.payload && typeof row.payload === 'object' ? row.payload : {};
+          if (typeof global.crozzoArchiveComandaToHistory === 'function') {
+            global.crozzoArchiveComandaToHistory(
+              Object.assign({}, pay, { id: pay.id != null ? pay.id : row.id, estado: 'entregada' }),
+              'cloud_purge_12h'
+            );
+          }
+        }
+        var ids = rows
+          .map(function (r) {
+            return r.id;
+          })
+          .filter(Boolean);
+        if (!ids.length) break;
+        var del = await sb.from('comandas').delete().in('id', ids);
+        if (del.error) {
+          noteCloudErr(del.error);
+          return { purged: totalPurged, error: del.error.message || String(del.error), batches: batches };
+        }
+        totalPurged += ids.length;
+        batches++;
+        if (rows.length < PURGE_BATCH_SIZE) break;
+      }
+      if (totalPurged > 0) {
+        try {
+          if (global.CrozzoComandaArchive && typeof global.CrozzoComandaArchive.flushPendingToArchives === 'function') {
+            await global.CrozzoComandaArchive.flushPendingToArchives(true);
+          }
+        } catch (_) {}
+      }
+      try {
+        if (global.CrozzoComandaArchive && typeof global.CrozzoComandaArchive.noteCloudPurgeAt === 'function') {
+          global.CrozzoComandaArchive.noteCloudPurgeAt();
+        }
+      } catch (_) {}
+      if (totalPurged > 0) {
+        try {
+          console.log(
+            '[crozzo-comanda-cloud] purge entregadas >12h: ' +
+              totalPurged +
+              ' filas (' +
+              batches +
+              ' lote(s), incluye antiguas fuera de tope)'
+          );
+        } catch (_) {}
+      }
+      return { purged: totalPurged, batches: batches };
+    } catch (e) {
+      noteCloudErr(e);
+      return { purged: totalPurged, error: String(e && e.message ? e.message : e), batches: batches };
+    }
+  }
+
+  function scheduleComandaCloudPurge() {
+    if (__comandaPurgeTimer) return;
+    __comandaPurgeTimer = global.setInterval(function () {
+      if (!__started || !tierAllowsCloudPush()) return;
+      purgeDeliveredComandasFromCloud().catch(function () {});
+    }, COMANDA_PURGE_INTERVAL_MS);
+    if (!global.__crozzoComandaPurgeCatchUpDone) {
+      global.__crozzoComandaPurgeCatchUpDone = true;
+      global.setTimeout(function () {
+        if (!__started || !tierAllowsCloudPush()) return;
+        purgeDeliveredComandasFromCloud({ catchUp: true }).catch(function () {});
+      }, 180000);
+    }
+  }
+
+  function stopComandaCloudPurge() {
+    if (__comandaPurgeTimer) {
+      global.clearInterval(__comandaPurgeTimer);
+      __comandaPurgeTimer = null;
+    }
+  }
+
   /** Ventana en ms dentro de la cual una comanda recién actualizada
    *  puede activar impresión automática aunque venga del poll periódico.
    *  Evita reimprimir comandas viejas al reconectar, pero sí imprime
@@ -1332,10 +1457,12 @@
       if (!__started || !tierAllowsCloudRead() || !global.__SUPABASE) return;
       subscribeComandaRealtime('start');
     }, 900);
+    scheduleComandaCloudPurge();
   }
 
   function stopComandasCloudSync() {
     __started = false;
+    stopComandaCloudPurge();
     __comandaSubscribing = false;
     if (__startRetryTimer) {
       global.clearTimeout(__startRetryTimer);
@@ -1429,6 +1556,7 @@
   global.crozzoPushComandasCloudByIds = pushComandasByIds;
   global.crozzoPushComandasLanByIds = pushComandasLanByIds;
   global.crozzoPullComandasFromCloud = pullComandasFromCloud;
+  global.crozzoPurgeDeliveredComandasFromCloud = purgeDeliveredComandasFromCloud;
   global.crozzoStartComandasCloudSync = startComandasCloudSync;
   global.crozzoStopComandasCloudSync = stopComandasCloudSync;
   global.crozzoComandaPrintedAck = pushComandaPrintedAck;

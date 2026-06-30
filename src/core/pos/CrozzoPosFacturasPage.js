@@ -6,7 +6,10 @@
 // ==========================================
 var facturasFilterEstado = 'todos';
 var facturasFilterQ = '';
+var facturasFilterPeriodDays = 1;
+var __facturasArchiveRows = [];
 var facturaPreviewIdx = null;
+var facturaPreviewRowKey = null;
 function crozzoFacturaEstadoBadgeHtml(f) {
   if (!f) return '';
   var e = f.estado || '';
@@ -69,29 +72,109 @@ function crozzoFacturasResumenFiltrado(rows) {
   });
   return { count: rows.length, total: total, items: items, pendientes: pendientes };
 }
-function crozzoGetFacturasFiltradas() {
+function crozzoFacturaPeriodBounds() {
+  if (typeof CrozzoFacturasArchivo !== 'undefined' && CrozzoFacturasArchivo.periodBounds) {
+    return CrozzoFacturasArchivo.periodBounds(facturasFilterPeriodDays);
+  }
+  var days = Math.max(1, Number(facturasFilterPeriodDays) || 1);
+  var end = new Date();
+  var start = new Date(end);
+  start.setDate(start.getDate() - (days - 1));
+  var pad = function (n) {
+    return String(n).padStart(2, '0');
+  };
+  return {
+    from:
+      start.getFullYear() + '-' + pad(start.getMonth() + 1) + '-' + pad(start.getDate()),
+    to: end.getFullYear() + '-' + pad(end.getMonth() + 1) + '-' + pad(end.getDate()),
+  };
+}
+function crozzoFacturaInViewPeriod(f) {
+  if (!f) return false;
+  var b = crozzoFacturaPeriodBounds();
+  var dk = String(f.fecha || f.fechaEmision || '').slice(0, 10);
+  if (!dk) return facturasFilterPeriodDays <= 1;
+  return dk >= b.from && dk <= b.to;
+}
+function crozzoCollectFacturaViewRows() {
+  var bounds = crozzoFacturaPeriodBounds();
+  var rows = [];
   var all = config.getFacturas();
+  all.forEach(function (f, i) {
+    if (
+      typeof CrozzoFacturasArchivo !== 'undefined' &&
+      CrozzoFacturasArchivo.facturaInBounds &&
+      CrozzoFacturasArchivo.facturaInBounds(f, bounds.from, bounds.to)
+    ) {
+      rows.push({ f: f, idx: i, archived: false });
+    } else if (crozzoFacturaInViewPeriod(f)) {
+      rows.push({ f: f, idx: i, archived: false });
+    }
+  });
+  (__facturasArchiveRows || []).forEach(function (row) {
+    rows.push(row);
+  });
+  rows.sort(function (a, b) {
+    var da = String((a.f && (a.f.fecha || a.f.fechaEmision)) || '');
+    var db = String((b.f && (b.f.fecha || b.f.fechaEmision)) || '');
+    return db.localeCompare(da);
+  });
+  return rows;
+}
+function crozzoGetFacturasFiltradas() {
   var q = String(facturasFilterQ || '').trim().toLowerCase();
-  return all
-    .map(function (f, i) { return { f: f, idx: i }; })
-    .filter(function (row) {
-      var f = row.f;
-      if (!crozzoFacturaMatchesListFilter(f)) return false;
-      if (!q) return true;
-      var blob = [
-        f.consecutivo,
-        f.compradorNombre,
-        f.compradorNit,
-        f.uuid,
-        f.cufe,
-        f.fecha,
-        f.metodoPago,
-        f.mesa,
-        f.tipoServicio,
-        f.contextoServicio
-      ].join(' ').toLowerCase();
-      return blob.indexOf(q) >= 0;
+  return crozzoCollectFacturaViewRows().filter(function (row) {
+    var f = row.f;
+    if (!crozzoFacturaMatchesListFilter(f)) return false;
+    if (!q) return true;
+    var blob = [
+      f.consecutivo,
+      f.compradorNombre,
+      f.compradorNit,
+      f.uuid,
+      f.cufe,
+      f.fecha,
+      f.metodoPago,
+      f.mesa,
+      f.tipoServicio,
+      f.contextoServicio
+    ]
+      .join(' ')
+      .toLowerCase();
+    return blob.indexOf(q) >= 0;
+  });
+}
+function setFacturasPeriod(days) {
+  days = Math.max(1, Number(days) || 1);
+  facturasFilterPeriodDays = days;
+  facturaPreviewIdx = null;
+  facturaPreviewRowKey = null;
+  if (typeof CrozzoFacturasArchivo !== 'undefined' && CrozzoFacturasArchivo.loadForPeriod) {
+    CrozzoFacturasArchivo.loadForPeriod(days).then(function (archRows) {
+      __facturasArchiveRows = archRows || [];
+      refreshFacturasFilteredView();
     });
+    return;
+  }
+  __facturasArchiveRows = [];
+  refreshFacturasFilteredView();
+}
+function crozzoFacturaRowKey(row) {
+  if (!row) return '';
+  if (row.archived && row.archId) return 'arch:' + row.archId;
+  return String(row.idx);
+}
+function crozzoResolveFacturaRow(key) {
+  if (String(key || '').indexOf('arch:') === 0) {
+    var id = String(key).slice(5);
+    return (__facturasArchiveRows || []).find(function (r) {
+      return r.archId === id;
+    });
+  }
+  var idx = Number(key);
+  var f = config.getFacturas()[idx];
+  if (!f) return null;
+  return { f: f, idx: idx, archived: false };
 }
 function setFacturasFilter(estado) {
   facturasFilterEstado = estado || 'todos';
@@ -544,21 +627,33 @@ function crozzoInitInvoiceModalQr(f, qrId) {
     }
   }, 120);
 }
-function crozzoFacturaInlinePreviewHtml(f, idx) {
+function crozzoFacturaInlinePreviewHtml(f, idx, archived) {
   if (!f) return '';
   window.__crozzoLastFacturaForShare = f;
-  var qrId = crozzoFacturaQrMostrable(f) ? 'qr_preview_' + idx : null;
+  var qrId = crozzoFacturaQrMostrable(f) ? 'qr_preview_' + String(idx) + '_' + Date.now() : null;
+  var expandBtn =
+    archived || idx < 0
+      ? '<span class="form-hint" style="font-size:0.75rem;">Archivo · solo lectura</span>'
+      : '<button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaFullscreen(' +
+        idx +
+        ')">Expandir</button>';
+  var toolbar =
+    archived || idx < 0
+      ? '<div class="crozzo-invoice-preview-pane__toolbar"><span class="form-hint">Comprobante archivado — exporte el mes desde Archivo mensual si necesita JSON.</span></div>'
+      : '<div class="crozzo-invoice-preview-pane__toolbar">' + crozzoBuildInvoicePreviewToolbarHtml(f, idx, true) + '</div>';
   return (
     '<div class="crozzo-invoice-row-detail__inner crozzo-invoice-row-detail__inner--compact">' +
     '<div class="crozzo-invoice-preview-pane__head">' +
-    '<h3>' + escUserAttr(f.consecutivo || '—') + '</h3>' +
-    '<button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaFullscreen(' + idx + ')">Expandir</button></div>' +
+    '<h3>' +
+    escUserAttr(f.consecutivo || '—') +
+    '</h3>' +
+    expandBtn +
+    '</div>' +
     '<div class="crozzo-invoice-preview-pane__body">' +
     crozzoBuildInvoiceDocumentHtml(f, { qrId: qrId, inModal: true }) +
     '</div>' +
-    '<div class="crozzo-invoice-preview-pane__toolbar">' +
-    crozzoBuildInvoicePreviewToolbarHtml(f, idx, true) +
-    '</div></div>'
+    toolbar +
+    '</div>'
   );
 }
 function crozzoCloseFacturaDetailSlot() {
@@ -587,9 +682,11 @@ function crozzoEnsureFacturaDetailSlot() {
     '<td colspan="11"><div id="facturaPreviewHost" class="crozzo-invoice-row-detail"></div></td>';
   return slot;
 }
-function crozzoMountFacturaDetailBelowRow(idx) {
-  idx = Number(idx);
-  var dataRow = document.querySelector('.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-idx="' + idx + '"]');
+function crozzoMountFacturaDetailBelowRow(rowKey) {
+  rowKey = String(rowKey == null ? '' : rowKey);
+  var dataRow = document.querySelector(
+    '.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-key="' + rowKey + '"]'
+  );
   if (!dataRow) return false;
   var slot = crozzoEnsureFacturaDetailSlot();
   if (!slot) return false;
@@ -598,18 +695,18 @@ function crozzoMountFacturaDetailBelowRow(idx) {
   }
   slot.classList.add('is-open');
   slot.style.display = 'table-row';
-  slot.setAttribute('data-factura-detail-for', String(idx));
-  document.querySelectorAll('.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-idx]').forEach(function (tr) {
-    tr.classList.toggle('is-selected', Number(tr.getAttribute('data-factura-idx')) === idx);
+  slot.setAttribute('data-factura-detail-for', rowKey);
+  document.querySelectorAll('.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-key]').forEach(function (tr) {
+    tr.classList.toggle('is-selected', tr.getAttribute('data-factura-key') === rowKey);
   });
   return true;
 }
-function crozzoScrollFacturaDetailIntoView(idx) {
-  idx = Number(idx);
+function crozzoScrollFacturaDetailIntoView(rowKey) {
+  rowKey = String(rowKey == null ? '' : rowKey);
   requestAnimationFrame(function () {
     requestAnimationFrame(function () {
       var dataRow = document.querySelector(
-        '.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-idx="' + idx + '"]'
+        '.crozzo-facturas-page tr.crozzo-invoice-row[data-factura-key="' + rowKey + '"]'
       );
       var slot = document.getElementById('crozzoFacturaDetailSlot');
       if (!dataRow || !slot || slot.style.display === 'none') return;
@@ -622,41 +719,56 @@ function crozzoScrollFacturaDetailIntoView(idx) {
     });
   });
 }
-function openFacturaBelow(idx) {
-  idx = Number(idx);
-  if (!config.getFacturas()[idx]) return;
-  facturaPreviewIdx = idx;
-  if (!crozzoMountFacturaDetailBelowRow(idx)) {
+function openFacturaRow(rowKey) {
+  rowKey = String(rowKey == null ? '' : rowKey);
+  var row = crozzoResolveFacturaRow(rowKey);
+  if (!row || !row.f) return;
+  facturaPreviewRowKey = rowKey;
+  facturaPreviewIdx = row.archived ? null : row.idx;
+  if (!crozzoMountFacturaDetailBelowRow(rowKey)) {
     if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage === 'facturas') {
       renderPage('facturas');
       setTimeout(function () {
-        openFacturaBelow(idx);
+        openFacturaRow(rowKey);
       }, 0);
     }
     return;
   }
   crozzoRenderFacturaPreviewPane();
 }
-function selectFacturaForPreview(idx) {
-  idx = Number(idx);
-  if (facturaPreviewIdx === idx) {
+function openFacturaBelow(idx) {
+  openFacturaRow(String(Number(idx)));
+}
+function selectFacturaForPreviewKey(rowKey) {
+  rowKey = String(rowKey == null ? '' : rowKey);
+  if (facturaPreviewRowKey === rowKey) {
+    facturaPreviewRowKey = null;
     facturaPreviewIdx = null;
     crozzoCloseFacturaDetailSlot();
     return;
   }
-  openFacturaBelow(idx);
+  openFacturaRow(rowKey);
+}
+function selectFacturaForPreview(idx) {
+  selectFacturaForPreviewKey(String(Number(idx)));
 }
 function crozzoRenderFacturaPreviewPane() {
-  var idx = facturaPreviewIdx;
-  if (idx == null || idx < 0 || !config.getFacturas()[idx]) {
+  var rowKey = facturaPreviewRowKey;
+  if (!rowKey) {
     crozzoCloseFacturaDetailSlot();
     return;
   }
-  if (!crozzoMountFacturaDetailBelowRow(idx)) return;
+  var row = crozzoResolveFacturaRow(rowKey);
+  if (!row || !row.f) {
+    crozzoCloseFacturaDetailSlot();
+    return;
+  }
+  if (!crozzoMountFacturaDetailBelowRow(rowKey)) return;
   var host = document.getElementById('facturaPreviewHost');
-  var f = config.getFacturas()[idx];
+  var f = row.f;
   if (!host || !f) return;
-  host.innerHTML = crozzoFacturaInlinePreviewHtml(f, idx);
+  var idx = row.archived ? -1 : row.idx;
+  host.innerHTML = crozzoFacturaInlinePreviewHtml(f, idx, row.archived);
   crozzoInitInvoiceModalQr(f, crozzoFacturaQrMostrable(f) ? 'qr_preview_' + idx : null);
   crozzoScrollFacturaDetailIntoView(idx);
 }
@@ -714,8 +826,9 @@ function buildFacturasTableRowsHtml(filtered) {
   return filtered
     .map(function (row) {
       var f = row.f;
-      var i = row.idx;
-      var sel = facturaPreviewIdx === i ? ' is-selected' : '';
+      var rowKey = crozzoFacturaRowKey(row);
+      var sel = facturaPreviewRowKey === rowKey ? ' is-selected' : '';
+      var archivedTag = row.archived ? ' <span class="badge badge-outline" title="Archivo mensual">📦</span>' : '';
       var fecha = f.fecha
         ? (function () {
             try {
@@ -731,18 +844,19 @@ function buildFacturasTableRowsHtml(filtered) {
           : '<span class="crozzo-invoice-tipo crozzo-invoice-tipo--pos">POS</span>';
       var nItems = Array.isArray(f.items) ? f.items.length : 0;
       return (
-        '<tr data-factura-idx="' +
-        i +
+        '<tr data-factura-key="' +
+        escUserAttr(rowKey) +
         '" class="crozzo-invoice-row' +
         sel +
-        '" onclick="selectFacturaForPreview(' +
-        i +
-        ')" title="Abrir comprobante debajo de esta fila">' +
+        '" onclick="selectFacturaForPreviewKey(\'' +
+        escUserAttr(rowKey) +
+        '\')" title="Abrir comprobante debajo de esta fila">' +
         '<td class="col-date">' +
         fecha +
         '</td>' +
         '<td class="col-cons">' +
         escUserAttr(f.consecutivo || '—') +
+        archivedTag +
         '</td>' +
         '<td class="col-tipo">' +
         tipoDoc +
@@ -774,22 +888,22 @@ function buildFacturasTableRowsHtml(filtered) {
         '">' +
         escUserAttr((f.uuid || f.cufe || '').slice(0, 14)) +
         '</td>' +
-        '<td class="col-act"><button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaBelow(' +
-        i +
-        ')">Abrir</button></td></tr>'
+        '<td class="col-act"><button type="button" class="btn btn-outline btn-xs" onclick="event.stopPropagation();openFacturaRow(\'' +
+        escUserAttr(rowKey) +
+        '\')">Abrir</button></td></tr>'
       );
     })
     .join('');
 }
 function buildFacturasListBlockHtml(facturas, filtered) {
-  if (facturas.length === 0) {
-    return (
-      '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><div class="crozzo-invoice-empty__illus">📄</div><p><strong>Sin comprobantes aún</strong></p><p style="font-size:0.88rem;margin-top:8px;">Las ventas cobradas aparecerán aquí.</p></div></div>'
-    );
-  }
   if (filtered.length === 0) {
+    if (!facturas || !facturas.length) {
+      return (
+        '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><div class="crozzo-invoice-empty__illus">📄</div><p><strong>Sin comprobantes aún</strong></p><p style="font-size:0.88rem;margin-top:8px;">Las ventas cobradas aparecerán aquí.</p></div></div>'
+      );
+    }
     return (
-      '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><p>Sin resultados para este filtro.</p></div></div>'
+      '<div class="crozzo-invoice-table-wrap"><div class="crozzo-invoice-empty"><p>Sin comprobantes en este periodo.</p><p style="font-size:0.88rem;margin-top:8px;">Pruebe ampliar a 7 / 30 días o revisar archivo mensual.</p></div></div>'
     );
   }
   return (
@@ -825,18 +939,46 @@ function buildFacturasKpisHtml(facturas, resumen, remaining) {
     '</div></div>'
   );
 }
-function buildFacturasResultBarHtml(resumen, totalFacturas) {
+function buildFacturasResultBarHtml(resumen, inPeriod, totalActive) {
+  var periodLbl =
+    facturasFilterPeriodDays === 1
+      ? 'hoy'
+      : facturasFilterPeriodDays + ' día(s)';
   return (
-    'Mostrando <strong>' +
+    'Periodo: <strong>' +
+    periodLbl +
+    '</strong> · Mostrando <strong>' +
     resumen.count +
     '</strong> de <strong>' +
-    totalFacturas +
-    '</strong> · ' +
+    inPeriod +
+    '</strong> en rango · ' +
     resumen.items +
     ' líneas · <strong>$' +
     resumen.total.toLocaleString('es-CO') +
-    '</strong>'
+    '</strong>' +
+    (totalActive > inPeriod
+      ? ' · <span class="form-hint" style="display:inline;">' + totalActive + ' activos en equipo</span>'
+      : '')
   );
+}
+function buildFacturasPeriodChipHtml(days, label) {
+  var active = Number(facturasFilterPeriodDays) === Number(days) ? ' is-active' : '';
+  return (
+    '<button type="button" class="crozzo-invoice-filter-chip crozzo-invoice-period-chip' +
+    active +
+    '" data-facturas-period="' +
+    days +
+    '" onclick="setFacturasPeriod(' +
+    days +
+    ')">' +
+    label +
+    '</button>'
+  );
+}
+function crozzoSyncFacturasPeriodChips() {
+  document.querySelectorAll('.crozzo-invoice-period-chip[data-facturas-period]').forEach(function (btn) {
+    btn.classList.toggle('is-active', Number(btn.getAttribute('data-facturas-period')) === Number(facturasFilterPeriodDays));
+  });
 }
 function buildFacturasFilterChipHtml(id, label) {
   var active = facturasFilterEstado === id ? ' is-active' : '';
@@ -862,25 +1004,31 @@ function refreshFacturasFilteredView() {
   var page = document.querySelector('.crozzo-facturas-page');
   if (!page) return;
   var facturas = config.getFacturas();
+  var viewRows = crozzoCollectFacturaViewRows();
+  var viewFacturas = viewRows.map(function (r) {
+    return r.f;
+  });
   var filtered = crozzoGetFacturasFiltradas();
   var resumen = crozzoFacturasResumenFiltrado(filtered);
   var remaining = config.getFacturasRestantes();
-  var previewIdx = facturaPreviewIdx;
+  var previewKey = facturaPreviewRowKey;
   var kpis = document.getElementById('facturasKpis');
-  if (kpis) kpis.innerHTML = buildFacturasKpisHtml(facturas, resumen, remaining);
+  if (kpis) kpis.innerHTML = buildFacturasKpisHtml(viewFacturas, resumen, remaining);
   var bar = document.getElementById('facturasResultBar');
-  if (bar) bar.innerHTML = buildFacturasResultBarHtml(resumen, facturas.length);
+  if (bar) bar.innerHTML = buildFacturasResultBarHtml(resumen, viewRows.length, facturas.length);
   var host = document.getElementById('facturasListHost');
-  if (host) host.innerHTML = buildFacturasListBlockHtml(facturas, filtered);
+  if (host) host.innerHTML = buildFacturasListBlockHtml(viewFacturas, filtered);
   crozzoSyncFacturasFilterChips();
-  if (previewIdx != null) {
+  crozzoSyncFacturasPeriodChips();
+  if (previewKey) {
     var stillVisible = filtered.some(function (row) {
-      return row.idx === previewIdx;
+      return crozzoFacturaRowKey(row) === previewKey;
     });
     if (stillVisible) {
-      crozzoMountFacturaDetailBelowRow(previewIdx);
+      crozzoMountFacturaDetailBelowRow(previewKey);
       crozzoRenderFacturaPreviewPane();
     } else {
+      facturaPreviewRowKey = null;
       facturaPreviewIdx = null;
       crozzoCloseFacturaDetailSlot();
     }
@@ -889,6 +1037,10 @@ function refreshFacturasFilteredView() {
 function renderFacturas() {
   var facturas = config.getFacturas();
   var remaining = config.getFacturasRestantes();
+  var viewRows = crozzoCollectFacturaViewRows();
+  var viewFacturas = viewRows.map(function (r) {
+    return r.f;
+  });
   var filtered = crozzoGetFacturasFiltradas();
   var resumen = crozzoFacturasResumenFiltrado(filtered);
   return (
@@ -896,7 +1048,7 @@ function renderFacturas() {
     '<div class="card crozzo-facturas-card">' +
     '<div class="card-header crozzo-facturas-card__head">' +
     '<div><h2 class="card-title">Comprobantes y facturas</h2>' +
-    '<p class="page-subtitle" style="margin-top:4px;">Historial de ventas — pulse una fila para desplegar el comprobante justo debajo.</p></div>' +
+    '<p class="page-subtitle" style="margin-top:4px;">Historial de ventas — por defecto solo <strong>hoy</strong>. Amplíe el periodo si necesita días anteriores (incluye archivo mensual).</p></div>' +
     (typeof crozzoCanClearFacturasHistorial === 'function' && crozzoCanClearFacturasHistorial()
       ? '<button type="button" class="btn btn-outline" onclick="clearFacturas()">Limpiar historial</button>'
       : '') +
@@ -905,8 +1057,15 @@ function renderFacturas() {
       ? CrozzoFacturasArchivo.renderBannerHtml()
       : '') +
     '<div class="crozzo-invoice-kpis" id="facturasKpis">' +
-    buildFacturasKpisHtml(facturas, resumen, remaining) +
+    buildFacturasKpisHtml(viewFacturas, resumen, remaining) +
     '</div>' +
+    '<div class="crozzo-invoice-toolbar">' +
+    '<div class="crozzo-invoice-filters crozzo-invoice-filters--period">' +
+    buildFacturasPeriodChipHtml(1, 'Hoy') +
+    buildFacturasPeriodChipHtml(7, '7 días') +
+    buildFacturasPeriodChipHtml(30, '30 días') +
+    buildFacturasPeriodChipHtml(90, '90 días') +
+    '</div></div>' +
     '<div class="crozzo-invoice-toolbar">' +
     '<div class="crozzo-invoice-toolbar__search"><input type="search" id="facturasSearchInput" value="' +
     escUserAttr(facturasFilterQ) +
@@ -920,10 +1079,10 @@ function renderFacturas() {
     buildFacturasFilterChipHtml('precuenta', 'Precuenta') +
     '</div></div>' +
     '<div class="crozzo-invoice-result-bar" id="facturasResultBar">' +
-    buildFacturasResultBarHtml(resumen, facturas.length) +
+    buildFacturasResultBarHtml(resumen, viewRows.length, facturas.length) +
     '</div>' +
     '<div id="facturasListHost">' +
-    buildFacturasListBlockHtml(facturas, filtered) +
+    buildFacturasListBlockHtml(viewFacturas, filtered) +
     '</div>' +
     '</div></div>'
   );
@@ -940,9 +1099,27 @@ function initFacturas() {
       t = setTimeout(refreshFacturasFilteredView, 120);
     });
   }
-  if (facturaPreviewIdx != null) {
-    openFacturaBelow(facturaPreviewIdx);
+  if (!window.__crozzoFacturasPeriodInit) {
+    window.__crozzoFacturasPeriodInit = true;
+    if (
+      typeof CrozzoFacturasArchivo !== 'undefined' &&
+      CrozzoFacturasArchivo.settings &&
+      CrozzoFacturasArchivo.settings().defaultViewDays
+    ) {
+      facturasFilterPeriodDays = CrozzoFacturasArchivo.settings().defaultViewDays;
+    }
+    setFacturasPeriod(facturasFilterPeriodDays);
+    return;
   }
+  if (typeof CrozzoFacturasArchivo !== 'undefined' && CrozzoFacturasArchivo.loadForPeriod) {
+    CrozzoFacturasArchivo.loadForPeriod(facturasFilterPeriodDays).then(function (archRows) {
+      __facturasArchiveRows = archRows || [];
+      refreshFacturasFilteredView();
+      if (facturaPreviewRowKey) openFacturaRow(facturaPreviewRowKey);
+    });
+    return;
+  }
+  refreshFacturasFilteredView();
 }
 function viewFactura(idx) {
   openFacturaBelow(idx);
@@ -989,3 +1166,6 @@ function confirmClearFacturasHistorial() {
   if (typeof showToast === 'function') showToast('Historial limpiado (registrado en auditoría)', 'success');
 }
 window.confirmClearFacturasHistorial = confirmClearFacturasHistorial;
+window.setFacturasPeriod = setFacturasPeriod;
+window.selectFacturaForPreviewKey = selectFacturaForPreviewKey;
+window.openFacturaRow = openFacturaRow;
