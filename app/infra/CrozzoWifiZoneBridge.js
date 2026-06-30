@@ -241,7 +241,7 @@
     if (resolved && resolved.ip) return markOk(resolved.via || 'wifi_zone');
     try {
       var last = global.__CROZZO_LAN_LAST_OK;
-      if (last && Date.now() - last < 50000) return { ok: true, via: 'cache' };
+      if (!ip && last && Date.now() - last < 12000) return markOk('cache');
     } catch (_) {}
     return { ok: false, via: null };
   }
@@ -255,7 +255,19 @@
     var port = Number(cfg.port) || 3000;
     var ip = String(cfg.centralIp || '').trim();
     if (ip && (await tryHealth(ip, port, 1100))) {
-      __degraded = false; // caja localizada: volver a ritmo tranquilo
+      __degraded = false;
+      return;
+    }
+    // IP guardada inválida (cambio de red): re-localizar aunque la nube responda.
+    __degraded = true;
+    var hit = await resolveCentral({ force: true });
+    if (hit && hit.ip) {
+      __degraded = false;
+      try {
+        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+          global.crozzoActivateLocalSyncPath('wifi_zone_rediscover').catch(function () {});
+        }
+      } catch (_) {}
       return;
     }
     var tier = '';
@@ -267,20 +279,12 @@
       tierInfo = global.__CROZZO_LAST_TIER_INFO || null;
     } catch (_) {}
     if (tier === 'cloud' && !(tierInfo && (tierInfo.cloudPingFailed || tierInfo.cloudDegraded))) {
-      // Nube sana: no escaneamos la caja (evita carga inutil sobre el servidor LAN
-      // con muchas tablets); el descubrimiento se reactiva si la nube cae.
-      __degraded = false;
       return;
     }
-    var hit = await resolveCentral({ force: true });
-    __degraded = !hit; // si no se reencontró, seguir ágil
     try {
       if (global.__crozzoGetMultiSyncRouter) {
         var r = global.__crozzoGetMultiSyncRouter();
         if (r && typeof r.runHealthChecks === 'function') r.runHealthChecks();
-      }
-      if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
-        global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
       }
     } catch (_) {}
   }
@@ -306,6 +310,18 @@
     if (cfg.role !== 'B' && cfg.role !== 'A') return;
     __watchStarted = true;
     if (__watchTimer) clearTimeout(__watchTimer);
+    try {
+      if (!global.__crozzoNetConnBound && typeof global.navigator !== 'undefined') {
+        var conn = global.navigator.connection || global.navigator.mozConnection || global.navigator.webkitConnection;
+        if (conn && typeof conn.addEventListener === 'function') {
+          global.__crozzoNetConnBound = true;
+          conn.addEventListener('change', function () {
+            __degraded = true;
+            signalLanTrouble();
+          });
+        }
+      }
+    } catch (_) {}
     watchTick()
       .catch(function () {})
       .then(scheduleNextWatch, scheduleNextWatch);

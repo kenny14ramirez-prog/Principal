@@ -1034,7 +1034,7 @@
       var msg = String((res.error && res.error.message) || res.error || '');
       console.warn('[runtime-cloud] pushMesaRows ERROR (las mesas NO llegan a la nube): ' + msg);
       if (/401|403|permission denied|rls|jwt|forbidden/i.test(msg)) {
-        console.warn('[runtime-cloud] → RLS/permiso bloquea crozzo_mesa_runtime. Ejecute el SQL "9. REPARAR comunicación en vivo" en Supabase.');
+        console.warn('[runtime-cloud] → RLS/permiso bloquea crozzo_mesa_runtime. Ejecute el SQL "10. Runtime en vivo" en Supabase.');
       }
       if (/relation|does not exist|404|PGRST205|schema cache/i.test(msg)) __mesaMode = false;
       toUpsert.forEach(function (r) {
@@ -1794,6 +1794,18 @@
       try {
         if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.pullPeersFromCloud === 'function') {
           await global.CrozzoInternalQrRegistry.pullPeersFromCloud();
+        }
+      } catch (_) {}
+      try {
+        if (typeof global.startCrozzoRemoteTenantSync === 'function') {
+          global.startCrozzoRemoteTenantSync();
+        }
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoEnsureRemoteStaffCatalogSync === 'function') {
+          await global.crozzoEnsureRemoteStaffCatalogSync({ quiet: true });
+        } else if (typeof global.crozzoPullRemoteStaffState === 'function') {
+          await global.crozzoPullRemoteStaffState({ quiet: true, force: true, kind: 'post_login' });
         }
       } catch (_) {}
       try {

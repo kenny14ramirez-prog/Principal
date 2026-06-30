@@ -113,8 +113,8 @@
     'inicio-operacion': {
       p: P1,
       basico: 'both',
-      note: 'Hub de módulos — snapshot operativo + tenant al abrir',
-      domains: ['runtime', 'tenant'],
+      note: 'Hub de módulos — snapshot operativo + tenant + usuarios al abrir',
+      domains: ['runtime', 'tenant', 'staff'],
       intervalMs: 60000,
       navOnly: true,
     },
@@ -632,6 +632,8 @@
       'startup',
       'postInit',
       'post_login',
+      'staff_auth',
+      'staff_pull',
       'online',
       'reconnect',
       'reconnect_push',
@@ -648,6 +650,8 @@
       'startup',
       'postInit',
       'post_login',
+      'staff_auth',
+      'staff_pull',
       'operational',
     ];
     var tierOk = true;
@@ -747,7 +751,14 @@
     if (!opts.force && (kind === 'realtime' || kind === 'transport' || !kind)) {
       try {
         if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
-          return false;
+          var mdLan = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+          var lanRecent = false;
+          try {
+            lanRecent = !!(global.__CROZZO_LAN_LAST_OK && Date.now() - global.__CROZZO_LAN_LAST_OK < 55000);
+          } catch (_) {}
+          if (!(mdLan.role === 'B' && mdLan.allowLan !== false && lanRecent)) {
+            return false;
+          }
         }
       } catch (_) {}
     }

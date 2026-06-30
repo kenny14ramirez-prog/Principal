@@ -673,6 +673,9 @@
       if (PAGE_ID !== 'spotify-web' && typeof global.crozzoSpotifyDockIsOpen === 'function' && global.crozzoSpotifyDockIsOpen()) {
         if (typeof global.crozzoSpotifyDockHideEmbed === 'function') global.crozzoSpotifyDockHideEmbed();
       }
+      if (PAGE_ID !== 'supabase-nube-web' && typeof global.crozzoNubeSupabaseDockIsOpen === 'function' && global.crozzoNubeSupabaseDockIsOpen()) {
+        if (typeof global.crozzoNubeSupabaseDockHideEmbed === 'function') global.crozzoNubeSupabaseDockHideEmbed();
+      }
     }
 
     function openDock(url) {

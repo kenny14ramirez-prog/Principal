@@ -92,8 +92,17 @@
     'notify pgrst, \'reload schema\';\n';
 
   var POS_RUNTIME_SQL =
-    '-- Crozzo POS — Estado operativo compartido por sede (mesas, carritos, comandas)\n' +
-    '-- Requiere Realtime habilitado en la tabla.\n\n' +
+    '-- ============================================================\n' +
+    '-- Crozzo POS — Runtime en vivo (mesas, comandas, CRM QR clientes)\n' +
+    '-- OBLIGATORIO para multi-dispositivo: cuenta mesa → caja, comandas cocina, sync staff.\n' +
+    '-- Idempotente: ejecutar varias veces sin romper nada.\n' +
+    '-- Ejecutar DESPUÉS del script 1 (Base POS).\n' +
+    '-- Supabase → SQL Editor → pegar todo → Run (▶)\n' +
+    '-- ============================================================\n' +
+    '\n' +
+    'create extension if not exists "pgcrypto" with schema extensions;\n' +
+    '\n' +
+    '-- ---------- 1) Estado operativo compartido por sede ----------\n' +
     'create table if not exists public.crozzo_sede_runtime (\n' +
     '  location_id text primary key,\n' +
     '  business_id text not null default \'default\',\n' +
@@ -102,83 +111,12 @@
     '  source_device_id text,\n' +
     '  source_role text,\n' +
     '  updated_at timestamptz not null default now()\n' +
-    ');\n\n' +
+    ');\n' +
+    '\n' +
     'create index if not exists idx_crozzo_sede_runtime_business\n' +
-    '  on public.crozzo_sede_runtime (business_id);\n\n' +
-    'alter table public.crozzo_sede_runtime enable row level security;\n\n' +
-    'drop policy if exists crozzo_sede_runtime_all on public.crozzo_sede_runtime;\n' +
-    'create policy crozzo_sede_runtime_all on public.crozzo_sede_runtime\n' +
-    '  for all using (true) with check (true);\n\n' +
-    'do $$\n' +
-    'begin\n' +
-    '  if not exists (\n' +
-    '    select 1 from pg_publication_tables\n' +
-    '    where pubname = \'supabase_realtime\'\n' +
-    '      and schemaname = \'public\'\n' +
-    '      and tablename = \'crozzo_sede_runtime\'\n' +
-    '  ) then\n' +
-    '    alter publication supabase_realtime add table public.crozzo_sede_runtime;\n' +
-    '  end if;\n' +
-    'end $$;\n\n' +
-    '-- QR clientes (autoregistro FE) — la app llama crozzo_crm_registro_bootstrap() al primer uso\n' +
-    'create extension if not exists "pgcrypto" with schema extensions;\n\n' +
-    'create table if not exists public.crozzo_crm_registro_tokens (\n' +
-    '  id uuid primary key default gen_random_uuid(),\n' +
-    '  token text not null unique,\n' +
-    '  business_id text not null default \'default\',\n' +
-    '  business_name text not null default \'\',\n' +
-    '  expires_at timestamptz not null,\n' +
-    '  created_at timestamptz not null default now(),\n' +
-    '  created_by_device text,\n' +
-    '  revoked boolean not null default false\n' +
-    ');\n\n' +
-    'create index if not exists idx_crozzo_crm_reg_tokens_bid\n' +
-    '  on public.crozzo_crm_registro_tokens (business_id, expires_at desc);\n\n' +
-    'create table if not exists public.crozzo_crm_registro_intake (\n' +
-    '  id uuid primary key default gen_random_uuid(),\n' +
-    '  token text not null,\n' +
-    '  business_id text not null default \'default\',\n' +
-    '  payload jsonb not null default \'{}\'::jsonb,\n' +
-    '  processed boolean not null default false,\n' +
-    '  processed_at timestamptz,\n' +
-    '  created_at timestamptz not null default now()\n' +
-    ');\n\n' +
-    'create index if not exists idx_crozzo_crm_reg_intake_pending\n' +
-    '  on public.crozzo_crm_registro_intake (business_id, processed, created_at asc);\n\n' +
-    'create or replace function public.crozzo_crm_registro_intake_validate()\n' +
-    'returns trigger language plpgsql as $$\n' +
-    'begin\n' +
-    '  if not exists (\n' +
-    '    select 1 from public.crozzo_crm_registro_tokens t\n' +
-    '    where t.token = new.token and t.business_id = new.business_id\n' +
-    '      and t.expires_at > now() and not t.revoked\n' +
-    '  ) then raise exception \'invalid_or_expired_token\'; end if;\n' +
-    '  return new;\n' +
-    'end;\n' +
-    '$$;\n\n' +
-    'drop trigger if exists trg_crozzo_crm_registro_intake_validate on public.crozzo_crm_registro_intake;\n' +
-    'create trigger trg_crozzo_crm_registro_intake_validate\n' +
-    '  before insert on public.crozzo_crm_registro_intake\n' +
-    '  for each row execute function public.crozzo_crm_registro_intake_validate();\n\n' +
-    'create or replace function public.crozzo_crm_registro_bootstrap()\n' +
-    'returns json language plpgsql security definer set search_path = public as $$\n' +
-    'begin\n' +
-    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
-    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
-    '  perform public.crozzo_fix_all_grants();\n' +
-    '  return json_build_object(\'ok\', true);\n' +
-    'end;\n' +
-    '$$;\n\n' +
-    'grant execute on function public.crozzo_crm_registro_bootstrap() to anon, authenticated;\n\n' +
-    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
-    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
-    'select public.crozzo_fix_all_grants();\n\n' +
-    'notify pgrst, \'reload schema\';\n';
-
-  var MESA_RUNTIME_SQL =
-    '-- Crozzo POS — Runtime PARTICIONADO por mesa/slot (escala a muchas tablets sin pisarse)\n' +
-    '-- Opcional y compatible: si NO existe, la app usa crozzo_sede_runtime (una fila por sede).\n' +
-    '-- Si existe, cada mesa/slot escribe en SU fila, eliminando la contencion a gran escala.\n\n' +
+    '  on public.crozzo_sede_runtime (business_id);\n' +
+    '\n' +
+    '-- ---------- 2) Runtime particionado por mesa/slot (escala tablets) ----------\n' +
     'create table if not exists public.crozzo_mesa_runtime (\n' +
     '  location_id text not null default \'default\',\n' +
     '  kind text not null,\n' +
@@ -189,16 +127,189 @@
     '  source_role text,\n' +
     '  updated_at timestamptz not null default now(),\n' +
     '  primary key (location_id, kind, ref)\n' +
-    ');\n\n' +
+    ');\n' +
+    '\n' +
     'create index if not exists idx_crozzo_mesa_runtime_loc on public.crozzo_mesa_runtime (location_id);\n' +
     'create index if not exists idx_crozzo_mesa_runtime_business on public.crozzo_mesa_runtime (business_id);\n' +
-    'create index if not exists idx_crozzo_mesa_runtime_updated on public.crozzo_mesa_runtime (updated_at);\n\n' +
-    'alter table public.crozzo_mesa_runtime enable row level security;\n\n' +
-    'drop policy if exists crozzo_mesa_runtime_all on public.crozzo_mesa_runtime;\n' +
-    'create policy crozzo_mesa_runtime_all on public.crozzo_mesa_runtime\n' +
-    '  for all using (true) with check (true);\n\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_updated on public.crozzo_mesa_runtime (updated_at);\n' +
+    '\n' +
+    '-- ---------- 3) Comandas (refuerzo si script 1 ya creó la tabla) ----------\n' +
+    'create table if not exists public.comandas (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  location_id text not null default \'default\',\n' +
+    '  device_id uuid,\n' +
+    '  status text not null default \'pendiente\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  updated_at timestamptz not null default now()\n' +
+    ');\n' +
+    '\n' +
+    'create index if not exists idx_comandas_tenant on public.comandas (business_id, location_id, status);\n' +
+    'create index if not exists idx_comandas_updated on public.comandas (updated_at desc);\n' +
+    '\n' +
+    'create index if not exists idx_comandas_entregada_updated\n' +
+    '  on public.comandas (status, updated_at desc)\n' +
+    '  where status = \'entregada\';\n' +
+    '\n' +
+    '-- ---------- 4) CRM autoregistro clientes (QR ~1 h) ----------\n' +
+    'create table if not exists public.crozzo_crm_registro_tokens (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  token text not null unique,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  business_name text not null default \'\',\n' +
+    '  expires_at timestamptz not null,\n' +
+    '  created_at timestamptz not null default now(),\n' +
+    '  created_by_device text,\n' +
+    '  revoked boolean not null default false\n' +
+    ');\n' +
+    '\n' +
+    'create index if not exists idx_crozzo_crm_reg_tokens_bid\n' +
+    '  on public.crozzo_crm_registro_tokens (business_id, expires_at desc);\n' +
+    '\n' +
+    'create table if not exists public.crozzo_crm_registro_intake (\n' +
+    '  id uuid primary key default gen_random_uuid(),\n' +
+    '  token text not null,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  processed boolean not null default false,\n' +
+    '  processed_at timestamptz,\n' +
+    '  created_at timestamptz not null default now()\n' +
+    ');\n' +
+    '\n' +
+    'create index if not exists idx_crozzo_crm_reg_intake_pending\n' +
+    '  on public.crozzo_crm_registro_intake (business_id, processed, created_at asc);\n' +
+    '\n' +
+    'create or replace function public.crozzo_crm_registro_intake_validate()\n' +
+    'returns trigger language plpgsql as $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from public.crozzo_crm_registro_tokens t\n' +
+    '    where t.token = new.token\n' +
+    '      and t.business_id = new.business_id\n' +
+    '      and t.expires_at > now()\n' +
+    '      and not t.revoked\n' +
+    '  ) then\n' +
+    '    raise exception \'invalid_or_expired_token\';\n' +
+    '  end if;\n' +
+    '  return new;\n' +
+    'end;\n' +
+    '$$;\n' +
+    '\n' +
+    'drop trigger if exists trg_crozzo_crm_registro_intake_validate on public.crozzo_crm_registro_intake;\n' +
+    'create trigger trg_crozzo_crm_registro_intake_validate\n' +
+    '  before insert on public.crozzo_crm_registro_intake\n' +
+    '  for each row execute function public.crozzo_crm_registro_intake_validate();\n' +
+    '\n' +
+    'create or replace function public.crozzo_crm_registro_bootstrap()\n' +
+    'returns json language plpgsql security definer set search_path = public as $$\n' +
+    'begin\n' +
+    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
+    '  perform public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
+    '  perform public.crozzo_fix_all_grants();\n' +
+    '  return json_build_object(\'ok\', true);\n' +
+    'end;\n' +
+    '$$;\n' +
+    '\n' +
+    'grant execute on function public.crozzo_crm_registro_bootstrap() to anon, authenticated;\n' +
+    '\n' +
+    '-- ---------- RLS + permisos (patrón POS) ----------\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_sede_runtime\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_mesa_runtime\');\n' +
+    'select public.crozzo_enable_pos_rls(\'comandas\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_tokens\');\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_crm_registro_intake\');\n' +
+    'select public.crozzo_fix_all_grants();\n' +
+    '\n' +
+    '-- ---------- Realtime ----------\n' +
+    'do $$\n' +
+    'declare\n' +
+    '  t text;\n' +
+    'begin\n' +
+    '  foreach t in array array[\n' +
+    '    \'crozzo_sede_runtime\', \'crozzo_mesa_runtime\', \'comandas\'\n' +
+    '  ]\n' +
+    '  loop\n' +
+    '    begin\n' +
+    '      execute format(\'alter table public.%I replica identity full\', t);\n' +
+    '    exception when others then null;\n' +
+    '    end;\n' +
+    '    begin\n' +
+    '      if not exists (\n' +
+    '        select 1 from pg_publication_tables\n' +
+    '        where pubname = \'supabase_realtime\'\n' +
+    '          and schemaname = \'public\'\n' +
+    '          and tablename = t\n' +
+    '      ) then\n' +
+    '        execute format(\'alter publication supabase_realtime add table public.%I\', t);\n' +
+    '      end if;\n' +
+    '    exception when duplicate_object then null;\n' +
+    '      when others then null;\n' +
+    '    end;\n' +
+    '  end loop;\n' +
+    'end $$;\n' +
+    '\n' +
+    '-- ---------- Storage CRM (bucket público Crozzo) ----------\n' +
+    'insert into storage.buckets (id, name, public)\n' +
+    'values (\'crozzo-public\', \'crozzo-public\', true)\n' +
+    'on conflict (id) do update set public = true;\n' +
+    '\n' +
+    'drop policy if exists crozzo_crm_reg_pub_sel on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_pub_ins on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_pub_upd on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_ofi_ins on storage.objects;\n' +
+    'drop policy if exists crozzo_crm_reg_ofi_upd on storage.objects;\n' +
+    '\n' +
+    'create policy crozzo_crm_reg_pub_sel on storage.objects\n' +
+    '  for select to anon, authenticated using (bucket_id = \'crozzo-public\');\n' +
+    '\n' +
+    'create policy crozzo_crm_reg_pub_ins on storage.objects\n' +
+    '  for insert to anon, authenticated with check (bucket_id = \'crozzo-public\');\n' +
+    '\n' +
+    'create policy crozzo_crm_reg_pub_upd on storage.objects\n' +
+    '  for update to anon, authenticated using (bucket_id = \'crozzo-public\') with check (bucket_id = \'crozzo-public\');\n' +
+    '\n' +
+    'create policy crozzo_crm_reg_ofi_ins on storage.objects\n' +
+    '  for insert to anon, authenticated with check (bucket_id = \'oficina-docs\' and name like \'crozzo/%\');\n' +
+    '\n' +
+    'create policy crozzo_crm_reg_ofi_upd on storage.objects\n' +
+    '  for update to anon, authenticated using (bucket_id = \'oficina-docs\' and name like \'crozzo/%\')\n' +
+    '  with check (bucket_id = \'oficina-docs\' and name like \'crozzo/%\');\n' +
+    '\n' +
+    'notify pgrst, \'reload schema\';\n' +
+    '\n' +
+    '-- Verificación rápida:\n' +
+    '-- select tablename from pg_publication_tables where pubname = \'supabase_realtime\' and tablename like \'crozzo_%\' or tablename = \'comandas\';\n'
+;
+
+  var MESA_RUNTIME_SQL =
+    '-- Crozzo POS — Parche opcional: runtime por mesa (si script 10 ya se ejecutó, es no-op)\n' +
+    '-- Solo re-ejecuta permisos y Realtime de crozzo_mesa_runtime.\n' +
+    '\n' +
+    'create table if not exists public.crozzo_mesa_runtime (\n' +
+    '  location_id text not null default \'default\',\n' +
+    '  kind text not null,\n' +
+    '  ref text not null,\n' +
+    '  business_id text not null default \'default\',\n' +
+    '  payload jsonb not null default \'{}\'::jsonb,\n' +
+    '  source_device_id text,\n' +
+    '  source_role text,\n' +
+    '  updated_at timestamptz not null default now(),\n' +
+    '  primary key (location_id, kind, ref)\n' +
+    ');\n' +
+    '\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_loc on public.crozzo_mesa_runtime (location_id);\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_business on public.crozzo_mesa_runtime (business_id);\n' +
+    'create index if not exists idx_crozzo_mesa_runtime_updated on public.crozzo_mesa_runtime (updated_at);\n' +
+    '\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_mesa_runtime\');\n' +
+    'select public.crozzo_fix_all_grants();\n' +
+    '\n' +
     'do $$\n' +
     'begin\n' +
+    '  begin\n' +
+    '    alter table public.crozzo_mesa_runtime replica identity full;\n' +
+    '  exception when others then null;\n' +
+    '  end;\n' +
     '  if not exists (\n' +
     '    select 1 from pg_publication_tables\n' +
     '    where pubname = \'supabase_realtime\'\n' +
@@ -207,8 +318,10 @@
     '  ) then\n' +
     '    alter publication supabase_realtime add table public.crozzo_mesa_runtime;\n' +
     '  end if;\n' +
-    'end $$;\n\n' +
-    'notify pgrst, \'reload schema\';\n';
+    'end $$;\n' +
+    '\n' +
+    'notify pgrst, \'reload schema\';\n'
+;
 
   var PROFILES_AUTH_SQL =
     '-- Crozzo POS — Perfiles de login nube (Supabase Auth → profiles)\n' +
@@ -253,20 +366,23 @@
 
   var BUSINESS_REGISTRY_SQL =
     '-- Crozzo POS — Registro de negocios (nombre ↔ Business ID)\n' +
-    '-- Ejecutar en el mismo proyecto Supabase que caja y tablets.\n' +
-    '-- Permite autocompletar Business ID al escribir el nombre del negocio.\n\n' +
+    '-- Recomendado multi-dispositivo: autocompleta Business ID al emparejar tablets.\n' +
+    '-- Idempotente.\n' +
+    '\n' +
     'create table if not exists public.crozzo_business_registry (\n' +
     '  business_id text primary key,\n' +
     '  business_name text not null default \'\',\n' +
     '  updated_at timestamptz not null default now()\n' +
-    ');\n\n' +
+    ');\n' +
+    '\n' +
     'create index if not exists idx_crozzo_business_registry_name\n' +
-    '  on public.crozzo_business_registry (business_name);\n\n' +
-    'alter table public.crozzo_business_registry enable row level security;\n\n' +
-    'drop policy if exists crozzo_business_registry_all on public.crozzo_business_registry;\n' +
-    'create policy crozzo_business_registry_all on public.crozzo_business_registry\n' +
-    '  for all using (true) with check (true);\n\n' +
-    'notify pgrst, \'reload schema\';\n';
+    '  on public.crozzo_business_registry (business_name);\n' +
+    '\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_business_registry\');\n' +
+    'select public.crozzo_fix_all_grants();\n' +
+    '\n' +
+    'notify pgrst, \'reload schema\';\n'
+;
 
   var POS_STAFF_BUSINESS_ID_SQL =
     '-- =============================================================================\n' +
@@ -274,20 +390,27 @@
     '-- =============================================================================\n' +
     '-- Ejecutar si en F12 aparece: Could not find the \'business_id\' column of \'pos_staff\'\n' +
     '-- Proyecto: el mismo Supabase de caja, tablets y Super Admin nube.\n' +
-    '-- =============================================================================\n\n' +
+    '-- Supabase → SQL → New query → pegar todo → Run (▶)\n' +
+    '-- =============================================================================\n' +
+    '\n' +
     'alter table if exists public.pos_staff\n' +
-    '  add column if not exists business_id text;\n\n' +
+    '  add column if not exists business_id text;\n' +
+    '\n' +
     'comment on column public.pos_staff.business_id is\n' +
-    '  \'Negocio (emparejamiento QR). Opcional en sedes simples; recomendado multi-dispositivo.\';\n\n' +
+    '  \'Negocio (emparejamiento QR). Opcional en sedes simples; recomendado multi-dispositivo.\';\n' +
+    '\n' +
     'create index if not exists idx_pos_staff_business_location\n' +
-    '  on public.pos_staff (business_id, location_id);\n\n' +
+    '  on public.pos_staff (business_id, location_id);\n' +
+    '\n' +
     '-- Recarga caché PostgREST (evita PGRST204 tras el ALTER)\n' +
-    'notify pgrst, \'reload schema\';\n\n' +
-    '-- Verificación\n' +
+    'notify pgrst, \'reload schema\';\n' +
+    '\n' +
+    '-- Verificación (debe listar business_id)\n' +
     'select column_name, data_type, is_nullable\n' +
     'from information_schema.columns\n' +
     'where table_schema = \'public\' and table_name = \'pos_staff\'\n' +
-    'order by ordinal_position;\n';
+    'order by ordinal_position;\n'
+;
 
   var CRM_REGISTRO_QR_SQL =
     '-- =============================================================================\n' +
@@ -405,9 +528,11 @@
     "  for select to anon, authenticated using (bucket_id = 'pos-facturas-share');\n";
 
   var DEVICE_QR_SLOTS_SQL =
-    '-- Crozzo POS — Registro de QRs internos de comunicación entre dispositivos\n' +
-    '-- Cada equipo publica su QR cada ~4 h (valido ~24 h). Todos leen los de los demas.\n' +
-    '-- Active Realtime para sincronizacion instantanea del catalogo de QRs.\n\n' +
+    '-- Crozzo POS — QRs internos entre dispositivos (malla / respaldo LAN)\n' +
+    '-- Cada equipo publica su QR ~cada 4 h; todos leen el catálogo en nube.\n' +
+    '-- Ejecutar DESPUÉS del script 1. Requiere Realtime (este script lo activa).\n' +
+    '-- Idempotente.\n' +
+    '\n' +
     'create table if not exists public.crozzo_device_qr_slots (\n' +
     '  id text primary key,\n' +
     '  business_id text not null default \'default\',\n' +
@@ -421,15 +546,20 @@
     '  built_at timestamptz not null,\n' +
     '  valid_until timestamptz not null,\n' +
     '  updated_at timestamptz not null default now()\n' +
-    ');\n\n' +
+    ');\n' +
+    '\n' +
     'create index if not exists idx_crozzo_device_qr_loc\n' +
-    '  on public.crozzo_device_qr_slots (business_id, location_id, valid_until desc);\n\n' +
-    'alter table public.crozzo_device_qr_slots enable row level security;\n\n' +
-    'drop policy if exists crozzo_device_qr_slots_all on public.crozzo_device_qr_slots;\n' +
-    'create policy crozzo_device_qr_slots_all on public.crozzo_device_qr_slots\n' +
-    '  for all using (true) with check (true);\n\n' +
+    '  on public.crozzo_device_qr_slots (business_id, location_id, valid_until desc);\n' +
+    '\n' +
+    'select public.crozzo_enable_pos_rls(\'crozzo_device_qr_slots\');\n' +
+    'select public.crozzo_fix_all_grants();\n' +
+    '\n' +
     'do $$\n' +
     'begin\n' +
+    '  begin\n' +
+    '    alter table public.crozzo_device_qr_slots replica identity full;\n' +
+    '  exception when others then null;\n' +
+    '  end;\n' +
     '  if not exists (\n' +
     '    select 1 from pg_publication_tables\n' +
     '    where pubname = \'supabase_realtime\'\n' +
@@ -438,8 +568,10 @@
     '  ) then\n' +
     '    alter publication supabase_realtime add table public.crozzo_device_qr_slots;\n' +
     '  end if;\n' +
-    'end $$;\n\n' +
-    'notify pgrst, \'reload schema\';\n';
+    'end $$;\n' +
+    '\n' +
+    'notify pgrst, \'reload schema\';\n'
+;
 
   var COMUNICACION_REPAIR_SQL =
     '-- ============================================================\n' +
@@ -535,19 +667,10 @@
     list: function () {
       return [
         {
-          key: 'comunicacion_repair',
-          file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',
-          title: '9. REPARAR comunicación en vivo (mesas→caja + comandas)',
-          desc: 'EJECUTE ESTE si la comanda no llega a caja o no se guarda la mesa. Crea/arregla tablas + permisos de escritura + Realtime. Una vez, sirve para todos los dispositivos.',
-          required: true,
-          order: 9,
-          sql: COMUNICACION_REPAIR_SQL,
-        },
-        {
           key: 'pos_runtime',
           file: 'docs/SUPABASE-SQL-POS-RUNTIME.sql',
-          title: '10. Runtime sede (mesas en vivo + QR clientes)',
-          desc: 'OBLIGATORIO: mesas/carritos en vivo + tablas QR autoregistro clientes. Active Realtime.',
+          title: '10. Runtime en vivo (mesas + comandas + CRM QR)',
+          desc: 'OBLIGATORIO multi-dispositivo: crozzo_sede_runtime, crozzo_mesa_runtime, comandas Realtime, CRM autoregistro. Si mesas/comandas no propagan, re-ejecute este script.',
           required: true,
           order: 10,
           sql: POS_RUNTIME_SQL,
@@ -564,8 +687,8 @@
         {
           key: 'mesa_runtime',
           file: 'docs/SUPABASE-SQL-MESA-RUNTIME.sql',
-          title: '12. Runtime por mesa (escala a muchas tablets)',
-          desc: 'Una fila por mesa/slot: evita que se pisen ediciones con decenas de tablets. Active Realtime.',
+          title: '12. Runtime por mesa (parche / re-ejecutar)',
+          desc: 'Incluido en script 10. Use solo para reparar permisos o Realtime de crozzo_mesa_runtime en bases antiguas.',
           required: false,
           order: 12,
           sql: MESA_RUNTIME_SQL,
@@ -583,8 +706,8 @@
           key: 'business_registry',
           file: 'docs/SUPABASE-SQL-BUSINESS-REGISTRY.sql',
           title: '14. Registro de negocios (nombre ↔ Business ID)',
-          desc: 'Recomendado para muchos dispositivos: autocompleta el Business ID al escribir el nombre del negocio.',
-          required: false,
+          desc: 'Recomendado multi-dispositivo: autocompleta Business ID al emparejar tablets y sincronizar sedes.',
+          required: true,
           order: 14,
           sql: BUSINESS_REGISTRY_SQL,
         },
@@ -592,16 +715,16 @@
           key: 'device_qr_slots',
           file: 'docs/SUPABASE-SQL-DEVICE-QR-SLOTS.sql',
           title: '15. QRs internos entre dispositivos',
-          desc: 'Cada equipo publica su QR cada 4 h; todos guardan los de los demas. Respaldo ultimo recurso. Active Realtime.',
-          required: false,
+          desc: 'OBLIGATORIO malla multi-dispositivo: crozzo_device_qr_slots + Realtime. Respaldo cuando cae Wi‑Fi/LAN.',
+          required: true,
           order: 15,
           sql: DEVICE_QR_SLOTS_SQL,
         },
         {
           key: 'pos_staff_business_id',
           file: 'docs/SUPABASE-SQL-POS-STAFF-BUSINESS-ID.sql',
-          title: '16. pos_staff — columna business_id',
-          desc: 'Corrige error PGRST204 al subir usuarios/PIN a la nube. Ejecutar si F12 muestra business_id en pos_staff.',
+          title: '16. pos_staff — columna business_id (bases antiguas)',
+          desc: 'Parche idempotente si la base se creó antes de 2026-06. El script 1 actual ya incluye business_id.',
           required: false,
           order: 16,
           sql: POS_STAFF_BUSINESS_ID_SQL,

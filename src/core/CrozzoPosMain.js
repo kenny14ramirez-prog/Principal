@@ -736,7 +736,17 @@ async function loginWithCredentials(userId, clave) {
   ) {
     return { ok: false, error: 'usuario_reservado' };
   }
-  const u = (getUsuariosConfig().staff || []).find(s => String(s.id || '').toUpperCase() === idUpper);
+  let u = (getUsuariosConfig().staff || []).find(s => String(s.id || '').toUpperCase() === idUpper);
+  if (!u) {
+    try {
+      if (typeof window.crozzoEnsureRemoteStaffCatalogSync === 'function') {
+        await window.crozzoEnsureRemoteStaffCatalogSync({ quiet: true });
+      } else if (typeof window.crozzoPullRemoteStaffState === 'function') {
+        await window.crozzoPullRemoteStaffState({ quiet: true, force: true, kind: 'staff_auth' });
+      }
+    } catch (_) {}
+    u = (getUsuariosConfig().staff || []).find(s => String(s.id || '').toUpperCase() === idUpper);
+  }
   if (!u) return { ok: false, error: 'usuario_no_encontrado' };
   if (u.activo === false) return { ok: false, error: 'usuario_inactivo' };
   if (
@@ -1074,6 +1084,27 @@ function crozzoMarkInteractiveLoginBoot() {
 }
 window.crozzoMarkInteractiveLoginBoot = crozzoMarkInteractiveLoginBoot;
 window.crozzoPurgeStaleSessionOnBoot = crozzoPurgeStaleSessionOnBoot;
+let __crozzoLoginStaffPullTimer = null;
+function crozzoStopLoginStaffCatalogPull() {
+  if (__crozzoLoginStaffPullTimer) {
+    clearInterval(__crozzoLoginStaffPullTimer);
+    __crozzoLoginStaffPullTimer = null;
+  }
+}
+function crozzoStartLoginStaffCatalogPull() {
+  crozzoStopLoginStaffCatalogPull();
+  var tick = function () {
+    try {
+      if (typeof window.crozzoEnsureRemoteStaffCatalogSync === 'function') {
+        window.crozzoEnsureRemoteStaffCatalogSync({ quiet: true }).then(function (applied) {
+          if (applied && typeof crozzoRefreshLoginLocalHint === 'function') crozzoRefreshLoginLocalHint();
+        });
+      }
+    } catch (_) {}
+  };
+  tick();
+  __crozzoLoginStaffPullTimer = setInterval(tick, 45000);
+}
 function crozzoRefreshLoginLocalHint() {
   crozzoRefreshLoginBuildStamp();
   const el = document.getElementById('loginLocalHint');
@@ -1089,7 +1120,7 @@ function crozzoRefreshLoginLocalHint() {
     }
     el.hidden = false;
     el.textContent =
-      'Este equipo aún no tiene usuarios de caja. Entre con KENNY / 141414 (Super Admin) y créelos en Configuración → Usuarios. Los usuarios son por dispositivo, no se copian solos entre PCs.';
+      'Sin usuarios locales todavía. Si la nube está activa, los credenciales se descargan solos en unos segundos. Si no aparecen, entre con KENNY / 141414 y créelos en Configuración → Usuarios.';
   } catch (_) {
     el.hidden = true;
     el.textContent = '';
@@ -1406,9 +1437,16 @@ function showLoginOverlay() {
     if (typeof applyCrozzoBrandingChrome === 'function') applyCrozzoBrandingChrome();
   } catch (_) {}
   try {
-    if (typeof window.crozzoPullRemoteStaffState === 'function') {
-      window.crozzoPullRemoteStaffState({ quiet: true }).catch(function () {});
+    if (typeof window.crozzoEnsureRemoteStaffCatalogSync === 'function') {
+      window.crozzoEnsureRemoteStaffCatalogSync({ quiet: true }).then(function (applied) {
+        if (applied && typeof crozzoRefreshLoginLocalHint === 'function') crozzoRefreshLoginLocalHint();
+      });
+    } else if (typeof window.crozzoPullRemoteStaffState === 'function') {
+      window.crozzoPullRemoteStaffState({ quiet: true, force: true, kind: 'staff_auth' }).catch(function () {});
     }
+  } catch (_) {}
+  try {
+    crozzoStartLoginStaffCatalogPull();
   } catch (_) {}
   setTimeout(() => {
     const u = document.getElementById('loginUsername');
@@ -1422,6 +1460,7 @@ function showLoginOverlay() {
   } catch (_) {}
 }
 function hideLoginOverlay() {
+  crozzoStopLoginStaffCatalogPull();
   const ov = document.getElementById('loginOverlay');
   if (!ov) return;
   ov.setAttribute('hidden', '');
@@ -1494,6 +1533,13 @@ function crozzoRunPostLoginCloudSync() {
   const run = async function () {
     try {
       if (typeof window.__crozzoPostInitCloud === 'function') await window.__crozzoPostInitCloud();
+    } catch (_) {}
+    try {
+      if (typeof window.crozzoEnsureRemoteStaffCatalogSync === 'function') {
+        await window.crozzoEnsureRemoteStaffCatalogSync({ quiet: true });
+      } else if (typeof window.crozzoPullRemoteStaffState === 'function') {
+        await window.crozzoPullRemoteStaffState({ quiet: true, force: true, kind: 'post_login' });
+      }
     } catch (_) {}
     try {
       if (typeof window.__crozzoRefreshCloudCatalogUi === 'function') {
@@ -14907,7 +14953,7 @@ function crozzoCanClearAuditoriaLog() {
 }
 window.crozzoHasCajaPermiso = crozzoHasCajaPermiso;
 window.crozzoCanClearFacturasHistorial = crozzoCanClearFacturasHistorial;
-var CROZZO_WEB_EMBED_PAGES = ['whatsapp-web', 'gmail-web', 'drive-web', 'dataico-web', 'dian-vpfe-web', 'spotify-web'];
+var CROZZO_WEB_EMBED_PAGES = ['whatsapp-web', 'gmail-web', 'drive-web', 'dataico-web', 'dian-vpfe-web', 'spotify-web', 'supabase-nube-web'];
 function crozzoIsWebEmbedPage(page) {
   return CROZZO_WEB_EMBED_PAGES.indexOf(page) !== -1;
 }
@@ -14935,6 +14981,9 @@ function crozzoHideWebEmbedIfLeaving(page) {
   if (currentPage === 'spotify-web' && page !== 'spotify-web' && typeof crozzoSpotifyDockHideEmbed === 'function') {
     void crozzoSpotifyDockHideEmbed();
   }
+  if (currentPage === 'supabase-nube-web' && page !== 'supabase-nube-web' && typeof crozzoNubeSupabaseDockHideEmbed === 'function') {
+    void crozzoNubeSupabaseDockHideEmbed();
+  }
 }
 function crozzoWebEmbedPageBeforeKey(page) {
   if (page === 'whatsapp-web') return window.__crozzoPageBeforeWhatsApp || 'inicio-operacion';
@@ -14943,6 +14992,7 @@ function crozzoWebEmbedPageBeforeKey(page) {
   if (page === 'dataico-web') return window.__crozzoPageBeforeDataico || 'inicio-operacion';
   if (page === 'dian-vpfe-web') return window.__crozzoPageBeforeDianVpfe || 'inicio-operacion';
   if (page === 'spotify-web') return window.__crozzoPageBeforeSpotify || 'inicio-operacion';
+  if (page === 'supabase-nube-web') return window.__crozzoPageBeforeSupabaseNube || 'super-admin-nube';
   return 'inicio-operacion';
 }
 function crozzoWebEmbedLayoutSync(page) {
@@ -14952,6 +15002,7 @@ function crozzoWebEmbedLayoutSync(page) {
   if (page === 'dataico-web' && typeof crozzoDataicoDockRequestLayoutSync === 'function') crozzoDataicoDockRequestLayoutSync();
   if (page === 'dian-vpfe-web' && typeof crozzoDianVpfeDockRequestLayoutSync === 'function') crozzoDianVpfeDockRequestLayoutSync();
   if (page === 'spotify-web' && typeof crozzoSpotifyDockRequestLayoutSync === 'function') crozzoSpotifyDockRequestLayoutSync();
+  if (page === 'supabase-nube-web' && typeof crozzoNubeSupabaseDockRequestLayoutSync === 'function') crozzoNubeSupabaseDockRequestLayoutSync();
 }
 window.crozzoWebEmbedLayoutSync = crozzoWebEmbedLayoutSync;
 // Devuelve true si el usuario actual puede ver/usar una página.
@@ -14964,6 +15015,10 @@ function currentUserCanSeePage(page) {
       return crozzoUserCanAccessWebEmbedPage(page, u);
     }
     return false;
+  }
+  if (page === 'supabase-nube-web') {
+    if (!crozzoIsTauriWebEmbedAllowed()) return false;
+    return typeof isSuperAdminUser === 'function' && isSuperAdminUser();
   }
   if (page === 'laboratorio-admin') {
     return typeof crozzoLabCanAccessRole === 'function' && crozzoLabCanAccessRole();
@@ -15386,6 +15441,11 @@ function crozzoAssertPageAccess(page) {
     }
     return { ok: true };
   }
+  if (page === 'supabase-nube-web') {
+    if (!crozzoIsTauriWebEmbedAllowed()) return { ok: false, reason: 'perm' };
+    if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return { ok: true };
+    return { ok: false, reason: 'perm' };
+  }
   if (page === 'laboratorio-admin') {
     if (typeof crozzoLabCanAccessRole !== 'function' || !crozzoLabCanAccessRole()) {
       return { ok: false, reason: 'perm' };
@@ -15707,7 +15767,8 @@ function navigateTo(page) {
     'drive-web': ['Google Drive', 'Archivos en la nube desde el POS'],
     'dataico-web': ['Dataico', 'Facturación electrónica desde el POS'],
     'dian-vpfe-web': ['DIAN · Consulta CUFE', 'Verificación de facturas electrónicas'],
-    'spotify-web': ['Spotify', 'Música desde el POS']
+    'spotify-web': ['Spotify', 'Música desde el POS'],
+    'supabase-nube-web': ['Supabase · SQL Editor', 'Ejecute scripts SQL desde el asistente de nube global']
   };
 
   let t = titles[navHighlightPage] || titles[page] || [page, ''];
@@ -16134,10 +16195,10 @@ function renderPage(page, renderOpts) {
   }
   crozzoHideWebEmbedIfLeaving(page);
   if (document.body) {
-    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-compras-dashboard', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-costos-inventario', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-page-cocina', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets', 'crozzo-page-caja-clientes', 'crozzo-page-inventarios', 'crozzo-page-config-usuarios', 'crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-web-embed');
+    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-compras-dashboard', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-costos-inventario', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-page-cocina', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets', 'crozzo-page-caja-clientes', 'crozzo-page-inventarios', 'crozzo-page-config-usuarios', 'crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed');
   }
   if (document.documentElement) {
-    document.documentElement.classList.remove('crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-web-embed');
+    document.documentElement.classList.remove('crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed');
   }
   var hdrMod = document.querySelector('.main-header');
   if (hdrMod) hdrMod.classList.remove('main-header--modulo-gestion');
@@ -16280,6 +16341,15 @@ function renderPage(page, renderOpts) {
           ? crozzoRenderSpotifyWebPage()
           : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoSpotifyEmbedHost" class="crozzo-wa-page__host" aria-label="Spotify"></div></div></div>';
       if (typeof crozzoInitSpotifyWebPage === 'function') crozzoInitSpotifyWebPage();
+      break;
+    case 'supabase-nube-web':
+      if (document.body) document.body.classList.add('crozzo-page-supabase-nube-web');
+      if (document.documentElement) document.documentElement.classList.add('crozzo-page-supabase-nube-web');
+      content.innerHTML =
+        typeof crozzoRenderSupabaseNubeWebPage === 'function'
+          ? crozzoRenderSupabaseNubeWebPage()
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoNubeSupabaseEmbedHost" class="crozzo-wa-page__host" aria-label="Supabase SQL Editor"></div></div></div>';
+      if (typeof crozzoInitSupabaseNubeWebPage === 'function') crozzoInitSupabaseNubeWebPage();
       break;
     case 'cierre-caja':
       content.innerHTML =
@@ -35124,6 +35194,13 @@ async function detectConnectivityTier() {
     const cloudPing = await crozzoPingSupabaseCached(sbUrl, sbKey);
     if (cloudPing && cloudPing.ok) {
       if (typeof crozzoNoteWanReachable === 'function') crozzoNoteWanReachable();
+      if (lanReach && md.role === 'B' && md.allowLan !== false) {
+        try {
+          if (typeof crozzoActivateLocalSyncPath === 'function') {
+            crozzoActivateLocalSyncPath('cloud_and_lan').catch(function () {});
+          }
+        } catch (_) {}
+      }
       setLast('cloud');
       return { tier: 'cloud', reason: 'Supabase alcanzable (Wi‑Fi o datos)', ...wanExtra, wanOnline: true };
     }

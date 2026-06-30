@@ -68,7 +68,13 @@ lines.push('-- Luego en la caja: "Subir catálogo a la nube".');
 lines.push('-- =============================================================================');
 
 const out = path.join(root, 'docs', 'SUPABASE-SQL-TODO.sql');
-fs.writeFileSync(out, lines.join('\n'), 'utf8');
+const body = lines.join('\n');
+const brokenDollar = /(?:language plpgsql as \$[^$]|do \$[^$]|end \$[^$;])/m.test(body);
+if (brokenDollar) {
+  console.error('FAIL: delimitadores dollar-quote rotos ($ sin pareja) en SQL generado');
+  process.exit(1);
+}
+fs.writeFileSync(out, body, 'utf8');
 
 console.log('OK -> docs/SUPABASE-SQL-TODO.sql (' + all.length + ' scripts, ' + Math.round(fs.statSync(out).size / 1024) + ' KB)');
 all.forEach((s) => console.log('  ' + String(s.order).padStart(2, ' ') + '. ' + s.title + (s.required ? ' [OBLIGATORIO]' : '')));

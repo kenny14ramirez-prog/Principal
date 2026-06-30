@@ -53,6 +53,20 @@
     var t = tierNow();
     if (t === 'lan' || t === 'hotspot') return true;
     if (t === 'cloud') {
+      try {
+        var last = global.__CROZZO_LAN_LAST_OK;
+        var cfg = md();
+        if (
+          cfg.role === 'B' &&
+          cfg.allowLan !== false &&
+          last &&
+          Date.now() - last < 55000 &&
+          typeof global.crozzoLanTransportAllowed === 'function' &&
+          global.crozzoLanTransportAllowed()
+        ) {
+          return true;
+        }
+      } catch (_) {}
       if (typeof global.crozzoCloudWanReady === 'function' && global.crozzoCloudWanReady()) return false;
       return true;
     }

@@ -271,11 +271,11 @@
             'Modo de mesas (escritura)',
             'fail',
             'Modo SEDE (un solo registro para toda la sede): el último equipo que guarda PISA lo de los demás. Por eso al comandar desde tablet, caja no ve los items (y viceversa) y no puedes cobrar. Causa: la tabla crozzo_mesa_runtime no acepta escritura (RLS/401) o no existe.',
-            'Ejecute el script "9. REPARAR comunicación en vivo" (Super Admin → Nube → SQL): crea crozzo_mesa_runtime con permisos y Realtime, lo que activa el modo por-mesa NO destructivo. Luego pulse "Reparar automáticamente".'
+            'Ejecute el script "10. Runtime en vivo" (Super Admin → Nube → SQL): crea crozzo_mesa_runtime con permisos y Realtime. Luego pulse "Reparar automáticamente".'
           )
         );
       } else {
-        rows.push(row('modo-mesas', 'Modo de mesas (escritura)', 'warn', 'Modo de mesas aún sin determinar (' + (modeSt.mode || '?') + '). Si persiste, ejecute el script "9. REPARAR comunicación en vivo".'));
+        rows.push(row('modo-mesas', 'Modo de mesas (escritura)', 'warn', 'Modo de mesas aún sin determinar (' + (modeSt.mode || '?') + '). Si persiste, ejecute el script "10. Runtime en vivo".'));
       }
     }
 
@@ -323,7 +323,7 @@
           (pg ? ' Pantalla actual: ' + pg + (pgPri ? ' [' + pgPri + ']' : '') + '.' : ''),
         bothLive
           ? ''
-          : 'Si NO está EN VIVO, el dato llega por respaldo lento (se siente "no en tiempo real"). Causa típica: Realtime no habilitado en la tabla en Supabase. Ejecute el script "9. REPARAR comunicación en vivo" (Super Admin → Nube → SQL) que habilita Realtime, y pulse "Reparar automáticamente".'
+          : 'Si NO está EN VIVO, el dato llega por respaldo lento (se siente "no en tiempo real"). Causa típica: Realtime no habilitado en la tabla en Supabase. Ejecute el script "10. Runtime en vivo" (Super Admin → Nube → SQL) y pulse "Reparar automáticamente".'
       )
     );
 

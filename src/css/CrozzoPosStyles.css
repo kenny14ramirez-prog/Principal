@@ -19260,6 +19260,177 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
   position: relative;
   z-index: 2;
 }
+.crozzo-nube-sql-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.crozzo-nube-sql-mode__btn {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: var(--bg-primary, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.crozzo-nube-sql-mode__btn:hover {
+  border-color: #b59a6d;
+}
+.crozzo-nube-sql-mode__btn--active {
+  background: linear-gradient(135deg, rgba(181, 154, 109, 0.22), rgba(30, 58, 138, 0.35));
+  border-color: #b59a6d;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.crozzo-nube-sql-quick {
+  display: grid;
+  gap: 12px;
+}
+.crozzo-nube-sql-quick__hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(181, 154, 109, 0.35);
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.12), rgba(181, 154, 109, 0.08));
+}
+.crozzo-nube-sql-quick__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crozzo-nube-supabase-dock {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.crozzo-nube-supabase-dock--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.crozzo-nube-supabase-dock__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 24, 0.62);
+  backdrop-filter: blur(4px);
+}
+.crozzo-nube-supabase-dock__panel {
+  position: relative;
+  z-index: 1;
+  width: min(1280px, 96vw);
+  margin: auto;
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg-secondary, #0f172a);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  transform: translateY(18px) scale(0.98);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-nube-supabase-dock--visible .crozzo-nube-supabase-dock__panel {
+  transform: translateY(0) scale(1);
+}
+.crozzo-nube-supabase-dock__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(30, 58, 138, 0.35), rgba(15, 23, 42, 0.9));
+  position: relative;
+  z-index: 4;
+}
+.crozzo-nube-supabase-dock__brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.crozzo-nube-supabase-dock__brand-icon {
+  display: flex;
+  color: #38bdf8;
+}
+.crozzo-nube-supabase-dock__subtitle {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  font-weight: 400;
+}
+.crozzo-nube-supabase-dock__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.crozzo-nube-supabase-dock__body {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) 1fr;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+@media (max-width: 900px) {
+  .crozzo-nube-supabase-dock__body {
+    grid-template-columns: 1fr;
+  }
+  .crozzo-nube-supabase-dock__side {
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+  }
+}
+.crozzo-nube-supabase-dock__side {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  font-size: 0.82rem;
+  position: relative;
+  z-index: 3;
+}
+.crozzo-nube-supabase-dock__steps {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+.crozzo-nube-supabase-dock__embed-wrap {
+  position: relative;
+  min-height: min(68vh, 720px);
+  background: #0b1220;
+}
+.crozzo-nube-supabase-dock__host {
+  position: absolute;
+  inset: 0;
+  min-height: 100%;
+}
+.crozzo-nube-supabase-dock__fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+body.crozzo-nube-supabase-dock-open {
+  overflow: hidden;
+}
 .crozzo-nube-alta-checklist {
   max-height: min(420px, 55vh);
   overflow-y: auto;
@@ -53503,6 +53674,177 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
   position: relative;
   z-index: 2;
 }
+.crozzo-nube-sql-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.crozzo-nube-sql-mode__btn {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  background: var(--bg-primary, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.crozzo-nube-sql-mode__btn:hover {
+  border-color: #b59a6d;
+}
+.crozzo-nube-sql-mode__btn--active {
+  background: linear-gradient(135deg, rgba(181, 154, 109, 0.22), rgba(30, 58, 138, 0.35));
+  border-color: #b59a6d;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.crozzo-nube-sql-quick {
+  display: grid;
+  gap: 12px;
+}
+.crozzo-nube-sql-quick__hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(181, 154, 109, 0.35);
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.12), rgba(181, 154, 109, 0.08));
+}
+.crozzo-nube-sql-quick__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crozzo-nube-supabase-dock {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+.crozzo-nube-supabase-dock--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.crozzo-nube-supabase-dock__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 24, 0.62);
+  backdrop-filter: blur(4px);
+}
+.crozzo-nube-supabase-dock__panel {
+  position: relative;
+  z-index: 1;
+  width: min(1280px, 96vw);
+  margin: auto;
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--bg-secondary, #0f172a);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  transform: translateY(18px) scale(0.98);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-nube-supabase-dock--visible .crozzo-nube-supabase-dock__panel {
+  transform: translateY(0) scale(1);
+}
+.crozzo-nube-supabase-dock__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(30, 58, 138, 0.35), rgba(15, 23, 42, 0.9));
+  position: relative;
+  z-index: 4;
+}
+.crozzo-nube-supabase-dock__brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+.crozzo-nube-supabase-dock__brand-icon {
+  display: flex;
+  color: #38bdf8;
+}
+.crozzo-nube-supabase-dock__subtitle {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  font-weight: 400;
+}
+.crozzo-nube-supabase-dock__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.crozzo-nube-supabase-dock__body {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) 1fr;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+@media (max-width: 900px) {
+  .crozzo-nube-supabase-dock__body {
+    grid-template-columns: 1fr;
+  }
+  .crozzo-nube-supabase-dock__side {
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--border);
+  }
+}
+.crozzo-nube-supabase-dock__side {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  font-size: 0.82rem;
+  position: relative;
+  z-index: 3;
+}
+.crozzo-nube-supabase-dock__steps {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+.crozzo-nube-supabase-dock__embed-wrap {
+  position: relative;
+  min-height: min(68vh, 720px);
+  background: #0b1220;
+}
+.crozzo-nube-supabase-dock__host {
+  position: absolute;
+  inset: 0;
+  min-height: 100%;
+}
+.crozzo-nube-supabase-dock__fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+body.crozzo-nube-supabase-dock-open {
+  overflow: hidden;
+}
 .crozzo-nube-alta-checklist {
   max-height: min(420px, 55vh);
   overflow-y: auto;
@@ -75534,6 +75876,69 @@ html.crozzo-page-spotify-web .crozzo-wa-page__btn:focus-visible {
   border-color: #1db954 !important;
 }
 
+html.crozzo-page-supabase-nube-web .crozzo-wa-page__brand-icon {
+  color: #3ecf8e !important;
+}
+
+html.crozzo-page-supabase-nube-web .crozzo-wa-page__btn:hover,
+html.crozzo-page-supabase-nube-web .crozzo-wa-page__btn:focus-visible {
+  background: #ecfdf5 !important;
+  border-color: #3ecf8e !important;
+}
+
+.crozzo-nube-supabase-page__hint {
+  flex: 1 1 auto;
+  margin: 0 12px;
+  font-size: 0.82rem;
+  color: var(--text-muted, rgba(0, 0, 0, 0.55));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crozzo-nube-supabase-page__actions {
+  flex-shrink: 0;
+  gap: 6px !important;
+}
+
+.crozzo-nube-supabase-page__pill {
+  appearance: none;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  background: var(--surface-2, #fff);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.crozzo-nube-supabase-page__pill:hover,
+.crozzo-nube-supabase-page__pill:focus-visible {
+  border-color: #3ecf8e;
+  background: #ecfdf5;
+}
+
+.crozzo-nube-supabase-page__pill--primary {
+  background: #3ecf8e;
+  border-color: #3ecf8e;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.crozzo-nube-supabase-page__pill--primary:hover,
+.crozzo-nube-supabase-page__pill--primary:focus-visible {
+  background: #2eb67d;
+  border-color: #2eb67d;
+}
+
+@media (max-width: 1100px) {
+  .crozzo-nube-supabase-page__hint {
+    display: none;
+  }
+}
+
 body.crozzo-page-web-embed .toast-container,
 html.tauri-desktop body.crozzo-page-web-embed .toast-container {
   position: fixed !important;
@@ -75601,6 +76006,7 @@ html.crozzo-page-web-embed #crozzoDriveEmbedHost,
 html.crozzo-page-web-embed #crozzoDataicoEmbedHost,
 html.crozzo-page-web-embed #crozzoDianVpfeEmbedHost,
 html.crozzo-page-web-embed #crozzoSpotifyEmbedHost,
+html.crozzo-page-web-embed #crozzoNubeSupabaseEmbedHost,
 html.crozzo-page-web-embed .crozzo-wa-page__host {
   position: absolute !important;
   top: 0 !important;

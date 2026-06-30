@@ -693,6 +693,11 @@
         global.crozzoSpotifyDockHideEmbed();
       }
     }
+    if (typeof global.crozzoNubeSupabaseDockHideEmbed === 'function') {
+      if (typeof global.crozzoNubeSupabaseDockIsOpen === 'function' && global.crozzoNubeSupabaseDockIsOpen()) {
+        global.crozzoNubeSupabaseDockHideEmbed();
+      }
+    }
   }
 
   function openDock(url) {

@@ -249,6 +249,17 @@
         }
       } catch (_) {}
       logLine('🔄 Sync total (' + (opts.source || 'manual') + ')…');
+      var cfgRec = md();
+      if (cfgRec.role === 'B' && cfgRec.allowLan !== false && typeof global.crozzoWifiZoneResolveCentral === 'function') {
+        try {
+          await global.crozzoWifiZoneResolveCentral({ force: !!(opts.force || opts.source === 'online') });
+        } catch (_) {}
+      }
+      if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+        try {
+          await global.crozzoActivateLocalSyncPath(String(opts.source || 'reconnect'));
+        } catch (_) {}
+      }
       var central = await centralAuthorityPush();
       if (cloudBgAllowed(opts)) {
         if (typeof global.crozzoEnsureCloudSyncActive === 'function') {

@@ -2042,7 +2042,7 @@ window.__crozzoPostInitCloud = async function postInitCloud() {
   } catch (_) {}
   try {
     if (typeof crozzoPullRemoteStaffState === 'function') {
-      await crozzoPullRemoteStaffState({ quiet: true });
+      await crozzoPullRemoteStaffState({ quiet: true, force: true, kind: 'postInit' });
     }
   } catch (_) {}
   if (typeof getCurrentUser === 'function' && !getCurrentUser()) return;
@@ -2504,6 +2504,7 @@ async function crozzoPushPosStaffToCloud() {
       return false;
     }
     await crozzoPruneOrphanPosStaffInCloud(ctx);
+    crozzoTenantHubBroadcast();
     return true;
   } catch (e) {
     console.warn('[crozzo-sb] push pos_staff', e);
@@ -2649,7 +2650,7 @@ function crozzoStaffDebouncedPull() {
   __crozzoTenantDebounceT = setTimeout(function () {
     __crozzoTenantDebounceT = null;
     if (Date.now() < __crozzoTenantPushEchoUntil) return;
-    var pullOpts = { skipRender: true, quiet: true, kind: 'page_watch' };
+    var pullOpts = { skipRender: true, quiet: true, kind: 'staff_pull', force: true };
     if (typeof crozzoPullRemoteTenantState === 'function') {
       crozzoPullRemoteTenantState(pullOpts).catch(function () {});
     }
@@ -2661,12 +2662,37 @@ function crozzoStaffDebouncedPull() {
 function crozzoTenantDebouncedPull() {
   crozzoStaffDebouncedPull();
 }
-function startCrozzoRemoteTenantSync() {
+/** Pull credenciales pos_staff + escucha realtime — permitido antes del login (gate staff_auth). */
+function crozzoEnsureRemoteStaffCatalogSync(opts) {
+  opts = opts || {};
+  if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) {
+    return Promise.resolve(false);
+  }
+  try {
+    if (typeof startCrozzoRemoteTenantSync === 'function') startCrozzoRemoteTenantSync({ preLogin: true });
+  } catch (_) {}
+  if (typeof crozzoPullRemoteStaffState !== 'function') return Promise.resolve(false);
+  return crozzoPullRemoteStaffState({
+    quiet: opts.quiet !== false,
+    skipRender: true,
+    force: true,
+    kind: 'staff_auth',
+  }).catch(function () {
+    return false;
+  });
+}
+window.crozzoEnsureRemoteStaffCatalogSync = crozzoEnsureRemoteStaffCatalogSync;
+function startCrozzoRemoteTenantSync(opts) {
+  opts = opts || {};
   if (__crozzoTenantSyncStarted) return;
   if (typeof crozzoOnlineConfigReady !== 'function' || !crozzoOnlineConfigReady() || !window.__SUPABASE) return;
-  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function' && !global.crozzoCloudBackgroundSyncAllowed()) {
-    return;
+  var gateOk = true;
+  if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+    gateOk = global.crozzoCloudBackgroundSyncAllowed(
+      opts.preLogin ? { force: true, kind: 'staff_auth' } : { kind: 'page_watch' }
+    );
   }
+  if (!gateOk) return;
   __crozzoTenantSyncStarted = true;
   if (__crozzoTenantBC) {
     try {
@@ -3131,12 +3157,18 @@ function crozzoFlushStaffCloudSync(opts) {
     crozzoPushPosStaffToCloud().catch(function () { return false; }),
   ]).then(function (res) {
     var ok = !!(res && (res[0] || res[1]));
-    if (ok) __crozzoStaffSyncPending = false;
+    if (ok) {
+      __crozzoStaffSyncPending = false;
+      crozzoTenantHubBroadcast();
+    }
     if (typeof crozzoPruneOrphanPosStaffInCloud !== 'function') return ok;
     return crozzoPruneOrphanPosStaffInCloud()
       .catch(function () { return false; })
       .then(function (pruned) {
-        if (pruned) __crozzoStaffSyncPending = false;
+        if (pruned) {
+          __crozzoStaffSyncPending = false;
+          crozzoTenantHubBroadcast();
+        }
         return ok || !!pruned;
       });
   });

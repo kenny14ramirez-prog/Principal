@@ -420,6 +420,9 @@ fn hide_all_web_docks_except(app: &tauri::AppHandle, keep: &str) {
     if keep != "spotify" {
         hide_spotify_dock(app);
     }
+    if keep != "supabase" {
+        hide_supabase_dock(app);
+    }
 }
 
 fn build_gmail_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
@@ -1299,4 +1302,192 @@ pub async fn crozzo_spotify_dock_sync(
     _url: Option<String>,
 ) -> Result<String, String> {
     Err(String::from("Spotify embebido solo en escritorio"))
+}
+
+// ── Supabase Dashboard / SQL Editor (Nube global) ──
+
+const SUPABASE_DOCK_LABEL: &str = "crozzo-supabase-dock";
+const SUPABASE_DEFAULT_URL: &str = "https://supabase.com/dashboard";
+
+static SUPABASE_DOCK_CREATING: AtomicBool = AtomicBool::new(false);
+static SUPABASE_WANT_VISIBLE: AtomicBool = AtomicBool::new(false);
+static SUPABASE_LAST_LEFT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SUPABASE_LAST_TOP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SUPABASE_LAST_WIDTH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SUPABASE_LAST_HEIGHT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn validate_supabase_url(url: &str) -> Result<&str, String> {
+    let url = validate_external_url(url)?;
+    if url.contains("supabase.com") || url.contains("supabase.co") {
+        return Ok(url);
+    }
+    Err(String::from("Solo enlaces Supabase (supabase.com / supabase.co)"))
+}
+
+fn supabase_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())
+        .map(|p| p.join("supabase-web"))
+}
+
+fn store_supabase_rect(left: f64, top: f64, width: f64, height: f64) {
+    SUPABASE_LAST_LEFT.store(left.to_bits(), Ordering::SeqCst);
+    SUPABASE_LAST_TOP.store(top.to_bits(), Ordering::SeqCst);
+    SUPABASE_LAST_WIDTH.store(width.to_bits(), Ordering::SeqCst);
+    SUPABASE_LAST_HEIGHT.store(height.to_bits(), Ordering::SeqCst);
+}
+
+fn load_supabase_rect() -> (f64, f64, f64, f64) {
+    (
+        f64::from_bits(SUPABASE_LAST_LEFT.load(Ordering::SeqCst)),
+        f64::from_bits(SUPABASE_LAST_TOP.load(Ordering::SeqCst)),
+        f64::from_bits(SUPABASE_LAST_WIDTH.load(Ordering::SeqCst)),
+        f64::from_bits(SUPABASE_LAST_HEIGHT.load(Ordering::SeqCst)),
+    )
+}
+
+fn hide_supabase_dock(app: &tauri::AppHandle) {
+    SUPABASE_WANT_VISIBLE.store(false, Ordering::SeqCst);
+    if let Some(dock) = app.get_webview_window(SUPABASE_DOCK_LABEL) {
+        let _ = dock.hide();
+    }
+}
+
+fn build_supabase_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
+    let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
+    let data_dir = supabase_data_dir(app)?;
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, SUPABASE_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
+                if payload.event() == PageLoadEvent::Finished
+                    && SUPABASE_WANT_VISIBLE.load(Ordering::SeqCst)
+                {
+                    let app = window.app_handle();
+                    if let (Some(main), Some(dock)) = (
+                        app.get_webview_window("main"),
+                        app.get_webview_window(SUPABASE_DOCK_LABEL),
+                    ) {
+                        let (l, t, w, h) = load_supabase_rect();
+                        if w >= 80.0 && h >= 80.0 {
+                            let _ = position_dock_rect(&dock, &main, l, t, w, h);
+                        }
+                        let _ = dock.show();
+                    } else {
+                        let _ = window.show();
+                    }
+                }
+            }),
+    );
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.devtools(true);
+    }
+    #[cfg(windows)]
+    {
+        builder = builder.owner(&main).map_err(|e| format!("Owner Supabase: {e}"))?;
+    }
+    #[cfg(all(not(windows), target_os = "macos"))]
+    {
+        builder = builder.parent(&main).map_err(|e| format!("Parent Supabase: {e}"))?;
+    }
+    let dock = builder.build().map_err(|e| format!("Ventana Supabase: {e}"))?;
+    let _ = dock.hide();
+    Ok(dock)
+}
+
+fn ensure_supabase_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    if let Some(dock) = app.get_webview_window(SUPABASE_DOCK_LABEL) {
+        return Ok(dock);
+    }
+    if SUPABASE_DOCK_CREATING.swap(true, Ordering::SeqCst) {
+        for _ in 0..40 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            if let Some(dock) = app.get_webview_window(SUPABASE_DOCK_LABEL) {
+                SUPABASE_DOCK_CREATING.store(false, Ordering::SeqCst);
+                return Ok(dock);
+            }
+        }
+        SUPABASE_DOCK_CREATING.store(false, Ordering::SeqCst);
+        return Err(String::from("Timeout creando ventana Supabase"));
+    }
+    let result = build_supabase_dock(app, url);
+    SUPABASE_DOCK_CREATING.store(false, Ordering::SeqCst);
+    result
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub async fn crozzo_supabase_dock_sync(
+    app: tauri::AppHandle,
+    open: bool,
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+    url: Option<String>,
+) -> Result<String, String> {
+    if !open {
+        hide_supabase_dock(&app);
+        return Ok(String::from("closed"));
+    }
+    hide_all_web_docks_except(&app, "supabase");
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
+    let (last_l, last_t, last_w, last_h) = load_supabase_rect();
+    let same_rect = (last_l - left).abs() < 0.5
+        && (last_t - top).abs() < 0.5
+        && (last_w - width).abs() < 0.5
+        && (last_h - height).abs() < 0.5;
+    store_supabase_rect(left, top, width, height);
+    let should_navigate = url.as_ref().is_some_and(|u| !u.trim().is_empty());
+    let target_url = url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| String::from(SUPABASE_DEFAULT_URL));
+    validate_supabase_url(&target_url)?;
+    let dock = ensure_supabase_dock(&app, &target_url)?;
+    if !same_rect {
+        position_dock_rect(&dock, &main, left, top, width, height)?;
+    }
+    SUPABASE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+    if should_navigate {
+        let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Supabase: {e}"))?;
+        let needs_nav = dock
+            .url()
+            .ok()
+            .map(|current| current.as_str() != want.as_str())
+            .unwrap_or(true);
+        if needs_nav {
+            let _ = dock.hide();
+            dock.navigate(want)
+                .map_err(|e| format!("Navigate Supabase: {e}"))?;
+        } else {
+            dock.show().map_err(|e| e.to_string())?;
+        }
+    } else {
+        dock.show().map_err(|e| e.to_string())?;
+    }
+    Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn crozzo_supabase_dock_sync(
+    _app: tauri::AppHandle,
+    _open: bool,
+    _left: f64,
+    _top: f64,
+    _width: f64,
+    _height: f64,
+    _url: Option<String>,
+) -> Result<String, String> {
+    Err(String::from("Supabase embebido solo en escritorio"))
 }
