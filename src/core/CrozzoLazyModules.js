@@ -40,25 +40,39 @@
     return src + (src.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(v);
   }
 
+  const connectionManager = new (global.CrozzoConnectionManager || (function() {
+    console.warn('[crozzo-lazy] Using fallback ConnectionManager');
+    return class {
+      async executeWithRetry(op) { return op(); }
+    };
+  })());
+
   function loadOne(src) {
     var base = bundleBasePath(src);
     if (loaded[base]) return loaded[base];
     var url = bundleSrc(src);
     if (loading[base]) return loading[base];
-    loading[base] = new Promise(function (resolve, reject) {
-      var s = document.createElement('script');
-      s.src = url;
-      s.defer = true;
-      s.onload = function () {
-        loaded[base] = true;
-        resolve();
-      };
-      s.onerror = function () {
-        delete loading[base];
-        reject(new Error('No se pudo cargar ' + url));
-      };
-      document.head.appendChild(s);
+    
+    loading[base] = connectionManager.executeWithRetry(async () => {
+      return new Promise((resolve, reject) => {
+        var s = document.createElement('script');
+        s.src = url;
+        s.defer = true;
+        s.onload = function () {
+          loaded[base] = true;
+          resolve();
+        };
+        s.onerror = function () {
+          delete loading[base];
+          reject(new Error('No se pudo cargar ' + url));
+        };
+        document.head.appendChild(s);
+      });
+    }).catch(err => {
+      console.warn('[crozzo-lazy] Failed after retries:', url, err);
+      throw err;
     });
+    
     return loading[base];
   }
 
