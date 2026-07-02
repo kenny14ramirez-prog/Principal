@@ -32,6 +32,13 @@
   var PRINTED_LS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   if (!global.__crozzoPosBootAt) global.__crozzoPosBootAt = Date.now();
 
+  // ── Delay mínimo antes de reaccionar a un CLOSED ─────────────────────────
+  // ANTES era setTimeout(..., 0): evaluaba tierAllowsCloudRead() en el mismo
+  // tick en que el orchestrator acababa de cambiar el tier → siempre false →
+  // llamaba stopComandasCloudSync() → loop SUBSCRIBED→CLOSED.
+  // Con 2500 ms el orchestrator ya estabilizó su estado y la decisión es real.
+  var RT_CLOSED_REACT_MS = 2500;
+
   function noteCloudErr(err) {
     try {
       var msg = String((err && err.message) || err || '');
@@ -95,8 +102,6 @@
     var wasLive = __realtimeLive;
     __realtimeLive = false;
     if (!oldCh || !global.__SUPABASE) return;
-    // Canal ya muerto o skip explícito: soltar referencia sin removeChannel
-    // (evita tormenta CLOSED/CHANNEL_ERROR en cascada cuando DNS cae).
     if (opts.skipRemove || !wasLive) return;
     if (__comandaTeardownTimer) global.clearTimeout(__comandaTeardownTimer);
     __comandaTeardownTimer = global.setTimeout(function () {
@@ -130,7 +135,6 @@
   }
 
   function tierAllowsCloudPush() {
-    // No sincronizar comandas antes del login (evita 401 / canal CLOSED sin sesión).
     try {
       if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
         return false;
@@ -167,7 +171,6 @@
     );
   }
 
-  /** LAN local disponible (cache o IP de caja) — sin costo nube, push instantáneo. */
   function lanSegmentLikely() {
     if (deferLocalCloudSync()) return false;
     try {
@@ -332,26 +335,13 @@
     return t && Date.now() - t < 12000;
   }
 
-  // ─────────────────────────────────────────────────────────────────────
-  // OUTBOX DURABLE DE COMANDAS — plan de respaldo de entrega.
-  //
-  // Problema que resuelve: el push de una comanda a la nube era
-  // "fire-and-forget" (pushComanda(...).catch(()=>{})). Si ese push fallaba
-  // por un bache de red, un JWT vencido o un 503 transitorio, la fila NUNCA
-  // quedaba en la nube y caja jamás veía la comanda — la operación se partía.
-  //
-  // Solución: toda comanda/cambio de estado se registra en un outbox que
-  // sobrevive recargas (localStorage) y se reintenta con backoff hasta
-  // CONFIRMAR que la fila quedó en Supabase. Mientras haya entradas
-  // pendientes el lazo sigue trabajando; al reconectar, drena solo.
-  // ─────────────────────────────────────────────────────────────────────
   var OUTBOX_LS_KEY = 'crozzo_comanda_outbox_v1';
-  var __outbox = {}; // key(tid|id) -> { id, tid, attempts, firstAt, nextAt, lastErr }
+  var __outbox = {};
   var __outboxTimer = null;
   var __outboxLoaded = false;
   var OUTBOX_BASE_MS = 2500;
   var OUTBOX_MAX_MS = 30000;
-  var OUTBOX_MAX_AGE_MS = 6 * 60 * 60 * 1000; // 6 h: descarta zombies
+  var OUTBOX_MAX_AGE_MS = 6 * 60 * 60 * 1000;
   var OUTBOX_BATCH_NORMAL = 2;
   var __comandaPushChain = Promise.resolve();
 
@@ -520,7 +510,6 @@
     }, Math.max(250, ms || OUTBOX_BASE_MS));
   }
 
-  /** Página POS visible (comandas/cocina). global.currentPage no existe — usar crozzoGetActivePageId. */
   function activePosPage() {
     var pg = '';
     try {
@@ -722,12 +711,17 @@
     try {
       var res = await sb.from('comandas').upsert(body, { onConflict: 'id' });
       if (res.error) {
+        // 409 Conflict en comandas: el registro ya existe con datos más nuevos.
+        // No es un error crítico — el dato ya está en la nube.
+        var errStatus = (res.error && (res.error.status || res.error.code)) || 0;
+        var errMsg = String((res.error && res.error.message) || res.error || '');
+        if (errStatus === 409 || /409|conflict/i.test(errMsg)) {
+          return true;
+        }
         console.warn('[crozzo-comanda-cloud] push', res.error.message || res.error);
         noteCloudErr(res.error);
         return false;
       }
-      // Segunda vía de tiempo real: avisa por pulso broadcast a los demás
-      // equipos para que bajen al instante (no depende de postgres_changes).
       try {
         if (typeof global.crozzoOpsPulseEmit === 'function') global.crozzoOpsPulseEmit('comanda');
       } catch (_) {}
@@ -981,7 +975,6 @@
       } catch (_) {}
       return false;
     }
-    // Comanda ya impresa (local o remoto): no reimprimir al sync/arranque.
     if (pay.printed_by && pay.printed_at) {
       try {
         var printKey = pay.transaction_id || String(pay.id || '');
@@ -1062,18 +1055,7 @@
     return true;
   }
 
-  /**
-   * Reconciliación por AUSENCIA (anti-resurrección / anti-duplicado).
-   *
-   * Tras un pull autoritativo de la nube, una comanda local que YA NO está en el
-   * conjunto activo de la nube fue cobrada/entregada/eliminada en otro equipo (o
-   * hace días). Si además es vieja y NO está pendiente de subir (outbox), se
-   * elimina localmente: así el equipo que vuelve de estar apagado no la resucita,
-   * no la re-comanda ni la vuelve a subir. Lo reciente y lo no confirmado se
-   * conserva (debe subir, no borrarse) — nunca se pierde información en vuelo.
-   */
   function reconcileStaleLocalComandas(cloudRows) {
-    // Conjuntos de comandas ACTIVAS en la nube (por tid y por id).
     var activeTids = {};
     var activeIds = {};
     (cloudRows || []).forEach(function (r) {
@@ -1084,7 +1066,6 @@
       if (pay.id != null) activeIds[String(pay.id)] = 1;
       if (r.id != null) activeIds[String(r.id)] = 1;
     });
-    // Claves pendientes de subir (outbox): NO se deben eliminar (van en vuelo).
     var pendingKeys = {};
     Object.keys(__outbox).forEach(function (k) {
       pendingKeys[String(k)] = 1;
@@ -1092,8 +1073,6 @@
       if (e && e.tid) pendingKeys[String(e.tid)] = 1;
       if (e && e.id != null) pendingKeys[String(e.id)] = 1;
     });
-    // La eliminación la hace CrozzoPosMain sobre el array REAL de comandas
-    // (evita operar sobre una referencia vieja de global.comandas tras un merge).
     if (typeof global.crozzoRemoveStaleComandas === 'function') {
       return global.crozzoRemoveStaleComandas(activeTids, activeIds, pendingKeys, 120000);
     }
@@ -1113,8 +1092,6 @@
         .order('updated_at', { ascending: false })
         .limit(100);
       if (ctx.businessId) q = q.eq('business_id', ctx.businessId);
-      // Filtro por sede: a escala (varias sedes en un mismo negocio) evita traer
-      // comandas ajenas; rowMatchesTenant igual las descartaria, pero asi no viajan.
       if (ctx.locationId && ctx.locationId !== 'default') q = q.eq('location_id', ctx.locationId);
       var res = await q;
       if (res.error) {
@@ -1160,10 +1137,6 @@
           }
         }
       } catch (_) {}
-      // Reconciliación por ausencia: solo en pases explícitos (reconexión,
-      // arranque, volver a la pestaña). Limpia comandas viejas ya cobradas que
-      // el tombstone de 45 min no alcanza (p. ej. un equipo que estuvo días
-      // apagado). No corre en cada poll para no arriesgar nada en operación.
       if (opts && opts.reconcileStale) {
         try {
           if (reconcileStaleLocalComandas(rows)) anyChanged = true;
@@ -1180,7 +1153,6 @@
     }
   }
 
-  /** Archiva y borra en nube comandas entregadas con más de 12 h (incluye días/semanas atrás). */
   async function purgeDeliveredComandasFromCloud(opts) {
     opts = opts || {};
     if (!tierAllowsCloudPush()) return { purged: 0 };
@@ -1233,9 +1205,7 @@
           }
         }
         var ids = rows
-          .map(function (r) {
-            return r.id;
-          })
+          .map(function (r) { return r.id; })
           .filter(Boolean);
         if (!ids.length) break;
         var del = await sb.from('comandas').delete().in('id', ids);
@@ -1299,10 +1269,6 @@
     }
   }
 
-  /** Ventana en ms dentro de la cual una comanda recién actualizada
-   *  puede activar impresión automática aunque venga del poll periódico.
-   *  Evita reimprimir comandas viejas al reconectar, pero sí imprime
-   *  las que llegaron mientras el dispositivo estaba sin red. */
   var POLL_PRINT_WINDOW_MS = 8 * 60 * 1000;
 
   function scheduleComandaPull() {
@@ -1335,9 +1301,6 @@
     __pullTimer = global.setInterval(function () {
       if (!tierAllowsCloudRead()) return;
       if (cloudUnderPressure()) return;
-      // Poll periódico de comandas: solo en pantallas operativas. Fuera de
-      // operación (Inicio, Gestión, etc.) no se sondea en vivo. Los eventos
-      // realtime (crear/cambiar comanda) siguen llegando si el canal está vivo.
       try {
         if (typeof global.crozzoOperationalRealtimeActive === 'function' && !global.crozzoOperationalRealtimeActive()) {
           return;
@@ -1356,7 +1319,6 @@
   function subscribeComandaRealtime(reason) {
     if (!tierAllowsCloudRead()) return;
     if (__comandaSubscribing) return;
-    // Si ya hay canal activo y vivo, no destruirlo — evita loop CLOSED.
     if (__realtimeLive && global.__crozzoComandaCloudCh) return;
     var ctx = cloudCtx();
     if (!tenantIdsReady(ctx)) {
@@ -1366,10 +1328,6 @@
       return;
     }
     teardownComandaChannel({ skipRemove: !__realtimeLive });
-    // Sanear sesión JWT antes de conectar — evita el loop 401→CLOSED→resub.
-    // crozzoEnsureSupabaseAuthHealthy limpia tokens expirados y vuelve a
-    // la clave anónima si hace falta. La suscripción del canal se hace en
-    // el callback para no bloquear el hilo principal.
     if (global.__SUPABASE && typeof global.crozzoEnsureSupabaseAuthHealthy === 'function') {
       global.crozzoEnsureSupabaseAuthHealthy(global.__SUPABASE).then(function () {
         _doSubscribeComandaRealtime(reason);
@@ -1463,6 +1421,13 @@
             } catch (_) {}
           }
           scheduleComandaPull();
+          // ── Delay anti-flapping antes de reaccionar al CLOSED ────────────
+          // ANTES: setTimeout(..., 0) → evaluaba tier en el mismo tick que el
+          // orchestrator lo cambió → siempre false → stopComandasCloudSync()
+          // → loop SUBSCRIBED→CLOSED.
+          // AHORA: RT_CLOSED_REACT_MS (2500 ms) da tiempo al orchestrator de
+          // estabilizar su estado. Si el tier sigue sin cloud después de ese
+          // tiempo, la decisión de parar es real y no un parpadeo.
           global.setTimeout(function () {
             if (!tierAllowsCloudRead() || !cloudWanReady()) {
               stopComandasCloudSync();
@@ -1470,7 +1435,7 @@
             }
             if (cloudUnderPressure()) return;
             scheduleComandaRealtimeResubscribe(status);
-          }, 0);
+          }, RT_CLOSED_REACT_MS);
           console.warn('[crozzo-comanda-cloud] realtime ' + status + (reason ? ' (' + reason + ')' : ''));
         }
       });
@@ -1517,13 +1482,9 @@
     }
     __started = true;
 
-    // Recupera el outbox de sesiones anteriores y drena lo pendiente: cualquier
-    // comanda cuyo push quedó sin confirmar antes de un cierre/recarga se reenvía.
     loadOutbox();
     if (outboxPending() && (tierAllowsCloudPush() || lanSegmentLikely())) scheduleOutboxDrain(300);
 
-    // Arranque: pull autoritativo + reconciliación por ausencia (limpia comandas
-    // viejas ya cobradas si el equipo estuvo apagado).
     pullComandasFromCloud({ skipPrint: true, skipRender: true, silent: true, reconcileStale: true }).catch(function () {});
 
     scheduleComandaPull();
@@ -1601,9 +1562,6 @@
     } catch (_) {}
   }
 
-  /** Notifica al cloud que este dispositivo ya imprimió la comanda,
-   *  propagando printed_by + printed_at. Otros dispositivos que reciban
-   *  esta fila marcarán la comanda como impresa y no duplicarán el ticket. */
   async function pushComandaPrintedAck(comanda) {
     if (!comanda || !tierAllowsCloudPush() || !online()) return false;
     var ctx = cloudCtx();
@@ -1643,7 +1601,6 @@
       started: __started,
     };
   };
-  /** Fuerza un intento de drenado del outbox (p. ej. al reconectar). */
   global.crozzoFlushComandaOutbox = function () {
     var cloudOk = tierAllowsCloudPush();
     var lanOk = lanSegmentLikely();
@@ -1665,7 +1622,6 @@
     if (__outboxTimer) return;
     scheduleOutboxDrain(lanSegmentLikely() ? 400 : 1200);
   };
-  /** Estado del outbox para diagnóstico de comunicación. */
   global.crozzoComandaOutboxStatus = function () {
     loadOutbox();
     var keys = Object.keys(__outbox);
