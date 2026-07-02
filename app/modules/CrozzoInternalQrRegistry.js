@@ -30,6 +30,27 @@
   var MESH_BROADCAST_GAP_MS = 45000;
   var MESH_REQUEST_GAP_MS = 35000;
 
+  // ── Backoff exponencial ──────────────────────────────────────────────────
+  // Reintentos para peticiones cloud: 1 s, 2 s, 4 s (máx 3 intentos extra).
+  var BACKOFF_BASE_MS = 1000;
+  var BACKOFF_MAX_RETRIES = 3;
+
+  function withExponentialBackoff(fn, retries, delayMs) {
+    retries = retries == null ? BACKOFF_MAX_RETRIES : retries;
+    delayMs = delayMs == null ? BACKOFF_BASE_MS : delayMs;
+    return fn().catch(function (err) {
+      if (retries <= 0) return Promise.reject(err);
+      // No reintentar si la tabla no existe (error permanente).
+      if (isTableMissingError(err)) return Promise.reject(err);
+      return new Promise(function (resolve, reject) {
+        global.setTimeout(function () {
+          withExponentialBackoff(fn, retries - 1, delayMs * 2).then(resolve, reject);
+        }, delayMs);
+      });
+    });
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   function safe(fn) {
     try {
       return fn();
@@ -352,27 +373,37 @@
     };
   }
 
+  // ── backfillPeerSlotToCloud: con verificación de tier + backoff exponencial ──
   async function backfillPeerSlotToCloud(entry) {
+    // Verificación de tier: solo intentar si el cloud está disponible.
     if (!cloudReady() || !tenantReady() || !entry || !entry.scanText) return false;
     var sb = global.__SUPABASE;
+    var row = {
+      id: entry.deviceId + '|' + entry.slot,
+      business_id: entry.businessId || tenantCtx().businessId,
+      location_id: entry.locationId || tenantCtx().locationId,
+      device_id: entry.deviceId,
+      device_role: entry.deviceRole || 'B',
+      device_name: entry.deviceName || '',
+      slot_key: entry.slot,
+      scan_text: entry.scanText,
+      payload_json: entry.payloadJson || null,
+      built_at: new Date(entry.builtAt || nowMs()).toISOString(),
+      valid_until: new Date(entry.validUntil || entry.builtAt + VALID_MS).toISOString(),
+      updated_at: new Date().toISOString(),
+    };
     try {
-      var row = {
-        id: entry.deviceId + '|' + entry.slot,
-        business_id: entry.businessId || tenantCtx().businessId,
-        location_id: entry.locationId || tenantCtx().locationId,
-        device_id: entry.deviceId,
-        device_role: entry.deviceRole || 'B',
-        device_name: entry.deviceName || '',
-        slot_key: entry.slot,
-        scan_text: entry.scanText,
-        payload_json: entry.payloadJson || null,
-        built_at: new Date(entry.builtAt || nowMs()).toISOString(),
-        valid_until: new Date(entry.validUntil || entry.builtAt + VALID_MS).toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      var res = await sb.from(TABLE).upsert(row, { onConflict: 'id' });
-      return !(res && res.error);
-    } catch (_) {
+      var result = await withExponentialBackoff(function () {
+        // Re-verificar tier en cada intento del backoff.
+        if (!cloudReady()) return Promise.reject(new Error('tier_no_cloud'));
+        return sb.from(TABLE).upsert(row, { onConflict: 'id' }).then(function (res) {
+          if (res && res.error) return Promise.reject(res.error);
+          return res;
+        });
+      });
+      return true;
+    } catch (err) {
+      if (isTableMissingError(err)) markTableMissing(err);
       return false;
     }
   }
@@ -525,34 +556,35 @@
     return broadcastSlotsToMesh(slots, { force: !!opts.force });
   }
 
+  // ── publishOwnSlot: con verificación de tier + backoff exponencial ───────
   async function publishOwnSlot(rec) {
+    // Verificación de tier: solo intentar si el cloud está disponible.
     if (!cloudQrTableReady() || !tenantReady() || !rec || !rec.scanText) return false;
     var ctx = tenantCtx();
     var sb = global.__SUPABASE;
+    var row = {
+      id: ctx.deviceId + '|' + rec.slot,
+      business_id: ctx.businessId,
+      location_id: ctx.locationId,
+      device_id: ctx.deviceId,
+      device_role: ctx.deviceRole,
+      device_name: ctx.deviceName,
+      slot_key: rec.slot,
+      scan_text: rec.scanText,
+      payload_json: rec.payload || null,
+      built_at: new Date(rec.builtAt).toISOString(),
+      valid_until: new Date(rec.validUntil).toISOString(),
+      updated_at: new Date().toISOString(),
+    };
     try {
-      var row = {
-        id: ctx.deviceId + '|' + rec.slot,
-        business_id: ctx.businessId,
-        location_id: ctx.locationId,
-        device_id: ctx.deviceId,
-        device_role: ctx.deviceRole,
-        device_name: ctx.deviceName,
-        slot_key: rec.slot,
-        scan_text: rec.scanText,
-        payload_json: rec.payload || null,
-        built_at: new Date(rec.builtAt).toISOString(),
-        valid_until: new Date(rec.validUntil).toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      var res = await sb.from(TABLE).upsert(row, { onConflict: 'id' });
-      if (res.error) {
-        if (isTableMissingError(res.error)) {
-          markTableMissing(res.error);
-          return false;
-        }
-        console.warn('[internal-qr] publish', res.error.message || res.error);
-        return false;
-      }
+      await withExponentialBackoff(function () {
+        // Re-verificar tier en cada intento del backoff.
+        if (!cloudQrTableReady()) return Promise.reject(new Error('tier_no_cloud'));
+        return sb.from(TABLE).upsert(row, { onConflict: 'id' }).then(function (res) {
+          if (res && res.error) return Promise.reject(res.error);
+          return res;
+        });
+      });
       return true;
     } catch (e) {
       if (isTableMissingError(e)) {
@@ -563,6 +595,7 @@
       return false;
     }
   }
+  // ────────────────────────────────────────────────────────────────────────
 
   async function pullPeersFromCloud() {
     if (!cloudQrTableReady() || !tenantReady()) return 0;
