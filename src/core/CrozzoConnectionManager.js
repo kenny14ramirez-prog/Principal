@@ -34,11 +34,16 @@ class ConnectionManager {
         .reduce((a,b) => a+b) / this.state.latencyHistory.length
     );
     
+    // Factor dinámico basado en fallos recientes
+    const stressFactor = this.state.failures > 0 
+      ? 1 + (Math.min(this.state.failures, 5) * 0.5)
+      : 1;
+    
     return Math.min(
       this.settings.maxTimeout,
       Math.max(
         this.settings.minTimeout, 
-        avg + (dev * 2)
+        avg + (dev * 2 * stressFactor)
       )
     );
   }

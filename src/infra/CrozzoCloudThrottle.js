@@ -11,8 +11,10 @@
   var lastPressureStopAt = 0;
   var SEVERE_STOP_REASONS = { auth: 1, '429': 1, query_timeout: 1 };
   var DEFAULT_BATCH = 8;
-  var DEFAULT_MIN_GAP_MS = 900;
-  var DEFAULT_QUEUE_SEC = 20;
+  var DEFAULT_MIN_GAP_MS = 450;  // Más agresivo en modo normal
+  var PRESSURE_MIN_GAP_MS = 3500; // Mantenido para presión
+  var DYNAMIC_BATCH_FACTOR = 0.75; // Reduce batch durante congestión
+  var DEFAULT_QUEUE_SEC = 15; // Más frecuente
 
   function readPrefs() {
     try {
@@ -37,6 +39,11 @@
     if (!Number.isFinite(n) || n < 1) n = DEFAULT_BATCH;
     if (n > 25) n = 25;
     if (isUnderPressure()) return Math.max(1, Math.min(3, Math.floor(n / 2)));
+    
+    // Reducción dinámica basada en presión implícita
+    if (global.__CROZZO_CLOUD_PRESSURE_REASON) {
+      n = Math.max(1, Math.floor(n * DYNAMIC_BATCH_FACTOR));
+    }
     return n;
   }
 

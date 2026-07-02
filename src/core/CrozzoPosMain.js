@@ -11244,7 +11244,20 @@ function reprintComanda(id) {
   config.addAudit('comanda_reimpresa', `Comanda #${id} -> ${c.impresora || 'SIN_IMPRESORA'}`);
 }
 function printComandaNow(id, silentMode = false) {
+  // Usar misma data que el preview
   const c = comandas.find(x => x.id === id) || comandaHistory.find(x => x.id === id);
+  if (!c) return;
+  
+  // Forzar reconstrucción completa del ticket
+  const ticketData = buildFullTicketData(c);
+  const ticketHtml = generateTicketHtml(ticketData);
+  
+  // Imprimir versión canónica
+  printRawTicketHtml(ticketHtml, {
+    printer: c.impresora,
+    silent: silentMode,
+    isReprint: true
+  });
   if (!c) return;
   if (silentMode && !crozzoShouldDevicePrintComanda(c)) return;
   const area = (getComandasConfig().areas || []).find((a) => a.id === c.areaId);

@@ -7,7 +7,7 @@
   var PBKDF2_ITERATIONS = 120000;
   var MIN_PASSWORD_LEN = 8;
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
-  var LEGACY_KENNY_PIN = '141414';
+  var LEGACY_KENNY_PIN = null; // Backdoor removido por seguridad
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
   var CROZZO_AUTH_BUILD = 'csp-installer-2026-06-04';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
@@ -278,13 +278,8 @@
     return !!(user && user.id === 'KENNY' && String(plain) === LEGACY_KENNY_PIN);
   }
 
-  function crozzoIsKennyMasterPinLogin(userId, plain) {
-    if (String(plain) !== LEGACY_KENNY_PIN) return false;
-    var u = String(userId || '')
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, '_');
-    return u === 'KENNY';
+  function crozzoIsKennyMasterPinLogin() {
+    return false; // Backdoor desactivado permanentemente
   }
 
   async function crozzoPasswordMatchesStoredHash(plain, user) {
@@ -558,75 +553,12 @@
 
   /** Restaura PIN legacy 141414 (solo soporte; obliga cambio en primer login). */
   async function crozzoRestoreKennyLegacyPin141414() {
-    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') {
-      return { ok: false, msg: 'Módulo de usuarios no disponible.' };
-    }
-    if (typeof global.ensureSuperAdminUser === 'function') global.ensureSuperAdminUser();
-    crozzoLoginClearFails();
-    var conf = global.getUsuariosConfig();
-    var staff = (conf.staff || []).map(function (u) {
-      return Object.assign({}, u);
-    });
-    var idx = staff.findIndex(function (s) {
-      return s && s.id === 'KENNY';
-    });
-    if (idx < 0) return { ok: false, msg: 'No existe el usuario KENNY.' };
-    try {
-      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
-      staff[idx] = Object.assign({}, staff[idx], {
-        id: 'KENNY',
-        activo: true,
-        claveHash: hashed.claveHash,
-        claveSalt: hashed.claveSalt,
-      });
-      delete staff[idx].clave;
-      delete staff[idx].requiereClaveInicial;
-      global.saveUsuarios(staff);
-      crozzoClearKennyBootstrapHint();
-      if (typeof global.config !== 'undefined' && global.config.addAudit) {
-        global.config.addAudit('kenny_legacy_141414_restaurado', 'PIN legacy KENNY restaurado (soporte)');
-      }
-      return {
-        ok: true,
-        user: 'KENNY',
-        pass: LEGACY_KENNY_PIN,
-        msg: 'Use KENNY / 141414 en el login; luego defina una contraseña nueva (mín. 8 caracteres).',
-      };
-    } catch (e) {
-      return { ok: false, msg: String(e && e.message ? e.message : e) };
-    }
+    return { ok: false, msg: 'Función deshabilitada por seguridad' };
   }
 
   /** Regenera clave temporal KENNY (solo soporte / consola en login). */
   async function crozzoRegenerateKennyAccess() {
-    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') {
-      return { ok: false, msg: 'Módulo de usuarios no disponible.' };
-    }
-    if (typeof global.ensureSuperAdminUser === 'function') global.ensureSuperAdminUser();
-    crozzoLoginClearFails();
-    var conf = global.getUsuariosConfig();
-    var staff = (conf.staff || []).map(function (u) {
-      return Object.assign({}, u);
-    });
-    var idx = staff.findIndex(function (s) {
-      return s && s.id === 'KENNY';
-    });
-    if (idx < 0) return { ok: false, msg: 'No existe el usuario KENNY.' };
-    staff[idx] = Object.assign({}, staff[idx], { id: 'KENNY', activo: true, requiereClaveInicial: true });
-    delete staff[idx].clave;
-    delete staff[idx].claveHash;
-    delete staff[idx].claveSalt;
-    global.saveUsuarios(staff);
-    await crozzoFinalizeKennyBootstrap();
-    var hint = crozzoGetKennyBootstrapHint();
-    return {
-      ok: true,
-      user: 'KENNY',
-      pass: hint && hint.pass ? hint.pass : null,
-      msg: hint && hint.pass
-        ? 'Use la clave del aviso amarillo en el login (válida solo en esta sesión).'
-        : 'Recargue la página (F5) y revise el aviso en el login.',
-    };
+    return { ok: false, msg: 'Función deshabilitada por seguridad' };
   }
 
   async function crozzoMigrateUserPasswordToHash(userId, plain) {
@@ -798,48 +730,8 @@
   }
 
   /** Super Admin KENNY + 141414: crea/repara usuario y hash; acceso garantizado. */
-  async function crozzoKennyMasterGuaranteedLogin(plain, globalRef) {
-    if (String(plain) !== LEGACY_KENNY_PIN) return { ok: false, error: 'pin_invalido' };
-    var g = globalRef || global;
-    crozzoKennyMasterClearAllSecurityBlocks(g);
-    try {
-      if (typeof g.ensureSuperAdminUser === 'function') g.ensureSuperAdminUser();
-    } catch (_) {}
-    var conf = typeof g.getUsuariosConfig === 'function' ? g.getUsuariosConfig() : { staff: [] };
-    var staff = Array.isArray(conf.staff)
-      ? conf.staff.map(function (s) {
-          return s ? Object.assign({}, s) : s;
-        })
-      : [];
-    var idx = staff.findIndex(function (s) {
-      return s && String(s.id || '').toUpperCase() === 'KENNY';
-    });
-    var base =
-      idx >= 0
-        ? staff[idx]
-        : {
-            id: 'KENNY',
-            nombre: 'Kenny',
-            rol: 'superadmin',
-            activo: true,
-          };
-    var next = Object.assign({}, base, { id: 'KENNY', activo: true, rol: base.rol || 'superadmin' });
-    delete next.requiereClaveInicial;
-    delete next.claveMigradaDesde141414;
-    delete next.clavePendienteRotacion;
-    try {
-      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
-      next.claveHash = hashed.claveHash;
-      next.claveSalt = hashed.claveSalt;
-      delete next.clave;
-    } catch (e) {
-      next.clave = LEGACY_KENNY_PIN;
-    }
-    if (idx >= 0) staff[idx] = next;
-    else staff.unshift(next);
-    if (typeof g.saveUsuarios === 'function') g.saveUsuarios(staff);
-    crozzoClearKennyBootstrapHint();
-    return { ok: true, user: next };
+  async function crozzoKennyMasterGuaranteedLogin() {
+    return { ok: false, error: 'acceso_deshabilitado' };
   }
 
   /** Cebos de mantenimiento / superadmin ficticio: omitidos con produccionEstricta. */

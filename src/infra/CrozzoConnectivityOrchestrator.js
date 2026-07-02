@@ -24,9 +24,9 @@
 (function (global) {
   'use strict';
 
-  var EVAL_HEALTHY_MS = 15000; // nube/LAN estables: ritmo tranquilo
-  var EVAL_DEGRADED_MS = 6000; // hotspot/malla/qr: mas agil
-  var RECONNECT_MIN_GAP_MS = 8000; // evita tormentas de reconexion
+  var EVAL_HEALTHY_MS = 10000; // Reducido para detección más rápida
+  var EVAL_DEGRADED_MS = 3000; // Respuesta más ágil en problemas
+  var RECONNECT_MIN_GAP_MS = 5000; // Menos tiempo entre reconexiones
   var MESH_AFTER_OFFLINE_MS = 800; // arranque rápido de malla (humanos en misma Wi‑Fi)
   var QR_AFTER_ISOLATION_MS = 120000; // 2 min antes de QR si malla no encuentra peers
   var QR_CLOUD_IMMEDIATE = true; // con nube viva + sin LAN: QR al instante (operacion)
