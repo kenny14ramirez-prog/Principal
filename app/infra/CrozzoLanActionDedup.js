@@ -130,6 +130,9 @@
   }
 
   function shouldApplyLanAction(payload, opts) {
+    if (global.CrozzoOpAckRegistry && typeof global.CrozzoOpAckRegistry.shouldApply === 'function') {
+      return global.CrozzoOpAckRegistry.shouldApply(payload, opts);
+    }
     opts = opts || {};
     var actionId = resolveActionId(payload);
     if (!actionId) return { apply: true, actionId: '', reason: 'no_id' };
@@ -166,6 +169,9 @@
   }
 
   function handleLanActionAck(payload) {
+    if (global.CrozzoOpAckRegistry && typeof global.CrozzoOpAckRegistry.handleAck === 'function') {
+      global.CrozzoOpAckRegistry.handleAck(payload);
+    }
     var pay = payload && (payload.data || payload.payload || payload);
     var aid = pay && (pay.action_id || pay.uuid);
     if (!aid) aid = payload && (payload.action_id || payload.uuid);
@@ -173,11 +179,19 @@
   }
 
   function markLanActionApplied(payload, source) {
+    if (global.CrozzoOpAckRegistry && typeof global.CrozzoOpAckRegistry.markApplied === 'function') {
+      global.CrozzoOpAckRegistry.markApplied(payload, source || 'applied');
+      return;
+    }
     var id = ensureActionId(payload);
     if (id) markLanActionSeen(id, source || 'applied');
   }
 
   function markLanActionPushed(payload) {
+    if (global.CrozzoOpAckRegistry && typeof global.CrozzoOpAckRegistry.markPushed === 'function') {
+      global.CrozzoOpAckRegistry.markPushed(payload);
+      return;
+    }
     var id = ensureActionId(payload);
     if (id) markLanActionSeen(id, 'local_push');
   }

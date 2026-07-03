@@ -311,6 +311,10 @@
     try {
       if (typeof global.crozzoPublishComandasGlobal === 'function') global.crozzoPublishComandasGlobal();
     } catch (_) {}
+    if (typeof global.crozzoOpEmitAck === 'function') {
+      var ackId = tid || String(snap.id || '');
+      if (ackId) global.crozzoOpEmitAck(ackId, 'mesh');
+    }
   }
 
   function findComanda(pay) {
@@ -362,6 +366,15 @@
       }
     } finally {
       _applying = false;
+    }
+    if (typeof global.crozzoOpEmitAck === 'function') {
+      var ackId =
+        String(pay.transaction_id || pay.id || '') +
+        ':' +
+        String(pay.estado || '') +
+        ':' +
+        String(pay.lastUpdateAt || '');
+      global.crozzoOpEmitAck(ackId, 'mesh');
     }
   }
 
@@ -471,6 +484,12 @@
       applyComandaEstado(frame.payload);
       return;
     }
+    if (frame.kind === 'OP_ACK') {
+      if (typeof global.crozzoOpHandleAck === 'function') {
+        global.crozzoOpHandleAck({ type: 'op_ack', data: frame.payload || {} });
+      }
+      return;
+    }
     if (frame.kind === 'INTERNAL_QR_SLOT') {
       ingestInternalQrSlot(frame.payload);
       return;
@@ -517,9 +536,10 @@
     sendFrame(buildFrame('HELLO', { role: meshCtx().deviceId }, 0));
   }
 
-  function publishComandaNew(comanda) {
+  function publishComandaNew(comanda, opts) {
+    opts = opts || {};
     if (_applying || !_active || !comanda) return false;
-    if (cloudPathLikely() || meshLinkReady()) return false;
+    if (!opts.force && (cloudPathLikely() || meshLinkReady())) return false;
     var snap = comandaSnapshot(comanda);
     if (!snap) return false;
     if (snap.transaction_id) markTidSeen(snap.transaction_id, 'gossip_tx');
@@ -527,23 +547,25 @@
     return true;
   }
 
-  function publishComandaNewByIds(ids) {
+  function publishComandaNewByIds(ids, opts) {
+    opts = opts || {};
     if (!_active || !ids || !ids.length) return 0;
-    if (cloudPathLikely() || meshLinkReady()) return 0;
+    if (!opts.force && (cloudPathLikely() || meshLinkReady())) return 0;
     var n = 0;
     ids.forEach(function (id) {
       var c = null;
       if (typeof global.__crozzoEmergencyFindComandaById === 'function') {
         c = global.__crozzoEmergencyFindComandaById(id);
       }
-      if (publishComandaNew(c)) n++;
+      if (publishComandaNew(c, opts)) n++;
     });
     return n;
   }
 
-  function publishEstado(id, estado, transactionId) {
+  function publishEstado(id, estado, transactionId, opts) {
+    opts = opts || {};
     if (_applying || !_active) return false;
-    if (cloudPathLikely() || meshLinkReady()) return false;
+    if (!opts.force && (cloudPathLikely() || meshLinkReady())) return false;
     sendFrame(
       buildFrame(
         'COMANDA_ESTADO',
@@ -552,6 +574,25 @@
           estado: estado,
           transaction_id: transactionId || '',
           lastUpdateAt: new Date().toISOString(),
+        },
+        0
+      )
+    );
+    return true;
+  }
+
+  function publishOpAck(opId, fromDevice, via) {
+    if (!opId || !_active) return false;
+    sendFrame(
+      buildFrame(
+        'OP_ACK',
+        {
+          op_id: String(opId),
+          action_id: String(opId),
+          fromDeviceId: String(fromDevice || meshCtx().deviceId || ''),
+          deviceId: String(fromDevice || meshCtx().deviceId || ''),
+          via: via || 'mesh',
+          at: Date.now(),
         },
         0
       )
@@ -735,6 +776,7 @@
     publishComandaNew: publishComandaNew,
     publishComandaNewByIds: publishComandaNewByIds,
     publishEstado: publishEstado,
+    publishOpAck: publishOpAck,
     publishInternalQrBeacon: publishInternalQrBeacon,
     publishPeerCommState: publishPeerCommState,
     publishInternalQrSlot: publishInternalQrSlot,

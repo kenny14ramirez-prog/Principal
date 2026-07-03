@@ -831,6 +831,10 @@
 
   function fanoutComandaEstado(comanda, estado) {
     if (!comanda) return;
+    if (global.CrozzoOpFanout && typeof global.CrozzoOpFanout.comandaEstado === 'function') {
+      global.CrozzoOpFanout.comandaEstado(comanda, estado || comanda.estado);
+      return;
+    }
     var est = estado || comanda.estado;
     var lanExtra = lanParallelPushNeeded();
     outboxEnqueue(comanda);
@@ -1037,6 +1041,15 @@
     var changed = false;
     if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
       changed = !!global.__crozzoEmergencyApplyComandaSnapshot(pay, { skipPrint: true, skipRender: true });
+    }
+    if (changed && typeof global.crozzoOpEmitAck === 'function') {
+      var ackId =
+        String(pay.transaction_id || pay.id || '') +
+        ':' +
+        String(pay.estado || row.status || '') +
+        ':' +
+        String(pay.lastUpdateAt || row.updated_at || '');
+      global.crozzoOpEmitAck(ackId, 'cloud');
     }
     var merged = findComandaForCloudPay(pay, row);
     if (!changed && merged && existed) {
@@ -1560,6 +1573,10 @@
 
   function fanoutComandasByIds(ids) {
     if (!Array.isArray(ids) || !ids.length) return;
+    if (global.CrozzoOpFanout && typeof global.CrozzoOpFanout.comandaNewByIds === 'function') {
+      global.CrozzoOpFanout.comandaNewByIds(ids);
+      return;
+    }
     ids.forEach(function (id) {
       var c = findComanda(id);
       if (c && c.transaction_id) markComandaTid(c.transaction_id, 'local_create');
@@ -1668,6 +1685,9 @@
       }),
     };
   };
+  global.crozzoComandaOutboxEnqueue = outboxEnqueue;
+  global.crozzoComandaCloudCtx = cloudCtx;
+  global.crozzoPushComandaEstadoLan = pushComandaEstadoLan;
 
   if (!global.__crozzoComandaCloudTierBound) {
     global.__crozzoComandaCloudTierBound = true;
