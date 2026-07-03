@@ -101,3 +101,10 @@ class ConnectionManager {
     throw lastError;
   }
 }
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.CrozzoConnectionManager = ConnectionManager;
+}
+if (typeof window !== 'undefined') {
+  window.CrozzoConnectionManager = ConnectionManager;
+}

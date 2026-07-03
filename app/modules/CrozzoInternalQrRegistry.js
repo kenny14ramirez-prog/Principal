@@ -39,6 +39,18 @@
   //   - 401 Unauthorized: credenciales inválidas, reintentar no ayuda.
   var BACKOFF_BASE_MS = 1000;
   var BACKOFF_MAX_RETRIES = 3;
+  var PUBLISH_MIN_GAP_MS = 45000;
+  var CLOUD_CIRCUIT_MS = 90000;
+  var __lastPublishAt = 0;
+  var __cloudCircuitUntil = 0;
+  var __publishInflight = false;
+
+  function isConnectionFailure(err) {
+    var msg = String((err && err.message) || err || '');
+    return /ERR_CONNECTION_CLOSED|CONNECTION_CLOSED|CONNECTION_RESET|Failed to fetch|network error|fetch failed|WebSocket is closed|INSUFFICIENT_RESOURCES|resource exhausted|EHOSTUNREACH|10065|host no accesible/i.test(
+      msg
+    );
+  }
 
   function isNonRetryableError(err) {
     if (isTableMissingError(err)) return true;
@@ -175,6 +187,29 @@
 
   function cloudQrTableReady() {
     return cloudReady() && !__tableMissing;
+  }
+
+  function cloudPublishAllowed(force) {
+    if (!cloudQrTableReady()) return false;
+    if (__cloudCircuitUntil && Date.now() < __cloudCircuitUntil) return false;
+    if (!force && __lastPublishAt && Date.now() - __lastPublishAt < PUBLISH_MIN_GAP_MS) return false;
+    try {
+      if (typeof global.crozzoCloudWanReady === 'function' && !global.crozzoCloudWanReady()) return false;
+    } catch (_) {}
+    try {
+      var thr = global.CrozzoCloudThrottle;
+      if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) return false;
+    } catch (_) {}
+    return true;
+  }
+
+  function openCloudCircuit(reason) {
+    __cloudCircuitUntil = Date.now() + CLOUD_CIRCUIT_MS;
+    safe(function () {
+      if (typeof global.crozzoNoteWanUnreachable === 'function') {
+        global.crozzoNoteWanUnreachable(String(reason || 'internal_qr'));
+      }
+    });
   }
 
   function resetCloudQrTableMissing() {
@@ -576,9 +611,12 @@
   }
 
   // ── publishOwnSlot: con verificación de tier + backoff exponencial ───────
-  async function publishOwnSlot(rec) {
-    // Verificación de tier: solo intentar si el cloud está disponible.
-    if (!cloudQrTableReady() || !tenantReady() || !rec || !rec.scanText) return false;
+  async function publishOwnSlot(rec, opts) {
+    opts = opts || {};
+    if (!cloudPublishAllowed(!!opts.force)) return false;
+    if (__publishInflight) return false;
+    if (!tenantReady() || !rec || !rec.scanText) return false;
+    __publishInflight = true;
     var ctx = tenantCtx();
     var sb = global.__SUPABASE;
     var row = {
@@ -597,34 +635,45 @@
     };
     try {
       await withExponentialBackoff(function () {
-        // Re-verificar tier en cada intento del backoff.
-        if (!cloudQrTableReady()) return Promise.reject(new Error('tier_no_cloud'));
+        if (!cloudPublishAllowed(!!opts.force)) return Promise.reject(new Error('cloud_unavailable'));
         return sb.from(TABLE).upsert(row, { onConflict: 'id' }).then(function (res) {
           if (res && res.error) return Promise.reject(res.error);
           return res;
         });
       });
+      __lastPublishAt = Date.now();
       return true;
     } catch (e) {
       if (isTableMissingError(e)) {
         markTableMissing(e);
         return false;
       }
-      // 409 Conflict: el slot ya existe en cloud (otro dispositivo lo subió),
-      // se considera éxito parcial — el dato ya está disponible en la nube.
       var msg = String((e && e.message) || e || '');
       var status = (e && (e.status || e.code)) || 0;
-      if (status === 409 || /409|conflict/i.test(msg)) return true;
-      // 401/403: silencioso, problema de credenciales externo a este módulo.
+      if (status === 409 || /409|conflict/i.test(msg)) {
+        __lastPublishAt = Date.now();
+        return true;
+      }
       if (status === 401 || status === 403 || /401|403|unauthorized|forbidden/i.test(msg)) return false;
+      __lastPublishAt = Date.now();
+      if (isConnectionFailure(e) || msg === 'cloud_unavailable' || /INSUFFICIENT_RESOURCES|resource exhausted/i.test(msg)) {
+        openCloudCircuit('internal_qr_publish');
+        try {
+          var thr = global.CrozzoCloudThrottle;
+          if (thr && typeof thr.markPressure === 'function') thr.markPressure(120000, 'resource_exhausted');
+        } catch (_) {}
+        return false;
+      }
       console.warn('[internal-qr] publish', e);
       return false;
+    } finally {
+      __publishInflight = false;
     }
   }
   // ────────────────────────────────────────────────────────────────────────
 
   async function pullPeersFromCloud() {
-    if (!cloudQrTableReady() || !tenantReady()) return 0;
+    if (!cloudPublishAllowed(false) || !tenantReady()) return 0;
     var ctx = tenantCtx();
     var sb = global.__SUPABASE;
     var since = new Date(nowMs() - VALID_MS - 6 * 60 * 60 * 1000).toISOString();
@@ -752,7 +801,7 @@
     };
     writeOwn(rec);
     ingestOwnRecord(rec);
-    if (cloudQrTableReady()) publishOwnSlot(rec).catch(function () {});
+    if (cloudPublishAllowed(false)) publishOwnSlot(rec).catch(function () {});
     emitOwnSlotsToMesh(rec, { force: true });
     safe(function () {
       global.dispatchEvent(new CustomEvent('crozzo-daily-qr', { detail: { slot: key, builtAt: builtAt, deviceId: tenantCtx().deviceId } }));
@@ -839,6 +888,20 @@
     if (applied && typeof global.crozzoRunFullReconnectSync === 'function') {
       global.crozzoRunFullReconnectSync({ source: 'internal_qr', reason: opts.reason || 'peer_qr' }).catch(function () {});
     }
+    if (applied) {
+      safe(function () {
+        if (typeof global.crozzoPairingAutoConnect === 'function') {
+          global.crozzoPairingAutoConnect(opts.reason || 'peer_qr', { force: true }).catch(function () {});
+        } else {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('internal_qr_peer').catch(function () {});
+          }
+          if (typeof global.crozzoFleetOperationalReconcile === 'function') {
+            global.crozzoFleetOperationalReconcile('peer_qr').catch(function () {});
+          }
+        }
+      });
+    }
     return applied;
   }
 
@@ -910,7 +973,7 @@
       requestPeerQrCatalog();
       if (rec) emitOwnSlotsToMesh(rec, { force: false });
     }
-    if (cloudQrTableReady()) {
+    if (cloudPublishAllowed(false)) {
       pullPeersFromCloud().catch(function () {});
       subscribePeerRealtime();
     }
@@ -981,24 +1044,31 @@
 
     var rec = ensureOwnSlot({ force: opts.forceOwn !== false });
     if (rec && rec.scanText) {
-      if (cloudQrTableReady()) publishOwnSlot(rec).catch(function () {});
+      if (cloudPublishAllowed(false)) publishOwnSlot(rec).catch(function () {});
       emitOwnSlotsToMesh(rec, { force: true });
     }
     requestPeerQrCatalog({ force: true });
-    if (cloudQrTableReady()) {
+    if (cloudPublishAllowed(!!opts.forceOwn)) {
       await pullPeersFromCloud();
-      if (rec && rec.scanText) await publishOwnSlot(rec);
+      if (rec && rec.scanText) await publishOwnSlot(rec, { force: !!opts.forceOwn });
     }
 
     function retryPass() {
       requestPeerQrCatalog({ force: true });
       emitOwnSlotsToMesh(readOwn(), { force: true });
-      if (cloudQrTableReady()) pullPeersFromCloud().catch(function () {});
-      try {
-        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
-          global.CrozzoLanWebSocketBridge.connect();
+      if (cloudPublishAllowed(false)) pullPeersFromCloud().catch(function () {});
+      safe(function () {
+        if (typeof global.crozzoPairingAutoConnect === 'function') {
+          global.crozzoPairingAutoConnect('qr_setup', { force: false }).catch(function () {});
+        } else {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('qr_setup').catch(function () {});
+          }
+          if (typeof global.crozzoFleetOperationalReconcile === 'function') {
+            global.crozzoFleetOperationalReconcile('qr_setup').catch(function () {});
+          }
         }
-      } catch (_) {}
+      });
     }
     [1200, 4500, 11000].forEach(function (ms) {
       global.setTimeout(retryPass, ms);

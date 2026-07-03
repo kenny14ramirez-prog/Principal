@@ -11,6 +11,23 @@
   var _tier = null;
   var _jankScheduled = false;
   var _jankDone = false;
+  var _contStarted = false;
+  var _contTimer = null;
+  var CONT_PROBE_MS = 120000;
+
+  function safe(fn) {
+    try {
+      return fn();
+    } catch (_) {}
+  }
+
+  function journalPerf(code, detail) {
+    safe(function () {
+      if (global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.record === 'function') {
+        global.CrozzoOperativeJournal.record({ kind: 'perf', code: code, detail: detail });
+      }
+    });
+  }
 
   function isAndroidApk() {
     try {
@@ -117,6 +134,7 @@
         }
         if (spikes >= 5 && _tier !== TIER_LOW) {
           applyTier(TIER_LOW, { fromJank: true });
+          journalPerf('jank_boot', { spikes: spikes });
         }
       }
       global.requestAnimationFrame(function (t) {
@@ -129,6 +147,45 @@
     } else {
       global.setTimeout(run, 1200);
     }
+  }
+
+  function runContinuousJankSample() {
+    if (readManualTier()) return;
+    if (typeof global.crozzoOperationalRealtimeActive === 'function' && !global.crozzoOperationalRealtimeActive()) {
+      return;
+    }
+    if (typeof document !== 'undefined' && document.hidden) return;
+    var last = 0;
+    var spikes = 0;
+    var n = 0;
+    function frame(t) {
+      if (last) {
+        if (t - last > 34) spikes++;
+        n++;
+      }
+      last = t;
+      if (n < 15) {
+        global.requestAnimationFrame(frame);
+        return;
+      }
+      if (spikes >= 4 && _tier !== TIER_LOW) {
+        applyTier(TIER_LOW, { fromJank: true });
+        journalPerf('jank_sustained', { spikes: spikes, tier: TIER_LOW });
+      }
+    }
+    global.requestAnimationFrame(function (t) {
+      last = t;
+      global.requestAnimationFrame(frame);
+    });
+  }
+
+  function startContinuousProbe() {
+    if (_contStarted) return;
+    _contStarted = true;
+    global.setTimeout(function () {
+      runContinuousJankSample();
+    }, 18000);
+    _contTimer = global.setInterval(runContinuousJankSample, CONT_PROBE_MS);
   }
 
   function apply() {
@@ -168,6 +225,7 @@
     tier: tier,
     comandaFxMode: comandaFxMode,
     sortableAnimationMs: sortableAnimationMs,
+    startContinuousProbe: startContinuousProbe,
   };
 
   apply();

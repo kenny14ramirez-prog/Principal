@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-07-03T17:40:48.858Z",
+  "updatedAt": "2026-07-03T18:15:05.922Z",
   "entries": [
-    {
-      "id": "1.0.194-critical",
-      "version": "v1.0.194",
-      "semver": "1.0.194",
-      "type": "critical",
-      "message": "parche de comunicacion v4",
-      "publishedAt": "2026-06-26T21:34:07.190Z",
-      "installMode": "auto",
-      "changelog": [
-        "parche de comunicacion v4"
-      ]
-    },
     {
       "id": "1.0.195-critical",
       "version": "v1.0.195",
@@ -303,6 +291,18 @@
       "installMode": "auto",
       "changelog": [
         "1254"
+      ]
+    },
+    {
+      "id": "1.0.219-critical",
+      "version": "v1.0.219",
+      "semver": "1.0.219",
+      "type": "critical",
+      "message": "5679",
+      "publishedAt": "2026-07-03T18:15:05.922Z",
+      "installMode": "auto",
+      "changelog": [
+        "5679"
       ]
     }
   ]

@@ -1356,31 +1356,14 @@
       pay.slotSessionPresence = pruneExpiredSlotPresence(pay.slotSessionPresence);
     }
     var contentSig = payloadSig(pay);
-    var pickerSig = '';
-    try {
-      if (typeof global.crozzoBuildPickerVisibleSig === 'function') {
-        pickerSig = global.crozzoBuildPickerVisibleSig(pay) || '';
-      }
-    } catch (_) {}
-    var localPickerSig = '';
-    try {
-      if (typeof global.crozzoBuildPickerVisibleSig === 'function') {
-        localPickerSig = global.crozzoBuildPickerVisibleSig() || '';
-      }
-    } catch (_) {}
-    var samePicker = !!(pickerSig && localPickerSig && pickerSig === localPickerSig);
     var sameContent = contentSig === __lastAppliedContentSig;
-    if ((sameContent || samePicker) && !(opts && opts.force)) {
+    if (sameContent && !(opts && opts.force)) {
       if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
       var nowLog = Date.now();
       if (nowLog - __lastDiscardLogAt > 8000) {
         __lastDiscardLogAt = nowLog;
         try {
-          console.log(
-            '[runtime-cloud] applyRemoteRow: descartado (' +
-              (samePicker ? 'picker sin cambio' : 'mismo contenido') +
-              ')'
-          );
+          console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado');
         } catch (_) {}
       }
       return false;

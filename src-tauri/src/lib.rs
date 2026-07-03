@@ -26,6 +26,8 @@ mod crozzo_external;
 mod crozzo_android_install;
 mod crozzo_ble_mesh;
 mod crozzo_gossip_udp;
+#[cfg(desktop)]
+mod crozzo_dev_log;
 
 #[cfg(desktop)]
 use tauri::Manager;
@@ -91,6 +93,8 @@ pub fn run() {
             greet,
             #[cfg(desktop)]
             crozzo_open_devtools,
+            #[cfg(desktop)]
+            crozzo_dev_log::crozzo_append_dev_log,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_list_printers,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

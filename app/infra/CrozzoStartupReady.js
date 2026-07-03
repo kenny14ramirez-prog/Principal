@@ -257,6 +257,42 @@
       }
     });
 
+    // Diario operativo + dev tap (antes de autoguarda).
+    safe(function () {
+      if (global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.start === 'function') {
+        global.CrozzoOperativeJournal.start();
+      }
+      if (global.CrozzoDevTap && typeof global.CrozzoDevTap.start === 'function') {
+        global.CrozzoDevTap.start();
+      }
+    });
+
+    safe(function () {
+      if (global.CrozzoDevicePerf && typeof global.CrozzoDevicePerf.startContinuousProbe === 'function') {
+        global.CrozzoDevicePerf.startContinuousProbe();
+      }
+    });
+
+    safe(function () {
+      if (global.CrozzoFleetOperationalReconcile && typeof global.CrozzoFleetOperationalReconcile.start === 'function') {
+        global.CrozzoFleetOperationalReconcile.start();
+      }
+    });
+
+    safe(function () {
+      global.setTimeout(function () {
+        try {
+          var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+          if (md.allowLan === false) return;
+          if (typeof global.crozzoPairingAutoConnect === 'function') {
+            global.crozzoPairingAutoConnect('startup', { force: false }).catch(function () {});
+          } else if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('startup').catch(function () {});
+          }
+        } catch (_) {}
+      }, 5000);
+    });
+
     // Autoguarda Z0: autoevalúa y recupera sync operativa sin intervención del usuario.
     safe(function () {
       if (global.CrozzoZ0AutoGuard && typeof global.CrozzoZ0AutoGuard.start === 'function') {

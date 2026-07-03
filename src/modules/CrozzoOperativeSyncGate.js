@@ -191,10 +191,15 @@
         }
       } catch (_) {}
     }
-    if (!opts.skipFreshnessPurge && !fastEntry && !opts.skipPreAnalyze) {
+    var lanUp = lanSegmentLikelyUp();
+    var cloudUp = cloudLikelyUp();
+    /* No purgar local antes del pull si la verdad viene por LAN o la nube no responde
+       (evita partial_stale que deja tablet/caja con mesas distintas). */
+    var skipPreFreshness = fastEntry || !!opts.skipPreAnalyze || lanUp || !cloudUp;
+    if (!opts.skipFreshnessPurge && !skipPreFreshness) {
       try {
         await analyzeAndDiscardStale('pre', {
-          probeOpts: { skipLan: cloudLikelyUp(), lanTimeoutMs: 1500 },
+          probeOpts: { skipLan: cloudUp, lanTimeoutMs: 1500 },
         });
       } catch (_) {}
     }
@@ -225,7 +230,7 @@
       var pair = await Promise.all([runtimeP, comandasP]);
       if (pair[0]) pulled++;
       if (pair[1]) pulled++;
-      if (lanSegmentLikelyUp() && typeof global.crozzoPullComandasFromLan === 'function') {
+      if (lanUp && typeof global.crozzoPullComandasFromLan === 'function') {
         try {
           await withTimeout(
             global.crozzoPullComandasFromLan({
@@ -238,14 +243,46 @@
           );
         } catch (_) {}
       }
+      var deviceRole = 'A';
+      try {
+        var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+        deviceRole = String(mdCfg.role || 'A').toUpperCase();
+      } catch (_) {}
+      if (lanUp && deviceRole === 'B' && typeof global.crozzoPullPosRuntimeCloud === 'function') {
+        try {
+          var runtimeLanOk = await withTimeout(
+            global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true, force: !!opts.force }),
+            fastEntry ? 2200 : 4500,
+            false
+          );
+          if (runtimeLanOk) pulled++;
+        } catch (_) {}
+      } else if (
+        lanUp &&
+        deviceRole === 'A' &&
+        global.CrozzoLanSyncBridge &&
+        typeof global.CrozzoLanSyncBridge.pullLocalRuntimeOnce === 'function'
+      ) {
+        try {
+          var runtimeLocalOk = await withTimeout(
+            global.CrozzoLanSyncBridge.pullLocalRuntimeOnce(),
+            fastEntry ? 2200 : 4500,
+            false
+          );
+          if (runtimeLocalOk) pulled++;
+        } catch (_) {}
+      }
     }
-    if (!opts.skipFreshnessPurge) {
+    var skipPostFreshness = fastEntry || lanUp || !cloudUp;
+    if (!opts.skipFreshnessPurge && !skipPostFreshness) {
       try {
         await analyzeAndDiscardStale('post', {
           remoteMeta: buildRemoteMetaFromAppliedRuntime(),
           skipProbe: true,
         });
       } catch (_) {}
+    }
+    if (!opts.skipFreshnessPurge) {
       try {
         if (typeof global.crozzoPurgeGhostComandasForClearedSlots === 'function') {
           global.crozzoPurgeGhostComandasForClearedSlots();

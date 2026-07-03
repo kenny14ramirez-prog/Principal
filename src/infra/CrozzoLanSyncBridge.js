@@ -106,11 +106,6 @@
   function crozzoLanTransportAllowed() {
     try {
       if (Date.now() < _lanBackoffUntil) return false;
-      var throttle = global.CrozzoCloudThrottle;
-      if (throttle && typeof throttle.isUnderPressure === 'function' && throttle.isUnderPressure()) {
-        return false;
-      }
-      if (typeof global.crozzoDeferLocalSync === 'function' && global.crozzoDeferLocalSync()) return false;
       var md0 = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
       if (md0.allowLan === false) return false;
       var hasTarget = md0.role === 'A';
@@ -124,6 +119,21 @@
         hasTarget = !!ip;
       }
       if (!hasTarget) return false;
+      var throttle = global.CrozzoCloudThrottle;
+      if (throttle && typeof throttle.isUnderPressure === 'function' && throttle.isUnderPressure()) {
+        return true;
+      }
+      if (typeof global.crozzoDeferLocalSync === 'function' && global.crozzoDeferLocalSync()) {
+        try {
+          if (
+            typeof global.crozzoLanTransportStandbyAllowed === 'function' &&
+            global.crozzoLanTransportStandbyAllowed()
+          ) {
+            return true;
+          }
+        } catch (_) {}
+        return false;
+      }
       var tier = String(global.__CROZZO_TIER_LAST || 'offline');
       var wanReady =
         typeof global.crozzoCloudWanReady === 'function' ? global.crozzoCloudWanReady() : tier === 'cloud';
@@ -1111,7 +1121,14 @@
       var tier = String(global.__CROZZO_TIER_LAST || '');
       var wanReady =
         typeof global.crozzoCloudWanReady === 'function' ? global.crozzoCloudWanReady() : tier === 'cloud';
-      if (!(tier === 'cloud' && wanReady)) {
+      var underPressure = false;
+      try {
+        underPressure =
+          !!(global.CrozzoCloudThrottle &&
+            typeof global.CrozzoCloudThrottle.isUnderPressure === 'function' &&
+            global.CrozzoCloudThrottle.isUnderPressure());
+      } catch (_) {}
+      if (!(tier === 'cloud' && wanReady && !underPressure)) {
         try {
           if (typeof global.crozzoPullComandasFromLan === 'function') {
             await global.crozzoPullComandasFromLan({ skipPrint: true, skipRender: true, force: true }).catch(function () {});

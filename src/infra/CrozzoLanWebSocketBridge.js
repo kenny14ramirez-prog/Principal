@@ -32,6 +32,11 @@
 
   function tierAllows() {
     try {
+      if (typeof global.crozzoLanWsStandbyActive === 'function' && global.crozzoLanWsStandbyActive()) {
+        return true;
+      }
+    } catch (_) {}
+    try {
       if (typeof global.crozzoCloudSyncPathReady === 'function' && global.crozzoCloudSyncPathReady()) {
         return false;
       }
@@ -71,6 +76,16 @@
     return false;
   }
 
+  function emitOpAckFromRaw(raw, via) {
+    if (typeof global.crozzoOpEmitAck !== 'function') return;
+    var id = typeof global.crozzoOpResolveId === 'function' ? global.crozzoOpResolveId(raw) : '';
+    if (!id && typeof global.crozzoOpEnsureId === 'function') {
+      global.crozzoOpEnsureId(raw);
+      id = typeof global.crozzoOpResolveId === 'function' ? global.crozzoOpResolveId(raw) : '';
+    }
+    if (id) global.crozzoOpEmitAck(id, via || 'lan');
+  }
+
   function applyLanPush(msg) {
     if (!msg || !msg.payload) return;
     var raw = msg.payload;
@@ -82,8 +97,9 @@
       return;
     }
     var typEarly = String(raw.type || '').toLowerCase();
-    if (typEarly === 'lan_action_ack') {
-      if (typeof global.crozzoLanHandleActionAck === 'function') global.crozzoLanHandleActionAck(raw);
+    if (typEarly === 'lan_action_ack' || typEarly === 'op_ack') {
+      if (typeof global.crozzoOpHandleAck === 'function') global.crozzoOpHandleAck(raw);
+      else if (typeof global.crozzoLanHandleActionAck === 'function') global.crozzoLanHandleActionAck(raw);
       return;
     }
     if (typeof global.crozzoLanShouldApplyAction === 'function') {
@@ -145,6 +161,7 @@
           } catch (_) {}
         }
         if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_comanda');
+        emitOpAckFromRaw(raw, 'lan');
       }
       return;
     }
@@ -180,6 +197,7 @@
         }
       } catch (_) {}
       if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_estado');
+      emitOpAckFromRaw(raw, 'lan');
       return;
     }
     if (typ === 'internal_qr_slot' || typ === 'internal_qr_req') {

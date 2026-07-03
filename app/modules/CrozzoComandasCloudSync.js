@@ -44,7 +44,7 @@
       var msg = String((err && err.message) || err || '');
       if (/INSUFFICIENT_RESOURCES/i.test(msg)) {
         if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(err);
-      } else if (/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|Failed to fetch|network/i.test(msg)) {
+      } else if (/ERR_CONNECTION_CLOSED|CONNECTION_CLOSED|connection closed|ERR_CONNECTION_RESET|Failed to fetch|network/i.test(msg)) {
         if (typeof global.crozzoNoteWanUnreachable === 'function') global.crozzoNoteWanUnreachable(msg);
       }
       var thr = global.CrozzoCloudThrottle;
@@ -86,6 +86,9 @@
 
   var __comandaTeardownTimer = null;
   var __comandaSubscribing = false;
+  var __pullInflight = false;
+  var __lastPullStartedAt = 0;
+  var PULL_COALESCE_MS = 3500;
 
   function cloudWanReady() {
     try {
@@ -172,7 +175,20 @@
   }
 
   function lanSegmentLikely() {
-    if (deferLocalCloudSync()) return false;
+    if (deferLocalCloudSync()) {
+      try {
+        if (
+          typeof global.crozzoLanTransportStandbyAllowed === 'function' &&
+          global.crozzoLanTransportStandbyAllowed()
+        ) {
+          /* respaldo LAN paralelo con nube primaria */
+        } else {
+          return false;
+        }
+      } catch (_) {
+        return false;
+      }
+    }
     try {
       if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
         return true;
@@ -831,6 +847,10 @@
 
   function fanoutComandaEstado(comanda, estado) {
     if (!comanda) return;
+    if (global.CrozzoOpFanout && typeof global.CrozzoOpFanout.comandaEstado === 'function') {
+      global.CrozzoOpFanout.comandaEstado(comanda, estado || comanda.estado);
+      return;
+    }
     var est = estado || comanda.estado;
     var lanExtra = lanParallelPushNeeded();
     outboxEnqueue(comanda);
@@ -1038,6 +1058,15 @@
     if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
       changed = !!global.__crozzoEmergencyApplyComandaSnapshot(pay, { skipPrint: true, skipRender: true });
     }
+    if (changed && typeof global.crozzoOpEmitAck === 'function') {
+      var ackId =
+        String(pay.transaction_id || pay.id || '') +
+        ':' +
+        String(pay.estado || row.status || '') +
+        ':' +
+        String(pay.lastUpdateAt || row.updated_at || '');
+      global.crozzoOpEmitAck(ackId, 'cloud');
+    }
     var merged = findComandaForCloudPay(pay, row);
     if (!changed && merged && existed) {
       var remoteEst2 = String(row.status || pay.estado || '');
@@ -1119,9 +1148,16 @@
   }
 
   async function pullComandasFromCloud(opts) {
+    opts = opts || {};
     if (!tierAllowsCloudRead()) return false;
+    if (cloudUnderPressure() && !opts.force) return false;
+    var nowCoalesce = Date.now();
+    if (__pullInflight) return false;
+    if (!opts.force && nowCoalesce - __lastPullStartedAt < PULL_COALESCE_MS) return false;
     var ctx = cloudCtx();
     if (!tenantIdsReady(ctx)) return false;
+    __pullInflight = true;
+    __lastPullStartedAt = nowCoalesce;
     var sb = global.__SUPABASE;
     try {
       var q = sb
@@ -1188,7 +1224,10 @@
       return anyChanged;
     } catch (e) {
       console.warn('[crozzo-comanda-cloud] pull', e);
+      noteCloudErr(e);
       return false;
+    } finally {
+      __pullInflight = false;
     }
   }
 
@@ -1560,6 +1599,10 @@
 
   function fanoutComandasByIds(ids) {
     if (!Array.isArray(ids) || !ids.length) return;
+    if (global.CrozzoOpFanout && typeof global.CrozzoOpFanout.comandaNewByIds === 'function') {
+      global.CrozzoOpFanout.comandaNewByIds(ids);
+      return;
+    }
     ids.forEach(function (id) {
       var c = findComanda(id);
       if (c && c.transaction_id) markComandaTid(c.transaction_id, 'local_create');
@@ -1668,6 +1711,9 @@
       }),
     };
   };
+  global.crozzoComandaOutboxEnqueue = outboxEnqueue;
+  global.crozzoComandaCloudCtx = cloudCtx;
+  global.crozzoPushComandaEstadoLan = pushComandaEstadoLan;
 
   if (!global.__crozzoComandaCloudTierBound) {
     global.__crozzoComandaCloudTierBound = true;
