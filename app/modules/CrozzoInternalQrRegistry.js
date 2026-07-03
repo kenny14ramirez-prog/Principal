@@ -885,11 +885,15 @@
     }
     if (applied) {
       safe(function () {
-        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
-          global.crozzoActivateLocalSyncPath('internal_qr_peer').catch(function () {});
-        }
-        if (typeof global.crozzoFleetOperationalReconcile === 'function') {
-          global.crozzoFleetOperationalReconcile('peer_qr').catch(function () {});
+        if (typeof global.crozzoPairingAutoConnect === 'function') {
+          global.crozzoPairingAutoConnect(opts.reason || 'peer_qr', { force: true }).catch(function () {});
+        } else {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('internal_qr_peer').catch(function () {});
+          }
+          if (typeof global.crozzoFleetOperationalReconcile === 'function') {
+            global.crozzoFleetOperationalReconcile('peer_qr').catch(function () {});
+          }
         }
       });
     }
@@ -1049,18 +1053,17 @@
       emitOwnSlotsToMesh(readOwn(), { force: true });
       if (cloudPublishAllowed(false)) pullPeersFromCloud().catch(function () {});
       safe(function () {
-        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
-          global.crozzoActivateLocalSyncPath('qr_setup').catch(function () {});
-        }
-        if (typeof global.crozzoFleetOperationalReconcile === 'function') {
-          global.crozzoFleetOperationalReconcile('qr_setup').catch(function () {});
+        if (typeof global.crozzoPairingAutoConnect === 'function') {
+          global.crozzoPairingAutoConnect('qr_setup', { force: false }).catch(function () {});
+        } else {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('qr_setup').catch(function () {});
+          }
+          if (typeof global.crozzoFleetOperationalReconcile === 'function') {
+            global.crozzoFleetOperationalReconcile('qr_setup').catch(function () {});
+          }
         }
       });
-      try {
-        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
-          global.CrozzoLanWebSocketBridge.connect();
-        }
-      } catch (_) {}
     }
     [1200, 4500, 11000].forEach(function (ms) {
       global.setTimeout(retryPass, ms);

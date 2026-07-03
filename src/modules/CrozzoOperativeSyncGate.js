@@ -230,7 +230,7 @@
       var pair = await Promise.all([runtimeP, comandasP]);
       if (pair[0]) pulled++;
       if (pair[1]) pulled++;
-      if (lanSegmentLikelyUp() && typeof global.crozzoPullComandasFromLan === 'function') {
+      if (lanUp && typeof global.crozzoPullComandasFromLan === 'function') {
         try {
           await withTimeout(
             global.crozzoPullComandasFromLan({
@@ -241,6 +241,35 @@
             fastEntry ? 1800 : 3500,
             false
           );
+        } catch (_) {}
+      }
+      var deviceRole = 'A';
+      try {
+        var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+        deviceRole = String(mdCfg.role || 'A').toUpperCase();
+      } catch (_) {}
+      if (lanUp && deviceRole === 'B' && typeof global.crozzoPullPosRuntimeCloud === 'function') {
+        try {
+          var runtimeLanOk = await withTimeout(
+            global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true, force: !!opts.force }),
+            fastEntry ? 2200 : 4500,
+            false
+          );
+          if (runtimeLanOk) pulled++;
+        } catch (_) {}
+      } else if (
+        lanUp &&
+        deviceRole === 'A' &&
+        global.CrozzoLanSyncBridge &&
+        typeof global.CrozzoLanSyncBridge.pullLocalRuntimeOnce === 'function'
+      ) {
+        try {
+          var runtimeLocalOk = await withTimeout(
+            global.CrozzoLanSyncBridge.pullLocalRuntimeOnce(),
+            fastEntry ? 2200 : 4500,
+            false
+          );
+          if (runtimeLocalOk) pulled++;
         } catch (_) {}
       }
     }

@@ -50043,10 +50043,7 @@ function init() {
       if (bizFromQr) {
         switchNote = 'Negocio «' + bizFromQr + '» · ' + switchNote;
       }
-      var autoApply =
-        crozzoIsFieldTabletDevice() ||
-        crozzoPairingReaderIsFieldDevice() ||
-        crozzoIsAndroidApkDevice();
+      var autoApply = true;
       if (autoApply) {
         if (pairingApplying) return;
         if (pairingAutoApplyTimer) {
@@ -50313,6 +50310,11 @@ function init() {
     } catch (_) {}
     try {
       if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
+    } catch (_) {}
+    try {
+      if (typeof crozzoPairingAutoConnect === 'function') {
+        await crozzoPairingAutoConnect('lan_applied', { force: true });
+      }
     } catch (_) {}
   }
   window.crozzoPairingApplyLanFromPayload = crozzoPairingApplyLanFromPayload;
@@ -50823,6 +50825,11 @@ function init() {
         await crozzoRunFullReconnectSync({ force: true, source: 'pairing_qr' });
       } catch (_) {}
     }
+    try {
+      if (typeof crozzoPairingAutoConnect === 'function') {
+        await crozzoPairingAutoConnect('pairing_complete', { force: true });
+      }
+    } catch (_) {}
     // Arranca/evalúa la cascada de conectividad de inmediato (nube/LAN/hotspot/…)
     // para que el equipo "busque la conexión y funcione de una", esté en línea o no.
     try {

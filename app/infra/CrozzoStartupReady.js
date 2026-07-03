@@ -279,6 +279,20 @@
       }
     });
 
+    safe(function () {
+      global.setTimeout(function () {
+        try {
+          var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+          if (md.allowLan === false) return;
+          if (typeof global.crozzoPairingAutoConnect === 'function') {
+            global.crozzoPairingAutoConnect('startup', { force: false }).catch(function () {});
+          } else if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('startup').catch(function () {});
+          }
+        } catch (_) {}
+      }, 5000);
+    });
+
     // Autoguarda Z0: autoevalúa y recupera sync operativa sin intervención del usuario.
     safe(function () {
       if (global.CrozzoZ0AutoGuard && typeof global.CrozzoZ0AutoGuard.start === 'function') {

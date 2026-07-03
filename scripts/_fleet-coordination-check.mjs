@@ -48,6 +48,7 @@ mustInclude('app/infra/CrozzoFleetOperationalReconcile.js', [
   'CrozzoFleetOperationalReconcile',
   'crozzoActivateLocalSyncPath',
   'pullLocalRuntimeOnce',
+  'crozzoPullPosRuntimeCloud',
 ], 'Reconciliación flota');
 
 mustInclude('app/modules/CrozzoInternalQrRegistry.js', [
@@ -60,11 +61,20 @@ mustInclude('app/infra/CrozzoLanSyncBridge.js', ['underPressure'], 'LAN pull baj
 
 mustInclude('app/core/CrozzoConnectionManager.js', ['CrozzoConnectionManager'], 'ConnectionManager global');
 
-mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoFleetOperationalReconcile'], 'Startup flota');
+mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoFleetOperationalReconcile', 'crozzoPairingAutoConnect'], 'Startup flota');
+
+mustInclude('app/infra/CrozzoPairingAutoConnect.js', [
+  'CrozzoPairingAutoConnect',
+  'crozzoActivateLocalSyncPath',
+  'crozzoFleetOperationalReconcile',
+], 'Auto-conexión post-QR');
+
+mustInclude('app/modules/CrozzoOperativeSyncGate.js', ['pullLocalRuntimeOnce'], 'Sync gate pull runtime LAN');
 
 assert(existsSync(join(root, 'app/index.html')), 'Script index', 'index.html');
 const idx = readFileSync(join(root, 'app/index.html'), 'utf8');
 assert(idx.includes('CrozzoFleetOperationalReconcile.js'), 'Fleet script index', 'index.html');
+assert(idx.includes('CrozzoPairingAutoConnect.js'), 'AutoConnect script index', 'index.html');
 
 console.log('\n=== Crozzo coordinación flota — verificación ===\n');
 for (const r of results) {

@@ -56,8 +56,17 @@
         }
       } catch (_) {}
       try {
-        if (global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.pullLocalRuntimeOnce === 'function') {
+        var mdRole = '';
+        safe(function () {
+          var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+          mdRole = String(md.role || 'A').toUpperCase();
+        });
+        if (mdRole === 'A' && global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.pullLocalRuntimeOnce === 'function') {
           await global.CrozzoLanSyncBridge.pullLocalRuntimeOnce();
+        } else if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+          await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true, force: true });
+        } else if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.pullRuntime === 'function') {
+          await global.CrozzoLanOpsSync.pullRuntime({ quiet: true, skipRender: true, force: true });
         }
       } catch (_) {}
       try {
