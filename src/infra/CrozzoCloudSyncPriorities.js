@@ -532,6 +532,41 @@
     }
   }
 
+  /**
+   * Realtime nube vivo y reciente → LAN operativo entra en standby (evita duplicar
+   * polls/pulsos/post cuando internet responde bien).
+   */
+  function cloudOperationalRealtimeHealthy(maxSilenceMs) {
+    maxSilenceMs = maxSilenceMs == null ? 35000 : Number(maxSilenceMs) || 35000;
+    try {
+      if (!cloudPathReady()) return false;
+      if (
+        typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+        !global.crozzoCloudBackgroundSyncAllowed({ kind: 'realtime' })
+      ) {
+        return false;
+      }
+      var live = false;
+      var healthy = false;
+      if (typeof global.crozzoComandaRealtimeStatus === 'function') {
+        var cs = global.crozzoComandaRealtimeStatus();
+        if (cs && cs.live) {
+          live = true;
+          if (cs.lastEventAgoMs == null || cs.lastEventAgoMs < maxSilenceMs) healthy = true;
+        }
+      }
+      if (typeof global.crozzoRuntimeRealtimeStatus === 'function') {
+        var rs = global.crozzoRuntimeRealtimeStatus();
+        if (rs && rs.live) {
+          live = true;
+          if (rs.lastEventAgoMs == null || rs.lastEventAgoMs < maxSilenceMs) healthy = true;
+        }
+      }
+      return live && healthy;
+    } catch (_) {}
+    return false;
+  }
+
   function resolvePage(page) {
     var p = String(page || '').trim();
     if (!p) return p;
@@ -750,6 +785,9 @@
 
     if (!opts.force && (kind === 'realtime' || kind === 'transport' || !kind)) {
       try {
+        if (cloudOperationalRealtimeHealthy(30000)) {
+          return false;
+        }
         if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
           var mdLan = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
           var lanRecent = false;
@@ -1055,6 +1093,7 @@
     crozzoLocalRealtimeAllowed: crozzoLocalRealtimeAllowed,
     crozzoActiveSyncTransport: crozzoActiveSyncTransport,
     crozzoOpsSyncAllowed: crozzoOpsSyncAllowed,
+    cloudOperationalRealtimeHealthy: cloudOperationalRealtimeHealthy,
   };
 
   global.crozzoSyncPriorityForType = getOperationPriority;
@@ -1064,6 +1103,7 @@
   global.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
   global.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
   global.crozzoLocalSyncAllowed = crozzoLocalSyncAllowed;
+  global.crozzoCloudOperationalRealtimeHealthy = cloudOperationalRealtimeHealthy;
   global.crozzoLocalRealtimeAllowed = crozzoLocalRealtimeAllowed;
   global.crozzoActiveSyncTransport = crozzoActiveSyncTransport;
   global.crozzoOpsSyncAllowed = crozzoOpsSyncAllowed;

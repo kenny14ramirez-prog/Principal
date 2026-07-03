@@ -871,12 +871,6 @@
       global.addEventListener('online', function () {
         global.setTimeout(tick, 500);
       });
-      global.addEventListener('crozzo-supabase-config-saved', function () {
-        try {
-          if (typeof global.crozzoInvalidateCloudPingCache === 'function') global.crozzoInvalidateCloudPingCache();
-        } catch (_) {}
-        refreshIdentityOnCloud({ force: true }).catch(function () {});
-      });
     });
   }
 

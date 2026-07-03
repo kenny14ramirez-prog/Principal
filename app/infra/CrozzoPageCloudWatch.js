@@ -504,6 +504,12 @@
     if (document.hidden) return;
     var profile = pageProfiles()[__activePage];
     if (!profile || profile.navOnly) return;
+    var cloudStandby = false;
+    try {
+      if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
+        cloudStandby = global.crozzoCloudOperationalRealtimeHealthy(35000);
+      }
+    } catch (_) {}
     __running = true;
     try {
       if (!await ensureClient()) return;
@@ -511,6 +517,7 @@
         var d = profile.domains[i];
         var dPri = pri().getDomainPriority(d);
         if (dPri === pri().P1) continue;
+        if (cloudStandby && (d === 'comandas' || d === 'runtime')) continue;
         if (!domainDue(d, profile.intervalMs)) continue;
         await runDomain(d, false, false);
       }

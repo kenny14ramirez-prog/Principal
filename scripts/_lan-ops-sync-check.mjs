@@ -60,6 +60,9 @@ mustInclude('app/infra/CrozzoLanOpsSync.js', [
   '/api/comandas',
   'crozzoRunFullReconnectSync',
   'tierAllowsLan',
+  'cloudRealtimeStandby',
+  'shouldRunLanOps',
+  'opRealtimeActive()',
 ], 'LanOpsSync API');
 
 mustInclude('app/infra/CrozzoConnectivityOrchestrator.js', ['lan_ops_sync', 'CrozzoLanOpsSync'], 'Orquestador → LanOps');
@@ -70,7 +73,13 @@ mustInclude('src-tauri/tauri.conf.json', ['ws:', 'wss:'], 'CSP permite WebSocket
 
 const main = readFileSync(join(app, 'core/CrozzoPosMain.js'), 'utf8');
 assert(/cloudPingFailed/.test(main) && /Base de datos no alcanzable/.test(main), 'Tier cascada', 'ping falla → LAN inmediato');
-assert(/activeTier === 'lan'/.test(main), 'Tier cloud gate', 'crozzoTierAllowsCloudSync respeta tier lan');
+assert(
+  /function crozzoTierAllowsCloudSync\(/.test(main) &&
+    /__CROZZO_TIER_LAST/.test(main) &&
+    /return t === 'cloud'/.test(main),
+  'Tier cloud gate',
+  'crozzoTierAllowsCloudSync respeta tier lan'
+);
 
 for (const html of ['app/index.html', 'app/Crozzo_POS_Completo.html']) {
   mustInclude(html, ['CrozzoLanOpsSync.js'], 'Script en ' + html);
@@ -82,9 +91,15 @@ const srcOps = join(root, 'src/infra/CrozzoLanOpsSync.js');
 assert(existsSync(srcOps), 'Sync src', 'CrozzoLanOpsSync en src/ (npm run sync)');
 
 // Compatibilidad con flujo existente (no roto)
-mustInclude('app/modules/CrozzoComandasCloudSync.js', ['pushComandaLan', 'outboxEnqueue', 'deferLocalCloudSync'], 'Comandas cloud intacto');
-mustInclude('app/infra/CrozzoReconnectSync.js', ['reconcileStale: true', 'crozzoFlushComandaOutbox'], 'Reconnect intacto');
-mustInclude('app/infra/CrozzoLanSyncBridge.js', ['tryApplyLanComanda', 'crozzoPushComandaToCloud', 'crozzoLanPostSync'], 'LAN bridge puente nube');
+mustInclude('app/modules/CrozzoComandasCloudSync.js', ['pushComandaLan', 'outboxEnqueue', 'deferLocalCloudSync', 'lanParallelPushNeeded'], 'Comandas cloud intacto');
+mustInclude('app/infra/CrozzoCloudSyncPriorities.js', ['cloudOperationalRealtimeHealthy', 'Z0', 'Z1', 'Z3'], 'Prioridades Z0/Z1/Z3');
+mustInclude('app/infra/CrozzoReconnectSync.js', ['reconcileStale: true', 'crozzoFlushComandaOutbox', 'ONLINE_STABLE_MS'], 'Reconnect intacto');
+mustInclude('app/infra/CrozzoLanSyncBridge.js', [
+  'tryApplyLanComanda',
+  'crozzoPushComandasCloudByIds',
+  'crozzoLanPostSync',
+  '__CROZZO_FIELD_TEST_QUIET',
+], 'LAN bridge puente nube');
 mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', ['crozzo_lan_sync_post', 'ingest_api_sync'], 'Rust post LAN nativo');
 
 try {
@@ -180,8 +195,17 @@ async function sandboxTests() {
   assert(h.spies.applied && h.spies.applied.id === 42, 'Apply comanda', 'id=42 desde /api/comandas');
   assert(h.fetchCalls.some((x) => x.url.includes('192.168.1.50:3000/api/comandas')), 'Fetch central', 'Rol B apunta a caja');
 
+  const hForce = makeSandbox();
+  hForce.ctx.crozzoOperationalRealtimeActive = () => false;
+  vm.runInContext(readFileSync(join(app, 'infra/CrozzoLanOpsSync.js'), 'utf8'), hForce.ctx, {
+    filename: 'CrozzoLanOpsSync-force.js',
+  });
+  const pulledForce = await hForce.ctx.crozzoPullComandasFromLan({ force: true, skipPrint: true });
+  assert(pulledForce === true, 'Pull forzado fuera Z0', 'force bypass página operativa');
+  assert(hForce.spies.applied && hForce.spies.applied.id === 42, 'Apply forzado', 'snapshot remoto aplicado');
+
   c.crozzoLanOpsPulseEmit('comanda');
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 700));
   assert(h.fetchCalls.length >= 2, 'Pulso dispara pull', 'fetch adicional tras emit');
 
   // Recuperación tier → cloud
