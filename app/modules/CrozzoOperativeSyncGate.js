@@ -191,10 +191,15 @@
         }
       } catch (_) {}
     }
-    if (!opts.skipFreshnessPurge && !fastEntry && !opts.skipPreAnalyze) {
+    var lanUp = lanSegmentLikelyUp();
+    var cloudUp = cloudLikelyUp();
+    /* No purgar local antes del pull si la verdad viene por LAN o la nube no responde
+       (evita partial_stale que deja tablet/caja con mesas distintas). */
+    var skipPreFreshness = fastEntry || !!opts.skipPreAnalyze || lanUp || !cloudUp;
+    if (!opts.skipFreshnessPurge && !skipPreFreshness) {
       try {
         await analyzeAndDiscardStale('pre', {
-          probeOpts: { skipLan: cloudLikelyUp(), lanTimeoutMs: 1500 },
+          probeOpts: { skipLan: cloudUp, lanTimeoutMs: 1500 },
         });
       } catch (_) {}
     }
@@ -239,13 +244,16 @@
         } catch (_) {}
       }
     }
-    if (!opts.skipFreshnessPurge) {
+    var skipPostFreshness = fastEntry || lanUp || !cloudUp;
+    if (!opts.skipFreshnessPurge && !skipPostFreshness) {
       try {
         await analyzeAndDiscardStale('post', {
           remoteMeta: buildRemoteMetaFromAppliedRuntime(),
           skipProbe: true,
         });
       } catch (_) {}
+    }
+    if (!opts.skipFreshnessPurge) {
       try {
         if (typeof global.crozzoPurgeGhostComandasForClearedSlots === 'function') {
           global.crozzoPurgeGhostComandasForClearedSlots();
