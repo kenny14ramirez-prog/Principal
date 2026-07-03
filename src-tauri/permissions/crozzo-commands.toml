@@ -38,7 +38,7 @@ commands.allow = [
 [[permission]]
 identifier = "allow-crozzo-devtools"
 description = "Abrir consola técnica WebView (F12)"
-commands.allow = ["crozzo_open_devtools"]
+commands.allow = ["crozzo_open_devtools", "crozzo_append_dev_log"]
 
 [[permission]]
 identifier = "allow-crozzo-gossip-udp"

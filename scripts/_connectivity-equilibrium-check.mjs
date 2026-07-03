@@ -87,7 +87,7 @@ mustInclude('app/infra/CrozzoZ0AutoGuard.js', [
   'CrozzoHumanConnectivityPredict',
 ], 'Autoguarda Z0');
 
-mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoZ0AutoGuard'], 'Startup arranca autoguarda');
+mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoZ0AutoGuard', 'CrozzoOperativeJournal'], 'Startup arranca autoguarda');
 
 mustInclude('app/infra/CrozzoLanOpsSync.js', [
   'emitWithDelta',

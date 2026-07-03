@@ -10,6 +10,8 @@
 
   var TICK_MS = 52000;
   var RECOVER_GAP_MS = 88000;
+  var RECOVER_GAP_URGENT_MS = 42000;
+  var FP_WINDOW_MS = 600000;
   var STUCK_BEFORE_HINT_MS = 540000;
   var LS_SNAP = 'crozzo_z0_autoguard_v1';
   var __timer = null;
@@ -79,6 +81,31 @@
     __recoverAttempts = 0;
   }
 
+  function journalRecord(code, detail) {
+    safe(function () {
+      if (global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.record === 'function') {
+        global.CrozzoOperativeJournal.record({
+          kind: 'autoguard',
+          code: code,
+          detail: detail,
+          tier: readTier().tier,
+          transport: activeTransport(),
+        });
+      }
+    });
+  }
+
+  function effectiveRecoverGap() {
+    return safe(function () {
+      if (!global.CrozzoOperativeJournal || typeof global.CrozzoOperativeJournal.topFingerprints !== 'function') {
+        return RECOVER_GAP_MS;
+      }
+      var tops = global.CrozzoOperativeJournal.topFingerprints(1, FP_WINDOW_MS);
+      if (tops.length && tops[0].count >= 3) return RECOVER_GAP_URGENT_MS;
+      return RECOVER_GAP_MS;
+    }, RECOVER_GAP_MS);
+  }
+
   function hintOnce(key, message, level) {
     if (!message) return;
     var lsKey = 'crozzo_z0_autoguard_hint_' + String(key || 'generic');
@@ -123,9 +150,11 @@
 
   async function softRecover(reason) {
     var now = Date.now();
-    if (now - __lastRecoverAt < RECOVER_GAP_MS) return false;
+    var gap = effectiveRecoverGap();
+    if (now - __lastRecoverAt < gap) return false;
     __lastRecoverAt = now;
     __recoverAttempts++;
+    journalRecord('recover_' + String(reason || 'tick'), { attempt: __recoverAttempts, gapMs: gap });
     safe(function () {
       if (typeof global.crozzoInvalidateCloudPingCache === 'function') global.crozzoInvalidateCloudPingCache();
     });
@@ -167,6 +196,7 @@
       var tier = readTier();
       if (tier.healthy || tier.tier === 'healthy') {
         markHealthy();
+        journalRecord('tier_healthy', snap);
         return;
       }
       if (tier.warm || tier.tier === 'warm') {
@@ -180,10 +210,12 @@
             global.crozzoActivateLocalSyncPath('z0_autoguard_offline').catch(function () {});
           }
         });
+        journalRecord('offline_lan_path', { transport: transport });
         maybePlainLanguageHint();
         return;
       }
 
+      journalRecord('tier_degraded', { tier: tier.tier, transport: transport });
       await softRecover(tier.tier || 'stale');
       var after = readTier();
       if (after.healthy || after.tier === 'healthy') markHealthy();

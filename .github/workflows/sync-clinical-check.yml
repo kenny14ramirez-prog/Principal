@@ -10,6 +10,9 @@ on:
       - 'app/infra/Crozzo*Page*.js'
       - 'app/infra/Crozzo*Reconnect*.js'
       - 'app/infra/Crozzo*Z0*.js'
+      - 'app/infra/CrozzoOperativeJournal.js'
+      - 'app/infra/CrozzoDevTap.js'
+      - 'app/core/CrozzoDevicePerf.js'
       - 'app/infra/Crozzo*Connectivity*.js'
       - 'app/infra/Crozzo*Offline*.js'
       - 'app/infra/CrozzoStartupReady.js'
@@ -18,19 +21,22 @@ on:
       - 'app/core/CrozzoPosMain.js'
       - 'scripts/_connectivity-equilibrium-check.mjs'
       - 'scripts/_lan-ops-sync-check.mjs'
-      - 'scripts/_field-device-scale.mjs'
+      - 'scripts/_operative-journal-check.mjs'
+      - 'scripts/dev-session-observer.mjs'
+      - 'src-tauri/src/crozzo_dev_log.rs'
       - 'package.json'
       - 'src/infra/**'
       - 'src/modules/CrozzoComandasCloudSync.js'
   push:
     branches:
       - feat/sync-z0-clinical
+      - feat/operative-journal
       - fix/sync-equilibrio-cloud-lan
       - feat/z0-operative-pulse
 
 jobs:
   sync-clinical:
-    name: Equilibrio + LAN ops (43 checks)
+    name: Equilibrio + LAN ops + diario (checks clínicos)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

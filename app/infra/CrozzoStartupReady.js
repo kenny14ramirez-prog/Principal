@@ -257,6 +257,22 @@
       }
     });
 
+    // Diario operativo + dev tap (antes de autoguarda).
+    safe(function () {
+      if (global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.start === 'function') {
+        global.CrozzoOperativeJournal.start();
+      }
+      if (global.CrozzoDevTap && typeof global.CrozzoDevTap.start === 'function') {
+        global.CrozzoDevTap.start();
+      }
+    });
+
+    safe(function () {
+      if (global.CrozzoDevicePerf && typeof global.CrozzoDevicePerf.startContinuousProbe === 'function') {
+        global.CrozzoDevicePerf.startContinuousProbe();
+      }
+    });
+
     // Autoguarda Z0: autoevalúa y recupera sync operativa sin intervención del usuario.
     safe(function () {
       if (global.CrozzoZ0AutoGuard && typeof global.CrozzoZ0AutoGuard.start === 'function') {

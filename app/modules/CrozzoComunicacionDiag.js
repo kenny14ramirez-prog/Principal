@@ -591,6 +591,31 @@
       );
     }
 
+    var jStats = safe(function () {
+      return global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.stats === 'function'
+        ? global.CrozzoOperativeJournal.stats()
+        : null;
+    }, null);
+    var jTop = safe(function () {
+      return global.CrozzoOperativeJournal && typeof global.CrozzoOperativeJournal.topFingerprints === 'function'
+        ? global.CrozzoOperativeJournal.topFingerprints(1, 600000)
+        : [];
+    }, []);
+    if (jStats && jStats.total > 0) {
+      var topTxt = jTop.length ? jTop[0].code + ' (×' + jTop[0].count + ')' : 'ninguno reciente';
+      rows.push(
+        row(
+          'operative-journal',
+          'Diario (automático)',
+          jTop.length && jTop[0].count >= 5 ? 'warn' : 'ok',
+          jStats.total + ' eventos registrados · más frecuente (10 min): ' + topTxt + '.',
+          jTop.length && jTop[0].count >= 5
+            ? 'El sistema detectó un patrón repetido y ya aceleró la recuperación automática.'
+            : ''
+        )
+      );
+    }
+
     // 5a-bis. Pulso operativo (segunda vía de tiempo real, independiente de la réplica).
     var pulse = safe(function () {
       return global.CrozzoCloudOpsPulse && typeof global.CrozzoCloudOpsPulse.status === 'function'
