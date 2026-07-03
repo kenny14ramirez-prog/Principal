@@ -27,6 +27,7 @@
   var __pullTimers = {};
   var __emitTimers = {};
   var __pendingEmit = {};
+  var __pendingDelta = {};
   var __lastComandaSig = '';
   var RUNTIME_POLL_MS = 900;
   var COMANDA_POLL_MS = 2400;
@@ -237,6 +238,29 @@
     return false;
   }
 
+  function applyLanEstadoDelta(pay) {
+    if (!pay || pay.id == null) return false;
+    var c = null;
+    if (pay.transaction_id && global.comandas) {
+      c = global.comandas.find(function (x) {
+        return x && x.transaction_id && String(x.transaction_id) === String(pay.transaction_id);
+      });
+    }
+    if (!c && pay.id != null && typeof global.__crozzoEmergencyFindComandaById === 'function') {
+      c = global.__crozzoEmergencyFindComandaById(pay.id);
+    }
+    if (!c) return false;
+    var est = pay.estado != null ? pay.estado : c.estado;
+    if (est === 'entregada' && typeof global.despacharComanda === 'function') {
+      global.despacharComanda(c.id, { skipToast: true, skipGossip: true, skipFanout: true });
+    } else if (typeof global.updateComandaEstado === 'function') {
+      global.updateComandaEstado(c.id, est, { skipFanout: true });
+    } else {
+      return false;
+    }
+    return true;
+  }
+
   function scheduleComandaUiRefresh() {
     try {
       if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
@@ -334,6 +358,12 @@
     if (myDev && payload.dev && String(payload.dev) === myDev) return;
     __lastRxAt = Date.now();
     var kind = String(payload.kind || '');
+    if (payload.delta && (kind === 'comanda' || payload.delta.id != null)) {
+      if (applyLanEstadoDelta(payload.delta)) {
+        if (!payload.skipRender) scheduleComandaUiRefresh();
+        return;
+      }
+    }
     if (kind === 'comanda' || kind === 'runtime') triggerPull(kind);
     else if (kind === 'all') triggerPull('all');
   }
@@ -348,6 +378,10 @@
       ).trim();
     });
     var payload = { event: 'lan_ops_pulse', kind: kind, dev: dev, at: Date.now() };
+    if (__pendingDelta[kind]) {
+      payload.delta = __pendingDelta[kind];
+      __pendingDelta[kind] = null;
+    }
     var body = JSON.stringify(payload);
     var pullKind = kind === 'all' ? 'all' : kind;
     var pullOpts = { skipPrint: true, skipRender: false };
@@ -375,7 +409,7 @@
     kind = String(kind || '').trim();
     if (kind !== 'comanda' && kind !== 'runtime' && kind !== 'all') return;
     if (!lanSyncAllowed({ kind: 'transport' })) return;
-    if (cloudRealtimeStandby()) return;
+    if (cloudRealtimeStandby() && !__pendingDelta[kind]) return;
     __pendingEmit[kind] = true;
     if (__emitTimers[kind]) return;
     __emitTimers[kind] = global.setTimeout(function () {
@@ -384,6 +418,12 @@
       __pendingEmit[kind] = false;
       doEmit(kind);
     }, EMIT_DEBOUNCE_MS);
+  }
+
+  function emitWithDelta(kind, delta) {
+    kind = String(kind || '').trim();
+    if (delta && typeof delta === 'object') __pendingDelta[kind] = delta;
+    emit(kind);
   }
 
   /** Registra comandas locales en el snapshot de la caja (Rol A). Throttled. */
@@ -594,6 +634,7 @@
   }
 
   global.crozzoLanOpsPulseEmit = emit;
+  global.crozzoLanOpsPulseEmitWithDelta = emitWithDelta;
   global.crozzoPullComandasFromLan = pullComandasLan;
   global.crozzoStartLanOpsSync = startLanOpsSync;
   global.crozzoStopLanOpsSync = stopLanOpsSync;
@@ -603,6 +644,7 @@
     start: startLanOpsSync,
     stop: stopLanOpsSync,
     emit: emit,
+    emitWithDelta: emitWithDelta,
     pullComandas: pullComandasLan,
     pullRuntime: pullRuntimeLan,
     seedCentralComandas: seedCentralComandasFromLocal,

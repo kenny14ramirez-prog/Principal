@@ -583,6 +583,10 @@
       if (typeof global.crozzoPatchOperationalPageFromRemote === 'function') {
         if (global.crozzoPatchOperationalPageFromRemote(pg)) return;
       }
+      if (typeof global.crozzoZ0ScheduleUiRefresh === 'function') {
+        global.crozzoZ0ScheduleUiRefresh(pg, { lane: 'fast' });
+        return;
+      }
       scheduleComandaPageRefresh();
     } catch (_) {}
   }
@@ -840,6 +844,15 @@
       try {
         if (typeof global.crozzoActivateLocalSyncPath === 'function') {
           global.crozzoActivateLocalSyncPath('comanda_estado').catch(function () {});
+        }
+      } catch (_) {}
+      try {
+        if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.emitWithDelta === 'function') {
+          global.CrozzoLanOpsSync.emitWithDelta('comanda', {
+            id: comanda.id,
+            transaction_id: comanda.transaction_id,
+            estado: est,
+          });
         }
       } catch (_) {}
     }

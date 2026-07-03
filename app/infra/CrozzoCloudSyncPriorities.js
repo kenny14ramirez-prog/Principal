@@ -536,35 +536,82 @@
    * Realtime nube vivo y reciente → LAN operativo entra en standby (evita duplicar
    * polls/pulsos/post cuando internet responde bien).
    */
-  function cloudOperationalRealtimeHealthy(maxSilenceMs) {
-    maxSilenceMs = maxSilenceMs == null ? 35000 : Number(maxSilenceMs) || 35000;
+  var RT_WARM_MS = 22000;
+  var RT_STALE_MS = 38000;
+
+  /**
+   * Salud Realtime en tres grados (evita binario healthy/off):
+   *   healthy — eventos recientes, cero polls redundantes
+   *   warm    — canal vivo pero silencioso → 1 sonda suave (no tormenta)
+   *   stale   — silencio prolongado → respaldo poll normal
+   *   off     — sin canal Realtime
+   */
+  function cloudOperationalRealtimeTier(maxSilenceMs) {
+    maxSilenceMs = maxSilenceMs == null ? RT_STALE_MS : Number(maxSilenceMs) || RT_STALE_MS;
+    var out = {
+      tier: 'off',
+      live: false,
+      comandaLive: false,
+      runtimeLive: false,
+      lastEventAgoMs: null,
+      warm: false,
+      healthy: false,
+      stale: false,
+    };
     try {
-      if (!cloudPathReady()) return false;
+      if (!cloudPathReady()) return out;
       if (
         typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
         !global.crozzoCloudBackgroundSyncAllowed({ kind: 'realtime' })
       ) {
-        return false;
+        return out;
       }
-      var live = false;
-      var healthy = false;
+      var lastAgo = null;
       if (typeof global.crozzoComandaRealtimeStatus === 'function') {
         var cs = global.crozzoComandaRealtimeStatus();
         if (cs && cs.live) {
-          live = true;
-          if (cs.lastEventAgoMs == null || cs.lastEventAgoMs < maxSilenceMs) healthy = true;
+          out.comandaLive = true;
+          out.live = true;
+          if (cs.lastEventAgoMs != null) {
+            lastAgo = lastAgo == null ? cs.lastEventAgoMs : Math.min(lastAgo, cs.lastEventAgoMs);
+          }
         }
       }
       if (typeof global.crozzoRuntimeRealtimeStatus === 'function') {
         var rs = global.crozzoRuntimeRealtimeStatus();
         if (rs && rs.live) {
-          live = true;
-          if (rs.lastEventAgoMs == null || rs.lastEventAgoMs < maxSilenceMs) healthy = true;
+          out.runtimeLive = true;
+          out.live = true;
+          if (rs.lastEventAgoMs != null) {
+            lastAgo = lastAgo == null ? rs.lastEventAgoMs : Math.min(lastAgo, rs.lastEventAgoMs);
+          }
         }
       }
-      return live && healthy;
+      out.lastEventAgoMs = lastAgo;
+      if (!out.live) {
+        out.tier = 'off';
+        return out;
+      }
+      if (lastAgo == null || lastAgo < RT_WARM_MS) {
+        out.tier = 'healthy';
+        out.healthy = true;
+        return out;
+      }
+      if (lastAgo < maxSilenceMs) {
+        out.tier = 'warm';
+        out.warm = true;
+        return out;
+      }
+      out.tier = 'stale';
+      out.stale = true;
+      return out;
     } catch (_) {}
-    return false;
+    return out;
+  }
+
+  function cloudOperationalRealtimeHealthy(maxSilenceMs) {
+    var t = cloudOperationalRealtimeTier(maxSilenceMs);
+    return t.healthy;
   }
 
   function resolvePage(page) {
@@ -1094,6 +1141,7 @@
     crozzoActiveSyncTransport: crozzoActiveSyncTransport,
     crozzoOpsSyncAllowed: crozzoOpsSyncAllowed,
     cloudOperationalRealtimeHealthy: cloudOperationalRealtimeHealthy,
+    cloudOperationalRealtimeTier: cloudOperationalRealtimeTier,
   };
 
   global.crozzoSyncPriorityForType = getOperationPriority;
@@ -1104,6 +1152,7 @@
   global.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
   global.crozzoLocalSyncAllowed = crozzoLocalSyncAllowed;
   global.crozzoCloudOperationalRealtimeHealthy = cloudOperationalRealtimeHealthy;
+  global.crozzoCloudOperationalRealtimeTier = cloudOperationalRealtimeTier;
   global.crozzoLocalRealtimeAllowed = crozzoLocalRealtimeAllowed;
   global.crozzoActiveSyncTransport = crozzoActiveSyncTransport;
   global.crozzoOpsSyncAllowed = crozzoOpsSyncAllowed;

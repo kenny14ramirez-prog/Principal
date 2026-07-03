@@ -59,6 +59,8 @@ function mustNotInclude(file, pattern, label) {
 // --- Zonas y transporte ---
 mustInclude('app/infra/CrozzoCloudSyncPriorities.js', [
   'cloudOperationalRealtimeHealthy',
+  'cloudOperationalRealtimeTier',
+  'RT_WARM_MS',
   'ZONE_OPERATION',
   'ZONE_NAV',
   'ZONE_DEFER',
@@ -67,12 +69,21 @@ mustInclude('app/infra/CrozzoCloudSyncPriorities.js', [
 
 mustInclude('app/infra/CrozzoPageCloudWatch.js', [
   'cloudStandby',
+  'cloudWarm',
+  'tickIntervalMs',
   'refreshOpsTransports',
   'isZone0Page',
 ], 'PageCloudWatch Z0');
 
-// --- Equilibrio LAN standby ---
+mustInclude('app/infra/CrozzoZ0OperativePulse.js', [
+  'crozzoZ0ScheduleUiRefresh',
+  'requestAnimationFrame',
+  'crozzoNoteZ0UserActivity',
+], 'Pulso UI Z0');
+
 mustInclude('app/infra/CrozzoLanOpsSync.js', [
+  'emitWithDelta',
+  'applyLanEstadoDelta',
   'opRealtimeActive()',
   'cloudRealtimeStandby',
   'lanOpsTransportPrimary',
@@ -85,6 +96,8 @@ const comTxt = mustInclude('app/modules/CrozzoComandasCloudSync.js', [
   'scheduleOutboxDrain',
   'fanoutComandaEstado',
   'fanoutComandasByIds',
+  'emitWithDelta',
+  'crozzoZ0ScheduleUiRefresh',
 ], 'Comandas fanout híbrido');
 
 assert(
@@ -110,6 +123,19 @@ mustInclude('app/infra/CrozzoConnectivityOrchestrator.js', [
 
 // --- Throttle nube ---
 mustInclude('app/infra/CrozzoCloudThrottle.js', ['canRunDrain', 'markPressure', 'resubscribeDelayMs'], 'Cloud throttle');
+
+const posMain = join(root, 'app/core/CrozzoPosMain.js');
+if (existsSync(posMain)) {
+  const pm = readFileSync(posMain, 'utf8');
+  const fn = pm.match(/function crozzoHandleRemoteRuntimeUiSync\(\) \{[\s\S]*?\n\}/);
+  assert(
+    fn && !fn[0].includes('crozzoPullComandasFromCloud'),
+    'Runtime UI sin pull comandas',
+    'crozzoHandleRemoteRuntimeUiSync no dispara SELECT comandas'
+  );
+} else {
+  fail('Runtime UI sin pull comandas', 'ausente CrozzoPosMain.js');
+}
 
 console.log('\n=== Crozzo equilibrio conectividad — verificación clínica ===\n');
 for (const r of results) {
