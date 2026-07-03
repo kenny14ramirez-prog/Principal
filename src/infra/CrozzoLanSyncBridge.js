@@ -1111,7 +1111,14 @@
       var tier = String(global.__CROZZO_TIER_LAST || '');
       var wanReady =
         typeof global.crozzoCloudWanReady === 'function' ? global.crozzoCloudWanReady() : tier === 'cloud';
-      if (!(tier === 'cloud' && wanReady)) {
+      var underPressure = false;
+      try {
+        underPressure =
+          !!(global.CrozzoCloudThrottle &&
+            typeof global.CrozzoCloudThrottle.isUnderPressure === 'function' &&
+            global.CrozzoCloudThrottle.isUnderPressure());
+      } catch (_) {}
+      if (!(tier === 'cloud' && wanReady && !underPressure)) {
         try {
           if (typeof global.crozzoPullComandasFromLan === 'function') {
             await global.crozzoPullComandasFromLan({ skipPrint: true, skipRender: true, force: true }).catch(function () {});

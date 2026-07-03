@@ -273,6 +273,12 @@
       }
     });
 
+    safe(function () {
+      if (global.CrozzoFleetOperationalReconcile && typeof global.CrozzoFleetOperationalReconcile.start === 'function') {
+        global.CrozzoFleetOperationalReconcile.start();
+      }
+    });
+
     // Autoguarda Z0: autoevalúa y recupera sync operativa sin intervención del usuario.
     safe(function () {
       if (global.CrozzoZ0AutoGuard && typeof global.CrozzoZ0AutoGuard.start === 'function') {

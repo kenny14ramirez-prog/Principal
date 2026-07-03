@@ -38,7 +38,7 @@
     "test:field-devices:browser": "node scripts/_field-device-scale.mjs --browser-only",
     "test:connectivity-equilibrium": "node scripts/_connectivity-equilibrium-check.mjs",
     "test:lan-ops-sync": "node scripts/_lan-ops-sync-check.mjs",
-    "test:sync-clinical": "node scripts/_connectivity-equilibrium-check.mjs && node scripts/_lan-ops-sync-check.mjs && node scripts/_operative-journal-check.mjs",
+    "test:sync-clinical": "node scripts/_connectivity-equilibrium-check.mjs && node scripts/_lan-ops-sync-check.mjs && node scripts/_operative-journal-check.mjs && node scripts/_fleet-coordination-check.mjs",
     "test:operative-journal": "node scripts/_operative-journal-check.mjs",
     "dev:observe": "node scripts/dev-session-observer.mjs",
     "dev:observe:tauri": "node scripts/dev-session-observer.mjs --with-tauri"

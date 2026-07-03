@@ -30,7 +30,11 @@ on:
   push:
     branches:
       - feat/sync-z0-clinical
-      - feat/operative-journal
+      - 'app/infra/CrozzoFleetOperationalReconcile.js'
+      - 'app/infra/CrozzoCloudThrottle.js'
+      - 'app/modules/CrozzoInternalQrRegistry.js'
+      - 'scripts/_fleet-coordination-check.mjs'
+      - feat/fleet-coordination-fix
       - fix/sync-equilibrio-cloud-lan
       - feat/z0-operative-pulse
 

@@ -44,7 +44,7 @@
       var msg = String((err && err.message) || err || '');
       if (/INSUFFICIENT_RESOURCES/i.test(msg)) {
         if (typeof global.crozzoNoteLanFetchPressure === 'function') global.crozzoNoteLanFetchPressure(err);
-      } else if (/ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|Failed to fetch|network/i.test(msg)) {
+      } else if (/ERR_CONNECTION_CLOSED|CONNECTION_CLOSED|connection closed|ERR_CONNECTION_RESET|Failed to fetch|network/i.test(msg)) {
         if (typeof global.crozzoNoteWanUnreachable === 'function') global.crozzoNoteWanUnreachable(msg);
       }
       var thr = global.CrozzoCloudThrottle;

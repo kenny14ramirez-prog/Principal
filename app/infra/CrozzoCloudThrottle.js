@@ -105,6 +105,9 @@
     }
     clearPressure();
     try {
+      if (typeof global.crozzoClearWanDownSignal === 'function') global.crozzoClearWanDownSignal();
+    } catch (_) {}
+    try {
       if (typeof global.crozzoClearLanFetchPressure === 'function') global.crozzoClearLanFetchPressure();
     } catch (_) {}
   }
@@ -144,8 +147,13 @@
 
   function noteFetchFailure(err) {
     var msg = String((err && err.message) || err || '');
-    if (/INSUFFICIENT_RESOURCES|Failed to fetch|ERR_|network|aborted/i.test(msg)) {
+    if (/INSUFFICIENT_RESOURCES|Failed to fetch|ERR_|network|aborted|CONNECTION_CLOSED|connection closed|CONNECTION_RESET/i.test(msg)) {
       markPressure(50000, 'fetch_exhausted');
+      if (typeof global.crozzoNoteWanUnreachable === 'function') {
+        try {
+          global.crozzoNoteWanUnreachable(msg);
+        } catch (_) {}
+      }
       return true;
     }
     return false;
@@ -218,4 +226,70 @@
     snapshot: snapshot,
     resubscribeDelayMs: resubscribeDelayMs,
   };
+
+  var __wanDownUntil = 0;
+  var __lastLanActivateFromWan = 0;
+
+  function safe(fn) {
+    try {
+      return fn();
+    } catch (_) {}
+  }
+
+  function crozzoNoteWanUnreachable(msg) {
+    markPressure(55000, 'wan_down');
+    __wanDownUntil = Date.now() + 90000;
+    safe(function () {
+      global.__CROZZO_WAN_DOWN_UNTIL = __wanDownUntil;
+    });
+    var now = Date.now();
+    if (now - __lastLanActivateFromWan < 12000) return;
+    __lastLanActivateFromWan = now;
+    safe(function () {
+      if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+        global.crozzoActivateLocalSyncPath('wan_unreachable').catch(function () {});
+      }
+      if (typeof global.crozzoFleetOperationalReconcile === 'function') {
+        global.crozzoFleetOperationalReconcile('wan_unreachable').catch(function () {});
+      }
+    });
+  }
+
+  function crozzoCloudWanReady() {
+    if (Date.now() < __wanDownUntil) return false;
+    if (isUnderPressure()) {
+      var reason = String(global.__CROZZO_CLOUD_PRESSURE_REASON || '');
+      if (reason === 'wan_down' || reason === 'fetch_exhausted') return false;
+    }
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
+        return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    try {
+      if (typeof global.navigator !== 'undefined' && global.navigator.onLine === false) return false;
+    } catch (_) {}
+    return true;
+  }
+
+  function crozzoWanOnline() {
+    try {
+      if (typeof global.navigator !== 'undefined' && global.navigator.onLine === false) return false;
+    } catch (_) {}
+    return Date.now() >= __wanDownUntil;
+  }
+
+  function crozzoClearWanDownSignal() {
+    __wanDownUntil = 0;
+    safe(function () {
+      delete global.__CROZZO_WAN_DOWN_UNTIL;
+    });
+  }
+
+  global.crozzoNoteWanUnreachable = crozzoNoteWanUnreachable;
+  global.crozzoCloudWanReady = crozzoCloudWanReady;
+  global.crozzoWanOnline = crozzoWanOnline;
+  global.crozzoClearWanDownSignal = crozzoClearWanDownSignal;
 })(typeof window !== 'undefined' ? window : globalThis);
