@@ -81,6 +81,14 @@ mustInclude('app/infra/CrozzoZ0OperativePulse.js', [
   'crozzoNoteZ0UserActivity',
 ], 'Pulso UI Z0');
 
+mustInclude('app/infra/CrozzoZ0AutoGuard.js', [
+  'CrozzoZ0AutoGuard',
+  'crozzoRunFullReconnectSync',
+  'CrozzoHumanConnectivityPredict',
+], 'Autoguarda Z0');
+
+mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoZ0AutoGuard'], 'Startup arranca autoguarda');
+
 mustInclude('app/infra/CrozzoLanOpsSync.js', [
   'emitWithDelta',
   'applyLanEstadoDelta',

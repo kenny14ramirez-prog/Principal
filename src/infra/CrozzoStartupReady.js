@@ -257,6 +257,13 @@
       }
     });
 
+    // Autoguarda Z0: autoevalúa y recupera sync operativa sin intervención del usuario.
+    safe(function () {
+      if (global.CrozzoZ0AutoGuard && typeof global.CrozzoZ0AutoGuard.start === 'function') {
+        global.CrozzoZ0AutoGuard.start();
+      }
+    });
+
     // Sync nube: postInitCloud (CrozzoPosCloud) ya lo dispara; aqui solo respaldo si aun no arranco.
     safe(function () {
       if (typeof global.crozzoEnsureCloudSyncActive === 'function') {

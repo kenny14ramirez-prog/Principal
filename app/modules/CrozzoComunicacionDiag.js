@@ -567,6 +567,30 @@
       )
     );
 
+    var ag = safe(function () {
+      return typeof global.crozzoZ0AutoGuardSnapshot === 'function' ? global.crozzoZ0AutoGuardSnapshot() : null;
+    }, null);
+    if (ag && opsActive) {
+      var agOk = ag.tier === 'healthy';
+      var agWarn = ag.tier === 'warm';
+      rows.push(
+        row(
+          'z0-autoguard',
+          'Autoguarda (automático)',
+          agOk ? 'ok' : agWarn ? 'warn' : 'warn',
+          'El sistema se autoevalúa cada ~50s. Estado: ' +
+            String(ag.tier || '?') +
+            ', transporte ' +
+            String(ag.transport || '?') +
+            (ag.recoverAttempts ? ', recuperaciones ' + ag.recoverAttempts : '') +
+            '.',
+          agOk
+            ? ''
+            : 'No requiere acción: el sistema intenta reconectar solo. Si persiste >10 min, revise Wi‑Fi del local y que la caja esté encendida.'
+        )
+      );
+    }
+
     // 5a-bis. Pulso operativo (segunda vía de tiempo real, independiente de la réplica).
     var pulse = safe(function () {
       return global.CrozzoCloudOpsPulse && typeof global.CrozzoCloudOpsPulse.status === 'function'

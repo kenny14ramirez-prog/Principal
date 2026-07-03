@@ -37,7 +37,8 @@
     "test:field-devices:quick": "node scripts/_field-device-scale.mjs --phases 2,5,10 --skip-browser",
     "test:field-devices:browser": "node scripts/_field-device-scale.mjs --browser-only",
     "test:connectivity-equilibrium": "node scripts/_connectivity-equilibrium-check.mjs",
-    "test:lan-ops-sync": "node scripts/_lan-ops-sync-check.mjs"
+    "test:lan-ops-sync": "node scripts/_lan-ops-sync-check.mjs",
+    "test:sync-clinical": "node scripts/_connectivity-equilibrium-check.mjs && node scripts/_lan-ops-sync-check.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

@@ -1,0 +1,43 @@
+# Autoevaluación clínica sync Z0 — corre en cada PR que toque comunicación operativa.
+name: Sync Z0 clinical checks
+
+on:
+  pull_request:
+    paths:
+      - 'app/infra/Crozzo*Sync*.js'
+      - 'app/infra/Crozzo*Lan*.js'
+      - 'app/infra/Crozzo*Cloud*.js'
+      - 'app/infra/Crozzo*Page*.js'
+      - 'app/infra/Crozzo*Reconnect*.js'
+      - 'app/infra/Crozzo*Z0*.js'
+      - 'app/infra/Crozzo*Connectivity*.js'
+      - 'app/infra/Crozzo*Offline*.js'
+      - 'app/infra/CrozzoStartupReady.js'
+      - 'app/modules/CrozzoComandasCloudSync.js'
+      - 'app/modules/CrozzoPosRuntimeCloud.js'
+      - 'app/core/CrozzoPosMain.js'
+      - 'scripts/_connectivity-equilibrium-check.mjs'
+      - 'scripts/_lan-ops-sync-check.mjs'
+      - 'scripts/_field-device-scale.mjs'
+      - 'package.json'
+      - 'src/infra/**'
+      - 'src/modules/CrozzoComandasCloudSync.js'
+  push:
+    branches:
+      - feat/sync-z0-clinical
+      - fix/sync-equilibrio-cloud-lan
+      - feat/z0-operative-pulse
+
+jobs:
+  sync-clinical:
+    name: Equilibrio + LAN ops (43 checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependencias mínimas
+        run: npm ci
+      - name: Autoprueba sync clínico
+        run: npm run test:sync-clinical
