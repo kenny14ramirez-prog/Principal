@@ -172,7 +172,20 @@
   }
 
   function lanSegmentLikely() {
-    if (deferLocalCloudSync()) return false;
+    if (deferLocalCloudSync()) {
+      try {
+        if (
+          typeof global.crozzoLanTransportStandbyAllowed === 'function' &&
+          global.crozzoLanTransportStandbyAllowed()
+        ) {
+          /* respaldo LAN paralelo con nube primaria */
+        } else {
+          return false;
+        }
+      } catch (_) {
+        return false;
+      }
+    }
     try {
       if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
         return true;

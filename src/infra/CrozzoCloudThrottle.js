@@ -257,10 +257,7 @@
 
   function crozzoCloudWanReady() {
     if (Date.now() < __wanDownUntil) return false;
-    if (isUnderPressure()) {
-      var reason = String(global.__CROZZO_CLOUD_PRESSURE_REASON || '');
-      if (reason === 'wan_down' || reason === 'fetch_exhausted') return false;
-    }
+    if (isUnderPressure()) return false;
     try {
       if (typeof global.crozzoTierAllowsCloudSync === 'function' && !global.crozzoTierAllowsCloudSync()) {
         return false;

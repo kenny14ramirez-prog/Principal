@@ -23,6 +23,9 @@
   var __runtimePoll = null;
   var __comandaPoll = null;
   var __watchdog = null;
+  var __standbyTimer = null;
+  var __standbyMode = false;
+  var STANDBY_TICK_MS = 18000;
   var __lastRxAt = 0;
   var __pullTimers = {};
   var __emitTimers = {};
@@ -126,6 +129,69 @@
       }
     } catch (_) {}
     return false;
+  }
+
+  /** WS + sonda suave cuando nube primaria pero segmento LAN emparejado. */
+  function shouldRunLanStandby() {
+    try {
+      if (typeof global.crozzoLanWsStandbyActive === 'function' && global.crozzoLanWsStandbyActive()) {
+        if (deferLocalSyncNow()) return true;
+        if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
+          return !global.crozzoCloudOperationalRealtimeHealthy(32000);
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function deferLocalSyncNow() {
+    try {
+      if (typeof global.crozzoDeferLocalSync === 'function') return global.crozzoDeferLocalSync();
+    } catch (_) {}
+    return false;
+  }
+
+  function startLanStandby(reason) {
+    if (__standbyTimer) return;
+    __standbyMode = true;
+    safe(function () {
+      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
+        global.CrozzoLanWebSocketBridge.connect();
+      }
+    });
+    __standbyTimer = global.setInterval(function () {
+      if (!shouldRunLanStandby()) {
+        stopLanStandby();
+        if (shouldRunLanOps()) startLanOpsSync('standby_exit');
+        return;
+      }
+      safe(function () {
+        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
+          global.CrozzoLanWebSocketBridge.connect();
+        }
+      });
+      try {
+        if (
+          typeof global.crozzoCloudOperationalRealtimeHealthy === 'function' &&
+          !global.crozzoCloudOperationalRealtimeHealthy(35000)
+        ) {
+          pullComandasLan({ skipPrint: true, skipRender: true, force: false }).catch(function () {});
+        }
+      } catch (_) {}
+    }, STANDBY_TICK_MS);
+    safe(function () {
+      if (typeof global.crozzoWizardTierLogLine === 'function') {
+        global.crozzoWizardTierLogLine('LAN standby' + (reason ? ' (' + reason + ')' : ''));
+      }
+    });
+  }
+
+  function stopLanStandby() {
+    if (__standbyTimer) {
+      global.clearInterval(__standbyTimer);
+      __standbyTimer = null;
+    }
+    __standbyMode = false;
   }
 
   function shouldRunLanOps() {
@@ -533,6 +599,7 @@
         typeof global.crozzoCloudWanReady === 'function' ? global.crozzoCloudWanReady() : true;
       if (wanOk) {
         stopLanOpsSync();
+        if (shouldRunLanStandby()) startLanStandby('cloud_primary');
         safe(function () {
           if (typeof global.crozzoRunFullReconnectSync === 'function') {
             global.crozzoRunFullReconnectSync({ source: 'lan_recover', skipPrint: true }).catch(function () {});
@@ -552,6 +619,7 @@
     try {
       if (global.__CROZZO_FIELD_TEST_QUIET && !global.__CROZZO_FIELD_TEST_LAN_ACTIVE) return;
     } catch (_) {}
+    stopLanStandby();
     if (!shouldRunLanOps()) {
       if (lanSyncAllowed({ kind: 'transport' }) && !lanOpsTransportPrimary()) {
         stopLanOpsSync();
@@ -601,10 +669,11 @@
   }
 
   function stopLanOpsSync() {
-    if (!__started) return;
+    if (!__started && !__standbyMode) return;
     __started = false;
     stopPollLoops();
     stopWatchdog();
+    stopLanStandby();
     Object.keys(__pullTimers).forEach(function (k) {
       if (__pullTimers[k]) {
         global.clearTimeout(__pullTimers[k]);
@@ -616,6 +685,10 @@
   function afterMainInit() {
     if (shouldRunLanOps()) {
       startLanOpsSync('init');
+      return;
+    }
+    if (shouldRunLanStandby()) {
+      startLanStandby('init');
       return;
     }
     if (lanOpsTransportPrimary() && lanSyncAllowed({ kind: 'transport' })) {

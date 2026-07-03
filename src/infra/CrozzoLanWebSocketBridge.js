@@ -32,6 +32,11 @@
 
   function tierAllows() {
     try {
+      if (typeof global.crozzoLanWsStandbyActive === 'function' && global.crozzoLanWsStandbyActive()) {
+        return true;
+      }
+    } catch (_) {}
+    try {
       if (typeof global.crozzoCloudSyncPathReady === 'function' && global.crozzoCloudSyncPathReady()) {
         return false;
       }
