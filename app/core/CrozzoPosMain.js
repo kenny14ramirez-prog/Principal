@@ -9225,11 +9225,6 @@ function crozzoHandleRemoteRuntimeUiSync() {
       }
     }
     if (typeof crozzoPublishComandasGlobal === 'function') crozzoPublishComandasGlobal();
-    try {
-      if (typeof window.crozzoPullComandasFromCloud === 'function') {
-        window.crozzoPullComandasFromCloud({ skipRender: true, silent: true }).catch(function () {});
-      }
-    } catch (_) {}
   } catch (_) {}
 }
 window.crozzoScheduleOperationalPageRefresh = crozzoScheduleOperationalPageRefresh;

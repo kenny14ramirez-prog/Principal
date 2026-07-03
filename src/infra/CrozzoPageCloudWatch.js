@@ -12,6 +12,10 @@
 
   var SP = global.CrozzoCloudSyncPriorities;
   var TICK_MS = 2500;
+  var TICK_IDLE_MS = 6200;
+  var TICK_ACTIVE_MS = 2200;
+  var __lastSoftProbeAt = 0;
+  var SOFT_PROBE_GAP_MS = 16000;
   var __activePage = '';
   var __prevPage = '';
   var __tickTimer = null;
@@ -504,6 +508,16 @@
     if (document.hidden) return;
     var profile = pageProfiles()[__activePage];
     if (!profile || profile.navOnly) return;
+    var rtTier = { tier: 'off' };
+    try {
+      if (typeof global.crozzoCloudOperationalRealtimeTier === 'function') {
+        rtTier = global.crozzoCloudOperationalRealtimeTier(38000);
+      } else if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
+        rtTier = { tier: global.crozzoCloudOperationalRealtimeHealthy(35000) ? 'healthy' : 'off' };
+      }
+    } catch (_) {}
+    var cloudStandby = rtTier.tier === 'healthy';
+    var cloudWarm = rtTier.tier === 'warm';
     __running = true;
     try {
       if (!await ensureClient()) return;
@@ -511,6 +525,14 @@
         var d = profile.domains[i];
         var dPri = pri().getDomainPriority(d);
         if (dPri === pri().P1) continue;
+        if (cloudStandby && (d === 'comandas' || d === 'runtime')) continue;
+        if (cloudWarm && (d === 'comandas' || d === 'runtime')) {
+          var now = Date.now();
+          if (now - __lastSoftProbeAt < SOFT_PROBE_GAP_MS) continue;
+          __lastSoftProbeAt = now;
+          await runDomain(d, false, false);
+          continue;
+        }
         if (!domainDue(d, profile.intervalMs)) continue;
         await runDomain(d, false, false);
       }
@@ -519,16 +541,42 @@
     }
   }
 
+  function tickIntervalMs() {
+    try {
+      if (typeof global.crozzoZ0UserActivityRecent === 'function' && global.crozzoZ0UserActivityRecent(50000)) {
+        return TICK_ACTIVE_MS;
+      }
+      if (typeof global.crozzoCloudOperationalRealtimeTier === 'function') {
+        var t = global.crozzoCloudOperationalRealtimeTier(38000);
+        if (t.tier === 'healthy') return TICK_IDLE_MS;
+      }
+    } catch (_) {}
+    return TICK_MS;
+  }
+
+  function scheduleNextTick() {
+    if (__tickTimer) {
+      global.clearTimeout(__tickTimer);
+      __tickTimer = null;
+    }
+    __tickTimer = global.setTimeout(function () {
+      __tickTimer = null;
+      tick()
+        .catch(function () {})
+        .finally(function () {
+          if (__activePage) scheduleNextTick();
+        });
+    }, tickIntervalMs());
+  }
+
   function startTick() {
     if (__tickTimer) return;
-    __tickTimer = global.setInterval(function () {
-      tick().catch(function () {});
-    }, TICK_MS);
+    scheduleNextTick();
   }
 
   function stopTick() {
     if (__tickTimer) {
-      global.clearInterval(__tickTimer);
+      global.clearTimeout(__tickTimer);
       __tickTimer = null;
     }
   }

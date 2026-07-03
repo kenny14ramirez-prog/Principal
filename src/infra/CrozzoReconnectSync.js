@@ -8,6 +8,8 @@
   var __running = false;
   var __lastRun = 0;
   var DEBOUNCE_MS = 3200;
+  var ONLINE_STABLE_MS = 2400;
+  var __onlineStableTimer = null;
 
   function md() {
     return typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
@@ -341,11 +343,23 @@
   function bindReconnectEvents() {
     if (global.__crozzoReconnectBound) return;
     global.__crozzoReconnectBound = true;
+    global.addEventListener('offline', function () {
+      if (__onlineStableTimer) {
+        global.clearTimeout(__onlineStableTimer);
+        __onlineStableTimer = null;
+      }
+    });
     global.addEventListener('online', function () {
-      // Reparte la reconexion en ~6s entre dispositivos (estampida controlada).
-      global.setTimeout(function () {
-        runFullReconnectSync({ source: 'online', skipPrint: true }).catch(function () {});
-      }, reconnectStaggerMs(700, 6000));
+      if (__onlineStableTimer) global.clearTimeout(__onlineStableTimer);
+      __onlineStableTimer = global.setTimeout(function () {
+        __onlineStableTimer = null;
+        try {
+          if (typeof global.navigator !== 'undefined' && global.navigator.onLine === false) return;
+        } catch (_) {}
+        global.setTimeout(function () {
+          runFullReconnectSync({ source: 'online', skipPrint: true }).catch(function () {});
+        }, reconnectStaggerMs(700, 6000));
+      }, ONLINE_STABLE_MS);
     });
     global.addEventListener('crozzo-lan-up', function () {
       // LAN es local (menos nodos): ventana de escalonado mas corta.
