@@ -78,7 +78,7 @@ echo   [4] Configurar GitHub remoto
 
 echo   [5] Compilar .exe local ^(sin GitHub^)
 
-echo   [7] Compilar .apk local ^(sin GitHub^)
+echo   [7] Compilar .apk local ^(mismo que GitHub, prueba en tablet^)
 
 echo   [6] Claves firma Tauri
 

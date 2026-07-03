@@ -342,20 +342,24 @@
         }
         return;
       }
-      c.estado = pay.estado;
-      c.lastUpdateAt = pay.lastUpdateAt || new Date().toISOString();
-      try {
-        if (global.config && global.config.addAudit) {
-          global.config.addAudit('comanda_estado_gossip', 'Comanda #' + c.id + ' -> ' + pay.estado);
-        }
-      } catch (_) {}
-      try {
-        if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
-      } catch (_) {}
-      if (global.currentPage === 'cocina' && typeof global.renderPage === 'function') global.renderPage('cocina');
-      try {
-        if (typeof global.crozzoPublishComandasGlobal === 'function') global.crozzoPublishComandasGlobal();
-      } catch (_) {}
+      if (typeof global.updateComandaEstado === 'function') {
+        global.updateComandaEstado(c.id, pay.estado, { skipFanout: true });
+      } else {
+        c.estado = pay.estado;
+        c.lastUpdateAt = pay.lastUpdateAt || new Date().toISOString();
+        try {
+          if (global.config && global.config.addAudit) {
+            global.config.addAudit('comanda_estado_gossip', 'Comanda #' + c.id + ' -> ' + pay.estado);
+          }
+        } catch (_) {}
+        try {
+          if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
+        } catch (_) {}
+        if (global.currentPage === 'cocina' && typeof global.renderPage === 'function') global.renderPage('cocina');
+        try {
+          if (typeof global.crozzoPublishComandasGlobal === 'function') global.crozzoPublishComandasGlobal();
+        } catch (_) {}
+      }
     } finally {
       _applying = false;
     }

@@ -222,11 +222,14 @@ const checks = [
   '_lan-mdns-ws-check.mjs',
   '_ble-mesh-check.mjs',
   '_ble-mesh-scale-sim.mjs',
+  '_field-device-scale.mjs',
 ];
 const subprocess = [];
 for (const c of checks) {
   const p = join(root, 'scripts', c);
-  const r = spawnSync(process.execPath, [p], { cwd: root, encoding: 'utf8' });
+  const extra =
+    c === '_field-device-scale.mjs' ? ['--skip-browser', '--phases', '2,10,50,100'] : [];
+  const r = spawnSync(process.execPath, [p, ...extra], { cwd: root, encoding: 'utf8', timeout: 600000 });
   subprocess.push({ script: c, ok: r.status === 0, out: (r.stdout || r.stderr || '').trim().split('\n').pop() });
 }
 

@@ -2,6 +2,9 @@
  * Flujo crítico bidireccional: comandar en un equipo y que el OTRO lo vea en la
  * mesa para cobrar (carrito con cantidades comandadas), vía la nube.
  *
+ * Prueba ampliada (LAN + escala 1→100): npm run test:field-devices
+ * Ver: scripts/_field-device-scale.mjs
+ *
  * Emula dos equipos en una sola página: el "tablet" comanda la mesa; capturamos
  * el snapshot de runtime que se publicaría a la nube; lo aplicamos como lo haría
  * la "caja" al hacer pull, y verificamos que ve los ítems comandados para cobrar.

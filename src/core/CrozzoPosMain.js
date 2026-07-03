@@ -9225,11 +9225,6 @@ function crozzoHandleRemoteRuntimeUiSync() {
       }
     }
     if (typeof crozzoPublishComandasGlobal === 'function') crozzoPublishComandasGlobal();
-    try {
-      if (typeof window.crozzoPullComandasFromCloud === 'function') {
-        window.crozzoPullComandasFromCloud({ skipRender: true, silent: true }).catch(function () {});
-      }
-    } catch (_) {}
   } catch (_) {}
 }
 window.crozzoScheduleOperationalPageRefresh = crozzoScheduleOperationalPageRefresh;
@@ -24694,23 +24689,10 @@ function crozzoRestContextMeta() {
     icon: 'shopping-bag',
   };
 }
-function crozzoRestPickerShell(title, sub, inner) {
+function crozzoRestPickerShell(inner) {
   return (
     '<section class="crozzo-rest-pos crozzo-rest-pos--picker">' +
     crozzoRestAlertsHtml() +
-    '<header class="crozzo-rest-pos__hero">' +
-    '<div class="crozzo-rest-pos__hero-glow" aria-hidden="true"></div>' +
-    '<div class="crozzo-rest-pos__hero-main">' +
-    '<p class="crozzo-rest-pos__eyebrow">Restaurante · POS</p>' +
-    '<h2 class="crozzo-rest-pos__title">' +
-    escUserAttr(title) +
-    '</h2>' +
-    '<p class="crozzo-rest-pos__sub">' +
-    escUserAttr(sub) +
-    '</p></div>' +
-    '<div class="crozzo-rest-pos__hero-actions">' +
-    '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'inicio-operacion\')"><i data-lucide="layout-grid"></i> Módulos</button>' +
-    '</div></header>' +
     inner +
     '</section>'
   );
@@ -24800,8 +24782,6 @@ function renderCajero() {
     const needle = directSaveMode === 'mesa' ? cajaMesaSearch : cajaLlevarSearch;
     const filteredList = crozzoFilterCajaSlotList(directSaveMode, sourceList);
     return crozzoRestPickerShell(
-      'Guardar en mesa o llevar',
-      'Elija destino para comandar la venta directa.',
       crozzoRestServiceTabsHtml() +
         crozzoRestTargetTabsHtml(directSaveMode) +
         crozzoRestPrintQueueBarHtml() +
@@ -24837,8 +24817,6 @@ function renderCajero() {
     const needle = tipoServicioCaja === 'mesa' ? cajaMesaSearch : cajaLlevarSearch;
     const filteredList = crozzoFilterCajaSlotList(tipoServicioCaja, sourceList);
     return crozzoRestPickerShell(
-      tipoServicioCaja === 'mesa' ? 'Seleccione mesa' : 'Seleccione pedido llevar',
-      'Toque una tarjeta para abrir la orden.',
       crozzoRestServiceTabsHtml() +
         crozzoRestPrintQueueBarHtml() +
         crozzoRestSlotFilterHtml(tipoServicioCaja) +

@@ -25,11 +25,18 @@ if not exist "%TAURI_SIGNING_PRIVATE_KEY_PATH%" (
 node scripts\run-tauri-build-local.mjs
 if errorlevel 1 (
   echo [ERROR] tauri build
+  echo Revise que Rust, NSIS y WebView2 esten instalados.
   pause
   exit /b 1
 )
 echo.
 node scripts\compilar-instalador-local.mjs
+if errorlevel 1 (
+  echo [ERROR] No se encontro el .exe en src-tauri\target\release\bundle\nsis\
+  echo Si el build termino bien, busque el instalador en la ruta que imprimio Tauri arriba.
+  pause
+  exit /b 1
+)
 echo.
 echo  Instalador en src-tauri\target\release\bundle\nsis\
 echo  Copia lista en dist\local\

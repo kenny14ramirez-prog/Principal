@@ -55,6 +55,29 @@ function runOptionalPrep(label, scriptName, opts) {
   return 0;
 }
 
+function sleepMs(ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    /* espera activa breve — archivos bloqueados en Windows */
+  }
+}
+
+function copyFileWithRetry(from, to, attempts = 5) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      copyFileSync(from, to);
+      return;
+    } catch (err) {
+      lastErr = err;
+      const code = err && err.code;
+      if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'UNKNOWN') throw err;
+      sleepMs(150 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
 function copyDirRecursive(fromDir, toDir) {
   if (!existsSync(fromDir)) return 0;
   mkdirSync(toDir, { recursive: true });
@@ -65,7 +88,7 @@ function copyDirRecursive(fromDir, toDir) {
     if (statSync(from).isDirectory()) {
       n += copyDirRecursive(from, to);
     } else {
-      copyFileSync(from, to);
+      copyFileWithRetry(from, to);
       n++;
     }
   }

@@ -4,8 +4,10 @@ setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0..\.."
 
 echo.
-echo  Crozzo POS - Compilar APK Android ^(local, sin GitHub^)
-echo  ========================================================
+echo  Crozzo POS - Compilar APK ^(igual que GitHub CI, sin publicar^)
+echo  =============================================================
+echo  Genera dist\local\BONA_origen_X.Y.Z_arm64.apk
+echo  Misma firma que releases de GitHub si existe .github\signing\android-upload.jks.b64
 echo.
 
 where node >nul 2>&1
@@ -29,87 +31,64 @@ if not defined ANDROID_HOME (
 )
 if not defined ANDROID_HOME (
   echo [ERROR] ANDROID_HOME no encontrado.
-  echo Instale Android Studio y el SDK, o defina ANDROID_HOME.
+  echo Instale Android Studio y el SDK. Ver ANDROID-SETUP.md
   pause
   exit /b 1
 )
 set "ANDROID_SDK_ROOT=%ANDROID_HOME%"
 echo [OK] ANDROID_HOME=%ANDROID_HOME%
 
+if not defined JAVA_HOME (
+  for /f "delims=" %%J in ('where java 2^>nul') do (
+    for %%D in ("%%~dpJ..") do set "JAVA_HOME=%%~fD"
+    goto :java_ok
+  )
+)
+:java_ok
 where java >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Java ^(JDK 17+^) no encontrado en PATH.
+  echo Instale JDK 17 o Android Studio. Ver ANDROID-SETUP.md
   pause
   exit /b 1
 )
+if defined JAVA_HOME echo [OK] JAVA_HOME=%JAVA_HOME%
 
-echo.
-echo [1/6] Sync frontend app -^> src...
-node scripts\sync-frontend-to-src.mjs
-if errorlevel 1 (
-  echo [ERROR] Sync frontend
-  pause
-  exit /b 1
+if not defined NDK_HOME (
+  for /d %%D in ("%ANDROID_HOME%\ndk\*") do set "NDK_HOME=%%~fD"
 )
-
-if not exist "src-tauri\gen\android" (
-  echo.
-  echo [2/6] Inicializando proyecto Android ^(primera vez^)...
-  call npx tauri android init --ci --skip-targets-install
-  if errorlevel 1 (
-    echo [ERROR] tauri android init
-    pause
-    exit /b 1
-  )
+if defined NDK_HOME (
+  echo [OK] NDK_HOME=%NDK_HOME%
 ) else (
-  echo [2/6] Proyecto Android ya existe.
+  echo [AVISO] NDK_HOME no detectado — instale NDK r26 desde Android Studio ^> SDK Manager.
 )
 
-echo.
-echo [3/6] Keystore y firma...
-set "ANDROID_KEYSTORE_PATH=%USERPROFILE%\.crozzo\crozzo-android-upload.jks"
-set "ANDROID_KEY_ALIAS=upload"
-set "ANDROID_KEY_PASSWORD=crozzo-pos-tablet-2026"
-if not exist "%ANDROID_KEYSTORE_PATH%" (
-  echo [AVISO] No hay keystore en %ANDROID_KEYSTORE_PATH%
-  echo Ejecute antes: menu.bat opcion [B] ^(generar-keystore-android.bat^)
-  set /p CROZZO_KS=¿Continuar con keystore temporal? ^(S/N^): 
-  if /i not "!CROZZO_KS!"=="S" exit /b 1
+where rustup >nul 2>&1
+if not errorlevel 1 (
+  rustup target list --installed | findstr /i "aarch64-linux-android" >nul 2>&1
+  if errorlevel 1 (
+    echo [AVISO] Instalando target Rust aarch64-linux-android...
+    rustup target add aarch64-linux-android
+    if errorlevel 1 (
+      echo [ERROR] No se pudo instalar rustup target aarch64-linux-android
+      pause
+      exit /b 1
+    )
+  )
 )
-node scripts\prepare-android-keystore.mjs
+
+node scripts\build-android-apk.mjs
 if errorlevel 1 (
+  echo.
+  echo [ERROR] Compilacion APK fallida. Ver ANDROID-SETUP.md
   pause
   exit /b 1
 )
 
 echo.
-echo [4/6] Parches Gradle...
-node scripts\patch-android-signing.mjs
-if errorlevel 1 exit /b 1
-node scripts\patch-android-apk-install.mjs
-if errorlevel 1 exit /b 1
-
-echo.
-echo [5/6] Compilando APK ^(puede tardar varios minutos^)...
-call npx tauri android build --target aarch64
-if errorlevel 1 (
-  echo [ERROR] tauri android build
-  pause
-  exit /b 1
-)
-
-echo.
-echo [6/6] Copiando a dist\local\...
-node scripts\compilar-apk-local.mjs
-if errorlevel 1 (
-  pause
-  exit /b 1
-)
-
-echo.
-echo  LISTO — APK local sin subir a GitHub.
-echo  Carpeta: dist\local\
-echo  Instale en tablet por USB, correo o carpeta compartida.
+echo  LISTO — pruebe en tablet sin publicar a clientes:
+echo    dist\local\BONA_origen_*_arm64.apk
+echo  USB: adb install -r dist\local\BONA_origen_*_arm64.apk
 echo.
 pause
 endlocal

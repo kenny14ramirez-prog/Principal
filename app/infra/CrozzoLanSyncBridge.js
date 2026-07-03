@@ -1048,6 +1048,9 @@
    */
   async function crozzoActivateLocalSyncPath(source) {
     source = String(source || 'lan');
+    try {
+      if (global.__CROZZO_FIELD_TEST_QUIET && !global.__CROZZO_FIELD_TEST_LAN_ACTIVE) return false;
+    } catch (_) {}
     var now = Date.now();
     if (__activateLocalInflight && now - __activateLocalLastAt < ACTIVATE_COOLDOWN_MS) {
       return __activateLocalInflight;

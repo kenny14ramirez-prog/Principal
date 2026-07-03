@@ -532,6 +532,88 @@
     }
   }
 
+  /**
+   * Realtime nube vivo y reciente → LAN operativo entra en standby (evita duplicar
+   * polls/pulsos/post cuando internet responde bien).
+   */
+  var RT_WARM_MS = 22000;
+  var RT_STALE_MS = 38000;
+
+  /**
+   * Salud Realtime en tres grados (evita binario healthy/off):
+   *   healthy — eventos recientes, cero polls redundantes
+   *   warm    — canal vivo pero silencioso → 1 sonda suave (no tormenta)
+   *   stale   — silencio prolongado → respaldo poll normal
+   *   off     — sin canal Realtime
+   */
+  function cloudOperationalRealtimeTier(maxSilenceMs) {
+    maxSilenceMs = maxSilenceMs == null ? RT_STALE_MS : Number(maxSilenceMs) || RT_STALE_MS;
+    var out = {
+      tier: 'off',
+      live: false,
+      comandaLive: false,
+      runtimeLive: false,
+      lastEventAgoMs: null,
+      warm: false,
+      healthy: false,
+      stale: false,
+    };
+    try {
+      if (!cloudPathReady()) return out;
+      if (
+        typeof global.crozzoCloudBackgroundSyncAllowed === 'function' &&
+        !global.crozzoCloudBackgroundSyncAllowed({ kind: 'realtime' })
+      ) {
+        return out;
+      }
+      var lastAgo = null;
+      if (typeof global.crozzoComandaRealtimeStatus === 'function') {
+        var cs = global.crozzoComandaRealtimeStatus();
+        if (cs && cs.live) {
+          out.comandaLive = true;
+          out.live = true;
+          if (cs.lastEventAgoMs != null) {
+            lastAgo = lastAgo == null ? cs.lastEventAgoMs : Math.min(lastAgo, cs.lastEventAgoMs);
+          }
+        }
+      }
+      if (typeof global.crozzoRuntimeRealtimeStatus === 'function') {
+        var rs = global.crozzoRuntimeRealtimeStatus();
+        if (rs && rs.live) {
+          out.runtimeLive = true;
+          out.live = true;
+          if (rs.lastEventAgoMs != null) {
+            lastAgo = lastAgo == null ? rs.lastEventAgoMs : Math.min(lastAgo, rs.lastEventAgoMs);
+          }
+        }
+      }
+      out.lastEventAgoMs = lastAgo;
+      if (!out.live) {
+        out.tier = 'off';
+        return out;
+      }
+      if (lastAgo == null || lastAgo < RT_WARM_MS) {
+        out.tier = 'healthy';
+        out.healthy = true;
+        return out;
+      }
+      if (lastAgo < maxSilenceMs) {
+        out.tier = 'warm';
+        out.warm = true;
+        return out;
+      }
+      out.tier = 'stale';
+      out.stale = true;
+      return out;
+    } catch (_) {}
+    return out;
+  }
+
+  function cloudOperationalRealtimeHealthy(maxSilenceMs) {
+    var t = cloudOperationalRealtimeTier(maxSilenceMs);
+    return t.healthy;
+  }
+
   function resolvePage(page) {
     var p = String(page || '').trim();
     if (!p) return p;
@@ -750,6 +832,9 @@
 
     if (!opts.force && (kind === 'realtime' || kind === 'transport' || !kind)) {
       try {
+        if (cloudOperationalRealtimeHealthy(30000)) {
+          return false;
+        }
         if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
           var mdLan = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
           var lanRecent = false;
@@ -1055,6 +1140,8 @@
     crozzoLocalRealtimeAllowed: crozzoLocalRealtimeAllowed,
     crozzoActiveSyncTransport: crozzoActiveSyncTransport,
     crozzoOpsSyncAllowed: crozzoOpsSyncAllowed,
+    cloudOperationalRealtimeHealthy: cloudOperationalRealtimeHealthy,
+    cloudOperationalRealtimeTier: cloudOperationalRealtimeTier,
   };
 
   global.crozzoSyncPriorityForType = getOperationPriority;
@@ -1064,6 +1151,8 @@
   global.crozzoCloudBackgroundSyncAllowed = crozzoCloudBackgroundSyncAllowed;
   global.crozzoCloudRealtimeAllowed = crozzoCloudRealtimeAllowed;
   global.crozzoLocalSyncAllowed = crozzoLocalSyncAllowed;
+  global.crozzoCloudOperationalRealtimeHealthy = cloudOperationalRealtimeHealthy;
+  global.crozzoCloudOperationalRealtimeTier = cloudOperationalRealtimeTier;
   global.crozzoLocalRealtimeAllowed = crozzoLocalRealtimeAllowed;
   global.crozzoActiveSyncTransport = crozzoActiveSyncTransport;
   global.crozzoOpsSyncAllowed = crozzoOpsSyncAllowed;
