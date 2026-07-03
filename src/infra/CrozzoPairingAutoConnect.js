@@ -75,7 +75,8 @@
       });
       global.addEventListener('crozzo-internal-qr-setup-exchange', function () {
         global.setTimeout(function () {
-          run('qr_exchange', { force: false }).catch(function () {});
+          /* Reconcile ya alinea mesas/comandas; no invalidar gate operativo en pleno uso. */
+          run('qr_exchange', { force: false, skipInvalidate: true }).catch(function () {});
         }, 1400);
       });
       global.addEventListener('crozzo-lan-up', function () {

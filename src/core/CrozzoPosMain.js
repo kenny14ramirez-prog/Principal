@@ -14064,16 +14064,52 @@ function crozzoStaffPermitsPage(page, u) {
   const lista = (u.permisos && u.permisos[req.categoria]) || [];
   if (req.sub) {
     if (lista.includes(req.sub)) {
-      if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, req.categoria, req.sub)) return false;
+      if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, req.categoria, req.sub)) {
+        if (
+          page === 'tablets' &&
+          crozzoNormalizeAppRol(u.rol) === 'mesero' &&
+          typeof crozzoMeseroOperativeTabletPerm === 'function' &&
+          crozzoMeseroOperativeTabletPerm(req.sub, lista)
+        ) {
+          return true;
+        }
+        return false;
+      }
       return true;
     }
     if (page === 'config-salon' && lista.includes('config_comandas')) return true;
     if (page === 'facturas' && req.sub === 'vista_facturas' && lista.includes('facturar')) return true;
+    if (
+      page === 'tablets' &&
+      crozzoNormalizeAppRol(u.rol) === 'mesero' &&
+      typeof crozzoMeseroOperativeTabletPerm === 'function' &&
+      crozzoMeseroOperativeTabletPerm(req.sub, lista)
+    ) {
+      return true;
+    }
     return false;
   }
   return lista.length > 0;
 }
 window.crozzoStaffPermitsPage = crozzoStaffPermitsPage;
+/** Mesero en tablet: preset operativo Z0 si RBAC de rol quedó vacío o incompleto en tienda. */
+function crozzoMeseroOperativeTabletPerm(delegableSub, lista) {
+  var preset =
+    typeof CROZZO_CAJA_PERMISOS_POR_ROL !== 'undefined' && CROZZO_CAJA_PERMISOS_POR_ROL.mesero
+      ? CROZZO_CAJA_PERMISOS_POR_ROL.mesero
+      : ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'];
+  if (preset.indexOf(delegableSub) < 0) return false;
+  var arr = Array.isArray(lista) ? lista : [];
+  if (!arr.length) return true;
+  if (arr.indexOf(delegableSub) >= 0) return true;
+  var hasTabSet =
+    arr.indexOf('tab_abrir') >= 0 ||
+    arr.indexOf('tab_editar') >= 0 ||
+    arr.indexOf('tab_eliminar') >= 0 ||
+    arr.indexOf('tab_precuenta') >= 0;
+  return !hasTabSet && arr.indexOf('vista_tablets') >= 0;
+}
+window.crozzoMeseroOperativeTabletPerm = crozzoMeseroOperativeTabletPerm;
 /** Permisos granulares categoría caja. opts.context: 'pos' (defecto) o 'tablet' para tab_abrir/tab_editar/tab_eliminar. */
 function crozzoHasCajaPermiso(sub, opts) {
   try {
@@ -14101,17 +14137,27 @@ function crozzoHasCajaPermiso(sub, opts) {
       if (sub === 'tab_precuenta' || sub === 'precuenta') delegableSub = 'tab_precuenta';
       else if (tabMap[sub]) delegableSub = tabMap[sub];
     }
-    if (typeof crozzoIsPermDelegable === 'function' && !crozzoIsPermDelegable(u.rol, 'caja', delegableSub)) return false;
+    var delegableOk =
+      typeof crozzoIsPermDelegable !== 'function' || crozzoIsPermDelegable(u.rol, 'caja', delegableSub);
+    if (!delegableOk) {
+      if (!(r === 'mesero' && ctx === 'tablet' && crozzoMeseroOperativeTabletPerm(delegableSub, lista))) {
+        return false;
+      }
+    }
     const hasTabSet =
       lista.includes('tab_abrir') ||
       lista.includes('tab_editar') ||
       lista.includes('tab_eliminar') ||
       lista.includes('tab_precuenta');
     if (ctx === 'tablet') {
-      if (sub === 'tab_precuenta' || sub === 'precuenta') return lista.includes('tab_precuenta');
+      if (sub === 'tab_precuenta' || sub === 'precuenta') {
+        return lista.includes('tab_precuenta') || (r === 'mesero' && crozzoMeseroOperativeTabletPerm('tab_precuenta', lista));
+      }
       const alt = tabMap[sub];
       if (alt && lista.includes(alt)) return true;
+      if (r === 'mesero' && alt && crozzoMeseroOperativeTabletPerm(alt, lista)) return true;
       if (!hasTabSet && lista.includes(sub)) return true;
+      if (r === 'mesero' && crozzoMeseroOperativeTabletPerm(delegableSub, lista)) return true;
       return false;
     }
     if (lista.includes(sub)) return true;
@@ -16213,6 +16259,17 @@ function renderPage(page, renderOpts) {
   }
   const pageAccess = typeof crozzoAssertPageAccess === 'function' ? crozzoAssertPageAccess(page) : { ok: true };
   if (!pageAccess.ok && !window.__crozzoPostLoginNavigate && !crozzoHasKennySessionFast()) {
+    if (backgroundRender) {
+      const activePage = typeof currentPage !== 'undefined' ? String(currentPage || '').trim() : '';
+      if (page !== activePage) {
+        if (activePage && typeof crozzoPatchOperationalPageFromRemote === 'function') {
+          crozzoPatchOperationalPageFromRemote(activePage);
+        }
+        return;
+      }
+      console.warn('[Crozzo/seguridad] renderPage background omitido:', page, pageAccess.reason || '');
+      return;
+    }
     console.warn('[Crozzo/seguridad] renderPage bloqueado:', page, pageAccess.reason || '');
     if (typeof showToast === 'function') {
       showToast(

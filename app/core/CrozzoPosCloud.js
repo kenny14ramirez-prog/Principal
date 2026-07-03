@@ -1592,8 +1592,15 @@ function buildSyntheticUserFromProfile(profile) {
     base.permisos.productos = ['catalogo'];
     base.permisos.comandas = ['ver', 'despachar', 'reimprimir'];
   } else if (appRol === 'mesero') {
-    base.permisos.caja = ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar'];
-    base.permisos.comandas = ['ver', 'despachar'];
+    base.permisos.caja = [
+      'vista_tablets',
+      'vista_clientes',
+      'tab_abrir',
+      'tab_editar',
+      'tab_eliminar',
+      'tab_precuenta',
+    ];
+    base.permisos.comandas = [];
   } else if (appRol === 'caja') {
     base.permisos.caja = [
       'vista_pos',
@@ -2096,8 +2103,9 @@ window.__crozzoRefreshCloudCatalogUi = async function crozzoRefreshCloudCatalogU
     ) {
       return true;
     }
-    if (typeof currentPage !== 'undefined' && typeof renderPage === 'function') {
-      renderPage(currentPage || 'cajero', { background: true });
+    var cp = typeof currentPage !== 'undefined' ? String(currentPage || '').trim() : '';
+    if (cp && typeof renderPage === 'function') {
+      renderPage(cp, { background: true });
     }
   } catch (e2) {
     console.warn('[crozzo-sb] refreshCloudCatalogUi render', e2);
@@ -2874,7 +2882,8 @@ async function crozzoPullRemoteTenantState(opts) {
       ) {
         /* parche incremental */
       } else {
-        renderPage(currentPage || 'cajero', { background: true });
+        var cpTenant = String(currentPage || '').trim();
+        if (cpTenant) renderPage(cpTenant, { background: true });
       }
     } catch (e2) {
       console.warn('[crozzo-tenant] render', e2);

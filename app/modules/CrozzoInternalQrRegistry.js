@@ -891,7 +891,7 @@
     if (applied) {
       safe(function () {
         if (typeof global.crozzoPairingAutoConnect === 'function') {
-          global.crozzoPairingAutoConnect(opts.reason || 'peer_qr', { force: true }).catch(function () {});
+          global.crozzoPairingAutoConnect(opts.reason || 'peer_qr', { force: true, skipInvalidate: true }).catch(function () {});
         } else {
           if (typeof global.crozzoActivateLocalSyncPath === 'function') {
             global.crozzoActivateLocalSyncPath('internal_qr_peer').catch(function () {});
@@ -1059,7 +1059,7 @@
       if (cloudPublishAllowed(false)) pullPeersFromCloud().catch(function () {});
       safe(function () {
         if (typeof global.crozzoPairingAutoConnect === 'function') {
-          global.crozzoPairingAutoConnect('qr_setup', { force: false }).catch(function () {});
+          global.crozzoPairingAutoConnect('qr_setup', { force: false, skipInvalidate: true }).catch(function () {});
         } else {
           if (typeof global.crozzoActivateLocalSyncPath === 'function') {
             global.crozzoActivateLocalSyncPath('qr_setup').catch(function () {});

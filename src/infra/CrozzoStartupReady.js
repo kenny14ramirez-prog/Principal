@@ -285,7 +285,7 @@
           var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
           if (md.allowLan === false) return;
           if (typeof global.crozzoPairingAutoConnect === 'function') {
-            global.crozzoPairingAutoConnect('startup', { force: false }).catch(function () {});
+            global.crozzoPairingAutoConnect('startup', { force: false, skipInvalidate: true }).catch(function () {});
           } else if (typeof global.crozzoActivateLocalSyncPath === 'function') {
             global.crozzoActivateLocalSyncPath('startup').catch(function () {});
           }

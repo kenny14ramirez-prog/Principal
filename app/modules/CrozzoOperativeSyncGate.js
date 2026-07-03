@@ -393,9 +393,24 @@
     return true;
   }
 
+  function markOperativeReady() {
+    __operativeInitialSyncDone = true;
+    __ready.tablets = true;
+    __ready.cajero = true;
+  }
+
   function guardEditReady(pageKind) {
     pageKind = pageKind === 'cajero' ? 'cajero' : 'tablets';
     if (isReady(pageKind)) return true;
+    if (__pending) {
+      if (typeof global.showToast === 'function') {
+        global.showToast('Sincronizando mesas… un momento.', 'info');
+      }
+      return false;
+    }
+    if (typeof global.crozzoEnsureOperationalFreshBeforeEdit === 'function') {
+      void global.crozzoEnsureOperationalFreshBeforeEdit(pageKind, { quiet: true, background: true });
+    }
     if (typeof global.showToast === 'function') {
       global.showToast('Espere a que termine la actualización con la nube.', 'info');
     }
@@ -407,6 +422,7 @@
     analyzeAndDiscardStale: analyzeAndDiscardStale,
     invalidate: invalidate,
     isReady: isReady,
+    markOperativeReady: markOperativeReady,
     slotIsFinalized: slotIsFinalized,
     canReviveFinalized: canReviveFinalized,
     guardFinalizedSlot: guardFinalizedSlot,
@@ -417,6 +433,7 @@
   global.crozzoInvalidateOperativeSync = invalidate;
   global.crozzoInvalidateAllOperativeSync = invalidateAllOperativeSync;
   global.crozzoOperativeSyncReady = isReady;
+  global.crozzoMarkOperativeSyncReady = markOperativeReady;
   global.crozzoOperativeInitialSyncComplete = isInitialSyncComplete;
   global.crozzoGuardFinalizedOperationalSlot = guardFinalizedSlot;
   global.crozzoGuardOperationalEditReady = guardEditReady;

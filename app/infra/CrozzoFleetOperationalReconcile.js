@@ -74,6 +74,11 @@
           global.crozzoHandleRemoteRuntimeUiSync();
         }
       } catch (_) {}
+      safe(function () {
+        if (typeof global.crozzoMarkOperativeSyncReady === 'function') {
+          global.crozzoMarkOperativeSyncReady();
+        }
+      });
       try {
         var uiPage = '';
         safe(function () {

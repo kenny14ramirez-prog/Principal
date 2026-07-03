@@ -50,6 +50,7 @@ mustInclude('app/infra/CrozzoFleetOperationalReconcile.js', [
   'pullLocalRuntimeOnce',
   'crozzoPullPosRuntimeCloud',
   'crozzoGetActivePageId',
+  'crozzoMarkOperativeSyncReady',
 ], 'Reconciliación flota');
 
 const fleetTxt = readFileSync(join(root, 'app/infra/CrozzoFleetOperationalReconcile.js'), 'utf8');
@@ -65,17 +66,31 @@ mustInclude('app/infra/CrozzoLanSyncBridge.js', ['underPressure'], 'LAN pull baj
 
 mustInclude('app/core/CrozzoConnectionManager.js', ['CrozzoConnectionManager'], 'ConnectionManager global');
 
-mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoFleetOperationalReconcile', 'crozzoPairingAutoConnect'], 'Startup flota');
+const startupTxt = mustInclude('app/infra/CrozzoStartupReady.js', ['CrozzoFleetOperationalReconcile', 'crozzoPairingAutoConnect'], 'Startup flota');
+assert(
+  startupTxt.includes("crozzoPairingAutoConnect('startup', { force: false, skipInvalidate: true })"),
+  'Startup sin invalidar gate',
+  'startup usa skipInvalidate'
+);
 
-mustInclude('app/infra/CrozzoPairingAutoConnect.js', [
+const pairingTxt = mustInclude('app/infra/CrozzoPairingAutoConnect.js', [
   'CrozzoPairingAutoConnect',
   'crozzoActivateLocalSyncPath',
   'crozzoFleetOperationalReconcile',
 ], 'Auto-conexión post-QR');
+assert(
+  pairingTxt.includes("run('qr_exchange', { force: false, skipInvalidate: true })"),
+  'QR exchange sin invalidar gate',
+  'qr_exchange usa skipInvalidate'
+);
 
-mustInclude('app/modules/CrozzoOperativeSyncGate.js', ['pullLocalRuntimeOnce'], 'Sync gate pull runtime LAN');
+mustInclude('app/modules/CrozzoOperativeSyncGate.js', [
+  'pullLocalRuntimeOnce',
+  'crozzoMarkOperativeSyncReady',
+  'markOperativeReady',
+], 'Sync gate pull runtime LAN');
 
-assert(existsSync(join(root, 'app/index.html')), 'Script index', 'index.html');
+mustInclude('app/core/CrozzoPosMain.js', ['crozzoMeseroOperativeTabletPerm', 'renderPage background omitido'], 'Mesero Z0 perm fallback');
 const idx = readFileSync(join(root, 'app/index.html'), 'utf8');
 assert(idx.includes('CrozzoFleetOperationalReconcile.js'), 'Fleet script index', 'index.html');
 assert(idx.includes('CrozzoPairingAutoConnect.js'), 'AutoConnect script index', 'index.html');
