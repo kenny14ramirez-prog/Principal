@@ -1,30 +1,6 @@
 {
-  "updatedAt": "2026-07-03T15:09:23.935Z",
+  "updatedAt": "2026-07-03T17:40:48.858Z",
   "entries": [
-    {
-      "id": "1.0.192-critical",
-      "version": "v1.0.192",
-      "semver": "1.0.192",
-      "type": "critical",
-      "message": "parche de comunicacion",
-      "publishedAt": "2026-06-26T17:27:54.967Z",
-      "installMode": "auto",
-      "changelog": [
-        "parche de comunicacion"
-      ]
-    },
-    {
-      "id": "1.0.193-critical",
-      "version": "v1.0.193",
-      "semver": "1.0.193",
-      "type": "critical",
-      "message": "parche de comunicacion v3",
-      "publishedAt": "2026-06-26T18:06:21.064Z",
-      "installMode": "auto",
-      "changelog": [
-        "parche de comunicacion v3"
-      ]
-    },
     {
       "id": "1.0.194-critical",
       "version": "v1.0.194",
@@ -301,6 +277,32 @@
       "installMode": "auto",
       "changelog": [
         "1452"
+      ]
+    },
+    {
+      "id": "1.0.217-critical",
+      "version": "v1.0.217",
+      "semver": "1.0.217",
+      "type": "critical",
+      "message": "Comunicacion tablet-caja estable + auto QR + respaldo LAN",
+      "publishedAt": "2026-07-03T17:39:45.752Z",
+      "installMode": "auto",
+      "changelog": [
+        "Comunicacion tablet-caja estable",
+        "auto QR",
+        "respaldo LAN"
+      ]
+    },
+    {
+      "id": "1.0.218-critical",
+      "version": "v1.0.218",
+      "semver": "1.0.218",
+      "type": "critical",
+      "message": "1254",
+      "publishedAt": "2026-07-03T17:40:48.858Z",
+      "installMode": "auto",
+      "changelog": [
+        "1254"
       ]
     }
   ]

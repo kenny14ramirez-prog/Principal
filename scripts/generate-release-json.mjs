@@ -4,7 +4,7 @@
  * Cada publicación tiene id único: {semver}-{critical|optional}
  * (misma versión 1.0.13 puede tener crítica y opcional a la vez).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseChangelogMessage } from './lib/changelog-parse.mjs';
@@ -109,8 +109,23 @@ const latest = {
   entries: registry.entries,
 };
 
-writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`, 'utf8');
-writeFileSync(join(outDir, 'latest.json'), `${JSON.stringify(latest, null, 2)}\n`, 'utf8');
+function writeJsonAtomic(filePath, data) {
+  const body = `${JSON.stringify(data, null, 2)}\n`;
+  const tmp = `${filePath}.${process.pid}.tmp`;
+  writeFileSync(tmp, body, 'utf8');
+  try {
+    if (existsSync(filePath)) unlinkSync(filePath);
+    renameSync(tmp, filePath);
+  } catch (e) {
+    try {
+      if (existsSync(tmp)) unlinkSync(tmp);
+    } catch (_) {}
+    throw e;
+  }
+}
+
+writeJsonAtomic(registryPath, registry);
+writeJsonAtomic(join(outDir, 'latest.json'), latest);
 
 console.log(`OK: ${registryPath} (${registry.entries.length} entradas)`);
 console.log(`OK: ${join(outDir, 'latest.json')}`);
