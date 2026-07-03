@@ -124,6 +124,11 @@
   function crozzoZ0ScheduleUiRefresh(page, opts) {
     opts = opts || {};
     page = String(page || activePage() || '').trim();
+    if (page && page.indexOf('_') >= 0 && !FAST_PAGES[page]) {
+      var ap = activePage();
+      if (ap) page = ap;
+      else return;
+    }
     if (!page) return;
     if (opts.lane === 'fast' || isFastPage(page)) scheduleFast(page);
     else scheduleNormal(page);

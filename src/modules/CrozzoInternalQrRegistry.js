@@ -1099,6 +1099,7 @@
       resolvePayloadFromScan(scanText, null).then(function (payload) {
         if (!payload) return;
         var lan = payload.lan || {};
+        var role = tenantCtx().deviceRole;
         ingestPeerSlotEntry(
           {
             deviceId: meta.deviceId || payload.device_id || 'unknown',
@@ -1114,8 +1115,11 @@
             ip: String(lan.central_ip || lan.server_ip || '').trim(),
             port: Number(lan.port) || 3000,
           },
-          { source: 'scan', relay: false }
+          { source: 'scan', relay: false, apply: role === 'B' }
         );
+        if (role === 'B') {
+          applyPeerPayload(payload, { quiet: true, reason: 'peer_scan' }).catch(function () {});
+        }
       });
     },
     ingestPeerSlotEntry: ingestPeerSlotEntry,

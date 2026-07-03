@@ -35066,9 +35066,16 @@ function crozzoLocalSyncPathReady() {
   return false;
 }
 window.crozzoLocalSyncPathReady = crozzoLocalSyncPathReady;
+var __CROZZO_LAN_ACTIVATE_LAST = 0;
+var __CROZZO_LAN_UP_EVENT_LAST = 0;
 /** Activa servidor LAN, WS y polls cuando hay red local sin depender de internet. */
 async function crozzoActivateLocalSyncPath(reason) {
   if (!crozzoLocalSyncPathReady()) return false;
+  var rsn = String(reason || '');
+  var fromProbe = rsn.indexOf('probe_') === 0;
+  var nowAct = Date.now();
+  if (!fromProbe && nowAct - __CROZZO_LAN_ACTIVATE_LAST < 2500) return true;
+  __CROZZO_LAN_ACTIVATE_LAST = nowAct;
   try {
     window.__CROZZO_LAN_LAST_OK = Date.now();
   } catch (_) {}
@@ -35091,8 +35098,12 @@ async function crozzoActivateLocalSyncPath(reason) {
     }
   } catch (_) {}
   try {
-    if (typeof window.dispatchEvent === 'function') {
-      window.dispatchEvent(new CustomEvent('crozzo-lan-up', { detail: { reason: reason || '' } }));
+    if (!fromProbe && typeof window.dispatchEvent === 'function') {
+      var nowEv = Date.now();
+      if (nowEv - __CROZZO_LAN_UP_EVENT_LAST >= 8000) {
+        __CROZZO_LAN_UP_EVENT_LAST = nowEv;
+        window.dispatchEvent(new CustomEvent('crozzo-lan-up', { detail: { reason: reason || '' } }));
+      }
     }
   } catch (_) {}
   return true;

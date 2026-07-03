@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-07-03T18:15:05.922Z",
+  "updatedAt": "2026-07-03T19:17:39.240Z",
   "entries": [
-    {
-      "id": "1.0.195-critical",
-      "version": "v1.0.195",
-      "semver": "1.0.195",
-      "type": "critical",
-      "message": "correcion de comunicacion v6",
-      "publishedAt": "2026-06-27T00:17:05.102Z",
-      "installMode": "auto",
-      "changelog": [
-        "correcion de comunicacion v6"
-      ]
-    },
     {
       "id": "1.0.196-critical",
       "version": "v1.0.196",
@@ -303,6 +291,18 @@
       "installMode": "auto",
       "changelog": [
         "5679"
+      ]
+    },
+    {
+      "id": "1.0.220-critical",
+      "version": "v1.0.220",
+      "semver": "1.0.220",
+      "type": "critical",
+      "message": "2525",
+      "publishedAt": "2026-07-03T19:17:39.240Z",
+      "installMode": "auto",
+      "changelog": [
+        "2525"
       ]
     }
   ]

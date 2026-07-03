@@ -75,10 +75,21 @@
         }
       } catch (_) {}
       try {
+        var uiPage = '';
+        safe(function () {
+          if (typeof global.crozzoGetActivePageId === 'function') {
+            uiPage = String(global.crozzoGetActivePageId() || '').trim();
+          }
+        });
+        if (!uiPage) {
+          safe(function () {
+            if (typeof global.currentPage !== 'undefined') uiPage = String(global.currentPage || '').trim();
+          });
+        }
         if (typeof global.crozzoZ0ScheduleUiRefresh === 'function') {
-          global.crozzoZ0ScheduleUiRefresh('fleet_reconcile');
+          global.crozzoZ0ScheduleUiRefresh(uiPage || undefined);
         } else if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
-          global.crozzoScheduleOperationalPageRefresh('fleet_reconcile');
+          global.crozzoScheduleOperationalPageRefresh(uiPage || undefined);
         }
       } catch (_) {}
       return true;

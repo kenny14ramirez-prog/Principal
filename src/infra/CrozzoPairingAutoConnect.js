@@ -25,16 +25,19 @@
           global.crozzoInvalidateAllOperativeSync();
         }
       } catch (_) {}
+      var skipActivate = source === 'lan_up' || String(source || '').indexOf('lan_up') >= 0;
       try {
         if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
           global.CrozzoLanWebSocketBridge.connect();
         }
       } catch (_) {}
-      try {
-        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
-          await global.crozzoActivateLocalSyncPath('auto_' + source);
-        }
-      } catch (_) {}
+      if (!skipActivate) {
+        try {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            await global.crozzoActivateLocalSyncPath('auto_' + source);
+          }
+        } catch (_) {}
+      }
       try {
         if (typeof global.crozzoFleetOperationalReconcile === 'function') {
           await global.crozzoFleetOperationalReconcile(source);

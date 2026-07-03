@@ -49,7 +49,11 @@ mustInclude('app/infra/CrozzoFleetOperationalReconcile.js', [
   'crozzoActivateLocalSyncPath',
   'pullLocalRuntimeOnce',
   'crozzoPullPosRuntimeCloud',
+  'crozzoGetActivePageId',
 ], 'Reconciliación flota');
+
+const fleetTxt = readFileSync(join(root, 'app/infra/CrozzoFleetOperationalReconcile.js'), 'utf8');
+assert(!fleetTxt.includes("crozzoZ0ScheduleUiRefresh('fleet_reconcile')"), 'Fleet UI refresh', 'no usa fleet_reconcile como página');
 
 mustInclude('app/modules/CrozzoInternalQrRegistry.js', [
   'cloudPublishAllowed',
