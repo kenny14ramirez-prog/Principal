@@ -24,12 +24,28 @@
 (function (global) {
   'use strict';
 
-  var EVAL_HEALTHY_MS = 15000; // nube/LAN estables: ritmo tranquilo
-  var EVAL_DEGRADED_MS = 6000; // hotspot/malla/qr: mas agil
-  var RECONNECT_MIN_GAP_MS = 8000; // evita tormentas de reconexion
-  var MESH_AFTER_OFFLINE_MS = 4000; // tras caer todo, asegurar malla
-  var QR_AFTER_ISOLATION_MS = 300000; // 5 min aislado sin nube antes de QR
-  var QR_CLOUD_IMMEDIATE = true; // con nube viva + sin LAN: QR al instante (operacion)
+  // ── Intervalos de evaluación ─────────────────────────────────────────────
+  // EVAL_HEALTHY_MS  : cuando todo va bien, evaluar cada 10 s (no saturar).
+  // EVAL_DEGRADED_MS : cuando hay problemas, evaluar cada 8 s.
+  //   ANTES era 3 s → causaba flapping cloud↔lan con red intermitente:
+  //   el detector oscilaba entre tiers en cada ciclo, abriendo y cerrando
+  //   el canal realtime de comandas continuamente (loop SUBSCRIBED→CLOSED).
+  //   Con 8 s el sistema tiene tiempo de estabilizarse antes de actuar.
+  var EVAL_HEALTHY_MS = 10000;
+  var EVAL_DEGRADED_MS = 8000;
+
+  var RECONNECT_MIN_GAP_MS = 5000;
+  var MESH_AFTER_OFFLINE_MS = 800;
+  var QR_AFTER_ISOLATION_MS = 120000;
+  var QR_CLOUD_IMMEDIATE = true;
+
+  // ── Hold de estabilidad antes de bajar de cloud a lan ───────────────────
+  // Si el tier baja de 'cloud' a 'lan' pero vuelve a 'cloud' dentro de este
+  // tiempo, se cancela el stopCloudTransports() — evita cerrar el canal
+  // realtime por un parpadeo de red de pocos segundos.
+  var CLOUD_TO_LAN_HOLD_MS = 12000;
+  var __cloudToLanHoldTimer = null;
+  var __pendingStopCloud = false;
 
   var LEVELS = ['cloud', 'lan', 'hotspot', 'mesh', 'qr'];
 
@@ -43,9 +59,6 @@
   var __meshGuidedAt = 0;
   var __levelToastAt = 0;
   var __lastLevelToast = '';
-  // anti-flapping: una degradación debe persistir este tiempo antes de avisar al
-  // usuario o disparar una resincronización (el failover de transporte sí es
-  // inmediato para no perder conectividad en un corte real).
   var DEGRADE_HOLD_MS = 10000;
 
   var __state = {
@@ -59,6 +72,8 @@
     transports: { cloud: false, lan: false, hotspot: false, mesh: false, qr: false },
   };
 
+  var __lastHybridHealAt = 0;
+  var HYBRID_HEAL_GAP_MS = 90000;
   var __onceDone = {};
 
   function safe(fn) {
@@ -69,7 +84,6 @@
     }
   }
 
-  /** Ejecuta una inicializacion pesada una sola vez por sesion (evita duplicar timers/listeners). */
   function runOnce(key, fn) {
     if (__onceDone[key]) return;
     __onceDone[key] = true;
@@ -82,19 +96,14 @@
 
   function isAndroidApk() {
     if (global.CrozzoAndroidNative && typeof global.CrozzoAndroidNative.isAndroidApk === 'function') {
-      return safe(function () {
-        return global.CrozzoAndroidNative.isAndroidApk();
-      }) || false;
+      return safe(function () { return global.CrozzoAndroidNative.isAndroidApk(); }) || false;
     }
     if (global.CrozzoDeviceForm && typeof global.CrozzoDeviceForm.isAndroidApk === 'function') {
-      return safe(function () {
-        return global.CrozzoDeviceForm.isAndroidApk();
-      }) || false;
+      return safe(function () { return global.CrozzoDeviceForm.isAndroidApk(); }) || false;
     }
     return false;
   }
 
-  /** Solo una caja de escritorio (Windows/Tauri) puede crear su propia zona Wi-Fi. */
   function canDeployHotspot() {
     return isTauri() && !isAndroidApk();
   }
@@ -134,8 +143,6 @@
     var now = Date.now();
     if (now - __lastReconnectAt < RECONNECT_MIN_GAP_MS) return;
     __lastReconnectAt = now;
-    // Escalonado anti-estampida: si muchos dispositivos recuperan a la vez,
-    // cada uno reconecta con un retardo determinista por equipo.
     var delay = typeof global.crozzoReconnectStaggerMs === 'function' ? global.crozzoReconnectStaggerMs(0, 4000) : 0;
     global.setTimeout(function () {
       safe(function () {
@@ -146,8 +153,6 @@
     }, delay);
   }
 
-  // --- Aseguradores de transporte por nivel ---
-
   function cloudCredentialsReady() {
     if (typeof global.crozzoOnlineConfigReady === 'function') {
       return global.crozzoOnlineConfigReady();
@@ -155,11 +160,80 @@
     return !!global.__SUPABASE;
   }
 
+  function cloudSyncAllowedNow() {
+    try {
+      if (typeof global.crozzoTierAllowsCloudSync === 'function') {
+        return global.crozzoTierAllowsCloudSync();
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  // ── cancelCloudToLanHold ─────────────────────────────────────────────────
+  // Si el tier vuelve a 'cloud' antes de que expire el hold, cancela el
+  // stopCloudTransports() pendiente — el canal realtime no se cierra.
+  function cancelCloudToLanHold() {
+    if (__cloudToLanHoldTimer) {
+      global.clearTimeout(__cloudToLanHoldTimer);
+      __cloudToLanHoldTimer = null;
+    }
+    __pendingStopCloud = false;
+  }
+
+  function stopCloudTransports() {
+    __state.transports.cloud = false;
+    safe(function () {
+      if (typeof global.crozzoStopComandasCloudSync === 'function') global.crozzoStopComandasCloudSync();
+    });
+    safe(function () {
+      if (typeof global.crozzoStopPosRuntimeCloudSync === 'function') global.crozzoStopPosRuntimeCloudSync();
+    });
+    safe(function () {
+      if (global.CrozzoCloudOpsPulse && typeof global.CrozzoCloudOpsPulse.stop === 'function') {
+        global.CrozzoCloudOpsPulse.stop();
+      }
+    });
+  }
+
+  // ── stopCloudTransportsDeferred ──────────────────────────────────────────
+  // Versión con hold: espera CLOUD_TO_LAN_HOLD_MS antes de ejecutar
+  // stopCloudTransports(). Si en ese tiempo el tier vuelve a 'cloud',
+  // cancelCloudToLanHold() lo cancela y el canal realtime sigue vivo.
+  // Esto elimina el loop SUBSCRIBED→CLOSED por parpadeos de red cortos.
+  function stopCloudTransportsDeferred() {
+    if (__pendingStopCloud) return; // ya hay un hold en curso
+    __pendingStopCloud = true;
+    __cloudToLanHoldTimer = global.setTimeout(function () {
+      __cloudToLanHoldTimer = null;
+      __pendingStopCloud = false;
+      // Solo ejecutar si el nivel actual sigue siendo no-cloud.
+      if (__state.level !== 'cloud') {
+        stopCloudTransports();
+      }
+    }, CLOUD_TO_LAN_HOLD_MS);
+  }
+
+  global.crozzoStopCloudTransportsQuiet = stopCloudTransports;
+
   function ensureCloud() {
+    // Si había un hold de stop pendiente, cancelarlo — el cloud sigue activo.
+    cancelCloudToLanHold();
+    if (!cloudSyncAllowedNow()) {
+      stopCloudTransports();
+      return;
+    }
     __state.transports.cloud = true;
     safe(function () {
       if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
     });
+    var rtOk =
+      typeof global.crozzoCloudBackgroundSyncAllowed === 'function'
+        ? global.crozzoCloudBackgroundSyncAllowed()
+        : true;
+    if (!rtOk) {
+      stopCloudTransports();
+      return;
+    }
     if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
       safe(function () {
         global.crozzoEnsureCloudSyncActive({ source: 'orchestrator' }).catch(function () {});
@@ -171,11 +245,13 @@
     safe(function () {
       if (typeof global.crozzoStartComandasCloudSync === 'function') global.crozzoStartComandasCloudSync();
     });
+    safe(function () {
+      if (typeof global.crozzoStartOpsPulse === 'function') global.crozzoStartOpsPulse();
+    });
   }
 
-  /** Nube solo cuando el nivel activo es cloud (hay internet/Supabase). Reservado para arranque manual. */
   function ensureCloudIfConfigured() {
-    if (!cloudCredentialsReady()) return;
+    if (!cloudCredentialsReady() || !cloudSyncAllowedNow()) return;
     if (global.__SUPABASE) {
       ensureCloud();
       return;
@@ -191,13 +267,7 @@
   global.crozzoEnsureCloudIfConfigured = ensureCloudIfConfigured;
 
   function guideLevelOnce(level) {
-    // Transparencia: las transiciones operativamente equivalentes
-    // (cloud/lan/hotspot) son silenciosas — la operación sigue igual y el badge
-    // pasivo refleja el estado. Solo se avisa en mesh/qr, donde una acción del
-    // usuario realmente ayuda.
     if (level !== 'mesh' && level !== 'qr') return;
-    // Anti-flapping: no avisar si el nivel degradado aún no ha persistido
-    // (un parpadeo de red entra y sale de mesh/qr sin molestar al usuario).
     if (__state.level === level && __state.since && Date.now() - __state.since < DEGRADE_HOLD_MS) return;
     var now = Date.now();
     if (__lastLevelToast === level && now - __levelToastAt < 120000) return;
@@ -254,6 +324,13 @@
       }
     });
     runOnce('lan_p2p', wireLanP2P);
+    runOnce('lan_ops_sync', function () {
+      if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.afterMainInit === 'function') {
+        global.CrozzoLanOpsSync.afterMainInit();
+      } else if (typeof global.crozzoStartLanOpsSync === 'function') {
+        global.crozzoStartLanOpsSync('orchestrator');
+      }
+    });
     runOnce('central_failover', function () {
       if (global.CrozzoCentralFailover && typeof global.CrozzoCentralFailover.afterMainInit === 'function') {
         global.CrozzoCentralFailover.afterMainInit();
@@ -270,9 +347,6 @@
   }
 
   function ensureWifiWatch() {
-    // Vigilancia de la caja siempre activa (auto-adaptativa: tranquila si todo
-    // va bien, agil al primer problema). Asi el rol B encuentra la caja/hotspot
-    // aunque el dispositivo arranque directo en offline.
     safe(function () {
       if (global.CrozzoWifiZoneBridge && typeof global.CrozzoWifiZoneBridge.startWatch === 'function') {
         global.CrozzoWifiZoneBridge.startWatch();
@@ -283,7 +357,6 @@
   function ensureHotspot() {
     __state.transports.hotspot = true;
     var role = roleNow();
-    // La caja es la que despliega su zona Wi-Fi cuando se cae la LAN.
     if (role === 'A') {
       if (canDeployHotspot()) {
         safe(function () {
@@ -293,15 +366,13 @@
         guideHotspotOnce();
       }
     } else {
-      // Rol B: la vigilancia adaptativa (ensureWifiWatch) ya re-localiza la caja
-      // en los gateways de hotspot; no duplicamos el sondeo forzado aqui.
       ensureWifiWatch();
     }
   }
 
   function guideHotspotOnce() {
     var now = Date.now();
-    if (now - __hotspotGuidedAt < 300000) return; // 1 aviso cada 5 min
+    if (now - __hotspotGuidedAt < 300000) return;
     __hotspotGuidedAt = now;
     safe(function () {
       if (typeof global.showToast === 'function') {
@@ -329,7 +400,7 @@
 
   function ensureMesh() {
     __state.transports.mesh = true;
-    ensureWifiWatch(); // sigue buscando la caja/hotspot aunque estemos en malla
+    ensureWifiWatch();
     guideMeshOnce();
     runOnce('mesh_gossip', function () {
       if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.afterMainInit === 'function') {
@@ -394,7 +465,6 @@
     return false;
   }
 
-  /** Sin enlace local con la caja/tablets (LAN/gateway). */
   function devicesTransportLost(info, tier) {
     info = info || {};
     if (info.lanReach === true || info.gwReach === true) return false;
@@ -407,7 +477,6 @@
     return devicesTransportLost(info, tier);
   }
 
-  /** Deriva el nivel de cascada a partir del tier del detector + duracion offline. */
   function levelFromTier(tier, info) {
     info = info || {};
     if (tier === 'cloud') {
@@ -416,7 +485,12 @@
     }
     if (tier === 'lan') return 'lan';
     if (tier === 'hotspot') return 'hotspot';
-    // offline / unknown -> malla; con nube viva + sin LAN -> QR de inmediato
+    if (info.lanReach === true || info.gwReach === true) return 'lan';
+    try {
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
+        return 'lan';
+      }
+    } catch (_) {}
     if (shouldSurfaceQrNow(tier, info)) return 'qr';
     var now = Date.now();
     if (!__offlineSince) __offlineSince = now;
@@ -427,6 +501,8 @@
   }
 
   function wanUp() {
+    if (typeof global.crozzoWanLikely === 'function') return global.crozzoWanLikely();
+    if (typeof global.crozzoWanOnline === 'function') return global.crozzoWanOnline();
     return typeof global.navigator !== 'undefined' && !!global.navigator.onLine;
   }
 
@@ -434,12 +510,181 @@
     return typeof global.crozzoCloudFirstSyncEnabled === 'function' && global.crozzoCloudFirstSyncEnabled();
   }
 
-  function applyLevel(level) {
-    // Reinicia banderas de transporte; se vuelven a fijar segun el nivel activo.
+  function lanEvidenceForLevel(level, info) {
+    info = info || __lastDetectInfo || {};
+    if (level === 'lan' || level === 'hotspot') return true;
+    var dt = String(__state.detectorTier || '');
+    if (dt === 'lan' || dt === 'hotspot') return true;
+    if (info.lanReach === true || info.gwReach === true) return true;
+    if (info.cloudPingFailed || info.cloudDegraded) return true;
+    return false;
+  }
+
+  function runtimeSyncHybrid() {
+    try {
+      if (typeof global.config !== 'undefined' && global.config.get) {
+        var m = String(global.config.get('runtimeSyncModo') || 'hybrid').toLowerCase();
+        return m === 'hybrid';
+      }
+    } catch (_) {}
+    return true;
+  }
+
+  function directorState() {
+    try {
+      if (global.CrozzoConnectivityDirector && typeof global.CrozzoConnectivityDirector.getState === 'function') {
+        return global.CrozzoConnectivityDirector.getState();
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function wantCloudTransport(info) {
+    info = info || __lastDetectInfo || {};
+    if (!cloudCredentialsReady()) return false;
+    if (cloudSyncAllowedNow()) return true;
+    if (!runtimeSyncHybrid()) return false;
+    var role = roleNow();
+    if (role === 'A' && wanUp()) {
+      return typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
+    }
+    var tier = String(__state.detectorTier || '');
+    if (tier === 'cloud' && wanUp()) {
+      return typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
+    }
+    if (cloudRecoveryReady() && cloudSyncAllowedNow()) return true;
+    return false;
+  }
+
+  function applyParallelTransports(level, info) {
+    info = info || __lastDetectInfo || {};
     __state.transports = { cloud: false, lan: false, hotspot: false, mesh: false, qr: false };
 
-    // Fase 1 — nube full: con internet (Wi‑Fi o datos) solo Supabase; LAN/malla en fase 2.
-    if (cloudFirstMode() && wanUp() && cloudCredentialsReady()) {
+    if (
+      cloudFirstMode() &&
+      level === 'cloud' &&
+      wanUp() &&
+      cloudCredentialsReady() &&
+      wantCloudTransport(info) &&
+      !lanEvidenceForLevel(level, info)
+    ) {
+      guideLevelOnce('cloud');
+      ensureCloud();
+      if (shouldSurfaceQrNow(__state.detectorTier || 'cloud', info)) {
+        ensureQrLastResort();
+      }
+      return;
+    }
+
+    guideLevelOnce(level);
+    var role = roleNow();
+    var tier = String(__state.detectorTier || '');
+    var lanUp = lanEvidenceForLevel(level, info);
+    var ds = directorState();
+
+    if (wantCloudTransport(info)) {
+      var funnel =
+        typeof global.crozzoShouldFunnelCloudThroughHub === 'function' && global.crozzoShouldFunnelCloudThroughHub();
+      if (!funnel) {
+        ensureCloud();
+      }
+      ensureWifiWatch();
+    } else {
+      // En modo híbrido, bajar a LAN no apaga cloud de inmediato:
+      // se usa el hold diferido para evitar cerrar el canal realtime
+      // por un parpadeo de red corto.
+      if (runtimeSyncHybrid() && (level === 'lan' || level === 'hotspot')) {
+        stopCloudTransportsDeferred();
+      } else {
+        stopCloudTransports();
+      }
+    }
+
+    if (role === 'A' || lanUp || level === 'lan' || level === 'hotspot' || tier === 'lan' || tier === 'hotspot') {
+      ensureLan();
+    }
+    if (ds && (ds.mode === 'lan_client' || ds.mode === 'lan_seek' || ds.relayViaCentral)) {
+      ensureLan();
+    }
+
+    if (level === 'hotspot' || level === 'mesh' || level === 'qr') {
+      ensureHotspot();
+    } else if (role === 'B' && !lanUp && (level === 'mesh' || tier === 'offline')) {
+      ensureHotspot();
+    }
+
+    if (level === 'mesh' || level === 'qr') {
+      if (!lanUp) {
+        ensureMesh();
+      } else {
+        runOnce('mesh_qr_backup', function () {
+          if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureActiveForQr === 'function') {
+            global.CrozzoOfflineGossip.ensureActiveForQr();
+          }
+        });
+      }
+    }
+
+    if (level === 'qr' || shouldSurfaceQrNow(tier, info)) {
+      ensureQrLastResort();
+    }
+
+    if (runtimeSyncHybrid() && tier === 'cloud' && lanUp && role === 'B') {
+      safe(function () {
+        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+          global.crozzoActivateLocalSyncPath('hybrid_cloud_lan').catch(function () {});
+        }
+      });
+    }
+
+    if (runtimeSyncHybrid() && role === 'B' && typeof global.crozzoHealRoleBCloudFromCaja === 'function') {
+      var healNow = Date.now();
+      if (healNow - __lastHybridHealAt >= HYBRID_HEAL_GAP_MS) {
+        __lastHybridHealAt = healNow;
+        safe(function () {
+          global.crozzoHealRoleBCloudFromCaja({ source: 'orchestrator_hybrid' }).catch(function () {});
+        });
+      }
+    }
+
+    if (role === 'A' && global.CrozzoBrainPolicy && typeof global.CrozzoBrainPolicy.enforceBrainServe === 'function') {
+      safe(function () {
+        global.CrozzoBrainPolicy.enforceBrainServe({ quiet: true }).catch(function () {});
+      });
+    } else if (role === 'B' && global.CrozzoBrainPolicy && typeof global.CrozzoBrainPolicy.applyBorrowSeek === 'function') {
+      var dsMode = ds && ds.mode ? ds.mode : '';
+      if (!lanUp || dsMode === 'lan_seek' || dsMode === 'isolated') {
+        safe(function () {
+          global.CrozzoBrainPolicy.applyBorrowSeek({ quiet: true }).catch(function () {});
+        });
+      }
+    }
+
+    safe(function () {
+      if (
+        global.CrozzoHumanConnectivityPredict &&
+        typeof global.CrozzoHumanConnectivityPredict.runRecovery === 'function'
+      ) {
+        global.CrozzoHumanConnectivityPredict.runRecovery({ quiet: true }).catch(function () {});
+      }
+    });
+  }
+
+  function applyLevel(level) {
+    if (runtimeSyncHybrid()) {
+      applyParallelTransports(level, __lastDetectInfo);
+      return;
+    }
+    __state.transports = { cloud: false, lan: false, hotspot: false, mesh: false, qr: false };
+
+    if (
+      cloudFirstMode() &&
+      level === 'cloud' &&
+      wanUp() &&
+      cloudCredentialsReady() &&
+      cloudSyncAllowedNow() &&
+      !lanEvidenceForLevel(level, __lastDetectInfo)
+    ) {
       guideLevelOnce('cloud');
       ensureCloud();
       if (shouldSurfaceQrNow(__state.detectorTier || 'cloud', __lastDetectInfo)) {
@@ -451,10 +696,16 @@
     guideLevelOnce(level);
 
     if (level === 'cloud') {
-      ensureCloud();
-      ensureWifiWatch();
+      if (cloudSyncAllowedNow()) {
+        ensureCloud();
+        ensureWifiWatch();
+      } else {
+        stopCloudTransports();
+      }
       return;
     }
+    // En modo no-híbrido, bajar de cloud a lan también usa el hold diferido.
+    stopCloudTransportsDeferred();
     if (level === 'lan') {
       ensureLan();
       return;
@@ -465,12 +716,13 @@
       return;
     }
     if (level === 'mesh') {
-      ensureHotspot(); // intenta que la caja levante hotspot mientras tanto
+      if (lanEvidenceForLevel('lan', __lastDetectInfo)) ensureLan();
+      ensureHotspot();
       ensureMesh();
       return;
     }
     if (level === 'qr') {
-      if (cloudRecoveryReady()) ensureCloud();
+      if (cloudRecoveryReady() && cloudSyncAllowedNow()) ensureCloud();
       ensureMesh();
       ensureQrLastResort();
       return;
@@ -483,6 +735,25 @@
   }
 
   var __lastDetectInfo = null;
+  var __lastApplyAt = 0;
+  var ENSURE_STABLE_MS = 45000;
+
+  function transportsHealthy(level) {
+    if (level === 'cloud') return !!__state.transports.cloud;
+    if (level === 'lan' || level === 'hotspot') return !!__state.transports.lan;
+    if (level === 'mesh') return !!__state.transports.mesh;
+    if (level === 'qr') return !!__state.transports.qr;
+    return false;
+  }
+
+  function ensureLevelStable(level) {
+    var now = Date.now();
+    if (level === __state.level && now - __lastApplyAt < ENSURE_STABLE_MS && transportsHealthy(level)) {
+      return;
+    }
+    __lastApplyAt = now;
+    applyLevel(level);
+  }
 
   async function evaluate() {
     if (__evaluating) return;
@@ -519,18 +790,26 @@
       __state.lastEvalAt = Date.now();
 
       if (level !== prev) {
-        // El failover de transporte es inmediato (no perder conectividad real).
         __state.level = level;
         __state.since = Date.now();
         applyLevel(level);
+        __lastApplyAt = Date.now();
         emitChange(prev, level);
-        // Recuperación hacia nube/LAN mejor: resync inmediato.
+        if (level === 'cloud') {
+          // Al recuperar cloud, cancelar cualquier hold de stop pendiente.
+          cancelCloudToLanHold();
+          global.setTimeout(function () {
+            safe(function () {
+              var thr = global.CrozzoCloudThrottle;
+              if (thr && typeof thr.maybeClearPressureOnHealthySignal === 'function') {
+                thr.maybeClearPressureOnHealthySignal('tier_cloud');
+              }
+            });
+          }, typeof global.crozzoReconnectStaggerMs === 'function' ? global.crozzoReconnectStaggerMs(600, 2500) : 1200);
+        }
         if (prev !== 'unknown' && levelRank(level) < levelRank(prev)) {
           maybeReconnect('recover:' + level);
-        }
-        // Degradación: solo resincroniza si el nivel previo estuvo estable
-        // (anti-flapping: un parpadeo de red no dispara reconexiones).
-        else if (
+        } else if (
           prev !== 'unknown' &&
           levelRank(level) > levelRank(prev) &&
           levelRank(prev) <= levelRank('cloud') &&
@@ -540,8 +819,7 @@
           maybeReconnect('degrade:' + level);
         }
       } else {
-        // Mismo nivel: re-asegura el transporte por si algun watcher se detuvo.
-        applyLevel(level);
+        ensureLevelStable(level);
       }
     } catch (e) {
       safe(function () {
@@ -565,7 +843,6 @@
   }
 
   function onNetEvent() {
-    // Reacciona de inmediato a cambios de red/visibilidad.
     evaluate().catch(function () {});
   }
 
@@ -581,6 +858,9 @@
         onNetEvent();
       });
       global.addEventListener('crozzo-lan-up', onNetEvent);
+      global.addEventListener('crozzo-connectivity-director-changed', onNetEvent);
+      global.addEventListener('crozzo-detector-tier-changed', onNetEvent);
+      global.addEventListener('crozzo-capabilities-changed', onNetEvent);
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', function () {
           if (!document.hidden) onNetEvent();
@@ -591,12 +871,23 @@
 
   function start() {
     if (__started) return;
+    try {
+      if (global.__CROZZO_FIELD_TEST_QUIET && !global.__CROZZO_FIELD_TEST_LAN_ACTIVE) return;
+    } catch (_) {}
     __started = true;
     bindEvents();
-    // Descubrimiento de la caja siempre activo desde el arranque (cubre el caso
-    // de un rol B que inicia directo en offline y nunca paso por LAN).
+    safe(function () {
+      if (global.CrozzoConnectivityDirector && typeof global.CrozzoConnectivityDirector.start === 'function') {
+        global.CrozzoConnectivityDirector.start();
+      }
+      if (global.CrozzoCapabilityMatrix && typeof global.CrozzoCapabilityMatrix.start === 'function') {
+        global.CrozzoCapabilityMatrix.start();
+      }
+      if (global.CrozzoBrainPolicy && typeof global.CrozzoBrainPolicy.start === 'function') {
+        global.CrozzoBrainPolicy.start();
+      }
+    });
     ensureWifiWatch();
-    // Primera evaluacion inmediata, luego bucle adaptativo.
     evaluate()
       .catch(function () {})
       .then(scheduleNext, scheduleNext);
@@ -604,6 +895,7 @@
 
   function stop() {
     __started = false;
+    cancelCloudToLanHold();
     if (__timer) {
       clearTimeout(__timer);
       __timer = null;

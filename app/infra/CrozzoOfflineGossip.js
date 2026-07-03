@@ -102,10 +102,53 @@
     }
   }
 
+  function hybridBackupNeeded() {
+    try {
+      if (typeof global.config === 'undefined' || !global.config.get) return false;
+      if (String(global.config.get('runtimeSyncModo') || 'hybrid').toLowerCase() !== 'hybrid') return false;
+      var last = global.__CROZZO_LAN_LAST_OK;
+      if (!last || Date.now() - last > 28000) return true;
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && !global.crozzoIsLocalLanSegmentUp()) {
+        return true;
+      }
+      var ds = global.__CROZZO_DIRECTOR_STATE;
+      if (ds && (ds.mode === 'lan_seek' || ds.mode === 'isolated')) return true;
+    } catch (_) {}
+    return false;
+  }
+
   function shouldRun() {
     if (global.__CROZZO_GOSSIP_FORCE === true) return true;
     var t = tierNow();
-    if (t === 'cloud' || t === 'lan' || t === 'hotspot') return false;
+    // Apagar gossip cuando cloud/lan/hotspot son la ruta primaria estable
+    if (t === 'cloud' || t === 'lan' || t === 'hotspot') {
+      if (t === 'cloud') return false;
+      if (cloudPathLikely() && !hybridBackupNeeded()) return false;
+      return hybridBackupNeeded();
+    }
+    return true;
+  }
+
+  /** Tablets en la misma pestaña/subred: BroadcastChannel permite malla sin caja. */
+  function sameSubnetLikely() {
+    if (typeof global.BroadcastChannel !== 'function') return false;
+    try {
+      if (typeof global.crozzoIsLocalLanSegmentUp === 'function' && global.crozzoIsLocalLanSegmentUp()) {
+        return true;
+      }
+    } catch (_) {}
+    return tierNow() === 'offline' || tierNow() === 'mesh';
+  }
+
+  /** Arranque agresivo de malla cuando humanos dejan tablets en la misma Wi‑Fi sin caja. */
+  function bootstrapCluster() {
+    if (!shouldRun() && !sameSubnetLikely()) return false;
+    global.__CROZZO_GOSSIP_FORCE = false;
+    if (!_active) start();
+    sendHello();
+    if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.requestPeerQrCatalog === 'function') {
+      global.CrozzoInternalQrRegistry.requestPeerQrCatalog({ force: true });
+    }
     return true;
   }
 
@@ -234,7 +277,7 @@
     }
   }
 
-  var RELAY_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, INTERNAL_QR_SLOT: 1 };
+  var RELAY_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, INTERNAL_QR_SLOT: 1, PEER_COMM: 1 };
 
   // Reenvío epidémico: preserva msgId y origen para que el dedup por msgId
   // detenga la propagación; solo incrementa el contador de saltos.
@@ -299,20 +342,24 @@
         }
         return;
       }
-      c.estado = pay.estado;
-      c.lastUpdateAt = pay.lastUpdateAt || new Date().toISOString();
-      try {
-        if (global.config && global.config.addAudit) {
-          global.config.addAudit('comanda_estado_gossip', 'Comanda #' + c.id + ' -> ' + pay.estado);
-        }
-      } catch (_) {}
-      try {
-        if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
-      } catch (_) {}
-      if (global.currentPage === 'cocina' && typeof global.renderPage === 'function') global.renderPage('cocina');
-      try {
-        if (typeof global.crozzoPublishComandasGlobal === 'function') global.crozzoPublishComandasGlobal();
-      } catch (_) {}
+      if (typeof global.updateComandaEstado === 'function') {
+        global.updateComandaEstado(c.id, pay.estado, { skipFanout: true });
+      } else {
+        c.estado = pay.estado;
+        c.lastUpdateAt = pay.lastUpdateAt || new Date().toISOString();
+        try {
+          if (global.config && global.config.addAudit) {
+            global.config.addAudit('comanda_estado_gossip', 'Comanda #' + c.id + ' -> ' + pay.estado);
+          }
+        } catch (_) {}
+        try {
+          if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
+        } catch (_) {}
+        if (global.currentPage === 'cocina' && typeof global.renderPage === 'function') global.renderPage('cocina');
+        try {
+          if (typeof global.crozzoPublishComandasGlobal === 'function') global.crozzoPublishComandasGlobal();
+        } catch (_) {}
+      }
     } finally {
       _applying = false;
     }
@@ -428,6 +475,12 @@
       ingestInternalQrSlot(frame.payload);
       return;
     }
+    if (frame.kind === 'PEER_COMM') {
+      if (typeof global.crozzoIngestRemoteCommState === 'function') {
+        global.crozzoIngestRemoteCommState(frame.payload || {}, 'gossip');
+      }
+      return;
+    }
     if (frame.kind === 'INTERNAL_QR_REQ' || frame.kind === 'INTERNAL_QR_BEACON') {
       respondInternalQrCatalog();
     }
@@ -541,7 +594,7 @@
 
   function start() {
     if (_active) return;
-    if (!shouldRun()) return;
+    if (!shouldRun() && !sameSubnetLikely()) return;
     _active = true;
     var ctx = meshCtx();
 
@@ -585,6 +638,21 @@
     else stop();
   }
 
+  function listRecentPeers(maxAgeMs) {
+    maxAgeMs = Number(maxAgeMs) > 0 ? Number(maxAgeMs) : 45000;
+    var now = Date.now();
+    var out = [];
+    Object.keys(_peerIds).forEach(function (k) {
+      var at = Number(_peerIds[k]) || 0;
+      if (!k || now - at > maxAgeMs) return;
+      out.push({ deviceId: k, lastSeenAt: at });
+    });
+    out.sort(function (a, b) {
+      return (b.lastSeenAt || 0) - (a.lastSeenAt || 0);
+    });
+    return out;
+  }
+
   function getStatus() {
     var peerCount = Math.max(Object.keys(_peerIds).length, _udpPeerCount || 0);
     var transport = _udpOk ? 'udp' : _bc ? 'broadcast' : 'none';
@@ -624,6 +692,24 @@
     reconcileTier();
   }
 
+  function publishPeerCommState(state) {
+    if (!_active || !state) return false;
+    var ctx = meshCtx();
+    sendFrame(
+      buildFrame(
+        'PEER_COMM',
+        {
+          deviceId: state.deviceId || ctx.deviceId,
+          role: state.role || ctx.role,
+          name: '',
+          commState: state,
+        },
+        0
+      )
+    );
+    return true;
+  }
+
   function publishInternalQrBeacon(meta) {
     if (!_active) return false;
     meta = meta || {};
@@ -650,11 +736,15 @@
     publishComandaNewByIds: publishComandaNewByIds,
     publishEstado: publishEstado,
     publishInternalQrBeacon: publishInternalQrBeacon,
+    publishPeerCommState: publishPeerCommState,
     publishInternalQrSlot: publishInternalQrSlot,
     publishInternalQrRequest: publishInternalQrRequest,
     ingestRaw: ingestRaw,
     getStatus: getStatus,
+    listRecentPeers: listRecentPeers,
     reconcileTier: reconcileTier,
+    bootstrapCluster: bootstrapCluster,
+    sameSubnetLikely: sameSubnetLikely,
   };
 
   if (typeof document !== 'undefined') {

@@ -1,7 +1,7 @@
 {
   "name": "tauri-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.215",
   "type": "module",
   "scripts": {
     "tauri": "tauri",
@@ -26,7 +26,18 @@
     "maintain:recepcion-fe:refresh": "node scripts/maintain-recepcion-fe.mjs refresh",
     "maintain:recepcion-fe:eval": "node scripts/maintain-recepcion-fe.mjs eval",
     "maintain:recepcion-fe:eval:full": "node scripts/maintain-recepcion-fe.mjs eval --full",
-    "android:secrets": "node scripts/publish-android-keystore-secrets.mjs"
+    "android:build": "node scripts/build-android-apk.mjs",
+    "android:secrets": "node scripts/publish-android-keystore-secrets.mjs",
+    "deploy:crm-qr": "node scripts/deploy-crm-registro-fn.mjs",
+    "supabase:probe": "node scripts/_supabase-project-probe.mjs",
+    "reservorio:com-v2:guardar": "node scripts/reservorio-comunicacion-v2.mjs guardar",
+    "reservorio:com-v2:verificar": "node scripts/reservorio-comunicacion-v2.mjs verificar",
+    "reservorio:com-v2:restaurar": "node scripts/reservorio-comunicacion-v2.mjs restaurar",
+    "test:field-devices": "node scripts/_field-device-scale.mjs",
+    "test:field-devices:quick": "node scripts/_field-device-scale.mjs --phases 2,5,10 --skip-browser",
+    "test:field-devices:browser": "node scripts/_field-device-scale.mjs --browser-only",
+    "test:connectivity-equilibrium": "node scripts/_connectivity-equilibrium-check.mjs",
+    "test:lan-ops-sync": "node scripts/_lan-ops-sync-check.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

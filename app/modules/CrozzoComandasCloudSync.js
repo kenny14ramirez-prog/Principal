@@ -183,6 +183,29 @@
     return !!(String(md.centralIp || '').trim());
   }
 
+  /** Push LAN paralelo solo cuando la nube no lleva el transporte o está degradada. */
+  function lanParallelPushNeeded() {
+    if (!lanSegmentLikely()) return false;
+    if (cloudUnderPressure()) return true;
+    if (!tierAllowsCloudPush()) return true;
+    try {
+      if (typeof global.crozzoActiveSyncTransport === 'function') {
+        if (global.crozzoActiveSyncTransport({ kind: 'transport' }) === 'lan') return true;
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
+        if (global.crozzoCloudOperationalRealtimeHealthy(40000)) return false;
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoCloudWanReady === 'function' && global.crozzoCloudWanReady()) {
+        return false;
+      }
+    } catch (_) {}
+    return true;
+  }
+
   function markComandaTid(tid, source) {
     if (!tid) return;
     if (!global.__crozzoComandaTidSeen) global.__crozzoComandaTidSeen = {};
@@ -748,14 +771,14 @@
 
   function pushComandasByIds(ids) {
     if (!Array.isArray(ids) || !ids.length) return;
-    var lan = lanSegmentLikely();
+    var lanExtra = lanParallelPushNeeded();
     ids.forEach(function (id) {
       var c = findComanda(id);
       if (!c) return;
       outboxEnqueue(c);
-      if (lan) pushComandaLan(c).catch(function () {});
+      if (lanExtra) pushComandaLan(c).catch(function () {});
     });
-    if (outboxPending() && (tierAllowsCloudPush() || lan)) scheduleOutboxDrain(600);
+    if (outboxPending() && (tierAllowsCloudPush() || lanExtra)) scheduleOutboxDrain(lanExtra ? 600 : 1200);
   }
 
   async function pushComandaEstadoLan(comanda, estado) {
@@ -805,9 +828,9 @@
   function fanoutComandaEstado(comanda, estado) {
     if (!comanda) return;
     var est = estado || comanda.estado;
-    var lan = lanSegmentLikely();
+    var lanExtra = lanParallelPushNeeded();
     outboxEnqueue(comanda);
-    if (lan) {
+    if (lanExtra) {
       pushComandaEstadoLan(comanda, est).catch(function () {});
       try {
         if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
@@ -819,15 +842,18 @@
           global.crozzoActivateLocalSyncPath('comanda_estado').catch(function () {});
         }
       } catch (_) {}
-      return;
     }
-    var tier = tierNow();
-    if (tier === 'offline' || tier === 'mesh') {
-      try {
-        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
-          global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id);
-        }
-      } catch (_) {}
+    if (tierAllowsCloudPush() && !cloudUnderPressure()) {
+      scheduleOutboxDrain(450);
+    } else if (!lanExtra) {
+      var tier = tierNow();
+      if (tier === 'offline' || tier === 'mesh') {
+        try {
+          if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
+            global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id);
+          }
+        } catch (_) {}
+      }
     }
   }
 
@@ -1530,36 +1556,32 @@
         global.maybeEmergencyBroadcastComandas(ids);
       }
     } catch (_) {}
-    var lan = lanSegmentLikely();
-    if (lan) {
+    var lanExtra = lanParallelPushNeeded();
+    if (lanExtra) {
       try {
         if (typeof global.crozzoActivateLocalSyncPath === 'function') {
           global.crozzoActivateLocalSyncPath('comanda_new').catch(function () {});
         }
       } catch (_) {}
-      pushComandasByIds(ids);
+    }
+    pushComandasByIds(ids);
+    if (lanExtra) {
       try {
         if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyComandasByIds === 'function') {
           global.CrozzoLanWebSocketBridge.notifyComandasByIds(ids);
         }
       } catch (_) {}
-      return;
     }
-    var tier = tierNow();
-    if (tier === 'offline' || tier === 'mesh') {
-      try {
-        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishComandaNewByIds === 'function') {
-          global.CrozzoOfflineGossip.publishComandaNewByIds(ids);
-        }
-      } catch (_) {}
-      return;
-    }
-    pushComandasByIds(ids);
-    try {
-      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyComandasByIds === 'function') {
-        global.CrozzoLanWebSocketBridge.notifyComandasByIds(ids);
+    if (!lanExtra && !tierAllowsCloudPush()) {
+      var tier = tierNow();
+      if (tier === 'offline' || tier === 'mesh') {
+        try {
+          if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishComandaNewByIds === 'function') {
+            global.CrozzoOfflineGossip.publishComandaNewByIds(ids);
+          }
+        } catch (_) {}
       }
-    } catch (_) {}
+    }
   }
 
   async function pushComandaPrintedAck(comanda) {

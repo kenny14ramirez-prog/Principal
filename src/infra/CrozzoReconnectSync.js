@@ -8,9 +8,35 @@
   var __running = false;
   var __lastRun = 0;
   var DEBOUNCE_MS = 3200;
+  var ONLINE_STABLE_MS = 2400;
+  var __onlineStableTimer = null;
 
   function md() {
     return typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+  }
+
+  function cloudBgAllowed(opts) {
+    opts = opts || {};
+    if (!opts.kind) {
+      var src = String(opts.source || '');
+      if (src === 'online') opts.kind = 'online';
+      else if (/reconnect|recover|orchestrator|lan_up|page_watch|startup|postInit/i.test(src)) {
+        opts.kind = 'reconnect';
+      }
+    }
+    try {
+      if (typeof global.crozzoCloudBackgroundSyncAllowed === 'function') {
+        return global.crozzoCloudBackgroundSyncAllowed(opts);
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function lanDrainAllowed() {
+    try {
+      if (typeof global.crozzoLanTransportAllowed === 'function') return global.crozzoLanTransportAllowed();
+    } catch (_) {}
+    return false;
   }
 
   function logLine(msg) {
@@ -39,46 +65,56 @@
     var cfg = md();
     if (cfg.role !== 'A') return { role: 'B', pushed: 0 };
     var pushed = 0;
-    if (typeof global.crozzoPushPosRuntimeCloudNow === 'function') {
-      try {
-        if (await global.crozzoPushPosRuntimeCloudNow()) pushed++;
-      } catch (_) {}
-    }
-    if (typeof global.crozzoSchedulePosRuntimeCloudPush === 'function') {
-      try {
-        global.crozzoSchedulePosRuntimeCloudPush('flush');
-      } catch (_) {}
-    }
-    var router = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
-    if (router) {
-      if (typeof router.drainPendingCloudMirror === 'function') {
+    var cloudOk = cloudBgAllowed({ force: false });
+    if (cloudOk) {
+      if (typeof global.crozzoPushPosRuntimeCloudNow === 'function') {
         try {
-          await router.drainPendingCloudMirror();
-          pushed++;
+          if (await global.crozzoPushPosRuntimeCloudNow()) pushed++;
         } catch (_) {}
       }
-      if (typeof router.processQueue === 'function') {
+      if (typeof global.crozzoSchedulePosRuntimeCloudPush === 'function') {
         try {
-          await router.processQueue();
+          global.crozzoSchedulePosRuntimeCloudPush('flush');
         } catch (_) {}
       }
-    }
-    if (typeof global.syncOfflineQueue === 'function') {
-      try {
-        var sq = await global.syncOfflineQueue();
-        if (sq && sq.pushed) pushed += Number(sq.pushed) || 0;
-      } catch (_) {}
-    }
-    if (typeof global.crozzoPushComandasCloudByIds === 'function' && global.comandas && global.comandas.length) {
-      try {
-        var ids = [];
-        for (var i = 0; i < global.comandas.length && ids.length < 80; i++) {
-          if (global.comandas[i] && global.comandas[i].id != null) ids.push(global.comandas[i].id);
+      var router = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
+      if (router) {
+        if (typeof router.drainPendingCloudMirror === 'function') {
+          try {
+            await router.drainPendingCloudMirror();
+            pushed++;
+          } catch (_) {}
         }
-        if (ids.length) global.crozzoPushComandasCloudByIds(ids);
-      } catch (_) {}
+        if (typeof router.processQueue === 'function') {
+          try {
+            await router.processQueue();
+          } catch (_) {}
+        }
+      }
+      if (typeof global.crozzoFlushReservorioSyncQueue === 'function') {
+        try {
+          var rf = global.crozzoFlushReservorioSyncQueue({ force: true, kind: 'reconnect_push', priority: 2 });
+          if (rf && rf.mirrored) pushed += Number(rf.mirrored) || 0;
+        } catch (_) {}
+      }
+      if (typeof global.syncOfflineQueue === 'function') {
+        try {
+          var sq = await global.syncOfflineQueue({ force: true, kind: 'reconnect_push', priority: 1 });
+          if (sq && sq.pushed) pushed += Number(sq.pushed) || 0;
+        } catch (_) {}
+      }
+      // Antes se re-empujaban TODAS las comandas locales aquí, lo que podía
+      // RESUCITAR en la nube comandas ya cobradas/eliminadas (un equipo que vuelve
+      // de estar apagado). Ahora solo drenamos el outbox: contiene únicamente las
+      // comandas cuyo envío no se confirmó (las realmente pendientes), nunca las
+      // ya entregadas. Lo obsoleto se limpia en el pull con reconcileStale.
+      if (typeof global.crozzoFlushComandaOutbox === 'function') {
+        try {
+          global.crozzoFlushComandaOutbox();
+        } catch (_) {}
+      }
     }
-    if (global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.drainPendingOnce === 'function') {
+    if (lanDrainAllowed() && global.CrozzoLanSyncBridge && typeof global.CrozzoLanSyncBridge.drainPendingOnce === 'function') {
       try {
         await global.CrozzoLanSyncBridge.drainPendingOnce();
       } catch (_) {}
@@ -90,30 +126,68 @@
     opts = opts || {};
     var pulled = 0;
     var lan = await lanReachable();
-    if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+    var cloudOk = cloudBgAllowed(opts);
+    if (typeof global.crozzoResetRuntimeSyncDedup === 'function') {
       try {
-        if (await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: !!opts.skipRender })) pulled++;
+        global.crozzoResetRuntimeSyncDedup();
       } catch (_) {}
     }
-    if (typeof global.crozzoStartComandasCloudSync === 'function') {
-      try {
-        global.crozzoStartComandasCloudSync();
-      } catch (_) {}
-    }
-    if (typeof global.crozzoPullComandasFromCloud === 'function') {
-      try {
-        if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint })) pulled++;
-      } catch (_) {}
-    }
-    if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
-      try {
-        if (await global.__crozzoRefreshCloudCatalogUi({ skipRender: !!opts.skipRender })) pulled++;
-      } catch (_) {}
-    }
-    if (typeof global.crozzoPullRemoteTenantState === 'function') {
-      try {
-        if (await global.crozzoPullRemoteTenantState({ skipRender: true, quiet: true })) pulled++;
-      } catch (_) {}
+    if (cloudOk) {
+      if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+        try {
+          if (await global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: !!opts.skipRender })) pulled++;
+        } catch (_) {}
+      }
+      if (typeof global.crozzoStartComandasCloudSync === 'function') {
+        try {
+          global.crozzoStartComandasCloudSync();
+        } catch (_) {}
+      }
+      if (typeof global.crozzoPullComandasFromCloud === 'function') {
+        try {
+          // reconcileStale: al reconectar, limpia comandas locales obsoletas
+          // (ya cobradas/eliminadas en la nube) para no resucitarlas ni duplicarlas.
+          if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: true })) pulled++;
+        } catch (_) {}
+      }
+      if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {
+        try {
+          if (await global.__crozzoRefreshCloudCatalogUi({ skipRender: !!opts.skipRender })) pulled++;
+        } catch (_) {}
+      }
+      if (typeof global.crozzoPullRemoteTenantState === 'function') {
+        try {
+          if (
+            await global.crozzoPullRemoteTenantState({
+              skipRender: true,
+              quiet: true,
+              force: true,
+              kind: 'reconnect_pull',
+            })
+          ) {
+            pulled++;
+          }
+        } catch (_) {}
+      }
+      if (typeof global.crozzoPullRemoteStaffState === 'function') {
+        try {
+          if (
+            await global.crozzoPullRemoteStaffState({
+              skipRender: true,
+              quiet: true,
+              force: true,
+              kind: 'reconnect_pull',
+            })
+          ) {
+            pulled++;
+          }
+        } catch (_) {}
+      }
+      if (typeof global.crozzoFlushPendingStaffSyncIfNeeded === 'function') {
+        try {
+          await global.crozzoFlushPendingStaffSyncIfNeeded();
+        } catch (_) {}
+      }
     }
     var router = global.__crozzoGetMultiSyncRouter && global.__crozzoGetMultiSyncRouter();
     if (router) {
@@ -128,9 +202,9 @@
         } catch (_) {}
       }
     }
-    if (typeof global.syncOfflineQueue === 'function') {
+    if (cloudOk && typeof global.syncOfflineQueue === 'function') {
       try {
-        await global.syncOfflineQueue();
+        await global.syncOfflineQueue({ force: true, kind: 'reconnect_pull', priority: 1 });
       } catch (_) {}
     }
     if (global.CrozzoEmergencyMesh && typeof global.CrozzoEmergencyMesh.reconcileSafe === 'function') {
@@ -147,8 +221,11 @@
     try {
       if (cfg.role === 'A' && typeof global.CrozzoP2PDataHub.startCentral === 'function') {
         await global.CrozzoP2PDataHub.startCentral();
-      } else if (cfg.role === 'B' && cfg.allowLan !== false && typeof global.CrozzoP2PDataHub.startClient === 'function') {
-        await global.CrozzoP2PDataHub.startClient();
+      } else if (cfg.role === 'B' && typeof global.CrozzoP2PDataHub.startClient === 'function') {
+        var cloudOk =
+          typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
+        var lanOk = cfg.allowLan !== false && !!String(cfg.centralIp || '').trim();
+        if (cloudOk || lanOk) await global.CrozzoP2PDataHub.startClient();
       }
     } catch (_) {}
   }
@@ -162,16 +239,45 @@
     __running = true;
     __lastRun = Date.now();
     try {
+      try {
+        if (typeof global.crozzoInvalidateCloudPingCache === 'function') {
+          global.crozzoInvalidateCloudPingCache();
+        }
+      } catch (_) {}
+      try {
+        var thr0 = global.CrozzoCloudThrottle;
+        if (thr0 && typeof thr0.maybeClearPressureOnHealthySignal === 'function') {
+          thr0.maybeClearPressureOnHealthySignal('online_recovery');
+        }
+      } catch (_) {}
       logLine('🔄 Sync total (' + (opts.source || 'manual') + ')…');
+      var cfgRec = md();
+      if (cfgRec.role === 'B' && typeof global.crozzoHealRoleBCloudFromCaja === 'function') {
+        try {
+          await global.crozzoHealRoleBCloudFromCaja({ force: !!(opts.force || opts.source === 'online'), source: opts.source });
+        } catch (_) {}
+      }
+      if (cfgRec.role === 'B' && cfgRec.allowLan !== false && typeof global.crozzoWifiZoneResolveCentral === 'function') {
+        try {
+          await global.crozzoWifiZoneResolveCentral({ force: !!(opts.force || opts.source === 'online') });
+        } catch (_) {}
+      }
+      if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+        try {
+          await global.crozzoActivateLocalSyncPath(String(opts.source || 'reconnect'));
+        } catch (_) {}
+      }
       var central = await centralAuthorityPush();
-      if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
-        try {
-          await global.crozzoEnsureCloudSyncActive({ source: opts.source || 'reconnect', resetTableMissing: !!opts.force });
-        } catch (_) {}
-      } else if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
-        try {
-          global.crozzoStartPosRuntimeCloudSync();
-        } catch (_) {}
+      if (cloudBgAllowed(opts)) {
+        if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
+          try {
+            await global.crozzoEnsureCloudSyncActive({ source: opts.source || 'reconnect', resetTableMissing: !!opts.force });
+          } catch (_) {}
+        } else if (typeof global.crozzoStartPosRuntimeCloudSync === 'function') {
+          try {
+            global.crozzoStartPosRuntimeCloudSync();
+          } catch (_) {}
+        }
       }
       var pull = await allDevicesPull(opts);
       await wireP2P();
@@ -237,11 +343,23 @@
   function bindReconnectEvents() {
     if (global.__crozzoReconnectBound) return;
     global.__crozzoReconnectBound = true;
+    global.addEventListener('offline', function () {
+      if (__onlineStableTimer) {
+        global.clearTimeout(__onlineStableTimer);
+        __onlineStableTimer = null;
+      }
+    });
     global.addEventListener('online', function () {
-      // Reparte la reconexion en ~6s entre dispositivos (estampida controlada).
-      global.setTimeout(function () {
-        runFullReconnectSync({ source: 'online' }).catch(function () {});
-      }, reconnectStaggerMs(700, 6000));
+      if (__onlineStableTimer) global.clearTimeout(__onlineStableTimer);
+      __onlineStableTimer = global.setTimeout(function () {
+        __onlineStableTimer = null;
+        try {
+          if (typeof global.navigator !== 'undefined' && global.navigator.onLine === false) return;
+        } catch (_) {}
+        global.setTimeout(function () {
+          runFullReconnectSync({ source: 'online', skipPrint: true }).catch(function () {});
+        }, reconnectStaggerMs(700, 6000));
+      }, ONLINE_STABLE_MS);
     });
     global.addEventListener('crozzo-lan-up', function () {
       // LAN es local (menos nodos): ventana de escalonado mas corta.

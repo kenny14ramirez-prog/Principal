@@ -871,6 +871,9 @@
 
   function start() {
     if (__started) return;
+    try {
+      if (global.__CROZZO_FIELD_TEST_QUIET && !global.__CROZZO_FIELD_TEST_LAN_ACTIVE) return;
+    } catch (_) {}
     __started = true;
     bindEvents();
     safe(function () {
