@@ -71,7 +71,7 @@
       } catch (_) {}
       try {
         if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-          global.crozzoHandleRemoteRuntimeUiSync();
+          global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
         }
       } catch (_) {}
       safe(function () {

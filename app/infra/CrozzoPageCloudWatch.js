@@ -78,7 +78,7 @@
   function notifyRuntimeUiApplied() {
     safe(function () {
       if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-        global.crozzoHandleRemoteRuntimeUiSync();
+        global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
       } else if (typeof global.crozzoScheduleOperationalPageRefresh === 'function') {
         global.crozzoScheduleOperationalPageRefresh(__activePage);
       }

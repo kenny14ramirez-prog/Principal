@@ -8,6 +8,7 @@
   var __inflight = null;
   var __lastAt = 0;
   var GAP_MS = 3200;
+  var FLEET_SKIP_RE = /^(lan_up|auto_lan_up|op_fanout_|lan_transport)/;
 
   async function run(source, opts) {
     opts = opts || {};
@@ -39,13 +40,16 @@
         } catch (_) {}
       }
       try {
-        if (typeof global.crozzoFleetOperationalReconcile === 'function') {
+        if (
+          !FLEET_SKIP_RE.test(source) &&
+          typeof global.crozzoFleetOperationalReconcile === 'function'
+        ) {
           await global.crozzoFleetOperationalReconcile(source);
         }
       } catch (_) {}
       try {
         if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-          global.crozzoHandleRemoteRuntimeUiSync();
+          global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
         }
       } catch (_) {}
       return { ok: true, source: source };

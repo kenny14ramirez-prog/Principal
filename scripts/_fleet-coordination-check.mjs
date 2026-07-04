@@ -113,7 +113,13 @@ mustInclude('app/infra/CrozzoCloudSyncPriorities.js', [
   'SUBSCRIBED sin eventos',
 ], 'Z0 híbrido LAN paralelo');
 
-mustInclude('app/infra/CrozzoOpFanout.js', ['runtimeTouch', 'crozzoOpFanoutRuntimeTouch'], 'Fanout runtime mesas');
+mustInclude('app/modules/CrozzoOperativeReservorio.js', [
+  'CrozzoOperativeReservorio',
+  'allowAutoDiscard',
+  'allowCloudAuthoritativeEmpty',
+  'loadRaw',
+  'rotateBackup',
+], 'Reservorio operativo mesas/caja');
 
 mustInclude('app/modules/CrozzoPosRuntimeCloud.js', [
   'notifyRuntimeUiIfApplied(true)',

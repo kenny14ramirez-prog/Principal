@@ -145,9 +145,13 @@
       }
       if (typeof global.crozzoPullComandasFromCloud === 'function') {
         try {
-          // reconcileStale: al reconectar, limpia comandas locales obsoletas
-          // (ya cobradas/eliminadas en la nube) para no resucitarlas ni duplicarlas.
-          if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: true })) pulled++;
+          var reconcileStale =
+            !(
+              global.CrozzoOperativeReservorio &&
+              typeof global.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
+              !global.CrozzoOperativeReservorio.allowAutoDiscard({})
+            );
+          if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: reconcileStale })) pulled++;
         } catch (_) {}
       }
       if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {

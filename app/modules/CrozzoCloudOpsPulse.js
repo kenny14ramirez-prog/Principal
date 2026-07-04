@@ -122,7 +122,7 @@
             global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: false })
               .then(function (applied) {
                 if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-                  global.crozzoHandleRemoteRuntimeUiSync();
+                  global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
                 }
               })
               .catch(function () {});

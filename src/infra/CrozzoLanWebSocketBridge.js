@@ -121,7 +121,7 @@
           { quiet: true }
         );
         if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-          global.crozzoHandleRemoteRuntimeUiSync();
+          global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
         }
         if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_runtime');
       }

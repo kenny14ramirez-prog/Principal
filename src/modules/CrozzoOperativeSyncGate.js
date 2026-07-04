@@ -175,6 +175,13 @@
 
   async function pullOperationalTruth(opts) {
     opts = opts || {};
+    if (
+      global.CrozzoOperativeReservorio &&
+      typeof global.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
+      !global.CrozzoOperativeReservorio.allowAutoDiscard({})
+    ) {
+      opts.skipFreshnessPurge = true;
+    }
     var fastEntry = !!opts.fastEntry;
     var skipHeavyPull = !!opts.skipHeavyPull;
     var pulled = 0;

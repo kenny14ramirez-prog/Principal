@@ -2439,34 +2439,45 @@
     options = options || {};
     if (!factura) return Promise.resolve(false);
     var copies = options.copies != null ? options.copies : getCopies();
-    var printer = (options.printer || getCajaPrinter()).trim();
     var pageW =
       typeof global.crozzoFacturaThermalPageMm === 'function' ? global.crozzoFacturaThermalPageMm(factura) : '80mm';
     var inner =
       typeof global.crozzoFacturaBuildThermalHtml === 'function' ? global.crozzoFacturaBuildThermalHtml(factura) : '';
-    return crozzoBuildEscPosFromFactura(factura).then(function (escpos) {
-      if (crozzoIsTauri()) {
-        if (!printer) {
-          if (typeof global.showToast === 'function') {
-            global.showToast('Seleccione la impresora de caja en Configuración → Impresoras.', 'warning');
-          }
-          return false;
-        }
-        if (escpos.length) {
+    var loadP = crozzoIsTauri()
+      ? crozzoEnsurePrintersLoaded().catch(function () {
+          return [];
+        })
+      : Promise.resolve([]);
+    return loadP.then(function () {
+      var printer = crozzoResolvePrinterForJob(options.printer || '', 'caja');
+      return crozzoBuildEscPosFromFactura(factura).then(function (escpos) {
+        if (crozzoIsTauri() && printer && escpos.length) {
           return crozzoPrintRawEscPos(printer, escpos, copies, 'factura').then(function (ok) {
-          if (!ok && typeof global.showToast === 'function') {
-            global.showToast('No se pudo imprimir en «' + printer + '». Revise conexión y nombre.', 'error');
-          }
+            if (!ok && typeof global.showToast === 'function' && options.toast !== false) {
+              global.showToast('No se pudo imprimir en «' + printer + '». Revise conexión y nombre.', 'error');
+            }
             return ok;
           });
         }
-        return false;
-      }
-      return crozzoPrintThermalHtmlFallback(inner, pageW, copies, options).then(function (ok) {
-        if (!ok && typeof global.showToast === 'function') {
-          global.showToast('No se pudo imprimir. Revise la impresora predeterminada.', 'warning');
+        var fbOpts = Object.assign({}, options, {
+          allowDialog: options.allowDialog !== false,
+          silent: false,
+        });
+        if (
+          crozzoIsTauri() &&
+          !printer &&
+          typeof global.showToast === 'function' &&
+          options.toast !== false &&
+          options.allowDialog !== false
+        ) {
+          global.showToast('Sin térmica de caja — abriendo vista de impresión…', 'info');
         }
-        return ok;
+        return crozzoPrintThermalHtmlFallback(inner, pageW, copies, fbOpts).then(function (ok) {
+          if (!ok && typeof global.showToast === 'function' && options.toast !== false) {
+            global.showToast('No se pudo imprimir. Revise la impresora o use Reimprimir.', 'warning');
+          }
+          return ok;
+        });
       });
     });
   }

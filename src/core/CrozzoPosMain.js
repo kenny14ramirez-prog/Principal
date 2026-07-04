@@ -343,20 +343,6 @@ function crozzoForceSedeCanonical() {
 window.crozzoForceSedeCanonical = crozzoForceSedeCanonical;
 window.crozzoEnsureSedeLocationId = crozzoEnsureSedeLocationId;
 window.crozzoCanonicalLocationFromBusiness = crozzoCanonicalLocationFromBusiness;
-/** Fuerza la sede a la canónica del negocio (unifica tablet/caja/cocina en una misma sede). */
-function crozzoForceSedeCanonical() {
-  try {
-    const md = getMultiDeviceConfig();
-    const biz = String(md.businessId || '').trim();
-    const canonical = crozzoCanonicalLocationFromBusiness(biz);
-    if (!canonical) return '';
-    crozzoPersistSedeLocationId(canonical);
-    return canonical;
-  } catch (_) {
-    return '';
-  }
-}
-window.crozzoForceSedeCanonical = crozzoForceSedeCanonical;
 function crozzoIsMobilePhoneUi() {
   try {
     const doc = document.documentElement;
@@ -6701,6 +6687,13 @@ function crozzoOperativeSlotIsFinalized(tipoServicio, referencia) {
 function crozzoPrepareSlotForNewService(tipoServicio, referencia) {
   const ref = String(referencia || '').trim();
   if (!ref || (tipoServicio !== 'mesa' && tipoServicio !== 'llevar')) return;
+  if (
+    window.CrozzoOperativeReservorio &&
+    typeof window.CrozzoOperativeReservorio.slotHasActiveWork === 'function' &&
+    window.CrozzoOperativeReservorio.slotHasActiveWork(tipoServicio, ref)
+  ) {
+    return;
+  }
   try {
     if (closedSlots && closedSlots[tipoServicio]) delete closedSlots[tipoServicio][ref];
   } catch (_) {}
@@ -6852,6 +6845,13 @@ function crozzoEvaluateSlotFreshness(tipoServicio, referencia, remoteMeta, opts)
 }
 function crozzoDiscardSlotStaleLocal(tipoServicio, referencia, evalResult, opts) {
   opts = opts || {};
+  if (
+    window.CrozzoOperativeReservorio &&
+    typeof window.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
+    !window.CrozzoOperativeReservorio.allowAutoDiscard(opts)
+  ) {
+    return false;
+  }
   const ref = String(referencia || '').trim();
   const map = tipoServicio === 'mesa' ? cartsPorMesa : cartsPorLlevar;
   if (!map || !Array.isArray(map[ref]) || !map[ref].length) return false;
@@ -7193,6 +7193,13 @@ function crozzoAnalyzeOperationalFreshness(remoteMeta) {
 function crozzoDiscardStaleOperationalLocal(report, opts) {
   opts = opts || {};
   if (!report) return { discardedSlots: 0, discardedComandas: 0, report: null };
+  if (
+    window.CrozzoOperativeReservorio &&
+    typeof window.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
+    !window.CrozzoOperativeReservorio.allowAutoDiscard(opts)
+  ) {
+    return { discardedSlots: 0, discardedComandas: 0, report: report, skipped: 'operative_reservorio' };
+  }
   let discardedSlots = 0;
   let discardedComandas = 0;
   const pendingKeys = crozzoGetComandaOutboxPendingKeys();
@@ -7298,6 +7305,7 @@ function crozzoNotifySlotCartUserEdit() {
     } catch (_) {}
   } catch (_) {}
 }
+function crozzoKnownSalonSlotIds(tipo) {
   const list =
     tipo === 'mesa'
       ? typeof mesasCaja !== 'undefined' && Array.isArray(mesasCaja)
@@ -8500,22 +8508,26 @@ function collectPosRuntimeState() {
 function savePosRuntimeToLocalStorage() {
   try {
     const snap = collectPosRuntimeState();
-    if (Array.isArray(snap.comandaHistory) && snap.comandaHistory.length > 120) {
-      snap.comandaHistory = snap.comandaHistory.slice(0, 120);
-    }
-    const json = JSON.stringify(snap);
-    if (json.length > 4500000) {
-      console.warn('[runtime] snapshot demasiado grande; no se guardó');
-      return;
-    }
-    try {
-      localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
-    } catch (eSet) {
-      // Memoria llena: liberamos cachés regenerables y reintentamos una vez.
-      if (typeof window.crozzoIsQuotaError === 'function' && window.crozzoIsQuotaError(eSet) && typeof window.crozzoPruneExpendableStorage === 'function' && window.crozzoPruneExpendableStorage() > 0) {
+    if (window.CrozzoOperativeReservorio && typeof window.CrozzoOperativeReservorio.persist === 'function') {
+      const r = window.CrozzoOperativeReservorio.persist(snap);
+      if (!r.ok) return;
+    } else {
+      if (Array.isArray(snap.comandaHistory) && snap.comandaHistory.length > 120) {
+        snap.comandaHistory = snap.comandaHistory.slice(0, 120);
+      }
+      const json = JSON.stringify(snap);
+      if (json.length > 4500000) {
+        console.warn('[runtime] snapshot demasiado grande; no se guardó');
+        return;
+      }
+      try {
         localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
-      } else {
-        throw eSet;
+      } catch (eSet) {
+        if (typeof window.crozzoIsQuotaError === 'function' && window.crozzoIsQuotaError(eSet) && typeof window.crozzoPruneExpendableStorage === 'function' && window.crozzoPruneExpendableStorage() > 0) {
+          localStorage.setItem(CROZZO_POS_RUNTIME_LS, json);
+        } else {
+          throw eSet;
+        }
       }
     }
     try {
@@ -9355,9 +9367,15 @@ window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
 window.collectPosRuntimeState = collectPosRuntimeState;
 function loadPosRuntimeFromLocalStorage() {
   try {
-    const raw = localStorage.getItem(CROZZO_POS_RUNTIME_LS);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
+    let s = null;
+    if (window.CrozzoOperativeReservorio && typeof window.CrozzoOperativeReservorio.loadRaw === 'function') {
+      s = window.CrozzoOperativeReservorio.loadRaw();
+    }
+    if (!s) {
+      const raw = localStorage.getItem(CROZZO_POS_RUNTIME_LS);
+      if (!raw) return false;
+      s = JSON.parse(raw);
+    }
     return applyPosRuntimeSnapshot(s);
   } catch (e) {
     console.warn('[runtime] load', e);
@@ -23315,6 +23333,13 @@ window.crozzoReconcileAllSlotCartsFromComandas = crozzoReconcileAllSlotCartsFrom
  * Lo reciente y lo no confirmado (en vuelo) se conserva → no se pierde nada.
  */
 function crozzoRemoveStaleComandas(activeTids, activeIds, pendingKeys, graceMs) {
+  if (
+    window.CrozzoOperativeReservorio &&
+    typeof window.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
+    !window.CrozzoOperativeReservorio.allowAutoDiscard({})
+  ) {
+    return false;
+  }
   if (!Array.isArray(comandas) || !comandas.length) return false;
   activeTids = activeTids || {};
   activeIds = activeIds || {};
@@ -24664,20 +24689,36 @@ function crozzoCloseCajaOrderSession(opts) {
   opts = opts || {};
   var closed = false;
   if (tipoServicioCaja === 'mesa' && cajaMesaOrderOpen) {
+    try {
+      if (typeof crozzoReconcileSlotCartFromComandas === 'function') {
+        crozzoReconcileSlotCartFromComandas('mesa', mesaSeleccionada);
+      }
+    } catch (_) {}
     crozzoPersistClienteSlotForRef('mesa', mesaSeleccionada, { skipSave: true });
     cajaMesaOrderOpen = false;
     crozzoReleaseCajaSlotSession('mesa', mesaSeleccionada);
     closed = true;
   } else if (tipoServicioCaja === 'llevar' && cajaLlevarOrderOpen) {
+    try {
+      if (typeof crozzoReconcileSlotCartFromComandas === 'function') {
+        crozzoReconcileSlotCartFromComandas('llevar', llevarSeleccionado);
+      }
+    } catch (_) {}
     crozzoPersistClienteSlotForRef('llevar', llevarSeleccionado, { skipSave: true });
     cajaLlevarOrderOpen = false;
     crozzoReleaseCajaSlotSession('llevar', llevarSeleccionado);
     closed = true;
   }
-  if (closed && !opts.skipSync) {
+  if (closed) {
     try {
-      crozzoSyncPosRuntimeCritical('caja_close_order');
+      if (typeof crozzoFlushPosRuntimeSave === 'function') crozzoFlushPosRuntimeSave();
+      else if (typeof savePosRuntimeToLocalStorage === 'function') savePosRuntimeToLocalStorage();
     } catch (_) {}
+    if (!opts.skipSync) {
+      try {
+        crozzoSyncPosRuntimeCritical('caja_close_order');
+      } catch (_) {}
+    }
   }
   try {
     if (typeof crozzoRefreshSlotLocksUi === 'function') crozzoRefreshSlotLocksUi();

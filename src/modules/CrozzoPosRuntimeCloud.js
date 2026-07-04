@@ -1089,8 +1089,16 @@
       var kind = parts[0];
       if (kind !== 'mesa' && kind !== 'llevar') return;
       if (__mesaSlotSig[key] === emptySig) return; // ya está vacía en la nube
-      var ref = parts.slice(1).join(':');
-      rows.push({
+        var ref = parts.slice(1).join(':');
+        if (
+          typeof global.CrozzoOperativeReservorio !== 'undefined' &&
+          global.CrozzoOperativeReservorio &&
+          typeof global.CrozzoOperativeReservorio.allowCloudAuthoritativeEmpty === 'function' &&
+          !global.CrozzoOperativeReservorio.allowCloudAuthoritativeEmpty(kind, ref)
+        ) {
+          return;
+        }
+        rows.push({
         location_id: c.locationId,
         business_id: c.businessId,
         kind: kind,

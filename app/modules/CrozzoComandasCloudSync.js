@@ -1141,6 +1141,13 @@
   }
 
   function reconcileStaleLocalComandas(cloudRows) {
+    if (
+      global.CrozzoOperativeReservorio &&
+      typeof global.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
+      !global.CrozzoOperativeReservorio.allowAutoDiscard({})
+    ) {
+      return false;
+    }
     var activeTids = {};
     var activeIds = {};
     (cloudRows || []).forEach(function (r) {

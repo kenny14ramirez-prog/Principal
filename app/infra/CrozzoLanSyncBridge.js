@@ -580,7 +580,7 @@
       _runtimeBackoffUntil = 0;
       var applied = global.crozzoApplyRemoteRuntimeRow(j.payload, j.saved_at || null, { quiet: true });
       if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-        global.crozzoHandleRemoteRuntimeUiSync();
+        global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
       }
       return applied;
     } catch (e) {

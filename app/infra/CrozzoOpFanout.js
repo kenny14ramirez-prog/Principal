@@ -167,11 +167,6 @@
       sendEstadoLan(comanda, est);
       sendEstadoMesh(comanda, est, !cloudPushOk());
     }
-    safe(function () {
-      if (typeof global.crozzoActivateLocalSyncPath === 'function') {
-        global.crozzoActivateLocalSyncPath('op_fanout_estado').catch(function () {});
-      }
-    });
 
     watchPending(opId, function retryEstado(retries) {
       sendEstadoLan(comanda, est);
@@ -251,11 +246,6 @@
       safe(function () {
         if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.emitWithDelta === 'function') {
           global.CrozzoLanOpsSync.emitWithDelta('runtime', { at: Date.now(), pri: priority });
-        }
-      });
-      safe(function () {
-        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
-          global.crozzoActivateLocalSyncPath('op_fanout_runtime').catch(function () {});
         }
       });
     }
