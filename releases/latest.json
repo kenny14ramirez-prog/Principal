@@ -1,29 +1,16 @@
 {
-  "id": "1.0.222-critical",
-  "version": "v1.0.222",
-  "semver": "1.0.222",
+  "id": "1.0.223-critical",
+  "version": "v1.0.223",
+  "semver": "1.0.223",
   "type": "critical",
-  "message": "256325",
-  "publishedAt": "2026-07-04T00:17:00.695Z",
+  "message": "852",
+  "publishedAt": "2026-07-04T01:11:47.344Z",
   "installMode": "auto",
   "changelog": [
-    "256325"
+    "852"
   ],
-  "updatedAt": "2026-07-04T00:17:00.695Z",
+  "updatedAt": "2026-07-04T01:11:47.344Z",
   "entries": [
-    {
-      "id": "1.0.198-critical",
-      "version": "v1.0.198",
-      "semver": "1.0.198",
-      "type": "critical",
-      "message": "parche de coneciones v4 + actualizacion de reconocimiento wifi",
-      "publishedAt": "2026-06-27T19:06:43.244Z",
-      "installMode": "auto",
-      "changelog": [
-        "parche de coneciones v4",
-        "actualizacion de reconocimiento wifi"
-      ]
-    },
     {
       "id": "1.0.199-critical",
       "version": "v1.0.199",
@@ -313,6 +300,18 @@
       "installMode": "auto",
       "changelog": [
         "256325"
+      ]
+    },
+    {
+      "id": "1.0.223-critical",
+      "version": "v1.0.223",
+      "semver": "1.0.223",
+      "type": "critical",
+      "message": "852",
+      "publishedAt": "2026-07-04T01:11:47.344Z",
+      "installMode": "auto",
+      "changelog": [
+        "852"
       ]
     }
   ]

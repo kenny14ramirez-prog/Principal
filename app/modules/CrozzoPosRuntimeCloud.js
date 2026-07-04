@@ -13,6 +13,8 @@
   var SILENCE_WATCHDOG_MS = 18000;
   var MESA_PULL_COALESCE_MS = 420;
   var MESA_PULL_MIN_GAP_MS = 900;
+  var RT_REFRESH_MIN_MS = 5500;
+  var RT_CLOSED_REACT_MS = 2500;
   var ECHO_MS = 2600;
   var STABILITY_MS = 26000;
   var MAX_CART_NAME = 36;
@@ -871,6 +873,9 @@
   var MESA_TABLE = 'crozzo_mesa_runtime';
   var __mesaMode = null; // null=desconocido, true=por-mesa, false=fila unica
   var __mesaSlotSig = {}; // "kind:ref" -> firma; solo subimos lo que cambia
+  var __mesaSlotStableSig = {}; // meta: presencia sin timestamps volátiles
+  var __lastAppliedPresenceStableSig = '';
+  var __lastRuntimeSubscribeAttemptAt = 0;
   var __mesaPullTimer = null;
   var __mesaPullPending = false;
   var __lastMesaPullAt = 0;
@@ -906,6 +911,7 @@
     Object.keys(snap || {}).forEach(function (k) {
       if (CART_KEYS.indexOf(k) >= 0) return;
       if (UI_LOCAL_KEYS.indexOf(k) >= 0) return;
+      if (k === 'slotSessionPresence') return;
       // savedAt es VOLÁTIL (cambia en cada push). Si va en el payload de la fila
       // meta, su firma cambia siempre → la fila meta se re-escribe en CADA push →
       // evento realtime → pull → tormenta de "mismo contenido". Lo excluimos: el
@@ -915,7 +921,48 @@
       meta[k] = snap[k];
     });
     meta._c = 1;
+    try {
+      if (typeof global.crozzoExportSlotSessionPresenceForCloud === 'function') {
+        meta.slotSessionPresence = global.crozzoExportSlotSessionPresenceForCloud();
+      } else if (snap && snap.slotSessionPresence) {
+        meta.slotSessionPresence = snap.slotSessionPresence;
+      }
+    } catch (_) {}
     return meta;
+  }
+
+  /** Presencia sin expiresAt/at — evita re-push meta en cada heartbeat. */
+  function metaStableSig(meta) {
+    var clone = JSON.parse(JSON.stringify(meta || {}));
+    var pres = clone.slotSessionPresence;
+    if (pres && typeof pres === 'object') {
+      ['mesa', 'llevar'].forEach(function (tipo) {
+        var bag = pres[tipo] || {};
+        Object.keys(bag).forEach(function (ref) {
+          var peers = bag[ref] || {};
+          Object.keys(peers).forEach(function (devId) {
+            var p = peers[devId];
+            if (!p || typeof p !== 'object') return;
+            delete p.expiresAt;
+            delete p.at;
+          });
+        });
+      });
+    }
+    delete clone.savedAt;
+    try {
+      return JSON.stringify(clone);
+    } catch (_) {
+      return String(Date.now()) + Math.random();
+    }
+  }
+
+  function slotPresenceStableSig(presence) {
+    try {
+      return metaStableSig({ slotSessionPresence: presence || {}, _c: 1 });
+    } catch (_) {
+      return '';
+    }
   }
 
   function mesaRowsFromSnap(snap, c) {
@@ -1022,6 +1069,7 @@
 
   async function pushMesaRows(snap, c) {
     var sb = global.__SUPABASE;
+    var forceMetaPresence = !!global.__crozzoForceMetaPresencePush;
     var rows = mesaRowsFromSnap(snap, c);
     // VACIADO AUTORITATIVO: una mesa/llevar que ANTES empujamos (está en
     // __mesaSlotSig) y que YA NO aparece en el snap (caja la borró/liquidó/movió/
@@ -1062,6 +1110,11 @@
       } catch (_) {
         sig = String(Date.now());
       }
+      if (rows[i].kind === 'meta') {
+        var stable = metaStableSig(rows[i].payload);
+        if (!forceMetaPresence && __mesaSlotStableSig[key] === stable) continue;
+        __mesaSlotStableSig[key] = stable;
+      }
       if (__mesaSlotSig[key] !== sig) {
         __mesaSlotSig[key] = sig;
         toUpsert.push(rows[i]);
@@ -1071,6 +1124,7 @@
       __echoUntil = Date.now() + ECHO_MS;
       __lastPushSig = payloadSig(snap);
       __lastPushAt = Date.now();
+      if (forceMetaPresence) global.__crozzoForceMetaPresencePush = false;
       return true;
     }
     var metaPushIdx = -1;
@@ -1108,6 +1162,7 @@
         __echoUntil = Date.now() + ECHO_MS;
         __lastPushSig = payloadSig(snap);
         __lastPushAt = Date.now();
+        if (forceMetaPresence) global.__crozzoForceMetaPresencePush = false;
         return true;
       }
       noteCloudErr(res.error);
@@ -1120,11 +1175,13 @@
       toUpsert.forEach(function (r) {
         delete __mesaSlotSig[r.kind + ':' + r.ref];
       });
+      if (forceMetaPresence) global.__crozzoForceMetaPresencePush = false;
       return false;
     } catch (e) {
       toUpsert.forEach(function (r) {
         delete __mesaSlotSig[r.kind + ':' + r.ref];
       });
+      if (forceMetaPresence) global.__crozzoForceMetaPresencePush = false;
       return false;
     }
   }
@@ -1189,7 +1246,7 @@
     if (!applied) return;
     try {
       if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-        global.crozzoHandleRemoteRuntimeUiSync();
+        global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
       }
     } catch (_) {}
   }
@@ -1364,6 +1421,24 @@
     var contentSig = payloadSig(pay);
     var sameContent = contentSig === __lastAppliedContentSig;
     if (sameContent && !(opts && opts.force)) {
+      var presStable = slotPresenceStableSig(pay.slotSessionPresence);
+      if (
+        presStable &&
+        presStable !== __lastAppliedPresenceStableSig &&
+        typeof global.applyPosRuntimeSnapshot === 'function'
+      ) {
+        var presOk = global.applyPosRuntimeSnapshot(
+          { v: pay.v || 1, slotSessionPresence: pay.slotSessionPresence },
+          { skipUiFields: true, presenceOnly: true }
+        );
+        if (presOk) {
+          __lastAppliedPresenceStableSig = presStable;
+          if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
+          notifyRuntimeUiIfApplied(true);
+          maybeRerender();
+          return true;
+        }
+      }
       if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
       var nowLog = Date.now();
       if (nowLog - __lastDiscardLogAt > 8000) {
@@ -1447,6 +1522,7 @@
     if (!ok) return false;
     __lastRemoteAt = remoteAt;
     __lastAppliedContentSig = contentSig;
+    __lastAppliedPresenceStableSig = slotPresenceStableSig(pay.slotSessionPresence);
     if (pickerSig) __lastAppliedPickerSig = pickerSig;
     else if (localPickerSig) __lastAppliedPickerSig = localPickerSig;
     try {
@@ -1624,7 +1700,7 @@
               }
               if (cloudUnderPressure()) return;
               scheduleRuntimeResubscribe(st);
-            }, 0);
+            }, RT_CLOSED_REACT_MS);
           }
         });
       } catch (e) {
@@ -1668,6 +1744,7 @@
       __mesaPullTimer = null;
     }
     __mesaSlotSig = {};
+    __mesaSlotStableSig = {};
     teardownRuntimeChannel();
   }
 
@@ -1686,6 +1763,7 @@
       __tableMissing = false;
       __mesaMode = null; // re-detectar modo por-mesa tras reparar RLS/tabla
       __mesaSlotSig = {};
+    __mesaSlotStableSig = {};
     }
     if (__started) {
       if (!cloudTransportActive()) {
@@ -1694,7 +1772,13 @@
       }
       // No re-suscribir si el canal ya está vivo — el teardown generaría
       // un CLOSED innecesario que corta la sincronización de mesas.
-      if (!__realtimeLive) subscribeRealtime('refresh');
+      if (!__realtimeLive) {
+        var nowRt = Date.now();
+        if (__runtimeSubscribing || __rtResubTimer) return;
+        if (nowRt - __lastRuntimeSubscribeAttemptAt < RT_REFRESH_MIN_MS) return;
+        __lastRuntimeSubscribeAttemptAt = nowRt;
+        subscribeRealtime('refresh');
+      }
       return;
     }
     var c = ctx();
@@ -1843,6 +1927,7 @@
     __lastRemoteAt = 0;
     __lastPushSig = '';
     __mesaSlotSig = {};
+    __mesaSlotStableSig = {};
   };
 
   /** Arranque/reparación central de sync nube (runtime + comandas). */

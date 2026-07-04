@@ -38,6 +38,8 @@
   // llamaba stopComandasCloudSync() → loop SUBSCRIBED→CLOSED.
   // Con 2500 ms el orchestrator ya estabilizó su estado y la decisión es real.
   var RT_CLOSED_REACT_MS = 2500;
+  var RT_REFRESH_MIN_MS = 5500;
+  var __lastComandaSubscribeAttemptAt = 0;
 
   function noteCloudErr(err) {
     try {
@@ -1437,6 +1439,7 @@
     if (__comandaSubscribing) return;
     var ctx = cloudCtx();
     if (!tenantIdsReady(ctx)) return;
+    __lastComandaSubscribeAttemptAt = Date.now();
     __comandaSubscribing = true;
     try {
       var bid = String(ctx.businessId || '').trim();
@@ -1558,7 +1561,13 @@
         stopComandasCloudSync();
         return;
       }
-      if (!__realtimeLive) subscribeComandaRealtime('refresh');
+      if (!__realtimeLive) {
+        var nowRt = Date.now();
+        if (__comandaSubscribing || __rtResubTimer) return;
+        if (nowRt - __lastComandaSubscribeAttemptAt < RT_REFRESH_MIN_MS) return;
+        __lastComandaSubscribeAttemptAt = nowRt;
+        subscribeComandaRealtime('refresh');
+      }
       return;
     }
     if (!tierAllowsCloudRead()) {

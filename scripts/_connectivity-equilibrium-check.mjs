@@ -135,7 +135,7 @@ mustInclude('app/infra/CrozzoCloudThrottle.js', ['canRunDrain', 'markPressure', 
 const posMain = join(root, 'app/core/CrozzoPosMain.js');
 if (existsSync(posMain)) {
   const pm = readFileSync(posMain, 'utf8');
-  const fn = pm.match(/function crozzoHandleRemoteRuntimeUiSync\(\) \{[\s\S]*?\n\}/);
+  const fn = pm.match(/function crozzoHandleRemoteRuntimeUiSync\(\s*opts?\)? \{[\s\S]*?\n\}/);
   assert(
     fn && !fn[0].includes('crozzoPullComandasFromCloud'),
     'Runtime UI sin pull comandas',
