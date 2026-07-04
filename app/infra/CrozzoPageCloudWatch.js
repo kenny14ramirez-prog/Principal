@@ -11,9 +11,9 @@
   'use strict';
 
   var SP = global.CrozzoCloudSyncPriorities;
-  var TICK_MS = 2500;
-  var TICK_IDLE_MS = 6200;
-  var TICK_ACTIVE_MS = 2200;
+  var TICK_MS = 1800;
+  var TICK_IDLE_MS = 4200;
+  var TICK_ACTIVE_MS = 1400;
   var __lastSoftProbeAt = 0;
   var SOFT_PROBE_GAP_MS = 16000;
   var __activePage = '';
@@ -761,26 +761,38 @@
     return true;
   }
 
-  /** Misma lógica Z0/Z1/Z3: nube si puede; si no, LAN en tiempo real (equipo↔equipo). */
+  /** Z0: nube + LAN en híbrido (paralelo); si no híbrido, prioriza nube y cae a LAN. */
   function refreshOpsTransports(opts) {
     opts = opts || {};
-    var transport = 'none';
-    try {
-      if (typeof global.crozzoActiveSyncTransport === 'function') {
-        transport = global.crozzoActiveSyncTransport({ kind: 'transport', force: !!opts.force });
-      }
-    } catch (_) {}
-    if (transport === 'cloud') {
+    if (!isZone0Page(__activePage)) {
+      stopCloudTransportsQuiet();
       stopLanOpsQuiet();
-      refreshCloudTransports(opts);
-      return 'cloud';
+      return 'none';
     }
-    stopCloudTransportsQuiet();
-    if (transport === 'lan') {
-      refreshLanTransports(opts);
-      return 'lan';
+    var hybrid = false;
+    try {
+      if (typeof global.crozzoRuntimeSyncHybrid === 'function') hybrid = global.crozzoRuntimeSyncHybrid();
+    } catch (_) {}
+    var forceHybrid = hybrid || !!opts.force;
+    var cloudOk = cloudBgAllowed({ kind: 'transport', force: forceHybrid });
+    if (!cloudOk && hybrid) {
+      try {
+        cloudOk =
+          typeof global.crozzoTierAllowsCloudSync === 'function' && global.crozzoTierAllowsCloudSync();
+      } catch (_) {}
     }
-    stopLanOpsQuiet();
+    var lanOk = localBgAllowed({ kind: 'transport', force: forceHybrid });
+    if (!lanOk && hybrid) {
+      try {
+        lanOk = typeof global.crozzoLocalSyncPathReady === 'function' && global.crozzoLocalSyncPathReady();
+      } catch (_) {}
+    }
+    if (cloudOk) refreshCloudTransports(Object.assign({}, opts, { force: forceHybrid }));
+    else stopCloudTransportsQuiet();
+    if (lanOk) refreshLanTransports(Object.assign({}, opts, { force: forceHybrid }));
+    else stopLanOpsQuiet();
+    if (cloudOk) return 'cloud';
+    if (lanOk) return 'lan';
     return 'none';
   }
 

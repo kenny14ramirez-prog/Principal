@@ -6,13 +6,13 @@
   'use strict';
 
   var TABLE = 'crozzo_sede_runtime';
-  var DEBOUNCE_FAST_MS = 180;
-  var DEBOUNCE_NORMAL_MS = 650;
-  var PULL_POLL_LIVE_MS = 12000;
-  var PULL_POLL_FALLBACK_MS = 5000;
-  var SILENCE_WATCHDOG_MS = 30000;
-  var MESA_PULL_COALESCE_MS = 1800;
-  var MESA_PULL_MIN_GAP_MS = 3500;
+  var DEBOUNCE_FAST_MS = 120;
+  var DEBOUNCE_NORMAL_MS = 380;
+  var PULL_POLL_LIVE_MS = 8000;
+  var PULL_POLL_FALLBACK_MS = 2800;
+  var SILENCE_WATCHDOG_MS = 18000;
+  var MESA_PULL_COALESCE_MS = 420;
+  var MESA_PULL_MIN_GAP_MS = 900;
   var ECHO_MS = 2600;
   var STABILITY_MS = 26000;
   var MAX_CART_NAME = 36;
@@ -59,6 +59,9 @@
   function runtimeLanPushAllowed() {
     if (typeof global.crozzoLocalSyncPathReady === 'function' && !global.crozzoLocalSyncPathReady()) {
       return false;
+    }
+    if (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan()) {
+      return true;
     }
     if (typeof global.crozzoCloudSyncPathReady === 'function' && global.crozzoCloudSyncPathReady()) {
       return false;
@@ -1196,7 +1199,10 @@
     if (__mesaPullTimer) return;
     // Coalescer ráfagas Realtime → un pull. Min-gap en pullMesaRows evita SELECT
     // repetidos cuando muchos equipos renuevan presencia (equilibrio meses en nube).
-    var delay = Number(opts.deferMs) || MESA_PULL_COALESCE_MS;
+    var delay = Number(opts.deferMs);
+    if (!Number.isFinite(delay) || delay < 0) {
+      delay = opts.immediate ? 60 : MESA_PULL_COALESCE_MS;
+    }
     __mesaPullTimer = global.setTimeout(function () {
       __mesaPullTimer = null;
       pullMesaRows({ quiet: true, skipRender: true })
@@ -1454,11 +1460,7 @@
     } catch (_) {}
     var uiQuiet = !!(opts && (opts.skipRender || opts.quiet));
     if (!uiQuiet) maybeRerender();
-    if (!uiQuiet) {
-      try {
-        if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') global.crozzoHandleRemoteRuntimeUiSync();
-      } catch (_) {}
-    }
+    notifyRuntimeUiIfApplied(true);
     return true;
   }
 
@@ -1588,13 +1590,16 @@
         var onEvt = useMesa
           ? function () {
               __lastRtEventAt = Date.now();
-              if (!opRealtimeActive()) return; // realtime solo en operación
-              scheduleMesaPull();
+              if (!opRealtimeActive()) return;
+              scheduleMesaPull({ immediate: true, deferMs: 80 });
             }
           : function (p) {
               __lastRtEventAt = Date.now();
               if (!opRealtimeActive()) return;
-              if (p.new) applyRemoteRow(p.new, { quiet: true });
+              if (p.new) {
+                var appliedRow = applyRemoteRow(p.new, { quiet: true });
+                if (appliedRow) notifyRuntimeUiIfApplied(true);
+              }
             };
         __pgCh.on('postgres_changes', { event: 'INSERT', schema: 'public', table: tbl, filter: filter }, onEvt);
         __pgCh.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: tbl, filter: filter }, onEvt);

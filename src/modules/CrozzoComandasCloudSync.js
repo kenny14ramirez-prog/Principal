@@ -9,9 +9,9 @@
   var __pullTimer = null;
   var __realtimeLive = false;
   var __lastRtEventAt = 0;
-  var SILENCE_WATCHDOG_MS = 30000;
-  var PULL_MS_LIVE = 12000;
-  var PULL_MS_FALLBACK = 4500;
+  var SILENCE_WATCHDOG_MS = 18000;
+  var PULL_MS_LIVE = 8000;
+  var PULL_MS_FALLBACK = 2600;
   var __pushEcho = {};
   var __printedTids = {};
   var TID_TTL_MS = 600000;
@@ -1117,6 +1117,21 @@
     try {
       if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
     } catch (_) {}
+    try {
+      var tipoRc = String(pay.tipoServicio || '').trim();
+      var refRc = String(pay.referencia || pay.mesaRef || '').trim();
+      if (
+        changed &&
+        refRc &&
+        (tipoRc === 'mesa' || tipoRc === 'llevar') &&
+        typeof global.crozzoReconcileSlotCartFromComandas === 'function'
+      ) {
+        global.crozzoReconcileSlotCartFromComandas(tipoRc, refRc);
+      }
+      if (changed && typeof global.crozzoReconcileOpenSlotCartFromComandas === 'function') {
+        global.crozzoReconcileOpenSlotCartFromComandas();
+      }
+    } catch (_) {}
     if (!opts.skipRender) {
       scheduleComandaOperationalUiRefresh();
     }
@@ -1507,7 +1522,7 @@
           // estabilizar su estado. Si el tier sigue sin cloud después de ese
           // tiempo, la decisión de parar es real y no un parpadeo.
           global.setTimeout(function () {
-            if (!tierAllowsCloudRead() || !cloudWanReady()) {
+            if (!tierAllowsCloudRead()) {
               stopComandasCloudSync();
               return;
             }

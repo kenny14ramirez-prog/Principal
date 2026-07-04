@@ -11,7 +11,7 @@
   var __operativeInitialSyncDone = false;
   var __sessionKey = '';
   var OVERLAY_MAX_MS = 4500;
-  var RECENT_CLOUD_PULL_MS = 15000;
+  var RECENT_CLOUD_PULL_MS = 9000;
 
   function withTimeout(promise, ms, fallback) {
     var timer;

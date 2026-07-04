@@ -302,6 +302,21 @@
 
     // Sync nube: postInitCloud (CrozzoPosCloud) ya lo dispara; aqui solo respaldo si aun no arranco.
     safe(function () {
+      if (typeof global.crozzoEnsureSedeLocationId === 'function') global.crozzoEnsureSedeLocationId();
+      var can = '';
+      var loc = '';
+      safe(function () {
+        var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+        loc = String(md.locationId || '').trim();
+        if (typeof global.crozzoCanonicalLocationFromBusiness === 'function') {
+          can = String(global.crozzoCanonicalLocationFromBusiness(md.businessId) || '').trim();
+        }
+      });
+      if (can && loc && loc !== 'default' && loc !== can && typeof global.crozzoForceSedeCanonical === 'function') {
+        global.crozzoForceSedeCanonical();
+      }
+    });
+    safe(function () {
       if (typeof global.crozzoEnsureCloudSyncActive === 'function') {
         global.setTimeout(function () {
           if (global.__crozzoCloudSyncBootstrapped) return;

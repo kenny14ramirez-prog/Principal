@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-07-03T23:10:08.475Z",
+  "updatedAt": "2026-07-04T00:17:00.695Z",
   "entries": [
-    {
-      "id": "1.0.197-critical",
-      "version": "v1.0.197",
-      "semver": "1.0.197",
-      "type": "critical",
-      "message": "actualizacion del cemonucaciones v2 ",
-      "publishedAt": "2026-06-27T17:09:55.926Z",
-      "installMode": "auto",
-      "changelog": [
-        "actualizacion del cemonucaciones v2"
-      ]
-    },
     {
       "id": "1.0.198-critical",
       "version": "v1.0.198",
@@ -303,6 +291,18 @@
       "installMode": "auto",
       "changelog": [
         "85858"
+      ]
+    },
+    {
+      "id": "1.0.222-critical",
+      "version": "v1.0.222",
+      "semver": "1.0.222",
+      "type": "critical",
+      "message": "256325",
+      "publishedAt": "2026-07-04T00:17:00.695Z",
+      "installMode": "auto",
+      "changelog": [
+        "256325"
       ]
     }
   ]

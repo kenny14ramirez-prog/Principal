@@ -548,6 +548,14 @@
     if (role === 'A' && wanUp()) {
       return typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
     }
+    if (
+      role === 'B' &&
+      wanUp() &&
+      typeof global.crozzoHybridWanEvidence === 'function' &&
+      global.crozzoHybridWanEvidence()
+    ) {
+      return typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();
+    }
     var tier = String(__state.detectorTier || '');
     if (tier === 'cloud' && wanUp()) {
       return typeof global.crozzoOnlineConfigReady === 'function' && global.crozzoOnlineConfigReady();

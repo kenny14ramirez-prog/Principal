@@ -197,7 +197,11 @@
         global.crozzoPushComandasCloudByIds(ids);
       }
     });
-    if (hybridMode() || !cloudPushOk()) {
+    var parallelLan =
+      hybridMode() ||
+      !cloudPushOk() ||
+      (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan());
+    if (parallelLan) {
       safe(function () {
         if (typeof global.crozzoPushComandasLanByIds === 'function') {
           global.crozzoPushComandasLanByIds(ids);
@@ -232,10 +236,37 @@
     });
   }
 
+  function runtimeTouch(priority) {
+    priority = priority === 'flush' ? 'flush' : priority === 'fast' ? 'fast' : 'normal';
+    safe(function () {
+      if (typeof global.crozzoSchedulePosRuntimeCloudPush === 'function') {
+        global.crozzoSchedulePosRuntimeCloudPush(priority);
+      }
+    });
+    var parallelLan =
+      hybridMode() ||
+      !cloudPushOk() ||
+      (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan());
+    if (parallelLan) {
+      safe(function () {
+        if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.emitWithDelta === 'function') {
+          global.CrozzoLanOpsSync.emitWithDelta('runtime', { at: Date.now(), pri: priority });
+        }
+      });
+      safe(function () {
+        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+          global.crozzoActivateLocalSyncPath('op_fanout_runtime').catch(function () {});
+        }
+      });
+    }
+  }
+
   global.CrozzoOpFanout = {
     comandaEstado: comandaEstado,
     comandaNewByIds: comandaNewByIds,
+    runtimeTouch: runtimeTouch,
   };
   global.crozzoOpFanoutComandaEstado = comandaEstado;
   global.crozzoOpFanoutComandaNewByIds = comandaNewByIds;
+  global.crozzoOpFanoutRuntimeTouch = runtimeTouch;
 })(typeof window !== 'undefined' ? window : globalThis);

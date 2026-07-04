@@ -8,9 +8,9 @@
 (function (global) {
   'use strict';
 
-  var FAST_PAGES = { comandas: 1, cocina: 1 };
-  var FAST_MIN_GAP_MS = 28;
-  var NORMAL_DEBOUNCE_MS = 320;
+  var FAST_PAGES = { comandas: 1, cocina: 1, cajero: 1, tablets: 1 };
+  var FAST_MIN_GAP_MS = 16;
+  var NORMAL_DEBOUNCE_MS = 120;
   var __lastActivityAt = 0;
   var __lastFastPaintAt = 0;
   var __fastRaf = 0;

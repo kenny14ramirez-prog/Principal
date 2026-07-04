@@ -90,7 +90,36 @@ mustInclude('app/modules/CrozzoOperativeSyncGate.js', [
   'markOperativeReady',
 ], 'Sync gate pull runtime LAN');
 
-mustInclude('app/core/CrozzoPosMain.js', ['crozzoMeseroOperativeTabletPerm', 'renderPage background omitido'], 'Mesero Z0 perm fallback');
+mustInclude('app/core/CrozzoPosMain.js', [
+  'crozzoMeseroOperativeTabletPerm',
+  'renderPage background omitido',
+  'crozzoSlotCartDetachBlocksRemoteCart',
+  'crozzoReconcileAllSlotCartsFromComandas',
+  'crozzoRuntimeSyncHybrid',
+  'crozzoHybridWanEvidence',
+  'hybrid_lan_parallel',
+  'crozzoForceSedeCanonical',
+  'crozzoCloudOperationalRealtimeHealthy(14000)',
+], 'Mesero Z0 + sync híbrido + sede canónica');
+
+mustInclude('app/infra/CrozzoPageCloudWatch.js', [
+  'refreshOpsTransports',
+  'forceHybrid',
+  'crozzoRuntimeSyncHybrid',
+], 'PageCloudWatch híbrido paralelo');
+
+mustInclude('app/infra/CrozzoCloudSyncPriorities.js', [
+  'crozzoZ0HybridParallelLan',
+  'SUBSCRIBED sin eventos',
+], 'Z0 híbrido LAN paralelo');
+
+mustInclude('app/infra/CrozzoOpFanout.js', ['runtimeTouch', 'crozzoOpFanoutRuntimeTouch'], 'Fanout runtime mesas');
+
+mustInclude('app/modules/CrozzoPosRuntimeCloud.js', [
+  'notifyRuntimeUiIfApplied(true)',
+  'MESA_PULL_COALESCE_MS = 420',
+  'crozzoZ0HybridParallelLan',
+], 'Runtime realtime → UI + LAN paralelo');
 const idx = readFileSync(join(root, 'app/index.html'), 'utf8');
 assert(idx.includes('CrozzoFleetOperationalReconcile.js'), 'Fleet script index', 'index.html');
 assert(idx.includes('CrozzoPairingAutoConnect.js'), 'AutoConnect script index', 'index.html');

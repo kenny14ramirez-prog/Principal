@@ -71,28 +71,28 @@
       basico: 'restaurante',
       note: 'Mesas, carritos, comandando, locks de slot',
       domains: ['runtime', 'comandas'],
-      intervalMs: 5000,
+      intervalMs: 3200,
     },
     tablets: {
       p: P0,
       basico: 'restaurante',
       note: 'Pedidos mesa/llevar desde tablet',
       domains: ['runtime', 'comandas'],
-      intervalMs: 5000,
+      intervalMs: 3200,
     },
     comandas: {
       p: P0,
       basico: 'restaurante',
       note: 'Corcho / estados de comanda entre equipos',
       domains: ['comandas'],
-      intervalMs: 4000,
+      intervalMs: 2800,
     },
     cocina: {
       p: P0,
       basico: 'restaurante',
       note: 'KDS — cambios de estado cocina al instante',
       domains: ['comandas'],
-      intervalMs: 4000,
+      intervalMs: 2800,
     },
     'venta-comercial': {
       p: P0,
@@ -592,7 +592,13 @@
         out.tier = 'off';
         return out;
       }
-      if (lastAgo == null || lastAgo < RT_WARM_MS) {
+      // SUBSCRIBED sin eventos (filtro/sede mal) NO es sano — mantener LAN activo.
+      if (lastAgo == null) {
+        out.tier = 'warm';
+        out.warm = true;
+        return out;
+      }
+      if (lastAgo < RT_WARM_MS) {
         out.tier = 'healthy';
         out.healthy = true;
         return out;
@@ -818,6 +824,19 @@
    * Misma regla de zonas Z0/Z1/Z3 que la nube, pero por LAN cuando no hay internet.
    * Si la nube ya lleva el transporte en Z0, LAN realtime queda en standby (sin duplicar).
    */
+  function z0HybridParallelLan() {
+    try {
+      if (typeof global.crozzoRuntimeSyncHybrid === 'function' && !global.crozzoRuntimeSyncHybrid()) return false;
+      if (typeof global.crozzoOperationalRealtimeActive === 'function' && !global.crozzoOperationalRealtimeActive()) {
+        return false;
+      }
+      if (typeof global.crozzoLocalSyncPathReady === 'function' && !global.crozzoLocalSyncPathReady()) return false;
+    } catch (_) {
+      return false;
+    }
+    return true;
+  }
+
   function crozzoLocalSyncAllowed(opts) {
     opts = opts || {};
     var kind = String(opts.kind || '');
@@ -832,7 +851,7 @@
 
     if (!opts.force && (kind === 'realtime' || kind === 'transport' || !kind)) {
       try {
-        if (cloudOperationalRealtimeHealthy(30000)) {
+        if (!z0HybridParallelLan() && cloudOperationalRealtimeHealthy(12000)) {
           return false;
         }
         if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
@@ -1153,6 +1172,7 @@
   global.crozzoLocalSyncAllowed = crozzoLocalSyncAllowed;
   global.crozzoCloudOperationalRealtimeHealthy = cloudOperationalRealtimeHealthy;
   global.crozzoCloudOperationalRealtimeTier = cloudOperationalRealtimeTier;
+  global.crozzoZ0HybridParallelLan = z0HybridParallelLan;
   global.crozzoLocalRealtimeAllowed = crozzoLocalRealtimeAllowed;
   global.crozzoActiveSyncTransport = crozzoActiveSyncTransport;
   global.crozzoOpsSyncAllowed = crozzoOpsSyncAllowed;

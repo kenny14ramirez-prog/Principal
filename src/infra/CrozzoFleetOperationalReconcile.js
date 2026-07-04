@@ -9,7 +9,7 @@
 
   var __inflight = null;
   var __lastAt = 0;
-  var GAP_MS = 9000;
+  var GAP_MS = 5500;
 
   function safe(fn) {
     try {

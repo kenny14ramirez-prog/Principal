@@ -32,13 +32,13 @@
   var __pendingEmit = {};
   var __pendingDelta = {};
   var __lastComandaSig = '';
-  var RUNTIME_POLL_MS = 900;
-  var COMANDA_POLL_MS = 2400;
-  var COMANDA_POLL_FAST_MS = 2200;
-  var WATCHDOG_MS = 22000;
-  var PULL_DEBOUNCE_MS = 240;
-  var EMIT_DEBOUNCE_MS = 320;
-  var SILENCE_FORCE_MS = 14000;
+  var RUNTIME_POLL_MS = 650;
+  var COMANDA_POLL_MS = 1800;
+  var COMANDA_POLL_FAST_MS = 1400;
+  var WATCHDOG_MS = 16000;
+  var PULL_DEBOUNCE_MS = 120;
+  var EMIT_DEBOUNCE_MS = 180;
+  var SILENCE_FORCE_MS = 9000;
 
   function safe(fn) {
     try {
@@ -108,24 +108,42 @@
     return lanSyncAllowed({ kind: 'realtime' });
   }
 
-  /** Transporte LAN activo como primario (no duplicar cuando la nube lleva Z0). */
+  /** Transporte LAN activo: en Z0 híbrido siempre paralelo a nube. */
   function lanOpsTransportPrimary() {
     try {
+      if (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan()) {
+        return true;
+      }
       if (typeof global.crozzoActiveSyncTransport === 'function') {
         return global.crozzoActiveSyncTransport({ kind: 'transport' }) === 'lan';
       }
     } catch (_) {}
     if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
-      if (global.crozzoCloudOperationalRealtimeHealthy(30000)) return false;
+      if (global.crozzoCloudOperationalRealtimeHealthy(12000)) return false;
     }
     return tierAllowsLan();
   }
 
-  /** Realtime nube sano → polls/pulsos LAN en standby (WS + Realtime + pulso nube). */
+  function shouldRunLanOps() {
+    if (!opRealtimeActive()) return false;
+    try {
+      if (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan()) {
+        return lanSyncAllowed({ kind: 'transport', force: true });
+      }
+    } catch (_) {}
+    if (!lanSyncAllowed({ kind: 'transport' })) return false;
+    if (!lanOpsTransportPrimary()) return false;
+    return true;
+  }
+
+  /** Realtime nube sano → polls/pulsos LAN en standby (excepto Z0 híbrido paralelo). */
   function cloudRealtimeStandby() {
     try {
+      if (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan()) {
+        return false;
+      }
       if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
-        return global.crozzoCloudOperationalRealtimeHealthy(40000);
+        return global.crozzoCloudOperationalRealtimeHealthy(12000);
       }
     } catch (_) {}
     return false;
@@ -192,13 +210,6 @@
       __standbyTimer = null;
     }
     __standbyMode = false;
-  }
-
-  function shouldRunLanOps() {
-    if (!lanSyncAllowed({ kind: 'transport' })) return false;
-    if (!lanOpsTransportPrimary()) return false;
-    if (!opRealtimeActive()) return false;
-    return true;
   }
 
   function activeOpsPage() {

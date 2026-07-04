@@ -110,16 +110,38 @@ const result = await page.evaluate(async () => {
   );
   out.C_no_duplica = cartQty('31'); // unidades2 (no 4), comandado2
 
+  // D) Caja con slot detached debe reconstruir carrito para cobro.
+  window.currentPage = 'cajero';
+  window.crozzoSetSlotCartDetachedFromComandas('mesa', '32', true);
+  window.__crozzoEmergencyApplyComandaSnapshot(
+    {
+      id: 5003,
+      transaction_id: '55555555-5555-4555-8555-555555555555',
+      tipoServicio: 'mesa',
+      referencia: '32',
+      areaId: 'COCINA',
+      estado: 'pendiente',
+      items: [{ id: 1, nombre: 'Hamburguesa', cantidad: 1, precio: 10000 }],
+      createdAt: new Date().toISOString(),
+      lastUpdateAt: new Date().toISOString(),
+    },
+    { skipPrint: true, skipRender: true }
+  );
+  window.crozzoReconcileSlotCartFromComandas('mesa', '32');
+  out.D_caja_detached = cartQty('32');
+
   return out;
 });
 
 const A = result.A_caja_ve_comandado || {};
 const B = result.B_idempotente || {};
 const C = result.C_no_duplica || {};
+const D = result.D_caja_detached || {};
 const ok =
   A.lineas === 1 && A.unidades === 2 && A.comandado === 2 &&
   B.unidades === 2 && B.comandado === 2 &&
-  C.unidades === 2 && C.comandado === 2;
+  C.unidades === 2 && C.comandado === 2 &&
+  D.lineas === 1 && D.unidades === 1 && D.comandado === 1;
 
 console.log(JSON.stringify(result, null, 2));
 console.log('Errores de página:', errors.length, errors.slice(0, 5));
