@@ -271,6 +271,40 @@
           'A=nube · B=LAN · C=hotspot · D=malla · E=QR. El sistema elige solo sin bloquear la operación.'
         )
       );
+      var mind = safe(function () {
+        if (global.CrozzoDeviceMind && typeof global.CrozzoDeviceMind.evaluate === 'function') {
+          return global.CrozzoDeviceMind.evaluate({ quiet: true });
+        }
+        return typeof global.crozzoGetDeviceMindDecision === 'function' ? global.crozzoGetDeviceMindDecision() : null;
+      }, null);
+      if (mind && mind.human) {
+        rows.push(
+          row(
+            'mind-decision',
+            'Decisión de este equipo',
+            mind.primary === 'none' ? 'warn' : 'ok',
+            mind.human,
+            mind.meshStandby
+              ? 'Malla en escucha (no duplica lo que ya confirmó nube/LAN).'
+              : 'Prioridad automática según rutas disponibles; sin borrar datos locales.'
+          )
+        );
+      }
+      if (global.CrozzoOperationalIngest) {
+        var ingStats = safe(function () {
+          return typeof global.CrozzoOperationalIngest.stats === 'function' ? global.CrozzoOperationalIngest.stats() : null;
+        }, null);
+        rows.push(
+          row(
+            'ingest-gate',
+            'Ingest unificado (anti-duplicado)',
+            'ok',
+            'Boca única activa · prioridad nube > LAN > malla · OpAckRegistry + TID' +
+              (ingStats && ingStats.gateLogKeys ? ' · ' + ingStats.gateLogKeys + ' bloqueo(s) registrados' : ''),
+            'Mismo transaction_id por dos canales → se aplica una sola vez.'
+          )
+        );
+      }
       if (cap.brain) {
         var b = cap.brain;
         rows.push(

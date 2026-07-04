@@ -1036,6 +1036,16 @@
       } catch (_) {}
       return false;
     }
+    if (
+      !opts.forceApply &&
+      global.CrozzoOperationalIngest &&
+      typeof global.CrozzoOperationalIngest.gateComandaNew === 'function'
+    ) {
+      var gIn = global.CrozzoOperationalIngest.gateComandaNew(pay, { via: 'cloud' });
+      if (!gIn.apply && (gIn.reason === 'already_seen' || gIn.reason === 'own_echo' || gIn.reason === 'duplicate_tid')) {
+        return false;
+      }
+    }
     if (pay.printed_by && pay.printed_at) {
       try {
         var printKey = pay.transaction_id || String(pay.id || '');
@@ -1068,6 +1078,9 @@
         ':' +
         String(pay.lastUpdateAt || row.updated_at || '');
       global.crozzoOpEmitAck(ackId, 'cloud');
+    }
+    if (changed && global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.markComandaNew === 'function') {
+      global.CrozzoOperationalIngest.markComandaNew(pay, { via: 'cloud' });
     }
     var merged = findComandaForCloudPay(pay, row);
     if (!changed && merged && existed) {

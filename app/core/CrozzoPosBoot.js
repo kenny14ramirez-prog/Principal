@@ -33,6 +33,20 @@
       console.warn('[crozzo] StartupReady', eSr);
     }
     try {
+      if (window.CrozzoEasyConnect && typeof CrozzoEasyConnect.afterMainInit === 'function') {
+        CrozzoEasyConnect.afterMainInit();
+      }
+    } catch (eEc) {
+      console.warn('[crozzo] EasyConnect', eEc);
+    }
+    try {
+      if (window.CrozzoPostPairConnect && typeof CrozzoPostPairConnect.resumeIfPending === 'function') {
+        CrozzoPostPairConnect.resumeIfPending();
+      }
+    } catch (ePpc) {
+      console.warn('[crozzo] PostPairConnect', ePpc);
+    }
+    try {
       if (typeof updateCrozzoServerConflictBadge === 'function') updateCrozzoServerConflictBadge();
     } catch (e2) {
       /* ignore */

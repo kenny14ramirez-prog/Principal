@@ -50,27 +50,34 @@
         : Promise.resolve(null);
     return prep.then(function () {
       if (token !== _renderToken) return;
-      var built =
-        typeof global.crozzoPairingBuildPayload === 'function'
-          ? global.crozzoPairingBuildPayload('tablet')
-          : { error: 'Emparejamiento no cargado aún.' };
-      if (typeof global.crozzoPairingPaintReceiverMeta === 'function') {
-        global.crozzoPairingPaintReceiverMeta(built, {
-          warnId: 'crozzoTabletQrQuickWarn',
-          bizId: 'crozzoTabletQrQuickBiz',
-        });
-      }
-      if (built.error) {
+      var buildAsync =
+        typeof global.crozzoPairingBuildPayloadAsync === 'function'
+          ? global.crozzoPairingBuildPayloadAsync('tablet')
+          : Promise.resolve(
+              typeof global.crozzoPairingBuildPayload === 'function'
+                ? global.crozzoPairingBuildPayload('tablet')
+                : { error: 'Emparejamiento no cargado aún.' }
+            );
+      return buildAsync.then(function (built) {
+        if (token !== _renderToken) return;
+        if (typeof global.crozzoPairingPaintReceiverMeta === 'function') {
+          global.crozzoPairingPaintReceiverMeta(built, {
+            warnId: 'crozzoTabletQrQuickWarn',
+            bizId: 'crozzoTabletQrQuickBiz',
+          });
+        }
+        if (built.error) {
+          host.innerHTML =
+            '<p class="form-hint" style="text-align:center;margin:12px 0;">' + built.error + '</p>';
+          return false;
+        }
+        if (typeof global.crozzoPairingRenderScanQrIntoHost === 'function') {
+          return global.crozzoPairingRenderScanQrIntoHost(host, built);
+        }
         host.innerHTML =
-          '<p class="form-hint" style="text-align:center;margin:12px 0;">' + built.error + '</p>';
+          '<p class="form-hint" style="text-align:center;">Módulo de emparejamiento no listo. Recargue la app.</p>';
         return false;
-      }
-      if (typeof global.crozzoPairingRenderScanQrIntoHost === 'function') {
-        return global.crozzoPairingRenderScanQrIntoHost(host, built);
-      }
-      host.innerHTML =
-        '<p class="form-hint" style="text-align:center;">Módulo de emparejamiento no listo. Recargue la app.</p>';
-      return false;
+      });
     });
   }
 

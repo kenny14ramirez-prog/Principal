@@ -159,6 +159,9 @@
     if (global.__CROZZO_BLE_MESH_FORCE === true) return true;
     if (!meshParticipationEnabled()) return false;
     var t = tierNow();
+    if (typeof global.crozzoMeshStandbyEnabled === 'function' && global.crozzoMeshStandbyEnabled()) {
+      if (t === 'cloud' || t === 'lan' || t === 'hotspot') return true;
+    }
     if (t === 'cloud' || t === 'lan' || t === 'hotspot') return false;
     return true;
   }

@@ -129,6 +129,31 @@
     }
     if (typ === 'comanda' || typ === 'comanda_new') {
       var snap = raw.data || raw.payload || raw;
+      if (snap && snap.id != null) {
+        if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.applyComandaNew === 'function') {
+          var ingRes = global.CrozzoOperationalIngest.applyComandaNew(snap, { via: 'lan_ws', skipPrint: false });
+          if (ingRes && ingRes.applied) {
+            try {
+              var printKey = snap.transaction_id || String(snap.id || '');
+              if (
+                printKey &&
+                typeof global.__crozzoComandaWasPrintedRecently === 'function' &&
+                global.__crozzoComandaWasPrintedRecently(printKey, 5000) &&
+                typeof global.crozzoComandaPrintedAck === 'function'
+              ) {
+                var mergedSnap =
+                  typeof global.__crozzoEmergencyFindComandaById === 'function'
+                    ? global.__crozzoEmergencyFindComandaById(snap.id)
+                    : null;
+                if (mergedSnap) global.crozzoComandaPrintedAck(mergedSnap).catch(function () {});
+              }
+            } catch (_) {}
+          }
+          if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_comanda');
+          emitOpAckFromRaw(raw, 'lan');
+          return;
+        }
+      }
       if (snap && snap.id != null && typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
         var changed = global.__crozzoEmergencyApplyComandaSnapshot(snap, { source: 'lan_ws', skipPrint: false });
         if (changed) {
@@ -167,6 +192,12 @@
     }
     if (typ === 'comanda_estado') {
       var pay = raw.data || raw.payload || raw;
+      if (pay && global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.applyComandaEstado === 'function') {
+        global.CrozzoOperationalIngest.applyComandaEstado(pay, { via: 'lan_ws' });
+        if (typeof global.crozzoLanMarkActionApplied === 'function') global.crozzoLanMarkActionApplied(raw, 'lan_ws_estado');
+        emitOpAckFromRaw(raw, 'lan');
+        return;
+      }
       if (!pay) return;
       var c = null;
       if (pay.transaction_id && global.comandas) {

@@ -890,7 +890,17 @@
     }
     if (applied) {
       safe(function () {
-        if (typeof global.crozzoPairingAutoConnect === 'function') {
+        if (global.CrozzoPostPairConnect && typeof global.CrozzoPostPairConnect.persistHints === 'function') {
+          global.CrozzoPostPairConnect.persistHints(payload);
+        }
+        if (typeof global.crozzoPostPairConnectAfterQr === 'function') {
+          global.crozzoPostPairConnectAfterQr(payload, {
+            quiet: true,
+            toastOnly: true,
+            skipPending: true,
+            source: 'internal_qr',
+          }).catch(function () {});
+        } else if (typeof global.crozzoPairingAutoConnect === 'function') {
           global.crozzoPairingAutoConnect(opts.reason || 'peer_qr', { force: true, skipInvalidate: true }).catch(function () {});
         } else {
           if (typeof global.crozzoActivateLocalSyncPath === 'function') {

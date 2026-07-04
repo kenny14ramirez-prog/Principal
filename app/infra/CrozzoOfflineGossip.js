@@ -1,5 +1,6 @@
 /**
  * Malla offline Crozzo — gossip de comandas cuando no hay cloud ni LAN.
+ * Modo standby (híbrido): escucha peers sin publicar si nube/LAN confirman.
  * Prioridad: cloud > LAN/hotspot > EmergencyMesh WebRTC > gossip UDP.
  * No interfiere con rutas activas; solo complementa tier offline.
  */
@@ -24,6 +25,7 @@
   var _udpPeerCount = 0;
   var _lastTier = '';
   var _applying = false;
+  var _standbyMode = false;
 
   function log(msg) {
     try {
@@ -117,16 +119,61 @@
     return false;
   }
 
+  function meshStandbyEnabled() {
+    if (global.__CROZZO_GOSSIP_FORCE === true) return false;
+    if (typeof global.crozzoMeshStandbyEnabled === 'function') return global.crozzoMeshStandbyEnabled();
+    try {
+      if (typeof global.config === 'undefined' || !global.config.get) return true;
+      if (String(global.config.get('runtimeSyncModo') || 'hybrid').toLowerCase() !== 'hybrid') return false;
+      var sb = global.config.get('runtimeSyncMeshStandby');
+      if (sb === false || sb === '0') return false;
+    } catch (_) {}
+    return true;
+  }
+
+  function lanPrimaryReady() {
+    try {
+      if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+        return false;
+      }
+      var last = global.__CROZZO_LAN_LAST_OK;
+      return !!(last && Date.now() - last < 28000);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /** Publicar comandas/estados: bloqueado si nube, LAN o mesh primario ya cubren la ruta. */
+  function shouldBlockOutboundPublish() {
+    if (cloudPathLikely() || meshLinkReady()) return true;
+    if (_standbyMode || meshStandbyEnabled()) {
+      if (lanPrimaryReady()) return true;
+    }
+    return false;
+  }
+
   function shouldRun() {
     if (global.__CROZZO_GOSSIP_FORCE === true) return true;
     var t = tierNow();
-    // Apagar gossip cuando cloud/lan/hotspot son la ruta primaria estable
+    if (meshStandbyEnabled() && (t === 'cloud' || t === 'lan' || t === 'hotspot')) {
+      _standbyMode = true;
+      return true;
+    }
+    _standbyMode = false;
     if (t === 'cloud' || t === 'lan' || t === 'hotspot') {
       if (t === 'cloud') return false;
       if (cloudPathLikely() && !hybridBackupNeeded()) return false;
       return hybridBackupNeeded();
     }
     return true;
+  }
+
+  function ensureStandby() {
+    if (!meshStandbyEnabled()) return false;
+    _standbyMode = true;
+    if (!_active && shouldRun()) start();
+    else if (_active) reconcileTier();
+    return _active;
   }
 
   /** Tablets en la misma pestaña/subred: BroadcastChannel permite malla sin caja. */
@@ -301,6 +348,10 @@
 
   function applyComandaNew(snap, opts) {
     opts = opts || {};
+    if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.applyComandaNew === 'function') {
+      global.CrozzoOperationalIngest.applyComandaNew(snap, { via: 'mesh', skipPrint: !!opts.skipPrint });
+      return;
+    }
     if (!snap || snap.id == null) return;
     if (!deviceAcceptsArea(snap.areaId)) return;
     var tid = String(snap.transaction_id || '');
@@ -335,6 +386,15 @@
   }
 
   function applyComandaEstado(pay) {
+    if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.applyComandaEstado === 'function') {
+      _applying = true;
+      try {
+        global.CrozzoOperationalIngest.applyComandaEstado(pay, { via: 'mesh' });
+      } finally {
+        _applying = false;
+      }
+      return;
+    }
     if (!pay) return;
     var c = findComanda(pay);
     if (!c) return;
@@ -539,7 +599,7 @@
   function publishComandaNew(comanda, opts) {
     opts = opts || {};
     if (_applying || !_active || !comanda) return false;
-    if (!opts.force && (cloudPathLikely() || meshLinkReady())) return false;
+    if (!opts.force && shouldBlockOutboundPublish()) return false;
     var snap = comandaSnapshot(comanda);
     if (!snap) return false;
     if (snap.transaction_id) markTidSeen(snap.transaction_id, 'gossip_tx');
@@ -550,7 +610,7 @@
   function publishComandaNewByIds(ids, opts) {
     opts = opts || {};
     if (!_active || !ids || !ids.length) return 0;
-    if (!opts.force && (cloudPathLikely() || meshLinkReady())) return 0;
+    if (!opts.force && shouldBlockOutboundPublish()) return 0;
     var n = 0;
     ids.forEach(function (id) {
       var c = null;
@@ -565,7 +625,7 @@
   function publishEstado(id, estado, transactionId, opts) {
     opts = opts || {};
     if (_applying || !_active) return false;
-    if (!opts.force && (cloudPathLikely() || meshLinkReady())) return false;
+    if (!opts.force && shouldBlockOutboundPublish()) return false;
     sendFrame(
       buildFrame(
         'COMANDA_ESTADO',
@@ -617,6 +677,7 @@
 
   function stop() {
     _active = false;
+    _standbyMode = false;
     stopTimers();
     if (_bc) {
       try {
@@ -708,6 +769,7 @@
     } catch (_) {}
     return {
       active: _active,
+      standby: _standbyMode && meshStandbyEnabled(),
       tier: tierNow(),
       peerCount: peerCount,
       udp: _udpOk,
@@ -773,6 +835,8 @@
     start: start,
     stop: stop,
     shouldRun: shouldRun,
+    ensureStandby: ensureStandby,
+    shouldBlockOutboundPublish: shouldBlockOutboundPublish,
     publishComandaNew: publishComandaNew,
     publishComandaNewByIds: publishComandaNewByIds,
     publishEstado: publishEstado,

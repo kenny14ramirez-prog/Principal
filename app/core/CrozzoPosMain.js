@@ -49262,6 +49262,10 @@ function init() {
     ).trim();
     const redANote = String((lanSnap && lanSnap.networkSsidNote) || md.networkSsidNote || md.subnetNote || 'Red principal Wi‑Fi').trim().slice(0, 120);
     const redBNote = String(md.networkFallbackNote || 'Hotspot caja principal (Red B — respaldo sin router)').trim().slice(0, 120);
+    var hotCred =
+      typeof window.crozzoGetHotspotCredentials === 'function' ? window.crozzoGetHotspotCredentials() : null;
+    var hotSsid = hotCred && hotCred.ssid ? String(hotCred.ssid).trim().slice(0, 64) : '';
+    var hotPass = hotCred && hotCred.passphrase ? String(hotCred.passphrase).trim().slice(0, 64) : '';
     const syncPriority = String(
       (typeof config !== 'undefined' && config.get ? config.get('runtimeSyncModo') : null) || 'hybrid'
     ).toLowerCase();
@@ -49286,7 +49290,7 @@ function init() {
     return {
       payload: {
         type: CROZZO_CLOUD_PAIRING,
-        version: 4,
+        version: 5,
         device_profile: 'caja',
         target_profile: targetProfile,
         business_id: bizId,
@@ -49296,7 +49300,12 @@ function init() {
         cloud_sync: cloudEmbed,
         sync_priority: syncPriority === 'online' || syncPriority === 'offline' ? syncPriority : 'hybrid',
         network_primary: { ssid_note: redANote, location_id: locationId },
-        network_fallback_b: { ssid_note: redBNote, owner: 'caja' },
+        network_fallback_b: {
+          ssid_note: redBNote,
+          owner: 'caja',
+          ssid: hotSsid,
+          passphrase: hotPass,
+        },
         lan: {
           lan_sync_enabled: true,
           role: 'B',
@@ -49331,6 +49340,11 @@ function init() {
   }
   window.crozzoPairingBuildPayload = crozzoPairingBuildPayload;
   async function crozzoPairingBuildPayloadAsync(targetProfile) {
+    try {
+      if (typeof window.crozzoRefreshHotspotCredentialsForQr === 'function') {
+        await window.crozzoRefreshHotspotCredentialsForQr().catch(function () {});
+      }
+    } catch (_) {}
     var built = crozzoPairingBuildPayload(targetProfile);
     if (built.error || !built.payload) return built;
     var url = String(built.payload.supabase_url || '').trim();
@@ -50575,6 +50589,8 @@ function init() {
     const md = { ...baseMd };
     if (redA) md.networkSsidNote = redA;
     if (p.network_fallback_b && p.network_fallback_b.ssid_note) md.networkFallbackNote = String(p.network_fallback_b.ssid_note).trim();
+    if (p.network_fallback_b && p.network_fallback_b.ssid) md.networkFallbackSsid = String(p.network_fallback_b.ssid).trim();
+    if (p.network_fallback_b && p.network_fallback_b.passphrase) md.networkFallbackPass = String(p.network_fallback_b.passphrase).trim();
     md.role = 'B';
     md.centralIp = cip;
     md.port = port;
@@ -50610,6 +50626,9 @@ function init() {
     try {
       if (p.network_fallback_b && p.network_fallback_b.ssid_note) {
         localStorage.setItem('crozzo_network_fallback_note', String(p.network_fallback_b.ssid_note).trim());
+      }
+      if (typeof window.CrozzoPostPairConnect !== 'undefined' && window.CrozzoPostPairConnect.persistHints) {
+        window.CrozzoPostPairConnect.persistHints(p);
       }
     } catch (_) {}
     try {
@@ -50763,6 +50782,13 @@ function init() {
     const ab = el('crozzoPairingApplyBtn');
     if (ab) ab.disabled = true;
     const tp = String(p.target_profile || 'tablet').toLowerCase();
+    if (tp !== 'caja') {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('crozzo-supreme-link-begin', { detail: { payload: p, profile: tp } })
+        );
+      } catch (_) {}
+    }
     let cloudOn = p.cloud_sync !== false && String(p.supabase_url || '').trim() && String(p.supabase_key || '').trim();
     const lan = p.lan || {};
     const cip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
@@ -50809,6 +50835,9 @@ function init() {
     }
     try {
       await crozzoPairingApplyLanFromPayload(p);
+      if (tp !== 'caja' && typeof window.crozzoSupremeLinkPulse === 'function') {
+        window.crozzoSupremeLinkPulse('identity', 'done');
+      }
     } catch (eLan) {
       crozzoPairingShowStatus('No se pudo aplicar la red LAN: ' + (eLan && eLan.message ? eLan.message : 'error'), { isErr: true });
       if (ab) ab.disabled = false;
@@ -50833,9 +50862,14 @@ function init() {
         }
       } catch (_) {}
     }
+    var pairCajaProbe = { ok: false };
     if (cip && tp !== 'caja') {
       crozzoPairingShowStatus('Verificando nodo central ' + cip + ':' + port + '…', { busy: true, phase: 'network', progress: 58 });
       var probe = await crozzoPairingProbeCajaHealth(cip, port);
+      pairCajaProbe = probe;
+      try {
+        window.__CROZZO_PAIR_PROBE_OK = !!(probe && probe.ok);
+      } catch (_) {}
       if (!probe.ok) {
         var warnMsg =
           '⚠️ Configuración guardada, pero la caja no respondió en ' +
@@ -50849,6 +50883,10 @@ function init() {
         }
       } else {
         crozzoPairingShowStatus('Nodo central alcanzable · ' + cip + ':' + port, { busy: true, phase: 'network', progress: 65 });
+        if (typeof window.crozzoSupremeLinkPulse === 'function') {
+          window.crozzoSupremeLinkPulse('network', 'done');
+          window.crozzoSupremeLinkPulse('caja', 'done');
+        }
       }
     }
     if (!cloudOn && cip && tp !== 'caja') {
@@ -50991,6 +51029,8 @@ function init() {
               '⚠️ Nube no alcanzable — LAN activo. Verifique internet o regenere QR en la caja con Super Admin → Nube.',
               { isErr: true, phase: 'cloud', progress: 76 }
             );
+          } else if (typeof window.crozzoSupremeLinkPulse === 'function') {
+            window.crozzoSupremeLinkPulse('cloud', 'done');
           }
         }
       } catch (eProbe) {
@@ -51048,6 +51088,9 @@ function init() {
         console.warn('[pairing] aplicar datos del negocio', eTenant);
       }
       crozzoPairingShowStatus('Enlace híbrido activo · ' + n + ' capas sincronizadas', { isOk: true, phase: 'ready', progress: 96 });
+      if (typeof window.crozzoSupremeLinkPulse === 'function') {
+        window.crozzoSupremeLinkPulse('catalog', 'done');
+      }
     } else {
       window.__CROZZO_ONLINE_DATA = false;
       var noCloudMsg =
@@ -51070,13 +51113,18 @@ function init() {
     } catch (_) {}
     crozzoPairingSetWizardStep(3);
     if (typeof crozzoShowInstallSuccessSplash === 'function') {
-      crozzoShowInstallSuccessSplash({
-        title: tp === 'pantalla' ? 'Pantalla sincronizada' : 'Terminal sincronizada',
-        message:
-          tp === 'pantalla'
-            ? 'El nodo de pantalla heredó la topología de la caja. Entrando al modo comandas…'
-            : 'Red, perfil y catálogo alineados con el nodo central. Inicie sesión para operar.',
-      });
+      var supremeRecent =
+        window.__CROZZO_SUPREME_JUST_CELEBRATED &&
+        Date.now() - window.__CROZZO_SUPREME_JUST_CELEBRATED < 8000;
+      if (!supremeRecent) {
+        crozzoShowInstallSuccessSplash({
+          title: tp === 'pantalla' ? 'Pantalla sincronizada' : 'Terminal sincronizada',
+          message:
+            tp === 'pantalla'
+              ? 'El nodo de pantalla heredó la topología de la caja. Entrando al modo comandas…'
+              : 'Red, perfil y catálogo alineados con el nodo central. Inicie sesión para operar.',
+        });
+      }
     }
     if (typeof showToast === 'function') {
       showToast(tp === 'pantalla' ? 'Pantalla enlazada' : 'Terminal lista — inicie sesión', 'success');
@@ -51134,6 +51182,13 @@ function init() {
         }
       }
     } catch (_) {}
+    if (tp !== 'caja' && tp !== 'pantalla') {
+      try {
+        if (typeof window.crozzoPairingAutoConnect === 'function') {
+          window.crozzoPairingAutoConnect('pairing_apply', { force: true, skipInvalidate: true }).catch(function () {});
+        }
+      } catch (_) {}
+    }
     // Cambio de sede: la sede vieja ya quedó respaldada en su nube y el cuerpo se
     // vació; reiniciamos para arrancar 100% limpio con la sede nueva (el cerebro).
     if (sedeSwitch && sedeSwitch.from && sedeSwitch.to) {
@@ -51170,6 +51225,24 @@ function init() {
     } catch (_) {}
     var reloadAfterPair =
       (crozzoIsFieldTabletDevice() || crozzoPairingReaderIsFieldDevice()) && tp !== 'pantalla' && !sedeSwitch;
+    if (tp !== 'caja' && tp !== 'pantalla') {
+      try {
+        if (typeof window.crozzoSupremeLinkPulse === 'function') {
+          window.crozzoSupremeLinkPulse('mesh', 'done');
+          window.crozzoSupremeLinkPulse('mind', 'done');
+        }
+        if (typeof window.crozzoPostPairConnectAfterQr === 'function') {
+          if (reloadAfterPair) {
+            window.crozzoPostPairConnectAfterQr(p, { deferOnly: true }).catch(function () {});
+          } else {
+            window.crozzoPostPairConnectAfterQr(p, {
+              cajaOk: !!(pairCajaProbe && pairCajaProbe.ok),
+              turbo: !!(pairCajaProbe && pairCajaProbe.ok),
+            }).catch(function () {});
+          }
+        }
+      } catch (_) {}
+    }
     if (reloadAfterPair) {
       crozzoPairingShowStatus('Datos guardados — reiniciando la app para aplicar todo…', {
         isOk: true,

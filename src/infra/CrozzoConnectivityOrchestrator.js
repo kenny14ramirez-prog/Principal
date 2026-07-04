@@ -530,6 +530,16 @@
     return true;
   }
 
+  function ensureMeshStandbyQuiet() {
+    safe(function () {
+      if (global.CrozzoDeviceMind && typeof global.CrozzoDeviceMind.ensureMeshStandby === 'function') {
+        global.CrozzoDeviceMind.ensureMeshStandby();
+      } else if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureStandby === 'function') {
+        global.CrozzoOfflineGossip.ensureStandby();
+      }
+    });
+  }
+
   function directorState() {
     try {
       if (global.CrozzoConnectivityDirector && typeof global.CrozzoConnectivityDirector.getState === 'function') {
@@ -581,6 +591,7 @@
       if (shouldSurfaceQrNow(__state.detectorTier || 'cloud', info)) {
         ensureQrLastResort();
       }
+      if (runtimeSyncHybrid()) ensureMeshStandbyQuiet();
       return;
     }
 
@@ -653,6 +664,13 @@
           global.crozzoHealRoleBCloudFromCaja({ source: 'orchestrator_hybrid' }).catch(function () {});
         });
       }
+    }
+
+    if (
+      runtimeSyncHybrid() &&
+      (level === 'cloud' || level === 'lan' || level === 'hotspot' || tier === 'cloud' || tier === 'lan' || tier === 'hotspot')
+    ) {
+      ensureMeshStandbyQuiet();
     }
 
     if (role === 'A' && global.CrozzoBrainPolicy && typeof global.CrozzoBrainPolicy.enforceBrainServe === 'function') {

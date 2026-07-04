@@ -887,6 +887,49 @@
     } catch (_) {}
     return null;
   }
+  var HOTSPOT_CREDS_KEY = 'crozzo_hotspot_credentials';
+  function crozzoPersistHotspotCredentials(r) {
+    if (!r || !r.ssid) return;
+    try {
+      global.localStorage.setItem(
+        HOTSPOT_CREDS_KEY,
+        JSON.stringify({
+          ssid: String(r.ssid || '').trim(),
+          passphrase: String(r.passphrase || r.pass || '').trim(),
+          savedAt: Date.now(),
+        })
+      );
+    } catch (_) {}
+  }
+  function crozzoGetHotspotCredentials() {
+    try {
+      var raw = global.localStorage.getItem(HOTSPOT_CREDS_KEY);
+      if (!raw) return null;
+      var o = JSON.parse(raw);
+      if (!o || !o.ssid) return null;
+      return o;
+    } catch (_) {
+      return null;
+    }
+  }
+  global.crozzoGetHotspotCredentials = crozzoGetHotspotCredentials;
+  global.crozzoPersistHotspotCredentials = crozzoPersistHotspotCredentials;
+  global.crozzoRefreshHotspotCredentialsForQr = async function crozzoRefreshHotspotCredentialsForQr() {
+    if (crozzoSyncRoleNow() !== 'A') return crozzoGetHotspotCredentials();
+    var p = crozzoTauriInvokeSafe('crozzo_hotspot_status');
+    if (!p) return crozzoGetHotspotCredentials();
+    try {
+      var st = await p;
+      if (st && st.ssid) {
+        var prev = crozzoGetHotspotCredentials() || {};
+        crozzoPersistHotspotCredentials({
+          ssid: st.ssid,
+          passphrase: prev.passphrase || '',
+        });
+      }
+    } catch (_) {}
+    return crozzoGetHotspotCredentials();
+  };
   function crozzoActivateBackupHotspot() {
     var p = crozzoTauriInvokeSafe('crozzo_hotspot_start');
     if (!p) {
@@ -898,6 +941,7 @@
     if (typeof global.showToast === 'function') global.showToast('Activando hotspot de respaldo…', 'info');
     p.then(function (r) {
       if (r && r.ok) {
+        crozzoPersistHotspotCredentials(r);
         var msg = 'Hotspot de respaldo activo: red «' + (r.ssid || '—') + '»';
         if (r.passphrase) msg += ' · clave: ' + r.passphrase;
         msg += '. Conecte las tablets a esa red y se reconectan solas.';
@@ -964,6 +1008,7 @@
         return;
       }
       if (r && r.ok) {
+        crozzoPersistHotspotCredentials(r);
         crozzoSetHotspotStatusUi(
           '📡 Hotspot activo · red «' + (r.ssid || '—') + '»' + (r.passphrase ? ' · clave ' + r.passphrase : '')
         );
@@ -984,15 +1029,18 @@
     if (!p) return;
     __autoHotspotLastTry = Date.now();
     p.then(function (r) {
-      if (r && r.ok && typeof global.showToast === 'function') {
-        global.showToast(
-          '📡 Sin red: hotspot de respaldo activado automáticamente — red «' +
-            (r.ssid || '—') +
-            '»' +
-            (r.passphrase ? ' · clave ' + r.passphrase : '') +
-            '. Las tablets se reconectan solas.',
-          'success'
-        );
+      if (r && r.ok) {
+        crozzoPersistHotspotCredentials(r);
+        if (typeof global.showToast === 'function') {
+          global.showToast(
+            '📡 Sin red: hotspot de respaldo activado automáticamente — red «' +
+              (r.ssid || '—') +
+              '»' +
+              (r.passphrase ? ' · clave ' + r.passphrase : '') +
+              '. Las tablets se reconectan solas.',
+            'success'
+          );
+        }
       }
     }).catch(function () {});
   }

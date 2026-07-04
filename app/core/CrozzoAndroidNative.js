@@ -156,6 +156,17 @@
     return Promise.resolve({ ok: false, note: 'Malla BLE no cargada' });
   }
 
+  function openWifiSettings() {
+    try {
+      if (/Android/i.test(String(global.navigator && global.navigator.userAgent ? global.navigator.userAgent : ''))) {
+        global.window.location.href =
+          'intent:#Intent;action=android.settings.WIFI_SETTINGS;end';
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   global.CrozzoAndroidNative = {
     isAndroidApk: isAndroidApk,
     applyLayoutPolish: applyLayoutPolish,
@@ -163,6 +174,7 @@
     hapticLight: hapticLight,
     hapticOpen: hapticOpen,
     requestBluetoothEnable: requestBluetoothEnable,
+    openWifiSettings: openWifiSettings,
     refresh: boot,
   };
 

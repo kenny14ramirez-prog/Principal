@@ -425,6 +425,13 @@
     var pay = raw.data || raw.payload || null;
     if (!pay) return false;
     try {
+      if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.gateComandaEstado === 'function') {
+        var gEst = global.CrozzoOperationalIngest.gateComandaEstado(pay, { via: 'lan_http' });
+        if (!gEst.apply) {
+          lanActionApplied(raw, 'lan_http_estado');
+          return true;
+        }
+      }
       if (typeof global.__crozzoEmergencyFindComandaById === 'function' && global.comandas) {
         var c = null;
         if (pay.transaction_id) {
@@ -466,6 +473,9 @@
       ) {
         global.crozzoPushComandasCloudByIds([pay.id]);
       }
+      if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.markComandaEstado === 'function') {
+        global.CrozzoOperationalIngest.markComandaEstado(pay, { via: 'lan_http' });
+      }
       lanActionApplied(raw, 'lan_http_estado');
       return true;
     } catch (e) {
@@ -484,6 +494,13 @@
     var snap = raw.data || raw.payload || null;
     if (!snap || snap.id == null) return false;
     try {
+      if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.gateComandaNew === 'function') {
+        var gLan = global.CrozzoOperationalIngest.gateComandaNew(snap, { via: 'lan_central' });
+        if (!gLan.apply) {
+          lanActionApplied(raw, 'lan_http_comanda');
+          return true;
+        }
+      }
       if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
         global.__crozzoEmergencyApplyComandaSnapshot(snap, { source: 'lan_central', skipPrint: true });
       }
@@ -524,6 +541,9 @@
         global.crozzoCloudBackgroundSyncAllowed()
       ) {
         global.crozzoPushComandasCloudByIds([snap.id]);
+      }
+      if (global.CrozzoOperationalIngest && typeof global.CrozzoOperationalIngest.markComandaNew === 'function') {
+        global.CrozzoOperationalIngest.markComandaNew(snap, { via: 'lan_central' });
       }
       lanActionApplied(raw, 'lan_http_comanda');
       return true;
