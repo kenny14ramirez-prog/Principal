@@ -71,8 +71,8 @@
         'cierre_arqueo',
       ],
       comandas: [],
-      inventario: [],
-      productos: [],
+      inventario: ['proveedores'],
+      productos: ['catalogo'],
       admin: [],
     },
     mesero: {
@@ -84,9 +84,9 @@
     },
     cocina: {
       caja: [],
-      comandas: ['ver', 'despachar'],
+      comandas: ['ver', 'despachar', 'reimprimir'],
       inventario: [],
-      productos: [],
+      productos: ['catalogo'],
       admin: [],
     },
     encargado: {
@@ -110,8 +110,8 @@
         'cierre_arqueo',
       ],
       comandas: ['ver', 'despachar', 'reimprimir'],
-      inventario: ['reportes'],
-      productos: [],
+      inventario: ['reportes', 'proveedores'],
+      productos: ['catalogo'],
       admin: ['auditoria'],
     },
     inventario: {

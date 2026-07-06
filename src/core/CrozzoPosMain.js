@@ -7893,19 +7893,13 @@ function crozzoTryEnterOrderSlotSession(tipoServicio, referencia) {
     }
   } catch (_) {}
   crozzoClearMyOtherSlotSessions(tipoServicio, referencia);
-  const peer = crozzoSlotLockPeerInfo(tipoServicio, referencia);
-  if (peer && !peer.mine) {
-    const who = String(peer.userName || '').trim() || 'Otro operador';
-    const dev = String(peer.deviceName || '').trim() || 'otro dispositivo';
-    const slotLabel = tipoServicio === 'mesa' ? 'mesa' : 'pedido llevar';
-    const extra = Number(peer.count || 0) > 1 ? ' (+' + (Number(peer.count) - 1) + ' más)' : '';
-    if (typeof showToast === 'function') {
-      showToast(
-        '⚠️ Cuidado: ' + who + ' también está en esta ' + slotLabel + ' (' + dev + ')' + extra + '.',
-        'warning'
-      );
+  try {
+    if (typeof crozzoOperativeCompanionOnSlotEnter === 'function') {
+      crozzoOperativeCompanionOnSlotEnter(tipoServicio, referencia);
+    } else if (typeof global.CrozzoOperativeCompanion !== 'undefined' && CrozzoOperativeCompanion.onSlotEnter) {
+      CrozzoOperativeCompanion.onSlotEnter(tipoServicio, referencia);
     }
-  }
+  } catch (_) {}
   crozzoTryAcquireComandaSlotLock(tipoServicio, referencia, {
     kind: 'session',
     ttl: CROZZO_ORDER_SESSION_LOCK_TTL_MS,
@@ -13284,8 +13278,16 @@ function crozzoApplyVisualTheme(themeId, opts) {
   if (sel && sel.value !== t) sel.value = t;
   crozzoBroadcastThemeToEmbeds(t);
   try {
-    if (global.CrozzoBonaOrigen && typeof global.CrozzoBonaOrigen.onThemeChange === 'function') {
+    var themeEvTarget = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : null;
+    if (themeEvTarget && typeof themeEvTarget.dispatchEvent === 'function') {
+      themeEvTarget.dispatchEvent(new CustomEvent('crozzo:theme-change', { detail: { theme: t } }));
+    }
+  } catch (_) {}
+  try {
+    if (typeof global !== 'undefined' && global.CrozzoBonaOrigen && typeof global.CrozzoBonaOrigen.onThemeChange === 'function') {
       global.CrozzoBonaOrigen.onThemeChange(t);
+    } else if (typeof CrozzoBonaOrigen !== 'undefined' && CrozzoBonaOrigen.onThemeChange) {
+      CrozzoBonaOrigen.onThemeChange(t);
     }
   } catch (_) {}
 }
@@ -14701,6 +14703,7 @@ function crozzoGuardLeaveUnpaidSlot(tipoServicio, referencia) {
   } catch (_) {}
   if (!crozzoSlotHasUnpaidConsumption(tipoServicio, referencia)) return true;
   if (typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('anular_comandado')) return true;
+  if (typeof crozzoOperativeCan === 'function' && crozzoOperativeCan('eliminar_mesa')) return true;
   const label = tipoServicio === 'mesa' ? 'Mesa ' + referencia : 'Pedido ' + referencia;
   if (typeof showToast === 'function') {
     showToast(label + ' tiene consumo sin cobrar. Cobre en caja o avise al encargado.', 'error');
@@ -14727,6 +14730,15 @@ function crozzoGetUnpaidSlotsReport() {
     });
   } catch (_) {}
   return out;
+}
+function crozzoNotifyPostComandarBlocked() {
+  if (typeof crozzoOperativeCompanionNotifyDenied === 'function') {
+    crozzoOperativeCompanionNotifyDenied('modificar_post_comandar');
+    return;
+  }
+  if (typeof showToast === 'function') {
+    showToast('Este ítem ya fue enviado a cocina. Solo un encargado puede quitarlo.', 'warning');
+  }
 }
 /** En mesa/llevar: ítems de alto valor sin comandar — solo encargado puede forzar quitar sin editar. */
 function crozzoBlockQtyDownSinComandar(item) {
@@ -15160,16 +15172,26 @@ function crozzoCanRemoveCartLine(item, opts) {
   const sent = crozzoCartItemSentQty(item);
   const pending = Math.max(0, (Number(item.cantidad) || 0) - sent);
   if (pending > 0 && crozzoHasCajaPermiso('eliminar_item', ctx)) return true;
-  if (sent > 0 && crozzoCanAnularComandado()) return true;
+  if (sent > 0) {
+    if (typeof crozzoOperativeCanTouchSentLine === 'function' && !crozzoOperativeCanTouchSentLine(item, opts)) {
+      return false;
+    }
+    return crozzoCanAnularComandado();
+  }
   return false;
 }
 function crozzoCartLineShowMinus(item, opts) {
   if (!item) return false;
   const ctx = crozzoCajaPermisoCtx(opts);
-  if (typeof crozzoHasCajaPermiso !== 'function' || !crozzoHasCajaPermiso('editar_orden', ctx)) return false;
   const sent = crozzoCartItemSentQty(item);
   const pending = Math.max(0, (Number(item.cantidad) || 0) - sent);
-  if (pending > 0) return true;
+  if (pending > 0) {
+    if (typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('editar_orden', ctx)) return true;
+    return typeof crozzoOperativeCan === 'function' && crozzoOperativeCan('editar_pre_comandar', opts);
+  }
+  if (typeof crozzoOperativeCanTouchSentLine === 'function' && !crozzoOperativeCanTouchSentLine(item, opts)) {
+    return false;
+  }
   return crozzoCanAnularComandado();
 }
 function crozzoTabletCanPrintPrecuenta() {
@@ -16030,6 +16052,9 @@ function navigateTo(page) {
   }
   if (typeof crozzoUpdatePremiumIdentity === 'function') crozzoUpdatePremiumIdentity(page);
   renderPage(page);
+  try {
+    if (typeof crozzoCompanionOnPage === 'function') crozzoCompanionOnPage(page);
+  } catch (_) {}
   expandNavGroupForPage(navHighlightPage);
   try {
     if (typeof crozzoRefreshLucideIcons === 'function') {
@@ -20812,8 +20837,8 @@ const CROZZO_STAFF_PLANTILLAS = Object.freeze({
       caja: CROZZO_CAJA_PERMISOS_POR_ROL.encargado,
       comandas: ['ver', 'despachar', 'reimprimir'],
       admin: ['auditoria'],
-      inventario: ['reportes'],
-      productos: [],
+      inventario: ['reportes', 'proveedores'],
+      productos: ['catalogo'],
     },
   },
   admin_negocio: {
@@ -20845,8 +20870,8 @@ const CROZZO_STAFF_PLANTILLAS = Object.freeze({
       caja: CROZZO_CAJA_PERMISOS_POR_ROL.caja,
       comandas: [],
       admin: [],
-      inventario: [],
-      productos: [],
+      inventario: ['proveedores'],
+      productos: ['catalogo'],
     },
   },
   mesero: {
@@ -20861,18 +20886,18 @@ const CROZZO_STAFF_PLANTILLAS = Object.freeze({
     },
   },
   cocina: {
-    label: 'Cocina',
+    label: 'Cocina / Despacho',
     rol: 'cocina',
     permisos: {
       caja: [],
-      comandas: ['ver', 'despachar'],
+      comandas: ['ver', 'despachar', 'reimprimir'],
       admin: [],
       inventario: [],
-      productos: [],
+      productos: ['catalogo'],
     },
   },
   jefe_compras: {
-    label: 'Jefe de compras / bodega',
+    label: 'GF Compras / Bodega',
     rol: 'jefe-compras',
     permisos: {
       caja: [],
@@ -24513,9 +24538,7 @@ function tabletRemoveFromCart(productId, configSig = '') {
   const item = cart[idx];
   const sent = crozzoCartItemSentQty(item);
   if (item.cantidad <= sent) {
-    if (sent > 0 && typeof showToast === 'function') {
-      showToast('Este ítem ya fue enviado a cocina. Solo un encargado puede quitarlo.', 'warning');
-    }
+    if (sent > 0) crozzoNotifyPostComandarBlocked();
     return;
   }
   const nom = item.nombreVenta || item.nombre || productId;
@@ -26137,9 +26160,7 @@ function removeFromCart(productId, configSig = '') {
   const item = cart[idx];
   const sent = crozzoCartItemSentQty(item);
   if (item.cantidad <= sent) {
-    if (sent > 0 && typeof showToast === 'function') {
-      showToast('Este ítem ya fue enviado a cocina. Solo un encargado puede quitarlo.', 'warning');
-    }
+    if (sent > 0) crozzoNotifyPostComandarBlocked();
     return;
   }
   const nom = item.nombreVenta || item.nombre || productId;
@@ -26181,9 +26202,7 @@ function updateCartItemQuantity(productId, quantity) {
   if (idx < 0) return;
   const minQty = Math.max(1, crozzoCartItemSentQty(cart[idx]));
   const next = Math.max(minQty, Number(quantity) || 1);
-  if (next < minQty && minQty > 1 && typeof showToast === 'function') {
-    showToast('No puede bajar por debajo de lo ya comandado (' + minQty + ').', 'warning');
-  }
+  if (next < minQty && minQty > 1) crozzoNotifyPostComandarBlocked();
   cart[idx].cantidad = next;
   if (Number(cart[idx].sentCantidad || 0) > cart[idx].cantidad) {
     cart[idx].sentCantidad = cart[idx].cantidad;
@@ -26497,6 +26516,17 @@ function confirmCancelCajaProceso() {
   showToast('Proceso cancelado en Caja', 'info');
 }
 function comandarDesdeCaja() {
+  const referenciaEarly =
+    tipoServicioCaja === 'mesa' ? mesaSeleccionada : tipoServicioCaja === 'llevar' ? llevarSeleccionado : '';
+  if (referenciaEarly && typeof crozzoOperativeCompanionGuardComandar === 'function') {
+    const g = crozzoOperativeCompanionGuardComandar(tipoServicioCaja, referenciaEarly);
+    if (g && g.block) {
+      if (typeof crozzoOperativeCompanionNotifyDenied === 'function') {
+        crozzoOperativeCompanionNotifyDenied('comandar_mesa_ocupada', { who: g.who, level: 'warning' });
+      } else if (typeof showToast === 'function') showToast(g.message || 'Mesa atendida por otro operador', 'warning');
+      return;
+    }
+  }
   const cart = getActiveCart();
   if (!cart.length) return;
   const pendingItems = getTabletPendingItems(cart);
@@ -42360,12 +42390,12 @@ function crozzoStaffRolOptionsHtml(selectedRol) {
     { id: 'mesero', label: 'Mesero' },
   ];
   if (perfil === 'basico_restaurante') {
-    roles.push({ id: 'cocina', label: 'Cocina' });
+    roles.push({ id: 'cocina', label: 'Cocina / Despacho' });
   }
   roles.push({ id: 'encargado', label: 'Encargado de turno' });
   roles.push({ id: 'admin', label: 'Administrador' });
   if (perfil === 'basico_restaurante' || perfil === 'basico_tienda') {
-    roles.push({ id: 'inventario', label: 'Inventario / Compras' });
+    roles.push({ id: 'inventario', label: 'GF Compras / Bodega' });
   }
   var sel = String(selectedRol || 'caja');
   return roles
@@ -42650,6 +42680,9 @@ function renderConfigUsuarios() {
     '<div class="form-group"><label class="form-label">Plantilla</label><select class="form-select" id="newUserPlantilla" title="Plantilla de permisos"><option value="">Sin plantilla</option>' +
     plantillaOpts.replace(/^<option value="">[^<]*<\/option>/, '') +
     '</select></div>' +
+    '<div class="form-group crozzo-staff-add-grid__full" id="crozzoStaffLogicPanelHost">' +
+    (typeof crozzoOperativeLogicPanelHtml === 'function' ? crozzoOperativeLogicPanelHtml('caja') : '') +
+    '</div>' +
     (typeof CrozzoStaffCelebrations !== 'undefined' && CrozzoStaffCelebrations.renderNewUserFields
       ? CrozzoStaffCelebrations.renderNewUserFields()
       : '') +
@@ -42737,7 +42770,8 @@ function crozzoStaffNewUserRoleChanged() {
   var rolSel = document.getElementById('newUserRole');
   var tplSel = document.getElementById('newUserPlantilla');
   if (!rolSel || !tplSel) return;
-  var tplId = crozzoDefaultStaffPlantillaIdForRol(rolSel.value || 'caja');
+  var rol = rolSel.value || 'caja';
+  var tplId = crozzoDefaultStaffPlantillaIdForRol(rol);
   var target = 'builtin:' + tplId;
   var found = false;
   for (var i = 0; i < tplSel.options.length; i++) {
@@ -42748,6 +42782,10 @@ function crozzoStaffNewUserRoleChanged() {
     }
   }
   if (!found && tplSel.options.length) tplSel.selectedIndex = 0;
+  var logicHost = document.getElementById('crozzoStaffLogicPanelHost');
+  if (logicHost && typeof crozzoOperativeLogicPanelHtml === 'function') {
+    logicHost.innerHTML = crozzoOperativeLogicPanelHtml(rol);
+  }
 }
 window.crozzoStaffNewUserRoleChanged = crozzoStaffNewUserRoleChanged;
 function initConfigUsuarios() {

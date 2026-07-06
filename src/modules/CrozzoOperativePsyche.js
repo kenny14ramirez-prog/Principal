@@ -1157,12 +1157,26 @@
   }
 
   function getRoleLine() {
+    if (typeof global.crozzoCompanionRoleLine === 'function') {
+      var cl = global.crozzoCompanionRoleLine();
+      if (cl) {
+        if (getExperiencia() === 'expert') {
+          var r = getRoleNorm();
+          return (EXPERT_ROLE_LINES[r] || EXPERT_ROLE_LINES.user) + ' · ' + cl;
+        }
+        return cl;
+      }
+    }
     var r = getRoleNorm();
     if (getExperiencia() === 'expert') return EXPERT_ROLE_LINES[r] || EXPERT_ROLE_LINES.user;
     return ROLE_LINES[r] || ROLE_LINES.user;
   }
 
   function getRoleTip() {
+    if (typeof global.crozzoCompanionRoleTip === 'function') {
+      var ct = global.crozzoCompanionRoleTip();
+      if (ct) return ct;
+    }
     var r = getRoleNorm();
     return ROLE_TIPS[r] || '';
   }
