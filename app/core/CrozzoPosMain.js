@@ -31549,7 +31549,7 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
     } catch (_) {}
     cartsPorLlevar[llevarSeleccionado] = [];
   } else {
-    markSlotAsPaid('mesa', mesaSeleccionado);
+    markSlotAsPaid('mesa', mesaSeleccionada);
     try {
       if (!window.__crozzoRuntimeForceEmptySlots) window.__crozzoRuntimeForceEmptySlots = { mesa: {}, llevar: {} };
       window.__crozzoRuntimeForceEmptySlots.mesa[mesaSeleccionada] = true;
