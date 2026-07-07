@@ -1,18 +1,6 @@
 {
-  "updatedAt": "2026-07-06T16:10:48.389Z",
+  "updatedAt": "2026-07-07T01:11:35.375Z",
   "entries": [
-    {
-      "id": "1.0.203-critical",
-      "version": "v1.0.203",
-      "semver": "1.0.203",
-      "type": "critical",
-      "message": "parche de comunicaxiones escala 3.1V",
-      "publishedAt": "2026-06-29T20:15:09.607Z",
-      "installMode": "auto",
-      "changelog": [
-        "parche de comunicaxiones escala 3.1V"
-      ]
-    },
     {
       "id": "1.0.204-critical",
       "version": "v1.0.204",
@@ -302,6 +290,18 @@
       "installMode": "auto",
       "changelog": [
         "65795"
+      ]
+    },
+    {
+      "id": "1.0.228-critical",
+      "version": "v1.0.228",
+      "semver": "1.0.228",
+      "type": "critical",
+      "message": "791356",
+      "publishedAt": "2026-07-07T01:11:35.375Z",
+      "installMode": "auto",
+      "changelog": [
+        "791356"
       ]
     }
   ]

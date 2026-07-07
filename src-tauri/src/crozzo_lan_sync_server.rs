@@ -5,12 +5,11 @@ use crate::crozzo_lan_ws;
 use crate::crozzo_mdns;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::thread;
 use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
 const DEFAULT_PORT: u16 = 3000;
 /// Cabecera con la que las tablets (Rol B) firman las peticiones de escritura.
@@ -95,8 +94,8 @@ fn shared_state() -> &'static Arc<Mutex<Option<ServerInner>>> {
     STATE.get_or_init(|| Arc::new(Mutex::new(None)))
 }
 
-fn server_thread() -> &'static Mutex<Option<thread::JoinHandle<()>>> {
-    static HANDLE: OnceLock<Mutex<Option<thread::JoinHandle<()>>>> = OnceLock::new();
+fn server_thread() -> &'static Mutex<Option<tokio::task::JoinHandle<()>>> {
+    static HANDLE: OnceLock<Mutex<Option<tokio::task::JoinHandle<()>>>> = OnceLock::new();
     HANDLE.get_or_init(|| Mutex::new(None))
 }
 
@@ -179,20 +178,20 @@ fn save_pending(path: &Option<PathBuf>, pending: &[CrozzoLanSyncSubmission]) {
     }
 }
 
-fn write_http_response(
-    stream: &mut std::net::TcpStream,
+async fn write_http_response(
+    stream: &mut TcpStream,
     status: u16,
     status_text: &str,
     content_type: &str,
     body: &[u8],
-) -> std::io::Result<()> {
+) -> tokio::io::Result<()> {
     let headers = format!(
         "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
         status, status_text, content_type, body.len(), CORS_ALLOW_HEADERS
     );
-    stream.write_all(headers.as_bytes())?;
-    stream.write_all(body)?;
-    stream.flush()
+    stream.write_all(headers.as_bytes()).await?;
+    stream.write_all(body).await?;
+    stream.flush().await
 }
 
 fn parse_request(buf: &[u8]) -> Option<(String, String, String)> {
@@ -449,12 +448,12 @@ fn ingest_api_sync(
     Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true, "action_id": extract_action_id(&payload) }))
 }
 
-fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<ServerInner>>>) {
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(8)));
+async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<ServerInner>>>) {
+    // Establecer timeout para la lectura
     let mut buf = vec![0u8; 65536];
-    let n = match stream.read(&mut buf) {
-        Ok(0) | Err(_) => return,
-        Ok(n) => n,
+    let n = match tokio::time::timeout(Duration::from_secs(8), stream.read(&mut buf)).await {
+        Ok(Ok(0)) | Ok(Err(_)) | Err(_) => return,
+        Ok(Ok(n)) => n,
     };
     let raw_text = String::from_utf8_lossy(&buf[..n]).to_string();
     let (method, path, body) = match parse_request(&buf[..n]) {
@@ -463,25 +462,28 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
     };
 
     if method == "OPTIONS" {
-        let _ = write_http_response(&mut stream, 204, "No Content", "text/plain", b"");
+        let _ = write_http_response(&mut stream, 204, "No Content", "text/plain", b"").await;
         return;
     }
 
-    let (meta, port, auth_token) = {
+    // Primero verificamos si el servidor está activo y obtenemos los datos necesarios
+    let server_data = {
         let guard = state.lock().unwrap();
-        match guard.as_ref() {
-            Some(s) => (s.meta.clone(), s.port, s.auth_token.clone()),
-            None => {
-                let msg = b"{\"ok\":false,\"error\":\"server_stopped\"}";
-                let _ = write_http_response(
-                    &mut stream,
-                    503,
-                    "Service Unavailable",
-                    "application/json",
-                    msg,
-                );
-                return;
-            }
+        guard.as_ref().map(|inner| (inner.meta.clone(), inner.port, inner.auth_token.clone()))
+    };
+    
+    let (meta, port, auth_token) = match server_data {
+        Some(data) => data,
+        None => {
+            let msg = b"{\"ok\":false,\"error\":\"server_stopped\"}";
+            let _ = write_http_response(
+                &mut stream,
+                503,
+                "Service Unavailable",
+                "application/json",
+                msg,
+            ).await;
+            return;
         }
     };
 
@@ -493,7 +495,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
 
     if method == "GET" && (path == "/health" || path == "/health/") {
         let msg = b"{\"ok\":true,\"service\":\"crozzo-lan-sync\"}";
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", msg);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", msg).await;
         return;
     }
 
@@ -518,7 +520,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "cloud_reachable_at_ms": cloud_at
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
@@ -530,7 +532,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                 "Unauthorized",
                 "application/json",
                 b"{\"ok\":false,\"error\":\"auth_required\"}",
-            );
+            ).await;
             return;
         }
         let has_cloud = !meta.supabase_url.is_empty() && !meta.supabase_anon_key.is_empty();
@@ -543,7 +545,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "business_name": meta.business_name,
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":false}".to_vec());
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
@@ -554,7 +556,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             || path == "/mesh-ping.json/")
     {
         let bytes = mesh_ping_json(&meta, port);
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
@@ -588,7 +590,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
         }
         let resp = serde_json::json!({ "ok": true, "signals": out });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"signals\":[]}".to_vec());
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
@@ -607,7 +609,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "saved_at": now_ms()
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"comandas\":[]}".to_vec());
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
@@ -625,7 +627,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
             "saved_at": saved
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":false}".to_vec());
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
@@ -637,7 +639,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                 "Unauthorized",
                 "application/json",
                 b"{\"ok\":false,\"error\":\"auth_required\"}",
-            );
+            ).await;
             return;
         }
         let payload: serde_json::Value = match serde_json::from_str(&body) {
@@ -650,7 +652,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                     "Bad Request",
                     "application/json",
                     msg,
-                );
+                ).await;
                 return;
             }
         };
@@ -680,12 +682,12 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
         }
         let resp = serde_json::json!({ "ok": true, "id": sig.id });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
-        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
         return;
     }
 
     if method == "POST" {
-        if let Some(endpoint) = normalize_api_path(&path) {
+        if let Some(_endpoint) = normalize_api_path(&path) {
             if !auth_ok {
                 let _ = write_http_response(
                     &mut stream,
@@ -693,7 +695,7 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                     "Unauthorized",
                     "application/json",
                     b"{\"ok\":false,\"error\":\"auth_required\"}",
-                );
+                ).await;
                 return;
             }
             let payload: serde_json::Value = match serde_json::from_str(&body) {
@@ -706,14 +708,14 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                         "Bad Request",
                         "application/json",
                         msg,
-                    );
+                    ).await;
                     return;
                 }
             };
             match ingest_api_sync(&state, payload) {
                 Ok(resp) => {
                     let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
-                    let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes);
+                    let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
                 }
                 Err(err) => {
                     let msg = format!("{{\"ok\":false,\"error\":\"{}\"}}", err.replace('"', "'"));
@@ -723,17 +725,17 @@ fn handle_connection(mut stream: std::net::TcpStream, state: Arc<Mutex<Option<Se
                         "Service Unavailable",
                         "application/json",
                         msg.as_bytes(),
-                    );
+                    ).await;
                 }
             }
             return;
         }
     }
 
-    let _ = write_http_response(&mut stream, 404, "Not Found", "application/json", b"{\"ok\":false,\"error\":\"not_found\"}");
+    let _ = write_http_response(&mut stream, 404, "Not Found", "application/json", b"{\"ok\":false,\"error\":\"not_found\"}").await;
 }
 
-fn run_server(state: Arc<Mutex<Option<ServerInner>>>, listener: TcpListener) {
+async fn run_server(state: Arc<Mutex<Option<ServerInner>>>, listener: TcpListener) {
     loop {
         {
             let guard = state.lock().unwrap();
@@ -741,17 +743,16 @@ fn run_server(state: Arc<Mutex<Option<ServerInner>>>, listener: TcpListener) {
                 break;
             }
         }
-        match listener.accept() {
+        match listener.accept().await {
             Ok((stream, _)) => {
                 let st = Arc::clone(&state);
-                thread::spawn(move || handle_connection(stream, st));
-            }
-            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                thread::sleep(Duration::from_millis(40));
+                tokio::spawn(async move {
+                    handle_connection(stream, st).await;
+                });
             }
             Err(e) => {
                 eprintln!("[lan-sync] accept: {}", e);
-                thread::sleep(Duration::from_millis(200));
+                tokio::time::sleep(Duration::from_millis(200)).await;
             }
         }
     }
@@ -769,7 +770,7 @@ fn status_from_inner(inner: &ServerInner) -> CrozzoLanSyncStatus {
 }
 
 #[tauri::command]
-pub fn crozzo_lan_sync_start(
+pub async fn crozzo_lan_sync_start(
     port: Option<u16>,
     location_id: Option<String>,
     device_id: Option<String>,
@@ -785,10 +786,9 @@ pub fn crozzo_lan_sync_start(
     }
     crozzo_lan_sync_stop()?;
     let addr = format!("0.0.0.0:{}", port);
-    let listener = TcpListener::bind(&addr).map_err(|e| {
+    let listener = TcpListener::bind(&addr).await.map_err(|e| {
         format!("No se pudo abrir el puerto {}: {}", port, e)
     })?;
-    let _ = listener.set_nonblocking(true);
     let meta = ServerMeta {
         location_id: location_id.unwrap_or_default().trim().to_string(),
         device_id: device_id.unwrap_or_default().trim().to_string(),
@@ -823,13 +823,13 @@ pub fn crozzo_lan_sync_start(
         });
     }
     let st = Arc::clone(&shared);
-    let handle = thread::spawn(move || run_server(st, listener));
+    let handle = tokio::spawn(run_server(st, listener));
     {
         let mut th = server_thread().lock().map_err(|e| e.to_string())?;
         *th = Some(handle);
     }
     let ws_port = port.saturating_add(1);
-    if let Err(e) = crozzo_lan_ws::crozzo_lan_ws_start(Some(ws_port)) {
+    if let Err(e) = crozzo_lan_ws::crozzo_lan_ws_start(Some(ws_port)).await {
         let _ = crozzo_lan_sync_stop();
         return Err(e);
     }
@@ -886,7 +886,7 @@ pub fn crozzo_lan_sync_stop() -> Result<CrozzoLanSyncStatus, String> {
     }
     let mut th = server_thread().lock().map_err(|e| e.to_string())?;
     if let Some(handle) = th.take() {
-        let _ = handle.join();
+        handle.abort();
     }
     {
         let mut guard = shared.lock().map_err(|e| e.to_string())?;

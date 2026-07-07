@@ -1,19 +1,17 @@
 //! WebSocket LAN — push en tiempo real a tablets (puerto HTTP+1, ej. 3001).
 
 use serde_json::json;
-use std::io::ErrorKind;
-use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::thread;
 use std::time::Duration;
-use tungstenite::{accept, Message, WebSocket};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
 
-type WsConn = WebSocket<TcpStream>;
+type WsConn = WebSocketStream<TcpStream>;
 
 struct WsInner {
     port: u16,
     stop: bool,
-    conns: Vec<Arc<Mutex<WsConn>>>,
+    conns: Vec<Arc<tokio::sync::Mutex<WsConn>>>,
 }
 
 fn hub() -> &'static Arc<Mutex<Option<WsInner>>> {
@@ -21,8 +19,8 @@ fn hub() -> &'static Arc<Mutex<Option<WsInner>>> {
     H.get_or_init(|| Arc::new(Mutex::new(None)))
 }
 
-fn ws_thread_handle() -> &'static Mutex<Option<thread::JoinHandle<()>>> {
-    static T: OnceLock<Mutex<Option<thread::JoinHandle<()>>>> = OnceLock::new();
+fn ws_thread_handle() -> &'static Mutex<Option<tokio::task::JoinHandle<()>>> {
+    static T: OnceLock<Mutex<Option<tokio::task::JoinHandle<()>>>> = OnceLock::new();
     T.get_or_init(|| Mutex::new(None))
 }
 
@@ -38,24 +36,30 @@ pub fn broadcast_text(json_text: &str) -> usize {
     }
     let mut sent = 0;
     for c in &inner.conns {
-        if let Ok(mut w) = c.lock() {
-            if w.send(Message::Text(json_text.to_string())).is_ok() {
-                sent += 1;
+        if let Ok(mut w) = c.try_lock() {
+            use futures_util::SinkExt;
+            // Para broadcast síncrono, usamos try_send si está disponible
+            // o creamos un runtime temporal para el envío
+            let rt = tokio::runtime::Handle::try_current();
+            if let Ok(handle) = rt {
+                if handle.block_on(w.send(Message::Text(json_text.to_string()))).is_ok() {
+                    sent += 1;
+                }
             }
         }
     }
     sent
 }
 
-fn handle_ws_client(stream: TcpStream, shared: Arc<Mutex<Option<WsInner>>>) {
-    let ws = match accept(stream) {
+async fn handle_ws_client(stream: TcpStream, shared: Arc<Mutex<Option<WsInner>>>) {
+    let ws = match accept_async(stream).await {
         Ok(w) => w,
         Err(e) => {
             eprintln!("[lan-ws] handshake: {e}");
             return;
         }
     };
-    let arc = Arc::new(Mutex::new(ws));
+    let arc = Arc::new(tokio::sync::Mutex::new(ws));
     {
         if let Ok(mut g) = shared.lock() {
             if let Some(inner) = g.as_mut() {
@@ -64,15 +68,20 @@ fn handle_ws_client(stream: TcpStream, shared: Arc<Mutex<Option<WsInner>>>) {
         }
     }
     loop {
-        let msg = { arc.lock().ok().and_then(|mut w| w.read().ok()) };
+        let msg = {
+            let mut w = arc.lock().await;
+            use futures_util::StreamExt;
+            w.next().await
+        };
         match msg {
-            Some(Message::Close(_)) | None => break,
-            Some(Message::Ping(data)) => {
-                if let Ok(mut w) = arc.lock() {
-                    let _ = w.send(Message::Pong(data));
-                }
+            Some(Ok(Message::Close(_))) | None => break,
+            Some(Ok(Message::Ping(data))) => {
+                let mut w = arc.lock().await;
+                use futures_util::SinkExt;
+                let _ = w.send(Message::Pong(data)).await;
             }
-            Some(_) => {}
+            Some(Ok(_)) => {}
+            Some(Err(_)) => break,
         }
     }
     if let Ok(mut g) = shared.lock() {
@@ -82,7 +91,7 @@ fn handle_ws_client(stream: TcpStream, shared: Arc<Mutex<Option<WsInner>>>) {
     }
 }
 
-fn run_ws_server(shared: Arc<Mutex<Option<WsInner>>>, listener: TcpListener) {
+async fn run_ws_server(shared: Arc<Mutex<Option<WsInner>>>, listener: TcpListener) {
     loop {
         let stop = shared
             .lock()
@@ -92,32 +101,30 @@ fn run_ws_server(shared: Arc<Mutex<Option<WsInner>>>, listener: TcpListener) {
         if stop {
             break;
         }
-        match listener.accept() {
+        match listener.accept().await {
             Ok((stream, _)) => {
                 let sh = Arc::clone(&shared);
-                thread::spawn(move || handle_ws_client(stream, sh));
-            }
-            Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
-                thread::sleep(Duration::from_millis(45));
+                tokio::spawn(async move {
+                    handle_ws_client(stream, sh).await;
+                });
             }
             Err(e) => {
                 eprintln!("[lan-ws] accept: {e}");
-                thread::sleep(Duration::from_millis(180));
+                tokio::time::sleep(Duration::from_millis(180)).await;
             }
         }
     }
 }
 
 #[tauri::command]
-pub fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Value, String> {
+pub async fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Value, String> {
     crozzo_lan_ws_stop()?;
     let port = ws_port.unwrap_or(3001);
     if port < 1024 {
         return Err("Puerto WS inválido".into());
     }
     let addr = format!("0.0.0.0:{port}");
-    let listener = TcpListener::bind(&addr).map_err(|e| format!("No se pudo abrir el puerto WS {port}: {e}"))?;
-    let _ = listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+    let listener = TcpListener::bind(&addr).await.map_err(|e| format!("No se pudo abrir el puerto WS {port}: {e}"))?;
     let shared = Arc::clone(hub());
     {
         let mut g = shared.lock().map_err(|e| e.to_string())?;
@@ -128,7 +135,9 @@ pub fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Value, St
         });
     }
     let sh = Arc::clone(&shared);
-    let handle = thread::spawn(move || run_ws_server(sh, listener));
+    let handle = tokio::spawn(async move {
+        run_ws_server(sh, listener).await;
+    });
     if let Ok(mut th) = ws_thread_handle().lock() {
         *th = Some(handle);
     }
@@ -147,7 +156,7 @@ pub fn crozzo_lan_ws_stop() -> Result<serde_json::Value, String> {
     }
     if let Ok(mut th) = ws_thread_handle().lock() {
         if let Some(h) = th.take() {
-            let _ = h.join();
+            h.abort();
         }
     }
     Ok(json!({ "running": false, "port": 0, "clients": 0 }))
