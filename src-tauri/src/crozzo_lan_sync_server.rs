@@ -23,6 +23,8 @@ const INFLIGHT_TTL_MS: u128 = 20_000;
 const PENDING_MAX: usize = 2000;
 const SEEN_ACTION_TTL_MS: u128 = 6 * 60 * 60 * 1000;
 const SEEN_ACTION_MAX: usize = 4000;
+/// Rate limiting para consultas RUT: 1 consulta cada 6 segundos por IP
+const RUT_RATE_LIMIT_MS: u128 = 6_000;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,6 +68,31 @@ struct P2pSignalMsg {
     body: serde_json::Value,
 }
 
+#[derive(Deserialize)]
+struct ConsultarRutRequest {
+    nit: String,
+}
+
+#[derive(Serialize)]
+struct ConsultarRutResponse {
+    ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<EmpresaData>,
+}
+
+#[derive(Serialize)]
+struct EmpresaData {
+    nit: String,
+    razon_social: String,
+    direccion: String,
+    telefono: String,
+    email: String,
+    estado: String,
+    tipo_contribuyente: String,
+}
+
 struct ServerInner {
     port: u16,
     meta: ServerMeta,
@@ -86,6 +113,8 @@ struct ServerInner {
     auth_token: String,
     /// Archivo donde se persiste `pending` (sobrevive reinicios).
     pending_path: Option<PathBuf>,
+    /// Rate limiting para consultas RUT: IP → último timestamp de consulta
+    rut_rate_limit: HashMap<String, u128>,
     stop: bool,
 }
 
@@ -362,6 +391,173 @@ fn broadcast_lan_push(endpoint: &str, payload: &serde_json::Value) {
     }
 }
 
+/// Valida que el NIT tenga el formato correcto (10-15 dígitos)
+fn validate_nit(nit: &str) -> Result<String, String> {
+    let cleaned = nit.trim().replace("-", "").replace(".", "").replace(" ", "");
+    
+    // Verificar que solo contenga dígitos
+    if !cleaned.chars().all(|c| c.is_ascii_digit()) {
+        return Err("NIT debe contener solo números".to_string());
+    }
+    
+    // Verificar longitud
+    if cleaned.len() < 10 || cleaned.len() > 15 {
+        return Err("NIT debe tener entre 10 y 15 dígitos".to_string());
+    }
+    
+    Ok(cleaned)
+}
+
+/// Verifica rate limiting para consultas RUT por IP
+fn check_rut_rate_limit(inner: &mut ServerInner, client_ip: &str) -> Result<(), String> {
+    let now = now_ms_u128();
+    
+    // Limpiar entradas antiguas (más de 1 hora)
+    inner.rut_rate_limit.retain(|_, timestamp| {
+        now.saturating_sub(*timestamp) < 3_600_000 // 1 hora en ms
+    });
+    
+    if let Some(&last_request) = inner.rut_rate_limit.get(client_ip) {
+        let time_since_last = now.saturating_sub(last_request);
+        if time_since_last < RUT_RATE_LIMIT_MS {
+            let wait_seconds = (RUT_RATE_LIMIT_MS - time_since_last) / 1000;
+            return Err(format!("Rate limit excedido. Espere {} segundos", wait_seconds));
+        }
+    }
+    
+    // Actualizar timestamp para esta IP
+    inner.rut_rate_limit.insert(client_ip.to_string(), now);
+    Ok(())
+}
+
+/// Genera datos mock de empresa para el NIT dado
+fn generate_mock_empresa_data(nit: &str) -> EmpresaData {
+    // Generar datos mock basados en el NIT para consistencia
+    let nit_num: u64 = nit.parse().unwrap_or(900123456);
+    let company_types = ["SAS", "LTDA", "SA", "E.U.", "CORP"];
+    let cities = ["BOGOTÁ", "MEDELLÍN", "CALI", "BARRANQUILLA", "CARTAGENA"];
+    let states = ["ACTIVA", "ACTIVA", "ACTIVA", "SUSPENDIDA"]; // Más probabilidad de activa
+    
+    let type_idx = (nit_num % company_types.len() as u64) as usize;
+    let city_idx = (nit_num % cities.len() as u64) as usize;
+    let state_idx = (nit_num % states.len() as u64) as usize;
+    
+    EmpresaData {
+        nit: nit.to_string(),
+        razon_social: format!("EMPRESA DEMO {} {}", nit_num % 1000, company_types[type_idx]),
+        direccion: format!("CALLE {} # {}-{}, {}", 
+            (nit_num % 200) + 1, 
+            (nit_num % 50) + 10, 
+            (nit_num % 99) + 1, 
+            cities[city_idx]
+        ),
+        telefono: format!("601{:07}", nit_num % 10000000),
+        email: format!("contacto{}@empresa.com", nit_num % 1000),
+        estado: states[state_idx].to_string(),
+        tipo_contribuyente: if nit_num % 3 == 0 { 
+            "GRAN CONTRIBUYENTE".to_string() 
+        } else { 
+            "RÉGIMEN COMÚN".to_string() 
+        },
+    }
+}
+
+/// Maneja la consulta RUT con validación y rate limiting
+async fn handle_consultar_rut(
+    stream: &mut TcpStream,
+    body: &str,
+    client_ip: &str,
+    state: &Arc<Mutex<Option<ServerInner>>>,
+) {
+    // Parsear request
+    let request: ConsultarRutRequest = match serde_json::from_str(body) {
+        Ok(req) => req,
+        Err(_) => {
+            let response = ConsultarRutResponse {
+                ok: false,
+                error: Some("JSON inválido".to_string()),
+                data: None,
+            };
+            let bytes = serde_json::to_vec(&response).unwrap_or_default();
+            let _ = write_http_response(stream, 400, "Bad Request", "application/json", &bytes).await;
+            return;
+        }
+    };
+    
+    // Validar NIT
+    let validated_nit = match validate_nit(&request.nit) {
+        Ok(nit) => nit,
+        Err(error) => {
+            let response = ConsultarRutResponse {
+                ok: false,
+                error: Some(error),
+                data: None,
+            };
+            let bytes = serde_json::to_vec(&response).unwrap_or_default();
+            let _ = write_http_response(stream, 400, "Bad Request", "application/json", &bytes).await;
+            return;
+        }
+    };
+    
+    // Verificar rate limiting
+    let rate_limit_result = {
+        match state.lock() {
+            Ok(mut guard) => {
+                if let Some(inner) = guard.as_mut() {
+                    check_rut_rate_limit(inner, client_ip)
+                } else {
+                    Err("Servidor no disponible".to_string())
+                }
+            }
+            Err(_) => Err("Error interno del servidor".to_string())
+        }
+    };
+    
+    // Manejar errores de lock antes del rate limiting
+    if let Err(error) = &rate_limit_result {
+        if error == "Error interno del servidor" {
+            let response = ConsultarRutResponse {
+                ok: false,
+                error: Some(error.clone()),
+                data: None,
+            };
+            let bytes = serde_json::to_vec(&response).unwrap_or_default();
+            let _ = write_http_response(stream, 500, "Internal Server Error", "application/json", &bytes).await;
+            return;
+        }
+    }
+    
+    // Manejar el resultado del rate limiting
+    if let Err(error) = rate_limit_result {
+        let (status_code, status_text) = if error == "Servidor no disponible" {
+            (503, "Service Unavailable")
+        } else {
+            (429, "Too Many Requests")
+        };
+        
+        let response = ConsultarRutResponse {
+            ok: false,
+            error: Some(error),
+            data: None,
+        };
+        let bytes = serde_json::to_vec(&response).unwrap_or_default();
+        let _ = write_http_response(stream, status_code, status_text, "application/json", &bytes).await;
+        return;
+    }
+    
+    // Generar datos mock
+    let empresa_data = generate_mock_empresa_data(&validated_nit);
+    
+    let response = ConsultarRutResponse {
+        ok: true,
+        error: None,
+        data: Some(empresa_data),
+    };
+    
+    let bytes = serde_json::to_vec(&response).unwrap_or_default();
+    let _ = write_http_response(stream, 200, "OK", "application/json", &bytes).await;
+}
+
 /// Aplica POST /api/sync en memoria (cola + WS). Usado por HTTP y por invoke IPC
 /// de la caja (evita CORS tauri.localhost → 127.0.0.1).
 fn ingest_api_sync(
@@ -449,6 +645,12 @@ fn ingest_api_sync(
 }
 
 async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<ServerInner>>>) {
+    // Obtener la IP del cliente para rate limiting
+    let client_ip = match stream.peer_addr() {
+        Ok(addr) => addr.ip().to_string(),
+        Err(_) => "unknown".to_string(),
+    };
+
     // Establecer timeout para la lectura
     let mut buf = vec![0u8; 65536];
     let n = match tokio::time::timeout(Duration::from_secs(8), stream.read(&mut buf)).await {
@@ -686,6 +888,12 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
         return;
     }
 
+    // Endpoint para consultar RUT
+    if method == "POST" && (path == "/api/consultar-rut" || path == "/api/consultar-rut/") {
+        handle_consultar_rut(&mut stream, &body, &client_ip, &state).await;
+        return;
+    }
+
     if method == "POST" {
         if let Some(_endpoint) = normalize_api_path(&path) {
             if !auth_ok {
@@ -819,6 +1027,7 @@ pub async fn crozzo_lan_sync_start(
             p2p_signals: Vec::new(),
             auth_token: auth_token.unwrap_or_default().trim().to_string(),
             pending_path,
+            rut_rate_limit: HashMap::new(),
             stop: false,
         });
     }
