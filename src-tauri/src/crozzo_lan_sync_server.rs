@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Mutex as AsyncMutex;
 
 const DEFAULT_PORT: u16 = 3000;
 /// Cabecera con la que las tablets (Rol B) firman las peticiones de escritura.
@@ -128,6 +129,14 @@ fn server_thread() -> &'static Mutex<Option<tokio::task::JoinHandle<()>>> {
     HANDLE.get_or_init(|| Mutex::new(None))
 }
 
+fn lifecycle_lock() -> &'static AsyncMutex<()> {
+    static L: OnceLock<AsyncMutex<()>> = OnceLock::new();
+    L.get_or_init(|| AsyncMutex::new(()))
+}
+
+/// Breve pausa tras abort para que Windows libere 3000/3001 antes de re-bind.
+const PORT_RELEASE_WAIT_MS: u64 = 150;
+
 fn now_ms() -> String {
     now_ms_u128().to_string()
 }
@@ -138,6 +147,76 @@ fn now_ms_u128() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0)
+}
+
+/// Anti-entropy digest (alineado con CrozzoLanOpsSync.localComandasDigest — FNV-1a 32).
+fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) -> serde_json::Value {
+    let mut ids: Vec<String> = Vec::new();
+    let mut max_at: i64 = 0;
+    for row in rows {
+        let estado = row
+            .get("estado")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if estado == "entregada" {
+            continue;
+        }
+        let key = row
+            .get("transaction_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                row.get("id").map(|v| match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                })
+            });
+        let Some(key) = key else { continue };
+        if key.is_empty() || key == "null" {
+            continue;
+        }
+        ids.push(key);
+        let at_ms = row
+            .get("lastUpdateAt")
+            .or_else(|| row.get("createdAt"))
+            .and_then(|v| match v {
+                serde_json::Value::Number(n) => n.as_i64(),
+                serde_json::Value::String(s) => {
+                    if let Ok(n) = s.parse::<i64>() {
+                        Some(n)
+                    } else {
+                        // Epoch ms aproximado desde prefijo ISO (YYYY-MM-DDTHH:MM:SS) via Date-like digits.
+                        let digits: String = s.chars().filter(|c| c.is_ascii_digit()).take(14).collect();
+                        if digits.len() >= 14 {
+                            Some(0) // hash+count mandan; maxAt solo desempate laxo en JS
+                        } else {
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            })
+            .unwrap_or(0);
+        if at_ms > max_at {
+            max_at = at_ms;
+        }
+    }
+    ids.sort();
+    let mut h: u32 = 2166136261;
+    for id in &ids {
+        let s = format!("{id}|");
+        for b in s.bytes() {
+            h ^= u32::from(b);
+            h = h.wrapping_mul(16777619);
+        }
+    }
+    serde_json::json!({
+        "ok": true,
+        "count": ids.len(),
+        "maxAt": max_at,
+        "hash": format!("{:x}", h),
+        "runtimeSavedAt": runtime_saved_at,
+    })
 }
 
 /// Sufijo monotónico para evitar colisiones de id cuando llegan varias
@@ -616,7 +695,17 @@ fn ingest_api_sync(
         broadcast_lan_push(&endpoint, &payload);
         return Ok(serde_json::json!({ "ok": true, "runtime": true }));
     }
-    {
+    let is_identity = payload
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|t| {
+            t == "identity_card"
+                || t == "identity"
+                || t == "fleet_roster"
+                || t == "identity_roster"
+        })
+        .unwrap_or(false);
+    if !is_identity {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         if let Some(inner) = guard.as_mut() {
             upsert_comanda_snapshot(inner, &payload);
@@ -796,19 +885,41 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
         return;
     }
 
-    if method == "GET" && (path == "/api/comandas" || path.starts_with("/api/comandas?")) {
-        let rows: Vec<serde_json::Value> = {
+    if method == "GET" && (path == "/api/ops-digest" || path.starts_with("/api/ops-digest?")) {
+        let (rows, runtime_saved): (Vec<serde_json::Value>, String) = {
             let guard = state.lock().unwrap();
             match guard.as_ref() {
-                Some(inner) => inner.comandas_active.values().cloned().collect(),
-                None => Vec::new(),
+                Some(inner) => (
+                    inner.comandas_active.values().cloned().collect(),
+                    inner.runtime_saved_at.clone(),
+                ),
+                None => (Vec::new(), String::new()),
             }
         };
+        let resp = ops_digest_from_comandas(&rows, &runtime_saved);
+        let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":false}".to_vec());
+        let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
+        return;
+    }
+
+    if method == "GET" && (path == "/api/comandas" || path.starts_with("/api/comandas?")) {
+        let (rows, runtime_saved): (Vec<serde_json::Value>, String) = {
+            let guard = state.lock().unwrap();
+            match guard.as_ref() {
+                Some(inner) => (
+                    inner.comandas_active.values().cloned().collect(),
+                    inner.runtime_saved_at.clone(),
+                ),
+                None => (Vec::new(), String::new()),
+            }
+        };
+        let digest = ops_digest_from_comandas(&rows, &runtime_saved);
         let resp = serde_json::json!({
             "ok": true,
             "comandas": rows,
             "count": rows.len(),
-            "saved_at": now_ms()
+            "saved_at": now_ms(),
+            "digest": digest
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"comandas\":[]}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
@@ -992,7 +1103,17 @@ pub async fn crozzo_lan_sync_start(
     if port < 1024 {
         return Err("Puerto inválido (use ≥ 1024)".into());
     }
-    crozzo_lan_sync_stop()?;
+    let _lifecycle = lifecycle_lock().lock().await;
+    {
+        let guard = shared_state().lock().map_err(|e| e.to_string())?;
+        if let Some(inner) = guard.as_ref() {
+            if !inner.stop && inner.port == port {
+                return Ok(status_from_inner(inner));
+            }
+        }
+    }
+    crozzo_lan_sync_stop_inner()?;
+    tokio::time::sleep(Duration::from_millis(PORT_RELEASE_WAIT_MS)).await;
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).await.map_err(|e| {
         format!("No se pudo abrir el puerto {}: {}", port, e)
@@ -1039,7 +1160,7 @@ pub async fn crozzo_lan_sync_start(
     }
     let ws_port = port.saturating_add(1);
     if let Err(e) = crozzo_lan_ws::crozzo_lan_ws_start(Some(ws_port)).await {
-        let _ = crozzo_lan_sync_stop();
+        let _ = crozzo_lan_sync_stop_inner();
         return Err(e);
     }
     crozzo_mdns::start_with_lan(port, ws_port, &loc_id, &dev_id, &biz_id);
@@ -1084,8 +1205,7 @@ pub fn crozzo_lan_sync_update_pairing_cloud(
     }
 }
 
-#[tauri::command]
-pub fn crozzo_lan_sync_stop() -> Result<CrozzoLanSyncStatus, String> {
+fn crozzo_lan_sync_stop_inner() -> Result<CrozzoLanSyncStatus, String> {
     let shared = Arc::clone(shared_state());
     {
         let mut guard = shared.lock().map_err(|e| e.to_string())?;
@@ -1111,6 +1231,17 @@ pub fn crozzo_lan_sync_stop() -> Result<CrozzoLanSyncStatus, String> {
         device_id: String::new(),
         business_id: String::new(),
     })
+}
+
+#[tauri::command]
+pub fn crozzo_lan_sync_stop() -> Result<CrozzoLanSyncStatus, String> {
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        return handle.block_on(async {
+            let _lifecycle = lifecycle_lock().lock().await;
+            crozzo_lan_sync_stop_inner()
+        });
+    }
+    crozzo_lan_sync_stop_inner()
 }
 
 #[tauri::command]

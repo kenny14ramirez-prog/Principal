@@ -145,13 +145,7 @@
       }
       if (typeof global.crozzoPullComandasFromCloud === 'function') {
         try {
-          var reconcileStale =
-            !(
-              global.CrozzoOperativeReservorio &&
-              typeof global.CrozzoOperativeReservorio.allowAutoDiscard === 'function' &&
-              !global.CrozzoOperativeReservorio.allowAutoDiscard({})
-            );
-          if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: reconcileStale })) pulled++;
+          if (await global.crozzoPullComandasFromCloud({ skipPrint: !!opts.skipPrint, skipRender: true, silent: true, reconcileStale: true })) pulled++;
         } catch (_) {}
       }
       if (typeof global.__crozzoRefreshCloudCatalogUi === 'function') {

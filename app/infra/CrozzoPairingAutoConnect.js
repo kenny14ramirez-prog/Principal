@@ -41,6 +41,7 @@
       }
       try {
         if (
+          !opts.skipFleetReconcile &&
           !FLEET_SKIP_RE.test(source) &&
           typeof global.crozzoFleetOperationalReconcile === 'function'
         ) {
@@ -50,6 +51,22 @@
       try {
         if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
           global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
+        }
+      } catch (_) {}
+      /* Safety: si la flota sigue en 1, forzar anuncio (no depende solo de ApplyLan). */
+      try {
+        var snap =
+          typeof global.crozzoFleetSnapshot === 'function'
+            ? global.crozzoFleetSnapshot()
+            : global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.getFleetSnapshot === 'function'
+              ? global.CrozzoPeerDirectory.getFleetSnapshot()
+              : null;
+        if (snap && Number(snap.peerCount) <= 1) {
+          if (typeof global.crozzoAnnounceFleetIdentity === 'function') {
+            await global.crozzoAnnounceFleetIdentity({ force: true, pull: true });
+          } else if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.announceIdentity === 'function') {
+            await global.CrozzoPeerDirectory.announceIdentity({ force: true, pull: true });
+          }
         }
       } catch (_) {}
       return { ok: true, source: source };
@@ -74,7 +91,14 @@
         var src = (ev && ev.detail && ev.detail.source) || 'login';
         if (src === 'init') return;
         global.setTimeout(function () {
-          run('auth_' + src, { force: false, skipInvalidate: true }).catch(function () {});
+          var skipFleet = false;
+          try {
+            if (typeof global.crozzoComandaRealtimeStatus === 'function') {
+              var cs = global.crozzoComandaRealtimeStatus();
+              skipFleet = !!(cs && cs.live && global.__crozzoComandaCloudCh);
+            }
+          } catch (_) {}
+          run('auth_' + src, { force: false, skipInvalidate: true, skipFleetReconcile: skipFleet }).catch(function () {});
         }, 800);
       });
       global.addEventListener('crozzo-internal-qr-setup-exchange', function () {

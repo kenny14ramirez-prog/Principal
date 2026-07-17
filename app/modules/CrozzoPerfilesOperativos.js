@@ -13,6 +13,8 @@
     mediano: 'basico_restaurante',
     grande: 'basico_restaurante',
     restaurante: 'basico_restaurante',
+    hotel: 'basico_hotel',
+    basico_hotel: 'basico_hotel',
     retail: 'basico_tienda',
     servicios: 'basico_tienda',
     basico: 'basico_tienda',
@@ -51,11 +53,14 @@
   ];
 
   var BASICO_TIENDA_EXTRA = ['inicio-operacion', 'venta-comercial', 'facturas', 'cierre-caja', 'caja'];
+  /** Hotel F&B: misma base que restaurante (habitaciones = mesas Hab.* hasta folio dedicado). */
+  var BASICO_HOTEL_EXTRA = BASICO_RESTAURANTE_EXTRA.slice();
 
   /** Módulos permitidos por perfil (cliente / negocio). */
   var PERFIL_CLIENT_MENUS = {
     basico_restaurante: BASICO_SHARED.concat(BASICO_RESTAURANTE_EXTRA),
     basico_tienda: BASICO_SHARED.concat(BASICO_TIENDA_EXTRA),
+    basico_hotel: BASICO_SHARED.concat(BASICO_HOTEL_EXTRA),
   };
 
   /** Menú lateral por rol (solo perfiles con roles definidos; personalizado = sin filtro). */
@@ -64,11 +69,11 @@
       caja: ['inicio-operacion', 'punto-venta', 'facturas', 'cierre-caja', 'caja', 'compras-recetario-cocina', 'compras-proceso-sesion', 'centro-compras'],
       mesero: ['tablets'],
       cocina: [
+        'comandas',
         'compras-cortes',
         'compras-recetario-cocina',
         'compras-proceso-sesion',
         'compras-proceso-historial',
-        'comandas',
       ],
       encargado: [
         'inicio-operacion',
@@ -87,6 +92,8 @@
       inventario: [
         'centro-compras',
         'compras-proveedores',
+        'compras-cotizaciones',
+        'compras-recepcion',
         'inventarios',
         'sistema-costos-matriz',
         'sistema-costos-inv',
@@ -101,6 +108,8 @@
       inventario: [
         'centro-compras',
         'compras-proveedores',
+        'compras-cotizaciones',
+        'compras-recepcion',
         'inventarios',
         'sistema-costos-matriz',
         'sistema-costos-inv',
@@ -108,6 +117,35 @@
       ],
       admin: PERFIL_CLIENT_MENUS.basico_tienda.slice(),
       user: ['venta-comercial'],
+    },
+    basico_hotel: {
+      recepcion: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'cierre-caja'],
+      caja: ['inicio-operacion', 'punto-venta', 'facturas', 'cierre-caja', 'caja'],
+      mesero: ['tablets'],
+      cocina: ['comandas', 'compras-recetario-cocina', 'compras-cortes', 'compras-proceso-sesion'],
+      encargado: [
+        'inicio-operacion',
+        'punto-venta',
+        'tablets',
+        'facturas',
+        'cierre-caja',
+        'caja',
+        'comandas',
+        'inventarios',
+        'centro-compras',
+      ],
+      inventario: [
+        'centro-compras',
+        'compras-proveedores',
+        'compras-cotizaciones',
+        'compras-recepcion',
+        'inventarios',
+        'sistema-costos-matriz',
+        'sistema-costos-inv',
+        'compras-oficina',
+      ],
+      admin: PERFIL_CLIENT_MENUS.basico_hotel.slice(),
+      user: ['inicio-operacion', 'punto-venta'],
     },
   };
 
@@ -147,6 +185,24 @@
       dupRatio: 0.78,
       shiftTip: true,
     },
+    basico_hotel: {
+      id: 'basico_hotel',
+      label: 'Plan básico · Hotel F&B',
+      desc:
+        'Restaurante + recepción ligera (habitaciones como mesas Hab.*). Sin PMS completo. Misma cascada sync Z0.',
+      icon: '🏨',
+      tipo: 'hotel',
+      tamano: 'basico',
+      experiencia: 'novice',
+      home: 'inicio-operacion',
+      roleMenus: true,
+      onboarding: true,
+      debounceMs: 750,
+      dupWindowMs: 100000,
+      dupRatio: 0.78,
+      shiftTip: true,
+      habitacionesComoMesas: true,
+    },
     personalizado: {
       id: 'personalizado',
       label: 'Personalizado (Super Admin)',
@@ -175,6 +231,7 @@
         .replace(/\s+/g, '_')
         .replace(/-/g, '_');
     if (r === 'jefe_compras') return 'inventario';
+    if (r === 'recepcionista' || r === 'front_desk') return 'recepcion';
     return r;
   }
 
@@ -230,12 +287,12 @@
   }
 
   function listPerfiles() {
-    return [PERFIL_META.basico_restaurante, PERFIL_META.basico_tienda];
+    return [PERFIL_META.basico_restaurante, PERFIL_META.basico_tienda, PERFIL_META.basico_hotel];
   }
 
   function listPerfilesRestaurante() {
     return listPerfiles().filter(function (m) {
-      return m.tipo === 'restaurante';
+      return m.tipo === 'restaurante' || m.tipo === 'hotel';
     });
   }
 
@@ -243,11 +300,13 @@
     caja: 'Caja / POS',
     mesero: 'Mesero / Tablet',
     cocina: 'Cocina / KDS',
+    recepcion: 'Recepción hotel',
+    encargado: 'Encargado',
     inventario: 'Inventario / Compras',
     admin: 'Administrador',
     user: 'Usuario básico',
   };
-  var GESTION_ROLE_ORDER = ['caja', 'mesero', 'cocina', 'inventario', 'user', 'admin'];
+  var GESTION_ROLE_ORDER = ['recepcion', 'caja', 'mesero', 'cocina', 'encargado', 'inventario', 'user', 'admin'];
 
   function menuLabel(menuId) {
     if (typeof global.crozzoMenuLabelById === 'function') return global.crozzoMenuLabelById(menuId);

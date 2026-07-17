@@ -1,28 +1,17 @@
 {
-  "id": "1.0.229-critical",
-  "version": "v1.0.229",
-  "semver": "1.0.229",
+  "id": "1.0.230-critical",
+  "version": "v1.0.230",
+  "semver": "1.0.230",
   "type": "critical",
-  "message": "159357",
-  "publishedAt": "2026-07-07T19:31:43.882Z",
+  "message": "estabilidad interna del sistema + correcion de bugs ",
+  "publishedAt": "2026-07-17T21:38:45.959Z",
   "installMode": "auto",
   "changelog": [
-    "159357"
+    "estabilidad interna del sistema",
+    "correcion de bugs"
   ],
-  "updatedAt": "2026-07-07T19:31:43.882Z",
+  "updatedAt": "2026-07-17T21:38:45.959Z",
   "entries": [
-    {
-      "id": "1.0.205-critical",
-      "version": "v1.0.205",
-      "semver": "1.0.205",
-      "type": "critical",
-      "message": "parche de comunicacion v11",
-      "publishedAt": "2026-06-29T22:47:37.145Z",
-      "installMode": "auto",
-      "changelog": [
-        "parche de comunicacion v11"
-      ]
-    },
     {
       "id": "1.0.206-critical",
       "version": "v1.0.206",
@@ -312,6 +301,19 @@
       "installMode": "auto",
       "changelog": [
         "159357"
+      ]
+    },
+    {
+      "id": "1.0.230-critical",
+      "version": "v1.0.230",
+      "semver": "1.0.230",
+      "type": "critical",
+      "message": "estabilidad interna del sistema + correcion de bugs ",
+      "publishedAt": "2026-07-17T21:38:45.959Z",
+      "installMode": "auto",
+      "changelog": [
+        "estabilidad interna del sistema",
+        "correcion de bugs"
       ]
     }
   ]

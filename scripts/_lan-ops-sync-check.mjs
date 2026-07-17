@@ -63,10 +63,37 @@ mustInclude('app/infra/CrozzoLanOpsSync.js', [
   'cloudRealtimeStandby',
   'shouldRunLanOps',
   'opRealtimeActive()',
+  'softPollCoveredByWs',
+  'getPathHealth',
+  'healAnchorSilence',
+  'WS_FRESH_SKIP_POLL_MS',
+  'crozzo-lan-anchor-silence',
+  'localComandasDigest',
+  'fetchOpsDigest',
+  '/api/ops-digest',
+  'remoteDigestMatchesLocal',
 ], 'LanOpsSync API');
 
+mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', [
+  '/api/ops-digest',
+  'ops_digest_from_comandas',
+], 'Rust ops-digest');
+
+mustInclude('app/infra/CrozzoMdnsBridge.js', [
+  'rediscoverCentral',
+  'crozzo-lan-anchor-silence',
+  'startApkRediscoverWatch',
+], 'Discovery zero-touch');
+
 mustInclude('app/infra/CrozzoConnectivityOrchestrator.js', ['lan_ops_sync', 'CrozzoLanOpsSync'], 'Orquestador → LanOps');
-mustInclude('app/infra/CrozzoLanWebSocketBridge.js', ['lan_ops_pulse', '__crozzoLanOpsHandlePulse', 'postComandaToCentralStore'], 'WS pulso LAN');
+mustInclude('app/infra/CrozzoLanWebSocketBridge.js', [
+  'lan_ops_pulse',
+  '__crozzoLanOpsHandlePulse',
+  'postComandaToCentralStore',
+  'isOpen',
+  '__crozzoLanOpsNoteRx',
+], 'WS pulso LAN');
+mustInclude('app/infra/CrozzoConnectivityDirector.js', ['crozzo-lan-anchor-silence'], 'Director ← silencio ancla');
 mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', ['x-crozzo-lan-token', 'CORS_ALLOW_HEADERS'], 'Rust CORS LAN token');
 mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', ['/api/comandas', 'comandas_active', 'upsert_comanda_snapshot'], 'Rust comandas snapshot');
 mustInclude('src-tauri/tauri.conf.json', ['ws:', 'wss:'], 'CSP permite WebSocket LAN');
@@ -172,7 +199,13 @@ function makeSandbox() {
       }
       return Promise.resolve({ ok: false });
     },
-    CrozzoLanWebSocketBridge: { afterMainInit: () => {}, connect: () => {} },
+    CrozzoLanWebSocketBridge: {
+      afterMainInit: () => {},
+      connect: () => {
+        spies.wsConnect = (spies.wsConnect || 0) + 1;
+      },
+      isOpen: () => !!spies.wsOpen,
+    },
   };
   ctx.window = ctx;
   ctx.globalThis = ctx;
@@ -220,6 +253,22 @@ async function sandboxTests() {
     filename: 'CrozzoLanOpsSync.js',
   });
   assert(h2.ctx.CrozzoLanOpsSync.tierAllows() === false, 'Nube activa defer', 'no LAN ops cuando deferLocalSync');
+
+  // Anti-solape: WS OPEN + RX fresco → soft poll cubierto
+  const h3 = makeSandbox();
+  h3.spies.wsOpen = true;
+  h3.ctx.__crozzoLanOpsNoteRx('ws');
+  assert(
+    typeof h3.ctx.CrozzoLanOpsSync.softPollCoveredByWs === 'function' &&
+      h3.ctx.CrozzoLanOpsSync.softPollCoveredByWs() === true,
+    'WS fresco skip poll',
+    'softPollCoveredByWs=true con isOpen+RX'
+  );
+  const health = h3.ctx.CrozzoLanOpsSync.getPathHealth();
+  assert(health && health.transport === 'ws_primary' && health.healthy === true, 'Path health WS', 'transport=ws_primary');
+
+  h3.spies.wsOpen = false;
+  assert(h3.ctx.CrozzoLanOpsSync.softPollCoveredByWs() === false, 'Sin WS no skip', 'poll HTTP sigue activo');
 }
 
 await sandboxTests();

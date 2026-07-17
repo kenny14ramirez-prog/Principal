@@ -83,3 +83,11 @@ commands.allow = [
   "crozzo_mdns_drain_discovered",
   "crozzo_guess_local_ipv4",
 ]
+
+[[permission]]
+identifier = "allow-crozzo-wifi-direct"
+description = "Wi‑Fi Direct / P2P status y start (APK + stub desktop)"
+commands.allow = [
+  "crozzo_wifi_direct_status",
+  "crozzo_wifi_direct_start",
+]

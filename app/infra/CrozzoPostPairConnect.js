@@ -521,6 +521,23 @@
     pulseStep('network', 'done');
   }
 
+  async function announceFleetIfSolo() {
+    try {
+      var snap =
+        typeof global.crozzoFleetSnapshot === 'function'
+          ? global.crozzoFleetSnapshot()
+          : global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.getFleetSnapshot === 'function'
+            ? global.CrozzoPeerDirectory.getFleetSnapshot()
+            : null;
+      if (!snap || Number(snap.peerCount) > 1) return;
+      if (typeof global.crozzoAnnounceFleetIdentity === 'function') {
+        await global.crozzoAnnounceFleetIdentity({ force: true, pull: true });
+      } else if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.announceIdentity === 'function') {
+        await global.CrozzoPeerDirectory.announceIdentity({ force: true, pull: true });
+      }
+    } catch (_) {}
+  }
+
   async function runConnectivityStack(source) {
     source = source || 'post_pair';
     if (typeof global.crozzoRunEasyConnect === 'function') {
@@ -537,6 +554,7 @@
     if (typeof global.crozzoWifiZoneResolveCentral === 'function') {
       await global.crozzoWifiZoneResolveCentral({ force: true }).catch(function () {});
     }
+    await announceFleetIfSolo();
     pulseStep('mesh', 'done');
     pulseStep('mind', 'done');
   }

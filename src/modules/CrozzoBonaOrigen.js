@@ -4,6 +4,7 @@
  */
 (function (global) {
   'use strict';
+  if (global.CrozzoBonaOrigen) return;
 
   var LOGO = 'assets/bona-origen-logo.png';
   var LOGO_PNG = 'assets/bona-origen-logo.png';
@@ -409,8 +410,23 @@
   }
 
   function enhanceLoginChrome() {
-    var card = document.querySelector('.login-card');
+    var overlay = document.getElementById('loginOverlay');
+    var card = overlay ? overlay.querySelector('.login-card') : document.querySelector('.login-card');
     if (card) card.classList.add('bona-login-card');
+    try {
+      if (document.body) document.body.classList.add('bona-login-hotel');
+    } catch (_) {}
+    if (overlay && !overlay.querySelector('.bona-login-atmosphere')) {
+      var atm = document.createElement('div');
+      atm.className = 'bona-login-atmosphere bona-chrome-injected';
+      atm.setAttribute('aria-hidden', 'true');
+      overlay.insertBefore(atm, overlay.firstChild);
+    }
+    var submit = document.querySelector('#loginForm button[type="submit"]');
+    if (submit) {
+      var st = String(submit.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!st || /🔐|Iniciar sesión/i.test(st)) submit.textContent = 'Entrar';
+    }
     if (typeof crozzoRefreshLoginBuildStamp === 'function') crozzoRefreshLoginBuildStamp();
   }
 

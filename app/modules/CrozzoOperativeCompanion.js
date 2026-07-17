@@ -206,13 +206,31 @@
     return host;
   }
 
+  /** P0 operativo: sin banner de guía — el ticket/comanda es el foco. */
+  var P0_SILENT_PAGES = {
+    cajero: 1,
+    tablets: 1,
+    comandas: 1,
+    cocina: 1,
+    mesas: 1,
+    'venta-comercial': 1,
+  };
+
+  function clearRailHost() {
+    var h = global.document.getElementById(RAIL_HOST_ID);
+    if (h) h.innerHTML = '';
+  }
+
   function renderRail(page) {
     if (!railEnabled()) {
-      var h0 = global.document.getElementById(RAIL_HOST_ID);
-      if (h0) h0.innerHTML = '';
+      clearRailHost();
       return;
     }
     page = page || global.currentPage || '';
+    if (P0_SILENT_PAGES[page]) {
+      clearRailHost();
+      return;
+    }
     var guide = guideFor(page);
     var meta = profileMeta();
     if (!guide && !meta.tagline) return;

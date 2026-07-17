@@ -102,6 +102,30 @@
       else if (typeof global.crozzoLanHandleActionAck === 'function') global.crozzoLanHandleActionAck(raw);
       return;
     }
+    if (typEarly === 'identity_card' || typEarly === 'identity') {
+      var idCard = raw.data || raw.payload || raw;
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.ingestIdentityCard === 'function') {
+        global.CrozzoPeerDirectory.ingestIdentityCard(idCard, 'lan_ws');
+      }
+      /* Rol A: eco de roster (relay-peers) para que el nuevo equipo conozca a los demás. */
+      try {
+        if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.maybeEchoFleetRoster === 'function') {
+          global.CrozzoPeerDirectory.maybeEchoFleetRoster((idCard && idCard.deviceId) || '', {});
+        }
+      } catch (_) {}
+      noteWsActivity();
+      return;
+    }
+    if (typEarly === 'fleet_roster' || typEarly === 'identity_roster') {
+      var rosterPay = raw.data || raw.payload || raw;
+      try {
+        if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.ingestFleetRoster === 'function') {
+          global.CrozzoPeerDirectory.ingestFleetRoster(rosterPay, 'lan_ws');
+        }
+      } catch (_) {}
+      noteWsActivity();
+      return;
+    }
     if (typeof global.crozzoLanShouldApplyAction === 'function') {
       var gate = global.crozzoLanShouldApplyAction(raw, { source: 'lan_ws' });
       if (!gate.apply) {
@@ -210,7 +234,7 @@
       }
       if (!c) return;
       if (pay.estado === 'entregada' && typeof global.despacharComanda === 'function') {
-        global.despacharComanda(c.id, { skipToast: true, skipGossip: true });
+        global.despacharComanda(c.id, { skipToast: true, skipGossip: true, skipFanout: true });
       } else if (typeof global.updateComandaEstado === 'function') {
         global.updateComandaEstado(c.id, pay.estado, { skipFanout: true });
       }
@@ -261,20 +285,52 @@
     }
   }
 
+  var _lastMsgAt = 0;
+
+  function noteWsActivity() {
+    _lastMsgAt = Date.now();
+    try {
+      if (typeof global.__crozzoLanOpsNoteRx === 'function') {
+        global.__crozzoLanOpsNoteRx('ws');
+      }
+    } catch (_) {}
+  }
+
+  function isOpen() {
+    try {
+      return !!(_ws && typeof WebSocket !== 'undefined' && _ws.readyState === WebSocket.OPEN);
+    } catch (_) {
+      return false;
+    }
+  }
+
   function onMessage(ev) {
     try {
       var msg = JSON.parse(ev.data);
       if (msg && msg.event === 'lan_ops_pulse') {
+        noteWsActivity();
         if (typeof global.__crozzoLanOpsHandlePulse === 'function') {
           global.__crozzoLanOpsHandlePulse(msg.payload || msg);
         }
         return;
       }
       if (msg && msg.event === 'lan_push') {
+        noteWsActivity();
         applyLanPush(msg);
         return;
       }
-      if (msg && (msg.type === 'comanda' || msg.type === 'comanda_estado' || msg.type === 'comanda_new' || msg.type === 'internal_qr_slot' || msg.type === 'internal_qr_req' || msg.type === 'print_caps')) {
+      if (
+        msg &&
+        (msg.type === 'comanda' ||
+          msg.type === 'comanda_estado' ||
+          msg.type === 'comanda_new' ||
+          msg.type === 'identity_card' ||
+          msg.type === 'identity' ||
+          msg.type === 'internal_qr_slot' ||
+          msg.type === 'internal_qr_req' ||
+          msg.type === 'print_caps')
+      ) {
+        noteWsActivity();
         applyLanPush({ payload: msg });
       }
     } catch (_) {}
@@ -531,6 +587,10 @@
   global.CrozzoLanWebSocketBridge = {
     connect: connect,
     disconnect: disconnect,
+    isOpen: isOpen,
+    lastMsgAt: function () {
+      return _lastMsgAt;
+    },
     notifyComandasByIds: notifyComandasByIds,
     notifyEstado: notifyEstado,
     notifyInternalQrSlot: notifyInternalQrSlot,

@@ -302,6 +302,10 @@
       global.addEventListener('online', onNetEvent);
       global.addEventListener('offline', onNetEvent);
       global.addEventListener('crozzo-lan-up', onNetEvent);
+      /* Silence de ancla LAN (caja caída / Wi‑Fi roto): re-buscar central zero-touch. */
+      global.addEventListener('crozzo-lan-anchor-silence', function () {
+        scheduleEvaluate('lan_anchor_silence', true);
+      });
       if (typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', function () {
           if (!document.hidden) scheduleEvaluate('visible', false);

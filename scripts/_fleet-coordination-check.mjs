@@ -38,6 +38,76 @@ function mustInclude(file, patterns, label) {
   return txt;
 }
 
+mustInclude('app/infra/CrozzoPeerDirectory.js', [
+  'buildIdentityCard',
+  'announceIdentity',
+  'ingestIdentityCard',
+  'peersForQrHint',
+  'getFleetSnapshot',
+  'identity_card',
+  'maybeEchoFleetRoster',
+  'ingestFleetRoster',
+  'fleet_roster',
+  'softHealSoloFleet',
+  'getSedeMismatchCount',
+  'invalidateOwnLanIpCache',
+], 'Fleet identity card + roster echo');
+
+mustInclude('app/infra/CrozzoLanWebSocketBridge.js', [
+  'maybeEchoFleetRoster',
+  'fleet_roster',
+  'ingestFleetRoster',
+], 'WS fleet_roster eco');
+
+mustInclude('app/infra/CrozzoLanSyncBridge.js', [
+  'tryApplyFleetRoster',
+  'maybeEchoFleetRoster',
+], 'HTTP fleet_roster eco');
+
+mustInclude('app/modules/CrozzoComunicacionDiag.js', [
+  'crozzoAnnounceFleetIdentity',
+  'Flota: anuncio forzado',
+  'rediscoverCentral',
+  'fleet-sede-mismatch',
+], 'Diag Reparar anuncia flota');
+
+const fleetCommTxt = mustInclude('app/infra/CrozzoFleetCommState.js', [
+  'crozzo_own_lan_ip_v1',
+  'nunca centralIp',
+], 'FleetCommState lanIp propia (D-011)');
+assert(
+  !fleetCommTxt.includes('lanIp = String(cfg.centralIp') &&
+    !fleetCommTxt.includes("lanIp = cfg.centralIp") &&
+    !fleetCommTxt.includes("lanIp: cfg.centralIp"),
+  'Rol B no asigna centralIp a lanIp',
+  'sin lanIp=centralIp'
+);
+
+mustInclude('app/infra/CrozzoPostPairConnect.js', [
+  'announceFleetIfSolo',
+  'crozzoAnnounceFleetIdentity',
+], 'PostPair safety announce');
+
+mustInclude('app/infra/CrozzoPairingAutoConnect.js', [
+  'crozzoAnnounceFleetIdentity',
+  'peerCount',
+], 'AutoConnect safety announce');
+
+mustInclude('src-tauri/src/crozzo_lan_sync_server.rs', [
+  'fleet_roster',
+  'identity_roster',
+], 'Rust no upserta fleet_roster como comanda');
+
+mustInclude('app/core/CrozzoPairingSeal.js', ['fleet_peers', 'compact.fp', 'peersForQrHint'], 'QR fleet hint');
+
+mustInclude('app/core/CrozzoPosMain.js', [
+  'announceIdentity',
+  'ingestFleetPeersHint',
+  'qr_issuer',
+], 'Post-QR announce identity');
+
+mustInclude('app/infra/CrozzoOfflineGossip.js', ['IDENTITY', 'publishIdentityCard'], 'Gossip identity');
+
 mustInclude('app/infra/CrozzoCloudThrottle.js', [
   'crozzoNoteWanUnreachable',
   'crozzoCloudWanReady',

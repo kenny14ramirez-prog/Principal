@@ -28,8 +28,12 @@
   var _standbyMode = false;
 
   function log(msg) {
+    // RUIDO DEV: "[gossip] activo tier=offline" = malla UDP en standby al arranque (tier aún no medido).
+    // No es error. Ver SEQUENCES.md S4. Debug: localStorage crozzo_debug_connectivity=1
     try {
-      console.log('[gossip]', msg);
+      if (global.localStorage && global.localStorage.getItem('crozzo_debug_connectivity') === '1') {
+        console.log('[gossip]', msg);
+      }
     } catch (_) {}
   }
 
@@ -402,7 +406,7 @@
     try {
       if (pay.estado === 'entregada') {
         if (typeof global.despacharComanda === 'function') {
-          global.despacharComanda(c.id, { skipToast: true, skipGossip: true });
+          global.despacharComanda(c.id, { skipToast: true, skipGossip: true, skipFanout: true });
         }
         return;
       }
@@ -526,9 +530,20 @@
     touchPeer(frame.deviceId);
     relay(frame);
 
-    if (frame.kind === 'HELLO' || frame.kind === 'HELLO_ACK') {
+    if (frame.kind === 'HELLO' || frame.kind === 'HELLO_ACK' || frame.kind === 'IDENTITY') {
+      if (frame.payload && global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.ingestIdentityCard === 'function') {
+        if (frame.payload.deviceId || frame.payload.kind === 'identity_card') {
+          global.CrozzoPeerDirectory.ingestIdentityCard(frame.payload, 'gossip_' + frame.kind);
+        }
+      }
       if (frame.kind === 'HELLO') {
-        sendFrame(buildFrame('HELLO_ACK', { from: meshCtx().deviceId }, 0));
+        var ackPay = { from: meshCtx().deviceId };
+        try {
+          if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.buildIdentityCard === 'function') {
+            ackPay = global.CrozzoPeerDirectory.buildIdentityCard();
+          }
+        } catch (_) {}
+        sendFrame(buildFrame('HELLO_ACK', ackPay, 0));
       }
       return;
     }
@@ -593,7 +608,31 @@
 
   function sendHello() {
     if (!_active) return;
-    sendFrame(buildFrame('HELLO', { role: meshCtx().deviceId }, 0));
+    var pay = { role: meshCtx().deviceId };
+    try {
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.buildIdentityCard === 'function') {
+        pay = global.CrozzoPeerDirectory.buildIdentityCard();
+      }
+    } catch (_) {}
+    sendFrame(buildFrame('HELLO', pay, 0));
+  }
+
+  function publishIdentityCard(card, opts) {
+    opts = opts || {};
+    if (!_active && !opts.force) return false;
+    if (!_active && opts.force) {
+      try {
+        ensureStandby();
+      } catch (_) {}
+    }
+    if (!_active) return false;
+    card = card || (global.CrozzoPeerDirectory && global.CrozzoPeerDirectory.buildIdentityCard
+      ? global.CrozzoPeerDirectory.buildIdentityCard()
+      : null);
+    if (!card) return false;
+    sendFrame(buildFrame('IDENTITY', card, 0));
+    sendHello();
+    return true;
   }
 
   function publishComandaNew(comanda, opts) {
@@ -843,6 +882,8 @@
     publishOpAck: publishOpAck,
     publishInternalQrBeacon: publishInternalQrBeacon,
     publishPeerCommState: publishPeerCommState,
+    publishIdentityCard: publishIdentityCard,
+    sendHello: sendHello,
     publishInternalQrSlot: publishInternalQrSlot,
     publishInternalQrRequest: publishInternalQrRequest,
     ingestRaw: ingestRaw,

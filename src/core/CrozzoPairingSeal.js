@@ -125,6 +125,27 @@
     if (p.device_id) compact.did = String(p.device_id).trim().slice(0, 64);
     if (p.device_role) compact.dr = String(p.device_role).trim().slice(0, 1);
     if (p.device_name) compact.dn = String(p.device_name).trim().slice(0, 48);
+    /* Hint de flota: peers recientes de la sede (compacto) para que el nuevo sepa a quién buscar. */
+    try {
+      var fp =
+        Array.isArray(p.fleet_peers) && p.fleet_peers.length
+          ? p.fleet_peers
+          : typeof window !== 'undefined' &&
+              window.CrozzoPeerDirectory &&
+              typeof window.CrozzoPeerDirectory.peersForQrHint === 'function'
+            ? window.CrozzoPeerDirectory.peersForQrHint(5)
+            : [];
+      if (fp && fp.length) {
+        compact.fp = fp.slice(0, 5).map(function (x) {
+          return {
+            d: String((x && (x.d || x.deviceId)) || '').slice(0, 36),
+            n: String((x && (x.n || x.name)) || '').slice(0, 18),
+            r: String((x && (x.r || x.role)) || 'B').slice(0, 1),
+            ip: String((x && (x.ip || x.lanIp)) || '').slice(0, 32),
+          };
+        });
+      }
+    } catch (_) {}
     if (p.cloud_sync !== false) {
       var su = String(p.supabase_url || '').trim();
       var sk = String(p.supabase_key || '').trim();
@@ -179,6 +200,7 @@
       device_id: String(compact.did || '').trim(),
       device_role: String(compact.dr || '').trim(),
       device_name: String(compact.dn || '').trim(),
+      fleet_peers: Array.isArray(compact.fp) ? compact.fp : [],
       timestamp: Number(compact.ts) || Date.now(),
     };
   }

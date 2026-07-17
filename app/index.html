@@ -11,10 +11,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.229">
+<meta name="crozzo-app-version" content="1.0.230">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
-<script>(function(){try{var ids=['executive-elite','royal-navy','dark-luxury','platinum','clear-elegance','clear-light','deepspace','cyan','coral','magenta','emerald','minimalist','bona-origen'];var light=['platinum','clear-light','minimalist','bona-origen'];var dark=['executive-elite','royal-navy','dark-luxury','clear-elegance','deepspace','cyan','coral','magenta','emerald'];var userChose=localStorage.getItem('crozzo_theme_user_v1')==='1';var t='';if(userChose){t=localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'';}t=String(t||'').toLowerCase().trim();if(ids.indexOf(t)<0)t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-light','crozzo-theme-dark');if(light.indexOf(t)>=0){document.documentElement.style.colorScheme='light';document.documentElement.classList.add('crozzo-theme-light');}else if(dark.indexOf(t)>=0){document.documentElement.style.colorScheme='dark';document.documentElement.classList.add('crozzo-theme-dark');}}catch(e){}})();</script>
+<script>(function(){try{var t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-dark');document.documentElement.classList.add('crozzo-theme-light');document.documentElement.style.colorScheme='light';try{localStorage.setItem('crozzo_theme',t);}catch(_){}}catch(e){}})();</script>
 <script src="core/CrozzoDevicePerf.js"></script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <link rel="stylesheet" href="css/CrozzoPantallasShell.css">
@@ -400,28 +400,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                   </button>
                 </div>
                 <label class="form-label" for="crozzoThemeSelect">Modelo visual</label>
-                <select id="crozzoThemeSelect" class="crozzo-theme-select form-select" aria-label="Tema visual">
-                  <optgroup label="Executive Elite">
-                    <option value="executive-elite">Black Tie</option>
-                    <option value="dark-luxury">Dark Luxury</option>
-                    <option value="royal-navy">Royal Navy</option>
-                    <option value="platinum">Platinum</option>
-                  </optgroup>
-                  <optgroup label="Clear Elegance">
-                    <option value="clear-elegance">Oscuro</option>
-                    <option value="clear-light">Claro</option>
-                  </optgroup>
-                  <optgroup label="Clásicos">
-                    <option value="deepspace">Deep Space</option>
-                    <option value="cyan">Cyan</option>
-                    <option value="coral">Coral</option>
-                    <option value="magenta">Magenta</option>
-                    <option value="emerald">Emerald</option>
-                    <option value="minimalist">Minimalist</option>
-                  </optgroup>
-                  <optgroup label="BONA origen">
-                    <option value="bona-origen" selected>BONA origen · Origen bueno</option>
-                  </optgroup>
+                <select id="crozzoThemeSelect" class="crozzo-theme-select form-select" aria-label="Tema visual BONA origen" disabled title="Piel única del sistema: BONA origen">
+                  <option value="bona-origen" selected>BONA origen · Origen bueno</option>
                 </select>
               </div>
             </details>
@@ -1171,6 +1151,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoPermisosPolicy.js" defer></script>
 <script src="modules/CrozzoPerfilesLogica.js" defer></script>
 <script src="modules/CrozzoOperativeCompanion.js" defer></script>
+<script src="modules/CrozzoBonaOrigen.js" defer></script>
 <script src="modules/CrozzoPerfilesBiblioteca.js" defer></script>
 <script src="infra/CrozzoTauriUpdater.js" defer></script>
 <script src="infra/CrozzoSystemUpdates.js" defer></script>
@@ -1179,6 +1160,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoOpAckRegistry.js" defer></script>
 <script src="infra/CrozzoOperationalIngest.js" defer></script>
 <script src="infra/CrozzoLanActionDedup.js" defer></script>
+<script src="infra/CrozzoTransportPathHealth.js" defer></script>
 <script src="infra/CrozzoOpFanout.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
 <script src="infra/CrozzoLanOpsSync.js" defer></script>
@@ -1233,11 +1215,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoCentralFailover.js" defer></script>
 <script src="infra/CrozzoReconnectSync.js" defer></script>
 <script src="modules/CrozzoOperativeSyncGate.js" defer></script>
+<script src="infra/CrozzoUserSyncProfile.js" defer></script>
 <script src="infra/CrozzoPageCloudWatch.js" defer></script>
 <script src="infra/CrozzoSyncQueueHygiene.js" defer></script>
 <script src="infra/CrozzoOfflineGossip.js" defer></script>
 <script src="infra/CrozzoBlePeerRegistry.js" defer></script>
 <script src="infra/CrozzoBleMesh.js" defer></script>
+<script src="infra/CrozzoWifiDirectBridge.js" defer></script>
 <script src="infra/CrozzoClockSync.js" defer></script>
 <script src="infra/CrozzoConnectivityOrchestrator.js" defer></script>
 <script src="infra/CrozzoDeviceMind.js" defer></script>

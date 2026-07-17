@@ -60,13 +60,27 @@
       return typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
     }, null);
     var userName = u ? String(u.nombre || u.usuario || u.name || u.email || '').trim() : '';
+    /* D-011: Rol B = IP propia (nunca centralIp). Rol A = IP LAN de caja. */
     var lanIp = '';
     if (cfg.role === 'A') {
       lanIp = safe(function () {
-        return String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '127.0.0.1').trim();
-      }, '127.0.0.1');
+        return String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+      }, '');
+      if (!lanIp || lanIp === '127.0.0.1') {
+        lanIp = safe(function () {
+          return String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '127.0.0.1').trim();
+        }, '127.0.0.1');
+      }
     } else {
-      lanIp = String(cfg.centralIp || cfg.serverIp || '').trim();
+      lanIp = safe(function () {
+        return String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();
+      }, '');
+      if (!lanIp && global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.buildIdentityCard === 'function') {
+        try {
+          var card = global.CrozzoPeerDirectory.buildIdentityCard();
+          lanIp = String((card && card.lanIp) || '').trim();
+        } catch (_) {}
+      }
     }
     var channels = {
       cloud: cloudReady && (tier === 'cloud' || tier === 'lan'),

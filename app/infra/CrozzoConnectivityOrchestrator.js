@@ -215,11 +215,24 @@
 
   global.crozzoStopCloudTransportsQuiet = stopCloudTransports;
 
+  function runtimeSyncHybrid() {
+    try {
+      return typeof global.crozzoRuntimeSyncHybrid === 'function' && global.crozzoRuntimeSyncHybrid();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function stopCloudTransportsSmart() {
+    if (runtimeSyncHybrid()) stopCloudTransportsDeferred();
+    else stopCloudTransports();
+  }
+
   function ensureCloud() {
     // Si había un hold de stop pendiente, cancelarlo — el cloud sigue activo.
     cancelCloudToLanHold();
     if (!cloudSyncAllowedNow()) {
-      stopCloudTransports();
+      stopCloudTransportsSmart();
       return;
     }
     __state.transports.cloud = true;
@@ -231,7 +244,7 @@
         ? global.crozzoCloudBackgroundSyncAllowed()
         : true;
     if (!rtOk) {
-      stopCloudTransports();
+      stopCloudTransportsSmart();
       return;
     }
     if (typeof global.crozzoEnsureCloudSyncActive === 'function') {

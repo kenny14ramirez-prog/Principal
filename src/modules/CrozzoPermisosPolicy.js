@@ -9,7 +9,18 @@
   var MENU_PERM_MAP = {
     'inicio-operacion': {},
     'punto-venta': {
-      caja: ['vista_pos', 'abrir_orden', 'editar_orden', 'eliminar_item', 'anular_comandado', 'unir_cuenta', 'dividir_cuenta', 'descuento_autorizado', 'facturar'],
+      caja: [
+        'vista_pos',
+        'abrir_orden',
+        'editar_orden',
+        'eliminar_item',
+        'anular_comandado',
+        'unir_cuenta',
+        'dividir_cuenta',
+        'descuento_autorizado',
+        'tab_precuenta',
+        'facturar',
+      ],
     },
     'venta-comercial': {
       caja: ['vista_pos', 'abrir_orden', 'editar_orden', 'eliminar_item', 'descuento_autorizado', 'facturar'],
@@ -21,7 +32,7 @@
     'cierre-caja': { caja: ['vista_pos', 'vista_facturas', 'cierre_arqueo'] },
     caja: { caja: ['vista_clientes'] },
     comandas: { comandas: ['ver', 'despachar', 'reimprimir'] },
-    cocina: { comandas: ['ver', 'despachar'] },
+    cocina: { comandas: ['ver', 'despachar', 'reimprimir'] },
     inventarios: { inventario: ['reportes'] },
     'compras-dashboard': { inventario: ['reportes'] },
     productos: { productos: ['catalogo'] },
@@ -68,6 +79,7 @@
         'unir_cuenta',
         'dividir_cuenta',
         'descuento_autorizado',
+        'tab_precuenta',
         'cierre_arqueo',
       ],
       comandas: [],
@@ -78,6 +90,25 @@
     mesero: {
       caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar', 'tab_eliminar', 'tab_precuenta'],
       comandas: [],
+      inventario: [],
+      productos: [],
+      admin: [],
+    },
+    /** Hotel / F&B: recepción — POS + cobro/unir/precuenta/cierre; sin anular_comandado. KI-031 */
+    recepcion: {
+      caja: [
+        'vista_pos',
+        'vista_facturas',
+        'vista_clientes',
+        'abrir_orden',
+        'editar_orden',
+        'facturar',
+        'unir_cuenta',
+        'dividir_cuenta',
+        'tab_precuenta',
+        'cierre_arqueo',
+      ],
+      comandas: ['ver'],
       inventario: [],
       productos: [],
       admin: [],
@@ -166,10 +197,11 @@
     },
   };
 
-  var ROLE_ORDER = ['caja', 'mesero', 'cocina', 'encargado', 'inventario', 'admin'];
+  var ROLE_ORDER = ['caja', 'mesero', 'recepcion', 'cocina', 'encargado', 'inventario', 'admin'];
   var ROLE_LABELS = {
     caja: 'Cajero / POS',
     mesero: 'Mesero / Tablet',
+    recepcion: 'Recepción / Front desk',
     cocina: 'Cocina / KDS',
     encargado: 'Encargado de turno',
     inventario: 'Inventario / Compras',
@@ -202,7 +234,7 @@
     if (typeof global.crozzoIsBasicoEmpresaPerfil === 'function') {
       return global.crozzoIsBasicoEmpresaPerfil(perfil);
     }
-    return perfil === 'basico_restaurante' || perfil === 'basico_tienda';
+    return perfil === 'basico_restaurante' || perfil === 'basico_tienda' || perfil === 'basico_hotel';
   }
 
   function normalizeRol(rol) {

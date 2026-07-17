@@ -97,9 +97,9 @@
     'venta-comercial': {
       p: P0,
       basico: 'tienda',
-      note: 'Carrito comercial / venta directa tienda',
+      note: 'Carrito comercial / venta directa tienda (paridad latencia Z0 con cajero)',
       domains: ['runtime'],
-      intervalMs: 7000,
+      intervalMs: 3200,
     },
     mesas: {
       p: P0,
@@ -851,10 +851,12 @@
 
     if (!opts.force && (kind === 'realtime' || kind === 'transport' || !kind)) {
       try {
-        if (!z0HybridParallelLan() && cloudOperationalRealtimeHealthy(12000)) {
+        /* Z0 híbrido: LAN paralelo siempre permitido (tablet con WAN floja no debe quedar solo en Realtime). */
+        if (z0HybridParallelLan()) {
+          /* no bloquear por cloud sano / lanRecent */
+        } else if (cloudOperationalRealtimeHealthy(12000)) {
           return false;
-        }
-        if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
+        } else if (cloudPathReady() && crozzoCloudBackgroundSyncAllowed({ kind: 'transport' })) {
           var mdLan = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
           var lanRecent = false;
           try {
@@ -969,7 +971,9 @@
       }
     }
     if (perfil.indexOf('tienda') >= 0) return b === 'tienda' || b === 'both';
-    if (perfil.indexOf('restaurante') >= 0) return b === 'restaurante' || b === 'both';
+    if (perfil.indexOf('restaurante') >= 0 || perfil.indexOf('hotel') >= 0) {
+      return b === 'restaurante' || b === 'both';
+    }
     return b === 'both';
   }
 

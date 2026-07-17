@@ -11,10 +11,11 @@
     {
       id: 'lanzamiento',
       label: 'Plan básico (lanzamiento)',
-      desc: 'Perfiles incluidos en la oferta inicial. Solo cambia la operación (restaurante vs tienda).',
+      desc: 'Perfiles incluidos en la oferta inicial (restaurante, tienda, hotel F&B).',
       presets: [
         { id: 'basico_restaurante', tag: 'Restaurante · mesas y cocina' },
         { id: 'basico_tienda', tag: 'Tienda comercial · mostrador' },
+        { id: 'basico_hotel', tag: 'Hotel F&B · recepción ligera' },
       ],
     },
   ];

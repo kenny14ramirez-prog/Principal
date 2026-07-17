@@ -70,6 +70,10 @@
 
     rues_opendata: 'RUES datos.gov.co',
 
+    rues_enrich: 'RUES (fondo)',
+
+    scrapling_enrich: 'RUES/Scrapling (fondo)',
+
     cache: 'memoria reciente',
 
     cedula_escaneada: 'cédula escaneada',
@@ -290,6 +294,380 @@
   }
 
 
+
+  var enrichInflight = {};
+
+  var enrichDoneAt = {};
+
+
+
+  function needsContactEnrichment(data) {
+
+    data = data || {};
+
+    return !(
+
+      String(data.email || '').trim() &&
+
+      String(data.direccion || '').trim() &&
+
+      String(data.telefono || '').trim()
+
+    );
+
+  }
+
+
+
+  function mergeEmptyContact(base, extra) {
+
+    if (!base) base = {};
+
+    if (!extra) return annotateRuesContactFields(base);
+
+    var added = false;
+
+    if (!String(base.nombre || '').trim() && extra.nombre) {
+
+      base.nombre = String(extra.nombre).trim();
+
+      added = true;
+
+    }
+
+    if (!String(base.email || '').trim() && extra.email) {
+
+      base.email = String(extra.email).trim();
+
+      added = true;
+
+    }
+
+    if (!String(base.telefono || '').trim() && extra.telefono) {
+
+      base.telefono = String(extra.telefono).trim();
+
+      added = true;
+
+    }
+
+    if (!String(base.ciudad || '').trim() && extra.ciudad) {
+
+      base.ciudad = String(extra.ciudad).trim();
+
+      added = true;
+
+    }
+
+    if (!String(base.direccion || '').trim() && extra.direccion) {
+
+      base.direccion = String(extra.direccion).trim();
+
+      added = true;
+
+    }
+
+    /* Solo cambiar fuente si el enrich aportó algo nuevo (no pisar DIAN/RUES base). */
+
+    if (added && extra.source && (extra.email || extra.direccion || extra.telefono || extra.ciudad)) {
+
+      if (!base.email || !base.direccion || !base.telefono) base.source = extra.source;
+
+    }
+
+    return annotateRuesContactFields(base);
+
+  }
+
+
+
+  function setEnrichUi(profileKey, state, detail) {
+
+    var p = FORM_PROFILES[profileKey];
+
+    if (!p || !p.status) return;
+
+    var el = document.getElementById(p.status);
+
+    if (!el) return;
+
+    if (state === 'busy') {
+
+      el.innerHTML =
+
+        '<span class="crozzo-adq-enrich crozzo-adq-enrich--busy">Buscando contacto…</span>';
+
+      el.classList.add('crozzo-adq-lookup-status--loading');
+
+      return;
+
+    }
+
+    el.classList.remove('crozzo-adq-lookup-status--loading');
+
+    if (state === 'ok') {
+
+      el.innerHTML =
+
+        '<span class="crozzo-adq-enrich crozzo-adq-enrich--ok">✓ ' +
+
+        (detail ? detail : 'Fuentes contrastadas') +
+
+        '</span>';
+
+      return;
+
+    }
+
+    if (state === 'empty') {
+
+      el.innerHTML = '';
+
+    }
+
+  }
+
+
+
+  function enrichFromRuesOpendata(doc) {
+
+    return lookupRemoteRuesOpenData(doc).then(function (hit) {
+
+      if (!hit) return null;
+
+      hit.source = 'rues_enrich';
+
+      return hit;
+
+    });
+
+  }
+
+
+
+  function enrichFromSidecar(doc, data) {
+
+    if (!global.__TAURI__ || !global.__TAURI__.core || typeof global.__TAURI__.core.invoke !== 'function') {
+
+      return Promise.resolve(null);
+
+    }
+
+    var nit = String(doc && doc.number ? doc.number : '').replace(/\D/g, '');
+
+    if (nit.length < 6) return Promise.resolve(null);
+
+    return global.__TAURI__.core
+
+      .invoke('adq_enrich_start_job', {
+
+        nit: nit,
+
+        nombreHint: (data && data.nombre) || null,
+
+      })
+
+      .then(function (start) {
+
+        if (!start || !start.accepted || !start.jobId) return null;
+
+        var jobId = start.jobId;
+
+        var tries = 0;
+
+        function poll() {
+
+          tries += 1;
+
+          return global.__TAURI__.core.invoke('adq_enrich_poll', { jobId: jobId }).then(function (st) {
+
+            if (!st) return null;
+
+            if (st.status === 'done' && st.data) {
+
+              var d = st.data;
+
+              return {
+
+                nombre: d.nombre || '',
+
+                email: d.email || '',
+
+                telefono: d.telefono || '',
+
+                ciudad: d.ciudad || '',
+
+                direccion: d.direccion || '',
+
+                source: d.source || 'scrapling_enrich',
+
+              };
+
+            }
+
+            if (st.status === 'error' || st.status === 'missing') return null;
+
+            if (tries >= 8) return null;
+
+            return new Promise(function (resolve) {
+
+              setTimeout(function () {
+
+                resolve(poll());
+
+              }, 1500);
+
+            });
+
+          });
+
+        }
+
+        return poll();
+
+      })
+
+      .catch(function () {
+
+        return null;
+
+      });
+
+  }
+
+
+
+  function applyEnrichmentResult(profileKey, doc, merged) {
+
+    if (!merged) return;
+
+    var ck = normDocKey(doc);
+
+    writeCacheEntry(ck, merged);
+
+    try {
+
+      if (typeof global.crozzoCrmSetPendingLookup === 'function' && doc) {
+
+        var pending = global.__crozzoCrmPendingLookup;
+
+        var same =
+
+          pending &&
+
+          pending.doc &&
+
+          String(pending.doc.number || '') === String(doc.number || '');
+
+        if (same || !pending) {
+
+          global.crozzoCrmSetPendingLookup(merged, doc, merged.source || (pending && pending.source) || '');
+
+          if (typeof global.crozzoCrmRenderDropdown === 'function') {
+
+            var q = (doc.display || doc.number || '').toString();
+
+            var local =
+
+              typeof global.crozzoCrmFindClientsByQuery === 'function'
+
+                ? global.crozzoCrmFindClientsByQuery(q)
+
+                : [];
+
+            global.crozzoCrmRenderDropdown(local, {
+
+              query: q,
+
+              lookupCandidate: merged,
+
+              lookupDoc: doc,
+
+              lookupSource: merged.source,
+
+            });
+
+          }
+
+        }
+
+      }
+
+    } catch (_) {}
+
+
+
+    if (profileKey) applyLookupToForm(profileKey, merged);
+
+    try {
+
+      persistLookupToPos(merged, doc);
+
+    } catch (_) {}
+
+    var contrast = String(merged._contrast || '').trim();
+    var fe = contrast || (typeof feReadinessSummary === 'function' ? feReadinessSummary(merged, doc) : '');
+    setEnrichUi(profileKey, needsContactEnrichment(merged) ? 'empty' : 'ok', fe);
+
+    if (typeof global.showToast === 'function') {
+
+      var got = !!(merged.email || merged.direccion || merged.telefono);
+
+      var contrast = String(merged._contrast || '').trim();
+
+      if (got || contrast) {
+
+        global.showToast(
+
+          (got ? 'Contacto contrastado' : 'Datos contrastados') + (contrast ? ' · ' + contrast : ''),
+
+          merged.email ? 'success' : 'info'
+
+        );
+
+      }
+
+    }
+
+  }
+
+
+
+  function scheduleEnrichment(doc, data, profileKey) {
+    if (!doc || !doc.number) return;
+    if (!needsContactEnrichment(data)) return;
+    var key = normDocKey(doc);
+    if (enrichInflight[key]) return;
+    enrichInflight[key] = true;
+    setEnrichUi(profileKey, 'busy');
+    var base = Object.assign({}, data || {});
+    // Base (DIAN/RUES rápido) + RUES detalle + Scrapling/sidecar en paralelo; luego contrastan.
+    Promise.all([
+      enrichFromRuesOpendata(doc).catch(function () {
+        return null;
+      }),
+      enrichFromSidecar(doc, base).catch(function () {
+        return null;
+      }),
+    ])
+      .then(function (hits) {
+        var rues = hits[0];
+        var side = hits[1];
+        var parts = [{ label: 'base', source: base.source || 'internet', data: base }];
+        if (rues) parts.push({ label: 'RUES', source: rues.source || 'rues_enrich', data: rues });
+        if (side) parts.push({ label: 'Scrapling', source: side.source || 'scrapling_enrich', data: side });
+        var merged = contrastMergeSources(parts);
+        enrichDoneAt[key] = Date.now();
+        if (rues || side) applyEnrichmentResult(profileKey, doc, merged);
+        else setEnrichUi(profileKey, 'empty');
+      })
+      .catch(function () {
+        setEnrichUi(profileKey, 'empty');
+      })
+      .then(function () {
+        delete enrichInflight[key];
+      });
+  }
 
   function readCache() {
 
@@ -545,17 +923,7 @@
 
   function docTypeHintHtml(doc) {
 
-    if (!doc || !doc.type) return '';
-
-    return (
-
-      '<span class="crozzo-adq-doc-hint">Detectamos <strong>' +
-
-      doc.type.label +
-
-      '</strong> · puede pulsar Enter o «Buscar datos»</span>'
-
-    );
+    return '';
 
   }
 
@@ -857,51 +1225,158 @@
 
 
 
+
+  function sourceRank(src) {
+    src = String(src || '');
+    if (src.indexOf('dian') === 0 || src === 'dian_supabase' || src === 'dian_tauri' || src === 'dian_demo') return 40;
+    if (src === 'crm_local' || src === 'cache') return 35;
+    if (src === 'rues_opendata' || src === 'rues_enrich') return 20;
+    if (src === 'scrapling_enrich') return 15;
+    return 10;
+  }
+
+  function fieldPreferRank(field, src) {
+    src = String(src || '');
+    var dian = src.indexOf('dian') === 0 || src === 'dian_supabase' || src === 'dian_tauri' || src === 'dian_demo';
+    var rues = src === 'rues_opendata' || src === 'rues_enrich';
+    var scrap = src === 'scrapling_enrich';
+    if (field === 'nombre' || field === 'email') {
+      if (dian) return 50;
+      if (src === 'crm_local') return 45;
+      if (rues) return 20;
+      if (scrap) return 15;
+      return 10;
+    }
+    if (field === 'telefono' || field === 'direccion') {
+      if (scrap) return 45;
+      if (rues) return 40;
+      if (dian) return 20;
+      return 10;
+    }
+    if (field === 'ciudad') {
+      if (rues) return 45;
+      if (scrap) return 35;
+      if (dian) return 20;
+      return 10;
+    }
+    return sourceRank(src);
+  }
+
+  /** Contrasta varias fuentes: llena vacíos y anota de dónde salió cada campo. */
+  function contrastMergeSources(parts) {
+    var fields = ['nombre', 'email', 'telefono', 'ciudad', 'direccion'];
+    var merged = {
+      nombre: '',
+      email: '',
+      telefono: '',
+      ciudad: '',
+      direccion: '',
+      source: '',
+      _fieldSources: {},
+      _contrast: '',
+    };
+    var bestSrc = '';
+    var bestRank = -1;
+    var conflicts = [];
+    (parts || []).forEach(function (part) {
+      if (!part || !part.data) return;
+      var d = part.data;
+      var src = part.source || d.source || 'internet';
+      var label = part.label || sourceLabel(src) || src;
+      var r = sourceRank(src);
+      if (r > bestRank) {
+        bestRank = r;
+        bestSrc = src;
+      }
+      fields.forEach(function (f) {
+        var val = String(d[f] || '').trim();
+        if (!val) return;
+        var cur = String(merged[f] || '').trim();
+        var fr = fieldPreferRank(f, src);
+        var curSrc = merged._fieldSources[f] || '';
+        var curFr = curSrc ? fieldPreferRank(f, curSrc) : -1;
+        if (!cur) {
+          merged[f] = val;
+          merged._fieldSources[f] = src;
+          return;
+        }
+        if (fr > curFr) {
+          if (f === 'nombre' && cur.toLowerCase() !== val.toLowerCase()) {
+            conflicts.push(f + ': ' + (sourceLabel(curSrc) || curSrc) + ' vs ' + label);
+          }
+          merged[f] = val;
+          merged._fieldSources[f] = src;
+        } else if (fr === curFr && cur.toLowerCase() !== val.toLowerCase() && f === 'nombre') {
+          conflicts.push(f + ': ' + (sourceLabel(curSrc) || curSrc) + ' vs ' + label);
+        }
+      });
+    });
+    merged.source = bestSrc || (parts[0] && parts[0].source) || '';
+    var bits = [];
+    var by = {};
+    Object.keys(merged._fieldSources).forEach(function (f) {
+      var src = merged._fieldSources[f];
+      var lab = sourceLabel(src) || src;
+      if (!by[lab]) by[lab] = [];
+      by[lab].push(f);
+    });
+    Object.keys(by).forEach(function (lab) {
+      bits.push(lab + '·' + by[lab].join('+'));
+    });
+    if (conflicts.length) bits.push('revisar nombre');
+    merged._contrast = bits.join(' · ');
+    merged._conflicts = conflicts;
+    return annotateRuesContactFields(merged);
+  }
+
   function lookupRemoteAll(doc) {
 
-    var steps = [];
+    var tasks = [];
 
     if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
 
-      steps.push(function () {
+      tasks.push(lookupRemoteTauri(doc));
 
-        return lookupRemoteTauri(doc);
+    } else {
 
-      });
-
-    }
-
-    steps.push(function () {
-
-      return lookupRemoteSupabase(doc);
-
-    });
-
-    steps.push(function () {
-
-      return lookupRemoteRuesOpenData(doc);
-
-    });
-
-    function runStep(i) {
-
-      if (i >= steps.length) return Promise.resolve(null);
-
-      return steps[i]().then(function (hit) {
-
-        if (hit) return hit;
-
-        return runStep(i + 1);
-
-      });
+      tasks.push(Promise.resolve(null));
 
     }
 
-    return runStep(0);
+    tasks.push(lookupRemoteSupabase(doc));
+
+    tasks.push(lookupRemoteRuesOpenData(doc));
+
+    return Promise.all(
+
+      tasks.map(function (p) {
+
+        return p.catch(function () {
+
+          return null;
+
+        });
+
+      })
+
+    ).then(function (hits) {
+
+      var dian = hits[0];
+
+      var sb = hits[1];
+
+      var rues = hits[2];
+
+      var parts = [];
+      if (dian) parts.push({ label: 'DIAN', source: dian.source || 'dian_tauri', data: dian });
+      if (sb) parts.push({ label: 'nube', source: sb.source || 'dian_supabase', data: sb });
+      if (rues) parts.push({ label: 'RUES', source: rues.source || 'rues_opendata', data: rues });
+      if (!parts.length) return null;
+      return contrastMergeSources(parts);
+
+    });
 
   }
-
-
 
   function lookupRemoteSupabase(doc) {
 
@@ -1344,20 +1819,28 @@
 
           applyLookupToForm(profileKey, res.data);
 
-          var lbl = sourceLabel(res.source);
+          try {
+
+            persistLookupToPos(res.data, res.doc);
+
+          } catch (_) {}
+
+          var contrast = String((res.data && res.data._contrast) || '').trim();
 
           var feSum =
             typeof feReadinessSummary === 'function' ? feReadinessSummary(res.data, res.doc) : '';
           setStatus(
             p.status,
-            '<span class="form-success">✓ Datos completados</span>' +
-              (feSum ? ' <small>· ' + feSum + '</small>' : '')
+            '<span class="form-success">✓ ' +
+              (contrast || 'Datos contrastados') +
+              '</span>' +
+              (feSum && !contrast ? ' <small>· ' + feSum + '</small>' : '')
           );
 
           setHint(p.hint, '');
 
           if (!opts.silent && typeof global.showToast === 'function') {
-            global.showToast(feSum || 'Datos del cliente listos.', res.data.email ? 'success' : 'info');
+            global.showToast(contrast || feSum || 'Datos del cliente listos.', res.data.email ? 'success' : 'info');
 
           }
 
@@ -1372,6 +1855,12 @@
             global.CrozzoOperativePsyche.maybeAffirm('cliente_lookup_ok');
 
           }
+
+          try {
+
+            if (res.doc) scheduleEnrichment(res.doc, res.data, profileKey);
+
+          } catch (_) {}
 
         } else {
 
@@ -1513,15 +2002,13 @@
 
     return (
 
-      '<div class="crozzo-adq-comfort">' +
-
-      '<p class="crozzo-adq-comfort__lead">Documento → directorio → DIAN (con .p12) → RUES. Para FE hacen falta nombre y correo (DIAN los trae si está en base).</p>' +
+      '<div class="crozzo-adq-comfort crozzo-adq-comfort--compact">' +
 
       '<div id="' +
 
       hintId +
 
-      '" class="crozzo-adq-doc-hint-wrap"></div>' +
+      '" class="crozzo-adq-doc-hint-wrap" hidden></div>' +
 
       '<div class="crozzo-adq-lookup-row">' +
 
@@ -1529,9 +2016,9 @@
 
       profileKey +
 
-      '\')">' +
+      '\')" title="Consultar RUES / DIAN">' +
 
-      '<span aria-hidden="true">✦</span> Buscar datos</button>' +
+      'Buscar datos</button>' +
 
       '<span id="' +
 
@@ -1560,6 +2047,11 @@
     feReadinessHtml: feReadinessHtml,
 
     persistLookupToPos: persistLookupToPos,
+
+    scheduleEnrichment: scheduleEnrichment,
+    contrastMergeSources: contrastMergeSources,
+
+    needsContactEnrichment: needsContactEnrichment,
 
     runForForm: runForForm,
 

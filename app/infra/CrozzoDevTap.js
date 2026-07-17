@@ -3,12 +3,18 @@
  *
  * Envía eventos estructurados al observador local (npm run dev:observe)
  * y al archivo JSONL vía Tauri. Invisible para usuarios en producción.
+ *
+ * RUIDO DEV (ignorar en consola): POST :9876/event → ERR_CONNECTION_REFUSED si no corre
+ * `npm run dev:observe`. No afecta POS ni sync. Solo telemetría opcional de QA.
  */
 (function (global) {
   'use strict';
 
   var OBSERVER_URL = 'http://127.0.0.1:9876/event';
+  var OBSERVER_HEALTH_URL = 'http://127.0.0.1:9876/health';
   var __started = false;
+  var __observerLive = false;
+  var __observerProbed = false;
 
   function safe(fn) {
     try {
@@ -39,6 +45,37 @@
     });
   }
 
+  /** Solo POST al observador si npm run dev:observe respondió /health (evita ERR_CONNECTION_REFUSED). */
+  function probeObserverOnce() {
+    if (__observerProbed) return Promise.resolve(__observerLive);
+    __observerProbed = true;
+    if (!isDevTapEnabled() || typeof global.fetch !== 'function') {
+      return Promise.resolve(false);
+    }
+    return new Promise(function (resolve) {
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = ctrl
+        ? global.setTimeout(function () {
+            try {
+              ctrl.abort();
+            } catch (_) {}
+          }, 350)
+        : null;
+      global
+        .fetch(OBSERVER_HEALTH_URL, { method: 'GET', signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) {
+          __observerLive = !!(r && r.ok);
+        })
+        .catch(function () {
+          __observerLive = false;
+        })
+        .finally(function () {
+          if (timer) global.clearTimeout(timer);
+          resolve(__observerLive);
+        });
+    });
+  }
+
   function tap(payload) {
     if (!isDevTapEnabled()) return;
     var row = {
@@ -53,26 +90,33 @@
       row.message = String(payload);
     }
     var line = JSON.stringify(row);
-    safe(function () {
-      if (typeof global.fetch === 'function') {
-        global.fetch(OBSERVER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: line,
-          keepalive: true,
-        }).catch(function () {});
-      }
-    });
+    if (__observerLive) {
+      safe(function () {
+        if (typeof global.fetch === 'function') {
+          global.fetch(OBSERVER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: line,
+            keepalive: true,
+          }).catch(function () {});
+        }
+      });
+    }
     invokeAppend(line);
+    // RUIDO DEV: console [crozzo-dev-tap] — activar con localStorage crozzo_debug_devtap=1
     safe(function () {
-      if (typeof console !== 'undefined' && console.debug) console.debug('[crozzo-dev-tap]', row);
+      if (global.localStorage && global.localStorage.getItem('crozzo_debug_devtap') === '1') {
+        if (typeof console !== 'undefined' && console.debug) console.debug('[crozzo-dev-tap]', row);
+      }
     });
   }
 
   function start() {
     if (__started || !isDevTapEnabled()) return;
     __started = true;
-    tap({ source: 'devtap', code: 'session_start' });
+    probeObserverOnce().then(function () {
+      tap({ source: 'devtap', code: 'session_start', observerLive: __observerLive });
+    });
   }
 
   global.CrozzoDevTap = {

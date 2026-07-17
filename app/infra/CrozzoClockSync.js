@@ -86,10 +86,18 @@
 
   async function refresh() {
     // 1) Supabase REST (si esta configurado): leemos el header Date de la respuesta.
+    // RUIDO RED: HEAD /rest/v1/ antes del login devuelve 401 en DevTools — no es fallo POS.
+    // Mismo gate que CrozzoPosRuntimeCloud (crozzoCloudSyncSessionGateOpen).
     var got = false;
+    var cloudGateOpen = true;
+    try {
+      if (typeof global.crozzoCloudSyncSessionGateOpen === 'function') {
+        cloudGateOpen = global.crozzoCloudSyncSessionGateOpen();
+      }
+    } catch (_) {}
     try {
       var j = typeof global.readCrozzoSupabaseJson === 'function' ? global.readCrozzoSupabaseJson() : null;
-      if (j && j.syncEnabled && j.url) {
+      if (j && j.syncEnabled && j.url && cloudGateOpen) {
         var base = String(j.url).replace(/\/$/, '');
         var headers = {};
         if (typeof global.crozzoSupabaseRestHeaders === 'function') {

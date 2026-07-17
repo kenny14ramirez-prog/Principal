@@ -52,7 +52,57 @@
     return true;
   }
 
+  function comandaOutboxNeedsLanBackup() {
+    try {
+      if (typeof global.crozzoComandaOutboxStatus !== 'function') return false;
+      var st = global.crozzoComandaOutboxStatus();
+      if (!st || !st.pending) return false;
+      var entries = st.entries || [];
+      for (var i = 0; i < entries.length; i++) {
+        var ent = entries[i];
+        if (ent && ((Number(ent.attempts) || 0) > 0 || ent.lastErr)) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  var __cloudWriteOkAt = 0;
+  var __cloudReadOkAt = 0;
+  var DATA_OK_MS = 48000;
+
+  function crozzoNoteCloudWriteOk() {
+    __cloudWriteOkAt = Date.now();
+  }
+
+  function crozzoNoteCloudReadOk() {
+    __cloudReadOkAt = Date.now();
+  }
+
+  /** Escritura + lectura recientes (no basta socket SUBSCRIBED). */
+  function crozzoCloudDataPathRecent(maxMs) {
+    maxMs = maxMs == null ? DATA_OK_MS : Number(maxMs) || DATA_OK_MS;
+    var now = Date.now();
+    if (!__cloudWriteOkAt || now - __cloudWriteOkAt > maxMs) return false;
+    if (!__cloudReadOkAt || now - __cloudReadOkAt > maxMs) return false;
+    return true;
+  }
+
   function crozzoDeferLocalSync() {
+    if (comandaOutboxNeedsLanBackup()) return false;
+    /* Z0 operativo: no diferir LAN (tablet/caja/cocina necesitan canal local paralelo). */
+    try {
+      if (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan()) {
+        return false;
+      }
+    } catch (_) {}
+    try {
+      if (typeof global.crozzoRuntimeSyncHybrid === 'function' && global.crozzoRuntimeSyncHybrid()) {
+        if (typeof global.crozzoCloudOperationalRealtimeHealthy === 'function') {
+          if (!global.crozzoCloudOperationalRealtimeHealthy(14000)) return false;
+        }
+      }
+    } catch (_) {}
+    if (!crozzoCloudDataPathRecent(DATA_OK_MS)) return false;
     return crozzoCloudQualityReliable(28000);
   }
 
@@ -92,6 +142,9 @@
   global.crozzoCloudWanReady = crozzoCloudWanReady;
   global.crozzoDeferLocalSync = crozzoDeferLocalSync;
   global.crozzoCloudQualityReliable = crozzoCloudQualityReliable;
+  global.crozzoNoteCloudWriteOk = crozzoNoteCloudWriteOk;
+  global.crozzoNoteCloudReadOk = crozzoNoteCloudReadOk;
+  global.crozzoCloudDataPathRecent = crozzoCloudDataPathRecent;
   global.crozzoLanWsStandbyActive = crozzoLanWsStandbyActive;
   global.crozzoLanTransportStandbyAllowed = crozzoLanTransportStandbyAllowed;
 

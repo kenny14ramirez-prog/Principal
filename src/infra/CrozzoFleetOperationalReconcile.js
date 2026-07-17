@@ -17,6 +17,18 @@
     } catch (_) {}
   }
 
+  function shouldSkipHeavyReconnect(source) {
+    source = String(source || '');
+    if (!/^(auth_|fleet_auth_)/.test(source)) return false;
+    try {
+      if (typeof global.crozzoComandaRealtimeStatus === 'function') {
+        var cs = global.crozzoComandaRealtimeStatus();
+        if (cs && cs.live && global.__crozzoComandaCloudCh) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   async function run(source) {
     source = String(source || 'fleet');
     var now = Date.now();
@@ -41,7 +53,7 @@
       try {
         wanOk = typeof global.crozzoCloudWanReady === 'function' && global.crozzoCloudWanReady();
       } catch (_) {}
-      if (wanOk && typeof global.crozzoRunFullReconnectSync === 'function') {
+      if (wanOk && !shouldSkipHeavyReconnect(source) && typeof global.crozzoRunFullReconnectSync === 'function') {
         try {
           await global.crozzoRunFullReconnectSync({
             source: 'fleet_' + source,

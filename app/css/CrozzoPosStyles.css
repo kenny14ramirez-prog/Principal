@@ -7484,10 +7484,10 @@ body.crozzo-peak-novice[data-crozzo-stress='critical'] .crozzo-onb-banner {
 .crozzo-psyche-chip {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 10px;
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.22);
   background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
   animation: crozzoComfortPageIn 440ms var(--ease-calm, ease) forwards;
@@ -7636,29 +7636,29 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 40px 14px 18px;
-  margin-bottom: 14px;
-  border-radius: 14px;
+  gap: 6px 10px;
+  padding: 6px 32px 6px 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
   background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.1) 0%, rgba(var(--accent-rgb, 201, 169, 98), 0.03) 100%);
   animation: crozzoComfortPageIn 480ms var(--ease-calm, ease) forwards;
 }
 .crozzo-concierge-strip__close {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
   z-index: 3;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  padding: 4px;
+  padding: 2px;
   border-radius: 6px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 28px;
+  min-height: 28px;
   pointer-events: auto;
 }
 .crozzo-concierge-strip__close:hover {
@@ -7666,40 +7666,40 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   color: var(--text-primary);
 }
 .crozzo-concierge-strip__mark {
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: var(--accent, #c9a962);
   line-height: 1;
 }
 .crozzo-concierge-strip__main {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 .crozzo-concierge-strip__greet {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 .crozzo-concierge-strip__tone {
-  margin: 4px 0 0;
-  font-size: 0.8rem;
+  margin: 2px 0 0;
+  font-size: 0.72rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.3;
 }
 .crozzo-concierge-strip__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .crozzo-concierge-strip__link {
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
   background: rgba(var(--bg-card-rgb, 255, 255, 255), 0.6);
   color: var(--text-primary);
   border-radius: 999px;
-  padding: 5px 14px;
-  font-size: 0.76rem;
+  padding: 3px 10px;
+  font-size: 0.7rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -7873,26 +7873,29 @@ body.crozzo-comfort-ux [class*='-flash']:not(.crozzo-cart-items--flash) {
 .crozzo-ihs--good { color: var(--success, #22c55e); }
 .crozzo-ihs--mid { color: #f59e0b; }
 .crozzo-ihs--low { color: #ef4444; }
-.crozzo-adq-lookup-status { font-size: 0.78rem; min-height: 1.2em; line-height: 1.45; }
-.crozzo-adq-lookup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
-.crozzo-adq-lookup-row .btn-sm { font-size: 0.75rem; padding: 5px 12px; }
+.crozzo-adq-lookup-status { font-size: 0.72rem; min-height: 0; line-height: 1.3; }
+.crozzo-adq-lookup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.crozzo-adq-lookup-row .btn-sm { font-size: 0.72rem; padding: 4px 10px; }
 .crozzo-adq-comfort {
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.18);
-  background: rgba(var(--accent-rgb, 201, 169, 98), 0.04);
+  margin-top: 4px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+}
+.crozzo-adq-comfort--compact {
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 body.crozzo-premium-human .crozzo-adq-comfort,
 body.crozzo-premium-psyche .crozzo-adq-comfort {
-  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.26);
-  background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.07) 0%, transparent 100%);
+  border: none;
+  background: transparent;
 }
 .crozzo-adq-comfort__lead {
-  margin: 0 0 6px;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
+  display: none;
 }
 .crozzo-adq-doc-hint-wrap { min-height: 0; }
 .crozzo-adq-doc-hint {
@@ -7910,6 +7913,9 @@ body.crozzo-premium-psyche .crozzo-adq-comfort {
 .crozzo-adq-lookup-btn span { color: var(--accent, #c9a962); font-size: 0.7rem; }
 .crozzo-adq-lookup-status--soft { color: var(--text-secondary); font-style: normal; }
 .crozzo-adq-lookup-status--loading { opacity: 0.95; }
+.crozzo-adq-enrich--busy { color: var(--text-secondary, #888); font-style: italic; }
+.crozzo-adq-enrich--ok { color: var(--success, #2e7d32); }
+.crozzo-adq-enrich--soft { color: var(--text-secondary, #888); }
 .crozzo-adq-lookup-pulse {
   display: inline-flex;
   align-items: center;
@@ -9910,7 +9916,7 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-head,
 body.crozzo-page-rest-pos .crozzo-rest-pos__pending,
-body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-wrap,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente,
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
   flex-shrink: 0;
 }
@@ -9927,9 +9933,268 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__cart-items {
   border-bottom: 1px solid var(--border);
   background: rgba(var(--rest-gold-rgb), 0.06);
 }
+/* CRM embebido en ticket: en flujo del ticket (sin solapar). Cerrado = 1 fila; abierto = scroll interno. */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente {
+  margin: 0;
+  border-top: 1px solid rgba(var(--rest-gold-rgb), 0.14);
+  border-bottom: 1px solid rgba(var(--rest-gold-rgb), 0.1);
+  background: color-mix(in srgb, var(--bg-card) 88%, rgba(var(--rest-gold-rgb), 0.08));
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  position: relative;
+  z-index: 4;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open {
+  /* Llena el espacio libre del ticket (sin vh fijos que lo “meten”/solapan). */
+  flex: 1 1 auto !important;
+  flex-shrink: 1 !important;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  z-index: 30;
+  isolation: isolate;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) {
+  /* Evita que el listado quede recortado / tapado por el carrito hermano. */
+  overflow: hidden;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__cart-items {
+  position: relative;
+  z-index: 1;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__toggle {
+  padding: 8px 12px;
+  gap: 10px;
+  align-items: center;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__toggle-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__toggle-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.25;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__meta {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.has-client .crozzo-retail-cliente__label {
+  color: var(--text-primary);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__body {
+  display: none;
+  padding: 0 10px 10px;
+  border-top: 1px dashed rgba(var(--rest-gold-rgb), 0.22);
+  overflow: visible;
+  min-height: 0;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 8px 12px 14px;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 2;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-wrap {
-  margin: 0 10px 6px;
-  padding-bottom: 0;
+  margin: 0;
+  padding: 8px 0 0;
+  overflow: visible;
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Resultados a ancho completo del panel (fuera del search-wrap estrecho). */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-toolbar--v2 {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-toolbar--v2 .crozzo-crm-search-wrap {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  width: 100%;
+  gap: 0;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-toolbar--v2 .crozzo-crm-search {
+  width: 100%;
+  flex: 0 0 auto;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-dropdown {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 8px 0 0;
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-dropdown .crozzo-crm-item {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 8px;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-dropdown .crozzo-crm-item > span:first-child {
+  flex: 1 1 100%;
+  min-width: 0;
+  word-break: break-word;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 0 6px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact__row strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  word-break: break-word;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact__row.is-miss em {
+  color: var(--warning, #c9a227);
+  font-style: normal;
+  font-weight: 600;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-create {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: none;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-search-wrap {
+  position: relative;
+  overflow: visible;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open ~ .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open ~ .crozzo-rest-pos__cart-items {
+  display: none !important;
+  flex: 0 0 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+/* Touch/responsive: el carrito open fuerza flex:1 !important — vencerlo mientras CRM esté abierto. */
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .cart-items,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__cart-items,
+body.crozzo-page-rest-pos.crozzo-pos-cart-open.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .cart-items,
+body.crozzo-page-rest-pos.crozzo-pos-cart-open.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__cart-items,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__ticket-foot,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .cart-footer,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__ticket-foot,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .cart-footer,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__pending,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__pending {
+  display: none !important;
+  flex: 0 0 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-retail-cliente.is-open {
+  flex: 1 1 auto !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px !important;
+}
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-crm-create[style*="display: block"],
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-crm-create:not([style*="display: none"]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact {
+  font-size: 0.84rem !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-item--confirm span,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-item--confirm strong {
+  font-size: 0.9rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-profile {
+  margin-top: 6px;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   margin: 6px 10px 0;
@@ -10103,6 +10368,38 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   margin-bottom: 6px;
   grid-column: 1 / -1;
 }
+.crozzo-rest-cuenta-cobro__row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+.crozzo-rest-cuenta-cobro__pay {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
+  max-width: none;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 0 !important;
+  min-height: 44px !important;
+  font-size: 1.05rem !important;
+  letter-spacing: 0.02em;
+}
+.crozzo-rest-cuenta-cobro__more {
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 0 !important;
+  min-height: 44px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  font-weight: 650 !important;
+}
 .crozzo-rest-cuenta-cobro__main {
   width: 100% !important;
   max-width: 100%;
@@ -10115,6 +10412,9 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
 .crozzo-rest-cuenta-cobro__label {
   flex: 1;
   text-align: center;
+}
+.crozzo-rest-cuenta-cobro__more-label {
+  font-size: 0.88rem;
 }
 .crozzo-rest-cuenta-cobro__caret {
   width: 16px !important;
@@ -16702,11 +17002,41 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
   color: var(--text-primary);
   text-align: left;
 }
+.crozzo-retail-cliente__toggle-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.crozzo-retail-cliente__toggle-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.25;
+}
+.crozzo-retail-cliente__label {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.crozzo-retail-cliente__meta {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 .crozzo-retail-cliente__toggle [data-lucide] {
   width: 16px;
   height: 16px;
   color: var(--retail-gold);
-  margin-right: 6px;
+  flex-shrink: 0;
 }
 .crozzo-retail-cliente__body {
   display: none;
@@ -16715,7 +17045,7 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
 }
 .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body { display: block; }
 .crozzo-retail-cliente.is-open .crozzo-retail-cliente__chev { transform: rotate(180deg); }
-.crozzo-retail-cliente__chev { transition: transform 0.2s; opacity: 0.6; }
+.crozzo-retail-cliente__chev { transition: transform 0.2s; opacity: 0.6; flex-shrink: 0; }
 .crozzo-page-venta-comercial .crozzo-crm-wrap {
   margin: 0;
   padding: 8px 0 0;
@@ -28957,6 +29287,89 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   .login-card { padding: 22px 18px 18px; }
 }
 
+/* Fase C — login hotelero BONA (atmósfera + motion calmado) */
+html[data-theme="bona-origen"] .login-overlay,
+html[data-theme="bona-origen"] body.crozzo-login-open .login-overlay {
+  background:
+    radial-gradient(110% 70% at 50% -8%, rgba(181, 154, 109, 0.28), transparent 58%),
+    linear-gradient(168deg, #faf9f7 0%, #f4f0e8 45%, #ebe4d8 100%);
+  overflow: hidden;
+}
+html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere {
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 72%, rgba(181, 154, 109, 0.14), transparent 42%),
+    radial-gradient(circle at 82% 28%, rgba(45, 45, 45, 0.06), transparent 38%);
+  animation: bonaLoginDrift 18s ease-in-out infinite alternate;
+}
+html[data-theme="bona-origen"] .login-overlay > .login-card {
+  position: relative;
+  z-index: 1;
+}
+@keyframes bonaLoginDrift {
+  from { transform: translate3d(-1.2%, 0.6%, 0) scale(1); }
+  to { transform: translate3d(1.4%, -0.8%, 0) scale(1.03); }
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card {
+  max-width: 420px;
+  padding: 32px 28px 26px;
+  border-color: rgba(181, 154, 109, 0.38);
+  background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+  box-shadow:
+    0 28px 64px rgba(45, 45, 45, 0.12),
+    0 0 0 1px rgba(181, 154, 109, 0.12);
+  animation: bonaLoginRise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bonaLoginRise {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card .crozzo-brand-dual--login {
+  margin-bottom: 14px;
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card #loginTitle {
+  font-size: 1.45rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #2d2d2d;
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card #loginSubtitle {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a6342;
+}
+html[data-theme="bona-origen"] #loginForm .btn.btn-primary {
+  min-height: 48px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  border: none;
+  color: #1a1208;
+  background: linear-gradient(135deg, #c4a978, #b59a6d 45%, #8f7854);
+  box-shadow: 0 10px 28px rgba(181, 154, 109, 0.28);
+}
+html[data-theme="bona-origen"] #loginForm .btn.btn-primary:hover {
+  filter: brightness(1.03);
+}
+html[data-theme="bona-origen"] .login-post-actions .btn-outline {
+  opacity: 0.92;
+}
+html[data-theme="bona-origen"] .login-post-actions__hint {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere,
+  html[data-theme="bona-origen"] .login-card.bona-login-card {
+    animation: none !important;
+  }
+}
+
 /* Toast */
 .toast-container {
   position: fixed;
@@ -34504,8 +34917,69 @@ body.crozzo-page-rest-pos .crozzo-rest-pos > .alert strong {
   font-size: 0.82rem !important;
 }
 body.crozzo-page-rest-pos #crozzo-psyche-chip-host,
-body.crozzo-page-rest-pos #crozzo-peak-breathe-host {
+body.crozzo-page-rest-pos #crozzo-peak-breathe-host,
+body.crozzo-page-tablets #crozzo-psyche-chip-host,
+body.crozzo-page-tablets #crozzo-peak-breathe-host,
+body.crozzo-page-comandas #crozzo-psyche-chip-host,
+body.crozzo-page-comandas #crozzo-peak-breathe-host,
+body.crozzo-page-cocina #crozzo-psyche-chip-host,
+body.crozzo-page-cocina #crozzo-peak-breathe-host,
+body.crozzo-page-rest-pos .crozzo-companion-rail-host,
+body.crozzo-page-tablets .crozzo-companion-rail-host,
+body.crozzo-page-comandas .crozzo-companion-rail-host,
+body.crozzo-page-cocina .crozzo-companion-rail-host,
+body.crozzo-page-rest-pos .crozzo-concierge-strip,
+body.crozzo-page-tablets .crozzo-concierge-strip,
+body.crozzo-page-comandas .crozzo-concierge-strip,
+body.crozzo-page-cocina .crozzo-concierge-strip {
   display: none !important;
+}
+/* Ticket BONA: total y cobro como ancla visual */
+body.crozzo-page-rest-pos .crozzo-rest-pos__total-row {
+  font-size: 1.2rem !important;
+  letter-spacing: 0.01em;
+  padding-top: 10px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.32);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__totals .cart-row:not(.cart-total) {
+  font-size: 0.86rem;
+  opacity: 0.92;
+}
+/* Flota calmada en P0: un solo pill de sync visible; resto atenuado/oculto */
+body.crozzo-page-rest-pos .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-tablets .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-comandas .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-cocina .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary {
+  opacity: 0.78;
+  transform: scale(0.94);
+  transform-origin: center right;
+}
+body.crozzo-page-rest-pos #crozzoLegalModeBadge,
+body.crozzo-page-rest-pos #crozzoStorageModeBadge,
+body.crozzo-page-rest-pos #crozzoAutoConfigBadge,
+body.crozzo-page-tablets #crozzoLegalModeBadge,
+body.crozzo-page-tablets #crozzoStorageModeBadge,
+body.crozzo-page-tablets #crozzoAutoConfigBadge,
+body.crozzo-page-comandas #crozzoLegalModeBadge,
+body.crozzo-page-comandas #crozzoStorageModeBadge,
+body.crozzo-page-comandas #crozzoAutoConfigBadge,
+body.crozzo-page-cocina #crozzoLegalModeBadge,
+body.crozzo-page-cocina #crozzoStorageModeBadge,
+body.crozzo-page-cocina #crozzoAutoConfigBadge {
+  display: none !important;
+}
+/* Nav por rol: mesero/cocina = menú denso, sin ruido de grupos vacíos */
+body[data-crozzo-rol="mesero"] #sidebar .nav-group.crozzo-nav-acl-hidden,
+body[data-crozzo-rol="cocina"] #sidebar .nav-group.crozzo-nav-acl-hidden,
+body[data-crozzo-rol="mesero"] #sidebar .nav-group-li.crozzo-nav-acl-hidden,
+body[data-crozzo-rol="cocina"] #sidebar .nav-group-li.crozzo-nav-acl-hidden {
+  display: none !important;
+}
+body[data-crozzo-rol="mesero"] #sidebar .nav-item:not(.crozzo-nav-acl-hidden),
+body[data-crozzo-rol="cocina"] #sidebar .nav-item:not(.crozzo-nav-acl-hidden) {
+  min-height: 44px;
 }
 body.crozzo-page-rest-pos .crozzo-rest-product.product-card {
   content-visibility: visible !important;
@@ -34592,8 +35066,34 @@ body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot 
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente {
   flex-shrink: 0;
 }
+body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open {
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1 1 auto !important;
+  z-index: 30;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body {
-  max-height: min(38vh, 280px);
+  max-height: none;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open .crozzo-crm-toolbar--v2 .crozzo-crm-search-wrap {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open .crozzo-crm-dropdown {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 120px;
   overflow-y: auto;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-crm-create-intro {
@@ -37829,11 +38329,11 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
 .crozzo-concierge-strip__greet { animation: crozzoWelcomeRise 0.5s ease both 0.05s; }
 .crozzo-concierge-strip__tone { animation: crozzoWelcomeRise 0.5s ease both 0.16s; }
 .crozzo-concierge-strip__warm {
-  margin: 6px 0 0;
-  font-size: 0.82rem;
+  margin: 2px 0 0;
+  font-size: 0.72rem;
   font-style: italic;
   color: var(--accent, #c9a962);
-  line-height: 1.45;
+  line-height: 1.3;
   animation: crozzoWelcomeRise 0.55s ease both 0.28s;
 }
 .crozzo-concierge-strip__actions { animation: crozzoWelcomeRise 0.5s ease both 0.36s; }
@@ -41898,10 +42398,10 @@ body.crozzo-peak-novice[data-crozzo-stress='critical'] .crozzo-onb-banner {
 .crozzo-psyche-chip {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 10px;
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.22);
   background: rgba(var(--accent-rgb, 201, 169, 98), 0.06);
   animation: crozzoComfortPageIn 440ms var(--ease-calm, ease) forwards;
@@ -42050,29 +42550,29 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 40px 14px 18px;
-  margin-bottom: 14px;
-  border-radius: 14px;
+  gap: 6px 10px;
+  padding: 6px 32px 6px 12px;
+  margin-bottom: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.28);
   background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.1) 0%, rgba(var(--accent-rgb, 201, 169, 98), 0.03) 100%);
   animation: crozzoComfortPageIn 480ms var(--ease-calm, ease) forwards;
 }
 .crozzo-concierge-strip__close {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
   z-index: 3;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  padding: 4px;
+  padding: 2px;
   border-radius: 6px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 28px;
+  min-height: 28px;
   pointer-events: auto;
 }
 .crozzo-concierge-strip__close:hover {
@@ -42080,40 +42580,40 @@ body.crozzo-psyche-active.crozzo-peak-novice[data-crozzo-stress='critical'] .cro
   color: var(--text-primary);
 }
 .crozzo-concierge-strip__mark {
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: var(--accent, #c9a962);
   line-height: 1;
 }
 .crozzo-concierge-strip__main {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 .crozzo-concierge-strip__greet {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 .crozzo-concierge-strip__tone {
-  margin: 4px 0 0;
-  font-size: 0.8rem;
+  margin: 2px 0 0;
+  font-size: 0.72rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.3;
 }
 .crozzo-concierge-strip__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .crozzo-concierge-strip__link {
   border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.35);
   background: rgba(var(--bg-card-rgb, 255, 255, 255), 0.6);
   color: var(--text-primary);
   border-radius: 999px;
-  padding: 5px 14px;
-  font-size: 0.76rem;
+  padding: 3px 10px;
+  font-size: 0.7rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -42287,26 +42787,29 @@ body.crozzo-comfort-ux [class*='-flash']:not(.crozzo-cart-items--flash) {
 .crozzo-ihs--good { color: var(--success, #22c55e); }
 .crozzo-ihs--mid { color: #f59e0b; }
 .crozzo-ihs--low { color: #ef4444; }
-.crozzo-adq-lookup-status { font-size: 0.78rem; min-height: 1.2em; line-height: 1.45; }
-.crozzo-adq-lookup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
-.crozzo-adq-lookup-row .btn-sm { font-size: 0.75rem; padding: 5px 12px; }
+.crozzo-adq-lookup-status { font-size: 0.72rem; min-height: 0; line-height: 1.3; }
+.crozzo-adq-lookup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.crozzo-adq-lookup-row .btn-sm { font-size: 0.72rem; padding: 4px 10px; }
 .crozzo-adq-comfort {
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(var(--accent-rgb, 201, 169, 98), 0.18);
-  background: rgba(var(--accent-rgb, 201, 169, 98), 0.04);
+  margin-top: 4px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+}
+.crozzo-adq-comfort--compact {
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 body.crozzo-premium-human .crozzo-adq-comfort,
 body.crozzo-premium-psyche .crozzo-adq-comfort {
-  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.26);
-  background: linear-gradient(135deg, rgba(var(--accent-rgb, 201, 169, 98), 0.07) 0%, transparent 100%);
+  border: none;
+  background: transparent;
 }
 .crozzo-adq-comfort__lead {
-  margin: 0 0 6px;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
+  display: none;
 }
 .crozzo-adq-doc-hint-wrap { min-height: 0; }
 .crozzo-adq-doc-hint {
@@ -42324,6 +42827,9 @@ body.crozzo-premium-psyche .crozzo-adq-comfort {
 .crozzo-adq-lookup-btn span { color: var(--accent, #c9a962); font-size: 0.7rem; }
 .crozzo-adq-lookup-status--soft { color: var(--text-secondary); font-style: normal; }
 .crozzo-adq-lookup-status--loading { opacity: 0.95; }
+.crozzo-adq-enrich--busy { color: var(--text-secondary, #888); font-style: italic; }
+.crozzo-adq-enrich--ok { color: var(--success, #2e7d32); }
+.crozzo-adq-enrich--soft { color: var(--text-secondary, #888); }
 .crozzo-adq-lookup-pulse {
   display: inline-flex;
   align-items: center;
@@ -44324,7 +44830,7 @@ html.crozzo-vp-ready body.crozzo-page-rest-pos {
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-head,
 body.crozzo-page-rest-pos .crozzo-rest-pos__pending,
-body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-wrap,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente,
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
   flex-shrink: 0;
 }
@@ -44341,9 +44847,268 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__cart-items {
   border-bottom: 1px solid var(--border);
   background: rgba(var(--rest-gold-rgb), 0.06);
 }
+/* CRM embebido en ticket: en flujo del ticket (sin solapar). Cerrado = 1 fila; abierto = scroll interno. */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente {
+  margin: 0;
+  border-top: 1px solid rgba(var(--rest-gold-rgb), 0.14);
+  border-bottom: 1px solid rgba(var(--rest-gold-rgb), 0.1);
+  background: color-mix(in srgb, var(--bg-card) 88%, rgba(var(--rest-gold-rgb), 0.08));
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+  position: relative;
+  z-index: 4;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open {
+  /* Llena el espacio libre del ticket (sin vh fijos que lo “meten”/solapan). */
+  flex: 1 1 auto !important;
+  flex-shrink: 1 !important;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  z-index: 30;
+  isolation: isolate;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) {
+  /* Evita que el listado quede recortado / tapado por el carrito hermano. */
+  overflow: hidden;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__cart-items {
+  position: relative;
+  z-index: 1;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__toggle {
+  padding: 8px 12px;
+  gap: 10px;
+  align-items: center;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__toggle-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__toggle-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.25;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__meta {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.has-client .crozzo-retail-cliente__label {
+  color: var(--text-primary);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente__body {
+  display: none;
+  padding: 0 10px 10px;
+  border-top: 1px dashed rgba(var(--rest-gold-rgb), 0.22);
+  overflow: visible;
+  min-height: 0;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body {
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 8px 12px 14px;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 2;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-wrap {
-  margin: 0 10px 6px;
-  padding-bottom: 0;
+  margin: 0;
+  padding: 8px 0 0;
+  overflow: visible;
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Resultados a ancho completo del panel (fuera del search-wrap estrecho). */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-toolbar--v2 {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-toolbar--v2 .crozzo-crm-search-wrap {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  width: 100%;
+  gap: 0;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-toolbar--v2 .crozzo-crm-search {
+  width: 100%;
+  flex: 0 0 auto;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-dropdown {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 8px 0 0;
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  z-index: 5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-dropdown .crozzo-crm-item {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 8px;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-dropdown .crozzo-crm-item > span:first-child {
+  flex: 1 1 100%;
+  min-width: 0;
+  word-break: break-word;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 0 6px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact__row strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  word-break: break-word;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact__row.is-miss em {
+  color: var(--warning, #c9a227);
+  font-style: normal;
+  font-weight: 600;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-create {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: none;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-search-wrap {
+  position: relative;
+  overflow: visible;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open ~ .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open ~ .crozzo-rest-pos__cart-items {
+  display: none !important;
+  flex: 0 0 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+/* Touch/responsive: el carrito open fuerza flex:1 !important — vencerlo mientras CRM esté abierto. */
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .cart-items,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__cart-items,
+body.crozzo-page-rest-pos.crozzo-pos-cart-open.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .cart-items,
+body.crozzo-page-rest-pos.crozzo-pos-cart-open.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .cart-items,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__cart-items,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__ticket-foot,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .cart-footer,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__ticket-foot,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .cart-footer,
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket > .crozzo-rest-pos__pending,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-rest-pos__pending {
+  display: none !important;
+  flex: 0 0 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+}
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket:has(.crozzo-retail-cliente.is-open) > .crozzo-retail-cliente.is-open {
+  flex: 1 1 auto !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px !important;
+}
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-crm-create[style*="display: block"],
+body.crozzo-page-rest-pos.crozzo-caja-crm-open .crozzo-rest-pos__ticket .crozzo-crm-create:not([style*="display: none"]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-lookup-contact {
+  font-size: 0.84rem !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-item--confirm span,
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-item--confirm strong {
+  font-size: 0.9rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket .crozzo-crm-profile {
+  margin-top: 6px;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   margin: 6px 10px 0;
@@ -44517,6 +45282,38 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   margin-bottom: 6px;
   grid-column: 1 / -1;
 }
+.crozzo-rest-cuenta-cobro__row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+}
+.crozzo-rest-cuenta-cobro__pay {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
+  max-width: none;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 0 !important;
+  min-height: 44px !important;
+  font-size: 1.05rem !important;
+  letter-spacing: 0.02em;
+}
+.crozzo-rest-cuenta-cobro__more {
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 0 !important;
+  min-height: 44px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  font-weight: 650 !important;
+}
 .crozzo-rest-cuenta-cobro__main {
   width: 100% !important;
   max-width: 100%;
@@ -44529,6 +45326,9 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
 .crozzo-rest-cuenta-cobro__label {
   flex: 1;
   text-align: center;
+}
+.crozzo-rest-cuenta-cobro__more-label {
+  font-size: 0.88rem;
 }
 .crozzo-rest-cuenta-cobro__caret {
   width: 16px !important;
@@ -51116,11 +51916,41 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
   color: var(--text-primary);
   text-align: left;
 }
+.crozzo-retail-cliente__toggle-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.crozzo-retail-cliente__toggle-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.25;
+}
+.crozzo-retail-cliente__label {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.crozzo-retail-cliente__meta {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 .crozzo-retail-cliente__toggle [data-lucide] {
   width: 16px;
   height: 16px;
   color: var(--retail-gold);
-  margin-right: 6px;
+  flex-shrink: 0;
 }
 .crozzo-retail-cliente__body {
   display: none;
@@ -51129,7 +51959,7 @@ body.crozzo-page-venta-comercial .crozzo-retail-rows--dense .crozzo-retail-row__
 }
 .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body { display: block; }
 .crozzo-retail-cliente.is-open .crozzo-retail-cliente__chev { transform: rotate(180deg); }
-.crozzo-retail-cliente__chev { transition: transform 0.2s; opacity: 0.6; }
+.crozzo-retail-cliente__chev { transition: transform 0.2s; opacity: 0.6; flex-shrink: 0; }
 .crozzo-page-venta-comercial .crozzo-crm-wrap {
   margin: 0;
   padding: 8px 0 0;
@@ -63371,6 +64201,89 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   .login-card { padding: 22px 18px 18px; }
 }
 
+/* Fase C — login hotelero BONA (atmósfera + motion calmado) */
+html[data-theme="bona-origen"] .login-overlay,
+html[data-theme="bona-origen"] body.crozzo-login-open .login-overlay {
+  background:
+    radial-gradient(110% 70% at 50% -8%, rgba(181, 154, 109, 0.28), transparent 58%),
+    linear-gradient(168deg, #faf9f7 0%, #f4f0e8 45%, #ebe4d8 100%);
+  overflow: hidden;
+}
+html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere {
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 72%, rgba(181, 154, 109, 0.14), transparent 42%),
+    radial-gradient(circle at 82% 28%, rgba(45, 45, 45, 0.06), transparent 38%);
+  animation: bonaLoginDrift 18s ease-in-out infinite alternate;
+}
+html[data-theme="bona-origen"] .login-overlay > .login-card {
+  position: relative;
+  z-index: 1;
+}
+@keyframes bonaLoginDrift {
+  from { transform: translate3d(-1.2%, 0.6%, 0) scale(1); }
+  to { transform: translate3d(1.4%, -0.8%, 0) scale(1.03); }
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card {
+  max-width: 420px;
+  padding: 32px 28px 26px;
+  border-color: rgba(181, 154, 109, 0.38);
+  background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
+  box-shadow:
+    0 28px 64px rgba(45, 45, 45, 0.12),
+    0 0 0 1px rgba(181, 154, 109, 0.12);
+  animation: bonaLoginRise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bonaLoginRise {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card .crozzo-brand-dual--login {
+  margin-bottom: 14px;
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card #loginTitle {
+  font-size: 1.45rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #2d2d2d;
+}
+html[data-theme="bona-origen"] .login-card.bona-login-card #loginSubtitle {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7a6342;
+}
+html[data-theme="bona-origen"] #loginForm .btn.btn-primary {
+  min-height: 48px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  border: none;
+  color: #1a1208;
+  background: linear-gradient(135deg, #c4a978, #b59a6d 45%, #8f7854);
+  box-shadow: 0 10px 28px rgba(181, 154, 109, 0.28);
+}
+html[data-theme="bona-origen"] #loginForm .btn.btn-primary:hover {
+  filter: brightness(1.03);
+}
+html[data-theme="bona-origen"] .login-post-actions .btn-outline {
+  opacity: 0.92;
+}
+html[data-theme="bona-origen"] .login-post-actions__hint {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere,
+  html[data-theme="bona-origen"] .login-card.bona-login-card {
+    animation: none !important;
+  }
+}
+
 /* Toast */
 .toast-container {
   position: fixed;
@@ -68677,8 +69590,69 @@ body.crozzo-page-rest-pos .crozzo-rest-pos > .alert strong {
   font-size: 0.82rem !important;
 }
 body.crozzo-page-rest-pos #crozzo-psyche-chip-host,
-body.crozzo-page-rest-pos #crozzo-peak-breathe-host {
+body.crozzo-page-rest-pos #crozzo-peak-breathe-host,
+body.crozzo-page-tablets #crozzo-psyche-chip-host,
+body.crozzo-page-tablets #crozzo-peak-breathe-host,
+body.crozzo-page-comandas #crozzo-psyche-chip-host,
+body.crozzo-page-comandas #crozzo-peak-breathe-host,
+body.crozzo-page-cocina #crozzo-psyche-chip-host,
+body.crozzo-page-cocina #crozzo-peak-breathe-host,
+body.crozzo-page-rest-pos .crozzo-companion-rail-host,
+body.crozzo-page-tablets .crozzo-companion-rail-host,
+body.crozzo-page-comandas .crozzo-companion-rail-host,
+body.crozzo-page-cocina .crozzo-companion-rail-host,
+body.crozzo-page-rest-pos .crozzo-concierge-strip,
+body.crozzo-page-tablets .crozzo-concierge-strip,
+body.crozzo-page-comandas .crozzo-concierge-strip,
+body.crozzo-page-cocina .crozzo-concierge-strip {
   display: none !important;
+}
+/* Ticket BONA: total y cobro como ancla visual */
+body.crozzo-page-rest-pos .crozzo-rest-pos__total-row {
+  font-size: 1.2rem !important;
+  letter-spacing: 0.01em;
+  padding-top: 10px !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.32);
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos__totals .cart-row:not(.cart-total) {
+  font-size: 0.86rem;
+  opacity: 0.92;
+}
+/* Flota calmada en P0: un solo pill de sync visible; resto atenuado/oculto */
+body.crozzo-page-rest-pos .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-tablets .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-comandas .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-cocina .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary {
+  opacity: 0.78;
+  transform: scale(0.94);
+  transform-origin: center right;
+}
+body.crozzo-page-rest-pos #crozzoLegalModeBadge,
+body.crozzo-page-rest-pos #crozzoStorageModeBadge,
+body.crozzo-page-rest-pos #crozzoAutoConfigBadge,
+body.crozzo-page-tablets #crozzoLegalModeBadge,
+body.crozzo-page-tablets #crozzoStorageModeBadge,
+body.crozzo-page-tablets #crozzoAutoConfigBadge,
+body.crozzo-page-comandas #crozzoLegalModeBadge,
+body.crozzo-page-comandas #crozzoStorageModeBadge,
+body.crozzo-page-comandas #crozzoAutoConfigBadge,
+body.crozzo-page-cocina #crozzoLegalModeBadge,
+body.crozzo-page-cocina #crozzoStorageModeBadge,
+body.crozzo-page-cocina #crozzoAutoConfigBadge {
+  display: none !important;
+}
+/* Nav por rol: mesero/cocina = menú denso, sin ruido de grupos vacíos */
+body[data-crozzo-rol="mesero"] #sidebar .nav-group.crozzo-nav-acl-hidden,
+body[data-crozzo-rol="cocina"] #sidebar .nav-group.crozzo-nav-acl-hidden,
+body[data-crozzo-rol="mesero"] #sidebar .nav-group-li.crozzo-nav-acl-hidden,
+body[data-crozzo-rol="cocina"] #sidebar .nav-group-li.crozzo-nav-acl-hidden {
+  display: none !important;
+}
+body[data-crozzo-rol="mesero"] #sidebar .nav-item:not(.crozzo-nav-acl-hidden),
+body[data-crozzo-rol="cocina"] #sidebar .nav-item:not(.crozzo-nav-acl-hidden) {
+  min-height: 44px;
 }
 body.crozzo-page-rest-pos .crozzo-rest-product.product-card {
   content-visibility: visible !important;
@@ -68765,8 +69739,34 @@ body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot 
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente {
   flex-shrink: 0;
 }
+body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open {
+  max-height: none;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1 1 auto !important;
+  z-index: 30;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open .crozzo-retail-cliente__body {
-  max-height: min(38vh, 280px);
+  max-height: none;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open .crozzo-crm-toolbar--v2 .crozzo-crm-search-wrap {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+}
+body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente.is-open .crozzo-crm-dropdown {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 120px;
   overflow-y: auto;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-crm-create-intro {
@@ -72002,11 +73002,11 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
 .crozzo-concierge-strip__greet { animation: crozzoWelcomeRise 0.5s ease both 0.05s; }
 .crozzo-concierge-strip__tone { animation: crozzoWelcomeRise 0.5s ease both 0.16s; }
 .crozzo-concierge-strip__warm {
-  margin: 6px 0 0;
-  font-size: 0.82rem;
+  margin: 2px 0 0;
+  font-size: 0.72rem;
   font-style: italic;
   color: var(--accent, #c9a962);
-  line-height: 1.45;
+  line-height: 1.3;
   animation: crozzoWelcomeRise 0.55s ease both 0.28s;
 }
 .crozzo-concierge-strip__actions { animation: crozzoWelcomeRise 0.5s ease both 0.36s; }
@@ -76987,69 +77987,80 @@ html[data-theme='bona-origen'] .crozzo-tablet-qr-quick__host {
 
 /* Acompañante operativo — guía contextual (norma visual: tokens + data-theme) */
 .crozzo-companion-rail-host {
-  margin-bottom: 14px;
+  margin-bottom: 6px;
 }
 .crozzo-companion-rail {
   position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px 14px 18px;
-  border-radius: var(--bona-radius-md, 16px);
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 12px;
+  border-radius: 10px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg, var(--shadow));
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0, 0, 0, 0.06));
   color: var(--text-primary);
   overflow: hidden;
 }
 .crozzo-companion-rail__glow {
   position: absolute;
   inset: -40% auto auto -20%;
-  width: 55%;
+  width: 40%;
   height: 140%;
   background: radial-gradient(
     ellipse at center,
-    rgba(var(--accent-rgb, 181, 154, 109), 0.14) 0%,
+    rgba(var(--accent-rgb, 181, 154, 109), 0.1) 0%,
     transparent 70%
   );
   pointer-events: none;
+  opacity: 0.7;
 }
 .crozzo-companion-rail__main {
   position: relative;
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
 }
 .crozzo-companion-rail__badge {
   display: inline-block;
-  margin-bottom: 6px;
-  padding: 3px 10px;
+  margin-bottom: 0;
+  padding: 1px 8px;
   border-radius: 999px;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent);
   background: rgba(var(--accent-rgb, 181, 154, 109), 0.12);
   border: 1px solid rgba(var(--accent-rgb, 181, 154, 109), 0.28);
+  line-height: 1.4;
 }
 .crozzo-companion-rail__title {
-  margin: 0 0 4px;
-  font-size: 0.95rem;
+  margin: 0;
+  font-size: 0.8rem;
   font-weight: 650;
   color: var(--text-primary);
   letter-spacing: 0.01em;
+  line-height: 1.25;
 }
 .crozzo-companion-rail__hint {
-  margin: 0 0 10px;
-  font-size: 0.82rem;
-  line-height: 1.5;
+  margin: 0;
+  flex: 1 1 100%;
+  font-size: 0.72rem;
+  line-height: 1.35;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .crozzo-companion-rail__steps {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
+  display: none; /* compacto: sin lista de pasos en la barra */
   gap: 6px;
 }
 .crozzo-companion-rail__steps li {
@@ -77076,13 +78087,13 @@ html[data-theme='bona-origen'] .crozzo-tablet-qr-quick__host {
 }
 .crozzo-companion-rail__close {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: rgba(var(--accent-rgb, 181, 154, 109), 0.08);
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -77129,14 +78140,24 @@ html.crozzo-theme-dark body.crozzo-premium-psyche .crozzo-companion-rail {
 }
 @media (max-width: 768px) {
   .crozzo-companion-rail {
-    padding: 12px 14px;
-    border-radius: 14px;
+    padding: 5px 8px 5px 10px;
+    border-radius: 8px;
   }
   .crozzo-companion-rail__title {
-    font-size: 0.88rem;
+    font-size: 0.76rem;
   }
   .crozzo-companion-rail__hint,
   .crozzo-companion-rail__steps li {
-    font-size: 0.78rem;
+    font-size: 0.68rem;
   }
+}
+/* Caja/POS: aún más compacto; al abrir Cliente se oculta para no solapar. */
+body.crozzo-page-rest-pos .crozzo-companion-rail-host {
+  margin-bottom: 4px;
+}
+body.crozzo-caja-crm-open .crozzo-companion-rail-host,
+body.crozzo-caja-crm-open .crozzo-concierge-strip,
+body.crozzo-caja-crm-open #crozzo-psyche-chip-host,
+body.crozzo-caja-crm-open #crozzo-peak-breathe-host {
+  display: none !important;
 }

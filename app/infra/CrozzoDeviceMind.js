@@ -134,8 +134,25 @@
     global.crozzoPublishFleetCommState({ force: false }).catch(function () {});
   }
 
+  function isP0OperativeUi() {
+    try {
+      var b = typeof document !== 'undefined' ? document.body : null;
+      if (!b || !b.classList) return false;
+      return (
+        b.classList.contains('crozzo-page-rest-pos') ||
+        b.classList.contains('crozzo-page-tablets') ||
+        b.classList.contains('crozzo-page-comandas') ||
+        b.classList.contains('crozzo-page-cocina')
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   function maybeNotifyOperator(decision) {
     if (!decision || typeof global.showToast !== 'function') return;
+    /* P0: hint en title del pill; sin toasts de flota que interrumpan cobro/comanda. */
+    if (isP0OperativeUi()) return;
     var sig = decision.primary + '|' + decision.meshStandby + '|' + decision.peerCount;
     if (sig === __lastDecisionSig) return;
     var now = Date.now();

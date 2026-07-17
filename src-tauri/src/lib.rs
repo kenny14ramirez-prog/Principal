@@ -19,6 +19,8 @@ mod crozzo_silent_install;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_adquiriente;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod adq_enrich_sidecar;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_vpfe;
 mod webview_permissions;
 mod crozzo_external;
@@ -26,6 +28,7 @@ mod crozzo_external;
 mod crozzo_android_install;
 mod crozzo_ble_mesh;
 mod crozzo_gossip_udp;
+mod crozzo_wifi_direct;
 #[cfg(desktop)]
 mod crozzo_dev_log;
 
@@ -143,10 +146,20 @@ pub fn run() {
             crozzo_gossip_udp::crozzo_gossip_udp_send,
             crozzo_gossip_udp::crozzo_gossip_udp_drain,
             crozzo_gossip_udp::crozzo_gossip_udp_status,
+            crozzo_wifi_direct::crozzo_wifi_direct_status,
+            crozzo_wifi_direct::crozzo_wifi_direct_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_vpfe::fetch_dian_vpfe,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             dian_adquiriente::fetch_dian_adquiriente,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            adq_enrich_sidecar::adq_enrich_health,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            adq_enrich_sidecar::adq_enrich_ensure_sidecar,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            adq_enrich_sidecar::adq_enrich_start_job,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            adq_enrich_sidecar::adq_enrich_poll,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_sync_server::crozzo_lan_sync_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

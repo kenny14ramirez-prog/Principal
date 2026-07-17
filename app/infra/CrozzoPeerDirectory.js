@@ -19,8 +19,17 @@
   var CLOUD_PULL_MIN_MS = 360000;
   var CLOUD_PUBLISH_MIN_MS = 600000;
   var CLOUD_DEVICE_MAX_AGE_MS = 86400000;
+  var ANNOUNCE_MIN_MS = 45000;
+  var LS_ANNOUNCE_AT = 'crozzo_identity_announce_at_v1';
+  var LS_SOFT_HEAL_AT = 'crozzo_fleet_soft_heal_at_v1';
+  var ROSTER_ECHO_THROTTLE_MS = 12000;
+  var SOFT_HEAL_MIN_MS = 60000;
   var __cloudPullInflight = null;
   var __cloudPublishInflight = null;
+  var __announceInflight = null;
+  var __sedeMismatchCount = 0;
+  var __rosterEchoAt = {};
+  var __softHealTimer = null;
 
   function safe(fn) {
     try {
@@ -129,10 +138,20 @@
     var ctx = selfCtx();
     var bid = String(opts.businessId || ctx.businessId || 'default').trim() || 'default';
     if (bid !== ctx.businessId && ctx.businessId !== 'default' && bid !== 'default') return;
+    var myLoc = String(ctx.locationId || '').trim();
+    var peerLoc = String(opts.locationId || '').trim();
+    if (myLoc && myLoc !== 'default' && peerLoc && peerLoc !== 'default' && peerLoc !== myLoc) {
+      __sedeMismatchCount++;
+      safe(function () {
+        global.__CROZZO_SEDE_MISMATCH_COUNT = __sedeMismatchCount;
+      });
+      return;
+    }
     var store = readStore();
     var k = peerKey(bid, opts.deviceId);
     var prev = store.peers[k] || {};
     var ip = String(opts.lanIp || opts.ip || prev.lanIp || '').trim();
+    var centralIp = String(opts.centralIp || prev.centralIp || '').trim();
     store.peers[k] = {
       businessId: bid,
       locationId: String(opts.locationId || prev.locationId || ctx.locationId || '').trim(),
@@ -140,6 +159,9 @@
       role: opts.role === 'B' ? 'B' : 'A',
       name: String(opts.name || prev.name || '').trim(),
       lanIp: ip,
+      centralIp: centralIp,
+      transports: opts.transports || prev.transports || null,
+      btId: String(opts.btId || (opts.transports && opts.transports.btId) || prev.btId || '').trim(),
       cloudOk: opts.cloudOk === true || prev.cloudOk === true,
       lastCloudOkAt:
         opts.cloudOk === true ? Date.now() : Number(opts.lastCloudOkAt || prev.lastCloudOkAt) || 0,
@@ -263,8 +285,7 @@
     return 'peer-roster-' + loc;
   }
 
-  function resolveSelfLanIp() {
-    var cfg = md();
+  function resolveOwnLanIpSync() {
     var ctx = selfCtx();
     if (ctx.role === 'A') {
       try {
@@ -273,64 +294,577 @@
       } catch (_) {}
       return '127.0.0.1';
     }
-    return String(cfg.centralIp || '').trim();
+    try {
+      var cached = String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();
+      if (cached) return cached;
+    } catch (_) {}
+    return '';
   }
 
-  function buildPresencePayload(opts) {
+  /** @deprecated use resolveOwnLanIpSync — no devolver centralIp como IP propia (Rol B). */
+  function resolveSelfLanIp() {
+    return resolveOwnLanIpSync();
+  }
+
+  function invalidateOwnLanIpCache() {
+    safe(function () {
+      global.localStorage.removeItem('crozzo_own_lan_ip_v1');
+    });
+  }
+
+  async function refreshOwnLanIp() {
+    var ctx = selfCtx();
+    if (ctx.role === 'A') {
+      try {
+        var zone = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+        if (zone && zone !== '127.0.0.1') {
+          safe(function () {
+            global.localStorage.setItem('crozzo_own_lan_ip_v1', zone);
+          });
+          return zone;
+        }
+      } catch (_) {}
+      try {
+        if (typeof global.detectLocalIP === 'function') {
+          var aip = String((await global.detectLocalIP()) || '').trim();
+          if (aip && aip.indexOf('.') > 0 && aip !== '127.0.0.1') {
+            safe(function () {
+              global.localStorage.setItem('crozzo_own_lan_ip_v1', aip);
+              global.localStorage.setItem('crozzo_wifi_zone_last_ip', aip);
+            });
+            return aip;
+          }
+        }
+      } catch (_) {}
+      return resolveOwnLanIpSync();
+    }
+    try {
+      if (typeof global.detectLocalIP === 'function') {
+        var ip = String((await global.detectLocalIP()) || '').trim();
+        if (ip && ip.indexOf('.') > 0) {
+          safe(function () {
+            global.localStorage.setItem('crozzo_own_lan_ip_v1', ip);
+          });
+          return ip;
+        }
+      }
+    } catch (_) {}
+    return resolveOwnLanIpSync();
+  }
+
+  function getSedeMismatchCount() {
+    return __sedeMismatchCount;
+  }
+
+  function buildFleetRosterPayload() {
+    var selfCard = buildIdentityCard();
+    var hints = peersForQrHint(12);
+    var peers = hints.map(function (h) {
+      return {
+        deviceId: h.d,
+        name: h.n,
+        role: h.r,
+        lanIp: h.ip,
+        locationId: selfCard.locationId,
+        businessId: selfCard.businessId,
+        centralIp: selfCard.centralIp,
+      };
+    });
+    peers.unshift({
+      deviceId: selfCard.deviceId,
+      name: selfCard.name,
+      role: selfCard.role,
+      lanIp: selfCard.lanIp,
+      locationId: selfCard.locationId,
+      businessId: selfCard.businessId,
+      centralIp: selfCard.centralIp,
+      transports: selfCard.transports,
+    });
+    return {
+      kind: 'fleet_roster',
+      v: 1,
+      at: new Date().toISOString(),
+      fromDeviceId: selfCard.deviceId,
+      locationId: selfCard.locationId,
+      peers: peers,
+    };
+  }
+
+  function ingestFleetRoster(payload, via) {
+    if (!payload || !Array.isArray(payload.peers)) return 0;
+    var n = 0;
+    payload.peers.forEach(function (p) {
+      if (!p || !p.deviceId) return;
+      if (
+        ingestIdentityCard(
+          {
+            deviceId: p.deviceId,
+            businessId: p.businessId || payload.businessId,
+            locationId: p.locationId || payload.locationId,
+            role: p.role,
+            name: p.name,
+            lanIp: p.lanIp,
+            centralIp: p.centralIp,
+            transports: p.transports,
+            cloudOk: true,
+          },
+          via || 'fleet_roster'
+        )
+      ) {
+        n++;
+      }
+    });
+    return n;
+  }
+
+  /**
+   * Rol A: tras recibir identity_card, eco throttled del roster (relay-peers).
+   */
+  function maybeEchoFleetRoster(fromDeviceId, opts) {
+    opts = opts || {};
+    var ctx = selfCtx();
+    if (ctx.role !== 'A') return { ok: false, reason: 'not_central' };
+    fromDeviceId = String(fromDeviceId || '').trim();
+    var now = Date.now();
+    if (fromDeviceId && !opts.force) {
+      var last = Number(__rosterEchoAt[fromDeviceId] || 0);
+      if (last && now - last < ROSTER_ECHO_THROTTLE_MS) return { ok: true, skipped: 'throttle' };
+    }
+    if (fromDeviceId) __rosterEchoAt[fromDeviceId] = now;
+    var roster = buildFleetRosterPayload();
+    var body = {
+      type: 'fleet_roster',
+      uuid: 'roster:' + ctx.deviceId + ':' + String(roster.at || ''),
+      op_id: 'roster:' + ctx.deviceId,
+      data: roster,
+    };
+    var sent = false;
+    safe(function () {
+      if (typeof global.crozzoLanPostSync === 'function') {
+        global.crozzoLanPostSync(body, { timeoutMs: 3500 }).catch(function () {});
+        sent = true;
+      }
+    });
+    safe(function () {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        global.__TAURI__.core
+          .invoke('crozzo_lan_ws_broadcast', {
+            json: JSON.stringify({ event: 'lan_push', payload: body }),
+          })
+          .catch(function () {});
+        sent = true;
+      }
+    });
+    return { ok: sent, peers: roster.peers.length };
+  }
+
+  function scheduleSoftHealSoloFleet(reason) {
+    var ctx = selfCtx();
+    if (ctx.role !== 'B') return;
+    if (__softHealTimer) return;
+    __softHealTimer = global.setTimeout(function () {
+      __softHealTimer = null;
+      softHealSoloFleet(reason || 'timer').catch(function () {});
+    }, 3500);
+  }
+
+  async function softHealSoloFleet(reason) {
+    var ctx = selfCtx();
+    if (ctx.role !== 'B') return { ok: false, reason: 'not_B' };
+    var cfg = md();
+    if (!String(cfg.centralIp || '').trim()) return { ok: false, reason: 'no_central' };
+    var snap = getFleetSnapshot();
+    if (snap.peerCount > 1) return { ok: true, skipped: 'already_fleet' };
+    var now = Date.now();
+    var last = Number(safe(function () {
+      return global.localStorage.getItem(LS_SOFT_HEAL_AT);
+    }) || 0);
+    if (last && now - last < SOFT_HEAL_MIN_MS) return { ok: true, skipped: 'throttle' };
+    safe(function () {
+      global.localStorage.setItem(LS_SOFT_HEAL_AT, String(now));
+    });
+    invalidateOwnLanIpCache();
+    await announceIdentity({ force: true, pull: true });
+    try {
+      if (global.CrozzoMdnsBridge && typeof global.CrozzoMdnsBridge.rediscoverCentral === 'function') {
+        await global.CrozzoMdnsBridge.rediscoverCentral({ force: true });
+      }
+    } catch (_) {}
+    try {
+      if (global.CrozzoConnectivityDirector && typeof global.CrozzoConnectivityDirector.scheduleEvaluate === 'function') {
+        global.CrozzoConnectivityDirector.scheduleEvaluate('fleet_soft_heal:' + (reason || ''), true);
+      }
+    } catch (_) {}
+    return { ok: true, reason: reason || 'soft_heal', fleet: getFleetSnapshot() };
+  }
+
+  function detectTransports() {
+    var cfg = md();
+    var pathLabel = '';
+    safe(function () {
+      if (typeof global.crozzoTransportPathLabel === 'function') pathLabel = global.crozzoTransportPathLabel();
+    });
+    var wsOpen = false;
+    safe(function () {
+      wsOpen = !!(
+        global.CrozzoLanWebSocketBridge &&
+        typeof global.CrozzoLanWebSocketBridge.isOpen === 'function' &&
+        global.CrozzoLanWebSocketBridge.isOpen()
+      );
+    });
+    var gossip = safe(function () {
+      return global.CrozzoOfflineGossip && global.CrozzoOfflineGossip.getStatus
+        ? global.CrozzoOfflineGossip.getStatus()
+        : null;
+    }, null);
+    var ble = safe(function () {
+      return global.CrozzoBleMesh && global.CrozzoBleMesh.getStatus ? global.CrozzoBleMesh.getStatus() : null;
+    }, null);
+    var wd = safe(function () {
+      return global.CrozzoWifiDirectBridge && global.CrozzoWifiDirectBridge.getStatus
+        ? global.CrozzoWifiDirectBridge.getStatus()
+        : null;
+    }, null);
+    var cloudOk = false;
+    safe(function () {
+      cloudOk =
+        (typeof global.crozzoCloudWanReady === 'function' && global.crozzoCloudWanReady()) ||
+        (typeof global.navigator !== 'undefined' && global.navigator.onLine && !!global.__SUPABASE);
+    });
+    return {
+      cloud: !!cloudOk,
+      lanHttp: !!(cfg.centralIp || cfg.role === 'A'),
+      lanWs: !!wsOpen,
+      gossip: !!(gossip && (gossip.active || gossip.peerCount > 0)),
+      ble: !!(ble && ble.active),
+      wifiDirect: !!(wd && wd.active),
+      pathLabel: pathLabel || '',
+      btId: String((ble && ble.btId) || '').trim(),
+    };
+  }
+
+  function displayName() {
+    var cfg = md();
+    var n = '';
+    safe(function () {
+      n = String(
+        (cfg.lanDeviceName || cfg.tabletName || cfg.deviceName || '') ||
+          (global.config && global.config.get && (global.config.get('conexionSistemas') || {}).tabletName) ||
+          ''
+      ).trim();
+    });
+    if (n) return n;
+    var ctx = selfCtx();
+    return ctx.role === 'A' ? 'Caja' : 'Tablet';
+  }
+
+  /**
+   * Carnet canónico de flota — “quién soy / sede / vías”.
+   * Misma forma en nube, LAN, gossip y BLE.
+   */
+  function buildIdentityCard(opts) {
     opts = opts || {};
     var ctx = selfCtx();
     var cfg = md();
-    return {
+    var transports = opts.transports || detectTransports();
+    var card = {
+      kind: 'identity_card',
+      v: 3,
       deviceId: ctx.deviceId,
       businessId: ctx.businessId,
       locationId: ctx.locationId,
       role: ctx.role,
-      name: String(opts.name || '').trim(),
-      lanIp: String(opts.lanIp || resolveSelfLanIp() || '').trim(),
-      centralIp: String(cfg.centralIp || opts.centralIp || '').trim(),
-      cloudOk: opts.cloudOk !== false,
+      name: String(opts.name || displayName()).trim(),
+      lanIp: String(opts.lanIp || resolveOwnLanIpSync() || '').trim(),
+      centralIp: String(opts.centralIp || cfg.centralIp || (ctx.role === 'A' ? resolveOwnLanIpSync() : '') || '').trim(),
+      port: Number(cfg.port) || 3000,
+      transports: transports,
+      btId: String(opts.btId || transports.btId || '').trim(),
+      cloudOk: opts.cloudOk !== false && !!transports.cloud,
       commState: opts.commState || null,
       at: new Date().toISOString(),
-      v: opts.commState ? 2 : 1,
     };
+    if (!card.commState && typeof global.crozzoCaptureLocalCommState === 'function') {
+      try {
+        card.commState = global.crozzoCaptureLocalCommState();
+      } catch (_) {}
+    }
+    return card;
+  }
+
+  function buildPresencePayload(opts) {
+    opts = opts || {};
+    var card = buildIdentityCard(opts);
+    return {
+      deviceId: card.deviceId,
+      businessId: card.businessId,
+      locationId: card.locationId,
+      role: card.role,
+      name: card.name,
+      lanIp: card.lanIp,
+      centralIp: card.centralIp,
+      transports: card.transports,
+      btId: card.btId,
+      cloudOk: card.cloudOk,
+      commState: card.commState,
+      at: card.at,
+      v: 3,
+    };
+  }
+
+  function ingestIdentityCard(card, via) {
+    if (!card || !card.deviceId) return false;
+    var ctx = selfCtx();
+    if (ctx.deviceId && String(card.deviceId) === String(ctx.deviceId)) {
+      noteSelf({
+        name: card.name,
+        lanIp: card.lanIp,
+        cloudOk: card.cloudOk,
+        commState: card.commState,
+        via: via || 'identity_self',
+      });
+      return true;
+    }
+    var role = card.role === 'B' ? 'B' : 'A';
+    var lanIp = String(card.lanIp || '').trim();
+    var centralIp = String(card.centralIp || '').trim();
+    /* Rol B: guardar SU lanIp; no sustituir por centralIp (bug histórico). */
+    notePeer({
+      deviceId: String(card.deviceId).trim(),
+      businessId: card.businessId,
+      locationId: card.locationId,
+      role: role,
+      name: card.name,
+      lanIp: role === 'A' ? lanIp || centralIp : lanIp,
+      centralIp: centralIp,
+      transports: card.transports || null,
+      btId: card.btId,
+      cloudOk: card.cloudOk !== false,
+      commState: card.commState || null,
+      via: via || 'identity',
+    });
+    if (centralIp) {
+      notePeer({
+        deviceId: 'central-' + centralIp,
+        businessId: card.businessId,
+        locationId: card.locationId,
+        role: 'A',
+        lanIp: centralIp,
+        centralIp: centralIp,
+        cloudOk: card.cloudOk !== false,
+        via: (via || 'identity') + ':centralIp',
+      });
+    }
+    return true;
   }
 
   function ingestPresenceObject(presence, via) {
     if (!presence || !presence.deviceId) return;
-    var role = presence.role === 'B' ? 'B' : 'A';
-    var lanIp = String(presence.lanIp || '').trim();
-    var centralIp = String(presence.centralIp || '').trim();
-    notePeer({
-      deviceId: String(presence.deviceId).trim(),
-      businessId: presence.businessId,
-      locationId: presence.locationId,
-      role: role,
-      name: presence.name,
-      lanIp: role === 'A' ? lanIp || centralIp : centralIp || lanIp,
-      cloudOk: presence.cloudOk !== false,
-      commState: presence.commState || null,
-      via: via || 'cloud',
+    ingestIdentityCard(presence, via || 'cloud');
+  }
+
+  function peersForQrHint(limit) {
+    limit = Math.max(1, Math.min(Number(limit) || 6, 8));
+    var ctx = selfCtx();
+    var rows = listPeers().filter(function (p) {
+      if (!p || !p.deviceId) return false;
+      if (String(p.deviceId).indexOf('central-') === 0) return false;
+      if (ctx.deviceId && String(p.deviceId) === String(ctx.deviceId)) return false;
+      if (ctx.locationId && p.locationId && p.locationId !== 'default' && p.locationId !== ctx.locationId) {
+        return false;
+      }
+      return true;
     });
-    if (centralIp && role === 'B') {
-      notePeer({
-        deviceId: 'central-' + centralIp,
-        businessId: presence.businessId,
-        locationId: presence.locationId,
-        role: 'A',
-        lanIp: centralIp,
-        cloudOk: presence.cloudOk !== false,
-        via: (via || 'cloud') + ':centralIp',
-      });
+    return rows.slice(0, limit).map(function (p) {
+      return {
+        d: String(p.deviceId).slice(0, 48),
+        n: String(p.name || '').slice(0, 24),
+        r: p.role === 'B' ? 'B' : 'A',
+        ip: String(p.lanIp || '').slice(0, 40),
+      };
+    });
+  }
+
+  function ingestFleetPeersHint(list, via) {
+    if (!Array.isArray(list) || !list.length) return 0;
+    var n = 0;
+    var ctx = selfCtx();
+    list.forEach(function (p) {
+      if (!p) return;
+      var deviceId = String(p.d || p.deviceId || '').trim();
+      if (!deviceId) return;
+      ingestIdentityCard(
+        {
+          deviceId: deviceId,
+          businessId: ctx.businessId,
+          locationId: ctx.locationId,
+          role: p.r || p.role || 'B',
+          name: p.n || p.name || '',
+          lanIp: p.ip || p.lanIp || '',
+          centralIp: md().centralIp || '',
+          cloudOk: true,
+        },
+        via || 'qr_fleet_hint'
+      );
+      n++;
+    });
+    return n;
+  }
+
+  function getFleetSnapshot() {
+    var ctx = selfCtx();
+    var peers = listPeers();
+    var sameLoc = peers.filter(function (p) {
+      return !ctx.locationId || ctx.locationId === 'default' || !p.locationId || p.locationId === ctx.locationId;
+    });
+    var withIp = sameLoc.filter(function (p) {
+      return !!String(p.lanIp || '').trim();
+    });
+    var card = buildIdentityCard();
+    return {
+      self: card,
+      peerCount: sameLoc.length,
+      withLanIp: withIp.length,
+      peers: sameLoc.slice(0, 24).map(function (p) {
+        return {
+          deviceId: p.deviceId,
+          name: p.name,
+          role: p.role,
+          lanIp: p.lanIp,
+          centralIp: p.centralIp,
+          via: p.via,
+          transports: p.transports,
+          lastSeenAt: p.lastSeenAt,
+        };
+      }),
+      label:
+        sameLoc.length <= 1
+          ? 'solo_este_equipo'
+          : withIp.length
+            ? 'flota_' + sameLoc.length + '_ip_' + withIp.length
+            : 'flota_' + sameLoc.length + '_sin_ip',
+    };
+  }
+
+  /**
+   * Anuncio multi-vía: nube + LAN (caja) + gossip + BLE.
+   * Post-QR / boot: force:true.
+   */
+  async function announceIdentity(opts) {
+    opts = opts || {};
+    var now = Date.now();
+    if (!opts.force) {
+      var last = Number(safe(function () {
+        return global.localStorage.getItem(LS_ANNOUNCE_AT);
+      }) || 0);
+      if (last && now - last < ANNOUNCE_MIN_MS) return { ok: true, skipped: 'throttle' };
     }
-    if (role === 'A' && lanIp) {
-      notePeer({
-        deviceId: String(presence.deviceId).trim(),
-        businessId: presence.businessId,
-        locationId: presence.locationId,
-        role: 'A',
-        lanIp: lanIp,
-        cloudOk: presence.cloudOk !== false,
-        via: via || 'cloud',
+    if (__announceInflight) return __announceInflight;
+    __announceInflight = (async function () {
+      if (opts.refreshIp !== false) {
+        if (opts.invalidateIp) invalidateOwnLanIpCache();
+        await refreshOwnLanIp();
+      }
+      var ownIp = resolveOwnLanIpSync();
+      var card = buildIdentityCard({ lanIp: ownIp, name: opts.name, force: opts.force });
+      noteSelf({
+        name: card.name,
+        lanIp: card.lanIp,
+        cloudOk: card.cloudOk,
+        commState: card.commState,
+        via: 'announce',
+      });
+      var channels = { cloud: false, lan: false, gossip: false, ble: false };
+
+      try {
+        if (global.__SUPABASE && typeof publishPresenceToCloud === 'function') {
+          channels.cloud = !!(await publishPresenceToCloud(global.__SUPABASE, {
+            force: !!opts.force,
+            name: card.name,
+            lanIp: card.lanIp,
+            commState: card.commState,
+          }));
+        }
+      } catch (_) {}
+
+      try {
+        if (typeof global.crozzoLanPostSync === 'function') {
+          var body = {
+            type: 'identity_card',
+            uuid: 'id:' + card.deviceId + ':' + String(card.at || ''),
+            op_id: 'id:' + card.deviceId,
+            data: card,
+          };
+          channels.lan = !!(await global.crozzoLanPostSync(body, { timeoutMs: 4000 }));
+        }
+      } catch (_) {}
+
+      try {
+        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishIdentityCard === 'function') {
+          channels.gossip = !!global.CrozzoOfflineGossip.publishIdentityCard(card, { force: true });
+        } else if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.sendHello === 'function') {
+          global.CrozzoOfflineGossip.sendHello();
+          channels.gossip = true;
+        }
+      } catch (_) {}
+
+      try {
+        if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.publishProfile === 'function') {
+          global.CrozzoBleMesh.publishProfile();
+          channels.ble = true;
+        }
+      } catch (_) {}
+
+      try {
+        if (typeof global.crozzoPullPresenceFromCloud === 'function') {
+          /* noop — use module */
+        }
+        if (opts.pull !== false && global.__SUPABASE) {
+          await pullPresenceFromCloud({ force: !!opts.force });
+        }
+      } catch (_) {}
+
+      safe(function () {
+        global.localStorage.setItem(LS_ANNOUNCE_AT, String(Date.now()));
+        global.__CROZZO_FLEET_SNAPSHOT = getFleetSnapshot();
+        global.dispatchEvent(
+          new CustomEvent('crozzo-fleet-identity-announced', {
+            detail: { card: card, channels: channels, fleet: global.__CROZZO_FLEET_SNAPSHOT },
+          })
+        );
+      });
+      var fleetAfter = getFleetSnapshot();
+      if (fleetAfter.peerCount <= 1 && selfCtx().role === 'B') {
+        scheduleSoftHealSoloFleet('post_announce');
+      }
+      return { ok: true, card: card, channels: channels, fleet: fleetAfter };
+    })();
+    try {
+      return await __announceInflight;
+    } finally {
+      __announceInflight = null;
+    }
+  }
+
+  function afterMainInit() {
+    global.setTimeout(function () {
+      announceIdentity({ force: false, pull: true, invalidateIp: false }).catch(function () {});
+    }, 2800);
+    if (!global.__crozzoFleetIdentityBound) {
+      global.__crozzoFleetIdentityBound = true;
+      global.addEventListener('crozzo-lan-up', function () {
+        announceIdentity({ force: true, pull: false, invalidateIp: true })
+          .then(function () {
+            scheduleSoftHealSoloFleet('lan_up');
+          })
+          .catch(function () {});
+      });
+      global.addEventListener('crozzo-lan-anchor-silence', function () {
+        announceIdentity({ force: true, pull: true, invalidateIp: true })
+          .then(function () {
+            scheduleSoftHealSoloFleet('anchor_silence');
+          })
+          .catch(function () {});
       });
     }
   }
@@ -570,8 +1104,24 @@
     pickCloudAnchorPeer: pickCloudAnchorPeer,
     readStore: readStore,
     buildPresencePayload: buildPresencePayload,
+    buildIdentityCard: buildIdentityCard,
+    ingestIdentityCard: ingestIdentityCard,
+    announceIdentity: announceIdentity,
+    peersForQrHint: peersForQrHint,
+    ingestFleetPeersHint: ingestFleetPeersHint,
+    ingestFleetRoster: ingestFleetRoster,
+    buildFleetRosterPayload: buildFleetRosterPayload,
+    maybeEchoFleetRoster: maybeEchoFleetRoster,
+    softHealSoloFleet: softHealSoloFleet,
+    getFleetSnapshot: getFleetSnapshot,
+    getSedeMismatchCount: getSedeMismatchCount,
+    refreshOwnLanIp: refreshOwnLanIp,
+    invalidateOwnLanIpCache: invalidateOwnLanIpCache,
+    afterMainInit: afterMainInit,
     publishPresenceToCloud: publishPresenceToCloud,
     pullPresenceFromCloud: pullPresenceFromCloud,
     rosterRowId: rosterRowId,
   };
+  global.crozzoAnnounceFleetIdentity = announceIdentity;
+  global.crozzoFleetSnapshot = getFleetSnapshot;
 })(typeof window !== 'undefined' ? window : globalThis);

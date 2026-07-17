@@ -40,6 +40,7 @@
   var RT_CLOSED_REACT_MS = 2500;
   var RT_REFRESH_MIN_MS = 5500;
   var __lastComandaSubscribeAttemptAt = 0;
+  var __lastSubscribeReason = '';
 
   function noteCloudErr(err) {
     try {
@@ -58,6 +59,7 @@
   function rtLog() {
     if (!tierAllowsCloudRead()) return;
     try {
+      if (!global.localStorage || global.localStorage.getItem('crozzo_debug_sync') !== '1') return;
       console.log.apply(console, arguments);
     } catch (_) {}
   }
@@ -201,11 +203,29 @@
     return !!(String(md.centralIp || '').trim());
   }
 
-  /** Push LAN paralelo solo cuando la nube no lleva el transporte o está degradada. */
+  /** Outbox con reintentos → la nube no es fiable aunque Realtime diga SUBSCRIBED. */
+  function comandaOutboxNeedsLanBackup() {
+    loadOutbox();
+    var keys = Object.keys(__outbox);
+    if (!keys.length) return false;
+    for (var i = 0; i < keys.length; i++) {
+      var e = __outbox[keys[i]];
+      if (e && ((Number(e.attempts) || 0) > 0 || e.lastErr)) return true;
+    }
+    return false;
+  }
+
+  /** Push LAN paralelo: Z0 híbrido, outbox pendiente o nube degradada. */
   function lanParallelPushNeeded() {
     if (!lanSegmentLikely()) return false;
     if (cloudUnderPressure()) return true;
     if (!tierAllowsCloudPush()) return true;
+    if (comandaOutboxNeedsLanBackup()) return true;
+    try {
+      if (typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan()) {
+        return true;
+      }
+    } catch (_) {}
     try {
       if (typeof global.crozzoActiveSyncTransport === 'function') {
         if (global.crozzoActiveSyncTransport({ kind: 'transport' }) === 'lan') return true;
@@ -405,6 +425,9 @@
         __outbox[k] = {
           id: e.id,
           tid: e.tid || '',
+          estado: e.estado || '',
+          lastUpdateAt: e.lastUpdateAt || '',
+          payload: e.payload && typeof e.payload === 'object' ? e.payload : null,
           attempts: Number(e.attempts) || 0,
           firstAt: Number(e.firstAt) || Date.now(),
           nextAt: 0,
@@ -418,7 +441,15 @@
     try {
       var arr = Object.keys(__outbox).map(function (k) {
         var e = __outbox[k];
-        return { id: e.id, tid: e.tid, attempts: e.attempts, firstAt: e.firstAt };
+        return {
+          id: e.id,
+          tid: e.tid,
+          estado: e.estado || '',
+          lastUpdateAt: e.lastUpdateAt || '',
+          payload: e.payload || null,
+          attempts: e.attempts,
+          firstAt: e.firstAt,
+        };
       });
       if (arr.length) global.localStorage.setItem(OUTBOX_LS_KEY, JSON.stringify(arr));
       else global.localStorage.removeItem(OUTBOX_LS_KEY);
@@ -435,9 +466,21 @@
     var k = outboxKey(comanda);
     if (!k) return;
     var existing = __outbox[k];
+    var snap = null;
+    try {
+      snap = slimComandaPayload(comanda, {
+        estado: comanda.estado,
+        lastUpdateAt: comanda.lastUpdateAt,
+      });
+    } catch (_) {
+      snap = null;
+    }
     __outbox[k] = {
       id: comanda.id,
       tid: String(comanda.transaction_id || ''),
+      estado: String(comanda.estado || ''),
+      lastUpdateAt: String(comanda.lastUpdateAt || ''),
+      payload: snap,
       attempts: existing ? existing.attempts : 0,
       firstAt: existing ? existing.firstAt : Date.now(),
       nextAt: 0,
@@ -454,6 +497,20 @@
     }
   }
 
+  function outboxFindInHistory(e) {
+    if (!e) return null;
+    var hist = global.comandaHistory || [];
+    var tid = String(e.tid || '').trim();
+    var id = e.id;
+    for (var i = 0; i < hist.length; i++) {
+      var h = hist[i];
+      if (!h) continue;
+      if (tid && h.transaction_id && String(h.transaction_id) === tid) return h;
+      if (id != null && h.id === id) return h;
+    }
+    return null;
+  }
+
   function outboxFindComanda(e) {
     if (!e) return null;
     var c = findComanda(e.id);
@@ -463,6 +520,12 @@
       for (var i = 0; i < list.length; i++) {
         if (list[i] && String(list[i].transaction_id) === e.tid) return list[i];
       }
+    }
+    /* Tras despacharComanda la fila vive en history — no dropear outbox. */
+    var fromHist = outboxFindInHistory(e);
+    if (fromHist) return fromHist;
+    if (e.payload && (e.payload.id != null || e.payload.transaction_id)) {
+      return e.payload;
     }
     return null;
   }
@@ -498,13 +561,20 @@
         if (e.nextAt && e.nextAt > now) continue;
         var c = outboxFindComanda(e);
         if (!c) {
-          outboxRemove(k);
-          continue;
+          /* Solo dropear si no hay snapshot entregada; si hay, reintentar luego. */
+          if (String(e.estado || '') === 'entregada' && e.payload) {
+            c = e.payload;
+          } else {
+            outboxRemove(k);
+            continue;
+          }
         }
+        var pushEstado = String((c && c.estado) || e.estado || 'pendiente');
+        var pushAt = (c && c.lastUpdateAt) || e.lastUpdateAt || '';
         var ok = false;
         if (cloudOk) {
           try {
-            ok = await pushComanda(c, { estado: c.estado, lastUpdateAt: c.lastUpdateAt });
+            ok = await pushComanda(c, { estado: pushEstado, lastUpdateAt: pushAt });
           } catch (err) {
             ok = false;
             e.lastErr = String((err && err.message) || err || '');
@@ -588,9 +658,15 @@
   function scheduleComandaOperationalUiRefresh() {
     try {
       var pg = activePosPage();
-      if (pg === 'cajero' || pg === 'tablets') {
+      if (pg === 'cajero' || pg === 'tablets' || pg === 'mesas') {
         if (typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-          global.crozzoHandleRemoteRuntimeUiSync();
+          /* KI-003: no rehidratar carrito desde comandas tras estado remoto. */
+          global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
+        }
+        if (pg === 'mesas' && typeof global.renderPage === 'function') {
+          try {
+            global.renderPage('mesas');
+          } catch (_) {}
         }
         if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
           global.crozzoPullPosRuntimeCloud({ quiet: true, skipRender: true }).catch(function () {});
@@ -607,6 +683,20 @@
       }
       scheduleComandaPageRefresh();
     } catch (_) {}
+  }
+
+  function localHistoryAlreadyEntregada(tid, remoteAt) {
+    tid = String(tid || '').trim();
+    if (!tid) return false;
+    var hist = global.comandaHistory || [];
+    for (var i = 0; i < hist.length; i++) {
+      var h = hist[i];
+      if (!h || !h.transaction_id || String(h.transaction_id) !== tid) continue;
+      if (String(h.estado || '') !== 'entregada') continue;
+      var localAt = Date.parse(h.lastUpdateAt || h.despachadaAt || h.createdAt || 0) || 0;
+      if (!remoteAt || localAt >= remoteAt - 500) return true;
+    }
+    return false;
   }
 
   function scheduleComandaUiIfKitchen() {
@@ -689,13 +779,14 @@
 
   async function pushComandaLan(comanda) {
     if (!comanda) return false;
-    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
-      return false;
-    }
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
-    if (!md || md.role === 'A') return false;
-    var ip = String(md.centralIp || '').trim();
-    if (!ip) return false;
+    if (!md) return false;
+    if (md.role !== 'A') {
+      if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+        return false;
+      }
+      if (!String(md.centralIp || '').trim()) return false;
+    }
     var port = Number(md.port) || 3000;
     var ctx = cloudCtx();
     var body = {
@@ -770,6 +861,9 @@
       try {
         if (typeof global.crozzoOpsPulseEmit === 'function') global.crozzoOpsPulseEmit('comanda');
       } catch (_) {}
+      try {
+        if (typeof global.crozzoNoteCloudWriteOk === 'function') global.crozzoNoteCloudWriteOk();
+      } catch (_) {}
       return true;
     } catch (e) {
       console.warn('[crozzo-comanda-cloud] push', e);
@@ -805,13 +899,14 @@
 
   async function pushComandaEstadoLan(comanda, estado) {
     if (!comanda) return false;
-    if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
-      return false;
-    }
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
-    if (!md || md.role === 'A') return false;
-    var ip = String(md.centralIp || '').trim();
-    if (!ip) return false;
+    if (!md) return false;
+    if (md.role !== 'A') {
+      if (typeof global.crozzoLanTransportAllowed === 'function' && !global.crozzoLanTransportAllowed()) {
+        return false;
+      }
+      if (!String(md.centralIp || '').trim()) return false;
+    }
     var port = Number(md.port) || 3000;
     var ctx = cloudCtx();
     var estActionId =
@@ -965,6 +1060,19 @@
     return comanda;
   }
 
+  function comandaEligibleForAutoPrintRetry(merged) {
+    if (!merged) return false;
+    var printKey = merged.transaction_id || String(merged.id || '');
+    if (merged.printed_at || merged.printed_by) return false;
+    if (printKey && global.__crozzoComandaWasPrintedPersisted && global.__crozzoComandaWasPrintedPersisted(printKey)) {
+      return false;
+    }
+    if (typeof global.crozzoShouldDevicePrintComanda === 'function' && !global.crozzoShouldDevicePrintComanda(merged)) {
+      return false;
+    }
+    return true;
+  }
+
   function tryAutoPrintMerged(merged, opts, reason) {
     if (!merged || opts.skipPrint || opts.silent) return false;
     if (global.__crozzoComandaInBootPrintGrace && global.__crozzoComandaInBootPrintGrace()) return false;
@@ -984,6 +1092,40 @@
     return false;
   }
 
+  /** Auto-print al ingest: comanda nueva, ítems cambiados, o retry si nunca se imprimió en esta estación. */
+  function attemptAutoPrintOnIngest(merged, opts, ctx) {
+    if (!merged || opts.skipPrint || opts.silent) return false;
+    ctx = ctx || {};
+    if (ctx.isNew || ctx.itemsChanged) {
+      return tryAutoPrintMerged(merged, opts, ctx.isNew ? 'new' : 'items');
+    }
+    if (!comandaEligibleForAutoPrintRetry(merged)) return false;
+    return tryAutoPrintMerged(merged, opts, 'retry');
+  }
+
+  function notifyComandaAutoPrinted(printId) {
+    if (printId == null || typeof global.showToast !== 'function') return;
+    if (!shouldNotifyComandaUi(printId, 'print')) return;
+    try {
+      global.showToast('🖨️ Comanda #' + printId + ' — ticket impreso', 'info');
+    } catch (_) {}
+  }
+
+  function comandaInsertLikelyOwnEcho(row) {
+    if (!row || !row.payload) return false;
+    var pay = row.payload;
+    var tid = String(pay.transaction_id || row.id || '').trim();
+    if (tid && comandaTidRecent(tid, 45000)) return true;
+    try {
+      if (findComandaForCloudPay(pay, row)) return true;
+    } catch (_) {}
+    try {
+      var ctx = cloudCtx();
+      if (row.device_id && ctx.deviceUuid && String(row.device_id) === String(ctx.deviceUuid)) return true;
+    } catch (_) {}
+    return false;
+  }
+
   function applyComandaFromCloudRow(row, opts) {
     opts = opts || {};
     if (!row || !row.payload || row.payload.id == null) return false;
@@ -999,6 +1141,12 @@
     }
 
     var tidEarly = String(pay.transaction_id || row.id || '');
+    var remoteAtGuard =
+      Date.parse(row.updated_at || pay.lastUpdateAt || pay._cloudSyncedAt || 0) || 0;
+    /* Anti-resurrección: ya despachada localmente — no reinsertar activa desde pull. */
+    if (!opts.forceApply && tidEarly && localHistoryAlreadyEntregada(tidEarly, remoteAtGuard)) {
+      return false;
+    }
     var existingEarly = findComandaForCloudPay(pay, row);
     if (existingEarly && !opts.forceApply) {
       var remoteAtEarly =
@@ -1023,6 +1171,11 @@
       var localAt = Date.parse(existingEarly.lastUpdateAt || existingEarly.createdAt || 0) || 0;
       if (localAt > remoteAt + 500) return false;
       if (remoteEst === localEst && remoteAt <= localAt + 500) {
+        var dupMerged = findComandaForCloudPay(pay, row);
+        if (dupMerged && !opts.skipPrint && !opts.silent) {
+          attemptAutoPrintOnIngest(dupMerged, opts, { isNew: false, itemsChanged: false });
+        }
+        if (dupMerged && !opts.skipRender) scheduleComandaUiIfKitchen();
         return false;
       }
     }
@@ -1043,6 +1196,11 @@
     ) {
       var gIn = global.CrozzoOperationalIngest.gateComandaNew(pay, { via: 'cloud' });
       if (!gIn.apply && (gIn.reason === 'already_seen' || gIn.reason === 'own_echo' || gIn.reason === 'duplicate_tid')) {
+        var gateMerged = findComandaForCloudPay(pay, row);
+        if (gateMerged && !opts.skipPrint && !opts.silent) {
+          attemptAutoPrintOnIngest(gateMerged, opts, { isNew: false, itemsChanged: false });
+        }
+        if (gateMerged && !opts.skipRender) scheduleComandaUiIfKitchen();
         return false;
       }
     }
@@ -1089,11 +1247,6 @@
       if (JSON.stringify(merged.items || []) !== prevItemsJson) changed = true;
     }
     if (!changed && !existed && merged) changed = true;
-    if (!changed) {
-      if (merged && !opts.skipRender) scheduleComandaUiIfKitchen();
-      return false;
-    }
-
     var printId = merged ? merged.id : pay.id;
 
     var isNew = !existed && !!merged;
@@ -1104,10 +1257,14 @@
     );
     var estadoChanged = !!existed && !!merged && String(merged.estado || '') !== prevEst;
 
-    var shouldPrint = false;
-    if (!isOwnPush && !recentOwn && merged && !opts.skipPrint && !opts.silent && (isNew || itemsChanged)) {
-      shouldPrint = tryAutoPrintMerged(merged, opts, isNew ? 'new' : 'items');
+    if (!changed) {
+      if (merged && !opts.skipRender) scheduleComandaUiIfKitchen();
+      var retriedPrint = attemptAutoPrintOnIngest(merged, opts, { isNew: false, itemsChanged: false });
+      if (retriedPrint) notifyComandaAutoPrinted(printId);
+      return false;
     }
+
+    var shouldPrint = attemptAutoPrintOnIngest(merged, opts, { isNew: isNew, itemsChanged: itemsChanged });
     var shouldNotifyScreen =
       !opts.silent &&
       opts.notify !== false &&
@@ -1125,9 +1282,7 @@
         global.showToast('📺 Comanda #' + printId + ' en pantalla ' + areaLabel, 'info');
       } catch (_) {}
     }
-    if (shouldPrint && typeof global.showToast === 'function' && shouldNotifyComandaUi(printId, 'print')) {
-      global.showToast('🖨️ Comanda #' + printId + ' — ticket impreso', 'info');
-    }
+    if (shouldPrint) notifyComandaAutoPrinted(printId);
 
     try {
       if (typeof global.schedulePosRuntimeSave === 'function') global.schedulePosRuntimeSave();
@@ -1255,6 +1410,9 @@
         } catch (_) {}
       }
       if (anyChanged) {
+        try {
+          if (typeof global.crozzoNoteCloudReadOk === 'function') global.crozzoNoteCloudReadOk();
+        } catch (_) {}
         var pgPull = activePosPage();
         if (pgPull === 'comandas' || pgPull === 'cocina') scheduleComandaUiIfKitchen();
       }
@@ -1268,8 +1426,14 @@
     }
   }
 
+  function purgeDeviceMayRun() {
+    var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
+    return !!(md && md.role === 'A');
+  }
+
   async function purgeDeliveredComandasFromCloud(opts) {
     opts = opts || {};
+    if (!purgeDeviceMayRun()) return { purged: 0, skipped: 'not_central' };
     if (!tierAllowsCloudPush()) return { purged: 0 };
     if (!opts.force && !opts.catchUp && cloudUnderPressure()) return { purged: 0, skipped: 'pressure' };
     var now = Date.now();
@@ -1364,6 +1528,7 @@
 
   function scheduleComandaCloudPurge() {
     if (__comandaPurgeTimer) return;
+    if (!purgeDeviceMayRun()) return;
     __comandaPurgeTimer = global.setInterval(function () {
       if (!__started || !tierAllowsCloudPush()) return;
       purgeDeliveredComandasFromCloud().catch(function () {});
@@ -1435,6 +1600,7 @@
     if (!tierAllowsCloudRead()) return;
     if (__comandaSubscribing) return;
     if (__realtimeLive && global.__crozzoComandaCloudCh) return;
+    __lastSubscribeReason = String(reason || '');
     var ctx = cloudCtx();
     if (!tenantIdsReady(ctx)) {
       try {
@@ -1493,7 +1659,17 @@
             skipRender: false,
           })
         );
-        rtLog('[crozzo-rt] INSERT aplicado:', applied);
+        if (applied) {
+          rtLog('[crozzo-rt] INSERT aplicado:', true);
+        } else if (comandaInsertLikelyOwnEcho(payload.new)) {
+          try {
+            if (global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1') {
+              rtLog('[crozzo-rt] INSERT echo propio (esperado):', payload.new && payload.new.id);
+            }
+          } catch (_) {}
+        } else {
+          rtLog('[crozzo-rt] INSERT aplicado:', false);
+        }
         scheduleComandaUiIfKitchen();
       });
       ch.on('postgres_changes', updOpts, function (payload) {
@@ -1552,7 +1728,12 @@
             if (cloudUnderPressure()) return;
             scheduleComandaRealtimeResubscribe(status);
           }, RT_CLOSED_REACT_MS);
-          console.warn('[crozzo-comanda-cloud] realtime ' + status + (reason ? ' (' + reason + ')' : ''));
+          var subReason = __lastSubscribeReason;
+          if (subReason === 'refresh' || subReason === 'start') {
+            rtLog('[crozzo-comanda-cloud] realtime ' + status + (subReason ? ' (' + subReason + ')' : ''));
+          } else {
+            console.warn('[crozzo-comanda-cloud] realtime ' + status + (reason ? ' (' + reason + ')' : ''));
+          }
         }
       });
       global.__crozzoComandaCloudCh = ch;

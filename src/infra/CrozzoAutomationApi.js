@@ -325,7 +325,8 @@
   function updateKitchenOrder(comandaId, estado) {
     return waitAppReady().then(function () {
       if (typeof global.updateComandaEstado !== 'function') throw new Error('updateComandaEstado no disponible');
-      global.updateComandaEstado(Number(comandaId), String(estado || 'preparando'));
+      /* Automatización confiable: no aplicar gate UI de despachar (KI-032/034). */
+      global.updateComandaEstado(Number(comandaId), String(estado || 'preparando'), { skipPermiso: true });
       return log('update_kitchen', { comandaId: comandaId, estado: estado }).then(function () {
         return getComandasSnapshot();
       });

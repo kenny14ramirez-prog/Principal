@@ -40,6 +40,20 @@
       console.warn('[crozzo] EasyConnect', eEc);
     }
     try {
+      if (window.CrozzoWifiDirectBridge && typeof CrozzoWifiDirectBridge.afterMainInit === 'function') {
+        CrozzoWifiDirectBridge.afterMainInit();
+      }
+    } catch (eWd) {
+      console.warn('[crozzo] WifiDirectBridge', eWd);
+    }
+    try {
+      if (window.CrozzoPeerDirectory && typeof CrozzoPeerDirectory.afterMainInit === 'function') {
+        CrozzoPeerDirectory.afterMainInit();
+      }
+    } catch (ePd) {
+      console.warn('[crozzo] PeerDirectory identity', ePd);
+    }
+    try {
       if (window.CrozzoPostPairConnect && typeof CrozzoPostPairConnect.resumeIfPending === 'function') {
         CrozzoPostPairConnect.resumeIfPending();
       }

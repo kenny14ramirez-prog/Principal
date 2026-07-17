@@ -950,13 +950,25 @@
     return true;
   }
 
-  /** Cierre formal de turno / día — cajeros con menú habilitado y encargados. */
+  /** Cierre formal de turno / día — permiso granular cierre_arqueo (KI-033). */
   function canPerformArqueo() {
     if (typeof getCurrentUser !== 'function' || !getCurrentUser()) return false;
     if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
+    if (typeof crozzoHasCajaPermiso === 'function') {
+      return !!crozzoHasCajaPermiso('cierre_arqueo');
+    }
     if (roleIsEncargado()) return true;
     if (isCajeroOperativo()) return userCanSeeCierrePage();
     return false;
+  }
+  function toastArqueoDenied() {
+    if (typeof showToast !== 'function') return;
+    showToast(
+      canPerformCajeroDeclaracion()
+        ? 'Use «Declarar efectivo» o pida al encargado el cierre formal'
+        : 'No tiene permiso para arqueo de caja',
+      'warning'
+    );
   }
 
   /** Revisión de caja sin cerrar turno — solo encargados; el cajero sigue vendiendo. */
@@ -1420,14 +1432,7 @@
         return;
       }
     } else if (!canPerformArqueo()) {
-      if (typeof showToast === 'function') {
-        showToast(
-          canPerformCajeroDeclaracion()
-            ? 'Use «Declarar efectivo» o pida al encargado el cierre formal'
-            : 'No tiene permiso para arqueo de caja',
-          'warning'
-        );
-      }
+      toastArqueoDenied();
       return;
     }
     if (__arqueoMode === 'cierre') {
@@ -1595,8 +1600,12 @@
 
   function calcArqueo() {
     if (isSupervisionMode()) {
-      if (!canPerformSupervisionArqueo()) return;
+      if (!canPerformSupervisionArqueo()) {
+        if (typeof showToast === 'function') showToast('Solo encargados pueden hacer revisión de caja', 'warning');
+        return;
+      }
     } else if (!canPerformArqueo()) {
+      toastArqueoDenied();
       return;
     }
     var type = selectedArqueoType();
@@ -1727,8 +1736,12 @@
 
   function finalizeArqueo() {
     if (isSupervisionMode()) {
-      if (!canPerformSupervisionArqueo()) return;
+      if (!canPerformSupervisionArqueo()) {
+        if (typeof showToast === 'function') showToast('Solo encargados pueden hacer revisión de caja', 'warning');
+        return;
+      }
     } else if (!canPerformArqueo()) {
+      toastArqueoDenied();
       return;
     }
     if (!__arqueoPending) {

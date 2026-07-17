@@ -268,7 +268,7 @@
     var applied = false;
     if (pay.estado === 'entregada') {
       if (typeof global.despacharComanda === 'function') {
-        global.despacharComanda(c.id, { skipToast: true, skipGossip: true });
+        global.despacharComanda(c.id, { skipToast: true, skipGossip: true, skipFanout: true });
         applied = true;
       }
     } else if (typeof global.updateComandaEstado === 'function') {

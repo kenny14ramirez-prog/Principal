@@ -357,6 +357,9 @@
 
   global.CrozzoWifiZoneBridge = {
     resolveCentral: resolveCentral,
+    rediscover: function (opts) {
+      return resolveCentral(Object.assign({ force: true }, opts || {}));
+    },
     probeRoleB: probeRoleB,
     persistCentralIp: persistCentralIp,
     startWatch: startWatch,

@@ -39,6 +39,14 @@
   var PULL_DEBOUNCE_MS = 120;
   var EMIT_DEBOUNCE_MS = 180;
   var SILENCE_FORCE_MS = 9000;
+  /** Si WS OPEN y RX reciente: el poll HTTP suave cede (anti-solape). Force/silence siguen. */
+  var WS_FRESH_SKIP_POLL_MS = 4800;
+  var ANCHOR_SILENCE_EVENT_MS = 18000;
+  var ANCHOR_SILENCE_COOLDOWN_MS = 28000;
+  var __skippedSoftPolls = 0;
+  var __lastSilenceEventAt = 0;
+  var __lastRemoteDigest = '';
+  var __skippedDigestMatch = 0;
 
   function safe(fn) {
     try {
@@ -50,6 +58,80 @@
 
   function tierNow() {
     return String(global.__CROZZO_TIER_LAST || 'offline');
+  }
+
+  function noteRx(_via) {
+    __lastRxAt = Date.now();
+  }
+
+  function lanWsOpen() {
+    try {
+      return !!(
+        global.CrozzoLanWebSocketBridge &&
+        typeof global.CrozzoLanWebSocketBridge.isOpen === 'function' &&
+        global.CrozzoLanWebSocketBridge.isOpen()
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /** WS sano + RX fresco → no competir con poll HTTP suave. */
+  function softPollCoveredByWs() {
+    if (!lanWsOpen() || !__lastRxAt) return false;
+    return Date.now() - __lastRxAt < WS_FRESH_SKIP_POLL_MS;
+  }
+
+  function getPathHealth() {
+    var ago = __lastRxAt ? Date.now() - __lastRxAt : null;
+    var ws = lanWsOpen();
+    var silence = ago == null ? Infinity : ago;
+    var transport = 'poll';
+    if (ws && silence < WS_FRESH_SKIP_POLL_MS) transport = 'ws_primary';
+    else if (silence < SILENCE_FORCE_MS) transport = 'hybrid_poll';
+    else if (silence < ANCHOR_SILENCE_EVENT_MS) transport = 'force_heal';
+    else transport = 'anchor_silence';
+    return {
+      started: __started,
+      tier: tierNow(),
+      wsOpen: ws,
+      lastRxAt: __lastRxAt,
+      lastRxAgoMs: ago,
+      softPollSkipped: __skippedSoftPolls,
+      transport: transport,
+      healthy: !!(ws && silence < SILENCE_FORCE_MS),
+    };
+  }
+
+  function healAnchorSilence(silenceMs) {
+    if (Date.now() - __lastSilenceEventAt < ANCHOR_SILENCE_COOLDOWN_MS) return;
+    __lastSilenceEventAt = Date.now();
+    safe(function () {
+      global.dispatchEvent(
+        new CustomEvent('crozzo-lan-anchor-silence', {
+          detail: {
+            silenceMs: silenceMs,
+            role: md().role,
+            health: getPathHealth(),
+          },
+        })
+      );
+    });
+    safe(function () {
+      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
+        global.CrozzoLanWebSocketBridge.connect();
+      }
+    });
+    triggerPull('all', { skipPrint: false, skipRender: false, force: true });
+    if (silenceMs > ANCHOR_SILENCE_EVENT_MS && md().role === 'B') {
+      safe(function () {
+        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureStandby === 'function') {
+          global.CrozzoOfflineGossip.ensureStandby();
+        } else if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.start === 'function') {
+          global.CrozzoOfflineGossip.start();
+        }
+      });
+    }
   }
 
   function tierAllowsLan() {
@@ -243,6 +325,83 @@
     return Math.max(COMANDA_POLL_FAST_MS, Math.min(COMANDA_POLL_MS, pagePollMs(COMANDA_POLL_MS)));
   }
 
+  /** Digest local anti-entropy (count + maxAt + hash ids) — patrón Pouch sin CRDT. */
+  function localComandasDigest() {
+    var list = global.comandas || [];
+    var ids = [];
+    var maxAt = 0;
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (!c || c.id == null) continue;
+      if (String(c.estado || '') === 'entregada') continue;
+      var key = String(c.transaction_id || c.id);
+      ids.push(key);
+      var t = Date.parse(c.lastUpdateAt || c.createdAt || 0) || 0;
+      if (t > maxAt) maxAt = t;
+    }
+    ids.sort();
+    var h = 2166136261;
+    for (var j = 0; j < ids.length; j++) {
+      var s = ids[j] + '|';
+      for (var k = 0; k < s.length; k++) {
+        h ^= s.charCodeAt(k);
+        h = Math.imul(h, 16777619);
+      }
+    }
+    return {
+      count: ids.length,
+      maxAt: maxAt,
+      hash: (h >>> 0).toString(16),
+    };
+  }
+
+  function digestKey(d) {
+    if (!d) return '';
+    return String(d.count || 0) + ':' + String(d.maxAt || 0) + ':' + String(d.hash || '');
+  }
+
+  async function fetchOpsDigest() {
+    var host = lanHost();
+    if (!host) return null;
+    var port = lanPort();
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = controller
+      ? global.setTimeout(function () {
+          controller.abort();
+        }, 2200)
+      : null;
+    try {
+      var res = await global.fetch('http://' + host + ':' + port + '/api/ops-digest', {
+        method: 'GET',
+        signal: controller ? controller.signal : undefined,
+        headers: { Accept: 'application/json' },
+      });
+      if (timer) global.clearTimeout(timer);
+      if (!res.ok) return null;
+      var j = await res.json().catch(function () {
+        return null;
+      });
+      if (!j || j.ok === false) return null;
+      return j;
+    } catch (_) {
+      if (timer) global.clearTimeout(timer);
+      return null;
+    }
+  }
+
+  /** true = digests iguales → omitir soft pull. */
+  async function remoteDigestMatchesLocal() {
+    var remote = await fetchOpsDigest();
+    if (!remote) return false;
+    __lastRemoteDigest = digestKey(remote);
+    var local = localComandasDigest();
+    /* count+hash bastan (maxAt ISO vs epoch puede divergir entre Rust/JS). */
+    return (
+      Number(remote.count) === Number(local.count) &&
+      String(remote.hash || '') === String(local.hash || '')
+    );
+  }
+
   /** Solo tablets (Rol B) hacen poll runtime LAN; la caja usa CrozzoLanSyncBridge. */
   function rolePollsRuntime() {
     return md().role === 'B';
@@ -433,7 +592,7 @@
       ).trim();
     });
     if (myDev && payload.dev && String(payload.dev) === myDev) return;
-    __lastRxAt = Date.now();
+    noteRx('pulse');
     var kind = String(payload.kind || '');
     if (payload.delta && (kind === 'comanda' || payload.delta.id != null)) {
       if (applyLanEstadoDelta(payload.delta)) {
@@ -470,7 +629,13 @@
     }
     var ip = lanHost();
     if (!ip || cfg.role !== 'B') return;
-    if (cloudRealtimeStandby()) {
+    /* Siempre pull (KI-006). En Z0 híbrido también POST pulse aunque cloud “parezca” sana. */
+    var hybridZ0 = false;
+    try {
+      hybridZ0 =
+        typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan();
+    } catch (_) {}
+    if (!hybridZ0 && cloudRealtimeStandby()) {
       triggerPull(pullKind, pullOpts);
       return;
     }
@@ -485,8 +650,14 @@
   function emit(kind) {
     kind = String(kind || '').trim();
     if (kind !== 'comanda' && kind !== 'runtime' && kind !== 'all') return;
-    if (!lanSyncAllowed({ kind: 'transport' })) return;
-    if (cloudRealtimeStandby() && !__pendingDelta[kind]) return;
+    if (!lanSyncAllowed({ kind: 'transport', force: true })) return;
+    /* KI-006: en Z0 híbrido siempre emitir+pull; no silenciar por cloudRealtimeStandby. */
+    var hybridZ0 = false;
+    try {
+      hybridZ0 =
+        typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan();
+    } catch (_) {}
+    if (!hybridZ0 && cloudRealtimeStandby() && !__pendingDelta[kind]) return;
     __pendingEmit[kind] = true;
     if (__emitTimers[kind]) return;
     __emitTimers[kind] = global.setTimeout(function () {
@@ -542,6 +713,10 @@
         try {
           if (typeof document !== 'undefined' && document.hidden) return;
         } catch (_) {}
+        if (softPollCoveredByWs()) {
+          __skippedSoftPolls++;
+          return;
+        }
         pullRuntimeLan({ quiet: true, skipRender: false })
           .then(function (applied) {
             if (applied && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
@@ -561,8 +736,21 @@
       var stale = __lastRxAt ? Date.now() - __lastRxAt : Infinity;
       if (stale > SILENCE_FORCE_MS) {
         pullComandasLan({ skipPrint: false, skipRender: false, force: true }).catch(function () {});
+      } else if (softPollCoveredByWs()) {
+        __skippedSoftPolls++;
       } else {
-        pullComandasLan({ skipPrint: true, skipRender: true }).catch(function () {});
+        remoteDigestMatchesLocal()
+          .then(function (same) {
+            if (same) {
+              __skippedDigestMatch++;
+              noteRx('digest_match');
+              return;
+            }
+            return pullComandasLan({ skipPrint: true, skipRender: true });
+          })
+          .catch(function () {
+            pullComandasLan({ skipPrint: true, skipRender: true }).catch(function () {});
+          });
       }
     }, comMs);
   }
@@ -590,7 +778,9 @@
         global.CrozzoLanWebSocketBridge.connect();
       }
       var silence = __lastRxAt ? Date.now() - __lastRxAt : Infinity;
-      if (silence > WATCHDOG_MS && opRealtimeActive()) {
+      if (silence > ANCHOR_SILENCE_EVENT_MS && opRealtimeActive()) {
+        healAnchorSilence(silence);
+      } else if (silence > WATCHDOG_MS && opRealtimeActive()) {
         triggerPull('all', { skipPrint: false, skipRender: false, force: true });
       }
     }, WATCHDOG_MS);
@@ -609,8 +799,18 @@
       var wanOk =
         typeof global.crozzoCloudWanReady === 'function' ? global.crozzoCloudWanReady() : true;
       if (wanOk) {
-        stopLanOpsSync();
-        if (shouldRunLanStandby()) startLanStandby('cloud_primary');
+        /* KI-005: drenar nube; pero en Z0 híbrido NO matar LAN ops (tablet↔caja↔cocina). */
+        var keepHybrid = false;
+        try {
+          keepHybrid =
+            typeof global.crozzoZ0HybridParallelLan === 'function' && global.crozzoZ0HybridParallelLan();
+        } catch (_) {}
+        if (keepHybrid && shouldRunLanOps()) {
+          startLanOpsSync('tier:cloud_hybrid');
+        } else {
+          stopLanOpsSync();
+          if (shouldRunLanStandby()) startLanStandby('cloud_primary');
+        }
         safe(function () {
           if (typeof global.crozzoRunFullReconnectSync === 'function') {
             global.crozzoRunFullReconnectSync({ source: 'lan_recover', skipPrint: true }).catch(function () {});
@@ -723,6 +923,7 @@
   global.crozzoStartLanOpsSync = startLanOpsSync;
   global.crozzoStopLanOpsSync = stopLanOpsSync;
   global.__crozzoLanOpsHandlePulse = handleLanPulse;
+  global.__crozzoLanOpsNoteRx = noteRx;
 
   global.CrozzoLanOpsSync = {
     start: startLanOpsSync,
@@ -736,13 +937,15 @@
     tierAllows: tierAllowsLan,
     syncAllowed: lanSyncAllowed,
     rolePollsRuntime: rolePollsRuntime,
+    getPathHealth: getPathHealth,
+    softPollCoveredByWs: softPollCoveredByWs,
+    localComandasDigest: localComandasDigest,
+    fetchOpsDigest: fetchOpsDigest,
     status: function () {
-      return {
-        started: __started,
-        tier: tierNow(),
-        lastRxAt: __lastRxAt,
-        lastRxAgoMs: __lastRxAt ? Date.now() - __lastRxAt : null,
-      };
+      var h = getPathHealth();
+      h.skippedDigestMatch = __skippedDigestMatch;
+      h.lastRemoteDigest = __lastRemoteDigest;
+      return h;
     },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -503,11 +503,21 @@
     }
   }
 
+  function pageDomainsForSync(profile) {
+    if (!profile || !profile.domains || !profile.domains.length) return [];
+    if (typeof global.crozzoEffectiveSyncDomains === 'function') {
+      return global.crozzoEffectiveSyncDomains(profile.domains);
+    }
+    return profile.domains.slice();
+  }
+
   async function tick() {
     if (__running || !__activePage) return;
     if (document.hidden) return;
     var profile = pageProfiles()[__activePage];
     if (!profile || profile.navOnly) return;
+    var syncDomains = pageDomainsForSync(profile);
+    if (!syncDomains.length) return;
     var rtTier = { tier: 'off' };
     try {
       if (typeof global.crozzoCloudOperationalRealtimeTier === 'function') {
@@ -521,8 +531,8 @@
     __running = true;
     try {
       if (!await ensureClient()) return;
-      for (var i = 0; i < profile.domains.length; i++) {
-        var d = profile.domains[i];
+      for (var i = 0; i < syncDomains.length; i++) {
+        var d = syncDomains[i];
         var dPri = pri().getDomainPriority(d);
         if (dPri === pri().P1) continue;
         if (cloudStandby && (d === 'comandas' || d === 'runtime')) continue;
@@ -586,8 +596,9 @@
     page = plan.page;
     var profile = plan.profile || pageProfiles()[page];
     if (!profile || !profile.domains || !profile.domains.length || !await ensureClient()) return;
-    for (var i = 0; i < profile.domains.length; i++) {
-      await runDomain(profile.domains[i], !navPull, !!navPull);
+    var syncDomains = pageDomainsForSync(profile);
+    for (var i = 0; i < syncDomains.length; i++) {
+      await runDomain(syncDomains[i], !navPull, !!navPull);
     }
   }
 

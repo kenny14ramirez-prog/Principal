@@ -45,8 +45,12 @@
   var _wbScan = null;
 
   function log(msg) {
+    // RUIDO DEV: "[ble-mesh] activo transport=win-udp-mesh" = transporte UDP en Windows (diseñado).
+    // No es error BLE. Debug: localStorage crozzo_debug_connectivity=1
     try {
-      console.log('[ble-mesh]', msg);
+      if (global.localStorage && global.localStorage.getItem('crozzo_debug_connectivity') === '1') {
+        console.log('[ble-mesh]', msg);
+      }
     } catch (_) {}
   }
 
@@ -903,7 +907,8 @@
     };
   }
 
-  function publishComandaNewByIds(ids) {
+  function publishComandaNewByIds(ids, opts) {
+    opts = opts || {};
     if (!_active || !Array.isArray(ids) || !ids.length) return 0;
     var n = 0;
     ids.forEach(function (id) {
@@ -911,13 +916,15 @@
       if (typeof global.__crozzoEmergencyFindComandaById === 'function') {
         c = global.__crozzoEmergencyFindComandaById(id);
       }
-      if (publishComandaNew(c)) n++;
+      if (publishComandaNew(c, opts)) n++;
     });
     return n;
   }
 
-  function publishComandaNew(comanda) {
-    if (!_active || !comanda || cloudPathLikely()) return false;
+  function publishComandaNew(comanda, opts) {
+    opts = opts || {};
+    if (!_active || !comanda) return false;
+    if (!opts.force && cloudPathLikely()) return false;
     var snap = null;
     try {
       snap = JSON.parse(JSON.stringify(comanda));
@@ -925,19 +932,25 @@
       return false;
     }
     if (!snap) return false;
+    if (!snap.op_id) snap.op_id = String(snap.transaction_id || snap.id || '');
     sendFrame(buildFrame('COMANDA_NEW', snap, 0));
     return true;
   }
 
-  function publishEstado(id, estado, transactionId) {
-    if (!_active || cloudPathLikely()) return false;
+  function publishEstado(id, estado, transactionId, opts) {
+    opts = opts || {};
+    if (!_active) return false;
+    if (!opts.force && cloudPathLikely()) return false;
+    var tid = transactionId || '';
+    var opId = String(tid || id || '') + ':' + String(estado || '') + ':' + new Date().toISOString();
     sendFrame(
       buildFrame(
         'COMANDA_ESTADO',
         {
           id: id,
           estado: estado,
-          transaction_id: transactionId || '',
+          transaction_id: tid,
+          op_id: opId,
           lastUpdateAt: new Date().toISOString(),
         },
         0

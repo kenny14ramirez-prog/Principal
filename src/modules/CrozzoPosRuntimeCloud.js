@@ -993,6 +993,24 @@
       if (!lines.length && !(forceEmpty.llevar && forceEmpty.llevar[ref])) return;
       add('llevar', ref, lines);
     });
+    var pushedRefs = {};
+    rows.forEach(function (row) {
+      if (row.kind === 'mesa' || row.kind === 'llevar') pushedRefs[row.kind + ':' + row.ref] = 1;
+    });
+    try {
+      var cl = global.comandas || [];
+      for (var ci = 0; ci < cl.length; ci++) {
+        var com = cl[ci];
+        if (!com || String(com.estado || '') === 'entregada') continue;
+        var ck = String(com.tipoServicio || '') + ':' + String(com.referencia || '').trim();
+        if ((com.tipoServicio !== 'mesa' && com.tipoServicio !== 'llevar') || !com.referencia) continue;
+        if (pushedRefs[ck]) continue;
+        if (com.tipoServicio === 'mesa' && forceEmpty.mesa && forceEmpty.mesa[com.referencia]) continue;
+        if (com.tipoServicio === 'llevar' && forceEmpty.llevar && forceEmpty.llevar[com.referencia]) continue;
+        add(com.tipoServicio, com.referencia, []);
+        pushedRefs[ck] = 1;
+      }
+    } catch (_) {}
     if (Array.isArray(snap.cartDirecto) && snap.cartDirecto.length) add('directo', '__directo__', snap.cartDirecto);
     rows.push({
       location_id: c.locationId,
@@ -1165,7 +1183,13 @@
       if (!res.error) {
         try {
           var refsUp = toUpsert.filter(function (r) { return r.kind !== 'meta'; }).map(function (r) { return r.kind + ':' + r.ref; });
-          console.log('[runtime-cloud] pushMesaRows OK · filas=' + toUpsert.length + ' [' + refsUp.join(',') + ']');
+          var dbg = false;
+          try {
+            dbg = !!(global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1');
+          } catch (_) {}
+          if (dbg) {
+            console.log('[runtime-cloud] pushMesaRows OK · filas=' + toUpsert.length + ' [' + refsUp.join(',') + ']');
+          }
         } catch (_) {}
         __echoUntil = Date.now() + ECHO_MS;
         __lastPushSig = payloadSig(snap);
@@ -1341,6 +1365,9 @@
         __pushRetryTimer = null;
       }
       try {
+        if (typeof global.crozzoNoteCloudWriteOk === 'function') global.crozzoNoteCloudWriteOk();
+      } catch (_) {}
+      try {
         if (typeof global.crozzoOpsPulseEmit === 'function') global.crozzoOpsPulseEmit('runtime');
       } catch (_) {}
     }
@@ -1451,8 +1478,11 @@
       var nowLog = Date.now();
       if (nowLog - __lastDiscardLogAt > 8000) {
         __lastDiscardLogAt = nowLog;
+        // RUIDO DEV: dedup normal — evita parpadeo (KI-016). Debug: localStorage crozzo_debug_sync=1
         try {
-          console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado');
+          if (global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1') {
+            console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado');
+          }
         } catch (_) {}
       }
       return false;
@@ -1462,19 +1492,38 @@
       if (__lastRemoteAt && remoteAt && remoteAt < __lastRemoteAt - 400) {
         return false;
       }
-      var localMesas = 0;
+      var localWork = false;
       try {
         var lm = global.cartsPorMesa || {};
-        localMesas = Object.keys(lm).filter(function (k) {
+        localWork = Object.keys(lm).some(function (k) {
           return Array.isArray(lm[k]) && lm[k].length;
-        }).length;
+        });
       } catch (_) {}
-      if (localMesas > 0) {
+      if (!localWork) {
+        try {
+          var ll = global.cartsPorLlevar || {};
+          localWork = Object.keys(ll).some(function (k) {
+            return Array.isArray(ll[k]) && ll[k].length;
+          });
+        } catch (_) {}
+      }
+      if (!localWork) {
+        try {
+          var cl = global.comandas || [];
+          for (var ci = 0; ci < cl.length; ci++) {
+            if (cl[ci] && String(cl[ci].estado || '') !== 'entregada') {
+              localWork = true;
+              break;
+            }
+          }
+        } catch (_) {}
+      }
+      if (localWork) {
         var nowEmpty = Date.now();
         if (nowEmpty - __lastDiscardLogAt > 8000) {
           __lastDiscardLogAt = nowEmpty;
           try {
-            console.warn('[runtime-cloud] applyRemoteRow: snapshot vacío ignorado (local mesas=' + localMesas + ')');
+            console.warn('[runtime-cloud] applyRemoteRow: snapshot vacío ignorado (trabajo operativo local activo)');
           } catch (_) {}
         }
         return false;
@@ -1516,18 +1565,26 @@
       var nowApplyLog = Date.now();
       if (nowApplyLog - __lastApplyRemoteLogAt > 4000) {
         __lastApplyRemoteLogAt = nowApplyLog;
-        console.log(
-          '[runtime-cloud] applyRemoteRow: aplicando v=' +
-            pay.v +
-            ' mesas=' +
-            mesaKeys2.length +
-            ' remoteAt=' +
-            remoteAt
-        );
+        // RUIDO DEV: traza de merge runtime remoto. Debug: localStorage crozzo_debug_sync=1
+        try {
+          if (global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1') {
+            console.log(
+              '[runtime-cloud] applyRemoteRow: aplicando v=' +
+                pay.v +
+                ' mesas=' +
+                mesaKeys2.length +
+                ' remoteAt=' +
+                remoteAt
+            );
+          }
+        } catch (_) {}
       }
     } catch (_) {}
     var ok = global.applyPosRuntimeSnapshot(pay, { skipUiFields: true, slotUpdatedAt: slotTs });
     if (!ok) return false;
+    try {
+      if (typeof global.crozzoNoteCloudReadOk === 'function') global.crozzoNoteCloudReadOk();
+    } catch (_) {}
     __lastRemoteAt = remoteAt;
     __lastAppliedContentSig = contentSig;
     __lastAppliedPresenceStableSig = slotPresenceStableSig(pay.slotSessionPresence);

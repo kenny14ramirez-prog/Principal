@@ -362,7 +362,8 @@
         __ready.tablets = true;
         __ready.cajero = true;
         if (myGen === __syncGen && typeof global.crozzoHandleRemoteRuntimeUiSync === 'function') {
-          global.crozzoHandleRemoteRuntimeUiSync();
+          /* KI-003: pull operativo no debe rehidratar carrito desde comandas. */
+          global.crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true });
         }
         return { ok: true, skipHeavyPull: skipHeavyPull };
       } catch (e) {

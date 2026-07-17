@@ -168,7 +168,11 @@
     var cfg = safe(function () {
       return typeof global.getComandasConfig === 'function' ? global.getComandasConfig() : {};
     }, {});
-    var autoPrint = cfg && cfg.autoPrint !== false;
+    var autoPrint = safe(function () {
+      return typeof global.crozzoDeviceAutoPrintEnabled === 'function'
+        ? global.crozzoDeviceAutoPrintEnabled()
+        : cfg && cfg.autoPrint !== false;
+    }, cfg && cfg.autoPrint !== false);
     var pantalla = safe(function () {
       return typeof global.crozzoGetDevicePantallaId === 'function'
         ? String(global.crozzoGetDevicePantallaId() || '').trim()
@@ -257,6 +261,51 @@
         )
       );
       var pathTxt = (cap.plan && cap.plan.primary) || tier();
+      try {
+        if (typeof global.crozzoTransportPathLabel === 'function') {
+          pathTxt = String(global.crozzoTransportPathLabel() || pathTxt) + ' · tier=' + tier();
+        }
+      } catch (_) {}
+      try {
+        var fleet =
+          typeof global.crozzoFleetSnapshot === 'function'
+            ? global.crozzoFleetSnapshot()
+            : global.CrozzoPeerDirectory && global.CrozzoPeerDirectory.getFleetSnapshot
+              ? global.CrozzoPeerDirectory.getFleetSnapshot()
+              : null;
+        if (fleet) {
+          rows.push(
+            row(
+              'fleet-roster',
+              'Flota conocida (identidad)',
+              fleet.peerCount > 1 ? 'ok' : 'warn',
+              (fleet.label || '?') +
+                ' · ' +
+                fleet.peerCount +
+                ' equipo(s), ' +
+                fleet.withLanIp +
+                ' con IP' +
+                (fleet.self && fleet.self.name ? ' · yo: ' + fleet.self.name : ''),
+              'Tras QR/arranque cada equipo anuncia deviceId+sede+IP+vías. Sin esto no hay a quién hablar.'
+            )
+          );
+        }
+        var mm =
+          global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.getSedeMismatchCount === 'function'
+            ? Number(global.CrozzoPeerDirectory.getSedeMismatchCount()) || 0
+            : 0;
+        if (mm > 0) {
+          rows.push(
+            row(
+              'fleet-sede-mismatch',
+              'Sede divergente entre peers',
+              'warn',
+              mm + ' anuncio(s) descartados por locationId distinta (misma red, otro local).',
+              'KI-010: todos deben compartir la misma sede. Re-empareje QR o unifique sede en Reparar.'
+            )
+          );
+        }
+      } catch (_) {}
       if (cap.hub && cap.hub.funnelCloud) {
         pathTxt += ' · embudo vía caja (presión DB)';
       } else if (cap.hub && cap.hub.relayViaCentral) {
@@ -844,6 +893,34 @@
         steps.push('Estado de comunicación publicado a la flota.');
       } catch (_) {}
     }
+    /* Flota: anuncio forzado + rediscover caja (Rol B). */
+    try {
+      if (role() === 'B' && global.CrozzoMdnsBridge && typeof global.CrozzoMdnsBridge.rediscoverCentral === 'function') {
+        await global.CrozzoMdnsBridge.rediscoverCentral({ force: true });
+        steps.push('Caja re-localizada en red local (rediscover).');
+      }
+    } catch (_) {}
+    try {
+      var ann =
+        typeof global.crozzoAnnounceFleetIdentity === 'function'
+          ? await global.crozzoAnnounceFleetIdentity({ force: true, pull: true })
+          : global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.announceIdentity === 'function'
+            ? await global.CrozzoPeerDirectory.announceIdentity({ force: true, pull: true })
+            : null;
+      if (ann && ann.ok !== false) {
+        var snap =
+          typeof global.crozzoFleetSnapshot === 'function'
+            ? global.crozzoFleetSnapshot()
+            : global.CrozzoPeerDirectory && global.CrozzoPeerDirectory.getFleetSnapshot
+              ? global.CrozzoPeerDirectory.getFleetSnapshot()
+              : null;
+        steps.push(
+          'Flota: anuncio forzado' +
+            (snap ? ' (' + (snap.label || '?') + ', ' + snap.peerCount + ' equipo(s))' : '') +
+            '.'
+        );
+      }
+    } catch (_) {}
     if (!steps.length) steps.push('No había nada automático que reparar; revise los puntos en rojo del diagnóstico.');
     return steps;
   }

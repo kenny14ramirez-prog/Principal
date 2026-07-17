@@ -127,13 +127,58 @@
     });
   }
 
+  function meshEmitAllowed(force) {
+    if (force) return true;
+    try {
+      if (global.CrozzoTransportPathHealth && typeof global.CrozzoTransportPathHealth.shouldEmitMesh === 'function') {
+        return global.CrozzoTransportPathHealth.shouldEmitMesh(false);
+      }
+    } catch (_) {}
+    return !cloudPushOk() || !lanReady();
+  }
+
+  /** Mesh unificado: gossip + BLE + Wi‑Fi Direct / P2P (mismo op_id / OpAck). */
   function sendEstadoMesh(comanda, estado, force) {
-    if (!global.CrozzoOfflineGossip) return;
+    if (!meshEmitAllowed(force)) return;
     var est = estado || comanda.estado;
     safe(function () {
-      if (typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
+      if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishEstado === 'function') {
         global.CrozzoOfflineGossip.publishEstado(comanda.id, est, comanda.transaction_id, { force: !!force });
       }
+    });
+    safe(function () {
+      if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.publishEstado === 'function') {
+        global.CrozzoBleMesh.publishEstado(comanda.id, est, comanda.transaction_id, { force: !!force });
+      }
+    });
+    safe(function () {
+      if (global.CrozzoWifiDirectBridge && typeof global.CrozzoWifiDirectBridge.publishEstado === 'function') {
+        global.CrozzoWifiDirectBridge.publishEstado(comanda, est, { force: !!force }).catch(function () {});
+      }
+    });
+  }
+
+  function sendNewMesh(ids, force) {
+    if (!meshEmitAllowed(force)) return;
+    safe(function () {
+      if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.publishComandaNewByIds === 'function') {
+        global.CrozzoOfflineGossip.publishComandaNewByIds(ids, { force: !!force });
+      }
+    });
+    safe(function () {
+      if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.publishComandaNewByIds === 'function') {
+        global.CrozzoBleMesh.publishComandaNewByIds(ids, { force: !!force });
+      }
+    });
+    safe(function () {
+      if (!global.CrozzoWifiDirectBridge || typeof global.CrozzoWifiDirectBridge.publishComandaNew !== 'function') return;
+      ids.forEach(function (id) {
+        var c =
+          typeof global.__crozzoEmergencyFindComandaById === 'function'
+            ? global.__crozzoEmergencyFindComandaById(id)
+            : null;
+        if (c) global.CrozzoWifiDirectBridge.publishComandaNew(c, { force: !!force }).catch(function () {});
+      });
     });
   }
 
@@ -165,8 +210,14 @@
     sendEstadoCloud(comanda);
     if (hybridMode() || !cloudPushOk()) {
       sendEstadoLan(comanda, est);
+      /* Mesh solo si path lo pide (anti-solape vs WS primario); force si sin nube. */
       sendEstadoMesh(comanda, est, !cloudPushOk());
     }
+    safe(function () {
+      if (global.CrozzoTransportPathHealth && typeof global.CrozzoTransportPathHealth.emitChanged === 'function') {
+        global.CrozzoTransportPathHealth.emitChanged();
+      }
+    });
 
     watchPending(opId, function retryEstado(retries) {
       sendEstadoLan(comanda, est);
@@ -210,19 +261,7 @@
           global.CrozzoLanWebSocketBridge.notifyComandasByIds(ids);
         }
       });
-      safe(function () {
-        if (
-          global.CrozzoOfflineGossip &&
-          typeof global.CrozzoOfflineGossip.publishComandaNewByIds === 'function'
-        ) {
-          global.CrozzoOfflineGossip.publishComandaNewByIds(ids, { force: !cloudPushOk() });
-        }
-      });
-      safe(function () {
-        if (typeof global.crozzoActivateLocalSyncPath === 'function') {
-          global.crozzoActivateLocalSyncPath('op_fanout_new').catch(function () {});
-        }
-      });
+      sendNewMesh(ids, !cloudPushOk());
     }
     safe(function () {
       if (typeof global.maybeEmergencyBroadcastComandas === 'function') {
@@ -255,6 +294,9 @@
     comandaEstado: comandaEstado,
     comandaNewByIds: comandaNewByIds,
     runtimeTouch: runtimeTouch,
+    meshEmitAllowed: meshEmitAllowed,
+    sendEstadoMesh: sendEstadoMesh,
+    sendNewMesh: sendNewMesh,
   };
   global.crozzoOpFanoutComandaEstado = comandaEstado;
   global.crozzoOpFanoutComandaNewByIds = comandaNewByIds;

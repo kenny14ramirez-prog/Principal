@@ -397,6 +397,49 @@
     };
   }
 
+  function tryApplyIdentityCard(sub) {
+    var raw = lanSubmissionRaw(sub);
+    var typ = String(raw.type || '').toLowerCase();
+    if (typ !== 'identity_card' && typ !== 'identity') return false;
+    var pay = raw.data || raw.payload || raw;
+    if (!pay || !pay.deviceId) return false;
+    try {
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.ingestIdentityCard === 'function') {
+        global.CrozzoPeerDirectory.ingestIdentityCard(pay, 'lan_http');
+      }
+      try {
+        if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.maybeEchoFleetRoster === 'function') {
+          global.CrozzoPeerDirectory.maybeEchoFleetRoster(pay.deviceId || '', {});
+        }
+      } catch (_) {}
+      return true;
+    } catch (e) {
+      try {
+        console.warn('[lan-sync] identity_card', e);
+      } catch (_) {}
+      return false;
+    }
+  }
+
+  function tryApplyFleetRoster(sub) {
+    var raw = lanSubmissionRaw(sub);
+    var typ = String(raw.type || '').toLowerCase();
+    if (typ !== 'fleet_roster' && typ !== 'identity_roster') return false;
+    var pay = raw.data || raw.payload || raw;
+    if (!pay || !Array.isArray(pay.peers)) return false;
+    try {
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.ingestFleetRoster === 'function') {
+        global.CrozzoPeerDirectory.ingestFleetRoster(pay, 'lan_http');
+      }
+      return true;
+    } catch (e) {
+      try {
+        console.warn('[lan-sync] fleet_roster', e);
+      } catch (_) {}
+      return false;
+    }
+  }
+
   function tryApplyPrintCaps(sub) {
     var raw = lanSubmissionRaw(sub);
     if (String(raw.type || '').toLowerCase() !== 'print_caps') return false;
@@ -442,7 +485,7 @@
         if (!c && pay.id != null) c = global.__crozzoEmergencyFindComandaById(pay.id);
         if (!c) return false;
         if (pay.estado === 'entregada' && typeof global.despacharComanda === 'function') {
-          global.despacharComanda(c.id, { skipToast: true, skipGossip: true });
+          global.despacharComanda(c.id, { skipToast: true, skipGossip: true, skipFanout: true });
         } else if (typeof global.updateComandaEstado === 'function') {
           global.updateComandaEstado(c.id, pay.estado, { skipFanout: true });
         }
@@ -648,6 +691,16 @@
     var ackIds = [];
     for (var i = 0; i < items.length; i++) {
       var itemId = items[i] && items[i].id;
+      if (tryApplyIdentityCard(items[i])) {
+        n++;
+        if (itemId) ackIds.push(itemId);
+        continue;
+      }
+      if (tryApplyFleetRoster(items[i])) {
+        n++;
+        if (itemId) ackIds.push(itemId);
+        continue;
+      }
       if (tryApplyInternalQrSlot(items[i])) {
         n++;
         if (itemId) ackIds.push(itemId);
@@ -851,7 +904,17 @@
     return st;
   }
 
+  var _ensureServerInflight = null;
+
   async function ensureServerForPairing() {
+    if (_ensureServerInflight) return _ensureServerInflight;
+    _ensureServerInflight = ensureServerForPairingCore().finally(function () {
+      _ensureServerInflight = null;
+    });
+    return _ensureServerInflight;
+  }
+
+  async function ensureServerForPairingCore() {
     if (!isDesktopTauri()) return { running: false, error: 'Solo app Tauri de escritorio' };
     if (lanBindCooldownActive()) {
       return { running: false, error: global.__CROZZO_LAN_LAST_ERROR || 'Puerto LAN ocupado', cached: true };
@@ -908,43 +971,11 @@
       return { running: false };
     }
     if (!isDesktopTauri()) return { running: false };
-    if (lanBindCooldownActive()) {
-      return { running: false, error: global.__CROZZO_LAN_LAST_ERROR || 'Puerto LAN ocupado', cached: true };
+    var st = await ensureServerForPairing();
+    if (st && st.running) {
+      await drainPendingOnce();
     }
-    try {
-      var st0 = await invoke('crozzo_lan_sync_status');
-      if (st0 && st0.running) {
-        startPolling();
-        await drainPendingOnce();
-        return st0;
-      }
-    } catch (_) {}
-    try {
-      var sb = readSupabaseForLan();
-      var st = await invoke('crozzo_lan_sync_start', {
-        port: Number(md.port) || 3000,
-        locationId: String(md.locationId || '').trim(),
-        deviceId: String(md.deviceId || '').trim(),
-        businessId: String(md.businessId || '').trim(),
-        authToken: lanTokenEnsure(),
-        supabaseUrl: sb.url || '',
-        supabaseAnonKey: sb.key || '',
-      });
-      if (st && st.running) {
-        _lanBindFailUntil = 0;
-        startPolling();
-        await drainPendingOnce();
-        return st;
-      }
-      markLanBindFailed('Puerto LAN no disponible');
-      return { running: false, error: global.__CROZZO_LAN_LAST_ERROR };
-    } catch (e) {
-      if (lanPortBusyError(e)) markLanBindFailed(e);
-      try {
-        console.warn('[lan-sync] start', e);
-      } catch (_) {}
-      return { running: false, error: String((e && e.message) || e) };
-    }
+    return st || { running: false };
   }
 
   async function status() {
@@ -968,7 +999,7 @@
 
   function afterMainInit() {
     if (shouldAutoStartLanServer()) {
-      ensureServerForPairing().catch(function () {});
+      ensureServerOnce(false).catch(function () {});
       return;
     }
     syncFromConfig().catch(function () {});
