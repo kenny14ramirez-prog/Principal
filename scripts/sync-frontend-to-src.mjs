@@ -262,6 +262,7 @@ console.log('[sync] Total archivos copiados:', copied);
 
 const tauriChecks = [
   'modules/CrozzoPairingQrReader.js',
+  'modules/CrozzoAiInsights.js',
   'core/CrozzoPairingSeal.js',
   'vendor/CrozzoJsQR.js',
   'vendor/CrozzoQRCode.js',
@@ -277,5 +278,9 @@ for (const rel of tauriChecks) {
 if (!tauriOk) process.exit(1);
 if (!readFileSync(destHtml, 'utf8').includes('CrozzoPairingQrReader.js')) {
   console.error('[sync] index.html sin CrozzoPairingQrReader.js');
+  process.exit(1);
+}
+if (!readFileSync(destHtml, 'utf8').includes('CrozzoAiInsights.js')) {
+  console.error('[sync] index.html sin CrozzoAiInsights.js — añádalo en app/Crozzo_POS_Completo.html (no solo app/index.html)');
   process.exit(1);
 }

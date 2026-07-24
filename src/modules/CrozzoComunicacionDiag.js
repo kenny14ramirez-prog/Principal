@@ -214,6 +214,17 @@
     var can = canonicalSede();
     var dev = deviceId();
 
+    // 0. Sistema de mando unificado (Command Bridge — una sola fachada)
+    try {
+      if (global.CrozzoCommandBridge && typeof global.CrozzoCommandBridge.diagRows === 'function') {
+        var cmdRows = global.CrozzoCommandBridge.diagRows() || [];
+        for (var ci = 0; ci < cmdRows.length; ci++) rows.push(cmdRows[ci]);
+      } else if (global.CrozzoSedeReadiness && typeof global.CrozzoSedeReadiness.diagRows === 'function') {
+        var sealRows = global.CrozzoSedeReadiness.diagRows() || [];
+        for (var si = 0; si < sealRows.length; si++) rows.push(sealRows[si]);
+      }
+    } catch (_) {}
+
     // 1. Identidad / sede
     if (biz === 'default' || !biz) {
       rows.push(

@@ -103,6 +103,15 @@ class ConfigManager {
     if (!modes.includes(c.runtimeSyncModo)) c.runtimeSyncModo = 'hybrid';
     if (!Array.isArray(c.proveedoresOC)) c.proveedoresOC = [];
     if (!Array.isArray(c.ordenesCompra)) c.ordenesCompra = [];
+    if (!c.aiReportes || typeof c.aiReportes !== 'object') {
+      c.aiReportes = { enabled: false, cadence: '8d', model: 'meta/llama-3.3-70b-instruct' };
+    } else {
+      c.aiReportes = {
+        enabled: !!c.aiReportes.enabled,
+        cadence: c.aiReportes.cadence === 'month' ? 'month' : '8d',
+        model: String(c.aiReportes.model || 'meta/llama-3.3-70b-instruct').trim() || 'meta/llama-3.3-70b-instruct',
+      };
+    }
     if (!c.seguridad || typeof c.seguridad !== 'object') c.seguridad = { requiereLogin: true, ultimoLoginAt: null };
     if (typeof c.seguridad.kioskExitPin !== 'string') c.seguridad.kioskExitPin = '';
     if (typeof c.seguridad.kennyPasswordChanged !== 'boolean') c.seguridad.kennyPasswordChanged = false;
@@ -361,7 +370,12 @@ class ConfigManager {
       },
       runtimeSyncModo: 'hybrid',
       proveedoresOC: [],
-      ordenesCompra: []
+      ordenesCompra: [],
+      aiReportes: {
+        enabled: false,
+        cadence: '8d',
+        model: 'meta/llama-3.3-70b-instruct',
+      },
     };
   }
   save() {

@@ -2092,19 +2092,19 @@
         ? '<button type="button" class="btn btn-outline crozzo-cierre-cta crozzo-cierre-cta--supervision" onclick="crozzoShiftOpenSupervisionArqueo()"><i data-lucide="eye"></i> Revisión de caja</button>'
         : '') +
       (canArqueo
-        ? '<button type="button" class="btn btn-primary crozzo-cierre-cta" id="crozzo-cierre-btn-arqueo" onclick="crozzoShiftOpenArqueo()"><i data-lucide="vault"></i> Cierre formal</button>'
+        ? '<button type="button" class="btn btn-primary crozzo-cierre-cta" id="crozzo-cierre-btn-arqueo" onclick="crozzoShiftOpenArqueo()"><i data-lucide="vault"></i> Cerrar turno</button>'
         : canDecl
           ? '<span class="crozzo-cierre-badge-readonly"><i data-lucide="eye"></i> Sin cierre formal — declare efectivo al salir</span>'
           : '<span class="crozzo-cierre-badge-readonly"><i data-lucide="eye"></i> Solo lectura</span>') +
       (canArqueo
-        ? '<button type="button" class="btn btn-outline" onclick="typeof crozzoRepExportTurnos===\'function\'&&crozzoRepExportTurnos()"><i data-lucide="download"></i> Exportar</button>'
+        ? '<button type="button" class="btn btn-outline crozzo-cierre-cta-secondary" onclick="typeof crozzoRepExportTurnos===\'function\'&&crozzoRepExportTurnos()"><i data-lucide="download"></i> Exportar</button>'
         : '') +
-      '<button type="button" class="btn btn-outline" onclick="navigateTo(\'planilla-2026\')"><i data-lucide="calculator"></i> Planilla</button>' +
+      '<button type="button" class="btn btn-outline crozzo-cierre-cta-secondary" onclick="navigateTo(\'planilla-2026\')"><i data-lucide="calculator"></i> Planilla</button>' +
       (canArqueo
         ? '<button type="button" class="btn btn-outline crozzo-cierre-btn-muted" onclick="crozzoShiftNuevoTurno()"><i data-lucide="rotate-ccw"></i> Emergencia</button>'
         : '') +
       (canDecl
-        ? '<button type="button" class="btn btn-outline" onclick="typeof crozzoShowDeclaracionEfectivoModal===\'function\'&&crozzoShowDeclaracionEfectivoModal()"><i data-lucide="banknote"></i> Declarar efectivo</button>'
+        ? '<button type="button" class="btn btn-outline crozzo-cierre-cta-secondary" onclick="typeof crozzoShowDeclaracionEfectivoModal===\'function\'&&crozzoShowDeclaracionEfectivoModal()"><i data-lucide="banknote"></i> Declarar efectivo</button>'
         : '') +
       '</div></header>' +
       renderStressBannerHtml(getRestaurantStress()) +
@@ -2149,6 +2149,11 @@
       (histSum.faltantes ? histSum.faltantes + ' faltante(s)' : 'Sin faltantes') +
       '</span></article>' +
       '</section>' +
+      (typeof global.CrozzoAiInsights !== 'undefined' &&
+      global.CrozzoAiInsights.renderAuditCardHtml &&
+      (canSuper || canArqueo)
+        ? global.CrozzoAiInsights.renderAuditCardHtml({ surface: 'cierre' })
+        : '') +
       '<div class="crozzo-cierre-grid">' +
       '<section class="crozzo-cierre-turnos" aria-label="Turnos del día">' +
       '<div class="crozzo-cierre-section-head"><h3>Turnos operativos</h3><p>Tarjetas = cierre formal · Revisión = conteo sin interrumpir caja</p></div>' +
@@ -2236,6 +2241,11 @@
     hookCierreVisibilityRefresh();
     body.innerHTML = renderCierrePanelHtml({ full: true });
     refreshCierrePanel({ full: true });
+    try {
+      if (typeof global.CrozzoAiInsights !== 'undefined' && global.CrozzoAiInsights.bindAuditCard) {
+        global.CrozzoAiInsights.bindAuditCard(document.getElementById('crozzoAiAuditCard'));
+      }
+    } catch (_) {}
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [body] });
     } catch (_) {}
@@ -2554,6 +2564,12 @@
         if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [payGrid] });
       } catch (_) {}
     }
+    try {
+      if (typeof global.CrozzoAiInsights !== 'undefined' && global.CrozzoAiInsights.bindAuditCard) {
+        var aiCard = document.getElementById('crozzoAiAuditCard');
+        if (aiCard && !aiCard.__crozzoAiAuditBound) global.CrozzoAiInsights.bindAuditCard(aiCard);
+      }
+    } catch (_) {}
   }
 
   function setHistFilter(filter) {

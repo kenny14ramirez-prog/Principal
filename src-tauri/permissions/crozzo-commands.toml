@@ -1,7 +1,7 @@
 [[permission]]
 identifier = "allow-crozzo-http"
-description = "HTTP GET/HEAD desde Rust (evita CORS en actualizaciones)"
-commands.allow = ["crozzo_http_get_text", "crozzo_http_head"]
+description = "HTTP GET/HEAD/NVIDIA desde Rust (evita CORS en actualizaciones y Reporte IA)"
+commands.allow = ["crozzo_http_get_text", "crozzo_http_head", "crozzo_nvidia_chat"]
 
 [[permission]]
 identifier = "allow-crozzo-install"

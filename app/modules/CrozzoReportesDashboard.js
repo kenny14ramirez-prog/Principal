@@ -371,6 +371,10 @@
       '<div class="crozzo-rep-tabs">' +
       '<button type="button" class="crozzo-rep-tab active" data-rep-tab="resumen">📊 Resumen</button>' +
       '<button type="button" class="crozzo-rep-tab" data-rep-tab="equipo">👥 Equipo</button>' +
+      '<button type="button" class="crozzo-rep-tab" data-rep-tab="operativo">📋 Operativo</button>' +
+      (typeof global.CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.tabButtonHtml
+        ? CrozzoAiInsights.tabButtonHtml()
+        : '<button type="button" class="crozzo-rep-tab crozzo-rep-tab--adv" data-rep-tab="reporte-ia">✨ Reporte IA</button>') +
       '<button type="button" class="crozzo-rep-tab crozzo-rep-tab--adv" data-rep-tab="perfiles">🧠 Perfiles psicológicos</button>' +
       '<button type="button" class="crozzo-rep-tab" data-rep-tab="export">📥 Exportar</button>' +
       '<button type="button" class="crozzo-rep-tab" data-rep-tab="pred">🔮 Alertas</button></div>' +

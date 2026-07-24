@@ -64,6 +64,8 @@ mustInclude('app/infra/CrozzoLanOpsSync.js', [
   'shouldRunLanOps',
   'opRealtimeActive()',
   'softPollCoveredByWs',
+  'fleetScalePollFactor',
+  'fleetPeerEstimate',
   'getPathHealth',
   'healAnchorSilence',
   'WS_FRESH_SKIP_POLL_MS',

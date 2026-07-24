@@ -290,6 +290,17 @@
           global.updateConnectivityTierBadge(tier);
         } catch (_) {}
       }
+      var fiscalDrain = { ok: false, reason: 'skipped' };
+      try {
+        if (global.CrozzoFiscalOutboxDrain && typeof global.CrozzoFiscalOutboxDrain.drain === 'function') {
+          fiscalDrain = await global.CrozzoFiscalOutboxDrain.drain({
+            source: String(opts.source || 'reconnect'),
+          });
+          if (fiscalDrain && fiscalDrain.done) {
+            logLine('🧾 Cola fiscal drenada · done=' + fiscalDrain.done);
+          }
+        }
+      } catch (_) {}
       logLine(
         '✅ Sync total · central=' +
           (central.role === 'A' ? 'push' : 'cliente') +
@@ -298,7 +309,7 @@
           ' · pulls=' +
           pull.pulled
       );
-      return { ok: true, central: central, pull: pull };
+      return { ok: true, central: central, pull: pull, fiscalDrain: fiscalDrain };
     } finally {
       __running = false;
     }

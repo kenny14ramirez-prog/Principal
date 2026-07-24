@@ -294,23 +294,236 @@ async function mockStamp(xml, factura) {
 // ==========================================
 // packages/shared-dian/providers/dataico-adapter.ts
 // ==========================================
-async function dataicoStamp(xml, config) {
-  const prov = config.proveedor;
-  if (!prov.apiKey) throw new Error('API Key de Dataico no configurada');
-  
-  // Simulación de llamada a Dataico (en producción sería fetch real)
-  await new Promise(r => setTimeout(r, 1500));
-  const cufe = await calcularCUFE({});
-  const qrUrl = generarQRDIAN({ cufe, vendedorNit: config.empresa.nit, tipoDocumento: '01', consecutivo: '1', fechaEmision: new Date().toISOString(), totalFactura: 0 });
-  
+var CROZZO_FISCAL_OUTBOX_KEY = 'crozzo_fiscal_outbox_v1';
+var DATAICO_INVOICES_URL = 'https://api.dataico.com/direct/dataico_api/v2/invoices';
+
+function crozzoFiscalOutboxLoad() {
+  try {
+    var raw = typeof localStorage !== 'undefined' ? localStorage.getItem(CROZZO_FISCAL_OUTBOX_KEY) : null;
+    if (!raw) return [];
+    var arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) {
+    return [];
+  }
+}
+function crozzoFiscalOutboxSave(arr) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(CROZZO_FISCAL_OUTBOX_KEY, JSON.stringify((arr || []).slice(-200)));
+    }
+  } catch (_) {}
+}
+function crozzoFiscalOutboxEnqueue(entry) {
+  var all = crozzoFiscalOutboxLoad();
+  all.push(entry);
+  crozzoFiscalOutboxSave(all);
+  return entry;
+}
+
+function crozzoResolveDataicoAuth(config, prov) {
+  prov = prov || {};
+  var accountId =
+    prov.accountId ||
+    prov.dataicoAccountId ||
+    prov.apiSecret ||
+    (config && config.get && config.get('dataicoAccountId')) ||
+    '';
+  var token = prov.apiKey || prov.authToken || prov.token || '';
+  var baseUrl = String(prov.baseUrl || DATAICO_INVOICES_URL).replace(/\/$/, '');
+  if (baseUrl.indexOf('/invoices') < 0) baseUrl = baseUrl + '/invoices';
+  return { accountId: String(accountId || ''), token: String(token || ''), url: baseUrl };
+}
+
+function crozzoBuildDataicoInvoiceBody(factura, xml, config) {
+  var emp =
+    (config && typeof config.getEmpresa === 'function' && config.getEmpresa()) ||
+    (config && config.empresa) ||
+    {};
+  var dian = (config && typeof config.getDian === 'function' && config.getDian()) || {};
+  var items = (factura && factura.items) || [];
+  return {
+    invoice: {
+      number: String((factura && (factura.consecutivo || factura.number)) || ''),
+      prefix: String((dian && dian.prefijo) || (factura && factura.prefijo) || ''),
+      document_type: 'FV',
+      send_dian: true,
+      send_email: false,
+      customer: {
+        identification: String((factura && (factura.clienteNit || factura.nit)) || '222222222222'),
+        identification_type: 'NIT',
+        name: String((factura && (factura.clienteNombre || factura.cliente)) || 'CONSUMIDOR FINAL'),
+      },
+      company_nit: String((emp && emp.nit) || ''),
+      notes: 'Crozzo POS',
+      xml_ubl: xml ? String(xml).slice(0, 500000) : undefined,
+      items: items.map(function (it) {
+        return {
+          sku: String(it.sku || it.id || 'ITEM'),
+          description: String(it.nombreVenta || it.nombre || 'Item'),
+          quantity: Number(it.cantidad || 1),
+          price: Number(it.precio || it.price || 0),
+        };
+      }),
+    },
+    actions: { send_dian: true, send_email: false },
+  };
+}
+
+/**
+ * Timbre Dataico real (POST invoices). Firma: (xml, factura, config).
+ * Si no hay Auth-token → cola fiscal + error explícito (nunca fingir isDemo:false).
+ * Si allowSimulatedStamp en proveedor (solo lab) → mock marcado isDemo:true.
+ */
+async function dataicoStamp(xml, factura, config) {
+  var prov =
+    (config && typeof config.getProveedor === 'function' && config.getProveedor()) ||
+    (config && config.proveedor) ||
+    {};
+  var auth = crozzoResolveDataicoAuth(config, prov);
+  if (!auth.token) {
+    var queued = crozzoFiscalOutboxEnqueue({
+      id: 'fisc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      status: 'pending',
+      provider: 'dataico',
+      reason: 'missing_auth_token',
+      consecutivo: factura && factura.consecutivo,
+      createdAt: new Date().toISOString(),
+      xml: xml ? String(xml).slice(0, 200000) : '',
+    });
+    var err = new Error(
+      'Dataico: falta Auth-token (proveedor.apiKey). Venta puede quedar en cola fiscal #' + queued.id
+    );
+    err.code = 'DATAICO_AUTH_MISSING';
+    err.fiscalQueued = queued;
+    throw err;
+  }
+
+  // Lab explícito: nunca pasar por alto en producción
+  if (prov.allowSimulatedStamp === true) {
+    var sim = await mockStamp(xml, factura || {});
+    sim.provider = 'dataico_simulated';
+    sim.warning = 'allowSimulatedStamp=true — no es CUFE DIAN real';
+    return sim;
+  }
+
+  var headers = {
+    'Content-Type': 'application/json',
+    'Auth-token': auth.token,
+  };
+  if (auth.accountId) headers['Dataico_account_id'] = auth.accountId;
+
+  var body = crozzoBuildDataicoInvoiceBody(factura || {}, xml, config);
+  var res;
+  try {
+    res = await fetch(auth.url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+  } catch (netErr) {
+    var qNet = crozzoFiscalOutboxEnqueue({
+      id: 'fisc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      status: 'retry',
+      provider: 'dataico',
+      reason: 'network',
+      error: netErr && netErr.message ? netErr.message : String(netErr),
+      consecutivo: factura && factura.consecutivo,
+      createdAt: new Date().toISOString(),
+      payload: body,
+    });
+    // Offline-first: la venta no se pierde; queda pendiente fiscal.
+    return {
+      success: true,
+      pending: true,
+      uuid: qNet.id,
+      cufe: '',
+      qrUrl: '',
+      fechaTimbrado: new Date().toISOString(),
+      isDemo: false,
+      xml: xml,
+      provider: 'dataico',
+      fiscalQueued: qNet,
+      dianStatus: 'QUEUED_OFFLINE',
+      warning: 'Dataico sin red — cola fiscal #' + qNet.id,
+    };
+  }
+
+  var json = {};
+  try {
+    json = await res.json();
+  } catch (_) {
+    json = {};
+  }
+  if (!res.ok) {
+    var qFail = crozzoFiscalOutboxEnqueue({
+      id: 'fisc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      status: 'retry',
+      provider: 'dataico',
+      reason: 'http_' + res.status,
+      error: JSON.stringify(json).slice(0, 2000),
+      consecutivo: factura && factura.consecutivo,
+      createdAt: new Date().toISOString(),
+    });
+    var eHttp = new Error(
+      'Dataico HTTP ' + res.status + ' — cola #' + qFail.id + ': ' + (json.error || json.message || 'ver outbox')
+    );
+    eHttp.code = 'DATAICO_HTTP';
+    eHttp.fiscalQueued = qFail;
+    throw eHttp;
+  }
+
+  var data = json.invoice || json.data || json;
+  var cufe = data.cufe || data.CUFE || data.uuid_cufe || '';
+  var uuid = data.uuid || data.id || data.invoice_id || '';
+  var qrUrl = data.qrcode || data.qr_url || data.qr || '';
+  if (!cufe && typeof calcularCUFE === 'function') {
+    // Respuesta parcial: no inventar éxito DIAN
+    var qPartial = crozzoFiscalOutboxEnqueue({
+      id: 'fisc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+      status: 'pending',
+      provider: 'dataico',
+      reason: 'missing_cufe_in_response',
+      consecutivo: factura && factura.consecutivo,
+      createdAt: new Date().toISOString(),
+      raw: data,
+    });
+    return {
+      success: true,
+      pending: true,
+      uuid: uuid || qPartial.id,
+      cufe: '',
+      qrUrl: qrUrl,
+      fechaTimbrado: new Date().toISOString(),
+      isDemo: false,
+      xml: xml,
+      provider: 'dataico',
+      fiscalQueued: qPartial,
+      dianStatus: data.dian_status || data.dianStatus || 'PENDING',
+    };
+  }
+  if (!qrUrl && typeof generarQRDIAN === 'function') {
+    qrUrl = generarQRDIAN({
+      cufe: cufe,
+      vendedorNit: (config.getEmpresa && config.getEmpresa().nit) || '',
+      tipoDocumento: '01',
+      consecutivo: String((factura && factura.consecutivo) || ''),
+      fechaEmision: new Date().toISOString(),
+      totalFactura: Number((factura && factura.total) || 0),
+    });
+  }
   return {
     success: true,
-    uuid: `DT-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-    cufe,
-    qrUrl,
+    pending: false,
+    uuid: uuid || 'DT-' + Date.now(),
+    cufe: cufe,
+    qrUrl: qrUrl,
     fechaTimbrado: new Date().toISOString(),
     isDemo: false,
-    xml
+    xml: xml,
+    provider: 'dataico',
+    dianStatus: data.dian_status || data.dianStatus || 'OK',
+    raw: data,
   };
 }
 // ==========================================
@@ -319,8 +532,8 @@ async function dataicoStamp(xml, config) {
 function createProvider(type) {
   switch(type) {
     case 'dataico': return { name: 'Dataico', stamp: dataicoStamp };
-    case 'siigo': return { name: 'Siigo', stamp: async (xml) => mockStamp(xml, {}) };
-    case 'facturama': return { name: 'Facturama', stamp: async (xml) => mockStamp(xml, {}) };
+    case 'siigo': return { name: 'Siigo', stamp: async (xml, factura) => mockStamp(xml, factura || {}) };
+    case 'facturama': return { name: 'Facturama', stamp: async (xml, factura) => mockStamp(xml, factura || {}) };
     default: return { name: 'Mock', stamp: mockStamp };
   }
 }
@@ -337,4 +550,27 @@ async function timbrarFactura(xml, factura, config) {
   }
   const provider = createProvider(config.getProveedor().type);
   return await provider.stamp(xml, factura, config);
+}
+function crozzoFiscalOutboxUpdate(id, patch) {
+  var all = crozzoFiscalOutboxLoad();
+  var hit = false;
+  for (var i = 0; i < all.length; i++) {
+    if (all[i] && all[i].id === id) {
+      for (var k in patch) {
+        if (Object.prototype.hasOwnProperty.call(patch, k)) all[i][k] = patch[k];
+      }
+      all[i].updatedAt = new Date().toISOString();
+      hit = true;
+      break;
+    }
+  }
+  if (hit) crozzoFiscalOutboxSave(all);
+  return hit;
+}
+if (typeof window !== 'undefined') {
+  window.crozzoFiscalOutboxLoad = crozzoFiscalOutboxLoad;
+  window.crozzoFiscalOutboxSave = crozzoFiscalOutboxSave;
+  window.crozzoFiscalOutboxUpdate = crozzoFiscalOutboxUpdate;
+  window.crozzoFiscalOutboxEnqueue = crozzoFiscalOutboxEnqueue;
+  window.crozzoDataicoStamp = dataicoStamp;
 }

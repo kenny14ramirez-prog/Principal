@@ -9439,6 +9439,20 @@ function crozzoPatchOperationalPageFromRemote(page) {
       }
       return false;
     }
+    /* Cierre: NUNCA remount via renderPage — LAN/comandas spamean schedule con currentPage=cierre-caja. */
+    if (page === 'cierre-caja') {
+      if (typeof currentPage !== 'undefined' && currentPage !== 'cierre-caja') return false;
+      if (
+        typeof CrozzoCierreTurnos !== 'undefined' &&
+        CrozzoCierreTurnos &&
+        typeof CrozzoCierreTurnos.refreshPanel === 'function' &&
+        document.getElementById('crozzo-cierre-page-body')
+      ) {
+        CrozzoCierreTurnos.refreshPanel({ full: true });
+        return true;
+      }
+      return false;
+    }
   } catch (_) {}
   return false;
 }
@@ -9463,6 +9477,13 @@ function crozzoScheduleOperationalPageRefresh(page) {
         if (p === 'tablets' && typeof crozzoPatchOperationalPageFromRemote === 'function' && crozzoPatchOperationalPageFromRemote('tablets')) {
           return;
         }
+        if (p === 'cierre-caja' && typeof crozzoPatchOperationalPageFromRemote === 'function' && crozzoPatchOperationalPageFromRemote('cierre-caja')) {
+          return;
+        }
+        return;
+      }
+      /* Defensa: nunca full remount de cierre por fanout operativo. */
+      if (p === 'cierre-caja' && typeof crozzoPatchOperationalPageFromRemote === 'function' && crozzoPatchOperationalPageFromRemote('cierre-caja')) {
         return;
       }
       renderPage(p, { background: true });
@@ -13351,12 +13372,21 @@ function crozzoSidebarApplyExpanded(sidebar, expanded) {
     if (typeof crozzoSidebarSyncNavGroupsOnExpand === 'function') crozzoSidebarSyncNavGroupsOnExpand();
   }
 }
-/** Coloca el toggle dentro del header (expandido) o arriba del rail (colapsado). */
+/**
+ * Toggle dorado #menu-toggle-btn: en desktop está oculto (hamburger del header).
+ * NO mover el nodo en DOM — insertBefore dispara pointerleave y abre/cierra en bucle (KI-035).
+ */
 function crozzoSidebarMountToggleBtn(sidebar) {
   sidebar = sidebar || document.getElementById('sidebar');
   var toggleBtn = document.getElementById('menu-toggle-btn');
-  var header = sidebar && sidebar.querySelector('.sidebar-header');
   if (!sidebar || !toggleBtn) return;
+  if (typeof crozzoIsDesktopSidebarChrome === 'function' && crozzoIsDesktopSidebarChrome()) {
+    var expandedDesk =
+      sidebar.classList.contains('is-expanded') || sidebar.classList.contains('expanded');
+    toggleBtn.setAttribute('aria-expanded', expandedDesk ? 'true' : 'false');
+    return;
+  }
+  var header = sidebar.querySelector('.sidebar-header');
   var expanded = sidebar.classList.contains('is-expanded') || sidebar.classList.contains('expanded');
   if (expanded && header) {
     if (toggleBtn.parentElement !== header) header.insertBefore(toggleBtn, header.firstChild);
@@ -15954,8 +15984,9 @@ function crozzoPremiumTierMeta(rol) {
 function crozzoPremiumEnhanceSubtitle(page, base) {
   var sub = String(base || '').trim();
   if (!sub) return sub;
+  /* Hub post-login: sin eslogan extra — el título del header ya basta (BONA Aire hub). */
+  if (page === 'inicio-operacion') return sub;
   var accents = {
-    'inicio-operacion': ' · Tu centro de mando',
     cajero: ' · Tu estación de ventas',
     'ventas-hoy': ' · Tu jornada en números',
     'cierre-caja': ' · Cierre ejecutivo',
@@ -16294,7 +16325,7 @@ function navigateTo(page) {
   if (navItem) navItem.classList.add('active');
   
   const titles = {
-    'inicio-operacion': ['Inicio de ventas', 'Elija restaurante (mesas/comandas) o tienda comercial (mostrador)'],
+    'inicio-operacion': ['Inicio de ventas', 'Restaurante o tienda — elija dónde cobrar'],
     'cajero': ['Restaurante · POS', 'Mesas, llevar, comandas y cobro en sala'],
     'venta-comercial': ['Tienda / Comercial', 'Venta directa por mostrador sin mesas ni cocina'],
     'cartera-comercial': ['Cartera de clientes', 'Por cobrar, abonos y cotizaciones de venta'],
@@ -16623,6 +16654,18 @@ function crozzoPageMotionEnabled() {
     if (!document.body || !document.body.classList.contains('crozzo-chrome-motion')) return false;
     var level = document.body.getAttribute('data-crozzo-motion');
     if (!level || level === 'off') return false;
+    /* P0 alta frecuencia (caja/ops): page-enter/stagger = ruido; Kowalski / crozzo-motion */
+    var page = typeof currentPage !== 'undefined' ? String(currentPage || '') : '';
+    if (
+      page === 'cajero' ||
+      page === 'tablets' ||
+      page === 'comandas' ||
+      page === 'cocina' ||
+      page === 'mesas' ||
+      page === 'cierre-caja'
+    ) {
+      return false;
+    }
   } catch (_) {}
   return true;
 }
@@ -16798,7 +16841,7 @@ function renderPage(page, renderOpts) {
   }
   crozzoHideWebEmbedIfLeaving(page);
   if (document.body) {
-    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-compras-dashboard', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-costos-inventario', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-page-cocina', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets', 'crozzo-page-caja-clientes', 'crozzo-page-inventarios', 'crozzo-page-config-usuarios', 'crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed');
+    document.body.classList.remove('crozzo-page-venta-comercial', 'crozzo-page-rest-pos', 'crozzo-page-facturas', 'crozzo-page-cartera', 'crozzo-page-control-acceso', 'crozzo-int-kiosk-fullscreen', 'crozzo-page-qyc-embed', 'crozzo-page-pedidos-internos', 'crozzo-page-centro-compras', 'crozzo-page-compras-dashboard', 'crozzo-page-centro-procesos', 'crozzo-page-planillas', 'crozzo-pl-focus-mode', 'crozzo-page-modulo-gestion', 'crozzo-page-sistema-costos', 'crozzo-page-costos-inventario', 'crozzo-page-compras-cotizaciones', 'crozzo-page-print-hub', 'crozzo-pos-cart-open', 'crozzo-page-comandas', 'crozzo-page-cocina', 'crozzo-comandas-touch', 'crozzo-comandas-compact', 'crozzo-page-tablets', 'crozzo-page-caja-clientes', 'crozzo-page-inventarios', 'crozzo-page-config-usuarios', 'crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed', 'crozzo-page-inicio-operacion');
   }
   if (document.documentElement) {
     document.documentElement.classList.remove('crozzo-page-whatsapp-web', 'crozzo-page-gmail-web', 'crozzo-page-drive-web', 'crozzo-page-dataico-web', 'crozzo-page-dian-vpfe-web', 'crozzo-page-spotify-web', 'crozzo-page-supabase-nube-web', 'crozzo-page-web-embed');
@@ -16832,6 +16875,7 @@ function renderPage(page, renderOpts) {
   switch(page) {
     case 'inicio-operacion':
       content.innerHTML = renderInicioOperacion();
+      if (document.body) document.body.classList.add('crozzo-page-inicio-operacion');
       if (typeof initInicioOperacion === 'function') initInicioOperacion();
       break;
     case 'cajero':
@@ -18372,6 +18416,10 @@ function crozzoRepRenderBasicoDashboardHtml() {
     '<div class="crozzo-rep-tabs">' +
     '<button type="button" class="crozzo-rep-tab active" data-rep-tab="resumen">📊 Resumen</button>' +
     '<button type="button" class="crozzo-rep-tab" data-rep-tab="equipo">👥 Equipo</button>' +
+    '<button type="button" class="crozzo-rep-tab" data-rep-tab="operativo">📋 Operativo</button>' +
+    (typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.tabButtonHtml
+      ? CrozzoAiInsights.tabButtonHtml()
+      : '<button type="button" class="crozzo-rep-tab crozzo-rep-tab--adv" data-rep-tab="reporte-ia">✨ Reporte IA</button>') +
     '<button type="button" class="crozzo-rep-tab crozzo-rep-tab--adv" data-rep-tab="perfiles">🧠 Perfiles psicológicos</button>' +
     '<button type="button" class="crozzo-rep-tab" data-rep-tab="export">📥 Exportar</button>' +
     '<button type="button" class="crozzo-rep-tab" data-rep-tab="pred">🔮 Alertas</button>' +
@@ -18420,8 +18468,16 @@ function crozzoRepRenderBasicoSecondaryPanelsHtml() {
     typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.renderDashboardPanelHtml
       ? CrozzoStaffOpsReport.renderDashboardPanelHtml()
       : '';
+  const operativoPanel =
+    typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.renderOperativoPanelHtml
+      ? CrozzoStaffOpsReport.renderOperativoPanelHtml()
+      : '';
   return (
     equipoPanel +
+    operativoPanel +
+    (typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.renderReportPanelHtml
+      ? CrozzoAiInsights.renderReportPanelHtml()
+      : '') +
     crozzoRepRenderPerfilesPsicologicosPanelHtml() +
     '<div class="crozzo-rep-panel" data-rep-panel="export" style="display:none;">' +
     '<p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:12px;">Exporta ventas, inventario y cierres para contabilidad o Excel. Para gestionar stock use <strong>Catálogo</strong> o <strong>Inventario continuo</strong> en el menú.</p>' +
@@ -18940,14 +18996,37 @@ function initInventariosReportes() {
       if (name === 'equipo' && typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.refreshDashboard) {
         CrozzoStaffOpsReport.refreshDashboard();
       }
+      if (name === 'operativo' && typeof CrozzoStaffOpsReport !== 'undefined') {
+        if (CrozzoStaffOpsReport.bindOperativoPanel) CrozzoStaffOpsReport.bindOperativoPanel(root);
+        if (CrozzoStaffOpsReport.refreshOperativoReport) CrozzoStaffOpsReport.refreshOperativoReport(root);
+      }
       if (name === 'perfiles' && typeof showToast === 'function') {
         showToast('Perfiles psicológicos — disponible en próximas versiones avanzadas.', 'info');
+      }
+      if (name === 'reporte-ia') {
+        if (typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.isEnabled && !CrozzoAiInsights.isEnabled()) {
+          if (typeof showToast === 'function') {
+            showToast('Reporte IA — se activará cuando Super Admin lo habilite (próximas versiones).', 'info');
+          }
+        } else if (typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.bindReportPanel) {
+          CrozzoAiInsights.bindReportPanel(root);
+        }
       }
       if (name === 'pred') crozzoRepRefreshPredictions();
     });
   }
   crozzoRepRefreshBasicoDashboard();
   crozzoRepRefreshPredictions();
+  if (typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.bindOperativoPanel) {
+    try {
+      CrozzoStaffOpsReport.bindOperativoPanel(root);
+    } catch (_) {}
+  }
+  if (typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.bindReportPanel) {
+    try {
+      CrozzoAiInsights.bindReportPanel(root);
+    } catch (_) {}
+  }
   if (!root.__crozzoRepAutoTimer) {
     root.__crozzoRepAutoTimer = setInterval(function () {
       if (typeof currentPage !== 'undefined' && currentPage === 'inventarios') {
@@ -19047,6 +19126,8 @@ function renderInventarios() {
       <div class="crozzo-rep-tabs">
         <button type="button" class="crozzo-rep-tab active" data-rep-tab="ventas">📈 Ventas del día</button>
         <button type="button" class="crozzo-rep-tab" data-rep-tab="equipo">👥 Equipo</button>
+        <button type="button" class="crozzo-rep-tab" data-rep-tab="operativo">📋 Operativo</button>
+        ${typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.tabButtonHtml ? CrozzoAiInsights.tabButtonHtml() : '<button type="button" class="crozzo-rep-tab crozzo-rep-tab--adv" data-rep-tab="reporte-ia">✨ Reporte IA</button>'}
         <button type="button" class="crozzo-rep-tab crozzo-rep-tab--adv" data-rep-tab="perfiles">🧠 Perfiles psicológicos</button>
         <button type="button" class="crozzo-rep-tab" data-rep-tab="export">📥 Exportar CSV</button>
         <button type="button" class="crozzo-rep-tab" data-rep-tab="pred">🔮 Alertas</button>
@@ -19092,6 +19173,7 @@ function renderInventarios() {
         <div id="crozzo-rep-predict-list"></div>
       </div>
       ${typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.renderDashboardPanelHtml ? CrozzoStaffOpsReport.renderDashboardPanelHtml() : ''}
+      ${typeof CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.renderReportPanelHtml ? CrozzoAiInsights.renderReportPanelHtml() : ''}
       ${crozzoRepRenderPerfilesPsicologicosPanelHtml()}
     </div>
   `;
@@ -21343,6 +21425,50 @@ function crozzoUpdateGlobalStressBanner() {
 }
 window.crozzoDismissGlobalStressBanner = crozzoDismissGlobalStressBanner;
 window.crozzoUpdateGlobalStressBanner = crozzoUpdateGlobalStressBanner;
+function crozzoHubRevealSessionOpen(id) {
+  try {
+    return sessionStorage.getItem('crozzo_hub_rev_' + id) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+function crozzoHubRevealSessionSet(id, open) {
+  try {
+    if (open) sessionStorage.setItem('crozzo_hub_rev_' + id, '1');
+    else sessionStorage.removeItem('crozzo_hub_rev_' + id);
+  } catch (_) {}
+}
+/** Divulgación bajo demanda (D-018): cerrado por defecto; se abre solo si el usuario pide o hay alerta. */
+function crozzoHubRevealWrap(id, label, peekHtml, bodyHtml, forceOpen) {
+  var open = !!(forceOpen || crozzoHubRevealSessionOpen(id));
+  return (
+    '<div class="crozzo-hub-reveal' +
+    (open ? ' is-open' : '') +
+    '" data-hub-reveal="' +
+    escUserAttr(id) +
+    '">' +
+    '<button type="button" class="crozzo-hub-reveal__sum" aria-expanded="' +
+    (open ? 'true' : 'false') +
+    '" aria-controls="crozzo-hub-rev-' +
+    escUserAttr(id) +
+    '">' +
+    '<span class="crozzo-hub-reveal__label">' +
+    escUserAttr(label) +
+    '</span>' +
+    (peekHtml ? '<span class="crozzo-hub-reveal__peek">' + peekHtml + '</span>' : '') +
+    '<span class="crozzo-hub-reveal__chev" aria-hidden="true"><i data-lucide="chevron-down"></i></span>' +
+    '</button>' +
+    '<div class="crozzo-hub-reveal__panel' +
+    (open ? ' is-shown' : '') +
+    '" id="crozzo-hub-rev-' +
+    escUserAttr(id) +
+    '"' +
+    (open ? '' : ' hidden') +
+    '><div class="crozzo-hub-reveal__inner">' +
+    bodyHtml +
+    '</div></div></div>'
+  );
+}
 function crozzoInicioOpShiftKpisHtml() {
   if (typeof crozzoShiftMetrics !== 'function') return '';
   try {
@@ -21350,9 +21476,11 @@ function crozzoInicioOpShiftKpisHtml() {
     var dm = typeof CrozzoCierreTurnos !== 'undefined' && CrozzoCierreTurnos.dayMetrics ? CrozzoCierreTurnos.dayMetrics() : m;
     var meta = m.scopeLabel || 'Turno';
     var dayLbl = m.day && m.day.businessDate ? m.day.businessDate : '—';
+    var totalTxt = '$' + Math.round(dm.total).toLocaleString('es-CO');
+    /* Siempre visible: orienta el turno. Sin “al pedir” vacío. */
     return (
-      '<div class="crozzo-ventas-hub__kpis" aria-label="Resumen del día">' +
-      '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">Día operativo</span><strong class="crozzo-ventas-kpi__val">' +
+      '<div class="crozzo-ventas-hub__kpis crozzo-ventas-hub__kpis--live" aria-label="Resumen del día">' +
+      '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">Día</span><strong class="crozzo-ventas-kpi__val">' +
       escUserAttr(dayLbl) +
       '</strong></div>' +
       '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">' +
@@ -21360,8 +21488,8 @@ function crozzoInicioOpShiftKpisHtml() {
       '</span><strong class="crozzo-ventas-kpi__val">' +
       String(m.count) +
       ' ventas</strong></div>' +
-      '<div class="crozzo-ventas-kpi crozzo-ventas-kpi--accent"><span class="crozzo-ventas-kpi__lbl">Total del día</span><strong class="crozzo-ventas-kpi__val">$' +
-      Math.round(dm.total).toLocaleString('es-CO') +
+      '<div class="crozzo-ventas-kpi crozzo-ventas-kpi--accent"><span class="crozzo-ventas-kpi__lbl">Total</span><strong class="crozzo-ventas-kpi__val">' +
+      totalTxt +
       '</strong></div>' +
       '<div class="crozzo-ventas-kpi"><span class="crozzo-ventas-kpi__lbl">Ticket prom.</span><strong class="crozzo-ventas-kpi__val">' +
       (dm.count ? '$' + Math.round(dm.ticket).toLocaleString('es-CO') : '$0') +
@@ -21371,6 +21499,21 @@ function crozzoInicioOpShiftKpisHtml() {
   } catch (_) {
     return '';
   }
+}
+function crozzoInicioOpPerfilLabel(perfilId) {
+  var p = String(perfilId || '').toLowerCase();
+  if (p === 'basico_restaurante' || p === 'restaurante') return 'Restaurante';
+  if (p === 'basico_tienda' || p === 'tienda') return 'Tienda';
+  if (p === 'basico_hotel' || p === 'hotel') return 'Hotel';
+  if (p.indexOf('basico_') === 0) {
+    return p
+      .slice(7)
+      .replace(/_/g, ' ')
+      .replace(/^\w/, function (c) {
+        return c.toUpperCase();
+      });
+  }
+  return p ? p.replace(/_/g, ' ') : 'Negocio';
 }
 var CROZZO_INICIO_OP_SHORTCUTS = [
   { page: 'cierre-caja', icon: 'wallet', title: 'Cierre de caja', subDefault: 'Turnos al día', roles: ['admin', 'encargado', 'caja', 'recepcion', 'user'], priority: { admin: 1, encargado: 1, caja: 1, recepcion: 1, user: 1 }, basico: true },
@@ -21510,8 +21653,9 @@ function crozzoInicioOpAdminHubHtml() {
       );
     })
     .join('');
+  /* Accesos primarios siempre visibles — necesarios para trabajar (Apple: hide optional, not tools). */
   return (
-    '<section class="crozzo-admin-hub" aria-label="' +
+    '<section class="crozzo-admin-hub crozzo-admin-hub--live" aria-label="' +
     escUserAttr(hubTitle) +
     '">' +
     '<div class="crozzo-admin-hub__head"><div class="crozzo-admin-hub__head-main">' +
@@ -21577,17 +21721,16 @@ function renderInicioOperacion() {
     keyMap[c.key] = c.page;
   });
   window.__crozzoInicioOpCardKeys = keyMap;
+  var perfilLabel = crozzoInicioOpPerfilLabel(perfil);
   var cardsHtml = cards
     .map(function (c) {
       var isLast = last === c.page;
       return (
-        '<button type="button" class="crozzo-ventas-card' +
+        '<div class="crozzo-ventas-card' +
         (isLast ? ' is-recent' : '') +
-        '" data-ventas-page="' +
+        '" role="button" tabindex="0" data-ventas-page="' +
         escUserAttr(c.page) +
-        '" onclick="crozzoInicioOpGo(\'' +
-        escUserAttr(c.page) +
-        '\')">' +
+        '">' +
         '<span class="crozzo-ventas-card__glow" aria-hidden="true"></span>' +
         '<span class="crozzo-ventas-card__top">' +
         '<span class="crozzo-ventas-card__icon" aria-hidden="true"><i data-lucide="' +
@@ -21612,10 +21755,10 @@ function renderInicioOperacion() {
           })
           .join('') +
         '</ul>' +
-        '<span class="crozzo-ventas-card__cta">Abrir <kbd>' +
+        '<span class="crozzo-ventas-card__cta"><span class="crozzo-ventas-card__cta-lbl">Abrir para vender</span> <kbd>' +
         escUserAttr(c.key) +
         '</kbd> <i data-lucide="arrow-right" aria-hidden="true"></i></span>' +
-        '</button>'
+        '</div>'
       );
     })
     .join('');
@@ -21630,49 +21773,48 @@ function renderInicioOperacion() {
       '<button type="button" class="btn btn-outline btn-sm" onclick="navigateTo(\'cierre-caja\')"><i data-lucide="wallet"></i> Cierre de caja</button>'
     );
   }
-  var keyHint =
-    cards.length > 0
-      ? ' · atajos ' + cards.map(function (c) { return '<kbd>' + escUserAttr(c.key) + '</kbd>'; }).join(' ')
-      : '';
-  var footTip =
-    cards.length > 1
-      ? '<p class="crozzo-ventas-hub__foot">Tip: use ' +
-        cards
-          .map(function (c) {
-            return '<strong>' + escUserAttr(c.key) + '</strong> ' + escUserAttr(c.title.split(' · ')[0]);
-          })
-          .join(', ') +
-        '.</p>'
-      : '';
+  var helpBits = [];
+  try {
+    if (typeof crozzoOnboardingInicioHtml === 'function') {
+      var onb = crozzoOnboardingInicioHtml();
+      if (onb) helpBits.push(onb);
+    }
+  } catch (_) {}
+  try {
+    if (
+      typeof crozzoShowOperativeMetricsUi === 'function' &&
+      crozzoShowOperativeMetricsUi() &&
+      typeof CrozzoOperativePsyche !== 'undefined' &&
+      CrozzoOperativePsyche.renderAdminWellbeingPanel
+    ) {
+      var wb = CrozzoOperativePsyche.renderAdminWellbeingPanel();
+      if (wb) helpBits.push(wb);
+    }
+  } catch (_) {}
+  var helpHtml = helpBits.length
+    ? crozzoHubRevealWrap(
+        'ayuda',
+        'Ayuda y checklist',
+        '<span class="crozzo-hub-reveal__peek-muted">al pedir</span>',
+        helpBits.join(''),
+        false
+      )
+    : '';
   return (
-    '<section class="content-section crozzo-ventas-hub">' +
-    '<header class="crozzo-ventas-hub__hero">' +
-    '<div class="crozzo-ventas-hub__hero-glow" aria-hidden="true"></div>' +
+    '<section class="content-section crozzo-ventas-hub crozzo-ventas-hub--aire crozzo-ventas-hub--balanced">' +
+    '<header class="crozzo-ventas-hub__hero crozzo-ventas-hub__hero--aire">' +
     '<div class="crozzo-ventas-hub__hero-main">' +
-    '<p class="crozzo-ventas-hub__eyebrow">Centro de ventas</p>' +
-    '<h2 class="crozzo-ventas-hub__title">Inicio de ventas</h2>' +
-    '<p class="crozzo-ventas-hub__sub">Elija el entorno de caja. Perfil <strong>' +
-    escUserAttr(perfil) +
-    '</strong>' +
-    keyHint +
-    '</p>' +
+    '<p class="crozzo-ventas-hub__lead">Para vender, abra un entorno</p>' +
+    '<p class="crozzo-ventas-hub__sub">Perfil <strong>' +
+    escUserAttr(perfilLabel) +
+    '</strong> · toque la tarjeta o use tecla <kbd>1</kbd></p>' +
     '</div>' +
     (heroBtns.length ? '<div class="crozzo-ventas-hub__hero-actions">' + heroBtns.join('') + '</div>' : '') +
     '</header>' +
-    (typeof CrozzoOperativePsyche !== 'undefined' && CrozzoOperativePsyche.renderConciergeStrip
-      ? CrozzoOperativePsyche.renderConciergeStrip()
-      : '') +
-    (typeof crozzoOnboardingInicioHtml === 'function' ? crozzoOnboardingInicioHtml() : '') +
-    (typeof crozzoShowOperativeMetricsUi === 'function' &&
-    crozzoShowOperativeMetricsUi() &&
-    typeof CrozzoOperativePsyche !== 'undefined' &&
-    CrozzoOperativePsyche.renderAdminWellbeingPanel
-      ? CrozzoOperativePsyche.renderAdminWellbeingPanel()
-      : '') +
+    (cardsHtml ? '<div class="crozzo-ventas-hub__grid" role="list">' + cardsHtml + '</div>' : '') +
     crozzoInicioOpShiftKpisHtml() +
     crozzoInicioOpAdminHubHtml() +
-    (cardsHtml ? '<div class="crozzo-ventas-hub__grid" role="list">' + cardsHtml + '</div>' : '') +
-    footTip +
+    (helpHtml ? '<div class="crozzo-ventas-hub__reveals">' + helpHtml + '</div>' : '') +
     '</section>'
   );
 }
@@ -21681,6 +21823,52 @@ function crozzoInicioOpGo(page) {
   navigateTo(page);
 }
 window.crozzoInicioOpGo = crozzoInicioOpGo;
+function crozzoHubRevealSetOpen(root, open) {
+  if (!root) return;
+  var btn = root.querySelector('.crozzo-hub-reveal__sum');
+  var panel = root.querySelector('.crozzo-hub-reveal__panel');
+  var id = root.getAttribute('data-hub-reveal') || '';
+  root.classList.toggle('is-open', !!open);
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (panel) {
+    if (open) {
+      panel.hidden = false;
+      requestAnimationFrame(function () {
+        panel.classList.add('is-shown');
+      });
+    } else {
+      panel.classList.remove('is-shown');
+      var done = false;
+      var finish = function () {
+        if (done) return;
+        done = true;
+        if (!root.classList.contains('is-open')) panel.hidden = true;
+      };
+      panel.addEventListener('transitionend', finish, { once: true });
+      setTimeout(finish, 420);
+    }
+  }
+  if (id) crozzoHubRevealSessionSet(id, !!open);
+}
+function crozzoHubRevealToggle(btn) {
+  var root = btn && btn.closest ? btn.closest('.crozzo-hub-reveal') : null;
+  if (!root) return;
+  crozzoHubRevealSetOpen(root, !root.classList.contains('is-open'));
+}
+window.crozzoHubRevealToggle = crozzoHubRevealToggle;
+function crozzoHubCardToggleMore(btn) {
+  if (!btn) return;
+  var card = btn.closest('.crozzo-ventas-card');
+  if (!card) return;
+  var wrap = card.querySelector('.crozzo-ventas-card__feats-wrap');
+  if (!wrap) return;
+  var open = wrap.hasAttribute('hidden');
+  if (open) wrap.removeAttribute('hidden');
+  else wrap.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  card.classList.toggle('is-feats-open', open);
+}
+window.crozzoHubCardToggleMore = crozzoHubCardToggleMore;
 function initInicioOperacion() {
   var root = document.getElementById('mainContent');
   if (!root) return;
@@ -21688,6 +21876,19 @@ function initInicioOperacion() {
     root._crozzoInicioOpBound = true;
     root.addEventListener('click', function (e) {
       if (currentPage !== 'inicio-operacion') return;
+      var more = e.target.closest('[data-crozzo-hub-card-more]');
+      if (more) {
+        e.preventDefault();
+        e.stopPropagation();
+        crozzoHubCardToggleMore(more);
+        return;
+      }
+      var revealBtn = e.target.closest('.crozzo-hub-reveal__sum');
+      if (revealBtn) {
+        e.preventDefault();
+        crozzoHubRevealToggle(revealBtn);
+        return;
+      }
       var card = e.target.closest('.crozzo-ventas-card[data-ventas-page]');
       if (!card) return;
       var pg = card.getAttribute('data-ventas-page');
@@ -21699,6 +21900,21 @@ function initInicioOperacion() {
     root.addEventListener('keydown', function (e) {
       if (currentPage !== 'inicio-operacion') return;
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        var moreK = e.target.closest && e.target.closest('[data-crozzo-hub-card-more]');
+        if (moreK) {
+          e.preventDefault();
+          crozzoHubCardToggleMore(moreK);
+          return;
+        }
+        var cardK = e.target.closest && e.target.closest('.crozzo-ventas-card[data-ventas-page]');
+        if (cardK) {
+          e.preventDefault();
+          var pgK = cardK.getAttribute('data-ventas-page');
+          if (pgK) crozzoInicioOpGo(pgK);
+          return;
+        }
+      }
       var map = window.__crozzoInicioOpCardKeys || { '1': 'cajero', '2': 'venta-comercial', '3': 'pedidos-internos' };
       if (map[e.key]) {
         e.preventDefault();
@@ -24047,6 +24263,29 @@ function crozzoPosHapticLight() {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') navigator.vibrate(30);
   } catch (_) {}
 }
+/** Ritual post-cobro BONA Obra (peak–end): cierre emocional sin confeti. */
+function crozzoBonaCobroRitual(factura) {
+  try {
+    if (typeof crozzoPosHapticLight === 'function') crozzoPosHapticLight();
+  } catch (_) {}
+  try {
+    if (document.body) {
+      document.body.classList.add('crozzo-bona-cobro-ritual');
+      window.setTimeout(function () {
+        try {
+          document.body.classList.remove('crozzo-bona-cobro-ritual');
+        } catch (_) {}
+      }, 780);
+    }
+  } catch (_) {}
+  try {
+    if (typeof showToast === 'function') {
+      var n = factura && (factura.consecutivo || factura.numero);
+      showToast(n ? 'Cuenta cerrada · N.º ' + n : 'Cuenta cerrada', 'success');
+    }
+  } catch (_) {}
+}
+window.crozzoBonaCobroRitual = crozzoBonaCobroRitual;
 function crozzoPosFlashOrderContainer(containerId) {
   const el = document.getElementById(containerId);
   if (!el) return;
@@ -25472,25 +25711,36 @@ function crozzoRestSlotCardHtml(tipo, slot, onClick, vista) {
   );
 }
 function crozzoRestAlertsHtml() {
-  return (
-    '<div class="alert alert-warning" id="demoBanner" style="display: ' +
-    (config.isDemoMode() ? 'flex' : 'none') +
-    '">' +
-    '<span>🧪</span><div><strong>MODO DEMO · NO VÁLIDO LEGALMENTE</strong><br>' +
-    '<span style="font-size: 0.85rem;">Simulación; no se envía a la DIAN.</span></div></div>' +
-    '<div class="alert alert-info" id="simpleModeBanner" style="display: ' +
-    (typeof config.isSimpleMode === 'function' && config.isSimpleMode() && !config.isDemoMode() ? 'flex' : 'none') +
-    '">' +
-    '<span>💵</span><div><strong>FACTURACIÓN SIMPLE</strong><br>' +
-    '<span style="font-size: 0.85rem;">Comprobante de caja; no sustituye FE DIAN.</span></div></div>' +
-    '<div class="alert alert-warning" id="feConfigBanner" style="display: ' +
-    (typeof config.isElectronicMode === 'function' && config.isElectronicMode() && !config.canGoLive().valid ? 'flex' : 'none') +
-    '">' +
-    '<span>⚠️</span><div><strong>Facturación electrónica incompleta</strong><br>' +
-    '<span style="font-size: 0.85rem;">Faltan: ' +
-    escUserAttr((config.canGoLive().missing || []).join(', ') || '—') +
-    '.</span></div></div>'
-  );
+  var parts = [];
+  if (config.isDemoMode()) {
+    parts.push(
+      '<div class="alert alert-warning" id="demoBanner">' +
+        '<span>🧪</span><div><strong>MODO DEMO · NO VÁLIDO LEGALMENTE</strong><br>' +
+        '<span style="font-size: 0.85rem;">Simulación; no se envía a la DIAN.</span></div></div>'
+    );
+  }
+  if (typeof config.isSimpleMode === 'function' && config.isSimpleMode() && !config.isDemoMode()) {
+    parts.push(
+      '<div class="alert alert-info" id="simpleModeBanner">' +
+        '<span>💵</span><div><strong>FACTURACIÓN SIMPLE</strong><br>' +
+        '<span style="font-size: 0.85rem;">Comprobante de caja; no sustituye FE DIAN.</span></div></div>'
+    );
+  }
+  if (
+    typeof config.isElectronicMode === 'function' &&
+    config.isElectronicMode() &&
+    !config.canGoLive().valid
+  ) {
+    parts.push(
+      '<div class="alert alert-warning" id="feConfigBanner">' +
+        '<span>⚠️</span><div><strong>Facturación electrónica incompleta</strong><br>' +
+        '<span style="font-size: 0.85rem;">Faltan: ' +
+        escUserAttr((config.canGoLive().missing || []).join(', ') || '—') +
+        '.</span></div></div>'
+    );
+  }
+  if (!parts.length) return '';
+  return parts.join('');
 }
 function crozzoRestEmergencyBarHtml() {
   if (typeof CrozzoEmergencyMesh === 'undefined' || !(CrozzoEmergencyMesh.isActive() || CrozzoEmergencyMesh.isLinkReady())) {
@@ -25712,24 +25962,29 @@ function renderCajero() {
     (selectedProductCategory === 'postres' ? 'active' : '') +
     '" onclick="setProductCategory(\'postres\')">Postres</button>';
   return (
-    '<div class="crozzo-rest-pos crozzo-rest-pos--order">' +
-    '<div class="crozzo-rest-pos__alerts">' +
-    crozzoRestAlertsHtml() +
-    '</div>' +
+    '<div class="crozzo-rest-pos crozzo-rest-pos--order crozzo-rest-pos--aire">' +
+    (function () {
+      var alerts = crozzoRestAlertsHtml();
+      return alerts ? '<div class="crozzo-rest-pos__alerts">' + alerts + '</div>' : '';
+    })() +
     crozzoRestPrintQueueBarHtml() +
     crozzoRestEmergencyBarHtml() +
     '<div class="crozzo-rest-pos__workspace pos-container">' +
     '<section class="crozzo-rest-pos__catalog">' +
     '<div class="crozzo-rest-pos__catalog-toolbar">' +
     crozzoRestServiceTabsHtml() +
-    '<div class="crozzo-rest-pos__catalog-ctx">' +
-    '<span class="crozzo-rest-ctx-chip"><i data-lucide="' +
+    '<div class="crozzo-rest-pos__catalog-ctx crozzo-rest-pos__catalog-ctx--slim">' +
+    '<span class="crozzo-rest-ctx-chip crozzo-rest-ctx-chip--primary"><i data-lucide="' +
     escUserAttr(ctx.icon) +
     '"></i> ' +
     escUserAttr(ctx.title) +
-    ' <small>' +
-    escUserAttr(ctx.sub) +
-    '</small></span>' +
+    '</span>' +
+    '<details class="crozzo-rest-pos__more">' +
+    '<summary class="crozzo-rest-pos__more-sum">Más</summary>' +
+    '<div class="crozzo-rest-pos__more-body">' +
+    (ctx.sub
+      ? '<span class="crozzo-rest-ctx-chip crozzo-rest-ctx-chip--sub"><small>' + escUserAttr(ctx.sub) + '</small></span>'
+      : '') +
     (typeof crozzoRestActiveSessionChipHtml === 'function' ? crozzoRestActiveSessionChipHtml() : '') +
     statusChips.join('') +
     '<span class="crozzo-rest-catalog-meta">' +
@@ -25737,14 +25992,14 @@ function renderCajero() {
     ' prod. · ' +
     cartCount +
     ' ítems</span>' +
-    '<button type="button" class="btn btn-outline btn-sm crozzo-rest-modules-btn" onclick="navigateTo(\'inicio-operacion\')" title="Inicio ventas"><i data-lucide="layout-grid"></i></button>' +
-    '</div>' +
+    '<button type="button" class="btn btn-outline btn-sm crozzo-rest-modules-btn" onclick="navigateTo(\'inicio-operacion\')" title="Inicio ventas"><i data-lucide="layout-grid"></i> Inicio</button>' +
+    '</div></details></div>' +
     '<div class="crozzo-rest-pos__search crozzo-rest-pos__search--inline">' +
     '<i data-lucide="search" aria-hidden="true"></i>' +
-    '<input type="text" class="form-input" placeholder="Buscar producto, código o SKU…" id="searchProduct" value="' +
+    '<input type="text" class="form-input" placeholder="Buscar producto…" id="searchProduct" value="' +
     escUserAttr(productSearchTerm) +
     '" title="Ctrl+K · Ctrl+Enter cobrar" autocomplete="off">' +
-    '<span class="crozzo-rest-pos__search-hint"><kbd>Ctrl+K</kbd> <kbd>Ctrl+↵</kbd></span></div>' +
+    '</div>' +
     '<div class="crozzo-rest-pos__cats crozzo-rest-pos__cats--strip">' +
     '<div class="category-grid crozzo-rest-pos__cat-grid">' +
     catChips +
@@ -25757,7 +26012,7 @@ function renderCajero() {
     '<aside class="cart-panel crozzo-rest-pos__ticket" aria-labelledby="crozzoRestCartHeading">' +
     crozzoPosCartSheetHandleHtml() +
     '<div class="cart-header crozzo-rest-pos__ticket-head">' +
-    '<div><span class="crozzo-rest-pos__ticket-label" id="crozzoRestCartHeading"><i data-lucide="receipt" aria-hidden="true"></i> Pedido actual</span></div>' +
+    '<div><span class="crozzo-rest-pos__ticket-label" id="crozzoRestCartHeading"><i data-lucide="receipt" aria-hidden="true"></i> Pedido</span></div>' +
     '<div class="crozzo-rest-pos__ticket-tools">' +
     (tipoServicioCaja !== 'directa'
       ? '<button type="button" class="btn btn-outline btn-sm" onclick="closeCajaOrderPanel()">Cerrar</button>'
@@ -25766,24 +26021,34 @@ function renderCajero() {
       ? '<button type="button" class="btn btn-outline btn-sm" onclick="clearCart()" aria-label="Vaciar pedido actual">Limpiar</button>'
       : '') +
     '</div></div>' +
-    '<div id="cartPendingSummary" class="crozzo-rest-pos__pending">Pendientes por comandar: 0 ítems</div>' +
+    '<div id="cartPendingSummary" class="crozzo-rest-pos__pending" hidden></div>' +
     (typeof crozzoRetailClientePanelHtml === 'function' ? crozzoRetailClientePanelHtml() : crozzoCrmPosClientePanelHtml()) +
     '<div class="cart-items crozzo-rest-pos__cart-items" id="cartItems">' +
     '<div class="crozzo-rest-pos__cart-empty">' +
     '<i data-lucide="shopping-cart"></i>' +
-    '<p>Agregue productos a la orden</p></div></div>' +
+    '<p>Agregue productos</p></div></div>' +
     '<div class="cart-footer crozzo-rest-pos__ticket-foot">' +
     '<div class="cart-summary crozzo-rest-pos__totals">' +
-    '<div class="cart-row"><span id="cartLblSub">' + escUserAttr(labFiscalCart.gravado) + '</span><span id="cartSubtotal">$0</span></div>' +
-    '<div class="cart-row"><span id="cartLblIva">' + escUserAttr(labFiscalCart.impuesto) + '</span><span id="cartIva">$0</span></div>' +
-    crozzoCartDescuentoSummaryHtml() +
     '<div class="cart-row cart-total crozzo-rest-pos__total-row"><span>Total</span><span id="cartTotal">$0</span></div>' +
-    '<div class="crozzo-cart-descuento-wrap">' + crozzoCartDescuentoBtnHtml() + '</div></div>' +
+    '<details class="crozzo-rest-pos__cuenta-detalle">' +
+    '<summary class="crozzo-rest-pos__cuenta-detalle-sum">Detalle de cuenta</summary>' +
+    '<div class="crozzo-rest-pos__cuenta-detalle-body">' +
+    '<div class="cart-row"><span id="cartLblSub">' +
+    escUserAttr(labFiscalCart.gravado) +
+    '</span><span id="cartSubtotal">$0</span></div>' +
+    '<div class="cart-row"><span id="cartLblIva">' +
+    escUserAttr(labFiscalCart.impuesto) +
+    '</span><span id="cartIva">$0</span></div>' +
+    crozzoCartDescuentoSummaryHtml() +
+    '<div class="crozzo-cart-descuento-wrap">' +
+    crozzoCartDescuentoBtnHtml() +
+    '</div>' +
     (typeof crozzoRestCuentaOpsButtonsHtml === 'function' ? crozzoRestCuentaOpsButtonsHtml() : '') +
+    '</div></details></div>' +
     '<button type="button" class="btn btn-primary touch-main-btn crozzo-rest-pos__action crozzo-rest-pos__action--cmd" id="btnComandarGuardar" onclick="' +
     (tipoServicioCaja === 'directa' ? 'toggleDirectSaveMenu()' : 'comandarDesdeCaja()') +
     '" disabled aria-label="Comandar pedido a cocina y guardar">' +
-    '<i data-lucide="send" aria-hidden="true"></i> Comandar y guardar' +
+    '<i data-lucide="send" aria-hidden="true"></i> Comandar' +
     (tipoServicioCaja === 'directa' ? '' : ' · ' + (tipoServicioCaja === 'mesa' ? 'Mesa' : 'Llevar')) +
     '</button>' +
     '<div class="crozzo-rest-cuenta-cobro crozzo-rest-cuenta-cobro--split" id="crozzoRestCuentaCobroWrap">' +
@@ -27165,9 +27430,15 @@ function updateCartTotals() {
   if (pendingEl) {
     if (typeof currentPage !== 'undefined' && currentPage === 'venta-comercial') {
       /* resumen en barra de pago */
-    } else {
+    } else if (pendingQty > 0) {
+      pendingEl.hidden = false;
+      pendingEl.style.display = '';
       pendingEl.textContent = `Pendientes por comandar: ${pendingQty} ítem${pendingQty === 1 ? '' : 's'}`;
-      pendingEl.style.color = pendingQty > 0 ? 'var(--warning)' : 'var(--success)';
+      pendingEl.style.color = 'var(--warning)';
+    } else {
+      pendingEl.hidden = true;
+      pendingEl.style.display = 'none';
+      pendingEl.textContent = '';
     }
   }
   if (btnFacturar) btnFacturar.disabled = cart.length === 0;
@@ -29463,12 +29734,12 @@ function toggleMetodoPagoCobro() {
   if (groupQr) groupQr.style.display = cobroPagoActivo && qrMethods.includes(metodo) ? '' : 'none';
   if (qrLabel) {
     const map = {
-      qr_nequi: 'Cuenta o referencia Nequi (opcional)',
-      qr_daviplata: 'Cuenta o referencia Daviplata (opcional)',
-      qr_bancolombia: 'Referencia Bancolombia (opcional)',
-      qr_otro: 'Nota sobre el QR u operador (opcional)'
+      qr_nequi: 'Referencia Nequi (requerida sin Wompi)',
+      qr_daviplata: 'Referencia Daviplata (requerida sin pasarela)',
+      qr_bancolombia: 'Referencia Bancolombia (requerida sin Wompi)',
+      qr_otro: 'Referencia del QR u operador'
     };
-    qrLabel.textContent = map[metodo] || 'Dato de referencia (opcional)';
+    qrLabel.textContent = map[metodo] || 'Dato de referencia del pago';
   }
   const cart = getActiveCart();
   const total = computeTotals(cart).total;
@@ -29631,6 +29902,54 @@ async function confirmarCobroDesdeCaja() {
     if (qrMethods.includes(metodoPago)) {
       const qrRef = (document.getElementById('qrRefCobro')?.value || '').trim();
       if (qrRef) paymentMeta.qrRef = qrRef;
+    }
+    const digitalMethods = qrMethods.concat(['transferencia_pse']);
+    if (
+      digitalMethods.includes(metodoPago) &&
+      typeof window !== 'undefined' &&
+      window.CrozzoDigitalPayConduit &&
+      typeof window.CrozzoDigitalPayConduit.ensurePaid === 'function'
+    ) {
+      try {
+        const payRes = await window.CrozzoDigitalPayConduit.ensurePaid({
+          method: metodoPago,
+          amountCents: Math.round(Number(totalPagar || 0) * 100),
+          idempotencyKey:
+            'cobro-' +
+            String(tipoServicioCaja || 'x') +
+            '-' +
+            Date.now() +
+            '-' +
+            Math.random().toString(36).slice(2, 8),
+          qrRef: paymentMeta.qrRef || '',
+          refPago: paymentMeta.refPago || '',
+          phone: (document.getElementById('qrRefCobro')?.value || '').trim(),
+          allowManual: !!(paymentMeta.qrRef || paymentMeta.refPago),
+        });
+        paymentMeta.digitalPay = {
+          status: payRes.status,
+          idempotencyKey: payRes.idempotencyKey,
+          provider: payRes.provider,
+          providerRef: payRes.providerRef || null,
+        };
+        if (payRes.status === 'failed') {
+          showToast(payRes.error || 'Pago digital rechazado', 'warning');
+          return;
+        }
+        if (payRes.status === 'pending' && typeof showToast === 'function') {
+          showToast('Pago digital pendiente de confirmación del proveedor.', 'info');
+        }
+      } catch (payErr) {
+        if (payErr && payErr.code === 'DIGITAL_PAY_REF_REQUIRED') {
+          showToast('Indica referencia Nequi/PSE o configura digitalPay (Wompi) en el equipo.', 'warning');
+          return;
+        }
+        showToast(
+          'Pago digital: ' + (payErr && payErr.message ? payErr.message : String(payErr)),
+          'warning'
+        );
+        return;
+      }
     }
   }
   crozzoTrackCobroModalProcessing();
@@ -31327,6 +31646,7 @@ function crozzoCrmLookupSourceLabel(source) {
   if (source === 'dian_tauri' || source === 'dian_supabase' || source === 'dian_demo') return 'DIAN';
   if (source === 'rues_opendata' || source === 'rues_enrich') return 'RUES';
   if (source === 'scrapling_enrich') return 'RUES/Scrapling';
+  if (source === 'obscura_enrich') return 'Web/Obscura';
   if (source === 'crm_local') return 'directorio';
   if (source === 'cache') return 'memoria';
   return 'internet';
@@ -32630,7 +32950,8 @@ async function facturar(options = {}) {
       if (typeof crozzoShiftOnSaleRecorded === 'function') crozzoShiftOnSaleRecorded(facturaSaved);
     } catch (_) {}
     config.addAudit('factura_pos_emitida', `Cuenta POS #${facturaObj.consecutivo} - ${metodoPago.toUpperCase()} - $${total.toLocaleString('es-CO')}`);
-    if (typeof crozzoPosHapticLight === 'function') crozzoPosHapticLight();
+    if (typeof crozzoBonaCobroRitual === 'function') crozzoBonaCobroRitual(facturaSaved);
+    else if (typeof crozzoPosHapticLight === 'function') crozzoPosHapticLight();
     if (typeof crozzoClearCobroPendienteOk === 'function') crozzoClearCobroPendienteOk();
     crozzoClearSaleInflight();
     saleInflightCompleted = true;
@@ -32663,7 +32984,7 @@ async function facturar(options = {}) {
         <p style="color:var(--text-secondary); margin-top:6px;">Método de pago: ${pagoTxt}</p>
         ${propinaLine}
         ${metodoPago === 'efectivo' ? `<p style="color:var(--text-secondary); margin-top:6px;">Recibido: $${Number(paymentMeta.valorRecibido || 0).toLocaleString('es-CO')} · Devueltas: $${Number(paymentMeta.devueltas || 0).toLocaleString('es-CO')}</p>` : ''}
-        <p style="color:var(--success); font-weight:700; margin-top:6px;">Total: $${total.toLocaleString('es-CO')}</p>
+        <p style="color:var(--bona-gold, var(--accent)); font-weight:700; margin-top:6px; font-family:var(--bona-font-display, Georgia, serif);">Total: $${total.toLocaleString('es-CO')}</p>
         ${facturaSaved.cobroEstado === 'pendiente' || facturaSaved.cobroEstado === 'parcial' ? '<p class="form-hint" style="margin-top:10px;">💳 Quedó en <strong>cartera por cobrar</strong>. <button type="button" class="btn btn-link" style="padding:0;font-size:inherit;" onclick="closeModal();navigateTo(\'cartera-comercial\')">Abrir cartera</button></p>' : ''}
         <div class="btn-group crozzo-factura-share-row" style="justify-content:center;flex-wrap:wrap;gap:8px;flex-direction:column;align-items:stretch;">
           ${typeof crozzoCajeroPostCobroWhatsAppNextBtnHtml === 'function' ? crozzoCajeroPostCobroWhatsAppNextBtnHtml({ fullWidth: true }) : ''}
@@ -32728,8 +33049,15 @@ async function facturar(options = {}) {
       total,
       ...descuentoMeta,
       items: crozzoCuentaItemsParaTicket(cart),
-      estado: config.isDemoMode() ? 'demo' : 'timbrada',
-      is_demo: !!config.isDemoMode(),
+      estado:
+        result.isDemo || config.isDemoMode()
+          ? 'demo'
+          : result.pending
+            ? 'pendiente_fiscal'
+            : 'timbrada',
+      is_demo: !!(result.isDemo || config.isDemoMode()),
+      fiscalPending: !!result.pending,
+      dianStatus: result.dianStatus || (result.pending ? 'PENDING' : 'OK'),
       tipoComprobante: 'electronica',
       perfilEmision: 'fe',
       fecha: fecha,
@@ -32799,6 +33127,7 @@ async function facturar(options = {}) {
       if (typeof crozzoShiftOnSaleRecorded === 'function') crozzoShiftOnSaleRecorded(facturaSavedEnriched);
     } catch (_) {}
     config.addAudit('factura_emitida', `Factura #${facturaObj.consecutivo} - ${config.isDemoMode() ? 'DEMO' : 'PRODUCCIÓN'} - $${total.toLocaleString('es-CO')}`);
+    if (typeof crozzoBonaCobroRitual === 'function') crozzoBonaCobroRitual(facturaSavedEnriched);
     if (typeof crozzoClearCobroPendienteOk === 'function') crozzoClearCobroPendienteOk();
     crozzoClearSaleInflight();
     saleInflightCompleted = true;
@@ -34088,7 +34417,8 @@ function crozzoTermicaNormalizePlantilla(raw, opts) {
       };
     }),
   };
-  if (docType === 'factura' && global.CrozzoTermicaColombia) {
+  // skipPolish: persistencia RAW desde el diseñador — no ensure*/dedupe (borraba título / ocultaba capas).
+  if (!opts.skipPolish && docType === 'factura' && global.CrozzoTermicaColombia) {
     if (typeof global.CrozzoTermicaColombia.ensureFacturaBlocks === 'function') {
       result = global.CrozzoTermicaColombia.ensureFacturaBlocks(result);
     } else if (typeof global.CrozzoTermicaColombia.dedupeFacturaBlocks === 'function') {
@@ -36767,33 +37097,33 @@ function updateConnectivityTierBadge(tierInfo) {
     !(typeof crozzoWanOnline === 'function' && crozzoWanOnline());
   const map = {
     cloud: {
-      text: 'En línea',
+      text: 'Sede lista',
       dot: 'ok',
       title: 'Conectado a la base de datos en la nube (Wi‑Fi o datos móviles)',
     },
     lan: {
-      text: wanDown ? 'Red local' : p2pOn ? 'Red local' : 'Red local',
+      text: 'En local · sincroniza sola',
       dot: 'ok',
       title: wanDown
-        ? 'Sin internet pero conectado a la caja por Wi‑Fi local — sigue operando'
-        : 'Conectado a la caja por red local'
+        ? 'Sin internet pero conectado a la caja por Wi‑Fi local — Continúo operando · se envía solo'
+        : 'Conectado a la caja por red local — Continúo operando · se envía solo',
     },
     hotspot: {
-      text: 'Hotspot',
+      text: 'En local · sincroniza sola',
       dot: 'warn',
-      title: 'Red directa con la caja (hotspot) — sincronización automática'
+      title: 'Red directa con la caja (hotspot) — sincronización automática',
     },
     offline: {
       text:
         typeof crozzoDeviceFullyIsolated === 'function' && crozzoDeviceFullyIsolated()
-          ? 'Sin red'
-          : 'Buscando…',
+          ? 'Recuperando…'
+          : 'Recuperando…',
       dot: 'warn',
       title:
         typeof crozzoDeviceFullyIsolated === 'function' && crozzoDeviceFullyIsolated()
-          ? 'Dispositivo aislado — sin internet, red local ni otros equipos detectados'
-          : 'Reconectando — buscando nube, red local o malla entre equipos'
-    }
+          ? 'Dispositivo aislado — buscando nube, red local o malla'
+          : 'Reconectando — Continúo operando · se envía solo',
+    },
   };
   const orch =
     window.CrozzoConnectivityOrchestrator && typeof window.CrozzoConnectivityOrchestrator.getState === 'function'
@@ -36803,12 +37133,12 @@ function updateConnectivityTierBadge(tierInfo) {
   let m = map[t] || map.offline;
   if (orchLevel === 'mesh' || orchLevel === 'qr') {
     m = {
-      text: orchLevel === 'qr' ? 'Re-emparejar' : 'Malla offline',
+      text: orchLevel === 'qr' ? 'Recuperando…' : 'En local · sincroniza sola',
       dot: 'warn',
       title:
         orchLevel === 'qr'
           ? 'Sin conexión prolongada — escanee el QR del día en la caja'
-          : 'Malla offline: tablets, celulares y PC (caja/portátil) se replican pedidos.',
+          : 'Malla offline: equipos se replican pedidos · Continúo operando · se envía solo',
     };
   }
   try {
@@ -36819,7 +37149,7 @@ function updateConnectivityTierBadge(tierInfo) {
       const tr = String(bleSt.transport || '');
       const roleLbl = bleSt.role === 'A' ? 'Caja' : bleSt.role === 'B' ? 'Tablet' : 'Equipo';
       m = {
-        text: 'Malla · ' + peers + ' peer' + (peers === 1 ? '' : 's'),
+        text: peers > 0 ? 'En local · sincroniza sola' : 'Recuperando…',
         dot: peers > 0 ? 'ok' : 'warn',
         title:
           roleLbl +
@@ -36837,15 +37167,37 @@ function updateConnectivityTierBadge(tierInfo) {
     if (t === 'offline' && gst && gst.active) {
       const peers = gst.peerCount || 0;
       m = {
-        text: peers > 0 ? `Malla offline (${peers})` : 'Buscando malla…',
+        text: peers > 0 ? 'En local · sincroniza sola' : 'Recuperando…',
         dot: peers > 0 ? 'ok' : 'warn',
         title:
           peers > 0
-            ? 'Tablets enlazadas por gossip UDP — comandas se replican sin internet'
-            : 'Activo modo malla — buscando otras tablets en la misma red Wi‑Fi',
+            ? 'Tablets enlazadas — comandas se replican sin internet · Continúo operando · se envía solo'
+            : 'Buscando otras tablets en la misma red Wi‑Fi',
       };
     }
   } catch (_) {}
+  /* Prefer SedeReadiness human voice when available (D-017) */
+  try {
+    if (window.CrozzoSedeReadiness && typeof CrozzoSedeReadiness.humanVoice === 'function') {
+      var hv = CrozzoSedeReadiness.humanVoice();
+      if (hv && hv.text) {
+        if (hv.kind === 'hold' || hv.kind === 'recover' || t === 'cloud' || t === 'lan' || t === 'offline') {
+          m = {
+            text: hv.text,
+            dot: hv.kind === 'ready' ? 'ok' : 'warn',
+            title: hv.tip || m.title,
+          };
+        }
+      }
+    }
+  } catch (_) {}
+  if (tierInfo && tierInfo.cloudDegraded && m.text === 'Sede lista') {
+    m = {
+      text: 'En local · sincroniza sola',
+      dot: 'ok',
+      title: (m.title || '') + ' — nube degradada · Continúo operando · se envía solo',
+    };
+  }
   var tip = m.title + (tierInfo && tierInfo.reason ? ' — ' + tierInfo.reason : '');
   if (p2pOn) tip += ' — WebRTC enlazado con caja central';
   var text = m.text;
@@ -36853,7 +37205,7 @@ function updateConnectivityTierBadge(tierInfo) {
   try {
     var pend = crozzoPendingSyncCount();
     if (pend > 0) {
-      text += ' · ' + pend + ' pend.';
+      text = 'Recuperando…';
       tip += ' — ' + pend + ' operación(es) por sincronizar (se envían solas al reconectar)';
       if (dot === 'ok') dot = 'warn';
     }
@@ -41616,9 +41968,19 @@ function renderConfigEmpresa() {
           <input type="text" class="form-input" id="cfgActividad" value="${emp.actividadEconomica || ''}" placeholder="5611 - Restaurantes">
         </div>
       </div>
-      <div class="btn-group">
+      <div class="alert alert-info" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px">
+        <span aria-hidden="true">🧪</span>
+        <div style="font-size:0.88rem;line-height:1.45">
+          <strong>Datos demo de práctica</strong><br>
+          Carga empresa + catálogo, empleados, ventas, voids, cierres, costeos y <strong>días con anomalías</strong> para IA
+          (hace 1d voids noche · 2d outlier Diana · 3d ratio void · 5d efectivo/abortos · 7d control limpio).
+          Use <strong>Borrar todo</strong> solo si quiere dejar este equipo en blanco (irreversible en local).
+        </div>
+      </div>
+      <div class="btn-group" style="flex-wrap:wrap;gap:8px">
         <button class="btn btn-primary" onclick="saveEmpresaConfig()">💾 Guardar Configuración</button>
-        <button class="btn btn-outline" onclick="fillDemoEmpresa()">🧪 Cargar datos demo</button>
+        <button class="btn btn-outline" onclick="fillDemoEmpresa()" title="Empresa + productos, empleados, ventas, voids, cierres y costeos">🧪 Cargar datos demo completo</button>
+        <button class="btn btn-danger" onclick="crozzoPromptWipeLocalDemoData()" title="Vacía ventas, catálogo, demos y cierres en este equipo">⚠️ Borrar todo y empezar de 0</button>
       </div>
     </div>
   `;
@@ -41684,6 +42046,809 @@ function saveEmpresaConfig() {
     if (typeof applyCrozzoBrandingChrome === 'function') applyCrozzoBrandingChrome();
   } catch (_) {}
 }
+function crozzoSeedDemoOperativoData(opts) {
+  opts = opts || {};
+  var DEMO_TAG = 'DEMO-SEED';
+  var daysBack = Math.max(5, Math.min(21, Number(opts.days) || 12));
+  var salesN = Math.max(20, Math.min(120, Number(opts.sales) || 56));
+  var voidsN = Math.max(8, Math.min(80, Number(opts.voids) || 28));
+  var cierresN = Math.max(3, Math.min(20, Number(opts.cierres) || 10));
+  var platos = [
+    { nombre: 'Bandeja paisa', precio: 32000 },
+    { nombre: 'Ajiaco santafereño', precio: 28000 },
+    { nombre: 'Empanada de carne', precio: 3500 },
+    { nombre: 'Arepa con queso', precio: 8000 },
+    { nombre: 'Café americano', precio: 4500 },
+    { nombre: 'Jugo de lulo', precio: 7000 },
+    { nombre: 'Sancocho trifásico', precio: 30000 },
+    { nombre: 'Hamburguesa casa', precio: 22000 },
+    { nombre: 'Limonada de coco', precio: 9000 },
+    { nombre: 'Postre tres leches', precio: 12000 },
+  ];
+  var cajeros = ['Ana Cajero', 'Luis Encargado', 'Carlos Mesero', 'Diana Caja'];
+  try {
+    var u = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+    if (u && (u.nombre || u.id)) cajeros[0] = String(u.nombre || u.id);
+  } catch (_) {}
+  var metodos = ['efectivo', 'tarjeta', 'transferencia', 'efectivo', 'efectivo'];
+  var voidTipos = [
+    'remove_line',
+    'qty_down',
+    'clear_all',
+    'clear_pending',
+    'tablet_remove_line',
+    'cobro_abortado',
+    'anular_comandado',
+    'logout_con_consumo',
+  ];
+  function rnd(a, b) {
+    return a + Math.floor(Math.random() * (b - a + 1));
+  }
+  function pick(arr) {
+    return arr[rnd(0, arr.length - 1)];
+  }
+  function ymdOffset(daysAgo) {
+    var d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - daysAgo);
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function isoAt(daysAgo, hour, minute) {
+    var d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    d.setHours(hour, minute || 0, rnd(0, 59), 0);
+    return d.toISOString();
+  }
+  function peakHour() {
+    var roll = Math.random();
+    if (roll < 0.38) return rnd(12, 14);
+    if (roll < 0.72) return rnd(19, 21);
+    if (roll < 0.85) return rnd(8, 11);
+    return rnd(15, 18);
+  }
+
+  var outlierWho = 'Diana Caja';
+  var lateWho = 'Luis Encargado';
+  var ratioWho = 'Ana Cajero';
+  var anomalyDays = [];
+  var saleSeq = 0;
+
+  function mkSale(daysAgo, hour, who, metodo, anomalyTag) {
+    var nItems = rnd(1, 3);
+    var items = [];
+    var sub = 0;
+    var j;
+    for (j = 0; j < nItems; j++) {
+      var p = pick(platos);
+      var qty = rnd(1, 2);
+      items.push({
+        nombre: p.nombre,
+        nombreVenta: p.nombre,
+        cantidad: qty,
+        precio: p.precio,
+        precioUnitario: p.precio,
+      });
+      sub += p.precio * qty;
+    }
+    var iva = Math.round(sub * 0.08);
+    var total = sub + iva;
+    var fecha = isoAt(daysAgo, hour, rnd(0, 59));
+    var consec = DEMO_TAG + '-A' + String(1000 + saleSeq++) + '-' + String(Date.now()).slice(-4);
+    return {
+      __demoSeed: true,
+      __demoAnomaly: anomalyTag || null,
+      uuid: DEMO_TAG + '-' + consec,
+      saleAttemptId: DEMO_TAG + '-' + consec,
+      consecutivo: String(910000 + saleSeq),
+      numeroResolucion: 'DEMO-SEED',
+      fechaEmision: fecha,
+      fecha: fecha,
+      tipoDocumento: '01',
+      tipoOperacion: '01',
+      tipoComprobante: 'pos',
+      tipoServicio: 'mesa',
+      mesa: 'M' + rnd(1, 8),
+      contextoServicio: 'Mesa demo anomalia',
+      metodoPago: metodo,
+      pago: metodo,
+      subtotal: sub,
+      iva: iva,
+      total: total,
+      totalFactura: total,
+      items: items,
+      estado: 'pos',
+      legalTipo: 'ticket_soporte',
+      cufe: 'NO-APLICA-DEMO-SEED',
+      cobradoPor: who,
+      cobradoPorNombre: who,
+      userId: who,
+      cajeroId: who,
+      compradorNombre: 'Consumidor final',
+      compradorNit: '222222222222',
+      paymentMeta: { demo: true, anomaly: anomalyTag || null },
+    };
+  }
+
+  function mkVoid(daysAgo, hour, who, tipo, detalle, anomalyTag) {
+    return {
+      __demoSeed: true,
+      __demoAnomaly: anomalyTag || null,
+      at: isoAt(daysAgo, hour, rnd(0, 59)),
+      user: who,
+      tipo: tipo,
+      detalle: String(detalle || pick(platos).nombre) + (anomalyTag ? ' · ' + anomalyTag : ' · demo seed'),
+      contexto: 'mesa:M' + rnd(1, 8),
+    };
+  }
+
+  var facturas = [];
+  try {
+    facturas = config.getFacturas() || [];
+    if (!Array.isArray(facturas)) facturas = [];
+  } catch (_) {
+    facturas = [];
+  }
+  var keptFacturas = facturas.filter(function (f) {
+    if (!f) return false;
+    if (f.__demoSeed) return false;
+    if (String(f.uuid || '').indexOf(DEMO_TAG) === 0) return false;
+    return true;
+  });
+  var seeded = [];
+  var i;
+  for (i = 0; i < salesN; i++) {
+    var daysAgo = rnd(0, daysBack - 1);
+    /* Reservar días 1,2,3,5 para escenarios de anomalía (menos ruido aleatorio). */
+    if (daysAgo === 1 || daysAgo === 2 || daysAgo === 3 || daysAgo === 5) {
+      daysAgo = rnd(6, Math.max(6, daysBack - 1));
+    }
+    var hour = peakHour();
+    var who = i % 7 === 0 ? cajeros[1] : pick(cajeros);
+    seeded.push(mkSale(daysAgo, hour, who, pick(metodos), null));
+  }
+
+  /* —— Días con anomalías detectables por IA (flags M1) —— */
+  /* D-1: voids noche + riesgo efectivo */
+  for (i = 0; i < 5; i++) seeded.push(mkSale(1, rnd(12, 15), lateWho, 'efectivo', 'voids_noche'));
+  /* D-2: outlier Diana (pocas ventas) */
+  for (i = 0; i < 3; i++) seeded.push(mkSale(2, rnd(13, 16), outlierWho, 'tarjeta', 'outlier_cajero'));
+  for (i = 0; i < 4; i++) seeded.push(mkSale(2, rnd(12, 14), 'Carlos Mesero', 'tarjeta', 'outlier_cajero'));
+  /* D-3: ratio void alto (muy pocas ventas) */
+  for (i = 0; i < 3; i++) seeded.push(mkSale(3, rnd(12, 14), ratioWho, 'efectivo', 'ratio_void'));
+  /* D-5: canal efectivo + abortos */
+  for (i = 0; i < 10; i++) seeded.push(mkSale(5, rnd(12, 20), lateWho, 'efectivo', 'canal_efectivo'));
+  /* D-7: día control limpio */
+  for (i = 0; i < 12; i++) seeded.push(mkSale(7, peakHour(), pick(['Ana Cajero', 'Carlos Mesero']), pick(['tarjeta', 'transferencia']), 'dia_control'));
+
+  anomalyDays = [
+    { daysAgo: 1, ymd: ymdOffset(1), label: 'Voids nocturnos + riesgo efectivo', expect: 'voids_tarde_turno, senal_efectivo_riesgo' },
+    { daysAgo: 2, ymd: ymdOffset(2), label: 'Cajero outlier (Diana)', expect: 'cajero_outlier_voids' },
+    { daysAgo: 3, ymd: ymdOffset(3), label: 'Ratio void alto', expect: 'ratio_void_alto' },
+    { daysAgo: 5, ymd: ymdOffset(5), label: 'Efectivo con abortos de cobro', expect: 'canal_efectivo_con_voids, senal_efectivo_riesgo_alta' },
+    { daysAgo: 7, ymd: ymdOffset(7), label: 'Día control (casi limpio)', expect: 'sin banderas graves' },
+  ];
+
+  seeded.sort(function (a, b) {
+    return new Date(b.fecha).getTime() - new Date(a.fecha).getTime();
+  });
+  var nextFacts = seeded.concat(keptFacturas);
+  try {
+    var ref = config.getFacturas();
+    if (Array.isArray(ref)) {
+      ref.length = 0;
+      for (i = 0; i < nextFacts.length; i++) ref.push(nextFacts[i]);
+    } else if (config.config) {
+      config.config.facturas = nextFacts;
+    }
+    if (typeof config.save === 'function') config.save();
+  } catch (eSave) {
+    console.warn('[demo-seed] facturas', eSave);
+  }
+
+  var voidLog = [];
+  try {
+    voidLog = config.get('cajaVoidLog') || [];
+    if (!Array.isArray(voidLog)) voidLog = [];
+  } catch (_) {
+    voidLog = [];
+  }
+  voidLog = voidLog.filter(function (e) {
+    return !(e && e.__demoSeed);
+  });
+  var voidSeed = [];
+  for (i = 0; i < voidsN; i++) {
+    var vDays = rnd(0, daysBack - 1);
+    if (vDays === 1 || vDays === 2 || vDays === 3 || vDays === 5 || vDays === 7) {
+      vDays = rnd(6, Math.max(6, daysBack - 1));
+      if (vDays === 7) vDays = 8;
+    }
+    var vHour = peakHour();
+    var vTipo = pick(['remove_line', 'qty_down', 'clear_pending', 'tablet_remove_line']);
+    var vWho = pick(['Ana Cajero', 'Carlos Mesero']);
+    voidSeed.push(mkVoid(vDays, vHour, vWho, vTipo, null, null));
+  }
+  /* D-1: muchos voids tarde + cash risk */
+  for (i = 0; i < 8; i++) {
+    voidSeed.push(
+      mkVoid(
+        1,
+        rnd(21, 23),
+        lateWho,
+        i < 4 ? 'cobro_abortado' : i < 6 ? 'logout_con_consumo' : 'leave_unpaid_blocked',
+        'Anomalia noche',
+        'voids_noche'
+      )
+    );
+  }
+  /* D-2: outlier Diana */
+  for (i = 0; i < 12; i++) {
+    voidSeed.push(mkVoid(2, rnd(13, 18), outlierWho, 'remove_line', 'Outlier Diana', 'outlier_cajero'));
+  }
+  /* D-3: ratio alto */
+  for (i = 0; i < 10; i++) {
+    voidSeed.push(mkVoid(3, rnd(12, 16), ratioWho, i % 2 ? 'clear_all' : 'remove_line', 'Ratio void', 'ratio_void'));
+  }
+  /* D-5: efectivo + abortos */
+  for (i = 0; i < 7; i++) {
+    voidSeed.push(
+      mkVoid(5, rnd(14, 20), lateWho, i < 4 ? 'cobro_abortado' : 'logout_con_consumo', 'Canal efectivo', 'canal_efectivo')
+    );
+  }
+  /* D-7: casi limpio */
+  voidSeed.push(mkVoid(7, 15, 'Ana Cajero', 'qty_down', 'Control OK', 'dia_control'));
+
+  voidSeed.sort(function (a, b) {
+    return new Date(b.at).getTime() - new Date(a.at).getTime();
+  });
+  var nextVoids = voidSeed.concat(voidLog).slice(0, 400);
+  try {
+    config.set('cajaVoidLog', nextVoids);
+  } catch (eVoid) {
+    console.warn('[demo-seed] voids', eVoid);
+  }
+
+  var histKey =
+    typeof window !== 'undefined' && window.CROZZO_SHIFT_TURN_HIST
+      ? window.CROZZO_SHIFT_TURN_HIST
+      : 'crozzo_shift_turn_history_v1';
+  var hist = [];
+  try {
+    hist = JSON.parse(localStorage.getItem(histKey) || '[]');
+    if (!Array.isArray(hist)) hist = [];
+  } catch (_) {
+    hist = [];
+  }
+  hist = hist.filter(function (r) {
+    return !(r && (r.__demoSeed || String(r.shiftId || '').indexOf(DEMO_TAG) === 0));
+  });
+  var cierreSeed = [];
+  var anomalyCierreNotes = {
+    1: 'ANOMALIA DEMO: faltante + voids nocturnos (revisar IA)',
+    2: 'ANOMALIA DEMO: outlier voids Diana Caja',
+    3: 'ANOMALIA DEMO: ratio void alto',
+    5: 'ANOMALIA DEMO: mucho efectivo + cobros abortados',
+    7: 'Control demo: cierre limpio',
+  };
+  for (i = 0; i < cierresN; i++) {
+    var cDays = i + 1;
+    if (cDays > daysBack) break;
+    var bDate = ymdOffset(cDays);
+    var shiftType = i % 3 === 0 ? 'dia' : i % 3 === 1 ? 'manana' : 'tarde';
+    var cash = rnd(180000, 920000);
+    var diff = anomalyCierreNotes[cDays]
+      ? cDays === 7
+        ? 0
+        : -rnd(35000, 120000)
+      : i % 4 === 0
+        ? -rnd(5000, 25000)
+        : i % 5 === 0
+          ? rnd(2000, 12000)
+          : 0;
+    var closedH = shiftType === 'manana' ? 14 : shiftType === 'tarde' ? 22 : 23;
+    cierreSeed.push({
+      __demoSeed: true,
+      __demoAnomaly: !!anomalyCierreNotes[cDays],
+      shiftType: shiftType,
+      shiftLabel: shiftType === 'dia' ? 'Día' : shiftType === 'manana' ? 'Mañana' : 'Tarde',
+      businessDate: bDate,
+      shiftId: DEMO_TAG + '-' + bDate + '-' + shiftType,
+      openedAt: isoAt(cDays, shiftType === 'tarde' ? 14 : 8, 0),
+      closedAt: isoAt(cDays, closedH, rnd(0, 40)),
+      autoClosed: false,
+      salesCount: rnd(8, 28),
+      totalSales: cash + rnd(40000, 200000),
+      cashSales: cash,
+      fondo: 100000,
+      expected: cash + 100000,
+      actual: cash + 100000 + diff,
+      diff: diff,
+      notes: anomalyCierreNotes[cDays] || (diff ? 'Ajuste demo seed' : 'Cierre demo seed OK'),
+      byMethod: { efectivo: cash, tarjeta: rnd(20000, 120000) },
+      closedBy: cDays === 2 ? outlierWho : cDays === 1 || cDays === 5 ? lateWho : pick(cajeros),
+    });
+  }
+  var nextHist = cierreSeed.concat(hist).slice(0, 60);
+  try {
+    localStorage.setItem(histKey, JSON.stringify(nextHist));
+  } catch (eHist) {
+    console.warn('[demo-seed] cierres', eHist);
+  }
+
+  /* —— Productos (catálogo POS) —— */
+  var demoProducts = [
+    { id: 9001, nombre: 'Bandeja Paisa', precio: 32000, ivaRate: 0, icon: '🍛', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+    { id: 9002, nombre: 'Ajiaco Santafereño', precio: 28000, ivaRate: 0, icon: '🍲', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+    { id: 9003, nombre: 'Empanada de carne', precio: 3500, ivaRate: 0, icon: '🥟', categoria: 'entradas', tieneRecetaProceso: true },
+    { id: 9004, nombre: 'Arepa con queso', precio: 8000, ivaRate: 0, icon: '🧀', categoria: 'entradas', tieneRecetaProceso: true },
+    { id: 9005, nombre: 'Café americano', precio: 4500, ivaRate: 0, icon: '☕', categoria: 'bebidas', tieneRecetaProceso: true },
+    { id: 9006, nombre: 'Jugo de lulo', precio: 7000, ivaRate: 0.19, icon: '🧃', categoria: 'bebidas', tieneRecetaProceso: true },
+    { id: 9007, nombre: 'Sancocho trifásico', precio: 30000, ivaRate: 0, icon: '🥘', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+    { id: 9008, nombre: 'Hamburguesa casa', precio: 22000, ivaRate: 0, icon: '🍔', categoria: 'platos-fuertes', tieneRecetaProceso: true },
+    { id: 9009, nombre: 'Limonada de coco', precio: 9000, ivaRate: 0.19, icon: '🥤', categoria: 'bebidas', tieneRecetaProceso: true },
+    { id: 9010, nombre: 'Postre tres leches', precio: 12000, ivaRate: 0.19, icon: '🍰', categoria: 'postres', tieneRecetaProceso: true },
+  ].map(function (p) {
+    return Object.assign({}, p, { __demoSeed: true, visibleEnPos: true, activo: true });
+  });
+  var productsCount = 0;
+  try {
+    if (typeof products !== 'undefined' && Array.isArray(products)) {
+      var keptProd = products.filter(function (p) {
+        return !(p && (p.__demoSeed || (Number(p.id) >= 9001 && Number(p.id) <= 9099)));
+      });
+      products.length = 0;
+      keptProd.forEach(function (p) {
+        products.push(p);
+      });
+      demoProducts.forEach(function (p) {
+        products.push(p);
+      });
+      if (typeof global !== 'undefined') global.products = products;
+      productsCount = demoProducts.length;
+      if (typeof persistCatalogProductosLocal === 'function') persistCatalogProductosLocal();
+      else if (typeof config.set === 'function') {
+        config.set(
+          'catalogoProductos',
+          products.map(function (x) {
+            return JSON.parse(JSON.stringify(x));
+          })
+        );
+      }
+    }
+  } catch (eProd) {
+    console.warn('[demo-seed] productos', eProd);
+  }
+
+  /* —— Costeos / recetas demo —— */
+  var costosCount = 0;
+  try {
+    var C = typeof CrozzoCatalogoMp !== 'undefined' ? CrozzoCatalogoMp : null;
+    if (C) {
+      demoProducts.forEach(function (p) {
+        if (C.syncProductoFromPos) C.syncProductoFromPos(p, { silent: true, estadoFlujo: 'vigente' });
+        if (C.upsertRecetaPlato) {
+          C.upsertRecetaPlato(
+            {
+              slug: 'demo-' + p.id,
+              producto: p.nombre,
+              posProductId: p.id,
+              lineas: [
+                { ingrediente: 'Insumo base', cantidad: 0.25, unidad: 'kg', costoXUnidad: Math.round(p.precio * 0.18) },
+                { ingrediente: 'Guarnición', cantidad: 1, unidad: 'und', costoXUnidad: Math.round(p.precio * 0.08) },
+              ],
+              opts: { __demoSeed: true },
+            },
+            { skipEvent: true, skipLegacyDemo: true }
+          );
+          costosCount += 1;
+        }
+      });
+    }
+  } catch (eCost) {
+    console.warn('[demo-seed] costos', eCost);
+  }
+
+  /* —— Empleados / cajeros (usuarios locales) —— */
+  var staffCount = 0;
+  try {
+    var confU = typeof getUsuariosConfig === 'function' ? getUsuariosConfig() : { staff: [] };
+    var staff = (confU.staff || []).filter(function (s) {
+      return !(s && s.__demoSeed);
+    });
+    var demoStaff = [
+      {
+        id: 'DEMO_CAJA',
+        nombre: 'Ana Cajero',
+        rol: 'caja',
+        activo: true,
+        __demoSeed: true,
+        permisos: {
+          caja: ['vista_pos', 'vista_facturas', 'vista_clientes', 'abrir_orden', 'editar_orden', 'facturar', 'cierre_arqueo', 'eliminar_item'],
+          comandas: [],
+          admin: [],
+        },
+      },
+      {
+        id: 'DEMO_ENC',
+        nombre: 'Luis Encargado',
+        rol: 'encargado',
+        activo: true,
+        __demoSeed: true,
+        permisos: {
+          caja: ['vista_pos', 'vista_facturas', 'abrir_orden', 'editar_orden', 'facturar', 'cierre_arqueo', 'anular_comandado', 'eliminar_item', 'descuento'],
+          comandas: ['ver', 'despachar'],
+          admin: [],
+        },
+      },
+      {
+        id: 'DEMO_MES1',
+        nombre: 'Carlos Mesero',
+        rol: 'mesero',
+        activo: true,
+        __demoSeed: true,
+        permisos: {
+          caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar'],
+          comandas: ['ver'],
+          admin: [],
+        },
+      },
+      {
+        id: 'DEMO_MES2',
+        nombre: 'Diana Mesera',
+        rol: 'mesero',
+        activo: true,
+        __demoSeed: true,
+        permisos: {
+          caja: ['vista_tablets', 'vista_clientes', 'tab_abrir', 'tab_editar'],
+          comandas: ['ver'],
+          admin: [],
+        },
+      },
+      {
+        id: 'DEMO_COCINA',
+        nombre: 'Pedro Cocina',
+        rol: 'cocina',
+        activo: true,
+        __demoSeed: true,
+        permisos: {
+          caja: [],
+          comandas: ['ver', 'despachar', 'marcar_listo'],
+          admin: [],
+        },
+      },
+    ];
+    demoStaff.forEach(function (ds) {
+      staff.push(ds);
+    });
+    if (typeof saveUsuarios === 'function') saveUsuarios(staff);
+    staffCount = demoStaff.length;
+  } catch (eStaff) {
+    console.warn('[demo-seed] staff', eStaff);
+  }
+
+  /* —— Sesiones de trabajo (como si hubieran entrado) —— */
+  var sessionsCount = 0;
+  try {
+    var sess = config.get('staffSessionLog') || [];
+    if (!Array.isArray(sess)) sess = [];
+    sess = sess.filter(function (s) {
+      return !(s && s.__demoSeed);
+    });
+    var sessSeed = [];
+    for (i = 0; i < Math.min(14, daysBack); i++) {
+      var whoS = pick(cajeros);
+      var loginH = rnd(7, 10);
+      var durH = rnd(4, 9);
+      var loginAt = isoAt(i, loginH, 0);
+      var logoutAt = isoAt(i, Math.min(23, loginH + durH), rnd(0, 50));
+      sessSeed.push({
+        __demoSeed: true,
+        userId: whoS,
+        userName: whoS,
+        rol: whoS.indexOf('Mesero') >= 0 || whoS.indexOf('Mesera') >= 0 ? 'mesero' : 'caja',
+        loginAt: loginAt,
+        logoutAt: logoutAt,
+        durationMs: Math.max(3600000, new Date(logoutAt) - new Date(loginAt)),
+        businessDate: ymdOffset(i),
+      });
+    }
+    sessionsCount = sessSeed.length;
+    config.set('staffSessionLog', sessSeed.concat(sess).slice(0, 200));
+  } catch (eSess) {
+    console.warn('[demo-seed] sesiones', eSess);
+  }
+
+  /* —— RRHH empleados locales (marcación) —— */
+  var empleadosCount = 0;
+  try {
+    var empsKey = 'crozzo_int_rrhh_local_emps';
+    var recsKey = 'crozzo_int_rrhh_local_recs';
+    var emps = [
+      { id: 'demo-emp-1', name: 'Ana Cajero', pin: '1001', area: 'caja', activo: true, __demoSeed: true },
+      { id: 'demo-emp-2', name: 'Luis Encargado', pin: '1002', area: 'caja', activo: true, __demoSeed: true },
+      { id: 'demo-emp-3', name: 'Carlos Mesero', pin: '1003', area: 'salon', activo: true, __demoSeed: true },
+      { id: 'demo-emp-4', name: 'Diana Mesera', pin: '1004', area: 'salon', activo: true, __demoSeed: true },
+      { id: 'demo-emp-5', name: 'Pedro Cocina', pin: '1005', area: 'cocina', activo: true, __demoSeed: true },
+    ];
+    var prevEmps = [];
+    try {
+      prevEmps = JSON.parse(localStorage.getItem(empsKey) || '[]');
+      if (!Array.isArray(prevEmps)) prevEmps = [];
+    } catch (_) {
+      prevEmps = [];
+    }
+    prevEmps = prevEmps.filter(function (e) {
+      return !(e && e.__demoSeed);
+    });
+    localStorage.setItem(empsKey, JSON.stringify(emps.concat(prevEmps)));
+    empleadosCount = emps.length;
+    var recs = [];
+    try {
+      recs = JSON.parse(localStorage.getItem(recsKey) || '[]');
+      if (!Array.isArray(recs)) recs = [];
+    } catch (_) {
+      recs = [];
+    }
+    recs = recs.filter(function (r) {
+      return !(r && r.__demoSeed);
+    });
+    var marc = [];
+    for (i = 0; i < 10; i++) {
+      var emp = emps[i % emps.length];
+      marc.push({
+        __demoSeed: true,
+        id: 'demo-marc-' + i,
+        empleado_id: emp.id,
+        nombre: emp.name,
+        pin: emp.pin,
+        tipo: i % 2 === 0 ? 'entrada' : 'salida',
+        at: isoAt(rnd(0, 5), rnd(7, 20), rnd(0, 59)),
+      });
+    }
+    localStorage.setItem(recsKey, JSON.stringify(marc.concat(recs).slice(0, 200)));
+  } catch (eEmp) {
+    console.warn('[demo-seed] empleados', eEmp);
+  }
+
+  try {
+    if (config.addAudit) {
+      config.addAudit(
+        'demo_operativo_seed',
+        'Ventas ' +
+          seeded.length +
+          ' · voids ' +
+          voidSeed.length +
+          ' · cierres ' +
+          cierreSeed.length +
+          ' · prod ' +
+          productsCount +
+          ' · staff ' +
+          staffCount +
+          ' · costos ' +
+          costosCount +
+          ' · anomalias ' +
+          anomalyDays.length
+      );
+    }
+  } catch (_) {}
+
+  try {
+    localStorage.setItem('crozzo_demo_anomaly_days_v1', JSON.stringify(anomalyDays));
+  } catch (_) {}
+
+  return {
+    ok: true,
+    sales: seeded.length,
+    voids: voidSeed.length,
+    cierres: cierreSeed.length,
+    products: productsCount,
+    staff: staffCount,
+    costos: costosCount,
+    sesiones: sessionsCount,
+    empleados: empleadosCount,
+    days: daysBack,
+    anomalyDays: anomalyDays,
+  };
+}
+window.crozzoSeedDemoOperativoData = crozzoSeedDemoOperativoData;
+
+function crozzoWipeLocalDemoAndOpsData(opts) {
+  opts = opts || {};
+  if (typeof isSuperAdminUser === 'function' && !isSuperAdminUser()) {
+    return { ok: false, error: 'forbidden' };
+  }
+  var cleared = {
+    facturas: 0,
+    voids: 0,
+    cierres: 0,
+    products: 0,
+    staff: 0,
+    sesiones: 0,
+    empleados: 0,
+  };
+  try {
+    var facts = config.getFacturas() || [];
+    cleared.facturas = Array.isArray(facts) ? facts.length : 0;
+    if (typeof crozzoConfigSetSecure === 'function') crozzoConfigSetSecure('facturas', []);
+    else if (Array.isArray(facts)) {
+      facts.length = 0;
+      if (config.save) config.save();
+    }
+  } catch (_) {}
+  try {
+    var vl = config.get('cajaVoidLog') || [];
+    cleared.voids = Array.isArray(vl) ? vl.length : 0;
+    config.set('cajaVoidLog', []);
+  } catch (_) {}
+  try {
+    var histKey =
+      typeof window !== 'undefined' && window.CROZZO_SHIFT_TURN_HIST
+        ? window.CROZZO_SHIFT_TURN_HIST
+        : 'crozzo_shift_turn_history_v1';
+    var h = JSON.parse(localStorage.getItem(histKey) || '[]');
+    cleared.cierres = Array.isArray(h) ? h.length : 0;
+    localStorage.setItem(histKey, '[]');
+    localStorage.removeItem('crozzo_arqueo_supervision_v1');
+  } catch (_) {}
+  try {
+    localStorage.removeItem('crozzo_ai_behavior_insight_v1');
+    localStorage.removeItem('crozzo_ai_behavior_rate_v2');
+    localStorage.removeItem('crozzo_ai_behavior_rate_v1');
+    localStorage.removeItem('crozzo_ai_insight_v1');
+    localStorage.removeItem('crozzo_demo_anomaly_days_v1');
+  } catch (_) {}
+  try {
+    var sess = config.get('staffSessionLog') || [];
+    cleared.sesiones = Array.isArray(sess) ? sess.length : 0;
+    config.set('staffSessionLog', []);
+  } catch (_) {}
+  try {
+    if (typeof products !== 'undefined' && Array.isArray(products)) {
+      cleared.products = products.length;
+      products.length = 0;
+      if (typeof global !== 'undefined') global.products = products;
+      if (typeof persistCatalogProductosLocal === 'function') persistCatalogProductosLocal();
+      else config.set('catalogoProductos', []);
+    }
+  } catch (_) {}
+  try {
+    var confU = typeof getUsuariosConfig === 'function' ? getUsuariosConfig() : { staff: [] };
+    var before = (confU.staff || []).length;
+    var kept = (confU.staff || []).filter(function (s) {
+      if (!s) return false;
+      if (s.__demoSeed) return false;
+      var id = String(s.id || '').toUpperCase();
+      if (id.indexOf('DEMO_') === 0) return false;
+      return true;
+    });
+    cleared.staff = before - kept.length;
+    if (typeof saveUsuarios === 'function') saveUsuarios(kept);
+  } catch (_) {}
+  try {
+    var empsKey = 'crozzo_int_rrhh_local_emps';
+    var recsKey = 'crozzo_int_rrhh_local_recs';
+    var emps = JSON.parse(localStorage.getItem(empsKey) || '[]');
+    if (Array.isArray(emps)) {
+      var keepE = emps.filter(function (e) {
+        return !(e && e.__demoSeed);
+      });
+      cleared.empleados = emps.length - keepE.length;
+      localStorage.setItem(empsKey, JSON.stringify(keepE));
+    }
+    var recs = JSON.parse(localStorage.getItem(recsKey) || '[]');
+    if (Array.isArray(recs)) {
+      localStorage.setItem(
+        recsKey,
+        JSON.stringify(
+          recs.filter(function (r) {
+            return !(r && r.__demoSeed);
+          })
+        )
+      );
+    }
+  } catch (_) {}
+  try {
+    if (opts.clearEmpresa) {
+      config.set('empresa', {
+        nit: '',
+        dv: '',
+        razonSocial: '',
+        nombreComercial: '',
+        direccion: '',
+        departamento: '',
+        ciudad: '',
+        telefono: '',
+        email: '',
+        codigoPostal: '',
+        regimenFiscal: 'responsable_iva',
+        matriculaMercantil: '',
+        actividadEconomica: '',
+      });
+    }
+  } catch (_) {}
+  try {
+    if (config.addAudit) {
+      config.addAudit(
+        'demo_wipe_local',
+        'Wipe local: facturas ' +
+          cleared.facturas +
+          ' · voids ' +
+          cleared.voids +
+          ' · cierres ' +
+          cleared.cierres +
+          ' · productos ' +
+          cleared.products
+      );
+    }
+  } catch (_) {}
+  return { ok: true, cleared: cleared };
+}
+window.crozzoWipeLocalDemoAndOpsData = crozzoWipeLocalDemoAndOpsData;
+
+function crozzoPromptWipeLocalDemoData() {
+  if (typeof isSuperAdminUser === 'function' && !isSuperAdminUser()) {
+    showToast('Solo Super Admin puede vaciar datos locales.', 'warning');
+    return;
+  }
+  showModal(
+    '⚠️ Borrar todo y empezar de 0',
+    '<div class="fade-in" style="max-width:440px">' +
+      '<div class="alert alert-warning" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px">' +
+      '<span aria-hidden="true">🚨</span>' +
+      '<div style="font-size:0.9rem;line-height:1.45">' +
+      '<strong>Alerta irreversible (este equipo)</strong><br>' +
+      'Se eliminarán <strong>todas las ventas/facturas</strong>, voids, cierres, insights IA, catálogo de productos, empleados demo y sesiones de práctica.' +
+      ' No borra su usuario Super Admin ni la nube remota automáticamente.' +
+      '</div></div>' +
+      '<p style="font-size:0.88rem;margin:0 0 8px">Escriba <strong>BORRAR</strong> para confirmar:</p>' +
+      '<input type="text" class="form-input" id="crozzoWipeConfirmInput" placeholder="BORRAR" autocomplete="off" />' +
+      '<label style="display:flex;gap:8px;align-items:center;margin-top:12px;font-size:0.85rem">' +
+      '<input type="checkbox" id="crozzoWipeClearEmpresa" /> También vaciar datos de empresa' +
+      '</label>' +
+      '<div class="btn-group" style="justify-content:flex-end;margin-top:16px">' +
+      '<button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>' +
+      '<button type="button" class="btn btn-danger" onclick="crozzoConfirmWipeLocalDemoData()">Vaciar todo</button>' +
+      '</div></div>'
+  );
+}
+window.crozzoPromptWipeLocalDemoData = crozzoPromptWipeLocalDemoData;
+
+function crozzoConfirmWipeLocalDemoData() {
+  if (typeof isSuperAdminUser === 'function' && !isSuperAdminUser()) {
+    showToast('Acción no autorizada.', 'warning');
+    return;
+  }
+  var inp = document.getElementById('crozzoWipeConfirmInput');
+  var word = inp ? String(inp.value || '').trim().toUpperCase() : '';
+  if (word !== 'BORRAR') {
+    showToast('Escriba BORRAR para confirmar.', 'warning');
+    return;
+  }
+  var clearEmpresa = !!(document.getElementById('crozzoWipeClearEmpresa') || {}).checked;
+  var r = crozzoWipeLocalDemoAndOpsData({ clearEmpresa: clearEmpresa });
+  closeModal();
+  if (!r || !r.ok) {
+    showToast((r && r.error) || 'No se pudo vaciar', 'error');
+    return;
+  }
+  var c = r.cleared || {};
+  showToast(
+    'Equipo en blanco: ' +
+      (c.facturas || 0) +
+      ' ventas · ' +
+      (c.products || 0) +
+      ' productos · ' +
+      (c.cierres || 0) +
+      ' cierres',
+    'success'
+  );
+  try {
+    renderPage('config-empresa');
+  } catch (_) {}
+}
+window.crozzoConfirmWipeLocalDemoData = crozzoConfirmWipeLocalDemoData;
+
 function fillDemoEmpresa() {
   const demoData = {
     nit: '900123456-5',
@@ -41701,8 +42866,28 @@ function fillDemoEmpresa() {
     actividadEconomica: '5611 - Restaurantes y servicio de comida'
   };
   config.set('empresa', demoData);
+  var seed = { ok: false };
+  try {
+    seed = crozzoSeedDemoOperativoData({ days: 12, sales: 56, voids: 28, cierres: 10 });
+  } catch (eSeed) {
+    console.warn('[fillDemoEmpresa] seed operativo', eSeed);
+  }
   renderPage('config-empresa');
-  showToast('Datos demo cargados', 'success');
+  var msg = 'Datos demo de empresa cargados';
+  if (seed && seed.ok) {
+    var anomN = seed.anomalyDays && seed.anomalyDays.length ? seed.anomalyDays.length : 0;
+    msg =
+      'Demo completo: ' +
+      seed.sales +
+      ' ventas · ' +
+      seed.voids +
+      ' voids · ' +
+      anomN +
+      ' días anómalos (IA) · ' +
+      (seed.products || 0) +
+      ' productos';
+  }
+  showToast(msg, 'success');
   try {
     if (typeof applyCrozzoBrandingChrome === 'function') applyCrozzoBrandingChrome();
   } catch (_) {}
@@ -42339,6 +43524,8 @@ function getFacturacionAdminConfig() {
     termicaModos: base.termicaModos && typeof base.termicaModos === 'object' ? base.termicaModos : {},
     termicaPresets: base.termicaPresets && typeof base.termicaPresets === 'object' ? base.termicaPresets : {},
     termicaPresetId: base.termicaPresetId || '',
+    termicaEstiloGlobalId: base.termicaEstiloGlobalId || base.termicaPresetId || '',
+    termicaDocCustom: base.termicaDocCustom && typeof base.termicaDocCustom === 'object' ? base.termicaDocCustom : {},
     termicaPlantillas:
       base.termicaPlantillas && typeof base.termicaPlantillas === 'object' ? base.termicaPlantillas : {},
     termicaPlantilla:
@@ -42631,13 +43818,33 @@ function crozzoAdminEnviarPlantillaAlIframe() {
 function crozzoFacturasAdminSetTab(tabId) {
   window.__crozzoFacturasAdminTab = tabId;
   document.querySelectorAll('.crozzo-print-hub__tab, .crozzo-fa-tab').forEach(function (btn) {
+    var t = btn.getAttribute('data-fa-tab');
+    btn.classList.toggle('is-active', t === tabId);
+  });
+  var moreTabs = { bodega: 1, salon: 1, inventario: 1 };
+  var moreRoot = document.querySelector('.crozzo-print-hub__more');
+  if (moreRoot) {
+    moreRoot.classList.toggle('is-active', !!moreTabs[tabId]);
+    if (!moreTabs[tabId]) moreRoot.open = false;
+  }
+  document.querySelectorAll('.crozzo-print-hub__more-item').forEach(function (btn) {
     btn.classList.toggle('is-active', btn.getAttribute('data-fa-tab') === tabId);
   });
   document.querySelectorAll('.crozzo-fa-panel').forEach(function (panel) {
     panel.classList.toggle('is-active', panel.getAttribute('data-fa-panel') === tabId);
   });
-  if (tabId === 'estudio' && typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.initStudioHub) {
-    CrozzoPrintStudioHub.initStudioHub();
+  if (tabId === 'estudio' && typeof CrozzoPrintStudioHub !== 'undefined') {
+    var ifrLive = document.getElementById('crozzoTicketDesignerIframe');
+    var studioLive =
+      ifrLive &&
+      ifrLive.getAttribute('data-crozzo-designer-loaded') === '1' &&
+      String(ifrLive.getAttribute('src') || '').indexOf('DisenadorTicket') >= 0;
+    // No reinicializar el hub si el editor ya está vivo (evita soft-reset al volver a Diseño).
+    if (!studioLive && typeof CrozzoPrintStudioHub.initStudioHub === 'function') {
+      CrozzoPrintStudioHub.initStudioHub();
+    } else if (studioLive && typeof CrozzoPrintStudioHub.refreshDocTypeUi === 'function') {
+      CrozzoPrintStudioHub.refreshDocTypeUi({ syncDesigner: false });
+    }
   }
   if (currentPage === 'config-facturas-admin') {
     if (typeof crozzoRefreshPrinterSelectOptions === 'function') crozzoRefreshPrinterSelectOptions();
@@ -42670,22 +43877,27 @@ function renderConfigFacturasAdmin() {
       <header class="crozzo-print-hub__bar">
         <div class="crozzo-print-hub__bar-text">
           <h2>Centro de impresión</h2>
-          <p>Impresoras, diseño, bodega, salón (inventario arriba + precio) e hojas de inventario MP.</p>
+          <p>Impresoras y diseño de tickets de sede.</p>
         </div>
-        <button type="button" class="btn btn-primary" onclick="saveFacturasAdminConfig()">Guardar cambios</button>
+        <button type="button" class="btn btn-primary crozzo-ps-btn-gold" onclick="saveFacturasAdminConfig()">Guardar cambios</button>
       </header>
       <nav class="crozzo-print-hub__tabs" role="tablist" aria-label="Secciones">
         <button type="button" class="crozzo-print-hub__tab is-active" data-fa-tab="impresoras" onclick="crozzoFacturasAdminSetTab('impresoras')">Impresoras</button>
-        <button type="button" class="crozzo-print-hub__tab" data-fa-tab="estudio" onclick="crozzoFacturasAdminSetTab('estudio')">Diseño de tickets</button>
-        <button type="button" class="crozzo-print-hub__tab" data-fa-tab="bodega" onclick="crozzoFacturasAdminSetTab('bodega')">Bodega</button>
-        <button type="button" class="crozzo-print-hub__tab" data-fa-tab="salon" onclick="crozzoFacturasAdminSetTab('salon')">Salón</button>
-        <button type="button" class="crozzo-print-hub__tab" data-fa-tab="inventario" onclick="crozzoFacturasAdminSetTab('inventario')">Inventario</button>
+        <button type="button" class="crozzo-print-hub__tab" data-fa-tab="estudio" onclick="crozzoFacturasAdminSetTab('estudio')">Diseño</button>
+        <details class="crozzo-print-hub__more">
+          <summary class="crozzo-print-hub__tab crozzo-print-hub__tab--more">Más</summary>
+          <div class="crozzo-print-hub__more-menu" role="menu">
+            <button type="button" class="crozzo-print-hub__more-item" data-fa-tab="bodega" onclick="crozzoFacturasAdminSetTab('bodega')">Bodega</button>
+            <button type="button" class="crozzo-print-hub__more-item" data-fa-tab="salon" onclick="crozzoFacturasAdminSetTab('salon')">Salón</button>
+            <button type="button" class="crozzo-print-hub__more-item" data-fa-tab="inventario" onclick="crozzoFacturasAdminSetTab('inventario')">Inventario</button>
+          </div>
+        </details>
       </nav>
       <div class="crozzo-print-hub__body">
       <div class="crozzo-fa-panel is-active" data-fa-panel="impresoras">
         <div class="crozzo-print-panel crozzo-print-panel--printers">
           <h3 class="crozzo-print-panel__title">Impresoras</h3>
-          <p class="crozzo-print-card__lead">${typeof crozzoIsTauriPrint === 'function' && crozzoIsTauriPrint() ? 'Al elegir impresora se guarda sola. La impresión va directo a la térmica, sin cuadro del sistema.' : 'En navegador puede aparecer el cuadro de impresión de Windows. Use la app instalada (Tauri) para impresión directa.'} Conecte la térmica y pulse <strong>Actualizar lista</strong>.</p>
+          <p class="crozzo-print-card__lead">${typeof crozzoIsTauriPrint === 'function' && crozzoIsTauriPrint() ? 'Al elegir impresora se guarda sola · impresión directa a térmica.' : 'En navegador puede aparecer el cuadro de Windows. Use la app instalada para impresión directa.'} Pulse <strong>Actualizar lista</strong>.</p>
           <div id="crozzoDetectedPrintersList" class="crozzo-printers-detected">Detectando impresoras…</div>
           <div class="crozzo-print-assign">
             <div class="crozzo-print-assign__item">
@@ -42698,25 +43910,19 @@ function renderConfigFacturasAdmin() {
             </div>
             <div class="crozzo-print-assign__item">
               <span class="crozzo-print-assign__tag">Cocina / barra</span>
-              <label class="form-label">Impresora por defecto (comandas)</label>
+              <label class="form-label">Impresora comandas</label>
               <select class="form-select" id="adminComandaPrinter" onchange="crozzoFacturasAdminPersistPrinters({silent:true})">
                 <option value="">Sin impresora</option>
                 ${printerOptsCom}
               </select>
-              <p class="crozzo-print-assign__hint">Cada área (cocina, barra, etc.) puede tener otra impresora en <strong>Comandas</strong> o <strong>Cocina</strong>.</p>
             </div>
           </div>
-          <details class="crozzo-print-routing" open>
+          <details class="crozzo-print-routing">
             <summary>Qué sale por cada impresora</summary>
             <ul class="crozzo-print-routing__list">
-              <li><strong>Caja (principal)</strong> — Precuenta, cuenta/ticket al cobrar, factura POS o electrónica, botón térmica en historial, diseño «Facturas/Precuentas».</li>
-              <li><strong>Cocina / barra</strong> — Comandas al enviar pedido (si auto-imprimir está activo) o con 🖨️; usa la impresora del área si la configuró.</li>
-              <li><strong>Bodega</strong> — Rótulos MP (FE/FI/FV en blanco o entrada sin fechas). Elija <strong>58 mm, 80 mm, Carta u Oficio</strong> antes de imprimir.</li>
-              <li><strong>Salón</strong> — Etiqueta doble: arriba inventario (nombre + FE/FI/FV en blanco), abajo precio de caja y $/g si aplica.</li>
-              <li><strong>Inventario</strong> — Hojas MP (conteo, stock, movimientos) y catálogo POS; pestaña dedicada en este centro.</li>
-              <li><strong>Diseño</strong> — 58 / 80 mm = térmica directa · Carta / Oficio = cuadro de impresión Windows.</li>
-              <li><strong>Reportes</strong> — Ventas, inventario catálogo POS, cierres (cuadro Windows, carta horizontal).</li>
-              <li><strong>Costos → Inventario</strong> — Conteo y stock de materias primas (imprimir hoja conteo, stock teórico, listado completo).</li>
+              <li><strong>Caja</strong> — Precuenta, cuenta al cobrar, factura POS/FE.</li>
+              <li><strong>Cocina / barra</strong> — Comandas (área o impresora por defecto).</li>
+              <li><strong>Bodega / Salón / Inventario</strong> — en Más.</li>
             </ul>
           </details>
           <div class="crozzo-print-options">
@@ -42727,22 +43933,23 @@ function renderConfigFacturasAdmin() {
             <div class="form-group crozzo-print-options__check">
               <label class="crozzo-print-check">
                 <input type="checkbox" id="adminAutoImprimir" ${conf.autoImprimir !== false ? 'checked' : ''}>
-                <span><strong>Imprimir sola</strong> al cobrar en caja</span>
+                <span><strong>Imprimir sola</strong> al cobrar</span>
               </label>
             </div>
           </div>
           <div class="crozzo-print-toolbar">
-            <input type="text" class="form-input" id="adminCustomPrinterName" placeholder="Solo si Windows no la detectó — copie el nombre de Configuración → Impresoras" title="Ej: POS-80 o EPSON TM-T20">
+            <input type="text" class="form-input" id="adminCustomPrinterName" placeholder="Nombre manual si Windows no la detectó" title="Ej: POS-80 o EPSON TM-T20">
             <button type="button" class="btn btn-outline" onclick="crozzoAdminAddCustomPrinter()" title="Añade al desplegable el nombre que escribió arriba">Agregar manual</button>
             <button type="button" class="btn btn-outline" onclick="crozzoAdminRefreshSystemPrinters()">Actualizar lista</button>
-            <button type="button" class="btn btn-primary" id="crozzoBtnTestTicketCaja" onclick="void crozzoFacturasAdminTestPrint('thermal')">Probar térmica</button>
-            <button type="button" class="btn btn-outline" onclick="void crozzoFacturasAdminTestPrint('normal')">Probar impresora normal</button>
+            <button type="button" class="btn btn-primary crozzo-ps-btn-gold" id="crozzoBtnTestTicketCaja" onclick="void crozzoFacturasAdminTestPrint('thermal')">Probar térmica</button>
+            <button type="button" class="btn btn-outline" onclick="void crozzoFacturasAdminTestPrint('normal')">Probar normal</button>
           </div>
           <details class="crozzo-print-notes">
             <summary>Notas internas (opcional)</summary>
-            <textarea class="form-input" id="adminPrintDetail" rows="3" placeholder="Ej: papel 80 mm, dos copias en mostrador">${conf.detalleImpresion || ''}</textarea>
+            <textarea class="form-input" id="adminPrintDetail" rows="3" placeholder="Ej: papel 80 mm">${conf.detalleImpresion || ''}</textarea>
           </details>
           <p class="crozzo-print-panel__help">¿Windows no ve la impresora? <button type="button" class="btn btn-link" onclick="openPrinterRescue('admin')">Impresora no reconocida</button></p>
+          <p class="crozzo-print-panel__help crozzo-print-panel__help--soft">Térmicas antiguas: el diseño puede omitir logo/QR automáticamente; el texto sigue imprimiendo.</p>
         </div>
       </div>
       <div class="crozzo-fa-panel" data-fa-panel="estudio">
@@ -42834,10 +44041,6 @@ function initConfigFacturasAdmin() {
       try {
         if (typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.onEditorTplChanged) {
           CrozzoPrintStudioHub.onEditorTplChanged(t);
-          if (CrozzoPrintStudioHub.persistActiveTplFromJson) {
-            var taEl = document.getElementById('adminTermicaPlantillaJson');
-            if (taEl && taEl.value.trim()) CrozzoPrintStudioHub.persistActiveTplFromJson(taEl.value.trim());
-          }
         } else {
           var taEl = document.getElementById('adminTermicaPlantillaJson');
           if (taEl) taEl.value = JSON.stringify(t);
@@ -42910,43 +44113,36 @@ function initConfigFacturasAdmin() {
   var ifr = document.getElementById('crozzoTicketDesignerIframe');
   if (ifr) {
     var designerUrl = crozzoTicketDesignerPageUrl();
-    if (ifr.getAttribute('src') === 'about:blank' || ifr.getAttribute('data-crozzo-designer') === '1') {
+    var srcNow = String(ifr.getAttribute('src') || '');
+    var pointsToDesigner = srcNow.indexOf('Crozzo_POS_DisenadorTicket') >= 0;
+    var alreadyLoaded = ifr.getAttribute('data-crozzo-designer-loaded') === '1' && pointsToDesigner;
+    // Nunca reasignar src si ya apunta al diseñador (reasignar = reload completo del editor).
+    if (!pointsToDesigner || srcNow === 'about:blank') {
+      ifr.removeAttribute('data-crozzo-designer-loaded');
       ifr.setAttribute('src', designerUrl);
-    }
-    ifr.onload = function () {
-      try {
-        var docType = window.__crozzoPrintStudioDocType || 'factura';
-        var fa = getFacturacionAdminConfig();
-        var tpl =
-          typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.getPlantilla
-            ? CrozzoPrintStudioHub.getPlantilla(docType, fa)
-            : fa.termicaPlantilla;
-        if ((!tpl || !tpl.blocks) && window.localStorage) {
-          var raw = localStorage.getItem(CROZZO_TICKET_DESIGNER_LS_KEY);
-          if (raw) tpl = JSON.parse(raw);
-        }
-        if (tpl && tpl.blocks && ifr.contentWindow) {
-          var docLabel = docType;
-          if (typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.DOC_TYPES) {
-            var d = CrozzoPrintStudioHub.DOC_TYPES.find(function (x) { return x.id === docType; });
-            if (d) docLabel = d.label;
+      ifr.onload = function () {
+        try {
+          ifr.setAttribute('data-crozzo-designer-loaded', '1');
+          if (typeof crozzoFacturasAdminUpdateStudioStatus === 'function') {
+            crozzoFacturasAdminUpdateStudioStatus('Editor listo', true);
           }
-          ifr.contentWindow.postMessage(
-            { type: 'crozzo_ticket_init', tpl: tpl, docType: docType, docLabel: docLabel },
-            '*'
-          );
-          var sampleFn =
-            typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.samplePayload
-              ? CrozzoPrintStudioHub.samplePayload(docType)
-              : crozzoTicketDesignerSamplePayload();
-          ifr.contentWindow.postMessage({ type: 'crozzo_ticket_sample', sample: sampleFn }, '*');
-        }
-      } catch (_) {}
-    };
-    if (ifr.contentWindow && ifr.contentDocument && ifr.contentDocument.readyState === 'complete') {
+          // Una sola sincronización inicial; el hub evita empujar si ya hay sesión.
+          if (
+            typeof CrozzoPrintStudioHub !== 'undefined' &&
+            typeof CrozzoPrintStudioHub.syncDesignerIframeIfNeeded === 'function'
+          ) {
+            CrozzoPrintStudioHub.syncDesignerIframeIfNeeded({ reason: 'iframe-load' });
+          }
+        } catch (_) {}
+      };
+    } else if (!alreadyLoaded) {
       try {
-        ifr.onload();
-      } catch (_) {}
+        if (ifr.contentDocument && ifr.contentDocument.readyState === 'complete') {
+          ifr.setAttribute('data-crozzo-designer-loaded', '1');
+        }
+      } catch (_) {
+        ifr.setAttribute('data-crozzo-designer-loaded', '1');
+      }
     }
   }
 }
@@ -43050,6 +44246,8 @@ function crozzoSaveFacturasAdminConfigCore() {
   let termicaModos = prev.termicaModos || {};
   let termicaPresets = prev.termicaPresets || {};
   let termicaPresetId = prev.termicaPresetId || '';
+  let termicaEstiloGlobalId = prev.termicaEstiloGlobalId || '';
+  let termicaDocCustom = prev.termicaDocCustom || {};
   let bodegaMarcacion = prev.bodegaMarcacion;
   let impresoraBodega = prev.impresoraBodega || '';
 
@@ -43061,6 +44259,8 @@ function crozzoSaveFacturasAdminConfigCore() {
     termicaModos = merged.termicaModos || termicaModos;
     termicaPresets = merged.termicaPresets || termicaPresets;
     termicaPresetId = merged.termicaPresetId || termicaPresetId;
+    termicaEstiloGlobalId = merged.termicaEstiloGlobalId || termicaEstiloGlobalId;
+    termicaDocCustom = merged.termicaDocCustom || termicaDocCustom;
     bodegaMarcacion = merged.bodegaMarcacion;
     impresoraBodega = merged.impresoraBodega || '';
   } else {
@@ -43104,6 +44304,8 @@ function crozzoSaveFacturasAdminConfigCore() {
     termicaModos,
     termicaPresets,
     termicaPresetId,
+    termicaEstiloGlobalId,
+    termicaDocCustom,
     bodegaMarcacion,
   });
   if (
@@ -43124,7 +44326,7 @@ function crozzoSaveFacturasAdminConfigCore() {
   } catch (err) {
     console.warn('[facturas-admin] auditoría no registrada', err);
   }
-  showToast('Configuración de facturas e impresión guardada', 'success');
+  showToast('Diseño aplicado a impresión de caja, cocina y rótulos', 'success');
   if (typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.clearStudioDirty) {
     CrozzoPrintStudioHub.clearStudioDirty();
   }
@@ -48227,6 +49429,22 @@ function crozzoCloseSidebarDrawer() {
   } catch (_) {}
   crozzoSyncSidebarBackdrop();
 }
+function crozzoSyncSidebarPinChrome() {
+  var btn = document.querySelector('.main-header .mobile-menu-btn, .mobile-menu-btn');
+  if (!btn) return;
+  var pinned = false;
+  try {
+    if (window.CrozzoSidebarNav && typeof CrozzoSidebarNav.readState === 'function') {
+      pinned = !!(CrozzoSidebarNav.readState() || {}).pinned;
+    }
+  } catch (_) {}
+  btn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+  btn.classList.toggle('is-pinned', pinned);
+  if (!btn.getAttribute('title') || btn.getAttribute('title').indexOf('Opcional') < 0) {
+    btn.title =
+      'Opcional: fijar o soltar el menú. En escritorio se abre al pasar el mouse por la izquierda.';
+  }
+}
 function toggleSidebar() {
   const now = Date.now();
   if (window.__crozzoSidebarToggleLock && now - window.__crozzoSidebarToggleLock < 400) return;
@@ -48251,6 +49469,9 @@ function toggleSidebar() {
         sidebar.classList.toggle('expanded', next);
         sidebar.classList.toggle('is-expanded', next);
       }
+    } catch (_) {}
+    try {
+      crozzoSyncSidebarPinChrome();
     } catch (_) {}
     return;
   }
@@ -48300,6 +49521,7 @@ window.crozzoCloseSidebarDrawer = crozzoCloseSidebarDrawer;
 window.crozzoInitSidebarDrawerClosed = crozzoInitSidebarDrawerClosed;
 window.crozzoBindSidebarDrawerKeys = crozzoBindSidebarDrawerKeys;
 window.toggleSidebar = toggleSidebar;
+window.crozzoSyncSidebarPinChrome = crozzoSyncSidebarPinChrome;
 if (document.readyState === 'loading') {
   document.addEventListener(
     'DOMContentLoaded',

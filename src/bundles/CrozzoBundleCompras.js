@@ -24833,13 +24833,15 @@
 
   function brandWordmark(opts) {
     opts = opts || {};
-    var showEmblem = opts.emblem !== false && !opts.logoOnly;
+    var showEmblem = opts.emblem === true;
+    var showLogo = !!opts.logoFrame;
     return (
       '<div class="bona-brand' +
       (opts.compact ? ' bona-brand--compact' : '') +
+      (opts.inline ? ' bona-brand--inline' : '') +
       '">' +
       (showEmblem ? emblemSvg(opts.size || 36) : '') +
-      (opts.logoFrame ? logoFrame(opts.frameSize) : '') +
+      (showLogo ? logoFrame(opts.frameSize) : '') +
       '<div class="bona-brand__text">' +
       '<span class="bona-brand__name">BON<span class="bona-brand__a">Λ</span></span>' +
       '<span class="bona-brand__tag">origen</span>' +
@@ -24848,7 +24850,21 @@
     );
   }
 
-  /** Hero producción — editorial luxury */
+  /** Solo tipografía BONΛ origen — sin logo, eyebrow ni hint. */
+  function brandNameOnly(opts) {
+    opts = opts || {};
+    return (
+      '<span class="bona-brand-name-only' +
+      (opts.compact ? ' bona-brand-name-only--compact' : '') +
+      (opts.center ? ' bona-brand-name-only--center' : '') +
+      '" aria-label="BONA origen">' +
+      '<span class="bona-brand__name">BON<span class="bona-brand__a">Λ</span></span>' +
+      '<span class="bona-brand__tag">origen</span>' +
+      '</span>'
+    );
+  }
+
+  /** Hero producción — editorial luxury (solo Centro de procesos) */
   function brandHero() {
     return (
       '<div class="bona-hero-brand bona-hero-brand--premium">' +
@@ -24933,15 +24949,18 @@
       '--bona-shadow-gold:0 8px 32px rgba(181,154,109,.2);' +
       '--bona-radius-sm:10px;--bona-radius-md:16px;--bona-radius-lg:22px;--bona-radius-xl:28px;' +
       '--bona-font-display:"Cormorant Garamond",Georgia,"Times New Roman",serif;' +
-      '--bona-font:"DM Sans",Inter,system-ui,sans-serif;' +
+      '--bona-font:"DM Sans",system-ui,sans-serif;' +
       '--bona-ease:cubic-bezier(.22,1,.36,1);--bona-ease-out:cubic-bezier(.16,1,.3,1)}' +
       'html[data-theme="bona-origen"]{color-scheme:light;' +
+      '--font-sans:var(--bona-font);--gold-primary:var(--bona-gold);--gold-light:var(--bona-gold-light);--gold-dark:var(--bona-gold-dark);' +
+      '--gold-glow:rgba(181,154,109,.4);--gradient-gold:linear-gradient(135deg,var(--bona-gold-light) 0%,var(--bona-gold) 50%,var(--bona-gold-dark) 100%);' +
       '--bg-primary:var(--bona-cream);--bg-secondary:var(--bona-cream-2);--bg-tertiary:var(--bona-cream-3);' +
       '--bg-card:#FFFFFF;--border:var(--bona-line);--text-primary:var(--bona-charcoal);' +
       '--text-secondary:var(--bona-charcoal-soft);--text-muted:#6B6560;' +
       '--accent:var(--bona-gold);--accent-hover:var(--bona-gold-light);--accent-rgb:181,154,109;' +
       '--accent-08:var(--bona-gold-08);--accent-10:var(--bona-gold-12);--accent-12:var(--bona-gold-18);' +
       '--accent-20:var(--bona-gold-22);--focus-ring:var(--bona-gold);--shadow:var(--bona-shadow-sm);--shadow-lg:var(--bona-shadow-lg)}' +
+      'html[data-theme="bona-origen"] body{font-family:var(--bona-font)}' +
       'body.bona-enterprise-chrome{font-feature-settings:"kern" 1,"liga" 1}' +
       '.bona-logo-frame{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(165deg,var(--bg-card) 0%,var(--bg-secondary) 100%);border:1px solid var(--border);border-radius:var(--bona-radius-md);padding:10px;box-shadow:var(--bona-shadow-sm);flex-shrink:0;transition:box-shadow .4s var(--bona-ease),transform .4s var(--bona-ease)}' +
       '.bona-logo-frame img{display:block;width:100%;height:100%;object-fit:contain}' +
@@ -24956,6 +24975,15 @@
       '.bona-brand__tag{font-size:.68rem;letter-spacing:.38em;text-transform:uppercase;color:var(--accent);font-weight:500}' +
       '.bona-brand__tag--sm{font-size:.58rem;letter-spacing:.28em}' +
       '.bona-brand__hint{font-size:11px;color:var(--text-secondary);margin-top:8px;letter-spacing:.02em;font-weight:400;opacity:.85}' +
+      '.bona-brand-name-only{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1}' +
+      '.bona-brand-name-only--center{align-items:center;text-align:center}' +
+      '.bona-brand-name-only--compact .bona-brand__name{font-size:1.25rem;letter-spacing:.14em}' +
+      '.bona-brand-name-only--compact .bona-brand__tag{font-size:.58rem;letter-spacing:.3em}' +
+      '.crozzo-brand-txt.bona-brand-txt--styled{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:inherit;letter-spacing:0;text-transform:none}' +
+      '.crozzo-brand-txt.bona-brand-txt--styled .bona-brand__name{font-size:1.15rem;letter-spacing:.14em}' +
+      '.crozzo-brand-txt.bona-brand-txt--styled .bona-brand__tag{font-size:.55rem;letter-spacing:.28em}' +
+      '.login-card-header .crozzo-brand-txt.bona-brand-txt--styled{align-items:center}' +
+      '.crozzo-shift-welcome__modal .bona-brand-name-only{margin:0 auto 14px}' +
       '.bona-hero-brand--premium{display:flex;align-items:center;gap:28px;margin-bottom:8px}' +
       '.bona-hero-brand__visual{position:relative;flex-shrink:0}' +
       '.bona-hero-brand__halo{position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(circle,rgba(181,154,109,.15) 0%,transparent 70%);pointer-events:none}' +
@@ -24967,6 +24995,8 @@
       '.crozzo-brand-slot.bona-platform-live .crozzo-brand-img{padding:6px}' +
       '#crozzoBrandSidebarTenant.crozzo-brand-slot.is-image,#crozzoBrandLoginTenant.crozzo-brand-slot.is-image{border-color:var(--border);background:var(--bg-card);box-shadow:var(--shadow,0 1px 3px rgba(0,0,0,.06))}' +
       'body.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live{animation:bonaPlatformLift 7s var(--bona-ease) infinite}' +
+      'body.crozzo-page-rest-pos.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,body.crozzo-page-tablets.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,body.crozzo-page-comandas.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,body.crozzo-page-cocina.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,body.crozzo-page-operativa.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live{animation:none!important}' +
+      'body.crozzo-page-rest-pos .bona-header-gem:hover,body.crozzo-page-tablets .bona-header-gem:hover,body.crozzo-page-comandas .bona-header-gem:hover,body.crozzo-page-cocina .bona-header-gem:hover,body.crozzo-page-operativa .bona-header-gem:hover{transform:none}' +
       'body.crozzo-brand-platform-only .crozzo-brand-slot[id*="Tenant"]{display:none!important}' +
       '.bona-workspace-accent{pointer-events:none;position:absolute;right:12px;bottom:12px;width:min(140px,28vw);opacity:.06;z-index:0}' +
       '.bona-workspace-accent img{width:100%;height:auto;object-fit:contain}' +
@@ -24974,6 +25004,9 @@
       '.login-card.bona-login-card{border-color:rgba(181,154,109,.35);box-shadow:0 8px 32px rgba(28,28,28,.08),0 0 0 1px rgba(181,154,109,.12)}' +
       '.login-card-header .crozzo-brand-dual--login{justify-content:center}' +
       '.bona-login-powered{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--bona-gold-dark,#7A6342);margin:4px 0 0}' +
+      'body.bona-login-hotel #loginForm button[type="submit"]{transition:transform .15s var(--bona-ease,ease-out),opacity .15s ease}' +
+      'body.bona-login-hotel #loginForm button[type="submit"]:active{transform:scale(.98);opacity:.94}' +
+      '@media(prefers-reduced-motion:reduce){body.bona-login-hotel #loginForm button[type="submit"]:active{transform:none;opacity:1}}' +
       '@keyframes bonaPlatformLift{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}' +
       '.bona-header-gem{position:relative;width:40px;height:40px;padding:0;border:none;background:transparent;cursor:default;flex-shrink:0;transition:transform .35s var(--bona-ease)}' +
       '.bona-header-gem:hover{transform:scale(1.04)}' +
@@ -25032,11 +25065,11 @@
       esc(LOGO) +
       ') center/contain no-repeat;opacity:.75}' +
       '.ccp.bona .ccp-kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--bona-radius-md);box-shadow:var(--bona-shadow-sm);position:relative;overflow:hidden;transition:border-color .35s var(--bona-ease),box-shadow .35s var(--bona-ease),transform .35s var(--bona-ease)}' +
-      '.ccp.bona .ccp-kpi:hover{border-color:rgba(181,154,109,.4);box-shadow:var(--bona-shadow);transform:translateY(-2px)}' +
+      '.ccp.bona .ccp-kpi:hover{border-color:rgba(181,154,109,.4);box-shadow:var(--bona-shadow);transform:translateY(-1px)}' +
       '.ccp.bona .ccp__rail{background:var(--bg-card);border-bottom:1px solid var(--border);padding:0 8px}' +
       '.ccp.bona .ccp-nav.is-active{background:var(--accent-08);border-color:var(--accent);color:var(--text-primary);box-shadow:inset 0 0 0 1px var(--accent-10)}' +
       '.ccp.bona .ccp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--bona-radius-md);box-shadow:var(--bona-shadow-sm);position:relative;transition:border-color .35s var(--bona-ease),box-shadow .4s var(--bona-ease),transform .4s var(--bona-ease)}' +
-      '.ccp.bona .ccp-card:hover{border-color:rgba(181,154,109,.35);box-shadow:var(--bona-shadow-lg);transform:translateY(-3px)}' +
+      '.ccp.bona .ccp-card:hover{border-color:rgba(181,154,109,.35);box-shadow:var(--bona-shadow);transform:translateY(-1px)}' +
       '.ccp.bona .ccp-card__go{color:var(--bona-gold-dark);font-weight:600;letter-spacing:.04em}' +
       '.ccp.bona .ccp-card__badge{background:var(--bona-gold-08);color:var(--bona-gold-dark);border:1px solid rgba(181,154,109,.2);font-size:10px;letter-spacing:.06em}' +
       '.ccp.bona .ccp-loader{background:color-mix(in srgb,var(--bg-primary) 96%,transparent);backdrop-filter:blur(6px)}' +
@@ -25133,12 +25166,39 @@
       atm.setAttribute('aria-hidden', 'true');
       overlay.insertBefore(atm, overlay.firstChild);
     }
+    /* Quitar lockup hero erróneo; logo de config se queda. Solo estilizar texto BONA origen. */
+    try {
+      document.querySelectorAll('.bona-login-lockup').forEach(function (el) {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      });
+    } catch (_) {}
+    stylePlatformBrandLabels();
     var submit = document.querySelector('#loginForm button[type="submit"]');
     if (submit) {
       var st = String(submit.textContent || '').replace(/\s+/g, ' ').trim();
       if (!st || /🔐|Iniciar sesión/i.test(st)) submit.textContent = 'Entrar';
     }
     if (typeof crozzoRefreshLoginBuildStamp === 'function') crozzoRefreshLoginBuildStamp();
+  }
+
+  /** Reemplaza texto plano "BONA origen" por BONΛ origen tipográfico; no toca el <img> del logo. */
+  function stylePlatformBrandLabels() {
+    var nameHtml =
+      '<span class="bona-brand__name">BON<span class="bona-brand__a">Λ</span></span>' +
+      '<span class="bona-brand__tag">origen</span>';
+    document.querySelectorAll('.crozzo-brand-txt').forEach(function (el) {
+      var raw = String(el.textContent || '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!raw) return;
+      if (!/bona\s*origen/i.test(raw) && !el.querySelector('.bona-brand__a')) return;
+      if (el.querySelector('.bona-brand__a')) {
+        el.classList.add('bona-brand-txt--styled');
+        return;
+      }
+      el.innerHTML = nameHtml;
+      el.classList.add('bona-brand-txt--styled');
+    });
   }
 
   function clearDynamicChrome() {
@@ -25178,20 +25238,23 @@
 
   function installSidebarLive() {
     var sb = document.getElementById('sidebar');
-    if (!sb || sb.querySelector('.bona-sidebar-live')) return;
-    var live = document.createElement('div');
-    live.className = 'bona-sidebar-live bona-chrome-injected';
-    live.setAttribute('aria-hidden', 'true');
+    if (!sb) return;
+    var live = sb.querySelector('.bona-sidebar-live');
+    if (!live) {
+      live = document.createElement('div');
+      live.className = 'bona-sidebar-live bona-chrome-injected';
+      live.setAttribute('aria-hidden', 'true');
+      sb.appendChild(live);
+    }
     live.innerHTML =
       '<div class="bona-sidebar-live__frame">' +
       '<span class="bona-sidebar-live__line" aria-hidden="true"></span>' +
       '<div class="bona-sidebar-live__content">' +
       logoFrame('bona-logo-frame--live') +
       '<div class="bona-sidebar-live__copy">' +
-      '<span class="bona-sidebar-live__brand">BONA</span>' +
-      '<span class="bona-sidebar-live__tag">origen bueno</span>' +
+      '<span class="bona-sidebar-live__brand"><span class="bona-brand__name bona-brand__name--sm">BON<span class="bona-brand__a">Λ</span></span></span>' +
+      '<span class="bona-sidebar-live__tag bona-brand__tag bona-brand__tag--sm">origen</span>' +
       '</div></div></div>';
-    sb.appendChild(live);
   }
 
   function enhancePlatformSlots() {
@@ -25295,6 +25358,7 @@
     emblemSvg: emblemSvg,
     logoFrame: logoFrame,
     brandWordmark: brandWordmark,
+    brandNameOnly: brandNameOnly,
     brandHero: brandHero,
     brandMark: brandMark,
     renderOrigenChain: renderOrigenChain,

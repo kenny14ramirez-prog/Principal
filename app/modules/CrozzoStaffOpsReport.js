@@ -17,10 +17,13 @@
   var VOID_TYPES = {
     remove_line: 1,
     anular_comandado: 1,
+    anular_comandado_qty: 1,
     clear_pending: 1,
     clear_all: 1,
     tablet_remove_line: 1,
     tablet_qty_down: 1,
+    tablet_anular_comandado: 1,
+    tablet_anular_comandado_qty: 1,
     qty_down: 1,
   };
 
@@ -59,6 +62,53 @@
     var day = num(parts[2]) || 1;
     var start = new Date(y, m, day).getTime();
     return { start: start, end: start + 86400000, key: bd || businessDate() };
+  }
+
+  function ymdParts(ymd) {
+    var parts = String(ymd || '').split('-');
+    return {
+      y: num(parts[0]) || new Date().getFullYear(),
+      m: (num(parts[1]) || 1) - 1,
+      d: num(parts[2]) || 1,
+    };
+  }
+
+  function addDaysYmd(ymd, n) {
+    var p = ymdParts(ymd);
+    var d = new Date(p.y, p.m, p.d);
+    d.setDate(d.getDate() + (n || 0));
+    return (
+      d.getFullYear() +
+      '-' +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(d.getDate()).padStart(2, '0')
+    );
+  }
+
+  /** Rango multi-día (from inclusivo, toYmdExclusive exclusivo) o un día operativo. */
+  function resolveReportRange(opts) {
+    opts = opts || {};
+    var from = String(opts.fromYmd || '').slice(0, 10);
+    var toEx = String(opts.toYmdExclusive || '').slice(0, 10);
+    var toInc = String(opts.toYmd || '').slice(0, 10);
+    if (from && toInc && !toEx) toEx = addDaysYmd(toInc, 1);
+    if (from && toEx) {
+      var a = ymdParts(from);
+      var b = ymdParts(toEx);
+      var start = new Date(a.y, a.m, a.d).getTime();
+      var end = new Date(b.y, b.m, b.d).getTime();
+      if (!(end > start)) end = start + 86400000;
+      return {
+        start: start,
+        end: end,
+        key: from + '..' + toEx,
+        fromYmd: from,
+        toYmdExclusive: toEx,
+        multiDay: true,
+      };
+    }
+    return dayRangeFromBusinessDate(opts.businessDate || businessDate());
   }
 
   function getStaffList() {
@@ -239,9 +289,25 @@
   }
 
   function collectFacturas(range) {
-    var c = cfg();
-    var all = c && c.getFacturas ? c.getFacturas() || [] : [];
-    return all.filter(function (f) {
+    var all = [];
+    try {
+      if (
+        global.CrozzoLaboratorioCore &&
+        typeof global.CrozzoLaboratorioCore.getFacturasFiscal === 'function'
+      ) {
+        all = global.CrozzoLaboratorioCore.getFacturasFiscal() || [];
+      }
+    } catch (_) {}
+    if (!all.length) {
+      var c = cfg();
+      try {
+        if (c && typeof c.getFacturasFiscal === 'function') all = c.getFacturasFiscal() || [];
+        else if (c && c.getFacturas) all = c.getFacturas() || [];
+      } catch (_) {
+        all = [];
+      }
+    }
+    return (Array.isArray(all) ? all : []).filter(function (f) {
       var raw = f && (f.fecha || f.fechaEmision);
       var t = raw ? new Date(raw).getTime() : NaN;
       return isFinite(t) && t >= range.start && t < range.end;
@@ -259,7 +325,14 @@
   function collectFaults(range) {
     var c = cfg();
     var log = c ? c.get(FAULTS_KEY) || [] : [];
-    return (Array.isArray(log) ? log : []).filter(function (f) {
+    var list = Array.isArray(log) ? log : [];
+    if (range.multiDay && range.fromYmd && range.toYmdExclusive) {
+      return list.filter(function (f) {
+        var bd = String((f && f.businessDate) || '').slice(0, 10);
+        return bd && bd >= range.fromYmd && bd < range.toYmdExclusive;
+      });
+    }
+    return list.filter(function (f) {
       return f && f.businessDate === range.key;
     });
   }
@@ -271,7 +344,34 @@
     try {
       open = JSON.parse(sessionStorage.getItem(OPEN_SESS_KEY) || 'null');
     } catch (_) {}
-    var rows = (Array.isArray(log) ? log : []).filter(function (s) {
+    var list = Array.isArray(log) ? log : [];
+    var rows;
+    if (range.multiDay && range.fromYmd && range.toYmdExclusive) {
+      rows = list.filter(function (s) {
+        var bd = String((s && s.businessDate) || '').slice(0, 10);
+        return bd && bd >= range.fromYmd && bd < range.toYmdExclusive;
+      });
+      if (
+        open &&
+        open.userId &&
+        open.businessDate &&
+        open.businessDate >= range.fromYmd &&
+        open.businessDate < range.toYmdExclusive
+      ) {
+        rows.push({
+          userId: open.userId,
+          userName: open.userName,
+          rol: open.rol,
+          loginAt: open.loginAt,
+          logoutAt: null,
+          durationMs: Math.max(0, Date.now() - new Date(open.loginAt).getTime()),
+          businessDate: open.businessDate,
+          open: true,
+        });
+      }
+      return rows;
+    }
+    rows = list.filter(function (s) {
       return s && s.businessDate === range.key;
     });
     if (open && open.userId && open.businessDate === range.key) {
@@ -1320,6 +1420,549 @@
     );
   }
 
+  function parseVoidMesaId(contexto) {
+    var ctx = String(contexto || '');
+    var m = ctx.match(/(?:tablet-)?mesa:([A-Za-z0-9_-]+)/i);
+    if (m) return normalizeMesaId(m[1]);
+    return '';
+  }
+
+  function voidItemName(detalle) {
+    return String(detalle || 'Ítem')
+      .replace(/\s*·.*$/, '')
+      .replace(/\s+x\d+\s*$/i, '')
+      .trim() || 'Ítem';
+  }
+
+  var OPERATIVO_KINDS = {
+    voids_items: { title: 'Ítems eliminados', note: '' },
+    voids_mesas: { title: 'Mesas con más eliminados', note: 'Deriva de contexto del void (mesa:…).' },
+    ventas_mesas: { title: 'Mesas con más ventas', note: '' },
+    ventas_meseros: {
+      title: 'Meseros que más venden',
+      note: 'Atribución vía comandas↔mesa; venta directa puede no aparecer.',
+    },
+    hora_pico: { title: 'Momentos de más movimiento', note: '' },
+    hora_valle: { title: 'Momentos de menos movimiento', note: 'Solo horas con al menos 1 venta.' },
+    platos_top: { title: 'Platos más vendidos', note: '' },
+    platos_pantalla: {
+      title: 'Platos por pantalla / KDS',
+      note: 'Según área de comanda; sin comanda no hay fila.',
+    },
+  };
+
+  /**
+   * Catálogo operativo por rango (local, sin NVIDIA).
+   * opts: { kind, fromYmd, toYmdExclusive | toYmd }
+   */
+  function buildOperativoReport(opts) {
+    opts = opts || {};
+    var kind = String(opts.kind || 'platos_top');
+    var meta = OPERATIVO_KINDS[kind] || { title: kind, note: '' };
+    var range = resolveReportRange(opts);
+    var voids = collectVoidLog(range).filter(function (e) {
+      return e && VOID_TYPES[e.tipo];
+    });
+    var facturas = collectFacturas(range);
+    var columns = [];
+    var rows = [];
+    var kpis = [];
+    var hint = meta.note || '';
+
+    if (kind === 'voids_items') {
+      var byItem = {};
+      voids.forEach(function (e) {
+        var name = voidItemName(e.detalle);
+        if (!byItem[name]) byItem[name] = { name: name, qty: 0, users: {} };
+        byItem[name].qty += 1;
+        var u = String(e.user || '—');
+        byItem[name].users[u] = (byItem[name].users[u] || 0) + 1;
+      });
+      columns = [
+        { key: 'name', label: 'Ítem' },
+        { key: 'qty', label: 'Eliminados', num: true },
+        { key: 'topUser', label: 'Quién más' },
+      ];
+      rows = Object.keys(byItem)
+        .map(function (k) {
+          var r = byItem[k];
+          var topU = Object.keys(r.users).sort(function (a, b) {
+            return r.users[b] - r.users[a];
+          })[0] || '—';
+          return { name: r.name, qty: r.qty, topUser: topU };
+        })
+        .sort(function (a, b) {
+          return b.qty - a.qty;
+        });
+      kpis = [
+        { label: 'Voids', value: String(voids.length) },
+        { label: 'Ítems distintos', value: String(rows.length) },
+      ];
+    } else if (kind === 'voids_mesas') {
+      var byMesa = {};
+      voids.forEach(function (e) {
+        var mid = parseVoidMesaId(e.contexto);
+        if (!mid) mid = 'sin_mesa';
+        if (!byMesa[mid]) byMesa[mid] = { id: mid, name: mid === 'sin_mesa' ? 'Sin mesa / directa' : getMesaName(mid), qty: 0 };
+        byMesa[mid].qty += 1;
+      });
+      columns = [
+        { key: 'name', label: 'Mesa' },
+        { key: 'id', label: 'ID' },
+        { key: 'qty', label: 'Eliminados', num: true },
+      ];
+      rows = Object.keys(byMesa)
+        .map(function (k) {
+          return byMesa[k];
+        })
+        .sort(function (a, b) {
+          return b.qty - a.qty;
+        });
+      kpis = [
+        { label: 'Voids', value: String(voids.length) },
+        { label: 'Mesas con void', value: String(rows.filter(function (r) { return r.id !== 'sin_mesa'; }).length) },
+      ];
+    } else if (kind === 'ventas_mesas') {
+      var mesaA = computeMesaAnalytics(range);
+      columns = [
+        { key: 'name', label: 'Mesa' },
+        { key: 'ventas', label: 'Ventas', num: true, money: true },
+        { key: 'tickets', label: 'Tickets', num: true },
+        { key: 'ticketAvg', label: 'Ticket medio', num: true, money: true },
+        { key: 'zona', label: 'Zona' },
+      ];
+      rows = (mesaA.rows || [])
+        .filter(function (r) {
+          return num(r.ventasTotal) > 0 || num(r.ocupaciones) > 0;
+        })
+        .map(function (r) {
+          return {
+            name: r.name,
+            ventas: Math.round(num(r.ventasTotal)),
+            tickets: (r.tickets && r.tickets.length) || 0,
+            ticketAvg: Math.round(num(r.ticketAvg)),
+            zona: r.zona || '—',
+          };
+        })
+        .sort(function (a, b) {
+          return b.ventas - a.ventas;
+        });
+      var sumV = rows.reduce(function (a, r) {
+        return a + r.ventas;
+      }, 0);
+      kpis = [
+        { label: 'Ventas mesas', value: '$' + sumV.toLocaleString('es-CO') },
+        { label: 'Mesas activas', value: String(rows.length) },
+      ];
+    } else if (kind === 'ventas_meseros') {
+      var m =
+        range.multiDay || (range.end - range.start > 86400000)
+          ? computeMetricsForRange(range)
+          : computeMetrics({ businessDate: range.fromYmd || range.key });
+      columns = [
+        { key: 'name', label: 'Mesero' },
+        { key: 'ventasMesa', label: 'Ventas mesa', num: true, money: true },
+        { key: 'comandas', label: 'Comandas', num: true },
+        { key: 'mesas', label: 'Mesas', num: true },
+        { key: 'faults', label: 'Faltas', num: true },
+      ];
+      rows = (m.meseroRows || [])
+        .map(function (r) {
+          return {
+            name: r.name,
+            ventasMesa: Math.round(num(r.ventasMesa)),
+            comandas: r.comandas,
+            mesas: r.mesas,
+            faults: r.faults,
+          };
+        })
+        .sort(function (a, b) {
+          return b.ventasMesa - a.ventasMesa;
+        });
+      hint = meta.note;
+      kpis = [
+        { label: 'Meseros', value: String(rows.length) },
+        {
+          label: 'Top ventas',
+          value: rows[0] ? '$' + rows[0].ventasMesa.toLocaleString('es-CO') : '—',
+        },
+      ];
+    } else if (kind === 'hora_pico' || kind === 'hora_valle') {
+      var byHour = [];
+      var hi;
+      for (hi = 0; hi < 24; hi++) byHour[hi] = { hour: hi, sales: 0, count: 0 };
+      facturas.forEach(function (f) {
+        var t = new Date(f.fecha || f.fechaEmision || 0).getTime();
+        if (!isFinite(t)) return;
+        var h = new Date(t).getHours();
+        byHour[h].sales += num(f.total);
+        byHour[h].count += 1;
+      });
+      var active = byHour.filter(function (r) {
+        return r.count > 0;
+      });
+      columns = [
+        { key: 'label', label: 'Hora' },
+        { key: 'count', label: 'Tickets', num: true },
+        { key: 'sales', label: 'Ventas', num: true, money: true },
+      ];
+      rows = active
+        .slice()
+        .sort(function (a, b) {
+          return kind === 'hora_pico' ? b.sales - a.sales || b.count - a.count : a.sales - b.sales || a.count - b.count;
+        })
+        .map(function (r) {
+          return {
+            label: String(r.hour).padStart(2, '0') + ':00',
+            count: r.count,
+            sales: Math.round(r.sales),
+          };
+        });
+      kpis = [
+        { label: 'Tickets', value: String(facturas.length) },
+        {
+          label: kind === 'hora_pico' ? 'Pico' : 'Valle',
+          value: rows[0] ? rows[0].label + ' · $' + rows[0].sales.toLocaleString('es-CO') : '—',
+        },
+      ];
+    } else if (kind === 'platos_top') {
+      var topSold = {};
+      facturas.forEach(function (f) {
+        (f.items || []).forEach(function (it) {
+          var name = it.nombreVenta || it.nombre || 'Ítem';
+          var q = num(it.cantidad) || 1;
+          if (!topSold[name]) topSold[name] = { name: name, qty: 0, rev: 0 };
+          topSold[name].qty += q;
+          topSold[name].rev += num(it.precio) * q;
+        });
+      });
+      columns = [
+        { key: 'name', label: 'Plato' },
+        { key: 'qty', label: 'Cant.', num: true },
+        { key: 'rev', label: 'Ingresos', num: true, money: true },
+      ];
+      rows = Object.keys(topSold)
+        .map(function (k) {
+          return { name: topSold[k].name, qty: topSold[k].qty, rev: Math.round(topSold[k].rev) };
+        })
+        .sort(function (a, b) {
+          return b.qty - a.qty || b.rev - a.rev;
+        })
+        .slice(0, 40);
+      kpis = [
+        { label: 'Platos', value: String(rows.length) },
+        { label: 'Facturas', value: String(facturas.length) },
+      ];
+    } else if (kind === 'platos_pantalla') {
+      var byScreen = {};
+      var comandas = collectComandas(range);
+      comandas.forEach(function (c) {
+        var aid = String(c.areaId || c.areaNombre || 'SIN_AREA');
+        var aname = c.areaNombre || aid;
+        (c.items || c.lineas || []).forEach(function (it) {
+          var name = it.nombreVenta || it.nombre || it.name || 'Ítem';
+          var q = num(it.cantidad) || num(it.qty) || 1;
+          var key = aid + '||' + name;
+          if (!byScreen[key]) byScreen[key] = { pantalla: aname, name: name, qty: 0 };
+          byScreen[key].qty += q;
+        });
+      });
+      columns = [
+        { key: 'pantalla', label: 'Pantalla' },
+        { key: 'name', label: 'Plato' },
+        { key: 'qty', label: 'Cant.', num: true },
+      ];
+      rows = Object.keys(byScreen)
+        .map(function (k) {
+          return byScreen[k];
+        })
+        .sort(function (a, b) {
+          return b.qty - a.qty || String(a.pantalla).localeCompare(String(b.pantalla));
+        })
+        .slice(0, 60);
+      if (!rows.length) {
+        var pant = computePantallaMetrics(range);
+        hint =
+          (meta.note || '') +
+          ' Sin ítems en comandas del rango; se muestra actividad por pantalla.';
+        columns = [
+          { key: 'name', label: 'Pantalla' },
+          { key: 'total', label: 'Pedidos', num: true },
+          { key: 'despachadas', label: 'Despachadas', num: true },
+        ];
+        rows = (pant || []).map(function (r) {
+          return { name: r.name, total: r.total, despachadas: r.despachadas };
+        });
+      }
+      kpis = [
+        { label: 'Filas', value: String(rows.length) },
+        { label: 'Comandas', value: String(comandas.length) },
+      ];
+    } else {
+      return { ok: false, error: 'unknown_kind', kind: kind, range: range };
+    }
+
+    return {
+      ok: true,
+      kind: kind,
+      title: meta.title,
+      hint: hint,
+      range: range,
+      columns: columns,
+      rows: rows,
+      kpis: kpis,
+      empty: !rows.length,
+    };
+  }
+
+  /** computeMetrics adaptado a rango multi-día. */
+  function computeMetricsForRange(range) {
+    var base = computeMetrics({ businessDate: range.fromYmd || businessDate() });
+    var voids = collectVoidLog(range).filter(function (e) {
+      return e && VOID_TYPES[e.tipo];
+    });
+    var deletedProducts = {};
+    voids.forEach(function (e) {
+      var name = voidItemName(e.detalle);
+      if (!deletedProducts[name]) deletedProducts[name] = { name: name, qty: 0, users: {} };
+      deletedProducts[name].qty += 1;
+    });
+    base.deletedList = Object.keys(deletedProducts)
+      .map(function (k) {
+        return deletedProducts[k];
+      })
+      .sort(function (a, b) {
+        return b.qty - a.qty;
+      });
+    base.voidsTotal = voids.length;
+    base.range = range;
+    base.mesaAnalytics = computeMesaAnalytics(range);
+    base.pantallaRows = computePantallaMetrics(range);
+    try {
+      var staff = getStaffList();
+      var map = {};
+      staff.forEach(function (s) {
+        if (normalizeRol(s.rol) !== 'mesero') return;
+        map[s.id] = {
+          id: s.id,
+          name: s.nombre || s.id,
+          mesas: 0,
+          comandas: 0,
+          ventasMesa: 0,
+          faults: 0,
+          voids: 0,
+        };
+      });
+      var comandas = collectComandas(range);
+      var facturas = collectFacturas(range);
+      var faults = collectFaults(range);
+      var mesaOwner = {};
+      comandas.forEach(function (c) {
+        var uid = String(c.creadoPor || c.creadoPorId || '');
+        if (!uid) return;
+        if (!map[uid]) {
+          map[uid] = {
+            id: uid,
+            name: c.creadoPorNombre || uid,
+            mesas: 0,
+            comandas: 0,
+            ventasMesa: 0,
+            faults: 0,
+            voids: 0,
+          };
+        }
+        map[uid].comandas += 1;
+        var mk = mesaGroupKeyFromComanda(c);
+        if (mk && String(c.tipoServicio || '').toLowerCase() === 'mesa') {
+          if (!mesaOwner[mk]) {
+            mesaOwner[mk] = uid;
+            map[uid].mesas += 1;
+          }
+        }
+      });
+      facturas.forEach(function (f) {
+        if (String(f.tipoServicio || '').toLowerCase() !== 'mesa') return;
+        var mid = normalizeMesaId(f.mesa || f.referencia || '');
+        var mk = 'mesa|' + mid;
+        var owner = mesaOwner[mk] || mesaOwner['mesa|' + mid] || mesaOwner[mid];
+        if (!owner) {
+          Object.keys(mesaOwner).some(function (k) {
+            if (k.indexOf(mid) >= 0) {
+              owner = mesaOwner[k];
+              return true;
+            }
+            return false;
+          });
+        }
+        if (owner && map[owner]) map[owner].ventasMesa += num(f.total);
+      });
+      faults.forEach(function (f) {
+        var uid = String(f.destinoId || f.userId || '');
+        if (map[uid]) map[uid].faults += 1;
+      });
+      voids.forEach(function (e) {
+        var uid = matchStaffId(staff, e.user);
+        if (map[uid]) map[uid].voids += 1;
+      });
+      base.meseroRows = Object.keys(map)
+        .map(function (k) {
+          var r = map[k];
+          return {
+            id: r.id,
+            name: r.name,
+            mesas: r.mesas,
+            comandas: r.comandas,
+            ventasMesa: r.ventasMesa,
+            faults: r.faults,
+            voids: r.voids,
+            faultRate: formatPct(r.faults, Math.max(1, r.comandas)),
+            hoursLabel: '—',
+            comandasHora: '—',
+            score: 0,
+            scoreClass: 'warn',
+          };
+        })
+        .sort(function (a, b) {
+          return b.ventasMesa - a.ventasMesa;
+        });
+    } catch (_) {}
+    return base;
+  }
+
+  function renderOperativoTable(report) {
+    if (!report || !report.ok) {
+      return '<p class="crozzo-rep-empty">No se pudo generar el reporte.</p>';
+    }
+    if (report.empty) {
+      return '<p class="crozzo-rep-empty">Sin datos en el rango seleccionado.</p>';
+    }
+    var cols = report.columns || [];
+    var head =
+      '<thead><tr>' +
+      cols
+        .map(function (c) {
+          return '<th' + (c.num ? ' class="num"' : '') + '>' + esc(c.label) + '</th>';
+        })
+        .join('') +
+      '</tr></thead>';
+    var body =
+      '<tbody>' +
+      (report.rows || [])
+        .map(function (row) {
+          return (
+            '<tr>' +
+            cols
+              .map(function (c) {
+                var v = row[c.key];
+                var cell = v;
+                if (c.money) cell = '$' + Math.round(num(v)).toLocaleString('es-CO');
+                else if (c.num) cell = String(v);
+                else cell = esc(v);
+                return '<td' + (c.num ? ' class="num"' : '') + '>' + cell + '</td>';
+              })
+              .join('') +
+            '</tr>'
+          );
+        })
+        .join('') +
+      '</tbody>';
+    return '<div class="crozzo-rep-table-wrap"><table class="crozzo-rep-operativo-table">' + head + body + '</table></div>';
+  }
+
+  function renderOperativoPanelHtml() {
+    var today = businessDate();
+    var fromDef = addDaysYmd(today, -6);
+    return (
+      '<div class="crozzo-rep-panel crozzo-rep-operativo" data-rep-panel="operativo" style="display:none;">' +
+      '<div class="crozzo-rep-operativo__head">' +
+      '<h3 class="crozzo-rep-dash-title">Operativo</h3>' +
+      '<p class="form-hint">Reportes por rango · local · sin NVIDIA. Elija tipo y fechas, luego Generar.</p></div>' +
+      '<div class="crozzo-rep-operativo__controls">' +
+      '<label class="crozzo-rep-operativo__field">Desde<input type="date" id="crozzoOpFrom" class="form-input" value="' +
+      esc(fromDef) +
+      '"></label>' +
+      '<label class="crozzo-rep-operativo__field">Hasta<input type="date" id="crozzoOpTo" class="form-input" value="' +
+      esc(today) +
+      '"></label>' +
+      '<label class="crozzo-rep-operativo__field crozzo-rep-operativo__field--grow">Reporte' +
+      '<select id="crozzoOpKind" class="form-select">' +
+      '<option value="voids_items">Ítems eliminados</option>' +
+      '<option value="voids_mesas">Mesas · más eliminados</option>' +
+      '<option value="ventas_mesas">Mesas · más ventas</option>' +
+      '<option value="ventas_meseros">Meseros · más ventas</option>' +
+      '<option value="hora_pico">Horas · más movimiento</option>' +
+      '<option value="hora_valle">Horas · menos movimiento</option>' +
+      '<option value="platos_top">Platos más vendidos</option>' +
+      '<option value="platos_pantalla">Platos por pantalla</option>' +
+      '</select></label>' +
+      '<button type="button" class="btn btn-primary" id="crozzoOpGenerate">Generar</button></div>' +
+      '<div class="crozzo-rep-operativo__kpis" id="crozzoOpKpis"></div>' +
+      '<p class="form-hint crozzo-rep-operativo__hint" id="crozzoOpHint" hidden></p>' +
+      '<div id="crozzoOpTableHost"><p class="crozzo-rep-empty">Pulse Generar para ver el reporte.</p></div></div>'
+    );
+  }
+
+  function refreshOperativoReport(root) {
+    root = root || document.getElementById('crozzo-rep-root');
+    if (!root) return;
+    var fromEl = root.querySelector('#crozzoOpFrom');
+    var toEl = root.querySelector('#crozzoOpTo');
+    var kindEl = root.querySelector('#crozzoOpKind');
+    var host = root.querySelector('#crozzoOpTableHost');
+    var kpisEl = root.querySelector('#crozzoOpKpis');
+    var hintEl = root.querySelector('#crozzoOpHint');
+    if (!fromEl || !toEl || !kindEl || !host) return;
+    var from = String(fromEl.value || '').slice(0, 10);
+    var to = String(toEl.value || '').slice(0, 10);
+    if (!from || !to) {
+      host.innerHTML = '<p class="crozzo-rep-empty">Indique fechas válidas.</p>';
+      return;
+    }
+    if (to < from) {
+      host.innerHTML = '<p class="crozzo-rep-empty">«Hasta» debe ser ≥ «Desde».</p>';
+      return;
+    }
+    var report = buildOperativoReport({
+      kind: kindEl.value,
+      fromYmd: from,
+      toYmd: to,
+    });
+    if (kpisEl) {
+      kpisEl.innerHTML = (report.kpis || [])
+        .map(function (k) {
+          return (
+            '<div class="crozzo-rep-operativo__kpi"><div class="val">' +
+            esc(k.value) +
+            '</div><div class="lbl">' +
+            esc(k.label) +
+            '</div></div>'
+          );
+        })
+        .join('');
+    }
+    if (hintEl) {
+      if (report.hint) {
+        hintEl.hidden = false;
+        hintEl.textContent = report.hint;
+      } else {
+        hintEl.hidden = true;
+        hintEl.textContent = '';
+      }
+    }
+    host.innerHTML = renderOperativoTable(report);
+  }
+
+  function bindOperativoPanel(root) {
+    root = root || document.getElementById('crozzo-rep-root');
+    if (!root || root.__crozzoOpBound) return;
+    var btn = root.querySelector('#crozzoOpGenerate');
+    if (!btn) return;
+    root.__crozzoOpBound = true;
+    btn.addEventListener('click', function () {
+      refreshOperativoReport(root);
+    });
+  }
+
   function renderDashboardPanelHtml() {
     return (
       '<div class="crozzo-rep-panel" data-rep-panel="equipo" style="display:none;">' +
@@ -1691,6 +2334,11 @@
     recordMesaSale: recordMesaSale,
     recordCajaCheckout: recordCajaCheckout,
     computeMetrics: computeMetrics,
+    resolveReportRange: resolveReportRange,
+    buildOperativoReport: buildOperativoReport,
+    renderOperativoPanelHtml: renderOperativoPanelHtml,
+    bindOperativoPanel: bindOperativoPanel,
+    refreshOperativoReport: refreshOperativoReport,
     renderDashboardPanelHtml: renderDashboardPanelHtml,
     refreshDashboard: refreshDashboard,
     exportCsv: exportCsv,

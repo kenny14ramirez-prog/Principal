@@ -7,6 +7,14 @@
 
   var PRESETS = [
     {
+      id: 'bona',
+      label: 'BONA',
+      desc: 'Piel BONA origen: oro editorial, tipografía clara y ticket de sede premium.',
+      icon: '◆',
+      sz: '80',
+      aliasOf: 'elegante',
+    },
+    {
       id: 'clasico',
       label: 'Clásico',
       desc: 'Factura clásica con marcos, ornamentos ◆ y tipografía editorial.',
@@ -78,7 +86,16 @@
     },
   ];
 
-  var DEFAULT_PRESET = 'clasico';
+  var DEFAULT_PRESET = 'bona';
+
+  /** Resuelve alias (ej. bona → elegante) para bloques / sz. */
+  function resolvePresetId(presetId) {
+    var m = PRESETS.find(function (p) {
+      return p.id === presetId;
+    });
+    if (m && m.aliasOf) return m.aliasOf;
+    return presetId || DEFAULT_PRESET;
+  }
 
   /** Política de corte por tipo de documento (una sola fuente de verdad). */
   var CUT_POLICY = {
@@ -184,10 +201,11 @@
   }
 
   function szFor(presetId, docType) {
+    var resolved = resolvePresetId(presetId);
     var m = meta(presetId);
-    if (presetId === 'economizador' || presetId === 'economizador-elegante' || presetId === 'express') return '58';
-    if (docType === 'ticket' && (presetId === 'express' || presetId === 'economizador')) return '58';
-    return m.sz || '80';
+    if (resolved === 'economizador' || resolved === 'economizador-elegante' || resolved === 'express') return '58';
+    if (docType === 'ticket' && (resolved === 'express' || resolved === 'economizador')) return '58';
+    return (m && m.sz) || meta(resolved).sz || '80';
   }
 
   function blocksFactura(presetId) {
@@ -197,7 +215,10 @@
         { t: 'title', c: 'FACTURA', v: true, o: 2, a: 'center', fs: 'sm', fw: true },
         { t: 'consec', c: '', v: true, o: 3, a: 'center', fs: 'xs' },
         { t: 'items', c: '', v: true, o: 4, a: 'left', fs: 'xs' },
+        { t: 'iva_disc', c: '', v: true, o: 4.5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL', v: true, o: 5, a: 'left', fs: 'md', fw: true },
+        { t: 'propina_sugerida', c: '', v: true, o: 5.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 5.8, a: 'center', fs: 'xs' },
         { t: 'footer', c: 'Gracias', v: true, o: 6, a: 'center', fs: 'xs' },
       ];
     }
@@ -211,7 +232,10 @@
         { t: 'date', c: '', v: true, o: 5, a: 'center', fs: 'xs' },
         { t: 'divider', c: '3', v: true, o: 6 },
         { t: 'items', c: '', v: true, o: 7, a: 'left', fs: 'xs' },
+        { t: 'iva_disc', c: '', v: true, o: 7.5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL', v: true, o: 8, a: 'center', fs: 'md', fw: true },
+        { t: 'propina_sugerida', c: '', v: true, o: 8.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 8.8, a: 'center', fs: 'xs' },
         { t: 'footer', c: '* Gracias por su compra *', v: true, o: 9, a: 'center', fs: 'xs' },
         orn('dots', 9.5),
       ];
@@ -221,7 +245,10 @@
         { t: 'title', c: 'TICKET', v: true, o: 1, a: 'center', fs: 'md', fw: true },
         { t: 'consec', c: '', v: true, o: 2, a: 'center', fs: 'xs' },
         { t: 'items', c: '', v: true, o: 3, a: 'left', fs: 'xs' },
+        { t: 'iva_disc', c: '', v: true, o: 3.5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL', v: true, o: 4, a: 'center', fs: 'lg', fw: true },
+        { t: 'propina_sugerida', c: '', v: true, o: 4.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 5, a: 'center', fs: 'xs' },
       ];
     }
     if (presetId === 'profesional') {
@@ -235,8 +262,11 @@
         { t: 'date', c: '', v: true, o: 7, a: 'center', fs: 'xs' },
         { t: 'client', c: '', v: true, o: 8, a: 'left', fs: 'sm' },
         { t: 'items', c: '', v: true, o: 9, a: 'left', fs: 'sm' },
+        { t: 'iva_disc', c: '', v: true, o: 9.5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'VALOR TOTAL', v: true, o: 10, a: 'right', fs: 'md', fw: true },
         { t: 'payment', c: '', v: true, o: 11, a: 'left', fs: 'sm' },
+        { t: 'propina_sugerida', c: '', v: true, o: 11.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 11.8, a: 'center', fs: 'xs' },
         { t: 'footer', c: '- Documento Crozzo - calidad garantizada -', v: true, o: 12, a: 'center', fs: 'xs' },
         orn('dots', 12.5),
       ];
@@ -255,12 +285,15 @@
         { t: 'client', c: '', v: true, o: 9, a: 'left', fs: 'sm' },
         { t: 'divider', c: '4', v: true, o: 10 },
         { t: 'items', c: '', v: true, o: 11, a: 'left', fs: 'sm' },
+        { t: 'iva_disc', c: '', v: true, o: 11.5, a: 'left', fs: 'xs' },
         { t: 'divider', c: '4', v: true, o: 12 },
         { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 13, a: 'center', fs: 'lg', fw: true },
         { t: 'payment', c: '', v: true, o: 14, a: 'center', fs: 'sm' },
+        { t: 'propina_sugerida', c: '', v: true, o: 14.5, a: 'center', fs: 'xs' },
         { t: 'cufe', c: '', v: true, o: 15, a: 'left', fs: 'xs' },
         { t: 'qr', c: '', v: true, o: 16, a: 'center', fs: 'sm' },
-        orn('wave', 16.5),
+        { t: 'legal_co', c: '', v: true, o: 16.5, a: 'center', fs: 'xs' },
+        orn('wave', 16.8),
         { t: 'footer', c: '- Gracias por preferirnos -', v: true, o: 17, a: 'center', fs: 'xs' },
       ];
     }
@@ -274,9 +307,12 @@
         { t: 'date', c: '', v: true, o: 5, a: 'left', fs: 'xs' },
         { t: 'client', c: '', v: true, o: 6, a: 'left', fs: 'sm' },
         { t: 'items', c: '', v: true, o: 7, a: 'left', fs: 'sm' },
+        { t: 'iva_disc', c: '', v: true, o: 7.5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL', v: true, o: 8, a: 'left', fs: 'md', fw: true },
         { t: 'payment', c: '', v: true, o: 9, a: 'left', fs: 'sm' },
+        { t: 'propina_sugerida', c: '', v: true, o: 9.5, a: 'left', fs: 'xs' },
         { t: 'qr', c: '', v: true, o: 10, a: 'left', fs: 'sm' },
+        { t: 'legal_co', c: '', v: true, o: 11, a: 'left', fs: 'xs' },
       ];
     }
     if (presetId === 'detallado') {
@@ -291,12 +327,15 @@
         { t: 'client', c: '', v: true, o: 8, a: 'left', fs: 'sm' },
         { t: 'divider', c: '3', v: true, o: 9 },
         { t: 'items', c: '', v: true, o: 10, a: 'left', fs: 'sm' },
+        { t: 'iva_disc', c: '', v: true, o: 10.5, a: 'left', fs: 'xs' },
         { t: 'divider', c: '3', v: true, o: 11 },
         { t: 'total', c: 'SUBTOTAL / IVA / TOTAL', v: true, o: 12, a: 'left', fs: 'md', fw: true },
         { t: 'payment', c: '', v: true, o: 13, a: 'left', fs: 'sm' },
+        { t: 'propina_sugerida', c: '', v: true, o: 13.5, a: 'center', fs: 'xs' },
         { t: 'cufe', c: '', v: true, o: 14, a: 'left', fs: 'xs' },
         { t: 'qr', c: '', v: true, o: 15, a: 'center', fs: 'sm' },
-        orn('diamond', 15.5),
+        { t: 'legal_co', c: '', v: true, o: 15.5, a: 'center', fs: 'xs' },
+        orn('diamond', 15.8),
         { t: 'footer', c: 'Propina y cambio según caja · Conserve este comprobante', v: true, o: 16, a: 'center', fs: 'xs' },
       ];
     }
@@ -307,10 +346,13 @@
         { t: 'consec', c: '', v: true, o: 2, a: 'center', fs: 'sm' },
         { t: 'date', c: '', v: true, o: 3, a: 'center', fs: 'xs' },
         { t: 'items', c: '', v: true, o: 4, a: 'left', fs: 'sm' },
+        { t: 'iva_disc', c: '', v: true, o: 4.3, a: 'left', fs: 'xs' },
         orn('diamond', 4.5),
         { t: 'divider', c: '4', v: true, o: 5 },
         { t: 'total', c: 'TOTAL', v: true, o: 6, a: 'center', fs: 'xl', fw: true },
         { t: 'payment', c: '', v: true, o: 7, a: 'center', fs: 'sm' },
+        { t: 'propina_sugerida', c: '', v: true, o: 7.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 7.8, a: 'center', fs: 'xs' },
         { t: 'footer', c: '¡Gracias por su compra!', v: true, o: 8, a: 'center', fs: 'sm', fw: true },
         orn('dots', 8.5),
       ];
@@ -325,12 +367,22 @@
         { t: 'client', c: '', v: true, o: 5, a: 'center', fs: 'sm' },
         { t: 'divider', c: '4', v: true, o: 6 },
         { t: 'items', c: '', v: true, o: 7, a: 'left', fs: 'md' },
+        { t: 'iva_disc', c: '', v: true, o: 7.5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL MESA', v: true, o: 8, a: 'center', fs: 'lg', fw: true },
-        { t: 'footer', c: 'No es factura - Cobrar en caja', v: true, o: 9, a: 'center', fs: 'xs' },
+        { t: 'propina_sugerida', c: '', v: true, o: 8.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 8.8, a: 'center', fs: 'xs' },
+        { t: 'footer', c: 'Conserve este comprobante · Factura en caja', v: true, o: 9, a: 'center', fs: 'xs' },
       ];
     }
     if (global.CrozzoTermicaColombia && typeof global.CrozzoTermicaColombia.blocksFacturaColombiaBase === 'function') {
-      return global.CrozzoTermicaColombia.blocksFacturaColombiaBase();
+      var base = global.CrozzoTermicaColombia.blocksFacturaColombiaBase();
+      var hasProp = base.some(function (b) {
+        return b && b.t === 'propina_sugerida';
+      });
+      if (!hasProp) {
+        base.push({ t: 'propina_sugerida', c: '', v: true, o: 17.5, a: 'center', fs: 'xs' });
+      }
+      return base;
     }
     return [
       { t: 'logo', c: '', v: true, o: 1, a: 'center', fs: 'md', fw: true },
@@ -346,6 +398,7 @@
       { t: 'iva_disc', c: '', v: true, o: 10, a: 'left', fs: 'xs' },
       { t: 'total', c: 'TOTAL', v: true, o: 11, a: 'left', fs: 'md', fw: true },
       { t: 'payment', c: '', v: true, o: 12, a: 'left', fs: 'sm' },
+      { t: 'propina_sugerida', c: '', v: true, o: 12.5, a: 'center', fs: 'xs' },
       { t: 'cufe', c: '', v: true, o: 13, a: 'left', fs: 'xs' },
       { t: 'qr', c: '', v: true, o: 14, a: 'center', fs: 'sm' },
       { t: 'legal_co', c: '', v: true, o: 15, a: 'center', fs: 'xs' },
@@ -365,8 +418,10 @@
         { t: 'divider', c: '4', v: true, o: 7 },
         { t: 'items', c: '', v: true, o: 8, a: 'left', fs: 'sm' },
         { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 9, a: 'center', fs: 'lg', fw: true },
-        orn('wave', 9.5),
-        { t: 'footer', c: 'No es factura - Solicite cuenta en caja', v: true, o: 10, a: 'center', fs: 'xs' },
+        { t: 'propina_sugerida', c: '', v: true, o: 9.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 9.8, a: 'center', fs: 'xs' },
+        orn('wave', 10),
+        { t: 'footer', c: 'No es factura - Solicite cuenta en caja', v: true, o: 10.5, a: 'center', fs: 'xs' },
       ]);
     }
     if (presetId === 'economizador' || presetId === 'express') {
@@ -375,6 +430,8 @@
         { t: 'consec', c: '', v: true, o: 2, a: 'center', fs: 'xs' },
         { t: 'items', c: '', v: true, o: 3, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL', v: true, o: 4, a: 'center', fs: 'md', fw: true },
+        { t: 'propina_sugerida', c: '', v: true, o: 4.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 5, a: 'center', fs: 'xs' },
       ]);
     }
     if (presetId === 'economizador-elegante') {
@@ -384,6 +441,8 @@
         { t: 'title', c: 'PRECUENTA', v: true, o: 4, a: 'center', fs: 'md', fw: true },
         { t: 'items', c: '', v: true, o: 5, a: 'left', fs: 'xs' },
         { t: 'total', c: 'TOTAL', v: true, o: 6, a: 'center', fs: 'md', fw: true },
+        { t: 'propina_sugerida', c: '', v: true, o: 6.5, a: 'center', fs: 'xs' },
+        { t: 'legal_co', c: '', v: true, o: 6.8, a: 'center', fs: 'xs' },
         { t: 'footer', c: 'No es factura legal', v: true, o: 7, a: 'center', fs: 'xs' },
       ]);
     }
@@ -394,6 +453,8 @@
       { t: 'client', c: '', v: true, o: 5, a: 'left', fs: 'sm' },
       { t: 'items', c: '', v: true, o: 6, a: 'left', fs: 'sm' },
       { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 7, a: 'left', fs: 'md', fw: true },
+      { t: 'propina_sugerida', c: '', v: true, o: 7.5, a: 'center', fs: 'xs' },
+      { t: 'legal_co', c: '', v: true, o: 7.8, a: 'center', fs: 'xs' },
       { t: 'footer', c: 'No es factura - Caja', v: true, o: 8, a: 'center', fs: 'xs' },
     ]);
   }
@@ -420,6 +481,7 @@
         orn('flourish', 0.5),
         { t: 'title', c: 'COMANDA', v: true, o: 1, a: 'center', fs: 'xl', fw: true },
         { t: 'consec', c: '', v: true, o: 2, a: 'center', fs: 'lg', fw: true },
+        { t: 'comanda_slot', c: '', v: true, o: 2.5, a: 'center', fs: 'xl', fw: true },
         { t: 'client', c: '', v: true, o: 3, a: 'center', fs: 'xl', fw: true },
         { t: 'date', c: '', v: true, o: 4, a: 'center', fs: 'xs' },
         { t: 'divider', c: '4', v: true, o: 5 },
@@ -504,7 +566,11 @@
   function getTemplate(docType, presetId) {
     presetId = presetId || DEFAULT_PRESET;
     var p = meta(presetId);
-    if (!p) p = meta(DEFAULT_PRESET);
+    if (!p) {
+      presetId = DEFAULT_PRESET;
+      p = meta(DEFAULT_PRESET);
+    }
+    var blockPresetId = resolvePresetId(presetId);
     var raw = applyCutPolicy(
       {
         name: p.label + ' - ' + docLabel(docType),
@@ -512,7 +578,7 @@
         studio: true,
         docType: docType,
         presetId: p.id,
-        blocks: blocksFor(docType, p.id),
+        blocks: blocksFor(docType, blockPresetId),
       },
       docType
     );
@@ -549,6 +615,7 @@
     applyCutPolicy: applyCutPolicy,
     getTemplate: getTemplate,
     getPresetMeta: meta,
+    resolvePresetId: resolvePresetId,
     isValidPreset: function (id) {
       return PRESETS.some(function (p) { return p.id === id; });
     },

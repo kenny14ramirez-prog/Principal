@@ -889,6 +889,17 @@
   if (embedded) document.body.classList.add('embedded');
   var parentInitRev = 0;
   var blockAutoSyncUntil = 0;
+  var interactiveLockUntil = 0;
+  var lastUserEditAt = 0;
+
+  function touchInteractive() {
+    interactiveLockUntil = Date.now() + 6000;
+    lastUserEditAt = Date.now();
+  }
+
+  function isInteractiveLocked() {
+    return Date.now() < interactiveLockUntil || selectedIdx != null;
+  }
 
   var BLOCK_LABELS = {
     logo: 'Logotipo', company: 'Nombre comercial', razon: 'Razón social (RUT)', nit: 'NIT',
@@ -906,9 +917,11 @@
   var CUT_MODE_LABELS = { partial: 'Parcial (deja unión)', full: 'Total (corta del todo)', none: 'Solo avance, sin corte' };
 
   var AUTO_DATA_BLOCKS = [
-    'razon', 'nit', 'address', 'tel', 'ciudad', 'regimen', 'num_fe', 'date', 'resol_full', 'resol',
-    'client', 'items', 'iva_disc', 'total', 'payment', 'cufe', 'qr', 'legal_co', 'consec',
+    'razon', 'nit', 'address', 'tel', 'ciudad', 'regimen', 'num_fe', 'date',
+    'client', 'items', 'iva_disc', 'total', 'payment', 'cufe', 'qr', 'consec',
   ];
+  /** Bloques legales editables: si c tiene texto, se usa; si no, datos DIAN/sample. */
+  var LEGAL_OVERRIDE_BLOCKS = ['title', 'legal_co', 'resol', 'resol_full', 'footer', 'text'];
 
   var COLOMBIA_FE_BLOCKS = [
     { t: 'logo', c: '', v: true, o: 1, a: 'center', fs: 'md', fw: true },
@@ -1010,6 +1023,7 @@
 
   var SAMPLE = {
     head: 'FACTURA ELECTRÓNICA DE VENTA',
+    docKind: 'fe_cerrada',
     nameE: 'Mi negocio S.A.S.',
     razonE: 'Mi Negocio Sociedad por Acciones S.A.S.',
     nitE: '900.123.456-7',
@@ -1026,25 +1040,31 @@
     cliTipo: 'NIT',
     cliNom: 'María González',
     cliNit: '901.234.567-1',
-    ivaDisc: 'Base gravada $334.000 · IVA 19% $63.460',
+    ivaDisc: 'Base gravada $322.000 · IVA 19% $61.180 · Dto. autorizado −$12.000',
     legalCo: 'Representación impresa de Factura Electrónica de Venta (Res. DIAN 000165/2023).',
     lines: [
       { n: 'Blazer lino premium', q: 1, p: 289000 },
-      { n: 'Accesorio regalo', q: 1, p: 45000 },
+      { n: 'Accesorio regalo (−20% dto.)', q: 1, p: 36000, precioAnt: 45000, enDescuento: true },
     ],
-    sub: 334000,
-    iva: 63460,
-    tot: 397460,
+    sub: 325000,
+    iva: 61750,
+    tot: 374750,
+    totalBruto: 386750,
+    descuentoMonto: 12000,
+    descuentoMotivo: 'Descuento autorizado demo',
     pago: 'Efectivo',
     propina: 0,
+    propinaSugerida: 32500,
+    propinaPctSugerido: 10,
+    totalConPropina: 407250,
+    propinaLeyendaEnBloquePropina: true,
+    propinaLeyendaTicket: 'La propina es voluntaria. El personal de servicio la recibe íntegramente.',
     recibido: 400000,
-    cambio: 2540,
-    logoUrl: '',
+    cambio: 25250,
     cufe: 'a1b2c3d4e5f6789012345678901234567890abcd',
     qrUrl: 'https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=sample',
-    rotuloNombre: 'Harina de trigo',
     rotuloNombre: 'Jugo Natural',
-    salonItem: { nombre: 'Jugo Natural', precio: 8000, gramaje: 0, precioGramo: null, enDescuento: false },
+    salonItem: { nombre: 'Jugo Natural', precio: 8000, gramaje: 0, precioGramo: null, enDescuento: true, precioAnterior: 10000 },
   };
 
   function qrImg(url, sz) {
@@ -1188,26 +1208,28 @@
     return state.printOutput || rollSzFromOutput('roll_80');
   };
 
-  function polishFacturaTpl(tpl) {
+  function polishFacturaTpl(tpl, opts) {
     if (!tpl || (tpl.docType && tpl.docType !== 'factura')) return tpl;
+    opts = opts || {};
     var col = window.CrozzoTermicaColombia || (window.parent && window.parent.CrozzoTermicaColombia);
     if (!col) return tpl;
-    if (typeof col.ensureFacturaBlocks === 'function') tpl = col.ensureFacturaBlocks(tpl);
+    // Sync/carga del editor: no dedupe/ensure (mutaba v y podía borrar título).
+    if (opts.light) return tpl;
+    if (typeof col.ensureFacturaBlocks === 'function') tpl = col.ensureFacturaBlocks(tpl, null, opts);
     else if (typeof col.dedupeFacturaBlocks === 'function') tpl = col.dedupeFacturaBlocks(tpl);
     return tpl;
   }
 
-  function polishTplForDesigner(tpl) {
+  function polishTplForDesigner(tpl, opts) {
     if (!tpl) return tpl;
-    tpl = polishFacturaTpl(tpl);
+    opts = opts || {};
+    tpl = polishFacturaTpl(tpl, opts);
     var dt = tpl.docType || state.docType || 'factura';
     tpl.docType = dt;
-    var hub = window.CrozzoPrintStudioHub || (window.parent && window.parent.CrozzoPrintStudioHub);
-    if (hub && typeof hub.polishTplForDocType === 'function') {
-      return hub.polishTplForDocType(tpl, dt);
-    }
-    if (dt === 'salon' && hub && typeof hub.ensureSalonBlocks === 'function') {
-      tpl = hub.ensureSalonBlocks(tpl);
+    // No llamar polishTplForDocType del hub en export/sync: vuelve a ensure* y borra ediciones.
+    if (opts.forPreview && dt === 'salon') {
+      var hub = window.CrozzoPrintStudioHub || (window.parent && window.parent.CrozzoPrintStudioHub);
+      if (hub && typeof hub.ensureSalonBlocks === 'function') tpl = hub.ensureSalonBlocks(tpl);
     }
     return tpl;
   }
@@ -1230,7 +1252,8 @@
 
   function tplForPreview() {
     var tpl = exportTpl();
-    tpl = polishTplForDesigner(tpl);
+    // Preview puede asegurar bloques faltantes, sin strip de título.
+    tpl = polishTplForDesigner(tpl, { forPreview: true, light: false });
     try {
       var hub = window.CrozzoPrintStudioHub || (window.parent && window.parent.CrozzoPrintStudioHub);
       if (hub && typeof hub.tplForPrintOutput === 'function') {
@@ -1254,6 +1277,7 @@
       cutEnd: cutEnd,
       cutEndFeed: Math.max(0, Math.min(8, Number(raw.cutEndFeed) || 0)),
       docType: String(raw.docType || state.docType || 'factura'),
+      presetId: raw.presetId || '',
       blocks: raw.blocks.filter(function (b) { return b && b.t; }).map(function (b, i) {
         return {
           t: b.t,
@@ -1267,7 +1291,8 @@
         };
       }),
     };
-    return polishTplForDesigner(tpl);
+    // Carga en editor: light — no wipe de textos legales/título.
+    return polishTplForDesigner(tpl, { light: true });
   }
 
   function esc(s) {
@@ -1324,12 +1349,16 @@
         return wrap(blockStyle(b, { align: 'center', fontSize: '8px' }), esc(d.dirE));
       case 'num_fe':
         return wrap(blockStyle(b, { bold: true }), 'No. ' + esc(d.numFe || d.consecutivo));
-      case 'resol_full':
-        return d.resolFull ? wrap(blockStyle(b, { fontSize: '7px' }), esc(d.resolFull)) : '';
+      case 'resol_full': {
+        var rf = String(b.c || '').trim() || d.resolFull;
+        return rf ? wrap(blockStyle(b, { fontSize: '7px' }), esc(rf)) : '';
+      }
       case 'iva_disc':
         return d.ivaDisc ? wrap(blockStyle(b, { fontSize: '8px' }), esc(d.ivaDisc)) : '';
-      case 'legal_co':
-        return d.legalCo ? wrap(blockStyle(b, { fontSize: '7px' }), esc(d.legalCo)) : '';
+      case 'legal_co': {
+        var legalTxt = String(b.c || '').trim() || d.legalCo;
+        return legalTxt ? wrap(blockStyle(b, { fontSize: '7px' }), esc(legalTxt)) : '';
+      }
       case 'ornament': {
         var prem = window.CrozzoTermicaPremium;
         var line = prem && prem.ornamentText ? prem.ornamentText(b.c || 'flourish', { sz: state.sz }) : '· ─── ◆ ─── ·';
@@ -1397,8 +1426,11 @@
           (d.propina > 0 ? '<div>Propina: ' + fmtCOP(d.propina) + '</div>' : '') +
           (d.recibido > 0 ? '<div>Recibido: ' + fmtCOP(d.recibido) + '</div>' : '') +
           (d.cambio > 0 ? '<div>Cambio: ' + fmtCOP(d.cambio) + '</div>' : ''));
-      case 'resol':
-        return wrap(blockStyle(b, { fontSize: '8px' }), 'Resol. ' + esc(d.resol));
+      case 'resol': {
+        var customResol = String(b.c || '').trim();
+        if (customResol) return wrap(blockStyle(b, { fontSize: '8px' }), esc(customResol));
+        return d.resol ? wrap(blockStyle(b, { fontSize: '8px' }), 'Resol. ' + esc(d.resol)) : '';
+      }
       case 'cufe':
         if (!d.cufe) return '';
         return wrap(blockStyle(b, { align: 'left', fontSize: '7px' }), 'CUFE<br>' + esc(d.cufe));
@@ -1605,7 +1637,8 @@
     }
     var b = state.blocks[selectedIdx];
     var isAuto = AUTO_DATA_BLOCKS.indexOf(b.t) >= 0;
-    var hasText = ['logo', 'title', 'footer', 'text', 'total'].indexOf(b.t) >= 0;
+    var isLegalOverride = LEGAL_OVERRIDE_BLOCKS.indexOf(b.t) >= 0;
+    var hasText = ['logo', 'title', 'footer', 'text', 'total', 'legal_co', 'resol', 'resol_full'].indexOf(b.t) >= 0;
     var isSpace = b.t === 'space';
     var isCut = b.t === 'cut';
     var isGapLine = b.t === 'divider' || b.t === 'line';
@@ -1645,13 +1678,28 @@
         '</select></div>' +
         '<p class="studio-props-hint">Se imprime como línea decorativa (◆ ═ ·). Ideal debajo del logo o antes del pie.</p>';
     } else if (hasText) {
+      var ph =
+        b.t === 'legal_co'
+          ? 'Vacío = pie legal DIAN de la venta. Escribe aquí para fijar el texto en el ticket.'
+          : b.t === 'title'
+            ? 'Ej. FACTURA ELECTRÓNICA DE VENTA'
+            : b.t === 'resol_full' || b.t === 'resol'
+              ? 'Vacío = resolución DIAN de la empresa. Escribe para fijar el texto.'
+              : '';
       contentField =
-        '<div class="row"><label>Contenido / valor</label><textarea id="propC">' + esc(b.c) + '</textarea></div>';
+        '<div class="row"><label>Contenido / valor</label><textarea id="propC" placeholder="' +
+        esc(ph) +
+        '">' +
+        esc(b.c) +
+        '</textarea></div>' +
+        (isLegalOverride
+          ? '<p class="studio-props-hint">La vista previa usa este texto si no está vacío. Al sincronizar se guarda en la plantilla.</p>'
+          : '');
     }
     host.innerHTML =
       '<div class="studio-props">' +
       '<div class="row"><label>Tipo</label><input type="text" readonly value="' + esc(BLOCK_LABELS[b.t] || b.t) + '" /></div>' +
-      (isAuto
+      (isAuto && !isLegalOverride
         ? '<p class="studio-props-auto">Este bloque se completa <strong>automáticamente</strong> al imprimir (Empresa, DIAN, cliente e ítems de la venta). Aquí solo ajusta tamaño, alineación y si está visible.</p>'
         : '') +
       contentField +
@@ -1809,6 +1857,14 @@
   }
 
   function exportTpl() {
+    var blocksCopy;
+    try {
+      blocksCopy = JSON.parse(JSON.stringify(state.blocks || []));
+    } catch (_) {
+      blocksCopy = (state.blocks || []).map(function (b) {
+        return Object.assign({}, b);
+      });
+    }
     var tpl = {
       name: state.name,
       sz: state.sz,
@@ -1817,8 +1873,9 @@
       docType: state.docType || 'factura',
       cutEnd: state.cutEnd || 'none',
       cutEndFeed: state.cutEndFeed != null ? state.cutEndFeed : 0,
-      blocks: state.blocks.slice(),
+      blocks: blocksCopy,
     };
+    if (state.presetId) tpl.presetId = state.presetId;
     if (window.parent && window.parent.CrozzoPrintPresets && window.parent.CrozzoPrintPresets.applyCutPolicy) {
       tpl = window.parent.CrozzoPrintPresets.applyCutPolicy(tpl, state.docType || 'factura');
     } else {
@@ -1831,7 +1888,8 @@
       tpl.cutEnd = 'none';
       tpl.cutEndFeed = 0;
     }
-    return polishTplForDesigner(tpl);
+    // Sync RAW: no ensure*/normalize que borre título o mute estado.
+    return polishTplForDesigner(tpl, { light: true });
   }
 
   function applyTpl(raw) {
@@ -1854,11 +1912,19 @@
   function scheduleSync() {
     if (!embedded) return;
     if (Date.now() < blockAutoSyncUntil) return;
+    touchInteractive();
     if (syncTimer) clearTimeout(syncTimer);
+    // Idle sync: no empujar al padre en cada tecla; espera a que el usuario pare.
     syncTimer = setTimeout(function () {
       syncTimer = null;
+      if (Date.now() < blockAutoSyncUntil) return;
+      // Si sigue tecleando, reprogramar.
+      if (Date.now() - lastUserEditAt < 1200) {
+        scheduleSync();
+        return;
+      }
       pushToParent(false);
-    }, 400);
+    }, 1800);
   }
 
   function pushToParent(showAlert) {
@@ -1942,11 +2008,36 @@
     });
   });
 
+  document.addEventListener('pointerdown', touchInteractive, true);
+  document.addEventListener('keydown', touchInteractive, true);
+  document.addEventListener('input', touchInteractive, true);
+
   window.addEventListener('message', function (e) {
     if (!e.data) return;
     if (e.data.type === 'crozzo_ticket_init' && e.data.tpl) {
       if (typeof e.data.rev === 'number' && e.data.rev < parentInitRev) return;
       if (typeof e.data.rev === 'number') parentInitRev = e.data.rev;
+      var forceInit = !!e.data.force;
+      var userAction = !!e.data.userAction;
+      // HARD LOCK: mientras el usuario edita, ignorar TODO init (salvo acción explícita del usuario).
+      try {
+        var sameDoc = !e.data.docType || e.data.docType === state.docType;
+        var incoming = JSON.stringify(e.data.tpl && e.data.tpl.blocks ? e.data.tpl.blocks : []);
+        var current = JSON.stringify((state.blocks) || []);
+        if (incoming === current && sameDoc) {
+          blockAutoSyncUntil = Date.now() + 1500;
+          return;
+        }
+        if (!userAction && isInteractiveLocked() && sameDoc) {
+          return;
+        }
+      } catch (_) {}
+      if (userAction) {
+        interactiveLockUntil = 0;
+        lastUserEditAt = 0;
+      }
+      blockAutoSyncUntil = Date.now() + 2500;
+      var keepSel = selectedIdx;
       if (e.data.docType) state.docType = e.data.docType;
       applyTpl(e.data.tpl);
       if (e.data.printOutput) {
@@ -1954,7 +2045,10 @@
       } else if (e.data.tpl && e.data.tpl.printOutput) {
         applyPaperMode(e.data.tpl.printOutput);
       }
-      blockAutoSyncUntil = Date.now() + 800;
+      if (keepSel != null && state.blocks && keepSel < state.blocks.length) {
+        selectedIdx = keepSel;
+        try { selectBlock(keepSel); } catch (_) {}
+      }
       try { localStorage.setItem(LS_KEY, JSON.stringify(exportTpl())); } catch (_) {}
       setSyncLive(true, 'Modelo actualizado');
       if (e.data.docLabel) {
@@ -1966,8 +2060,8 @@
     if (e.data.type === 'crozzo_ticket_sample' && e.data.sample) {
       if (typeof e.data.rev === 'number' && e.data.rev < parentInitRev) return;
       SAMPLE = Object.assign(SAMPLE, e.data.sample);
-      renderPreview();
-      setSyncLive(true, 'Datos reales del POS');
+      // No re-renderizar preview si el usuario está editando (parpadeo / pierde foco).
+      if (!isInteractiveLocked()) renderPreview();
     }
     if (e.data.type === 'crozzo_ticket_request_tpl') {
       if (window.parent && window.parent !== window) {

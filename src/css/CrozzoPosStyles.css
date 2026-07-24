@@ -14,7 +14,7 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --type-caption: 0.75rem;
   --type-body: 1rem;
   --type-subtitle: 1.125rem;
@@ -45,11 +45,11 @@
   --duration-modal: 350ms;
   --duration-page: 420ms;
   --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
   --ease-calm: cubic-bezier(0.45, 0, 0.55, 1);
-  --duration-calm: 460ms;
-  --duration-stagger: 480ms;
+  --duration-calm: 320ms;
+  --duration-stagger: 340ms;
   --motion-enter-y: 4px;
   --motion-lift: -1px;
   --surface-glass: rgba(28, 28, 30, 0.65);
@@ -96,13 +96,13 @@
   --sidebar-width-rail: 64px;
   --sidebar-width-expanded: 260px;
   --sidebar-ease: var(--ease-premium);
-  --sidebar-ease-open: cubic-bezier(0.34, 1.42, 0.64, 1);
+  --sidebar-ease-open: cubic-bezier(0.16, 1, 0.3, 1);
   --sidebar-ease-close: cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar-duration: 200ms;
-  --sidebar-duration-open: 220ms;
+  --sidebar-duration: 180ms;
+  --sidebar-duration-open: 180ms;
   --sidebar-duration-close: 160ms;
-  --sidebar-hover-open-delay: 60ms;
-  --sidebar-hover-close-delay: 160ms;
+  --sidebar-hover-open-delay: 90ms;
+  --sidebar-hover-close-delay: 280ms;
   --sidebar-submenu-delay: 36ms;
   /* Viewport real (actualizado por CrozzoViewportFit.js) */
   --crozzo-vh: 100dvh;
@@ -574,7 +574,7 @@ html[data-theme="minimalist"] {
   --focus-ring: rgba(5, 150, 105, 0.55);
 }
 
-/* ---------- BONA origen — crema, carbón, bronce (trazabilidad) ---------- */
+/* ---------- BONA origen — crema, carbón, bronce (trazabilidad) · SEDA S0 canon ---------- */
 html[data-theme="bona-origen"] {
   color-scheme: light;
   --bona-cream: #faf9f7;
@@ -585,6 +585,15 @@ html[data-theme="bona-origen"] {
   --bona-gold-light: #d4bc94;
   --bona-gold-dark: #7a6342;
   --bona-champagne: #e8dfd0;
+  --bona-font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --bona-font: "DM Sans", system-ui, sans-serif;
+  --font-sans: var(--bona-font);
+  --gold-primary: var(--bona-gold);
+  --gold-light: var(--bona-gold-light);
+  --gold-dark: var(--bona-gold-dark);
+  --gold-glow: rgba(181, 154, 109, 0.4);
+  --gradient-gold: linear-gradient(135deg, var(--bona-gold-light) 0%, var(--bona-gold) 50%, var(--bona-gold-dark) 100%);
+  --shadow-gold: 0 0 20px rgba(181, 154, 109, 0.28);
   --bg-primary: var(--bona-cream);
   --bg-secondary: var(--bona-cream-2);
   --bg-tertiary: #e8e4de;
@@ -608,6 +617,9 @@ html[data-theme="bona-origen"] {
   --shadow-lg: 0 12px 32px rgba(45, 45, 45, 0.1);
   --login-overlay-bg: radial-gradient(circle at 20% 15%, rgba(181, 154, 109, 0.18), transparent 55%),
     var(--bona-cream);
+}
+html[data-theme="bona-origen"] body {
+  font-family: var(--bona-font);
 }
 
 html[data-theme="deepspace"] {
@@ -846,6 +858,26 @@ html[data-theme="clear-light"] body.crozzo-chrome-motion[data-crozzo-motion="hig
 
 .crozzo-motion-stagger {
   animation: crozzoStaggerIn var(--duration-stagger) var(--ease-calm) forwards;
+}
+
+/* P0 alta frecuencia: sin page-enter / stagger (cajero/tablets/comandas/cocina/mesas) */
+body.crozzo-page-operativa .main-body.crozzo-page-enter,
+body.crozzo-page-comandas .main-body.crozzo-page-enter,
+body.crozzo-page-cocina .main-body.crozzo-page-enter,
+body.crozzo-page-tablets .main-body.crozzo-page-enter,
+body.crozzo-page-operativa .crozzo-motion-stagger,
+body.crozzo-page-comandas .crozzo-motion-stagger,
+body.crozzo-page-cocina .crozzo-motion-stagger,
+body.crozzo-page-tablets .crozzo-motion-stagger,
+body.crozzo-page-operativa #pageTitle.crozzo-title-enter,
+body.crozzo-page-operativa #pageSubtitle.crozzo-title-enter,
+body.crozzo-page-comandas #pageTitle.crozzo-title-enter,
+body.crozzo-page-comandas #pageSubtitle.crozzo-title-enter,
+body.crozzo-page-cocina #pageTitle.crozzo-title-enter,
+body.crozzo-page-cocina #pageSubtitle.crozzo-title-enter,
+body.crozzo-page-tablets #pageTitle.crozzo-title-enter,
+body.crozzo-page-tablets #pageSubtitle.crozzo-title-enter {
+  animation: none !important;
 }
 
 #pageTitle.crozzo-title-enter,
@@ -1957,7 +1989,7 @@ html.tauri-desktop #sidebar.sidebar-pro.crozzo-sidebar-hover-active {
 html.tauri-desktop #sidebar.sidebar-pro.crozzo-sidebar-hover-active::before {
   content: '' !important;
   position: absolute !important;
-  inset: -12px -22px -12px -10px !important;
+  inset: -12px -18px -12px -10px !important;
   pointer-events: auto !important;
   z-index: 0 !important;
   background: transparent !important;
@@ -1979,7 +2011,9 @@ html.tauri-desktop #sidebar.sidebar-pro.expanded:not(.crozzo-drawer-nav) > * {
 }
 html.tauri-desktop.crozzo-sidebar-hover-session #sidebar.sidebar-pro.is-expanded + .main-content,
 html.tauri-desktop.crozzo-sidebar-hover-session #sidebar.sidebar-pro.expanded + .main-content {
-  transition: margin-left var(--sidebar-duration-open) var(--sidebar-ease-open) !important;
+  /* Hover = overlay: NO empujar el contenido (evita pelea mouse/layout). Pin sí empuja. */
+  margin-left: var(--sidebar-width-rail, 64px) !important;
+  transition: none !important;
 }
 /* Evita solapamiento: pausa animaciones de página mientras el layout se ajusta */
 html.tauri-desktop.crozzo-sidebar-transitioning .main-body.crozzo-page-enter,
@@ -2469,6 +2503,53 @@ html.tauri-desktop .mobile-menu-btn {
   pointer-events: auto !important;
   touch-action: manipulation;
   z-index: 2;
+  /* Escritorio: rail por hover; este botón es opcional (fijar/soltar), no protagonista */
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  opacity: 0.42;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+html.tauri-desktop .mobile-menu-btn:hover,
+html.tauri-desktop .mobile-menu-btn:focus-visible {
+  opacity: 0.95;
+  background: rgba(181, 154, 109, 0.12) !important;
+  border-color: var(--border) !important;
+}
+html.tauri-desktop .mobile-menu-btn.is-pinned {
+  opacity: 0.9;
+  background: rgba(181, 154, 109, 0.14) !important;
+  border-color: rgba(181, 154, 109, 0.35) !important;
+}
+html.tauri-desktop .mobile-menu-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+/* Touch/APK: menú sigue siendo control principal (no el rail hover) */
+html.tauri-desktop.crozzo-touch-shell .mobile-menu-btn,
+html.tauri-desktop.crozzo-form-mobile .mobile-menu-btn,
+html.tauri-desktop.crozzo-android-apk .mobile-menu-btn,
+html.crozzo-android-native .mobile-menu-btn {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  opacity: 1;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+}
+html.tauri-desktop.crozzo-touch-shell .mobile-menu-btn svg,
+html.tauri-desktop.crozzo-form-mobile .mobile-menu-btn svg,
+html.tauri-desktop.crozzo-android-apk .mobile-menu-btn svg,
+html.crozzo-android-native .mobile-menu-btn svg {
+  width: 20px !important;
+  height: 20px !important;
 }
 
 html.tauri-desktop #sidebar.sidebar-pro > #menu-toggle-btn .menu-toggle-icon,
@@ -2487,7 +2568,7 @@ html.tauri-desktop #sidebar.sidebar-pro.expanded .sidebar-header {
   align-items: center !important;
   justify-content: flex-start !important;
   gap: 6px !important;
-  padding: 8px 12px 10px !important;
+  padding: 14px 12px 10px !important;
   min-height: 0 !important;
 }
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded .sidebar-header > #menu-toggle-btn.menu-toggle,
@@ -2496,14 +2577,24 @@ html.tauri-desktop #sidebar.sidebar-pro.expanded .sidebar-header > #menu-toggle-
   margin: 0 auto 2px !important;
   flex-shrink: 0 !important;
 }
-/* Expandido: solo un toggle (dentro del header), no fila vacía arriba */
+/* Expandido: no segundo hamburger encima del logo (HIG: un toggle en toolbar). */
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded > #menu-toggle-btn.menu-toggle,
-html.tauri-desktop #sidebar.sidebar-pro.expanded > #menu-toggle-btn.menu-toggle {
-  display: none !important;
-}
+html.tauri-desktop #sidebar.sidebar-pro.expanded > #menu-toggle-btn.menu-toggle,
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded .sidebar-header > #menu-toggle-btn.menu-toggle,
-html.tauri-desktop #sidebar.sidebar-pro.expanded .sidebar-header > #menu-toggle-btn.menu-toggle {
-  display: flex !important;
+html.tauri-desktop #sidebar.sidebar-pro.expanded .sidebar-header > #menu-toggle-btn.menu-toggle,
+html.tauri-shell #menu-toggle-btn.menu-toggle,
+html.crozzo-tauri-rail-ui #menu-toggle-btn.menu-toggle,
+html.tauri-desktop #menu-toggle-btn.menu-toggle {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 html.tauri-desktop #sidebar.sidebar-pro.is-expanded .sidebar-header > .crozzo-brand-dual--sidebar,
 html.tauri-desktop #sidebar.sidebar-pro.expanded .sidebar-header > .crozzo-brand-dual--sidebar {
@@ -5709,6 +5800,61 @@ html.crozzo-android-apk .modal-overlay.active {
 .crozzo-rep-staff-table th {
   vertical-align: middle;
 }
+.crozzo-rep-operativo__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: flex-end;
+  margin: 0 0 14px;
+}
+.crozzo-rep-operativo__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 9rem;
+}
+.crozzo-rep-operativo__field--grow {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+}
+.crozzo-rep-operativo__field .form-input,
+.crozzo-rep-operativo__field .form-select {
+  font-weight: 500;
+  min-height: 38px;
+}
+.crozzo-rep-operativo__kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.crozzo-rep-operativo__kpi {
+  background: var(--bg-card, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 7.5rem;
+}
+.crozzo-rep-operativo__kpi .val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.crozzo-rep-operativo__kpi .lbl {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.crozzo-rep-operativo__hint {
+  margin: 0 0 10px;
+}
+.crozzo-rep-operativo-table td,
+.crozzo-rep-operativo-table th {
+  vertical-align: middle;
+}
 .crozzo-rep-pantalla-notes {
   margin-top: 12px;
   display: flex;
@@ -8500,6 +8646,399 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   width: 16px;
   height: 16px;
 }
+/* BONA Aire hub: hero fino — sin título duplicado ni glow */
+.crozzo-ventas-hub--aire .crozzo-ventas-hub__hero--aire {
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: none;
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+.crozzo-ventas-hub--aire .crozzo-ventas-hub__sub {
+  font-size: 0.9rem;
+  max-width: none;
+  color: var(--text-secondary, #5c564f);
+  opacity: 1;
+}
+.crozzo-ventas-hub__lead {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-hub__grid {
+  margin-bottom: 16px;
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(181, 154, 109, 0.12);
+  color: var(--accent, #b59a6d);
+  font-weight: 650;
+  font-size: 0.88rem;
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-card__feats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-ventas-hub--balanced .crozzo-admin-hub--live {
+  margin: 0 0 16px;
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-hub__kpis--live {
+  margin-bottom: 16px;
+}
+/* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
+.crozzo-ventas-hub__reveals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  max-width: 960px;
+}
+.crozzo-hub-reveal {
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  border-radius: 14px;
+  background: var(--bg-card, #fff);
+  overflow: hidden;
+}
+.crozzo-hub-reveal__sum {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-hub-reveal__sum:hover {
+  background: rgba(181, 154, 109, 0.06);
+}
+.crozzo-hub-reveal__sum:active {
+  transform: scale(0.995);
+}
+.crozzo-hub-reveal__label {
+  flex: 1 1 auto;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-hub-reveal__peek {
+  flex: 0 1 auto;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #6b6560);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crozzo-hub-reveal__peek-muted {
+  opacity: 0.55;
+  font-style: normal;
+}
+.crozzo-hub-reveal__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c9a962;
+  box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.2);
+  flex-shrink: 0;
+}
+.crozzo-hub-reveal__chev {
+  flex: 0 0 auto;
+  display: inline-flex;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-hub-reveal__chev [data-lucide] {
+  width: 16px;
+  height: 16px;
+}
+.crozzo-hub-reveal.is-open .crozzo-hub-reveal__chev {
+  transform: rotate(180deg);
+}
+.crozzo-hub-reveal__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-hub-reveal__panel.is-shown {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.crozzo-hub-reveal__inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 14px 14px;
+  transform: translateY(-6px);
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-hub-reveal__panel.is-shown .crozzo-hub-reveal__inner {
+  transform: translateY(0);
+}
+.crozzo-hub-reveal .crozzo-ventas-hub__kpis,
+.crozzo-hub-reveal .crozzo-admin-hub {
+  margin: 0;
+}
+/* Apoyo bajo demanda — tipografía calmada, sin banner */
+.crozzo-support-brief {
+  margin: 0;
+  padding: 2px 2px 0;
+  max-width: 36rem;
+}
+.crozzo-support-brief__greet {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-support-brief__care {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #6b6560);
+}
+.crozzo-support-brief__tip {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-support-brief__wins {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent, #b59a6d);
+  letter-spacing: 0.01em;
+}
+/* Bienvenida de turno — modal centrado (mismo lenguaje que actualización crítica).
+   z-index 9050: bajo OTA (9100+) para no tapar changelog. */
+.crozzo-shift-welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 9050;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6, 24px);
+  background: var(--login-overlay-bg, rgba(28, 28, 28, 0.42));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--duration-modal, 350ms) var(--ease-out-smooth, cubic-bezier(0.25, 0.1, 0.25, 1)),
+    visibility var(--duration-modal, 350ms) var(--ease-out-smooth, cubic-bezier(0.25, 0.1, 0.25, 1));
+}
+.crozzo-shift-welcome.is-shown {
+  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.crozzo-shift-welcome.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+body.crozzo-shift-welcome-open {
+  overflow: hidden;
+}
+.crozzo-shift-welcome__modal {
+  width: min(420px, 100%);
+  padding: var(--space-6, 24px);
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--border-subtle, color-mix(in srgb, var(--border-color, #e8e4dc) 90%, transparent));
+  border-top: 3px solid var(--accent, #b59a6d);
+  background: var(--bg-card, var(--bg-elevated, #fff));
+  box-shadow: var(--elevation-3, 0 16px 48px rgba(0, 0, 0, 0.18));
+  text-align: center;
+  animation: crozzoModalIn var(--duration-modal, 350ms) var(--ease-out-smooth, cubic-bezier(0.25, 0.1, 0.25, 1)) forwards;
+}
+.crozzo-shift-welcome__badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 auto 12px;
+  padding: 4px 10px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent, #b59a6d);
+  background: color-mix(in srgb, var(--accent, #b59a6d) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #b59a6d) 28%, transparent);
+  border-radius: 999px;
+}
+.crozzo-shift-welcome__brand {
+  margin: 0 0 10px;
+  font-family: 'Cormorant Garamond', 'Cormorant', Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent, #b59a6d);
+}
+.crozzo-shift-welcome__modal .bona-brand-name-only {
+  margin: 0 auto 14px;
+}
+.crozzo-shift-welcome__greet {
+  margin: 0 0 10px;
+  font-size: clamp(1.25rem, 3.5vw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-shift-welcome__care {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #6b6560);
+}
+.crozzo-shift-welcome__tip {
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-shift-welcome__wins {
+  margin: 0 0 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--accent, #b59a6d);
+}
+.crozzo-shift-welcome__load {
+  margin: 0 auto 10px;
+  max-width: 180px;
+}
+.crozzo-shift-welcome__load-track {
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-color, #e8e4dc) 85%, transparent);
+  overflow: hidden;
+}
+.crozzo-shift-welcome__load-bar {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent, #b59a6d) 65%, #8a7a55), var(--accent, #b59a6d));
+  animation: crozzo-shift-welcome-load 2.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.crozzo-shift-welcome__status {
+  margin: 0 0 16px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-shift-welcome__skip {
+  min-width: 180px;
+  font-weight: 600;
+}
+@keyframes crozzo-shift-welcome-load {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-shift-welcome,
+  .crozzo-shift-welcome__modal {
+    transition: none !important;
+    animation: none !important;
+  }
+  .crozzo-shift-welcome__load-bar {
+    animation: none !important;
+    width: 100%;
+  }
+}
+html.crozzo-a11y-reduce-motion .crozzo-shift-welcome,
+body.crozzo-a11y-reduce-motion .crozzo-shift-welcome {
+  transition: none;
+}
+#crozzoTempoBadge,
+#crozzoTempoBadge[hidden],
+body.crozzo-page-inicio-operacion #crozzoTempoBadge {
+  display: none !important;
+}
+.crozzo-ventas-card__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted, #9a948c);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.crozzo-ventas-card__more [data-lucide] {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-ventas-card.is-feats-open .crozzo-ventas-card__more [data-lucide] {
+  transform: rotate(180deg);
+}
+.crozzo-ventas-card__feats-wrap {
+  margin: 0 0 10px;
+  overflow: hidden;
+  animation: crozzo-hub-feats-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.crozzo-ventas-card__feats-wrap[hidden] {
+  display: none !important;
+}
+@keyframes crozzo-hub-feats-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-hub-reveal__sum,
+  .crozzo-hub-reveal__chev,
+  .crozzo-hub-reveal__panel,
+  .crozzo-hub-reveal__inner,
+  .crozzo-ventas-card__more [data-lucide],
+  .crozzo-ventas-card__feats-wrap {
+    transition: none !important;
+    animation: none !important;
+  }
+  .crozzo-hub-reveal__sum:active {
+    transform: none;
+  }
+}
 .crozzo-ventas-hub__kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -10313,7 +10852,7 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
 }
 .crozzo-rest-pos__action--pay {
   font-weight: 800 !important;
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 6px 20px rgba(181, 154, 109, 0.28);
 }
 .crozzo-rest-pos__cuenta-ops {
   display: grid;
@@ -10387,6 +10926,17 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   min-height: 44px !important;
   font-size: 1.05rem !important;
   letter-spacing: 0.02em;
+  transition: transform var(--duration-micro) var(--ease-out-smooth), opacity var(--duration-micro) var(--ease-out-smooth);
+}
+#btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled):active {
+  transform: scale(0.98);
+  opacity: 0.94;
+}
+@media (prefers-reduced-motion: reduce) {
+  #btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled):active {
+    transform: none;
+    opacity: 1;
+  }
 }
 .crozzo-rest-cuenta-cobro__more {
   flex: 0 0 auto;
@@ -11357,7 +11907,10 @@ body.crozzo-unified-chrome .crozzo-hfsi {
 body.crozzo-unified-chrome--fullscreen #crozzo-psyche-chip-host,
 body.crozzo-unified-chrome--fullscreen #crozzo-peak-breathe-host,
 body.crozzo-page-operativa #crozzo-psyche-chip-host,
-body.crozzo-page-operativa #crozzo-peak-breathe-host {
+body.crozzo-page-operativa #crozzo-peak-breathe-host,
+body.crozzo-page-inicio-operacion #crozzo-psyche-chip-host,
+body.crozzo-page-inicio-operacion #crozzo-peak-breathe-host,
+body.crozzo-page-inicio-operacion #crozzoCompanionRailHost {
   display: none !important;
   height: 0 !important;
   min-height: 0 !important;
@@ -11366,6 +11919,9 @@ body.crozzo-page-operativa #crozzo-peak-breathe-host {
   overflow: hidden !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+body.crozzo-page-inicio-operacion #crozzoHeaderPsycheLine {
+  display: none !important;
 }
 
 html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen .main-content,
@@ -17656,8 +18212,8 @@ body.crozzo-retail-cliente-popover-open { overflow: hidden; }
 .crozzo-invoice-editor-toolbar .btn { font-size: 0.8rem; }
 
 .crozzo-invoice-studio {
-  --studio-gold: var(--accent);
-  --studio-gold-rgb: var(--accent-rgb, 201, 169, 98);
+  --studio-gold: var(--bona-gold, var(--accent));
+  --studio-gold-rgb: var(--accent-rgb, 181, 154, 109);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -18037,7 +18593,7 @@ body.crozzo-retail-cliente-popover-open { overflow: hidden; }
 
 /* —— Centro de impresión · diseño premium claro —— */
 .crozzo-print-hub {
-  --print-gold: var(--gold-primary, #c9a962);
+  --print-gold: var(--bona-gold, var(--gold-primary, #b59a6d));
   --print-gold-soft: color-mix(in srgb, var(--print-gold) 14%, transparent);
   --print-gold-border: color-mix(in srgb, var(--print-gold) 32%, var(--border));
   display: flex;
@@ -18091,6 +18647,249 @@ body.crozzo-retail-cliente-popover-open { overflow: hidden; }
 .crozzo-print-hub__tab.is-active {
   color: var(--text-primary);
   border-bottom-color: var(--print-gold);
+}
+.crozzo-print-hub__more {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+.crozzo-print-hub__more > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+}
+.crozzo-print-hub__more > summary::-webkit-details-marker { display: none; }
+.crozzo-print-hub__more.is-active > summary,
+.crozzo-print-hub__tab--more.is-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--print-gold);
+}
+.crozzo-print-hub__more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  min-width: 160px;
+  padding: 6px;
+  border: 1px solid var(--print-gold-border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+.crozzo-print-hub__more-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.crozzo-print-hub__more-item:hover,
+.crozzo-print-hub__more-item.is-active {
+  background: var(--print-gold-soft);
+  color: var(--print-gold);
+}
+.crozzo-ps-btn-gold.btn-primary,
+button.crozzo-ps-btn-gold.btn-primary {
+  background: linear-gradient(135deg, #c9b07a 0%, var(--print-gold, #b59a6d) 55%, #9a8158 100%);
+  border-color: color-mix(in srgb, var(--print-gold, #b59a6d) 70%, #000);
+  color: #1a1612;
+  box-shadow: 0 6px 16px rgba(181, 154, 109, 0.28);
+}
+.crozzo-ps-global {
+  margin: 12px 0 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--print-gold-border);
+  border-radius: 12px;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--print-gold) 8%, var(--bg-card)) 0%, var(--bg-card) 70%);
+}
+.crozzo-ps-global__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.crozzo-ps-global__head h4 {
+  margin: 0;
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.crozzo-ps-global__status {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.crozzo-ps-style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+}
+.crozzo-ps-style {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.crozzo-ps-style:hover {
+  border-color: var(--print-gold-border);
+}
+.crozzo-ps-style.is-active {
+  border-color: var(--print-gold);
+  background: var(--print-gold-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--print-gold) 40%, transparent);
+}
+.crozzo-ps-style__icon {
+  font-size: 0.95rem;
+  color: var(--print-gold);
+  line-height: 1;
+}
+.crozzo-ps-style__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.crozzo-ps-style__sz {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.crozzo-ps-global__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 12px;
+}
+.crozzo-ps-layer-only {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.crozzo-ps-keep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.crozzo-ps-docbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0 0 12px;
+}
+.crozzo-ps-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.crozzo-ps-chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.crozzo-ps-chip.is-active {
+  border-color: var(--print-gold);
+  color: var(--print-gold);
+  background: var(--print-gold-soft);
+}
+.crozzo-ps-chip--more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.crozzo-ps-chip--more select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.crozzo-ps-dest {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--print-gold) 10%, transparent);
+  border: 1px solid var(--print-gold-border);
+}
+.crozzo-ps-layer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 6px;
+}
+.crozzo-ps-chip-custom {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #8a6a2a;
+  background: color-mix(in srgb, #e8c56a 22%, transparent);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+.crozzo-ps-audit {
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+}
+.crozzo-ps-audit summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.crozzo-ps-audit__list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.crozzo-ps-audit__item {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.crozzo-ps-audit__item.is-ok { color: #2f6b4f; }
+.crozzo-ps-audit__item.is-warn { color: #8a6a2a; }
+.crozzo-ps-audit__item.is-bad { color: #9b3b3b; }
+.crozzo-ps-audit__note {
+  margin: 8px 0 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.crozzo-print-studio--pro .crozzo-print-studio__head-text p {
+  max-width: 52ch;
 }
 .crozzo-print-hub__body {
   flex: 1;
@@ -19285,6 +20084,29 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
 }
 .crozzo-nube-hub {
   max-width: 1100px;
+}
+.crozzo-ai-insights-host {
+  margin: 12px 0 18px;
+}
+.card.crozzo-ai-insights-admin {
+  border: 2px solid rgba(181, 154, 109, 0.55);
+  box-shadow: 0 8px 24px rgba(45, 45, 45, 0.06);
+  background: linear-gradient(180deg, #fff 0%, #f9f7f5 100%);
+}
+.card.crozzo-ai-insights-admin .card-title {
+  color: #2d2d2d;
+}
+.crozzo-ai-insight-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding: 12px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--bona-line, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  max-height: 420px;
+  overflow: auto;
 }
 .crozzo-nube-hero__title {
   margin: 0 0 8px;
@@ -23590,6 +24412,11 @@ body.crozzo-page-cierre-caja #pageContent {
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
+html[data-theme="bona-origen"] .crozzo-cierre-hero__title {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 
 .crozzo-cierre-hero__sub {
   margin: 0;
@@ -23601,6 +24428,32 @@ body.crozzo-page-cierre-caja #pageContent {
 
 .crozzo-cierre-cta {
   box-shadow: var(--elevation-glow);
+  min-height: 44px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+html[data-theme="bona-origen"] .crozzo-cierre-cta.btn-primary {
+  background: linear-gradient(165deg, var(--bona-gold-light, #d4bc94), var(--bona-gold, #b59a6d) 50%, var(--bona-gold-dark, #7a6342));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(181, 154, 109, 0.32);
+}
+html[data-theme="bona-origen"] .crozzo-cierre-cta-secondary {
+  opacity: 0.88;
+}
+html[data-theme="bona-origen"] .crozzo-cierre-metric__val {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-weight: 600;
+  color: var(--bona-charcoal, var(--text-primary));
+}
+/* BONA Obra — ritual Cobrar */
+html[data-theme="bona-origen"] .toast.toast-success {
+  border-left-color: var(--bona-gold, #b59a6d);
+}
+html[data-theme="bona-origen"] body.crozzo-bona-cobro-ritual .crozzo-rest-pos__ticket-foot,
+body.crozzo-bona-cobro-ritual .crozzo-rest-pos__totals {
+  box-shadow: 0 0 0 1px rgba(181, 154, 109, 0.4), 0 12px 28px rgba(181, 154, 109, 0.12);
+  transition: box-shadow 0.35s var(--ease-out-smooth, ease);
 }
 
 .crozzo-cierre-btn-muted {
@@ -27189,6 +28042,20 @@ html.crozzo-tauri-rail-ui .mobile-menu-btn {
   display: inline-flex !important;
   pointer-events: auto !important;
 }
+/* Rail desktop (sin touch): mismo hamburger opcional que tauri-desktop */
+html.crozzo-tauri-rail-ui:not(.crozzo-touch-shell):not(.crozzo-form-mobile):not(.crozzo-form-tablet) .mobile-menu-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  opacity: 0.42;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html.crozzo-tauri-rail-ui:not(.crozzo-touch-shell):not(.crozzo-form-mobile):not(.crozzo-form-tablet) .mobile-menu-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+}
 
 /* Drawer móvil: anular modo rail 64px de sidebar-elite (labels/submenús invisibles) */
 html.crozzo-touch-shell #sidebar.sidebar-elite,
@@ -29287,12 +30154,12 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   .login-card { padding: 22px 18px 18px; }
 }
 
-/* Fase C — login hotelero BONA (atmósfera + motion calmado) */
+/* Fase C — login hotelero BONA (UI STRIKE 1: atmósfera + jerarquía Entrar) */
 html[data-theme="bona-origen"] .login-overlay,
 html[data-theme="bona-origen"] body.crozzo-login-open .login-overlay {
   background:
-    radial-gradient(110% 70% at 50% -8%, rgba(181, 154, 109, 0.28), transparent 58%),
-    linear-gradient(168deg, #faf9f7 0%, #f4f0e8 45%, #ebe4d8 100%);
+    radial-gradient(110% 70% at 50% -8%, rgba(181, 154, 109, 0.26), transparent 58%),
+    linear-gradient(168deg, #faf9f7 0%, #f4f0e8 48%, #ebe4d8 100%);
   overflow: hidden;
 }
 html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere {
@@ -29301,73 +30168,124 @@ html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(circle at 18% 72%, rgba(181, 154, 109, 0.14), transparent 42%),
-    radial-gradient(circle at 82% 28%, rgba(45, 45, 45, 0.06), transparent 38%);
-  animation: bonaLoginDrift 18s ease-in-out infinite alternate;
+    radial-gradient(circle at 18% 72%, rgba(181, 154, 109, 0.12), transparent 42%),
+    radial-gradient(circle at 82% 28%, rgba(45, 45, 45, 0.05), transparent 38%);
+  animation: bonaLoginDrift 22s var(--ease-calm, ease-in-out) infinite alternate;
 }
 html[data-theme="bona-origen"] .login-overlay > .login-card {
   position: relative;
   z-index: 1;
 }
 @keyframes bonaLoginDrift {
-  from { transform: translate3d(-1.2%, 0.6%, 0) scale(1); }
-  to { transform: translate3d(1.4%, -0.8%, 0) scale(1.03); }
+  from { transform: translate3d(-0.8%, 0.4%, 0) scale(1); }
+  to { transform: translate3d(1%, -0.5%, 0) scale(1.02); }
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card {
-  max-width: 420px;
-  padding: 32px 28px 26px;
-  border-color: rgba(181, 154, 109, 0.38);
+  max-width: 400px;
+  padding: 36px 30px 28px;
+  border-radius: var(--bona-radius-lg, 22px);
+  border-color: rgba(181, 154, 109, 0.34);
   background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
   box-shadow:
-    0 28px 64px rgba(45, 45, 45, 0.12),
-    0 0 0 1px rgba(181, 154, 109, 0.12);
-  animation: bonaLoginRise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+    0 32px 72px rgba(45, 45, 45, 0.1),
+    0 0 0 1px rgba(181, 154, 109, 0.1);
+  animation: bonaLoginRise 0.32s var(--ease-premium, cubic-bezier(0.16, 1, 0.3, 1)) both;
 }
 @keyframes bonaLoginRise {
-  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card .crozzo-brand-dual--login {
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card #loginTitle {
-  font-size: 1.45rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: #2d2d2d;
+  font-family: var(--bona-font-display, Georgia, serif);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  color: #1c1c1c;
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card #loginSubtitle {
-  margin-top: 6px;
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #7a6342;
+  font-weight: 500;
+}
+html[data-theme="bona-origen"] body.bona-login-hotel #loginForm .form-input:focus {
+  border-color: rgba(181, 154, 109, 0.55);
+  box-shadow: 0 0 0 3px rgba(181, 154, 109, 0.18);
+  outline: none;
 }
 html[data-theme="bona-origen"] #loginForm .btn.btn-primary {
   min-height: 48px;
-  font-weight: 750;
-  letter-spacing: 0.03em;
+  margin-top: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
   border: none;
+  border-radius: 12px;
   color: #1a1208;
-  background: linear-gradient(135deg, #c4a978, #b59a6d 45%, #8f7854);
-  box-shadow: 0 10px 28px rgba(181, 154, 109, 0.28);
+  background: linear-gradient(135deg, #d4bc94, #b59a6d 42%, #8f7854);
+  box-shadow: 0 12px 28px rgba(181, 154, 109, 0.3);
+  transition: transform var(--duration-micro, 150ms) var(--ease-out-smooth, ease-out),
+    filter var(--duration-micro, 150ms) ease, box-shadow var(--duration-standard, 250ms) ease;
 }
 html[data-theme="bona-origen"] #loginForm .btn.btn-primary:hover {
-  filter: brightness(1.03);
+  filter: brightness(1.04);
+  box-shadow: 0 14px 32px rgba(181, 154, 109, 0.36);
+}
+html[data-theme="bona-origen"] #loginForm .btn.btn-primary:focus-visible {
+  outline: 2px solid #b59a6d;
+  outline-offset: 3px;
+}
+html[data-theme="bona-origen"] body.bona-login-hotel .login-post-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(28, 28, 28, 0.06);
+}
+html[data-theme="bona-origen"] body.bona-login-hotel .login-post-actions .btn-primary {
+  background: transparent;
+  color: #2d2d2d;
+  border: 1px solid rgba(181, 154, 109, 0.42);
+  box-shadow: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+html[data-theme="bona-origen"] body.bona-login-hotel .login-post-actions .btn-primary:hover {
+  filter: none;
+  background: rgba(181, 154, 109, 0.08);
+  box-shadow: none;
 }
 html[data-theme="bona-origen"] .login-post-actions .btn-outline {
-  opacity: 0.92;
+  opacity: 0.78;
+  border-color: rgba(28, 28, 28, 0.12);
 }
 html[data-theme="bona-origen"] .login-post-actions__hint {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.55;
+  font-size: 0.65rem;
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere,
   html[data-theme="bona-origen"] .login-card.bona-login-card {
     animation: none !important;
   }
+  html[data-theme="bona-origen"] #loginForm .btn.btn-primary {
+    transition: none;
+  }
+}
+body.crozzo-a11y-reduce-motion[data-theme] .login-overlay .bona-login-atmosphere,
+html.crozzo-a11y-reduce-motion[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere,
+html[data-theme="bona-origen"] body.crozzo-a11y-reduce-motion .login-overlay .bona-login-atmosphere,
+html.crozzo-a11y-reduce-motion[data-theme="bona-origen"] .login-card.bona-login-card,
+html[data-theme="bona-origen"] body.crozzo-a11y-reduce-motion .login-card.bona-login-card {
+  animation: none !important;
 }
 
 /* Toast */
@@ -34934,27 +35852,170 @@ body.crozzo-page-comandas .crozzo-concierge-strip,
 body.crozzo-page-cocina .crozzo-concierge-strip {
   display: none !important;
 }
-/* Ticket BONA: total y cobro como ancla visual */
+/* Ticket BONA SEDA: total tipografía marca + Cobrar oro (no verde success) */
 body.crozzo-page-rest-pos .crozzo-rest-pos__total-row {
-  font-size: 1.2rem !important;
+  font-size: 1.28rem !important;
   letter-spacing: 0.01em;
   padding-top: 10px !important;
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif) !important;
+  font-weight: 600 !important;
+  color: var(--bona-charcoal, #1c1c1c) !important;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .cart-total,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__totals .cart-total {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-weight: 600;
+  color: var(--bona-charcoal, #1c1c1c);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos #btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled),
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay.btn-success:not(:disabled) {
+  background: linear-gradient(165deg, var(--bona-gold-light, #d4bc94) 0%, var(--bona-gold, #b59a6d) 48%, var(--bona-gold-dark, #7a6342) 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(181, 154, 109, 0.35);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos #btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled):hover {
+  background: var(--bona-gold-dark, #7a6342) !important;
+  box-shadow: 0 10px 28px rgba(181, 154, 109, 0.42);
 }
 body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay:not(:disabled) {
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.32);
+  box-shadow: 0 8px 24px rgba(181, 154, 109, 0.35);
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__totals .cart-row:not(.cart-total) {
   font-size: 0.86rem;
   opacity: 0.92;
 }
+/* BONA Aire M3 — progressive disclosure + confort visual P0 */
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-pos__workspace {
+  gap: 14px;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-pos__catalog-toolbar {
+  gap: 10px;
+  padding-bottom: 4px;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more {
+  position: relative;
+  margin-left: auto;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more-sum {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more-sum::-webkit-details-marker {
+  display: none;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more[open] .crozzo-rest-pos__more-sum {
+  color: var(--bona-gold-dark, #7a6342);
+  border-color: rgba(181, 154, 109, 0.35);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more-body {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 200px;
+  max-width: min(360px, 70vw);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-lg, 0 12px 28px rgba(28, 28, 28, 0.08));
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-ctx-chip--primary {
+  opacity: 0.92;
+  font-weight: 650;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle {
+  margin-top: 6px;
+  border-top: 1px solid rgba(28, 28, 28, 0.06);
+  padding-top: 4px;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-sum {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-sum::-webkit-details-marker {
+  display: none;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+  opacity: 0.92;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-body .cart-row {
+  font-size: 0.86rem;
+  opacity: 0.9;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__pending[hidden] {
+  display: none !important;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__pending:not([hidden]) {
+  font-size: 0.78rem;
+  margin: 4px 0 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(181, 154, 109, 0.08);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__alerts:empty,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-print-queue-bar[hidden] {
+  display: none !important;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos.session-comfort,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos.crozzo-session-comfort .crozzo-rest-pos--aire .form-hint,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-catalog-meta {
+  opacity: 0.78;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-pos__ticket-foot {
+  padding-top: 8px;
+  gap: 8px;
+}
+/* S3 chrome P0: sin platform-lift ni gem hover compitiendo */
+body.crozzo-page-rest-pos.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-tablets.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-comandas.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-cocina.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-operativa.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live {
+  animation: none !important;
+}
+body.crozzo-page-rest-pos .bona-header-gem:hover,
+body.crozzo-page-tablets .bona-header-gem:hover,
+body.crozzo-page-comandas .bona-header-gem:hover,
+body.crozzo-page-cocina .bona-header-gem:hover,
+body.crozzo-page-operativa .bona-header-gem:hover {
+  transform: none;
+}
 /* Flota calmada en P0: un solo pill de sync visible; resto atenuado/oculto */
 body.crozzo-page-rest-pos .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
 body.crozzo-page-tablets .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
 body.crozzo-page-comandas .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
-body.crozzo-page-cocina .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary {
-  opacity: 0.78;
-  transform: scale(0.94);
-  transform-origin: center right;
+body.crozzo-page-cocina .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-inicio-operacion .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary {
+  opacity: 0.65;
+  transform: none;
 }
 body.crozzo-page-rest-pos #crozzoLegalModeBadge,
 body.crozzo-page-rest-pos #crozzoStorageModeBadge,
@@ -34967,7 +36028,10 @@ body.crozzo-page-comandas #crozzoStorageModeBadge,
 body.crozzo-page-comandas #crozzoAutoConfigBadge,
 body.crozzo-page-cocina #crozzoLegalModeBadge,
 body.crozzo-page-cocina #crozzoStorageModeBadge,
-body.crozzo-page-cocina #crozzoAutoConfigBadge {
+body.crozzo-page-cocina #crozzoAutoConfigBadge,
+body.crozzo-page-inicio-operacion #crozzoLegalModeBadge,
+body.crozzo-page-inicio-operacion #crozzoStorageModeBadge,
+body.crozzo-page-inicio-operacion #crozzoAutoConfigBadge {
   display: none !important;
 }
 /* Nav por rol: mesero/cocina = menú denso, sin ruido de grupos vacíos */
@@ -36444,14 +37508,15 @@ html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header {
 }
 
 html.tauri-desktop body.crozzo-sidebar-drawer-open #sidebar.open > #menu-toggle-btn.menu-toggle,
-html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open > #menu-toggle-btn.menu-toggle {
-  display: none !important;
-}
-
+html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open > #menu-toggle-btn.menu-toggle,
 html.tauri-desktop body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header > #menu-toggle-btn.menu-toggle,
 html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header > #menu-toggle-btn.menu-toggle {
-  display: flex !important;
-  margin: 0 auto 4px !important;
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
 }
 
 /* === Emparejamiento neo (HUD, escáner, telemetría) === */
@@ -40623,6 +41688,61 @@ html.crozzo-android-apk .modal-overlay.active {
 .crozzo-rep-staff-table th {
   vertical-align: middle;
 }
+.crozzo-rep-operativo__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: flex-end;
+  margin: 0 0 14px;
+}
+.crozzo-rep-operativo__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 9rem;
+}
+.crozzo-rep-operativo__field--grow {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+}
+.crozzo-rep-operativo__field .form-input,
+.crozzo-rep-operativo__field .form-select {
+  font-weight: 500;
+  min-height: 38px;
+}
+.crozzo-rep-operativo__kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.crozzo-rep-operativo__kpi {
+  background: var(--bg-card, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  min-width: 7.5rem;
+}
+.crozzo-rep-operativo__kpi .val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.crozzo-rep-operativo__kpi .lbl {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.crozzo-rep-operativo__hint {
+  margin: 0 0 10px;
+}
+.crozzo-rep-operativo-table td,
+.crozzo-rep-operativo-table th {
+  vertical-align: middle;
+}
 .crozzo-rep-pantalla-notes {
   margin-top: 12px;
   display: flex;
@@ -43414,6 +44534,399 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   width: 16px;
   height: 16px;
 }
+/* BONA Aire hub: hero fino — sin título duplicado ni glow */
+.crozzo-ventas-hub--aire .crozzo-ventas-hub__hero--aire {
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: none;
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+.crozzo-ventas-hub--aire .crozzo-ventas-hub__sub {
+  font-size: 0.9rem;
+  max-width: none;
+  color: var(--text-secondary, #5c564f);
+  opacity: 1;
+}
+.crozzo-ventas-hub__lead {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-hub__grid {
+  margin-bottom: 16px;
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(181, 154, 109, 0.12);
+  color: var(--accent, #b59a6d);
+  font-weight: 650;
+  font-size: 0.88rem;
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-card__feats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-ventas-hub--balanced .crozzo-admin-hub--live {
+  margin: 0 0 16px;
+}
+.crozzo-ventas-hub--balanced .crozzo-ventas-hub__kpis--live {
+  margin-bottom: 16px;
+}
+/* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
+.crozzo-ventas-hub__reveals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  max-width: 960px;
+}
+.crozzo-hub-reveal {
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  border-radius: 14px;
+  background: var(--bg-card, #fff);
+  overflow: hidden;
+}
+.crozzo-hub-reveal__sum {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-hub-reveal__sum:hover {
+  background: rgba(181, 154, 109, 0.06);
+}
+.crozzo-hub-reveal__sum:active {
+  transform: scale(0.995);
+}
+.crozzo-hub-reveal__label {
+  flex: 1 1 auto;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-hub-reveal__peek {
+  flex: 0 1 auto;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #6b6560);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crozzo-hub-reveal__peek-muted {
+  opacity: 0.55;
+  font-style: normal;
+}
+.crozzo-hub-reveal__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c9a962;
+  box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.2);
+  flex-shrink: 0;
+}
+.crozzo-hub-reveal__chev {
+  flex: 0 0 auto;
+  display: inline-flex;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-hub-reveal__chev [data-lucide] {
+  width: 16px;
+  height: 16px;
+}
+.crozzo-hub-reveal.is-open .crozzo-hub-reveal__chev {
+  transform: rotate(180deg);
+}
+.crozzo-hub-reveal__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-hub-reveal__panel.is-shown {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.crozzo-hub-reveal__inner {
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 14px 14px;
+  transform: translateY(-6px);
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-hub-reveal__panel.is-shown .crozzo-hub-reveal__inner {
+  transform: translateY(0);
+}
+.crozzo-hub-reveal .crozzo-ventas-hub__kpis,
+.crozzo-hub-reveal .crozzo-admin-hub {
+  margin: 0;
+}
+/* Apoyo bajo demanda — tipografía calmada, sin banner */
+.crozzo-support-brief {
+  margin: 0;
+  padding: 2px 2px 0;
+  max-width: 36rem;
+}
+.crozzo-support-brief__greet {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-support-brief__care {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #6b6560);
+}
+.crozzo-support-brief__tip {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-support-brief__wins {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent, #b59a6d);
+  letter-spacing: 0.01em;
+}
+/* Bienvenida de turno — modal centrado (mismo lenguaje que actualización crítica).
+   z-index 9050: bajo OTA (9100+) para no tapar changelog. */
+.crozzo-shift-welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 9050;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6, 24px);
+  background: var(--login-overlay-bg, rgba(28, 28, 28, 0.42));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--duration-modal, 350ms) var(--ease-out-smooth, cubic-bezier(0.25, 0.1, 0.25, 1)),
+    visibility var(--duration-modal, 350ms) var(--ease-out-smooth, cubic-bezier(0.25, 0.1, 0.25, 1));
+}
+.crozzo-shift-welcome.is-shown {
+  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.crozzo-shift-welcome.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+body.crozzo-shift-welcome-open {
+  overflow: hidden;
+}
+.crozzo-shift-welcome__modal {
+  width: min(420px, 100%);
+  padding: var(--space-6, 24px);
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid var(--border-subtle, color-mix(in srgb, var(--border-color, #e8e4dc) 90%, transparent));
+  border-top: 3px solid var(--accent, #b59a6d);
+  background: var(--bg-card, var(--bg-elevated, #fff));
+  box-shadow: var(--elevation-3, 0 16px 48px rgba(0, 0, 0, 0.18));
+  text-align: center;
+  animation: crozzoModalIn var(--duration-modal, 350ms) var(--ease-out-smooth, cubic-bezier(0.25, 0.1, 0.25, 1)) forwards;
+}
+.crozzo-shift-welcome__badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 auto 12px;
+  padding: 4px 10px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent, #b59a6d);
+  background: color-mix(in srgb, var(--accent, #b59a6d) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #b59a6d) 28%, transparent);
+  border-radius: 999px;
+}
+.crozzo-shift-welcome__brand {
+  margin: 0 0 10px;
+  font-family: 'Cormorant Garamond', 'Cormorant', Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent, #b59a6d);
+}
+.crozzo-shift-welcome__modal .bona-brand-name-only {
+  margin: 0 auto 14px;
+}
+.crozzo-shift-welcome__greet {
+  margin: 0 0 10px;
+  font-size: clamp(1.25rem, 3.5vw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-shift-welcome__care {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #6b6560);
+}
+.crozzo-shift-welcome__tip {
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-shift-welcome__wins {
+  margin: 0 0 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--accent, #b59a6d);
+}
+.crozzo-shift-welcome__load {
+  margin: 0 auto 10px;
+  max-width: 180px;
+}
+.crozzo-shift-welcome__load-track {
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border-color, #e8e4dc) 85%, transparent);
+  overflow: hidden;
+}
+.crozzo-shift-welcome__load-bar {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent, #b59a6d) 65%, #8a7a55), var(--accent, #b59a6d));
+  animation: crozzo-shift-welcome-load 2.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.crozzo-shift-welcome__status {
+  margin: 0 0 16px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9a948c);
+}
+.crozzo-shift-welcome__skip {
+  min-width: 180px;
+  font-weight: 600;
+}
+@keyframes crozzo-shift-welcome-load {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-shift-welcome,
+  .crozzo-shift-welcome__modal {
+    transition: none !important;
+    animation: none !important;
+  }
+  .crozzo-shift-welcome__load-bar {
+    animation: none !important;
+    width: 100%;
+  }
+}
+html.crozzo-a11y-reduce-motion .crozzo-shift-welcome,
+body.crozzo-a11y-reduce-motion .crozzo-shift-welcome {
+  transition: none;
+}
+#crozzoTempoBadge,
+#crozzoTempoBadge[hidden],
+body.crozzo-page-inicio-operacion #crozzoTempoBadge {
+  display: none !important;
+}
+.crozzo-ventas-card__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted, #9a948c);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.crozzo-ventas-card__more [data-lucide] {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crozzo-ventas-card.is-feats-open .crozzo-ventas-card__more [data-lucide] {
+  transform: rotate(180deg);
+}
+.crozzo-ventas-card__feats-wrap {
+  margin: 0 0 10px;
+  overflow: hidden;
+  animation: crozzo-hub-feats-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.crozzo-ventas-card__feats-wrap[hidden] {
+  display: none !important;
+}
+@keyframes crozzo-hub-feats-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crozzo-hub-reveal__sum,
+  .crozzo-hub-reveal__chev,
+  .crozzo-hub-reveal__panel,
+  .crozzo-hub-reveal__inner,
+  .crozzo-ventas-card__more [data-lucide],
+  .crozzo-ventas-card__feats-wrap {
+    transition: none !important;
+    animation: none !important;
+  }
+  .crozzo-hub-reveal__sum:active {
+    transform: none;
+  }
+}
 .crozzo-ventas-hub__kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -45227,7 +46740,7 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
 }
 .crozzo-rest-pos__action--pay {
   font-weight: 800 !important;
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 6px 20px rgba(181, 154, 109, 0.28);
 }
 .crozzo-rest-pos__cuenta-ops {
   display: grid;
@@ -45301,6 +46814,17 @@ body.crozzo-page-rest-pos .crozzo-rest-pos__pending {
   min-height: 44px !important;
   font-size: 1.05rem !important;
   letter-spacing: 0.02em;
+  transition: transform var(--duration-micro) var(--ease-out-smooth), opacity var(--duration-micro) var(--ease-out-smooth);
+}
+#btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled):active {
+  transform: scale(0.98);
+  opacity: 0.94;
+}
+@media (prefers-reduced-motion: reduce) {
+  #btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled):active {
+    transform: none;
+    opacity: 1;
+  }
 }
 .crozzo-rest-cuenta-cobro__more {
   flex: 0 0 auto;
@@ -46271,7 +47795,10 @@ body.crozzo-unified-chrome .crozzo-hfsi {
 body.crozzo-unified-chrome--fullscreen #crozzo-psyche-chip-host,
 body.crozzo-unified-chrome--fullscreen #crozzo-peak-breathe-host,
 body.crozzo-page-operativa #crozzo-psyche-chip-host,
-body.crozzo-page-operativa #crozzo-peak-breathe-host {
+body.crozzo-page-operativa #crozzo-peak-breathe-host,
+body.crozzo-page-inicio-operacion #crozzo-psyche-chip-host,
+body.crozzo-page-inicio-operacion #crozzo-peak-breathe-host,
+body.crozzo-page-inicio-operacion #crozzoCompanionRailHost {
   display: none !important;
   height: 0 !important;
   min-height: 0 !important;
@@ -46280,6 +47807,9 @@ body.crozzo-page-operativa #crozzo-peak-breathe-host {
   overflow: hidden !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+body.crozzo-page-inicio-operacion #crozzoHeaderPsycheLine {
+  display: none !important;
 }
 
 html.crozzo-vp-ready body.crozzo-unified-chrome--fullscreen .main-content,
@@ -52570,8 +54100,8 @@ body.crozzo-retail-cliente-popover-open { overflow: hidden; }
 .crozzo-invoice-editor-toolbar .btn { font-size: 0.8rem; }
 
 .crozzo-invoice-studio {
-  --studio-gold: var(--accent);
-  --studio-gold-rgb: var(--accent-rgb, 201, 169, 98);
+  --studio-gold: var(--bona-gold, var(--accent));
+  --studio-gold-rgb: var(--accent-rgb, 181, 154, 109);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -52951,7 +54481,7 @@ body.crozzo-retail-cliente-popover-open { overflow: hidden; }
 
 /* —— Centro de impresión · diseño premium claro —— */
 .crozzo-print-hub {
-  --print-gold: var(--gold-primary, #c9a962);
+  --print-gold: var(--bona-gold, var(--gold-primary, #b59a6d));
   --print-gold-soft: color-mix(in srgb, var(--print-gold) 14%, transparent);
   --print-gold-border: color-mix(in srgb, var(--print-gold) 32%, var(--border));
   display: flex;
@@ -53005,6 +54535,249 @@ body.crozzo-retail-cliente-popover-open { overflow: hidden; }
 .crozzo-print-hub__tab.is-active {
   color: var(--text-primary);
   border-bottom-color: var(--print-gold);
+}
+.crozzo-print-hub__more {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+.crozzo-print-hub__more > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+}
+.crozzo-print-hub__more > summary::-webkit-details-marker { display: none; }
+.crozzo-print-hub__more.is-active > summary,
+.crozzo-print-hub__tab--more.is-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--print-gold);
+}
+.crozzo-print-hub__more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  min-width: 160px;
+  padding: 6px;
+  border: 1px solid var(--print-gold-border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+}
+.crozzo-print-hub__more-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.crozzo-print-hub__more-item:hover,
+.crozzo-print-hub__more-item.is-active {
+  background: var(--print-gold-soft);
+  color: var(--print-gold);
+}
+.crozzo-ps-btn-gold.btn-primary,
+button.crozzo-ps-btn-gold.btn-primary {
+  background: linear-gradient(135deg, #c9b07a 0%, var(--print-gold, #b59a6d) 55%, #9a8158 100%);
+  border-color: color-mix(in srgb, var(--print-gold, #b59a6d) 70%, #000);
+  color: #1a1612;
+  box-shadow: 0 6px 16px rgba(181, 154, 109, 0.28);
+}
+.crozzo-ps-global {
+  margin: 12px 0 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--print-gold-border);
+  border-radius: 12px;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--print-gold) 8%, var(--bg-card)) 0%, var(--bg-card) 70%);
+}
+.crozzo-ps-global__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.crozzo-ps-global__head h4 {
+  margin: 0;
+  font-family: var(--font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.crozzo-ps-global__status {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.crozzo-ps-style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+}
+.crozzo-ps-style {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.crozzo-ps-style:hover {
+  border-color: var(--print-gold-border);
+}
+.crozzo-ps-style.is-active {
+  border-color: var(--print-gold);
+  background: var(--print-gold-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--print-gold) 40%, transparent);
+}
+.crozzo-ps-style__icon {
+  font-size: 0.95rem;
+  color: var(--print-gold);
+  line-height: 1;
+}
+.crozzo-ps-style__label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.crozzo-ps-style__sz {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.crozzo-ps-global__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 12px;
+}
+.crozzo-ps-layer-only {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+.crozzo-ps-keep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.crozzo-ps-docbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0 0 12px;
+}
+.crozzo-ps-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.crozzo-ps-chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.crozzo-ps-chip.is-active {
+  border-color: var(--print-gold);
+  color: var(--print-gold);
+  background: var(--print-gold-soft);
+}
+.crozzo-ps-chip--more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.crozzo-ps-chip--more select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+}
+.crozzo-ps-dest {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--print-gold) 10%, transparent);
+  border: 1px solid var(--print-gold-border);
+}
+.crozzo-ps-layer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 6px;
+}
+.crozzo-ps-chip-custom {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #8a6a2a;
+  background: color-mix(in srgb, #e8c56a 22%, transparent);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+.crozzo-ps-audit {
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+}
+.crozzo-ps-audit summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+.crozzo-ps-audit__list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.crozzo-ps-audit__item {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.crozzo-ps-audit__item.is-ok { color: #2f6b4f; }
+.crozzo-ps-audit__item.is-warn { color: #8a6a2a; }
+.crozzo-ps-audit__item.is-bad { color: #9b3b3b; }
+.crozzo-ps-audit__note {
+  margin: 8px 0 0;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+.crozzo-print-studio--pro .crozzo-print-studio__head-text p {
+  max-width: 52ch;
 }
 .crozzo-print-hub__body {
   flex: 1;
@@ -54199,6 +55972,29 @@ body.crozzo-page-print-hub .crozzo-fa-panel[data-fa-panel="estudio"].is-active {
 }
 .crozzo-nube-hub {
   max-width: 1100px;
+}
+.crozzo-ai-insights-host {
+  margin: 12px 0 18px;
+}
+.card.crozzo-ai-insights-admin {
+  border: 2px solid rgba(181, 154, 109, 0.55);
+  box-shadow: 0 8px 24px rgba(45, 45, 45, 0.06);
+  background: linear-gradient(180deg, #fff 0%, #f9f7f5 100%);
+}
+.card.crozzo-ai-insights-admin .card-title {
+  color: #2d2d2d;
+}
+.crozzo-ai-insight-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding: 12px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--bona-line, rgba(0, 0, 0, 0.08));
+  border-radius: 10px;
+  max-height: 420px;
+  overflow: auto;
 }
 .crozzo-nube-hero__title {
   margin: 0 0 8px;
@@ -58504,6 +60300,11 @@ body.crozzo-page-cierre-caja #pageContent {
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
+html[data-theme="bona-origen"] .crozzo-cierre-hero__title {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
 
 .crozzo-cierre-hero__sub {
   margin: 0;
@@ -58515,6 +60316,32 @@ body.crozzo-page-cierre-caja #pageContent {
 
 .crozzo-cierre-cta {
   box-shadow: var(--elevation-glow);
+  min-height: 44px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+html[data-theme="bona-origen"] .crozzo-cierre-cta.btn-primary {
+  background: linear-gradient(165deg, var(--bona-gold-light, #d4bc94), var(--bona-gold, #b59a6d) 50%, var(--bona-gold-dark, #7a6342));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(181, 154, 109, 0.32);
+}
+html[data-theme="bona-origen"] .crozzo-cierre-cta-secondary {
+  opacity: 0.88;
+}
+html[data-theme="bona-origen"] .crozzo-cierre-metric__val {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-weight: 600;
+  color: var(--bona-charcoal, var(--text-primary));
+}
+/* BONA Obra — ritual Cobrar */
+html[data-theme="bona-origen"] .toast.toast-success {
+  border-left-color: var(--bona-gold, #b59a6d);
+}
+html[data-theme="bona-origen"] body.crozzo-bona-cobro-ritual .crozzo-rest-pos__ticket-foot,
+body.crozzo-bona-cobro-ritual .crozzo-rest-pos__totals {
+  box-shadow: 0 0 0 1px rgba(181, 154, 109, 0.4), 0 12px 28px rgba(181, 154, 109, 0.12);
+  transition: box-shadow 0.35s var(--ease-out-smooth, ease);
 }
 
 .crozzo-cierre-btn-muted {
@@ -62103,6 +63930,20 @@ html.crozzo-tauri-rail-ui .mobile-menu-btn {
   display: inline-flex !important;
   pointer-events: auto !important;
 }
+/* Rail desktop (sin touch): mismo hamburger opcional que tauri-desktop */
+html.crozzo-tauri-rail-ui:not(.crozzo-touch-shell):not(.crozzo-form-mobile):not(.crozzo-form-tablet) .mobile-menu-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  opacity: 0.42;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html.crozzo-tauri-rail-ui:not(.crozzo-touch-shell):not(.crozzo-form-mobile):not(.crozzo-form-tablet) .mobile-menu-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+}
 
 /* Drawer móvil: anular modo rail 64px de sidebar-elite (labels/submenús invisibles) */
 html.crozzo-touch-shell #sidebar.sidebar-elite,
@@ -64201,12 +66042,12 @@ html.tauri-desktop body.crozzo-kiosk-active .main-content {
   .login-card { padding: 22px 18px 18px; }
 }
 
-/* Fase C — login hotelero BONA (atmósfera + motion calmado) */
+/* Fase C — login hotelero BONA (UI STRIKE 1: atmósfera + jerarquía Entrar) */
 html[data-theme="bona-origen"] .login-overlay,
 html[data-theme="bona-origen"] body.crozzo-login-open .login-overlay {
   background:
-    radial-gradient(110% 70% at 50% -8%, rgba(181, 154, 109, 0.28), transparent 58%),
-    linear-gradient(168deg, #faf9f7 0%, #f4f0e8 45%, #ebe4d8 100%);
+    radial-gradient(110% 70% at 50% -8%, rgba(181, 154, 109, 0.26), transparent 58%),
+    linear-gradient(168deg, #faf9f7 0%, #f4f0e8 48%, #ebe4d8 100%);
   overflow: hidden;
 }
 html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere {
@@ -64215,73 +66056,124 @@ html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(circle at 18% 72%, rgba(181, 154, 109, 0.14), transparent 42%),
-    radial-gradient(circle at 82% 28%, rgba(45, 45, 45, 0.06), transparent 38%);
-  animation: bonaLoginDrift 18s ease-in-out infinite alternate;
+    radial-gradient(circle at 18% 72%, rgba(181, 154, 109, 0.12), transparent 42%),
+    radial-gradient(circle at 82% 28%, rgba(45, 45, 45, 0.05), transparent 38%);
+  animation: bonaLoginDrift 22s var(--ease-calm, ease-in-out) infinite alternate;
 }
 html[data-theme="bona-origen"] .login-overlay > .login-card {
   position: relative;
   z-index: 1;
 }
 @keyframes bonaLoginDrift {
-  from { transform: translate3d(-1.2%, 0.6%, 0) scale(1); }
-  to { transform: translate3d(1.4%, -0.8%, 0) scale(1.03); }
+  from { transform: translate3d(-0.8%, 0.4%, 0) scale(1); }
+  to { transform: translate3d(1%, -0.5%, 0) scale(1.02); }
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card {
-  max-width: 420px;
-  padding: 32px 28px 26px;
-  border-color: rgba(181, 154, 109, 0.38);
+  max-width: 400px;
+  padding: 36px 30px 28px;
+  border-radius: var(--bona-radius-lg, 22px);
+  border-color: rgba(181, 154, 109, 0.34);
   background: linear-gradient(180deg, #ffffff 0%, #faf8f4 100%);
   box-shadow:
-    0 28px 64px rgba(45, 45, 45, 0.12),
-    0 0 0 1px rgba(181, 154, 109, 0.12);
-  animation: bonaLoginRise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+    0 32px 72px rgba(45, 45, 45, 0.1),
+    0 0 0 1px rgba(181, 154, 109, 0.1);
+  animation: bonaLoginRise 0.32s var(--ease-premium, cubic-bezier(0.16, 1, 0.3, 1)) both;
 }
 @keyframes bonaLoginRise {
-  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card .crozzo-brand-dual--login {
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card #loginTitle {
-  font-size: 1.45rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: #2d2d2d;
+  font-family: var(--bona-font-display, Georgia, serif);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  color: #1c1c1c;
 }
 html[data-theme="bona-origen"] .login-card.bona-login-card #loginSubtitle {
-  margin-top: 6px;
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #7a6342;
+  font-weight: 500;
+}
+html[data-theme="bona-origen"] body.bona-login-hotel #loginForm .form-input:focus {
+  border-color: rgba(181, 154, 109, 0.55);
+  box-shadow: 0 0 0 3px rgba(181, 154, 109, 0.18);
+  outline: none;
 }
 html[data-theme="bona-origen"] #loginForm .btn.btn-primary {
   min-height: 48px;
-  font-weight: 750;
-  letter-spacing: 0.03em;
+  margin-top: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.82rem;
   border: none;
+  border-radius: 12px;
   color: #1a1208;
-  background: linear-gradient(135deg, #c4a978, #b59a6d 45%, #8f7854);
-  box-shadow: 0 10px 28px rgba(181, 154, 109, 0.28);
+  background: linear-gradient(135deg, #d4bc94, #b59a6d 42%, #8f7854);
+  box-shadow: 0 12px 28px rgba(181, 154, 109, 0.3);
+  transition: transform var(--duration-micro, 150ms) var(--ease-out-smooth, ease-out),
+    filter var(--duration-micro, 150ms) ease, box-shadow var(--duration-standard, 250ms) ease;
 }
 html[data-theme="bona-origen"] #loginForm .btn.btn-primary:hover {
-  filter: brightness(1.03);
+  filter: brightness(1.04);
+  box-shadow: 0 14px 32px rgba(181, 154, 109, 0.36);
+}
+html[data-theme="bona-origen"] #loginForm .btn.btn-primary:focus-visible {
+  outline: 2px solid #b59a6d;
+  outline-offset: 3px;
+}
+html[data-theme="bona-origen"] body.bona-login-hotel .login-post-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(28, 28, 28, 0.06);
+}
+html[data-theme="bona-origen"] body.bona-login-hotel .login-post-actions .btn-primary {
+  background: transparent;
+  color: #2d2d2d;
+  border: 1px solid rgba(181, 154, 109, 0.42);
+  box-shadow: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+html[data-theme="bona-origen"] body.bona-login-hotel .login-post-actions .btn-primary:hover {
+  filter: none;
+  background: rgba(181, 154, 109, 0.08);
+  box-shadow: none;
 }
 html[data-theme="bona-origen"] .login-post-actions .btn-outline {
-  opacity: 0.92;
+  opacity: 0.78;
+  border-color: rgba(28, 28, 28, 0.12);
 }
 html[data-theme="bona-origen"] .login-post-actions__hint {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.55;
+  font-size: 0.65rem;
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere,
   html[data-theme="bona-origen"] .login-card.bona-login-card {
     animation: none !important;
   }
+  html[data-theme="bona-origen"] #loginForm .btn.btn-primary {
+    transition: none;
+  }
+}
+body.crozzo-a11y-reduce-motion[data-theme] .login-overlay .bona-login-atmosphere,
+html.crozzo-a11y-reduce-motion[data-theme="bona-origen"] .login-overlay .bona-login-atmosphere,
+html[data-theme="bona-origen"] body.crozzo-a11y-reduce-motion .login-overlay .bona-login-atmosphere,
+html.crozzo-a11y-reduce-motion[data-theme="bona-origen"] .login-card.bona-login-card,
+html[data-theme="bona-origen"] body.crozzo-a11y-reduce-motion .login-card.bona-login-card {
+  animation: none !important;
 }
 
 /* Toast */
@@ -69607,27 +71499,170 @@ body.crozzo-page-comandas .crozzo-concierge-strip,
 body.crozzo-page-cocina .crozzo-concierge-strip {
   display: none !important;
 }
-/* Ticket BONA: total y cobro como ancla visual */
+/* Ticket BONA SEDA: total tipografía marca + Cobrar oro (no verde success) */
 body.crozzo-page-rest-pos .crozzo-rest-pos__total-row {
-  font-size: 1.2rem !important;
+  font-size: 1.28rem !important;
   letter-spacing: 0.01em;
   padding-top: 10px !important;
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif) !important;
+  font-weight: 600 !important;
+  color: var(--bona-charcoal, #1c1c1c) !important;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .cart-total,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__totals .cart-total {
+  font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-weight: 600;
+  color: var(--bona-charcoal, #1c1c1c);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos #btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled),
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay.btn-success:not(:disabled) {
+  background: linear-gradient(165deg, var(--bona-gold-light, #d4bc94) 0%, var(--bona-gold, #b59a6d) 48%, var(--bona-gold-dark, #7a6342) 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(181, 154, 109, 0.35);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos #btnCobrarAhora.crozzo-rest-cuenta-cobro__pay:not(:disabled):hover {
+  background: var(--bona-gold-dark, #7a6342) !important;
+  box-shadow: 0 10px 28px rgba(181, 154, 109, 0.42);
 }
 body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay:not(:disabled) {
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.32);
+  box-shadow: 0 8px 24px rgba(181, 154, 109, 0.35);
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos__totals .cart-row:not(.cart-total) {
   font-size: 0.86rem;
   opacity: 0.92;
 }
+/* BONA Aire M3 — progressive disclosure + confort visual P0 */
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-pos__workspace {
+  gap: 14px;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-pos__catalog-toolbar {
+  gap: 10px;
+  padding-bottom: 4px;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more {
+  position: relative;
+  margin-left: auto;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more-sum {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more-sum::-webkit-details-marker {
+  display: none;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more[open] .crozzo-rest-pos__more-sum {
+  color: var(--bona-gold-dark, #7a6342);
+  border-color: rgba(181, 154, 109, 0.35);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__more-body {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 200px;
+  max-width: min(360px, 70vw);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-lg, 0 12px 28px rgba(28, 28, 28, 0.08));
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-ctx-chip--primary {
+  opacity: 0.92;
+  font-weight: 650;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle {
+  margin-top: 6px;
+  border-top: 1px solid rgba(28, 28, 28, 0.06);
+  padding-top: 4px;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-sum {
+  list-style: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-sum::-webkit-details-marker {
+  display: none;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+  opacity: 0.92;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cuenta-detalle-body .cart-row {
+  font-size: 0.86rem;
+  opacity: 0.9;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__pending[hidden] {
+  display: none !important;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__pending:not([hidden]) {
+  font-size: 0.78rem;
+  margin: 4px 0 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(181, 154, 109, 0.08);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__cart-empty p {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos__alerts:empty,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-print-queue-bar[hidden] {
+  display: none !important;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos.session-comfort,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos.crozzo-session-comfort .crozzo-rest-pos--aire .form-hint,
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-catalog-meta {
+  opacity: 0.78;
+}
+html[data-theme="bona-origen"] body.crozzo-page-rest-pos .crozzo-rest-pos--aire .crozzo-rest-pos__ticket-foot {
+  padding-top: 8px;
+  gap: 8px;
+}
+/* S3 chrome P0: sin platform-lift ni gem hover compitiendo */
+body.crozzo-page-rest-pos.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-tablets.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-comandas.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-cocina.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live,
+body.crozzo-page-operativa.crozzo-chrome-motion .crozzo-brand-slot.bona-platform-live {
+  animation: none !important;
+}
+body.crozzo-page-rest-pos .bona-header-gem:hover,
+body.crozzo-page-tablets .bona-header-gem:hover,
+body.crozzo-page-comandas .bona-header-gem:hover,
+body.crozzo-page-cocina .bona-header-gem:hover,
+body.crozzo-page-operativa .bona-header-gem:hover {
+  transform: none;
+}
 /* Flota calmada en P0: un solo pill de sync visible; resto atenuado/oculto */
 body.crozzo-page-rest-pos .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
 body.crozzo-page-tablets .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
 body.crozzo-page-comandas .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
-body.crozzo-page-cocina .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary {
-  opacity: 0.78;
-  transform: scale(0.94);
-  transform-origin: center right;
+body.crozzo-page-cocina .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary,
+body.crozzo-page-inicio-operacion .crozzo-header__status .crozzo-status-pill.crozzo-mobile-secondary {
+  opacity: 0.65;
+  transform: none;
 }
 body.crozzo-page-rest-pos #crozzoLegalModeBadge,
 body.crozzo-page-rest-pos #crozzoStorageModeBadge,
@@ -69640,7 +71675,10 @@ body.crozzo-page-comandas #crozzoStorageModeBadge,
 body.crozzo-page-comandas #crozzoAutoConfigBadge,
 body.crozzo-page-cocina #crozzoLegalModeBadge,
 body.crozzo-page-cocina #crozzoStorageModeBadge,
-body.crozzo-page-cocina #crozzoAutoConfigBadge {
+body.crozzo-page-cocina #crozzoAutoConfigBadge,
+body.crozzo-page-inicio-operacion #crozzoLegalModeBadge,
+body.crozzo-page-inicio-operacion #crozzoStorageModeBadge,
+body.crozzo-page-inicio-operacion #crozzoAutoConfigBadge {
   display: none !important;
 }
 /* Nav por rol: mesero/cocina = menú denso, sin ruido de grupos vacíos */
@@ -71117,14 +73155,15 @@ html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header {
 }
 
 html.tauri-desktop body.crozzo-sidebar-drawer-open #sidebar.open > #menu-toggle-btn.menu-toggle,
-html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open > #menu-toggle-btn.menu-toggle {
-  display: none !important;
-}
-
+html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open > #menu-toggle-btn.menu-toggle,
 html.tauri-desktop body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header > #menu-toggle-btn.menu-toggle,
 html.tauri-shell body.crozzo-sidebar-drawer-open #sidebar.open .sidebar-header > #menu-toggle-btn.menu-toggle {
-  display: flex !important;
-  margin: 0 auto 4px !important;
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
 }
 
 /* === Emparejamiento neo (HUD, escáner, telemetría) === */
@@ -78160,4 +80199,208 @@ body.crozzo-caja-crm-open .crozzo-concierge-strip,
 body.crozzo-caja-crm-open #crozzo-psyche-chip-host,
 body.crozzo-caja-crm-open #crozzo-peak-breathe-host {
   display: none !important;
+}
+
+/* ── M1 Auditoría IA (Cierre / Reportes) ───────────────────────── */
+.crozzo-ai-audit {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--elevation-1);
+  padding: 16px;
+  margin: 16px 0;
+}
+.crozzo-ai-audit--gated {
+  border-style: dashed;
+  opacity: 0.95;
+}
+.crozzo-ai-audit__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.crozzo-ai-audit__badge--on {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.28);
+}
+.crozzo-ai-audit__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+.crozzo-ai-audit__preset {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color var(--motion-fast, 0.15s), background var(--motion-fast, 0.15s), color var(--motion-fast, 0.15s);
+}
+.crozzo-ai-audit__preset:hover {
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.45);
+}
+.crozzo-ai-audit__preset.is-active {
+  background: rgba(var(--accent-rgb, 201, 169, 98), 0.14);
+  border-color: rgba(var(--accent-rgb, 201, 169, 98), 0.5);
+  color: var(--text-primary);
+}
+.crozzo-ai-audit__dates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.crozzo-ai-audit__dates .form-group {
+  margin: 0;
+}
+.crozzo-ai-audit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.crozzo-ai-audit__status.is-error {
+  color: var(--danger, #b91c1c);
+}
+.crozzo-ai-audit__steps {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.crozzo-ai-audit__steps li {
+  opacity: 0.45;
+  margin: 2px 0;
+}
+.crozzo-ai-audit__steps li.is-done {
+  opacity: 0.75;
+}
+.crozzo-ai-audit__steps li.is-active {
+  opacity: 1;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.crozzo-ai-audit__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.crozzo-ai-audit__metric {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.crozzo-ai-audit__metric-k {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.crozzo-ai-audit__metric-v {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.crozzo-ai-audit__metric-s {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.crozzo-ai-audit__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.crozzo-ai-audit__flag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.crozzo-ai-audit__flag--ok {
+  color: #166534;
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.08);
+}
+.crozzo-ai-audit__flag--warn {
+  color: #92400e;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.1);
+}
+.crozzo-ai-audit__out-wrap {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+.crozzo-ai-audit__out-label {
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.crozzo-ai-audit__out {
+  margin: 0;
+  padding: 12px;
+  max-height: 340px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .crozzo-ai-audit__dates,
+  .crozzo-ai-audit__metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .crozzo-ai-audit__dates,
+  .crozzo-ai-audit__metrics {
+    grid-template-columns: 1fr;
+  }
+}
+html.crozzo-touch-shell .crozzo-ai-audit__preset,
+html.crozzo-android-apk .crozzo-ai-audit__preset {
+  min-height: 40px;
+  padding: 10px 16px;
+}
+html.crozzo-touch-shell .crozzo-ai-audit__actions .btn,
+html.crozzo-android-apk .crozzo-ai-audit__actions .btn {
+  min-height: 42px;
 }

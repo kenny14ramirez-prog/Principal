@@ -985,6 +985,8 @@
       '</dd>' +
       '</dl>' +
       '<p class="form-hint">Credenciales en <code>crozzo_supabase_config</code> (solo Super Admin). Al guardar se pedirá su contraseña de nuevo.</p>' +
+      '<button type="button" class="btn btn-primary" id="sanBtnJumpAiInsights" style="margin-top:10px;" onclick="typeof crozzoOpenAiInsightsConfig===\'function\'&&crozzoOpenAiInsightsConfig()">' +
+      '✨ Configurar Reporte IA / key NVIDIA</button>' +
       '</div></div>'
     );
   }
@@ -1451,6 +1453,12 @@
       '<div id="crozzo-nube-hub" class="crozzo-nube-hub">' +
       renderHero() +
       renderStatusPanel() +
+      '<div id="crozzoAiInsightsAdminHost" class="crozzo-ai-insights-host" data-crozzo-ai-host="1">' +
+      '<div class="card crozzo-ai-insights-admin crozzo-ai-insights-admin--loading">' +
+      '<div class="card-header"><span class="card-title">✨ Inteligencia — Reporte IA (NVIDIA)</span></div>' +
+      '<p class="form-hint">Cargando panel de API key… Si no aparece, recargue con Ctrl+Shift+R.</p>' +
+      '<p class="form-hint">Aquí se pega la key <code>nvapi-…</code> de build.nvidia.com.</p>' +
+      '</div></div>' +
       renderWizardNav(step) +
       '<div class="crozzo-nube-wizard-body">' +
       renderStepConnection() +
@@ -1472,6 +1480,88 @@
       '</button>' +
       '</div></div>'
     );
+  }
+
+  function aiInsightsCardIsLive(host) {
+    var root = host && host.querySelector ? host.querySelector('#crozzoAiInsightsAdmin') : null;
+    if (!root || root.classList.contains('crozzo-ai-insights-admin--loading')) return false;
+    return !!(root.__crozzoAiBound || root.querySelector('#crozzoAiBtnSaveKey'));
+  }
+
+  function aiInsightsShouldSkipRemount(host, force) {
+    if (force) return false;
+    if (!aiInsightsCardIsLive(host)) return false;
+    if (global.__crozzoAiInsightsLock) return true;
+    try {
+      if (typeof global.CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.formHasDraft && CrozzoAiInsights.formHasDraft()) {
+        return true;
+      }
+    } catch (_) {}
+    var root = host.querySelector('#crozzoAiInsightsAdmin');
+    if (root && (root.dataset.crozzoAiBusy === '1' || root.getAttribute('data-crozzo-ai-busy') === '1')) {
+      return true;
+    }
+    /* Card ya montado y usable: no destruir input/probe con remounts de init/retries */
+    return true;
+  }
+
+  function mountAiInsightsAdminCard(opts) {
+    opts = opts || {};
+    var force = !!opts.force;
+    var host = document.getElementById('crozzoAiInsightsAdminHost');
+    if (!host) return false;
+
+    if (aiInsightsShouldSkipRemount(host, force)) {
+      try {
+        if (typeof global.CrozzoAiInsights !== 'undefined' && CrozzoAiInsights.bindSuperAdminCard) {
+          CrozzoAiInsights.bindSuperAdminCard();
+        }
+      } catch (_) {}
+      return true;
+    }
+
+    function paint() {
+      if (typeof global.CrozzoAiInsights === 'undefined' || !CrozzoAiInsights.renderSuperAdminCardHtml) {
+        return false;
+      }
+      if (aiInsightsShouldSkipRemount(host, force)) return true;
+      host.innerHTML = CrozzoAiInsights.renderSuperAdminCardHtml();
+      try {
+        if (CrozzoAiInsights.bindSuperAdminCard) CrozzoAiInsights.bindSuperAdminCard();
+      } catch (e) {
+        console.warn('[nube] ai insights bind', e);
+      }
+      return true;
+    }
+
+    if (paint()) return true;
+
+    /* Fallback: inyectar script si el HTML de Tauri aún no lo incluía */
+    if (!document.querySelector('script[src*="CrozzoAiInsights.js"]')) {
+      var s = document.createElement('script');
+      s.src = 'modules/CrozzoAiInsights.js?v=' + Date.now();
+      s.onload = function () {
+        paint();
+      };
+      s.onerror = function () {
+        host.innerHTML =
+          '<div class="card crozzo-ai-insights-admin" id="crozzoAiInsightsAdmin">' +
+          '<div class="card-header"><span class="card-title">✨ Inteligencia — Reporte IA (NVIDIA)</span></div>' +
+          '<p class="form-hint" style="color:var(--danger,#b91c1c);">No se pudo cargar <code>modules/CrozzoAiInsights.js</code>. Ejecute <code>npm run sync</code> y reinicie Tauri.</p>' +
+          '</div>';
+      };
+      document.head.appendChild(s);
+      return false;
+    }
+
+    if (!aiInsightsCardIsLive(host)) {
+      host.innerHTML =
+        '<div class="card crozzo-ai-insights-admin" id="crozzoAiInsightsAdmin">' +
+        '<div class="card-header"><span class="card-title">✨ Inteligencia — Reporte IA (NVIDIA)</span></div>' +
+        '<p class="form-hint" style="color:var(--danger,#b91c1c);">Módulo cargando… Si persiste, Ctrl+Shift+R tras <code>npm run sync</code>.</p>' +
+        '</div>';
+    }
+    return false;
   }
 
   function setWizardStep(step) {
@@ -1960,6 +2050,20 @@
     sanPopulateFormFromConfig(true);
     sanBindCloudFormDirtyTracking();
     try {
+      if (!mountAiInsightsAdminCard()) {
+        global.setTimeout(function () {
+          var h = document.getElementById('crozzoAiInsightsAdminHost');
+          if (!aiInsightsCardIsLive(h)) mountAiInsightsAdminCard();
+        }, 400);
+        global.setTimeout(function () {
+          var h2 = document.getElementById('crozzoAiInsightsAdminHost');
+          if (!aiInsightsCardIsLive(h2)) mountAiInsightsAdminCard();
+        }, 1200);
+      }
+    } catch (eAi) {
+      console.warn('[nube] mount ai insights', eAi);
+    }
+    try {
       if (typeof global.crozzoBindBusinessRegistryAutocomplete === 'function') {
         global.crozzoBindBusinessRegistryAutocomplete();
       }
@@ -2230,6 +2334,21 @@
 
   global.renderSuperAdminNubeConfigHTML = renderSuperAdminNubeConfigHTML;
   global.initSuperAdminNubeConfig = initSuperAdminNubeConfig;
+  global.crozzoMountAiInsightsAdminCard = mountAiInsightsAdminCard;
+  global.crozzoOpenAiInsightsConfig = function () {
+    function scrollAiCard() {
+      var host = document.getElementById('crozzoAiInsightsAdminHost');
+      if (!aiInsightsCardIsLive(host)) mountAiInsightsAdminCard();
+      var el = host || document.getElementById('crozzoAiInsightsAdmin');
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (global.currentPage === 'super-admin-nube') {
+      scrollAiCard();
+      return;
+    }
+    if (typeof global.navigateTo === 'function') global.navigateTo('super-admin-nube');
+    global.setTimeout(scrollAiCard, 350);
+  };
   global.crozzoNubeSnapshot = nubeSnapshot;
   global.crozzoNubeProbeTables = probeSupabaseTables;
   global.crozzoNubeProbeDeviceQrSlots = probeDeviceQrSlotsTable;

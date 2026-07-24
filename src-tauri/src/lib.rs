@@ -115,6 +115,8 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_http::crozzo_http_head,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_http::crozzo_nvidia_chat,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::install_setup_from_url,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_silent_install::install_dmg_from_url,

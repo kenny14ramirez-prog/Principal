@@ -314,16 +314,27 @@
       .map(function (it) {
         var qty = Number(it.q) || 0;
         var pu = Number(it.p) || 0;
+        var ant = it.precioAnt != null ? Number(it.precioAnt) : it.precioAnterior != null ? Number(it.precioAnterior) : 0;
+        var dto = !!(it.enDescuento || (ant > 0 && ant > pu + 0.5));
         return (
           '<div style="margin:5px 0;padding:3px 0;border-bottom:1px dotted #ccc;">' +
           '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">' +
           '<span style="font-weight:600;">' +
           esc(it.n) +
           (qty > 1 ? ' <span style="font-weight:400;color:' + MUTED + ';">×' + qty + '</span>' : '') +
+          (dto ? ' <span style="font-weight:700;font-size:7px;letter-spacing:0.06em;">DTO</span>' : '') +
           '</span>' +
           '<span style="font-weight:700;white-space:nowrap;">' +
           fmtCOP(pu * qty) +
           '</span></div>' +
+          (dto && ant > pu
+            ? '<div style="font-size:7px;color:' +
+              MUTED +
+              ';margin-top:2px;text-decoration:line-through;">Antes ' +
+              fmtCOP(ant) +
+              (qty > 1 ? ' ×' + qty : '') +
+              '</div>'
+            : '') +
           (pu > 0
             ? '<div style="font-size:7px;color:' + MUTED + ';margin-top:2px;">unit. ' + fmtCOP(pu) + '</div>'
             : '') +
@@ -464,6 +475,10 @@
   }
 
   function renderLegalPrecuenta(b, data, tpl) {
+    var override = b && String(b.c || '').trim();
+    if (override) {
+      return '<div style="' + blockStyle(b, { fontSize: '7px', align: 'center' }) + '">' + esc(override) + '</div>';
+    }
     var lineas = legalLineas(data, tpl);
     if (!lineas.length && data.legalCo) {
       return '<div style="' + blockStyle(b, { fontSize: '7px', align: 'center' }) + '">' + esc(data.legalCo) + '</div>';
@@ -791,8 +806,10 @@
           : '';
       case 'num_fe':
         return '<div style="' + blockStyle(b, { bold: true }) + '">No. ' + esc(data.numFe || data.consecutivo) + '</div>';
-      case 'resol_full':
-        return data.resolFull ? '<div style="' + blockStyle(b, { fontSize: '7px' }) + '">' + esc(data.resolFull) + '</div>' : '';
+      case 'resol_full': {
+        var rfPrem = String(b.c || '').trim() || data.resolFull;
+        return rfPrem ? '<div style="' + blockStyle(b, { fontSize: '7px' }) + '">' + esc(rfPrem) + '</div>' : '';
+      }
       case 'iva_disc':
         if (usaTotalesCuenta(data, tpl)) {
           return '';
@@ -803,7 +820,8 @@
       case 'legal_co': {
         var lnLeg = legalLineas(data, tpl);
         if (lnLeg.length) return renderLegalPrecuenta(b, data, tpl);
-        return data.legalCo ? '<div style="' + blockStyle(b, { fontSize: '7px' }) + '">' + esc(data.legalCo) + '</div>' : '';
+        var legalPrem = String(b.c || '').trim() || data.legalCo;
+        return legalPrem ? '<div style="' + blockStyle(b, { fontSize: '7px' }) + '">' + esc(legalPrem) + '</div>' : '';
       }
       case 'divider':
         return renderDivider(b, tpl);
@@ -906,8 +924,13 @@
           (data.cambio > 0 ? '<div>Devueltas: ' + fmtCOP(data.cambio) + '</div>' : '') +
           '</div>'
         );
-      case 'resol':
-        return '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">Resol. ' + esc(data.resol) + '</div>';
+      case 'resol': {
+        var resolPrem = String(b.c || '').trim();
+        if (resolPrem) return '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">' + esc(resolPrem) + '</div>';
+        return data.resol
+          ? '<div style="' + blockStyle(b, { fontSize: '8px' }) + '">Resol. ' + esc(data.resol) + '</div>'
+          : '';
+      }
       case 'cufe':
         return data.cufe
           ? '<div style="' + blockStyle(b, { align: 'left', fontSize: '7px' }) + '">CUFE<br>' + esc(data.cufe) + '</div>'

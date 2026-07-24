@@ -91,6 +91,8 @@
     else if (silence < SILENCE_FORCE_MS) transport = 'hybrid_poll';
     else if (silence < ANCHOR_SILENCE_EVENT_MS) transport = 'force_heal';
     else transport = 'anchor_silence';
+    var peers = fleetPeerEstimate();
+    var scale = fleetScalePollFactor();
     return {
       started: __started,
       tier: tierNow(),
@@ -98,8 +100,13 @@
       lastRxAt: __lastRxAt,
       lastRxAgoMs: ago,
       softPollSkipped: __skippedSoftPolls,
+      digestSkipped: __skippedDigestMatch,
       transport: transport,
       healthy: !!(ws && silence < SILENCE_FORCE_MS),
+      fleetPeersEst: peers,
+      pollScaleFactor: scale,
+      runtimePollMs: runtimePollMs(),
+      comandaPollMs: comandaPollMs(),
     };
   }
 
@@ -316,13 +323,46 @@
     return fallback;
   }
 
+  /**
+   * Estimación de flota para backoff de poll (techo diseño 100).
+   * Con muchos peers, el poll HTTP debe ceder más: WS lleva el peso.
+   */
+  function fleetPeerEstimate() {
+    var n = 1;
+    try {
+      if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.list === 'function') {
+        var list = global.CrozzoPeerDirectory.list() || [];
+        n = Math.max(n, list.length + 1);
+      }
+    } catch (_) {}
+    try {
+      var fs = global.CrozzoFleetCommState && global.CrozzoFleetCommState.getSnapshot
+        ? global.CrozzoFleetCommState.getSnapshot()
+        : null;
+      if (fs && typeof fs.peerCount === 'number') n = Math.max(n, (fs.peerCount || 0) + 1);
+    } catch (_) {}
+    return n;
+  }
+
+  /** Factor ≥1: estira intervalos de poll cuando la flota crece (anti-tormenta 100-dev). */
+  function fleetScalePollFactor() {
+    var n = fleetPeerEstimate();
+    if (n >= 60) return 2.4;
+    if (n >= 40) return 2.0;
+    if (n >= 20) return 1.55;
+    if (n >= 10) return 1.25;
+    return 1;
+  }
+
   function runtimePollMs() {
     var pageMs = pagePollMs(5000);
-    return Math.max(700, Math.min(RUNTIME_POLL_MS, Math.floor(pageMs / 5)));
+    var base = Math.max(700, Math.min(RUNTIME_POLL_MS, Math.floor(pageMs / 5)));
+    return Math.min(3200, Math.floor(base * fleetScalePollFactor()));
   }
 
   function comandaPollMs() {
-    return Math.max(COMANDA_POLL_FAST_MS, Math.min(COMANDA_POLL_MS, pagePollMs(COMANDA_POLL_MS)));
+    var base = Math.max(COMANDA_POLL_FAST_MS, Math.min(COMANDA_POLL_MS, pagePollMs(COMANDA_POLL_MS)));
+    return Math.min(4800, Math.floor(base * fleetScalePollFactor()));
   }
 
   /** Digest local anti-entropy (count + maxAt + hash ids) — patrón Pouch sin CRDT. */

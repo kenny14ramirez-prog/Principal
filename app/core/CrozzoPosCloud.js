@@ -2368,6 +2368,30 @@ function crozzoApplyRemoteTenantBundle(bundle, opts) {
   } catch (eSalon) {
     console.warn('[crozzo-tenant] salon', eSalon);
   }
+  try {
+    if (bundle.aiReportes && typeof bundle.aiReportes === 'object') {
+      var aiIn = {
+        enabled: !!bundle.aiReportes.enabled,
+        cadence: bundle.aiReportes.cadence === 'month' ? 'month' : '8d',
+        model:
+          String(bundle.aiReportes.model || 'meta/llama-3.3-70b-instruct').trim() ||
+          'meta/llama-3.3-70b-instruct',
+      };
+      var aiPrev = '';
+      try {
+        aiPrev = JSON.stringify(
+          typeof config !== 'undefined' && config.get ? config.get('aiReportes') || {} : {}
+        );
+      } catch (_) {}
+      var aiNext = JSON.stringify(aiIn);
+      if (aiNext !== aiPrev && typeof config !== 'undefined' && config.set) {
+        config.set('aiReportes', aiIn);
+        changed = true;
+      }
+    }
+  } catch (eAi) {
+    console.warn('[crozzo-tenant] aiReportes', eAi);
+  }
   if (changed && !quiet && typeof showToast === 'function') {
     showToast('Cambios del negocio aplicados desde la nube', 'info');
   }
@@ -2940,6 +2964,20 @@ async function crozzoPushTenantSnapshotToCloud() {
   } catch (_) {
     salonCfg = null;
   }
+  let aiReportesSafe = null;
+  try {
+    const rawAi =
+      typeof config !== 'undefined' && config.get ? config.get('aiReportes') : null;
+    if (rawAi && typeof rawAi === 'object') {
+      aiReportesSafe = {
+        enabled: !!rawAi.enabled,
+        cadence: rawAi.cadence === 'month' ? 'month' : '8d',
+        model: String(rawAi.model || 'meta/llama-3.3-70b-instruct').trim() || 'meta/llama-3.3-70b-instruct',
+      };
+    }
+  } catch (_) {
+    aiReportesSafe = null;
+  }
   const bundle = {
     updated_at: new Date().toISOString(),
     branding: branding,
@@ -2947,6 +2985,7 @@ async function crozzoPushTenantSnapshotToCloud() {
     deletedStaffIds: deletedStaffIds,
     negocio: { businessId: bizId, businessName: bizName },
     salon: salonCfg,
+    aiReportes: aiReportesSafe,
   };
   let loc = 'default';
   try {

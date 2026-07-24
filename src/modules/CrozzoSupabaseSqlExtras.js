@@ -663,6 +663,40 @@
     'end $$;\n\n' +
     'notify pgrst, \'reload schema\';\n';
 
+  var AI_INSIGHTS_SQL =
+    '-- Crozzo AI Insights — secrets + historial (RLS)\n' +
+    'create table if not exists public.crozzo_ai_secrets (\n' +
+    '  business_id text primary key,\n' +
+    '  api_key text not null,\n' +
+    '  last4 text,\n' +
+    '  updated_at timestamptz default now()\n' +
+    ');\n' +
+    'alter table public.crozzo_ai_secrets enable row level security;\n' +
+    'create table if not exists public.crozzo_ai_insights (\n' +
+    '  id bigserial primary key,\n' +
+    '  business_id text not null,\n' +
+    '  range_kind text not null check (range_kind in (\'8d\', \'month\')),\n' +
+    '  range_from text,\n' +
+    '  range_to text,\n' +
+    '  text text not null,\n' +
+    '  created_at timestamptz default now()\n' +
+    ');\n' +
+    'create index if not exists crozzo_ai_insights_biz_created\n' +
+    '  on public.crozzo_ai_insights (business_id, created_at desc);\n' +
+    'alter table public.crozzo_ai_insights enable row level security;\n' +
+    'do $$\n' +
+    'begin\n' +
+    '  if not exists (\n' +
+    '    select 1 from pg_policies\n' +
+    '    where schemaname = \'public\' and tablename = \'crozzo_ai_insights\'\n' +
+    '      and policyname = \'crozzo_ai_insights_select_biz\'\n' +
+    '  ) then\n' +
+    '    create policy crozzo_ai_insights_select_biz on public.crozzo_ai_insights\n' +
+    '      for select using (business_id = coalesce(auth.jwt() ->> \'business_id\', \'\'));\n' +
+    '  end if;\n' +
+    'end $$;\n' +
+    'notify pgrst, \'reload schema\';\n';
+
   global.CrozzoSupabaseSqlExtras = {
     list: function () {
       return [
@@ -746,6 +780,15 @@
           required: false,
           order: 18,
           sql: CRM_REGISTRO_QR_SQL,
+        },
+        {
+          key: 'ai_insights',
+          file: 'docs/SUPABASE-SQL-ai-insights.sql',
+          title: '19. Reporte IA (secrets + historial)',
+          desc: 'Tablas crozzo_ai_secrets (solo Edge) y crozzo_ai_insights. Luego: supabase functions deploy ai-insights.',
+          required: false,
+          order: 19,
+          sql: AI_INSIGHTS_SQL,
         },
       ];
     },

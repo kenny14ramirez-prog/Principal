@@ -74,6 +74,8 @@
 
     scrapling_enrich: 'RUES/Scrapling (fondo)',
 
+    obscura_enrich: 'Web/Obscura (fondo)',
+
     cache: 'memoria reciente',
 
     cedula_escaneada: 'cédula escaneada',
@@ -655,7 +657,11 @@
         var side = hits[1];
         var parts = [{ label: 'base', source: base.source || 'internet', data: base }];
         if (rues) parts.push({ label: 'RUES', source: rues.source || 'rues_enrich', data: rues });
-        if (side) parts.push({ label: 'Scrapling', source: side.source || 'scrapling_enrich', data: side });
+        if (side) {
+          var sideLabel =
+            side.source === 'obscura_enrich' ? 'Obscura' : 'Scrapling';
+          parts.push({ label: sideLabel, source: side.source || 'scrapling_enrich', data: side });
+        }
         var merged = contrastMergeSources(parts);
         enrichDoneAt[key] = Date.now();
         if (rues || side) applyEnrichmentResult(profileKey, doc, merged);
@@ -1231,7 +1237,7 @@
     if (src.indexOf('dian') === 0 || src === 'dian_supabase' || src === 'dian_tauri' || src === 'dian_demo') return 40;
     if (src === 'crm_local' || src === 'cache') return 35;
     if (src === 'rues_opendata' || src === 'rues_enrich') return 20;
-    if (src === 'scrapling_enrich') return 15;
+    if (src === 'scrapling_enrich' || src === 'obscura_enrich') return 15;
     return 10;
   }
 
@@ -1239,7 +1245,7 @@
     src = String(src || '');
     var dian = src.indexOf('dian') === 0 || src === 'dian_supabase' || src === 'dian_tauri' || src === 'dian_demo';
     var rues = src === 'rues_opendata' || src === 'rues_enrich';
-    var scrap = src === 'scrapling_enrich';
+    var scrap = src === 'scrapling_enrich' || src === 'obscura_enrich';
     if (field === 'nombre' || field === 'email') {
       if (dian) return 50;
       if (src === 'crm_local') return 45;

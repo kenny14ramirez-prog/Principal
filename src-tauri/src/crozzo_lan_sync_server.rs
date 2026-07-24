@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{Mutex as AsyncMutex, Semaphore};
 
 const DEFAULT_PORT: u16 = 3000;
 /// Cabecera con la que las tablets (Rol B) firman las peticiones de escritura.
@@ -26,6 +26,13 @@ const SEEN_ACTION_TTL_MS: u128 = 6 * 60 * 60 * 1000;
 const SEEN_ACTION_MAX: usize = 4000;
 /// Rate limiting para consultas RUT: 1 consulta cada 6 segundos por IP
 const RUT_RATE_LIMIT_MS: u128 = 6_000;
+/// Tope de handlers HTTP concurrentes (techo diseño ~100 dispositivos: evita avalancha accept→spawn).
+const MAX_CONCURRENT_HTTP: usize = 64;
+
+fn http_conn_semaphore() -> &'static Arc<Semaphore> {
+    static SEM: OnceLock<Arc<Semaphore>> = OnceLock::new();
+    SEM.get_or_init(|| Arc::new(Semaphore::new(MAX_CONCURRENT_HTTP)))
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1065,8 +1072,14 @@ async fn run_server(state: Arc<Mutex<Option<ServerInner>>>, listener: TcpListene
         match listener.accept().await {
             Ok((stream, _)) => {
                 let st = Arc::clone(&state);
+                let sem = Arc::clone(http_conn_semaphore());
                 tokio::spawn(async move {
+                    let permit = match sem.acquire_owned().await {
+                        Ok(p) => p,
+                        Err(_) => return,
+                    };
                     handle_connection(stream, st).await;
+                    drop(permit);
                 });
             }
             Err(e) => {

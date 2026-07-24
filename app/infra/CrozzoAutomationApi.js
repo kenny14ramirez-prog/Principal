@@ -62,6 +62,12 @@
       typeof global.getActiveCart === 'function' ? global.getActiveCart() : null;
     var page = typeof global.currentPage !== 'undefined' ? global.currentPage : null;
     var user = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+    var command = null;
+    try {
+      if (global.CrozzoCommandBridge && typeof global.CrozzoCommandBridge.briefing === 'function') {
+        command = global.CrozzoCommandBridge.briefing({ log: false });
+      }
+    } catch (_) {}
     return {
       page: page,
       user: user ? { id: user.id, nombre: user.nombre, rol: user.rol } : null,
@@ -70,6 +76,17 @@
       tipoServicioCaja: typeof global.tipoServicioCaja !== 'undefined' ? global.tipoServicioCaja : null,
       lastPrint: global.__CROZZO_LAST_PRINT || null,
       emulation: global.__CROZZO_EMULATION_STATUS || null,
+      command: command
+        ? {
+            goNoGo: command.goNoGo,
+            seal: command.seal && command.seal.seal,
+            defcon: command.seal && command.seal.defcon,
+            score: command.score && command.score.weighted,
+            verdict: command.score && command.score.verdict,
+            integrity: command.integrity && command.integrity.grade,
+            line: command.line,
+          }
+        : null,
     };
   }
 
@@ -497,6 +514,20 @@
     });
   }
 
+  function commandBriefing() {
+    if (global.CrozzoCommandBridge && typeof global.CrozzoCommandBridge.briefing === 'function') {
+      return global.CrozzoCommandBridge.briefing({ log: false });
+    }
+    return null;
+  }
+
+  function commandRecover(opts) {
+    if (global.CrozzoCommandBridge && typeof global.CrozzoCommandBridge.runRecovery === 'function') {
+      return global.CrozzoCommandBridge.runRecovery(opts || { force: true });
+    }
+    return Promise.resolve({ ok: false, reason: 'no_bridge' });
+  }
+
   global.CrozzoAutomation = {
     waitAppReady: waitAppReady,
     ensureEmulation: ensureEmulation,
@@ -508,6 +539,8 @@
     },
     navigate: navigate,
     getState: getState,
+    commandBriefing: commandBriefing,
+    commandRecover: commandRecover,
     addProduct: addProduct,
     setServiceMode: setServiceMode,
     sendToKitchen: sendToKitchen,

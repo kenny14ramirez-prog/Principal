@@ -1067,15 +1067,19 @@
           escPushText(chunks, 'No. ' + (data.numFe || data.consecutivo || ''));
           escBold(chunks, false);
           break;
-        case 'resol_full':
-          if (data.resolFull) escPushText(chunks, data.resolFull);
+        case 'resol_full': {
+          var resolFullTxt = String(b.c || '').trim() || data.resolFull;
+          if (resolFullTxt) escPushText(chunks, resolFullTxt);
           break;
+        }
         case 'iva_disc':
           if (data.ivaDisc) escPushText(chunks, data.ivaDisc);
           break;
-        case 'legal_co':
-          if (data.legalCo) escPushText(chunks, data.legalCo);
+        case 'legal_co': {
+          var legalCoTxt = String(b.c || '').trim() || data.legalCo;
+          if (legalCoTxt) escPushText(chunks, legalCoTxt);
           break;
+        }
         case 'divider':
           escDivider(chunks, tpl);
           break;
@@ -1170,9 +1174,12 @@
           if (data.recibido > 0) escPushText(chunks, 'Recibido: ' + escFmtMoneyPlain(data.recibido));
           if (data.cambio > 0) escPushText(chunks, 'Cambio: ' + escFmtMoneyPlain(data.cambio));
           break;
-        case 'resol':
-          escPushText(chunks, 'Resol. ' + (data.resol || ''));
+        case 'resol': {
+          var resolPrint = String(b.c || '').trim();
+          if (resolPrint) escPushText(chunks, resolPrint);
+          else if (data.resol) escPushText(chunks, 'Resol. ' + data.resol);
           break;
+        }
         case 'cufe':
           if (data.cufe) {
             escAlign(chunks, 'left');

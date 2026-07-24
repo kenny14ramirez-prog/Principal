@@ -622,33 +622,9 @@
 
   function updateTempoHeaderCue(tempo) {
     if (!shouldApplyLuxuryCockpit()) return;
-    var cluster = document.querySelector('.crozzo-header__status--elite');
-    if (!cluster) return;
-    var cue = TEMPO_HEADER_CUE[tempo];
     var el = document.getElementById('crozzoTempoBadge');
-    if (!cue) {
-      if (el) el.hidden = true;
-      return;
-    }
-    if (!el) {
-      el = document.createElement('span');
-      el.id = 'crozzoTempoBadge';
-      el.className = 'crozzo-status-pill crozzo-tempo-pill crozzo-mobile-secondary';
-      el.innerHTML =
-        '<span class="crozzo-status-dot" aria-hidden="true"></span><span class="crozzo-status-txt"></span>';
-      cluster.insertBefore(el, cluster.firstChild);
-    }
-    el.hidden = false;
-    el.classList.remove('crozzo-tempo-pill--flow', 'crozzo-tempo-pill--rush');
-    el.classList.add('crozzo-tempo-pill--calm');
-    el.title = buildTempoCueTitle(cue);
-    el.setAttribute('aria-label', el.title);
-    var dot = el.querySelector('.crozzo-status-dot');
-    var txt = el.querySelector('.crozzo-status-txt');
-    if (dot) {
-      dot.className = 'crozzo-status-dot ok';
-    }
-    if (txt) txt.textContent = cue.txt;
+    /* Acompañado no satura el header: el apoyo vive en «Apoyo» al pedir / toasts tras rush. */
+    if (el) el.hidden = true;
   }
 
   function updateTempoRailCue(intensity, tempo) {
@@ -1182,39 +1158,199 @@
   }
 
   function updateHeaderPsycheLine() {
-    if (!shouldApplyHumanLayer()) return;
+    /* No eslogan bajo el saludo: el apoyo va en reveal «Apoyo» (sin saturar). */
     var el = document.getElementById('crozzoHeaderPsycheLine');
-    if (shouldApplyLuxuryCockpit() && isTempoHighLoad()) {
-      if (el) {
-        el.textContent = '';
-        el.hidden = true;
+    if (el) {
+      el.textContent = '';
+      el.hidden = true;
+    }
+    _psycheHeaderCache = '';
+  }
+
+  /** Mensajes de apoyo compactos (reutilizable en splash / ayuda). */
+  function renderSupportBriefHtml() {
+    if (!shouldApplyHumanLayer()) return '';
+    var first = getFirstName();
+    var greet = typeof global.crozzoPremiumGreeting === 'function' ? global.crozzoPremiumGreeting() : 'Bienvenido';
+    var line = first ? greet + ', ' + first : greet;
+    var care = '';
+    try {
+      care = shouldApplyLuxuryCockpit() ? pickCalmCareLine() : getRoleLine();
+    } catch (_) {
+      care = getRoleLine();
+    }
+    var tip = getRoleTip();
+    var warm = getWarmPhrase();
+    var wins = 0;
+    try {
+      wins = (readStore().wins || 0) | 0;
+    } catch (_) {}
+    return (
+      '<aside class="crozzo-support-brief" role="region" aria-label="Apoyo">' +
+      '<p class="crozzo-support-brief__greet">' +
+      escBreakHtml(line) +
+      '</p>' +
+      '<p class="crozzo-support-brief__care">' +
+      escBreakHtml(care) +
+      '</p>' +
+      (tip
+        ? '<p class="crozzo-support-brief__tip">' + escBreakHtml(tip) + '</p>'
+        : '<p class="crozzo-support-brief__tip">' + escBreakHtml(warm) + '</p>') +
+      (wins > 0
+        ? '<p class="crozzo-support-brief__wins">' +
+          escBreakHtml(String(wins) + ' aciertos con apoyo del sistema') +
+          '</p>'
+        : '') +
+      '</aside>'
+    );
+  }
+
+  function getShiftWelcomeDurationMs() {
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 900;
+    } catch (_) {}
+    return 2800;
+  }
+
+  function dismissShiftWelcomeOverlay(host) {
+    var el = host || document.getElementById('crozzo-shift-welcome');
+    if (!el) return;
+    el.classList.add('is-leaving');
+    setTimeout(function () {
+      try {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      } catch (_) {}
+      try {
+        document.body.classList.remove('crozzo-shift-welcome-open');
+      } catch (_) {}
+    }, 320);
+  }
+
+  /** No tapar OTA / changelog / crítica: SystemUpdates tiene prioridad. */
+  function shouldYieldWelcomeToUpdates() {
+    try {
+      if (typeof global.crozzoUpdateBlocksPersonalWelcome === 'function') {
+        return !!global.crozzoUpdateBlocksPersonalWelcome();
       }
-      _psycheHeaderCache = '';
-      return;
+    } catch (_) {}
+    try {
+      if (localStorage.getItem('crozzo_update_post_welcome')) return true;
+    } catch (_) {}
+    try {
+      if (document.documentElement.classList.contains('crozzo-boot-updates-active')) return true;
+      if (document.body.classList.contains('crozzo-update-critical-open')) return true;
+      if (document.body.classList.contains('crozzo-optional-post-open')) return true;
+      if (document.body.classList.contains('crozzo-update-detail-open')) return true;
+    } catch (_) {}
+    var blockIds = [
+      'crozzo-update-critical-overlay',
+      'crozzo-boot-update-gate',
+      'crozzo-optional-post-card',
+      'crozzo-critical-info-card',
+      'crozzo-update-detail-overlay',
+      'crozzo-update-install-overlay',
+    ];
+    for (var i = 0; i < blockIds.length; i++) {
+      var el = document.getElementById(blockIds[i]);
+      if (el && el.classList.contains('is-open')) return true;
     }
-    var line = getRoleLine();
-    if (shouldApplyLuxuryCockpit()) {
-      var tempo = getOperationalTempo();
-      if (tempo === TEMPO_CALM) {
-        var care = pickCalmCareLine();
-        line = shouldApplyPsycheLayer() ? care : getRoleLine() + ' · ' + care;
-      } else if (!shouldApplyPsycheLayer()) {
-        line = line + ' · ' + getStabilityNarrative();
+    return false;
+  }
+
+  /**
+   * Bienvenida de turno: modal centrado (mismo lenguaje que actualización), ~2.8 s.
+   * Cede si hay OTA/changelog. Sin toast de esquina.
+   */
+  function showShiftWelcomeOverlay() {
+    if (!shouldApplyHumanLayer()) return false;
+    try {
+      if (sessionStorage.getItem('crozzo_shift_welcome_skip') === '1') return false;
+    } catch (_) {}
+    if (shouldYieldWelcomeToUpdates()) return false;
+    if (document.getElementById('crozzo-shift-welcome')) return false;
+    var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+    if (!u) return false;
+    var first = getFirstName();
+    var greet = typeof global.crozzoPremiumGreeting === 'function' ? global.crozzoPremiumGreeting() : 'Bienvenido';
+    var line = first ? greet + ', ' + first : greet;
+    var care = '';
+    try {
+      care = shouldApplyLuxuryCockpit() ? pickCalmCareLine() : getRoleLine();
+    } catch (_) {
+      care = getRoleLine();
+    }
+    var tip = getRoleTip() || getWarmPhrase();
+    var wins = 0;
+    try {
+      wins = (readStore().wins || 0) | 0;
+    } catch (_) {}
+    var host = document.createElement('div');
+    host.id = 'crozzo-shift-welcome';
+    host.className = 'crozzo-shift-welcome';
+    host.setAttribute('role', 'dialog');
+    host.setAttribute('aria-modal', 'true');
+    host.setAttribute('aria-hidden', 'false');
+    host.setAttribute('aria-labelledby', 'crozzoShiftWelcomeTitle');
+    host.innerHTML =
+      '<div class="crozzo-shift-welcome__modal">' +
+      (function () {
+        try {
+          if (global.CrozzoBonaOrigen && typeof global.CrozzoBonaOrigen.brandNameOnly === 'function') {
+            return global.CrozzoBonaOrigen.brandNameOnly({ compact: true, center: true });
+          }
+        } catch (_) {}
+        return '<p class="crozzo-shift-welcome__brand">BONA origen</p>';
+      })() +
+      '<h2 id="crozzoShiftWelcomeTitle" class="crozzo-shift-welcome__greet">' +
+      escBreakHtml(line) +
+      '</h2>' +
+      '<p class="crozzo-shift-welcome__care">' +
+      escBreakHtml(care) +
+      '</p>' +
+      '<p class="crozzo-shift-welcome__tip">' +
+      escBreakHtml(tip) +
+      '</p>' +
+      (wins > 0
+        ? '<p class="crozzo-shift-welcome__wins">' +
+          escBreakHtml(String(wins) + ' aciertos con apoyo del sistema') +
+          '</p>'
+        : '') +
+      '<div class="crozzo-shift-welcome__load" aria-hidden="true">' +
+      '<div class="crozzo-shift-welcome__load-track">' +
+      '<span class="crozzo-shift-welcome__load-bar"></span></div></div>' +
+      '<p class="crozzo-shift-welcome__status">Preparando su estación…</p>' +
+      '<button type="button" class="btn btn-primary crozzo-shift-welcome__skip">Continuar</button>' +
+      '</div>';
+    document.body.appendChild(host);
+    document.body.classList.add('crozzo-shift-welcome-open');
+    requestAnimationFrame(function () {
+      host.classList.add('is-shown');
+      try {
+        var skipBtn = host.querySelector('.crozzo-shift-welcome__skip');
+        if (skipBtn) skipBtn.focus();
+      } catch (_) {}
+    });
+    var done = false;
+    var finish = function () {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey, true);
+      dismissShiftWelcomeOverlay(host);
+    };
+    var onKey = function (e) {
+      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        finish();
       }
-    }
-    if (el && line === _psycheHeaderCache && !el.hidden) return;
-    _psycheHeaderCache = line;
-    if (!el) {
-      var greet = document.getElementById('crozzoHeaderGreeting');
-      if (!greet || !greet.parentNode) return;
-      el = document.createElement('span');
-      el.id = 'crozzoHeaderPsycheLine';
-      el.className = 'crozzo-header-psyche-line';
-      greet.parentNode.insertBefore(el, greet.nextSibling);
-    }
-    el.classList.toggle('crozzo-header-psyche-line--care', shouldApplyLuxuryCockpit() && getOperationalTempo() === TEMPO_CALM);
-    el.textContent = line;
-    el.hidden = false;
+    };
+    document.addEventListener('keydown', onKey, true);
+    host.addEventListener('click', function (e) {
+      if (e.target === host || (e.target && e.target.closest && e.target.closest('.crozzo-shift-welcome__skip'))) {
+        finish();
+      }
+    });
+    setTimeout(finish, getShiftWelcomeDurationMs());
+    return true;
   }
 
   function onLoginWelcome() {
@@ -1238,30 +1374,22 @@
       return;
     }
     global.__crozzoWelcomeToastScheduled = true;
-    writeStore({ lastGreetUser: greetKey });
-    var first = getFirstName();
-    var greet = typeof global.crozzoPremiumGreeting === 'function' ? global.crozzoPremiumGreeting() : 'Bienvenido';
     setTimeout(function () {
       global.__crozzoWelcomeToastScheduled = false;
-      global.__crozzoWelcomeToastDone = greetKey;
-      if (typeof global.showToast === 'function') {
-        var closers = [
-          'Su espacio de trabajo está listo. 💛',
-          'Qué bueno tenerle hoy. Vamos con calma. 🌿',
-          'Aquí estamos para acompañarle. ✨',
-          'Listo para un buen turno. Un paso a la vez. ☀️',
-        ];
-        var closer = closers[Math.floor(Math.random() * closers.length)];
-        var line = first ? greet + ', ' + first + '. ' + closer : greet + '. ' + closer;
-        global.__crozzoAffirmToastLock = true;
-        try {
-          global.showToast(line, 'success');
-        } finally {
-          global.__crozzoAffirmToastLock = false;
-        }
+      var showed = false;
+      try {
+        showed = showShiftWelcomeOverlay();
+      } catch (_) {
+        showed = false;
       }
-      if (shouldApplyPsycheLayer()) maybeAffirm('login_shift');
-    }, 700);
+      if (showed) {
+        global.__crozzoWelcomeToastDone = greetKey;
+        writeStore({ lastGreetUser: greetKey });
+      } else {
+        /* Sin toast de esquina: si cedió a OTA o falló, no spamear arriba. Reintentar otro día / otra sesión. */
+        global.__crozzoWelcomeToastDone = null;
+      }
+    }, 220);
   }
 
   function renderMinimalHumanChip() {
@@ -1329,6 +1457,9 @@
   function renderConciergeStrip() {
     if (!shouldApplyPsycheLayer()) return '';
     try {
+      if (global.currentPage === 'inicio-operacion') return '';
+    } catch (_) {}
+    try {
       if (sessionStorage.getItem(SS_CONCIERGE) === '1') return '';
     } catch (_) {}
     try {
@@ -1384,6 +1515,14 @@
   function injectPeakBreatheStrip() {
     if (!shouldApplyComfortUx() && !shouldApplyHumanLayer()) return;
     if (isOperativaPage()) return;
+    try {
+      if (global.currentPage === 'inicio-operacion') {
+        var hostInicio = document.getElementById('crozzo-peak-breathe-host');
+        if (hostInicio) hostInicio.innerHTML = '';
+        _peakStripActive = false;
+        return;
+      }
+    } catch (_) {}
     var host = document.getElementById('crozzo-peak-breathe-host');
     if (shouldApplyLuxuryCockpit()) {
       if (getOperationalTempo() !== TEMPO_CALM) {
@@ -1947,6 +2086,10 @@
     affirmDupCancel: affirmDupCancel,
     renderAdminWellbeingPanel: renderAdminWellbeingPanel,
     renderConciergeStrip: renderConciergeStrip,
+    renderSupportBriefHtml: renderSupportBriefHtml,
+    showShiftWelcomeOverlay: showShiftWelcomeOverlay,
+    dismissShiftWelcomeOverlay: dismissShiftWelcomeOverlay,
+    shouldYieldWelcomeToUpdates: shouldYieldWelcomeToUpdates,
     shouldApplyPsycheLayer: shouldApplyPsycheLayer,
     shouldApplyHumanLayer: shouldApplyHumanLayer,
     humanizeToastMessage: humanizeToastMessage,

@@ -206,7 +206,7 @@
     return host;
   }
 
-  /** P0 operativo: sin banner de guía — el ticket/comanda es el foco. */
+  /** P0 operativo + hub post-login: sin banner de guía — el foco es elegir o cobrar. */
   var P0_SILENT_PAGES = {
     cajero: 1,
     tablets: 1,
@@ -214,6 +214,7 @@
     cocina: 1,
     mesas: 1,
     'venta-comercial': 1,
+    'inicio-operacion': 1,
   };
 
   function clearRailHost() {

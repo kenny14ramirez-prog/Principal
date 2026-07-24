@@ -159,7 +159,17 @@
     __lastDecisionSig = sig;
     if (now - __lastToastAt < TOAST_GAP_MS) return;
     __lastToastAt = now;
-    global.showToast('Comunicación: ' + decision.human, decision.primary === 'none' ? 'warning' : 'info');
+    var human = 'Sede lista';
+    try {
+      if (global.CrozzoSedeReadiness && typeof global.CrozzoSedeReadiness.humanVoice === 'function') {
+        human = global.CrozzoSedeReadiness.humanVoice().text || human;
+      } else if (decision.primary === 'none' || decision.meshStandby) {
+        human = 'En local · sincroniza sola';
+      } else if (decision.human) {
+        human = String(decision.human);
+      }
+    } catch (_) {}
+    global.showToast(human, decision.primary === 'none' ? 'warning' : 'info');
   }
 
   function evaluate(opts) {

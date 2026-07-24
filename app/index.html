@@ -5,13 +5,13 @@
 <meta charset="UTF-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
 <meta name="theme-color" content="#FAF9F7">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.230">
+<meta name="crozzo-app-version" content="1.0.231">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-dark');document.documentElement.classList.add('crozzo-theme-light');document.documentElement.style.colorScheme='light';try{localStorage.setItem('crozzo_theme',t);}catch(_){}}catch(e){}})();</script>
@@ -364,7 +364,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
   <main class="main-content" role="main" aria-label="Contenido principal del sistema">
     <header class="main-header crozzo-header-refined crozzo-header-elite">
       <div class="crozzo-header__primary">
-        <button type="button" class="mobile-menu-btn" data-crozzo-act="toggleSidebar" aria-label="Abrir menú"><i data-lucide="menu"></i></button>
+        <button type="button" class="mobile-menu-btn" data-crozzo-act="toggleSidebar" title="Opcional: fijar o soltar el menú. En escritorio se abre al pasar el mouse por la izquierda." aria-label="Fijar o soltar menú lateral"><i data-lucide="menu"></i></button>
         <div class="crozzo-header__titles">
           <p class="crozzo-header-greeting" id="crozzoHeaderGreeting" hidden></p>
           <h1 class="page-title" id="pageTitle">Punto de Venta</h1>
@@ -434,6 +434,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
               <ul class="user-menu__lang-list" id="userMenuLangList" role="listbox" aria-label="Idiomas"></ul>
             </div>
             <ul class="user-menu__list" role="none">
+              <li role="none">
+                <button type="button" class="user-menu__item" role="menuitem" onclick="(function(){try{if(window.CrozzoA11yUser&amp;&amp;typeof CrozzoA11yUser.openPanel==='function'){CrozzoA11yUser.openPanel();}else if(typeof window.__crozzoToggleA11y==='function'){window.__crozzoToggleA11y();}else{var t=document.getElementById('crozzoA11yTrigger');if(t)t.click();}}catch(e){}var d=document.getElementById('userMenuDropdown');if(d)d.setAttribute('aria-hidden','true');})();">
+                  <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></span>
+                  <span>Letra y contraste</span>
+                </button>
+              </li>
               <li role="none" id="userMenuTabletQrItem" hidden>
                 <button type="button" class="user-menu__item" role="menuitem" onclick="if(typeof crozzoOpenTabletQrQuick==='function'){crozzoOpenTabletQrQuick();document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');}">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h.01"/><path d="M20 14h.01"/><path d="M14 20h.01"/><path d="M20 20h.01"/><path d="M17 17h.01"/></svg></span>
@@ -628,7 +634,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
       </div>
       <p id="loginBaitHint" class="login-bait-hint" hidden role="status"></p>
       <div class="login-error" id="loginError" hidden></div>
-      <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">🔐 Iniciar sesión</button>
+      <button class="btn btn-primary" type="submit" style="width:100%; margin-top:6px;">Entrar</button>
       <p class="login-hint" id="loginLocalHint" style="margin:10px 0 0;text-align:center;" hidden></p>
       <p class="login-hint login-kenny-bootstrap" id="loginKennyBootstrapHint" role="alert" style="margin:10px 0 0;text-align:left;" hidden></p>
     </form>
@@ -1161,6 +1167,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoOperationalIngest.js" defer></script>
 <script src="infra/CrozzoLanActionDedup.js" defer></script>
 <script src="infra/CrozzoTransportPathHealth.js" defer></script>
+<script src="infra/CrozzoDigitalPayConduit.js" defer></script>
+<script src="infra/CrozzoFiscalOutboxDrain.js" defer></script>
 <script src="infra/CrozzoOpFanout.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
 <script src="infra/CrozzoLanOpsSync.js" defer></script>
@@ -1196,6 +1204,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoGuiaFeElectronica.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlBundles.js" defer></script>
 <script src="modules/CrozzoSupabaseSqlExtras.js" defer></script>
+<script src="modules/CrozzoAiInsights.js"></script>
 <script src="modules/CrozzoSuperAdminNube.js" defer></script>
 <script src="modules/CrozzoSuperAdminSyncPriorities.js" defer></script>
 <script src="modules/CrozzoFederacionSql.js" defer></script>
@@ -1225,6 +1234,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoClockSync.js" defer></script>
 <script src="infra/CrozzoConnectivityOrchestrator.js" defer></script>
 <script src="infra/CrozzoDeviceMind.js" defer></script>
+<script src="infra/CrozzoSedeReadiness.js" defer></script>
+<script src="infra/CrozzoCommandScorecard.js" defer></script>
+<script src="infra/CrozzoCommandBridge.js" defer></script>
 <script src="infra/CrozzoEasyConnect.js" defer></script>
 <script src="infra/CrozzoPostPairConnect.js" defer></script>
 <script src="infra/CrozzoFleetOperationalReconcile.js" defer></script>

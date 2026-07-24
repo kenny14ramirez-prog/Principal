@@ -12,22 +12,82 @@
   var SUBMENU_DELAY_MS = 36;
   var HOVER_OPEN_MS = 140;
   var HOVER_CLOSE_MS = 320;
-  var SIDEBAR_LEAVE_DEBOUNCE_MS = 160;
-  var SIDEBAR_OUTSIDE_CHECK_MS = 72;
+  var SIDEBAR_LEAVE_DEBOUNCE_MS = 140;
+  var SIDEBAR_OUTSIDE_CHECK_MS = 70;
   var SIDEBAR_TRANSITION_MS = 280;
   var SIDEBAR_HIT_PAD_RAIL = 10;
-  var SIDEBAR_HIT_PAD_EXPANDED = 22;
+  var SIDEBAR_HIT_PAD_EXPANDED = 20;
+  var SIDEBAR_SCROLL_LOCK_MS = 520;
+  var SIDEBAR_INTERACT_LOCK_MS = 700;
+  var SIDEBAR_TOGGLE_LOCK_PAD_MS = 80;
   var _hoverOpenTimer = null;
   var _hoverCloseTimer = null;
   var _sidebarTransitionTimer = null;
   var _collapseGroupsTimer = null;
   var _sidebarLeaveDebounce = null;
   var _sidebarPointerInside = false;
+  var _sidebarPendingClose = false;
+  /** Mientras el menú está en sesión hover: hit-rect = ancho expandido (evita oscilar al abrir grupos). */
+  var _sidebarHoverLatch = false;
+  var _sidebarScrollLockUntil = 0;
+  var _sidebarHoverToggleLockUntil = 0;
   var _lastPointer = { x: null, y: null };
   var _outsideCheckAt = 0;
   var _boundNavEl = null;
   var _navCoreReady = false;
   var _sidebarSuppressTransition = true;
+
+  /** Opt-in: window.__CROZZO_SIDEBAR_HOVER_DEBUG = true */
+  function sidebarHoverDebug(tag, detail) {
+    try {
+      if (!global.__CROZZO_SIDEBAR_HOVER_DEBUG) return;
+      console.log('[crozzo-sidebar-hover]', tag, detail || '', Date.now());
+    } catch (_) {}
+  }
+
+  function armSidebarToggleLock(extraMs) {
+    var ms = readSidebarTransitionMs() + SIDEBAR_TOGGLE_LOCK_PAD_MS + (extraMs || 0);
+    var until = Date.now() + ms;
+    if (until > _sidebarHoverToggleLockUntil) _sidebarHoverToggleLockUntil = until;
+  }
+
+  function armSidebarScrollLock() {
+    _sidebarScrollLockUntil = Date.now() + SIDEBAR_SCROLL_LOCK_MS;
+    markSidebarPointerInside(true);
+    if (_hoverCloseTimer) {
+      clearTimeout(_hoverCloseTimer);
+      _hoverCloseTimer = null;
+    }
+    cancelSidebarLeaveDebounce();
+    sidebarHoverDebug('scroll-lock');
+  }
+
+  /** Clic / abrir grupo / navegar: el menú no debe cerrarse “porque sí”. */
+  function armSidebarInteractLock() {
+    var until = Date.now() + SIDEBAR_INTERACT_LOCK_MS;
+    if (until > _sidebarScrollLockUntil) _sidebarScrollLockUntil = until;
+    _sidebarHoverLatch = true;
+    markSidebarPointerInside(true);
+    cancelSidebarLeaveDebounce();
+    if (_hoverCloseTimer) {
+      clearTimeout(_hoverCloseTimer);
+      _hoverCloseTimer = null;
+    }
+    _sidebarPendingClose = false;
+    sidebarHoverDebug('interact-lock');
+  }
+
+  function isSidebarHoverLocked() {
+    var now = Date.now();
+    if (now < _sidebarScrollLockUntil) return true;
+    if (now < _sidebarHoverToggleLockUntil) return true;
+    try {
+      if (document.documentElement && document.documentElement.classList.contains('crozzo-sidebar-transitioning')) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
 
   function isDrawerLayoutActive() {
     if (isDesktopSidebarLayout()) return false;
@@ -379,6 +439,7 @@
   function markSidebarPointerInside(inside) {
     _sidebarPointerInside = !!inside;
     if (inside) {
+      _sidebarPendingClose = false;
       cancelSidebarLeaveDebounce();
       if (_hoverCloseTimer) {
         clearTimeout(_hoverCloseTimer);
@@ -387,35 +448,69 @@
     }
   }
 
-  function scheduleSidebarPointerLeave() {
+  function requestSidebarHoverClose(reason) {
+    if (shouldDisableSidebarHover() || readState().pinned) return;
+    if (isSidebarHoverLocked()) {
+      _sidebarPendingClose = true;
+      sidebarHoverDebug('close-request-deferred', reason || '');
+      return;
+    }
+    var sb = getSidebar();
+    if (sb && (isSidebarPointerReallyInside(sb) || (sb.matches && sb.matches(':hover')))) {
+      markSidebarPointerInside(true);
+      sidebarHoverDebug('close-request-aborted-inside', reason || '');
+      return;
+    }
+    _sidebarPointerInside = false;
+    _sidebarPendingClose = true;
+    sidebarHoverDebug('close-request', reason || '');
     cancelSidebarLeaveDebounce();
-    var debounceMs = SIDEBAR_LEAVE_DEBOUNCE_MS;
-    _sidebarLeaveDebounce = setTimeout(function () {
-      _sidebarLeaveDebounce = null;
-      var sb = getSidebar();
-      if (!sb) return;
-      if (isSidebarPointerReallyInside(sb)) {
-        _sidebarPointerInside = true;
-        return;
-      }
-      _sidebarPointerInside = false;
-      scheduleHoverClose();
-    }, debounceMs);
+    scheduleHoverClose();
   }
 
-  function onSidebarPointerEnter() {
+  function scheduleSidebarPointerLeave() {
+    cancelSidebarLeaveDebounce();
+    _sidebarLeaveDebounce = setTimeout(function () {
+      _sidebarLeaveDebounce = null;
+      requestSidebarHoverClose('leave-debounce');
+    }, SIDEBAR_LEAVE_DEBOUNCE_MS);
+  }
+
+  function onSidebarPointerEnter(e) {
     if (shouldDisableSidebarHover()) return;
+    if (e && typeof e.clientX === 'number') {
+      _lastPointer.x = e.clientX;
+      _lastPointer.y = e.clientY;
+    }
+    _sidebarHoverLatch = true;
     markSidebarPointerInside(true);
+    sidebarHoverDebug('enter');
     scheduleHoverOpen();
   }
 
   function onSidebarPointerLeave(e) {
     if (shouldDisableSidebarHover()) return;
+    if (readState().pinned) return;
     var sb = getSidebar();
     if (!sb) return;
     var rt = e && e.relatedTarget;
     if (rt && sb.contains(rt)) return;
-    _sidebarPointerInside = false;
+    /* NO escribir leave en _lastPointer (envenena “dentro” y cierra mientras el usuario navega). */
+    if (e && typeof e.clientX === 'number' && pointerInSidebarRect(sb, e.clientX, e.clientY)) {
+      sidebarHoverDebug('leave-ignored-hitpad');
+      markSidebarPointerInside(true);
+      return;
+    }
+    if (isSidebarHoverLocked()) {
+      _sidebarPendingClose = true;
+      sidebarHoverDebug('leave-deferred-lock');
+      return;
+    }
+    if (sb.matches && sb.matches(':hover')) {
+      markSidebarPointerInside(true);
+      sidebarHoverDebug('leave-ignored-css-hover');
+      return;
+    }
     scheduleSidebarPointerLeave();
   }
 
@@ -451,13 +546,26 @@
     if (shouldDisableSidebarHover()) return;
     var root = document.documentElement;
     if (!root) return;
+    armSidebarToggleLock(40);
     root.classList.add('crozzo-sidebar-transitioning');
     if (_sidebarTransitionTimer) clearTimeout(_sidebarTransitionTimer);
     var ms = readSidebarTransitionMs();
     _sidebarTransitionTimer = setTimeout(function () {
       _sidebarTransitionTimer = null;
       root.classList.remove('crozzo-sidebar-transitioning');
-    }, ms + 60);
+      sidebarHoverDebug('transition-end');
+      var side = getSidebar();
+      if (!side || readState().pinned) return;
+      if (isSidebarPointerReallyInside(side) || (side.matches && side.matches(':hover'))) {
+        _sidebarPendingClose = false;
+        markSidebarPointerInside(true);
+        if (!isSidebarExpanded(side)) scheduleHoverOpen();
+        return;
+      }
+      if (_sidebarPendingClose || isSidebarExpanded(side)) {
+        requestSidebarHoverClose('transition-end-outside');
+      }
+    }, ms + 40);
   }
 
   function applyGroupOpen(group, open, withDelay) {
@@ -509,7 +617,7 @@
   }
 
   function readHoverCloseMs() {
-    if (isDesktopSidebarLayout()) return 480;
+    if (isDesktopSidebarLayout()) return 280;
     try {
       var raw = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-hover-close-delay');
       var n = parseInt(String(raw || '').trim(), 10);
@@ -543,8 +651,10 @@
     var railW = readSidebarWidthVar('--sidebar-width-rail', 64);
     var expW = readSidebarWidthVar('--sidebar-width-expanded', 260);
     var hoverSession =
+      _sidebarHoverLatch ||
       sb.classList.contains('crozzo-sidebar-hover-active') ||
-      (document.documentElement && document.documentElement.classList.contains('crozzo-sidebar-hover-session'));
+      (document.documentElement && document.documentElement.classList.contains('crozzo-sidebar-hover-session')) ||
+      (document.documentElement && document.documentElement.classList.contains('crozzo-sidebar-transitioning'));
     var expanded = isSidebarExpanded(sb) || hoverSession;
     var pad = expanded ? SIDEBAR_HIT_PAD_EXPANDED : SIDEBAR_HIT_PAD_RAIL;
     var logicalW = expanded ? expW : railW;
@@ -575,22 +685,18 @@
     return !!(active && active !== document.body && sb.contains(active));
   }
 
-  /** Comprobación estricta usando solo coordenadas reales del puntero (ignora :hover del CSS). */
+  /** Solo coordenadas del puntero. Foco en el menú NO debe impedir cerrar al salir el mouse. */
   function isSidebarPointerReallyInside(sb) {
     if (!sb) sb = getSidebar();
     if (!sb) return false;
-    if (_lastPointer.x != null) {
-      if (pointerInSidebarRect(sb, _lastPointer.x, _lastPointer.y)) return true;
-    } else if (_sidebarPointerInside) {
-      return true;
+    if (_lastPointer.x != null && _lastPointer.y != null) {
+      return pointerInSidebarRect(sb, _lastPointer.x, _lastPointer.y);
     }
-    var active = document.activeElement;
-    return !!(active && active !== document.body && sb.contains(active));
+    return !!_sidebarPointerInside;
   }
 
   function isPointerInsideSidebar(sb) {
-    if (_sidebarPointerInside) return true;
-    return isSidebarHoveredOrFocused(sb);
+    return isSidebarPointerReallyInside(sb);
   }
 
   function scheduleHoverOpen() {
@@ -601,11 +707,30 @@
       clearTimeout(_hoverCloseTimer);
       _hoverCloseTimer = null;
     }
-    if (isSidebarExpanded(sb)) return;
+    cancelSidebarLeaveDebounce();
+    _sidebarPendingClose = false;
+    _sidebarHoverLatch = true;
+    if (isSidebarExpanded(sb)) {
+      markSidebarPointerInside(true);
+      return;
+    }
+    if (isSidebarHoverLocked()) {
+      sidebarHoverDebug('open-blocked-lock');
+      markSidebarPointerInside(true);
+      return;
+    }
     if (_hoverOpenTimer) return;
+    sidebarHoverDebug('open-schedule');
     _hoverOpenTimer = setTimeout(function () {
       _hoverOpenTimer = null;
-      if (!isPointerInsideSidebar(sb) || shouldBlockHoverToggleGlobal(sb)) return;
+      if (shouldBlockHoverToggleGlobal()) return;
+      if (isSidebarHoverLocked()) {
+        markSidebarPointerInside(true);
+        return;
+      }
+      if (!isPointerInsideSidebar(sb) && !(sb.matches && sb.matches(':hover'))) return;
+      sidebarHoverDebug('open-fire');
+      _sidebarHoverLatch = true;
       setSidebarExpanded(true, false);
     }, readHoverOpenMs());
   }
@@ -613,23 +738,37 @@
   function scheduleHoverClose() {
     var sb = getSidebar();
     if (!sb) return;
-    if (shouldDisableSidebarHover()) {
+    if (shouldDisableSidebarHover() || readState().pinned) {
       clearHoverTimers();
+      _sidebarPendingClose = false;
       return;
     }
-    if (readState().pinned) {
-      clearHoverTimers();
+    if (isSidebarHoverLocked()) {
+      _sidebarPendingClose = true;
+      sidebarHoverDebug('close-blocked-lock');
       return;
     }
-    if (isSidebarPointerReallyInside(sb)) return;
+    if (isSidebarPointerReallyInside(sb)) {
+      _sidebarPendingClose = false;
+      return;
+    }
     if (_hoverOpenTimer) {
       clearTimeout(_hoverOpenTimer);
       _hoverOpenTimer = null;
     }
     if (_hoverCloseTimer) return;
+    sidebarHoverDebug('close-schedule');
     _hoverCloseTimer = setTimeout(function () {
       _hoverCloseTimer = null;
-      if (isSidebarPointerReallyInside(sb)) return;
+      if (readState().pinned) return;
+      if (isSidebarHoverLocked()) {
+        _sidebarPendingClose = true;
+        return;
+      }
+      if (isSidebarPointerReallyInside(sb)) {
+        _sidebarPendingClose = false;
+        return;
+      }
       collapseSidebarHoverRail();
     }, readHoverCloseMs());
   }
@@ -638,13 +777,20 @@
     var sb = getSidebar();
     if (!sb || shouldBlockHoverToggleGlobal(sb)) return;
     if (readState().pinned) return;
-    if (isSidebarPointerReallyInside(sb)) return;
+    if (isSidebarPointerReallyInside(sb) || (sb.matches && sb.matches(':hover'))) {
+      _sidebarPendingClose = false;
+      _sidebarHoverLatch = true;
+      return;
+    }
     _sidebarPointerInside = false;
+    _sidebarPendingClose = false;
+    _sidebarHoverLatch = false;
     cancelSidebarLeaveDebounce();
     clearHoverTimers();
     cancelScheduledCollapseGroups();
     collapseGroupsForRail();
     if (!readState().pinned) saveGroupsState();
+    sidebarHoverDebug('close-fire');
     setSidebarExpanded(false, false);
   }
 
@@ -730,23 +876,9 @@
     sb.classList.toggle('pinned', !!expanded && readState().pinned);
     syncSidebarLayoutClass(!!expanded);
     syncSidebarHoverSessionClasses(sb, !!expanded, persist);
-    if (typeof global.crozzoSidebarMountToggleBtn === 'function') {
-      var hoverLayoutToggle =
-        !persist &&
-        wasExpanded !== !!expanded &&
-        !shouldDisableSidebarHover() &&
-        sb &&
-        !sb.classList.contains('crozzo-drawer-nav');
-      if (hoverLayoutToggle) {
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            var s = getSidebar();
-            if (s && typeof global.crozzoSidebarMountToggleBtn === 'function') global.crozzoSidebarMountToggleBtn(s);
-          });
-        });
-      } else {
-        global.crozzoSidebarMountToggleBtn(sb);
-      }
+    /* Hover: NUNCA remount del toggle (pointerleave → bucle). Solo pin/unpin. */
+    if (persist && typeof global.crozzoSidebarMountToggleBtn === 'function') {
+      global.crozzoSidebarMountToggleBtn(sb);
     }
     if (wasExpanded !== !!expanded && sb && !sb.classList.contains('crozzo-drawer-nav') && !shouldDisableSidebarHover()) {
       markSidebarTransition();
@@ -999,6 +1131,7 @@
       setSidebarExpanded(true, !!readState().pinned);
     }
     if (open) {
+      armSidebarInteractLock();
       getGroups().forEach(function (g) {
         if (g !== group) applyGroupOpen(g, false, false);
       });
@@ -1022,6 +1155,7 @@
     try {
       global.__crozzoNavFromSidebarAt = Date.now();
     } catch (_) {}
+    armSidebarInteractLock();
     var sb = getSidebar();
     if (sb && sb.classList.contains('is-nav-searching')) {
       clearNavSearch();
@@ -1099,37 +1233,42 @@
     });
   }
 
+  function bindSidebarScrollLock(sb) {
+    if (!sb || sb._crozzoScrollLockBound) return;
+    sb._crozzoScrollLockBound = true;
+    function onScrollIntent() {
+      if (shouldDisableSidebarHover()) return;
+      armSidebarScrollLock();
+    }
+    sb.addEventListener('wheel', onScrollIntent, { passive: true, capture: true });
+    sb.addEventListener('scroll', onScrollIntent, { passive: true, capture: true });
+    var nav = getNav();
+    if (nav && !nav._crozzoScrollLockBound) {
+      nav._crozzoScrollLockBound = true;
+      nav.addEventListener('wheel', onScrollIntent, { passive: true });
+      nav.addEventListener('scroll', onScrollIntent, { passive: true });
+    }
+  }
+
   function bindDesktopSidebarHover() {
     var sb = getSidebar();
     if (!sb || sb._crozzoDesktopHoverBound) return;
     if (!isDesktopSidebarLayout()) return;
     sb._crozzoDesktopHoverBound = true;
+    /* Un solo canal: pointer (no mouseenter/leave duplicados — causa bucle open/close). */
     sb.addEventListener('pointerenter', onSidebarPointerEnter);
     sb.addEventListener('pointerleave', onSidebarPointerLeave);
     sb.addEventListener(
-      'mouseenter',
-      function () {
-        onSidebarPointerEnter();
-      },
-      false
-    );
-    sb.addEventListener(
-      'mouseleave',
-      function (e) {
-        onSidebarPointerLeave(e);
-      },
-      false
-    );
-    sb.addEventListener(
       'pointerdown',
       function () {
-        if (!shouldDisableSidebarHover()) markSidebarPointerInside(true);
+        if (!shouldDisableSidebarHover()) armSidebarInteractLock();
       },
       true
     );
     sb.addEventListener('focusin', function () {
       if (!shouldDisableSidebarHover()) markSidebarPointerInside(true);
     });
+    bindSidebarScrollLock(sb);
     bindSidebarHoverTracking();
   }
 
@@ -1143,26 +1282,36 @@
         _lastPointer.x = e.clientX;
         _lastPointer.y = e.clientY;
         var side = getSidebar();
-        if (!side || shouldDisableSidebarHover()) return;
-        if (pointerInSidebarRect(side, e.clientX, e.clientY)) {
+        if (!side || shouldDisableSidebarHover() || readState().pinned) return;
+        var inside = pointerInSidebarRect(side, e.clientX, e.clientY);
+        if (isSidebarHoverLocked()) {
+          if (inside) {
+            markSidebarPointerInside(true);
+            _sidebarHoverLatch = true;
+          } else if (_sidebarHoverLatch) {
+            /* Durante lock/transición: no tumbar “dentro”; solo marcar pendiente suave. */
+            _sidebarPendingClose = true;
+          } else {
+            _sidebarPointerInside = false;
+            _sidebarPendingClose = true;
+          }
+          return;
+        }
+        if (inside) {
           markSidebarPointerInside(true);
+          _sidebarHoverLatch = true;
           if (!isSidebarExpanded(side) && !shouldBlockHoverToggleGlobal(side)) {
             scheduleHoverOpen();
           }
+          return;
         }
-        var hoverActive =
-          isSidebarExpanded(side) ||
-          side.classList.contains('crozzo-sidebar-hover-active') ||
-          _sidebarPointerInside;
-        if (!hoverActive || readState().pinned) return;
+        if (!isSidebarExpanded(side) && !side.classList.contains('crozzo-sidebar-hover-active') && !_sidebarPendingClose && !_sidebarHoverLatch) {
+          return;
+        }
         var now = Date.now();
         if (now - _outsideCheckAt < SIDEBAR_OUTSIDE_CHECK_MS) return;
         _outsideCheckAt = now;
-        if (pointerInSidebarRect(side, e.clientX, e.clientY)) {
-          markSidebarPointerInside(true);
-          return;
-        }
-        _sidebarPointerInside = false;
+        /* Fuera de verdad: debounce (no cerrar en el primer pixel del borde). */
         scheduleSidebarPointerLeave();
       },
       { passive: true, capture: true }
@@ -1243,13 +1392,14 @@
         sb.addEventListener(
           'pointerdown',
           function () {
-            markSidebarPointerInside(true);
+            if (!shouldDisableSidebarHover()) armSidebarInteractLock();
           },
           true
         );
         sb.addEventListener('focusin', function () {
           markSidebarPointerInside(true);
         });
+        bindSidebarScrollLock(sb);
       }
       bindSidebarHoverTracking();
     }
@@ -1340,7 +1490,8 @@
     var hoverLocked =
       isDesktopSidebarLayout() &&
       !readState().pinned &&
-      (isPointerInsideSidebar(sb) ||
+      (_sidebarHoverLatch ||
+        isPointerInsideSidebar(sb) ||
         isSidebarHoveredOrFocused(sb) ||
         sb.classList.contains('crozzo-sidebar-hover-active') ||
         sb.matches(':hover'));
@@ -1361,11 +1512,12 @@
         if (pgPin) expandGroupForPage(pgPin);
       } else if (!hoverLocked && !isSidebarExpanded(sb)) {
         var recentNav =
-          global.__crozzoNavFromSidebarAt && Date.now() - global.__crozzoNavFromSidebarAt < 700;
+          global.__crozzoNavFromSidebarAt && Date.now() - global.__crozzoNavFromSidebarAt < 1200;
         if (!recentNav) {
           setSidebarExpanded(false, false);
           collapseGroupsForRail();
           syncSidebarHoverSessionClasses(sb, false, false);
+          _sidebarHoverLatch = false;
         }
       }
     } else {

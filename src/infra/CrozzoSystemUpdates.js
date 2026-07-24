@@ -1805,23 +1805,107 @@
     }) : '';
   }
 
+  /** Saludo humano cede: no tapar changelog / crítica / OTA. */
+  function crozzoUpdateBlocksPersonalWelcome() {
+    try {
+      if (localStorage.getItem(LS_POST_UPDATE_WELCOME)) return true;
+    } catch (_) {}
+    if (_postUpdateWelcomePack) return true;
+    if (
+      _criticalInstallState === 'welcome' ||
+      _criticalInstallState === 'downloading' ||
+      _criticalInstallState === 'installing' ||
+      _criticalInstallState === 'pending_restart' ||
+      _criticalInstallState === 'failed' ||
+      _criticalInstallState === 'success'
+    ) {
+      return true;
+    }
+    try {
+      if (document.documentElement.classList.contains('crozzo-boot-updates-active')) return true;
+      if (document.body.classList.contains('crozzo-update-critical-open')) return true;
+      if (document.body.classList.contains('crozzo-optional-post-open')) return true;
+      if (document.body.classList.contains('crozzo-update-detail-open')) return true;
+      if (document.body.classList.contains('crozzo-update-normal-open')) return true;
+    } catch (_) {}
+    var ids = [
+      'crozzo-update-critical-overlay',
+      'crozzo-boot-update-gate',
+      'crozzo-optional-post-card',
+      'crozzo-critical-info-card',
+      'crozzo-update-detail-overlay',
+      'crozzo-update-install-overlay',
+    ];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el && el.classList.contains('is-open')) return true;
+    }
+    return false;
+  }
+
+  function dismissPersonalWelcomeForUpdates() {
+    try {
+      if (
+        global.CrozzoOperativePsyche &&
+        typeof global.CrozzoOperativePsyche.dismissShiftWelcomeOverlay === 'function'
+      ) {
+        global.CrozzoOperativePsyche.dismissShiftWelcomeOverlay();
+        return;
+      }
+    } catch (_) {}
+    var el = document.getElementById('crozzo-shift-welcome');
+    if (el && el.parentNode) {
+      try {
+        el.parentNode.removeChild(el);
+      } catch (_) {}
+    }
+    try {
+      document.body.classList.remove('crozzo-shift-welcome-open');
+    } catch (_) {}
+  }
+
+  function whenShiftWelcomeIdle(cb, forceDismiss) {
+    if (typeof cb !== 'function') return;
+    var busy =
+      document.getElementById('crozzo-shift-welcome') ||
+      (document.body && document.body.classList.contains('crozzo-shift-welcome-open'));
+    if (!busy) {
+      cb();
+      return;
+    }
+    if (forceDismiss) dismissPersonalWelcomeForUpdates();
+    var tries = 0;
+    var t = setInterval(function () {
+      tries++;
+      var still =
+        document.getElementById('crozzo-shift-welcome') ||
+        (document.body && document.body.classList.contains('crozzo-shift-welcome-open'));
+      if (!still || tries > 40) {
+        clearInterval(t);
+        cb();
+      }
+    }, 120);
+  }
+
   function showPostUpdateWelcomeOverlay(pack) {
     pack = pack || {};
-    var changes = resolvePostUpdateChanges(pack);
-    if (!changes.length) {
-      changes = ['Mejoras de estabilidad, pantallas y rendimiento en esta versión.'];
-    }
-    _postUpdateWelcomePack = pack;
-    _criticalInstallState = 'welcome';
-    UPDATE_CRITICAL_INSTALLED = {
-      version: pack.version || VERSION,
-      previous: pack.previous || '',
-      date: '',
-      installed: changes,
-    };
-    setCriticalOpen(true);
-    populateCriticalInfo('welcome');
-    refreshUpdateIcons();
+    whenShiftWelcomeIdle(function () {
+      var changes = resolvePostUpdateChanges(pack);
+      if (!changes.length) {
+        changes = ['Mejoras de estabilidad, pantallas y rendimiento en esta versión.'];
+      }
+      _postUpdateWelcomePack = pack;
+      _criticalInstallState = 'welcome';
+      UPDATE_CRITICAL_INSTALLED = {
+        version: pack.version || VERSION,
+        previous: pack.previous || '',
+        date: '',
+        installed: changes,
+      };
+      setCriticalOpen(true);
+      populateCriticalInfo('welcome');
+      refreshUpdateIcons();
+    }, true);
   }
 
   function crozzoDismissPostUpdateWelcome() {
@@ -2959,6 +3043,7 @@
   }
 
   function setCriticalOpen(open) {
+    if (open) dismissPersonalWelcomeForUpdates();
     setOverlayOpen('crozzo-update-critical-overlay', open, 'crozzo-update-critical-open');
     if (open) {
       populateCriticalInfo(_criticalInstallState || 'installing');
@@ -5831,28 +5916,36 @@
   function showCriticalInfoCard(entry) {
     if (_criticalInfoCardShownSession) return;
     _criticalInfoCardShownSession = true;
-    var card = ensureCriticalInfoCard();
-    var msgEl = document.getElementById('crozzoCritInfoMsg');
-    var verEl = document.getElementById('crozzoCritInfoVersion');
-    var ver = entry ? normEntryVersion(entry) : VERSION_AVAIL;
-    var profile = getUpdateClientProfile();
-    var how = canInstallApkInAppNow()
-      ? 'Cuando tú cierres y vuelvas a abrir la app, se instala sola — nada se interrumpe.'
-      : profile.isDesktopBinary
-        ? 'Cuando tú decidas cerrar la app y volver a abrirla, se aplica automáticamente.'
-        : 'Se aplica la próxima vez que recargues la interfaz, cuando tú quieras.';
-    if (msgEl) {
-      msgEl.textContent = 'Descargando en segundo plano, sin interrumpirte. ' + how + ' Sigue trabajando con total tranquilidad.';
-    }
-    if (verEl) {
-      verEl.textContent = VERSION && ver && VERSION !== ver ? 'Actual: ' + VERSION + ' · Nueva: ' + ver : '';
-    }
-    card.classList.add('is-open');
-    card.setAttribute('aria-hidden', 'false');
-    setTimeout(function () {
-      var btn = document.getElementById('crozzoCritInfoDismiss');
-      if (btn) try { btn.focus(); } catch (_) {}
-    }, 120);
+    whenShiftWelcomeIdle(function () {
+      var card = ensureCriticalInfoCard();
+      var msgEl = document.getElementById('crozzoCritInfoMsg');
+      var verEl = document.getElementById('crozzoCritInfoVersion');
+      var ver = entry ? normEntryVersion(entry) : VERSION_AVAIL;
+      var profile = getUpdateClientProfile();
+      var how = canInstallApkInAppNow()
+        ? 'Cuando tú cierres y vuelvas a abrir la app, se instala sola — nada se interrumpe.'
+        : profile.isDesktopBinary
+          ? 'Cuando tú decidas cerrar la app y volver a abrirla, se aplica automáticamente.'
+          : 'Se aplica la próxima vez que recargues la interfaz, cuando tú quieras.';
+      if (msgEl) {
+        msgEl.textContent =
+          'Descargando en segundo plano, sin interrumpirte. ' +
+          how +
+          ' Sigue trabajando con total tranquilidad.';
+      }
+      if (verEl) {
+        verEl.textContent = VERSION && ver && VERSION !== ver ? 'Actual: ' + VERSION + ' · Nueva: ' + ver : '';
+      }
+      card.classList.add('is-open');
+      card.setAttribute('aria-hidden', 'false');
+      setTimeout(function () {
+        var btn = document.getElementById('crozzoCritInfoDismiss');
+        if (btn)
+          try {
+            btn.focus();
+          } catch (_) {}
+      }, 120);
+    }, true);
   }
 
   function closeCriticalInfoCard() {
@@ -5922,21 +6015,22 @@
   function showOptionalPostLoginCard(entry) {
     if (_optionalPostLoginCardShownSession) return;
     _optionalPostLoginCardShownSession = true;
-    var card = ensureOptionalPostLoginCard();
-    var remote = normEntryVersion(entry);
-    _currentOptionalId = entryId(entry);
-    VERSION_AVAIL = remote;
-    global.CROZZO_APP_VERSION_DISPONIBLE = remote;
-    UPDATE_NORMAL = buildUpdateNormalFromEntry(entry, VERSION);
-    _optionalWizard.entry = entry;
-    var verRow = document.getElementById('crozzoOptCardVersionRow');
-    var summaryEl = document.getElementById('crozzoOptCardSummary');
-    var changesList = document.getElementById('crozzoOptCardChanges');
-    var noteEl = document.getElementById('crozzoOptCardNote');
-    var badge = document.getElementById('crozzoOptCardBadge');
-    if (verRow) {
-      verRow.innerHTML =
-        '<span class="crozzo-optional-post-card__ver-chip">' + escapeHtml(VERSION) + '</span>' +
+    whenShiftWelcomeIdle(function () {
+      var card = ensureOptionalPostLoginCard();
+      var remote = normEntryVersion(entry);
+      _currentOptionalId = entryId(entry);
+      VERSION_AVAIL = remote;
+      global.CROZZO_APP_VERSION_DISPONIBLE = remote;
+      UPDATE_NORMAL = buildUpdateNormalFromEntry(entry, VERSION);
+      _optionalWizard.entry = entry;
+      var verRow = document.getElementById('crozzoOptCardVersionRow');
+      var summaryEl = document.getElementById('crozzoOptCardSummary');
+      var changesList = document.getElementById('crozzoOptCardChanges');
+      var noteEl = document.getElementById('crozzoOptCardNote');
+      var badge = document.getElementById('crozzoOptCardBadge');
+      if (verRow) {
+        verRow.innerHTML =
+          '<span class="crozzo-optional-post-card__ver-chip">' + escapeHtml(VERSION) + '</span>' +
         '<span class="crozzo-optional-post-card__ver-arrow" aria-hidden="true">→</span>' +
         '<span class="crozzo-optional-post-card__ver-chip crozzo-optional-post-card__ver-chip--new">' + escapeHtml(remote) + '</span>' +
         (UPDATE_NORMAL.date ? '<span class="crozzo-optional-post-card__ver-date">' + escapeHtml(UPDATE_NORMAL.date) + '</span>' : '');
@@ -5980,6 +6074,7 @@
         changesList.innerHTML = html2;
       }
     });
+    }, false);
   }
 
   function closeOptionalPostLoginCard() {
@@ -6135,6 +6230,7 @@
   global.CROZZO_APP_VERSION_DISPONIBLE = VERSION_AVAIL;
   global.crozzoDismissPostUpdateWelcome = crozzoDismissPostUpdateWelcome;
   global.crozzoShowPostUpdateWelcome = showPostUpdateWelcomeOverlay;
+  global.crozzoUpdateBlocksPersonalWelcome = crozzoUpdateBlocksPersonalWelcome;
   global.lanzarAlerta = lanzarAlerta;
   global.crozzoCerrarActualizacionNormal = crozzoCerrarActualizacionNormal;
   global.crozzoPosponerActualizacionOpcional = crozzoPosponerActualizacionOpcional;

@@ -1164,10 +1164,11 @@
     }
   }
 
-  function normalizeFacturaTplBlocks(tpl, data) {
+  function normalizeFacturaTplBlocks(tpl, data, opts) {
     if (!tpl || !Array.isArray(tpl.blocks)) return tpl;
     if (tpl.docType && tpl.docType !== 'factura') return tpl;
     data = data || {};
+    opts = opts || {};
     var usaTot =
       typeof isCuentaTotalesTicket === 'function'
         ? isCuentaTotalesTicket(data, tpl)
@@ -1175,15 +1176,17 @@
     tpl.blocks.forEach(function (b) {
       if (!b) return;
       if (usaTot && (b.t === 'iva_disc' || b.t === 'impuesto_consumo')) b.v = false;
-      if (b.t === 'title') b.c = '';
+      // Solo vaciar título en impresión (payload dinámico). En diseñador/persist NO borrar c.
+      if (opts.stripDynamicTitle && b.t === 'title') b.c = '';
     });
     return dedupeFacturaBlocks(tpl);
   }
 
-  function ensureFacturaBlocks(tpl, data) {
+  function ensureFacturaBlocks(tpl, data, opts) {
     if (!tpl || !Array.isArray(tpl.blocks)) return tpl;
     if (tpl.docType && tpl.docType !== 'factura') return tpl;
     data = data || {};
+    opts = opts || {};
     tpl = dedupeFacturaBlocks(tpl);
     var have = {};
     tpl.blocks.forEach(function (b) {
@@ -1201,7 +1204,7 @@
     if (!have.resol_full && !have.resol) inserts.push({ t: 'resol_full', c: '', v: true, o: 0, a: 'center', fs: 'xs' });
     if (!have.legal_co) inserts.push({ t: 'legal_co', c: '', v: true, o: 0, a: 'center', fs: 'xs' });
     if (!have.payment) inserts.push({ t: 'payment', c: '', v: true, o: 0, a: 'left', fs: 'sm' });
-    if (!inserts.length) return normalizeFacturaTplBlocks(tpl, data);
+    if (!inserts.length) return normalizeFacturaTplBlocks(tpl, data, opts);
     var cutO = 9999;
     var anchor = 14;
     tpl.blocks.forEach(function (b) {
@@ -1214,7 +1217,7 @@
       blk.o = start + i;
       tpl.blocks.push(blk);
     });
-    return normalizeFacturaTplBlocks(tpl, data);
+    return normalizeFacturaTplBlocks(tpl, data, opts);
   }
 
   function blocksFacturaColombiaBase() {
@@ -1237,6 +1240,7 @@
       { t: 'iva_disc', c: '', v: true, o: 16, a: 'left', fs: 'xs' },
       { t: 'total', c: 'TOTAL A PAGAR', v: true, o: 17, a: 'left', fs: 'md', fw: true },
       { t: 'payment', c: '', v: true, o: 18, a: 'left', fs: 'sm' },
+      { t: 'propina_sugerida', c: '', v: true, o: 18.5, a: 'center', fs: 'xs' },
       { t: 'cufe', c: '', v: true, o: 19, a: 'left', fs: 'xs' },
       { t: 'qr', c: '', v: true, o: 20, a: 'center', fs: 'sm' },
       { t: 'legal_co', c: '', v: true, o: 21, a: 'center', fs: 'xs' },
