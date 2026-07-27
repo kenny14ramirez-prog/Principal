@@ -1,0 +1,42 @@
+﻿[
+    {
+        "url":  "https://html.duckduckgo.com/html/?q=ALMACENES+EXITO+890900608+Colombia+contacto+correo",
+        "urllib_len":  14270,
+        "urllib_ms":  695,
+        "urllib_emails":  "error-lite@duckduckgo.com",
+        "obscura_len":  333,
+        "obscura_ms":  1119,
+        "obscura_emails":  "error-lite@duckduckgo.com",
+        "obscura_wins":  false
+    },
+    {
+        "url":  "https://html.duckduckgo.com/html/?q=PRICESMART+COLOMBIA+900319753+contacto+correo",
+        "urllib_len":  14242,
+        "urllib_ms":  344,
+        "urllib_emails":  "error-lite@duckduckgo.com",
+        "obscura_len":  333,
+        "obscura_ms":  1109,
+        "obscura_emails":  "error-lite@duckduckgo.com",
+        "obscura_wins":  false
+    },
+    {
+        "url":  "https://www.exito.com/contacto",
+        "urllib_len":  133943,
+        "urllib_ms":  3182,
+        "urllib_emails":  "",
+        "obscura_len":  735,
+        "obscura_ms":  7247,
+        "obscura_emails":  "",
+        "obscura_wins":  false
+    },
+    {
+        "url":  "https://www.pricesmart.com/es-co/contacto",
+        "urllib_len":  0,
+        "urllib_ms":  580,
+        "urllib_emails":  "",
+        "obscura_len":  37,
+        "obscura_ms":  819,
+        "obscura_emails":  "",
+        "obscura_wins":  false
+    }
+]

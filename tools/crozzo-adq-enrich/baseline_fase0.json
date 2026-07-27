@@ -1,0 +1,179 @@
+{
+  "summary": {
+    "rues_no_contact": 8,
+    "extract_miss": 10,
+    "rues_empty": 2
+  },
+  "rows": [
+    {
+      "nit": "860002180",
+      "nombre": "SEGUROS COMERCIALES BOLIVAR S.A.",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14373,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22SEGUROS+COMERCIALES+BOLIVAR+S.A.%22+860002180+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1540
+    },
+    {
+      "nit": "890900608",
+      "nombre": "ALMACENES EXITO S.A.",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14355,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22ALMACENES+EXITO+S.A.%22+890900608+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1447
+    },
+    {
+      "nit": "890903940",
+      "nombre": "POSTOBON",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14325,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_empty",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22POSTOBON%22+890903940+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1040
+    },
+    {
+      "nit": "800153993",
+      "nombre": "COMUNICACION CELULAR S A COMCEL S A",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14373,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22COMUNICACION+CELULAR+S+A+COMCEL+S+A%22+800153993+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1393
+    },
+    {
+      "nit": "830113515",
+      "nombre": "RAPPI",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14349,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_empty",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22RAPPI%22+830113515+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1024
+    },
+    {
+      "nit": "860007738",
+      "nombre": "BANCO POPULAR S A",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14355,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22BANCO+POPULAR+S+A%22+860007738+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1405
+    },
+    {
+      "nit": "890903407",
+      "nombre": "SEGUROS GENERALES SURAMERICANA S.A.",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14391,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22SEGUROS+GENERALES+SURAMERICANA+S.A.%22+890903407+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1412
+    },
+    {
+      "nit": "900156264",
+      "nombre": "NUEVA EMPRESA PROMOTORA DE SALUD S.A. - EN INTERVENCIÓN BAJO",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14423,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22NUEVA+EMPRESA+PROMOTORA+DE+SALUD+S.A.+-+EN+INTERVENCI%C3%93N+BAJO%22+900156264+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1434
+    },
+    {
+      "nit": "900319753",
+      "nombre": "PRICESMART COLOMBIA S A S",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14365,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22PRICESMART+COLOMBIA+S+A+S%22+900319753+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1421
+    },
+    {
+      "nit": "800197268",
+      "nombre": "BARRERA ANDRADE ALEXANDER",
+      "rues_email": false,
+      "rues_tel": false,
+      "rues_dir": false,
+      "html_len": 14377,
+      "ddg_email": "",
+      "ddg_tel": "",
+      "ddg_dir": "",
+      "layers": [
+        "rues_no_contact",
+        "extract_miss"
+      ],
+      "ddg_url": "https://html.duckduckgo.com/html/?q=%22BARRERA+ANDRADE+ALEXANDER%22+800197268+Colombia+contacto+correo+tel%C3%A9fono",
+      "ms": 1426
+    }
+  ]
+}

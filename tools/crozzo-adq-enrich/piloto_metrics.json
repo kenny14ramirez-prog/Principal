@@ -1,0 +1,72 @@
+{
+  "obscura_enabled": true,
+  "obscura_bin": true,
+  "n": 5,
+  "pct_email": 0.0,
+  "pct_tel": 0.0,
+  "pct_dir": 0.0,
+  "pct_contact": 0.0,
+  "avg_ms": 4272,
+  "stats": {
+    "enrich_ok": 5,
+    "enrich_fail": 0,
+    "timeouts": 0,
+    "engine_scrapling": 0,
+    "engine_urllib": 10,
+    "engine_obscura": 0,
+    "hop_ok": 0
+  },
+  "rows": [
+    {
+      "nit": "860002180",
+      "ok": true,
+      "email": false,
+      "tel": false,
+      "dir": false,
+      "source": "rues_enrich",
+      "engine": "urllib",
+      "ms": 4364
+    },
+    {
+      "nit": "890900608",
+      "ok": true,
+      "email": false,
+      "tel": false,
+      "dir": false,
+      "source": "rues_enrich",
+      "engine": "urllib",
+      "ms": 4228
+    },
+    {
+      "nit": "900319753",
+      "ok": true,
+      "email": false,
+      "tel": false,
+      "dir": false,
+      "source": "rues_enrich",
+      "engine": "urllib",
+      "ms": 4263
+    },
+    {
+      "nit": "860007738",
+      "ok": true,
+      "email": false,
+      "tel": false,
+      "dir": false,
+      "source": "rues_enrich",
+      "engine": "urllib",
+      "ms": 4249
+    },
+    {
+      "nit": "800153993",
+      "ok": true,
+      "email": false,
+      "tel": false,
+      "dir": false,
+      "source": "rues_enrich",
+      "engine": "urllib",
+      "ms": 4259
+    }
+  ],
+  "recomendacion": "apagar Obscura (sin mejora email/tel en muestra)"
+}
