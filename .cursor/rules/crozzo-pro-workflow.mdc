@@ -1,0 +1,78 @@
+---
+description: Flujo profesional — Plan, grill, diagnose, qa-evidence; potencia máxima sin packs basura
+alwaysApply: true
+---
+
+# Flujo de trabajo profesional (Crozzo)
+
+Objetivo: editar como equipo senior — **plan claro, ejecución al pie, verificación hasta PASS** — sin multiplicar agentes ni tokens en cada typo.
+
+**Potencia:** el techo de arsenal (abajo) congela *packs externos*. No autoriza bajar el rendimiento ni responder NO a órdenes legítimas del POS. Ver `crozzo-military-delivery`.
+
+## Arsenal congelado (techo de packs — no techo de esfuerzo)
+
+**Infra (usar a fondo):** Synapse · maps · KI · `edit:scope` · code-context · grafo · `test:sync-clinical` · hooks app→sync.
+
+**Cuarteto de skills (no añadir más sin pedido):** `crozzo-grill` · `crozzo-diagnose` · `crozzo-qa-evidence` · `crozzo-motion`.
+
+**REJECT packs:** Matt · Superpowers · agency-agents · gstack · Pro Max · Huashu · Emil pack. Obscura = sidecar CRM, no skill diaria.
+
+**ejemplo ≠ ticket:** si el usuario ilustra con “ejemplo”, no abras `app/` ni conviertas el ejemplo en fix. Plan Motion UX Stabilization = **archivado / no re-ejecutar**.
+
+## Matriz (usar esto, no improvisar)
+
+| Situación | Acción |
+|-----------|--------|
+| Fix/UI 1 símbolo o 1 archivo claro **y pedido explícito** | Tesis+plan corto visible → **Agent** + Synapse/`issues:search` → verificar hasta PASS |
+| Alcance ambiguo / “alinea antes” / feature multi-archivo sin decisiones claras | Skill **`crozzo-grill`** (máx. 1 pregunta si bloquea) → Plan → Agent → VERIFY |
+| Sync/LAN/runtime, CRM caja, >1 archivo crítico, arquitectura dudosa | **Plan mode** primero (3–7 pasos); grill solo si falta un dato → Agent → clinical |
+| Bug duro / regresión / “diagnostica” **pedido** | Skill **`crozzo-diagnose`** (loop rojo) → fix → re-rojo hasta verde |
+| “¿Listo para sede?” / qa evidencia / certificar cambio | Skill **`crozzo-qa-evidence`** — sin fantasy scores |
+| Doctrina animaciones / canon motion | Skill **`crozzo-motion`** |
+| “¿Dónde está X?” / mapa amplio sin editar | Subagente **`explore`** o MCP grafo/símbolos |
+| PR o diff grande / riesgo regresión | **`bugbot`** si el usuario pide |
+| Cambio sensible seguridad | **`security-review`** si el usuario pide |
+| 2 enfoques técnicos reales e incompatibles | **`best-of-n`** (N≤3) solo con OK |
+| Typo, copy, CSS 1 regla, rename local | Agent + verify mínimo — sin multi-agente |
+
+Skills: [grill](../skills/crozzo-grill/SKILL.md) · [diagnose](../skills/crozzo-diagnose/SKILL.md) · [qa-evidence](../skills/crozzo-qa-evidence/SKILL.md) · [motion](../skills/crozzo-motion/SKILL.md). Cherry-pick only — **no** instalar packs.
+
+## Plan mode (obligatorio si…)
+
+Cambiar a Plan **antes de editar** cuando:
+
+1. Toca ≥2 de: PosMain, RuntimeCloud, ComandasCloudSync, OpFanout, LanOps/LanBridge, CSS APK grande.
+2. Hay trade-off (nube vs LAN, layout desktop vs touch).
+3. El usuario pide “diseña / plan / fases” o el alcance es ambiguo.
+
+Plan: causa raíz, archivos exactos, pasos atómicos, criterio PASS (`edit:scope`, `npm run sync`, `test:sync-clinical` si sync). **No** ejecutar diffs en Plan mode. Tras plan → Agent → VERIFY hasta PASS.
+
+## Mini-equipo (subagentes) — reglas
+
+- **Máximo 1–2** subagentes en paralelo por turno (explore + algo). No “agencia” de 5 roles.
+- El agente principal **escribe** el código; explore solo investiga; bugbot/security **revisan** diffs existentes.
+- No lanzar bugbot/security en cada commit chico.
+- best-of-n: pedir confirmación (“¿lanzo N=2?”) — coste ≈ ×N.
+
+## Tokens (siempre)
+
+1. Synapse `search_memory` al empezar tarea no trivial.
+2. Grafo/símbolos MCP antes de leer PosMain entero.
+3. `edit:scope` en críticos; un símbolo/flujo por diff.
+4. Tras fix estable: `store_memory` corto (causa + fix + no repetir).
+5. Sync/LAN: `npm run test:sync-clinical` antes de dar por terminado.
+6. Comportamiento UI pedido: repro del síntoma hasta PASS (no “prueba tú” como cierre).
+
+## No hacer
+
+- Instalar más MCP de memoria/orquestación “multi-agent”.
+- Instalar packs (`mattpocock/skills`, `agency-agents`, Superpowers, gstack, Emil, Pro Max, Huashu).
+- Plan mode + best-of-n a la vez en la misma tarea chica.
+- Subagente que edite `src/` o salte `edit:scope`.
+- Parchear sin loop rojo cuando el usuario pide diagnose (`crozzo-diagnose`).
+- Declarar READY/sede sin `crozzo-qa-evidence` cuando el alcance es tienda.
+- Tratar **ejemplo** del usuario como ticket de fix; re-ejecutar Motion UX Stabilization.
+- Mezclar higiene de arsenal (`.cursor/`) con diff en `app/` en la misma sesión sin orden.
+- Parchear “1 cm” de CSS para hover/scroll sin máquina de estados.
+- Añadir skills nuevas sin pedido (techo = cuarteto).
+- Entregar a medias o decir NO a una orden legítima del producto (ver `crozzo-military-delivery`).

@@ -1,0 +1,35 @@
+---
+description: mcp-code-context — lectura/edición por símbolo en archivos grandes (PosMain)
+alwaysApply: true
+---
+
+# mcp-code-context (Fase B)
+
+Server MCP local: `mcp-code-context` en `.cursor/mcp.json`. Reduce tokens al trabajar archivos gigantes (p. ej. `CrozzoPosMain.js`).
+
+## Cuándo usar
+
+| Objetivo | Preferir |
+|----------|----------|
+| Leer una función / símbolo en PosMain u otro archivo grande | MCP `read_file_surgical` / `search_symbols` |
+| Explorar símbolos sin cargar el archivo entero | MCP `search_symbols` / map tools |
+| Editar 1 símbolo tras `edit:scope` | MCP `write_file_surgical` **o** StrReplace anclado |
+| Cambio mínimo ya localizado con ancla ≥5 líneas | StrReplace (sigue válido) |
+
+## Seguridad (no negociable)
+
+1. **`edit:scope` sigue obligatorio** en archivos críticos antes de cualquier write (MCP o StrReplace).
+2. El hook `beforeMCPExecution` (`gate-mcp-code-context.mjs`) solo aplica a writes de **mcp-code-context** (Synapse/otros MCP pasan). Niega `src/` y exige stamp en críticos.
+3. Tras write MCP code-context en `app/`, `after-mcp-code-context-sync.mjs` corre `npm run sync`.
+4. No usar code-context para editar `src/`, bundles, ni Reservorio sin pedido explícito.
+
+## Relación con otras capas
+
+- **Synapse** = memoria de proyecto (lecciones/preferencias).
+- **edit:scope** = contexto ±35 líneas + stamp anti-parche ciego.
+- **mcp-code-context** = AST/símbolos para no tragarse PosMain entero.
+- **KNOWN-ISSUES** = anti-patrones de código ya documentados.
+
+## Tras Reload
+
+Tras cambiar `.cursor/mcp.json`, hace falta **Reload Window** en Cursor para que aparezcan las tools del server.

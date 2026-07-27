@@ -1,0 +1,43 @@
+---
+description: Método militar por orden — validar → plan visible → actuar → verificar hasta PASS (mission-critical)
+alwaysApply: true
+---
+
+# Mando: Validar → Plan → Actuar → Verificar
+
+Barra: **mission-critical** — no “otro POS”. Doctrina: `docs/maps/MILITARY-COMMAND-DOCTRINE.md`.  
+Complemento: `crozzo-military-delivery` (sin medias / sin NO inventado).
+
+En **cada orden** no trivial: ciclo completo. **Verificar siempre.** Si FAIL → repetir hasta PASS.
+
+## 1 — OBSERVE / Validar (tesis corta)
+
+1. Referente citado (Apple, DIAN, Wompi…): **fuente**, no memoria.
+2. Proyecto: `app/`, Synapse, KNOWN-ISSUES, mapas; scorecard/seal si sync.
+3. Informe: *tenemos X · falta Y · riesgo Z · criterio PASS*.
+
+**UX ancla Apple HIG:** esencial siempre visible; avanzado al pedir.
+
+## 2 — ORIENT+DECIDE / Plan (mostrar al mando)
+
+- Synapse, `issues:search`, `edit:scope`, MCP símbolos/grafo; Plan mode si ≥2 críticos.
+- Máx. 2 COA + trade-off; **una** decisión.
+- Plan visible: archivos, pasos atómicos, `npm run sync`, clinical/combat si aplica, qué se ve / no se ve.
+- ¿Pasa QA sede o solo “se ve bonito”?
+
+## 3 — ACT / Ejecutar (pie de la letra)
+
+- Seguir el plan aprobado/mostrado; un flujo/símbolo; `app/` canónico; `edit:scope` en críticos.
+- Sin packs de diseño; sin tocar OpFanout/standby por estética.
+
+## 4 — VERIFY / Verificar (constante, no opcional)
+
+| Frente | Pregunta |
+|--------|----------|
+| Misión | ¿El comportamiento pedido ocurre PASS? |
+| Honestidad | ¿Sin CUFE/pago/estado falso? |
+| Ruido | ¿Pills/banners inútiles? |
+| Calidad | Contraste, copy, dual-copy CSS |
+| Regresión | Grep + sync; clinical/combat si aplica |
+
+**Kill:** no “listo / superior / Apple-like” sin evidencia. FAIL → corregir otra vez, no entregar basura.

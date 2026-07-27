@@ -1,0 +1,33 @@
+---
+description: Grafo de código (codebase-memory) + Graphify — quién llama a quién
+alwaysApply: true
+---
+
+# Grafo de código (Fase C)
+
+## Preferir (en orden)
+
+1. **MCP `codebase-memory`** — `search_graph`, `query_graph`, `trace_path`, `get_code_snippet` (tras indexar).
+2. **Mapas humanos** — `docs/maps/CONNECTIONS.md`, `POSMAIN-SYNC-SYMBOLS.md`.
+3. **Graphify** — `graphify-out/GRAPH_REPORT.md` (estático; puede estar stale).
+
+## CLI
+
+```bash
+npm run mind:health
+npm run mind:refresh
+npm run graph:index
+npm run graph:status
+npm run graph:search -- --name_pattern ".*Fanout.*"
+```
+
+Tras cambios grandes de estructura: `npm run mind:refresh` (mapas + embeddings + grafo).
+
+Indexa solo `app/` (fuente canónica), proyecto `crozzo-pos`.
+
+## Qué NO hacer
+
+- No sustituye Synapse (lecciones) ni KNOWN-ISSUES (anti-patrones).
+- No uses `codebase-memory-mcp install` (reescribe configs de agentes); ya está en `.cursor/mcp.json`.
+- No indexar `src/` como canónico — la fuente es `app/` (el grafo puede incluir ambos; prioriza `app/`).
+- Tras cambiar MCP: **Reload Window**.

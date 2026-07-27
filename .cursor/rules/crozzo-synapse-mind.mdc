@@ -1,0 +1,56 @@
+---
+description: Segunda mente Synapse (Ollama) — buscar y guardar recuerdos del proyecto
+alwaysApply: true
+---
+
+# Synapse — segunda mente Crozzo
+
+Memoria de largo plazo del **proyecto** (no global). Motor: `synapse/memory.db` + Ollama local (`nomic-embed-text`, ayudante `qwen2.5:3b`).
+
+## Cuándo usar
+
+1. **Al empezar** tareas no triviales (sync, CRM, CSS, LAN, bugs recurrentes): buscar primero.
+2. **Tras un fix o decisión estable**: guardar un recuerdo corto y accionable.
+3. **No sustituye** `docs/maps/known-issues.json` — Synapse = contexto/preferencias/lecciones de sesión; KNOWN-ISSUES = anti-patrones de código.
+
+## Captura automática (Fase A)
+
+- `preCompact`: avisa y deja marca pendiente antes de compactar el chat.
+- `stop` tras compactar: followup para guardar 1–3 lecciones en Synapse.
+- Edits en `app/`: snapshot corto automático en path `crozzo/sessions` (lista de archivos; tú complementas la lección).
+
+## Cómo
+
+**Preferido (MCP):** tools `search_memory`, `store_memory`, `update_memory` del server `synapse_memory`.
+
+**Fallback (shell):**
+
+```bash
+npm run synapse:search -- "síntoma o tema"
+npm run synapse:remember -- --path crozzo/crm --title "Titulo" --content "Leccion..."
+npm run synapse:status
+```
+
+## Paths recomendados
+
+| Path | Uso |
+|------|-----|
+| `crozzo/sync` | runtime, LAN, Z0 |
+| `crozzo/crm` | cliente/facturación, lookup |
+| `crozzo/css` | layout APK/ticket |
+| `crozzo/caja` | venta directa, mesas |
+| `crozzo/print` | autoprint |
+| `crozzo/preferencias` | estilo de trabajo del usuario |
+| `crozzo/canon` | reglas de fuente app/ sync |
+
+## Qué guardar
+
+- Causa raíz + fix concreto (archivo/símbolo).
+- Preferencias del usuario que deben sobrevivir al chat.
+- “NO repetir” de sesión si aún no está en KNOWN-ISSUES.
+
+## Qué no guardar
+
+- Secretos, tokens, `.p12`, passwords.
+- Dumps enormes de código (mejor pointer a archivo + símbolo).
+- Duplicados literales de KI-xxx ya documentados.
