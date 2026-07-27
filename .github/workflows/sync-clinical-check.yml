@@ -1,0 +1,88 @@
+# Autoevaluación clínica sync Z0 — corre en cada PR que toque comunicación operativa.
+name: Sync Z0 clinical checks
+
+on:
+  pull_request:
+    paths:
+      - 'app/infra/Crozzo*Sync*.js'
+      - 'app/infra/Crozzo*Lan*.js'
+      - 'app/infra/Crozzo*Cloud*.js'
+      - 'app/infra/Crozzo*Page*.js'
+      - 'app/infra/Crozzo*Reconnect*.js'
+      - 'app/infra/Crozzo*Z0*.js'
+      - 'app/infra/CrozzoOperativeJournal.js'
+      - 'app/infra/CrozzoDevTap.js'
+      - 'app/infra/CrozzoOp*.js'
+      - 'app/infra/CrozzoPairing*.js'
+      - 'app/infra/CrozzoFleet*.js'
+      - 'app/core/CrozzoDevicePerf.js'
+      - 'app/infra/Crozzo*Connectivity*.js'
+      - 'app/infra/Crozzo*Offline*.js'
+      - 'app/infra/CrozzoStartupReady.js'
+      - 'app/modules/CrozzoComandasCloudSync.js'
+      - 'app/modules/CrozzoPosRuntimeCloud.js'
+      - 'app/modules/CrozzoInternalQrRegistry.js'
+      - 'app/core/CrozzoPosMain.js'
+      - 'scripts/_connectivity-equilibrium-check.mjs'
+      - 'scripts/_connectivity-standby-check.mjs'
+      - 'scripts/_lan-ops-sync-check.mjs'
+      - 'scripts/_operative-journal-check.mjs'
+      - 'scripts/_fleet-coordination-check.mjs'
+      - 'scripts/_op-fanout-check.mjs'
+      - 'scripts/dev-session-observer.mjs'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'src/infra/**'
+      - 'src/modules/CrozzoComandasCloudSync.js'
+  push:
+    branches:
+      - main
+      - 'task/aligned-*'
+      - 'feat/sync-z0-clinical'
+      - 'feat/fleet-coordination-fix'
+      - 'fix/sync-equilibrio-cloud-lan'
+      - 'feat/z0-operative-pulse'
+
+jobs:
+  sync-clinical:
+    name: Equilibrio + LAN ops + diario (checks clínicos)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deps Linux (glib/gtk para cargo check Tauri)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-sync-clinical-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-sync-clinical-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias npm
+        run: npm ci
+
+      - name: Autoprueba sync clínico
+        run: npm run test:sync-clinical
