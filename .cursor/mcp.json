@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "synapse_memory": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\proyectos\\sistema pos\\.cursor\\mcp-launchers\\synapse.mjs"
+      ],
+      "cwd": "C:\\proyectos\\sistema pos"
+    },
+    "mcp-code-context": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\proyectos\\sistema pos\\.cursor\\mcp-launchers\\code-context.mjs"
+      ],
+      "cwd": "C:\\proyectos\\sistema pos"
+    },
+    "codebase-memory": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\proyectos\\sistema pos\\.cursor\\mcp-launchers\\codebase-memory.mjs"
+      ],
+      "cwd": "C:\\proyectos\\sistema pos"
+    }
+  }
+}

@@ -1,0 +1,370 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 9 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 4263 >>
+stream
+BT
+/F1 9 Tf
+1 0 0 1 48 744 Tm
+(CROZZO POS — AUDITORIA EXIGENTE VS MERCADO COLOMBIA) Tj
+1 0 0 1 48 732 Tm
+(Fecha: 2026-07-17 | Version sistema: v1.0.230 | Ambito: restaurante / tienda / hotel F&B ligero) Tj
+1 0 0 1 48 720 Tm
+(Fuente: codigo app/ + docs/maps + investigacion publica \(Alegra, Siigo, Loggro, Vendty, Gestro, WARO, Scrampi\)) Tj
+1 0 0 1 48 708 Tm
+() Tj
+1 0 0 1 48 696 Tm
+(================================================================================) Tj
+1 0 0 1 48 684 Tm
+(1. VEREDICTO \(DUENO EXIGENTE\)) Tj
+1 0 0 1 48 672 Tm
+(================================================================================) Tj
+1 0 0 1 48 660 Tm
+(Crozzo no pierde por falta de ambicion: pierde por no cerrar el producto) Tj
+1 0 0 1 48 648 Tm
+(aburrido que el mercado colombiano ya da por hecho \(DIAN one-shot, pagos) Tj
+1 0 0 1 48 636 Tm
+(digitales, turno estable\). En offline/flota y food-cost esta por delante de) Tj
+1 0 0 1 48 624 Tm
+(Alegra y pelea con Loggro/Gestro. En madurez de caja diaria todavia NO es un) Tj
+1 0 0 1 48 612 Tm
+(reemplazo confiable de un SaaS pulido.) Tj
+1 0 0 1 48 600 Tm
+() Tj
+1 0 0 1 48 588 Tm
+(Nota global Crozzo: 3.0 / 5.0) Tj
+1 0 0 1 48 576 Tm
+(Fortaleza max: Offline / resiliencia Colombia = 5/5) Tj
+1 0 0 1 48 564 Tm
+(Debilidad max: Pagos + delivery = 1/5 | Mantenibilidad monolito = 1/5) Tj
+1 0 0 1 48 552 Tm
+() Tj
+1 0 0 1 48 540 Tm
+(================================================================================) Tj
+1 0 0 1 48 528 Tm
+(2. QUE TENEMOS HOY \(INVENTARIO HONESTO\)) Tj
+1 0 0 1 48 516 Tm
+(================================================================================) Tj
+1 0 0 1 48 504 Tm
+() Tj
+1 0 0 1 48 492 Tm
+(2.1 Operacion Z0 \(sala / caja / cocina\)) Tj
+1 0 0 1 48 480 Tm
+(- Mesas, carrito multi-dispositivo, comandas, KDS/cocina, auto-print termico) Tj
+1 0 0 1 48 468 Tm
+(- Venta directa + modo mesas) Tj
+1 0 0 1 48 456 Tm
+(- Roles: caja, mesero, cocina, encargado, recepcion, inventario, admin) Tj
+1 0 0 1 48 444 Tm
+(- Perfiles: basico_restaurante, basico_tienda, basico_hotel \(scaffold\), personalizado) Tj
+1 0 0 1 48 432 Tm
+(- Juicio: FUERTE en diseno; FRAGIL en produccion \(historial KI critical sync\)) Tj
+1 0 0 1 48 420 Tm
+() Tj
+1 0 0 1 48 408 Tm
+(2.2 Resiliencia Colombia \(ventaja real\)) Tj
+1 0 0 1 48 396 Tm
+(- Offline-first \(IndexedDB + colas\) + Supabase nube) Tj
+1 0 0 1 48 384 Tm
+(- LAN WebSocket/HTTP, gossip, BLE, Wi-Fi Direct, flota identity/QR, OTA Tauri/APK) Tj
+1 0 0 1 48 372 Tm
+(- Juicio: ventaja competitiva vs Alegra/Siigo cloud-only) Tj
+1 0 0 1 48 360 Tm
+() Tj
+1 0 0 1 48 348 Tm
+(2.3 Fiscal / DIAN \(parcial\)) Tj
+1 0 0 1 48 336 Tm
+(- Validador NIT/DV, CUFE, guia FE, lookup adquiriente DIAN+RUES) Tj
+1 0 0 1 48 324 Tm
+(- Dock Dataico + DIAN VPFE; OCR recepcion FE de compras) Tj
+1 0 0 1 48 312 Tm
+(- Juicio: CAPAZ, no listo-y-olvidado como Alegra/Siigo habilitador nativo) Tj
+1 0 0 1 48 300 Tm
+() Tj
+1 0 0 1 48 288 Tm
+(2.4 Backoffice) Tj
+1 0 0 1 48 276 Tm
+(- Compras, recepcion FE, costos/matriz MP, food cost, inventarios, reservorio) Tj
+1 0 0 1 48 264 Tm
+(- Planilla 2026 \(propinas en cierre\), cartera, federacion multi-sede \(base\)) Tj
+1 0 0 1 48 252 Tm
+(- Juicio: mas profundo que Alegra; menos contable que Siigo) Tj
+1 0 0 1 48 240 Tm
+() Tj
+1 0 0 1 48 228 Tm
+(2.5 Stack) Tj
+1 0 0 1 48 216 Tm
+(- Frontend JS vanilla | Tauri+Rust | Supabase+IndexedDB | PosMain ~51.705 LOC) Tj
+1 0 0 1 48 204 Tm
+(- ~96 modulos + ~40 infra | Android APK + desktop) Tj
+1 0 0 1 48 192 Tm
+() Tj
+1 0 0 1 48 180 Tm
+(================================================================================) Tj
+1 0 0 1 48 168 Tm
+(3. QUE NOS FALTA \(GAPS QUE UN COMPETIDOR USARIA CONTRA NOSOTROS\)) Tj
+1 0 0 1 48 156 Tm
+(================================================================================) Tj
+1 0 0 1 48 144 Tm
+() Tj
+1 0 0 1 48 132 Tm
+(P0 — Documento equivalente + FE de venta one-shot en caja) Tj
+1 0 0 1 48 120 Tm
+(    Res. DIAN 000165: tiquete POS electron válido. Sin esto, demo fiscal pierde.) Tj
+1 0 0 1 48 108 Tm
+() Tj
+1 0 0 1 48 96 Tm
+(P0 — Estabilidad sede \(QA oro cerrado\)) Tj
+1 0 0 1 48 84 Tm
+(    34 KI documentados; criticals en sync/cocina/caja. Un POS que casi sincroniza) Tj
+1 0 0 1 48 72 Tm
+(    es peor que uno simple que si cobra.) Tj
+1 0 0 1 48 60 Tm
+() Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 9 0 R >> >> >>
+endobj
+6 0 obj
+<< /Length 4282 >>
+stream
+BT
+/F1 9 Tf
+1 0 0 1 48 744 Tm
+(P0 — Pasarela / datafono / Nequi-PSE en el cobro + conciliacion minima) Tj
+1 0 0 1 48 732 Tm
+() Tj
+1 0 0 1 48 720 Tm
+(P1 — Integraciones delivery \(Rappi/DiDi\) y menu/pedido digital QR) Tj
+1 0 0 1 48 708 Tm
+(P1 — Contabilidad / export contador plug-and-play) Tj
+1 0 0 1 48 696 Tm
+(P1 — Time-to-value / onboarding SaaS \(<1 dia vs minutos Alegra\)) Tj
+1 0 0 1 48 684 Tm
+(P1 — Partir PosMain / reducir deuda \(features vs regresiones\)) Tj
+1 0 0 1 48 672 Tm
+() Tj
+1 0 0 1 48 660 Tm
+(P2 — Cierre a ciegas + propinas operativas en caja \(no solo planilla\)) Tj
+1 0 0 1 48 648 Tm
+(P2 — Hotel PMS real \(hoy scaffold F&B a proposito\)) Tj
+1 0 0 1 48 636 Tm
+(P2 — Marketplace perifericos certificados CO) Tj
+1 0 0 1 48 624 Tm
+() Tj
+1 0 0 1 48 612 Tm
+(================================================================================) Tj
+1 0 0 1 48 600 Tm
+(4. COMPARATIVA SCORES \(0-5, CRITERIO ESTRICTO\)) Tj
+1 0 0 1 48 588 Tm
+(================================================================================) Tj
+1 0 0 1 48 576 Tm
+() Tj
+1 0 0 1 48 564 Tm
+(Dimension          Crozzo  Alegra  Siigo  Loggro  Gestro) Tj
+1 0 0 1 48 552 Tm
+(DIAN / FE             3       5      5      4       4) Tj
+1 0 0 1 48 540 Tm
+(Ops restaurante       4       2      3      4       5) Tj
+1 0 0 1 48 528 Tm
+(Offline CO            5       1      1      2       3) Tj
+1 0 0 1 48 516 Tm
+(Food cost             4       1      3      4       3) Tj
+1 0 0 1 48 504 Tm
+(Pagos / delivery      1       2      3      4       3) Tj
+1 0 0 1 48 492 Tm
+(Contabilidad          2       4      5      3       2) Tj
+1 0 0 1 48 480 Tm
+(Multi-sede            3       3      4      4       3) Tj
+1 0 0 1 48 468 Tm
+(UX madurez            2       4      4      4       4) Tj
+1 0 0 1 48 456 Tm
+(Mantenibilidad        1       4      4      3       3) Tj
+1 0 0 1 48 444 Tm
+(Time-to-value         2       5      4      3       4) Tj
+1 0 0 1 48 432 Tm
+(PROMEDIO            2.7     3.1    3.6    3.5     3.4) Tj
+1 0 0 1 48 420 Tm
+() Tj
+1 0 0 1 48 408 Tm
+(\(Nota: promedio simple; para CO ponderar DIAN+Offline+Ops con mas peso\)) Tj
+1 0 0 1 48 396 Tm
+(Promedio ponderado CO \(DIAN x2, Offline x2, Ops x2, resto x1\):) Tj
+1 0 0 1 48 384 Tm
+(  Crozzo ~3.0 | Alegra ~3.0 | Siigo ~3.5 | Loggro ~3.6 | Gestro ~3.6) Tj
+1 0 0 1 48 372 Tm
+() Tj
+1 0 0 1 48 360 Tm
+(================================================================================) Tj
+1 0 0 1 48 348 Tm
+(5. HEAD-TO-HEAD \(COLOMBIA 2026\)) Tj
+1 0 0 1 48 336 Tm
+(================================================================================) Tj
+1 0 0 1 48 324 Tm
+() Tj
+1 0 0 1 48 312 Tm
+(vs Alegra: Ellos ganan formalizacion rapida y FE. Nosotros ganamos offline,) Tj
+1 0 0 1 48 300 Tm
+(           KDS/roles y food cost. En demo 'abre y factura' perdemos.) Tj
+1 0 0 1 48 288 Tm
+() Tj
+1 0 0 1 48 276 Tm
+(vs Siigo Gastrobar: Ellos ganan contabilidad+DIAN marca. Nosotros ganamos) Tj
+1 0 0 1 48 264 Tm
+(           flota hibrida y profundidad operativa. Cadenas con contador Siigo) Tj
+1 0 0 1 48 252 Tm
+(           no nos eligen sin export contable serio.) Tj
+1 0 0 1 48 240 Tm
+() Tj
+1 0 0 1 48 228 Tm
+(vs Loggro Restobar: Pelea directa. Ellos tienen delivery+soporte 24/7 y) Tj
+1 0 0 1 48 216 Tm
+(           producto maduro. Nosotros podemos superar en mesh offline si la) Tj
+1 0 0 1 48 204 Tm
+(           sede es inestable — solo si el sync deja de romper turnos.) Tj
+1 0 0 1 48 192 Tm
+() Tj
+1 0 0 1 48 180 Tm
+(vs Gestro: Ellos venden Multi-KDS + LAN print + DIAN Taxxa pulido. Nosotros) Tj
+1 0 0 1 48 168 Tm
+(           tenemos mas backoffice \(compras FE OCR, matriz costos\). En UX de) Tj
+1 0 0 1 48 156 Tm
+(           turno ellos hoy se sienten mas 'producto'.) Tj
+1 0 0 1 48 144 Tm
+() Tj
+1 0 0 1 48 132 Tm
+(vs WARO/Vendty/Scrampi: Espacio precio/food-cost/offline parcial. Crozzo) Tj
+1 0 0 1 48 120 Tm
+(           solo destaca si la historia de flota propia + OTA es clara y estable.) Tj
+1 0 0 1 48 108 Tm
+() Tj
+1 0 0 1 48 96 Tm
+(Contexto normativo CO a no ignorar:) Tj
+1 0 0 1 48 84 Tm
+(- Res. 000165/2023 documento equivalente electronico POS) Tj
+1 0 0 1 48 72 Tm
+(- INC 8% restaurantes/bares; IVA 19% segun caso) Tj
+1 0 0 1 48 60 Tm
+(- Tope UVT para tiquete vs factura electronica de venta \(exigir FE cuando aplique\)) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 8 0 R /Resources << /Font << /F1 9 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 2837 >>
+stream
+BT
+/F1 9 Tf
+1 0 0 1 48 744 Tm
+(- Habilitador tecnologico autorizado DIAN: requisito de mercado, no 'nice to have') Tj
+1 0 0 1 48 732 Tm
+() Tj
+1 0 0 1 48 720 Tm
+(================================================================================) Tj
+1 0 0 1 48 708 Tm
+(6. ROADMAP DE SUPERVIVENCIA \(ORDEN\)) Tj
+1 0 0 1 48 696 Tm
+(================================================================================) Tj
+1 0 0 1 48 684 Tm
+() Tj
+1 0 0 1 48 672 Tm
+(P0 \(4-8 semanas foco unico\):) Tj
+1 0 0 1 48 660 Tm
+(  1\) QA sede checklist tienda P0 en verde REAL \(multi-dispositivo\)) Tj
+1 0 0 1 48 648 Tm
+(  2\) FE / doc. equivalente de venta confiable en flujo Cobrar) Tj
+1 0 0 1 48 636 Tm
+(  3\) Al menos un medio digital conciliable \(datafono o Nequi/PSE\)) Tj
+1 0 0 1 48 624 Tm
+(  4\) Cero critical sync abiertos en cocina/caja en sede piloto) Tj
+1 0 0 1 48 612 Tm
+() Tj
+1 0 0 1 48 600 Tm
+(P1 \(siguiente trimestre\):) Tj
+1 0 0 1 48 588 Tm
+(  1\) Onboarding < 1 dia) Tj
+1 0 0 1 48 576 Tm
+(  2\) Export contable) Tj
+1 0 0 1 48 564 Tm
+(  3\) Menu/pedido digital + 1 aggregator) Tj
+1 0 0 1 48 552 Tm
+(  4\) Modularizar PosMain por dominio \(dejar de crecer el monolito\)) Tj
+1 0 0 1 48 540 Tm
+() Tj
+1 0 0 1 48 528 Tm
+(P2 \(diferenciacion\):) Tj
+1 0 0 1 48 516 Tm
+(  Federacion multi-sede con metricas, cierre a ciegas, propinas en caja,) Tj
+1 0 0 1 48 504 Tm
+(  analytics dueno, perifericos certificados CO.) Tj
+1 0 0 1 48 492 Tm
+() Tj
+1 0 0 1 48 480 Tm
+(================================================================================) Tj
+1 0 0 1 48 468 Tm
+(7. RIESGOS SI NO ACTUAMOS) Tj
+1 0 0 1 48 456 Tm
+(================================================================================) Tj
+1 0 0 1 48 444 Tm
+(- Quedar como 'POS laboratorio' admirable pero no vendible en CO formal.) Tj
+1 0 0 1 48 432 Tm
+(- Competidores SaaS cierran el hueco offline con 'modo offline' suficiente.) Tj
+1 0 0 1 48 420 Tm
+(- Cada feature nueva sobre PosMain 51k aumenta probabilidad de regresion en turno.) Tj
+1 0 0 1 48 408 Tm
+(- Sin DIAN one-shot, el dueño formaliza con Alegra/Siigo y nos usa solo de cocina.) Tj
+1 0 0 1 48 396 Tm
+() Tj
+1 0 0 1 48 384 Tm
+(================================================================================) Tj
+1 0 0 1 48 372 Tm
+(8. CONCLUSION) Tj
+1 0 0 1 48 360 Tm
+(================================================================================) Tj
+1 0 0 1 48 348 Tm
+(Crozzo ya es un sistema operativo de sede ambicioso para Colombia, no un POS) Tj
+1 0 0 1 48 336 Tm
+(juguete. La exigencia correcta no es 'mas modulos': es cerrar DIAN+cobro+sync) Tj
+1 0 0 1 48 324 Tm
+(hasta que un turno sabado noche sea aburrido. Aburrido = profesional.) Tj
+1 0 0 1 48 312 Tm
+(Solo despues tiene sentido pelear delivery, contabilidad y multi-sede a escala.) Tj
+1 0 0 1 48 300 Tm
+() Tj
+1 0 0 1 48 288 Tm
+(— Fin del informe —) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000004568 00000 n 
+0000004694 00000 n 
+0000009028 00000 n 
+0000009154 00000 n 
+0000012043 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+12113
+%%EOF
