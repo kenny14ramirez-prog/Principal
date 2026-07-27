@@ -1,0 +1,53 @@
+---
+description: Obligatorio leer alcance antes de editar archivos críticos (anti-parche ciego)
+alwaysApply: true
+---
+
+# Leer antes de escribir (anti-parche ciego)
+
+Cursor **no debe** hacer StrReplace/Write en archivos críticos sin reconocimiento previo.
+
+## Paso 1 — Alcance (obligatorio)
+
+Antes del **primer** edit en la sesión sobre un archivo crítico:
+
+```bash
+npm run edit:scope -- app/core/CrozzoPosMain.js nombreFuncion
+```
+
+- Imprime ~35 líneas arriba/abajo de la definición.
+- Lista referencias en `app/` (grep).
+- Crea sello 30 min (hook `require-edit-scope` bloquea sin sello).
+
+## Archivos críticos (hook + sello)
+
+- `app/core/CrozzoPosMain.js`
+- `app/modules/CrozzoPosRuntimeCloud.js`
+- `app/modules/CrozzoComandasCloudSync.js`
+- `app/modules/CrozzoOperativeSyncGate.js`
+- `app/infra/CrozzoOpFanout.js`, `CrozzoLanOpsSync.js`, `CrozzoLanSyncBridge.js`
+- `app/infra/CrozzoPageCloudWatch.js`, `CrozzoCloudSyncPriorities.js`
+- `app/css/CrozzoPosStyles.css`, `CrozzoPantallasShell.css`
+
+## Paso 2 — Leer referencias
+
+Tras `edit:scope`, abrir **al menos 1** archivo que referencie el símbolo (salida del script).
+
+## Paso 3 — Editar mínimo
+
+- Un símbolo / un flujo por diff.
+- Ancla `old_string` ≥ 5 líneas únicas (no 1 línea genérica).
+- CSS APK: grep `crozzo-touch-shell`, `crozzo-android-apk` en el mismo archivo.
+
+## Paso 4 — Verificar
+
+```bash
+npm run sync
+npm run test:sync-clinical   # si tocaste sync/LAN/runtime
+```
+
+## Prohibido
+
+- Parchear PosMain solo con fragmento del chat sin `edit:scope`.
+- Editar `src/` (espejo).
+- Reemplazar funciones enteras “por limpieza”.

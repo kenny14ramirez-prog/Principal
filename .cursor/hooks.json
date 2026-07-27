@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "node .cursor/hooks/session-freshness-context.mjs",
+        "timeout": 20
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "node .cursor/hooks/block-src-mirror-writes.mjs",
+        "matcher": "Write|StrReplace|EditNotebook",
+        "timeout": 5
+      },
+      {
+        "command": "node .cursor/hooks/require-edit-scope.mjs",
+        "matcher": "Write|StrReplace|EditNotebook",
+        "timeout": 5
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "node .cursor/hooks/before-shell-hard-gates.mjs",
+        "timeout": 5,
+        "failClosed": true
+      }
+    ],
+    "beforeMCPExecution": [
+      {
+        "command": "node .cursor/hooks/gate-mcp-code-context.mjs",
+        "timeout": 5,
+        "failClosed": true
+      }
+    ],
+    "afterMCPExecution": [
+      {
+        "command": "node .cursor/hooks/after-mcp-code-context-sync.mjs",
+        "timeout": 120
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/after-app-edit-sync.mjs",
+        "timeout": 120
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "node .cursor/hooks/synapse-precompact.mjs",
+        "timeout": 10
+      }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/session-state-tracker.mjs",
+        "timeout": 10
+      },
+      {
+        "command": "node .cursor/hooks/synapse-stop-remember.mjs",
+        "timeout": 100,
+        "loop_limit": 2
+      }
+    ]
+  }
+}

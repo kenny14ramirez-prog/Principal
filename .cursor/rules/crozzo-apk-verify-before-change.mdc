@@ -1,0 +1,35 @@
+---
+description: Crozzo POS — revisar antes de tocar, verificar antes de entregar (APK/tablet/desktop)
+alwaysApply: true
+---
+
+# Crozzo POS — revisar antes de tocar, verificar antes de entregar
+
+En este repo (Tauri sirve desde `src/`, fuente en `app/`), **nunca parchear a ciegas**.
+
+## Antes de editar
+
+1. **Mapear alcance**: grep/buscar referencias del símbolo, clase CSS, `body.classList`, media queries y reglas APK (`crozzo-android-apk`, `crozzo-touch-shell`, `crozzo-page-operativa`).
+2. **Leer contexto**: leer el bloque HTML/JS/CSS que se va a cambiar y **al menos 2 reglas que compiten** (p. ej. `@media (max-width: 1024px)` vs `html.crozzo-touch-shell`).
+3. **Consultar mapa**: `docs/AGENT-SYSTEM-MAP.md` para ubicar módulos y flujos sync.
+4. **Definir criterio de éxito**: qué debe verse/hacer en APK, tablet y desktop; qué **no** debe cambiar (corcho, animaciones, flujos existentes).
+
+## Al implementar
+
+- Cambio mínimo y focalizado; no reemplazar pantallas enteras si basta ajustar layout/CSS.
+- Si hay vista táctil y desktop, usar clases específicas (`crozzo-tablet-order-open`, `crozzo-comandas-touch`) — no romper desktop.
+- Tras editar en `app/`, ejecutar **`npm run sync`** antes de probar en `npm run tauri dev`.
+
+## Antes de dar por terminado
+
+1. **Grep de regresiones**: buscar clases/funciones nuevas huérfanas, `min-height: 0` + `overflow: hidden` en tiles, `order: -1` que invierta layout sin querer.
+2. **Conflictos CSS**: confirmar que reglas APK/touch no pisan la vista objetivo (especificidad y `!important` legacy).
+3. **Flujos tocados**: Comandas (corcho/notas/LISTO), Tablets (grid productos + carrito), menú lateral, sync nube si aplica.
+4. **Sync**: verificar que `src/` refleja `app/` (`npm run sync`).
+
+## Si el usuario reporta que “no aplica”
+
+- Primero: ¿reinició Tauri y recargó (`Ctrl+Shift+R`)?
+- Segundo: ¿el fix está en `app/` **y** sincronizado a `src/`?
+
+No entregar “listo” sin haber seguido estos pasos en el cambio actual.

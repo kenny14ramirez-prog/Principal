@@ -1,0 +1,32 @@
+---
+description: Sistema de mapas docs/maps — leer INDEX antes de explorar código
+alwaysApply: true
+---
+
+# Mapas del sistema (capas)
+
+**Entrada:** [`docs/maps/INDEX.md`](../../docs/maps/INDEX.md)
+
+| Necesitas | Lee |
+|-----------|-----|
+| Qué llama a qué | [CONNECTIONS.md](../../docs/maps/CONNECTIONS.md) |
+| Flujo paso a paso | [SEQUENCES.md](../../docs/maps/SEQUENCES.md) |
+| Reglas fijas sync | [SYNC-INVARIANTS.md](../../docs/maps/SYNC-INVARIANTS.md) |
+| Por qué no tocar X | [DECISIONS.md](../../docs/maps/DECISIONS.md) |
+| ¿Dónde está dominio Y? | [DOMAINS.md](../../docs/maps/DOMAINS.md) |
+| ¿Ya arreglamos este bug? | [KNOWN-ISSUES.md](../../docs/maps/KNOWN-ISSUES.md) |
+| Línea de función PosMain | [POSMAIN-SYNC-SYMBOLS.md](../../docs/maps/POSMAIN-SYNC-SYMBOLS.md) (auto) |
+| Sección PosMain (~líneas) | [POSMAIN-SECTIONS.md](../../docs/maps/POSMAIN-SECTIONS.md) (auto) |
+
+## Regenerar mapas auto
+
+```bash
+npm run map:refresh
+```
+
+Correr tras: nuevo script en `index.html`, nuevo export `window.*` en PosMain, archivo nuevo en `app/infra/`.
+
+## No sustituye
+
+- `npm run edit:scope` (contexto ±35 líneas antes de editar)
+- `npm run test:sync-clinical` (verificación)

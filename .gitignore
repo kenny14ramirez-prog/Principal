@@ -32,3 +32,37 @@ assets/
 # Keystore Android local (no versionar el .jks; el .b64 en .github/signing/ es bootstrap CI)
 *.jks
 .crozzo-android/
+
+# === Mando Unificado Crozzo — aislamiento de artefactos (H0, 2026-07-27) ===
+
+# Synapse: memoria local (repo externo RaffaelFerro/synapse anidado).
+# La DB y el venv son locales por sede; no se versionan.
+# La carpeta completa se ignora: el binario (.mjs launcher) vive en .cursor/mcp-launchers/
+/synapse/
+
+
+# tools/crozzo-adq-enrich: entornos virtuales y binarios externos (293MB).
+# Solo se versionan fuentes (.py, .json de config, .html de plantillas).
+tools/**/.venv/
+tools/**/venv/
+tools/**/__pycache__/
+tools/**/*.exe
+tools/**/*.dll
+tools/**/*.zip
+tools/**/bin/*.exe
+tools/**/bin/*.dll
+tools/**/bin/*.zip
+
+# Estado efímero de hooks/sesión (regenerable)
+.cursor/scope-stamps/*.pending
+.cursor/synapse-pending-save.json
+.cursor/*.stamp
+.cline-state.md
+TASK-.md
+
+# Salidas de tests/scripts (regenerables)
+scripts/_qa-out/
+_qa-out/
+graphify-out/
+.graphify-cache/
+*.stamp

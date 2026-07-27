@@ -1,0 +1,55 @@
+---
+description: Mapa del sistema Crozzo POS — navegación, sync Z0, archivos clave
+alwaysApply: true
+---
+
+# Crozzo POS — mapa del sistema (agente)
+
+**Entrada principal:** [`docs/maps/INDEX.md`](../../docs/maps/INDEX.md) — hub de mapas (conexiones, secuencias, invariantes, dominios).  
+**Atajo:** [`AGENTS.md`](../../AGENTS.md) · **Mapa global:** [`docs/AGENT-SYSTEM-MAP.md`](../../docs/AGENT-SYSTEM-MAP.md)
+
+**Auto-mapas:** `npm run map:refresh` → `POSMAIN-SECTIONS.md`, `POSMAIN-SYNC-SYMBOLS.md`, `BOOT-ORDER.md`, etc.
+
+**Hook:** editar `app/` dispara `npm run sync` vía `.cursor/hooks/after-app-edit-sync.mjs`.
+
+**Versión de referencia:** alinear con `origin/main` · release en `releases/latest.json` · meta `crozzo-app-version` en `app/index.html`.
+
+## Pipeline obligatorio
+
+- Editar **`app/`** → `npm run sync` → probar Tauri/APK (`src/` es espejo).
+- Bundles: **`npm run consolidate`** si tocas módulos dentro de Reservorio/Compras/Costos.
+- **No editar** `app/bundles/` a mano ni `src/` directo.
+
+## Dónde está qué (atajo)
+
+| Área | Archivos |
+|------|----------|
+| POS / mesas / carrito / permisos | `app/core/CrozzoPosMain.js` |
+| Runtime nube | `app/modules/CrozzoPosRuntimeCloud.js` |
+| Comandas cloud | `app/modules/CrozzoComandasCloudSync.js` |
+| Fanout híbrido | `app/infra/CrozzoOpFanout.js` |
+| LAN ops | `app/infra/CrozzoLanOpsSync.js`, `CrozzoLanWebSocketBridge.js` |
+| Zonas Z0/Z1 | `app/infra/CrozzoCloudSyncPriorities.js` |
+| Arranque sync | `app/infra/CrozzoStartupReady.js`, `CrozzoPosBoot.js` |
+| Lazy / pantallas | `app/core/CrozzoManifest.js`, `CrozzoLazyModules.js` |
+| Orden scripts | `app/index.html` (OpAck → LanDedup → OpFanout → LanBridge → LanOps → **PosMain** → RuntimeCloud → … → PosBoot) |
+| Rust LAN/print | `src-tauri/src/crozzo_lan_sync_server.rs`, `lib.rs` |
+| Arquitectura humana | `app/ARCHITECTURE.md` |
+
+## Sync operativo (Z0)
+
+Pantallas P0: `cajero`, `tablets`, `comandas`, `cocina`, `mesas`.
+
+Escritura: `crozzoSyncPosRuntimeCritical(reason)` → nube + LAN.  
+Lectura: `applyPosRuntimeSnapshot` → `crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true })`.  
+Permisos solo UI: `crozzoHasCajaPermiso` / `anular_comandado`.
+
+Tablas Supabase: `crozzo_mesa_runtime` (preferida), fallback `crozzo_sede_runtime`, `comandas`.
+
+## No tocar sin pedido explícito
+
+`CrozzoReservorio*`, bundles generados, `reservorio/`, `respaldo-comunicacion/`, monolito legacy.
+
+## Antes de entregar cambios UI/APK
+
+Ver regla complementaria de verificación APK/touch si existe; si no: grep `crozzo-android-apk`, `crozzo-touch-shell`, `crozzo-page-operativa` y media queries competidoras.

@@ -1,0 +1,33 @@
+﻿# REGLAS OBLIGATORIAS PARA CLINE
+
+## ANTES de cualquier tarea compleja:
+1. Lee PROJECT_KNOWLEDGE.md para contexto general
+2. Usa graphify-cache.ps1 para buscar información en caché
+3. Limita archivos a leer (máximo 5 archivos por consulta)
+
+## PARA archivos grandes (>5000 líneas):
+- NO uses read_file completo
+- Usa search_files con patrones específicos
+- O pide al usuario que extraiga secciones con PowerShell
+
+## PARA código Rust:
+- Siempre verifica compilación con cargo check
+- Usa tokio para async, NO std::thread
+- Implementa límites de conexión explícitos
+
+## PARA código JavaScript:
+- Mantén funciones <100 líneas
+- Usa try-catch en operaciones de red
+- Valida inputs antes de procesar
+
+## NUNCA hagas:
+- Leer todo el proyecto de una vez
+- Proponer cambios en 10+ archivos simultáneamente
+- Generar código sin verificar dependencias
+- Inventar APIs o funciones que no existen
+
+## SIEMPRE:
+- Divide tareas grandes en pasos pequeños (máx 3-5 archivos por paso)
+- Espera confirmación del usuario antes de continuar
+- Usa search_files en lugar de read_file para archivos grandes
+- Consulta el caché antes de hacer búsquedas costosas

@@ -1,0 +1,30 @@
+---
+description: Sync Z0 — runtime, LAN, comandas, fanout (solo archivos operativos)
+globs: app/core/CrozzoPosMain.js,app/modules/CrozzoPosRuntimeCloud.js,app/modules/CrozzoComandasCloudSync.js,app/modules/CrozzoOperativeSyncGate.js,app/infra/CrozzoOpFanout.js,app/infra/CrozzoLanOpsSync.js,app/infra/CrozzoLanSyncBridge.js,app/infra/CrozzoPageCloudWatch.js,app/infra/CrozzoCloudSyncPriorities.js
+alwaysApply: false
+---
+
+# Sync operativo Z0
+
+## Modelo
+
+- Cualquier dispositivo **escribe** lo permitido → nube + LAN → todos **reciben**.
+- Permisos solo en UI (`crozzoHasCajaPermiso`); transporte no bloquea por rol.
+- Nube gana en merge carrito salvo ~12s digitación local (`remoteSlotBeatsLocal`).
+
+## Funciones ancla (PosMain)
+
+- Escritura: `crozzoSyncPosRuntimeCritical(reason)`
+- Lectura: `applyPosRuntimeSnapshot` → `crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true })`
+- Merge carrito: `crozzoReplaceCartsMaps`
+
+## NO tocar
+
+- `CrozzoReservorio*`
+- Anti-flap realtime sin leer `CrozzoCloudThrottle.js` + `CrozzoPosRuntimeCloud.js` juntos
+
+## Verificación
+
+```bash
+npm run test:sync-clinical
+```

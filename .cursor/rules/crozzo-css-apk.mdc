@@ -1,0 +1,17 @@
+---
+description: CSS APK/tablet — reglas touch vs desktop
+globs: app/css/CrozzoPosStyles.css,app/css/CrozzoPantallasShell.css
+alwaysApply: false
+---
+
+# CSS operativo / APK
+
+Antes de editar:
+
+1. Grep en el mismo archivo: `crozzo-touch-shell`, `crozzo-android-apk`, `crozzo-page-operativa`, `crozzo-tablet-order-open`, `crozzo-comandas-touch`
+2. Grep en PosMain: `body.classList.add` para la misma clase
+3. Leer regla competidora `@media (max-width: 1024px)` vs `html.crozzo-touch-shell`
+
+**Criterio:** cambio visible en APK/tablet **y** desktop cajero sin romper corcho/comandas.
+
+Mapa: `docs/maps/DOMAINS.md` → CSS APK/tablet.

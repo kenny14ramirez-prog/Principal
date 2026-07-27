@@ -1,0 +1,40 @@
+﻿# Cache / herramientas externas
+.aider*
+.aider.tags.cache.v4/
+.clineignore
+.clinerules
+
+# Respaldos y copias (NO son fuente — confunden al indexador)
+reservorio/
+respaldo-comunicacion/
+facturas de pruebas/
+Debe mostrar/
+
+# Espejo Tauri (canónico = app/) — evita duplicar 50k+ líneas en el índice
+src/core/
+src/modules/
+src/infra/
+src/ui/
+src/css/
+src/bundles/
+src/vendor/
+src/index.html
+src/Crozzo*.html
+src/crm-registro-cliente.html
+
+# Artefactos build
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+scripts/_qa-out/
+
+# PDFs y binarios grandes
+**/*.pdf
+docs/*.pdf
+docs/*.html
+
+# Android keystore local
+**/keystore.properties
+
+# Monolito legacy (desfasado del shell modular)
+**/Crozzo_POS_Completo.monolith.html

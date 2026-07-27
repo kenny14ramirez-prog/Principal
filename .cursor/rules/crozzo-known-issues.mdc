@@ -1,0 +1,37 @@
+---
+description: Errores conocidos — buscar antes de parchear; no repetir regresiones
+alwaysApply: true
+---
+
+# Errores conocidos (aprendizaje acumulado)
+
+**Antes de diagnosticar o parchear** (sync, LAN, carrito, CSS, workflow):
+
+1. `npm run issues:search -- "síntoma en español"`
+2. Leer [`docs/maps/KNOWN-ISSUES.md`](../../docs/maps/KNOWN-ISSUES.md) o hits de `edit:scope`
+3. Si la solución ya está documentada → **aplicar esa solución**, no reinventar
+
+## Comandos
+
+```bash
+npm run issues:search -- "carrito revierte"
+npm run issues:file -- app/core/CrozzoPosMain.js
+npm run issues:symbol -- crozzoReplaceCartsMaps
+```
+
+## Tras corregir un bug nuevo
+
+1. `npm run issues:next-id`
+2. Copiar [`docs/maps/ISSUE-TEMPLATE.json`](../../docs/maps/ISSUE-TEMPLATE.json) → `known-issues.json`
+3. `npm run issues:validate && npm run issues:refresh`
+4. Si es regla permanente → también [`DECISIONS.md`](../../docs/maps/DECISIONS.md)
+
+## Relación con otros mapas
+
+| Tipo | Archivo |
+|------|---------|
+| Anti-patrón / "no repetir" | KNOWN-ISSUES |
+| Regla fija de diseño | SYNC-INVARIANTS |
+| Por qué decidimos X | DECISIONS |
+
+**No sustituye** leer CONNECTIONS/SEQUENCES — complementa con lecciones de campo.

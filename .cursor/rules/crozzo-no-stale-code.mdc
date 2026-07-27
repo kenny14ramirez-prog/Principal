@@ -1,0 +1,32 @@
+---
+description: Crozzo — no usar código viejo; fuente app/; git y versión al día
+alwaysApply: true
+---
+
+# Anti-código viejo (Crozzo POS)
+
+## Fuente única
+
+| ✅ Editar | ❌ No editar |
+|-----------|--------------|
+| `app/core/`, `app/modules/`, `app/infra/` | `src/core/`, `src/modules/`, `src/infra/` (espejo) |
+| `src-tauri/` (Rust) | `app/bundles/` (generado) |
+| | `reservorio/`, `respaldo-comunicacion/` |
+
+Tras `app/` → `npm run sync` (hook automático).
+
+## Antes de cambios grandes en sync/POS
+
+1. `git status -sb` — debe estar alineado con `origin/main` (0 behind).
+2. Versión canónica: `releases/latest.json` + `app/index.html` meta `crozzo-app-version`.
+3. Si hay duda entre dos copias del mismo archivo, **gana `app/`** siempre.
+
+## PosMain / archivos gigantes
+
+- No confiar en fragmentos cacheados de sesiones anteriores.
+- Re-leer la función completa en `app/core/CrozzoPosMain.js` antes de parchear.
+- Buscar referencias con grep en `app/` (no en `src/`).
+
+## Criterio de entrega
+
+Cambios en sync/LAN/runtime/comandas → `npm run test:sync-clinical` (92 checks).
