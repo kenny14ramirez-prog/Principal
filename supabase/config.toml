@@ -1,0 +1,6 @@
+# Supabase local/project config for Crozzo Edge Functions
+# verify_jwt = false: el gateway no debe tumbar OPTIONS/CORS antes de nuestro handler.
+# Auth la hace el POS con anon key + businessId.
+
+[functions.ai-insights]
+verify_jwt = false
