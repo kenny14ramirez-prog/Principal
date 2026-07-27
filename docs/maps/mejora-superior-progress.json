@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "planDoc": "docs/maps/MEJORA-SUPERIOR-MERCADO-CO-PLAN.md",
+  "opsDoc": "docs/maps/OPS-COMMAND-CENTER.md",
+  "auditSource": "docs/AUDITORIA-CROZZO-POS-MERCADO-CO-2026-07.pdf",
+  "updatedAt": "2026-07-17T20:40:00-05:00",
+  "currentHorizon": "H0",
+  "activeCoa": "COA-FIELD",
+  "parallelDesign": ["COA-FISCAL", "COA-PAY"],
+  "scoreTarget": {
+    "now": 3.0,
+    "d90": 4.0,
+    "d365": 4.5
+  },
+  "sitrep": {
+    "mindHealth": "LISTO",
+    "synapseMemories": 59,
+    "clinical": "green",
+    "criticalOpen": 0,
+    "criticalWatch": ["KI-002"],
+    "watchCount": 10,
+    "gitVsOriginMain": { "behind": 7, "ahead": 2, "branch": "task/-20260706-1846" },
+    "ota": "v1.0.230",
+    "dataicoStamp": "STUB_SIMULATED",
+    "qaSedeFirmado": false
+  },
+  "horizons": {
+    "H0": {
+      "title": "Confianza de sede",
+      "status": "in_progress",
+      "steps": {
+        "H0.1_qa_tienda_p0": {
+          "status": "pending",
+          "doc": "docs/maps/QA-TIENDA-P0-CHECKLIST.md",
+          "note": "Incluye drills §9 fallo Wi-Fi/LAN"
+        },
+        "H0.2_zero_critical_sync": {
+          "status": "partial",
+          "note": "clinical green; 0 open critical; KI-002 watch=git behind"
+        },
+        "H0.3_role_ops_sede": {
+          "status": "ready_code",
+          "note": "ROLE-OPS waves ready_sede; falta campo"
+        },
+        "H0.4_rls_supabase": {
+          "status": "pending",
+          "note": "sync-repair 0.3"
+        },
+        "H0.5_path_health_encargado": {
+          "status": "partial",
+          "note": "CrozzoSedeReadiness seal en diag (DEFCON); sin banners P0"
+        },
+        "H0.6_combat_wave_2026_07_17": {
+          "status": "done",
+          "note": "Readiness+Dataico real+Pay conduit; test:sede-combat en clinical"
+        },
+        "H0.T1_git_align": {
+          "status": "blocked_owner",
+          "note": "7 behind origin/main — pedir OK antes de pull/rebase"
+        }
+      }
+    },
+    "H1": {
+      "title": "Cobro + fiscal CO one-shot",
+      "status": "design_parallel",
+      "steps": {
+        "H1.1_doc_equivalente_cobrar": {
+          "status": "partial",
+          "note": "Dataico POST real + outbox fiscal + pendiente_fiscal; falta credenciales sede + DEE UX one-shot"
+        },
+        "H1.2_reglas_inc_iva_uvt": { "status": "pending" },
+        "H1.3_crm_nit_15s": { "status": "partial" },
+        "H1.4_medio_digital_uno": {
+          "status": "partial",
+          "note": "CrozzoDigitalPayConduit + Idempotency-Key + Wompi; sin llaves exige ref manual"
+        },
+        "H1.5_conciliacion_minima": { "status": "pending" }
+      }
+    },
+    "H2": {
+      "title": "Producto que se siente caro",
+      "status": "pending",
+      "steps": {
+        "H2.1_onboarding": { "status": "pending" },
+        "H2.2_caja_un_trabajo": { "status": "partial" },
+        "H2.3_cierre_propinas": { "status": "pending" },
+        "H2.4_export_contable": { "status": "pending" },
+        "H2.5_posmain_slice_ola1": {
+          "status": "partial",
+          "note": "CrozzoPosFacturasPage + CrozzoPosDianLib ya extraídos"
+        },
+        "H2.6_menu_qr": { "status": "pending" }
+      }
+    },
+    "H3": {
+      "title": "Superpoderes solo-Crozzo",
+      "status": "blocked_until_H0",
+      "steps": {
+        "H3.1_sede_autosanable": {
+          "status": "partial",
+          "note": "heal/mesh base; falta producto dueño"
+        },
+        "H3.2_gemelo_turno": { "status": "pending" },
+        "H3.3_foodcost_ticket": { "status": "pending" },
+        "H3.4_prefetch_menu": { "status": "pending" },
+        "H3.5_delivery_uno": { "status": "pending" },
+        "H3.6_analytics_dueno": { "status": "pending" },
+        "H3.7_federacion_v2": { "status": "pending" }
+      }
+    },
+    "H4": {
+      "title": "Escala y ecosistema",
+      "status": "pending",
+      "steps": {
+        "H4.1_posmain_lt_25k": { "status": "pending" },
+        "H4.2_perifericos_co": { "status": "pending" },
+        "H4.3_segundo_pago": { "status": "pending" },
+        "H4.4_conector_contable": { "status": "pending" },
+        "H4.5_hotel_pms": { "status": "wont_until_paid_client" },
+        "H4.6_modo_rescate_partner": { "status": "pending" }
+      }
+    }
+  },
+  "validationReport": "docs/maps/VALIDATION-REPORT-OPS-2026-07-17.md",
+  "validationLab": "PASS",
+  "validationMercado": "FAIL",
+  "residualPlan": "PLAN-R1",
+  "doctrine": "docs/maps/MILITARY-COMMAND-DOCTRINE.md",
+  "commandWave": "2026-07-17-command-bridge",
+  "nextAction": "Command Bridge FULL_SPECTRUM en lab. Consola: crozzoCommandBriefing(). Siguiente campo: QA sede DDIL + llaves Dataico/Wompi.",
+  "ownerDecisionPending": [
+    "git_align_ok",
+    "sede_piloto_cuando",
+    "habilitador_dian_dataico_vs_taxxa",
+    "wompi_vs_nequi_directo"
+  ]
+}

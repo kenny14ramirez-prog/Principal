@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "planDoc": "docs/maps/COMANDA-AUTOPRINT-REPAIR-PLAN.md",
+  "parentPlan": "docs/maps/LOG-RUNTIME-REPAIR-PLAN.md",
+  "updatedAt": "2026-07-08T02:20:00.000Z",
+  "source": "QA v1.0.229 — auto-print cocina roto, reimprimir manual OK",
+  "status": "code_complete",
+  "productModel": {
+    "rule": "Por dispositivo: pantalla fija + impresora resoluble local + auto ON => imprimir al ingestar el areaId correspondiente",
+    "notRoleBased": "No distingue caja vs cocina como rol; cualquier equipo puede ser estacion de impresion si cumple la regla",
+    "displayOnly": "Pantalla sin impresora local resoluble => solo KDS, sin auto-print",
+    "identification": [
+      "crozzoGetDevicePantallaId (LS por equipo)",
+      "crozzoResolveComandaPrinter / PrintDeviceRegistry.resolvesLocally",
+      "crozzoShouldDevicePrintComanda / crozzoIsLocalPrintTargetForArea",
+      "crozzoDeviceAutoPrintEnabled (LS crozzo_device_auto_print + fallback global)"
+    ]
+  },
+  "symptoms": [
+    "Comanda llega a cocina por nube pero no imprime sola",
+    "Toggle auto-imprimir parece sin efecto en ingest remoto",
+    "Reimprimir manual desde nota funciona",
+    "Impresora del area configurada en comandas"
+  ],
+  "rootCauses": [
+    {
+      "id": "C1",
+      "severity": "critical",
+      "summary": "applyComandaFromCloudRow solo auto-print si changed=true; ingest previo deja comanda sin print",
+      "status": "fixed"
+    },
+    {
+      "id": "C2",
+      "severity": "high",
+      "summary": "printComandaNow silentMode exige autoPrint ON; bloquea batch y confunde con manual",
+      "status": "fixed"
+    },
+    {
+      "id": "C3",
+      "severity": "high",
+      "summary": "isOwnPush bloqueaba print en mismo device_uuid",
+      "status": "fixed"
+    },
+    {
+      "id": "C4",
+      "severity": "medium",
+      "summary": "autoPrint era config global sincronizada",
+      "status": "fixed"
+    }
+  ],
+  "phases": {
+    "0": {
+      "title": "Reproducir con crozzo_debug_sync + matriz escenarios",
+      "priority": "P0",
+      "status": "pending",
+      "files": []
+    },
+    "1": {
+      "title": "Reintento print al ingest si nunca impreso (changed=false)",
+      "priority": "P0",
+      "status": "done",
+      "files": ["app/modules/CrozzoComandasCloudSync.js"]
+    },
+    "2": {
+      "title": "Separar gate silent manual vs auto (printComandaNow)",
+      "priority": "P0",
+      "status": "done",
+      "files": ["app/core/CrozzoPosMain.js"]
+    },
+    "3": {
+      "title": "Print por estacion local (§1b), no por device_id origen",
+      "priority": "P1",
+      "status": "done",
+      "files": ["app/modules/CrozzoComandasCloudSync.js"]
+    },
+    "4": {
+      "title": "autoPrint por equipo (localStorage crozzo_device_auto_print)",
+      "priority": "P2",
+      "status": "done",
+      "files": ["app/core/CrozzoPosMain.js", "app/modules/CrozzoComunicacionDiag.js"]
+    },
+    "5": {
+      "title": "QA manual tienda (caja + cocina)",
+      "priority": "P0",
+      "status": "pending",
+      "files": []
+    }
+  },
+  "verification": {
+    "automated": "npm run sync && npm run test:sync-clinical — 92/92 OK 2026-07-08",
+    "manual": [
+      "Caja comanda -> cocina imprime auto con auto ON",
+      "auto OFF -> sin auto, manual OK",
+      "Imprimir pendientes con auto OFF funciona",
+      "Sin impresora area -> no print"
+    ]
+  }
+}

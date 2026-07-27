@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "planDoc": "docs/maps/SYNC-REPAIR-PLAN.md",
+  "updatedAt": "2026-07-14T22:30:00.000Z",
+  "currentPhase": "5",
+  "logicasCascade": {
+    "sprint0": "docs/maps/FLEET-DIAG-SEDE.md",
+    "sprint1": "Z0 hybrid keep LAN on cloud tier; LocalSyncAllowed; emit+pull",
+    "sprint2": "docs/maps/LOGICAS-PLAN-BASICO.md + basico_hotel",
+    "sprint3": "multi-area window exports; LAN already tokio async",
+    "sprint4": "hotel Hab. labels + venta-comercial intervalMs 3200"
+  },
+  "phases": {
+    "0": {
+      "title": "Diagnóstico y base de datos",
+      "status": "partial",
+      "steps": {
+        "0.1_git_version": { "status": "done", "note": "branch task/-20260706-1846; schema audit OK" },
+        "0.2_supabase_schema": { "status": "done", "note": "23/23 _supabase-schema-audit.mjs" },
+        "0.3_supabase_rls": { "status": "pending", "note": "RLS por rol — requiere Supabase dashboard" },
+        "0.4_tienda_config": { "status": "pending", "note": "checklist consola en sede piloto" },
+        "0.5_lan_puertos": { "status": "partial", "note": "fix puerto ocupado sesión previa" }
+      }
+    },
+    "1": {
+      "title": "Z0 transporte híbrido",
+      "status": "done",
+      "steps": {
+        "1.1_lan_parallel_push": { "status": "done", "files": ["app/modules/CrozzoComandasCloudSync.js"] },
+        "1.2_caja_lan_comandas": { "status": "done", "files": ["app/modules/CrozzoComandasCloudSync.js"] },
+        "1.3_standby_outbox": { "status": "done", "files": ["app/infra/CrozzoConnectivityStandby.js"] },
+        "1.4_sync_clinical": { "status": "done", "note": "reconcileStale: true en ReconnectSync" }
+      }
+    },
+    "2": {
+      "title": "Reservorio operativo merge",
+      "status": "done",
+      "steps": {
+        "2.1_apply_remote_empty_guard": { "status": "done", "files": ["app/modules/CrozzoPosRuntimeCloud.js"] },
+        "2.2_mesa_rows_from_snap": { "status": "done", "files": ["app/modules/CrozzoPosRuntimeCloud.js"] },
+        "2.3_listo_no_libera_mesa": { "status": "done", "files": ["app/core/CrozzoPosMain.js"] },
+        "2.4_presencia_mesa": { "status": "done", "note": "crozzoSyncPosRuntimeCritical slot_presence_exit ya existía" }
+      }
+    },
+    "3": {
+      "title": "Perfil sync por rol",
+      "status": "done",
+      "steps": {
+        "3.1_user_sync_profile_module": { "status": "done", "files": ["app/infra/CrozzoUserSyncProfile.js"] },
+        "3.2_page_cloud_watch_integration": { "status": "done", "files": ["app/infra/CrozzoPageCloudWatch.js", "app/index.html"] },
+        "3.3_rls_supabase": { "status": "pending", "note": "Fase 0.3 — políticas en Supabase" }
+      }
+    },
+    "4": {
+      "title": "Zonas Z1/Z2/Z3 + calidad nube",
+      "status": "done",
+      "steps": {
+        "4.1_z1_nav_audit": { "status": "done", "note": "PAGE_REGISTRY P1 sin cambios; dominios filtrados por rol" },
+        "4.2_z2_purge_central": { "status": "done", "files": ["app/modules/CrozzoComandasCloudSync.js"] },
+        "4.3_cloud_quality_metric": { "status": "done", "files": ["app/infra/CrozzoConnectivityStandby.js"] }
+      }
+    },
+    "5": {
+      "title": "QA tienda",
+      "status": "pending",
+      "steps": {
+        "5.1_escenarios_oro": { "status": "pending", "doc": "docs/QA-OPERATIVO-ORO.md", "note": "requiere prueba manual en sede" }
+      }
+    }
+  },
+  "nextAction": "Ejecutar docs/maps/QA-TIENDA-P0-CHECKLIST.md en sede; Fase 0.3 RLS Supabase; verificar locationId en todos los dispositivos"
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-14",
+  "plan": "ROLE-OPS-AUDIT-PLAN.md",
+  "interactions": "ROLE-OPS-INTERACTIONS.md",
+  "waves": {
+    "A_caja": {
+      "status": "ready_sede",
+      "ki": ["KI-021", "KI-022", "KI-026", "KI-030", "KI-031", "KI-033", "KI-034"],
+      "notes": "Código verde + residuales KI-034. Probar checklist §8 Caja."
+    },
+    "B_mesero": {
+      "status": "ready_sede",
+      "ki": ["KI-027", "KI-034"],
+      "notes": "Tablet RBAC + open slot. Probar checklist §8 Mesero."
+    },
+    "C_cocina": {
+      "status": "ready_sede",
+      "ki": ["KI-023", "KI-024", "KI-025", "KI-032", "KI-033", "KI-034"],
+      "notes": "LISTO + reimprimir v11. Probar checklist §8 Cocina."
+    },
+    "D_encargado": {
+      "status": "ready_sede",
+      "ki": ["KI-028", "KI-029", "KI-033", "KI-034"],
+      "notes": "Anular + open con anular. Probar checklist §8 Encargado."
+    },
+    "E_admin": {
+      "status": "ready_sede",
+      "ki": ["KI-029", "KI-031"],
+      "notes": "Plantillas alineadas."
+    },
+    "F_resto": {
+      "status": "ready_sede",
+      "ki": ["KI-030", "KI-031", "KI-032", "KI-033", "KI-034"],
+      "notes": "Recepción + inventario menús. Checklist §8 Recepción."
+    }
+  }
+}

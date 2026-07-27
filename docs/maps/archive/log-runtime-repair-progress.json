@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "planDoc": "docs/maps/LOG-RUNTIME-REPAIR-PLAN.md",
+  "parentPlan": "docs/maps/SYNC-REPAIR-PLAN.md",
+  "updatedAt": "2026-07-08T00:05:00.000Z",
+  "source": "Logs Tauri v1.0.229 post-login, caja sola",
+  "status": "code_complete",
+  "phases": {
+    "A": {
+      "title": "Impresión comandas — buildFullTicketData",
+      "priority": "P0",
+      "status": "done",
+      "files": ["app/core/CrozzoPosMain.js"]
+    },
+    "B": {
+      "title": "Realtime SUBSCRIBED→CLOSED post-login",
+      "priority": "P1",
+      "status": "done",
+      "files": [
+        "app/infra/CrozzoConnectivityOrchestrator.js",
+        "app/modules/CrozzoComandasCloudSync.js",
+        "app/infra/CrozzoPairingAutoConnect.js",
+        "app/infra/CrozzoFleetOperationalReconcile.js"
+      ]
+    },
+    "C": {
+      "title": "Unificar crozzoDeferLocalSync",
+      "priority": "P1",
+      "status": "done",
+      "files": ["app/core/CrozzoPosMain.js", "app/infra/CrozzoConnectivityStandby.js", "docs/maps/DECISIONS.md"]
+    },
+    "D": {
+      "title": "pushMesaRows thrashing",
+      "priority": "P2",
+      "status": "done",
+      "files": ["app/modules/CrozzoPosRuntimeCloud.js"]
+    },
+    "E": {
+      "title": "Ruido INSERT aplicado false",
+      "priority": "P3",
+      "status": "done",
+      "files": ["app/modules/CrozzoComandasCloudSync.js", "docs/maps/known-issues.json"]
+    },
+    "F": {
+      "title": "QA tienda post-fix",
+      "priority": "P0",
+      "status": "pending",
+      "note": "Manual en Tauri: Ctrl+Shift+R, login, reimprimir, comandar"
+    }
+  },
+  "verification": {
+    "npm_run_sync": "ok",
+    "test_sync_clinical": "92/92 OK"
+  },
+  "nextAction": "Usuario: reiniciar Tauri (Ctrl+Shift+R) y ejecutar checklist Fase F"
+}
