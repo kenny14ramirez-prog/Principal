@@ -41,7 +41,8 @@ Generados desde `app/`. No editar a mano.
 | Mapa | Cuándo leerlo |
 |------|----------------|
 | [DECISIONS.md](DECISIONS.md) | ADRs D-001..D-NNN. Evitar re-debatir en código. ADRs referenciados: D-010 (path scoreboard/mesh), D-012 (fleet_roster), D-014 (sello sede/Dataico honesto), D-016 (fachada Command Bridge) |
-| [MILITARY-COMMAND-DOCTRINE.md](MILITARY-COMMAND-DOCTRINE.md) | Doctrina armamento DDIL; `crozzoCommandBriefing()`; INTEL mercado CO |
+| [FISCAL-CO-BLOQUEANTES.md](FISCAL-CO-BLOQUEANTES.md) | ⚖️ **Los 12 requisitos fiscales DIAN bloqueantes** + estado código + plan H1. Lectura obligatoria antes de tocar módulo fiscal. |
+| [MILITARY-COMMAND-DOCTRINE.md](MILITARY-COMMAND-DOCTRINE.md) | Doctrina armamento DDIL; `crozzoCommandBriefing()`; INTEL mercado CO actualizada (WARO/Cuenti/iFood como nuevos entrantes) |
 | [SYNC-INVARIANTS.md](SYNC-INVARIANTS.md) | Reglas fijas (nunca violar) — cualquier cambio Z0 |
 | [CONNECTIONS.md](CONNECTIONS.md) | Conexiones (quién llama a quién) — grafo Mermaid capa Z0 |
 | [SEQUENCES.md](SEQUENCES.md) | Secuencias lógicas (flujos paso a paso) — cobro, comandar |
