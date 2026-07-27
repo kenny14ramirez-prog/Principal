@@ -1,0 +1,23 @@
+{
+  "_comment": "Copiar objeto (sin _comment) a known-issues.json → issues[]. Luego: npm run issues:validate && npm run issues:refresh",
+  "id": "KI-NNN",
+  "status": "resolved",
+  "severity": "critical",
+  "title": "Título corto del bug o anti-patrón",
+  "symptoms": [
+    "Qué ve el usuario o el agente",
+    "Segundo síntoma observable"
+  ],
+  "rootCause": "Por qué fallaba — causa raíz, no síntoma",
+  "solution": "Qué hacer exactamente — archivos, funciones, flags",
+  "avoid": [
+    "Qué NO volver a intentar"
+  ],
+  "tags": ["sync", "regression"],
+  "files": ["app/ruta/archivo.js"],
+  "symbols": ["nombreFuncion"],
+  "relatedAdr": "D-00N",
+  "relatedTests": ["test:sync-clinical"],
+  "fixedIn": "v1.0.xxx o fecha",
+  "learnedFrom": "Sesión / PR / tienda — una línea"
+}
