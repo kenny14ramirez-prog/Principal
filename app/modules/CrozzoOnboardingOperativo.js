@@ -246,6 +246,107 @@
     }
   }
 
+  // ── H1.0g Sandbox Semilla — carga automática del dataset ficticio ────────
+  // Si el comerciante está en Nivel 0 (Semilla) y nunca cargó datos demo,
+  // puebla el catálogo/clientes/sede con el dataset de CrozzoSandboxFiscal.
+  // Flag 'crozzo_sandbox_seeded' evita re-cargar si el comerciante ya limpió.
+  var LS_SANDBOX_SEEDED = 'crozzo_sandbox_seeded';
+
+  function getConfigManager() {
+    return (typeof global.crozzoPosConfigManager === 'object' && global.crozzoPosConfigManager)
+      || (typeof global.CrozzoPosConfigManager === 'object' && global.CrozzoPosConfigManager)
+      || null;
+  }
+
+  function maybeSeedSandboxDataset() {
+    try {
+      var cfg = getConfigManager();
+      if (!cfg || typeof cfg.isSandboxFiscal !== 'function' || !cfg.isSandboxFiscal()) return;
+      var alreadySeeded = false;
+      try { alreadySeeded = localStorage.getItem(LS_SANDBOX_SEEDED) === '1'; } catch (_) {}
+      if (alreadySeeded) return;
+      var sandbox = global.CrozzoSandboxFiscal;
+      if (!sandbox || typeof sandbox.cargarDataset !== 'function') return;
+
+      // Hooks adaptadores: el POS expone distintas APIs para cargar datos.
+      // Cargar productos (catálogo demo)
+      var cargadorProd = (typeof global.crozzoAppendDemoProductos === 'function')
+        ? global.crozzoAppendDemoProductos
+        : (typeof global.crozzoSeedProductosDemo === 'function' ? global.crozzoSeedProductosDemo : null);
+      var cargadorCli = (typeof global.crozzoAppendDemoClientes === 'function')
+        ? global.crozzoAppendDemoClientes
+        : (typeof global.crozzoSeedClientesDemo === 'function' ? global.crozzoSeedClientesDemo : null);
+      var cargadorSede = null;
+
+      var total = sandbox.cargarDataset(cargadorProd, cargadorCli, cargadorSede);
+      try { localStorage.setItem(LS_SANDBOX_SEEDED, '1'); } catch (_) {}
+      if (typeof global.showToast === 'function' && total > 0) {
+        global.showToast('🌱 Modo capacitación: ' + total + ' datos demo cargados. No tienen validez fiscal.', 'info');
+      }
+    } catch (e) {
+      console.warn('[crozzo-onb] maybeSeedSandboxDataset falló (no crítico):', e);
+    }
+  }
+
+  /**
+   * H1.0g — Resumen del panel "Mi crecimiento" para render en inicio/admin.
+   * Consume CrozzoDetectorMadurez.resumenPanel(). Devuelve HTML mínimo.
+   * El comerciante ve: su nivel actual, barra de progreso al próximo umbral,
+   * requisitos pendientes para subir, y alertas activas.
+   */
+  function renderMiCrecimientoPanelHtml(ctx) {
+    try {
+      var cfg = getConfigManager();
+      var det = global.CrozzoDetectorMadurez;
+      if (!cfg || !det) return '';
+      var panel = det.resumenPanel(cfg, ctx || {});
+      var h = [];
+      h.push('<div class="crozzo-mi-crecimiento" role="region" aria-label="Mi crecimiento">');
+      h.push('<h3>' + (panel.nivelActual.icon || '') + ' ' + (panel.nivelActual.nombre || '') + '</h3>');
+      h.push('<p class="crozzo-mc-sub">' + (panel.nivelActual.subtitulo || '') + '</p>');
+
+      // Barra de progreso al umbral responsable IVA (solo si aún no responsable)
+      if (panel.ingresos && panel.ingresos.pctUmbral < 1.5 && cfg.getRegimenFiscal() === 'no_responsable') {
+        var pct = Math.max(0, Math.min(100, Math.round(panel.barraProgresoUmbral * 100)));
+        h.push('<div class="crozzo-mc-bar-wrap" title="Progreso hacia el umbral de Responsable de IVA (3.500 UVT/año)">');
+        h.push('<div class="crozzo-mc-bar-label">Hacia Responsable de IVA: ' + pct + '%</div>');
+        h.push('<div class="crozzo-mc-bar"><div class="crozzo-mc-bar-fill" style="width:' + pct + '%"></div></div>');
+        h.push('</div>');
+      }
+
+      // Próximo nivel + requisitos
+      if (panel.proximoNivel) {
+        h.push('<div class="crozzo-mc-next">');
+        h.push('<strong>Siguiente: ' + panel.proximoNivel.icon + ' ' + panel.proximoNivel.nombre + '</strong>');
+        if (panel.requisitosProximoNivel && panel.requisitosProximoNivel.faltantes.length) {
+          h.push('<ul class="crozzo-mc-req">');
+          panel.requisitosProximoNivel.faltantes.forEach(function (r) {
+            h.push('<li>☐ ' + r + '</li>');
+          });
+          h.push('</ul>');
+        } else {
+          h.push('<p class="crozzo-mc-ready">✓ Requisitos completos — listo para subir</p>');
+        }
+        h.push('</div>');
+      }
+
+      // Alertas activas
+      if (panel.alertas && panel.alertas.length) {
+        h.push('<div class="crozzo-mc-alertas">');
+        panel.alertas.forEach(function (a) {
+          h.push('<div class="crozzo-mc-alert sev-' + (a.severidad || 'media') + '">⚠️ ' + (a.titulo || '') + '</div>');
+        });
+        h.push('</div>');
+      }
+
+      h.push('</div>');
+      return h.join('');
+    } catch (e) {
+      console.warn('[crozzo-onb] renderMiCrecimientoPanelHtml falló:', e);
+      return '';
+    }
+  }
+
   function detectStep(id) {
     var st = readStore();
     try {
@@ -1624,6 +1725,8 @@
     patchNavigateShiftHint();
     bindPerfilChange();
     applyPeakNoviceMode();
+    // ── H1.0g: Sandbox Semilla — cargar dataset ficticio automático en Nivel 0 ──
+    maybeSeedSandboxDataset();
     if (!global.__crozzoPeakPoll) {
       global.__crozzoPeakPoll = setInterval(applyPeakNoviceMode, 45000);
     }
@@ -1668,6 +1771,9 @@
     confirmNoviceArqueo: confirmNoviceArqueo,
     proceedNoviceArqueo: proceedNoviceArqueo,
     applyPeakNoviceMode: applyPeakNoviceMode,
+    // H1.0g
+    maybeSeedSandboxDataset: maybeSeedSandboxDataset,
+    renderMiCrecimientoPanelHtml: renderMiCrecimientoPanelHtml,
     renderHumanStressPanel: renderHumanStressPanel,
     exportMetricsCsv: exportMetricsCsv,
     recordDailySnapshotIfNeeded: recordDailySnapshotIfNeeded,
