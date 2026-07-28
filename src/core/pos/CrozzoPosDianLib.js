@@ -540,15 +540,38 @@ function createProvider(type) {
 // ==========================================
 // packages/shared-dian/invoice-service.ts
 // ==========================================
+/**
+ * H1.0b — CANdado duro anti-CUFE-simulado (resuelve violación C4).
+ *
+ * Antes: si isDemoMode() → mockStamp() generaba un hash falso etiquetado CUFE.
+ *   Eso violaba la doctrina "honestidad de combate". Nunca producía CUFE válido.
+ *
+ * Ahora: si el comerciante está en Nivel 0 (Semilla/Sandbox), timbrarFactura
+ *   LANZA SandboxFiscalException. Nunca llama a DIAN, nunca simula CUFE.
+ *   El Nivel 0 emite tickets de capacitación explícitamente inválidos vía
+ *   CrozzoSandboxFiscal.generarTicketCapacitacion() — no por aquí.
+ *
+ * retrocompat: si un configManager inyecta el sandbox, se respeta; si no,
+ *   el legacy modoDemo ya no timbra (lanza error claro en vez de mock).
+ */
 async function timbrarFactura(xml, factura, config) {
-  if (typeof config.isDemoMode === 'function' ? config.isDemoMode() : config.modoDemo) {
-    return await mockStamp(xml, factura);
+  // ── H1.0b Candado Sandbox (Nivel 0 Semilla) — bloqueo DURO ──
+  var sandbox = (typeof window !== 'undefined' && window.CrozzoSandboxFiscal) ||
+                (typeof globalThis !== 'undefined' && globalThis.CrozzoSandboxFiscal);
+  if (sandbox && typeof sandbox.assertNoSandbox === 'function') {
+    sandbox.assertNoSandbox(config); // lanza SandboxFiscalException si nivelMadurez===0
+  } else if (typeof config.isDemoMode === 'function' ? config.isDemoMode() : config.modoDemo) {
+    // Fallback legacy sin CrozzoSandboxFiscal cargado: bloquear (no simular).
+    throw new Error('Modo demo/Sandbox activo: no se puede timbrar factura legal. ' +
+      'Sube a nivel Brote (1) o superior y configura DIAN para facturar electrónicamente.');
   }
   const validation = config.canGoLive();
   if (!validation.valid) {
     throw new Error(`Configuración incompleta: ${validation.missing.join(', ')}`);
   }
   const provider = createProvider(config.getProveedor().type);
+  // H1.5 (pendiente): proveedor 'mock' debe eliminarse o limitarse a ambiente test
+  // explícito. Por ahora se mantiene pero ya no es la ruta del Sandbox.
   return await provider.stamp(xml, factura, config);
 }
 function crozzoFiscalOutboxUpdate(id, patch) {

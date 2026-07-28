@@ -32,8 +32,8 @@
 | 1301 | `app/core/CrozzoTermicaColombia.js` |
 | 1046 | `app/core/CrozzoTermicaPremium.js` |
 | 344 | `app/core/CrozzoViewportFit.js` |
-| 564 | `app/core/pos/CrozzoPosConfigManager.js` |
-| 577 | `app/core/pos/CrozzoPosDianLib.js` |
+| 652 | `app/core/pos/CrozzoPosConfigManager.js` |
+| 600 | `app/core/pos/CrozzoPosDianLib.js` |
 | 1172 | `app/core/pos/CrozzoPosFacturasPage.js` |
 | 110 | `app/core/pos/CrozzoPosKeyboard.js` |
 
@@ -127,6 +127,7 @@
 | 276 | `app/modules/CrozzoCuposClientes.js` |
 | 281 | `app/modules/CrozzoDailyPairing.js` |
 | 87 | `app/modules/CrozzoDataicoDock.js` |
+| 221 | `app/modules/CrozzoDetectorMadurez.js` |
 | 44 | `app/modules/CrozzoDianVpfeDock.js` |
 | 273 | `app/modules/CrozzoDocScanner.js` |
 | 44 | `app/modules/CrozzoDriveDock.js` |
@@ -148,6 +149,7 @@
 | 831 | `app/modules/CrozzoModulosIntegrados.js` |
 | 810 | `app/modules/CrozzoModulosIntegradosAcceso.js` |
 | 505 | `app/modules/CrozzoModulosIntegradosPedidos.js` |
+| 242 | `app/modules/CrozzoNivelesMadurez.js` |
 | 108 | `app/modules/CrozzoOcrLearning.js` |
 | 66 | `app/modules/CrozzoOficinaHub.js` |
 | 1686 | `app/modules/CrozzoOnboardingOperativo.js` |
@@ -160,9 +162,9 @@
 | 648 | `app/modules/CrozzoPairingQrReader.js` |
 | 186 | `app/modules/CrozzoPairingQuickQr.js` |
 | 538 | `app/modules/CrozzoPedidosInternosEngine.js` |
-| 532 | `app/modules/CrozzoPerfilesBiblioteca.js` |
+| 542 | `app/modules/CrozzoPerfilesBiblioteca.js` |
 | 425 | `app/modules/CrozzoPerfilesLogica.js` |
-| 630 | `app/modules/CrozzoPerfilesOperativos.js` |
+| 714 | `app/modules/CrozzoPerfilesOperativos.js` |
 | 686 | `app/modules/CrozzoPermisosPolicy.js` |
 | 3332 | `app/modules/CrozzoPlanilla2026.js` |
 | 2149 | `app/modules/CrozzoPosRuntimeCloud.js` |
@@ -184,6 +186,7 @@
 | 201 | `app/modules/CrozzoReservorioOffline.js` |
 | 38 | `app/modules/CrozzoReservorioSql.js` |
 | 380 | `app/modules/CrozzoSalonSlotsConfig.js` |
+| 163 | `app/modules/CrozzoSandboxFiscal.js` |
 | 9232 | `app/modules/CrozzoSistemaCostos.js` |
 | 44 | `app/modules/CrozzoSpotifyDock.js` |
 | 516 | `app/modules/CrozzoStaffCelebrations.js` |

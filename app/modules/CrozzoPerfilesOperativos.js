@@ -18,6 +18,15 @@
     retail: 'basico_tienda',
     servicios: 'basico_tienda',
     basico: 'basico_tienda',
+    // H1.0f — comercios pequeños típicos de barrio (Colombia)
+    fruteria: 'basico_fruteria',
+    frutería: 'basico_fruteria',
+    verduleria: 'basico_fruteria',
+    minimarket: 'basico_minimarket',
+    mini_market: 'basico_minimarket',
+    abasto: 'basico_abasto',
+    abarrotes: 'basico_abasto',
+    panaderia: 'basico_minimarket',
   };
 
   /** Módulos compartidos del plan básico (sin bodegas/remisiones, sin planilla, compras básicas). */
@@ -56,11 +65,23 @@
   /** Hotel F&B: misma base que restaurante (habitaciones = mesas Hab.* hasta folio dedicado). */
   var BASICO_HOTEL_EXTRA = BASICO_RESTAURANTE_EXTRA.slice();
 
+  // ── H1.0f Comercios pequeños típicos de barrio (Colombia) ──
+  // Heredan de tienda (mostrador, sin cocina) con énfasis en inventario/caducidad.
+  // Frutería/abasto: productos perecederos por peso, pérdida/merma alta.
+  // Minimarket: catálogo amplio, menos perecederos, más SKU.
+  var BASICO_FRUTERIA_EXTRA = ['inicio-operacion', 'venta-comercial', 'facturas', 'cierre-caja', 'caja', 'inventarios', 'centro-compras'];
+  var BASICO_ABASTO_EXTRA = BASICO_FRUTERIA_EXTRA.slice();
+  var BASICO_MINIMARKET_EXTRA = ['inicio-operacion', 'venta-comercial', 'facturas', 'cierre-caja', 'caja', 'inventarios', 'centro-compras', 'compras-proveedores'];
+
   /** Módulos permitidos por perfil (cliente / negocio). */
   var PERFIL_CLIENT_MENUS = {
     basico_restaurante: BASICO_SHARED.concat(BASICO_RESTAURANTE_EXTRA),
     basico_tienda: BASICO_SHARED.concat(BASICO_TIENDA_EXTRA),
     basico_hotel: BASICO_SHARED.concat(BASICO_HOTEL_EXTRA),
+    // H1.0f
+    basico_fruteria: BASICO_SHARED.concat(BASICO_FRUTERIA_EXTRA),
+    basico_abasto: BASICO_SHARED.concat(BASICO_ABASTO_EXTRA),
+    basico_minimarket: BASICO_SHARED.concat(BASICO_MINIMARKET_EXTRA),
   };
 
   /** Menú lateral por rol (solo perfiles con roles definidos; personalizado = sin filtro). */
@@ -203,6 +224,61 @@
       shiftTip: true,
       habitacionesComoMesas: true,
     },
+    // ── H1.0f Comercios pequeños de barrio (acompañan al comerciante que crece) ──
+    basico_fruteria: {
+      id: 'basico_fruteria',
+      label: 'Plan básico · Frutería / Verdulería',
+      desc:
+        'Venta de frutas y verduras por peso. Énfasis en inventario perecedero, merma y rotación. Sin cocina ni mesas.',
+      icon: '🍎',
+      tipo: 'retail',
+      tamano: 'basico',
+      experiencia: 'novice',
+      home: 'venta-comercial',
+      roleMenus: true,
+      onboarding: true,
+      debounceMs: 700,
+      dupWindowMs: 100000,
+      dupRatio: 0.78,
+      shiftTip: true,
+      perecedero: true,
+      pesoVariable: true,
+    },
+    basico_abasto: {
+      id: 'basico_abasto',
+      label: 'Plan básico · Abasto / Abarrotes',
+      desc:
+        'Tienda de barrio pequeña: víveres, básicos de canasta, algo perecedero. Venta rápida en mostrador.',
+      icon: '🛒',
+      tipo: 'retail',
+      tamano: 'basico',
+      experiencia: 'novice',
+      home: 'venta-comercial',
+      roleMenus: true,
+      onboarding: true,
+      debounceMs: 700,
+      dupWindowMs: 100000,
+      dupRatio: 0.78,
+      shiftTip: true,
+      perecedero: true,
+    },
+    basico_minimarket: {
+      id: 'basico_minimarket',
+      label: 'Plan básico · Minimarket / Panadería',
+      desc:
+        'Catálogo amplio (víveres, aseo, bebidas, snacks), gestión de proveedores. Venta mostrador rápida.',
+      icon: '🏪',
+      tipo: 'retail',
+      tamano: 'basico',
+      experiencia: 'novice',
+      home: 'venta-comercial',
+      roleMenus: true,
+      onboarding: true,
+      debounceMs: 700,
+      dupWindowMs: 100000,
+      dupRatio: 0.78,
+      shiftTip: true,
+    },
     personalizado: {
       id: 'personalizado',
       label: 'Personalizado (Super Admin)',
@@ -287,7 +363,15 @@
   }
 
   function listPerfiles() {
-    return [PERFIL_META.basico_restaurante, PERFIL_META.basico_tienda, PERFIL_META.basico_hotel];
+    return [
+      PERFIL_META.basico_restaurante,
+      PERFIL_META.basico_tienda,
+      PERFIL_META.basico_hotel,
+      // H1.0f — comercios de barrio (pequeños)
+      PERFIL_META.basico_fruteria,
+      PERFIL_META.basico_abasto,
+      PERFIL_META.basico_minimarket,
+    ];
   }
 
   function listPerfilesRestaurante() {

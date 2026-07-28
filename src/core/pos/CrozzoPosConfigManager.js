@@ -43,8 +43,10 @@ class ConfigManager {
         cfg = window.__crozzoApplyStandaloneSupabaseToConfig(cfg) || cfg;
       }
       return this.applyImpuestosMigration(
-        this.applyPosExtensionsMigration(
-          this.applyCrmLiteMigration(this.applyOperacionModoMigration(this.applyCoreSectionsMigration(cfg)))
+        this.applyMadurezMigration(
+          this.applyPosExtensionsMigration(
+            this.applyCrmLiteMigration(this.applyOperacionModoMigration(this.applyCoreSectionsMigration(cfg)))
+          )
         )
       );
     } catch (e) {
@@ -53,8 +55,10 @@ class ConfigManager {
         cfg = window.__crozzoApplyStandaloneSupabaseToConfig(cfg) || cfg;
       }
       return this.applyImpuestosMigration(
-        this.applyPosExtensionsMigration(
-          this.applyCrmLiteMigration(this.applyOperacionModoMigration(this.applyCoreSectionsMigration(cfg)))
+        this.applyMadurezMigration(
+          this.applyPosExtensionsMigration(
+            this.applyCrmLiteMigration(this.applyOperacionModoMigration(this.applyCoreSectionsMigration(cfg)))
+          )
         )
       );
     }
@@ -176,11 +180,74 @@ class ConfigManager {
     if (!c.demoSubmodo || (c.demoSubmodo !== 'fe' && c.demoSubmodo !== 'pos')) c.demoSubmodo = 'pos';
     return c;
   }
+  /**
+   * H1.0 — Migra configs legacy al esquema de Madurez Empresarial (5 niveles).
+   * - Configs nuevos: nivel 0 (Semilla/Sandbox), regimen 'no_responsable'.
+   * - Configs legacy sin bloque madurez: infiere nivel/regimen desde flags existentes
+   *   (responsableIVA, operacionModo, regimenFiscal empresa) para no romper installs activos.
+   * Ver docs/maps/MADUREZ-EMPRESARIAL-CO.md
+   */
+  applyMadurezMigration(cfg) {
+    const c = cfg || {};
+    const REGIMENES = ['no_responsable', 'responsable_iva', 'simple', 'gran_contribuyente'];
+    const def = this.getDefaultConfig().madurez;
+    if (!c.madurez || typeof c.madurez !== 'object') c.madurez = JSON.parse(JSON.stringify(def));
+    // Coherencia de tipos y defaults
+    if (typeof c.madurez.nivel !== 'number' || c.madurez.nivel < 0 || c.madurez.nivel > 4) {
+      c.madurez.nivel = def.nivel;
+    }
+    if (!REGIMENES.includes(c.madurez.regimenFiscal)) {
+      // Inferencia legacy: si no hay régimen explícito, derivar de flags viejos
+      const respIVA = c.impuestos && c.impuestos.responsableIVA;
+      const regEmpresa = c.empresa && c.empresa.regimenFiscal;
+      if (regEmpresa === 'simple' || regEmpresa === 'no_responsable') {
+        c.madurez.regimenFiscal = regEmpresa;
+      } else if (respIVA === true) {
+        c.madurez.regimenFiscal = 'responsable_iva';
+      } else {
+        c.madurez.regimenFiscal = 'no_responsable';
+      }
+    }
+    // Inferencia de nivel si sigue en 0 (Semilla) pero ya operaba electrónicamente
+    if (c.madurez.nivel === 0 && c.operacionModo === 'electronic') {
+      // Ya facturaba electrónico legacy → mínimo Brote/Planta según régimen
+      c.madurez.nivel = (c.madurez.regimenFiscal === 'responsable_iva' || c.madurez.regimenFiscal === 'simple') ? 2 : 1;
+    }
+    if (c.madurez.nivelSugerido !== null && typeof c.madurez.nivelSugerido !== 'number') c.madurez.nivelSugerido = null;
+    if (!c.madurez.ingresosAcumuladosAnho || typeof c.madurez.ingresosAcumuladosAnho !== 'object') {
+      c.madurez.ingresosAcumuladosAnho = JSON.parse(JSON.stringify(def.ingresosAcumuladosAnho));
+    }
+    if (!c.madurez.requisitosCompletados || typeof c.madurez.requisitosCompletados !== 'object') {
+      c.madurez.requisitosCompletados = JSON.parse(JSON.stringify(def.requisitosCompletados));
+    }
+    // Sincronizar espejo legacy empresa.regimenFiscal + impuestos.responsableIVA
+    if (c.empresa) c.empresa.regimenFiscal = c.madurez.regimenFiscal;
+    if (c.impuestos) c.impuestos.responsableIVA = (c.madurez.regimenFiscal === 'responsable_iva' || c.madurez.regimenFiscal === 'gran_contribuyente');
+    return c;
+  }
   getDefaultConfig() {
     return {
       operacionModo: 'simple',
       modoDemo: false,
       demoSubmodo: 'pos',
+      // ─── H1.0 Madurez empresarial (5 niveles: Semilla→Cadena) ───
+      // nivelMadurez 0-4 controla qué obligaciones fiscales se habilitan.
+      // Ver docs/maps/MADUREZ-EMPRESARIAL-CO.md y CrozzoNivelesMadurez.js
+      madurez: {
+        nivel: 0,            // 0=Semilla(sandbox) 1=Brote 2=Planta 3=Roble 4=Cadena
+        regimenFiscal: 'no_responsable',  // 'no_responsable' | 'responsable_iva' | 'simple' | 'gran_contribuyente'
+        nivelSugerido: null, // detector automático (CrozzoDetectorMadurez); null si no hay sugerencia
+        fechaCambioNivel: null,
+        // Tracking para detectores (acumuladores anuales, reset por año)
+        ingresosAcumuladosAnho: { anho: null, total: 0, uvt: 0 },
+        // Banderas de requisitos completados por nivel (graduación)
+        requisitosCompletados: {
+          rutCargado: false,
+          resolucionDian: false,
+          certificadoCargado: false,
+          habilitacionDian: false
+        }
+      },
       empresa: {
         nit: '',
         dv: '',
@@ -192,7 +259,7 @@ class ConfigManager {
         codigoPostal: '',
         departamento: '',
         ciudad: '',
-        regimenFiscal: 'responsable_iva',
+        regimenFiscal: 'responsable_iva',  // legacy (espejo de madurez.regimenFiscal para retrocompat)
         matriculaMercantil: '',
         actividadEconomica: ''
       },
@@ -427,6 +494,27 @@ class ConfigManager {
   }
   isSimpleMode() { return this.getOperacionModo() === 'simple'; }
   isElectronicMode() { return this.getOperacionModo() === 'electronic'; }
+  // ─── H1.0 Madurez empresarial — getters ───
+  /** Nivel de madurez fiscal 0-4 (Semilla→Cadena). Ver CrozzoNivelesMadurez.js. */
+  getNivelMadurez() {
+    const m = this.config.madurez || {};
+    const n = Number(m.nivel);
+    return Number.isInteger(n) && n >= 0 && n <= 4 ? n : 0;
+  }
+  /** Régimen tributario del emisor ('no_responsable'|'responsable_iva'|'simple'|'gran_contribuyente'). */
+  getRegimenFiscal() {
+    const m = this.config.madurez || {};
+    const REG = ['no_responsable', 'responsable_iva', 'simple', 'gran_contribuyente'];
+    return REG.includes(m.regimenFiscal) ? m.regimenFiscal : 'no_responsable';
+  }
+  /** ¿Está en Sandbox (Nivel 0)? Candado duro anti-CUFE-real. */
+  isSandboxFiscal() { return this.getNivelMadurez() === 0; }
+  /** ¿Puede emitir documentos fiscales válidos (FEV/tiquete)? Nivel >= 1. */
+  puedeEmitirFiscal() { return this.getNivelMadurez() >= 1; }
+  /** ¿Es agente retenedor (ReteFuente/IVA/ICA)? Solo gran contribuyente o nivel >= 3. */
+  esAgenteRetenedor() {
+    return this.getRegimenFiscal() === 'gran_contribuyente' || this.getNivelMadurez() >= 3;
+  }
   getDemoSubmodo() {
     const s = String(this.config.demoSubmodo || 'pos').toLowerCase();
     return s === 'fe' ? 'fe' : 'pos';

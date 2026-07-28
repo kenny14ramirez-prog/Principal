@@ -1,6 +1,6 @@
 # Mapas Crozzo POS — índice maestro
 
-**Última regeneración:** ver [`META.json`](META.json) (semver, git HEAD, líneas PosMain)
+**Última regeneración:** 2026-07-28T19:47:56.623Z · v1.0.231 · `3d80f3e`
 **Mapa global (humano + agente):** [`../AGENT-SYSTEM-MAP.md`](../AGENT-SYSTEM-MAP.md)
 
 > Reorganizado H0 (2026-07-27): 4 secciones temáticas en vez de tabla única.

@@ -18,6 +18,16 @@
         { id: 'basico_hotel', tag: 'Hotel F&B · recepción ligera' },
       ],
     },
+    {
+      id: 'comercios-barrio',
+      label: 'Comercios de barrio (pequeños)',
+      desc: 'Perfiles para comerciantes que están comenzando: frutería, abasto, minimarket.',
+      presets: [
+        { id: 'basico_fruteria', tag: 'Frutería / Verdulería · peso y perecederos' },
+        { id: 'basico_abasto', tag: 'Abasto / Abarrotes · tienda de barrio' },
+        { id: 'basico_minimarket', tag: 'Minimarket / Panadería · catálogo amplio' },
+      ],
+    },
   ];
 
   function esc(s) {
