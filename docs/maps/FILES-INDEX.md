@@ -149,10 +149,11 @@
 | 831 | `app/modules/CrozzoModulosIntegrados.js` |
 | 810 | `app/modules/CrozzoModulosIntegradosAcceso.js` |
 | 505 | `app/modules/CrozzoModulosIntegradosPedidos.js` |
+| 281 | `app/modules/CrozzoMotorImpuestos.js` |
 | 242 | `app/modules/CrozzoNivelesMadurez.js` |
 | 108 | `app/modules/CrozzoOcrLearning.js` |
 | 66 | `app/modules/CrozzoOficinaHub.js` |
-| 1686 | `app/modules/CrozzoOnboardingOperativo.js` |
+| 1792 | `app/modules/CrozzoOnboardingOperativo.js` |
 | 280 | `app/modules/CrozzoOperativeCajaAssist.js` |
 | 399 | `app/modules/CrozzoOperativeCompanion.js` |
 | 615 | `app/modules/CrozzoOperativeFlowAssist.js` |
