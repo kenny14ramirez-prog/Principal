@@ -265,12 +265,47 @@ function buildUBL21(factura, config) {
   xml += `
   <cac:TaxTotal>
     <cbc:TaxAmount>${taxTotal.toFixed(2)}</cbc:TaxAmount>
-  </cac:TaxTotal>
+  </cac:TaxTotal>`;
+  // H1.4 — WithholdingTaxTotal: retenciones B2B (ReteFuente/IVA/ICA) cuando aplica
+  if (factura.retenciones && factura.retenciones.aplica) {
+    var ret = factura.retenciones;
+    xml += `
+  <cac:WithholdingTaxTotal>
+    <cbc:TaxAmount>${Number(ret.totalRetenido || 0).toFixed(2)}</cbc:TaxAmount>`;
+    if (ret.retefuente > 0) {
+      xml += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>${subtotal.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount>${Number(ret.retefuente).toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory><cac:TaxScheme><cbc:ID>06</cbc:ID><cbc:Name>ReteFuente</cbc:Name></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+    }
+    if (ret.reteiva > 0) {
+      xml += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>${taxTotal.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount>${Number(ret.reteiva).toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory><cac:TaxScheme><cbc:ID>07</cbc:ID><cbc:Name>ReteIVA</cbc:Name></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+    }
+    if (ret.reteica > 0) {
+      xml += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>${subtotal.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount>${Number(ret.reteica).toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory><cac:TaxScheme><cbc:ID>05</cbc:ID><cbc:Name>ReteICA</cbc:Name></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+    }
+    xml += `
+  </cac:WithholdingTaxTotal>`;
+  }
+  var payable = total - (factura.retenciones && factura.retenciones.totalRetenido || 0);
+  xml += `
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount>${subtotal.toFixed(2)}</cbc:LineExtensionAmount>
     <cbc:TaxExclusiveAmount>${subtotal.toFixed(2)}</cbc:TaxExclusiveAmount>
     <cbc:TaxInclusiveAmount>${total.toFixed(2)}</cbc:TaxInclusiveAmount>
-    <cbc:PayableAmount>${total.toFixed(2)}</cbc:PayableAmount>
+    <cbc:PayableAmount>${payable.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
 </Invoice>`;
   return xml;

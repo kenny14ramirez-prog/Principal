@@ -33,7 +33,7 @@
 | 1046 | `app/core/CrozzoTermicaPremium.js` |
 | 344 | `app/core/CrozzoViewportFit.js` |
 | 652 | `app/core/pos/CrozzoPosConfigManager.js` |
-| 744 | `app/core/pos/CrozzoPosDianLib.js` |
+| 779 | `app/core/pos/CrozzoPosDianLib.js` |
 | 1172 | `app/core/pos/CrozzoPosFacturasPage.js` |
 | 110 | `app/core/pos/CrozzoPosKeyboard.js` |
 
@@ -187,6 +187,7 @@
 | 2362 | `app/modules/CrozzoReservorio.js` |
 | 201 | `app/modules/CrozzoReservorioOffline.js` |
 | 38 | `app/modules/CrozzoReservorioSql.js` |
+| 147 | `app/modules/CrozzoRetenciones.js` |
 | 380 | `app/modules/CrozzoSalonSlotsConfig.js` |
 | 163 | `app/modules/CrozzoSandboxFiscal.js` |
 | 9232 | `app/modules/CrozzoSistemaCostos.js` |
