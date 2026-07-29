@@ -404,19 +404,24 @@ function buildNotaDebitoUBL21(nota, config) {
 // ==========================================
 // packages/shared-dian/providers/mock-dian-adapter.ts
 // ==========================================
+/**
+ * H1.5 — mockStamp NEUTRALIZADO (resuelve violación C4 definitivamente).
+ *
+ * ANTES: generaba un hash SHA-384 sobre campos equivocados y lo etiquetaba
+ *   'cufe'. Nunca producía un CUFE DIAN válido. Violaba "honestidad de combate".
+ *
+ * AHORA: lanza error explícito. Sin Proveedor Tecnológico configurado (Dataico)
+ *   NO se timbra. El comerciante debe configurar Dataico (o su PT autorizado).
+ *   El Nivel 0 (Semilla) ya está bloqueado por el candado de timbrarFactura.
+ *
+ * Doctrina: cero CUFE simulado. Sin PT = cola de contingencia (H1.5), no mock.
+ */
 async function mockStamp(xml, factura) {
-  await new Promise(r => setTimeout(r, 800));
-  const cufe = await calcularCUFE(factura);
-  const qrUrl = generarQRDIAN({ ...factura, cufe });
-  return {
-    success: true,
-    uuid: `DEMO-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}-${Math.random().toString(36).substr(2, 8)}`,
-    cufe,
-    qrUrl,
-    fechaTimbrado: new Date().toISOString(),
-    isDemo: true,
-    xml
-  };
+  throw new Error(
+    'STAMP_REQUIERE_PROVEEDOR: No hay Proveedor Tecnológico configurado. ' +
+    'Configura Dataico (o tu PT autorizado DIAN) para timbrar facturas electrónicas. ' +
+    'El CUFE no se simula — configura un PT real o usa el modo Sandbox (Nivel 0) para capacitación.'
+  );
 }
 // ==========================================
 // packages/shared-dian/providers/dataico-adapter.ts
@@ -657,12 +662,24 @@ async function dataicoStamp(xml, factura, config) {
 // packages/shared-dian/providers/provider-factory.ts
 // ==========================================
 function createProvider(type) {
+  // H1.5: solo Dataico es PT real implementado. Los demás providers lanzan
+  // error claro (no simulan CUFE). Para añadir un PT nuevo, implementar su stamp.
   switch(type) {
     case 'dataico': return { name: 'Dataico', stamp: dataicoStamp };
-    case 'siigo': return { name: 'Siigo', stamp: async (xml, factura) => mockStamp(xml, factura || {}) };
-    case 'facturama': return { name: 'Facturama', stamp: async (xml, factura) => mockStamp(xml, factura || {}) };
-    default: return { name: 'Mock', stamp: mockStamp };
+    case 'siigo': return { name: 'Siigo (no implementado)', stamp: providerNoImplementado('Siigo') };
+    case 'facturama': return { name: 'Facturama (no implementado)', stamp: providerNoImplementado('Facturama') };
+    default: return { name: 'Sin PT (configura Dataico)', stamp: providerNoImplementado(null) };
   }
+}
+/** H1.5 — Provider no implementado: error claro, no simula CUFE. */
+function providerNoImplementado(nombre) {
+  return async function () {
+    throw new Error(
+      'STAMP_PROVIDER_NO_IMPLEMENTADO: ' + (nombre || 'Ningún proveedor') +
+      ' no está implementado. Configura Dataico (PT autorizado) o implementa el adaptador. ' +
+      'El CUFE no se simula.'
+    );
+  };
 }
 // ==========================================
 // packages/shared-dian/invoice-service.ts

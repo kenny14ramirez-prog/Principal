@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-29T06:00:48.930Z",
+  "updatedAt": "2026-07-29T12:46:15.028Z",
   "description": "Errores conocidos y soluciones verificadas — consultar ANTES de parchear. Fuente canónica; KNOWN-ISSUES.md se genera con npm run issues:refresh.",
   "issues": [
     {
