@@ -179,6 +179,7 @@ function buildUBL21(factura, config) {
   <cbc:IssueDate>${esc(factura.fechaEmision?.split('T')[0])}</cbc:IssueDate>
   <cbc:IssueTime>${esc(factura.fechaEmision?.split('T')[1] || '00:00:00')}</cbc:IssueTime>
   <cbc:InvoiceTypeCode listID="${esc(factura.tipoDocumento)}">${esc(factura.tipoOperacion)}</cbc:InvoiceTypeCode>
+  <!-- H1.2: tipoDocumento '04' = Documento Equivalente (tiquete POS); '01' = FEV. Res. DIAN 165/2023 -->
   <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
   <cac:AccountingSupplierParty>
     <cac:Party>
@@ -272,6 +273,132 @@ function buildUBL21(factura, config) {
     <cbc:PayableAmount>${total.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
 </Invoice>`;
+  return xml;
+}
+/**
+ * H1.2 — Builder UBL 2.1 para Nota Crédito electrónica (Res. DIAN 165/2023).
+ * Documento derivado que referencia una factura previa. Se usa para
+ * devoluciones, anulaciones parciales/totales, descuentos posteriores.
+ * Schema UBL CreditNote (distinto de Invoice).
+ */
+function buildNotaCreditoUBL21(nota, config) {
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const emp = config.empresa;
+  const dian = config.dian;
+  const ref = nota.facturaReferencia || {};
+  const subtotal = Number(nota.subtotal) || 0;
+  const taxTotal = Number(nota.taxTotal) || 0;
+  const total = subtotal + taxTotal;
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+         xmlns:sts="dian:gov:co:facturaelectronica:Structures-2-1"
+         xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+         xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:CustomizationID>01</cbc:CustomizationID>
+  <cbc:ID>${esc(dian.prefijoNotaCredito || 'NC')}${String(nota.consecutivo).padStart(8, '0')}</cbc:ID>
+  <cbc:IssueDate>${esc(nota.fechaEmision && nota.fechaEmision.split('T')[0])}</cbc:IssueDate>
+  <cbc:IssueTime>${esc((nota.fechaEmision && nota.fechaEmision.split('T')[1]) || '00:00:00')}</cbc:IssueTime>
+  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>${esc(ref.prefijo || '')}${String(ref.consecutivo).padStart(8, '0')}</cbc:ID>
+      <cbc:UUID>${esc(ref.cufe)}</cbc:UUID>
+      <cbc:IssueDate>${esc(ref.fechaEmision && ref.fechaEmision.split('T')[0])}</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cbc:DiscrepancyResponse>
+    <cbc:ResponseCode>${esc(nota.motivoCodigo || '1')}</cbc:ResponseCode>
+    <cbc:Description>${esc(nota.motivoDescripcion || 'Devolución/anulación')}</cbc:Description>
+  </cbc:DiscrepancyResponse>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="9" schemeName="31">${esc(emp.nit)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName><cbc:Name>${esc(emp.razonSocial)}</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingSupplierParty>`;
+  if (nota.adquirente && nota.adquirente.doc) {
+    xml += `
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="9" schemeName="31">${esc(nota.adquirente.doc)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName><cbc:Name>${esc(nota.adquirente.nombre)}</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingCustomerParty>`;
+  }
+  xml += `
+  <cac:TaxTotal>
+    <cbc:TaxAmount>${taxTotal.toFixed(2)}</cbc:TaxAmount>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount>${subtotal.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount>${subtotal.toFixed(2)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount>${total.toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount>${total.toFixed(2)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+</CreditNote>`;
+  return xml;
+}
+/**
+ * H1.2 — Builder UBL 2.1 para Nota Débito electrónica.
+ * Para cobros adicionales posteriores (recargos, intereses) sobre una factura.
+ * Schema UBL DebitNote.
+ */
+function buildNotaDebitoUBL21(nota, config) {
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const emp = config.empresa;
+  const dian = config.dian;
+  const ref = nota.facturaReferencia || {};
+  const subtotal = Number(nota.subtotal) || 0;
+  const taxTotal = Number(nota.taxTotal) || 0;
+  const total = subtotal + taxTotal;
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<DebitNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:DebitNote-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+         xmlns:sts="dian:gov:co:facturaelectronica:Structures-2-1"
+         xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+         xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:CustomizationID>01</cbc:CustomizationID>
+  <cbc:ID>${esc(dian.prefijoNotaDebito || 'ND')}${String(nota.consecutivo).padStart(8, '0')}</cbc:ID>
+  <cbc:IssueDate>${esc(nota.fechaEmision && nota.fechaEmision.split('T')[0])}</cbc:IssueDate>
+  <cbc:IssueTime>${esc((nota.fechaEmision && nota.fechaEmision.split('T')[1]) || '00:00:00')}</cbc:IssueTime>
+  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>${esc(ref.prefijo || '')}${String(ref.consecutivo).padStart(8, '0')}</cbc:ID>
+      <cbc:UUID>${esc(ref.cufe)}</cbc:UUID>
+      <cbc:IssueDate>${esc(ref.fechaEmision && ref.fechaEmision.split('T')[0])}</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cbc:DiscrepancyResponse>
+    <cbc:ResponseCode>${esc(nota.motivoCodigo || '2')}</cbc:ResponseCode>
+    <cbc:Description>${esc(nota.motivoDescripcion || 'Cobro adicional')}</cbc:Description>
+  </cbc:DiscrepancyResponse>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="9" schemeName="31">${esc(emp.nit)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName><cbc:Name>${esc(emp.razonSocial)}</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount>${taxTotal.toFixed(2)}</cbc:TaxAmount>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount>${subtotal.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxInclusiveAmount>${total.toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount>${total.toFixed(2)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+</DebitNote>`;
   return xml;
 }
 // ==========================================

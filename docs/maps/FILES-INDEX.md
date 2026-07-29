@@ -33,7 +33,7 @@
 | 1046 | `app/core/CrozzoTermicaPremium.js` |
 | 344 | `app/core/CrozzoViewportFit.js` |
 | 652 | `app/core/pos/CrozzoPosConfigManager.js` |
-| 600 | `app/core/pos/CrozzoPosDianLib.js` |
+| 727 | `app/core/pos/CrozzoPosDianLib.js` |
 | 1172 | `app/core/pos/CrozzoPosFacturasPage.js` |
 | 110 | `app/core/pos/CrozzoPosKeyboard.js` |
 
@@ -198,6 +198,7 @@
 | 394 | `app/modules/CrozzoSuperAdminFederacion.js` |
 | 2365 | `app/modules/CrozzoSuperAdminNube.js` |
 | 533 | `app/modules/CrozzoSuperAdminSyncPriorities.js` |
+| 119 | `app/modules/CrozzoTipoDocumento.js` |
 | 824 | `app/modules/CrozzoWebEmbedDockCore.js` |
 | 257 | `app/modules/CrozzoWebEmbedHeadNav.js` |
 | 898 | `app/modules/CrozzoWhatsAppDock.js` |
