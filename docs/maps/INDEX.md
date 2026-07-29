@@ -1,6 +1,6 @@
 # Mapas Crozzo POS — índice maestro
 
-**Última regeneración:** 2026-07-29T12:49:43.345Z · v1.0.231 · `0d7dbe0`
+**Última regeneración:** 2026-07-29T12:53:07.777Z · v1.0.231 · `58b6cee`
 **Mapa global (humano + agente):** [`../AGENT-SYSTEM-MAP.md`](../AGENT-SYSTEM-MAP.md)
 
 > Reorganizado H0 (2026-07-27): 4 secciones temáticas en vez de tabla única.

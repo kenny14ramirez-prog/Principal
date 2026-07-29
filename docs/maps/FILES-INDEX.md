@@ -200,6 +200,7 @@
 | 394 | `app/modules/CrozzoSuperAdminFederacion.js` |
 | 2365 | `app/modules/CrozzoSuperAdminNube.js` |
 | 533 | `app/modules/CrozzoSuperAdminSyncPriorities.js` |
+| 147 | `app/modules/CrozzoTicketQR.js` |
 | 119 | `app/modules/CrozzoTipoDocumento.js` |
 | 824 | `app/modules/CrozzoWebEmbedDockCore.js` |
 | 257 | `app/modules/CrozzoWebEmbedHeadNav.js` |
