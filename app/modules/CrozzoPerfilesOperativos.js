@@ -139,6 +139,46 @@
       admin: PERFIL_CLIENT_MENUS.basico_tienda.slice(),
       user: ['venta-comercial'],
     },
+    // ── H2.A Perfiles de barrio: menús por rol (caja ve 4, no 16) ──
+    basico_fruteria: {
+      caja: ['inicio-operacion', 'venta-comercial', 'facturas', 'caja'],
+      inventario: [
+        'centro-compras',
+        'compras-proveedores',
+        'compras-recepcion',
+        'inventarios',
+        'sistema-costos-matriz',
+        'sistema-costos-inv',
+      ],
+      admin: PERFIL_CLIENT_MENUS.basico_fruteria.slice(),
+      user: ['venta-comercial'],
+    },
+    basico_abasto: {
+      caja: ['inicio-operacion', 'venta-comercial', 'facturas', 'caja'],
+      inventario: [
+        'centro-compras',
+        'compras-proveedores',
+        'compras-recepcion',
+        'inventarios',
+        'sistema-costos-matriz',
+        'sistema-costos-inv',
+      ],
+      admin: PERFIL_CLIENT_MENUS.basico_abasto.slice(),
+      user: ['venta-comercial'],
+    },
+    basico_minimarket: {
+      caja: ['inicio-operacion', 'venta-comercial', 'facturas', 'caja'],
+      inventario: [
+        'centro-compras',
+        'compras-proveedores',
+        'compras-recepcion',
+        'inventarios',
+        'sistema-costos-matriz',
+        'sistema-costos-inv',
+      ],
+      admin: PERFIL_CLIENT_MENUS.basico_minimarket.slice(),
+      user: ['venta-comercial'],
+    },
     basico_hotel: {
       recepcion: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'cierre-caja'],
       caja: ['inicio-operacion', 'punto-venta', 'facturas', 'cierre-caja', 'caja'],

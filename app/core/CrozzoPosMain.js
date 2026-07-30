@@ -12694,7 +12694,9 @@ const CROZZO_CLIENT_FEATURES = Object.freeze([
 const CROZZO_FEATURE_LOCKED_MSG = 'Próximamente en versiones avanzadas';
 function crozzoIsBasicoEmpresaPerfil(perfil) {
   var p = crozzoResolvePerfilEmpresaId(perfil || (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) || 'basico_restaurante');
-  return p === 'basico_restaurante' || p === 'basico_tienda' || p === 'basico_hotel';
+  // H2.A: incluir perfiles de barrio (frutería/abasto/minimarket) — antes excluían gating.
+  return p === 'basico_restaurante' || p === 'basico_tienda' || p === 'basico_hotel'
+    || p === 'basico_fruteria' || p === 'basico_abasto' || p === 'basico_minimarket';
 }
 /** Hotel F&B: habitaciones operan como mesas (prefijo Hab.) hasta folio dedicado. */
 function crozzoPerfilUsaHabitacionesComoMesas(perfil) {
