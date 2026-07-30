@@ -12176,6 +12176,14 @@ function crozzoUserCanAccessOperationalPage(page, u) {
   if (!u) return !!(typeof CROZZO_GUEST_PUBLIC_PAGES !== 'undefined' && CROZZO_GUEST_PUBLIC_PAGES.has(page));
   if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
   if (crozzoIsPlatformSupportPage(page)) return false;
+  /* H2.E — planProducto ortogonal (NO mutar isBasico). SA ya bypass arriba. */
+  if (typeof crozzoPageVisibleByPlan === 'function') {
+    var planOp =
+      typeof crozzoGetPlanProducto === 'function'
+        ? crozzoGetPlanProducto()
+        : 'basico';
+    if (!crozzoPageVisibleByPlan(page, planOp)) return false;
+  }
   if (typeof crozzoPageBlockedByBasicoPerfilTipo === 'function' && crozzoPageBlockedByBasicoPerfilTipo(page)) return false;
   if (typeof crozzoIsBasicoAdminUser === 'function' && crozzoIsBasicoAdminUser(u)) {
     if (typeof crozzoIsPlanillaPage === 'function' && crozzoIsPlanillaPage(page)) return false;
@@ -13232,12 +13240,28 @@ function renderMenusByRole(role, perfilEmpresa) {
     if (ok && typeof crozzoPageBlockedByBasicoPerfilTipo === 'function' && crozzoPageBlockedByBasicoPerfilTipo(page, perfil)) ok = false;
     if (ok && typeof crozzoClientAllowsPage === 'function' && !crozzoClientAllowsPage(page)) ok = false;
     if (ok && crozzoIsBasicoEmpresaPerfil(perfil) && typeof crozzoIsPlatformSupportPage === 'function' && crozzoIsPlatformSupportPage(page)) ok = false;
+    /* H2.E cinturón — planProducto (data-page + data-menu) */
+    if (ok && typeof crozzoPageVisibleByPlan === 'function') {
+      var planNav =
+        typeof crozzoGetPlanProducto === 'function' ? crozzoGetPlanProducto() : 'basico';
+      if (!crozzoPageVisibleByPlan(page, planNav)) ok = false;
+      var menuIdNav = item.getAttribute('data-menu');
+      if (ok && menuIdNav && !crozzoPageVisibleByPlan(menuIdNav, planNav)) ok = false;
+    }
     crozzoSetNavItemAccessVisible(item, ok);
   });
   crozzoSetPlatformNavVisible(false);
   crozzoSyncNavGroupsVisibility();
   try {
     document.body.classList.toggle('crozzo-plan-basico', crozzoIsBasicoEmpresaPerfil(perfil));
+    var planBody =
+      typeof crozzoGetPlanProducto === 'function' ? crozzoGetPlanProducto() : 'basico';
+    document.body.classList.remove(
+      'crozzo-plan-producto-basico',
+      'crozzo-plan-producto-medio',
+      'crozzo-plan-producto-grande'
+    );
+    document.body.classList.add('crozzo-plan-producto-' + String(planBody || 'basico'));
   } catch (_) {}
   if (typeof applyAccessControl === 'function' && !(window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active)) {
     const prev = window.__crozzoSkipMenuRoleFilter;
@@ -15669,6 +15693,11 @@ function currentUserCanSeePage(page) {
   }
   if (crozzoIsPlatformSupportPage(page)) return false;
   if (page === 'auditoria') {
+    if (typeof crozzoPageVisibleByPlan === 'function') {
+      var planAud =
+        typeof crozzoGetPlanProducto === 'function' ? crozzoGetPlanProducto() : 'basico';
+      if (!crozzoPageVisibleByPlan('auditoria', planAud)) return false;
+    }
     return typeof crozzoShowOperativeMetricsUi === 'function' && crozzoShowOperativeMetricsUi();
   }
   return typeof crozzoUserCanAccessOperationalPage === 'function'

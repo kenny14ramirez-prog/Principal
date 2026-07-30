@@ -26,15 +26,15 @@
 | **H2.B** | Reversión inventario al anular | 1 | 21/21 PASS | ✅ COMPLETO |
 | **H2.C** | CMV + rentabilidad | 1 | 18/18 PASS | ✅ COMPLETO |
 | **H2.D** | Semáforo 🟢🟡🔴 + card hub | 1 | 28/28 PASS | ✅ COMPLETO |
+| **H2.E** | planProducto (basico/medio/grande) | 1 | 32/32 + clinical | ✅ COMPLETO |
 | **H3a** | Offline real G1 (narrativa + demo) | 1 | offline-combat + sede-combat 21/21 | ✅ COMPLETO |
 
-**Balance H1+H2+H3a:** 12 fases completas, 1 diferida (H1.3).
+**Balance H1+H2+H3a:** 13 fases completas, 1 diferida (H1.3).
 
 ### Fases PENDIENTES (lo que queda por hacer)
 
 | Fase | Nombre | Esfuerzo | Prioridad | Estado técnico |
 |---|---|---|---|---|
-| **H2.E** | planProducto (3 fases básica/media/grande) | M | ALTA | Plan detallado abajo |
 | **H2.F** | OCR facturas proveedor (Tesseract) | L | MEDIA | Plan detallado abajo |
 | **H3b** | Transparencia precio vs mercado | S | MEDIA | Grieta mercado G3 |
 | **H3c** | iFood + multi-delivery unificado | L | BAJA | Grieta mercado G2 |
@@ -128,33 +128,17 @@ npm run tauri:dev         # levantar app desktop (5-10min primera vez)
 
 ---
 
-### H2.E — planProducto (3 fases básica/media/grande)
+### H2.E — planProducto (basico/medio/grande) ✅ COMPLETO (2026-07-30)
 
-**Objetivo:** 3ra dimensión ortogonal. El pequeño ve solo lo esencial; al crecer se revela más.
-
-**Archivos a crear:**
-- `app/modules/CrozzoPlanProducto.js`:
-  - `PLANES = { basico: [...], medio: [...], grande: [...] }` (qué módulos se desbloquean)
-    - **Básico:** venta, caja, inventario básico, costeo básico, rentabilidad, semáforo, facturas, clientes
-    - **Medio:** + multi-sede, reportes avanzados, recetas completas, planilla nómina, conexiones
-    - **Grande:** + federación, consolidación corporativa, auditoría avanzada, API
-  - `modulosPorPlan(plan)`: devuelve lista de módulos permitidos
-  - `crozzoPageVisibleByPlan(page, plan)`: filtro booleano
-- `scripts/_plan-producto-check.mjs`: test
-
-**Archivos a modificar:**
-- `CrozzoPosConfigManager.js`: añadir `madurez.planProducto: 'basico'` (default) + `getPlanProducto()`/`setPlanProducto()`
-- `CrozzoPosMain.js`: `crozzoIsBasicoEmpresaPerfil` respeta planProducto; menú lateral filtra por plan
-- Enchufar `renderMiCrecimientoPanelHtml` para mostrar plan actual + sugerencia subir
-
-**Regla de gating:**
-- Un básico NO ve: `conexion-sistemas`, `sistema-costos-fed` (federación), `nomina-planilla`, `compras-dashboard`, `auditoria`
-- Subir plan = decisión del comerciante (no automático)
-
-**PASS criteria:**
-- Básico no ve federación; medio sí; grande ve todo
-- Default todos empiezan en básico
-- Test 12+ verificaciones PASS
+**Entregado (filtro ortogonal — NO mutar `crozzoIsBasicoEmpresaPerfil`):**
+- `app/modules/CrozzoPlanProducto.js` + boot en `index.html` (antes de PosMain)
+- `madurez.planProducto` default `basico` + `getPlanProducto`/`setPlanProducto` en ConfigManager
+- Gates: `crozzoUserCanAccessOperationalPage`, cinturón `renderMenusByRole`, `auditoria` en `currentUserCanSeePage`
+- Panel «Mi crecimiento»: plan actual + sugerencia subir (manual)
+- Deny basico: conexiones, fed, nómina, `compras-dashboard`, auditoría — **sin** tocar `centro-compras` (caja)
+- Superadmin bypass intacto
+- `scripts/_plan-producto-check.mjs` 32/32 + `test:plan-producto` en clinical
+- `test:perfiles-barrio` PASS (frutería caja = 4 ítems)
 
 ---
 
@@ -221,10 +205,10 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 | CMV + rentabilidad (H2.C) | ✅ motor+UI | Página Gestión → Rentabilidad | `CrozzoRentabilidadPage.js` (2026-07-30) |
 | Semáforo (H2.D) | ✅ motor+UI | Peek + reveal en hub | `crozzoInicioOpRentabilidadHoyHtml` |
 | Mi crecimiento (H1.0g) | ✅ motor+UI | En reveal rentabilidad | caller en hub H2.D |
-| planProducto (H2.E) | ❌ pendiente | Selector plan + gating menú | filtro ortogonal (NO mutar isBasico) |
+| planProducto (H2.E) | ✅ motor+gating | Plan en «Mi crecimiento»; set vía `setPlanProducto` | filtro ortogonal (NO mutar isBasico) |
 
-**Prioridad restante:** H2.E planProducto · H2.F OCR · H3b pricing.  
-**Cola mando (jul-30):** push ✅ → Anular ✅ → rentabilidad ✅ → H3a offline ✅.
+**Prioridad restante:** H2.F OCR · H3b pricing · H3c iFood · H4.  
+**Cola mando (jul-30):** … → H3a offline ✅ → **H2.E planProducto ✅**.
 
 ---
 

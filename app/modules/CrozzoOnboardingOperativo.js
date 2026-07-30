@@ -305,6 +305,37 @@
       h.push('<h3>' + (panel.nivelActual.icon || '') + ' ' + (panel.nivelActual.nombre || '') + '</h3>');
       h.push('<p class="crozzo-mc-sub">' + (panel.nivelActual.subtitulo || '') + '</p>');
 
+      /* H2.E — plan de producto (ortogonal a madurez fiscal; subida manual) */
+      try {
+        var planId =
+          typeof global.crozzoGetPlanProducto === 'function'
+            ? global.crozzoGetPlanProducto()
+            : cfg.getPlanProducto
+              ? cfg.getPlanProducto()
+              : 'basico';
+        var metaFn =
+          global.CrozzoPlanProducto && typeof global.CrozzoPlanProducto.metaPlan === 'function'
+            ? global.CrozzoPlanProducto.metaPlan
+            : null;
+        var nextFn =
+          global.CrozzoPlanProducto && typeof global.CrozzoPlanProducto.sugerirSiguientePlan === 'function'
+            ? global.CrozzoPlanProducto.sugerirSiguientePlan
+            : null;
+        var meta = metaFn ? metaFn(planId) : { label: String(planId || 'basico'), desc: '' };
+        h.push('<div class="crozzo-mc-plan">');
+        h.push('<strong>Plan Crozzo: ' + (meta.label || planId) + '</strong>');
+        if (meta.desc) h.push('<p class="crozzo-mc-plan-desc">' + meta.desc + '</p>');
+        var nextPlan = nextFn ? nextFn(planId) : null;
+        if (nextPlan) {
+          h.push(
+            '<p class="crozzo-mc-plan-up">Para desbloquear más módulos, sube a plan <strong>' +
+              nextPlan.label +
+              '</strong> (decisión manual en configuración).</p>'
+          );
+        }
+        h.push('</div>');
+      } catch (_) {}
+
       // Barra de progreso al umbral responsable IVA (solo si aún no responsable)
       if (panel.ingresos && panel.ingresos.pctUmbral < 1.5 && cfg.getRegimenFiscal() === 'no_responsable') {
         var pct = Math.max(0, Math.min(100, Math.round(panel.barraProgresoUmbral * 100)));

@@ -220,6 +220,9 @@ class ConfigManager {
     if (!c.madurez.requisitosCompletados || typeof c.madurez.requisitosCompletados !== 'object') {
       c.madurez.requisitosCompletados = JSON.parse(JSON.stringify(def.requisitosCompletados));
     }
+    // H2.E planProducto (default basico; whitelist)
+    const PLANES = ['basico', 'medio', 'grande'];
+    if (!PLANES.includes(c.madurez.planProducto)) c.madurez.planProducto = 'basico';
     // Sincronizar espejo legacy empresa.regimenFiscal + impuestos.responsableIVA
     if (c.empresa) c.empresa.regimenFiscal = c.madurez.regimenFiscal;
     if (c.impuestos) c.impuestos.responsableIVA = (c.madurez.regimenFiscal === 'responsable_iva' || c.madurez.regimenFiscal === 'gran_contribuyente');
@@ -246,7 +249,9 @@ class ConfigManager {
           resolucionDian: false,
           certificadoCargado: false,
           habilitacionDian: false
-        }
+        },
+        // H2.E — 3ª dimensión ortogonal (basico|medio|grande). Default basico.
+        planProducto: 'basico'
       },
       empresa: {
         nit: '',
@@ -514,6 +519,22 @@ class ConfigManager {
   /** ¿Es agente retenedor (ReteFuente/IVA/ICA)? Solo gran contribuyente o nivel >= 3. */
   esAgenteRetenedor() {
     return this.getRegimenFiscal() === 'gran_contribuyente' || this.getNivelMadurez() >= 3;
+  }
+  /** H2.E — plan de producto (basico|medio|grande). Ortogonal a perfil y nivel fiscal. */
+  getPlanProducto() {
+    const m = this.config.madurez || {};
+    const PLANES = ['basico', 'medio', 'grande'];
+    return PLANES.includes(m.planProducto) ? m.planProducto : 'basico';
+  }
+  setPlanProducto(plan) {
+    const PLANES = ['basico', 'medio', 'grande'];
+    const p = PLANES.includes(plan) ? plan : 'basico';
+    if (!this.config.madurez || typeof this.config.madurez !== 'object') {
+      this.config.madurez = JSON.parse(JSON.stringify(this.getDefaultConfig().madurez));
+    }
+    this.config.madurez.planProducto = p;
+    this.save();
+    return p;
   }
   getDemoSubmodo() {
     const s = String(this.config.demoSubmodo || 'pos').toLowerCase();

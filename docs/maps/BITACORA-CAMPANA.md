@@ -354,6 +354,21 @@ Estos activos se protegieron durante toda la campaña — son el corazón del si
 
 ---
 
+### DÍA 4 — 2026-07-30: H2.E planProducto (3ª dimensión)
+
+**INTEL:** 2 escuadrones — OPORD pedía mutar `isBasico`; recon rechazó (rompe barrio/SA). COA: filtro ortogonal.
+
+**Entregado:**
+- `CrozzoPlanProducto.js` — deny lists basico/medio/grande + `crozzoPageVisibleByPlan`
+- ConfigManager `madurez.planProducto` + getters; boot antes de PosMain
+- Gates ACL + cinturón menú + auditoría; SA bypass
+- Panel Mi crecimiento: plan + upgrade manual
+- Tests: 32/32 `test:plan-producto` · perfiles-barrio PASS · clinical PASS
+
+**Kill evitados:** mutar isBasico · denegar `centro-compras` · tocar OpFanout/CostosEngine.
+
+---
+
 ## 🎖️ CONCLUSIÓN DEL MANDO UNIFICADO
 
 La campaña transformó Crozzo de un POS potente pero **fiscalmente incompleto y con la Mesa de Operaciones desordenada** en un sistema con:
