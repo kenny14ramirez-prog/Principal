@@ -183,6 +183,7 @@
 | 8837 | `app/modules/CrozzoRecepcionFeDian.js` |
 | 77 | `app/modules/CrozzoRecepcionGuardar.js` |
 | 1806 | `app/modules/CrozzoRecetarioCocina.js` |
+| 239 | `app/modules/CrozzoRentabilidad.js` |
 | 413 | `app/modules/CrozzoReportesDashboard.js` |
 | 2362 | `app/modules/CrozzoReservorio.js` |
 | 201 | `app/modules/CrozzoReservorioOffline.js` |
