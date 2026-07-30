@@ -1170,6 +1170,33 @@
         origen: detail.origen || 'mp',
       });
       invalidateSeed();
+      // H2.D — si un plato cae a 🔴 tras cascada MP, avisar al dueño (psicología).
+      try {
+        var Sem = global.CrozzoSemaforoMargen;
+        if (Sem && typeof Sem.clasificarMargen === 'function' && typeof Sem.mensajeAlertaRojo === 'function') {
+          var toastFn = typeof global.showToast === 'function' ? global.showToast : null;
+          updates.forEach(function (u) {
+            var rowU = C.getMenuPlato(u.slug);
+            var margenDisp =
+              rowU && rowU.precioVenta > 0 && u.costoMp != null
+                ? Math.round(((rowU.precioVenta - u.costoMp) / rowU.precioVenta) * 1000) / 10
+                : null;
+            if (margenDisp == null && u.precioVenta > 0 && u.costoMp != null) {
+              margenDisp = Math.round(((u.precioVenta - u.costoMp) / u.precioVenta) * 1000) / 10;
+            }
+            if (margenDisp == null) return;
+            var clas = Sem.clasificarMargen(margenDisp);
+            if (clas.nivel !== 'rojo') return;
+            var msg = Sem.mensajeAlertaRojo(
+              u.producto || (rowU && rowU.producto) || u.slug,
+              u.costoMp,
+              u.precioVenta != null ? u.precioVenta : rowU && rowU.precioVenta
+            );
+            if (toastFn) toastFn(msg, 'warning');
+            else if (typeof console !== 'undefined' && console.info) console.info('[semaforo]', msg);
+          });
+        }
+      } catch (_) {}
     }
     return {
       updated: updates.length,

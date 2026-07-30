@@ -5,6 +5,8 @@
 
 > 🔴 **¿Retomando trabajo de una sesión anterior?** Empieza por [`CONTINUIDAD-OPORD.md`](CONTINUIDAD-OPORD.md) — estado de campaña + planes pendientes + cómo continuar.
 >
+> 📖 **¿Quieres ver todo lo que se ha hecho?** Lee [`BITACORA-CAMPANA.md`](BITACORA-CAMPANA.md) — cronología detallada de H0+H1+H2 con evidencia.
+>
 > Reorganizado H0 (2026-07-27): 4 secciones temáticas en vez de tabla única.
 > OTA deja de estar hardcodeada — consultar siempre META.json.
 

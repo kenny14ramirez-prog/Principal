@@ -8698,6 +8698,91 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-ventas-hub--balanced .crozzo-ventas-hub__kpis--live {
   margin-bottom: 16px;
 }
+/* H2.D — Mi rentabilidad hoy (peek semáforo; detalle al pedir) */
+.crozzo-ventas-hub__rent-hoy {
+  max-width: 960px;
+  margin: 0 0 16px;
+}
+.crozzo-rent-hoy--rojo .crozzo-hub-reveal {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-hoy--amarillo .crozzo-hub-reveal {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-hoy--verde .crozzo-hub-reveal {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-hoy__peek-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.crozzo-rent-hoy__peek-txt {
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-hoy__body {
+  padding: 4px 2px 8px;
+}
+.crozzo-rent-hoy__lead {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-rent-hoy__plato {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-hoy__plato--warn {
+  color: #8a5a2b;
+}
+.crozzo-rent-hoy__rojos {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #8b3a2f;
+}
+.crozzo-rent-hoy__crecimiento {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+}
+.crozzo-mi-crecimiento h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+.crozzo-mc-sub {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar-wrap {
+  margin: 0 0 10px;
+}
+.crozzo-mc-bar-label {
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(28, 28, 28, 0.08);
+  overflow: hidden;
+}
+.crozzo-mc-bar-fill {
+  height: 100%;
+  background: #6a9b6a;
+  border-radius: 99px;
+}
+.crozzo-mc-req {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+}
+.crozzo-mc-alert {
+  font-size: 0.8rem;
+  margin: 4px 0;
+}
 /* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
 .crozzo-ventas-hub__reveals {
   display: flex;
@@ -44585,6 +44670,91 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 }
 .crozzo-ventas-hub--balanced .crozzo-ventas-hub__kpis--live {
   margin-bottom: 16px;
+}
+/* H2.D — Mi rentabilidad hoy (peek semáforo; detalle al pedir) */
+.crozzo-ventas-hub__rent-hoy {
+  max-width: 960px;
+  margin: 0 0 16px;
+}
+.crozzo-rent-hoy--rojo .crozzo-hub-reveal {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-hoy--amarillo .crozzo-hub-reveal {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-hoy--verde .crozzo-hub-reveal {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-hoy__peek-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.crozzo-rent-hoy__peek-txt {
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-hoy__body {
+  padding: 4px 2px 8px;
+}
+.crozzo-rent-hoy__lead {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-rent-hoy__plato {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-hoy__plato--warn {
+  color: #8a5a2b;
+}
+.crozzo-rent-hoy__rojos {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #8b3a2f;
+}
+.crozzo-rent-hoy__crecimiento {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+}
+.crozzo-mi-crecimiento h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+.crozzo-mc-sub {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar-wrap {
+  margin: 0 0 10px;
+}
+.crozzo-mc-bar-label {
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(28, 28, 28, 0.08);
+  overflow: hidden;
+}
+.crozzo-mc-bar-fill {
+  height: 100%;
+  background: #6a9b6a;
+  border-radius: 99px;
+}
+.crozzo-mc-req {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+}
+.crozzo-mc-alert {
+  font-size: 0.8rem;
+  margin: 4px 0;
 }
 /* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
 .crozzo-ventas-hub__reveals {

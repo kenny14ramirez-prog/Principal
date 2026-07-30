@@ -21688,6 +21688,93 @@ function crozzoInicioOpFilterVentasCards(cards) {
     return true;
   });
 }
+/** H2.D — peek semáforo + reveal detalle / crecimiento (admin·encargado; D-018). */
+function crozzoInicioOpRentabilidadHoyHtml() {
+  var role = crozzoInicioOpUserRole();
+  if (role !== 'admin' && role !== 'encargado') return '';
+  var S = typeof CrozzoSemaforoMargen !== 'undefined' ? CrozzoSemaforoMargen : null;
+  if (!S || typeof S.semaforoGlobalDia !== 'function') return '';
+  var facturas = [];
+  try {
+    if (typeof config !== 'undefined' && config.getFacturas) facturas = config.getFacturas() || [];
+  } catch (_) {}
+  var dia;
+  try {
+    dia = S.semaforoGlobalDia(facturas);
+  } catch (_) {
+    return '';
+  }
+  var margenTxt = Math.round((dia.margenPct || 0) * 1000) / 10;
+  var utilTxt = '$' + Math.round(dia.utilidad || 0).toLocaleString('es-CO');
+  var peek =
+    '<span class="crozzo-rent-hoy__peek-emoji" aria-hidden="true">' +
+    escUserAttr(dia.semaforoEmoji || '🟢') +
+    '</span><span class="crozzo-rent-hoy__peek-txt">' +
+    escUserAttr(String(margenTxt) + '% · ' + utilTxt) +
+    '</span>';
+  var body = [];
+  body.push('<div class="crozzo-rent-hoy__body">');
+  body.push(
+    '<p class="crozzo-rent-hoy__lead">' +
+      escUserAttr(dia.semaforoEmoji || '') +
+      ' Margen del día: <strong>' +
+      escUserAttr(String(margenTxt) + '%') +
+      '</strong> (' +
+      escUserAttr(dia.semaforoLabel || '') +
+      ') · Utilidad <strong>' +
+      escUserAttr(utilTxt) +
+      '</strong> · ' +
+      String(dia.numFacturas || 0) +
+      ' ventas</p>'
+  );
+  if (dia.mejorPlato && dia.mejorPlato.nombre) {
+    body.push(
+      '<p class="crozzo-rent-hoy__plato">Mejor: ' +
+        escUserAttr(dia.mejorPlato.nombre) +
+        ' · $' +
+        Math.round(dia.mejorPlato.utilidad || 0).toLocaleString('es-CO') +
+        '</p>'
+    );
+  }
+  if (dia.peorPlato && dia.peorPlato.nombre) {
+    body.push(
+      '<p class="crozzo-rent-hoy__plato crozzo-rent-hoy__plato--warn">Atención: ' +
+        escUserAttr(dia.peorPlato.nombre) +
+        ' · margen ' +
+        Math.round((dia.peorPlato.margenPct || 0) * 1000) / 10 +
+        '%</p>'
+    );
+  }
+  if (dia.platosRojos && dia.platosRojos.length) {
+    body.push('<ul class="crozzo-rent-hoy__rojos">');
+    dia.platosRojos.slice(0, 4).forEach(function (p) {
+      body.push(
+        '<li>🔴 ' +
+          escUserAttr(p.nombre || 'Plato') +
+          ' · ' +
+          Math.round((p.margenPct || 0) * 1000) / 10 +
+          '%</li>'
+      );
+    });
+    body.push('</ul>');
+  }
+  try {
+    var Onb = typeof CrozzoOnboardingOperativo !== 'undefined' ? CrozzoOnboardingOperativo : null;
+    if (Onb && typeof Onb.renderMiCrecimientoPanelHtml === 'function') {
+      var crec = Onb.renderMiCrecimientoPanelHtml({});
+      if (crec) body.push('<div class="crozzo-rent-hoy__crecimiento">' + crec + '</div>');
+    }
+  } catch (_) {}
+  body.push('</div>');
+  var forceOpen = dia.semaforo === 'rojo';
+  return (
+    '<div class="crozzo-ventas-hub__rent-hoy crozzo-rent-hoy crozzo-rent-hoy--' +
+    escUserAttr(dia.semaforo || 'verde') +
+    '" aria-label="Mi rentabilidad hoy">' +
+    crozzoHubRevealWrap('rentabilidad', 'Mi rentabilidad hoy', peek, body.join(''), forceOpen) +
+    '</div>'
+  );
+}
 function renderInicioOperacion() {
   var perfil = crozzoGetPerfilEmpresa();
   var last = crozzoInicioOpLastPage();
@@ -21815,6 +21902,7 @@ function renderInicioOperacion() {
     '</header>' +
     (cardsHtml ? '<div class="crozzo-ventas-hub__grid" role="list">' + cardsHtml + '</div>' : '') +
     crozzoInicioOpShiftKpisHtml() +
+    crozzoInicioOpRentabilidadHoyHtml() +
     crozzoInicioOpAdminHubHtml() +
     (helpHtml ? '<div class="crozzo-ventas-hub__reveals">' + helpHtml + '</div>' : '') +
     '</section>'
@@ -33078,6 +33166,11 @@ async function facturar(options = {}) {
     if (typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.stampFacturaCobrador) {
       CrozzoStaffOpsReport.stampFacturaCobrador(facturaSavedEnriched);
     }
+    try {
+      if (typeof CrozzoRentabilidad !== 'undefined' && CrozzoRentabilidad.enriquecerFacturaConCmv) {
+        CrozzoRentabilidad.enriquecerFacturaConCmv(facturaSavedEnriched);
+      }
+    } catch (_) {}
     if (typeof crozzoRecordCajaCheckoutMetrics === 'function') crozzoRecordCajaCheckoutMetrics(facturaSavedEnriched);
     if (typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.recordMesaSale) {
       CrozzoStaffOpsReport.recordMesaSale(facturaSavedEnriched);

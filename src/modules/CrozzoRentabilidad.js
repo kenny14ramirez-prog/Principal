@@ -227,12 +227,29 @@
     return null;
   }
 
+  /**
+   * H2.D — puente al semáforo (si CrozzoSemaforoMargen está cargado).
+   * @param {object} rentabilidad { margenPct }
+   */
+  function semaforoDesdeRentabilidad(rentabilidad) {
+    var S = global.CrozzoSemaforoMargen;
+    if (S && typeof S.semaforoDesdeRentabilidad === 'function') {
+      return S.semaforoDesdeRentabilidad(rentabilidad);
+    }
+    var m = rentabilidad && rentabilidad.margenPct != null ? Number(rentabilidad.margenPct) : 0;
+    if (m > 1 && m <= 100) m = m / 100;
+    var nivel = m >= 0.65 ? 'verde' : m >= 0.55 ? 'amarillo' : 'rojo';
+    var emoji = nivel === 'verde' ? '🟢' : nivel === 'amarillo' ? '🟡' : '🔴';
+    return { nivel: nivel, emoji: emoji, label: nivel, margenPct: m };
+  }
+
   global.CrozzoRentabilidad = {
     calcularCmvFactura: calcularCmvFactura,
     enriquecerFacturaConCmv: enriquecerFacturaConCmv,
     rentabilidadPor: rentabilidadPor,
     rentabilidadPorCategoria: rentabilidadPorCategoria,
     rentabilidadPorPlato: rentabilidadPorPlato,
-    kpiDiario: kpiDiario
+    kpiDiario: kpiDiario,
+    semaforoDesdeRentabilidad: semaforoDesdeRentabilidad
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -25,14 +25,14 @@
 | **H2.A** | Perfiles barrio rotos | 1 | 17/17 PASS | ✅ COMPLETO |
 | **H2.B** | Reversión inventario al anular | 1 | 21/21 PASS | ✅ COMPLETO |
 | **H2.C** | CMV + rentabilidad | 1 | 18/18 PASS | ✅ COMPLETO |
+| **H2.D** | Semáforo 🟢🟡🔴 + card hub | 1 | 28/28 PASS | ✅ COMPLETO |
 
-**Balance H1+H2:** 10 fases completas, 153 tests PASS, 1 diferida (H1.3).
+**Balance H1+H2:** 11 fases completas, 181+ tests PASS, 1 diferida (H1.3).
 
 ### Fases PENDIENTES (lo que queda por hacer)
 
 | Fase | Nombre | Esfuerzo | Prioridad | Estado técnico |
 |---|---|---|---|---|
-| **H2.D** | Semáforo 🟢🟡🔴 margen + panel UX | M | ALTA | Plan detallado abajo |
 | **H2.E** | planProducto (3 fases básica/media/grande) | M | ALTA | Plan detallado abajo |
 | **H2.F** | OCR facturas proveedor (Tesseract) | L | MEDIA | Plan detallado abajo |
 | **H3a** | Offline real (empaquetar narrativa + demo) | S | MEDIA | Grieta mercado G1 |
@@ -115,33 +115,16 @@ npm run tauri:dev         # levantar app desktop (5-10min primera vez)
 
 ## 📐 PLANES DETALLADOS PENDIENTES
 
-### H2.D — SEMÁFORO 🟢🟡🔴 DE MARGEN (diferenciador psicológico)
+### H2.D — SEMÁFORO 🟢🟡🔴 DE MARGEN ✅ COMPLETO (2026-07-30)
 
-**Objetivo:** que el dueño vea su food cost día a día SIN ser contador.
-
-**Archivos a crear:**
-- `app/modules/CrozzoSemaforoMargen.js`:
-  - `semaforoMargen(platos)`: por plato 🟢 ≥65% / 🟡 55-65% / 🔴 <55%
-  - `semaforoGlobalDia(facturas, fecha)`: semáforo consolidado del día
-  - Umbrales configurables en `config.costos.semaforoVerde/Amarillo`
-- `scripts/_semaforo-margen-check.mjs`: test
-
-**Archivos a modificar:**
-- `CrozzoRentabilidad.js`: añadir hook `semaforoDesdeRentabilidad(rentabilidad)`
-- `app/core/CrozzoPosMain.js` o `app/ui/`: render del card "Mi rentabilidad hoy" en inicio admin
-- Enchufar `renderMiCrecimientoPanelHtml` (hoy muerto) + mostrar semáforo
-
-**Alerta pre-venta (psicología):**
-- Hook en `cascadeMpChangeToMenu` (ya existe): si plato cae a 🔴, `showToast`/notificación
-- "Tu plato X bajó a 🔴. Sube $Y para mantener objetivo 30%"
-
-**PASS criteria:**
-- Plato margen alto → 🟢
-- Plato margen bajo → 🔴 + alerta
-- Card visible en inicio admin
-- Test 15+ verificaciones PASS
-
-**Integración:** boot position 53, `test:sync-clinical`, workflow CI
+**Entregado:**
+- `app/modules/CrozzoSemaforoMargen.js` + boot tras Rentabilidad
+- Puente `semaforoDesdeRentabilidad` en `CrozzoRentabilidad.js`
+- Hub: `crozzoInicioOpRentabilidadHoyHtml` (peek siempre; detalle al pedir; forceOpen solo 🔴 con ventas)
+- Enchufe `renderMiCrecimientoPanelHtml` dentro del reveal
+- Toast 🔴 en `cascadeMpChangeToMenu`
+- CMV al cobrar (`enriquecerFacturaConCmv` en path de factura)
+- `scripts/_semaforo-margen-check.mjs` 28/28 + `test:semaforo-margen` en clinical
 
 ---
 
@@ -232,11 +215,11 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 |---|---|---|---|
 | Reversión inventario (H2.B) | ✅ motor | Botón "Anular" en factura | `CrozzoPosMain.js` página facturas |
 | CMV + rentabilidad (H2.C) | ✅ motor | Página "Rentabilidad" en menú admin | Nuevo page render + menú lateral |
-| Semáforo (H2.D) | ❌ pendiente | Card "Mi rentabilidad hoy" en inicio | `renderInicioOperacion` |
-| Mi crecimiento (H1.0g) | ✅ motor | Panel visible | `renderMiCrecimientoPanelHtml` existe SIN caller |
+| Semáforo (H2.D) | ✅ motor+UI | Peek + reveal en hub | `crozzoInicioOpRentabilidadHoyHtml` |
+| Mi crecimiento (H1.0g) | ✅ motor+UI | En reveal rentabilidad | caller en hub H2.D |
 | planProducto (H2.E) | ❌ pendiente | Selector plan + gating menú | `CrozzoPosMain.js` menú lateral |
 
-**Prioridad UI:** H2.D (semáforo) > página rentabilidad > botón anular > planProducto.
+**Prioridad UI:** página rentabilidad dedicada > botón anular > planProducto.
 
 ---
 
@@ -284,11 +267,10 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 - Costeo cerrado (CMV + rentabilidad + reversión al anular)
 - 153 tests PASS verificando todo
 
-**Lo que falta (H2.D-F + H3 + H4):**
-- Semáforo 🟢🟡🔴 (diferenciador psicológico)
+**Lo que falta (H2.E-F + H3 + H4):**
 - planProducto (3 fases de adaptabilidad)
 - OCR facturas (setup catálogo 1 tarde)
-- UI: enchufar motores a pantallas visibles
+- UI: página rentabilidad + botón anular factura
 - Grietas de mercado (offline/iFood/pricing)
 - Cumplimiento no-fiscal (datos/PCI/sanitaria)
 
