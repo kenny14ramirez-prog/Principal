@@ -3,6 +3,8 @@
 **Última regeneración:** 2026-07-30T01:20:48.259Z · v1.0.231 · `3b6f82a`
 **Mapa global (humano + agente):** [`../AGENT-SYSTEM-MAP.md`](../AGENT-SYSTEM-MAP.md)
 
+> 🔴 **¿Retomando trabajo de una sesión anterior?** Empieza por [`CONTINUIDAD-OPORD.md`](CONTINUIDAD-OPORD.md) — estado de campaña + planes pendientes + cómo continuar.
+>
 > Reorganizado H0 (2026-07-27): 4 secciones temáticas en vez de tabla única.
 > OTA deja de estar hardcodeada — consultar siempre META.json.
 

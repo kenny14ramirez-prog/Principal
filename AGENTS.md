@@ -16,16 +16,17 @@ Techo de packs ≠ techo de esfuerzo. Usar el arsenal a fondo.
 
 ## Empieza aquí
 
-1. **Hub de mapas:** [`docs/maps/INDEX.md`](docs/maps/INDEX.md) — conexiones, secuencias, invariantes, dominios
-2. **Plan reparación sync:** [`docs/maps/SYNC-REPAIR-PLAN.md`](docs/maps/SYNC-REPAIR-PLAN.md) + [`sync-repair-progress.json`](docs/maps/sync-repair-progress.json)
-3. **Mapa global:** [`docs/AGENT-SYSTEM-MAP.md`](docs/AGENT-SYSTEM-MAP.md)
-4. **Reglas Cursor:** `.cursor/rules/` (`crozzo-military-delivery`, `crozzo-validate-plan-execute-verify`, `crozzo-maps-system`, `crozzo-known-issues`, `crozzo-sync-z0`, `crozzo-synapse-mind`, `crozzo-code-context`, `crozzo-code-graph`, `crozzo-pro-workflow`, `crozzo-apk-verify-before-change`)
-5. **Skills Crozzo (techo / arsenal congelado):** `crozzo-grill`, `crozzo-diagnose`, `crozzo-qa-evidence`, `crozzo-motion` — cherry-pick; **no** packs externos. **ejemplo ≠ ticket.**
-6. **Segunda mente Synapse:** memoria local + Ollama (ver sección abajo)
-7. **mcp-code-context:** lectura/edición por símbolo en archivos grandes (ver sección abajo)
-8. **Grafo codebase-memory:** quién llama a quién (ver sección abajo)
-9. **Flujo profesional:** Plan / grill / diagnose / qa-evidence / Bugbot — ver sección abajo
-10. **Fuente canónica:** editar **`app/`** — Tauri sirve **`src/`** (espejo)
+1. **🔴 CONTINUIDAD DE CAMPAÑA:** [`docs/maps/CONTINUIDAD-OPORD.md`](docs/maps/CONTINUIDAD-OPORD.md) — estado de campaña OPORD (H0+H1+H2), planes pendientes H2.D-F/H3/H4, cómo continuar. **Leer primero si retomas trabajo.**
+2. **Hub de mapas:** [`docs/maps/INDEX.md`](docs/maps/INDEX.md) — conexiones, secuencias, invariantes, dominios
+3. **Plan reparación sync:** [`docs/maps/SYNC-REPAIR-PLAN.md`](docs/maps/SYNC-REPAIR-PLAN.md) + [`sync-repair-progress.json`](docs/maps/sync-repair-progress.json)
+4. **Mapa global:** [`docs/AGENT-SYSTEM-MAP.md`](docs/AGENT-SYSTEM-MAP.md)
+5. **Reglas Cursor:** `.cursor/rules/` (`crozzo-military-delivery`, `crozzo-validate-plan-execute-verify`, `crozzo-maps-system`, `crozzo-known-issues`, `crozzo-sync-z0`, `crozzo-synapse-mind`, `crozzo-code-context`, `crozzo-code-graph`, `crozzo-pro-workflow`, `crozzo-apk-verify-before-change`)
+6. **Skills Crozzo (techo / arsenal congelado):** `crozzo-grill`, `crozzo-diagnose`, `crozzo-qa-evidence`, `crozzo-motion` — cherry-pick; **no** packs externos. **ejemplo ≠ ticket.**
+7. **Segunda mente Synapse:** memoria local + Ollama (ver sección abajo)
+8. **mcp-code-context:** lectura/edición por símbolo en archivos grandes (ver sección abajo)
+9. **Grafo codebase-memory:** quién llama a quién (ver sección abajo)
+10. **Flujo profesional:** Plan / grill / diagnose / qa-evidence / Bugbot — ver sección abajo
+11. **Fuente canónica:** editar **`app/`** — Tauri sirve **`src/`** (espejo)
 
 ## Segunda mente Synapse (Ollama)
 
