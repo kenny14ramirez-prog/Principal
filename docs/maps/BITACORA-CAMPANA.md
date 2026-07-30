@@ -222,9 +222,26 @@ Despliegue de 6 escuadrones de reconocimiento en paralelo:
 
 ---
 
+### DÍA 4 (cont.) — 2026-07-30: BLINDAJE + ANULAR UI (COA A)
+
+**Consejo de generales (4 escuadrones):** H2.E NO ahora. Push → Anular UI → luego H3a/rentabilidad.
+
+#### Blindaje git
+- Push `task/aligned-20260727` → `origin` (24 commits locales protegidos; tracking activo).
+
+#### UI Anular factura (cierra gap H2.B)
+- **Motor fix:** `anularFactura` usa `window.config` + `save`; sin inventarioMeta igual marca anulada.
+- **UI:** `CrozzoPosFacturasPage.js` — botón Anular (admin/encargado), confirm+motivo, badge ⛔, chip filtro Anuladas.
+- Copy honesto: anulación **local**, no nota crédito DIAN.
+- **28/28 PASS** `test:reversion-inventario` (incluye lookup config + save).
+
+**Análisis estratégico post-oleada:** agujero stock cerrado en sede. Siguiente: página rentabilidad (sensación dueño) o H3a offline (asimetría mercado G1).
+
+---
+
 ## 🏗️ INVENTARIO DE CÓDIGO CREADO
 
-### Módulos nuevos (10) — todos en `app/modules/`
+### Módulos nuevos (11) — todos en `app/modules/`
 
 | # | Archivo | Líneas aprox | Función | Boot pos |
 |---|---|---|---|---|

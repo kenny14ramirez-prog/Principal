@@ -113,6 +113,8 @@ assert(r2.ok === true && r2.detalle.includes('ya anulada'), 'Idempotencia: no re
 const facturaSinInv = { uuid: 'f2', estado: 'activa', items: [], inventarioMeta: { aplicado: false } };
 const r3 = Rev.revertirVenta(facturaSinInv, {});
 assert(r3.ok === true && r3.detalle.includes('Sin inventario'), 'Sin inventario aplicado: ok sin revertir');
+assert(facturaSinInv.estado === 'anulada' && facturaSinInv.anulada === true, 'Sin inventario: factura igual queda anulada');
+assert(facturaSinInv.inventarioRevertido === false, 'Sin inventario: inventarioRevertido false');
 
 // ── 6. Movimientos tienen trazabilidad completa ───────────────────────────
 const mov = r.movimientos[0];
@@ -121,6 +123,40 @@ assert(mov.facturaId === 'fact-001', 'Movimiento: facturaId');
 assert(mov.motivo === 'error de cobro', 'Movimiento: motivo registrado');
 assert(mov.timestamp && mov.por, 'Movimiento: timestamp + por (auditoría)');
 assert(mov.stockAntes === 8 && mov.stockDespues === 10, 'Movimiento: stock antes/después (trazabilidad)');
+
+// ── 7. anularFactura vía window.config (lookup + save) ─────────────────────
+let saved = false;
+const facturaCfg = {
+  uuid: 'f-cfg-1',
+  estado: 'pos',
+  items: [{ id: 9, nombre: 'Agua', cantidad: 1 }],
+  inventarioMeta: {
+    aplicado: true,
+    lineas: [{ id: 9, nombre: 'Agua', cantidad: 1, resultado: 'ok' }]
+  }
+};
+const productosCfg = [{ id: 9, nombre: 'Agua', stock: 3 }];
+const ctxCfg = {
+  console,
+  getCurrentUser: () => ({ rol: 'encargado' }),
+  isSuperAdminUser: () => false,
+  crozzoGetCurrentUserLabel: () => 'Encargado',
+  crozzoGetProductos: () => productosCfg,
+  persistCatalogProductosLocal: () => {},
+  config: {
+    getFacturas: () => [facturaCfg],
+    save: () => { saved = true; }
+  }
+};
+ctxCfg.window = ctxCfg;
+ctxCfg.globalThis = ctxCfg;
+vm.createContext(ctxCfg);
+vm.runInContext(readFileSync(join(root, 'app/modules/CrozzoReversionInventario.js'), 'utf8'), ctxCfg);
+const rCfg = ctxCfg.CrozzoReversionInventario.anularFactura('f-cfg-1', { motivo: 'duplicado', por: 'Encargado' });
+assert(rCfg.ok === true, 'anularFactura(config): ok');
+assert(facturaCfg.estado === 'anulada', 'anularFactura(config): estado anulada');
+assert(productosCfg[0].stock === 4, 'anularFactura(config): stock +1');
+assert(saved === true, 'anularFactura(config): llama config.save');
 
 // ── Reporte ───────────────────────────────────────────────────────────────
 console.log('');

@@ -213,13 +213,14 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 
 | Motor | Estado | UI faltante | Dónde enchufar |
 |---|---|---|---|
-| Reversión inventario (H2.B) | ✅ motor | Botón "Anular" en factura | `CrozzoPosMain.js` página facturas |
+| Reversión inventario (H2.B) | ✅ motor+UI | Botón Anular en Facturas | `CrozzoPosFacturasPage.js` (2026-07-30) |
 | CMV + rentabilidad (H2.C) | ✅ motor | Página "Rentabilidad" en menú admin | Nuevo page render + menú lateral |
 | Semáforo (H2.D) | ✅ motor+UI | Peek + reveal en hub | `crozzoInicioOpRentabilidadHoyHtml` |
 | Mi crecimiento (H1.0g) | ✅ motor+UI | En reveal rentabilidad | caller en hub H2.D |
-| planProducto (H2.E) | ❌ pendiente | Selector plan + gating menú | `CrozzoPosMain.js` menú lateral |
+| planProducto (H2.E) | ❌ pendiente | Selector plan + gating menú | filtro ortogonal (NO mutar isBasico) |
 
-**Prioridad UI:** página rentabilidad dedicada > botón anular > planProducto.
+**Prioridad UI restante:** página rentabilidad dedicada → H3a offline → planProducto.  
+**Cola mando (COA A jul-30):** push ✅ → Anular UI ✅ → siguiente H3a o página rentabilidad.
 
 ---
 
@@ -268,10 +269,10 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 - 153 tests PASS verificando todo
 
 **Lo que falta (H2.E-F + H3 + H4):**
-- planProducto (3 fases de adaptabilidad)
-- OCR facturas (setup catálogo 1 tarde)
-- UI: página rentabilidad + botón anular factura
-- Grietas de mercado (offline/iFood/pricing)
-- Cumplimiento no-fiscal (datos/PCI/sanitaria)
+- Página rentabilidad dedicada (motor H2.C ya vivo)
+- H3a offline real (G1 — prioridad mercado)
+- planProducto (3 fases; filtro ortogonal)
+- OCR facturas (vs WARO)
+- Grietas G2/G3 + H4 no-fiscal
 
 **La base es sólida.** El núcleo (cascada costeo + conectividad + motor fiscal) está preservado y verificado. Lo que queda es aditivo.

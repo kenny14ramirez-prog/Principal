@@ -14,11 +14,13 @@ function crozzoFacturaEstadoBadgeHtml(f) {
   if (!f) return '';
   var e = f.estado || '';
   var doc = '';
-  if (e === 'demo') doc = '<span class="badge badge-warning">🧪 Demo</span>';
+  if (e === 'anulada' || f.anulada === true) doc = '<span class="badge badge-danger">⛔ Anulada</span>';
+  else if (e === 'demo') doc = '<span class="badge badge-warning">🧪 Demo</span>';
   else if (e === 'pos') doc = '<span class="badge badge-info">🧾 POS</span>';
   else if (e === 'precuenta') doc = '<span class="badge badge-info">📋 Precuenta</span>';
   else if (e === 'timbrada') doc = '<span class="badge badge-success">✅ Timbrada</span>';
   else doc = '<span class="badge badge-info">' + escUserAttr(e || '—') + '</span>';
+  if (e === 'anulada' || f.anulada === true) return doc;
   var cob =
     typeof CrozzoCarteraComercial !== 'undefined' && CrozzoCarteraComercial.cobroBadgeHtml
       ? CrozzoCarteraComercial.cobroBadgeHtml(f)
@@ -33,7 +35,11 @@ function crozzoFacturaMatchesListFilter(f) {
       CrozzoCarteraComercial.matchesFacturaCobroFilter(f, 'cobro_pendiente')
     );
   }
-  if (facturasFilterEstado !== 'todos') return f.estado === facturasFilterEstado;
+  if (facturasFilterEstado === 'anulada') return f.estado === 'anulada' || f.anulada === true;
+  if (facturasFilterEstado !== 'todos') {
+    if (f.estado === 'anulada' || f.anulada === true) return false;
+    return f.estado === facturasFilterEstado;
+  }
   return true;
 }
 function crozzoFacturaServicioLabel(f) {
@@ -774,6 +780,111 @@ function crozzoRenderFacturaPreviewPane() {
 }
 window.openFacturaBelow = openFacturaBelow;
 window.selectFacturaForPreview = selectFacturaForPreview;
+function crozzoFacturaPuedeAnularUi(f) {
+  if (!f || f.estado === 'anulada' || f.anulada === true) return false;
+  try {
+    var R = typeof CrozzoReversionInventario !== 'undefined' ? CrozzoReversionInventario : null;
+    return !!(R && typeof R.puedeAnular === 'function' && R.puedeAnular());
+  } catch (_) {
+    return false;
+  }
+}
+function crozzoFacturaAnularBtnHtml(idx, compact) {
+  if (idx == null || idx < 0) return '';
+  var facturas = typeof config !== 'undefined' && config.getFacturas ? config.getFacturas() : [];
+  var f = facturas[idx];
+  if (!crozzoFacturaPuedeAnularUi(f)) return '';
+  var cls = compact ? 'btn btn-danger btn-xs' : 'btn btn-danger';
+  return (
+    '<button type="button" class="' +
+    cls +
+    '" onclick="event.stopPropagation();crozzoFacturaAnularPrompt(' +
+    idx +
+    ')" title="Anular venta y devolver stock (local; no es nota crédito DIAN)">Anular</button>'
+  );
+}
+function crozzoFacturaAnularPrompt(idx) {
+  var facturas = typeof config !== 'undefined' && config.getFacturas ? config.getFacturas() : [];
+  var f = facturas[idx];
+  if (!f) {
+    if (typeof showToast === 'function') showToast('Factura no encontrada', 'error');
+    return;
+  }
+  if (!crozzoFacturaPuedeAnularUi(f)) {
+    if (typeof showToast === 'function') showToast('Solo admin/encargado puede anular ventas', 'warning');
+    return;
+  }
+  var cons = escUserAttr(f.consecutivo || f.uuid || String(idx));
+  showModal(
+    'Anular venta',
+    '<div class="fade-in">' +
+      '<p>¿Anular el comprobante <strong>' +
+      cons +
+      '</strong>?</p>' +
+      '<p style="font-size:0.85rem;color:var(--text-secondary);margin-top:8px;">Se restaurará el stock si la venta descontó inventario. Esto es anulación <strong>local</strong> — no emite nota crédito DIAN.</p>' +
+      '<label class="form-label" for="crozzoAnularMotivo" style="margin-top:12px;display:block;">Motivo (opcional)</label>' +
+      '<input type="text" id="crozzoAnularMotivo" class="form-input" placeholder="Error de cobro, duplicado…" maxlength="120">' +
+      '<div class="btn-group" style="justify-content:flex-end;margin-top:14px;">' +
+      '<button type="button" class="btn btn-outline" onclick="closeModal()">Cancelar</button>' +
+      '<button type="button" class="btn btn-danger" onclick="crozzoFacturaConfirmAnular(' +
+      idx +
+      ')">Confirmar anulación</button>' +
+      '</div></div>'
+  );
+}
+function crozzoFacturaConfirmAnular(idx) {
+  var facturas = typeof config !== 'undefined' && config.getFacturas ? config.getFacturas() : [];
+  var f = facturas[idx];
+  if (!f) {
+    if (typeof showToast === 'function') showToast('Factura no encontrada', 'error');
+    return;
+  }
+  if (!crozzoFacturaPuedeAnularUi(f)) {
+    if (typeof showToast === 'function') showToast('Acción no autorizada', 'warning');
+    return;
+  }
+  var R = typeof CrozzoReversionInventario !== 'undefined' ? CrozzoReversionInventario : null;
+  if (!R || typeof R.anularFactura !== 'function') {
+    if (typeof showToast === 'function') showToast('Motor de anulación no disponible', 'error');
+    return;
+  }
+  var motivoEl = document.getElementById('crozzoAnularMotivo');
+  var motivo = motivoEl && motivoEl.value ? String(motivoEl.value).trim() : '';
+  var por =
+    typeof crozzoGetCurrentUserLabel === 'function' ? crozzoGetCurrentUserLabel() : 'admin';
+  var fid = f.uuid || f.id;
+  var r;
+  try {
+    r = R.anularFactura(fid, { motivo: motivo || 'anulacion_venta', por: por });
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Error al anular: ' + (e && e.message ? e.message : e), 'error');
+    return;
+  }
+  if (typeof config !== 'undefined' && config.save) {
+    try {
+      config.save();
+    } catch (_) {}
+  }
+  if (typeof config !== 'undefined' && config.addAudit) {
+    try {
+      config.addAudit(
+        'factura_anulada',
+        'Anuló ' +
+          (f.consecutivo || fid) +
+          (motivo ? ' · ' + motivo : '') +
+          (r && r.detalle ? ' · ' + r.detalle : '')
+      );
+    } catch (_) {}
+  }
+  if (typeof closeModal === 'function') closeModal();
+  if (r && r.ok) {
+    if (typeof showToast === 'function') showToast('Venta anulada. ' + (r.detalle || ''), 'success');
+  } else {
+    if (typeof showToast === 'function')
+      showToast((r && r.detalle) || 'No se pudo anular', 'error');
+  }
+  if (typeof refreshFacturasFilteredView === 'function') refreshFacturasFilteredView();
+}
 function crozzoBuildInvoicePreviewToolbarHtml(f, idx, compact) {
   var pagoLabel = crozzoMetodoPagoDescripcion(f.metodoPago, f.paymentMeta, { htmlSafe: true });
   var dian = crozzoFacturaQrMostrable(f)
@@ -782,6 +893,7 @@ function crozzoBuildInvoicePreviewToolbarHtml(f, idx, compact) {
       ')">DIAN</button>'
     : '';
   var printBtns = typeof crozzoFacturaImpresionBtnsHtml === 'function' ? crozzoFacturaImpresionBtnsHtml(idx) : '';
+  var anularBtn = crozzoFacturaAnularBtnHtml(idx, !!compact);
   if (compact) {
     return (
       '<div class="crozzo-invoice-inline-toolbar">' +
@@ -791,6 +903,7 @@ function crozzoBuildInvoicePreviewToolbarHtml(f, idx, compact) {
       '<button type="button" class="btn btn-outline btn-xs" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'wa\')">WhatsApp</button>' +
       '<button type="button" class="btn btn-outline btn-xs" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">Email</button>' +
       dian +
+      anularBtn +
       '</div></div>'
     );
   }
@@ -799,7 +912,8 @@ function crozzoBuildInvoicePreviewToolbarHtml(f, idx, compact) {
     printBtns +
     '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'wa\')">WhatsApp + PDF Oficio</button>' +
     '<button type="button" class="btn btn-outline" onclick="crozzoFacturaShareFromHistory(' + idx + ',\'em\')">Email</button>' +
-    dian
+    dian +
+    anularBtn
   );
 }
 function openFacturaFullscreen(idx) {
@@ -1077,6 +1191,7 @@ function renderFacturas() {
     buildFacturasFilterChipHtml('pos', 'POS') +
     buildFacturasFilterChipHtml('demo', 'Demo') +
     buildFacturasFilterChipHtml('precuenta', 'Precuenta') +
+    buildFacturasFilterChipHtml('anulada', 'Anuladas') +
     '</div></div>' +
     '<div class="crozzo-invoice-result-bar" id="facturasResultBar">' +
     buildFacturasResultBarHtml(resumen, viewRows.length, facturas.length) +
@@ -1169,3 +1284,5 @@ window.confirmClearFacturasHistorial = confirmClearFacturasHistorial;
 window.setFacturasPeriod = setFacturasPeriod;
 window.selectFacturaForPreviewKey = selectFacturaForPreviewKey;
 window.openFacturaRow = openFacturaRow;
+window.crozzoFacturaAnularPrompt = crozzoFacturaAnularPrompt;
+window.crozzoFacturaConfirmAnular = crozzoFacturaConfirmAnular;

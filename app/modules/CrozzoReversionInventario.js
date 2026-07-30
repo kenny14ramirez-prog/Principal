@@ -74,9 +74,10 @@
 
     var meta = factura.inventarioMeta;
     if (!meta || !meta.aplicado) {
-      // No se aplicó inventario en la venta (ej: restaurante sin receta) — nada que revertir
+      // Nada que revertir en stock, pero la factura SÍ debe quedar anulada (UI/sede).
+      marcarFacturaAnulada(factura, o, false);
       resultado.ok = true;
-      resultado.detalle = 'Sin inventario aplicado en la venta original';
+      resultado.detalle = 'Sin inventario aplicado en la venta original (factura anulada)';
       return resultado;
     }
 
@@ -168,44 +169,60 @@
       });
     }
 
-    // Marcar factura como anulada
-    factura.estado = 'anulada';
-    factura.anulada = true;
-    factura.anuladaAt = new Date().toISOString();
-    factura.anuladaPor = o.por || (typeof global.crozzoGetCurrentUserLabel === 'function' ? global.crozzoGetCurrentUserLabel() : 'admin');
-    factura.anuladaMotivo = o.motivo || 'anulacion_venta';
-    factura.inventarioRevertido = true;
+    marcarFacturaAnulada(factura, o, true);
 
     resultado.ok = resultado.errores === 0;
     resultado.detalle = resultado.revertidas + ' revertidas, ' + resultado.omitidas + ' omitidas, ' + resultado.errores + ' errores';
     return resultado;
   }
 
+  function marcarFacturaAnulada(factura, o, inventarioRevertido) {
+    o = o || {};
+    factura.estado = 'anulada';
+    factura.anulada = true;
+    factura.anuladaAt = new Date().toISOString();
+    factura.anuladaPor =
+      o.por ||
+      (typeof global.crozzoGetCurrentUserLabel === 'function' ? global.crozzoGetCurrentUserLabel() : 'admin');
+    factura.anuladaMotivo = o.motivo || 'anulacion_venta';
+    factura.inventarioRevertido = !!inventarioRevertido;
+  }
+
+  function getConfigManager() {
+    if (global.config && typeof global.config.getFacturas === 'function') return global.config;
+    if (global.crozzoPosConfigManager && typeof global.crozzoPosConfigManager.getFacturas === 'function') {
+      return global.crozzoPosConfigManager;
+    }
+    return null;
+  }
+
   /**
-   * Hook para el flujo de anulación existente.
-   * Llamar antes de mapear estado 'anulada' a Supabase.
+   * Hook para el flujo de anulación (UI Facturas / sync).
+   * Lookup vía window.config (ConfigManager vivo) + save.
    * @returns {object} resultado de revertirVenta
    */
   function anularFactura(facturaId, opts) {
-    // Buscar la factura en config.getFacturas()
     var factura = null;
+    var cfg = getConfigManager();
     try {
       if (typeof global.crozzoGetFacturaById === 'function') {
         factura = global.crozzoGetFacturaById(facturaId);
-      } else if (typeof global.crozzoPosConfigManager === 'object' && global.crozzoPosConfigManager) {
-        var facturas = global.crozzoPosConfigManager.getFacturas && global.crozzoPosConfigManager.getFacturas();
-        if (Array.isArray(facturas)) {
-          factura = facturas.find(function (f) { return (f.uuid || f.id) === facturaId; });
-        }
+      }
+      if (!factura && cfg) {
+        var facturas = cfg.getFacturas() || [];
+        factura = facturas.find(function (f) {
+          return String(f.uuid || f.id) === String(facturaId);
+        });
       }
     } catch (_) {}
     if (!factura) {
       return { ok: false, detalle: 'Factura no encontrada: ' + facturaId };
     }
     var r = revertirVenta(factura, opts);
-    // Persistir la factura actualizada (estado anulada)
-    if (r.ok && typeof global.crozzoPosConfigManager === 'object' && global.crozzoPosConfigManager) {
-      try { if (typeof global.crozzoPosConfigManager.save === 'function') global.crozzoPosConfigManager.save(); } catch (_) {}
+    if (r.ok && cfg && typeof cfg.save === 'function') {
+      try {
+        cfg.save();
+      } catch (_) {}
     }
     return r;
   }
