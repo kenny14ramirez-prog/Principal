@@ -26,8 +26,9 @@
 | **H2.B** | Reversión inventario al anular | 1 | 21/21 PASS | ✅ COMPLETO |
 | **H2.C** | CMV + rentabilidad | 1 | 18/18 PASS | ✅ COMPLETO |
 | **H2.D** | Semáforo 🟢🟡🔴 + card hub | 1 | 28/28 PASS | ✅ COMPLETO |
+| **H3a** | Offline real G1 (narrativa + demo) | 1 | offline-combat + sede-combat 21/21 | ✅ COMPLETO |
 
-**Balance H1+H2:** 11 fases completas, 181+ tests PASS, 1 diferida (H1.3).
+**Balance H1+H2+H3a:** 12 fases completas, 1 diferida (H1.3).
 
 ### Fases PENDIENTES (lo que queda por hacer)
 
@@ -35,7 +36,6 @@
 |---|---|---|---|---|
 | **H2.E** | planProducto (3 fases básica/media/grande) | M | ALTA | Plan detallado abajo |
 | **H2.F** | OCR facturas proveedor (Tesseract) | L | MEDIA | Plan detallado abajo |
-| **H3a** | Offline real (empaquetar narrativa + demo) | S | MEDIA | Grieta mercado G1 |
 | **H3b** | Transparencia precio vs mercado | S | MEDIA | Grieta mercado G3 |
 | **H3c** | iFood + multi-delivery unificado | L | BAJA | Grieta mercado G2 |
 | **H4** | Cumplimiento no-fiscal (Ley 1581, PCI, sanitaria) | M | MEDIA | Ver plan OPORD original |
@@ -191,7 +191,11 @@ npm run tauri:dev         # levantar app desktop (5-10min primera vez)
 
 ### H3 — GRIETAS DE MERCADO
 
-**H3a — Offline real (G1):** empaquetar narrativa "Crozzo sobrevive al corte de internet". Validar `test:sede-combat` WAN-off. Script `scripts/_offline-combat-demo.mjs`. Scorecard dimensión "Offline real". Esfuerzo S.
+**H3a — Offline real (G1) ✅ COMPLETO (2026-07-30):**
+- `scripts/_offline-combat-demo.mjs` + `npm run test:offline-combat`
+- Scorecard label **Offline real** (= `offline_fleet`, sin cambiar pesos)
+- Narrativa [`OFFLINE-COMBAT-NARRATIVE.md`](OFFLINE-COMBAT-NARRATIVE.md)
+- Gate `test:sede-combat` incluye demo + narrativa (21 checks)
 
 **H3b — Transparencia precio (G3):** comparador visible "Costo real Fudo: $X · Crozzo: $Y". Doc `docs/maps/PRICING-VS-MERCADO-CO.md`. Esfuerzo S.
 
@@ -219,8 +223,8 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 | Mi crecimiento (H1.0g) | ✅ motor+UI | En reveal rentabilidad | caller en hub H2.D |
 | planProducto (H2.E) | ❌ pendiente | Selector plan + gating menú | filtro ortogonal (NO mutar isBasico) |
 
-**Prioridad UI restante:** H3a offline → planProducto.  
-**Cola mando (COA A jul-30):** push ✅ → Anular UI ✅ → página rentabilidad ✅ → siguiente H3a offline (G1).
+**Prioridad restante:** H2.E planProducto · H2.F OCR · H3b pricing.  
+**Cola mando (jul-30):** push ✅ → Anular ✅ → rentabilidad ✅ → H3a offline ✅.
 
 ---
 
@@ -268,10 +272,10 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 - Costeo cerrado (CMV + rentabilidad + reversión al anular)
 - 153 tests PASS verificando todo
 
-**Lo que falta (H2.E-F + H3 + H4):**
-- H3a offline real (G1 — prioridad mercado)
+**Lo que falta (H2.E-F + H3b-c + H4):**
 - planProducto (3 fases; filtro ortogonal)
 - OCR facturas (vs WARO)
-- Grietas G2/G3 + H4 no-fiscal
+- H3b transparencia precio + H3c iFood
+- H4 no-fiscal
 
 **La base es sólida.** El núcleo (cascada costeo + conectividad + motor fiscal) está preservado y verificado. Lo que queda es aditivo.

@@ -253,6 +253,20 @@ Despliegue de 6 escuadrones de reconocimiento en paralelo:
 
 ---
 
+### DÍA 4 (cont.) — 2026-07-30: H3a OFFLINE REAL (G1)
+
+**Orden:** afirmativo mando → escuadrón recon → COA empaquetado (sin tocar OpFanout).
+
+#### Empaque supervivencia sede
+- **`_offline-combat-demo.mjs`** + `npm run test:offline-combat` — cableado LAN/cola fiscal/scorecard.
+- Scorecard: label **Offline real** (= `offline_fleet`) + fila diag G1.
+- Narrativa: `docs/maps/OFFLINE-COMBAT-NARRATIVE.md` + link doctrina §6.
+- `test:sede-combat` **21/21** (incluye demo + narrativa).
+
+**Pitch:** «Crozzo sobrevive al corte de internet.»
+
+---
+
 ## 🏗️ INVENTARIO DE CÓDIGO CREADO
 
 ### Módulos nuevos (12) — todos en `app/modules/`

@@ -139,3 +139,7 @@ Regla Cursor: `.cursor/rules/crozzo-military-delivery.mdc`.
 > El encargado ve el **sello de combate** y el **scorecard de mando** — no un dashboard SaaS.
 
 No digas “también facturamos”. Di **supervivencia + honestidad + mando**.
+
+**H3a / G1 — Offline real (empaquetado):**  
+Pitch y checklist de campo → [`OFFLINE-COMBAT-NARRATIVE.md`](OFFLINE-COMBAT-NARRATIVE.md).  
+Verificación: `npm run test:offline-combat` · scorecard dimensión **Offline real** (= `offline_fleet`).
