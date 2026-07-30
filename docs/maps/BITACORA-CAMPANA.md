@@ -239,9 +239,23 @@ Despliegue de 6 escuadrones de reconocimiento en paralelo:
 
 ---
 
+### DÍA 4 (cont.) — 2026-07-30: PÁGINA RENTABILIDAD (UI H2.C)
+
+**Orden:** afirmativo mando → escuadrón recon → ACT.
+
+#### Página Gestión → Rentabilidad
+- **`CrozzoRentabilidadPage.js`:** Hoy / 7 días · semáforo · KPIs · top/bottom platos · gate admin/encargado.
+- Menú + `PAGE_MENU_MAP` + case PosMain + perfiles (BASICO_SHARED + encargado).
+- Hub H2.D: botón «Ver rentabilidad».
+- **Test** `_rentabilidad-page-check.mjs` en clinical.
+
+**Siguiente recomendado:** H3a offline (G1).
+
+---
+
 ## 🏗️ INVENTARIO DE CÓDIGO CREADO
 
-### Módulos nuevos (11) — todos en `app/modules/`
+### Módulos nuevos (12) — todos en `app/modules/`
 
 | # | Archivo | Líneas aprox | Función | Boot pos |
 |---|---|---|---|---|
@@ -255,9 +269,11 @@ Despliegue de 6 escuadrones de reconocimiento en paralelo:
 | 8 | `CrozzoTicketQR.js` | 170 | Renderer QR VPFE + nº validación | 50 |
 | 9 | `CrozzoReversionInventario.js` | 200 | Anular restaura stock + auditoría | 51 |
 | 10 | `CrozzoRentabilidad.js` | 250 | CMV + rentabilidad período/cat/plato | 52 |
+| 11 | `CrozzoSemaforoMargen.js` | 220 | Semáforo 🟢🟡🔴 margen | 53 |
+| 12 | `CrozzoRentabilidadPage.js` | 280 | Página UI Hoy/7d + KPIs + platos | 54 |
 
-### Scripts de test nuevos (11) — todos en `scripts/`
-`_legalidad-fiscal-check`, `_niveles-madurez-check`, `_rampa-madurez-check`, `_impuestos-saludables-check`, `_tipo-documento-check`, `_contingencia-fiscal-check`, `_retenciones-b2b-check`, `_ticket-qr-check`, `_perfiles-barrio-check`, `_reversion-inventario-check`, `_cmv-rentabilidad-check`
+### Scripts de test nuevos (13) — todos en `scripts/`
+`_legalidad-fiscal-check`, `_niveles-madurez-check`, `_rampa-madurez-check`, `_impuestos-saludables-check`, `_tipo-documento-check`, `_contingencia-fiscal-check`, `_retenciones-b2b-check`, `_ticket-qr-check`, `_perfiles-barrio-check`, `_reversion-inventario-check`, `_cmv-rentabilidad-check`, `_semaforo-margen-check`, `_rentabilidad-page-check`
 
 ### Extensiones a existentes
 - `CrozzoPosConfigManager.js`: bloque `madurez` + migración + 5 getters

@@ -2308,6 +2308,7 @@ function crozzoHpPageTitles() {
     'venta-comercial': ['Tienda / Comercial', 'Venta directa por mostrador'],
     'cartera-comercial': ['Cartera de clientes', 'Cuentas por cobrar, abonos y cotizaciones'],
     'cupos-clientes': ['Cupos de clientes', 'Crédito máximo por cliente y saldo por cobrar'],
+    rentabilidad: ['Rentabilidad', 'Margen del día y de la semana · semáforo 🟢🟡🔴'],
     tablets: ['Tablets', 'Toma de pedidos por meseros'],
     'caja-clientes': ['Clientes (FE)', 'Directorio para facturación electrónica'],
     facturas: ['Facturas', 'Historial de comprobantes del turno'],
@@ -12215,6 +12216,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'cupos-clientes': 'admin',
   'caja-clientes': 'caja',
   facturas: 'facturas',
+  rentabilidad: 'rentabilidad',
   'cierre-caja': 'cierre-caja',
   comandas: 'comandas',
   inventarios: 'inventarios',
@@ -13171,7 +13173,7 @@ function getMenusForRole(role, perfil) {
         mesero: ['tablets'],
         cocina: ['comandas', 'compras-recetario-cocina', 'compras-cortes', 'compras-proceso-sesion'],
         recepcion: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'cierre-caja'],
-        encargado: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'comandas', 'tablets', 'cierre-caja'],
+        encargado: ['inicio-operacion', 'punto-venta', 'facturas', 'rentabilidad', 'caja', 'comandas', 'tablets', 'cierre-caja'],
         inventario: [
           'centro-compras',
           'compras-proveedores',
@@ -16332,6 +16334,7 @@ function navigateTo(page) {
     'venta-comercial': ['Tienda / Comercial', 'Venta directa por mostrador sin mesas ni cocina'],
     'cartera-comercial': ['Cartera de clientes', 'Por cobrar, abonos y cotizaciones de venta'],
     'cupos-clientes': ['Cupos de clientes', 'Asigne crédito máximo y consulte deuda por cliente'],
+    rentabilidad: ['Rentabilidad', 'Ingresos, CMV, utilidad y platos con semáforo'],
     'tablets': ['Tablets', 'Toma de pedidos por meseros y dispositivos móviles'],
     'caja-clientes': ['Clientes (FE)', 'Datos para factura electrónica y seguimiento por mesa o venta'],
     'facturas': ['Facturas', 'Historial de facturas electrónicas emitidas'],
@@ -16934,6 +16937,15 @@ function renderPage(page, renderOpts) {
           : '<div class="card"><p>Módulo cupos no cargado. Recargue la aplicación.</p></div>';
       if (window.CrozzoCuposClientes && typeof CrozzoCuposClientes.initPage === 'function') {
         CrozzoCuposClientes.initPage();
+      }
+      break;
+    case 'rentabilidad':
+      content.innerHTML =
+        window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.renderPage === 'function'
+          ? CrozzoRentabilidadPage.renderPage()
+          : '<div class="card"><p>Módulo rentabilidad no cargado. Recargue la aplicación.</p></div>';
+      if (window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.initPage === 'function') {
+        CrozzoRentabilidadPage.initPage();
       }
       break;
     case 'facturas': content.innerHTML = renderFacturas(); initFacturas(); break;
@@ -21520,6 +21532,7 @@ function crozzoInicioOpPerfilLabel(perfilId) {
 var CROZZO_INICIO_OP_SHORTCUTS = [
   { page: 'cierre-caja', icon: 'wallet', title: 'Cierre de caja', subDefault: 'Turnos al día', roles: ['admin', 'encargado', 'caja', 'recepcion', 'user'], priority: { admin: 1, encargado: 1, caja: 1, recepcion: 1, user: 1 }, basico: true },
   { page: 'facturas', icon: 'receipt', title: 'Facturas', subDefault: 'Ventas del día', roles: ['admin', 'encargado', 'caja', 'recepcion'], priority: { admin: 2, encargado: 2, caja: 2, recepcion: 2 }, basico: true },
+  { page: 'rentabilidad', icon: 'trending-up', title: 'Rentabilidad', subDefault: 'Margen y semáforo', roles: ['admin', 'encargado'], priority: { admin: 2, encargado: 3 }, basico: true },
   { page: 'comandas', icon: 'chef-hat', title: 'Comandas', subDefault: 'Seguimiento cocina', roles: ['admin', 'encargado'], perfil: 'restaurante', priority: { admin: 3, encargado: 3 }, basico: true },
   { page: 'caja-clientes', icon: 'users', title: 'Clientes', subDefault: 'Datos de facturación', roles: ['admin', 'encargado', 'caja', 'recepcion'], priority: { admin: 4, encargado: 4, caja: 4, recepcion: 3 }, basico: true },
   { page: 'inventarios', icon: 'bar-chart-3', title: 'Reportes', subDefault: 'KPIs y rendimiento', roles: ['admin', 'encargado', 'inventario'], priority: { admin: 2, encargado: 5, inventario: 1 }, basico: true },
@@ -21765,6 +21778,9 @@ function crozzoInicioOpRentabilidadHoyHtml() {
       if (crec) body.push('<div class="crozzo-rent-hoy__crecimiento">' + crec + '</div>');
     }
   } catch (_) {}
+  body.push(
+    '<p class="crozzo-rent-hoy__link"><button type="button" class="btn btn-outline btn-xs" onclick="navigateTo(\'rentabilidad\')">Ver rentabilidad</button></p>'
+  );
   body.push('</div>');
   /* Solo forzar abierto si hay ventas y el día está en 🔴 (D-018: sin ruido matutino vacío). */
   var forceOpen = dia.semaforo === 'rojo' && (dia.numFacturas || 0) > 0;

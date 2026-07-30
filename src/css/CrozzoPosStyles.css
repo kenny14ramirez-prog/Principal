@@ -8783,6 +8783,126 @@ body.crozzo-premium-psyche .crozzo-crm-create {
   font-size: 0.8rem;
   margin: 4px 0;
 }
+.crozzo-rent-hoy__link {
+  margin: 10px 0 0;
+}
+/* Página Rentabilidad (UI H2.C) */
+.crozzo-rent-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 4px 28px;
+}
+.crozzo-rent-page__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__hero h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.crozzo-rent-page__toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem--verde {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-page__sem--amarillo {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-page__sem--rojo {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-page__sem-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.crozzo-rent-page__sem p {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-page__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__kpis > div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+}
+.crozzo-rent-page__kpis span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary, #5c564f);
+  margin-bottom: 4px;
+}
+.crozzo-rent-page__kpis strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-page__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.crozzo-rent-page__cols h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+.crozzo-rent-page__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crozzo-rent-page__list li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, rgba(28, 28, 28, 0.06));
+  font-size: 0.86rem;
+}
+.crozzo-rent-page__meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #5c564f);
+  font-size: 0.8rem;
+}
+.crozzo-rent-page__empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #5c564f);
+  margin: 8px 0 12px;
+}
+.crozzo-rent-page__deny {
+  padding: 24px 8px;
+}
+@media (max-width: 720px) {
+  .crozzo-rent-page__kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .crozzo-rent-page__cols {
+    grid-template-columns: 1fr;
+  }
+}
 /* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
 .crozzo-ventas-hub__reveals {
   display: flex;
@@ -44755,6 +44875,126 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 .crozzo-mc-alert {
   font-size: 0.8rem;
   margin: 4px 0;
+}
+.crozzo-rent-hoy__link {
+  margin: 10px 0 0;
+}
+/* Página Rentabilidad (UI H2.C) */
+.crozzo-rent-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 4px 28px;
+}
+.crozzo-rent-page__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__hero h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.crozzo-rent-page__toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem--verde {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-page__sem--amarillo {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-page__sem--rojo {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-page__sem-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.crozzo-rent-page__sem p {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-page__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__kpis > div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+}
+.crozzo-rent-page__kpis span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary, #5c564f);
+  margin-bottom: 4px;
+}
+.crozzo-rent-page__kpis strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-page__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.crozzo-rent-page__cols h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+.crozzo-rent-page__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crozzo-rent-page__list li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, rgba(28, 28, 28, 0.06));
+  font-size: 0.86rem;
+}
+.crozzo-rent-page__meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #5c564f);
+  font-size: 0.8rem;
+}
+.crozzo-rent-page__empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #5c564f);
+  margin: 8px 0 12px;
+}
+.crozzo-rent-page__deny {
+  padding: 24px 8px;
+}
+@media (max-width: 720px) {
+  .crozzo-rent-page__kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .crozzo-rent-page__cols {
+    grid-template-columns: 1fr;
+  }
 }
 /* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
 .crozzo-ventas-hub__reveals {

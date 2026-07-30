@@ -32,6 +32,7 @@
   /** Módulos compartidos del plan básico (sin bodegas/remisiones, sin planilla, compras básicas). */
   var BASICO_SHARED = [
     'inventarios',
+    'rentabilidad',
     'sistema-costos-matriz',
     'sistema-costos-inv',
     'compras-oficina',
@@ -101,6 +102,7 @@
         'punto-venta',
         'tablets',
         'facturas',
+        'rentabilidad',
         'cierre-caja',
         'caja',
         'comandas',
@@ -189,6 +191,7 @@
         'punto-venta',
         'tablets',
         'facturas',
+        'rentabilidad',
         'cierre-caja',
         'caja',
         'comandas',

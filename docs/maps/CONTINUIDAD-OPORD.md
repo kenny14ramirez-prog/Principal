@@ -214,13 +214,13 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 | Motor | Estado | UI faltante | Dónde enchufar |
 |---|---|---|---|
 | Reversión inventario (H2.B) | ✅ motor+UI | Botón Anular en Facturas | `CrozzoPosFacturasPage.js` (2026-07-30) |
-| CMV + rentabilidad (H2.C) | ✅ motor | Página "Rentabilidad" en menú admin | Nuevo page render + menú lateral |
+| CMV + rentabilidad (H2.C) | ✅ motor+UI | Página Gestión → Rentabilidad | `CrozzoRentabilidadPage.js` (2026-07-30) |
 | Semáforo (H2.D) | ✅ motor+UI | Peek + reveal en hub | `crozzoInicioOpRentabilidadHoyHtml` |
 | Mi crecimiento (H1.0g) | ✅ motor+UI | En reveal rentabilidad | caller en hub H2.D |
 | planProducto (H2.E) | ❌ pendiente | Selector plan + gating menú | filtro ortogonal (NO mutar isBasico) |
 
-**Prioridad UI restante:** página rentabilidad dedicada → H3a offline → planProducto.  
-**Cola mando (COA A jul-30):** push ✅ → Anular UI ✅ → siguiente H3a o página rentabilidad.
+**Prioridad UI restante:** H3a offline → planProducto.  
+**Cola mando (COA A jul-30):** push ✅ → Anular UI ✅ → página rentabilidad ✅ → siguiente H3a offline (G1).
 
 ---
 
@@ -269,7 +269,6 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 - 153 tests PASS verificando todo
 
 **Lo que falta (H2.E-F + H3 + H4):**
-- Página rentabilidad dedicada (motor H2.C ya vivo)
 - H3a offline real (G1 — prioridad mercado)
 - planProducto (3 fases; filtro ortogonal)
 - OCR facturas (vs WARO)
