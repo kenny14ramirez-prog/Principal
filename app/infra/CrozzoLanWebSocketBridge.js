@@ -8,10 +8,29 @@
   var _reconnectTimer = null;
   var _url = '';
   var RECONNECT_MS = 4200;
-  // Jitter anti-estampida: si la caja reinicia, las tablets no reconectan todas
-  // en el mismo instante (reparte el pico sobre el servidor LAN).
+  // Jitter anti-estampida (S-04): deviceId-determinista + azar corto.
+  // Preferir crozzoReconnectStaggerMs (ReconnectSync); fallback hash local.
   function reconnectDelay() {
-    return RECONNECT_MS + Math.floor(Math.random() * 2600);
+    try {
+      if (typeof global.crozzoReconnectStaggerMs === 'function') {
+        return global.crozzoReconnectStaggerMs(RECONNECT_MS, 2600);
+      }
+    } catch (_) {}
+    var id = '';
+    try {
+      id = String(
+        (typeof global.ensureCrozzoDeviceId === 'function' && global.ensureCrozzoDeviceId()) ||
+          (global.localStorage && global.localStorage.getItem('crozzo_device_id')) ||
+          ''
+      );
+    } catch (_) {
+      id = '';
+    }
+    var h = 0;
+    for (var i = 0; i < id.length; i++) {
+      h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    return RECONNECT_MS + (h % 2600) + Math.floor(Math.random() * 400);
   }
 
   function md() {

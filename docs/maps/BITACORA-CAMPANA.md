@@ -354,6 +354,15 @@ Estos activos se protegieron durante toda la campaña — son el corazón del si
 
 ---
 
+### DÍA 4b — 2026-07-30: Conectividad legendaria (L1+L2+L3)
+
+**Entregado:**
+- L1 drills D1–D3 + gate `test:legendary-connectivity` (34 asserts)
+- L2: `crozzoReconnectStaggerMs` en WS reconnect + healAnchorSilence; Rust `trim_comandas_active` / purge entregada
+- L3: `CrozzoSedeAutosanable` + Diag Reparar; **sin** FleetOperationalReconcile
+- Evidencia: clinical PASS · fleet intensiva 100 OK=17 FAIL=0
+- Abierto: firma humana de drills en sede real (tabla en LEGENDARY-CONNECTIVITY-DRILLS)
+
 ### DÍA 4 — 2026-07-30: H2.E planProducto (3ª dimensión)
 
 **INTEL:** 2 escuadrones — OPORD pedía mutar `isBasico`; recon rechazó (rompe barrio/SA). COA: filtro ortogonal.

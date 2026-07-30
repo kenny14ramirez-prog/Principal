@@ -904,32 +904,51 @@
         steps.push('Estado de comunicación publicado a la flota.');
       } catch (_) {}
     }
-    /* Flota: anuncio forzado + rediscover caja (Rol B). */
+    /* L3: sede autosanable unifica anuncio/rediscover/WS (sin FleetReconcile / KI-016). */
     try {
-      if (role() === 'B' && global.CrozzoMdnsBridge && typeof global.CrozzoMdnsBridge.rediscoverCentral === 'function') {
-        await global.CrozzoMdnsBridge.rediscoverCentral({ force: true });
-        steps.push('Caja re-localizada en red local (rediscover).');
-      }
-    } catch (_) {}
-    try {
-      var ann =
-        typeof global.crozzoAnnounceFleetIdentity === 'function'
-          ? await global.crozzoAnnounceFleetIdentity({ force: true, pull: true })
-          : global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.announceIdentity === 'function'
-            ? await global.CrozzoPeerDirectory.announceIdentity({ force: true, pull: true })
-            : null;
-      if (ann && ann.ok !== false) {
-        var snap =
-          typeof global.crozzoFleetSnapshot === 'function'
-            ? global.crozzoFleetSnapshot()
-            : global.CrozzoPeerDirectory && global.CrozzoPeerDirectory.getFleetSnapshot
-              ? global.CrozzoPeerDirectory.getFleetSnapshot()
+      if (typeof global.crozzoSedeAutosanableRescue === 'function') {
+        var rescue = await global.crozzoSedeAutosanableRescue({ reason: 'diag_reparar', force: true });
+        if (rescue && rescue.steps && rescue.steps.length) {
+          rescue.steps.forEach(function (s) {
+            steps.push('Autosanable: ' + s);
+          });
+        } else if (rescue && rescue.ok) {
+          steps.push('Sede autosanable ejecutada.');
+        }
+        if (rescue && rescue.fleet) {
+          steps.push(
+            'Flota tras rescue: ' +
+              (rescue.fleet.label || '?') +
+              ' (' +
+              (rescue.fleet.peerCount != null ? rescue.fleet.peerCount : '?') +
+              ' equipo(s)).'
+          );
+        }
+      } else {
+        /* Fallback legacy si el módulo no cargó */
+        if (role() === 'B' && global.CrozzoMdnsBridge && typeof global.CrozzoMdnsBridge.rediscoverCentral === 'function') {
+          await global.CrozzoMdnsBridge.rediscoverCentral({ force: true });
+          steps.push('Caja re-localizada en red local (rediscover).');
+        }
+        var ann =
+          typeof global.crozzoAnnounceFleetIdentity === 'function'
+            ? await global.crozzoAnnounceFleetIdentity({ force: true, pull: true })
+            : global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.announceIdentity === 'function'
+              ? await global.CrozzoPeerDirectory.announceIdentity({ force: true, pull: true })
               : null;
-        steps.push(
-          'Flota: anuncio forzado' +
-            (snap ? ' (' + (snap.label || '?') + ', ' + snap.peerCount + ' equipo(s))' : '') +
-            '.'
-        );
+        if (ann && ann.ok !== false) {
+          var snap =
+            typeof global.crozzoFleetSnapshot === 'function'
+              ? global.crozzoFleetSnapshot()
+              : global.CrozzoPeerDirectory && global.CrozzoPeerDirectory.getFleetSnapshot
+                ? global.CrozzoPeerDirectory.getFleetSnapshot()
+                : null;
+          steps.push(
+            'Flota: anuncio forzado' +
+              (snap ? ' (' + (snap.label || '?') + ', ' + snap.peerCount + ' equipo(s))' : '') +
+              '.'
+          );
+        }
       }
     } catch (_) {}
     if (!steps.length) steps.push('No había nada automático que reparar; revise los puntos en rojo del diagnóstico.');

@@ -124,21 +124,33 @@
         })
       );
     });
-    safe(function () {
-      if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
-        global.CrozzoLanWebSocketBridge.connect();
-      }
-    });
-    triggerPull('all', { skipPrint: false, skipRender: false, force: true });
-    if (silenceMs > ANCHOR_SILENCE_EVENT_MS && md().role === 'B') {
+    /* S-04: escalonar connect+pull por deviceId — N tablets no golpean la caja a la vez. */
+    var staggerMs = 0;
+    try {
+      staggerMs =
+        typeof global.crozzoReconnectStaggerMs === 'function'
+          ? global.crozzoReconnectStaggerMs(0, 800)
+          : Math.floor(Math.random() * 800);
+    } catch (_) {
+      staggerMs = Math.floor(Math.random() * 800);
+    }
+    global.setTimeout(function () {
       safe(function () {
-        if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureStandby === 'function') {
-          global.CrozzoOfflineGossip.ensureStandby();
-        } else if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.start === 'function') {
-          global.CrozzoOfflineGossip.start();
+        if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.connect === 'function') {
+          global.CrozzoLanWebSocketBridge.connect();
         }
       });
-    }
+      triggerPull('all', { skipPrint: false, skipRender: false, force: true });
+      if (silenceMs > ANCHOR_SILENCE_EVENT_MS && md().role === 'B') {
+        safe(function () {
+          if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureStandby === 'function') {
+            global.CrozzoOfflineGossip.ensureStandby();
+          } else if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.start === 'function') {
+            global.CrozzoOfflineGossip.start();
+          }
+        });
+      }
+    }, staggerMs);
   }
 
   function tierAllowsLan() {

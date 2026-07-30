@@ -93,8 +93,8 @@ Salón realista intensivo: **10/10 tablets + 5 PCs**. Adversarial dedup: **PASS*
 |----|-----------|-----------|--------|
 | S-01 | Alta (campo) | QA sede humana DDIL no firmada | Checklist + drills |
 | S-02 | Alta (producto) | FE/pago sin credenciales piloto | Dataico Auth + Wompi |
-| S-03 | Media | Cap 800 comandas activas en Rust | Monitor + purge entregadas agresivo |
-| S-04 | Media | Recovery masivo sin jitter | Jitter por deviceId en reconnect |
+| S-03 | Media → mitigado | Cap 800 comandas activas en Rust | `COMANDAS_ACTIVE_MAX` + `trim_comandas_active` (purge entregada + oldest); `/status` expone count |
+| S-04 | Media → mitigado | Recovery masivo sin jitter | WS `reconnectDelay` + `healAnchorSilence` usan `crozzoReconnectStaggerMs` (deviceId) |
 | S-05 | Media | Git 7 behind origin | Alinear con OK dueño |
 | S-06 | Baja | Playwright lab ≠ 100 browsers reales | Lab dedicado futuro |
 | S-07 | Info | Synapse “HTTP sync” stale | Actualizado: Tokio + semáforo |

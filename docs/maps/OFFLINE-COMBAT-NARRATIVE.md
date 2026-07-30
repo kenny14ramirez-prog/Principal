@@ -46,7 +46,10 @@ No digas “también tenemos offline”. Di **supervivencia de sede**.
 npm run test:offline-combat   # este empaque H3a
 npm run test:sede-combat      # gate armamento sede
 npm run test:contingencia-fiscal
+npm run test:legendary-connectivity  # L1 drills + L2/L3 cableado
 ```
+
+Campo humano (firma): [`LEGENDARY-CONNECTIVITY-DRILLS.md`](LEGENDARY-CONNECTIVITY-DRILLS.md) — conectividad legendaria.
 
 ---
 

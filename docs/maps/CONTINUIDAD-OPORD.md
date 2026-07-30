@@ -28,8 +28,9 @@
 | **H2.D** | Semáforo 🟢🟡🔴 + card hub | 1 | 28/28 PASS | ✅ COMPLETO |
 | **H2.E** | planProducto (basico/medio/grande) | 1 | 32/32 + clinical | ✅ COMPLETO |
 | **H3a** | Offline real G1 (narrativa + demo) | 1 | offline-combat + sede-combat 21/21 | ✅ COMPLETO |
+| **L★** | Conectividad legendaria L1+L2+L3 | 1 | legendary 34 + clinical + flota 100 | ✅ COMPLETO |
 
-**Balance H1+H2+H3a:** 13 fases completas, 1 diferida (H1.3).
+**Balance H1+H2+H3a+L★:** 14 frentes completos, 1 diferida (H1.3).
 
 ### Fases PENDIENTES (lo que queda por hacer)
 
@@ -208,7 +209,14 @@ Los **motores** funcionan (tests PASS) pero faltan las **pantallas** que los mue
 | planProducto (H2.E) | ✅ motor+gating | Plan en «Mi crecimiento»; set vía `setPlanProducto` | filtro ortogonal (NO mutar isBasico) |
 
 **Prioridad restante:** H2.F OCR · H3b pricing · H3c iFood · H4.  
-**Cola mando (jul-30):** … → H3a offline ✅ → **H2.E planProducto ✅**.
+**Cola mando (jul-30):** … → H2.E ✅ → **Conectividad legendaria L1–L3 ✅** (falta firma humana D1–D3 en sede).
+
+### Conectividad legendaria (L★) ✅ COMPLETO (código 2026-07-30)
+
+- L1: [`LEGENDARY-CONNECTIVITY-DRILLS.md`](LEGENDARY-CONNECTIVITY-DRILLS.md) + `test:legendary-connectivity`
+- L2: jitter deviceId (WS + healAnchorSilence) + purge Rust `COMANDAS_ACTIVE_MAX` 800
+- L3: [`CrozzoSedeAutosanable.js`](../../app/infra/CrozzoSedeAutosanable.js) — Diag Reparar; sin FleetReconcile (KI-016)
+- Gate: clinical PASS · fleet-escala intensiva 100 OK=17
 
 ---
 

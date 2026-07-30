@@ -146,6 +146,16 @@ mustInclude(
   'H3a narrativa offline'
 );
 mustInclude(
+  'app/infra/CrozzoSedeAutosanable.js',
+  ['crozzoSedeAutosanableRescue', 'KI-016', 'announceIdentity'],
+  'L3 sede autosanable'
+);
+mustInclude(
+  'docs/maps/LEGENDARY-CONNECTIVITY-DRILLS.md',
+  ['Drill D1', 'Drill D2', 'Drill D3'],
+  'L1 drills conectividad legendaria'
+);
+mustInclude(
   'app/infra/CrozzoReconnectSync.js',
   ['CrozzoFiscalOutboxDrain', 'fiscalDrain'],
   'Reconnect drena cola fiscal'

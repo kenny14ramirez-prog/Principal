@@ -121,6 +121,11 @@ No basta el happy path. Simular caos real Colombia:
 
 Ops: ver [`OPS-COMMAND-CENTER.md`](OPS-COMMAND-CENTER.md) §6 kill criteria.
 
+### Conectividad legendaria (pase de campo L1)
+
+Drills firmables D1–D3 (WAN off · ancla caja · recovery masivo):  
+[`LEGENDARY-CONNECTIVITY-DRILLS.md`](LEGENDARY-CONNECTIVITY-DRILLS.md) · gate `npm run test:legendary-connectivity`.
+
 ## Resultado
 
 | Fecha | Sede | Quién | OK / Fallos |

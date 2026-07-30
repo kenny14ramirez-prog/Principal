@@ -24,6 +24,10 @@ const INFLIGHT_TTL_MS: u128 = 20_000;
 const PENDING_MAX: usize = 2000;
 const SEEN_ACTION_TTL_MS: u128 = 6 * 60 * 60 * 1000;
 const SEEN_ACTION_MAX: usize = 4000;
+/// Tope de comandas activas en memoria LAN (S-03). Overflow: purga entregada luego más viejas.
+const COMANDAS_ACTIVE_MAX: usize = 800;
+/// Soft threshold: purga entregada al 90% del techo (antes del overflow duro).
+const COMANDAS_PURGE_SOFT: usize = (COMANDAS_ACTIVE_MAX * 9) / 10;
 /// Rate limiting para consultas RUT: 1 consulta cada 6 segundos por IP
 const RUT_RATE_LIMIT_MS: u128 = 6_000;
 /// Tope de handlers HTTP concurrentes (techo diseño ~100 dispositivos: evita avalancha accept→spawn).
@@ -353,6 +357,60 @@ fn comanda_store_key(payload: &serde_json::Value) -> Option<String> {
     None
 }
 
+fn comanda_row_at_ms(row: &serde_json::Value) -> i64 {
+    row.get("lastUpdateAt")
+        .or_else(|| row.get("createdAt"))
+        .and_then(|v| match v {
+            serde_json::Value::Number(n) => n.as_i64(),
+            serde_json::Value::String(s) => s.parse::<i64>().ok(),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
+
+fn purge_entregada_comandas(inner: &mut ServerInner) -> usize {
+    let keys: Vec<String> = inner
+        .comandas_active
+        .iter()
+        .filter(|(_, v)| {
+            v.get("estado")
+                .and_then(|e| e.as_str())
+                .unwrap_or("")
+                .eq_ignore_ascii_case("entregada")
+        })
+        .map(|(k, _)| k.clone())
+        .collect();
+    let n = keys.len();
+    for k in keys {
+        inner.comandas_active.remove(&k);
+    }
+    n
+}
+
+/// S-03: al acercarse al techo, sacar entregadas; si sigue alto, dropear las más viejas.
+fn trim_comandas_active(inner: &mut ServerInner) {
+    if inner.comandas_active.len() >= COMANDAS_PURGE_SOFT {
+        purge_entregada_comandas(inner);
+    }
+    if inner.comandas_active.len() <= COMANDAS_ACTIVE_MAX {
+        return;
+    }
+    purge_entregada_comandas(inner);
+    while inner.comandas_active.len() > COMANDAS_ACTIVE_MAX {
+        let oldest = inner
+            .comandas_active
+            .iter()
+            .min_by_key(|(_, v)| comanda_row_at_ms(v))
+            .map(|(k, _)| k.clone());
+        match oldest {
+            Some(k) => {
+                inner.comandas_active.remove(&k);
+            }
+            None => break,
+        }
+    }
+}
+
 fn upsert_comanda_snapshot(inner: &mut ServerInner, payload: &serde_json::Value) {
     let typ = payload
         .get("type")
@@ -388,19 +446,18 @@ fn upsert_comanda_snapshot(inner: &mut ServerInner, payload: &serde_json::Value)
     }
     if typ == "comanda" || typ == "comanda_new" {
         if let Some(k) = comanda_store_key(payload) {
-            inner.comandas_active.insert(k, data);
-            if inner.comandas_active.len() > 800 {
-                let overflow = inner.comandas_active.len() - 800;
-                let keys: Vec<String> = inner
-                    .comandas_active
-                    .keys()
-                    .take(overflow)
-                    .cloned()
-                    .collect();
-                for rk in keys {
-                    inner.comandas_active.remove(&rk);
-                }
+            let est = data
+                .get("estado")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if est == "entregada" {
+                // No re-hidratar entregadas en el mapa activo (S-03).
+                inner.comandas_active.remove(&k);
+                return;
             }
+            inner.comandas_active.insert(k, data);
+            trim_comandas_active(inner);
         }
     }
 }
@@ -798,12 +855,18 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     }
 
     if method == "GET" && (path == "/status" || path == "/status/") {
-        let (cloud_ok, cloud_at) = {
+        let (cloud_ok, cloud_at, comandas_active_count) = {
             let guard = state.lock().unwrap();
             guard
                 .as_ref()
-                .map(|s| (s.cloud_reachable, s.cloud_reachable_at_ms))
-                .unwrap_or((false, 0))
+                .map(|s| {
+                    (
+                        s.cloud_reachable,
+                        s.cloud_reachable_at_ms,
+                        s.comandas_active.len(),
+                    )
+                })
+                .unwrap_or((false, 0, 0))
         };
         let resp = serde_json::json!({
             "ok": true,
@@ -815,7 +878,9 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
             "service": "crozzo-lan-sync",
             "port": port,
             "cloud_reachable": cloud_ok,
-            "cloud_reachable_at_ms": cloud_at
+            "cloud_reachable_at_ms": cloud_at,
+            "comandas_active_count": comandas_active_count,
+            "comandas_active_max": COMANDAS_ACTIVE_MAX
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
