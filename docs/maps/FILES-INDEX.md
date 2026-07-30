@@ -21,7 +21,7 @@
 | 107 | `app/core/CrozzoPosBoot.js` |
 | 3774 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53466 | `app/core/CrozzoPosMain.js` |
+| 53468 | `app/core/CrozzoPosMain.js` |
 | 2808 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
@@ -166,7 +166,7 @@
 | 538 | `app/modules/CrozzoPedidosInternosEngine.js` |
 | 542 | `app/modules/CrozzoPerfilesBiblioteca.js` |
 | 425 | `app/modules/CrozzoPerfilesLogica.js` |
-| 714 | `app/modules/CrozzoPerfilesOperativos.js` |
+| 754 | `app/modules/CrozzoPerfilesOperativos.js` |
 | 686 | `app/modules/CrozzoPermisosPolicy.js` |
 | 3332 | `app/modules/CrozzoPlanilla2026.js` |
 | 2149 | `app/modules/CrozzoPosRuntimeCloud.js` |
@@ -188,6 +188,7 @@
 | 201 | `app/modules/CrozzoReservorioOffline.js` |
 | 38 | `app/modules/CrozzoReservorioSql.js` |
 | 147 | `app/modules/CrozzoRetenciones.js` |
+| 220 | `app/modules/CrozzoReversionInventario.js` |
 | 380 | `app/modules/CrozzoSalonSlotsConfig.js` |
 | 163 | `app/modules/CrozzoSandboxFiscal.js` |
 | 9232 | `app/modules/CrozzoSistemaCostos.js` |
