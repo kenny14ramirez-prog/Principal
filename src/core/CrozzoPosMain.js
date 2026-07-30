@@ -21766,7 +21766,8 @@ function crozzoInicioOpRentabilidadHoyHtml() {
     }
   } catch (_) {}
   body.push('</div>');
-  var forceOpen = dia.semaforo === 'rojo';
+  /* Solo forzar abierto si hay ventas y el día está en 🔴 (D-018: sin ruido matutino vacío). */
+  var forceOpen = dia.semaforo === 'rojo' && (dia.numFacturas || 0) > 0;
   return (
     '<div class="crozzo-ventas-hub__rent-hoy crozzo-rent-hoy crozzo-rent-hoy--' +
     escUserAttr(dia.semaforo || 'verde') +
