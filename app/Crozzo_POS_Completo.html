@@ -16,7 +16,15 @@
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
 <script>window.__CROZZO_NAV_ACL_REV='nav-acl-v6-perm-audit';</script>
-<script>(function(){try{var t='bona-origen';document.documentElement.setAttribute('data-theme',t);document.documentElement.classList.remove('crozzo-theme-dark');document.documentElement.classList.add('crozzo-theme-light');document.documentElement.style.colorScheme='light';try{localStorage.setItem('crozzo_theme',t);}catch(_){}}catch(e){}})();</script>
+<script>(function(){try{var user=false,t='bona-origen';try{user=localStorage.getItem('crozzo_theme_user_v1')==='1';}catch(_){}
+if(user){try{t=String(localStorage.getItem('crozzo_theme')||localStorage.getItem('crozzo-theme')||'bona-origen').toLowerCase();}catch(_){}}
+document.documentElement.setAttribute('data-theme',t);
+var light=['platinum','clear-light','minimalist','bona-origen'];
+var isLight=light.indexOf(t)>=0;
+document.documentElement.classList.toggle('crozzo-theme-light',isLight);
+document.documentElement.classList.toggle('crozzo-theme-dark',!isLight&&t!=='bona-origen');
+document.documentElement.style.colorScheme=isLight?'light':(t?'dark':'light');
+}catch(e){}})();</script>
 <script src="core/CrozzoDevicePerf.js"></script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <link rel="stylesheet" href="css/CrozzoPantallasShell.css">
@@ -397,8 +405,20 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                   </button>
                 </div>
                 <label class="form-label" for="crozzoThemeSelect">Modelo visual</label>
-                <select id="crozzoThemeSelect" class="crozzo-theme-select form-select" aria-label="Tema visual BONA origen" disabled title="Piel única del sistema: BONA origen">
+                <select id="crozzoThemeSelect" class="crozzo-theme-select form-select" aria-label="Tema visual" title="Elegir modelo visual">
                   <option value="bona-origen" selected>BONA origen · Origen bueno</option>
+                  <option value="executive-elite">Black Tie — negro y oro</option>
+                  <option value="dark-luxury">Dark Luxury — negro puro</option>
+                  <option value="royal-navy">Royal Navy — corporativo</option>
+                  <option value="platinum">Platinum — claro y oro</option>
+                  <option value="clear-elegance">Clear Elegance — oscuro</option>
+                  <option value="clear-light">Clear Elegance — claro</option>
+                  <option value="deepspace">Espacio profundo</option>
+                  <option value="cyan">Cyan</option>
+                  <option value="coral">Coral</option>
+                  <option value="magenta">Magenta</option>
+                  <option value="emerald">Esmeralda</option>
+                  <option value="minimalist">Minimalista</option>
                 </select>
               </div>
             </details>
@@ -1090,6 +1110,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoPosCloud.js" defer></script>
 <script src="modules/CrozzoComandasCloudSync.js" defer></script>
 <script src="modules/CrozzoCloudOpsPulse.js" defer></script>
+<script src="infra/CrozzoOpsPresenceBus.js" defer></script>
 <script src="core/CrozzoTermicaColombia.js" defer></script>
 <script src="core/CrozzoTermicaPremium.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>

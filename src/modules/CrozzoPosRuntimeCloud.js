@@ -1085,6 +1085,17 @@
     }
   }
 
+  function noteOpsPlaneMetaUpsert(toUpsert) {
+    try {
+      var st = global.__crozzoOpsPlaneMetaStats || { metaUpserts: 0, mesaUpserts: 0 };
+      for (var ui = 0; ui < toUpsert.length; ui++) {
+        if (toUpsert[ui].kind === 'meta') st.metaUpserts++;
+        else st.mesaUpserts++;
+      }
+      global.__crozzoOpsPlaneMetaStats = st;
+    } catch (_) {}
+  }
+
   async function pushMesaRows(snap, c) {
     var sb = global.__SUPABASE;
     var forceMetaPresence = !!global.__crozzoForceMetaPresencePush;
@@ -1181,6 +1192,7 @@
     try {
       var res = await sb.from(MESA_TABLE).upsert(toUpsert, { onConflict: 'location_id,kind,ref' });
       if (!res.error) {
+        noteOpsPlaneMetaUpsert(toUpsert);
         try {
           var refsUp = toUpsert.filter(function (r) { return r.kind !== 'meta'; }).map(function (r) { return r.kind + ':' + r.ref; });
           var dbg = false;

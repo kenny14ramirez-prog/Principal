@@ -30,6 +30,10 @@ const drills = read('docs/maps/LEGENDARY-CONNECTIVITY-DRILLS.md');
 assert(drills.includes('Drill D1'), 'L1: Drill D1 WAN off');
 assert(drills.includes('Drill D2'), 'L1: Drill D2 ancla caja');
 assert(drills.includes('Drill D3'), 'L1: Drill D3 recovery masivo');
+assert(drills.includes('Drill D4'), 'L1: Drill D4 POE enter/leave storm');
+assert(drills.includes('Drill D5'), 'L1: Drill D5 presencia LAN WAN off');
+assert(drills.includes('Drill D6'), 'L1: Drill D6 presencia cloud caja off');
+assert(drills.includes('Drill D7'), 'L1: Drill D7 backup central / mesh');
 assert(drills.includes('crozzoCommandBriefing'), 'L1: briefing mando documentado');
 assert(drills.includes('Firma de campo'), 'L1: tabla firma evidencia');
 

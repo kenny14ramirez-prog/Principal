@@ -1,8 +1,8 @@
 {
   "file": "app/infra/CrozzoLanWebSocketBridge.js",
   "symbol": "applyLanPush",
-  "line": 89,
-  "lineCount": 601,
-  "at": "2026-07-14T23:51:05.333Z",
-  "expiresAt": 1784074865334
+  "line": 108,
+  "lineCount": 631,
+  "at": "2026-07-30T22:26:20.277Z",
+  "expiresAt": 1785452180278
 }

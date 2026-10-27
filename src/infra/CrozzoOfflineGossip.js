@@ -328,7 +328,13 @@
     }
   }
 
-  var RELAY_KINDS = { COMANDA_NEW: 1, COMANDA_ESTADO: 1, INTERNAL_QR_SLOT: 1, PEER_COMM: 1 };
+  var RELAY_KINDS = {
+    COMANDA_NEW: 1,
+    COMANDA_ESTADO: 1,
+    INTERNAL_QR_SLOT: 1,
+    PEER_COMM: 1,
+    SLOT_PRESENCE: 1
+  };
 
   // Reenvío epidémico: preserva msgId y origen para que el dedup por msgId
   // detenga la propagación; solo incrementa el contador de saltos.
@@ -575,6 +581,13 @@
       }
       return;
     }
+    /* POE R2 — presencia mesa sin caja/WAN */
+    if (frame.kind === 'SLOT_PRESENCE') {
+      if (typeof global.crozzoOpsPresenceApply === 'function') {
+        global.crozzoOpsPresenceApply(frame.payload || {}, 'gossip');
+      }
+      return;
+    }
     if (frame.kind === 'INTERNAL_QR_REQ' || frame.kind === 'INTERNAL_QR_BEACON') {
       respondInternalQrCatalog();
     }
@@ -677,6 +690,22 @@
         0
       )
     );
+    return true;
+  }
+
+  /** POE — presencia enter/exit por gossip (caja+WAN down). */
+  function publishSlotPresence(envelope, opts) {
+    opts = opts || {};
+    if (!envelope) return false;
+    if (!_active && opts.force) {
+      try {
+        if (typeof ensureStandby === 'function') ensureStandby();
+        else if (typeof start === 'function') start();
+      } catch (_) {}
+    }
+    if (!_active) return false;
+    if (!opts.force && shouldBlockOutboundPublish()) return false;
+    sendFrame(buildFrame('SLOT_PRESENCE', envelope, 0));
     return true;
   }
 
@@ -878,6 +907,7 @@
     shouldBlockOutboundPublish: shouldBlockOutboundPublish,
     publishComandaNew: publishComandaNew,
     publishComandaNewByIds: publishComandaNewByIds,
+    publishSlotPresence: publishSlotPresence,
     publishEstado: publishEstado,
     publishOpAck: publishOpAck,
     publishInternalQrBeacon: publishInternalQrBeacon,

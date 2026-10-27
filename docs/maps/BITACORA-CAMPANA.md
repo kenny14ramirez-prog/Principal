@@ -354,6 +354,20 @@ Estos activos se protegieron durante toda la campaña — son el corazón del si
 
 ---
 
+### DÍA 4c — 2026-07-30: POE — Canal ops ≠ DB (presencia viva)
+
+**INTEL:** enter/exit saturaban Postgres vía `meta:__meta__`; CloudOpsPulse Broadcast ya existía sin usarse como bus de presencia.
+
+**Entregado:**
+- `docs/maps/OPS-PLANE-PROTOCOL.md` + métricas R0 (`crozzoOpsPresenceMetrics` + `__crozzoOpsPlaneMetaStats`)
+- `app/infra/CrozzoOpsPresenceBus.js` — publish/apply/checkpoint ~90s
+- Enter/exit → POE (Broadcast + LAN `slot_presence` + gossip `SLOT_PRESENCE`); **sin** `__crozzoForceMetaPresencePush` por evento
+- Rust: `slot_presence` ephemeral (broadcast only)
+- Drills D4–D7 + backup central en LEGENDARY-CONNECTIVITY-DRILLS
+- Gate: `npm run test:ops-plane-presence` (también en clinical)
+
+**Kill evitados:** WebRTC/CRDT carrito · meta upsert por enter · tocar OpFanout estética.
+
 ### DÍA 4b — 2026-07-30: Conectividad legendaria (L1+L2+L3)
 
 **Entregado:**

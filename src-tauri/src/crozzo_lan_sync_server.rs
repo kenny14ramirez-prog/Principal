@@ -759,16 +759,19 @@ fn ingest_api_sync(
         broadcast_lan_push(&endpoint, &payload);
         return Ok(serde_json::json!({ "ok": true, "runtime": true }));
     }
-    let is_identity = payload
+    let typ_str = payload
         .get("type")
         .and_then(|t| t.as_str())
-        .map(|t| {
-            t == "identity_card"
-                || t == "identity"
-                || t == "fleet_roster"
-                || t == "identity_roster"
-        })
-        .unwrap_or(false);
+        .unwrap_or("");
+    /* POE: presencia efímera — solo broadcast, sin pending ni mapa comandas */
+    if typ_str == "slot_presence" {
+        broadcast_lan_push(&endpoint, &payload);
+        return Ok(serde_json::json!({ "ok": true, "ephemeral": true }));
+    }
+    let is_identity = typ_str == "identity_card"
+        || typ_str == "identity"
+        || typ_str == "fleet_roster"
+        || typ_str == "identity_roster";
     if !is_identity {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         if let Some(inner) = guard.as_mut() {

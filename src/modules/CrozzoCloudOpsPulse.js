@@ -136,8 +136,18 @@
     if (!payload) return;
     var myDev = ctx().deviceId;
     if (myDev && payload.dev && String(payload.dev) === String(myDev)) return; // eco propio
+    if (myDev && payload.deviceId && String(payload.deviceId) === String(myDev)) return;
     __lastRxAt = Date.now();
     var kind = String(payload.kind || '');
+    /* POE: presencia efímera — aplicar delta, no pull completo de mesas */
+    if (kind === 'presence' || payload.type === 'slot_presence') {
+      safe(function () {
+        if (typeof global.crozzoOpsPresenceApply === 'function') {
+          global.crozzoOpsPresenceApply(payload, 'cloud_broadcast');
+        }
+      });
+      return;
+    }
     if (kind === 'comanda' || kind === 'runtime') {
       triggerPull(kind);
     } else if (kind === 'all') {
@@ -175,6 +185,28 @@
       __pendingEmit[kind] = false;
       doEmit(kind);
     }, EMIT_DEBOUNCE_MS);
+  }
+
+  /** POE — broadcast presencia sin tocar Postgres (cero debounce largo). */
+  function emitPresence(envelope) {
+    if (!envelope) return;
+    if (!tierAllowsCloud()) return;
+    var c = ctx();
+    var payload = Object.assign({}, envelope, {
+      kind: 'presence',
+      type: 'slot_presence',
+      dev: c.deviceId,
+      deviceId: envelope.deviceId || c.deviceId,
+      at: envelope.at || Date.now()
+    });
+    safe(function () {
+      if (__ch && typeof __ch.send === 'function') {
+        __ch.send({ type: 'broadcast', event: 'ops', payload: payload }).catch(function () {});
+      }
+    });
+    safe(function () {
+      if (__bc) __bc.postMessage(payload);
+    });
   }
 
   // --- Suscripción + auto-reparación --------------------------------------
@@ -310,10 +342,12 @@
     start: start,
     stop: stop,
     emit: emit,
+    emitPresence: emitPresence,
     status: status,
   };
   // API corta usada por los módulos de transporte tras un push confirmado.
   global.crozzoOpsPulseEmit = emit;
+  global.crozzoOpsPulseEmitPresence = emitPresence;
   global.crozzoStartOpsPulse = start;
   global.crozzoStopOpsPulse = stop;
 

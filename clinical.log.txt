@@ -1,0 +1,70 @@
+﻿
+> tauri-app@1.0.231 test:sync-clinical
+> node scripts/_connectivity-equilibrium-check.mjs && node scripts/_lan-ops-sync-check.mjs && node scripts/_operative-journal-check.mjs && node scripts/_fleet-coordination-check.mjs && node scripts/_op-fanout-check.mjs && node scripts/_connectivity-standby-check.mjs && node scripts/_sede-combat-check.mjs && node scripts/_legalidad-fiscal-check.mjs && node scripts/_niveles-madurez-check.mjs && node scripts/_rampa-madurez-check.mjs && node scripts/_impuestos-saludables-check.mjs && node scripts/_tipo-documento-check.mjs && node scripts/_contingencia-fiscal-check.mjs && node scripts/_retenciones-b2b-check.mjs && node scripts/_ticket-qr-check.mjs && node scripts/_semaforo-margen-check.mjs && node scripts/_rentabilidad-page-check.mjs && node scripts/_plan-producto-check.mjs && node scripts/_legendary-connectivity-check.mjs && node scripts/_ops-plane-presence-check.mjs && node scripts/crozzo-write-test-stamp.mjs
+
+
+=== Crozzo equilibrio conectividad ÔÇö verificaci├│n cl├¡nica ===
+
+Ô£ô Prioridades zonas ÔÇö app/infra/CrozzoCloudSyncPriorities.js
+Ô£ô PageCloudWatch Z0 ÔÇö app/infra/CrozzoPageCloudWatch.js
+Ô£ô Pulso UI Z0 ÔÇö app/infra/CrozzoZ0OperativePulse.js
+Ô£ô Autoguarda Z0 ÔÇö app/infra/CrozzoZ0AutoGuard.js
+Ô£ô Startup arranca autoguarda ÔÇö app/infra/CrozzoStartupReady.js
+Ô£ô LanOps equilibrio ÔÇö app/infra/CrozzoLanOpsSync.js
+Ô£ô Comandas fanout h├¡brido ÔÇö app/modules/CrozzoComandasCloudSync.js
+Ô£ô Estado comanda ÔåÆ outbox cloud ÔÇö fanoutComandaEstado drena nube
+Ô£ô Fanout sin early-return LAN-only ÔÇö sin regresi├│n /if \(lan\) \{\s*[\s\S]{0,120}return;\s*
+Ô£ô Reconnect estable ÔÇö app/infra/CrozzoReconnectSync.js
+Ô£ô Orquestador anti-flap ÔÇö app/infra/CrozzoConnectivityOrchestrator.js
+Ô£ô Cloud throttle ÔÇö app/infra/CrozzoCloudThrottle.js
+Ô£ô Runtime UI sin pull comandas ÔÇö crozzoHandleRemoteRuntimeUiSync no dispara SELECT comandas
+
+Todo OK (13 checks)
+
+
+=== Crozzo LAN Ops Sync ÔÇö verificaci├│n ===
+
+Ô£ô Archivo ÔÇö CrozzoLanOpsSync.js
+Ô£ô LanOpsSync API ÔÇö app/infra/CrozzoLanOpsSync.js
+Ô£ô Rust ops-digest ÔÇö src-tauri/src/crozzo_lan_sync_server.rs
+Ô£ô Discovery zero-touch ÔÇö app/infra/CrozzoMdnsBridge.js
+Ô£ô Orquestador ÔåÆ LanOps ÔÇö app/infra/CrozzoConnectivityOrchestrator.js
+Ô£ô WS pulso LAN ÔÇö app/infra/CrozzoLanWebSocketBridge.js
+Ô£ô Director ÔåÉ silencio ancla ÔÇö app/infra/CrozzoConnectivityDirector.js
+Ô£ô Rust CORS LAN token ÔÇö src-tauri/src/crozzo_lan_sync_server.rs
+Ô£ô Rust comandas snapshot ÔÇö src-tauri/src/crozzo_lan_sync_server.rs
+Ô£ô CSP permite WebSocket LAN ÔÇö src-tauri/tauri.conf.json
+Ô£ô Tier cascada ÔÇö ping falla ÔåÆ LAN inmediato
+Ô£ô Tier cloud gate ÔÇö crozzoTierAllowsCloudSync respeta tier lan
+Ô£ô Script en app/index.html ÔÇö app/index.html
+Ô£ô Orden app/index.html ÔÇö CrozzoLanOpsSync.js antes de CrozzoLanWebSocketBridge.js
+Ô£ô Orden app/index.html ÔÇö CrozzoLanSyncBridge.js antes de CrozzoLanOpsSync.js
+Ô£ô Script en app/Crozzo_POS_Completo.html ÔÇö app/Crozzo_POS_Completo.html
+Ô£ô Orden app/Crozzo_POS_Completo.html ÔÇö CrozzoLanOpsSync.js antes de CrozzoLanWebSocketBridge.js
+Ô£ô Orden app/Crozzo_POS_Completo.html ÔÇö CrozzoLanSyncBridge.js antes de CrozzoLanOpsSync.js
+Ô£ô Sync src ÔÇö CrozzoLanOpsSync en src/ (npm run sync)
+Ô£ô Comandas cloud intacto ÔÇö app/modules/CrozzoComandasCloudSync.js
+Ô£ô Prioridades Z0/Z1/Z3 ÔÇö app/infra/CrozzoCloudSyncPriorities.js
+Ô£ô Reconnect intacto ÔÇö app/infra/CrozzoReconnectSync.js
+Ô£ô LAN bridge puente nube ÔÇö app/infra/CrozzoLanSyncBridge.js
+Ô£ô Rust post LAN nativo ÔÇö src-tauri/src/crozzo_lan_sync_server.rs
+Ô£ù Rust compile ÔÇö error: failed to run custom build command for `tauri-app v0.1.0 (C:\proyectos\sistema pos\src-tauri)`
+
+Caused by:
+  process didn't exit successfully: `C:\proyectos\sistema pos\src-tauri\target\debug\b
+Ô£ô Sandbox carga ÔÇö API global
+Ô£ô tier lan activo ÔÇö tierAllows=true
+Ô£ô Pull comandas LAN ÔÇö aplic├│ snapshot remoto
+Ô£ô Apply comanda ÔÇö id=42 desde /api/comandas
+Ô£ô Fetch central ÔÇö Rol B apunta a caja
+Ô£ô Pull forzado fuera Z0 ÔÇö force bypass p├ígina operativa
+Ô£ô Apply forzado ÔÇö snapshot remoto aplicado
+Ô£ô Pulso dispara pull ÔÇö fetch adicional tras emit
+Ô£ô Recover cloud ÔÇö crozzoRunFullReconnectSync al volver nube
+Ô£ô Nube activa defer ÔÇö no LAN ops cuando deferLocalSync
+Ô£ô WS fresco skip poll ÔÇö softPollCoveredByWs=true con isOpen+RX
+Ô£ô Path health WS ÔÇö transport=ws_primary
+Ô£ô Sin WS no skip ÔÇö poll HTTP sigue activo
+
+1 fallo(s) (38 checks)
+

@@ -50,6 +50,44 @@
 
 
 
+  function isOperationalP0Page() {
+
+    try {
+
+      var b = document.body;
+
+      if (!b || !b.classList) return false;
+
+      var pages = [
+
+        'crozzo-page-rest-pos',
+
+        'crozzo-page-tablets',
+
+        'crozzo-page-comandas',
+
+        'crozzo-page-cocina',
+
+        'crozzo-page-mesas',
+
+        'crozzo-page-cajero'
+
+      ];
+
+      for (var i = 0; i < pages.length; i++) {
+
+        if (b.classList.contains(pages[i])) return true;
+
+      }
+
+    } catch (_) {}
+
+    return false;
+
+  }
+
+
+
   function isLoginOpen() {
 
     try {
@@ -368,7 +406,7 @@
 
     var showFab = canSeeFab();
 
-    var show = isDesktopPc() && !isLoginOpen() && showFab && (!active || !!active);
+    var show = isDesktopPc() && !isLoginOpen() && !isOperationalP0Page() && showFab && (!active || !!active);
 
     if (show && !active) {
 

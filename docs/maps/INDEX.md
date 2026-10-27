@@ -1,6 +1,6 @@
 # Mapas Crozzo POS — índice maestro
 
-**Última regeneración:** 2026-07-30T01:20:48.259Z · v1.0.231 · `3b6f82a`
+**Última regeneración:** 2026-10-27T23:00:45.638Z · v1.0.231 · `140f2ce`
 **Mapa global (humano + agente):** [`../AGENT-SYSTEM-MAP.md`](../AGENT-SYSTEM-MAP.md)
 
 > 🔴 **¿Retomando trabajo de una sesión anterior?** Empieza por [`CONTINUIDAD-OPORD.md`](CONTINUIDAD-OPORD.md) — estado de campaña + planes pendientes + cómo continuar.
@@ -48,7 +48,8 @@ Generados desde `app/`. No editar a mano.
 | [FISCAL-CO-BLOQUEANTES.md](FISCAL-CO-BLOQUEANTES.md) | ⚖️ **Los 12 requisitos fiscales DIAN bloqueantes** + estado código + plan H1. Lectura obligatoria antes de tocar módulo fiscal. |
 | [MILITARY-COMMAND-DOCTRINE.md](MILITARY-COMMAND-DOCTRINE.md) | Doctrina armamento DDIL; `crozzoCommandBriefing()`; INTEL mercado CO actualizada (WARO/Cuenti/iFood como nuevos entrantes) |
 | [OFFLINE-COMBAT-NARRATIVE.md](OFFLINE-COMBAT-NARRATIVE.md) | **H3a / G1** — pitch «sobrevive al corte de internet» + checklist demo + `test:offline-combat` |
-| [LEGENDARY-CONNECTIVITY-DRILLS.md](LEGENDARY-CONNECTIVITY-DRILLS.md) | **Conectividad legendaria** — drills D1–D3 campo + `test:legendary-connectivity` (L1→L3) |
+| [LEGENDARY-CONNECTIVITY-DRILLS.md](LEGENDARY-CONNECTIVITY-DRILLS.md) | **Conectividad legendaria** — drills D1–D7 campo + `test:legendary-connectivity` (L1→L3) + POE D4–D7 |
+| [OPS-PLANE-PROTOCOL.md](OPS-PLANE-PROTOCOL.md) | **POE** — canal ops efímero ≠ DB (presencia enter/exit); `test:ops-plane-presence` |
 | [SYNC-INVARIANTS.md](SYNC-INVARIANTS.md) | Reglas fijas (nunca violar) — cualquier cambio Z0 |
 | [CONNECTIONS.md](CONNECTIONS.md) | Conexiones (quién llama a quién) — grafo Mermaid capa Z0 |
 | [SEQUENCES.md](SEQUENCES.md) | Secuencias lógicas (flujos paso a paso) — cobro, comandar |

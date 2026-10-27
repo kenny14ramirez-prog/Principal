@@ -36332,6 +36332,19 @@ body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot 
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot .crozzo-rest-pos__action--pay {
   grid-column: 1 / -1;
 }
+/* Pie Pedido: Cobrar/Cuenta legibles y sin clip por overflow del ticket */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  overflow: visible;
+  z-index: 5;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__row {
+  min-width: 0;
+  overflow: visible;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay {
+  flex: 1 1 0;
+  min-width: 0;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente {
   flex-shrink: 0;
 }
@@ -72184,6 +72197,19 @@ body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot 
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot .crozzo-rest-pos__action--pay {
   grid-column: 1 / -1;
 }
+/* Pie Pedido: Cobrar/Cuenta legibles y sin clip por overflow del ticket */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  overflow: visible;
+  z-index: 5;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__row {
+  min-width: 0;
+  overflow: visible;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay {
+  flex: 1 1 0;
+  min-width: 0;
+}
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente {
   flex-shrink: 0;
 }
@@ -78663,8 +78689,23 @@ html.crozzo-android-native .crozzo-wa-fab-stack,
 html.crozzo-android-native .crozzo-wa-dock,
 html.crozzo-touch-shell:not(.crozzo-form-desktop) .crozzo-wa-fab-stack,
 html.crozzo-touch-shell:not(.crozzo-form-desktop) .crozzo-wa-dock,
-body.crozzo-login-open .crozzo-wa-fab-stack {
+body.crozzo-login-open .crozzo-wa-fab-stack,
+/* P0 operativo: FAB Quick Apps no debe tapar Comandar/Cobrar/Cuenta */
+body.crozzo-page-rest-pos .crozzo-wa-fab-stack,
+body.crozzo-page-rest-pos .crozzo-quick-apps-fab,
+body.crozzo-page-tablets .crozzo-wa-fab-stack,
+body.crozzo-page-tablets .crozzo-quick-apps-fab,
+body.crozzo-page-comandas .crozzo-wa-fab-stack,
+body.crozzo-page-comandas .crozzo-quick-apps-fab,
+body.crozzo-page-cocina .crozzo-wa-fab-stack,
+body.crozzo-page-cocina .crozzo-quick-apps-fab,
+body.crozzo-page-mesas .crozzo-wa-fab-stack,
+body.crozzo-page-mesas .crozzo-quick-apps-fab,
+body.crozzo-page-cajero .crozzo-wa-fab-stack,
+body.crozzo-page-cajero .crozzo-quick-apps-fab {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 html.tauri-shell.crozzo-form-desktop:not(.crozzo-android-apk):not(.crozzo-android-native) .crozzo-wa-fab-stack,

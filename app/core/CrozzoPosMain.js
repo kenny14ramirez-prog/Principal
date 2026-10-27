@@ -8548,17 +8548,50 @@ function markSlotAsPaid(tipoServicio, referencia) {
 /** Propaga de inmediato locks, cobros y carritos — evita doble digitación / cobro duplicado. */
 function crozzoSyncPosRuntimeCritical(reason) {
   var isPresenceHeartbeat = reason === 'slot_presence_heartbeat';
+  /* POE: enter/exit van por canal efímero — NO forzar meta Postgres. */
+  var isPoePresence =
+    reason === 'slot_presence_enter' || reason === 'slot_presence_exit';
+  if (isPoePresence) {
+    try {
+      if (typeof window.crozzoOpsPresencePublish === 'function') {
+        window.crozzoOpsPresencePublish(reason);
+      } else if (typeof schedulePosRuntimeSave === 'function') {
+        schedulePosRuntimeSave();
+      }
+    } catch (_) {}
+    try {
+      if (reason && typeof config !== 'undefined' && config.addAudit) {
+        config.addAudit('runtime_sync_critical', String(reason) + ':poe');
+      }
+    } catch (_) {}
+    return;
+  }
   var forcePresenceMeta =
     !!reason &&
-    /slot_presence_(enter|exit)|caja_(open|close|cuenta)|tablet_(open|exit)|cart_|post_cobro|slot_/i.test(String(reason));
+    /caja_(open|close|cuenta)|tablet_(open|exit)|cart_|post_cobro|slot_(paid|cleared|lock|unlock|stale)/i.test(
+      String(reason)
+    );
   if (forcePresenceMeta) {
     try {
       window.__crozzoForceMetaPresencePush = true;
     } catch (_) {}
   }
+  /* Cobro: checkpoint presencia + carrito durable */
+  if (reason === 'post_cobro' || reason === 'slot_paid') {
+    try {
+      if (typeof window.crozzoOpsPresenceCheckpoint === 'function') {
+        window.crozzoOpsPresenceCheckpoint(reason);
+      }
+    } catch (_) {}
+  }
   try {
     if (isPresenceHeartbeat) {
       if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+      try {
+        if (typeof window.crozzoOpsPresencePublish === 'function') {
+          window.crozzoOpsPresencePublish('slot_presence_heartbeat');
+        }
+      } catch (_) {}
     } else if (typeof crozzoFlushPosRuntimeSave === 'function') crozzoFlushPosRuntimeSave();
     else if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
@@ -13578,10 +13611,49 @@ function crozzoBroadcastThemeToEmbeds(themeId) {
     } catch (_) {}
   });
 }
+function crozzoThemeOptionLabel(themeId) {
+  var id = String(themeId || '').toLowerCase().trim();
+  for (var i = 0; i < CROZZO_THEME_MODELS.length; i++) {
+    if (CROZZO_THEME_MODELS[i].id === id) return CROZZO_THEME_MODELS[i].label;
+  }
+  var classic = {
+    'bona-origen': 'BONA origen · Origen bueno',
+    deepspace: 'Espacio profundo',
+    cyan: 'Cyan',
+    coral: 'Coral',
+    magenta: 'Magenta',
+    emerald: 'Esmeralda',
+    minimalist: 'Minimalista'
+  };
+  return classic[id] || id;
+}
+function crozzoPopulateThemeSelect(sel) {
+  if (!sel) return;
+  sel.disabled = false;
+  sel.removeAttribute('disabled');
+  sel.title = 'Elegir modelo visual';
+  sel.setAttribute('aria-label', 'Tema visual');
+  var cur = String(sel.value || crozzoReadSavedVisualTheme() || CROZZO_THEME_DEFAULT).toLowerCase();
+  var html = '';
+  for (var i = 0; i < CROZZO_THEME_IDS.length; i++) {
+    var id = CROZZO_THEME_IDS[i];
+    html +=
+      '<option value="' +
+      id +
+      '"' +
+      (id === cur ? ' selected' : '') +
+      '>' +
+      crozzoThemeOptionLabel(id) +
+      '</option>';
+  }
+  sel.innerHTML = html;
+  if (CROZZO_THEME_IDS.indexOf(cur) >= 0) sel.value = cur;
+}
 function crozzoApplyVisualTheme(themeId, opts) {
   opts = opts || {};
-  /* Fase B: piel única BONA origen — otros IDs se fuerzan al default. */
-  var t = CROZZO_THEME_DEFAULT;
+  var raw = String(themeId || '').toLowerCase().trim();
+  var t = CROZZO_THEME_IDS.indexOf(raw) >= 0 ? raw : CROZZO_THEME_DEFAULT;
+  if (opts.userChoice) crozzoMarkUserThemeChoice();
   document.documentElement.setAttribute('data-theme', t);
   if (CROZZO_THEME_LIGHT.indexOf(t) >= 0) {
     document.documentElement.style.colorScheme = 'light';
@@ -13608,7 +13680,10 @@ function crozzoApplyVisualTheme(themeId, opts) {
     /* ignore */
   }
   var sel = document.getElementById('crozzoThemeSelect');
-  if (sel && sel.value !== t) sel.value = t;
+  if (sel) {
+    if (!sel.options || sel.options.length < 2) crozzoPopulateThemeSelect(sel);
+    if (sel.value !== t) sel.value = t;
+  }
   crozzoBroadcastThemeToEmbeds(t);
   try {
     var themeEvTarget = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : null;
@@ -13713,9 +13788,10 @@ function crozzoInitVisualTheme() {
   try {
     clientTema = (typeof crozzoGetActiveClientProfile === 'function' && crozzoGetActiveClientProfile().tema) || '';
   } catch (_) {}
+  var sel = document.getElementById('crozzoThemeSelect');
+  if (sel) crozzoPopulateThemeSelect(sel);
   crozzoApplyVisualTheme(saved || clientTema || CROZZO_THEME_DEFAULT);
   crozzoInitThemePanel();
-  var sel = document.getElementById('crozzoThemeSelect');
   if (sel && !sel._crozzoThemeBound) {
     sel._crozzoThemeBound = true;
     sel.addEventListener('change', function () {

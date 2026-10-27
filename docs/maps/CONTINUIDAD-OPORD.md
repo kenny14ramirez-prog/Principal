@@ -29,8 +29,9 @@
 | **H2.E** | planProducto (basico/medio/grande) | 1 | 32/32 + clinical | ✅ COMPLETO |
 | **H3a** | Offline real G1 (narrativa + demo) | 1 | offline-combat + sede-combat 21/21 | ✅ COMPLETO |
 | **L★** | Conectividad legendaria L1+L2+L3 | 1 | legendary 34 + clinical + flota 100 | ✅ COMPLETO |
+| **POE** | Canal ops efímero (presencia ≠ DB) | 1 | `test:ops-plane-presence` + clinical | ✅ COMPLETO |
 
-**Balance H1+H2+H3a+L★:** 14 frentes completos, 1 diferida (H1.3).
+**Balance H1+H2+H3a+L★+POE:** 15 frentes completos, 1 diferida (H1.3).
 
 ### Fases PENDIENTES (lo que queda por hacer)
 

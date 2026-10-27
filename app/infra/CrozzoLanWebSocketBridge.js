@@ -145,6 +145,17 @@
       noteWsActivity();
       return;
     }
+    /* POE — presencia efímera (sin snap runtime completo) */
+    if (typEarly === 'slot_presence') {
+      var presPay = raw.data || raw.payload || raw;
+      try {
+        if (typeof global.crozzoOpsPresenceApply === 'function') {
+          global.crozzoOpsPresenceApply(presPay, 'lan_ws');
+        }
+      } catch (_) {}
+      noteWsActivity();
+      return;
+    }
     if (typeof global.crozzoLanShouldApplyAction === 'function') {
       var gate = global.crozzoLanShouldApplyAction(raw, { source: 'lan_ws' });
       if (!gate.apply) {
