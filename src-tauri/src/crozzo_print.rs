@@ -8,6 +8,39 @@ mod crozzo_print_html_pdf;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
+pub struct CrozzoSavePdfResult {
+    pub ok: bool,
+    pub path: String,
+    pub message: String,
+}
+
+#[tauri::command]
+pub fn crozzo_save_pdf_b64(pdf_b64: String, filename: String) -> Result<CrozzoSavePdfResult, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(pdf_b64.trim())
+        .map_err(|e| format!("base64 invalido: {e}"))?;
+    let safe_name = filename.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+    let name = if safe_name.to_lowercase().ends_with(".pdf") {
+        safe_name
+    } else {
+        format!("{}.pdf", safe_name)
+    };
+    let dir = std::env::var("LOCALAPPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map(|d| std::path::PathBuf::from(d).join("crozzo-print"))
+        .unwrap_or_else(|_| std::path::PathBuf::from("crozzo-print"));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(&name);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    Ok(CrozzoSavePdfResult {
+        ok: true,
+        path: path.to_string_lossy().to_string(),
+        message: "ok".to_string(),
+    })
+}
+
+#[derive(Debug, Serialize)]
 pub struct CrozzoPrintResult {
     pub ok: bool,
     pub message: String,

@@ -48,15 +48,37 @@ fn now_ms() -> u64 {
 }
 
 pub fn guess_local_ipv4() -> Ipv4Addr {
+    // 1) Internet disponible: ruta por defecto.
     if let Ok(sock) = UdpSocket::bind("0.0.0.0:0") {
         if sock.connect("8.8.8.8:80").is_ok() {
             if let Ok(addr) = sock.local_addr() {
                 if let std::net::IpAddr::V4(v4) = addr.ip() {
-                    return v4;
+                    if !v4.is_loopback() {
+                        return v4;
+                    }
                 }
             }
         }
     }
+    // 2) Sin internet: intentar gateways LAN comunes (P0-14: no anunciar 127.0.0.1).
+    let candidates = [
+        "192.168.1.1:80", "192.168.0.1:80", "192.168.100.1:80",
+        "10.0.0.1:80", "172.16.0.1:80",
+    ];
+    for gw in &candidates {
+        if let Ok(sock) = UdpSocket::bind("0.0.0.0:0") {
+            if sock.connect(gw).is_ok() {
+                if let Ok(addr) = sock.local_addr() {
+                    if let std::net::IpAddr::V4(v4) = addr.ip() {
+                        if !v4.is_loopback() {
+                            return v4;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // 3) Último recurso: localhost (mejor que nada, pero se loguea).
     Ipv4Addr::LOCALHOST
 }
 

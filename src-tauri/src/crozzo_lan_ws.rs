@@ -42,9 +42,16 @@ pub fn broadcast_text(json_text: &str) -> usize {
             // o creamos un runtime temporal para el envío
             let rt = tokio::runtime::Handle::try_current();
             if let Ok(handle) = rt {
-                if handle.block_on(w.send(Message::Text(json_text.to_string()))).is_ok() {
-                    sent += 1;
-                }
+                // Evitar panic: no block_on dentro de contexto async; enviar en task.
+                let msg = Message::Text(json_text.to_string());
+                let conn = Arc::clone(c);
+                handle.spawn(async move {
+                    if let Ok(mut w) = conn.try_lock() {
+                        use futures_util::SinkExt;
+                        let _ = w.send(msg).await;
+                    }
+                });
+                sent += 1;
             }
         }
     }

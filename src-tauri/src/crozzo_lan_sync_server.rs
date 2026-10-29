@@ -31,11 +31,19 @@ const COMANDAS_PURGE_SOFT: usize = (COMANDAS_ACTIVE_MAX * 9) / 10;
 /// Rate limiting para consultas RUT: 1 consulta cada 6 segundos por IP
 const RUT_RATE_LIMIT_MS: u128 = 6_000;
 /// Tope de handlers HTTP concurrentes (techo diseño ~100 dispositivos: evita avalancha accept→spawn).
+/// Tope de handlers HTTP concurrentes (configurable por env CROZZO_LAN_MAX_HTTP; default 64).
 const MAX_CONCURRENT_HTTP: usize = 64;
 
 fn http_conn_semaphore() -> &'static Arc<Semaphore> {
     static SEM: OnceLock<Arc<Semaphore>> = OnceLock::new();
-    SEM.get_or_init(|| Arc::new(Semaphore::new(MAX_CONCURRENT_HTTP)))
+    SEM.get_or_init(|| {
+        let n = std::env::var("CROZZO_LAN_MAX_HTTP")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|&x| x > 0 && x <= 10_000)
+            .unwrap_or(MAX_CONCURRENT_HTTP);
+        Arc::new(Semaphore::new(n))
+    })
 }
 
 #[derive(Clone, Serialize, Deserialize)]

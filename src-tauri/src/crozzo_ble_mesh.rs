@@ -161,7 +161,8 @@ pub fn crozzo_ble_mesh_send(json: String) -> Result<(), String> {
     if is_desktop() {
         return crozzo_gossip_udp::send_json(body);
     }
-    Ok(())
+    // Android/iOS: BLE nativo no cableado todavía; informar al llamador (P0-15).
+    Err("BLE nativo no implementado en esta plataforma; usar LAN/UDP".into())
 }
 
 #[tauri::command]
