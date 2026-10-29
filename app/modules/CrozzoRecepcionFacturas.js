@@ -2194,6 +2194,71 @@
     if (showCancelToast) toast('Marcado de QR cancelado', 'info');
   }
 
+  var _cxfOcrState = {
+    provId: '',
+    facturaId: '',
+    file: null,
+    dataUrl: '',
+    text: '',
+    parseado: null,
+    lines: []
+  };
+
+  function closeCxfOcrFacturaModal() {
+    var modal = document.getElementById('cxf-ocr-factura-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    _cxfOcrState = { provId: '', facturaId: '', file: null, dataUrl: '', text: '', parseado: null, lines: [] };
+    var prev = document.getElementById('cxf-ocr-preview');
+    if (prev) prev.innerHTML = '';
+    var body = document.getElementById('cxf-ocr-lines-body');
+    if (body) body.innerHTML = '';
+    var cnt = document.getElementById('cxf-ocr-count');
+    if (cnt) cnt.textContent = '0';
+    var st = document.getElementById('cxf-ocr-status');
+    if (st) st.textContent = '';
+    var finp = document.getElementById('cxf-ocr-file');
+    if (finp) finp.value = '';
+  }
+
+  function openCxfOcrFacturaModal(provId, facturaId) {
+    closeCxfOcrFacturaModal();
+    var modal = document.getElementById('cxf-ocr-factura-modal');
+    if (!modal) {
+      toast('Modal OCR no disponible', 'warning');
+      return;
+    }
+    _cxfOcrState.provId = provId || '';
+    _cxfOcrState.facturaId = facturaId || '';
+    modal.hidden = false;
+    modal.removeAttribute('aria-hidden');
+    var finp = document.getElementById('cxf-ocr-file');
+    if (finp) {
+      finp.onchange = function () {
+        var f = finp.files && finp.files[0];
+        if (!f) return;
+        _cxfOcrState.file = f;
+        _cxfOcrState.dataUrl = '';
+        var prev = document.getElementById('cxf-ocr-preview');
+        if (prev) {
+          prev.innerHTML = '';
+          if (f.type && f.type.indexOf('image') >= 0) {
+            var url = URL.createObjectURL(f);
+            prev.innerHTML = '<img src="' + esc(url) + '" style="max-width:100%;display:block" alt="preview">';
+          } else {
+            prev.innerHTML = '<div class="cxf-muted">PDF seleccionado: ' + esc(f.name) + '</div>';
+          }
+        }
+        var st = document.getElementById('cxf-ocr-status');
+        if (st) st.textContent = 'Archivo cargado. Pulse "Analizar con OCR".';
+      };
+    }
+    var st = document.getElementById('cxf-ocr-status');
+    if (st) st.textContent = 'Seleccione imagen/PDF para escanear.';
+  }
+
   function pdfDocPreviewPageUrl(doc, pageNum) {
     pageNum = Math.max(1, Math.floor(Number(pageNum) || 1));
     return getViewPdfBytes(doc).then(function (bytes) {
@@ -4896,7 +4961,12 @@
       esc(provId) +
       '" data-factura-id="' +
       esc(factura.id) +
-      '"><span>📷</span> Foto</button></div>' +
+      '"><span>📷</span> Foto</button>' +
+      '<button type="button" class="cxf-doc-btn" data-cxf-ocr-open data-prov-id="' +
+      esc(provId) +
+      '" data-factura-id="' +
+      esc(factura.id) +
+      '"><span>🔍</span> Escanear factura (OCR)</button></div>' +
       (hasImg
         ? '<div class="cxf-pdf-tools"><div class="cxf-pdf-tools__btns">' +
           '<button type="button" class="btn btn-outline btn-sm cxf-img-to-pdf" data-prov-id="' +
@@ -7848,6 +7918,7 @@
       renderFacCameraModal() +
       renderQrRegionModal() +
       renderSplitPdfModal() +
+      renderCxfOcrFacturaModal() +
       renderCxfCommandStrip() +
       renderStorageNote({ retentionDays: 365 }) +
       renderAlertasBanner() +
@@ -9983,6 +10054,30 @@
           e.preventDefault();
           e.stopPropagation();
           confirmarIngresoFactura();
+          return;
+        }
+        var ocrOpen = e.target.closest('[data-cxf-ocr-open]');
+        if (ocrOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          openCxfOcrFacturaModal(ocrOpen.getAttribute('data-prov-id'), ocrOpen.getAttribute('data-factura-id'));
+          return;
+        }
+        if (e.target.closest('[data-cxf-ocr-close]')) {
+          closeCxfOcrFacturaModal();
+          return;
+        }
+        if (e.target.closest('#cxf-ocr-analizar')) {
+          e.preventDefault();
+          e.stopPropagation();
+          analizarFacturaConOcr();
+          return;
+        }
+        if (e.target.closest('#cxf-ocr-aplicar')) {
+          e.preventDefault();
+          e.stopPropagation();
+          aplicarOcrAlFormulario();
+          return;
         }
       });
     }

@@ -51,6 +51,11 @@
 
   function tierAllows() {
     try {
+      // Strict: only allow if LAN ops are actively running or in standby
+      if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.getPathHealth === 'function') {
+        var h = global.CrozzoLanOpsSync.getPathHealth();
+        if (h && h.started) return true;
+      }
       if (typeof global.crozzoLanWsStandbyActive === 'function' && global.crozzoLanWsStandbyActive()) {
         return true;
       }
@@ -60,14 +65,23 @@
         return false;
       }
     } catch (_) {}
-    if (canUseLanWs()) return true;
+    if (canUseLanWs()) {
+      // Double check with orchestrator
+      try {
+        if (global.CrozzoConnectivityOrchestrator && typeof global.CrozzoConnectivityOrchestrator.getState === 'function') {
+          var st = global.CrozzoConnectivityOrchestrator.getState();
+          if (st && (st.level === 'mesh' || st.level === 'qr')) return false;
+        }
+      } catch (_) {}
+      return true;
+    }
     try {
       if (typeof global.crozzoLanTransportAllowed === 'function') {
         return global.crozzoLanTransportAllowed();
       }
     } catch (_) {}
     var t = String(global.__CROZZO_TIER_LAST || 'offline');
-    return t === 'lan' || t === 'hotspot' || t === 'offline' || t === 'mesh';
+    return t === 'lan' || t === 'hotspot';
   }
 
   function wsPort(cfg) {

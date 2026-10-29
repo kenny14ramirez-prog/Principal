@@ -1,5 +1,16 @@
 # 📋 CONTINUIDAD DE CAMPAÑA — Crozzo POS
 
+> ## ⚠️ DOCUMENTO HISTÓRICO — NO CERTIFICA
+> **Desde 2026-10-28 este archivo NO es autoridad de estado.** La operación vigente es
+> [`OPORD-MISION-CIEN-100.md`](OPORD-MISION-CIEN-100.md) (fases F0–F11) y su **§0 de reconciliación**.
+>
+> - «✅ COMPLETO» en este documento significa **«código entregado»**, nunca «verificado en campo».
+> - Donde dice **«flota 100»** debe leerse **«10 dispositivos contra servidor mock»** (`scripts/test-fleet-escala.mjs` usa `field-mock-lan-central.mjs`).
+> - La auditoría de personas de `agents/runs/**` es **narrativa** (no navega ni crea facturas) y está invalidada.
+> - `_connectivity-orchestrator-check` mantiene **12 fallos / 111 checks** (aislamiento por mesa).
+>
+> Para certificar cualquier fase: `docs/maps/ops/evidencia/<TASK-ID>/` con commit, comando, salida y hash.
+
 **Última actualización:** 2026-07-29 · **Rama:** `task/aligned-20260727` · **HEAD:** ver `git log -1`
 **Documento maestro para retomar el trabajo desde cualquier chat (ZCode/Cursor/Aider).**
 

@@ -16,7 +16,8 @@ Techo de packs ≠ techo de esfuerzo. Usar el arsenal a fondo.
 
 ## Empieza aquí
 
-1. **🔴 CONTINUIDAD DE CAMPAÑA:** [`docs/maps/CONTINUIDAD-OPORD.md`](docs/maps/CONTINUIDAD-OPORD.md) — estado de campaña OPORD (H0+H1+H2), planes pendientes H2.D-F/H3/H4, cómo continuar. **Leer primero si retomas trabajo.**
+1. **🔴 OPERACIÓN VIGENTE:** [`docs/maps/OPORD-MISION-CIEN-100.md`](docs/maps/OPORD-MISION-CIEN-100.md) — leer el **§0 de reconciliación** antes de cualquier fase. `CONTINUIDAD-OPORD.md` queda como archivo histórico (H0–H4/L★/POE): no certifica nada.
+2. **Histórico de campaña (no autoridad):** [`docs/maps/CONTINUIDAD-OPORD.md`](docs/maps/CONTINUIDAD-OPORD.md) — contexto H0+H1+H2. «COMPLETO» = código entregado; «flota 100» = 10 dispositivos contra mock.
 2. **Hub de mapas:** [`docs/maps/INDEX.md`](docs/maps/INDEX.md) — conexiones, secuencias, invariantes, dominios
 3. **Plan reparación sync:** [`docs/maps/SYNC-REPAIR-PLAN.md`](docs/maps/SYNC-REPAIR-PLAN.md) + [`sync-repair-progress.json`](docs/maps/sync-repair-progress.json)
 4. **Mapa global:** [`docs/AGENT-SYSTEM-MAP.md`](docs/AGENT-SYSTEM-MAP.md)

@@ -77,7 +77,22 @@
     "graph:status": "node node_modules/codebase-memory-mcp/bin.js cli index_status --project crozzo-pos",
     "graph:search": "node node_modules/codebase-memory-mcp/bin.js cli search_graph --project crozzo-pos",
     "dev:observe": "node scripts/dev-session-observer.mjs",
-    "dev:observe:tauri": "node scripts/dev-session-observer.mjs --with-tauri"
+    "dev:observe:tauri": "node scripts/dev-session-observer.mjs --with-tauri",
+    "qa:cajero": "node scripts/qa-cajero-humano.mjs",
+    "qa:cajero:visible": "set QA_HEADLESS=false&& node scripts/qa-cajero-humano.mjs",
+    "qa:empresa:init": "node scripts/empresa-agentes.mjs init",
+    "qa:empresa:run": "node scripts/empresa-agentes.mjs run",
+    "qa:empresa:status": "node scripts/empresa-agentes.mjs status",
+    "qa:empresa:timeline": "node scripts/empresa-agentes.mjs timeline",
+    "qa:empresa:smoke": "node scripts/empresa-agentes.mjs run -- --preset=smoke",
+    "qa:empresa:8dias": "node scripts/empresa-agentes.mjs run -- --preset=8dias",
+    "qa:empresa:mensual": "node scripts/empresa-agentes.mjs run -- --preset=mensual",
+    "qa:empresa:anual": "node scripts/empresa-agentes.mjs run -- --preset=anual",
+    "qa:empresa:bienal": "node scripts/empresa-agentes.mjs run -- --preset=bienal",
+    "qa:empresa:jornada": "node scripts/empresa-agentes.mjs run -- --preset=real",
+    "qa:empresa:jornada:real": "node scripts/empresa-agentes.mjs run -- --preset=real",
+    "qa:empresa:caos": "node scripts/empresa-agentes.mjs run -- --preset=caos",
+    "qa:empresa:colapso": "node scripts/empresa-agentes.mjs run -- --preset=caos"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

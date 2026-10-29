@@ -1,0 +1,39 @@
+{
+  "nombre": "JORNADA_REAL_LUNES_16H",
+  "descripcion": "Simulación lunes real restaurante - 16 horas - ~8M COP",
+  "fecha": "LUNES",
+  "jornadaHoras": 16,
+  "horaInicio": "06:00",
+  "horaFin": "22:00",
+  "ventasObjetivo": 8000000,
+  "moneda": "COP",
+  "restaurante": {
+    "mesas": 14,
+    "zonas": ["SALON", "TERRAZA"],
+    "capacidadPromedio": 4
+  },
+  "equipo": [
+    { "id": "encargado-jefe", "rol": "ENCARGADO", "turno": "COMPLETO", "nivel": "EXPERTO" },
+    { "id": "cajero-principal", "rol": "CAJERO", "turno": "COMPLETO", "nivel": "EXPERTO" },
+    { "id": "mesero-1", "rol": "MESERO", "turno": "MAÑANA_TARDE", "nivel": "COMPETENTE" },
+    { "id": "mesero-2", "rol": "MESERO", "turno": "MAÑANA_TARDE", "nivel": "COMPETENTE" },
+    { "id": "mesero-3", "rol": "MESERO", "turno": "TARDE_NOCHE", "nivel": "APRENDIZ" },
+    { "id": "cocinero-jefe", "rol": "COCINA", "turno": "COMPLETO", "nivel": "EXPERTO" },
+    { "id": "ayudante-cocina", "rol": "COCINA", "turno": "MAÑANA_TARDE", "nivel": "APRENDIZ" },
+    { "id": "comprador", "rol": "RECEPCION_COMPRAS", "turno": "MAÑANA", "nivel": "COMPETENTE" }
+  ],
+  "movimiento": {
+    "desayuno": { "hora": "08:00-11:00", "facturas": 15, "ticketPromedio": 35000 },
+    "almuerzo": { "hora": "11:00-15:00", "facturas": 45, "ticketPromedio": 65000 },
+    "valle": { "hora": "15:00-17:00", "facturas": 8, "ticketPromedio": 25000 },
+    "tarde": { "hora": "17:00-20:00", "facturas": 20, "ticketPromedio": 45000 },
+    "cena": { "hora": "20:00-22:00", "facturas": 35, "ticketPromedio": 75000 }
+  },
+  "comprasDia": [
+    { "proveedor": "PANADERIA CENTRAL", "hora": "06:30", "valor": 450000, "concepto": "Pan y pasteles" },
+    { "proveedor": "CARNES DEL VALLE", "hora": "09:00", "valor": 850000, "concepto": "Carnes" },
+    { "proveedor": "BEBIDAS COLOMBIA", "hora": "14:00", "valor": 650000, "concepto": "Bebidas gaseosas/agua" },
+    { "proveedor": "VERDURAS FRESCAS", "hora": "16:00", "valor": 380000, "concepto": "Verduras y hortalizas" }
+  ],
+  "formasPago": { "efectivo": 60, "nequi": 25, "daviplata": 8, "datafono": 7 }
+}

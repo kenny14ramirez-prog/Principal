@@ -1,0 +1,47 @@
+{
+  "name": "QA-FACTORY-CROZZO",
+  "version": "1.0.0",
+  "description": "Empresa automatizada de agentes QA actuando como trabajadores humanos",
+  "url": "http://localhost:1420",
+  "headless": false,
+  "learningEnabled": true,
+  "shareKnowledge": true,
+  "timeSimulation": {
+    "enabled": true,
+    "accelerated": true,
+    "delayBetweenJornadasMs": 2000
+  },
+  "roles": [
+    { "id": "ceo-qa", "name": "CEO-QA", "type": "orchestrator", "enabled": true, "priority": 1 },
+    { "id": "cajero", "name": "Cajero", "type": "worker", "enabled": true, "priority": 1 },
+    { "id": "mesero", "name": "Mesero-Tablet", "type": "worker", "enabled": true, "priority": 1 },
+    { "id": "cocina", "name": "Cocina-KDS", "type": "worker", "enabled": true, "priority": 1 },
+    { "id": "encargado", "name": "Encargado-Arqueo", "type": "worker", "enabled": true, "priority": 1 },
+    { "id": "recepcion", "name": "Recepcion-Compras", "type": "worker", "enabled": true, "priority": 2 },
+    { "id": "ux-inspector", "name": "UX-Human-Checker", "type": "inspector", "enabled": true, "priority": 2 }
+  ],
+  "presets": {
+    "smoke": { "jornadas": 1, "description": "Validación rápida" },
+    "diario": { "jornadas": 1, "description": "Jornada diaria" },
+    "8dias": { "jornadas": 8, "description": "8 jornadas con aprendizaje" },
+    "mensual": { "jornadas": 30, "description": "30 jornadas simuladas" },
+    "trimestral": { "jornadas": 90, "description": "90 jornadas" },
+    "anual": { "jornadas": 365, "description": "365 jornadas - Resistencia" },
+    "bienal": { "jornadas": 730, "description": "730 jornadas - Visión 2 años" }
+  },
+  "scoring": {
+    "weights": {
+      "flujoPrincipal": 25,
+      "robustez": 20,
+      "uxFriccion": 15,
+      "aprendizajePositivo": 10,
+      "consistencia": 10,
+      "regresiones": 10
+    },
+    "thresholds": {
+      "aptoListo": 90,
+      "aptoConObservaciones": 80,
+      "necesitaAjustes": 70
+    }
+  }
+}

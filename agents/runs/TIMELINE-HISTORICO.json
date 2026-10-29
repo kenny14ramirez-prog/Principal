@@ -1,0 +1,11 @@
+[
+  {
+    "timestamp": "2026-10-28T18:23:01.221Z",
+    "preset": "smoke",
+    "jornadas": 1,
+    "score": 10,
+    "veredicto": "NO APTO",
+    "p0Count": 6,
+    "totalFindings": 6
+  }
+]

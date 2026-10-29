@@ -1,0 +1,98 @@
+{
+  "runId": "2026-10-29T02-20-20-503Z",
+  "at": "2026-10-29T02:21:20.799Z",
+  "url": "http://127.0.0.1:46010/index.html",
+  "headless": true,
+  "pageErrors": 1,
+  "consoleErrors": [
+    "PAGEERROR: Illegal invocation"
+  ],
+  "pass": 7,
+  "fail": 5,
+  "results": [
+    {
+      "role": "SISTEMA",
+      "check": "Arranque y login",
+      "pass": true,
+      "detail": "pantalla=\"Inicio de ventas\" lsBytes=38354",
+      "at": "2026-10-29T02:20:34.617Z"
+    },
+    {
+      "role": "SISTEMA",
+      "check": "Sin errores fatales de página",
+      "pass": false,
+      "detail": "1 pageerror · PAGEERROR: Illegal invocation",
+      "at": "2026-10-29T02:20:34.617Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Abrir POS de restaurante",
+      "pass": true,
+      "detail": "página abierta",
+      "at": "2026-10-29T02:20:38.345Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Carrito demo legible",
+      "pass": true,
+      "detail": "total=194000",
+      "at": "2026-10-29T02:20:38.350Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Agregar producto al pedido",
+      "pass": false,
+      "detail": "no se encontró botón de producto",
+      "at": "2026-10-29T02:20:38.356Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Interfaz de cobro utilizable",
+      "pass": false,
+      "detail": "diálogo texto=0 chars, inputs=0, botones=4",
+      "at": "2026-10-29T02:20:41.399Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Cobro genera factura",
+      "pass": false,
+      "detail": "facturas 0 → 0",
+      "at": "2026-10-29T02:20:41.399Z"
+    },
+    {
+      "role": "MESERO",
+      "check": "Abrir modo tablets",
+      "pass": true,
+      "detail": "página abierta",
+      "at": "2026-10-29T02:20:47.105Z"
+    },
+    {
+      "role": "MESERO",
+      "check": "Grilla de mesas visible",
+      "pass": true,
+      "detail": "BUENAS NOCHES, MODO Tablets Toma de pedidos por meseros SIMPLE LOCAL RECUPERANDO… ✅ LISTO miércoles, 28 de octubre de 20",
+      "at": "2026-10-29T02:20:47.109Z"
+    },
+    {
+      "role": "COCINA",
+      "check": "Abrir KDS",
+      "pass": true,
+      "detail": "página abierta",
+      "at": "2026-10-29T02:20:50.717Z"
+    },
+    {
+      "role": "COCINA",
+      "check": "KDS muestra contenido operativo",
+      "pass": true,
+      "detail": "texto=782 chars",
+      "at": "2026-10-29T02:20:50.720Z"
+    },
+    {
+      "role": "SISTEMA",
+      "check": "Ejecución completa",
+      "pass": false,
+      "detail": "EXCEPCIÓN: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button,a,[role=\"button\"]').filter({ hasText: /Reportes y dashboard/i }).first()\u001b[22m\n\u001b[2m    - locator resolved to <div tabindex=\"0\" role=\"button\" data-page=\"inventarios\" data-menu=\"inventarios\" class=\"nav-item menu-item\">…</div>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be v",
+      "at": "2026-10-29T02:21:20.799Z"
+    }
+  ]
+}

@@ -591,74 +591,103 @@
     info = info || __lastDetectInfo || {};
     __state.transports = { cloud: false, lan: false, hotspot: false, mesh: false, qr: false };
 
-    if (
-      cloudFirstMode() &&
-      level === 'cloud' &&
-      wanUp() &&
-      cloudCredentialsReady() &&
-      wantCloudTransport(info) &&
-      !lanEvidenceForLevel(level, info)
-    ) {
-      guideLevelOnce('cloud');
-      ensureCloud();
-      if (shouldSurfaceQrNow(__state.detectorTier || 'cloud', info)) {
-        ensureQrLastResort();
-      }
-      if (runtimeSyncHybrid()) ensureMeshStandbyQuiet();
-      return;
-    }
-
-    guideLevelOnce(level);
     var role = roleNow();
     var tier = String(__state.detectorTier || '');
     var lanUp = lanEvidenceForLevel(level, info);
     var ds = directorState();
 
-    if (wantCloudTransport(info)) {
-      var funnel =
-        typeof global.crozzoShouldFunnelCloudThroughHub === 'function' && global.crozzoShouldFunnelCloudThroughHub();
-      if (!funnel) {
-        ensureCloud();
+    // Enforce strict cascade priority: cloud -> lan -> hotspot -> mesh -> qr
+    // Only activate the highest priority available transport family
+    if (level === 'cloud' && wantCloudTransport(info) && !lanEvidenceForLevel(level, info)) {
+      guideLevelOnce('cloud');
+      // Stop lower priority transports to prevent overlap
+      try { if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.stop === 'function') global.CrozzoLanOpsSync.stop(); } catch (_) {}
+      ensureCloud();
+      if (shouldSurfaceQrNow(tier, info)) {
+        ensureQrLastResort();
       }
-      ensureWifiWatch();
-    } else {
-      // En modo híbrido, bajar a LAN no apaga cloud de inmediato:
-      // se usa el hold diferido para evitar cerrar el canal realtime
-      // por un parpadeo de red corto.
-      if (runtimeSyncHybrid() && (level === 'lan' || level === 'hotspot')) {
+      if (runtimeSyncHybrid()) ensureMeshStandbyQuiet();
+      __state.transports.cloud = true;
+      return;
+    }
+
+    if (level === 'lan' || lanUp || tier === 'lan' || (role === 'A' && (level === 'lan' || level === 'hotspot'))) {
+      guideLevelOnce('lan');
+      // Stop cloud to avoid overlap, but use deferred hold for hybrid safety
+      if (runtimeSyncHybrid()) {
         stopCloudTransportsDeferred();
       } else {
         stopCloudTransports();
       }
-    }
-
-    if (role === 'A' || lanUp || level === 'lan' || level === 'hotspot' || tier === 'lan' || tier === 'hotspot') {
+      // Stop lower priority
+      try { if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.stop === 'function') global.CrozzoOfflineGossip.stop(); } catch (_) {}
+      try { if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.stop === 'function') global.CrozzoBleMesh.stop(); } catch (_) {}
       ensureLan();
-    }
-    if (ds && (ds.mode === 'lan_client' || ds.mode === 'lan_seek' || ds.relayViaCentral)) {
-      ensureLan();
-    }
-
-    if (level === 'hotspot' || level === 'mesh' || level === 'qr') {
-      ensureHotspot();
-    } else if (role === 'B' && !lanUp && (level === 'mesh' || tier === 'offline')) {
-      ensureHotspot();
-    }
-
-    if (level === 'mesh' || level === 'qr') {
-      if (!lanUp) {
-        ensureMesh();
-      } else {
-        runOnce('mesh_qr_backup', function () {
-          if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureActiveForQr === 'function') {
-            global.CrozzoOfflineGossip.ensureActiveForQr();
+      __state.transports.lan = true;
+      if (runtimeSyncHybrid() && tier === 'cloud' && lanUp && role === 'B') {
+        safe(function () {
+          if (typeof global.crozzoActivateLocalSyncPath === 'function') {
+            global.crozzoActivateLocalSyncPath('hybrid_cloud_lan').catch(function () {});
           }
         });
       }
+      if (runtimeSyncHybrid()) ensureMeshStandbyQuiet();
+      return;
     }
 
-    if (level === 'qr' || shouldSurfaceQrNow(tier, info)) {
+    if (level === 'hotspot') {
+      guideLevelOnce('hotspot');
+      if (runtimeSyncHybrid()) {
+        stopCloudTransportsDeferred();
+      } else {
+        stopCloudTransports();
+      }
+      try { if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.stop === 'function') global.CrozzoLanOpsSync.stop(); } catch (_) {}
+      try { if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.stop === 'function') global.CrozzoOfflineGossip.stop(); } catch (_) {}
+      try { if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.stop === 'function') global.CrozzoBleMesh.stop(); } catch (_) {}
+      ensureLan();
+      ensureHotspot();
+      __state.transports.hotspot = true;
+      __state.transports.lan = true;
+      if (runtimeSyncHybrid()) ensureMeshStandbyQuiet();
+      return;
+    }
+
+    if (level === 'mesh') {
+      guideLevelOnce('mesh');
+      stopCloudTransports();
+      try { if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.stop === 'function') global.CrozzoLanOpsSync.stop(); } catch (_) {}
+      try { if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.stop === 'function') global.CrozzoLanWebSocketBridge.stop(); } catch (_) {}
+      ensureWifiWatch();
+      if (role === 'B' && !lanUp) {
+        ensureHotspot();
+      }
+      ensureMesh();
+      __state.transports.mesh = true;
+      if (runtimeSyncHybrid()) ensureMeshStandbyQuiet();
+      return;
+    }
+
+    if (level === 'qr') {
+      guideLevelOnce('qr');
+      stopCloudTransports();
+      try { if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.stop === 'function') global.CrozzoLanOpsSync.stop(); } catch (_) {}
+      try { if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.stop === 'function') global.CrozzoLanWebSocketBridge.stop(); } catch (_) {}
+      try { if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.stop === 'function') global.CrozzoOfflineGossip.stop(); } catch (_) {}
+      try { if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.stop === 'function') global.CrozzoBleMesh.stop(); } catch (_) {}
+      ensureMesh();
       ensureQrLastResort();
+      __state.transports.qr = true;
+      __state.transports.mesh = true;
+      return;
+    }
+
+    // Fallback
+    guideLevelOnce(level);
+    if (wantCloudTransport(info)) {
+      ensureCloud();
+      __state.transports.cloud = true;
+      return;
     }
 
     if (runtimeSyncHybrid() && tier === 'cloud' && lanUp && role === 'B') {
@@ -829,6 +858,11 @@
       __state.lastEvalAt = Date.now();
 
       if (level !== prev) {
+        try {
+          if (typeof console !== 'undefined' && console.debug) {
+            console.debug('[HYBRID-TRACE] level-change', { from: prev, to: level, tier: tier, reason: reason || '', at: Date.now() });
+          }
+        } catch (_) {}
         __state.level = level;
         __state.since = Date.now();
         applyLevel(level);

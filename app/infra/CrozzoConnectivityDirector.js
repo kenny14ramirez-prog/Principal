@@ -225,6 +225,10 @@
         if (selfLan && anchorIp) {
           mode = 'lan_client';
           reason = 'Caja alcanzable por LAN (' + anchorIp + ')';
+          // Forzar cliente cuando hay ancla: evitar cloud_self desde tablet con datos
+          if (cfg.role === 'B') {
+            selfCloud = false;
+          }
           if (anchorStatus && anchorStatus.cloud_reachable === true) {
             anchorCloud = true;
             relayViaCentral = !selfCloud;

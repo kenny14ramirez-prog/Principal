@@ -1,0 +1,52 @@
+{
+  "nombre": "JORNADA_CAOS_COLAPSO_16H",
+  "descripcion": "Lunes a tope - Salón lleno + domicilios masivos - Errores humanos + estrés",
+  "fecha": "LUNES",
+  "jornadaHoras": 16,
+  "horaInicio": "06:00",
+  "horaFin": "22:00",
+  "ventasObjetivo": 15000000,
+  "moneda": "COP",
+  "nivelEstres": 1,
+  "caosActivado": true,
+  "restaurante": {
+    "mesas": 16,
+    "zonas": ["SALON", "TERRAZA", "BARRA"],
+    "domiciliosActivos": true,
+    "capacidad": "COLAPSO"
+  },
+  "equipo": [
+    { "id": "encargado-jefe", "rol": "ENCARGADO", "turno": "COMPLETO", "nivel": "VETERANO", "estres": 0 },
+    { "id": "cajero-principal", "rol": "CAJERO", "turno": "COMPLETO", "nivel": "VETERANO", "estres": 0 },
+    { "id": "cajero-auxiliar", "rol": "CAJERO", "turno": "PICO", "nivel": "COMPETENTE", "estres": 0 },
+    { "id": "mesero-1", "rol": "MESERO", "turno": "COMPLETO", "nivel": "EXPERTO", "estres": 0 },
+    { "id": "mesero-2", "rol": "MESERO", "turno": "COMPLETO", "nivel": "EXPERTO", "estres": 0 },
+    { "id": "mesero-3", "rol": "MESERO", "turno": "COMPLETO", "nivel": "COMPETENTE", "estres": 0 },
+    { "id": "mesero-4", "rol": "MESERO", "turno": "TARDE_NOCHE", "nivel": "APRENDIZ", "estres": 0 },
+    { "id": "cocinero-jefe", "rol": "COCINA", "turno": "COMPLETO", "nivel": "VETERANO", "estres": 0 },
+    { "id": "cocinero-2", "rol": "COCINA", "turno": "COMPLETO", "nivel": "EXPERTO", "estres": 0 },
+    { "id": "ayudante-cocina", "rol": "COCINA", "turno": "COMPLETO", "nivel": "APRENDIZ", "estres": 0 },
+    { "id": "domicilios-rider", "rol": "DOMICILIOS", "turno": "PICO", "nivel": "COMPETENTE", "estres": 0 }
+  ],
+  "movimiento": {
+    "desayuno": { "hora": "08:00-11:00", "facturas": 25, "ticketPromedio": 38000, "domicilios": 10 },
+    "almuerzo": { "hora": "11:00-15:00", "facturas": 85, "ticketPromedio": 72000, "domicilios": 45 },
+    "valle": { "hora": "15:00-17:00", "facturas": 15, "ticketPromedio": 28000, "domicilios": 12 },
+    "tarde": { "hora": "17:00-20:00", "facturas": 40, "ticketPromedio": 52000, "domicilios": 35 },
+    "cena": { "hora": "20:00-22:00", "facturas": 70, "ticketPromedio": 85000, "domicilios": 60 }
+  },
+  "erroresHumanos": [
+    { "tipo": "COMANDA_MALA", "probabilidad": 0.15, "desc": "Mesero envía comanda con plato equivocado/cantidad errada" },
+    { "tipo": "ANULACION_CASUAL", "probabilidad": 0.12, "desc": "Anulación de ítem sin autorización" },
+    { "tipo": "CLICK_EQUIVOCADO", "probabilidad": 0.18, "desc": "Click en botón incorrecto" },
+    { "tipo": "MENU_EQUIVOCADO", "probabilidad": 0.14, "desc": "Abre menú/pantalla equivocada" },
+    { "tipo": "AGREGAR_DUPLICADO", "probabilidad": 0.16, "desc": "Agrega producto 2 veces por prisa" },
+    { "tipo": "COBRAR_ERRONEO", "probabilidad": 0.08, "desc": "Error al seleccionar medio de pago" },
+    { "tipo": "COMANDAR_SIN_CONFIRMAR", "probabilidad": 0.13, "desc": "Comandar sin revisar pedido" }
+  ],
+  "estresSistema": {
+    "multiplicador": 1.5,
+    "aumentaCadaHora": 0.08,
+    "maxEstres": 10
+  }
+}

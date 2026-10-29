@@ -140,13 +140,24 @@
           global.CrozzoLanWebSocketBridge.connect();
         }
       });
+      // Force full sync on self-healing
       triggerPull('all', { skipPrint: false, skipRender: false, force: true });
+      // Also trigger orchestrator evaluation for recovery
+      safe(function () {
+        if (global.CrozzoConnectivityOrchestrator && typeof global.CrozzoConnectivityOrchestrator.evaluateNow === 'function') {
+          global.CrozzoConnectivityOrchestrator.evaluateNow().catch(function () {});
+        }
+      });
       if (silenceMs > ANCHOR_SILENCE_EVENT_MS && md().role === 'B') {
         safe(function () {
           if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.ensureStandby === 'function') {
             global.CrozzoOfflineGossip.ensureStandby();
           } else if (global.CrozzoOfflineGossip && typeof global.CrozzoOfflineGossip.start === 'function') {
             global.CrozzoOfflineGossip.start();
+          }
+          // Activate mesh as backup
+          if (global.CrozzoBleMesh && typeof global.CrozzoBleMesh.start === 'function') {
+            global.CrozzoBleMesh.start().catch(function () {});
           }
         });
       }
@@ -759,7 +770,10 @@
     stopPollLoops();
     if (!shouldRunLanOps()) return;
     if (rolePollsRuntime()) {
+      var rj = runtimePollMs();
+      try { rj = Math.max(250, Math.round(rj * (0.9 + Math.random() * 0.2))); } catch (_) {}
       __runtimePoll = global.setInterval(function () {
+        if (!shouldRunLanOps()) return;
         if (!lanSyncAllowed({ kind: 'realtime' })) return;
         if (cloudRealtimeStandby()) return;
         try {
@@ -776,10 +790,12 @@
             }
           })
           .catch(function () {});
-      }, runtimePollMs());
+      }, rj);
     }
     var comMs = comandaPollMs();
+    try { comMs = Math.max(400, Math.round(comMs * (0.9 + Math.random() * 0.2))); } catch (_) {}
     __comandaPoll = global.setInterval(function () {
+      if (!shouldRunLanOps()) return;
       if (!lanSyncAllowed({ kind: 'realtime' })) return;
       if (cloudRealtimeStandby()) return;
       try {

@@ -1,0 +1,211 @@
+{
+  "createdAt": "2026-10-28T18:51:44.979Z",
+  "learnings": [
+    {
+      "id": "LF-1793213528800-vlm7i",
+      "agentId": "HYBRID-FORENSIC",
+      "timestamp": "2026-10-28T18:52:08.800Z",
+      "category": "hybrid",
+      "title": "Hybrid chain analysis",
+      "findings": [
+        {
+          "file": "app/infra/CrozzoConnectivityOrchestrator.js",
+          "type": "FLAP_CONTROL",
+          "sev": "INFO",
+          "note": "Tiene controles anti-flap"
+        },
+        {
+          "file": "app/infra/CrozzoOpFanout.js",
+          "type": "FANOUT_CORE",
+          "sev": "CRITICAL",
+          "note": "Fanout hibrido Z0 - INTANGIBLE",
+          "evidence": true
+        },
+        {
+          "file": "app/infra/CrozzoLanOpsSync.js",
+          "type": "WS_TRANSPORT",
+          "sev": "HIGH",
+          "note": "Usa WebSocket + poll fallback",
+          "evidence": true
+        },
+        {
+          "file": "app/infra/CrozzoOpAckRegistry.js",
+          "type": "ACK_REGISTRY",
+          "sev": "CRITICAL",
+          "note": "ACK/idempotencia - INTANGIBLE",
+          "evidence": true
+        },
+        {
+          "file": "app/modules/CrozzoPosRuntimeCloud.js",
+          "type": "RUNTIME_MERGE_GUARDED",
+          "sev": "HIGH",
+          "note": "Tiene proteccion skipCartReconcile (correcto segun invariantes)",
+          "evidence": true
+        }
+      ],
+      "actionable": true
+    },
+    {
+      "id": "LF-1793213534541-oew67",
+      "agentId": "TIMERS-SCHEDULER",
+      "timestamp": "2026-10-28T18:52:14.541Z",
+      "category": "timers",
+      "title": "Timer inventory",
+      "timers": [
+        {
+          "file": "app/core/CrozzoPosMain.js",
+          "intervals": 15,
+          "timeouts": 158,
+          "total": 173
+        },
+        {
+          "file": "app/infra/CrozzoLanOpsSync.js",
+          "intervals": 4,
+          "timeouts": 7,
+          "total": 11
+        },
+        {
+          "file": "app/infra/CrozzoConnectivityOrchestrator.js",
+          "intervals": 0,
+          "timeouts": 4,
+          "total": 4
+        },
+        {
+          "file": "app/modules/CrozzoPosRuntimeCloud.js",
+          "intervals": 2,
+          "timeouts": 10,
+          "total": 12
+        },
+        {
+          "file": "app/modules/CrozzoComandasCloudSync.js",
+          "intervals": 2,
+          "timeouts": 10,
+          "total": 12
+        },
+        {
+          "file": "app/infra/CrozzoOpFanout.js",
+          "intervals": 0,
+          "timeouts": 2,
+          "total": 2
+        }
+      ],
+      "actionable": true
+    },
+    {
+      "id": "LF-1793213553727-kd23s",
+      "agentId": "FLAKE-HUNTER",
+      "timestamp": "2026-10-28T18:52:33.727Z",
+      "category": "hybrid",
+      "title": "Flake hunt",
+      "findings": [],
+      "actionable": true
+    }
+  ],
+  "patterns": [],
+  "provenFixes": [],
+  "antiPatterns": [],
+  "hybridInsights": [
+    {
+      "id": "LF-1793213528800-vlm7i",
+      "agentId": "HYBRID-FORENSIC",
+      "timestamp": "2026-10-28T18:52:08.800Z",
+      "category": "hybrid",
+      "title": "Hybrid chain analysis",
+      "findings": [
+        {
+          "file": "app/infra/CrozzoConnectivityOrchestrator.js",
+          "type": "FLAP_CONTROL",
+          "sev": "INFO",
+          "note": "Tiene controles anti-flap"
+        },
+        {
+          "file": "app/infra/CrozzoOpFanout.js",
+          "type": "FANOUT_CORE",
+          "sev": "CRITICAL",
+          "note": "Fanout hibrido Z0 - INTANGIBLE",
+          "evidence": true
+        },
+        {
+          "file": "app/infra/CrozzoLanOpsSync.js",
+          "type": "WS_TRANSPORT",
+          "sev": "HIGH",
+          "note": "Usa WebSocket + poll fallback",
+          "evidence": true
+        },
+        {
+          "file": "app/infra/CrozzoOpAckRegistry.js",
+          "type": "ACK_REGISTRY",
+          "sev": "CRITICAL",
+          "note": "ACK/idempotencia - INTANGIBLE",
+          "evidence": true
+        },
+        {
+          "file": "app/modules/CrozzoPosRuntimeCloud.js",
+          "type": "RUNTIME_MERGE_GUARDED",
+          "sev": "HIGH",
+          "note": "Tiene proteccion skipCartReconcile (correcto segun invariantes)",
+          "evidence": true
+        }
+      ],
+      "actionable": true
+    },
+    {
+      "id": "LF-1793213553727-kd23s",
+      "agentId": "FLAKE-HUNTER",
+      "timestamp": "2026-10-28T18:52:33.727Z",
+      "category": "hybrid",
+      "title": "Flake hunt",
+      "findings": [],
+      "actionable": true
+    }
+  ],
+  "timerInsights": [
+    {
+      "id": "LF-1793213534541-oew67",
+      "agentId": "TIMERS-SCHEDULER",
+      "timestamp": "2026-10-28T18:52:14.541Z",
+      "category": "timers",
+      "title": "Timer inventory",
+      "timers": [
+        {
+          "file": "app/core/CrozzoPosMain.js",
+          "intervals": 15,
+          "timeouts": 158,
+          "total": 173
+        },
+        {
+          "file": "app/infra/CrozzoLanOpsSync.js",
+          "intervals": 4,
+          "timeouts": 7,
+          "total": 11
+        },
+        {
+          "file": "app/infra/CrozzoConnectivityOrchestrator.js",
+          "intervals": 0,
+          "timeouts": 4,
+          "total": 4
+        },
+        {
+          "file": "app/modules/CrozzoPosRuntimeCloud.js",
+          "intervals": 2,
+          "timeouts": 10,
+          "total": 12
+        },
+        {
+          "file": "app/modules/CrozzoComandasCloudSync.js",
+          "intervals": 2,
+          "timeouts": 10,
+          "total": 12
+        },
+        {
+          "file": "app/infra/CrozzoOpFanout.js",
+          "intervals": 0,
+          "timeouts": 2,
+          "total": 2
+        }
+      ],
+      "actionable": true
+    }
+  ],
+  "updatedAt": "2026-10-28T18:52:33.727Z"
+}

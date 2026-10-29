@@ -1,0 +1,46 @@
+{
+  "agents": {
+    "HYBRID-FORENSIC": {
+      "score": 27,
+      "runs": 1,
+      "insights": [],
+      "strengths": [],
+      "weaknesses": [],
+      "lastRun": "2026-10-28T18:52:08.801Z",
+      "lastMetrics": {
+        "actionable": 5,
+        "critical": 2,
+        "falsePositives": 0,
+        "evidence": 4
+      }
+    },
+    "TIMERS-SCHEDULER": {
+      "score": 21,
+      "runs": 1,
+      "insights": [],
+      "strengths": [],
+      "weaknesses": [],
+      "lastRun": "2026-10-28T18:52:14.541Z",
+      "lastMetrics": {
+        "actionable": 6,
+        "critical": 1,
+        "falsePositives": 0,
+        "evidence": true
+      }
+    },
+    "FLAKE-HUNTER": {
+      "score": 4,
+      "runs": 1,
+      "insights": [],
+      "strengths": [],
+      "weaknesses": [],
+      "lastRun": "2026-10-28T18:52:33.727Z",
+      "lastMetrics": {
+        "actionable": 0,
+        "critical": 0,
+        "falsePositives": 0,
+        "evidence": true
+      }
+    }
+  }
+}

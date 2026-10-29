@@ -1709,9 +1709,11 @@
     if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) {
       ms = Math.min(90000, ms * 3);
     }
+    try { ms = Math.max(500, Math.round(ms * (0.9 + Math.random() * 0.2))); } catch (_) {}
     __pullTimer = global.setInterval(function () {
       // Watchdog: si el canal dice estar vivo pero lleva mucho tiempo
       // sin entregar eventos, forzar pull de reconciliación.
+      try { if (typeof document !== 'undefined' && document.hidden) return; } catch (_) {}
       var silenceSinceEvt = __lastRtEventAt ? Date.now() - __lastRtEventAt : Infinity;
       var watchdogFired = __realtimeLive && silenceSinceEvt > SILENCE_WATCHDOG_MS;
       pullRuntime({ quiet: true, skipRender: !watchdogFired, force: watchdogFired })
