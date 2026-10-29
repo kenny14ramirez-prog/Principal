@@ -658,10 +658,35 @@ class ConfigManager {
       window.__crozzoHpConfigWriteBypass = false;
     }
   }
-  getNextConsecutivo() {
+  getNextConsecutivo(saleAttemptId) {
+    // P0-03 contención: idempotencia por saleAttemptId (reintentos no duplican).
+    try {
+      if (saleAttemptId) {
+        var cacheKey = 'crozzo_consecutivo_attempt_v1';
+        var raw = localStorage.getItem(cacheKey);
+        var cache = raw ? JSON.parse(raw) : {};
+        if (cache && cache[saleAttemptId]) {
+          return Number(cache[saleAttemptId]);
+        }
+      }
+    } catch (_) {}
     const next = (this.config.ultimoConsecutivo || this.config.dian.rangoDesde - 1) + 1;
     this.config.ultimoConsecutivo = next;
     this.save();
+    try {
+      if (saleAttemptId) {
+        var cacheKey2 = 'crozzo_consecutivo_attempt_v1';
+        var raw2 = localStorage.getItem(cacheKey2);
+        var cache2 = raw2 ? JSON.parse(raw2) : {};
+        cache2[saleAttemptId] = next;
+        // Limitar tamaño del cache.
+        var keys = Object.keys(cache2);
+        if (keys.length > 500) {
+          for (var i = 0; i < keys.length - 500; i++) delete cache2[keys[i]];
+        }
+        localStorage.setItem(cacheKey2, JSON.stringify(cache2));
+      }
+    } catch (_) {}
     return next;
   }
   getFacturasRestantes() {
