@@ -224,7 +224,8 @@ fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) 
     let mut h: u32 = 2166136261;
     for id in &ids {
         let s = format!("{id}|");
-        for b in s.bytes() {
+        // Alinear con JS (charCodeAt = code unit UTF-16) (P0-07).
+        for b in s.encode_utf16() {
             h ^= u32::from(b);
             h = h.wrapping_mul(16777619);
         }
@@ -448,6 +449,10 @@ fn upsert_comanda_snapshot(inner: &mut ServerInner, payload: &serde_json::Value)
                         obj.insert("lastUpdateAt".into(), lu.clone());
                     }
                 }
+            } else {
+                // Si la fila no existe, insertar el estado (P0-05: no descartar).
+                inner.comandas_active.insert(k, data.clone());
+                trim_comandas_active(inner);
             }
         }
         return;
@@ -1005,7 +1010,7 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
             "ok": true,
             "comandas": rows,
             "count": rows.len(),
-            "saved_at": now_ms(),
+            "saved_at": runtime_saved.clone(),
             "digest": digest
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"comandas\":[]}".to_vec());
