@@ -314,7 +314,7 @@ async fn write_http_response(
     body: &[u8],
 ) -> tokio::io::Result<()> {
     let headers = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: keep-alive\r\nKeep-Alive: timeout=30, max=1000\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
         status, status_text, content_type, body.len(), CORS_ALLOW_HEADERS
     );
     stream.write_all(headers.as_bytes()).await?;
