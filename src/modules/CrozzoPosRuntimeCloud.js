@@ -885,7 +885,7 @@
   var CART_KEYS = ['cartsPorMesa', 'cartsPorLlevar', 'cartDirecto'];
   /** Estado de navegación local por terminal — no sincronizar en fila meta de nube. */
   var UI_LOCAL_KEYS = [
-    'tipoServicioCaja',
+    /* 'tipoServicioCaja' -> meta (F0-T04) */
     'mesaSeleccionada',
     'llevarSeleccionado',
     'tabletModoPedido',
