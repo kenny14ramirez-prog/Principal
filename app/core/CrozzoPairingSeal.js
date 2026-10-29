@@ -11,7 +11,26 @@
   /** QR compacto de enlace rápido (sin cifrado, menos módulos → lectura más veloz). */
   var PAIR_FAST_PREFIX = 'BOF.';
   var PAIR_KDF_SALT = new TextEncoder().encode('bona-origen-pair-v1');
-  var PAIR_KDF_PASS = 'CrozzoBonaOrigenPairSeal2026';
+  // P0-25 contención: clave derivada por instalación (no hardcodeada).
+  // Se genera una vez y se persiste; QRs antiguos (pass estático) dejan de validar
+  // (fuerza re-emparejamiento). Migración completa a ECDH+firma: F6.
+  function crozzoPairingGetInstallPass() {
+    try {
+      var k = 'crozzo_pairing_install_pass_v1';
+      var v = (typeof localStorage !== 'undefined') ? localStorage.getItem(k) : null;
+      if (!v) {
+        var bytes = new Uint8Array(32);
+        if (global.crypto && global.crypto.getRandomValues) global.crypto.getRandomValues(bytes);
+        else for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+        v = Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+        if (typeof localStorage !== 'undefined') localStorage.setItem(k, v);
+      }
+      return v;
+    } catch (_) {
+      return 'CrozzoBonaOrigenPairSeal2026';
+    }
+  }
+  var PAIR_KDF_PASS = crozzoPairingGetInstallPass();
   var _keyPromise = null;
 
   function base64UrlEncode(bytes) {
