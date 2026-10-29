@@ -29919,6 +29919,8 @@ function iniciarCobroDesdeCaja() {
     return;
   }
   if (!crozzoRequireComandarAntesCobro(cart)) return;
+  // P0-01 robusto: snapshot inmutable de la venta al iniciar cobro.
+  if (typeof window !== 'undefined') window.__crozzoCartEnCobro = cart.slice().map(function (l) { return Object.assign({}, l); });
   crozzoOpenCobroStudioModal();
 }
 function toggleMetodoPagoCobro() {
@@ -29982,8 +29984,12 @@ function toggleMetodoPagoCobro() {
   }
 }
 async function confirmarCobroDesdeCaja() {
+  if (typeof window !== 'undefined' && !Array.isArray(window.__crozzoCartEnCobro)) {
+    const _c = getActiveCart();
+    if (_c.length) window.__crozzoCartEnCobro = _c.slice().map(function (l) { return Object.assign({}, l); });
+  }
   const cart = getActiveCart();
-  if (!cart.length) return;
+  if (!cart.length && !(typeof window !== 'undefined' && Array.isArray(window.__crozzoCartEnCobro) && window.__crozzoCartEnCobro.length)) return;
   window.__crozzoFacturaPrintFormatElegido =
     typeof crozzoCobroStudioPrintFmtActivo === 'function' ? crozzoCobroStudioPrintFmtActivo() : 'pos';
   const total = computeTotals(cart).total;
@@ -32923,6 +32929,7 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
   }
   if (tipoServicioCaja === 'directa') {
     cartDirecto = [];
+    if (typeof window !== 'undefined') window.__crozzoCartEnCobro = null;
   } else if (tipoServicioCaja === 'llevar') {
     markSlotAsPaid('llevar', llevarSeleccionado);
     try {
@@ -32951,7 +32958,10 @@ async function facturar(options = {}) {
     showToast('No tienes permiso para emitir facturas.', 'warning');
     return;
   }
-  const cartRaw = getActiveCart();
+  // P0-01 robusto: usar snapshot inmutable de venta si existe (evita pérdida por sync/purga).
+  const cartRaw = (typeof window !== 'undefined' && Array.isArray(window.__crozzoCartEnCobro) && window.__crozzoCartEnCobro.length)
+    ? window.__crozzoCartEnCobro.slice()
+    : getActiveCart();
   const cart = typeof crozzoSanitizeCartForSale === 'function' ? crozzoSanitizeCartForSale(cartRaw) : cartRaw;
   if (cart.length === 0) {
     if (cartRaw.length > 0) {
@@ -33393,6 +33403,7 @@ async function facturar(options = {}) {
   } finally {
     if (!saleInflightCompleted) crozzoAbandonSaleInflight(saleAttemptId);
     __crozzoFacturarInFlight = false;
+    if (typeof window !== 'undefined') window.__crozzoCartEnCobro = null;
   }
 }
 /** Última factura para acciones rápidas (WhatsApp / correo / térmica) desde modales recién abiertos */
