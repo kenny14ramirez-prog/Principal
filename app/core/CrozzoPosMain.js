@@ -7199,9 +7199,16 @@ function crozzoPrepareDirectSaleSession(opts) {
   if (typeof directSaveMenuOpen !== 'undefined' && directSaveMenuOpen) {
     directSaveMenuOpen = false;
   }
-  if (!crozzoDirectSaleCartHasRecentEdit(cartDirecto, keepMs) || opts.forceClear) {
-    if (Array.isArray(cartDirecto) && cartDirecto.length) cleared = true;
+  // P0-01 hotfix: no purgar cartDirecto si tiene consumo y no es forceClear.
+  var _hasConsumo = Array.isArray(cartDirecto) && cartDirecto.length > 0;
+  if (opts.forceClear) {
+    if (_hasConsumo) cleared = true;
     cartDirecto = [];
+  } else if (!_hasConsumo) {
+    cartDirecto = [];
+  } else if (!crozzoDirectSaleCartHasRecentEdit(cartDirecto, keepMs)) {
+    // Conservar carrito con consumo aunque la marca de edición haya expirado.
+    // (P0-01 contención: evita vaciar venta en curso por heurística de recencia.)
   }
   if (!crozzoDirectSaleCartHasRecentEdit(cartComercial, keepMs) || opts.forceClear) {
     if (Array.isArray(cartComercial) && cartComercial.length) cleared = true;
@@ -9018,15 +9025,18 @@ function applyPosRuntimeSnapshot(s, opts) {
     if (fromRemote && inDirect) {
       /* Venta directa activa: ignorar cartDirecto remoto. */
     } else if (fromRemote && tipoServicioCaja === 'directa') {
-      cartDirecto = s.cartDirecto
-        .map(function (line) {
-          return typeof crozzoHydrateRuntimeCartLine === 'function' ? crozzoHydrateRuntimeCartLine(line) : line;
-        })
-        .filter(Boolean);
+      // P0-01 hotfix: no sobrescribir si local tiene consumo.
+      if (!(Array.isArray(cartDirecto) && cartDirecto.length > 0 && crozzoCartMapHasConsumo(cartDirecto))) {
+        cartDirecto = s.cartDirecto
+          .map(function (line) {
+            return typeof crozzoHydrateRuntimeCartLine === 'function' ? crozzoHydrateRuntimeCartLine(line) : line;
+          })
+          .filter(Boolean);
+      }
     } else if (!fromRemote) {
-      if (inDirect && !crozzoDirectSaleCartHasRecentEdit(cartDirecto)) {
+      if (inDirect && !crozzoDirectSaleCartHasRecentEdit(cartDirecto) && !(Array.isArray(cartDirecto) && cartDirecto.length > 0)) {
         cartDirecto = [];
-      } else {
+      } else if (!inDirect) {
         cartDirecto = s.cartDirecto;
       }
     }

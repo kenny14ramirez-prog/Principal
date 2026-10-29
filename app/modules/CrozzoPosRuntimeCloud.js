@@ -207,12 +207,13 @@
     var nota = String(it.notaLinea || '').trim();
     var det = String(it.detalleConfig || '').trim();
     var ext = null;
-    if (sent > 0 || sig || nota || det) {
+    if (sent > 0 || sig || nota || det || it.__crozzoLocalEdit) {
       ext = {};
       if (sent > 0) ext.s = sent;
       if (sig) ext.g = sig.length > 48 ? sig.slice(0, 48) : sig;
       if (nota) ext.n = nota.length > 100 ? nota.slice(0, 100) : nota;
       if (det) ext.d = det.length > 80 ? det.slice(0, 80) : det;
+      if (it.__crozzoLocalEdit) ext.e = it.__crozzoLocalEdit;
     }
     if (ext) row.push(ext);
     return row;
@@ -239,6 +240,7 @@
       if (ext.g) it.configSig = String(ext.g);
       if (ext.n) it.notaLinea = String(ext.n);
       if (ext.d) it.detalleConfig = String(ext.d);
+      if (ext.e) it.__crozzoLocalEdit = Number(ext.e) || ext.e;
     }
     if (typeof global.crozzoHydrateRuntimeCartLine === 'function') {
       it = global.crozzoHydrateRuntimeCartLine(it);
