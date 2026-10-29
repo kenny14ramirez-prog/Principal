@@ -57,6 +57,22 @@ fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // P0-21 (contención): instancia única por lock de puerto localhost.
+    // Si ya hay una caja abierta, la segunda sale sin abrir ventana.
+    #[cfg(desktop)]
+    {
+        use std::net::TcpListener;
+        match TcpListener::bind("127.0.0.1:45999") {
+            Ok(listener) => {
+                // Mantener el listener vivo durante toda la vida del proceso (single-instance).
+                std::mem::forget(listener);
+            }
+            Err(_) => {
+                eprintln!("[crozzo] otra instancia ya está en ejecución; saliendo.");
+                return;
+            }
+        }
+    }
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init());
