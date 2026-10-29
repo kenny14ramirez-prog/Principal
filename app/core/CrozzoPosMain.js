@@ -30127,12 +30127,18 @@ async function confirmarCobroDesdeCaja() {
           method: metodoPago,
           amountCents: Math.round(Number(totalPagar || 0) * 100),
           idempotencyKey:
-            'cobro-' +
-            String(tipoServicioCaja || 'x') +
-            '-' +
-            Date.now() +
-            '-' +
-            Math.random().toString(36).slice(2, 8),
+            (function () {
+              if (!cart.__cobroUuid) {
+                cart.__cobroUuid =
+                  'cobro-' +
+                  String(tipoServicioCaja || 'x') +
+                  '-' +
+                  (typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+              }
+              return cart.__cobroUuid;
+            })(),
           qrRef: paymentMeta.qrRef || '',
           refPago: paymentMeta.refPago || '',
           phone: (document.getElementById('qrRefCobro')?.value || '').trim(),
