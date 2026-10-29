@@ -44251,7 +44251,11 @@ function initConfigFacturasAdmin() {
     window.removeEventListener('message', window.__crozzoTermicaMsgListener);
   }
   window.__crozzoTermicaMsgListener = function (e) {
-    if (!e.data) return;
+    if (!e || !e.data) return;
+    // Validar origin para evitar inyección desde frames externos (P0-26).
+    try {
+      if (e.origin && e.origin !== window.location.origin && e.origin !== 'null') return;
+    } catch (_) {}
     if (e.data.type === 'crozzo_ticket_tpl') {
       var t = e.data.tpl;
       if (!t) return;
