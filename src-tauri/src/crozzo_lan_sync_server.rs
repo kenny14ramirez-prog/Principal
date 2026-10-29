@@ -986,6 +986,10 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     }
 
     if method == "GET" && (path == "/api/comandas" || path.starts_with("/api/comandas?")) {
+        if !auth_token.is_empty() && !auth_ok {
+            let _ = write_http_response(&mut stream, 401, "Unauthorized", "application/json", b"{\"ok\":false,\"error\":\"unauthorized\"}").await;
+            return;
+        }
         let (rows, runtime_saved): (Vec<serde_json::Value>, String) = {
             let guard = state.lock().unwrap();
             match guard.as_ref() {
