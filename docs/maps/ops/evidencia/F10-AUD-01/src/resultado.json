@@ -1,124 +1,124 @@
 {
-  "runId": "2026-10-29T20-03-32-101Z",
-  "at": "2026-10-29T20:04:29.376Z",
+  "runId": "2026-10-29T23-20-11-205Z",
+  "at": "2026-10-29T23:21:08.968Z",
   "url": "http://127.0.0.1:46010/index.html",
   "headless": true,
   "pageErrors": 0,
   "consoleErrors": [],
-  "pass": 10,
-  "fail": 6,
+  "pass": 11,
+  "fail": 5,
   "results": [
     {
       "role": "SISTEMA",
       "check": "Arranque y login",
       "pass": true,
-      "detail": "pantalla=\"Inicio de ventas\" lsBytes=36793",
-      "at": "2026-10-29T20:03:48.562Z"
+      "detail": "pantalla=\"Inicio de ventas\" lsBytes=37533",
+      "at": "2026-10-29T23:20:27.980Z"
     },
     {
       "role": "SISTEMA",
       "check": "Sin errores fatales de página",
       "pass": true,
       "detail": "0 pageerror · ",
-      "at": "2026-10-29T20:03:48.562Z"
+      "at": "2026-10-29T23:20:27.980Z"
     },
     {
       "role": "SISTEMA",
       "check": "Puente nativo Tauri (árbol src)",
       "pass": false,
       "detail": "SIN puente nativo: impresoras/BLE/LAN no auditables aquí",
-      "at": "2026-10-29T20:03:48.564Z"
+      "at": "2026-10-29T23:20:27.983Z"
     },
     {
       "role": "CAJERO",
       "check": "Abrir POS de restaurante",
       "pass": true,
       "detail": "página abierta",
-      "at": "2026-10-29T20:03:52.363Z"
+      "at": "2026-10-29T23:20:31.760Z"
     },
     {
       "role": "CAJERO",
       "check": "Carrito demo legible",
       "pass": true,
-      "detail": "total=42600",
-      "at": "2026-10-29T20:03:52.368Z"
+      "detail": "total=82000",
+      "at": "2026-10-29T23:20:31.766Z"
     },
     {
       "role": "CAJERO",
       "check": "Agregar producto al pedido",
       "pass": true,
-      "detail": "total 42600 → 48100",
-      "at": "2026-10-29T20:03:53.658Z"
+      "detail": "total 82000 → 117000",
+      "at": "2026-10-29T23:20:33.070Z"
     },
     {
       "role": "CAJERO",
       "check": "Interfaz de cobro utilizable",
       "pass": false,
       "detail": "diálogo texto=0 chars, inputs=0, botones=4",
-      "at": "2026-10-29T20:03:56.699Z"
+      "at": "2026-10-29T23:20:36.116Z"
     },
     {
       "role": "CAJERO",
       "check": "Cobro genera factura",
       "pass": false,
       "detail": "facturas 0 → 0",
-      "at": "2026-10-29T20:03:56.700Z"
+      "at": "2026-10-29T23:20:36.116Z"
     },
     {
       "role": "MESERO",
       "check": "Abrir modo tablets",
       "pass": true,
       "detail": "página abierta",
-      "at": "2026-10-29T20:04:02.437Z"
+      "at": "2026-10-29T23:20:41.908Z"
     },
     {
       "role": "MESERO",
       "check": "Grilla de mesas visible",
       "pass": true,
       "detail": "BUENAS TARDES, MODO Tablets Toma de pedidos por meseros SIMPLE LOCAL CAJA LISTA — LAS TABLETS PUEDEN CONECTARSE ✅ LISTO ",
-      "at": "2026-10-29T20:04:02.442Z"
+      "at": "2026-10-29T23:20:41.913Z"
     },
     {
       "role": "COCINA",
       "check": "Abrir KDS",
       "pass": true,
       "detail": "página abierta",
-      "at": "2026-10-29T20:04:06.084Z"
+      "at": "2026-10-29T23:20:45.589Z"
     },
     {
       "role": "COCINA",
       "check": "KDS muestra contenido operativo",
       "pass": true,
-      "detail": "texto=736 chars",
-      "at": "2026-10-29T20:04:06.086Z"
+      "detail": "texto=735 chars",
+      "at": "2026-10-29T23:20:45.593Z"
     },
     {
       "role": "ADMIN",
       "check": "Abrir reportes",
       "pass": false,
       "detail": "NO navegó: heading=\"Tablets\"",
-      "at": "2026-10-29T20:04:17.748Z"
+      "at": "2026-10-29T23:20:57.308Z"
     },
     {
       "role": "SISTEMA",
       "check": "localStorage bajo 5 MB",
       "pass": true,
-      "detail": "bytes=39947 mayores=[[\"pos_dian_config\",19619],[\"crozzo_operative_journal_v1\",4346],[\"crozzo_secrets_vault_v2\",2958],[\"crozzo_config_sealed_b64\",2948],[\"crozzo_sync_queue\",2653]]",
-      "at": "2026-10-29T20:04:17.751Z"
+      "detail": "bytes=40496 mayores=[[\"pos_dian_config\",19607],[\"crozzo_operative_journal_v1\",4104],[\"crozzo_secrets_vault_v2\",2950],[\"crozzo_config_sealed_b64\",2940],[\"crozzo_sync_queue\",2641]]",
+      "at": "2026-10-29T23:20:57.311Z"
     },
     {
       "role": "SISTEMA",
       "check": "Módulos críticos embarcados (src)",
-      "pass": false,
-      "detail": "scripts=151 OCR=false contingencia=false archivoComandas=false blobStore=false",
-      "at": "2026-10-29T20:04:17.753Z"
+      "pass": true,
+      "detail": "scripts=179 OCR=true contingencia=true archivoComandas=true blobStore=false",
+      "at": "2026-10-29T23:20:57.313Z"
     },
     {
       "role": "EH-01",
       "check": "Doble toque no bloquea la UI",
       "pass": false,
       "detail": "sin producto accesible",
-      "at": "2026-10-29T20:04:29.376Z"
+      "at": "2026-10-29T23:21:08.968Z"
     }
   ]
 }
