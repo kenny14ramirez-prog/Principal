@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
+      - run: npm install
       - name: Deploy crm-registro-cliente
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -141,7 +141,7 @@ jobs:
         run: node scripts/sync-frontend-to-src.mjs
 
       - name: Install npm dependencies
-        run: npm ci
+        run: npm install
 
       - name: Init proyecto Android
         if: matrix.android
