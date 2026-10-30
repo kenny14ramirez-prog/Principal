@@ -16,7 +16,10 @@
   // Reemplaza el secreto estático 'CrozzoBonaOrigenPairSeal2026'.
   var PAIR_KEY_LS = 'crozzo_pairing_ecdh_priv_v1';
   var PAIR_PUB_LS = 'crozzo_pairing_ecdh_pub_v1';
+  var PAIR_SIGN_PRIV_LS = 'crozzo_pairing_sign_priv_v1';
+  var PAIR_SIGN_PUB_LS = 'crozzo_pairing_sign_pub_v1';
   var _ecdhKeyPromise = null;
+  var _signKeyPromise = null;
 
   function crozzoPairingGetOrCreateEcdhKeys() {
     if (_ecdhKeyPromise) return _ecdhKeyPromise;
@@ -48,6 +51,72 @@
       }
     })();
     return _ecdhKeyPromise;
+  }
+
+  // P0-25 Fase 2: par de firma ECDSA P-256 para firmar/verificar QRs.
+  function crozzoPairingGetOrCreateSignKeys() {
+    if (_signKeyPromise) return _signKeyPromise;
+    _signKeyPromise = (async function () {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          var privB64 = localStorage.getItem(PAIR_SIGN_PRIV_LS);
+          var pubB64 = localStorage.getItem(PAIR_SIGN_PUB_LS);
+          if (privB64 && pubB64) {
+            var privRaw = Uint8Array.from(atob(privB64), function (c) { return c.charCodeAt(0); });
+            var pubRaw = Uint8Array.from(atob(pubB64), function (c) { return c.charCodeAt(0); });
+            var privKey = await crypto.subtle.importKey('pkcs8', privRaw, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+            var pubKey = await crypto.subtle.importKey('spki', pubRaw, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
+            return { privateKey: privKey, publicKey: pubKey, publicKeyRaw: pubRaw };
+          }
+        }
+        var kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+        var pubRaw = await crypto.subtle.exportKey('spki', kp.publicKey);
+        var privRaw = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
+        var pubB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(pubRaw)));
+        var privB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(privRaw)));
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(PAIR_SIGN_PRIV_LS, privB64n);
+          localStorage.setItem(PAIR_SIGN_PUB_LS, pubB64n);
+        }
+        return { privateKey: kp.privateKey, publicKey: kp.publicKey, publicKeyRaw: new Uint8Array(pubRaw) };
+      } catch (_) {
+        return null;
+      }
+    })();
+    return _signKeyPromise;
+  }
+
+  // Firmar payload de emparejamiento (P0-25 Fase 2)
+  async function crozzoPairingSignPayload(payload) {
+    try {
+      var keys = await crozzoPairingGetOrCreateSignKeys();
+      if (!keys) return null;
+      var data = new TextEncoder().encode(JSON.stringify(payload));
+      var sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, keys.privateKey, data);
+      var sigB64 = btoa(String.fromCharCode.apply(null, new Uint8Array(sig)));
+      var pubB64 = btoa(String.fromCharCode.apply(null, keys.publicKeyRaw));
+      return { v: 5, payload: payload, sig: sigB64, pub: pubB64, ts: Date.now() };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Verificar payload firmado (P0-25 Fase 2)
+  async function crozzoPairingVerifyPayload(signed) {
+    try {
+      if (!signed || !signed.sig || !signed.pub || !signed.payload) return null;
+      // Expiración estricta: 24h
+      if (signed.ts && (Date.now() - signed.ts) > 24 * 60 * 60 * 1000) return null;
+      var pubRaw = Uint8Array.from(atob(signed.pub), function (c) { return c.charCodeAt(0); });
+      var pubKey = await crypto.subtle.importKey('spki', pubRaw, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
+      var data = new TextEncoder().encode(JSON.stringify(signed.payload));
+      var sig = Uint8Array.from(atob(signed.sig), function (c) { return c.charCodeAt(0); });
+      var ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, sig, data);
+      if (!ok) return null;
+      return signed.payload;
+    } catch (_) {
+      return null;
+    }
   }
 
   // Fallback legacy (solo para compatibilidad de lectura, se elimina en F6)
@@ -313,5 +382,10 @@
     extractBlobFromQr: extractBlobFromQr,
     extractFastFromQr: extractFastFromQr,
     isPairingQr: isPairingQr,
+    // P0-25 Fase 2: firma/verificación ECDSA P-256
+    getOrCreateSignKeys: crozzoPairingGetOrCreateSignKeys,
+    getOrCreateEcdhKeys: crozzoPairingGetOrCreateEcdhKeys,
+    signPayload: crozzoPairingSignPayload,
+    verifyPayload: crozzoPairingVerifyPayload,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
