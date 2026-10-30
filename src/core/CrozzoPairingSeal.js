@@ -11,9 +11,46 @@
   /** QR compacto de enlace rápido (sin cifrado, menos módulos → lectura más veloz). */
   var PAIR_FAST_PREFIX = 'BOF.';
   var PAIR_KDF_SALT = new TextEncoder().encode('bona-origen-pair-v1');
-  // P0-25 contención: clave derivada por instalación (no hardcodeada).
-  // Se genera una vez y se persiste; QRs antiguos (pass estático) dejan de validar
-  // (fuerza re-emparejamiento). Migración completa a ECDH+firma: F6.
+  // P0-25 Fase 1: migración a ECDH P-256 (Web Crypto) por instalación.
+  // Genera par de claves efímeras por QR + identidad de hub firmada.
+  // Reemplaza el secreto estático 'CrozzoBonaOrigenPairSeal2026'.
+  var PAIR_KEY_LS = 'crozzo_pairing_ecdh_priv_v1';
+  var PAIR_PUB_LS = 'crozzo_pairing_ecdh_pub_v1';
+  var _ecdhKeyPromise = null;
+
+  function crozzoPairingGetOrCreateEcdhKeys() {
+    if (_ecdhKeyPromise) return _ecdhKeyPromise;
+    _ecdhKeyPromise = (async function () {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          var privB64 = localStorage.getItem(PAIR_KEY_LS);
+          var pubB64 = localStorage.getItem(PAIR_PUB_LS);
+          if (privB64 && pubB64) {
+            var privRaw = Uint8Array.from(atob(privB64), function (c) { return c.charCodeAt(0); });
+            var pubRaw = Uint8Array.from(atob(pubB64), function (c) { return c.charCodeAt(0); });
+            var privKey = await crypto.subtle.importKey('pkcs8', privRaw, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey', 'deriveBits']);
+            var pubKey = await crypto.subtle.importKey('raw', pubRaw, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+            return { privateKey: privKey, publicKey: pubKey, publicKeyRaw: pubRaw };
+          }
+        }
+        var kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
+        var pubRaw = await crypto.subtle.exportKey('raw', kp.publicKey);
+        var privRaw = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
+        var pubB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(pubRaw)));
+        var privB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(privRaw)));
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(PAIR_KEY_LS, privB64n);
+          localStorage.setItem(PAIR_PUB_LS, pubB64n);
+        }
+        return { privateKey: kp.privateKey, publicKey: kp.publicKey, publicKeyRaw: new Uint8Array(pubRaw) };
+      } catch (_) {
+        return null;
+      }
+    })();
+    return _ecdhKeyPromise;
+  }
+
+  // Fallback legacy (solo para compatibilidad de lectura, se elimina en F6)
   function crozzoPairingGetInstallPass() {
     try {
       var k = 'crozzo_pairing_install_pass_v1';
