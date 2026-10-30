@@ -132,7 +132,7 @@ Write-Output ("SSID=" + $cfg.Ssid)
     }))
 }
 
-/* ---- Stubs para escritorio no-Windows (macOS/Linux): no hay API uniforme ---- */
+/* ---- Stubs para escritorio no-Windows y Android/iOS: no hay API uniforme ---- */
 #[cfg(all(not(windows), not(any(target_os = "android", target_os = "ios"))))]
 #[tauri::command]
 pub fn crozzo_hotspot_start() -> Result<serde_json::Value, String> {
@@ -149,4 +149,23 @@ pub fn crozzo_hotspot_stop() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub fn crozzo_hotspot_status() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({ "on": false, "state": "unsupported", "ssid": "" }))
+}
+
+/* ---- Stubs para Android/iOS: hotspot guiado manualmente (P0-16 contención) ---- */
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub fn crozzo_hotspot_start() -> Result<serde_json::Value, String> {
+    Err("hotspot_guiado_manual_en_esta_plataforma".into())
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub fn crozzo_hotspot_stop() -> Result<serde_json::Value, String> {
+    Err("hotspot_guiado_manual_en_esta_plataforma".into())
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub fn crozzo_hotspot_status() -> Result<serde_json::Value, String> {
+    Ok(serde_json::json!({ "on": false, "state": "guided", "ssid": "" }))
 }
