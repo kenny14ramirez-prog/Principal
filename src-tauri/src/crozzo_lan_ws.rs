@@ -36,23 +36,18 @@ pub fn broadcast_text(json_text: &str) -> usize {
     }
     let mut sent = 0;
     for c in &inner.conns {
-        if let Ok(mut w) = c.try_lock() {
-            use futures_util::SinkExt;
-            // Para broadcast síncrono, usamos try_send si está disponible
-            // o creamos un runtime temporal para el envío
-            let rt = tokio::runtime::Handle::try_current();
-            if let Ok(handle) = rt {
-                // Evitar panic: no block_on dentro de contexto async; enviar en task.
-                let msg = Message::Text(json_text.to_string());
-                let conn = Arc::clone(c);
-                handle.spawn(async move {
-                    if let Ok(mut w) = conn.try_lock() {
-                        use futures_util::SinkExt;
-                        let _ = w.send(msg).await;
-                    }
-                });
-                sent += 1;
-            }
+        let rt = tokio::runtime::Handle::try_current();
+        if let Ok(handle) = rt {
+            // Evitar panic: no block_on dentro de contexto async; enviar en task.
+            let msg = Message::Text(json_text.to_string());
+            let conn = Arc::clone(c);
+            handle.spawn(async move {
+                if let Ok(mut w) = conn.try_lock() {
+                    use futures_util::SinkExt;
+                    let _ = w.send(msg).await;
+                }
+            });
+            sent += 1;
         }
     }
     sent
