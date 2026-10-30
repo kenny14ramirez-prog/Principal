@@ -88,8 +88,8 @@
       : (typeof products !== 'undefined' ? products : null);
 
     lineas.forEach(function (linea) {
-      // Solo revertir líneas que SÍ se descontaron (resultado 'ok')
-      if (linea.resultado !== 'ok') {
+      // Revertir líneas descontadas (ok o parcial): parcial también descontó stock.
+      if (linea.resultado !== 'ok' && linea.resultado !== 'parcial') {
         resultado.omitidas += 1;
         return;
       }

@@ -342,6 +342,16 @@
     try {
       var raw = base64UrlDecode(blob.slice(prefixMatch[0].length));
       var compact = JSON.parse(new TextDecoder().decode(raw));
+      // P0-25 Fase 3: version check. Aceptar v:4 (legacy, deprecado) y v:5 (verificado).
+      var v = Number(compact && compact.v) || 4;
+      if (v < 4) return null; // rechazar versiones antiguas
+      if (v === 5) {
+        // v:5 debe tener firma; verificar de forma síncrona no es posible (async).
+        // Se marca como 'signed' para que el caller verifique con verifyPayload.
+        compact._signed = true;
+      } else {
+        compact._legacy = true;
+      }
       return expandFastPayload(compact);
     } catch (_) {
       return null;

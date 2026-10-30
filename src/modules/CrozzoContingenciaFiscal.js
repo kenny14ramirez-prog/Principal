@@ -109,8 +109,10 @@
       // Usar la cola existente (CrozzoPosDianLib crozzoFiscalOutboxSave)
       try {
         if (typeof global.crozzoFiscalOutboxSave === 'function') {
-          // La cola legacy guarda en localStorage; H1.5 aspira a SQLite (ver persistirSQLite)
-          global.crozzoFiscalOutboxSave(encolado);
+          // P0-3 fix: crozzoFiscalOutboxSave espera array; encolar en la cola existente.
+          var _cola = (typeof global.crozzoFiscalOutboxLoad === 'function') ? (global.crozzoFiscalOutboxLoad() || []) : [];
+          _cola.push(encolado);
+          global.crozzoFiscalOutboxSave(_cola);
         }
       } catch (_) {}
       return encolado;
@@ -231,14 +233,9 @@
      * @returns {Promise<boolean>} true si SQLite activo
      */
     async persistirSQLite() {
-      try {
-        if (typeof global.__TAURI__ !== 'undefined' && global.__TAURI__.core) {
-          // Tauri command: invoke('crozzo_fiscal_outbox_save_sqlite', { docs })
-          // H1.5 aspiracional: implementar el comando Rust cuando se añada DB local
-          return true;
-        }
-      } catch (_) {}
-      return false; // fallback localStorage
+      // P0-3 fix: no mentir. No hay comando Rust crozzo_fiscal_outbox_save_sqlite todavia.
+      // Devolver false para que el caller sepa que solo persiste en localStorage.
+      return false;
     }
   };
 
