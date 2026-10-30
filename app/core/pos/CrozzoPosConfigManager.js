@@ -658,7 +658,7 @@ class ConfigManager {
       window.__crozzoHpConfigWriteBypass = false;
     }
   }
-  getNextConsecutivo(saleAttemptId) {
+  async getNextConsecutivo(saleAttemptId) {
     // P0-03 contención: idempotencia por saleAttemptId (reintentos no duplican).
     try {
       if (saleAttemptId) {
@@ -667,6 +667,36 @@ class ConfigManager {
         var cache = raw ? JSON.parse(raw) : {};
         if (cache && cache[saleAttemptId]) {
           return Number(cache[saleAttemptId]);
+        }
+      }
+    } catch (_) {}
+    // P0-03: intentar secuenciador remoto (Supabase RPC) si hay red y credenciales.
+    try {
+      if (saleAttemptId && typeof global !== 'undefined' && global.__SUPABASE &&
+          typeof global.__SUPABASE.rpc === 'function') {
+        var biz = (this.config && this.config.businessId) || (typeof global.getMultiDeviceConfig === 'function' ? ((global.getMultiDeviceConfig() || {}).businessId) : '') || 'default';
+        var prefijo = (this.config && this.config.dian && this.config.dian.prefijo) || '';
+        var resolucion = (this.config && this.config.dian && this.config.dian.resolucion) || '';
+        var r = await global.__SUPABASE.rpc('crozzo_next_consecutivo', {
+          p_business_id: biz,
+          p_prefijo: prefijo,
+          p_resolucion: resolucion,
+          p_sale_attempt_id: saleAttemptId,
+        });
+        if (r && !r.error && r.data != null) {
+          var remote = Number(r.data);
+          if (Number.isFinite(remote) && remote > 0) {
+            this.config.ultimoConsecutivo = Math.max(this.config.ultimoConsecutivo || 0, remote);
+            this.save();
+            try {
+              var ck = 'crozzo_consecutivo_attempt_v1';
+              var rawc = localStorage.getItem(ck);
+              var cachec = rawc ? JSON.parse(rawc) : {};
+              cachec[saleAttemptId] = remote;
+              localStorage.setItem(ck, JSON.stringify(cachec));
+            } catch (_) {}
+            return remote;
+          }
         }
       }
     } catch (_) {}

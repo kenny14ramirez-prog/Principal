@@ -33084,7 +33084,7 @@ async function facturar(options = {}) {
     metodoPago: metodoPago,
     ctx: typeof crozzoCajaVoidContextRef === 'function' ? crozzoCajaVoidContextRef() : '',
   });
-  const consecutivo = config.getNextConsecutivo(saleAttemptId);
+  const consecutivo = await config.getNextConsecutivo(saleAttemptId);
   const fecha = new Date().toISOString();
   const facturaObj = {
     numeroResolucion: dian.resolucion || 'DEMO-000',
