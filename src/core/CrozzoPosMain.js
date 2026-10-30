@@ -51776,18 +51776,12 @@ function init() {
       return seal.unsealFromQr(raw).then(function (obj) {
         if (obj) return obj;
         if (typeof seal.isPairingQr === 'function' && seal.isPairingQr(raw)) return null;
-        try {
-          var parsed = JSON.parse(raw);
-          if (parsed && parsed.type === CROZZO_CLOUD_PAIRING) return parsed;
-        } catch (_) {}
+        // P0-25 Fase 3: rechazar texto plano (no aceptar payloads sin firma).
         return null;
       });
     }
-    try {
-      return Promise.resolve(JSON.parse(raw));
-    } catch (_) {
-      return Promise.resolve(null);
-    }
+    // P0-25 Fase 3: no aceptar texto plano sin firma.
+    return Promise.resolve(null);
   }
   window.crozzoPairingResetBinding = function crozzoPairingResetBinding() {
     var prev = crozzoPairingGetLocalLocationId();
