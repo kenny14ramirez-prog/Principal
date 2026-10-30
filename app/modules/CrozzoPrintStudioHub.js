@@ -3251,8 +3251,11 @@
     bm.ubicacion = (document.getElementById('bodegaUbicacion') && document.getElementById('bodegaUbicacion').value.trim()) || bm.ubicacion || '';
     var chk = document.getElementById('bodegaIncluirTodasMp');
     bm.incluirTodasMp = chk ? chk.checked : bm.incluirTodasMp !== false;
+    // P0-1 fix: no borrar impresoraBodega si el select está vacío/no renderizado.
+    var _bodPrinter = document.getElementById('bodegaPrinterSelect');
+    var _bodPrinterVal = (_bodPrinter && _bodPrinter.value.trim()) || '';
     return {
-      impresoraBodega: (document.getElementById('bodegaPrinterSelect') && document.getElementById('bodegaPrinterSelect').value.trim()) || '',
+      impresoraBodega: _bodPrinterVal || (conf && conf.impresoraBodega) || '',
       bodegaMarcacion: bm,
     };
   }

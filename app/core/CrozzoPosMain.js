@@ -43789,7 +43789,8 @@ function getFacturacionAdminConfig() {
   if (typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.normalizePlantillas) {
     normalized = CrozzoPrintStudioHub.normalizePlantillas(normalized);
   }
-  if (JSON.stringify(base) !== JSON.stringify(normalized)) config.set('facturacionAdmin', normalized);
+  // P0-2 fix: no re-guardar en cada lectura (evita pérdida de campos no normalizados).
+  // La persistencia ocurre solo en saveFacturasAdminConfigCore / persistActiveTplFromJson.
   return normalized;
 }
 function crozzoPrinterBackendLabel() {

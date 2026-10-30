@@ -101,8 +101,9 @@
     function fixKey(key, allowEmpty) {
       var v = String(conf[key] || '').trim();
       if (allowEmpty && !v) return;
+      // P0-3 fix: phantom printers se limpian incluso en roles allowEmpty.
       if (!v || crozzoIsPhantomPrinter(v)) {
-        if (!allowEmpty) patch[key] = fallback;
+        patch[key] = allowEmpty ? '' : fallback;
         return;
       }
       var matched = crozzoMatchSystemPrinter(v) || v;
