@@ -111,8 +111,8 @@
         por: o.por || (typeof global.crozzoGetCurrentUserLabel === 'function' ? global.crozzoGetCurrentUserLabel() : 'admin')
       };
 
-      // Retail (catálogo POS): sumar qty de vuelta al stock
-      if (productosArr && Array.isArray(productosArr)) {
+      // Retail (catálogo POS): sumar qty de vuelta al stock SOLO si se descontó POS.
+      if (linea.posDeducted && productosArr && Array.isArray(productosArr)) {
         var idx = productosArr.findIndex(function (p) { return String(p.id) === String(pid); });
         if (idx >= 0) {
           var p = productosArr[idx];
