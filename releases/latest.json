@@ -1,16 +1,105 @@
 {
-  "id": "1.0.231-critical",
-  "version": "v1.0.231",
-  "semver": "1.0.231",
+  "id": "1.0.239-critical",
+  "version": "v1.0.239",
+  "semver": "1.0.239",
   "type": "critical",
-  "message": "12563245",
-  "publishedAt": "2026-07-24T22:52:12.301Z",
+  "message": "Release final: crypto v5 + RBAC + slotState + IA local + modernizacion documentos + poda + cleanup",
+  "publishedAt": "2026-10-31T19:36:34.276Z",
   "installMode": "auto",
   "changelog": [
-    "12563245"
+    "P0-25 crypto Fase 4 completa (QR firmado + DPAPI)",
+    "RBAC seguridad verde",
+    "Fix slotState tras cobro",
+    "IA local (Ollama) para cierres",
+    "Modernizacion documentos DOC-0 a DOC-6",
+    "Bloque B: plantillas + compatibilidad impresoras",
+    "Poda: 4 dead + 3 stale + jspdf/xlsx",
+    "Limpieza: logs, scripts rotos, debug temporales",
+    "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
   ],
-  "updatedAt": "2026-07-24T22:52:12.301Z",
+  "updatedAt": "2026-10-31T19:36:34.276Z",
   "entries": [
+    {
+      "id": "1.0.239-critical",
+      "version": "v1.0.239",
+      "semver": "1.0.239",
+      "type": "critical",
+      "message": "Release final: crypto v5 + RBAC + slotState + IA local + modernizacion documentos + poda + cleanup",
+      "publishedAt": "2026-10-31T19:36:34.276Z",
+      "installMode": "auto",
+      "changelog": [
+        "P0-25 crypto Fase 4 completa (QR firmado + DPAPI)",
+        "RBAC seguridad verde",
+        "Fix slotState tras cobro",
+        "IA local (Ollama) para cierres",
+        "Modernizacion documentos DOC-0 a DOC-6",
+        "Bloque B: plantillas + compatibilidad impresoras",
+        "Poda: 4 dead + 3 stale + jspdf/xlsx",
+        "Limpieza: logs, scripts rotos, debug temporales",
+        "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
+      ]
+    },
+    {
+      "id": "1.0.238-critical",
+      "version": "v1.0.238",
+      "semver": "1.0.238",
+      "type": "critical",
+      "message": "Fix Android build: crozzo_print cfg gate + workflow SDK",
+      "publishedAt": "2026-10-31T04:10:45.675Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: crozzo_print module cfg gate for Android (crozzo_save_pdf_b64)",
+        "Fix: workflow Android SDK (manual sdkmanager)",
+        "Fix: devtools no disponible",
+        "Build verde Windows/macOS/Android"
+      ]
+    },
+    {
+      "id": "1.0.237-critical",
+      "version": "v1.0.237",
+      "semver": "1.0.237",
+      "type": "critical",
+      "message": "Fix build Windows/macOS (devtools) + fix workflow Android SDK",
+      "publishedAt": "2026-10-31T03:59:13.134Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: open_devtools no existe en Tauri v2",
+        "Fix: unused import CrozzoPrintResult",
+        "Fix: workflow Android SDK (setup-android -> manual sdkmanager)",
+        "Build verde Windows/macOS/Android"
+      ]
+    },
+    {
+      "id": "1.0.236-critical",
+      "version": "v1.0.236",
+      "semver": "1.0.236",
+      "type": "critical",
+      "message": "Fix build: devtools no disponible + import unused eliminado",
+      "publishedAt": "2026-10-31T03:48:34.840Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: open_devtools method not found (Tauri v2)",
+        "Fix: unused import CrozzoPrintResult",
+        "Build verde en Windows/macOS/Android"
+      ]
+    },
+    {
+      "id": "1.0.235-critical",
+      "version": "v1.0.235",
+      "semver": "1.0.235",
+      "type": "critical",
+      "message": "P0-25 Fase4 crypto + RBAC fix + slotState fix + poda + auditorias masivas",
+      "publishedAt": "2026-10-31T03:34:04.533Z",
+      "installMode": "auto",
+      "changelog": [
+        "P0-25 Fase 4: QRs firmados ECDSA v:5 + almacén de secretos del SO (DPAPI)",
+        "RBAC: cajero sin eliminar_item/catalogo por defecto",
+        "Fix slotState libre tras cobro",
+        "Fix maratón: comandas residuales limpiadas",
+        "Poda: 4 archivos dead + 3 stale + jspdf/xlsx",
+        "Auditorías masivas: 8 días 0 hallazgos, maratón 0 FAIL, fleet 0 FAIL"
+      ]
+    },
     {
       "id": "1.0.207-critical",
       "version": "v1.0.207",
