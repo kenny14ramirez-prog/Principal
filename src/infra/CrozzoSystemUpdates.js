@@ -43,7 +43,7 @@
 
   // OTA-6: fallbacks explícitos. Se sobrescriben por meta/binario/registry al arrancar.
   var VERSION = 'v1.0.0';        // fallback si no hay meta ni binario
-  var VERSION_AVAIL = 'v2.0.0';  // fallback si no hay registry
+  var VERSION_AVAIL = '';         // se setea desde registry/manifest; vacío = sin disponible
   var _checkTimer = null;
   var _bootTimer = null;
   var _registryEntries = [];
@@ -5231,22 +5231,26 @@
     _retry = _retry || 0;
     var registryUrl = getRegistryUrl();
     var manifestUrl = getManifestUrl();
-    var registryP = fetchWithTimeout(registryUrl, 12000)
-      .then(function (res) {
-        if (res.ok) return res.json();
-        throw new Error('registry HTTP ' + res.status);
-      })
-      .catch(function () {
-        return null;
-      });
-    var manifestP = fetchWithTimeout(manifestUrl, 12000)
-      .then(function (res) {
-        if (!res.ok) throw new Error('manifest HTTP ' + res.status);
-        return res.json();
-      })
-      .catch(function () {
-        return null;
-      });
+    // Intentar fetch JS; si falla (CSP/red), intentar via Tauri (desktop).
+    function fetchJsonWithFallback(url, ms) {
+      return fetchWithTimeout(url, ms)
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .catch(function (err) {
+          // Fallback: Tauri invoke (solo desktop)
+          if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+            return global.__TAURI__.core.invoke('crozzo_http_get_text', { url: url }).then(function (text) {
+              if (!text) throw new Error('empty response');
+              return JSON.parse(text);
+            });
+          }
+          throw err;
+        });
+    }
+    var registryP = fetchJsonWithFallback(registryUrl, 12000).catch(function () { return null; });
+    var manifestP = fetchJsonWithFallback(manifestUrl, 12000).catch(function () { return null; });
     return Promise.all([registryP, manifestP]).then(function (parts) {
       var reg = normalizeRegistryEntries(parts[0]);
       var man = normalizeRegistryEntries(parts[1]);
@@ -5255,7 +5259,9 @@
       if (_retry < 2) {
         return new Promise(function (resolve) { setTimeout(resolve, 2000); }).then(function () { return fetchRegistryData(_retry + 1); });
       }
-      throw new Error('No se pudo leer registry ni latest.json (tras ' + (_retry + 1) + ' intentos)');
+      // Incluir detalle de qué falló
+      var detail = 'registry=' + (parts[0] ? 'ok(' + reg.length + ')' : 'FAIL') + ' manifest=' + (parts[1] ? 'ok(' + man.length + ')' : 'FAIL');
+      throw new Error('No se pudo leer registry ni latest.json (tras ' + (_retry + 1) + ' intentos): ' + detail);
     });
   }
 
