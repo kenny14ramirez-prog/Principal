@@ -1,24 +1,37 @@
 {
-  "id": "1.0.243-critical",
-  "version": "v1.0.243",
-  "semver": "1.0.243",
+  "id": "1.0.244-critical",
+  "version": "v1.0.244",
+  "semver": "1.0.244",
   "type": "critical",
-  "message": "OTA mejorado: estado preservado + concurrencia + retry + registry + error real",
-  "publishedAt": "2026-10-31T21:18:48.044Z",
+  "message": "Test OTA flujo completo - verificar deteccion, descarga, instalacion, changelog, estado preservado",
+  "publishedAt": "2026-10-31T21:32:46.834Z",
   "installMode": "auto",
   "changelog": [
-    "OTA-2: backup/restore de estado POS (carrito, mesas, comandas)",
-    "OTA-3: Android pending en localStorage",
-    "OTA-5: lock concurrencia (retry 3x)",
-    "Fix: registry.json en main (evita 404)",
-    "Fix: mensaje de error real en comprobar",
-    "Fix: rebrand SyntaxErrors",
-    "IA local (Ollama) para cierres",
-    "Modernizacion documentos DOC-0 a DOC-6",
-    "Bloque B: plantillas + compatibilidad"
+    "Test OTA flujo completo",
+    "Verificar deteccion al arrancar",
+    "Descarga en segundo plano sin bloquear UI",
+    "Instalacion al reiniciar + changelog visible",
+    "Preservacion de estado (ventas/mesas)"
   ],
-  "updatedAt": "2026-10-31T21:18:48.044Z",
+  "updatedAt": "2026-10-31T21:32:46.834Z",
   "entries": [
+    {
+      "id": "1.0.244-critical",
+      "version": "v1.0.244",
+      "semver": "1.0.244",
+      "type": "critical",
+      "message": "Test OTA flujo completo - verificar deteccion, descarga, instalacion, changelog, estado preservado",
+      "publishedAt": "2026-10-31T21:32:46.834Z",
+      "installMode": "auto",
+      "changelog": [
+        "Test OTA flujo completo",
+        "Verificar deteccion al arrancar",
+        "Descarga en segundo plano sin bloquear UI",
+        "Instalacion al reiniciar + changelog visible",
+        "Preservacion de estado (ventas/mesas)"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.243-critical",
       "version": "v1.0.243",
