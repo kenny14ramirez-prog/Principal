@@ -5222,7 +5222,8 @@
     });
   }
 
-  function fetchRegistryData() {
+  function fetchRegistryData(_retry) {
+    _retry = _retry || 0;
     var registryUrl = getRegistryUrl();
     var manifestUrl = getManifestUrl();
     var registryP = fetchWithTimeout(registryUrl, 12000)
@@ -5246,7 +5247,10 @@
       var man = normalizeRegistryEntries(parts[1]);
       var merged = mergeRegistryEntries(reg, man);
       if (merged.length) return merged;
-      throw new Error('No se pudo leer registry ni latest.json');
+      if (_retry < 2) {
+        return delay(2000).then(function () { return fetchRegistryData(_retry + 1); });
+      }
+      throw new Error('No se pudo leer registry ni latest.json (tras ' + (_retry + 1) + ' intentos)');
     });
   }
 
@@ -5438,7 +5442,7 @@
         var msg = err && err.message ? err.message : String(err);
         setCheckStatus('Error al comprobar: ' + msg);
         if (!opts.silent && typeof global.showToast === 'function') {
-          global.showToast('No se pudo comprobar actualizaciones.', 'error');
+          global.showToast('No se pudo comprobar actualizaciones: ' + msg, 'error');
         }
         console.warn('[crozzo-updates]', err);
         return { ok: false, reason: 'error', error: err };
