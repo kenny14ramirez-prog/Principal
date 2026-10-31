@@ -868,7 +868,9 @@
     // Misma semver: comparar build stamp para detectar build-only updates.
     var localStamp = readMetaBuildStamp();
     var remoteStamp = entryBuildStamp(entry);
-    if (localStamp && remoteStamp && localStamp !== remoteStamp) return false; // build-only update pendiente
+    // Si falta alguno de los stamps, no forzar aplicado (tratar como desconocido).
+    if (!localStamp || !remoteStamp) return false;
+    if (localStamp !== remoteStamp) return false; // build-only update pendiente
     return true;
   }
 
@@ -2187,8 +2189,10 @@
     }
     return entries.map(function (entry) {
       if (!entry) return entry;
+      if (entry._changelogNormalized) return entry;
       var lines = normalizeEntryChangelog(entry);
       if (lines.length) entry.changelog = lines;
+      entry._changelogNormalized = true;
       return entry;
     });
   }
@@ -5204,6 +5208,9 @@
     return showOptionalEntry(entry);
   }
 
+  function delay(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms || 0); });
+  }
   function fetchWithTimeout(url, ms) {
     return new Promise(function (resolve, reject) {
       var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
