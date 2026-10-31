@@ -1,21 +1,32 @@
 {
-  "id": "1.0.235-critical",
-  "version": "v1.0.235",
-  "semver": "1.0.235",
+  "id": "1.0.236-critical",
+  "version": "v1.0.236",
+  "semver": "1.0.236",
   "type": "critical",
-  "message": "P0-25 Fase4 crypto + RBAC fix + slotState fix + poda + auditorias masivas",
-  "publishedAt": "2026-10-31T03:34:04.533Z",
+  "message": "Fix build: devtools no disponible + import unused eliminado",
+  "publishedAt": "2026-10-31T03:48:34.840Z",
   "installMode": "auto",
   "changelog": [
-    "P0-25 Fase 4: QRs firmados ECDSA v:5 + almacén de secretos del SO (DPAPI)",
-    "RBAC: cajero sin eliminar_item/catalogo por defecto",
-    "Fix slotState libre tras cobro",
-    "Fix maratón: comandas residuales limpiadas",
-    "Poda: 4 archivos dead + 3 stale + jspdf/xlsx",
-    "Auditorías masivas: 8 días 0 hallazgos, maratón 0 FAIL, fleet 0 FAIL"
+    "Fix: open_devtools method not found (Tauri v2)",
+    "Fix: unused import CrozzoPrintResult",
+    "Build verde en Windows/macOS/Android"
   ],
-  "updatedAt": "2026-10-31T03:34:04.533Z",
+  "updatedAt": "2026-10-31T03:48:34.840Z",
   "entries": [
+    {
+      "id": "1.0.236-critical",
+      "version": "v1.0.236",
+      "semver": "1.0.236",
+      "type": "critical",
+      "message": "Fix build: devtools no disponible + import unused eliminado",
+      "publishedAt": "2026-10-31T03:48:34.840Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: open_devtools method not found (Tauri v2)",
+        "Fix: unused import CrozzoPrintResult",
+        "Build verde en Windows/macOS/Android"
+      ]
+    },
     {
       "id": "1.0.235-critical",
       "version": "v1.0.235",

@@ -43,17 +43,9 @@ fn greet(name: &str) -> String {
 
 #[cfg(desktop)]
 #[tauri::command]
-fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window("main") {
-        win.open_devtools();
-        return Ok(());
-    }
-    let wins = app.webview_windows();
-    if let Some(win) = wins.into_values().next() {
-        win.open_devtools();
-        return Ok(());
-    }
-    Err("No hay ventana WebView disponible".to_string())
+fn crozzo_open_devtools(_app: tauri::AppHandle) -> Result<(), String> {
+    // Devtools deshabilitado en builds de producción (P0-33). El front usa fallback.
+    Err("devtools_no_disponible_en_esta_build".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

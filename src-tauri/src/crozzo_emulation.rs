@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::crozzo_print::CrozzoPrintResult;
+// (poda: CrozzoPrintResult ya no se usa aquí tras eliminar mock_print_*)
 
 static EMULATION_ACTIVE: AtomicBool = AtomicBool::new(false);
 
