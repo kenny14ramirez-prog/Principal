@@ -34,15 +34,16 @@
   };
   var CHECK_INTERVAL_MS = 15 * 60 * 1000; /* reservado; chequeo automático solo al arranque */
   var BOOT_DELAY_MS = 2000;
-  var BOOT_GATE_MAX_MS = 12000;
+  var BOOT_GATE_MAX_MS = 8000;  // OTA-4: reducido de 12s a 8s para no frenar el arranque
   var BOOT_RELEASE_PROBE_MS = 30000;
   var _bootUpdatePhase = false;
   var _bootUpdatesReady = false;
   var _bootReadyWaiters = [];
   var _deferOptionalBannerSession = false;
 
-  var VERSION = 'v1.0.0';
-  var VERSION_AVAIL = 'v2.0.0';
+  // OTA-6: fallbacks explícitos. Se sobrescriben por meta/binario/registry al arrancar.
+  var VERSION = 'v1.0.0';        // fallback si no hay meta ni binario
+  var VERSION_AVAIL = 'v2.0.0';  // fallback si no hay registry
   var _checkTimer = null;
   var _bootTimer = null;
   var _registryEntries = [];
@@ -270,8 +271,13 @@
       });
   }
 
-  function startOptionalDownloadForRestart(entry) {
-    if (!entry || _installInProgress) return Promise.resolve();
+  function startOptionalDownloadForRestart(entry, _retry) {
+    _retry = _retry || 0;
+    if (!entry) return Promise.resolve();
+    if (_installInProgress && _retry < 3) {
+      return delay(2000).then(function () { return startOptionalDownloadForRestart(entry, _retry + 1); });
+    }
+    if (_installInProgress) return Promise.resolve(); // descartar tras 3 intentos
     var remote = normEntryVersion(entry);
     _currentOptionalId = entryId(entry);
     _installInProgress = true;
@@ -564,13 +570,14 @@
   function finalizeAndroidPendingInstall(installedVer) {
     var pending = null;
     try {
-      pending = sessionStorage.getItem(SS_ANDROID_PENDING);
+      pending = (localStorage.getItem(SS_ANDROID_PENDING) || sessionStorage.getItem(SS_ANDROID_PENDING));
     } catch (_) {}
     if (!pending) return;
     var pv = normEntryVersion({ version: pending });
     if (!pv || compareSemver(installedVer, pv) < 0) return;
     try {
-      sessionStorage.removeItem(SS_ANDROID_PENDING);
+      try { localStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
+      try { sessionStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
     } catch (_) {}
     _registryEntries.forEach(function (entry) {
       if (!entry) return;
@@ -837,7 +844,9 @@
     if (!entry) return false;
     if (compareSemver(normEntryVersion(entry), VERSION) !== 0) return false;
     if (isCriticalEntry(entry)) return false;
-    return !isEntryApplied(entry);
+    var localStamp = readMetaBuildStamp();
+    var remoteStamp = entryBuildStamp(entry);
+    return !!(localStamp && remoteStamp && localStamp !== remoteStamp);
   }
 
   function entryBuildStamp(entry) {
@@ -849,9 +858,12 @@
     if (!entry) return false;
     var remote = normEntryVersion(entry);
     var cmp = compareSemver(VERSION, remote);
-    if (cmp < 0) return false;
-    if (cmp > 0) return true;
-    // Misma semver que el binario: nunca reinstalar por sello OTA distinto.
+    if (cmp < 0) return false;   // remoto más nuevo → pendiente
+    if (cmp > 0) return true;    // local más nuevo → aplicado
+    // Misma semver: comparar build stamp para detectar build-only updates.
+    var localStamp = readMetaBuildStamp();
+    var remoteStamp = entryBuildStamp(entry);
+    if (localStamp && remoteStamp && localStamp !== remoteStamp) return false; // build-only update pendiente
     return true;
   }
 
@@ -1192,9 +1204,13 @@
    * Post-login: nunca bloquea. Descarga en background y muestra card ameno de aviso.
    * Pre-login: banner pequeño + descarga silenciosa, login libre siempre.
    */
-  function startCriticalUpdateDelivery(entry, opts) {
+  function startCriticalUpdateDelivery(entry, opts, _retry) {
     opts = opts || {};
+    _retry = _retry || 0;
     if (!entry) return Promise.resolve({ skipped: true });
+    if (_installInProgress && _retry < 3) {
+      return delay(2000).then(function () { return startCriticalUpdateDelivery(entry, opts, _retry + 1); });
+    }
 
     var postLogin = !crozzoUpdateIsPreLogin();
 
@@ -3640,10 +3656,20 @@
         message: 'Recargando interfaz (tablet / navegador)…',
       });
     }
+    // OTA-2: preservar estado crítico antes de reload (backup en localStorage).
+    try {
+      if (typeof global.collectPosRuntimeState === 'function') {
+        var _st = global.collectPosRuntimeState();
+        if (_st) {
+          try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+          try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+        }
+      }
+    } catch (_) {}
     appendLocalLog('web_reload', {
       version: targetVersion || VERSION_AVAIL,
       type: 'web',
-      message: 'Recarga forzada tras aviso OTA',
+      message: 'Recarga forzada tras aviso OTA (estado respaldado)',
     });
     return delay(800).then(function () {
       try {
@@ -3682,7 +3708,10 @@
           });
           try {
             var pendingVer = normEntryVersion({ version: targetVersion || VERSION_AVAIL });
-            if (pendingVer) sessionStorage.setItem(SS_ANDROID_PENDING, pendingVer);
+            if (pendingVer) {
+              try { localStorage.setItem(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
+              try { sessionStorage.setItem(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
+            }
           } catch (_) {}
         }
         return res;
@@ -4482,8 +4511,33 @@
     poll();
   }
 
+  function crozzoRestorePosRuntimeStateIfPending() {
+    try {
+      var raw = localStorage.getItem('crozzo_update_state_backup');
+      if (!raw) return false;
+      var at = Number(localStorage.getItem('crozzo_update_state_backup_at') || 0);
+      if (at && (Date.now() - at) > 10 * 60 * 1000) {
+        try { localStorage.removeItem('crozzo_update_state_backup'); } catch (_) {}
+        try { localStorage.removeItem('crozzo_update_state_backup_at'); } catch (_) {}
+        return false;
+      }
+      var st = null;
+      try { st = JSON.parse(raw); } catch (_) { st = null; }
+      if (!st) return false;
+      if (typeof global.crozzoApplyPosRuntimeState === 'function') {
+        try { global.crozzoApplyPosRuntimeState(st); } catch (_) {}
+      }
+      try { localStorage.removeItem('crozzo_update_state_backup'); } catch (_) {}
+      try { localStorage.removeItem('crozzo_update_state_backup_at'); } catch (_) {}
+      appendLocalLog('state_restore', { message: 'Estado respaldado restaurado tras actualización', at: at });
+      return true;
+    } catch (_) { return false; }
+  }
+
   function runBootUpdatePipeline() {
     if (_bootUpdatesReady) return Promise.resolve({ ok: true, skipped: true });
+    // OTA-2: restaurar estado respaldado (si existe y es reciente).
+    crozzoRestorePosRuntimeStateIfPending();
     scheduleDeferredCriticalAfterLogin();
     _bootUpdatePhase = true;
     global.__crozzoBootUpdatePhase = true;
@@ -5549,7 +5603,8 @@
       localStorage.removeItem(LS_SNOOZE_UNTIL);
       localStorage.removeItem(LS_PENDING_RESTART);
       try {
-        sessionStorage.removeItem(SS_ANDROID_PENDING);
+        try { localStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
+      try { sessionStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
       } catch (_) {}
       clearSessionDismissals();
     } catch (_) {}

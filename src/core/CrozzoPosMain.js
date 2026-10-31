@@ -9607,6 +9607,38 @@ window.crozzoPatchCorkboardDom = crozzoPatchCorkboardDom;
 window.crozzoHandleRemoteRuntimeUiSync = crozzoHandleRemoteRuntimeUiSync;
 window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
 window.collectPosRuntimeState = collectPosRuntimeState;
+window.crozzoApplyPosRuntimeState = function (st) {
+  if (!st || typeof st !== 'object') return false;
+  try {
+    if (st.tipoServicioCaja != null) tipoServicioCaja = st.tipoServicioCaja;
+    if (st.mesaSeleccionada != null) mesaSeleccionada = st.mesaSeleccionada;
+    if (st.llevarSeleccionado != null) llevarSeleccionado = st.llevarSeleccionado;
+    if (Array.isArray(st.cartDirecto)) cartDirecto = st.cartDirecto;
+    if (st.cartsPorMesa && typeof st.cartsPorMesa === 'object') cartsPorMesa = st.cartsPorMesa;
+    if (st.cartsPorLlevar && typeof st.cartsPorLlevar === 'object') cartsPorLlevar = st.cartsPorLlevar;
+    if (st.tabletModoPedido != null) tabletModoPedido = st.tabletModoPedido;
+    if (st.tabletMesaSeleccionada != null) tabletMesaSeleccionada = st.tabletMesaSeleccionada;
+    if (st.tabletLlevarSeleccionado != null) tabletLlevarSeleccionado = st.tabletLlevarSeleccionado;
+    if (st.tabletOrderOpen != null) tabletOrderOpen = st.tabletOrderOpen;
+    if (st.cajaMesaOrderOpen != null) cajaMesaOrderOpen = st.cajaMesaOrderOpen;
+    if (st.cajaLlevarOrderOpen != null) cajaLlevarOrderOpen = st.cajaLlevarOrderOpen;
+    if (Array.isArray(st.comandas)) comandas = st.comandas;
+    if (Array.isArray(st.comandaHistory)) comandaHistory = st.comandaHistory;
+    if (Array.isArray(st.comandaCalls)) comandaCalls = st.comandaCalls;
+    if (st.comandasOrderByArea && typeof st.comandasOrderByArea === 'object') comandasOrderByArea = st.comandasOrderByArea;
+    if (st.nextComandaId != null) nextComandaId = st.nextComandaId;
+    if (st.closedSlots && typeof st.closedSlots === 'object') closedSlots = st.closedSlots;
+    if (st.slotLocalClearedAt && typeof st.slotLocalClearedAt === 'object') slotLocalClearedAt = st.slotLocalClearedAt;
+    if (st.slotCartDetachedFromComandas && typeof st.slotCartDetachedFromComandas === 'object') slotCartDetachedFromComandas = st.slotCartDetachedFromComandas;
+    if (st.comandaSlotLocks && typeof st.comandaSlotLocks === 'object') comandaSlotLocks = st.comandaSlotLocks;
+    if (st.slotSessionPresence && typeof st.slotSessionPresence === 'object') slotSessionPresence = st.slotSessionPresence;
+    if (st.cajaMesaSearch != null) cajaMesaSearch = st.cajaMesaSearch;
+    if (typeof showToast === 'function') showToast('Estado restaurado tras actualización', 'info');
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
 function loadPosRuntimeFromLocalStorage() {
   try {
     let s = null;

@@ -1,24 +1,55 @@
 {
-  "id": "1.0.239-critical",
-  "version": "v1.0.239",
-  "semver": "1.0.239",
+  "id": "1.0.240-critical",
+  "version": "v1.0.240",
+  "semver": "1.0.240",
   "type": "critical",
-  "message": "Release final: crypto v5 + RBAC + slotState + IA local + modernizacion documentos + poda + cleanup",
-  "publishedAt": "2026-10-31T19:36:34.276Z",
+  "message": "OTA mejorado: build-only detection + state preservation + Android pending + timeouts + concurrency lock + sha256 field",
+  "publishedAt": "2026-10-31T20:08:52.614Z",
   "installMode": "auto",
   "changelog": [
-    "P0-25 crypto Fase 4 completa (QR firmado + DPAPI)",
-    "RBAC seguridad verde",
-    "Fix slotState tras cobro",
+    "OTA-1: deteccion build-only updates (build stamp)",
+    "OTA-2: preservacion de estado (backup/restore)",
+    "OTA-3: Android pending en localStorage",
+    "OTA-4: timeouts reducidos (12s->8s)",
+    "OTA-5: lock concurrencia (retry)",
+    "OTA-6: fallbacks marcados explicitos",
+    "OTA-7: campo sha256 en latest.json (placeholder)",
+    "Fix: crozzo_print cfg gate Android",
+    "Fix: devtools no disponible",
+    "Fix: slotState libre tras cobro",
     "IA local (Ollama) para cierres",
     "Modernizacion documentos DOC-0 a DOC-6",
-    "Bloque B: plantillas + compatibilidad impresoras",
-    "Poda: 4 dead + 3 stale + jspdf/xlsx",
-    "Limpieza: logs, scripts rotos, debug temporales",
-    "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
+    "Bloque B: plantillas + compatibilidad",
+    "Poda: 4 dead + 3 stale + jspdf/xlsx"
   ],
-  "updatedAt": "2026-10-31T19:36:34.276Z",
+  "updatedAt": "2026-10-31T20:08:52.614Z",
   "entries": [
+    {
+      "id": "1.0.240-critical",
+      "version": "v1.0.240",
+      "semver": "1.0.240",
+      "type": "critical",
+      "message": "OTA mejorado: build-only detection + state preservation + Android pending + timeouts + concurrency lock + sha256 field",
+      "publishedAt": "2026-10-31T20:08:52.614Z",
+      "installMode": "auto",
+      "changelog": [
+        "OTA-1: deteccion build-only updates (build stamp)",
+        "OTA-2: preservacion de estado (backup/restore)",
+        "OTA-3: Android pending en localStorage",
+        "OTA-4: timeouts reducidos (12s->8s)",
+        "OTA-5: lock concurrencia (retry)",
+        "OTA-6: fallbacks marcados explicitos",
+        "OTA-7: campo sha256 en latest.json (placeholder)",
+        "Fix: crozzo_print cfg gate Android",
+        "Fix: devtools no disponible",
+        "Fix: slotState libre tras cobro",
+        "IA local (Ollama) para cierres",
+        "Modernizacion documentos DOC-0 a DOC-6",
+        "Bloque B: plantillas + compatibilidad",
+        "Poda: 4 dead + 3 stale + jspdf/xlsx"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.239-critical",
       "version": "v1.0.239",
@@ -37,7 +68,8 @@
         "Poda: 4 dead + 3 stale + jspdf/xlsx",
         "Limpieza: logs, scripts rotos, debug temporales",
         "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.238-critical",
@@ -52,7 +84,8 @@
         "Fix: workflow Android SDK (manual sdkmanager)",
         "Fix: devtools no disponible",
         "Build verde Windows/macOS/Android"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.237-critical",
@@ -67,7 +100,8 @@
         "Fix: unused import CrozzoPrintResult",
         "Fix: workflow Android SDK (setup-android -> manual sdkmanager)",
         "Build verde Windows/macOS/Android"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.236-critical",
@@ -81,7 +115,8 @@
         "Fix: open_devtools method not found (Tauri v2)",
         "Fix: unused import CrozzoPrintResult",
         "Build verde en Windows/macOS/Android"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.235-critical",
@@ -98,7 +133,8 @@
         "Fix maratón: comandas residuales limpiadas",
         "Poda: 4 archivos dead + 3 stale + jspdf/xlsx",
         "Auditorías masivas: 8 días 0 hallazgos, maratón 0 FAIL, fleet 0 FAIL"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.207-critical",
@@ -111,7 +147,8 @@
       "changelog": [
         "parche de estabilidad v2",
         "parche de comunicaxion v12"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.208-critical",
@@ -123,7 +160,8 @@
       "installMode": "auto",
       "changelog": [
         "parche de estabilidad v5"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.209-critical",
@@ -135,7 +173,8 @@
       "installMode": "auto",
       "changelog": [
         "actualizacion de nube"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.210-critical",
@@ -147,7 +186,8 @@
       "installMode": "auto",
       "changelog": [
         "22"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.211-critical",
@@ -159,7 +199,8 @@
       "installMode": "auto",
       "changelog": [
         "25632"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.212-critical",
@@ -171,7 +212,8 @@
       "installMode": "auto",
       "changelog": [
         "parche de evaluacion"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.213-critical",
@@ -183,7 +225,8 @@
       "installMode": "auto",
       "changelog": [
         "9284628"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.214-critical",
@@ -195,7 +238,8 @@
       "installMode": "auto",
       "changelog": [
         "25632"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.215-critical",
@@ -207,7 +251,8 @@
       "installMode": "auto",
       "changelog": [
         "252525"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.216-critical",
@@ -219,7 +264,8 @@
       "installMode": "auto",
       "changelog": [
         "1452"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.217-critical",
@@ -233,7 +279,8 @@
         "Comunicacion tablet-caja estable",
         "auto QR",
         "respaldo LAN"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.218-critical",
@@ -245,7 +292,8 @@
       "installMode": "auto",
       "changelog": [
         "1254"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.219-critical",
@@ -257,7 +305,8 @@
       "installMode": "auto",
       "changelog": [
         "5679"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.220-critical",
@@ -269,7 +318,8 @@
       "installMode": "auto",
       "changelog": [
         "2525"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.221-critical",
@@ -281,7 +331,8 @@
       "installMode": "auto",
       "changelog": [
         "85858"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.222-critical",
@@ -293,7 +344,8 @@
       "installMode": "auto",
       "changelog": [
         "256325"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.223-critical",
@@ -305,7 +357,8 @@
       "installMode": "auto",
       "changelog": [
         "852"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.224-critical",
@@ -317,7 +370,8 @@
       "installMode": "auto",
       "changelog": [
         "8564"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.225-critical",
@@ -329,7 +383,8 @@
       "installMode": "auto",
       "changelog": [
         "2589654"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.226-critical",
@@ -341,7 +396,8 @@
       "installMode": "auto",
       "changelog": [
         "2562"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.227-critical",
@@ -353,7 +409,8 @@
       "installMode": "auto",
       "changelog": [
         "65795"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.228-critical",
@@ -365,7 +422,8 @@
       "installMode": "auto",
       "changelog": [
         "791356"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.229-critical",
@@ -377,7 +435,8 @@
       "installMode": "auto",
       "changelog": [
         "159357"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.230-critical",
@@ -390,7 +449,8 @@
       "changelog": [
         "estabilidad interna del sistema",
         "correcion de bugs"
-      ]
+      ],
+      "sha256": null
     },
     {
       "id": "1.0.231-critical",
@@ -402,7 +462,9 @@
       "installMode": "auto",
       "changelog": [
         "12563245"
-      ]
+      ],
+      "sha256": null
     }
-  ]
+  ],
+  "sha256": null
 }
