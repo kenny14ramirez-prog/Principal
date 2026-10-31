@@ -1,19 +1,31 @@
 {
-  "id": "1.0.241-critical",
-  "version": "v1.0.241",
-  "semver": "1.0.241",
+  "id": "1.0.242-critical",
+  "version": "v1.0.242",
+  "semver": "1.0.242",
   "type": "critical",
-  "message": "Fix rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions) + Failed to fetch",
-  "publishedAt": "2026-10-31T20:35:23.299Z",
+  "message": "Test de actualizacion OTA - verificar flujo completo",
+  "publishedAt": "2026-10-31T20:55:31.527Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: SyntaxError CrozzoAuthSecurity.js (identificadores rotos por rebrand)",
-    "Fix: SyntaxError CrozzoPosExtensions.js (namespace window.Bona Origen)",
-    "Fix: Failed to fetch (consecuencia de SyntaxError)",
-    "Build verde Windows/macOS/Android"
+    "Test de actualizacion OTA",
+    "Verificar deteccion, descarga en segundo plano, instalacion y changelog"
   ],
-  "updatedAt": "2026-10-31T20:35:23.299Z",
+  "updatedAt": "2026-10-31T20:55:31.527Z",
   "entries": [
+    {
+      "id": "1.0.242-critical",
+      "version": "v1.0.242",
+      "semver": "1.0.242",
+      "type": "critical",
+      "message": "Test de actualizacion OTA - verificar flujo completo",
+      "publishedAt": "2026-10-31T20:55:31.527Z",
+      "installMode": "auto",
+      "changelog": [
+        "Test de actualizacion OTA",
+        "Verificar deteccion, descarga en segundo plano, instalacion y changelog"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.241-critical",
       "version": "v1.0.241",
