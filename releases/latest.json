@@ -1,20 +1,39 @@
 {
-  "id": "1.0.247-critical",
-  "version": "v1.0.247",
-  "semver": "1.0.247",
+  "id": "1.0.248-critical",
+  "version": "v1.0.248",
+  "semver": "1.0.248",
   "type": "critical",
-  "message": "Fix OTA: Tauri invoke fallback para fetch + error real detallado",
-  "publishedAt": "2026-10-31T23:32:52.619Z",
+  "message": "Fix OTA: Tauri invoke fallback logging + todos los fixes",
+  "publishedAt": "2026-10-31T23:38:19.307Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: fetchRegistryData ahora usa Tauri invoke como fallback (evita Failed to fetch en WebView)",
-    "Fix: mensaje de error real (registry/manifest detail)",
-    "Fix: delay is not defined (retry)",
+    "Fix: fetch OTA usa Tauri invoke como fallback con logging detallado",
+    "Fix: ReferenceError delay is not defined",
     "Fix: rebrand SyntaxErrors",
-    "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+    "Fix: registry.json en main",
+    "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
+    "IA local + modernizacion documentos + poda"
   ],
-  "updatedAt": "2026-10-31T23:32:52.619Z",
+  "updatedAt": "2026-10-31T23:38:19.307Z",
   "entries": [
+    {
+      "id": "1.0.248-critical",
+      "version": "v1.0.248",
+      "semver": "1.0.248",
+      "type": "critical",
+      "message": "Fix OTA: Tauri invoke fallback logging + todos los fixes",
+      "publishedAt": "2026-10-31T23:38:19.307Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: fetch OTA usa Tauri invoke como fallback con logging detallado",
+        "Fix: ReferenceError delay is not defined",
+        "Fix: rebrand SyntaxErrors",
+        "Fix: registry.json en main",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
+        "IA local + modernizacion documentos + poda"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.247-critical",
       "version": "v1.0.247",
