@@ -5253,7 +5253,7 @@
       var merged = mergeRegistryEntries(reg, man);
       if (merged.length) return merged;
       if (_retry < 2) {
-        return delay(2000).then(function () { return fetchRegistryData(_retry + 1); });
+        return new Promise(function (resolve) { setTimeout(resolve, 2000); }).then(function () { return fetchRegistryData(_retry + 1); });
       }
       throw new Error('No se pudo leer registry ni latest.json (tras ' + (_retry + 1) + ' intentos)');
     });

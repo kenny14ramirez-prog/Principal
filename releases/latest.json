@@ -1,20 +1,37 @@
 {
-  "id": "1.0.244-critical",
-  "version": "v1.0.244",
-  "semver": "1.0.244",
+  "id": "1.0.245-critical",
+  "version": "v1.0.245",
+  "semver": "1.0.245",
   "type": "critical",
-  "message": "Test OTA flujo completo - verificar deteccion, descarga, instalacion, changelog, estado preservado",
-  "publishedAt": "2026-10-31T21:32:46.834Z",
+  "message": "Fix OTA: delay is not defined + retry fetch + registry.json + error real",
+  "publishedAt": "2026-10-31T22:58:44.811Z",
   "installMode": "auto",
   "changelog": [
-    "Test OTA flujo completo",
-    "Verificar deteccion al arrancar",
-    "Descarga en segundo plano sin bloquear UI",
-    "Instalacion al reiniciar + changelog visible",
-    "Preservacion de estado (ventas/mesas)"
+    "Fix: ReferenceError delay is not defined (rompia retry de fetch)",
+    "Fix: registry.json en main (evita 404)",
+    "Fix: mensaje de error real en comprobar",
+    "Fix: rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions)",
+    "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
   ],
-  "updatedAt": "2026-10-31T21:32:46.834Z",
+  "updatedAt": "2026-10-31T22:58:44.811Z",
   "entries": [
+    {
+      "id": "1.0.245-critical",
+      "version": "v1.0.245",
+      "semver": "1.0.245",
+      "type": "critical",
+      "message": "Fix OTA: delay is not defined + retry fetch + registry.json + error real",
+      "publishedAt": "2026-10-31T22:58:44.811Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: ReferenceError delay is not defined (rompia retry de fetch)",
+        "Fix: registry.json en main (evita 404)",
+        "Fix: mensaje de error real en comprobar",
+        "Fix: rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions)",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.244-critical",
       "version": "v1.0.244",
