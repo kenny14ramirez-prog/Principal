@@ -1,20 +1,43 @@
 {
-  "id": "1.0.245-critical",
-  "version": "v1.0.245",
-  "semver": "1.0.245",
+  "id": "1.0.246-critical",
+  "version": "v1.0.246",
+  "semver": "1.0.246",
   "type": "critical",
-  "message": "Fix OTA: delay is not defined + retry fetch + registry.json + error real",
-  "publishedAt": "2026-10-31T22:58:44.811Z",
+  "message": "Fix OTA: delay is not defined (retry fetch) + todos los fixes anteriores",
+  "publishedAt": "2026-10-31T23:05:18.661Z",
   "installMode": "auto",
   "changelog": [
     "Fix: ReferenceError delay is not defined (rompia retry de fetch)",
     "Fix: registry.json en main (evita 404)",
     "Fix: mensaje de error real en comprobar",
-    "Fix: rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions)",
-    "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+    "Fix: rebrand SyntaxErrors",
+    "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
+    "IA local (Ollama) para cierres",
+    "Modernizacion documentos DOC-0 a DOC-6",
+    "Bloque B: plantillas + compatibilidad"
   ],
-  "updatedAt": "2026-10-31T22:58:44.811Z",
+  "updatedAt": "2026-10-31T23:05:18.661Z",
   "entries": [
+    {
+      "id": "1.0.246-critical",
+      "version": "v1.0.246",
+      "semver": "1.0.246",
+      "type": "critical",
+      "message": "Fix OTA: delay is not defined (retry fetch) + todos los fixes anteriores",
+      "publishedAt": "2026-10-31T23:05:18.661Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: ReferenceError delay is not defined (rompia retry de fetch)",
+        "Fix: registry.json en main (evita 404)",
+        "Fix: mensaje de error real en comprobar",
+        "Fix: rebrand SyntaxErrors",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
+        "IA local (Ollama) para cierres",
+        "Modernizacion documentos DOC-0 a DOC-6",
+        "Bloque B: plantillas + compatibilidad"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.245-critical",
       "version": "v1.0.245",
