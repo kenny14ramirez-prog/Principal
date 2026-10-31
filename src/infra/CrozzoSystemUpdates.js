@@ -184,6 +184,11 @@
   function startCriticalDownloadForRestart(entry, opts) {
     opts = opts || {};
     if (!entry) return Promise.resolve({ skipped: true });
+    // P0-2 fix: guard de concurrencia (evitar solapamiento de descargas).
+    if (_installInProgress) return Promise.resolve({ skipped: true, reason: 'install_in_progress' });
+    _installInProgress = true;
+    // Watchdog: liberar el lock tras 5 min por si la descarga se cuelga.
+    setTimeout(function () { _installInProgress = false; }, 5 * 60 * 1000);
     _pendingCriticalEntry = entry;
     _currentCriticalId = entryId(entry);
     var preLogin = crozzoUpdateIsPreLogin();

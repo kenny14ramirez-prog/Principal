@@ -890,6 +890,16 @@
                 'Instalando… Bona Origen se cerrará y volverá a abrir solo con la versión nueva.',
             });
           }
+          // P0-3: respaldar estado POS antes de cerrar/reabrir.
+          try {
+            if (typeof global.collectPosRuntimeState === 'function') {
+              var _st = global.collectPosRuntimeState();
+              if (_st) {
+                try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+                try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+              }
+            }
+          } catch (_) {}
           return finishUpdateRelaunch(onProgress, ver, 'C');
         });
     });
@@ -1412,6 +1422,16 @@
               message: 'Instalación completada. Bona Origen se reiniciará automáticamente…',
             });
           }
+          // P0-3: respaldar estado POS antes de cerrar/reabrir.
+          try {
+            if (typeof global.collectPosRuntimeState === 'function') {
+              var _st = global.collectPosRuntimeState();
+              if (_st) {
+                try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+                try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+              }
+            }
+          } catch (_) {}
           return finishUpdateRelaunch(onProgress, ver, 'D');
         });
     });
