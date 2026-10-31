@@ -246,13 +246,14 @@
     });
   }
 
-  function buildScanText(payload) {
+  async function buildScanText(payload) {
     var seal = global.CrozzoPairingSeal;
     if (seal && typeof seal.buildFastQrText === 'function') {
-      var t = safe(function () {
-        return seal.buildFastQrText(payload);
-      });
-      if (t) return t;
+      try {
+        var t = seal.buildFastQrText(payload);
+        if (t && typeof t.then === 'function') t = await t;
+        if (t) return t;
+      } catch (_) {}
     }
     return (
       safe(function () {
@@ -756,7 +757,7 @@
   }
 
   /** Genera/refresca el QR de este dispositivo (cada 4 h). */
-  function ensureOwnSlot(opts) {
+  async function ensureOwnSlot(opts) {
     opts = opts || {};
     var key = slotKey();
     var stored = readOwn();
@@ -783,7 +784,7 @@
     payload.device_id = tenantCtx().deviceId;
     payload.device_name = tenantCtx().deviceName;
     payload.target_profile = payload.target_profile || 'device';
-    var scanText = buildScanText(payload);
+    var scanText = await buildScanText(payload);
     if (!scanText) return stored && stored.slot === key ? stored : stored || null;
     var builtAt = nowMs();
     var history =
@@ -811,7 +812,7 @@
 
   async function refreshIdentityOnCloud(opts) {
     opts = opts || {};
-    var rec = ensureOwnSlot({ force: true });
+    var rec = await ensureOwnSlot({ force: true });
     if (!rec) return false;
     var ok = await publishOwnSlot(rec);
     emitOwnSlotsToMesh(rec, { force: true });
@@ -919,7 +920,7 @@
     var now = nowMs();
     if (now - __lastEmergencyAt < 8000) return { peers: 0, applied: 0 };
     __lastEmergencyAt = now;
-    ensureOwnSlot({ force: false });
+    await ensureOwnSlot({ force: false });
     requestPeerQrCatalog();
     if (cloudReady()) await pullPeersFromCloud();
     var peers = getValidPeers({ preferCaja: true });
@@ -974,11 +975,11 @@
     }
   }
 
-  function tick() {
+  async function tick() {
     safe(function () {
       if (typeof document !== 'undefined' && document.hidden) return;
     });
-    var rec = ensureOwnSlot({ force: false });
+    var rec = await ensureOwnSlot({ force: false });
     if (meshExchangeEnabled() || lanExchangeEnabled()) {
       requestPeerQrCatalog();
       if (rec) emitOwnSlotsToMesh(rec, { force: false });
@@ -990,8 +991,8 @@
   }
 
   function start() {
-    ensureOwnSlot({ force: false });
-    tick();
+    ensureOwnSlot({ force: false }).catch(function () {});
+    tick().catch(function () {});
     if (__timer) global.clearInterval(__timer);
     __timer = global.setInterval(tick, REFRESH_MS);
     safe(function () {
@@ -1010,6 +1011,36 @@
         refreshIdentityOnCloud({ force: true }).catch(function () {});
       });
     });
+  }
+
+  // F6: purgar slots QR legacy (version < minVersion) de la base de peers.
+  function purgeLegacyQrSlots(minVersion) {
+    minVersion = Number(minVersion) || 5;
+    var db = readPeersDb();
+    var changed = false;
+    Object.keys(db.peers || {}).forEach(function (id) {
+      var p = db.peers[id];
+      if (!p || !Array.isArray(p.slots)) return;
+      var before = p.slots.length;
+      p.slots = p.slots.filter(function (s) {
+        var v = 4;
+        try {
+          var pl = s && (s.payloadJson || null);
+          if (pl && pl.version != null) v = Number(pl.version);
+          else if (s && s.scanText) {
+            var seal = global.CrozzoPairingSeal;
+            if (seal && typeof seal.parseFastQr === 'function') {
+              var parsed = seal.parseFastQr(s.scanText);
+              if (parsed && parsed.version != null) v = Number(parsed.version);
+            }
+          }
+        } catch (_) {}
+        return v >= minVersion;
+      });
+      if (p.slots.length !== before) changed = true;
+    });
+    if (changed) writePeersDb(db);
+    return changed;
   }
 
   function stop() {
@@ -1052,7 +1083,7 @@
       });
     }
 
-    var rec = ensureOwnSlot({ force: opts.forceOwn !== false });
+    var rec = await ensureOwnSlot({ force: opts.forceOwn !== false });
     if (rec && rec.scanText) {
       if (cloudPublishAllowed(false)) publishOwnSlot(rec).catch(function () {});
       emitOwnSlotsToMesh(rec, { force: true });
@@ -1159,5 +1190,6 @@
     },
     start: start,
     stop: stop,
+    purgeLegacyQrSlots: purgeLegacyQrSlots,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

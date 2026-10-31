@@ -2,7 +2,7 @@
 
 # Errores conocidos y soluciones
 
-> **38 entradas** · actualizado 2026-10-28T19:51:26.510Z · fuente canónica: [`known-issues.json`](known-issues.json)
+> **38 entradas** · actualizado 2026-10-30T01:19:37.151Z · fuente canónica: [`known-issues.json`](known-issues.json)
 
 Consultar **antes** de parchear sync/LAN/CSS/APK. Buscar: `npm run issues:search -- "texto"`
 

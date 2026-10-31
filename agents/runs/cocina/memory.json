@@ -1,0 +1,27 @@
+{
+  "agentId": "cocina",
+  "role": "worker",
+  "level": 3,
+  "levelName": "EXPERTO",
+  "executions": 39,
+  "knownRoutes": [],
+  "brokenSelectors": [],
+  "successfulFlows": [
+    "cocina_jornada"
+  ],
+  "frictionLog": [],
+  "errorsSeen": [],
+  "timeStats": {},
+  "mistakes": [],
+  "selectorsOk": [],
+  "flowsLearned": [
+    {
+      "flow": "cocina_jornada",
+      "learnedAt": "2026-10-31T03:15:06.081Z",
+      "level": "NOVATO"
+    }
+  ],
+  "sop": [],
+  "createdAt": "2026-10-31T03:15:04.068Z",
+  "updatedAt": "2026-10-31T03:24:26.896Z"
+}

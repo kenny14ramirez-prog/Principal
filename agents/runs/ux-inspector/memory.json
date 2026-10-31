@@ -1,0 +1,27 @@
+{
+  "agentId": "ux-inspector",
+  "role": "inspector",
+  "level": 3,
+  "levelName": "EXPERTO",
+  "executions": 38,
+  "knownRoutes": [],
+  "brokenSelectors": [],
+  "successfulFlows": [
+    "ux-inspector_jornada"
+  ],
+  "frictionLog": [],
+  "errorsSeen": [],
+  "timeStats": {},
+  "mistakes": [],
+  "selectorsOk": [],
+  "flowsLearned": [
+    {
+      "flow": "ux-inspector_jornada",
+      "learnedAt": "2026-10-31T03:15:18.119Z",
+      "level": "NOVATO"
+    }
+  ],
+  "sop": [],
+  "createdAt": "2026-10-31T03:15:13.106Z",
+  "updatedAt": "2026-10-31T03:24:33.441Z"
+}

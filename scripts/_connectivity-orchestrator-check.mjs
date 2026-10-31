@@ -425,7 +425,7 @@ async function dailyPairingTests() {
   const D = c.CrozzoDailyPairing;
   assert(D && typeof D.ensureToday === 'function', 'QR diario carga', 'expone API');
 
-  const rec = D.ensureToday();
+  const rec = await D.ensureToday();
   assert(rec && rec.scanText === 'FASTQR-TOKEN', 'Genera QR del dia', 'scanText sellado');
   assert(rec && rec.locationId === 'SEDE-1', 'QR lleva sede', rec && rec.locationId);
   assert(rec && rec.slot, 'QR usa franja 4h', rec && rec.slot);
@@ -435,7 +435,7 @@ async function dailyPairingTests() {
   // Nueva franja -> regenera y conserva historial
   h.advance(4 * 60 * 60 * 1000 + 1000);
   c.CrozzoPairingSeal = { buildFastQrText: () => 'FASTQR-TOKEN-2' };
-  const rec2 = D.ensureCurrent(true);
+  const rec2 = await D.ensureCurrent(true);
   assert(rec2 && rec2.scanText === 'FASTQR-TOKEN-2', 'Regenera cada 4 h', rec2 && rec2.scanText);
   assert(Array.isArray(rec2.history) && rec2.history.length >= 1, 'Historial QR previo', 'history.length>=' + (rec2.history && rec2.history.length));
 
@@ -446,7 +446,7 @@ async function dailyPairingTests() {
   c2.crozzoPairingBuildPayload = () => ({ payload: { timestamp: h2.now() } });
   c2.CrozzoPairingSeal = { buildFastQrText: () => 'X' };
   h2.load('app/modules/CrozzoDailyPairing.js');
-  assert(c2.CrozzoDailyPairing.ensureToday() === null, 'Rol B no emite QR', 'solo la caja');
+  assert((await c2.CrozzoDailyPairing.ensureToday()) === null, 'Rol B no emite QR', 'solo la caja');
 }
 
 // ---------------------------------------------------------------------------

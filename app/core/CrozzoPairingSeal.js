@@ -5,11 +5,59 @@
 (function (global) {
   'use strict';
 
+  // P0-25 Fase 4.3: puente al almacén de secretos del SO (Tauri/DPAPI).
+  async function crozzoSecretGet(name) {
+    try {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        var v = await global.__TAURI__.core.invoke('crozzo_secret_get', { name: String(name) });
+        if (v) return String(v);
+      }
+    } catch (_) {}
+    try {
+      if (typeof localStorage !== 'undefined') return localStorage.getItem('crozzo_secret_' + String(name));
+    } catch (_) {}
+    return null;
+  }
+  async function crozzoSecretSet(name, value) {
+    try {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        await global.__TAURI__.core.invoke('crozzo_secret_set', { name: String(name), value: String(value) });
+        return true;
+      }
+    } catch (_) {}
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('crozzo_secret_' + String(name), String(value));
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   var PAIR_INSTALL_URL = 'https://bonaorigen.app/instalar';
   var PAIR_SCHEME = 'bonaorigen://pair';
   var PAIR_BLOB_PREFIX = 'BO1.';
   /** QR compacto de enlace rápido (sin cifrado, menos módulos → lectura más veloz). */
   var PAIR_FAST_PREFIX = 'BOF.';
+  // Feature flag: versión mínima aceptada de QR (4 = compatibilidad, 5 = solo firmados).
+  // F6: configurable en runtime por AM vía global.CrozzoPairingMinVersion o localStorage
+  // 'crozzo_pairing_min_version' (default 4). Subir a 5 solo tras rotación completa de flota.
+  function crozzoPairingMinVersion() {
+    try {
+      if (typeof global !== 'undefined' && global.CrozzoPairingMinVersion != null) {
+        var g = Number(global.CrozzoPairingMinVersion);
+        if (g === 4 || g === 5) return g;
+      }
+    } catch (_) {}
+    try {
+      if (typeof localStorage !== 'undefined') {
+        var ls = Number(localStorage.getItem('crozzo_pairing_min_version'));
+        if (ls === 4 || ls === 5) return ls;
+      }
+    } catch (_) {}
+    return 4;
+  }
+  var PAIR_QR_MIN_VERSION = crozzoPairingMinVersion();
   var PAIR_KDF_SALT = new TextEncoder().encode('bona-origen-pair-v1');
   // P0-25 Fase 1: migración a ECDH P-256 (Web Crypto) por instalación.
   // Genera par de claves efímeras por QR + identidad de hub firmada.
@@ -25,26 +73,29 @@
     if (_ecdhKeyPromise) return _ecdhKeyPromise;
     _ecdhKeyPromise = (async function () {
       try {
-        if (typeof localStorage !== 'undefined') {
-          var privB64 = localStorage.getItem(PAIR_KEY_LS);
-          var pubB64 = localStorage.getItem(PAIR_PUB_LS);
-          if (privB64 && pubB64) {
-            var privRaw = Uint8Array.from(atob(privB64), function (c) { return c.charCodeAt(0); });
-            var pubRaw = Uint8Array.from(atob(pubB64), function (c) { return c.charCodeAt(0); });
-            var privKey = await crypto.subtle.importKey('pkcs8', privRaw, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey', 'deriveBits']);
-            var pubKey = await crypto.subtle.importKey('raw', pubRaw, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
-            return { privateKey: privKey, publicKey: pubKey, publicKeyRaw: pubRaw };
-          }
+        // P0-25 Fase 4.3: clave privada en almacén del SO (DPAPI) si está disponible.
+        var privB64 = await crozzoSecretGet(PAIR_KEY_LS);
+        var pubB64 = null;
+        try { pubB64 = (typeof localStorage !== 'undefined') ? localStorage.getItem(PAIR_PUB_LS) : null; } catch (_) {}
+        if (!privB64) {
+          try { privB64 = (typeof localStorage !== 'undefined') ? localStorage.getItem(PAIR_KEY_LS) : null; } catch (_) {}
+        }
+        if (privB64 && pubB64) {
+          var privRaw = Uint8Array.from(atob(privB64), function (c) { return c.charCodeAt(0); });
+          var pubRaw = Uint8Array.from(atob(pubB64), function (c) { return c.charCodeAt(0); });
+          var privKey = await crypto.subtle.importKey('pkcs8', privRaw, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey', 'deriveBits']);
+          var pubKey = await crypto.subtle.importKey('raw', pubRaw, { name: 'ECDH', namedCurve: 'P-256' }, true, []);
+          return { privateKey: privKey, publicKey: pubKey, publicKeyRaw: pubRaw };
         }
         var kp = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveKey', 'deriveBits']);
         var pubRaw = await crypto.subtle.exportKey('raw', kp.publicKey);
         var privRaw = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
         var pubB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(pubRaw)));
         var privB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(privRaw)));
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(PAIR_KEY_LS, privB64n);
-          localStorage.setItem(PAIR_PUB_LS, pubB64n);
-        }
+        await crozzoSecretSet(PAIR_KEY_LS, privB64n);
+        try { if (typeof localStorage !== 'undefined') localStorage.setItem(PAIR_PUB_LS, pubB64n); } catch (_) {}
+        // Limpieza: eliminar copia en claro en localStorage si el almacén del SO la tomó.
+        try { if (typeof localStorage !== 'undefined') localStorage.removeItem(PAIR_KEY_LS); } catch (_) {}
         return { privateKey: kp.privateKey, publicKey: kp.publicKey, publicKeyRaw: new Uint8Array(pubRaw) };
       } catch (_) {
         return null;
@@ -58,26 +109,27 @@
     if (_signKeyPromise) return _signKeyPromise;
     _signKeyPromise = (async function () {
       try {
-        if (typeof localStorage !== 'undefined') {
-          var privB64 = localStorage.getItem(PAIR_SIGN_PRIV_LS);
-          var pubB64 = localStorage.getItem(PAIR_SIGN_PUB_LS);
-          if (privB64 && pubB64) {
-            var privRaw = Uint8Array.from(atob(privB64), function (c) { return c.charCodeAt(0); });
-            var pubRaw = Uint8Array.from(atob(pubB64), function (c) { return c.charCodeAt(0); });
-            var privKey = await crypto.subtle.importKey('pkcs8', privRaw, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-            var pubKey = await crypto.subtle.importKey('spki', pubRaw, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
-            return { privateKey: privKey, publicKey: pubKey, publicKeyRaw: pubRaw };
-          }
+        var privB64 = await crozzoSecretGet(PAIR_SIGN_PRIV_LS);
+        var pubB64 = null;
+        try { pubB64 = (typeof localStorage !== 'undefined') ? localStorage.getItem(PAIR_SIGN_PUB_LS) : null; } catch (_) {}
+        if (!privB64) {
+          try { privB64 = (typeof localStorage !== 'undefined') ? localStorage.getItem(PAIR_SIGN_PRIV_LS) : null; } catch (_) {}
+        }
+        if (privB64 && pubB64) {
+          var privRaw = Uint8Array.from(atob(privB64), function (c) { return c.charCodeAt(0); });
+          var pubRaw = Uint8Array.from(atob(pubB64), function (c) { return c.charCodeAt(0); });
+          var privKey = await crypto.subtle.importKey('pkcs8', privRaw, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+          var pubKey = await crypto.subtle.importKey('spki', pubRaw, { name: 'ECDSA', namedCurve: 'P-256' }, true, ['verify']);
+          return { privateKey: privKey, publicKey: pubKey, publicKeyRaw: pubRaw };
         }
         var kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
         var pubRaw = await crypto.subtle.exportKey('spki', kp.publicKey);
         var privRaw = await crypto.subtle.exportKey('pkcs8', kp.privateKey);
         var pubB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(pubRaw)));
         var privB64n = btoa(String.fromCharCode.apply(null, new Uint8Array(privRaw)));
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(PAIR_SIGN_PRIV_LS, privB64n);
-          localStorage.setItem(PAIR_SIGN_PUB_LS, pubB64n);
-        }
+        await crozzoSecretSet(PAIR_SIGN_PRIV_LS, privB64n);
+        try { if (typeof localStorage !== 'undefined') localStorage.setItem(PAIR_SIGN_PUB_LS, pubB64n); } catch (_) {}
+        try { if (typeof localStorage !== 'undefined') localStorage.removeItem(PAIR_SIGN_PRIV_LS); } catch (_) {}
         return { privateKey: kp.privateKey, publicKey: kp.publicKey, publicKeyRaw: new Uint8Array(pubRaw) };
       } catch (_) {
         return null;
@@ -224,15 +276,16 @@
     );
   }
 
-  /** Texto QR compacto: LAN + perfil + credenciales Supabase (anon key es pública). */
-  function buildFastQrText(payloadObj) {
+  /** Texto QR compacto: LAN + perfil + credenciales Supabase (anon key es pública).
+   *  P0-25 Fase 4: se firma con ECDSA P-256 (v:5). Fallback v:4 sin firma si no hay Web Crypto. */
+  async function buildFastQrText(payloadObj) {
     var p = payloadObj || {};
     var lan = p.lan || {};
     var ip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
     var port = Math.max(1, Number(lan.port || p.port) || 3000);
     var compact = {
       t: 'C',
-      v: 4,
+      v: 5,
       f: 1,
       tp: String(p.target_profile || 'tablet').toLowerCase(),
       ip: ip,
@@ -280,6 +333,17 @@
         compact.sk = sk;
       }
     }
+    // P0-25 Fase 4: firmar el compact con ECDSA P-256 (v:5).
+    try {
+      if (typeof crozzoPairingSignPayload === 'function') {
+        var signed = await crozzoPairingSignPayload(compact);
+        if (signed && signed.sig && signed.pub && signed.payload) {
+          return PAIR_FAST_PREFIX + base64UrlEncode(new TextEncoder().encode(JSON.stringify(signed)));
+        }
+      }
+    } catch (_) {}
+    // Fallback: v:4 sin firma (compatibilidad / sin Web Crypto).
+    compact.v = 4;
     return PAIR_FAST_PREFIX + base64UrlEncode(new TextEncoder().encode(JSON.stringify(compact)));
   }
 
@@ -295,7 +359,7 @@
     var bn = String(compact.bn || '').trim();
     return {
       type: 'CROZZO_CLOUD_PAIRING',
-      version: 4,
+      version: Number(compact && compact.v) || 4,
       fast: 1,
       target_profile: tp,
       business_id: bid,
@@ -341,18 +405,33 @@
     if (!prefixMatch) return null;
     try {
       var raw = base64UrlDecode(blob.slice(prefixMatch[0].length));
-      var compact = JSON.parse(new TextDecoder().decode(raw));
-      // P0-25 Fase 3: version check. Aceptar v:4 (legacy, deprecado) y v:5 (verificado).
+      var obj = JSON.parse(new TextDecoder().decode(raw));
+      // P0-25 Fase 4: soportar envelope firmado v:5 (sig+pub+payload) y compact legacy.
+      if (obj && obj.payload && obj.sig && obj.pub) {
+        var env = obj;
+        var inner = env.payload;
+        if (!inner || typeof inner !== 'object') return null;
+        var iv = Number(inner.v) || 5;
+        if (iv < crozzoPairingMinVersion()) return null;
+        var expandedSigned = expandFastPayload(inner);
+        if (!expandedSigned) return null;
+        expandedSigned._signed = true;
+        expandedSigned._verifyEnvelope = env;
+        expandedSigned.version = iv;
+        return expandedSigned;
+      }
+      var compact = obj;
+      // P0-25 Fase 3: version check.
       var v = Number(compact && compact.v) || 4;
-      if (v < 4) return null; // rechazar versiones antiguas
-      if (v === 5) {
-        // v:5 debe tener firma; verificar de forma síncrona no es posible (async).
-        // Se marca como 'signed' para que el caller verifique con verifyPayload.
+      if (v < crozzoPairingMinVersion()) return null; // rechazar versiones antiguas
+      if (v >= 5) {
         compact._signed = true;
       } else {
         compact._legacy = true;
       }
-      return expandFastPayload(compact);
+      var expanded = expandFastPayload(compact);
+      if (expanded) expanded.version = v;
+      return expanded;
     } catch (_) {
       return null;
     }
@@ -360,7 +439,19 @@
 
   function unsealFromQr(text) {
     var fast = parseFastQr(text);
-    if (fast) return Promise.resolve(fast);
+    if (fast) {
+      // P0-25 Fase 4: verificar firma ECDSA en v:5 (async).
+      if (fast._signed && fast._verifyEnvelope) {
+        return crozzoPairingVerifyPayload(fast._verifyEnvelope).then(function (payload) {
+          if (!payload) return null;
+          var expanded = expandFastPayload(payload);
+          if (expanded) expanded.version = Number(payload.v) || 5;
+          return expanded;
+        });
+      }
+      // v:4 legacy: ventana de compatibilidad (aceptar dentro de expiración).
+      return Promise.resolve(fast);
+    }
     var blob = extractBlobFromQr(text);
     if (!blob || !global.crypto || !global.crypto.subtle) return Promise.resolve(null);
     return deriveKey()
@@ -397,5 +488,13 @@
     getOrCreateEcdhKeys: crozzoPairingGetOrCreateEcdhKeys,
     signPayload: crozzoPairingSignPayload,
     verifyPayload: crozzoPairingVerifyPayload,
+    minVersion: crozzoPairingMinVersion,
+    setMinVersion: function (v) {
+      v = Number(v);
+      if (v !== 4 && v !== 5) return false;
+      try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_pairing_min_version', String(v)); } catch (_) {}
+      try { if (typeof global !== 'undefined') global.CrozzoPairingMinVersion = v; } catch (_) {}
+      return true;
+    },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

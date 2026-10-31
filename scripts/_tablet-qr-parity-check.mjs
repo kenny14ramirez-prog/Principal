@@ -45,16 +45,16 @@ const sampleBuilt = {
   },
 };
 
-function legacyQuickBuild(built) {
+async function legacyQuickBuild(built) {
   const seal = ctx.CrozzoPairingSeal;
-  let t = seal.buildFastQrText(built.payload);
+  let t = await seal.buildFastQrText(built.payload);
   return t;
 }
 
-function scanTextFromBuiltInline(built) {
+async function scanTextFromBuiltInline(built) {
   if (!built || !built.payload) return '';
   const seal = ctx.CrozzoPairingSeal;
-  let scanText = seal.buildFastQrText(built.payload);
+  let scanText = await seal.buildFastQrText(built.payload);
   if (!scanText) {
     scanText = JSON.stringify({
       type: 'CROZZO_CLOUD_PAIRING',
@@ -68,9 +68,19 @@ function scanTextFromBuiltInline(built) {
   return scanText;
 }
 
-const a = legacyQuickBuild(sampleBuilt);
-const b = scanTextFromBuiltInline(sampleBuilt);
-const same = a === b && a.startsWith('BOF.');
+const a = await legacyQuickBuild(sampleBuilt);
+const b = await scanTextFromBuiltInline(sampleBuilt);
+let parsedA = null;
+let parsedB = null;
+try { parsedA = ctx.CrozzoPairingSeal.parseFastQr(a); } catch (_) {}
+try { parsedB = ctx.CrozzoPairingSeal.parseFastQr(b); } catch (_) {}
+const same =
+  typeof a === 'string' && typeof b === 'string' &&
+  a.startsWith('BOF.') && b.startsWith('BOF.') &&
+  parsedA && parsedB &&
+  parsedA.lan && parsedB.lan &&
+  parsedA.lan.central_ip === parsedB.lan.central_ip &&
+  parsedA.business_id === parsedB.business_id;
 
 console.log(
   JSON.stringify(

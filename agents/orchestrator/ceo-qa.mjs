@@ -84,7 +84,7 @@ export class CEOQA {
     const brain = new AgentBrain(role.id, role.type);
     const exp = brain.getExperience();
     
-    const result = {
+    let result = {
       role: role.id,
       level: exp.levelName,
       executions: exp.executions,

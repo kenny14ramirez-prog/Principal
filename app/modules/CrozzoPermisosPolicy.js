@@ -74,7 +74,6 @@
         'vista_clientes',
         'abrir_orden',
         'editar_orden',
-        'eliminar_item',
         'facturar',
         'unir_cuenta',
         'dividir_cuenta',
@@ -84,7 +83,7 @@
       ],
       comandas: [],
       inventario: ['proveedores'],
-      productos: ['catalogo'],
+      productos: [],
       admin: [],
     },
     mesero: {

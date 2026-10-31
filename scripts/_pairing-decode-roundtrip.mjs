@@ -62,7 +62,7 @@ const payload = {
   network_primary: { ssid_note: 'QA WiFi' },
   timestamp: Date.now(),
 };
-const bof = seal.buildFastQrText(payload);
+const bof = await seal.buildFastQrText(payload);
 step('bof-text', bof.indexOf('BOF.') === 0, 'BOF generado', { len: bof.length });
 
 const size = 360;

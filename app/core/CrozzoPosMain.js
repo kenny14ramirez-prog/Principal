@@ -4377,6 +4377,22 @@ function crozzoPublishComandasGlobal() {
 window.crozzoGetComandasList = function () {
   return Array.isArray(comandas) ? comandas.slice() : [];
 };
+window.crozzoClearComandasForSlot = function (tipoServicio, referencia) {
+  try {
+    if (!Array.isArray(comandas)) return 0;
+    const before = comandas.length;
+    comandas = comandas.filter(function (c) {
+      if (!c || c.tipoServicio !== tipoServicio || String(c.referencia) !== String(referencia)) return true;
+      // Marcar como entregada en lugar de eliminar (preserva historial)
+      c.estado = 'entregada';
+      c.despachadaAt = c.despachadaAt || new Date().toISOString();
+      return false;
+    });
+    return before - comandas.length;
+  } catch (_) {
+    return 0;
+  }
+};
 /** Últimos IDs de comanda tocados (reenvío P2P emergencia). */
 window.__crozzoLastEmergencyComandaIds = [];
 let nextComandaId = 1;
@@ -16232,6 +16248,20 @@ function crozzoAssertPageAccess(page) {
 }
 window.crozzoAssertPageAccess = crozzoAssertPageAccess;
 function navigateTo(page) {
+  // Auto-expandir el grupo de navegación que contiene la página (si está colapsado).
+  try {
+    var _ni = document.querySelector('.nav-item[data-page="' + String(page) + '"]');
+    if (_ni) {
+      var _g = _ni.closest('.nav-group, .nav-group-li, [data-nav-group]');
+      if (_g && _g.classList.contains('nav-group-collapsed')) {
+        _g.classList.remove('nav-group-collapsed');
+        var _t = _g.querySelector('.nav-group-toggle');
+        if (_t) { _t.setAttribute('aria-expanded', 'true'); _t.classList.add('expanded'); }
+        var _s = _g.querySelector('.nav-group-items');
+        if (_s) _s.classList.add('is-expanded');
+      }
+    }
+  } catch (_) {}
   if (typeof crozzoResolveMenuPageId === 'function') page = crozzoResolveMenuPageId(page);
   if (page === 'laboratorio-admin') {
     if (typeof crozzoLabCanAccessRole === 'function' && !crozzoLabCanAccessRole()) {
@@ -22921,7 +22951,7 @@ function getSlotStateInfo(tipoServicio, referencia) {
     crozzoSlotHasUnpaidConsumption(tipoServicio, referencia)
   ) {
     state = 'salio';
-  } else if (crozzoGetSlotSessionLock(tipoServicio, referencia)) {
+  } else if (crozzoGetSlotSessionLock(tipoServicio, referencia) && !wasPaid) {
     state = 'atendiendo';
   }
   const cartItems = cart.reduce((n, i) => n + i.cantidad, 0);
@@ -51980,11 +52010,18 @@ function init() {
       level: dense ? QRCode.CorrectLevel.L : QRCode.CorrectLevel.M,
     });
   }
-  function crozzoPairingScanTextFromBuilt(built) {
+  async function crozzoPairingScanTextFromBuilt(built) {
     if (!built || !built.payload) return '';
     var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
-    var scanText =
-      seal && typeof seal.buildFastQrText === 'function' ? seal.buildFastQrText(built.payload) : '';
+    var scanText = '';
+    if (seal && typeof seal.buildFastQrText === 'function') {
+      try {
+        var r = seal.buildFastQrText(built.payload);
+        scanText = (r && typeof r.then === 'function') ? await r : (r || '');
+      } catch (_) {
+        scanText = '';
+      }
+    }
     if (!scanText) {
       try {
         var lan0 = built.payload.lan || {};
@@ -52041,10 +52078,10 @@ function init() {
       crozzoPairingSetWarn(warnId, built.probeWarning);
     }
   }
-  function crozzoPairingRenderScanQrIntoHost(host, built) {
+  async function crozzoPairingRenderScanQrIntoHost(host, built) {
     if (!host || !built || built.error) return false;
     if (typeof QRCode !== 'function') return false;
-    var scanText = crozzoPairingScanTextFromBuilt(built);
+    var scanText = await crozzoPairingScanTextFromBuilt(built);
     if (!scanText) return false;
     pairingLastQrFastText = scanText;
     var dense = !!(built.payload.supabase_url && built.payload.supabase_key);
@@ -52063,7 +52100,7 @@ function init() {
       '<p>Generando código cifrado…</p></div>';
   }
   window.crozzoPairingShowQrSkeleton = crozzoPairingShowQrSkeleton;
-  function crozzoPairingRenderReceiverQr(targetProfile, built) {
+  async function crozzoPairingRenderReceiverQr(targetProfile, built) {
     if (built.error) {
       crozzoPairingSetWarn('crozzoPairingReceiverWarn', built.error);
       return;
@@ -52075,7 +52112,7 @@ function init() {
     var host = el('crozzoPairingQrHost');
     if (!host) return;
     var renderToken = ++pairingQrRenderToken;
-    if (crozzoPairingRenderScanQrIntoHost(host, built)) {
+    if (await crozzoPairingRenderScanQrIntoHost(host, built)) {
       try {
         if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
       } catch (_) {}
@@ -52129,14 +52166,14 @@ function init() {
           typeof crozzoPairingBuildPayloadAsync === 'function'
             ? await crozzoPairingBuildPayloadAsync(targetProfile)
             : crozzoPairingBuildPayload(targetProfile);
-        crozzoPairingRenderReceiverQr(targetProfile, built);
+        await crozzoPairingRenderReceiverQr(targetProfile, built);
       })
       .catch(async function () {
         var builtFallback =
           typeof crozzoPairingBuildPayloadAsync === 'function'
             ? await crozzoPairingBuildPayloadAsync(targetProfile)
             : crozzoPairingBuildPayload(targetProfile);
-        crozzoPairingRenderReceiverQr(targetProfile, builtFallback);
+        await crozzoPairingRenderReceiverQr(targetProfile, builtFallback);
       });
   };
   function crozzoPairingRefreshReceiverQrIfVisible() {
@@ -52645,7 +52682,10 @@ function init() {
         if (seal && typeof seal.extractFastFromQr === 'function') {
           var fastBlob = seal.extractFastFromQr(text);
           if (fastBlob && typeof seal.parseFastQr === 'function') {
-            obj = seal.parseFastQr(fastBlob);
+            var _parsedFast = seal.parseFastQr(fastBlob);
+            // P0-25 Fase 4: solo aceptar fallback legacy (v:4); v:5 firmado debe
+            // haberse verificado en unsealFromQr.
+            if (_parsedFast && _parsedFast._legacy) obj = _parsedFast;
           }
         }
       }

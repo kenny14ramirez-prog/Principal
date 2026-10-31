@@ -1,16 +1,38 @@
 {
-  "id": "1.0.231-critical",
-  "version": "v1.0.231",
-  "semver": "1.0.231",
+  "id": "1.0.235-critical",
+  "version": "v1.0.235",
+  "semver": "1.0.235",
   "type": "critical",
-  "message": "12563245",
-  "publishedAt": "2026-07-24T22:52:12.301Z",
+  "message": "P0-25 Fase4 crypto + RBAC fix + slotState fix + poda + auditorias masivas",
+  "publishedAt": "2026-10-31T03:34:04.533Z",
   "installMode": "auto",
   "changelog": [
-    "12563245"
+    "P0-25 Fase 4: QRs firmados ECDSA v:5 + almacén de secretos del SO (DPAPI)",
+    "RBAC: cajero sin eliminar_item/catalogo por defecto",
+    "Fix slotState libre tras cobro",
+    "Fix maratón: comandas residuales limpiadas",
+    "Poda: 4 archivos dead + 3 stale + jspdf/xlsx",
+    "Auditorías masivas: 8 días 0 hallazgos, maratón 0 FAIL, fleet 0 FAIL"
   ],
-  "updatedAt": "2026-07-24T22:52:12.301Z",
+  "updatedAt": "2026-10-31T03:34:04.533Z",
   "entries": [
+    {
+      "id": "1.0.235-critical",
+      "version": "v1.0.235",
+      "semver": "1.0.235",
+      "type": "critical",
+      "message": "P0-25 Fase4 crypto + RBAC fix + slotState fix + poda + auditorias masivas",
+      "publishedAt": "2026-10-31T03:34:04.533Z",
+      "installMode": "auto",
+      "changelog": [
+        "P0-25 Fase 4: QRs firmados ECDSA v:5 + almacén de secretos del SO (DPAPI)",
+        "RBAC: cajero sin eliminar_item/catalogo por defecto",
+        "Fix slotState libre tras cobro",
+        "Fix maratón: comandas residuales limpiadas",
+        "Poda: 4 archivos dead + 3 stale + jspdf/xlsx",
+        "Auditorías masivas: 8 días 0 hallazgos, maratón 0 FAIL, fleet 0 FAIL"
+      ]
+    },
     {
       "id": "1.0.207-critical",
       "version": "v1.0.207",

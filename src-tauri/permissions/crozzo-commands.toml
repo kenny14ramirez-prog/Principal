@@ -92,3 +92,8 @@ commands.allow = [
   "crozzo_wifi_direct_status",
   "crozzo_wifi_direct_start",
 ]
+
+[[permission]]
+identifier = "allow-crozzo-secret-store"
+description = "Almacén de secretos del SO (DPAPI) para claves de emparejamiento"
+commands.allow = ["crozzo_secret_set", "crozzo_secret_get", "crozzo_secret_delete"]

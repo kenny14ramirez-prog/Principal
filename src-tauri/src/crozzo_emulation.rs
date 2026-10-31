@@ -72,6 +72,7 @@ fn db_conn() -> Result<Connection, String> {
     Ok(conn)
 }
 
+#[allow(dead_code)]
 fn append_text_log(line: &str) -> Result<(), String> {
     use std::io::Write;
     let path = print_log_path()?;
@@ -84,6 +85,7 @@ fn append_text_log(line: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn preview_escpos(data: &[u8]) -> String {
     let mut out = String::new();
     for &b in data.iter().take(800) {
@@ -101,79 +103,7 @@ fn preview_escpos(data: &[u8]) -> String {
     out
 }
 
-pub fn mock_print_raw(
-    printer_name: &str,
-    data: &[u8],
-    copies: u32,
-    kind: Option<&str>,
-) -> Result<CrozzoPrintResult, String> {
-    use base64::Engine;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(data);
-    let preview = preview_escpos(data);
-    let kind_s = kind.unwrap_or("raw");
-    let copies = copies.max(1).min(10);
-
-    let conn = db_conn()?;
-    conn.execute(
-        "INSERT INTO print_log (printer, kind, copies, bytes_len, preview, data_b64) VALUES (?1,?2,?3,?4,?5,?6)",
-        params![
-            printer_name,
-            kind_s,
-            copies,
-            data.len() as i64,
-            preview,
-            b64
-        ],
-    )
-    .map_err(|e| format!("SQLite insert print_log: {e}"))?;
-
-    let line = format!(
-        "[{kind_s}] impresora={printer_name} copias={copies} bytes={} preview={preview:?}",
-        data.len()
-    );
-    append_text_log(&line)?;
-
-    Ok(CrozzoPrintResult {
-        ok: true,
-        message: format!(
-            "Emulación: ticket guardado en {} ({} bytes)",
-            print_log_path()?.display(),
-            data.len()
-        ),
-    })
-}
-
-pub fn mock_print_html(printer_name: &str, html_b64: &str, copies: u32) -> Result<CrozzoPrintResult, String> {
-    use base64::Engine;
-    let html = base64::engine::general_purpose::STANDARD
-        .decode(html_b64.trim())
-        .map_err(|e| format!("HTML base64 inválido: {e}"))?;
-    let text = String::from_utf8_lossy(&html);
-    let preview: String = text.chars().take(400).collect();
-    let conn = db_conn()?;
-    conn.execute(
-        "INSERT INTO print_log (printer, kind, copies, bytes_len, preview, data_b64) VALUES (?1,'html',?2,?3,?4,?5)",
-        params![
-            printer_name,
-            copies.max(1).min(10),
-            html.len() as i64,
-            preview,
-            html_b64
-        ],
-    )
-    .map_err(|e| format!("SQLite insert html: {e}"))?;
-    append_text_log(&format!(
-        "[html] impresora={printer_name} copias={copies} chars={}",
-        html.len()
-    ))?;
-    Ok(CrozzoPrintResult {
-        ok: true,
-        message: format!(
-            "Emulación HTML guardada en {}",
-            print_log_path()?.display()
-        ),
-    })
-}
+// (poda F11-T03 corte 2: mock_print_raw / mock_print_html eliminados — no referenciados ni registrados en invoke_handler)
 
 #[derive(Debug, Serialize)]
 pub struct CrozzoEmulationStatus {

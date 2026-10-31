@@ -1,0 +1,27 @@
+{
+  "agentId": "mesero",
+  "role": "worker",
+  "level": 3,
+  "levelName": "EXPERTO",
+  "executions": 39,
+  "knownRoutes": [],
+  "brokenSelectors": [],
+  "successfulFlows": [
+    "mesero_jornada"
+  ],
+  "frictionLog": [],
+  "errorsSeen": [],
+  "timeStats": {},
+  "mistakes": [],
+  "selectorsOk": [],
+  "flowsLearned": [
+    {
+      "flow": "mesero_jornada",
+      "learnedAt": "2026-10-31T03:15:04.067Z",
+      "level": "NOVATO"
+    }
+  ],
+  "sop": [],
+  "createdAt": "2026-10-31T03:15:01.561Z",
+  "updatedAt": "2026-10-31T03:24:25.886Z"
+}

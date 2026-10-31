@@ -1,0 +1,183 @@
+{
+  "agentId": "cajero",
+  "role": "worker",
+  "level": 3,
+  "levelName": "EXPERTO",
+  "executions": 39,
+  "knownRoutes": [],
+  "brokenSelectors": [],
+  "successfulFlows": [
+    "cajero_jornada"
+  ],
+  "frictionLog": [
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:17:47.265Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:18:05.564Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:18:18.364Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:18:31.228Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:18:44.056Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:18:56.859Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:19:09.674Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:19:24.940Z",
+      "level": "COMPETENTE"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:19:37.758Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:19:50.590Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:20:03.401Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:20:16.232Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:20:29.033Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:20:41.826Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:20:54.653Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:21:10.007Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:21:22.830Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:21:35.608Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:21:48.405Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:22:01.241Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:22:14.062Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:22:26.882Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:22:39.707Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:22:54.919Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:23:07.778Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:23:20.612Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:23:33.427Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:23:46.238Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:23:59.028Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:24:11.850Z",
+      "level": "EXPERTO"
+    },
+    {
+      "f": "Cajero experto no encuentra botón cobrar rápidamente",
+      "at": "2026-10-31T03:24:24.674Z",
+      "level": "EXPERTO"
+    }
+  ],
+  "errorsSeen": [],
+  "timeStats": {},
+  "mistakes": [],
+  "selectorsOk": [],
+  "flowsLearned": [
+    {
+      "flow": "cajero_jornada",
+      "learnedAt": "2026-10-31T03:15:01.560Z",
+      "level": "NOVATO"
+    }
+  ],
+  "sop": [],
+  "createdAt": "2026-10-31T03:14:58.533Z",
+  "updatedAt": "2026-10-31T03:24:24.674Z"
+}

@@ -1,0 +1,27 @@
+{
+  "agentId": "encargado",
+  "role": "worker",
+  "level": 3,
+  "levelName": "EXPERTO",
+  "executions": 38,
+  "knownRoutes": [],
+  "brokenSelectors": [],
+  "successfulFlows": [
+    "encargado_jornada"
+  ],
+  "frictionLog": [],
+  "errorsSeen": [],
+  "timeStats": {},
+  "mistakes": [],
+  "selectorsOk": [],
+  "flowsLearned": [
+    {
+      "flow": "encargado_jornada",
+      "learnedAt": "2026-10-31T03:15:09.091Z",
+      "level": "NOVATO"
+    }
+  ],
+  "sop": [],
+  "createdAt": "2026-10-31T03:15:06.082Z",
+  "updatedAt": "2026-10-31T03:24:28.405Z"
+}

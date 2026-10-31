@@ -2,7 +2,7 @@
 
 # Orden de arranque (scripts)
 
-Generado: 2026-10-28T19:51:26.294Z · v1.0.231
+Generado: 2026-10-30T01:19:36.931Z · v1.0.231
 
 | # | Script |
 |---|--------|

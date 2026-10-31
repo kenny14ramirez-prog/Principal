@@ -1,8 +1,8 @@
 {
   "file": "app/core/CrozzoPosMain.js",
-  "symbol": "crozzoApplyVisualTheme",
-  "line": 13614,
-  "lineCount": 53640,
-  "at": "2026-08-01T21:20:04.447Z",
-  "expiresAt": 1785621004448
+  "symbol": "crozzoPairingScanTextFromBuilt",
+  "line": 51983,
+  "lineCount": 53709,
+  "at": "2026-10-30T01:07:23.354Z",
+  "expiresAt": 1793324243354
 }

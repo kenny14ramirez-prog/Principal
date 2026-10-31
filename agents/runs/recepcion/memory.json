@@ -1,0 +1,27 @@
+{
+  "agentId": "recepcion",
+  "role": "worker",
+  "level": 3,
+  "levelName": "EXPERTO",
+  "executions": 38,
+  "knownRoutes": [],
+  "brokenSelectors": [],
+  "successfulFlows": [
+    "recepcion_jornada"
+  ],
+  "frictionLog": [],
+  "errorsSeen": [],
+  "timeStats": {},
+  "mistakes": [],
+  "selectorsOk": [],
+  "flowsLearned": [
+    {
+      "flow": "recepcion_jornada",
+      "learnedAt": "2026-10-31T03:15:13.104Z",
+      "level": "NOVATO"
+    }
+  ],
+  "sop": [],
+  "createdAt": "2026-10-31T03:15:09.092Z",
+  "updatedAt": "2026-10-31T03:24:30.424Z"
+}
