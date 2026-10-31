@@ -4157,8 +4157,8 @@
 /* ========== Bona Origen namespace ========== */
 (function () {
   if (typeof window === 'undefined') return;
-  window.Bona Origen = window.Bona Origen || {};
-  Object.assign(window.Bona Origen, {
+  window.Crozzo = window.Crozzo || {};
+  Object.assign(window.Crozzo, {
     ModeManager: window.CrozzoModeManager,
     NetworkGuard: window.CrozzoNetworkGuard,
     QRPairing: window.CrozzoQRPairing,

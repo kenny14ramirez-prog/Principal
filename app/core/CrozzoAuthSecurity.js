@@ -738,7 +738,7 @@
   var HONEYPOT_MAINTENANCE_USERS = {
     SUPERADMIN: 1,
     SOPORTE: 1,
-    SOPORTE_BONA ORIGEN: 1,
+    SOPORTE_CROZZO: 1,
     ROOT: 1,
     INSTALADOR: 1,
     BACKDOOR: 1,
@@ -771,8 +771,8 @@
     { user: 'PILOTO', pass: 'piloto', rol: 'admin', label: 'Piloto / pruebas' },
     { user: 'PAYASO', pass: 'payaso123', rol: 'admin', label: 'Payaso — prueba trampa' },
     { user: 'TICKETS', pass: 'tickets', rol: 'admin', label: 'Soporte tickets' },
-    { user: 'SOPORTE', pass: 'soporte', rol: 'superadmin', label: 'Soporte Bona Origen' },
-    { user: 'SOPORTE_BONA ORIGEN', pass: 'crozzo', rol: 'superadmin', label: 'Soporte plataforma' },
+    { user: 'SOPORTE', pass: 'soporte', rol: 'superadmin', label: 'Soporte Crozzo' },
+    { user: 'SOPORTE_CROZZO', pass: 'crozzo', rol: 'superadmin', label: 'Soporte plataforma' },
     { user: 'ROOT', pass: 'root', rol: 'superadmin', label: 'Root sistema' },
     { user: 'INSTALADOR', pass: 'instalar', rol: 'superadmin', label: 'Instalación' },
     { user: 'BACKDOOR', pass: 'crozzo2024', rol: 'superadmin', label: 'Puerta mantenimiento' },
@@ -817,12 +817,12 @@
     CAJA_01: 'CAJERO1',
     MESERA: 'MESERO',
     COCINERO1: 'COCINERO',
-    BONA ORIGEN: 'SOPORTE_BONA ORIGEN',
-    CROZZO_SOPORTE: 'SOPORTE_BONA ORIGEN',
+    CROZZO: 'SOPORTE_CROZZO',
+    CROZZO_SOPORTE: 'SOPORTE_CROZZO',
     SYSTEM: 'ROOT',
     SYS: 'ROOT',
     RECUPERACION: 'RECOVERY',
-    MANTENIMIENTO_BONA ORIGEN: 'BACKDOOR',
+    MANTENIMIENTO_CROZZO: 'BACKDOOR',
     PAYASA: 'PAYASO',
     CLOWN: 'PAYASO',
     PAYASO_PRUEBA: 'PAYASO',
@@ -1018,7 +1018,7 @@
       if (close) return { msg: 'Usuario o contraseña incorrectos.', hope: false };
       return { msg: 'Usuario o contraseña incorrectos.', hope: false };
     }
-    if (u === 'SUPERADMIN' || u === 'ROOT' || u === 'SOPORTE' || u === 'SOPORTE_BONA ORIGEN' || u === 'INSTALADOR') {
+    if (u === 'SUPERADMIN' || u === 'ROOT' || u === 'SOPORTE' || u === 'SOPORTE_CROZZO' || u === 'INSTALADOR') {
       return { msg: 'Usuario o contraseña incorrectos.', hope: false };
     }
     if (decoy.rol === 'caja' && (p === '123' || p === '12345')) {

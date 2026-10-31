@@ -1,29 +1,35 @@
 {
-  "id": "1.0.240-critical",
-  "version": "v1.0.240",
-  "semver": "1.0.240",
+  "id": "1.0.241-critical",
+  "version": "v1.0.241",
+  "semver": "1.0.241",
   "type": "critical",
-  "message": "OTA mejorado: build-only detection + state preservation + Android pending + timeouts + concurrency lock + sha256 field",
-  "publishedAt": "2026-10-31T20:08:52.614Z",
+  "message": "Fix rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions) + Failed to fetch",
+  "publishedAt": "2026-10-31T20:35:23.299Z",
   "installMode": "auto",
   "changelog": [
-    "OTA-1: deteccion build-only updates (build stamp)",
-    "OTA-2: preservacion de estado (backup/restore)",
-    "OTA-3: Android pending en localStorage",
-    "OTA-4: timeouts reducidos (12s->8s)",
-    "OTA-5: lock concurrencia (retry)",
-    "OTA-6: fallbacks marcados explicitos",
-    "OTA-7: campo sha256 en latest.json (placeholder)",
-    "Fix: crozzo_print cfg gate Android",
-    "Fix: devtools no disponible",
-    "Fix: slotState libre tras cobro",
-    "IA local (Ollama) para cierres",
-    "Modernizacion documentos DOC-0 a DOC-6",
-    "Bloque B: plantillas + compatibilidad",
-    "Poda: 4 dead + 3 stale + jspdf/xlsx"
+    "Fix: SyntaxError CrozzoAuthSecurity.js (identificadores rotos por rebrand)",
+    "Fix: SyntaxError CrozzoPosExtensions.js (namespace window.Bona Origen)",
+    "Fix: Failed to fetch (consecuencia de SyntaxError)",
+    "Build verde Windows/macOS/Android"
   ],
-  "updatedAt": "2026-10-31T20:08:52.614Z",
+  "updatedAt": "2026-10-31T20:35:23.299Z",
   "entries": [
+    {
+      "id": "1.0.241-critical",
+      "version": "v1.0.241",
+      "semver": "1.0.241",
+      "type": "critical",
+      "message": "Fix rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions) + Failed to fetch",
+      "publishedAt": "2026-10-31T20:35:23.299Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: SyntaxError CrozzoAuthSecurity.js (identificadores rotos por rebrand)",
+        "Fix: SyntaxError CrozzoPosExtensions.js (namespace window.Bona Origen)",
+        "Fix: Failed to fetch (consecuencia de SyntaxError)",
+        "Build verde Windows/macOS/Android"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.240-critical",
       "version": "v1.0.240",
