@@ -1,21 +1,39 @@
 {
-  "id": "1.0.248-critical",
-  "version": "v1.0.248",
-  "semver": "1.0.248",
+  "id": "1.0.249-critical",
+  "version": "v1.0.249",
+  "semver": "1.0.249",
   "type": "critical",
-  "message": "Fix OTA: Tauri invoke fallback logging + todos los fixes",
-  "publishedAt": "2026-10-31T23:38:19.307Z",
+  "message": "Fix OTA: delay undefined + build stamp + Tauri invoke fallback + error real",
+  "publishedAt": "2026-10-31T23:51:46.734Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: fetch OTA usa Tauri invoke como fallback con logging detallado",
     "Fix: ReferenceError delay is not defined",
+    "Fix: build stamp desalineado (app/index.html)",
+    "Fix: fetch OTA usa Tauri invoke como fallback",
+    "Fix: mensaje de error real",
     "Fix: rebrand SyntaxErrors",
-    "Fix: registry.json en main",
-    "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
-    "IA local + modernizacion documentos + poda"
+    "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
   ],
-  "updatedAt": "2026-10-31T23:38:19.307Z",
+  "updatedAt": "2026-10-31T23:51:46.734Z",
   "entries": [
+    {
+      "id": "1.0.249-critical",
+      "version": "v1.0.249",
+      "semver": "1.0.249",
+      "type": "critical",
+      "message": "Fix OTA: delay undefined + build stamp + Tauri invoke fallback + error real",
+      "publishedAt": "2026-10-31T23:51:46.734Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: ReferenceError delay is not defined",
+        "Fix: build stamp desalineado (app/index.html)",
+        "Fix: fetch OTA usa Tauri invoke como fallback",
+        "Fix: mensaje de error real",
+        "Fix: rebrand SyntaxErrors",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.248-critical",
       "version": "v1.0.248",
