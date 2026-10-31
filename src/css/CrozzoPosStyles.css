@@ -1,8 +1,8 @@
 ﻿/* =============================================================================
- * CLEAR ELEGANCE + EXECUTIVE ELITE — sistema de diseño Crozzo POS
+ * CLEAR ELEGANCE + EXECUTIVE ELITE — sistema de diseño Bona Origen
  * - Executive Elite: negro/carbón + acento dorado (#C9A962). Regla 60-30-10.
  * - Clear Elegance: azul Apple. Temas legado conservados.
- * - Marca Crozzo: --crozzo-platform-green solo en slots #crozzo*Platform.
+ * - Marca Bona Origen: --crozzo-platform-green solo en slots #crozzo*Platform.
  * ============================================================================= */
 :root {
   --space-1: 4px;
@@ -1349,7 +1349,7 @@ html.tauri-desktop:is([data-theme="deepspace"], [data-theme="cyan"], [data-theme
   font-weight: 700;
 }
 
-/* ---------- Enterprise chrome: tipografía, foco WCAG, marca Crozzo, utilidades ---------- */
+/* ---------- Enterprise chrome: tipografía, foco WCAG, marca Bona Origen, utilidades ---------- */
 button:focus:not(:focus-visible),
 .btn:focus:not(:focus-visible),
 .nav-item:focus:not(:focus-visible),
@@ -3237,7 +3237,7 @@ html.tauri-desktop .nav-group-collapsed .nav-group-items:not(.open) {
   display: none !important;
 }
 
-/* Drawer / móvil: scroll táctil en el panel lateral (#sidebarNav = “dropdown” real de Crozzo; no forzar display en ítems filtrados por rol). */
+/* Drawer / móvil: scroll táctil en el panel lateral (#sidebarNav = “dropdown” real de Bona Origen; no forzar display en ítems filtrados por rol). */
 @media (max-width: 1024px) {
   .sidebar .sidebar-nav {
     flex: 1 1 auto;
@@ -4737,7 +4737,7 @@ body.bona-enterprise-chrome .crozzo-identidad-hero::before {
   padding: 24px;
 }
 
-/* —— Crozzo Elite — acabado premium global (adapta al tema / --accent) —— */
+/* —— Bona Origen Elite — acabado premium global (adapta al tema / --accent) —— */
 .main-body:not(.main-body--rest-pos):not(.main-body--retail-pos):not(.main-body--qyc-embed):not(.main-body--centro-compras):not(.main-body--centro-procesos) {
   --elite-accent: var(--accent);
   --elite-accent-rgb: var(--accent-rgb, 201, 169, 98);
@@ -33593,7 +33593,7 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
     max-width: 200px;
   }
 }
-/* --- Crozzo perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Bona Origen perf-lite: menos animaciones, scroll más fluido --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -39708,7 +39708,7 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
 }
 
 /* =====================================================================
-   CROZZO RESPONSIVE FULL-FIT v1 — celular y tablet
+   BONA ORIGEN RESPONSIVE FULL-FIT v1 — celular y tablet
    Objetivo: que cada pantalla se sienta "full" sin espacios perdidos.
    - Celular (<=768px): POS en una columna + carrito como hoja inferior.
    - Tablet (481–1024px): contenido enmarcado y centrado (sin vacío abajo).
@@ -40843,7 +40843,7 @@ body.bona-enterprise-chrome .crozzo-identidad-hero::before {
   padding: 24px;
 }
 
-/* —— Crozzo Elite — acabado premium global (adapta al tema / --accent) —— */
+/* —— Bona Origen Elite — acabado premium global (adapta al tema / --accent) —— */
 .main-body:not(.main-body--rest-pos):not(.main-body--retail-pos):not(.main-body--qyc-embed):not(.main-body--centro-compras):not(.main-body--centro-procesos) {
   --elite-accent: var(--accent);
   --elite-accent-rgb: var(--accent-rgb, 201, 169, 98);
@@ -69458,7 +69458,7 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
     max-width: 200px;
   }
 }
-/* --- Crozzo perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Bona Origen perf-lite: menos animaciones, scroll más fluido --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -75573,7 +75573,7 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
 }
 
 /* =====================================================================
-   CROZZO RESPONSIVE FULL-FIT v1 — celular y tablet
+   BONA ORIGEN RESPONSIVE FULL-FIT v1 — celular y tablet
    Objetivo: que cada pantalla se sienta "full" sin espacios perdidos.
    - Celular (<=768px): POS en una columna + carrito como hoja inferior.
    - Tablet (481–1024px): contenido enmarcado y centrado (sin vacío abajo).
@@ -76944,7 +76944,7 @@ html.crozzo-touch-shell .crozzo-rescue-actions .btn {
   min-height: var(--crozzo-touch-btn-min, 48px);
 }
 
-/* === Crozzo Help Hub — centro de ayuda === */
+/* === Bona Origen Help Hub — centro de ayuda === */
 .modal--help-hub .modal {
   max-width: min(720px, 96vw);
 }

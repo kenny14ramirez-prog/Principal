@@ -1,5 +1,5 @@
 /**
- * Crozzo — Semáforo de margen 🟢🟡🔴 (H2.D)
+ * Bona Origen — Semáforo de margen 🟢🟡🔴 (H2.D)
  * --------------------------------------------------------------------------
  * Traduce margen de utilidad (kpiDiario / platos) a un semáforo que el dueño
  * entiende sin ser contador. Aditivo: no toca CostosEngine ni la cascada MP.

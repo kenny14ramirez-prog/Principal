@@ -1,5 +1,5 @@
 /**
- * Crozzo — Registro interno de QRs de comunicación entre dispositivos.
+ * Bona Origen — Registro interno de QRs de comunicación entre dispositivos.
  *
  * Cada equipo genera su QR cada 4 h (válido ~24 h). Todos guardan los QRs
  * de los demás (local + nube). Si falla cloud/LAN/malla, el sistema usa esa

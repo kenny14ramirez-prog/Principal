@@ -1,5 +1,5 @@
 /**
- * Crozzo — Puente Wi‑Fi Direct / P2P supervivencia (tablets Android sin router).
+ * Bona Origen — Puente Wi‑Fi Direct / P2P supervivencia (tablets Android sin router).
  *
  * Estrategia:
  *  - Nativo WifiP2p (Tauri Android) cuando el comando exista.

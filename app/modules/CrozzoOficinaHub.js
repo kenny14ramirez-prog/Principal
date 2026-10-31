@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Oficina y pagos: barra mínima (solo presentación).
+ * Bona Origen — Oficina y pagos: barra mínima (solo presentación).
  */
 (function (global) {
   'use strict';

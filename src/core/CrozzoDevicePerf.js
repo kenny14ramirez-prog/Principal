@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — perfil de rendimiento adaptativo (PC potente vs tablet económica).
+ * Bona Origen — perfil de rendimiento adaptativo (PC potente vs tablet económica).
  * Expone tier high | medium | low y ajusta crozzo-perf-lite sin congelar la UI APK.
  */
 (function (global) {

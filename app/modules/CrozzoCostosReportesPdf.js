@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Reportes PDF de costos (resumen general + detalle MP/recetas).
+ * Bona Origen — Reportes PDF de costos (resumen general + detalle MP/recetas).
  */
 (function (global) {
   'use strict';
@@ -242,7 +242,7 @@
         if (emp && emp.nombre) return String(emp.nombre).trim();
       }
     } catch (_) {}
-    return 'Crozzo POS';
+    return 'Bona Origen';
   }
 
   function precioPosProducto(row) {
@@ -461,7 +461,7 @@
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor.apply(doc, C_MUTED);
-      doc.text('Crozzo POS · Sistema de costos · Confidencial', M, FOOTER_Y);
+      doc.text('Bona Origen · Sistema de costos · Confidencial', M, FOOTER_Y);
       doc.text('Pág. ' + page, PAGE_W - M, FOOTER_Y, { align: 'right' });
     }
 

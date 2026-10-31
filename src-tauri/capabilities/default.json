@@ -20,6 +20,7 @@
     "allow-crozzo-mdns",
     "allow-crozzo-wifi-direct",
     "allow-crozzo-webview-camera",
-    "allow-crozzo-secret-store"
+    "allow-crozzo-secret-store",
+    "allow-crozzo-ollama"
   ]
 }

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Módulos integrados (pedidos internos, RRHH, nómina, recepciones QyC).
+ * Bona Origen — Módulos integrados (pedidos internos, RRHH, nómina, recepciones QyC).
  * Usa la misma Supabase del POS (crozzo_supabase_config / multidispositivo).
  */
 (function (global) {

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Reservorio unificado (memoria interna / localStorage)
+ * Bona Origen — Reservorio unificado (memoria interna / localStorage)
  * Proveedores · Recepciones · Oficina · Inventario ledger · Cola planilla · Sync pendiente
  */
 (function (global) {

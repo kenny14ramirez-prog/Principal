@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Biblioteca de plantillas de empresa y perfiles de usuario.
+ * Bona Origen — Biblioteca de plantillas de empresa y perfiles de usuario.
  * Guardar → aplicar en un clic (Super Admin + Admin negocio).
  */
 (function (global) {

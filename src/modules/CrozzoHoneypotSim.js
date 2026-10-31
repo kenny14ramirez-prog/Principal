@@ -1,5 +1,5 @@
 /**
- * Emulación honeypot: clona la UI real de Crozzo POS y rota vistas con datos creíbles.
+ * Emulación honeypot: clona la UI real de Bona Origen y rota vistas con datos creíbles.
  */
 (function (global) {
   'use strict';
@@ -2482,7 +2482,7 @@
 
   function hpXorWithKey(plain, key) {
     var p = String(plain);
-    var k = String(key || 'CROZZO');
+    var k = String(key || 'BONA ORIGEN');
     var out = '';
     for (var i = 0; i < p.length; i++) {
       out += String.fromCharCode(p.charCodeAt(i) ^ k.charCodeAt(i % k.length));

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — QR de autoregistro de clientes vía Supabase (token ~1 h).
+ * Bona Origen — QR de autoregistro de clientes vía Supabase (token ~1 h).
  * Caja o tablet generan el QR; el cliente escanea con datos móviles (sin Wi‑Fi del local).
  */
 (function (global) {

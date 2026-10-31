@@ -1,5 +1,5 @@
 /**
- * Crozzo — Malla BLE / gossip epidémico sin central.
+ * Bona Origen — Malla BLE / gossip epidémico sin central.
  *
  * Cada dispositivo pregunta, comparte y retransmite (mismo protocolo que gossip UDP).
  * Transportes: nativo Tauri → gossip UDP (Windows/PC) → Web Bluetooth → WebRTC (iOS).

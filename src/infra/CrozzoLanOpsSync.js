@@ -1,5 +1,5 @@
 /**
- * Crozzo — Sincronización operativa por LAN (nivel 2 de la cascada).
+ * Bona Origen — Sincronización operativa por LAN (nivel 2 de la cascada).
  *
  * Espejo del comportamiento de la nube (CrozzoComandasCloudSync /
  * CrozzoPosRuntimeCloud / CrozzoCloudOpsPulse) pero SIN tocar esos módulos:

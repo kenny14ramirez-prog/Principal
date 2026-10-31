@@ -1,5 +1,5 @@
 /**
- * Crozzo — Arranque "todo listo" (no bloqueante).
+ * Bona Origen — Arranque "todo listo" (no bloqueante).
  *
  * Al iniciar la app: detecta capacidades del equipo, pide los permisos
  * necesarios de forma amable, arranca el orquestador de conectividad y corre

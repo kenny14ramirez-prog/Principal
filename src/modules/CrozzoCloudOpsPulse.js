@@ -1,5 +1,5 @@
 /**
- * Crozzo — Pulso operativo en la nube (segunda vía de tiempo real).
+ * Bona Origen — Pulso operativo en la nube (segunda vía de tiempo real).
  *
  * Nivel 1 (nube) "tocho tocho": además del Realtime por postgres_changes de
  * cada tabla (mesas/comandas) y del poll de respaldo, este módulo abre UN canal

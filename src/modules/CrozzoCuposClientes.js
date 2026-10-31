@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Admin: cupos de crédito por cliente CRM + saldo por cobrar.
+ * Bona Origen — Admin: cupos de crédito por cliente CRM + saldo por cobrar.
  */
 (function (global) {
   'use strict';

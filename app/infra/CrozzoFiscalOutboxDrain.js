@@ -1,5 +1,5 @@
 /**
- * Crozzo — Drenaje de cola fiscal (misión: no dejar ventas huérfanas sin CUFE).
+ * Bona Origen — Drenaje de cola fiscal (misión: no dejar ventas huérfanas sin CUFE).
  * Se dispara en reconnect WAN / diag. Máx N por ciclo; no bloquea UI.
  */
 (function (global) {

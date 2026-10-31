@@ -1,5 +1,5 @@
 /**
- * Crozzo — Reversión de Inventario al Anular (H2.B)
+ * Bona Origen — Reversión de Inventario al Anular (H2.B)
  * --------------------------------------------------------------------------
  * Resuelve el agujero fiscal/contable detectado: hoy si se anula una factura,
  * el stock queda descontado PARA SIEMPRE. No existe reversión.

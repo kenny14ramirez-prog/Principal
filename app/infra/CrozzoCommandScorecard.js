@@ -1,5 +1,5 @@
 /**
- * Crozzo — Scorecard de mando vs mercado Colombia (precisión militar).
+ * Bona Origen — Scorecard de mando vs mercado Colombia (precisión militar).
  * No es marketing: puntúa capacidades detectables + doctrina fija.
  * Consola: crozzoCommandScorecard() · Diag: CrozzoCommandScorecard.diagRows()
  */
@@ -197,7 +197,7 @@
         label: 'Offline real (G1)',
         status: Number(off) >= 4 ? 'ok' : 'warn',
         detail: 'Offline real = ' + off + '/5 · dimensión offline_fleet ×' + WEIGHTS.offline_fleet,
-        hint: 'Crozzo sobrevive al corte de internet: Bridge LAN + cola fiscal pendiente_timbrado.',
+        hint: 'Bona Origen sobrevive al corte de internet: Bridge LAN + cola fiscal pendiente_timbrado.',
       },
     ];
   }

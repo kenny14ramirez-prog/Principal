@@ -1,5 +1,5 @@
 /**
- * Crozzo — Página Rentabilidad (UI H2.C)
+ * Bona Origen — Página Rentabilidad (UI H2.C)
  * --------------------------------------------------------------------------
  * Pantalla admin/encargado: día o 7 días + semáforo + top/bottom platos.
  * Consume CrozzoRentabilidad + CrozzoSemaforoMargen. Sin sync/LAN.

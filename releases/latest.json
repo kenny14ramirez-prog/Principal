@@ -1,19 +1,44 @@
 {
-  "id": "1.0.238-critical",
-  "version": "v1.0.238",
-  "semver": "1.0.238",
+  "id": "1.0.239-critical",
+  "version": "v1.0.239",
+  "semver": "1.0.239",
   "type": "critical",
-  "message": "Fix Android build: crozzo_print cfg gate + workflow SDK",
-  "publishedAt": "2026-10-31T04:10:45.675Z",
+  "message": "Release final: crypto v5 + RBAC + slotState + IA local + modernizacion documentos + poda + cleanup",
+  "publishedAt": "2026-10-31T19:36:34.276Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: crozzo_print module cfg gate for Android (crozzo_save_pdf_b64)",
-    "Fix: workflow Android SDK (manual sdkmanager)",
-    "Fix: devtools no disponible",
-    "Build verde Windows/macOS/Android"
+    "P0-25 crypto Fase 4 completa (QR firmado + DPAPI)",
+    "RBAC seguridad verde",
+    "Fix slotState tras cobro",
+    "IA local (Ollama) para cierres",
+    "Modernizacion documentos DOC-0 a DOC-6",
+    "Bloque B: plantillas + compatibilidad impresoras",
+    "Poda: 4 dead + 3 stale + jspdf/xlsx",
+    "Limpieza: logs, scripts rotos, debug temporales",
+    "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
   ],
-  "updatedAt": "2026-10-31T04:10:45.675Z",
+  "updatedAt": "2026-10-31T19:36:34.276Z",
   "entries": [
+    {
+      "id": "1.0.239-critical",
+      "version": "v1.0.239",
+      "semver": "1.0.239",
+      "type": "critical",
+      "message": "Release final: crypto v5 + RBAC + slotState + IA local + modernizacion documentos + poda + cleanup",
+      "publishedAt": "2026-10-31T19:36:34.276Z",
+      "installMode": "auto",
+      "changelog": [
+        "P0-25 crypto Fase 4 completa (QR firmado + DPAPI)",
+        "RBAC seguridad verde",
+        "Fix slotState tras cobro",
+        "IA local (Ollama) para cierres",
+        "Modernizacion documentos DOC-0 a DOC-6",
+        "Bloque B: plantillas + compatibilidad impresoras",
+        "Poda: 4 dead + 3 stale + jspdf/xlsx",
+        "Limpieza: logs, scripts rotos, debug temporales",
+        "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
+      ]
+    },
     {
       "id": "1.0.238-critical",
       "version": "v1.0.238",

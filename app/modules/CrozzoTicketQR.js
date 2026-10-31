@@ -1,5 +1,5 @@
 /**
- * Crozzo — Renderer QR DIAN para ticket (H1.6)
+ * Bona Origen — Renderer QR DIAN para ticket (H1.6)
  * --------------------------------------------------------------------------
  * Genera la imagen QR del VPFE DIAN (catalogo-vpfe.dian.gov.co) y la inyecta
  * en el ticket electrónico. Resuelve el requisito #3 de representación gráfica:

@@ -3423,7 +3423,7 @@ function crozzoHpExportForensicReport() {
   } catch (_) {}
   const report = {
     exportedAt: new Date().toISOString(),
-    product: 'Crozzo POS',
+    product: 'Bona Origen',
     reportType: 'honeypot_forensic',
     disclaimer:
       'Registro de trampas (usuarios señuelo). No sustituye la auditoría operativa con chainHash. Los cebos no son credenciales reales del negocio.',
@@ -12993,7 +12993,7 @@ function crozzoGetCurrentUserRole() {
     if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return 'super_admin';
     if (u.rol) {
       const r = crozzoNormalizeAppRol(u.rol);
-      // En staff local «superadmin» ≠ plataforma Crozzo; solo KENNY vía isSuperAdminUser().
+      // En staff local «superadmin» ≠ plataforma Bona Origen; solo KENNY vía isSuperAdminUser().
       if (r === 'superadmin' || r === 'super_admin') return 'admin';
       return r;
     }
@@ -16103,7 +16103,7 @@ function crozzoPremiumFirstName(nombre) {
 function crozzoPremiumTierMeta(rol) {
   var r = String(rol || '').toLowerCase();
   if (r === 'super_admin' || r === 'superadmin') {
-    return { tier: 'founder', badge: 'Acceso fundador', roleLine: 'Plataforma Crozzo · nivel máximo' };
+    return { tier: 'founder', badge: 'Acceso fundador', roleLine: 'Plataforma Bona Origen · nivel máximo' };
   }
   if (r === 'admin') {
     return { tier: 'executive', badge: 'Executive', roleLine: 'Director de operaciones' };
@@ -18710,7 +18710,7 @@ function crozzoRepPrintInventarioCatalogo() {
   }
   list.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }));
   const fecha = new Date().toISOString().slice(0, 10);
-  let emp = 'CROZZO POS';
+  let emp = 'BONA ORIGEN';
   try {
     const e = config.getEmpresa();
     emp = e.nombreComercial || e.razonSocial || emp;
@@ -18770,10 +18770,12 @@ function crozzoRepPrintInventarioCatalogo() {
     .join('');
   const html =
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Inventario productos</title><style>' +
-    '@page{size:A4 landscape;margin:10mm}body{font-family:Segoe UI,system-ui,sans-serif;padding:16px;color:#111;font-size:11px}' +
-    'h1{font-size:17px;margin:0 0 6px}.inv-meta{color:#555;font-size:11px;margin:0 0 14px}' +
-    'table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #bbb;padding:6px 5px}' +
-    'th{background:#f5f0e6;font-size:9px;text-transform:uppercase}td.num{text-align:right}' +
+    (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.SHEET_CSS === 'string' ? global.CrozzoDocDesign.SHEET_CSS : '') +
+    '@page{size:A4 landscape;margin:10mm}body{font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);padding:16px;color:#111;font-size:11px}' +
+    'h1{font-size:17px;margin:0 0 6px;color:var(--doc-accent,#0f766e)}.inv-meta{color:var(--doc-muted,#555);font-size:11px;margin:0 0 14px}' +
+    'table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid var(--doc-border,#bbb);padding:6px 5px}' +
+    'th{background:var(--doc-ink,#f5f0e6);color:#fff;font-size:9px;text-transform:uppercase}td.num{text-align:right}' +
+    'tbody tr:nth-child(even) td{background:var(--doc-bg,#f8fafc)}' +
     '.diff-ok{color:#166534}.diff-bad{color:#b91c1c;font-weight:700}</style></head><body>' +
     '<h1>Inventario — Productos de venta (POS)</h1>' +
     '<p class="inv-meta"><strong>' +
@@ -29583,10 +29585,11 @@ function crozzoBuildCotizacionSheetDocumentHtml(factura, opts) {
     : '';
   return (
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Cotización</title><style>' +
+    (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.SHEET_CSS === 'string' ? global.CrozzoDocDesign.SHEET_CSS : '') +
     '@page{size:' +
     pageSize +
     ';margin:14mm}' +
-    'body{margin:0;font-family:Segoe UI,system-ui,sans-serif;color:#111;font-size:11px;line-height:1.45}' +
+    'body{margin:0;font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);color:#111;font-size:11px;line-height:1.45}' +
     '.cot-sheet{border:2px solid #1e293b;border-radius:4px;padding:18px 20px 16px;max-width:100%;box-sizing:border-box}' +
     '.cot-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #cbd5e1}' +
     '.cot-head__brand{display:flex;gap:14px;align-items:flex-start;flex:1;min-width:0}' +
@@ -34612,7 +34615,7 @@ function crozzoFacturaShareEmail(factura) {
   window.location.href = `mailto:${encodeURIComponent(String(to).trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyStr)}`;
 }
 var CROZZO_TICKET_DESIGNER_LS_KEY = 'crozzo_ticket_designer_v1';
-/** Logo en ticket: Identidad (tu empresa) → logo en config empresa → marca BONA/Crozzo. */
+/** Logo en ticket: Identidad (tu empresa) → logo en config empresa → marca BONA/Bona Origen. */
 function crozzoResolveTicketLogoUrl() {
   var emp = typeof config !== 'undefined' && config.getEmpresa ? config.getEmpresa() : {};
   var branding = typeof getCrozzoBranding === 'function' ? getCrozzoBranding() : null;
@@ -51754,7 +51757,7 @@ function init() {
   }
   function crozzoPairingValidate(obj) {
     if (!obj || typeof obj !== 'object') return { ok: false, message: 'JSON vacío o inválido' };
-    if (obj.type !== CROZZO_CLOUD_PAIRING) return { ok: false, message: 'QR no es de emparejamiento Crozzo (tipo incorrecto)' };
+    if (obj.type !== CROZZO_CLOUD_PAIRING) return { ok: false, message: 'QR no es de emparejamiento Bona Origen (tipo incorrecto)' };
     if (Number(obj.version) < 2) return { ok: false, message: 'Versión de emparejamiento antigua (se requiere ≥ 2)' };
     const ts = Number(obj.timestamp) || 0;
     if (!ts) return { ok: false, message: 'QR sin sello de tiempo válido. Genera uno nuevo en la caja.' };

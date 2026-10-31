@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Ajuste de viewport: altura real (barra de tareas Windows), sin desbordes.
+ * Bona Origen — Ajuste de viewport: altura real (barra de tareas Windows), sin desbordes.
  */
 (function (global) {
   'use strict';

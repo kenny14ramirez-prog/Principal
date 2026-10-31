@@ -1,5 +1,5 @@
 /**
- * Crozzo — planProducto (H2.E)
+ * Bona Origen — planProducto (H2.E)
  * --------------------------------------------------------------------------
  * 3ª dimensión ortogonal a perfil operativo y madurez fiscal.
  *   basico | medio | grande

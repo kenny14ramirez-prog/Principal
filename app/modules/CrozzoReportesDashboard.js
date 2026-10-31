@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Reportes y dashboard: gráficas, layout premium y visualizaciones.
+ * Bona Origen — Reportes y dashboard: gráficas, layout premium y visualizaciones.
  */
 (function (global) {
   'use strict';

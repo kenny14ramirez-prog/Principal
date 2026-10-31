@@ -25,6 +25,7 @@ mod dian_vpfe;
 mod webview_permissions;
 mod crozzo_external;
 mod crozzo_secret_store;
+mod crozzo_ollama;
 #[cfg(target_os = "android")]
 mod crozzo_android_install;
 mod crozzo_ble_mesh;
@@ -106,6 +107,8 @@ pub fn run() {
             crozzo_secret_store::crozzo_secret_set,
             crozzo_secret_store::crozzo_secret_get,
             crozzo_secret_store::crozzo_secret_delete,
+            crozzo_ollama::crozzo_ollama_chat,
+            crozzo_ollama::crozzo_ollama_tags,
             #[cfg(desktop)]
             crozzo_open_devtools,
             #[cfg(desktop)]

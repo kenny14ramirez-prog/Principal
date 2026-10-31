@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Entorno de emulación autónoma (Paso 1).
+ * Bona Origen — Entorno de emulación autónoma (Paso 1).
  * Aísla IndexedDB/localStorage, activa mock de impresión vía Tauri y SQLite test.db.
  */
 (function (global) {

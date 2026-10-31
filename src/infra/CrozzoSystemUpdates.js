@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Actualizaciones OTA (registry.json + crítica/opcional por id)
+ * Bona Origen — Actualizaciones OTA (registry.json + crítica/opcional por id)
  */
 (function (global) {
   'use strict';
@@ -468,7 +468,7 @@
     summary: '',
     changes: [],
     notes:
-      'Al actualizar, Crozzo POS se reiniciará automáticamente. Hágalo con la caja sin ventas en curso.',
+      'Al actualizar, Bona Origen se reiniciará automáticamente. Hágalo con la caja sin ventas en curso.',
   };
 
   var UPDATE_CRITICAL_INSTALLED = {
@@ -2879,7 +2879,7 @@
       } else if (_installUi.state === 'error') {
         sub.textContent = 'Revise la conexión o espere a que GitHub Actions termine de compilar el release.';
       } else if (_installUi.phase === 'relaunch') {
-        sub.textContent = 'Reiniciando Crozzo POS con la versión nueva…';
+        sub.textContent = 'Reiniciando Bona Origen con la versión nueva…';
       } else if (getUpdateClientProfile().isDesktopBinary) {
         sub.textContent =
           'Al terminar, la aplicación se cerrará y volverá a abrir sola. No la cierre manualmente.';
@@ -3106,7 +3106,7 @@
       if (lead) {
         lead.textContent =
           desktopRestartNotice() +
-          ' Mantenga Crozzo POS abierto hasta que termine el reinicio.';
+          ' Mantenga Bona Origen abierto hasta que termine el reinicio.';
       }
       if (dismiss) {
         dismiss.disabled = true;
@@ -4070,7 +4070,7 @@
     el.innerHTML =
       '<div class="crozzo-boot-update-gate__card">' +
       '<div class="crozzo-boot-update-gate__spinner" aria-hidden="true"></div>' +
-      '<p class="crozzo-boot-update-gate__brand" id="crozzoBootUpdateBrand">Crozzo POS</p>' +
+      '<p class="crozzo-boot-update-gate__brand" id="crozzoBootUpdateBrand">Bona Origen</p>' +
       '<h2 class="crozzo-boot-update-gate__title">Preparando el sistema</h2>' +
       '<p class="crozzo-boot-update-gate__msg" id="crozzoBootUpdateMsg">Comprobando actualizaciones…</p>' +
       '<p class="crozzo-boot-update-gate__hint" id="crozzoBootUpdateHint">No cierre la aplicación. Se descargará el paquete correcto para este dispositivo (Windows, Mac, tablet o navegador) antes del inicio de sesión.</p>' +

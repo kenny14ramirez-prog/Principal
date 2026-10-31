@@ -1,5 +1,5 @@
 /**
- * Crozzo — Sonda de visibilidad entre equipos por canal de comunicación.
+ * Bona Origen — Sonda de visibilidad entre equipos por canal de comunicación.
  *
  * Responde: ¿este dispositivo VE a otros? en nube, LAN, zona Wi‑Fi, gossip y BLE.
  * Usado por Diagnóstico (Ctrl+Alt+D) y Pruebas de sistema.

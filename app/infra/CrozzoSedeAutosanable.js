@@ -1,5 +1,5 @@
 /**
- * Crozzo — Sede autosanable (H3.1 / L3 conectividad legendaria)
+ * Bona Origen — Sede autosanable (H3.1 / L3 conectividad legendaria)
  * --------------------------------------------------------------------------
  * Orquesta heal existente SIN pedir QR al mesero y SIN FleetOperationalReconcile (KI-016).
  *

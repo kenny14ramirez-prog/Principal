@@ -1,5 +1,5 @@
 /**
- * Crozzo — Decisor de Tipo de Documento DIAN (H1.2)
+ * Bona Origen — Decisor de Tipo de Documento DIAN (H1.2)
  * --------------------------------------------------------------------------
  * Decide automáticamente qué documento electrónico emitir según el
  * adquirente y el contexto, según Res. DIAN 165/2023:

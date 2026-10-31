@@ -1,5 +1,5 @@
 /**
- * Crozzo — Director de conectividad (máquina de estados, eventos primero).
+ * Bona Origen — Director de conectividad (máquina de estados, eventos primero).
  *
  * No reemplaza al orquestador: orienta decisiones con memoria + lógica de ancla.
  * Topología operativa: estrella — tablets → caja (Rol A) → nube si la caja tiene WAN.

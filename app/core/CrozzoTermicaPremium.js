@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Render térmico premium (tipografía, ornamentos, jerarquía visual).
+ * Bona Origen — Render térmico premium (tipografía, ornamentos, jerarquía visual).
  * Usado por crozzoTermicaRenderPlantillaHtml y vista previa del diseñador.
  */
 (function (global) {

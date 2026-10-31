@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — QR de descarga app móvil (Android APK + iPhone/iPad web o App Store).
+ * Bona Origen — QR de descarga app móvil (Android APK + iPhone/iPad web o App Store).
  */
 (function (global) {
   'use strict';

@@ -1,5 +1,5 @@
 /**
- * Crozzo — Perfiles de lógica operativa (quién hace qué y en qué orden).
+ * Bona Origen — Perfiles de lógica operativa (quién hace qué y en qué orden).
  * Un escaneo de rol → secuencia clara + reglas post-comanda / mesa / compras.
  * Complementa CrozzoPermisosPolicy (delegación) y CROZZO_STAFF_PLANTILLAS (defaults).
  */
@@ -228,7 +228,7 @@
         'Auditoría y reportes',
         'Operación completa cuando hace falta',
       ],
-      cannot: ['Herramientas de plataforma Crozzo (Super Admin)'],
+      cannot: ['Herramientas de plataforma Bona Origen (Super Admin)'],
       actions: {
         cobrar: { allow: true, perm: 'facturar' },
         unir_dividir: { allow: true, perm: ['unir_cuenta', 'dividir_cuenta'] },
@@ -248,7 +248,7 @@
     superadmin: {
       id: 'superadmin',
       label: 'Super Administrador (plataforma)',
-      tagline: 'Solo Crozzo / KENNY — no visible en plan básico del cliente.',
+      tagline: 'Solo Bona Origen / KENNY — no visible en plan básico del cliente.',
       sequence: ['Plataforma, nube, diagnóstico global'],
       cannot: [],
       actions: { all: { allow: true } },

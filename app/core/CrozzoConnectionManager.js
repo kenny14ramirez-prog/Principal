@@ -1,5 +1,5 @@
 /**
- * Gestor avanzado de conexiones para Crozzo POS
+ * Gestor avanzado de conexiones para Bona Origen
  * Implementa Circuit Breaker + Backoff Exponencial + Timeout Adaptativo
  */
 

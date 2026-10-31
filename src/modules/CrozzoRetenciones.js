@@ -1,5 +1,5 @@
 /**
- * Crozzo — Motor de Retenciones B2B (H1.4)
+ * Bona Origen — Motor de Retenciones B2B (H1.4)
  * --------------------------------------------------------------------------
  * Calcula retenciones en la fuente (ReteFuente, ReteIVA, ReteICA) cuando el
  * ADQUIRENTE es agente retenedor (gran contribuyente declarado DIAN, entidad

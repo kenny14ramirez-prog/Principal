@@ -1,5 +1,5 @@
 /**
- * Crozzo — Niveles de Madurez Empresarial (H1.0)
+ * Bona Origen — Niveles de Madurez Empresarial (H1.0)
  * --------------------------------------------------------------------------
  * 5 niveles que acompañan al comerciante desde "puesto de empanadas" hasta
  * "cadena multi-sede", habilitando obligaciones fiscales de forma progresiva.

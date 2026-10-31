@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Laboratorio administrativo (motor).
+ * Bona Origen — Laboratorio administrativo (motor).
  * Acceso: admin / super admin + PIN 4 dígitos.
  * Vista operativa enmascarada para personal; registro fiscal intacto; conciliación en cierre.
  */

@@ -1,5 +1,5 @@
 /**
- * Crozzo — Detector de Madurez (H1.0d)
+ * Bona Origen — Detector de Madurez (H1.0d)
  * --------------------------------------------------------------------------
  * El sistema nervioso de la rampa. Detecta señales de crecimiento del
  * comerciante y sugiere cuándo subir de nivel + qué obligaciones nuevas

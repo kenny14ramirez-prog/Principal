@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Crozzo POS · shell consolidado. Ver app/ARCHITECTURE.md · monolito: Crozzo_POS_Completo.monolith.html -->
+<!-- Bona Origen · shell consolidado. Ver app/ARCHITECTURE.md · monolito: Crozzo_POS_Completo.monolith.html -->
 <html lang="es" data-theme="bona-origen" class="crozzo-theme-light">
 <head>
 <meta charset="UTF-8">
@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.238">
+<meta name="crozzo-app-version" content="1.0.239">
 <meta name="crozzo-build-stamp" content="2026-06-11Tapk-fill-v2">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var user=false,t='bona-origen';try{user=localStorage.getItem('crozzo_theme_user_v1')==='1';}catch(_){}
@@ -146,7 +146,7 @@ window.crozzoAppDisplayName = function () {
 <!--
   ARQUITECTURA UI (resumen): (1) Tema = html[data-theme] + variables CSS (crozzoApplyVisualTheme, sin re-render de vistas).
   (2) Tipografía Inter + tokens --space-* / --motion-* / --elevation-* en :root. (3) Lista POS: content-visibility + debounce búsqueda 150 ms.
-  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients. (5) Marca Crozzo: #10b981 (--crozzo-platform-green).
+  (4) IndexedDB CrozzoLocalData v3: índices bynombre en local_products y local_clients. (5) Marca Bona Origen: #10b981 (--crozzo-platform-green).
 -->
 </head>
 <body>
@@ -1171,6 +1171,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="core/CrozzoTermicaColombia.js" defer></script>
 <script src="core/CrozzoTermicaPremium.js" defer></script>
 <script src="core/CrozzoPrintService.js" defer></script>
+<script src="core/CrozzoDocDesign.js" defer></script>
+<script src="core/CrozzoDocumentTemplates.js" defer></script>
 <script src="modules/CrozzoPrintDeviceRegistry.js" defer></script>
 <script src="modules/CrozzoPrintPresets.js" defer></script>
 <script src="modules/CrozzoPrintStudioHub.js" defer></script>

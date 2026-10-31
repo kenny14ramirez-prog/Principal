@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Idiomas (i18n)
+ * Bona Origen — Idiomas (i18n)
  * Predeterminado: español (Colombia) · es-CO
  */
 (function (global) {

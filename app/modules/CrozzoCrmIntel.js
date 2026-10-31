@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — CRM Intel: analítica de clientes, cumpleaños y recordatorios WhatsApp.
+ * Bona Origen — CRM Intel: analítica de clientes, cumpleaños y recordatorios WhatsApp.
  */
 (function (global) {
   'use strict';

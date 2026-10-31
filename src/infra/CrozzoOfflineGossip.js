@@ -1,5 +1,5 @@
 /**
- * Malla offline Crozzo — gossip de comandas cuando no hay cloud ni LAN.
+ * Malla offline Bona Origen — gossip de comandas cuando no hay cloud ni LAN.
  * Modo standby (híbrido): escucha peers sin publicar si nube/LAN confirman.
  * Prioridad: cloud > LAN/hotspot > EmergencyMesh WebRTC > gossip UDP.
  * No interfiere con rutas activas; solo complementa tier offline.

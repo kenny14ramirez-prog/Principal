@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Onboarding operativo, guardas según perfil y panel de adopción.
+ * Bona Origen — Onboarding operativo, guardas según perfil y panel de adopción.
  */
 (function (global) {
   'use strict';
@@ -323,7 +323,7 @@
             : null;
         var meta = metaFn ? metaFn(planId) : { label: String(planId || 'basico'), desc: '' };
         h.push('<div class="crozzo-mc-plan">');
-        h.push('<strong>Plan Crozzo: ' + (meta.label || planId) + '</strong>');
+        h.push('<strong>Plan Bona Origen: ' + (meta.label || planId) + '</strong>');
         if (meta.desc) h.push('<p class="crozzo-mc-plan-desc">' + meta.desc + '</p>');
         var nextPlan = nextFn ? nextFn(planId) : null;
         if (nextPlan) {

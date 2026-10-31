@@ -1,5 +1,5 @@
 /**
- * Crozzo — Diario operativo (autoevaluación silenciosa para usuarios no técnicos).
+ * Bona Origen — Diario operativo (autoevaluación silenciosa para usuarios no técnicos).
  *
  * Ring buffer local de incidentes: sync, conectividad, errores JS, rendimiento.
  * Alimenta Autoguarda, diagnóstico (Ctrl+Alt+D) y export para soporte.

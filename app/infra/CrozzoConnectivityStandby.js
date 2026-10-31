@@ -1,5 +1,5 @@
 /**
- * Crozzo — Standby LAN paralelo cuando la nube parece activa pero no es fiable.
+ * Bona Origen — Standby LAN paralelo cuando la nube parece activa pero no es fiable.
  * Refina crozzoCloudWanReady / crozzoDeferLocalSync tras PosMain.
  */
 (function (global) {

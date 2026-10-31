@@ -1,5 +1,5 @@
 /**
- * Crozzo — Contingencia Fiscal (H1.5)
+ * Bona Origen — Contingencia Fiscal (H1.5)
  * --------------------------------------------------------------------------
  * Gestiona el régimen de contingencia DIAN (Res. 165/2023 art. 37):
  * cuando no hay conectividad con el Proveedor Tecnológico (Dataico), el

@@ -1,5 +1,5 @@
 /**
- * Crozzo — Registro global de operaciones idempotentes + ACK multi-canal.
+ * Bona Origen — Registro global de operaciones idempotentes + ACK multi-canal.
  * Extiende la semántica de CrozzoLanActionDedup a cloud / LAN / mesh.
  */
 (function (global) {

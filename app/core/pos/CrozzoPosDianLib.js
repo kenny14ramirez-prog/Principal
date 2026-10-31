@@ -534,7 +534,7 @@ function crozzoBuildDataicoInvoiceBody(factura, xml, config) {
         name: String((factura && (factura.clienteNombre || factura.cliente)) || 'CONSUMIDOR FINAL'),
       },
       company_nit: String((emp && emp.nit) || ''),
-      notes: 'Crozzo POS',
+      notes: 'Bona Origen',
       xml_ubl: xml ? String(xml).slice(0, 500000) : undefined,
       items: items.map(function (it) {
         return {

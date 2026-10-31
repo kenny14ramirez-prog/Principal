@@ -1,5 +1,5 @@
 /**
- * Crozzo — Sello de alistamiento de sede (pre-turno).
+ * Bona Origen — Sello de alistamiento de sede (pre-turno).
  * Agrega transporte, identidad, OTA, fiscal y colas. Sin banners en P0:
  * consumo vía diag / window.crozzoSedeReadiness().
  *
@@ -166,7 +166,7 @@
           (cmd.autoPrint ? 'autoPrint ON' : 'autoPrint OFF') +
           ' · áreas con impresora=' +
           withPrinter +
-          ' (Bridge Crozzo / Tauri LAN)',
+          ' (Bridge Bona Origen / Tauri LAN)',
       };
     }, { ok: false, detail: 'print n/a' });
     add('print_lan', printLan.ok, 'medium', printLan.detail);

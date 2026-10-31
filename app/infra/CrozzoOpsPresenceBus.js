@@ -1,5 +1,5 @@
 /**
- * Crozzo — Plano Ops Efímero (POE)
+ * Bona Origen — Plano Ops Efímero (POE)
  * --------------------------------------------------------------------------
  * Presencia enter/exit mesa por canal efímero (Broadcast / LAN / mesh).
  * NO upserta crozzo_mesa_runtime meta en cada evento.

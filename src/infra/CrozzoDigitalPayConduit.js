@@ -1,5 +1,5 @@
 /**
- * Crozzo — Conduit de pago digital (idempotente).
+ * Bona Origen — Conduit de pago digital (idempotente).
  * Wompi / Nequi cuando hay llaves; si no, modo manual con referencia obligatoria.
  * Outbox local: pending → in_flight → approved|failed|manual.
  */

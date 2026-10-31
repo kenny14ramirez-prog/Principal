@@ -1,5 +1,5 @@
 /**
- * Crozzo — Reservorio operativo (mesas, carritos, comandas en caja/tablet).
+ * Bona Origen — Reservorio operativo (mesas, carritos, comandas en caja/tablet).
  * Mismo contrato que CrozzoReservorio: load → editar → save; borrar solo con acción explícita.
  * Desactiva descartes automáticos por sync/navegación/sesión.
  */

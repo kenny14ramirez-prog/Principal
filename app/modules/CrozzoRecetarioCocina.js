@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Recetario de cocina (vista operativa)
+ * Bona Origen — Recetario de cocina (vista operativa)
  * Sincronizado con recetas de Costos: ingredientes y pesos, sin costos.
  */
 (function (global) {
@@ -1292,7 +1292,7 @@
       '<span>' +
       esc(brandTitle) +
       ' · Recetario operativo</span>' +
-      '<span>Sincronizado con Costos · Crozzo POS</span></div></div></body></html>'
+      '<span>Sincronizado con Costos · Bona Origen</span></div></div></body></html>'
     );
   }
 

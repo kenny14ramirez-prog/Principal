@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Catálogo de materias primas (nombre, categoría, proveedores)
+ * Bona Origen — Catálogo de materias primas (nombre, categoría, proveedores)
  */
 (function (global) {
   'use strict';

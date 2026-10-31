@@ -1,5 +1,5 @@
 /**
- * Contenido de compras (sin menú duplicado): módulos nativos Crozzo POS.
+ * Contenido de compras (sin menú duplicado): módulos nativos Bona Origen.
  * La navegación vive en el sidebar del POS (grupo Compras).
  */
 (function (global) {

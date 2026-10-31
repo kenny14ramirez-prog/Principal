@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Cartera comercial: cobros pendientes, abonos y cotizaciones de venta.
+ * Bona Origen — Cartera comercial: cobros pendientes, abonos y cotizaciones de venta.
  */
 (function (global) {
   'use strict';

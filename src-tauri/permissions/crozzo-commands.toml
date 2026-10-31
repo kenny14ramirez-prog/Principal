@@ -97,3 +97,8 @@ commands.allow = [
 identifier = "allow-crozzo-secret-store"
 description = "Almacén de secretos del SO (DPAPI) para claves de emparejamiento"
 commands.allow = ["crozzo_secret_set", "crozzo_secret_get", "crozzo_secret_delete"]
+
+[[permission]]
+identifier = "allow-crozzo-ollama"
+description = "Puente a Ollama local (IA texto) para análisis de cierres y resúmenes"
+commands.allow = ["crozzo_ollama_chat", "crozzo_ollama_tags"]

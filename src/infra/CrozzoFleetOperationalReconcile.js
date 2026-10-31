@@ -1,5 +1,5 @@
 /**
- * Crozzo — Reconciliación operativa de flota (mesas/comandas alineadas).
+ * Bona Origen — Reconciliación operativa de flota (mesas/comandas alineadas).
  *
  * Tras emparejar, actualizar o perder nube: alinea tablet y caja vía LAN
  * sin intervención del usuario.

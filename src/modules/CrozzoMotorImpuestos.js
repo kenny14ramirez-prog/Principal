@@ -1,5 +1,5 @@
 /**
- * Crozzo — Motor de Impuestos multi-tarifa (H1.1)
+ * Bona Origen — Motor de Impuestos multi-tarifa (H1.1)
  * --------------------------------------------------------------------------
  * Resuelve el problema crítico del motor legacy (crozzoLineaTasaImpuesto):
  * este devolvía UNA SOLA tarifa por línea (IVA o INC), pero la Ley 2277/2022

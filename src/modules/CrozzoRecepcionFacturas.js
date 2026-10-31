@@ -5392,7 +5392,7 @@
       '</h2>' +
       '<p class="cxf-panel-lead">' +
       (premium
-        ? 'El modo <strong>Inteligencia FE</strong> desbloquea lectura QR/CUFE, validación DIAN y sugerencia automática de líneas — la experiencia completa Crozzo.'
+        ? 'El modo <strong>Inteligencia FE</strong> desbloquea lectura QR/CUFE, validación DIAN y sugerencia automática de líneas — la experiencia completa Bona Origen.'
         : 'Elija el flujo para esta recepción. Puede cambiarlo volviendo a proveedores y entrando de nuevo.') +
       '</p></header>' +
       '<div class="cxf-modo-grid">' +

@@ -1,5 +1,5 @@
 /**
- * Crozzo — OCR Facturas Proveedor (H2.F)
+ * Bona Origen — OCR Facturas Proveedor (H2.F)
  * --------------------------------------------------------------------------
  * Escanea/parsea facturas de proveedor para alimentar recepción con items
  * compatibles con CrozzoCatalogoMp.applyRecepcionItems / CrozzoReservorio.registrarRecepcion

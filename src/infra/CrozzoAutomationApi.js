@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — API de automatización (sin clics).
+ * Bona Origen — API de automatización (sin clics).
  * Expone acciones operativas vía funciones globales para Playwright, Tauri o scripts.
  */
 (function (global) {

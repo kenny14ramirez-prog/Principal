@@ -3,7 +3,7 @@
 /* --- CrozzoCostosEngine.js --- */
 
 /**
- * Crozzo POS — Motor de costos QyC (basado en COSTO DE PRODUCTOS QYC.xlsx)
+ * Bona Origen — Motor de costos QyC (basado en COSTO DE PRODUCTOS QYC.xlsx)
  * PRECIOS → sub-recetas → recetas → RESUMEN
  */
 (function (global) {
@@ -366,7 +366,7 @@
 /* --- CrozzoCatalogoMp.js --- */
 
 /**
- * Crozzo POS — Catálogo MP + Costeo MP (dos capas conectadas)
+ * Bona Origen — Catálogo MP + Costeo MP (dos capas conectadas)
  * Catálogo: nombre, categoría, proveedores → recetas, inventario, proveedores
  * Costeo: unidad, peso, precio total, $/u → fórmulas y márgenes
  */
@@ -3858,7 +3858,7 @@
 /* --- CrozzoMatrizMp.js --- */
 
 /**
- * Crozzo POS — Catálogo de materias primas (nombre, categoría, proveedores)
+ * Bona Origen — Catálogo de materias primas (nombre, categoría, proveedores)
  */
 (function (global) {
   'use strict';
@@ -4822,7 +4822,7 @@
 /* --- CrozzoCosteoMp.js --- */
 
 /**
- * Crozzo POS — Costeo de materias primas (unidad, peso, precio total, $/ml|$/g|$/u)
+ * Bona Origen — Costeo de materias primas (unidad, peso, precio total, $/ml|$/g|$/u)
  * Se actualiza desde recepción de facturas; alerta si la variación es desproporcionada.
  */
 (function (global) {
@@ -5138,7 +5138,7 @@
 /* --- CrozzoCatalogoHub.js --- */
 
 /**
- * Crozzo POS — Catálogo: platos de venta + materias primas (fuente única de MP)
+ * Bona Origen — Catálogo: platos de venta + materias primas (fuente única de MP)
  */
 (function (global) {
   'use strict';
@@ -5228,7 +5228,7 @@
 /* --- CrozzoSistemaCostos.js --- */
 
 /**
- * Crozzo POS — Sistema de costos (Fase 1: flujos, conexiones, hub)
+ * Bona Origen — Sistema de costos (Fase 1: flujos, conexiones, hub)
  * Matriz precios · Recetas · Inventario · Compras · Oficina · Cola planilla
  */
 (function (global) {
@@ -9763,7 +9763,7 @@
   function downloadInventarioConteoCsv(items) {
     var fecha = new Date().toISOString().slice(0, 10);
     var lines = [
-      'CROZZO POS — Hoja de conteo físico (materias primas)',
+      'BONA ORIGEN — Hoja de conteo físico (materias primas)',
       'Fecha sugerida;' + fecha,
       'Instrucciones;Complete la columna Conteo físico en bodega. Diferencia = Conteo − Teórico.',
       '',
@@ -9927,17 +9927,18 @@
     '@media print{body{padding:8px}.inv-items-grid{gap:8px 12px}}';
 
   var INV_PRINT_CSS_THERMAL =
+    (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.THERMAL_CSS === 'string' ? global.CrozzoDocDesign.THERMAL_CSS : '') +
     '@page{size:80mm auto;margin:2mm}' +
-    'body{margin:0;padding:4px 6px;width:72mm;font-family:Consolas,monospace;font-size:11px;color:#000}' +
-    'h1{font-size:13px;margin:0 0 6px;line-height:1.2}' +
-    '.inv-meta{font-size:9px;margin:0 0 8px;color:#333;line-height:1.35}' +
-    '.inv-thermal-item{padding:8px 0;border-bottom:1px dashed #444;page-break-inside:avoid}' +
+    'body{margin:0;padding:4px 6px;width:72mm;font-family:var(--doc-font-mono,Consolas,monospace);font-size:11px;color:var(--doc-ink,#000)}' +
+    'h1{font-size:13px;margin:0 0 6px;line-height:1.2;color:var(--doc-accent,#0f766e)}' +
+    '.inv-meta{font-size:9px;margin:0 0 8px;color:var(--doc-muted,#333);line-height:1.35}' +
+    '.inv-thermal-item{padding:8px 0;border-bottom:1px dashed var(--doc-border,#444);page-break-inside:avoid}' +
     '.inv-thermal-name{font-size:12px;font-weight:700;line-height:1.25;margin:0 0 4px;word-wrap:break-word}' +
     '.inv-thermal-unit{font-size:10px;margin:0 0 6px}' +
-    '.inv-thermal-unit strong{font-size:12px}' +
+    '.inv-thermal-unit strong{font-size:12px;color:var(--doc-accent,#0f766e)}' +
     '.inv-thermal-qty{font-size:10px;margin:0;line-height:1.35}' +
-    '.inv-thermal-qty-line{display:block;margin-top:4px;border-bottom:2px dashed #000;min-height:22px}' +
-    '.inv-foot{font-size:8px;margin-top:8px;color:#555}';
+    '.inv-thermal-qty-line{display:block;margin-top:4px;border-bottom:2px dashed var(--doc-ink,#000);min-height:22px}' +
+    '.inv-foot{font-size:8px;margin-top:8px;color:var(--doc-muted,#555)}';
 
   function inventarioPrintPageCss(pageFormat) {
     var pf = String(pageFormat || 'a4').toLowerCase();
@@ -10078,9 +10079,9 @@
   function inventarioEmpresaNombre() {
     try {
       var emp = global.config && global.config.getEmpresa ? global.config.getEmpresa() : {};
-      return String(emp.nombreComercial || emp.razonSocial || 'CROZZO POS').trim();
+      return String(emp.nombreComercial || emp.razonSocial || 'BONA ORIGEN').trim();
     } catch (_) {
-      return 'CROZZO POS';
+      return 'BONA ORIGEN';
     }
   }
 
@@ -10322,7 +10323,7 @@
     var fecha = String(data.fecha || new Date().toISOString().slice(0, 10)).slice(0, 10);
     var meta = data.meta || {};
     var titulo = 'Inventario materias primas';
-    var subtitulo = inventarioEmpresaNombre() + ' · CROZZO POS · ' + fecha;
+    var subtitulo = inventarioEmpresaNombre() + ' · BONA ORIGEN · ' + fecha;
     var bodyContent = '';
     var gridKind = kind === 'conteo' ? 'conteo' : kind;
 
@@ -10417,7 +10418,7 @@
       signGrid +
       '<p class="inv-foot">Generado ' +
       new Date().toLocaleString('es-CO') +
-      ' · Crozzo POS · formato conteo v2 (nombre · unidad · cantidad)</p></body></html>'
+      ' · Bona Origen · formato conteo v2 (nombre · unidad · cantidad)</p></body></html>'
     );
   }
 
@@ -14490,7 +14491,7 @@
 /* --- CrozzoCostosReportesPdf.js --- */
 
 /**
- * Crozzo POS — Reportes PDF de costos (resumen general + detalle MP/recetas).
+ * Bona Origen — Reportes PDF de costos (resumen general + detalle MP/recetas).
  */
 (function (global) {
   'use strict';
@@ -14733,7 +14734,7 @@
         if (emp && emp.nombre) return String(emp.nombre).trim();
       }
     } catch (_) {}
-    return 'Crozzo POS';
+    return 'Bona Origen';
   }
 
   function precioPosProducto(row) {
@@ -14952,7 +14953,7 @@
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor.apply(doc, C_MUTED);
-      doc.text('Crozzo POS · Sistema de costos · Confidencial', M, FOOTER_Y);
+      doc.text('Bona Origen · Sistema de costos · Confidencial', M, FOOTER_Y);
       doc.text('Pág. ' + page, PAGE_W - M, FOOTER_Y, { align: 'right' });
     }
 

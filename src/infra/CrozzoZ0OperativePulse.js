@@ -1,5 +1,5 @@
 /**
- * Crozzo — Pulso operativo Z0 (sensación tiempo real sin saturar nube).
+ * Bona Origen — Pulso operativo Z0 (sensación tiempo real sin saturar nube).
  *
  * - Coalesced UI refresh vía requestAnimationFrame en cocina/comandas (≤1 paint/frame).
  * - Actividad reciente del usuario → PageCloudWatch puede acelerar tick suave.

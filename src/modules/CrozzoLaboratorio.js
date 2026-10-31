@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Laboratorio administrativo (UI).
+ * Bona Origen — Laboratorio administrativo (UI).
  * Solo admin / super admin · PIN 4 dígitos · control de emulación y vista operativa.
  */
 (function (global) {

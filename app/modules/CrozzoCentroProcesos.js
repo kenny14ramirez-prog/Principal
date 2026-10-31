@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Centro de Producción
+ * Bona Origen — Centro de Producción
  * Experiencia guiada, fluida y clara para personal sin entrenamiento previo.
  */
 (function (global) {

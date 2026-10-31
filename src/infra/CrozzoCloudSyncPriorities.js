@@ -1,5 +1,5 @@
 /**
- * Crozzo — Prioridades de sincronización con la nube (catálogo completo).
+ * Bona Origen — Prioridades de sincronización con la nube (catálogo completo).
  *
  * Zona 0 · OPERACIÓN — tiempo real siempre (mesas, comandas, KDS).
  * Zona 1 · FUERA OPERACIÓN — sync al navegar + background moderado.

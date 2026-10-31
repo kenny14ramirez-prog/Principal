@@ -1,5 +1,5 @@
 /**
- * Crozzo — Orquestador de conectividad (cascada automatica de 5 niveles).
+ * Bona Origen — Orquestador de conectividad (cascada automatica de 5 niveles).
  *
  * Coordina los puentes existentes (no los reemplaza) bajo una sola maquina de
  * estados. Evalua el mejor nivel disponible y garantiza que el/los transporte(s)

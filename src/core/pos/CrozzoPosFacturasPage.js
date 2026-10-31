@@ -347,10 +347,11 @@ function crozzoBuildFacturaSheetDocumentHtml(factura, opts) {
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ' +
     esc(f.consecutivo || '') +
     '</title><style>' +
+    (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.SHEET_CSS === 'string' ? global.CrozzoDocDesign.SHEET_CSS : '') +
     '@page{size:' +
     pageSize +
     ';margin:14mm}' +
-    'body{margin:0;font-family:Segoe UI,system-ui,sans-serif;color:#111;font-size:11px;line-height:1.45}' +
+    'body{margin:0;font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);color:#111;font-size:11px;line-height:1.45}' +
     '.fact-sheet{border:2px solid #1e293b;border-radius:4px;padding:18px 20px 16px;box-sizing:border-box}' +
     '.fact-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #cbd5e1}' +
     '.fact-head__brand{display:flex;gap:14px;align-items:flex-start;flex:1;min-width:0}' +

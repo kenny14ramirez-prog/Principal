@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Inventario continuo: métodos operativos, ABC cíclico, ajustes e impresión.
+ * Bona Origen — Inventario continuo: métodos operativos, ABC cíclico, ajustes e impresión.
  */
 (function (global) {
   'use strict';

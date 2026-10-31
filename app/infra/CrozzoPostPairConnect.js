@@ -1,5 +1,5 @@
 /**
- * Crozzo — Post-QR + Enlace Supremo.
+ * Bona Origen — Post-QR + Enlace Supremo.
  * Un escaneo → cascada visible de sistemas (identidad, red, caja, nube, catálogo, malla, mente).
  */
 (function (global) {
@@ -117,7 +117,7 @@
       '<div class="crozzo-supreme-link__particles" aria-hidden="true"></div>' +
       '<div class="crozzo-supreme-link__card">' +
       '<div class="crozzo-supreme-link__orb" aria-hidden="true"><span class="crozzo-supreme-link__orb-core"></span></div>' +
-      '<p class="crozzo-supreme-link__eyebrow" id="crozzoSupremeEyebrow">Crozzo · enlace supremo</p>' +
+      '<p class="crozzo-supreme-link__eyebrow" id="crozzoSupremeEyebrow">Bona Origen · enlace supremo</p>' +
       '<h2 class="crozzo-supreme-link__title" id="crozzoSupremeTitle">Activando el ecosistema</h2>' +
       '<p class="crozzo-supreme-link__lead" id="crozzoSupremeLead">Un escaneo · mil conexiones en marcha</p>' +
       '<ul class="crozzo-supreme-link__steps" id="crozzoSupremeSteps"></ul>' +
@@ -194,7 +194,7 @@
     var eyebrow = global.document.getElementById('crozzoSupremeEyebrow');
     var title = global.document.getElementById('crozzoSupremeTitle');
     var lead = global.document.getElementById('crozzoSupremeLead');
-    if (eyebrow) eyebrow.textContent = __supreme.bizName ? 'Crozzo · ' + __supreme.bizName : 'Crozzo · enlace supremo';
+    if (eyebrow) eyebrow.textContent = __supreme.bizName ? 'Bona Origen · ' + __supreme.bizName : 'Bona Origen · enlace supremo';
     if (title) title.textContent = 'Activando el ecosistema';
     if (lead) lead.textContent = 'Un escaneo · mil conexiones en marcha';
     el.classList.remove('crozzo-supreme-link--celebrate', 'crozzo-supreme-link--out');

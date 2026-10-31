@@ -1,5 +1,5 @@
 /**
- * Crozzo — Sandbox Fiscal (H1.0b, Nivel 0 Semilla)
+ * Bona Origen — Sandbox Fiscal (H1.0b, Nivel 0 Semilla)
  * --------------------------------------------------------------------------
  * Motor del modo capacitación. El comerciante opera POS completo con datos
  * ficticios, pero NUNCA produce documento fiscal válido.
@@ -28,7 +28,7 @@
   // todos los escenarios sin tocar datos reales del comerciante.
   var DATASET = {
     sede: {
-      nombreComercial: 'Crozzo Demo · Sede Capacitación',
+      nombreComercial: 'Bona Origen Demo · Sede Capacitación',
       direccion: 'Calle Demo 123, Bogotá',
       telefono: '300 000 0000',
       nit: '00000000-0',

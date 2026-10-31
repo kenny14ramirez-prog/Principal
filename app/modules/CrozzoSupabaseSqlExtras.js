@@ -6,7 +6,7 @@
 
   var FEDERACION_SQL =
     '-- =============================================================================\n' +
-    '-- CROZZO POS — Federación: bodegas, remisiones e intercambio entre negocios\n' +
+    '-- BONA ORIGEN — Federación: bodegas, remisiones e intercambio entre negocios\n' +
     '-- =============================================================================\n' +
     '-- Ejecutar en CADA proyecto Supabase de cada negocio.\n' +
     '-- Después de: SUPABASE-SQL-EDITOR.sql y SUPABASE-SQL-COSTOS.sql (recomendado).\n' +
@@ -93,7 +93,7 @@
 
   var POS_RUNTIME_SQL =
     '-- ============================================================\n' +
-    '-- Crozzo POS — Runtime en vivo (mesas, comandas, CRM QR clientes)\n' +
+    '-- Bona Origen — Runtime en vivo (mesas, comandas, CRM QR clientes)\n' +
     '-- OBLIGATORIO para multi-dispositivo: cuenta mesa → caja, comandas cocina, sync staff.\n' +
     '-- Idempotente: ejecutar varias veces sin romper nada.\n' +
     '-- Ejecutar DESPUÉS del script 1 (Base POS).\n' +
@@ -248,7 +248,7 @@
     '  end loop;\n' +
     'end $$;\n' +
     '\n' +
-    '-- ---------- Storage CRM (bucket público Crozzo) ----------\n' +
+    '-- ---------- Storage CRM (bucket público Bona Origen) ----------\n' +
     'insert into storage.buckets (id, name, public)\n' +
     'values (\'crozzo-public\', \'crozzo-public\', true)\n' +
     'on conflict (id) do update set public = true;\n' +
@@ -282,7 +282,7 @@
 ;
 
   var MESA_RUNTIME_SQL =
-    '-- Crozzo POS — Parche opcional: runtime por mesa (si script 10 ya se ejecutó, es no-op)\n' +
+    '-- Bona Origen — Parche opcional: runtime por mesa (si script 10 ya se ejecutó, es no-op)\n' +
     '-- Solo re-ejecuta permisos y Realtime de crozzo_mesa_runtime.\n' +
     '\n' +
     'create table if not exists public.crozzo_mesa_runtime (\n' +
@@ -324,7 +324,7 @@
 ;
 
   var PROFILES_AUTH_SQL =
-    '-- Crozzo POS — Perfiles de login nube (Supabase Auth → profiles)\n' +
+    '-- Bona Origen — Perfiles de login nube (Supabase Auth → profiles)\n' +
     '-- Ejecutar DESPUÉS del script 1 (base POS). Idempotente.\n' +
     '-- Crea fila en profiles automáticamente al registrar usuario en Authentication.\n\n' +
     'create or replace function public.crozzo_handle_new_user()\n' +
@@ -365,7 +365,7 @@
     'notify pgrst, \'reload schema\';\n';
 
   var BUSINESS_REGISTRY_SQL =
-    '-- Crozzo POS — Registro de negocios (nombre ↔ Business ID)\n' +
+    '-- Bona Origen — Registro de negocios (nombre ↔ Business ID)\n' +
     '-- Recomendado multi-dispositivo: autocompleta Business ID al emparejar tablets.\n' +
     '-- Idempotente.\n' +
     '\n' +
@@ -386,7 +386,7 @@
 
   var POS_STAFF_BUSINESS_ID_SQL =
     '-- =============================================================================\n' +
-    '-- CROZZO POS — pos_staff.business_id (sync usuarios / PIN entre caja y tablets)\n' +
+    '-- BONA ORIGEN — pos_staff.business_id (sync usuarios / PIN entre caja y tablets)\n' +
     '-- =============================================================================\n' +
     '-- Ejecutar si en F12 aparece: Could not find the \'business_id\' column of \'pos_staff\'\n' +
     '-- Proyecto: el mismo Supabase de caja, tablets y Super Admin nube.\n' +
@@ -414,10 +414,10 @@
 
   var CRM_REGISTRO_QR_SQL =
     '-- =============================================================================\n' +
-    '-- CROZZO POS — Autoregistro de clientes por QR (token ~1 h)\n' +
+    '-- BONA ORIGEN — Autoregistro de clientes por QR (token ~1 h)\n' +
     '-- =============================================================================\n' +
     '-- Opcional si ya ejecutó script 10 (Runtime sede): incluye las mismas tablas.\n' +
-    '-- El formulario web lo hospeda Crozzo (sin deploy en cada PC).\n' +
+    '-- El formulario web lo hospeda Bona Origen (sin deploy en cada PC).\n' +
     '-- =============================================================================\n\n' +
     'create extension if not exists "pgcrypto" with schema extensions;\n\n' +
     'create table if not exists public.crozzo_crm_registro_tokens (\n' +
@@ -509,7 +509,7 @@
 
   var POS_FACTURAS_SHARE_STORAGE_SQL =
     '-- =============================================================================\n' +
-    '-- CROZZO POS — Enlaces temporales de facturas PDF (WhatsApp, hasta 7 días)\n' +
+    '-- BONA ORIGEN — Enlaces temporales de facturas PDF (WhatsApp, hasta 7 días)\n' +
     '-- =============================================================================\n' +
     '-- Bucket PRIVADO: el cliente recibe URL firmada que caduca (no enlace público eterno).\n' +
     '-- Ejecutar en el mismo proyecto Supabase del POS (después de scripts 1–3).\n' +
@@ -528,7 +528,7 @@
     "  for select to anon, authenticated using (bucket_id = 'pos-facturas-share');\n";
 
   var DEVICE_QR_SLOTS_SQL =
-    '-- Crozzo POS — QRs internos entre dispositivos (malla / respaldo LAN)\n' +
+    '-- Bona Origen — QRs internos entre dispositivos (malla / respaldo LAN)\n' +
     '-- Cada equipo publica su QR ~cada 4 h; todos leen el catálogo en nube.\n' +
     '-- Ejecutar DESPUÉS del script 1. Requiere Realtime (este script lo activa).\n' +
     '-- Idempotente.\n' +
@@ -575,7 +575,7 @@
 
   var COMUNICACION_REPAIR_SQL =
     '-- ============================================================\n' +
-    '-- Crozzo POS — REPARAR comunicacion en vivo (mesas -> caja + comandas)\n' +
+    '-- Bona Origen — REPARAR comunicacion en vivo (mesas -> caja + comandas)\n' +
     '-- Crea/repara tablas + POLITICAS DE ESCRITURA (RLS) + Realtime.\n' +
     '-- Idempotente: ejecutar las veces que haga falta sin romper nada.\n' +
     '-- Ejecutar UNA vez en Supabase; aplica para TODOS los dispositivos.\n' +
@@ -664,7 +664,7 @@
     'notify pgrst, \'reload schema\';\n';
 
   var AI_INSIGHTS_SQL =
-    '-- Crozzo AI Insights — secrets + historial (RLS)\n' +
+    '-- Bona Origen AI Insights — secrets + historial (RLS)\n' +
     'create table if not exists public.crozzo_ai_secrets (\n' +
     '  business_id text primary key,\n' +
     '  api_key text not null,\n' +

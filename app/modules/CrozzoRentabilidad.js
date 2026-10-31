@@ -1,5 +1,5 @@
 /**
- * Crozzo — CMV + Rentabilidad (H2.C)
+ * Bona Origen — CMV + Rentabilidad (H2.C)
  * --------------------------------------------------------------------------
  * Cierra el círculo del costeo. El sistema SABE el costo de cada plato
  * (cascada MP→plato→matriz impecable), pero NO lo consolidaba en la venta.

@@ -3,7 +3,7 @@
 /* --- CrozzoRecepcionFeDian.js --- */
 
 /**
- * Crozzo — análisis factura electrónica DIAN (QR, CUFE, totales, líneas MP).
+ * Bona Origen — análisis factura electrónica DIAN (QR, CUFE, totales, líneas MP).
  * Usado por Entrada de facturas · modo complejo.
  */
 (function (global) {
@@ -14236,7 +14236,7 @@
       '</h2>' +
       '<p class="cxf-panel-lead">' +
       (premium
-        ? 'El modo <strong>Inteligencia FE</strong> desbloquea lectura QR/CUFE, validación DIAN y sugerencia automática de líneas — la experiencia completa Crozzo.'
+        ? 'El modo <strong>Inteligencia FE</strong> desbloquea lectura QR/CUFE, validación DIAN y sugerencia automática de líneas — la experiencia completa Bona Origen.'
         : 'Elija el flujo para esta recepción. Puede cambiarlo volviendo a proveedores y entrando de nuevo.') +
       '</p></header>' +
       '<div class="cxf-modo-grid">' +
@@ -21836,7 +21836,7 @@
 /* --- CrozzoCotizacionesMp.js --- */
 
 /**
- * Crozzo POS — Cotizaciones y comparador de costeo (sistema vs proveedores vs competencia)
+ * Bona Origen — Cotizaciones y comparador de costeo (sistema vs proveedores vs competencia)
  * Compras · negociación · auditoría · exportación Excel/PDF
  */
 (function (global) {
@@ -23622,7 +23622,7 @@
       resumen: resumen,
       detalle: detalle,
       meta: {
-        titulo: 'Cotización vs costeo — Crozzo POS',
+        titulo: 'Cotización vs costeo — Bona Origen',
         fecha: exportFileStamp(),
         productos: resumen.length,
         cotizaciones: detalle.length,
@@ -23879,7 +23879,7 @@
     });
     ctx.fillStyle = '#888888';
     ctx.font = '8px Arial, Helvetica, sans-serif';
-    ctx.fillText('Crozzo POS · Cotizaciones vs costeo', mx, ph - 26);
+    ctx.fillText('Bona Origen · Cotizaciones vs costeo', mx, ph - 26);
     if (totalPages > 1) {
       ctx.fillText('Pág. ' + pageNum + ' / ' + totalPages, pw - 100, ph - 26);
     }
@@ -23958,7 +23958,7 @@
         });
       });
     }
-    var title = 'Comparativo de cotizaciones · Crozzo POS';
+    var title = 'Comparativo de cotizaciones · Bona Origen';
     var subtitle =
       pack.meta.fecha +
       '  |  ' +
@@ -24012,7 +24012,7 @@
         });
       });
     }
-    var title = 'Comparativo de cotizaciones · Crozzo POS';
+    var title = 'Comparativo de cotizaciones · Bona Origen';
     var subtitle =
       pack.meta.fecha +
       '  |  ' +
@@ -24400,7 +24400,7 @@
 /* --- CrozzoCentroCompras.js --- */
 
 /**
- * Contenido de compras (sin menú duplicado): módulos nativos Crozzo POS.
+ * Contenido de compras (sin menú duplicado): módulos nativos Bona Origen.
  * La navegación vive en el sidebar del POS (grupo Compras).
  */
 (function (global) {
@@ -25494,7 +25494,7 @@
 /* --- CrozzoCentroProcesos.js --- */
 
 /**
- * Crozzo POS — Centro de Producción
+ * Bona Origen — Centro de Producción
  * Experiencia guiada, fluida y clara para personal sin entrenamiento previo.
  */
 (function (global) {

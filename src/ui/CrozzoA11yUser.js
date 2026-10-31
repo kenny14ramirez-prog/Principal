@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Menú de usuario + Asistente de accesibilidad (WCAG 2.2 AA)
+ * Bona Origen — Menú de usuario + Asistente de accesibilidad (WCAG 2.2 AA)
  */
 (function (global) {
   'use strict';

@@ -1,5 +1,5 @@
 /**
- * Crozzo — banco local de extracción FE (PDF + reconstrucción virtual + aprendizaje).
+ * Bona Origen — banco local de extracción FE (PDF + reconstrucción virtual + aprendizaje).
  * Cada análisis guarda snapshot completo en IndexedDB y alimenta memoria aprendida (localStorage).
  */
 (function (global) {

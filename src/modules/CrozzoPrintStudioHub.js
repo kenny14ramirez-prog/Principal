@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Centro de impresión térmica.
+ * Bona Origen — Centro de impresión térmica.
  * Facturas · Precuentas · Tickets · Bodega (MP + FE/FI/FV) · Salón (lista precios venta)
  */
 (function (global) {

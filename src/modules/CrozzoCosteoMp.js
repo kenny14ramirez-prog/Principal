@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Costeo de materias primas (unidad, peso, precio total, $/ml|$/g|$/u)
+ * Bona Origen — Costeo de materias primas (unidad, peso, precio total, $/ml|$/g|$/u)
  * Se actualiza desde recepción de facturas; alerta si la variación es desproporcionada.
  */
 (function (global) {

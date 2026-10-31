@@ -1,5 +1,5 @@
 /**
- * Crozzo — análisis factura electrónica DIAN (QR, CUFE, totales, líneas MP).
+ * Bona Origen — análisis factura electrónica DIAN (QR, CUFE, totales, líneas MP).
  * Usado por Entrada de facturas · modo complejo.
  */
 (function (global) {

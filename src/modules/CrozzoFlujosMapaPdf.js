@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Mapa de flujos (PDF para socios / inversores)
+ * Bona Origen — Mapa de flujos (PDF para socios / inversores)
  * Qué módulo actualiza qué, cadena MP → costos → caja → inventario → planilla.
  */
 (function (global) {
@@ -186,7 +186,7 @@
         if (emp && emp.nombre) return String(emp.nombre).trim();
       }
     } catch (_) {}
-    return 'Crozzo POS';
+    return 'Bona Origen';
   }
 
   function triggerDownload(blob, filename) {
@@ -257,7 +257,7 @@
     function footer() {
       doc.setFontSize(8);
       doc.setTextColor.apply(doc, MUTED);
-      doc.text(empresaNombre() + ' · Crozzo POS', M, PAGE_H - 8);
+      doc.text(empresaNombre() + ' · Bona Origen', M, PAGE_H - 8);
       doc.text('Pág. ' + page, PAGE_W - M, PAGE_H - 8, { align: 'right' });
     }
 
@@ -332,7 +332,7 @@
       doc.setFontSize(22);
       doc.text('Mapa de flujos', M, 32);
       doc.setFontSize(13);
-      doc.text('Sistema operativo Crozzo POS', M, 42);
+      doc.text('Sistema operativo Bona Origen', M, 42);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.setTextColor(220, 220, 228);

@@ -17,13 +17,12 @@
 | 281 | `app/core/CrozzoLazyModules.js` |
 | 343 | `app/core/CrozzoLoginBoot.js` |
 | 224 | `app/core/CrozzoManifest.js` |
-| 477 | `app/core/CrozzoPairingSeal.js` |
+| 501 | `app/core/CrozzoPairingSeal.js` |
 | 107 | `app/core/CrozzoPosBoot.js` |
 | 3774 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53719 | `app/core/CrozzoPosMain.js` |
+| 53749 | `app/core/CrozzoPosMain.js` |
 | 2809 | `app/core/CrozzoPrintService.js` |
-| 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
 | 133 | `app/core/CrozzoStorageHygiene.js` |
 | 319 | `app/core/CrozzoTabletNav.js` |
@@ -144,7 +143,7 @@
 | 264 | `app/modules/CrozzoGuiaFeElectronica.js` |
 | 774 | `app/modules/CrozzoHelpHub.js` |
 | 2954 | `app/modules/CrozzoHoneypotSim.js` |
-| 1165 | `app/modules/CrozzoInternalQrRegistry.js` |
+| 1196 | `app/modules/CrozzoInternalQrRegistry.js` |
 | 522 | `app/modules/CrozzoInventarioContinuo.js` |
 | 401 | `app/modules/CrozzoInventarioVenta.js` |
 | 2455 | `app/modules/CrozzoLaboratorio.js` |
@@ -170,7 +169,7 @@
 | 542 | `app/modules/CrozzoPerfilesBiblioteca.js` |
 | 425 | `app/modules/CrozzoPerfilesLogica.js` |
 | 757 | `app/modules/CrozzoPerfilesOperativos.js` |
-| 686 | `app/modules/CrozzoPermisosPolicy.js` |
+| 685 | `app/modules/CrozzoPermisosPolicy.js` |
 | 3332 | `app/modules/CrozzoPlanilla2026.js` |
 | 140 | `app/modules/CrozzoPlanProducto.js` |
 | 2165 | `app/modules/CrozzoPosRuntimeCloud.js` |
@@ -185,7 +184,6 @@
 | 10355 | `app/modules/CrozzoRecepcionFacturas.js` |
 | 912 | `app/modules/CrozzoRecepcionFeBanco.js` |
 | 8837 | `app/modules/CrozzoRecepcionFeDian.js` |
-| 77 | `app/modules/CrozzoRecepcionGuardar.js` |
 | 1806 | `app/modules/CrozzoRecetarioCocina.js` |
 | 256 | `app/modules/CrozzoRentabilidad.js` |
 | 244 | `app/modules/CrozzoRentabilidadPage.js` |

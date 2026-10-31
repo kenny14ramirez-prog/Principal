@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Instalador nativo Tauri (plugin-updater + relaunch) + Plan B manual
+ * Bona Origen — Instalador nativo Tauri (plugin-updater + relaunch) + Plan B manual
  */
 (function (global) {
   'use strict';
@@ -887,7 +887,7 @@
               phase: 'install',
               percent: 96,
               message:
-                'Instalando… Crozzo POS se cerrará y volverá a abrir solo con la versión nueva.',
+                'Instalando… Bona Origen se cerrará y volverá a abrir solo con la versión nueva.',
             });
           }
           return finishUpdateRelaunch(onProgress, ver, 'C');
@@ -1409,7 +1409,7 @@
             onProgress({
               phase: 'install',
               percent: 96,
-              message: 'Instalación completada. Crozzo POS se reiniciará automáticamente…',
+              message: 'Instalación completada. Bona Origen se reiniciará automáticamente…',
             });
           }
           return finishUpdateRelaunch(onProgress, ver, 'D');

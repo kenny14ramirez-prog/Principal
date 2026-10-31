@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Centro de ayuda unificado (búsqueda, contexto por pantalla, acciones rápidas).
+ * Bona Origen — Centro de ayuda unificado (búsqueda, contexto por pantalla, acciones rápidas).
  */
 (function (global) {
   'use strict';
@@ -141,7 +141,7 @@
       id: 'rescate-impresora',
       cat: 'impresion',
       title: 'Impresora no reconocida',
-      summary: 'Si Windows no ve la impresora, instale el driver primero. Luego asígnela en Crozzo.',
+      summary: 'Si Windows no ve la impresora, instale el driver primero. Luego asígnela en Bona Origen.',
       tags: ['rescate', 'driver', 'epson', 'sat', 'star', 'digital pos', 'digitalpos', 'no imprime', 'usb', 'lan'],
       pages: ['admin', 'comandas', 'facturas'],
       steps: [
@@ -238,7 +238,7 @@
       summary: 'Revise nombre en Windows, cable/USB, cola y driver.',
       tags: ['no imprime', 'error', 'termica', 'usb', 'driver'],
       pages: ['admin', 'comandas', 'cajero'],
-      steps: ['¿Windows ve la impresora? Configuración → Impresoras', '¿Nombre coincide en Crozzo?', '¿Hay error en cola de impresión?', 'Use Configurar impresora (drivers solo si hace falta)'],
+      steps: ['¿Windows ve la impresora? Configuración → Impresoras', '¿Nombre coincide en Bona Origen?', '¿Hay error en cola de impresión?', 'Use Configurar impresora (drivers solo si hace falta)'],
       action: { type: 'fn', fn: 'openPrinterRescue', args: ['admin'] },
       actionLabel: 'Configurar impresora',
     },

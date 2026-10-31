@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Perfiles operativos (tamaño + tipo negocio) con menús por rol y reglas de guarda.
+ * Bona Origen — Perfiles operativos (tamaño + tipo negocio) con menús por rol y reglas de guarda.
  */
 (function (global) {
   'use strict';
