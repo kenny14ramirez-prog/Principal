@@ -1,17 +1,45 @@
 {
-  "id": "1.0.242-critical",
-  "version": "v1.0.242",
-  "semver": "1.0.242",
+  "id": "1.0.243-critical",
+  "version": "v1.0.243",
+  "semver": "1.0.243",
   "type": "critical",
-  "message": "Test de actualizacion OTA - verificar flujo completo",
-  "publishedAt": "2026-10-31T20:55:31.527Z",
+  "message": "OTA mejorado: estado preservado + concurrencia + retry + registry + error real",
+  "publishedAt": "2026-10-31T21:18:48.044Z",
   "installMode": "auto",
   "changelog": [
-    "Test de actualizacion OTA",
-    "Verificar deteccion, descarga en segundo plano, instalacion y changelog"
+    "OTA-2: backup/restore de estado POS (carrito, mesas, comandas)",
+    "OTA-3: Android pending en localStorage",
+    "OTA-5: lock concurrencia (retry 3x)",
+    "Fix: registry.json en main (evita 404)",
+    "Fix: mensaje de error real en comprobar",
+    "Fix: rebrand SyntaxErrors",
+    "IA local (Ollama) para cierres",
+    "Modernizacion documentos DOC-0 a DOC-6",
+    "Bloque B: plantillas + compatibilidad"
   ],
-  "updatedAt": "2026-10-31T20:55:31.527Z",
+  "updatedAt": "2026-10-31T21:18:48.044Z",
   "entries": [
+    {
+      "id": "1.0.243-critical",
+      "version": "v1.0.243",
+      "semver": "1.0.243",
+      "type": "critical",
+      "message": "OTA mejorado: estado preservado + concurrencia + retry + registry + error real",
+      "publishedAt": "2026-10-31T21:18:48.044Z",
+      "installMode": "auto",
+      "changelog": [
+        "OTA-2: backup/restore de estado POS (carrito, mesas, comandas)",
+        "OTA-3: Android pending en localStorage",
+        "OTA-5: lock concurrencia (retry 3x)",
+        "Fix: registry.json en main (evita 404)",
+        "Fix: mensaje de error real en comprobar",
+        "Fix: rebrand SyntaxErrors",
+        "IA local (Ollama) para cierres",
+        "Modernizacion documentos DOC-0 a DOC-6",
+        "Bloque B: plantillas + compatibilidad"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.242-critical",
       "version": "v1.0.242",
