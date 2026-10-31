@@ -1,19 +1,34 @@
 {
-  "id": "1.0.237-critical",
-  "version": "v1.0.237",
-  "semver": "1.0.237",
+  "id": "1.0.238-critical",
+  "version": "v1.0.238",
+  "semver": "1.0.238",
   "type": "critical",
-  "message": "Fix build Windows/macOS (devtools) + fix workflow Android SDK",
-  "publishedAt": "2026-10-31T03:59:13.134Z",
+  "message": "Fix Android build: crozzo_print cfg gate + workflow SDK",
+  "publishedAt": "2026-10-31T04:10:45.675Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: open_devtools no existe en Tauri v2",
-    "Fix: unused import CrozzoPrintResult",
-    "Fix: workflow Android SDK (setup-android -> manual sdkmanager)",
+    "Fix: crozzo_print module cfg gate for Android (crozzo_save_pdf_b64)",
+    "Fix: workflow Android SDK (manual sdkmanager)",
+    "Fix: devtools no disponible",
     "Build verde Windows/macOS/Android"
   ],
-  "updatedAt": "2026-10-31T03:59:13.134Z",
+  "updatedAt": "2026-10-31T04:10:45.675Z",
   "entries": [
+    {
+      "id": "1.0.238-critical",
+      "version": "v1.0.238",
+      "semver": "1.0.238",
+      "type": "critical",
+      "message": "Fix Android build: crozzo_print cfg gate + workflow SDK",
+      "publishedAt": "2026-10-31T04:10:45.675Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: crozzo_print module cfg gate for Android (crozzo_save_pdf_b64)",
+        "Fix: workflow Android SDK (manual sdkmanager)",
+        "Fix: devtools no disponible",
+        "Build verde Windows/macOS/Android"
+      ]
+    },
     {
       "id": "1.0.237-critical",
       "version": "v1.0.237",
