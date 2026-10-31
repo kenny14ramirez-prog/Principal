@@ -5239,11 +5239,15 @@
           return res.json();
         })
         .catch(function (err) {
+          console.warn('[crozzo-updates] fetch JS failed:', url, err && err.message ? err.message : err);
           // Fallback: Tauri invoke (solo desktop)
           if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
             return global.__TAURI__.core.invoke('crozzo_http_get_text', { url: url }).then(function (text) {
-              if (!text) throw new Error('empty response');
-              return JSON.parse(text);
+              if (!text) throw new Error('empty response from Tauri');
+              try { return JSON.parse(text); } catch (e) { throw new Error('JSON parse error: ' + e.message); }
+            }).catch(function (e2) {
+              console.warn('[crozzo-updates] Tauri invoke fallback failed:', url, e2 && e2.message ? e2.message : e2);
+              throw e2;
             });
           }
           throw err;
