@@ -1,0 +1,135 @@
+---
+title: "resultado.json"
+---
+
+{
+  "runId": "2026-10-31T22-50-21-030Z",
+  "at": "2026-10-31T22:51:19.857Z",
+  "url": "http://127.0.0.1:46010/index.html",
+  "headless": true,
+  "pageErrors": 0,
+  "consoleErrors": [],
+  "pass": 15,
+  "fail": 2,
+  "results": [
+    {
+      "role": "SISTEMA",
+      "check": "Arranque y login",
+      "pass": true,
+      "detail": "pantalla=\"Inicio de ventas\" lsBytes=28018",
+      "at": "2026-10-31T22:50:36.206Z"
+    },
+    {
+      "role": "SISTEMA",
+      "check": "Sin errores fatales de página",
+      "pass": true,
+      "detail": "0 pageerror · ",
+      "at": "2026-10-31T22:50:36.206Z"
+    },
+    {
+      "role": "SISTEMA",
+      "check": "Puente nativo Tauri (árbol src)",
+      "pass": false,
+      "detail": "SIN puente nativo: impresoras/BLE/LAN no auditables aquí",
+      "at": "2026-10-31T22:50:36.209Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Abrir POS de restaurante",
+      "pass": true,
+      "detail": "página abierta",
+      "at": "2026-10-31T22:50:40.114Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Carrito demo legible",
+      "pass": true,
+      "detail": "total=37000",
+      "at": "2026-10-31T22:50:40.118Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Agregar producto al pedido",
+      "pass": true,
+      "detail": "total 37000 → 42500",
+      "at": "2026-10-31T22:50:41.400Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Interfaz de cobro utilizable",
+      "pass": true,
+      "detail": "diálogo texto=0 chars, inputs=0, botones=4",
+      "at": "2026-10-31T22:50:44.424Z"
+    },
+    {
+      "role": "CAJERO",
+      "check": "Cobro genera factura",
+      "pass": false,
+      "detail": "facturas 0 → 0",
+      "at": "2026-10-31T22:50:44.424Z"
+    },
+    {
+      "role": "MESERO",
+      "check": "Abrir modo tablets",
+      "pass": true,
+      "detail": "página abierta",
+      "at": "2026-10-31T22:50:50.381Z"
+    },
+    {
+      "role": "MESERO",
+      "check": "Grilla de mesas visible",
+      "pass": true,
+      "detail": "BUENAS TARDES, MODO Tablets Toma de pedidos por meseros SIMPLE LOCAL CAJA LISTA — LAS TABLETS PUEDEN CONECTARSE ✅ LISTO ",
+      "at": "2026-10-31T22:50:50.384Z"
+    },
+    {
+      "role": "COCINA",
+      "check": "Abrir KDS",
+      "pass": true,
+      "detail": "página abierta",
+      "at": "2026-10-31T22:50:54.223Z"
+    },
+    {
+      "role": "COCINA",
+      "check": "KDS muestra contenido operativo",
+      "pass": true,
+      "detail": "texto=741 chars",
+      "at": "2026-10-31T22:50:54.226Z"
+    },
+    {
+      "role": "ADMIN",
+      "check": "Abrir reportes",
+      "pass": true,
+      "detail": "heading=\"Reportes y dashboard\"",
+      "at": "2026-10-31T22:51:06.281Z"
+    },
+    {
+      "role": "ADMIN",
+      "check": "Reportes muestran datos",
+      "pass": true,
+      "detail": "BUENAS TARDES, MODO Reportes y dashboard Ventas, equipo y alertas del día SIMPLE LOCAL RECUPERANDO… ✅ LISTO sábado, 31 d",
+      "at": "2026-10-31T22:51:06.281Z"
+    },
+    {
+      "role": "SISTEMA",
+      "check": "localStorage bajo 5 MB",
+      "pass": true,
+      "detail": "bytes=30472 mayores=[[\"pos_dian_config\",10862],[\"crozzo_operative_journal_v1\",3830],[\"crozzo_secrets_vault_v2\",2958],[\"crozzo_config_sealed_b64\",2948],[\"crozzo_sync_queue\",1621]]",
+      "at": "2026-10-31T22:51:06.352Z"
+    },
+    {
+      "role": "SISTEMA",
+      "check": "Módulos críticos embarcados (src)",
+      "pass": true,
+      "detail": "scripts=183 OCR=true contingencia=true archivoComandas=true blobStore=false",
+      "at": "2026-10-31T22:51:06.354Z"
+    },
+    {
+      "role": "EH-01",
+      "check": "Doble toque no bloquea la UI",
+      "pass": true,
+      "detail": "total 52800 → 63800",
+      "at": "2026-10-31T22:51:19.857Z"
+    }
+  ]
+}

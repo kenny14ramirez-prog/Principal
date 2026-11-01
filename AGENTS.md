@@ -87,6 +87,7 @@ npm run graph:search -- --name_pattern ".*printComanda.*"
 ## Ejército y conectividad (nuevo)
 
 - Doctrina: `docs/maps/ARMY-DOCTRINE.md` — cadena de mando, OPORD, SITREP, no-inventar.
+- Docs site: `docs-site/` — Starlight (Astro) + Vale. Build: `npm run docs:build`. Dev: `npm run docs:dev`.
 - Registro: `agents/registry.json` — generales, escuadrones, agentes especializados.
 - Escuadrones: `agents/squads/SQUADS.md` — líderes y agentes por escuadrón.
 - Contrato de herramientas: `agents/TOOLING-CONTRACT.md` — conectividad del arsenal.

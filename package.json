@@ -73,6 +73,8 @@
     "mind:refresh": "node scripts/crozzo-map-refresh.mjs && node scripts/synapse-mind.mjs reindex",
     "army:status": "node scripts/agent-status.mjs",
     "army:verify": "node scripts/verify-army.mjs",
+    "docs:build": "cd docs-site && node sync-content.mjs && npm run build",
+    "docs:dev": "cd docs-site && node sync-content.mjs && npm run dev",
     "rls:coherence": "node scripts/check-rls-coherence.mjs",
     "invariants:check": "node scripts/check-invariants.mjs",
     "damage:generate": "node scripts/generate-damage-history.mjs",
