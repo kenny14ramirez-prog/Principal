@@ -51,6 +51,7 @@ on:
       - 'feat/fleet-coordination-fix'
       - 'fix/sync-equilibrio-cloud-lan'
       - 'feat/z0-operative-pulse'
+  - 'fase1-seguridad-rls'
 
 jobs:
   sync-clinical:
