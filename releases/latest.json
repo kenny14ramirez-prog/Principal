@@ -1,24 +1,47 @@
 {
-  "id": "1.0.253-critical",
-  "version": "v1.0.253",
-  "semver": "1.0.253",
+  "id": "1.0.254-critical",
+  "version": "v1.0.254",
+  "semver": "1.0.254",
   "type": "critical",
-  "message": "Infraestructura OTA sincronizada: registry, latest, versiones, key.pub eliminado",
-  "publishedAt": "2026-11-01T00:58:24.769Z",
+  "message": "Fix: DevTools habilitados en produccion + URL manifiesto + todos los fixes OTA",
+  "publishedAt": "2026-11-01T11:06:48.751Z",
   "installMode": "auto",
   "changelog": [
-    "Infra: registry.json sincronizado en main (43 entries)",
-    "Infra: versiones alineadas (tauri.conf.json, tauri.android.conf.json, package.json)",
-    "Infra: crozzo-pos.key.pub eliminado (clave incorrecta)",
+    "Fix: DevTools nativo habilitado (feature devtools en Cargo.toml)",
     "Fix: URL de manifiesto corrupta (auto-limpieza + validacion)",
     "Fix: ReferenceError delay is not defined",
     "Fix: build stamp desalineado",
     "Fix: fetch OTA usa Tauri invoke como fallback",
     "Fix: rebrand SyntaxErrors",
-    "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+    "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
+    "IA local (Ollama) para cierres",
+    "Modernizacion documentos DOC-0 a DOC-6",
+    "Bloque B: plantillas + compatibilidad"
   ],
-  "updatedAt": "2026-11-01T00:58:24.769Z",
+  "updatedAt": "2026-11-01T11:06:48.751Z",
   "entries": [
+    {
+      "id": "1.0.254-critical",
+      "version": "v1.0.254",
+      "semver": "1.0.254",
+      "type": "critical",
+      "message": "Fix: DevTools habilitados en produccion + URL manifiesto + todos los fixes OTA",
+      "publishedAt": "2026-11-01T11:06:48.751Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: DevTools nativo habilitado (feature devtools en Cargo.toml)",
+        "Fix: URL de manifiesto corrupta (auto-limpieza + validacion)",
+        "Fix: ReferenceError delay is not defined",
+        "Fix: build stamp desalineado",
+        "Fix: fetch OTA usa Tauri invoke como fallback",
+        "Fix: rebrand SyntaxErrors",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
+        "IA local (Ollama) para cierres",
+        "Modernizacion documentos DOC-0 a DOC-6",
+        "Bloque B: plantillas + compatibilidad"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.253-critical",
       "version": "v1.0.253",
