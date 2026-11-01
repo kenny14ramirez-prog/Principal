@@ -574,6 +574,13 @@ fn prune_seen_actions(seen: &mut HashMap<String, u128>, now: u128) {
 /// true = duplicado reciente (no re-broadcast ni re-cola).
 fn register_action_or_duplicate(inner: &mut ServerInner, action_id: &str) -> bool {
     let now = now_ms_u128();
+    // Persistencia durable: consultar SQLite primero (Fase 2.3).
+    if let Some(db) = &inner.persistence {
+        let conn = db.conn.lock().unwrap();
+        if crate::crozzo_lan_persistence::is_seen(&conn, action_id) {
+            return true;
+        }
+    }
     prune_seen_actions(&mut inner.seen_actions, now);
     if let Some(ts) = inner.seen_actions.get(action_id) {
         if now.saturating_sub(*ts) < SEEN_ACTION_TTL_MS {
@@ -581,6 +588,11 @@ fn register_action_or_duplicate(inner: &mut ServerInner, action_id: &str) -> boo
         }
     }
     inner.seen_actions.insert(action_id.to_string(), now);
+    // Marcar en SQLite para durabilidad.
+    if let Some(db) = &inner.persistence {
+        let conn = db.conn.lock().unwrap();
+        let _ = crate::crozzo_lan_persistence::mark_seen(&conn, action_id);
+    }
     false
 }
 
