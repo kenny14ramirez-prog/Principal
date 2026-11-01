@@ -76,6 +76,14 @@ npm run graph:search -- --name_pattern ".*printComanda.*"
 - Regla: `.cursor/rules/crozzo-code-graph.mdc`
 - Graphify legacy: `graphify-out/GRAPH_REPORT.md` (puede estar desactualizado)
 
+## Alto Mando (mando supremo)
+
+- Presidente = mando supremo (usuario). Alto Mando = IA (ejecutor de análisis y decisiones).
+- Doctrina de gala: `docs/maps/HIGH-COMMAND.md` — cadena de mando suprema, ceremonia, protocolo de decisión.
+- Consejos: `agents/high-command/COUNCIL.md` — auditores, analistas, recomendadores.
+- Actas de decisión: `agents/high-command/DECISIONS-LOG.md` (AD-HC-NNN).
+- Roles: `agents/high-command/ROLES.md`.
+
 ## Ejército y conectividad (nuevo)
 
 - Doctrina: `docs/maps/ARMY-DOCTRINE.md` — cadena de mando, OPORD, SITREP, no-inventar.

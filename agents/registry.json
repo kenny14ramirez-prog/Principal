@@ -4,6 +4,14 @@
   "doctrine": "docs/maps/ARMY-DOCTRINE.md",
   "toolingContract": "agents/TOOLING-CONTRACT.md",
   "commander": "Comandante de Teatro (Cursor AI principal)",
+  "highCommand": {
+    "president": "Usuario (mando supremo)",
+    "highCommand": "IA (ejecutor de análisis y decisiones)",
+    "doctrine": "docs/maps/HIGH-COMMAND.md",
+    "council": "agents/high-command/COUNCIL.md",
+    "decisionsLog": "agents/high-command/DECISIONS-LOG.md",
+    "roles": "agents/high-command/ROLES.md"
+  },
   "generals": [
     {
       "id": "G2-INTEL",
