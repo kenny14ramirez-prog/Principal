@@ -1,0 +1,155 @@
+// Fase 2.3 — Persistencia robusta: SQLite + HLC + operation log (spike).
+// Módulo nuevo; no cableado aún al servidor crudo/Axum.
+#![allow(dead_code)]
+
+use rusqlite::{params, Connection};
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Hybrid Logical Clock: 48 bits ms + 16 bits counter + node_id.
+#[derive(Clone, Debug)]
+pub struct Hlc {
+    pub physical_ms: u64,
+    pub counter: u16,
+    pub node_id: String,
+}
+
+impl Hlc {
+    pub fn new(node_id: String) -> Self {
+        Self { physical_ms: now_ms(), counter: 0, node_id }
+    }
+
+    pub fn now(&mut self) -> (u64, u16) {
+        let now = now_ms();
+        if now > self.physical_ms {
+            self.physical_ms = now;
+            self.counter = 0;
+        } else if now == self.physical_ms {
+            self.counter = self.counter.saturating_add(1);
+        } else {
+            // reloj retrocedió: mantener physical_ms, incrementar counter
+            self.counter = self.counter.saturating_add(1);
+        }
+        (self.physical_ms, self.counter)
+    }
+
+    pub fn observe(&mut self, remote_ms: u64, remote_counter: u16) {
+        let now = now_ms();
+        if remote_ms > self.physical_ms || (remote_ms == self.physical_ms && remote_counter > self.counter) {
+            self.physical_ms = remote_ms.max(now);
+            self.counter = remote_counter.saturating_add(1);
+        } else if now > self.physical_ms {
+            self.physical_ms = now;
+            self.counter = 0;
+        } else {
+            self.counter = self.counter.saturating_add(1);
+        }
+    }
+
+    pub fn to_string_repr(&self) -> String {
+        format!("{}-{}-{}", self.physical_ms, self.counter, self.node_id)
+    }
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+}
+
+/// Inicializa el schema SQLite para persistencia robusta.
+pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS pending_ops (
+            op_id TEXT PRIMARY KEY,
+            created_at TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            attempts INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS seen_ops (
+            op_id TEXT PRIMARY KEY,
+            seen_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS op_log (
+            seq INTEGER PRIMARY KEY AUTOINCREMENT,
+            op_id TEXT NOT NULL,
+            hlc_ms INTEGER NOT NULL,
+            hlc_counter INTEGER NOT NULL,
+            node_id TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_ops(status);
+        CREATE INDEX IF NOT EXISTS idx_seen_op ON seen_ops(op_id);
+        CREATE INDEX IF NOT EXISTS idx_oplog_op ON op_log(op_id);",
+    )?;
+    Ok(())
+}
+
+/// Persiste una operación pendiente (idempotente por op_id).
+pub fn persist_pending(conn: &Connection, op_id: &str, endpoint: &str, payload: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT OR IGNORE INTO pending_ops (op_id, created_at, endpoint, payload) VALUES (?1, ?2, ?3, ?4)",
+        params![op_id, now_ms().to_string(), endpoint, payload],
+    )?;
+    Ok(())
+}
+
+/// Marca una operación como vista (dedup).
+pub fn mark_seen(conn: &Connection, op_id: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT OR IGNORE INTO seen_ops (op_id, seen_at) VALUES (?1, ?2)",
+        params![op_id, now_ms().to_string()],
+    )?;
+    Ok(())
+}
+
+/// Verifica si una operación ya fue vista.
+pub fn is_seen(conn: &Connection, op_id: &str) -> bool {
+    conn.query_row("SELECT 1 FROM seen_ops WHERE op_id = ?1", params![op_id], |_| Ok(()))
+        .is_ok()
+}
+
+/// Registra en el operation log (append-only).
+pub fn record_op(conn: &Connection, op_id: &str, hlc: &Hlc, payload: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO op_log (op_id, hlc_ms, hlc_counter, node_id, payload, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![op_id, hlc.physical_ms as i64, hlc.counter as i64, hlc.node_id, payload, now_ms().to_string()],
+    )?;
+    Ok(())
+}
+
+/// Carga operaciones pendientes.
+pub fn load_pending(conn: &Connection) -> Vec<(String, String, String)> {
+    let mut stmt = match conn.prepare("SELECT op_id, endpoint, payload FROM pending_ops WHERE status = 'pending'") {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+    });
+    match rows {
+        Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Marca operación como drenada.
+pub fn mark_drained(conn: &Connection, op_id: &str) -> rusqlite::Result<()> {
+    conn.execute("UPDATE pending_ops SET status = 'drained' WHERE op_id = ?1", params![op_id])?;
+    Ok(())
+}
+
+/// Wrapper thread-safe para Connection.
+pub struct PersistenceDb {
+    pub conn: Arc<Mutex<Connection>>,
+}
+
+impl PersistenceDb {
+    pub fn open(path: &Path) -> Result<Self, rusqlite::Error> {
+        let conn = Connection::open(path)?;
+        init_schema(&conn)?;
+        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
+    }
+}
