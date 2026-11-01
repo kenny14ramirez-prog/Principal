@@ -31,5 +31,10 @@
 
 ## Riesgos
 - Migración de estado en memoria a persistente (comandas se pierden al reiniciar si no se drena).
+
+## Decisión: Mutex
+- Se mantiene `std::sync::Mutex` para `shared_state` (evita deadlock en comandos Tauri sync).
+- Handlers Axum usan `spawn_blocking` para operaciones pesadas (ingest_api_sync) y locks breves para lectura.
+- Migración completa a `tokio::sync::Mutex` queda como mejora futura (requiere convertir comandos sync a async).
 - Compatibilidad con clientes JS (endpoints mantienen contrato).
 - Performance de SQLite vs HashMap (benchmark necesario).

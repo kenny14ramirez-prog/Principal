@@ -154,7 +154,7 @@ async fn sync_handler(
     headers: axum::http::HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    // Auth check
+    // Auth check (brief lock)
     let auth_token = {
         let guard = state.lock().unwrap();
         guard.as_ref().map(|i| i.auth_token()).unwrap_or_default()
@@ -165,7 +165,14 @@ async fn sync_handler(
             return (StatusCode::UNAUTHORIZED, Json(json!({"ok": false, "error": "unauthorized"})));
         }
     }
-    match crate::crozzo_lan_sync_server::ingest_api_sync(&state, payload) {
+    // Ejecutar ingest en spawn_blocking para no bloquear el runtime async (F2.3).
+    let state2 = state.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        crate::crozzo_lan_sync_server::ingest_api_sync(&state2, payload)
+    })
+    .await
+    .unwrap_or_else(|e| Err(format!("join error: {}", e)));
+    match result {
         Ok(resp) => (StatusCode::OK, Json(resp)),
         Err(e) => (StatusCode::BAD_REQUEST, Json(json!({"ok": false, "error": e}))),
     }
