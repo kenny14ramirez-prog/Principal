@@ -18,6 +18,10 @@ const LAN_AUTH_HEADER: &str = "x-crozzo-lan-token";
 /// Cabeceras permitidas en preflight CORS (tablets + webview Tauri → :3000).
 const CORS_ALLOW_HEADERS: &str =
     "Content-Type, Accept, x-crozzo-lan-token, X-Crozzo-Lan-Token";
+/// Origen CORS permitido (F2.1). Override con CROZZO_LAN_CORS_ORIGIN.
+fn cors_origin() -> String {
+    std::env::var("CROZZO_LAN_CORS_ORIGIN").unwrap_or_else(|_| "tauri://localhost".to_string())
+}
 /// Tiempo que una operación drenada espera un ACK antes de volver a ofrecerse (reintento).
 const INFLIGHT_TTL_MS: u128 = 20_000;
 /// Tope de operaciones persistidas para no crecer sin límite.
@@ -297,10 +301,14 @@ fn load_pending(path: &Option<PathBuf>) -> Vec<CrozzoLanSyncSubmission> {
 fn save_pending(path: &Option<PathBuf>, pending: &[CrozzoLanSyncSubmission]) {
     if let Some(p) = path {
         if let Ok(txt) = serde_json::to_string(pending) {
-            // Escritura atómica: archivo temporal + rename para evitar corrupción.
+            // Escritura atómica + fsync para durabilidad (F2.1).
             let tmp = p.with_extension("json.tmp");
-            if std::fs::write(&tmp, txt.as_bytes()).is_ok() {
-                let _ = std::fs::rename(&tmp, p);
+            if let Ok(mut f) = std::fs::File::create(&tmp) {
+                use std::io::Write;
+                if f.write_all(txt.as_bytes()).is_ok() {
+                    let _ = f.sync_all();
+                    let _ = std::fs::rename(&tmp, p);
+                }
             }
         }
     }
@@ -314,8 +322,8 @@ async fn write_http_response(
     body: &[u8],
 ) -> tokio::io::Result<()> {
     let headers = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: keep-alive\r\nKeep-Alive: timeout=30, max=1000\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
-        status, status_text, content_type, body.len(), CORS_ALLOW_HEADERS
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: keep-alive\r\nKeep-Alive: timeout=30, max=1000\r\nAccess-Control-Allow-Origin: {}\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
+        status, status_text, content_type, body.len(), cors_origin(), CORS_ALLOW_HEADERS
     );
     stream.write_all(headers.as_bytes()).await?;
     stream.write_all(body).await?;
@@ -1201,6 +1209,12 @@ pub async fn crozzo_lan_sync_start(
     if port < 1024 {
         return Err("Puerto inválido (use ≥ 1024)".into());
     }
+    // F2.1: tracing (JSON opcional via RUST_LOG).
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .try_init();
+    tracing::info!(port = port, "crozzo lan sync starting");
     let _lifecycle = lifecycle_lock().lock().await;
     {
         let guard = shared_state().lock().map_err(|e| e.to_string())?;
