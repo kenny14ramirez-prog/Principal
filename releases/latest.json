@@ -1,25 +1,41 @@
 {
-  "id": "1.0.254-critical",
-  "version": "v1.0.254",
-  "semver": "1.0.254",
+  "id": "1.0.255-critical",
+  "version": "v1.0.255",
+  "semver": "1.0.255",
   "type": "critical",
-  "message": "Fix: DevTools habilitados en produccion + URL manifiesto + todos los fixes OTA",
-  "publishedAt": "2026-11-01T11:06:48.751Z",
+  "message": "Actualización mayor: Fase 2 backend + ejército conectado + RLS diseño + clippy limpio",
+  "publishedAt": "2026-11-01T12:40:58.606Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: DevTools nativo habilitado (feature devtools en Cargo.toml)",
-    "Fix: URL de manifiesto corrupta (auto-limpieza + validacion)",
-    "Fix: ReferenceError delay is not defined",
-    "Fix: build stamp desalineado",
-    "Fix: fetch OTA usa Tauri invoke como fallback",
-    "Fix: rebrand SyntaxErrors",
-    "OTA: preservacion de estado + Android pending + timeouts + concurrencia",
-    "IA local (Ollama) para cierres",
-    "Modernizacion documentos DOC-0 a DOC-6",
-    "Bloque B: plantillas + compatibilidad"
+    "Fase 2: backend Rust modernizado (Axum, persistencia SQLite, HLC, seguridad TLS, observabilidad)",
+    "Fase 1: diseño RLS multi-tenant (inventario + draft SQL + tests pgTAP)",
+    "Ejército: conectividad del arsenal (doctrina, registry, escuadrones, alto mando)",
+    "Synapse Vector: LanceDB + multi-scope + hybrid search + validez temporal + dedup",
+    "Herramientas: Starlight docs (80 pages), Vale config, benchmarks (51 queries)",
+    "Calidad: clippy limpio (-D warnings PASS), sync sin warnings",
+    "Disco: cargo clean (35.4 GB liberados)"
   ],
-  "updatedAt": "2026-11-01T11:06:48.751Z",
+  "updatedAt": "2026-11-01T12:40:58.606Z",
   "entries": [
+    {
+      "id": "1.0.255-critical",
+      "version": "v1.0.255",
+      "semver": "1.0.255",
+      "type": "critical",
+      "message": "Actualización mayor: Fase 2 backend + ejército conectado + RLS diseño + clippy limpio",
+      "publishedAt": "2026-11-01T12:40:58.606Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fase 2: backend Rust modernizado (Axum, persistencia SQLite, HLC, seguridad TLS, observabilidad)",
+        "Fase 1: diseño RLS multi-tenant (inventario + draft SQL + tests pgTAP)",
+        "Ejército: conectividad del arsenal (doctrina, registry, escuadrones, alto mando)",
+        "Synapse Vector: LanceDB + multi-scope + hybrid search + validez temporal + dedup",
+        "Herramientas: Starlight docs (80 pages), Vale config, benchmarks (51 queries)",
+        "Calidad: clippy limpio (-D warnings PASS), sync sin warnings",
+        "Disco: cargo clean (35.4 GB liberados)"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.254-critical",
       "version": "v1.0.254",
