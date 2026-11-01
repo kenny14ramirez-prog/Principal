@@ -71,15 +71,15 @@ pub struct CrozzoLanSyncSubmission {
     pub payload: serde_json::Value,
 }
 
-#[derive(Clone)]
-struct ServerMeta {
-    location_id: String,
-    device_id: String,
-    business_id: String,
-    business_name: String,
+#[derive(Clone, Default)]
+pub struct ServerMeta {
+    pub location_id: String,
+    pub device_id: String,
+    pub business_id: String,
+    pub business_name: String,
     /// URL Supabase (anon key es pública; solo se entrega con token LAN de pareo).
-    supabase_url: String,
-    supabase_anon_key: String,
+    pub supabase_url: String,
+    pub supabase_anon_key: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -117,7 +117,7 @@ struct EmpresaData {
     tipo_contribuyente: String,
 }
 
-struct ServerInner {
+pub struct ServerInner {
     port: u16,
     meta: ServerMeta,
     /// Caja reporta si alcanzó Supabase recientemente (tablets leen /status).
@@ -140,6 +140,16 @@ struct ServerInner {
     /// Rate limiting para consultas RUT: IP → último timestamp de consulta
     rut_rate_limit: HashMap<String, u128>,
     stop: bool,
+}
+
+
+impl ServerInner {
+    pub fn meta(&self) -> ServerMeta { self.meta.clone() }
+    pub fn port(&self) -> u16 { self.port }
+    pub fn auth_token(&self) -> String { self.auth_token.clone() }
+    pub fn cloud_reachable(&self) -> bool { self.cloud_reachable }
+    pub fn cloud_reachable_at_ms(&self) -> u128 { self.cloud_reachable_at_ms }
+    pub fn comandas_count(&self) -> usize { self.comandas_active.len() }
 }
 
 fn shared_state() -> &'static Arc<Mutex<Option<ServerInner>>> {
@@ -494,7 +504,7 @@ fn query_param(path: &str, key: &str) -> Option<String> {
     None
 }
 
-fn mesh_ping_json(meta: &ServerMeta, port: u16) -> Vec<u8> {
+pub fn mesh_ping_json(meta: &ServerMeta, port: u16) -> Vec<u8> {
     let resp = serde_json::json!({
         "ok": true,
         "device_id": meta.device_id,
@@ -1265,7 +1275,11 @@ pub async fn crozzo_lan_sync_start(
         });
     }
     let st = Arc::clone(&shared);
-    let handle = tokio::spawn(run_server(st, listener));
+    let handle = if std::env::var("CROZZO_USE_AXUM").unwrap_or_default() == "1" {
+        tokio::spawn(crate::crozzo_lan_sync_axum::run_axum_server(st, listener))
+    } else {
+        tokio::spawn(run_server(st, listener))
+    };
     {
         let mut th = server_thread().lock().map_err(|e| e.to_string())?;
         *th = Some(handle);
