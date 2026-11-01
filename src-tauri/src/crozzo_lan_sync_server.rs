@@ -21,7 +21,9 @@ const CORS_ALLOW_HEADERS: &str =
     "Content-Type, Accept, x-crozzo-lan-token, X-Crozzo-Lan-Token";
 /// Origen CORS permitido (F2.1). Override con CROZZO_LAN_CORS_ORIGIN.
 fn cors_origin() -> String {
-    std::env::var("CROZZO_LAN_CORS_ORIGIN").unwrap_or_else(|_| "tauri://localhost".to_string())
+    // Default "*" para compatibilidad con WebView2 (origin puede ser http://tauri.localhost o tauri://localhost).
+    // Override con CROZZO_LAN_CORS_ORIGIN en producción para restringir.
+    std::env::var("CROZZO_LAN_CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
 }
 /// Tiempo que una operación drenada espera un ACK antes de volver a ofrecerse (reintento).
 const INFLIGHT_TTL_MS: u128 = 20_000;
