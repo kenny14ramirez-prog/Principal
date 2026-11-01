@@ -1,0 +1,214 @@
+{
+  "name": "CROZZO-ARMY-REGISTRY",
+  "version": "1.0.0",
+  "doctrine": "docs/maps/ARMY-DOCTRINE.md",
+  "toolingContract": "agents/TOOLING-CONTRACT.md",
+  "commander": "Comandante de Teatro (Cursor AI principal)",
+  "generals": [
+    {
+      "id": "G2-INTEL",
+      "name": "General de Inteligencia",
+      "role": "investigacion",
+      "mission": "Investigación, memoria, mapas, conocimiento, grafo, documentación, análisis de mercado/técnicas.",
+      "squads": ["SQ-MAPAS-MEMORIA", "SQ-INVESTIGACION", "SQ-CONOCIMIENTO"],
+      "tools": ["synapse", "maps", "graph", "ki", "websearch", "webfetch", "docs"]
+    },
+    {
+      "id": "G3-OPS",
+      "name": "General de Operaciones",
+      "role": "terreno",
+      "mission": "Terreno, código, sync, fiscal, refactor, fixes, implementación.",
+      "squads": ["SQ-SYNC", "SQ-FISCAL", "SQ-CORE-POS", "SQ-REFACTOR"],
+      "tools": ["edit:scope", "sync", "consolidate", "test:*", "map:refresh", "graph", "ki"]
+    },
+    {
+      "id": "G4-IG",
+      "name": "General de Asuntos Internos (Auditoría)",
+      "role": "auditoria",
+      "mission": "Auditoría de agentes, QA, seguridad, compliance, evidencia, no-inventar.",
+      "squads": ["SQ-QA", "SQ-SEGURIDAD", "SQ-AUDITORIA"],
+      "tools": ["test:*", "qa:*", "issues:validate", "clippy", "cargo-audit", "eslint", "maps", "ki"]
+    },
+    {
+      "id": "G1-LOG",
+      "name": "General de Logística",
+      "role": "logistica",
+      "mission": "Infra, CI/CD, releases, tooling, observabilidad, builds.",
+      "squads": ["SQ-CICD", "SQ-OBSERVABILIDAD", "SQ-TOOLING"],
+      "tools": ["tauri-action", "npm", "graph:index", "synapse:reindex", "maps", "git"]
+    }
+  ],
+  "squads": [
+    {
+      "id": "SQ-MAPAS-MEMORIA",
+      "general": "G2-INTEL",
+      "leader": "MAPA-MAESTRO",
+      "mission": "Mantener mapas, memoria, grafo e issues sincronizados y conectados.",
+      "agents": ["CARTOGRAFO", "ARCHIVERO-SYNAPSE", "GRAFO-INDEXADOR", "KI-GESTOR"],
+      "tools": ["map:refresh", "synapse:*", "graph:*", "issues:*"]
+    },
+    {
+      "id": "SQ-INVESTIGACION",
+      "general": "G2-INTEL",
+      "leader": "SCOUT",
+      "mission": "Investigar en internet y repositorios proyectos/técnicas que sirvan.",
+      "agents": ["WEB-SCOUT", "DOC-ANALYST", "TECH-RADAR"],
+      "tools": ["websearch", "webfetch", "synapse:remember"]
+    },
+    {
+      "id": "SQ-CONOCIMIENTO",
+      "general": "G2-INTEL",
+      "leader": "ADR-KEEPER",
+      "mission": "ADRs, invariantes, documentación, damage history.",
+      "agents": ["ADR-WRITER", "INVARIANTE-GUARDIAN", "DOCS-BUILDER"],
+      "tools": ["docs", "map:refresh", "issues:*"]
+    },
+    {
+      "id": "SQ-SYNC",
+      "general": "G3-OPS",
+      "leader": "SYNC-COMMANDER",
+      "mission": "Sync LAN/nube, fanout, runtime, comandas, conectividad.",
+      "agents": ["RUST-SYNC", "JS-SYNC", "LAN-OPS", "FANOUT-GUARDIAN"],
+      "tools": ["edit:scope", "sync", "test:sync-clinical", "test:lan-ops-sync", "graph"]
+    },
+    {
+      "id": "SQ-FISCAL",
+      "general": "G3-OPS",
+      "leader": "FISCAL-OFFICER",
+      "mission": "Facturación electrónica DIAN, contingencia, recepción FE, OCR.",
+      "agents": ["DIAN-EMISOR", "CONTINGENCIA-MANAGER", "RECEPCION-FE"],
+      "tools": ["test:legalidad-fiscal", "test:contingencia-fiscal", "test:ticket-qr"]
+    },
+    {
+      "id": "SQ-CORE-POS",
+      "general": "G3-OPS",
+      "leader": "POS-COMMANDER",
+      "mission": "POS core: mesas, carrito, caja, cocina, inventario, costos.",
+      "agents": ["MESAS-CARRITO", "CAJA-COBRO", "COCINA-KDS", "INVENTARIO-COSTOS"],
+      "tools": ["edit:scope", "sync", "test:operativo-oro", "test:madurez"]
+    },
+    {
+      "id": "SQ-REFACTOR",
+      "general": "G3-OPS",
+      "leader": "REFACTOR-LEAD",
+      "mission": "Refactor del monolito, bundles, deuda técnica.",
+      "agents": ["MONOLITH-BREAKER", "BUNDLE-MANAGER"],
+      "tools": ["edit:scope", "consolidate", "sync", "graph"]
+    },
+    {
+      "id": "SQ-QA",
+      "general": "G4-IG",
+      "leader": "QA-COMMANDER",
+      "mission": "QA E2E, visual, component, load, fleet scale.",
+      "agents": ["E2E-PLAYWRIGHT", "LOAD-K6", "VISUAL-REGRESSION", "COMPONENT-TESTER", "FLEET-SCALE"],
+      "tools": ["qa:*", "test:*", "playwright"]
+    },
+    {
+      "id": "SQ-SEGURIDAD",
+      "general": "G4-IG",
+      "leader": "SECURITY-OFFICER",
+      "mission": "RLS, tokens, pairing, dependencias, secrets.",
+      "agents": ["RLS-AUDITOR", "TOKEN-GUARDIAN", "DEPENDENCY-SCANNER"],
+      "tools": ["cargo-audit", "cargo-deny", "issues:validate", "supabase"]
+    },
+    {
+      "id": "SQ-AUDITORIA",
+      "general": "G4-IG",
+      "leader": "AUDIT-LEAD",
+      "mission": "SITREP, damage history, compliance, no-inventar.",
+      "agents": ["SITREP-WRITER", "DAMAGE-HISTORY", "COMPLIANCE-CHECKER"],
+      "tools": ["map:refresh", "issues:validate", "synapse:remember"]
+    },
+    {
+      "id": "SQ-CICD",
+      "general": "G1-LOG",
+      "leader": "PIPELINE-LEAD",
+      "mission": "CI/CD, builds, firma, OTA releases.",
+      "agents": ["BUILD-AGENT", "SIGN-AGENT", "OTA-AGENT"],
+      "tools": ["tauri-action", "npm", "git"]
+    },
+    {
+      "id": "SQ-OBSERVABILIDAD",
+      "general": "G1-LOG",
+      "leader": "OBS-LEAD",
+      "mission": "Sentry, OpenTelemetry, Grafana, métricas, logs.",
+      "agents": ["SENTRY-AGENT", "METRICS-AGENT", "LOG-AGENT"],
+      "tools": ["sentry", "opentelemetry", "grafana"]
+    },
+    {
+      "id": "SQ-TOOLING",
+      "general": "G1-LOG",
+      "leader": "TOOLING-LEAD",
+      "mission": "Linters, typecheck, formatters, codebase-memory, synapse.",
+      "agents": ["LINTER-AGENT", "TYPECHECK-AGENT", "FORMATTER-AGENT", "GRAPH-INDEXER", "SYNAPSE-REINDEXER"],
+      "tools": ["eslint", "tsc", "clippy", "graph:index", "synapse:reindex"]
+    }
+  ],
+  "agents": [
+    {"id": "CARTOGRAFO", "squad": "SQ-MAPAS-MEMORIA", "role": "map-refresh, FILES-INDEX, META, BOOT-ORDER", "level": "VETERANO"},
+    {"id": "ARCHIVERO-SYNAPSE", "squad": "SQ-MAPAS-MEMORIA", "role": "synapse:remember/search/reindex, memoria de largo plazo", "level": "VETERANO"},
+    {"id": "GRAFO-INDEXADOR", "squad": "SQ-MAPAS-MEMORIA", "role": "graph:index/search/trace, codebase-memory", "level": "COMPETENTE"},
+    {"id": "KI-GESTOR", "squad": "SQ-MAPAS-MEMORIA", "role": "issues:* , known-issues.json, VALIDATE", "level": "VETERANO"},
+    {"id": "WEB-SCOUT", "squad": "SQ-INVESTIGACION", "role": "websearch, webfetch, investigación externa", "level": "COMPETENTE"},
+    {"id": "DOC-ANALYST", "squad": "SQ-INVESTIGACION", "role": "análisis de docs, papers, repos", "level": "COMPETENTE"},
+    {"id": "TECH-RADAR", "squad": "SQ-INVESTIGACION", "role": "radar de tecnologías, comparativas", "level": "APRENDIZ"},
+    {"id": "ADR-WRITER", "squad": "SQ-CONOCIMIENTO", "role": "ADRs, DECISIONS.md, MADR", "level": "COMPETENTE"},
+    {"id": "INVARIANTE-GUARDIAN", "squad": "SQ-CONOCIMIENTO", "role": "SYNC-INVARIANTS, property tests", "level": "VETERANO"},
+    {"id": "DOCS-BUILDER", "squad": "SQ-CONOCIMIENTO", "role": "Starlight, Vale, TypeDoc, Mermaid", "level": "APRENDIZ"},
+    {"id": "RUST-SYNC", "squad": "SQ-SYNC", "role": "crozzo_lan_sync_server.rs, Axum, Tokio", "level": "COMPETENTE"},
+    {"id": "JS-SYNC", "squad": "SQ-SYNC", "role": "CrozzoPosRuntimeCloud, CrozzoComandasCloudSync, CrozzoOpFanout", "level": "VETERANO"},
+    {"id": "LAN-OPS", "squad": "SQ-SYNC", "role": "CrozzoLanOpsSync, WS transport", "level": "VETERANO"},
+    {"id": "FANOUT-GUARDIAN", "squad": "SQ-SYNC", "role": "CrozzoOpFanout, Z0 priorities", "level": "VETERANO"},
+    {"id": "DIAN-EMISOR", "squad": "SQ-FISCAL", "role": "emisión FE DIAN, CUFE, XAdES", "level": "APRENDIZ"},
+    {"id": "CONTINGENCIA-MANAGER", "squad": "SQ-FISCAL", "role": "contingencia 03/04, transmisión diferida", "level": "APRENDIZ"},
+    {"id": "RECEPCION-FE", "squad": "SQ-FISCAL", "role": "recepción FE, OCR, parse XML", "level": "APRENDIZ"},
+    {"id": "MESAS-CARRITO", "squad": "SQ-CORE-POS", "role": "mesas, carrito, CrozzoPosMain (POS core)", "level": "VETERANO"},
+    {"id": "CAJA-COBRO", "squad": "SQ-CORE-POS", "role": "caja, cobro, cierre", "level": "VETERANO"},
+    {"id": "COCINA-KDS", "squad": "SQ-CORE-POS", "role": "cocina, KDS, comandas", "level": "COMPETENTE"},
+    {"id": "INVENTARIO-COSTOS", "squad": "SQ-CORE-POS", "role": "inventario, costos, compras", "level": "COMPETENTE"},
+    {"id": "MONOLITH-BREAKER", "squad": "SQ-REFACTOR", "role": "refactor CrozzoPosMain.js", "level": "APRENDIZ"},
+    {"id": "BUNDLE-MANAGER", "squad": "SQ-REFACTOR", "role": "consolidate, bundles", "level": "COMPETENTE"},
+    {"id": "E2E-PLAYWRIGHT", "squad": "SQ-QA", "role": "Playwright E2E, trace viewer", "level": "COMPETENTE"},
+    {"id": "LOAD-K6", "squad": "SQ-QA", "role": "k6 load tests, 100 VUs", "level": "APRENDIZ"},
+    {"id": "VISUAL-REGRESSION", "squad": "SQ-QA", "role": "visual regression snapshots", "level": "APRENDIZ"},
+    {"id": "COMPONENT-TESTER", "squad": "SQ-QA", "role": "component testing gallery", "level": "APRENDIZ"},
+    {"id": "FLEET-SCALE", "squad": "SQ-QA", "role": "test:fleet-escala, 100 dispositivos", "level": "COMPETENTE"},
+    {"id": "RLS-AUDITOR", "squad": "SQ-SEGURIDAD", "role": "RLS, grants, policies", "level": "APRENDIZ"},
+    {"id": "TOKEN-GUARDIAN", "squad": "SQ-SEGURIDAD", "role": "tokens, pairing, secrets", "level": "APRENDIZ"},
+    {"id": "DEPENDENCY-SCANNER", "squad": "SQ-SEGURIDAD", "role": "cargo audit, cargo deny, npm audit", "level": "COMPETENTE"},
+    {"id": "SITREP-WRITER", "squad": "SQ-AUDITORIA", "role": "SITREP, damage history, compliance", "level": "COMPETENTE"},
+    {"id": "DAMAGE-HISTORY", "squad": "SQ-AUDITORIA", "role": "damage history por release", "level": "APRENDIZ"},
+    {"id": "COMPLIANCE-CHECKER", "squad": "SQ-AUDITORIA", "role": "no-inventar, evidencia, PASS/FAIL", "level": "VETERANO"},
+    {"id": "BUILD-AGENT", "squad": "SQ-CICD", "role": "tauri build, matrix", "level": "COMPETENTE"},
+    {"id": "SIGN-AGENT", "squad": "SQ-CICD", "role": "code signing, certs", "level": "APRENDIZ"},
+    {"id": "OTA-AGENT", "squad": "SQ-CICD", "role": "OTA, latest.json, updater", "level": "COMPETENTE"},
+    {"id": "SENTRY-AGENT", "squad": "SQ-OBSERVABILIDAD", "role": "Sentry JS+Rust", "level": "APRENDIZ"},
+    {"id": "METRICS-AGENT", "squad": "SQ-OBSERVABILIDAD", "role": "Prometheus, Grafana", "level": "APRENDIZ"},
+    {"id": "LOG-AGENT", "squad": "SQ-OBSERVABILIDAD", "role": "Loki, structured logging", "level": "APRENDIZ"},
+    {"id": "LINTER-AGENT", "squad": "SQ-TOOLING", "role": "ESLint, clippy", "level": "COMPETENTE"},
+    {"id": "TYPECHECK-AGENT", "squad": "SQ-TOOLING", "role": "tsc, checkJs", "level": "APRENDIZ"},
+    {"id": "FORMATTER-AGENT", "squad": "SQ-TOOLING", "role": "prettier, rustfmt", "level": "APRENDIZ"},
+    {"id": "GRAPH-INDEXER", "squad": "SQ-TOOLING", "role": "graph:index, SCIP", "level": "COMPETENTE"},
+    {"id": "SYNAPSE-REINDEXER", "squad": "SQ-TOOLING", "role": "synapse:reindex, embeddings", "level": "COMPETENTE"}
+  ],
+  "existingAgents": {
+    "forensic": ["HYBRID-FORENSIC", "FLAKE-HUNTER", "TIMERS-SCHEDULER"],
+    "investigacion": ["FLEET-SCALE-AUDITOR", "TRANSPORT-CASCADE-AUDITOR"],
+    "orchestrator": ["CEO-QA"],
+    "core": ["agent-brain", "agent-feedback", "human-sim", "jornada-simulator", "jornada-caos"]
+  },
+  "assignment": {
+    "HYBRID-FORENSIC": "SQ-AUDITORIA (G4-IG)",
+    "FLAKE-HUNTER": "SQ-AUDITORIA (G4-IG)",
+    "TIMERS-SCHEDULER": "SQ-AUDITORIA (G4-IG)",
+    "FLEET-SCALE-AUDITOR": "SQ-QA (G4-IG)",
+    "TRANSPORT-CASCADE-AUDITOR": "SQ-SYNC (G3-OPS)",
+    "CEO-QA": "SQ-QA (G4-IG)"
+  },
+  "protocols": {
+    "order": "ARMY-DOCTRINE.md §2 (OPORD 5 pasos)",
+    "report": "ARMY-DOCTRINE.md §3 (SITREP)",
+    "tooling": "agents/TOOLING-CONTRACT.md",
+    "evidence": "ARMY-DOCTRINE.md §6"
+  }
+}

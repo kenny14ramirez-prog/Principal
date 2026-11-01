@@ -9,11 +9,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export class AgentBrain {
-  constructor(agentId, role) {
+  constructor(agentId, role, squad = null, general = null) {
     this.agentId = agentId;
     this.role = role;
+    this.squad = squad;
+    this.general = general;
     this.memoryPath = path.join(__dirname, '..', 'runs', agentId, 'memory.json');
     this.memory = this.load();
+    if (this.memory.squad == null) this.memory.squad = this.squad;
+    if (this.memory.general == null) this.memory.general = this.general;
   }
 
   load() {
@@ -25,6 +29,8 @@ export class AgentBrain {
     return {
       agentId: this.agentId,
       role: this.role,
+      squad: this.squad,
+      general: this.general,
       level: 0, // 0-4
       levelName: 'NOVATO',
       executions: 0,

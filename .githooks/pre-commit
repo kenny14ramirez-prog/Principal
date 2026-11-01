@@ -1,0 +1,20 @@
+#!/bin/sh
+# Pre-commit hook — conectividad del arsenal (Crozzo POS)
+# Activar: git config core.hooksPath .githooks
+
+echo "=== Army pre-commit checks ==="
+
+# 1. Verificar integridad del ejército
+node scripts/verify-army.mjs || exit 1
+
+# 2. Validar known issues
+npm run issues:validate || exit 1
+
+# 3. Mapas frescos (regenerar y verificar diff)
+node scripts/crozzo-map-refresh.mjs
+if ! git diff --quiet docs/maps/; then
+  echo "FAIL: map:refresh produjo cambios. Revisar y commitear mapas."
+  exit 1
+fi
+
+echo "=== Army pre-commit OK ==="

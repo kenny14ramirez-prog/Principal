@@ -17,6 +17,7 @@ Techo de packs ≠ techo de esfuerzo. Usar el arsenal a fondo.
 ## Empieza aquí
 
 1. **🔴 OPERACIÓN VIGENTE:** [`docs/maps/OPORD-MISION-CIEN-100.md`](docs/maps/OPORD-MISION-CIEN-100.md) — leer el **§0 de reconciliación** antes de cualquier fase. `CONTINUIDAD-OPORD.md` queda como archivo histórico (H0–H4/L★/POE): no certifica nada.
+2. **⚔️ DOCTRINA DEL EJÉRCITO:** [`docs/maps/ARMY-DOCTRINE.md`](docs/maps/ARMY-DOCTRINE.md) + [`agents/registry.json`](agents/registry.json) + [`agents/TOOLING-CONTRACT.md`](agents/TOOLING-CONTRACT.md) — cadena de mando, OPORD, SITREP, conectividad del arsenal.
 2. **Histórico de campaña (no autoridad):** [`docs/maps/CONTINUIDAD-OPORD.md`](docs/maps/CONTINUIDAD-OPORD.md) — contexto H0+H1+H2. «COMPLETO» = código entregado; «flota 100» = 10 dispositivos contra mock.
 2. **Hub de mapas:** [`docs/maps/INDEX.md`](docs/maps/INDEX.md) — conexiones, secuencias, invariantes, dominios
 3. **Plan reparación sync:** [`docs/maps/SYNC-REPAIR-PLAN.md`](docs/maps/SYNC-REPAIR-PLAN.md) + [`sync-repair-progress.json`](docs/maps/sync-repair-progress.json)
@@ -74,6 +75,17 @@ npm run graph:search -- --name_pattern ".*printComanda.*"
 - Hard-gates shell: `beforeShellExecution` bloquea force-push a main/master y writes a `src/` (permite `npm run sync`).
 - Regla: `.cursor/rules/crozzo-code-graph.mdc`
 - Graphify legacy: `graphify-out/GRAPH_REPORT.md` (puede estar desactualizado)
+
+## Ejército y conectividad (nuevo)
+
+- Doctrina: `docs/maps/ARMY-DOCTRINE.md` — cadena de mando, OPORD, SITREP, no-inventar.
+- Registro: `agents/registry.json` — generales, escuadrones, agentes especializados.
+- Escuadrones: `agents/squads/SQUADS.md` — líderes y agentes por escuadrón.
+- Contrato de herramientas: `agents/TOOLING-CONTRACT.md` — conectividad del arsenal.
+- Status: `node scripts/agent-status.mjs` — árbol de mando y conectividad.
+- Template SITREP: `agents/templates/SITREP-TEMPLATE.md`.
+
+Generales: G2 (Inteligencia), G3 (Operaciones), G4/IG (Auditoría), G1 (Logística). Cada general comanda escuadrones; cada escuadrón tiene líder + agentes especializados. Todo agente consulta arsenal antes de actuar y reporta SITREP al cerrar.
 
 ## Flujo profesional (Plan / subagentes)
 

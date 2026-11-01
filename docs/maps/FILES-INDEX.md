@@ -13,6 +13,8 @@
 | 282 | `app/core/CrozzoCspDomWire.js` |
 | 443 | `app/core/CrozzoDeviceForm.js` |
 | 233 | `app/core/CrozzoDevicePerf.js` |
+| 258 | `app/core/CrozzoDocDesign.js` |
+| 62 | `app/core/CrozzoDocumentTemplates.js` |
 | 2896 | `app/core/CrozzoLaboratorioCore.js` |
 | 281 | `app/core/CrozzoLazyModules.js` |
 | 343 | `app/core/CrozzoLoginBoot.js` |
@@ -21,8 +23,8 @@
 | 107 | `app/core/CrozzoPosBoot.js` |
 | 3774 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53749 | `app/core/CrozzoPosMain.js` |
-| 2809 | `app/core/CrozzoPrintService.js` |
+| 53784 | `app/core/CrozzoPosMain.js` |
+| 2815 | `app/core/CrozzoPrintService.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
 | 133 | `app/core/CrozzoStorageHygiene.js` |
 | 319 | `app/core/CrozzoTabletNav.js` |
@@ -33,7 +35,7 @@
 | 344 | `app/core/CrozzoViewportFit.js` |
 | 728 | `app/core/pos/CrozzoPosConfigManager.js` |
 | 791 | `app/core/pos/CrozzoPosDianLib.js` |
-| 1289 | `app/core/pos/CrozzoPosFacturasPage.js` |
+| 1290 | `app/core/pos/CrozzoPosFacturasPage.js` |
 | 110 | `app/core/pos/CrozzoPosKeyboard.js` |
 
 ## app/infra/
@@ -86,8 +88,8 @@
 | 351 | `app/infra/CrozzoSedeReadiness.js` |
 | 383 | `app/infra/CrozzoStartupReady.js` |
 | 176 | `app/infra/CrozzoSyncQueueHygiene.js` |
-| 6401 | `app/infra/CrozzoSystemUpdates.js` |
-| 1838 | `app/infra/CrozzoTauriUpdater.js` |
+| 6505 | `app/infra/CrozzoSystemUpdates.js` |
+| 1858 | `app/infra/CrozzoTauriUpdater.js` |
 | 180 | `app/infra/CrozzoTransportPathHealth.js` |
 | 101 | `app/infra/CrozzoUserSyncProfile.js` |
 | 271 | `app/infra/CrozzoWifiDirectBridge.js` |
@@ -100,7 +102,7 @@
 | Líneas | Archivo |
 |--------|--------|
 | 2091 | `app/modules/CrozzoAdquirienteLookup.js` |
-| 1986 | `app/modules/CrozzoAiInsights.js` |
+| 2183 | `app/modules/CrozzoAiInsights.js` |
 | 441 | `app/modules/CrozzoBlobStore.js` |
 | 686 | `app/modules/CrozzoBonaOrigen.js` |
 | 635 | `app/modules/CrozzoCarteraComercial.js` |
@@ -108,7 +110,7 @@
 | 3489 | `app/modules/CrozzoCatalogoMp.js` |
 | 402 | `app/modules/CrozzoCentroCompras.js` |
 | 908 | `app/modules/CrozzoCentroProcesos.js` |
-| 1462 | `app/modules/CrozzoCierrePrint.js` |
+| 1467 | `app/modules/CrozzoCierrePrint.js` |
 | 2691 | `app/modules/CrozzoCierreTurnos.js` |
 | 139 | `app/modules/CrozzoClienteDocIntel.js` |
 | 392 | `app/modules/CrozzoCloudOpsPulse.js` |
@@ -134,7 +136,7 @@
 | 273 | `app/modules/CrozzoDocScanner.js` |
 | 44 | `app/modules/CrozzoDriveDock.js` |
 | 480 | `app/modules/CrozzoFacturasArchivo.js` |
-| 1164 | `app/modules/CrozzoFederacionEngine.js` |
+| 1165 | `app/modules/CrozzoFederacionEngine.js` |
 | 726 | `app/modules/CrozzoFederacionOperaciones.js` |
 | 33 | `app/modules/CrozzoFederacionSql.js` |
 | 583 | `app/modules/CrozzoFlujosMapaPdf.js` |
@@ -165,7 +167,7 @@
 | 449 | `app/modules/CrozzoOperativeSyncGate.js` |
 | 648 | `app/modules/CrozzoPairingQrReader.js` |
 | 186 | `app/modules/CrozzoPairingQuickQr.js` |
-| 538 | `app/modules/CrozzoPedidosInternosEngine.js` |
+| 551 | `app/modules/CrozzoPedidosInternosEngine.js` |
 | 542 | `app/modules/CrozzoPerfilesBiblioteca.js` |
 | 425 | `app/modules/CrozzoPerfilesLogica.js` |
 | 757 | `app/modules/CrozzoPerfilesOperativos.js` |
@@ -196,7 +198,7 @@
 | 380 | `app/modules/CrozzoSalonSlotsConfig.js` |
 | 163 | `app/modules/CrozzoSandboxFiscal.js` |
 | 208 | `app/modules/CrozzoSemaforoMargen.js` |
-| 9259 | `app/modules/CrozzoSistemaCostos.js` |
+| 9260 | `app/modules/CrozzoSistemaCostos.js` |
 | 44 | `app/modules/CrozzoSpotifyDock.js` |
 | 516 | `app/modules/CrozzoStaffCelebrations.js` |
 | 2347 | `app/modules/CrozzoStaffOpsReport.js` |

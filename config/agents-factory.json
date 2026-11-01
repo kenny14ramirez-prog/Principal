@@ -43,5 +43,13 @@
       "aptoConObservaciones": 80,
       "necesitaAjustes": 70
     }
+  },
+  "army": {
+    "registry": "agents/registry.json",
+    "doctrine": "docs/maps/ARMY-DOCTRINE.md",
+    "toolingContract": "agents/TOOLING-CONTRACT.md",
+    "squads": "agents/squads/SQUADS.md",
+    "sitrepTemplate": "agents/templates/SITREP-TEMPLATE.md",
+    "statusScript": "scripts/agent-status.mjs"
   }
 }
