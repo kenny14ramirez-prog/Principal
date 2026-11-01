@@ -41,6 +41,9 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/p2p/signal", post(not_yet))
         .route("/api/consultar-rut", post(consultar_rut))
         .route("/ws", get(ws_handler))
+        .route("/metrics", get(metrics_handler))
+        .route("/livez", get(livez_handler))
+        .route("/readyz", get(readyz_handler))
         .fallback(not_yet)
         .with_state(state)
 }
@@ -209,6 +212,24 @@ async fn ws_handler(ws: axum::extract::WebSocketUpgrade) -> impl IntoResponse {
             }
         }
     })
+}
+
+use std::sync::OnceLock;
+static METRICS: OnceLock<crate::crozzo_lan_observability::SharedMetrics> = OnceLock::new();
+fn shared_metrics() -> &'static crate::crozzo_lan_observability::SharedMetrics {
+    METRICS.get_or_init(crate::crozzo_lan_observability::new_shared)
+}
+
+async fn metrics_handler() -> impl IntoResponse {
+    (StatusCode::OK, [("content-type", "text/plain; version=0.0.4")], shared_metrics().encode())
+}
+
+async fn livez_handler() -> impl IntoResponse {
+    (StatusCode::OK, crate::crozzo_lan_observability::livez())
+}
+
+async fn readyz_handler() -> impl IntoResponse {
+    (StatusCode::OK, crate::crozzo_lan_observability::readyz(true))
 }
 
 fn query_param(path: &str, key: &str) -> Option<String> {
