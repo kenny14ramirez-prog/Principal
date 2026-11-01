@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
+use crate::crozzo_lan_persistence::PersistenceDb;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -140,6 +141,8 @@ pub struct ServerInner {
     /// Rate limiting para consultas RUT: IP → último timestamp de consulta
     rut_rate_limit: HashMap<String, u128>,
     stop: bool,
+    /// Persistencia robusta (SQLite + HLC). Fase 2.3.
+    persistence: Option<PersistenceDb>,
 }
 
 
@@ -852,6 +855,11 @@ pub fn ingest_api_sync(
             }
             let path = inner.pending_path.clone();
             save_pending(&path, &inner.pending);
+            if let Some(db) = &inner.persistence {
+                let conn = db.conn.lock().unwrap();
+                let payload_str = serde_json::to_string(&payload).unwrap_or_default();
+                let _ = crate::crozzo_lan_persistence::persist_pending(&conn, &sub.id, &endpoint, &payload_str);
+            }
         }
     }
     Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true, "action_id": extract_action_id(&payload) }))
@@ -1277,7 +1285,11 @@ pub async fn crozzo_lan_sync_start(
     let loc_id = meta.location_id.clone();
     let dev_id = meta.device_id.clone();
     let biz_id = meta.business_id.clone();
-    let pending_path = pending_file_in(&data_dir.unwrap_or_default());
+    let pending_path = pending_file_in(&data_dir.clone().unwrap_or_default());
+    let persistence_db = data_dir.as_ref().and_then(|d| {
+        let p = std::path::PathBuf::from(d).join("crozzo_lan.db");
+        crate::crozzo_lan_persistence::PersistenceDb::open(&p).ok()
+    });
     let restored = load_pending(&pending_path);
     let shared = Arc::clone(shared_state());
     {
@@ -1298,6 +1310,7 @@ pub async fn crozzo_lan_sync_start(
             pending_path,
             rut_rate_limit: HashMap::new(),
             stop: false,
+            persistence: persistence_db,
         });
     }
     let st = Arc::clone(&shared);
