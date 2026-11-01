@@ -6,7 +6,7 @@ const root = path.resolve(process.argv[1], '../..');
 const latestPath = path.join(root, 'releases/latest.json');
 const data = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
 
-const newSemver = '1.0.255';
+const newSemver = '1.0.256';
 const newId = `${newSemver}-critical`;
 const now = new Date().toISOString();
 const changelog = [
