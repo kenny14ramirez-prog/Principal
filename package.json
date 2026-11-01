@@ -71,6 +71,8 @@
     "army:status": "node scripts/agent-status.mjs",
     "army:verify": "node scripts/verify-army.mjs",
     "rls:coherence": "node scripts/check-rls-coherence.mjs",
+    "invariants:check": "node scripts/check-invariants.mjs",
+    "damage:generate": "node scripts/generate-damage-history.mjs",
     "graph:index": "node node_modules/codebase-memory-mcp/bin.js cli index_repository --repo-path app --name crozzo-pos --mode fast",
     "graph:status": "node node_modules/codebase-memory-mcp/bin.js cli index_status --project crozzo-pos",
     "graph:search": "node node_modules/codebase-memory-mcp/bin.js cli search_graph --project crozzo-pos",

@@ -1,92 +1,65 @@
-# Mapa de secuencias lógicas
+# Secuencias críticas — Crozzo POS (auto-generado / manual)
 
-> Flujos temporales. Invariantes en [SYNC-INVARIANTS.md](SYNC-INVARIANTS.md).
+> Secuencias de flujos críticos. Auto-generar desde `trace_path` del grafo cuando esté disponible. Actualizar manualmente hasta entonces.
 
----
+## 1. Venta mesa → cocina → cobro
 
-## S1 — Tablet agrega producto → caja ve carrito
-
-```
-Usuario tablet: addToCart()
-  → crozzoFinalizeCartMutation('cart_*')
-    → crozzoSyncPosRuntimeCritical('cart_line' | 'tablet_cart_add')
-      → crozzoPushPosRuntimeCloudNow()          [PosRuntimeCloud]
-      → crozzoOpFanoutRuntimeTouch('flush')   [OpFanout → LAN + nube]
-        → Supabase crozzo_mesa_runtime UPSERT
-          → Realtime applyRemoteRow            [otros dispositivos]
-            → applyPosRuntimeSnapshot({ skipUiFields: true })
-              → crozzoReplaceCartsMaps (nube gana si más nuevo)
-              → crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true })
-                → crozzoPatchOperationalPageFromRemote('cajero'|'tablets')
+```mermaid
+sequenceDiagram
+  participant M as Mesa (tablet)
+  participant C as Cocina (KDS)
+  participant J as Caja
+  M->>M: agregar items al carrito
+  M->>C: enviar comanda (fanout LAN + nube)
+  C->>C: preparar (LISTO)
+  C->>M: notificación LISTO (LAN pulse)
+  M->>J: cerrar cuenta
+  J->>J: cobro + cierre de mesa
 ```
 
-**Criterio éxito:** caja ve líneas en &lt;5s, mismo `locationId`, sin 401.
+## 2. Sync runtime (nube ↔ LAN)
 
----
-
-## S2 — Caja cobra → tablet cierra mesa
-
-```
-Usuario caja: cobro / cerrar orden
-  → closedSlots[tipo][ref] = true
-  → crozzoSyncPosRuntimeCritical('post_cobro' | 'slot_paid')
-    → nube + LAN
-      → Tablet applyPosRuntimeSnapshot
-        → crozzoHandleRemoteRuntimeUiSync
-          → if closedSlots[tipo][ref]: crozzoReleaseTabletSlotSession + toast
-```
-
-**Criterio éxito:** tablet no muestra carrito viejo; mesa libre en grilla.
-
----
-
-## S3 — Comandar → cocina
-
-```
-Usuario: crozzoFinalizeComandaSend()
-  → comandas[] local
-  → CrozzoComandasCloudSync fanout (nube + LAN + gossip)
-  → maybeGossipPublishEstado
-  → crozzoTryAutoPrintComanda (si estación con térmica)
-  → crozzoSyncPosRuntimeCritical('comanda_send')
+```mermaid
+sequenceDiagram
+  participant A as Dispositivo A
+  participant L as LAN Sync Server
+  participant N as Supabase (nube)
+  A->>L: POST /api/sync (runtime)
+  L->>L: persistir pending
+  L->>N: drain (si cloud reachable)
+  N-->>L: ACK
+  L->>A: OK + nextSeq
+  L->>L: broadcast lan_ops_pulse (WS)
 ```
 
----
+## 3. Comanda cloud sync
 
-## S4 — Arranque app → sync activo
-
-```
-index.html scripts (ver BOOT-ORDER.md)
-  → CrozzoStartupReady.run()
-    → CrozzoConnectivityOrchestrator
-    → CrozzoPageCloudWatch
-    → startComandasCloudSync / PosRuntimeCloud subscribe
-  → CrozzoPosBoot → initPOS()
-    → navigateTo página rol
-```
-
----
-
-## S5 — Reconexión nube tras offline
-
-```
-CrozzoReconnectSync / crozzoRunFullReconnectSync
-  → drain sync_queue
-  → pull runtime + comandas
-  → applyPosRuntimeSnapshot
-  → crozzoHandleRemoteRuntimeUiSync
+```mermaid
+sequenceDiagram
+  participant D as Dispositivo
+  participant CC as CrozzoComandasCloudSync
+  participant RT as Runtime Cloud
+  D->>CC: enviar comanda
+  CC->>RT: upsert comanda
+  RT->>CC: confirmación
+  CC->>D: status OK
 ```
 
----
+## 4. Fanout híbrido (Z0)
 
-## S6 — Agente edita código (meta-flujo)
+```mermaid
+sequenceDiagram
+  participant O as CrozzoOpFanout
+  participant L as LAN
+  participant N as Nube
+  O->>L: push (Z0)
+  O->>N: push (Z0)
+  L-->>O: ACK
+  N-->>O: ACK
+  O->>O: marcar synced
+```
 
-```
-1. docs/maps/INDEX.md → elegir mapa
-2. npm run edit:scope -- app/.../File.js symbol
-3. Read 1 archivo de CONNECTIONS "Debes revisar"
-4. StrReplace (ancla ≥5 líneas)
-5. npm run sync (hook)
-6. npm run test:sync-clinical (si sync/LAN)
-7. npm run map:refresh (si index.html o exports nuevos)
-```
+## Notas
+- Generar automáticamente con `npm run graph:search -- --name_pattern ".*"` + trace_path cuando codebase-memory esté indexado para todo el stack.
+- Actualizar manualmente si cambia un flujo crítico.
+- Referenciado por `docs/maps/INDEX.md`.

@@ -17,6 +17,14 @@ check('Escuadrones (agents/squads/SQUADS.md)', fs.existsSync(path.join(root, 'ag
 check('SITREP template', fs.existsSync(path.join(root, 'agents/templates/SITREP-TEMPLATE.md')));
 check('Status script', fs.existsSync(path.join(root, 'scripts/agent-status.mjs')));
 
+// 1b. Alto Mando (gala)
+check('Alto Mando (HIGH-COMMAND.md)', fs.existsSync(path.join(root, 'docs/maps/HIGH-COMMAND.md')));
+check('Consejo (COUNCIL.md)', fs.existsSync(path.join(root, 'agents/high-command/COUNCIL.md')));
+check('Actas (DECISIONS-LOG.md)', fs.existsSync(path.join(root, 'agents/high-command/DECISIONS-LOG.md')));
+check('Roles (ROLES.md)', fs.existsSync(path.join(root, 'agents/high-command/ROLES.md')));
+check('Damage history', fs.existsSync(path.join(root, 'docs/maps/DAMAGE-HISTORY.md')));
+check('Secuencias (SEQUENCES.md)', fs.existsSync(path.join(root, 'docs/maps/SEQUENCES.md')));
+
 // 2. Registry JSON válido y estructura mínima
 let reg = null;
 try {
@@ -41,14 +49,20 @@ const factory = JSON.parse(fs.readFileSync(path.join(root, 'config/agents-factor
 check('agents-factory.json sección army', !!factory.army && factory.army.registry === 'agents/registry.json');
 
 // 5. Mapas clave
-for (const f of ['INDEX.md', 'SYNC-INVARIANTS.md', 'KNOWN-ISSUES.md', 'known-issues.json']) {
+for (const f of ['INDEX.md', 'SYNC-INVARIANTS.md', 'KNOWN-ISSUES.md', 'known-issues.json', 'SEQUENCES.md', 'DAMAGE-HISTORY.md']) {
   check(`Mapa ${f}`, fs.existsSync(path.join(root, 'docs/maps', f)));
 }
 
 // 6. Herramientas del arsenal
-for (const f of ['crozzo-map-refresh.mjs', 'crozzo-known-issues.mjs', 'crozzo-edit-scope.mjs']) {
+for (const f of ['crozzo-map-refresh.mjs', 'crozzo-known-issues.mjs', 'crozzo-edit-scope.mjs', 'check-invariants.mjs', 'generate-damage-history.mjs', 'check-maps-fresh.mjs', 'check-rls-coherence.mjs']) {
   check(`Script ${f}`, fs.existsSync(path.join(root, 'scripts', f)));
 }
+
+// 7. Alto Mando
+check('High command doctrine', fs.existsSync(path.join(root, 'docs/maps/HIGH-COMMAND.md')));
+check('Council', fs.existsSync(path.join(root, 'agents/high-command/COUNCIL.md')));
+check('Decisions log', fs.existsSync(path.join(root, 'agents/high-command/DECISIONS-LOG.md')));
+check('Roles', fs.existsSync(path.join(root, 'agents/high-command/ROLES.md')));
 
 // Reporte
 let ok = 0, fail = 0;

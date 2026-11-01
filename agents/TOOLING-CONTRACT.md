@@ -65,3 +65,31 @@ Código (app/) ──sync──► src/ (espejo Tauri)
 ```
 
 Toda herramienta lee/escribe sobre la misma fuente de verdad: `app/` + `docs/maps/` + `synapse/memory.db`.
+
+## G. Automatización del ejército (conectividad)
+
+1. CI gate de mapas: `map:refresh` debe dejar diff vacío en PR; si no, falla.
+2. CI gate de issues: `issues:validate` + KI `fixed` con tests; bloquear merge si falla.
+3. CI gate de docs: build Starlight + Vale + link-check.
+4. CI gate de invariantes: property tests (fast-check/proptest) en cada PR.
+5. Impact-based test selection: `detect_changes` (grafo) → símbodos afectados → dependientes → subset de tests.
+6. Auto-captura de KI: hook de CI sobre fallo de test → borrador KI con stack trace y archivos.
+7. Auto-regresión: cuando cambian archivos de un KI, re-correr sus tests; si fallan → `status: regressed` + notificación.
+8. Auto-ADR desde PR: template con sección "Decision"; bot extrae a `DECISIONS.md` (MADR).
+9. Auto-memoria post-merge: CI llama `synapse:remember` con resumen del PR.
+10. Watcher de embeddings: re-indexar Synapse incrementalmente al cambiar `app/`/`docs/`.
+11. Damage history por release: job que genera `DAMAGE-HISTORY.md` y lo commitea.
+12. Pre-commit hook: `issues:search` sobre archivos cambiados; avisar si se toca un símbodo con KI.
+13. Quarantine automática de flaky tests: si failure rate >5% en N runs, mover a cuarentena y abrir issue.
+14. Runtime invariant monitor: contador de violaciones por sede; alerta si >0.
+15. Doc drift detection: comparar firmas JSDoc con código; fallar si stale.
+16. Auto-generar secuencias Mermaid desde `trace_path` en `map:refresh`.
+17. Snapshot de grafo por release + diff estructural en damage history.
+
+Scripts disponibles:
+- `npm run army:status` — árbol de mando + últimos SITREPs.
+- `npm run army:verify` — integridad del ejército (22+ checks).
+- `npm run rls:coherence` — coherencia SQL↔inventario.
+- `node scripts/check-invariants.mjs` — invariantes documentados.
+- `node scripts/generate-damage-history.mjs` — regenerar DAMAGE-HISTORY.md.
+- `node scripts/check-maps-fresh.mjs` — mapas frescos (sin modificar).

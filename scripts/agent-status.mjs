@@ -2,6 +2,7 @@
 // Agent status — lee agents/registry.json y muestra árbol de mando + conectividad.
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 
 const root = path.resolve(process.cwd());
 const regPath = path.join(root, 'agents', 'registry.json');
@@ -13,7 +14,13 @@ if (!fs.existsSync(regPath)) {
 
 const reg = JSON.parse(fs.readFileSync(regPath, 'utf8'));
 
+let branch='unknown', head='unknown', lastCommit='unknown';
+try { branch = execSync('git rev-parse --abbrev-ref HEAD', {cwd:root}).toString().trim(); } catch {}
+try { head = execSync('git rev-parse --short HEAD', {cwd:root}).toString().trim(); } catch {}
+try { lastCommit = execSync('git log -1 --pretty=%s', {cwd:root}).toString().trim(); } catch {}
 console.log(`\n=== ${reg.name} v${reg.version} ===`);
+console.log(`Rama: ${branch} | HEAD: ${head}`);
+console.log(`Último commit: ${lastCommit}`);
 console.log(`Comandante: ${reg.commander}`);
 console.log(`Doctrina: ${reg.doctrine}`);
 console.log(`Contrato: ${reg.toolingContract}\n`);
