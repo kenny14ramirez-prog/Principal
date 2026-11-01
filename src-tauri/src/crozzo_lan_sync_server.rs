@@ -150,7 +150,33 @@ impl ServerInner {
     pub fn cloud_reachable(&self) -> bool { self.cloud_reachable }
     pub fn cloud_reachable_at_ms(&self) -> u128 { self.cloud_reachable_at_ms }
     pub fn comandas_count(&self) -> usize { self.comandas_active.len() }
+    pub fn comandas_values(&self) -> Vec<serde_json::Value> { self.comandas_active.values().cloned().collect() }
+    pub fn runtime_saved_at(&self) -> String { self.runtime_saved_at.clone() }
+    pub fn runtime_snapshot(&self) -> Option<serde_json::Value> { self.runtime_snapshot.clone() }
+    pub fn p2p_signals_filtered(&self, for_dev: &str, since: u128) -> Vec<serde_json::Value> {
+        let mut out = Vec::new();
+        for sig in &self.p2p_signals {
+            let at = sig.at_ms.parse::<u128>().unwrap_or(0);
+            if at < since { continue; }
+            let include = if for_dev.is_empty() {
+                true
+            } else if for_dev == "central" {
+                sig.to == "central"
+            } else {
+                sig.to == for_dev
+            };
+            if include {
+                out.push(serde_json::to_value(sig).unwrap_or(serde_json::json!({})));
+            }
+        }
+        out
+    }
+    pub fn ops_digest(&self) -> serde_json::Value {
+        let rows: Vec<serde_json::Value> = self.comandas_active.values().cloned().collect();
+        ops_digest_from_comandas(&rows, &self.runtime_saved_at)
+    }
 }
+
 
 fn shared_state() -> &'static Arc<Mutex<Option<ServerInner>>> {
     static STATE: OnceLock<Arc<Mutex<Option<ServerInner>>>> = OnceLock::new();
@@ -183,7 +209,7 @@ fn now_ms_u128() -> u128 {
 }
 
 /// Anti-entropy digest (alineado con CrozzoLanOpsSync.localComandasDigest — FNV-1a 32).
-fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) -> serde_json::Value {
+pub fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) -> serde_json::Value {
     let mut ids: Vec<String> = Vec::new();
     let mut max_at: i64 = 0;
     for row in rows {

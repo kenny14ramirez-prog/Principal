@@ -40,6 +40,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/invoices", post(sync_handler))
         .route("/api/p2p/signal", post(not_yet))
         .route("/api/consultar-rut", post(consultar_rut))
+        .route("/ws", get(ws_handler))
         .fallback(not_yet)
         .with_state(state)
 }
@@ -105,20 +106,47 @@ async fn pairing_cloud(State(state): State<SharedState>, headers: axum::http::He
     })))
 }
 
-async fn p2p_signal() -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"ok": false, "error": "not_migrated_yet"})))
+async fn p2p_signal(State(state): State<SharedState>, uri: axum::http::Uri) -> impl IntoResponse {
+    let path = uri.to_string();
+    let for_dev = query_param(&path, "for").unwrap_or_default();
+    let since = query_param(&path, "since").and_then(|s| s.parse::<u128>().ok()).unwrap_or(0);
+    let guard = state.lock().unwrap();
+    let signals = guard.as_ref().map(|i| i.p2p_signals_filtered(&for_dev, since)).unwrap_or_default();
+    (StatusCode::OK, Json(json!({"ok": true, "signals": signals})))
 }
 
-async fn ops_digest() -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"ok": false, "error": "not_migrated_yet"})))
+async fn ops_digest(State(state): State<SharedState>) -> impl IntoResponse {
+    let guard = state.lock().unwrap();
+    let resp = guard.as_ref().map(|i| i.ops_digest()).unwrap_or_else(|| json!({"ok": false}));
+    (StatusCode::OK, Json(resp))
 }
 
-async fn comandas() -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"ok": false, "error": "not_migrated_yet"})))
+async fn comandas(State(state): State<SharedState>, headers: axum::http::HeaderMap) -> impl IntoResponse {
+    let guard = state.lock().unwrap();
+    let (meta, auth_token) = match guard.as_ref() {
+        Some(i) => (i.meta(), i.auth_token()),
+        None => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"ok": false, "error": "server_stopped"}))),
+    };
+    let provided = headers.get("x-crozzo-lan-token").and_then(|v| v.to_str().ok()).unwrap_or("");
+    if !auth_token.is_empty() && provided != auth_token {
+        return (StatusCode::UNAUTHORIZED, Json(json!({"ok": false, "error": "unauthorized"})));
+    }
+    let rows = guard.as_ref().map(|i| i.comandas_values()).unwrap_or_default();
+    let runtime_saved = guard.as_ref().map(|i| i.runtime_saved_at()).unwrap_or_default();
+    let resp = json!({"ok": true, "comandas": rows, "runtime_saved_at": runtime_saved});
+    (StatusCode::OK, Json(resp))
 }
 
-async fn runtime() -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, Json(json!({"ok": false, "error": "not_migrated_yet"})))
+async fn runtime(State(state): State<SharedState>, headers: axum::http::HeaderMap) -> impl IntoResponse {
+    let guard = state.lock().unwrap();
+    let auth_token = guard.as_ref().map(|i| i.auth_token()).unwrap_or_default();
+    let provided = headers.get("x-crozzo-lan-token").and_then(|v| v.to_str().ok()).unwrap_or("");
+    if !auth_token.is_empty() && provided != auth_token {
+        return (StatusCode::UNAUTHORIZED, Json(json!({"ok": false, "error": "unauthorized"})));
+    }
+    let snapshot = guard.as_ref().and_then(|i| i.runtime_snapshot());
+    let saved_at = guard.as_ref().map(|i| i.runtime_saved_at()).unwrap_or_default();
+    (StatusCode::OK, Json(json!({"ok": true, "runtime": snapshot, "runtime_saved_at": saved_at})))
 }
 
 async fn sync_handler(
@@ -162,6 +190,29 @@ async fn consultar_rut(Json(payload): Json<serde_json::Value>) -> impl IntoRespo
         }
     });
     (StatusCode::OK, Json(resp))
+}
+
+async fn ws_handler(ws: axum::extract::WebSocketUpgrade) -> impl IntoResponse {
+    ws.on_upgrade(|mut socket| async move {
+        use axum::extract::ws::Message;
+        let _ = socket.send(Message::Text("connected".into())).await;
+        while let Some(Ok(msg)) = socket.recv().await {
+            if let Message::Close(_) = msg {
+                break;
+            }
+        }
+    })
+}
+
+fn query_param(path: &str, key: &str) -> Option<String> {
+    let q = path.split('?').nth(1)?;
+    for pair in q.split('&') {
+        let mut kv = pair.splitn(2, '=');
+        if kv.next()? == key {
+            return kv.next().map(|v| v.to_string());
+        }
+    }
+    None
 }
 
 async fn not_yet() -> impl IntoResponse {
