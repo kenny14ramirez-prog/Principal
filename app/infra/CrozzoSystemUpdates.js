@@ -2152,10 +2152,17 @@
   function getManifestUrl() {
     try {
       var u = localStorage.getItem(LS_MANIFEST);
-      if (u && String(u).trim()) return String(u).trim();
+      if (u && String(u).trim()) {
+        var ut = String(u).trim();
+        // Validar: debe ser HTTPS y terminar en .json (evitar URLs corruptas/duplicadas).
+        if (/^https:\/\/.+\.json$/i.test(ut)) return ut;
+        // Si la URL guardada es inválida, limpiarla y usar default.
+        try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
+      }
     } catch (_) {}
     if (global.CROZZO_UPDATE_MANIFEST_URL && String(global.CROZZO_UPDATE_MANIFEST_URL).trim()) {
-      return String(global.CROZZO_UPDATE_MANIFEST_URL).trim();
+      var gu = String(global.CROZZO_UPDATE_MANIFEST_URL).trim();
+      if (/^https:\/\/.+\.json$/i.test(gu)) return gu;
     }
     return DEFAULT_MANIFEST_URL;
   }
@@ -2169,10 +2176,16 @@
 
   function setManifestUrl(url) {
     var u = String(url || '').trim();
+    // Validar: solo guardar si es HTTPS y termina en .json.
+    if (u && !/^https:\/\/.+\.json$/i.test(u)) {
+      try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
+      return false;
+    }
     try {
       if (u) localStorage.setItem(LS_MANIFEST, u);
       else localStorage.removeItem(LS_MANIFEST);
     } catch (_) {}
+    return true;
   }
 
   function normalizeRegistryEntries(data) {

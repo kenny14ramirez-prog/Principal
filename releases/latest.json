@@ -1,21 +1,39 @@
 {
-  "id": "1.0.249-critical",
-  "version": "v1.0.249",
-  "semver": "1.0.249",
+  "id": "1.0.250-critical",
+  "version": "v1.0.250",
+  "semver": "1.0.250",
   "type": "critical",
-  "message": "Fix OTA: delay undefined + build stamp + Tauri invoke fallback + error real",
-  "publishedAt": "2026-10-31T23:51:46.734Z",
+  "message": "Fix OTA: URL corrupta (latest.jsonreleases/latest.json) + validacion de URL",
+  "publishedAt": "2026-11-01T00:07:13.109Z",
   "installMode": "auto",
   "changelog": [
+    "Fix: URL de manifiesto corrupta (duplicacion latest.json) - validacion en getManifestUrl/setManifestUrl",
     "Fix: ReferenceError delay is not defined",
-    "Fix: build stamp desalineado (app/index.html)",
+    "Fix: build stamp desalineado",
     "Fix: fetch OTA usa Tauri invoke como fallback",
-    "Fix: mensaje de error real",
     "Fix: rebrand SyntaxErrors",
     "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
   ],
-  "updatedAt": "2026-10-31T23:51:46.734Z",
+  "updatedAt": "2026-11-01T00:07:13.109Z",
   "entries": [
+    {
+      "id": "1.0.250-critical",
+      "version": "v1.0.250",
+      "semver": "1.0.250",
+      "type": "critical",
+      "message": "Fix OTA: URL corrupta (latest.jsonreleases/latest.json) + validacion de URL",
+      "publishedAt": "2026-11-01T00:07:13.109Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: URL de manifiesto corrupta (duplicacion latest.json) - validacion en getManifestUrl/setManifestUrl",
+        "Fix: ReferenceError delay is not defined",
+        "Fix: build stamp desalineado",
+        "Fix: fetch OTA usa Tauri invoke como fallback",
+        "Fix: rebrand SyntaxErrors",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.249-critical",
       "version": "v1.0.249",
