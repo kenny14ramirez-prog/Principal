@@ -1,21 +1,37 @@
 {
-  "id": "1.0.251-critical",
-  "version": "v1.0.251",
-  "semver": "1.0.251",
+  "id": "1.0.252-critical",
+  "version": "v1.0.252",
+  "semver": "1.0.252",
   "type": "critical",
-  "message": "Fix OTA: URL corrupta (latest.jsonreleases/latest.json) auto-limpieza + validacion",
-  "publishedAt": "2026-11-01T00:41:57.256Z",
+  "message": "Fix workflow: remover job deploy-crm-registro (script inexistente)",
+  "publishedAt": "2026-11-01T00:48:52.959Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: URL de manifiesto corrupta auto-limpieza (getManifestUrl/setManifestUrl validan)",
+    "Fix: remover job deploy-crm-registro (npm script deploy:crm-qr inexistente)",
+    "Fix: URL de manifiesto corrupta (auto-limpieza)",
     "Fix: ReferenceError delay is not defined",
-    "Fix: build stamp desalineado",
-    "Fix: fetch OTA usa Tauri invoke como fallback",
     "Fix: rebrand SyntaxErrors",
     "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
   ],
-  "updatedAt": "2026-11-01T00:41:57.256Z",
+  "updatedAt": "2026-11-01T00:48:52.959Z",
   "entries": [
+    {
+      "id": "1.0.252-critical",
+      "version": "v1.0.252",
+      "semver": "1.0.252",
+      "type": "critical",
+      "message": "Fix workflow: remover job deploy-crm-registro (script inexistente)",
+      "publishedAt": "2026-11-01T00:48:52.959Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: remover job deploy-crm-registro (npm script deploy:crm-qr inexistente)",
+        "Fix: URL de manifiesto corrupta (auto-limpieza)",
+        "Fix: ReferenceError delay is not defined",
+        "Fix: rebrand SyntaxErrors",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.251-critical",
       "version": "v1.0.251",
