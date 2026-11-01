@@ -100,9 +100,29 @@ if (cmd === 'remember') {
   const source = (args.find(a => a.startsWith('--source=')) || '').split('=')[1] || '';
   const vector = await embed(text);
   const table = await getTable();
-  const id = `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await table.add([{ id, text, vector, scope_user: scope.user, scope_agent: scope.agent, scope_run: scope.run, scope_app: scope.app, scope_org: scope.org, category, timestamp: new Date().toISOString(), source }]);
-  console.log('Remembered:', id, '| scope:', JSON.stringify(scope));
+  const threshold = parseFloat((args.find(a => a.startsWith('--dedup-threshold=')) || '--dedup-threshold=0.92').split('=')[1]);
+  // Dedup semántica: buscar memorias similares en el mismo scope
+  let mergedId = null;
+  try {
+    const where = buildWhere(scope);
+    let q = table.search(vector).limit(5);
+    if (where) q = q.where(where);
+    const hits = await q.toArray();
+    for (const h of hits) {
+      const sim = 1 - (h._distance || 0);
+      if (sim >= threshold) { mergedId = h.id; break; }
+    }
+  } catch (e) { /* ignore */ }
+
+  if (mergedId) {
+    const mergedText = text; // reemplazar con nuevo (o concatenar si se prefiere)
+    await table.update({ where: `id = '${mergedId.replace(/'/g, "''")}'`, values: { text: mergedText, vector, timestamp: new Date().toISOString(), source } });
+    console.log('Merged into existing:', mergedId, '| sim>=', threshold, '| scope:', JSON.stringify(scope));
+  } else {
+    const id = `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await table.add([{ id, text, vector, scope_user: scope.user, scope_agent: scope.agent, scope_run: scope.run, scope_app: scope.app, scope_org: scope.org, category, timestamp: new Date().toISOString(), source }]);
+    console.log('Remembered:', id, '| scope:', JSON.stringify(scope));
+  }
   process.exit(0);
 }
 
