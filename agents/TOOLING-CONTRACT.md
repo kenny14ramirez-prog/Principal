@@ -12,6 +12,7 @@
 | 4 | Símbolos | `mcp-code-context` (`search_symbols`, `read_file_surgical`) | Lectura quirúrgica en archivos grandes |
 | 5 | Memoria | `npm run synapse:search -- "tema"` | Contexto de largo plazo |
 | 5b | Memoria vectorial | `npm run synapse:vector search "tema" --scope` | LanceDB + multi-scope (user/agent/run/app/org) |
+| 5d | Validez temporal | `npm run synapse:vector search "tema" --as-of=ISO` | Memorias válidas en un punto en el tiempo (auditoría fiscal) |
 | 5c | Búsqueda híbrida | `npm run synapse:hybrid search "tema"` | BM25 (SQLite) + vector (LanceDB) + recencia |
 | 6 | Scope | `npm run edit:scope -- app/ruta/archivo.js simbodo` | Issues relacionados al archivo/símbodo |
 | 7 | Git | `git status` + `git log -5` | Frescura y rama |

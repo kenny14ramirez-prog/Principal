@@ -52,7 +52,7 @@ async function getTable() {
     return await db.openTable('synapse_memory');
   } catch {
     return await db.createTable('synapse_memory', [
-      { id: 'init', text: 'init', vector: await embed('init'), scope_user: '', scope_agent: '', scope_run: '', scope_app: '', scope_org: '', category: 'init', timestamp: new Date().toISOString(), source: '' },
+      { id: 'init', text: 'init', vector: await embed('init'), scope_user: '', scope_agent: '', scope_run: '', scope_app: '', scope_org: '', category: 'init', timestamp: new Date().toISOString(), valid_from: new Date().toISOString(), valid_to: '', source: '' },
     ]);
   }
 }
@@ -98,6 +98,8 @@ if (cmd === 'remember') {
   const scope = parseScope(args);
   const category = (args.find(a => a.startsWith('--category=')) || '').split('=')[1] || 'general';
   const source = (args.find(a => a.startsWith('--source=')) || '').split('=')[1] || '';
+  const validFrom = (args.find(a => a.startsWith('--valid-from=')) || '').split('=')[1] || new Date().toISOString();
+  const validTo = (args.find(a => a.startsWith('--valid-to=')) || '').split('=')[1] || '';
   const vector = await embed(text);
   const table = await getTable();
   const threshold = parseFloat((args.find(a => a.startsWith('--dedup-threshold=')) || '--dedup-threshold=0.92').split('=')[1]);
@@ -116,11 +118,11 @@ if (cmd === 'remember') {
 
   if (mergedId) {
     const mergedText = text; // reemplazar con nuevo (o concatenar si se prefiere)
-    await table.update({ where: `id = '${mergedId.replace(/'/g, "''")}'`, values: { text: mergedText, vector, timestamp: new Date().toISOString(), source } });
+    await table.update({ where: `id = '${mergedId.replace(/'/g, "''")}'`, values: { text: mergedText, vector, timestamp: new Date().toISOString(), valid_from: validFrom, valid_to: validTo, source } });
     console.log('Merged into existing:', mergedId, '| sim>=', threshold, '| scope:', JSON.stringify(scope));
   } else {
     const id = `mem-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    await table.add([{ id, text, vector, scope_user: scope.user, scope_agent: scope.agent, scope_run: scope.run, scope_app: scope.app, scope_org: scope.org, category, timestamp: new Date().toISOString(), source }]);
+    await table.add([{ id, text, vector, scope_user: scope.user, scope_agent: scope.agent, scope_run: scope.run, scope_app: scope.app, scope_org: scope.org, category, timestamp: new Date().toISOString(), valid_from: validFrom, valid_to: validTo, source }]);
     console.log('Remembered:', id, '| scope:', JSON.stringify(scope));
   }
   process.exit(0);
@@ -131,17 +133,24 @@ if (cmd === 'search') {
   if (!query) { console.error('Uso: search "query" [--user=...] [--agent=...] [--run=...] [--app=...] [--org=...] [--limit=N]'); process.exit(1); }
   const scope = parseScope(args);
   const limit = parseInt((args.find(a => a.startsWith('--limit=')) || '--limit=5').split('=')[1], 10);
+  const asOf = (args.find(a => a.startsWith('--as-of=')) || '').split('=')[1] || new Date().toISOString();
   const vector = await embed(query);
   const table = await getTable();
   let q = table.search(vector).limit(limit);
-  const where = buildWhere(scope);
+  const whereParts = [];
+  const sw = buildWhere(scope);
+  if (sw) whereParts.push(sw);
+  // Validez temporal: memoria válida en asOf
+  whereParts.push(`(valid_from = '' OR valid_from <= '${asOf.replace(/'/g, "''")}')`);
+  whereParts.push(`(valid_to = '' OR valid_to >= '${asOf.replace(/'/g, "''")}')`);
+  const where = whereParts.join(' AND ');
   if (where) q = q.where(where);
   const results = await q.toArray();
   console.log(`Search "${query}" (${results.length} results):`);
   for (const r of results) {
     console.log(`  [${r.id}] (dist=${r._distance?.toFixed(4)}) ${r.text}`);
     if (r.source) console.log(`      source: ${r.source}`);
-    if (r.category) console.log(`      category: ${r.category}, ts: ${r.timestamp}`);
+    if (r.category) console.log(`      category: ${r.category}, ts: ${r.timestamp}, valid: ${r.valid_from || '?'} -> ${r.valid_to || 'inf'}`);
   }
   process.exit(0);
 }
