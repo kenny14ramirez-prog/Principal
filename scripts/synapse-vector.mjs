@@ -12,7 +12,7 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const EMBED_MODEL = process.env.EMBED_MODEL || 'nomic-embed-text';
 
 // --- Embeddings ---
-const DIM = 384;
+const DIM = 768;
 async function embed(text) {
   try {
     const res = await fetch(`${OLLAMA_URL}/api/embeddings`, {

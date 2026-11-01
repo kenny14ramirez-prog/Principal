@@ -67,6 +67,7 @@
     "synapse:seed": "node scripts/synapse-mind.mjs seed",
     "synapse:reindex": "node scripts/synapse-mind.mjs reindex",
     "synapse:vector": "node scripts/synapse-vector.mjs",
+    "synapse:hybrid": "node scripts/synapse-hybrid.mjs",
     "mind:health": "node scripts/crozzo-mind-stack.mjs health",
     "mind:refresh": "node scripts/crozzo-map-refresh.mjs && node scripts/synapse-mind.mjs reindex",
     "army:status": "node scripts/agent-status.mjs",
