@@ -30,7 +30,7 @@
 5. **Mapa vinculante:** F0←H0 · F8←H1.5/H1.6 · F9←H2.D/H2.E · **F10 reemplaza toda QA previa**. H2.F, H3b, H3c y H4 quedan congeladas hasta F11 o nueva versión.
 6. **Árbol auditado = árbol desplegado.** Tauri empaqueta `src/` (`src-tauri/tauri.conf.json:7`, `frontendDist: "../src"`). El navegador está **abandonado** por limitaciones de impresoras POS y conectividad. Toda auditoría se hace sobre `src/`; `app/` es fuente de edición, no objeto de certificación.
 7. **Cadena fuente→build degradada (P0-2):** `src/index.html` se regenera de `app/Crozzo_POS_Completo.html` (155 scripts), no de `app/index.html` (179 scripts). Por eso `CrozzoOcrFactura`, `CrozzoContingenciaFiscal` y `CrozzoComandaArchive` existen en `app/` y **no llegan al APK**. Ningún PASS fiscal o de OCR es válido hasta que el set de scripts coincida.
-8. **Bloqueo de compilación vigente:** `cargo check` falla por `RC.EXE`/`link.exe` ausentes (`tauri-winres`). F2, F3, F4, F6 y F7 se **planifican**; su PASS contra el servidor Rust real queda prohibido hasta desbloquear el toolchain.
+8. **Toolchain Rust: DESBLOQUEADO (2026-11-01).** `cargo check` pasa (exit 0) con 2 warnings menores (unused import `serde_json::Value`, dead_code `OllamaModelInfo`). F2, F3, F4, F6 y F7 pueden verificarse contra el servidor Rust real. Queda prohibido citar este bloqueo como vigente.
 9. **Evidencia válida:** solo `docs/maps/ops/evidencia/<TASK-ID>/` con `commit`, comando, salida, `hash` y timestamp (§12). `agents/runs/**`, BITACORA, STRESS y CONTINUIDAD **no son evidencia**: son guiones.
 10. **QA previa invalidada:** `jornada-simulator.mjs` no navega ni crea facturas; `comandas` nunca se incrementa y «OK» está hardcodeado. `test:fleet-escala` corre 2 PCs + 4 tablets contra `field-mock-lan-central`. Ninguna de las dos certifica nada.
 11. **Ninguna medición anterior al commit de F0-T01 vale como línea base.** Hay 45 entradas sin commitear: congelar es requisito de validez, no burocracia.
@@ -54,7 +54,7 @@
 | H-08 | Malla BLE multi-salto existe (`MAX_HOPS=12`) pero solo relaya identidad | `CrozzoBleMesh.js:11,23` |
 | H-09 | Failover de caja solo a *backup* predefinido, sin elección por capacidad ni epoch | `CrozzoCentralFailover.js:36`, `PROMOTE_HOLD_MS=18000` |
 | H-10 | Roles solo A y B; no existe rol C (estación de impresión) | `CrozzoBlePeerRegistry.js:125` |
-| H-11 | Toolchain Rust no compila en el entorno actual (`RC.EXE`/`link.exe` ausentes) | `cargo check` falla |
+| H-11 | Toolchain Rust (RESUELTO 2026-11-01) | `cargo check` PASS (exit 0, 2 warnings menores) |
 | H-12 | Suite `_connectivity-orchestrator-check` con 12 fallos / 111 checks | ejecución previa |
 
 ### 1.2 Amenazas
@@ -172,7 +172,7 @@ Diseñar, implementar y **certificar** que un restaurante o tienda puede operar 
 | ID | Entorno | Contenido | Uso |
 |---|---|---|---|
 | **E1** | Dev Windows | Node 20+, Playwright, VS Code, Git | Desarrollo JS y pruebas |
-| **E2** | Toolchain Rust | MSVC Build Tools, Windows SDK, `RC.EXE`, `link.exe` | Compilar Tauri y tests Rust |
+| **E2** | Toolchain Rust | MSVC Build Tools, Windows SDK, `RC.EXE`, `link.exe` | **INSTALADO 2026-11-01** — `cargo check` PASS |
 | **E3** | Android | 3 equipos reales (gama baja/media/alta) + AVD | Pruebas de cliente |
 | **E4** | Red de laboratorio | Router + 3 APs cableados, VLAN POS, 5 GHz | Escala y aire |
 | **E5** | Nube staging | Supabase staging + proveedor fiscal sandbox | Fiscal y sync nube |
@@ -284,7 +284,7 @@ Cada agente de G1 mantiene `docs/maps/ops/fuentes-<tema>.md`:
 | ID | Tarea | Resp. | Recursos | Entregable | PASS |
 |---|---|---|---|---|---|
 | F0-T01 | Congelar cambios sin commitear en `wip/cascada-estricta` | G2 | Git | Rama creada | `git status` limpio en rama de trabajo |
-| F0-T02 | Instalar toolchain Rust (E2) | G2 | E2 | `cargo check` OK | Compila sin error ambiental |
+| F0-T02 | Instalar toolchain Rust (E2) | G2 | E2 | `cargo check` OK | **RESUELTO 2026-11-01** — `cargo check` PASS (exit 0, 2 warnings menores) |
 | F0-T03 | Medir volúmenes reales por entidad | G5 | E1, script | `docs/maps/ops/volumenes.md` | Tabla con bytes y frecuencia |
 | F0-T04 | Dejar `_connectivity-orchestrator-check` en 0 fallos | G6 | E1 | Reporte | 111/111 |
 | F0-T05 | Registrar línea base de recursos | G5 | E1, E3 | `metricas-base.json` | RSS/CPU/disco/batería por dispositivo |
