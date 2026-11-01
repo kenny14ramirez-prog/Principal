@@ -94,4 +94,19 @@ jobs:
         run: npm ci
 
       - name: Autoprueba sync clínico
-        run: npm run test:sync-clinical
+        run: npm run test:sync-clinical 2>&1 | tee sync-clinical.log
+
+      - name: Capturar borradores KI en fallo
+        if: failure()
+        run: |
+          node scripts/ki-auto-capture.mjs sync-clinical.log || true
+          echo "=== Borradores KI ==="
+          cat docs/maps/ki-drafts/*.json 2>/dev/null || echo "(ninguno)"
+
+      - name: Subir borradores KI
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ki-drafts
+          path: docs/maps/ki-drafts/
+          if-no-files-found: ignore
