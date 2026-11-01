@@ -247,6 +247,16 @@ async fn not_yet() -> impl IntoResponse {
     (StatusCode::NOT_IMPLEMENTED, Json(json!({"ok": false, "error": "not_migrated_yet"})))
 }
 
+pub async fn run_tls_server(state: SharedState, addr: SocketAddr) -> Result<(), String> {
+    let config = crate::crozzo_lan_security::tls_server_config().map_err(|e| e.to_string())?;
+    let rustls_config = axum_server::tls_rustls::RustlsConfig::from_config(config);
+    let app = router(state);
+    axum_server::bind_rustls(addr, rustls_config)
+        .serve(app.into_make_service())
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub async fn run_spike(state: SharedState, addr: SocketAddr) {
     let app = router(state);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

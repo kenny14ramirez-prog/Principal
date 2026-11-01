@@ -42,9 +42,11 @@ mdns-sd = "0.13"
 tungstenite = "0.24"
 tokio-tungstenite = "0.24"
 axum = { version = "0.7", features = ["ws"] }
+axum-server = { version = "0.7", features = ["tls-rustls"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 rustls = "0.23"
+rustls-pemfile = "2"
 tokio-rustls = "0.26"
 rcgen = "0.13"
 x25519-dalek = { version = "2", features = ["static_secrets"] }

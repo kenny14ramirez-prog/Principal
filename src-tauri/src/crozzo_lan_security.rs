@@ -4,10 +4,29 @@
 
 use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use rcgen::generate_simple_self_signed;
+use rustls::ServerConfig;
 use sha2::Sha256;
 use hkdf::Hkdf;
+use std::sync::Arc;
 
 /// Genera un certificado autofirmado para TLS en LAN.
+/// Construye un ServerConfig de rustls con certificado autofirmado.
+pub fn tls_server_config() -> Result<Arc<ServerConfig>, String> {
+    let (cert_pem, key_pem) = generate_self_signed_cert()?;
+    let cert = rustls_pemfile::certs(&mut cert_pem.as_bytes())
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let key = rustls_pemfile::pkcs8_private_keys(&mut key_pem.as_bytes())
+        .next()
+        .ok_or("no key")?
+        .map_err(|e| e.to_string())?;
+    let config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(cert, rustls::pki_types::PrivateKeyDer::Pkcs8(key))
+        .map_err(|e| e.to_string())?;
+    Ok(Arc::new(config))
+}
+
 pub fn generate_self_signed_cert() -> Result<(String, String), String> {
     let subject_alt_names = vec!["localhost".to_string(), "127.0.0.1".to_string()];
     let cert = generate_simple_self_signed(subject_alt_names).map_err(|e| e.to_string())?;
