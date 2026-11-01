@@ -95,7 +95,8 @@
     "qa:empresa:jornada": "node scripts/empresa-agentes.mjs run -- --preset=real",
     "qa:empresa:jornada:real": "node scripts/empresa-agentes.mjs run -- --preset=real",
     "qa:empresa:caos": "node scripts/empresa-agentes.mjs run -- --preset=caos",
-    "qa:empresa:colapso": "node scripts/empresa-agentes.mjs run -- --preset=caos"
+    "qa:empresa:colapso": "node scripts/empresa-agentes.mjs run -- --preset=caos",
+    "memory:benchmark": "node scripts/benchmark-memory.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
