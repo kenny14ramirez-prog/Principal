@@ -681,7 +681,7 @@ fn generate_mock_empresa_data(nit: &str) -> EmpresaData {
         telefono: format!("601{:07}", nit_num % 10000000),
         email: format!("contacto{}@empresa.com", nit_num % 1000),
         estado: states[state_idx].to_string(),
-        tipo_contribuyente: if nit_num % 3 == 0 { 
+        tipo_contribuyente: if nit_num.is_multiple_of(3) { 
             "GRAN CONTRIBUYENTE".to_string() 
         } else { 
             "RÉGIMEN COMÚN".to_string() 
@@ -1277,6 +1277,7 @@ fn status_from_inner(inner: &ServerInner) -> CrozzoLanSyncStatus {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn crozzo_lan_sync_start(
     port: Option<u16>,
     location_id: Option<String>,

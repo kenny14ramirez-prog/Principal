@@ -126,7 +126,7 @@ async fn ops_digest(State(state): State<SharedState>) -> impl IntoResponse {
 
 async fn comandas(State(state): State<SharedState>, headers: axum::http::HeaderMap) -> impl IntoResponse {
     let guard = state.lock().unwrap();
-    let (meta, auth_token) = match guard.as_ref() {
+    let (_meta, auth_token) = match guard.as_ref() {
         Some(i) => (i.meta(), i.auth_token()),
         None => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"ok": false, "error": "server_stopped"}))),
     };

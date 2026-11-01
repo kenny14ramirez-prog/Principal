@@ -2,7 +2,6 @@
 //! Degradación honesta: si Ollama no está disponible, el front usa la vista previa local.
 
 use serde::Serialize;
-use serde_json::Value;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn http_post_json(url: &str, body: &str, timeout_ms: u64) -> Result<String, String> {
@@ -72,6 +71,7 @@ pub fn crozzo_ollama_tags(_url: String, _timeout_ms: Option<u64>) -> Result<Stri
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct OllamaModelInfo {
     pub name: String,
     pub size_gb: f64,

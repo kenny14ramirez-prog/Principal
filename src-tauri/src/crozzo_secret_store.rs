@@ -26,13 +26,13 @@ mod imp {
 
     pub fn set(name: &str, value: &str) -> Result<(), String> {
         let input = value.as_bytes();
-        let mut data_in = CRYPT_INTEGER_BLOB {
+        let data_in = CRYPT_INTEGER_BLOB {
             cbData: input.len() as u32,
             pbData: input.as_ptr() as *mut u8,
         };
         let mut data_out = CRYPT_INTEGER_BLOB::default();
         unsafe {
-            CryptProtectData(&mut data_in, None, None, None, None, 0, &mut data_out)
+            CryptProtectData(&data_in, None, None, None, None, 0, &mut data_out)
                 .map_err(|e| e.to_string())?;
         }
         let slice = unsafe { std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize) };
@@ -55,13 +55,13 @@ mod imp {
         if bytes.is_empty() {
             return Ok(None);
         }
-        let mut data_in = CRYPT_INTEGER_BLOB {
+        let data_in = CRYPT_INTEGER_BLOB {
             cbData: bytes.len() as u32,
             pbData: bytes.as_ptr() as *mut u8,
         };
         let mut data_out = CRYPT_INTEGER_BLOB::default();
         unsafe {
-            CryptUnprotectData(&mut data_in, None, None, None, None, 0, &mut data_out)
+            CryptUnprotectData(&data_in, None, None, None, None, 0, &mut data_out)
                 .map_err(|e| e.to_string())?;
         }
         let slice = unsafe { std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize) };

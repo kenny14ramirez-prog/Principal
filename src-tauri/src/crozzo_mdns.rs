@@ -82,7 +82,7 @@ pub fn guess_local_ipv4() -> Ipv4Addr {
     Ipv4Addr::LOCALHOST
 }
 
-fn txt_get<'a>(txt: &'a HashMap<String, String>, key: &str) -> String {
+fn txt_get(txt: &HashMap<String, String>, key: &str) -> String {
     txt.get(key).cloned().unwrap_or_default()
 }
 
@@ -190,7 +190,7 @@ pub fn crozzo_mdns_start_advertise(
         &host,
         ip_addr,
         http_port,
-        &props[..],
+        props,
     )
     .map_err(|e| format!("mdns register: {e}"))?;
     daemon.register(info).map_err(|e| format!("mdns advertise: {e}"))?;

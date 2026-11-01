@@ -207,9 +207,7 @@ pub fn snapshot_op_log(conn: &Connection, snapshot_path: &std::path::Path) -> ru
         }))
     })?;
     let mut arr = Vec::new();
-    for r in rows {
-        if let Ok(v) = r { arr.push(v); }
-    }
+    for v in rows.flatten() { arr.push(v); }
     let n = arr.len();
     if let Ok(txt) = serde_json::to_string_pretty(&arr) {
         let _ = std::fs::write(snapshot_path, txt);

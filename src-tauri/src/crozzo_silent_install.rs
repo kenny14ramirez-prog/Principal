@@ -125,7 +125,7 @@ pub fn install_setup_from_url(url: String) -> Result<(), String> {
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
             .map_err(|e| format!("No se pudo lanzar instalador con reinicio: {e}"))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(windows))]
@@ -157,7 +157,7 @@ pub fn install_dmg_from_url(url: String) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     {
         let _ = url;
-        return Err("install_dmg_from_url solo en macOS".into());
+        Err("install_dmg_from_url solo en macOS".into())
     }
 
     #[cfg(target_os = "macos")]

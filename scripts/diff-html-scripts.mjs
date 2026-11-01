@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+const a = fs.readFileSync('app/index.html','utf8');
+const b = fs.readFileSync('app/Crozzo_POS_Completo.html','utf8');
+const re = /<script[^>]*src="([^"]+)"/g;
+const sa = new Set(); let m;
+while ((m = re.exec(a)) !== null) sa.add(m[1]);
+const sb = new Set(); re.lastIndex = 0;
+while ((m = re.exec(b)) !== null) sb.add(m[1]);
+const onlyA = [...sa].filter(x => !sb.has(x));
+const onlyB = [...sb].filter(x => !sa.has(x));
+console.log('scripts only in index.html:', onlyA.length);
+console.log(onlyA.join('\n'));
+console.log('---');
+console.log('scripts only in Completo:', onlyB.length);
+console.log(onlyB.join('\n'));

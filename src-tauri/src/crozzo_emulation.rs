@@ -89,7 +89,7 @@ fn append_text_log(line: &str) -> Result<(), String> {
 fn preview_escpos(data: &[u8]) -> String {
     let mut out = String::new();
     for &b in data.iter().take(800) {
-        if b >= 0x20 && b < 0x7f {
+        if (0x20..0x7f).contains(&b) {
             out.push(b as char);
         } else if b == b'\n' {
             out.push('\n');
@@ -98,7 +98,7 @@ fn preview_escpos(data: &[u8]) -> String {
         }
     }
     if data.len() > 800 {
-        out.push_str("…");
+        out.push('…');
     }
     out
 }
@@ -194,9 +194,9 @@ pub fn crozzo_emulation_query_sql(
     let rows = stmt
         .query_map([], |row| {
             let mut obj = serde_json::Map::new();
-            for i in 0..col_count {
+            for (i, name) in col_names.iter().enumerate() {
                 let val: rusqlite::types::Value = row.get(i)?;
-                obj.insert(col_names[i].clone(), sqlite_value_to_json(val));
+                obj.insert(name.clone(), sqlite_value_to_json(val));
             }
             Ok(serde_json::Value::Object(obj))
         })
