@@ -34,12 +34,12 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/ops-digest", get(ops_digest))
         .route("/api/comandas", get(comandas))
         .route("/api/runtime", get(runtime))
-        .route("/api/sync", post(not_yet))
-        .route("/api/orders", post(not_yet))
-        .route("/api/sales", post(not_yet))
-        .route("/api/invoices", post(not_yet))
+        .route("/api/sync", post(sync_handler))
+        .route("/api/orders", post(sync_handler))
+        .route("/api/sales", post(sync_handler))
+        .route("/api/invoices", post(sync_handler))
         .route("/api/p2p/signal", post(not_yet))
-        .route("/api/consultar-rut", post(not_yet))
+        .route("/api/consultar-rut", post(consultar_rut))
         .fallback(not_yet)
         .with_state(state)
 }
@@ -119,6 +119,49 @@ async fn comandas() -> impl IntoResponse {
 
 async fn runtime() -> impl IntoResponse {
     (StatusCode::NOT_IMPLEMENTED, Json(json!({"ok": false, "error": "not_migrated_yet"})))
+}
+
+async fn sync_handler(
+    State(state): State<SharedState>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    // Auth check
+    let auth_token = {
+        let guard = state.lock().unwrap();
+        guard.as_ref().map(|i| i.auth_token()).unwrap_or_default()
+    };
+    if !auth_token.is_empty() {
+        let provided = headers.get("x-crozzo-lan-token").and_then(|v| v.to_str().ok()).unwrap_or("");
+        if provided != auth_token {
+            return (StatusCode::UNAUTHORIZED, Json(json!({"ok": false, "error": "unauthorized"})));
+        }
+    }
+    match crate::crozzo_lan_sync_server::ingest_api_sync(&state, payload) {
+        Ok(resp) => (StatusCode::OK, Json(resp)),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(json!({"ok": false, "error": e}))),
+    }
+}
+
+async fn consultar_rut(Json(payload): Json<serde_json::Value>) -> impl IntoResponse {
+    let nit = payload.get("nit").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    if nit.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(json!({"ok": false, "error": "nit_required"})));
+    }
+    // Mock (como el servidor crudo).
+    let resp = json!({
+        "ok": true,
+        "data": {
+            "nit": nit,
+            "razon_social": format!("Empresa {}", nit),
+            "direccion": "Calle 1 #2-3",
+            "telefono": "3000000000",
+            "email": "contacto@empresa.co",
+            "estado": "ACTIVO",
+            "tipo_contribuyente": "PERSONA JURIDICA"
+        }
+    });
+    (StatusCode::OK, Json(resp))
 }
 
 async fn not_yet() -> impl IntoResponse {

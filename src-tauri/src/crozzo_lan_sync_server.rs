@@ -734,7 +734,7 @@ async fn handle_consultar_rut(
 
 /// Aplica POST /api/sync en memoria (cola + WS). Usado por HTTP y por invoke IPC
 /// de la caja (evita CORS tauri.localhost → 127.0.0.1).
-fn ingest_api_sync(
+pub fn ingest_api_sync(
     state: &Arc<Mutex<Option<ServerInner>>>,
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
