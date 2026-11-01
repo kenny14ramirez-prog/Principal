@@ -107,8 +107,11 @@ try {
 try {
   const db = await connect(lancePath);
   const table = await db.openTable('synapse_memory');
+  const asOf = (args.find(a => a.startsWith('--as-of=')) || '').split('=')[1] || new Date().toISOString();
   const rows = await table.toArray();
   for (const r of rows) {
+    if (r.valid_from && r.valid_from !== '' && r.valid_from > asOf) continue;
+    if (r.valid_to && r.valid_to !== '' && r.valid_to < asOf) continue;
     const bm = bm25Score(r.text || '', terms);
     let vs = 0;
     if (Array.isArray(r.vector)) vs = cosine(qVec, r.vector);
