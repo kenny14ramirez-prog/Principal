@@ -1,21 +1,39 @@
 {
-  "id": "1.0.250-critical",
-  "version": "v1.0.250",
-  "semver": "1.0.250",
+  "id": "1.0.251-critical",
+  "version": "v1.0.251",
+  "semver": "1.0.251",
   "type": "critical",
-  "message": "Fix OTA: URL corrupta (latest.jsonreleases/latest.json) + validacion de URL",
-  "publishedAt": "2026-11-01T00:07:13.109Z",
+  "message": "Fix OTA: URL corrupta (latest.jsonreleases/latest.json) auto-limpieza + validacion",
+  "publishedAt": "2026-11-01T00:41:57.256Z",
   "installMode": "auto",
   "changelog": [
-    "Fix: URL de manifiesto corrupta (duplicacion latest.json) - validacion en getManifestUrl/setManifestUrl",
+    "Fix: URL de manifiesto corrupta auto-limpieza (getManifestUrl/setManifestUrl validan)",
     "Fix: ReferenceError delay is not defined",
     "Fix: build stamp desalineado",
     "Fix: fetch OTA usa Tauri invoke como fallback",
     "Fix: rebrand SyntaxErrors",
     "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
   ],
-  "updatedAt": "2026-11-01T00:07:13.109Z",
+  "updatedAt": "2026-11-01T00:41:57.256Z",
   "entries": [
+    {
+      "id": "1.0.251-critical",
+      "version": "v1.0.251",
+      "semver": "1.0.251",
+      "type": "critical",
+      "message": "Fix OTA: URL corrupta (latest.jsonreleases/latest.json) auto-limpieza + validacion",
+      "publishedAt": "2026-11-01T00:41:57.256Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: URL de manifiesto corrupta auto-limpieza (getManifestUrl/setManifestUrl validan)",
+        "Fix: ReferenceError delay is not defined",
+        "Fix: build stamp desalineado",
+        "Fix: fetch OTA usa Tauri invoke como fallback",
+        "Fix: rebrand SyntaxErrors",
+        "OTA: preservacion de estado + Android pending + timeouts + concurrencia"
+      ],
+      "sha256": null
+    },
     {
       "id": "1.0.250-critical",
       "version": "v1.0.250",

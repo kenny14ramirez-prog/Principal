@@ -2154,15 +2154,20 @@
       var u = localStorage.getItem(LS_MANIFEST);
       if (u && String(u).trim()) {
         var ut = String(u).trim();
-        // Validar: debe ser HTTPS y terminar en .json (evitar URLs corruptas/duplicadas).
-        if (/^https:\/\/.+\.json$/i.test(ut)) return ut;
-        // Si la URL guardada es inválida, limpiarla y usar default.
+        // Validar: debe ser HTTPS, terminar en .json, y NO contener duplicados/corruptos.
+        var isCorrupt = /latest\.json.*latest\.json/i.test(ut) ||
+                        /registry\.json.*latest\.json/i.test(ut) ||
+                        /latest\.json.*registry\.json/i.test(ut) ||
+                        /releases\/latest\.jsonreleases/i.test(ut) ||
+                        /releases\/registry\.jsonreleases/i.test(ut);
+        if (!isCorrupt && /^https:\/\/.+\.json$/i.test(ut)) return ut;
+        // Si la URL guardada es inválida/corrupta, limpiarla y usar default.
         try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
       }
     } catch (_) {}
     if (global.CROZZO_UPDATE_MANIFEST_URL && String(global.CROZZO_UPDATE_MANIFEST_URL).trim()) {
       var gu = String(global.CROZZO_UPDATE_MANIFEST_URL).trim();
-      if (/^https:\/\/.+\.json$/i.test(gu)) return gu;
+      if (/^https:\/\/.+\.json$/i.test(gu) && !/latest\.json.*latest\.json/i.test(gu)) return gu;
     }
     return DEFAULT_MANIFEST_URL;
   }
@@ -2176,8 +2181,13 @@
 
   function setManifestUrl(url) {
     var u = String(url || '').trim();
-    // Validar: solo guardar si es HTTPS y termina en .json.
-    if (u && !/^https:\/\/.+\.json$/i.test(u)) {
+    // Validar: solo guardar si es HTTPS, termina en .json, y no es corrupta.
+    var isCorrupt = /latest\.json.*latest\.json/i.test(u) ||
+                    /registry\.json.*latest\.json/i.test(u) ||
+                    /latest\.json.*registry\.json/i.test(u) ||
+                    /releases\/latest\.jsonreleases/i.test(u) ||
+                    /releases\/registry\.jsonreleases/i.test(u);
+    if (u && (isCorrupt || !/^https:\/\/.+\.json$/i.test(u))) {
       try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
       return false;
     }
