@@ -111,6 +111,8 @@
     "tesseract.js": "^7.0.0"
   },
   "dependencies": {
+    "@dian-kit/core": "^1.0.1",
+    "@dian-kit/sdk-node": "^1.0.1",
     "@lancedb/lancedb": "^0.41.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
