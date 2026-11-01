@@ -143,6 +143,8 @@ pub struct ServerInner {
     stop: bool,
     /// Persistencia robusta (SQLite + HLC). Fase 2.3.
     persistence: Option<PersistenceDb>,
+    /// Hybrid Logical Clock (Fase 2.3).
+    hlc: crate::crozzo_lan_persistence::Hlc,
 }
 
 
@@ -847,6 +849,11 @@ pub fn ingest_api_sync(
     if !is_identity {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         if let Some(inner) = guard.as_mut() {
+            if let Some(hlc) = payload.get("hlc") {
+                let rms = hlc.get("ms").and_then(|v| v.as_u64()).unwrap_or(0);
+                let rct = hlc.get("counter").and_then(|v| v.as_u64()).unwrap_or(0) as u16;
+                inner.hlc.observe(rms, rct);
+            }
             upsert_comanda_snapshot(inner, &payload);
             if typ_str.to_ascii_lowercase().contains("comanda") {
                 if let Some(db) = &inner.persistence {
@@ -877,6 +884,9 @@ pub fn ingest_api_sync(
                 let conn = db.conn.lock().unwrap();
                 let payload_str = serde_json::to_string(&payload).unwrap_or_default();
                 let _ = crate::crozzo_lan_persistence::persist_pending(&conn, &sub.id, &endpoint, &payload_str);
+                let hlc_clone = inner.hlc.clone();
+                let _ = inner.hlc.now();
+                let _ = crate::crozzo_lan_persistence::record_op(&conn, &sub.id, &hlc_clone, &payload_str);
             }
         }
     }
@@ -1318,7 +1328,7 @@ pub async fn crozzo_lan_sync_start(
         let mut guard = shared.lock().map_err(|e| e.to_string())?;
         *guard = Some(ServerInner {
             port,
-            meta,
+            meta: meta.clone(),
             cloud_reachable: false,
             cloud_reachable_at_ms: 0,
             pending: restored,
@@ -1333,6 +1343,7 @@ pub async fn crozzo_lan_sync_start(
             rut_rate_limit: HashMap::new(),
             stop: false,
             persistence: persistence_db,
+            hlc: crate::crozzo_lan_persistence::Hlc::new(meta.device_id.clone()),
         });
     }
     let st = Arc::clone(&shared);
