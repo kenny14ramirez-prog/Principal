@@ -66,6 +66,7 @@
     "synapse:remember": "node scripts/synapse-mind.mjs remember",
     "synapse:seed": "node scripts/synapse-mind.mjs seed",
     "synapse:reindex": "node scripts/synapse-mind.mjs reindex",
+    "synapse:vector": "node scripts/synapse-vector.mjs",
     "mind:health": "node scripts/crozzo-mind-stack.mjs health",
     "mind:refresh": "node scripts/crozzo-map-refresh.mjs && node scripts/synapse-mind.mjs reindex",
     "army:status": "node scripts/agent-status.mjs",
@@ -104,6 +105,7 @@
     "tesseract.js": "^7.0.0"
   },
   "dependencies": {
+    "@lancedb/lancedb": "^0.41.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "jsqr": "^1.4.0"
