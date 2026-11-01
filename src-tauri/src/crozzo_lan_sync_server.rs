@@ -848,6 +848,12 @@ pub fn ingest_api_sync(
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         if let Some(inner) = guard.as_mut() {
             upsert_comanda_snapshot(inner, &payload);
+            if typ_str.to_ascii_lowercase().contains("comanda") {
+                if let Some(db) = &inner.persistence {
+                    let conn = db.conn.lock().unwrap();
+                    let _ = crate::crozzo_lan_persistence::save_comandas(&conn, &inner.comandas_active);
+                }
+            }
         }
     }
     broadcast_lan_push(&endpoint, &payload);
@@ -1302,6 +1308,10 @@ pub async fn crozzo_lan_sync_start(
         let p = std::path::PathBuf::from(d).join("crozzo_lan.db");
         crate::crozzo_lan_persistence::PersistenceDb::open(&p).ok()
     });
+    let restored_comandas = persistence_db.as_ref().map(|db| {
+        let conn = db.conn.lock().unwrap();
+        crate::crozzo_lan_persistence::load_comandas(&conn)
+    }).unwrap_or_default();
     let restored = load_pending(&pending_path);
     let shared = Arc::clone(shared_state());
     {
@@ -1315,7 +1325,7 @@ pub async fn crozzo_lan_sync_start(
             in_flight: HashMap::new(),
             runtime_snapshot: None,
             runtime_saved_at: String::new(),
-            comandas_active: HashMap::new(),
+            comandas_active: restored_comandas,
             seen_actions: HashMap::new(),
             p2p_signals: Vec::new(),
             auth_token: auth_token.unwrap_or_default().trim().to_string(),
