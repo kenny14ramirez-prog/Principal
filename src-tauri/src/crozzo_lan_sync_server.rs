@@ -451,6 +451,11 @@ fn trim_comandas_active(inner: &mut ServerInner) {
         purge_entregada_comandas(inner);
     }
     if inner.comandas_active.len() <= COMANDAS_ACTIVE_MAX {
+        // Persistir estado tras posible purge.
+        if let Some(db) = &inner.persistence {
+            let conn = db.conn.lock().unwrap();
+            let _ = crate::crozzo_lan_persistence::save_comandas(&conn, &inner.comandas_active);
+        }
         return;
     }
     purge_entregada_comandas(inner);
@@ -466,6 +471,11 @@ fn trim_comandas_active(inner: &mut ServerInner) {
             }
             None => break,
         }
+    }
+    // Persistir estado tras trim.
+    if let Some(db) = &inner.persistence {
+        let conn = db.conn.lock().unwrap();
+        let _ = crate::crozzo_lan_persistence::save_comandas(&conn, &inner.comandas_active);
     }
 }
 
