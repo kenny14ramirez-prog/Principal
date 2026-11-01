@@ -2,9 +2,13 @@
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_sync_server;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_sync_axum;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_persistence;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_security;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_observability;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_ws;
