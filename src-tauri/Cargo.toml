@@ -41,6 +41,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 mdns-sd = "0.13"
 tungstenite = "0.24"
 tokio-tungstenite = "0.24"
+axum = { version = "0.7", features = ["ws"] }
 futures-util = "0.3"
 
 [target.'cfg(windows)'.dependencies]
