@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Barra inferior móvil/tablet/APK (táctil unificado).
+ * Bona Origen — Barra inferior móvil/tablet/APK (táctil unificado).
  */
 (function (global) {
   'use strict';

@@ -1,5 +1,5 @@
 /**
- * Crozzo — Dominios de sync nube según perfil de usuario (mesero, cocina, caja, admin).
+ * Bona Origen — Dominios de sync nube según perfil de usuario (mesero, cocina, caja, admin).
  * Intersecta con PAGE_REGISTRY.domains; no bloquea transporte Z0 de escritura (invariante #5).
  */
 (function (global) {

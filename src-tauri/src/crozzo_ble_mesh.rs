@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const MAX_QUEUE: usize = 256;
+// (poda F11-T03: MAX_QUEUE eliminada — inlined)
 const MAX_PEERS: usize = 120;
 
 #[derive(Clone, Serialize)]
@@ -161,7 +161,8 @@ pub fn crozzo_ble_mesh_send(json: String) -> Result<(), String> {
     if is_desktop() {
         return crozzo_gossip_udp::send_json(body);
     }
-    Ok(())
+    // Android/iOS: BLE nativo no cableado todavía; informar al llamador (P0-15).
+    Err("BLE nativo no implementado en esta plataforma; usar LAN/UDP".into())
 }
 
 #[tauri::command]
@@ -185,6 +186,7 @@ fn string_from_poison() -> String {
 }
 
 /// Entrada para plugin nativo Android/iOS (futuro): inyecta tramas recibidas por GATT.
+#[allow(dead_code)]
 pub fn native_push_rx(json: String) {
     if let Ok(mut inner) = shared().lock() {
         if !inner.running {
@@ -193,7 +195,7 @@ pub fn native_push_rx(json: String) {
         if let Some(did) = extract_device_id(&json) {
             touch_peer(&mut inner, &did);
         }
-        if inner.rx_queue.len() >= MAX_QUEUE {
+        if inner.rx_queue.len() >= 256 {
             inner.rx_queue.remove(0);
         }
         inner.rx_queue.push(json);

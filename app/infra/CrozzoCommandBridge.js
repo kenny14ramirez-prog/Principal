@@ -1,5 +1,5 @@
 /**
- * Crozzo Command Bridge — fachada única del sistema de armas de sede.
+ * Bona Origen Command Bridge — fachada única del sistema de armas de sede.
  *
  * Consolida (sin reescribir): Readiness · Scorecard · FiscalDrain · DigitalPay · PathHealth.
  * Una sola API de mando: briefing / status / diagRows / runRecovery.

@@ -3,6 +3,14 @@
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_sync_server;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_lan_sync_axum;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_lan_persistence;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_lan_security;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_lan_observability;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_ws;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_mdns;
@@ -24,6 +32,8 @@ mod adq_enrich_sidecar;
 mod dian_vpfe;
 mod webview_permissions;
 mod crozzo_external;
+mod crozzo_secret_store;
+mod crozzo_ollama;
 #[cfg(target_os = "android")]
 mod crozzo_android_install;
 mod crozzo_ble_mesh;
@@ -57,6 +67,22 @@ fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // P0-21 (contención): instancia única por lock de puerto localhost.
+    // Si ya hay una caja abierta, la segunda sale sin abrir ventana.
+    #[cfg(desktop)]
+    {
+        use std::net::TcpListener;
+        match TcpListener::bind("127.0.0.1:45999") {
+            Ok(listener) => {
+                // Mantener el listener vivo durante toda la vida del proceso (single-instance).
+                std::mem::forget(listener);
+            }
+            Err(_) => {
+                eprintln!("[crozzo] otra instancia ya está en ejecución; saliendo.");
+                return;
+            }
+        }
+    }
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init());
@@ -94,6 +120,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            crozzo_secret_store::crozzo_secret_set,
+            crozzo_secret_store::crozzo_secret_get,
+            crozzo_secret_store::crozzo_secret_delete,
+            crozzo_ollama::crozzo_ollama_chat,
+            crozzo_ollama::crozzo_ollama_tags,
             #[cfg(desktop)]
             crozzo_open_devtools,
             #[cfg(desktop)]
@@ -110,6 +141,8 @@ pub fn run() {
             crozzo_print::crozzo_print_html_b64,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_html_to_pdf_b64,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_print::crozzo_save_pdf_b64,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_http::crozzo_http_get_text,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

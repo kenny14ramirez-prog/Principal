@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Capa psicológica operativa: confort, refuerzo positivo y estados de apoyo.
+ * Bona Origen — Capa psicológica operativa: confort, refuerzo positivo y estados de apoyo.
  */
 (function (global) {
   'use strict';

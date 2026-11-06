@@ -8,6 +8,39 @@ mod crozzo_print_html_pdf;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
+pub struct CrozzoSavePdfResult {
+    pub ok: bool,
+    pub path: String,
+    pub message: String,
+}
+
+#[tauri::command]
+pub fn crozzo_save_pdf_b64(pdf_b64: String, filename: String) -> Result<CrozzoSavePdfResult, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(pdf_b64.trim())
+        .map_err(|e| format!("base64 invalido: {e}"))?;
+    let safe_name = filename.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+    let name = if safe_name.to_lowercase().ends_with(".pdf") {
+        safe_name
+    } else {
+        format!("{}.pdf", safe_name)
+    };
+    let dir = std::env::var("LOCALAPPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map(|d| std::path::PathBuf::from(d).join("crozzo-print"))
+        .unwrap_or_else(|_| std::path::PathBuf::from("crozzo-print"));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(&name);
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    Ok(CrozzoSavePdfResult {
+        ok: true,
+        path: path.to_string_lossy().to_string(),
+        message: "ok".to_string(),
+    })
+}
+
+#[derive(Debug, Serialize)]
 pub struct CrozzoPrintResult {
     pub ok: bool,
     pub message: String,
@@ -17,7 +50,7 @@ pub struct CrozzoPrintResult {
 pub fn crozzo_list_printers() -> Result<Vec<String>, String> {
     #[cfg(windows)]
     {
-        return win::list_printers();
+        win::list_printers()
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
@@ -33,7 +66,7 @@ pub fn crozzo_list_printers() -> Result<Vec<String>, String> {
 pub fn crozzo_get_default_printer() -> Result<Option<String>, String> {
     #[cfg(windows)]
     {
-        return win::get_default_printer();
+        win::get_default_printer()
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
@@ -46,10 +79,10 @@ pub fn crozzo_get_default_printer() -> Result<Option<String>, String> {
 }
 
 fn print_raw_inner(printer_name: &str, data: &[u8], copies: u32) -> Result<CrozzoPrintResult, String> {
-    let copies = copies.max(1).min(10);
+    let copies = copies.clamp(1, 10);
     #[cfg(windows)]
     {
-        return win::print_raw(printer_name, data, copies);
+        win::print_raw(printer_name, data, copies)
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
@@ -89,7 +122,7 @@ pub fn crozzo_print_raw_b64(
 pub fn resolve_printer_for_html(requested: &str) -> Result<String, String> {
     #[cfg(windows)]
     {
-        return win::resolve_printer_name(requested);
+        win::resolve_printer_name(requested)
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
@@ -229,7 +262,7 @@ mod win {
                 }
             }
         }
-        names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        names.sort_by_key(|a| a.to_lowercase());
         names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
         Ok(names)
     }

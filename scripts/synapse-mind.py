@@ -213,6 +213,19 @@ def cmd_reindex(_: argparse.Namespace) -> int:
     try:
         n = eng.reindex_embeddings(limit=500)
         print(f"Reindex embeddings: {n} memorias")
+        # Drenar cola KG (process_indexing_jobs) — evita congelamiento del Knowledge Graph.
+        # H0.3: antes la cola se encolaba pero nada la procesaba (137 jobs pending detectados).
+        try:
+            pending = eng.conn.execute(
+                "SELECT COUNT(*) AS c FROM indexing_jobs WHERE status='pending'"
+            ).fetchone()["c"]
+            if pending > 0:
+                processed = eng.process_indexing_jobs(limit=200)
+                print(f"Drenaje KG: {processed} jobs procesados (había {pending} pending)")
+            else:
+                print("Drenaje KG: cola vacía (ok)")
+        except Exception as exc:
+            print(f"Drenaje KG omitido: {exc}", file=sys.stderr)
     finally:
         eng.close()
     return 0

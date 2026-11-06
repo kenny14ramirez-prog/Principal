@@ -48,19 +48,41 @@ fn now_ms() -> u64 {
 }
 
 pub fn guess_local_ipv4() -> Ipv4Addr {
+    // 1) Internet disponible: ruta por defecto.
     if let Ok(sock) = UdpSocket::bind("0.0.0.0:0") {
         if sock.connect("8.8.8.8:80").is_ok() {
             if let Ok(addr) = sock.local_addr() {
                 if let std::net::IpAddr::V4(v4) = addr.ip() {
-                    return v4;
+                    if !v4.is_loopback() {
+                        return v4;
+                    }
                 }
             }
         }
     }
+    // 2) Sin internet: intentar gateways LAN comunes (P0-14: no anunciar 127.0.0.1).
+    let candidates = [
+        "192.168.1.1:80", "192.168.0.1:80", "192.168.100.1:80",
+        "10.0.0.1:80", "172.16.0.1:80",
+    ];
+    for gw in &candidates {
+        if let Ok(sock) = UdpSocket::bind("0.0.0.0:0") {
+            if sock.connect(gw).is_ok() {
+                if let Ok(addr) = sock.local_addr() {
+                    if let std::net::IpAddr::V4(v4) = addr.ip() {
+                        if !v4.is_loopback() {
+                            return v4;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // 3) Último recurso: localhost (mejor que nada, pero se loguea).
     Ipv4Addr::LOCALHOST
 }
 
-fn txt_get<'a>(txt: &'a HashMap<String, String>, key: &str) -> String {
+fn txt_get(txt: &HashMap<String, String>, key: &str) -> String {
     txt.get(key).cloned().unwrap_or_default()
 }
 
@@ -153,6 +175,9 @@ pub fn crozzo_mdns_start_advertise(
     let host_label = format!("crozzo-{}", if dev.is_empty() { "central" } else { dev.as_str() });
     let host = format!("{host_label}.local.");
     let ip = guess_local_ipv4();
+    if ip.is_loopback() {
+        return Err("No se detecto IP LAN (solo loopback); no se anuncia mDNS para evitar 127.0.0.1.".into());
+    }
     let ws_txt = ws.to_string();
     let props: &[(&str, &str)] = &[
         ("loc", loc.as_str()),
@@ -168,7 +193,7 @@ pub fn crozzo_mdns_start_advertise(
         &host,
         ip_addr,
         http_port,
-        &props[..],
+        props,
     )
     .map_err(|e| format!("mdns register: {e}"))?;
     daemon.register(info).map_err(|e| format!("mdns advertise: {e}"))?;
@@ -266,6 +291,11 @@ pub fn start_with_lan(
     device_id: &str,
     business_id: &str,
 ) {
+    let ip = guess_local_ipv4();
+    if ip.is_loopback() {
+        eprintln!("[mdns] No se detectó IP LAN; no se anuncia mDNS (evita 127.0.0.1).");
+        return;
+    }
     let _ = crozzo_mdns_start_advertise(
         Some(port),
         Some(ws_port),

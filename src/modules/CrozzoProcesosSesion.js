@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Nueva sesión de producción enlazada a recetas de Costos.
+ * Bona Origen — Nueva sesión de producción enlazada a recetas de Costos.
  * Porciones · ajuste proporcional · varias producciones · responsables.
  */
 (function (global) {

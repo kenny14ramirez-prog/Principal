@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Guía paso a paso para activar facturación electrónica (FE).
+ * Bona Origen — Guía paso a paso para activar facturación electrónica (FE).
  */
 (function (global) {
   'use strict';

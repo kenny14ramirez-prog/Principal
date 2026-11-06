@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Reportes operativos de equipo (meseros, cajeros, faltas cocina).
+ * Bona Origen — Reportes operativos de equipo (meseros, cajeros, faltas cocina).
  */
 (function (global) {
   'use strict';

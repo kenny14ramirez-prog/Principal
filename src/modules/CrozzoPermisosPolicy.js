@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Política de permisos delegables (Super Admin → Admin → Usuario).
+ * Bona Origen — Política de permisos delegables (Super Admin → Admin → Usuario).
  * Vincula módulos habilitados por empresa/rol con permisos granulares que el admin puede asignar.
  */
 (function (global) {
@@ -74,7 +74,6 @@
         'vista_clientes',
         'abrir_orden',
         'editar_orden',
-        'eliminar_item',
         'facturar',
         'unir_cuenta',
         'dividir_cuenta',
@@ -84,7 +83,7 @@
       ],
       comandas: [],
       inventario: ['proveedores'],
-      productos: ['catalogo'],
+      productos: [],
       admin: [],
     },
     mesero: {

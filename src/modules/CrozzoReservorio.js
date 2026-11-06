@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Reservorio unificado (memoria interna / localStorage)
+ * Bona Origen — Reservorio unificado (memoria interna / localStorage)
  * Proveedores · Recepciones · Oficina · Inventario ledger · Cola planilla · Sync pendiente
  */
 (function (global) {
@@ -2355,6 +2355,20 @@
     getFeLinksStats: getFeLinksStats,
   };
 
+  // P0-4 contención: devolver venta (eliminar movimientos salida_venta por saleId).
+  function devolverVenta(input) {
+    var st = migrateLegacy();
+    var saleId = input && (input.saleId || input.uuid || input.facturaId);
+    if (!saleId) return false;
+    var movs = st.inventarioMovimientos || [];
+    var before = movs.length;
+    st.inventarioMovimientos = movs.filter(function (m) {
+      return !(m && m.refTipo === 'venta' && String(m.refId) === String(saleId));
+    });
+    save(st);
+    return st.inventarioMovimientos.length < before;
+  }
+  global.crozzoReservorioDevolverVenta = devolverVenta;
   global.crozzoReservorioRegistrarVenta = registrarVenta;
   global.crozzoReservorioUpsertProveedor = upsertProveedor;
   global.crozzoFlushReservorioSyncQueue = flushSyncQueueToCloud;

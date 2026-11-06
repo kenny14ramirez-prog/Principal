@@ -1,7 +1,7 @@
 //! Descarga e instala artefactos del release (Windows .exe silencioso, macOS .dmg).
 
 const MIN_INSTALLER_BYTES: usize = 400 * 1024;
-const MIN_DMG_BYTES: usize = 1024 * 1024;
+// (poda F11-T03: MIN_DMG_BYTES eliminada — constante no referenciada)
 const DOWNLOAD_RETRIES: u32 = 3;
 
 fn http_client() -> Result<reqwest::blocking::Client, String> {
@@ -65,8 +65,9 @@ fn validate_exe(bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn validate_dmg(bytes: &[u8]) -> Result<(), String> {
-    if bytes.len() < MIN_DMG_BYTES {
+    if bytes.len() < 1024 * 1024 {
         return Err(format!("DMG demasiado pequeño ({} bytes).", bytes.len()));
     }
     Ok(())
@@ -124,7 +125,7 @@ pub fn install_setup_from_url(url: String) -> Result<(), String> {
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
             .map_err(|e| format!("No se pudo lanzar instalador con reinicio: {e}"))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(windows))]
@@ -156,7 +157,7 @@ pub fn install_dmg_from_url(url: String) -> Result<(), String> {
     #[cfg(not(target_os = "macos"))]
     {
         let _ = url;
-        return Err("install_dmg_from_url solo en macOS".into());
+        Err("install_dmg_from_url solo en macOS".into())
     }
 
     #[cfg(target_os = "macos")]

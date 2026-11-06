@@ -1,5 +1,5 @@
 /**
- * Crozzo — Estado operativo de comunicación compartido entre equipos.
+ * Bona Origen — Estado operativo de comunicación compartido entre equipos.
  *
  * Cada dispositivo publica un snapshot compacto (tier, canales, usuario, pantalla)
  * al roster nube y por gossip LAN. Cualquier equipo puede armar un reporte

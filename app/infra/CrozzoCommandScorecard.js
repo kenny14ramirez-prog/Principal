@@ -1,5 +1,5 @@
 /**
- * Crozzo — Scorecard de mando vs mercado Colombia (precisión militar).
+ * Bona Origen — Scorecard de mando vs mercado Colombia (precisión militar).
  * No es marketing: puntúa capacidades detectables + doctrina fija.
  * Consola: crozzoCommandScorecard() · Diag: CrozzoCommandScorecard.diagRows()
  */
@@ -16,6 +16,18 @@
     ux_ttv: 1,
     accounting: 1,
     delivery: 0.8,
+  };
+
+  /** Etiquetas humanas (H3a): Offline real = offline_fleet — sin cambiar pesos. */
+  var DIMENSION_LABELS = {
+    offline_fleet: 'Offline real',
+    ops_sala: 'Ops sala Z0',
+    dian_honest: 'Fiscal honesto',
+    digital_pay: 'Pago digital',
+    food_cost: 'Food-cost',
+    ux_ttv: 'TTV / UX',
+    accounting: 'Contable',
+    delivery: 'Delivery',
   };
 
   /** Techos de mercado (INTEL 2026-07 — estricto) */
@@ -85,6 +97,8 @@
         pathLabel: path && path.label,
         seal: seal && seal.seal,
         defcon: seal && seal.defcon,
+        offlineRealLabel: DIMENSION_LABELS.offline_fleet,
+        offlineRealScore: offline,
       },
     };
   }
@@ -168,6 +182,7 @@
   function diagRows() {
     var r = evaluate();
     var ok = r.verdict.indexOf('SUPERIORIDAD') === 0 || r.verdict.indexOf('PARIDAD') === 0;
+    var off = r.crozzo && r.crozzo.offline_fleet != null ? r.crozzo.offline_fleet : '—';
     return [
       {
         id: 'command_scorecard',
@@ -176,6 +191,13 @@
         detail: summaryLine(r),
         hint:
           'Ponderado DDIL: flota/ops/fiscal pesan más que delivery. Cerrar DIAN+Wompi+TTV para SUPERIORIDAD total.',
+      },
+      {
+        id: 'offline_real',
+        label: 'Offline real (G1)',
+        status: Number(off) >= 4 ? 'ok' : 'warn',
+        detail: 'Offline real = ' + off + '/5 · dimensión offline_fleet ×' + WEIGHTS.offline_fleet,
+        hint: 'Bona Origen sobrevive al corte de internet: Bridge LAN + cola fiscal pendiente_timbrado.',
       },
     ];
   }
@@ -186,6 +208,7 @@
     diagRows: diagRows,
     MARKET: MARKET,
     WEIGHTS: WEIGHTS,
+    DIMENSION_LABELS: DIMENSION_LABELS,
   };
   global.crozzoCommandScorecard = evaluate;
 })(typeof window !== 'undefined' ? window : globalThis);

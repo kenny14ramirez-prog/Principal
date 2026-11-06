@@ -1,5 +1,5 @@
 /**
- * Mapa único de assets Crozzo — rutas y carga diferida por pantalla.
+ * Mapa único de assets Bona Origen — rutas y carga diferida por pantalla.
  * Editar aquí al añadir módulos; regenerar bundles: npm run consolidate
  */
 (function (global) {

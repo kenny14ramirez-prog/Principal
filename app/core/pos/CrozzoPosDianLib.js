@@ -179,6 +179,7 @@ function buildUBL21(factura, config) {
   <cbc:IssueDate>${esc(factura.fechaEmision?.split('T')[0])}</cbc:IssueDate>
   <cbc:IssueTime>${esc(factura.fechaEmision?.split('T')[1] || '00:00:00')}</cbc:IssueTime>
   <cbc:InvoiceTypeCode listID="${esc(factura.tipoDocumento)}">${esc(factura.tipoOperacion)}</cbc:InvoiceTypeCode>
+  <!-- H1.2: tipoDocumento '04' = Documento Equivalente (tiquete POS); '01' = FEV. Res. DIAN 165/2023 -->
   <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
   <cac:AccountingSupplierParty>
     <cac:Party>
@@ -264,6 +265,111 @@ function buildUBL21(factura, config) {
   xml += `
   <cac:TaxTotal>
     <cbc:TaxAmount>${taxTotal.toFixed(2)}</cbc:TaxAmount>
+  </cac:TaxTotal>`;
+  // H1.4 — WithholdingTaxTotal: retenciones B2B (ReteFuente/IVA/ICA) cuando aplica
+  if (factura.retenciones && factura.retenciones.aplica) {
+    var ret = factura.retenciones;
+    xml += `
+  <cac:WithholdingTaxTotal>
+    <cbc:TaxAmount>${Number(ret.totalRetenido || 0).toFixed(2)}</cbc:TaxAmount>`;
+    if (ret.retefuente > 0) {
+      xml += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>${subtotal.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount>${Number(ret.retefuente).toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory><cac:TaxScheme><cbc:ID>06</cbc:ID><cbc:Name>ReteFuente</cbc:Name></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+    }
+    if (ret.reteiva > 0) {
+      xml += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>${taxTotal.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount>${Number(ret.reteiva).toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory><cac:TaxScheme><cbc:ID>07</cbc:ID><cbc:Name>ReteIVA</cbc:Name></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+    }
+    if (ret.reteica > 0) {
+      xml += `
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount>${subtotal.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount>${Number(ret.reteica).toFixed(2)}</cbc:TaxAmount>
+      <cac:TaxCategory><cac:TaxScheme><cbc:ID>05</cbc:ID><cbc:Name>ReteICA</cbc:Name></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>`;
+    }
+    xml += `
+  </cac:WithholdingTaxTotal>`;
+  }
+  var payable = total - (factura.retenciones && factura.retenciones.totalRetenido || 0);
+  xml += `
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount>${subtotal.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount>${subtotal.toFixed(2)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount>${total.toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount>${payable.toFixed(2)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+</Invoice>`;
+  return xml;
+}
+/**
+ * H1.2 — Builder UBL 2.1 para Nota Crédito electrónica (Res. DIAN 165/2023).
+ * Documento derivado que referencia una factura previa. Se usa para
+ * devoluciones, anulaciones parciales/totales, descuentos posteriores.
+ * Schema UBL CreditNote (distinto de Invoice).
+ */
+function buildNotaCreditoUBL21(nota, config) {
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const emp = config.empresa;
+  const dian = config.dian;
+  const ref = nota.facturaReferencia || {};
+  const subtotal = Number(nota.subtotal) || 0;
+  const taxTotal = Number(nota.taxTotal) || 0;
+  const total = subtotal + taxTotal;
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+         xmlns:sts="dian:gov:co:facturaelectronica:Structures-2-1"
+         xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+         xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:CustomizationID>01</cbc:CustomizationID>
+  <cbc:ID>${esc(dian.prefijoNotaCredito || 'NC')}${String(nota.consecutivo).padStart(8, '0')}</cbc:ID>
+  <cbc:IssueDate>${esc(nota.fechaEmision && nota.fechaEmision.split('T')[0])}</cbc:IssueDate>
+  <cbc:IssueTime>${esc((nota.fechaEmision && nota.fechaEmision.split('T')[1]) || '00:00:00')}</cbc:IssueTime>
+  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>${esc(ref.prefijo || '')}${String(ref.consecutivo).padStart(8, '0')}</cbc:ID>
+      <cbc:UUID>${esc(ref.cufe)}</cbc:UUID>
+      <cbc:IssueDate>${esc(ref.fechaEmision && ref.fechaEmision.split('T')[0])}</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cbc:DiscrepancyResponse>
+    <cbc:ResponseCode>${esc(nota.motivoCodigo || '1')}</cbc:ResponseCode>
+    <cbc:Description>${esc(nota.motivoDescripcion || 'Devolución/anulación')}</cbc:Description>
+  </cbc:DiscrepancyResponse>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="9" schemeName="31">${esc(emp.nit)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName><cbc:Name>${esc(emp.razonSocial)}</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingSupplierParty>`;
+  if (nota.adquirente && nota.adquirente.doc) {
+    xml += `
+  <cac:AccountingCustomerParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="9" schemeName="31">${esc(nota.adquirente.doc)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName><cbc:Name>${esc(nota.adquirente.nombre)}</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingCustomerParty>`;
+  }
+  xml += `
+  <cac:TaxTotal>
+    <cbc:TaxAmount>${taxTotal.toFixed(2)}</cbc:TaxAmount>
   </cac:TaxTotal>
   <cac:LegalMonetaryTotal>
     <cbc:LineExtensionAmount>${subtotal.toFixed(2)}</cbc:LineExtensionAmount>
@@ -271,25 +377,86 @@ function buildUBL21(factura, config) {
     <cbc:TaxInclusiveAmount>${total.toFixed(2)}</cbc:TaxInclusiveAmount>
     <cbc:PayableAmount>${total.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
-</Invoice>`;
+</CreditNote>`;
+  return xml;
+}
+/**
+ * H1.2 — Builder UBL 2.1 para Nota Débito electrónica.
+ * Para cobros adicionales posteriores (recargos, intereses) sobre una factura.
+ * Schema UBL DebitNote.
+ */
+function buildNotaDebitoUBL21(nota, config) {
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const emp = config.empresa;
+  const dian = config.dian;
+  const ref = nota.facturaReferencia || {};
+  const subtotal = Number(nota.subtotal) || 0;
+  const taxTotal = Number(nota.taxTotal) || 0;
+  const total = subtotal + taxTotal;
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<DebitNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:DebitNote-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+         xmlns:sts="dian:gov:co:facturaelectronica:Structures-2-1"
+         xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2"
+         xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+  <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+  <cbc:CustomizationID>01</cbc:CustomizationID>
+  <cbc:ID>${esc(dian.prefijoNotaDebito || 'ND')}${String(nota.consecutivo).padStart(8, '0')}</cbc:ID>
+  <cbc:IssueDate>${esc(nota.fechaEmision && nota.fechaEmision.split('T')[0])}</cbc:IssueDate>
+  <cbc:IssueTime>${esc((nota.fechaEmision && nota.fechaEmision.split('T')[1]) || '00:00:00')}</cbc:IssueTime>
+  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>${esc(ref.prefijo || '')}${String(ref.consecutivo).padStart(8, '0')}</cbc:ID>
+      <cbc:UUID>${esc(ref.cufe)}</cbc:UUID>
+      <cbc:IssueDate>${esc(ref.fechaEmision && ref.fechaEmision.split('T')[0])}</cbc:IssueDate>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+  <cbc:DiscrepancyResponse>
+    <cbc:ResponseCode>${esc(nota.motivoCodigo || '2')}</cbc:ResponseCode>
+    <cbc:Description>${esc(nota.motivoDescripcion || 'Cobro adicional')}</cbc:Description>
+  </cbc:DiscrepancyResponse>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="9" schemeName="31">${esc(emp.nit)}</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName><cbc:Name>${esc(emp.razonSocial)}</cbc:Name></cac:PartyName>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:TaxTotal>
+    <cbc:TaxAmount>${taxTotal.toFixed(2)}</cbc:TaxAmount>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount>${subtotal.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxInclusiveAmount>${total.toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount>${total.toFixed(2)}</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+</DebitNote>`;
   return xml;
 }
 // ==========================================
 // packages/shared-dian/providers/mock-dian-adapter.ts
 // ==========================================
+/**
+ * H1.5 — mockStamp NEUTRALIZADO (resuelve violación C4 definitivamente).
+ *
+ * ANTES: generaba un hash SHA-384 sobre campos equivocados y lo etiquetaba
+ *   'cufe'. Nunca producía un CUFE DIAN válido. Violaba "honestidad de combate".
+ *
+ * AHORA: lanza error explícito. Sin Proveedor Tecnológico configurado (Dataico)
+ *   NO se timbra. El comerciante debe configurar Dataico (o su PT autorizado).
+ *   El Nivel 0 (Semilla) ya está bloqueado por el candado de timbrarFactura.
+ *
+ * Doctrina: cero CUFE simulado. Sin PT = cola de contingencia (H1.5), no mock.
+ */
 async function mockStamp(xml, factura) {
-  await new Promise(r => setTimeout(r, 800));
-  const cufe = await calcularCUFE(factura);
-  const qrUrl = generarQRDIAN({ ...factura, cufe });
-  return {
-    success: true,
-    uuid: `DEMO-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}-${Math.random().toString(36).substr(2, 8)}`,
-    cufe,
-    qrUrl,
-    fechaTimbrado: new Date().toISOString(),
-    isDemo: true,
-    xml
-  };
+  throw new Error(
+    'STAMP_REQUIERE_PROVEEDOR: No hay Proveedor Tecnológico configurado. ' +
+    'Configura Dataico (o tu PT autorizado DIAN) para timbrar facturas electrónicas. ' +
+    'El CUFE no se simula — configura un PT real o usa el modo Sandbox (Nivel 0) para capacitación.'
+  );
 }
 // ==========================================
 // packages/shared-dian/providers/dataico-adapter.ts
@@ -308,13 +475,41 @@ function crozzoFiscalOutboxLoad() {
   }
 }
 function crozzoFiscalOutboxSave(arr) {
+  var data = JSON.stringify(arr || []);
   try {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(CROZZO_FISCAL_OUTBOX_KEY, JSON.stringify((arr || []).slice(-200)));
+      localStorage.setItem(CROZZO_FISCAL_OUTBOX_KEY, data);
     }
-  } catch (_) {}
+  } catch (e) {
+    // Cuota excedida: conservar los más recientes y avisar (no perder en silencio).
+    try {
+      if (typeof localStorage !== 'undefined') {
+        var trimmed = (arr || []).slice(-500);
+        localStorage.setItem(CROZZO_FISCAL_OUTBOX_KEY, JSON.stringify(trimmed));
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[fiscal-outbox] cuota excedida; conservados ' + trimmed.length + ' de ' + (arr || []).length);
+        }
+      }
+    } catch (_) {}
+  }
 }
 function crozzoFiscalOutboxEnqueue(entry) {
+  // Dedup por (provider, consecutivo): no duplicar si ya hay uno pendiente/retry.
+  try {
+    if (entry && entry.consecutivo != null && entry.provider) {
+      var existing = crozzoFiscalOutboxLoad();
+      var dup = existing.some(function (e) {
+        return e && e.provider === entry.provider && e.consecutivo === entry.consecutivo &&
+          (e.status === 'pending' || e.status === 'retry');
+      });
+      if (dup) {
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn('[fiscal-outbox] dedup: ya existe entrada pendiente para consecutivo ' + entry.consecutivo);
+        }
+        return entry;
+      }
+    }
+  } catch (_) {}
   var all = crozzoFiscalOutboxLoad();
   all.push(entry);
   crozzoFiscalOutboxSave(all);
@@ -355,7 +550,7 @@ function crozzoBuildDataicoInvoiceBody(factura, xml, config) {
         name: String((factura && (factura.clienteNombre || factura.cliente)) || 'CONSUMIDOR FINAL'),
       },
       company_nit: String((emp && emp.nit) || ''),
-      notes: 'Crozzo POS',
+      notes: 'Bona Origen',
       xml_ubl: xml ? String(xml).slice(0, 500000) : undefined,
       items: items.map(function (it) {
         return {
@@ -411,6 +606,9 @@ async function dataicoStamp(xml, factura, config) {
     'Content-Type': 'application/json',
     'Auth-token': auth.token,
   };
+  if (factura && factura.consecutivo) {
+    headers['Idempotency-Key'] = 'crozzo-' + (factura.prefijo || '') + '-' + factura.consecutivo;
+  }
   if (auth.accountId) headers['Dataico_account_id'] = auth.accountId;
 
   var body = crozzoBuildDataicoInvoiceBody(factura || {}, xml, config);
@@ -530,25 +728,60 @@ async function dataicoStamp(xml, factura, config) {
 // packages/shared-dian/providers/provider-factory.ts
 // ==========================================
 function createProvider(type) {
+  // H1.5: solo Dataico es PT real implementado. Los demás providers lanzan
+  // error claro (no simulan CUFE). Para añadir un PT nuevo, implementar su stamp.
   switch(type) {
     case 'dataico': return { name: 'Dataico', stamp: dataicoStamp };
-    case 'siigo': return { name: 'Siigo', stamp: async (xml, factura) => mockStamp(xml, factura || {}) };
-    case 'facturama': return { name: 'Facturama', stamp: async (xml, factura) => mockStamp(xml, factura || {}) };
-    default: return { name: 'Mock', stamp: mockStamp };
+    case 'siigo': return { name: 'Siigo (no implementado)', stamp: providerNoImplementado('Siigo') };
+    case 'facturama': return { name: 'Facturama (no implementado)', stamp: providerNoImplementado('Facturama') };
+    default: return { name: 'Sin PT (configura Dataico)', stamp: providerNoImplementado(null) };
   }
+}
+/** H1.5 — Provider no implementado: error claro, no simula CUFE. */
+function providerNoImplementado(nombre) {
+  return async function () {
+    throw new Error(
+      'STAMP_PROVIDER_NO_IMPLEMENTADO: ' + (nombre || 'Ningún proveedor') +
+      ' no está implementado. Configura Dataico (PT autorizado) o implementa el adaptador. ' +
+      'El CUFE no se simula.'
+    );
+  };
 }
 // ==========================================
 // packages/shared-dian/invoice-service.ts
 // ==========================================
+/**
+ * H1.0b — CANdado duro anti-CUFE-simulado (resuelve violación C4).
+ *
+ * Antes: si isDemoMode() → mockStamp() generaba un hash falso etiquetado CUFE.
+ *   Eso violaba la doctrina "honestidad de combate". Nunca producía CUFE válido.
+ *
+ * Ahora: si el comerciante está en Nivel 0 (Semilla/Sandbox), timbrarFactura
+ *   LANZA SandboxFiscalException. Nunca llama a DIAN, nunca simula CUFE.
+ *   El Nivel 0 emite tickets de capacitación explícitamente inválidos vía
+ *   CrozzoSandboxFiscal.generarTicketCapacitacion() — no por aquí.
+ *
+ * retrocompat: si un configManager inyecta el sandbox, se respeta; si no,
+ *   el legacy modoDemo ya no timbra (lanza error claro en vez de mock).
+ */
 async function timbrarFactura(xml, factura, config) {
-  if (typeof config.isDemoMode === 'function' ? config.isDemoMode() : config.modoDemo) {
-    return await mockStamp(xml, factura);
+  // ── H1.0b Candado Sandbox (Nivel 0 Semilla) — bloqueo DURO ──
+  var sandbox = (typeof window !== 'undefined' && window.CrozzoSandboxFiscal) ||
+                (typeof globalThis !== 'undefined' && globalThis.CrozzoSandboxFiscal);
+  if (sandbox && typeof sandbox.assertNoSandbox === 'function') {
+    sandbox.assertNoSandbox(config); // lanza SandboxFiscalException si nivelMadurez===0
+  } else if (typeof config.isDemoMode === 'function' ? config.isDemoMode() : config.modoDemo) {
+    // Fallback legacy sin CrozzoSandboxFiscal cargado: bloquear (no simular).
+    throw new Error('Modo demo/Sandbox activo: no se puede timbrar factura legal. ' +
+      'Sube a nivel Brote (1) o superior y configura DIAN para facturar electrónicamente.');
   }
   const validation = config.canGoLive();
   if (!validation.valid) {
     throw new Error(`Configuración incompleta: ${validation.missing.join(', ')}`);
   }
   const provider = createProvider(config.getProveedor().type);
+  // H1.5 (pendiente): proveedor 'mock' debe eliminarse o limitarse a ambiente test
+  // explícito. Por ahora se mantiene pero ya no es la ruta del Sandbox.
   return await provider.stamp(xml, factura, config);
 }
 function crozzoFiscalOutboxUpdate(id, patch) {

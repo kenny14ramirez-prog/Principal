@@ -36,16 +36,18 @@ pub fn broadcast_text(json_text: &str) -> usize {
     }
     let mut sent = 0;
     for c in &inner.conns {
-        if let Ok(mut w) = c.try_lock() {
-            use futures_util::SinkExt;
-            // Para broadcast síncrono, usamos try_send si está disponible
-            // o creamos un runtime temporal para el envío
-            let rt = tokio::runtime::Handle::try_current();
-            if let Ok(handle) = rt {
-                if handle.block_on(w.send(Message::Text(json_text.to_string()))).is_ok() {
-                    sent += 1;
+        let rt = tokio::runtime::Handle::try_current();
+        if let Ok(handle) = rt {
+            // Evitar panic: no block_on dentro de contexto async; enviar en task.
+            let msg = Message::Text(json_text.to_string());
+            let conn = Arc::clone(c);
+            handle.spawn(async move {
+                if let Ok(mut w) = conn.try_lock() {
+                    use futures_util::SinkExt;
+                    let _ = w.send(msg).await;
                 }
-            }
+            });
+            sent += 1;
         }
     }
     sent
@@ -123,7 +125,11 @@ pub async fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Val
     if port < 1024 {
         return Err("Puerto WS inválido".into());
     }
-    let addr = format!("0.0.0.0:{port}");
+    let lan_ip = crate::crozzo_mdns::guess_local_ipv4();
+    if lan_ip.is_loopback() {
+        return Err("No se detecto IP LAN (solo loopback); no se permite bind WS a 0.0.0.0 por seguridad.".into());
+    }
+    let addr = format!("{}:{}", lan_ip, port);
     let listener = TcpListener::bind(&addr).await.map_err(|e| format!("No se pudo abrir el puerto WS {port}: {e}"))?;
     let shared = Arc::clone(hub());
     {

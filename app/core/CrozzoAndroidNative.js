@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Android APK: clases, haptics y fixes mínimos (sin pisar el CSS).
+ * Bona Origen — Android APK: clases, haptics y fixes mínimos (sin pisar el CSS).
  */
 (function (global) {
   'use strict';

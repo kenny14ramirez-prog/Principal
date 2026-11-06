@@ -1,4 +1,4 @@
-//! Servidor HTTP LAN para sincronización multidispositivo (Rol A / caja Windows).
+﻿//! Servidor HTTP LAN para sincronización multidispositivo (Rol A / caja Windows).
 //! Expone GET /health, GET /status y POST /api/{sync,orders,sales,invoices}.
 
 use crate::crozzo_lan_ws;
@@ -7,9 +7,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
+use crate::crozzo_lan_persistence::PersistenceDb;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use sha2::Digest;
 use tokio::sync::{Mutex as AsyncMutex, Semaphore};
 
 const DEFAULT_PORT: u16 = 3000;
@@ -18,20 +20,38 @@ const LAN_AUTH_HEADER: &str = "x-crozzo-lan-token";
 /// Cabeceras permitidas en preflight CORS (tablets + webview Tauri → :3000).
 const CORS_ALLOW_HEADERS: &str =
     "Content-Type, Accept, x-crozzo-lan-token, X-Crozzo-Lan-Token";
+/// Origen CORS permitido (F2.1). Override con CROZZO_LAN_CORS_ORIGIN.
+fn cors_origin() -> String {
+    // Default "*" para compatibilidad con WebView2 (origin puede ser http://tauri.localhost o tauri://localhost).
+    // Override con CROZZO_LAN_CORS_ORIGIN en producción para restringir.
+    std::env::var("CROZZO_LAN_CORS_ORIGIN").unwrap_or_else(|_| "*".to_string())
+}
 /// Tiempo que una operación drenada espera un ACK antes de volver a ofrecerse (reintento).
 const INFLIGHT_TTL_MS: u128 = 20_000;
 /// Tope de operaciones persistidas para no crecer sin límite.
 const PENDING_MAX: usize = 2000;
 const SEEN_ACTION_TTL_MS: u128 = 6 * 60 * 60 * 1000;
 const SEEN_ACTION_MAX: usize = 4000;
+/// Tope de comandas activas en memoria LAN (S-03). Overflow: purga entregada luego más viejas.
+const COMANDAS_ACTIVE_MAX: usize = 800;
+/// Soft threshold: purga entregada al 90% del techo (antes del overflow duro).
+const COMANDAS_PURGE_SOFT: usize = (COMANDAS_ACTIVE_MAX * 9) / 10;
 /// Rate limiting para consultas RUT: 1 consulta cada 6 segundos por IP
 const RUT_RATE_LIMIT_MS: u128 = 6_000;
 /// Tope de handlers HTTP concurrentes (techo diseño ~100 dispositivos: evita avalancha accept→spawn).
+/// Tope de handlers HTTP concurrentes (configurable por env CROZZO_LAN_MAX_HTTP; default 64).
 const MAX_CONCURRENT_HTTP: usize = 64;
 
 fn http_conn_semaphore() -> &'static Arc<Semaphore> {
     static SEM: OnceLock<Arc<Semaphore>> = OnceLock::new();
-    SEM.get_or_init(|| Arc::new(Semaphore::new(MAX_CONCURRENT_HTTP)))
+    SEM.get_or_init(|| {
+        let n = std::env::var("CROZZO_LAN_MAX_HTTP")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|&x| x > 0 && x <= 10_000)
+            .unwrap_or(MAX_CONCURRENT_HTTP);
+        Arc::new(Semaphore::new(n))
+    })
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -55,15 +75,15 @@ pub struct CrozzoLanSyncSubmission {
     pub payload: serde_json::Value,
 }
 
-#[derive(Clone)]
-struct ServerMeta {
-    location_id: String,
-    device_id: String,
-    business_id: String,
-    business_name: String,
+#[derive(Clone, Default)]
+pub struct ServerMeta {
+    pub location_id: String,
+    pub device_id: String,
+    pub business_id: String,
+    pub business_name: String,
     /// URL Supabase (anon key es pública; solo se entrega con token LAN de pareo).
-    supabase_url: String,
-    supabase_anon_key: String,
+    pub supabase_url: String,
+    pub supabase_anon_key: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -101,7 +121,7 @@ struct EmpresaData {
     tipo_contribuyente: String,
 }
 
-struct ServerInner {
+pub struct ServerInner {
     port: u16,
     meta: ServerMeta,
     /// Caja reporta si alcanzó Supabase recientemente (tablets leen /status).
@@ -124,7 +144,47 @@ struct ServerInner {
     /// Rate limiting para consultas RUT: IP → último timestamp de consulta
     rut_rate_limit: HashMap<String, u128>,
     stop: bool,
+    /// Persistencia robusta (SQLite + HLC). Fase 2.3.
+    persistence: Option<PersistenceDb>,
+    /// Hybrid Logical Clock (Fase 2.3).
+    hlc: crate::crozzo_lan_persistence::Hlc,
 }
+
+
+impl ServerInner {
+    pub fn meta(&self) -> ServerMeta { self.meta.clone() }
+    pub fn port(&self) -> u16 { self.port }
+    pub fn auth_token(&self) -> String { self.auth_token.clone() }
+    pub fn cloud_reachable(&self) -> bool { self.cloud_reachable }
+    pub fn cloud_reachable_at_ms(&self) -> u128 { self.cloud_reachable_at_ms }
+    pub fn comandas_count(&self) -> usize { self.comandas_active.len() }
+    pub fn comandas_values(&self) -> Vec<serde_json::Value> { self.comandas_active.values().cloned().collect() }
+    pub fn runtime_saved_at(&self) -> String { self.runtime_saved_at.clone() }
+    pub fn runtime_snapshot(&self) -> Option<serde_json::Value> { self.runtime_snapshot.clone() }
+    pub fn p2p_signals_filtered(&self, for_dev: &str, since: u128) -> Vec<serde_json::Value> {
+        let mut out = Vec::new();
+        for sig in &self.p2p_signals {
+            let at = sig.at_ms.parse::<u128>().unwrap_or(0);
+            if at < since { continue; }
+            let include = if for_dev.is_empty() {
+                true
+            } else if for_dev == "central" {
+                sig.to == "central"
+            } else {
+                sig.to == for_dev
+            };
+            if include {
+                out.push(serde_json::to_value(sig).unwrap_or(serde_json::json!({})));
+            }
+        }
+        out
+    }
+    pub fn ops_digest(&self) -> serde_json::Value {
+        let rows: Vec<serde_json::Value> = self.comandas_active.values().cloned().collect();
+        ops_digest_from_comandas(&rows, &self.runtime_saved_at)
+    }
+}
+
 
 fn shared_state() -> &'static Arc<Mutex<Option<ServerInner>>> {
     static STATE: OnceLock<Arc<Mutex<Option<ServerInner>>>> = OnceLock::new();
@@ -157,7 +217,7 @@ fn now_ms_u128() -> u128 {
 }
 
 /// Anti-entropy digest (alineado con CrozzoLanOpsSync.localComandasDigest — FNV-1a 32).
-fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) -> serde_json::Value {
+pub fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) -> serde_json::Value {
     let mut ids: Vec<String> = Vec::new();
     let mut max_at: i64 = 0;
     for row in rows {
@@ -212,7 +272,8 @@ fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &str) 
     let mut h: u32 = 2166136261;
     for id in &ids {
         let s = format!("{id}|");
-        for b in s.bytes() {
+        // Alinear con JS (charCodeAt = code unit UTF-16) (P0-07).
+        for b in s.encode_utf16() {
             h ^= u32::from(b);
             h = h.wrapping_mul(16777619);
         }
@@ -284,10 +345,14 @@ fn load_pending(path: &Option<PathBuf>) -> Vec<CrozzoLanSyncSubmission> {
 fn save_pending(path: &Option<PathBuf>, pending: &[CrozzoLanSyncSubmission]) {
     if let Some(p) = path {
         if let Ok(txt) = serde_json::to_string(pending) {
-            // Escritura atómica: archivo temporal + rename para evitar corrupción.
+            // Escritura atómica + fsync para durabilidad (F2.1).
             let tmp = p.with_extension("json.tmp");
-            if std::fs::write(&tmp, txt.as_bytes()).is_ok() {
-                let _ = std::fs::rename(&tmp, p);
+            if let Ok(mut f) = std::fs::File::create(&tmp) {
+                use std::io::Write;
+                if f.write_all(txt.as_bytes()).is_ok() {
+                    let _ = f.sync_all();
+                    let _ = std::fs::rename(&tmp, p);
+                }
             }
         }
     }
@@ -301,8 +366,8 @@ async fn write_http_response(
     body: &[u8],
 ) -> tokio::io::Result<()> {
     let headers = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
-        status, status_text, content_type, body.len(), CORS_ALLOW_HEADERS
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: keep-alive\r\nKeep-Alive: timeout=30, max=1000\r\nAccess-Control-Allow-Origin: {}\r\nAccess-Control-Allow-Headers: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\n\r\n",
+        status, status_text, content_type, body.len(), cors_origin(), CORS_ALLOW_HEADERS
     );
     stream.write_all(headers.as_bytes()).await?;
     stream.write_all(body).await?;
@@ -353,6 +418,70 @@ fn comanda_store_key(payload: &serde_json::Value) -> Option<String> {
     None
 }
 
+fn comanda_row_at_ms(row: &serde_json::Value) -> i64 {
+    row.get("lastUpdateAt")
+        .or_else(|| row.get("createdAt"))
+        .and_then(|v| match v {
+            serde_json::Value::Number(n) => n.as_i64(),
+            serde_json::Value::String(s) => s.parse::<i64>().ok(),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
+
+fn purge_entregada_comandas(inner: &mut ServerInner) -> usize {
+    let keys: Vec<String> = inner
+        .comandas_active
+        .iter()
+        .filter(|(_, v)| {
+            v.get("estado")
+                .and_then(|e| e.as_str())
+                .unwrap_or("")
+                .eq_ignore_ascii_case("entregada")
+        })
+        .map(|(k, _)| k.clone())
+        .collect();
+    let n = keys.len();
+    for k in keys {
+        inner.comandas_active.remove(&k);
+    }
+    n
+}
+
+/// S-03: al acercarse al techo, sacar entregadas; si sigue alto, dropear las más viejas.
+fn trim_comandas_active(inner: &mut ServerInner) {
+    if inner.comandas_active.len() >= COMANDAS_PURGE_SOFT {
+        purge_entregada_comandas(inner);
+    }
+    if inner.comandas_active.len() <= COMANDAS_ACTIVE_MAX {
+        // Persistir estado tras posible purge.
+        if let Some(db) = &inner.persistence {
+            let conn = db.conn.lock().unwrap();
+            let _ = crate::crozzo_lan_persistence::save_comandas(&conn, &inner.comandas_active);
+        }
+        return;
+    }
+    purge_entregada_comandas(inner);
+    while inner.comandas_active.len() > COMANDAS_ACTIVE_MAX {
+        let oldest = inner
+            .comandas_active
+            .iter()
+            .min_by_key(|(_, v)| comanda_row_at_ms(v))
+            .map(|(k, _)| k.clone());
+        match oldest {
+            Some(k) => {
+                inner.comandas_active.remove(&k);
+            }
+            None => break,
+        }
+    }
+    // Persistir estado tras trim.
+    if let Some(db) = &inner.persistence {
+        let conn = db.conn.lock().unwrap();
+        let _ = crate::crozzo_lan_persistence::save_comandas(&conn, &inner.comandas_active);
+    }
+}
+
 fn upsert_comanda_snapshot(inner: &mut ServerInner, payload: &serde_json::Value) {
     let typ = payload
         .get("type")
@@ -382,25 +511,28 @@ fn upsert_comanda_snapshot(inner: &mut ServerInner, payload: &serde_json::Value)
                         obj.insert("lastUpdateAt".into(), lu.clone());
                     }
                 }
+            } else {
+                // Si la fila no existe, insertar el estado (P0-05: no descartar).
+                inner.comandas_active.insert(k, data.clone());
+                trim_comandas_active(inner);
             }
         }
         return;
     }
     if typ == "comanda" || typ == "comanda_new" {
         if let Some(k) = comanda_store_key(payload) {
-            inner.comandas_active.insert(k, data);
-            if inner.comandas_active.len() > 800 {
-                let overflow = inner.comandas_active.len() - 800;
-                let keys: Vec<String> = inner
-                    .comandas_active
-                    .keys()
-                    .take(overflow)
-                    .cloned()
-                    .collect();
-                for rk in keys {
-                    inner.comandas_active.remove(&rk);
-                }
+            let est = data
+                .get("estado")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if est == "entregada" {
+                // No re-hidratar entregadas en el mapa activo (S-03).
+                inner.comandas_active.remove(&k);
+                return;
             }
+            inner.comandas_active.insert(k, data);
+            trim_comandas_active(inner);
         }
     }
 }
@@ -416,7 +548,7 @@ fn query_param(path: &str, key: &str) -> Option<String> {
     None
 }
 
-fn mesh_ping_json(meta: &ServerMeta, port: u16) -> Vec<u8> {
+pub fn mesh_ping_json(meta: &ServerMeta, port: u16) -> Vec<u8> {
     let resp = serde_json::json!({
         "ok": true,
         "device_id": meta.device_id,
@@ -457,6 +589,13 @@ fn prune_seen_actions(seen: &mut HashMap<String, u128>, now: u128) {
 /// true = duplicado reciente (no re-broadcast ni re-cola).
 fn register_action_or_duplicate(inner: &mut ServerInner, action_id: &str) -> bool {
     let now = now_ms_u128();
+    // Persistencia durable: consultar SQLite primero (Fase 2.3).
+    if let Some(db) = &inner.persistence {
+        let conn = db.conn.lock().unwrap();
+        if crate::crozzo_lan_persistence::is_seen(&conn, action_id) {
+            return true;
+        }
+    }
     prune_seen_actions(&mut inner.seen_actions, now);
     if let Some(ts) = inner.seen_actions.get(action_id) {
         if now.saturating_sub(*ts) < SEEN_ACTION_TTL_MS {
@@ -464,6 +603,11 @@ fn register_action_or_duplicate(inner: &mut ServerInner, action_id: &str) -> boo
         }
     }
     inner.seen_actions.insert(action_id.to_string(), now);
+    // Marcar en SQLite para durabilidad.
+    if let Some(db) = &inner.persistence {
+        let conn = db.conn.lock().unwrap();
+        let _ = crate::crozzo_lan_persistence::mark_seen(&conn, action_id);
+    }
     false
 }
 
@@ -540,7 +684,7 @@ fn generate_mock_empresa_data(nit: &str) -> EmpresaData {
         telefono: format!("601{:07}", nit_num % 10000000),
         email: format!("contacto{}@empresa.com", nit_num % 1000),
         estado: states[state_idx].to_string(),
-        tipo_contribuyente: if nit_num % 3 == 0 { 
+        tipo_contribuyente: if nit_num.is_multiple_of(3) { 
             "GRAN CONTRIBUYENTE".to_string() 
         } else { 
             "RÉGIMEN COMÚN".to_string() 
@@ -646,7 +790,7 @@ async fn handle_consultar_rut(
 
 /// Aplica POST /api/sync en memoria (cola + WS). Usado por HTTP y por invoke IPC
 /// de la caja (evita CORS tauri.localhost → 127.0.0.1).
-fn ingest_api_sync(
+pub fn ingest_api_sync(
     state: &Arc<Mutex<Option<ServerInner>>>,
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
@@ -702,20 +846,34 @@ fn ingest_api_sync(
         broadcast_lan_push(&endpoint, &payload);
         return Ok(serde_json::json!({ "ok": true, "runtime": true }));
     }
-    let is_identity = payload
+    let typ_str = payload
         .get("type")
         .and_then(|t| t.as_str())
-        .map(|t| {
-            t == "identity_card"
-                || t == "identity"
-                || t == "fleet_roster"
-                || t == "identity_roster"
-        })
-        .unwrap_or(false);
+        .unwrap_or("");
+    /* POE: presencia efímera — solo broadcast, sin pending ni mapa comandas */
+    if typ_str == "slot_presence" {
+        broadcast_lan_push(&endpoint, &payload);
+        return Ok(serde_json::json!({ "ok": true, "ephemeral": true }));
+    }
+    let is_identity = typ_str == "identity_card"
+        || typ_str == "identity"
+        || typ_str == "fleet_roster"
+        || typ_str == "identity_roster";
     if !is_identity {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
         if let Some(inner) = guard.as_mut() {
+            if let Some(hlc) = payload.get("hlc") {
+                let rms = hlc.get("ms").and_then(|v| v.as_u64()).unwrap_or(0);
+                let rct = hlc.get("counter").and_then(|v| v.as_u64()).unwrap_or(0) as u16;
+                inner.hlc.observe(rms, rct);
+            }
             upsert_comanda_snapshot(inner, &payload);
+            if typ_str.to_ascii_lowercase().contains("comanda") {
+                if let Some(db) = &inner.persistence {
+                    let conn = db.conn.lock().unwrap();
+                    let _ = crate::crozzo_lan_persistence::save_comandas(&conn, &inner.comandas_active);
+                }
+            }
         }
     }
     broadcast_lan_push(&endpoint, &payload);
@@ -735,6 +893,14 @@ fn ingest_api_sync(
             }
             let path = inner.pending_path.clone();
             save_pending(&path, &inner.pending);
+            if let Some(db) = &inner.persistence {
+                let conn = db.conn.lock().unwrap();
+                let payload_str = serde_json::to_string(&payload).unwrap_or_default();
+                let _ = crate::crozzo_lan_persistence::persist_pending(&conn, &sub.id, &endpoint, &payload_str);
+                let hlc_clone = inner.hlc.clone();
+                let _ = inner.hlc.now();
+                let _ = crate::crozzo_lan_persistence::record_op(&conn, &sub.id, &hlc_clone, &payload_str);
+            }
         }
     }
     Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true, "action_id": extract_action_id(&payload) }))
@@ -789,7 +955,14 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     // datos deben firmarse con la cabecera x-crozzo-lan-token. Los GET de
     // descubrimiento (/health, /status, /mesh-ping) quedan abiertos a propósito.
     let provided_token = header_value(&raw_text, LAN_AUTH_HEADER).unwrap_or_default();
-    let auth_ok = auth_token.is_empty() || provided_token == auth_token;
+    // Constant-time comparison of SHA-256 digests (evita fuga de longitud y contenido).
+    let provided_hash = sha2::Sha256::digest(provided_token.as_bytes());
+    let expected_hash = sha2::Sha256::digest(auth_token.as_bytes());
+    let mut diff: u8 = 0;
+    for (a, b) in provided_hash.iter().zip(expected_hash.iter()) {
+        diff |= a ^ b;
+    }
+    let auth_ok = diff == 0;
 
     if method == "GET" && (path == "/health" || path == "/health/") {
         let msg = b"{\"ok\":true,\"service\":\"crozzo-lan-sync\"}";
@@ -798,12 +971,18 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     }
 
     if method == "GET" && (path == "/status" || path == "/status/") {
-        let (cloud_ok, cloud_at) = {
+        let (cloud_ok, cloud_at, comandas_active_count) = {
             let guard = state.lock().unwrap();
             guard
                 .as_ref()
-                .map(|s| (s.cloud_reachable, s.cloud_reachable_at_ms))
-                .unwrap_or((false, 0))
+                .map(|s| {
+                    (
+                        s.cloud_reachable,
+                        s.cloud_reachable_at_ms,
+                        s.comandas_active.len(),
+                    )
+                })
+                .unwrap_or((false, 0, 0))
         };
         let resp = serde_json::json!({
             "ok": true,
@@ -815,7 +994,9 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
             "service": "crozzo-lan-sync",
             "port": port,
             "cloud_reachable": cloud_ok,
-            "cloud_reachable_at_ms": cloud_at
+            "cloud_reachable_at_ms": cloud_at,
+            "comandas_active_count": comandas_active_count,
+            "comandas_active_max": COMANDAS_ACTIVE_MAX
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
@@ -893,6 +1074,10 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     }
 
     if method == "GET" && (path == "/api/ops-digest" || path.starts_with("/api/ops-digest?")) {
+        if !auth_ok {
+            let _ = write_http_response(&mut stream, 401, "Unauthorized", "application/json", b"{\"ok\":false,\"error\":\"auth_required\"}").await;
+            return;
+        }
         let (rows, runtime_saved): (Vec<serde_json::Value>, String) = {
             let guard = state.lock().unwrap();
             match guard.as_ref() {
@@ -910,6 +1095,10 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     }
 
     if method == "GET" && (path == "/api/comandas" || path.starts_with("/api/comandas?")) {
+        if !auth_token.is_empty() && !auth_ok {
+            let _ = write_http_response(&mut stream, 401, "Unauthorized", "application/json", b"{\"ok\":false,\"error\":\"unauthorized\"}").await;
+            return;
+        }
         let (rows, runtime_saved): (Vec<serde_json::Value>, String) = {
             let guard = state.lock().unwrap();
             match guard.as_ref() {
@@ -925,7 +1114,7 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
             "ok": true,
             "comandas": rows,
             "count": rows.len(),
-            "saved_at": now_ms(),
+            "saved_at": runtime_saved.clone(),
             "digest": digest
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"comandas\":[]}".to_vec());
@@ -934,6 +1123,10 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     }
 
     if method == "GET" && (path == "/api/runtime" || path.starts_with("/api/runtime?")) {
+        if !auth_ok {
+            let _ = write_http_response(&mut stream, 401, "Unauthorized", "application/json", b"{\"ok\":false,\"error\":\"auth_required\"}").await;
+            return;
+        }
         let (snap, saved) = {
             let guard = state.lock().unwrap();
             match guard.as_ref() {
@@ -1008,6 +1201,16 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
 
     // Endpoint para consultar RUT
     if method == "POST" && (path == "/api/consultar-rut" || path == "/api/consultar-rut/") {
+        if !auth_ok {
+            let _ = write_http_response(
+                &mut stream,
+                401,
+                "Unauthorized",
+                "application/json",
+                b"{\"ok\":false,\"error\":\"auth_required\"}",
+            ).await;
+            return;
+        }
         handle_consultar_rut(&mut stream, &body, &client_ip, &state).await;
         return;
     }
@@ -1102,6 +1305,7 @@ fn status_from_inner(inner: &ServerInner) -> CrozzoLanSyncStatus {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn crozzo_lan_sync_start(
     port: Option<u16>,
     location_id: Option<String>,
@@ -1116,6 +1320,16 @@ pub async fn crozzo_lan_sync_start(
     if port < 1024 {
         return Err("Puerto inválido (use ≥ 1024)".into());
     }
+    let auth_token = auth_token.unwrap_or_default().trim().to_string();
+    if auth_token.is_empty() {
+        return Err("Token de autenticación LAN vacío: configura un token de pareo antes de iniciar el servidor (seguridad).".into());
+    }
+    // F2.1: tracing (JSON opcional via RUST_LOG).
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_target(false)
+        .try_init();
+    tracing::info!(port = port, "crozzo lan sync starting");
     let _lifecycle = lifecycle_lock().lock().await;
     {
         let guard = shared_state().lock().map_err(|e| e.to_string())?;
@@ -1127,7 +1341,12 @@ pub async fn crozzo_lan_sync_start(
     }
     crozzo_lan_sync_stop_inner()?;
     tokio::time::sleep(Duration::from_millis(PORT_RELEASE_WAIT_MS)).await;
-    let addr = format!("0.0.0.0:{}", port);
+    let lan_ip = crate::crozzo_mdns::guess_local_ipv4();
+    if lan_ip.is_loopback() {
+        return Err("No se detecto IP LAN (solo loopback); no se permite bind a 0.0.0.0 por seguridad.".into());
+    }
+    let bind_ip = lan_ip.to_string();
+    let addr = format!("{}:{}", bind_ip, port);
     let listener = TcpListener::bind(&addr).await.map_err(|e| {
         format!("No se pudo abrir el puerto {}: {}", port, e)
     })?;
@@ -1142,31 +1361,64 @@ pub async fn crozzo_lan_sync_start(
     let loc_id = meta.location_id.clone();
     let dev_id = meta.device_id.clone();
     let biz_id = meta.business_id.clone();
-    let pending_path = pending_file_in(&data_dir.unwrap_or_default());
-    let restored = load_pending(&pending_path);
+    let pending_path = pending_file_in(&data_dir.clone().unwrap_or_default());
+    let persistence_db = data_dir.as_ref().and_then(|d| {
+        let p = std::path::PathBuf::from(d).join("crozzo_lan.db");
+        crate::crozzo_lan_persistence::PersistenceDb::open(&p).ok()
+    });
+    let restored_comandas = persistence_db.as_ref().map(|db| {
+        let conn = db.conn.lock().unwrap();
+        crate::crozzo_lan_persistence::load_comandas(&conn)
+    }).unwrap_or_default();
+    // Restaurar pending desde SQLite (fallback JSON si vacío).
+    let restored = if let Some(db) = &persistence_db {
+        let conn = db.conn.lock().unwrap();
+        let rows = crate::crozzo_lan_persistence::load_pending(&conn);
+        if rows.is_empty() {
+            load_pending(&pending_path)
+        } else {
+            rows.into_iter().map(|(id, endpoint, payload)| {
+                let payload_val = serde_json::from_str(&payload).unwrap_or_else(|_| serde_json::json!({}));
+                CrozzoLanSyncSubmission {
+                    id,
+                    received_at: now_ms(),
+                    endpoint,
+                    payload: payload_val,
+                }
+            }).collect()
+        }
+    } else {
+        load_pending(&pending_path)
+    };
     let shared = Arc::clone(shared_state());
     {
         let mut guard = shared.lock().map_err(|e| e.to_string())?;
         *guard = Some(ServerInner {
             port,
-            meta,
+            meta: meta.clone(),
             cloud_reachable: false,
             cloud_reachable_at_ms: 0,
             pending: restored,
             in_flight: HashMap::new(),
             runtime_snapshot: None,
             runtime_saved_at: String::new(),
-            comandas_active: HashMap::new(),
+            comandas_active: restored_comandas,
             seen_actions: HashMap::new(),
             p2p_signals: Vec::new(),
-            auth_token: auth_token.unwrap_or_default().trim().to_string(),
+            auth_token,
             pending_path,
             rut_rate_limit: HashMap::new(),
             stop: false,
+            persistence: persistence_db,
+            hlc: crate::crozzo_lan_persistence::Hlc::new(meta.device_id.clone()),
         });
     }
     let st = Arc::clone(&shared);
-    let handle = tokio::spawn(run_server(st, listener));
+    let handle = if std::env::var("CROZZO_USE_AXUM").unwrap_or_default() == "1" {
+        tokio::spawn(crate::crozzo_lan_sync_axum::run_axum_server(st, listener))
+    } else {
+        tokio::spawn(run_server(st, listener))
+    };
     {
         let mut th = server_thread().lock().map_err(|e| e.to_string())?;
         *th = Some(handle);

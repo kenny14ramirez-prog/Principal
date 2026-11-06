@@ -306,6 +306,7 @@
             } else {
               markEntry(row.entry, 'ok', 'stock_pos_descontado', meta);
             }
+            row.entry.posDeducted = true;
           });
         } else {
           buckets.pos.forEach(function (row) {

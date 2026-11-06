@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Cierre de turnos y arqueo (mañana · tarde · día)
+ * Bona Origen — Cierre de turnos y arqueo (mañana · tarde · día)
  * Día operativo reinicia contadores; historial de facturas se conserva.
  */
 (function (global) {

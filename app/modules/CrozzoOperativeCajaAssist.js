@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Asistencia de rendimiento de caja: micro UI, sin bloquear el cobro.
+ * Bona Origen — Asistencia de rendimiento de caja: micro UI, sin bloquear el cobro.
  */
 (function (global) {
   'use strict';

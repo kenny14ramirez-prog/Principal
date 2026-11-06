@@ -1,5 +1,5 @@
 /**
- * Crozzo — importación de proveedores desde certificado RUT/NIT (PDF o imagen).
+ * Bona Origen — importación de proveedores desde certificado RUT/NIT (PDF o imagen).
  * PDF con texto: pdf.js · PDF escaneado / foto: OCR local (Tesseract, mismo motor que recepción FE).
  */
 (function (global) {
@@ -2456,7 +2456,7 @@
       esc(doc.nombre || 'Certificado RUT.pdf') +
       '</p>' +
       '<p class="form-hint crozzo-prov-rut__meta">' +
-      'Guardado en Crozzo: ' +
+      'Guardado en Bona Origen: ' +
       esc(formatFechaIsoDisplay(doc.subidoAt)) +
       (leg.fechaDocumento
         ? ' · Fecha en certificado: <strong>' + esc(leg.fechaDocumento) + '</strong>'
@@ -3126,7 +3126,7 @@
         'Marca o local con el que opera (campo 36). Puede diferir del RUT; útil en directorio y compras.',
       placeholder: 'Ej. Tienda El Buen Precio',
     });
-    html += renderEditRow('Nombre en directorio Crozzo', 'nombre-directorio', nombreDir, {
+    html += renderEditRow('Nombre en directorio Bona Origen', 'nombre-directorio', nombreDir, {
       required: true,
       hint: 'Cómo verá el proveedor en listados del POS (puede ser comercial o razón social).',
       placeholder: 'Nombre corto para buscar en el sistema',
@@ -3163,7 +3163,7 @@
       fieldChip(p.rubroInferido, false, true) +
       ' Rubro</th><td><select class="form-input crozzo-prov-doc__input-inline" data-prov-f="rubro">' +
       rubroOptionsHtml(p.rubroInferido || 'Otro') +
-      '</select><p class="form-hint crozzo-prov-doc__row-hint">Clasificación interna Crozzo.</p></td></tr>';
+      '</select><p class="form-hint crozzo-prov-doc__row-hint">Clasificación interna Bona Origen.</p></td></tr>';
 
     html += renderEditRow(
       'Tipo persona',

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Centro de configuración global en nube (solo Super Admin).
+ * Bona Origen — Centro de configuración global en nube (solo Super Admin).
  * Asistente: credenciales → SQL Editor → verificación → módulos.
  */
 (function (global) {
@@ -296,7 +296,7 @@
     }
     var lines = [];
     lines.push('-- =============================================================================');
-    lines.push('-- CROZZO POS — BASE DE DATOS (TODO EN UNO · generado en el POS)');
+    lines.push('-- BONA ORIGEN — BASE DE DATOS (TODO EN UNO · generado en el POS)');
     lines.push('-- Fecha: ' + new Date().toISOString());
     lines.push('-- Pegar COMPLETO en: Supabase → SQL Editor → New query → Run (▶)');
     lines.push('-- Scripts incluidos: ' + scripts.length + (opts.requiredOnly === false ? ' (todos)' : ' (obligatorios)'));

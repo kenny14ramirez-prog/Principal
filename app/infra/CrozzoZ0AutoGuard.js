@@ -1,5 +1,5 @@
 /**
- * Crozzo — Autoguarda operativa Z0 (autopilot para usuarios no técnicos).
+ * Bona Origen — Autoguarda operativa Z0 (autopilot para usuarios no técnicos).
  *
  * Sin botones ni consola: evalúa salud Realtime/LAN en segundo plano,
  * recupera sola cuando algo se enfría, y solo entonces muestra un aviso

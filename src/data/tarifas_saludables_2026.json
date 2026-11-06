@@ -1,0 +1,50 @@
+{
+  "_meta": {
+    "descripcion": "Impuestos Saludables Ley 2277 de 2022 (art. 54) — tarifas vigentes Colombia 2026",
+    "fuente": "Resolución DIAN 0247 de 2025 (bebidas azucaradas $/L) + Ley 2277/2022 art. 54 (ultraprocesados 20%)",
+    "vigenteDesde": "2026-01-01",
+    "actualizarCon": "Resolución DIAN anual (diciembre) — corroborar antes de release",
+    "notaLegal": "Estos impuestos se CAUSAN además del IVA, no lo reemplazan. Una gaseosa paga IVA 19% + impuesto saludable $/L. Base gravable del saludable = precio al consumidor final.",
+    "itemsAVerificarFuentePrimaria": [
+      "Tarifas exactas $/L por rango de azúcar (Res. DIAN 0247/2025 tabla completa)",
+      "Lista canónica de productos ultraprocesados (Decreto reglamentario)",
+      "Umbral de azúcar que dispara cada rango (gr/100mL)"
+    ]
+  },
+  "bebidasAzucaradas": {
+    "descripcion": "Bebidas no alcohólicas con azúcar añadida o edulcorantes. Tarifa específica en $/L según gramos de azúcar por 100 mL.",
+    "base": "volumen_litros",
+    "rangos": [
+      { "azucarGrPor100mlMin": 0, "azucarGrPor100mlMax": 0, "tarifaPorLitro": 0, "nota": "Sin azúcar añadida — no aplica" },
+      { "azucarGrPor100mlMin": 0.01, "azucarGrPor100mlMax": 2.0, "tarifaPorLitro": 0, "nota": "Bajo en azúcar — exento (verificar umbral vigente)" },
+      { "azucarGrPor100mlMin": 2.01, "azucarGrPor100mlMax": 5.0, "tarifaPorLitro": 245, "nota": "Rango bajo — estimación; corroborar Res. 0247/2025" },
+      { "azucarGrPor100mlMin": 5.01, "azucarGrPor100mlMax": 8.0, "tarifaPorLitro": 385, "nota": "Rango medio — estimación; corroborar" },
+      { "azucarGrPor100mlMin": 8.01, "azucarGrPor100mlMax": 99.0, "tarifaPorLitro": 545, "nota": "Rango alto — estimación; corroborar" }
+    ],
+    "notaRangos": "Las tarifas $/L son ESTIMACIONES basadas en estructura de la Ley 2277/2022. CONFIRMAR valores exactos contra tabla Res. DIAN 0247/2025 antes de producción."
+  },
+  "ultraprocesados": {
+    "descripcion": "Productos comestibles ultraprocesados (alto sodio, azúcar o grasas saturadas). Tarifa ad valorem escalonada.",
+    "base": "advalorem",
+    "tarifa": 0.20,
+    "tarifaHistorica": [
+      { "anio": 2023, "tarifa": 0.10 },
+      { "anio": 2024, "tarifa": 0.15 },
+      { "anio": 2025, "tarifa": 0.20 }
+    ],
+    "categoriasAfectadas": [
+      "productos-ultraprocesados",
+      "snacks-empacados",
+      "galletas",
+      "cereales-azucarados",
+      "confiteria",
+      "productos-carnicos-procesados"
+    ]
+  },
+  "excepciones": {
+    "leches": "Leches líquidas y yogures sin azúcar añadida — no aplican (verificar decreto reglamentario)",
+    "productos-farmaceuticos": "Productos con registro INVIMA farmacéutico — exentos",
+    "preparaciones-lacteas": "Fórmulas infantiles — exentas",
+    "bebidas-alcoholicas": "Aplican régimen de alcohol (IVA + INC) aparte, NO saludables"
+  }
+}

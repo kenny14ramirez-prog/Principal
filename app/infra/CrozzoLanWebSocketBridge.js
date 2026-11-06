@@ -8,10 +8,29 @@
   var _reconnectTimer = null;
   var _url = '';
   var RECONNECT_MS = 4200;
-  // Jitter anti-estampida: si la caja reinicia, las tablets no reconectan todas
-  // en el mismo instante (reparte el pico sobre el servidor LAN).
+  // Jitter anti-estampida (S-04): deviceId-determinista + azar corto.
+  // Preferir crozzoReconnectStaggerMs (ReconnectSync); fallback hash local.
   function reconnectDelay() {
-    return RECONNECT_MS + Math.floor(Math.random() * 2600);
+    try {
+      if (typeof global.crozzoReconnectStaggerMs === 'function') {
+        return global.crozzoReconnectStaggerMs(RECONNECT_MS, 2600);
+      }
+    } catch (_) {}
+    var id = '';
+    try {
+      id = String(
+        (typeof global.ensureCrozzoDeviceId === 'function' && global.ensureCrozzoDeviceId()) ||
+          (global.localStorage && global.localStorage.getItem('crozzo_device_id')) ||
+          ''
+      );
+    } catch (_) {
+      id = '';
+    }
+    var h = 0;
+    for (var i = 0; i < id.length; i++) {
+      h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    return RECONNECT_MS + (h % 2600) + Math.floor(Math.random() * 400);
   }
 
   function md() {
@@ -32,6 +51,11 @@
 
   function tierAllows() {
     try {
+      // Strict: only allow if LAN ops are actively running or in standby
+      if (global.CrozzoLanOpsSync && typeof global.CrozzoLanOpsSync.getPathHealth === 'function') {
+        var h = global.CrozzoLanOpsSync.getPathHealth();
+        if (h && h.started) return true;
+      }
       if (typeof global.crozzoLanWsStandbyActive === 'function' && global.crozzoLanWsStandbyActive()) {
         return true;
       }
@@ -41,14 +65,23 @@
         return false;
       }
     } catch (_) {}
-    if (canUseLanWs()) return true;
+    if (canUseLanWs()) {
+      // Double check with orchestrator
+      try {
+        if (global.CrozzoConnectivityOrchestrator && typeof global.CrozzoConnectivityOrchestrator.getState === 'function') {
+          var st = global.CrozzoConnectivityOrchestrator.getState();
+          if (st && (st.level === 'mesh' || st.level === 'qr')) return false;
+        }
+      } catch (_) {}
+      return true;
+    }
     try {
       if (typeof global.crozzoLanTransportAllowed === 'function') {
         return global.crozzoLanTransportAllowed();
       }
     } catch (_) {}
     var t = String(global.__CROZZO_TIER_LAST || 'offline');
-    return t === 'lan' || t === 'hotspot' || t === 'offline' || t === 'mesh';
+    return t === 'lan' || t === 'hotspot';
   }
 
   function wsPort(cfg) {
@@ -121,6 +154,17 @@
       try {
         if (global.CrozzoPeerDirectory && typeof global.CrozzoPeerDirectory.ingestFleetRoster === 'function') {
           global.CrozzoPeerDirectory.ingestFleetRoster(rosterPay, 'lan_ws');
+        }
+      } catch (_) {}
+      noteWsActivity();
+      return;
+    }
+    /* POE — presencia efímera (sin snap runtime completo) */
+    if (typEarly === 'slot_presence') {
+      var presPay = raw.data || raw.payload || raw;
+      try {
+        if (typeof global.crozzoOpsPresenceApply === 'function') {
+          global.crozzoOpsPresenceApply(presPay, 'lan_ws');
         }
       } catch (_) {}
       noteWsActivity();

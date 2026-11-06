@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Importación masiva de platos y recetas vía Excel
+ * Bona Origen — Importación masiva de platos y recetas vía Excel
  * Plantilla humana: Platos + Recetas + lista de insumos disponibles
  */
 (function (global) {

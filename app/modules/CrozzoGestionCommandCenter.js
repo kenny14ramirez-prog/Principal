@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Centro de mando · Perfiles y menús ocultos
+ * Bona Origen — Centro de mando · Perfiles y menús ocultos
  * Grafo de dependencias, validación matemática, psicología operativa (carga cognitiva / cadena de custodia).
  */
 (function (global) {

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Resumen compras: inteligencia estratégica del abastecimiento.
+ * Bona Origen — Resumen compras: inteligencia estratégica del abastecimiento.
  * Vista ejecutiva (KPIs, tendencias, concentración) — no duplica entrada de facturas.
  */
 (function (global) {

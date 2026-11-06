@@ -1,5 +1,5 @@
 /**
- * Crozzo — Identidad de malla + registro de peers Bluetooth.
+ * Bona Origen — Identidad de malla + registro de peers Bluetooth.
  *
  * - deviceId fijo (no cambia); nombre visible sí puede cambiar (Pepe → Fabricio).
  * - aliases: nombres viejos para seguir encontrando al mismo dispositivo.
@@ -100,7 +100,7 @@
         n = String(md.tabletName || md.deviceName || md.lanDeviceName || '').trim();
       } catch (_) {}
     }
-    return n || 'Dispositivo Crozzo';
+    return n || 'Dispositivo Bona Origen';
   }
 
   function readUserName() {
@@ -679,7 +679,7 @@
       safe(function () {
         if (typeof global.showToast === 'function') {
           global.showToast(
-            'Active Bluetooth: Crozzo busca cocina y caja por nombre y se reconecta solo si cambias de nombre.',
+            'Active Bluetooth: Bona Origen busca cocina y caja por nombre y se reconecta solo si cambias de nombre.',
             'info'
           );
         }

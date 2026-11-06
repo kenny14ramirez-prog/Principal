@@ -1,5 +1,5 @@
 /**
- * Crozzo — Acompañante operativo (integra PerfilesLogica + Psyche + flujos POS).
+ * Bona Origen — Acompañante operativo (integra PerfilesLogica + Psyche + flujos POS).
  * El sistema entiende el rol y adapta guía, bloqueos amables y comodidad por pantalla.
  */
 (function (global) {

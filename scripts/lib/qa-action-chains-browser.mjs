@@ -92,6 +92,15 @@ function chainHelpers() {
     if (typeof window.setCajaMode === 'function') window.setCajaMode('mesa');
     await sleep(250);
     try { if (window.closedSlots && window.closedSlots.mesa) delete window.closedSlots.mesa[mesaId]; } catch (_) {}
+    // Limpiar comandas activas residuales de la mesa (maratón reutiliza mesas)
+    try { if (typeof window.crozzoClearComandasForSlot === 'function') window.crozzoClearComandasForSlot('mesa', mesaId); } catch (_) {}
+    try {
+      if (window.cartsPorMesa && window.cartsPorMesa[mesaId]) window.cartsPorMesa[mesaId] = [];
+    } catch (_) {}
+    try { if (window.cart && Array.isArray(window.cart)) window.cart = []; } catch (_) {}
+    try { if (window.comandaSlotLocks && window.comandaSlotLocks.mesa) delete window.comandaSlotLocks.mesa[mesaId]; } catch (_) {}
+    try { if (window.slotSessionPresence && window.slotSessionPresence.mesa) delete window.slotSessionPresence.mesa[mesaId]; } catch (_) {}
+    try { if (window.closedSlots && window.closedSlots.mesa) delete window.closedSlots.mesa[mesaId]; } catch (_) {}
     window.tipoServicioCaja = 'mesa';
     window.mesaSeleccionada = mesaId;
     window.cajaMesaOrderOpen = true;

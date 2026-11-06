@@ -1,5 +1,5 @@
 /**
- * Crozzo — Ingest operativo unificado (boca única para comandas Z0).
+ * Bona Origen — Ingest operativo unificado (boca única para comandas Z0).
  *
  * No reemplaza cloud/LAN/mesh: centraliza dedup + prioridad de canal antes de
  * aplicar comandas. Evita duplicados cuando varias rutas híbridas confirman

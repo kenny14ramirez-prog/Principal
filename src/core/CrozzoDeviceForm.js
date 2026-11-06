@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — factor de forma (móvil / tablet / escritorio) en web y Tauri.
+ * Bona Origen — factor de forma (móvil / tablet / escritorio) en web y Tauri.
  * Tauri ya no fuerza modo escritorio en teléfonos: la UI sigue el ancho real.
  */
 (function (global) {

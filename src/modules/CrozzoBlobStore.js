@@ -1,5 +1,5 @@
 /**
- * Crozzo — almacén de archivos (facturas PDF/fotos) en IndexedDB.
+ * Bona Origen — almacén de archivos (facturas PDF/fotos) en IndexedDB.
  * El reservorio guarda solo referencias; capacidad ~cientos de MB.
  * Preparado para cola de subida a Supabase Storage (fase nube).
  */

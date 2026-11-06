@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Guardián offline: conectividad, modo local seguro, salud del reservorio.
+ * Bona Origen — Guardián offline: conectividad, modo local seguro, salud del reservorio.
  */
 (function (global) {
   'use strict';

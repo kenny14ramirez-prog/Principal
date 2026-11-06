@@ -1,5 +1,5 @@
 /**
- * Crozzo — Predicción de errores humanos en conectividad + recuperación guiada.
+ * Bona Origen — Predicción de errores humanos en conectividad + recuperación guiada.
  *
  * Anticipa fallos orgánicos (WiFi equivocado, caja apagada, QR no escaneado,
  * tablets en subredes distintas) y dispara acciones automáticas + avisos claros.

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Sync antes de editar (tablet/caja operativa).
+ * Bona Origen — Sync antes de editar (tablet/caja operativa).
  * Entra → verifica nube/LAN → actualiza → recién ahí permite editar mesas.
  */
 (function (global) {

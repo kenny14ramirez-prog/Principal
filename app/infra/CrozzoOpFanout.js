@@ -1,5 +1,5 @@
 /**
- * Crozzo — Fanout multi-canal de operaciones Z0 con seguimiento de ACK.
+ * Bona Origen — Fanout multi-canal de operaciones Z0 con seguimiento de ACK.
  * Publica en paralelo (nube + LAN + mesh) y reintenta si no hay confirmación.
  */
 (function (global) {

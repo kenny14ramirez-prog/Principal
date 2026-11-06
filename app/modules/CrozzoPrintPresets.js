@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Catálogo de diseños térmicos predefinidos (10 estilos).
+ * Bona Origen — Catálogo de diseños térmicos predefinidos (10 estilos).
  * Usado en modo «Listo para usar» del Centro de impresión.
  */
 (function (global) {
@@ -267,7 +267,7 @@
         { t: 'payment', c: '', v: true, o: 11, a: 'left', fs: 'sm' },
         { t: 'propina_sugerida', c: '', v: true, o: 11.5, a: 'center', fs: 'xs' },
         { t: 'legal_co', c: '', v: true, o: 11.8, a: 'center', fs: 'xs' },
-        { t: 'footer', c: '- Documento Crozzo - calidad garantizada -', v: true, o: 12, a: 'center', fs: 'xs' },
+        { t: 'footer', c: '- Documento Bona Origen - calidad garantizada -', v: true, o: 12, a: 'center', fs: 'xs' },
         orn('dots', 12.5),
       ];
     }

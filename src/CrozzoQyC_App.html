@@ -3097,7 +3097,7 @@ html.qca-pos-embed body{background:var(--bg-primary,#0f0720)}
 </div>
 
 <script>
-// ── CROZZO POS BRIDGE (generado; no editar a mano) ──
+// ── BONA ORIGEN BRIDGE (generado; no editar a mano) ──
 (function(){
   try{
     var p=new URLSearchParams(location.search);
@@ -8246,7 +8246,7 @@ function ofProvLabelForExport(ids){ids=ids||ofGetProvIds();if(!ids.length)return
 
 const OF_SEL_HOST_ID={transferencia:'tabla-transferencias',efectivo:'tabla-efectivo',tarjeta:'tabla-tarjeta'};
 
-/** Igual que `Crozzo QyC viejo.html`: cabeceras recepción + filtros por `estado_recepcion`. */
+/** Igual que `Bona Origen QyC viejo.html`: cabeceras recepción + filtros por `estado_recepcion`. */
 function ofRecepcionesFacturasQueryExtra(opts){
   opts=opts||{};
   const filtProvIds=ofGetProvIdsFromOpts(opts);
@@ -8648,7 +8648,7 @@ function ofBuildTransferRowsForRender(data,esAdmin){
     };
   });
 }
-/** Filas tabla Transferencias desde recepciones (lógica Crozzo viejo — Oficina/Facturas). */
+/** Filas tabla Transferencias desde recepciones (lógica Bona Origen viejo — Oficina/Facturas). */
 function ofBuildTransferRowsFromRecepciones(recs,esAdmin){
   return (Array.isArray(recs)?recs:[]).map(function(r){
     const prov=provMap[r.proveedor_id]||null;
@@ -9118,7 +9118,7 @@ function ofTransferFiltroEstadoParaRecepcionQuery(){
   return t==='todos'?'':t;
 }
 
-// ── Transferencias: misma lógica que Oficina→Facturas en Crozzo viejo (`recepciones` cabecera; excl. efectivo/tarjeta) ──
+// ── Transferencias: misma lógica que Oficina→Facturas en Bona Origen viejo (`recepciones` cabecera; excl. efectivo/tarjeta) ──
 async function ofLoadFacturas(forzar=false,append=false){
   const hostId=OF_SEL_HOST_ID.transferencia;
   const list=document.getElementById(hostId);
@@ -9323,7 +9323,7 @@ function ofCanvasWrapMemoLines(g,text,maxPx,fontPx){
   return out;
 }
 
-/** Listado reporte Transferencias: misma fuente que Crozzo viejo (`recepciones` cabecera; sin efectivo/tarjeta). */
+/** Listado reporte Transferencias: misma fuente que Bona Origen viejo (`recepciones` cabecera; sin efectivo/tarjeta). */
 async function ofFetchFacturasListadoParaReporte(){
   const pageSize=parseInt(document.getElementById('of-page-size')?.value||'100',10)||100;
   const filtEst=ofTransferFiltroEstadoParaRecepcionQuery();

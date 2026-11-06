@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "whatsapp-dock",
+  "description": "Minimal capability for the WhatsApp dock webview (third-party content)",
+  "windows": ["crozzo-whatsapp-dock"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "allow-crozzo-external"
+  ]
+}

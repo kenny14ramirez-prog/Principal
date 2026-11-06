@@ -1,5 +1,5 @@
 /**
- * Crozzo — Scoreboard unificado de transporte Z0 (patrón multi-radio / first-wins).
+ * Bona Origen — Scoreboard unificado de transporte Z0 (patrón multi-radio / first-wins).
  * No elige el usuario: reporta path activo y si mesh de supervivencia debe emitir.
  *
  * Prioridad emit: lan_ws > lan_http > gossip > ble/wifi_direct/webrtc; cloud en paralelo si WAN.

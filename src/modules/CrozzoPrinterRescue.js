@@ -244,7 +244,7 @@ const PRINTER_RESCUE_DB = {
     models: ['ZJ-5890K', 'ZJ-8250', 'ZJ-8250BT', 'ZJ-5805', 'ZJ-8220', 'ZJ-5890T', 'ZJ-8330']
   }
 };
-/** Enlace directo al driver/página del modelo (no descarga nada desde Crozzo). */
+/** Enlace directo al driver/página del modelo (no descarga nada desde Bona Origen). */
 function crozzoRescueIsVerifiedSupport(brand) {
   return (
     ['Digital POS', 'Epson', 'Star Micronics', 'SAT', 'Generic POS-58/80', 'Bixolon', 'Citizen', 'Xprinter'].indexOf(
@@ -525,7 +525,7 @@ function crozzoRescueSetSearchInputValue(value) {
 function crozzoRescueIntroHtml() {
   return (
     '<div class="crozzo-rescue-intro">' +
-    '<p><strong>Crozzo no instala drivers.</strong> Primero Windows debe ver la impresora; después la asigna aquí.</p>' +
+    '<p><strong>Bona Origen no instala drivers.</strong> Primero Windows debe ver la impresora; después la asigna aquí.</p>' +
     '</div>'
   );
 }
@@ -694,7 +694,7 @@ function renderPrinterRescueModal(sourceLabel) {
     phaseBody +
     '</div>' +
     '<div class="crozzo-rescue-footer">' +
-    '<p class="crozzo-rescue-note">Crozzo no instala software externo. Solo guía y abre Windows o internet.</p>' +
+    '<p class="crozzo-rescue-note">Bona Origen no instala software externo. Solo guía y abre Windows o internet.</p>' +
     '</div></div>'
   );
 }

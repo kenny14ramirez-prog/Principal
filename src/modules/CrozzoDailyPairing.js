@@ -1,6 +1,6 @@
 /**
 
- * Crozzo — QR de emparejamiento por franjas (rotacion cada 4 h).
+ * Bona Origen — QR de emparejamiento por franjas (rotacion cada 4 h).
 
  * Delega generacion y registro de pares a CrozzoInternalQrRegistry.
 

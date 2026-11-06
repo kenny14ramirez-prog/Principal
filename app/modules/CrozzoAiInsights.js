@@ -1,5 +1,5 @@
 /**
- * Crozzo AI Insights — reporte narrativo admin (macro 8d / mes).
+ * Bona Origen AI Insights — reporte narrativo admin (macro 8d / mes).
  * Flag `aiReportes` viaja a la sede; la API key NVIDIA solo vive en Edge Function.
  */
 (function (global) {
@@ -1431,7 +1431,7 @@
     }
     var system =
       opts.system ||
-      'Eres un asistente de prueba de Crozzo POS. Responde en español colombiano, breve y claro.';
+      'Eres un asistente de prueba de Bona Origen. Responde en español colombiano, breve y claro.';
     var model = opts.model || readCfg().model || DEFAULT_MODEL;
     var payload = {
       model: model,
@@ -1486,7 +1486,7 @@
     var r = await chatNvidia(q, {
       apiKey: opts.apiKey,
       system:
-        'Prueba de conectividad Crozzo. Debes empezar tu respuesta con CROZZO_OK y luego una frase corta en español.',
+        'Prueba de conectividad Bona Origen. Debes empezar tu respuesta con CROZZO_OK y luego una frase corta en español.',
       maxTokens: 120,
     });
     if (!r.ok) return r;
@@ -1752,6 +1752,37 @@
       '</div>' +
       '<p class="form-hint" id="crozzoAiAdminMsg" style="margin-top:8px;">Paso: key → Guardar → habilitar → <strong>Probar conexión</strong> (debe devolver CROZZO_OK).</p>' +
       '<pre class="crozzo-ai-insight-text" id="crozzoAiProbeOut" hidden style="margin-top:10px;"></pre>' +
+      '</div>' +
+      // --- IA local (Ollama) ---
+      '<div class="card" style="margin-top:12px;" id="crozzoAiLocalAdmin">' +
+      '<div class="card-header"><span class="card-title">🤖 IA local (Ollama) — análisis de cierres</span></div>' +
+      '<p class="form-hint">IA pequeña (1-2 GB) que analiza cierres y genera resúmenes/alertas. ' +
+      'Requiere Ollama instalado en este PC. Funciona offline. Si no está disponible, se usa la vista previa local.</p>' +
+      '<div class="form-group" style="margin-top:10px;">' +
+      '<label class="crozzo-toggle-row" style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
+      '<input type="checkbox" id="crozzoAiLocalEnabled"' +
+      (isAiLocalEnabled() ? ' checked' : '') +
+      ' />' +
+      '<span><strong>Habilitar IA local</strong> para análisis de cierres</span></label></div>' +
+      '<div class="form-group"><label class="form-label">URL Ollama</label>' +
+      '<input type="text" id="crozzoOllamaUrl" class="form-control" ' +
+      'value="' + esc((typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434') + '" ' +
+      'placeholder="http://127.0.0.1:11434" /></div>' +
+      '<div class="form-group"><label class="form-label">Modelo</label>' +
+      '<select id="crozzoOllamaModel" class="form-control">' +
+      '<option value="qwen2.5:1.5b">qwen2.5:1.5b (~1 GB, rápido)</option>' +
+      '<option value="qwen2.5:3b">qwen2.5:3b (~2 GB, mejor calidad)</option>' +
+      '<option value="llama3.2:1b">llama3.2:1b (~1.3 GB, muy ligero)</option>' +
+      '<option value="llama3.2:3b">llama3.2:3b (~2 GB)</option>' +
+      '<option value="gemma2:2b">gemma2:2b (~1.6 GB)</option>' +
+      '<option value="phi3:mini">phi3:mini (~2.3 GB)</option>' +
+      '</select></div>' +
+      '<div class="crozzo-rep-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">' +
+      '<button type="button" class="btn btn-outline" id="crozzoAiLocalProbe">Probar Ollama</button>' +
+      '<button type="button" class="btn btn-outline" id="crozzoAiLocalAnalyze">Analizar cierre (prueba)</button>' +
+      '</div>' +
+      '<p class="form-hint" id="crozzoAiLocalMsg" style="margin-top:8px;">Estado: verificando…</p>' +
+      '<pre class="crozzo-ai-insight-text" id="crozzoAiLocalOut" hidden style="margin-top:10px;"></pre>' +
       '</div>'
     );
   }
@@ -1952,6 +1983,165 @@
 
     applyProbeSessionToDom();
     fetchKeyStatus().catch(function () {});
+
+    // --- Bind IA local (Ollama) ---
+    var localProbe = document.getElementById('crozzoAiLocalProbe');
+    if (localProbe) {
+      localProbe.addEventListener('click', function () {
+        var msgEl = document.getElementById('crozzoAiLocalMsg');
+        var outEl = document.getElementById('crozzoAiLocalOut');
+        if (msgEl) msgEl.textContent = 'Verificando Ollama…';
+        crozzoOllamaAvailable().then(function (ok) {
+          if (msgEl) msgEl.textContent = ok ? '✓ Ollama disponible' : '✗ Ollama no responde (verifique instalación y servicio)';
+          if (ok) {
+            crozzoOllamaBestModel().then(function (m) {
+              if (msgEl) msgEl.textContent = '✓ Ollama disponible · modelo: ' + (m || 'ninguno');
+              if (outEl && m) { outEl.hidden = false; outEl.textContent = 'Modelo seleccionado: ' + m; }
+            });
+          }
+        }).catch(function (e) {
+          if (msgEl) msgEl.textContent = 'Error: ' + String(e && e.message ? e.message : e);
+        });
+      });
+    }
+    var localAnalyze = document.getElementById('crozzoAiLocalAnalyze');
+    if (localAnalyze) {
+      localAnalyze.addEventListener('click', function () {
+        var msgEl = document.getElementById('crozzoAiLocalMsg');
+        var outEl = document.getElementById('crozzoAiLocalOut');
+        if (msgEl) msgEl.textContent = 'Analizando…';
+        requestLocalBehaviorInsight({}).then(function (r) {
+          if (r && r.ok) {
+            if (msgEl) msgEl.textContent = '✓ Análisis completado · modelo: ' + r.model;
+            if (outEl) { outEl.hidden = false; outEl.textContent = r.text; }
+          } else {
+            if (msgEl) msgEl.textContent = '✗ ' + (r && r.reason ? r.reason : 'error') + (r && r.detail ? ' — ' + r.detail : '');
+            if (outEl) { outEl.hidden = true; }
+          }
+        }).catch(function (e) {
+          if (msgEl) msgEl.textContent = 'Error: ' + String(e && e.message ? e.message : e);
+        });
+      });
+    }
+    var localToggle = document.getElementById('crozzoAiLocalEnabled');
+    if (localToggle) {
+      localToggle.addEventListener('change', function () {
+        setAiLocalEnabled(!!localToggle.checked);
+        if (typeof showToast === 'function') showToast(localToggle.checked ? 'IA local ON' : 'IA local OFF', 'success');
+      });
+    }
+    var urlInput = document.getElementById('crozzoOllamaUrl');
+    if (urlInput) {
+      urlInput.addEventListener('change', function () {
+        try { if (typeof localStorage !== 'undefined') localStorage.setItem('crozzo_ollama_url', String(urlInput.value || '').trim()); } catch (_) {}
+      });
+    }
+  }
+
+  // --- IA local (Ollama) para análisis de cierres / resúmenes ---
+  // Modelos pequeños optimizados para texto (1-2 GB), ordenados por calidad.
+  var OLLAMA_LOCAL_MODELS = [
+    { name: 'qwen2.5:3b', sizeGb: 2.0, minRamGb: 4 },
+    { name: 'qwen2.5:1.5b', sizeGb: 1.0, minRamGb: 2 },
+    { name: 'llama3.2:3b', sizeGb: 2.0, minRamGb: 4 },
+    { name: 'llama3.2:1b', sizeGb: 1.3, minRamGb: 2 },
+    { name: 'gemma2:2b', sizeGb: 1.6, minRamGb: 3 },
+    { name: 'phi3:mini', sizeGb: 2.3, minRamGb: 4 },
+  ];
+
+  function isAiLocalEnabled() {
+    try {
+      var cfg = readCfg ? readCfg() : {};
+      return !!(cfg && cfg.aiLocalEnabled);
+    } catch (_) { return false; }
+  }
+
+  function setAiLocalEnabled(next) {
+    try {
+      var cfg = readCfg ? readCfg() : {};
+      cfg.aiLocalEnabled = !!next;
+      if (typeof writeCfg === 'function') writeCfg(cfg);
+      return true;
+    } catch (_) { return false; }
+  }
+
+  async function crozzoOllamaInvoke(method, args) {
+    args = args || {};
+    // Preferir puente Tauri (sin CORS)
+    try {
+      if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+        return await global.__TAURI__.core.invoke(method, args);
+      }
+    } catch (_) {}
+    // Fallback fetch directo (solo si no hay Tauri)
+    return null;
+  }
+
+  async function crozzoOllamaAvailable() {
+    try {
+      var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+      var r = await crozzoOllamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 5000 });
+      if (r) {
+        try { var j = JSON.parse(r); return !!(j && Array.isArray(j.models)); } catch (_) { return false; }
+      }
+      // Fallback fetch
+      var resp = await fetch(url + '/api/tags', { method: 'GET' });
+      if (!resp.ok) return false;
+      var j2 = await resp.json();
+      return !!(j2 && Array.isArray(j2.models));
+    } catch (_) { return false; }
+  }
+
+  async function crozzoOllamaBestModel() {
+    try {
+      var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+      var r = await crozzoOllamaInvoke('crozzo_ollama_tags', { url: url, timeout_ms: 5000 });
+      var models = [];
+      if (r) { try { var j = JSON.parse(r); models = (j && j.models) || []; } catch (_) {} }
+      else {
+        var resp = await fetch(url + '/api/tags');
+        if (resp.ok) { var j2 = await resp.json(); models = (j2 && j2.models) || []; }
+      }
+      var names = models.map(function (m) { return String(m.name || m.model || ''); });
+      // Elegir el mejor modelo disponible según la lista ordenada por calidad
+      for (var i = 0; i < OLLAMA_LOCAL_MODELS.length; i++) {
+        var cand = OLLAMA_LOCAL_MODELS[i];
+        if (names.some(function (n) { return n.indexOf(cand.name.split(':')[0]) === 0; })) {
+          return cand.name;
+        }
+      }
+      // Si hay algún modelo disponible, usar el primero
+      if (names.length) return names[0];
+      return null;
+    } catch (_) { return null; }
+  }
+
+  async function requestLocalBehaviorInsight(opts) {
+    opts = opts || {};
+    if (!isAiLocalEnabled()) return { ok: false, reason: 'disabled' };
+    var available = await crozzoOllamaAvailable();
+    if (!available) return { ok: false, reason: 'ollama_unavailable' };
+    var model = await crozzoOllamaBestModel();
+    if (!model) return { ok: false, reason: 'no_model' };
+    var pack = buildBehaviorPack(opts);
+    var url = (typeof localStorage !== 'undefined' && localStorage.getItem('crozzo_ollama_url')) || 'http://127.0.0.1:11434';
+    var prompt = 'Eres un asistente de análisis de cierre de caja para un restaurante/tienda. ' +
+      'Analiza los siguientes datos y genera un resumen ejecutivo en español (máximo 150 palabras) ' +
+      'con alertas si detectas anomalías (diferencias de arqueo, voids excesivos, patrones inusuales). ' +
+      'Datos: ' + JSON.stringify(pack).slice(0, 2000);
+    try {
+      var r = await crozzoOllamaInvoke('crozzo_ollama_chat', { url: url, model: model, prompt: prompt, timeout_ms: 60000 });
+      var text = '';
+      if (r) { try { var j = JSON.parse(r); text = (j && j.response) || ''; } catch (_) { text = String(r); } }
+      else {
+        var resp = await fetch(url + '/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model, prompt: prompt, stream: false }) });
+        if (resp.ok) { var j2 = await resp.json(); text = (j2 && j2.response) || ''; }
+      }
+      if (!text) return { ok: false, reason: 'empty_response' };
+      return { ok: true, model: model, text: text, pack: pack };
+    } catch (e) {
+      return { ok: false, reason: 'error', detail: String(e && e.message ? e.message : e) };
+    }
   }
 
   global.CrozzoAiInsights = {
@@ -1980,6 +2170,13 @@
     bindReportPanel: bindReportPanel,
     renderSuperAdminCardHtml: renderSuperAdminCardHtml,
     bindSuperAdminCard: bindSuperAdminCard,
+    // IA local (Ollama)
+    isAiLocalEnabled: isAiLocalEnabled,
+    setAiLocalEnabled: setAiLocalEnabled,
+    crozzoOllamaAvailable: crozzoOllamaAvailable,
+    crozzoOllamaBestModel: crozzoOllamaBestModel,
+    requestLocalBehaviorInsight: requestLocalBehaviorInsight,
+    OLLAMA_LOCAL_MODELS: OLLAMA_LOCAL_MODELS,
   };
   global.crozzoAiClearBehaviorRate = clearBehaviorRateLimit;
 })(typeof window !== 'undefined' ? window : globalThis);

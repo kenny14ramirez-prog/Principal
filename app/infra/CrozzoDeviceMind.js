@@ -1,5 +1,5 @@
 /**
- * Crozzo — Mente local del dispositivo (capa fina, no reemplaza nada).
+ * Bona Origen — Mente local del dispositivo (capa fina, no reemplaza nada).
  *
  * Unifica la decisión operativa en lenguaje humano y activa mesh standby
  * (escucha sin publicar duplicados) cuando híbrido nube/LAN está sano.

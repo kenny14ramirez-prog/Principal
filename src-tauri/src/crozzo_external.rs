@@ -1,4 +1,4 @@
-//! WhatsApp Web — ventana auxiliar alineada al slot `#crozzoWaEmbedHost` (viewport lógico).
+﻿//! WhatsApp Web — ventana auxiliar alineada al slot `#crozzoWaEmbedHost` (viewport lógico).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -292,12 +292,12 @@ pub async fn crozzo_whatsapp_dock_sync(
         .unwrap_or_else(|| String::from(WA_DEFAULT_URL));
     validate_whatsapp_url(&target_url)?;
 
+    WA_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_whatsapp_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-
-    WA_WANT_VISIBLE.store(true, Ordering::SeqCst);
 
     if should_navigate {
         let want: tauri::Url = target_url
@@ -312,12 +312,18 @@ pub async fn crozzo_whatsapp_dock_sync(
             let _ = dock.hide();
             dock.navigate(want)
                 .map_err(|e| format!("Navigate WhatsApp: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if WA_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(WA_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
 
     Ok(format!(
         "open:{left:.0},{top:.0},{width:.0}x{height:.0}"
@@ -336,6 +342,34 @@ pub async fn crozzo_whatsapp_dock_sync(
     _url: Option<String>,
 ) -> Result<String, String> {
     Err(String::from("WhatsApp embebido solo en escritorio"))
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub fn crozzo_dock_set_zoom(app: tauri::AppHandle, service: String, zoom: f64) -> Result<(), String> {
+    let label = match service.as_str() {
+        "whatsapp" => WA_DOCK_LABEL,
+        "gmail" => GMAIL_DOCK_LABEL,
+        "drive" => DRIVE_DOCK_LABEL,
+        "dataico" => DATAICO_DOCK_LABEL,
+        "dian-vpfe" => DIAN_VPFE_DOCK_LABEL,
+        "spotify" => SPOTIFY_DOCK_LABEL,
+        "youtube" => YOUTUBE_DOCK_LABEL,
+        "facebook" => FACEBOOK_DOCK_LABEL,
+        "supabase-nube" => SUPABASE_DOCK_LABEL,
+        _ => return Err(format!("Servicio desconocido: {service}")),
+    };
+    let dock = app
+        .get_webview_window(label)
+        .ok_or_else(|| format!("Dock {label} no encontrado"))?;
+    let z = if zoom.is_finite() { zoom.clamp(0.25, 2.0) } else { 1.0 };
+    dock.set_zoom(z).map_err(|e| e.to_string())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub fn crozzo_dock_set_zoom(_app: tauri::AppHandle, _service: String, _zoom: f64) -> Result<(), String> {
+    Err(String::from("Zoom solo en escritorio"))
 }
 
 #[cfg(desktop)]
@@ -419,6 +453,12 @@ fn hide_all_web_docks_except(app: &tauri::AppHandle, keep: &str) {
     }
     if keep != "spotify" {
         hide_spotify_dock(app);
+    }
+    if keep != "youtube" {
+        hide_youtube_dock(app);
+    }
+    if keep != "facebook" {
+        hide_facebook_dock(app);
     }
     if keep != "supabase" {
         hide_supabase_dock(app);
@@ -522,11 +562,13 @@ pub async fn crozzo_gmail_dock_sync(
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| String::from(GMAIL_DEFAULT_URL));
     validate_gmail_url(&target_url)?;
+    GMAIL_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_gmail_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-    GMAIL_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     if should_navigate {
         let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Gmail: {e}"))?;
         let needs_nav = dock
@@ -537,12 +579,18 @@ pub async fn crozzo_gmail_dock_sync(
         if needs_nav {
             let _ = dock.hide();
             dock.navigate(want).map_err(|e| format!("Navigate Gmail: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if GMAIL_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(GMAIL_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
     Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
 }
 
@@ -707,11 +755,13 @@ pub async fn crozzo_drive_dock_sync(
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| String::from(DRIVE_DEFAULT_URL));
     validate_drive_url(&target_url)?;
+    DRIVE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_drive_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-    DRIVE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     if should_navigate {
         let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Drive: {e}"))?;
         let needs_nav = dock
@@ -722,12 +772,18 @@ pub async fn crozzo_drive_dock_sync(
         if needs_nav {
             let _ = dock.hide();
             dock.navigate(want).map_err(|e| format!("Navigate Drive: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if DRIVE_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(DRIVE_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
     Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
 }
 
@@ -892,11 +948,13 @@ pub async fn crozzo_dataico_dock_sync(
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| String::from(DATAICO_DEFAULT_URL));
     validate_dataico_url(&target_url)?;
+    DATAICO_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_dataico_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-    DATAICO_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     if should_navigate {
         let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Dataico: {e}"))?;
         let needs_nav = dock
@@ -907,12 +965,18 @@ pub async fn crozzo_dataico_dock_sync(
         if needs_nav {
             let _ = dock.hide();
             dock.navigate(want).map_err(|e| format!("Navigate Dataico: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if DATAICO_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(DATAICO_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
     Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
 }
 
@@ -1079,11 +1143,13 @@ pub async fn crozzo_dian_vpfe_dock_sync(
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| String::from(DIAN_VPFE_DEFAULT_URL));
     validate_dian_vpfe_url(&target_url)?;
+    DIAN_VPFE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_dian_vpfe_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-    DIAN_VPFE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     if should_navigate {
         let want: tauri::Url = target_url.parse().map_err(|e| format!("URL DIAN: {e}"))?;
         let needs_nav = dock
@@ -1094,12 +1160,18 @@ pub async fn crozzo_dian_vpfe_dock_sync(
         if needs_nav {
             let _ = dock.hide();
             dock.navigate(want).map_err(|e| format!("Navigate DIAN: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if DIAN_VPFE_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(DIAN_VPFE_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
     Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
 }
 
@@ -1266,11 +1338,13 @@ pub async fn crozzo_spotify_dock_sync(
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| String::from(SPOTIFY_DEFAULT_URL));
     validate_spotify_url(&target_url)?;
+    SPOTIFY_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_spotify_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-    SPOTIFY_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     if should_navigate {
         let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Spotify: {e}"))?;
         let needs_nav = dock
@@ -1281,12 +1355,18 @@ pub async fn crozzo_spotify_dock_sync(
         if needs_nav {
             let _ = dock.hide();
             dock.navigate(want).map_err(|e| format!("Navigate Spotify: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if SPOTIFY_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(SPOTIFY_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
     Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
 }
 
@@ -1303,6 +1383,394 @@ pub async fn crozzo_spotify_dock_sync(
 ) -> Result<String, String> {
     Err(String::from("Spotify embebido solo en escritorio"))
 }
+
+const YOUTUBE_DOCK_LABEL: &str = "crozzo-youtube-dock";
+const YOUTUBE_DEFAULT_URL: &str = "https://www.youtube.com/";
+
+static YOUTUBE_DOCK_CREATING: AtomicBool = AtomicBool::new(false);
+static YOUTUBE_WANT_VISIBLE: AtomicBool = AtomicBool::new(false);
+static YOUTUBE_LAST_LEFT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static YOUTUBE_LAST_TOP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static YOUTUBE_LAST_WIDTH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static YOUTUBE_LAST_HEIGHT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn validate_youtube_url(url: &str) -> Result<&str, String> {
+    let url = validate_external_url(url)?;
+    if url.contains("youtube.com") {
+        return Ok(url);
+    }
+    Err(String::from("Solo enlaces YouTube"))
+}
+
+fn youtube_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())
+        .map(|p| p.join("youtube-web"))
+}
+
+fn store_youtube_rect(left: f64, top: f64, width: f64, height: f64) {
+    YOUTUBE_LAST_LEFT.store(left.to_bits(), Ordering::SeqCst);
+    YOUTUBE_LAST_TOP.store(top.to_bits(), Ordering::SeqCst);
+    YOUTUBE_LAST_WIDTH.store(width.to_bits(), Ordering::SeqCst);
+    YOUTUBE_LAST_HEIGHT.store(height.to_bits(), Ordering::SeqCst);
+}
+
+fn load_youtube_rect() -> (f64, f64, f64, f64) {
+    (
+        f64::from_bits(YOUTUBE_LAST_LEFT.load(Ordering::SeqCst)),
+        f64::from_bits(YOUTUBE_LAST_TOP.load(Ordering::SeqCst)),
+        f64::from_bits(YOUTUBE_LAST_WIDTH.load(Ordering::SeqCst)),
+        f64::from_bits(YOUTUBE_LAST_HEIGHT.load(Ordering::SeqCst)),
+    )
+}
+
+fn hide_youtube_dock(app: &tauri::AppHandle) {
+    YOUTUBE_WANT_VISIBLE.store(false, Ordering::SeqCst);
+    if let Some(dock) = app.get_webview_window(YOUTUBE_DOCK_LABEL) {
+        let _ = dock.hide();
+    }
+}
+
+fn build_youtube_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
+    let parsed: tauri::Url = url.parse().map_err(|e| format!("URL invÃ¡lida: {e}"))?;
+    let data_dir = youtube_data_dir(app)?;
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, YOUTUBE_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
+                if payload.event() == PageLoadEvent::Finished
+                    && YOUTUBE_WANT_VISIBLE.load(Ordering::SeqCst)
+                {
+                    let app = window.app_handle();
+                    if let (Some(main), Some(dock)) = (
+                        app.get_webview_window("main"),
+                        app.get_webview_window(YOUTUBE_DOCK_LABEL),
+                    ) {
+                        let (l, t, w, h) = load_youtube_rect();
+                        if w >= 80.0 && h >= 80.0 {
+                            let _ = position_dock_rect(&dock, &main, l, t, w, h);
+                        }
+                        let _ = dock.show();
+                    } else {
+                        let _ = window.show();
+                    }
+                }
+            }),
+    );
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.devtools(true);
+    }
+    #[cfg(windows)]
+    {
+        builder = builder.owner(&main).map_err(|e| format!("Owner YouTube: {e}"))?;
+    }
+    #[cfg(all(not(windows), target_os = "macos"))]
+    {
+        builder = builder.parent(&main).map_err(|e| format!("Parent YouTube: {e}"))?;
+    }
+    let dock = builder.build().map_err(|e| format!("Ventana YouTube: {e}"))?;
+    let _ = dock.hide();
+    Ok(dock)
+}
+
+fn ensure_youtube_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    if let Some(dock) = app.get_webview_window(YOUTUBE_DOCK_LABEL) {
+        return Ok(dock);
+    }
+    if YOUTUBE_DOCK_CREATING.swap(true, Ordering::SeqCst) {
+        for _ in 0..40 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            if let Some(dock) = app.get_webview_window(YOUTUBE_DOCK_LABEL) {
+                YOUTUBE_DOCK_CREATING.store(false, Ordering::SeqCst);
+                return Ok(dock);
+            }
+        }
+        YOUTUBE_DOCK_CREATING.store(false, Ordering::SeqCst);
+        return Err(String::from("Timeout creando ventana YouTube"));
+    }
+    let result = build_youtube_dock(app, url);
+    YOUTUBE_DOCK_CREATING.store(false, Ordering::SeqCst);
+    result
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub async fn crozzo_youtube_dock_sync(
+    app: tauri::AppHandle,
+    open: bool,
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+    url: Option<String>,
+) -> Result<String, String> {
+    if !open {
+        hide_youtube_dock(&app);
+        return Ok(String::from("closed"));
+    }
+    hide_all_web_docks_except(&app, "youtube");
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
+    let (last_l, last_t, last_w, last_h) = load_youtube_rect();
+    let same_rect = (last_l - left).abs() < 0.5
+        && (last_t - top).abs() < 0.5
+        && (last_w - width).abs() < 0.5
+        && (last_h - height).abs() < 0.5;
+    store_youtube_rect(left, top, width, height);
+    let should_navigate = url.as_ref().is_some_and(|u| !u.trim().is_empty());
+    let target_url = url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| String::from(YOUTUBE_DEFAULT_URL));
+    validate_youtube_url(&target_url)?;
+    YOUTUBE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
+    let dock = ensure_youtube_dock(&app, &target_url)?;
+    if !same_rect {
+        position_dock_rect(&dock, &main, left, top, width, height)?;
+    }
+
+    if should_navigate {
+        let want: tauri::Url = target_url.parse().map_err(|e| format!("URL YouTube: {e}"))?;
+        let needs_nav = dock
+            .url()
+            .ok()
+            .map(|current| current.as_str() != want.as_str())
+            .unwrap_or(true);
+        if needs_nav {
+            let _ = dock.hide();
+            dock.navigate(want).map_err(|e| format!("Navigate YouTube: {e}"))?;
+        }
+    }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if YOUTUBE_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(YOUTUBE_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
+    Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn crozzo_youtube_dock_sync(
+    _app: tauri::AppHandle,
+    _open: bool,
+    _left: f64,
+    _top: f64,
+    _width: f64,
+    _height: f64,
+    _url: Option<String>,
+) -> Result<String, String> {
+    Err(String::from("YouTube embebido solo en escritorio"))
+}
+
+
+const FACEBOOK_DOCK_LABEL: &str = "crozzo-facebook-dock";
+const FACEBOOK_DEFAULT_URL: &str = "https://www.facebook.com/";
+
+static FACEBOOK_DOCK_CREATING: AtomicBool = AtomicBool::new(false);
+static FACEBOOK_WANT_VISIBLE: AtomicBool = AtomicBool::new(false);
+static FACEBOOK_LAST_LEFT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static FACEBOOK_LAST_TOP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static FACEBOOK_LAST_WIDTH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static FACEBOOK_LAST_HEIGHT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn validate_facebook_url(url: &str) -> Result<&str, String> {
+    let url = validate_external_url(url)?;
+    if url.contains("facebook.com") {
+        return Ok(url);
+    }
+    Err(String::from("Solo enlaces Facebook"))
+}
+
+fn facebook_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())
+        .map(|p| p.join("facebook-web"))
+}
+
+fn store_facebook_rect(left: f64, top: f64, width: f64, height: f64) {
+    FACEBOOK_LAST_LEFT.store(left.to_bits(), Ordering::SeqCst);
+    FACEBOOK_LAST_TOP.store(top.to_bits(), Ordering::SeqCst);
+    FACEBOOK_LAST_WIDTH.store(width.to_bits(), Ordering::SeqCst);
+    FACEBOOK_LAST_HEIGHT.store(height.to_bits(), Ordering::SeqCst);
+}
+
+fn load_facebook_rect() -> (f64, f64, f64, f64) {
+    (
+        f64::from_bits(FACEBOOK_LAST_LEFT.load(Ordering::SeqCst)),
+        f64::from_bits(FACEBOOK_LAST_TOP.load(Ordering::SeqCst)),
+        f64::from_bits(FACEBOOK_LAST_WIDTH.load(Ordering::SeqCst)),
+        f64::from_bits(FACEBOOK_LAST_HEIGHT.load(Ordering::SeqCst)),
+    )
+}
+
+fn hide_facebook_dock(app: &tauri::AppHandle) {
+    FACEBOOK_WANT_VISIBLE.store(false, Ordering::SeqCst);
+    if let Some(dock) = app.get_webview_window(FACEBOOK_DOCK_LABEL) {
+        let _ = dock.hide();
+    }
+}
+
+fn build_facebook_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
+    let parsed: tauri::Url = url.parse().map_err(|e| format!("URL inválida: {e}"))?;
+    let data_dir = facebook_data_dir(app)?;
+    let mut builder = apply_embed_dock_desktop_options(
+        WebviewWindowBuilder::new(app, FACEBOOK_DOCK_LABEL, WebviewUrl::External(parsed))
+            .title("")
+            .background_color(Color(255, 255, 255, 255))
+            .user_agent(WA_CHROME_UA)
+            .data_directory(data_dir)
+            .on_page_load(|window, payload| {
+                if payload.event() == PageLoadEvent::Finished
+                    && FACEBOOK_WANT_VISIBLE.load(Ordering::SeqCst)
+                {
+                    let app = window.app_handle();
+                    if let (Some(main), Some(dock)) = (
+                        app.get_webview_window("main"),
+                        app.get_webview_window(FACEBOOK_DOCK_LABEL),
+                    ) {
+                        let (l, t, w, h) = load_facebook_rect();
+                        if w >= 80.0 && h >= 80.0 {
+                            let _ = position_dock_rect(&dock, &main, l, t, w, h);
+                        }
+                        let _ = dock.show();
+                    } else {
+                        let _ = window.show();
+                    }
+                }
+            }),
+    );
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.devtools(true);
+    }
+    #[cfg(windows)]
+    {
+        builder = builder.owner(&main).map_err(|e| format!("Owner Facebook: {e}"))?;
+    }
+    #[cfg(all(not(windows), target_os = "macos"))]
+    {
+        builder = builder.parent(&main).map_err(|e| format!("Parent Facebook: {e}"))?;
+    }
+    let dock = builder.build().map_err(|e| format!("Ventana Facebook: {e}"))?;
+    let _ = dock.hide();
+    Ok(dock)
+}
+
+fn ensure_facebook_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    if let Some(dock) = app.get_webview_window(FACEBOOK_DOCK_LABEL) {
+        return Ok(dock);
+    }
+    if FACEBOOK_DOCK_CREATING.swap(true, Ordering::SeqCst) {
+        for _ in 0..40 {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            if let Some(dock) = app.get_webview_window(FACEBOOK_DOCK_LABEL) {
+                FACEBOOK_DOCK_CREATING.store(false, Ordering::SeqCst);
+                return Ok(dock);
+            }
+        }
+        FACEBOOK_DOCK_CREATING.store(false, Ordering::SeqCst);
+        return Err(String::from("Timeout creando ventana Facebook"));
+    }
+    let result = build_facebook_dock(app, url);
+    FACEBOOK_DOCK_CREATING.store(false, Ordering::SeqCst);
+    result
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub async fn crozzo_facebook_dock_sync(
+    app: tauri::AppHandle,
+    open: bool,
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+    url: Option<String>,
+) -> Result<String, String> {
+    if !open {
+        hide_facebook_dock(&app);
+        return Ok(String::from("closed"));
+    }
+    hide_all_web_docks_except(&app, "facebook");
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| String::from("Ventana principal no encontrada"))?;
+    let (last_l, last_t, last_w, last_h) = load_facebook_rect();
+    let same_rect = (last_l - left).abs() < 0.5
+        && (last_t - top).abs() < 0.5
+        && (last_w - width).abs() < 0.5
+        && (last_h - height).abs() < 0.5;
+    store_facebook_rect(left, top, width, height);
+    let should_navigate = url.as_ref().is_some_and(|u| !u.trim().is_empty());
+    let target_url = url
+        .filter(|u| !u.trim().is_empty())
+        .unwrap_or_else(|| String::from(FACEBOOK_DEFAULT_URL));
+    validate_facebook_url(&target_url)?;
+    FACEBOOK_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
+    let dock = ensure_facebook_dock(&app, &target_url)?;
+    if !same_rect {
+        position_dock_rect(&dock, &main, left, top, width, height)?;
+    }
+
+    if should_navigate {
+        let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Facebook: {e}"))?;
+        let needs_nav = dock
+            .url()
+            .ok()
+            .map(|current| current.as_str() != want.as_str())
+            .unwrap_or(true);
+        if needs_nav {
+            let _ = dock.hide();
+            dock.navigate(want).map_err(|e| format!("Navigate Facebook: {e}"))?;
+        }
+    }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if FACEBOOK_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(FACEBOOK_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
+    Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn crozzo_facebook_dock_sync(
+    _app: tauri::AppHandle,
+    _open: bool,
+    _left: f64,
+    _top: f64,
+    _width: f64,
+    _height: f64,
+    _url: Option<String>,
+) -> Result<String, String> {
+    Err(String::from("Facebook embebido solo en escritorio"))
+}
+
 
 // ── Supabase Dashboard / SQL Editor (Nube global) ──
 
@@ -1453,11 +1921,13 @@ pub async fn crozzo_supabase_dock_sync(
         .filter(|u| !u.trim().is_empty())
         .unwrap_or_else(|| String::from(SUPABASE_DEFAULT_URL));
     validate_supabase_url(&target_url)?;
+    SUPABASE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     let dock = ensure_supabase_dock(&app, &target_url)?;
     if !same_rect {
         position_dock_rect(&dock, &main, left, top, width, height)?;
     }
-    SUPABASE_WANT_VISIBLE.store(true, Ordering::SeqCst);
+
     if should_navigate {
         let want: tauri::Url = target_url.parse().map_err(|e| format!("URL Supabase: {e}"))?;
         let needs_nav = dock
@@ -1469,12 +1939,18 @@ pub async fn crozzo_supabase_dock_sync(
             let _ = dock.hide();
             dock.navigate(want)
                 .map_err(|e| format!("Navigate Supabase: {e}"))?;
-        } else {
-            dock.show().map_err(|e| e.to_string())?;
         }
-    } else {
-        dock.show().map_err(|e| e.to_string())?;
     }
+
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        if SUPABASE_WANT_VISIBLE.load(std::sync::atomic::Ordering::SeqCst) {
+            if let Some(dock) = app_clone.get_webview_window(SUPABASE_DOCK_LABEL) {
+                let _ = dock.show();
+            }
+        }
+    });
     Ok(format!("open:{left:.0},{top:.0},{width:.0}x{height:.0}"))
 }
 

@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Actualizaciones OTA (registry.json + crítica/opcional por id)
+ * Bona Origen — Actualizaciones OTA (registry.json + crítica/opcional por id)
  */
 (function (global) {
   'use strict';
@@ -34,15 +34,16 @@
   };
   var CHECK_INTERVAL_MS = 15 * 60 * 1000; /* reservado; chequeo automático solo al arranque */
   var BOOT_DELAY_MS = 2000;
-  var BOOT_GATE_MAX_MS = 12000;
+  var BOOT_GATE_MAX_MS = 8000;  // OTA-4: reducido de 12s a 8s para no frenar el arranque
   var BOOT_RELEASE_PROBE_MS = 30000;
   var _bootUpdatePhase = false;
   var _bootUpdatesReady = false;
   var _bootReadyWaiters = [];
   var _deferOptionalBannerSession = false;
 
-  var VERSION = 'v1.0.0';
-  var VERSION_AVAIL = 'v2.0.0';
+  // OTA-6: fallbacks explícitos. Se sobrescriben por meta/binario/registry al arrancar.
+  var VERSION = 'v1.0.0';        // fallback si no hay meta ni binario
+  var VERSION_AVAIL = '';         // se setea desde registry/manifest; vacío = sin disponible
   var _checkTimer = null;
   var _bootTimer = null;
   var _registryEntries = [];
@@ -183,6 +184,11 @@
   function startCriticalDownloadForRestart(entry, opts) {
     opts = opts || {};
     if (!entry) return Promise.resolve({ skipped: true });
+    // P0-2 fix: guard de concurrencia (evitar solapamiento de descargas).
+    if (_installInProgress) return Promise.resolve({ skipped: true, reason: 'install_in_progress' });
+    _installInProgress = true;
+    // Watchdog: liberar el lock tras 5 min por si la descarga se cuelga.
+    setTimeout(function () { _installInProgress = false; }, 5 * 60 * 1000);
     _pendingCriticalEntry = entry;
     _currentCriticalId = entryId(entry);
     var preLogin = crozzoUpdateIsPreLogin();
@@ -270,8 +276,13 @@
       });
   }
 
-  function startOptionalDownloadForRestart(entry) {
-    if (!entry || _installInProgress) return Promise.resolve();
+  function startOptionalDownloadForRestart(entry, _retry) {
+    _retry = _retry || 0;
+    if (!entry) return Promise.resolve();
+    if (_installInProgress && _retry < 3) {
+      return delay(2000).then(function () { return startOptionalDownloadForRestart(entry, _retry + 1); });
+    }
+    if (_installInProgress) return Promise.resolve(); // descartar tras 3 intentos
     var remote = normEntryVersion(entry);
     _currentOptionalId = entryId(entry);
     _installInProgress = true;
@@ -468,7 +479,7 @@
     summary: '',
     changes: [],
     notes:
-      'Al actualizar, Crozzo POS se reiniciará automáticamente. Hágalo con la caja sin ventas en curso.',
+      'Al actualizar, Bona Origen se reiniciará automáticamente. Hágalo con la caja sin ventas en curso.',
   };
 
   var UPDATE_CRITICAL_INSTALLED = {
@@ -564,13 +575,14 @@
   function finalizeAndroidPendingInstall(installedVer) {
     var pending = null;
     try {
-      pending = sessionStorage.getItem(SS_ANDROID_PENDING);
+      pending = (localStorage.getItem(SS_ANDROID_PENDING) || sessionStorage.getItem(SS_ANDROID_PENDING));
     } catch (_) {}
     if (!pending) return;
     var pv = normEntryVersion({ version: pending });
     if (!pv || compareSemver(installedVer, pv) < 0) return;
     try {
-      sessionStorage.removeItem(SS_ANDROID_PENDING);
+      try { localStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
+      try { sessionStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
     } catch (_) {}
     _registryEntries.forEach(function (entry) {
       if (!entry) return;
@@ -837,7 +849,9 @@
     if (!entry) return false;
     if (compareSemver(normEntryVersion(entry), VERSION) !== 0) return false;
     if (isCriticalEntry(entry)) return false;
-    return !isEntryApplied(entry);
+    var localStamp = readMetaBuildStamp();
+    var remoteStamp = entryBuildStamp(entry);
+    return !!(localStamp && remoteStamp && localStamp !== remoteStamp);
   }
 
   function entryBuildStamp(entry) {
@@ -849,9 +863,14 @@
     if (!entry) return false;
     var remote = normEntryVersion(entry);
     var cmp = compareSemver(VERSION, remote);
-    if (cmp < 0) return false;
-    if (cmp > 0) return true;
-    // Misma semver que el binario: nunca reinstalar por sello OTA distinto.
+    if (cmp < 0) return false;   // remoto más nuevo → pendiente
+    if (cmp > 0) return true;    // local más nuevo → aplicado
+    // Misma semver: comparar build stamp para detectar build-only updates.
+    var localStamp = readMetaBuildStamp();
+    var remoteStamp = entryBuildStamp(entry);
+    // Si falta alguno de los stamps, no forzar aplicado (tratar como desconocido).
+    if (!localStamp || !remoteStamp) return false;
+    if (localStamp !== remoteStamp) return false; // build-only update pendiente
     return true;
   }
 
@@ -1192,9 +1211,13 @@
    * Post-login: nunca bloquea. Descarga en background y muestra card ameno de aviso.
    * Pre-login: banner pequeño + descarga silenciosa, login libre siempre.
    */
-  function startCriticalUpdateDelivery(entry, opts) {
+  function startCriticalUpdateDelivery(entry, opts, _retry) {
     opts = opts || {};
+    _retry = _retry || 0;
     if (!entry) return Promise.resolve({ skipped: true });
+    if (_installInProgress && _retry < 3) {
+      return delay(2000).then(function () { return startCriticalUpdateDelivery(entry, opts, _retry + 1); });
+    }
 
     var postLogin = !crozzoUpdateIsPreLogin();
 
@@ -2129,10 +2152,22 @@
   function getManifestUrl() {
     try {
       var u = localStorage.getItem(LS_MANIFEST);
-      if (u && String(u).trim()) return String(u).trim();
+      if (u && String(u).trim()) {
+        var ut = String(u).trim();
+        // Validar: debe ser HTTPS, terminar en .json, y NO contener duplicados/corruptos.
+        var isCorrupt = /latest\.json.*latest\.json/i.test(ut) ||
+                        /registry\.json.*latest\.json/i.test(ut) ||
+                        /latest\.json.*registry\.json/i.test(ut) ||
+                        /releases\/latest\.jsonreleases/i.test(ut) ||
+                        /releases\/registry\.jsonreleases/i.test(ut);
+        if (!isCorrupt && /^https:\/\/.+\.json$/i.test(ut)) return ut;
+        // Si la URL guardada es inválida/corrupta, limpiarla y usar default.
+        try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
+      }
     } catch (_) {}
     if (global.CROZZO_UPDATE_MANIFEST_URL && String(global.CROZZO_UPDATE_MANIFEST_URL).trim()) {
-      return String(global.CROZZO_UPDATE_MANIFEST_URL).trim();
+      var gu = String(global.CROZZO_UPDATE_MANIFEST_URL).trim();
+      if (/^https:\/\/.+\.json$/i.test(gu) && !/latest\.json.*latest\.json/i.test(gu)) return gu;
     }
     return DEFAULT_MANIFEST_URL;
   }
@@ -2146,10 +2181,21 @@
 
   function setManifestUrl(url) {
     var u = String(url || '').trim();
+    // Validar: solo guardar si es HTTPS, termina en .json, y no es corrupta.
+    var isCorrupt = /latest\.json.*latest\.json/i.test(u) ||
+                    /registry\.json.*latest\.json/i.test(u) ||
+                    /latest\.json.*registry\.json/i.test(u) ||
+                    /releases\/latest\.jsonreleases/i.test(u) ||
+                    /releases\/registry\.jsonreleases/i.test(u);
+    if (u && (isCorrupt || !/^https:\/\/.+\.json$/i.test(u))) {
+      try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
+      return false;
+    }
     try {
       if (u) localStorage.setItem(LS_MANIFEST, u);
       else localStorage.removeItem(LS_MANIFEST);
     } catch (_) {}
+    return true;
   }
 
   function normalizeRegistryEntries(data) {
@@ -2166,8 +2212,10 @@
     }
     return entries.map(function (entry) {
       if (!entry) return entry;
+      if (entry._changelogNormalized) return entry;
       var lines = normalizeEntryChangelog(entry);
       if (lines.length) entry.changelog = lines;
+      entry._changelogNormalized = true;
       return entry;
     });
   }
@@ -2879,7 +2927,7 @@
       } else if (_installUi.state === 'error') {
         sub.textContent = 'Revise la conexión o espere a que GitHub Actions termine de compilar el release.';
       } else if (_installUi.phase === 'relaunch') {
-        sub.textContent = 'Reiniciando Crozzo POS con la versión nueva…';
+        sub.textContent = 'Reiniciando Bona Origen con la versión nueva…';
       } else if (getUpdateClientProfile().isDesktopBinary) {
         sub.textContent =
           'Al terminar, la aplicación se cerrará y volverá a abrir sola. No la cierre manualmente.';
@@ -3106,7 +3154,7 @@
       if (lead) {
         lead.textContent =
           desktopRestartNotice() +
-          ' Mantenga Crozzo POS abierto hasta que termine el reinicio.';
+          ' Mantenga Bona Origen abierto hasta que termine el reinicio.';
       }
       if (dismiss) {
         dismiss.disabled = true;
@@ -3640,10 +3688,20 @@
         message: 'Recargando interfaz (tablet / navegador)…',
       });
     }
+    // OTA-2: preservar estado crítico antes de reload (backup en localStorage).
+    try {
+      if (typeof global.collectPosRuntimeState === 'function') {
+        var _st = global.collectPosRuntimeState();
+        if (_st) {
+          try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+          try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+        }
+      }
+    } catch (_) {}
     appendLocalLog('web_reload', {
       version: targetVersion || VERSION_AVAIL,
       type: 'web',
-      message: 'Recarga forzada tras aviso OTA',
+      message: 'Recarga forzada tras aviso OTA (estado respaldado)',
     });
     return delay(800).then(function () {
       try {
@@ -3682,7 +3740,10 @@
           });
           try {
             var pendingVer = normEntryVersion({ version: targetVersion || VERSION_AVAIL });
-            if (pendingVer) sessionStorage.setItem(SS_ANDROID_PENDING, pendingVer);
+            if (pendingVer) {
+              try { localStorage.setItem(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
+              try { sessionStorage.setItem(SS_ANDROID_PENDING, pendingVer); } catch (_) {}
+            }
           } catch (_) {}
         }
         return res;
@@ -4070,7 +4131,7 @@
     el.innerHTML =
       '<div class="crozzo-boot-update-gate__card">' +
       '<div class="crozzo-boot-update-gate__spinner" aria-hidden="true"></div>' +
-      '<p class="crozzo-boot-update-gate__brand" id="crozzoBootUpdateBrand">Crozzo POS</p>' +
+      '<p class="crozzo-boot-update-gate__brand" id="crozzoBootUpdateBrand">Bona Origen</p>' +
       '<h2 class="crozzo-boot-update-gate__title">Preparando el sistema</h2>' +
       '<p class="crozzo-boot-update-gate__msg" id="crozzoBootUpdateMsg">Comprobando actualizaciones…</p>' +
       '<p class="crozzo-boot-update-gate__hint" id="crozzoBootUpdateHint">No cierre la aplicación. Se descargará el paquete correcto para este dispositivo (Windows, Mac, tablet o navegador) antes del inicio de sesión.</p>' +
@@ -4482,8 +4543,33 @@
     poll();
   }
 
+  function crozzoRestorePosRuntimeStateIfPending() {
+    try {
+      var raw = localStorage.getItem('crozzo_update_state_backup');
+      if (!raw) return false;
+      var at = Number(localStorage.getItem('crozzo_update_state_backup_at') || 0);
+      if (at && (Date.now() - at) > 10 * 60 * 1000) {
+        try { localStorage.removeItem('crozzo_update_state_backup'); } catch (_) {}
+        try { localStorage.removeItem('crozzo_update_state_backup_at'); } catch (_) {}
+        return false;
+      }
+      var st = null;
+      try { st = JSON.parse(raw); } catch (_) { st = null; }
+      if (!st) return false;
+      if (typeof global.crozzoApplyPosRuntimeState === 'function') {
+        try { global.crozzoApplyPosRuntimeState(st); } catch (_) {}
+      }
+      try { localStorage.removeItem('crozzo_update_state_backup'); } catch (_) {}
+      try { localStorage.removeItem('crozzo_update_state_backup_at'); } catch (_) {}
+      appendLocalLog('state_restore', { message: 'Estado respaldado restaurado tras actualización', at: at });
+      return true;
+    } catch (_) { return false; }
+  }
+
   function runBootUpdatePipeline() {
     if (_bootUpdatesReady) return Promise.resolve({ ok: true, skipped: true });
+    // OTA-2: restaurar estado respaldado (si existe y es reciente).
+    crozzoRestorePosRuntimeStateIfPending();
     scheduleDeferredCriticalAfterLogin();
     _bootUpdatePhase = true;
     global.__crozzoBootUpdatePhase = true;
@@ -5145,6 +5231,9 @@
     return showOptionalEntry(entry);
   }
 
+  function delay(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms || 0); });
+  }
   function fetchWithTimeout(url, ms) {
     return new Promise(function (resolve, reject) {
       var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -5168,31 +5257,45 @@
     });
   }
 
-  function fetchRegistryData() {
+  function fetchRegistryData(_retry) {
+    _retry = _retry || 0;
     var registryUrl = getRegistryUrl();
     var manifestUrl = getManifestUrl();
-    var registryP = fetchWithTimeout(registryUrl, 12000)
-      .then(function (res) {
-        if (res.ok) return res.json();
-        throw new Error('registry HTTP ' + res.status);
-      })
-      .catch(function () {
-        return null;
-      });
-    var manifestP = fetchWithTimeout(manifestUrl, 12000)
-      .then(function (res) {
-        if (!res.ok) throw new Error('manifest HTTP ' + res.status);
-        return res.json();
-      })
-      .catch(function () {
-        return null;
-      });
+    // Intentar fetch JS; si falla (CSP/red), intentar via Tauri (desktop).
+    function fetchJsonWithFallback(url, ms) {
+      return fetchWithTimeout(url, ms)
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .catch(function (err) {
+          console.warn('[crozzo-updates] fetch JS failed:', url, err && err.message ? err.message : err);
+          // Fallback: Tauri invoke (solo desktop)
+          if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+            return global.__TAURI__.core.invoke('crozzo_http_get_text', { url: url }).then(function (text) {
+              if (!text) throw new Error('empty response from Tauri');
+              try { return JSON.parse(text); } catch (e) { throw new Error('JSON parse error: ' + e.message); }
+            }).catch(function (e2) {
+              console.warn('[crozzo-updates] Tauri invoke fallback failed:', url, e2 && e2.message ? e2.message : e2);
+              throw e2;
+            });
+          }
+          throw err;
+        });
+    }
+    var registryP = fetchJsonWithFallback(registryUrl, 12000).catch(function () { return null; });
+    var manifestP = fetchJsonWithFallback(manifestUrl, 12000).catch(function () { return null; });
     return Promise.all([registryP, manifestP]).then(function (parts) {
       var reg = normalizeRegistryEntries(parts[0]);
       var man = normalizeRegistryEntries(parts[1]);
       var merged = mergeRegistryEntries(reg, man);
       if (merged.length) return merged;
-      throw new Error('No se pudo leer registry ni latest.json');
+      if (_retry < 2) {
+        return new Promise(function (resolve) { setTimeout(resolve, 2000); }).then(function () { return fetchRegistryData(_retry + 1); });
+      }
+      // Incluir detalle de qué falló
+      var detail = 'registry=' + (parts[0] ? 'ok(' + reg.length + ')' : 'FAIL') + ' manifest=' + (parts[1] ? 'ok(' + man.length + ')' : 'FAIL');
+      throw new Error('No se pudo leer registry ni latest.json (tras ' + (_retry + 1) + ' intentos): ' + detail);
     });
   }
 
@@ -5384,7 +5487,7 @@
         var msg = err && err.message ? err.message : String(err);
         setCheckStatus('Error al comprobar: ' + msg);
         if (!opts.silent && typeof global.showToast === 'function') {
-          global.showToast('No se pudo comprobar actualizaciones.', 'error');
+          global.showToast('No se pudo comprobar actualizaciones: ' + msg, 'error');
         }
         console.warn('[crozzo-updates]', err);
         return { ok: false, reason: 'error', error: err };
@@ -5549,7 +5652,8 @@
       localStorage.removeItem(LS_SNOOZE_UNTIL);
       localStorage.removeItem(LS_PENDING_RESTART);
       try {
-        sessionStorage.removeItem(SS_ANDROID_PENDING);
+        try { localStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
+      try { sessionStorage.removeItem(SS_ANDROID_PENDING); } catch (_) {}
       } catch (_) {}
       clearSessionDismissals();
     } catch (_) {}

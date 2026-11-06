@@ -2,7 +2,7 @@
 /**
  * ModeManager — Demo / Simple / Electrónica (Colombia POS).
  *
- * Limitaciones: el modo legal real depende de config DIAN ya validada en Crozzo pos.html (canGoLive).
+ * Limitaciones: el modo legal real depende de config DIAN ya validada en Bona Origen pos.html (canGoLive).
  * Marca de agua PDF: expone __CROZZO_PDF_WATERMARK para futuros generadores; no hay motor PDF embebido aquí.
  */
 (function (global) {
@@ -125,7 +125,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== NetworkGuard.js ========== */
 /**
- * Crozzo NetworkGuard — autoridad única por ubicación (browser/PWA).
+ * Bona Origen NetworkGuard — autoridad única por ubicación (browser/PWA).
  *
  * SPLIT-BRAIN: checkActiveServers() / checkActiveServersOnNetwork() buscan otro rol A con el mismo
  * location_id vía (1) HTTP GET /status en hosts LAN muestreados y (2) broadcast Supabase Realtime.
@@ -593,7 +593,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== IdempotentSync.js ========== */
 /**
- * Crozzo IdempotentSync — inserción segura local y deduplicación de cola.
+ * Bona Origen IdempotentSync — inserción segura local y deduplicación de cola.
  */
 (function (global) {
   'use strict';
@@ -758,7 +758,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== SyncRouter.js ========== */
 /**
- * SyncRouter (módulo Crozzo) — tier con latencia, badges y reconciliación al volver online.
+ * SyncRouter (módulo Bona Origen) — tier con latencia, badges y reconciliación al volver online.
  *
  * LIMITACIONES (navegador): sin SSID/MAC reales; hotspot “real” no es detectable de forma fiable —
  * se combina marcador UI + navigator.connection cuando existe. WebRTC P2P requiere señalización
@@ -1193,7 +1193,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== AutoConfig.js ========== */
 /**
- * Crozzo AutoConfig — capa fina sobre NetworkGuard + SyncRouter (sin reemplazarlos).
+ * Bona Origen AutoConfig — capa fina sobre NetworkGuard + SyncRouter (sin reemplazarlos).
  * La orquestación completa vive en window.__crozzoAutoConfigExecute (HTML).
  */
 (function (global) {
@@ -1252,7 +1252,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== DiagnosticsPanel.js ========== */
 /**
- * Crozzo — Panel de diagnóstico (solo lectura, Super Admin).
+ * Bona Origen — Panel de diagnóstico (solo lectura, Super Admin).
  * Depende de APIs globales del bundle principal; no modifica datos de negocio.
  */
 (function (global) {
@@ -2126,7 +2126,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== PersistentWebRTC.js ========== */
 /**
- * Crozzo PersistentWebRTC — RTCPeerConnection resiliente, persistencia SDP/ICE (IDB), restartIce.
+ * Bona Origen PersistentWebRTC — RTCPeerConnection resiliente, persistencia SDP/ICE (IDB), restartIce.
  * Sin STUN/TURN externos (solo host / candidatos locales).
  */
 (function (global) {
@@ -2349,7 +2349,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== MeshHeartbeat.js ========== */
 /**
- * Crozzo MeshHeartbeat — ping/pong DataChannel, visibilidad, Wake Lock, tick SW.
+ * Bona Origen MeshHeartbeat — ping/pong DataChannel, visibilidad, Wake Lock, tick SW.
  */
 (function (global) {
   'use strict';
@@ -2508,7 +2508,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== AutoDiscovery.js ========== */
 /**
- * Crozzo AutoDiscovery — peers conocidos (TTL 24h), mesh-ping HTTP (/mesh-ping + /mesh-ping.json), BLE stub.
+ * Bona Origen AutoDiscovery — peers conocidos (TTL 24h), mesh-ping HTTP (/mesh-ping + /mesh-ping.json), BLE stub.
  */
 (function (global) {
   'use strict';
@@ -2785,7 +2785,7 @@
 })(typeof window !== 'undefined' ? window : this);
 /* ========== EmergencyMesh.js ========== */
 /**
- * Crozzo EmergencyMesh — P2P WebRTC (QR) + outbox deduplicado + reconciliación idempotente.
+ * Bona Origen EmergencyMesh — P2P WebRTC (QR) + outbox deduplicado + reconciliación idempotente.
  */
 (function (global) {
   'use strict';
@@ -4154,7 +4154,7 @@
   }
   global.addEventListener('crozzo-app-visibility', onCrozzoAppVisibility);
 })(typeof window !== 'undefined' ? window : this);
-/* ========== Crozzo namespace ========== */
+/* ========== Bona Origen namespace ========== */
 (function () {
   if (typeof window === 'undefined') return;
   window.Crozzo = window.Crozzo || {};

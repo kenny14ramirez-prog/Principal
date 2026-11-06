@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Lectura de documentos colombianos (cédula PDF417, NIT, escaneo).
+ * Bona Origen — Lectura de documentos colombianos (cédula PDF417, NIT, escaneo).
  */
 (function (global) {
   'use strict';

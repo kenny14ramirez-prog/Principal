@@ -1,5 +1,5 @@
 /**
- * Crozzo — Federación Opción B: bodegas, remisiones, préstamos, sync mínimo entre Supabase.
+ * Bona Origen — Federación Opción B: bodegas, remisiones, préstamos, sync mínimo entre Supabase.
  */
 (function (global) {
   'use strict';
@@ -801,7 +801,7 @@
       }
     } catch (_) {}
     var st = loadStore();
-    return st.negocio.nombre || st.negocio.id || 'Crozzo POS';
+    return st.negocio.nombre || st.negocio.id || 'Bona Origen';
   }
 
   function tipoDocLabel(id) {
@@ -1002,7 +1002,7 @@
         '<div class="fed-sign">ENTREGA / ENVÍA<span class="fed-sign-line"></span>RECIBE / CONFIRMA<span class="fed-sign-line"></span></div>' +
         '<p class="foot">' +
         new Date().toLocaleString('es-CO') +
-        ' · Crozzo POS</p></body></html>'
+        ' · Bona Origen</p></body></html>'
       );
     }
 
@@ -1025,7 +1025,8 @@
     var destLabel = remisionDestinoLabel(rem, st);
     return (
       '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Remisión</title><style>' +
-      'body{font-family:Segoe UI,system-ui,sans-serif;font-size:12px;color:#111;margin:24px;max-width:720px}' +
+      (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.SHEET_CSS === 'string' ? global.CrozzoDocDesign.SHEET_CSS : '') +
+      'body{font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);font-size:12px;color:#111;margin:24px;max-width:720px}' +
       'h1{font-size:18px;margin:0 0 4px}h2{font-size:13px;font-weight:600;margin:16px 0 8px;color:#444}' +
       '.meta{font-size:11px;color:#555;line-height:1.5;margin-bottom:14px}' +
       'table{width:100%;border-collapse:collapse;margin:8px 0 20px}' +
@@ -1063,7 +1064,7 @@
       '<div class="sign"><div>Entrega / envía</div><div>Recibe / confirma</div></div>' +
       '<p class="foot">Impreso ' +
       new Date().toLocaleString('es-CO') +
-      ' · Crozzo POS · Remisión federada</p></body></html>'
+      ' · Bona Origen · Remisión federada</p></body></html>'
     );
   }
 

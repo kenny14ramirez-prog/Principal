@@ -1,5 +1,5 @@
 /**
- * Crozzo — DevTap (solo desarrollo / localhost).
+ * Bona Origen — DevTap (solo desarrollo / localhost).
  *
  * Envía eventos estructurados al observador local (npm run dev:observe)
  * y al archivo JSONL vía Tauri. Invisible para usuarios en producción.

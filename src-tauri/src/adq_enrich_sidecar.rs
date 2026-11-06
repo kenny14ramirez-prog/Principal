@@ -104,12 +104,7 @@ fn sidecar_script_path() -> Option<std::path::PathBuf> {
         std::path::PathBuf::from("../tools/crozzo-adq-enrich/server.py"),
         std::path::PathBuf::from("../../tools/crozzo-adq-enrich/server.py"),
     ];
-    for c in candidates {
-        if c.exists() {
-            return Some(c);
-        }
-    }
-    None
+    candidates.into_iter().find(|c| c.exists())
 }
 
 /// Best-effort: arranca el sidecar si no responde /health.

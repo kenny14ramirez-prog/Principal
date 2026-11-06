@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — UX tablet / APK Android (mesero, rol B, touch shell).
+ * Bona Origen — UX tablet / APK Android (mesero, rol B, touch shell).
  */
 (function (global) {
   'use strict';

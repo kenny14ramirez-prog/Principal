@@ -85,7 +85,7 @@ try {
     network_primary: { ssid_note: 'WiFi test' },
     timestamp: Date.now(),
   };
-  const fast = seal.buildFastQrText(payload);
+  const fast = await seal.buildFastQrText(payload);
   if (!fast || fast.indexOf('BOF.') !== 0) fail('bof-build', 'buildFastQrText no devuelve BOF.');
   else pass('bof-build', 'BOF generado (' + fast.length + ' chars)');
 

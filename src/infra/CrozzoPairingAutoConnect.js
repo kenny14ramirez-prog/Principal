@@ -1,5 +1,5 @@
 /**
- * Crozzo — Conexión automática post-QR (LAN + mesas/comandas en tiempo real).
+ * Bona Origen — Conexión automática post-QR (LAN + mesas/comandas en tiempo real).
  * Tras escanear el QR el usuario no debe tocar nada más: activa LAN, WS y alinea estado.
  */
 (function (global) {

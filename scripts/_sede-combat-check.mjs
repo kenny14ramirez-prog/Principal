@@ -132,8 +132,28 @@ mustInclude(
 );
 mustInclude(
   'app/infra/CrozzoCommandScorecard.js',
-  ['CrozzoCommandScorecard', 'SUPERIORIDAD', 'vs_gestro', 'offline_fleet'],
+  ['CrozzoCommandScorecard', 'SUPERIORIDAD', 'vs_gestro', 'offline_fleet', 'Offline real'],
   'Command scorecard mercado'
+);
+mustInclude(
+  'scripts/_offline-combat-demo.mjs',
+  ['OFFLINE REAL', 'sobrevive', 'pendiente_timbrado', 'Offline real'],
+  'H3a demo offline combat'
+);
+mustInclude(
+  'docs/maps/OFFLINE-COMBAT-NARRATIVE.md',
+  ['sobrevive al corte de internet', 'Offline real', 'pendiente_timbrado'],
+  'H3a narrativa offline'
+);
+mustInclude(
+  'app/infra/CrozzoSedeAutosanable.js',
+  ['crozzoSedeAutosanableRescue', 'KI-016', 'announceIdentity'],
+  'L3 sede autosanable'
+);
+mustInclude(
+  'docs/maps/LEGENDARY-CONNECTIVITY-DRILLS.md',
+  ['Drill D1', 'Drill D2', 'Drill D3'],
+  'L1 drills conectividad legendaria'
 );
 mustInclude(
   'app/infra/CrozzoReconnectSync.js',

@@ -1,6 +1,6 @@
 /**
 
- * Crozzo POS — Consulta de adquiriente: local + DIAN (con UX calmada y humana).
+ * Bona Origen — Consulta de adquiriente: local + DIAN (con UX calmada y humana).
 
  */
 

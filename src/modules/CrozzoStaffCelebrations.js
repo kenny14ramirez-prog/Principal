@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Cumpleaños del equipo: recordatorios, animación al login y preferencias.
+ * Bona Origen — Cumpleaños del equipo: recordatorios, animación al login y preferencias.
  */
 (function (global) {
   'use strict';

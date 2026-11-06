@@ -1,5 +1,5 @@
 /**
- * Crozzo — Idempotencia LAN P2P (sin nube intermediaria).
+ * Bona Origen — Idempotencia LAN P2P (sin nube intermediaria).
  *
  * Cada mutación lleva action_id único. Los dispositivos registran lo ya aplicado
  * y responden "ya lo tengo" para cortar eco WS + cola pending + poll.

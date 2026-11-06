@@ -1,5 +1,5 @@
 /**
- * Crozzo — Conexión fácil (UX operador, no programador).
+ * Bona Origen — Conexión fácil (UX operador, no programador).
  *
  * Traduce tier/LAN/mesh a mensajes simples y ejecuta autoconexión silenciosa:
  * Wi‑Fi → LAN caja → Bluetooth/malla → nube. No reemplaza emparejamiento QR
@@ -84,7 +84,7 @@
       return {
         level: 'ok',
         message: 'Caja lista — las tablets pueden conectarse',
-        hint: 'Deje Wi‑Fi y Crozzo abiertos en este equipo.',
+        hint: 'Deje Wi‑Fi y Bona Origen abiertos en este equipo.',
         technical: (mind && mind.human) || '',
       };
     }

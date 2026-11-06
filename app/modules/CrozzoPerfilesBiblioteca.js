@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Biblioteca de plantillas de empresa y perfiles de usuario.
+ * Bona Origen — Biblioteca de plantillas de empresa y perfiles de usuario.
  * Guardar → aplicar en un clic (Super Admin + Admin negocio).
  */
 (function (global) {
@@ -16,6 +16,16 @@
         { id: 'basico_restaurante', tag: 'Restaurante · mesas y cocina' },
         { id: 'basico_tienda', tag: 'Tienda comercial · mostrador' },
         { id: 'basico_hotel', tag: 'Hotel F&B · recepción ligera' },
+      ],
+    },
+    {
+      id: 'comercios-barrio',
+      label: 'Comercios de barrio (pequeños)',
+      desc: 'Perfiles para comerciantes que están comenzando: frutería, abasto, minimarket.',
+      presets: [
+        { id: 'basico_fruteria', tag: 'Frutería / Verdulería · peso y perecederos' },
+        { id: 'basico_abasto', tag: 'Abasto / Abarrotes · tienda de barrio' },
+        { id: 'basico_minimarket', tag: 'Minimarket / Panadería · catálogo amplio' },
       ],
     },
   ];

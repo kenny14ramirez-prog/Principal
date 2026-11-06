@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // Global State
 // ==========================================
 const config = ConfigManager.getInstance();
@@ -152,12 +152,6 @@ window.crozzoGetActivePageId = function () {
   return typeof currentPage !== 'undefined' ? currentPage : 'inicio-operacion';
 };
 // --- Conexión multi-dispositivo (compatible con sistema conexiones.html / crozzo_config) ---
-function crozzoUuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-}
 function getConexionSistemasDefaults() {
   return {
     role: 'A',
@@ -343,40 +337,6 @@ function crozzoForceSedeCanonical() {
 window.crozzoForceSedeCanonical = crozzoForceSedeCanonical;
 window.crozzoEnsureSedeLocationId = crozzoEnsureSedeLocationId;
 window.crozzoCanonicalLocationFromBusiness = crozzoCanonicalLocationFromBusiness;
-function crozzoIsMobilePhoneUi() {
-  try {
-    const doc = document.documentElement;
-    if (!doc) return false;
-    if (doc.classList.contains('crozzo-form-mobile')) return true;
-    const tier = doc.getAttribute('data-crozzo-touch-tier') || '';
-    return tier === 'phone-sm' || tier === 'phone' || tier === 'phone-lg';
-  } catch (_) {
-    return false;
-  }
-}
-window.crozzoIsMobilePhoneUi = crozzoIsMobilePhoneUi;
-/** APK / tablet / touch — ajustes de layout sin quitar el corcho ni las animaciones. */
-function crozzoIsComandasTouchUi() {
-  try {
-    if (typeof crozzoIsMobilePhoneUi === 'function' && crozzoIsMobilePhoneUi()) return true;
-    const doc = document.documentElement;
-    if (!doc) return false;
-    if (
-      doc.classList.contains('crozzo-form-tablet') ||
-      doc.classList.contains('crozzo-android-apk') ||
-      doc.classList.contains('crozzo-touch-shell') ||
-      doc.getAttribute('data-crozzo-android') === '1'
-    ) {
-      return true;
-    }
-    const tier = doc.getAttribute('data-crozzo-touch-tier') || '';
-    return tier === 'tablet' || tier === 'tablet-lg';
-  } catch (_) {
-    return false;
-  }
-}
-window.crozzoIsComandasTouchUi = crozzoIsComandasTouchUi;
-window.crozzoIsComandasCompactUi = crozzoIsComandasTouchUi;
 // ==========================================
 // 🔐 SESIÓN DE USUARIO + AUTO-CONFIG DEL DISPOSITIVO
 // ==========================================
@@ -423,10 +383,6 @@ function crozzoKennySessionProofValid() {
 }
 window.crozzoKennySessionProofValid = crozzoKennySessionProofValid;
 window.__CROZZO_NAV_ACL_REV = 'nav-acl-v11-apk-touch-rbac';
-function crozzoNavItemAclVisible(el) {
-  if (!el) return false;
-  return !el.classList.contains('crozzo-nav-acl-hidden') && !el.hidden;
-}
 function crozzoScrubSuperAdminShell() {
   if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return;
   try {
@@ -519,7 +475,7 @@ function crozzoNavAclExplain() {
   return base;
 }
 window.crozzoNavAclExplain = crozzoNavAclExplain;
-window.crozzoNavItemAclVisible = crozzoNavItemAclVisible;
+// crozzoNavItemAclVisible ahora vive en CrozzoPosUiHelpers.js (extraído F7)
 window.crozzoScrubSuperAdminShell = crozzoScrubSuperAdminShell;
 window.crozzoNavAclDiag = crozzoNavAclDiag;
 /** Aplica visibilidad de ítem de menú respetando CSS !important del rail Tauri. */
@@ -1134,18 +1090,6 @@ function crozzoRefreshLoginLocalHint() {
     el.hidden = true;
     el.textContent = '';
   }
-}
-function crozzoGetAppVersionLabel() {
-  var ver = '';
-  try {
-    var m = document.querySelector('meta[name="crozzo-app-version"]');
-    if (m) ver = String(m.getAttribute('content') || '').trim();
-    if (!ver && typeof window.CROZZO_APP_VERSION !== 'undefined') {
-      ver = String(window.CROZZO_APP_VERSION).trim();
-    }
-  } catch (_) {}
-  ver = ver.replace(/^v/i, '');
-  return ver ? 'Versión ' + ver : 'Versión';
 }
 function crozzoRefreshLoginBuildStamp() {
   const el = document.getElementById('loginBuildStamp');
@@ -2308,6 +2252,7 @@ function crozzoHpPageTitles() {
     'venta-comercial': ['Tienda / Comercial', 'Venta directa por mostrador'],
     'cartera-comercial': ['Cartera de clientes', 'Cuentas por cobrar, abonos y cotizaciones'],
     'cupos-clientes': ['Cupos de clientes', 'Crédito máximo por cliente y saldo por cobrar'],
+    rentabilidad: ['Rentabilidad', 'Margen del día y de la semana · semáforo 🟢🟡🔴'],
     tablets: ['Tablets', 'Toma de pedidos por meseros'],
     'caja-clientes': ['Clientes (FE)', 'Directorio para facturación electrónica'],
     facturas: ['Facturas', 'Historial de comprobantes del turno'],
@@ -3422,7 +3367,7 @@ function crozzoHpExportForensicReport() {
   } catch (_) {}
   const report = {
     exportedAt: new Date().toISOString(),
-    product: 'Crozzo POS',
+    product: 'Bona Origen',
     reportType: 'honeypot_forensic',
     disclaimer:
       'Registro de trampas (usuarios señuelo). No sustituye la auditoría operativa con chainHash. Los cebos no son credenciales reales del negocio.',
@@ -4376,6 +4321,22 @@ function crozzoPublishComandasGlobal() {
 window.crozzoGetComandasList = function () {
   return Array.isArray(comandas) ? comandas.slice() : [];
 };
+window.crozzoClearComandasForSlot = function (tipoServicio, referencia) {
+  try {
+    if (!Array.isArray(comandas)) return 0;
+    const before = comandas.length;
+    comandas = comandas.filter(function (c) {
+      if (!c || c.tipoServicio !== tipoServicio || String(c.referencia) !== String(referencia)) return true;
+      // Marcar como entregada en lugar de eliminar (preserva historial)
+      c.estado = 'entregada';
+      c.despachadaAt = c.despachadaAt || new Date().toISOString();
+      return false;
+    });
+    return before - comandas.length;
+  } catch (_) {
+    return 0;
+  }
+};
 /** Últimos IDs de comanda tocados (reenvío P2P emergencia). */
 window.__crozzoLastEmergencyComandaIds = [];
 let nextComandaId = 1;
@@ -4834,13 +4795,6 @@ function crozzoCuentaItemsParaTicket(items) {
     if (typeof c.ivaRate === 'number' && !Number.isNaN(c.ivaRate)) row.ivaRate = c.ivaRate;
     return row;
   });
-}
-function crozzoFacturaSoloProductosConsumo(factura) {
-  if (!factura) return false;
-  const e = String(factura.estado || '');
-  if (e === 'precuenta' || e === 'cotizacion' || e === 'pos' || e === 'borrador_fe' || e === 'timbrada' || e === 'demo') return true;
-  if (factura.tipoComprobante === 'pos' || factura.tipoComprobante === 'electronica') return true;
-  return false;
 }
 window.crozzoCuentaItemNombreConsumo = crozzoCuentaItemNombreConsumo;
 window.crozzoCuentaItemsParaTicket = crozzoCuentaItemsParaTicket;
@@ -5533,7 +5487,8 @@ function ensureSuperAdminUser() {
   const yaExisteKenny = staff.some(u => u.id === 'KENNY');
   if (yaExisteKenny && typeof crozzoSanitizeKennyStaffRecord === 'function') crozzoSanitizeKennyStaffRecord();
   const yaExisteOtroSuper = staff.some(u => u.rol === 'superadmin' && u.id !== 'KENNY');
-  if (!yaExisteKenny && !yaExisteOtroSuper) {
+  // KENNY siempre debe existir: es el Super Admin protegido del sistema
+  if (!yaExisteKenny) {
     const kennyBootstrap = {
       id: 'KENNY',
       nombre: 'Kenny',
@@ -7198,9 +7153,16 @@ function crozzoPrepareDirectSaleSession(opts) {
   if (typeof directSaveMenuOpen !== 'undefined' && directSaveMenuOpen) {
     directSaveMenuOpen = false;
   }
-  if (!crozzoDirectSaleCartHasRecentEdit(cartDirecto, keepMs) || opts.forceClear) {
-    if (Array.isArray(cartDirecto) && cartDirecto.length) cleared = true;
+  // P0-01 hotfix: no purgar cartDirecto si tiene consumo y no es forceClear.
+  var _hasConsumo = Array.isArray(cartDirecto) && cartDirecto.length > 0;
+  if (opts.forceClear) {
+    if (_hasConsumo) cleared = true;
     cartDirecto = [];
+  } else if (!_hasConsumo) {
+    cartDirecto = [];
+  } else if (!crozzoDirectSaleCartHasRecentEdit(cartDirecto, keepMs)) {
+    // Conservar carrito con consumo aunque la marca de edición haya expirado.
+    // (P0-01 contención: evita vaciar venta en curso por heurística de recencia.)
   }
   if (!crozzoDirectSaleCartHasRecentEdit(cartComercial, keepMs) || opts.forceClear) {
     if (Array.isArray(cartComercial) && cartComercial.length) cleared = true;
@@ -8547,17 +8509,50 @@ function markSlotAsPaid(tipoServicio, referencia) {
 /** Propaga de inmediato locks, cobros y carritos — evita doble digitación / cobro duplicado. */
 function crozzoSyncPosRuntimeCritical(reason) {
   var isPresenceHeartbeat = reason === 'slot_presence_heartbeat';
+  /* POE: enter/exit van por canal efímero — NO forzar meta Postgres. */
+  var isPoePresence =
+    reason === 'slot_presence_enter' || reason === 'slot_presence_exit';
+  if (isPoePresence) {
+    try {
+      if (typeof window.crozzoOpsPresencePublish === 'function') {
+        window.crozzoOpsPresencePublish(reason);
+      } else if (typeof schedulePosRuntimeSave === 'function') {
+        schedulePosRuntimeSave();
+      }
+    } catch (_) {}
+    try {
+      if (reason && typeof config !== 'undefined' && config.addAudit) {
+        config.addAudit('runtime_sync_critical', String(reason) + ':poe');
+      }
+    } catch (_) {}
+    return;
+  }
   var forcePresenceMeta =
     !!reason &&
-    /slot_presence_(enter|exit)|caja_(open|close|cuenta)|tablet_(open|exit)|cart_|post_cobro|slot_/i.test(String(reason));
+    /caja_(open|close|cuenta)|tablet_(open|exit)|cart_|post_cobro|slot_(paid|cleared|lock|unlock|stale)/i.test(
+      String(reason)
+    );
   if (forcePresenceMeta) {
     try {
       window.__crozzoForceMetaPresencePush = true;
     } catch (_) {}
   }
+  /* Cobro: checkpoint presencia + carrito durable */
+  if (reason === 'post_cobro' || reason === 'slot_paid') {
+    try {
+      if (typeof window.crozzoOpsPresenceCheckpoint === 'function') {
+        window.crozzoOpsPresenceCheckpoint(reason);
+      }
+    } catch (_) {}
+  }
   try {
     if (isPresenceHeartbeat) {
       if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
+      try {
+        if (typeof window.crozzoOpsPresencePublish === 'function') {
+          window.crozzoOpsPresencePublish('slot_presence_heartbeat');
+        }
+      } catch (_) {}
     } else if (typeof crozzoFlushPosRuntimeSave === 'function') crozzoFlushPosRuntimeSave();
     else if (typeof schedulePosRuntimeSave === 'function') schedulePosRuntimeSave();
   } catch (_) {}
@@ -8984,15 +8979,18 @@ function applyPosRuntimeSnapshot(s, opts) {
     if (fromRemote && inDirect) {
       /* Venta directa activa: ignorar cartDirecto remoto. */
     } else if (fromRemote && tipoServicioCaja === 'directa') {
-      cartDirecto = s.cartDirecto
-        .map(function (line) {
-          return typeof crozzoHydrateRuntimeCartLine === 'function' ? crozzoHydrateRuntimeCartLine(line) : line;
-        })
-        .filter(Boolean);
+      // P0-01 hotfix: no sobrescribir si local tiene consumo.
+      if (!(Array.isArray(cartDirecto) && cartDirecto.length > 0 && crozzoCartMapHasConsumo(cartDirecto))) {
+        cartDirecto = s.cartDirecto
+          .map(function (line) {
+            return typeof crozzoHydrateRuntimeCartLine === 'function' ? crozzoHydrateRuntimeCartLine(line) : line;
+          })
+          .filter(Boolean);
+      }
     } else if (!fromRemote) {
-      if (inDirect && !crozzoDirectSaleCartHasRecentEdit(cartDirecto)) {
+      if (inDirect && !crozzoDirectSaleCartHasRecentEdit(cartDirecto) && !(Array.isArray(cartDirecto) && cartDirecto.length > 0)) {
         cartDirecto = [];
-      } else {
+      } else if (!inDirect) {
         cartDirecto = s.cartDirecto;
       }
     }
@@ -9547,6 +9545,38 @@ window.crozzoPatchCorkboardDom = crozzoPatchCorkboardDom;
 window.crozzoHandleRemoteRuntimeUiSync = crozzoHandleRemoteRuntimeUiSync;
 window.applyPosRuntimeSnapshot = applyPosRuntimeSnapshot;
 window.collectPosRuntimeState = collectPosRuntimeState;
+window.crozzoApplyPosRuntimeState = function (st) {
+  if (!st || typeof st !== 'object') return false;
+  try {
+    if (st.tipoServicioCaja != null) tipoServicioCaja = st.tipoServicioCaja;
+    if (st.mesaSeleccionada != null) mesaSeleccionada = st.mesaSeleccionada;
+    if (st.llevarSeleccionado != null) llevarSeleccionado = st.llevarSeleccionado;
+    if (Array.isArray(st.cartDirecto)) cartDirecto = st.cartDirecto;
+    if (st.cartsPorMesa && typeof st.cartsPorMesa === 'object') cartsPorMesa = st.cartsPorMesa;
+    if (st.cartsPorLlevar && typeof st.cartsPorLlevar === 'object') cartsPorLlevar = st.cartsPorLlevar;
+    if (st.tabletModoPedido != null) tabletModoPedido = st.tabletModoPedido;
+    if (st.tabletMesaSeleccionada != null) tabletMesaSeleccionada = st.tabletMesaSeleccionada;
+    if (st.tabletLlevarSeleccionado != null) tabletLlevarSeleccionado = st.tabletLlevarSeleccionado;
+    if (st.tabletOrderOpen != null) tabletOrderOpen = st.tabletOrderOpen;
+    if (st.cajaMesaOrderOpen != null) cajaMesaOrderOpen = st.cajaMesaOrderOpen;
+    if (st.cajaLlevarOrderOpen != null) cajaLlevarOrderOpen = st.cajaLlevarOrderOpen;
+    if (Array.isArray(st.comandas)) comandas = st.comandas;
+    if (Array.isArray(st.comandaHistory)) comandaHistory = st.comandaHistory;
+    if (Array.isArray(st.comandaCalls)) comandaCalls = st.comandaCalls;
+    if (st.comandasOrderByArea && typeof st.comandasOrderByArea === 'object') comandasOrderByArea = st.comandasOrderByArea;
+    if (st.nextComandaId != null) nextComandaId = st.nextComandaId;
+    if (st.closedSlots && typeof st.closedSlots === 'object') closedSlots = st.closedSlots;
+    if (st.slotLocalClearedAt && typeof st.slotLocalClearedAt === 'object') slotLocalClearedAt = st.slotLocalClearedAt;
+    if (st.slotCartDetachedFromComandas && typeof st.slotCartDetachedFromComandas === 'object') slotCartDetachedFromComandas = st.slotCartDetachedFromComandas;
+    if (st.comandaSlotLocks && typeof st.comandaSlotLocks === 'object') comandaSlotLocks = st.comandaSlotLocks;
+    if (st.slotSessionPresence && typeof st.slotSessionPresence === 'object') slotSessionPresence = st.slotSessionPresence;
+    if (st.cajaMesaSearch != null) cajaMesaSearch = st.cajaMesaSearch;
+    if (typeof showToast === 'function') showToast('Estado restaurado tras actualización', 'info');
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
 function loadPosRuntimeFromLocalStorage() {
   try {
     let s = null;
@@ -12175,6 +12205,14 @@ function crozzoUserCanAccessOperationalPage(page, u) {
   if (!u) return !!(typeof CROZZO_GUEST_PUBLIC_PAGES !== 'undefined' && CROZZO_GUEST_PUBLIC_PAGES.has(page));
   if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return true;
   if (crozzoIsPlatformSupportPage(page)) return false;
+  /* H2.E — planProducto ortogonal (NO mutar isBasico). SA ya bypass arriba. */
+  if (typeof crozzoPageVisibleByPlan === 'function') {
+    var planOp =
+      typeof crozzoGetPlanProducto === 'function'
+        ? crozzoGetPlanProducto()
+        : 'basico';
+    if (!crozzoPageVisibleByPlan(page, planOp)) return false;
+  }
   if (typeof crozzoPageBlockedByBasicoPerfilTipo === 'function' && crozzoPageBlockedByBasicoPerfilTipo(page)) return false;
   if (typeof crozzoIsBasicoAdminUser === 'function' && crozzoIsBasicoAdminUser(u)) {
     if (typeof crozzoIsPlanillaPage === 'function' && crozzoIsPlanillaPage(page)) return false;
@@ -12215,6 +12253,7 @@ const CROZZO_PAGE_MENU_MAP = Object.freeze({
   'cupos-clientes': 'admin',
   'caja-clientes': 'caja',
   facturas: 'facturas',
+  rentabilidad: 'rentabilidad',
   'cierre-caja': 'cierre-caja',
   comandas: 'comandas',
   inventarios: 'inventarios',
@@ -12694,7 +12733,9 @@ const CROZZO_CLIENT_FEATURES = Object.freeze([
 const CROZZO_FEATURE_LOCKED_MSG = 'Próximamente en versiones avanzadas';
 function crozzoIsBasicoEmpresaPerfil(perfil) {
   var p = crozzoResolvePerfilEmpresaId(perfil || (crozzoGetActiveClientProfile() && crozzoGetActiveClientProfile().perfil) || 'basico_restaurante');
-  return p === 'basico_restaurante' || p === 'basico_tienda' || p === 'basico_hotel';
+  // H2.A: incluir perfiles de barrio (frutería/abasto/minimarket) — antes excluían gating.
+  return p === 'basico_restaurante' || p === 'basico_tienda' || p === 'basico_hotel'
+    || p === 'basico_fruteria' || p === 'basico_abasto' || p === 'basico_minimarket';
 }
 /** Hotel F&B: habitaciones operan como mesas (prefijo Hab.) hasta folio dedicado. */
 function crozzoPerfilUsaHabitacionesComoMesas(perfil) {
@@ -12922,7 +12963,7 @@ function crozzoGetCurrentUserRole() {
     if (typeof isSuperAdminUser === 'function' && isSuperAdminUser()) return 'super_admin';
     if (u.rol) {
       const r = crozzoNormalizeAppRol(u.rol);
-      // En staff local «superadmin» ≠ plataforma Crozzo; solo KENNY vía isSuperAdminUser().
+      // En staff local «superadmin» ≠ plataforma Bona Origen; solo KENNY vía isSuperAdminUser().
       if (r === 'superadmin' || r === 'super_admin') return 'admin';
       return r;
     }
@@ -13169,7 +13210,7 @@ function getMenusForRole(role, perfil) {
         mesero: ['tablets'],
         cocina: ['comandas', 'compras-recetario-cocina', 'compras-cortes', 'compras-proceso-sesion'],
         recepcion: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'cierre-caja'],
-        encargado: ['inicio-operacion', 'punto-venta', 'facturas', 'caja', 'comandas', 'tablets', 'cierre-caja'],
+        encargado: ['inicio-operacion', 'punto-venta', 'facturas', 'rentabilidad', 'caja', 'comandas', 'tablets', 'cierre-caja'],
         inventario: [
           'centro-compras',
           'compras-proveedores',
@@ -13228,12 +13269,28 @@ function renderMenusByRole(role, perfilEmpresa) {
     if (ok && typeof crozzoPageBlockedByBasicoPerfilTipo === 'function' && crozzoPageBlockedByBasicoPerfilTipo(page, perfil)) ok = false;
     if (ok && typeof crozzoClientAllowsPage === 'function' && !crozzoClientAllowsPage(page)) ok = false;
     if (ok && crozzoIsBasicoEmpresaPerfil(perfil) && typeof crozzoIsPlatformSupportPage === 'function' && crozzoIsPlatformSupportPage(page)) ok = false;
+    /* H2.E cinturón — planProducto (data-page + data-menu) */
+    if (ok && typeof crozzoPageVisibleByPlan === 'function') {
+      var planNav =
+        typeof crozzoGetPlanProducto === 'function' ? crozzoGetPlanProducto() : 'basico';
+      if (!crozzoPageVisibleByPlan(page, planNav)) ok = false;
+      var menuIdNav = item.getAttribute('data-menu');
+      if (ok && menuIdNav && !crozzoPageVisibleByPlan(menuIdNav, planNav)) ok = false;
+    }
     crozzoSetNavItemAccessVisible(item, ok);
   });
   crozzoSetPlatformNavVisible(false);
   crozzoSyncNavGroupsVisibility();
   try {
     document.body.classList.toggle('crozzo-plan-basico', crozzoIsBasicoEmpresaPerfil(perfil));
+    var planBody =
+      typeof crozzoGetPlanProducto === 'function' ? crozzoGetPlanProducto() : 'basico';
+    document.body.classList.remove(
+      'crozzo-plan-producto-basico',
+      'crozzo-plan-producto-medio',
+      'crozzo-plan-producto-grande'
+    );
+    document.body.classList.add('crozzo-plan-producto-' + String(planBody || 'basico'));
   } catch (_) {}
   if (typeof applyAccessControl === 'function' && !(window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.active)) {
     const prev = window.__crozzoSkipMenuRoleFilter;
@@ -13550,10 +13607,49 @@ function crozzoBroadcastThemeToEmbeds(themeId) {
     } catch (_) {}
   });
 }
+function crozzoThemeOptionLabel(themeId) {
+  var id = String(themeId || '').toLowerCase().trim();
+  for (var i = 0; i < CROZZO_THEME_MODELS.length; i++) {
+    if (CROZZO_THEME_MODELS[i].id === id) return CROZZO_THEME_MODELS[i].label;
+  }
+  var classic = {
+    'bona-origen': 'BONA origen · Origen bueno',
+    deepspace: 'Espacio profundo',
+    cyan: 'Cyan',
+    coral: 'Coral',
+    magenta: 'Magenta',
+    emerald: 'Esmeralda',
+    minimalist: 'Minimalista'
+  };
+  return classic[id] || id;
+}
+function crozzoPopulateThemeSelect(sel) {
+  if (!sel) return;
+  sel.disabled = false;
+  sel.removeAttribute('disabled');
+  sel.title = 'Elegir modelo visual';
+  sel.setAttribute('aria-label', 'Tema visual');
+  var cur = String(sel.value || crozzoReadSavedVisualTheme() || CROZZO_THEME_DEFAULT).toLowerCase();
+  var html = '';
+  for (var i = 0; i < CROZZO_THEME_IDS.length; i++) {
+    var id = CROZZO_THEME_IDS[i];
+    html +=
+      '<option value="' +
+      id +
+      '"' +
+      (id === cur ? ' selected' : '') +
+      '>' +
+      crozzoThemeOptionLabel(id) +
+      '</option>';
+  }
+  sel.innerHTML = html;
+  if (CROZZO_THEME_IDS.indexOf(cur) >= 0) sel.value = cur;
+}
 function crozzoApplyVisualTheme(themeId, opts) {
   opts = opts || {};
-  /* Fase B: piel única BONA origen — otros IDs se fuerzan al default. */
-  var t = CROZZO_THEME_DEFAULT;
+  var raw = String(themeId || '').toLowerCase().trim();
+  var t = CROZZO_THEME_IDS.indexOf(raw) >= 0 ? raw : CROZZO_THEME_DEFAULT;
+  if (opts.userChoice) crozzoMarkUserThemeChoice();
   document.documentElement.setAttribute('data-theme', t);
   if (CROZZO_THEME_LIGHT.indexOf(t) >= 0) {
     document.documentElement.style.colorScheme = 'light';
@@ -13580,7 +13676,10 @@ function crozzoApplyVisualTheme(themeId, opts) {
     /* ignore */
   }
   var sel = document.getElementById('crozzoThemeSelect');
-  if (sel && sel.value !== t) sel.value = t;
+  if (sel) {
+    if (!sel.options || sel.options.length < 2) crozzoPopulateThemeSelect(sel);
+    if (sel.value !== t) sel.value = t;
+  }
   crozzoBroadcastThemeToEmbeds(t);
   try {
     var themeEvTarget = typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : null;
@@ -13685,9 +13784,10 @@ function crozzoInitVisualTheme() {
   try {
     clientTema = (typeof crozzoGetActiveClientProfile === 'function' && crozzoGetActiveClientProfile().tema) || '';
   } catch (_) {}
+  var sel = document.getElementById('crozzoThemeSelect');
+  if (sel) crozzoPopulateThemeSelect(sel);
   crozzoApplyVisualTheme(saved || clientTema || CROZZO_THEME_DEFAULT);
   crozzoInitThemePanel();
-  var sel = document.getElementById('crozzoThemeSelect');
   if (sel && !sel._crozzoThemeBound) {
     sel._crozzoThemeBound = true;
     sel.addEventListener('change', function () {
@@ -15551,14 +15651,11 @@ window.crozzoCartLineShowMinus = crozzoCartLineShowMinus;
 window.crozzoGetUnpaidSlotsReport = crozzoGetUnpaidSlotsReport;
 window.crozzoGetCobroAbortadosReport = crozzoGetCobroAbortadosReport;
 window.crozzoRequireComandarAntesCobro = crozzoRequireComandarAntesCobro;
-function crozzoCanClearFacturasHistorial() {
-  return typeof isSuperAdminUser === 'function' && isSuperAdminUser();
-}
 function crozzoCanClearAuditoriaLog() {
   return typeof isSuperAdminUser === 'function' && isSuperAdminUser();
 }
 window.crozzoHasCajaPermiso = crozzoHasCajaPermiso;
-window.crozzoCanClearFacturasHistorial = crozzoCanClearFacturasHistorial;
+// crozzoCanClearFacturasHistorial ahora vive en CrozzoPosFacturasPage.js (extraído F7)
 var CROZZO_WEB_EMBED_PAGES = ['whatsapp-web', 'gmail-web', 'drive-web', 'dataico-web', 'dian-vpfe-web', 'spotify-web', 'supabase-nube-web'];
 function crozzoIsWebEmbedPage(page) {
   return CROZZO_WEB_EMBED_PAGES.indexOf(page) !== -1;
@@ -15567,6 +15664,8 @@ function crozzoIsTauriWebEmbedAllowed() {
   return typeof crozzoIsTauriDesktopUi === 'function' && crozzoIsTauriDesktopUi() && !!(typeof getCurrentUser === 'function' ? getCurrentUser() : null);
 }
 function crozzoHideWebEmbedIfLeaving(page) {
+  // Panel persistente: si el panel está abierto, no ocultar el dock.
+  if (document.body && document.body.classList.contains('crozzo-dock-panel-open')) return;
   if (typeof currentPage === 'undefined') return;
   if (currentPage === page) return;
   if (currentPage === 'whatsapp-web' && page !== 'whatsapp-web' && typeof crozzoWhatsAppDockHideEmbed === 'function') {
@@ -15665,6 +15764,11 @@ function currentUserCanSeePage(page) {
   }
   if (crozzoIsPlatformSupportPage(page)) return false;
   if (page === 'auditoria') {
+    if (typeof crozzoPageVisibleByPlan === 'function') {
+      var planAud =
+        typeof crozzoGetPlanProducto === 'function' ? crozzoGetPlanProducto() : 'basico';
+      if (!crozzoPageVisibleByPlan('auditoria', planAud)) return false;
+    }
     return typeof crozzoShowOperativeMetricsUi === 'function' && crozzoShowOperativeMetricsUi();
   }
   return typeof crozzoUserCanAccessOperationalPage === 'function'
@@ -15968,7 +16072,7 @@ function crozzoPremiumFirstName(nombre) {
 function crozzoPremiumTierMeta(rol) {
   var r = String(rol || '').toLowerCase();
   if (r === 'super_admin' || r === 'superadmin') {
-    return { tier: 'founder', badge: 'Acceso fundador', roleLine: 'Plataforma Crozzo · nivel máximo' };
+    return { tier: 'founder', badge: 'Acceso fundador', roleLine: 'Plataforma Bona Origen · nivel máximo' };
   }
   if (r === 'admin') {
     return { tier: 'executive', badge: 'Executive', roleLine: 'Director de operaciones' };
@@ -16113,6 +16217,20 @@ function crozzoAssertPageAccess(page) {
 }
 window.crozzoAssertPageAccess = crozzoAssertPageAccess;
 function navigateTo(page) {
+  // Auto-expandir el grupo de navegación que contiene la página (si está colapsado).
+  try {
+    var _ni = document.querySelector('.nav-item[data-page="' + String(page) + '"]');
+    if (_ni) {
+      var _g = _ni.closest('.nav-group, .nav-group-li, [data-nav-group]');
+      if (_g && _g.classList.contains('nav-group-collapsed')) {
+        _g.classList.remove('nav-group-collapsed');
+        var _t = _g.querySelector('.nav-group-toggle');
+        if (_t) { _t.setAttribute('aria-expanded', 'true'); _t.classList.add('expanded'); }
+        var _s = _g.querySelector('.nav-group-items');
+        if (_s) _s.classList.add('is-expanded');
+      }
+    }
+  } catch (_) {}
   if (typeof crozzoResolveMenuPageId === 'function') page = crozzoResolveMenuPageId(page);
   if (page === 'laboratorio-admin') {
     if (typeof crozzoLabCanAccessRole === 'function' && !crozzoLabCanAccessRole()) {
@@ -16330,6 +16448,7 @@ function navigateTo(page) {
     'venta-comercial': ['Tienda / Comercial', 'Venta directa por mostrador sin mesas ni cocina'],
     'cartera-comercial': ['Cartera de clientes', 'Por cobrar, abonos y cotizaciones de venta'],
     'cupos-clientes': ['Cupos de clientes', 'Asigne crédito máximo y consulte deuda por cliente'],
+    rentabilidad: ['Rentabilidad', 'Ingresos, CMV, utilidad y platos con semáforo'],
     'tablets': ['Tablets', 'Toma de pedidos por meseros y dispositivos móviles'],
     'caja-clientes': ['Clientes (FE)', 'Datos para factura electrónica y seguimiento por mesa o venta'],
     'facturas': ['Facturas', 'Historial de facturas electrónicas emitidas'],
@@ -16932,6 +17051,15 @@ function renderPage(page, renderOpts) {
           : '<div class="card"><p>Módulo cupos no cargado. Recargue la aplicación.</p></div>';
       if (window.CrozzoCuposClientes && typeof CrozzoCuposClientes.initPage === 'function') {
         CrozzoCuposClientes.initPage();
+      }
+      break;
+    case 'rentabilidad':
+      content.innerHTML =
+        window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.renderPage === 'function'
+          ? CrozzoRentabilidadPage.renderPage()
+          : '<div class="card"><p>Módulo rentabilidad no cargado. Recargue la aplicación.</p></div>';
+      if (window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.initPage === 'function') {
+        CrozzoRentabilidadPage.initPage();
       }
       break;
     case 'facturas': content.innerHTML = renderFacturas(); initFacturas(); break;
@@ -18551,7 +18679,7 @@ function crozzoRepPrintInventarioCatalogo() {
   }
   list.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }));
   const fecha = new Date().toISOString().slice(0, 10);
-  let emp = 'CROZZO POS';
+  let emp = 'BONA ORIGEN';
   try {
     const e = config.getEmpresa();
     emp = e.nombreComercial || e.razonSocial || emp;
@@ -18611,10 +18739,12 @@ function crozzoRepPrintInventarioCatalogo() {
     .join('');
   const html =
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Inventario productos</title><style>' +
-    '@page{size:A4 landscape;margin:10mm}body{font-family:Segoe UI,system-ui,sans-serif;padding:16px;color:#111;font-size:11px}' +
-    'h1{font-size:17px;margin:0 0 6px}.inv-meta{color:#555;font-size:11px;margin:0 0 14px}' +
-    'table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #bbb;padding:6px 5px}' +
-    'th{background:#f5f0e6;font-size:9px;text-transform:uppercase}td.num{text-align:right}' +
+    (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.SHEET_CSS === 'string' ? global.CrozzoDocDesign.SHEET_CSS : '') +
+    '@page{size:A4 landscape;margin:10mm}body{font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);padding:16px;color:#111;font-size:11px}' +
+    'h1{font-size:17px;margin:0 0 6px;color:var(--doc-accent,#0f766e)}.inv-meta{color:var(--doc-muted,#555);font-size:11px;margin:0 0 14px}' +
+    'table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid var(--doc-border,#bbb);padding:6px 5px}' +
+    'th{background:var(--doc-ink,#f5f0e6);color:#fff;font-size:9px;text-transform:uppercase}td.num{text-align:right}' +
+    'tbody tr:nth-child(even) td{background:var(--doc-bg,#f8fafc)}' +
     '.diff-ok{color:#166534}.diff-bad{color:#b91c1c;font-weight:700}</style></head><body>' +
     '<h1>Inventario — Productos de venta (POS)</h1>' +
     '<p class="inv-meta"><strong>' +
@@ -21518,6 +21648,7 @@ function crozzoInicioOpPerfilLabel(perfilId) {
 var CROZZO_INICIO_OP_SHORTCUTS = [
   { page: 'cierre-caja', icon: 'wallet', title: 'Cierre de caja', subDefault: 'Turnos al día', roles: ['admin', 'encargado', 'caja', 'recepcion', 'user'], priority: { admin: 1, encargado: 1, caja: 1, recepcion: 1, user: 1 }, basico: true },
   { page: 'facturas', icon: 'receipt', title: 'Facturas', subDefault: 'Ventas del día', roles: ['admin', 'encargado', 'caja', 'recepcion'], priority: { admin: 2, encargado: 2, caja: 2, recepcion: 2 }, basico: true },
+  { page: 'rentabilidad', icon: 'trending-up', title: 'Rentabilidad', subDefault: 'Margen y semáforo', roles: ['admin', 'encargado'], priority: { admin: 2, encargado: 3 }, basico: true },
   { page: 'comandas', icon: 'chef-hat', title: 'Comandas', subDefault: 'Seguimiento cocina', roles: ['admin', 'encargado'], perfil: 'restaurante', priority: { admin: 3, encargado: 3 }, basico: true },
   { page: 'caja-clientes', icon: 'users', title: 'Clientes', subDefault: 'Datos de facturación', roles: ['admin', 'encargado', 'caja', 'recepcion'], priority: { admin: 4, encargado: 4, caja: 4, recepcion: 3 }, basico: true },
   { page: 'inventarios', icon: 'bar-chart-3', title: 'Reportes', subDefault: 'KPIs y rendimiento', roles: ['admin', 'encargado', 'inventario'], priority: { admin: 2, encargado: 5, inventario: 1 }, basico: true },
@@ -21686,6 +21817,97 @@ function crozzoInicioOpFilterVentasCards(cards) {
     return true;
   });
 }
+/** H2.D — peek semáforo + reveal detalle / crecimiento (admin·encargado; D-018). */
+function crozzoInicioOpRentabilidadHoyHtml() {
+  var role = crozzoInicioOpUserRole();
+  if (role !== 'admin' && role !== 'encargado') return '';
+  var S = typeof CrozzoSemaforoMargen !== 'undefined' ? CrozzoSemaforoMargen : null;
+  if (!S || typeof S.semaforoGlobalDia !== 'function') return '';
+  var facturas = [];
+  try {
+    if (typeof config !== 'undefined' && config.getFacturas) facturas = config.getFacturas() || [];
+  } catch (_) {}
+  var dia;
+  try {
+    dia = S.semaforoGlobalDia(facturas);
+  } catch (_) {
+    return '';
+  }
+  var margenTxt = Math.round((dia.margenPct || 0) * 1000) / 10;
+  var utilTxt = '$' + Math.round(dia.utilidad || 0).toLocaleString('es-CO');
+  var peek =
+    '<span class="crozzo-rent-hoy__peek-emoji" aria-hidden="true">' +
+    escUserAttr(dia.semaforoEmoji || '🟢') +
+    '</span><span class="crozzo-rent-hoy__peek-txt">' +
+    escUserAttr(String(margenTxt) + '% · ' + utilTxt) +
+    '</span>';
+  var body = [];
+  body.push('<div class="crozzo-rent-hoy__body">');
+  body.push(
+    '<p class="crozzo-rent-hoy__lead">' +
+      escUserAttr(dia.semaforoEmoji || '') +
+      ' Margen del día: <strong>' +
+      escUserAttr(String(margenTxt) + '%') +
+      '</strong> (' +
+      escUserAttr(dia.semaforoLabel || '') +
+      ') · Utilidad <strong>' +
+      escUserAttr(utilTxt) +
+      '</strong> · ' +
+      String(dia.numFacturas || 0) +
+      ' ventas</p>'
+  );
+  if (dia.mejorPlato && dia.mejorPlato.nombre) {
+    body.push(
+      '<p class="crozzo-rent-hoy__plato">Mejor: ' +
+        escUserAttr(dia.mejorPlato.nombre) +
+        ' · $' +
+        Math.round(dia.mejorPlato.utilidad || 0).toLocaleString('es-CO') +
+        '</p>'
+    );
+  }
+  if (dia.peorPlato && dia.peorPlato.nombre) {
+    body.push(
+      '<p class="crozzo-rent-hoy__plato crozzo-rent-hoy__plato--warn">Atención: ' +
+        escUserAttr(dia.peorPlato.nombre) +
+        ' · margen ' +
+        Math.round((dia.peorPlato.margenPct || 0) * 1000) / 10 +
+        '%</p>'
+    );
+  }
+  if (dia.platosRojos && dia.platosRojos.length) {
+    body.push('<ul class="crozzo-rent-hoy__rojos">');
+    dia.platosRojos.slice(0, 4).forEach(function (p) {
+      body.push(
+        '<li>🔴 ' +
+          escUserAttr(p.nombre || 'Plato') +
+          ' · ' +
+          Math.round((p.margenPct || 0) * 1000) / 10 +
+          '%</li>'
+      );
+    });
+    body.push('</ul>');
+  }
+  try {
+    var Onb = typeof CrozzoOnboardingOperativo !== 'undefined' ? CrozzoOnboardingOperativo : null;
+    if (Onb && typeof Onb.renderMiCrecimientoPanelHtml === 'function') {
+      var crec = Onb.renderMiCrecimientoPanelHtml({});
+      if (crec) body.push('<div class="crozzo-rent-hoy__crecimiento">' + crec + '</div>');
+    }
+  } catch (_) {}
+  body.push(
+    '<p class="crozzo-rent-hoy__link"><button type="button" class="btn btn-outline btn-xs" onclick="navigateTo(\'rentabilidad\')">Ver rentabilidad</button></p>'
+  );
+  body.push('</div>');
+  /* Solo forzar abierto si hay ventas y el día está en 🔴 (D-018: sin ruido matutino vacío). */
+  var forceOpen = dia.semaforo === 'rojo' && (dia.numFacturas || 0) > 0;
+  return (
+    '<div class="crozzo-ventas-hub__rent-hoy crozzo-rent-hoy crozzo-rent-hoy--' +
+    escUserAttr(dia.semaforo || 'verde') +
+    '" aria-label="Mi rentabilidad hoy">' +
+    crozzoHubRevealWrap('rentabilidad', 'Mi rentabilidad hoy', peek, body.join(''), forceOpen) +
+    '</div>'
+  );
+}
 function renderInicioOperacion() {
   var perfil = crozzoGetPerfilEmpresa();
   var last = crozzoInicioOpLastPage();
@@ -21813,6 +22035,7 @@ function renderInicioOperacion() {
     '</header>' +
     (cardsHtml ? '<div class="crozzo-ventas-hub__grid" role="list">' + cardsHtml + '</div>' : '') +
     crozzoInicioOpShiftKpisHtml() +
+    crozzoInicioOpRentabilidadHoyHtml() +
     crozzoInicioOpAdminHubHtml() +
     (helpHtml ? '<div class="crozzo-ventas-hub__reveals">' + helpHtml + '</div>' : '') +
     '</section>'
@@ -22699,7 +22922,7 @@ function getSlotStateInfo(tipoServicio, referencia) {
     crozzoSlotHasUnpaidConsumption(tipoServicio, referencia)
   ) {
     state = 'salio';
-  } else if (crozzoGetSlotSessionLock(tipoServicio, referencia)) {
+  } else if (crozzoGetSlotSessionLock(tipoServicio, referencia) && !wasPaid) {
     state = 'atendiendo';
   }
   const cartItems = cart.reduce((n, i) => n + i.cantidad, 0);
@@ -29331,10 +29554,11 @@ function crozzoBuildCotizacionSheetDocumentHtml(factura, opts) {
     : '';
   return (
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Cotización</title><style>' +
+    (global.CrozzoDocDesign && typeof global.CrozzoDocDesign.SHEET_CSS === 'string' ? global.CrozzoDocDesign.SHEET_CSS : '') +
     '@page{size:' +
     pageSize +
     ';margin:14mm}' +
-    'body{margin:0;font-family:Segoe UI,system-ui,sans-serif;color:#111;font-size:11px;line-height:1.45}' +
+    'body{margin:0;font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);color:#111;font-size:11px;line-height:1.45}' +
     '.cot-sheet{border:2px solid #1e293b;border-radius:4px;padding:18px 20px 16px;max-width:100%;box-sizing:border-box}' +
     '.cot-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #cbd5e1}' +
     '.cot-head__brand{display:flex;gap:14px;align-items:flex-start;flex:1;min-width:0}' +
@@ -29697,6 +29921,8 @@ function iniciarCobroDesdeCaja() {
     return;
   }
   if (!crozzoRequireComandarAntesCobro(cart)) return;
+  // P0-01 robusto: snapshot inmutable de la venta al iniciar cobro.
+  if (typeof window !== 'undefined') window.__crozzoCartEnCobro = cart.slice().map(function (l) { return Object.assign({}, l); });
   crozzoOpenCobroStudioModal();
 }
 function toggleMetodoPagoCobro() {
@@ -29760,8 +29986,12 @@ function toggleMetodoPagoCobro() {
   }
 }
 async function confirmarCobroDesdeCaja() {
+  if (typeof window !== 'undefined' && !Array.isArray(window.__crozzoCartEnCobro)) {
+    const _c = getActiveCart();
+    if (_c.length) window.__crozzoCartEnCobro = _c.slice().map(function (l) { return Object.assign({}, l); });
+  }
   const cart = getActiveCart();
-  if (!cart.length) return;
+  if (!cart.length && !(typeof window !== 'undefined' && Array.isArray(window.__crozzoCartEnCobro) && window.__crozzoCartEnCobro.length)) return;
   window.__crozzoFacturaPrintFormatElegido =
     typeof crozzoCobroStudioPrintFmtActivo === 'function' ? crozzoCobroStudioPrintFmtActivo() : 'pos';
   const total = computeTotals(cart).total;
@@ -29915,12 +30145,18 @@ async function confirmarCobroDesdeCaja() {
           method: metodoPago,
           amountCents: Math.round(Number(totalPagar || 0) * 100),
           idempotencyKey:
-            'cobro-' +
-            String(tipoServicioCaja || 'x') +
-            '-' +
-            Date.now() +
-            '-' +
-            Math.random().toString(36).slice(2, 8),
+            (function () {
+              if (!cart.__cobroUuid) {
+                cart.__cobroUuid =
+                  'cobro-' +
+                  String(tipoServicioCaja || 'x') +
+                  '-' +
+                  (typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+              }
+              return cart.__cobroUuid;
+            })(),
           qrRef: paymentMeta.qrRef || '',
           refPago: paymentMeta.refPago || '',
           phone: (document.getElementById('qrRefCobro')?.value || '').trim(),
@@ -32695,6 +32931,7 @@ function crozzoClearCartAfterSale(facturaSaved, metodoPago) {
   }
   if (tipoServicioCaja === 'directa') {
     cartDirecto = [];
+    if (typeof window !== 'undefined') window.__crozzoCartEnCobro = null;
   } else if (tipoServicioCaja === 'llevar') {
     markSlotAsPaid('llevar', llevarSeleccionado);
     try {
@@ -32723,7 +32960,10 @@ async function facturar(options = {}) {
     showToast('No tienes permiso para emitir facturas.', 'warning');
     return;
   }
-  const cartRaw = getActiveCart();
+  // P0-01 robusto: usar snapshot inmutable de venta si existe (evita pérdida por sync/purga).
+  const cartRaw = (typeof window !== 'undefined' && Array.isArray(window.__crozzoCartEnCobro) && window.__crozzoCartEnCobro.length)
+    ? window.__crozzoCartEnCobro.slice()
+    : getActiveCart();
   const cart = typeof crozzoSanitizeCartForSale === 'function' ? crozzoSanitizeCartForSale(cartRaw) : cartRaw;
   if (cart.length === 0) {
     if (cartRaw.length > 0) {
@@ -32846,7 +33086,7 @@ async function facturar(options = {}) {
     metodoPago: metodoPago,
     ctx: typeof crozzoCajaVoidContextRef === 'function' ? crozzoCajaVoidContextRef() : '',
   });
-  const consecutivo = config.getNextConsecutivo();
+  const consecutivo = await config.getNextConsecutivo(saleAttemptId);
   const fecha = new Date().toISOString();
   const facturaObj = {
     numeroResolucion: dian.resolucion || 'DEMO-000',
@@ -33076,6 +33316,11 @@ async function facturar(options = {}) {
     if (typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.stampFacturaCobrador) {
       CrozzoStaffOpsReport.stampFacturaCobrador(facturaSavedEnriched);
     }
+    try {
+      if (typeof CrozzoRentabilidad !== 'undefined' && CrozzoRentabilidad.enriquecerFacturaConCmv) {
+        CrozzoRentabilidad.enriquecerFacturaConCmv(facturaSavedEnriched);
+      }
+    } catch (_) {}
     if (typeof crozzoRecordCajaCheckoutMetrics === 'function') crozzoRecordCajaCheckoutMetrics(facturaSavedEnriched);
     if (typeof CrozzoStaffOpsReport !== 'undefined' && CrozzoStaffOpsReport.recordMesaSale) {
       CrozzoStaffOpsReport.recordMesaSale(facturaSavedEnriched);
@@ -33160,6 +33405,7 @@ async function facturar(options = {}) {
   } finally {
     if (!saleInflightCompleted) crozzoAbandonSaleInflight(saleAttemptId);
     __crozzoFacturarInFlight = false;
+    if (typeof window !== 'undefined') window.__crozzoCartEnCobro = null;
   }
 }
 /** Última factura para acciones rápidas (WhatsApp / correo / térmica) desde modales recién abiertos */
@@ -33727,20 +33973,6 @@ function crozzoBuildFacturaWhatsAppText(factura, opts) {
 }
 var CROZZO_FACTURA_SHARE_BUCKETS = ['oficina-docs', 'pos-facturas-share'];
 var CROZZO_FACTURA_SHARE_BUCKET = CROZZO_FACTURA_SHARE_BUCKETS[0];
-var CROZZO_FACTURA_LINK_MAX_SEC = 604800;
-function crozzoFacturaPdfLinkExpiresSec() {
-  var days = Number(window.__crozzoFacturaPdfLinkDays);
-  if (!isFinite(days) || days <= 0) days = 7;
-  return Math.min(Math.max(Math.round(days * 86400), 3600), CROZZO_FACTURA_LINK_MAX_SEC);
-}
-function crozzoFacturaPdfCloudStoragePath(factura) {
-  var uuid = String((factura && factura.uuid) || '').trim();
-  var cons = String((factura && factura.consecutivo) || '')
-    .replace(/[^\w-]+/g, '_')
-    .slice(0, 20);
-  var key = uuid || cons || String(Date.now());
-  return 'facturas/pos_' + key + '.pdf';
-}
 function crozzoFacturaPersistPdfShareUrl(factura, url) {
   url = String(url || '').trim();
   if (!url || !factura) return;
@@ -34338,7 +34570,7 @@ function crozzoFacturaShareEmail(factura) {
   window.location.href = `mailto:${encodeURIComponent(String(to).trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyStr)}`;
 }
 var CROZZO_TICKET_DESIGNER_LS_KEY = 'crozzo_ticket_designer_v1';
-/** Logo en ticket: Identidad (tu empresa) → logo en config empresa → marca BONA/Crozzo. */
+/** Logo en ticket: Identidad (tu empresa) → logo en config empresa → marca BONA/Bona Origen. */
 function crozzoResolveTicketLogoUrl() {
   var emp = typeof config !== 'undefined' && config.getEmpresa ? config.getEmpresa() : {};
   var branding = typeof getCrozzoBranding === 'function' ? getCrozzoBranding() : null;
@@ -43545,7 +43777,8 @@ function getFacturacionAdminConfig() {
   if (typeof CrozzoPrintStudioHub !== 'undefined' && CrozzoPrintStudioHub.normalizePlantillas) {
     normalized = CrozzoPrintStudioHub.normalizePlantillas(normalized);
   }
-  if (JSON.stringify(base) !== JSON.stringify(normalized)) config.set('facturacionAdmin', normalized);
+  // P0-2 fix: no re-guardar en cada lectura (evita pérdida de campos no normalizados).
+  // La persistencia ocurre solo en saveFacturasAdminConfigCore / persistActiveTplFromJson.
   return normalized;
 }
 function crozzoPrinterBackendLabel() {
@@ -44034,7 +44267,11 @@ function initConfigFacturasAdmin() {
     window.removeEventListener('message', window.__crozzoTermicaMsgListener);
   }
   window.__crozzoTermicaMsgListener = function (e) {
-    if (!e.data) return;
+    if (!e || !e.data) return;
+    // Validar origin para evitar inyección desde frames externos (P0-26).
+    try {
+      if (e.origin && e.origin !== window.location.origin && e.origin !== 'null') return;
+    } catch (_) {}
     if (e.data.type === 'crozzo_ticket_tpl') {
       var t = e.data.tpl;
       if (!t) return;
@@ -51475,7 +51712,7 @@ function init() {
   }
   function crozzoPairingValidate(obj) {
     if (!obj || typeof obj !== 'object') return { ok: false, message: 'JSON vacío o inválido' };
-    if (obj.type !== CROZZO_CLOUD_PAIRING) return { ok: false, message: 'QR no es de emparejamiento Crozzo (tipo incorrecto)' };
+    if (obj.type !== CROZZO_CLOUD_PAIRING) return { ok: false, message: 'QR no es de emparejamiento Bona Origen (tipo incorrecto)' };
     if (Number(obj.version) < 2) return { ok: false, message: 'Versión de emparejamiento antigua (se requiere ≥ 2)' };
     const ts = Number(obj.timestamp) || 0;
     if (!ts) return { ok: false, message: 'QR sin sello de tiempo válido. Genera uno nuevo en la caja.' };
@@ -51528,18 +51765,12 @@ function init() {
       return seal.unsealFromQr(raw).then(function (obj) {
         if (obj) return obj;
         if (typeof seal.isPairingQr === 'function' && seal.isPairingQr(raw)) return null;
-        try {
-          var parsed = JSON.parse(raw);
-          if (parsed && parsed.type === CROZZO_CLOUD_PAIRING) return parsed;
-        } catch (_) {}
+        // P0-25 Fase 3: rechazar texto plano (no aceptar payloads sin firma).
         return null;
       });
     }
-    try {
-      return Promise.resolve(JSON.parse(raw));
-    } catch (_) {
-      return Promise.resolve(null);
-    }
+    // P0-25 Fase 3: no aceptar texto plano sin firma.
+    return Promise.resolve(null);
   }
   window.crozzoPairingResetBinding = function crozzoPairingResetBinding() {
     var prev = crozzoPairingGetLocalLocationId();
@@ -51737,11 +51968,18 @@ function init() {
       level: dense ? QRCode.CorrectLevel.L : QRCode.CorrectLevel.M,
     });
   }
-  function crozzoPairingScanTextFromBuilt(built) {
+  async function crozzoPairingScanTextFromBuilt(built) {
     if (!built || !built.payload) return '';
     var seal = typeof window.CrozzoPairingSeal !== 'undefined' ? window.CrozzoPairingSeal : null;
-    var scanText =
-      seal && typeof seal.buildFastQrText === 'function' ? seal.buildFastQrText(built.payload) : '';
+    var scanText = '';
+    if (seal && typeof seal.buildFastQrText === 'function') {
+      try {
+        var r = seal.buildFastQrText(built.payload);
+        scanText = (r && typeof r.then === 'function') ? await r : (r || '');
+      } catch (_) {
+        scanText = '';
+      }
+    }
     if (!scanText) {
       try {
         var lan0 = built.payload.lan || {};
@@ -51798,10 +52036,10 @@ function init() {
       crozzoPairingSetWarn(warnId, built.probeWarning);
     }
   }
-  function crozzoPairingRenderScanQrIntoHost(host, built) {
+  async function crozzoPairingRenderScanQrIntoHost(host, built) {
     if (!host || !built || built.error) return false;
     if (typeof QRCode !== 'function') return false;
-    var scanText = crozzoPairingScanTextFromBuilt(built);
+    var scanText = await crozzoPairingScanTextFromBuilt(built);
     if (!scanText) return false;
     pairingLastQrFastText = scanText;
     var dense = !!(built.payload.supabase_url && built.payload.supabase_key);
@@ -51820,7 +52058,7 @@ function init() {
       '<p>Generando código cifrado…</p></div>';
   }
   window.crozzoPairingShowQrSkeleton = crozzoPairingShowQrSkeleton;
-  function crozzoPairingRenderReceiverQr(targetProfile, built) {
+  async function crozzoPairingRenderReceiverQr(targetProfile, built) {
     if (built.error) {
       crozzoPairingSetWarn('crozzoPairingReceiverWarn', built.error);
       return;
@@ -51832,7 +52070,7 @@ function init() {
     var host = el('crozzoPairingQrHost');
     if (!host) return;
     var renderToken = ++pairingQrRenderToken;
-    if (crozzoPairingRenderScanQrIntoHost(host, built)) {
+    if (await crozzoPairingRenderScanQrIntoHost(host, built)) {
       try {
         if (typeof crozzoRefreshBusinessConnectedUi === 'function') crozzoRefreshBusinessConnectedUi();
       } catch (_) {}
@@ -51886,14 +52124,14 @@ function init() {
           typeof crozzoPairingBuildPayloadAsync === 'function'
             ? await crozzoPairingBuildPayloadAsync(targetProfile)
             : crozzoPairingBuildPayload(targetProfile);
-        crozzoPairingRenderReceiverQr(targetProfile, built);
+        await crozzoPairingRenderReceiverQr(targetProfile, built);
       })
       .catch(async function () {
         var builtFallback =
           typeof crozzoPairingBuildPayloadAsync === 'function'
             ? await crozzoPairingBuildPayloadAsync(targetProfile)
             : crozzoPairingBuildPayload(targetProfile);
-        crozzoPairingRenderReceiverQr(targetProfile, builtFallback);
+        await crozzoPairingRenderReceiverQr(targetProfile, builtFallback);
       });
   };
   function crozzoPairingRefreshReceiverQrIfVisible() {
@@ -52402,7 +52640,10 @@ function init() {
         if (seal && typeof seal.extractFastFromQr === 'function') {
           var fastBlob = seal.extractFastFromQr(text);
           if (fastBlob && typeof seal.parseFastQr === 'function') {
-            obj = seal.parseFastQr(fastBlob);
+            var _parsedFast = seal.parseFastQr(fastBlob);
+            // P0-25 Fase 4: solo aceptar fallback legacy (v:4); v:5 firmado debe
+            // haberse verificado en unsealFromQr.
+            if (_parsedFast && _parsedFast._legacy) obj = _parsedFast;
           }
         }
       }

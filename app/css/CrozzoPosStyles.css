@@ -1,8 +1,8 @@
 ﻿/* =============================================================================
- * CLEAR ELEGANCE + EXECUTIVE ELITE — sistema de diseño Crozzo POS
+ * CLEAR ELEGANCE + EXECUTIVE ELITE — sistema de diseño Bona Origen
  * - Executive Elite: negro/carbón + acento dorado (#C9A962). Regla 60-30-10.
  * - Clear Elegance: azul Apple. Temas legado conservados.
- * - Marca Crozzo: --crozzo-platform-green solo en slots #crozzo*Platform.
+ * - Marca Bona Origen: --crozzo-platform-green solo en slots #crozzo*Platform.
  * ============================================================================= */
 :root {
   --space-1: 4px;
@@ -1349,7 +1349,7 @@ html.tauri-desktop:is([data-theme="deepspace"], [data-theme="cyan"], [data-theme
   font-weight: 700;
 }
 
-/* ---------- Enterprise chrome: tipografía, foco WCAG, marca Crozzo, utilidades ---------- */
+/* ---------- Enterprise chrome: tipografía, foco WCAG, marca Bona Origen, utilidades ---------- */
 button:focus:not(:focus-visible),
 .btn:focus:not(:focus-visible),
 .nav-item:focus:not(:focus-visible),
@@ -3237,7 +3237,7 @@ html.tauri-desktop .nav-group-collapsed .nav-group-items:not(.open) {
   display: none !important;
 }
 
-/* Drawer / móvil: scroll táctil en el panel lateral (#sidebarNav = “dropdown” real de Crozzo; no forzar display en ítems filtrados por rol). */
+/* Drawer / móvil: scroll táctil en el panel lateral (#sidebarNav = “dropdown” real de Bona Origen; no forzar display en ítems filtrados por rol). */
 @media (max-width: 1024px) {
   .sidebar .sidebar-nav {
     flex: 1 1 auto;
@@ -4737,7 +4737,7 @@ body.bona-enterprise-chrome .crozzo-identidad-hero::before {
   padding: 24px;
 }
 
-/* —— Crozzo Elite — acabado premium global (adapta al tema / --accent) —— */
+/* —— Bona Origen Elite — acabado premium global (adapta al tema / --accent) —— */
 .main-body:not(.main-body--rest-pos):not(.main-body--retail-pos):not(.main-body--qyc-embed):not(.main-body--centro-compras):not(.main-body--centro-procesos) {
   --elite-accent: var(--accent);
   --elite-accent-rgb: var(--accent-rgb, 201, 169, 98);
@@ -8697,6 +8697,211 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 }
 .crozzo-ventas-hub--balanced .crozzo-ventas-hub__kpis--live {
   margin-bottom: 16px;
+}
+/* H2.D — Mi rentabilidad hoy (peek semáforo; detalle al pedir) */
+.crozzo-ventas-hub__rent-hoy {
+  max-width: 960px;
+  margin: 0 0 16px;
+}
+.crozzo-rent-hoy--rojo .crozzo-hub-reveal {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-hoy--amarillo .crozzo-hub-reveal {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-hoy--verde .crozzo-hub-reveal {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-hoy__peek-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.crozzo-rent-hoy__peek-txt {
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-hoy__body {
+  padding: 4px 2px 8px;
+}
+.crozzo-rent-hoy__lead {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-rent-hoy__plato {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-hoy__plato--warn {
+  color: #8a5a2b;
+}
+.crozzo-rent-hoy__rojos {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #8b3a2f;
+}
+.crozzo-rent-hoy__crecimiento {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+}
+.crozzo-mi-crecimiento h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+.crozzo-mc-sub {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar-wrap {
+  margin: 0 0 10px;
+}
+.crozzo-mc-bar-label {
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(28, 28, 28, 0.08);
+  overflow: hidden;
+}
+.crozzo-mc-bar-fill {
+  height: 100%;
+  background: #6a9b6a;
+  border-radius: 99px;
+}
+.crozzo-mc-req {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+}
+.crozzo-mc-alert {
+  font-size: 0.8rem;
+  margin: 4px 0;
+}
+.crozzo-rent-hoy__link {
+  margin: 10px 0 0;
+}
+/* Página Rentabilidad (UI H2.C) */
+.crozzo-rent-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 4px 28px;
+}
+.crozzo-rent-page__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__hero h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.crozzo-rent-page__toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem--verde {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-page__sem--amarillo {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-page__sem--rojo {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-page__sem-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.crozzo-rent-page__sem p {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-page__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__kpis > div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+}
+.crozzo-rent-page__kpis span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary, #5c564f);
+  margin-bottom: 4px;
+}
+.crozzo-rent-page__kpis strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-page__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.crozzo-rent-page__cols h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+.crozzo-rent-page__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crozzo-rent-page__list li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, rgba(28, 28, 28, 0.06));
+  font-size: 0.86rem;
+}
+.crozzo-rent-page__meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #5c564f);
+  font-size: 0.8rem;
+}
+.crozzo-rent-page__empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #5c564f);
+  margin: 8px 0 12px;
+}
+.crozzo-rent-page__deny {
+  padding: 24px 8px;
+}
+@media (max-width: 720px) {
+  .crozzo-rent-page__kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .crozzo-rent-page__cols {
+    grid-template-columns: 1fr;
+  }
 }
 /* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
 .crozzo-ventas-hub__reveals {
@@ -33388,7 +33593,7 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
     max-width: 200px;
   }
 }
-/* --- Crozzo perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Bona Origen perf-lite: menos animaciones, scroll más fluido --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -36126,6 +36331,19 @@ body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot 
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot .crozzo-rest-pos__action--cmd,
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot .crozzo-rest-pos__action--pay {
   grid-column: 1 / -1;
+}
+/* Pie Pedido: Cobrar/Cuenta legibles y sin clip por overflow del ticket */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  overflow: visible;
+  z-index: 5;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__row {
+  min-width: 0;
+  overflow: visible;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay {
+  flex: 1 1 0;
+  min-width: 0;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente {
   flex-shrink: 0;
@@ -39490,7 +39708,7 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
 }
 
 /* =====================================================================
-   CROZZO RESPONSIVE FULL-FIT v1 — celular y tablet
+   BONA ORIGEN RESPONSIVE FULL-FIT v1 — celular y tablet
    Objetivo: que cada pantalla se sienta "full" sin espacios perdidos.
    - Celular (<=768px): POS en una columna + carrito como hoja inferior.
    - Tablet (481–1024px): contenido enmarcado y centrado (sin vacío abajo).
@@ -40625,7 +40843,7 @@ body.bona-enterprise-chrome .crozzo-identidad-hero::before {
   padding: 24px;
 }
 
-/* —— Crozzo Elite — acabado premium global (adapta al tema / --accent) —— */
+/* —— Bona Origen Elite — acabado premium global (adapta al tema / --accent) —— */
 .main-body:not(.main-body--rest-pos):not(.main-body--retail-pos):not(.main-body--qyc-embed):not(.main-body--centro-compras):not(.main-body--centro-procesos) {
   --elite-accent: var(--accent);
   --elite-accent-rgb: var(--accent-rgb, 201, 169, 98);
@@ -44585,6 +44803,211 @@ body.crozzo-premium-psyche .crozzo-crm-create {
 }
 .crozzo-ventas-hub--balanced .crozzo-ventas-hub__kpis--live {
   margin-bottom: 16px;
+}
+/* H2.D — Mi rentabilidad hoy (peek semáforo; detalle al pedir) */
+.crozzo-ventas-hub__rent-hoy {
+  max-width: 960px;
+  margin: 0 0 16px;
+}
+.crozzo-rent-hoy--rojo .crozzo-hub-reveal {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-hoy--amarillo .crozzo-hub-reveal {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-hoy--verde .crozzo-hub-reveal {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-hoy__peek-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.crozzo-rent-hoy__peek-txt {
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-hoy__body {
+  padding: 4px 2px 8px;
+}
+.crozzo-rent-hoy__lead {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--text-primary, #1c1c1c);
+}
+.crozzo-rent-hoy__plato {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-hoy__plato--warn {
+  color: #8a5a2b;
+}
+.crozzo-rent-hoy__rojos {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  color: #8b3a2f;
+}
+.crozzo-rent-hoy__crecimiento {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+}
+.crozzo-mi-crecimiento h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+.crozzo-mc-sub {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar-wrap {
+  margin: 0 0 10px;
+}
+.crozzo-mc-bar-label {
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-mc-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(28, 28, 28, 0.08);
+  overflow: hidden;
+}
+.crozzo-mc-bar-fill {
+  height: 100%;
+  background: #6a9b6a;
+  border-radius: 99px;
+}
+.crozzo-mc-req {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+}
+.crozzo-mc-alert {
+  font-size: 0.8rem;
+  margin: 4px 0;
+}
+.crozzo-rent-hoy__link {
+  margin: 10px 0 0;
+}
+/* Página Rentabilidad (UI H2.C) */
+.crozzo-rent-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 4px 28px;
+}
+.crozzo-rent-page__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__hero h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.crozzo-rent-page__toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+  margin-bottom: 14px;
+}
+.crozzo-rent-page__sem--verde {
+  border-color: rgba(70, 140, 90, 0.28);
+}
+.crozzo-rent-page__sem--amarillo {
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.crozzo-rent-page__sem--rojo {
+  border-color: rgba(196, 80, 64, 0.35);
+}
+.crozzo-rent-page__sem-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.crozzo-rent-page__sem p {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #5c564f);
+}
+.crozzo-rent-page__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.crozzo-rent-page__kpis > div {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(28, 28, 28, 0.08));
+  background: var(--bg-card, #fff);
+}
+.crozzo-rent-page__kpis span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-secondary, #5c564f);
+  margin-bottom: 4px;
+}
+.crozzo-rent-page__kpis strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.crozzo-rent-page__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.crozzo-rent-page__cols h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+.crozzo-rent-page__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.crozzo-rent-page__list li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border, rgba(28, 28, 28, 0.06));
+  font-size: 0.86rem;
+}
+.crozzo-rent-page__meta {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #5c564f);
+  font-size: 0.8rem;
+}
+.crozzo-rent-page__empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #5c564f);
+  margin: 8px 0 12px;
+}
+.crozzo-rent-page__deny {
+  padding: 24px 8px;
+}
+@media (max-width: 720px) {
+  .crozzo-rent-page__kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .crozzo-rent-page__cols {
+    grid-template-columns: 1fr;
+  }
 }
 /* Hub reveal — divulgación bajo demanda (estilo Apple: cerrado = calma) */
 .crozzo-ventas-hub__reveals {
@@ -69035,7 +69458,7 @@ html.crozzo-a11y-reduce-motion .crozzo-update-install-steps li.is-active .crozzo
     max-width: 200px;
   }
 }
-/* --- Crozzo perf-lite: menos animaciones, scroll más fluido --- */
+/* --- Bona Origen perf-lite: menos animaciones, scroll más fluido --- */
 html.crozzo-perf-lite *, html.crozzo-perf-lite *::before, html.crozzo-perf-lite *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -71773,6 +72196,19 @@ body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot 
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot .crozzo-rest-pos__action--cmd,
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-rest-pos__ticket-foot .crozzo-rest-pos__action--pay {
   grid-column: 1 / -1;
+}
+/* Pie Pedido: Cobrar/Cuenta legibles y sin clip por overflow del ticket */
+body.crozzo-page-rest-pos .crozzo-rest-pos__ticket-foot {
+  overflow: visible;
+  z-index: 5;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__row {
+  min-width: 0;
+  overflow: visible;
+}
+body.crozzo-page-rest-pos .crozzo-rest-cuenta-cobro__pay {
+  flex: 1 1 0;
+  min-width: 0;
 }
 body.crozzo-page-rest-pos .crozzo-rest-pos--order .crozzo-retail-cliente {
   flex-shrink: 0;
@@ -75137,7 +75573,7 @@ html.crozzo-android-native body.crozzo-page-operativa #tabletProducts {
 }
 
 /* =====================================================================
-   CROZZO RESPONSIVE FULL-FIT v1 — celular y tablet
+   BONA ORIGEN RESPONSIVE FULL-FIT v1 — celular y tablet
    Objetivo: que cada pantalla se sienta "full" sin espacios perdidos.
    - Celular (<=768px): POS en una columna + carrito como hoja inferior.
    - Tablet (481–1024px): contenido enmarcado y centrado (sin vacío abajo).
@@ -76508,7 +76944,7 @@ html.crozzo-touch-shell .crozzo-rescue-actions .btn {
   min-height: var(--crozzo-touch-btn-min, 48px);
 }
 
-/* === Crozzo Help Hub — centro de ayuda === */
+/* === Bona Origen Help Hub — centro de ayuda === */
 .modal--help-hub .modal {
   max-width: min(720px, 96vw);
 }
@@ -78253,8 +78689,23 @@ html.crozzo-android-native .crozzo-wa-fab-stack,
 html.crozzo-android-native .crozzo-wa-dock,
 html.crozzo-touch-shell:not(.crozzo-form-desktop) .crozzo-wa-fab-stack,
 html.crozzo-touch-shell:not(.crozzo-form-desktop) .crozzo-wa-dock,
-body.crozzo-login-open .crozzo-wa-fab-stack {
+body.crozzo-login-open .crozzo-wa-fab-stack,
+/* P0 operativo: FAB Quick Apps no debe tapar Comandar/Cobrar/Cuenta */
+body.crozzo-page-rest-pos .crozzo-wa-fab-stack,
+body.crozzo-page-rest-pos .crozzo-quick-apps-fab,
+body.crozzo-page-tablets .crozzo-wa-fab-stack,
+body.crozzo-page-tablets .crozzo-quick-apps-fab,
+body.crozzo-page-comandas .crozzo-wa-fab-stack,
+body.crozzo-page-comandas .crozzo-quick-apps-fab,
+body.crozzo-page-cocina .crozzo-wa-fab-stack,
+body.crozzo-page-cocina .crozzo-quick-apps-fab,
+body.crozzo-page-mesas .crozzo-wa-fab-stack,
+body.crozzo-page-mesas .crozzo-quick-apps-fab,
+body.crozzo-page-cajero .crozzo-wa-fab-stack,
+body.crozzo-page-cajero .crozzo-quick-apps-fab {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 html.tauri-shell.crozzo-form-desktop:not(.crozzo-android-apk):not(.crozzo-android-native) .crozzo-wa-fab-stack,
@@ -80403,4 +80854,249 @@ html.crozzo-android-apk .crozzo-ai-audit__preset {
 html.crozzo-touch-shell .crozzo-ai-audit__actions .btn,
 html.crozzo-android-apk .crozzo-ai-audit__actions .btn {
   min-height: 42px;
+}
+
+/* === PANEL DERECHO TIPO CELULAR (docks) — autoridad unica === */
+body.crozzo-dock-panel-open main.main-content {
+  margin-right: 384px !important;
+  transition: margin-right 0.3s cubic-bezier(0.22,1,0.36,1) !important;
+}
+
+#crozzoDockPanel.crozzo-dock-panel {
+  position: fixed !important;
+  display: flex !important;
+  flex-direction: column !important;
+  top: 12px !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  width: 360px !important;
+  height: auto !important;
+  z-index: 100 !important;
+}
+
+/* === PHONE PROFILE (docks) === */
+body.crozzo-dock-profile--phone.crozzo-dock-panel-open main.main-content {
+  margin-right: 304px !important;
+}
+body.crozzo-dock-profile--phone #crozzoDockPanel.crozzo-dock-panel {
+  width: 280px !important;
+}
+body.crozzo-dock-profile--phone #crozzoDockPanel .crozzo-dock-panel__tabs button {
+  font-size: 11px !important;
+  padding: 4px 6px !important;
+}
+
+#crozzoDockPanel .crozzo-dock-panel__head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  flex: 0 0 auto;
+  height: auto;
+  overflow: visible;
+}
+
+#crozzoDockPanelTabs.crozzo-dock-panel__tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+#crozzoDockPanelTabs.crozzo-dock-panel__tabs > * {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.crozzo-dock-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+#crozzoDockPanelZoom {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+#crozzoDockPanelZoomLabel {
+  flex: 0 0 auto;
+  min-width: 40px;
+  text-align: right;
+}
+
+#crozzoDockPanelClose {
+  flex: 0 0 auto;
+}
+
+.crozzo-dock-panel__body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#crozzoDockPanelBody .crozzo-wa-page__host {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  margin: 0 !important;
+  z-index: 1 !important;
+}
+
+#crozzoDockPanelBody .crozzo-wa-page__host[hidden] {
+  display: none !important;
+}
+
+/* === Dock Hub (panel de entrada integrado) === */
+.crozzo-dock-hub {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(248,250,252,0.98), rgba(241,245,249,0.98));
+  z-index: 5;
+  transition: opacity 0.3s cubic-bezier(0.22,1,0.36,1), transform 0.3s cubic-bezier(0.22,1,0.36,1);
+  animation: crozzoDockHubIn 0.35s cubic-bezier(0.22,1,0.36,1);
+}
+.crozzo-dock-hub.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.97);
+}
+@keyframes crozzoDockHubIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.crozzo-dock-hub__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 28px;
+  max-width: 360px;
+  width: 90%;
+  background: #ffffff;
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.06);
+  text-align: center;
+}
+.crozzo-dock-hub__icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(147,197,253,0.18));
+  color: #1e40af;
+}
+.crozzo-dock-hub__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+.crozzo-dock-hub__desc {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #475569;
+}
+.crozzo-dock-hub__btn {
+  margin-top: 4px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.crozzo-dock-hub__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37,99,235,0.38);
+  filter: brightness(1.05);
+}
+.crozzo-dock-hub__btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(37,99,235,0.25);
+}
+
+/* === Dock host hiding/showing animation === */
+.crozzo-wa-page__host--hiding {
+  opacity: 0;
+  transform: translateX(8px);
+  pointer-events: none;
+}
+.crozzo-wa-page__host--showing {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* === Zoom slider === */
+.crozzo-dock-panel__zoom {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e2e8f0;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.crozzo-dock-panel__zoom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(37,99,235,0.3);
+}
+.crozzo-dock-panel__zoom::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(37,99,235,0.3);
+}
+.crozzo-dock-panel__zoom-label {
+  flex: 0 0 auto;
+  min-width: 40px;
+  text-align: right;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Panel tab active state === */
+.crozzo-dock-panel__tabs .is-active {
+  background: #2563eb;
+  color: #ffffff;
 }

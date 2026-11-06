@@ -46,7 +46,7 @@ pub fn print_html_b64_sync(
     );
 
     let target = super::resolve_printer_for_html(&printer_name)?;
-    let copies = copies.max(1).min(5);
+    let copies = copies.clamp(1, 5);
 
     let (tx, rx) = mpsc::sync_channel::<Result<String, String>>(1);
     let printed_once = std::sync::Arc::new(AtomicBool::new(false));

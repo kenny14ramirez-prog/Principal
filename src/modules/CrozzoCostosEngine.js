@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Motor de costos QyC (basado en COSTO DE PRODUCTOS QYC.xlsx)
+ * Bona Origen — Motor de costos QyC (basado en COSTO DE PRODUCTOS QYC.xlsx)
  * PRECIOS → sub-recetas → recetas → RESUMEN
  */
 (function (global) {

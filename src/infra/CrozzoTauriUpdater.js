@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Instalador nativo Tauri (plugin-updater + relaunch) + Plan B manual
+ * Bona Origen — Instalador nativo Tauri (plugin-updater + relaunch) + Plan B manual
  */
 (function (global) {
   'use strict';
@@ -489,6 +489,9 @@
       if (mapped) return mapped;
     }
     var msg = err && err.message ? err.message : String(err || '');
+    if (isSignatureMismatchError(err)) {
+      return 'El instalador publicado no coincide con la clave de firma del POS (OTA bloqueado). Use Plan B (descarga manual) o reinstale manualmente. Contacte soporte.';
+    }
     if (/pospuesta por el usuario|cancelada por el usuario/i.test(msg)) {
       return 'Actualización pospuesta. Puede seguir operando.';
     }
@@ -887,9 +890,19 @@
               phase: 'install',
               percent: 96,
               message:
-                'Instalando… Crozzo POS se cerrará y volverá a abrir solo con la versión nueva.',
+                'Instalando… Bona Origen se cerrará y volverá a abrir solo con la versión nueva.',
             });
           }
+          // P0-3: respaldar estado POS antes de cerrar/reabrir.
+          try {
+            if (typeof global.collectPosRuntimeState === 'function') {
+              var _st = global.collectPosRuntimeState();
+              if (_st) {
+                try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+                try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+              }
+            }
+          } catch (_) {}
           return finishUpdateRelaunch(onProgress, ver, 'C');
         });
     });
@@ -1409,9 +1422,19 @@
             onProgress({
               phase: 'install',
               percent: 96,
-              message: 'Instalación completada. Crozzo POS se reiniciará automáticamente…',
+              message: 'Instalación completada. Bona Origen se reiniciará automáticamente…',
             });
           }
+          // P0-3: respaldar estado POS antes de cerrar/reabrir.
+          try {
+            if (typeof global.collectPosRuntimeState === 'function') {
+              var _st = global.collectPosRuntimeState();
+              if (_st) {
+                try { localStorage.setItem('crozzo_update_state_backup', JSON.stringify(_st)); } catch (_) {}
+                try { localStorage.setItem('crozzo_update_state_backup_at', String(Date.now())); } catch (_) {}
+              }
+            }
+          } catch (_) {}
           return finishUpdateRelaunch(onProgress, ver, 'D');
         });
     });

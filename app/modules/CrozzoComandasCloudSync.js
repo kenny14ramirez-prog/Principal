@@ -143,6 +143,18 @@
 
   function tierAllowsCloudPush() {
     try {
+      // Si hay ancla LAN y somos cliente, delegar push a ancla
+      if (global.CrozzoConnectivityDirector && typeof global.CrozzoConnectivityDirector.getState === 'function') {
+        var ds = global.CrozzoConnectivityDirector.getState();
+        if (ds && ds.mode === 'lan_client' && ds.relayViaCentral) {
+          return false;
+        }
+        if (ds && ds.mode === 'lan_client' && ds.anchorIp) {
+          return false;
+        }
+      }
+    } catch (_) {}
+    try {
       if (typeof global.crozzoCloudSyncSessionGateOpen === 'function' && !global.crozzoCloudSyncSessionGateOpen()) {
         return false;
       }
@@ -152,7 +164,16 @@
         return global.crozzoTierAllowsCloudSync() && online();
       }
     } catch (_) {}
-    if (online()) return true;
+    if (online()) {
+      // Extra guard: si hay ancla, no push directo desde cliente
+      try {
+        if (global.CrozzoConnectivityDirector && typeof global.CrozzoConnectivityDirector.getState === 'function') {
+          var ds2 = global.CrozzoConnectivityDirector.getState();
+          if (ds2 && ds2.mode === 'lan_client') return false;
+        }
+      } catch (_) {}
+      return true;
+    }
     var t = tierNow();
     return t === 'cloud';
   }
@@ -1578,7 +1599,9 @@
     if (thr && typeof thr.isUnderPressure === 'function' && thr.isUnderPressure()) {
       ms = Math.min(60000, ms * 3);
     }
+    try { ms = Math.max(400, Math.round(ms * (0.9 + Math.random() * 0.2))); } catch (_) {}
     __pullTimer = global.setInterval(function () {
+      try { if (typeof document !== 'undefined' && document.hidden) return; } catch (_) {}
       if (!tierAllowsCloudRead()) return;
       if (cloudUnderPressure()) return;
       try {

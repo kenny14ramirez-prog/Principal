@@ -1,5 +1,5 @@
 /**
- * Crozzo — Directorio local de equipos del mismo proyecto ("amigos").
+ * Bona Origen — Directorio local de equipos del mismo proyecto ("amigos").
  *
  * Memoria de baja latencia: IPs y roles conocidos mientras la nube estuvo viva o
  * cuando un peer respondió por LAN. Al caer internet se consulta ANTES de escanear

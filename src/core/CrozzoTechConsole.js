@@ -75,7 +75,7 @@
     panel = document.createElement('div');
     panel.id = 'crozzoTechConsole';
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', 'Consola técnica Crozzo');
+    panel.setAttribute('aria-label', 'Consola técnica Bona Origen');
     panel.innerHTML =
       '<header class="crozzo-tech-console__head">' +
       '<strong>Consola técnica</strong>' +

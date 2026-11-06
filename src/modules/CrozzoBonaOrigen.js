@@ -606,11 +606,13 @@
 
   function onThemeChange(themeId) {
     injectStyles();
-    applyChrome();
-    if (themeId !== 'bona-origen' && !document.body.classList.contains('crozzo-bona-module')) {
-      try {
-        document.body.classList.remove('bona-chrome-active');
-      } catch (_) {}
+    var wantBona =
+      themeId === 'bona-origen' ||
+      (document.body && document.body.classList.contains('crozzo-bona-module'));
+    if (wantBona) {
+      applyChrome();
+    } else {
+      clearChrome();
     }
   }
 

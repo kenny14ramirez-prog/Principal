@@ -1,5 +1,5 @@
 /**
- * Crozzo — Política de cerebros A (caja) y B (terminal).
+ * Bona Origen — Política de cerebros A (caja) y B (terminal).
  *
  * Cerebro A: ancla — sirve LAN, nube, hotspot, publica presencia y QR.
  * Cerebro B: satélite — intenta lo propio; si falla, pide prestado al A

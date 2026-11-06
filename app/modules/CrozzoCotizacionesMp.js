@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Cotizaciones y comparador de costeo (sistema vs proveedores vs competencia)
+ * Bona Origen — Cotizaciones y comparador de costeo (sistema vs proveedores vs competencia)
  * Compras · negociación · auditoría · exportación Excel/PDF
  */
 (function (global) {
@@ -1785,7 +1785,7 @@
       resumen: resumen,
       detalle: detalle,
       meta: {
-        titulo: 'Cotización vs costeo — Crozzo POS',
+        titulo: 'Cotización vs costeo — Bona Origen',
         fecha: exportFileStamp(),
         productos: resumen.length,
         cotizaciones: detalle.length,
@@ -2042,7 +2042,7 @@
     });
     ctx.fillStyle = '#888888';
     ctx.font = '8px Arial, Helvetica, sans-serif';
-    ctx.fillText('Crozzo POS · Cotizaciones vs costeo', mx, ph - 26);
+    ctx.fillText('Bona Origen · Cotizaciones vs costeo', mx, ph - 26);
     if (totalPages > 1) {
       ctx.fillText('Pág. ' + pageNum + ' / ' + totalPages, pw - 100, ph - 26);
     }
@@ -2121,7 +2121,7 @@
         });
       });
     }
-    var title = 'Comparativo de cotizaciones · Crozzo POS';
+    var title = 'Comparativo de cotizaciones · Bona Origen';
     var subtitle =
       pack.meta.fecha +
       '  |  ' +
@@ -2175,7 +2175,7 @@
         });
       });
     }
-    var title = 'Comparativo de cotizaciones · Crozzo POS';
+    var title = 'Comparativo de cotizaciones · Bona Origen';
     var subtitle =
       pack.meta.fecha +
       '  |  ' +

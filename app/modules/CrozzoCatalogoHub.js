@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Catálogo: platos de venta + materias primas (fuente única de MP)
+ * Bona Origen — Catálogo: platos de venta + materias primas (fuente única de MP)
  */
 (function (global) {
   'use strict';

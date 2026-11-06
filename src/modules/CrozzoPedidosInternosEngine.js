@@ -467,6 +467,19 @@
         );
       })
       .join('');
+    var D = global.CrozzoDocDesign;
+    if (D && typeof D.docHeader === 'function') {
+      var tableRows = items.map(function (it) {
+        return [escHtml(it.seccion || ''), escHtml(it.producto || ''), escHtml(it.cantidad || '')];
+      });
+      var body =
+        D.docHeader({ title: 'Pedido interno', subtitle: area, meta: 'Responsable: ' + (resp || '—') + ' · ' + (fecha || '—') }) +
+        (neg ? '<div style="font-size:10px;font-weight:700;margin-bottom:6px;">' + neg + '</div>' : '') +
+        D.docTable(['Sección', 'Insumo', 'Cant.'], tableRows, { numCols: [2] }) +
+        (obs ? '<p style="font-size:9px;margin-top:8px;"><strong>Obs:</strong> ' + obs + '</p>' : '') +
+        D.docFooter({ left: 'Bona Origen · ' + new Date().toLocaleString('es-CO'), right: 'MP vinculada a recetas → platos → área comanda' });
+      return D.wrapDocument(body, 'thermal', 'Pedido interno');
+    }
     return (
       '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pedido interno</title>' +
       '<style>@page{size:80mm auto;margin:3mm}body{font-family:Consolas,monospace;font-size:11px;margin:0;padding:4px 6px;color:#000}' +
@@ -486,7 +499,7 @@
       (rows || '<tr><td colspan="3">Sin ítems</td></tr>') +
       '</tbody></table>' +
       (obs ? '<p class="meta" style="margin-top:8px"><strong>Obs:</strong> ' + obs + '</p>' : '') +
-      '<p class="foot">Crozzo POS · MP vinculada a recetas → platos → área comanda</p></body></html>'
+      '<p class="foot">Bona Origen · MP vinculada a recetas → platos → área comanda</p></body></html>'
     );
   }
 

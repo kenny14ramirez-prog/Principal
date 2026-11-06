@@ -1060,7 +1060,25 @@
     return st || { running: false };
   }
 
+  function isLoginOpen() {
+    try {
+      if (document.body && document.body.classList.contains('crozzo-login-open')) return true;
+      var ov = document.getElementById('loginOverlay');
+      return !!(ov && !ov.hidden);
+    } catch (_) {}
+    return false;
+  }
+
   function bootLanServerEarly() {
+    if (isLoginOpen()) {
+      var _loginCheck = setInterval(function () {
+        if (!isLoginOpen()) {
+          clearInterval(_loginCheck);
+          bootLanServerEarly();
+        }
+      }, 1000);
+      return;
+    }
     if (!shouldAutoStartLanServer()) return;
     ensureServerOnce(true).catch(function (e) {
       try {

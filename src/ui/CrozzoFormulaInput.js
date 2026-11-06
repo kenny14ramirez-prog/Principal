@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Campos numéricos con fórmulas (2+2, 100*0.19, (10+5)/3).
+ * Bona Origen — Campos numéricos con fórmulas (2+2, 100*0.19, (10+5)/3).
  * Al salir del campo: evalúa y muestra el resultado. Al hacer clic: muestra la fórmula.
  */
 (function (global) {

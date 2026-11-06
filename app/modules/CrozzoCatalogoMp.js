@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Catálogo MP + Costeo MP (dos capas conectadas)
+ * Bona Origen — Catálogo MP + Costeo MP (dos capas conectadas)
  * Catálogo: nombre, categoría, proveedores → recetas, inventario, proveedores
  * Costeo: unidad, peso, precio total, $/u → fórmulas y márgenes
  */

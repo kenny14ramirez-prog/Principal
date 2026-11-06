@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Campos legales factura Colombia (Res. DIAN 000165/2023, art. 617 ET).
+ * Bona Origen — Campos legales factura Colombia (Res. DIAN 000165/2023, art. 617 ET).
  * Representación impresa / térmica de factura electrónica de venta.
  */
 (function (global) {

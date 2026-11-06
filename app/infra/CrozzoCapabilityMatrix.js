@@ -1,5 +1,5 @@
 /**
- * Crozzo — Matriz de capacidades y rutas de comunicación.
+ * Bona Origen — Matriz de capacidades y rutas de comunicación.
  *
  * Un solo cerebro local que entiende: ¿soy Android/Windows/Tauri? ¿qué transportes
  * tengo? ¿cuál es el plan A/B/C/D? ¿quién es el ancla (caja) hacia Supabase?

@@ -1,5 +1,5 @@
 /**
- * Crozzo — Arranque "todo listo" (no bloqueante).
+ * Bona Origen — Arranque "todo listo" (no bloqueante).
  *
  * Al iniciar la app: detecta capacidades del equipo, pide los permisos
  * necesarios de forma amable, arranca el orquestador de conectividad y corre
@@ -349,8 +349,27 @@
     return snapshot;
   }
 
+  function isLoginOpen() {
+    try {
+      if (document.body && document.body.classList.contains('crozzo-login-open')) return true;
+      var ov = document.getElementById('loginOverlay');
+      return !!(ov && !ov.hidden);
+    } catch (_) {}
+    return false;
+  }
+
   function run() {
     if (__ran) return;
+    // Si el login esta abierto, diferir hasta que el usuario entre.
+    if (isLoginOpen()) {
+      var _loginCheck = setInterval(function () {
+        if (!isLoginOpen()) {
+          clearInterval(_loginCheck);
+          run();
+        }
+      }, 1000);
+      return;
+    }
     __ran = true;
     // Diferido: no retrasa el primer render ni el login.
     var kick = function () {

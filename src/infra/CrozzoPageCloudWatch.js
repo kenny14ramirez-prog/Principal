@@ -1,5 +1,5 @@
 /**
- * Crozzo — Sincronización con nube según la pantalla activa y prioridades.
+ * Bona Origen — Sincronización con nube según la pantalla activa y prioridades.
  *
  * P0 · Realtime: runtime/comandas (PosRuntimeCloud + ComandasCloudSync).
  * P1 · Nav: pull al entrar, push al salir (facturas, cierre caja, inicio).

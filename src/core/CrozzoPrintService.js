@@ -101,8 +101,9 @@
     function fixKey(key, allowEmpty) {
       var v = String(conf[key] || '').trim();
       if (allowEmpty && !v) return;
+      // P0-3 fix: phantom printers se limpian incluso en roles allowEmpty.
       if (!v || crozzoIsPhantomPrinter(v)) {
-        if (!allowEmpty) patch[key] = fallback;
+        patch[key] = allowEmpty ? '' : fallback;
         return;
       }
       var matched = crozzoMatchSystemPrinter(v) || v;
@@ -1934,18 +1935,13 @@
     var pw = String(pageW || '80mm');
     var bodyW = pw === '58mm' || pw === '50mm' ? '58mm' : '80mm';
     innerHtml = crozzoEnsureThermalCutFeed(innerHtml || '', {});
-    return (
-      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Crozzo</title><style>' +
-      '@page{size:' +
-      bodyW +
-      ' auto;margin:0;padding:0}' +
-      'html{margin:0;padding:0;width:' +
-      bodyW +
-      ';height:auto;min-height:0;max-height:none}' +
-      'body{margin:0;padding:0;width:' +
-      bodyW +
-      ';min-height:0;height:auto;max-height:none;overflow:visible;' +
-      'font-family:Consolas,monospace;font-size:11px;line-height:1.35;' +
+    var D = global.CrozzoDocDesign;
+    var baseCss = (D && typeof D.THERMAL_CSS === 'string') ? D.THERMAL_CSS : '';
+    var cutFeedCss =
+      '@page{size:' + bodyW + ' auto;margin:0;padding:0}' +
+      'html{margin:0;padding:0;width:' + bodyW + ';height:auto;min-height:0;max-height:none}' +
+      'body{margin:0;padding:0;width:' + bodyW + ';min-height:0;height:auto;max-height:none;overflow:visible;' +
+      'font-family:var(--doc-font-mono,Consolas,monospace);font-size:11px;line-height:1.35;' +
       '-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
       '.cierre-ticket,.crozzo-ticket{width:100%;box-sizing:border-box;padding:1mm 0 0;margin:0}' +
       '.ct-cut-spacer{display:block;width:100%;height:5mm;min-height:5mm;margin:0;padding:0;overflow:hidden;font-size:5mm;line-height:5mm}' +
@@ -1958,7 +1954,11 @@
       '@media print{' +
       '.ct-cut-zone{page-break-after:always;break-after:page}' +
       'html,body{height:auto!important;min-height:0!important}' +
-      '}' +
+      '}';
+    return (
+      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Bona Origen</title><style>' +
+      baseCss +
+      cutFeedCss +
       '</style></head><body>' +
       innerHtml +
       '</body></html>'
@@ -1971,6 +1971,8 @@
     if (crozzoIsPhantomPrinter(n)) return true;
     var low = n.toLowerCase();
     if (/pdf|xps|onenote|fax|microsoft print to pdf|adobe pdf|guardar como pdf|save as pdf/i.test(low)) return false;
+    // Impresoras de etiquetas (TSPL/ZPL) no usan ESC/POS: tratar como no-térmica (HTML/hoja).
+    if (/zebra|tsc|honeywell|honey well|label|etiqueta|datamax|sato|godex|argox/i.test(low)) return false;
     if (/pos|80\s*mm|58\s*mm|50\s*mm|term|thermal|ticket|receipt|epson tm|star tsp|bixolon|citizen|generic/i.test(low)) return true;
     if (/laser|laserjet|brother hl|canon lbp|canon imageclass|officejet|deskjet|mfp|multifunction|inkjet/i.test(low)) return false;
     return false;
@@ -2537,11 +2539,16 @@
     if (!comanda) return '';
     var emp = global.config && global.config.getEmpresa ? global.config.getEmpresa() || {} : {};
     var ref = crozzoComandaSlotRefLabel(comanda) || String(comanda.referencia || '—');
-    var lines = (comanda.items || [])
-      .map(function (it) {
-        return (Number(it.cantidad) || 0) + '× ' + (it.nombreVenta || it.nombre || 'Ítem');
-      })
-      .join('\n');
+    var items = (comanda.items || []).map(function (it) { return { qty: Number(it.cantidad) || 0, name: (it.nombreVenta || it.nombre || 'Ítem') }; });
+    var D = global.CrozzoDocDesign;
+    if (D && typeof D.docHeader === 'function') {
+      var rows = items.map(function (it) { return [it.qty + '×', it.name]; });
+      var body = D.docHeader({ title: (comanda.areaNombre || 'COMANDA'), subtitle: emp.nombreComercial || '', meta: '#' + (comanda.id || '—') + ' · ' + ref }) +
+        D.docTable(['Cant.', 'Ítem'], rows, { numCols: [0] }) +
+        D.docFooter({ left: 'Bona Origen · ' + new Date().toLocaleString('es-CO'), right: 'Comanda térmica' });
+      return D.wrapDocument(body, 'thermal', (comanda.areaNombre || 'Comanda'));
+    }
+    var lines = items.map(function (it) { return it.qty + '× ' + it.name; }).join('\n');
     return (
       '<pre style="font-family:Consolas,monospace;font-size:11px;margin:0;padding:2mm;width:72mm;">' +
       (comanda.areaNombre || 'COMANDA') +

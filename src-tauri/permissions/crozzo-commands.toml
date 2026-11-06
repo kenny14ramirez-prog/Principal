@@ -25,6 +25,7 @@ commands.allow = [
   "crozzo_lan_sync_health",
   "crozzo_lan_sync_post",
   "crozzo_lan_sync_set_cloud_reachable",
+  "crozzo_lan_sync_ack",
 ]
 
 [[permission]]
@@ -91,3 +92,13 @@ commands.allow = [
   "crozzo_wifi_direct_status",
   "crozzo_wifi_direct_start",
 ]
+
+[[permission]]
+identifier = "allow-crozzo-secret-store"
+description = "Almacén de secretos del SO (DPAPI) para claves de emparejamiento"
+commands.allow = ["crozzo_secret_set", "crozzo_secret_get", "crozzo_secret_delete"]
+
+[[permission]]
+identifier = "allow-crozzo-ollama"
+description = "Puente a Ollama local (IA texto) para análisis de cierres y resúmenes"
+commands.allow = ["crozzo_ollama_chat", "crozzo_ollama_tags"]

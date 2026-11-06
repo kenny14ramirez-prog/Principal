@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Navegación lateral Executive Elite
+ * Bona Origen — Navegación lateral Executive Elite
  * Rail 64px · Expandido 260px · Persistencia crozzo_menu_state
  */
 (function (global) {

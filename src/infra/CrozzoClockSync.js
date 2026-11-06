@@ -1,5 +1,5 @@
 /**
- * Crozzo — Tolerancia a reloj mal puesto (error humano muy comun).
+ * Bona Origen — Tolerancia a reloj mal puesto (error humano muy comun).
  *
  * Muchas tablets baratas pierden la hora/fecha o quedan en otra zona horaria.
  * Eso rompe en silencio cosas como la caducidad del QR (24 h) y el orden de la

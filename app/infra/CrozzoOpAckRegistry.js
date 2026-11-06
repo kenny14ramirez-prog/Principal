@@ -1,5 +1,5 @@
 /**
- * Crozzo — Registro global de operaciones idempotentes + ACK multi-canal.
+ * Bona Origen — Registro global de operaciones idempotentes + ACK multi-canal.
  * Extiende la semántica de CrozzoLanActionDedup a cloud / LAN / mesh.
  */
 (function (global) {
@@ -47,6 +47,39 @@
         __mem[String(e.id)] = { at: e.at || now, src: e.src || 'persist' };
       });
     } catch (_) {}
+  }
+
+  // Periodic cleanup to prevent memory growth
+  function cleanup() {
+    try {
+      var now = Date.now();
+      // Cleanup seen
+      Object.keys(__mem).forEach(function (k) {
+        if (!__mem[k] || now - (__mem[k].at || 0) > SEEN_TTL_MS) {
+          delete __mem[k];
+        }
+      });
+      // Cleanup acked
+      Object.keys(__acked).forEach(function (k) {
+        if (!__acked[k] || now - (__acked[k].at || 0) > SEEN_TTL_MS) {
+          delete __acked[k];
+        }
+      });
+      // Cleanup pending older than timeout
+      Object.keys(__pending).forEach(function (k) {
+        if (!__pending[k] || now - (__pending[k].createdAt || 0) > 60000) {
+          if (__pending[k].timer) {
+            try { global.clearTimeout(__pending[k].timer); } catch (_) {}
+          }
+          delete __pending[k];
+        }
+      });
+      persistSeen();
+    } catch (_) {}
+  }
+
+  if (typeof global.setInterval === 'function') {
+    try { global.setInterval(cleanup, 60000); } catch (_) {}
   }
 
   function persistSeen() {

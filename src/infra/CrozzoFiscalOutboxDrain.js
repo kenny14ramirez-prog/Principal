@@ -1,5 +1,5 @@
 /**
- * Crozzo — Drenaje de cola fiscal (misión: no dejar ventas huérfanas sin CUFE).
+ * Bona Origen — Drenaje de cola fiscal (misión: no dejar ventas huérfanas sin CUFE).
  * Se dispara en reconnect WAN / diag. Máx N por ciclo; no bloquea UI.
  */
 (function (global) {
@@ -51,7 +51,7 @@
       if (!token) return { ok: false, reason: 'auth', skip: true };
       var url = String(prov.baseUrl || 'https://api.dataico.com/direct/dataico_api/v2/invoices').replace(/\/$/, '');
       if (url.indexOf('/invoices') < 0) url += '/invoices';
-      var headers = { 'Content-Type': 'application/json', 'Auth-token': token };
+      var headers = { 'Content-Type': 'application/json', 'Auth-token': token, 'Idempotency-Key': String(entry.id || entry.consecutivo || '') };
       if (prov.accountId || prov.apiSecret) headers['Dataico_account_id'] = prov.accountId || prov.apiSecret;
       var res = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(entry.payload) });
       var json = await res.json().catch(function () {
@@ -94,11 +94,40 @@
     return { ok: false, reason: 'fail' };
   }
 
+  var LOCK_KEY = 'crozzo_fiscal_outbox_drain_lock_v1';
+  var LOCK_TTL_MS = 30000;
+  function acquireCrossTabLock() {
+    try {
+      var raw = localStorage.getItem(LOCK_KEY);
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && o.until && Date.now() < Number(o.until)) {
+          if (o.tabId && o.tabId !== (global.__crozzoTabId || (global.__crozzoTabId = Math.random().toString(36).slice(2)))) {
+            return false;
+          }
+        }
+      }
+      var tabId = global.__crozzoTabId || (global.__crozzoTabId = Math.random().toString(36).slice(2));
+      localStorage.setItem(LOCK_KEY, JSON.stringify({ tabId: tabId, until: Date.now() + LOCK_TTL_MS }));
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+  function releaseCrossTabLock() {
+    try {
+      var raw = localStorage.getItem(LOCK_KEY);
+      var o = raw ? JSON.parse(raw) : null;
+      var tabId = global.__crozzoTabId;
+      if (o && o.tabId === tabId) localStorage.removeItem(LOCK_KEY);
+    } catch (_) {}
+  }
   async function drain(opts) {
     opts = opts || {};
     if (__draining) return { ok: false, reason: 'busy' };
-    if (!opts.force && Date.now() - __lastAt < GAP_MS) return { ok: false, reason: 'debounce' };
-    if (!opts.force && !wanOk()) return { ok: false, reason: 'no_wan' };
+    if (!acquireCrossTabLock()) return { ok: false, reason: 'busy_other_tab' };
+    if (!opts.force && Date.now() - __lastAt < GAP_MS) { releaseCrossTabLock(); return { ok: false, reason: 'debounce' }; }
+    if (!opts.force && !wanOk()) { releaseCrossTabLock(); return { ok: false, reason: 'no_wan' }; }
     __draining = true;
     __lastAt = Date.now();
     var done = 0;
@@ -130,6 +159,7 @@
       return { ok: true, done: done, failed: failed, skipped: skipped, queued: all.length };
     } finally {
       __draining = false;
+      releaseCrossTabLock();
     }
   }
 

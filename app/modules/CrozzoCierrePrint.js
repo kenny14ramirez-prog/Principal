@@ -1,5 +1,5 @@
 /**
- * Crozzo POS — Impresión de cierre (térmica 58/80 mm · carta · oficio)
+ * Bona Origen — Impresión de cierre (térmica 58/80 mm · carta · oficio)
  */
 (function (global) {
   'use strict';
@@ -35,7 +35,7 @@
         if (e && (e.nombreComercial || e.nombre)) return String(e.nombreComercial || e.nombre);
       }
     } catch (_) {}
-    return 'Crozzo POS';
+    return 'Bona Origen';
   }
 
   function getBrandPrintMeta() {
@@ -142,15 +142,20 @@
   }
 
   function cierrePrintStyles(extra) {
+    var D = global.CrozzoDocDesign;
+    var base = (D && typeof D.SHEET_CSS === 'string') ? D.SHEET_CSS : '';
     return (
-      '@page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{font-family:Segoe UI,system-ui,sans-serif;color:#111;font-size:12px;margin:0;padding:14px;line-height:1.45}' +
-      'h1{font-size:17px;margin:0 0 6px}.slip{max-width:680px;margin:0 auto;border:2px solid #222;padding:16px 18px}' +
+      base +
+      '@page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}body{font-family:var(--doc-font,Segoe UI,system-ui,sans-serif);color:#111;font-size:12px;margin:0;padding:14px;line-height:1.45}' +
+      'h1{font-size:17px;margin:0 0 6px;color:var(--doc-accent,#0f766e)}.slip{max-width:680px;margin:0 auto;border:2px solid var(--doc-ink,#222);padding:16px 18px;border-radius:var(--doc-radius,6px)}' +
       '.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin:12px 0}' +
-      '.cell{padding:9px 11px;border:1px solid #ccc;border-radius:6px;background:#fafafa}' +
-      '.cell label{display:block;font-size:8px;text-transform:uppercase;color:#666;margin-bottom:3px}' +
+      '.cell{padding:9px 11px;border:1px solid var(--doc-border,#ccc);border-radius:6px;background:var(--doc-bg,#fafafa)}' +
+      '.cell label{display:block;font-size:8px;text-transform:uppercase;color:var(--doc-muted,#666);margin-bottom:3px}' +
       '.cell strong{font-size:14px;display:block}.delta-ok{color:#166534}.delta-bad{color:#b91c1c}' +
-      'table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}th,td{border:1px solid #bbb;padding:5px 6px}' +
-      '.signatures{display:flex;gap:20px;margin-top:26px}.sig{flex:1;border-top:1px solid #333;padding-top:6px;font-size:10px;text-align:center}' +
+      'table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}th,td{border:1px solid var(--doc-border,#bbb);padding:5px 6px}' +
+      'th{background:var(--doc-ink,#111);color:#fff;font-size:9px;text-transform:uppercase}' +
+      'tbody tr:nth-child(even) td{background:var(--doc-bg,#fafafa)}' +
+      '.signatures{display:flex;gap:20px;margin-top:26px}.sig{flex:1;border-top:1px solid var(--doc-ink,#333);padding-top:6px;font-size:10px;text-align:center}' +
       (extra || '')
     );
   }
