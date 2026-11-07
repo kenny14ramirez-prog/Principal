@@ -3,6 +3,7 @@
 //! Creado de forma perezosa, destruido al cerrar, suspendido al ocultar.
 //! No usa std::thread::sleep en comandos async (evita bloqueo del runtime).
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -15,6 +16,36 @@ const WEB_DOCK_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const WEB_DOCK_MOBILE_UA: &str =
     "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
+
+const AD_BLOCK_HOSTS: &[&str] = &[
+    "doubleclick.net", "googlesyndication.com", "googleads", "adservice.google",
+    "pagead2.googlesyndication", "pubads.g.doubleclick", "securepubads.g.doubleclick",
+    "ad.doubleclick", "tpc.googlesyndication", "googletagservices", "google-analytics.com",
+    "analytics.google", "adnxs.com", "amazon-adsystem.com", "advertising.com",
+    "outbrain.com", "taboola.com",
+];
+
+fn is_ad_url(url: &str) -> bool {
+    let lower = url.to_lowercase();
+    if lower.contains("youtube.com/api/stats/ads")
+        || lower.contains("youtube.com/ptracking")
+        || lower.contains("youtube.com/pagead")
+        || lower.contains("/pagead/")
+        || lower.contains("/ads?")
+        || lower.contains("&ad_type=")
+    {
+        return true;
+    }
+    for h in AD_BLOCK_HOSTS {
+        if lower.contains(h) { return true; }
+    }
+    if lower.contains("spotify.com/ads") || (lower.contains("audio-ak-spotify") && lower.contains("/ads/")) {
+        return true;
+    }
+    false
+}
+
+const AD_BLOCK_SCRIPT: &str = include_str!("ad_block.js");
 
 // =========================================================================
 // MEDIA SLOT (Spotify / YouTube)
@@ -115,6 +146,13 @@ fn build_media_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
             }
         });
 
+    builder = builder.initialization_script(AD_BLOCK_SCRIPT);
+    builder = builder.on_web_resource_request(|request, response| {
+        if is_ad_url(&request.uri().to_string()) {
+            *response.status_mut() = http::StatusCode::NO_CONTENT;
+            *response.body_mut() = Cow::Owned(Vec::new());
+        }
+    });
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
@@ -247,6 +285,13 @@ fn build_nav_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewWin
             }
         });
 
+    builder = builder.initialization_script(AD_BLOCK_SCRIPT);
+    builder = builder.on_web_resource_request(|request, response| {
+        if is_ad_url(&request.uri().to_string()) {
+            *response.status_mut() = http::StatusCode::NO_CONTENT;
+            *response.body_mut() = Cow::Owned(Vec::new());
+        }
+    });
     #[cfg(debug_assertions)]
     {
         builder = builder.devtools(true);
