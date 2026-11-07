@@ -281,6 +281,19 @@
 
     }
 
+    // --- Seguridad: medios pesados (Spotify/YouTube) abren en navegador externo por defecto ---
+    // (el sistema viejo de docks colapsa con estos sitios; V2 puede reactivarlos con flag)
+    if (!useV2() && (kind === 'spotify' || kind === 'youtube')) {
+      closeMenu();
+      var mediaUrl = kind === 'youtube' ? 'https://www.youtube.com/' : 'https://open.spotify.com/';
+      if (typeof global.crozzoOpenExternal === 'function') {
+        global.crozzoOpenExternal(mediaUrl);
+      } else if (window.open) {
+        window.open(mediaUrl, '_blank');
+      }
+      return;
+    }
+
     // --- V2: usar 2 webviews (media + nav) si feature flag activo ---
     if (useV2()) {
       closeMenu();
