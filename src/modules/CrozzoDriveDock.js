@@ -14,7 +14,7 @@
           pageId: 'drive-web',
           defaultUrl: 'https://drive.google.com/',
           navTab: 'drive',
-          invokeCmd: 'crozzo_whatsapp_dock_sync',
+          invokeCmd: 'crozzo_drive_dock_sync',
           embedHostId: 'crozzoDriveEmbedHost',
           pageHeadId: 'crozzoDrivePageHead',
           pageClass: 'crozzo-page-drive-web',

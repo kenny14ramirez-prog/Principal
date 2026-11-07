@@ -14,7 +14,7 @@
           pageId: 'gmail-web',
           defaultUrl: 'https://mail.google.com/',
           navTab: 'gmail',
-          invokeCmd: 'crozzo_whatsapp_dock_sync',
+          invokeCmd: 'crozzo_gmail_dock_sync',
           embedHostId: 'crozzoGmailEmbedHost',
           pageHeadId: 'crozzoGmailPageHead',
           pageClass: 'crozzo-page-gmail-web',
