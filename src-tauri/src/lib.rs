@@ -53,16 +53,21 @@ fn greet(name: &str) -> String {
 #[cfg(desktop)]
 #[tauri::command]
 fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window("main") {
-        win.open_devtools();
-        return Ok(());
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+        if let Some(win) = app.get_webview_window("main") {
+            win.open_devtools();
+            return Ok(());
+        }
+        let wins = app.webview_windows();
+        if let Some(win) = wins.into_values().next() {
+            win.open_devtools();
+            return Ok(());
+        }
+        return Err("No hay ventana WebView disponible".to_string());
     }
-    let wins = app.webview_windows();
-    if let Some(win) = wins.into_values().next() {
-        win.open_devtools();
-        return Ok(());
-    }
-    Err("No hay ventana WebView disponible".to_string())
+    #[allow(unreachable_code)]
+    Err("DevTools no disponible en este build".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
