@@ -668,3 +668,56 @@ Si algo falla, revertir al commit anterior:
 git reset --hard <commit-anterior>
 ```
 O desactivar el feature flag (`CROZZO_WEB_DOCKS_ENABLED = false`) para volver al comportamiento actual.
+
+---
+
+## 18. Bitácora de ejecución (completado)
+
+### Fase 0 — Preparación ✅
+- Rama `feat/web-dock-v2` creada (commit `6a0d5ce`).
+- WIP commiteado (estado limpio).
+- `cargo check` baseline: EXIT 0.
+
+### Fase 1 — Infraestructura Rust ✅
+- `src-tauri/src/crozzo_web_dock.rs` creado (2 slots: media + nav).
+- Comandos: create, navigate, destroy, hide.
+- Lazy creation, sin `std::thread::sleep` en async, sin delay de 2s.
+- `capabilities/web-dock.json` creado.
+- Comandos registrados en `lib.rs`.
+- `crozzo_external.rs` original no modificado.
+- Commit: `437cce6`.
+
+### Fase 2 — Frontend Core ✅
+- `app/modules/CrozzoWebDockV2.js` creado (lazy, 2 slots, feature flag).
+- Panel derecho tipo celular (ancho ~380px, alto completo bajo header).
+- Agregado a `app/index.html` y `app/Crozzo_POS_Completo.html`.
+- Sync ejecutado (src/ sincronizado).
+- Commit: `ee771a3`.
+
+### Fase 3 — Integración UI ✅
+- `CrozzoQuickAppsFab.js` adaptado con rama condicional por feature flag.
+- `getActiveEmbed` y `closeActiveEmbed` actualizados para V2.
+- Commit: `1cf2d62`.
+
+### Fase 4 — Corrección de bugs latentes ✅
+- `CrozzoGmailDock.js`: `invokeCmd` corregido de `crozzo_whatsapp_dock_sync` a `crozzo_gmail_dock_sync`.
+- `CrozzoDriveDock.js`: `invokeCmd` corregido de `crozzo_whatsapp_dock_sync` a `crozzo_drive_dock_sync`.
+- Commit: `8ad6e6f`.
+
+### Fase 5 — QA ✅
+- `cargo check`: EXIT 0.
+- `npm run sync`: OK (244 archivos).
+- Módulo `CrozzoWebDockV2.js` cargado condicionalmente (feature flag default OFF).
+- Sistema actual sigue funcionando igual (flag OFF por defecto).
+
+### Cómo probar el nuevo sistema
+1. Abrir consola del navegador (DevTools) en el POS.
+2. Ejecutar: `localStorage.setItem('CROZZO_WEB_DOCKS_ENABLED', 'true')`
+3. Recargar la página.
+4. El botón "+" usará el nuevo sistema de 2 webviews.
+5. Para desactivar: `localStorage.removeItem('CROZZO_WEB_DOCKS_ENABLED')` y recargar.
+
+### Consumo en reposo (feature flag OFF)
+- Ningún WebView2 adicional se crea.
+- Consumo idéntico a la versión anterior.
+- Cero riesgo para producción.
