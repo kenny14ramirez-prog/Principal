@@ -598,6 +598,14 @@
 
         if (!canSeeFab()) return;
 
+        if (useV2()) {
+          // V2: abrir Spotify directamente, sin menu de seleccion
+          if (typeof global.crozzoWebDockV2ActivateService === 'function') {
+            global.crozzoWebDockV2ActivateService('spotify');
+          }
+          return;
+        }
+
         setMenuOpen(!_menuOpen);
 
       });

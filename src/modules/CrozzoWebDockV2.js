@@ -78,6 +78,8 @@
       '</div>' +
       '<div id="crozzoDockPanelBody" class="crozzo-dock-panel__body"></div>';
 
+    panel.hidden = true;
+    panel.style.display = 'none';
     document.body.appendChild(panel);
 
     // Poblar tabs
@@ -221,6 +223,7 @@
     var panel = ensurePanel();
     panel.hidden = false;
     panel.removeAttribute('hidden');
+    panel.style.display = 'flex';
     state.panelOpen = true;
     document.body.classList.add('crozzo-dock-panel-open');
     document.body.classList.toggle('crozzo-dock-profile--phone', state.phoneMode);
@@ -229,7 +232,10 @@
 
   function hidePanel() {
     var panel = document.getElementById('crozzoDockPanel');
-    if (panel) panel.hidden = true;
+    if (panel) {
+      panel.hidden = true;
+      panel.style.display = 'none';
+    }
     state.panelOpen = false;
     document.body.classList.remove('crozzo-dock-panel-open', 'crozzo-dock-profile--phone');
     adjustBonaMargin(false);
