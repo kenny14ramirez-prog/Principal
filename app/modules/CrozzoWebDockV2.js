@@ -1,7 +1,7 @@
 /**
- * Web Dock V2 - 2 instancias (media + nav) con consumo minimo.
- * Se carga solo si CROZZO_WEB_DOCKS_ENABLED esta activo.
- * No modifica modulos existentes; agrega en paralelo.
+ * Web Dock V2 - Panel lateral tipo celular (2 slots: media + nav).
+ * Incluye tabs, controles (cerrar, zoom, vista), y reduce BONA (margin-right).
+ * Se activa por defecto (feature flag CROZZO_WEB_DOCKS_ENABLED, default ON).
  */
 (function (global) {
   'use strict';
@@ -21,7 +21,6 @@
 
   function featureEnabled() {
     try {
-      // Default ON para pruebas (el usuario puede desactivar con 'false')
       var v = global.localStorage && global.localStorage.getItem('CROZZO_WEB_DOCKS_ENABLED');
       if (v === null) return true;
       return v === 'true';
@@ -38,24 +37,111 @@
     return Promise.reject(new Error('Tauri no disponible'));
   }
 
-  // Panel derecho tipo celular: ancho fijo, alto completo bajo header
+  // Servicios disponibles
+  var SERVICES = [
+    { id: 'spotify', label: 'Spotify', slot: 'media', url: 'https://open.spotify.com/', icon: 'S' },
+    { id: 'youtube', label: 'YouTube', slot: 'media', url: 'https://www.youtube.com/', icon: 'Y' },
+    { id: 'dataico', label: 'Dataico', slot: 'nav', url: 'https://app.dataico.com/login', icon: 'D' },
+    { id: 'dian', label: 'DIAN', slot: 'nav', url: 'https://catalogo-vpfe.dian.gov.co/', icon: 'I' },
+    { id: 'gmail', label: 'Gmail', slot: 'nav', url: 'https://mail.google.com/', icon: 'G' },
+    { id: 'drive', label: 'Drive', slot: 'nav', url: 'https://drive.google.com/', icon: 'V' },
+  ];
+
+  var state = {
+    media: { open: false, url: null, creating: false, activeId: null },
+    nav: { open: false, url: null, creating: false, activeId: null },
+    panelOpen: false,
+    zoom: 100,
+    phoneMode: true,
+  };
+
+  // Crear panel dinamicamente
+  function ensurePanel() {
+    var panel = document.getElementById('crozzoDockPanel');
+    if (panel) return panel;
+
+    panel = document.createElement('aside');
+    panel.id = 'crozzoDockPanel';
+    panel.className = 'crozzo-dock-panel';
+    panel.setAttribute('aria-label', 'Panel de servicios');
+    panel.innerHTML =
+      '<div class="crozzo-dock-panel__head">' +
+        '<nav id="crozzoDockPanelTabs" class="crozzo-dock-panel__tabs" aria-label="Servicios"></nav>' +
+        '<div class="crozzo-dock-panel__controls">' +
+          '<button type="button" id="crozzoDockPanelProfile" class="crozzo-dock-panel__profile" title="Vista teléfono / escritorio" aria-label="Cambiar vista">📱</button>' +
+          '<button type="button" id="crozzoDockPanelOpenBrowser" class="crozzo-dock-panel__open-browser" title="Abrir en navegador del sistema" aria-label="Abrir en navegador">🌐</button>' +
+          '<input type="range" id="crozzoDockPanelZoom" class="crozzo-dock-panel__zoom" min="50" max="200" step="5" value="100" title="Zoom del servicio" aria-label="Zoom del servicio">' +
+          '<span id="crozzoDockPanelZoomLabel" class="crozzo-dock-panel__zoom-label">100%</span>' +
+          '<button type="button" id="crozzoDockPanelClose" class="crozzo-dock-panel__close" title="Cerrar panel" aria-label="Cerrar panel">&times;</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="crozzoDockPanelBody" class="crozzo-dock-panel__body"></div>';
+
+    document.body.appendChild(panel);
+
+    // Poblar tabs
+    var tabs = panel.querySelector('#crozzoDockPanelTabs');
+    SERVICES.forEach(function (svc) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'crozzo-dock-panel__tab';
+      btn.setAttribute('data-service', svc.id);
+      btn.setAttribute('data-slot', svc.slot);
+      btn.textContent = svc.label;
+      btn.addEventListener('click', function () {
+        activateService(svc.id);
+      });
+      tabs.appendChild(btn);
+    });
+
+    // Controles
+    var closeBtn = panel.querySelector('#crozzoDockPanelClose');
+    if (closeBtn) closeBtn.addEventListener('click', closePanel);
+
+    var profileBtn = panel.querySelector('#crozzoDockPanelProfile');
+    if (profileBtn) profileBtn.addEventListener('click', toggleProfile);
+
+    var openBrowserBtn = panel.querySelector('#crozzoDockPanelOpenBrowser');
+    if (openBrowserBtn) openBrowserBtn.addEventListener('click', openInBrowser);
+
+    var zoomSlider = panel.querySelector('#crozzoDockPanelZoom');
+    var zoomLabel = panel.querySelector('#crozzoDockPanelZoomLabel');
+    if (zoomSlider) {
+      zoomSlider.addEventListener('input', function () {
+        var z = parseInt(zoomSlider.value, 10) || 100;
+        state.zoom = z;
+        if (zoomLabel) zoomLabel.textContent = z + '%';
+        applyZoom(z / 100);
+      });
+    }
+
+    return panel;
+  }
+
   function computeRect() {
     var headerH = 60;
     try {
       var hdr = document.querySelector('main.main-content .main-header');
       if (hdr) headerH = Math.ceil(hdr.getBoundingClientRect().bottom);
     } catch (_) {}
-    var w = Math.min(380, Math.max(320, Math.round(window.innerWidth * 0.28)));
+    var panel = document.getElementById('crozzoDockPanel');
+    var w = state.phoneMode ? 300 : 480;
+    if (panel) {
+      panel.classList.toggle('crozzo-dock-profile--phone', state.phoneMode);
+    }
     var h = Math.max(400, window.innerHeight - headerH - 12);
     var left = window.innerWidth - w - 12;
     var top = headerH + 6;
     return { left: left, top: top, width: w, height: h };
   }
 
-  var state = {
-    media: { open: false, url: null, creating: false },
-    nav: { open: false, url: null, creating: false },
-  };
+  function applyZoom(z) {
+    // Aplicar zoom al slot activo (media o nav)
+    var activeSlot = state.media.open ? 'media' : (state.nav.open ? 'nav' : null);
+    if (activeSlot) {
+      invoke('crozzo_web_dock_set_zoom', { slot: activeSlot, zoom: z }).catch(function () {});
+    }
+  }
 
   function openSlot(slot, url) {
     if (!isDesktopPc()) return Promise.resolve(false);
@@ -64,11 +150,13 @@
     if (s.creating) return Promise.resolve(false);
     s.creating = true;
     s.url = url;
+
     var r = computeRect();
+    showPanel();
+
     if (s.open) {
-      // Ya abierto: solo navegar
       return invoke('crozzo_web_dock_navigate', { slot: slot, url: url })
-        .then(function () { s.creating = false; return true; })
+        .then(function () { s.creating = false; s.activeId = findServiceId(slot, url); updateTabs(); return true; })
         .catch(function (e) { console.warn('[web-dock-v2]', e); s.creating = false; return false; });
     }
     s.open = true;
@@ -80,8 +168,75 @@
       width: r.width,
       height: r.height,
     })
-      .then(function () { s.creating = false; return true; })
+      .then(function () { s.creating = false; s.activeId = findServiceId(slot, url); updateTabs(); return true; })
       .catch(function (e) { console.warn('[web-dock-v2]', e); s.open = false; s.creating = false; return false; });
+  }
+
+  function findServiceId(slot, url) {
+    for (var i = 0; i < SERVICES.length; i++) {
+      if (SERVICES[i].slot === slot && SERVICES[i].url === url) return SERVICES[i].id;
+    }
+    return null;
+  }
+
+  function activateService(id) {
+    var svc = null;
+    for (var i = 0; i < SERVICES.length; i++) {
+      if (SERVICES[i].id === id) { svc = SERVICES[i]; break; }
+    }
+    if (!svc) return;
+    openSlot(svc.slot, svc.url);
+  }
+
+  function updateTabs() {
+    var tabs = document.querySelectorAll('#crozzoDockPanelTabs .crozzo-dock-panel__tab');
+    tabs.forEach(function (btn) {
+      var sid = btn.getAttribute('data-service');
+      var svc = null;
+      for (var i = 0; i < SERVICES.length; i++) { if (SERVICES[i].id === sid) { svc = SERVICES[i]; break; } }
+      if (!svc) return;
+      var isActive = (svc.slot === 'media' && state.media.activeId === sid) ||
+                     (svc.slot === 'nav' && state.nav.activeId === sid);
+      btn.classList.toggle('is-active', isActive);
+    });
+  }
+
+  function showPanel() {
+    var panel = ensurePanel();
+    panel.hidden = false;
+    panel.removeAttribute('hidden');
+    state.panelOpen = true;
+    document.body.classList.add('crozzo-dock-panel-open');
+    document.body.classList.toggle('crozzo-dock-profile--phone', state.phoneMode);
+    adjustBonaMargin(true);
+  }
+
+  function hidePanel() {
+    var panel = document.getElementById('crozzoDockPanel');
+    if (panel) panel.hidden = true;
+    state.panelOpen = false;
+    document.body.classList.remove('crozzo-dock-panel-open', 'crozzo-dock-profile--phone');
+    adjustBonaMargin(false);
+  }
+
+  function adjustBonaMargin(on) {
+    try {
+      var main = document.querySelector('main.main-content');
+      if (!main) return;
+      if (on) {
+        var w = state.phoneMode ? 300 : 480;
+        main.style.marginRight = (w + 24) + 'px';
+        main.style.transition = 'margin-right 0.3s cubic-bezier(0.22,1,0.36,1)';
+      } else {
+        main.style.marginRight = '';
+      }
+    } catch (_) {}
+  }
+
+  function closePanel() {
+    closeSlot('media');
+    closeSlot('nav');
+    hidePanel();
   }
 
   function closeSlot(slot) {
@@ -89,15 +244,35 @@
     if (!s || !s.open) return Promise.resolve(false);
     s.open = false;
     s.url = null;
+    s.activeId = null;
     return invoke('crozzo_web_dock_destroy', { slot: slot })
       .catch(function (e) { console.warn('[web-dock-v2]', e); return false; });
   }
 
-  function hideSlot(slot) {
-    var s = state[slot];
-    if (!s || !s.open) return Promise.resolve(false);
-    return invoke('crozzo_web_dock_hide', { slot: slot })
-      .catch(function (e) { console.warn('[web-dock-v2]', e); return false; });
+  function toggleProfile() {
+    state.phoneMode = !state.phoneMode;
+    var panel = document.getElementById('crozzoDockPanel');
+    if (panel) panel.classList.toggle('crozzo-dock-profile--phone', state.phoneMode);
+    adjustBonaMargin(state.panelOpen);
+    if (state.media.open || state.nav.open) {
+      // Re-posicionar
+      var r = computeRect();
+      if (state.media.open && state.media.url) {
+        invoke('crozzo_web_dock_create', { slot: 'media', url: state.media.url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
+      }
+      if (state.nav.open && state.nav.url) {
+        invoke('crozzo_web_dock_create', { slot: 'nav', url: state.nav.url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
+      }
+    }
+  }
+
+  function openInBrowser() {
+    var activeSlot = state.media.open ? 'media' : (state.nav.open ? 'nav' : null);
+    if (!activeSlot) return;
+    var s = state[activeSlot];
+    if (s && s.url && typeof global.crozzoOpenExternal === 'function') {
+      global.crozzoOpenExternal(s.url);
+    }
   }
 
   // API publica
@@ -105,35 +280,30 @@
   global.crozzoWebDockV2OpenNav = function (url) { return openSlot('nav', url || 'https://app.dataico.com/login'); };
   global.crozzoWebDockV2CloseMedia = function () { return closeSlot('media'); };
   global.crozzoWebDockV2CloseNav = function () { return closeSlot('nav'); };
-  global.crozzoWebDockV2HideMedia = function () { return hideSlot('media'); };
-  global.crozzoWebDockV2HideNav = function () { return hideSlot('nav'); };
+  global.crozzoWebDockV2HideMedia = function () { return invoke('crozzo_web_dock_hide', { slot: 'media' }).catch(function () {}); };
+  global.crozzoWebDockV2HideNav = function () { return invoke('crozzo_web_dock_hide', { slot: 'nav' }).catch(function () {}); };
   global.crozzoWebDockV2IsMediaOpen = function () { return state.media.open; };
   global.crozzoWebDockV2IsNavOpen = function () { return state.nav.open; };
+  global.crozzoWebDockV2ClosePanel = closePanel;
+  global.crozzoWebDockV2ActivateService = activateService;
 
-  // Re-posicionar al redimensionar ventana
+  // Re-posicionar al redimensionar
   try {
     window.addEventListener('resize', function () {
-      if (state.media.open || state.nav.open) {
-        // Re-crear con nuevo rect si esta abierto (simple y seguro)
+      if (state.panelOpen) {
+        var r = computeRect();
         if (state.media.open && state.media.url) {
-          var r = computeRect();
-          invoke('crozzo_web_dock_create', {
-            slot: 'media', url: state.media.url,
-            left: r.left, top: r.top, width: r.width, height: r.height,
-          }).catch(function () {});
+          invoke('crozzo_web_dock_create', { slot: 'media', url: state.media.url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
         }
         if (state.nav.open && state.nav.url) {
-          var r2 = computeRect();
-          invoke('crozzo_web_dock_create', {
-            slot: 'nav', url: state.nav.url,
-            left: r2.left, top: r2.top, width: r2.width, height: r2.height,
-          }).catch(function () {});
+          invoke('crozzo_web_dock_create', { slot: 'nav', url: state.nav.url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
         }
+        adjustBonaMargin(true);
       }
     });
   } catch (_) {}
 
-  // Cerrar docks al salir de la pagina (limpieza)
+  // Limpiar al salir
   try {
     window.addEventListener('beforeunload', function () {
       if (state.media.open) invoke('crozzo_web_dock_destroy', { slot: 'media' }).catch(function () {});
@@ -141,5 +311,5 @@
     });
   } catch (_) {}
 
-  console.log('[web-dock-v2] cargado (feature flag activo)');
+  console.log('[web-dock-v2] cargado (panel lateral tipo celular)');
 })(typeof window !== 'undefined' ? window : global);
