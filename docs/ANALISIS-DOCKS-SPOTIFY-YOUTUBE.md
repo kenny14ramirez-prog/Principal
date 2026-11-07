@@ -717,6 +717,11 @@ O desactivar el feature flag (`CROZZO_WEB_DOCKS_ENABLED = false`) para volver al
 4. El botón "+" usará el nuevo sistema de 2 webviews.
 5. Para desactivar: `localStorage.removeItem('CROZZO_WEB_DOCKS_ENABLED')` y recargar.
 
+### Limpieza de residuales (completado)
+- Eliminado `crozzoDockPanel` aside (panel residual con zoom bar que forzaba `display: flex !important`, sobrescribiendo `hidden`).
+- Eliminado `!important` del `display` en CSS (#crozzoDockPanel).
+- Sin referencias JS al panel (verificado). Eliminación segura.
+
 ### Consumo en reposo (feature flag OFF)
 - Ningún WebView2 adicional se crea.
 - Consumo idéntico a la versión anterior.
