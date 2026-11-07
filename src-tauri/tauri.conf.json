@@ -4,8 +4,7 @@
   "version": "1.0.260",
   "identifier": "com.crozzo.pos",
   "build": {
-    "frontendDist": "../src",
-    "devUrl": "http://localhost:1430"
+    "frontendDist": "../src"
   },
   "app": {
     "withGlobalTauri": true,
