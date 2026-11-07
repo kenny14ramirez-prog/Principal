@@ -1,4 +1,4 @@
-﻿// ==========================================
+// ==========================================
 // Global State
 // ==========================================
 const config = ConfigManager.getInstance();
@@ -17073,6 +17073,7 @@ function renderPage(page, renderOpts) {
       if (typeof crozzoInitWhatsAppWebPage === 'function') crozzoInitWhatsAppWebPage();
       break;
     case 'gmail-web':
+      if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('gmail'); break; }
       if (document.body) document.body.classList.add('crozzo-page-gmail-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-gmail-web');
       content.innerHTML =
@@ -17082,6 +17083,7 @@ function renderPage(page, renderOpts) {
       if (typeof crozzoInitGmailWebPage === 'function') crozzoInitGmailWebPage();
       break;
     case 'drive-web':
+      if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('drive'); break; }
       if (document.body) document.body.classList.add('crozzo-page-drive-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-drive-web');
       content.innerHTML =
@@ -17091,6 +17093,7 @@ function renderPage(page, renderOpts) {
       if (typeof crozzoInitDriveWebPage === 'function') crozzoInitDriveWebPage();
       break;
     case 'dataico-web':
+      if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('dataico'); break; }
       if (document.body) document.body.classList.add('crozzo-page-dataico-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-dataico-web');
       content.innerHTML =
@@ -17100,6 +17103,7 @@ function renderPage(page, renderOpts) {
       if (typeof crozzoInitDataicoWebPage === 'function') crozzoInitDataicoWebPage();
       break;
     case 'dian-vpfe-web':
+      if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('dian'); break; }
       if (document.body) document.body.classList.add('crozzo-page-dian-vpfe-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-dian-vpfe-web');
       content.innerHTML =
@@ -17109,6 +17113,7 @@ function renderPage(page, renderOpts) {
       if (typeof crozzoInitDianVpfeWebPage === 'function') crozzoInitDianVpfeWebPage();
       break;
     case 'spotify-web':
+      if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('spotify'); break; }
       if (document.body) document.body.classList.add('crozzo-page-spotify-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-spotify-web');
       content.innerHTML =
