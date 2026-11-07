@@ -16,7 +16,6 @@
   "permissions": [
     "core:default",
     "allow-crozzo-external",
-    "updater:default",
     "process:default",
     "allow-crozzo-list-printers",
     "allow-crozzo-get-default-printer",

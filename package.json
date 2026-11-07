@@ -75,6 +75,8 @@
     "dev:observe:tauri": "node scripts/dev-session-observer.mjs --with-tauri",
     "qa:cajero": "node scripts/qa-cajero-humano.mjs",
     "qa:cajero:visible": "set QA_HEADLESS=false&& node scripts/qa-cajero-humano.mjs",
+    "qa:agente:profundo": "node scripts/qa-agente-profundo.mjs",
+    "qa:agente:profundo:visible": "set QA_HEADLESS=false&& node scripts/qa-agente-profundo.mjs",
     "qa:empresa:init": "node scripts/empresa-agentes.mjs init",
     "qa:empresa:run": "node scripts/empresa-agentes.mjs run",
     "qa:empresa:status": "node scripts/empresa-agentes.mjs status",
@@ -100,7 +102,6 @@
   },
   "dependencies": {
     "@tauri-apps/plugin-process": "^2.3.1",
-    "@tauri-apps/plugin-updater": "^2.10.1",
     "jsqr": "^1.4.0"
   }
 }
