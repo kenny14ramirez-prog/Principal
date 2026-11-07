@@ -158,12 +158,24 @@
 
     state.activeSlot = slot;
 
+    var sameUrl = (s.url === url);
     if (s.open) {
+      if (sameUrl) {
+        // Misma URL: no recargar; solo traer al frente / mostrar (preserva audio)
+        s.creating = false;
+        s.activeId = findServiceId(slot, url);
+        state.activeSlot = slot;
+        return invoke('crozzo_web_dock_create', { slot: slot, url: url, left: r.left, top: r.top, width: r.width, height: r.height })
+          .then(function () { updateTabs(); return true; })
+          .catch(function (e) { console.warn('[web-dock-v2]', e); return false; });
+      }
+      // URL distinta: navegar (recarga) y traer al frente
       return invoke('crozzo_web_dock_navigate', { slot: slot, url: url })
         .then(function () {
           s.creating = false;
+          s.url = url;
           s.activeId = findServiceId(slot, url);
-          // Traer este slot al frente (el otro queda detras, vivo)
+          state.activeSlot = slot;
           invoke('crozzo_web_dock_create', { slot: slot, url: url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
           updateTabs();
           return true;
