@@ -194,6 +194,11 @@
 
   function getActiveEmbed() {
 
+    if (useV2()) {
+      if (typeof global.crozzoWebDockV2IsMediaOpen === 'function' && global.crozzoWebDockV2IsMediaOpen()) return 'spotify';
+      if (typeof global.crozzoWebDockV2IsNavOpen === 'function' && global.crozzoWebDockV2IsNavOpen()) return 'nav';
+    }
+
     if (typeof global.crozzoWhatsAppDockIsOpen === 'function' && global.crozzoWhatsAppDockIsOpen()) return 'wa';
 
     if (typeof global.crozzoGmailDockIsOpen === 'function' && global.crozzoGmailDockIsOpen()) return 'gmail';
@@ -256,6 +261,14 @@
 
 
 
+  function useV2() {
+    try {
+      return global.localStorage && global.localStorage.getItem('CROZZO_WEB_DOCKS_ENABLED') === 'true' &&
+        typeof global.crozzoWebDockV2OpenMedia === 'function';
+    } catch (_) {}
+    return false;
+  }
+
   function openApp(kind) {
 
     if (!canUseApp(kind)) {
@@ -266,6 +279,27 @@
 
       return;
 
+    }
+
+    // --- V2: usar 2 webviews (media + nav) si feature flag activo ---
+    if (useV2()) {
+      closeMenu();
+      if (kind === 'spotify' || kind === 'youtube') {
+        var mediaUrl = kind === 'youtube' ? 'https://www.youtube.com/' : 'https://open.spotify.com/';
+        if (typeof global.crozzoWebDockV2OpenMedia === 'function') global.crozzoWebDockV2OpenMedia(mediaUrl);
+        return;
+      }
+      var navUrls = {
+        gmail: 'https://mail.google.com/',
+        drive: 'https://drive.google.com/',
+        dataico: 'https://app.dataico.com/login',
+        dian: 'https://catalogo-vpfe.dian.gov.co/',
+      };
+      if (navUrls[kind] && typeof global.crozzoWebDockV2OpenNav === 'function') {
+        global.crozzoWebDockV2OpenNav(navUrls[kind]);
+        return;
+      }
+      // wa y otros: comportamiento actual
     }
 
     var active = getActiveEmbed();
@@ -333,6 +367,12 @@
   function closeActiveEmbed() {
 
     closeMenu();
+
+    if (useV2()) {
+      if (typeof global.crozzoWebDockV2CloseMedia === 'function') global.crozzoWebDockV2CloseMedia();
+      if (typeof global.crozzoWebDockV2CloseNav === 'function') global.crozzoWebDockV2CloseNav();
+      return;
+    }
 
     var active = getActiveEmbed();
 
