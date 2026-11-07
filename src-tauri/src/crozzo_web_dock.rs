@@ -13,6 +13,8 @@ use tauri::{
 
 const WEB_DOCK_UA: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const WEB_DOCK_MOBILE_UA: &str =
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
 
 // =========================================================================
 // MEDIA SLOT (Spotify / YouTube)
@@ -86,7 +88,7 @@ fn build_media_dock(app: &tauri::AppHandle, url: &str) -> Result<tauri::WebviewW
         .always_on_top(false)
         .decorations(false)
         .background_color(Color(255, 255, 255, 255))
-        .user_agent(WEB_DOCK_UA)
+        .user_agent(WEB_DOCK_MOBILE_UA)
         .data_directory(data_dir)
         .enable_clipboard_access()
         .inner_size(320.0, 240.0)
@@ -298,7 +300,7 @@ pub async fn crozzo_web_dock_create(
     width: f64,
     height: f64,
 ) -> Result<String, String> {
-    let (label, validate) = match slot.as_str() {
+    let (_label, validate) = match slot.as_str() {
         "media" => (MEDIA_DOCK_LABEL, validate_media_url(&url)?),
         "nav" => (NAV_DOCK_LABEL, validate_nav_url(&url)?),
         _ => return Err(format!("Slot desconocido: {slot}")),
@@ -467,6 +469,40 @@ pub async fn crozzo_web_dock_navigate(
 pub async fn crozzo_web_dock_destroy(
     _app: tauri::AppHandle,
     _slot: String,
+) -> Result<String, String> {
+    Err(String::from("Web dock solo en escritorio"))
+}
+
+#[cfg(desktop)]
+#[tauri::command]
+pub async fn crozzo_web_dock_set_zoom(
+    app: tauri::AppHandle,
+    slot: String,
+    zoom: f64,
+) -> Result<String, String> {
+    let label = match slot.as_str() {
+        "media" => MEDIA_DOCK_LABEL,
+        "nav" => NAV_DOCK_LABEL,
+        _ => return Err(format!("Slot desconocido: {slot}")),
+    };
+    let dock = app
+        .get_webview_window(label)
+        .ok_or_else(|| format!("Dock {label} no existe"))?;
+    let z = if zoom.is_finite() {
+        zoom.clamp(0.5, 2.0)
+    } else {
+        1.0
+    };
+    dock.set_zoom(z).map_err(|e| e.to_string())?;
+    Ok(format!("zoom:{slot}:{z}"))
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn crozzo_web_dock_set_zoom(
+    _app: tauri::AppHandle,
+    _slot: String,
+    _zoom: f64,
 ) -> Result<String, String> {
     Err(String::from("Web dock solo en escritorio"))
 }
