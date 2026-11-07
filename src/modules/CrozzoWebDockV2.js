@@ -240,8 +240,16 @@
       var main = document.querySelector('main.main-content');
       if (!main) return;
       if (on) {
-        var w = 360;
-        main.style.marginRight = (w + 24) + 'px';
+        var panel = document.getElementById('crozzoDockPanel');
+        if (panel) {
+          var pr = panel.getBoundingClientRect();
+          // main termina 12px antes del borde izquierdo del panel
+          var margin = Math.ceil(window.innerWidth - pr.left + 12);
+          if (margin < 300) margin = 384;
+          main.style.marginRight = margin + 'px';
+        } else {
+          main.style.marginRight = '384px';
+        }
         main.style.transition = 'margin-right 0.3s cubic-bezier(0.22,1,0.36,1)';
       } else {
         main.style.marginRight = '';
