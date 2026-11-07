@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "web-dock",
+  "description": "Minimal capability for the Web Dock V2 webviews (media + nav)",
+  "windows": ["crozzo-web-media-dock", "crozzo-web-nav-dock"],
+  "permissions": [
+    "core:default",
+    "opener:default"
+  ]
+}

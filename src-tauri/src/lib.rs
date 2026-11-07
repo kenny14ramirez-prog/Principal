@@ -32,6 +32,7 @@ mod adq_enrich_sidecar;
 mod dian_vpfe;
 mod webview_permissions;
 mod crozzo_external;
+mod crozzo_web_dock;
 mod crozzo_secret_store;
 mod crozzo_ollama;
 #[cfg(target_os = "android")]
@@ -171,6 +172,14 @@ pub fn run() {
     crozzo_external::crozzo_dian_vpfe_dock_sync,
     crozzo_external::crozzo_spotify_dock_sync,
     crozzo_external::crozzo_supabase_dock_sync,
+            #[cfg(desktop)]
+            crozzo_web_dock::crozzo_web_dock_create,
+            #[cfg(desktop)]
+            crozzo_web_dock::crozzo_web_dock_navigate,
+            #[cfg(desktop)]
+            crozzo_web_dock::crozzo_web_dock_destroy,
+            #[cfg(desktop)]
+            crozzo_web_dock::crozzo_web_dock_hide,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]
