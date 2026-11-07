@@ -263,10 +263,11 @@
 
   function useV2() {
     try {
-      return global.localStorage && global.localStorage.getItem('CROZZO_WEB_DOCKS_ENABLED') === 'true' &&
-        typeof global.crozzoWebDockV2OpenMedia === 'function';
+      var v = global.localStorage && global.localStorage.getItem('CROZZO_WEB_DOCKS_ENABLED');
+      var enabled = (v === null) ? true : (v === 'true');
+      return enabled && typeof global.crozzoWebDockV2OpenMedia === 'function';
     } catch (_) {}
-    return false;
+    return true;
   }
 
   function openApp(kind) {

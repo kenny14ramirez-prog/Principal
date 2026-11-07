@@ -21,9 +21,12 @@
 
   function featureEnabled() {
     try {
-      return global.localStorage && global.localStorage.getItem('CROZZO_WEB_DOCKS_ENABLED') === 'true';
+      // Default ON para pruebas (el usuario puede desactivar con 'false')
+      var v = global.localStorage && global.localStorage.getItem('CROZZO_WEB_DOCKS_ENABLED');
+      if (v === null) return true;
+      return v === 'true';
     } catch (_) {}
-    return false;
+    return true;
   }
 
   if (!isDesktopPc() || !featureEnabled()) return;
