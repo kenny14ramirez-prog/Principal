@@ -165,9 +165,14 @@
         s.creating = false;
         s.activeId = findServiceId(slot, url);
         state.activeSlot = slot;
-        return invoke('crozzo_web_dock_create', { slot: slot, url: url, left: r.left, top: r.top, width: r.width, height: r.height })
+        return invoke('crozzo_web_dock_show', { slot: slot })
           .then(function () { updateTabs(); return true; })
-          .catch(function (e) { console.warn('[web-dock-v2]', e); return false; });
+          .catch(function (e) {
+            // fallback: si no existe, crear
+            return invoke('crozzo_web_dock_create', { slot: slot, url: url, left: r.left, top: r.top, width: r.width, height: r.height })
+              .then(function () { updateTabs(); return true; })
+              .catch(function (e2) { console.warn('[web-dock-v2]', e2); return false; });
+          });
       }
       // URL distinta: navegar (recarga) y traer al frente
       return invoke('crozzo_web_dock_navigate', { slot: slot, url: url })

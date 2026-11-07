@@ -552,6 +552,34 @@ pub async fn crozzo_web_dock_set_zoom(
     Err(String::from("Web dock solo en escritorio"))
 }
 
+#[cfg(desktop)]
+#[tauri::command]
+pub async fn crozzo_web_dock_show(
+    app: tauri::AppHandle,
+    slot: String,
+) -> Result<String, String> {
+    let label = match slot.as_str() {
+        "media" => MEDIA_DOCK_LABEL,
+        "nav" => NAV_DOCK_LABEL,
+        _ => return Err(format!("Slot desconocido: {slot}")),
+    };
+    if let Some(dock) = app.get_webview_window(label) {
+        let _ = dock.show();
+        let _ = dock.set_focus();
+        return Ok(format!("shown:{slot}"));
+    }
+    Err(format!("Dock {label} no existe"))
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn crozzo_web_dock_show(
+    _app: tauri::AppHandle,
+    _slot: String,
+) -> Result<String, String> {
+    Err(String::from("Web dock solo en escritorio"))
+}
+
 #[cfg(not(desktop))]
 #[tauri::command]
 pub async fn crozzo_web_dock_hide(

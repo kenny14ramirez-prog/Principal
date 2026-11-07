@@ -183,6 +183,10 @@ pub fn run() {
             crozzo_web_dock::crozzo_web_dock_destroy,
             #[cfg(desktop)]
             crozzo_web_dock::crozzo_web_dock_hide,
+            #[cfg(desktop)]
+            crozzo_web_dock::crozzo_web_dock_show,
+            #[cfg(desktop)]
+            crozzo_web_dock::crozzo_web_dock_set_zoom,
             #[cfg(target_os = "android")]
             crozzo_android_install::crozzo_android_download_apk,
             #[cfg(target_os = "android")]
