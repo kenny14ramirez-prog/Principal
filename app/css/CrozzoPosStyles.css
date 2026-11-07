@@ -80874,12 +80874,12 @@ body.crozzo-dock-panel-open main.main-content {
   z-index: 100 !important;
 }
 
-/* === PHONE PROFILE (docks) === */
+/* === PHONE PROFILE (docks) - desactivado: usar ancho unico 360px === */
 body.crozzo-dock-profile--phone.crozzo-dock-panel-open main.main-content {
-  margin-right: 304px !important;
+  margin-right: 384px !important;
 }
 body.crozzo-dock-profile--phone #crozzoDockPanel.crozzo-dock-panel {
-  width: 280px !important;
+  width: 360px !important;
 }
 body.crozzo-dock-profile--phone #crozzoDockPanel .crozzo-dock-panel__tabs button {
   font-size: 11px !important;
