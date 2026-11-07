@@ -151,14 +151,14 @@
     if (!s) return Promise.resolve(false);
     if (s.creating) return Promise.resolve(false);
     s.creating = true;
+    var prevUrl = s.url;
+    var sameUrl = (prevUrl === url);
     s.url = url;
 
     var r = computeRect();
     showPanel();
 
     state.activeSlot = slot;
-
-    var sameUrl = (s.url === url);
     if (s.open) {
       if (sameUrl) {
         // Misma URL: no recargar; solo traer al frente / mostrar (preserva audio)
