@@ -80864,7 +80864,7 @@ body.crozzo-dock-panel-open main.main-content {
 
 #crozzoDockPanel.crozzo-dock-panel {
   position: fixed !important;
-  display: flex !important;
+  display: flex;
   flex-direction: column !important;
   top: 12px !important;
   bottom: 12px !important;

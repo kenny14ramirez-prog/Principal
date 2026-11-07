@@ -1245,26 +1245,6 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoSyncQueueHygiene.js" defer></script>
 <script src="ui/CrozzoI18n.js" defer></script>
 <!-- Módulos de dominio: bundles en app/bundles/ — carga bajo demanda vía CrozzoLazyModules + CrozzoManifest -->
-<aside id="crozzoDockPanel" class="crozzo-dock-panel" hidden aria-label="Panel de servicios">
-  <div class="crozzo-dock-panel__head">
-    <nav id="crozzoDockPanelTabs" class="crozzo-dock-panel__tabs" aria-label="Servicios"></nav>
-    <div class="crozzo-dock-panel__controls">
-      <button type="button" id="crozzoDockPanelProfile" class="crozzo-dock-panel__profile" title="Vista teléfono / escritorio" aria-label="Cambiar vista">🖥</button>
-      <button type="button" id="crozzoDockPanelOpenBrowser" class="crozzo-dock-panel__open-browser" title="Abrir en navegador del sistema" aria-label="Abrir en navegador">🌐</button>
-      <input type="range" id="crozzoDockPanelZoom" class="crozzo-dock-panel__zoom" min="50" max="200" step="5" value="100" title="Zoom del servicio" aria-label="Zoom del servicio">
-      <span id="crozzoDockPanelZoomLabel" class="crozzo-dock-panel__zoom-label">100%</span>
-      <button type="button" id="crozzoDockPanelClose" class="crozzo-dock-panel__close" title="Cerrar panel" aria-label="Cerrar panel">&times;</button>
-    </div>
-  </div>
-  <div id="crozzoDockPanelBody" class="crozzo-dock-panel__body">
-    <div id="crozzoWaEmbedHost" class="crozzo-wa-page__host" hidden></div>
-    <div id="crozzoGmailEmbedHost" class="crozzo-wa-page__host" hidden></div>
-    <div id="crozzoDriveEmbedHost" class="crozzo-wa-page__host" hidden></div>
-    <div id="crozzoDataicoEmbedHost" class="crozzo-wa-page__host" hidden></div>
-    <div id="crozzoDianVpfeEmbedHost" class="crozzo-wa-page__host" hidden></div>
-    <div id="crozzoSpotifyEmbedHost" class="crozzo-wa-page__host" hidden></div>
-    <div id="crozzoNubeSupabaseEmbedHost" class="crozzo-wa-page__host" hidden></div>
-  </div>
-</aside>
+<!-- crozzoDockPanel residual eliminado: no tenia referencias JS y forzaba display con !important -->
 </body>
 </html>
