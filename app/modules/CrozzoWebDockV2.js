@@ -53,6 +53,7 @@
     panelOpen: false,
     zoom: 100,
     phoneMode: true,
+    activeSlot: null,
   };
 
   // Crear panel dinamicamente
@@ -125,9 +126,9 @@
       if (hdr) headerH = Math.ceil(hdr.getBoundingClientRect().bottom);
     } catch (_) {}
     var panel = document.getElementById('crozzoDockPanel');
-    var w = state.phoneMode ? 300 : 480;
+    var w = 360;
     if (panel) {
-      panel.classList.toggle('crozzo-dock-profile--phone', state.phoneMode);
+      panel.classList.add('crozzo-dock-profile--phone');
     }
     var h = Math.max(400, window.innerHeight - headerH - 12);
     var left = window.innerWidth - w - 12;
@@ -136,8 +137,7 @@
   }
 
   function applyZoom(z) {
-    // Aplicar zoom al slot activo (media o nav)
-    var activeSlot = state.media.open ? 'media' : (state.nav.open ? 'nav' : null);
+    var activeSlot = state.activeSlot || (state.media.open ? 'media' : (state.nav.open ? 'nav' : null));
     if (activeSlot) {
       invoke('crozzo_web_dock_set_zoom', { slot: activeSlot, zoom: z }).catch(function () {});
     }
@@ -154,9 +154,18 @@
     var r = computeRect();
     showPanel();
 
+    state.activeSlot = slot;
+
     if (s.open) {
       return invoke('crozzo_web_dock_navigate', { slot: slot, url: url })
-        .then(function () { s.creating = false; s.activeId = findServiceId(slot, url); updateTabs(); return true; })
+        .then(function () {
+          s.creating = false;
+          s.activeId = findServiceId(slot, url);
+          // Traer este slot al frente (el otro queda detras, vivo)
+          invoke('crozzo_web_dock_create', { slot: slot, url: url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
+          updateTabs();
+          return true;
+        })
         .catch(function (e) { console.warn('[web-dock-v2]', e); s.creating = false; return false; });
     }
     s.open = true;
@@ -168,7 +177,14 @@
       width: r.width,
       height: r.height,
     })
-      .then(function () { s.creating = false; s.activeId = findServiceId(slot, url); updateTabs(); return true; })
+      .then(function () {
+        s.creating = false;
+        s.activeId = findServiceId(slot, url);
+        // Traer este slot al frente
+        invoke('crozzo_web_dock_create', { slot: slot, url: url, left: r.left, top: r.top, width: r.width, height: r.height }).catch(function () {});
+        updateTabs();
+        return true;
+      })
       .catch(function (e) { console.warn('[web-dock-v2]', e); s.open = false; s.creating = false; return false; });
   }
 
@@ -195,8 +211,8 @@
       var svc = null;
       for (var i = 0; i < SERVICES.length; i++) { if (SERVICES[i].id === sid) { svc = SERVICES[i]; break; } }
       if (!svc) return;
-      var isActive = (svc.slot === 'media' && state.media.activeId === sid) ||
-                     (svc.slot === 'nav' && state.nav.activeId === sid);
+      var isActive = (state.activeSlot === 'media' && svc.slot === 'media' && state.media.activeId === sid) ||
+                     (state.activeSlot === 'nav' && svc.slot === 'nav' && state.nav.activeId === sid);
       btn.classList.toggle('is-active', isActive);
     });
   }
@@ -224,7 +240,7 @@
       var main = document.querySelector('main.main-content');
       if (!main) return;
       if (on) {
-        var w = state.phoneMode ? 300 : 480;
+        var w = 360;
         main.style.marginRight = (w + 24) + 'px';
         main.style.transition = 'margin-right 0.3s cubic-bezier(0.22,1,0.36,1)';
       } else {
@@ -236,6 +252,7 @@
   function closePanel() {
     closeSlot('media');
     closeSlot('nav');
+    state.activeSlot = null;
     hidePanel();
   }
 
