@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <!-- Bona Origen · shell consolidado. Ver app/ARCHITECTURE.md · monolito: Crozzo_POS_Completo.monolith.html -->
 <html lang="es" data-theme="bona-origen" class="crozzo-theme-light">
 <head>
@@ -29,6 +29,7 @@ document.documentElement.style.colorScheme=isLight?'light':(t?'dark':'light');
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <link rel="stylesheet" href="css/CrozzoPantallasShell.css">
 <script src="core/CrozzoStorageHygiene.js"></script>
+<script src="core/CrozzoObservability.js"></script>
 <script src="infra/CrozzoEmulationHarness.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
@@ -377,6 +378,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
         </div>
       </div>
       <div class="crozzo-header__cluster">
+        <button type="button" id="crozzoHeaderWaBtn" title="WhatsApp Web" aria-label="Abrir WhatsApp" style="margin-right:8px;padding:6px 10px;border-radius:8px;border:1px solid rgba(37,211,102,0.4);background:rgba(37,211,102,0.12);color:#25d366;cursor:pointer;font-size:13px;font-weight:600;">WhatsApp</button>
         <div class="crozzo-header__status crozzo-header__status--elite" aria-label="Estado del sistema">
           <span class="crozzo-status-pill crozzo-op-badge-header mode-simple" id="crozzoLegalModeBadge" title="Modo de operación fiscal"><span class="crozzo-status-dot ok" aria-hidden="true"></span><span class="crozzo-status-txt">SIMPLE</span></span>
           <span class="crozzo-status-pill" id="crozzoStorageModeBadge" title="Almacenamiento de datos"><span class="crozzo-status-dot warn" aria-hidden="true"></span><span class="crozzo-status-txt">Local</span></span>
