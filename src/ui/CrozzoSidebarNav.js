@@ -406,6 +406,7 @@
     try {
       if (document.body && document.body.classList.contains('crozzo-sidebar-drawer-open')) return true;
     if (document.body && document.body.classList.contains('crozzo-wa-open')) return true;
+    if (document.body && document.body.classList.contains('crozzo-wa-open')) return true;
         } catch (_) {}
     return false;
   }
