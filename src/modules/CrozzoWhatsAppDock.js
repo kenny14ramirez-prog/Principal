@@ -757,6 +757,7 @@
       '<button type="button" class="crozzo-wa-page__btn" id="crozzoWaPageReload" title="Recargar" aria-label="Recargar WhatsApp">' +
       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>' +
       '</button>' +
+      '<button type="button" class="crozzo-wa-page__btn" id="crozzoWaPageHome" title="Inicio BONA" aria-label="Inicio BONA">&#8962; Inicio</button>' +
       '<button type="button" class="crozzo-wa-page__btn" id="crozzoWaPageBack" title="Volver a BONA" aria-label="Volver a BONA">&#8592; Volver</button>' +
       '<button type="button" class="crozzo-wa-page__btn" id="crozzoWaPageHide" title="Ocultar panel" aria-label="Ocultar panel de WhatsApp">' +
       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6H4z"/><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M14 14h6v6h-6z"/></svg>' +
@@ -800,11 +801,16 @@
         scheduleSync(global.__crozzoWaTargetUrl || DEFAULT_URL);
       });
     }
+    var homeBtn = document.getElementById('crozzoWaPageHome');
+    if (homeBtn) {
+      homeBtn.addEventListener('click', function () {
+        if (typeof global.navigateTo === 'function') global.navigateTo('inicio-operacion');
+      });
+    }
     var backBtn = document.getElementById('crozzoWaPageBack');
     if (backBtn) {
       backBtn.addEventListener('click', function () {
-        if (typeof closeDock === 'function') closeDock();
-        else if (typeof global.navigateTo === 'function') global.navigateTo(global.__crozzoPageBeforeWhatsApp || 'inicio-operacion');
+        if (typeof global.navigateTo === 'function') global.navigateTo(global.__crozzoPageBeforeWhatsApp || 'inicio-operacion');
       });
     }
     var hideBtn = document.getElementById('crozzoWaPageHide');
