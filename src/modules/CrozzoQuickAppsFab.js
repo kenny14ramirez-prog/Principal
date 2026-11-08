@@ -598,7 +598,16 @@
 
         if (!canSeeFab()) return;
 
-                if (useV2()) {\n          var mediaId = (typeof global.crozzoWebDockV2GetActiveMediaId === 'function') ? global.crozzoWebDockV2GetActiveMediaId() : null;\n          if (!mediaId) mediaId = 'spotify';\n          if (typeof global.crozzoWebDockV2ActivateService === 'function') {\n            global.crozzoWebDockV2ActivateService(mediaId);\n          }\n          return;\n        }\n\n        setMenuOpen(!_menuOpen);
+        if (useV2()) {
+          var mediaId = (typeof global.crozzoWebDockV2GetActiveMediaId === 'function') ? global.crozzoWebDockV2GetActiveMediaId() : null;
+          if (!mediaId) mediaId = 'spotify';
+          if (typeof global.crozzoWebDockV2ActivateService === 'function') {
+            global.crozzoWebDockV2ActivateService(mediaId);
+          }
+          return;
+        }
+
+        setMenuOpen(!_menuOpen);
 
       });
 
