@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
  * CLEAR ELEGANCE + EXECUTIVE ELITE — sistema de diseño Bona Origen
  * - Executive Elite: negro/carbón + acento dorado (#C9A962). Regla 60-30-10.
  * - Clear Elegance: azul Apple. Temas legado conservados.
@@ -79167,7 +79167,10 @@ html.crozzo-page-whatsapp-web #crozzoWaEmbedHost,
 html.crozzo-page-whatsapp-web .crozzo-wa-page__host,
 html.crozzo-vp-ready body.crozzo-page-whatsapp-web #crozzoWaEmbedHost.crozzo-wa-page__host {
   position: absolute !important;
-  inset: 0 !important;
+  top: var(--crozzo-header-h, 60px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
   width: auto !important;
   height: auto !important;
   margin: 0 !important;
@@ -79211,8 +79214,8 @@ html.crozzo-vp-ready body.crozzo-page-whatsapp-web #crozzoWaEmbedHost.crozzo-wa-
   flex: 1 1 auto;
   min-height: 0;
   position: fixed;
-  top: calc(var(--crozzo-wa-top, var(--crozzo-header-h, 60px)) + 44px);
-  left: var(--crozzo-wa-left, var(--sidebar-width-rail, 64px));
+  top: var(--crozzo-header-h, 60px);
+  left: 0;
   right: 0;
   bottom: 0;
   width: auto;

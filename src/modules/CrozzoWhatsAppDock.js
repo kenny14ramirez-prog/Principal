@@ -804,12 +804,16 @@
     var homeBtn = document.getElementById('crozzoWaPageHome');
     if (homeBtn) {
       homeBtn.addEventListener('click', function () {
+        try { if (typeof hideEmbed === 'function') hideEmbed(); } catch (e) {}
+        try { if (typeof hideEmbedRustOnly === 'function') hideEmbedRustOnly(); } catch (e) {}
         if (typeof global.navigateTo === 'function') global.navigateTo('inicio-operacion');
       });
     }
     var backBtn = document.getElementById('crozzoWaPageBack');
     if (backBtn) {
       backBtn.addEventListener('click', function () {
+        try { if (typeof hideEmbed === 'function') hideEmbed(); } catch (e) {}
+        try { if (typeof hideEmbedRustOnly === 'function') hideEmbedRustOnly(); } catch (e) {}
         if (typeof global.navigateTo === 'function') global.navigateTo(global.__crozzoPageBeforeWhatsApp || 'inicio-operacion');
       });
     }
