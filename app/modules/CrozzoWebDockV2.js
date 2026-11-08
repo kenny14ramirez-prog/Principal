@@ -39,6 +39,7 @@
 
   // Servicios disponibles
   var SERVICES = [
+    { id: 'whatsapp', label: 'WhatsApp', slot: 'nav', url: 'https://web.whatsapp.com/', icon: 'W', fullScreen: true },
     { id: 'spotify', label: 'Spotify', slot: 'media', url: 'https://open.spotify.com/', icon: 'S' },
     { id: 'youtube', label: 'YouTube', slot: 'media', url: 'https://www.youtube.com/', icon: 'Y' },
     { id: 'dataico', label: 'Dataico', slot: 'nav', url: 'https://app.dataico.com/login', icon: 'D' },
@@ -224,6 +225,12 @@
       if (SERVICES[i].id === id) { svc = SERVICES[i]; break; }
     }
     if (!svc) return;
+    if (svc.fullScreen) {
+      hidePanel();
+      if (typeof global.navigateTo === 'function') global.navigateTo('whatsapp-web');
+      else if (typeof global.renderPage === 'function') global.renderPage('whatsapp-web');
+      return;
+    }
     openSlot(svc.slot, svc.url);
   }
 
