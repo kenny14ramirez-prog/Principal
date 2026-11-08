@@ -1109,7 +1109,6 @@
     } catch (_) {}
     try {
       global.addEventListener('online', function () {
-        __degraded = true;
         try {
           if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
         } catch (_) {}
