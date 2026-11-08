@@ -17064,7 +17064,6 @@ function renderPage(page, renderOpts) {
       break;
     case 'facturas': content.innerHTML = renderFacturas(); initFacturas(); break;
     case 'whatsapp-web':
-      if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('whatsapp'); break; }
       if (document.body) document.body.classList.add('crozzo-page-whatsapp-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-whatsapp-web');
       content.innerHTML =

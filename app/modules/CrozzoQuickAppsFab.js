@@ -668,13 +668,6 @@
 
   global.crozzoQuickAppsFabInit = initChrome;
 
-  function wireHeaderWa() {
-    var b = document.getElementById('crozzoHeaderWaBtn');
-    if (b && !b._waWired) { b._waWired = true; b.addEventListener('click', function () { if (typeof global.navigateTo === 'function') global.navigateTo('whatsapp-web'); }); }
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireHeaderWa); else wireHeaderWa();
-  setTimeout(wireHeaderWa, 1500);
-
   global.crozzoQuickAppsFabCloseMenu = closeMenu;
 
 
