@@ -221,10 +221,7 @@
       if (sb) {
         if (_waActive && !sb._waClickHook) {
           sb._waClickHook = function (e) {
-            // Solo cerrar WhatsApp si se hizo clic en un item de navegacion (data-page), no en el boton de expandir.
-            var target = e && e.target ? e.target : null;
-            var item = target && typeof target.closest === 'function' ? target.closest('.nav-item[data-page]') : null;
-            if (!item) return;
+            // Cualquier clic en el sidebar cierra WhatsApp.
             try { if (typeof hideEmbed === 'function') hideEmbed(); } catch (_) {}
             try { if (typeof hideEmbedRustOnly === 'function') hideEmbedRustOnly(); } catch (_) {}
           };
@@ -242,6 +239,20 @@
     if (typeof global.crozzoQuickAppsFabRefresh === 'function') global.crozzoQuickAppsFabRefresh();
     if (typeof global.crozzoMarkWebEmbedHeadNav === 'function') global.crozzoMarkWebEmbedHeadNav('wa');
     if (_waActive) requestLayoutSync({ instant: true });
+    // Envolver navigateTo para cerrar WhatsApp al navegar.
+    if (!global._waNavWrapped && typeof global.navigateTo === 'function') {
+      global._waNavWrapped = true;
+      var _origNav = global.navigateTo;
+      global.navigateTo = function (page) {
+        if (_waActive && page !== 'whatsapp-web') {
+          try { hideEmbed(); } catch (_) {}
+          try { hideEmbedRustOnly(); } catch (_) {}
+          _waActive = false;
+          try { if (document.body) document.body.classList.remove('crozzo-wa-open'); } catch (_) {}
+        }
+        return _origNav.apply(this, arguments);
+      };
+    }
     startWaPageWatch();
     if (!active) {
       _lastBoundsKey = '';
