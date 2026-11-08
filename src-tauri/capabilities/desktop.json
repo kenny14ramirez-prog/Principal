@@ -30,6 +30,7 @@
     "allow-crozzo-mdns",
     "allow-crozzo-wifi-direct",
     "allow-crozzo-webview-camera",
-    "allow-crozzo-devtools"
+    "allow-crozzo-devtools",
+    "updater:default"
   ]
 }

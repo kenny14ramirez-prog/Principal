@@ -96,9 +96,8 @@ pub fn run() {
     #[cfg(any(target_os = "android", target_os = "ios"))]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
 
-    // TEMP: updater deshabilitado para diagnostico (evita bucle de actualizacion)
-    // #[cfg(desktop)]
-    // let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
 
     builder
         .setup(|app| {
