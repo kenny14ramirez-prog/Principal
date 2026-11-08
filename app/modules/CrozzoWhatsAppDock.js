@@ -27,6 +27,7 @@
   var _sidebarAnimating = false;
   var _sidebarAnimEndTimer = null;
   var _sidebarAnimInterval = null;
+  var _waRafId = null;
   var _sidebarAnimLastRect = null;
 
   function isDesktopPc() {
@@ -238,6 +239,7 @@
     if (typeof global.crozzoQuickAppsFabRefresh === 'function') global.crozzoQuickAppsFabRefresh();
     if (typeof global.crozzoMarkWebEmbedHeadNav === 'function') global.crozzoMarkWebEmbedHeadNav('wa');
     if (_waActive) requestLayoutSync({ instant: true });
+    startWaRafSync();
     if (!active) {
       _lastBoundsKey = '';
       unbindSidebarSync();
@@ -379,11 +381,24 @@
   }
 
   function hideEmbed() {
+    stopWaRafSync();
     setWaActive(false);
     setWaPageShellClass(false);
     return hideEmbedRustOnly();
   }
 
+  function startWaRafSync() {
+    if (_waRafId) return;
+    function tick() {
+      if (!isWaPageActive()) { _waRafId = null; return; }
+      updateHostPositionDuringAnim();
+      _waRafId = global.requestAnimationFrame(tick);
+    }
+    _waRafId = global.requestAnimationFrame(tick);
+  }
+  function stopWaRafSync() {
+    if (_waRafId) { global.cancelAnimationFrame(_waRafId); _waRafId = null; }
+  }
   function onSidebarTransitionStart() {
     if (!isWaPageActive()) return;
     if (_sidebarAnimating) return;
@@ -560,8 +575,6 @@
     }
     sb.addEventListener('transitionend', onTransition);
     sb.addEventListener('transitioncancel', onTransition);
-    sb.addEventListener('mouseenter', function () { if (isWaPageActive()) onSidebarTransitionStart(); });
-    sb.addEventListener('mouseleave', function () { if (isWaPageActive()) onSidebarTransitionEnd(); });
     sb.addEventListener('mouseenter', function () { if (isWaPageActive()) onSidebarTransitionStart(); });
     sb.addEventListener('mouseleave', function () { if (isWaPageActive()) onSidebarTransitionEnd(); });
   }
