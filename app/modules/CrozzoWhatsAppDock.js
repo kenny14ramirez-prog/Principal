@@ -215,6 +215,22 @@
   function setWaActive(active) {
     _waActive = !!active;
     try { if (document.body) document.body.classList.toggle('crozzo-wa-open', _waActive); } catch (_) {}
+    // Mientras WhatsApp activo: cualquier clic en el sidebar cierra WhatsApp (webview se oculta).
+    try {
+      var sb = document.getElementById('sidebar');
+      if (sb) {
+        if (_waActive && !sb._waClickHook) {
+          sb._waClickHook = function (e) {
+            try { if (typeof hideEmbed === 'function') hideEmbed(); } catch (_) {}
+            try { if (typeof hideEmbedRustOnly === 'function') hideEmbedRustOnly(); } catch (_) {}
+          };
+          sb.addEventListener('click', sb._waClickHook, true);
+        } else if (!_waActive && sb._waClickHook) {
+          sb.removeEventListener('click', sb._waClickHook, true);
+          sb._waClickHook = null;
+        }
+      }
+    } catch (_) {}
     setWaPageShellClass(_waActive);
     if (_waActive) applyWaSlotCss();
     setFabMode(_waActive);

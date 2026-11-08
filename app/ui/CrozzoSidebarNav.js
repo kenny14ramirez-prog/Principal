@@ -854,6 +854,7 @@
   }
 
   function setSidebarExpanded(expanded, persist) {
+    if (document.body && document.body.classList.contains('crozzo-wa-open')) return;
     var sb = getSidebar();
     if (!sb) return;
     var st = readState();
