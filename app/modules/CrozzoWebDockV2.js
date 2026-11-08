@@ -353,7 +353,8 @@
   global.crozzoWebDockV2IsMediaOpen = function () { return state.media.open; };
   global.crozzoWebDockV2IsNavOpen = function () { return state.nav.open; };
   global.crozzoWebDockV2ClosePanel = closePanel;
-  global.crozzoWebDockV2ActivateService = activateService;\n  global.crozzoWebDockV2GetActiveMediaId = function () { return (state.media.open && state.media.activeId) ? state.media.activeId : null; };
+  global.crozzoWebDockV2ActivateService = activateService;
+  global.crozzoWebDockV2GetActiveMediaId = function () { return (state.media.open && state.media.activeId) ? state.media.activeId : null; };
 
   // Re-posicionar al redimensionar
   try {

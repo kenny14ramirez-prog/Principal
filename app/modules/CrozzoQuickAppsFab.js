@@ -598,16 +598,7 @@
 
         if (!canSeeFab()) return;
 
-        if (useV2()) {
-          var mediaId = (typeof global.crozzoWebDockV2GetActiveMediaId === 'function') ? global.crozzoWebDockV2GetActiveMediaId() : null;
-          if (!mediaId) mediaId = 'spotify';
-          if (typeof global.crozzoWebDockV2ActivateService === 'function') {
-            global.crozzoWebDockV2ActivateService(mediaId);
-          }
-          return;
-        }
-
-        setMenuOpen(!_menuOpen);
+                setMenuOpen(!_menuOpen);
 
       });
 
@@ -674,7 +665,6 @@
     if (b && !b._waWired) { b._waWired = true; b.addEventListener('click', function () { if (typeof global.navigateTo === 'function') global.navigateTo('whatsapp-web'); }); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireHeaderWa); else wireHeaderWa();
-  // also retry after a delay in case header renders later
   setTimeout(wireHeaderWa, 1500);
 
   global.crozzoQuickAppsFabCloseMenu = closeMenu;
