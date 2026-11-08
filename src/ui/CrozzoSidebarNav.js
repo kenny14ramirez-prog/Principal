@@ -396,7 +396,9 @@
     if (typeof global.crozzoSidebarMountToggleBtn === 'function') global.crozzoSidebarMountToggleBtn(sb);
   }
 
-  function shouldDisableSidebarHover() { return true;
+  function shouldDisableSidebarHover() {
+    if (document.body && document.body.classList.contains('crozzo-wa-open')) return true;
+    return false;
     if (isDrawerNavMode()) return true;
     try {
       if (typeof global.crozzoIsSidebarDrawerMode === 'function' && global.crozzoIsSidebarDrawerMode()) return true;
