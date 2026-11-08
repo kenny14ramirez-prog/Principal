@@ -544,9 +544,6 @@
     }
     sb.addEventListener('transitionend', onTransition);
     sb.addEventListener('transitioncancel', onTransition);
-    // Hover del sidebar tambien dispara sincronizacion del webview.
-    sb.addEventListener('mouseenter', function () { if (isWaPageActive()) onSidebarTransitionStart(); });
-    sb.addEventListener('mouseleave', function () { if (isWaPageActive()) onSidebarTransitionEnd(); });
   }
 
   function unbindSidebarSync() {
