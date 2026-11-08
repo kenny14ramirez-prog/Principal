@@ -241,7 +241,8 @@
     updateFabVisibility();
     if (typeof global.crozzoQuickAppsFabRefresh === 'function') global.crozzoQuickAppsFabRefresh();
     if (typeof global.crozzoMarkWebEmbedHeadNav === 'function') global.crozzoMarkWebEmbedHeadNav('wa');
-    if (_waActive) requestLayoutSync({ instant: true });\n    startWaPageWatch();
+    if (_waActive) requestLayoutSync({ instant: true });
+    startWaPageWatch();
     if (!active) {
       _lastBoundsKey = '';
       unbindSidebarSync();
