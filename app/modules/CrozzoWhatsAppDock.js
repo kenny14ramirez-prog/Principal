@@ -27,7 +27,6 @@
   var _sidebarAnimating = false;
   var _sidebarAnimEndTimer = null;
   var _sidebarAnimInterval = null;
-  var _waRafId = null;
   var _sidebarAnimLastRect = null;
 
   function isDesktopPc() {
@@ -239,7 +238,6 @@
     if (typeof global.crozzoQuickAppsFabRefresh === 'function') global.crozzoQuickAppsFabRefresh();
     if (typeof global.crozzoMarkWebEmbedHeadNav === 'function') global.crozzoMarkWebEmbedHeadNav('wa');
     if (_waActive) requestLayoutSync({ instant: true });
-    startWaRafSync();
     if (!active) {
       _lastBoundsKey = '';
       unbindSidebarSync();
