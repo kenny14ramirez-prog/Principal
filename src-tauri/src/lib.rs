@@ -114,8 +114,8 @@ pub fn run() {
             {
                 if let Some(win) = app.get_webview_window("main") {
                     webview_permissions::install_camera_permission_handler(&win);
-                    // TEMP: auto-abrir DevTools para diagnostico
-                    let _ = win.open_devtools();
+                    // TEMP: auto-abrir DevTools para diagnostico (DESHABILITADO para rendimiento)
+                    // let _ = win.open_devtools();
                 }
                 crozzo_external::close_legacy_whatsapp_windows(app.handle());
                 let warm = app.handle().clone();
