@@ -231,7 +231,10 @@
       if (typeof global.navigateTo === 'function') global.navigateTo(back);
     }
     if (svc.fullScreen) {
-      // WhatsApp: se comporta como pagina de BONA (area principal), respetando sidebar y panel derecho.
+      // WhatsApp: se comporta como pagina de BONA (area principal).
+      // Si el sidebar esta expandido, colapsarlo para que WhatsApp ocupe todo el espacio.
+      try { if (typeof global.CrozzoSidebarNav !== 'undefined' && typeof global.CrozzoSidebarNav.setExpanded === 'function') global.CrozzoSidebarNav.setExpanded(false, false); } catch (_) {}
+      try { if (typeof global.crozzoInitCollapsibleSidebar === 'function') {} } catch (_) {}
       state.activeSlot = 'nav';
       state.nav.activeId = 'whatsapp';
       updateTabs();

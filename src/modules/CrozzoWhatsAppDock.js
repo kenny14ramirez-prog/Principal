@@ -221,6 +221,10 @@
       if (sb) {
         if (_waActive && !sb._waClickHook) {
           sb._waClickHook = function (e) {
+            // Solo cerrar WhatsApp si se hizo clic en un item de navegacion (data-page), no en el boton de expandir.
+            var target = e && e.target ? e.target : null;
+            var item = target && typeof target.closest === 'function' ? target.closest('.nav-item[data-page]') : null;
+            if (!item) return;
             try { if (typeof hideEmbed === 'function') hideEmbed(); } catch (_) {}
             try { if (typeof hideEmbedRustOnly === 'function') hideEmbedRustOnly(); } catch (_) {}
           };
