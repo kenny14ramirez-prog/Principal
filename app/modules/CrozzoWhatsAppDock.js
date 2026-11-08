@@ -634,7 +634,7 @@
       if (document.querySelector('.user-menu__dropdown.is-open, .user-menu__dropdown:not([aria-hidden="true"])')) return true;
       if (document.querySelector('.crozzo-a11y-panel[open], .crozzo-header-popover, .crozzo-header-popover[open], details[open] .crozzo-header-popover')) return true;
       if (document.querySelector('.modal-overlay.active, .modal.show, .modal.is-open, .crozzo-modal-open, .crozzo-overlay-visible')) return true;
-      if (document.querySelector('.sidebar-backdrop.active, .crozzo-sidebar-drawer-open, .sidebar.open, .sidebar.is-open')) return true;
+      // Sidebar expansion no debe ocultar WhatsApp (solo modales/overlays reales).
       if (document.querySelector('.dropdown-menu.show, .dropdown.open, .dropdown.is-active, .dropdown.is-open')) return true;
       if (document.querySelector('.login-overlay:not([hidden])')) return true;
       if (document.querySelector('.toast.toast--persistent, .crozzo-toast-stack--blocking')) return true;
