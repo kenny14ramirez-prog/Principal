@@ -214,6 +214,7 @@
 
   function setWaActive(active) {
     _waActive = !!active;
+    try { if (document.body) document.body.classList.toggle('crozzo-wa-open', _waActive); } catch (_) {}
     setWaPageShellClass(_waActive);
     if (_waActive) applyWaSlotCss();
     setFabMode(_waActive);
