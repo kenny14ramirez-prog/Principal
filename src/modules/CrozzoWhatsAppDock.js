@@ -398,7 +398,6 @@
   }
 
   function hideEmbed() {
-    stopWaRafSync();
     stopWaPageWatch();
     setWaActive(false);
     setWaPageShellClass(false);
@@ -598,8 +597,6 @@
     }
     sb.addEventListener('transitionend', onTransition);
     sb.addEventListener('transitioncancel', onTransition);
-    sb.addEventListener('mouseenter', function () { if (isWaPageActive()) onSidebarTransitionStart(); });
-    sb.addEventListener('mouseleave', function () { if (isWaPageActive()) onSidebarTransitionEnd(); });
   }
 
   function unbindSidebarSync() {
