@@ -387,18 +387,6 @@
     return hideEmbedRustOnly();
   }
 
-  function startWaRafSync() {
-    if (_waRafId) return;
-    function tick() {
-      if (!isWaPageActive()) { _waRafId = null; return; }
-      updateHostPositionDuringAnim();
-      _waRafId = global.requestAnimationFrame(tick);
-    }
-    _waRafId = global.requestAnimationFrame(tick);
-  }
-  function stopWaRafSync() {
-    if (_waRafId) { global.cancelAnimationFrame(_waRafId); _waRafId = null; }
-  }
   function onSidebarTransitionStart() {
     if (!isWaPageActive()) return;
     if (_sidebarAnimating) return;
