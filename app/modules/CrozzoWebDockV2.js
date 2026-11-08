@@ -39,7 +39,6 @@
 
   // Servicios disponibles
   var SERVICES = [
-    { id: 'whatsapp', label: 'WhatsApp', slot: 'nav', url: 'https://web.whatsapp.com/', icon: 'W' },
     { id: 'spotify', label: 'Spotify', slot: 'media', url: 'https://open.spotify.com/', icon: 'S' },
     { id: 'youtube', label: 'YouTube', slot: 'media', url: 'https://www.youtube.com/', icon: 'Y' },
     { id: 'dataico', label: 'Dataico', slot: 'nav', url: 'https://app.dataico.com/login', icon: 'D' },
@@ -74,6 +73,7 @@
           '<button type="button" id="crozzoDockPanelOpenBrowser" class="crozzo-dock-panel__open-browser" title="Abrir en navegador del sistema" aria-label="Abrir en navegador">🌐</button>' +
           '<input type="range" id="crozzoDockPanelZoom" class="crozzo-dock-panel__zoom" min="50" max="200" step="5" value="100" title="Zoom del servicio" aria-label="Zoom del servicio">' +
           '<span id="crozzoDockPanelZoomLabel" class="crozzo-dock-panel__zoom-label">100%</span>' +
+          '<button type="button" id="crozzoDockPanelStop" class="crozzo-dock-panel__stop" title="Detener audio" aria-label="Detener audio">&#9632;</button>' +
           '<button type="button" id="crozzoDockPanelClose" class="crozzo-dock-panel__close" title="Cerrar panel" aria-label="Cerrar panel">&times;</button>' +
         '</div>' +
       '</div>' +
@@ -101,6 +101,9 @@
     // Controles
     var closeBtn = panel.querySelector('#crozzoDockPanelClose');
     if (closeBtn) closeBtn.addEventListener('click', closePanel);
+
+    var stopBtn = panel.querySelector('#crozzoDockPanelStop');
+    if (stopBtn) stopBtn.addEventListener('click', stopMedia);
 
     var profileBtn = panel.querySelector('#crozzoDockPanelProfile');
     if (profileBtn) profileBtn.addEventListener('click', toggleProfile);
@@ -282,10 +285,26 @@
   }
 
   function closePanel() {
-    closeSlot('media');
-    closeSlot('nav');
-    state.activeSlot = null;
+    // Media (Spotify/YouTube): mantener audio en segundo plano (no destruir), solo ocultar.
+    if (state.media.open) {
+      invoke('crozzo_web_dock_hide', { slot: 'media' }).catch(function () {});
+    }
+    // Nav: destruir para liberar recursos.
+    if (state.nav.open) {
+      closeSlot('nav');
+    }
+    state.activeSlot = state.media.open ? 'media' : null;
     hidePanel();
+  }
+
+  function stopMedia() {
+    closeSlot('media');
+    state.activeSlot = state.nav.open ? 'nav' : null;
+    if (state.panelOpen) {
+      updateTabs();
+    } else {
+      hidePanel();
+    }
   }
 
   function closeSlot(slot) {
