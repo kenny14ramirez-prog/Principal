@@ -241,7 +241,7 @@
     updateFabVisibility();
     if (typeof global.crozzoQuickAppsFabRefresh === 'function') global.crozzoQuickAppsFabRefresh();
     if (typeof global.crozzoMarkWebEmbedHeadNav === 'function') global.crozzoMarkWebEmbedHeadNav('wa');
-    if (_waActive) requestLayoutSync({ instant: true });
+    if (_waActive) requestLayoutSync({ instant: true });\n    startWaPageWatch();
     if (!active) {
       _lastBoundsKey = '';
       unbindSidebarSync();
@@ -384,11 +384,29 @@
 
   function hideEmbed() {
     stopWaRafSync();
+    stopWaPageWatch();
     setWaActive(false);
     setWaPageShellClass(false);
     return hideEmbedRustOnly();
   }
 
+  var _waPageWatchTimer = null;
+  function startWaPageWatch() {
+    if (_waPageWatchTimer) return;
+    _waPageWatchTimer = global.setInterval(function () {
+      if (!isWaPageActive()) { stopWaPageWatch(); return; }
+      // Si la pagina actual ya no es whatsapp-web, cerrar WhatsApp.
+      var cp = (typeof global.currentPage !== 'undefined') ? global.currentPage : null;
+      // currentPage es module-level en CrozzoPosMain; intentar leerlo via getter
+      if (typeof global.crozzoGetActivePageId === 'function') cp = global.crozzoGetActivePageId();
+      if (cp && cp !== 'whatsapp-web') {
+        try { hideEmbed(); } catch (_) {}
+      }
+    }, 300);
+  }
+  function stopWaPageWatch() {
+    if (_waPageWatchTimer) { clearInterval(_waPageWatchTimer); _waPageWatchTimer = null; }
+  }
   function onSidebarTransitionStart() {
     if (!isWaPageActive()) return;
     if (_sidebarAnimating) return;
