@@ -225,8 +225,16 @@
       if (SERVICES[i].id === id) { svc = SERVICES[i]; break; }
     }
     if (!svc) return;
+    // Si se esta viendo WhatsApp a pantalla completa y se elige otro servicio, volver a BONA antes.
+    if (id !== 'whatsapp' && typeof global.currentPage !== 'undefined' && global.currentPage === 'whatsapp-web') {
+      var back = (global.__crozzoPageBeforeWhatsApp && global.__crozzoPageBeforeWhatsApp !== 'whatsapp-web') ? global.__crozzoPageBeforeWhatsApp : 'inicio-operacion';
+      if (typeof global.navigateTo === 'function') global.navigateTo(back);
+    }
     if (svc.fullScreen) {
-      hidePanel();
+      // WhatsApp: se comporta como pagina de BONA (area principal), respetando sidebar y panel derecho.
+      state.activeSlot = 'nav';
+      state.nav.activeId = 'whatsapp';
+      updateTabs();
       if (typeof global.navigateTo === 'function') global.navigateTo('whatsapp-web');
       else if (typeof global.renderPage === 'function') global.renderPage('whatsapp-web');
       return;
