@@ -79212,7 +79212,7 @@ html.crozzo-vp-ready body.crozzo-page-whatsapp-web #crozzoWaEmbedHost.crozzo-wa-
   min-height: 0;
   position: fixed;
   top: calc(var(--crozzo-header-h, 60px) + 44px);
-  left: 0;
+  left: var(--crozzo-wa-left, var(--sidebar-width-rail, 64px));
   right: 0;
   bottom: 0;
   width: auto;

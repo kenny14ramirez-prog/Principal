@@ -405,9 +405,7 @@
     if (sb && sb.classList.contains('open')) return true;
     try {
       if (document.body && document.body.classList.contains('crozzo-sidebar-drawer-open')) return true;
-    if (document.body && document.body.classList.contains('crozzo-wa-open')) return true;
-    if (document.body && document.body.classList.contains('crozzo-wa-open')) return true;
-        } catch (_) {}
+            } catch (_) {}
     return false;
   }
 
@@ -854,7 +852,6 @@
   }
 
   function setSidebarExpanded(expanded, persist) {
-    if (document.body && document.body.classList.contains('crozzo-wa-open')) return;
     var sb = getSidebar();
     if (!sb) return;
     var st = readState();
