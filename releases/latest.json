@@ -1,29 +1,18 @@
 {
-  "id": "1.0.277-critical",
-  "version": "v1.0.277",
-  "semver": "1.0.277",
+  "id": "1.0.278-critical",
+  "version": "v1.0.278",
+  "semver": "1.0.278",
   "type": "critical",
-  "message": "Prueba final de actualización automática v1.0.277",
-  "publishedAt": "2026-11-09T14:02:58.147Z",
+  "message": "Fix: phantom state prevention + logging + auto-detect",
+  "publishedAt": "2026-11-09T14:36:55.017Z",
   "installMode": "auto",
   "changelog": [
-    "Prueba final de actualización automática v1.0.277"
+    "Fix: phantom state prevention",
+    "logging",
+    "auto-detect"
   ],
-  "updatedAt": "2026-11-09T14:02:58.147Z",
+  "updatedAt": "2026-11-09T14:36:55.017Z",
   "entries": [
-    {
-      "id": "1.0.225-critical",
-      "version": "v1.0.225",
-      "semver": "1.0.225",
-      "type": "critical",
-      "message": "2589654",
-      "publishedAt": "2026-07-04T18:42:55.641Z",
-      "installMode": "auto",
-      "changelog": [
-        "2589654"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.226-critical",
       "version": "v1.0.226",
@@ -372,6 +361,20 @@
       "installMode": "auto",
       "changelog": [
         "Prueba final de actualización automática v1.0.277"
+      ]
+    },
+    {
+      "id": "1.0.278-critical",
+      "version": "v1.0.278",
+      "semver": "1.0.278",
+      "type": "critical",
+      "message": "Fix: phantom state prevention + logging + auto-detect",
+      "publishedAt": "2026-11-09T14:36:55.017Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix: phantom state prevention",
+        "logging",
+        "auto-detect"
       ]
     }
   ]

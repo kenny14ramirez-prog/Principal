@@ -887,8 +887,13 @@
       var stored = (store.installed && store.installed.version) || readStoredInstalledVersion();
       var ver, source, confidence;
       if (binaryVer) { ver = binaryVer; source = 'binary'; confidence = 'high'; }
-      else if (meta) { ver = meta; source = 'meta'; confidence = 'medium'; }
-      else { ver = stored || 'v1.0.0'; source = 'stored'; confidence = 'low'; }
+      else if (meta && (!stored || compareSemver(meta, stored) <= 0)) { ver = meta; source = 'meta'; confidence = 'medium'; }
+      else if (stored) { ver = stored; source = 'stored'; confidence = 'low'; }
+      else { ver = 'v1.0.0'; source = 'default'; confidence = 'low'; }
+      // SECURITY: if meta claims higher version than binary, ignore meta (phantom prevention)
+      if (meta && binaryVer && compareSemver(meta, binaryVer) > 0) {
+        console.warn('[updates] recoverStore: meta claims ' + meta + ' but binary is ' + binaryVer + ' — ignoring meta');
+      }
       // phantom correction
       if (stored && binaryVer && compareSemver(stored, binaryVer) > 0) {
         console.warn('[updates] phantom state corrected', stored, '->', binaryVer);
@@ -1243,9 +1248,15 @@
       var stored = readStoredInstalledVersion();
       var ver, source, confidence;
       if (binaryVer) { ver = binaryVer; source = 'binary'; confidence = 'high'; }
-      else if (meta) { ver = meta; source = 'meta'; confidence = 'medium'; }
-      else { ver = stored || 'v1.0.0'; source = 'stored'; confidence = 'low'; }
-      // phantom correction
+      else if (meta && (!stored || compareSemver(meta, stored) <= 0)) { ver = meta; source = 'meta'; confidence = 'medium'; }
+      else if (stored) { ver = stored; source = 'stored'; confidence = 'low'; }
+      else { ver = 'v1.0.0'; source = 'default'; confidence = 'low'; }
+      // SECURITY: if meta claims higher version than binary, ignore meta (phantom prevention)
+      if (meta && binaryVer && compareSemver(meta, binaryVer) > 0) {
+        console.warn('[updates] meta tag claims ' + meta + ' but binary is ' + binaryVer + ' — ignoring meta (phantom prevention)');
+        try { appendLocalLog('phantom_meta_ignored', { version: meta }, 'meta=' + meta + ' binary=' + binaryVer); } catch (_) {}
+      }
+      // phantom correction: if stored > binary, correct
       if (stored && binaryVer && compareSemver(stored, binaryVer) > 0) {
         console.warn('[updates] phantom state corrected', stored, '->', binaryVer);
         try { appendLocalLog('phantom_state_corrected', { version: stored }, 'stored=' + stored + ' binary=' + binaryVer); } catch (_) {}
@@ -1264,6 +1275,8 @@
       if (getUpdateClientProfile().kind === 'android') {
         finalizeAndroidPendingInstall(VERSION);
       }
+      // Log for debugging
+      console.log('[updates] refreshBinaryVersion: binary=' + binaryVer + ' meta=' + meta + ' stored=' + stored + ' → using ' + ver + ' (source=' + source + ')');
       return VERSION;
     });
   }
@@ -5244,6 +5257,7 @@
 
     var pipeline = refreshBinaryVersion()
       .then(function (installedVer) {
+        console.log('[updates] runBootUpdatePipeline: binary version =', installedVer);
         return fetchRegistryData().then(function (data) {
           return { data: data, installedVer: installedVer };
         });
@@ -5877,6 +5891,7 @@
     applyAvailabilityFromRegistry(entries);
 
     var entry = pickNextPendingEntry(entries);
+    console.log('[updates] processPendingUpdates: entries=' + (entries ? entries.length : 0) + ' pending=' + (entry ? entryId(entry) : 'none') + ' installed=' + VERSION);
     if (!entry) {
       setNormalOpen(false);
       return false;
@@ -6137,6 +6152,7 @@
         renderLocalLogPanel();
 
         var pending = _registryEntries.filter(entryIsPending);
+        console.log('[updates] checkForUpdates: installed=' + VERSION + ' available=' + VERSION_AVAIL + ' pending=' + pending.length + ' entries=' + _registryEntries.length);
         var shown = false;
         if (otaAutoInstallAllowed()) {
           shown = processPendingUpdates(_registryEntries);
