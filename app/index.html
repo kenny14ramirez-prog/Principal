@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.275">
+<meta name="crozzo-app-version" content="1.0.276">
 <meta name="crozzo-build-stamp" content="2026-10-31T23:38:19.307Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var user=false,t='bona-origen';try{user=localStorage.getItem('crozzo_theme_user_v1')==='1';}catch(_){}
@@ -469,6 +469,12 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 </button>
               </li>
               <li role="none">
+                <button type="button" class="user-menu__item" role="menuitem" onclick="if(typeof crozzoDeviceReportShow==='function'){crozzoDeviceReportShow();document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');}">
+                  <span class="icon" aria-hidden="true">📋</span>
+                  <span>Reporte de conexión</span>
+                </button>
+              </li>
+              <li role="none">
                 <button type="button" class="user-menu__item" role="menuitem" onclick="CrozzoHelpHub.open(); document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');">
                   <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
                   <span>Centro de ayuda</span>
@@ -854,6 +860,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
     </div>
     </div>
     <div class="crozzo-pairing-card__foot" id="crozzoPairingFootReader" hidden>
+      <button type="button" class="btn btn-secondary" style="width:100%; min-height:40px; margin-bottom:8px;" onclick="if(typeof crozzoDeviceReportShow==='function')crozzoDeviceReportShow();">📋 Reporte de conexión (diagnóstico)</button>
       <button type="button" class="btn btn-primary" style="width:100%; min-height:48px;" id="crozzoPairingApplyBtn" data-crozzo-act="crozzoPairingApplyFromForm" disabled>Sincronizar terminal</button>
       <button type="button" class="btn btn-outline" style="width:100%;margin-top:8px;" data-crozzo-act="crozzoPairingResetBinding">Borrar datos locales manualmente</button>
       <button type="button" class="btn btn-outline crozzo-pairing-reader-back" style="width:100%;" data-crozzo-act="crozzoPairingSelectChoice">Volver</button>
@@ -1194,6 +1201,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoTlsPinning.js" defer></script>
 <script src="infra/CrozzoCertTrust.js" defer></script>
 <script src="infra/CrozzoWebRtcP2P.js" defer></script>
+<script src="infra/CrozzoDeviceReport.js" defer></script>
+<script src="infra/CrozzoFieldDiagnostic.js" defer></script>
+<script src="infra/CrozzoPerformanceMetrics.js" defer></script>
 <script src="modules/CrozzoPrinterRescue.js" defer></script>
 <script src="core/pos/CrozzoPosConfigManager.js" defer></script>
 <script src="core/pos/CrozzoPosDianLib.js" defer></script>

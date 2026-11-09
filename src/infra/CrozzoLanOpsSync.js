@@ -527,6 +527,7 @@
       var gate = global.crozzoLanShouldApplyAction(payload, { source: 'lan_pull' });
       if (!gate.apply) return false;
     }
+    try { if (typeof global.crozzoDeviceLog === 'function') global.crozzoDeviceLog('comanda', 'Comanda aplicada desde LAN: ' + (snap && snap.id), snap); } catch (_) {}
     if (typeof global.__crozzoEmergencyApplyComandaSnapshot === 'function') {
       var ok = !!global.__crozzoEmergencyApplyComandaSnapshot(snap, {
         source: 'lan_pull',

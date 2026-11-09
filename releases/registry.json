@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-09T13:10:09.991Z",
+  "updatedAt": "2026-11-09T13:44:17.939Z",
   "entries": [
-    {
-      "id": "1.0.223-critical",
-      "version": "v1.0.223",
-      "semver": "1.0.223",
-      "type": "critical",
-      "message": "852",
-      "publishedAt": "2026-07-04T01:11:47.344Z",
-      "installMode": "auto",
-      "changelog": [
-        "852"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.224-critical",
       "version": "v1.0.224",
@@ -364,6 +351,18 @@
         "Sistema de actualizaciones reforzado (4 capas",
         "Plan B/C",
         "129 tests)"
+      ]
+    },
+    {
+      "id": "1.0.276-critical",
+      "version": "v1.0.276",
+      "semver": "1.0.276",
+      "type": "critical",
+      "message": "Prueba de actualización automática v1.0.276",
+      "publishedAt": "2026-11-09T13:44:17.939Z",
+      "installMode": "auto",
+      "changelog": [
+        "Prueba de actualización automática v1.0.276"
       ]
     }
   ]
