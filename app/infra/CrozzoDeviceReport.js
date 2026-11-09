@@ -281,22 +281,28 @@
   }
 
   function togglePanel() {
-    var el = createPanel();
-    __panelVisible = !__panelVisible;
-    el.style.display = __panelVisible ? 'block' : 'none';
-    if (__panelVisible) {
-      var c = el.querySelector('#crozzoReportContent');
-      if (c) {
-        c.textContent = __logs.map(l => '[' + new Date(l.t).toLocaleTimeString() + '] [' + l.type.toUpperCase() + '] ' + l.msg).join('\n');
-        c.scrollTop = c.scrollHeight;
+    try {
+      var el = createPanel();
+      if (!el) return;
+      __panelVisible = !__panelVisible;
+      el.style.display = __panelVisible ? 'block' : 'none';
+      if (__panelVisible) {
+        var c = el.querySelector('#crozzoReportContent');
+        if (c) {
+          c.textContent = __logs.map(function(l) { return '[' + new Date(l.t).toLocaleTimeString() + '] [' + l.type.toUpperCase() + '] ' + l.msg; }).join('\n');
+          c.scrollTop = c.scrollHeight;
+        }
       }
+    } catch (e) {
+      console.error('Error togglePanel:', e);
+      try { showToast('Error: ' + String(e)); } catch (_) {}
     }
   }
 
   function createFloatingButton() {
     var btn = document.createElement('button');
     btn.id = 'crozzoReportBtn';
-    btn.textContent = '📋';
+    btn.textContent = '\uD83D\uDCCB';
     btn.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:99999;width:40px;height:40px;border-radius:50%;background:#333;color:#fff;border:none;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);';
     btn.addEventListener('click', function() {
       // Show menu

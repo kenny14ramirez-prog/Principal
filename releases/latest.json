@@ -1,29 +1,16 @@
 {
-  "id": "1.0.279-critical",
-  "version": "v1.0.279",
-  "semver": "1.0.279",
+  "id": "1.0.280-critical",
+  "version": "v1.0.280",
+  "semver": "1.0.280",
   "type": "critical",
-  "message": "Prueba de actualización automática v1.0.279 (post-fix phantom)",
-  "publishedAt": "2026-11-09T14:38:50.511Z",
+  "message": "Prueba de actualización automática v1.0.280",
+  "publishedAt": "2026-11-09T15:03:11.743Z",
   "installMode": "auto",
   "changelog": [
-    "Prueba de actualización automática v1.0.279 (post-fix phantom)"
+    "Prueba de actualización automática v1.0.280"
   ],
-  "updatedAt": "2026-11-09T14:38:50.511Z",
+  "updatedAt": "2026-11-09T15:03:11.743Z",
   "entries": [
-    {
-      "id": "1.0.227-critical",
-      "version": "v1.0.227",
-      "semver": "1.0.227",
-      "type": "critical",
-      "message": "65795",
-      "publishedAt": "2026-07-06T16:10:48.389Z",
-      "installMode": "auto",
-      "changelog": [
-        "65795"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.228-critical",
       "version": "v1.0.228",
@@ -372,6 +359,18 @@
       "installMode": "auto",
       "changelog": [
         "Prueba de actualización automática v1.0.279 (post-fix phantom)"
+      ]
+    },
+    {
+      "id": "1.0.280-critical",
+      "version": "v1.0.280",
+      "semver": "1.0.280",
+      "type": "critical",
+      "message": "Prueba de actualización automática v1.0.280",
+      "publishedAt": "2026-11-09T15:03:11.743Z",
+      "installMode": "auto",
+      "changelog": [
+        "Prueba de actualización automática v1.0.280"
       ]
     }
   ]
