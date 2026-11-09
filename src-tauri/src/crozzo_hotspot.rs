@@ -4,6 +4,7 @@
 
 #[cfg(windows)]
 fn run_ps(script: &str) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
     let out = Command::new("powershell")
         .args([
@@ -11,9 +12,12 @@ fn run_ps(script: &str) -> Result<String, String> {
             "-NonInteractive",
             "-ExecutionPolicy",
             "Bypass",
+            "-WindowStyle",
+            "Hidden",
             "-Command",
             script,
         ])
+        .creation_flags(0x08000000)
         .output()
         .map_err(|e| e.to_string())?;
     let stdout = String::from_utf8_lossy(&out.stdout).to_string();

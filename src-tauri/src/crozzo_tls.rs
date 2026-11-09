@@ -229,7 +229,7 @@ pub fn crozzo_lan_tls_install_ca(cert_pem: Option<String>) -> Result<serde_json:
         );
 
         let out = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &script])
+            .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", &script])
             .output();
         match out {
             Ok(o) if o.status.success() => {
@@ -244,28 +244,45 @@ pub fn crozzo_lan_tls_install_ca(cert_pem: Option<String>) -> Result<serde_json:
             }
             Ok(o) => {
                 let err = String::from_utf8_lossy(&o.stderr).trim().to_string();
-                let certutil = std::process::Command::new("certutil")
-                    .args(["-user", "-addstore", "Root", &path_str])
-                    .output();
-                match certutil {
-                    Ok(cu) if cu.status.success() => Ok(json!({
-                        "ok": true,
-                        "installed": true,
-                        "method": "certutil:CurrentUser\\Root",
-                        "fingerprint": fp,
-                    })),
-                    _ => {
-                        let cuerr = certutil.map(|c| String::from_utf8_lossy(&c.stderr).trim().to_string()).unwrap_or_else(|e| e.to_string());
-                        Ok(json!({
-                            "ok": false,
-                            "installed": false,
-                            "method": "powershell",
-                            "error": if err.is_empty() { cuerr.clone() } else { err },
-                            "fallback_error": cuerr,
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    let certutil = std::process::Command::new("certutil")
+                        .args(["-user", "-addstore", "Root", &path_str])
+                        .creation_flags(0x08000000)
+                        .output();
+                    match certutil {
+                        Ok(cu) if cu.status.success() => Ok(json!({
+                            "ok": true,
+                            "installed": true,
+                            "method": "certutil:CurrentUser\\Root",
                             "fingerprint": fp,
-                        }))
+                        })),
+                        other => {
+                            let cuerr = match other {
+                                Ok(c) => String::from_utf8_lossy(&c.stderr).trim().to_string(),
+                                Err(e) => e.to_string(),
+                            };
+                            Ok(json!({
+                                "ok": false,
+                                "installed": false,
+                                "method": "powershell",
+                                "error": if err.is_empty() { cuerr.clone() } else { err },
+                                "fallback_error": cuerr,
+                                "fingerprint": fp,
+                            }))
+                        }
                     }
                 }
+                #[cfg(not(windows))]
+                {
+                    let certutil = std::process::Command::new("certutil")
+                        .args(["-user", "-addstore", "Root", &path_str])
+                        .output();
+                    let _ = certutil;
+                }
+                #[cfg(not(windows))]
+                Ok(json!({"ok": false, "installed": false, "method": "powershell", "error": err, "fingerprint": fp}))
             }
             Err(e) => Ok(json!({"ok": false, "installed": false, "method": "none", "error": e.to_string(), "fingerprint": fp})),
         }

@@ -31125,11 +31125,16 @@ html.crozzo-android-native #crozzoToolbarLogout {
 }
 html.crozzo-touch-shell .crozzo-header__toolbar .crozzo-toolbar-divider,
 html.crozzo-compact-chrome .crozzo-header__toolbar .crozzo-toolbar-divider,
-html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-divider,
-html.crozzo-touch-shell .crozzo-header__toolbar .user-menu,
-html.crozzo-compact-chrome .crozzo-header__toolbar .user-menu,
-html.crozzo-android-native .crozzo-header__toolbar .user-menu {
+html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-divider {
   display: none !important;
+}
+html.crozzo-android-native .crozzo-header__toolbar .user-menu,
+html.crozzo-touch-shell .crozzo-header__toolbar .user-menu,
+html.crozzo-compact-chrome .crozzo-header__toolbar .user-menu {
+  display: block !important;
+}
+html.crozzo-android-native .user-menu__dropdown {
+  max-width: min(300px, calc(100vw - 24px));
 }
 .crozzo-toolbar-btn--logout:hover,
 .crozzo-toolbar-btn--logout:focus-visible {
@@ -67231,11 +67236,16 @@ html.crozzo-android-native #crozzoToolbarLogout {
 }
 html.crozzo-touch-shell .crozzo-header__toolbar .crozzo-toolbar-divider,
 html.crozzo-compact-chrome .crozzo-header__toolbar .crozzo-toolbar-divider,
-html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-divider,
-html.crozzo-touch-shell .crozzo-header__toolbar .user-menu,
-html.crozzo-compact-chrome .crozzo-header__toolbar .user-menu,
-html.crozzo-android-native .crozzo-header__toolbar .user-menu {
+html.crozzo-android-native .crozzo-header__toolbar .crozzo-toolbar-divider {
   display: none !important;
+}
+html.crozzo-android-native .crozzo-header__toolbar .user-menu,
+html.crozzo-touch-shell .crozzo-header__toolbar .user-menu,
+html.crozzo-compact-chrome .crozzo-header__toolbar .user-menu {
+  display: block !important;
+}
+html.crozzo-android-native .user-menu__dropdown {
+  max-width: min(300px, calc(100vw - 24px));
 }
 .crozzo-toolbar-btn--logout:hover,
 .crozzo-toolbar-btn--logout:focus-visible {

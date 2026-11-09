@@ -212,13 +212,16 @@
   }
 
   // ── Hook: medir ping periódicamente ──
+  var __lastPingOk = null;
   function startPingLoop() {
     setInterval(async function() {
       var r = await measurePing();
-      if (r) {
-        if (global.CrozzoDeviceReport) global.CrozzoDeviceReport.log('info', 'Ping: ' + r.ms + 'ms ' + (r.ok ? 'OK' : 'FAIL'));
+      if (r && global.CrozzoDeviceReport) {
+        if (__lastPingOk !== null && __lastPingOk === !!r.ok) return;
+        __lastPingOk = !!r.ok;
+        global.CrozzoDeviceReport.log('info', 'Ping: ' + r.ms + 'ms ' + (r.ok ? 'OK' : 'FAIL'));
       }
-    }, 10000);
+    }, 30000);
   }
 
   // ── Hook: medir render time ──

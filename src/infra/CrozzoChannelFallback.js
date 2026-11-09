@@ -134,6 +134,10 @@
     return false;
   }
 
+  function autoHotspotEnabled() {
+    try { return global.localStorage.getItem('crozzo_auto_hotspot_v1') === '1'; } catch (_) { return false; }
+  }
+
   async function runFallback() {
     if (__trying) return __active;
     __trying = true;
@@ -141,6 +145,7 @@
       for (var i = 0; i < CHANNELS.length; i++) {
         var ch = CHANNELS[i];
         if (ch === 'offline') { setChannel('offline'); break; }
+        if (ch === 'hotspot' && !autoHotspotEnabled()) continue;
         var ok = await tryChannel(ch);
         if (ok) { setChannel(ch); break; }
       }

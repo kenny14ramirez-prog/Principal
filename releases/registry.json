@@ -1,22 +1,6 @@
 {
-  "updatedAt": "2026-11-09T20:30:02.140Z",
+  "updatedAt": "2026-11-09T21:03:55.306Z",
   "entries": [
-    {
-      "id": "1.0.238-critical",
-      "version": "v1.0.238",
-      "semver": "1.0.238",
-      "type": "critical",
-      "message": "Fix Android build: crozzo_print cfg gate + workflow SDK",
-      "publishedAt": "2026-10-31T04:10:45.675Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix: crozzo_print module cfg gate for Android (crozzo_save_pdf_b64)",
-        "Fix: workflow Android SDK (manual sdkmanager)",
-        "Fix: devtools no disponible",
-        "Build verde Windows/macOS/Android"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.239-critical",
       "version": "v1.0.239",
@@ -347,6 +331,20 @@
       "changelog": [
         "Reporte de conexión: botón del menú de usuario funciona",
         "reporte incluye actualizaciones, canal, plataforma y estado local."
+      ]
+    },
+    {
+      "id": "1.0.288-critical",
+      "version": "v1.0.288",
+      "semver": "1.0.288",
+      "type": "critical",
+      "message": "Sin CMD parpadeante del hotspot; ping menos ruidoso; menú de usuario visible en Android.",
+      "publishedAt": "2026-11-09T21:03:55.306Z",
+      "installMode": "auto",
+      "changelog": [
+        "Sin CMD parpadeante del hotspot",
+        "ping menos ruidoso",
+        "menú de usuario visible en Android."
       ]
     }
   ]

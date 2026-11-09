@@ -129,6 +129,10 @@ async function runChannelChecks() {
   win.crozzoOnlineConfigReady = () => true;
   await win.crozzoChannelFallbackTry();
   check('Nube configurada y LAN caída: el canal pasa a cloud', win.__CROZZO_ACTIVE_CHANNEL === 'cloud', String(win.__CROZZO_ACTIVE_CHANNEL));
+  win.localStorage.removeItem('crozzo_auto_hotspot_v1');
+  win.crozzoOnlineConfigReady = () => false;
+  await win.crozzoChannelFallbackTry();
+  check('Hotspot no automático: no se salta a hotspot sin auto-hotspot', win.__CROZZO_ACTIVE_CHANNEL !== 'hotspot', String(win.__CROZZO_ACTIVE_CHANNEL));
 }
 
 function runReportChecks() {
