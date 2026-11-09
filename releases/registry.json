@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-09T12:50:15.782Z",
+  "updatedAt": "2026-11-09T13:10:09.991Z",
   "entries": [
-    {
-      "id": "1.0.222-critical",
-      "version": "v1.0.222",
-      "semver": "1.0.222",
-      "type": "critical",
-      "message": "256325",
-      "publishedAt": "2026-07-04T00:17:00.695Z",
-      "installMode": "auto",
-      "changelog": [
-        "256325"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.223-critical",
       "version": "v1.0.223",
@@ -363,6 +350,20 @@
       "changelog": [
         "Alineación de versión con GitHub",
         "sistema de actualizaciones reforzado"
+      ]
+    },
+    {
+      "id": "1.0.275-critical",
+      "version": "v1.0.275",
+      "semver": "1.0.275",
+      "type": "critical",
+      "message": "Sistema de actualizaciones reforzado (4 capas + Plan B/C + 129 tests)",
+      "publishedAt": "2026-11-09T13:10:09.991Z",
+      "installMode": "auto",
+      "changelog": [
+        "Sistema de actualizaciones reforzado (4 capas",
+        "Plan B/C",
+        "129 tests)"
       ]
     }
   ]
