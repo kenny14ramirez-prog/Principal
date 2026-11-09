@@ -1,33 +1,17 @@
 {
-  "id": "1.0.286-critical",
-  "version": "v1.0.286",
-  "semver": "1.0.286",
+  "id": "1.0.287-critical",
+  "version": "v1.0.287",
+  "semver": "1.0.287",
   "type": "critical",
-  "message": "Corrige ruido de canal nube cuando la nube no está configurada; sin eventos repetidos.",
-  "publishedAt": "2026-11-09T20:17:14.216Z",
+  "message": "Reporte de conexión: botón del menú de usuario funciona; reporte incluye actualizaciones, canal, plataforma y estado local.",
+  "publishedAt": "2026-11-09T20:30:02.140Z",
   "installMode": "auto",
   "changelog": [
-    "Corrige ruido de canal nube cuando la nube no está configurada",
-    "sin eventos repetidos."
+    "Reporte de conexión: botón del menú de usuario funciona",
+    "reporte incluye actualizaciones, canal, plataforma y estado local."
   ],
-  "updatedAt": "2026-11-09T20:17:14.216Z",
+  "updatedAt": "2026-11-09T20:30:02.140Z",
   "entries": [
-    {
-      "id": "1.0.237-critical",
-      "version": "v1.0.237",
-      "semver": "1.0.237",
-      "type": "critical",
-      "message": "Fix build Windows/macOS (devtools) + fix workflow Android SDK",
-      "publishedAt": "2026-10-31T03:59:13.134Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix: open_devtools no existe en Tauri v2",
-        "Fix: unused import CrozzoPrintResult",
-        "Fix: workflow Android SDK (setup-android -> manual sdkmanager)",
-        "Build verde Windows/macOS/Android"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.238-critical",
       "version": "v1.0.238",
@@ -361,6 +345,19 @@
       "changelog": [
         "Corrige ruido de canal nube cuando la nube no está configurada",
         "sin eventos repetidos."
+      ]
+    },
+    {
+      "id": "1.0.287-critical",
+      "version": "v1.0.287",
+      "semver": "1.0.287",
+      "type": "critical",
+      "message": "Reporte de conexión: botón del menú de usuario funciona; reporte incluye actualizaciones, canal, plataforma y estado local.",
+      "publishedAt": "2026-11-09T20:30:02.140Z",
+      "installMode": "auto",
+      "changelog": [
+        "Reporte de conexión: botón del menú de usuario funciona",
+        "reporte incluye actualizaciones, canal, plataforma y estado local."
       ]
     }
   ]

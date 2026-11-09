@@ -16,6 +16,7 @@ const files = [
   'app/infra/CrozzoChannelFallback.js',
   'app/infra/CrozzoTauriUpdater.js',
   'app/infra/CrozzoSystemUpdates.js',
+  'app/infra/CrozzoDeviceReport.js',
 ];
 
 function makeEl() {
@@ -130,8 +131,24 @@ async function runChannelChecks() {
   check('Nube configurada y LAN caída: el canal pasa a cloud', win.__CROZZO_ACTIVE_CHANNEL === 'cloud', String(win.__CROZZO_ACTIVE_CHANNEL));
 }
 
+function runReportChecks() {
+  const report = typeof win.crozzoDeviceReport === 'function' ? win.crozzoDeviceReport() : '';
+  check('Reporte de conexión: función disponible', typeof win.crozzoDeviceReport === 'function');
+  check('Reporte: incluye sección de actualizaciones', report.includes('=== ACTUALIZACIONES ==='));
+  check('Reporte: incluye canal y conexión', report.includes('=== CONEXIÓN Y CANAL ==='));
+  check('Reporte: incluye plataforma y estado local', report.includes('=== ESTADO LOCAL'));
+  check('Botón de menú: función de apertura disponible', typeof win.crozzoDeviceReportOpenFromMenu === 'function');
+  const htmlFiles = ['app/index.html', 'app/Crozzo_POS_Completo.html'];
+  for (const rel of htmlFiles) {
+    const html = readFileSync(join(root, rel), 'utf8');
+    check(rel + ': botón de reporte usa data-crozzo-act', html.includes('data-crozzo-act="crozzoDeviceReportOpenFromMenu"'));
+    check(rel + ': sin onclick try{} que el módulo CSP no puede ejecutar', !html.includes("onclick=\"try{if(typeof crozzoDeviceReportShow"));
+  }
+}
+
 async function runPlanChecks() {
   await runChannelChecks().catch((e) => check('canal de conexión sin excepción', false, e && e.message));
+  try { runReportChecks(); } catch (e) { check('reporte sin excepción', false, e && e.message); }
   win.__TAURI__ = { core: { invoke: () => Promise.resolve({}) } };
   await TU.probePlanCapabilities();
   const sel = TU.selectPlan({ platform: 'windows', targetVersion: 'v1.0.283' });

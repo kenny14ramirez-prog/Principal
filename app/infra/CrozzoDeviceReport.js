@@ -82,6 +82,53 @@
     return { info: info, issues: issues };
   }
 
+  /** Secciones de funcionamiento interno: actualizaciones, canal, capacidades, plataforma. */
+  function internalSectionsText() {
+    var out = [];
+    function safe(fn) { try { return fn(); } catch (e) { return 'error: ' + (e && e.message ? e.message : e); } }
+    out.push('');
+    out.push('=== ACTUALIZACIONES ===');
+    out.push(safe(function () {
+      return typeof G.crozzoUpdateDiagnosticReport === 'function'
+        ? G.crozzoUpdateDiagnosticReport()
+        : 'Módulo de actualizaciones no cargado';
+    }));
+    out.push('');
+    out.push('=== CONEXIÓN Y CANAL ===');
+    out.push('Canal activo: ' + (G.__CROZZO_ACTIVE_CHANNEL || 'desconocido'));
+    out.push('Tier: ' + (G.__CROZZO_TIER_LAST || 'desconocido'));
+    out.push('Navegador online: ' + (typeof navigator !== 'undefined' ? navigator.onLine : 'desconocido'));
+    out.push(safe(function () {
+      var snap = typeof G.crozzoCapabilitySnapshot === 'function' ? G.crozzoCapabilitySnapshot() : null;
+      return 'Capacidades: ' + (snap ? JSON.stringify(snap) : 'no disponible');
+    }));
+    out.push('');
+    out.push('=== PLATAFORMA ===');
+    out.push('Tauri: ' + !!(G.__TAURI__ && G.__TAURI__.core));
+    out.push('User-Agent: ' + (typeof navigator !== 'undefined' ? navigator.userAgent : 'desconocido'));
+    out.push('Pantalla: ' + (G.innerWidth || '?') + 'x' + (G.innerHeight || '?') + ' · DPR ' + (G.devicePixelRatio || 1));
+    out.push('Versión app (meta): ' + safe(function () {
+      var m = document.querySelector('meta[name="crozzo-app-version"]');
+      return m ? m.getAttribute('content') : 'sin meta';
+    }));
+    out.push('Build stamp (meta): ' + safe(function () {
+      var m = document.querySelector('meta[name="crozzo-build-stamp"]');
+      return m ? m.getAttribute('content') : 'sin meta';
+    }));
+    out.push('');
+    out.push('=== ESTADO LOCAL (claves crozzo_*) ===');
+    out.push(safe(function () {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('crozzo_') === 0) keys.push(k);
+      }
+      keys.sort();
+      return keys.length + ' claves: ' + keys.join(', ');
+    }));
+    return out.join('\n');
+  }
+
   function buildTextReport() {
     var s = getSummary();
     var diag = getDiagnostics();
@@ -123,10 +170,21 @@
       var l = logs[i];
       lines.push('[' + l.t + '] [' + l.type.toUpperCase() + '] ' + l.msg + (l.data ? ' | ' + JSON.stringify(l.data) : ''));
     }
+    lines.push(internalSectionsText());
     lines.push('');
     lines.push('=== FIN DEL REPORTE ===');
     return lines.join('\n');
   }
+
+  /** Abre el reporte desde el menú de usuario y cierra el desplegable. */
+  function openFromUserMenu() {
+    try {
+      var dd = document.getElementById('userMenuDropdown');
+      if (dd) dd.setAttribute('aria-hidden', 'true');
+    } catch (_) {}
+    showMenu();
+  }
+  G.crozzoDeviceReportOpenFromMenu = openFromUserMenu;
 
   function downloadReport() {
     try {
@@ -331,6 +389,7 @@
         if (typeof origBuild === 'function') {
           G.CrozzoFieldDiagnostic.buildFullTextReport = function() {
             var text = origBuild();
+            try { text = text + '\n' + internalSectionsText(); } catch (_) {}
             // Añadir métricas si CrozzoPerformanceMetrics está disponible
             try {
               if (G.CrozzoPerformanceMetrics && typeof G.CrozzoPerformanceMetrics.buildMetricsText === 'function') {
