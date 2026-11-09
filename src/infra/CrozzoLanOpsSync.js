@@ -385,7 +385,9 @@
 
   function comandaPollMs() {
     var base = Math.max(COMANDA_POLL_FAST_MS, Math.min(COMANDA_POLL_MS, pagePollMs(COMANDA_POLL_MS)));
-    return Math.min(4800, Math.floor(base * fleetScalePollFactor()));
+    // Jitter anti-estampida: evita que todos los dispositivos sincronicen al mismo tiempo.
+    var jitter = 0.9 + Math.random() * 0.2;
+    return Math.min(4800, Math.floor(base * fleetScalePollFactor() * jitter));
   }
 
   /** Digest local anti-entropy (count + maxAt + hash ids) — patrón Pouch sin CRDT. */
@@ -397,8 +399,11 @@
       var c = list[i];
       if (!c || c.id == null) continue;
       if (String(c.estado || '') === 'entregada') continue;
+      var estado = String(c.estado || '');
       var key = String(c.transaction_id || c.id);
-      ids.push(key);
+      /* Incluir estado en el hash: antes el digest era ciego a cambios de
+         estado (misma id/count => mismo hash) y no detectaba actualizaciones. */
+      ids.push(key + ':' + estado);
       var t = Date.parse(c.lastUpdateAt || c.createdAt || 0) || 0;
       if (t > maxAt) maxAt = t;
     }

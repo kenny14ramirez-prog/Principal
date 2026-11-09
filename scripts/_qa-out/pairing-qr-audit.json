@@ -1,0 +1,66 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "id": "file:app/core/CrozzoPairingSeal.js",
+      "ok": true,
+      "detail": "presente"
+    },
+    {
+      "id": "file:app/modules/CrozzoPairingQrReader.js",
+      "ok": true,
+      "detail": "presente"
+    },
+    {
+      "id": "file:app/vendor/CrozzoJsQR.js",
+      "ok": true,
+      "detail": "presente"
+    },
+    {
+      "id": "file:app/vendor/CrozzoQRCode.js",
+      "ok": true,
+      "detail": "presente"
+    },
+    {
+      "id": "html-order",
+      "ok": true,
+      "detail": "jsQR → Seal → Reader → PosMain"
+    },
+    {
+      "id": "html-defer-jsqr",
+      "ok": true,
+      "detail": "jsQR sin defer"
+    },
+    {
+      "id": "emitter-single-qr",
+      "ok": true,
+      "detail": "caja usa QR único BOF"
+    },
+    {
+      "id": "reader-delegate",
+      "ok": true,
+      "detail": "decode delega en CrozzoPairingQrReader"
+    },
+    {
+      "id": "bof-build",
+      "ok": true,
+      "detail": "BOF generado (526 chars)"
+    },
+    {
+      "id": "bof-parse",
+      "ok": true,
+      "detail": "IP=192.168.1.50 puerto=3000"
+    },
+    {
+      "id": "bof-unseal",
+      "ok": true,
+      "detail": "unsealFromQr acepta BOF"
+    },
+    {
+      "id": "reader-api",
+      "ok": true,
+      "detail": "ensureReady, readFile, readCanvas, startLive, stopLive, preferNativeCamera"
+    }
+  ],
+  "failures": []
+}

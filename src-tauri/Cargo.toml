@@ -20,6 +20,10 @@ tauri-build = { version = "2", features = [] }
 [dev-dependencies]
 proptest = "1.12"
 
+[features]
+default = ["ble-btleplug"]
+ble-btleplug = ["dep:btleplug"]
+
 [dependencies]
 tauri = { version = "2.12", features = ["devtools"] }
 http = "1"
@@ -64,7 +68,7 @@ opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 opentelemetry-otlp = "0.27"
 tracing-opentelemetry = "0.28"
 futures-util = "0.3"
-
+btleplug = { version = "0.11", optional = true }
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
 windows = { version = "0.62", features = [

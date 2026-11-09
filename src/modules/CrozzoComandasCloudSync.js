@@ -418,9 +418,12 @@
   }
 
   var OUTBOX_LS_KEY = 'crozzo_comanda_outbox_v1';
+  var OUTBOX_SEQ_KEY = 'crozzo_comanda_outbox_seq_v1';
   var __outbox = {};
   var __outboxTimer = null;
   var __outboxLoaded = false;
+  var __outboxSeq = 0;
+  try { __outboxSeq = Number(global.localStorage.getItem(OUTBOX_SEQ_KEY) || 0) || 0; } catch (_) { __outboxSeq = 0; }
   var OUTBOX_BASE_MS = 2500;
   var OUTBOX_MAX_MS = 30000;
   var OUTBOX_MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -453,6 +456,8 @@
           firstAt: Number(e.firstAt) || Date.now(),
           nextAt: 0,
           lastErr: '',
+          /* Consecutivo idempotente: permite dedup en el servidor/cloud. */
+          consecutivo: Number(e.consecutivo) || 0,
         };
       });
     } catch (_) {}
@@ -470,6 +475,7 @@
           payload: e.payload || null,
           attempts: e.attempts,
           firstAt: e.firstAt,
+          consecutivo: e.consecutivo || 0,
         };
       });
       if (arr.length) global.localStorage.setItem(OUTBOX_LS_KEY, JSON.stringify(arr));
@@ -496,6 +502,9 @@
     } catch (_) {
       snap = null;
     }
+    /* Consecutivo idempotente: se conserva si ya existia, si no se asigna uno nuevo. */
+    var consecutivo = existing && existing.consecutivo ? existing.consecutivo : (++__outboxSeq);
+    try { global.localStorage.setItem(OUTBOX_SEQ_KEY, String(__outboxSeq)); } catch (_) {}
     __outbox[k] = {
       id: comanda.id,
       tid: String(comanda.transaction_id || ''),
@@ -506,6 +515,7 @@
       firstAt: existing ? existing.firstAt : Date.now(),
       nextAt: 0,
       lastErr: existing ? existing.lastErr : '',
+      consecutivo: consecutivo,
     };
     persistOutbox();
     if (tierAllowsCloudPush()) scheduleOutboxDrain(600);
@@ -581,6 +591,7 @@
         }
         if (e.nextAt && e.nextAt > now) continue;
         var c = outboxFindComanda(e);
+        if (c) { try { c._outboxConsecutivo = e.consecutivo; } catch (_) {} }
         if (!c) {
           /* Solo dropear si no hay snapshot entregada; si hay, reintentar luego. */
           if (String(e.estado || '') === 'entregada' && e.payload) {
@@ -854,6 +865,9 @@
     payload._cloudOriginDevice = ctx.deviceId;
     payload._cloudDeviceUuid = ctx.deviceUuid;
     payload._cloudSyncedAt = new Date().toISOString();
+    var consecutivo = (comanda && comanda._outboxConsecutivo) ? comanda._outboxConsecutivo : 0;
+    if (!consecutivo) { try { consecutivo = ++__outboxSeq; global.localStorage.setItem(OUTBOX_SEQ_KEY, String(__outboxSeq)); } catch (_) {} }
+    payload.consecutivo = consecutivo;
     var body = {
       id: rowId,
       device_id: ctx.deviceUuid || null,
@@ -862,6 +876,9 @@
       status: estado,
       payload: payload,
       updated_at: payload.lastUpdateAt || payload._cloudSyncedAt,
+      /* Clave idempotente para evitar duplicados en reintentos. */
+      consecutivo: consecutivo,
+      idempotency_key: String(ctx.deviceId || '') + ':' + String(consecutivo),
     };
     markPushEcho(comanda, rowId);
     if (comanda.transaction_id) markComandaTid(comanda.transaction_id, 'cloud_push');
@@ -914,6 +931,12 @@
       if (!c) return;
       outboxEnqueue(c);
       if (lanExtra) pushComandaLan(c).catch(function () {});
+      // WebRTC P2P baja latencia (fallback HTTP/WS si no hay canal).
+      try {
+        if (typeof global.crozzoP2PSend === 'function') {
+          global.crozzoP2PSend({ type: 'comanda', data: fullComandaLanPayload(c) });
+        }
+      } catch (_) {}
     });
     if (outboxPending() && (tierAllowsCloudPush() || lanExtra)) scheduleOutboxDrain(lanExtra ? 600 : 1200);
   }
@@ -977,6 +1000,19 @@
       try {
         if (global.CrozzoLanWebSocketBridge && typeof global.CrozzoLanWebSocketBridge.notifyEstado === 'function') {
           global.CrozzoLanWebSocketBridge.notifyEstado(comanda, est);
+        }
+      } catch (_) {}
+      try {
+        if (typeof global.crozzoP2PSend === 'function') {
+          global.crozzoP2PSend({
+            type: 'comanda_estado',
+            data: {
+              id: comanda.id,
+              transaction_id: comanda.transaction_id,
+              estado: est,
+              lastUpdateAt: comanda.lastUpdateAt || new Date().toISOString(),
+            },
+          });
         }
       } catch (_) {}
       try {

@@ -1,0 +1,97 @@
+{
+  "at": "2026-11-09T11:32:57.434Z",
+  "phases": {
+    "browser": [],
+    "httpStorm": [
+      {
+        "id": "HTTP-STORM-2",
+        "devices": 2,
+        "tablets": 1,
+        "ok": true,
+        "detail": {
+          "elapsedMs": 34,
+          "tablets": 1,
+          "okComandas": 1,
+          "okRuntime": 1,
+          "comandasEnCaja": 1,
+          "dedupWorked": true,
+          "serverStats": {
+            "posts": 4,
+            "deduped": 1,
+            "comandasUpserted": 1,
+            "estados": 0,
+            "runtimes": 1,
+            "errors": 0
+          }
+        }
+      },
+      {
+        "id": "HTTP-STORM-10",
+        "devices": 10,
+        "tablets": 9,
+        "ok": true,
+        "detail": {
+          "elapsedMs": 27,
+          "tablets": 9,
+          "okComandas": 9,
+          "okRuntime": 9,
+          "comandasEnCaja": 9,
+          "dedupWorked": true,
+          "serverStats": {
+            "posts": 21,
+            "deduped": 1,
+            "comandasUpserted": 9,
+            "estados": 0,
+            "runtimes": 9,
+            "errors": 0
+          }
+        }
+      },
+      {
+        "id": "HTTP-STORM-50",
+        "devices": 50,
+        "tablets": 49,
+        "ok": true,
+        "detail": {
+          "elapsedMs": 93,
+          "tablets": 49,
+          "okComandas": 49,
+          "okRuntime": 49,
+          "comandasEnCaja": 49,
+          "dedupWorked": true,
+          "serverStats": {
+            "posts": 106,
+            "deduped": 1,
+            "comandasUpserted": 49,
+            "estados": 0,
+            "runtimes": 49,
+            "errors": 0
+          }
+        }
+      },
+      {
+        "id": "HTTP-STORM-100",
+        "devices": 100,
+        "tablets": 99,
+        "ok": true,
+        "detail": {
+          "elapsedMs": 151,
+          "tablets": 99,
+          "okComandas": 99,
+          "okRuntime": 99,
+          "comandasEnCaja": 99,
+          "dedupWorked": true,
+          "serverStats": {
+            "posts": 214,
+            "deduped": 1,
+            "comandasUpserted": 99,
+            "estados": 0,
+            "runtimes": 99,
+            "errors": 0
+          }
+        }
+      }
+    ]
+  },
+  "ok": true
+}

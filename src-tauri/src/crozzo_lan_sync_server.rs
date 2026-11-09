@@ -1,4 +1,4 @@
-﻿//! Servidor HTTP LAN para sincronización multidispositivo (Rol A / caja Windows).
+//! Servidor HTTP LAN para sincronización multidispositivo (Rol A / caja Windows).
 //! Expone GET /health, GET /status y POST /api/{sync,orders,sales,invoices}.
 
 use crate::crozzo_lan_ws;
@@ -17,7 +17,7 @@ use tokio::sync::{Mutex as AsyncMutex, Semaphore};
 const DEFAULT_PORT: u16 = 3000;
 /// Cabecera con la que las tablets (Rol B) firman las peticiones de escritura.
 const LAN_AUTH_HEADER: &str = "x-crozzo-lan-token";
-/// Cabeceras permitidas en preflight CORS (tablets + webview Tauri → :3000).
+/// Cabeceras permitidas en preflight CORS (tablets + webview Tauri ? :3000).
 const CORS_ALLOW_HEADERS: &str =
     "Content-Type, Accept, x-crozzo-lan-token, X-Crozzo-Lan-Token";
 /// Origen CORS permitido (F2.1). Override con CROZZO_LAN_CORS_ORIGIN.
@@ -38,7 +38,7 @@ const COMANDAS_ACTIVE_MAX: usize = 800;
 const COMANDAS_PURGE_SOFT: usize = (COMANDAS_ACTIVE_MAX * 9) / 10;
 /// Rate limiting para consultas RUT: 1 consulta cada 6 segundos por IP
 const RUT_RATE_LIMIT_MS: u128 = 6_000;
-/// Tope de handlers HTTP concurrentes (techo diseño ~100 dispositivos: evita avalancha accept→spawn).
+/// Tope de handlers HTTP concurrentes (techo diseño ~100 dispositivos: evita avalancha accept?spawn).
 /// Tope de handlers HTTP concurrentes (configurable por env CROZZO_LAN_MAX_HTTP; default 64).
 const MAX_CONCURRENT_HTTP: usize = 64;
 
@@ -128,11 +128,11 @@ pub struct ServerInner {
     cloud_reachable: bool,
     cloud_reachable_at_ms: u128,
     pending: Vec<CrozzoLanSyncSubmission>,
-    /// id → instante (ms) en que se entregó al JS; espera ACK antes de reintentar.
+    /// id ? instante (ms) en que se entregó al JS; espera ACK antes de reintentar.
     in_flight: HashMap<String, u128>,
     runtime_snapshot: Option<serde_json::Value>,
     runtime_saved_at: String,
-    /// Comandas activas en LAN (id → payload) para GET /api/comandas.
+    /// Comandas activas en LAN (id ? payload) para GET /api/comandas.
     comandas_active: HashMap<String, serde_json::Value>,
     /// action_id/uuid ya ingeridos — evita re-broadcast infinito P2P.
     seen_actions: HashMap<String, u128>,
@@ -141,7 +141,7 @@ pub struct ServerInner {
     auth_token: String,
     /// Archivo donde se persiste `pending` (sobrevive reinicios).
     pending_path: Option<PathBuf>,
-    /// Rate limiting para consultas RUT: IP → último timestamp de consulta
+    /// Rate limiting para consultas RUT: IP ? último timestamp de consulta
     rut_rate_limit: HashMap<String, u128>,
     stop: bool,
     /// Persistencia robusta (SQLite + HLC). Fase 2.3.
@@ -242,7 +242,8 @@ pub fn ops_digest_from_comandas(rows: &[serde_json::Value], runtime_saved_at: &s
         if key.is_empty() || key == "null" {
             continue;
         }
-        ids.push(key);
+        /* Incluir estado en el hash (alineado con JS): detecta cambios de estado. */
+        ids.push(format!("{}:{}", key, estado));
         let at_ms = row
             .get("lastUpdateAt")
             .or_else(|| row.get("createdAt"))
@@ -359,7 +360,7 @@ fn save_pending(path: &Option<PathBuf>, pending: &[CrozzoLanSyncSubmission]) {
 }
 
 async fn write_http_response(
-    stream: &mut TcpStream,
+    stream: &mut LanStream,
     status: u16,
     status_text: &str,
     content_type: &str,
@@ -694,7 +695,7 @@ fn generate_mock_empresa_data(nit: &str) -> EmpresaData {
 
 /// Maneja la consulta RUT con validación y rate limiting
 async fn handle_consultar_rut(
-    stream: &mut TcpStream,
+    stream: &mut LanStream,
     body: &str,
     client_ip: &str,
     state: &Arc<Mutex<Option<ServerInner>>>,
@@ -789,7 +790,7 @@ async fn handle_consultar_rut(
 }
 
 /// Aplica POST /api/sync en memoria (cola + WS). Usado por HTTP y por invoke IPC
-/// de la caja (evita CORS tauri.localhost → 127.0.0.1).
+/// de la caja (evita CORS tauri.localhost ? 127.0.0.1).
 pub fn ingest_api_sync(
     state: &Arc<Mutex<Option<ServerInner>>>,
     payload: serde_json::Value,
@@ -906,21 +907,147 @@ pub fn ingest_api_sync(
     Ok(serde_json::json!({ "ok": true, "id": sub.id, "durable": true, "action_id": extract_action_id(&payload) }))
 }
 
+/// Stream unificado (plano o TLS) para que el resto del handler sea agnóstico.
+/// La detección TLS se hace por el primer byte (0x16 = TLS handshake).
+enum LanStream {
+    Plain(TcpStream),
+    Tls(tokio_rustls::server::TlsStream<TcpStream>),
+}
+
+impl tokio::io::AsyncRead for LanStream {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            LanStream::Plain(s) => std::pin::Pin::new(s).poll_read(cx, buf),
+            LanStream::Tls(s) => std::pin::Pin::new(s).poll_read(cx, buf),
+        }
+    }
+}
+
+impl tokio::io::AsyncWrite for LanStream {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        match self.get_mut() {
+            LanStream::Plain(s) => std::pin::Pin::new(s).poll_write(cx, buf),
+            LanStream::Tls(s) => std::pin::Pin::new(s).poll_write(cx, buf),
+        }
+    }
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            LanStream::Plain(s) => std::pin::Pin::new(s).poll_flush(cx),
+            LanStream::Tls(s) => std::pin::Pin::new(s).poll_flush(cx),
+        }
+    }
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            LanStream::Plain(s) => std::pin::Pin::new(s).poll_shutdown(cx),
+            LanStream::Tls(s) => std::pin::Pin::new(s).poll_shutdown(cx),
+        }
+    }
+}
+
 async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<ServerInner>>>) {
-    // Obtener la IP del cliente para rate limiting
+    // Obtener la IP del cliente para rate limiting (antes del handshake TLS).
     let client_ip = match stream.peer_addr() {
         Ok(addr) => addr.ip().to_string(),
         Err(_) => "unknown".to_string(),
     };
 
-    // Establecer timeout para la lectura
-    let mut buf = vec![0u8; 65536];
-    let n = match tokio::time::timeout(Duration::from_secs(8), stream.read(&mut buf)).await {
-        Ok(Ok(0)) | Ok(Err(_)) | Err(_) => return,
-        Ok(Ok(n)) => n,
+    // Detectar TLS: peek del primer byte (0x16 = TLS handshake record).
+    let mut peek_buf = [0u8; 1];
+    let is_tls = match stream.peek(&mut peek_buf).await {
+        Ok(1) => peek_buf[0] == 0x16,
+        _ => false,
     };
-    let raw_text = String::from_utf8_lossy(&buf[..n]).to_string();
-    let (method, path, body) = match parse_request(&buf[..n]) {
+    // Si es TLS, hacer handshake con tokio-rustls antes de leer HTTP.
+    let mut stream = if is_tls {
+        let acceptor = match crate::crozzo_tls::tls_acceptor() {
+            Ok(a) => a,
+            Err(_) => return,
+        };
+        match acceptor.accept(stream).await {
+            Ok(tls) => LanStream::Tls(tls),
+            Err(_) => return,
+        }
+    } else {
+        LanStream::Plain(stream)
+    };
+    // Lectura completa del request (cabeceras + body segun Content-Length).
+    // Antes se hacia una sola lectura de 64KB, truncando bodies grandes o
+    // partidos en varios paquetes TCP.
+    let mut buf: Vec<u8> = Vec::with_capacity(8192);
+    let mut tmp = [0u8; 8192];
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(8);
+    // 1) Leer hasta tener las cabeceras completas.
+    loop {
+        if buf.windows(4).any(|w| w == b"\\r\\n\\r\\n") {
+            break;
+        }
+        if buf.len() > 1_048_576 {
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            if buf.is_empty() {
+                return;
+            }
+            break;
+        }
+        match tokio::time::timeout(Duration::from_millis(200), stream.read(&mut tmp)).await {
+            Ok(Ok(0)) => break,
+            Ok(Ok(n)) => buf.extend_from_slice(&tmp[..n]),
+            Ok(Err(_)) => return,
+            Err(_) => {
+                if buf.is_empty() {
+                    return;
+                }
+                break;
+            }
+        }
+    }
+    let header_end = match buf.windows(4).position(|w| w == b"\\r\\n\\r\\n") {
+        Some(i) => i + 4,
+        None => return,
+    };
+    // 2) Content-Length para saber cuantos bytes de body leer.
+    let headers_str = String::from_utf8_lossy(&buf[..header_end]);
+    let mut content_length: usize = 0;
+    for line in headers_str.split("\\r\\n") {
+        let lower = line.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("content-length:") {
+            content_length = rest.trim().parse().unwrap_or(0);
+            break;
+        }
+    }
+    if content_length > 2_097_152 {
+        return;
+    }
+    let total_needed = header_end + content_length;
+    // 3) Leer el resto del body hasta completar Content-Length.
+    while buf.len() < total_needed {
+        if tokio::time::Instant::now() >= deadline {
+            break;
+        }
+        match tokio::time::timeout(Duration::from_millis(200), stream.read(&mut tmp)).await {
+            Ok(Ok(0)) => break,
+            Ok(Ok(n)) => buf.extend_from_slice(&tmp[..n]),
+            Ok(Err(_)) => break,
+            Err(_) => break,
+        }
+    }
+    let raw_text = String::from_utf8_lossy(&buf).to_string();
+    let (method, path, body) = match parse_request(&buf) {
         Some(v) => v,
         None => return,
     };
@@ -1099,7 +1226,19 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
             let _ = write_http_response(&mut stream, 401, "Unauthorized", "application/json", b"{\"ok\":false,\"error\":\"unauthorized\"}").await;
             return;
         }
-        let (rows, runtime_saved): (Vec<serde_json::Value>, String) = {
+        // Parametro opcional ?since=<ms> para sync incremental.
+        let mut since_ms: i64 = 0;
+        if let Some(q) = path.split('?').nth(1) {
+            for pair in q.split('&') {
+                let mut kv = pair.splitn(2, '=');
+                let k = kv.next().unwrap_or("");
+                let v = kv.next().unwrap_or("");
+                if k == "since" {
+                    since_ms = v.parse::<i64>().unwrap_or(0);
+                }
+            }
+        }
+        let (rows_all, runtime_saved): (Vec<serde_json::Value>, String) = {
             let guard = state.lock().unwrap();
             match guard.as_ref() {
                 Some(inner) => (
@@ -1109,13 +1248,25 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
                 None => (Vec::new(), String::new()),
             }
         };
+        let rows: Vec<serde_json::Value> = if since_ms > 0 {
+            rows_all
+                .into_iter()
+                .filter(|r| {
+                    let at = comanda_row_at_ms(r);
+                    at == 0 || at > since_ms
+                })
+                .collect()
+        } else {
+            rows_all
+        };
         let digest = ops_digest_from_comandas(&rows, &runtime_saved);
         let resp = serde_json::json!({
             "ok": true,
             "comandas": rows,
             "count": rows.len(),
             "saved_at": runtime_saved.clone(),
-            "digest": digest
+            "digest": digest,
+            "since": since_ms
         });
         let bytes = serde_json::to_vec(&resp).unwrap_or_else(|_| b"{\"ok\":true,\"comandas\":[]}".to_vec());
         let _ = write_http_response(&mut stream, 200, "OK", "application/json", &bytes).await;
@@ -1318,7 +1469,7 @@ pub async fn crozzo_lan_sync_start(
 ) -> Result<CrozzoLanSyncStatus, String> {
     let port = port.unwrap_or(DEFAULT_PORT);
     if port < 1024 {
-        return Err("Puerto inválido (use ≥ 1024)".into());
+        return Err("Puerto inválido (use = 1024)".into());
     }
     let auth_token = auth_token.unwrap_or_default().trim().to_string();
     if auth_token.is_empty() {
@@ -1500,12 +1651,7 @@ fn crozzo_lan_sync_stop_inner() -> Result<CrozzoLanSyncStatus, String> {
 
 #[tauri::command]
 pub fn crozzo_lan_sync_stop() -> Result<CrozzoLanSyncStatus, String> {
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return handle.block_on(async {
-            let _lifecycle = lifecycle_lock().lock().await;
-            crozzo_lan_sync_stop_inner()
-        });
-    }
+    // Sin block_on: evita panic "Cannot start a runtime from within a runtime".
     crozzo_lan_sync_stop_inner()
 }
 

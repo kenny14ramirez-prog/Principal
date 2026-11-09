@@ -31,6 +31,9 @@
     "allow-crozzo-wifi-direct",
     "allow-crozzo-webview-camera",
     "allow-crozzo-devtools",
-    "updater:default"
+    "updater:default",
+    "allow-crozzo-hotspot",
+    "allow-crozzo-tls",
+    "allow-crozzo-ble"
   ]
 }

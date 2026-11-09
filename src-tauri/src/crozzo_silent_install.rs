@@ -4,6 +4,19 @@ const MIN_INSTALLER_BYTES: usize = 400 * 1024;
 // (poda F11-T03: MIN_DMG_BYTES eliminada — constante no referenciada)
 const DOWNLOAD_RETRIES: u32 = 3;
 
+const ALLOWED_HOSTS: &[&str] = &[
+    "raw.githubusercontent.com",
+    "github.com",
+    "api.github.com",
+];
+
+fn is_allowed_host(url: &str) -> bool {
+    let without_scheme = url.strip_prefix("https://").unwrap_or(url);
+    let host = without_scheme.split('/').next().unwrap_or("");
+    let host = host.split(':').next().unwrap_or(host);
+    ALLOWED_HOSTS.contains(&host)
+}
+
 fn http_client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(300))
@@ -79,6 +92,10 @@ pub fn install_setup_from_url(url: String) -> Result<(), String> {
     if url.is_empty() || !url.starts_with("https://") {
         return Err("URL de instalador inválida".into());
     }
+    // SECURITY: allowlist de hosts
+    if !is_allowed_host(url) {
+        return Err("Host no permitido para instalación".into());
+    }
 
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -152,6 +169,9 @@ pub fn install_dmg_from_url(url: String) -> Result<(), String> {
     let url = url.trim();
     if url.is_empty() || !url.starts_with("https://") {
         return Err("URL de DMG inválida".into());
+    }
+    if !is_allowed_host(url) {
+        return Err("Host no permitido para instalación".into());
     }
 
     #[cfg(not(target_os = "macos"))]

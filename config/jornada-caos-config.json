@@ -1,0 +1,11 @@
+{
+  "name": "Jornada Caos",
+  "durationMin": 30,
+  "agents": ["cajero", "cocina", "mesero"],
+  "chaos": {
+    "offlineEveryMin": 5,
+    "latencyMs": 800,
+    "packetLossPct": 5
+  },
+  "scenarios": ["login", "venta-directa", "mesa", "comanda", "cobro"]
+}

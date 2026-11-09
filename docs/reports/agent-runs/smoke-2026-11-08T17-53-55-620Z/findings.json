@@ -1,0 +1,396 @@
+{
+  "runId": "smoke-2026-11-08T17-53-55-620Z",
+  "preset": "smoke",
+  "agents": [
+    "cajero"
+  ],
+  "url": "http://localhost:1420",
+  "startedAt": "2026-11-08T17:53:55.621Z",
+  "steps": [
+    {
+      "ts": "2026-11-08T17:53:57.679Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 1,
+      "phase": "F0-PREVUELO",
+      "intent": "Cargar aplicación",
+      "action": "navigate",
+      "expected": "App carga sin pantalla en blanco",
+      "actual": "EXCEPTION: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:1420/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:1420/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "verdict": "FAIL",
+      "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:1420/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:1420/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "screenshot": "step-001-Cargar-aplicaci-n.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [
+        {
+          "url": "http://localhost:1420/",
+          "method": "GET",
+          "failure": "net::ERR_CONNECTION_REFUSED"
+        }
+      ],
+      "stateBefore": {
+        "title": "",
+        "url": "about:blank",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": []
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:53:57.795Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 2,
+      "phase": "F1-LOGIN",
+      "intent": "Detectar y usar login",
+      "action": "click",
+      "expected": "Entra al POS",
+      "actual": "sin botón login (quizá ya logueado)",
+      "verdict": "PASS",
+      "error": null,
+      "screenshot": "step-002-Detectar-y-usar-login.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:53:57.847Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 3,
+      "phase": "F2-APERTURA",
+      "intent": "Abrir caja si se requiere",
+      "action": "click",
+      "expected": "Caja abierta o ya abierta",
+      "actual": "no requiere apertura",
+      "verdict": "PASS",
+      "error": null,
+      "screenshot": "step-003-Abrir-caja-si-se-requiere.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:00.899Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 4,
+      "phase": "F3-NAV",
+      "intent": "Navegar a POS/mesas",
+      "action": "click",
+      "expected": "Vista POS visible",
+      "actual": "navegado",
+      "verdict": "WARN",
+      "error": null,
+      "screenshot": "step-004-Navegar-a-POS-mesas.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [
+        {
+          "url": "http://localhost:1420/",
+          "method": "GET",
+          "failure": "net::ERR_CONNECTION_REFUSED"
+        }
+      ],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:00.944Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 5,
+      "phase": "F4-VENTA",
+      "intent": "Tomar una mesa/producto",
+      "action": "click",
+      "expected": "Mesa/producto seleccionado",
+      "actual": "sin mesa/producto detectado",
+      "verdict": "PASS",
+      "error": null,
+      "screenshot": "step-005-Tomar-una-mesa-producto.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:00.991Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 6,
+      "phase": "F5-COMANDA",
+      "intent": "Enviar/comandar",
+      "action": "click",
+      "expected": "Comanda enviada",
+      "actual": "sin botón comandar",
+      "verdict": "PASS",
+      "error": null,
+      "screenshot": "step-006-Enviar-comandar.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:01.042Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 7,
+      "phase": "F6-COBRO",
+      "intent": "Cobrar venta",
+      "action": "click",
+      "expected": "Cobro confirmado",
+      "actual": "sin botón cobrar",
+      "verdict": "PASS",
+      "error": null,
+      "screenshot": "step-007-Cobrar-venta.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:01.853Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 8,
+      "phase": "F7-FACTURACION",
+      "intent": "Intentar facturación (cliente + factura + UBL/CUFE)",
+      "action": "click",
+      "expected": "Panel cliente/factura o CUFE",
+      "actual": "EXCEPTION: page.waitForTimeout: Target page, context or browser has been closed",
+      "verdict": "FAIL",
+      "error": "page.waitForTimeout: Target page, context or browser has been closed",
+      "screenshot": "step-008-Intentar-facturaci-n--cliente---factura---UBL-CUFE-.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "title": "localhost",
+        "url": "chrome-error://chromewebdata/",
+        "globals": [],
+        "localStorage": {},
+        "visibleButtons": [
+          "Volver a cargar",
+          "Detalles"
+        ]
+      },
+      "stateAfter": {
+        "error": "page.evaluate: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:01.855Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 9,
+      "phase": "F8-IMPRESION",
+      "intent": "Intentar imprimir comanda/cuenta",
+      "action": "click",
+      "expected": "Impresión o mensaje de no impresora",
+      "actual": "EXCEPTION: locator.count: Target page, context or browser has been closed",
+      "verdict": "FAIL",
+      "error": "locator.count: Target page, context or browser has been closed",
+      "screenshot": "step-009-Intentar-imprimir-comanda-cuenta.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "error": "page.evaluate: Target page, context or browser has been closed"
+      },
+      "stateAfter": {
+        "error": "page.evaluate: Target page, context or browser has been closed"
+      }
+    },
+    {
+      "ts": "2026-11-08T17:54:01.857Z",
+      "runId": "smoke-2026-11-08T17-53-55-620Z",
+      "step": 10,
+      "phase": "F9-CIERRE",
+      "intent": "Buscar cierre de caja",
+      "action": "click",
+      "expected": "Pantalla de cierre",
+      "actual": "EXCEPTION: locator.count: Target page, context or browser has been closed",
+      "verdict": "FAIL",
+      "error": "locator.count: Target page, context or browser has been closed",
+      "screenshot": "step-010-Buscar-cierre-de-caja.png",
+      "consoleErrorsNew": [],
+      "networkFailuresNew": [],
+      "stateBefore": {
+        "error": "page.evaluate: Target page, context or browser has been closed"
+      },
+      "stateAfter": {
+        "error": "page.evaluate: Target page, context or browser has been closed"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "phase": "F0-PREVUELO",
+      "severity": "P0",
+      "issue": "Cargar aplicación falló",
+      "detail": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:1420/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:1420/\", waiting until \"domcontentloaded\"\u001b[22m\n",
+      "time": "2026-11-08T17:53:57.049Z",
+      "step": 1
+    },
+    {
+      "phase": "F7-FACTURACION",
+      "severity": "P0",
+      "issue": "Intentar facturación (cliente + factura + UBL/CUFE) falló",
+      "detail": "page.waitForTimeout: Target page, context or browser has been closed",
+      "time": "2026-11-08T17:54:01.852Z",
+      "step": 8
+    },
+    {
+      "phase": "F8-IMPRESION",
+      "severity": "P0",
+      "issue": "Intentar imprimir comanda/cuenta falló",
+      "detail": "locator.count: Target page, context or browser has been closed",
+      "time": "2026-11-08T17:54:01.854Z",
+      "step": 9
+    },
+    {
+      "phase": "F9-CIERRE",
+      "severity": "P0",
+      "issue": "Buscar cierre de caja falló",
+      "detail": "locator.count: Target page, context or browser has been closed",
+      "time": "2026-11-08T17:54:01.856Z",
+      "step": 10
+    }
+  ],
+  "consoleErrors": [],
+  "networkFailures": [
+    {
+      "url": "http://localhost:1420/",
+      "method": "GET",
+      "failure": "net::ERR_CONNECTION_REFUSED",
+      "time": "2026-11-08T17:53:57.042Z",
+      "benign": true
+    },
+    {
+      "url": "http://localhost:1420/",
+      "method": "GET",
+      "failure": "net::ERR_CONNECTION_REFUSED",
+      "time": "2026-11-08T17:53:58.067Z",
+      "benign": true
+    }
+  ],
+  "screenshots": [
+    "step-001-Cargar-aplicaci-n.png",
+    "step-002-Detectar-y-usar-login.png",
+    "step-003-Abrir-caja-si-se-requiere.png",
+    "step-004-Navegar-a-POS-mesas.png",
+    "step-005-Tomar-una-mesa-producto.png",
+    "step-006-Enviar-comandar.png",
+    "step-007-Cobrar-venta.png"
+  ],
+  "finishedAt": "2026-11-08T17:54:01.999Z"
+}

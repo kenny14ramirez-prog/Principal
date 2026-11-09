@@ -1,0 +1,19 @@
+{
+  "name": "Crozzo QA Factory",
+  "version": "1.0.0",
+  "roles": [
+    { "id": "ceo", "name": "CEO QA", "enabled": true },
+    { "id": "cajero", "name": "Cajero Humano", "enabled": true },
+    { "id": "cocina", "name": "Cocina", "enabled": true },
+    { "id": "mesero", "name": "Mesero", "enabled": true },
+    { "id": "admin", "name": "Administrador", "enabled": true }
+  ],
+  "presets": {
+    "smoke": { "durationMin": 5, "agents": ["cajero"] },
+    "8dias": { "durationMin": 10, "agents": ["cajero", "cocina", "mesero"] },
+    "mensual": { "durationMin": 20, "agents": ["cajero", "cocina", "mesero", "admin"] },
+    "anual": { "durationMin": 30, "agents": ["cajero", "cocina", "mesero", "admin"] },
+    "bienal": { "durationMin": 45, "agents": ["cajero", "cocina", "mesero", "admin"] },
+    "real": { "durationMin": 60, "agents": ["cajero", "cocina", "mesero", "admin"] }
+  }
+}

@@ -3,7 +3,21 @@
 use serde::Serialize;
 use std::time::Duration;
 
+const ALLOWED_HOSTS: &[&str] = &[
+    "raw.githubusercontent.com",
+    "github.com",
+    "api.github.com",
+];
+
 const NVIDIA_CHAT_URL: &str = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+fn is_allowed_host(url: &str) -> bool {
+    // Parse host from URL
+    let without_scheme = url.strip_prefix("https://").unwrap_or(url);
+    let host = without_scheme.split('/').next().unwrap_or("");
+    let host = host.split(':').next().unwrap_or(host); // strip port
+    ALLOWED_HOSTS.contains(&host)
+}
 
 fn client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
@@ -29,6 +43,10 @@ pub fn crozzo_http_get_text(url: String) -> Result<String, String> {
     if !url.starts_with("https://") {
         return Err("Solo se permiten URLs HTTPS".into());
     }
+    // SECURITY: allowlist de hosts (anti-tampering / anti-RCE)
+    if !is_allowed_host(url) {
+        return Err("Host no permitido para actualizaciones".into());
+    }
     let client = client()?;
     let resp = client
         .get(url)
@@ -48,6 +66,9 @@ pub fn crozzo_http_head(url: String) -> Result<CrozzoHttpHeadResult, String> {
     }
     if !url.starts_with("https://") {
         return Err("Solo se permiten URLs HTTPS".into());
+    }
+    if !is_allowed_host(url) {
+        return Err("Host no permitido para actualizaciones".into());
     }
     let client = client()?;
     let resp = client

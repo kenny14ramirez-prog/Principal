@@ -72,6 +72,7 @@ commands.allow = [
   "crozzo_lan_ws_stop",
   "crozzo_lan_ws_status",
   "crozzo_lan_ws_broadcast",
+  "crozzo_lan_ws_tls_status",
 ]
 
 [[permission]]
@@ -102,3 +103,18 @@ commands.allow = ["crozzo_secret_set", "crozzo_secret_get", "crozzo_secret_delet
 identifier = "allow-crozzo-ollama"
 description = "Puente a Ollama local (IA texto) para análisis de cierres y resúmenes"
 commands.allow = ["crozzo_ollama_chat", "crozzo_ollama_tags"]
+
+[[permission]]
+identifier = "allow-crozzo-hotspot"
+description = "Hotspot de respaldo de la caja (Windows WinRT, stubs otros SO)"
+commands.allow = ["crozzo_hotspot_start", "crozzo_hotspot_stop", "crozzo_hotspot_status"]
+
+[[permission]]
+identifier = "allow-crozzo-tls"
+description = "TLS LAN: generacion de cert self-signed y estado"
+commands.allow = ["crozzo_lan_tls_cert", "crozzo_lan_tls_available", "crozzo_lan_tls_status", "crozzo_lan_tls_enable", "crozzo_lan_tls_install_ca"]
+
+[[permission]]
+identifier = "allow-crozzo-ble"
+description = "Bluetooth LE: estado/scan (desktop btleplug; mobile stub con fallback UDP/Wi-Fi)"
+commands.allow = ["crozzo_ble_available", "crozzo_ble_status", "crozzo_ble_scan", "crozzo_ble_request_permissions"]

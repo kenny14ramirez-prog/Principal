@@ -281,6 +281,19 @@
   async function buildFastQrText(payloadObj) {
     var p = payloadObj || {};
     var lan = p.lan || {};
+    // Enriquecer fingerprint del cert TLS de la caja (si está disponible).
+    try {
+      if (!p.tls_fingerprint && !p.cert_fingerprint && !(lan && lan.tls_fingerprint)) {
+        if (global.__TAURI__ && global.__TAURI__.core && typeof global.__TAURI__.core.invoke === 'function') {
+          var _tr = await global.__TAURI__.core.invoke('crozzo_lan_tls_cert');
+          if (_tr && (_tr.fingerprint || _tr.fingerprint_sha256)) {
+            p.tls_fingerprint = _tr.fingerprint || _tr.fingerprint_sha256;
+            if (!lan) { lan = {}; p.lan = lan; }
+            lan.tls_fingerprint = p.tls_fingerprint;
+          }
+        }
+      }
+    } catch (_) {}
     var ip = String(lan.central_ip || lan.server_ip || p.central_ip || '').trim();
     var port = Math.max(1, Number(lan.port || p.port) || 3000);
     var compact = {
@@ -295,6 +308,8 @@
       ts: Number(p.timestamp) || Date.now(),
       k: String((lan && lan.lan_token) || p.lan_token || '').trim().slice(0, 96),
     };
+    var _tfp = String(p.tls_fingerprint || p.cert_fingerprint || (lan && lan.tls_fingerprint) || '').trim();
+    if (_tfp) compact.tfp = _tfp.slice(0, 128);
     var bid = String(p.business_id || p.businessId || '').trim();
     var bn = String(p.business_name || p.businessName || '').trim();
     if (bid) compact.bid = bid.slice(0, 64);
@@ -352,6 +367,13 @@
     var ip = String(compact.ip || '').trim();
     if (!ip) return null;
     var port = Math.max(1, Number(compact.p) || 3000);
+    try {
+      var _tfpSide = String(compact.tfp || compact.tls_fingerprint || compact.cert_fingerprint || '').trim();
+      try {
+        if (_tfpSide && typeof global.crozzoTlsSaveFingerprint === 'function') global.crozzoTlsSaveFingerprint(_tfpSide);
+        else if (_tfpSide && typeof localStorage !== 'undefined') localStorage.setItem('crozzo_paired_tls_fingerprint', _tfpSide.toLowerCase());
+      } catch (_) {}
+    } catch (_) {}
     var tp = String(compact.tp || 'tablet').toLowerCase();
     if (tp !== 'tablet' && tp !== 'pantalla') tp = 'tablet';
     var cloudOn = !!(compact.cb && compact.su && compact.sk);
@@ -381,6 +403,7 @@
         offline_enabled: true,
         cloud_priority: true,
         lan_token: String(compact.k || '').trim(),
+        tls_fingerprint: String(compact.tfp || compact.tls_fingerprint || compact.cert_fingerprint || '').trim(),
       },
       location_id: String(compact.loc || '').trim(),
       network_ssid: String(compact.ss || '').trim(),
@@ -390,6 +413,7 @@
       device_role: String(compact.dr || '').trim(),
       device_name: String(compact.dn || '').trim(),
       fleet_peers: Array.isArray(compact.fp) ? compact.fp : [],
+      tls_fingerprint: String(compact.tfp || compact.tls_fingerprint || compact.cert_fingerprint || '').trim(),
       timestamp: Number(compact.ts) || Date.now(),
     };
   }
@@ -464,7 +488,13 @@
       })
       .then(function (plain) {
         if (!plain) return null;
-        return JSON.parse(new TextDecoder().decode(plain));
+        var _bo = JSON.parse(new TextDecoder().decode(plain));
+        try {
+          var _tbo = String((_bo && (_bo.tls_fingerprint || _bo.cert_fingerprint || (_bo.lan && _bo.lan.tls_fingerprint))) || '').trim();
+          if (_tbo && typeof global.crozzoTlsSaveFingerprint === 'function') global.crozzoTlsSaveFingerprint(_tbo);
+           else if (_tbo && typeof localStorage !== 'undefined') localStorage.setItem('crozzo_paired_tls_fingerprint', _tbo.toLowerCase());
+        } catch (_) {}
+        return _bo;
       })
       .catch(function () {
         return null;

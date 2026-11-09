@@ -498,14 +498,202 @@
     if (/timeout|timed out|abort/i.test(msg)) {
       return 'La conexión tardó demasiado. Intente de nuevo con mejor señal.';
     }
-    if (/failed to fetch|network|fetch/i.test(msg)) {
-      return 'Sin conexión estable. Revise su internet e intente de nuevo.';
+    if (/release not ready|compilación Android|aún no está en GitHub/i.test(msg)) {
+      return 'La nueva versión aún se está preparando. Intente en unos minutos.';
     }
     if (msg.length > 140) return 'No se pudo completar la operación de actualización.';
     return msg || 'Error de actualización.';
   }
 
-  /** NSIS/Tauri sustituye espacios del productName por punto en el nombre del .exe. */
+  /** PlanRouter: selecciona el plan óptimo según plataforma y capacidades del sistema. */
+  var PLAN_CAPABILITIES = {
+    tauriUpdater: false,
+    installSetupFromUrl: false,
+    installDmgFromUrl: false,
+    androidPackageInstall: false,
+    probed: false,
+  };
+
+  function probePlanCapabilities() {
+    if (PLAN_CAPABILITIES.probed) return Promise.resolve(PLAN_CAPABILITIES);
+    var TU = global.CrozzoTauriUpdater;
+    var promises = [];
+    // Check Tauri updater
+    promises.push(
+      isTauri() && TU && typeof TU.canUseTauriUpdater === 'function'
+        ? Promise.resolve(TU.canUseTauriUpdater())
+        : Promise.resolve(false)
+    );
+    // Check install_setup_from_url (probe by calling it with empty url - should return error, not "not found")
+    if (isTauri() && global.__TAURI__ && global.__TAURI__.core) {
+      promises.push(
+        global.__TAURI__.core.invoke('install_setup_from_url', { url: '' })
+          .then(function () { return true; })
+          .catch(function (err) {
+            var msg = err && err.message ? err.message : String(err);
+            // If command exists but fails on empty url, it's available
+            if (/invalid|vacía|empty/i.test(msg)) return true;
+            if (/not found|unknown command/i.test(msg)) return false;
+            return true; // assume available if different error
+          })
+      );
+    } else {
+      promises.push(Promise.resolve(false));
+    }
+    // Check android package install
+    if (isTauri() && isAndroidTablet()) {
+      promises.push(
+        global.__TAURI__.core.invoke('plugin:android-package-install|requestPermissions', {})
+          .then(function () { return true; })
+          .catch(function () { return false; })
+      );
+    } else {
+      promises.push(Promise.resolve(false));
+    }
+    return Promise.all(promises).then(function (results) {
+      PLAN_CAPABILITIES.tauriUpdater = !!results[0];
+      PLAN_CAPABILITIES.installSetupFromUrl = !!results[1];
+      PLAN_CAPABILITIES.androidPackageInstall = !!results[2];
+      PLAN_CAPABILITIES.probed = true;
+      console.log('[PlanRouter] Capabilities:', JSON.stringify(PLAN_CAPABILITIES));
+      return PLAN_CAPABILITIES;
+    });
+  }
+
+  /** Selecciona el plan óptimo según plataforma, estado y capacidades. */
+  function selectPlan(context) {
+    context = context || {};
+    var platform = context.platform || getClientKind();
+    var hasSignatureError = !!context.signatureError;
+    var caps = PLAN_CAPABILITIES;
+    var plan = 'B'; // default: manual
+    var chain = ['B']; // fallback chain
+
+    if (platform === 'android' || platform === 'android-web') {
+      if (caps.androidPackageInstall) {
+        plan = 'android_apk';
+        chain = ['android_apk', 'apk_download', 'B'];
+      } else {
+        plan = 'apk_download';
+        chain = ['apk_download', 'B'];
+      }
+    } else if (platform === 'mac' || platform === 'macos') {
+      if (caps.tauriUpdater && !hasSignatureError) {
+        plan = 'A';
+        chain = ['A', 'D', 'B'];
+      } else if (caps.installDmgFromUrl) {
+        plan = 'D';
+        chain = ['D', 'B'];
+      } else {
+        plan = 'B';
+        chain = ['B'];
+      }
+    } else if (platform === 'windows' || platform === 'desktop') {
+      if (caps.installSetupFromUrl && context.targetVersion) {
+        // Prefer Plan C (silent install) on Windows — more reliable
+        plan = 'C';
+        chain = ['C', 'A', 'B'];
+      } else if (caps.tauriUpdater && !hasSignatureError) {
+        plan = 'A';
+        chain = ['A', 'C', 'B'];
+      } else {
+        plan = 'B';
+        chain = ['B'];
+      }
+    } else {
+      // web
+      plan = 'web_reload';
+      chain = ['web_reload', 'B'];
+    }
+
+    return { plan: plan, chain: chain, capabilities: caps };
+  }
+
+  /** Pre-calienta la URL de descarga del Plan B (verifica que existe). */
+  var PLAN_B_CACHE_KEY = 'crozzo_plan_b_cache';
+  function prewarmPlanB(targetVersion) {
+    var ver = normVersion(targetVersion);
+    if (!ver) return Promise.resolve(null);
+    // Check cache first
+    try {
+      var cached = JSON.parse(localStorage.getItem(PLAN_B_CACHE_KEY) || 'null');
+      if (cached && cached.version === ver && cached.url && (Date.now() - (cached.checkedAt || 0)) < 3600000) {
+        return Promise.resolve(cached);
+      }
+    } catch (_) {}
+    // Probe candidates
+    return resolveBestDownloadUrl(ver).then(function (info) {
+      var result = {
+        version: ver,
+        downloadUrl: (info && info.downloadUrl) || '',
+        releasePageUrl: (info && info.releasePageUrl) || GITHUB_RELEASES_PAGE,
+        verified: !!(info && info.verified),
+        checkedAt: Date.now(),
+      };
+      try { localStorage.setItem(PLAN_B_CACHE_KEY, JSON.stringify(result)); } catch (_) {}
+      return result;
+    }).catch(function () {
+      return { version: ver, downloadUrl: GITHUB_RELEASES_LATEST, releasePageUrl: GITHUB_RELEASES_PAGE, verified: false, checkedAt: Date.now() };
+    });
+  }
+
+  /** Ejecuta una cadena de planes con fallback automático. */
+  function executePlanChain(chain, context, onProgress) {
+    context = context || {};
+    onProgress = onProgress || function () {};
+    var idx = 0;
+    function tryNext() {
+      if (idx >= chain.length) {
+        return Promise.reject(new Error('Todos los planes fallaron. Use Plan B (descarga manual).'));
+      }
+      var currentPlan = chain[idx++];
+      onProgress({ phase: 'plan', plan: currentPlan, message: 'Intentando Plan ' + currentPlan + '…' });
+      // Dispatch to the appropriate install function
+      var TU = global.CrozzoTauriUpdater;
+      if (currentPlan === 'A' && TU && typeof TU.installLatest === 'function') {
+        return TU.installLatest(context).catch(function (err) {
+          if (isRecoverableUpdaterError(err)) return tryNext();
+          throw err;
+        });
+      }
+      if (currentPlan === 'C' && TU && typeof TU.installViaSilentSetup === 'function') {
+        return TU.installViaSilentSetup(context.targetVersion, onProgress).catch(function (err) {
+          if (isRecoverableUpdaterError(err)) return tryNext();
+          throw err;
+        });
+      }
+      if (currentPlan === 'D' && TU && typeof TU.installViaSilentDmg === 'function') {
+        return TU.installViaSilentDmg(context.targetVersion, onProgress).catch(function (err) {
+          if (isRecoverableUpdaterError(err)) return tryNext();
+          throw err;
+        });
+      }
+      if (currentPlan === 'android_apk' && TU && typeof TU.installApkAutomatic === 'function') {
+        return TU.installApkAutomatic(context).catch(function (err) {
+          return tryNext();
+        });
+      }
+      if (currentPlan === 'apk_download' || currentPlan === 'B' || currentPlan === 'web_reload') {
+        // Last resort: manual
+        return Promise.reject(new Error('Plan manual requerido'));
+      }
+      return tryNext();
+    }
+    return tryNext();
+  }
+
+  /** Registra qué plan se usó para telemetría. */
+  function logPlanUsed(plan, success, error) {
+    try {
+      var log = [];
+      var raw = localStorage.getItem('crozzo_plan_usage_log');
+      if (raw) log = JSON.parse(raw);
+      if (!Array.isArray(log)) log = [];
+      log.unshift({ at: new Date().toISOString(), plan: plan, success: !!success, error: error || '' });
+      if (log.length > 50) log.length = 50;
+      localStorage.setItem('crozzo_plan_usage_log', JSON.stringify(log));
+    } catch (_) {}
+  }
   function bundleSlugDots(name) {
     return String(name || PRODUCT_NAME)
       .trim()
@@ -1849,7 +2037,11 @@
     installViaSilentSetup: installViaSilentSetupExe,
     installViaSilentDmg: installViaSilentDmgMac,
     probePlatformInstaller: probePlatformInstallerCommand,
-    isSignatureMismatchError: isSignatureMismatchError,
+    probePlanCapabilities: probePlanCapabilities,
+    selectPlan: selectPlan,
+    prewarmPlanB: prewarmPlanB,
+    executePlanChain: executePlanChain,
+    logPlanUsed: logPlanUsed,
     humanizeUpdaterError: humanizeUpdaterError,
     relaunch: relaunchApp,
     compareSemver: compareSemver,

@@ -51521,10 +51521,16 @@ function init() {
             offline_enabled: true,
             cloud_priority: md.cloudPriority !== false,
             lan_token: lanTok,
+            tls_fingerprint:
+              (typeof window.crozzoLanTlsFingerprint === 'function' ? window.crozzoLanTlsFingerprint() : '') ||
+              '',
           },
           central_ip: cip,
           port: port,
           role: 'B',
+          tls_fingerprint:
+            (typeof window.crozzoLanTlsFingerprint === 'function' ? window.crozzoLanTlsFingerprint() : '') ||
+            '',
           timestamp: typeof crozzoNow === 'function' ? crozzoNow() : Date.now(),
         },
       };
@@ -51654,8 +51660,17 @@ function init() {
           lan_token:
             (lanSnap && lanSnap.lanToken) ||
             (typeof window.crozzoLanAuthToken === 'function' ? window.crozzoLanAuthToken() : '') ||
-            ''
+            '',
+           tls_fingerprint:
+             (typeof window.crozzoLanTlsFingerprint === 'function' ? window.crozzoLanTlsFingerprint() : '') ||
+             '',
+           tls_fingerprint:
+             (typeof window.crozzoLanTlsFingerprint === 'function' ? window.crozzoLanTlsFingerprint() : '') ||
+             ''
         },
+        tls_fingerprint:
+          (typeof window.crozzoLanTlsFingerprint === 'function' ? window.crozzoLanTlsFingerprint() : '') ||
+          '',
         supabase_url: cloudEmbed ? effUrl : '',
         supabase_key: cloudEmbed ? effKey : '',
         location_id: locationId,
@@ -53550,8 +53565,9 @@ function init() {
     } catch (_) {}
     if (tp !== 'caja' && tp !== 'pantalla') {
       try {
+        try { window.__CROZZO_LAST_PAIR_PAYLOAD = p; } catch (_) {}
         if (typeof window.crozzoPairingAutoConnect === 'function') {
-          window.crozzoPairingAutoConnect('pairing_apply', { force: true, skipInvalidate: true }).catch(function () {});
+          window.crozzoPairingAutoConnect('pairing_apply', { force: true, skipInvalidate: true, payload: p }).catch(function () {});
         }
       } catch (_) {}
     }

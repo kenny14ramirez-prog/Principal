@@ -1,0 +1,6 @@
+{
+  "name": "Jornada Real",
+  "durationMin": 60,
+  "agents": ["cajero", "cocina", "mesero", "admin"],
+  "scenarios": ["login", "apertura", "venta-directa", "mesa", "comanda", "cobro", "cierre"]
+}

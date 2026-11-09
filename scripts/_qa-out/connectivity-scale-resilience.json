@@ -1,0 +1,431 @@
+{
+  "at": "2026-11-09T11:32:58.689Z",
+  "limits": {
+    "bleMeshMaxHops": 12,
+    "bleMeshMaxPeers": 100,
+    "blePreconnectCap": 12,
+    "blePracticalCap": 25,
+    "comandasCloudPull": 100,
+    "reconnectPushComandas": 80,
+    "scanMaxHosts": 64,
+    "gossipMaxPeers": 120,
+    "gossipUdpQueue": 256,
+    "lanOkCacheMs": 28000,
+    "runtimeSnapshotWarnBytes": 4500000,
+    "tierOfflineMaxMs": 65000,
+    "wsClients": "sin límite duro (Vec Rust)",
+    "p2pHubPerDevice": 1,
+    "runtimeRowsPerLocation": 1
+  },
+  "wiring": [
+    {
+      "name": "Fan-out comandas unificado",
+      "ok": true,
+      "detail": "ComandasCloudSync"
+    },
+    {
+      "name": "mDNS + WebSocket LAN",
+      "ok": true,
+      "detail": "infra bridges"
+    },
+    {
+      "name": "Gossip offline",
+      "ok": true
+    },
+    {
+      "name": "Candado mesa runtime",
+      "ok": true
+    },
+    {
+      "name": "Merge carritos remoto",
+      "ok": true
+    },
+    {
+      "name": "LAN central aplica comanda",
+      "ok": true
+    },
+    {
+      "name": "Reconnect orquestado",
+      "ok": true
+    },
+    {
+      "name": "Tier sin falso LAN Rol A",
+      "ok": true
+    },
+    {
+      "name": "Escala: Realtime filtrado + polling adaptativo",
+      "ok": true,
+      "detail": "ComandasCloudSync"
+    },
+    {
+      "name": "Escala: anti-pisado edicion activa",
+      "ok": true,
+      "detail": "PosRuntimeCloud"
+    },
+    {
+      "name": "Escala: particion runtime por mesa (auto-detectada)",
+      "ok": true,
+      "detail": "PosRuntimeCloud + SQL"
+    },
+    {
+      "name": "Escala: caja no saturada con nube sana",
+      "ok": true,
+      "detail": "WifiZoneBridge"
+    },
+    {
+      "name": "Escala: escalonado anti-estampida",
+      "ok": true,
+      "detail": "ReconnectSync"
+    },
+    {
+      "name": "Escala: orquestador cascada 5 niveles",
+      "ok": true,
+      "detail": "ConnectivityOrchestrator"
+    },
+    {
+      "name": "Escala: BLE mesh + identidad peers",
+      "ok": true,
+      "detail": "BleMesh + BlePeerRegistry"
+    },
+    {
+      "name": "Escala: predicción humana conectividad",
+      "ok": true,
+      "detail": "HumanPredict + gossip cluster"
+    }
+  ],
+  "subprocess": [
+    {
+      "script": "_connectivity-flow-check.mjs",
+      "ok": false,
+      "out": "2 fallo(s) (21 checks)"
+    },
+    {
+      "script": "_connectivity-mixed-flow-check.mjs",
+      "ok": true,
+      "out": "MIXED-FLOW CHECK: OK"
+    },
+    {
+      "script": "_offline-gossip-check.mjs",
+      "ok": true,
+      "out": "OFFLINE-GOSSIP CHECK: OK (8/8)"
+    },
+    {
+      "script": "_connectivity-visibility-check.mjs",
+      "ok": true,
+      "out": "VISIBILITY CHECK: OK"
+    },
+    {
+      "script": "_lan-mdns-ws-check.mjs",
+      "ok": true,
+      "out": "LAN-MDNS-WS CHECK: OK"
+    },
+    {
+      "script": "_ble-mesh-check.mjs",
+      "ok": true,
+      "out": "Todo OK (BLE mesh checks)"
+    },
+    {
+      "script": "_ble-mesh-scale-sim.mjs",
+      "ok": true,
+      "out": "Reporte: C:\\proyectos\\sistema pos\\scripts\\_qa-out\\ble-mesh-scale-sim.json"
+    },
+    {
+      "script": "_field-device-scale.mjs",
+      "ok": true,
+      "out": "RESULTADO: OK — prueba de campo completa"
+    }
+  ],
+  "cargoOk": true,
+  "scenarios": [
+    {
+      "id": "S01",
+      "name": "1 caja + 1 mesero, todo online",
+      "devices": 2,
+      "internetPct": 1,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 1
+      },
+      "online": 2,
+      "offline": 0,
+      "score": 100,
+      "grade": "OK",
+      "notes": [
+        "Comandas: cloud Realtime filtrado por negocio + fan-out unificado OK"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S02",
+      "name": "1 caja + 5 meseros + cocina, online",
+      "devices": 7,
+      "internetPct": 1,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 5,
+        "K": 1
+      },
+      "online": 7,
+      "offline": 0,
+      "score": 100,
+      "grade": "OK",
+      "notes": [
+        "Comandas: cloud Realtime filtrado por negocio + fan-out unificado OK",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S03",
+      "name": "20 dispositivos, internet estable",
+      "devices": 20,
+      "internetPct": 1,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 18,
+        "K": 1
+      },
+      "online": 20,
+      "offline": 0,
+      "score": 97,
+      "grade": "OK",
+      "notes": [
+        "Comandas: cloud Realtime filtrado por negocio + fan-out unificado OK",
+        "Runtime mesas: particion por mesa (fila por slot, auto-detectada)",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S04",
+      "name": "50 dispositivos, internet estable",
+      "devices": 50,
+      "internetPct": 1,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 47,
+        "K": 2
+      },
+      "online": 50,
+      "offline": 0,
+      "score": 92,
+      "grade": "OK",
+      "notes": [
+        "Comandas: cloud Realtime filtrado por negocio + fan-out unificado OK",
+        "Runtime mesas: particion por mesa (fila por slot, auto-detectada)",
+        "LAN: con nube sana las tablets no saturan la caja (vigilancia espaciada)",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S05",
+      "name": "100 dispositivos, internet estable",
+      "devices": 100,
+      "internetPct": 1,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "online": 100,
+      "offline": 0,
+      "score": 92,
+      "grade": "OK",
+      "notes": [
+        "Comandas: cloud Realtime filtrado por negocio + fan-out unificado OK",
+        "Runtime mesas: particion por mesa (fila por slot, auto-detectada)",
+        "LAN: con nube sana las tablets no saturan la caja (vigilancia espaciada)",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S06",
+      "name": "Caja APAGADA (luz), internet OK",
+      "devices": 15,
+      "internetPct": 1,
+      "centralUp": false,
+      "lanUp": false,
+      "roles": {
+        "A": 0,
+        "B": 13,
+        "K": 2
+      },
+      "online": 15,
+      "offline": 0,
+      "score": 95,
+      "grade": "OK",
+      "notes": [
+        "Comandas: meseros/cocina siguen por Supabase sin caja",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S07",
+      "name": "Apagón total sin internet, 8 tablets Wi‑Fi local",
+      "devices": 8,
+      "internetPct": 0,
+      "centralUp": false,
+      "lanUp": false,
+      "roles": {
+        "A": 0,
+        "B": 7,
+        "K": 1
+      },
+      "online": 0,
+      "offline": 8,
+      "score": 83,
+      "grade": "WARN",
+      "notes": [
+        "Comandas: gossip UDP entre islas (misma subred)",
+        "Predicción humana: misma Wi‑Fi → malla gossip auto + guía al operador",
+        "BLE mesh: identidad + epidemic relay (MAX_HOPS 12, preconnect cap 12)",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S08",
+      "name": "Caja ON LAN, sin WAN (router sin internet)",
+      "devices": 12,
+      "internetPct": 0,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 10,
+        "K": 1
+      },
+      "online": 0,
+      "offline": 12,
+      "score": 88,
+      "grade": "OK",
+      "notes": [
+        "Comandas: caja puente LAN<->nube (orquestador cascada) para segmentos mixtos",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S09",
+      "name": "50% con internet, 50% offline gossip",
+      "devices": 20,
+      "internetPct": 0.5,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 18,
+        "K": 1
+      },
+      "online": 10,
+      "offline": 10,
+      "score": 89,
+      "grade": "OK",
+      "notes": [
+        "Comandas: caja puente LAN<->nube (orquestador cascada) para segmentos mixtos",
+        "Runtime mesas: particion por mesa (fila por slot, auto-detectada)",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S10",
+      "name": "Corte energía → reconexión 30 tablets",
+      "devices": 30,
+      "internetPct": 0,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 28,
+        "K": 1
+      },
+      "phase": "post_power",
+      "online": 0,
+      "offline": 30,
+      "score": 82,
+      "grade": "WARN",
+      "notes": [
+        "Comandas: caja puente LAN<->nube (orquestador cascada) para segmentos mixtos",
+        "Runtime mesas: particion por mesa (fila por slot, auto-detectada)",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    },
+    {
+      "id": "S11",
+      "name": "100 dispositivos, 30% sin internet intermitente",
+      "devices": 100,
+      "internetPct": 0.7,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "online": 70,
+      "offline": 30,
+      "score": 67,
+      "grade": "WARN",
+      "notes": [
+        "Comandas: caja puente LAN<->nube (orquestador cascada) para segmentos mixtos",
+        "Runtime mesas: particion por mesa (fila por slot, auto-detectada)",
+        "Reconnect: escalonado anti-estampida + push cap 80 + pull cap 100",
+        "LAN: WS broadcast + HTTP queue; sin pool de cajas",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": [
+        ">80 tablets en 1 caja LAN sin internet — conviene relays LAN"
+      ]
+    },
+    {
+      "id": "S12",
+      "name": "Hotspot caja, 15 meseros, caja sin nube config",
+      "devices": 15,
+      "internetPct": 0,
+      "centralUp": true,
+      "lanUp": true,
+      "roles": {
+        "A": 1,
+        "B": 14
+      },
+      "online": 0,
+      "offline": 15,
+      "score": 88,
+      "grade": "OK",
+      "notes": [
+        "Comandas: caja puente LAN<->nube (orquestador cascada) para segmentos mixtos",
+        "Descubrimiento: mDNS → hotspot → scan 64 hosts",
+        "Candado comandaSlotLocks 90s reduce duplicados misma mesa"
+      ],
+      "breaks": []
+    }
+  ],
+  "summary": {
+    "avgScore": 89,
+    "ok": 9,
+    "warn": 3,
+    "risk": 0
+  }
+}

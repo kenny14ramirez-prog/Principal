@@ -1,17 +1,63 @@
 //! WebSocket LAN — push en tiempo real a tablets (puerto HTTP+1, ej. 3001).
+//! Soporta WS plano (backward compat) y WSS (TLS) por detección del primer
+//! byte 0x16 (TLS handshake record), igual que el servidor HTTP LAN.
 
 use serde_json::json;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, OnceLock};
+use std::task::{Context, Poll};
 use std::time::Duration;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
+use tokio_rustls::server::TlsStream;
 
-type WsConn = WebSocketStream<TcpStream>;
+/// Stream unificado (plano o TLS) para que el resto del handler sea agnóstico.
+enum WsTransport {
+    Plain(TcpStream),
+    Tls(TlsStream<TcpStream>),
+}
+
+impl AsyncRead for WsTransport {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            WsTransport::Plain(s) => Pin::new(s).poll_read(cx, buf),
+            WsTransport::Tls(s) => Pin::new(s).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for WsTransport {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
+        match self.get_mut() {
+            WsTransport::Plain(s) => Pin::new(s).poll_write(cx, buf),
+            WsTransport::Tls(s) => Pin::new(s).poll_write(cx, buf),
+        }
+    }
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            WsTransport::Plain(s) => Pin::new(s).poll_flush(cx),
+            WsTransport::Tls(s) => Pin::new(s).poll_flush(cx),
+        }
+    }
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        match self.get_mut() {
+            WsTransport::Plain(s) => Pin::new(s).poll_shutdown(cx),
+            WsTransport::Tls(s) => Pin::new(s).poll_shutdown(cx),
+        }
+    }
+}
+
+// Los streams subyacentes son Unpin; el enum compuesto también.
+impl Unpin for WsTransport {}
+
+type WsConn = WebSocketStream<WsTransport>;
 
 struct WsInner {
     port: u16,
     stop: bool,
     conns: Vec<Arc<tokio::sync::Mutex<WsConn>>>,
+    rt: tokio::runtime::Handle,
 }
 
 fn hub() -> &'static Arc<Mutex<Option<WsInner>>> {
@@ -34,27 +80,50 @@ pub fn broadcast_text(json_text: &str) -> usize {
     if inner.stop {
         return 0;
     }
+    let rt = inner.rt.clone();
     let mut sent = 0;
     for c in &inner.conns {
-        let rt = tokio::runtime::Handle::try_current();
-        if let Ok(handle) = rt {
-            // Evitar panic: no block_on dentro de contexto async; enviar en task.
-            let msg = Message::Text(json_text.to_string());
-            let conn = Arc::clone(c);
-            handle.spawn(async move {
-                if let Ok(mut w) = conn.try_lock() {
-                    use futures_util::SinkExt;
-                    let _ = w.send(msg).await;
-                }
-            });
-            sent += 1;
-        }
+        let conn = Arc::clone(c);
+        let msg = Message::Text(json_text.to_string());
+        rt.spawn(async move {
+            // Esperar el lock (no try_lock ciego) para no perder el mensaje.
+            let mut w = conn.lock().await;
+            use futures_util::SinkExt;
+            let _ = w.send(msg).await;
+        });
+        sent += 1;
     }
     sent
 }
 
 async fn handle_ws_client(stream: TcpStream, shared: Arc<Mutex<Option<WsInner>>>) {
-    let ws = match accept_async(stream).await {
+    // Detección TLS: peek del primer byte (0x16 = TLS handshake record).
+    let mut peek_buf = [0u8; 1];
+    let is_tls = match stream.peek(&mut peek_buf).await {
+        Ok(1) => peek_buf[0] == 0x16,
+        _ => false,
+    };
+    // Si es TLS, handshake con tokio-rustls antes de accept_async (backward compat: plano si no).
+    let transport = if is_tls {
+        let acceptor = match crate::crozzo_tls::tls_acceptor() {
+            Ok(a) => a,
+            Err(e) => {
+                eprintln!("[lan-ws] tls acceptor: {e}");
+                return;
+            }
+        };
+        match acceptor.accept(stream).await {
+            Ok(tls) => WsTransport::Tls(tls),
+            Err(e) => {
+                eprintln!("[lan-ws] tls handshake: {e}");
+                return;
+            }
+        }
+    } else {
+        WsTransport::Plain(stream)
+    };
+
+    let ws = match accept_async(transport).await {
         Ok(w) => w,
         Err(e) => {
             eprintln!("[lan-ws] handshake: {e}");
@@ -138,6 +207,7 @@ pub async fn crozzo_lan_ws_start(ws_port: Option<u16>) -> Result<serde_json::Val
             port,
             stop: false,
             conns: Vec::new(),
+            rt: tokio::runtime::Handle::current(),
         });
     }
     let sh = Arc::clone(&shared);
@@ -188,4 +258,18 @@ pub fn crozzo_lan_ws_broadcast(json: String) -> Result<usize, String> {
         return Err("payload vacío".into());
     }
     Ok(broadcast_text(body))
+}
+
+/// Estado TLS para el canal WS: reutiliza el estado del módulo TLS global y
+/// añade el estado de ejecución del servidor WS. Permite a clientes/UI saber
+/// si el WS puede aceptar conexiones WSS (detección automática por 0x16).
+#[tauri::command]
+pub fn crozzo_lan_ws_tls_status() -> Result<serde_json::Value, String> {
+    let tls = crate::crozzo_tls::crozzo_lan_tls_status();
+    let ws = crozzo_lan_ws_status()?;
+    Ok(json!({
+        "ws": ws,
+        "tls": tls,
+        "wss_available": true,
+    }))
 }

@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.260">
+<meta name="crozzo-app-version" content="1.0.274">
 <meta name="crozzo-build-stamp" content="2026-10-31T23:38:19.307Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var user=false,t='bona-origen';try{user=localStorage.getItem('crozzo_theme_user_v1')==='1';}catch(_){}
@@ -1187,6 +1187,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoOpFanout.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
 <script src="infra/CrozzoLanOpsSync.js" defer></script>
+<script src="infra/CrozzoConnectivityUx.js" defer></script>
+<script src="infra/CrozzoChannelFallback.js" defer></script>
+<script src="infra/CrozzoPrintQueue.js" defer></script>
+<script src="infra/CrozzoLanCrypto.js" defer></script>
+<script src="infra/CrozzoTlsPinning.js" defer></script>
+<script src="infra/CrozzoCertTrust.js" defer></script>
+<script src="infra/CrozzoWebRtcP2P.js" defer></script>
 <script src="modules/CrozzoPrinterRescue.js" defer></script>
 <script src="core/pos/CrozzoPosConfigManager.js" defer></script>
 <script src="core/pos/CrozzoPosDianLib.js" defer></script>
@@ -1225,6 +1232,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoConnectivityStandby.js" defer></script>
 <script src="infra/CrozzoZ0OperativePulse.js" defer></script>
 <script src="infra/CrozzoZ0AutoGuard.js" defer></script>
+<script src="infra/CrozzoRuntimeIndexedDb.js" defer></script>
 <script src="modules/CrozzoPosRuntimeCloud.js" defer></script>
 <script src="infra/CrozzoOperativeJournal.js" defer></script>
 <script src="infra/CrozzoDevTap.js" defer></script>
@@ -1254,6 +1262,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoSuperAdminFederacion.js" defer></script>
 <script src="modules/CrozzoFederacionOperaciones.js" defer></script>
 <script src="infra/CrozzoMdnsBridge.js" defer></script>
+<script src="infra/CrozzoCloudDiscovery.js" defer></script>
 <script src="infra/CrozzoLanWebSocketBridge.js" defer></script>
 <script src="infra/CrozzoPeerDirectory.js" defer></script>
 <script src="infra/CrozzoBrainPolicy.js" defer></script>

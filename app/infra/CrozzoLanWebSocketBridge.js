@@ -8,6 +8,12 @@
   var _reconnectTimer = null;
   var _url = '';
   var RECONNECT_MS = 4200;
+  // TLS/WSS: caché de disponibilidad y degradación controlada (wss -> ws).
+  var _tlsCache = { value: null, at: 0, ttl: 30000 };
+  var _forcePlain = false;
+  var _wssFailedAt = 0;
+  var _wssRetryAfterMs = 60000;
+  var _openedThisAttempt = false;
   // Jitter anti-estampida (S-04): deviceId-determinista + azar corto.
   // Preferir crozzoReconnectStaggerMs (ReconnectSync); fallback hash local.
   function reconnectDelay() {
@@ -90,15 +96,92 @@
     return (Number(cfg.port) || 3000) + 1;
   }
 
-  function buildUrl() {
+  async function tlsAvailable(cfg) {
+    try {
+      // Reintento periódico de WSS tras degradación.
+      if (_forcePlain && _wssFailedAt && (Date.now() - _wssFailedAt) > _wssRetryAfterMs) {
+        _forcePlain = false;
+        _tlsCache.value = null;
+        _tlsCache.at = 0;
+      }
+      var now = Date.now();
+      if (_tlsCache.value !== null && (now - _tlsCache.at) < _tlsCache.ttl) {
+        if (_forcePlain) return false;
+        return !!_tlsCache.value;
+      }
+      var avail = false;
+      try {
+        if (isDesktopTauri()) {
+          if (cfg.role === 'A') {
+            var st = null;
+            try { st = await invoke('crozzo_lan_ws_tls_status'); } catch (_) { st = null; }
+            var tls = st && st.tls;
+            if (tls && tls.cert_exists && tls.enabled !== false && (st.wss_available !== false)) {
+              avail = true;
+              // Verificación de fingerprint contra el cert local.
+              try {
+                var cert = await invoke('crozzo_lan_tls_cert');
+                var fp = cert && (cert.fingerprint || cert.fingerprint_sha256);
+                if (fp && typeof global.crozzoTlsVerifyFingerprint === 'function') {
+                  if (!global.crozzoTlsVerifyFingerprint(fp)) avail = false;
+                }
+              } catch (_) {}
+            }
+          } else {
+            var paired = (typeof global.crozzoTlsGetPairedFingerprint === 'function') ? global.crozzoTlsGetPairedFingerprint() : '';
+            if (paired) {
+              avail = true;
+              if (global.CrozzoTlsPinning && typeof global.CrozzoTlsPinning.verifyConnection === 'function') {
+                var ipV = String(cfg.centralIp || '').trim();
+                var portV = Number(cfg.port) || 3000;
+                try {
+                  var vr = await global.CrozzoTlsPinning.verifyConnection(ipV, portV, paired);
+                  if (vr && vr.ok === false) avail = false;
+                } catch (_) {}
+              }
+            }
+          }
+        } else {
+          var paired2 = (typeof global.crozzoTlsGetPairedFingerprint === 'function') ? global.crozzoTlsGetPairedFingerprint() : '';
+          if (paired2) {
+            avail = true;
+            if (global.CrozzoTlsPinning && typeof global.CrozzoTlsPinning.verifyConnection === 'function') {
+              var ip2 = String(cfg.centralIp || '').trim() || '127.0.0.1';
+              var port2 = Number(cfg.port) || 3000;
+              try {
+                var vr2 = await global.CrozzoTlsPinning.verifyConnection(ip2, port2, paired2);
+                if (vr2 && vr2.ok === false) avail = false;
+              } catch (_) {}
+            }
+          }
+        }
+      } catch (_) {
+        avail = false;
+      }
+      _tlsCache.value = avail;
+      _tlsCache.at = now;
+      if (!avail) _forcePlain = false;
+      return avail;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function buildUrl() {
     var cfg = md();
     if (cfg.role === 'A') {
       if (!isDesktopTauri()) return '';
-      return 'ws://127.0.0.1:' + wsPort(cfg) + '/';
+      var port = wsPort(cfg);
+      var useTls = !_forcePlain && (await tlsAvailable(cfg));
+      var proto = useTls ? 'wss' : 'ws';
+      return proto + '://127.0.0.1:' + port + '/';
     }
     var ip = String(cfg.centralIp || '').trim();
     if (!ip) return '';
-    return 'ws://' + ip + ':' + wsPort(cfg) + '/';
+    var port2 = wsPort(cfg);
+    var useTls2 = !_forcePlain && (await tlsAvailable(cfg));
+    var proto2 = useTls2 ? 'wss' : 'ws';
+    return proto2 + '://' + ip + ':' + port2 + '/';
   }
 
   function canUseLanWs() {
@@ -403,38 +486,63 @@
     _url = '';
   }
 
-  function connect() {
+  async function connect() {
     if (!tierAllows()) {
       disconnect();
       return false;
     }
     if (!canUseLanWs()) return false;
-    var url = buildUrl();
+    var url = await buildUrl();
     if (!url || typeof WebSocket === 'undefined') return false;
     if (_ws && _url === url && (_ws.readyState === WebSocket.OPEN || _ws.readyState === WebSocket.CONNECTING)) {
       return true;
     }
     disconnect();
     _url = url;
+    _openedThisAttempt = false;
+    var isWss = String(url).indexOf('wss://') === 0;
     try {
       _ws = new WebSocket(url);
       _ws.onopen = function () {
+        _openedThisAttempt = true;
+        // WSS exitoso: limpiar degradación.
+        if (isWss) {
+          _forcePlain = false;
+          _wssFailedAt = 0;
+          _tlsCache.value = true;
+          _tlsCache.at = Date.now();
+        }
         try {
           if (typeof global.crozzoWizardTierLogLine === 'function') {
-            global.crozzoWizardTierLogLine('WebSocket LAN conectado');
+            global.crozzoWizardTierLogLine('WebSocket LAN conectado' + (isWss ? ' (WSS)' : ''));
           }
         } catch (_) {}
       };
       _ws.onmessage = onMessage;
       _ws.onclose = function () {
+        var wasOpened = _openedThisAttempt;
         _ws = null;
+        // Degradación: si WSS falló antes de abrir, caer a ws://.
+        if (isWss && !wasOpened) {
+          _forcePlain = true;
+          _wssFailedAt = Date.now();
+          _tlsCache.value = null;
+          _tlsCache.at = 0;
+        }
         scheduleReconnect();
       };
       _ws.onerror = function () {
-        scheduleReconnect();
+        // No degradar aquí de forma definitiva; onclose decide.
+        try { scheduleReconnect(); } catch (_) {}
       };
       return true;
     } catch (_) {
+      if (isWss) {
+        _forcePlain = true;
+        _wssFailedAt = Date.now();
+        _tlsCache.value = null;
+        _tlsCache.at = 0;
+      }
       scheduleReconnect();
       return false;
     }

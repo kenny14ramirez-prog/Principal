@@ -137,6 +137,13 @@
   async function rediscoverCentral(opts) {
     opts = opts || {};
     var hit = null;
+    // Preferir cloud si está disponible (escala > mDNS)
+    if (global.CrozzoCloudDiscovery && typeof global.CrozzoCloudDiscovery.isCloudAvailable === 'function' && global.CrozzoCloudDiscovery.isCloudAvailable()) {
+      try {
+        var cloudHit = await global.CrozzoCloudDiscovery.discoverCentral(opts);
+        if (cloudHit && cloudHit.ip) return cloudHit;
+      } catch (_) {}
+    }
     if (isDesktopTauri()) {
       hit = await pickCentralFromMdns(opts);
       if (hit) return hit;
@@ -199,13 +206,25 @@
     }
   }
 
+  // afterMainInit extendido: arrancar cloud discovery si está disponible
+  var _origAfterMainInit = afterMainInit;
+  function afterMainInitCloud() {
+    _origAfterMainInit();
+    try {
+      if (global.CrozzoCloudDiscovery && typeof global.CrozzoCloudDiscovery.afterMainInit === 'function') {
+        global.CrozzoCloudDiscovery.afterMainInit();
+      }
+    } catch (_) {}
+  }
+
   global.CrozzoMdnsBridge = {
     isDesktopTauri: isDesktopTauri,
     drainDiscovered: drainDiscovered,
+    applyCentral: applyCentral,
     pickCentralFromMdns: pickCentralFromMdns,
     pickCentralFromMemory: pickCentralFromMemory,
     rediscoverCentral: rediscoverCentral,
     startBrowseWatch: startBrowseWatch,
-    afterMainInit: afterMainInit,
+    afterMainInit: afterMainInitCloud,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

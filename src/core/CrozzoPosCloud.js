@@ -135,6 +135,7 @@ window.__CROZZO_SB_TABLES = Object.freeze([
   'taxes',
   'clients',
   'devices',
+  'crozzo_devices',
   'products',
   'sales',
   'sale_items',

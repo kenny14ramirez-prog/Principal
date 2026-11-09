@@ -1,0 +1,543 @@
+{
+  "at": "2026-11-09T11:32:59.002Z",
+  "codeLimits": {
+    "bleMaxHops": 12,
+    "bleMaxPeers": 100,
+    "blePreconnectCap": 12,
+    "bleWhoQueryCap": 10,
+    "gossipMaxHops": 5,
+    "gossipMaxPeers": 120,
+    "gossipDedup": 500,
+    "lanScanHosts": 64
+  },
+  "wiring": [
+    {
+      "name": "Orquestador 5 niveles",
+      "ok": true
+    },
+    {
+      "name": "BLE mesh epidémico",
+      "ok": true
+    },
+    {
+      "name": "Registro peers + identidad",
+      "ok": true
+    },
+    {
+      "name": "Gossip UDP Rust",
+      "ok": true
+    },
+    {
+      "name": "Fan-out comandas unificado",
+      "ok": true
+    },
+    {
+      "name": "Candado mesa",
+      "ok": true
+    }
+  ],
+  "matrix": [
+    {
+      "transport": "cloud",
+      "devices": 2,
+      "roles": {
+        "A": 1,
+        "B": 1,
+        "K": 0
+      },
+      "reachPct": 100,
+      "score": 98,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "cloud",
+      "devices": 2,
+      "roles": {
+        "A": 1,
+        "B": 1,
+        "K": 0
+      },
+      "reachPct": 70,
+      "score": 82,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "lan",
+      "devices": 2,
+      "roles": {
+        "A": 1,
+        "B": 1,
+        "K": 0
+      },
+      "avgDegree": 1,
+      "reachPct": 100,
+      "maxHops": 12,
+      "maxDist": 1,
+      "isolated": 0,
+      "score": 100,
+      "issues": []
+    },
+    {
+      "transport": "ble",
+      "devices": 2,
+      "roles": {
+        "A": 1,
+        "B": 1,
+        "K": 0
+      },
+      "avgDegree": 1,
+      "reachPct": 100,
+      "maxHops": 12,
+      "maxDist": 1,
+      "isolated": 0,
+      "score": 100,
+      "issues": []
+    },
+    {
+      "transport": "gossip",
+      "devices": 2,
+      "roles": {
+        "A": 1,
+        "B": 1,
+        "K": 0
+      },
+      "avgDegree": 1,
+      "reachPct": 100,
+      "maxHops": 5,
+      "maxDist": 1,
+      "isolated": 0,
+      "score": 100,
+      "issues": []
+    },
+    {
+      "transport": "cloud",
+      "devices": 8,
+      "roles": {
+        "A": 1,
+        "B": 6,
+        "K": 1
+      },
+      "reachPct": 100,
+      "score": 98,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "cloud",
+      "devices": 8,
+      "roles": {
+        "A": 1,
+        "B": 6,
+        "K": 1
+      },
+      "reachPct": 70,
+      "score": 82,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "lan",
+      "devices": 8,
+      "roles": {
+        "A": 1,
+        "B": 6,
+        "K": 1
+      },
+      "avgDegree": 3.3,
+      "reachPct": 100,
+      "maxHops": 12,
+      "maxDist": 2,
+      "isolated": 0,
+      "score": 100,
+      "issues": []
+    },
+    {
+      "transport": "ble",
+      "devices": 8,
+      "roles": {
+        "A": 1,
+        "B": 6,
+        "K": 1
+      },
+      "avgDegree": 2,
+      "reachPct": 100,
+      "maxHops": 12,
+      "maxDist": 4,
+      "isolated": 0,
+      "score": 100,
+      "issues": []
+    },
+    {
+      "transport": "gossip",
+      "devices": 8,
+      "roles": {
+        "A": 1,
+        "B": 6,
+        "K": 1
+      },
+      "avgDegree": 2,
+      "reachPct": 100,
+      "maxHops": 5,
+      "maxDist": 4,
+      "isolated": 0,
+      "score": 100,
+      "issues": []
+    },
+    {
+      "transport": "cloud",
+      "devices": 20,
+      "roles": {
+        "A": 1,
+        "B": 17,
+        "K": 2
+      },
+      "reachPct": 100,
+      "score": 98,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "cloud",
+      "devices": 20,
+      "roles": {
+        "A": 1,
+        "B": 17,
+        "K": 2
+      },
+      "reachPct": 70,
+      "score": 82,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "lan",
+      "devices": 20,
+      "roles": {
+        "A": 1,
+        "B": 17,
+        "K": 2
+      },
+      "avgDegree": 8,
+      "reachPct": 50,
+      "maxHops": 12,
+      "maxDist": 2,
+      "isolated": 0,
+      "score": 50,
+      "issues": [
+        "Alcance 50% (no todos reciben comanda por lan)"
+      ]
+    },
+    {
+      "transport": "ble",
+      "devices": 20,
+      "roles": {
+        "A": 1,
+        "B": 17,
+        "K": 2
+      },
+      "avgDegree": 6.7,
+      "reachPct": 50,
+      "maxHops": 12,
+      "maxDist": 3,
+      "isolated": 0,
+      "score": 49,
+      "issues": [
+        "Alcance 50% (no todos reciben comanda por ble)",
+        "Preconnect cap 12/20 — descubrimiento más lento"
+      ]
+    },
+    {
+      "transport": "gossip",
+      "devices": 20,
+      "roles": {
+        "A": 1,
+        "B": 17,
+        "K": 2
+      },
+      "avgDegree": 6.7,
+      "reachPct": 50,
+      "maxHops": 5,
+      "maxDist": 3,
+      "isolated": 0,
+      "score": 50,
+      "issues": [
+        "Alcance 50% (no todos reciben comanda por gossip)"
+      ]
+    },
+    {
+      "transport": "cloud",
+      "devices": 50,
+      "roles": {
+        "A": 1,
+        "B": 46,
+        "K": 3
+      },
+      "reachPct": 100,
+      "score": 98,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "cloud",
+      "devices": 50,
+      "roles": {
+        "A": 1,
+        "B": 46,
+        "K": 3
+      },
+      "reachPct": 70,
+      "score": 82,
+      "issues": [],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "lan",
+      "devices": 50,
+      "roles": {
+        "A": 1,
+        "B": 46,
+        "K": 3
+      },
+      "avgDegree": 19.9,
+      "reachPct": 33,
+      "maxHops": 12,
+      "maxDist": 2,
+      "isolated": 0,
+      "score": 50,
+      "issues": [
+        "Alcance 33% (no todos reciben comanda por lan)"
+      ]
+    },
+    {
+      "transport": "ble",
+      "devices": 50,
+      "roles": {
+        "A": 1,
+        "B": 46,
+        "K": 3
+      },
+      "avgDegree": 18.6,
+      "reachPct": 33,
+      "maxHops": 12,
+      "maxDist": 3,
+      "isolated": 0,
+      "score": 46,
+      "issues": [
+        "Alcance 33% (no todos reciben comanda por ble)",
+        "Preconnect cap 12/50 — descubrimiento más lento"
+      ]
+    },
+    {
+      "transport": "gossip",
+      "devices": 50,
+      "roles": {
+        "A": 1,
+        "B": 46,
+        "K": 3
+      },
+      "avgDegree": 18.6,
+      "reachPct": 33,
+      "maxHops": 5,
+      "maxDist": 3,
+      "isolated": 0,
+      "score": 50,
+      "issues": [
+        "Alcance 33% (no todos reciben comanda por gossip)"
+      ]
+    },
+    {
+      "transport": "cloud",
+      "devices": 100,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "reachPct": 100,
+      "score": 98,
+      "issues": [
+        ">80 tablets: ejecutar partición mesa_runtime en Supabase"
+      ],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "cloud",
+      "devices": 100,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "reachPct": 70,
+      "score": 72,
+      "issues": [
+        "Realtime Supabase: filtrado por negocio OK; polling adaptativo bajo presión",
+        ">80 tablets: ejecutar partición mesa_runtime en Supabase"
+      ],
+      "maxHops": "n/a"
+    },
+    {
+      "transport": "lan",
+      "devices": 100,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "avgDegree": 31,
+      "reachPct": 25,
+      "maxHops": 12,
+      "maxDist": 2,
+      "isolated": 0,
+      "score": 50,
+      "issues": [
+        "Alcance 25% (no todos reciben comanda por lan)"
+      ]
+    },
+    {
+      "transport": "ble",
+      "devices": 100,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "avgDegree": 29.5,
+      "reachPct": 25,
+      "maxHops": 12,
+      "maxDist": 4,
+      "isolated": 0,
+      "score": 39,
+      "issues": [
+        "Alcance 25% (no todos reciben comanda por ble)",
+        "Preconnect cap 12/100 — descubrimiento más lento"
+      ]
+    },
+    {
+      "transport": "gossip",
+      "devices": 100,
+      "roles": {
+        "A": 1,
+        "B": 95,
+        "K": 4
+      },
+      "avgDegree": 29.5,
+      "reachPct": 25,
+      "maxHops": 5,
+      "maxDist": 4,
+      "isolated": 0,
+      "score": 42,
+      "issues": [
+        "Alcance 25% (no todos reciben comanda por gossip)",
+        "Cadena larga (4 saltos); latencia ~8s"
+      ]
+    }
+  ],
+  "byScale": {
+    "mini": {
+      "devices": 2,
+      "bestScore": 100,
+      "cloudScore": 98,
+      "bleScore": 100,
+      "bleReach": 100,
+      "verdict": "OK restaurante pequeño (cloud + BLE backup)"
+    },
+    "pequeño": {
+      "devices": 8,
+      "bestScore": 100,
+      "cloudScore": 98,
+      "bleScore": 100,
+      "bleReach": 100,
+      "verdict": "OK restaurante pequeño (cloud + BLE backup)"
+    },
+    "mediano": {
+      "devices": 20,
+      "bestScore": 98,
+      "cloudScore": 98,
+      "bleScore": 49,
+      "bleReach": 50,
+      "verdict": "OK con internet/LAN; BLE solo respaldo"
+    },
+    "grande": {
+      "devices": 50,
+      "bestScore": 98,
+      "cloudScore": 98,
+      "bleScore": 46,
+      "bleReach": 33,
+      "verdict": "WARN: requiere nube estable + LAN"
+    },
+    "mega": {
+      "devices": 100,
+      "bestScore": 98,
+      "cloudScore": 98,
+      "bleScore": 39,
+      "bleReach": 25,
+      "verdict": "RISK: 100 disp. = cloud obligatorio; BLE no sustituto"
+    }
+  },
+  "gaps": [
+    {
+      "id": "G01",
+      "area": "BLE puro 50+",
+      "severity": "HIGH",
+      "gap": "Bluetooth no escala a 50–100 en un salón; radio ~10 m, ~7 conexiones simultáneas. Necesita LAN/nube como columna vertebral."
+    },
+    {
+      "id": "G02",
+      "area": "Gossip UDP",
+      "severity": "MED",
+      "gap": "MAX_HOPS=5 y dedup 500: islas >120 peers degradan relay."
+    },
+    {
+      "id": "G03",
+      "area": "BLE preconnect",
+      "severity": "MED",
+      "gap": "Solo 12 peers precalentados; el resto entra por escaneo epidémico (más lento)."
+    },
+    {
+      "id": "G04",
+      "area": "Android BLE nativo",
+      "severity": "HIGH",
+      "gap": "APK WebView: Web Bluetooth limitado; GATT nativo Kotlin = fase 2 para mesh BLE real en Android."
+    },
+    {
+      "id": "G05",
+      "area": "LAN 80+ tablets",
+      "severity": "MED",
+      "gap": "1 caja WS sin pool de relays; con nube sana OK; sin WAN conviene 2ª caja/relay LAN."
+    },
+    {
+      "id": "G06",
+      "area": "Runtime carritos 60+",
+      "severity": "MED",
+      "gap": "Requiere crozzo_mesa_runtime en Supabase; sin SQL = LWW en 1 fila/sede."
+    },
+    {
+      "id": "G07",
+      "area": "EmergencyMesh WebRTC",
+      "severity": "MED",
+      "gap": "1 enlace P2P por tablet iOS; no fan-out masivo — puente, no malla completa."
+    },
+    {
+      "id": "G08",
+      "area": "Prueba física 100 BLE",
+      "severity": "HIGH",
+      "gap": "No hay lab de 100 radios BLE; simulación lógica OK, falta piloto en venue real."
+    }
+  ],
+  "summary": {
+    "wiringOk": true,
+    "scalesTested": [
+      2,
+      8,
+      20,
+      50,
+      100
+    ],
+    "recommendedMaxBleOnly": 15,
+    "recommendedMaxLanFallback": 50,
+    "recommendedMaxCloud": 100
+  }
+}

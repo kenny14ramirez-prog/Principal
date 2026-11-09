@@ -21,6 +21,9 @@
     "allow-crozzo-wifi-direct",
     "allow-crozzo-webview-camera",
     "allow-crozzo-secret-store",
-    "allow-crozzo-ollama"
+    "allow-crozzo-ollama",
+    "allow-crozzo-hotspot",
+    "allow-crozzo-tls",
+    "allow-crozzo-ble"
   ]
 }

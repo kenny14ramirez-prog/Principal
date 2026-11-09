@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Crozzo POS — Mapas de Conexiones Reales</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5pt; color: #1a1a1a; line-height: 1.45; }
+  h1 { font-size: 18pt; color: #0f4c81; border-bottom: 3px solid #0f4c81; padding-bottom: 6px; margin-top: 0; }
+  h2 { font-size: 13pt; color: #0f4c81; margin-top: 16px; border-left: 4px solid #0f4c81; padding-left: 8px; page-break-before: auto; }
+  h3 { font-size: 11pt; color: #333; margin-top: 12px; }
+  pre { background: #f4f6f8; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px; font-size: 9pt; overflow-x: auto; white-space: pre; font-family: 'Consolas', monospace; page-break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #d0d7de; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #0f4c81; color: #fff; }
+  tr:nth-child(even) { background: #f8fafc; }
+  .note { background: #fff8e1; border-left: 4px solid #f59e0b; padding: 8px 12px; margin: 8px 0; font-size: 9.5pt; }
+  .ok { color: #16a34a; font-weight: bold; }
+  .warn { color: #dc2626; font-weight: bold; }
+  .page-break { page-break-after: always; }
+  ul { margin: 4px 0 8px 18px; }
+  li { margin: 2px 0; }
+  .toc a { color: #0f4c81; text-decoration: none; }
+  footer { font-size: 8pt; color: #888; text-align: center; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Crozzo POS — Mapas de Conexiones Reales del Código</h1>
+<p><strong>Versión:</strong> 1.0.260 · <strong>Fecha:</strong> 2026-11-08 · <strong>Fuente:</strong> app/ (canónica) → src/ (espejo)</p>
+<p>Documento generado para revisión e impresión. Cada diagrama refleja el flujo real del código, no la intención de diseño.</p>
+
+<div class="toc">
+<h3>Índice</h3>
+<ol>
+  <li><a href="#capas">Capas y módulos</a></li>
+  <li><a href="#compras">Flujo Compras → Inventario → Costeo</a></li>
+  <li><a href="#venta">Flujo Venta → Inventario</a></li>
+  <li><a href="#facturacion">Facturación electrónica (DIAN)</a></li>
+  <li><a href="#sync">Sincronización LAN / Nube</a></li>
+  <li><a href="#cierre">Cierre de caja</a></li>
+  <li><a href="#config">Configuración e impresora</a></li>
+  <li><a href="#ia">Auditoría con IA</a></li>
+  <li><a href="#fragil">Puntos frágiles y separaciones</a></li>
+  <li><a href="#matriz">Matriz de verificación</a></li>
+</ol>
+</div>
+
+<div class="page-break"></div>
+
+<h2 id="capas">1. Capas y módulos</h2>
+<pre>
+┌─────────────────────────────────────────────────────────────┐
+│  CAPA 0 — BOOT / SHELL                                      │
+│  app/index.html → Crozzo_POS_Completo.html (monolito)       │
+│  CrozzoLoginBoot · CrozzoAuthSecurity · CrozzoDevicePerf     │
+├─────────────────────────────────────────────────────────────┤
+│  CAPA 1 — CORE POS                                          │
+│  CrozzoPosMain.js (51k líneas) · CrozzoPosCloud.js          │
+│  CrozzoPosConfigManager · CrozzoPosDianLib                   │
+├─────────────────────────────────────────────────────────────┤
+│  CAPA 2 — MÓDULOS DE DOMINIO                                │
+│  Compras: CentroCompras · ComprasLocal · ComprasDashboard     │
+│  Inventario: InventarioVenta · InventarioContinuo ·          │
+│              ReversionInventario                             │
+│  Costos: CostosEngine · SistemaCostos · Rentabilidad ·       │
+│          Semaforo · PlanProducto · OcrFactura                 │
+│  Fiscal: TipoDocumento · ContingenciaFiscal · SandboxFiscal  │
+│  Sync: PosRuntimeCloud · LanOpsSync · ComandasCloudSync ·     │
+│        OperativeReservorio · LanSyncBridge                   │
+│  Fiscal UI: PosFacturasPage · AdquirienteLookup              │
+├─────────────────────────────────────────────────────────────┤
+│  CAPA 3 — INFRA / TRANSPORTE                                │
+│  CrozzoLanSyncBridge · CrozzoWifiZoneBridge ·               │
+│  CrozzoFleetOperationalReconcile · CrozzoPairingAutoConnect  │
+├─────────────────────────────────────────────────────────────┤
+│  CAPA 4 — BUNDLES (generados)                               │
+│  CrozzoBundleReservorio · CrozzoBundleCostos ·               │
+│  CrozzoBundleCompras (consolidate)                           │
+└─────────────────────────────────────────────────────────────┘
+</pre>
+<p class="note"><strong>Regla:</strong> app/ es la fuente canónica. src/ es espejo. Tras editar app/ → npm run sync.</p>
+
+<div class="page-break"></div>
+
+<h2 id="compras">2. Flujo Compras → Inventario → Costeo</h2>
+<pre>
+FACTURA PROVEEDOR (imagen/PDF)
+        │
+        ▼
+  CrozzoOcrFactura.js  ──► parsearFactura() + confidenceScore()
+        │
+        ▼
+  CrozzoCatalogoMp.applyRecepcionItems()
+        │
+        ├──► CrozzoInventarioContinuo (stock +)
+        │       └──► ledger movimientos (bodegaId, bodegaDestinoId)
+        │
+        └──► CrozzoCostosEngine (actualiza costoUnitario de MP)
+                  │
+                  ▼
+            cascadeMpChangeToMenu()  ──► recalcula costo de platos
+                  │
+                  ▼
+            CrozzoRentabilidad (CMV + utilidad por plato)
+                  │
+                  ▼
+            CrozzoSemaforo (🟢🟡🔴 margen)
+</pre>
+<table>
+<tr><th>Paso</th><th>Archivo</th><th>Función clave</th><th>Qué actualiza</th></tr>
+<tr><td>Recepción</td><td>modules/CrozzoCatalogoMp</td><td>applyRecepcionItems</td><td>Stock + costo MP</td></tr>
+<tr><td>Inventario</td><td>modules/CrozzoInventarioContinuo</td><td>crozzoInvDeductFromFactura</td><td>Stock por producto</td></tr>
+<tr><td>Costeo</td><td>modules/CrozzoCostosEngine</td><td>K3-K11</td><td>costoUnitario de platos</td></tr>
+<tr><td>Recálculo</td><td>modules/CrozzoCostosEngine</td><td>cascadeMpChangeToMenu</td><td>Platos afectados</td></tr>
+<tr><td>Rentabilidad</td><td>modules/CrozzoRentabilidad</td><td>rentabilidadPor / kpiDiario</td><td>CMV + utilidad</td></tr>
+<tr><td>Semáforo</td><td>modules/CrozzoSemaforo</td><td>semaforoMargen</td><td>🟢🟡🔴 por plato/categoría</td></tr>
+</table>
+<p class="note"><strong>Riesgo:</strong> Si <code>crozzoInvDeductFromFactura</code> no está cargado, el stock no se descuenta (queda "omitido" en inventarioMeta).</p>
+
+<div class="page-break"></div>
+
+<h2 id="venta">3. Flujo Venta → Inventario</h2>
+<pre>
+VENTA (caja o mesa)
+        │
+        ▼
+  CrozzoInventarioVenta.aplicarVenta(factura)
+        │
+        ├──► esVentaComercial(ctx) ?
+        │       ├── SÍ (POS comercial): buckets.pos
+        │       │       └──► crozzoInvDeductFromFactura() → stock POS
+        │       │
+        │       └── NO (restaurante): buckets.receta
+        │               └──► crozzoReservorioRegistrarVenta() → consumo MP
+        │
+        └──► factura.inventarioMeta (auditoría por línea: ok/omitido/error/parcial)
+</pre>
+<table>
+<tr><th>Modo</th><th>Función</th><th>Descuenta</th><th>Riesgo si módulo no cargado</th></tr>
+<tr><td>Comercial (POS)</td><td>crozzoInvDeductFromFactura</td><td>Stock directo</td><td>Stock no se descuenta → "omitido"</td></tr>
+<tr><td>Restaurante</td><td>crozzoReservorioRegistrarVenta</td><td>Consumo receta → MP</td><td>Consumo no registrado → "omitido"</td></tr>
+</table>
+<p class="note"><strong>Auditoría:</strong> cada línea queda marcada en <code>factura.inventarioMeta.lineas[]</code> con resultado ok/omitido/error/parcial.</p>
+
+<div class="page-break"></div>
+
+<h2 id="facturacion">4. Facturación electrónica (DIAN)</h2>
+<pre>
+FACTURAR()
+        │
+        ├──► buildUBL21(factura, {empresa, dian, impuestos}) → XML UBL 2.1
+        │
+        ├──► timbrarFactura(xml, factura, config)
+        │       ├──► assertNoSandbox (bloquea nivel 0)
+        │       ├──► createProvider(type)  [solo dataico implementado]
+        │       └──► mockStamp / dataicoStamp
+        │
+        ├──► crozzoQueueFacturaForCloudSync + crozzoTryMirrorSaleToSupabase
+        │
+        ├──► crozzoFacturaBackgroundUploadPdfToCloud
+        │
+        └──► crozzoPresentFacturaShareAfterPrint
+              ├──► crozzoFacturaPrintPos (ticket)
+              ├──► crozzoFacturaPrintSheet (carta/oficio)
+              └──► crozzoAutoPrintFacturaIfConfigured
+</pre>
+<table>
+<tr><th>Componente</th><th>Archivo</th><th>Estado</th></tr>
+<tr><td>UBL 2.1</td><td>core/pos/CrozzoPosDianLib.js</td><td class="ok">OK</td></tr>
+<tr><td>CUFE</td><td>core/pos/CrozzoPosDianLib.js</td><td class="ok">OK</td></tr>
+<tr><td>Timbrado</td><td>core/pos/CrozzoPosDianLib.js</td><td class="ok">Dataico OK / Siigo-Facturama NO</td></tr>
+<tr><td>Sandbox (nivel 0)</td><td>modules/CrozzoSandboxFiscal.js</td><td class="ok">Bloquea CUFE real</td></tr>
+<tr><td>Contingencia (48h SLA)</td><td>modules/CrozzoContingenciaFiscal.js</td><td class="ok">OK</td></tr>
+<tr><td>Retenciones B2B</td><td>modules/CrozzoTipoDocumento.js</td><td class="ok">Roble+ retiene por municipio DANE</td></tr>
+<tr><td>Adquiriente lookup</td><td>modules/CrozzoAdquirienteLookup.js</td><td class="ok">Local → DIAN → Supabase → RUES</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2 id="sync">5. Sincronización LAN / Nube</h2>
+<pre>
+DISPOSITIVO A (caja/tablet)
+        │
+        ├──► crozzoSyncPosRuntimeCritical('comanda_send'/'slot_paid')
+        │       └──► CrozzoPosRuntimeCloud (push/pull Supabase)
+        │
+        ├──► CrozzoLanOpsSync (WS broadcast + pull)
+        │       └──► CrozzoComandasCloudSync (outbox + fanout)
+        │
+        └──► CrozzoOperativeReservorio (política: no auto-discard)
+                  └──► allowCloudAuthoritativeEmpty solo tras cobro/vaciado
+
+FLUJO COMANDA → COCINA → CAJA:
+  1. Envío: crozzoFinalizeComandaSend → fanout → auto-print
+  2. Cocina: updateComandaEstado (preparando/lista/entregada)
+  3. Caja: crozzoCloseCajaOrderSession → runtime push + closedSlots
+</pre>
+<table>
+<tr><th>Componente</th><th>Archivo (Rust/JS)</th><th>Estado</th><th>Riesgo real</th></tr>
+<tr><td>Servidor HTTP LAN (port 3000)</td><td>src-tauri/src/crozzo_lan_sync_server.rs</td><td class="ok">Implementado</td><td>Body 64KB single read → truncación</td></tr>
+<tr><td>WebSocket push (port 3001)</td><td>src-tauri/src/crozzo_lan_ws.rs</td><td class="ok">Implementado</td><td>Handle::block_on en async → posible panic</td></tr>
+<tr><td>mDNS descubrimiento</td><td>src-tauri/src/crozzo_mdns.rs</td><td class="ok">Implementado</td><td>Requiere red multicast habilitada</td></tr>
+<tr><td>Auth token (x-crozzo-lan-token)</td><td>crozzo_lan_sync_server.rs</td><td class="ok">Implementado</td><td>—</td></tr>
+<tr><td>Persistencia (SQLite)</td><td>crozzo_lan_persistence</td><td class="ok">Implementado</td><td>—</td></tr>
+<tr><td>Rate limiting (RUT)</td><td>crozzo_lan_sync_server.rs</td><td class="ok">Implementado</td><td>—</td></tr>
+<tr><td>CORS + semaphore (64 conn)</td><td>crozzo_lan_sync_server.rs</td><td class="ok">Implementado</td><td>Configurable por env</td></tr>
+<tr><td>Cloud mirror + drain pending</td><td>CrozzoPosRuntimeCloud.js</td><td class="ok">Implementado</td><td>Outbox 6h sin ACK</td></tr>
+<tr><td>Digest LAN ciego</td><td>CrozzoLanOpsSync.js</td><td class="warn">Bug latente</td><td>Hash solo IDs+count, no estado → pull omitido</td></tr>
+<tr><td>Multi-writer carrito</td><td>CrozzoPosRuntimeCloud.js</td><td class="warn">Sin lock fuerte</td><td>Merge por timestamp puede confundir</td></tr>
+<tr><td>WS broadcast panic</td><td>crozzo_lan_ws.rs</td><td class="warn">Bug latente</td><td>Handle::block_on en async context</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2 id="cierre">6. Cierre de caja</h2>
+<pre>
+CROZZO CLOSE CAJA ORDER SESSION
+        │
+        ├──► crozzoSyncPosRuntimeCritical('slot_paid'/'post_cobro')
+        │
+        ├──► closedSlots = true
+        │
+        ├──► runtime push (pushMesaRows)
+        │
+        └──► UI: arqueo wizard (conteo → calcular → confirmar)
+                  │
+                  ├──► fondo inicial
+                  ├──► gastos
+                  ├──► efectivo contado
+                  └──► diferencia vs ventas calculadas
+</pre>
+<p class="note"><strong>Conexión:</strong> El cierre dispara sync runtime y marca slots como cerrados. Si <code>closedSlots</code> no se setea, el vaciado remoto puede dejar carrito stale (KI-018).</p>
+
+<h2 id="config">7. Configuración e impresora</h2>
+<pre>
+CONFIGMANAGER (singleton)
+        │
+        ├──► get/set/update por clave (empresa, dian, impuestos, seguridad, etc.)
+        │
+        ├──► save() → localStorage 'crozzo_config_v1'
+        │
+        └──► Migración legacy automática
+
+IMPRESORA
+        │
+        ├──► tipo: pos / carta / oficio / none
+        ├──► crozzoFacturaPrintPos() → ticket térmico
+        ├──► crozzoFacturaPrintSheet() → carta/oficio
+        ├──► crozzoAutoPrintFacturaIfConfigured() → auto-print
+        └──► crozzoPresentFacturaShareAfterPrint() → share modal
+</pre>
+<table>
+<tr><th>Config</th><th>Se guarda</th><th>Persiste</th><th>Riesgo</th></tr>
+<tr><td>Empresa/DIAN/Impuestos</td><td>localStorage</td><td class="ok">Sí</td><td>Migración legacy</td></tr>
+<tr><td>Impresora (tipo)</td><td>ConfigManager</td><td class="ok">Sí</td><td>Si no hay impresora, print falla silenciosamente</td></tr>
+<tr><td>Tema/UI</td><td>localStorage</td><td class="ok">Sí</td><td>—</td></tr>
+<tr><td>Dispositivo paired</td><td>localStorage</td><td class="ok">Sí</td><td>Re-pairing si corrupto</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2 id="ia">8. Auditoría con IA</h2>
+<pre>
+CROZZOAIINSIGHTS
+        │
+        ├──► Flag: Super Admin habilita
+        ├──► Edge (NVIDIA) para inferencia
+        │
+        └──► Reporte IA admin
+              ├──► Análisis de ventas
+              ├──► Detección de anomalías
+              └──► Sugerencias de optimización
+</pre>
+<p class="note"><strong>Condición:</strong> Solo disponible con flag Super Admin + Edge/NVIDIA. No hay fallback local si no está disponible.</p>
+
+<h2 id="fragil">9. Puntos frágiles y separaciones</h2>
+<table>
+<tr><th>#</th><th>Problema</th><th>Causa</th><th>Impacto</th><th>Estado</th></tr>
+<tr><td>1</td><td>Stock POS no se descuenta</td><td>crozzoInvDeductFromFactura no cargado</td><td>Stock incorrecto</td><td class="warn">Verificar en boot</td></tr>
+<tr><td>2</td><td>Consumo receta omitido</td><td>crozzoReservorioRegistrarVenta no cargado</td><td>MP no se consume</td><td class="warn">Verificar en boot</td></tr>
+<tr><td>3</td><td>Multi-writer sin lock</td><td>Merge por timestamp, sin lock fuerte</td><td>Carrito confundido</td><td class="warn">KI-019</td></tr>
+<tr><td>4</td><td>Digest LAN ciego</td><td>Hash solo IDs+count, no estado</td><td>Pull omitido</td><td class="warn">Bug latente (no pendiente)</td></tr>
+<tr><td>5</td><td>Impresora sin retry</td><td>window.print falla silenciosamente</td><td>Ticket no impreso</td><td class="warn">Cola pendiente</td></tr>
+<tr><td>6</td><td>IA condicionada</td><td>Sin fallback local</td><td>Sin auditoría IA</td><td class="warn">Pendiente</td></tr>
+<tr><td>7</td><td>Bodegas sin módulo</td><td>Solo bodegaId en ledger</td><td>Sin transferencias</td><td class="warn">Pendiente</td></tr>
+<tr><td>8</td><td>CMV sin costo</td><td>costoUnitario no definido</td><td>Margen incorrecto</td><td class="warn">Validar en carga</td></tr>
+</table>
+
+<h2 id="matriz">10. Matriz de verificación automatizada</h2>
+<table>
+<tr><th>Script</th><th>Qué verifica</th><th>Resultado</th></tr>
+<tr><td>verify:all</td><td>Verificación completa (8 pasos)</td><td class="ok">8/8 OK</td></tr>
+<tr><td>stress:extremo</td><td>5 roles × 9 tests</td><td class="ok">45/45 OK</td></tr>
+<tr><td>stress:avanzado</td><td>Concurrencia, fuzzing, RBAC, corrupción, rapid fire</td><td class="ok">9/9 OK</td></tr>
+<tr><td>stress:carga</td><td>Carga masiva + red intermitente + memoria</td><td class="ok">7/7 OK</td></tr>
+<tr><td>test:fiscal:sandbox</td><td>UBL/CUFE/createProvider</td><td class="ok">4/4 OK</td></tr>
+<tr><td>test:chaos:network</td><td>Offline/reconexión + observabilidad</td><td class="ok">4/4 OK</td></tr>
+<tr><td>test:sync:property</td><td>Invariantes sync (1000 runs × 4)</td><td class="ok">4/4 OK</td></tr>
+<tr><td>test:printer:emulator</td><td>ESC/POS payload</td><td class="ok">4/4 OK</td></tr>
+<tr><td>test:agent:eval</td><td>Run válido, 0 FAIL, 0 P0</td><td class="ok">6/6 OK</td></tr>
+</table>
+
+<footer>
+Crozzo POS — Mapas de Conexiones Reales · Generado 2026-11-08 · Fuente: app/ (canónica)
+</footer>
+
+</body>
+</html>

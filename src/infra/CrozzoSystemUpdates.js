@@ -538,13 +538,593 @@
       });
   }
 
-  function readStoredInstalledVersion() {
-    try {
-      var v = localStorage.getItem(LS_INSTALLED);
-      if (v && String(v).trim()) return String(v).trim();
-    } catch (_) {}
-    return null;
+  function sha256Hex(buffer) {
+    if (global.crypto && global.crypto.subtle && global.crypto.subtle.digest) {
+      return global.crypto.subtle.digest('SHA-256', buffer).then(function (hash) {
+        var hex = '';
+        var view = new Uint8Array(hash);
+        for (var i = 0; i < view.length; i++) {
+          hex += ('0' + view[i].toString(16)).slice(-2);
+        }
+        return hex;
+      });
+    }
+    return Promise.resolve(null);
   }
+
+  function verifyFileHash(fileBuffer, expectedHash) {
+    if (!expectedHash) return Promise.resolve(true); // no hash to verify
+    return sha256Hex(fileBuffer).then(function (actual) {
+      if (!actual) return true; // crypto not available, skip
+      return actual.toLowerCase() === String(expectedHash).toLowerCase();
+    });
+  }
+
+  var ALLOWED_HOSTS = ['raw.githubusercontent.com', 'github.com', 'api.github.com'];
+
+  function isAllowedUrl(url) {
+    try {
+      var u = new URL(String(url || '').trim());
+      if (u.protocol !== 'https:') return false;
+      return ALLOWED_HOSTS.indexOf(u.hostname) >= 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  var STORE_KEY = 'crozzo_update_store_v2';
+  var SCHEMA_VERSION = 2;
+
+  function emptyStore() {
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      installed: null,
+      appliedEntries: [],
+      pendingRestart: null,
+      queue: [],
+      snooze: {},
+      dismissed: { optional: [], criticalAck: [] },
+      lastCheck: null,
+      lease: null,
+    };
+  }
+
+  function sanitizeStore(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    var out = emptyStore();
+    // installed
+    if (raw.installed && typeof raw.installed === 'object') {
+      var v = raw.installed.version;
+      if (v && typeof v === 'string' && /^v?\d/.test(v)) {
+        out.installed = {
+          version: v.indexOf('v') === 0 ? v : 'v' + v,
+          source: ['binary', 'meta', 'stored'].indexOf(raw.installed.source) >= 0 ? raw.installed.source : 'stored',
+          confidence: ['high', 'medium', 'low'].indexOf(raw.installed.confidence) >= 0 ? raw.installed.confidence : 'low',
+          verifiedAt: typeof raw.installed.verifiedAt === 'number' ? raw.installed.verifiedAt : Date.now(),
+          buildStamp: typeof raw.installed.buildStamp === 'string' ? raw.installed.buildStamp : '',
+        };
+      }
+    }
+    // appliedEntries
+    if (Array.isArray(raw.appliedEntries)) {
+      out.appliedEntries = raw.appliedEntries.filter(function (id) { return typeof id === 'string' && id.length > 0; });
+    }
+    // pendingRestart
+    if (raw.pendingRestart && typeof raw.pendingRestart === 'object') {
+      var pr = raw.pendingRestart;
+      if (pr.entryId && pr.version) {
+        out.pendingRestart = {
+          entryId: String(pr.entryId),
+          version: String(pr.version).indexOf('v') === 0 ? String(pr.version) : 'v' + String(pr.version),
+          critical: !!pr.critical,
+          url: typeof pr.url === 'string' ? pr.url : '',
+          savedAt: typeof pr.savedAt === 'number' ? pr.savedAt : Date.now(),
+          attempt: typeof pr.attempt === 'number' ? pr.attempt : 1,
+        };
+      }
+    }
+    // queue
+    if (Array.isArray(raw.queue)) {
+      var validStatuses = ['queued', 'downloading', 'installing', 'awaiting_restart', 'failed', 'done', 'abandoned'];
+      out.queue = raw.queue.filter(function (q) {
+        return q && typeof q === 'object' && q.id && q.entryId && validStatuses.indexOf(q.status) >= 0;
+      }).map(function (q) {
+        return {
+          id: String(q.id),
+          entryId: String(q.entryId),
+          plan: ['A', 'C'].indexOf(q.plan) >= 0 ? q.plan : 'A',
+          priority: typeof q.priority === 'number' ? q.priority : 0,
+          status: q.status,
+          attempt: typeof q.attempt === 'number' ? q.attempt : 1,
+          nextRetryAt: typeof q.nextRetryAt === 'number' ? q.nextRetryAt : Date.now(),
+          lastError: typeof q.lastError === 'string' ? q.lastError : '',
+          createdAt: typeof q.createdAt === 'number' ? q.createdAt : Date.now(),
+          updatedAt: typeof q.updatedAt === 'number' ? q.updatedAt : Date.now(),
+          heartbeatAt: typeof q.heartbeatAt === 'number' ? q.heartbeatAt : Date.now(),
+        };
+      });
+    }
+    // snooze
+    if (raw.snooze && typeof raw.snooze === 'object') {
+      out.snooze = {};
+      Object.keys(raw.snooze).forEach(function (k) {
+        if (typeof raw.snooze[k] === 'number') out.snooze[k] = raw.snooze[k];
+      });
+    }
+    // dismissed
+    if (raw.dismissed && typeof raw.dismissed === 'object') {
+      out.dismissed = {
+        optional: Array.isArray(raw.dismissed.optional) ? raw.dismissed.optional.filter(function (x) { return typeof x === 'string'; }) : [],
+        criticalAck: Array.isArray(raw.dismissed.criticalAck) ? raw.dismissed.criticalAck.filter(function (x) { return typeof x === 'string'; }) : [],
+      };
+    }
+    // lastCheck
+    if (raw.lastCheck && typeof raw.lastCheck === 'object') {
+      out.lastCheck = {
+        at: typeof raw.lastCheck.at === 'number' ? raw.lastCheck.at : Date.now(),
+        ok: !!raw.lastCheck.ok,
+        error: typeof raw.lastCheck.error === 'string' ? raw.lastCheck.error : '',
+      };
+    }
+    // lease
+    if (raw.lease && typeof raw.lease === 'object' && raw.lease.owner && raw.lease.expiresAt) {
+      out.lease = { owner: String(raw.lease.owner), expiresAt: Number(raw.lease.expiresAt) };
+    }
+    return out;
+  }
+
+  function loadStore() {
+    var empty = emptyStore();
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return migrateLegacy() || empty;
+      var parsed = JSON.parse(raw);
+      var sanitized = sanitizeStore(parsed);
+      if (!sanitized) {
+        // corrupt → backup + reset
+        try { localStorage.setItem(STORE_KEY + '_corrupt_' + Date.now(), raw); } catch (_) {}
+        return empty;
+      }
+      // phantom correction: if stored > binary, correct
+      if (sanitized.installed && sanitized.installed.source === 'stored') {
+        var binaryVer = null;
+        try { /* sync check not available here, will be corrected in refreshInstalled */ } catch (_) {}
+      }
+      return sanitized;
+    } catch (e) {
+      try {
+        var raw2 = localStorage.getItem(STORE_KEY);
+        if (raw2) localStorage.setItem(STORE_KEY + '_corrupt_' + Date.now(), raw2);
+      } catch (_) {}
+      return empty;
+    }
+  }
+
+  function saveStore(store) {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(store));
+    } catch (e) {
+      console.warn('[updates] saveStore failed (quota?)', e);
+    }
+  }
+
+  function migrateLegacy() {
+    // One-time migration from legacy keys
+    try {
+      var legacyInstalled = localStorage.getItem(LS_INSTALLED);
+      var legacyState = null;
+      try { legacyState = JSON.parse(localStorage.getItem(LS_STATE) || 'null'); } catch (_) {}
+      var legacyApplied = [];
+      try { legacyApplied = JSON.parse(localStorage.getItem(LS_APPLIED_ENTRIES) || '[]'); } catch (_) {}
+      var legacyPending = null;
+      try { legacyPending = JSON.parse(localStorage.getItem(LS_PENDING_RESTART) || 'null'); } catch (_) {}
+      if (!legacyInstalled && !legacyState && !legacyApplied.length && !legacyPending) return null;
+      var store = emptyStore();
+      if (legacyInstalled) {
+        store.installed = { version: legacyInstalled, source: 'stored', confidence: 'low', verifiedAt: Date.now(), buildStamp: readMetaBuildStamp() };
+      }
+      if (Array.isArray(legacyApplied)) store.appliedEntries = legacyApplied.filter(function (x) { return typeof x === 'string'; });
+      if (legacyPending && legacyPending.version) {
+        store.pendingRestart = {
+          entryId: legacyPending.entryId || '',
+          version: legacyPending.version,
+          critical: !!legacyPending.critical,
+          url: legacyPending.url || '',
+          savedAt: legacyPending.savedAt || Date.now(),
+          attempt: 1,
+        };
+      }
+      if (legacyState) {
+        if (Array.isArray(legacyState.ackCritical)) {
+          legacyState.ackCritical.forEach(function (id) { if (store.dismissed.criticalAck.indexOf(id) < 0) store.dismissed.criticalAck.push(id); });
+        }
+        if (Array.isArray(legacyState.dismissedOptional)) {
+          legacyState.dismissedOptional.forEach(function (id) { if (store.dismissed.optional.indexOf(id) < 0) store.dismissed.optional.push(id); });
+        }
+      }
+      // Mark migration done
+      try { localStorage.setItem('crozzo_update_migrated_v2', '1'); } catch (_) {}
+      saveStore(store);
+      return store;
+    } catch (e) {
+      console.warn('[updates] migrateLegacy failed', e);
+      return null;
+    }
+  }
+
+  function isLeaseExpired(store) {
+    if (!store || !store.lease) return true;
+    return Date.now() > store.lease.expiresAt;
+  }
+
+  function acquireLease(owner, ttlMs) {
+    ttlMs = ttlMs || 120000;
+    var store = loadStore();
+    if (store.lease && !isLeaseExpired(store)) {
+      return false; // someone else holds it
+    }
+    store.lease = { owner: owner, expiresAt: Date.now() + ttlMs };
+    saveStore(store);
+    return true;
+  }
+
+  function releaseLease() {
+    var store = loadStore();
+    store.lease = null;
+    saveStore(store);
+  }
+
+  function refreshLease(owner, ttlMs) {
+    ttlMs = ttlMs || 120000;
+    var store = loadStore();
+    if (store.lease && store.lease.owner === owner) {
+      store.lease.expiresAt = Date.now() + ttlMs;
+      saveStore(store);
+    }
+  }
+
+  // backoff with jitter
+  function backoffMs(attempt) {
+    var base = 60000 * Math.pow(2, Math.max(0, (attempt || 1) - 1));
+    var capped = Math.min(base, 6 * 3600000);
+    var jitter = 0.8 + Math.random() * 0.4;
+    return Math.round(capped * jitter);
+  }
+
+  function isEntryAppliedV2(entry) {
+    var store = loadStore();
+    var installed = (store.installed && store.installed.version) || readMetaBuildVersion() || readStoredInstalledVersion() || 'v1.0.0';
+    var remote = normEntryVersion(entry);
+    if (compareSemver(installed, remote) < 0) return false;
+    if (compareSemver(installed, remote) > 0) return true;
+    // misma semver: build stamp
+    var local = readMetaBuildStamp();
+    var remoteStamp = entryBuildStamp(entry);
+    if (!local || !remoteStamp) return false;
+    return local === remoteStamp;
+  }
+
+  function enqueueUpdate(entry, plan) {
+    var store = loadStore();
+    var eid = entryId(entry);
+    // Don't re-enqueue if already done or abandoned
+    var terminal = store.queue.find(function (q) {
+      return q.entryId === eid && (q.status === 'done' || q.status === 'abandoned');
+    });
+    if (terminal && terminal.status === 'done') {
+      // Already done → no-op
+      return terminal.id;
+    }
+    if (terminal && terminal.status === 'abandoned') {
+      // Abandoned → only re-enqueue if backoff expired (allow manual retry)
+      if (terminal.nextRetryAt > Date.now()) return terminal.id;
+      // Reset to queued
+      terminal.status = 'queued';
+      terminal.attempt = 1;
+      terminal.nextRetryAt = Date.now();
+      terminal.updatedAt = Date.now();
+      saveStore(store);
+      appendLocalLog('retry_after_abandoned', entry, '');
+      return terminal.id;
+    }
+    var existing = store.queue.find(function (q) {
+      return q.entryId === eid && ['queued', 'downloading', 'installing', 'awaiting_restart', 'failed'].indexOf(q.status) >= 0;
+    });
+    if (existing) {
+      existing.plan = plan || existing.plan;
+      existing.priority = Math.min(existing.priority, 0);
+      existing.updatedAt = Date.now();
+      saveStore(store);
+      return existing.id;
+    }
+    // failed with backoff not expired?
+    var failedItem = store.queue.find(function (q) {
+      return q.entryId === eid && q.status === 'failed' && q.nextRetryAt > Date.now();
+    });
+    if (failedItem) {
+      failedItem.updatedAt = Date.now();
+      saveStore(store);
+      return failedItem.id;
+    }
+    var item = {
+      id: 'q_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+      entryId: eid,
+      plan: plan || 'A',
+      priority: 0,
+      status: 'queued',
+      attempt: 1,
+      nextRetryAt: Date.now(),
+      lastError: '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      heartbeatAt: Date.now(),
+    };
+    store.queue.push(item);
+    saveStore(store);
+    appendLocalLog('enqueue', entry, 'Plan ' + (plan || 'A'));
+    return item.id;
+  }
+
+  function pruneQueue() {
+    var store = loadStore();
+    var now = Date.now();
+    var sevenDays = 7 * 24 * 3600000;
+    store.queue = store.queue.filter(function (q) {
+      if (q.status === 'done' && (now - (q.updatedAt || 0)) > sevenDays) return false;
+      if (q.status === 'abandoned' && (now - (q.updatedAt || 0)) > 30 * 24 * 3600000) return false;
+      return true;
+    });
+    saveStore(store);
+  }
+
+  function recoverStore() {
+    // 1. sanitize (already done in loadStore)
+    var store = loadStore();
+    // 2. migrate (already done)
+    // 3. refreshInstalled (binario primero)
+    fetchTauriBinaryVersion().then(function (binaryVer) {
+      var meta = readMetaBuildVersion();
+      var stored = (store.installed && store.installed.version) || readStoredInstalledVersion();
+      var ver, source, confidence;
+      if (binaryVer) { ver = binaryVer; source = 'binary'; confidence = 'high'; }
+      else if (meta) { ver = meta; source = 'meta'; confidence = 'medium'; }
+      else { ver = stored || 'v1.0.0'; source = 'stored'; confidence = 'low'; }
+      // phantom correction
+      if (stored && binaryVer && compareSemver(stored, binaryVer) > 0) {
+        console.warn('[updates] phantom state corrected', stored, '->', binaryVer);
+        appendLocalLog('phantom_state_corrected', { version: stored }, 'stored=' + stored + ' binary=' + binaryVer);
+      }
+      store = loadStore();
+      store.installed = { version: ver, source: source, confidence: confidence, verifiedAt: Date.now(), buildStamp: readMetaBuildStamp() };
+      saveStore(store);
+      // update global VERSION
+      VERSION = ver;
+      global.CROZZO_APP_VERSION = ver;
+      try { localStorage.setItem(LS_INSTALLED, ver); } catch (_) {}
+      syncVersionLabels();
+      // 4. Procesar pendingRestart
+      store = loadStore();
+      if (store.pendingRestart) {
+        var pr = store.pendingRestart;
+        if (compareSemver(ver, pr.version) >= 0) {
+          // commit
+          var entry = _registryEntries.find(function (e) { return entryId(e) === pr.entryId; });
+          if (entry) markEntryFullyApplied(entry, pr.version);
+          else {
+            // mark applied by id
+            if (store.appliedEntries.indexOf(pr.entryId) < 0) store.appliedEntries.push(pr.entryId);
+            saveStore(store);
+          }
+          store = loadStore();
+          store.pendingRestart = null;
+          saveStore(store);
+          appendLocalLog('commit_after_restart', { version: pr.version, id: pr.entryId }, 'binary=' + ver);
+          // cloud sync
+          try { scheduleCloudSyncAfterAppUpdate(pr.version, ver); } catch (_) {}
+        } else {
+          // not installed yet → re-enqueue
+          var entry2 = _registryEntries.find(function (e) { return entryId(e) === pr.entryId; });
+          if (entry2) enqueueUpdate(entry2, pr.critical ? 'A' : 'A');
+          appendLocalLog('pending_restart_requeued', { version: pr.version, id: pr.entryId }, 'binary=' + ver);
+        }
+      }
+      // 5. Resetear leases expirados
+      store = loadStore();
+      if (store.lease && isLeaseExpired(store)) {
+        store.lease = null;
+        saveStore(store);
+        appendLocalLog('lease_expired_reset', null, '');
+      }
+      // 6. Items downloading/installing con heartbeat viejo (>3 min) → queued
+      store = loadStore();
+      var threeMin = 3 * 60 * 1000;
+      store.queue.forEach(function (q) {
+        if ((q.status === 'downloading' || q.status === 'installing') && (Date.now() - (q.heartbeatAt || 0)) > threeMin) {
+          q.status = 'queued';
+          q.updatedAt = Date.now();
+          appendLocalLog('stale_item_requeued', { version: q.entryId }, 'was ' + q.status);
+        }
+      });
+      saveStore(store);
+      // 7. reconcileApplied
+      store = loadStore();
+      if (_registryEntries.length) {
+        _registryEntries.forEach(function (entry) {
+          var remote = normEntryVersion(entry);
+          var id = entryId(entry);
+          if (compareSemver(ver, remote) >= 0) {
+            if (store.appliedEntries.indexOf(id) < 0) store.appliedEntries.push(id);
+          } else {
+            var idx = store.appliedEntries.indexOf(id);
+            if (idx >= 0) store.appliedEntries.splice(idx, 1);
+          }
+        });
+        saveStore(store);
+      }
+      // 8. pruneQueue
+      pruneQueue();
+      // 9. processQueue (async, don't block)
+      setTimeout(function () { processQueue(); }, 1000);
+    }).catch(function (e) {
+      console.warn('[updates] recoverStore failed', e);
+    });
+  }
+
+  /** Procesa pendingRestart después de que el registry esté cargado. */
+  function processPendingRestartAfterRegistry() {
+    var store = loadStore();
+    if (!store.pendingRestart) return;
+    var pr = store.pendingRestart;
+    var storeVer = (store.installed && store.installed.version) || VERSION;
+    if (compareSemver(storeVer, pr.version) >= 0) {
+      var entry = _registryEntries.find(function (e) { return entryId(e) === pr.entryId; });
+      if (entry) markEntryFullyApplied(entry, pr.version);
+      else {
+        if (store.appliedEntries.indexOf(pr.entryId) < 0) store.appliedEntries.push(pr.entryId);
+        saveStore(store);
+      }
+      store = loadStore();
+      store.pendingRestart = null;
+      saveStore(store);
+      appendLocalLog('commit_after_restart', { version: pr.version, id: pr.entryId }, 'binary=' + storeVer);
+    } else {
+      var entry2 = _registryEntries.find(function (e) { return entryId(e) === pr.entryId; });
+      if (entry2) enqueueUpdate(entry2, pr.critical ? 'A' : 'A');
+      appendLocalLog('pending_restart_requeued', { version: pr.version, id: pr.entryId }, 'binary=' + storeVer);
+    }
+  }
+
+  function processQueue() {
+    if (!acquireLease('queue-processor', 120000)) return;
+    try {
+      var store = loadStore();
+      var now = Date.now();
+      // find next item to process
+      var candidates = store.queue.filter(function (q) {
+        return q.status === 'queued' || (q.status === 'failed' && q.nextRetryAt <= now && q.attempt < 10);
+      }).sort(function (a, b) {
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        return (a.nextRetryAt || 0) - (b.nextRetryAt || 0);
+      });
+      if (!candidates.length) { releaseLease(); return; }
+      var item = candidates[0];
+      var entry = _registryEntries.find(function (e) { return entryId(e) === item.entryId; });
+      if (!entry) { item.status = 'abandoned'; item.updatedAt = now; saveStore(store); releaseLease(); return; }
+      // update heartbeat
+      item.heartbeatAt = now;
+      item.updatedAt = now;
+      saveStore(store);
+      // process based on status
+      if (item.status === 'failed') {
+        item.attempt = (item.attempt || 1) + 1;
+        if (item.attempt >= 10) {
+          item.status = 'abandoned';
+          item.updatedAt = now;
+          saveStore(store);
+          appendLocalLog('abandoned', entry, 'max attempts reached');
+          releaseLease();
+          return;
+        }
+      }
+      item.status = 'downloading';
+      saveStore(store);
+      // trigger install (async)
+      runInstallFromQueue(item, entry).catch(function (e) {
+        console.warn('[updates] queue install failed', e);
+      });
+    } catch (e) {
+      console.warn('[updates] processQueue failed', e);
+      releaseLease();
+    }
+  }
+
+  function runInstallFromQueue(item, entry) {
+    var remote = normEntryVersion(entry);
+    // TTL proporcional: estimar tamaño y dar más tiempo para descargas grandes
+    var estimatedTtl = 300000; // 5 min base
+    if (item.plan === 'C') estimatedTtl = 600000; // 10 min para Plan C (descarga exe)
+    acquireLease('install-' + item.id, estimatedTtl);
+    return applyClientUpdate(remote, function (p) {
+      // heartbeat update + refresh lease
+      var store = loadStore();
+      var q = store.queue.find(function (x) { return x.id === item.id; });
+      if (q) { q.heartbeatAt = Date.now(); q.updatedAt = Date.now(); saveStore(store); }
+      refreshLease('install-' + item.id, estimatedTtl);
+    }, { silent: true, automaticOnly: true }).then(function (res) {
+      var store = loadStore();
+      var q = store.queue.find(function (x) { return x.id === item.id; });
+      if (q) {
+        if (res && res.exiting) {
+          q.status = 'awaiting_restart';
+        } else if (res && res.installed) {
+          q.status = 'done';
+        } else {
+          q.status = 'failed';
+          q.attempt = (q.attempt || 1) + 1;
+          q.nextRetryAt = Date.now() + backoffMs(q.attempt);
+          q.lastError = res && res.error ? String(res.error) : '';
+        }
+        q.updatedAt = Date.now();
+        saveStore(store);
+      }
+      releaseLease();
+      // save pendingRestart if exiting
+      if (res && res.exiting) {
+        var store2 = loadStore();
+        store2.pendingRestart = {
+          entryId: item.entryId,
+          version: remote,
+          critical: isCriticalEntry(entry),
+          url: '',
+          savedAt: Date.now(),
+          attempt: item.attempt,
+        };
+        saveStore(store2);
+      }
+    }).catch(function (err) {
+      var store = loadStore();
+      var q = store.queue.find(function (x) { return x.id === item.id; });
+      if (q) {
+        q.status = 'failed';
+        q.attempt = (q.attempt || 1) + 1;
+        q.nextRetryAt = Date.now() + backoffMs(q.attempt);
+        q.lastError = err && err.message ? err.message : String(err);
+        q.updatedAt = Date.now();
+        saveStore(store);
+      }
+      releaseLease();
+      appendLocalLog('install_failed', entry, (err && err.message ? err.message : String(err)));
+    });
+  }
+
+  // Dump state for support
+  function crozzoUpdateDumpState() {
+    return {
+      version: VERSION,
+      store: loadStore(),
+      registry: _registryEntries ? _registryEntries.slice() : [],
+      criticalState: _criticalInstallState,
+      installInProgress: _installInProgress,
+      pendingCritical: _pendingCriticalEntry,
+      currentCritical: _currentCriticalId,
+      currentOptional: _currentOptionalId,
+      lastCheck: loadStore().lastCheck,
+    };
+  }
+  global.crozzoUpdateDumpState = crozzoUpdateDumpState;
+
+  // Re-run queue processor every 5 minutes
+  setInterval(function () {
+    if (navigator.onLine !== false) processQueue();
+  }, 5 * 60 * 1000);
+
+  // Process queue when coming back online
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', function () {
+      setTimeout(processQueue, 2000);
+    });
+  }
+
 
   function loadInstalledVersion() {
     var meta = readMetaBuildVersion();
@@ -659,11 +1239,24 @@
   function refreshBinaryVersion() {
     var prevStored = readStoredInstalledVersion();
     return fetchTauriBinaryVersion().then(function (binaryVer) {
-      VERSION = reconcileInstalledVersion(binaryVer);
+      var meta = readMetaBuildVersion();
+      var stored = readStoredInstalledVersion();
+      var ver, source, confidence;
+      if (binaryVer) { ver = binaryVer; source = 'binary'; confidence = 'high'; }
+      else if (meta) { ver = meta; source = 'meta'; confidence = 'medium'; }
+      else { ver = stored || 'v1.0.0'; source = 'stored'; confidence = 'low'; }
+      // phantom correction
+      if (stored && binaryVer && compareSemver(stored, binaryVer) > 0) {
+        console.warn('[updates] phantom state corrected', stored, '->', binaryVer);
+        try { appendLocalLog('phantom_state_corrected', { version: stored }, 'stored=' + stored + ' binary=' + binaryVer); } catch (_) {}
+      }
+      VERSION = ver;
       global.CROZZO_APP_VERSION = VERSION;
-      try {
-        localStorage.setItem(LS_INSTALLED, VERSION);
-      } catch (_) {}
+      // save to store v2
+      var store = loadStore();
+      store.installed = { version: ver, source: source, confidence: confidence, verifiedAt: Date.now(), buildStamp: readMetaBuildStamp() };
+      saveStore(store);
+      try { localStorage.setItem(LS_INSTALLED, VERSION); } catch (_) {}
       syncVersionLabels();
       if (prevStored && compareSemver(prevStored, VERSION) < 0) {
         scheduleCloudSyncAfterAppUpdate(prevStored, VERSION);
@@ -716,17 +1309,39 @@
       );
       return;
     }
+    // P0: only advance VERSION if binary confirms it
+    var store = loadStore();
+    var binaryVer = (store.installed && store.installed.version) || VERSION;
+    if (tv && compareSemver(tv, binaryVer) > 0) {
+      // binary doesn't confirm yet → save as pendingRestart, don't advance VERSION
+      console.warn('[updates] binary does not confirm ' + tv + ' (binary=' + binaryVer + '), saving as pendingRestart');
+      store.pendingRestart = {
+        entryId: id,
+        version: tv,
+        critical: isCriticalEntry(entry),
+        url: '',
+        savedAt: Date.now(),
+        attempt: 1,
+      };
+      if (store.appliedEntries.indexOf(id) < 0) store.appliedEntries.push(id);
+      saveStore(store);
+      appendLocalLog('pending_restart_saved', entry, 'binary=' + binaryVer + ' target=' + tv);
+      return;
+    }
     if (tv) {
       VERSION = tv;
       global.CROZZO_APP_VERSION = tv;
       saveInstalledVersion(tv);
       syncVersionLabels();
     }
-    try {
-      var ids = loadAppliedEntryIds();
-      if (ids.indexOf(id) < 0) ids.push(id);
-      localStorage.setItem(LS_APPLIED_ENTRIES, JSON.stringify(ids));
-    } catch (_) {}
+    // update store
+    store = loadStore();
+    if (store.appliedEntries.indexOf(id) < 0) store.appliedEntries.push(id);
+    store.pendingRestart = null;
+    if (tv) {
+      store.installed = { version: tv, source: 'binary', confidence: 'high', verifiedAt: Date.now(), buildStamp: readMetaBuildStamp() };
+    }
+    saveStore(store);
     queuePostUpdateWelcome(entry, tv, previousVer);
     if (isCriticalEntry(entry)) {
       pushStateId('ackCritical', id);
@@ -860,18 +1475,7 @@
   }
 
   function isEntryApplied(entry) {
-    if (!entry) return false;
-    var remote = normEntryVersion(entry);
-    var cmp = compareSemver(VERSION, remote);
-    if (cmp < 0) return false;   // remoto más nuevo → pendiente
-    if (cmp > 0) return true;    // local más nuevo → aplicado
-    // Misma semver: comparar build stamp para detectar build-only updates.
-    var localStamp = readMetaBuildStamp();
-    var remoteStamp = entryBuildStamp(entry);
-    // Si falta alguno de los stamps, no forzar aplicado (tratar como desconocido).
-    if (!localStamp || !remoteStamp) return false;
-    if (localStamp !== remoteStamp) return false; // build-only update pendiente
-    return true;
+    return isEntryAppliedV2(entry);
   }
 
   /** Marca entradas del registry ya cubiertas por la versión instalada (evita bucles al arrancar). */
@@ -889,6 +1493,13 @@
   function entryNeedsInstall(entry) {
     if (!entry) return false;
     return !isEntryApplied(entry);
+  }
+
+  function readStoredInstalledVersion() {
+    try {
+      var v = localStorage.getItem(LS_INSTALLED);
+      return v ? String(v).trim() : '';
+    } catch (_) { return ''; }
   }
 
   function saveInstalledVersion(v) {
@@ -1036,8 +1647,11 @@
     if (/different key|signature was created/i.test(raw)) {
       return 'Actualizando por método alternativo automático (instalador silencioso)…';
     }
-    if (/APK aún no está|compilación Android/i.test(raw)) {
-      return 'El APK aún no está listo en GitHub. Espere la compilación o use el enlace manual en Actualizaciones.';
+    if (/release not ready|GitHub Actions|compilación Android/i.test(raw)) {
+      return 'La nueva versión aún se está preparando. Intente en unos minutos.';
+    }
+    if (/release not ready/i.test(raw)) {
+      return 'El instalador aún no está listo en el servidor. Intente en unos minutos.';
     }
     if (/No se pudo abrir la descarga del APK|navegador para descargar/i.test(raw)) {
       return raw;
@@ -1559,8 +2173,6 @@
       return;
     }
   }
-  global.syncLoginUpdateBanner = syncLoginUpdateBanner;
-
   function parseChangelogLine(line) {
     var raw = String(line || '').trim();
     if (!raw) return { tag: 'general', text: '', label: 'Novedades', icon: '📋' };
@@ -2160,14 +2772,14 @@
                         /latest\.json.*registry\.json/i.test(ut) ||
                         /releases\/latest\.jsonreleases/i.test(ut) ||
                         /releases\/registry\.jsonreleases/i.test(ut);
-        if (!isCorrupt && /^https:\/\/.+\.json$/i.test(ut)) return ut;
+        if (!isCorrupt && /^https:\/\/.+\.json$/i.test(ut) && isAllowedUrl(ut)) return ut;
         // Si la URL guardada es inválida/corrupta, limpiarla y usar default.
         try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
       }
     } catch (_) {}
     if (global.CROZZO_UPDATE_MANIFEST_URL && String(global.CROZZO_UPDATE_MANIFEST_URL).trim()) {
       var gu = String(global.CROZZO_UPDATE_MANIFEST_URL).trim();
-      if (/^https:\/\/.+\.json$/i.test(gu) && !/latest\.json.*latest\.json/i.test(gu)) return gu;
+      if (/^https:\/\/.+\.json$/i.test(gu) && !/latest\.json.*latest\.json/i.test(gu) && isAllowedUrl(gu)) return gu;
     }
     return DEFAULT_MANIFEST_URL;
   }
@@ -2181,13 +2793,13 @@
 
   function setManifestUrl(url) {
     var u = String(url || '').trim();
-    // Validar: solo guardar si es HTTPS, termina en .json, y no es corrupta.
+    // Validar: solo guardar si es HTTPS, termina en .json, no es corrupta, y host permitido.
     var isCorrupt = /latest\.json.*latest\.json/i.test(u) ||
                     /registry\.json.*latest\.json/i.test(u) ||
                     /latest\.json.*registry\.json/i.test(u) ||
                     /releases\/latest\.jsonreleases/i.test(u) ||
                     /releases\/registry\.jsonreleases/i.test(u);
-    if (u && (isCorrupt || !/^https:\/\/.+\.json$/i.test(u))) {
+    if (u && (isCorrupt || !/^https:\/\/.+\.json$/i.test(u) || !isAllowedUrl(u))) {
       try { localStorage.removeItem(LS_MANIFEST); } catch (_) {}
       return false;
     }
@@ -2941,7 +3553,14 @@
     if (toEl) toEl.textContent = _installUi.to || VERSION_AVAIL;
     if (pct) pct.textContent = Math.round(_installUi.percent) + '%';
     if (msg) msg.textContent = _installUi.message || '';
-    if (fill) fill.style.width = Math.max(0, Math.min(100, _installUi.percent)) + '%';
+    if (fill) {
+      fill.style.width = Math.max(0, Math.min(100, _installUi.percent)) + '%';
+      fill.setAttribute('role', 'progressbar');
+      fill.setAttribute('aria-valuenow', Math.round(_installUi.percent));
+      fill.setAttribute('aria-valuemin', '0');
+      fill.setAttribute('aria-valuemax', '100');
+      fill.setAttribute('aria-label', 'Progreso de actualización');
+    }
     if (log) {
       var isAndroidAwaiting = _installUi.state === 'success' && getUpdateClientProfile().isAndroid;
       if (isAndroidAwaiting) {
@@ -3106,8 +3725,25 @@
     }
   }
 
-  function setDetailOpen(open) {
-    setOverlayOpen('crozzo-update-detail-overlay', open, 'crozzo-update-detail-open');
+  // ESC key handler for modals (accessibility)
+  if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      // Critical overlay: close only if not downloading/installing
+      var criticalOverlay = document.getElementById('crozzo-update-critical-overlay');
+      if (criticalOverlay && criticalOverlay.classList.contains('crozzo-update-critical-open')) {
+        if (_criticalInstallState !== 'installing' && _criticalInstallState !== 'downloading') {
+          crozzoCerrarActualizacionCritica();
+        }
+        return;
+      }
+      // Detail overlay
+      var detailOverlay = document.getElementById('crozzo-update-detail-overlay');
+      if (detailOverlay && detailOverlay.classList.contains('crozzo-update-detail-open')) {
+        setDetailOpen(false);
+        return;
+      }
+    });
   }
 
   function setNormalOpen(open) {
@@ -3984,8 +4620,34 @@
       }
       return applyWebClientUpdate(targetVersion, onProgress);
     }
-    var windowsExe = profile.assetKind === 'exe';
     var TU = global.CrozzoTauriUpdater;
+    // Use PlanRouter if available
+    if (TU && typeof TU.probePlanCapabilities === 'function') {
+      return TU.probePlanCapabilities().then(function () {
+        var selection = TU.selectPlan({ platform: profile.kind, targetVersion: targetVersion, signatureError: false });
+        onProgress({ phase: 'plan', plan: selection.plan, message: 'Plan seleccionado: ' + selection.plan + ' (cadena: ' + selection.chain.join(' → ') + ')' });
+        return TU.executePlanChain(selection.chain, { targetVersion: targetVersion, onProgress: onProgress }, onProgress);
+      }).catch(function (err) {
+        // Fallback to original logic if PlanRouter fails
+        console.warn('[updates] PlanRouter failed, using legacy path:', err);
+        var windowsExe = profile.assetKind === 'exe';
+        var installFn = TU && typeof TU.installAutomatic === 'function' ? TU.installAutomatic : TU.installLatest;
+        return installFn({
+          targetVersion: targetVersion,
+          silent: !!opts.silent,
+          automaticOnly: opts.automaticOnly !== false,
+          allowSilentSetup: opts.allowSilentSetup !== false && windowsExe,
+          preferSilentSetup: opts.preferSilentSetup !== false && windowsExe,
+          skipReleaseWait: opts.skipReleaseWait !== false,
+          maxWaitMs: opts.maxWaitMs,
+          onProgress: function (p) {
+            handleInstallProgress(p);
+            if (onProgress) onProgress(p);
+          },
+        });
+      });
+    }
+    var windowsExe = profile.assetKind === 'exe';
     var installFn = TU && typeof TU.installAutomatic === 'function' ? TU.installAutomatic : TU.installLatest;
     return installFn({
       targetVersion: targetVersion,
@@ -4571,6 +5233,8 @@
     // OTA-2: restaurar estado respaldado (si existe y es reciente).
     crozzoRestorePosRuntimeStateIfPending();
     scheduleDeferredCriticalAfterLogin();
+    // RECOVER: reconcile state from binary before any detection
+    try { recoverStore(); } catch (e) { console.warn('[updates] recoverStore failed', e); }
     _bootUpdatePhase = true;
     global.__crozzoBootUpdatePhase = true;
     if (otaAutoInstallAllowed() && shouldBlockBootLoginForUpdates()) {
@@ -4592,6 +5256,8 @@
         reconcileAppliedEntriesForVersion(installedVer);
         applyAvailabilityFromRegistry(_registryEntries);
         pruneStaleStateFlags();
+        // Process pendingRestart now that registry is loaded
+        try { processPendingRestartAfterRegistry(); } catch (e) { console.warn('[updates] processPendingRestart failed', e); }
         syncLoginUpdateBanner();
         return applyPendingRestartInstallOnBoot(_registryEntries).then(function (installedPending) {
           if (installedPending) return { ok: true, installedPending: true };
@@ -5216,6 +5882,17 @@
       return false;
     }
 
+    // Pre-warm Plan B URL in background (don't block)
+    var TU = global.CrozzoTauriUpdater;
+    if (TU && typeof TU.prewarmPlanB === 'function') {
+      var remote = normEntryVersion(entry);
+      TU.prewarmPlanB(remote).then(function (info) {
+        if (info && info.downloadUrl) {
+          _planB = { downloadUrl: info.downloadUrl, releasePageUrl: info.releasePageUrl, version: remote, ready: true };
+        }
+      }).catch(function () {});
+    }
+
     if (isCriticalEntry(entry) && !otaAutoInstallAllowed()) {
       setCheckStatus(
         'Hay actualización ' +
@@ -5234,26 +5911,27 @@
   function delay(ms) {
     return new Promise(function (resolve) { setTimeout(resolve, ms || 0); });
   }
-  function fetchWithTimeout(url, ms) {
-    return new Promise(function (resolve, reject) {
-      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      var timer = setTimeout(function () {
-        if (ctrl) ctrl.abort();
-        reject(new Error('timeout'));
-      }, ms || 12000);
-      var sep = url.indexOf('?') >= 0 ? '&' : '?';
-      fetch(url + sep + '_=' + Date.now(), {
-        cache: 'no-store',
-        signal: ctrl ? ctrl.signal : undefined,
-      })
-        .then(function (res) {
-          clearTimeout(timer);
-          resolve(res);
-        })
-        .catch(function (err) {
-          clearTimeout(timer);
-          reject(err);
+  // Fallback real a endpoint alternativo si el primario falla
+  function fetchWithFallback(url, ms) {
+    ms = ms || 12000;
+    // Try primary
+    return fetchWithTimeout(url, ms).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res;
+    }).catch(function (err) {
+      // Try alternative endpoint if available
+      var altUrl = null;
+      if (/raw\.githubusercontent\.com/i.test(url)) {
+        altUrl = url.replace('raw.githubusercontent.com', 'github.com').replace('/main/', '/blob/main/').replace('?_=', '?raw=1&_=');
+      }
+      if (altUrl && altUrl !== url) {
+        console.warn('[updates] primary failed, trying alternative:', altUrl);
+        return fetchWithTimeout(altUrl, ms).then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res;
         });
+      }
+      throw err;
     });
   }
 
@@ -5261,9 +5939,28 @@
     _retry = _retry || 0;
     var registryUrl = getRegistryUrl();
     var manifestUrl = getManifestUrl();
+    // SECURITY: validate URLs against allowlist
+    if (!isAllowedUrl(registryUrl)) {
+      console.warn('[updates] registry URL not allowed:', registryUrl);
+      registryUrl = DEFAULT_REGISTRY_URL;
+    }
+    if (!isAllowedUrl(manifestUrl)) {
+      console.warn('[updates] manifest URL not allowed:', manifestUrl);
+      manifestUrl = DEFAULT_MANIFEST_URL;
+    }
     // Intentar fetch JS; si falla (CSP/red), intentar via Tauri (desktop).
-    function fetchJsonWithFallback(url, ms) {
-      return fetchWithTimeout(url, ms)
+    function checkStorageAvailable() {
+    if (navigator.storage && navigator.storage.estimate) {
+      return navigator.storage.estimate().then(function (est) {
+        var available = (est.quota || 0) - (est.usage || 0);
+        return available > 50 * 1024 * 1024;
+      }).catch(function () { return true; });
+    }
+    return Promise.resolve(true);
+  }
+
+  function fetchJsonWithFallback(url, ms) {
+      return fetchWithFallback(url, ms)
         .then(function (res) {
           if (!res.ok) throw new Error('HTTP ' + res.status);
           return res.json();
@@ -5291,7 +5988,8 @@
       var merged = mergeRegistryEntries(reg, man);
       if (merged.length) return merged;
       if (_retry < 2) {
-        return new Promise(function (resolve) { setTimeout(resolve, 2000); }).then(function () { return fetchRegistryData(_retry + 1); });
+        var delay = Math.min(30000, 2000 * Math.pow(2, _retry)) * (0.8 + Math.random() * 0.4);
+        return new Promise(function (resolve) { setTimeout(resolve, delay); }).then(function () { return fetchRegistryData(_retry + 1); });
       }
       // Incluir detalle de qué falló
       var detail = 'registry=' + (parts[0] ? 'ok(' + reg.length + ')' : 'FAIL') + ' manifest=' + (parts[1] ? 'ok(' + man.length + ')' : 'FAIL');
@@ -5552,8 +6250,8 @@
           var ctx = getUpdateOperativeContext();
           global.showToast(
             ctx.experiencia === 'novice'
-              ? 'Mejora pospuesta — le recordaremos mañana o al próximo inicio tranquilo.'
-              : 'Actualización ' + normEntryVersion(entry) + ' pospuesta. El aviso volverá más tarde.',
+              ? 'Mejora pospuesta — se reintentará automáticamente en 6 horas o al reiniciar la app.'
+              : 'Actualización ' + normEntryVersion(entry) + ' pospuesta. Se reintentará en 6 h o al reiniciar.',
             'info'
           );
         }
@@ -5928,18 +6626,24 @@
 
     wireOnce(document.getElementById('crozzoUpdateCheckNow'), function (e) {
       e.preventDefault();
+      var btn = document.getElementById('crozzoUpdateCheckNow');
+      if (btn) { btn.disabled = true; btn.textContent = 'Comprobando…'; }
       if (urlInput) setManifestUrl(urlInput.value);
       setCheckStatus('Comprobando registro…');
-      checkForUpdates({ toastIfNoUrl: true, toastOnFound: true });
+      checkForUpdates({ toastIfNoUrl: true, toastOnFound: true }).finally(function () {
+        if (btn) { btn.disabled = false; btn.textContent = 'Comprobar ahora'; }
+      });
     });
 
     wireOnce(document.getElementById('crozzoUpdateForceNow'), function (e) {
       e.preventDefault();
+      if (!confirm('Esto forzará la instalación de la actualización disponible. No cierre la app hasta que termine. ¿Continuar?')) return;
       crozzoForceSystemUpdateNow({ clearPendingRestart: true });
     });
 
     wireOnce(document.getElementById('crozzoUpdateResetAlerts'), function (e) {
       e.preventDefault();
+      if (!confirm('Esto borrará el historial de avisos ocultos y volverá a comprobar actualizaciones. ¿Continuar?')) return;
       resetUpdateDismissals();
     });
 
@@ -6434,7 +7138,9 @@
     humanizeChangelog: buildHumanChangelogHtml,
     runAudit: runInternalUpdateAudit,
     forceUpdateNow: crozzoForceSystemUpdateNow,
+    dumpState: crozzoUpdateDumpState,
   };
+  global.crozzoUpdateDumpState = crozzoUpdateDumpState;
 
   function wirePendingRestartOnAppExit() {
     if (global.__crozzoPendingRestartExitWired) return;

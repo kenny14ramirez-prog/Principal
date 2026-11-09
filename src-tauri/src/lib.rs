@@ -23,6 +23,9 @@ mod crozzo_http;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_hotspot;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod crozzo_tls;
+mod crozzo_ble;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_silent_install;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod dian_adquiriente;
@@ -240,6 +243,20 @@ pub fn run() {
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_hotspot::crozzo_hotspot_status,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_tls::crozzo_lan_tls_cert,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_tls::crozzo_lan_tls_available,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_tls::crozzo_lan_tls_status,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_tls::crozzo_lan_tls_enable,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_tls::crozzo_lan_tls_install_ca,
+            crozzo_ble::crozzo_ble_available,
+            crozzo_ble::crozzo_ble_status,
+            crozzo_ble::crozzo_ble_scan,
+            crozzo_ble::crozzo_ble_request_permissions,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_ws::crozzo_lan_ws_start,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_ws::crozzo_lan_ws_stop,
@@ -247,6 +264,8 @@ pub fn run() {
             crozzo_lan_ws::crozzo_lan_ws_status,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_lan_ws::crozzo_lan_ws_broadcast,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            crozzo_lan_ws::crozzo_lan_ws_tls_status,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_mdns::crozzo_mdns_start_advertise,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

@@ -368,5 +368,14 @@
     isHotspotGateway: isHotspotGateway,
     HOTSPOT_GATEWAYS: HOTSPOT_GATEWAYS,
   };
+  function crozzoPullPosRuntimeCloud(opts) {
+    try {
+      if (typeof global.crozzoPullPosRuntimeCloud === 'function') {
+        return global.crozzoPullPosRuntimeCloud(opts || {});
+      }
+    } catch (_) {}
+    return Promise.resolve(false);
+  }
+  global.crozzoPullPosRuntimeCloud = crozzoPullPosRuntimeCloud;
   global.crozzoWifiZoneResolveCentral = resolveCentral;
 })(typeof window !== 'undefined' ? window : globalThis);

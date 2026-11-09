@@ -1,7 +1,7 @@
 {
   "name": "tauri-app",
   "private": true,
-  "version": "1.0.260",
+  "version": "1.0.274",
   "type": "module",
   "scripts": {
     "tauri": "tauri",
@@ -12,6 +12,7 @@
     "updates:publish:optional": "scripts\\herramientas\\publicar-actualizacion-opcional.bat",
     "updates:verify": "node scripts/verificar-publicacion.mjs",
     "updates:health": "node scripts/health-check-updates.mjs",
+    "test:updates": "node scripts/test-updates-unit.mjs",
     "consolidate": "node scripts/consolidate-crozzo-bundles.mjs",
     "train:recepcion-fe": "node scripts/train-recepcion-fe.mjs",
     "train:recepcion-fe:full": "node scripts/train-recepcion-fe.mjs --full",
@@ -95,6 +96,7 @@
     "@tauri-apps/cli": "^2",
     "canvas": "^3.2.3",
     "codebase-memory-mcp": "^0.9.0",
+    "fast-check": "^4.10.2",
     "mcp-code-context": "^3.7.1",
     "pdfjs-dist": "^3.11.174",
     "playwright": "^1.49.0",

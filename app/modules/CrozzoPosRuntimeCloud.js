@@ -170,7 +170,7 @@
       deviceId = String(
         (typeof global.ensureCrozzoDeviceId === 'function' && global.ensureCrozzoDeviceId()) ||
           md.deviceId ||
-          localStorage.getItem('crozzo_device_id') ||
+          (__rtMem && __rtMem.has('crozzo_device_id') ? __rtMem.get('crozzo_device_id') : '') ||
           ''
       ).trim();
     } catch (_) {
@@ -184,12 +184,46 @@
     };
   }
 
+  var __runtimeIdbSnapshot = null;
+  var __runtimeIdbSavedAt = 0;
+  var __rtMem = new Map();
+  function runtimeIdb() {
+    try {
+      return global.CrozzoRuntimeIndexedDb || global.crozzoRuntimeIndexedDb || null;
+    } catch (_) {
+      return null;
+    }
+  }
+  async function hydrateRuntimeSnapshotFromIdb() {
+    var idb = runtimeIdb();
+    if (!idb) return;
+    try {
+      await idb.open();
+      var keys = ['crozzo_pos_runtime_v1', 'crozzo_device_id', 'crozzo_wifi_zone_last_ip', 'crozzo_debug_sync'];
+      for (var ki = 0; ki < keys.length; ki++) {
+        try {
+          var v = await idb.get(keys[ki]);
+          if (v != null) __rtMem.set(keys[ki], v);
+        } catch (_) {}
+      }
+      var val = __rtMem.has('crozzo_pos_runtime_v1') ? __rtMem.get('crozzo_pos_runtime_v1') : null;
+      if (val && typeof val === 'object') {
+        __runtimeIdbSnapshot = val;
+        __runtimeIdbSavedAt = Number(val.savedAt) || 0;
+      }
+    } catch (_) {}
+  }
   function localSavedAt() {
     try {
-      var raw = localStorage.getItem('crozzo_pos_runtime_v1');
-      if (!raw) return 0;
-      var s = JSON.parse(raw);
-      return Number(s && s.savedAt) || 0;
+      if (__runtimeIdbSavedAt) return __runtimeIdbSavedAt;
+      var mem = __rtMem.has('crozzo_pos_runtime_v1') ? __rtMem.get('crozzo_pos_runtime_v1') : null;
+      if (!mem || typeof mem !== 'object') return 0;
+      var v = Number(mem.savedAt) || 0;
+      if (v) {
+        __runtimeIdbSavedAt = v;
+        __runtimeIdbSnapshot = mem;
+      }
+      return v;
     } catch (_) {
       return 0;
     }
@@ -585,8 +619,9 @@
       return global.collectPosRuntimeState();
     }
     try {
-      var raw = localStorage.getItem('crozzo_pos_runtime_v1');
-      return raw ? JSON.parse(raw) : null;
+      if (__runtimeIdbSnapshot) return __runtimeIdbSnapshot;
+      var mem = __rtMem.has('crozzo_pos_runtime_v1') ? __rtMem.get('crozzo_pos_runtime_v1') : null;
+      return mem && typeof mem === 'object' ? mem : null;
     } catch (_) {
       return null;
     }
@@ -602,6 +637,8 @@
       source_device_id: c.deviceId,
       source_role: c.role,
       updated_at: iso,
+      /* Bloqueo optimista: version monotona por sede para evitar multi-writer ciego. */
+      version: (snap && snap._version) ? snap._version : 0,
     };
   }
 
@@ -729,16 +766,23 @@
     try {
       var cur = await sb
         .from(TABLE)
-        .select('payload')
+        .select('payload,version')
         .eq('location_id', c.locationId)
         .limit(1)
         .maybeSingle();
-      if (cur && !cur.error && cur.data && cur.data.payload) {
-        var before = Object.keys((snap && snap.cartsPorMesa) || {}).length;
-        snap = mergeSedeSnapshots(cur.data.payload, snap);
-        var after = Object.keys((snap && snap.cartsPorMesa) || {}).length;
-        try { console.log('[runtime-cloud] sede merge mesas ' + before + '→' + after + ' (preserva otras mesas)'); } catch (_) {}
+      var curVersion = 0;
+      if (cur && !cur.error && cur.data) {
+        curVersion = Number(cur.data.version || (cur.data.payload && cur.data.payload._version) || 0) || 0;
+        if (cur.data.payload) {
+          var before = Object.keys((snap && snap.cartsPorMesa) || {}).length;
+          snap = mergeSedeSnapshots(cur.data.payload, snap);
+          var after = Object.keys((snap && snap.cartsPorMesa) || {}).length;
+          try { console.log('[runtime-cloud] sede merge mesas ' + before + '→' + after + ' (preserva otras mesas)'); } catch (_) {}
+        }
       }
+      /* Bloqueo optimista: version monotona para detectar escrituras concurrentes. */
+      try { snap._version = curVersion + 1; } catch (_) {}
+      try { snap._lockToken = String(Date.now()) + '-' + String(Math.random()).slice(2); } catch (_) {}
     } catch (_) {}
     var body = rowFromSnapshot(snap, c);
     try {
@@ -774,13 +818,28 @@
     return false;
   }
 
-  function lanCentralHost() {
+  async function lanCentralHost() {
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     if (md.role === 'A') return '127.0.0.1';
     var ip = String(md.centralIp || '').trim();
     if (!ip) {
       try {
-        ip = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+        if (__rtMem.has('crozzo_wifi_zone_last_ip')) {
+          ip = String(__rtMem.get('crozzo_wifi_zone_last_ip') || '').trim();
+        }
+      } catch (_) {}
+    }
+    if (!ip) {
+      try {
+        var idb = runtimeIdb();
+        if (idb) {
+          await idb.open();
+          var v = await idb.get('crozzo_wifi_zone_last_ip');
+          if (v != null) {
+            ip = String(v).trim();
+            __rtMem.set('crozzo_wifi_zone_last_ip', v);
+          }
+        }
       } catch (_) {}
     }
     return ip;
@@ -836,7 +895,7 @@
   }
 
   async function pullRuntimeLan(opts) {
-    var host = lanCentralHost();
+    var host = await lanCentralHost();
     if (!host) return false;
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
     var port = Number(md.port) || 3000;
@@ -1199,7 +1258,7 @@
           var refsUp = toUpsert.filter(function (r) { return r.kind !== 'meta'; }).map(function (r) { return r.kind + ':' + r.ref; });
           var dbg = false;
           try {
-            dbg = !!(global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1');
+            dbg = !!(String(__rtMem && __rtMem.get('crozzo_debug_sync')) === '1');
           } catch (_) {}
           if (dbg) {
             console.log('[runtime-cloud] pushMesaRows OK · filas=' + toUpsert.length + ' [' + refsUp.join(',') + ']');
@@ -1332,6 +1391,12 @@
     var full = collectFull();
     var snap = packForCloud(full);
     if (!snap) return false;
+    // WebRTC P2P baja latencia (fallback HTTP/WS si no hay canal).
+    try {
+      if (typeof global.crozzoP2PSend === 'function') {
+        global.crozzoP2PSend({ type: 'runtime', data: snap });
+      }
+    } catch (_) {}
     var sig = payloadSig(snap);
     var dedupWindow = opts.force ? 1200 : 4000;
     if (sig === __lastPushSig && Date.now() - __lastPushAt < dedupWindow) {
@@ -1492,9 +1557,9 @@
       var nowLog = Date.now();
       if (nowLog - __lastDiscardLogAt > 8000) {
         __lastDiscardLogAt = nowLog;
-        // RUIDO DEV: dedup normal — evita parpadeo (KI-016). Debug: localStorage crozzo_debug_sync=1
+        // RUIDO DEV: dedup normal — evita parpadeo (KI-016). Debug: crozzo_debug_sync=1
         try {
-          if (global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1') {
+          if (String(__rtMem && __rtMem.get('crozzo_debug_sync')) === '1') {
             console.log('[runtime-cloud] applyRemoteRow: mismo contenido, descartado');
           }
         } catch (_) {}
@@ -1579,9 +1644,9 @@
       var nowApplyLog = Date.now();
       if (nowApplyLog - __lastApplyRemoteLogAt > 4000) {
         __lastApplyRemoteLogAt = nowApplyLog;
-        // RUIDO DEV: traza de merge runtime remoto. Debug: localStorage crozzo_debug_sync=1
+        // RUIDO DEV: traza de merge runtime remoto. Debug: crozzo_debug_sync=1
         try {
-          if (global.localStorage && global.localStorage.getItem('crozzo_debug_sync') === '1') {
+          if (String(__rtMem && __rtMem.get('crozzo_debug_sync')) === '1') {
             console.log(
               '[runtime-cloud] applyRemoteRow: aplicando v=' +
                 pay.v +
@@ -1602,13 +1667,21 @@
     __lastRemoteAt = remoteAt;
     __lastAppliedContentSig = contentSig;
     __lastAppliedPresenceStableSig = slotPresenceStableSig(pay.slotSessionPresence);
-    if (pickerSig) __lastAppliedPickerSig = pickerSig;
-    else if (localPickerSig) __lastAppliedPickerSig = localPickerSig;
     try {
       global.__crozzoRuntimeCloudApplying = true;
-      if (typeof global.savePosRuntimeToLocalStorage === 'function') {
-        global.savePosRuntimeToLocalStorage();
-      }
+      /* Espejo en IndexedDB (runtime mesas/carritos). */
+      try {
+        var __idb = runtimeIdb();
+        if (__idb) {
+          var __snap = collectFull();
+          if (__snap) {
+            __runtimeIdbSnapshot = __snap;
+            __runtimeIdbSavedAt = Number(__snap.savedAt) || __runtimeIdbSavedAt;
+            __idb.set('crozzo_pos_runtime_v1', __snap).catch(function () {});
+            __rtMem.set('crozzo_pos_runtime_v1', __snap);
+          }
+        }
+      } catch (_) {}
     } catch (_) {}
     try {
       global.__crozzoRuntimeCloudApplying = false;
@@ -1831,6 +1904,7 @@
 
   function startRuntimeCloudSync(opts) {
     opts = opts || {};
+    try { hydrateRuntimeSnapshotFromIdb(); } catch (_) {}
     if (!cloudTransportActive()) {
       stopRuntimeCloudSync();
       return;
@@ -1951,7 +2025,7 @@
         } catch (_) {}
       }
     }
-    var host = lanCentralHost();
+    var host = await lanCentralHost();
     if (!skipLan && host) {
       try {
         var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
@@ -2122,6 +2196,7 @@
   global.__crozzoMergeSedeSnapshots = mergeSedeSnapshots;
   global.__crozzoExpandRuntimeCartRow = expandCompactCartRow;
 
+  try { hydrateRuntimeSnapshotFromIdb(); } catch (_) {}
   if (typeof document !== 'undefined') {
     document.addEventListener('crozzo-multidevice-config-saved', function () {
       try {

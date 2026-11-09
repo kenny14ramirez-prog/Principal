@@ -197,6 +197,31 @@ if (htmlHasUpdaterScripts('src/index.html')) {
   warnings.push('src/index.html sin scripts de actualización — ejecute: npm run sync');
 }
 
+// Validate registry schema
+const registry = readJson('releases/registry.json');
+if (registry) {
+  var regEntries = Array.isArray(registry) ? registry : (registry.entries || [registry]);
+  if (regEntries.length) {
+    ok.push('Registry: ' + regEntries.length + ' entradas');
+    // Check unique IDs
+    var regIds = regEntries.map(function (e) { return e.id || (e.semver + '-' + (e.type || 'optional')); });
+    var uniqueRegIds = new Set(regIds);
+    if (uniqueRegIds.size !== regIds.length) {
+      errors.push('Registry: IDs duplicados detectados');
+    } else {
+      ok.push('Registry: IDs únicos OK');
+    }
+    // Check versions
+    regEntries.forEach(function (e, idx) {
+      var v = e.version || 'v' + (e.semver || '');
+      if (!/^v?\d+\.\d+\.\d+/.test(v)) {
+        warnings.push('Registry entry ' + idx + ': versión inválida (' + v + ')');
+      }
+    });
+  }
+} else {
+  warnings.push('releases/registry.json ausente o ilegible');
+}
 const latest = readJson('releases/latest.json');
 if (latest) {
   const ver = latest.semver || String(latest.version || '').replace(/^v/i, '');

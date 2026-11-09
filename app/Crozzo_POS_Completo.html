@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.260">
+<meta name="crozzo-app-version" content="1.0.274">
 <meta name="crozzo-build-stamp" content="2026-11-01T00:00:00.000Z">
 <meta name="crozzo-nav-acl-rev" content="nav-acl-v6-perm-audit">
 <title>BONA origen · Sistema POS</title>
@@ -1130,6 +1130,13 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoOpFanout.js" defer></script>
 <script src="infra/CrozzoLanSyncBridge.js" defer></script>
 <script src="infra/CrozzoLanOpsSync.js" defer></script>
+<script src="infra/CrozzoConnectivityUx.js" defer></script>
+<script src="infra/CrozzoChannelFallback.js" defer></script>
+<script src="infra/CrozzoPrintQueue.js" defer></script>
+<script src="infra/CrozzoLanCrypto.js" defer></script>
+<script src="infra/CrozzoTlsPinning.js" defer></script>
+<script src="infra/CrozzoCertTrust.js" defer></script>
+<script src="infra/CrozzoWebRtcP2P.js" defer></script>
 <script src="core/pos/CrozzoPosConfigManager.js" defer></script>
 <script src="core/pos/CrozzoPosDianLib.js" defer></script>
 <script src="core/pos/CrozzoPosKeyboard.js" defer></script>
@@ -1143,6 +1150,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoConnectivityStandby.js" defer></script>
 <script src="infra/CrozzoZ0OperativePulse.js" defer></script>
 <script src="infra/CrozzoZ0AutoGuard.js" defer></script>
+<script src="infra/CrozzoRuntimeIndexedDb.js" defer></script>
 <script src="modules/CrozzoPosRuntimeCloud.js" defer></script>
 <script src="infra/CrozzoOperativeJournal.js" defer></script>
 <script src="infra/CrozzoDevTap.js" defer></script>
@@ -1166,6 +1174,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoSuperAdminSyncPriorities.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
 <script src="infra/CrozzoMdnsBridge.js" defer></script>
+<script src="infra/CrozzoCloudDiscovery.js" defer></script>
 <script src="infra/CrozzoLanWebSocketBridge.js" defer></script>
 <script src="infra/CrozzoPeerDirectory.js" defer></script>
 <script src="infra/CrozzoBrainPolicy.js" defer></script>
