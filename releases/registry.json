@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-09T15:03:11.743Z",
+  "updatedAt": "2026-11-09T16:07:05.966Z",
   "entries": [
-    {
-      "id": "1.0.228-critical",
-      "version": "v1.0.228",
-      "semver": "1.0.228",
-      "type": "critical",
-      "message": "791356",
-      "publishedAt": "2026-07-07T01:11:35.375Z",
-      "installMode": "auto",
-      "changelog": [
-        "791356"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.229-critical",
       "version": "v1.0.229",
@@ -361,6 +348,20 @@
       "installMode": "auto",
       "changelog": [
         "Prueba de actualización automática v1.0.280"
+      ]
+    },
+    {
+      "id": "1.0.281-critical",
+      "version": "v1.0.281",
+      "semver": "1.0.281",
+      "type": "critical",
+      "message": "Fix crítico: fetchWithTimeout definido + fallback endpoint + navigator.onLine no bloquea",
+      "publishedAt": "2026-11-09T16:07:05.966Z",
+      "installMode": "auto",
+      "changelog": [
+        "Fix crítico: fetchWithTimeout definido",
+        "fallback endpoint",
+        "navigator.onLine no bloquea"
       ]
     }
   ]

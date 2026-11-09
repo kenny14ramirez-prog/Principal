@@ -1120,7 +1120,7 @@
 
   // Re-run queue processor every 5 minutes
   setInterval(function () {
-    if (navigator.onLine !== false) processQueue();
+    processQueue();
   }, 5 * 60 * 1000);
 
   // Process queue when coming back online
@@ -5927,6 +5927,28 @@
     return new Promise(function (resolve) { setTimeout(resolve, ms || 0); });
   }
   // Fallback real a endpoint alternativo si el primario falla
+  function fetchWithTimeout(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = setTimeout(function () {
+        if (ctrl) ctrl.abort();
+        reject(new Error('timeout'));
+      }, ms || 12000);
+      var sep = url.indexOf('?') >= 0 ? '&' : '?';
+      fetch(url + sep + '_=' + Date.now(), {
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined,
+      })
+        .then(function (res) {
+          clearTimeout(timer);
+          resolve(res);
+        })
+        .catch(function (err) {
+          clearTimeout(timer);
+          reject(err);
+        });
+    });
+  }
   function fetchWithFallback(url, ms) {
     ms = ms || 12000;
     // Try primary
@@ -6133,7 +6155,8 @@
     // Backoff offline: en chequeos automáticos (silenciosos) no intentamos ni
     // hacemos ruido si no hay internet — se reanuda solo al volver la red.
     if (opts.silent && typeof navigator !== 'undefined' && navigator.onLine === false) {
-      return Promise.resolve({ ok: false, reason: 'offline', skipped: true });
+      // Don't skip entirely - try fetch anyway, it might work
+      console.warn('[updates] navigator.onLine is false, but attempting fetch anyway');
     }
 
     return refreshBinaryVersion()
