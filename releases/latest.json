@@ -1,39 +1,19 @@
 {
-  "id": "1.0.288-critical",
-  "version": "v1.0.288",
-  "semver": "1.0.288",
+  "id": "1.0.289-critical",
+  "version": "v1.0.289",
+  "semver": "1.0.289",
   "type": "critical",
-  "message": "Sin CMD parpadeante del hotspot; ping menos ruidoso; menú de usuario visible en Android.",
-  "publishedAt": "2026-11-09T21:03:55.306Z",
+  "message": "Hotspot sin parpadeo; ping reducido; menú de usuario visible en Android; orden A antes que C en Windows.",
+  "publishedAt": "2026-11-09T21:20:49.887Z",
   "installMode": "auto",
   "changelog": [
-    "Sin CMD parpadeante del hotspot",
-    "ping menos ruidoso",
-    "menú de usuario visible en Android."
+    "Hotspot sin parpadeo",
+    "ping reducido",
+    "menú de usuario visible en Android",
+    "orden A antes que C en Windows."
   ],
-  "updatedAt": "2026-11-09T21:03:55.306Z",
+  "updatedAt": "2026-11-09T21:20:49.887Z",
   "entries": [
-    {
-      "id": "1.0.239-critical",
-      "version": "v1.0.239",
-      "semver": "1.0.239",
-      "type": "critical",
-      "message": "Release final: crypto v5 + RBAC + slotState + IA local + modernizacion documentos + poda + cleanup",
-      "publishedAt": "2026-10-31T19:36:34.276Z",
-      "installMode": "auto",
-      "changelog": [
-        "P0-25 crypto Fase 4 completa (QR firmado + DPAPI)",
-        "RBAC seguridad verde",
-        "Fix slotState tras cobro",
-        "IA local (Ollama) para cierres",
-        "Modernizacion documentos DOC-0 a DOC-6",
-        "Bloque B: plantillas + compatibilidad impresoras",
-        "Poda: 4 dead + 3 stale + jspdf/xlsx",
-        "Limpieza: logs, scripts rotos, debug temporales",
-        "Auditorias masivas: 8 dias 0 hallazgos, maraton 0 FAIL, fleet 0 FAIL"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.240-critical",
       "version": "v1.0.240",
@@ -357,6 +337,21 @@
         "Sin CMD parpadeante del hotspot",
         "ping menos ruidoso",
         "menú de usuario visible en Android."
+      ]
+    },
+    {
+      "id": "1.0.289-critical",
+      "version": "v1.0.289",
+      "semver": "1.0.289",
+      "type": "critical",
+      "message": "Hotspot sin parpadeo; ping reducido; menú de usuario visible en Android; orden A antes que C en Windows.",
+      "publishedAt": "2026-11-09T21:20:49.887Z",
+      "installMode": "auto",
+      "changelog": [
+        "Hotspot sin parpadeo",
+        "ping reducido",
+        "menú de usuario visible en Android",
+        "orden A antes que C en Windows."
       ]
     }
   ]
