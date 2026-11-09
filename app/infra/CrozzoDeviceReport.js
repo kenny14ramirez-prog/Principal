@@ -368,6 +368,30 @@
     log('info', 'Reporte de dispositivo iniciado', { deviceId: (typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig().deviceId : '') });
   }
 
+  function showMenu() {
+    try {
+      // Remove existing menu
+      var existing = document.getElementById('crozzoReportMenu');
+      if (existing) existing.remove();
+
+      var menu = document.createElement('div');
+      menu.id = 'crozzoReportMenu';
+      menu.style.cssText = 'position:fixed;bottom:60px;right:10px;background:#fff;border:1px solid #ccc;border-radius:8px;padding:8px;z-index:100000;box-shadow:0 4px 12px rgba(0,0,0,.2);min-width:200px;';
+      menu.innerHTML = '<div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crShowPanel">📋 Ver log en vivo</div><div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crDownload">💾 Descargar reporte</div><div style="padding:10px;cursor:pointer;font-size:14px;" id="crShare">📤 Compartir por WhatsApp</div>';
+      document.body.appendChild(menu);
+
+      menu.querySelector('#crShowPanel').addEventListener('click', function() { togglePanel(); menu.remove(); });
+      menu.querySelector('#crDownload').addEventListener('click', function() { downloadReport(); menu.remove(); });
+      menu.querySelector('#crShare').addEventListener('click', function() { shareReport(); menu.remove(); });
+
+      // Auto-close after 8s
+      setTimeout(function() { if (menu.parentNode) menu.parentNode.removeChild(menu); }, 8000);
+    } catch (e) {
+      console.error('Error al mostrar menú de reporte:', e);
+      try { showToast('Error al abrir reporte: ' + String(e)); } catch (_) {}
+    }
+  }
+
   global.CrozzoDeviceReport = {
     log: log,
     getLogs: getLogs,
@@ -378,11 +402,12 @@
     downloadReport: downloadReport,
     shareReport: shareReport,
     togglePanel: togglePanel,
-    show: togglePanel,
+    show: showMenu,
+    showMenu: showMenu,
   };
   global.crozzoDeviceReport = buildReport;
   global.crozzoDeviceLog = log;
-  global.crozzoDeviceReportShow = togglePanel;
+  global.crozzoDeviceReportShow = showMenu;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(start, 1000); });

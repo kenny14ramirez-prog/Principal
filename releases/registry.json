@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-09T14:36:55.017Z",
+  "updatedAt": "2026-11-09T14:38:50.511Z",
   "entries": [
-    {
-      "id": "1.0.226-critical",
-      "version": "v1.0.226",
-      "semver": "1.0.226",
-      "type": "critical",
-      "message": "2562",
-      "publishedAt": "2026-07-06T00:47:42.593Z",
-      "installMode": "auto",
-      "changelog": [
-        "2562"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.227-critical",
       "version": "v1.0.227",
@@ -363,6 +350,18 @@
         "Fix: phantom state prevention",
         "logging",
         "auto-detect"
+      ]
+    },
+    {
+      "id": "1.0.279-critical",
+      "version": "v1.0.279",
+      "semver": "1.0.279",
+      "type": "critical",
+      "message": "Prueba de actualización automática v1.0.279 (post-fix phantom)",
+      "publishedAt": "2026-11-09T14:38:50.511Z",
+      "installMode": "auto",
+      "changelog": [
+        "Prueba de actualización automática v1.0.279 (post-fix phantom)"
       ]
     }
   ]
