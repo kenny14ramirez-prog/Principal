@@ -32,14 +32,18 @@
   }
 
   function setChannel(ch) {
+    var changed = ch !== __active;
     __active = ch;
     global.__CROZZO_ACTIVE_CHANNEL = ch;
-    try {
-      if (typeof global.__CROZZO_TIER_LAST !== 'undefined') {
-        // No sobrescribir tier real; solo registrar canal preferido.
-      }
-    } catch (_) {}
+    if (!changed) return;
     try { global.dispatchEvent(new CustomEvent('crozzo-channel-changed', { detail: { channel: ch } })); } catch (_) {}
+  }
+
+  function cloudConfigured() {
+    try {
+      if (typeof global.crozzoOnlineConfigReady === 'function') return !!global.crozzoOnlineConfigReady();
+    } catch (_) {}
+    return !!global.__SUPABASE;
   }
 
   function getActiveChannel() { return __active; }
@@ -60,6 +64,7 @@
   }
 
   async function tryCloud(timeoutMs) {
+    if (!cloudConfigured()) return false;
     if (!cloudLikely()) return false;
     try {
       // Ping liviano: usar supabase si existe

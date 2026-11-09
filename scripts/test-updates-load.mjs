@@ -13,6 +13,7 @@ import vm from 'node:vm';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const files = [
   'app/core/CrozzoTechConsole.js',
+  'app/infra/CrozzoChannelFallback.js',
   'app/infra/CrozzoTauriUpdater.js',
   'app/infra/CrozzoSystemUpdates.js',
 ];
@@ -112,7 +113,25 @@ check('crozzoUpdateDiagnosticReport disponible', typeof win.crozzoUpdateDiagnost
 check('crozzoUpdateDumpState disponible', typeof win.crozzoUpdateDumpState === 'function');
 check('consola técnica captura desde la carga', typeof win.crozzoGetTechConsoleLines === 'function');
 
+async function runChannelChecks() {
+  const events = [];
+  win.dispatchEvent = (e) => { events.push(e); };
+  win.CustomEvent = class { constructor(type, opts) { this.type = type; this.detail = opts && opts.detail; } };
+  win.fetch = () => Promise.reject(new Error('LAN caída'));
+  win.navigator.onLine = true;
+  delete win.crozzoOnlineConfigReady;
+  await win.crozzoChannelFallbackTry();
+  check('Sin nube configurada: el canal no pasa a cloud', win.__CROZZO_ACTIVE_CHANNEL !== 'cloud', String(win.__CROZZO_ACTIVE_CHANNEL));
+  await win.crozzoChannelFallbackTry();
+  await win.crozzoChannelFallbackTry();
+  check('Sin cambios de canal: no se emiten eventos repetidos', events.length <= 1, 'eventos=' + events.length);
+  win.crozzoOnlineConfigReady = () => true;
+  await win.crozzoChannelFallbackTry();
+  check('Nube configurada y LAN caída: el canal pasa a cloud', win.__CROZZO_ACTIVE_CHANNEL === 'cloud', String(win.__CROZZO_ACTIVE_CHANNEL));
+}
+
 async function runPlanChecks() {
+  await runChannelChecks().catch((e) => check('canal de conexión sin excepción', false, e && e.message));
   win.__TAURI__ = { core: { invoke: () => Promise.resolve({}) } };
   await TU.probePlanCapabilities();
   const sel = TU.selectPlan({ platform: 'windows', targetVersion: 'v1.0.283' });

@@ -1,21 +1,6 @@
 {
-  "updatedAt": "2026-11-09T17:59:46.323Z",
+  "updatedAt": "2026-11-09T20:17:14.216Z",
   "entries": [
-    {
-      "id": "1.0.236-critical",
-      "version": "v1.0.236",
-      "semver": "1.0.236",
-      "type": "critical",
-      "message": "Fix build: devtools no disponible + import unused eliminado",
-      "publishedAt": "2026-10-31T03:48:34.840Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix: open_devtools method not found (Tauri v2)",
-        "Fix: unused import CrozzoPrintResult",
-        "Build verde en Windows/macOS/Android"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.237-critical",
       "version": "v1.0.237",
@@ -352,6 +337,19 @@
       "installMode": "auto",
       "changelog": [
         "Windows A primero, C solo si falla. Android: permiso de instalar verificado antes de instalar y cámara al arrancar. BLE en manifiesto. Diagnóstico copiable."
+      ]
+    },
+    {
+      "id": "1.0.286-critical",
+      "version": "v1.0.286",
+      "semver": "1.0.286",
+      "type": "critical",
+      "message": "Corrige ruido de canal nube cuando la nube no está configurada; sin eventos repetidos.",
+      "publishedAt": "2026-11-09T20:17:14.216Z",
+      "installMode": "auto",
+      "changelog": [
+        "Corrige ruido de canal nube cuando la nube no está configurada",
+        "sin eventos repetidos."
       ]
     }
   ]
