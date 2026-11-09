@@ -1,20 +1,6 @@
 {
-  "updatedAt": "2026-11-09T17:02:41.500Z",
+  "updatedAt": "2026-11-09T17:18:41.440Z",
   "entries": [
-    {
-      "id": "1.0.230-critical",
-      "version": "v1.0.230",
-      "semver": "1.0.230",
-      "type": "critical",
-      "message": "estabilidad interna del sistema + correcion de bugs ",
-      "publishedAt": "2026-07-17T21:38:45.959Z",
-      "installMode": "auto",
-      "changelog": [
-        "estabilidad interna del sistema",
-        "correcion de bugs"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.231-critical",
       "version": "v1.0.231",
@@ -361,6 +347,18 @@
       "installMode": "auto",
       "changelog": [
         "Prueba final de actualización automática v1.0.282"
+      ]
+    },
+    {
+      "id": "1.0.283-critical",
+      "version": "v1.0.283",
+      "semver": "1.0.283",
+      "type": "critical",
+      "message": "Prueba de actualización automática v1.0.283",
+      "publishedAt": "2026-11-09T17:18:41.440Z",
+      "installMode": "auto",
+      "changelog": [
+        "Prueba de actualización automática v1.0.283"
       ]
     }
   ]
