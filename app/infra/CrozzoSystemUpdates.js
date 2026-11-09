@@ -560,7 +560,7 @@
     });
   }
 
-  var ALLOWED_HOSTS = ['raw.githubusercontent.com', 'github.com', 'api.github.com'];
+  var ALLOWED_HOSTS = ['raw.githubusercontent.com', 'github.com', 'api.github.com', 'cdn.jsdelivr.net'];
 
   function isAllowedUrl(url) {
     try {
@@ -1117,6 +1117,59 @@
     };
   }
   global.crozzoUpdateDumpState = crozzoUpdateDumpState;
+
+  function readJsonLs(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  /** Texto para copiar desde Super Admin cuando F12 no está disponible. */
+  function crozzoUpdateDiagnosticReport() {
+    var store = loadStore();
+    var entries = _registryEntries || [];
+    var latest = entries.slice(-3).map(function (e) {
+      return entryId(e) + ' ' + normEntryVersion(e) + ' ' + (isCriticalEntry(e) ? 'critica' : 'opcional') +
+        ' pendiente=' + entryIsPending(e) + ' aplicada=' + isEntryAppliedV2(e);
+    });
+    var planLog = readJsonLs('crozzo_plan_usage_log', []).slice(0, 8);
+    var localLog = readJsonLs(LS_LOCAL_LOG, []).slice(0, 10);
+    var consoleLines = (global.crozzoGetTechConsoleLines ? global.crozzoGetTechConsoleLines() : [])
+      .filter(function (l) {
+        return /\[updates|\[crozzo-updat|\[PlanRouter|\[crozzo-updater|ERROR|WARN/i.test(l);
+      })
+      .slice(-60);
+    var profile = getUpdateClientProfile();
+    var lines = [
+      '=== Diagnóstico de actualización · ' + new Date().toISOString() + ' ===',
+      'Plataforma: ' + profile.kind + ' (' + profile.artifactLabel + ')',
+      'Versión del binario (VERSION): ' + VERSION,
+      'Meta crozzo-app-version: ' + (readMetaBuildVersion() || '—'),
+      'Versión guardada (legacy): ' + (readStoredInstalledVersion() || '—'),
+      'Store instalado: ' + JSON.stringify(store.installed),
+      'Auto-instalación OTA permitida: ' + otaAutoInstallAllowed(),
+      'Estado crítico: ' + _criticalInstallState + ' · en curso: ' + _installInProgress,
+      'Último chequeo: ' + JSON.stringify(store.lastCheck),
+      'Pendiente de reinicio: ' + JSON.stringify(store.pendingRestart),
+      'Entradas aplicadas: ' + JSON.stringify(store.appliedEntries),
+      'Registro (últimas 3):',
+    ].concat(latest.map(function (s) { return '  - ' + s; }));
+    lines.push('Planes usados (últimos 8):');
+    planLog.forEach(function (p) {
+      lines.push('  - ' + p.at + ' plan=' + p.plan + ' ok=' + p.success + (p.error ? ' error=' + p.error : ''));
+    });
+    lines.push('Historial local (últimas 10):');
+    localLog.forEach(function (r) {
+      lines.push('  - ' + r.at + ' ' + r.action + ' ' + (r.id || '') + ' ' + (r.message || ''));
+    });
+    lines.push('Consola [updates] / errores (últimas 60):');
+    consoleLines.forEach(function (l) { lines.push('  ' + l); });
+    return lines.join('\n');
+  }
+  global.crozzoUpdateDiagnosticReport = crozzoUpdateDiagnosticReport;
 
   // Re-run queue processor every 5 minutes
   setInterval(function () {
@@ -5277,7 +5330,7 @@
           if (installedPending) return { ok: true, installedPending: true };
           var pending = _registryEntries.filter(entryIsPending);
           var critical = pending.filter(isCriticalEntry);
-          if (critical.length && otaAutoInstallAllowed()) {
+          if (critical.length) {
             var critEntry = pickNextPendingEntry(critical);
             if (canInstallApkInAppNow()) {
               syncLoginUpdateBanner({
@@ -5306,8 +5359,19 @@
                 });
               return { ok: true, criticalBoot: true, androidNonBlocking: true };
             }
-            beginDesktopBootCriticalInstall(critEntry);
-            return { ok: true, criticalBoot: true, desktopNonBlocking: true };
+            if (otaAutoInstallAllowed()) {
+              beginDesktopBootCriticalInstall(critEntry);
+              return { ok: true, criticalBoot: true, desktopNonBlocking: true };
+            } else {
+              // Auto-install disabled: still show the update as available
+              syncLoginUpdateBanner({
+                mode: 'critical',
+                entry: critEntry,
+                message: 'Actualización ' + normEntryVersion(critEntry) + ' disponible. Use Configuración → Actualizaciones para instalar.',
+                force: true,
+              });
+              return { ok: true, criticalBoot: true, desktopManual: true };
+            }
           }
           var optionalOnly = pending.filter(function (e) {
             return !isCriticalEntry(e);
@@ -5958,8 +6022,9 @@
     }).catch(function (err) {
       // Try alternative endpoint if available
       var altUrl = null;
-      if (/raw\.githubusercontent\.com/i.test(url)) {
-        altUrl = url.replace('raw.githubusercontent.com', 'github.com').replace('/main/', '/blob/main/').replace('?_=', '?raw=1&_=');
+      var rawMatch = /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/([^?]+)/i.exec(url);
+      if (rawMatch) {
+        altUrl = 'https://cdn.jsdelivr.net/gh/' + rawMatch[1] + '/' + rawMatch[2] + '@' + rawMatch[3] + '/' + rawMatch[4];
       }
       if (altUrl && altUrl !== url) {
         console.warn('[updates] primary failed, trying alternative:', altUrl);
@@ -6175,12 +6240,16 @@
         renderLocalLogPanel();
 
         var pending = _registryEntries.filter(entryIsPending);
-        console.log('[updates] checkForUpdates: installed=' + VERSION + ' available=' + VERSION_AVAIL + ' pending=' + pending.length + ' entries=' + _registryEntries.length);
+        console.log('[updates] checkForUpdates: installed=' + VERSION + ' available=' + VERSION_AVAIL + ' pending=' + pending.length + ' entries=' + _registryEntries.length + ' otaAuto=' + otaAutoInstallAllowed());
         var shown = false;
         if (otaAutoInstallAllowed()) {
           shown = processPendingUpdates(_registryEntries);
         } else {
-          reconcileAppliedEntriesForVersion(VERSION);
+          // Even if auto-install is disabled, still show updates (just don't auto-install)
+          shown = processPendingUpdates(_registryEntries);
+          if (shown) {
+            setCheckStatus('Hay actualización ' + VERSION_AVAIL + ' disponible. Use Configuración → Actualizaciones para instalar.');
+          }
         }
 
         if (shown) {
@@ -6660,6 +6729,33 @@
       if (urlInput) setManifestUrl(urlInput.value);
       if (typeof global.showToast === 'function') {
         global.showToast('URL de actualizaciones guardada.', 'success');
+      }
+    });
+
+    var checkBtn = document.getElementById('crozzoUpdateCheckNow');
+    if (checkBtn && !document.getElementById('crozzoUpdateCopyDiagnostic')) {
+      var diagBtn = document.createElement('button');
+      diagBtn.type = 'button';
+      diagBtn.id = 'crozzoUpdateCopyDiagnostic';
+      diagBtn.className = checkBtn.className || 'btn btn-outline';
+      diagBtn.textContent = 'Copiar diagnóstico';
+      diagBtn.style.marginLeft = '6px';
+      checkBtn.parentNode.insertBefore(diagBtn, checkBtn.nextSibling);
+    }
+    wireOnce(document.getElementById('crozzoUpdateCopyDiagnostic'), function (e) {
+      e.preventDefault();
+      var text = crozzoUpdateDiagnosticReport();
+      var done = function () {
+        if (typeof global.showToast === 'function') {
+          global.showToast('Diagnóstico copiado. Péguelo en el chat.', 'success');
+        }
+      };
+      if (global.navigator && global.navigator.clipboard && global.navigator.clipboard.writeText) {
+        global.navigator.clipboard.writeText(text).then(done, function () {
+          window.prompt('Copie este diagnóstico:', text);
+        });
+      } else {
+        window.prompt('Copie este diagnóstico:', text);
       }
     });
 
@@ -7199,6 +7295,12 @@
 
   function boot() {
     initCrozzoUpdateOverlays();
+    var TUBoot = global.CrozzoTauriUpdater;
+    if (TUBoot && typeof TUBoot.ensureAndroidRuntimePermissions === 'function') {
+      setTimeout(function () {
+        TUBoot.ensureAndroidRuntimePermissions().catch(function () {});
+      }, 2500);
+    }
     wirePosIdleListener();
     wirePendingRestartOnAppExit();
     if (otaAutoInstallAllowed()) {

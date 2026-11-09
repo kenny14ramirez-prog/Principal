@@ -120,7 +120,13 @@
     else crozzoOpenTechConsole();
   }
 
+  hookConsole();
   global.crozzoOpenTechConsole = crozzoOpenTechConsole;
   global.crozzoCloseTechConsole = crozzoCloseTechConsole;
   global.crozzoToggleTechConsole = crozzoToggleTechConsole;
+  global.crozzoGetTechConsoleLines = function () {
+    return buf.map(function (line) {
+      return new Date(line.t).toISOString() + ' ' + line.level.toUpperCase() + ' ' + line.text;
+    });
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

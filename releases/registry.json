@@ -1,19 +1,6 @@
 {
-  "updatedAt": "2026-11-09T17:18:41.440Z",
+  "updatedAt": "2026-11-09T17:56:52.446Z",
   "entries": [
-    {
-      "id": "1.0.231-critical",
-      "version": "v1.0.231",
-      "semver": "1.0.231",
-      "type": "critical",
-      "message": "12563245",
-      "publishedAt": "2026-07-24T22:52:12.301Z",
-      "installMode": "auto",
-      "changelog": [
-        "12563245"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.235-critical",
       "version": "v1.0.235",
@@ -359,6 +346,18 @@
       "installMode": "auto",
       "changelog": [
         "Prueba de actualización automática v1.0.283"
+      ]
+    },
+    {
+      "id": "1.0.284-critical",
+      "version": "v1.0.284",
+      "semver": "1.0.284",
+      "type": "critical",
+      "message": "Windows: A primero (C solo si A falla). Android: pide permiso de instalar y cámara al arrancar. Diagnóstico copiable sin F12.",
+      "publishedAt": "2026-11-09T17:56:52.446Z",
+      "installMode": "auto",
+      "changelog": [
+        "Windows: A primero (C solo si A falla). Android: pide permiso de instalar y cámara al arrancar. Diagnóstico copiable sin F12."
       ]
     }
   ]

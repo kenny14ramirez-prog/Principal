@@ -101,12 +101,75 @@
     return invoke('plugin:android-package-install|install', { installPath: installPath });
   }
 
-  function invokeAndroidPackageInstall(primaryPath, alternatePath) {
-    return invoke('plugin:android-package-install|requestPermissions', {})
-      .catch(function () {
-        return null;
+  /** Android: pide al arrancar los permisos de tiempo de ejecución que la app usa (cámara). */
+  function ensureAndroidRuntimePermissions() {
+    if (!isTauri() || !isAndroidTablet()) return Promise.resolve(false);
+    return invoke('plugin:barcode-scanner|check_permissions', {}).then(
+      function (st) {
+        if (isPermissionGrantedResponse(st)) return true;
+        return invoke('plugin:barcode-scanner|request_permissions', {}).then(
+          function (st2) {
+            return isPermissionGrantedResponse(st2);
+          },
+          function () {
+            return false;
+          }
+        );
+      },
+      function () {
+        return false;
+      }
+    );
+  }
+
+  function androidInstallPermissionHelp() {
+    return (
+      'Para actualizar, active el permiso de instalación: Ajustes → Apps → «BONA origen» → ' +
+      '«Instalar apps desconocidas» → Permitir. Luego pulse «Actualizar» de nuevo.'
+    );
+  }
+
+  function isPermissionGrantedResponse(st) {
+    try {
+      return JSON.stringify(st || {}).indexOf('granted') >= 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function ensureInstallPackagesPermission() {
+    return invoke('plugin:android-package-install|checkPermissions', {})
+      .then(function (st) {
+        if (isPermissionGrantedResponse(st)) return true;
+        return invoke('plugin:android-package-install|requestPermissions', {}).then(
+          function (st2) {
+            return isPermissionGrantedResponse(st2);
+          },
+          function () {
+            return false;
+          }
+        );
+      }, function () {
+        return invoke('plugin:android-package-install|requestPermissions', {}).then(
+          function (st3) {
+            return isPermissionGrantedResponse(st3);
+          },
+          function () {
+            return false;
+          }
+        );
       })
-      .then(function () {
+      .then(function (granted) {
+        return granted;
+      });
+  }
+
+  function invokeAndroidPackageInstall(primaryPath, alternatePath) {
+    return ensureInstallPackagesPermission()
+      .then(function (granted) {
+        if (!granted) {
+          console.warn('[crozzo-updater] permiso de instalación no confirmado; se intenta instalar igual');
+        }
         return tryInstallPath(primaryPath);
       })
       .catch(function (err) {
@@ -119,6 +182,9 @@
         var msg = String((err && err.message) || err || '');
         if (isAndroidInstallConflictError(msg)) {
           return Promise.reject(new Error(androidInstallConflictHelp()));
+        }
+        if (/permission|permiso|unknown.?source|REQUEST_INSTALL|denied|no permitid/i.test(msg)) {
+          return Promise.reject(new Error(androidInstallPermissionHelp()));
         }
         if (/FileProvider|configured root|INSTALL_PARSE_FAILED|parse error/i.test(msg)) {
           return Promise.reject(
@@ -589,13 +655,12 @@
         chain = ['B'];
       }
     } else if (platform === 'windows' || platform === 'desktop') {
-      if (caps.installSetupFromUrl && context.targetVersion) {
-        // Prefer Plan C (silent install) on Windows — more reliable
-        plan = 'C';
-        chain = ['C', 'A', 'B'];
-      } else if (caps.tauriUpdater && !hasSignatureError) {
+      if (caps.tauriUpdater && !hasSignatureError) {
         plan = 'A';
         chain = ['A', 'C', 'B'];
+      } else if (caps.installSetupFromUrl && context.targetVersion) {
+        plan = 'C';
+        chain = ['C', 'B'];
       } else {
         plan = 'B';
         chain = ['B'];
@@ -651,7 +716,7 @@
       // Dispatch to the appropriate install function
       var TU = global.CrozzoTauriUpdater;
       if (currentPlan === 'A' && TU && typeof TU.installLatest === 'function') {
-        return TU.installLatest(context).catch(function (err) {
+        return TU.installLatest(Object.assign({}, context, { preferSilentSetup: false, skipReleaseWait: true, automaticOnly: false })).catch(function (err) {
           if (isRecoverableUpdaterError(err)) return tryNext();
           throw err;
         });
@@ -1798,15 +1863,9 @@
       var readyP = targetVersion ? ensureInstallTargetReady(targetVersion) : Promise.resolve(null);
       return readyP.then(function () {
       if (kind === 'exe' && targetVersion) {
-        onProgress({ phase: 'probe', percent: 5, message: 'Windows: instalación automática…' });
-        return trySilentSetupInstall(targetVersion, targetVersion, current, onProgress, opts).catch(
-          function (silentErr) {
-            return installLatestBinary(
-              Object.assign({}, opts, { automaticOnly: false, preferSilentSetup: false, skipReleaseWait: true })
-            ).catch(function (planErr) {
-              return Promise.reject(planErr || silentErr);
-            });
-          }
+        onProgress({ phase: 'probe', percent: 5, message: 'Windows: instalación automática (Plan A)…' });
+        return installLatestBinary(
+          Object.assign({}, opts, { automaticOnly: false, preferSilentSetup: false, skipReleaseWait: true })
         );
       }
       if (kind === 'dmg' && targetVersion) {
@@ -1895,15 +1954,6 @@
               targetVersion,
               current
             );
-          }
-
-          if (
-            releaseHit &&
-            releaseHit.url &&
-            ((assetKind === 'exe' && /setup\.exe$/i.test(releaseHit.url)) ||
-              (assetKind === 'dmg' && /\.dmg$/i.test(releaseHit.url)))
-          ) {
-            return trySilentFallback(null, ver || targetVersion, current);
           }
 
           if (toast) toast('Descargando versión ' + ver + '…', 'info');
@@ -2000,6 +2050,7 @@
     canUseTauriUpdater: canUseTauriUpdater,
     canUseAndroidInAppUpdater: canUseAndroidInAppUpdater,
     installApkAutomatic: installApkAutomatic,
+    ensureAndroidRuntimePermissions: ensureAndroidRuntimePermissions,
     androidInstallConflictHelp: androidInstallConflictHelp,
     isAndroidInstallConflictError: isAndroidInstallConflictError,
     getClientKind: getClientKind,

@@ -1,60 +1,56 @@
 /**
- * Crozzo POS — Reporte de diagnóstico del dispositivo.
- * Botón en menú de usuario: "📋 Reporte de conexión"
- * Abre un panel con log en vivo + botones para descargar/compartir.
+ * Crozzo POS - Reporte de diagnostico del dispositivo.
+ * Boton en menu de usuario: "Reporte de conexion"
  */
-(function (global) {
+(function () {
   'use strict';
 
+  // Usar window como global (mas seguro en WebView)
+  var G = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+
   var MAX_LOGS = 500;
-  var __logs = [];
-  var __startTime = Date.now();
-  var __panelEl = null;
-  var __panelVisible = false;
+  var logs = [];
+  var startTime = Date.now();
+  var panelEl = null;
+  var panelVisible = false;
 
   function now() { return new Date().toISOString(); }
-  function elapsed() { return Date.now() - __startTime; }
-
-  function safeDispatch(type, detail) {
-    try { if (typeof global.dispatchEvent === 'function') global.dispatchEvent(new CustomEvent(type, { detail: detail })); } catch (_) {}
-  }
+  function elapsed() { return Date.now() - startTime; }
 
   function log(type, msg, data) {
     var entry = { t: now(), ms: elapsed(), type: String(type || 'info'), msg: String(msg || ''), data: data || null };
-    __logs.push(entry);
-    if (__logs.length > MAX_LOGS) __logs.shift();
-    safeDispatch('crozzo-device-log', entry);
+    logs.push(entry);
+    if (logs.length > MAX_LOGS) logs.shift();
+    try { if (typeof G.dispatchEvent === 'function') G.dispatchEvent(new CustomEvent('crozzo-device-log', { detail: entry })); } catch (_) {}
     try { console.log('[CROZZO-REPORT]', type, msg, data || ''); } catch (_) {}
     return entry;
   }
 
-  function getLogs() { return __logs.slice(); }
-
   function getSummary() {
-    var errors = __logs.filter(function(l) { return l.type === 'error'; });
-    var warnings = __logs.filter(function(l) { return l.type === 'warn'; });
-    var comandas = __logs.filter(function(l) { return l.type === 'comanda'; });
-    var syncs = __logs.filter(function(l) { return l.type === 'sync'; });
-    var connections = __logs.filter(function(l) { return l.type === 'connection'; });
-    var md = (typeof global.getMultiDeviceConfig === 'function') ? (global.getMultiDeviceConfig() || {}) : {};
+    var errors = logs.filter(function(l) { return l.type === 'error'; });
+    var warnings = logs.filter(function(l) { return l.type === 'warn'; });
+    var comandas = logs.filter(function(l) { return l.type === 'comanda'; });
+    var syncs = logs.filter(function(l) { return l.type === 'sync'; });
+    var connections = logs.filter(function(l) { return l.type === 'connection'; });
+    var md = (typeof G.getMultiDeviceConfig === 'function') ? (G.getMultiDeviceConfig() || {}) : {};
     return {
-      startTime: new Date(__startTime).toISOString(),
+      startTime: new Date(startTime).toISOString(),
       durationMs: elapsed(),
-      totalLogs: __logs.length,
+      totalLogs: logs.length,
       errors: errors.length,
       warnings: warnings.length,
       comandasReceived: comandas.length,
       syncs: syncs.length,
       connections: connections.length,
-      tier: (global.__CROZZO_TIER_LAST || 'unknown'),
-      channel: (global.__CROZZO_ACTIVE_CHANNEL || 'unknown'),
+      tier: (G.__CROZZO_TIER_LAST || 'unknown'),
+      channel: (G.__CROZZO_ACTIVE_CHANNEL || 'unknown'),
       deviceId: (md.deviceId || ''),
       role: (md.role || ''),
     };
   }
 
   function getDiagnostics() {
-    var md = (typeof global.getMultiDeviceConfig === 'function') ? (global.getMultiDeviceConfig() || {}) : {};
+    var md = (typeof G.getMultiDeviceConfig === 'function') ? (G.getMultiDeviceConfig() || {}) : {};
     var issues = [];
     var info = {};
     info.deviceId = md.deviceId || '';
@@ -62,8 +58,8 @@
     info.centralIp = md.centralIp || '';
     info.port = md.port || '';
     info.lanToken = md.lanToken ? 'configurado' : 'NO configurado';
-    info.tier = global.__CROZZO_TIER_LAST || 'unknown';
-    info.channel = global.__CROZZO_ACTIVE_CHANNEL || 'unknown';
+    info.tier = G.__CROZZO_TIER_LAST || 'unknown';
+    info.channel = G.__CROZZO_ACTIVE_CHANNEL || 'unknown';
     info.isOnline = (typeof navigator !== 'undefined') ? navigator.onLine : 'unknown';
     if (!md.deviceId) issues.push('deviceId no configurado - el dispositivo no se ha emparejado');
     if (!md.centralIp && md.role !== 'A') issues.push('IP de la caja no configurada - no se puede conectar por LAN');
@@ -71,17 +67,17 @@
     if (info.tier === 'offline') issues.push('Sin conexion - operando en modo local');
     if (info.tier === 'qr') issues.push('Modo QR - sin conexion a la caja');
     try {
-      var outbox = (typeof global.crozzoComandaOutboxPending === 'function') ? global.crozzoComandaOutboxPending() : 0;
+      var outbox = (typeof G.crozzoComandaOutboxPending === 'function') ? G.crozzoComandaOutboxPending() : 0;
       info.outboxPending = outbox;
       if (outbox > 0) issues.push('Hay ' + outbox + ' comandas pendientes en outbox');
     } catch (_) { info.outboxPending = 'N/A'; }
     try {
-      if (typeof global.crozzoPrinterReady === 'function') {
-        info.printerReady = global.crozzoPrinterReady();
+      if (typeof G.crozzoPrinterReady === 'function') {
+        info.printerReady = G.crozzoPrinterReady();
         if (!info.printerReady) issues.push('Impresora no lista o no configurada');
       } else { info.printerReady = 'no verificado'; }
     } catch (_) { info.printerReady = 'error'; }
-    var recentErrors = __logs.filter(function(l) { return l.type === 'error'; }).slice(-5);
+    var recentErrors = logs.filter(function(l) { return l.type === 'error'; }).slice(-5);
     info.recentErrors = recentErrors.map(function(l) { return l.msg; });
     return { info: info, issues: issues };
   }
@@ -123,8 +119,8 @@
       lines.push('');
     }
     lines.push('--- LOG DETALLADO ---');
-    for (var i = 0; i < __logs.length; i++) {
-      var l = __logs[i];
+    for (var i = 0; i < logs.length; i++) {
+      var l = logs[i];
       lines.push('[' + l.t + '] [' + l.type.toUpperCase() + '] ' + l.msg + (l.data ? ' | ' + JSON.stringify(l.data) : ''));
     }
     lines.push('');
@@ -144,7 +140,6 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      log('info', 'Reporte descargado');
     } catch (e) {
       console.error('Error download:', e);
       copyToClipboard(buildTextReport());
@@ -168,7 +163,6 @@
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function() {
-          log('info', 'Reporte copiado al portapapeles');
           showToast('Reporte copiado al portapapeles');
         });
       } else {
@@ -180,17 +174,16 @@
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        log('info', 'Reporte copiado (fallback)');
         showToast('Reporte copiado al portapapeles');
       }
     } catch (e) {
-      log('error', 'No se pudo copiar: ' + String(e));
+      console.error('Error copy:', e);
     }
   }
 
   function showToast(msg) {
     try {
-      if (typeof global.showToast === 'function') { global.showToast(msg, 'info'); return; }
+      if (typeof G.showToast === 'function') { G.showToast(msg, 'info'); return; }
     } catch (_) {}
     try {
       var t = document.createElement('div');
@@ -202,35 +195,40 @@
   }
 
   function createPanel() {
-    if (__panelEl) return __panelEl;
-    var el = document.createElement('div');
-    el.id = 'crozzoDeviceReportPanel';
-    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow-y:auto;background:rgba(0,0,0,.9);color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:99998;display:none;border-top:2px solid #0f0;';
-    var header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
-    header.innerHTML = '<span style="font-weight:bold;">Reporte de dispositivo</span><span style="cursor:pointer;" id="crozzoReportClose">X</span>';
-    el.appendChild(header);
-    var content = document.createElement('div');
-    content.id = 'crozzoReportContent';
-    content.style.cssText = 'white-space:pre-wrap;word-break:break-all;';
-    el.appendChild(content);
-    document.body.appendChild(el);
-    __panelEl = el;
-    var closeBtn = el.querySelector('#crozzoReportClose');
-    if (closeBtn) closeBtn.addEventListener('click', togglePanel);
-    return el;
+    if (panelEl) return panelEl;
+    try {
+      var el = document.createElement('div');
+      el.id = 'crozzoDeviceReportPanel';
+      el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow-y:auto;background:rgba(0,0,0,.9);color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:99998;display:none;border-top:2px solid #0f0;';
+      var header = document.createElement('div');
+      header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+      header.innerHTML = '<span style="font-weight:bold;">Reporte de dispositivo</span><span style="cursor:pointer;" id="crozzoReportClose">X</span>';
+      el.appendChild(header);
+      var content = document.createElement('div');
+      content.id = 'crozzoReportContent';
+      content.style.cssText = 'white-space:pre-wrap;word-break:break-all;';
+      el.appendChild(content);
+      document.body.appendChild(el);
+      panelEl = el;
+      var closeBtn = el.querySelector('#crozzoReportClose');
+      if (closeBtn) closeBtn.addEventListener('click', togglePanel);
+      return el;
+    } catch (e) {
+      console.error('Error createPanel:', e);
+      return null;
+    }
   }
 
   function togglePanel() {
     try {
       var el = createPanel();
       if (!el) return;
-      __panelVisible = !__panelVisible;
-      el.style.display = __panelVisible ? 'block' : 'none';
-      if (__panelVisible) {
+      panelVisible = !panelVisible;
+      el.style.display = panelVisible ? 'block' : 'none';
+      if (panelVisible) {
         var c = el.querySelector('#crozzoReportContent');
         if (c) {
-          c.textContent = __logs.map(function(l) { return '[' + new Date(l.t).toLocaleTimeString() + '] [' + l.type.toUpperCase() + '] ' + l.msg; }).join('\n');
+          c.textContent = logs.map(function(l) { return '[' + new Date(l.t).toLocaleTimeString() + '] [' + l.type.toUpperCase() + '] ' + l.msg; }).join('\n');
           c.scrollTop = c.scrollHeight;
         }
       }
@@ -259,58 +257,60 @@
     }
   }
 
-  function log(type, msg, data) {
-    var entry = { t: now(), ms: elapsed(), type: String(type || 'info'), msg: String(msg || ''), data: data || null };
-    __logs.push(entry);
-    if (__logs.length > MAX_LOGS) __logs.shift();
-    try { if (typeof global.dispatchEvent === 'function') global.dispatchEvent(new CustomEvent('crozzo-device-log', { detail: entry })); } catch (_) {}
-    try { console.log('[CROZZO-REPORT]', type, msg, data || ''); } catch (_) {}
-    return entry;
-  }
-
-  // Auto-hook: capture errors
+  // Auto-hook: capture errors (solo si window.addEventListener existe)
   try {
-    global.addEventListener('error', function(e) {
-      log('error', (e.message || 'Error desconocido') + ' @ ' + (e.filename || '') + ':' + (e.lineno || ''));
-    });
+    if (typeof G.addEventListener === 'function') {
+      G.addEventListener('error', function(e) {
+        log('error', (e.message || 'Error desconocido') + ' @ ' + (e.filename || '') + ':' + (e.lineno || ''));
+      });
+    }
   } catch (_) {}
   try {
-    global.addEventListener('unhandledrejection', function(e) {
-      log('error', 'Promise rechazada: ' + String(e.reason || ''));
-    });
+    if (typeof G.addEventListener === 'function') {
+      G.addEventListener('unhandledrejection', function(e) {
+        log('error', 'Promise rechazada: ' + String((e && e.reason) || ''));
+      });
+    }
   } catch (_) {}
 
   // Hook tier changes
   try {
-    global.addEventListener('crozzo-tier-changed', function(e) {
-      var d = (e && e.detail) || {};
-      log('connection', 'Tier cambiado: ' + (d.from || '?') + ' -> ' + (d.to || '?'), d);
-    });
+    if (typeof G.addEventListener === 'function') {
+      G.addEventListener('crozzo-tier-changed', function(e) {
+        var d = (e && e.detail) || {};
+        log('connection', 'Tier cambiado: ' + (d.from || '?') + ' -> ' + (d.to || '?'), d);
+      });
+    }
   } catch (_) {}
   try {
-    global.addEventListener('crozzo-channel-changed', function(e) {
-      var d = (e && e.detail) || {};
-      log('connection', 'Canal cambiado: ' + (d.channel || '?'), d);
-    });
+    if (typeof G.addEventListener === 'function') {
+      G.addEventListener('crozzo-channel-changed', function(e) {
+        var d = (e && e.detail) || {};
+        log('connection', 'Canal cambiado: ' + (d.channel || '?'), d);
+      });
+    }
   } catch (_) {}
 
   // Hook comandas
   try {
-    global.addEventListener('crozzo-comanda-received', function(e) {
-      var d = (e && e.detail) || {};
-      log('comanda', 'Comanda recibida: ' + (d.transaction_id || d.id || '?'), d);
-    });
+    if (typeof G.addEventListener === 'function') {
+      G.addEventListener('crozzo-comanda-received', function(e) {
+        var d = (e && e.detail) || {};
+        log('comanda', 'Comanda recibida: ' + (d.transaction_id || d.id || '?'), d);
+      });
+    }
   } catch (_) {}
 
   // Start
   function start() {
-    log('info', 'Reporte de dispositivo iniciado', { deviceId: (typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig().deviceId : '') });
+    try {
+      log('info', 'Reporte de dispositivo iniciado', { deviceId: (typeof G.getMultiDeviceConfig === 'function' ? (G.getMultiDeviceConfig().deviceId || '') : '') });
+    } catch (_) {}
   }
 
-  // Expose API
-  global.CrozzoDeviceReport = {
+  // Expose API (inmediatamente, no al final)
+  G.CrozzoDeviceReport = {
     log: log,
-    getLogs: getLogs,
     getSummary: getSummary,
     buildTextReport: buildTextReport,
     downloadReport: downloadReport,
@@ -319,13 +319,41 @@
     show: showMenu,
     showMenu: showMenu,
   };
-  global.crozzoDeviceReport = buildTextReport;
-  global.crozzoDeviceLog = log;
-  global.crozzoDeviceReportShow = showMenu;
+  G.crozzoDeviceReport = buildTextReport;
+  G.crozzoDeviceLog = log;
+  G.crozzoDeviceReportShow = showMenu;
+
+  // Integrar CrozzoFieldDiagnostic si está disponible (con delay)
+  setTimeout(function() {
+    try {
+      if (G.CrozzoFieldDiagnostic) {
+        var origBuild = G.CrozzoFieldDiagnostic.buildFullTextReport;
+        if (typeof origBuild === 'function') {
+          G.CrozzoFieldDiagnostic.buildFullTextReport = function() {
+            var text = origBuild();
+            // Añadir métricas si CrozzoPerformanceMetrics está disponible
+            try {
+              if (G.CrozzoPerformanceMetrics && typeof G.CrozzoPerformanceMetrics.buildMetricsText === 'function') {
+                text = text + '\n\n' + G.CrozzoPerformanceMetrics.buildMetricsText();
+              }
+            } catch (_) {}
+            return text;
+          };
+          // Sobrescribir download/share con versiones completas
+          if (typeof G.CrozzoFieldDiagnostic.downloadFullReport === 'function') {
+            G.CrozzoDeviceReport.downloadReport = G.CrozzoFieldDiagnostic.downloadFullReport;
+          }
+          if (typeof G.CrozzoFieldDiagnostic.shareFullReport === 'function') {
+            G.CrozzoDeviceReport.shareReport = G.CrozzoFieldDiagnostic.shareFullReport;
+          }
+        }
+      }
+    } catch (_) {}
+  }, 2000);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(start, 1000); });
   } else {
     setTimeout(start, 1000);
   }
-})(window);
+})();

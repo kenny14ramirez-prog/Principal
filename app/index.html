@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="crozzo-app-version" content="1.0.283">
+<meta name="crozzo-app-version" content="1.0.284">
 <meta name="crozzo-build-stamp" content="2026-10-31T23:38:19.307Z">
 <title>BONA origen · Sistema POS</title>
 <script>(function(){try{var user=false,t='bona-origen';try{user=localStorage.getItem('crozzo_theme_user_v1')==='1';}catch(_){}
@@ -469,7 +469,7 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
                 </button>
               </li>
               <li role="none">
-                <button type="button" class="user-menu__item" role="menuitem" onclick="if(typeof crozzoDeviceReportShow==='function'){crozzoDeviceReportShow();document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');}">
+                <button type="button" class="user-menu__item" role="menuitem" onclick="try{if(typeof crozzoDeviceReportShow==='function'){crozzoDeviceReportShow();}else{alert('Reporte no disponible: modulo no cargado');}document.getElementById('userMenuDropdown')?.setAttribute('aria-hidden','true');}catch(e){alert('Error reporte: '+e.message);}">
                   <span class="icon" aria-hidden="true">📋</span>
                   <span>Reporte de conexión</span>
                 </button>
