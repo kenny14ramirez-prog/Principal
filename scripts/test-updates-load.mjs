@@ -150,9 +150,47 @@ function runReportChecks() {
   }
 }
 
+function runAndroidMenuChecks() {
+  const htmlFiles = ['app/index.html', 'app/Crozzo_POS_Completo.html'];
+  for (const rel of htmlFiles) {
+    const html = readFileSync(join(root, rel), 'utf8');
+    check(rel + ': menú abre consola técnica', html.includes('data-crozzo-act="crozzoOpenTechConsoleFromMenu"'));
+    check(rel + ': menú muestra «Consola técnica (F12)»', html.includes('Consola técnica (F12)'));
+    check(rel + ': menú permite buscar actualizaciones', html.includes('data-crozzo-act="crozzoTriggerAppUpdate"'));
+    check(rel + ': menú muestra «Buscar actualizaciones»', html.includes('Buscar actualizaciones'));
+    check(rel + ': el disparador de usuario existe', html.includes('id="userMenuTrigger"'));
+  }
+
+  const css = readFileSync(join(root, 'app/css/CrozzoPosStyles.css'), 'utf8');
+  check(
+    'CSS Android no oculta el botón de usuario',
+    css.includes(":not(.crozzo-toolbar-btn--user):not(#userMenuTrigger)")
+  );
+  check(
+    'CSS Android fuerza visible #userMenuTrigger',
+    css.includes('html.crozzo-android-native .crozzo-header__toolbar #userMenuTrigger') &&
+      css.includes('display: inline-flex !important')
+  );
+
+  const updates = readFileSync(join(root, 'app/infra/CrozzoSystemUpdates.js'), 'utf8');
+  check(
+    'Android: instalación tras login sin exigir Super Admin',
+    !updates.includes('Super Admin: actualización')
+  );
+  check(
+    'Android: reintenta al terminar la revisión de arranque',
+    updates.includes('setTimeout(tryInstallPendingCritical, 1500)')
+  );
+  check(
+    'Consola técnica: apertura desde el menú expuesta',
+    typeof win.crozzoOpenTechConsoleFromMenu === 'function'
+  );
+}
+
 async function runPlanChecks() {
   await runChannelChecks().catch((e) => check('canal de conexión sin excepción', false, e && e.message));
   try { runReportChecks(); } catch (e) { check('reporte sin excepción', false, e && e.message); }
+  try { runAndroidMenuChecks(); } catch (e) { check('menú Android sin excepción', false, e && e.message); }
   win.__TAURI__ = { core: { invoke: () => Promise.resolve({}) } };
   await TU.probePlanCapabilities();
   const sel = TU.selectPlan({ platform: 'windows', targetVersion: 'v1.0.283' });

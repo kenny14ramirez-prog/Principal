@@ -120,10 +120,19 @@
     else crozzoOpenTechConsole();
   }
 
+  function crozzoOpenTechConsoleFromMenu() {
+    try {
+      var dd = document.getElementById('userMenuDropdown');
+      if (dd) dd.setAttribute('aria-hidden', 'true');
+    } catch (_) {}
+    crozzoOpenTechConsole();
+  }
+
   hookConsole();
   global.crozzoOpenTechConsole = crozzoOpenTechConsole;
   global.crozzoCloseTechConsole = crozzoCloseTechConsole;
   global.crozzoToggleTechConsole = crozzoToggleTechConsole;
+  global.crozzoOpenTechConsoleFromMenu = crozzoOpenTechConsoleFromMenu;
   global.crozzoGetTechConsoleLines = function () {
     return buf.map(function (line) {
       return new Date(line.t).toISOString() + ' ' + line.level.toUpperCase() + ' ' + line.text;

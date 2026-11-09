@@ -5160,25 +5160,32 @@
           return;
         }
         if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
-        if (
-          canInstallApkInAppNow() &&
-          typeof global.isSuperAdminUser === 'function' &&
-          global.isSuperAdminUser()
-        ) {
+        /* Android APK: la actualización se ofrece sola tras el login, sin exigir Super Admin.
+           Android siempre pide confirmación del sistema en el instalador; aquí solo se abre. */
+        if (canInstallApkInAppNow()) {
           _pendingCriticalEntry = entry;
           _currentCriticalId = entryId(entry);
-          setCheckStatus(
-            'Super Admin: actualización ' + remote + ' pendiente — Configuración → Actualizaciones → Forzar.'
-          );
-          if (typeof global.showToast === 'function') {
-            global.showToast(
-              'Actualización pendiente. Abra Actualizaciones del sistema y pulse «Forzar actualización».',
-              'info'
+          if (!shouldRunCriticalInstallNow()) {
+            _criticalInstallState = 'idle';
+            setCheckStatus(
+              'Actualización ' + remote + ' lista — se instalará cuando la caja esté libre.'
             );
+            scheduleCriticalInstallWhenIdle(entry);
+            return;
           }
+          setCheckStatus('Actualización ' + remote + ' — abriendo instalador de Android…');
+          if (typeof global.showToast === 'function') {
+            try {
+              global.showToast(
+                'Actualización ' + remote + ': abriendo el instalador. Confirme «Instalar».',
+                'info'
+              );
+            } catch (_) {}
+          }
+          runCriticalInstall(entry);
           return;
         }
-        /* Post-login: NUNCA cerrar la app automáticamente sin que el usuario lo confirme.
+        /* Escritorio: NUNCA cerrar la app automáticamente sin que el usuario lo confirme.
            Descarga silenciosa en background + card ameno informativo. El usuario cierra
            la app cuando él quiera; al reabrir se aplica la actualización. */
         _pendingCriticalEntry = entry;
@@ -5197,6 +5204,12 @@
       if (ev && ev.detail && ev.detail.session) {
         setTimeout(tryInstallPendingCritical, 2500);
       }
+    });
+    /* Si el usuario inicia sesión antes de que termine la revisión de arranque,
+       reintentar cuando el registro de actualizaciones ya esté listo. */
+    global.addEventListener('crozzo:boot-updates-ready', function () {
+      if (typeof global.getCurrentUser === 'function' && !global.getCurrentUser()) return;
+      setTimeout(tryInstallPendingCritical, 1500);
     });
   }
 

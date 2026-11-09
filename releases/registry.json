@@ -1,32 +1,6 @@
 {
-  "updatedAt": "2026-11-09T21:20:49.887Z",
+  "updatedAt": "2026-11-09T22:43:44.967Z",
   "entries": [
-    {
-      "id": "1.0.240-critical",
-      "version": "v1.0.240",
-      "semver": "1.0.240",
-      "type": "critical",
-      "message": "OTA mejorado: build-only detection + state preservation + Android pending + timeouts + concurrency lock + sha256 field",
-      "publishedAt": "2026-10-31T20:08:52.614Z",
-      "installMode": "auto",
-      "changelog": [
-        "OTA-1: deteccion build-only updates (build stamp)",
-        "OTA-2: preservacion de estado (backup/restore)",
-        "OTA-3: Android pending en localStorage",
-        "OTA-4: timeouts reducidos (12s->8s)",
-        "OTA-5: lock concurrencia (retry)",
-        "OTA-6: fallbacks marcados explicitos",
-        "OTA-7: campo sha256 en latest.json (placeholder)",
-        "Fix: crozzo_print cfg gate Android",
-        "Fix: devtools no disponible",
-        "Fix: slotState libre tras cobro",
-        "IA local (Ollama) para cierres",
-        "Modernizacion documentos DOC-0 a DOC-6",
-        "Bloque B: plantillas + compatibilidad",
-        "Poda: 4 dead + 3 stale + jspdf/xlsx"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.241-critical",
       "version": "v1.0.241",
@@ -339,6 +313,19 @@
         "ping reducido",
         "menú de usuario visible en Android",
         "orden A antes que C en Windows."
+      ]
+    },
+    {
+      "id": "1.0.290-critical",
+      "version": "v1.0.290",
+      "semver": "1.0.290",
+      "type": "critical",
+      "message": "Android: menu de usuario visible, consola tecnica embebida y auto-instalacion del APK tras login sin exigir Super Admin; Windows mantiene A-C-B",
+      "publishedAt": "2026-11-09T22:43:44.967Z",
+      "installMode": "auto",
+      "changelog": [
+        "Android: menu de usuario visible, consola tecnica embebida y auto-instalacion del APK tras login sin exigir Super Admin",
+        "Windows mantiene A-C-B"
       ]
     }
   ]
