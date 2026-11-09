@@ -363,9 +363,8 @@
     log('comanda', 'Comanda recibida: ' + (d.transaction_id || d.id || '?'), d);
   });
 
-  // Start
+  // Start (sin botón flotante — solo botón en menú de usuario)
   function start() {
-    createFloatingButton();
     log('info', 'Reporte de dispositivo iniciado', { deviceId: (typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig().deviceId : '') });
   }
 
