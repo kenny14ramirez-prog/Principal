@@ -8,6 +8,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { patchAndroidCameraPermissions } from './lib/patch-android-camera-perms.mjs';
+import { patchAndroidBlePermissions } from './lib/patch-android-ble-perms.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const gradlePath = join(root, 'src-tauri', 'gen', 'android', 'app', 'build.gradle.kts');
@@ -119,6 +120,9 @@ function patchApkInstallManifest() {
       xml = xml.replace(/<manifest([^>]*)>/, (m) => m + '\n' + insert);
       writeFileSync(manifest, xml, 'utf8');
       console.log('[patch-android-signing] OK AndroidManifest REQUEST_INSTALL_PACKAGES');
+    }
+    if (patchAndroidBlePermissions(manifest)) {
+      console.log('[patch-android-signing] OK AndroidManifest Bluetooth (BLE)');
     }
     if (patchAndroidCameraPermissions(manifest)) {
       console.log('[patch-android-signing] OK AndroidManifest CAMERA / galería');

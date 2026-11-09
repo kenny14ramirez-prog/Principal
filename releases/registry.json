@@ -1,24 +1,6 @@
 {
-  "updatedAt": "2026-11-09T17:56:52.446Z",
+  "updatedAt": "2026-11-09T17:59:46.323Z",
   "entries": [
-    {
-      "id": "1.0.235-critical",
-      "version": "v1.0.235",
-      "semver": "1.0.235",
-      "type": "critical",
-      "message": "P0-25 Fase4 crypto + RBAC fix + slotState fix + poda + auditorias masivas",
-      "publishedAt": "2026-10-31T03:34:04.533Z",
-      "installMode": "auto",
-      "changelog": [
-        "P0-25 Fase 4: QRs firmados ECDSA v:5 + almacén de secretos del SO (DPAPI)",
-        "RBAC: cajero sin eliminar_item/catalogo por defecto",
-        "Fix slotState libre tras cobro",
-        "Fix maratón: comandas residuales limpiadas",
-        "Poda: 4 archivos dead + 3 stale + jspdf/xlsx",
-        "Auditorías masivas: 8 días 0 hallazgos, maratón 0 FAIL, fleet 0 FAIL"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.236-critical",
       "version": "v1.0.236",
@@ -358,6 +340,18 @@
       "installMode": "auto",
       "changelog": [
         "Windows: A primero (C solo si A falla). Android: pide permiso de instalar y cámara al arrancar. Diagnóstico copiable sin F12."
+      ]
+    },
+    {
+      "id": "1.0.285-critical",
+      "version": "v1.0.285",
+      "semver": "1.0.285",
+      "type": "critical",
+      "message": "Windows A primero, C solo si falla. Android: permiso de instalar verificado antes de instalar y cámara al arrancar. BLE en manifiesto. Diagnóstico copiable.",
+      "publishedAt": "2026-11-09T17:59:46.323Z",
+      "installMode": "auto",
+      "changelog": [
+        "Windows A primero, C solo si falla. Android: permiso de instalar verificado antes de instalar y cámara al arrancar. BLE en manifiesto. Diagnóstico copiable."
       ]
     }
   ]
