@@ -262,17 +262,16 @@ function runConnectivityFixChecks() {
     print.includes("crozzoGetPrintBackend() === 'html'")
   );
 
-  const libLines = readFileSync(join(root, 'src-tauri/src/lib.rs'), 'utf8').split(/\r?\n/);
-  const ipCmdLine = libLines.findIndex((l) => l.includes('crozzo_mdns::crozzo_guess_local_ipv4,'));
-  let ipPrevLine = '';
-  if (ipCmdLine > 0) {
-    for (let i = ipCmdLine - 1; i >= 0; i--) {
-      if (libLines[i].trim()) { ipPrevLine = libLines[i].trim(); break; }
-    }
-  }
+  const lib = readFileSync(join(root, 'src-tauri/src/lib.rs'), 'utf8');
   check(
-    'IP local disponible en Android (sin cfg gate)',
-    ipCmdLine >= 0 && !ipPrevLine.startsWith('#[cfg(')
+    'IP local en escritorio (comando mDNS)',
+    lib.includes('crozzo_mdns::crozzo_guess_local_ipv4,')
+  );
+  check(
+    'IP local disponible en Android (comando móvil propio)',
+    lib.includes('pub fn crozzo_guess_local_ipv4()') &&
+      lib.includes('#[cfg(any(target_os = "android", target_os = "ios"))]') &&
+      lib.includes('            crozzo_guess_local_ipv4,')
   );
 }
 

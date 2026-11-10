@@ -74,6 +74,39 @@ fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
     Err("DevTools no disponible en este build".to_string())
 }
 
+/// Android/iOS no compilan el modulo mDNS, pero el frontend necesita la IP LAN
+/// propia para descubrir la caja y medir el ping. Misma logica que crozzo_mdns.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+pub fn crozzo_guess_local_ipv4() -> String {
+    use std::net::{IpAddr, Ipv4Addr, UdpSocket};
+
+    fn route_ip(gateway: &str) -> Option<Ipv4Addr> {
+        let sock = UdpSocket::bind("0.0.0.0:0").ok()?;
+        sock.connect(gateway).ok()?;
+        match sock.local_addr().ok()?.ip() {
+            IpAddr::V4(v4) if !v4.is_loopback() => Some(v4),
+            _ => None,
+        }
+    }
+
+    if let Some(v4) = route_ip("8.8.8.8:80") {
+        return v4.to_string();
+    }
+    for gw in [
+        "192.168.1.1:80",
+        "192.168.0.1:80",
+        "192.168.100.1:80",
+        "10.0.0.1:80",
+        "172.16.0.1:80",
+    ] {
+        if let Some(v4) = route_ip(gw) {
+            return v4.to_string();
+        }
+    }
+    Ipv4Addr::LOCALHOST.to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // P0-21 (contención): instancia única por lock de puerto localhost.
@@ -274,7 +307,10 @@ pub fn run() {
             crozzo_mdns::crozzo_mdns_stop,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_mdns::crozzo_mdns_drain_discovered,
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_mdns::crozzo_guess_local_ipv4,
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            crozzo_guess_local_ipv4,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::crozzo_emulation_set_active,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
