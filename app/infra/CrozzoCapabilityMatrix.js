@@ -236,8 +236,12 @@
 
     if (platform.role === 'A') {
       hubIp = safe(function () {
-        return String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '127.0.0.1');
-      }, '127.0.0.1');
+        return String(
+          (typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '') ||
+            global.localStorage.getItem('crozzo_wifi_zone_last_ip') ||
+            ''
+        ).trim();
+      }, '');
       hubDeviceId = safe(function () {
         return typeof global.ensureCrozzoDeviceId === 'function' ? global.ensureCrozzoDeviceId() : '';
       }, '');

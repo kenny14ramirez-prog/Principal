@@ -224,6 +224,18 @@ function runConnectivityFixChecks() {
     'Sync HTTP Rol A usa la IP LAN (no loopback)',
     !lanBridge.includes("md.role === 'A' ? '127.0.0.1'")
   );
+  check(
+    'Runtime local Rol A consulta la IP LAN (no loopback)',
+    lanBridge.includes("var host = (await crozzoOwnLanIpAsync()) || '127.0.0.1';") &&
+      lanBridge.includes("'http://' + host + ':' + port + '/api/runtime'")
+  );
+
+  const peerDir = readFileSync(join(root, 'app/infra/CrozzoPeerDirectory.js'), 'utf8');
+  check(
+    'Peer directory Rol A no publica loopback como IP propia',
+    !peerDir.includes("return '127.0.0.1';") &&
+      peerDir.includes("if (lanIp === '127.0.0.1' || lanIp === 'localhost' || lanIp === '::1') lanIp = '';")
+  );
 
   const wsBridge = readFileSync(join(root, 'app/infra/CrozzoLanWebSocketBridge.js'), 'utf8');
   check(
@@ -253,6 +265,10 @@ function runConnectivityFixChecks() {
   check(
     'Señalización LAN Rol A usa la IP LAN (no loopback)',
     !posMain.includes("if (md.role === 'A') return 'http://127.0.0.1:' + port;")
+  );
+  check(
+    'Probar conexión Rol A usa la IP LAN propia',
+    posMain.includes('CrozzoLanSyncBridge.crozzoOwnLanIpSync ===')
   );
 
   const print = readFileSync(join(root, 'app/core/CrozzoPrintService.js'), 'utf8');

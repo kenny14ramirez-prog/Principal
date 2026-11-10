@@ -660,8 +660,10 @@
     var mdCfg = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : null;
     if (!mdCfg || mdCfg.role !== 'A') return false;
     var port = Number(mdCfg.port) || 3000;
+    // El servidor LAN escucha en la IP LAN de la caja, no en loopback.
+    var host = (await crozzoOwnLanIpAsync()) || '127.0.0.1';
     try {
-      var res = await global.fetch('http://127.0.0.1:' + port + '/api/runtime', {
+      var res = await global.fetch('http://' + host + ':' + port + '/api/runtime', {
         method: 'GET',
         headers: { Accept: 'application/json' },
       });

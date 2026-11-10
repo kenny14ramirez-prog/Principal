@@ -109,9 +109,14 @@
     var lanIp = String(opts.lanIp || prev.lanIp || '').trim();
     if (!lanIp && ctx.role === 'A') {
       try {
-        lanIp = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '127.0.0.1').trim();
+        lanIp = String(
+          (typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '') ||
+            global.localStorage.getItem('crozzo_wifi_zone_last_ip') ||
+            ''
+        ).trim();
+        if (lanIp === '127.0.0.1' || lanIp === 'localhost' || lanIp === '::1') lanIp = '';
       } catch (_) {
-        lanIp = '127.0.0.1';
+        lanIp = '';
       }
     }
     store.peers[k] = {
@@ -289,10 +294,15 @@
     var ctx = selfCtx();
     if (ctx.role === 'A') {
       try {
-        var lip = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
-        if (lip) return lip;
+        var own = String(
+          (typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '') ||
+            global.localStorage.getItem('crozzo_wifi_zone_last_ip') ||
+            ''
+        ).trim();
+        if (own && own !== '127.0.0.1' && own !== 'localhost' && own !== '::1') return own;
       } catch (_) {}
-      return '127.0.0.1';
+      // Sin IP conocida: mejor vacio que loopback (los peers no pueden alcanzar 127.0.0.1).
+      return '';
     }
     try {
       var cached = String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();

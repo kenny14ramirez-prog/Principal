@@ -35792,7 +35792,11 @@ async function testConexionHealthFromForm(which) {
     if (typeof window.CrozzoLanSyncBridge.ensureServerForPairing === 'function') {
       await window.CrozzoLanSyncBridge.ensureServerForPairing();
     }
-    const res = await testHealthEndpoint(ip || '127.0.0.1', port);
+    const ownIp =
+      (window.CrozzoLanSyncBridge && typeof window.CrozzoLanSyncBridge.crozzoOwnLanIpSync === 'function'
+        ? window.CrozzoLanSyncBridge.crozzoOwnLanIpSync()
+        : '') || ip || '127.0.0.1';
+    const res = await testHealthEndpoint(ownIp, port);
     showConexionStatus(which, res.ok ? 'success' : 'error', res.message);
     showToast(res.message, res.ok ? 'success' : 'error');
     return;

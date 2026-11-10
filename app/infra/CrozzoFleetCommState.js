@@ -64,12 +64,17 @@
     var lanIp = '';
     if (cfg.role === 'A') {
       lanIp = safe(function () {
-        return String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+        return String(
+          (typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '') ||
+            global.localStorage.getItem('crozzo_wifi_zone_last_ip') ||
+            ''
+        ).trim();
       }, '');
       if (!lanIp || lanIp === '127.0.0.1') {
         lanIp = safe(function () {
-          return String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '127.0.0.1').trim();
-        }, '127.0.0.1');
+          return String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();
+        }, '');
+        if (lanIp === '127.0.0.1') lanIp = '';
       }
     } else {
       lanIp = safe(function () {

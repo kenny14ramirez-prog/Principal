@@ -355,8 +355,12 @@
     var cfg = md();
     if (cfg.role === 'A') {
       return safe(function () {
-        return String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '127.0.0.1').trim();
-      }, '127.0.0.1');
+        return String(
+          (typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '') ||
+            global.localStorage.getItem('crozzo_wifi_zone_last_ip') ||
+            ''
+        ).trim();
+      }, '');
     }
     return String(cfg.centralIp || cfg.serverIp || '').trim();
   }
