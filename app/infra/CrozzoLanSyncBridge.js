@@ -13,18 +13,37 @@
   var POLL_MS = 4200;
   var RUNTIME_POLL_MS = 900;
 
+  function isMobileShell() {
+    try {
+      if (typeof global.crozzoIsAndroidApkDevice === 'function' && global.crozzoIsAndroidApkDevice()) return true;
+    } catch (_) {}
+    try {
+      if (
+        global.CrozzoDeviceForm &&
+        typeof global.CrozzoDeviceForm.isAndroidApk === 'function' &&
+        global.CrozzoDeviceForm.isAndroidApk()
+      ) {
+        return true;
+      }
+    } catch (_) {}
+    try {
+      var ua = String((global.navigator && global.navigator.userAgent) || '');
+      if (/Android|iPhone|iPad|iPod/i.test(ua)) return true;
+    } catch (_) {}
+    return false;
+  }
+
   function isDesktopTauri() {
     try {
       var t = global.__TAURI__;
-      if (t && t.core && typeof t.core.invoke === 'function') {
-        global.__CROZZO_IS_TAURI__ = true;
-        return true;
-      }
-      if (t && typeof t.invoke === 'function') {
-        global.__CROZZO_IS_TAURI__ = true;
-        return true;
-      }
-      return !!(global.__CROZZO_IS_TAURI__ && t);
+      var hasTauri = !!(
+        t &&
+        ((t.core && typeof t.core.invoke === 'function') || typeof t.invoke === 'function')
+      );
+      if (hasTauri) global.__CROZZO_IS_TAURI__ = true;
+      // En Android/iOS no existe el servidor LAN nativo: no invocar sus comandos.
+      if (isMobileShell()) return false;
+      return hasTauri || !!(global.__CROZZO_IS_TAURI__ && t);
     } catch (_) {
       return false;
     }

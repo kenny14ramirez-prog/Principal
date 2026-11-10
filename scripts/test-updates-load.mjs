@@ -236,6 +236,17 @@ function runConnectivityFixChecks() {
     !peerDir.includes("return '127.0.0.1';") &&
       peerDir.includes("if (lanIp === '127.0.0.1' || lanIp === 'localhost' || lanIp === '::1') lanIp = '';")
   );
+  check(
+    'Bridge LAN no invoca comandos de servidor en Android',
+    lanBridge.includes('function isMobileShell()') &&
+      lanBridge.includes('if (isMobileShell()) return false;')
+  );
+
+  const deviceReport = readFileSync(join(root, 'app/infra/CrozzoDeviceReport.js'), 'utf8');
+  check(
+    'Reporte Rol A muestra su IP LAN como IP de caja',
+    deviceReport.includes("if (!info.centralIp && md.role === 'A') info.centralIp = info.ownIp;")
+  );
 
   const wsBridge = readFileSync(join(root, 'app/infra/CrozzoLanWebSocketBridge.js'), 'utf8');
   check(

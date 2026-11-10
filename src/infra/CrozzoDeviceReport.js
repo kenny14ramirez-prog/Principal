@@ -56,6 +56,16 @@
     info.deviceId = md.deviceId || '';
     info.role = md.role || '';
     info.centralIp = md.centralIp || '';
+    info.ownIp = '';
+    try {
+      info.ownIp = String(
+        (typeof G.localStorage !== 'undefined' &&
+          (G.localStorage.getItem('crozzo_own_lan_ip_v1') ||
+            G.localStorage.getItem('crozzo_wifi_zone_last_ip'))) ||
+          ''
+      ).trim();
+    } catch (_) {}
+    if (!info.centralIp && md.role === 'A') info.centralIp = info.ownIp;
     info.port = md.port || '';
     info.lanToken = md.lanToken ? 'configurado' : 'NO configurado';
     info.tier = G.__CROZZO_TIER_LAST || 'unknown';
@@ -146,6 +156,7 @@
     lines.push('Device ID: ' + (diag.info.deviceId || '(vacio)'));
     lines.push('Rol: ' + (diag.info.role || '(vacio)'));
     lines.push('IP caja: ' + (diag.info.centralIp || '(vacio)'));
+    if (diag.info.role !== 'A' && diag.info.ownIp) lines.push('IP local (tablet): ' + diag.info.ownIp);
     lines.push('Puerto: ' + (diag.info.port || '(vacio)'));
     lines.push('Token LAN: ' + (diag.info.lanToken || '(vacio)'));
     lines.push('Impresora: ' + (diag.info.printerReady || 'no verificado'));
