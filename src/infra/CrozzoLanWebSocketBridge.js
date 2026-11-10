@@ -171,10 +171,17 @@
     var cfg = md();
     if (cfg.role === 'A') {
       if (!isDesktopTauri()) return '';
+      var ownA =
+        typeof global.crozzoOwnLanIpAsync === 'function'
+          ? await global.crozzoOwnLanIpAsync()
+          : typeof global.crozzoOwnLanIpSync === 'function'
+            ? global.crozzoOwnLanIpSync()
+            : '';
+      if (!ownA) return '';
       var port = wsPort(cfg);
       var useTls = !_forcePlain && (await tlsAvailable(cfg));
       var proto = useTls ? 'wss' : 'ws';
-      return proto + '://127.0.0.1:' + port + '/';
+      return proto + '://' + ownA + ':' + port + '/';
     }
     var ip = String(cfg.centralIp || '').trim();
     if (!ip) return '';

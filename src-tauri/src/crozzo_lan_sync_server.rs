@@ -375,6 +375,13 @@ async fn write_http_response(
     stream.flush().await
 }
 
+/// Devuelve el índice inmediatamente después de la secuencia CRLFCRLF real.
+/// Importante: debe compararse contra bytes CRLF (0x0D 0x0A), no contra el
+/// texto literal `\\r\\n`, o el servidor nunca detecta el fin de cabeceras.
+fn find_header_end(buf: &[u8]) -> Option<usize> {
+    buf.windows(4).position(|w| w == b"\r\n\r\n").map(|i| i + 4)
+}
+
 fn parse_request(buf: &[u8]) -> Option<(String, String, String)> {
     let text = String::from_utf8_lossy(buf);
     let mut lines = text.split("\r\n");
@@ -992,7 +999,7 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
     let deadline = tokio::time::Instant::now() + Duration::from_secs(8);
     // 1) Leer hasta tener las cabeceras completas.
     loop {
-        if buf.windows(4).any(|w| w == b"\\r\\n\\r\\n") {
+        if find_header_end(&buf).is_some() {
             break;
         }
         if buf.len() > 1_048_576 {
@@ -1016,14 +1023,14 @@ async fn handle_connection(mut stream: TcpStream, state: Arc<Mutex<Option<Server
             }
         }
     }
-    let header_end = match buf.windows(4).position(|w| w == b"\\r\\n\\r\\n") {
-        Some(i) => i + 4,
+    let header_end = match find_header_end(&buf) {
+        Some(i) => i,
         None => return,
     };
     // 2) Content-Length para saber cuantos bytes de body leer.
     let headers_str = String::from_utf8_lossy(&buf[..header_end]);
     let mut content_length: usize = 0;
-    for line in headers_str.split("\\r\\n") {
+    for line in headers_str.split("\r\n") {
         let lower = line.to_ascii_lowercase();
         if let Some(rest) = lower.strip_prefix("content-length:") {
             content_length = rest.trim().parse().unwrap_or(0);
@@ -1762,4 +1769,62 @@ pub fn crozzo_lan_sync_post(body: String) -> Result<serde_json::Value, String> {
     let payload: serde_json::Value =
         serde_json::from_str(body.trim()).map_err(|e| format!("invalid_json: {}", e))?;
     ingest_api_sync(shared_state(), payload)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn header_end_uses_real_crlf_bytes() {
+        let req = b"GET /health HTTP/1.1\r\nHost: 192.168.1.15\r\n\r\n";
+        let end = find_header_end(req).expect("debe detectar CRLFCRLF real");
+        assert_eq!(end, req.len());
+    }
+
+    #[test]
+    fn header_end_rejects_literal_backslash_text() {
+        let req = b"GET /health HTTP/1.1\\r\\nHost: x\\r\\n\\r\\n";
+        assert_eq!(find_header_end(req), None);
+    }
+
+    #[test]
+    fn parse_request_reads_method_path_and_body() {
+        let req = b"POST /api/sync HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}";
+        let (method, path, body) = parse_request(req).expect("parse ok");
+        assert_eq!(method, "POST");
+        assert_eq!(path, "/api/sync");
+        assert_eq!(body, "{}");
+    }
+
+    /// Regresión del bug v1.0.274: con un request HTTP válido el servidor debe
+    /// escribir una respuesta HTTP (aquí 503 porque el estado está vacío) en
+    /// lugar de cerrar la conexión sin enviar nada.
+    #[tokio::test]
+    async fn connection_responds_instead_of_closing_without_reply() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let state: Arc<Mutex<Option<ServerInner>>> = Arc::new(Mutex::new(None));
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.expect("accept");
+            handle_connection(stream, state).await;
+        });
+
+        let mut client = TcpStream::connect(addr).await.expect("connect");
+        client
+            .write_all(b"GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            .await
+            .expect("write");
+        let mut buf = Vec::new();
+        let read = tokio::time::timeout(Duration::from_secs(3), client.read_to_end(&mut buf)).await;
+        assert!(read.is_ok(), "el servidor debe cerrar tras responder, no colgar");
+        let text = String::from_utf8_lossy(&buf);
+        assert!(
+            text.starts_with("HTTP/1.1 "),
+            "debe responder HTTP; recibido: {:?}",
+            text
+        );
+        assert!(text.contains("\r\n\r\n"), "debe incluir fin de cabeceras");
+        let _ = server.await;
+    }
 }

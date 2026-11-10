@@ -205,7 +205,12 @@ function buildCrozzoConfigPayload() {
   }
   return {
     role: 'A',
-    serverIp: (c.serverIp || '').trim() || '127.0.0.1',
+    serverIp:
+      (c.serverIp || '').trim() ||
+      (typeof window !== 'undefined' && typeof window.crozzoOwnLanIpSync === 'function'
+        ? window.crozzoOwnLanIpSync()
+        : '') ||
+      '127.0.0.1',
     port: Math.max(1, Number(c.port) || 3000),
     mode: c.mode === 'prod' ? 'prod' : 'demo',
     businessName: (c.businessName || '').trim() || (emp.nombreComercial || emp.razonSocial || 'Mi negocio'),
@@ -37524,7 +37529,13 @@ const CrozzoP2PDataHub = {
     const md = this.cfg;
     const port = Number(md.port) || 3000;
     if (md.role === 'B' && md.centralIp) return 'http://' + String(md.centralIp).trim() + ':' + port;
-    if (md.role === 'A') return 'http://127.0.0.1:' + port;
+    if (md.role === 'A') {
+      const own =
+        typeof window !== 'undefined' && typeof window.crozzoOwnLanIpSync === 'function'
+          ? window.crozzoOwnLanIpSync()
+          : '';
+      return own ? 'http://' + own + ':' + port : '';
+    }
     return '';
   },
   _canUseLanSig() {
@@ -51433,7 +51444,11 @@ function init() {
         serverErr = String((eProbe && eProbe.message) || eProbe);
       }
     } else if (typeof crozzoFetchLanHealth === 'function') {
-      serverOk = await crozzoFetchLanHealth('127.0.0.1', 3000, 1400);
+      var _ownLanProbe =
+        typeof window !== 'undefined' && typeof window.crozzoOwnLanIpSync === 'function'
+          ? window.crozzoOwnLanIpSync()
+          : '';
+      serverOk = _ownLanProbe ? await crozzoFetchLanHealth(_ownLanProbe, 3000, 1400) : false;
     }
     if (window.CrozzoNetworkGuard && typeof window.CrozzoNetworkGuard.setIsActiveServer === 'function') {
       window.CrozzoNetworkGuard.setIsActiveServer(true);

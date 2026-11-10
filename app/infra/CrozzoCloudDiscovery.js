@@ -90,7 +90,9 @@
     }
     if (!ip) {
       var c = ctx();
-      if (c.role === 'A') ip = '127.0.0.1';
+      if (c.role === 'A' && typeof global.crozzoOwnLanIpSync === 'function') {
+        ip = global.crozzoOwnLanIpSync();
+      }
     }
     return ip;
   }

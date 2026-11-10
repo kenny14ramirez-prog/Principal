@@ -52,7 +52,22 @@
     if (!lanLikely()) return false;
     try {
       var m = md();
-      var ip = m.role === 'A' ? '127.0.0.1' : String(m.centralIp || '').trim();
+      var ip = '';
+      if (m.role === 'A') {
+        // La caja escucha en su IP LAN (bind explícito por seguridad), no en loopback.
+        try {
+          ip = String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();
+        } catch (_) {}
+        if (!ip && typeof global.detectLocalIP === 'function') {
+          try {
+            ip = String((await global.detectLocalIP()) || '').trim();
+          } catch (_) {}
+        }
+        if (!ip) ip = String(m.serverIp || m.centralIp || '').trim();
+        if (ip === '127.0.0.1' || ip === 'localhost') ip = '';
+      } else {
+        ip = String(m.centralIp || '').trim();
+      }
       if (!ip) return false;
       var port = Number(m.port) || 3000;
       var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;

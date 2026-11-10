@@ -196,10 +196,12 @@
           global.CrozzoPeerDirectory.pullPresenceFromCloud().catch(function () {});
         }
       } else if (cfg.role === 'A') {
-        if (selfLan || (await fetchHealth('127.0.0.1', Number(cfg.port) || 3000, 900))) {
+        var ownLanA =
+          typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '';
+        if (selfLan || (ownLanA && (await fetchHealth(ownLanA, Number(cfg.port) || 3000, 900)))) {
           mode = selfCloud ? 'cloud_self' : 'lan_client';
           reason = 'Caja Rol A — servidor LAN local';
-          anchorIp = '127.0.0.1';
+          if (ownLanA) anchorIp = ownLanA;
           selfLan = true;
         }
       } else if (cfg.role === 'B') {

@@ -37,6 +37,38 @@
     return Promise.reject(new Error('Tauri invoke no disponible'));
   }
 
+  // ---- IP LAN propia (la caja escucha en su IP LAN, no en loopback) ----
+  function crozzoOwnLanIpSync() {
+    try {
+      var ip = String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();
+      if (ip && ip !== '127.0.0.1' && ip !== 'localhost' && ip !== '::1') return ip;
+    } catch (_) {}
+    try {
+      var zone = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
+      if (zone && zone !== '127.0.0.1' && zone !== 'localhost' && zone !== '::1') return zone;
+    } catch (_) {}
+    try {
+      if (typeof global.getMultiDeviceConfig === 'function') {
+        var cfg = global.getMultiDeviceConfig() || {};
+        var s = String(cfg.serverIp || cfg.centralIp || '').trim();
+        if (s && s !== '127.0.0.1' && s !== 'localhost' && s !== '::1') return s;
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  async function crozzoOwnLanIpAsync() {
+    var ip = crozzoOwnLanIpSync();
+    if (ip) return ip;
+    try {
+      if (typeof global.detectLocalIP === 'function') {
+        var d = String((await global.detectLocalIP()) || '').trim();
+        if (d && d !== '127.0.0.1' && d !== 'localhost' && d !== '::1') return d;
+      }
+    } catch (_) {}
+    return '';
+  }
+
   // ---- Token de pareo LAN (autenticación entre dispositivos) ----
   function genLanToken() {
     try {
@@ -223,7 +255,7 @@
       }
     }
     if (!crozzoLanTransportAllowed()) return false;
-    var host = md.role === 'A' ? '127.0.0.1' : String(md.centralIp || '').trim();
+    var host = md.role === 'A' ? crozzoOwnLanIpSync() : String(md.centralIp || '').trim();
     if (!host) {
       try {
         host = String(global.localStorage.getItem('crozzo_wifi_zone_last_ip') || '').trim();
@@ -1234,8 +1266,13 @@
     });
   } catch (_) {}
 
+  global.crozzoOwnLanIpSync = crozzoOwnLanIpSync;
+  global.crozzoOwnLanIpAsync = crozzoOwnLanIpAsync;
+
   global.CrozzoLanSyncBridge = {
     isDesktopTauri: isDesktopTauri,
+    crozzoOwnLanIpSync: crozzoOwnLanIpSync,
+    crozzoOwnLanIpAsync: crozzoOwnLanIpAsync,
     crozzoIsLocalLanHost: crozzoIsLocalLanHost,
     nativeHealth: nativeHealth,
     shouldAutoStartLanServer: shouldAutoStartLanServer,

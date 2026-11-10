@@ -64,7 +64,22 @@
   async function measurePing() {
     var md = (typeof global.getMultiDeviceConfig === 'function') ? global.getMultiDeviceConfig() : {};
     if (!md.centralIp && md.role !== 'A') return null;
-    var ip = md.role === 'A' ? '127.0.0.1' : String(md.centralIp || '').trim();
+    var ip = '';
+    if (md.role === 'A') {
+      // La caja escucha en su IP LAN, no en loopback (bind explícito por seguridad).
+      try {
+        ip = String(global.localStorage.getItem('crozzo_own_lan_ip_v1') || '').trim();
+      } catch (_) {}
+      if (!ip && typeof global.detectLocalIP === 'function') {
+        try {
+          ip = String((await global.detectLocalIP()) || '').trim();
+        } catch (_) {}
+      }
+      if (!ip) ip = String(md.serverIp || md.centralIp || '').trim();
+      if (ip === '127.0.0.1' || ip === 'localhost') ip = '';
+    } else {
+      ip = String(md.centralIp || '').trim();
+    }
     if (!ip) return null;
     var port = Number(md.port) || 3000;
     var start = performance.now();

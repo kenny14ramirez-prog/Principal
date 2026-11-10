@@ -820,7 +820,15 @@
 
   async function lanCentralHost() {
     var md = typeof global.getMultiDeviceConfig === 'function' ? global.getMultiDeviceConfig() : {};
-    if (md.role === 'A') return '127.0.0.1';
+    if (md.role === 'A') {
+      var own =
+        typeof global.crozzoOwnLanIpAsync === 'function'
+          ? await global.crozzoOwnLanIpAsync()
+          : typeof global.crozzoOwnLanIpSync === 'function'
+            ? global.crozzoOwnLanIpSync()
+            : '';
+      return own || '';
+    }
     var ip = String(md.centralIp || '').trim();
     if (!ip) {
       try {

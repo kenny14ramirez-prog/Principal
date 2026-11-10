@@ -227,8 +227,9 @@
   }
 
   async function probeRoleB(cfg, opts, markOk) {
+    opts = opts || {};
     var port = Number(cfg.port) || 3000;
-    var timeout = (opts && opts.timeoutMs) || 2200;
+    var timeout = opts.timeoutMs || 2200;
     var ip = String(cfg.centralIp || '').trim();
     if (ip && (await tryHealth(ip, port, timeout))) {
       markHotspotMode(ip);

@@ -274,7 +274,6 @@ pub fn run() {
             crozzo_mdns::crozzo_mdns_stop,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_mdns::crozzo_mdns_drain_discovered,
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_mdns::crozzo_guess_local_ipv4,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_emulation::crozzo_emulation_set_active,

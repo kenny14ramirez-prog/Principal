@@ -187,10 +187,100 @@ function runAndroidMenuChecks() {
   );
 }
 
+function runConnectivityFixChecks() {
+  const lanServer = readFileSync(join(root, 'src-tauri/src/crozzo_lan_sync_server.rs'), 'utf8');
+  check('LAN: detecta fin de cabeceras con helper CRLF real', lanServer.includes('fn find_header_end'));
+  check(
+    'LAN: no compara contra el texto literal \\\\r\\\\n (bug v1.0.274)',
+    !lanServer.includes('b"\\\\r\\\\n\\\\r\\\\n"')
+  );
+  check('LAN: divide cabeceras por CRLF real', lanServer.includes('.split("\\r\\n")'));
+
+  const wifi = readFileSync(join(root, 'app/infra/CrozzoWifiZoneBridge.js'), 'utf8');
+  check(
+    'probeRoleB tolera opts indefinido',
+    /async function probeRoleB\(cfg, opts, markOk\) \{\s*opts = opts \|\| \{\};/.test(wifi)
+  );
+
+  const metrics = readFileSync(join(root, 'app/infra/CrozzoPerformanceMetrics.js'), 'utf8');
+  check(
+    'Ping Rol A usa la IP LAN real (no loopback)',
+    metrics.includes('crozzo_own_lan_ip_v1') && !metrics.includes("md.role === 'A' ? '127.0.0.1'")
+  );
+
+  const channel = readFileSync(join(root, 'app/infra/CrozzoChannelFallback.js'), 'utf8');
+  check(
+    'Canal Rol A usa la IP LAN real (no loopback)',
+    channel.includes('crozzo_own_lan_ip_v1') && !channel.includes("m.role === 'A' ? '127.0.0.1'")
+  );
+
+  const lanBridge = readFileSync(join(root, 'app/infra/CrozzoLanSyncBridge.js'), 'utf8');
+  check(
+    'Helper global de IP LAN expuesto',
+    lanBridge.includes('function crozzoOwnLanIpSync') &&
+      lanBridge.includes('global.crozzoOwnLanIpSync = crozzoOwnLanIpSync')
+  );
+  check(
+    'Sync HTTP Rol A usa la IP LAN (no loopback)',
+    !lanBridge.includes("md.role === 'A' ? '127.0.0.1'")
+  );
+
+  const wsBridge = readFileSync(join(root, 'app/infra/CrozzoLanWebSocketBridge.js'), 'utf8');
+  check(
+    'WebSocket Rol A usa la IP LAN (no loopback)',
+    !wsBridge.includes("proto + '://127.0.0.1:'")
+  );
+
+  const director = readFileSync(join(root, 'app/infra/CrozzoConnectivityDirector.js'), 'utf8');
+  check(
+    'Director Rol A no publica ancla loopback',
+    !director.includes("anchorIp = '127.0.0.1'")
+  );
+
+  const runtimeCloud = readFileSync(join(root, 'app/modules/CrozzoPosRuntimeCloud.js'), 'utf8');
+  check(
+    'Runtime cloud Rol A usa la IP LAN (no loopback)',
+    !runtimeCloud.includes("if (md.role === 'A') return '127.0.0.1';")
+  );
+
+  const lanOps = readFileSync(join(root, 'app/infra/CrozzoLanOpsSync.js'), 'utf8');
+  check(
+    'LAN ops Rol A usa la IP LAN (no loopback)',
+    !lanOps.includes("if (cfg.role === 'A') return '127.0.0.1';")
+  );
+
+  const posMain = readFileSync(join(root, 'app/core/CrozzoPosMain.js'), 'utf8');
+  check(
+    'Señalización LAN Rol A usa la IP LAN (no loopback)',
+    !posMain.includes("if (md.role === 'A') return 'http://127.0.0.1:' + port;")
+  );
+
+  const print = readFileSync(join(root, 'app/core/CrozzoPrintService.js'), 'utf8');
+  check('Impresión Android usa backend html', print.includes("if (/Android/i.test(ua)) return 'html';"));
+  check(
+    'Impresión Android no invoca crozzo_list_printers',
+    print.includes("crozzoGetPrintBackend() === 'html'")
+  );
+
+  const libLines = readFileSync(join(root, 'src-tauri/src/lib.rs'), 'utf8').split(/\r?\n/);
+  const ipCmdLine = libLines.findIndex((l) => l.includes('crozzo_mdns::crozzo_guess_local_ipv4,'));
+  let ipPrevLine = '';
+  if (ipCmdLine > 0) {
+    for (let i = ipCmdLine - 1; i >= 0; i--) {
+      if (libLines[i].trim()) { ipPrevLine = libLines[i].trim(); break; }
+    }
+  }
+  check(
+    'IP local disponible en Android (sin cfg gate)',
+    ipCmdLine >= 0 && !ipPrevLine.startsWith('#[cfg(')
+  );
+}
+
 async function runPlanChecks() {
   await runChannelChecks().catch((e) => check('canal de conexión sin excepción', false, e && e.message));
   try { runReportChecks(); } catch (e) { check('reporte sin excepción', false, e && e.message); }
   try { runAndroidMenuChecks(); } catch (e) { check('menú Android sin excepción', false, e && e.message); }
+  try { runConnectivityFixChecks(); } catch (e) { check('conectividad sin excepción', false, e && e.message); }
   win.__TAURI__ = { core: { invoke: () => Promise.resolve({}) } };
   await TU.probePlanCapabilities();
   const sel = TU.selectPlan({ platform: 'windows', targetVersion: 'v1.0.283' });

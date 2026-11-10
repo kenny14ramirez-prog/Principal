@@ -1,22 +1,6 @@
 {
-  "updatedAt": "2026-11-09T22:43:44.967Z",
+  "updatedAt": "2026-11-10T00:23:06.458Z",
   "entries": [
-    {
-      "id": "1.0.241-critical",
-      "version": "v1.0.241",
-      "semver": "1.0.241",
-      "type": "critical",
-      "message": "Fix rebrand SyntaxErrors (CrozzoAuthSecurity + CrozzoPosExtensions) + Failed to fetch",
-      "publishedAt": "2026-10-31T20:35:23.299Z",
-      "installMode": "auto",
-      "changelog": [
-        "Fix: SyntaxError CrozzoAuthSecurity.js (identificadores rotos por rebrand)",
-        "Fix: SyntaxError CrozzoPosExtensions.js (namespace window.Bona Origen)",
-        "Fix: Failed to fetch (consecuencia de SyntaxError)",
-        "Build verde Windows/macOS/Android"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.242-critical",
       "version": "v1.0.242",
@@ -326,6 +310,18 @@
       "changelog": [
         "Android: menu de usuario visible, consola tecnica embebida y auto-instalacion del APK tras login sin exigir Super Admin",
         "Windows mantiene A-C-B"
+      ]
+    },
+    {
+      "id": "1.0.291-critical",
+      "version": "v1.0.291",
+      "semver": "1.0.291",
+      "type": "critical",
+      "message": "LAN: el servidor vuelve a responder (fin de cabeceras CRLF real), conectividad y ping usan la IP LAN de la caja, canal correcto y auto-actualizacion del APK Android",
+      "publishedAt": "2026-11-10T00:23:06.458Z",
+      "installMode": "auto",
+      "changelog": [
+        "LAN: el servidor vuelve a responder (fin de cabeceras CRLF real), conectividad y ping usan la IP LAN de la caja, canal correcto y auto-actualizacion del APK Android"
       ]
     }
   ]

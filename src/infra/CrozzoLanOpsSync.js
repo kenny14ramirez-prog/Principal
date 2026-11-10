@@ -481,7 +481,9 @@
 
   function lanHost() {
     var cfg = md();
-    if (cfg.role === 'A') return '127.0.0.1';
+    if (cfg.role === 'A') {
+      return typeof global.crozzoOwnLanIpSync === 'function' ? global.crozzoOwnLanIpSync() : '';
+    }
     var ip = String(cfg.centralIp || '').trim();
     if (!ip) {
       try {

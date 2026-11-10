@@ -141,6 +141,7 @@
   function crozzoGetPrintBackend() {
     if (!crozzoIsTauri()) return 'html';
     var ua = String((global.navigator && global.navigator.userAgent) || '');
+    if (/Android/i.test(ua)) return 'html';
     if (/Windows/i.test(ua)) return 'winapi';
     if (/Mac OS X|Macintosh/i.test(ua)) return 'cups';
     if (/Linux/i.test(ua)) return 'cups';
@@ -312,7 +313,7 @@
     }
     global.__CROZZO_PRINTERS_LOAD_STARTED = now;
 
-    if (!crozzoIsTauri()) {
+    if (!crozzoIsTauri() || crozzoGetPrintBackend() === 'html') {
       crozzoRefreshPrinterList();
       if (force || !(global.__CROZZO_PRINTERS_LOADED_AT > 0)) {
         crozzoFinishPrinterLoad([], '', 'browser');
