@@ -1829,6 +1829,24 @@ mod tests {
             text
         );
         assert!(text.contains("\r\n\r\n"), "debe incluir fin de cabeceras");
+        // Regresión v1.0.295: la conexión atiende una sola petición y se cierra.
+        // Anunciar keep-alive hacía que el WebView reutilizara el socket y el
+        // siguiente request colgara hasta abortar a los 5 s.
+        assert!(
+            text.contains("\r\nConnection: close\r\n"),
+            "debe anunciar Connection: close; recibido: {:?}",
+            text
+        );
+        assert!(
+            !text.to_ascii_lowercase().contains("keep-alive"),
+            "no debe anunciar keep-alive; recibido: {:?}",
+            text
+        );
+        assert!(
+            text.contains("\r\nAccess-Control-Max-Age: 86400\r\n"),
+            "debe cachear el preflight CORS; recibido: {:?}",
+            text
+        );
         let _ = server.await;
     }
 }
