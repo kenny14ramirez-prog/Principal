@@ -1633,9 +1633,17 @@
         return false;
       }
     }
-    if (Date.now() < __echoUntil && !(opts && opts.force) && !isAggregate) {
+    // El guard de eco solo tiene sentido para ecos de NUESTRA propia escritura.
+    // Antes se aplicaba a cualquier remoto que llegara en la ventana de eco,
+    // rechazando silenciosamente pushes de otros equipos (tablet -> caja) que
+    // coincidieran en tiempo con un push nuestro. Por eso la caja no veía los
+    // cambios hechos desde una tablet.
+    if (sameDeviceGuard && Date.now() < __echoUntil && !(opts && opts.force) && !isAggregate) {
       var localAtEcho = localSavedAt();
-      if (!remoteAt || remoteAt <= localAtEcho + 1200) return false;
+      if (!remoteAt || remoteAt <= localAtEcho + 1200) {
+        try { console.warn('[runtime-cloud] applyRemoteRow: push remoto descartado por ventana de eco (mismo equipo). remote=' + remoteAt + ' local=' + localAtEcho); } catch (_) {}
+        return false;
+      }
     }
     if (!(opts && opts.force)) {
       var localAt = localSavedAt();

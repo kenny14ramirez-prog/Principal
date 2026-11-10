@@ -1,16 +1,6 @@
 {
-  "updatedAt": "2026-11-10T01:33:57.898Z",
+  "updatedAt": "2026-11-10T02:04:47.726Z",
   "entries": [
-    {
-      "id": "1.0.258-critical",
-      "version": "v1.0.258",
-      "semver": "1.0.258",
-      "type": "critical",
-      "message": "+",
-      "publishedAt": "2026-11-06T23:31:06.207Z",
-      "installMode": "auto",
-      "changelog": []
-    },
     {
       "id": "1.0.259-critical",
       "version": "v1.0.259",
@@ -311,6 +301,19 @@
       "installMode": "auto",
       "changelog": [
         "LAN estable: el servidor cierra la conexion tras cada peticion (fin de los cuelgues de 5 s tras el preflight CORS), cachea el preflight y el registro QR interno siempre devuelve promesa (sin warnings de resolvePayloadFromScan)"
+      ]
+    },
+    {
+      "id": "1.0.296-critical",
+      "version": "v1.0.296",
+      "semver": "1.0.296",
+      "type": "critical",
+      "message": "LAN: la caja ya no descarta los pushes de tablets en la ventana de eco (tablet -> caja visible al entrar a una mesa); diagnostico HTTP en consola",
+      "publishedAt": "2026-11-10T02:04:47.726Z",
+      "installMode": "auto",
+      "changelog": [
+        "LAN: la caja ya no descarta los pushes de tablets en la ventana de eco (tablet -> caja visible al entrar a una mesa)",
+        "diagnostico HTTP en consola"
       ]
     }
   ]

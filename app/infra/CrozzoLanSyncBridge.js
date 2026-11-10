@@ -298,6 +298,7 @@
       if (timer) global.clearTimeout(timer);
       if (!res.ok) {
         noteLanFetchPressure('http_' + res.status);
+        try { console.warn('[lan-sync] post HTTP ' + res.status + ' ' + host + ':' + port + ' (mobile)'); } catch (_) {}
         if (typeof global.crozzoSignalLanTrouble === 'function') global.crozzoSignalLanTrouble();
         return false;
       }
