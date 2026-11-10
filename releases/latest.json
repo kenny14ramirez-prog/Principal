@@ -1,37 +1,18 @@
 {
-  "id": "1.0.292-critical",
-  "version": "v1.0.292",
-  "semver": "1.0.292",
+  "id": "1.0.293-critical",
+  "version": "v1.0.293",
+  "semver": "1.0.293",
   "type": "critical",
-  "message": "LAN: servidor responde (CRLF real), conectividad/ping/canal usan IP LAN de la caja, comando de IP disponible en Android y auto-actualizacion del APK",
-  "publishedAt": "2026-11-10T00:33:05.298Z",
+  "message": "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers; comando de IP movil en modulo propio (build Android corregido); auto-actualizacion del APK",
+  "publishedAt": "2026-11-10T00:40:36.161Z",
   "installMode": "auto",
   "changelog": [
-    "LAN: servidor responde (CRLF real), conectividad/ping/canal usan IP LAN de la caja, comando de IP disponible en Android y auto-actualizacion del APK"
+    "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers",
+    "comando de IP movil en modulo propio (build Android corregido)",
+    "auto-actualizacion del APK"
   ],
-  "updatedAt": "2026-11-10T00:33:05.298Z",
+  "updatedAt": "2026-11-10T00:40:36.161Z",
   "entries": [
-    {
-      "id": "1.0.243-critical",
-      "version": "v1.0.243",
-      "semver": "1.0.243",
-      "type": "critical",
-      "message": "OTA mejorado: estado preservado + concurrencia + retry + registry + error real",
-      "publishedAt": "2026-10-31T21:18:48.044Z",
-      "installMode": "auto",
-      "changelog": [
-        "OTA-2: backup/restore de estado POS (carrito, mesas, comandas)",
-        "OTA-3: Android pending en localStorage",
-        "OTA-5: lock concurrencia (retry 3x)",
-        "Fix: registry.json en main (evita 404)",
-        "Fix: mensaje de error real en comprobar",
-        "Fix: rebrand SyntaxErrors",
-        "IA local (Ollama) para cierres",
-        "Modernizacion documentos DOC-0 a DOC-6",
-        "Bloque B: plantillas + compatibilidad"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.244-critical",
       "version": "v1.0.244",
@@ -330,6 +311,20 @@
       "installMode": "auto",
       "changelog": [
         "LAN: servidor responde (CRLF real), conectividad/ping/canal usan IP LAN de la caja, comando de IP disponible en Android y auto-actualizacion del APK"
+      ]
+    },
+    {
+      "id": "1.0.293-critical",
+      "version": "v1.0.293",
+      "semver": "1.0.293",
+      "type": "critical",
+      "message": "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers; comando de IP movil en modulo propio (build Android corregido); auto-actualizacion del APK",
+      "publishedAt": "2026-11-10T00:40:36.161Z",
+      "installMode": "auto",
+      "changelog": [
+        "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers",
+        "comando de IP movil en modulo propio (build Android corregido)",
+        "auto-actualizacion del APK"
       ]
     }
   ]

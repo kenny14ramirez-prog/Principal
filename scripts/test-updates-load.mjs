@@ -279,15 +279,16 @@ function runConnectivityFixChecks() {
   );
 
   const lib = readFileSync(join(root, 'src-tauri/src/lib.rs'), 'utf8');
+  const mobileIp = readFileSync(join(root, 'src-tauri/src/crozzo_mobile_ip.rs'), 'utf8');
   check(
     'IP local en escritorio (comando mDNS)',
     lib.includes('crozzo_mdns::crozzo_guess_local_ipv4,')
   );
   check(
     'IP local disponible en Android (comando móvil propio)',
-    lib.includes('pub fn crozzo_guess_local_ipv4()') &&
-      lib.includes('#[cfg(any(target_os = "android", target_os = "ios"))]') &&
-      lib.includes('            crozzo_guess_local_ipv4,')
+    lib.includes('mod crozzo_mobile_ip;') &&
+      lib.includes('crozzo_mobile_ip::crozzo_guess_local_ipv4,') &&
+      mobileIp.includes('pub fn crozzo_guess_local_ipv4()')
   );
 }
 
