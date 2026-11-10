@@ -248,6 +248,18 @@ function runConnectivityFixChecks() {
     deviceReport.includes("if (!info.centralIp && md.role === 'A') info.centralIp = info.ownIp;")
   );
 
+  const androidSigning = readFileSync(join(root, 'scripts/patch-android-signing.mjs'), 'utf8');
+  check(
+    'APK Android permite HTTP LAN (network_security_config copiado)',
+    androidSigning.includes('overlayNetworkSec') &&
+      androidSigning.includes('copyFileSync(overlayNetworkSec, networkSec)')
+  );
+  check(
+    'APK Android declara networkSecurityConfig y cleartext',
+    androidSigning.includes('android:networkSecurityConfig="@xml/network_security_config"') &&
+      androidSigning.includes('usesCleartextTraffic="true"')
+  );
+
   const wsBridge = readFileSync(join(root, 'app/infra/CrozzoLanWebSocketBridge.js'), 'utf8');
   check(
     'WebSocket Rol A usa la IP LAN (no loopback)',

@@ -64,6 +64,11 @@ function patchApkInstallResources() {
 
   if (existsSync(manifest)) {
     let xml = readFileSync(manifest, 'utf8');
+    if (xml.includes('usesCleartextTraffic="false"')) {
+      xml = xml.replace('usesCleartextTraffic="false"', 'usesCleartextTraffic="true"');
+      writeFileSync(manifest, xml, 'utf8');
+      console.log('[patch-android-apk-install] OK AndroidManifest usesCleartextTraffic=true');
+    }
     const nscRef = 'android:networkSecurityConfig="@xml/network_security_config"';
     if (!xml.includes('networkSecurityConfig') && xml.includes('<application')) {
       xml = xml.replace(/<application([^>]*)>/, (m, attrs) => {

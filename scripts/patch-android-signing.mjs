@@ -16,6 +16,8 @@ const genAndroid = join(root, 'src-tauri', 'gen', 'android');
 const overlayRoot = join(root, 'src-tauri', 'android-overlays');
 const filePaths = join(genAndroid, 'app', 'src', 'main', 'res', 'xml', 'file_paths.xml');
 const overlayFilePaths = join(overlayRoot, 'res', 'xml', 'file_paths.xml');
+const networkSec = join(genAndroid, 'app', 'src', 'main', 'res', 'xml', 'network_security_config.xml');
+const overlayNetworkSec = join(overlayRoot, 'res', 'xml', 'network_security_config.xml');
 const manifest = join(genAndroid, 'app', 'src', 'main', 'AndroidManifest.xml');
 
 const FILE_PATHS_SNIPPET =
@@ -79,9 +81,18 @@ function applyAndroidOverlays() {
     mkdirSync(dirname(filePaths), { recursive: true });
     copyFileSync(overlayFilePaths, filePaths);
     console.log('[patch-android-signing] OK overlay file_paths.xml');
-    return;
+  } else {
+    patchApkInstallResourcesLegacy();
   }
-  patchApkInstallResourcesLegacy();
+  // HTTP LAN (caja :3000) sin TLS: sin esto Android bloquea el fetch del WebView
+  // y la tablet queda en "Tier: offline" aunque el servidor responda.
+  if (existsSync(overlayNetworkSec)) {
+    mkdirSync(dirname(networkSec), { recursive: true });
+    copyFileSync(overlayNetworkSec, networkSec);
+    console.log('[patch-android-signing] OK overlay network_security_config.xml');
+  } else {
+    console.warn('[patch-android-signing] network_security_config.xml no encontrado.');
+  }
 }
 
 function patchApkInstallResourcesLegacy() {
@@ -113,6 +124,22 @@ function patchApkInstallResourcesLegacy() {
 function patchApkInstallManifest() {
   if (existsSync(manifest)) {
     let xml = readFileSync(manifest, 'utf8');
+    // Permitir HTTP en claro hacia la caja (192.168.x / hotspot). El template de
+    // Tauri trae usesCleartextTraffic="false"; el WebView Android hereda ese
+    // bloqueo y cualquier fetch a http://IP:3000 falla con "Failed to fetch".
+    const nscRef = 'android:networkSecurityConfig="@xml/network_security_config"';
+    if (xml.includes('usesCleartextTraffic="false"')) {
+      xml = xml.replace('usesCleartextTraffic="false"', 'usesCleartextTraffic="true"');
+      console.log('[patch-android-signing] OK AndroidManifest usesCleartextTraffic=true');
+    }
+    if (!xml.includes('networkSecurityConfig') && xml.includes('<application')) {
+      xml = xml.replace(/<application([^>]*)>/, (m, attrs) => {
+        if (attrs.includes('networkSecurityConfig')) return m;
+        return `<application${attrs} ${nscRef}>`;
+      });
+      console.log('[patch-android-signing] OK AndroidManifest networkSecurityConfig');
+    }
+    writeFileSync(manifest, xml, 'utf8');
     const perm = 'android.permission.REQUEST_INSTALL_PACKAGES';
     if (!xml.includes(perm) && xml.includes('<manifest')) {
       const insert =

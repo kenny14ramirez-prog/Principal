@@ -1,35 +1,17 @@
 {
-  "id": "1.0.293-critical",
-  "version": "v1.0.293",
-  "semver": "1.0.293",
+  "id": "1.0.294-critical",
+  "version": "v1.0.294",
+  "semver": "1.0.294",
   "type": "critical",
-  "message": "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers; comando de IP movil en modulo propio (build Android corregido); auto-actualizacion del APK",
-  "publishedAt": "2026-11-10T00:40:36.161Z",
+  "message": "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000; reporte muestra IP local y Android no invoca comandos LAN de escritorio",
+  "publishedAt": "2026-11-10T01:15:33.583Z",
   "installMode": "auto",
   "changelog": [
-    "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers",
-    "comando de IP movil en modulo propio (build Android corregido)",
-    "auto-actualizacion del APK"
+    "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000",
+    "reporte muestra IP local y Android no invoca comandos LAN de escritorio"
   ],
-  "updatedAt": "2026-11-10T00:40:36.161Z",
+  "updatedAt": "2026-11-10T01:15:33.583Z",
   "entries": [
-    {
-      "id": "1.0.244-critical",
-      "version": "v1.0.244",
-      "semver": "1.0.244",
-      "type": "critical",
-      "message": "Test OTA flujo completo - verificar deteccion, descarga, instalacion, changelog, estado preservado",
-      "publishedAt": "2026-10-31T21:32:46.834Z",
-      "installMode": "auto",
-      "changelog": [
-        "Test OTA flujo completo",
-        "Verificar deteccion al arrancar",
-        "Descarga en segundo plano sin bloquear UI",
-        "Instalacion al reiniciar + changelog visible",
-        "Preservacion de estado (ventas/mesas)"
-      ],
-      "sha256": null
-    },
     {
       "id": "1.0.257-critical",
       "version": "v1.0.257",
@@ -325,6 +307,19 @@
         "LAN estable: servidor responde, rol A usa su IP LAN para runtime/health/peers",
         "comando de IP movil en modulo propio (build Android corregido)",
         "auto-actualizacion del APK"
+      ]
+    },
+    {
+      "id": "1.0.294-critical",
+      "version": "v1.0.294",
+      "semver": "1.0.294",
+      "type": "critical",
+      "message": "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000; reporte muestra IP local y Android no invoca comandos LAN de escritorio",
+      "publishedAt": "2026-11-10T01:15:33.583Z",
+      "installMode": "auto",
+      "changelog": [
+        "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000",
+        "reporte muestra IP local y Android no invoca comandos LAN de escritorio"
       ]
     }
   ]
