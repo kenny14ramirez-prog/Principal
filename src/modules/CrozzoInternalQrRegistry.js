@@ -271,7 +271,8 @@
     );
   }
 
-  function resolvePayloadFromScan(scanText, payloadJson) {
+  // Siempre devuelve una promesa: los llamadores usan .then() y await.
+  async function resolvePayloadFromScan(scanText, payloadJson) {
     if (payloadJson && typeof payloadJson === 'object' && payloadJson.type) return payloadJson;
     var raw = String(scanText || '').trim();
     if (!raw) return null;

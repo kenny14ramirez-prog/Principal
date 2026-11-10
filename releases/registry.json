@@ -1,16 +1,6 @@
 {
-  "updatedAt": "2026-11-10T01:15:33.583Z",
+  "updatedAt": "2026-11-10T01:33:57.898Z",
   "entries": [
-    {
-      "id": "1.0.257-critical",
-      "version": "v1.0.257",
-      "semver": "1.0.257",
-      "type": "critical",
-      "message": "+",
-      "publishedAt": "2026-11-06T23:20:47.060Z",
-      "installMode": "auto",
-      "changelog": []
-    },
     {
       "id": "1.0.258-critical",
       "version": "v1.0.258",
@@ -309,6 +299,18 @@
       "changelog": [
         "Android: el APK permite HTTP LAN (network security config), la tablet ya puede conectar a la caja en :3000",
         "reporte muestra IP local y Android no invoca comandos LAN de escritorio"
+      ]
+    },
+    {
+      "id": "1.0.295-critical",
+      "version": "v1.0.295",
+      "semver": "1.0.295",
+      "type": "critical",
+      "message": "LAN estable: el servidor cierra la conexion tras cada peticion (fin de los cuelgues de 5 s tras el preflight CORS), cachea el preflight y el registro QR interno siempre devuelve promesa (sin warnings de resolvePayloadFromScan)",
+      "publishedAt": "2026-11-10T01:33:57.898Z",
+      "installMode": "auto",
+      "changelog": [
+        "LAN estable: el servidor cierra la conexion tras cada peticion (fin de los cuelgues de 5 s tras el preflight CORS), cachea el preflight y el registro QR interno siempre devuelve promesa (sin warnings de resolvePayloadFromScan)"
       ]
     }
   ]

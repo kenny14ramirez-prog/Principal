@@ -260,6 +260,19 @@ function runConnectivityFixChecks() {
       androidSigning.includes('usesCleartextTraffic="true"')
   );
 
+  const lanSyncServer = readFileSync(join(root, 'src-tauri/src/crozzo_lan_sync_server.rs'), 'utf8');
+  check(
+    'Servidor LAN cierra la conexión tras una petición (no anuncia keep-alive)',
+    lanSyncServer.includes('Connection: close') && !lanSyncServer.includes('Connection: keep-alive')
+  );
+  check('Servidor LAN cachea el preflight CORS', lanSyncServer.includes('Access-Control-Max-Age'));
+
+  const qrRegistry = readFileSync(join(root, 'app/modules/CrozzoInternalQrRegistry.js'), 'utf8');
+  check(
+    'QR registry: resolvePayloadFromScan siempre devuelve promesa',
+    qrRegistry.includes('async function resolvePayloadFromScan(')
+  );
+
   const wsBridge = readFileSync(join(root, 'app/infra/CrozzoLanWebSocketBridge.js'), 'utf8');
   check(
     'WebSocket Rol A usa la IP LAN (no loopback)',
