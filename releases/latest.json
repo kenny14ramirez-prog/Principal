@@ -1,29 +1,16 @@
 {
-  "id": "1.0.298-critical",
-  "version": "v1.0.298",
-  "semver": "1.0.298",
+  "id": "1.0.299-critical",
+  "version": "v1.0.299",
+  "semver": "1.0.299",
   "type": "critical",
-  "message": "Actualización: registro de dispositivos MFA, bloqueo ultra potente, fix check-maps",
-  "publishedAt": "2026-11-16T04:18:19.064Z",
+  "message": "Actualización completa: seguridad, MFA, honeypot, sync, code-splitting",
+  "publishedAt": "2026-11-16T11:14:41.471Z",
   "installMode": "auto",
   "changelog": [
-    "Actualización: registro de dispositivos MFA, bloqueo ultra potente, fix check-maps"
+    "Actualización completa: seguridad, MFA, honeypot, sync, code-splitting"
   ],
-  "updatedAt": "2026-11-16T04:18:19.064Z",
+  "updatedAt": "2026-11-16T11:14:41.471Z",
   "entries": [
-    {
-      "id": "1.0.274-optional",
-      "version": "v1.0.274",
-      "semver": "1.0.274",
-      "type": "optional",
-      "message": "Alineación de versión con GitHub + sistema de actualizaciones reforzado",
-      "publishedAt": "2026-11-09T12:50:15.782Z",
-      "installMode": "prompt",
-      "changelog": [
-        "Alineación de versión con GitHub",
-        "sistema de actualizaciones reforzado"
-      ]
-    },
     {
       "id": "1.0.275-critical",
       "version": "v1.0.275",
@@ -328,6 +315,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualización: registro de dispositivos MFA, bloqueo ultra potente, fix check-maps"
+      ]
+    },
+    {
+      "id": "1.0.299-critical",
+      "version": "v1.0.299",
+      "semver": "1.0.299",
+      "type": "critical",
+      "message": "Actualización completa: seguridad, MFA, honeypot, sync, code-splitting",
+      "publishedAt": "2026-11-16T11:14:41.471Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualización completa: seguridad, MFA, honeypot, sync, code-splitting"
       ]
     }
   ]
