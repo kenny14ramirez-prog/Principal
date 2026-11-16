@@ -12,7 +12,7 @@
 | 118 | `app/core/Crozzo2FAModal.js` |
 | 107 | `app/core/Crozzo2FAPoC.js` |
 | 191 | `app/core/CrozzoAndroidNative.js` |
-| 1573 | `app/core/CrozzoAuthSecurity.js` |
+| 1640 | `app/core/CrozzoAuthSecurity.js` |
 | 26 | `app/core/CrozzoCertVault.js` |
 | 31 | `app/core/CrozzoCertVaultIntegration.js` |
 | 49 | `app/core/CrozzoConfigWrapper.js` |
@@ -37,6 +37,7 @@
 | 343 | `app/core/CrozzoLoginBoot.js` |
 | 226 | `app/core/CrozzoManifest.js` |
 | 44 | `app/core/CrozzoMetrics.js` |
+| 239 | `app/core/CrozzoMfaKenny.js` |
 | 142 | `app/core/CrozzoObservability.js` |
 | 69 | `app/core/CrozzoObservabilityDashboard.js` |
 | 113 | `app/core/CrozzoOutboxRuntime.js` |
@@ -45,7 +46,7 @@
 | 114 | `app/core/CrozzoPosBoot.js` |
 | 3775 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53794 | `app/core/CrozzoPosMain.js` |
+| 53884 | `app/core/CrozzoPosMain.js` |
 | 2816 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
@@ -55,9 +56,12 @@
 | 50 | `app/core/CrozzoRlsPairing.js` |
 | 59 | `app/core/CrozzoRlsPayloadEnricher.js` |
 | 53 | `app/core/CrozzoSanitize.js` |
+| 313 | `app/core/CrozzoSoporteCentral.js` |
 | 77 | `app/core/CrozzoStorage.js` |
 | 133 | `app/core/CrozzoStorageHygiene.js` |
 | 44 | `app/core/CrozzoSupabaseAuth.js` |
+| 402 | `app/core/CrozzoSuperAdminCentral.js` |
+| 382 | `app/core/CrozzoSuperAdminMenu.js` |
 | 319 | `app/core/CrozzoTabletNav.js` |
 | 109 | `app/core/CrozzoTabletShell.js` |
 | 142 | `app/core/CrozzoTechConsole.js` |
@@ -192,7 +196,7 @@
 | 44 | `app/modules/CrozzoGmailDock.js` |
 | 264 | `app/modules/CrozzoGuiaFeElectronica.js` |
 | 774 | `app/modules/CrozzoHelpHub.js` |
-| 403 | `app/modules/CrozzoHoneypotJaula.js` |
+| 773 | `app/modules/CrozzoHoneypotJaula.js` |
 | 2954 | `app/modules/CrozzoHoneypotSim.js` |
 | 1197 | `app/modules/CrozzoInternalQrRegistry.js` |
 | 522 | `app/modules/CrozzoInventarioContinuo.js` |
