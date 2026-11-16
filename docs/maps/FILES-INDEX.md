@@ -37,7 +37,7 @@
 | 343 | `app/core/CrozzoLoginBoot.js` |
 | 226 | `app/core/CrozzoManifest.js` |
 | 44 | `app/core/CrozzoMetrics.js` |
-| 239 | `app/core/CrozzoMfaKenny.js` |
+| 375 | `app/core/CrozzoMfaKenny.js` |
 | 142 | `app/core/CrozzoObservability.js` |
 | 69 | `app/core/CrozzoObservabilityDashboard.js` |
 | 113 | `app/core/CrozzoOutboxRuntime.js` |
@@ -46,7 +46,7 @@
 | 114 | `app/core/CrozzoPosBoot.js` |
 | 3775 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53884 | `app/core/CrozzoPosMain.js` |
+| 53909 | `app/core/CrozzoPosMain.js` |
 | 2816 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
