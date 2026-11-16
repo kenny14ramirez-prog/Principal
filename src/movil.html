@@ -586,7 +586,7 @@
       P.probeBundledVideo(function () {
         var host = document.getElementById('moWelcomeMedia');
         if (host && typeof P.renderVideoBlock === 'function') {
-          host.innerHTML = P.renderVideoBlock({ compact: true });
+          host.innerHTML = CrozzoSanitize.sanitizeHtml(P.renderVideoBlock({ compact: true }));
           if (typeof P.bindVideoPlayers === 'function') P.bindVideoPlayers(host);
         }
       });
@@ -603,7 +603,7 @@
 
     el.hidden = false;
 
-    el.innerHTML = 'Versión publicada <strong>' + ver + '</strong>';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('Versión publicada <strong>' + ver + '</strong>');
 
   }
 
@@ -627,7 +627,7 @@
 
     el.hidden = false;
 
-    el.innerHTML = '<strong>Paso siguiente:</strong> tras instalar, abra la app y escanee el QR de la caja — o pegue su código de emparejamiento en el asistente.';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Paso siguiente:</strong> tras instalar, abra la app y escanee el QR de la caja — o pegue su código de emparejamiento en el asistente.');
 
   }
 
@@ -639,7 +639,7 @@
 
     document.getElementById('content').innerHTML =
 
-      '<div class="card">' +
+      CrozzoSanitize.sanitizeHtml('<div class="card">' +
 
       welcomeMediaHtml() +
 
@@ -661,7 +661,7 @@
 
       '<a class="btn btn-outline" href="' + page + '">Ver detalles del release</a>' +
 
-      '</div>';
+      '</div>');
 
     setVer(ver);
 
@@ -689,7 +689,7 @@
 
     document.getElementById('content').innerHTML =
 
-      '<div class="card">' +
+      CrozzoSanitize.sanitizeHtml('<div class="card">' +
 
       '<h2>Instalación en iOS</h2>' +
 
@@ -707,7 +707,7 @@
 
       '<a class="btn btn-primary" href="' + url + '">Abrir BONA origen</a>' +
 
-      '</div>';
+      '</div>');
 
     showPairHint();
 
@@ -721,7 +721,7 @@
 
     document.getElementById('content').innerHTML =
 
-      '<div class="card">' + welcomeMediaHtml() + '<h2>Android (tablet)</h2><p>APK ARM64 para dispositivos de campo.</p>' +
+      CrozzoSanitize.sanitizeHtml('<div class="card">' + welcomeMediaHtml() + '<h2>Android (tablet)</h2><p>APK ARM64 para dispositivos de campo.</p>' +
 
       '<a class="btn btn-primary" href="' + apk + '" download>Descargar APK</a></div>' +
 
@@ -731,7 +731,7 @@
 
       '<div class="card"><h2>Release oficial</h2>' +
 
-      '<a class="btn btn-outline" href="' + page + '">GitHub releases</a></div>';
+      '<a class="btn btn-outline" href="' + page + '">GitHub releases</a></div>');
 
     setVer(ver);
 
@@ -781,9 +781,9 @@
 
       document.getElementById('content').innerHTML =
 
-        '<div class="card"><p class="err">Sin conexión a GitHub. Verifique su red e intente de nuevo.</p>' +
+        CrozzoSanitize.sanitizeHtml('<div class="card"><p class="err">Sin conexión a GitHub. Verifique su red e intente de nuevo.</p>' +
 
-        '<a class="btn btn-outline" href="' + RELEASE_PAGE + '">Abrir releases oficiales</a></div>';
+        '<a class="btn btn-outline" href="' + RELEASE_PAGE + '">Abrir releases oficiales</a></div>');
 
     });
 

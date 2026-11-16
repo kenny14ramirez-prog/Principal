@@ -81207,3 +81207,7 @@ html.crozzo-android-native .user-menu__dropdown {
     display: none !important;
   }
 }
+
+/* Fix contraste Lighthouse: botones del modal de conflicto de servidor */
+#crozzoConflictOptB { color: #3a2e1a; }
+#crozzoConflictOptForce { color: #b35a00; }

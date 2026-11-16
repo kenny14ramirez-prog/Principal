@@ -261,7 +261,7 @@
       '.bona-brand__name{font-family:var(--bona-font-display);font-size:2rem;font-weight:600;letter-spacing:.2em;color:var(--text-primary);line-height:1}' +
       '.bona-brand__name--sm{font-size:.85rem;letter-spacing:.16em}' +
       '.bona-brand__a{font-weight:400;font-style:italic;color:var(--accent);letter-spacing:0}' +
-      '.bona-brand__tag{font-size:.68rem;letter-spacing:.38em;text-transform:uppercase;color:var(--accent);font-weight:500}' +
+      '.bona-brand__tag{font-size:.68rem;letter-spacing:.38em;text-transform:uppercase;color:#6b5328;font-weight:500}' +
       '.bona-brand__tag--sm{font-size:.58rem;letter-spacing:.28em}' +
       '.bona-brand__hint{font-size:11px;color:var(--text-secondary);margin-top:8px;letter-spacing:.02em;font-weight:400;opacity:.85}' +
       '.bona-brand-name-only{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1}' +
@@ -439,7 +439,7 @@
       w.setAttribute('aria-hidden', 'true');
       mc.insertBefore(w, mc.firstChild);
     }
-    w.innerHTML = '<img src="' + esc(LOGO_PNG) + '" alt="" decoding="async" loading="lazy">';
+    w.innerHTML = CrozzoSanitize.sanitizeHtml('<img src="' + esc(LOGO_PNG) + '" alt="" decoding="async" loading="lazy">');
   }
 
   function enhanceLoginChrome() {
@@ -485,7 +485,7 @@
         el.classList.add('bona-brand-txt--styled');
         return;
       }
-      el.innerHTML = nameHtml;
+      el.innerHTML = CrozzoSanitize.sanitizeHtml(nameHtml);
       el.classList.add('bona-brand-txt--styled');
     });
   }
@@ -516,10 +516,10 @@
     btn.title = 'BONA origen';
     btn.setAttribute('aria-label', 'BONA origen');
     btn.innerHTML =
-      '<span class="bona-header-gem__glow" aria-hidden="true"></span>' +
+      CrozzoSanitize.sanitizeHtml('<span class="bona-header-gem__glow" aria-hidden="true"></span>' +
       '<span class="bona-header-gem__plate"><img src="' +
       esc(LOGO) +
-      '" alt="" width="20" height="20" decoding="async"></span>';
+      '" alt="" width="20" height="20" decoding="async"></span>');
     var anchor = document.getElementById('crozzoA11yTrigger');
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor);
     else toolbar.insertBefore(btn, toolbar.firstChild);
@@ -536,14 +536,14 @@
       sb.appendChild(live);
     }
     live.innerHTML =
-      '<div class="bona-sidebar-live__frame">' +
+      CrozzoSanitize.sanitizeHtml('<div class="bona-sidebar-live__frame">' +
       '<span class="bona-sidebar-live__line" aria-hidden="true"></span>' +
       '<div class="bona-sidebar-live__content">' +
       logoFrame('bona-logo-frame--live') +
       '<div class="bona-sidebar-live__copy">' +
       '<span class="bona-sidebar-live__brand"><span class="bona-brand__name bona-brand__name--sm">BON<span class="bona-brand__a">Λ</span></span></span>' +
       '<span class="bona-sidebar-live__tag bona-brand__tag bona-brand__tag--sm">origen</span>' +
-      '</div></div></div>';
+      '</div></div></div>');
   }
 
   function enhancePlatformSlots() {

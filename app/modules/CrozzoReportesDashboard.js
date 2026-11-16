@@ -289,20 +289,20 @@
     var list = ctx.list || [];
     var m = ctx.metrics || {};
     var weekHost = document.getElementById('crozzo-rep-week-chart');
-    if (weekHost) weekHost.innerHTML = renderWeekChart(computeWeekTrend());
+    if (weekHost) weekHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderWeekChart(computeWeekTrend()));
     var payHost = document.getElementById('crozzo-rep-pay-breakdown');
     if (payHost && ctx.refreshPay !== false) {
-      payHost.innerHTML = renderPaySection(m.byMethod || {}, m.total || 0);
+      payHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderPaySection(m.byMethod || {}, m.total || 0));
     }
     var catHost = document.getElementById('crozzo-rep-cat-breakdown');
-    if (catHost && m.catMap) catHost.innerHTML = renderCatSection(m.catMap);
+    if (catHost && m.catMap) catHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderCatSection(m.catMap));
     var hourHost = document.getElementById('crozzo-rep-hour-chart');
     if (hourHost && typeof global.crozzoRepComputeHourlyTotals === 'function') {
-      hourHost.innerHTML = renderHourlyChartEnhanced(global.crozzoRepComputeHourlyTotals(list), m.total || 0);
+      hourHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderHourlyChartEnhanced(global.crozzoRepComputeHourlyTotals(list), m.total || 0));
     }
     var invHost = document.getElementById('crozzo-rep-inv-health');
     if (invHost && typeof global.crozzoRepInvCatalogStats === 'function') {
-      invHost.innerHTML = renderInvHealthDonut(global.crozzoRepInvCatalogStats());
+      invHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderInvHealthDonut(global.crozzoRepInvCatalogStats()));
     }
   }
 

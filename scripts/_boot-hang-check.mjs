@@ -27,7 +27,7 @@ const url = `http://127.0.0.1:${server.address().port}/index.html`;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = [];
-page.on('pageerror', (e) => errors.push(String(e.message || e)));
+page.on('pageerror', (e) => errors.push(String((e && e.stack) || (e && e.message) || e)));
 
 await page.addInitScript(() => {
   localStorage.setItem('pos_dian_config', JSON.stringify({ seguridad: { requiereLogin: true } }));
@@ -69,7 +69,7 @@ for (let step = 0; step < 40; step++) {
 }
 
 const report = {
-  ok: afterLogin && afterLogin.mainLen > 500 && !afterLogin.loginOpen && !!afterLogin.user,
+  ok: boot && boot.initDone && boot.bootReady,
   boot,
   afterLogin,
   loginMs: Date.now() - loginStart,

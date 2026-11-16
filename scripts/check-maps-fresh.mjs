@@ -32,13 +32,18 @@ try {
 }
 
 // 4. Comparar
+const EXCLUDED = new Set(['known-issues.json', 'RLS-INVENTORY.md']);
 function listFiles(dir) {
   const out = [];
   const walk = (d, base) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) walk(p, base);
-      else out.push(path.relative(base, p));
+      else {
+        const rel = path.relative(base, p);
+        if (EXCLUDED.has(path.basename(rel))) continue;
+        out.push(rel);
+      }
     }
   };
   walk(dir, dir);

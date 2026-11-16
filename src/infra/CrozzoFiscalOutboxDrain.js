@@ -28,6 +28,27 @@
     return false;
   }
 
+  // Fase 0: propagar CUFE a la factura en config.facturas tras drenaje
+  function propagateCufeToFactura(consecutivo, cufe, uuid) {
+    try {
+      var cfg = global.config;
+      if (!cfg || typeof cfg.getFacturas !== 'function') return;
+      var facturas = cfg.getFacturas();
+      if (!Array.isArray(facturas)) return;
+      for (var i = 0; i < facturas.length; i++) {
+        var f = facturas[i];
+        if (f && String(f.consecutivo) === String(consecutivo)) {
+          f.cufe = cufe || f.cufe;
+          f.uuid = uuid || f.uuid;
+          if (cufe) f.estado = 'timbrada';
+          f.dianStatus = cufe ? 'TIMBRADA' : f.dianStatus;
+          break;
+        }
+      }
+      if (typeof cfg.save === 'function') cfg.save();
+    } catch (_) {}
+  }
+
   function wanOk() {
     return !!safe(function () {
       return typeof global.crozzoCloudWanReady === 'function' && global.crozzoCloudWanReady();
@@ -69,6 +90,7 @@
         uuid: data.uuid || data.id || entry.id,
         drainedAt: new Date().toISOString(),
       });
+      propagateCufeToFactura(entry.consecutivo, cufe, data.uuid || data.id || entry.id);
       return { ok: !!cufe, reason: cufe ? 'ok' : 'no_cufe' };
     }
     if (!xml) {
@@ -84,6 +106,7 @@
         uuid: result.uuid,
         drainedAt: new Date().toISOString(),
       });
+      propagateCufeToFactura(entry.consecutivo, result.cufe, result.uuid);
       return { ok: true, reason: 'ok' };
     }
     if (result && result.pending) {

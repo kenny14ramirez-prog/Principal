@@ -1,0 +1,1738 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-13T23:07:17.108Z",
+  "description": "Errores conocidos y soluciones verificadas â€” consultar ANTES de parchear. Fuente canÃ³nica; KNOWN-ISSUES.md se genera con npm run issues:refresh.",
+  "issues": [
+    {
+      "id": "KI-001",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "Editar src/ en vez de app/",
+      "symptoms": [
+        "El cambio no aparece en Tauri/APK",
+        "git diff muestra src/ pero no app/",
+        "El agente parcheÃ³ el espejo"
+      ],
+      "rootCause": "Tauri sirve src/ generado; app/ es la fuente canÃ³nica. Editar src/ se pierde en el prÃ³ximo sync o nunca existiÃ³ en app/.",
+      "solution": "Revertir edit en src/. Aplicar el mismo diff en app/ equivalente. Ejecutar npm run sync. Hook block-src-mirror-writes debe bloquear nuevos intentos.",
+      "avoid": [
+        "Parchear src/core/CrozzoPosMain.js",
+        "Confiar en fragmentos leÃ­dos solo de src/"
+      ],
+      "tags": [
+        "workflow",
+        "stale",
+        "mirror"
+      ],
+      "files": [
+        "app/",
+        "src/"
+      ],
+      "symbols": [],
+      "relatedAdr": "D-001",
+      "relatedTests": [],
+      "fixedIn": "2026-07 â€” hooks + .cursorignore",
+      "learnedFrom": "Sesiones con diff en src/ sin reflejo en app/"
+    },
+    {
+      "id": "KI-002",
+      "status": "watch",
+      "severity": "critical",
+      "title": "Git local detrÃ¡s de origin/main",
+      "symptoms": [
+        "PosMain tiene ~44k lÃ­neas cuando origin tiene ~51k",
+        "Funciones sync que el agente cita no existen",
+        "test:sync-clinical pasa pero tienda falla"
+      ],
+      "rootCause": "HEAD local desalineado; el agente razona sobre cÃ³digo viejo cacheado o en disco.",
+      "solution": "git fetch origin && git status -sb. Si behind > 0: git pull --rebase origin main (o alinear segÃºn polÃ­tica del equipo). Verificar releases/latest.json y crozzo-app-version en index.html.",
+      "avoid": [
+        "Parchear sobre PosMain viejo sin pull",
+        "Asumir que la sesiÃ³n anterior tiene la versiÃ³n correcta"
+      ],
+      "tags": [
+        "workflow",
+        "stale",
+        "git"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": null,
+      "learnedFrom": "Reset a a1858cb v1.0.223 tras 70 commits behind"
+    },
+    {
+      "id": "KI-003",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "Carrito revierte tras cobro / runtime remoto (falta skipCartReconcile)",
+      "symptoms": [
+        "Ãtems reaparecen en caja despuÃ©s de pagar",
+        "Tablet y caja desincronizados tras snapshot nube",
+        "Cobro hecho pero carrito vuelve al estado anterior"
+      ],
+      "rootCause": "crozzoHandleRemoteRuntimeUiSync sin skipCartReconcile ejecuta crozzoReconcileOpenSlotCartFromComandas y repone Ã­tems desde comandas encima del runtime.",
+      "solution": "Desde CrozzoPosRuntimeCloud.js: crozzoHandleRemoteRuntimeUiSync({ skipCartReconcile: true }) tras applyPosRuntimeSnapshot / applyRemoteRow. No reintroducir reconcile post-runtime.",
+      "avoid": [
+        "Llamar crozzoReconcileOpenSlotCartFromComandas despuÃ©s de apply runtime",
+        "Quitar skipCartReconcile 'para arreglar' otro bug sin leer SEQUENCES S2"
+      ],
+      "tags": [
+        "sync",
+        "cart",
+        "runtime",
+        "regression"
+      ],
+      "files": [
+        "app/modules/CrozzoPosRuntimeCloud.js",
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoHandleRemoteRuntimeUiSync",
+        "crozzoReconcileOpenSlotCartFromComandas",
+        "applyPosRuntimeSnapshot"
+      ],
+      "relatedAdr": "D-003",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "v1.0.223",
+      "learnedFrom": "RegresiÃ³n carrito post-cobro en tienda"
+    },
+    {
+      "id": "KI-004",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Pin local bloquea carrito remoto (mergePinned)",
+      "symptoms": [
+        "Caja cambia mesa/carrito pero tablet no refleja",
+        "Remoto nunca gana aunque _slotUpdatedAt sea mÃ¡s nuevo"
+      ],
+      "rootCause": "crozzoSlotCartMergePinned() devolvÃ­a true ~120s bloqueando crozzoReplaceCartsMaps remoto.",
+      "solution": "crozzoSlotCartMergePinned() â†’ false. Merge LWW por _slotUpdatedAt vs __crozzoLocalEdit con margen ~250ms y excepciÃ³n recentTyping ~12s.",
+      "avoid": [
+        "Reintroducir pin fijo que siempre gana local",
+        "Ignorar _slotUpdatedAt remoto"
+      ],
+      "tags": [
+        "sync",
+        "cart",
+        "tablet",
+        "regression"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoReplaceCartsMaps",
+        "crozzoSlotCartMergePinned",
+        "remoteSlotBeatsLocal"
+      ],
+      "relatedAdr": "D-002",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "v1.0.223",
+      "learnedFrom": "Modelo caja manda rojo â†’ todos rojo"
+    },
+    {
+      "id": "KI-005",
+      "status": "resolved",
+      "severity": "high",
+      "title": "LAN vuelve a cloud pero tablets quedan stale",
+      "symptoms": [
+        "Nube OK pero datos viejos en tablets",
+        "Recover cloud no corre tras tier lanâ†’cloud",
+        "Ventana hÃ­brida LAN impide reconnect"
+      ],
+      "rootCause": "onTierChanged priorizaba LAN ops; crozzoRunFullReconnectSync no ejecutaba al volver cloud.",
+      "solution": "En CrozzoLanOpsSync onTierChanged: si to==='cloud' y WAN OK â†’ stopLanOpsSync() + crozzoRunFullReconnectSync ANTES de reactivar LAN. Ver test Recover cloud en test:lan-ops-sync.",
+      "avoid": [
+        "Mantener lanSyncAllowed true indefinidamente tras volver nube",
+        "Solo broadcast WS sin pull en dispositivos"
+      ],
+      "tags": [
+        "lan",
+        "cloud",
+        "tier",
+        "reconnect"
+      ],
+      "files": [
+        "app/infra/CrozzoLanOpsSync.js",
+        "app/infra/CrozzoReconnectSync.js"
+      ],
+      "symbols": [
+        "onTierChanged",
+        "crozzoRunFullReconnectSync",
+        "stopLanOpsSync"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:lan-ops-sync",
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07 comunicaciÃ³n inter-dispositivos",
+      "learnedFrom": "Corte 1 LanOpsSync â€” check Recover cloud"
+    },
+    {
+      "id": "KI-006",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Pulso LAN sin pull local",
+      "symptoms": [
+        "Comanda llega a caja pero tablet no la ve",
+        "WS emit OK pero UI no actualiza",
+        "Rol B no trae snapshot tras pulso"
+      ],
+      "rootCause": "doEmit / lan_ops_pulse broadcast sin disparar crozzoPullComandasFromLan o equivalente en clientes.",
+      "solution": "Tras pulso LAN: pull forzado en clientes (crozzoPullComandasFromLan force:true o handler en LanWebSocketBridge). Ver tests Pulso dispara pull.",
+      "avoid": [
+        "Asumir que POST a caja actualiza automÃ¡ticamente UI remota",
+        "Solo loguear pulso sin side-effect pull"
+      ],
+      "tags": [
+        "lan",
+        "comandas",
+        "pull"
+      ],
+      "files": [
+        "app/infra/CrozzoLanOpsSync.js",
+        "app/infra/CrozzoLanWebSocketBridge.js",
+        "app/modules/CrozzoComandasCloudSync.js"
+      ],
+      "symbols": [
+        "doEmit",
+        "crozzoPullComandasFromLan"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:lan-ops-sync"
+      ],
+      "fixedIn": "2026-07 comunicaciÃ³n inter-dispositivos",
+      "learnedFrom": "Corte 2 LanOpsSync â€” Pulso dispara pull"
+    },
+    {
+      "id": "KI-007",
+      "status": "watch",
+      "severity": "medium",
+      "title": "Fix CSS/APK no se ve ('no aplica')",
+      "symptoms": [
+        "Usuario dice que el cambio CSS no aparece",
+        "OK en desktop pero roto en tablet",
+        "Regla parece correcta en DevTools desktop"
+      ],
+      "rootCause": "Regla competidora (media query vs crozzo-touch-shell), edit en src/ sin sync, o cachÃ© Tauri/WebView.",
+      "solution": "1) Grep clases en PosMain body.classList + CSS. 2) Editar app/css/*. 3) npm run sync. 4) Ctrl+Shift+R en Tauri. 5) Verificar html.crozzo-touch-shell vs @media max-width 1024px.",
+      "avoid": [
+        "Solo probar en viewport desktop",
+        "AÃ±adir !important sin grep de reglas APK existentes"
+      ],
+      "tags": [
+        "css",
+        "apk",
+        "tablet",
+        "workflow"
+      ],
+      "files": [
+        "app/css/CrozzoPosStyles.css",
+        "app/css/CrozzoPantallasShell.css"
+      ],
+      "symbols": [],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": null,
+      "learnedFrom": "Regla crozzo-apk-verify-before-change"
+    },
+    {
+      "id": "KI-008",
+      "status": "watch",
+      "severity": "high",
+      "title": "Parche PosMain con fragmento stale / lÃ­nea incorrecta",
+      "symptoms": [
+        "old_string no encontrado",
+        "FunciÃ³n editada no es la que corre en runtime",
+        "POSMAIN-SYNC-SYMBOLS lÃ­nea no coincide"
+      ],
+      "rootCause": "Contexto de sesiÃ³n anterior, mapa desactualizado, o grep en src/ en vez de app/.",
+      "solution": "npm run map:refresh. npm run edit:scope -- app/core/CrozzoPosMain.js nombreFuncion. Re-leer funciÃ³n completa Â±35 lÃ­neas. Grep referencias en app/ solamente.",
+      "avoid": [
+        "Parchear sin edit:scope en archivos crÃ­ticos",
+        "Confiar en nÃºmero de lÃ­nea de chat previo"
+      ],
+      "tags": [
+        "posmain",
+        "workflow",
+        "stale"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [],
+      "relatedAdr": "D-005",
+      "relatedTests": [],
+      "fixedIn": null,
+      "learnedFrom": "Monolito 51k â€” mapas + edit:scope"
+    },
+    {
+      "id": "KI-009",
+      "status": "watch",
+      "severity": "medium",
+      "title": "Fanout LAN-only early-return (nube no recibe)",
+      "symptoms": [
+        "LAN OK pero Supabase sin fila",
+        "Otros locales no ven cambio",
+        "Solo dispositivos LAN actualizados"
+      ],
+      "rootCause": "if (lan) { ... return; } en fanout/comandas sin drenar outbox cloud.",
+      "solution": "HÃ­brido Z0: OpFanout + ComandasCloudSync deben enviar LAN y nube. Ver test Fanout sin early-return LAN-only.",
+      "avoid": [
+        "return temprano tras POST LAN",
+        "Desactivar cloud path 'porque estamos en LAN'"
+      ],
+      "tags": [
+        "sync",
+        "fanout",
+        "cloud",
+        "lan"
+      ],
+      "files": [
+        "app/infra/CrozzoOpFanout.js",
+        "app/modules/CrozzoComandasCloudSync.js"
+      ],
+      "symbols": [
+        "fanoutComandaEstado",
+        "crozzoOpFanout"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical",
+        "test:op-fanout"
+      ],
+      "fixedIn": "2026-07",
+      "learnedFrom": "test connectivity-equilibrium check 9"
+    },
+    {
+      "id": "KI-010",
+      "status": "watch",
+      "severity": "medium",
+      "title": "locationId distinta entre dispositivos",
+      "symptoms": [
+        "Nunca sincroniza aunque LAN/nube OK",
+        "Realtime suscrito pero sin eventos Ãºtiles",
+        "Mesas vacÃ­as en un dispositivo"
+      ],
+      "rootCause": "Tablets/caja con distinta locationId o sede canÃ³nica mal resuelta post-QR.",
+      "solution": "Verificar pos_dian_config / crozzo_lan_config locationId igual en todos. crozzoAbrirDiagnostico() en tienda. Re-pairing QR si corrupto.",
+      "avoid": [
+        "Debuggear merge sin verificar sede primero",
+        "Hardcode locationId en un solo dispositivo"
+      ],
+      "tags": [
+        "sync",
+        "config",
+        "field"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/infra/CrozzoPairingAutoConnect.js"
+      ],
+      "symbols": [],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": null,
+      "learnedFrom": "SYNC-INVARIANTS #9"
+    },
+    {
+      "id": "KI-011",
+      "status": "watch",
+      "severity": "low",
+      "title": "Tocar Reservorio en fix de sync Z0",
+      "symptoms": [
+        "PR gigante mezclando compras y mesas",
+        "Bundle Reservorio regenerado sin querer",
+        "Tests sync OK pero regresiÃ³n costos"
+      ],
+      "rootCause": "Scope creep â€” Reservorio es dominio separado sin acoplamiento runtime mesa.",
+      "solution": "Revertir cambios en CrozzoReservorio*. Limitar PR a archivos CONNECTIONS sync Z0. npm run consolidate solo si mÃ³dulo fuente Reservorio fue pedido explÃ­citamente.",
+      "avoid": [
+        "Refactor Reservorio 'de paso'",
+        "Importar Reservorio desde PosMain sync"
+      ],
+      "tags": [
+        "scope",
+        "reservorio"
+      ],
+      "files": [
+        "app/modules/CrozzoReservorio.js"
+      ],
+      "symbols": [],
+      "relatedAdr": "D-004",
+      "relatedTests": [],
+      "fixedIn": null,
+      "learnedFrom": "PolÃ­tica explÃ­cita usuario"
+    },
+    {
+      "id": "KI-012",
+      "status": "watch",
+      "severity": "medium",
+      "title": "Editar app/bundles/*.js a mano",
+      "symptoms": [
+        "Cambio desaparece tras npm run consolidate",
+        "Diff en bundle pero no en mÃ³dulo fuente"
+      ],
+      "rootCause": "Bundles son artefactos generados desde mÃ³dulos Reservorio/Compras/Costos.",
+      "solution": "Editar mÃ³dulo fuente en app/modules/. npm run consolidate && npm run sync.",
+      "avoid": [
+        "StrReplace directo en CrozzoBundleReservorio.js"
+      ],
+      "tags": [
+        "workflow",
+        "bundles"
+      ],
+      "files": [
+        "app/bundles/"
+      ],
+      "symbols": [],
+      "relatedAdr": "D-001",
+      "relatedTests": [],
+      "fixedIn": null,
+      "learnedFrom": "AGENTS.md pipeline bundles"
+    },
+    {
+      "id": "KI-013",
+      "status": "watch",
+      "severity": "low",
+      "title": "Hooks/reglas Cursor nuevos sin reiniciar IDE",
+      "symptoms": [
+        "block-src no bloquea",
+        "sessionStart no inyecta contexto",
+        "edit:scope stamp ignorado"
+      ],
+      "rootCause": "Cursor carga hooks.json y rules al inicio de sesiÃ³n.",
+      "solution": "Reiniciar Cursor tras cambiar .cursor/hooks.json o rules. Verificar .cursorignore activo.",
+      "avoid": [
+        "Asumir hook activo sin reinicio",
+        "Editar hooks solo en src/"
+      ],
+      "tags": [
+        "workflow",
+        "cursor"
+      ],
+      "files": [
+        ".cursor/hooks.json"
+      ],
+      "symbols": [],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": null,
+      "learnedFrom": "Stack anti-stale Cursor 2026-07"
+    },
+    {
+      "id": "KI-014",
+      "status": "watch",
+      "severity": "medium",
+      "title": "Permiso bloqueado en capa transporte (mesero no escribe)",
+      "symptoms": [
+        "Mesero no puede comandar aunque UI deberÃ­a permitir",
+        "LAN/Supabase rechaza por rol en backend cliente"
+      ],
+      "rootCause": "ValidaciÃ³n de rol en fanout/sync en vez de solo UI (crozzoHasCajaPermiso).",
+      "solution": "Transporte siempre escribe; UI oculta/deshabilita segÃºn permiso. anular_comandado solo UI con permiso admin.",
+      "avoid": [
+        "if (!isCaja) return en crozzoSyncPosRuntimeCritical",
+        "Mapear anular_comandado a tab_*"
+      ],
+      "tags": [
+        "sync",
+        "permissions"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoHasCajaPermiso",
+        "anular_comandado"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": null,
+      "learnedFrom": "SYNC-INVARIANTS #5 #6"
+    },
+    {
+      "id": "KI-015",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "PosMain SyntaxError Illegal return (cabecera funciÃ³n borrada)",
+      "symptoms": [
+        "Uncaught SyntaxError: Illegal return statement Â· CrozzoPosMain.js",
+        "App no arranca â€” pantalla en blanco o POS congelado",
+        "node --check: return fuera de funciÃ³n ~lÃ­nea 7313"
+      ],
+      "rootCause": "En v1.0.223 al editar crozzoNotifySlotCartUserEdit se eliminÃ³ la lÃ­nea `function crozzoKnownSalonSlotIds(tipo) {` dejando el cuerpo suelto con return out al nivel global.",
+      "solution": "Restaurar `function crozzoKnownSalonSlotIds(tipo) {` inmediatamente antes del bloque const list/mesasCaja (~7301). Verificar con node --check app/core/CrozzoPosMain.js. Eliminar duplicado crozzoForceSedeCanonical si existe (~347).",
+      "avoid": [
+        "Editar bloques try/catch sin verificar que la funciÃ³n siguiente conserva su function header",
+        "Entregar release sin node --check en PosMain"
+      ],
+      "tags": [
+        "syntax",
+        "posmain",
+        "regression",
+        "release"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoKnownSalonSlotIds",
+        "crozzoNotifySlotCartUserEdit"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "post-v1.0.223 hotfix",
+      "learnedFrom": "GitHub v1.0.223 â€” diff a1858cb lÃ­nea crozzoKnownSalonSlotIds borrada"
+    },
+    {
+      "id": "KI-016",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "Comandas/mesas parpadean y desaparecen (reconcile loop + purge)",
+      "symptoms": [
+        "Mesas fantasma, comandas no en pantalla pero sÃ­ en mesas/cocina",
+        "Enviar en cocina parpadea ~10 veces",
+        "comandas obsoletas eliminadas (ausentes en nube): N",
+        "Cobros desaparecen, mesa huÃ©rfana en cocina"
+      ],
+      "rootCause": "OpFanoutâ†’activateâ†’FleetReconcile en cada despacho/runtime; crozzoHandleRemoteRuntimeUiSync sin skipCartReconcile repone carritos; reconcileStale borra comandas si pull nube vacÃ­o/parcial (401/locationId).",
+      "solution": "skipCartReconcile en paths post-pull infra; quitar activateLocalSyncPath de OpFanout estado/runtime; guardas en reconcileStaleLocalComandas; no reconcileStale al boot; no crozzoReconcileOpenSlotCartFromComandas en cada merge cloud.",
+      "avoid": [
+        "Fleet reconcile en cada lan_up/op_fanout",
+        "reconcileStale con cloudRows vacÃ­o y local activo",
+        "Reconcile global carrito tras apply runtime remoto"
+      ],
+      "tags": [
+        "sync",
+        "comandas",
+        "cocina",
+        "regression",
+        "fleet"
+      ],
+      "files": [
+        "app/modules/CrozzoComandasCloudSync.js",
+        "app/infra/CrozzoOpFanout.js",
+        "app/infra/CrozzoFleetOperationalReconcile.js",
+        "app/infra/CrozzoPairingAutoConnect.js"
+      ],
+      "symbols": [
+        "reconcileStaleLocalComandas",
+        "crozzoHandleRemoteRuntimeUiSync",
+        "despacharComanda"
+      ],
+      "relatedAdr": "D-003",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "post-v1.0.223 hotfix",
+      "learnedFrom": "Logs tienda v1.0.223 â€” purge 6 comandas + pushMesaRows loop"
+    },
+    {
+      "id": "KI-017",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "Despacho cocina borra cuenta en caja",
+      "symptoms": [
+        "LISTO/enviar en pantalla cocina/bar y la mesa en caja queda vacÃ­a",
+        "Cuenta desaparece pero mesa cambiÃ³ color",
+        "Runtime remoto vacÃ­o desde cocina pisa cartsPorMesa en caja"
+      ],
+      "rootCause": "Despacho en cocina llamaba schedulePosRuntimeSave â†’ pushMesaRows podÃ­a escribir filas vacÃ­as autoritativas; merge remoto no distinguÃ­a autoridad caja (role A) vs seÃ±al cocina.",
+      "solution": "SeparaciÃ³n de dominios: comanda = seÃ±al (tabla comandas + fanout); carrito = solo crozzoRuntimeCartWriteAllowed (caja/tablet). pull incluye source_role; merge vacÃ­o remoto solo si source_role A o closedSlots. despacharComanda persiste local sin push runtime.",
+      "avoid": [
+        "Vaciar carrito caja al marcar comanda entregada en cocina",
+        "Confundir lÃ­nea comanda-cocina con lÃ­nea cobro-caja",
+        "Parches que conserven carrito local sin regla cloud (source_role)"
+      ],
+      "tags": [
+        "sync",
+        "cart",
+        "cocina",
+        "caja",
+        "comandas"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/modules/CrozzoPosRuntimeCloud.js"
+      ],
+      "symbols": [
+        "crozzoRuntimeCartWriteAllowed",
+        "crozzoRemoteCartSlotAuthoritative",
+        "crozzoReplaceCartsMaps",
+        "despacharComanda",
+        "pushMesaRows",
+        "snapFromMesaRows"
+      ],
+      "relatedAdr": "D-003",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "post-v1.0.223 hotfix",
+      "learnedFrom": "Tienda â€” despachar comandas pantalla borra cuentas caja"
+    },
+    {
+      "id": "KI-018",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "Mesas borradas al entrar/salir â€” parches vs reservorio operativo",
+      "symptoms": [
+        "Mesa en rojo/comandada en grid; al abrirla el carrito vacÃ­o",
+        "Al cerrar panel de mesa (Cerrar) la mesa queda libre sin cobrar",
+        "Datos desaparecen al cambiar sesiÃ³n caja o reconectar nube",
+        "Parches OperationalPersistOnly / freshness no detienen el borrado"
+      ],
+      "rootCause": "Arquitectura invertida: el runtime operativo tenÃ­a muchos caminos que BORRABAN por defecto (freshness discard, reconcileStale, pushMesaRows vaciado autoritativo al cerrar mesa, crozzoPrepareSlotForNewService limpiando sellos al abrir). Los parches posteriores bloqueaban sÃ­ntomas en 6+ archivos sin un contrato Ãºnico â€” seguÃ­an compitiendo con sync en caja_close_order.",
+      "solution": "CrozzoOperativeReservorio.js â€” mismo contrato que CrozzoReservorio: loadRaw+persist con backup v1/v2; allowAutoDiscard() siempre false salvo userConfirmed; allowCloudAuthoritativeEmpty() solo tras cobro (__crozzoRuntimeForceEmptySlots/closedSlots) o vaciar (slotLocallyClearedAt); slotHasActiveWork() evita reset en crozzoPrepareSlotForNewService; crozzoCloseCajaOrderSession reconcilia+flush antes de sync. Un mÃ³dulo de polÃ­tica, hooks mÃ­nimos en PosMain/RuntimeCloud/SyncGate/ComandasCloud/Reconnect.",
+      "avoid": [
+        "AÃ±adir if (!persist) en cada funciÃ³n de discard â€” usar CrozzoOperativeReservorio.allowAutoDiscard",
+        "Parchear selectMesa/crozzoRemoteCartMergeKeepLocal sin tocar pushMesaRows vaciado autoritativo",
+        "crozzoPrepareSlotForNewService en mesas con comanda/carrito activo",
+        "reconcileStale / freshness purge como limpieza al entrar a caja",
+        "MÃºltiples capas de polÃ­tica (OperationalPersistOnly + RemoteCartMerge + EnsureSlotFresh) en PosMain"
+      ],
+      "tags": [
+        "sync",
+        "cart",
+        "caja",
+        "mesa",
+        "architecture",
+        "reservorio"
+      ],
+      "files": [
+        "app/modules/CrozzoOperativeReservorio.js",
+        "app/core/CrozzoPosMain.js",
+        "app/modules/CrozzoPosRuntimeCloud.js",
+        "app/modules/CrozzoOperativeSyncGate.js",
+        "app/modules/CrozzoComandasCloudSync.js",
+        "app/infra/CrozzoReconnectSync.js"
+      ],
+      "symbols": [
+        "CrozzoOperativeReservorio",
+        "allowAutoDiscard",
+        "allowCloudAuthoritativeEmpty",
+        "slotHasActiveWork",
+        "pushMesaRows",
+        "crozzoPrepareSlotForNewService",
+        "crozzoCloseCajaOrderSession",
+        "crozzoDiscardStaleOperationalLocal"
+      ],
+      "relatedAdr": "D-003",
+      "relatedTests": [
+        "test:sync-clinical",
+        "_fleet-coordination-check.mjs"
+      ],
+      "fixedIn": "post-v1.0.223 operative-reservorio",
+      "learnedFrom": "SesiÃ³n 2026-07 â€” usuario: guardar siempre, borrar solo con permiso; reset desde v1.0.223 + reservorio"
+    },
+    {
+      "id": "KI-019",
+      "status": "watch",
+      "severity": "medium",
+      "title": "Riesgos residuales â€” reservorio operativo y sync mesas",
+      "symptoms": [
+        "Mesa con solo comanda (carrito vacÃ­o en snap) no entra en presentKeys de pushMesaRows",
+        "Doble push al cerrar mesa: slot_presence_exit + caja_close_order",
+        "Backups crozzo_pos_runtime_backup_v1 vacÃ­os hasta primer save post-deploy",
+        "Dos equipos editando misma mesa â€” merge por timestamp aÃºn puede confundir"
+      ],
+      "rootCause": "mesaRowsFromSnap omite slots sin lÃ­neas en carrito aunque haya comanda; release de sesiÃ³n aÃºn dispara sync; backups nuevos; multi-writer sin lock fuerte en carrito.",
+      "solution": "Monitorear en tienda. Si reaparece borrado al cerrar: incluir refs con comanda activa en mesaRowsFromSnap. skipRuntimePush en release (pendiente). Verificar crozzoOperativeReservorio.getHealth() tras deploy.",
+      "avoid": [
+        "Asumir que allowCloudAuthoritativeEmpty cubre todos los paths de vaciado remoto en crozzoReplaceCartsMaps",
+        "Release sin node --check PosMain ni test:sync-clinical"
+      ],
+      "tags": [
+        "sync",
+        "watch",
+        "mesa",
+        "reservorio"
+      ],
+      "files": [
+        "app/modules/CrozzoOperativeReservorio.js",
+        "app/modules/CrozzoPosRuntimeCloud.js",
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "mesaRowsFromSnap",
+        "crozzoReleaseCajaSlotSession",
+        "crozzoReplaceCartsMaps"
+      ],
+      "relatedAdr": "D-003",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": null,
+      "learnedFrom": "RevisiÃ³n post-mortem KI-018 â€” 2026-07"
+    },
+    {
+      "id": "KI-020",
+      "status": "resolved",
+      "severity": "low",
+      "title": "INSERT Realtime aplicado:false en echo propio",
+      "symptoms": [
+        "Consola muestra INSERT aplicado: false tras comandar desde el mismo equipo",
+        "Parece fallo de sync pero la comanda ya estÃ¡ en pantalla"
+      ],
+      "rootCause": "Supabase Realtime devuelve el INSERT que el mismo dispositivo acaba de pushear; dedup (comandaTidRecent, findComandaForCloudPay, device_id) rechaza reaplicar.",
+      "solution": "Tratar como echo esperado: comandaInsertLikelyOwnEcho en CrozzoComandasCloudSync; log solo con crozzo_debug_sync=1. No forzar apply.",
+      "avoid": [
+        "Parchear dedup para forzar INSERT en echo propio",
+        "Confundir con fallo de fanout LAN/nube"
+      ],
+      "tags": [
+        "sync",
+        "comandas",
+        "realtime",
+        "noise"
+      ],
+      "files": [
+        "app/modules/CrozzoComandasCloudSync.js"
+      ],
+      "symbols": [
+        "comandaInsertLikelyOwnEcho",
+        "applyComandaFromCloudRow"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-07 LOG-RUNTIME-REPAIR Fase E",
+      "learnedFrom": "Logs Tauri v1.0.229 post-login caja sola"
+    },
+    {
+      "id": "KI-021",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Venta directa abre selector de mesas/llevar",
+      "symptoms": [
+        "En caja, al pulsar Directa se muestra el grid de mesas y para llevar",
+        "No aparece la ventana de venta directa (productos + carrito mostrador)"
+      ],
+      "rootCause": "directSaveMenuOpen quedaba true (picker de guardar desde directa a mesa/llevar). renderCajero prioriza ese picker cuando tipoServicioCaja==='directa' && directSaveMenuOpen. setCajaMode('directa') no lo cerraba.",
+      "solution": "En setCajaMode('directa') y crozzoPrepareDirectSaleSession: forzar directSaveMenuOpen=false. TambiÃ©n en crozzoCajeroPostCobroDirecta. Refuerzo 2026-07-14: al restaurar UI desde runtime local, si tipoServicioCaja==='directa' forzar directSaveMenuOpen=false (el snapshot no debe reabrir el picker).",
+      "avoid": [
+        "Cambiar orderOpen / tabs de servicio sin revisar el branch directSaveMenuOpen en renderCajero",
+        "Asumir que setCajaMode('directa') solo cambia tipoServicioCaja",
+        "Restaurar directSaveMenuOpen desde runtime sin mirar tipoServicioCaja"
+      ],
+      "tags": [
+        "caja",
+        "ui",
+        "venta-directa"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "setCajaMode",
+        "crozzoPrepareDirectSaleSession",
+        "renderCajero",
+        "directSaveMenuOpen"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "2026-07-09",
+      "learnedFrom": "Reporte caja: Directa abre mesas/llevar"
+    },
+    {
+      "id": "KI-022",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Cliente / facturaciÃ³n en caja: click no abre panel",
+      "symptoms": [
+        "En caja, botÃ³n Cliente / facturaciÃ³n no hace nada",
+        "No se puede buscar cliente por NIT ni integrarlo a la factura desde el carrito"
+      ],
+      "rootCause": "crozzoRetailToggleCliente delegaba siempre a crozzoRetailClientePopoverToggle (popup de venta-comercial). En cajero no existe #crozzoRetailClientePopoverWrap, asÃ­ que returnaba sin abrir el acordeÃ³n #crozzoRetailCliente.",
+      "solution": "En crozzoRetailToggleCliente: si existe popover â†’ usar popover; si no â†’ toggle clase is-open en #crozzoRetailCliente y enfocar crozzoCrmSearch. CSS: overflow visible + z-index en CRM del ticket de caja para dropdown Usarâ†’.",
+      "avoid": [
+        "Asumir que crozzoRetailToggleCliente = popover en todas las pantallas",
+        "Usar solo crozzoRetailClientePopoverToggle desde el acordeÃ³n de cajero"
+      ],
+      "tags": [
+        "caja",
+        "crm",
+        "ui",
+        "factura"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/css/CrozzoPosStyles.css"
+      ],
+      "symbols": [
+        "crozzoRetailToggleCliente",
+        "crozzoRetailClientePanelHtml",
+        "crozzoCrmLiteBindCartUi"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "2026-07-09",
+      "learnedFrom": "Reporte: buscar cliente NIT e integrar a factura â€” click muerto en caja"
+    },
+    {
+      "id": "KI-023",
+      "status": "resolved",
+      "severity": "critical",
+      "tags": [
+        "sync",
+        "comandas",
+        "cocina",
+        "mesa",
+        "outbox"
+      ],
+      "title": "LISTO cocina reaparece; mesas moradas; Limpiar no libera",
+      "symptoms": [
+        "Enviar/LISTO en cocina anima y la comanda vuelve",
+        "Mesas siguen moradas (comandado) tras despachar",
+        "Limpiar mesa: salgo/entro y el pedido vuelve; color sigue ocupado"
+      ],
+      "rootCause": "despacharComanda encola outbox y luego splice a comandaHistory; drainOutbox solo buscaba en comandas[] activas y dropeaba la clave sin upsert entregada. Pull reinyectaba la fila activa. Limpiar con comanda viva solo hacÃ­a detach (morado a propÃ³sito) y prepareSlot borraba sellos cleared al reabrir.",
+      "solution": "Outbox: snapshot payload + outboxFindInHistory; no drop ciego de entregada. Anti-resurrecciÃ³n en EmergencyApply/applyComandaFromCloudRow si tid ya en history entregada. Limpiar archiva comandas vivas + markSlotLocallyCleared; prepareSlot conserva sellos si carrito vacÃ­o. skipCartReconcile en removed/refresh cajero; render mesas tras despacho.",
+      "avoid": [
+        "outboxRemove cuando outboxFindComanda es null sin mirar history/payload",
+        "Reinsertar comanda activa si history ya tiene entregada el mismo tid",
+        "Limpiar solo con detach dejando cocina viva si el usuario espera mesa libre",
+        "crozzoHandleRemoteRuntimeUiSync() sin skipCartReconcile tras remove remoto"
+      ],
+      "files": [
+        "app/modules/CrozzoComandasCloudSync.js",
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "outboxFindComanda",
+        "outboxEnqueue",
+        "drainOutbox",
+        "despacharComanda",
+        "__crozzoEmergencyApplyComandaSnapshot",
+        "crozzoClearSlotCartLines",
+        "crozzoPrepareSlotForNewService",
+        "crozzoApplyComandaRemovedFromRemote"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical",
+        "_op-fanout-check.mjs"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Campo: LISTO vuelve + mesas moradas + limpiar inestable"
+    },
+    {
+      "id": "KI-024",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "sync",
+        "comandas",
+        "cocina",
+        "kds",
+        "mesa"
+      ],
+      "title": "KDS Entreg. no archiva; SyncGate rehidrata carrito",
+      "symptoms": [
+        "BotÃ³n Entreg./Entregada en cocina KDS deja la comanda en pantalla o mesa morada",
+        "Al entrar a caja/tablets el carrito vuelve tras vaciar/limpiar"
+      ],
+      "rootCause": "updateComandaEstado('entregada') marcaba estado pero no llamaba despacharComanda (sin splice/outbox history). getSlotStateInfo contaba comandas con estado entregada aÃºn en el array. OperativeSyncGate llamaba crozzoHandleRemoteRuntimeUiSync() sin skipCartReconcile tras pull.",
+      "solution": "updateComandaEstado â†’ despacharComanda si entregada; no sync runtime crÃ­tico desde cocina/comandas en Prep/Lista; getSlotStateInfo ignora estado entregada; SyncGate usa skipCartReconcile:true.",
+      "avoid": [
+        "Dejar entregada en comandas[] activas",
+        "crozzoSyncPosRuntimeCritical desde pantalla cocina al cambiar estado",
+        "HandleRemoteRuntimeUiSync sin skipCartReconcile tras pull operativo"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/modules/CrozzoOperativeSyncGate.js"
+      ],
+      "symbols": [
+        "updateComandaEstado",
+        "despacharComanda",
+        "getSlotStateInfo",
+        "ensureOperativeReady"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical",
+        "_op-fanout-check.mjs"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Pruebas post KI-023 â€” hunt hermanos LISTO/mesas"
+    },
+    {
+      "id": "KI-025",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "sync",
+        "comandas",
+        "cocina",
+        "ux",
+        "lan"
+      ],
+      "title": "LISTO sticky reaparece; eco LAN; entregada fantasma en KDS",
+      "symptoms": [
+        "LISTO anima y la nota vuelve un momento",
+        "Flicker / doble eco al despachar por LAN",
+        "KDS/corcho muestra tickets ya entregados"
+      ],
+      "rootCause": "AnimaciÃ³n LISTO despachaba al final â†’ refresh reponÃ­a sticky. Receptores LAN/mesh re-fanouteaban entregada. cocinaComandaMatchesFilters y purge keep'eaban entregada en comandas[].",
+      "solution": "despacharComanda antes de animar (skipRender); skipFanout en despacho remoto; filtros/purge sacan entregada del array activo; toast Limpiar parcial honesto.",
+      "avoid": [
+        "Despachar solo en callback de animaciÃ³n",
+        "despacharComanda remoto sin skipFanout",
+        "keep.push de entregada en comandas activas"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/infra/CrozzoLanSyncBridge.js",
+        "app/infra/CrozzoLanWebSocketBridge.js",
+        "app/infra/CrozzoOperationalIngest.js",
+        "app/infra/CrozzoOfflineGossip.js"
+      ],
+      "symbols": [
+        "crozzoStickyMarcarListo",
+        "despacharComanda",
+        "cocinaComandaMatchesFilters",
+        "crozzoPurgeGhostComandasForClearedSlots",
+        "crozzoRemoveStaleComandas"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "RevisiÃ³n humana post KI-023/024 â€” funcionamiento a medias"
+    },
+    {
+      "id": "KI-026",
+      "status": "resolved",
+      "severity": "critical",
+      "tags": [
+        "caja",
+        "cobro",
+        "precuenta",
+        "comandar",
+        "directa"
+      ],
+      "title": "Caja: Limpiar Directa tumba M1; cobro sin comanda; panel cierra tras comandar",
+      "symptoms": [
+        "Vaciar venta directa libera/archiva mesa M1 en cocina",
+        "Cobrar en Directa factura aunque la comanda quedÃ³ pendiente/fallÃ³",
+        "Tras Comandar en mesa vuelve al grid y no se puede precuenta/cobrar seguido",
+        "MenÃº Cuenta / precuenta sin feedback o sin permiso"
+      ],
+      "rootCause": "clearCart mapeaba Directa a tipo mesa+mesaSeleccionada(M1). confirmarCobro/efectivo rÃ¡pido llamaban comandarDesdeCaja sin chequear resultado. comandarDesdeCaja cerraba sesiÃ³n al no haber pendientes. Precuenta caja sin gate tab_precuenta; returns silenciosos.",
+      "solution": "purgeLocalOnly para directa/comercial; cobro Directa aborta si comandar=false (pending vacÃ­o = true); no auto-cerrar panel tras comandar; permiso precuenta + toasts en menÃº/cobro vacÃ­o.",
+      "avoid": [
+        "Usar mesaSeleccionada al vaciar cartDirecto",
+        "facturar tras comandarDesdeCaja sin mirar retorno",
+        "crozzoCloseCajaOrderSession inmediato tras comandar en caja"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "clearCart",
+        "comandarDesdeCaja",
+        "confirmarCobroDesdeCaja",
+        "cobrarEfectivoExactoDesdeCaja",
+        "crozzoCuentaCobroElegir",
+        "crozzoPrecuentaRapidaImprimir"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Pedido: cada acciÃ³n de caja debe funcionar (cobrar/precuenta/comandar/borrar)"
+    },
+    {
+      "id": "KI-027",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "tablet",
+        "mesero",
+        "cart",
+        "permisos",
+        "sync"
+      ],
+      "title": "Mesero tablet: âˆ’/nota/comandar usan carrito o gates incorrectos",
+      "symptoms": [
+        "En tablets el botÃ³n âˆ’ quita de cartDirecto (caja) en vez del carrito de mesa",
+        "Subir cantidad o cambiar nota no marca edit local / no finaliza mutaciÃ³n (revierte sync)",
+        "confirmTabletComanda sin chequeo de permiso ni toast si carrito vacÃ­o",
+        "clearCart en pÃ¡gina tablets usaba context caja / carrito de mesaSeleccionada"
+      ],
+      "rootCause": "crozzoCartLineRemoveFromBtn â†’ removeFromCart â†’ getActiveCart (directa). Add/nota sin crozzoMarkCartLineLocalEdit + crozzoFinalizeCartMutation. Permiso tab_abrir solo en showTabletConfirmComanda (ruta muerta). clearCart no delegaba a tabletClearCart.",
+      "solution": "Remove en tablets â†’ tabletRemoveFromCart; add/nota con mark+finalize; confirmTabletComanda chequea abrir_orden context tablet + toasts; clearCart en tablets â†’ tabletClearCart. Nota post-comanda gated con crozzoOperativeCanTouchSentLine.",
+      "avoid": [
+        "Usar getActiveCart/removeFromCart desde UI de tablets",
+        "Mutar carrito tablet sin finalize/mark local edit",
+        "Bloquear el + de cantidad con gate post-comanda (suma pendiente es vÃ¡lido)"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoCartLineAddFromBtn",
+        "crozzoCartLineRemoveFromBtn",
+        "crozzoEditCartItemNotaByIndex",
+        "crozzoSaveCartItemNotaFromModal",
+        "confirmTabletComanda",
+        "clearCart",
+        "tabletClearCart"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Oleada B ROLE-OPS â€” auditorÃ­a 1Ã—1 mesero tablets"
+    },
+    {
+      "id": "KI-028",
+      "status": "resolved",
+      "severity": "critical",
+      "tags": [
+        "encargado",
+        "anular_comandado",
+        "tablet",
+        "caja",
+        "comandas"
+      ],
+      "title": "Encargado: botÃ³n âˆ’ en lÃ­nea comandada solo toast; no anula ni void cocina",
+      "symptoms": [
+        "Encargado ve âˆ’ en lÃ­nea ya enviada pero al tocarlo solo dice 'solo encargado puede'",
+        "Anular desde tablet no baja cantidad ni actualiza comanda en cocina",
+        "UI crozzoCartLineShowMinus permite âˆ’ pero removeFromCart/tabletRemoveFromCart bloquean siempre"
+      ],
+      "rootCause": "removeFromCart y tabletRemoveFromCart hacÃ­an early-return si cantidad<=sent con crozzoNotifyPostComandarBlocked sin consultar crozzoCanAnularComandado ni crozzoVoidCartLineInComandas. Solo removeCartItemCompletely (botÃ³n Eliminar) tenÃ­a el path de anular.",
+      "solution": "Si cantidad<=sent y crozzoCanAnularComandado: void 1 ud (o lÃ­nea) vÃ­a crozzoVoidCartLineInComandas, bajar sentCantidad/cantidad, finalize mutation. Mesero sigue bloqueado con toast.",
+      "avoid": [
+        "Mostrar âˆ’ post-comanda sin path de anular",
+        "Anular solo en Eliminar y no en âˆ’",
+        "Bajar cantidad comandada sin void en comandas[]"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "removeFromCart",
+        "tabletRemoveFromCart",
+        "crozzoVoidCartLineInComandas",
+        "crozzoCanAnularComandado",
+        "crozzoCartLineShowMinus"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Oleada D ROLE-OPS â€” encargado anular 1Ã—1"
+    },
+    {
+      "id": "KI-029",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "encargado",
+        "permisos",
+        "admin",
+        "migration"
+      ],
+      "title": "Encargado legacy sin anular_comandado (migraciÃ³n v1 solo admin)",
+      "symptoms": [
+        "Usuario rol encargado no puede anular Ã­tems comandados aunque la plantilla sÃ­ lo incluye",
+        "BotÃ³n âˆ’ / Eliminar post-comanda siempre denegado para encargado de tienda antigua"
+      ],
+      "rootCause": "crozzoMigrateStaffCajaSecurity v1 aÃ±adÃ­a anular_comandado solo a admin/superadmin/KENNY. Encargados creados antes o con permisos parciales nunca recibÃ­an el flag.",
+      "solution": "MigraciÃ³n crozzo_caja_security_v9: rol encargado recibe anular_comandado, eliminar_item, tab_eliminar, descuento_autorizado si faltan.",
+      "avoid": [
+        "Asumir que rol===encargado implica anular sin mirar u.permisos.caja",
+        "Migrar solo admin y dejar encargado a mano"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoMigrateStaffCajaSecurity",
+        "CROZZO_CAJA_PERMISOS_POR_ROL"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Oleada D/E ROLE-OPS â€” permisos plantilla vs staff legacy"
+    },
+    {
+      "id": "KI-030",
+      "status": "resolved",
+      "severity": "critical",
+      "tags": [
+        "caja",
+        "recepcion",
+        "cuenta",
+        "gestion",
+        "interaction"
+      ],
+      "title": "Cerrar/cambiar modo abandona mesa con consumo sin cobro",
+      "symptoms": [
+        "Con mesa abierta y consumo, Cerrar o Directa/Mesas/Llevar suelta el slot sin cobrar",
+        "crozzoGuardLeaveUnpaidSlot solo corrÃ­a al cambiar de mesa, no al cerrar panel",
+        "Unir/Dividir en Directa o sin slot abierto fallaba en silencio"
+      ],
+      "rootCause": "crozzoCloseCajaOrderSession y setCajaMode no llamaban crozzoGuardLeaveUnpaidSlot. Unir/dividir tenÃ­an return bare en directa/!ref.",
+      "solution": "Guard unpaid en close + setCajaMode (skipUnpaidGuard tras check). Toasts en unir/dividir para directa y slot vacÃ­o.",
+      "avoid": [
+        "Cerrar sesiÃ³n de mesa sin mirar consumo pendiente",
+        "return silencioso en flujos de gestiÃ³n de cuenta"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoCloseCajaOrderSession",
+        "setCajaMode",
+        "crozzoGuardLeaveUnpaidSlot",
+        "crozzoShowUnirCuentaModal",
+        "crozzoShowDividirCuentaModal"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Oleada F ROLE-OPS â€” gestiÃ³n interacciÃ³n cuenta"
+    },
+    {
+      "id": "KI-031",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "recepcion",
+        "permisos",
+        "precuenta",
+        "caja",
+        "rbac"
+      ],
+      "title": "RecepciÃ³n RBAC desalinhado; precuenta caja exigÃ­a tab_precuenta",
+      "symptoms": [
+        "Plantilla recepciÃ³n â‰  Policy â‰  menÃº hotel (eliminar/cierre vs unir)",
+        "Precuenta en menÃº Cuenta siempre denegada para caja/recepciÃ³n sin tab_precuenta",
+        "PerfilesLogica trataba recepciÃ³n como caja (fallback)"
+      ],
+      "rootCause": "Tres fuentes de verdad: CROZZO_CAJA_PERMISOS_POR_ROL, ROLE_PERM_PRESETS (recepcion fuera de ROLE_ORDER), OPERATIVE_PROFILES sin recepcion. Precuenta post KI-026 solo tab_precuenta.",
+      "solution": "Alinear plantilla+Policy+plantilla staff; ROLE_ORDER+LABELS recepcion; perfil operativo recepciÃ³n; precuenta OK con facturar|tab_precuenta; migraciÃ³n v10.",
+      "avoid": [
+        "Tener recepciÃ³n solo en un archivo de permisos",
+        "Exigir tab_precuenta en caja cuando facturar ya implica cobrar/precuenta"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/modules/CrozzoPermisosPolicy.js",
+        "app/modules/CrozzoPerfilesLogica.js"
+      ],
+      "symbols": [
+        "CROZZO_CAJA_PERMISOS_POR_ROL",
+        "ROLE_PERM_PRESETS",
+        "crozzoCuentaCobroElegir",
+        "crozzoMigrateStaffCajaSecurity"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Oleada F ROLE-OPS â€” recepciÃ³n + precuenta"
+    },
+    {
+      "id": "KI-032",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "cocina",
+        "comandas",
+        "permisos",
+        "listo"
+      ],
+      "title": "LISTO/Entreg. sin permiso despachar (solo ver abre cocina)",
+      "symptoms": [
+        "Usuario con comandas:ver puede marcar LISTO y archivar",
+        "crozzoOperativeCan('marcar_listo') existÃ­a pero no se llamaba"
+      ],
+      "rootCause": "crozzoStickyMarcarListo y updateComandaEstado despachaban sin crozzoCanMarcarListoComanda.",
+      "solution": "crozzoCanMarcarListoComanda (operative + despachar); gate LISTO y updateComandaEstado salvo skipFanout/skipPermiso remoto.",
+      "avoid": [
+        "Confundir PAGE_PERMISOS (entrar) con acciÃ³n despachar",
+        "Gatear despacharComanda interno de Limpiar/remoto sin skipPermiso"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "crozzoCanMarcarListoComanda",
+        "crozzoStickyMarcarListo",
+        "updateComandaEstado"
+      ],
+      "relatedAdr": "D-013",
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Oleada F ROLE-OPS â€” cocina rol vs ver-only"
+    },
+    {
+      "id": "KI-033",
+      "status": "resolved",
+      "severity": "high",
+      "tags": [
+        "permisos",
+        "cocina",
+        "cierre",
+        "inventario",
+        "caja",
+        "gestion"
+      ],
+      "title": "Reimprimir/arqueo/descuento/inventario/abrir mesa: gates y menÃºs rotos",
+      "symptoms": [
+        "Reimprimir comanda sin permiso reimprimir (solo ver)",
+        "RecepciÃ³n con cierre_arqueo no podÃ­a cerrar; encargado cerraba aunque le quitaran el flag",
+        "calcArqueo/finalizeArqueo denegaban en silencio",
+        "Quitar descuento sin descuento_autorizado",
+        "Inventario: No autorizado en proveedores/cotizaciones (menÃº incompleto)",
+        "Abrir mesa sin abrir_orden"
+      ],
+      "rootCause": "reprintComanda sin gate; canPerformArqueo por rol hardcode no cierre_arqueo; inventario fallback menus sin compras-proveedores/cotizaciones; selectMesa sin permiso; quitar descuento sin require.",
+      "solution": "crozzoCanReimprimirComanda; canPerformArqueoâ†’cierre_arqueo + toasts; menÃºs inventario + cotizaciones/recepcion; selectMesa/Llevar abrir_orden; crozzoQuitarDescuentoVenta gated; cocina MENU_PERM_MAP + reimprimir.",
+      "avoid": [
+        "Autorizar arqueo solo por rol string",
+        "MenÃº inventario = solo centro-compras",
+        "AcciÃ³n cocina (reprint/LISTO) sin subpermiso comandas"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/modules/CrozzoCierreTurnos.js",
+        "app/modules/CrozzoPermisosPolicy.js",
+        "app/modules/CrozzoPerfilesOperativos.js"
+      ],
+      "symbols": [
+        "reprintComanda",
+        "canPerformArqueo",
+        "selectMesa",
+        "selectLlevar",
+        "crozzoQuitarDescuentoVenta",
+        "getMenusForRole"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "Mejora ROLE-OPS F â€” inventario/cierre/reimprimir"
+    },
+    {
+      "id": "KI-034",
+      "status": "resolved",
+      "severity": "critical",
+      "tags": [
+        "tablet",
+        "permisos",
+        "caja",
+        "recepcion",
+        "cocina",
+        "residual"
+      ],
+      "title": "Residuales sede: tablet RBAC, open slot, reimprimir legacy, automation LISTO",
+      "symptoms": [
+        "Caja/recepciÃ³n en tablets: tab_precuenta hace fallar abrir_orden/comandar",
+        "selectTabletMesa sin gate; selectMesa bloqueaba encargado solo-anular",
+        "Cocina legacy sin reimprimir tras KI-033",
+        "printAllPendingByArea y AutomationApi LISTO sin skipPermiso"
+      ],
+      "rootCause": "hasTabSet incluÃ­a tab_precuenta y cortaba fallback POS; tablet open ungated; sin migraciÃ³n reimprimir; automation llamaba updateComandaEstado sin skipPermiso.",
+      "solution": "Tablet: aceptar lista.includes(sub) POS; crozzoCanOpenOrderSlot(abrir|anular); gate selectTablet*; migraciÃ³n v11 reimprimir; printAllPending gated; Automation skipPermiso.",
+      "avoid": [
+        "Tratar tab_precuenta como set completo de tab_abrir/editar/eliminar",
+        "Gatear solo selectMesa y olvidar selectTabletMesa"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/infra/CrozzoAutomationApi.js"
+      ],
+      "symbols": [
+        "crozzoHasCajaPermiso",
+        "crozzoCanOpenOrderSlot",
+        "selectTabletMesa",
+        "selectTabletLlevar",
+        "crozzoMigrateStaffCajaSecurity",
+        "printAllPendingByArea",
+        "updateKitchenOrder"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [
+        "test:sync-clinical"
+      ],
+      "fixedIn": "2026-07-14",
+      "learnedFrom": "VerificaciÃ³n residual pre-sede ROLE-OPS"
+    },
+    {
+      "id": "KI-035",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Sidebar hover oscila al scrollear (abre/cierra en bucle)",
+      "symptoms": [
+        "Al abrir el panel lateral e intentar bajar, abre y cierra muchas veces por segundo",
+        "Tras ~1s queda cerrado y luego 'funciona'",
+        "Parches CSS de 1cm empeoran otras pantallas"
+      ],
+      "rootCause": "MÃ¡quina hover en CrozzoSidebarNav: pointer+mouse duplicados, pointermove global pelea con leave durante width transition; remount del toggle dispara leave; scroll no armaba lock; --sidebar-ease-open con overshoot empeoraba hit-testing.",
+      "solution": "Solo canal pointer; lock transiciÃ³n + scroll/wheel; ignorar leave durante lock/DOM remount; easing sin overshoot; debug __CROZZO_SIDEBAR_HOVER_DEBUG. Archivos: app/ui/CrozzoSidebarNav.js, tokens sidebar en CrozzoPosStyles.css.",
+      "avoid": [
+        "Mover mÃ¡rgenes/easing a ciegas sin tocar la mÃ¡quina de estados",
+        "Re-aÃ±adir mouseenter/mouseleave junto a pointerenter/leave",
+        "Animar page-enter en P0 para 'compensar' el feel del sidebar"
+      ],
+      "tags": [
+        "css",
+        "ui",
+        "sidebar",
+        "motion",
+        "desktop"
+      ],
+      "files": [
+        "app/ui/CrozzoSidebarNav.js",
+        "app/css/CrozzoPosStyles.css"
+      ],
+      "symbols": [
+        "bindDesktopSidebarHover",
+        "scheduleHoverOpen",
+        "scheduleHoverClose",
+        "armSidebarScrollLock",
+        "isSidebarHoverLocked"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "2026-07-20",
+      "learnedFrom": "Reporte usuario: sidebar abre/cierra ~10Ã—/s al scrollear"
+    },
+    {
+      "id": "KI-036",
+      "status": "resolved",
+      "severity": "high",
+      "title": "DiseÃ±ador ticket: ediciÃ³n de ley/tÃ­tulo no se refleja ni persiste",
+      "symptoms": [
+        "Al editar tÃ­tulo legal o pie legal, la vista previa no cambia",
+        "El editor parece actualizarse solo y pierde el texto escrito",
+        "Tras sync idle o reabrir DiseÃ±o, el tÃ­tulo vuelve vacÃ­o"
+      ],
+      "rootCause": "normalizeFacturaTplBlocks vaciaba title.c en cada polish; exportTpl hacÃ­a ensure/dedupe sobre slice shallow (mutaba state); preview/print de legal_co/resol ignoraban b.c; crozzoTermicaNormalizePlantilla con skipPolish aÃºn corrÃ­a ensureFacturaBlocks.",
+      "solution": "stripDynamicTitle solo con opts explÃ­cito; exportTpl deep-clone + polish light (sin ensure/dedupe); preview/print usan String(b.c).trim()||dato DIAN; skipPolish salta ensure. Archivos: Crozzo_POS_DisenadorTicket.html, CrozzoTermicaColombia.js, CrozzoPrintService.js, CrozzoTermicaPremium.js, crozzoTermicaNormalizePlantilla en PosMain.",
+      "avoid": [
+        "Llamar ensureFacturaBlocks/polishTplForDocType en cada tecla o idle sync del diseÃ±ador",
+        "Vaciar title.c en normalizaciÃ³n de plantilla de estudio",
+        "Renderizar legal_co solo con data.legalCo ignorando b.c"
+      ],
+      "tags": [
+        "print",
+        "ticket",
+        "designer",
+        "factura",
+        "ui"
+      ],
+      "files": [
+        "app/Crozzo_POS_DisenadorTicket.html",
+        "app/core/CrozzoTermicaColombia.js",
+        "app/core/CrozzoPrintService.js",
+        "app/core/CrozzoTermicaPremium.js",
+        "app/core/CrozzoPosMain.js"
+      ],
+      "symbols": [
+        "normalizeFacturaTplBlocks",
+        "exportTpl",
+        "polishTplForDesigner",
+        "crozzoTermicaNormalizePlantilla"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "2026-07-20",
+      "learnedFrom": "Reporte: comando actualizar ley se bugea y no refleja ediciÃ³n"
+    },
+    {
+      "id": "KI-037",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Reporte IA: UI remonta y borra key / Guardar parece fallar",
+      "symptoms": [
+        "Panel Inteligencia se actualiza solo y vacÃ­a la key pegada",
+        "Guardar no deja probar; input se limpia y parece que no persistiÃ³",
+        "Click Configurar Reporte IA resetea el formulario estando ya en Nube"
+      ],
+      "rootCause": "mountAiInsightsAdminCard siempre reemplazaba host.innerHTML; crozzoOpenAiInsightsConfig hacÃ­a navigateTo aunque currentPage ya era super-admin-nube; saveApiKey hacÃ­a await invokeFn(save_key,{force:true}) a Edge (CORS/hang) antes de confirmar UX.",
+      "solution": "Skip remount si card live/draft/busy/lock; openConfig solo scroll si ya en nube; saveApiKey local-first; probe session fuera del DOM (setProbeSession/applyProbeSessionToDom) para sobrevivir remount; Rust timeout NVIDIA 120s (async). Archivos: CrozzoAiInsights.js, CrozzoSuperAdminNube.js, crozzo_http.rs.",
+      "avoid": [
+        "Remontar el card AI en cada init/retry sin comprobar draft",
+        "navigateTo('super-admin-nube') si ya estÃ¡ en esa pÃ¡gina solo para scroll",
+        "Bloquear Guardar esperando Edge/CORS",
+        "Vaciar #crozzoAiApiKey sin confirmar localStorage",
+        "Actualizar probe con closures DOM stale tras remount",
+        "Timeout Rust 35s (NVIDIA NIM suele >60s)"
+      ],
+      "tags": [
+        "ai",
+        "nvidia",
+        "ui",
+        "super-admin",
+        "regression"
+      ],
+      "files": [
+        "app/modules/CrozzoAiInsights.js",
+        "app/modules/CrozzoSuperAdminNube.js"
+      ],
+      "symbols": [
+        "mountAiInsightsAdminCard",
+        "crozzoOpenAiInsightsConfig",
+        "saveApiKey",
+        "formHasDraft",
+        "setAiBusy"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "2026-07-20",
+      "learnedFrom": "SesiÃ³n: interfaz se actualiza sola, borra datos, no deja probar NVIDIA"
+    },
+    {
+      "id": "KI-038",
+      "status": "resolved",
+      "severity": "critical",
+      "title": "Cierre de turnos titila: remount por fanout LAN/comandas",
+      "symptoms": [
+        "Al entrar a Cierre la pantalla parpadea / recarga muchas veces",
+        "KPIs y panel se reinician en vivo con LAN/comandas activos"
+      ],
+      "rootCause": "crozzoScheduleOperationalPageRefresh(currentPage) con currentPage=cierre-caja no tenÃ­a patch; caÃ­a a renderPage â†’ mountCierrePage (innerHTML wipe). LanOps/Ingest/PageCloudWatch/fleet disparan schedule con la pÃ¡gina actual aunque el evento sea de comandas.",
+      "solution": "crozzoPatchOperationalPageFromRemote('cierre-caja') â†’ CrozzoCierreTurnos.refreshPanel({full:true}) sin remount. Defensa extra en schedule antes de renderPage. Suprimir page-enter motion en cierre-caja. Card AuditorÃ­a IA debajo de KPIs (no al final).",
+      "avoid": [
+        "renderPage('cierre-caja') desde refresh operativo/LAN",
+        "Asumir que patch solo aplica a Z0 y dejar cierre caer a remount",
+        "Poner UI crÃ­tica de cierre al final del scroll sin KPIs cerca"
+      ],
+      "tags": [
+        "cierre",
+        "remount",
+        "lan",
+        "regression",
+        "ui"
+      ],
+      "files": [
+        "app/core/CrozzoPosMain.js",
+        "app/modules/CrozzoCierreTurnos.js",
+        "app/modules/CrozzoAiInsights.js"
+      ],
+      "symbols": [
+        "crozzoPatchOperationalPageFromRemote",
+        "crozzoScheduleOperationalPageRefresh",
+        "mountCierrePage",
+        "refreshPanel"
+      ],
+      "relatedAdr": null,
+      "relatedTests": [],
+      "fixedIn": "2026-07-20",
+      "learnedFrom": "SesiÃ³n: mando â€” cierre titila y no ve auditorÃ­a IA"
+    },
+    {
+      "id": "KI-039",
+      "avoid": [
+        "Copiar openDock sin revisar paridad con el core"
+      ],
+      "relatedAdr": "D-016",
+      "rootCause": "openDock en CrozzoWhatsAppDock.js no llamaba setWaActive(true), a diferencia del factory core",
+      "title": "WhatsApp dock no se activaba (setWaActive)",
+      "tags": [
+        "docks",
+        "whatsapp"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoWhatsAppDock.js"
+      ],
+      "solution": "Añadir setWaActive(true) antes del retry",
+      "learnedFrom": "Auditoría docks",
+      "status": "resolved",
+      "severity": "high",
+      "fixedIn": "2026-11-02",
+      "symptoms": [
+        "Dock en blanco al abrir WhatsApp"
+      ],
+      "symbols": [
+        "openDock",
+        "setWaActive"
+      ]
+    },
+    {
+      "id": "KI-040",
+      "avoid": [
+        "Copiar wrapper sin revisar invokeCmd"
+      ],
+      "relatedAdr": "D-016",
+      "rootCause": "invokeCmd hardcodeado a crozzo_whatsapp_dock_sync en ambos wrappers",
+      "title": "Gmail/Drive invocaban comando de WhatsApp",
+      "tags": [
+        "docks",
+        "gmail",
+        "drive"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoGmailDock.js",
+        "app/modules/CrozzoDriveDock.js"
+      ],
+      "solution": "Cambiar a crozzo_gmail_dock_sync / crozzo_drive_dock_sync",
+      "learnedFrom": "Auditoría docks",
+      "status": "resolved",
+      "severity": "high",
+      "fixedIn": "2026-11-02",
+      "symptoms": [
+        "Ventana incorrecta al abrir Gmail o Drive"
+      ],
+      "symbols": [
+        "invokeCmd"
+      ]
+    },
+    {
+      "id": "KI-041",
+      "avoid": [],
+      "relatedAdr": "D-016",
+      "rootCause": "Lista de servicios en el binding global omitía gmail y drive",
+      "title": "Zoom no aplicaba a Gmail/Drive",
+      "tags": [
+        "docks",
+        "zoom"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoWebEmbedDockCore.js"
+      ],
+      "solution": "Añadir ramas gmail/drive al binding y al closeDock",
+      "learnedFrom": "Auditoría docks",
+      "status": "resolved",
+      "severity": "medium",
+      "fixedIn": "2026-11-02",
+      "symptoms": [
+        "Slider de zoom sin efecto en Gmail/Drive"
+      ],
+      "symbols": [
+        "crozzoDockPanelZoom"
+      ]
+    },
+    {
+      "id": "KI-042",
+      "avoid": [
+        "Copiar el patrón de timer sin revisar la bandera"
+      ],
+      "relatedAdr": "",
+      "rootCause": "hilo sleep(2s) llama dock.show() sin verificar la bandera *_WANT_VISIBLE",
+      "title": "Timer de 2s + show() sin comprobar WANT_VISIBLE en 9 ventanas",
+      "tags": [
+        "docks",
+        "rust",
+        "timer"
+      ],
+      "relatedTests": [],
+      "files": [
+        "src-tauri/src/crozzo_external.rs"
+      ],
+      "solution": "Comprobar *_WANT_VISIBLE antes de show()",
+      "learnedFrom": "Auditoría Asuntos Internos",
+      "status": "watch",
+      "severity": "high",
+      "fixedIn": "2026-11-03 (corregido)",
+      "symptoms": [
+        "Ventana reaparece tras cerrarla en menos de 2 s"
+      ],
+      "symbols": [
+        "build_*_dock"
+      ]
+    },
+    {
+      "id": "KI-043",
+      "avoid": [
+        "Dejar código inalcanzable tras un return"
+      ],
+      "relatedAdr": "",
+      "rootCause": "return '' antes del template HTML en CrozzoWebEmbedDockCore.js y CrozzoWhatsAppDock.js",
+      "title": "renderPage devuelve cadena vacía en 6 páginas de docks",
+      "tags": [
+        "docks",
+        "ui"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoWebEmbedDockCore.js",
+        "app/modules/CrozzoWhatsAppDock.js"
+      ],
+      "solution": "Eliminar el return '' temprano",
+      "learnedFrom": "Auditoría Asuntos Internos",
+      "status": "resolved",
+      "severity": "high",
+      "fixedIn": "2026-11-03",
+      "symptoms": [
+        "Página en blanco al navegar a gmail-web, drive-web, dataico-web, dian-vpfe-web, spotify-web, whatsapp-web"
+      ],
+      "symbols": [
+        "renderPage",
+        "renderWhatsAppWebPage"
+      ]
+    },
+    {
+      "id": "KI-044",
+      "avoid": [],
+      "relatedAdr": "",
+      "rootCause": "navTab '', TAB_DEFS 'supabase', PAGE_ID 'supabase-nube-web', zoom 'supabase-nube' son cuatro nombres distintos",
+      "title": "Supabase dock: id desalineado (supabase vs supabase-nube vs supabase-nube-web)",
+      "tags": [
+        "docks",
+        "supabase"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoSupabaseSqlDock.js",
+        "app/modules/CrozzoWebEmbedHeadNav.js"
+      ],
+      "solution": "Unificar en un único id",
+      "learnedFrom": "Auditoría frontend docks",
+      "status": "watch",
+      "severity": "medium",
+      "fixedIn": "pendiente",
+      "symptoms": [
+        "La pestaña Supabase no abre nada"
+      ],
+      "symbols": [
+        "navTab",
+        "PAGE_ID"
+      ]
+    },
+    {
+      "id": "KI-045",
+      "avoid": [],
+      "relatedAdr": "",
+      "rootCause": "APPS en CrozzoQuickAppsPolicy.js no incluye youtube ni facebook; webEmbedPageToQuickApp devuelve null",
+      "title": "YouTube y Facebook no están en la política de apps (no usables)",
+      "tags": [
+        "docks",
+        "policy"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoQuickAppsPolicy.js"
+      ],
+      "solution": "Añadir a APPS y DEFAULTS, o retirar de la carga por defecto",
+      "learnedFrom": "Auditoría frontend docks",
+      "status": "watch",
+      "severity": "high",
+      "fixedIn": "2026-11-03 (retirados de carga por defecto)",
+      "symptoms": [
+        "El dock muestra 'No tiene permiso' incluso para super admin"
+      ],
+      "symbols": [
+        "APPS",
+        "webEmbedPageToQuickApp"
+      ]
+    },
+    {
+      "id": "KI-046",
+      "avoid": [],
+      "relatedAdr": "",
+      "rootCause": "El listener captura PAGE_ID e isPageActive del primer dock que llama initPage",
+      "title": "Click-outside atado al primer dock inicializado",
+      "tags": [
+        "docks",
+        "ui"
+      ],
+      "relatedTests": [],
+      "files": [
+        "app/modules/CrozzoWebEmbedDockCore.js"
+      ],
+      "solution": "Consultar el dock activo en el momento del clic",
+      "learnedFrom": "Auditoría frontend docks",
+      "status": "watch",
+      "severity": "medium",
+      "fixedIn": "pendiente",
+      "symptoms": [
+        "Clic fuera no cierra el dock activo si no es el primero"
+      ],
+      "symbols": [
+        "bindUiOverlaySync"
+      ]
+    },
+    {
+      "id": "KI-047",
+      "avoid": [],
+      "relatedAdr": "",
+      "rootCause": "auth_ok = auth_token.is_empty() || ... en crozzo_lan_sync_server.rs",
+      "title": "Auth LAN desactivable con token vacío",
+      "tags": [
+        "lan",
+        "security"
+      ],
+      "relatedTests": [],
+      "files": [
+        "src-tauri/src/crozzo_lan_sync_server.rs"
+      ],
+      "solution": "Token obligatorio; comparación constante de digests; bind a IP LAN",
+      "learnedFrom": "Auditoría Asuntos Internos",
+      "status": "watch",
+      "severity": "high",
+      "fixedIn": "2026-11-03 (parcial: token obligatorio + hash constante + bind LAN)",
+      "symptoms": [
+        "Servidor acepta peticiones sin token"
+      ],
+      "symbols": [
+        "crozzo_lan_sync_start",
+        "auth_ok"
+      ]
+    },
+    {
+      "id": "KI-048",
+      "avoid": [],
+      "relatedAdr": "",
+      "rootCause": "Pubkey A0EE en config vs 65A8 en crozzo-pos.key.pub vs firma AD59 en 1.0.231",
+      "title": "OTA con clave no coincidente",
+      "tags": [
+        "ota",
+        "firma"
+      ],
+      "relatedTests": [],
+      "files": [
+        "src-tauri/tauri.conf.json",
+        "crozzo-pos.key.pub"
+      ],
+      "solution": "Localizar privada o regenerar par; actualizar a tauri >=2.12.0; requireSignedVersion",
+      "learnedFrom": "Auditoría OTA",
+      "status": "watch",
+      "severity": "critical",
+      "fixedIn": "pendiente (bloqueante)",
+      "symptoms": [
+        "Actualizaciones rechazadas en campo"
+      ],
+      "symbols": [
+        "pubkey"
+      ]
+    }
+  ]
+}

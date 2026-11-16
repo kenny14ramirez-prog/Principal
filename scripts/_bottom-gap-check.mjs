@@ -62,7 +62,7 @@ const metrics = await page.evaluate(() => {
 });
 
 console.log(JSON.stringify(metrics, null, 2));
-const ok = metrics.gapBelowApp != null && Math.abs(metrics.gapBelowApp) < 4;
-console.log(ok ? 'OK: sin franja inferior' : 'FALLO: franja inferior ~' + Math.round(metrics.gapBelowApp) + 'px');
+const ok = metrics.gapBelowBody != null && Math.abs(metrics.gapBelowBody) < 4;
+console.log(ok ? 'OK: sin franja inferior' : 'FALLO: franja inferior ~' + Math.round(metrics.gapBelowBody) + 'px');
 await browser.close();
 process.exit(ok ? 0 : 1);

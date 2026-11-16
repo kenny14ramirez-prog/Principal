@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-09T11:32:57.434Z",
+  "at": "2026-11-13T19:10:11.809Z",
   "phases": {
     "browser": [],
     "httpStorm": [
@@ -9,7 +9,7 @@
         "tablets": 1,
         "ok": true,
         "detail": {
-          "elapsedMs": 34,
+          "elapsedMs": 32,
           "tablets": 1,
           "okComandas": 1,
           "okRuntime": 1,
@@ -31,7 +31,7 @@
         "tablets": 9,
         "ok": true,
         "detail": {
-          "elapsedMs": 27,
+          "elapsedMs": 30,
           "tablets": 9,
           "okComandas": 9,
           "okRuntime": 9,
@@ -53,7 +53,7 @@
         "tablets": 49,
         "ok": true,
         "detail": {
-          "elapsedMs": 93,
+          "elapsedMs": 152,
           "tablets": 49,
           "okComandas": 49,
           "okRuntime": 49,
@@ -75,7 +75,7 @@
         "tablets": 99,
         "ok": true,
         "detail": {
-          "elapsedMs": 151,
+          "elapsedMs": 199,
           "tablets": 99,
           "okComandas": 99,
           "okRuntime": 99,

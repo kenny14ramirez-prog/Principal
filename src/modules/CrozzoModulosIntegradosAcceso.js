@@ -637,6 +637,35 @@
     }
   }
 
+  function caPromptAsync(message) {
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:99999;';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#fff;padding:20px;border-radius:10px;min-width:280px;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.25);';
+      box.innerHTML =
+        '<p style="margin:0 0 10px;font-weight:600;font-size:0.95rem;">' + esc(String(message || '')) + '</p>' +
+        '<input type="password" id="ca-prompt-input" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:12px;border:1px solid #ccc;border-radius:6px;" autofocus>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button type="button" id="ca-prompt-cancel" class="btn btn-outline btn-sm">Cancelar</button>' +
+        '<button type="button" id="ca-prompt-ok" class="btn btn-primary btn-sm">Aceptar</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      var inp = box.querySelector('#ca-prompt-input');
+      var ok = box.querySelector('#ca-prompt-ok');
+      var cancel = box.querySelector('#ca-prompt-cancel');
+      function done(val) { try { overlay.remove(); } catch (_) {} resolve(val); }
+      ok.onclick = function () { done(inp.value); };
+      cancel.onclick = function () { done(null); };
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); done(inp.value); }
+        if (e.key === 'Escape') { e.preventDefault(); done(null); }
+      });
+      setTimeout(function () { try { inp.focus(); } catch (_) {} }, 50);
+    });
+  }
+
   function bindShell() {
     var search = document.getElementById('ca-search');
     if (search) search.oninput = function () { acc.search = search.value; renderEmpGrid(); };
@@ -645,8 +674,8 @@
       renderEmpGrid();
       toast('Actualizado', 'success');
     };
-    document.getElementById('ca-btn-admin').onclick = function () {
-      var ing = prompt('Clave de administración (marcación):');
+    document.getElementById('ca-btn-admin').onclick = async function () {
+      var ing = await caPromptAsync('Clave de administración (marcación):');
       if (ing === null) return;
       if (String(ing).trim() !== adminKioskPassword()) {
         toast('Clave incorrecta', 'error');

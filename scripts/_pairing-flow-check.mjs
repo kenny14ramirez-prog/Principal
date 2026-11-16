@@ -71,7 +71,7 @@ await page.addInitScript(() => {
   document.documentElement.classList.remove('crozzo-android-apk');
 });
 
-await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
 await page.waitForTimeout(3000);
 
 const libs = await page.evaluate(() => ({

@@ -302,7 +302,7 @@
       var host = global.document.getElementById('crozzoPairingStep1Video');
       if (host) {
         probeBundledVideo(function () {
-          host.innerHTML = renderVideoBlock({ compact: true });
+          host.innerHTML = CrozzoSanitize.sanitizeHtml(renderVideoBlock({ compact: true }));
           bindVideoPlayers(host);
         });
       }

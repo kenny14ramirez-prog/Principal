@@ -1493,7 +1493,7 @@
       var tplP = tplForPreview();
       var htmlP = prem.render(tplP, previewData);
       el.innerHTML =
-        '<div class="studio-premium-ticket" title="Vista de impresión">' + (htmlP || '') + '</div>';
+        CrozzoSanitize.sanitizeHtml('<div class="studio-premium-ticket" title="Vista de impresión">' + (htmlP || '') + '</div>');
       reflowPaperCanvas();
       var brandP = document.getElementById('brandTplName');
       if (brandP) brandP.textContent = state.name;
@@ -1522,7 +1522,7 @@
       parts.push('<div style="margin-top:6px;font-size:8px;">No: ' + esc(previewData.consecutivo) + '</div>');
       parts.push('<div style="font-size:8px;">Fecha: ' + esc(previewData.fecha) + '</div>');
     }
-    el.innerHTML = parts.join('');
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(parts.join(''));
     reflowPaperCanvas();
     el.querySelectorAll('.studio-preview-hit').forEach(function (hit) {
       hit.addEventListener('click', function (e) {
@@ -1548,7 +1548,7 @@
       if (b === 'colombia_fe') return 1;
       return 0;
     });
-    host.innerHTML = keys
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(keys
       .map(function (k) {
         var p = PRESETS[k];
         var extra = k === 'colombia_fe' ? ' studio-preset-btn--colombia' : '';
@@ -1563,7 +1563,7 @@
           (k === 'colombia_fe' ? 'Requisitos DIAN · listo' : 'Estilo ' + k) +
           '</small></button>'
         );
-      })
+      }
       .join('');
     host.querySelectorAll('[data-preset]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1581,11 +1581,11 @@
     var host = document.getElementById('panelLayers');
     var sorted = state.blocks.slice().sort(function (a, b) { return a.o - b.o; });
     if (!sorted.length) {
-      host.innerHTML = '<div class="studio-props-empty">Agregue bloques desde la paleta izquierda.</div>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="studio-props-empty">Agregue bloques desde la paleta izquierda.</div>');
       return;
     }
-    host.innerHTML = sorted.map(function (b) {
-      var i = state.blocks.indexOf(b);
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(sorted.map(function (b) {
+      var i = state.blocks.indexOf(b)));
       var label = BLOCK_LABELS[b.t] || b.t;
       var sel = selectedIdx === i ? ' is-selected' : '';
       var off = b.v ? '' : ' inactive';
@@ -1600,7 +1600,7 @@
         '<button type="button" data-act="del" title="Eliminar">✕</button>' +
         '</div></div>'
       );
-    }).join('');
+    }.join('');
 
     host.querySelectorAll('.studio-layer').forEach(function (layer) {
       layer.addEventListener('click', function (e) {
@@ -1632,7 +1632,7 @@
   function renderProps() {
     var host = document.getElementById('panelProps');
     if (selectedIdx == null || !state.blocks[selectedIdx]) {
-      host.innerHTML = '<div class="studio-props-empty">Seleccione una capa para editar alineación, tipografía y contenido.</div>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="studio-props-empty">Seleccione una capa para editar alineación, tipografía y contenido.</div>');
       return;
     }
     var b = state.blocks[selectedIdx];
@@ -1697,7 +1697,7 @@
           : '');
     }
     host.innerHTML =
-      '<div class="studio-props">' +
+      CrozzoSanitize.sanitizeHtml('<div class="studio-props">' +
       '<div class="row"><label>Tipo</label><input type="text" readonly value="' + esc(BLOCK_LABELS[b.t] || b.t) + '" /></div>' +
       (isAuto && !isLegalOverride
         ? '<p class="studio-props-auto">Este bloque se completa <strong>automáticamente</strong> al imprimir (Empresa, DIAN, cliente e ítems de la venta). Aquí solo ajusta tamaño, alineación y si está visible.</p>'
@@ -1706,8 +1706,8 @@
       '<div class="row"><label>Alineación</label><div class="studio-align-btns" id="propAlign">' +
       ['left', 'center', 'right'].map(function (a) {
         return '<button type="button" data-a="' + a + '"' + (b.a === a ? ' class="is-on"' : '') + '>' +
-          (a === 'left' ? '◧' : a === 'center' ? '◫' : '◨') + '</button>';
-      }).join('') + '</div></div>' +
+          (a === 'left' ? '◧' : a === 'center' ? '◫' : '◨') + '</button>'));
+      }.join('') + '</div></div>' +
       '<div class="row"><label>Tamaño texto</label><select id="propFs">' +
       ['xs', 'sm', 'md', 'lg', 'xl'].map(function (f) {
         return '<option value="' + f + '"' + (b.fs === f ? ' selected' : '') + '>' + f.toUpperCase() + '</option>';
@@ -1994,7 +1994,7 @@
     btn.addEventListener('click', function () {
       if (btn.getAttribute('data-insp') === 'layers') showLayersPanel();
       else if (selectedIdx != null) selectBlock(selectedIdx);
-      else document.getElementById('panelProps').innerHTML = '<div class="studio-props-empty">Seleccione una capa primero.</div>';
+      else document.getElementById('panelProps').innerHTML = CrozzoSanitize.sanitizeHtml('<div class="studio-props-empty">Seleccione una capa primero.</div>');
     });
   });
   document.querySelectorAll('[data-zoom]').forEach(function (btn) {

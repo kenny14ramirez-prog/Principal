@@ -209,8 +209,8 @@
     var hint = hintFormula(merged);
     if (unitCell) {
       unitCell.innerHTML =
-        esc(fmtUnit(merged.precioUnit, merged.und)) +
-        (hint ? '<span class="crozzo-costeo-hint">' + esc(hint) + '</span>' : '');
+        CrozzoSanitize.sanitizeHtml(esc(fmtUnit(merged.precioUnit, merged.und)) +
+        (hint ? '<span class="crozzo-costeo-hint">' + esc(hint) + '</span>' : ''));
       unitCell.setAttribute('title', hint);
     }
     tr.setAttribute('data-costeo-und', merged.und);
@@ -227,7 +227,7 @@
     var tbody = root.querySelector('#crozzoCosteoTbody');
     if (!tbody) return;
     var filtered = filterItems(buildRows());
-    tbody.innerHTML = renderRows(filtered);
+    tbody.innerHTML = CrozzoSanitize.sanitizeHtml(renderRows(filtered));
     var hint = root.querySelector('.crozzo-mod-toolbar .form-hint');
     if (hint) {
       var all = buildRows();

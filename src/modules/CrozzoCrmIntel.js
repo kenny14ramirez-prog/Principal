@@ -677,7 +677,7 @@
         clearTimeout(global.__crozzoClienteDirSearchT);
         global.__crozzoClienteDirSearchT = setTimeout(function () {
           var tb = document.getElementById('crozzoClientesDirTbody');
-          if (tb) tb.innerHTML = renderTableRows();
+          if (tb) tb.innerHTML = CrozzoSanitize.sanitizeHtml(renderTableRows());
         }, 150);
       });
     }

@@ -880,6 +880,7 @@
       consecutivo: consecutivo,
       idempotency_key: String(ctx.deviceId || '') + ':' + String(consecutivo),
     };
+    try { if (global.CrozzoRlsIntegration && typeof global.CrozzoRlsIntegration.enrichPayload === 'function') global.CrozzoRlsIntegration.enrichPayload(body); } catch (_) {}
     markPushEcho(comanda, rowId);
     if (comanda.transaction_id) markComandaTid(comanda.transaction_id, 'cloud_push');
     try {

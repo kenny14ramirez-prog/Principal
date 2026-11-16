@@ -38,6 +38,13 @@ const BUNDLE_MAP = {
     'CrozzoBonaOrigen.js',
     'CrozzoCentroProcesos.js',
   ],
+  'CrozzoBundleComprasCore.js': [
+    'CrozzoComprasLocal.js',
+    'CrozzoCotizacionesMp.js',
+    'CrozzoCentroCompras.js',
+    'CrozzoBonaOrigen.js',
+    'CrozzoCentroProcesos.js',
+  ],
 };
 
 function readModule(name) {

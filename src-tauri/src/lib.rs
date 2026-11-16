@@ -47,6 +47,14 @@ mod crozzo_gossip_udp;
 mod crozzo_wifi_direct;
 #[cfg(desktop)]
 mod crozzo_dev_log;
+#[cfg(desktop)]
+mod crozzo_fiscal_sqlite;
+#[cfg(desktop)]
+mod crozzo_cert_vault;
+#[cfg(desktop)]
+mod crozzo_2fa;
+#[cfg(desktop)]
+mod crozzo_metrics;
 
 #[cfg(desktop)]
 use tauri::Manager;
@@ -106,6 +114,12 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            // Fase -2: inicializar tracing (observabilidad)
+            #[cfg(desktop)]
+            {
+                use tracing_subscriber::fmt;
+                let _ = fmt().with_env_filter("info").try_init();
+            }
             #[cfg(target_os = "android")]
             {
                 app.handle()
@@ -142,6 +156,22 @@ pub fn run() {
             crozzo_open_devtools,
             #[cfg(desktop)]
             crozzo_dev_log::crozzo_append_dev_log,
+            #[cfg(desktop)]
+            crozzo_fiscal_sqlite::crozzo_fiscal_save_sqlite,
+            #[cfg(desktop)]
+            crozzo_fiscal_sqlite::crozzo_fiscal_load_sqlite,
+            #[cfg(desktop)]
+            crozzo_cert_vault::crozzo_cert_vault_set,
+            #[cfg(desktop)]
+            crozzo_cert_vault::crozzo_cert_vault_get,
+            #[cfg(desktop)]
+            crozzo_2fa::crozzo_2fa_verify,
+            #[cfg(desktop)]
+            crozzo_2fa::crozzo_2fa_generate_secret,
+            #[cfg(desktop)]
+            crozzo_metrics::crozzo_metrics_snapshot,
+            #[cfg(desktop)]
+            crozzo_metrics::crozzo_metrics_inc_requests,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
             crozzo_print::crozzo_list_printers,
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

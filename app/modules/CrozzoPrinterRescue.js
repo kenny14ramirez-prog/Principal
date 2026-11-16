@@ -456,7 +456,7 @@ function patchPrinterRescueModal(focusOpts) {
   if (!body) return false;
   const scrollEl = body.querySelector('.crozzo-rescue-scroll');
   const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
-  body.innerHTML = renderPrinterRescueModal(printerRescueState.sourceLabel || 'sistema');
+  body.innerHTML = CrozzoSanitize.sanitizeHtml(renderPrinterRescueModal(printerRescueState.sourceLabel || 'sistema'));
   const newScroll = body.querySelector('.crozzo-rescue-scroll');
   if (newScroll && scrollTop) newScroll.scrollTop = scrollTop;
   crozzoWirePrinterRescueModal();
@@ -494,7 +494,7 @@ function crozzoRescueUpdateSearchUi() {
       : 'Escriba al menos 2 letras del modelo';
   }
   var results = root.querySelector('#rescueSearchResults');
-  if (results) results.innerHTML = renderPrinterRescueSearchResultsHtml(query);
+  if (results) results.innerHTML = CrozzoSanitize.sanitizeHtml(renderPrinterRescueSearchResultsHtml(query));
 }
 function crozzoRescueUpdateSelectionUi() {
   var root = crozzoPrinterRescueModalRoot();
@@ -505,14 +505,14 @@ function crozzoRescueUpdateSelectionUi() {
   var model = printerRescueState.model;
   if (brand && model) {
     slot.innerHTML =
-      '<div class="crozzo-rescue-selection">Equipo seleccionado: <strong>' +
+      CrozzoSanitize.sanitizeHtml('<div class="crozzo-rescue-selection">Equipo seleccionado: <strong>' +
       escUserAttr(brand) +
       ' · ' +
       escUserAttr(model) +
-      '</strong></div>';
+      '</strong></div>');
   } else {
     slot.innerHTML =
-      '<p class="crozzo-rescue-search-hint crozzo-rescue-search-hint--idle">Escriba el modelo de la etiqueta y elija un resultado de la lista.</p>';
+      CrozzoSanitize.sanitizeHtml('<p class="crozzo-rescue-search-hint crozzo-rescue-search-hint--idle">Escriba el modelo de la etiqueta y elija un resultado de la lista.</p>');
   }
 }
 function crozzoRescueSetSearchInputValue(value) {

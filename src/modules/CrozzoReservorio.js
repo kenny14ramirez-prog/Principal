@@ -2358,7 +2358,10 @@
   // P0-4 contención: devolver venta (eliminar movimientos salida_venta por saleId).
   function devolverVenta(input) {
     var st = migrateLegacy();
-    var saleId = input && (input.saleId || input.uuid || input.facturaId);
+    var saleId = input;
+    if (input && typeof input === 'object') {
+      saleId = input.saleId || input.uuid || input.facturaId || input.id;
+    }
     if (!saleId) return false;
     var movs = st.inventarioMovimientos || [];
     var before = movs.length;

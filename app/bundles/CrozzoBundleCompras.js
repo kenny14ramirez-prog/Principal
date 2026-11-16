@@ -11013,6 +11013,32 @@
     );
   }
 
+  function renderCxfOcrFacturaModal() {
+    return (
+      '<div id="cxf-ocr-factura-modal" class="cxf-mp-modal-backdrop" hidden aria-hidden="true">' +
+      '<div class="cxf-ocr-factura-dialog" role="dialog" aria-modal="true" aria-labelledby="cxf-ocr-factura-title">' +
+      '<header class="cxf-ocr-factura-dialog__head">' +
+      '<h3 id="cxf-ocr-factura-title">Escanear factura con OCR</h3>' +
+      '<button type="button" class="cxf-ocr-close" data-cxf-ocr-close aria-label="Cerrar">×</button>' +
+      '</header>' +
+      '<p class="cxf-muted">Seleccione una imagen o PDF de la factura para extraer el texto.</p>' +
+      '<div class="cxf-ocr-factura-body">' +
+      '<input type="file" id="cxf-ocr-file" accept="image/*,application/pdf" class="cxf-ocr-file">' +
+      '<div id="cxf-ocr-preview" class="cxf-ocr-preview"></div>' +
+      '<p id="cxf-ocr-status" class="cxf-ocr-status" role="status">Seleccione imagen/PDF para escanear.</p>' +
+      '<div class="cxf-ocr-factura-actions">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="cxf-ocr-analizar">🔍 Analizar con OCR</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-ocr-aplicar">✅ Aplicar al formulario</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-cxf-ocr-close>Cancelar</button>' +
+      '</div>' +
+      '<div class="cxf-ocr-factura-lines">' +
+      '<strong>Líneas detectadas (<span id="cxf-ocr-count">0</span>)</strong>' +
+      '<div id="cxf-ocr-lines-body" class="cxf-ocr-lines-body"></div>' +
+      '</div>' +
+      '</div></div></div>'
+    );
+  }
+
   var _cxfQrRegion = null;
 
   function setCxfQrRegionStatus(msg, isError) {
@@ -20942,7 +20968,7 @@
     ofUi.expandedId = facturaId;
     ofUi.expandedTab = tab || 'oficina';
     ofUi.expandedAdjIdx = 0;
-    host.innerHTML = renderOficina();
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderOficina());
     if (ofUi.expandedTab === 'pdf') ofMountPdfPreview(host, facturaId, 0);
     if (ofUi.expandedTab === 'oficina') ofMountProvDocPreview(host, facturaId);
     if (ofUi.expandedTab === 'comprobante') ofMountComprobantePreview(host, facturaId);
@@ -21225,7 +21251,7 @@
   function refreshOficina(host, keepExpanded) {
     ofRevokeAllPdfUrls();
     if (!keepExpanded) ofUi.expandedId = null;
-    host.innerHTML = renderOficina();
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderOficina());
     if (ofUi.expandedId && ofUi.expandedTab === 'pdf') {
       ofMountPdfPreview(host, ofUi.expandedId, ofUi.expandedAdjIdx || 0);
     }
@@ -21273,7 +21299,7 @@
     if (!res || !body || !res.renderDashboardHtml) return;
     var dias = Number((host.querySelector('#ccl-dash-dias') || {}).value) || 30;
     var cat = ((host.querySelector('#ccl-dash-cat') || {}).value || '').trim();
-    body.innerHTML = res.renderDashboardHtml({ dias: dias, categoria: cat || undefined });
+    body.innerHTML = CrozzoSanitize.sanitizeHtml(res.renderDashboardHtml({ dias: dias, categoria: cat || undefined }));
   }
 
   function bindRecepcionLineRow(tr) {
@@ -21333,7 +21359,7 @@
     var tr = tbody.querySelector('.ccl-rec-line') || tbody.appendChild(document.createElement('tr'));
     tr.className = 'ccl-rec-line';
     if (!tr.querySelector('.ccl-rec-mp')) {
-      tr.innerHTML = renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, '');
+      tr.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, ''));
       bindRecepcionLineRow(tr);
     }
     var sel = tr.querySelector('.ccl-rec-mp');
@@ -21375,7 +21401,7 @@
         if (!tbody) return;
         var tr = document.createElement('tr');
         tr.className = 'ccl-rec-line';
-        tr.innerHTML = renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, '');
+        tr.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, ''));
         tbody.appendChild(tr);
         bindRecepcionLineRow(tr);
       };
@@ -21413,7 +21439,7 @@
       if (items.length) msg += ' — ' + items.length + ' precio(s) de costeo actualizados';
       toast(msg, 'success');
       var boot = function () {
-        host.innerHTML = renderRecepcion();
+        host.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecepcion());
         bindRecepcion(host);
       };
       var C = global.CrozzoCatalogoMp;
@@ -21436,7 +21462,7 @@
         notas: (notas && notas.value) || '',
       });
       toast('Proceso registrado — inventario actualizado', 'success');
-      host.innerHTML = renderProcesado();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(renderProcesado());
       bindProcesado(host);
     };
   }
@@ -23056,7 +23082,7 @@
     host = getCotRoot(host) || host;
     if (!host) return;
     var el = host.querySelector('#crozzoCotSessionSheetHost');
-    if (el) el.innerHTML = renderSessionSheet();
+    if (el) el.innerHTML = CrozzoSanitize.sanitizeHtml(renderSessionSheet());
   }
 
   function refreshAddSection(host) {
@@ -23064,7 +23090,7 @@
     if (!host) return;
     preserveSearchFocus(host, function () {
       var sheetHost = host.querySelector('#crozzoCotSessionSheetHost');
-      if (sheetHost) sheetHost.innerHTML = renderSessionSheet();
+      if (sheetHost) sheetHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderSessionSheet());
     });
   }
 
@@ -23082,7 +23108,7 @@
       var unitEl = col.querySelector('[data-cot-unit]');
       if (unitEl) unitEl.textContent = fmtUnit(sc.precioUnit, sc.und);
       var deltaEl = col.querySelector('.crozzo-cot-col-delta');
-      if (deltaEl && sc.tipo !== 'sistema') deltaEl.innerHTML = renderDeltaBlock(sys, sc);
+      if (deltaEl && sc.tipo !== 'sistema') deltaEl.innerHTML = CrozzoSanitize.sanitizeHtml(renderDeltaBlock(sys, sc));
     });
     patchWorkHead(root, mp);
   }
@@ -24387,7 +24413,7 @@
     var host = document.getElementById('mainContent');
     if (!host) return;
     var boot = function () {
-      host.innerHTML = renderPanel();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(renderPanel());
       init(host);
     };
     var cat = C();
@@ -24496,13 +24522,13 @@
     host.style.visibility = 'visible';
     host.removeAttribute('inert');
     if (mod === 'recepcion' && global.CrozzoRecepcionFacturas && global.CrozzoRecepcionFacturas.render) {
-      host.innerHTML = global.CrozzoRecepcionFacturas.render();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoRecepcionFacturas.render());
       global.CrozzoRecepcionFacturas.init(host);
     } else if (global.CrozzoComprasLocal) {
-      host.innerHTML = global.CrozzoComprasLocal.render(mod);
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoComprasLocal.render(mod));
       global.CrozzoComprasLocal.init(host, mod);
     } else {
-      host.innerHTML = '<div class="card"><p>Cargue CrozzoComprasLocal.js</p></div>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card"><p>Cargue CrozzoComprasLocal.js</p></div>');
     }
   }
 
@@ -25067,7 +25093,7 @@
       '.bona-brand__name{font-family:var(--bona-font-display);font-size:2rem;font-weight:600;letter-spacing:.2em;color:var(--text-primary);line-height:1}' +
       '.bona-brand__name--sm{font-size:.85rem;letter-spacing:.16em}' +
       '.bona-brand__a{font-weight:400;font-style:italic;color:var(--accent);letter-spacing:0}' +
-      '.bona-brand__tag{font-size:.68rem;letter-spacing:.38em;text-transform:uppercase;color:var(--accent);font-weight:500}' +
+      '.bona-brand__tag{font-size:.68rem;letter-spacing:.38em;text-transform:uppercase;color:#6b5328;font-weight:500}' +
       '.bona-brand__tag--sm{font-size:.58rem;letter-spacing:.28em}' +
       '.bona-brand__hint{font-size:11px;color:var(--text-secondary);margin-top:8px;letter-spacing:.02em;font-weight:400;opacity:.85}' +
       '.bona-brand-name-only{display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1}' +
@@ -25245,7 +25271,7 @@
       w.setAttribute('aria-hidden', 'true');
       mc.insertBefore(w, mc.firstChild);
     }
-    w.innerHTML = '<img src="' + esc(LOGO_PNG) + '" alt="" decoding="async" loading="lazy">';
+    w.innerHTML = CrozzoSanitize.sanitizeHtml('<img src="' + esc(LOGO_PNG) + '" alt="" decoding="async" loading="lazy">');
   }
 
   function enhanceLoginChrome() {
@@ -25291,7 +25317,7 @@
         el.classList.add('bona-brand-txt--styled');
         return;
       }
-      el.innerHTML = nameHtml;
+      el.innerHTML = CrozzoSanitize.sanitizeHtml(nameHtml);
       el.classList.add('bona-brand-txt--styled');
     });
   }
@@ -25322,10 +25348,10 @@
     btn.title = 'BONA origen';
     btn.setAttribute('aria-label', 'BONA origen');
     btn.innerHTML =
-      '<span class="bona-header-gem__glow" aria-hidden="true"></span>' +
+      CrozzoSanitize.sanitizeHtml('<span class="bona-header-gem__glow" aria-hidden="true"></span>' +
       '<span class="bona-header-gem__plate"><img src="' +
       esc(LOGO) +
-      '" alt="" width="20" height="20" decoding="async"></span>';
+      '" alt="" width="20" height="20" decoding="async"></span>');
     var anchor = document.getElementById('crozzoA11yTrigger');
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor);
     else toolbar.insertBefore(btn, toolbar.firstChild);
@@ -25342,14 +25368,14 @@
       sb.appendChild(live);
     }
     live.innerHTML =
-      '<div class="bona-sidebar-live__frame">' +
+      CrozzoSanitize.sanitizeHtml('<div class="bona-sidebar-live__frame">' +
       '<span class="bona-sidebar-live__line" aria-hidden="true"></span>' +
       '<div class="bona-sidebar-live__content">' +
       logoFrame('bona-logo-frame--live') +
       '<div class="bona-sidebar-live__copy">' +
       '<span class="bona-sidebar-live__brand"><span class="bona-brand__name bona-brand__name--sm">BON<span class="bona-brand__a">Λ</span></span></span>' +
       '<span class="bona-sidebar-live__tag bona-brand__tag bona-brand__tag--sm">origen</span>' +
-      '</div></div></div>';
+      '</div></div></div>');
   }
 
   function enhancePlatformSlots() {
@@ -25967,7 +25993,7 @@
     var host = document.getElementById('ccp-home-dynamic');
     if (!host) return;
     var stats = prepStats(loadCortesPrep());
-    host.innerHTML = homeDashboardHtml(stats);
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(homeDashboardHtml(stats));
     refreshKpisFromStats(stats);
     var root = document.getElementById('crozzo-centro-procesos');
     if (root) bindNavClicks(root);
@@ -25990,7 +26016,7 @@
     document.querySelectorAll('.ccp-nav').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-ccp-view') === view);
     });
-    if (crumb) crumb.innerHTML = crumbHtml(view);
+    if (crumb) crumb.innerHTML = CrozzoSanitize.sanitizeHtml(crumbHtml(view));
 
     if (view === 'home') {
       home.style.display = 'block';
@@ -26076,7 +26102,7 @@
     if (fr) fr.style.display = 'none';
     var hint = workflowHint(opts);
     if (Ses.resetForWorkflow) Ses.resetForWorkflow(hint);
-    loc.innerHTML = Ses.render({ workflow: hint });
+    loc.innerHTML = CrozzoSanitize.sanitizeHtml(Ses.render({ workflow: hint }));
     Ses.init(loc, { workflow: hint });
   }
 
@@ -26090,7 +26116,7 @@
     eng.classList.add('is-open');
     loc.style.display = 'block';
     if (fr) fr.style.display = 'none';
-    loc.innerHTML = Rec.render({ slug: opts.slug || null });
+    loc.innerHTML = CrozzoSanitize.sanitizeHtml(Rec.render({ slug: opts.slug || null }));
     Rec.init(loc, opts);
   }
 
@@ -26103,7 +26129,7 @@
     eng.classList.add('is-open');
     loc.style.display = 'block';
     if (fr) fr.style.display = 'none';
-    loc.innerHTML = Ses.renderHistorial();
+    loc.innerHTML = CrozzoSanitize.sanitizeHtml(Ses.renderHistorial());
     if (Ses.initHistorial) Ses.initHistorial(loc);
   }
 
@@ -26128,17 +26154,17 @@
       return;
     }
     if (mod === 'recepcion' && global.CrozzoRecepcionFacturas && global.CrozzoRecepcionFacturas.render) {
-      loc.innerHTML = global.CrozzoRecepcionFacturas.render();
+      loc.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoRecepcionFacturas.render());
       global.CrozzoRecepcionFacturas.init(loc);
       return;
     }
     if (mod === 'dashboard' && global.CrozzoComprasLocal) {
-      loc.innerHTML = global.CrozzoComprasLocal.render('dashboard');
+      loc.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoComprasLocal.render('dashboard'));
       global.CrozzoComprasLocal.init(loc, 'dashboard');
       return;
     }
     if (global.CrozzoComprasLocal) {
-      loc.innerHTML = global.CrozzoComprasLocal.render(mod === 'recepcion' ? 'recepcion' : 'procesado');
+      loc.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoComprasLocal.render(mod === 'recepcion' ? 'recepcion' : 'procesado'));
       global.CrozzoComprasLocal.init(loc, mod === 'recepcion' ? 'recepcion' : 'procesado');
     }
   }

@@ -309,8 +309,8 @@
         hud.id = 'crozzoNativeScanHud';
         hud.className = 'crozzo-native-scan-hud';
         hud.innerHTML =
-          '<p class="crozzo-native-scan-hud__msg">Enfoque el QR grande de la caja</p>' +
-          '<button type="button" class="btn btn-outline crozzo-native-scan-hud__cancel" id="crozzoNativeScanCancel">Cancelar</button>';
+          CrozzoSanitize.sanitizeHtml('<p class="crozzo-native-scan-hud__msg">Enfoque el QR grande de la caja</p>' +
+          '<button type="button" class="btn btn-outline crozzo-native-scan-hud__cancel" id="crozzoNativeScanCancel">Cancelar</button>');
         body.appendChild(hud);
         var cancelBtn = hud.querySelector('#crozzoNativeScanCancel');
         if (cancelBtn && !cancelBtn._crozzoBound) {

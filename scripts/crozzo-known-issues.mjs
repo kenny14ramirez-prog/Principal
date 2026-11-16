@@ -182,7 +182,7 @@ function cmdNextId() {
 }
 
 function renderMarkdown(db) {
-  const now = new Date().toISOString();
+const now = db.updatedAt || '?';
   let md = '<!-- AUTO-GENERATED from known-issues.json — editar JSON, luego npm run issues:refresh -->\n\n';
   md += '# Errores conocidos y soluciones\n\n';
   md += `> **${db.issues.length} entradas** · actualizado ${now} · fuente canónica: [\`known-issues.json\`](known-issues.json)\n\n`;
@@ -235,8 +235,6 @@ function cmdRefresh() {
     errors.forEach((e) => console.error('  -', e));
     process.exit(1);
   }
-  db.updatedAt = new Date().toISOString();
-  writeFileSync(JSON_PATH, JSON.stringify(db, null, 2) + '\n', 'utf8');
   writeFileSync(MD_PATH, renderMarkdown(db), 'utf8');
   console.log('[issues:refresh] OK →', MD_PATH);
   console.log('  Entradas:', db.issues.length);

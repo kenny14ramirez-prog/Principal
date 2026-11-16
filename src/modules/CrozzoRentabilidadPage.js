@@ -201,7 +201,7 @@
   function refreshBody() {
     var host = document.getElementById('crozzoRentPageBody');
     if (!host) return;
-    host.innerHTML = renderBody();
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderBody());
     bindToolbar(host);
   }
 

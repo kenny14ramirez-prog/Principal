@@ -3,10 +3,15 @@
 <html lang="es" data-theme="bona-origen" class="crozzo-theme-light">
 <head>
 <meta charset="UTF-8">
+<meta name="description" content="BONA origen — Sistema POS para restaurantes y comercios: mesas, comandas, facturación, caja, inventario y reportes.">
+<!-- CSP report-only (Fase -2 hardening). Enforce se activa con feature flag useCspEnforce. -->
+<meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*; font-src 'self' https://fonts.gstatic.com data:; report-uri /csp-report">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+<!-- DOMPurify (sanitización XSS) - Fase -2 hardening -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
 <meta name="theme-color" content="#FAF9F7">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,6 +37,10 @@ document.documentElement.style.colorScheme=isLight?'light':(t?'dark':'light');
 <script src="infra/CrozzoEmulationHarness.js"></script>
 <script src="modules/CrozzoFacturasArchivo.js"></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
+<script src="core/CrozzoSuperAdminCentral.js"></script>
+<script src="core/CrozzoSuperAdminMenu.js"></script>
+<script src="core/CrozzoSoporteCentral.js"></script>
+<script src="core/CrozzoMfaKenny.js"></script>
 <script src="core/CrozzoLoginBoot.js"></script>
 <script src="core/CrozzoDeviceForm.js"></script>
 <script src="ui/CrozzoFormulaInput.js"></script>
@@ -118,6 +127,13 @@ window.crozzoAppDisplayName = function () {
 <script src="vendor/CrozzoQRCode.js" defer></script>
 <script src="vendor/CrozzoJsQR.js"></script>
 <script src="core/CrozzoPairingSeal.js"></script>
+<script src="core/CrozzoFeatureFlags.js"></script>
+<script src="core/CrozzoRlsCompat.js"></script>
+<script src="core/CrozzoRlsJwt.js"></script>
+<script src="core/CrozzoSupabaseAuth.js"></script>
+<script src="core/CrozzoRlsIntegration.js"></script>
+<script src="core/CrozzoRlsPayloadEnricher.js"></script>
+<script src="core/CrozzoRlsPairing.js"></script>
 <script src="modules/CrozzoPairingQrReader.js"></script>
 <script src="vendor/CrozzoSupabaseUmd.js" defer></script>
 <script>
@@ -1321,6 +1337,9 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="modules/CrozzoPairingQuickQr.js" defer></script>
 <script src="modules/CrozzoDailyPairing.js" defer></script>
 <script src="core/CrozzoPosExtensions.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+<script src="core/CrozzoSanitize.js"></script>
+<script src="modules/CrozzoOcrFactura.js" defer></script>
 <script src="core/CrozzoPosBoot.js" defer></script>
 <script src="core/CrozzoConnectionManager.js" defer></script>
 <script src="infra/CrozzoAutomationApi.js" defer></script>

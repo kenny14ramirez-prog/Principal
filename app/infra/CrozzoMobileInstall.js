@@ -196,7 +196,7 @@
         correctLevel: global.QRCode.CorrectLevel.M,
       });
     } else {
-      host.innerHTML = qrImgHtml(url, sz);
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(qrImgHtml(url, sz));
     }
   }
 
@@ -267,7 +267,7 @@
         host.classList.add('crozzo-install-qr-modal__qr--ready');
       } else {
         host.classList.remove('crozzo-install-qr-modal__qr--ready');
-        host.innerHTML = '<span class="form-hint">Sin enlace APK</span>';
+        host.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-hint">Sin enlace APK</span>');
       }
     }
 

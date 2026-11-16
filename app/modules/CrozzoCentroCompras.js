@@ -95,13 +95,13 @@
     host.style.visibility = 'visible';
     host.removeAttribute('inert');
     if (mod === 'recepcion' && global.CrozzoRecepcionFacturas && global.CrozzoRecepcionFacturas.render) {
-      host.innerHTML = global.CrozzoRecepcionFacturas.render();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoRecepcionFacturas.render());
       global.CrozzoRecepcionFacturas.init(host);
     } else if (global.CrozzoComprasLocal) {
-      host.innerHTML = global.CrozzoComprasLocal.render(mod);
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoComprasLocal.render(mod));
       global.CrozzoComprasLocal.init(host, mod);
     } else {
-      host.innerHTML = '<div class="card"><p>Cargue CrozzoComprasLocal.js</p></div>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card"><p>Cargue CrozzoComprasLocal.js</p></div>');
     }
   }
 

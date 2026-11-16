@@ -33,7 +33,7 @@ function log(phase, msg, status='INFO') {
 }
 
 function findButton(page, texts) {
-  return page.locator('button, .btn, [role="button"]').filter({ hasText: new RegExp(texts.join('|'), 'i') }).first();
+  return page.locator('button:visible, .btn:visible, [role="button"]:visible').filter({ hasText: new RegExp(texts.join('|'), 'i') });
 }
 
 async function main() {

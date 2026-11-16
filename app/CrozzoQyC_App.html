@@ -3227,7 +3227,7 @@ function qcaRequireSesion(){
 function setHtmlSafe(el, html){
   if(!el) return;
   const raw=String(html||'');
-  if(window.DOMPurify) el.innerHTML=window.DOMPurify.sanitize(raw,{USE_PROFILES:{html:true}});
+  if(window.DOMPurify) el.innerHTML=CrozzoSanitize.sanitizeHtml(window.DOMPurify.sanitize(raw,{USE_PROFILES:{html:true}}));
   else el.textContent=raw.replace(/<[^>]+>/g,' ');
 }
 function qcaApiGuard(){
@@ -3563,7 +3563,7 @@ async function initDatos(){
   // Select empleadas en procesado
   const selEmp=document.getElementById('p-empleada');
   if(selEmp){
-    selEmp.innerHTML='<option value="">Seleccionar...</option>';
+    selEmp.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Seleccionar...</option>');
     (Array.isArray(usrs)?usrs:[]).forEach(u=>{const o=document.createElement('option');o.value=u.nombre;o.textContent=u.nombre;selEmp.appendChild(o);});
   }
 
@@ -3755,7 +3755,7 @@ function proCmdRenderCoach(kind){
   const meta=PRO_WF_META[kind];
   if(!meta){ box.classList.remove('show'); box.innerHTML=''; return; }
   const lis=meta.steps.map((s,i)=>`<li><span class="num">${i+1}</span><div><strong style="color:var(--text)">${s.lbl}</strong><br>${s.tip}</div></li>`).join('');
-  box.innerHTML=`<div class="pro-cmd-coach__head"><h3 class="pro-cmd-coach__title">Guía: ${meta.title}</h3><button type="button" class="pro-cmd-coach__close" onclick="proCmdCloseCoach()" aria-label="Cerrar">×</button></div><div class="pro-cmd-coach__body">Sigue estos pasos en orden. Puedes volver al inicio cuando quieras.<ul class="pro-cmd-coach__steps">${lis}</ul></div>`;
+  box.innerHTML=CrozzoSanitize.sanitizeHtml(`<div class="pro-cmd-coach__head"><h3 class="pro-cmd-coach__title">Guía: ${meta.title}</h3><button type="button" class="pro-cmd-coach__close" onclick="proCmdCloseCoach()" aria-label="Cerrar">×</button></div><div class="pro-cmd-coach__body">Sigue estos pasos en orden. Puedes volver al inicio cuando quieras.<ul class="pro-cmd-coach__steps">${lis}</ul></div>`);
   box.classList.add('show');
 }
 function proCmdCloseCoach(){
@@ -3779,10 +3779,10 @@ function proCmdRenderGuideTrack(activeIdx){
   const meta=PRO_WF_META[kind];
   if(!bar||!track||!meta){ if(bar) bar.style.display='none'; return; }
   bar.style.display='block';
-  track.innerHTML=meta.steps.map((s,i)=>{
-    const cls=i<activeIdx?'done':i===activeIdx?'now':'';
+  track.innerHTML=CrozzoSanitize.sanitizeHtml(meta.steps.map((s,i)=>{
+    const cls=i<activeIdx?'done':i===activeIdx?'now':''));
     return `<div class="pro-guide__step ${cls}"><div class="pro-guide__dot">${i+1}</div><span class="pro-guide__lbl">${s.lbl}</span></div>`;
-  }).join('');
+  }.join('');
 }
 function proGuideUpdate(){
   const kind=proCmdGetWorkflow();
@@ -3885,11 +3885,11 @@ async function proLiveFeedRefresh(force){
   const bar=document.getElementById('pro-live-bar');
   if(!list) return;
   if(!SB||!H?.apikey){
-    list.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">Conecta la nube para ver actividad en vivo.</div>';
+    list.innerHTML=CrozzoSanitize.sanitizeHtml('<div style="font-size:12px);color:var(--muted);padding:8px 0">Conecta la nube para ver actividad en vivo.</div>';
     if(bar) bar.style.width='0%';
     return;
   }
-  if(force) list.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">Actualizando…</div>';
+  if(force) list.innerHTML=CrozzoSanitize.sanitizeHtml('<div style="font-size:12px);color:var(--muted);padding:8px 0">Actualizando…</div>';
   const [cortes,lotes]=await Promise.all([
     api('cortes_recepcion','?select=id,fecha,peso_kg,registrado_por,responsables,created_at,materias_primas(nombre),recepciones(proveedores(nombre))&order=created_at.desc&limit=14').catch(()=>[]),
     api('lotes_procesado','?select=id,fecha,peso_entrada_kg,procesado_por,created_at,materia_prima_id,merma_coccion_real_pct,merma_porcionado_real_pct,diferencia_gr,notas,materias_primas(nombre,merma_coccion_pct,merma_porcionado_pct,merma_objetivo_pct,merma_alerta_tol_pct)&order=created_at.desc&limit=14').catch(()=>[])
@@ -3919,10 +3919,10 @@ async function proLiveFeedRefresh(force){
   const hoyN=items.filter(i=>(i.ts||'').slice(0,10)===hoy).length;
   if(bar) bar.style.width=Math.min(100,Math.round((hoyN/12)*100))+'%';
   if(!items.length){
-    list.innerHTML='<div style="font-size:12px;color:var(--muted);padding:8px 0">Aún no hay movimientos recientes. Al guardar cortes o procesos aparecerán aquí.</div>';
+    list.innerHTML=CrozzoSanitize.sanitizeHtml('<div style="font-size:12px);color:var(--muted);padding:8px 0">Aún no hay movimientos recientes. Al guardar cortes o procesos aparecerán aquí.</div>';
     return;
   }
-  list.innerHTML=items.slice(0,18).map(it=>`<div class="pro-live__item"><span class="pro-live__dot ${it.tipo}"></span><div class="pro-live__body"><div class="pro-live__line">${it.line}</div><div class="pro-live__meta">${it.meta}</div></div></div>`).join('');
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(items.slice(0,18).map(it=>`<div class="pro-live__item"><span class="pro-live__dot ${it.tipo}"></span><div class="pro-live__body"><div class="pro-live__line">${it.line}</div><div class="pro-live__meta">${it.meta}</div></div></div>`).join(''));
 }
 function proLiveFeedStart(){
   proLiveFeedRefresh(true);
@@ -3958,9 +3958,9 @@ function onRecProvChange(){
   const val = SS['r-proveedor']?.getValue() || document.getElementById('r-proveedor')?.value || '';
   const p=provMap[val];
   const wrap=document.getElementById('r-prov-display');
-  if(!p){if(wrap)wrap.innerHTML='<div class="prov-display"><div class="pplaceholder">Selecciona un proveedor</div></div>';recValidar();return;}
+  if(!p){if(wrap)wrap.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="prov-display"><div class="pplaceholder">Selecciona un proveedor</div></div>');recValidar();return;}
   const ini=p.nombre.split(' ').filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join('').toUpperCase()||p.nombre.slice(0,2).toUpperCase();
-  if(wrap)wrap.innerHTML=`<div class="prov-display" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+  if(wrap)wrap.innerHTML=CrozzoSanitize.sanitizeHtml(`<div class="prov-display" style="justify-content:space-between);flex-wrap:wrap;gap:8px">
     <div style="display:flex;align-items:center;gap:10px">
       <div class="pav ${p.tipo_carne}">${ini}</div>
       <div><div class="pname">${p.nombre}${p.factura_por_unidad?'<span class="ptag-und">por unidad</span>':''}</div>
@@ -3975,11 +3975,11 @@ function recAddItem(){
   recItemCount++;const id=recItemCount;
   const div=document.createElement('div');
   div.className='item-card';div.dataset.id=id;
-  div.innerHTML=`<div class="item-num">CORTE #${id}</div>
+  div.innerHTML=CrozzoSanitize.sanitizeHtml(`<div class="item-num">CORTE #${id}</div>
     <div style="margin-bottom:8px">
       <label>MATERIA PRIMA</label>
       <div id="ss-im-${id}"></div>
-      <div id="irec-${id}" style="display:none;margin-top:6px;font-size:11px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted)"></div>
+      <div id="irec-${id}" style="display:none);margin-top:6px;font-size:11px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted)"></div>
     </div>
     <div class="item-grid">
       <div><label>PESO B&#193;SCULA</label>
@@ -4031,8 +4031,8 @@ function recMatPrimaCrearRapido(itemId){
   document.getElementById('modal-ok').textContent='Crear y seleccionar';
   document.getElementById('modal-ok').className='btn btn-primary';
   document.getElementById('modal-cancel').textContent='Cancelar';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:12px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:12px">
       <div>
         <label style="display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px">NOMBRE <span style="color:var(--red)">*</span></label>
         <input id="rmp-nombre" placeholder="Ej: Costilla de res, Pechuga..." autofocus
@@ -4196,7 +4196,7 @@ function recLimpiar(){
   SS['r-proveedor']?.setValue('');
   document.getElementById('r-fecha').value=new Date().toISOString().split('T')[0];
   const pd=document.getElementById('r-prov-display');
-  if(pd) pd.innerHTML='<div class="prov-display"><div class="pplaceholder">Selecciona un proveedor</div></div>';
+  if(pd) pd.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="prov-display"><div class="pplaceholder">Selecciona un proveedor</div></div>');
   const ri=document.getElementById('r-items');
   if(ri){ri.innerHTML='';recItemCount=0;}
   recCalcTotales();
@@ -4249,7 +4249,7 @@ async function loadHistRecepcion(forzar=false,append=false){
     _rhOffset=0;
     _rhHasMore=false;
     recHistData=[];
-    document.getElementById('rh-body').innerHTML='<tr><td colspan="8" class="loading">Cargando...</td></tr>';
+    document.getElementById('rh-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="8" class="loading">Cargando...</td></tr>');
   }
 
   const offset=append?_rhOffset:0;
@@ -4281,10 +4281,10 @@ async function loadHistRecepcion(forzar=false,append=false){
 
 function renderHistRec(data){
   const tbody=document.getElementById('rh-body');
-  if(!data.length){tbody.innerHTML='<tr><td colspan="9" class="empty">Sin recepciones registradas</td></tr>';return;}
+  if(!data.length){tbody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="9" class="empty">Sin recepciones registradas</td></tr>');return;}
   const esAdmin=sesionUsuario?.rol==='admin'||sesionUsuario?.permisos?.usuarios;
-  tbody.innerHTML=data.map(r=>{
-    const prov=r.proveedores||{},mat=r.materias_primas||{};
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(data.map(r=>{
+    const prov=r.proveedores||{},mat=r.materias_primas||{});
     const esEfectivo=!!r._es_efectivo;
     const esTarjeta=!!r._es_tarjeta;
     const pagadaEnCaja=esEfectivo||esTarjeta;
@@ -4378,7 +4378,7 @@ function proAgregarRespNombre(nombre){
   const tag=document.createElement('div');
   tag.dataset.nombre=nombre;
   tag.className='tag-pill';
-  tag.innerHTML=`<span>${nombre}</span><button onclick="proQuitarResp('${nombre}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 2px">×</button>`;
+  tag.innerHTML=CrozzoSanitize.sanitizeHtml(`<span>${nombre}</span><button onclick="proQuitarResp('${nombre}')" style="background:none);border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 2px">×</button>`;
   tags.appendChild(tag);
   proSesValidar();
 }
@@ -4414,8 +4414,8 @@ function proAddBloque(){
   const div=document.createElement('div');
   div.className='item-card';div.dataset.bid=bid;
   div.style.marginBottom='16px';
-  div.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  div.innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:flex);align-items:center;justify-content:space-between;margin-bottom:16px">
       <div class="item-num" style="margin:0">PROCESO #${bid}</div>
       <button class="btn-remove" onclick="proRemBloque(${bid})">×</button>
     </div>
@@ -4610,8 +4610,8 @@ function proDesgloseEditorRender(bid, rows){
   const ed=document.getElementById('pb-dtpl-editor-'+bid);
   if(!ed) return;
   const arr=(Array.isArray(rows)&&rows.length)?rows:[{nombre:'',u:'g'}];
-  ed.innerHTML=arr.map((row,i)=>`
-    <div class="pb-ded-row" style="display:grid;grid-template-columns:1fr 100px 36px;gap:8px;align-items:center;margin-bottom:8px">
+  ed.innerHTML=CrozzoSanitize.sanitizeHtml(arr.map((row,i)=>`
+    <div class="pb-ded-row" style="display:grid);grid-template-columns:1fr 100px 36px;gap:8px;align-items:center;margin-bottom:8px">
       <input type="text" class="pb-ded-nom" placeholder="Ej: Maracuyá, agua, azúcar…" value="${escAttr(row.nombre||'')}"
         style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:14px;padding:8px 10px;border-radius:8px;outline:none;box-sizing:border-box"/>
       <select class="pb-ded-u" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-size:12px;padding:8px;border-radius:8px;outline:none">
@@ -4657,7 +4657,7 @@ function proDesgloseEditarLista(bid){
   const tpl=proDesgloseTplGet(matId);
   const base=(tpl&&tpl.length)?tpl:[{nombre:'',u:'g'}];
   const mnom=escHtml((matMap[matId]?.nombre)||'');
-  body.innerHTML=`<p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.45">Editando lista para <strong>${mnom}</strong>. Los cambios se guardan en este navegador.</p>
+  body.innerHTML=CrozzoSanitize.sanitizeHtml(`<p style="font-size:12px);color:var(--muted);margin:0 0 10px;line-height:1.45">Editando lista para <strong>${mnom}</strong>. Los cambios se guardan en este navegador.</p>
     <div id="pb-dtpl-editor-${bid}"></div>
     <button type="button" class="btn btn-primary" style="margin-top:10px;width:100%" onclick="proDesgloseGuardarPlantilla(${bid})">Guardar lista</button>
     <button type="button" class="btn btn-ghost" style="margin-top:8px;width:100%" onclick="proRenderDesgloseBody(${bid})">Volver sin cambios</button>`;
@@ -4668,13 +4668,13 @@ function proRenderDesgloseBody(bid){
   const root=document.getElementById('pb-desglose-body-'+bid);
   if(!root) return;
   if(!matId){
-    root.innerHTML='<div style="font-size:12px;color:var(--muted)">Selecciona <strong>materia prima</strong> arriba para definir o usar el desglose.</div>';
+    root.innerHTML=CrozzoSanitize.sanitizeHtml('<div style="font-size:12px);color:var(--muted)">Selecciona <strong>materia prima</strong> arriba para definir o usar el desglose.</div>';
     return;
   }
   const mnom=escHtml((matMap[matId]?.nombre)||'Materia prima');
   let tpl=proDesgloseTplGet(matId);
   if(!tpl||!tpl.length){
-    root.innerHTML=`<p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.45">Define <strong>una sola vez</strong> los sub-ingredientes (frutas, agua, azúcar…). Luego solo escribes cantidades; la suma se copia a <strong>peso que llegó</strong> (ml se tratan como g en el total, útil para agua).</p>
+    root.innerHTML=CrozzoSanitize.sanitizeHtml(`<p style="font-size:12px);color:var(--muted);margin:0 0 10px;line-height:1.45">Define <strong>una sola vez</strong> los sub-ingredientes (frutas, agua, azúcar…). Luego solo escribes cantidades; la suma se copia a <strong>peso que llegó</strong> (ml se tratan como g en el total, útil para agua).</p>
       <div id="pb-dtpl-editor-${bid}"></div>
       <button type="button" class="btn btn-primary" style="margin-top:10px;width:100%" onclick="proDesgloseGuardarPlantilla(${bid})">Guardar lista para «${mnom}»</button>`;
     proDesgloseEditorRender(bid, [{nombre:'',u:'g'}]);
@@ -4688,7 +4688,7 @@ function proRenderDesgloseBody(bid){
         style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:14px;padding:8px 10px;border-radius:8px;outline:none;box-sizing:border-box"
         oninput="proDesgloseSyncPeso(${bid})"/>
     </div>`).join('');
-  root.innerHTML=`<div style="font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:8px">Suma aprox.: <strong id="pb-dsum-${bid}" style="color:var(--accent);font-size:15px">0</strong> g → se aplica a «Peso que llegó»</div>
+  root.innerHTML=CrozzoSanitize.sanitizeHtml(`<div style="font-size:11px);font-family:var(--mono);color:var(--muted);margin-bottom:8px">Suma aprox.: <strong id="pb-dsum-${bid}" style="color:var(--accent);font-size:15px">0</strong> g → se aplica a «Peso que llegó»</div>
     ${rows}
     <button type="button" class="btn btn-ghost" style="margin-top:10px;width:100%;font-size:12px" onclick="proDesgloseEditarLista(${bid})">Editar lista de ingredientes</button>`;
   proDesgloseSyncPeso(bid);
@@ -4731,7 +4731,7 @@ function proOnBloqueMateria(bid){
   if(btnNc) btnNc.style.display=m?'flex':'none';
 
   if(!m){
-    document.getElementById(`pb-porciones-${bid}`).innerHTML='<div class="empty" style="padding:14px;font-size:13px">Selecciona una materia prima</div>';
+    document.getElementById(`pb-porciones-${bid}`).innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty" style="padding:14px);font-size:13px">Selecciona una materia prima</div>';
     const d0=document.getElementById(`pb-desglose-${bid}`);
     if(d0) d0.style.display='none';
     proSesValidar(); return;
@@ -4747,11 +4747,11 @@ function proRenderPorcionesBid(bid, matId){
   const prods=prodMap[matId]||[];
   const cont=document.getElementById(`pb-porciones-${bid}`);
   if(!prods.length){
-    cont.innerHTML='<div class="empty" style="padding:14px;font-size:13px">Sin porciones — usa el botón "Crear nuevo corte" abajo</div>';
+    cont.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty" style="padding:14px);font-size:13px">Sin porciones — usa el botón "Crear nuevo corte" abajo</div>';
     return;
   }
-  cont.innerHTML=prods.map(p=>`
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:center;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:7px">
+  cont.innerHTML=CrozzoSanitize.sanitizeHtml(prods.map(p=>`
+    <div style="display:grid);grid-template-columns:2fr 1fr 1fr;gap:10px;align-items:center;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:7px">
       <div>
         <div style="font-size:13px;font-weight:500">${p.nombre}</div>
         <div style="font-size:11px;color:var(--muted);font-family:var(--mono)">${p.gramaje_porcion} g/unidad</div>
@@ -5092,19 +5092,19 @@ function proLimpiarSesion(){
 }
 
 async function loadHistProcesado(){
-  document.getElementById('ph-body').innerHTML='<tr><td colspan="8" class="loading">Cargando...</td></tr>';
+  document.getElementById('ph-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="8" class="loading">Cargando...</td></tr>');
   const data=await api('lotes_procesado','?select=id,materia_prima_id,fecha,peso_entrada_kg,diferencia_gr,merma_coccion_real_pct,merma_porcionado_real_pct,peso_total_porciones_gr,procesado_por,notas,materias_primas(nombre)&order=fecha.desc,created_at.desc&limit=200');
   proHistData=Array.isArray(data)?data:[];
   const tbody=document.getElementById('ph-body');
-  if(!proHistData.length){tbody.innerHTML='<tr><td colspan="8" class="empty">Sin procesos registrados</td></tr>';return;}
+  if(!proHistData.length){tbody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="8" class="empty">Sin procesos registrados</td></tr>');return;}
   const hoy=new Date().toISOString().split('T')[0],mes=hoy.slice(0,7);
   const mesD=proHistData.filter(r=>r.fecha?.startsWith(mes));
   document.getElementById('ph-hoy').textContent=proHistData.filter(r=>r.fecha===hoy).length;
   document.getElementById('ph-kg').textContent=mesD.reduce((s,r)=>s+(parseFloat(r.peso_entrada_kg)||0),0).toFixed(1);
   document.getElementById('ph-alert').textContent=proHistData.filter(r=>!r.validado||Math.abs((r.diferencia_gr||0)/((r.peso_entrada_kg||1)*1000)*100)>5).length;
   const esAdmin2=sesionUsuario?.rol==='admin'||sesionUsuario?.permisos?.usuarios;
-  tbody.innerHTML=proHistData.map(r=>{
-    const pe=parseFloat(r.peso_entrada_kg)||0;
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(proHistData.map(r=>{
+    const pe=parseFloat(r.peso_entrada_kg)||0);
     const pp=(r.peso_total_porciones_gr||0)/1000;
     const esEspera=(r.notas||'').startsWith('EN ESPERA');
     const dif=pe>0?(((r.diferencia_gr||0)/(pe*1000))*100):0;
@@ -5192,13 +5192,13 @@ function pvRenderizar(provs){
   const list=document.getElementById('pv-list');
   if(!provs.length){
     const hayBusqueda=(document.getElementById('pv-search')?.value||'').trim();
-    list.innerHTML=hayBusqueda
+    list.innerHTML=CrozzoSanitize.sanitizeHtml(hayBusqueda
       ?'<div class="empty">Sin resultados para esa búsqueda</div>'
-      :'<div class="empty">No hay proveedores — agrega el primero abajo</div>';
+      :'<div class="empty">No hay proveedores — agrega el primero abajo</div>');
     return;
   }
-  list.innerHTML=provs.map(p=>{
-    const ini=p.nombre.split(' ').filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join('').toUpperCase()||p.nombre.slice(0,2).toUpperCase();
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(provs.map(p=>{
+    const ini=p.nombre.split(' ').filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join('').toUpperCase()||p.nombre.slice(0,2).toUpperCase());
     const sugg=(SUGG[p.tipo_carne]||[])[0];
     const tags=[];
     if(p.tipo_carne) tags.push(`<span class="ptag">${p.tipo_carne}</span>`);
@@ -5288,7 +5288,7 @@ function npSugg(){
   const tipo=document.getElementById('np-tipo').value,suggs=SUGG[tipo]||[];
   const box=document.getElementById('np-sugg');
   if(!tipo||!suggs.length){box.classList.remove('show');return;}
-  document.getElementById('np-sugg-content').innerHTML=suggs.map(s=>`<div class="sugg-item"><div class="sugg-dot"></div>${s}</div>`).join('');
+  document.getElementById('np-sugg-content').innerHTML=CrozzoSanitize.sanitizeHtml(suggs.map(s=>`<div class="sugg-item"><div class="sugg-dot"></div>${s}</div>`).join(''));
   box.classList.add('show');
 }
 function npTipoChange(){
@@ -5359,12 +5359,12 @@ function catRenderMatsList(mats){
   if(!list) return;
   const hayQ=(document.getElementById('cat-search')?.value||'').trim();
   if(!mats.length){
-    list.innerHTML=hayQ?'<div class="empty">Sin resultados para esa búsqueda</div>':'<div class="empty">Sin materias primas cargadas</div>';
+    list.innerHTML=CrozzoSanitize.sanitizeHtml(hayQ?'<div class="empty">Sin resultados para esa búsqueda</div>':'<div class="empty">Sin materias primas cargadas</div>');
     return;
   }
-  list.innerHTML=`<div class="table-wrap"><table>
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(`<div class="table-wrap"><table>
     <thead><tr><th>NOMBRE</th><th>CATEGORÍA</th><th>OBJETIVO</th><th>± ALERTA</th><th>ACCIONES</th></tr></thead>
-    <tbody>${mats.map(m=>{const chipCat=cssIdSlug(m.categoria);const esp=qcaMermaEsperada(m);const tol=qcaMermaTol(m);return `<tr>
+    <tbody>${mats.map(m=>{const chipCat=cssIdSlug(m.categoria));const esp=qcaMermaEsperada(m);const tol=qcaMermaTol(m);return `<tr>
       <td id="mat-name-${m.id}">${escHtml(m.nombre)}</td>
       <td><span class="chip chip-${chipCat}">${escHtml(m.categoria)}</span></td>
       <td class="td-mono" title="Cocción ${m.merma_coccion_pct||0}% + porcionado ${m.merma_porcionado_pct||0}%">${esp.toFixed(1)}%</td>
@@ -5405,7 +5405,7 @@ function catRenderProdsList(prodsFiltered){
   const prods=Array.isArray(prodsFiltered)?prodsFiltered:[];
   const hayQ=(document.getElementById('cat-search')?.value||'').trim();
   if(!prods.length){
-    list.innerHTML=hayQ?'<div class="empty">Sin resultados para esa búsqueda</div>':'<div class="empty">Sin productos cargados</div>';
+    list.innerHTML=CrozzoSanitize.sanitizeHtml(hayQ?'<div class="empty">Sin resultados para esa búsqueda</div>':'<div class="empty">Sin productos cargados</div>');
     return;
   }
   const filas=[...prods.filter(p=>p.activo!==false),...prods.filter(p=>p.activo===false)].map(p=>{const chipPr=cssIdSlug(p.materias_primas?.categoria);return `<tr style="opacity:${p.activo===false?'0.4':'1'}">
@@ -5421,10 +5421,10 @@ function catRenderProdsList(prodsFiltered){
         :`<button type="button" class="btn-icon del cat-prod-del-soft" data-prod-id="${p.id}">Eliminar</button>`}
     </td>
   </tr>`;}).join('');
-  list.innerHTML=`<div class="table-wrap"><table>
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(`<div class="table-wrap"><table>
     <thead><tr><th>PRODUCTO</th><th>MATERIA PRIMA</th><th>GRAMAJE</th><th>ESTADO</th><th>ACCIONES</th></tr></thead>
     <tbody>${filas}</tbody>
-  </table></div>`;
+  </table></div>`);
   list.querySelectorAll('.cat-prod-edit').forEach(btn=>{
     btn.onclick=()=>catEditProdFromId(btn.getAttribute('data-prod-id'));
   });
@@ -5482,12 +5482,12 @@ async function catLoadMats(){
   _catMatsLast=mats;
   const flt=document.getElementById('cat-filter-mat');
   const prev=flt.value;
-  flt.innerHTML='<option value="">Todas las materias primas</option>';
+  flt.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Todas las materias primas</option>');
   mats.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.nombre;flt.appendChild(o);});
   if(prev)flt.value=prev;
   const selNP=document.getElementById('np2-mat');
   const prevNP=selNP.value;
-  selNP.innerHTML='<option value="">Seleccionar...</option>';
+  selNP.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Seleccionar...</option>');
   mats.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.nombre;selNP.appendChild(o);});
   if(prevNP)selNP.value=prevNP;
   document.getElementById('badge-catalogo').textContent=String(mats.length);
@@ -5505,7 +5505,7 @@ async function catConfirmEliminarMat(id){
     :`<p style="margin:12px 0 0;font-size:12px;color:var(--muted)">Si recepciones u otros registros siguen referenciando esta materia, el borrado puede fallar.</p>`;
   document.getElementById('modal-title').textContent='Eliminar materia prima';
   document.getElementById('modal-msg').innerHTML=
-    `<p style="margin:0 0 12px;font-size:14px;line-height:1.5">¿Eliminar <strong>${escHtml(m.nombre)}</strong> de forma permanente?</p>
+    CrozzoSanitize.sanitizeHtml(`<p style="margin:0 0 12px);font-size:14px;line-height:1.5">¿Eliminar <strong>${escHtml(m.nombre)}</strong> de forma permanente?</p>
     ${bloqueHijos}`;
   document.getElementById('modal-ok').textContent=nHijos>0?`Eliminar materia y ${nHijos} producto(s)`:'Sí, eliminar';
   document.getElementById('modal-ok').className='btn btn-danger';
@@ -5550,8 +5550,8 @@ function catEditMat(m){
   let catOpts=CATS.map(c=>`<option value="${c}"${c===cat?' selected':''}>${c}</option>`).join('');
   if(cat&&CATS.indexOf(cat)<0) catOpts+=`<option value="${escAttr(cat)}" selected>${escHtml(cat)}</option>`;
   document.getElementById('modal-title').textContent='Editar materia prima';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:12px;margin-bottom:4px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:12px;margin-bottom:4px">
       <div><label style="display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px">NOMBRE</label>
         <input type="text" id="em-nombre" class="modal-input"/></div>
       <div style="display:grid;grid-template-columns:1fr;gap:10px">
@@ -5608,7 +5608,7 @@ async function nmGuardar(){
       await catLoadMats();
       // Refrescar select de procesado
       const selM=document.getElementById('p-materia');
-      selM.innerHTML='<option value="">Seleccionar...</option>';
+      selM.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Seleccionar...</option>');
       Object.values(matMap).sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.nombre;selM.appendChild(o);});
     }else showToast('Error: '+(res?.message||'intenta de nuevo'),'err');
   }catch(e){showToast('Error de conexión','err');}
@@ -5632,8 +5632,8 @@ function catEditProdFromId(id){
 function catEditProd(p){
   const id=p.id,nombre=p.nombre||'',gr=p.gramaje_porcion,matId=p.materia_prima_id;
   document.getElementById('modal-title').textContent='Editar producto';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:12px;margin-bottom:4px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:12px;margin-bottom:4px">
       <div><label style="display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px">NOMBRE</label>
         <input type="text" id="ep-nombre" class="modal-input"/></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -5675,7 +5675,7 @@ function catConfirmEliminarProdHard(id){
   if(!p||p.activo!==false){ showToast('Solo se puede borrar del sistema un producto inactivo.','err'); return; }
   document.getElementById('modal-title').textContent='Eliminar producto';
   document.getElementById('modal-msg').innerHTML=
-    `<p style="margin:0 0 12px;font-size:14px;line-height:1.5">¿Borrar permanentemente <strong>${escHtml(p.nombre)}</strong> (${p.gramaje_porcion} g)?</p>
+    CrozzoSanitize.sanitizeHtml(`<p style="margin:0 0 12px);font-size:14px;line-height:1.5">¿Borrar permanentemente <strong>${escHtml(p.nombre)}</strong> (${p.gramaje_porcion} g)?</p>
     <p style="margin:0;font-size:12px;color:var(--muted)">Se borrarán también las filas en <strong>recetas</strong> que usen este producto. Si hay movimientos u otras tablas vinculadas, puede fallar.</p>`;
   document.getElementById('modal-ok').textContent='Sí, borrar';
   document.getElementById('modal-ok').className='btn btn-danger';
@@ -5779,15 +5779,15 @@ function cntFilaProd(p){
 
 function cntRenderLista(prods){
   const lista=document.getElementById('cnt-lista');
-  if(!prods.length){lista.innerHTML='<div class="empty">Sin productos en esta categoría</div>';return;}
+  if(!prods.length){lista.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">Sin productos en esta categoría</div>');return;}
   const grupos={};
   prods.forEach(p=>{
     const k=p.materia_prima_id;
     if(!grupos[k]) grupos[k]={nombre:p.materias_primas?.nombre||'—',cat:p.materias_primas?.categoria||'otro',prods:[]};
     grupos[k].prods.push(p);
   });
-  lista.innerHTML=Object.values(grupos).map(g=>{
-    const filas=g.prods.map(cntFilaProd).join('');
+  lista.innerHTML=CrozzoSanitize.sanitizeHtml(Object.values(grupos).map(g=>{
+    const filas=g.prods.map(cntFilaProd).join(''));
     return `<div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span class="chip chip-${g.cat}">${g.cat}</span>
@@ -5877,10 +5877,10 @@ function cntLimpiar(){
 }
 
 async function cntLoadHist(){
-  document.getElementById('ch-body').innerHTML='<tr><td colspan="6" class="loading">Cargando...</td></tr>';
+  document.getElementById('ch-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="6" class="loading">Cargando...</td></tr>');
   const data=await api('conteos_inventario','?select=id,producto_id,fecha_conteo,stock_teorico,stock_fisico,diferencia,contado_por,productos(nombre,gramaje_porcion)&order=fecha_conteo.desc,created_at.desc&limit=400');
   if(!Array.isArray(data)||!data.length){
-    document.getElementById('ch-body').innerHTML='<tr><td colspan="6" class="empty">Sin conteos registrados aún</td></tr>';
+    document.getElementById('ch-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="6" class="empty">Sin conteos registrados aún</td></tr>');
     ['ch-total','ch-ultimo','ch-difs'].forEach(id=>document.getElementById(id).textContent='0');
     return;
   }
@@ -5888,8 +5888,8 @@ async function cntLoadHist(){
   document.getElementById('ch-total').textContent=new Set(data.map(r=>r.fecha_conteo+'|'+r.contado_por)).size;
   document.getElementById('ch-ultimo').textContent=data[0]?.fecha_conteo||'—';
   document.getElementById('ch-difs').textContent=data.filter(r=>r.fecha_conteo?.startsWith(mes)&&(r.diferencia||0)!==0).length;
-  document.getElementById('ch-body').innerHTML=data.map(r=>{
-    const dif=r.diferencia||0;
+  document.getElementById('ch-body').innerHTML=CrozzoSanitize.sanitizeHtml(data.map(r=>{
+    const dif=r.diferencia||0);
     const col=dif===0?'var(--green)':Math.abs(dif)<=2?'var(--yellow)':'var(--red)';
     return `<tr>
       <td class="td-mono">${r.fecha_conteo}</td>
@@ -5945,22 +5945,22 @@ async function loginCargarOpcionesUsuarios(){
   const sel=document.getElementById('login-user-select');
   if(!sel) return;
   if(!SB||!SK){
-    sel.innerHTML='<option value="">Configura QCA_SUPABASE en el HTML</option>';
+    sel.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Configura QCA_SUPABASE en el HTML</option>');
     return;
   }
-  sel.innerHTML='<option value="">Cargando…</option>';
+  sel.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Cargando…</option>');
   const res=await apiUsuariosForLogin('?activo=eq.true&select=id,nombre,rol&order=nombre');
   if(!res.ok){
-    sel.innerHTML='<option value="">No se pudo cargar la lista</option>';
+    sel.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">No se pudo cargar la lista</option>');
     return;
   }
   const rows=Array.isArray(res.data)?res.data:[];
   if(!rows.length){
-    sel.innerHTML='<option value="">— Sin usuarios activos —</option>';
+    sel.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">— Sin usuarios activos —</option>');
     return;
   }
-  sel.innerHTML='<option value="">Selecciona tu nombre…</option>'+rows.map(u=>{
-    const id=String(u.id??'');
+  sel.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">Selecciona tu nombre…</option>'+rows.map(u=>{
+    const id=String(u.id??''));
     const rol=String(u.rol||'').replace(/_/g,' ');
     return `<option value="${escAttr(id)}">${escHtml(u.nombre||'—')}${rol?` · ${escHtml(rol)}`:''}</option>`;
   }).join('');
@@ -6214,7 +6214,7 @@ function renderDrawer(){
       <span class="nav-badge${badgeId==='badge-alertas'?' alert':''}" id="d-${badgeId}">—</span>
     </button>`;
   }
-  scroll.innerHTML=html||'<div style="padding:20px;color:var(--muted);font-size:13px">Sin módulos asignados</div>';
+  scroll.innerHTML=CrozzoSanitize.sanitizeHtml(html||'<div style="padding:20px);color:var(--muted);font-size:13px">Sin módulos asignados</div>';
 }
 
 function renderSidebar(){
@@ -6229,7 +6229,7 @@ function renderSidebar(){
       <span class="nav-badge${badgeId==='badge-alertas'?' alert':''}" id="${badgeId}">—</span>
     </button>`;
   }
-  nav.innerHTML=html||'<div style="padding:20px 8px;font-size:12px;color:var(--muted)">Sin módulos asignados</div>';
+  nav.innerHTML=CrozzoSanitize.sanitizeHtml(html||'<div style="padding:20px 8px);font-size:12px;color:var(--muted)">Sin módulos asignados</div>';
 }
 
 // ── PIN OVERLAY (mantener por compatibilidad retroactiva) ──
@@ -6301,19 +6301,19 @@ function usrSubTab(sub,btn){
 
 async function usrLoadLista(){
   const container=document.getElementById('usr-list-container');
-  container.innerHTML='<div class="loading">Cargando...</div>';
+  container.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="loading">Cargando...</div>');
   const users=await api('usuarios','?order=nombre').catch(()=>[]);
   todosUsuarios=Array.isArray(users)?users:[];
   document.getElementById('badge-usuarios').textContent=todosUsuarios.filter(u=>u.activo!==false).length;
   if(!todosUsuarios.length){
-    container.innerHTML='<div class="empty">No hay usuarios creados aún — crea el primero en "Nuevo usuario"</div>';
+    container.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">No hay usuarios creados aún — crea el primero en "Nuevo usuario"</div>');
     return;
   }
   const esAdmin=sesionUsuario?.rol==='admin'||sesionUsuario?.permisos?.usuarios;
-  container.innerHTML=`<div class="table-wrap"><table>
+  container.innerHTML=CrozzoSanitize.sanitizeHtml(`<div class="table-wrap"><table>
     <thead><tr><th>NOMBRE</th><th>ROL</th><th>PIN</th><th>MÓDULOS ACTIVOS</th><th>ESTADO</th><th>ACCIONES</th></tr></thead>
     <tbody>${todosUsuarios.map(u=>{
-      const perms=u.permisos||{};
+      const perms=u.permisos||{});
       const activos=TODOS_PERMISOS.filter(p=>perms[p]);
       const chips=activos.map(p=>`<span class="chip chip-ok" style="font-size:9px;margin:1px">${p}</span>`).join('');
       const esSesion=sesionUsuario?.id===u.id;
@@ -6611,7 +6611,7 @@ async function dashInit(){
 
   // ── DIAGNÓSTICO VISIBLE ──
   const diagEl=document.getElementById('ds-alertas-list');
-  if(diagEl) diagEl.innerHTML='<div style="font-size:12px;color:var(--muted);font-family:var(--mono)">⏳ Conectando con Supabase...</div>';
+  if(diagEl) diagEl.innerHTML=CrozzoSanitize.sanitizeHtml('<div style="font-size:12px);color:var(--muted);font-family:var(--mono)">⏳ Conectando con Supabase...</div>';
 
   // ── RECEPCIONES DEL MES ──
   let recsArr=[];
@@ -6700,10 +6700,10 @@ async function dashInit(){
     const orden=['transferencia','efectivo','tarjeta','otros'];
     const keys=[...new Set([...orden,...Object.keys(grup)])].filter(k=>grup[k]&&grup[k].cAll);
     if(!keys.length){
-      mpBody.innerHTML='<tr><td colspan="5" class="empty td-muted">Sin facturas en este rango</td></tr>';
+      mpBody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="5" class="empty td-muted">Sin facturas en este rango</td></tr>');
     } else {
-      mpBody.innerHTML=keys.map(k=>{
-        const g=grup[k];
+      mpBody.innerHTML=CrozzoSanitize.sanitizeHtml(keys.map(k=>{
+        const g=grup[k]);
         const pct=sumPagMes>0?(g.sumPag/sumPagMes*100):0;
         const label=k==='transferencia'?'🔄 Transferencia':k==='efectivo'?'💵 Efectivo':k==='tarjeta'?'💳 Tarjeta':k==='otros'?'Otro método':String(k);
         return '<tr>'
@@ -6748,14 +6748,14 @@ async function dashInit(){
     </div>`;
   }
   if(!alertHtml) alertHtml='<div style="font-size:13px;color:var(--green);padding:4px 0">✓ Sin alertas activas</div>';
-  aList.innerHTML=alertHtml;
+  aList.innerHTML=CrozzoSanitize.sanitizeHtml(alertHtml);
 
   // ── ÚLTIMOS PROCESOS ──
   const pBody=document.getElementById('ds-proc-body');
   const ultProcs=procsArr.filter(r=>!r.notas?.startsWith('EN ESPERA')).slice(0,10);
-  if(!ultProcs.length){pBody.innerHTML='<tr><td colspan="7" class="empty">Sin procesos este mes</td></tr>';}
-  else pBody.innerHTML=ultProcs.map(r=>{
-    const pe=parseFloat(r.peso_entrada_kg)||0;
+  if(!ultProcs.length){pBody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="7" class="empty">Sin procesos este mes</td></tr>');}
+  else pBody.innerHTML=CrozzoSanitize.sanitizeHtml(ultProcs.map(r=>{
+    const pe=parseFloat(r.peso_entrada_kg)||0);
     const pp=(r.peso_total_porciones_gr||0)/1000;
     const mermaTotal=qcaMermaRealPct(r)||0;
     const esp=qcaMermaEsperada(r.materias_primas);
@@ -6777,9 +6777,9 @@ async function dashInit(){
   // ── ÚLTIMAS RECEPCIONES (cabeceras con valor) ──
   const rBody=document.getElementById('ds-rec-body');
   const ultRecs=cabeceras.slice(0,8);
-  if(!ultRecs.length){rBody.innerHTML='<tr><td colspan="6" class="empty">Sin recepciones en este rango</td></tr>';}
-  else rBody.innerHTML=ultRecs.map(r=>{
-    const prov=provMap[r.proveedor_id];
+  if(!ultRecs.length){rBody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="6" class="empty">Sin recepciones en este rango</td></tr>');}
+  else rBody.innerHTML=CrozzoSanitize.sanitizeHtml(ultRecs.map(r=>{
+    const prov=provMap[r.proveedor_id]);
     const provNombre=prov?prov.nombre:'—';
     const stRec=ofRecepcionTransferGetEstadoFac(r);
     const est=stRec==='pagada'?'<span class="chip chip-ok">✓ Pagada</span>':
@@ -6804,7 +6804,7 @@ async function dashLoadMermas(){
   const d1=rg.ok?rg.d1:hoy;
   const procs=await api('lotes_procesado',`?fecha=gte.${d0}&fecha=lte.${d1}&select=id,fecha,materia_prima_id,peso_entrada_kg,diferencia_gr,merma_coccion_real_pct,merma_porcionado_real_pct,procesado_por,notas,materias_primas(nombre,merma_coccion_pct,merma_porcionado_pct,merma_objetivo_pct,merma_alerta_tol_pct)&order=fecha.desc&limit=500`);
   const tbody=document.getElementById('ds-mermas-body');
-  if(!Array.isArray(procs)||!procs.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Sin datos en este rango</td></tr>';return;}
+  if(!Array.isArray(procs)||!procs.length){tbody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="6" class="empty">Sin datos en este rango</td></tr>');return;}
   // Agrupar por materia prima
   const grupos={};
   procs.filter(r=>!r.notas?.startsWith('EN ESPERA')).forEach(r=>{
@@ -6814,8 +6814,8 @@ async function dashLoadMermas(){
     const real=qcaMermaRealPct(r);
     if(real!=null){grupos[k].reales.push(real);grupos[k].count++;}
   });
-  tbody.innerHTML=Object.values(grupos).map(g=>{
-    const prom=g.reales.length?g.reales.reduce((a,b)=>a+b,0)/g.reales.length:0;
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(Object.values(grupos).map(g=>{
+    const prom=g.reales.length?g.reales.reduce((a,b)=>a+b,0)/g.reales.length:0);
     const dif=prom-g.esp;
     const cc=Math.abs(dif)<=g.tol?'chip-ok':Math.abs(dif)<=g.tol*2?'chip-warn':'chip-err';
     const ct=Math.abs(dif)<=g.tol?'OK':Math.abs(dif)<=g.tol*2?'Revisar':'Alerta';
@@ -6833,9 +6833,9 @@ async function dashLoadMermas(){
 async function dashLoadStock(){
   const data=await api('stock_actual','?select=producto_id,producto,materia_prima,gramaje_porcion,total_producido,total_salidas,stock_teorico&order=producto').catch(()=>[]);
   const tbody=document.getElementById('ds-stock-body');
-  if(!Array.isArray(data)||!data.length){tbody.innerHTML='<tr><td colspan="6" class="empty">Sin datos de stock</td></tr>';return;}
-  tbody.innerHTML=data.map(r=>{
-    const teo=parseInt(r.stock_teorico)||0;
+  if(!Array.isArray(data)||!data.length){tbody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="6" class="empty">Sin datos de stock</td></tr>');return;}
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(data.map(r=>{
+    const teo=parseInt(r.stock_teorico)||0);
     const col=teo<=0?'var(--red)':teo<=5?'var(--yellow)':'var(--text)';
     return `<tr>
       <td>${r.producto||'—'}</td>
@@ -6857,7 +6857,7 @@ async function dashLoadInversion(){
   // Usar recepciones cabecera con valor_factura
   const recs=await api('recepciones',`?fecha=gte.${d0}&fecha=lte.${d1}&select=id,proveedor_id,fecha,valor_factura,estado_recepcion,peso_bascula_kg&order=fecha.desc`).catch(()=>[]);
   const tbody=document.getElementById('ds-inv-body');
-  if(!Array.isArray(recs)||!recs.length){tbody.innerHTML='<tr><td colspan="5" class="empty">Sin recepciones en este rango</td></tr>';return;}
+  if(!Array.isArray(recs)||!recs.length){tbody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="5" class="empty">Sin recepciones en este rango</td></tr>');return;}
 
   const cabeceras=recs.filter(r=>dashEsCabeceraRecepcion(r)&&(parseFloat(r.valor_factura)||0)>0);
   const total=cabeceras.reduce((s,r)=>s+(parseFloat(r.valor_factura)||0),0);
@@ -6882,8 +6882,8 @@ async function dashLoadInversion(){
   document.getElementById('di-cara').textContent=cabeceras.length+' facturas';
   document.getElementById('di-cara').className='stat-v dim';
 
-  tbody.innerHTML=Object.entries(porProv).sort((a,b)=>b[1].inv-a[1].inv).map(([nombre,d])=>{
-    const pct=total>0?(d.inv/total*100):0;
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(Object.entries(porProv).sort((a,b)=>b[1].inv-a[1].inv).map(([nombre,d])=>{
+    const pct=total>0?(d.inv/total*100):0);
     const pagadas=d.estado['pagada']||0;
     const pendPago=(d.estado['pendiente_pago']||0)+(d.estado['completada']||0);
     const pendOfi=(d.estado['pendiente_oficina']||0)+(d.estado['pendiente_jefe']||0)+(d.estado['pending']||0);
@@ -6975,7 +6975,7 @@ async function dashLoadFlujo(opts){
   if(!okCache){
     const g0=document.getElementById('fl-grafica');
     if(g0) g0.innerHTML='';
-    document.getElementById('fl-tabla-body').innerHTML='<tr><td colspan="7" class="loading">Cargando (historial)…</td></tr>';
+    document.getElementById('fl-tabla-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="7" class="loading">Cargando (historial)…</td></tr>');
 
     // 1) Igual que Historial Recepción: cabeceras desde `recepciones` (peso 0/null).
     const pageSize=200;
@@ -7125,7 +7125,7 @@ function flRenderGrafica(){
   document.getElementById('fl-promedio').textContent=promedio>0?'$'+Math.round(promedio).toLocaleString('es-CO'):'—';
 
   if(!datos.length){
-    wrap.innerHTML='<svg id="fl-grafica" width="100%" height="280" style="display:block;min-width:600px"><text x="50%" y="50%" text-anchor="middle" fill="var(--muted)" font-size="13" font-family="monospace">Sin registros en facturas — cambia el rango o el proveedor</text></svg>';
+    wrap.innerHTML=CrozzoSanitize.sanitizeHtml('<svg id="fl-grafica" width="100%" height="280" style="display:block);min-width:600px"><text x="50%" y="50%" text-anchor="middle" fill="var(--muted)" font-size="13" font-family="monospace">Sin registros en facturas — cambia el rango o el proveedor</text></svg>';
     document.getElementById('fl-pico').textContent='—';
     const rg0=flRangoFechasUI();
     const r0=(rg0.d0||rg0.d1)?((rg0.d0||'…')+' → '+(rg0.d1||'…')+' · '):'';
@@ -7224,7 +7224,7 @@ ${lbl}</title>
 
   svg+='</svg>';
 
-  wrap.innerHTML=svg;
+  wrap.innerHTML=CrozzoSanitize.sanitizeHtml(svg);
 }
 
 
@@ -7233,11 +7233,11 @@ function flRenderTabla(){
   const tbody=document.getElementById('fl-tabla-body');
   if(!tbody) return;
   if(!datos.length){
-    tbody.innerHTML='<tr><td colspan="7" class="empty">Sin facturas en este rango</td></tr>';
+    tbody.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="7" class="empty">Sin facturas en este rango</td></tr>');
     return;
   }
-  tbody.innerHTML=datos.map((r,i)=>{
-    const prov=provMap[r.proveedor_id];
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(datos.map((r,i)=>{
+    const prov=provMap[r.proveedor_id]);
     const pname=prov?prov.nombre:'?';
     const val=parseFloat(r.valor_factura)||0;
     const prev=i>0?parseFloat(datos[i-1].valor_factura)||0:null;
@@ -7307,7 +7307,7 @@ async function dashLoadProveedores(){
   }
 
   // Limpiar
-  document.getElementById('dp-ranking-list').innerHTML='<div class="loading">Cargando...</div>';
+  document.getElementById('dp-ranking-list').innerHTML=CrozzoSanitize.sanitizeHtml('<div class="loading">Cargando...</div>');
   document.getElementById('dp-grafica').innerHTML='';
   document.getElementById('dp-leyenda').innerHTML='';
 
@@ -7361,11 +7361,11 @@ async function dashLoadProveedores(){
   // Ranking
   const rankEl=document.getElementById('dp-ranking-list');
   if(!lista.length){
-    rankEl.innerHTML='<div class="empty">Sin recepciones en este rango</div>';
+    rankEl.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">Sin recepciones en este rango</div>');
   } else {
     const metricaTotal=dpMetrica==='pesos'?totalInv:totalKg;
-    rankEl.innerHTML=lista.map((p,i)=>{
-      const val=dpMetrica==='pesos'?p.inv:p.kg;
+    rankEl.innerHTML=CrozzoSanitize.sanitizeHtml(lista.map((p,i)=>{
+      const val=dpMetrica==='pesos'?p.inv:p.kg);
       const pct=metricaTotal>0?(val/metricaTotal*100):0;
       const barW=Math.max(2,pct);
       const estPag=p.pagadas>0?`<span style="color:var(--green);font-size:11px">✓ ${p.pagadas} pag.</span>`:'';
@@ -7429,7 +7429,7 @@ async function dpCargar6Meses(top5){
   // Poblar selector
   const sel=document.getElementById('dp-prov-sel');
   if(sel){
-    sel.innerHTML='<option value="">— Top 5 —</option>';
+    sel.innerHTML=CrozzoSanitize.sanitizeHtml('<option value="">— Top 5 —</option>');
     top5.forEach(p=>{
       const o=document.createElement('option');
       o.value=p.id; o.textContent=p.nombre;
@@ -7452,7 +7452,7 @@ function dpRenderGrafica(){
     :Object.keys(dpDatos6m.proveedores);
 
   if(!provIds.length){
-    svg.innerHTML='<text x="50%" y="50%" text-anchor="middle" fill="var(--muted)" font-size="13">Sin datos para graficar</text>';
+    svg.innerHTML=CrozzoSanitize.sanitizeHtml('<text x="50%" y="50%" text-anchor="middle" fill="var(--muted)" font-size="13">Sin datos para graficar</text>');
     return;
   }
 
@@ -7548,15 +7548,15 @@ function dpRenderGrafica(){
   const wrap=document.getElementById('dp-grafica')?.parentElement;
   if(wrap){
     const tmp=document.createElement('div');
-    tmp.innerHTML=svgHtml;
+    tmp.innerHTML=CrozzoSanitize.sanitizeHtml(svgHtml);
     const nuevoSvg=tmp.querySelector('svg');
     if(nuevoSvg){nuevoSvg.id='dp-grafica';wrap.replaceChild(nuevoSvg,wrap.querySelector('#dp-grafica')||wrap.firstChild);}
   }
 
   // Leyenda
   if(leyenda){
-    leyenda.innerHTML=provIds.map((id,i)=>{
-      const d=dpDatos6m.proveedores[id];
+    leyenda.innerHTML=CrozzoSanitize.sanitizeHtml(provIds.map((id,i)=>{
+      const d=dpDatos6m.proveedores[id]);
       if(!d) return '';
       return `<div style="display:flex;align-items:center;gap:6px">
         <div style="width:12px;height:3px;background:${DP_COLORES[i%DP_COLORES.length]};border-radius:2px"></div>
@@ -7655,7 +7655,7 @@ function ventasMostrarPreview(){
       +'<td style="font-size:11px;color:var(--muted)">'+descuenta+'</td>'
       +'</tr>';
   });
-  tbody.innerHTML=filas.join('');
+  tbody.innerHTML=CrozzoSanitize.sanitizeHtml(filas.join(''));
   document.getElementById('ven-preview').style.display='';
   document.getElementById('ven-resumen').style.display='';
   document.getElementById('ven-cnt-ok').textContent=cntOk;
@@ -7728,10 +7728,10 @@ function ventasLimpiar(){
 }
 
 async function ventasLoadHist(){
-  document.getElementById('vh-body').innerHTML='<tr><td colspan="4" class="loading">Cargando...</td></tr>';
+  document.getElementById('vh-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="4" class="loading">Cargando...</td></tr>');
   const data=await api('salidas','?select=id,plato_id,fecha,cantidad_vendida,fuente,platos(nombre),salidas_detalle(cantidad_und,productos(nombre))&order=fecha.desc,created_at.desc&limit=200');
   if(!Array.isArray(data)||!data.length){
-    document.getElementById('vh-body').innerHTML='<tr><td colspan="4" class="empty">Sin importaciones aún</td></tr>';
+    document.getElementById('vh-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="4" class="empty">Sin importaciones aún</td></tr>');
     document.getElementById('vh-total').textContent='0';
     return;
   }
@@ -7742,8 +7742,8 @@ async function ventasLoadHist(){
   data.forEach(r=>{const n=r.platos?.nombre||'—';counts[n]=(counts[n]||0)+r.cantidad_vendida;});
   const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
   document.getElementById('vh-top').textContent=top?top[0]+' ('+top[1]+')':'—';
-  document.getElementById('vh-body').innerHTML=data.slice(0,100).map(r=>{
-    const ings=(r.salidas_detalle||[]).map(d=>d.productos?.nombre||'?').join(', ')||'—';
+  document.getElementById('vh-body').innerHTML=CrozzoSanitize.sanitizeHtml(data.slice(0,100).map(r=>{
+    const ings=(r.salidas_detalle||[]).map(d=>d.productos?.nombre||'?').join(', ')||'—');
     return `<tr>
       <td class="td-mono">${r.fecha}</td>
       <td>${r.platos?.nombre||'—'}</td>
@@ -7754,7 +7754,7 @@ async function ventasLoadHist(){
 }
 
 async function ventasLoadRecetas(){
-  document.getElementById('vr-body').innerHTML='<tr><td colspan="5" class="loading">Cargando...</td></tr>';
+  document.getElementById('vr-body').innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="5" class="loading">Cargando...</td></tr>');
   const data=await api('receta_ingredientes','?select=id,plato_id,producto_id,cantidad_gr,platos(nombre,nombre_caja),productos(nombre,gramaje_porcion)&order=platos(nombre)');
 
   // Selector de platos para formulario nuevo
@@ -7763,13 +7763,13 @@ async function ventasLoadRecetas(){
 
   const tabla=document.getElementById('vr-body');
   const thead=tabla.closest('table').querySelector('thead tr');
-  if(thead) thead.innerHTML='<th>PLATO</th><th>INGREDIENTE</th><th>G/PLATO</th><th>NOMBRE EN CAJA</th><th></th>';
+  if(thead) thead.innerHTML=CrozzoSanitize.sanitizeHtml('<th>PLATO</th><th>INGREDIENTE</th><th>G/PLATO</th><th>NOMBRE EN CAJA</th><th></th>');
 
   if(!Array.isArray(data)||!data.length){
-    tabla.innerHTML='<tr><td colspan="5" class="empty">Sin recetas — agrega la primera abajo</td></tr>';
+    tabla.innerHTML=CrozzoSanitize.sanitizeHtml('<tr><td colspan="5" class="empty">Sin recetas — agrega la primera abajo</td></tr>');
   } else {
-    tabla.innerHTML=data.map(r=>`<tr>
-      <td style="font-size:13px;font-weight:500">${r.platos?.nombre||'—'}</td>
+    tabla.innerHTML=CrozzoSanitize.sanitizeHtml(data.map(r=>`<tr>
+      <td style="font-size:13px);font-weight:500">${r.platos?.nombre||'—'}</td>
       <td>${r.productos?.nombre||'—'}</td>
       <td class="td-mono">${r.cantidad_gr} g</td>
       <td style="font-size:11px;color:var(--muted)">${r.platos?.nombre_caja||'—'}</td>
@@ -7785,8 +7785,8 @@ async function ventasLoadRecetas(){
     const form=document.createElement('div');
     form.id='vr-nuevo-wrap';
     form.style.cssText='margin-top:20px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 20px';
-    form.innerHTML=`
-      <div style="font-size:12px;font-family:var(--mono);color:var(--muted);letter-spacing:.06em;margin-bottom:12px">AGREGAR INGREDIENTE A RECETA</div>
+    form.innerHTML=CrozzoSanitize.sanitizeHtml(`
+      <div style="font-size:12px);font-family:var(--mono);color:var(--muted);letter-spacing:.06em;margin-bottom:12px">AGREGAR INGREDIENTE A RECETA</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 120px auto;gap:10px;align-items:end">
         <div>
           <label style="display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px">PLATO</label>
@@ -8180,7 +8180,7 @@ function recCheckAcceso(){
   const inp=document.getElementById('r-valor-factura');
   if(inp) inp.disabled=false;
   const lbl=wrap.querySelector('label');
-  if(lbl) lbl.innerHTML='VALOR TOTAL DE LA FACTURA <span style="color:var(--red)">*</span> <span style="color:var(--muted);font-weight:normal;font-size:10px">(obligatorio)</span>';
+  if(lbl) lbl.innerHTML=CrozzoSanitize.sanitizeHtml('VALOR TOTAL DE LA FACTURA <span style="color:var(--red)">*</span> <span style="color:var(--muted));font-weight:normal;font-size:10px">(obligatorio)</span>';
   // Restaurar último proveedor guardado
   try{
     const _pv=localStorage.getItem('qca_last_prov_caja');
@@ -8236,7 +8236,7 @@ function ofGetSharedEstado(){const v=document.getElementById('of-shared-estado')
 function ofGetValorMinMax(){const vmin=parseFloat(document.getElementById('of-shared-vmin')?.value||0)||0;const vmaxRaw=parseFloat(document.getElementById('of-shared-vmax')?.value||0)||0;return{vmin,vmax:vmaxRaw>0?vmaxRaw:null};}
 function ofSyncLegacyFilterFields(){const d=ofGetDesde(),h=ofGetHasta(),e=ofGetSharedEstado(),ids=ofGetProvIds(),p=ids.length===1?ids[0]:'',vm=ofGetValorMinMax();['of-desde','ofe-desde','oft-desde'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=d;});['of-hasta','ofe-hasta','oft-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=h;});['oft-filt-estado','ofe-filt-estado'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=e;});['ofe-vmin','oft-vmin'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=vm.vmin>0?String(vm.vmin):'';});['ofe-vmax','oft-vmax'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=vm.vmax!=null?String(vm.vmax):'';});if(SS['of-filt-prov'])SS['of-filt-prov'].setValue(p);if(SS['ofe-prov'])SS['ofe-prov'].setValue(p);if(SS['oft-prov'])SS['oft-prov'].setValue(p);}
 function ofFilterSummaryText(){const d=ofGetDesde(),h=ofGetHasta(),ids=ofGetProvIds(),est=ofGetSharedEstado(),vm=ofGetValorMinMax();let pt='Todos los proveedores';if(ids.length===1)pt=provMap[ids[0]]?.nombre||'1 proveedor';else if(ids.length>1)pt=ids.length+' proveedores';const et=est==='pendiente_oficina'?'Pendiente oficina':(est==='pendiente_pago'?'Pendiente pago':(est==='pagada'?'Pagadas':'Todos'));const pe=(d&&h)?(d+' → '+h):(d||h||'Sin fechas');let vt='';if(vm.vmin>0||vm.vmax!=null)vt=' · Valor '+(vm.vmin||0)+'–'+(vm.vmax??'∞');return '<strong>'+pe+'</strong> · '+pt+' · '+et+vt;}
-function ofUpdateFilterSummary(){const el=document.getElementById('of-filter-summary');if(el)el.innerHTML=ofFilterSummaryText();}
+function ofUpdateFilterSummary(){const el=document.getElementById('of-filter-summary');if(el)el.innerHTML=CrozzoSanitize.sanitizeHtml(ofFilterSummaryText());}
 function ofDatePreset(k){const hoy=new Date(),pad=n=>String(n).padStart(2,'0'),iso=x=>x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate());let d='',h=iso(hoy);if(k==='7d'){const t=new Date(hoy);t.setDate(t.getDate()-6);d=iso(t);}else if(k==='mes-ant'){d=iso(new Date(hoy.getFullYear(),hoy.getMonth()-1,1));h=iso(new Date(hoy.getFullYear(),hoy.getMonth(),0));}else if(k==='trim'){const t=new Date(hoy);t.setDate(t.getDate()-89);d=iso(t);}else d=iso(new Date(hoy.getFullYear(),hoy.getMonth(),1));const sd=document.getElementById('of-shared-desde'),sh=document.getElementById('of-shared-hasta');if(sd)sd.value=d;if(sh)sh.value=h;document.querySelectorAll('#mod-oficina .of-preset').forEach(b=>b.classList.toggle('active',b.getAttribute('data-of-preset')===k));ofSyncLegacyFilterFields();ofUpdateFilterSummary();}
 function ofBindDatePresets(){document.querySelectorAll('#mod-oficina .of-preset').forEach(btn=>{if(btn._ofPb)return;btn._ofPb=1;btn.addEventListener('click',()=>ofDatePreset(btn.getAttribute('data-of-preset')||'mes'));});}
 function ofApplyFilters(){ofSyncLegacyFilterFields();ofUpdateFilterSummary();if(ofMetodoPestañaActiva==='efectivo')ofLoadEfectivo(true);else if(ofMetodoPestañaActiva==='tarjeta')ofLoadTarjetas(true);else ofLoadFacturas(true);try{ofReporteMemoToggle();}catch(_e){}}
@@ -8716,7 +8716,7 @@ function renderTablaSeleccion(metodoPago,contenedorId,rows){
   _ofSelRowsCache[metodoPago]=rows;
   const etiqueta={transferencia:'Transferencias',efectivo:'Efectivo',tarjeta:'Tarjeta'}[metodoPago]||metodoPago;
   if(!rows.length){
-    host.innerHTML='<div class="of-sel-root"><div class="of-sel-bar-wrap"><div class="of-sel-bar" id="of-sel-bar-'+metodoPago+'" style="display:none" role="region" aria-label="Acciones de selección"></div></div><div class="of-sel-empty" role="status"><span class="of-sel-empty-icon" aria-hidden="true">📋</span><div class="of-sel-empty-text">Sin registros en '+ofSelEscapeHtml(etiqueta)+'</div></div></div>';
+    host.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="of-sel-bar-wrap"><div class="of-sel-bar" id="of-sel-bar-'+metodoPago+'" style="display:none" role="region" aria-label="Acciones de selección"></div></div><div class="of-sel-empty" role="status"><span class="of-sel-empty-icon" aria-hidden="true">📋</span><div class="of-sel-empty-text">Sin registros en '+ofSelEscapeHtml(etiqueta)+'</div></div></div>');
     actualizarBarra();
     return;
   }
@@ -8769,7 +8769,7 @@ function renderTablaSeleccion(metodoPago,contenedorId,rows){
       +'</div></td></tr>';
     return mainRow+pdfRow;
   }).join('');
-  host.innerHTML='<div class="of-sel-root">'+barHtml+'<div class="table-wrap of-sel-table-wrap"><table class="of-sel-table"><thead>'+thead+'</thead><tbody>'+body+'</tbody></table></div></div>';
+  host.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root">'+barHtml+'<div class="table-wrap of-sel-table-wrap"><table class="of-sel-table"><thead>'+thead+'</thead><tbody>'+body+'</tbody></table></div></div>');
   actualizarBarra();
   ofSelSyncDomFromSet(metodoPago);
 }
@@ -8878,7 +8878,7 @@ function ofSelExportVisual(){
     if(!rows.length){showToast('Sin datos','err');return;}
     ofReporteMemoWrite(ofReporteMemoCurrent());
     document.getElementById('modal-title').textContent='Exportar selección (Transferencias)';
-    document.getElementById('modal-msg').innerHTML='Elige el formato para el reporte visual.'+ofModalReporteVisualCerrarHtml();
+    document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml('Elige el formato para el reporte visual.'+ofModalReporteVisualCerrarHtml());
     const okBtn=document.getElementById('modal-ok');
     const cancelBtn=document.getElementById('modal-cancel');
     if(okBtn){
@@ -8901,7 +8901,7 @@ function ofSelExportVisual(){
     if(!rows.length){showToast('Sin datos','err');return;}
     ofReporteMemoWrite(ofReporteMemoCurrent());
     document.getElementById('modal-title').textContent='Exportar selección (Efectivo)';
-    document.getElementById('modal-msg').innerHTML='Elige el formato para el reporte visual.'+ofModalReporteVisualCerrarHtml();
+    document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml('Elige el formato para el reporte visual.'+ofModalReporteVisualCerrarHtml());
     const okBtn=document.getElementById('modal-ok');
     const cancelBtn=document.getElementById('modal-cancel');
     if(okBtn){
@@ -9128,7 +9128,7 @@ async function ofLoadFacturas(forzar=false,append=false){
     _ofFactOffset=0;
     _ofFactById={};
     _ofFactListado=[];
-    list.innerHTML='<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>';
+    list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>');
   }
 
   const filtEst=ofTransferFiltroEstadoParaRecepcionQuery();
@@ -9148,7 +9148,7 @@ async function ofLoadFacturas(forzar=false,append=false){
     recs=await res.json();
     if(!Array.isArray(recs)) recs=[];
   }catch(e){
-    list.innerHTML='<div class="of-sel-root"><div class="empty" style="color:var(--red);padding:24px;font-size:13px">Error de conexión</div></div>';
+    list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="empty" style="color:var(--red));padding:24px;font-size:13px">Error de conexión</div></div>';
     ofUpdateStats([]);
     ofReporteMemoToggle();
     return;
@@ -9458,7 +9458,7 @@ async function oftFetchFacturasListadoParaReporte(){
 
 function ofeExportListadoFacturasVisualOpciones(){
   document.getElementById('modal-title').textContent='Exportar reporte visual (Efectivo)';
-  document.getElementById('modal-msg').innerHTML='Elige el formato para compartir por WhatsApp o enviar a Oficina.'+ofModalReporteVisualCerrarHtml();
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml('Elige el formato para compartir por WhatsApp o enviar a Oficina.'+ofModalReporteVisualCerrarHtml());
   const okBtn=document.getElementById('modal-ok');
   const cancelBtn=document.getElementById('modal-cancel');
   if(okBtn){
@@ -9475,7 +9475,7 @@ function ofeExportListadoFacturasVisualOpciones(){
 
 function oftExportListadoFacturasVisualOpciones(){
   document.getElementById('modal-title').textContent='Exportar reporte visual (Tarjeta)';
-  document.getElementById('modal-msg').innerHTML='Exporta todas las facturas con tarjeta que cumplen los filtros actuales (desde/hasta, proveedor, valor). Elige formato.'+ofModalReporteVisualCerrarHtml();
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml('Exporta todas las facturas con tarjeta que cumplen los filtros actuales (desde/hasta, proveedor, valor). Elige formato.'+ofModalReporteVisualCerrarHtml());
   const okBtn=document.getElementById('modal-ok');
   const cancelBtn=document.getElementById('modal-cancel');
   if(okBtn){
@@ -9492,7 +9492,7 @@ function oftExportListadoFacturasVisualOpciones(){
 
 function ofExportListadoFacturasVisualOpciones(){
   document.getElementById('modal-title').textContent='Exportar reporte visual';
-  document.getElementById('modal-msg').innerHTML='Elige el formato para compartir por WhatsApp o enviar a Oficina.'+ofModalReporteVisualCerrarHtml();
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml('Elige el formato para compartir por WhatsApp o enviar a Oficina.'+ofModalReporteVisualCerrarHtml());
   const okBtn=document.getElementById('modal-ok');
   const cancelBtn=document.getElementById('modal-cancel');
   if(okBtn){
@@ -9839,7 +9839,7 @@ async function ofLoadEfectivo(forzar=false,append=false){
     _ofeOffset=0;
     _ofeData=[];
     [...seleccionadas].filter(k=>k.startsWith('efectivo|')).forEach(k=>seleccionadas.delete(k));
-    host.innerHTML='<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>';
+    host.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>');
   }
 
   const desde=ofGetDesde();
@@ -9875,7 +9875,7 @@ async function ofLoadEfectivo(forzar=false,append=false){
     }
     ofRenderEfectivo();
   }catch(e){
-    host.innerHTML='<div class="of-sel-root"><div class="empty" style="color:var(--red);padding:24px">Error de conexión</div></div>';
+    host.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="empty" style="color:var(--red));padding:24px">Error de conexión</div></div>';
   }
 }
 
@@ -10059,7 +10059,7 @@ async function ofLoadTarjetas(forzar=false,append=false){
     _oftOffset=0;
     _oftData=[];
     [...seleccionadas].filter(k=>k.startsWith('tarjeta|')).forEach(k=>seleccionadas.delete(k));
-    host.innerHTML='<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>';
+    host.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="loading" style="padding:24px">Cargando...</div></div>');
   }
   const desde=ofGetDesde();
   const hasta=ofGetHasta();
@@ -10089,7 +10089,7 @@ async function ofLoadTarjetas(forzar=false,append=false){
     }
     ofRenderTarjetas();
   }catch(e){
-    host.innerHTML='<div class="of-sel-root"><div class="empty" style="color:var(--red);padding:24px">Error de conexión</div></div>';
+    host.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="empty" style="color:var(--red));padding:24px">Error de conexión</div></div>';
   }
 }
 
@@ -10266,10 +10266,10 @@ function oftExportTabPDF(){
 async function ofImportarDesdeRecepciones(){
   const list=document.getElementById(OF_SEL_HOST_ID.transferencia);
   if(!list) return;
-  list.innerHTML='<div class="of-sel-root"><div class="loading" style="padding:24px">Buscando recepciones sin factura...</div></div>';
+  list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="of-sel-root"><div class="loading" style="padding:24px">Buscando recepciones sin factura...</div></div>');
   // Traer solo cabeceras (peso=0 o null) directamente desde Supabase
   const recs=await api('recepciones','?select=id,proveedor_id,fecha,valor_factura,estado_recepcion,peso_bascula_kg,foto_url,registrado_por,notas&or=(peso_bascula_kg.eq.0,peso_bascula_kg.is.null)&order=fecha.desc&limit=200').catch(()=>[]);
-  if(!recs.length){list.innerHTML='<div class="empty">No hay recepciones para importar</div>';return;}
+  if(!recs.length){list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">No hay recepciones para importar</div>');return;}
   // Traer facturas existentes para no duplicar
   const facts=await api('facturas','?select=recepcion_id').catch(()=>[]);
   const yaVinculados=new Set((Array.isArray(facts)?facts:[]).map(f=>f.recepcion_id).filter(Boolean));
@@ -10489,8 +10489,8 @@ function ofModalComprobante(ids, n, opts){
   const modoRec=!!opts.modoRecepcion;
   const hoy=new Date().toISOString().split('T')[0];
   document.getElementById('modal-title').textContent='Registrar pago — '+n+' factura'+(n>1?'s':'');
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:14px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:14px">
       <div style="font-size:13px;color:var(--muted)">Se marcarán como pagadas <strong style="color:var(--text)">${n} factura${n>1?'s':''}</strong>. Puedes adjuntar el comprobante de pago (opcional).</div>
       <div>
         <label style="display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px">FECHA DE PAGO</label>
@@ -10523,7 +10523,7 @@ var ofCompFile=null;
 function ofCompDrop(file){
   if(!file) return;
   ofCompFile=file;
-  document.getElementById('comp-drop-label').innerHTML='📄 <strong>'+file.name+'</strong> ('+Math.round(file.size/1024)+' KB)';
+  document.getElementById('comp-drop-label').innerHTML=CrozzoSanitize.sanitizeHtml('📄 <strong>'+file.name+'</strong> ('+Math.round(file.size/1024)+' KB)');
   document.getElementById('comp-drop').style.borderColor='var(--green)';
   document.getElementById('comp-preview').style.display='';
   document.getElementById('comp-preview').textContent='✓ Listo para subir';
@@ -10620,8 +10620,8 @@ function ofEditarRecepcion(rec){
   const provOpts=Object.values(provMap).sort((a,b)=>a.nombre.localeCompare(b.nombre))
     .map(p=>`<option value="${p.id}"${p.id===rec.proveedor_id?' selected':''}>${p.nombre}${p.tipo_carne?' — '+p.tipo_carne:''}</option>`).join('');
   document.getElementById('modal-title').textContent='Editar factura — '+pname;
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:14px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:14px">
       <div>
         <label style="display:block;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:5px">PROVEEDOR</label>
         <select id="ef-proveedor" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--sans);font-size:14px;padding:9px 13px;border-radius:8px;outline:none">
@@ -10756,7 +10756,7 @@ function ofUpdateStats(data){
 function ofAbrirModalPago(id,nombre,valor,fecha){
   ofPagoId=id;
   document.getElementById('of-mp-info').innerHTML=
-    `<strong>${nombre}</strong><br>Valor: <strong style="color:var(--accent)">$${Math.round(valor).toLocaleString('es-CO')}</strong><br>Fecha factura: ${fecha}<br><br><span style="color:var(--yellow);font-size:12px">⚠️ Solo el admin podrá revertir este pago si se registra por error.</span>`;
+    CrozzoSanitize.sanitizeHtml(`<strong>${nombre}</strong><br>Valor: <strong style="color:var(--accent)">$${Math.round(valor).toLocaleString('es-CO')}</strong><br>Fecha factura: ${fecha}<br><br><span style="color:var(--yellow));font-size:12px">⚠️ Solo el admin podrá revertir este pago si se registra por error.</span>`;
   document.getElementById('of-mp-fecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('of-mp-notas').value='';
   document.getElementById('of-modal-pago').classList.add('show');
@@ -10788,7 +10788,7 @@ async function ofEliminarFactura(id){
 // ── PENDIENTES ──
 async function ofLoadPendientes(){
   const list=document.getElementById('of-pend-list');
-  list.innerHTML='<div class="loading">Cargando...</div>';
+  list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="loading">Cargando...</div>');
   let data=[];
   try{
     const res=await fetch(`${SB}/rest/v1/facturas?estado=in.(pendiente_oficina,pending,pendiente_pago)&select=id,proveedor_id,fecha,valor,estado,pagada_en,notas,numero_factura,recepcion_id,proveedores(nombre,tipo_carne)&order=estado.asc,fecha.asc`,{headers:H});
@@ -10801,7 +10801,7 @@ async function ofLoadPendientes(){
   document.getElementById('of-p-n').textContent=(pendOf.length+pendPago.length);
   document.getElementById('of-p-val').textContent=total>0?'$'+Math.round(total).toLocaleString('es-CO'):'$0';
   document.getElementById('of-p-ant').textContent=Array.isArray(data)&&data.length?data[0].fecha:'—';
-  if(!Array.isArray(data)||!data.length){list.innerHTML='<div style="text-align:center;padding:48px;color:var(--green);font-size:15px">✓ Sin facturas pendientes</div>';return;}
+  if(!Array.isArray(data)||!data.length){list.innerHTML=CrozzoSanitize.sanitizeHtml('<div style="text-align:center);padding:48px;color:var(--green);font-size:15px">✓ Sin facturas pendientes</div>';return;}
   const hoy=new Date();
   const renderCard=(f,acciones)=>{
     const dias=Math.floor((hoy-new Date(f.fecha))/(1000*60*60*24));
@@ -10829,17 +10829,17 @@ async function ofLoadPendientes(){
     html+=`<div style="font-size:11px;font-family:var(--mono);color:var(--yellow);letter-spacing:.06em;margin:${pendOf.length?'16px':0} 0 8px">💳 PENDIENTE PAGO (${pendPago.length})</div>`;
     html+=pendPago.map(f=>renderCard(f,`<button class="btn btn-primary" style="flex-shrink:0;font-size:12px;padding:7px 14px" onclick="ofAbrirModalPago('${f.id}','${(f.proveedores?.nombre||'').replace(/'/g,"\\'")}',${f.valor},'${f.fecha}')">✓ Pagar</button>`)).join('');
   }
-  list.innerHTML=html;
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(html);
 }
 
 // ── DIRECTORIO ──
 async function ofLoadDirectorio(){
   const list=document.getElementById('of-dir-list');
-  list.innerHTML='<div class="loading">Cargando...</div>';
+  list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="loading">Cargando...</div>');
   const provs=await api('proveedores','?activo=eq.true&order=nombre').catch(()=>[]);
-  if(!Array.isArray(provs)||!provs.length){list.innerHTML='<div class="empty">Sin proveedores</div>';return;}
-  list.innerHTML=provs.map(p=>{
-    const ini=p.nombre.split(' ').filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join('').toUpperCase()||p.nombre.slice(0,2).toUpperCase();
+  if(!Array.isArray(provs)||!provs.length){list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">Sin proveedores</div>');return;}
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(provs.map(p=>{
+    const ini=p.nombre.split(' ').filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join('').toUpperCase()||p.nombre.slice(0,2).toUpperCase());
     const tags=[];
     if(p.nit) tags.push(`<span class="ptag">NIT ${p.nit}</span>`);
     if(p.email) tags.push(`<span class="ptag">${p.email}</span>`);
@@ -10935,16 +10935,16 @@ async function ofDirGuardar(){
 // ── PAN & LÁCTEOS ──
 async function ofLoadInternos(){
   const list=document.getElementById('of-internos-list');
-  list.innerHTML='<div class="loading">Cargando...</div>';
+  list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="loading">Cargando...</div>');
   const mes=document.getElementById('of-int-mes').value;
   const data=await api('pagos_internos',`?mes=eq.${mes}&select=id,proveedor_id,mes,valor,estado,notas,proveedores(nombre,es_panificadora,es_lacteos)&order=created_at.desc`).catch(()=>[]);
   if(!Array.isArray(data)||!data.length){
-    list.innerHTML='<div class="empty">Sin registros para este mes — usa el botón para agregar</div>';return;
+    list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">Sin registros para este mes — usa el botón para agregar</div>');return;
   }
   const totalPend=data.filter(r=>r.estado==='pendiente').reduce((s,r)=>s+(r.valor||0),0);
   const totalPag=data.filter(r=>r.estado==='pagado').reduce((s,r)=>s+(r.valor||0),0);
-  list.innerHTML=`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
       <div class="stat"><div class="stat-l">PENDIENTE</div><div class="stat-v" style="color:var(--yellow)">${totalPend>0?'$'+Math.round(totalPend).toLocaleString('es-CO'):'$0'}</div></div>
       <div class="stat"><div class="stat-l">PAGADO</div><div class="stat-v" style="color:var(--green)">${totalPag>0?'$'+Math.round(totalPag).toLocaleString('es-CO'):'$0'}</div></div>
     </div>
@@ -11072,12 +11072,12 @@ function recCajaActualizarResumen() {
   const el = document.getElementById('rec-resumen-text');
   if (el) {
     el.innerHTML =
-      '<strong>' +
+      CrozzoSanitize.sanitizeHtml('<strong>' +
       escHtml(nombre) +
       '</strong> · ' +
       escHtml(fecha) +
       escHtml(nro) +
-      '<br><span style="color:var(--muted);font-size:12px">' +
+      '<br><span style="color:var(--muted));font-size:12px">' +
       escHtml(docName) +
       '</span>';
   }
@@ -11263,7 +11263,7 @@ function recCajaLimpiar(){
     onRecProvChange();
   } else {
     SS['r-proveedor']?.setValue('');
-    document.getElementById('r-prov-display').innerHTML='<div class="prov-display"><div class="pplaceholder">Selecciona un proveedor</div></div>';
+    document.getElementById('r-prov-display').innerHTML=CrozzoSanitize.sanitizeHtml('<div class="prov-display"><div class="pplaceholder">Selecciona un proveedor</div></div>');
   }
   document.getElementById('r-fecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('r-notas').value='';
@@ -11285,7 +11285,7 @@ let recJefeResps=[];
 function recJefeRenderTags(){
   const el=document.getElementById('rj-resp-tags');
   if(!el) return;
-  el.innerHTML=recJefeResps.map(n=>`<span class="rec-resp-tag"><span>${escHtml(n)}</span><button type="button" onclick="recJefeQuitarResp('${String(n).replace(/'/g,"\\'")}')" aria-label="Quitar">×</button></span>`).join('');
+  el.innerHTML=CrozzoSanitize.sanitizeHtml(recJefeResps.map(n=>`<span class="rec-resp-tag"><span>${escHtml(n)}</span><button type="button" onclick="recJefeQuitarResp('${String(n).replace(/'/g,"\\'")}')" aria-label="Quitar">×</button></span>`).join(''));
 }
 function recJefeAgregarResp(nombre){
   if(!nombre||recJefeResps.includes(nombre)) return;
@@ -11948,7 +11948,7 @@ function rjIaAbrirModalElegirFacturas(targets,sinFotoOmitidas){
     </label>`).join('');
   const panel=document.createElement('div');
   panel.style.cssText='background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;max-width:580px;width:100%;max-height:min(85vh,760px);display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.45)';
-  panel.innerHTML=`<div style="padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+  panel.innerHTML=CrozzoSanitize.sanitizeHtml(`<div style="padding:16px 18px);border-bottom:1px solid var(--border);flex-shrink:0">
     <div style="font-weight:700;font-size:17px">🤖 IA en lote — elige cuáles</div>
     <p style="margin:8px 0 0;font-size:13px;color:var(--muted);line-height:1.5">Marcaste <strong>${targets.length}</strong> en la lista. <strong>Desmarca</strong> las que no quieras enviar a Ollama ahora (así no saturas la PC).</p>
     ${sinFotoOmitidas?`<p style="margin:8px 0 0;font-size:12px;color:var(--yellow)">Se omitieron ${sinFotoOmitidas} sin factura adjunta.</p>`:''}
@@ -12081,7 +12081,7 @@ function recJefeRenderLista(){
     const msg=_recJefeFiltroEst==='completada'?'No hay recepciones procesadas':
               _recJefeFiltroEst==='pendiente_jefe'?'Sin pendientes — ¡al día! ✓':
               'No hay recepciones registradas aún';
-    list.innerHTML='<div class="empty">'+msg+'</div>';return;
+    list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="empty">'+msg+'</div>');return;
   }
   const pendientes=data.filter(r=>!r._procesada);
   const completadas=data.filter(r=>r._procesada);
@@ -12099,7 +12099,7 @@ function recJefeRenderLista(){
   const _panel=document.getElementById('rec-jefe-panel');
   const _jefeWrap=document.getElementById('pro-jefe');
   if(_panel&&_panel.parentElement===list) _jefeWrap?.appendChild(_panel);
-  list.innerHTML=html;
+  list.innerHTML=CrozzoSanitize.sanitizeHtml(html);
   // Listeners a checkboxes después de inyectar HTML
   list.querySelectorAll('input[type=checkbox]').forEach(chk=>{
     chk.addEventListener('change',recJefeCheckChange);
@@ -12112,7 +12112,7 @@ async function recJefeLoad(forzar=false){
   const _p=document.getElementById('rec-jefe-panel');
   const _w=document.getElementById('pro-jefe');
   if(_p&&_p.parentElement===list) _w?.appendChild(_p);
-  if(list) list.innerHTML='<div class="loading">Cargando...</div>';
+  if(list) list.innerHTML=CrozzoSanitize.sanitizeHtml('<div class="loading">Cargando...</div>');
 
   const KEY='_rec_jefe_v3';
   let cabeceras=[];
@@ -12296,8 +12296,8 @@ async function recJefeEliminar(recId, nombreProv, fecha){
   document.getElementById('modal-ok').style.background='var(--red)';
   document.getElementById('modal-ok').style.borderColor='var(--red)';
   document.getElementById('modal-cancel').textContent='Cancelar';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:12px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:12px">
       <div style="font-size:14px">¿Eliminar la recepción de <strong>${nombreProv}</strong> del <strong>${fecha}</strong>?</div>
       <div style="font-size:12px;color:var(--muted)">Esto eliminará la cabecera de recepción y su factura asociada en oficina. Los cortes ya guardados <strong>no</strong> se eliminan.</div>
       <div style="font-size:11px;font-family:var(--mono);color:var(--yellow);padding:8px 12px;background:rgba(255,200,0,.06);border-radius:6px">⚠️ Esta acción no se puede deshacer</div>
@@ -12429,8 +12429,8 @@ function ofNotaEditar(rec, notasWrap){
   document.getElementById('modal-ok').textContent='Guardar nota';
   document.getElementById('modal-ok').className='btn btn-primary';
   document.getElementById('modal-cancel').textContent='Cancelar';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:12px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:12px">
       <div style="font-size:11px;font-family:var(--mono);color:var(--muted)">Accesos rápidos:</div>
       <div id="of-nota-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       <div>
@@ -12719,8 +12719,8 @@ function cuentaCobroAbrir(provId, valorExterno, fechaExterna){
   document.getElementById('modal-ok').textContent='🖨 Generar PDF';
   document.getElementById('modal-ok').className='btn btn-primary';
   document.getElementById('modal-cancel').textContent='Cancelar';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="display:grid;gap:13px;max-height:70vh;overflow-y:auto;padding-right:4px">
+  document.getElementById('modal-msg').innerHTML=CrozzoSanitize.sanitizeHtml(`
+    <div style="display:grid);gap:13px;max-height:70vh;overflow-y:auto;padding-right:4px">
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px">
         ${_ccLbl('TIPO DE CUENTA DE COBRO')}
         <div style="display:flex;gap:10px">
@@ -12840,7 +12840,7 @@ class OficinaMultiSelect{
   clear(){this.selected.clear();this._rt();this._rl();}
   _op(){document.querySelectorAll('.of-mp-drop.open').forEach(d=>d.classList.remove('open'));this._o=1;this.drop.classList.add('open');this.si.value='';this._rl();setTimeout(()=>this.si.focus(),40);}
   _c(){this._o=0;this.drop.classList.remove('open');}
-  _rt(){if(!this.btn)return;if(!this.selected.size){this.btn.className='of-mp-trigger placeholder';this.btn.textContent=this.ph;return;}this.btn.className='of-mp-trigger';const w=document.createElement('div');w.className='of-mp-chips';[...this.selected].slice(0,3).forEach(id=>{const it=this.items.find(i=>String(i.value)===String(id));const ch=document.createElement('span');ch.className='of-mp-chip';ch.innerHTML='<span>'+(it?it.label:id)+'</span><button type="button">×</button>';ch.querySelector('button').onclick=e=>{e.stopPropagation();this.selected.delete(String(id));this._rt();this._rl();this.onChange(this.getValues());};w.appendChild(ch);});if(this.selected.size>3){const m=document.createElement('span');m.className='of-mp-chip';m.textContent='+'+(this.selected.size-3);w.appendChild(m);}this.btn.innerHTML='';this.btn.appendChild(w);}
+  _rt(){if(!this.btn)return;if(!this.selected.size){this.btn.className='of-mp-trigger placeholder';this.btn.textContent=this.ph;return;}this.btn.className='of-mp-trigger';const w=document.createElement('div');w.className='of-mp-chips';[...this.selected].slice(0,3).forEach(id=>{const it=this.items.find(i=>String(i.value)===String(id));const ch=document.createElement('span');ch.className='of-mp-chip';ch.innerHTML=CrozzoSanitize.sanitizeHtml('<span>'+(it?it.label:id)+'</span><button type="button">×</button>');ch.querySelector('button').onclick=e=>{e.stopPropagation();this.selected.delete(String(id));this._rt();this._rl();this.onChange(this.getValues());};w.appendChild(ch);});if(this.selected.size>3){const m=document.createElement('span');m.className='of-mp-chip';m.textContent='+'+(this.selected.size-3);w.appendChild(m);}this.btn.innerHTML='';this.btn.appendChild(w);}
   _rl(){if(!this.ls)return;const q=(this.si?.value||'').toLowerCase();const it=this.items.filter(i=>!q||i.label.toLowerCase().includes(q));this.ls.innerHTML='';it.forEach(i=>{const r=document.createElement('label');r.className='of-mp-opt';const x=document.createElement('input');x.type='checkbox';x.checked=this.selected.has(String(i.value));x.onchange=()=>{const id=String(i.value);if(x.checked)this.selected.add(id);else this.selected.delete(id);this._rt();};r.append(x,document.createTextNode(i.label));this.ls.appendChild(r);});}
 }
 
@@ -12952,7 +12952,7 @@ class SearchableSelect {
   _render() {
     const items = this._filtered();
     if (!items.length) {
-      this._list.innerHTML = '<div class="ss-empty">Sin resultados</div>';
+      this._list.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="ss-empty">Sin resultados</div>');
       return;
     }
     this._list.innerHTML = '';
@@ -12961,7 +12961,7 @@ class SearchableSelect {
       d.className = 'ss-opt' + (item.value === this.value ? ' selected' : '') + (!item.value ? ' placeholder' : '');
       d.textContent = item.label;
       if (item.sublabel) {
-        d.innerHTML = `${item.label}<span style="font-size:11px;color:var(--muted);margin-left:8px">${item.sublabel}</span>`;
+        d.innerHTML = CrozzoSanitize.sanitizeHtml(`${item.label}<span style="font-size:11px);color:var(--muted);margin-left:8px">${item.sublabel}</span>`;
       }
       d.onclick = () => { this._select(item); };
       this._list.appendChild(d);
@@ -13330,7 +13330,7 @@ window.addEventListener('beforeunload', function(e){
       if(!msgs) return;
       const d=document.createElement('div');
       d.className='pochi-bubble '+(type==='user'?'user':'bot');
-      d.innerHTML=html;
+      d.innerHTML=CrozzoSanitize.sanitizeHtml(html);
       msgs.appendChild(d);
       msgs.scrollTop=msgs.scrollHeight;
     }
@@ -13344,7 +13344,7 @@ window.addEventListener('beforeunload', function(e){
       else if(mod==='dashboard') items=['🎓 guía de esta sección','flujo facturas','stock','inversion','/pochi facturas'];
       else if(mod==='procesado') items=['🎓 guía de esta sección','tolerancia 30g','merma coccion','merma porcionado','/pochi contexto'];
       else if(mod==='conteo') items=['🎓 guía de esta sección','como hago un conteo','diferencias 10%','/pochi contexto'];
-      cmds.innerHTML=items.map(i=>`<button class="pochi-chip" type="button" data-cmd="${esc(i)}">${esc(i)}</button>`).join('');
+      cmds.innerHTML=CrozzoSanitize.sanitizeHtml(items.map(i=>`<button class="pochi-chip" type="button" data-cmd="${esc(i)}">${esc(i)}</button>`).join(''));
       cmds.querySelectorAll('.pochi-chip').forEach(b=>{
         b.addEventListener('click',()=>runPochiCommand(b.dataset.cmd||''));
       });
@@ -13451,10 +13451,10 @@ window.addEventListener('beforeunload', function(e){
         this.spotlight.style.left=Math.max(0,r.left-pad)+'px';
         this.spotlight.style.width=(r.width+pad*2)+'px';
         this.spotlight.style.height=(r.height+pad*2)+'px';
-        this.tooltip.innerHTML=`<h3>${esc(found.step.title)}</h3><p>${esc(found.step.desc)}</p>
+        this.tooltip.innerHTML=CrozzoSanitize.sanitizeHtml(`<h3>${esc(found.step.title)}</h3><p>${esc(found.step.desc)}</p>
           <div class="tour-controls">
             <span class="tour-progress">Paso ${this.i+1} de ${this.steps.length}</span>
-            <div style="display:flex;gap:6px">
+            <div style="display:flex);gap:6px">
               <button class="tour-btn" id="tour-prev"${this.i===0?' disabled':''}>←</button>
               <button class="tour-btn" id="tour-skip">Saltar</button>
               <button class="tour-btn primary" id="tour-next">${this.i===this.steps.length-1?'Finalizar':'→'}</button>

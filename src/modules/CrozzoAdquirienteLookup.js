@@ -397,7 +397,7 @@
 
       el.innerHTML =
 
-        '<span class="crozzo-adq-enrich crozzo-adq-enrich--busy">Buscando contacto…</span>';
+        CrozzoSanitize.sanitizeHtml('<span class="crozzo-adq-enrich crozzo-adq-enrich--busy">Buscando contacto…</span>');
 
       el.classList.add('crozzo-adq-lookup-status--loading');
 
@@ -411,11 +411,11 @@
 
       el.innerHTML =
 
-        '<span class="crozzo-adq-enrich crozzo-adq-enrich--ok">✓ ' +
+        CrozzoSanitize.sanitizeHtml('<span class="crozzo-adq-enrich crozzo-adq-enrich--ok">✓ ' +
 
         (detail ? detail : 'Fuentes contrastadas') +
 
-        '</span>';
+        '</span>');
 
       return;
 
@@ -1616,7 +1616,7 @@
 
     if (!el) return;
 
-    el.innerHTML = html || '';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(html || '');
 
     el.classList.toggle('crozzo-adq-lookup-status--loading', !!loading);
 
@@ -1628,7 +1628,7 @@
 
     var el = document.getElementById(hintId);
 
-    if (el) el.innerHTML = html || '';
+    if (el) el.innerHTML = CrozzoSanitize.sanitizeHtml(html || '');
 
   }
 

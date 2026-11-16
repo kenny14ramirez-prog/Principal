@@ -643,7 +643,7 @@ function crozzoInitInvoiceModalQr(f, qrId) {
       qrEl.innerHTML = '';
       new QRCode(qrEl, { text: qrUrl, width: 140, height: 140, colorDark: '#0f172a', colorLight: '#ffffff' });
     } else if (typeof crozzoTermicaQrImgHtml === 'function') {
-      qrEl.innerHTML = crozzoTermicaQrImgHtml(qrUrl, 140);
+      qrEl.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoTermicaQrImgHtml(qrUrl, 140));
     }
   }, 120);
 }
@@ -699,7 +699,7 @@ function crozzoEnsureFacturaDetailSlot() {
   slot.className = 'crozzo-invoice-detail-row';
   slot.style.display = 'none';
   slot.innerHTML =
-    '<td colspan="11"><div id="facturaPreviewHost" class="crozzo-invoice-row-detail"></div></td>';
+    CrozzoSanitize.sanitizeHtml('<td colspan="11"><div id="facturaPreviewHost" class="crozzo-invoice-row-detail"></div></td>');
   return slot;
 }
 function crozzoMountFacturaDetailBelowRow(rowKey) {
@@ -788,7 +788,7 @@ function crozzoRenderFacturaPreviewPane() {
   var f = row.f;
   if (!host || !f) return;
   var idx = row.archived ? -1 : row.idx;
-  host.innerHTML = crozzoFacturaInlinePreviewHtml(f, idx, row.archived);
+  host.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoFacturaInlinePreviewHtml(f, idx, row.archived));
   crozzoInitInvoiceModalQr(f, crozzoFacturaQrMostrable(f) ? 'qr_preview_' + idx : null);
   crozzoScrollFacturaDetailIntoView(idx);
 }
@@ -1141,11 +1141,11 @@ function refreshFacturasFilteredView() {
   var remaining = config.getFacturasRestantes();
   var previewKey = facturaPreviewRowKey;
   var kpis = document.getElementById('facturasKpis');
-  if (kpis) kpis.innerHTML = buildFacturasKpisHtml(viewFacturas, resumen, remaining);
+  if (kpis) kpis.innerHTML = CrozzoSanitize.sanitizeHtml(buildFacturasKpisHtml(viewFacturas, resumen, remaining));
   var bar = document.getElementById('facturasResultBar');
-  if (bar) bar.innerHTML = buildFacturasResultBarHtml(resumen, viewRows.length, facturas.length);
+  if (bar) bar.innerHTML = CrozzoSanitize.sanitizeHtml(buildFacturasResultBarHtml(resumen, viewRows.length, facturas.length));
   var host = document.getElementById('facturasListHost');
-  if (host) host.innerHTML = buildFacturasListBlockHtml(viewFacturas, filtered);
+  if (host) host.innerHTML = CrozzoSanitize.sanitizeHtml(buildFacturasListBlockHtml(viewFacturas, filtered));
   crozzoSyncFacturasFilterChips();
   crozzoSyncFacturasPeriodChips();
   if (previewKey) {

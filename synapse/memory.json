@@ -1,0 +1,30 @@
+[
+  {
+    "id": "mem-1",
+    "path": "crozzo/canon",
+    "title": "Fuente canónica app/",
+    "content": "Editar siempre app/, luego npm run sync. No editar src/.",
+    "createdAt": "2026-11-07T22:05:10.921Z"
+  },
+  {
+    "id": "mem-2",
+    "path": "crozzo/sync",
+    "title": "Z0 sync",
+    "content": "Pantallas P0: cajero, tablets, comandas, cocina, mesas. Ver SYNC-INVARIANTS.",
+    "createdAt": "2026-11-07T22:05:10.922Z"
+  },
+  {
+    "id": "mem-3",
+    "path": "crozzo/fiscal",
+    "title": "Fiscal DIAN",
+    "content": "buildUBL21 + calcularCUFE + timbrarFactura. Sandbox bloquea CUFE real en nivel 0.",
+    "createdAt": "2026-11-07T22:05:10.922Z"
+  },
+  {
+    "id": "mem-4",
+    "path": "crozzo/chaos",
+    "title": "Caos de red",
+    "content": "__degraded ReferenceError corregido en CrozzoLanSyncBridge online handler.",
+    "createdAt": "2026-11-07T22:05:10.922Z"
+  }
+]

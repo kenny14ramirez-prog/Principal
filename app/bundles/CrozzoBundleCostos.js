@@ -4092,7 +4092,7 @@
   function refreshCategoryChips(root) {
     var row = root.querySelector('.crozzo-mp-chips');
     if (!row) return;
-    row.innerHTML = buildChipsHtml(buildCatalog());
+    row.innerHTML = CrozzoSanitize.sanitizeHtml(buildChipsHtml(buildCatalog()));
   }
 
   function resolveNewFormCategoria(root, C) {
@@ -4108,9 +4108,9 @@
       return null;
     }
     if (sel) {
-      sel.innerHTML = C.renderCategoriaMpOptionsHtml
+      sel.innerHTML = CrozzoSanitize.sanitizeHtml(C.renderCategoriaMpOptionsHtml
         ? C.renderCategoriaMpOptionsHtml(cr.key)
-        : sel.innerHTML;
+        : sel.innerHTML);
       sel.value = cr.key;
     }
     var wrap = root.querySelector('#crozzoMpNewCatCustom');
@@ -4305,7 +4305,7 @@
     var tbody = root.querySelector('#crozzoMpTbody');
     if (!tbody) return;
     var filtered = filterItems(buildCatalog());
-    tbody.innerHTML = renderRows(filtered);
+    tbody.innerHTML = CrozzoSanitize.sanitizeHtml(renderRows(filtered));
     refreshCategoryChips(root);
     var hint = root.querySelector('.crozzo-mod-toolbar .form-hint');
     if (hint) {
@@ -4629,7 +4629,7 @@
       return null;
     }
     if (sel) {
-      sel.innerHTML = C.renderCategoriaMpOptionsHtml ? C.renderCategoriaMpOptionsHtml(cr.key) : sel.innerHTML;
+      sel.innerHTML = CrozzoSanitize.sanitizeHtml(C.renderCategoriaMpOptionsHtml ? C.renderCategoriaMpOptionsHtml(cr.key) : sel.innerHTML);
       sel.value = cr.key;
     }
     var wrap = root.querySelector('#' + I.catCustom);
@@ -4753,7 +4753,7 @@
         }
         var catSel = root.querySelector('#' + I.cat);
         if (catSel) {
-          catSel.innerHTML = C.renderCategoriaMpOptionsHtml ? C.renderCategoriaMpOptionsHtml(catRes.key) : catSel.innerHTML;
+          catSel.innerHTML = CrozzoSanitize.sanitizeHtml(C.renderCategoriaMpOptionsHtml ? C.renderCategoriaMpOptionsHtml(catRes.key) : catSel.innerHTML);
           catSel.value = catRes.key;
         }
         var catWrap = root.querySelector('#' + I.catCustom);
@@ -5032,8 +5032,8 @@
     var hint = hintFormula(merged);
     if (unitCell) {
       unitCell.innerHTML =
-        esc(fmtUnit(merged.precioUnit, merged.und)) +
-        (hint ? '<span class="crozzo-costeo-hint">' + esc(hint) + '</span>' : '');
+        CrozzoSanitize.sanitizeHtml(esc(fmtUnit(merged.precioUnit, merged.und)) +
+        (hint ? '<span class="crozzo-costeo-hint">' + esc(hint) + '</span>' : ''));
       unitCell.setAttribute('title', hint);
     }
     tr.setAttribute('data-costeo-und', merged.und);
@@ -5050,7 +5050,7 @@
     var tbody = root.querySelector('#crozzoCosteoTbody');
     if (!tbody) return;
     var filtered = filterItems(buildRows());
-    tbody.innerHTML = renderRows(filtered);
+    tbody.innerHTML = CrozzoSanitize.sanitizeHtml(renderRows(filtered));
     var hint = root.querySelector('.crozzo-mod-toolbar .form-hint');
     if (hint) {
       var all = buildRows();

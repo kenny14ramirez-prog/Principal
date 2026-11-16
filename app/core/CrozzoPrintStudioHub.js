@@ -461,14 +461,14 @@
     if (!host) return;
     tpl = cloneTpl(tpl);
     if (!tpl || !tpl.blocks || !tpl.blocks.length) {
-      host.innerHTML = '<p class="crozzo-print-studio__preview-empty">Sin bloques</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-print-studio__preview-empty">Sin bloques</p>');
       return;
     }
     if (typeof global.crozzoTermicaRenderPlantillaHtml !== 'function') {
       host.innerHTML =
-        '<p class="crozzo-print-studio__preview-empty">' +
+        CrozzoSanitize.sanitizeHtml('<p class="crozzo-print-studio__preview-empty">' +
         (tpl.blocks.length + ' bloques · ' + (tpl.sz || '80') + ' mm') +
-        '</p>';
+        '</p>');
       return;
     }
     try {
@@ -479,7 +479,7 @@
       var meta = printOutputMeta(outId);
       if (meta.kind === 'sheet') {
         host.innerHTML =
-          '<div class="crozzo-print-studio__preview-sheet crozzo-print-studio__preview-sheet--' +
+          CrozzoSanitize.sanitizeHtml('<div class="crozzo-print-studio__preview-sheet crozzo-print-studio__preview-sheet--' +
           esc(meta.id) +
           '">' +
           '<span class="crozzo-print-studio__preview-sheet-tag">' +
@@ -489,17 +489,17 @@
           (tpl.sz === '80' ? '80' : '58') +
           '">' +
           html +
-          '</div></div>';
+          '</div></div>');
       } else {
         host.innerHTML =
-          '<div class="crozzo-print-studio__preview-ticket crozzo-print-studio__preview-ticket--' +
+          CrozzoSanitize.sanitizeHtml('<div class="crozzo-print-studio__preview-ticket crozzo-print-studio__preview-ticket--' +
           (tpl.sz === '80' ? '80' : '58') +
           '">' +
           html +
-          '</div>';
+          '</div>');
       }
     } catch (_) {
-      host.innerHTML = '<p class="crozzo-print-studio__preview-empty">Vista previa no disponible</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-print-studio__preview-empty">Vista previa no disponible</p>');
     }
   }
 
@@ -2690,7 +2690,7 @@
   function previewMarcacion() {
     var seq = nextMarcacionId();
     var el = document.getElementById('bodegaMarcacionPreview');
-    if (el) el.innerHTML = 'Próxima secuencia: <code>' + esc(seq) + '</code> (aún no impresa)';
+    if (el) el.innerHTML = CrozzoSanitize.sanitizeHtml('Próxima secuencia: <code>' + esc(seq) + '</code> (aún no impresa)');
   }
 
   function testPrintActive() {

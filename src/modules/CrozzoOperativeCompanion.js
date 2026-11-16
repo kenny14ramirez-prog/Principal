@@ -249,7 +249,7 @@
         '</ul>';
     }
     host.innerHTML =
-      '<aside class="crozzo-companion-rail" role="status" aria-live="polite">' +
+      CrozzoSanitize.sanitizeHtml('<aside class="crozzo-companion-rail" role="status" aria-live="polite">' +
       '<div class="crozzo-companion-rail__glow" aria-hidden="true"></div>' +
       '<div class="crozzo-companion-rail__main">' +
       '<span class="crozzo-companion-rail__badge">' +
@@ -264,7 +264,7 @@
       stepsHtml +
       '</div>' +
       '<button type="button" class="crozzo-companion-rail__close" title="Ocultar guía de esta sesión" aria-label="Ocultar guía">×</button>' +
-      '</aside>';
+      '</aside>');
     var closeBtn = host.querySelector('.crozzo-companion-rail__close');
     if (closeBtn && !closeBtn._bound) {
       closeBtn._bound = true;

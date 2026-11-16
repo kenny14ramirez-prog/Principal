@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-09T11:32:58.689Z",
+  "at": "2026-11-13T19:10:13.212Z",
   "limits": {
     "bleMeshMaxHops": 12,
     "bleMeshMaxPeers": 100,
@@ -96,8 +96,8 @@
   "subprocess": [
     {
       "script": "_connectivity-flow-check.mjs",
-      "ok": false,
-      "out": "2 fallo(s) (21 checks)"
+      "ok": true,
+      "out": "Todo OK (21 checks)"
     },
     {
       "script": "_connectivity-mixed-flow-check.mjs",

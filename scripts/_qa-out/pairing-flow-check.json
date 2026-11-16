@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "steps": [
+    {
+      "id": "libs-loaded",
+      "ok": true,
+      "detail": "jsQR/seal/reader",
+      "extra": {
+        "jsQR": true,
+        "seal": true,
+        "reader": true,
+        "QRCode": true
+      }
+    },
+    {
+      "id": "qr-generated",
+      "ok": true,
+      "detail": "QR único canvas 432x432",
+      "extra": {
+        "receiverVisible": true,
+        "hasCanvas": true,
+        "canvasW": 432,
+        "canvasH": 432,
+        "singleLayout": true,
+        "fastText": "",
+        "warn": "⚠️ Este QR NO lleva credenciales de nube. En la caja: Super Admin → Nube → Paso 1 → «Guardar y conectar» → genere el QR otra vez."
+      }
+    },
+    {
+      "id": "qr-decode-roundtrip",
+      "ok": true,
+      "detail": "lector lee QR de pantalla",
+      "extra": {
+        "ok": true,
+        "rawPrefix": "BOF.eyJ2",
+        "ip": "192.168.1.50"
+      }
+    },
+    {
+      "id": "qr-fast-prefix",
+      "ok": true,
+      "detail": "payload BOF decodificado",
+      "extra": {
+        "prefix": "BOF.eyJ2"
+      }
+    },
+    {
+      "id": "reader-ui",
+      "ok": true,
+      "detail": "paso lector tablet",
+      "extra": {
+        "readerVisible": true,
+        "captureInput": true,
+        "hasPickPhoto": true,
+        "hasDecodeFile": true
+      }
+    },
+    {
+      "id": "modal-close",
+      "ok": true,
+      "detail": "modal cierra correctamente",
+      "extra": null
+    }
+  ],
+  "errors": [
+    "Cannot read properties of null (reading 'classList')"
+  ]
+}

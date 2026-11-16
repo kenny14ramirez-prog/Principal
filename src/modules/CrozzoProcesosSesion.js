@@ -1531,21 +1531,21 @@
         var diffHtml = fmtCorteDiffHtml(resolved);
         if (!num(l.grBalanza)) {
           diffEl.classList.add('is-warn');
-          diffEl.innerHTML = num(l.grCalc) > 0 ? diffHtml || 'Falta pesar en balanza' : 'Primero pesa este corte en la balanza';
+          diffEl.innerHTML = CrozzoSanitize.sanitizeHtml(num(l.grCalc) > 0 ? diffHtml || 'Falta pesar en balanza' : 'Primero pesa este corte en la balanza');
         } else if (num(l.grCalc) > 0 && l.deltaGr != null) {
           if (l.deltaGrave) {
             diffEl.classList.add('is-bad');
-            diffEl.innerHTML = diffHtml + ' — <strong>corrige antes de guardar</strong>';
+            diffEl.innerHTML = CrozzoSanitize.sanitizeHtml(diffHtml + ' — <strong>corrige antes de guardar</strong>');
           } else if (!l.deltaOk && l.deltaGr !== 0) {
             diffEl.classList.add('is-warn');
-            diffEl.innerHTML = diffHtml + ' — revisa conteo o vuelve a pesar';
+            diffEl.innerHTML = CrozzoSanitize.sanitizeHtml(diffHtml + ' — revisa conteo o vuelve a pesar');
           } else {
             diffEl.classList.add('is-ok');
-            diffEl.innerHTML = diffHtml;
+            diffEl.innerHTML = CrozzoSanitize.sanitizeHtml(diffHtml);
           }
         } else if (num(l.grBalanza) > 0) {
           diffEl.classList.add('is-warn');
-          diffEl.innerHTML = 'Balanza: <strong>' + fmtPesoGr(l.grBalanza) + '</strong> — falta contar porciones';
+          diffEl.innerHTML = CrozzoSanitize.sanitizeHtml('Balanza: <strong>' + fmtPesoGr(l.grBalanza) + '</strong> — falta contar porciones');
         } else {
           diffEl.classList.add('is-muted');
           diffEl.textContent = '';
@@ -1596,16 +1596,16 @@
         if (falta <= tol) {
           barra.classList.add('is-ok');
           barra.innerHTML =
-            'Llevas <strong>' +
+            CrozzoSanitize.sanitizeHtml('Llevas <strong>' +
             fmtPesoGr(summary.sumGr) +
             '</strong>' +
             mermaNote +
             ' de <strong>' +
             fmtPesoGr(entGr) +
-            '</strong> que entraron — cuadra bien.';
+            '</strong> que entraron — cuadra bien.');
         } else {
           barra.innerHTML =
-            'Llevas <strong>' +
+            CrozzoSanitize.sanitizeHtml('Llevas <strong>' +
             fmtPesoGr(summary.sumGr) +
             '</strong>' +
             mermaNote +
@@ -1613,7 +1613,7 @@
             fmtPesoGr(entGr) +
             '</strong> — faltan <strong>' +
             fmtPesoGr(falta) +
-            '</strong> por anotar (hueso, grasa, otro corte…).';
+            '</strong> por anotar (hueso, grasa, otro corte…).');
         }
       }
     }
@@ -2640,7 +2640,7 @@
     var verVal = canVerValoresProcesos();
     var rows = historialRowsHtml(admin ? 50 : 20);
     var colSpan = (verVal ? 1 : 0) + 5 + (admin ? 1 : 0);
-    tbody.innerHTML = rows || '<tr><td colspan="' + colSpan + '">Sin preparaciones registradas</td></tr>';
+    tbody.innerHTML = CrozzoSanitize.sanitizeHtml(rows || '<tr><td colspan="' + colSpan + '">Sin preparaciones registradas</td></tr>');
     bindHistorialAdmin(host);
   }
 
@@ -2776,7 +2776,7 @@
 
   function refreshBatchHost(host) {
     var el = host.querySelector('#cps-batch-host');
-    if (el) el.innerHTML = batchCardHtml();
+    if (el) el.innerHTML = CrozzoSanitize.sanitizeHtml(batchCardHtml());
     bindBatch(host);
     var save = host.querySelector('#cps-save');
     if (save) {
@@ -2796,8 +2796,8 @@
     if (!state.edit) return;
     var detail = host.querySelector('#cps-detail-host');
     if (!detail) return;
-    if (state.edit.mode === 'receta') detail.innerHTML = recetaPanelHtml(state.edit);
-    else if (state.edit.mode === 'mp') detail.innerHTML = mpPanelHtml(state.edit);
+    if (state.edit.mode === 'receta') detail.innerHTML = CrozzoSanitize.sanitizeHtml(recetaPanelHtml(state.edit));
+    else if (state.edit.mode === 'mp') detail.innerHTML = CrozzoSanitize.sanitizeHtml(mpPanelHtml(state.edit));
     bindDetail(host);
     refreshTotals(host);
   }
@@ -2806,7 +2806,7 @@
     if (!state.edit || state.edit.mode !== 'receta') return;
     var wrap = host.querySelector('#cps-lineas-wrap');
     if (!wrap) return;
-    wrap.innerHTML = lineasTableHtml(state.edit);
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml(lineasTableHtml(state.edit));
     bindLineInputs(host);
     refreshTotals(host);
   }
@@ -2836,7 +2836,7 @@
     state.edit.factor = num(val, 1) || 1;
     refreshLineasTable(host);
     var btns = host.querySelector('#cps-porc-btns');
-    if (btns) btns.innerHTML = porcionesBtnsHtml(state.edit.factor);
+    if (btns) btns.innerHTML = CrozzoSanitize.sanitizeHtml(porcionesBtnsHtml(state.edit.factor));
     bindPorcBtns(host);
   }
 
@@ -3045,7 +3045,7 @@
     state.batch = [];
     state.edit = null;
     state.responsables = initResponsables();
-    host.innerHTML = render({ workflow: state.workflow });
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(render({ workflow: state.workflow }));
     init(host, { workflow: state.workflow });
   }
 
@@ -3062,14 +3062,14 @@
     }
     if (val.indexOf('rec:') === 0) {
       state.edit = newEditReceta(val.slice(4));
-      detail.innerHTML = recetaPanelHtml(state.edit);
+      detail.innerHTML = CrozzoSanitize.sanitizeHtml(recetaPanelHtml(state.edit));
       bindDetail(host);
       syncActionsVisibility(host);
       return;
     }
     if (val.indexOf('mp:') === 0) {
       state.edit = newEditMp(val.slice(3));
-      detail.innerHTML = mpPanelHtml(state.edit);
+      detail.innerHTML = CrozzoSanitize.sanitizeHtml(mpPanelHtml(state.edit));
       bindDetail(host);
       bindDespieceCortes(host);
       refreshTotals(host);
@@ -3216,12 +3216,12 @@
       var q = inp.value.trim().toLowerCase();
       var cacheHtml = inp._cpsCache || sel.innerHTML;
       if (!q) {
-        sel.innerHTML = cacheHtml;
+        sel.innerHTML = CrozzoSanitize.sanitizeHtml(cacheHtml);
         sel.value = '';
         return;
       }
       var wrap = document.createElement('div');
-      wrap.innerHTML = cacheHtml;
+      wrap.innerHTML = CrozzoSanitize.sanitizeHtml(cacheHtml);
       var first = wrap.querySelector('option[value=""]');
       var out = first ? first.outerHTML : '<option value="">—</option>';
       wrap.querySelectorAll('optgroup').forEach(function (og) {
@@ -3241,7 +3241,7 @@
         }
       });
       var prev = sel.value;
-      sel.innerHTML = out;
+      sel.innerHTML = CrozzoSanitize.sanitizeHtml(out);
       if (prev) {
         var match = sel.querySelector('option[value="' + CSS.escape(prev) + '"]');
         if (match) sel.value = prev;
@@ -3258,7 +3258,7 @@
       try {
         sessionStorage.removeItem('qca_pro_workflow');
       } catch (_) {}
-      host.innerHTML = render({ workflow: '' });
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(render({ workflow: '' }));
       init(host, { workflow: '' });
       refreshLucideIn(host);
     });
@@ -3275,7 +3275,7 @@
         try {
           sessionStorage.setItem('qca_pro_workflow', wf);
         } catch (_) {}
-        host.innerHTML = render({ workflow: wf });
+        host.innerHTML = CrozzoSanitize.sanitizeHtml(render({ workflow: wf }));
         init(host, { workflow: wf });
         refreshLucideIn(host);
         toast('Listo — completa los pasos en pantalla', 'info');
@@ -3297,7 +3297,7 @@
     if (cat && cat.ensureReady) {
       cat.ensureReady(function () {
         var sel = host.querySelector('#cps-producto');
-        if (sel) sel.innerHTML = productOptionsHtml(state.workflow);
+        if (sel) sel.innerHTML = CrozzoSanitize.sanitizeHtml(productOptionsHtml(state.workflow));
         var filt = host.querySelector('#cps-product-filter');
         if (filt && sel) filt._cpsCache = sel.innerHTML;
       });

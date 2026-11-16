@@ -3255,11 +3255,11 @@ function crozzoSetStatusPill(el, dotClass, text, title, extraClass) {
     txt.textContent = text;
   } else {
     el.innerHTML =
-      '<span class="crozzo-status-dot ' +
+      CrozzoSanitize.sanitizeHtml('<span class="crozzo-status-dot ' +
       (dotClass || '') +
       '" aria-hidden="true"></span><span class="crozzo-status-txt">' +
       (text || '') +
-      '</span>';
+      '</span>');
   }
 }
 function crozzoRefreshLucideIcons(scopeEl) {

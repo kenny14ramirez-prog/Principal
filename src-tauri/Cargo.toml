@@ -46,6 +46,7 @@ tauri-plugin-updater = "=2.10.1"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "native-tls", "json"] }
 base64 = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
+totp-rs = { version = "5.6", features = ["gen_secret", "otpauth"] }
 mdns-sd = "0.13"
 tungstenite = "0.24"
 tokio-tungstenite = "0.24"

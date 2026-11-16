@@ -3,6 +3,7 @@
 <html lang="es" data-theme="bona-origen" class="crozzo-theme-light">
 <head>
 <meta charset="UTF-8">
+<meta name="description" content="BONA origen — Sistema POS para restaurantes y comercios: mesas, comandas, facturación, caja, inventario y reportes.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
@@ -25,16 +26,21 @@ document.documentElement.classList.toggle('crozzo-theme-light',isLight);
 document.documentElement.classList.toggle('crozzo-theme-dark',!isLight&&t!=='bona-origen');
 document.documentElement.style.colorScheme=isLight?'light':(t?'dark':'light');
 }catch(e){}})();</script>
-<script src="core/CrozzoDevicePerf.js"></script>
+<script src="core/CrozzoDevicePerf.js" defer></script>
 <link rel="stylesheet" href="css/CrozzoPosStyles.css">
 <link rel="stylesheet" href="css/CrozzoPantallasShell.css">
 <script src="core/CrozzoStorageHygiene.js"></script>
 <script src="core/CrozzoObservability.js"></script>
-<script src="infra/CrozzoEmulationHarness.js"></script>
-<script src="modules/CrozzoFacturasArchivo.js"></script>
+<script src="infra/CrozzoEmulationHarness.js" defer></script>
+<script src="modules/CrozzoFacturasArchivo.js" defer></script>
 <script src="core/CrozzoAuthSecurity.js"></script>
-<script src="core/CrozzoTechConsole.js"></script>
+<script src="core/CrozzoSuperAdminCentral.js"></script>
+<script src="core/CrozzoSuperAdminMenu.js"></script>
+<script src="core/CrozzoSoporteCentral.js"></script>
+<script src="core/CrozzoMfaKenny.js"></script>
+<script src="core/CrozzoTechConsole.js" defer></script>
 <script src="core/CrozzoCspDomWire.js"></script>
+<script src="modules/CrozzoHoneypotJaula.js"></script>
 <script src="core/CrozzoLoginBoot.js"></script>
 <script src="core/CrozzoDeviceForm.js"></script>
 <script src="core/CrozzoTabletShell.js"></script>
@@ -115,8 +121,17 @@ window.crozzoAppDisplayName = function () {
 </script>
 <script src="vendor/CrozzoLucide.js" defer></script>
 <script src="vendor/CrozzoQRCode.js" defer></script>
-<script src="vendor/CrozzoJsQR.js"></script>
-<script src="core/CrozzoPairingSeal.js"></script>
+<script src="vendor/CrozzoJsQR.js" defer></script>
+<script src="core/CrozzoPairingSeal.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" crossorigin="anonymous"></script>
+<script src="core/CrozzoSanitize.js"></script>
+<script src="core/CrozzoFeatureFlags.js"></script>
+<script src="core/CrozzoRlsCompat.js"></script>
+<script src="core/CrozzoRlsJwt.js"></script>
+<script src="core/CrozzoSupabaseAuth.js"></script>
+<script src="core/CrozzoRlsIntegration.js"></script>
+<script src="core/CrozzoRlsPayloadEnricher.js"></script>
+<script src="core/CrozzoRlsPairing.js"></script>
 <script src="modules/CrozzoPairingQrReader.js"></script>
 <script src="vendor/CrozzoSupabaseUmd.js" defer></script>
 <script>
@@ -1160,6 +1175,8 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 <script src="infra/CrozzoFieldDiagnostic.js" defer></script>
 <script src="infra/CrozzoPerformanceMetrics.js" defer></script>
 <script src="core/pos/CrozzoPosConfigManager.js" defer></script>
+<script src="core/CrozzoCertVault.js" defer></script>
+<script src="core/CrozzoCertVaultIntegration.js" defer></script>
 <script src="core/pos/CrozzoPosDianLib.js" defer></script>
 <script src="core/pos/CrozzoPosKeyboard.js" defer></script>
 <script src="core/pos/CrozzoPosUiHelpers.js" defer></script>

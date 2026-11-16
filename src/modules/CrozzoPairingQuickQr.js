@@ -20,6 +20,26 @@
     }
   }
 
+  function revealQrNode(host, sizePx) {
+    if (!host || !host.querySelector) return null;
+    var canvas = host.querySelector('canvas');
+    var img = host.querySelector('img');
+    if (img && img.src && String(img.src).indexOf('data:') === 0) {
+      if (canvas) canvas.style.display = 'none';
+      img.style.display = 'block';
+      if (sizePx) {
+        img.width = sizePx;
+        img.height = sizePx;
+      }
+      return img;
+    }
+    if (canvas) {
+      canvas.style.display = 'block';
+      return canvas;
+    }
+    return null;
+  }
+
   function isLoggedInShell() {
     try {
       var login = el('loginOverlay');
@@ -167,6 +187,7 @@
     close: closeQuick,
     refresh: renderQr,
     syncVisibility: syncVisibility,
+    revealQrNode: revealQrNode,
     hostId: QUICK_HOST_ID,
   };
 

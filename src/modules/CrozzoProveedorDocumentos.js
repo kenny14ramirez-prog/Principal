@@ -2985,13 +2985,13 @@
     var wizardEl = root.querySelector('[data-prov-doc-wizard]');
     if (queueEl) {
       queueEl.hidden = !st.items.length;
-      queueEl.innerHTML = st.items.length
+      queueEl.innerHTML = CrozzoSanitize.sanitizeHtml(st.items.length
         ? '<p class="form-label">Archivos en cola (' + st.items.length + ')</p>' + renderQueue(st)
-        : '';
+        : '');
     }
     if (wizardEl) {
       wizardEl.hidden = !st.active;
-      wizardEl.innerHTML = st.active ? renderWizardPanel(st, prefix) : '';
+      wizardEl.innerHTML = CrozzoSanitize.sanitizeHtml(st.active ? renderWizardPanel(st, prefix) : '');
       if (st.active) {
         bindDocumentPreview(wizardEl, st.active);
         bindInlineFieldChips(wizardEl);
@@ -4480,7 +4480,7 @@
         var list = root.querySelector('[data-bank-list="' + prefix + '"]');
         if (list) {
           var div = document.createElement('div');
-          div.innerHTML = renderCuentaBancariaRow({}, prefix, list.querySelectorAll('[data-bank-row]').length);
+          div.innerHTML = CrozzoSanitize.sanitizeHtml(renderCuentaBancariaRow({}, prefix, list.querySelectorAll('[data-bank-row]').length));
           list.appendChild(div.firstElementChild);
         }
         return;

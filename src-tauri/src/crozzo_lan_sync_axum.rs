@@ -23,6 +23,8 @@ pub fn router(state: SharedState) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/health/", get(health))
+        .route("/metrics", get(metrics_handler))
+        .route("/metrics/", get(metrics_handler))
         .route("/status", get(status))
         .route("/status/", get(status))
         .route("/mesh-ping", get(mesh_ping))

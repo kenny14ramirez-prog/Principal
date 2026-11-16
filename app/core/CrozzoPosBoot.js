@@ -4,6 +4,13 @@
    */
   function initPOS() {
     try {
+      if (window.CrozzoRlsPayloadEnricher && typeof window.CrozzoRlsPayloadEnricher.patchFetch === 'function') {
+        window.CrozzoRlsPayloadEnricher.patchFetch();
+      }
+    } catch (eRls) {
+      console.warn('[crozzo] RlsPayloadEnricher', eRls);
+    }
+    try {
       if (window.CrozzoModeManager) CrozzoModeManager.init();
     } catch (e) {
       console.warn('[crozzo] ModeManager', e);

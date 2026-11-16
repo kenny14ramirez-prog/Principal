@@ -407,7 +407,7 @@
     var wrap = document.querySelector('.crozzo-sync-pri-live');
     if (wrap && wrap.parentNode) {
       var fresh = document.createElement('div');
-      fresh.innerHTML = liveStatusHtml();
+      fresh.innerHTML = CrozzoSanitize.sanitizeHtml(liveStatusHtml());
       wrap.parentNode.replaceChild(fresh.firstChild, wrap);
     }
   }
@@ -426,7 +426,7 @@
           b.classList.toggle('is-active', b === btn);
         });
         var body = document.getElementById('crozzoSyncPriCatalogBody');
-        if (body) body.innerHTML = buildCatalogRows(currentFilter);
+        if (body) body.innerHTML = CrozzoSanitize.sanitizeHtml(buildCatalogRows(currentFilter));
         updateCatalogCount(currentFilter);
       });
     });
@@ -438,7 +438,7 @@
       refBtn.addEventListener('click', function () {
         refreshLiveStrip();
         var body = document.getElementById('crozzoSyncPriCatalogBody');
-        if (body) body.innerHTML = buildCatalogRows(currentFilter);
+        if (body) body.innerHTML = CrozzoSanitize.sanitizeHtml(buildCatalogRows(currentFilter));
         updateCatalogCount(currentFilter);
         if (global.showToast) global.showToast('Estado de prioridades actualizado', 'success');
       });

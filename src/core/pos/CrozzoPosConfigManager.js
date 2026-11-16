@@ -456,6 +456,15 @@ class ConfigManager {
   }
   save() {
     localStorage.setItem('pos_dian_config', JSON.stringify(this.config));
+    // Fase -2: dual-write de facturas a SQLite (fire-and-forget)
+    try {
+      if (global.CrozzoFeatureFlags && global.CrozzoFeatureFlags.isEnabled('useSqliteFiscal')) {
+        if (global.CrozzoFiscalDualWrite && typeof global.CrozzoFiscalDualWrite.saveFacturas === 'function') {
+          var facturas = (this.config && Array.isArray(this.config.facturas)) ? this.config.facturas : null;
+          if (facturas) global.CrozzoFiscalDualWrite.saveFacturas(facturas).catch(function () {});
+        }
+      }
+    } catch (_) {}
   }
   get(key) {
     return this.config[key];
@@ -579,8 +588,47 @@ class ConfigManager {
     if (!dian.rangoHasta) missing.push('Rango de facturación');
     if (!dian.fechaVencimiento) missing.push('Fecha de vencimiento');
     if (!cert.encrypted) missing.push('Certificado digital');
+    // Fase -2: verificar vigencia del certificado
+    if (cert.expiryDate) {
+      try { if (new Date(cert.expiryDate) < new Date()) missing.push('Certificado vencido'); } catch (_) {}
+    }
+    // Fase -2: verificar certificado en vault (PoC: localStorage fallback)
+    try {
+      if (global.CrozzoCertVault) {
+        // Síncrono: verificar que existe en localStorage fallback
+        var vaultCert = null;
+        try { vaultCert = global.localStorage.getItem('crozzo_cert_vault_cache'); } catch (_) {}
+        if (!vaultCert && !cert.encrypted) missing.push('Certificado no encontrado en vault');
+      }
+    } catch (_) {}
     if (prov.type !== 'mock' && !prov.apiKey) missing.push('Credenciales del proveedor');
+    // Fase -2: exigir proveedor dataico (no mock) para go-live
+    if (prov.type === 'mock') missing.push('Proveedor tecnológico (Dataico) no configurado');
     return { valid: missing.length === 0, missing };
+  }
+
+  // Fase -2: verificación async con vault de certificados
+  async canGoLiveAsync() {
+    const base = this.canGoLive();
+    if (!base.valid) return base;
+    // Verificar certificado en vault (DPAPI) — no degradar silenciosamente
+    if (!global.CrozzoCertVault || typeof global.CrozzoCertVault.get !== 'function') {
+      return { valid: false, missing: ['Vault de certificados no disponible'] };
+    }
+    try {
+      const vaultCert = await global.CrozzoCertVault.get();
+      if (!vaultCert) {
+        return { valid: false, missing: ['Certificado no encontrado en vault'] };
+      }
+      const certCfg = (this.config && this.config.certificado) || {};
+      if (certCfg.expiryDate && new Date(certCfg.expiryDate) < new Date()) {
+        return { valid: false, missing: ['Certificado vencido'] };
+      }
+    } catch (e) {
+      console.warn('canGoLiveAsync vault check failed', e);
+      return { valid: false, missing: ['Error verificando certificado en vault'] };
+    }
+    return base;
   }
   addAudit(action, details, opts) {
     const o = opts && typeof opts === 'object' ? opts : {};
@@ -722,6 +770,20 @@ class ConfigManager {
       }
     } catch (_) {}
     return next;
+  }
+
+  // Fase 0: liberar consecutivo si el timbrado falló (rollback)
+  releaseConsecutivo(saleAttemptId) {
+    try {
+      if (!saleAttemptId) return;
+      var cacheKey = 'crozzo_consecutivo_attempt_v1';
+      var raw = localStorage.getItem(cacheKey);
+      var cache = raw ? JSON.parse(raw) : {};
+      if (cache && cache[saleAttemptId]) {
+        delete cache[saleAttemptId];
+        localStorage.setItem(cacheKey, JSON.stringify(cache));
+      }
+    } catch (_) {}
   }
   getFacturasRestantes() {
     if (!this.config.dian.rangoHasta) return Infinity;

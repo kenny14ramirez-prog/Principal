@@ -565,7 +565,7 @@
     var resultsEl = root.querySelector('#crozzoHelpResults');
     if (resultsEl) {
       var tmp = document.createElement('div');
-      tmp.innerHTML = renderHomeArticlesListHtml(filtered);
+      tmp.innerHTML = CrozzoSanitize.sanitizeHtml(renderHomeArticlesListHtml(filtered));
       var next = tmp.firstElementChild;
       if (next) resultsEl.replaceWith(next);
     }
@@ -721,7 +721,7 @@
     fab.className = 'crozzo-help-fab';
     fab.title = 'Centro de ayuda (? )';
     fab.setAttribute('aria-label', 'Abrir centro de ayuda');
-    fab.innerHTML = '<span aria-hidden="true">?</span>';
+    fab.innerHTML = CrozzoSanitize.sanitizeHtml('<span aria-hidden="true">?</span>');
     fab.addEventListener('click', function () {
       open('home');
     });

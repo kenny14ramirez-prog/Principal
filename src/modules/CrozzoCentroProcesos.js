@@ -472,7 +472,7 @@
     var host = document.getElementById('ccp-home-dynamic');
     if (!host) return;
     var stats = prepStats(loadCortesPrep());
-    host.innerHTML = homeDashboardHtml(stats);
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(homeDashboardHtml(stats));
     refreshKpisFromStats(stats);
     var root = document.getElementById('crozzo-centro-procesos');
     if (root) bindNavClicks(root);
@@ -495,7 +495,7 @@
     document.querySelectorAll('.ccp-nav').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-ccp-view') === view);
     });
-    if (crumb) crumb.innerHTML = crumbHtml(view);
+    if (crumb) crumb.innerHTML = CrozzoSanitize.sanitizeHtml(crumbHtml(view));
 
     if (view === 'home') {
       home.style.display = 'block';
@@ -581,7 +581,7 @@
     if (fr) fr.style.display = 'none';
     var hint = workflowHint(opts);
     if (Ses.resetForWorkflow) Ses.resetForWorkflow(hint);
-    loc.innerHTML = Ses.render({ workflow: hint });
+    loc.innerHTML = CrozzoSanitize.sanitizeHtml(Ses.render({ workflow: hint }));
     Ses.init(loc, { workflow: hint });
   }
 
@@ -595,7 +595,7 @@
     eng.classList.add('is-open');
     loc.style.display = 'block';
     if (fr) fr.style.display = 'none';
-    loc.innerHTML = Rec.render({ slug: opts.slug || null });
+    loc.innerHTML = CrozzoSanitize.sanitizeHtml(Rec.render({ slug: opts.slug || null }));
     Rec.init(loc, opts);
   }
 
@@ -608,7 +608,7 @@
     eng.classList.add('is-open');
     loc.style.display = 'block';
     if (fr) fr.style.display = 'none';
-    loc.innerHTML = Ses.renderHistorial();
+    loc.innerHTML = CrozzoSanitize.sanitizeHtml(Ses.renderHistorial());
     if (Ses.initHistorial) Ses.initHistorial(loc);
   }
 
@@ -633,17 +633,17 @@
       return;
     }
     if (mod === 'recepcion' && global.CrozzoRecepcionFacturas && global.CrozzoRecepcionFacturas.render) {
-      loc.innerHTML = global.CrozzoRecepcionFacturas.render();
+      loc.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoRecepcionFacturas.render());
       global.CrozzoRecepcionFacturas.init(loc);
       return;
     }
     if (mod === 'dashboard' && global.CrozzoComprasLocal) {
-      loc.innerHTML = global.CrozzoComprasLocal.render('dashboard');
+      loc.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoComprasLocal.render('dashboard'));
       global.CrozzoComprasLocal.init(loc, 'dashboard');
       return;
     }
     if (global.CrozzoComprasLocal) {
-      loc.innerHTML = global.CrozzoComprasLocal.render(mod === 'recepcion' ? 'recepcion' : 'procesado');
+      loc.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoComprasLocal.render(mod === 'recepcion' ? 'recepcion' : 'procesado'));
       global.CrozzoComprasLocal.init(loc, mod === 'recepcion' ? 'recepcion' : 'procesado');
     }
   }

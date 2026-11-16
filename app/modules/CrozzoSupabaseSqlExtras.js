@@ -790,6 +790,15 @@
           order: 19,
           sql: AI_INSIGHTS_SQL,
         },
+        {
+          key: 'comunicacion_repair',
+          file: 'docs/SUPABASE-SQL-COMUNICACION-REPAIR.sql',
+          title: '20. Reparar comunicación en vivo (mesas → caja + comandas)',
+          desc: 'Crea/repara crozzo_sede_runtime, crozzo_mesa_runtime, comandas + RLS permisivos + Realtime. Idempotente. Ejecutar si mesas/comandas no propagan.',
+          required: true,
+          order: 20,
+          sql: COMUNICACION_REPAIR_SQL,
+        },
       ];
     },
   };

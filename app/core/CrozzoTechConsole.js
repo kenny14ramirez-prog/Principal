@@ -77,13 +77,13 @@
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Consola técnica Bona Origen');
     panel.innerHTML =
-      '<header class="crozzo-tech-console__head">' +
+      CrozzoSanitize.sanitizeHtml('<header class="crozzo-tech-console__head">' +
       '<strong>Consola técnica</strong>' +
       '<span class="crozzo-tech-console__hint">F12 · Ctrl+Shift+I</span>' +
       '<button type="button" class="crozzo-tech-console__btn" data-act="clear">Limpiar</button>' +
       '<button type="button" class="crozzo-tech-console__btn" data-act="close">Cerrar</button>' +
       '</header>' +
-      '<pre class="crozzo-tech-console__log" id="crozzoTechConsoleLog"></pre>';
+      '<pre class="crozzo-tech-console__log" id="crozzoTechConsoleLog"></pre>');
     panel.addEventListener('click', function (e) {
       var btn = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
       if (!btn) return;

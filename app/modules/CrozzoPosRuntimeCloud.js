@@ -667,6 +667,8 @@
         var localLines = localMap[ref];
         if (Array.isArray(localLines) && localLines.length) return; // local manda para su mesa
         if (localClosed[ref]) return; // local la cobró → no resucitar
+         // Fase 0: tombstone check
+         if (global.CrozzoTombstonesIntegration && typeof global.CrozzoTombstonesIntegration.isDeleted === "function" && global.CrozzoTombstonesIntegration.isDeleted(tipo, ref)) return;
         localMap[ref] = cloudLines; // mesa de OTRO equipo → preservar (no pisar)
       });
       merged[mapKey] = localMap;
@@ -785,6 +787,7 @@
       try { snap._lockToken = String(Date.now()) + '-' + String(Math.random()).slice(2); } catch (_) {}
     } catch (_) {}
     var body = rowFromSnapshot(snap, c);
+    try { if (global.CrozzoRlsIntegration && typeof global.CrozzoRlsIntegration.enrichPayload === 'function') global.CrozzoRlsIntegration.enrichPayload(body); } catch (_) {}
     try {
       var res = await sb.from(TABLE).upsert(body, { onConflict: 'location_id' });
       if (!res.error) {
@@ -1258,6 +1261,7 @@
         }
       } catch (_) {}
     }
+    try { if (global.CrozzoRlsIntegration && typeof global.CrozzoRlsIntegration.enrichPayload === 'function') global.CrozzoRlsIntegration.enrichPayload(toUpsert); } catch (_) {}
     try {
       var res = await sb.from(MESA_TABLE).upsert(toUpsert, { onConflict: 'location_id,kind,ref' });
       if (!res.error) {
@@ -1536,6 +1540,25 @@
     pay = unpackForApply(pay);
     var remoteAt = Number(pay.savedAt) || Date.parse(row.saved_at || row.updated_at || 0) || 0;
     if (!remoteAt) { console.warn('[runtime-cloud] applyRemoteRow: sin timestamp remoto'); return false; }
+    // Picker gate: descartar si UI grilla igual
+    var samePicker = false;
+    try {
+      if (typeof global.crozzoBuildPickerVisibleSig === 'function') {
+        var remotePickerSig = global.crozzoBuildPickerVisibleSig(pay);
+        var localPickerSig = global.crozzoBuildPickerVisibleSig(null);
+        samePicker = (remotePickerSig === localPickerSig);
+      }
+    } catch (_) {}
+    if (samePicker && !(opts && opts.force)) {
+      if (remoteAt > __lastRemoteAt) __lastRemoteAt = remoteAt;
+      return false;
+    }
+    // Fase 0: observar HLC remoto (detección de concurrencia)
+    try {
+      if (pay._hlc && global.CrozzoHlcIntegration) {
+        global.CrozzoHlcIntegration.observe(pay._hlc);
+      }
+    } catch (_) {}
     var mesaKeys2 = Object.keys(pay.cartsPorMesa || {});
     if (pay.slotSessionPresence) {
       pay.slotSessionPresence = pruneExpiredSlotPresence(pay.slotSessionPresence);

@@ -31,6 +31,14 @@ function gitShortHead() {
   }
 }
 
+function gitCommitDate() {
+  try {
+    return spawnSync('git', ['log', '-1', '--format=%cI'], { cwd: root, encoding: 'utf8' }).stdout.trim() || '?';
+  } catch (_) {
+    return '?';
+  }
+}
+
 function semver() {
   try {
     const j = JSON.parse(read('releases/latest.json'));
@@ -108,7 +116,7 @@ function listJsFiles(dir, base) {
 
 mkdirSync(mapsDir, { recursive: true });
 
-const now = new Date().toISOString();
+const now = gitCommitDate();
 const meta = {
   generatedAt: now,
   semver: semver(),

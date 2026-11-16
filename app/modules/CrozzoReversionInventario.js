@@ -111,10 +111,17 @@
         por: o.por || (typeof global.crozzoGetCurrentUserLabel === 'function' ? global.crozzoGetCurrentUserLabel() : 'admin')
       };
 
-      // Retail (catálogo POS): sumar qty de vuelta al stock SOLO si se descontó POS.
-      if (linea.posDeducted && productosArr && Array.isArray(productosArr)) {
-        var idx = productosArr.findIndex(function (p) { return String(p.id) === String(pid); });
-        if (idx >= 0) {
+      // Retail (catálogo POS): sumar qty de vuelta al stock.
+      // Se trata como retail si se marcó posDeducted, si el modo es 'pos',
+      // o si el producto existe en el catálogo y no se marcó explícitamente como receta.
+      var idxRetail = -1;
+      if (productosArr && Array.isArray(productosArr)) {
+        idxRetail = productosArr.findIndex(function (p) { return String(p.id) === String(pid); });
+      }
+      var esRecetaExplicita = (linea.modo === 'receta') || (linea.posDeducted === false);
+      var esRetail = !esRecetaExplicita && idxRetail >= 0;
+      if (esRetail) {
+        var idx = idxRetail;
           var p = productosArr[idx];
           var cur = Number(p.stock);
           if (!Number.isNaN(cur)) {
@@ -128,13 +135,12 @@
             return;
           }
         }
-      }
 
       // Receta (Reservorio): registrar entrada_devolucion vía movimiento
       // El Reservorio maneja su propio ledger; le pedimos que devuelva ingredientes
       if (typeof global.crozzoReservorioDevolverVenta === 'function') {
         try {
-          global.crozzoReservorioDevolverVenta(resultado.facturaId, qty, movimiento);
+          global.crozzoReservorioDevolverVenta({ facturaId: resultado.facturaId, saleId: resultado.facturaId, uuid: resultado.facturaId });
           movimiento.modo = 'receta';
           resultado.revertidas += 1;
           resultado.movimientos.push(movimiento);

@@ -1,0 +1,40 @@
+name: CI POS Crozzo
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  checks:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Sync frontend to src
+        run: npm run sync
+      - name: Verificar maps frescos
+        run: node scripts/check-maps-fresh.mjs
+      - name: Checks de invariantes
+        run: node scripts/check-invariants.mjs
+      - name: Check RLS coherence
+        run: node scripts/check-rls-coherence.mjs
+      - name: Reversion inventario
+        run: node scripts/_reversion-inventario-check.mjs
+      - name: Stress comandas tienda
+        run: node scripts/_stress-comandas-tienda-audit.mjs
+
+  rust:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo test
+        working-directory: src-tauri
+        run: cargo test
+      - name: Cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings

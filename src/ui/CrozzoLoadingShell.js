@@ -68,7 +68,7 @@
       bar.className = 'crozzo-load-topbar';
       bar.setAttribute('role', 'progressbar');
       bar.setAttribute('aria-hidden', 'true');
-      bar.innerHTML = '<span class="crozzo-load-topbar__track"><span class="crozzo-load-topbar__fill"></span></span>';
+      bar.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-load-topbar__track"><span class="crozzo-load-topbar__fill"></span></span>');
       wrap.insertBefore(bar, wrap.firstChild);
     }
     return bar;
@@ -135,7 +135,7 @@
     if (!mc) return;
     mc.setAttribute('data-crozzo-loading', '1');
     mc.classList.add('crozzo-page-load-host');
-    mc.innerHTML = skeletonMarkup(labelForPage(page), 'Cargando recursos…', phase);
+    mc.innerHTML = CrozzoSanitize.sanitizeHtml(skeletonMarkup(labelForPage(page), 'Cargando recursos…', phase));
     document.documentElement.classList.add('crozzo-page-loading-active');
     startTopBar();
     if (!instant) return;
@@ -184,7 +184,7 @@
     el.setAttribute('aria-live', 'polite');
     el.setAttribute('aria-busy', 'true');
     el.innerHTML =
-      '<div class="crozzo-boot-shell__card crozzo-boot-shell__card--premium">' +
+      CrozzoSanitize.sanitizeHtml('<div class="crozzo-boot-shell__card crozzo-boot-shell__card--premium">' +
       '<div class="crozzo-boot-shell__logo" aria-hidden="true">' +
       '<svg width="48" height="48" viewBox="0 0 64 64">' +
       '<circle cx="32" cy="32" r="30" fill="none" stroke="#B59A6D" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>' +
@@ -207,7 +207,7 @@
       '<div class="crozzo-skeleton-block crozzo-boot-shell__sk crozzo-boot-shell__sk--sm"></div>' +
       '</div>' +
       '<p class="crozzo-boot-shell__hint">Experiencia optimizada para operación en sala.</p>' +
-      '</div>';
+      '</div>');
     document.body.insertBefore(el, document.body.firstChild);
     return el;
   }

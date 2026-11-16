@@ -1457,9 +1457,6 @@
   function renderConciergeStrip() {
     if (!shouldApplyPsycheLayer()) return '';
     try {
-      if (global.currentPage === 'inicio-operacion') return '';
-    } catch (_) {}
-    try {
       if (sessionStorage.getItem(SS_CONCIERGE) === '1') return '';
     } catch (_) {}
     try {
@@ -1944,6 +1941,23 @@
       return;
     }
     injectPeakBreatheStrip();
+    try {
+      var __conciergeHtml = renderConciergeStrip();
+      if (__conciergeHtml) {
+        var __conciergeHost = document.getElementById('crozzo-concierge-host');
+        if (!__conciergeHost) {
+          __conciergeHost = document.createElement('div');
+          __conciergeHost.id = 'crozzo-concierge-host';
+          var __conciergeAnchor = document.getElementById('mainContent') || document.body;
+          if (__conciergeAnchor && __conciergeAnchor.parentNode) {
+            __conciergeAnchor.parentNode.insertBefore(__conciergeHost, __conciergeAnchor);
+          } else if (document.body) {
+            document.body.appendChild(__conciergeHost);
+          }
+        }
+        __conciergeHost.innerHTML = __conciergeHtml;
+      }
+    } catch (_) {}
     var hostVis = document.getElementById('crozzo-psyche-chip-host');
     if (hostVis) hostVis.hidden = false;
     var html = shouldApplyPsycheLayer() ? renderPsycheChip() : renderMinimalHumanChip();

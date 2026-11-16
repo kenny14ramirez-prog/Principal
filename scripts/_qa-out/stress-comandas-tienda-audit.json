@@ -1,0 +1,243 @@
+{
+  "generatedAt": "2026-11-13T19:11:17.412Z",
+  "stress": {
+    "count": 100,
+    "genMs": 0,
+    "renderMs": 1,
+    "navMs": 341,
+    "htmlLen": 1424,
+    "afterNavLen": 186,
+    "stickyCount": 0,
+    "heapMb": 18,
+    "totalMs": 343,
+    "domNodes": 1669
+  },
+  "tienda": {
+    "perfil": "basico_restaurante",
+    "blockedRestaurant": [
+      {
+        "page": "comandas",
+        "blocked": false,
+        "inPlan": true
+      },
+      {
+        "page": "tablets",
+        "blocked": false,
+        "inPlan": true
+      },
+      {
+        "page": "cocina",
+        "blocked": false,
+        "inPlan": true
+      },
+      {
+        "page": "compras-cortes",
+        "blocked": false,
+        "inPlan": true
+      }
+    ],
+    "roles": {
+      "caja": {
+        "login": {
+          "ok": true,
+          "user": {
+            "id": "QA-TIENDA-CAJA",
+            "nombre": "QA Cajero",
+            "rol": "caja",
+            "activo": true,
+            "permisos": {
+              "caja": [
+                "vista_pos",
+                "vista_facturas",
+                "vista_clientes",
+                "abrir_orden",
+                "editar_orden",
+                "facturar",
+                "unir_cuenta",
+                "dividir_cuenta",
+                "descuento_autorizado",
+                "tab_precuenta",
+                "cierre_arqueo"
+              ],
+              "comandas": [],
+              "inventario": [
+                "proveedores"
+              ],
+              "productos": [],
+              "admin": []
+            },
+            "configDispositivo": {
+              "rolPredeterminado": "A",
+              "autoAplicar": true
+            },
+            "claveHash": "G56gbQ7KM1Gf0MURQf2dj9G1EFs2KgS0y49QTJMA7WI=",
+            "claveSalt": "PgSuGJ1qPnwO4G7ZEQ2jiA=="
+          },
+          "mustChangePassword": false,
+          "legacyMigrated": true
+        },
+        "nav": [
+          "inicio-operacion",
+          "cajero",
+          "facturas",
+          "cierre-caja",
+          "caja-clientes",
+          "compras-recepcion"
+        ],
+        "missing": [
+          "venta-comercial"
+        ],
+        "forbidden": [
+          "cajero"
+        ]
+      },
+      "admin": {
+        "login": {
+          "ok": true,
+          "user": {
+            "id": "QA-TIENDA-ADMIN",
+            "nombre": "QA Admin negocio",
+            "rol": "admin",
+            "activo": true,
+            "permisos": {
+              "caja": [
+                "vista_pos",
+                "vista_tablets",
+                "vista_facturas",
+                "vista_clientes",
+                "abrir_orden",
+                "editar_orden",
+                "eliminar_item",
+                "anular_comandado",
+                "unir_cuenta",
+                "dividir_cuenta",
+                "descuento_autorizado",
+                "tab_abrir",
+                "tab_editar",
+                "tab_eliminar",
+                "tab_precuenta",
+                "facturar",
+                "cierre_arqueo"
+              ],
+              "comandas": [
+                "ver",
+                "despachar",
+                "reimprimir"
+              ],
+              "inventario": [
+                "reportes",
+                "proveedores"
+              ],
+              "productos": [],
+              "admin": [
+                "config_empresa",
+                "config_impuestos",
+                "config_usuarios",
+                "config_comandas",
+                "config_salon",
+                "config_conexiones",
+                "config_facturas_admin"
+              ]
+            },
+            "configDispositivo": {
+              "rolPredeterminado": "A",
+              "autoAplicar": true
+            },
+            "claveHash": "AUDQ3eTOyOHjiCz3+fWxgI2y0LmT+sap0G13EP2uD48=",
+            "claveSalt": "aVIEH/ar/qcDv36kDcufPg=="
+          },
+          "mustChangePassword": false,
+          "legacyMigrated": true
+        },
+        "nav": [
+          "inicio-operacion",
+          "cajero",
+          "tablets",
+          "comandas",
+          "compras-cortes",
+          "compras-recetario-cocina",
+          "compras-proceso-sesion",
+          "compras-proceso-historial",
+          "facturas",
+          "cierre-caja",
+          "caja-clientes",
+          "inventarios",
+          "costos-matriz",
+          "costos-inventario",
+          "compras-oficina",
+          "compras-recepcion",
+          "compras-proveedores",
+          "config-empresa",
+          "config-impuestos",
+          "config-comandas",
+          "config-salon",
+          "config-facturas-admin",
+          "config-usuarios"
+        ],
+        "missing": [
+          "venta-comercial"
+        ],
+        "forbidden": [
+          "comandas"
+        ]
+      }
+    }
+  },
+  "issues": [
+    {
+      "severity": "P2",
+      "area": "Stress",
+      "title": "Pocas notas visibles con 100 comandas",
+      "detail": "sticky=0"
+    },
+    {
+      "severity": "P1",
+      "area": "Tienda",
+      "title": "Rol caja sin acceso",
+      "detail": "venta-comercial"
+    },
+    {
+      "severity": "P1",
+      "area": "Tienda",
+      "title": "Rol caja acceso indebido",
+      "detail": "cajero"
+    },
+    {
+      "severity": "P1",
+      "area": "Tienda",
+      "title": "Rol admin sin acceso",
+      "detail": "venta-comercial"
+    },
+    {
+      "severity": "P1",
+      "area": "Tienda",
+      "title": "Rol admin acceso indebido",
+      "detail": "comandas"
+    },
+    {
+      "severity": "P2",
+      "area": "Tienda",
+      "title": "Página restaurante visible en plan tienda: comandas",
+      "detail": "{\"page\":\"comandas\",\"blocked\":false,\"inPlan\":true}"
+    },
+    {
+      "severity": "P2",
+      "area": "Tienda",
+      "title": "Página restaurante visible en plan tienda: tablets",
+      "detail": "{\"page\":\"tablets\",\"blocked\":false,\"inPlan\":true}"
+    },
+    {
+      "severity": "P2",
+      "area": "Tienda",
+      "title": "Página restaurante visible en plan tienda: cocina",
+      "detail": "{\"page\":\"cocina\",\"blocked\":false,\"inPlan\":true}"
+    },
+    {
+      "severity": "P2",
+      "area": "Tienda",
+      "title": "Página restaurante visible en plan tienda: compras-cortes",
+      "detail": "{\"page\":\"compras-cortes\",\"blocked\":false,\"inPlan\":true}"
+    }
+  ],
+  "pageErrors": []
+}

@@ -262,7 +262,7 @@
       if (media && typeof P.probeBundledVideo === 'function') {
         P.probeBundledVideo(function () {
           if (typeof P.renderVideoBlock === 'function') {
-            media.innerHTML = P.renderVideoBlock({ compact: true });
+            media.innerHTML = CrozzoSanitize.sanitizeHtml(P.renderVideoBlock({ compact: true }));
             if (typeof P.bindVideoPlayers === 'function') P.bindVideoPlayers(media);
           }
         });

@@ -1219,7 +1219,7 @@
     host = getCotRoot(host) || host;
     if (!host) return;
     var el = host.querySelector('#crozzoCotSessionSheetHost');
-    if (el) el.innerHTML = renderSessionSheet();
+    if (el) el.innerHTML = CrozzoSanitize.sanitizeHtml(renderSessionSheet());
   }
 
   function refreshAddSection(host) {
@@ -1227,7 +1227,7 @@
     if (!host) return;
     preserveSearchFocus(host, function () {
       var sheetHost = host.querySelector('#crozzoCotSessionSheetHost');
-      if (sheetHost) sheetHost.innerHTML = renderSessionSheet();
+      if (sheetHost) sheetHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderSessionSheet());
     });
   }
 
@@ -1245,7 +1245,7 @@
       var unitEl = col.querySelector('[data-cot-unit]');
       if (unitEl) unitEl.textContent = fmtUnit(sc.precioUnit, sc.und);
       var deltaEl = col.querySelector('.crozzo-cot-col-delta');
-      if (deltaEl && sc.tipo !== 'sistema') deltaEl.innerHTML = renderDeltaBlock(sys, sc);
+      if (deltaEl && sc.tipo !== 'sistema') deltaEl.innerHTML = CrozzoSanitize.sanitizeHtml(renderDeltaBlock(sys, sc));
     });
     patchWorkHead(root, mp);
   }
@@ -2550,7 +2550,7 @@
     var host = document.getElementById('mainContent');
     if (!host) return;
     var boot = function () {
-      host.innerHTML = renderPanel();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(renderPanel());
       init(host);
     };
     var cat = C();

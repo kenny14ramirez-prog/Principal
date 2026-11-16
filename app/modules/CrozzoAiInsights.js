@@ -952,7 +952,7 @@
     }
     function paintPack(pack) {
       var sum = q('#crozzoAiAuditSummary');
-      if (sum) sum.innerHTML = renderPackMetricsHtml(pack);
+      if (sum) sum.innerHTML = CrozzoSanitize.sanitizeHtml(renderPackMetricsHtml(pack));
     }
     function paintInsight(text) {
       var wrap = q('#crozzoAiAuditOutWrap');

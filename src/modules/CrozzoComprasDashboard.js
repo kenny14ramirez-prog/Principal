@@ -693,7 +693,7 @@
     var diasEl = document.getElementById('crozzo-compras-dias');
     var dias = diasEl ? Number(diasEl.value) || 30 : 30;
     var body = root.querySelector('#crozzo-compras-dash-body');
-    if (body) body.innerHTML = renderBodyHtml(computeMetrics(dias));
+    if (body) body.innerHTML = CrozzoSanitize.sanitizeHtml(renderBodyHtml(computeMetrics(dias)));
     bindNavButtons(root);
   }
 

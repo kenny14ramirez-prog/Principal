@@ -1,0 +1,2582 @@
+{
+  "scenario": "hora-maestra-operativo-oro",
+  "version": 1,
+  "intensity": "normal",
+  "intensityLabel": "Normal",
+  "startedAt": "2026-11-14T00:27:40.988Z",
+  "finishedAt": "2026-11-14T00:28:20.621Z",
+  "ok": true,
+  "humanPsychology": {
+    "premise": "El sistema debe acompañar al humano orgánico: novato y experto, por rol, con errores esperables y abuso sin colapsar.",
+    "psycheModule": "CrozzoOperativePsyche",
+    "companionModule": "CrozzoOperativeCompanion",
+    "journalKey": "crozzo_operative_journal_v1",
+    "personasTested": [
+      {
+        "persona": "cajero-novato",
+        "login": {
+          "ok": true,
+          "userId": "CAJNOV",
+          "rol": "caja",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "cajero",
+            "inicio-operacion",
+            "cierre-caja",
+            "deny:admin",
+            "deny:gestion-perfiles-menus"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": false,
+          "hasRail": false,
+          "hint": "",
+          "badge": "",
+          "roleLine": "Cobra, une/divide cuentas y carga compras — no borra lo ya comandado."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "Guía paso a paso, tono calmado, bloqueos explicados sin jerga"
+      },
+      {
+        "persona": "mesero-novato",
+        "login": {
+          "ok": true,
+          "userId": "MESNOV",
+          "rol": "mesero",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "tablets",
+            "deny:cierre-caja",
+            "deny:admin",
+            "deny:comandas"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": false,
+          "hasRail": false,
+          "hint": "",
+          "badge": "",
+          "roleLine": "Toma el pedido en tablet — antes de comandar todo; después, bloqueo total."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "Tablet clara, aviso antes/después de comandar"
+      },
+      {
+        "persona": "cocina",
+        "login": {
+          "ok": true,
+          "userId": "COCINA1",
+          "rol": "cocina",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "comandas",
+            "deny:cajero",
+            "deny:cierre-caja",
+            "deny:cocina"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": false,
+          "hasRail": false,
+          "hint": "",
+          "badge": "",
+          "roleLine": "Recibe comandas, prepara con receta, marca LISTO — no toca el pedido del mesero."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "LISTO visible, receta a mano, sin editar pedido ajeno"
+      },
+      {
+        "persona": "encargado",
+        "login": {
+          "ok": true,
+          "userId": "ENC1",
+          "rol": "encargado",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "cajero",
+            "tablets",
+            "centro-compras",
+            "deny:gestion-perfiles-menus"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": true,
+          "hasRail": true,
+          "hint": "El cajero carga — usted valida y cierra el ciclo.",
+          "badge": "Encargado de turno",
+          "roleLine": "Supervisa, corrige cuentas mal hechas y va más allá del cajero."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "Puede corregir errores ajenos con trazabilidad"
+      }
+    ],
+    "adversarialOutcomes": [
+      {
+        "id": "post-comandar-block",
+        "label": "Mesero intenta quitar plato ya en cocina",
+        "humanStory": "Error humano típico: tocar \"-\" después de comandar",
+        "passed": true,
+        "detail": true
+      },
+      {
+        "id": "double-cobro-guard",
+        "label": "Doble cobro simultáneo",
+        "humanStory": "Doble clic ansioso en cobrar",
+        "passed": true,
+        "detail": true
+      },
+      {
+        "id": "nav-spam",
+        "label": "Navegación errática entre pantallas",
+        "humanStory": "Usuario perdido o impaciente saltando menús",
+        "passed": true,
+        "detail": true
+      },
+      {
+        "id": "arqueo-desbalance",
+        "label": "Arqueo con conteo incorrecto",
+        "humanStory": "Error de conteo — sistema debe mostrar diferencia",
+        "passed": true,
+        "detail": null
+      },
+      {
+        "id": "empty-comandar",
+        "label": "Comandar carrito vacío",
+        "humanStory": "Botón comandar sin sentido",
+        "passed": true,
+        "detail": true
+      }
+    ],
+    "comfortSignals": [
+      {
+        "persona": "encargado",
+        "hint": "El cajero carga — usted valida y cierra el ciclo."
+      }
+    ]
+  },
+  "observations": [
+    {
+      "level": "warn",
+      "area": "cajero-novato",
+      "message": "Sin rail companion en cajero",
+      "detail": {
+        "hasHost": false,
+        "hasRail": false,
+        "hint": "",
+        "badge": "",
+        "roleLine": "Cobra, une/divide cuentas y carga compras — no borra lo ya comandado."
+      },
+      "at": "2026-11-14T00:27:48.291Z"
+    },
+    {
+      "level": "warn",
+      "area": "mesero-novato",
+      "message": "Sin rail companion en tablets",
+      "detail": {
+        "hasHost": false,
+        "hasRail": false,
+        "hint": "",
+        "badge": "",
+        "roleLine": "Toma el pedido en tablet — antes de comandar todo; después, bloqueo total."
+      },
+      "at": "2026-11-14T00:27:50.033Z"
+    },
+    {
+      "level": "warn",
+      "area": "cocina",
+      "message": "Sin rail companion en comandas",
+      "detail": {
+        "hasHost": false,
+        "hasRail": false,
+        "hint": "",
+        "badge": "",
+        "roleLine": "Recibe comandas, prepara con receta, marca LISTO — no toca el pedido del mesero."
+      },
+      "at": "2026-11-14T00:27:51.718Z"
+    }
+  ],
+  "metrics": {
+    "stepsOk": 17,
+    "stepsWarn": 3,
+    "stepsFail": 0,
+    "durationMs": 39633
+  },
+  "phases": [
+    {
+      "id": "boot",
+      "title": "Arranque y módulos humanos",
+      "startedAt": "2026-11-14T00:27:43.510Z",
+      "steps": [
+        {
+          "id": "boot-ready",
+          "label": "App lista (POS + config)",
+          "ok": true,
+          "at": "2026-11-14T00:27:43.511Z",
+          "detail": {
+            "modules": {
+              "psyche": true,
+              "companion": true,
+              "automation": true,
+              "journal": true
+            }
+          }
+        },
+        {
+          "id": "boot-human-modules",
+          "label": "Capa humana cargada",
+          "ok": true,
+          "at": "2026-11-14T00:27:46.449Z",
+          "detail": {
+            "psyche": true,
+            "companion": true
+          }
+        },
+        {
+          "id": "boot-staff-permisos",
+          "label": "Staff QA con permisos de rol",
+          "ok": true,
+          "at": "2026-11-14T00:27:46.465Z",
+          "detail": {
+            "ok": true,
+            "patched": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "personas",
+      "title": "Matriz humana por rol y experiencia",
+      "startedAt": "2026-11-14T00:27:46.477Z",
+      "steps": [
+        {
+          "id": "persona-cajero-novato",
+          "label": "Cajero · primer turno",
+          "ok": true,
+          "at": "2026-11-14T00:27:46.477Z",
+          "detail": {
+            "persona": "cajero-novato",
+            "login": {
+              "ok": true,
+              "userId": "CAJNOV",
+              "rol": "caja",
+              "experienciaPerfil": "novice",
+              "via": "loginWithCredentials"
+            },
+            "access": {
+              "ok": [
+                "cajero",
+                "inicio-operacion",
+                "cierre-caja",
+                "deny:admin",
+                "deny:gestion-perfiles-menus"
+              ],
+              "denied": []
+            },
+            "companion": {
+              "hasHost": false,
+              "hasRail": false,
+              "hint": "",
+              "badge": "",
+              "roleLine": "Cobra, une/divide cuentas y carga compras — no borra lo ya comandado."
+            },
+            "psyche": {
+              "human": true,
+              "comfort": true
+            },
+            "humanExpect": "Guía paso a paso, tono calmado, bloqueos explicados sin jerga"
+          }
+        },
+        {
+          "id": "persona-mesero-novato",
+          "label": "Mesero · aprendiz",
+          "ok": true,
+          "at": "2026-11-14T00:27:48.291Z",
+          "detail": {
+            "persona": "mesero-novato",
+            "login": {
+              "ok": true,
+              "userId": "MESNOV",
+              "rol": "mesero",
+              "experienciaPerfil": "novice",
+              "via": "loginWithCredentials"
+            },
+            "access": {
+              "ok": [
+                "tablets",
+                "deny:cierre-caja",
+                "deny:admin",
+                "deny:comandas"
+              ],
+              "denied": []
+            },
+            "companion": {
+              "hasHost": false,
+              "hasRail": false,
+              "hint": "",
+              "badge": "",
+              "roleLine": "Toma el pedido en tablet — antes de comandar todo; después, bloqueo total."
+            },
+            "psyche": {
+              "human": true,
+              "comfort": true
+            },
+            "humanExpect": "Tablet clara, aviso antes/después de comandar"
+          }
+        },
+        {
+          "id": "persona-cocina",
+          "label": "Cocina / producción",
+          "ok": true,
+          "at": "2026-11-14T00:27:50.034Z",
+          "detail": {
+            "persona": "cocina",
+            "login": {
+              "ok": true,
+              "userId": "COCINA1",
+              "rol": "cocina",
+              "experienciaPerfil": "novice",
+              "via": "loginWithCredentials"
+            },
+            "access": {
+              "ok": [
+                "comandas",
+                "deny:cajero",
+                "deny:cierre-caja",
+                "deny:cocina"
+              ],
+              "denied": []
+            },
+            "companion": {
+              "hasHost": false,
+              "hasRail": false,
+              "hint": "",
+              "badge": "",
+              "roleLine": "Recibe comandas, prepara con receta, marca LISTO — no toca el pedido del mesero."
+            },
+            "psyche": {
+              "human": true,
+              "comfort": true
+            },
+            "humanExpect": "LISTO visible, receta a mano, sin editar pedido ajeno"
+          }
+        },
+        {
+          "id": "persona-encargado",
+          "label": "Encargado de turno",
+          "ok": true,
+          "at": "2026-11-14T00:27:51.718Z",
+          "detail": {
+            "persona": "encargado",
+            "login": {
+              "ok": true,
+              "userId": "ENC1",
+              "rol": "encargado",
+              "experienciaPerfil": "novice",
+              "via": "loginWithCredentials"
+            },
+            "access": {
+              "ok": [
+                "cajero",
+                "tablets",
+                "centro-compras",
+                "deny:gestion-perfiles-menus"
+              ],
+              "denied": []
+            },
+            "companion": {
+              "hasHost": true,
+              "hasRail": true,
+              "hint": "El cajero carga — usted valida y cierra el ciclo.",
+              "badge": "Encargado de turno",
+              "roleLine": "Supervisa, corrige cuentas mal hechas y va más allá del cajero."
+            },
+            "psyche": {
+              "human": true,
+              "comfort": true
+            },
+            "humanExpect": "Puede corregir errores ajenos con trazabilidad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "oro",
+      "title": "Escenario oro · venta mesa → cocina → cobro",
+      "startedAt": "2026-11-14T00:27:53.192Z",
+      "steps": [
+        {
+          "id": "oro-login",
+          "label": "Encargado abre turno operativo",
+          "ok": true,
+          "at": "2026-11-14T00:27:53.192Z",
+          "detail": {
+            "ok": true,
+            "userId": "ENC1",
+            "rol": "encargado",
+            "experienciaPerfil": "novice",
+            "via": "loginWithCredentials"
+          }
+        },
+        {
+          "id": "oro-venta-1",
+          "label": "Venta mesa M1 (ciclo 1)",
+          "ok": true,
+          "at": "2026-11-14T00:27:53.715Z",
+          "detail": {
+            "mesaId": "M1",
+            "qty": 1,
+            "comandaId": 1,
+            "total": 30240,
+            "facturaUuid": "POS-410ff1de-57db-4078-8fef-5943eb12db45"
+          }
+        }
+      ]
+    },
+    {
+      "id": "action-chains",
+      "title": "Cadenas de acción · efectos en cascada",
+      "startedAt": "2026-11-14T00:27:56.467Z",
+      "steps": [
+        {
+          "id": "chain-mesa-estados-comanda-cobro",
+          "label": "Mesa · pendiente → morado → rojo → verde",
+          "ok": true,
+          "at": "2026-11-14T00:27:56.993Z",
+          "detail": {
+            "id": "mesa-estados-comanda-cobro",
+            "label": "Mesa · pendiente → morado → rojo → verde",
+            "humanStory": "Comandar, cocina entrega, caja cobra — colores de mesa coherentes",
+            "ok": true,
+            "soft": false,
+            "failedAt": null,
+            "failedBranch": null,
+            "failureMessage": null,
+            "links": [
+              {
+                "node": "tras:abrir-mesa",
+                "ok": true,
+                "expected": {
+                  "slotState": {
+                    "oneOf": [
+                      "libre",
+                      "atendiendo"
+                    ]
+                  },
+                  "comandasActivas": 0,
+                  "cartQty": 0
+                },
+                "actual": {
+                  "slotState": "atendiendo",
+                  "slotLabel": "Atendiendo · Patricia Encargada",
+                  "cartQty": 0,
+                  "sentQty": 0,
+                  "comandasActivas": 0,
+                  "comandaEstado": null,
+                  "comandaArea": null,
+                  "historyCount": 0,
+                  "closedSlot": false
+                },
+                "branches": [
+                  "slot:session"
+                ]
+              },
+              {
+                "node": "tras:agregar-carrito",
+                "ok": true,
+                "expected": {
+                  "slotState": {
+                    "oneOf": [
+                      "pendiente",
+                      "atendiendo"
+                    ]
+                  },
+                  "cartQty": {
+                    "min": 1
+                  }
+                },
+                "actual": {
+                  "slotState": "pendiente",
+                  "slotLabel": "Pendiente (2 ítems)",
+                  "cartQty": 2,
+                  "sentQty": 0,
+                  "comandasActivas": 0,
+                  "comandaEstado": null,
+                  "comandaArea": null,
+                  "historyCount": 0,
+                  "closedSlot": false
+                },
+                "branches": [
+                  "cart:mesa"
+                ]
+              },
+              {
+                "node": "tras:comandar",
+                "ok": true,
+                "expected": {
+                  "slotState": "comandado",
+                  "comandasActivas": {
+                    "min": 1
+                  },
+                  "sentQty": {
+                    "min": 1
+                  }
+                },
+                "actual": {
+                  "slotState": "comandado",
+                  "slotLabel": "Comandado (2 ítems)",
+                  "cartQty": 2,
+                  "sentQty": 2,
+                  "comandasActivas": 1,
+                  "comandaEstado": "pendiente",
+                  "comandaArea": "COCINA",
+                  "historyCount": 0,
+                  "closedSlot": false
+                },
+                "branches": [
+                  "comanda:area",
+                  "cart:sentFlags"
+                ]
+              },
+              {
+                "node": "tras:cocina-lista",
+                "ok": true,
+                "expected": {
+                  "slotState": "comandado",
+                  "comandasActivas": {
+                    "min": 1
+                  }
+                },
+                "actual": {
+                  "slotState": "comandado",
+                  "slotLabel": "Comandado (2 ítems)",
+                  "cartQty": 2,
+                  "sentQty": 2,
+                  "comandasActivas": 1,
+                  "comandaEstado": "lista",
+                  "comandaArea": "COCINA",
+                  "historyCount": 0,
+                  "closedSlot": false
+                },
+                "branches": [
+                  "comanda:estado"
+                ]
+              },
+              {
+                "node": "tras:cocina-entregada",
+                "ok": true,
+                "expected": {
+                  "slotState": "salio",
+                  "comandasActivas": 0
+                },
+                "actual": {
+                  "slotState": "salio",
+                  "slotLabel": "Ya salió",
+                  "cartQty": 2,
+                  "sentQty": 2,
+                  "comandasActivas": 0,
+                  "comandaEstado": "entregada",
+                  "comandaArea": "COCINA",
+                  "historyCount": 1,
+                  "closedSlot": false
+                },
+                "branches": [
+                  "comanda:history",
+                  "slot:unpaid"
+                ]
+              },
+              {
+                "node": "tras:cobrar",
+                "ok": true,
+                "expected": {
+                  "slotState": "libre",
+                  "cartQty": 0,
+                  "comandasActivas": 0
+                },
+                "actual": {
+                  "slotState": "libre",
+                  "slotLabel": "Desocupada",
+                  "cartQty": 0,
+                  "sentQty": 0,
+                  "comandasActivas": 0,
+                  "comandaEstado": "entregada",
+                  "comandaArea": "COCINA",
+                  "historyCount": 1,
+                  "closedSlot": false
+                },
+                "branches": [
+                  "cobro:closedSlots",
+                  "cart:clear",
+                  "factura:pos"
+                ]
+              }
+            ],
+            "branches": [
+              {
+                "name": "cart:add",
+                "detail": {
+                  "productId": 1,
+                  "qty": 2,
+                  "mesa": "M7"
+                },
+                "at": "2026-11-14T00:27:59.011Z"
+              },
+              {
+                "name": "comandar:cocina",
+                "detail": {
+                  "comandasAfter": 2
+                },
+                "at": "2026-11-14T00:27:59.715Z"
+              },
+              {
+                "name": "cocina:lista",
+                "detail": {
+                  "comandaId": 2
+                },
+                "at": "2026-11-14T00:27:59.719Z"
+              },
+              {
+                "name": "cocina:entregada",
+                "detail": {
+                  "comandaId": 2
+                },
+                "at": "2026-11-14T00:27:59.957Z"
+              },
+              {
+                "name": "cobro:facturar",
+                "detail": {
+                  "total": 60480
+                },
+                "at": "2026-11-14T00:28:00.776Z"
+              }
+            ],
+            "durationMs": 3736
+          }
+        },
+        {
+          "id": "chain-comanda-ramas-cocina",
+          "label": "Comanda · carrito + área + historial",
+          "ok": true,
+          "at": "2026-11-14T00:28:00.781Z",
+          "detail": {
+            "id": "comanda-ramas-cocina",
+            "label": "Comanda · carrito + área + historial",
+            "humanStory": "Al comandar nace ticket cocina; al entregar pasa a historial sin perder trazabilidad",
+            "ok": true,
+            "soft": false,
+            "failedAt": null,
+            "failedBranch": null,
+            "failureMessage": null,
+            "links": [
+              {
+                "node": "pre:mesa-contexto",
+                "ok": true,
+                "expected": {
+                  "mesaSeleccionada": "M8"
+                },
+                "actual": {
+                  "mesaSeleccionada": "M8",
+                  "cartQty": 1
+                },
+                "branches": [
+                  "slot:session"
+                ]
+              },
+              {
+                "node": "comanda:creada",
+                "ok": true,
+                "expected": {
+                  "count": {
+                    "min": 1
+                  }
+                },
+                "actual": {
+                  "count": 1,
+                  "referencia": "M8"
+                },
+                "branches": [
+                  "print:ticket"
+                ]
+              },
+              {
+                "node": "comanda:area-cocina",
+                "ok": true,
+                "expected": {
+                  "areaId": "COCINA",
+                  "referencia": "M8"
+                },
+                "actual": {
+                  "areaId": "COCINA",
+                  "referencia": "M8"
+                },
+                "branches": [
+                  "comanda:area"
+                ]
+              },
+              {
+                "node": "cart:lineas-enviadas",
+                "ok": true,
+                "expected": {
+                  "sentQty": {
+                    "min": 1
+                  }
+                },
+                "actual": {
+                  "sentQty": 1
+                },
+                "branches": [
+                  "cart:sentFlags"
+                ]
+              },
+              {
+                "node": "comanda:historial",
+                "ok": true,
+                "expected": {
+                  "goneFromActivas": true,
+                  "slotState": "salio",
+                  "comandasActivas": 0
+                },
+                "actual": {
+                  "goneFromActivas": true,
+                  "slotState": "salio",
+                  "comandasActivas": 0,
+                  "comandaEstado": "entregada"
+                },
+                "branches": [
+                  "comanda:history"
+                ]
+              }
+            ],
+            "branches": [
+              {
+                "name": "comanda:nacimiento",
+                "detail": {
+                  "count": 1,
+                  "mesaActiva": "M8"
+                },
+                "at": "2026-11-14T00:28:03.526Z"
+              }
+            ],
+            "durationMs": 3113
+          }
+        },
+        {
+          "id": "chain-cobro-ramificaciones",
+          "label": "Cobro · factura + slot pagado + carrito vacío",
+          "ok": true,
+          "at": "2026-11-14T00:28:03.909Z",
+          "detail": {
+            "id": "cobro-ramificaciones",
+            "label": "Cobro · factura + slot pagado + carrito vacío",
+            "humanStory": "El cobro debe cerrar mesa, emitir comprobante y dejar caja lista",
+            "ok": true,
+            "soft": false,
+            "failedAt": null,
+            "failedBranch": null,
+            "failureMessage": null,
+            "links": [
+              {
+                "node": "cobro:factura-guardada",
+                "ok": true,
+                "expected": {
+                  "facturasCount": {
+                    "min": 3
+                  }
+                },
+                "actual": {
+                  "facturasCount": 3,
+                  "uuid": "POS-6a02bb58-7078-4568-957b-f7933e7bf3a3"
+                },
+                "branches": [
+                  "config:save"
+                ]
+              },
+              {
+                "node": "cobro:mesa-cerrada",
+                "ok": true,
+                "expected": {
+                  "cartQty": 0,
+                  "slotState": "libre"
+                },
+                "actual": {
+                  "closedSlot": false,
+                  "cartQty": 0,
+                  "slotState": "libre"
+                },
+                "branches": [
+                  "slot:paid",
+                  "cart:clear"
+                ]
+              },
+              {
+                "node": "cobro:auditoria",
+                "ok": true,
+                "expected": {
+                  "grew": true
+                },
+                "actual": {
+                  "auditsBefore": 62,
+                  "auditsAfter": 66,
+                  "grew": true
+                },
+                "branches": [
+                  "audit:trail"
+                ]
+              }
+            ],
+            "branches": [
+              {
+                "name": "factura:emitida",
+                "detail": {
+                  "uuid": "POS-6a02bb58-7078-4568-957b-f7933e7bf3a3"
+                },
+                "at": "2026-11-14T00:28:07.343Z"
+              }
+            ],
+            "durationMs": 3430
+          }
+        },
+        {
+          "id": "chain-venta-inventario-meta",
+          "label": "Venta · meta inventario / reservorio",
+          "ok": true,
+          "at": "2026-11-14T00:28:07.347Z",
+          "detail": {
+            "id": "venta-inventario-meta",
+            "label": "Venta · meta inventario / reservorio",
+            "humanStory": "Tras cobrar debe quedar registro de qué ramas de inventario se aplicaron u omitieron",
+            "ok": true,
+            "soft": false,
+            "failedAt": null,
+            "failedBranch": null,
+            "failureMessage": null,
+            "links": [
+              {
+                "node": "factura:inventarioMeta",
+                "ok": true,
+                "expected": {
+                  "hasMeta": true
+                },
+                "actual": {
+                  "hasMeta": true,
+                  "aplicado": true,
+                  "contexto": "restaurante",
+                  "lineas": 1,
+                  "restauranteOmitido": true
+                },
+                "branches": [
+                  "inventario:orquestador"
+                ]
+              }
+            ],
+            "branches": [
+              {
+                "name": "inventario:aplicarVenta",
+                "detail": {
+                  "hasMeta": true,
+                  "aplicado": true,
+                  "contexto": "restaurante",
+                  "restauranteOmitido": true
+                },
+                "at": "2026-11-14T00:28:10.197Z"
+              },
+              {
+                "name": "inventario:lineas",
+                "detail": [
+                  {
+                    "id": 1,
+                    "modo": "ninguno",
+                    "resultado": "omitido"
+                  }
+                ],
+                "at": "2026-11-14T00:28:10.197Z"
+              }
+            ],
+            "durationMs": 2847
+          }
+        },
+        {
+          "id": "chain-tablet-dual-slot-lock",
+          "label": "2 meseros · misma mesa · anti-pisoteo",
+          "ok": true,
+          "at": "2026-11-14T00:28:10.199Z",
+          "detail": {
+            "id": "tablet-dual-slot-lock",
+            "label": "2 meseros · misma mesa · anti-pisoteo",
+            "humanStory": "Un segundo dispositivo debe ver que otro mesero ya ocupa la mesa antes de pisarla",
+            "ok": true,
+            "soft": false,
+            "failedAt": null,
+            "failedBranch": null,
+            "failureMessage": null,
+            "links": [
+              {
+                "node": "tablet:A-sesion",
+                "ok": true,
+                "expected": {
+                  "hasSession": true
+                },
+                "actual": {
+                  "hasSession": true,
+                  "slotState": "atendiendo",
+                  "tabletOpen": true
+                },
+                "branches": [
+                  "slot:session"
+                ]
+              },
+              {
+                "node": "dual:anti-pisoteo-vista",
+                "ok": true,
+                "expected": {
+                  "seesOther": true
+                },
+                "actual": {
+                  "seesOther": true,
+                  "enUso": true,
+                  "slotState": "en-uso",
+                  "slotLabel": "En uso · Sofía Mesera (Tablet)",
+                  "who": "Sofía Mesera"
+                },
+                "branches": [
+                  "slot:sessionLock"
+                ]
+              },
+              {
+                "node": "dual:co-presencia",
+                "ok": true,
+                "expected": {
+                  "bAware": true
+                },
+                "actual": {
+                  "bAware": true,
+                  "peerMine": true,
+                  "peerCount": 2,
+                  "peersTogether": true,
+                  "sawOtherBeforeLogin": true,
+                  "slotState": "atendiendo",
+                  "tabletOpen": true
+                },
+                "branches": [
+                  "slot:session"
+                ]
+              }
+            ],
+            "branches": [
+              {
+                "name": "tablet:A-ocupa",
+                "detail": {
+                  "deviceId": "qa-tablet-A",
+                  "slotState": "atendiendo",
+                  "peer": {
+                    "mine": true,
+                    "userName": "Patricia Encargada",
+                    "deviceName": "Caja",
+                    "kind": "session",
+                    "count": 1
+                  },
+                  "tabletOpen": true
+                },
+                "at": "2026-11-14T00:28:14.225Z"
+              },
+              {
+                "name": "tablet:B-vista-sin-login",
+                "detail": {
+                  "peer": {
+                    "mine": false,
+                    "userName": "Sofía Mesera",
+                    "deviceName": "Tablet",
+                    "kind": "session",
+                    "count": 2
+                  },
+                  "slotState": "en-uso",
+                  "slotLabel": "En uso · Sofía Mesera (Tablet)"
+                },
+                "at": "2026-11-14T00:28:14.433Z"
+              },
+              {
+                "name": "tablet:B-intenta",
+                "detail": {
+                  "entered": true,
+                  "peer": {
+                    "mine": true,
+                    "userName": "Sofía Mesera",
+                    "deviceName": "Tablet",
+                    "kind": "session",
+                    "count": 2
+                  },
+                  "slotState": "atendiendo",
+                  "bAware": true
+                },
+                "at": "2026-11-14T00:28:15.765Z"
+              }
+            ],
+            "durationMs": 5584
+          }
+        }
+      ]
+    },
+    {
+      "id": "adversarial",
+      "title": "Errores humanos y intentos de romper flujo",
+      "startedAt": "2026-11-14T00:28:16.357Z",
+      "steps": [
+        {
+          "id": "adversarial-pack",
+          "label": "Paquete adversarial",
+          "ok": true,
+          "at": "2026-11-14T00:28:16.357Z",
+          "detail": {
+            "postComandarBlocked": true,
+            "postComandarQty": {
+              "before": 1,
+              "after": 1,
+              "sentCheck": 1,
+              "userId": "MESNOV",
+              "rol": "mesero"
+            },
+            "doubleCobroGuard": true,
+            "navSpamSurvived": true,
+            "emptyComandarGraceful": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "cierre",
+      "title": "Cierre de caja · arqueo",
+      "startedAt": "2026-11-14T00:28:17.575Z",
+      "steps": [
+        {
+          "id": "cierre-arqueo",
+          "label": "Arqueo mañana coherente con ventas",
+          "ok": true,
+          "at": "2026-11-14T00:28:18.154Z",
+          "detail": {
+            "grew": true,
+            "mananaClosed": "closed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "journal",
+      "title": "Diario automático (memoria de incidentes)",
+      "startedAt": "2026-11-14T00:28:20.615Z",
+      "steps": [
+        {
+          "id": "journal-snapshot",
+          "label": "Journal local accesible",
+          "ok": true,
+          "at": "2026-11-14T00:28:20.615Z",
+          "detail": {
+            "entries": 4,
+            "recent": [
+              {
+                "kind": "connectivity",
+                "code": "tier_lan_to_offline",
+                "page": "tablets"
+              },
+              {
+                "kind": "autoguard",
+                "code": "tier_degraded",
+                "page": "tablets"
+              },
+              {
+                "kind": "connectivity",
+                "code": "tier_lan_to_offline",
+                "page": "cajero"
+              },
+              {
+                "kind": "autoguard",
+                "code": "tier_degraded",
+                "page": "tablets"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "boot-ready",
+      "label": "App lista (POS + config)",
+      "ok": true,
+      "at": "2026-11-14T00:27:43.511Z",
+      "detail": {
+        "modules": {
+          "psyche": true,
+          "companion": true,
+          "automation": true,
+          "journal": true
+        }
+      }
+    },
+    {
+      "id": "boot-human-modules",
+      "label": "Capa humana cargada",
+      "ok": true,
+      "at": "2026-11-14T00:27:46.449Z",
+      "detail": {
+        "psyche": true,
+        "companion": true
+      }
+    },
+    {
+      "id": "boot-staff-permisos",
+      "label": "Staff QA con permisos de rol",
+      "ok": true,
+      "at": "2026-11-14T00:27:46.465Z",
+      "detail": {
+        "ok": true,
+        "patched": 2
+      }
+    },
+    {
+      "id": "persona-cajero-novato",
+      "label": "Cajero · primer turno",
+      "ok": true,
+      "at": "2026-11-14T00:27:46.477Z",
+      "detail": {
+        "persona": "cajero-novato",
+        "login": {
+          "ok": true,
+          "userId": "CAJNOV",
+          "rol": "caja",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "cajero",
+            "inicio-operacion",
+            "cierre-caja",
+            "deny:admin",
+            "deny:gestion-perfiles-menus"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": false,
+          "hasRail": false,
+          "hint": "",
+          "badge": "",
+          "roleLine": "Cobra, une/divide cuentas y carga compras — no borra lo ya comandado."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "Guía paso a paso, tono calmado, bloqueos explicados sin jerga"
+      }
+    },
+    {
+      "id": "persona-mesero-novato",
+      "label": "Mesero · aprendiz",
+      "ok": true,
+      "at": "2026-11-14T00:27:48.291Z",
+      "detail": {
+        "persona": "mesero-novato",
+        "login": {
+          "ok": true,
+          "userId": "MESNOV",
+          "rol": "mesero",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "tablets",
+            "deny:cierre-caja",
+            "deny:admin",
+            "deny:comandas"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": false,
+          "hasRail": false,
+          "hint": "",
+          "badge": "",
+          "roleLine": "Toma el pedido en tablet — antes de comandar todo; después, bloqueo total."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "Tablet clara, aviso antes/después de comandar"
+      }
+    },
+    {
+      "id": "persona-cocina",
+      "label": "Cocina / producción",
+      "ok": true,
+      "at": "2026-11-14T00:27:50.034Z",
+      "detail": {
+        "persona": "cocina",
+        "login": {
+          "ok": true,
+          "userId": "COCINA1",
+          "rol": "cocina",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "comandas",
+            "deny:cajero",
+            "deny:cierre-caja",
+            "deny:cocina"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": false,
+          "hasRail": false,
+          "hint": "",
+          "badge": "",
+          "roleLine": "Recibe comandas, prepara con receta, marca LISTO — no toca el pedido del mesero."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "LISTO visible, receta a mano, sin editar pedido ajeno"
+      }
+    },
+    {
+      "id": "persona-encargado",
+      "label": "Encargado de turno",
+      "ok": true,
+      "at": "2026-11-14T00:27:51.718Z",
+      "detail": {
+        "persona": "encargado",
+        "login": {
+          "ok": true,
+          "userId": "ENC1",
+          "rol": "encargado",
+          "experienciaPerfil": "novice",
+          "via": "loginWithCredentials"
+        },
+        "access": {
+          "ok": [
+            "cajero",
+            "tablets",
+            "centro-compras",
+            "deny:gestion-perfiles-menus"
+          ],
+          "denied": []
+        },
+        "companion": {
+          "hasHost": true,
+          "hasRail": true,
+          "hint": "El cajero carga — usted valida y cierra el ciclo.",
+          "badge": "Encargado de turno",
+          "roleLine": "Supervisa, corrige cuentas mal hechas y va más allá del cajero."
+        },
+        "psyche": {
+          "human": true,
+          "comfort": true
+        },
+        "humanExpect": "Puede corregir errores ajenos con trazabilidad"
+      }
+    },
+    {
+      "id": "oro-login",
+      "label": "Encargado abre turno operativo",
+      "ok": true,
+      "at": "2026-11-14T00:27:53.192Z",
+      "detail": {
+        "ok": true,
+        "userId": "ENC1",
+        "rol": "encargado",
+        "experienciaPerfil": "novice",
+        "via": "loginWithCredentials"
+      }
+    },
+    {
+      "id": "oro-venta-1",
+      "label": "Venta mesa M1 (ciclo 1)",
+      "ok": true,
+      "at": "2026-11-14T00:27:53.715Z",
+      "detail": {
+        "mesaId": "M1",
+        "qty": 1,
+        "comandaId": 1,
+        "total": 30240,
+        "facturaUuid": "POS-410ff1de-57db-4078-8fef-5943eb12db45"
+      }
+    },
+    {
+      "id": "chain-mesa-estados-comanda-cobro",
+      "label": "Mesa · pendiente → morado → rojo → verde",
+      "ok": true,
+      "at": "2026-11-14T00:27:56.993Z",
+      "detail": {
+        "id": "mesa-estados-comanda-cobro",
+        "label": "Mesa · pendiente → morado → rojo → verde",
+        "humanStory": "Comandar, cocina entrega, caja cobra — colores de mesa coherentes",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "tras:abrir-mesa",
+            "ok": true,
+            "expected": {
+              "slotState": {
+                "oneOf": [
+                  "libre",
+                  "atendiendo"
+                ]
+              },
+              "comandasActivas": 0,
+              "cartQty": 0
+            },
+            "actual": {
+              "slotState": "atendiendo",
+              "slotLabel": "Atendiendo · Patricia Encargada",
+              "cartQty": 0,
+              "sentQty": 0,
+              "comandasActivas": 0,
+              "comandaEstado": null,
+              "comandaArea": null,
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "slot:session"
+            ]
+          },
+          {
+            "node": "tras:agregar-carrito",
+            "ok": true,
+            "expected": {
+              "slotState": {
+                "oneOf": [
+                  "pendiente",
+                  "atendiendo"
+                ]
+              },
+              "cartQty": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "slotState": "pendiente",
+              "slotLabel": "Pendiente (2 ítems)",
+              "cartQty": 2,
+              "sentQty": 0,
+              "comandasActivas": 0,
+              "comandaEstado": null,
+              "comandaArea": null,
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "cart:mesa"
+            ]
+          },
+          {
+            "node": "tras:comandar",
+            "ok": true,
+            "expected": {
+              "slotState": "comandado",
+              "comandasActivas": {
+                "min": 1
+              },
+              "sentQty": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "slotState": "comandado",
+              "slotLabel": "Comandado (2 ítems)",
+              "cartQty": 2,
+              "sentQty": 2,
+              "comandasActivas": 1,
+              "comandaEstado": "pendiente",
+              "comandaArea": "COCINA",
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "comanda:area",
+              "cart:sentFlags"
+            ]
+          },
+          {
+            "node": "tras:cocina-lista",
+            "ok": true,
+            "expected": {
+              "slotState": "comandado",
+              "comandasActivas": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "slotState": "comandado",
+              "slotLabel": "Comandado (2 ítems)",
+              "cartQty": 2,
+              "sentQty": 2,
+              "comandasActivas": 1,
+              "comandaEstado": "lista",
+              "comandaArea": "COCINA",
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "comanda:estado"
+            ]
+          },
+          {
+            "node": "tras:cocina-entregada",
+            "ok": true,
+            "expected": {
+              "slotState": "salio",
+              "comandasActivas": 0
+            },
+            "actual": {
+              "slotState": "salio",
+              "slotLabel": "Ya salió",
+              "cartQty": 2,
+              "sentQty": 2,
+              "comandasActivas": 0,
+              "comandaEstado": "entregada",
+              "comandaArea": "COCINA",
+              "historyCount": 1,
+              "closedSlot": false
+            },
+            "branches": [
+              "comanda:history",
+              "slot:unpaid"
+            ]
+          },
+          {
+            "node": "tras:cobrar",
+            "ok": true,
+            "expected": {
+              "slotState": "libre",
+              "cartQty": 0,
+              "comandasActivas": 0
+            },
+            "actual": {
+              "slotState": "libre",
+              "slotLabel": "Desocupada",
+              "cartQty": 0,
+              "sentQty": 0,
+              "comandasActivas": 0,
+              "comandaEstado": "entregada",
+              "comandaArea": "COCINA",
+              "historyCount": 1,
+              "closedSlot": false
+            },
+            "branches": [
+              "cobro:closedSlots",
+              "cart:clear",
+              "factura:pos"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "cart:add",
+            "detail": {
+              "productId": 1,
+              "qty": 2,
+              "mesa": "M7"
+            },
+            "at": "2026-11-14T00:27:59.011Z"
+          },
+          {
+            "name": "comandar:cocina",
+            "detail": {
+              "comandasAfter": 2
+            },
+            "at": "2026-11-14T00:27:59.715Z"
+          },
+          {
+            "name": "cocina:lista",
+            "detail": {
+              "comandaId": 2
+            },
+            "at": "2026-11-14T00:27:59.719Z"
+          },
+          {
+            "name": "cocina:entregada",
+            "detail": {
+              "comandaId": 2
+            },
+            "at": "2026-11-14T00:27:59.957Z"
+          },
+          {
+            "name": "cobro:facturar",
+            "detail": {
+              "total": 60480
+            },
+            "at": "2026-11-14T00:28:00.776Z"
+          }
+        ],
+        "durationMs": 3736
+      }
+    },
+    {
+      "id": "chain-comanda-ramas-cocina",
+      "label": "Comanda · carrito + área + historial",
+      "ok": true,
+      "at": "2026-11-14T00:28:00.781Z",
+      "detail": {
+        "id": "comanda-ramas-cocina",
+        "label": "Comanda · carrito + área + historial",
+        "humanStory": "Al comandar nace ticket cocina; al entregar pasa a historial sin perder trazabilidad",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "pre:mesa-contexto",
+            "ok": true,
+            "expected": {
+              "mesaSeleccionada": "M8"
+            },
+            "actual": {
+              "mesaSeleccionada": "M8",
+              "cartQty": 1
+            },
+            "branches": [
+              "slot:session"
+            ]
+          },
+          {
+            "node": "comanda:creada",
+            "ok": true,
+            "expected": {
+              "count": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "count": 1,
+              "referencia": "M8"
+            },
+            "branches": [
+              "print:ticket"
+            ]
+          },
+          {
+            "node": "comanda:area-cocina",
+            "ok": true,
+            "expected": {
+              "areaId": "COCINA",
+              "referencia": "M8"
+            },
+            "actual": {
+              "areaId": "COCINA",
+              "referencia": "M8"
+            },
+            "branches": [
+              "comanda:area"
+            ]
+          },
+          {
+            "node": "cart:lineas-enviadas",
+            "ok": true,
+            "expected": {
+              "sentQty": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "sentQty": 1
+            },
+            "branches": [
+              "cart:sentFlags"
+            ]
+          },
+          {
+            "node": "comanda:historial",
+            "ok": true,
+            "expected": {
+              "goneFromActivas": true,
+              "slotState": "salio",
+              "comandasActivas": 0
+            },
+            "actual": {
+              "goneFromActivas": true,
+              "slotState": "salio",
+              "comandasActivas": 0,
+              "comandaEstado": "entregada"
+            },
+            "branches": [
+              "comanda:history"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "comanda:nacimiento",
+            "detail": {
+              "count": 1,
+              "mesaActiva": "M8"
+            },
+            "at": "2026-11-14T00:28:03.526Z"
+          }
+        ],
+        "durationMs": 3113
+      }
+    },
+    {
+      "id": "chain-cobro-ramificaciones",
+      "label": "Cobro · factura + slot pagado + carrito vacío",
+      "ok": true,
+      "at": "2026-11-14T00:28:03.909Z",
+      "detail": {
+        "id": "cobro-ramificaciones",
+        "label": "Cobro · factura + slot pagado + carrito vacío",
+        "humanStory": "El cobro debe cerrar mesa, emitir comprobante y dejar caja lista",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "cobro:factura-guardada",
+            "ok": true,
+            "expected": {
+              "facturasCount": {
+                "min": 3
+              }
+            },
+            "actual": {
+              "facturasCount": 3,
+              "uuid": "POS-6a02bb58-7078-4568-957b-f7933e7bf3a3"
+            },
+            "branches": [
+              "config:save"
+            ]
+          },
+          {
+            "node": "cobro:mesa-cerrada",
+            "ok": true,
+            "expected": {
+              "cartQty": 0,
+              "slotState": "libre"
+            },
+            "actual": {
+              "closedSlot": false,
+              "cartQty": 0,
+              "slotState": "libre"
+            },
+            "branches": [
+              "slot:paid",
+              "cart:clear"
+            ]
+          },
+          {
+            "node": "cobro:auditoria",
+            "ok": true,
+            "expected": {
+              "grew": true
+            },
+            "actual": {
+              "auditsBefore": 62,
+              "auditsAfter": 66,
+              "grew": true
+            },
+            "branches": [
+              "audit:trail"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "factura:emitida",
+            "detail": {
+              "uuid": "POS-6a02bb58-7078-4568-957b-f7933e7bf3a3"
+            },
+            "at": "2026-11-14T00:28:07.343Z"
+          }
+        ],
+        "durationMs": 3430
+      }
+    },
+    {
+      "id": "chain-venta-inventario-meta",
+      "label": "Venta · meta inventario / reservorio",
+      "ok": true,
+      "at": "2026-11-14T00:28:07.347Z",
+      "detail": {
+        "id": "venta-inventario-meta",
+        "label": "Venta · meta inventario / reservorio",
+        "humanStory": "Tras cobrar debe quedar registro de qué ramas de inventario se aplicaron u omitieron",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "factura:inventarioMeta",
+            "ok": true,
+            "expected": {
+              "hasMeta": true
+            },
+            "actual": {
+              "hasMeta": true,
+              "aplicado": true,
+              "contexto": "restaurante",
+              "lineas": 1,
+              "restauranteOmitido": true
+            },
+            "branches": [
+              "inventario:orquestador"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "inventario:aplicarVenta",
+            "detail": {
+              "hasMeta": true,
+              "aplicado": true,
+              "contexto": "restaurante",
+              "restauranteOmitido": true
+            },
+            "at": "2026-11-14T00:28:10.197Z"
+          },
+          {
+            "name": "inventario:lineas",
+            "detail": [
+              {
+                "id": 1,
+                "modo": "ninguno",
+                "resultado": "omitido"
+              }
+            ],
+            "at": "2026-11-14T00:28:10.197Z"
+          }
+        ],
+        "durationMs": 2847
+      }
+    },
+    {
+      "id": "chain-tablet-dual-slot-lock",
+      "label": "2 meseros · misma mesa · anti-pisoteo",
+      "ok": true,
+      "at": "2026-11-14T00:28:10.199Z",
+      "detail": {
+        "id": "tablet-dual-slot-lock",
+        "label": "2 meseros · misma mesa · anti-pisoteo",
+        "humanStory": "Un segundo dispositivo debe ver que otro mesero ya ocupa la mesa antes de pisarla",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "tablet:A-sesion",
+            "ok": true,
+            "expected": {
+              "hasSession": true
+            },
+            "actual": {
+              "hasSession": true,
+              "slotState": "atendiendo",
+              "tabletOpen": true
+            },
+            "branches": [
+              "slot:session"
+            ]
+          },
+          {
+            "node": "dual:anti-pisoteo-vista",
+            "ok": true,
+            "expected": {
+              "seesOther": true
+            },
+            "actual": {
+              "seesOther": true,
+              "enUso": true,
+              "slotState": "en-uso",
+              "slotLabel": "En uso · Sofía Mesera (Tablet)",
+              "who": "Sofía Mesera"
+            },
+            "branches": [
+              "slot:sessionLock"
+            ]
+          },
+          {
+            "node": "dual:co-presencia",
+            "ok": true,
+            "expected": {
+              "bAware": true
+            },
+            "actual": {
+              "bAware": true,
+              "peerMine": true,
+              "peerCount": 2,
+              "peersTogether": true,
+              "sawOtherBeforeLogin": true,
+              "slotState": "atendiendo",
+              "tabletOpen": true
+            },
+            "branches": [
+              "slot:session"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "tablet:A-ocupa",
+            "detail": {
+              "deviceId": "qa-tablet-A",
+              "slotState": "atendiendo",
+              "peer": {
+                "mine": true,
+                "userName": "Patricia Encargada",
+                "deviceName": "Caja",
+                "kind": "session",
+                "count": 1
+              },
+              "tabletOpen": true
+            },
+            "at": "2026-11-14T00:28:14.225Z"
+          },
+          {
+            "name": "tablet:B-vista-sin-login",
+            "detail": {
+              "peer": {
+                "mine": false,
+                "userName": "Sofía Mesera",
+                "deviceName": "Tablet",
+                "kind": "session",
+                "count": 2
+              },
+              "slotState": "en-uso",
+              "slotLabel": "En uso · Sofía Mesera (Tablet)"
+            },
+            "at": "2026-11-14T00:28:14.433Z"
+          },
+          {
+            "name": "tablet:B-intenta",
+            "detail": {
+              "entered": true,
+              "peer": {
+                "mine": true,
+                "userName": "Sofía Mesera",
+                "deviceName": "Tablet",
+                "kind": "session",
+                "count": 2
+              },
+              "slotState": "atendiendo",
+              "bAware": true
+            },
+            "at": "2026-11-14T00:28:15.765Z"
+          }
+        ],
+        "durationMs": 5584
+      }
+    },
+    {
+      "id": "adversarial-pack",
+      "label": "Paquete adversarial",
+      "ok": true,
+      "at": "2026-11-14T00:28:16.357Z",
+      "detail": {
+        "postComandarBlocked": true,
+        "postComandarQty": {
+          "before": 1,
+          "after": 1,
+          "sentCheck": 1,
+          "userId": "MESNOV",
+          "rol": "mesero"
+        },
+        "doubleCobroGuard": true,
+        "navSpamSurvived": true,
+        "emptyComandarGraceful": true
+      }
+    },
+    {
+      "id": "cierre-arqueo",
+      "label": "Arqueo mañana coherente con ventas",
+      "ok": true,
+      "at": "2026-11-14T00:28:18.154Z",
+      "detail": {
+        "grew": true,
+        "mananaClosed": "closed"
+      }
+    },
+    {
+      "id": "journal-snapshot",
+      "label": "Journal local accesible",
+      "ok": true,
+      "at": "2026-11-14T00:28:20.615Z",
+      "detail": {
+        "entries": 4,
+        "recent": [
+          {
+            "kind": "connectivity",
+            "code": "tier_lan_to_offline",
+            "page": "tablets"
+          },
+          {
+            "kind": "autoguard",
+            "code": "tier_degraded",
+            "page": "tablets"
+          },
+          {
+            "kind": "connectivity",
+            "code": "tier_lan_to_offline",
+            "page": "cajero"
+          },
+          {
+            "kind": "autoguard",
+            "code": "tier_degraded",
+            "page": "tablets"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "context": {
+    "sales": [
+      {
+        "mesaId": "M1",
+        "qty": 1,
+        "comandaId": 1,
+        "total": 30240,
+        "facturaUuid": "POS-410ff1de-57db-4078-8fef-5943eb12db45"
+      }
+    ],
+    "adversarial": {
+      "postComandarBlocked": true,
+      "postComandarQty": {
+        "before": 1,
+        "after": 1,
+        "sentCheck": 1,
+        "userId": "MESNOV",
+        "rol": "mesero"
+      },
+      "doubleCobroGuard": true,
+      "navSpamSurvived": true,
+      "emptyComandarGraceful": true
+    },
+    "journal": {
+      "entries": 4,
+      "recent": [
+        {
+          "kind": "connectivity",
+          "code": "tier_lan_to_offline",
+          "page": "tablets"
+        },
+        {
+          "kind": "autoguard",
+          "code": "tier_degraded",
+          "page": "tablets"
+        },
+        {
+          "kind": "connectivity",
+          "code": "tier_lan_to_offline",
+          "page": "cajero"
+        },
+        {
+          "kind": "autoguard",
+          "code": "tier_degraded",
+          "page": "tablets"
+        }
+      ]
+    }
+  },
+  "actionChains": {
+    "premise": "Cada acción operativa debe desencadenar efectos observables; si una rama no entrega, el reporte indica eslabón y rama.",
+    "chains": [
+      {
+        "id": "mesa-estados-comanda-cobro",
+        "label": "Mesa · pendiente → morado → rojo → verde",
+        "humanStory": "Comandar, cocina entrega, caja cobra — colores de mesa coherentes",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "tras:abrir-mesa",
+            "ok": true,
+            "expected": {
+              "slotState": {
+                "oneOf": [
+                  "libre",
+                  "atendiendo"
+                ]
+              },
+              "comandasActivas": 0,
+              "cartQty": 0
+            },
+            "actual": {
+              "slotState": "atendiendo",
+              "slotLabel": "Atendiendo · Patricia Encargada",
+              "cartQty": 0,
+              "sentQty": 0,
+              "comandasActivas": 0,
+              "comandaEstado": null,
+              "comandaArea": null,
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "slot:session"
+            ]
+          },
+          {
+            "node": "tras:agregar-carrito",
+            "ok": true,
+            "expected": {
+              "slotState": {
+                "oneOf": [
+                  "pendiente",
+                  "atendiendo"
+                ]
+              },
+              "cartQty": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "slotState": "pendiente",
+              "slotLabel": "Pendiente (2 ítems)",
+              "cartQty": 2,
+              "sentQty": 0,
+              "comandasActivas": 0,
+              "comandaEstado": null,
+              "comandaArea": null,
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "cart:mesa"
+            ]
+          },
+          {
+            "node": "tras:comandar",
+            "ok": true,
+            "expected": {
+              "slotState": "comandado",
+              "comandasActivas": {
+                "min": 1
+              },
+              "sentQty": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "slotState": "comandado",
+              "slotLabel": "Comandado (2 ítems)",
+              "cartQty": 2,
+              "sentQty": 2,
+              "comandasActivas": 1,
+              "comandaEstado": "pendiente",
+              "comandaArea": "COCINA",
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "comanda:area",
+              "cart:sentFlags"
+            ]
+          },
+          {
+            "node": "tras:cocina-lista",
+            "ok": true,
+            "expected": {
+              "slotState": "comandado",
+              "comandasActivas": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "slotState": "comandado",
+              "slotLabel": "Comandado (2 ítems)",
+              "cartQty": 2,
+              "sentQty": 2,
+              "comandasActivas": 1,
+              "comandaEstado": "lista",
+              "comandaArea": "COCINA",
+              "historyCount": 0,
+              "closedSlot": false
+            },
+            "branches": [
+              "comanda:estado"
+            ]
+          },
+          {
+            "node": "tras:cocina-entregada",
+            "ok": true,
+            "expected": {
+              "slotState": "salio",
+              "comandasActivas": 0
+            },
+            "actual": {
+              "slotState": "salio",
+              "slotLabel": "Ya salió",
+              "cartQty": 2,
+              "sentQty": 2,
+              "comandasActivas": 0,
+              "comandaEstado": "entregada",
+              "comandaArea": "COCINA",
+              "historyCount": 1,
+              "closedSlot": false
+            },
+            "branches": [
+              "comanda:history",
+              "slot:unpaid"
+            ]
+          },
+          {
+            "node": "tras:cobrar",
+            "ok": true,
+            "expected": {
+              "slotState": "libre",
+              "cartQty": 0,
+              "comandasActivas": 0
+            },
+            "actual": {
+              "slotState": "libre",
+              "slotLabel": "Desocupada",
+              "cartQty": 0,
+              "sentQty": 0,
+              "comandasActivas": 0,
+              "comandaEstado": "entregada",
+              "comandaArea": "COCINA",
+              "historyCount": 1,
+              "closedSlot": false
+            },
+            "branches": [
+              "cobro:closedSlots",
+              "cart:clear",
+              "factura:pos"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "cart:add",
+            "detail": {
+              "productId": 1,
+              "qty": 2,
+              "mesa": "M7"
+            },
+            "at": "2026-11-14T00:27:59.011Z"
+          },
+          {
+            "name": "comandar:cocina",
+            "detail": {
+              "comandasAfter": 2
+            },
+            "at": "2026-11-14T00:27:59.715Z"
+          },
+          {
+            "name": "cocina:lista",
+            "detail": {
+              "comandaId": 2
+            },
+            "at": "2026-11-14T00:27:59.719Z"
+          },
+          {
+            "name": "cocina:entregada",
+            "detail": {
+              "comandaId": 2
+            },
+            "at": "2026-11-14T00:27:59.957Z"
+          },
+          {
+            "name": "cobro:facturar",
+            "detail": {
+              "total": 60480
+            },
+            "at": "2026-11-14T00:28:00.776Z"
+          }
+        ],
+        "durationMs": 3736
+      },
+      {
+        "id": "comanda-ramas-cocina",
+        "label": "Comanda · carrito + área + historial",
+        "humanStory": "Al comandar nace ticket cocina; al entregar pasa a historial sin perder trazabilidad",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "pre:mesa-contexto",
+            "ok": true,
+            "expected": {
+              "mesaSeleccionada": "M8"
+            },
+            "actual": {
+              "mesaSeleccionada": "M8",
+              "cartQty": 1
+            },
+            "branches": [
+              "slot:session"
+            ]
+          },
+          {
+            "node": "comanda:creada",
+            "ok": true,
+            "expected": {
+              "count": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "count": 1,
+              "referencia": "M8"
+            },
+            "branches": [
+              "print:ticket"
+            ]
+          },
+          {
+            "node": "comanda:area-cocina",
+            "ok": true,
+            "expected": {
+              "areaId": "COCINA",
+              "referencia": "M8"
+            },
+            "actual": {
+              "areaId": "COCINA",
+              "referencia": "M8"
+            },
+            "branches": [
+              "comanda:area"
+            ]
+          },
+          {
+            "node": "cart:lineas-enviadas",
+            "ok": true,
+            "expected": {
+              "sentQty": {
+                "min": 1
+              }
+            },
+            "actual": {
+              "sentQty": 1
+            },
+            "branches": [
+              "cart:sentFlags"
+            ]
+          },
+          {
+            "node": "comanda:historial",
+            "ok": true,
+            "expected": {
+              "goneFromActivas": true,
+              "slotState": "salio",
+              "comandasActivas": 0
+            },
+            "actual": {
+              "goneFromActivas": true,
+              "slotState": "salio",
+              "comandasActivas": 0,
+              "comandaEstado": "entregada"
+            },
+            "branches": [
+              "comanda:history"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "comanda:nacimiento",
+            "detail": {
+              "count": 1,
+              "mesaActiva": "M8"
+            },
+            "at": "2026-11-14T00:28:03.526Z"
+          }
+        ],
+        "durationMs": 3113
+      },
+      {
+        "id": "cobro-ramificaciones",
+        "label": "Cobro · factura + slot pagado + carrito vacío",
+        "humanStory": "El cobro debe cerrar mesa, emitir comprobante y dejar caja lista",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "cobro:factura-guardada",
+            "ok": true,
+            "expected": {
+              "facturasCount": {
+                "min": 3
+              }
+            },
+            "actual": {
+              "facturasCount": 3,
+              "uuid": "POS-6a02bb58-7078-4568-957b-f7933e7bf3a3"
+            },
+            "branches": [
+              "config:save"
+            ]
+          },
+          {
+            "node": "cobro:mesa-cerrada",
+            "ok": true,
+            "expected": {
+              "cartQty": 0,
+              "slotState": "libre"
+            },
+            "actual": {
+              "closedSlot": false,
+              "cartQty": 0,
+              "slotState": "libre"
+            },
+            "branches": [
+              "slot:paid",
+              "cart:clear"
+            ]
+          },
+          {
+            "node": "cobro:auditoria",
+            "ok": true,
+            "expected": {
+              "grew": true
+            },
+            "actual": {
+              "auditsBefore": 62,
+              "auditsAfter": 66,
+              "grew": true
+            },
+            "branches": [
+              "audit:trail"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "factura:emitida",
+            "detail": {
+              "uuid": "POS-6a02bb58-7078-4568-957b-f7933e7bf3a3"
+            },
+            "at": "2026-11-14T00:28:07.343Z"
+          }
+        ],
+        "durationMs": 3430
+      },
+      {
+        "id": "venta-inventario-meta",
+        "label": "Venta · meta inventario / reservorio",
+        "humanStory": "Tras cobrar debe quedar registro de qué ramas de inventario se aplicaron u omitieron",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "factura:inventarioMeta",
+            "ok": true,
+            "expected": {
+              "hasMeta": true
+            },
+            "actual": {
+              "hasMeta": true,
+              "aplicado": true,
+              "contexto": "restaurante",
+              "lineas": 1,
+              "restauranteOmitido": true
+            },
+            "branches": [
+              "inventario:orquestador"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "inventario:aplicarVenta",
+            "detail": {
+              "hasMeta": true,
+              "aplicado": true,
+              "contexto": "restaurante",
+              "restauranteOmitido": true
+            },
+            "at": "2026-11-14T00:28:10.197Z"
+          },
+          {
+            "name": "inventario:lineas",
+            "detail": [
+              {
+                "id": 1,
+                "modo": "ninguno",
+                "resultado": "omitido"
+              }
+            ],
+            "at": "2026-11-14T00:28:10.197Z"
+          }
+        ],
+        "durationMs": 2847
+      },
+      {
+        "id": "tablet-dual-slot-lock",
+        "label": "2 meseros · misma mesa · anti-pisoteo",
+        "humanStory": "Un segundo dispositivo debe ver que otro mesero ya ocupa la mesa antes de pisarla",
+        "ok": true,
+        "soft": false,
+        "failedAt": null,
+        "failedBranch": null,
+        "failureMessage": null,
+        "links": [
+          {
+            "node": "tablet:A-sesion",
+            "ok": true,
+            "expected": {
+              "hasSession": true
+            },
+            "actual": {
+              "hasSession": true,
+              "slotState": "atendiendo",
+              "tabletOpen": true
+            },
+            "branches": [
+              "slot:session"
+            ]
+          },
+          {
+            "node": "dual:anti-pisoteo-vista",
+            "ok": true,
+            "expected": {
+              "seesOther": true
+            },
+            "actual": {
+              "seesOther": true,
+              "enUso": true,
+              "slotState": "en-uso",
+              "slotLabel": "En uso · Sofía Mesera (Tablet)",
+              "who": "Sofía Mesera"
+            },
+            "branches": [
+              "slot:sessionLock"
+            ]
+          },
+          {
+            "node": "dual:co-presencia",
+            "ok": true,
+            "expected": {
+              "bAware": true
+            },
+            "actual": {
+              "bAware": true,
+              "peerMine": true,
+              "peerCount": 2,
+              "peersTogether": true,
+              "sawOtherBeforeLogin": true,
+              "slotState": "atendiendo",
+              "tabletOpen": true
+            },
+            "branches": [
+              "slot:session"
+            ]
+          }
+        ],
+        "branches": [
+          {
+            "name": "tablet:A-ocupa",
+            "detail": {
+              "deviceId": "qa-tablet-A",
+              "slotState": "atendiendo",
+              "peer": {
+                "mine": true,
+                "userName": "Patricia Encargada",
+                "deviceName": "Caja",
+                "kind": "session",
+                "count": 1
+              },
+              "tabletOpen": true
+            },
+            "at": "2026-11-14T00:28:14.225Z"
+          },
+          {
+            "name": "tablet:B-vista-sin-login",
+            "detail": {
+              "peer": {
+                "mine": false,
+                "userName": "Sofía Mesera",
+                "deviceName": "Tablet",
+                "kind": "session",
+                "count": 2
+              },
+              "slotState": "en-uso",
+              "slotLabel": "En uso · Sofía Mesera (Tablet)"
+            },
+            "at": "2026-11-14T00:28:14.433Z"
+          },
+          {
+            "name": "tablet:B-intenta",
+            "detail": {
+              "entered": true,
+              "peer": {
+                "mine": true,
+                "userName": "Sofía Mesera",
+                "deviceName": "Tablet",
+                "kind": "session",
+                "count": 2
+              },
+              "slotState": "atendiendo",
+              "bAware": true
+            },
+            "at": "2026-11-14T00:28:15.765Z"
+          }
+        ],
+        "durationMs": 5584
+      }
+    ],
+    "summary": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "softFailed": 0
+    }
+  }
+}

@@ -255,10 +255,10 @@
         });
         if (res.ok) {
           ok++;
-          if (cell) cell.innerHTML = '<span class="badge badge-success">OK</span>';
-        } else if (cell) cell.innerHTML = '<span class="badge badge-warning">HTTP ' + res.status + '</span>';
+          if (cell) cell.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-success">OK</span>');
+        } else if (cell) cell.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-warning">HTTP ' + res.status + '</span>');
       } catch (_) {
-        if (cell) cell.innerHTML = '<span class="badge badge-warning">Error</span>';
+        if (cell) cell.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-warning">Error</span>');
       }
     }
     if (summary) summary.textContent = ok + ' de ' + FED_PROBE.length + ' tablas accesibles.';

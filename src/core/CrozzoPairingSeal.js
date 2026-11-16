@@ -501,6 +501,23 @@
       });
   }
 
+  // Fase -2: wrapper para integrar RLS pairing
+  function unsealFromQrWithRls(text) {
+    var res = unsealFromQr(text);
+    var notify = function (obj) {
+      try {
+        if (obj && global.CrozzoRlsPairing && typeof global.CrozzoRlsPairing.onPairingSuccess === 'function') {
+          global.CrozzoRlsPairing.onPairingSuccess(obj);
+        }
+      } catch (_) {}
+    };
+    if (res && typeof res.then === 'function') {
+      return res.then(function (obj) { notify(obj); return obj; });
+    }
+    notify(res);
+    return res;
+  }
+
   global.CrozzoPairingSeal = {
     PAIR_INSTALL_URL: PAIR_INSTALL_URL,
     PAIR_SCHEME: PAIR_SCHEME,
@@ -509,7 +526,7 @@
     sealPayload: sealPayload,
     buildFastQrText: buildFastQrText,
     parseFastQr: parseFastQr,
-    unsealFromQr: unsealFromQr,
+    unsealFromQr: unsealFromQrWithRls,
     extractBlobFromQr: extractBlobFromQr,
     extractFastFromQr: extractFastFromQr,
     isPairingQr: isPairingQr,

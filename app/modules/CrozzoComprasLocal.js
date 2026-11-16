@@ -1740,7 +1740,7 @@
     ofUi.expandedId = facturaId;
     ofUi.expandedTab = tab || 'oficina';
     ofUi.expandedAdjIdx = 0;
-    host.innerHTML = renderOficina();
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderOficina());
     if (ofUi.expandedTab === 'pdf') ofMountPdfPreview(host, facturaId, 0);
     if (ofUi.expandedTab === 'oficina') ofMountProvDocPreview(host, facturaId);
     if (ofUi.expandedTab === 'comprobante') ofMountComprobantePreview(host, facturaId);
@@ -2023,7 +2023,7 @@
   function refreshOficina(host, keepExpanded) {
     ofRevokeAllPdfUrls();
     if (!keepExpanded) ofUi.expandedId = null;
-    host.innerHTML = renderOficina();
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderOficina());
     if (ofUi.expandedId && ofUi.expandedTab === 'pdf') {
       ofMountPdfPreview(host, ofUi.expandedId, ofUi.expandedAdjIdx || 0);
     }
@@ -2071,7 +2071,7 @@
     if (!res || !body || !res.renderDashboardHtml) return;
     var dias = Number((host.querySelector('#ccl-dash-dias') || {}).value) || 30;
     var cat = ((host.querySelector('#ccl-dash-cat') || {}).value || '').trim();
-    body.innerHTML = res.renderDashboardHtml({ dias: dias, categoria: cat || undefined });
+    body.innerHTML = CrozzoSanitize.sanitizeHtml(res.renderDashboardHtml({ dias: dias, categoria: cat || undefined }));
   }
 
   function bindRecepcionLineRow(tr) {
@@ -2131,7 +2131,7 @@
     var tr = tbody.querySelector('.ccl-rec-line') || tbody.appendChild(document.createElement('tr'));
     tr.className = 'ccl-rec-line';
     if (!tr.querySelector('.ccl-rec-mp')) {
-      tr.innerHTML = renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, '');
+      tr.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, ''));
       bindRecepcionLineRow(tr);
     }
     var sel = tr.querySelector('.ccl-rec-mp');
@@ -2173,7 +2173,7 @@
         if (!tbody) return;
         var tr = document.createElement('tr');
         tr.className = 'ccl-rec-line';
-        tr.innerHTML = renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, '');
+        tr.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecepcionLineRow().replace(/^<tr[^>]*>|<\/tr>$/g, ''));
         tbody.appendChild(tr);
         bindRecepcionLineRow(tr);
       };
@@ -2211,7 +2211,7 @@
       if (items.length) msg += ' — ' + items.length + ' precio(s) de costeo actualizados';
       toast(msg, 'success');
       var boot = function () {
-        host.innerHTML = renderRecepcion();
+        host.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecepcion());
         bindRecepcion(host);
       };
       var C = global.CrozzoCatalogoMp;
@@ -2234,7 +2234,7 @@
         notas: (notas && notas.value) || '',
       });
       toast('Proceso registrado — inventario actualizado', 'success');
-      host.innerHTML = renderProcesado();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(renderProcesado());
       bindProcesado(host);
     };
   }

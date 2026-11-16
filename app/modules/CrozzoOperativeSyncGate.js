@@ -110,11 +110,11 @@
       el.id = 'crozzoOperativeSyncOverlay';
       el.className = 'crozzo-operative-sync-overlay';
       el.innerHTML =
-        '<div class="crozzo-operative-sync-overlay__card" role="status" aria-live="polite">' +
+        CrozzoSanitize.sanitizeHtml('<div class="crozzo-operative-sync-overlay__card" role="status" aria-live="polite">' +
         '<div class="crozzo-operative-sync-overlay__spinner" aria-hidden="true"></div>' +
         '<p class="crozzo-operative-sync-overlay__title">Actualizando operación</p>' +
         '<p class="crozzo-operative-sync-overlay__msg" id="crozzoOperativeSyncMsg"></p>' +
-        '</div>';
+        '</div>');
       document.body.appendChild(el);
     }
     var m = document.getElementById('crozzoOperativeSyncMsg');

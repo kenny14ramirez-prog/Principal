@@ -335,7 +335,7 @@
     var reduced = prefersReducedMotion();
 
     overlay.innerHTML =
-      '<div class="crozzo-bday-overlay__sky" aria-hidden="true"></div>' +
+      CrozzoSanitize.sanitizeHtml('<div class="crozzo-bday-overlay__sky" aria-hidden="true"></div>' +
       (reduced ? '' : '<div class="crozzo-bday-overlay__balloons" aria-hidden="true"></div>') +
       (reduced ? '' : '<div class="crozzo-bday-overlay__confetti" aria-hidden="true"></div>') +
       '<div class="crozzo-bday-overlay__card">' +
@@ -350,7 +350,7 @@
       esc(name) +
       '</h2>' +
       '<p class="crozzo-bday-overlay__sub">Que este día esté lleno de alegría, buena energía y ventas redondas 🎈</p>' +
-      '<button type="button" class="btn btn-primary crozzo-bday-overlay__btn">¡Gracias!</button></div>';
+      '<button type="button" class="btn btn-primary crozzo-bday-overlay__btn">¡Gracias!</button></div>');
 
     document.body.appendChild(overlay);
 

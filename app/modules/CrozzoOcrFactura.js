@@ -260,6 +260,9 @@
     mapToRecepcionItems: mapToRecepcionItems,
     sugerirCatalogo: sugerirCatalogo,
     confidenceScore: confidenceScore,
-    parseNumber: parseNumber
+    parseNumber: parseNumber,
+    extractHeader: extractHeader,
+    extractItems: extractItems,
+    findMatch: findMatch
   };
 })(typeof window !== 'undefined' ? window : globalThis);

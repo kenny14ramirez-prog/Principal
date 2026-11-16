@@ -205,6 +205,7 @@ async function runBrowserTablets(posUrl, lanPort, tabletCount) {
             }, {});
             window.__crozzoSkipDupCheck = true;
             window.__crozzoSkipAllComandaGuards = true;
+            window.crozzoHasCajaPermiso = function () { return true; };
             const before = (window.comandas || []).length;
             if (typeof window.comandarDesdeCaja === 'function') window.comandarDesdeCaja();
             const c = (window.comandas || [])[before] || (window.comandas || []).slice(-1)[0];

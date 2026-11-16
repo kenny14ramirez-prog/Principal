@@ -663,13 +663,13 @@
     }
     if (pills) pills.outerHTML = statsPills(all);
     if (tabs) tabs.outerHTML = tabsHtml();
-    if (listEl) listEl.innerHTML = groupedListHtml(items);
+    if (listEl) listEl.innerHTML = CrozzoSanitize.sanitizeHtml(groupedListHtml(items));
     if (detailEl) {
       var current =
         items.filter(function (r) {
           return r.slug === state.selected;
         })[0] || null;
-      detailEl.innerHTML = detailHtml(current);
+      detailEl.innerHTML = CrozzoSanitize.sanitizeHtml(detailHtml(current));
     }
     bindCards(host);
     bindTabs(host);

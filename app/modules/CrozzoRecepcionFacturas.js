@@ -2169,6 +2169,32 @@
     );
   }
 
+  function renderCxfOcrFacturaModal() {
+    return (
+      '<div id="cxf-ocr-factura-modal" class="cxf-mp-modal-backdrop" hidden aria-hidden="true">' +
+      '<div class="cxf-ocr-factura-dialog" role="dialog" aria-modal="true" aria-labelledby="cxf-ocr-factura-title">' +
+      '<header class="cxf-ocr-factura-dialog__head">' +
+      '<h3 id="cxf-ocr-factura-title">Escanear factura con OCR</h3>' +
+      '<button type="button" class="cxf-ocr-close" data-cxf-ocr-close aria-label="Cerrar">×</button>' +
+      '</header>' +
+      '<p class="cxf-muted">Seleccione una imagen o PDF de la factura para extraer el texto.</p>' +
+      '<div class="cxf-ocr-factura-body">' +
+      '<input type="file" id="cxf-ocr-file" accept="image/*,application/pdf" class="cxf-ocr-file">' +
+      '<div id="cxf-ocr-preview" class="cxf-ocr-preview"></div>' +
+      '<p id="cxf-ocr-status" class="cxf-ocr-status" role="status">Seleccione imagen/PDF para escanear.</p>' +
+      '<div class="cxf-ocr-factura-actions">' +
+      '<button type="button" class="btn btn-primary btn-sm" id="cxf-ocr-analizar">🔍 Analizar con OCR</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-ocr-aplicar">✅ Aplicar al formulario</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-cxf-ocr-close>Cancelar</button>' +
+      '</div>' +
+      '<div class="cxf-ocr-factura-lines">' +
+      '<strong>Líneas detectadas (<span id="cxf-ocr-count">0</span>)</strong>' +
+      '<div id="cxf-ocr-lines-body" class="cxf-ocr-lines-body"></div>' +
+      '</div>' +
+      '</div></div></div>'
+    );
+  }
+
   var _cxfQrRegion = null;
 
   function setCxfQrRegionStatus(msg, isError) {
