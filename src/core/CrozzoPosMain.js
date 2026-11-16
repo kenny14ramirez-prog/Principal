@@ -3593,6 +3593,34 @@ async function handleLoginSubmit() {
     if (typeof CrozzoMfaKenny !== 'undefined' && CrozzoMfaKenny.isAvailable()) {
       var mfaRes = await CrozzoMfaKenny.iniciarMfa('KENNY');
       if (mfaRes && mfaRes.ok) {
+        if (mfaRes.requiereDispositivo) {
+          // Dispositivo no registrado → mostrar modal de registro
+          CrozzoMfaKenny.mostrarModalRegistroDispositivo('KENNY', function (regRes) {
+            if (regRes && regRes.aprobado) {
+              // Dispositivo aprobado (primer dispositivo) → continuar con MFA
+              CrozzoMfaKenny.iniciarMfa('KENNY').then(function (mfaRes2) {
+                if (mfaRes2 && mfaRes2.ok && mfaRes2.requiereTotp) {
+                  CrozzoMfaKenny.mostrarModalMfa(function (mfaVerifyRes) {
+                    if (mfaVerifyRes && mfaVerifyRes.ok) {
+                      crozzoFinishKennyLogin();
+                    }
+                  }, function () {
+                    showErr('Verificación MFA cancelada.');
+                  });
+                } else if (mfaRes2 && mfaRes2.ok && mfaRes2.verificado) {
+                  crozzoFinishKennyLogin();
+                } else {
+                  showErr('Error en verificación MFA.');
+                }
+              });
+            } else {
+              showErr('Dispositivo registrado. Se requiere aprobación desde un dispositivo ya registrado.');
+            }
+          }, function () {
+            showErr('Registro de dispositivo cancelado.');
+          });
+          return;
+        }
         if (mfaRes.requiereTotp) {
           // Mostrar modal de TOTP — el login se completa después de verificar
           CrozzoMfaKenny.mostrarModalMfa(function (mfaVerifyRes) {
@@ -3603,9 +3631,6 @@ async function handleLoginSubmit() {
             showErr('Verificación MFA cancelada.');
           });
           return;
-        }
-        if (mfaRes.requiereDispositivo) {
-          return showErr('Dispositivo no reconocido. Se requiere aprobación de KENNY desde un dispositivo registrado.');
         }
         if (mfaRes.verificado) {
           crozzoFinishKennyLogin();
