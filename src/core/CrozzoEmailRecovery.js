@@ -179,6 +179,10 @@
             var code = document.getElementById('emailVerifyCode').value.trim();
             var verifyRes = await verificarCodigo(email, code, 'verify');
             if (verifyRes.ok) {
+               if (typeof CrozzoEmailTemplates !== 'undefined') {
+                 var html = CrozzoEmailTemplates.templateBienvenida(email, 'Kenny');
+                 CrozzoEmailTemplates.enviarEmail(email, 'Bienvenido a BONA origen', html);
+               }
               resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
                 '<strong>✅ Correo verificado:</strong> ' + email + '</div>';
               if (typeof onSaved === 'function') onSaved(email);
@@ -262,6 +266,11 @@
 
           var recoverRes = await recuperarPin(email, code, newPin);
           if (recoverRes.ok) {
+            // Enviar alerta de cambio de PIN por email
+            if (typeof CrozzoEmailTemplates !== 'undefined') {
+              var html = CrozzoEmailTemplates.templateAlertaCambioPin(email, new Date().toLocaleString('es-CO'));
+              CrozzoEmailTemplates.enviarEmail(email, '🔑 PIN actualizado — BONA origen', html);
+            }
             resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
               '<strong>✅ PIN actualizado:</strong> ' + (recoverRes.mensaje || 'Puedes iniciar sesión con tu nuevo PIN.') + '</div>';
             setTimeout(function () { overlay.remove(); if (typeof onRecovered === 'function') onRecovered(); }, 3000);

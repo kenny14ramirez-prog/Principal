@@ -335,6 +335,23 @@
     try { localStorage.setItem(JAULA_BLOCKED_KEY, '1'); } catch (_) {}
     try { localStorage.setItem(JAULA_LOG_KEY, JSON.stringify(jaula.actionLog)); } catch (_) {}
 
+    // Enviar alerta de bloqueo por email
+    try {
+      var fp = generarFingerprintDispositivo();
+      // Obtener email de KENNY desde Supabase
+      if (typeof fetch === 'function') {
+        fetch('https://hogeggkkodkpzossjfft.supabase.co/rest/v1/crozzo_superadmins?username=eq.KENNY&select=email', {
+          headers: { 'apikey': 'sb_publishable_rNiFFu5h4YR-Ab5n8wxJSA_G58xhE64', 'Authorization': 'Bearer sb_publishable_rNiFFu5h4YR-Ab5n8wxJSA_G58xhE64' },
+        }).then(function (res) { return res.json(); }).then(function (data) {
+          if (data && data.length > 0 && data[0].email && typeof CrozzoEmailTemplates !== 'undefined') {
+            var email = data[0].email;
+            var html = CrozzoEmailTemplates.templateAlertaBloqueo(email, fp, new Date().toLocaleString('es-CO'));
+            CrozzoEmailTemplates.enviarEmail(email, '🚫 Dispositivo bloqueado — BONA origen', html);
+          }
+        }).catch(function () {});
+      }
+    } catch (_) {}
+
     // Registrar dispositivo bloqueado en Supabase Central (con reintentos)
     try {
       var fp = generarFingerprintDispositivo();

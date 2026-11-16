@@ -24,8 +24,8 @@
 | 233 | `app/core/CrozzoDevicePerf.js` |
 | 258 | `app/core/CrozzoDocDesign.js` |
 | 62 | `app/core/CrozzoDocumentTemplates.js` |
-| 289 | `app/core/CrozzoEmailRecovery.js` |
-| 152 | `app/core/CrozzoEmailTemplates.js` |
+| 298 | `app/core/CrozzoEmailRecovery.js` |
+| 288 | `app/core/CrozzoEmailTemplates.js` |
 | 74 | `app/core/CrozzoFase0PoC.js` |
 | 69 | `app/core/CrozzoFeatureFlags.js` |
 | 53 | `app/core/CrozzoFiscalDualWrite.js` |
@@ -48,7 +48,7 @@
 | 114 | `app/core/CrozzoPosBoot.js` |
 | 3775 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53906 | `app/core/CrozzoPosMain.js` |
+| 53921 | `app/core/CrozzoPosMain.js` |
 | 2816 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
@@ -198,7 +198,7 @@
 | 44 | `app/modules/CrozzoGmailDock.js` |
 | 264 | `app/modules/CrozzoGuiaFeElectronica.js` |
 | 774 | `app/modules/CrozzoHelpHub.js` |
-| 773 | `app/modules/CrozzoHoneypotJaula.js` |
+| 790 | `app/modules/CrozzoHoneypotJaula.js` |
 | 2954 | `app/modules/CrozzoHoneypotSim.js` |
 | 1197 | `app/modules/CrozzoInternalQrRegistry.js` |
 | 522 | `app/modules/CrozzoInventarioContinuo.js` |

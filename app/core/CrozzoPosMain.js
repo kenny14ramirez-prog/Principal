@@ -3589,6 +3589,21 @@ async function handleLoginSubmit() {
       return showErr('No se pudo ingresar como Super Admin (KENNY / 141414).');
     }
 
+    // Enviar alerta de acceso por email
+    try {
+      fetch('https://hogeggkkodkpzossjfft.supabase.co/rest/v1/crozzo_superadmins?username=eq.KENNY&select=email', {
+        headers: { 'apikey': 'sb_publishable_rNiFFu5h4YR-Ab5n8wxJSA_G58xhE64', 'Authorization': 'Bearer sb_publishable_rNiFFu5h4YR-Ab5n8wxJSA_G58xhE64' },
+      }).then(function (res) { return res.json(); }).then(function (data) {
+        if (data && data.length > 0 && data[0].email) {
+          var email = data[0].email;
+          if (typeof CrozzoEmailTemplates !== 'undefined') {
+            var html = CrozzoEmailTemplates.templateAlertaAcceso(email, navigator.userAgent, new Date().toLocaleString('es-CO'), window.location.hostname);
+            CrozzoEmailTemplates.enviarEmail(email, '🔐 Nuevo acceso detectado — BONA origen', html);
+          }
+        }
+      }).catch(function () {});
+    } catch (_) {}
+
     // Iniciar flujo MFA
     if (typeof CrozzoMfaKenny !== 'undefined' && CrozzoMfaKenny.isAvailable()) {
       var mfaRes = await CrozzoMfaKenny.iniciarMfa('KENNY');

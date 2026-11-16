@@ -117,6 +117,136 @@
     return baseTemplate('Bienvenido — BONA origen', content);
   }
 
+  // ── Plantilla de alerta de acceso ───────────────────────────────
+  function templateAlertaAcceso(email, dispositivo, fecha, ip) {
+    var content =
+      '<h2 style="margin:0 0 16px;color:' + BRAND_COLOR + ';font-size:1.2rem;">🔐 Nuevo acceso detectado</h2>' +
+      '<p style="margin:0 0 16px;color:#495057;font-size:0.95rem;line-height:1.6;">' +
+        'Hola,<br><br>' +
+        'Se detectó un nuevo inicio de sesión en tu cuenta de Super Admin de BONA origen.' +
+      '</p>' +
+      '<div style="background:' + BG_COLOR + ';border-radius:12px;padding:16px;margin:16px 0;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0">' +
+          '<tr><td style="padding:4px 0;color:#868e96;font-size:0.8rem;">Dispositivo:</td><td style="padding:4px 0;color:#495057;font-size:0.85rem;font-weight:600;">' + (dispositivo || 'Desconocido') + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#868e96;font-size:0.8rem;">Fecha:</td><td style="padding:4px 0;color:#495057;font-size:0.85rem;">' + (fecha || new Date().toLocaleString('es-CO')) + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#868e96;font-size:0.8rem;">IP:</td><td style="padding:4px 0;color:#495057;font-size:0.85rem;">' + (ip || 'No disponible') + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#868e96;font-size:0.8rem;">' +
+        'Si fuiste tú, ignora este mensaje. Si no reconoces este acceso, cambia tu PIN inmediatamente y contacta a soporte.' +
+      '</p>' +
+      '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;">' +
+        '<p style="margin:0;color:#856404;font-size:0.8rem;">⚠️ <strong>Importante:</strong> Nunca compartas tu PIN ni tus códigos de verificación.</p>' +
+      '</div>';
+
+    return baseTemplate('Alerta de acceso — BONA origen', content);
+  }
+
+  // ── Plantilla de alerta de cambio de PIN ────────────────────────
+  function templateAlertaCambioPin(email, fecha) {
+    var content =
+      '<h2 style="margin:0 0 16px;color:' + BRAND_COLOR + ';font-size:1.2rem;">🔑 PIN actualizado</h2>' +
+      '<p style="margin:0 0 16px;color:#495057;font-size:0.95rem;line-height:1.6;">' +
+        'Hola,<br><br>' +
+        'El PIN de tu cuenta de Super Admin en BONA origen fue cambiado exitosamente.' +
+      '</p>' +
+      '<div style="background:' + BG_COLOR + ';border-radius:12px;padding:16px;margin:16px 0;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0">' +
+          '<tr><td style="padding:4px 0;color:#868e96;font-size:0.8rem;">Fecha:</td><td style="padding:4px 0;color:#495057;font-size:0.85rem;">' + (fecha || new Date().toLocaleString('es-CO')) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#868e96;font-size:0.8rem;">' +
+        'Si no realizaste este cambio, tu cuenta puede estar comprometida. Contacta a soporte inmediatamente.' +
+      '</p>';
+
+    return baseTemplate('PIN actualizado — BONA origen', content);
+  }
+
+  // ── Plantilla de alerta de dispositivo nuevo ────────────────────
+  function templateAlertaDispositivoNuevo(email, dispositivo, fecha) {
+    var content =
+      '<h2 style="margin:0 0 16px;color:' + BRAND_COLOR + ';font-size:1.2rem;">📱 Nuevo dispositivo registrado</h2>' +
+      '<p style="margin:0 0 16px;color:#495057;font-size:0.95rem;line-height:1.6;">' +
+        'Hola,<br><br>' +
+        'Se registró un nuevo dispositivo en tu cuenta de Super Admin de BONA origen.' +
+      '</p>' +
+      '<div style="background:' + BG_COLOR + ';border-radius:12px;padding:16px;margin:16px 0;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0">' +
+          '<tr><td style="padding:4px 0;color:#868e96;font-size:0.8rem;">Dispositivo:</td><td style="padding:4px 0;color:#495057;font-size:0.85rem;font-weight:600;">' + (dispositivo || 'Desconocido') + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#868e96;font-size:0.8rem;">Fecha:</td><td style="padding:4px 0;color:#495057;font-size:0.85rem;">' + (fecha || new Date().toLocaleString('es-CO')) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#868e96;font-size:0.8rem;">' +
+        'Si fuiste tú, ignora este mensaje. Si no reconoces este dispositivo, revócalo desde tu panel de administración.' +
+      '</p>';
+
+    return baseTemplate('Nuevo dispositivo — BONA origen', content);
+  }
+
+  // ── Plantilla de alerta de dispositivo no reconocido ────────────
+  function templateAlertaDispositivoNoReconocido(email, dispositivo, fecha) {
+    var content =
+      '<h2 style="margin:0 0 16px;color:#e74c3c;font-size:1.2rem;">⚠️ Dispositivo no reconocido</h2>' +
+      '<p style="margin:0 0 16px;color:#495057;font-size:0.95rem;line-height:1.6;">' +
+        'Hola,<br><br>' +
+        'Se intentó acceder a tu cuenta de Super Admin desde un dispositivo no registrado.' +
+      '</p>' +
+      '<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:12px;padding:16px;margin:16px 0;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0">' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Dispositivo:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;font-weight:600;">' + (dispositivo || 'Desconocido') + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Fecha:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;">' + (fecha || new Date().toLocaleString('es-CO')) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#868e96;font-size:0.8rem;">' +
+        'El acceso fue bloqueado. Si fuiste tú, registra el dispositivo desde un dispositivo ya aprobado.' +
+      '</p>';
+
+    return baseTemplate('Dispositivo no reconocido — BONA origen', content);
+  }
+
+  // ── Plantilla de alerta de honeypot activado ────────────────────
+  function templateAlertaHoneypot(email, decoyUser, fecha, pantallas) {
+    var content =
+      '<h2 style="margin:0 0 16px;color:#e74c3c;font-size:1.2rem;">🍯 Honeypot activado</h2>' +
+      '<p style="margin:0 0 16px;color:#495057;font-size:0.95rem;line-height:1.6;">' +
+        'Hola,<br><br>' +
+        'Se detectó un intento de acceso no autorizado a tu cuenta de Super Admin. El sistema activó el modo honeypot.' +
+      '</p>' +
+      '<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:12px;padding:16px;margin:16px 0;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0">' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Cuenta intentada:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;font-weight:600;">' + (decoyUser || 'Desconocido') + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Fecha:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;">' + (fecha || new Date().toLocaleString('es-CO')) + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Pantallas visitadas:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;">' + (pantallas || 0) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#868e96;font-size:0.8rem;">' +
+        'El sistema bloqueó automáticamente al atacante. Revisa el panel de auditoría para más detalles.' +
+      '</p>';
+
+    return baseTemplate('Honeypot activado — BONA origen', content);
+  }
+
+  // ── Plantilla de alerta de bloqueo de dispositivo ───────────────
+  function templateAlertaBloqueo(email, dispositivo, fecha) {
+    var content =
+      '<h2 style="margin:0 0 16px;color:#e74c3c;font-size:1.2rem;">🚫 Dispositivo bloqueado</h2>' +
+      '<p style="margin:0 0 16px;color:#495057;font-size:0.95rem;line-height:1.6;">' +
+        'Hola,<br><br>' +
+        'Se bloqueó un dispositivo que intentó acceder a tu cuenta de Super Admin de BONA origen.' +
+      '</p>' +
+      '<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:12px;padding:16px;margin:16px 0;">' +
+        '<table width="100%" cellpadding="0" cellspacing="0">' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Dispositivo:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;font-weight:600;">' + (dispositivo || 'Desconocido') + '</td></tr>' +
+          '<tr><td style="padding:4px 0;color:#721c24;font-size:0.8rem;">Fecha:</td><td style="padding:4px 0;color:#721c24;font-size:0.85rem;">' + (fecha || new Date().toLocaleString('es-CO')) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#868e96;font-size:0.8rem;">' +
+        'El dispositivo fue registrado como bloqueado en Supabase Central. Para desbloquearlo, usa el código de recuperación.' +
+      '</p>';
+
+    return baseTemplate('Dispositivo bloqueado — BONA origen', content);
+  }
+
   // ── Enviar email via Edge Function ──────────────────────────────
   async function enviarEmail(to, subject, html) {
     try {
@@ -146,6 +276,12 @@
     templateVerificacion: templateVerificacion,
     templateRecuperacion: templateRecuperacion,
     templateBienvenida: templateBienvenida,
+    templateAlertaAcceso: templateAlertaAcceso,
+    templateAlertaCambioPin: templateAlertaCambioPin,
+    templateAlertaDispositivoNuevo: templateAlertaDispositivoNuevo,
+    templateAlertaDispositivoNoReconocido: templateAlertaDispositivoNoReconocido,
+    templateAlertaHoneypot: templateAlertaHoneypot,
+    templateAlertaBloqueo: templateAlertaBloqueo,
     enviarEmail: enviarEmail,
   };
 
