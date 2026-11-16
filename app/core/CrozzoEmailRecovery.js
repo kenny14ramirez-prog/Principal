@@ -155,10 +155,20 @@
         // Generar código de verificación
         var codeRes = await generarCodigo(email, 'verify');
         if (codeRes.ok) {
+          // Enviar código por email (via Edge Function + Resend)
+          var emailSent = false;
+          if (typeof CrozzoEmailTemplates !== 'undefined' && CrozzoEmailTemplates.enviarEmail) {
+            var html = CrozzoEmailTemplates.templateVerificacion(email, codeRes.code);
+            var sendRes = await CrozzoEmailTemplates.enviarEmail(email, 'Verifica tu correo — BONA origen', html);
+            emailSent = sendRes.ok;
+          }
+
           resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
             '<strong>✅ Correo guardado:</strong> ' + email + '<br>' +
-            '<span style="font-size:0.85rem;">Código de verificación: <strong>' + codeRes.code + '</strong></span><br>' +
-            '<span style="font-size:0.8rem;color:#888;">(En producción, este código se enviaría por email)</span></div>';
+            (emailSent
+              ? '<span style="font-size:0.85rem;color:#155724;">📧 Código enviado a tu correo electrónico.</span>'
+              : '<span style="font-size:0.85rem;color:#856404;">⚠️ No se pudo enviar por email. Código: <strong>' + codeRes.code + '</strong></span>') +
+            '</div>';
           // Mostrar campo para ingresar código
           resultEl.innerHTML += '<div style="margin-top:12px;">' +
             '<input id="emailVerifyCode" type="text" maxlength="6" placeholder="000000" style="width:100%;padding:10px;font-size:1.2rem;text-align:center;letter-spacing:4px;border:1px solid #ddd;border-radius:8px;">' +
@@ -220,10 +230,20 @@
 
       var codeRes = await generarCodigo(email, 'recovery');
       if (codeRes.ok) {
+        // Enviar código por email (via Edge Function + Resend)
+        var emailSent = false;
+        if (typeof CrozzoEmailTemplates !== 'undefined' && CrozzoEmailTemplates.enviarEmail) {
+          var html = CrozzoEmailTemplates.templateRecuperacion(email, codeRes.code);
+          var sendRes = await CrozzoEmailTemplates.enviarEmail(email, 'Recuperación de PIN — BONA origen', html);
+          emailSent = sendRes.ok;
+        }
+
         resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
           '<strong>✅ Código enviado:</strong><br>' +
-          '<span style="font-size:0.85rem;">Código de recuperación: <strong>' + codeRes.code + '</strong></span><br>' +
-          '<span style="font-size:0.8rem;color:#888;">(En producción, este código se enviaría por email)</span></div>' +
+          (emailSent
+            ? '<span style="font-size:0.85rem;color:#155724;">📧 Código de recuperación enviado a tu correo.</span>'
+            : '<span style="font-size:0.85rem;color:#856404;">⚠️ No se pudo enviar por email. Código: <strong>' + codeRes.code + '</strong></span>') +
+          '</div>' +
           '<div style="margin-top:12px;">' +
             '<label style="font-size:0.85rem;color:#555;">Código de recuperación</label>' +
             '<input id="recoveryCode" type="text" maxlength="6" placeholder="000000" style="width:100%;padding:10px;font-size:1.2rem;text-align:center;letter-spacing:4px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">' +
