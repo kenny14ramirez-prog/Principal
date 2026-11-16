@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "BONA origen",
-  "version": "1.0.296",
+  "version": "1.0.297",
   "identifier": "com.crozzo.pos",
   "build": {
     "frontendDist": "../src"
@@ -52,7 +52,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEwRUU5RDE1MkU1QTNDOUUKUldTZVBGb3VGWjN1b0UrTXVKSzVpK0tBUjNVNC9uNUM2a093YkdhVmswQnVyTElmSjkrZXRJT2cK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVDODI3Njg5RkIzOTI1ODQKUldTRUpUbjdpWGFDN0NlWnZJUGZ1ZG9XMGpXQy92dmlUZ1gxK2JybEZPU3ZBVXhhTHlLK1U4dUQK",
       "endpoints": [
         "https://github.com/kenny14ramirez-prog/Principal/releases/latest/download/latest.json"
       ],
