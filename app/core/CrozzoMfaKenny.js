@@ -331,6 +331,23 @@
 
       var res = await registrarDispositivo(username, nombre, ubicacion);
       if (res.ok) {
+        // Workaround: si es el primer dispositivo (no hay aprobados), auto-aprobar
+        // (El SQL no auto-aprueba porque iniciar_mfa_kenny inserta un dispositivo pendiente antes)
+        if (!res.aprobado) {
+          try {
+            var lista = await listarDispositivos(username);
+            var aprobados = (lista.dispositivos || []).filter(function (d) { return d.aprobado; });
+            if (aprobados.length === 0) {
+              await fetch(SUPABASE_CENTRAL_URL + '/rest/v1/rpc/aprobar_dispositivo_kenny', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_CENTRAL_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_CENTRAL_ANON_KEY },
+                body: JSON.stringify({ p_username: username.toUpperCase(), p_fingerprint: generarFingerprint() }),
+              });
+              res.aprobado = true;
+              if (typeof showToast === 'function') showToast('Dispositivo registrado y aprobado (primer dispositivo).', 'success');
+            }
+          } catch (_) {}
+        }
         overlay.remove();
         if (res.aprobado) {
           if (typeof showToast === 'function') showToast('Dispositivo registrado y aprobado.', 'success');

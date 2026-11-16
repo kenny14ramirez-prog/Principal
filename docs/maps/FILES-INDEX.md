@@ -40,7 +40,7 @@
 | 343 | `app/core/CrozzoLoginBoot.js` |
 | 226 | `app/core/CrozzoManifest.js` |
 | 44 | `app/core/CrozzoMetrics.js` |
-| 375 | `app/core/CrozzoMfaKenny.js` |
+| 392 | `app/core/CrozzoMfaKenny.js` |
 | 142 | `app/core/CrozzoObservability.js` |
 | 69 | `app/core/CrozzoObservabilityDashboard.js` |
 | 113 | `app/core/CrozzoOutboxRuntime.js` |
