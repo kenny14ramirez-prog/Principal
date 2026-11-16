@@ -283,7 +283,9 @@
     }
   }
 
-  // ── Sincronización automática de configuración ──────────────────
+  // ── Sincronización de configuración (con notificación, no automática) ──
+  var _configRemotaPendiente = null;
+
   async function sincronizarConfiguracion(negocioId) {
     if (!isTokenValid()) return { ok: false, error: 'no_token' };
 
@@ -303,37 +305,145 @@
       } catch (_) {}
 
       if (versionRemota > versionLocal) {
-        // Aplicar configuración remota
-        if (configRemota.empresa && typeof config !== 'undefined' && config.set) {
-          try { config.set('empresa', configRemota.empresa); } catch (_) {}
-        }
-        if (configRemota.mesas && typeof config !== 'undefined' && config.set) {
-          try { config.set('mesas', configRemota.mesas); } catch (_) {}
-        }
-        if (configRemota.usuarios && typeof config !== 'undefined' && config.set) {
-          try { config.set('usuarios', configRemota.usuarios); } catch (_) {}
-        }
-        if (configRemota.tarifas && typeof config !== 'undefined' && config.set) {
-          try { config.set('tarifas', configRemota.tarifas); } catch (_) {}
-        }
-        if (configRemota.impuestos && typeof config !== 'undefined' && config.set) {
-          try { config.set('impuestos', configRemota.impuestos); } catch (_) {}
+        // NO aplicar automáticamente — guardar para que el usuario decida
+        _configRemotaPendiente = {
+          negocioId: negocioId,
+          config: configRemota,
+          versionRemota: versionRemota,
+          versionLocal: versionLocal,
+        };
+
+        // Mostrar toast con opción de aplicar
+        if (typeof showToast === 'function') {
+          showToast('Nueva configuración disponible desde la nube. ¿Aplicar?', 'info');
         }
 
-        // Guardar versión local
-        try {
-          if (typeof config !== 'undefined' && config.set) {
-            config.set('superadmin_sync', { version: versionRemota, lastSync: new Date().toISOString() });
-          }
-        } catch (_) {}
+        // Mostrar modal de confirmación
+        _mostrarModalConfigRemota(_configRemotaPendiente);
 
-        return { ok: true, actualizado: true, mensaje: 'Configuración actualizada desde la nube' };
+        return { ok: true, actualizado: false, pendiente: true, mensaje: 'Configuración remota disponible. Se requiere confirmación.' };
       }
 
       return { ok: true, actualizado: false, mensaje: 'Configuración ya está actualizada' };
     } catch (e) {
       return { ok: false, error: 'sync_error', detail: e.message };
     }
+  }
+
+  // ── Modal de confirmación de config remota ──────────────────────
+  function _mostrarModalConfigRemota(pendiente) {
+    if (!pendiente) return;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'configSyncOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+
+    var cambios = [];
+    var cfg = pendiente.config;
+    if (cfg.empresa) cambios.push('Empresa: ' + (cfg.empresa.nombre || 'Actualizada'));
+    if (cfg.mesas) cambios.push('Mesas: ' + Object.keys(cfg.mesas).length + ' configuradas');
+    if (cfg.usuarios) cambios.push('Usuarios: ' + (cfg.usuarios.staff ? cfg.usuarios.staff.length : 0) + ' registrados');
+    if (cfg.tarifas) cambios.push('Tarifas: actualizadas');
+    if (cfg.impuestos) cambios.push('Impuestos: actualizados');
+
+    card.innerHTML =
+      '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">🔄 Nueva configuración disponible</h2>' +
+      '<p style="margin:0 0 12px;color:#666;font-size:0.9rem;">Se detectó una configuración más reciente en la nube (v' + pendiente.versionRemota + ' vs v' + pendiente.versionLocal + ').</p>' +
+      '<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:16px;">' +
+        '<strong style="font-size:0.85rem;">Cambios detectados:</strong><br>' +
+        cambios.map(function (c) { return '<span style="font-size:0.85rem;color:#555;">• ' + c + '</span><br>'; }).join('') +
+      '</div>' +
+      '<p style="margin:0 0 16px;color:#856404;font-size:0.8rem;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px;">⚠️ Al aplicar, se sobrescribirá la configuración local. Se recomienda hacer backup antes.</p>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button id="csAplicarBtn" style="flex:1;padding:12px;border:none;border-radius:8px;background:#2ecc71;color:#fff;cursor:pointer;font-size:1rem;">✅ Aplicar</button>' +
+        '<button id="csIgnorarBtn" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">❌ Ignorar</button>' +
+      '</div>';
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    document.getElementById('csIgnorarBtn').onclick = function () {
+      overlay.remove();
+      _configRemotaPendiente = null;
+      if (typeof showToast === 'function') showToast('Configuración ignorada. Se mantiene la actual.', 'info');
+    };
+
+    document.getElementById('csAplicarBtn').onclick = function () {
+      if (!_configRemotaPendiente) return;
+      var cfg = _configRemotaPendiente.config;
+
+      // Aplicar configuración remota
+      if (cfg.empresa && typeof config !== 'undefined' && config.set) {
+        try { config.set('empresa', cfg.empresa); } catch (_) {}
+      }
+      if (cfg.mesas && typeof config !== 'undefined' && config.set) {
+        try { config.set('mesas', cfg.mesas); } catch (_) {}
+      }
+      if (cfg.usuarios && typeof config !== 'undefined' && config.set) {
+        try { config.set('usuarios', cfg.usuarios); } catch (_) {}
+      }
+      if (cfg.tarifas && typeof config !== 'undefined' && config.set) {
+        try { config.set('tarifas', cfg.tarifas); } catch (_) {}
+      }
+      if (cfg.impuestos && typeof config !== 'undefined' && config.set) {
+        try { config.set('impuestos', cfg.impuestos); } catch (_) {}
+      }
+
+      // Guardar versión local
+      try {
+        if (typeof config !== 'undefined' && config.set) {
+          config.set('superadmin_sync', { version: cfg._version || 0, lastSync: new Date().toISOString() });
+        }
+      } catch (_) {}
+
+      overlay.remove();
+      _configRemotaPendiente = null;
+
+      if (typeof showToast === 'function') showToast('Configuración aplicada desde la nube', 'success');
+      if (typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
+    };
+  }
+
+  // ── Aplicar config remota (sin modal, directo) ──────────────────
+  function aplicarConfigRemota() {
+    if (!_configRemotaPendiente) return false;
+    var cfg = _configRemotaPendiente.config;
+    if (cfg.empresa && typeof config !== 'undefined' && config.set) {
+      try { config.set('empresa', cfg.empresa); } catch (_) {}
+    }
+    if (cfg.mesas && typeof config !== 'undefined' && config.set) {
+      try { config.set('mesas', cfg.mesas); } catch (_) {}
+    }
+    if (cfg.usuarios && typeof config !== 'undefined' && config.set) {
+      try { config.set('usuarios', cfg.usuarios); } catch (_) {}
+    }
+    if (cfg.tarifas && typeof config !== 'undefined' && config.set) {
+      try { config.set('tarifas', cfg.tarifas); } catch (_) {}
+    }
+    if (cfg.impuestos && typeof config !== 'undefined' && config.set) {
+      try { config.set('impuestos', cfg.impuestos); } catch (_) {}
+    }
+    try {
+      if (typeof config !== 'undefined' && config.set) {
+        config.set('superadmin_sync', { version: cfg._version || 0, lastSync: new Date().toISOString() });
+      }
+    } catch (_) {}
+    _configRemotaPendiente = null;
+    return true;
+  }
+
+  // ── Ignorar config remota ───────────────────────────────────────
+  function ignorarConfigRemota() {
+    _configRemotaPendiente = null;
+    return true;
+  }
+
+  // ── Verificar si hay config pendiente ───────────────────────────
+  function hayConfigPendiente() {
+    return _configRemotaPendiente !== null;
   }
 
   // ── Guardar configuración con versión ───────────────────────────
@@ -392,6 +502,9 @@
     guardarConfiguracionVersionada: guardarConfiguracionVersionada,
     sincronizarConfiguracion: sincronizarConfiguracion,
     hayConfigMasReciente: hayConfigMasReciente,
+    aplicarConfigRemota: aplicarConfigRemota,
+    ignorarConfigRemota: ignorarConfigRemota,
+    hayConfigPendiente: hayConfigPendiente,
     crearSucursal: crearSucursal,
     getNegocioId: getNegocioId,
     getConfig: getConfig,

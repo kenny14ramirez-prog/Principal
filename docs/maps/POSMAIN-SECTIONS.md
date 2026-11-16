@@ -2,7 +2,7 @@
 
 # PosMain — secciones por línea
 
-Archivo: `app/core/CrozzoPosMain.js` · 53909 líneas
+Archivo: `app/core/CrozzoPosMain.js` · 53906 líneas
 
 | Líneas | Sección |
 |--------|--------|
@@ -27,7 +27,7 @@ Archivo: `app/core/CrozzoPosMain.js` · 53909 líneas
 | 49024–49169 | AUDITORIA PAGE |
 | 49170–49363 | MODAL & TOAST |
 | 49364–50331 | NAVIGATION |
-| 50332–53909 | INIT |
+| 50332–53906 | INIT |
 
 ## Zona sync operativo (buscar aquí primero)
 

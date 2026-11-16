@@ -50591,14 +50591,11 @@ function init() {
     if (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isTokenValid()) {
       var _negId = CrozzoSuperAdminCentral.getNegocioId();
       if (_negId) {
+        // Verificar si hay config más reciente → mostrar notificación (NO aplicar automáticamente)
         CrozzoSuperAdminCentral.hayConfigMasReciente(_negId).then(function (res) {
           if (res.ok && res.hayActualizacion) {
-            CrozzoSuperAdminCentral.sincronizarConfiguracion(_negId).then(function (syncRes) {
-              if (syncRes.ok && syncRes.actualizado) {
-                if (typeof showToast === 'function') showToast('Configuración actualizada desde la nube', 'success');
-                if (typeof renderPage === 'function' && typeof currentPage !== 'undefined') renderPage(currentPage);
-              }
-            });
+            CrozzoSuperAdminCentral.sincronizarConfiguracion(_negId);
+            // sincronizarConfiguracion ya muestra el modal de confirmación
           }
         });
       }
