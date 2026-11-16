@@ -24,7 +24,8 @@
 | 233 | `app/core/CrozzoDevicePerf.js` |
 | 258 | `app/core/CrozzoDocDesign.js` |
 | 62 | `app/core/CrozzoDocumentTemplates.js` |
-| 269 | `app/core/CrozzoEmailRecovery.js` |
+| 289 | `app/core/CrozzoEmailRecovery.js` |
+| 152 | `app/core/CrozzoEmailTemplates.js` |
 | 74 | `app/core/CrozzoFase0PoC.js` |
 | 69 | `app/core/CrozzoFeatureFlags.js` |
 | 53 | `app/core/CrozzoFiscalDualWrite.js` |
