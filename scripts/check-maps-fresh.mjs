@@ -62,11 +62,33 @@ if (before.join('\n') !== after.join('\n')) {
   for (const f of after) if (!setBefore.has(f)) { changed.push('+' + f); diff = true; }
   for (const f of before) if (!setAfter.has(f)) { changed.push('-' + f); diff = true; }
 }
+
+// Normalizar contenido para comparación (ignorar campos volátiles)
+function normalizeContent(filePath, content) {
+  if (filePath === 'META.json') {
+    try {
+      const obj = JSON.parse(content);
+      delete obj.generatedAt;
+      delete obj.gitHead;
+      return JSON.stringify(obj, null, 2);
+    } catch (_) {}
+  }
+  // Normalizar líneas volátiles en archivos MD
+  if (filePath.endsWith('.md')) {
+    return content
+      .replace(/Generado: [^\n]*/g, 'Generado: NORMALIZED')
+      .replace(/\*\*Última regeneración:\*\*[^\n]*/g, '**Última regeneración:** NORMALIZED');
+  }
+  return content;
+}
+
 for (const f of after) {
   if (!before.includes(f)) continue;
-  const a = fs.readFileSync(path.join(backupDir, f));
-  const b = fs.readFileSync(path.join(mapsDir, f));
-  if (!a.equals(b)) { changed.push('~' + f); diff = true; }
+  const aRaw = fs.readFileSync(path.join(backupDir, f));
+  const bRaw = fs.readFileSync(path.join(mapsDir, f));
+  const aNorm = normalizeContent(f, aRaw.toString());
+  const bNorm = normalizeContent(f, bRaw.toString());
+  if (aNorm !== bNorm) { changed.push('~' + f); diff = true; }
 }
 
 // 5. Restaurar estado original (no modificar working tree)
