@@ -1,16 +1,6 @@
 {
-  "updatedAt": "2026-11-10T02:04:47.726Z",
+  "updatedAt": "2026-11-16T03:41:42.585Z",
   "entries": [
-    {
-      "id": "1.0.259-critical",
-      "version": "v1.0.259",
-      "semver": "1.0.259",
-      "type": "critical",
-      "message": "+",
-      "publishedAt": "2026-11-06T23:39:58.020Z",
-      "installMode": "auto",
-      "changelog": []
-    },
     {
       "id": "1.0.260-critical",
       "version": "v1.0.260",
@@ -314,6 +304,18 @@
       "changelog": [
         "LAN: la caja ya no descarta los pushes de tablets en la ventana de eco (tablet -> caja visible al entrar a una mesa)",
         "diagnostico HTTP en consola"
+      ]
+    },
+    {
+      "id": "1.0.297-critical",
+      "version": "v1.0.297",
+      "semver": "1.0.297",
+      "type": "critical",
+      "message": "Actualización completa: seguridad, MFA, honeypot, sync",
+      "publishedAt": "2026-11-16T03:41:42.585Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualización completa: seguridad, MFA, honeypot, sync"
       ]
     }
   ]
