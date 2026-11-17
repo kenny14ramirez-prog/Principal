@@ -1,14 +1,14 @@
 /**
- * CrozzoCommandCenter â€” capa de mando premium
+ * CrozzoCommandCenter — capa de mando premium
  * ---------------------------------------------------------------------------
- * QuÃ© aÃ±ade (sin tocar mÃ³dulos existentes):
+ * Qué añade (sin tocar módulos existentes):
  *   1. Insignia de salud del sistema en el header (agregado de subsistemas).
- *   2. Command Palette global (Ctrl/Cmd + K): pÃ¡ginas, acciones, diagnÃ³stico.
+ *   2. Command Palette global (Ctrl/Cmd + K): páginas, acciones, diagnóstico.
  *   3. Hoja de atajos de teclado (?).
- *   4. Red de seguridad de render: si una pÃ¡gina revienta, tarjeta de
- *      recuperaciÃ³n en vez de pantalla en blanco.
- *   5. Micro-interacciones: ripple en botones, transiciÃ³n de pÃ¡gina.
- *   6. Utilidades reutilizables: estado vacÃ­o y skeleton.
+ *   4. Red de seguridad de render: si una página revienta, tarjeta de
+ *      recuperación en vez de pantalla en blanco.
+ *   5. Micro-interacciones: ripple en botones, transición de página.
+ *   6. Utilidades reutilizables: estado vacío y skeleton.
  *
  * Todo degrada en silencio: si un subsistema no existe, se omite su fila.
  * No modifica contratos ni almacenamiento existente.
@@ -21,7 +21,7 @@
 
   var doc = global.document;
 
-  /* â”€â”€ Utilidades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── Utilidades ──────────────────────────────────────────────────────── */
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -76,7 +76,7 @@
     } catch (_) { return false; }
   }
 
-  /* â”€â”€ 1. Marcar el documento como "premium" (activa el CSS de movimiento) â”€â”€ */
+  /* ── 1. Marcar el documento como "premium" (activa el CSS de movimiento) ── */
 
   function markPremium() {
     try {
@@ -84,7 +84,7 @@
     } catch (_) {}
   }
 
-  /* â”€â”€ 2. CatÃ¡logo de comandos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 2. Catálogo de comandos ─────────────────────────────────────────── */
 
   var registered = [];
 
@@ -105,8 +105,8 @@
       if (!label) return;
       out.push({
         id: 'page:' + page,
-        group: 'PÃ¡ginas',
-        glyph: 'â†’',
+        group: 'Páginas',
+        glyph: '→',
         label: label,
         hint: 'Ir',
         keywords: page,
@@ -160,7 +160,7 @@
         id: 'action:diagnostic',
         group: 'Acciones',
         glyph: '',
-        label: 'DiagnÃ³stico del sistema',
+        label: 'Diagnóstico del sistema',
         hint: 'Despliegue',
         keywords: 'diagnostico salud monitor estado reporte',
         run: function () {
@@ -181,11 +181,11 @@
       keywords: 'salud health estado sistema',
       run: function () { openHealth(); },
     });
-       glyph: '',
+
     out.push({
       id: 'action:a11y',
       group: 'Acciones',
-      glyph: 'â™¿',
+       glyph: '',
       label: 'Ajustes de accesibilidad',
       hint: 'Panel',
       keywords: 'accesibilidad contraste fuente ayuda motion',
@@ -198,7 +198,7 @@
     out.push({
       id: 'action:reload',
       group: 'Acciones',
-      glyph: 'âŸ³',
+      glyph: '⟳',
       label: 'Recargar interfaz',
       hint: 'F5',
       keywords: 'recargar reload refrescar',
@@ -208,8 +208,8 @@
     out.push({
       id: 'action:logout',
       group: 'Acciones',
-      glyph: 'â»',
-      label: 'Cerrar sesiÃ³n',
+      glyph: '⏻',
+      label: 'Cerrar sesión',
       hint: 'Salir',
       keywords: 'salir logout cerrar sesion',
       run: function () {
@@ -237,7 +237,7 @@
     return list;
   }
 
-  /* â”€â”€ Motor de bÃºsqueda (subsecuencia + prefijo) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── Motor de búsqueda (subsecuencia + prefijo) ──────────────────────── */
 
   function scoreOne(query, text) {
     if (!query) return 1;
@@ -276,7 +276,7 @@
     return scored.map(function (x) { return x.c; });
   }
 
-  /* â”€â”€ 3. Command Palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 3. Command Palette ──────────────────────────────────────────────── */
 
   var palette = null;
   var paletteState = { items: [], index: 0 };
@@ -290,14 +290,14 @@
     backdrop.innerHTML =
       '<div class="cz-palette">' +
       '  <div class="cz-palette__search">' +
-      '    <span class="cz-palette__icon" aria-hidden="true">âŒ•</span>' +
+      '    <span class="cz-palette__icon" aria-hidden="true">⌕</span>' +
       '    <input class="cz-palette__input" type="text" autocomplete="off" spellcheck="false" ' +
-      '      placeholder="Buscar pÃ¡gina, acciÃ³n o diagnÃ³sticoâ€¦" aria-controls="czPaletteList" aria-autocomplete="list">' +
+      '      placeholder="Buscar página, acción o diagnóstico…" aria-controls="czPaletteList" aria-autocomplete="list">' +
       '    <span class="cz-palette__kbd">ESC</span>' +
       '  </div>' +
       '  <div class="cz-palette__list" id="czPaletteList" role="listbox" aria-label="Resultados"></div>' +
       '  <div class="cz-palette__foot">' +
-      '    <span>â†‘â†“ navegar</span><span>â†µ abrir</span><span>esc cerrar</span>' +
+      '    <span>↑↓ navegar</span><span>↵ abrir</span><span>esc cerrar</span>' +
       '  </div>' +
       '</div>';
 
@@ -358,7 +358,7 @@
     paletteState.index = 0;
 
     if (!items.length) {
-      list.innerHTML = '<div class="cz-palette__empty">Sin resultados para â€œ' + esc(query) + 'â€.</div>';
+      list.innerHTML = '<div class="cz-palette__empty">Sin resultados para “' + esc(query) + '”.</div>';
       return;
     }
 
@@ -372,7 +372,7 @@
       }
       html +=
         '<div class="cz-palette__item" role="option" data-idx="' + i + '" aria-selected="false">' +
-        '<span class="cz-palette__item__glyph" aria-hidden="true">' + esc(c.glyph || 'â€¢') + '</span>' +
+        '<span class="cz-palette__item__glyph" aria-hidden="true">' + esc(c.glyph || '•') + '</span>' +
         '<span class="cz-palette__item__label">' + esc(c.label) + '</span>' +
         (c.hint ? '<span class="cz-palette__item__hint">' + esc(c.hint) + '</span>' : '') +
         '</div>';
@@ -424,7 +424,7 @@
     else openPalette();
   }
 
-  /* â”€â”€ 4. Hoja de atajos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 4. Hoja de atajos ───────────────────────────────────────────────── */
 
   var shortcutsEl = null;
 
@@ -432,9 +432,9 @@
     { keys: ['Ctrl', 'K'], label: 'Buscar en el sistema' },
     { keys: ['?'], label: 'Ver atajos de teclado' },
     { keys: ['Esc'], label: 'Cerrar ventana o paleta' },
-    { keys: ['Ctrl', 'Shift', 'G'], label: 'GestiÃ³n de perfiles y menÃºs' },
+    { keys: ['Ctrl', 'Shift', 'G'], label: 'Gestión de perfiles y menús' },
     { keys: ['Ctrl', 'L'], label: 'Buscar cliente (POS / tablets)' },
-    { keys: ['âŒ•'], label: 'En tablet: botÃ³n flotante de bÃºsqueda' },
+    { keys: ['⌕'], label: 'En tablet: botón flotante de búsqueda' },
   ];
 
   function buildShortcuts() {
@@ -452,7 +452,7 @@
     wrap.innerHTML =
       '<div class="cz-shortcuts__card">' +
       '  <div class="cz-shortcuts__title">Atajos de teclado</div>' +
-      '  <div class="cz-shortcuts__sub">MuÃ©vete mÃ¡s rÃ¡pido por el sistema. Pulsa <span class="cz-shortcuts__key">Esc</span> para cerrar.</div>' +
+      '  <div class="cz-shortcuts__sub">Muévete más rápido por el sistema. Pulsa <span class="cz-shortcuts__key">Esc</span> para cerrar.</div>' +
       '  <div class="cz-shortcuts__grid">' + rows + '</div>' +
       '</div>';
 
@@ -473,7 +473,7 @@
     if (shortcutsEl) shortcutsEl.style.display = 'none';
   }
 
-  /* â”€â”€ 5. Insignia de salud â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 5. Insignia de salud ────────────────────────────────────────────── */
 
   var healthEl = null;
   var healthPanel = null;
@@ -486,7 +486,7 @@
     if (t === 'hotspot') return 'Hotspot';
     if (t === 'mesh') return 'Malla';
     if (t === 'qr') return 'QR';
-    return 'Sin conexiÃ³n';
+    return 'Sin conexión';
   }
 
   function collectHealth() {
@@ -508,7 +508,7 @@
       });
     }
 
-    // ConexiÃ³n / sync
+    // Conexión / sync
     var tier = String(global.__CROZZO_TIER_LAST || '').toLowerCase();
     var online = false;
     try { online = !!global.navigator.onLine; } catch (_) {}
@@ -518,8 +518,8 @@
     else if (online && !tier) tierState = 'warn';
     out.push({
       key: 'sync',
-      label: 'SincronizaciÃ³n',
-      value: tier ? tierLabel(tier) : online ? 'Pendiente' : 'Sin conexiÃ³n',
+      label: 'Sincronización',
+      value: tier ? tierLabel(tier) : online ? 'Pendiente' : 'Sin conexión',
       state: tierState,
     });
 
@@ -553,7 +553,7 @@
       out.push({
         key: 'errors',
         label: 'Errores',
-        value: total === 0 ? 'Ninguno' : String(total) + (critical ? ' Â· ' + critical + ' crÃ­tico' + (critical === 1 ? '' : 's') : ''),
+        value: total === 0 ? 'Ninguno' : String(total) + (critical ? ' · ' + critical + ' crítico' + (critical === 1 ? '' : 's') : ''),
         state: critical > 0 ? 'err' : high > 0 ? 'warn' : 'ok',
       });
     }
@@ -589,9 +589,9 @@
   }
 
   function aggregateLabel(state) {
-    if (state === 'critical') return 'AtenciÃ³n';
+    if (state === 'critical') return 'Atención';
     if (state === 'degraded') return 'Vigilar';
-    return 'Ã“ptimo';
+    return 'Óptimo';
   }
 
   function mountHealth() {
@@ -606,14 +606,14 @@
     btn.setAttribute('data-state', 'ok');
     btn.setAttribute('aria-haspopup', 'dialog');
     btn.setAttribute('aria-expanded', 'false');
-    btn.title = 'Estado del sistema â€” clic para ver el detalle';
-    btn.innerHTML = '<span class="cz-health__dot" aria-hidden="true"></span><span class="cz-health__label">Sistema Â· Ã“ptimo</span>';
+    btn.title = 'Estado del sistema — clic para ver el detalle';
+    btn.innerHTML = '<span class="cz-health__dot" aria-hidden="true"></span><span class="cz-health__label">Sistema · Óptimo</span>';
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       toggleHealth();
     });
 
-    // Va al inicio del clÃºster: jerarquÃ­a visual "estado global primero".
+    // Va al inicio del clúster: jerarquía visual "estado global primero".
     cluster.insertBefore(btn, cluster.firstChild);
     healthEl = btn;
     refreshHealth();
@@ -625,7 +625,7 @@
     var state = aggregate(rows);
     healthEl.setAttribute('data-state', state);
     var label = healthEl.querySelector('.cz-health__label');
-    if (label) label.textContent = 'Sistema Â· ' + aggregateLabel(state);
+    if (label) label.textContent = 'Sistema · ' + aggregateLabel(state);
     if (healthPanel && healthPanel.style.display !== 'none') paintHealthPanel(rows);
   }
 
@@ -658,7 +658,7 @@
       '<div class="cz-health-panel__title">Estado del sistema</div>' +
       '<div class="cz-health-panel__rows"></div>' +
       (isSuperAdminUser() ? ('<div class="cz-health-panel__actions">' +
-      '  <button type="button" data-cz-act="diag">DiagnÃ³stico</button>' +
+      '  <button type="button" data-cz-act="diag">Diagnóstico</button>' +
       '  <button type="button" data-cz-act="solver">Solucionador</button>' +
       '</div>') : '');
 
@@ -712,7 +712,7 @@
     else openHealth();
   }
 
-  /* â”€â”€ 6. Red de seguridad de render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 6. Red de seguridad de render ───────────────────────────────────── */
 
   var guardDepth = 0;
   var lastPage = '';
@@ -726,8 +726,8 @@
     return (
       '<div class="cz-recovery" role="alert">' +
       '<div class="cz-recovery__title">No pudimos abrir esta pantalla</div>' +
-      '<div class="cz-recovery__text">La operaciÃ³n <strong>' + safePage + '</strong> se detuvo, pero el resto del sistema sigue funcionando. ' +
-      'Puedes reintentar, volver al inicio o copiar el detalle tÃ©cnico para soporte.</div>' +
+      '<div class="cz-recovery__text">La operación <strong>' + safePage + '</strong> se detuvo, pero el resto del sistema sigue funcionando. ' +
+      'Puedes reintentar, volver al inicio o copiar el detalle técnico para soporte.</div>' +
       '<div class="cz-recovery__detail">' + esc(detail) + '</div>' +
       '<div class="cz-recovery__actions">' +
       '  <button type="button" class="btn btn-primary" data-cz-rec="retry">Reintentar</button>' +
@@ -771,7 +771,7 @@
     try {
       if (global.CrozzoErrorMonitor && typeof global.CrozzoErrorMonitor.logError === 'function') {
         global.CrozzoErrorMonitor.logError(
-          'Render fallÃ³ en "' + page + '": ' + ((err && err.message) || err),
+          'Render falló en "' + page + '": ' + ((err && err.message) || err),
           'CrozzoCommandCenter/errorBoundary',
           'critical'
         );
@@ -797,14 +797,14 @@
           return undefined;
         } finally {
           guardDepth--;
-          // TransiciÃ³n de pÃ¡gina (solo si hubo cambio real y fue rÃ¡pido)
+          // Transición de página (solo si hubo cambio real y fue rápido)
           try {
             if (name === 'navigateTo' && page !== lastPage && !reducedMotion() && Date.now() - startedAt < 900) {
               lastPage = page;
               var host = doc.getElementById('mainContent');
               if (host && host.children.length) {
                 host.classList.remove('cz-page-enter');
-                // reinicio de animaciÃ³n
+                // reinicio de animación
                 void host.offsetWidth;
                 host.classList.add('cz-page-enter');
                 global.setTimeout(function () { host.classList.remove('cz-page-enter'); }, 400);
@@ -818,7 +818,7 @@
     });
   }
 
-  /* â”€â”€ 7. Ripple + focus tÃ¡ctil â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 7. Ripple + focus táctil ────────────────────────────────────────── */
 
   function installRipple() {
     if (reducedMotion()) return;
@@ -845,7 +845,7 @@
     }, { passive: true });
   }
 
-  /* â”€â”€ 9. Acceso flotante sin teclado (tablet/mÃ³vil) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 9. Acceso flotante sin teclado (tablet/móvil) ───────────────────── */
 
   var fab = null;
 
@@ -857,7 +857,7 @@
     fab.id = 'crozzoCommandFab';
     fab.setAttribute('aria-label', 'Buscar en el sistema');
     fab.title = 'Buscar en el sistema';
-    fab.innerHTML = '<span aria-hidden="true">âŒ•</span>';
+    fab.innerHTML = '<span aria-hidden="true">⌕</span>';
     fab.addEventListener('click', function (e) {
       e.stopPropagation();
       openPalette();
@@ -867,7 +867,7 @@
   }
 
   function syncFab() {
-    // Si la insignia del header no tiene tamaÃ±o (chrome mÃ³vil/tablet), el
+    // Si la insignia del header no tiene tamaño (chrome móvil/tablet), el
     // usuario no tiene entrada visible a la paleta: mostramos el flotante.
     try {
       var b = ensureFab();
@@ -899,12 +899,12 @@
     }
   }
 
-  /* â”€â”€ 10. Perro guardiÃ¡n de pantalla en blanco â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 10. Perro guardián de pantalla en blanco ────────────────────────── */
 
   var sawContent = false;
 
   function installCrashWatchdog() {
-    // Marca si el Ã¡rea principal alguna vez mostrÃ³ contenido: evita falsos
+    // Marca si el área principal alguna vez mostró contenido: evita falsos
     // positivos durante el arranque (antes del primer render).
     try {
       var host = doc.getElementById('mainContent');
@@ -931,14 +931,14 @@
     }
 
     global.addEventListener('error', function (ev) {
-      maybeRecover((ev && (ev.error || ev.message)) || 'Error de ejecuciÃ³n');
+      maybeRecover((ev && (ev.error || ev.message)) || 'Error de ejecución');
     });
     global.addEventListener('unhandledrejection', function (ev) {
       maybeRecover((ev && ev.reason) || 'Promesa rechazada');
     });
   }
 
-  /* â”€â”€ 11. Teclado global â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 11. Teclado global ───────────────────────────────────────────────── */
 
   function installKeys() {
     doc.addEventListener('keydown', function (e) {
@@ -961,7 +961,7 @@
           return;
         }
 
-        // ? â†’ atajos (solo fuera de campos de texto)
+        // ? → atajos (solo fuera de campos de texto)
         if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !isTypingTarget()) {
           e.preventDefault();
           openShortcuts();
@@ -971,7 +971,7 @@
     }, true);
   }
 
-  /* â”€â”€ 12. Cierre al hacer clic fuera â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 12. Cierre al hacer clic fuera ──────────────────────────────────── */
 
   function installOutsideClose() {
     doc.addEventListener('mousedown', function (e) {
@@ -988,14 +988,14 @@
     }, true);
   }
 
-  /* â”€â”€ 13. Utilidades pÃºblicas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 13. Utilidades públicas ─────────────────────────────────────────── */
 
   function emptyState(opts) {
     opts = opts || {};
     return (
       '<div class="cz-empty">' +
-      '<div class="cz-empty__glyph" aria-hidden="true">' + esc(opts.glyph || 'â—‡') + '</div>' +
-      '<div class="cz-empty__title">' + esc(opts.title || 'Nada por aquÃ­ todavÃ­a') + '</div>' +
+      '<div class="cz-empty__glyph" aria-hidden="true">' + esc(opts.glyph || '◇') + '</div>' +
+      '<div class="cz-empty__title">' + esc(opts.title || 'Nada por aquí todavía') + '</div>' +
       (opts.hint ? '<div class="cz-empty__hint">' + esc(opts.hint) + '</div>' : '') +
       (opts.actionHtml || '') +
       '</div>'
@@ -1014,7 +1014,7 @@
     return out;
   }
 
-  /* â”€â”€ 14. Arranque â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ── 14. Arranque ────────────────────────────────────────────────────── */
 
   function boot() {
     markPremium();
@@ -1027,12 +1027,12 @@
     try { syncFab(); } catch (_) {}
     global.addEventListener('resize', function () { queueSyncFab(); refreshHealth(); });
     // El login abre/cierra cambiando clases del body: mantenemos el flotante
-    // alineado con el estado real de la sesiÃ³n (con debounce por frame).
+    // alineado con el estado real de la sesión (con debounce por frame).
     try {
       new global.MutationObserver(queueSyncFab)
         .observe(doc.body, { attributes: true, attributeFilter: ['class'] });
     } catch (_) {}
-    // Refresco periÃ³dico de la insignia (ligero, sin red)
+    // Refresco periódico de la insignia (ligero, sin red)
     healthTimer = global.setInterval(function () { refreshHealth(); syncFab(); }, 20000);
     // Reintentar montaje de la insignia si el header se re-renderiza.
     try {
