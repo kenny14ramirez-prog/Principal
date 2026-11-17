@@ -287,8 +287,7 @@
     backdrop.setAttribute('role', 'dialog');
     backdrop.setAttribute('aria-modal', 'true');
     backdrop.setAttribute('aria-label', 'Buscar en el sistema');
-    backdrop.innerHTML =
-      '<div class="cz-palette">' +
+    backdrop.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cz-palette">' +
       '  <div class="cz-palette__search">' +
       '    <span class="cz-palette__icon" aria-hidden="true">⌕</span>' +
       '    <input class="cz-palette__input" type="text" autocomplete="off" spellcheck="false" ' +
@@ -299,7 +298,7 @@
       '  <div class="cz-palette__foot">' +
       '    <span>↑↓ navegar</span><span>↵ abrir</span><span>esc cerrar</span>' +
       '  </div>' +
-      '</div>';
+      '</div>');
 
     backdrop.addEventListener('mousedown', function (e) {
       if (e.target === backdrop) closePalette();
@@ -358,7 +357,7 @@
     paletteState.index = 0;
 
     if (!items.length) {
-      list.innerHTML = '<div class="cz-palette__empty">Sin resultados para “' + esc(query) + '”.</div>';
+      list.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cz-palette__empty">Sin resultados para “' + esc(query) + '”.</div>');
       return;
     }
 
@@ -377,7 +376,7 @@
         (c.hint ? '<span class="cz-palette__item__hint">' + esc(c.hint) + '</span>' : '') +
         '</div>';
     }
-    list.innerHTML = html;
+    list.innerHTML = CrozzoSanitize.sanitizeHtml(html);
 
     Array.prototype.forEach.call(list.querySelectorAll('.cz-palette__item'), function (row) {
       row.addEventListener('mouseenter', function () {
@@ -449,12 +448,11 @@
       return '<div class="cz-shortcuts__row"><span>' + esc(s.label) + '</span><span class="cz-shortcuts__keys">' + keys + '</span></div>';
     }).join('');
 
-    wrap.innerHTML =
-      '<div class="cz-shortcuts__card">' +
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cz-shortcuts__card">' +
       '  <div class="cz-shortcuts__title">Atajos de teclado</div>' +
       '  <div class="cz-shortcuts__sub">Muévete más rápido por el sistema. Pulsa <span class="cz-shortcuts__key">Esc</span> para cerrar.</div>' +
       '  <div class="cz-shortcuts__grid">' + rows + '</div>' +
-      '</div>';
+      '</div>');
 
     wrap.addEventListener('mousedown', function (e) {
       if (e.target === wrap) closeShortcuts();
@@ -607,7 +605,7 @@
     btn.setAttribute('aria-haspopup', 'dialog');
     btn.setAttribute('aria-expanded', 'false');
     btn.title = 'Estado del sistema — clic para ver el detalle';
-    btn.innerHTML = '<span class="cz-health__dot" aria-hidden="true"></span><span class="cz-health__label">Sistema · Óptimo</span>';
+    btn.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="cz-health__dot" aria-hidden="true"></span><span class="cz-health__label">Sistema · Óptimo</span>');
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       toggleHealth();
@@ -634,10 +632,10 @@
     var list = healthPanel.querySelector('.cz-health-panel__rows');
     if (!list) return;
     if (!rows.length) {
-      list.innerHTML = '<div class="cz-health-row"><span class="cz-health-row__label">Sin datos de subsistemas</span></div>';
+      list.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cz-health-row"><span class="cz-health-row__label">Sin datos de subsistemas</span></div>');
       return;
     }
-    list.innerHTML = rows.map(function (r) {
+    list.innerHTML = CrozzoSanitize.sanitizeHtml(rows.map(function (r) {
       var dot = r.state === 'err' ? ' err' : r.state === 'warn' ? ' warn' : '';
       return (
         '<div class="cz-health-row">' +
@@ -646,7 +644,7 @@
         '<span class="cz-health-row__value">' + esc(r.value) + '</span>' +
         '</div>'
       );
-    }).join('');
+    }).join(''));
   }
 
   function buildHealthPanel() {
@@ -654,13 +652,12 @@
     panel.className = 'cz-health-panel';
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Estado del sistema');
-    panel.innerHTML =
-      '<div class="cz-health-panel__title">Estado del sistema</div>' +
+    panel.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cz-health-panel__title">Estado del sistema</div>' +
       '<div class="cz-health-panel__rows"></div>' +
       (isSuperAdminUser() ? ('<div class="cz-health-panel__actions">' +
       '  <button type="button" data-cz-act="diag">Diagnóstico</button>' +
       '  <button type="button" data-cz-act="solver">Solucionador</button>' +
-      '</div>') : '');
+      '</div>') : ''));
 
     if (isSuperAdminUser()) {
       var diagBtn = panel.querySelector('[data-cz-act="diag"]');
@@ -741,7 +738,7 @@
   function showRecovery(page, err, container) {
     var host = container || doc.getElementById('mainContent');
     if (!host) return;
-    try { host.innerHTML = recoveryCard(page, err); } catch (_) { return; }
+    try { host.innerHTML = CrozzoSanitize.sanitizeHtml(recoveryCard(page, err)); } catch (_) { return; }
 
     var detail = String((err && err.stack) || (err && err.message) || err || '');
     var retry = host.querySelector('[data-cz-rec="retry"]');
@@ -749,7 +746,7 @@
     var copy = host.querySelector('[data-cz-rec="copy"]');
 
     if (retry) retry.addEventListener('click', function () {
-      host.innerHTML = '';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('');
       try {
         if (typeof global.renderPage === 'function') global.renderPage(page);
       } catch (e2) { showRecovery(page, e2, host); }
@@ -857,7 +854,7 @@
     fab.id = 'crozzoCommandFab';
     fab.setAttribute('aria-label', 'Buscar en el sistema');
     fab.title = 'Buscar en el sistema';
-    fab.innerHTML = '<span aria-hidden="true">⌕</span>';
+    fab.innerHTML = CrozzoSanitize.sanitizeHtml('<span aria-hidden="true">⌕</span>');
     fab.addEventListener('click', function (e) {
       e.stopPropagation();
       openPalette();
