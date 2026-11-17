@@ -2117,11 +2117,10 @@
     el.setAttribute('role', 'status');
     el.setAttribute('aria-live', 'polite');
     el.hidden = true;
-    el.innerHTML =
-      '<span class="login-update-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="login-update-banner__icon" aria-hidden="true"><i data-lucide="refresh-cw"></i></span>' +
       '<div class="login-update-banner__body">' +
       '<strong id="loginUpdateBannerTitle">Actualizando el sistema</strong>' +
-      '<p id="loginUpdateBannerMsg">Comprobando actualizaciones…</p></div>';
+      '<p id="loginUpdateBannerMsg">Comprobando actualizaciones…</p></div>');
     anchor.parentNode.insertBefore(el, anchor.nextSibling);
     refreshUpdateIcons();
     return el;
@@ -3072,8 +3071,7 @@
     wrap.setAttribute('aria-modal', 'true');
     wrap.setAttribute('aria-labelledby', 'crozzoUpdateInstallTitle');
     wrap.setAttribute('aria-hidden', 'true');
-    wrap.innerHTML =
-      '<div class="crozzo-update-install-card">' +
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-update-install-card">' +
       '<div class="crozzo-update-install-card__glow" aria-hidden="true"></div>' +
       '<header class="crozzo-update-install-card__head">' +
       '<span class="crozzo-update-install-card__logo" id="crozzoUpdateInstallBrand"></span>' +
@@ -3114,7 +3112,7 @@
       '<button type="button" class="btn btn-outline" id="crozzoUpdateInstallRetry" style="display:none">Reintentar Plan A</button>' +
       '<button type="button" class="btn btn-outline" id="crozzoUpdateInstallPlanBShow" style="display:none">Plan B manual</button>' +
       '<button type="button" class="btn btn-primary" id="crozzoUpdateInstallClose" style="display:none">Continuar usando la app</button>' +
-      '</footer></div>';
+      '</footer></div>');
     document.body.appendChild(wrap);
     wireOnce(document.getElementById('crozzoUpdateInstallRetry'), function (e) {
       e.preventDefault();
@@ -3404,9 +3402,9 @@
     }
     if (urlEl) urlEl.textContent = _planB.downloadUrl || '—';
     if (adminUrl) {
-      adminUrl.innerHTML = _planB.ready
+      adminUrl.innerHTML = CrozzoSanitize.sanitizeHtml(_planB.ready
         ? '<code style="word-break:break-all">' + escapeHtml(_planB.downloadUrl) + '</code>'
-        : '<span class="form-hint">Pulse «Resolver enlace manual» para la versión pendiente.</span>';
+        : '<span class="form-hint">Pulse «Resolver enlace manual» para la versión pendiente.</span>');
     }
     if (pb) pb.hidden = _installUi.state !== 'error';
   }
@@ -3498,8 +3496,7 @@
     card.className = 'card';
     card.id = 'crozzoUpdatePlanBCard';
     card.style.marginTop = '14px';
-    card.innerHTML =
-      '<div class="card-header"><span class="card-title">Plan B — Respaldo manual</span></div>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card-header"><span class="card-title">Plan B — Respaldo manual</span></div>' +
       '<p class="form-hint" style="margin:0 0 12px;" id="crozzoUpdatePlanBHint">Si el Plan A (automático) falla, descargue el instalador desde GitHub.</p>' +
       '<div class="crozzo-updates-actions" style="flex-wrap:wrap;gap:8px;display:flex;margin-bottom:10px">' +
       '<button type="button" class="btn btn-primary btn-sm" id="crozzoUpdatePlanAForce">Forzar actualización (Plan A)</button>' +
@@ -3508,7 +3505,7 @@
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdatePlanBCopy">Copiar enlace</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoUpdateDiagnose">Diagnosticar cadena</button>' +
       '</div>' +
-      '<div id="crozzoUpdatePlanBUrl"></div>';
+      '<div id="crozzoUpdatePlanBUrl"></div>');
     root.appendChild(card);
     wireOnce(document.getElementById('crozzoUpdatePlanAForce'), function (e) {
       e.preventDefault();
@@ -3547,7 +3544,7 @@
     if (cur === 'relaunch') stepIndex = INSTALL_STEPS.length - 1;
     if (_installUi.state === 'success') stepIndex = INSTALL_STEPS.length;
     if (_installUi.state === 'error' && stepIndex < 1) stepIndex = 1;
-    list.innerHTML = INSTALL_STEPS.map(function (step, i) {
+    list.innerHTML = CrozzoSanitize.sanitizeHtml(INSTALL_STEPS.map(function (step, i) {
       var cls = '';
       if (_installUi.state === 'success' || i < stepIndex) cls = ' is-done';
       else if (i === stepIndex && _installUi.state !== 'error') cls = ' is-active';
@@ -3562,7 +3559,7 @@
         escapeHtml(step.label) +
         '</span></li>'
       );
-    }).join('');
+    }).join(''));
   }
 
   function renderInstallOverlayUi() {
@@ -3630,12 +3627,12 @@
     if (log) {
       var isAndroidAwaiting = _installUi.state === 'success' && getUpdateClientProfile().isAndroid;
       if (isAndroidAwaiting) {
-        log.innerHTML = androidInstallWarningHtml();
+        log.innerHTML = CrozzoSanitize.sanitizeHtml(androidInstallWarningHtml());
       } else {
         var items = _installUi.changelog || [];
-        log.innerHTML = items.length
+        log.innerHTML = CrozzoSanitize.sanitizeHtml(items.length
           ? '<ul>' + items.map(function (c) { return '<li>' + escapeHtml(c) + '</li>'; }).join('') + '</ul>'
-          : '';
+          : '');
       }
     }
     if (retry) {
@@ -3864,7 +3861,7 @@
         badge.className = 'crozzo-update-critical-modal__badge';
         badge.style.background = 'rgba(220,38,38,0.18)';
         badge.style.color = '#fecaca';
-        badge.innerHTML = '🔒 Actualización crítica';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('🔒 Actualización crítica');
       }
       if (title) title.textContent = 'Actualización crítica obligatoria';
       if (lead) {
@@ -3888,7 +3885,7 @@
         badge.className = 'crozzo-update-critical-modal__badge';
         badge.style.background = 'rgba(59,130,246,0.18)';
         badge.style.color = '#bfdbfe';
-        badge.innerHTML = '⬇ Descargando…';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('⬇ Descargando…');
       }
       if (title) title.textContent = 'Descargando actualización crítica';
       if (lead) {
@@ -3912,7 +3909,7 @@
           'crozzo-update-critical-modal__badge crozzo-update-critical-modal__badge--done';
         badge.style.background = '';
         badge.style.color = '';
-        badge.innerHTML = '✓ Lista para reinicio';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('✓ Lista para reinicio');
       }
       if (title) title.textContent = 'Actualización crítica descargada';
       if (lead) {
@@ -3940,7 +3937,7 @@
         badge.className = 'crozzo-update-critical-modal__badge';
         badge.style.background = '';
         badge.style.color = '';
-        badge.innerHTML = profile.isAndroid ? '📱 Actualización tablet' : '🌐 Actualización web';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml(profile.isAndroid ? '📱 Actualización tablet' : '🌐 Actualización web');
       }
       if (title) {
         title.textContent =
@@ -3964,7 +3961,7 @@
     } else if (state === 'installing') {
       if (badge) {
         badge.className = 'crozzo-update-critical-modal__badge';
-        badge.innerHTML = '⏳ Instalando…';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('⏳ Instalando…');
       }
       if (title) title.textContent = 'Instalando actualización crítica';
       if (lead) {
@@ -3988,7 +3985,7 @@
           'crozzo-update-critical-modal__badge crozzo-update-critical-modal__badge--done';
         badge.style.background = '';
         badge.style.color = '';
-        badge.innerHTML = '✓ Actualizado';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('✓ Actualizado');
       }
       if (title) title.textContent = 'BONA origen está al día';
       if (lead) {
@@ -4012,8 +4009,7 @@
       if (badge) {
         badge.className =
           'crozzo-update-critical-modal__badge crozzo-update-critical-modal__badge--done';
-        badge.innerHTML =
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Instalada';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg> Instalada');
       }
       if (title) title.textContent = 'Actualización aplicada';
       if (lead) {
@@ -4034,7 +4030,7 @@
         badge.className = 'crozzo-update-critical-modal__badge';
         badge.style.background = 'rgba(220,38,38,0.15)';
         badge.style.color = '#fecaca';
-        badge.innerHTML = '⚠ No instalada';
+        badge.innerHTML = CrozzoSanitize.sanitizeHtml('⚠ No instalada');
       }
       if (title) title.textContent = 'No se pudo instalar la actualización';
       if (lead) {
@@ -4042,7 +4038,7 @@
         if (failProfile.isAndroid) {
           var isConflict = errMsg && /conflicto|INCOMPATIBLE|firma|signature|paquete/i.test(errMsg);
           if (isConflict || !errMsg) {
-            lead.innerHTML = androidInstallUninstallGuideHtml();
+            lead.innerHTML = CrozzoSanitize.sanitizeHtml(androidInstallUninstallGuideHtml());
           } else {
             lead.textContent = errMsg + ' ' + androidInstallUninstallGuide(true);
           }
@@ -4065,11 +4061,11 @@
 
     if (list) {
       var lines = parseChangelogMessage(info.installed || []);
-      list.innerHTML = lines
+      list.innerHTML = CrozzoSanitize.sanitizeHtml(lines
         .map(function (item) {
           return '<li>' + escapeHtml(item) + '</li>';
         })
-        .join('');
+        .join(''));
     }
     if (ver) {
       ver.textContent =
@@ -4096,19 +4092,17 @@
     }
     if (ctx.experiencia === 'novice') {
       if (ctx.isPeak) {
-        msg.innerHTML =
-          '<strong>Mejora lista</strong> (' +
+        msg.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Mejora lista</strong> (' +
           escapeHtml(VERSION_AVAIL) +
           ') — ' +
           escapeHtml(summary) +
-          '. <strong>Instálela al cierre</strong>; ahora hay servicio activo y la app esperará a que no haya ventas abiertas.';
+          '. <strong>Instálela al cierre</strong>; ahora hay servicio activo y la app esperará a que no haya ventas abiertas.');
       } else {
-        msg.innerHTML =
-          'Mejora disponible: <strong>' +
+        msg.innerHTML = CrozzoSanitize.sanitizeHtml('Mejora disponible: <strong>' +
           escapeHtml(VERSION_AVAIL) +
           '</strong> — ' +
           escapeHtml(summary) +
-          '. ¿Desea descargarla? Se instalará al reiniciar la app.';
+          '. ¿Desea descargarla? Se instalará al reiniciar la app.');
       }
       return;
     }
@@ -4123,8 +4117,7 @@
     var installNote = canInstallApkInAppNow()
       ? 'Se abrirá el instalador de Android.'
       : 'Se instalará al reiniciar la app.';
-    msg.innerHTML =
-      'En uso: <strong>' +
+    msg.innerHTML = CrozzoSanitize.sanitizeHtml('En uso: <strong>' +
       escapeHtml(VERSION) +
       '</strong> · ' +
       escapeHtml(typeLabel) +
@@ -4135,7 +4128,7 @@
       '</strong> para ' +
       escapeHtml(actionHint) +
       '. ' +
-      escapeHtml(installNote);
+      escapeHtml(installNote));
   }
 
   function syncVersionLabels() {
@@ -4271,8 +4264,7 @@
 
     if (title) title.textContent = step.title || 'Actualización opcional';
     if (meta) {
-      meta.innerHTML =
-        '<span class="crozzo-update-detail-modal__chip">Paso ' +
+      meta.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-update-detail-modal__chip">Paso ' +
         (stepIdx + 1) +
         ' de ' +
         steps.length +
@@ -4282,24 +4274,23 @@
         '</span>' +
         '<span class="crozzo-update-detail-modal__chip crozzo-update-detail-modal__chip--avail">Nueva: ' +
         escapeHtml(VERSION_AVAIL) +
-        '</span>';
+        '</span>');
     }
     if (bar) {
       bar.hidden = false;
-      bar.innerHTML = steps
+      bar.innerHTML = CrozzoSanitize.sanitizeHtml(steps
         .map(function (_, i) {
           var cls = 'crozzo-update-wizard-dot';
           if (i < stepIdx) cls += ' is-done';
           if (i === stepIdx) cls += ' is-active';
           return '<span class="' + cls + '" aria-hidden="true"></span>';
         })
-        .join('');
+        .join(''));
     }
 
     if (body) {
       if (step.kind === 'intro') {
-        body.innerHTML =
-          '<p class="crozzo-update-detail-modal__lead">' +
+        body.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-update-detail-modal__lead">' +
           escapeHtml(step.summary) +
           '</p>' +
           '<div class="crozzo-update-wizard-versions">' +
@@ -4311,10 +4302,9 @@
           (step.date
             ? '<p class="form-hint">Publicada: ' + escapeHtml(step.date) + '</p>'
             : '') +
-          '<p class="crozzo-update-detail-modal__note">Esta mejora es <strong>opcional</strong>. Revise los cambios paso a paso y decida si instalar.</p>';
+          '<p class="crozzo-update-detail-modal__note">Esta mejora es <strong>opcional</strong>. Revise los cambios paso a paso y decida si instalar.</p>');
       } else if (step.kind === 'changes') {
-        body.innerHTML =
-          (step.pages > 1
+        body.innerHTML = CrozzoSanitize.sanitizeHtml((step.pages > 1
             ? '<p class="form-hint">Parte ' + step.page + ' de ' + step.pages + '</p>'
             : '') +
           '<ul class="crozzo-update-wizard-list">' +
@@ -4323,13 +4313,12 @@
               return '<li>' + escapeHtml(item) + '</li>';
             })
             .join('') +
-          '</ul>';
+          '</ul>');
       } else {
-        body.innerHTML =
-          '<p class="crozzo-update-detail-modal__lead">' +
+        body.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-update-detail-modal__lead">' +
           escapeHtml(step.summary) +
           '</p>' +
-          '<p class="crozzo-update-detail-modal__note">Si elige <strong>Descargar actualización</strong>, verá la barra de progreso. Se instalará al reiniciar la app (también si luego hay una crítica).</p>';
+          '<p class="crozzo-update-detail-modal__note">Si elige <strong>Descargar actualización</strong>, verá la barra de progreso. Se instalará al reiniciar la app (también si luego hay una crítica).</p>');
       }
     }
 
@@ -4370,8 +4359,7 @@
     var body = document.getElementById('crozzoUpdateDetailBody');
     if (title) title.textContent = 'Actualización ' + u.version;
     if (meta) {
-      meta.innerHTML =
-        '<span class="crozzo-update-detail-modal__chip">Actual: ' +
+      meta.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-update-detail-modal__chip">Actual: ' +
         escapeHtml(u.current) +
         '</span>' +
         '<span class="crozzo-update-detail-modal__chip crozzo-update-detail-modal__chip--avail">Nueva: ' +
@@ -4382,9 +4370,9 @@
           : '') +
         (u.size
           ? '<span class="crozzo-update-detail-modal__chip">' + escapeHtml(u.size) + '</span>'
-          : '');
+          : ''));
     }
-    if (body) body.innerHTML = buildDetailBodyHtml();
+    if (body) body.innerHTML = CrozzoSanitize.sanitizeHtml(buildDetailBodyHtml());
   }
 
   function isAppShellHref(href) {
@@ -4870,15 +4858,14 @@
     el.setAttribute('role', 'status');
     el.setAttribute('aria-live', 'polite');
     el.setAttribute('aria-busy', 'true');
-    el.innerHTML =
-      '<div class="crozzo-boot-update-gate__card">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-boot-update-gate__card">' +
       '<div class="crozzo-boot-update-gate__spinner" aria-hidden="true"></div>' +
       '<p class="crozzo-boot-update-gate__brand" id="crozzoBootUpdateBrand">Bona Origen</p>' +
       '<h2 class="crozzo-boot-update-gate__title">Preparando el sistema</h2>' +
       '<p class="crozzo-boot-update-gate__msg" id="crozzoBootUpdateMsg">Comprobando actualizaciones…</p>' +
       '<p class="crozzo-boot-update-gate__hint" id="crozzoBootUpdateHint">No cierre la aplicación. Se descargará el paquete correcto para este dispositivo (Windows, Mac, tablet o navegador) antes del inicio de sesión.</p>' +
       '<button type="button" class="btn btn-outline crozzo-boot-update-gate__skip" id="crozzoBootUpdateSkip" hidden>Continuar al login</button>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(el);
     var skipBtn = document.getElementById('crozzoBootUpdateSkip');
     if (skipBtn && !skipBtn._crozzoBound) {
@@ -6151,7 +6138,7 @@
     if (!el) return;
 
     if (!_registryEntries.length) {
-      el.innerHTML = '<p style="margin:0;">Sin entradas en el registro remoto. Use <strong>Comprobar ahora</strong>.</p>';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="margin:0;">Sin entradas en el registro remoto. Use <strong>Comprobar ahora</strong>.</p>');
       return;
     }
 
@@ -6185,14 +6172,13 @@
       })
       .join('');
 
-    el.innerHTML =
-      '<div style="overflow-x:auto;">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="overflow-x:auto;">' +
       '<table class="data-table" style="width:100%;font-size:0.82rem;">' +
       '<thead><tr><th>ID</th><th>Versión</th><th>Tipo</th><th>Publicada</th><th>En este equipo</th></tr></thead>' +
       '<tbody>' +
       rows +
       '</tbody></table></div>' +
-      '<p class="form-hint" style="margin:8px 0 0;">El registro remoto (main) avisa de versiones nuevas. El instalador <code>.exe</code> está en cada <strong>GitHub Release</strong> (tag <code>vX.Y.Z</code>). «No instalada aquí» = su PC aún no tiene esa versión — use <strong>Instalar</strong> en escritorio.</p>';
+      '<p class="form-hint" style="margin:8px 0 0;">El registro remoto (main) avisa de versiones nuevas. El instalador <code>.exe</code> está en cada <strong>GitHub Release</strong> (tag <code>vX.Y.Z</code>). «No instalada aquí» = su PC aún no tiene esa versión — use <strong>Instalar</strong> en escritorio.</p>');
   }
 
   function renderLocalLogPanel() {
@@ -6204,8 +6190,7 @@
       if (raw) log = JSON.parse(raw);
     } catch (_) {}
     if (!Array.isArray(log) || !log.length) {
-      el.innerHTML =
-        '<p class="form-hint" style="margin:0;">Historial local vacío (se llena al ver críticas, instalar u ocultar opcionales).</p>';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint" style="margin:0;">Historial local vacío (se llena al ver críticas, instalar u ocultar opcionales).</p>');
       return;
     }
     var items = log
@@ -6230,10 +6215,9 @@
         );
       })
       .join('');
-    el.innerHTML =
-      '<p style="margin:0 0 6px;font-weight:600;font-size:0.85rem;">Historial en este equipo</p><ul style="margin:0;padding-left:1.2rem;font-size:0.8rem;">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="margin:0 0 6px;font-weight:600;font-size:0.85rem;">Historial en este equipo</p><ul style="margin:0;padding-left:1.2rem;font-size:0.8rem;">' +
       items +
-      '</ul>';
+      '</ul>');
   }
 
   function setCheckStatus(text) {
@@ -6855,8 +6839,7 @@
     el.setAttribute('aria-modal', 'false');
     el.setAttribute('aria-labelledby', 'crozzoCritInfoTitle');
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML =
-      '<div class="crozzo-critical-info-card__inner">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-critical-info-card__inner">' +
       '<div class="crozzo-critical-info-card__stripe" aria-hidden="true"></div>' +
       '<div class="crozzo-critical-info-card__body">' +
       '<div class="crozzo-critical-info-card__icon" aria-hidden="true">' +
@@ -6871,7 +6854,7 @@
       '<div class="crozzo-critical-info-card__actions">' +
       '<button type="button" id="crozzoCritInfoDismiss" class="crozzo-critical-info-card__btn">Entendido, seguir trabajando →</button>' +
       '</div>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(el);
     var btn = document.getElementById('crozzoCritInfoDismiss');
     if (btn && !btn._crozzoBound) {
@@ -6938,8 +6921,7 @@
     el.setAttribute('aria-modal', 'true');
     el.setAttribute('aria-labelledby', 'crozzoOptCardTitle');
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML =
-      '<div class="crozzo-optional-post-card__backdrop" id="crozzoOptCardBackdrop"></div>' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-optional-post-card__backdrop" id="crozzoOptCardBackdrop"></div>' +
       '<div class="crozzo-optional-post-card__panel">' +
       '<div class="crozzo-optional-post-card__head">' +
       '<div class="crozzo-optional-post-card__badge" id="crozzoOptCardBadge">✨ Mejora disponible</div>' +
@@ -6956,7 +6938,7 @@
       '<button type="button" id="crozzoOptCardInstall" class="crozzo-optional-post-card__btn-primary">Sí, instalar mejora</button>' +
       '<button type="button" id="crozzoOptCardSnooze" class="crozzo-optional-post-card__btn-ghost">Ahora no, seguir</button>' +
       '</div>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(el);
     var closeBtn = document.getElementById('crozzoOptCardClose');
     var snoozeBtn = document.getElementById('crozzoOptCardSnooze');
@@ -6999,11 +6981,10 @@
       var noteEl = document.getElementById('crozzoOptCardNote');
       var badge = document.getElementById('crozzoOptCardBadge');
       if (verRow) {
-        verRow.innerHTML =
-          '<span class="crozzo-optional-post-card__ver-chip">' + escapeHtml(VERSION) + '</span>' +
+        verRow.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-optional-post-card__ver-chip">' + escapeHtml(VERSION) + '</span>' +
         '<span class="crozzo-optional-post-card__ver-arrow" aria-hidden="true">→</span>' +
         '<span class="crozzo-optional-post-card__ver-chip crozzo-optional-post-card__ver-chip--new">' + escapeHtml(remote) + '</span>' +
-        (UPDATE_NORMAL.date ? '<span class="crozzo-optional-post-card__ver-date">' + escapeHtml(UPDATE_NORMAL.date) + '</span>' : '');
+        (UPDATE_NORMAL.date ? '<span class="crozzo-optional-post-card__ver-date">' + escapeHtml(UPDATE_NORMAL.date) + '</span>' : ''));
     }
     if (badge) badge.textContent = '✨ Mejora disponible · ' + remote;
     var changes = normalizeEntryChangelog(entry);
@@ -7015,7 +6996,7 @@
           '<span class="crozzo-optional-post-card__change-dot" aria-hidden="true"></span>' +
           escapeHtml(c) + '</li>';
       });
-      changesList.innerHTML = html;
+      changesList.innerHTML = CrozzoSanitize.sanitizeHtml(html);
     }
     var profile = getUpdateClientProfile();
     var installNote = canInstallApkInAppNow()
@@ -7041,7 +7022,7 @@
             '<span class="crozzo-optional-post-card__change-dot" aria-hidden="true"></span>' +
             escapeHtml(c) + '</li>';
         });
-        changesList.innerHTML = html2;
+        changesList.innerHTML = CrozzoSanitize.sanitizeHtml(html2);
       }
     });
     }, false);

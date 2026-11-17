@@ -142,7 +142,7 @@
 | 351 | `app/infra/CrozzoSedeReadiness.js` |
 | 402 | `app/infra/CrozzoStartupReady.js` |
 | 176 | `app/infra/CrozzoSyncQueueHygiene.js` |
-| 7379 | `app/infra/CrozzoSystemUpdates.js` |
+| 7360 | `app/infra/CrozzoSystemUpdates.js` |
 | 2104 | `app/infra/CrozzoTauriUpdater.js` |
 | 117 | `app/infra/CrozzoTlsPinning.js` |
 | 180 | `app/infra/CrozzoTransportPathHealth.js` |
