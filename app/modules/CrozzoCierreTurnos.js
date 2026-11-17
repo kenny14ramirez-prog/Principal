@@ -714,11 +714,10 @@
     var fondo = Number(document.getElementById('crozzo-shift-fondo') && document.getElementById('crozzo-shift-fondo').value) || 0;
     var gastos = Number(document.getElementById('crozzo-shift-gastos') && document.getElementById('crozzo-shift-gastos').value) || 0;
     var expected = computeExpectedInCaja(fondo, m.cash, gastos);
-    el.innerHTML =
-      'Esperado en caja: <strong>' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('Esperado en caja: <strong>' +
       formatMoney(expected) +
       '</strong>' +
-      (gastos > 0 ? '<span class="crozzo-arqueo-expected-hint__sub"> (fondo + efectivo ventas − gastos)</span>' : '');
+      (gastos > 0 ? '<span class="crozzo-arqueo-expected-hint__sub"> (fondo + efectivo ventas − gastos)</span>' : ''));
   }
 
   function dayWindow(day) {
@@ -1283,13 +1282,12 @@
     if (!stress || stress.level === 'calm') {
       el.hidden = true;
       el.className = 'crozzo-cierre-stress crozzo-cierre-stress--calm';
-      el.innerHTML = '';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('');
       return;
     }
     el.hidden = false;
     el.className = 'crozzo-cierre-stress crozzo-cierre-stress--' + stress.level;
-    el.innerHTML =
-      '<div class="crozzo-cierre-stress__icon"><i data-lucide="' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-cierre-stress__icon"><i data-lucide="' +
       (stress.level === 'rush' ? 'flame' : 'activity') +
       '"></i></div>' +
       '<div class="crozzo-cierre-stress__body"><strong>' +
@@ -1303,7 +1301,7 @@
       '</span></div>' +
       (stress.level === 'rush'
         ? '<button type="button" class="btn btn-outline btn-sm" onclick="crozzoCierreForceFullRefresh()">Actualizar todo</button>'
-        : '');
+        : ''));
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [el] });
     } catch (_) {}
@@ -1332,21 +1330,20 @@
       if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.setHistPrintCache === 'function') {
         global.CrozzoCierrePrint.setHistPrintCache([]);
       }
-      host.innerHTML =
-        '<tr><td colspan="' +
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<tr><td colspan="' +
         (full ? 11 : 7) +
         '" class="crozzo-cierre-empty">' +
         (allRows.length
           ? 'Ningún cierre coincide con el filtro actual.'
           : 'Sin cierres registrados. Cuando un encargado confirme un arqueo, aparecerá aquí con trazabilidad completa.') +
-        '</td></tr>';
+        '</td></tr>');
       return;
     }
     var slice = rows.slice(0, limit);
     if (global.CrozzoCierrePrint && typeof global.CrozzoCierrePrint.setHistPrintCache === 'function') {
       global.CrozzoCierrePrint.setHistPrintCache(slice);
     }
-    host.innerHTML = slice
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(slice
       .map(function (r, idx) {
         var lbl = r.shiftLabel || (SHIFT_META[r.shiftType] && SHIFT_META[r.shiftType].label) || r.shiftType || '—';
         var diff = Number(r.diff) || 0;
@@ -1404,7 +1401,7 @@
           '</tr>';
         return base;
       })
-      .join('');
+      .join(''));
   }
 
   function esc(s) {
@@ -1488,15 +1485,15 @@
     if (step2Title) step2Title.textContent = sup ? 'Confirmar revisión' : 'Confirmar cierre';
     if (notesLbl) notesLbl.textContent = sup ? 'Notas internas (administración)' : 'Notas del cierre';
     if (confirmBtn) {
-      confirmBtn.innerHTML = sup
+      confirmBtn.innerHTML = CrozzoSanitize.sanitizeHtml(sup
         ? '<i data-lucide="eye"></i> Guardar revisión (cajero sigue)'
-        : '<i data-lucide="shield-check"></i> Confirmar cierre y guardar';
+        : '<i data-lucide="shield-check"></i> Confirmar cierre y guardar');
     }
     if (banner) {
       banner.hidden = !sup;
-      banner.innerHTML = sup
+      banner.innerHTML = CrozzoSanitize.sanitizeHtml(sup
         ? '<span class="crozzo-arqueo-mode-banner crozzo-arqueo-mode-banner--supervision"><i data-lucide="eye-off"></i> Revisión silenciosa — no reinicia contadores ni avisa en caja</span>'
-        : '';
+        : '');
     }
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons && banner && !banner.hidden) {
@@ -1526,8 +1523,7 @@
             formatMoney(suggested) +
             '</strong></div>'
           : '';
-      sum.innerHTML =
-        '<div class="crozzo-arqueo-live">' +
+      sum.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-arqueo-live">' +
         '<div class="crozzo-arqueo-live__row"><span>Turno</span><strong>' +
         esc(meta.label) +
         '</strong></div>' +
@@ -1551,7 +1547,7 @@
         formatMoney(m.cash) +
         '</strong></div>' +
         fondoHint +
-        '</div>';
+        '</div>');
     }
     var fondo = document.getElementById('crozzo-shift-fondo');
     var cnt = document.getElementById('crozzo-shift-count');
@@ -1690,8 +1686,7 @@
             '</div>';
         }
       }
-      fin.innerHTML =
-        '<div class="crozzo-arqueo-result">' +
+      fin.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-arqueo-result">' +
         '<div class="crozzo-arqueo-result__head">' +
         (isSupervisionMode() ? 'Revisión' : 'Cierre') +
         ' <strong>' +
@@ -1713,7 +1708,7 @@
         unpaidAlert +
         alertNote +
         cajeroHint +
-        '</div>';
+        '</div>');
       try {
         if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [fin] });
       } catch (_) {}
@@ -2239,7 +2234,7 @@
     if (!body) return;
     if (document.body) document.body.classList.add('crozzo-page-cierre-caja');
     hookCierreVisibilityRefresh();
-    body.innerHTML = renderCierrePanelHtml({ full: true });
+    body.innerHTML = CrozzoSanitize.sanitizeHtml(renderCierrePanelHtml({ full: true }));
     refreshCierrePanel({ full: true });
     try {
       if (typeof global.CrozzoAiInsights !== 'undefined' && global.CrozzoAiInsights.bindAuditCard) {
@@ -2367,8 +2362,7 @@
     }
     var statsEl = document.getElementById('crozzo-cierre-hist-stats');
     if (statsEl) {
-      statsEl.innerHTML =
-        '<span><strong>' +
+      statsEl.innerHTML = CrozzoSanitize.sanitizeHtml('<span><strong>' +
         histFiltered.length +
         '</strong> visibles</span>' +
         '<span><strong>' +
@@ -2378,7 +2372,7 @@
         (histSum.netDiff < 0 ? 'crozzo-cierre-diff--bad' : 'crozzo-cierre-diff--ok') +
         '">' +
         formatMoney(histSum.netDiff) +
-        '</strong></span>';
+        '</strong></span>');
     }
     document.querySelectorAll('.crozzo-cierre-hist-filter').forEach(function (btn) {
       var f = btn.getAttribute('data-filter');
@@ -2408,7 +2402,7 @@
     };
     var setHtml = function (id, v) {
       var el = document.getElementById(id);
-      if (el) el.innerHTML = v;
+      if (el) el.innerHTML = CrozzoSanitize.sanitizeHtml(v);
     };
     set('crozzo-cierre-kpi-date', day ? day.businessDate : '—');
     set('crozzo-cierre-kpi-day-total', formatMoney(dm.total));
@@ -2444,7 +2438,7 @@
     var syncEl = document.getElementById('crozzo-cierre-sync-label');
     if (syncEl) {
       syncEl.className = 'crozzo-cierre-sync ' + sync.cls;
-      syncEl.innerHTML = '<span class="crozzo-cierre-sync__dot"></span>' + esc(sync.text);
+      syncEl.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-cierre-sync__dot"></span>' + esc(sync.text));
     }
     setHtml('crozzo-cierre-pay-grid', light ? '<p class="crozzo-cierre-stress-pause">Medios de pago — actualización diferida en servicio crítico.</p>' : paymentMethodHtml(dm.byMethod));
     if (!light) {
@@ -2488,8 +2482,7 @@
     var statusEl = document.getElementById('crozzo-cierre-day-status');
     if (statusEl && day) {
       if (day.closedAt) {
-        statusEl.innerHTML =
-          '<i data-lucide="lock"></i> ' + (day.autoClosed ? 'Día cerrado automáticamente' : 'Día cerrado manualmente');
+        statusEl.innerHTML = CrozzoSanitize.sanitizeHtml('<i data-lucide="lock"></i> ' + (day.autoClosed ? 'Día cerrado automáticamente' : 'Día cerrado manualmente'));
         statusEl.className = 'crozzo-cierre-day-status crozzo-cierre-day-status--closed';
       } else {
         var parts = [];
@@ -2497,7 +2490,7 @@
           if (day.shifts.manana && day.shifts.manana.status === 'closed') parts.push('Mañana ✓');
           if (day.shifts.tarde && day.shifts.tarde.status === 'closed') parts.push('Tarde ✓');
         }
-        statusEl.innerHTML = '<i data-lucide="unlock"></i> ' + (parts.length ? parts.join(' · ') : 'Día operativo abierto');
+        statusEl.innerHTML = CrozzoSanitize.sanitizeHtml('<i data-lucide="unlock"></i> ' + (parts.length ? parts.join(' · ') : 'Día operativo abierto'));
         statusEl.className = 'crozzo-cierre-day-status crozzo-cierre-day-status--open';
       }
     }
@@ -2507,8 +2500,7 @@
     }
     var statsEl = document.getElementById('crozzo-cierre-hist-stats');
     if (statsEl && full && !light) {
-      statsEl.innerHTML =
-        '<span><strong>' +
+      statsEl.innerHTML = CrozzoSanitize.sanitizeHtml('<span><strong>' +
         histFiltered.length +
         '</strong> visibles</span>' +
         '<span><strong>' +
@@ -2518,7 +2510,7 @@
         (histSum.netDiff < 0 ? 'crozzo-cierre-diff--bad' : 'crozzo-cierre-diff--ok') +
         '">' +
         formatMoney(histSum.netDiff) +
-        '</strong></span>';
+        '</strong></span>');
     }
     var cap = document.getElementById('crozzo-cierre-hist-caption');
     if (cap && full && !light) {
@@ -2529,11 +2521,10 @@
     }
     var histBody = document.getElementById('crozzo-cierre-hist-body');
     if (light && histBody) {
-      histBody.innerHTML =
-        '<tr><td colspan="10" class="crozzo-cierre-empty crozzo-cierre-stress-pause">' +
+      histBody.innerHTML = CrozzoSanitize.sanitizeHtml('<tr><td colspan="10" class="crozzo-cierre-empty crozzo-cierre-stress-pause">' +
         '<strong>Historial en pausa</strong> — ' +
         esc(stress.label) +
-        '. KPIs y arqueo siguen activos. Pulse <em>Actualizar todo</em> o espere a que baje el ritmo.</td></tr>';
+        '. KPIs y arqueo siguen activos. Pulse <em>Actualizar todo</em> o espere a que baje el ritmo.</td></tr>');
     } else {
       renderHistoryTable(histBody, {
         limit: full ? 120 : 15,

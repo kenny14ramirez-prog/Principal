@@ -66,8 +66,7 @@
     panel.id = 'crozzoDockPanel';
     panel.className = 'crozzo-dock-panel';
     panel.setAttribute('aria-label', 'Panel de servicios');
-    panel.innerHTML =
-      '<div class="crozzo-dock-panel__head">' +
+    panel.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-dock-panel__head">' +
         '<nav id="crozzoDockPanelTabs" class="crozzo-dock-panel__tabs" aria-label="Servicios"></nav>' +
         '<div class="crozzo-dock-panel__controls">' +
           '<button type="button" id="crozzoDockPanelProfile" class="crozzo-dock-panel__profile" title="Vista teléfono / escritorio" aria-label="Cambiar vista">📱</button>' +
@@ -78,7 +77,7 @@
           '<button type="button" id="crozzoDockPanelClose" class="crozzo-dock-panel__close" title="Cerrar panel" aria-label="Cerrar panel">&times;</button>' +
         '</div>' +
       '</div>' +
-      '<div id="crozzoDockPanelBody" class="crozzo-dock-panel__body"></div>';
+      '<div id="crozzoDockPanelBody" class="crozzo-dock-panel__body"></div>');
 
     panel.hidden = true;
     panel.style.display = 'none';

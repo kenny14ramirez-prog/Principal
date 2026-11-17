@@ -398,8 +398,7 @@
     var hub = document.querySelector('.crozzo-fed-hub');
     if (!hub) return;
     var neg = E() ? E().loadStore().negocio : { nombre: '', id: '' };
-    hub.innerHTML =
-      '<div class="crozzo-fed-hero">' +
+    hub.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-fed-hero">' +
       '<h1>Bodegas y remisiones</h1>' +
       '<p class="form-hint" style="margin:0">Transferencias, préstamos e intercambio entre bodegas' +
       (neg.nombre ? ' · <strong>' + esc(neg.nombre) + '</strong>' : '') +
@@ -412,7 +411,7 @@
       '</div>' +
       '<div id="crozzo-fed-ui-body">' +
       renderBody() +
-      '</div>';
+      '</div>');
     bindPanel();
   }
 
@@ -441,13 +440,12 @@
       var draft = collectFormRemision();
       var val = eng.validarStockOrigen(draft);
       if (!val.ok && val.faltantes.length) {
-        warn.innerHTML =
-          '⚠ Stock insuficiente: ' +
+        warn.innerHTML = CrozzoSanitize.sanitizeHtml('⚠ Stock insuficiente: ' +
           val.faltantes
             .map(function (f) {
               return esc(f.producto) + ' (tiene ' + f.have + ', pide ' + f.need + ' ' + f.und + ')';
             })
-            .join(' · ');
+            .join(' · '));
       } else warn.textContent = '';
     }
   }
@@ -515,7 +513,7 @@
       ui.draftLineas = collectLineas();
       ui.draftLineas.push({ mpId: '', cantidad: '', und: 'kg' });
       var ed = document.getElementById('fedLineEditor');
-      if (ed) ed.innerHTML = renderLineEditor();
+      if (ed) ed.innerHTML = CrozzoSanitize.sanitizeHtml(renderLineEditor());
       bindPanelInputs();
       return;
     }

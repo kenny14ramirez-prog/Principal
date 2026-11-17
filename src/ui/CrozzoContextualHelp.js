@@ -162,12 +162,11 @@
 
     var wrapper = document.createElement('div');
     wrapper.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 0;border-top:1px solid #eee;';
-    wrapper.innerHTML =
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;">' +
+    wrapper.innerHTML = CrozzoSanitize.sanitizeHtml('<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;">' +
       '<input type="checkbox" id="contextualHelpToggle" ' + (_active ? 'checked' : '') + '> ' +
       '💡 Ayuda contextual (tooltips)' +
       '</label>' +
-      '<span style="font-size:0.75rem;color:#888;">Muestra descripciones al pasar el mouse</span>';
+      '<span style="font-size:0.75rem;color:#888;">Muestra descripciones al pasar el mouse</span>');
 
     container.appendChild(wrapper);
 

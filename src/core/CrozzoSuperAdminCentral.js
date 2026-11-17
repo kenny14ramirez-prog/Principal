@@ -349,8 +349,7 @@
     if (cfg.tarifas) cambios.push('Tarifas: actualizadas');
     if (cfg.impuestos) cambios.push('Impuestos: actualizados');
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">🔄 Nueva configuración disponible</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">🔄 Nueva configuración disponible</h2>' +
       '<p style="margin:0 0 12px;color:#666;font-size:0.9rem;">Se detectó una configuración más reciente en la nube (v' + pendiente.versionRemota + ' vs v' + pendiente.versionLocal + ').</p>' +
       '<div style="background:#f8f9fa;border-radius:8px;padding:12px;margin-bottom:16px;">' +
         '<strong style="font-size:0.85rem;">Cambios detectados:</strong><br>' +
@@ -360,7 +359,7 @@
       '<div style="display:flex;gap:8px;">' +
         '<button id="csAplicarBtn" style="flex:1;padding:12px;border:none;border-radius:8px;background:#2ecc71;color:#fff;cursor:pointer;font-size:1rem;">✅ Aplicar</button>' +
         '<button id="csIgnorarBtn" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">❌ Ignorar</button>' +
-      '</div>';
+      '</div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);

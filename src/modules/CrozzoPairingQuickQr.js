@@ -59,8 +59,7 @@
     if (typeof global.crozzoPairingShowQrSkeleton === 'function') {
       global.crozzoPairingShowQrSkeleton(QUICK_HOST_ID);
     } else {
-      host.innerHTML =
-        '<div class="crozzo-pairing-qr-skeleton" aria-busy="true"><p>Generando código cifrado…</p></div>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-pairing-qr-skeleton" aria-busy="true"><p>Generando código cifrado…</p></div>');
     }
     var prep =
       typeof global.crozzoPairingEnsureCajaReady === 'function'
@@ -87,15 +86,13 @@
           });
         }
         if (built.error) {
-          host.innerHTML =
-            '<p class="form-hint" style="text-align:center;margin:12px 0;">' + built.error + '</p>';
+          host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint" style="text-align:center;margin:12px 0;">' + built.error + '</p>');
           return false;
         }
         if (typeof global.crozzoPairingRenderScanQrIntoHost === 'function') {
           return global.crozzoPairingRenderScanQrIntoHost(host, built);
         }
-        host.innerHTML =
-          '<p class="form-hint" style="text-align:center;">Módulo de emparejamiento no listo. Recargue la app.</p>';
+        host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint" style="text-align:center;">Módulo de emparejamiento no listo. Recargue la app.</p>');
         return false;
       });
     });

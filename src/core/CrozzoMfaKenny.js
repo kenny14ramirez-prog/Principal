@@ -166,8 +166,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">🔐 Verificación MFA</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">🔐 Verificación MFA</h2>' +
       '<p style="margin:0 0 20px;color:#666;font-size:0.9rem;">Ingresa el código de 6 dígitos de Google Authenticator</p>' +
       '<input id="mfaCodeInput" type="text" maxlength="6" placeholder="000000" style="width:100%;padding:12px;font-size:1.5rem;text-align:center;letter-spacing:8px;border:2px solid #ddd;border-radius:8px;margin-bottom:16px;" autocomplete="off">' +
       '<div style="display:flex;gap:8px;">' +
@@ -175,7 +174,7 @@
         '<button id="mfaCancelBtn" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">Cancelar</button>' +
       '</div>' +
       '<div id="mfaError" style="margin-top:12px;color:#e74c3c;font-size:0.85rem;"></div>' +
-      '<p style="margin-top:16px;font-size:0.75rem;color:#999;">Dispositivo: ' + generarFingerprint() + '</p>';
+      '<p style="margin-top:16px;font-size:0.75rem;color:#999;">Dispositivo: ' + generarFingerprint() + '</p>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -292,8 +291,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">📱 Registrar dispositivo</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">📱 Registrar dispositivo</h2>' +
       '<p style="margin:0 0 20px;color:#666;font-size:0.9rem;">Este dispositivo no está registrado. Ingresa un nombre para identificarlo.</p>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">Nombre del dispositivo</label>' +
@@ -306,7 +304,7 @@
         '</div>' +
       '</div>' +
       '<div id="devRegError" style="margin-top:12px;color:#e74c3c;font-size:0.85rem;"></div>' +
-      '<p style="margin-top:16px;font-size:0.75rem;color:#999;">Fingerprint: ' + generarFingerprint() + '</p>';
+      '<p style="margin-top:16px;font-size:0.75rem;color:#999;">Fingerprint: ' + generarFingerprint() + '</p>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);

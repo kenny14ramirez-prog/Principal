@@ -1052,11 +1052,10 @@
     el.id = 'crozzoBackupNetAssistant';
     el.className = 'crozzo-backup-assistant';
     el.hidden = true;
-    el.innerHTML =
-      '<div class="crozzo-backup-assistant__card">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-backup-assistant__card">' +
       '<div class="crozzo-backup-assistant__msg" id="crozzoBackupAssistantMsg"></div>' +
       '<div class="crozzo-backup-assistant__actions" id="crozzoBackupAssistantActions"></div>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(el);
     __assistantEl = el;
     return el;
@@ -1076,18 +1075,14 @@
     var actEl = el.querySelector('#crozzoBackupAssistantActions');
     if (role === 'B') {
       var ssid = crozzoBackupSsidNote();
-      msgEl.innerHTML =
-        '<strong>Dispositivo aislado.</strong> No hay internet, red local ni otros equipos cerca. Todo se guarda aquí y se enviará al reconectar.' +
-        (ssid ? ' Red de respaldo conocida: <b>' + crozzoEscBasic(ssid) + '</b>.' : '');
-      actEl.innerHTML =
-        '<button type="button" class="btn btn-primary" id="crozzoBackupRetryBtn">Reintentar conexión</button>' +
-        '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>';
+      msgEl.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Dispositivo aislado.</strong> No hay internet, red local ni otros equipos cerca. Todo se guarda aquí y se enviará al reconectar.' +
+        (ssid ? ' Red de respaldo conocida: <b>' + crozzoEscBasic(ssid) + '</b>.' : ''));
+      actEl.innerHTML = CrozzoSanitize.sanitizeHtml('<button type="button" class="btn btn-primary" id="crozzoBackupRetryBtn">Reintentar conexión</button>' +
+        '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>');
     } else {
-      msgEl.innerHTML =
-        '<strong>Sin red.</strong> La caja sigue operando con normalidad. Active el hotspot de respaldo para que las tablets se reconecten.';
-      actEl.innerHTML =
-        '<button type="button" class="btn btn-primary" id="crozzoBackupHotspotBtn">Activar hotspot de respaldo</button>' +
-        '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>';
+      msgEl.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Sin red.</strong> La caja sigue operando con normalidad. Active el hotspot de respaldo para que las tablets se reconecten.');
+      actEl.innerHTML = CrozzoSanitize.sanitizeHtml('<button type="button" class="btn btn-primary" id="crozzoBackupHotspotBtn">Activar hotspot de respaldo</button>' +
+        '<button type="button" class="btn btn-outline" id="crozzoBackupDismissBtn">Entendido</button>');
     }
     var retry = el.querySelector('#crozzoBackupRetryBtn');
     if (retry) retry.onclick = function () {
@@ -2079,7 +2074,7 @@
     _state.entries = [];
     _state.root = global.document.getElementById('diagnostics-panel');
     var logs = global.document.getElementById('diagnostics-logs');
-    if (logs) logs.innerHTML = '';
+    if (logs) logs.innerHTML = CrozzoSanitize.sanitizeHtml('');
     global.document.getElementById('diag-run-all')?.addEventListener('click', function () {
       runAllTests();
     });
@@ -3559,11 +3554,11 @@
     updateLinkBadge();
     var list = global.document.getElementById('crozzoEmergencyPeerList');
     if (list) {
-      list.innerHTML = state.peers.length
+      list.innerHTML = CrozzoSanitize.sanitizeHtml(state.peers.length
         ? state.peers.map(function (p) {
             return '<li>' + (p.label || 'peer') + ' · ' + new Date(p.at).toLocaleTimeString() + '</li>';
           }).join('')
-        : '<li style="color:#94a3b8;">Sin par conectado</li>';
+        : '<li style="color:#94a3b8;">Sin par conectado</li>');
     }
     var st = global.document.getElementById('crozzoEmergencyStatusLine');
     if (st && state.lastCheck) {
@@ -3685,8 +3680,7 @@
     var sh = global.document.createElement('div');
     sh.id = 'crozzo-emergency-shell';
     sh.className = 'crozzo-emergency-shell';
-    sh.innerHTML =
-      '<div class="crozzo-emergency-inner">' +
+    sh.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-emergency-inner">' +
       '  <div class="crozzo-emergency-title">⚠️ MODO DESCENTRALIZADO · Supervivencia P2P</div>' +
       '  <div id="crozzoMeshLinkBadge" class="crozzo-mesh-link-badge stable">⚪ Sin enlace P2P</div>' +
       '  <div id="crozzoEmergencyStatusLine" class="crozzo-emergency-meta"></div>' +
@@ -3703,7 +3697,7 @@
       '    <button type="button" class="btn btn-outline" id="btnEmergencyScanOffer">📷 Escanear QR (Cocina)</button>' +
       '    <button type="button" class="btn btn-outline" id="btnEmergencyScanAnswer">📷 Escanear respuesta (Caja)</button>' +
       '  </div>' +
-      '</div>';
+      '</div>');
     global.document.body.appendChild(sh);
     sh.style.display = 'none';
     sh.setAttribute('hidden', '');

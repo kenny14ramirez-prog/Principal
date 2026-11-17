@@ -606,12 +606,12 @@
     var hud = root.querySelector('#crozzo-cmd-hud');
     if (hud) {
       var wrap = document.createElement('div');
-      wrap.innerHTML = renderHud(analysis);
+      wrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderHud(analysis));
       var newHud = wrap.firstElementChild;
       if (newHud) hud.replaceWith(newHud);
     }
     var matrix = root.querySelector('#crozzo-cmd-matrix-host');
-    if (matrix) matrix.innerHTML = renderMatrixPreview(state);
+    if (matrix) matrix.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrixPreview(state));
     var sim = root.querySelector('#crozzo-cmd-simulator');
     if (sim) {
       var activeRole =
@@ -619,7 +619,7 @@
           sim.querySelector('.crozzo-vault-sim__pill.is-active').getAttribute('data-sim-role')) ||
         'caja';
       var simWrap = document.createElement('div');
-      simWrap.innerHTML = renderRoleSimulator(state, activeRole);
+      simWrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderRoleSimulator(state, activeRole));
       var newSim = simWrap.firstElementChild;
       if (newSim) sim.replaceWith(newSim);
     }
@@ -695,14 +695,13 @@
         var view = document.getElementById('crozzo-cmd-sim-view');
         if (view) {
           var menus = getEnabledMenusForRole(st, role);
-          view.innerHTML =
-            menus.length > 0
+          view.innerHTML = CrozzoSanitize.sanitizeHtml(menus.length > 0
               ? menus
                   .map(function (mid) {
                     return '<span class="crozzo-vault-sim__chip">' + esc(menuLabel(mid)) + '</span>';
                   })
                   .join('')
-              : '<p class="crozzo-vault-sim__empty">Sin módulos para este rol.</p>';
+              : '<p class="crozzo-vault-sim__empty">Sin módulos para este rol.</p>');
         }
         var cnt = root.querySelector('.crozzo-vault-sim__count');
         if (cnt) cnt.textContent = menus.length + ' módulo(s)';
@@ -857,7 +856,7 @@
       document.body.appendChild(ov);
     }
     ov.className = 'crozzo-lab-pin-overlay crozzo-vault-pin-overlay';
-    ov.innerHTML = html;
+    ov.innerHTML = CrozzoSanitize.sanitizeHtml(html);
     ov.hidden = false;
     ov.removeAttribute('hidden');
     bindVaultPinInput(ov);
@@ -874,8 +873,7 @@
     var ov = document.createElement('div');
     ov.id = 'crozzo-vault-deploy-overlay';
     ov.className = 'crozzo-vault-deploy-overlay';
-    ov.innerHTML =
-      '<div class="crozzo-vault-deploy" role="dialog" aria-modal="true">' +
+    ov.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-vault-deploy" role="dialog" aria-modal="true">' +
       '<div class="crozzo-vault-deploy__glow" aria-hidden="true"></div>' +
       '<p class="crozzo-vault-deploy__eyebrow">CONFIRMAR DESPLIEGUE</p>' +
       '<h3>Autorizar cambios en producción</h3>' +
@@ -895,7 +893,7 @@
       '</strong></div></div>' +
       '<div class="crozzo-vault-deploy__actions">' +
       '<button type="button" class="btn btn-outline" id="crozzo-vault-deploy-cancel">Abortar</button>' +
-      '<button type="button" class="btn btn-primary crozzo-vault-deploy__go" id="crozzo-vault-deploy-go"><i data-lucide="rocket"></i> Desplegar ahora</button></div></div>';
+      '<button type="button" class="btn btn-primary crozzo-vault-deploy__go" id="crozzo-vault-deploy-go"><i data-lucide="rocket"></i> Desplegar ahora</button></div></div>');
     document.body.appendChild(ov);
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [ov] });

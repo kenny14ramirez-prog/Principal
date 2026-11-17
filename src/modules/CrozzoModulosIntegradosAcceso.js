@@ -148,7 +148,7 @@
       nudge: 'Elige tu nombre en la lista para continuar',
       empty: 'Aún no hay personal en este kiosk — el administrador puede cargar empleados en Panel admin',
     };
-    el.innerHTML = texts[acc.homeHintMode] || texts.default;
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(texts[acc.homeHintMode] || texts.default);
     el.className = 'ca-home-hint' + (acc.homeHintMode === 'nudge' ? ' ca-home-hint--nudge' : '');
     var grid = document.getElementById('ca-emp-grid');
     if (grid) {
@@ -227,12 +227,11 @@
     });
     if (!st().empleados.length) {
       updateHomeHint('empty');
-      g.innerHTML =
-        '<div class="ca-emp-empty">No hay empleados cargados.<br>Panel admin → pestaña <strong>Empleados</strong>.</div>';
+      g.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="ca-emp-empty">No hay empleados cargados.<br>Panel admin → pestaña <strong>Empleados</strong>.</div>');
       return;
     }
     if (acc.homeHintMode === 'empty') updateHomeHint('default');
-    g.innerHTML = list.length
+    g.innerHTML = CrozzoSanitize.sanitizeHtml(list.length
       ? list
       .map(function (e) {
         var stt = estadoEmpleado(e);
@@ -248,7 +247,7 @@
         );
       })
       .join('')
-      : '<div class="ca-emp-empty">Ningún nombre coincide con la búsqueda.</div>';
+      : '<div class="ca-emp-empty">Ningún nombre coincide con la búsqueda.</div>');
     g.classList.toggle('ca-nudge', acc.homeHintMode === 'nudge');
     g.querySelectorAll('[data-ca-emp]').forEach(function (card) {
       card.onclick = function () {
@@ -280,7 +279,7 @@
     if (nm) nm.textContent = emp.name;
     if (rl) rl.textContent = emp.cargo || '';
     if (act) act.textContent = 'Registrar ' + action;
-    if (msg) msg.innerHTML = renderMensajeHtml(acc.mensajeUniforme);
+    if (msg) msg.innerHTML = CrozzoSanitize.sanitizeHtml(renderMensajeHtml(acc.mensajeUniforme));
     updateConfirmButtons(true);
     acc.screen = 'confirm';
     document.querySelectorAll('.ca-screen').forEach(function (s) {
@@ -479,11 +478,10 @@
     var m = document.createElement('div');
     m.className = 'modal-overlay active';
     m.setAttribute('data-ca-foto-modal', '1');
-    m.innerHTML =
-      '<div class="modal" style="max-width:360px;text-align:center">' +
+    m.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="modal" style="max-width:360px;text-align:center">' +
       '<img src="' + esc(url) + '" style="width:100%;border-radius:12px;border:2px solid var(--accent)"/>' +
       '<p style="font-weight:700;margin:12px 0">' + esc(nombre) + '</p>' +
-      '<button type="button" class="btn btn-outline btn-sm" data-ca-close-foto>Cerrar</button></div>';
+      '<button type="button" class="btn btn-outline btn-sm" data-ca-close-foto>Cerrar</button></div>');
     document.body.appendChild(m);
     m.querySelector('[data-ca-close-foto]').onclick = function () { m.remove(); };
     m.onclick = function (e) { if (e.target === m) m.remove(); };
@@ -560,17 +558,15 @@
           );
         })
         .join('');
-      root.innerHTML =
-        '<table class="crozzo-int-table"><thead><tr><th>Foto</th><th>Empleado</th><th>Cargo</th><th>Tipo</th><th>Hora</th></tr></thead><tbody>' +
-        (rows || '<tr><td colspan="5">Sin marcaciones hoy</td></tr>') + '</tbody></table>';
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<table class="crozzo-int-table"><thead><tr><th>Foto</th><th>Empleado</th><th>Cargo</th><th>Tipo</th><th>Hora</th></tr></thead><tbody>' +
+        (rows || '<tr><td colspan="5">Sin marcaciones hoy</td></tr>') + '</tbody></table>');
       root.querySelectorAll('[data-foto]').forEach(function (img) {
         img.onclick = function () { verFoto(img.getAttribute('data-foto'), img.getAttribute('data-nom')); };
       });
       return;
     }
     if (acc.adminTab === 'empleados') {
-      root.innerHTML =
-        '<div style="display:grid;grid-template-columns:1fr 1fr 100px auto;gap:8px;margin-bottom:12px">' +
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="display:grid;grid-template-columns:1fr 1fr 100px auto;gap:8px;margin-bottom:12px">' +
         '<input id="ca-ne-name" class="form-input" placeholder="Nombre" /><input id="ca-ne-cargo" class="form-input" placeholder="Cargo" />' +
         '<input id="ca-ne-pin" class="form-input" placeholder="PIN" /><button type="button" class="btn btn-primary btn-sm" id="ca-ne-add">Agregar</button></div>' +
         '<button type="button" class="btn btn-outline btn-sm" id="ca-import-pl" style="margin-bottom:12px">Importar plantilla QyC (20)</button>' +
@@ -578,7 +574,7 @@
         st().empleados.map(function (e) {
           return '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.cargo || '') + '</td><td>' + esc(e.pin) + '</td></tr>';
         }).join('') +
-        '</tbody></table>';
+        '</tbody></table>');
       document.getElementById('ca-import-pl').onclick = importarPlantilla;
       document.getElementById('ca-ne-add').onclick = async function () {
         var name = String((document.getElementById('ca-ne-name') || {}).value || '').trim();
@@ -598,8 +594,7 @@
     }
     if (acc.adminTab === 'config') {
       var tg = st().intConfig.telegram || {};
-      root.innerHTML =
-        '<div class="form-group"><label>Mensaje antes de marcar (uniforme)</label><textarea id="ca-cfg-msg" class="form-input" rows="3">' + esc(acc.mensajeUniforme) + '</textarea></div>' +
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="form-group"><label>Mensaje antes de marcar (uniforme)</label><textarea id="ca-cfg-msg" class="form-input" rows="3">' + esc(acc.mensajeUniforme) + '</textarea></div>' +
         '<label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px"><input type="checkbox" id="ca-cfg-foto" ' + (acc.requiereFoto !== false ? 'checked' : '') + '> Exigir foto al marcar</label>' +
         '<label style="display:flex;align-items:center;gap:8px;margin:12px 0;font-size:13px"><input type="checkbox" id="ca-cfg-kiosk" ' + (acc.kioskFullscreen ? 'checked' : '') + '> Modo kiosk (pantalla completa, oculta menú POS)</label>' +
         '<div class="form-group"><label>Logo kiosk (opcional)</label><input type="file" id="ca-cfg-logo" accept="image/*" class="form-input"/>' +
@@ -610,7 +605,7 @@
         '<div class="form-group"><label>Chat id</label><input id="ca-tg-chat" class="form-input" value="' + esc(tg.chatId || '') + '"/></div>' +
         '<div class="form-group"><label>Clave panel admin kiosk</label><input id="ca-cfg-admin-pw" class="form-input" type="password" value="' + esc(st().intConfig.adminKioskPw || 'admin2024') + '" autocomplete="new-password"/></div>' +
         '<p style="font-size:11px;opacity:.65">Bucket Supabase: <code>fotos-marcaciones</code> (público). Ver docs/SUPABASE-STORAGE-FOTOS-MARCACIONES.sql</p>' +
-        '<button type="button" class="btn btn-primary" id="ca-cfg-save" style="margin-top:12px">Guardar</button>';
+        '<button type="button" class="btn btn-primary" id="ca-cfg-save" style="margin-top:12px">Guardar</button>');
       document.getElementById('ca-cfg-save').onclick = async function () {
         acc.mensajeUniforme = String((document.getElementById('ca-cfg-msg') || {}).value || '').trim();
         acc.requiereFoto = !!(document.getElementById('ca-cfg-foto') || {}).checked;
@@ -643,13 +638,12 @@
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:99999;';
       var box = document.createElement('div');
       box.style.cssText = 'background:#fff;padding:20px;border-radius:10px;min-width:280px;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.25);';
-      box.innerHTML =
-        '<p style="margin:0 0 10px;font-weight:600;font-size:0.95rem;">' + esc(String(message || '')) + '</p>' +
+      box.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="margin:0 0 10px;font-weight:600;font-size:0.95rem;">' + esc(String(message || '')) + '</p>' +
         '<input type="password" id="ca-prompt-input" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:12px;border:1px solid #ccc;border-radius:6px;" autofocus>' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
         '<button type="button" id="ca-prompt-cancel" class="btn btn-outline btn-sm">Cancelar</button>' +
         '<button type="button" id="ca-prompt-ok" class="btn btn-primary btn-sm">Aceptar</button>' +
-        '</div>';
+        '</div>');
       overlay.appendChild(box);
       document.body.appendChild(overlay);
       var inp = box.querySelector('#ca-prompt-input');

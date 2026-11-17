@@ -123,8 +123,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">📧 Correo de recuperación</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">📧 Correo de recuperación</h2>' +
       '<p style="margin:0 0 20px;color:#666;font-size:0.9rem;">Configura un correo para recuperar tu PIN si lo olvidas.</p>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">Correo electrónico</label>' +
@@ -134,7 +133,7 @@
           '<button id="emailConfigCancelBtn" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">Cancelar</button>' +
         '</div>' +
       '</div>' +
-      '<div id="emailConfigResult" style="margin-top:12px;font-size:0.85rem;"></div>';
+      '<div id="emailConfigResult" style="margin-top:12px;font-size:0.85rem;"></div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -163,12 +162,12 @@
             emailSent = sendRes.ok;
           }
 
-          resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
+          resultEl.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
             '<strong>✅ Correo guardado:</strong> ' + email + '<br>' +
             (emailSent
               ? '<span style="font-size:0.85rem;color:#155724;">📧 Código enviado a tu correo electrónico.</span>'
               : '<span style="font-size:0.85rem;color:#856404;">⚠️ No se pudo enviar por email. Código: <strong>' + codeRes.code + '</strong></span>') +
-            '</div>';
+            '</div>');
           // Mostrar campo para ingresar código
           resultEl.innerHTML += '<div style="margin-top:12px;">' +
             '<input id="emailVerifyCode" type="text" maxlength="6" placeholder="000000" style="width:100%;padding:10px;font-size:1.2rem;text-align:center;letter-spacing:4px;border:1px solid #ddd;border-radius:8px;">' +
@@ -183,8 +182,8 @@
                  var html = CrozzoEmailTemplates.templateBienvenida(email, 'Kenny');
                  CrozzoEmailTemplates.enviarEmail(email, 'Bienvenido a BONA origen', html);
                }
-              resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
-                '<strong>✅ Correo verificado:</strong> ' + email + '</div>';
+              resultEl.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
+                '<strong>✅ Correo verificado:</strong> ' + email + '</div>');
               if (typeof onSaved === 'function') onSaved(email);
             } else {
               resultEl.innerHTML += '<p style="color:#e74c3c;margin-top:8px;">' + (verifyRes.mensaje || 'Código incorrecto') + '</p>';
@@ -210,15 +209,14 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">🔑 Recuperar PIN</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 8px;font-size:1.3rem;color:#1a1a2e;">🔑 Recuperar PIN</h2>' +
       '<p style="margin:0 0 20px;color:#666;font-size:0.9rem;">Ingresa tu correo de recuperación para recibir un código.</p>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">Correo de recuperación</label>' +
         '<input id="recoveryEmail" type="email" placeholder="kenny@bonaorigen.co" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:1rem;">' +
         '<button id="recoverySendBtn" style="padding:12px;border:none;border-radius:8px;background:#3498db;color:#fff;cursor:pointer;font-size:1rem;">Enviar código</button>' +
       '</div>' +
-      '<div id="recoveryResult" style="margin-top:12px;font-size:0.85rem;"></div>';
+      '<div id="recoveryResult" style="margin-top:12px;font-size:0.85rem;"></div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -242,7 +240,7 @@
           emailSent = sendRes.ok;
         }
 
-        resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
+        resultEl.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
           '<strong>✅ Código enviado:</strong><br>' +
           (emailSent
             ? '<span style="font-size:0.85rem;color:#155724;">📧 Código de recuperación enviado a tu correo.</span>'
@@ -254,7 +252,7 @@
             '<label style="font-size:0.85rem;color:#555;">Nuevo PIN</label>' +
             '<input id="recoveryNewPin" type="password" placeholder="Nuevo PIN (mín. 6 caracteres)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">' +
             '<button id="recoverySubmitBtn" style="width:100%;padding:12px;border:none;border-radius:8px;background:#2ecc71;color:#fff;cursor:pointer;font-size:1rem;">Cambiar PIN</button>' +
-          '</div>';
+          '</div>');
 
         document.getElementById('recoverySubmitBtn').onclick = async function () {
           var code = document.getElementById('recoveryCode').value.trim();
@@ -271,8 +269,8 @@
               var html = CrozzoEmailTemplates.templateAlertaCambioPin(email, new Date().toLocaleString('es-CO'));
               CrozzoEmailTemplates.enviarEmail(email, '🔑 PIN actualizado — BONA origen', html);
             }
-            resultEl.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
-              '<strong>✅ PIN actualizado:</strong> ' + (recoverRes.mensaje || 'Puedes iniciar sesión con tu nuevo PIN.') + '</div>';
+            resultEl.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
+              '<strong>✅ PIN actualizado:</strong> ' + (recoverRes.mensaje || 'Puedes iniciar sesión con tu nuevo PIN.') + '</div>');
             setTimeout(function () { overlay.remove(); if (typeof onRecovered === 'function') onRecovered(); }, 3000);
           } else {
             resultEl.innerHTML += '<p style="color:#e74c3c;margin-top:8px;">' + (recoverRes.mensaje || 'Error al recuperar PIN.') + '</p>';

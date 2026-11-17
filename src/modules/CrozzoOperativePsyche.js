@@ -777,15 +777,14 @@
     wrap.className = 'crozzo-break-nudge';
     wrap.setAttribute('role', 'status');
     wrap.setAttribute('aria-live', 'polite');
-    wrap.innerHTML =
-      '<button type="button" class="crozzo-break-nudge__close" aria-label="Cerrar recordatorio" data-crozzo-act="crozzoDismissBreakNudge" data-crozzo-args="45">×</button>' +
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml('<button type="button" class="crozzo-break-nudge__close" aria-label="Cerrar recordatorio" data-crozzo-act="crozzoDismissBreakNudge" data-crozzo-args="45">×</button>' +
       '<p class="crozzo-break-nudge__text">' +
       escBreakHtml(line) +
       '</p>' +
       '<div class="crozzo-break-nudge__actions">' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOperativePsyche.ackBreakPause()">☕ Pausa</button>' +
       '<button type="button" class="btn btn-outline btn-sm" onclick="CrozzoOperativePsyche.snoozeBreakAndClose(90)">Más tarde</button>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(wrap);
     global.__crozzoBreakNudgeEl = wrap;
     try {
@@ -1291,8 +1290,7 @@
     host.setAttribute('aria-modal', 'true');
     host.setAttribute('aria-hidden', 'false');
     host.setAttribute('aria-labelledby', 'crozzoShiftWelcomeTitle');
-    host.innerHTML =
-      '<div class="crozzo-shift-welcome__modal">' +
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-shift-welcome__modal">' +
       (function () {
         try {
           if (global.CrozzoBonaOrigen && typeof global.CrozzoBonaOrigen.brandNameOnly === 'function') {
@@ -1320,7 +1318,7 @@
       '<span class="crozzo-shift-welcome__load-bar"></span></div></div>' +
       '<p class="crozzo-shift-welcome__status">Preparando su estación…</p>' +
       '<button type="button" class="btn btn-primary crozzo-shift-welcome__skip">Continuar</button>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(host);
     document.body.classList.add('crozzo-shift-welcome-open');
     requestAnimationFrame(function () {
@@ -1515,7 +1513,7 @@
     try {
       if (global.currentPage === 'inicio-operacion') {
         var hostInicio = document.getElementById('crozzo-peak-breathe-host');
-        if (hostInicio) hostInicio.innerHTML = '';
+        if (hostInicio) hostInicio.innerHTML = CrozzoSanitize.sanitizeHtml('');
         _peakStripActive = false;
         return;
       }
@@ -1525,7 +1523,7 @@
       if (getOperationalTempo() !== TEMPO_CALM) {
         if (_peakStripActive === false) return;
         _peakStripActive = false;
-        if (host) host.innerHTML = '';
+        if (host) host.innerHTML = CrozzoSanitize.sanitizeHtml('');
         return;
       }
       if (_peakStripActive === true && host && host.innerHTML) return;
@@ -1539,12 +1537,11 @@
         var anchor = chip || main;
         if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(host, anchor);
       }
-      host.innerHTML =
-        '<div class="crozzo-peak-breathe crozzo-peak-breathe--soft crozzo-calm-care-strip crozzo-calm-care-strip--enter" role="status" aria-live="polite">' +
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-peak-breathe crozzo-peak-breathe--soft crozzo-calm-care-strip crozzo-calm-care-strip--enter" role="status" aria-live="polite">' +
         '<span class="crozzo-calm-care-strip__icon" aria-hidden="true">🌿</span>' +
         '<span class="crozzo-calm-care-strip__txt">' +
         pickCalmCareLine() +
-        ' — sin prisa, todo queda respaldado.</span></div>';
+        ' — sin prisa, todo queda respaldado.</span></div>');
       return;
     }
     var s = getPsychState();
@@ -1552,7 +1549,7 @@
     if (!critical) {
       if (_peakStripActive === false) return;
       _peakStripActive = false;
-      if (host) host.innerHTML = '';
+      if (host) host.innerHTML = CrozzoSanitize.sanitizeHtml('');
       return;
     }
     if (_peakStripActive === true && host && host.innerHTML) return;
@@ -1571,8 +1568,7 @@
     var msg = critical
       ? 'Alta demanda — enfoque esencial. Cada acción queda registrada al instante.'
       : 'Ritmo activo — respuesta ágil con la precisión de siempre.';
-    host.innerHTML =
-      '<div class="crozzo-peak-breathe crozzo-peak-breathe--soft ' +
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-peak-breathe crozzo-peak-breathe--soft ' +
       stripCls +
       '" role="status" aria-live="polite">' +
       '<span aria-hidden="true">' +
@@ -1580,7 +1576,7 @@
       '</span>' +
       '<span>' +
       msg +
-      '</span></div>';
+      '</span></div>');
   }
 
   function maybeAffirmComandaFromToast(message) {
@@ -1628,7 +1624,7 @@
     } catch (_) {}
     _psycheChipHtmlCache = '';
     var host = document.getElementById('crozzo-psyche-chip-host');
-    if (host) host.innerHTML = '';
+    if (host) host.innerHTML = CrozzoSanitize.sanitizeHtml('');
   }
 
   function getSupportiveDupModalHtml(refLabel, dup) {
@@ -1920,10 +1916,10 @@
       _psycheChipHtmlCache = '';
       _peakStripActive = false;
       var peakHostShield = document.getElementById('crozzo-peak-breathe-host');
-      if (peakHostShield) peakHostShield.innerHTML = '';
+      if (peakHostShield) peakHostShield.innerHTML = CrozzoSanitize.sanitizeHtml('');
       var hShield = document.getElementById('crozzo-psyche-chip-host');
       if (hShield) {
-        hShield.innerHTML = '';
+        hShield.innerHTML = CrozzoSanitize.sanitizeHtml('');
         hShield.hidden = true;
       }
       return;
@@ -1932,10 +1928,10 @@
       _psycheChipHtmlCache = '';
       _peakStripActive = false;
       var peakHost = document.getElementById('crozzo-peak-breathe-host');
-      if (peakHost) peakHost.innerHTML = '';
+      if (peakHost) peakHost.innerHTML = CrozzoSanitize.sanitizeHtml('');
       var h0 = document.getElementById('crozzo-psyche-chip-host');
       if (h0) {
-        h0.innerHTML = '';
+        h0.innerHTML = CrozzoSanitize.sanitizeHtml('');
         h0.hidden = true;
       }
       return;
@@ -1955,7 +1951,7 @@
             document.body.appendChild(__conciergeHost);
           }
         }
-        __conciergeHost.innerHTML = __conciergeHtml;
+        __conciergeHost.innerHTML = CrozzoSanitize.sanitizeHtml(__conciergeHtml);
       }
     } catch (_) {}
     var hostVis = document.getElementById('crozzo-psyche-chip-host');
@@ -1964,7 +1960,7 @@
     if (!html) {
       _psycheChipHtmlCache = '';
       var h = document.getElementById('crozzo-psyche-chip-host');
-      if (h && h.innerHTML) h.innerHTML = '';
+      if (h && h.innerHTML) h.innerHTML = CrozzoSanitize.sanitizeHtml('');
       return;
     }
     var host = document.getElementById('crozzo-psyche-chip-host');
@@ -1977,7 +1973,7 @@
     }
     if (!force && html === _psycheChipHtmlCache && host.innerHTML === html) return;
     _psycheChipHtmlCache = html;
-    host.innerHTML = html;
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   }
 
   function getWellbeingSummary() {

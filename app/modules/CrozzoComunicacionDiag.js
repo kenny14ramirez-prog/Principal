@@ -1117,8 +1117,7 @@
     el.id = OVERLAY_ID;
     el.style.cssText =
       'position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif';
-    el.innerHTML =
-      '<div style="background:#fff;width:min(980px,96vw);max-height:90vh;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#fff;width:min(980px,96vw);max-height:90vh;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#1e3a8a;color:#fff">' +
       '<strong>Diagnóstico de comunicación en tiempo real</strong>' +
       '<button data-diag-close style="background:transparent;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1">×</button>' +
@@ -1129,7 +1128,7 @@
       '<button data-diag-retry style="padding:9px 14px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;cursor:pointer">Reintentar</button>' +
       '<button data-diag-repair style="padding:9px 16px;border:0;background:#16a34a;color:#fff;border-radius:8px;cursor:pointer;font-weight:700">Reparar automáticamente</button>' +
       '</div>' +
-      '</div>';
+      '</div>');
     doc.body.appendChild(el);
     el.addEventListener('click', function (e) {
       if (e.target === el || e.target.hasAttribute('data-diag-close')) close();
@@ -1164,10 +1163,10 @@
     var el = ensureOverlay();
     if (!el) return;
     var body = el.querySelector('[data-diag-body]');
-    body.innerHTML = '<div style="padding:24px;text-align:center;color:#555">Analizando…</div>';
+    body.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="padding:24px;text-align:center;color:#555">Analizando…</div>');
     var rep = await run();
     global.__crozzoLastDiag = rep;
-    body.innerHTML = reportHtml(rep);
+    body.innerHTML = CrozzoSanitize.sanitizeHtml(reportHtml(rep));
   }
 
   function open() {

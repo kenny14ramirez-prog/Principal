@@ -178,7 +178,7 @@
         if (!url) return;
         var qrHost = document.getElementById('crozzoCrmRegKioskQr');
         var statusEl = document.getElementById('crozzoCrmRegKioskStatus');
-        if (qrHost) qrHost.innerHTML = renderQrImg(url, qrSize || 280, 'crozzoCrmRegKioskQrCanvas');
+        if (qrHost) qrHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderQrImg(url, qrSize || 280, 'crozzoCrmRegKioskQrCanvas'));
         if (statusEl) {
           statusEl.textContent = formatExpiryLabel(cfg);
           statusEl.className = 'crozzo-crm-reg-kiosk__status is-on';
@@ -714,7 +714,7 @@
     setTimeout(function () {
       var host = document.getElementById(elId);
       if (!host) return;
-      host.innerHTML = '';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('');
       if (typeof global.QRCode !== 'undefined') {
         try {
           new global.QRCode(host, {
@@ -728,8 +728,7 @@
           return;
         } catch (_) {}
       }
-      host.innerHTML =
-        '<img src="https://api.qrserver.com/v1/create-qr-code/?size=' +
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<img src="https://api.qrserver.com/v1/create-qr-code/?size=' +
         sz +
         'x' +
         sz +
@@ -739,7 +738,7 @@
         sz +
         '" height="' +
         sz +
-        '" alt="QR registro cliente" style="image-rendering:pixelated;border-radius:8px;"/>';
+        '" alt="QR registro cliente" style="image-rendering:pixelated;border-radius:8px;"/>');
     }, 80);
     return (
       '<div id="' +
@@ -1000,11 +999,11 @@
         if (urlEl0) urlEl0.textContent = '';
         if (qrHost0) {
           if (isKiosk) {
-            qrHost0.innerHTML = renderCustomerKioskWaitHtml(true);
+            qrHost0.innerHTML = CrozzoSanitize.sanitizeHtml(renderCustomerKioskWaitHtml(true));
             if (act && act.needsFunction) notifyStaffQrPending();
             startKioskAutoRetry(qrSize);
           } else {
-            qrHost0.innerHTML = renderStaffQrWaitHtml();
+            qrHost0.innerHTML = CrozzoSanitize.sanitizeHtml(renderStaffQrWaitHtml());
           }
         }
         return null;
@@ -1086,16 +1085,15 @@
         if (qrHost) {
           var isKioskView = isCustomerKioskContext(statusId, qrHostId);
           if (url) {
-            qrHost.innerHTML = renderQrImg(url, qrSize || 196, qrHostId + 'Canvas');
+            qrHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderQrImg(url, qrSize || 196, qrHostId + 'Canvas'));
             if (isKioskView) stopKioskAutoRetry();
           } else if (isKioskView) {
-            qrHost.innerHTML = renderCustomerKioskWaitHtml(!!(cfg.token && !tokenExpired(cfg)));
+            qrHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderCustomerKioskWaitHtml(!!(cfg.token && !tokenExpired(cfg))));
             if (cfg.token && !tokenExpired(cfg)) startKioskAutoRetry(qrSize);
           } else if (cfg.token && !tokenExpired(cfg)) {
-            qrHost.innerHTML = renderStaffQrWaitHtml();
+            qrHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderStaffQrWaitHtml());
           } else {
-            qrHost.innerHTML =
-              '<p class="form-hint" style="text-align:center;margin:0;">Pulse <strong>Mostrar QR al cliente</strong></p>';
+            qrHost.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint" style="text-align:center;margin:0;">Pulse <strong>Mostrar QR al cliente</strong></p>');
           }
         }
         startPolling();
@@ -1113,11 +1111,11 @@
         }
         if (qrHost) {
           if (isCustomerKioskContext(statusId, qrHostId)) {
-            qrHost.innerHTML = renderCustomerKioskWaitHtml(true);
+            qrHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderCustomerKioskWaitHtml(true));
             notifyStaffQrPending();
             startKioskAutoRetry(qrSize);
           } else {
-            qrHost.innerHTML = renderStaffQrWaitHtml();
+            qrHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderStaffQrWaitHtml());
           }
         }
       });
@@ -1172,8 +1170,7 @@
     _kioskEl = document.createElement('div');
     _kioskEl.id = 'crozzoCrmRegKiosk';
     _kioskEl.className = 'crozzo-crm-reg-kiosk';
-    _kioskEl.innerHTML =
-      '<div class="crozzo-crm-reg-kiosk__inner">' +
+    _kioskEl.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-crm-reg-kiosk__inner">' +
       '<button type="button" class="crozzo-crm-reg-kiosk__close" id="crozzoCrmRegKioskClose" aria-label="Cerrar">✕</button>' +
       '<div class="crozzo-crm-reg-kiosk__hero">' +
       '<div class="crozzo-crm-reg-kiosk__logo">' +
@@ -1191,7 +1188,7 @@
       '</div>' +
       '<p id="crozzoCrmRegKioskStatus" class="crozzo-crm-reg-kiosk__status">Preparando codigo…</p>' +
       '<p class="crozzo-crm-reg-kiosk__foot">Valido 1 hora · Funciona con datos moviles</p>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(_kioskEl);
     document.body.classList.add('crozzo-crm-reg-kiosk-open');
     var closeBtn = document.getElementById('crozzoCrmRegKioskClose');
@@ -1250,7 +1247,7 @@
     if (parsed.ciudad && ciuEl) ciuEl.value = parsed.ciudad;
     if (parsed.direccion && dirEl) dirEl.value = parsed.direccion;
     if (parsed.email && list && typeof global.crozzoCrmEmailRowHtml === 'function') {
-      list.innerHTML = global.crozzoCrmEmailRowHtml(parsed.email, 'crozzoCrmNewEmailIn');
+      list.innerHTML = CrozzoSanitize.sanitizeHtml(global.crozzoCrmEmailRowHtml(parsed.email, 'crozzoCrmNewEmailIn'));
     }
     setTimeout(function () {
       if (typeof global.CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
@@ -1325,10 +1322,10 @@
     var anchor = document.getElementById('crozzoCrmRegMount');
     if (!anchor) return;
     if (!crmQrFeatureEnabled()) {
-      anchor.innerHTML = renderPanelHtmlLocked();
+      anchor.innerHTML = CrozzoSanitize.sanitizeHtml(renderPanelHtmlLocked());
       return;
     }
-    anchor.innerHTML = renderPanelHtml();
+    anchor.innerHTML = CrozzoSanitize.sanitizeHtml(renderPanelHtml());
     bindPanelEvents();
     refreshPanelUi();
   }

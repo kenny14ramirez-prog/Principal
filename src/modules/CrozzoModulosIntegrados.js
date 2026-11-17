@@ -514,7 +514,7 @@
       btn.onclick = function () {
         state.pedidosTab = btn.getAttribute('data-pi-tab');
         var p = document.getElementById('pi-panel');
-        if (p) p.innerHTML = renderPedidosPanel(state.pedidosTab);
+        if (p) p.innerHTML = CrozzoSanitize.sanitizeHtml(renderPedidosPanel(state.pedidosTab));
         document.querySelectorAll('[data-pi-tab]').forEach(function (b) {
           b.classList.toggle('active', b.getAttribute('data-pi-tab') === state.pedidosTab);
         });
@@ -535,15 +535,14 @@
           return '<div class="crozzo-int-emp" data-emp-pin="' + esc(e.pin) + '"><strong>' + esc(e.name) + '</strong><div style="font-size:11px;opacity:0.7">' + esc(e.cargo || '') + '</div>' + badge + '</div>';
         })
         .join('');
-      root.innerHTML =
-        '<p style="text-align:center;opacity:0.8;font-size:13px">Toque su nombre o ingrese PIN</p>' +
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="text-align:center;opacity:0.8;font-size:13px">Toque su nombre o ingrese PIN</p>' +
         '<div class="crozzo-int-grid" style="margin-bottom:16px">' + (grid || '<p>Sin empleados. Importe desde Admin.</p>') + '</div>' +
         '<div style="text-align:center;font-size:22px;letter-spacing:6px;margin:8px 0">' + (state.pinBuf ? '•'.repeat(state.pinBuf.length) : '—') + '</div>' +
         '<div class="crozzo-int-pin">' +
         [1, 2, 3, 4, 5, 6, 7, 8, 9, '⌫', 0, '✓'].map(function (k) {
           return '<button type="button" data-pin-k="' + k + '">' + k + '</button>';
         }).join('') +
-        '</div>';
+        '</div>');
       root.querySelectorAll('[data-emp-pin]').forEach(function (el) {
         el.onclick = function () {
           state.pinBuf = el.getAttribute('data-emp-pin') || '';
@@ -569,15 +568,13 @@
           return '<tr><td>' + esc(r.nombre) + '</td><td>' + esc(r.cargo || '') + '</td><td><span class="crozzo-int-badge ' + (r.tipo === 'entrada' ? 'in' : 'out') + '">' + r.tipo + '</span></td><td>' + hm + '</td></tr>';
         })
         .join('');
-      root.innerHTML =
-        '<table class="crozzo-int-table"><thead><tr><th>Empleado</th><th>Cargo</th><th>Tipo</th><th>Hora</th></tr></thead><tbody>' +
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<table class="crozzo-int-table"><thead><tr><th>Empleado</th><th>Cargo</th><th>Tipo</th><th>Hora</th></tr></thead><tbody>' +
         (rows || '<tr><td colspan="4">Sin marcaciones hoy</td></tr>') +
-        '</tbody></table>';
+        '</tbody></table>');
       return;
     }
     if (state.accesoTab === 'empleados') {
-      root.innerHTML =
-        '<p style="font-size:12px;opacity:0.75;margin-bottom:10px">Alta rápida. Para planilla completa use Nómina.</p>' +
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="font-size:12px;opacity:0.75;margin-bottom:10px">Alta rápida. Para planilla completa use Nómina.</p>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr 100px;gap:8px;margin-bottom:12px">' +
         '<input id="ne-name" class="form-input" placeholder="Nombre corto" />' +
         '<input id="ne-cargo" class="form-input" placeholder="Cargo" />' +
@@ -587,7 +584,7 @@
         state.empleados.map(function (e) {
           return '<tr><td>' + esc(e.name) + '</td><td>' + esc(e.cargo || '') + '</td><td>' + esc(e.pin) + '</td></tr>';
         }).join('') +
-        '</tbody></table>';
+        '</tbody></table>');
       var add = document.getElementById('ne-add');
       if (add) {
         add.onclick = async function () {
@@ -608,12 +605,11 @@
     }
     if (state.accesoTab === 'config') {
       var tg = state.intConfig.telegram || {};
-      root.innerHTML =
-        '<div class="form-group"><label>Telegram bot token (pedidos internos)</label><input id="ic-tg-token" class="form-input" value="' + esc(tg.botToken || '') + '" placeholder="123456:ABC..." /></div>' +
+      root.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="form-group"><label>Telegram bot token (pedidos internos)</label><input id="ic-tg-token" class="form-input" value="' + esc(tg.botToken || '') + '" placeholder="123456:ABC..." /></div>' +
         '<div class="form-group"><label>Telegram chat id</label><input id="ic-tg-chat" class="form-input" value="' + esc(tg.chatId || '') + '" /></div>' +
         '<div class="form-group"><label>Clave admin kiosk (opcional)</label><input id="ic-admin-pw" class="form-input" type="password" value="' + esc(state.intConfig.adminKioskPw || '') + '" /></div>' +
         '<button type="button" class="btn btn-primary" id="ic-save">Guardar configuración</button>' +
-        '<p style="font-size:11px;opacity:0.65;margin-top:12px">Ejecuta <code>docs/SUPABASE-SQL-INTEGRACION.sql</code> en tu proyecto Supabase del POS.</p>';
+        '<p style="font-size:11px;opacity:0.65;margin-top:12px">Ejecuta <code>docs/SUPABASE-SQL-INTEGRACION.sql</code> en tu proyecto Supabase del POS.</p>');
       document.getElementById('ic-save').onclick = async function () {
         state.intConfig.telegram = {
           botToken: String((document.getElementById('ic-tg-token') || {}).value || '').trim(),

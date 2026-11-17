@@ -1394,7 +1394,7 @@
         var cur = typeof global.crozzoGetPerfilEmpresa === 'function' ? global.crozzoGetPerfilEmpresa() : '';
         if (label) label.textContent = cur || '—';
         if (prev && global.CrozzoPerfilesOperativos && global.CrozzoPerfilesOperativos.renderRolePreview) {
-          prev.innerHTML = global.CrozzoPerfilesOperativos.renderRolePreview(cur);
+          prev.innerHTML = CrozzoSanitize.sanitizeHtml(global.CrozzoPerfilesOperativos.renderRolePreview(cur));
         }
         if (typeof global.crozzoRebuildMenusFromRoles === 'function') global.crozzoRebuildMenusFromRoles();
       });
@@ -1525,7 +1525,7 @@
         return false;
       }
       if (aiInsightsShouldSkipRemount(host, force)) return true;
-      host.innerHTML = CrozzoAiInsights.renderSuperAdminCardHtml();
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(CrozzoAiInsights.renderSuperAdminCardHtml());
       try {
         if (CrozzoAiInsights.bindSuperAdminCard) CrozzoAiInsights.bindSuperAdminCard();
       } catch (e) {
@@ -1544,22 +1544,20 @@
         paint();
       };
       s.onerror = function () {
-        host.innerHTML =
-          '<div class="card crozzo-ai-insights-admin" id="crozzoAiInsightsAdmin">' +
+        host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card crozzo-ai-insights-admin" id="crozzoAiInsightsAdmin">' +
           '<div class="card-header"><span class="card-title">✨ Inteligencia — Reporte IA (NVIDIA)</span></div>' +
           '<p class="form-hint" style="color:var(--danger,#b91c1c);">No se pudo cargar <code>modules/CrozzoAiInsights.js</code>. Ejecute <code>npm run sync</code> y reinicie Tauri.</p>' +
-          '</div>';
+          '</div>');
       };
       document.head.appendChild(s);
       return false;
     }
 
     if (!aiInsightsCardIsLive(host)) {
-      host.innerHTML =
-        '<div class="card crozzo-ai-insights-admin" id="crozzoAiInsightsAdmin">' +
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card crozzo-ai-insights-admin" id="crozzoAiInsightsAdmin">' +
         '<div class="card-header"><span class="card-title">✨ Inteligencia — Reporte IA (NVIDIA)</span></div>' +
         '<p class="form-hint" style="color:var(--danger,#b91c1c);">Módulo cargando… Si persiste, Ctrl+Shift+R tras <code>npm run sync</code>.</p>' +
-        '</div>';
+        '</div>');
     }
     return false;
   }
@@ -1719,7 +1717,7 @@
     var grid = hub.querySelector('.crozzo-nube-status-grid');
     if (grid) {
       var tmp = document.createElement('div');
-      tmp.innerHTML = renderStatusPanel();
+      tmp.innerHTML = CrozzoSanitize.sanitizeHtml(renderStatusPanel());
       var newGrid = tmp.querySelector('.crozzo-nube-status-grid');
       if (newGrid) grid.replaceWith(newGrid);
     }
@@ -1871,7 +1869,7 @@
       if (res && (res.ok || res.status === 200 || res.status === 206)) {
         writeSqlDone('device_qr_slots', true);
         var row = document.querySelector('[data-probe-table="crozzo_device_qr_slots"] .crozzo-nube-probe-status');
-        if (row) row.innerHTML = '<span class="badge badge-success">OK</span>';
+        if (row) row.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-success">OK</span>');
         updateDeviceQrStatusBadge('ok', 'Tabla lista. Pulse «Activar en este equipo» o recargue (F5).');
         if (global.CrozzoInternalQrRegistry && typeof global.CrozzoInternalQrRegistry.resetCloudQrTableMissing === 'function') {
           global.CrozzoInternalQrRegistry.resetCloudQrTableMissing();
@@ -1973,18 +1971,18 @@
                   : 'Perfiles en nube: ' + rowCount + ' usuario(s) con login por correo.';
             }
           }
-          if (row) row.innerHTML = '<span class="badge badge-success">' + okLbl + '</span>';
+          if (row) row.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-success">' + okLbl + '</span>');
         } else {
           if (p.required) failReq++;
           if (lv[lk]) lv[lk].falta.push(p.label || p.table);
           var lbl = res && res.status === 404 ? 'No existe' : 'HTTP ' + (res && res.status);
-          if (row) row.innerHTML = '<span class="badge badge-warning">' + lbl + '</span>';
+          if (row) row.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-warning">' + lbl + '</span>');
         }
       } catch (_) {
         var lk2 = p.level || (p.required ? 'critico' : 'opcional');
         if (p.required) failReq++;
         if (lv[lk2]) lv[lk2].falta.push(p.label || p.table);
-        if (row) row.innerHTML = '<span class="badge badge-warning">Error</span>';
+        if (row) row.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="badge badge-warning">Error</span>');
       }
     }
     // Veredicto claro por nivel: ¿está lista y adecuada la conexión?

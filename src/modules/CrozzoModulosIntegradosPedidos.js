@@ -307,11 +307,10 @@
     var host = document.getElementById('pi-historial');
     if (!host) return;
     if (!ped.historial.length) {
-      host.innerHTML = '<p class="form-hint" style="margin:0">Sin pedidos recientes.</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint" style="margin:0">Sin pedidos recientes.</p>');
       return;
     }
-    host.innerHTML =
-      '<div class="crozzo-rep-table-wrap"><table><thead><tr><th>Fecha</th><th>Área</th><th>Responsable</th><th>Ítems</th><th></th></tr></thead><tbody>' +
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-rep-table-wrap"><table><thead><tr><th>Fecha</th><th>Área</th><th>Responsable</th><th>Ítems</th><th></th></tr></thead><tbody>' +
       ped.historial
         .map(function (p, idx) {
           return (
@@ -329,7 +328,7 @@
           );
         })
         .join('') +
-      '</tbody></table></div>';
+      '</tbody></table></div>');
   }
 
   function saveAdminOverrides() {
@@ -349,7 +348,7 @@
 
   function rerenderPanel() {
     var p = document.getElementById('pi-panel');
-    if (p) p.innerHTML = renderPanel(ped.tab);
+    if (p) p.innerHTML = CrozzoSanitize.sanitizeHtml(renderPanel(ped.tab));
   }
 
   function onRootClick(ev) {

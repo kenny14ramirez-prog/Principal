@@ -956,11 +956,11 @@
     if (!el) return;
     if (!hits || !hits.length) {
       el.hidden = true;
-      el.innerHTML = '';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('');
       return;
     }
     el.hidden = false;
-    el.innerHTML = hits
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(hits
       .map(function (h) {
         return (
           '<button type="button" class="crozzo-nav-search-hit" role="option" data-page="' +
@@ -974,7 +974,7 @@
           '</span></button>'
         );
       })
-      .join('');
+      .join(''));
   }
 
   function clearNavSearch() {
@@ -1022,7 +1022,7 @@
     var hits = document.getElementById('crozzoNavSearchResults');
     if (hits) {
       hits.hidden = true;
-      hits.innerHTML = '';
+      hits.innerHTML = CrozzoSanitize.sanitizeHtml('');
     }
     var nav = getNav();
     if (nav) nav.classList.remove('crozzo-nav-search-nav-hidden');
@@ -1334,7 +1334,7 @@
         toggleBtn.className = 'menu-toggle menu-toggle-btn';
         toggleBtn.setAttribute('aria-label', 'Expandir o contraer menú lateral');
         toggleBtn.setAttribute('aria-controls', 'sidebar');
-        toggleBtn.innerHTML = '<span class="menu-toggle-icon" aria-hidden="true">☰</span>';
+        toggleBtn.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="menu-toggle-icon" aria-hidden="true"></span>');
         sb.insertBefore(toggleBtn, sb.firstChild);
       }
       if (toggleBtn._crozzoToggleBound) return;

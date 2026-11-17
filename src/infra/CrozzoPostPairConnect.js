@@ -112,8 +112,7 @@
     el.hidden = true;
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-live', 'polite');
-    el.innerHTML =
-      '<div class="crozzo-supreme-link__backdrop" aria-hidden="true"></div>' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-supreme-link__backdrop" aria-hidden="true"></div>' +
       '<div class="crozzo-supreme-link__particles" aria-hidden="true"></div>' +
       '<div class="crozzo-supreme-link__card">' +
       '<div class="crozzo-supreme-link__orb" aria-hidden="true"><span class="crozzo-supreme-link__orb-core"></span></div>' +
@@ -122,7 +121,7 @@
       '<p class="crozzo-supreme-link__lead" id="crozzoSupremeLead">Un escaneo · mil conexiones en marcha</p>' +
       '<ul class="crozzo-supreme-link__steps" id="crozzoSupremeSteps"></ul>' +
       '<p class="crozzo-supreme-link__foot" id="crozzoSupremeFoot"></p>' +
-      '</div>';
+      '</div>');
     global.document.body.appendChild(el);
     return el;
   }
@@ -130,7 +129,7 @@
   function renderSupremeSteps() {
     var list = global.document.getElementById('crozzoSupremeSteps');
     if (!list) return;
-    list.innerHTML = CASCADE_STEPS.map(function (s) {
+    list.innerHTML = CrozzoSanitize.sanitizeHtml(CASCADE_STEPS.map(function (s) {
       var st = __supreme.stepStates[s.id] || 'pending';
       return (
         '<li class="crozzo-supreme-link__step crozzo-supreme-link__step--' +
@@ -148,7 +147,7 @@
         '</span>' +
         '</span></li>'
       );
-    }).join('');
+    }).join(''));
   }
 
   function setStepState(stepId, state) {
@@ -407,13 +406,12 @@
     el.id = 'crozzoPostPairConnect';
     el.className = 'crozzo-backup-assistant crozzo-post-pair-connect';
     el.hidden = true;
-    el.innerHTML =
-      '<div class="crozzo-backup-assistant__card crozzo-post-pair-connect__card">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-backup-assistant__card crozzo-post-pair-connect__card">' +
       '<div class="crozzo-post-pair-connect__spinner" aria-hidden="true"></div>' +
       '<div class="crozzo-backup-assistant__msg" id="crozzoPostPairMsg"></div>' +
       '<div class="crozzo-post-pair-connect__wifi" id="crozzoPostPairWifi" hidden></div>' +
       '<div class="crozzo-backup-assistant__actions" id="crozzoPostPairActions"></div>' +
-      '</div>';
+      '</div>');
     global.document.body.appendChild(el);
     return el;
   }
@@ -432,12 +430,12 @@
     var msgEl = el.querySelector('#crozzoPostPairMsg');
     var wifiEl = el.querySelector('#crozzoPostPairWifi');
     var actEl = el.querySelector('#crozzoPostPairActions');
-    if (msgEl) msgEl.innerHTML = opts.message || '';
+    if (msgEl) msgEl.innerHTML = CrozzoSanitize.sanitizeHtml(opts.message || '');
     if (wifiEl) {
-      wifiEl.innerHTML = opts.wifiHtml || '';
+      wifiEl.innerHTML = CrozzoSanitize.sanitizeHtml(opts.wifiHtml || '');
       wifiEl.hidden = !opts.wifiHtml;
     }
-    if (actEl) actEl.innerHTML = opts.actionsHtml || '';
+    if (actEl) actEl.innerHTML = CrozzoSanitize.sanitizeHtml(opts.actionsHtml || '');
     wireOverlayActions(el);
     el.hidden = false;
     el.classList.add('is-open');

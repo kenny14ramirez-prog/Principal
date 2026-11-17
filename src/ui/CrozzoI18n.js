@@ -455,7 +455,7 @@
     var list = document.getElementById('userMenuLangList');
     if (!list) return;
     var items = searchLocales(filter);
-    list.innerHTML = items
+    list.innerHTML = CrozzoSanitize.sanitizeHtml(items
       .map(function (entry) {
         var active = entry.id === _locale;
         return (
@@ -477,7 +477,7 @@
           '</button></li>'
         );
       })
-      .join('');
+      .join(''));
     list.querySelectorAll('[data-locale-id]').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.preventDefault();

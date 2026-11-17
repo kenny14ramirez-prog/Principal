@@ -1328,7 +1328,7 @@
     var avatar = qClone(clone, 'userMenuAvatarInitial');
     if (avatar) avatar.textContent = String((decoy.label || decoy.user || 'U')).charAt(0).toUpperCase();
     wrap.appendChild(clone);
-    container.innerHTML = '';
+    container.innerHTML = CrozzoSanitize.sanitizeHtml('');
     container.appendChild(wrap);
     refreshLucide();
     return {
@@ -1342,7 +1342,7 @@
     if (!mounted || !mounted.main) return;
     var meta = VIEW_META[viewKey] || VIEW_META.cajero;
     ctx.sampleCart = buildSampleCart(ctx.catalog);
-    mounted.main.innerHTML = meta.render(ctx, decoy);
+    mounted.main.innerHTML = CrozzoSanitize.sanitizeHtml(meta.render(ctx, decoy));
     var title = qClone(mounted.clone, 'pageTitle');
     var subtitle = qClone(mounted.clone, 'pageSubtitle');
     if (title) title.textContent = meta.title;
@@ -1370,8 +1370,7 @@
     var mounted = mountAppClone(container, decoy, ctx);
     var rotTimer = null;
     if (!mounted) {
-      container.innerHTML =
-        '<p class="form-hint" style="padding:20px;">Cargando interfaz…</p>';
+      container.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint" style="padding:20px;">Cargando interfaz…</p>');
       return { stop: function () {} };
     }
     setHpView(mounted, 'cajero', decoy, ctx);

@@ -271,7 +271,7 @@
       el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow-y:auto;background:rgba(0,0,0,.9);color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:99998;display:none;border-top:2px solid #0f0;';
       var header = document.createElement('div');
       header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
-      header.innerHTML = '<span style="font-weight:bold;">Reporte de dispositivo</span><span style="cursor:pointer;" id="crozzoReportClose">X</span>';
+      header.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="font-weight:bold;">Reporte de dispositivo</span><span style="cursor:pointer;" id="crozzoReportClose">X</span>');
       el.appendChild(header);
       var content = document.createElement('div');
       content.id = 'crozzoReportContent';
@@ -314,7 +314,7 @@
       var menu = document.createElement('div');
       menu.id = 'crozzoReportMenu';
       menu.style.cssText = 'position:fixed;bottom:60px;right:10px;background:#fff;border:1px solid #ccc;border-radius:8px;padding:8px;z-index:100000;box-shadow:0 4px 12px rgba(0,0,0,.2);min-width:220px;';
-      menu.innerHTML = '<div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crShowPanel">Ver log en vivo</div><div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crDownload">Descargar reporte</div><div style="padding:10px;cursor:pointer;font-size:14px;" id="crShare">Compartir por WhatsApp</div>';
+      menu.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crShowPanel">Ver log en vivo</div><div style="padding:10px;cursor:pointer;border-bottom:1px solid #eee;font-size:14px;" id="crDownload">Descargar reporte</div><div style="padding:10px;cursor:pointer;font-size:14px;" id="crShare">Compartir por WhatsApp</div>');
       document.body.appendChild(menu);
       menu.querySelector('#crShowPanel').addEventListener('click', function() { togglePanel(); menu.remove(); });
       menu.querySelector('#crDownload').addEventListener('click', function() { downloadReport(); menu.remove(); });

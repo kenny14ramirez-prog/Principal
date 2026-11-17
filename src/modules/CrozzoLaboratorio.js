@@ -1253,7 +1253,7 @@
     if (typeof currentPage !== 'undefined' && currentPage === 'laboratorio-admin') {
       var el = document.getElementById('mainContent');
       if (el) {
-        el.innerHTML = renderMain();
+        el.innerHTML = CrozzoSanitize.sanitizeHtml(renderMain());
         initPage();
       }
     }
@@ -1283,7 +1283,7 @@
     var out = document.getElementById('crozzo-lab-stealth-out');
     if (!out) return;
     if (!r.ok) {
-      out.innerHTML = '<p class="form-hint">No se pudo rastrear.</p>';
+      out.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint">No se pudo rastrear.</p>');
       return;
     }
     var rows = (r.candidates || [])
@@ -1314,8 +1314,7 @@
         );
       })
       .join('');
-    out.innerHTML =
-      '<div class="crozzo-lab-projection-banner">' +
+    out.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-lab-projection-banner">' +
       '<strong>Pool sigiloso:</strong> ' +
       r.poolSize +
       ' facturas de ' +
@@ -1333,7 +1332,7 @@
         ? '<h4>Top menos detectables</h4><div class="crozzo-lab-sim-table-wrap"><table class="crozzo-lab-sim-table"><thead><tr><th>Fact.</th><th>Día</th><th>Total</th><th>Sigilo</th><th>Toler.</th><th>Corte sugerido</th><th>Cuándo</th></tr></thead><tbody>' +
           rows +
           '</tbody></table></div><p class="form-hint">Sigilo alto = ticket chico + corte pequeño + tolerancia alta. Priorice las primeras filas.</p>'
-        : '<p class="form-hint">Sin candidatas sigilosas en este periodo — revise tips arriba para ampliar elegibles.</p>');
+        : '<p class="form-hint">Sin candidatas sigilosas en este periodo — revise tips arriba para ampliar elegibles.</p>'));
     if (typeof showToast === 'function') showToast(r.poolSize + ' facturas sigilosas encontradas', 'info');
     refreshIcons();
   };
@@ -1348,7 +1347,7 @@
     if (!c) return;
     var r = c.runObviousnessAudit({ source: global.crozzoLabAuditSource() });
     var out = document.getElementById('crozzo-lab-audit-report-out');
-    if (out) out.innerHTML = formatObviousnessReport(r);
+    if (out) out.innerHTML = CrozzoSanitize.sanitizeHtml(formatObviousnessReport(r));
     if (typeof showToast === 'function') {
       showToast(r.visibilityLabel + ' · ' + r.obviousScore + '/100 obviedad', r.verdict === 'ok' ? 'success' : 'warning');
     }
@@ -1360,7 +1359,7 @@
     if (!c) return;
     var r = c.runComfortAudit({ source: global.crozzoLabAuditSource() });
     var out = document.getElementById('crozzo-lab-audit-report-out');
-    if (out) out.innerHTML = formatComfortReport(r);
+    if (out) out.innerHTML = CrozzoSanitize.sanitizeHtml(formatComfortReport(r));
     if (typeof showToast === 'function') {
       showToast(r.comfortLabel + ' · ' + r.comfortScore + '/100 confianza', r.verdict === 'ok' ? 'success' : 'warning');
     }
@@ -1372,7 +1371,7 @@
     if (!c) return;
     var pack = c.runDecisionAudits({ source: global.crozzoLabAuditSource() });
     var out = document.getElementById('crozzo-lab-audit-report-out');
-    if (out) out.innerHTML = formatObviousnessReport(pack.obvious) + formatComfortReport(pack.comfort);
+    if (out) out.innerHTML = CrozzoSanitize.sanitizeHtml(formatObviousnessReport(pack.obvious) + formatComfortReport(pack.comfort));
     if (typeof showToast === 'function') showToast('Auditoría completa generada', 'info');
     refreshIcons();
   };
@@ -1406,8 +1405,7 @@
       ov.className = 'crozzo-lab-pin-overlay';
       document.body.appendChild(ov);
     }
-    ov.innerHTML =
-      '<div class="crozzo-lab-pin-modal crozzo-lab-archive-modal" role="dialog">' +
+    ov.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-lab-pin-modal crozzo-lab-archive-modal" role="dialog">' +
       '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseArchiveCopy()" aria-label="Cerrar"><i data-lucide="x"></i></button>' +
       '<h3>Copia archivada · #' +
       esc(f.consecutivo || '—') +
@@ -1426,7 +1424,7 @@
       esc(f.uuid || '—') +
       '</p>' +
       linesHtml +
-      '</div>';
+      '</div>');
     ov.hidden = false;
     refreshIcons();
   };
@@ -1451,14 +1449,13 @@
       ov = document.createElement('div');
       ov.id = 'crozzo-lab-change-pin-overlay';
       ov.className = 'crozzo-lab-pin-overlay';
-      ov.innerHTML =
-        '<div class="crozzo-lab-pin-modal" role="dialog">' +
+      ov.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-lab-pin-modal" role="dialog">' +
         '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseChangePin()"><i data-lucide="x"></i></button>' +
         '<h3>Nuevo PIN (4 dígitos)</h3>' +
         '<input type="password" id="crozzo-lab-new-pin" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric">' +
         '<input type="password" id="crozzo-lab-new-pin2" class="form-input crozzo-lab-pin-input" maxlength="4" inputmode="numeric" placeholder="Confirmar">' +
         '<button type="button" class="btn btn-primary" onclick="crozzoLabSaveNewPin()">Guardar</button>' +
-        '<button type="button" class="btn btn-link btn-sm" onclick="crozzoLabChangePin()">Restablecer PIN de fábrica</button></div>';
+        '<button type="button" class="btn btn-link btn-sm" onclick="crozzoLabChangePin()">Restablecer PIN de fábrica</button></div>');
       document.body.appendChild(ov);
     }
     ov.hidden = false;
@@ -1567,7 +1564,7 @@
         if (typeof renderPage === 'function' && typeof currentPage !== 'undefined' && currentPage === 'laboratorio-admin') {
           var el = document.getElementById('mainContent');
           if (el) {
-            el.innerHTML = renderMain();
+            el.innerHTML = CrozzoSanitize.sanitizeHtml(renderMain());
             initPage();
           }
         }
@@ -1591,7 +1588,7 @@
     if (r.ok) {
       if (typeof showToast === 'function') showToast('PIN configurado', 'success');
       if (typeof renderPage === 'function' && currentPage === 'laboratorio-admin') {
-        document.getElementById('mainContent').innerHTML = renderMain();
+        document.getElementById('mainContent').innerHTML = CrozzoSanitize.sanitizeHtml(renderMain());
         initPage();
       }
     } else if (typeof showToast === 'function') {
@@ -1638,14 +1635,13 @@
     var r = c.buildMonthProjection(h, p);
     var out = document.getElementById('crozzo-lab-projection-out');
     if (out && r.projections) {
-      out.innerHTML =
-        '<h4>Proyecciones</h4><ul class="crozzo-lab-list">' +
+      out.innerHTML = CrozzoSanitize.sanitizeHtml('<h4>Proyecciones</h4><ul class="crozzo-lab-list">' +
         r.projections
           .map(function (m) {
             return '<li><strong>' + m.label + '</strong> · ' + m.month + ' · Total ' + fmt(m.total) + ' · ' + m.days.length + ' días</li>';
           })
           .join('') +
-        '</ul>';
+        '</ul>');
     }
     if (typeof showToast === 'function') showToast('Proyección calculada', 'success');
   };
@@ -1678,15 +1674,14 @@
       ov.id = 'crozzo-lab-wizard-overlay';
       ov.className = 'crozzo-lab-pin-overlay';
       ov.hidden = true;
-      ov.innerHTML =
-        '<div class="crozzo-lab-wizard" role="dialog" aria-modal="true">' +
+      ov.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-lab-wizard" role="dialog" aria-modal="true">' +
         '<button type="button" class="crozzo-lab-pin-close" onclick="crozzoLabCloseWizard()" aria-label="Cerrar"><i data-lucide="x"></i></button>' +
         '<div class="crozzo-lab-wizard__progress" id="crozzo-lab-wizard-progress"></div>' +
         '<div id="crozzo-lab-wizard-body" class="crozzo-lab-wizard__body"></div>' +
         '<div class="crozzo-lab-wizard__foot">' +
         '<button type="button" class="btn btn-outline" id="crozzo-lab-wizard-back" onclick="crozzoLabWizardBack()">Atrás</button>' +
         '<button type="button" class="btn btn-primary" id="crozzo-lab-wizard-next" onclick="crozzoLabWizardNext()">Continuar</button>' +
-        '</div></div>';
+        '</div></div>');
       document.body.appendChild(ov);
     }
     return ov;
@@ -1699,7 +1694,7 @@
     for (var i = 0; i < total; i++) {
       dots += '<span class="crozzo-lab-wizard__dot' + (i <= step ? ' is-done' : '') + '"></span>';
     }
-    el.innerHTML = '<span class="crozzo-lab-wizard__label">Paso ' + (step + 1) + ' de ' + total + '</span><div class="crozzo-lab-wizard__dots">' + dots + '</div>';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-lab-wizard__label">Paso ' + (step + 1) + ' de ' + total + '</span><div class="crozzo-lab-wizard__dots">' + dots + '</div>');
   }
 
   global.crozzoLabOpenWizard = function (state) {
@@ -1716,7 +1711,7 @@
     if (!st) return;
     renderWizardProgress(st.step, st.total);
     var body = document.getElementById('crozzo-lab-wizard-body');
-    if (body) body.innerHTML = st.steps[st.step].html;
+    if (body) body.innerHTML = CrozzoSanitize.sanitizeHtml(st.steps[st.step].html);
     var back = document.getElementById('crozzo-lab-wizard-back');
     var next = document.getElementById('crozzo-lab-wizard-next');
     if (back) back.hidden = st.step === 0;
@@ -1791,7 +1786,7 @@
     crozzoLabRefresh();
     setTimeout(function () {
       var outEmu = document.getElementById('crozzo-lab-emu-analysis-out');
-      if (outEmu) outEmu.innerHTML = html;
+      if (outEmu) outEmu.innerHTML = CrozzoSanitize.sanitizeHtml(html);
       crozzoLabSwitchTab('patrones');
     }, 80);
   };
@@ -2030,7 +2025,7 @@
     crozzoLabSwitchTab('tope');
     var el = document.getElementById('mainContent');
     if (el && typeof renderPage === 'function' && currentPage === 'laboratorio-admin') {
-      el.innerHTML = renderMain();
+      el.innerHTML = CrozzoSanitize.sanitizeHtml(renderMain());
       initPage();
       crozzoLabSwitchTab('tope');
     }
@@ -2065,7 +2060,7 @@
       showToast(msg, 'success');
     }
     if (typeof renderPage === 'function' && currentPage === 'laboratorio-admin') {
-      document.getElementById('mainContent').innerHTML = renderMain();
+      document.getElementById('mainContent').innerHTML = CrozzoSanitize.sanitizeHtml(renderMain());
       initPage();
       crozzoLabSwitchTab('vista');
     }
@@ -2077,7 +2072,7 @@
     c.clearOperMask({ keepConfig: true, reason: 'ui_clear' });
     if (typeof showToast === 'function') showToast('Máscara operativa limpiada', 'info');
     if (typeof renderPage === 'function' && currentPage === 'laboratorio-admin') {
-      document.getElementById('mainContent').innerHTML = renderMain();
+      document.getElementById('mainContent').innerHTML = CrozzoSanitize.sanitizeHtml(renderMain());
       initPage();
       crozzoLabSwitchTab('vista');
     }
@@ -2115,7 +2110,7 @@
       ov.className = 'crozzo-lab-pin-overlay';
       document.body.appendChild(ov);
     }
-    ov.innerHTML = gateHtml;
+    ov.innerHTML = CrozzoSanitize.sanitizeHtml(gateHtml);
     ov.hidden = false;
     ov.removeAttribute('hidden');
     bindLabPinInputs(ov);
@@ -2131,7 +2126,7 @@
     if (ov) {
       ov.hidden = true;
       ov.setAttribute('hidden', '');
-      ov.innerHTML = '';
+      ov.innerHTML = CrozzoSanitize.sanitizeHtml('');
       ov.style.removeProperty('display');
       ov.style.removeProperty('pointer-events');
     }
@@ -2215,7 +2210,7 @@
     var level = num(document.getElementById('crozzo-lab-sim-level') && document.getElementById('crozzo-lab-sim-level').value) || 3;
     var ev = c.evaluateMarginTarget(Object.assign({ level: level }, simOpts));
     var out = document.getElementById('crozzo-lab-margin-out');
-    if (out) out.innerHTML = (ev.projection ? formatProjectionBanner(ev.projection) : '') + formatMarginAlert(ev, 'periodo analizado');
+    if (out) out.innerHTML = CrozzoSanitize.sanitizeHtml((ev.projection ? formatProjectionBanner(ev.projection) : '') + formatMarginAlert(ev, 'periodo analizado'));
     if (typeof showToast === 'function') {
       if (ev.feasible) showToast('Margen alcanzable con ' + ev.levelLabel, 'success');
       else showToast('No se logra el 100% · faltan ' + fmt(ev.gap), 'warning');
@@ -2249,8 +2244,7 @@
     var anyGap = rows.some(function (r) {
       return r.sim && r.sim.gapPct > 0;
     });
-    out.innerHTML =
-      (projection ? formatProjectionBanner(projection) : '') +
+    out.innerHTML = CrozzoSanitize.sanitizeHtml((projection ? formatProjectionBanner(projection) : '') +
       (anyGap
         ? '<div class="crozzo-lab-margin-alert crozzo-lab-margin-alert--warn"><strong>Al menos un nivel no cubre el 100% de la meta.</strong> Revise la columna «Sin cubrir» — el sistema intentará acercarse pero no inventa facturas elegibles.</div>'
         : '') +
@@ -2314,7 +2308,7 @@
         })
         .join('') +
       '</tbody></table></div>' +
-      '<p class="form-hint"><strong>Tolerancia</strong> = qué tan invisible es el ajuste · <strong>Detectabilidad</strong> = riesgo de que operación note la diferencia · <strong>Cap. máx.</strong> = cuánto podría ocultar este nivel si empujara al límite.</p>';
+      '<p class="form-hint"><strong>Tolerancia</strong> = qué tan invisible es el ajuste · <strong>Detectabilidad</strong> = riesgo de que operación note la diferencia · <strong>Cap. máx.</strong> = cuánto podría ocultar este nivel si empujara al límite.</p>');
     refreshIcons();
   };
 
@@ -2374,8 +2368,7 @@
         );
       })
       .join('');
-    out.innerHTML =
-      (projection ? formatProjectionBanner(projection) : '') +
+    out.innerHTML = CrozzoSanitize.sanitizeHtml((projection ? formatProjectionBanner(projection) : '') +
       (sim.totalGap > 0 ? formatMarginAlert(c.evaluateMarginTarget(Object.assign({ level: level }, simOpts)), 'periodo') : '') +
       '<h4>' +
       esc(sim.levelConfig.label) +
@@ -2400,7 +2393,7 @@
       '<div class="crozzo-lab-sim-table-wrap"><table class="crozzo-lab-sim-table crozzo-lab-sim-table--detail"><thead><tr>' +
       '<th>Día</th><th>Fiscal</th><th>Recorte</th><th>Operativo</th><th>#Fact.</th><th>Tol.</th><th>Facturas tocadas</th></tr></thead><tbody>' +
       dayRows +
-      '</tbody></table></div>';
+      '</tbody></table></div>');
     refreshIcons();
   };
 

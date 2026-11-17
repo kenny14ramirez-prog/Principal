@@ -1915,11 +1915,11 @@
     var from = String(fromEl.value || '').slice(0, 10);
     var to = String(toEl.value || '').slice(0, 10);
     if (!from || !to) {
-      host.innerHTML = '<p class="crozzo-rep-empty">Indique fechas válidas.</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-rep-empty">Indique fechas válidas.</p>');
       return;
     }
     if (to < from) {
-      host.innerHTML = '<p class="crozzo-rep-empty">«Hasta» debe ser ≥ «Desde».</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-rep-empty">«Hasta» debe ser ≥ «Desde».</p>');
       return;
     }
     var report = buildOperativoReport({
@@ -1928,7 +1928,7 @@
       toYmd: to,
     });
     if (kpisEl) {
-      kpisEl.innerHTML = (report.kpis || [])
+      kpisEl.innerHTML = CrozzoSanitize.sanitizeHtml((report.kpis || [])
         .map(function (k) {
           return (
             '<div class="crozzo-rep-operativo__kpi"><div class="val">' +
@@ -1938,7 +1938,7 @@
             '</div></div>'
           );
         })
-        .join('');
+        .join(''));
     }
     if (hintEl) {
       if (report.hint) {
@@ -1949,7 +1949,7 @@
         hintEl.textContent = '';
       }
     }
-    host.innerHTML = renderOperativoTable(report);
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderOperativoTable(report));
   }
 
   function bindOperativoPanel(root) {
@@ -2213,8 +2213,7 @@
     var m = computeMetrics();
     var kpiHost = document.getElementById('crozzo-rep-staff-kpis');
     if (kpiHost) {
-      kpiHost.innerHTML =
-        '<div class="crozzo-rep-kpi"><div class="val">' +
+      kpiHost.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-rep-kpi"><div class="val">' +
         m.faultsTotal +
         '</div><div class="sub">Faltas cocina (mesas)</div><div class="lbl">Llamados mesero</div></div>' +
         '<div class="crozzo-rep-kpi"><div class="val">' +
@@ -2243,24 +2242,24 @@
             '</div><div class="sub">' +
             m.mesaAnalytics.totalMesas +
             ' mesas</div><div class="lbl">Mesas activas</div></div>'
-          : '');
+          : ''));
     }
     var bal = document.getElementById('crozzo-rep-staff-balance');
-    if (bal) bal.innerHTML = renderBalanceBlock(m);
+    if (bal) bal.innerHTML = CrozzoSanitize.sanitizeHtml(renderBalanceBlock(m));
     var del = document.getElementById('crozzo-rep-staff-deleted');
-    if (del) del.innerHTML = renderDeletedList(m.deletedList);
+    if (del) del.innerHTML = CrozzoSanitize.sanitizeHtml(renderDeletedList(m.deletedList));
     var top = document.getElementById('crozzo-rep-staff-top');
-    if (top) top.innerHTML = renderTopList(m.topSoldList);
+    if (top) top.innerHTML = CrozzoSanitize.sanitizeHtml(renderTopList(m.topSoldList));
     var mes = document.getElementById('crozzo-rep-staff-meseros');
-    if (mes) mes.innerHTML = renderStaffTable(m.meseroRows, 'mesero');
+    if (mes) mes.innerHTML = CrozzoSanitize.sanitizeHtml(renderStaffTable(m.meseroRows, 'mesero'));
     var caj = document.getElementById('crozzo-rep-staff-cajeros');
-    if (caj) caj.innerHTML = renderStaffTable(m.cajeroRows, 'cajero');
+    if (caj) caj.innerHTML = CrozzoSanitize.sanitizeHtml(renderStaffTable(m.cajeroRows, 'cajero'));
     var pan = document.getElementById('crozzo-rep-staff-pantallas');
-    if (pan) pan.innerHTML = renderPantallasBlock(m.pantallaRows);
+    if (pan) pan.innerHTML = CrozzoSanitize.sanitizeHtml(renderPantallasBlock(m.pantallaRows));
     var mesasHost = document.getElementById('crozzo-rep-staff-mesas');
-    if (mesasHost && m.mesaAnalytics) mesasHost.innerHTML = renderMesasBlock(m.mesaAnalytics);
+    if (mesasHost && m.mesaAnalytics) mesasHost.innerHTML = CrozzoSanitize.sanitizeHtml(renderMesasBlock(m.mesaAnalytics));
     var ads = document.getElementById('crozzo-rep-staff-mesa-ads');
-    if (ads && m.mesaAnalytics) ads.innerHTML = renderMesaAdsBlock(m.mesaAnalytics.adRecommendations);
+    if (ads && m.mesaAnalytics) ads.innerHTML = CrozzoSanitize.sanitizeHtml(renderMesaAdsBlock(m.mesaAnalytics.adRecommendations));
   }
 
   function exportCsv() {
