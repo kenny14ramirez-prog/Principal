@@ -863,6 +863,10 @@
     // usuario no tiene entrada visible a la paleta: mostramos el flotante.
     try {
       var b = ensureFab();
+      if (isLoginOpen()) {
+        b.classList.remove('is-on');
+        return;
+      }
       var visible = false;
       if (healthEl) {
         var r = healthEl.getBoundingClientRect();
@@ -870,6 +874,21 @@
       }
       b.classList.toggle('is-on', !visible);
     } catch (_) {}
+  }
+
+  var fabQueued = false;
+  function queueSyncFab() {
+    if (fabQueued) return;
+    fabQueued = true;
+    try {
+      global.requestAnimationFrame(function () {
+        fabQueued = false;
+        syncFab();
+      });
+    } catch (_) {
+      fabQueued = false;
+      syncFab();
+    }
   }
 
   /* ── 10. Perro guardián de pantalla en blanco ────────────────────────── */
@@ -998,7 +1017,13 @@
     installOutsideClose();
     try { mountHealth(); } catch (_) {}
     try { syncFab(); } catch (_) {}
-    global.addEventListener('resize', function () { syncFab(); refreshHealth(); });
+    global.addEventListener('resize', function () { queueSyncFab(); refreshHealth(); });
+    // El login abre/cierra cambiando clases del body: mantenemos el flotante
+    // alineado con el estado real de la sesión (con debounce por frame).
+    try {
+      new global.MutationObserver(queueSyncFab)
+        .observe(doc.body, { attributes: true, attributeFilter: ['class'] });
+    } catch (_) {}
     // Refresco periódico de la insignia (ligero, sin red)
     healthTimer = global.setInterval(function () { refreshHealth(); syncFab(); }, 20000);
     // Reintentar montaje de la insignia si el header se re-renderiza.
