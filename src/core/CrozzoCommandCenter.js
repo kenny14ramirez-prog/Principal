@@ -121,52 +121,56 @@
   function actionCommands() {
     var out = [];
 
-    out.push({
-      id: 'action:deploy',
-      group: 'Acciones',
-      glyph: '🚀',
-      label: 'Abrir Centro de Despliegue',
-      hint: 'Despliegue',
-      keywords: 'deployment setup wizard instalacion',
-      run: function () {
-        if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
-          global.CrozzoDeploymentCenter.abrir();
-          if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('deploy');
-        } else {
-          toast('Centro de Despliegue no disponible', 'warning');
-        }
-      },
-    });
+    var isSA = (typeof isSuperAdminUser === 'function') ? isSuperAdminUser() : false;
 
-    out.push({
-      id: 'action:solver',
-      group: 'Acciones',
-      glyph: '🔧',
-      label: 'Solucionador de problemas',
-      hint: 'Despliegue',
-      keywords: 'solver soporte impresora conexion reparar',
-      run: function () {
-        if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
-          global.CrozzoDeploymentCenter.abrir();
-          if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('solver');
-        }
-      },
-    });
+    if (isSA) {
+      out.push({
+        id: 'action:deploy',
+        group: 'Acciones',
+        glyph: '',
+        label: 'Abrir Centro de Despliegue',
+        hint: 'Despliegue',
+        keywords: 'deployment setup wizard instalacion',
+        run: function () {
+          if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
+            global.CrozzoDeploymentCenter.abrir();
+            if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('deploy');
+          } else {
+            toast('Centro de Despliegue no disponible', 'warning');
+          }
+        },
+      });
 
-    out.push({
-      id: 'action:diagnostic',
-      group: 'Acciones',
-      glyph: '🔍',
-      label: 'Diagnóstico del sistema',
-      hint: 'Despliegue',
-      keywords: 'diagnostico salud monitor estado reporte',
-      run: function () {
-        if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
-          global.CrozzoDeploymentCenter.abrir();
-          if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('diagnostic');
-        }
-      },
-    });
+      out.push({
+        id: 'action:solver',
+        group: 'Acciones',
+        glyph: '',
+        label: 'Solucionador de problemas',
+        hint: 'Despliegue',
+        keywords: 'solver soporte impresora conexion reparar',
+        run: function () {
+          if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
+            global.CrozzoDeploymentCenter.abrir();
+            if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('solver');
+          }
+        },
+      });
+
+      out.push({
+        id: 'action:diagnostic',
+        group: 'Acciones',
+        glyph: '',
+        label: 'Diagnóstico del sistema',
+        hint: 'Despliegue',
+        keywords: 'diagnostico salud monitor estado reporte',
+        run: function () {
+          if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
+            global.CrozzoDeploymentCenter.abrir();
+            if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('diagnostic');
+          }
+        },
+      });
+    }
 
     out.push({
       id: 'action:health',
@@ -653,25 +657,29 @@
     panel.innerHTML =
       '<div class="cz-health-panel__title">Estado del sistema</div>' +
       '<div class="cz-health-panel__rows"></div>' +
-      '<div class="cz-health-panel__actions">' +
+      (isSuperAdminUser() ? ('<div class="cz-health-panel__actions">' +
       '  <button type="button" data-cz-act="diag">Diagnóstico</button>' +
       '  <button type="button" data-cz-act="solver">Solucionador</button>' +
-      '</div>';
+      '</div>') : '');
 
-    panel.querySelector('[data-cz-act="diag"]').addEventListener('click', function () {
-      closeHealth();
-      if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
-        global.CrozzoDeploymentCenter.abrir();
-        if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('diagnostic');
-      }
-    });
-    panel.querySelector('[data-cz-act="solver"]').addEventListener('click', function () {
-      closeHealth();
-      if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
-        global.CrozzoDeploymentCenter.abrir();
-        if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('solver');
-      }
-    });
+    if (isSuperAdminUser()) {
+      var diagBtn = panel.querySelector('[data-cz-act="diag"]');
+      var solverBtn = panel.querySelector('[data-cz-act="solver"]');
+      if (diagBtn) diagBtn.addEventListener('click', function () {
+        closeHealth();
+        if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
+          global.CrozzoDeploymentCenter.abrir();
+          if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('diagnostic');
+        }
+      });
+      if (solverBtn) solverBtn.addEventListener('click', function () {
+        closeHealth();
+        if (global.CrozzoDeploymentCenter && global.CrozzoDeploymentCenter.abrir) {
+          global.CrozzoDeploymentCenter.abrir();
+          if (typeof global._dcSwitchFace === 'function') global._dcSwitchFace('solver');
+        }
+      });
+    }
 
     doc.body.appendChild(panel);
     return panel;

@@ -18,26 +18,26 @@
 
   // ── Pasos del despliegue ──────────────────────────────────────────
   var DEPLOY_STEPS = [
-    { id: 'empresa', label: '🏢 Empresa', desc: 'Datos básicos del negocio' },
-    { id: 'impuestos', label: '💰 Impuestos', desc: 'IVA, INC, facturación' },
-    { id: 'salon', label: '🍽️ Salón y mesas', desc: 'Cantidad de mesas y pedidos para llevar' },
-    { id: 'usuarios', label: '👥 Usuarios', desc: 'Crear usuarios y roles' },
-    { id: 'impresoras', label: '🖨️ Impresoras', desc: 'Detectar y configurar' },
-    { id: 'red', label: '🔗 Red', desc: 'Conexión y dispositivos' },
-    { id: 'nube', label: '☁️ Nube', desc: 'Supabase y sync' },
-    { id: 'verificacion', label: '✅ Verificación', desc: 'Test final' },
+    { id: 'empresa', label: 'Empresa', desc: 'Datos básicos del negocio' },
+    { id: 'impuestos', label: 'Impuestos', desc: 'IVA, INC, facturación' },
+    { id: 'salon', label: 'Salón y mesas', desc: 'Cantidad de mesas y pedidos para llevar' },
+    { id: 'usuarios', label: 'Usuarios', desc: 'Crear usuarios y roles' },
+    { id: 'impresoras', label: 'Impresoras', desc: 'Detectar y configurar' },
+    { id: 'red', label: 'Red', desc: 'Conexión y dispositivos' },
+    { id: 'nube', label: 'Nube', desc: 'Supabase y sync' },
+    { id: 'verificacion', label: 'Verificación', desc: 'Test final' },
   ];
 
   // ── Tipos de negocio ─────────────────────────────────────────────
   var BUSINESS_TYPES = [
-    { id: 'restaurante_pequeno', label: '🍽️ Restaurante pequeño', roles: ['admin', 'caja', 'mesero', 'cocina'], printers: ['recibo', 'cocina'] },
-    { id: 'restaurante_mediano', label: '🍽️ Restaurante mediano', roles: ['admin', 'encargado', 'caja', 'mesero', 'cocina', 'inventario'], printers: ['recibo', 'recibo', 'cocina', 'cocina', 'bar'] },
-    { id: 'restaurante_grande', label: '🍽️ Restaurante grande', roles: ['admin', 'encargado', 'caja', 'mesero', 'cocina', 'inventario', 'compras'], printers: ['recibo', 'recibo', 'recibo', 'cocina', 'cocina', 'cocina', 'bar', 'bar', 'etiquetas'] },
-    { id: 'tienda_pequena', label: '🏪 Tienda pequeña', roles: ['admin', 'caja'], printers: ['recibo'] },
-    { id: 'supermercado', label: '🛒 Supermercado', roles: ['admin', 'caja', 'inventario', 'compras'], printers: ['recibo', 'recibo', 'etiquetas'] },
-    { id: 'hotel', label: '🏨 Hotel (F&B)', roles: ['admin', 'recepcion', 'mesero', 'cocina'], printers: ['recibo', 'recibo', 'cocina', 'cocina', 'bar'] },
-    { id: 'bodega', label: '📦 Bodega/Suministros', roles: ['admin', 'inventario', 'compras'], printers: ['recibo', 'etiquetas'] },
-    { id: 'demo', label: '🎮 Demo (datos ficticios)', roles: ['admin', 'caja', 'mesero'], printers: [] },
+    { id: 'restaurante_pequeno', label: 'Restaurante pequeño', roles: ['admin', 'caja', 'mesero', 'cocina'], printers: ['recibo', 'cocina'] },
+    { id: 'restaurante_mediano', label: 'Restaurante mediano', roles: ['admin', 'encargado', 'caja', 'mesero', 'cocina', 'inventario'], printers: ['recibo', 'recibo', 'cocina', 'cocina', 'bar'] },
+    { id: 'restaurante_grande', label: 'Restaurante grande', roles: ['admin', 'encargado', 'caja', 'mesero', 'cocina', 'inventario', 'compras'], printers: ['recibo', 'recibo', 'recibo', 'cocina', 'cocina', 'cocina', 'bar', 'bar', 'etiquetas'] },
+    { id: 'tienda_pequena', label: 'Tienda pequeña', roles: ['admin', 'caja'], printers: ['recibo'] },
+    { id: 'supermercado', label: 'Supermercado', roles: ['admin', 'caja', 'inventario', 'compras'], printers: ['recibo', 'recibo', 'etiquetas'] },
+    { id: 'hotel', label: 'Hotel (F&B)', roles: ['admin', 'recepcion', 'mesero', 'cocina'], printers: ['recibo', 'recibo', 'cocina', 'cocina', 'bar'] },
+    { id: 'bodega', label: 'Bodega/Suministros', roles: ['admin', 'inventario', 'compras'], printers: ['recibo', 'etiquetas'] },
+    { id: 'demo', label: 'Demo (datos ficticios)', roles: ['admin', 'caja', 'mesero'], printers: [] },
   ];
 
   // ── Base de datos de impresoras conocidas (expandida) ────────────
@@ -196,7 +196,7 @@
     // Sidebar de pasos
     html += '<div style="flex:0 0 180px;">';
     DEPLOY_STEPS.forEach(function (step, idx) {
-      var done = _state.completedSteps[step.id] ? '✅' : '⬜';
+      var done = _state.completedSteps[step.id] ? '✓' : '·';
       var active = idx === _currentStep;
       html += '<div onclick="window._dcGoToStep(' + idx + ')" style="padding:6px 8px;border-radius:6px;cursor:pointer;margin:2px 0;' + (active ? 'background:#1a1a2e;color:#fff;' : 'color:#666;') + '">' +
         done + ' ' + step.label + '</div>';
@@ -717,7 +717,7 @@
     var btn = document.createElement('button');
     btn.id = 'dc-menu-btn';
     btn.style.cssText = 'padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;';
-    btn.innerHTML = '<strong>🚀 Centro de Despliegue</strong><br><span style="font-size:0.8rem;color:#888;">Asistente unificado: despliegue, solución de problemas, diagnóstico.</span>';
+    btn.innerHTML = '<strong>Centro de Despliegue</strong><br><span style="font-size:0.8rem;color:#888;">Asistente unificado: despliegue, solución de problemas, diagnóstico.</span>';
     btn.onclick = function () { abrir(); };
     var cerrar = document.getElementById('samCerrar');
     if (cerrar && cerrar.parentElement) {
