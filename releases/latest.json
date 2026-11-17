@@ -1,28 +1,17 @@
 {
-  "id": "1.0.301-critical",
-  "version": "v1.0.301",
-  "semver": "1.0.301",
+  "id": "1.0.302-critical",
+  "version": "v1.0.302",
+  "semver": "1.0.302",
   "type": "critical",
-  "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta",
-  "publishedAt": "2026-11-17T21:44:43.144Z",
+  "message": "Actualizacion: centro de notificaciones (campana+badge), toasts discretos, demo banner premium, honeypot fix",
+  "publishedAt": "2026-11-17T23:58:27.072Z",
   "installMode": "auto",
   "changelog": [
-    "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta"
+    "Actualizacion: centro de notificaciones (campana",
+    "badge), toasts discretos, demo banner premium, honeypot fix"
   ],
-  "updatedAt": "2026-11-17T21:44:43.144Z",
+  "updatedAt": "2026-11-17T23:58:27.072Z",
   "entries": [
-    {
-      "id": "1.0.277-critical",
-      "version": "v1.0.277",
-      "semver": "1.0.277",
-      "type": "critical",
-      "message": "Prueba final de actualización automática v1.0.277",
-      "publishedAt": "2026-11-09T14:02:58.147Z",
-      "installMode": "auto",
-      "changelog": [
-        "Prueba final de actualización automática v1.0.277"
-      ]
-    },
     {
       "id": "1.0.278-critical",
       "version": "v1.0.278",
@@ -325,6 +314,19 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta"
+      ]
+    },
+    {
+      "id": "1.0.302-critical",
+      "version": "v1.0.302",
+      "semver": "1.0.302",
+      "type": "critical",
+      "message": "Actualizacion: centro de notificaciones (campana+badge), toasts discretos, demo banner premium, honeypot fix",
+      "publishedAt": "2026-11-17T23:58:27.072Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion: centro de notificaciones (campana",
+        "badge), toasts discretos, demo banner premium, honeypot fix"
       ]
     }
   ]
