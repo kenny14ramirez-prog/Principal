@@ -86,7 +86,7 @@
     // Mostrar banner de modo demo
     var banner = document.createElement('div');
     banner.id = 'demoModeBanner';
-    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;text-align:center;padding:8px;font-size:0.85rem;font-weight:600;';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#B59A6D,#7A6342);color:#fff;text-align:center;padding:4px 8px;font-size:0.75rem;font-weight:600;';
     banner.innerHTML = CrozzoSanitize.sanitizeHtml('MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir del demo</button>');
     document.body.appendChild(banner);
 
