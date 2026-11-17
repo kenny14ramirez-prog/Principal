@@ -4413,7 +4413,7 @@
           return { installed: false, plan: 'web_reload_blocked', version: targetVersion };
         }
         var sep = href.indexOf('?') >= 0 ? '&' : '?';
-        console.log('[test] blocked'); return;
+        global.location.replace(href + sep + '_crozzo=' + Date.now());
       } catch (_) {
         global.location.reload();
       }
