@@ -15,7 +15,7 @@
     useDedupMultilevel: false,     // dedup multinivel
     useOutboxRuntime: false,        // outbox persistente para runtime
     useRlsBusinessId: false,       // RLS por business_id (modo compatibilidad)
-    useCspEnforce: false,           // CSP enforce (report-only por defecto)
+    useCspEnforce: true,           // CSP enforce (activado)
     useQrLocal: false,              // QR local (librería cliente)
     useTypeScriptModules: false,    // módulos TS (gradual)
     useSanitizeInnerHtml: true,    // sanitización automática de innerHTML (monkey-patch) - activado por defecto Fase -2

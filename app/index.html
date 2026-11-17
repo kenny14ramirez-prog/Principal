@@ -4,8 +4,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="description" content="BONA origen — Sistema POS para restaurantes y comercios: mesas, comandas, facturación, caja, inventario y reportes.">
-<!-- CSP report-only (Fase -2 hardening). Enforce se activa con feature flag useCspEnforce. -->
-<meta http-equiv="Content-Security-Policy-Report-Only" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*; font-src 'self' https://fonts.gstatic.com data:; report-uri /csp-report">
+<!-- CSP enforce (Fase -2 hardening). Antes report-only. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws: http://localhost:* http://127.0.0.1:*; font-src 'self' https://fonts.gstatic.com data:; report-uri /csp-report">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600&display=swap" rel="stylesheet">
