@@ -28,7 +28,7 @@
       key: 'matriz',
       title: 'Matriz de precios',
       subtitle: 'Necesidades del negocio → decisión socios/gerentes → vigencia POS',
-      icon: '💰',
+      icon: '',
       roles: ['socio', 'gerente', 'admin'],
       status: 'conectado',
       navigate: 'costos-matriz',
@@ -41,7 +41,7 @@
       key: 'recetas',
       title: 'Recetas y cortes',
       subtitle: 'Mermas MP · recetas · procesos cocina → matriz y proveedores',
-      icon: '📋',
+      icon: '',
       roles: ['chef', 'gerente', 'jefe-compras'],
       status: 'conectado',
       navigate: 'compras-cortes',
@@ -54,7 +54,7 @@
       key: 'inventario',
       title: 'Inventario continuo',
       subtitle: 'Inicial + entradas − salidas = teórico · conteo valida',
-      icon: '📦',
+      icon: '',
       roles: ['gerente', 'chef', 'admin'],
       status: 'conectado',
       navigate: 'costos-inventario',
@@ -67,7 +67,7 @@
       key: 'compras-dash',
       title: 'Dashboard compras',
       subtitle: 'Facturas de entrada por categoría de proveedor',
-      icon: '📊',
+      icon: '',
       roles: ['jefe-compras', 'gerente', 'socio'],
       status: 'conectado',
       navigate: 'compras-dashboard',
@@ -80,7 +80,7 @@
       key: 'oficina',
       title: 'Oficina y pagos',
       subtitle: 'Efectivo · tarjeta · transferencia (pendiente / en proceso / pagada)',
-      icon: '🏛️',
+      icon: '',
       roles: ['admin', 'gerente', 'jefe-compras'],
       status: 'conectado',
       navigate: 'compras-oficina',
@@ -93,7 +93,7 @@
       key: 'planilla-feed',
       title: 'Cola → Planilla',
       subtitle: 'Ventas, compras y egresos como propuestas; admin elige qué ingresar',
-      icon: '🧮',
+      icon: '',
       roles: ['admin', 'contador', 'socio'],
       status: 'conectado',
       navigate: 'costos-planilla-feed',
@@ -821,13 +821,13 @@
       return (
         '<section class="crozzo-revision-admin crozzo-revision-admin--idle" id="crozzoRevisionAdmin">' +
         '<div class="crozzo-revision-admin__main">' +
-        '<div class="crozzo-revision-admin__icon" aria-hidden="true">📋</div>' +
+        '<div class="crozzo-revision-admin__icon" aria-hidden="true"></div>' +
         '<div><p class="crozzo-revision-admin__eyebrow">Super Admin · revisión mensual</p>' +
         '<h2 class="crozzo-revision-admin__title">Iniciar revisión de costos y precios</h2>' +
         '<p class="crozzo-revision-admin__sub">Congela una línea base, sincroniza MP/recetas y trabaja en <strong>Precios vigentes</strong> sin tocar la caja hasta programar o lanzar.</p></div></div>' +
         '<div class="crozzo-revision-admin__actions">' +
         '<button type="button" class="btn btn-primary btn-sm" id="crozzoRevisionIniciar">Iniciar revisión</button>' +
-        '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionMapaFlujos" title="PDF para socios e inversores">🗺 Mapa de flujos</button></div></section>'
+        '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionMapaFlujos" title="PDF para socios e inversores"> Mapa de flujos</button></div></section>'
       );
     }
 
@@ -884,7 +884,7 @@
         ? '<div class="crozzo-revision-admin__actions">' +
           '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionSync">↻ Sincronizar costos</button>' +
           '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionProg">Ver programaciones</button>' +
-          '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionMapaFlujos" title="PDF para inversores">🗺 Mapa de flujos</button>' +
+          '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionMapaFlujos" title="PDF para inversores"> Mapa de flujos</button>' +
           '<button type="button" class="btn btn-primary btn-sm" id="crozzoRevisionCerrar">Cerrar revisión</button></div>'
         : '<p class="crozzo-revision-admin__readonly">Revisión activa — los cambios de caja los confirma Super Admin al programar o cerrar.</p>') +
       '</section>'
@@ -908,7 +908,7 @@
           '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionCancel">Cancelar</button>' +
           '<button type="button" class="btn btn-primary btn-sm" id="crozzoRevisionConfirm">Iniciar revisión</button></div>';
         if (typeof global.showModal === 'function') {
-          global.showModal('📋 Iniciar revisión mensual', body);
+          global.showModal(' Iniciar revisión mensual', body);
           var cancel = document.getElementById('crozzoRevisionCancel');
           var confirm = document.getElementById('crozzoRevisionConfirm');
           if (cancel) {
@@ -994,7 +994,7 @@
           '<button type="button" class="btn btn-outline btn-sm" id="crozzoRevisionCerrarCancel">Cancelar</button>' +
           '<button type="button" class="btn btn-primary btn-sm" id="crozzoRevisionCerrarOk">Cerrar revisión</button></div>';
         if (typeof global.showModal === 'function') {
-          global.showModal('✓ Cerrar revisión', body);
+          global.showModal(' Cerrar revisión', body);
           var cancel = document.getElementById('crozzoRevisionCerrarCancel');
           var ok = document.getElementById('crozzoRevisionCerrarOk');
           if (cancel) {
@@ -1170,7 +1170,7 @@
         origen: detail.origen || 'mp',
       });
       invalidateSeed();
-      // H2.D — si un plato cae a 🔴 tras cascada MP, avisar al dueño (psicología).
+      // H2.D — si un plato cae a  tras cascada MP, avisar al dueño (psicología).
       try {
         var Sem = global.CrozzoSemaforoMargen;
         if (Sem && typeof Sem.clasificarMargen === 'function' && typeof Sem.mensajeAlertaRojo === 'function') {
@@ -2672,7 +2672,7 @@
       return (
         '<span class="crozzo-matriz-status crozzo-matriz-status--crit" title="Costo MP subió ≥ ' +
         esc(String(Math.round(loadGlobalMpAlertaSubidaPct()))) +
-        '% vs guardado"><span aria-hidden="true">⚠</span> MP +' +
+        '% vs guardado"><span aria-hidden="true"></span> MP +' +
         esc(String(subida)) +
         '% · alerta roja</span>'
       );
@@ -2686,7 +2686,7 @@
     }
     if (ev.dentroObjetivo) {
       return (
-        '<span class="crozzo-matriz-status crozzo-matriz-status--ok"><span aria-hidden="true">✓</span> Costo ' +
+        '<span class="crozzo-matriz-status crozzo-matriz-status--ok"><span aria-hidden="true"></span> Costo ' +
         esc(String(actualCosto)) +
         '% · meta ' +
         esc(String(metaCosto)) +
@@ -2708,7 +2708,7 @@
     if (!alertas.length) {
       return (
         '<div class="crozzo-matriz-alerts crozzo-matriz-alerts--ok" role="status">' +
-        '<span>✓ Ningún plato con subida crítica de costo MP (umbral ' +
+        '<span> Ningún plato con subida crítica de costo MP (umbral ' +
         esc(String(umbral)) +
         '%).</span></div>'
       );
@@ -2736,7 +2736,7 @@
         : '';
     return (
       '<div class="crozzo-matriz-alerts crozzo-matriz-alerts--crit" role="alert">' +
-      '<strong>⚠ ' +
+      '<strong> ' +
       esc(String(alertas.length)) +
       ' producto(s) con subida crítica de MP</strong> — revise precio de venta o negocie insumo.' +
       '<ul class="crozzo-matriz-alerts__list">' +
@@ -2831,7 +2831,7 @@
       return (
         '<span class="crozzo-matriz-status crozzo-matriz-status--crit" title="Margen real bajo el mínimo (' +
         esc(String(min)) +
-        '%)">⚠ Bajo mín.</span>'
+        '%)"> Bajo mín.</span>'
       );
     }
     if (a === 'warn') {
@@ -2841,7 +2841,7 @@
         '%">↓ Bajo meta</span>'
       );
     }
-    return '<span class="crozzo-matriz-status crozzo-matriz-status--ok">✓ OK</span>';
+    return '<span class="crozzo-matriz-status crozzo-matriz-status--ok"> OK</span>';
   }
 
   function renderHistorialCosteoAlertsBanner(enriched, rowsVigente) {
@@ -2858,7 +2858,7 @@
     if (!crit.length) {
       return (
         '<div class="crozzo-matriz-alerts crozzo-matriz-alerts--ok" style="margin-bottom:10px">' +
-        '<span>✓ Ningún costeo guardado está bajo el margen mínimo configurado.</span></div>'
+        '<span> Ningún costeo guardado está bajo el margen mínimo configurado.</span></div>'
       );
     }
     var items = crit
@@ -2879,7 +2879,7 @@
       .join('');
     return (
       '<div class="crozzo-matriz-alerts crozzo-matriz-alerts--crit" style="margin-bottom:10px" role="alert">' +
-      '<strong>⚠ ' +
+      '<strong> ' +
       esc(String(crit.length)) +
       ' registro(s) bajo margen mínimo</strong> — la MP subió y el precio de venta no alcanzó a compensar.' +
       '<ul class="crozzo-matriz-alerts__list">' +
@@ -3124,9 +3124,9 @@
   function renderMatrizTabsNav(activeTab) {
     activeTab = activeTab || 'resumen';
     var steps = [
-      { id: 'costeo-mp', num: '1', icon: '⚖', title: 'Insumos', sub: 'Precio por gramo o unidad' },
-      { id: 'demo', num: '2', icon: '🍽', title: 'Recetas', sub: 'Ingredientes del plato' },
-      { id: 'resumen', num: '3', icon: '💰', title: 'Precios menú', sub: 'Márgenes y publicar caja' },
+      { id: 'costeo-mp', num: '1', icon: '', title: 'Insumos', sub: 'Precio por gramo o unidad' },
+      { id: 'demo', num: '2', icon: '', title: 'Recetas', sub: 'Ingredientes del plato' },
+      { id: 'resumen', num: '3', icon: '', title: 'Precios menú', sub: 'Márgenes y publicar caja' },
     ];
     return (
       '<div class="crozzo-matriz-tabs-wrap">' +
@@ -3360,7 +3360,7 @@
         : '<span data-resumen-acciones-diff">Sin diferencias pendientes con caja</span>') +
       '</p></div>' +
       '<div class="crozzo-matriz-resumen-acciones__btns">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoMatrizPublishBarApply">⚡ Publicar en caja</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoMatrizPublishBarApply"> Publicar en caja</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizPublishBarSchedule">Programar cambio</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoMatrizPublishBarMore">◈ Más acciones</button>' +
       '</div></div>' +
@@ -5345,18 +5345,18 @@
       '<div class="crozzo-inv-output-grid">' +
       '<section class="crozzo-inv-output-card crozzo-inv-output-card--bodega">' +
       '<header class="crozzo-inv-output-card__head">' +
-      '<span class="crozzo-inv-output-card__icon" aria-hidden="true">📋</span>' +
+      '<span class="crozzo-inv-output-card__icon" aria-hidden="true"></span>' +
       '<div><h3 class="crozzo-inv-output-card__title">Bodega · conteo físico</h3>' +
       '<p class="crozzo-inv-output-card__desc">Hoja en blanco: nombre → unidad → cantidad. Use <strong>58/80 mm</strong> en térmica o Carta para hoja grande.</p></div></header>' +
       '<div class="crozzo-inv-output-card__actions">' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPreviewConteo">👁 Vista previa</button>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvPrintConteo">🖨 Imprimir conteo</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadConteo">⬇ CSV conteo</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadHtmlConteo">⬇ HTML prueba</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPreviewConteo"> Vista previa</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvPrintConteo"> Imprimir conteo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadConteo"> CSV conteo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadHtmlConteo"> HTML prueba</button>' +
       '</div></section>' +
       '<section class="crozzo-inv-output-card crozzo-inv-output-card--oficina">' +
       '<header class="crozzo-inv-output-card__head">' +
-      '<span class="crozzo-inv-output-card__icon" aria-hidden="true">🖨</span>' +
+      '<span class="crozzo-inv-output-card__icon" aria-hidden="true"></span>' +
       '<div><h3 class="crozzo-inv-output-card__title">Oficina · reportes</h3>' +
       '<p class="crozzo-inv-output-card__desc">Stock teórico, listado completo y movimientos. Recomendado <strong>Carta u Oficio</strong> apaisado; en térmica sale listado compacto.</p></div></header>' +
       '<div class="crozzo-inv-output-card__actions">' +
@@ -5367,14 +5367,14 @@
       '</div></section>' +
       '<section class="crozzo-inv-output-card crozzo-inv-output-card--export">' +
       '<header class="crozzo-inv-output-card__head">' +
-      '<span class="crozzo-inv-output-card__icon" aria-hidden="true">⬇</span>' +
+      '<span class="crozzo-inv-output-card__icon" aria-hidden="true"></span>' +
       '<div><h3 class="crozzo-inv-output-card__title">Descargar datos</h3>' +
       '<p class="crozzo-inv-output-card__desc">CSV para Excel · HTML para probar maquetación sin imprimir.</p></div></header>' +
       '<div class="crozzo-inv-output-card__actions">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadStock">CSV stock</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadCompleto">CSV completo</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvDownloadMovs">CSV movimientos</button>' +
-      '<button type="button" class="btn btn-link btn-sm" id="crozzoInvGoConteoTab">✏ Conteo en pantalla →</button>' +
+      '<button type="button" class="btn btn-link btn-sm" id="crozzoInvGoConteoTab"> Conteo en pantalla →</button>' +
       '</div></section></div></div>'
     );
   }
@@ -5973,7 +5973,7 @@
       esc(ui.q) +
       '" autocomplete="off">' +
       '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvRefresh">↻ Actualizar</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintMovs">🖨 Movimientos</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintMovs"> Movimientos</button>' +
       '</div>' +
       '<div class="crozzo-inv-chips" role="group" aria-label="Categoría">' +
       chips +
@@ -6021,9 +6021,9 @@
       '<div class="crozzo-inv-conteo-foot">' +
       '<label class="crozzo-inv-conteo-opt"><input type="checkbox" id="crozzoInvConteoAjustes" checked> Aplicar ajustes al cerrar (ledger)</label>' +
       '<span class="form-hint" style="margin:0;flex:1">Puede llenar solo los ítems que aplique · el resto queda sin contar</span>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintConteoCapturado">🖨 Imprimir conteo actual</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvConteoSave">💾 Guardar progreso</button>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvConteoClose">✓ Cerrar conteo</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvPrintConteoCapturado"> Imprimir conteo actual</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="crozzoInvConteoSave"> Guardar progreso</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="crozzoInvConteoClose"> Cerrar conteo</button>' +
       '</div></div>' +
       '<div class="crozzo-inv-panel' +
       (tab === 'ciclico' ? ' is-active' : '') +
@@ -6360,7 +6360,7 @@
       var c = h.connectivity || {};
       healthLine =
         '<p class="form-hint" style="margin:8px 0 0">' +
-        esc(c.icon || '💾') +
+        esc(c.icon || '') +
         ' ' +
         esc(c.label || 'Modo local') +
         (h.hasBackup ? ' · Copia de seguridad automática' : '') +
@@ -6489,7 +6489,7 @@
       '<div class="crozzo-matriz-cmd__grid">' +
       '<article class="crozzo-matriz-cmd__card crozzo-matriz-cmd__card--publish">' +
       '<div class="crozzo-matriz-cmd__card-top">' +
-      '<span class="crozzo-matriz-cmd__card-icon" aria-hidden="true">⚡</span>' +
+      '<span class="crozzo-matriz-cmd__card-icon" aria-hidden="true"></span>' +
       '<div><h4 class="crozzo-matriz-cmd__card-title">Publicar en caja</h4>' +
       '<p class="crozzo-matriz-cmd__card-desc">Llevar precios y platos del costeo al POS, mesero y cocina.</p></div></div>' +
       '<div class="crozzo-matriz-cmd__card-actions">' +
@@ -6509,14 +6509,14 @@
       '<button type="button" class="crozzo-matriz-cmd__action" id="crozzoMargenAplicar">Recalcular con meta</button></div></article>' +
       '<article class="crozzo-matriz-cmd__card">' +
       '<div class="crozzo-matriz-cmd__card-top">' +
-      '<span class="crozzo-matriz-cmd__card-icon" aria-hidden="true">💾</span>' +
+      '<span class="crozzo-matriz-cmd__card-icon" aria-hidden="true"></span>' +
       '<div><h4 class="crozzo-matriz-cmd__card-title">Archivar histórico</h4>' +
       '<p class="crozzo-matriz-cmd__card-desc">Guardar snapshot mensual del menú costeado. No modifica el vigente ni la caja.</p></div></div>' +
       '<div class="crozzo-matriz-cmd__card-actions">' +
       '<button type="button" class="crozzo-matriz-cmd__action crozzo-matriz-cmd__action--wide" id="crozzoGuardarCosteoMenu">Guardar costeo del mes</button></div></article>' +
       '<article class="crozzo-matriz-cmd__card crozzo-matriz-cmd__card--reports">' +
       '<div class="crozzo-matriz-cmd__card-top">' +
-      '<span class="crozzo-matriz-cmd__card-icon" aria-hidden="true">📄</span>' +
+      '<span class="crozzo-matriz-cmd__card-icon" aria-hidden="true"></span>' +
       '<div><h4 class="crozzo-matriz-cmd__card-title">Reportes PDF</h4>' +
       '<p class="crozzo-matriz-cmd__card-desc">Documentos para gerencia, auditoría e inversores.</p></div></div>' +
       '<div class="crozzo-matriz-cmd__card-actions crozzo-matriz-cmd__card-actions--stack">' +
@@ -7296,7 +7296,7 @@
       '<div class="crozzo-receta-proceso" data-receta-proceso-wrap id="crozzoRecetasEstandarPrep">' +
       '<p class="crozzo-receta-proceso__model"><strong>Sub-receta</strong> = preparación en bodega (con ingredientes). <strong>Plato de carta</strong> = sale a mesas / POS.</p>' +
       (isAuto
-        ? '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill">✦ Automático</span> ' +
+        ? '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill"> Automático</span> ' +
           'Por nombre, categoría e ingredientes. Cambie solo si no cuadra.</p>'
         : '<p class="crozzo-receta-proceso__auto"><span class="crozzo-receta-proceso__auto-pill">Manual</span> ' +
           '<button type="button" class="crozzo-receta-proceso__auto-link" data-receta-field="prepAutoReset">Volver a automático</button></p>') +

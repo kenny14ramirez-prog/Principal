@@ -116,13 +116,13 @@
   // ── Tabs (3 caras) ───────────────────────────────────────────────
   function renderTabs() {
     var tabs = [
-      { id: 'deploy', label: '🚀 Despliegue' },
-      { id: 'solver', label: '🔧 Solucionador' },
-      { id: 'diagnostic', label: '🔍 Diagnóstico' },
+      { id: 'deploy', label: ' Despliegue' },
+      { id: 'solver', label: ' Solucionador' },
+      { id: 'diagnostic', label: ' Diagnóstico' },
     ];
     return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
       '<h2 style="margin:0;font-size:1.3rem;color:#1a1a2e;">Centro de Despliegue Unificado</h2>' +
-      '<button id="dcClose" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:#999;">✕</button>' +
+      '<button id="dcClose" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:#999;"></button>' +
       '</div>' +
       '<div style="display:flex;gap:4px;border-bottom:2px solid #eee;padding-bottom:8px;">' +
       tabs.map(function (t) {
@@ -196,7 +196,7 @@
     // Sidebar de pasos
     html += '<div style="flex:0 0 180px;">';
     DEPLOY_STEPS.forEach(function (step, idx) {
-      var done = _state.completedSteps[step.id] ? '✓' : '·';
+      var done = _state.completedSteps[step.id] ? '' : '·';
       var active = idx === _currentStep;
       html += '<div onclick="window._dcGoToStep(' + idx + ')" style="padding:6px 8px;border-radius:6px;cursor:pointer;margin:2px 0;' + (active ? 'background:#1a1a2e;color:#fff;' : 'color:#666;') + '">' +
         done + ' ' + step.label + '</div>';
@@ -366,7 +366,7 @@
     var webUsbAvailable = (typeof navigator !== 'undefined' && navigator.usb);
     var html = '<p style="font-size:0.85rem;color:#666;">Detecta e instala impresoras automáticamente.</p>';
     html += '<div style="margin:8px 0;padding:8px;background:#f1f3f5;border-radius:6px;font-size:0.8rem;">' +
-      'WebUSB: ' + (webUsbAvailable ? '✅ Disponible' : '❌ No disponible (usar detección nativa)') + '</div>';
+      'WebUSB: ' + (webUsbAvailable ? ' Disponible' : ' No disponible (usar detección nativa)') + '</div>';
 
     if (webUsbAvailable) {
       html += '<button onclick="window._dcDetectPrinters()" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;margin-right:4px;">Detectar impresoras USB</button>';
@@ -414,17 +414,17 @@
     var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
     var html = '';
     if (printers.length === 0) {
-      html = '<span style="color:#e74c3c;">❌ No se encontraron impresoras configuradas</span><br>' +
+      html = '<span style="color:#e74c3c;"> No se encontraron impresoras configuradas</span><br>' +
         '<span style="color:#666;">Verifica que las impresoras estén encendidas y conectadas.</span>';
     } else {
-      html = printers.map(function (p) { return '✅ ' + p; }).join('<br>');
+      html = printers.map(function (p) { return ' ' + p; }).join('<br>');
     }
     // Mostrar detectadas por WebUSB
     try {
       var detected = JSON.parse(localStorage.getItem('crozzo_detected_printers') || '[]');
       if (detected.length > 0) {
         html += '<br><br><strong>Detectadas por WebUSB:</strong><br>';
-        html += detected.map(function (d) { return '🔍 ' + (d.vendor || 'Desconocido') + ' — ' + (d.product || 'Sin nombre') + ' (' + new Date(d.detectedAt).toLocaleString() + ')'; }).join('<br>');
+        html += detected.map(function (d) { return ' ' + (d.vendor || 'Desconocido') + ' — ' + (d.product || 'Sin nombre') + ' (' + new Date(d.detectedAt).toLocaleString() + ')'; }).join('<br>');
       }
     } catch (_) {}
     el.innerHTML = html;
@@ -454,21 +454,21 @@
     var results = [];
     // Verificar empresa
     var emp = (typeof config !== 'undefined' && config.getEmpresa) ? config.getEmpresa() : {};
-    results.push('Empresa: ' + (emp.nombreComercial ? '✅ ' + emp.nombreComercial : '❌ Sin configurar'));
+    results.push('Empresa: ' + (emp.nombreComercial ? ' ' + emp.nombreComercial : ' Sin configurar'));
     // Verificar usuarios
     var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
     var userCount = staff.filter(function (u) { return u.id !== 'KENNY'; }).length;
-    results.push('Usuarios: ' + (userCount > 0 ? '✅ ' + userCount + ' creados' : '❌ Sin usuarios'));
+    results.push('Usuarios: ' + (userCount > 0 ? ' ' + userCount + ' creados' : ' Sin usuarios'));
     // Verificar impresoras
     var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
-    results.push('Impresoras: ' + (printers.length > 0 ? '✅ ' + printers.length + ' disponibles' : '⚠️ Sin impresoras configuradas'));
+    results.push('Impresoras: ' + (printers.length > 0 ? ' ' + printers.length + ' disponibles' : ' Sin impresoras configuradas'));
     // Verificar errores
     var errStats = (typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats() : { total: 0 };
-    results.push('Errores: ' + (errStats.total === 0 ? '✅ Sin errores' : '⚠️ ' + errStats.total + ' errores'));
+    results.push('Errores: ' + (errStats.total === 0 ? ' Sin errores' : ' ' + errStats.total + ' errores'));
 
     var el = document.getElementById('dc-step-content');
     if (el) {
-      el.innerHTML = '<h3>✅ Verificación Final</h3>' +
+      el.innerHTML = '<h3> Verificación Final</h3>' +
         '<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">' +
         results.map(function (r) { return '<div style="font-size:0.9rem;">' + r + '</div>'; }).join('') +
         '</div>' +
@@ -480,33 +480,33 @@
   // CARA 2: SOLUCIONADOR DE PROBLEMAS
   // ══════════════════════════════════════════════════════════════════
   function renderSolverFace() {
-    var html = '<h3 style="margin:0 0 12px;">🔧 Solucionador de Problemas</h3>';
+    var html = '<h3 style="margin:0 0 12px;"> Solucionador de Problemas</h3>';
     html += '<p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Detecta y soluciona problemas de hardware y conexión.</p>';
 
     // Diagnóstico de impresoras
     html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
-      '<strong style="font-size:0.9rem;">🖨️ Impresoras</strong><br>' +
+      '<strong style="font-size:0.9rem;"> Impresoras</strong><br>' +
       '<button onclick="window._dcCheckPrinters()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar impresoras</button>' +
       '<div id="dc-printer-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 
     // Diagnóstico de conexión
     html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
-      '<strong style="font-size:0.9rem;">🔗 Conexión</strong><br>' +
+      '<strong style="font-size:0.9rem;"> Conexión</strong><br>' +
       '<button onclick="window._dcCheckConnection()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar conexión</button>' +
       '<div id="dc-conn-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 
     // Diagnóstico de base de datos
     html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
-      '<strong style="font-size:0.9rem;">💾 Base de datos</strong><br>' +
+      '<strong style="font-size:0.9rem;"> Base de datos</strong><br>' +
       '<button onclick="window._dcCheckDatabase()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar base de datos</button>' +
       '<div id="dc-db-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
 
     // Auto-reparación
     html += '<div style="margin-top:12px;padding:12px;background:#fff3cd;border-radius:8px;">' +
-      '<strong style="font-size:0.9rem;">🔧 Auto-reparación</strong><br>' +
+      '<strong style="font-size:0.9rem;"> Auto-reparación</strong><br>' +
       '<button onclick="window._dcAutoRepair()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#e67e22;color:#fff;cursor:pointer;font-size:0.8rem;">Ejecutar auto-reparación</button>' +
       '<div id="dc-repair-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
       '</div>';
@@ -519,10 +519,10 @@
     if (!el) return;
     var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
     if (printers.length === 0) {
-      el.innerHTML = '<span style="color:#e74c3c;">❌ No se encontraron impresoras configuradas</span><br>' +
+      el.innerHTML = '<span style="color:#e74c3c;"> No se encontraron impresoras configuradas</span><br>' +
         '<span style="color:#666;">Verifica que las impresoras estén encendidas y conectadas.</span>';
     } else {
-      el.innerHTML = printers.map(function (p) { return '✅ ' + p; }).join('<br>');
+      el.innerHTML = printers.map(function (p) { return ' ' + p; }).join('<br>');
     }
   };
 
@@ -530,8 +530,8 @@
     var el = document.getElementById('dc-conn-status');
     if (!el) return;
     var online = navigator.onLine;
-    el.innerHTML = 'Internet: ' + (online ? '✅ Conectado' : '❌ Sin conexión') + '<br>' +
-      'Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? '✅ Disponible' : '❌ No disponible');
+    el.innerHTML = 'Internet: ' + (online ? ' Conectado' : ' Sin conexión') + '<br>' +
+      'Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? ' Disponible' : ' No disponible');
   };
 
   global._dcCheckDatabase = function () {
@@ -549,17 +549,17 @@
     var results = [];
     // 1. Verificar conexión
     if (typeof CrozzoEasyConnect !== 'undefined' && CrozzoEasyConnect.runAutoConnect) {
-      try { await CrozzoEasyConnect.runAutoConnect({ silent: true }); results.push('✅ Auto-conexión ejecutada'); } catch (e) { results.push('⚠️ Auto-conexión: ' + (e.message || e)); }
+      try { await CrozzoEasyConnect.runAutoConnect({ silent: true }); results.push(' Auto-conexión ejecutada'); } catch (e) { results.push(' Auto-conexión: ' + (e.message || e)); }
     }
     // 2. Verificar errores
     if (typeof CrozzoErrorMonitor !== 'undefined') {
       var stats = CrozzoErrorMonitor.getErrorStats();
-      if (stats.total > 0) { CrozzoErrorMonitor.clearErrorLog(); results.push('🧹 Log de errores limpiado (' + stats.total + ' errores)'); }
-      else results.push('✅ Sin errores registrados');
+      if (stats.total > 0) { CrozzoErrorMonitor.clearErrorLog(); results.push(' Log de errores limpiado (' + stats.total + ' errores)'); }
+      else results.push(' Sin errores registrados');
     }
     // 3. Verificar sync
     if (typeof crozzoRunPostLoginCloudSync === 'function') {
-      try { crozzoRunPostLoginCloudSync(); results.push('✅ Sync cloud ejecutado'); } catch (e) { results.push('⚠️ Sync: ' + (e.message || e)); }
+      try { crozzoRunPostLoginCloudSync(); results.push(' Sync cloud ejecutado'); } catch (e) { results.push(' Sync: ' + (e.message || e)); }
     }
     el.innerHTML = results.join('<br>');
   };
@@ -568,7 +568,7 @@
   // CARA 3: DIAGNÓSTICO EN TIEMPO REAL
   // ══════════════════════════════════════════════════════════════════
   function renderDiagnosticFace() {
-    var html = '<h3 style="margin:0 0 12px;">🔍 Diagnóstico en Tiempo Real</h3>';
+    var html = '<h3 style="margin:0 0 12px;"> Diagnóstico en Tiempo Real</h3>';
     html += '<div id="dc-diag-content"></div>';
     html += '<div style="margin-top:12px;display:flex;gap:8px;">' +
       '<button onclick="window._dcStartMonitoring()" style="padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;font-size:0.8rem;">Iniciar monitoreo</button>' +
@@ -586,33 +586,33 @@
 
     // Impresoras
     html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
-      '<strong style="font-size:0.85rem;">🖨️ Impresoras</strong><br>';
+      '<strong style="font-size:0.85rem;"> Impresoras</strong><br>';
     var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
     if (printers.length === 0) {
       html += '<span style="font-size:0.8rem;color:#e74c3c;">Sin impresoras configuradas</span>';
     } else {
-      printers.forEach(function (p) { html += '<span style="font-size:0.8rem;">✅ ' + p + '</span><br>'; });
+      printers.forEach(function (p) { html += '<span style="font-size:0.8rem;"> ' + p + '</span><br>'; });
     }
     // Detectadas por WebUSB
     try {
       var detected = JSON.parse(localStorage.getItem('crozzo_detected_printers') || '[]');
       if (detected.length > 0) {
         html += '<br><span style="font-size:0.75rem;color:#666;">Detectadas por WebUSB:</span><br>';
-        html += detected.map(function (d) { return '<span style="font-size:0.75rem;">🔍 ' + (d.vendor || '?') + ' — ' + (d.product || '?') + '</span>'; }).join('<br>');
+        html += detected.map(function (d) { return '<span style="font-size:0.75rem;"> ' + (d.vendor || '?') + ' — ' + (d.product || '?') + '</span>'; }).join('<br>');
       }
     } catch (_) {}
     html += '</div>';
 
     // Conexión
     html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
-      '<strong style="font-size:0.85rem;">🔗 Conexión</strong><br>' +
-      '<span style="font-size:0.8rem;">Internet: ' + (navigator.onLine ? '✅ Conectado' : '❌ Sin conexión') + '</span><br>' +
-      '<span style="font-size:0.8rem;">Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? '✅ Disponible' : '❌ No disponible') + '</span>' +
+      '<strong style="font-size:0.85rem;"> Conexión</strong><br>' +
+      '<span style="font-size:0.8rem;">Internet: ' + (navigator.onLine ? ' Conectado' : ' Sin conexión') + '</span><br>' +
+      '<span style="font-size:0.8rem;">Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? ' Disponible' : ' No disponible') + '</span>' +
       '</div>';
 
     // Base de datos
     html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
-      '<strong style="font-size:0.85rem;">💾 Base de datos</strong><br>';
+      '<strong style="font-size:0.85rem;"> Base de datos</strong><br>';
     var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
     html += '<span style="font-size:0.8rem;">Usuarios: ' + staff.length + '</span><br>';
     var errStats = (typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats() : { total: 0 };
@@ -621,7 +621,7 @@
 
     // Rendimiento
     html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
-      '<strong style="font-size:0.85rem;">⚡ Rendimiento</strong><br>';
+      '<strong style="font-size:0.85rem;"> Rendimiento</strong><br>';
     if (typeof performance !== 'undefined' && performance.memory) {
       html += '<span style="font-size:0.8rem;">Memoria: ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB / ' + Math.round(performance.memory.jsHeapSizeLimit / 1048576) + ' MB</span><br>';
     }
@@ -634,7 +634,7 @@
     try { problemHistory = JSON.parse(localStorage.getItem('crozzo_problem_history') || '[]'); } catch (_) {}
     if (problemHistory.length > 0) {
       html += '<div style="margin-bottom:8px;padding:8px;background:#fff3cd;border-radius:6px;">' +
-        '<strong style="font-size:0.85rem;">📋 Historial de problemas (' + problemHistory.length + ')</strong><br>';
+        '<strong style="font-size:0.85rem;"> Historial de problemas (' + problemHistory.length + ')</strong><br>';
       problemHistory.slice(-5).forEach(function (p) {
         html += '<span style="font-size:0.75rem;">' + new Date(p.ts).toLocaleString() + ' — ' + p.type + ': ' + p.desc + '</span><br>';
       });
@@ -646,10 +646,10 @@
       var seg = config.get('seguridad') || {};
       var hp = seg.honeypot || {};
       html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
-        '<strong style="font-size:0.85rem;">🍯 Honeypot</strong><br>' +
-        '<span style="font-size:0.8rem;">Estado: ' + (hp.produccionEstricta ? '✅ Activo (estricto)' : '⚠️ Desactivado') + '</span><br>' +
+        '<strong style="font-size:0.85rem;"> Honeypot</strong><br>' +
+        '<span style="font-size:0.8rem;">Estado: ' + (hp.produccionEstricta ? ' Activo (estricto)' : ' Desactivado') + '</span><br>' +
         '<span style="font-size:0.8rem;">Bloqueos: ' + (hp.tripCount || 0) + ' trips</span><br>' +
-        '<span style="font-size:0.8rem;">Cuarentena: ' + (hp.legendaryActive ? '🔴 Activa' : '✅ Inactiva') + '</span>' +
+        '<span style="font-size:0.8rem;">Cuarentena: ' + (hp.legendaryActive ? ' Activa' : ' Inactiva') + '</span>' +
         '</div>';
     }
 
@@ -696,12 +696,12 @@
     try {
       var device = await navigator.usb.requestDevice({ filters: PRINTER_DB.filter(function (p) { return p.ids.length > 0; }).map(function (p) { return { vendorId: p.ids[0] }; }) });
       var found = PRINTER_DB.find(function (p) { return p.ids.indexOf(device.vendorId) >= 0; });
-      var msg = '✅ Detectada: ' + (device.productName || device.manufacturerName || 'Desconocida');
+      var msg = ' Detectada: ' + (device.productName || device.manufacturerName || 'Desconocida');
       if (found) msg += ' (' + found.vendor + ' — ' + found.driver + ')';
       el.innerHTML = msg;
       _dcLogProblem('impresora', 'Detectada: ' + (device.productName || 'Desconocida'));
     } catch (e) {
-      el.innerHTML = '<span style="color:#e74c3c;">❌ ' + (e.message || e) + '</span>';
+      el.innerHTML = '<span style="color:#e74c3c;"> ' + (e.message || e) + '</span>';
     }
   };
 

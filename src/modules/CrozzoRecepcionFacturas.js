@@ -18,10 +18,10 @@
   }
 
   var STEPS = [
-    { id: 'proveedor', label: 'Proveedor', icon: '🏢' },
-    { id: 'documento', label: 'Factura', icon: '📄' },
-    { id: 'productos', label: 'Productos', icon: '📦' },
-    { id: 'cierre', label: 'Verificar', icon: '✓' },
+    { id: 'proveedor', label: 'Proveedor', icon: '' },
+    { id: 'documento', label: 'Factura', icon: '' },
+    { id: 'productos', label: 'Productos', icon: '' },
+    { id: 'cierre', label: 'Verificar', icon: '' },
   ];
 
   var PROV_AUTO = '__AUTO__';
@@ -2090,7 +2090,7 @@
       '</strong></span>' +
       (val > 0
         ? '<span class="cxf-factura-totals__diff" id="cxf-lines-diff">' +
-          (ok ? '✓ Coincide con la factura' : '⚠ Diferencia: ' + fmtMoney(diff)) +
+          (ok ? ' Coincide con la factura' : ' Diferencia: ' + fmtMoney(diff)) +
           '</span>'
         : '<span class="cxf-muted">Indique el total impreso en la factura</span>') +
       '</div></div>'
@@ -2102,14 +2102,14 @@
     if (!f) {
       return (
         '<div class="cxf-preview-empty cxf-preview-empty--lg">' +
-        '<span class="cxf-preview-empty__icon">📄</span><p>Sin documento</p></div>'
+        '<span class="cxf-preview-empty__icon"></span><p>Sin documento</p></div>'
       );
     }
     var doc = f.docs[f.docPreviewIdx] || f.docs[0];
     if (!doc) {
       return (
         '<div class="cxf-preview-empty cxf-preview-empty--lg">' +
-        '<span class="cxf-preview-empty__icon">📄</span><p>Sin documento PDF</p></div>'
+        '<span class="cxf-preview-empty__icon"></span><p>Sin documento PDF</p></div>'
       );
     }
     if (isPdfDoc(doc) && doc.previewUrl) {
@@ -2164,7 +2164,7 @@
       '<button type="button" class="btn btn-outline btn-sm" id="cxf-qr-region-next" data-cxf-qr-region-next hidden>Página sig. →</button>' +
       '<span class="cxf-qr-region-actions__spacer"></span>' +
       '<button type="button" class="btn btn-outline" data-cxf-qr-region-close>Cancelar</button>' +
-      '<button type="button" class="btn btn-primary" id="cxf-qr-region-scan" data-cxf-qr-region-scan disabled>🔍 Buscar QR aquí</button>' +
+      '<button type="button" class="btn btn-primary" id="cxf-qr-region-scan" data-cxf-qr-region-scan disabled> Buscar QR aquí</button>' +
       '</div></div></div>'
     );
   }
@@ -2183,8 +2183,8 @@
       '<div id="cxf-ocr-preview" class="cxf-ocr-preview"></div>' +
       '<p id="cxf-ocr-status" class="cxf-ocr-status" role="status">Seleccione imagen/PDF para escanear.</p>' +
       '<div class="cxf-ocr-factura-actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="cxf-ocr-analizar">🔍 Analizar con OCR</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="cxf-ocr-aplicar">✅ Aplicar al formulario</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="cxf-ocr-analizar"> Analizar con OCR</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-ocr-aplicar"> Aplicar al formulario</button>' +
       '<button type="button" class="btn btn-outline btn-sm" data-cxf-ocr-close>Cancelar</button>' +
       '</div>' +
       '<div class="cxf-ocr-factura-lines">' +
@@ -2606,7 +2606,7 @@
       '<p id="cxf-qr-cam-status" class="cxf-qr-cam-status" role="status">Preparando cámara…</p>' +
       '<div class="cxf-qr-cam-actions">' +
       '<button type="button" class="btn btn-outline btn-sm" data-cxf-qr-cam-retry-perm>Reintentar permiso</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" data-cxf-qr-cam-file-btn>📁 Foto del QR</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-cxf-qr-cam-file-btn> Foto del QR</button>' +
       '<input type="file" id="cxf-qr-cam-file-input" accept="image/*" capture="environment" hidden>' +
       '<button type="button" class="btn btn-outline" data-cxf-qr-cam-close>Cancelar</button>' +
       '</div></div></div>'
@@ -2627,7 +2627,7 @@
       '<p class="cxf-panel-lead">Visor a pantalla completa con detección de bordes. Se abre solo al entrar aquí.</p>' +
       '</header>' +
       '<div style="padding:0 24px 24px;text-align:center">' +
-      '<button type="button" class="btn btn-primary btn-lg" data-cxf-auto-cam>📷 Abrir cámara en vivo</button>' +
+      '<button type="button" class="btn btn-primary btn-lg" data-cxf-auto-cam> Abrir cámara en vivo</button>' +
       '</div></section>'
     );
   }
@@ -2653,7 +2653,7 @@
       '<div id="cxf-fac-cam-modal" class="cxf-mp-modal-backdrop cxf-fac-cam-backdrop" hidden aria-hidden="true">' +
       '<div class="cxf-fac-cam-dialog" role="dialog" aria-modal="true" aria-labelledby="cxf-fac-cam-title">' +
       '<header class="cxf-fac-cam-dialog__head">' +
-      '<h3 id="cxf-fac-cam-title" class="cxf-fac-cam-title">📷 Capturar factura</h3>' +
+      '<h3 id="cxf-fac-cam-title" class="cxf-fac-cam-title"> Capturar factura</h3>' +
       '<div class="cxf-fac-cam-mode-toggle">' +
       '<button type="button" class="btn btn-sm cxf-fac-cam-mode-btn is-active" data-cxf-fac-cam-mode="auto">Auto</button>' +
       '<button type="button" class="btn btn-sm cxf-fac-cam-mode-btn" data-cxf-fac-cam-mode="manual">Manual</button>' +
@@ -2681,13 +2681,13 @@
       '<p class="cxf-fac-cam-sidebar-title">Capturas <span id="cxf-fac-cam-count">0</span></p>' +
       '<div class="cxf-fac-cam-thumbs" id="cxf-fac-cam-thumbs"></div>' +
       '<div class="cxf-fac-cam-ocr" id="cxf-fac-cam-ocr" hidden style="margin:8px 0;padding:8px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:rgba(0,0,0,0.25)">' +
-      '<p class="cxf-fac-cam-ocr-title" style="margin:0 0 4px;font-size:12px;opacity:0.85">📝 Texto detectado</p>' +
+      '<p class="cxf-fac-cam-ocr-title" style="margin:0 0 4px;font-size:12px;opacity:0.85"> Texto detectado</p>' +
       '<div style="height:4px;background:rgba(255,255,255,0.15);border-radius:2px;overflow:hidden"><div id="cxf-fac-cam-ocr-bar" style="height:100%;width:0;background:#22c55e;transition:width .2s"></div></div>' +
       '<pre id="cxf-fac-cam-ocr-text" style="white-space:pre-wrap;word-break:break-word;max-height:140px;overflow:auto;font-size:11px;line-height:1.35;margin:6px 0 0;opacity:0.92"></pre>' +
       '</div>' +
       '<div class="cxf-fac-cam-sidebar-actions">' +
-      '<button type="button" class="btn btn-primary btn-sm" id="cxf-fac-cam-snap">📸 Capturar</button>' +
-      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-pick-file">📁 Elegir foto</button>' +
+      '<button type="button" class="btn btn-primary btn-sm" id="cxf-fac-cam-snap"> Capturar</button>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-pick-file"> Elegir foto</button>' +
       '<button type="button" class="btn btn-outline btn-sm" data-cxf-fac-cam-close>Cancelar</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="cxf-fac-cam-clear" disabled>Limpiar</button>' +
       '<button type="button" class="btn btn-success" id="cxf-fac-cam-use" disabled>Usar facturas →</button>' +
@@ -2853,11 +2853,11 @@
       /* Toast de confirmación en el visor */
       var toastEl = document.getElementById('cxf-fac-cam-snap-toast');
       if (toastEl) {
-        toastEl.textContent = '✅ Foto ' + (idx + 1) + ' guardada';
+        toastEl.textContent = ' Foto ' + (idx + 1) + ' guardada';
         toastEl.classList.add('is-visible');
         setTimeout(function () { toastEl.classList.remove('is-visible'); }, 1800);
       }
-      setFacCamMsg('📄 Apunte a la siguiente o pulse "Usar facturas →"', false);
+      setFacCamMsg(' Apunte a la siguiente o pulse "Usar facturas →"', false);
       setFacCamProgress(0);
       _cxfFacCam.cooldownFrames = 75;
       _cxfFacCam._holdFrames = 0;
@@ -3085,7 +3085,7 @@
     var THRESH_SNAP = 0.21;
 
     if (a.score < THRESH_LOW) {
-      setFacCamMsg('📄 Apunte la cámara a la factura', false);
+      setFacCamMsg(' Apunte la cámara a la factura', false);
       setFacCamGuideFrame(0.10, 0.10, 0.90, 0.90);
       setFacCamProgress(0);
       _cxfFacCam._holdFrames = 0;
@@ -3119,7 +3119,7 @@
       else if (dh < -0.10) guide = 'un poco a la derecha →';
       else if (dv > 0.10)  guide = '↑ sube un poco';
       else if (dv < -0.10) guide = 'baja un poco ↓';
-      else                 guide = '🔍 casi — más cerca aún';
+      else                 guide = ' casi — más cerca aún';
       setFacCamMsg(guide, false);
       setFacCamProgress(20);
       _cxfFacCam._holdFrames = 0;
@@ -3135,11 +3135,11 @@
     setFacCamGuideFrame(0.06, 0.06, 0.94, 0.94);
 
     if (_cxfFacCam._holdFrames < 3) {
-      setFacCamMsg('📄 Todo el documento — quieto…', true);
+      setFacCamMsg(' Todo el documento — quieto…', true);
     } else if (_cxfFacCam._holdFrames < 6) {
-      setFacCamMsg('✅ Perfecto — no muevas…', true);
+      setFacCamMsg(' Perfecto — no muevas…', true);
     } else {
-      setFacCamMsg('📸 Tomando foto…', true);
+      setFacCamMsg(' Tomando foto…', true);
     }
 
     if (a.score >= THRESH_SNAP && _cxfFacCam._holdFrames >= holdNeeded) {
@@ -3226,7 +3226,7 @@
         _cxfFacCam._mediaAbort = null;
         setFacCamSnapEnabled(true);
         setFacCamMsg('Apunte la cámara a la factura', false);
-        setFacCamStatus('Cámara en vivo · pulse 📸 Capturar');
+        setFacCamStatus('Cámara en vivo · pulse  Capturar');
         console.warn('[CXF] fac-cam: stream activo');
         _cxfFacCam.rafId = requestAnimationFrame(tickFacCameraFrame);
       })
@@ -3239,7 +3239,7 @@
         setFacCamSnapEnabled(false);
         console.warn('[CXF] fac-cam: fallo cámara', err && err.name, err && err.message);
         setFacCamMsg(cxfCameraErrorMessage(err), false);
-        setFacCamStatus('Sin webcam — use 📁 Elegir foto o Reintentar');
+        setFacCamStatus('Sin webcam — use  Elegir foto o Reintentar');
         if (retryBtn) retryBtn.hidden = false;
         if (/NotAllowed|Permission denied|PermissionDenied/i.test(String((err && err.name) || '') + ' ' + String((err && err.message) || ''))) {
           openCxfWindowsCameraSettings();
@@ -3777,7 +3777,7 @@
       '<div class="cxf-field-box cxf-field-box--peso cxf-field-box--compact">' +
       '<span class="cxf-line-peso-title cxf-field-box__title" title="' +
       esc(meta.pesoTip) +
-      '">⚖ ' +
+      '"> ' +
       esc(meta.pesoTitle) +
       '</span>' +
       '<div class="cxf-input-with-unit" title="Peso o volumen — no es dinero">' +
@@ -3803,7 +3803,7 @@
     return (
       '<div class="cxf-line-card__col cxf-line-card__col--dinero">' +
       '<div class="cxf-field-box cxf-field-box--dinero cxf-field-box--compact">' +
-      '<span class="cxf-field-box__title" title="Valor total de esta línea en la factura">💰 Total pagado ($)</span>' +
+      '<span class="cxf-field-box__title" title="Valor total de esta línea en la factura"> Total pagado ($)</span>' +
       '<div class="cxf-input-with-unit cxf-input-with-unit--money">' +
       '<span class="cxf-input-with-unit__prefix" aria-hidden="true">$</span>' +
       '<input class="form-input cxf-line-precio" type="number" min="0" step="1" placeholder="10000" value="' +
@@ -4130,7 +4130,7 @@
         (locked ? ' disabled' : '') +
         '>' +
         '<span class="crozzo-mod-nav__num">' +
-        (done ? '✓' : String(i + 1)) +
+        (done ? '' : String(i + 1)) +
         '</span>' +
         '<span class="crozzo-mod-nav__label">' +
         esc(s.label) +
@@ -4351,7 +4351,7 @@
     var sfx = tr.querySelector('.cxf-line-peso-suffix');
     if (sfx) sfx.textContent = meta.suffix;
     var tit = tr.querySelector('.cxf-line-peso-title');
-    if (tit) tit.textContent = '⚖ ' + meta.pesoTitle;
+    if (tit) tit.textContent = ' ' + meta.pesoTitle;
     var cant = tr.querySelector('.cxf-line-cant');
     var precio = tr.querySelector('.cxf-line-precio');
     if (cant && !cant.value) cant.value = String(mp.peso != null ? mp.peso : '');
@@ -4536,7 +4536,7 @@
           esc(p.id) +
           '">' +
           '<span class="cxf-combobox__option-name">' +
-          (ya ? '✓ ' : '') +
+          (ya ? ' ' : '') +
           esc(p.nombre) +
           '</span>' +
           '<span class="cxf-combobox__option-meta">' +
@@ -4554,7 +4554,7 @@
     if (!provs.length) {
       return (
         '<div class="cxf-prov-empty cxf-prov-empty--chips">' +
-        '<span aria-hidden="true">🏢</span>' +
+        '<span aria-hidden="true"></span>' +
         '<p>Busque arriba y haga clic en un proveedor para agregarlo. Puede elegir varios.</p></div>'
       );
     }
@@ -4666,20 +4666,20 @@
     return (
       '<div class="cxf-card cxf-card--featured cxf-prov-auto-pane">' +
       '<div class="cxf-auto-hero">' +
-      '<span class="cxf-auto-hero__icon" aria-hidden="true">🧠</span>' +
+      '<span class="cxf-auto-hero__icon" aria-hidden="true"></span>' +
       '<div>' +
       '<h3 class="cxf-auto-hero__title">Auto-detección de proveedores</h3>' +
       '<p class="cxf-auto-hero__desc">Suba las facturas directamente. El sistema leerá cada PDF, extraerá el NIT del emisor y asignará o creará el proveedor automáticamente. Sin intervención manual.</p>' +
       '</div></div>' +
       '<div class="cxf-auto-input-row">' +
       '<div class="cxf-auto-drop-zone cxf-doc-drop" data-cxf-auto-drop data-prov-id="' + esc(PROV_AUTO) + '">' +
-      '<span class="cxf-auto-drop-zone__icon" aria-hidden="true">📁</span>' +
+      '<span class="cxf-auto-drop-zone__icon" aria-hidden="true"></span>' +
       '<p class="cxf-auto-drop-zone__label">Arrastre PDFs aquí o</p>' +
       '<label class="btn btn-outline cxf-doc-file-label" for="cxf-auto-file-input">Seleccionar archivos</label>' +
       '<input type="file" id="cxf-auto-file-input" class="cxf-doc-file-hidden" data-cxf-auto-file accept="application/pdf,image/*" multiple>' +
       '</div>' +
       '<button type="button" class="btn btn-outline cxf-auto-cam-btn" data-cxf-auto-cam>' +
-      '<span class="cxf-auto-cam-btn__icon" aria-hidden="true">📷</span>' +
+      '<span class="cxf-auto-cam-btn__icon" aria-hidden="true"></span>' +
       '<span>Capturar con cámara</span>' +
       '</button>' +
       '</div>' +
@@ -4736,12 +4736,12 @@
       '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'select' ? ' is-active' : '') +
       '" data-cxf-prov-tab="select" role="tab">' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📄</span>' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true"></span>' +
       '<span class="cxf-prov-tab-btn__label">Registrado</span></button>' +
       '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'nuevo' ? ' is-active' : '') +
       '" data-cxf-prov-tab="nuevo" role="tab">' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">➕</span>' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true"></span>' +
       '<span class="cxf-prov-tab-btn__label">Alta rápida</span></button>' +
       '<button type="button" class="cxf-prov-tab-btn' +
       (tab === 'importar' ? ' is-active' : '') +
@@ -4749,7 +4749,7 @@
       '" data-cxf-prov-tab="importar" role="tab"' +
       cxfFeatureLockedAttr('cxf_importar_rut') +
       '>' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📅</span>' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true"></span>' +
       '<span class="cxf-prov-tab-btn__label">Desde certificado</span>' +
       (importLocked ? cxfFeatureLockedChip() : '') +
       '</button>' +
@@ -4759,7 +4759,7 @@
       '" data-cxf-prov-tab="auto" role="tab"' +
       cxfFeatureLockedAttr('cxf_auto_detect') +
       '>' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">🧠</span>' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true"></span>' +
       '<span class="cxf-prov-tab-btn__label">Auto-detectar</span>' +
       (autoLocked ? cxfFeatureLockedChip() : '') +
       '</button>' +
@@ -4769,7 +4769,7 @@
       '" data-cxf-prov-tab="camara" role="tab"' +
       cxfFeatureLockedAttr('cxf_camara') +
       '>' +
-      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true">📷</span>' +
+      '<span class="cxf-prov-tab-btn__icon" aria-hidden="true"></span>' +
       '<span class="cxf-prov-tab-btn__label">Tomar foto</span>' +
       (camLocked ? cxfFeatureLockedChip() : '') +
       '</button>' +
@@ -4856,7 +4856,7 @@
                 (d.role === 'dian-oficial' ? 'DIAN' : 'PDF') +
                 '</span>'
               : '<span class="cxf-doc-thumb__img" aria-hidden="true">' +
-                (d.role === 'dian-oficial' ? '⚡' : '🖼') +
+                (d.role === 'dian-oficial' ? '' : '') +
                 '</span>') +
             '<span class="cxf-doc-thumb__name">' +
             esc(d.nombre) +
@@ -4881,7 +4881,7 @@
     var doc = (factura.docs || [])[factura.docPreviewIdx || 0];
     var preview;
     if (!doc) {
-      preview = '<div class="cxf-preview-empty cxf-preview-empty--card"><span>📄</span><p>Vista previa</p></div>';
+      preview = '<div class="cxf-preview-empty cxf-preview-empty--card"><span></span><p>Vista previa</p></div>';
     } else if (isPdfDoc(doc) && doc.previewUrl) {
       preview =
         '<div class="cxf-pdf-preview-host cxf-preview-frame--card cxf-pdf-preview-host--ready">' +
@@ -4905,7 +4905,7 @@
         preview = renderPdfPreviewHtml(doc, 'cxf-preview-frame--card');
       } else {
         preview =
-          '<div class="cxf-preview-empty cxf-preview-empty--card"><span>📄</span><p>Sin PDF en memoria — vuelva a cargar el archivo</p></div>';
+          '<div class="cxf-preview-empty cxf-preview-empty--card"><span></span><p>Sin PDF en memoria — vuelva a cargar el archivo</p></div>';
       }
     } else {
       preview =
@@ -4923,7 +4923,7 @@
               esc(provId) +
               '" data-factura-id="' +
               esc(factura.id) +
-              '" title="Marque el QR en la vista">🔲 Marcar QR</button> '
+              '" title="Marque el QR en la vista"> Marcar QR</button> '
             : '') +
           '<button type="button" class="btn btn-outline btn-sm cxf-doc-remove-current" data-prov-id="' +
           esc(provId) +
@@ -4982,31 +4982,31 @@
       esc(provId) +
       '" data-factura-id="' +
       esc(factura.id) +
-      '"><span>📁</span> PDF</button>' +
+      '"><span></span> PDF</button>' +
       '<button type="button" class="cxf-doc-btn cxf-doc-btn--gold cxf-pick-img" data-prov-id="' +
       esc(provId) +
       '" data-factura-id="' +
       esc(factura.id) +
-      '"><span>📷</span> Foto</button>' +
+      '"><span></span> Foto</button>' +
       '<button type="button" class="cxf-doc-btn" data-cxf-ocr-open data-prov-id="' +
       esc(provId) +
       '" data-factura-id="' +
       esc(factura.id) +
-      '"><span>🔍</span> Escanear factura (OCR)</button></div>' +
+      '"><span></span> Escanear factura (OCR)</button></div>' +
       (hasImg
         ? '<div class="cxf-pdf-tools"><div class="cxf-pdf-tools__btns">' +
           '<button type="button" class="btn btn-outline btn-sm cxf-img-to-pdf" data-prov-id="' +
           esc(provId) +
           '" data-factura-id="' +
           esc(factura.id) +
-          '" data-pdf-mode="ask">📄 Convertir fotos de este bloque…</button></div></div>'
+          '" data-pdf-mode="ask"> Convertir fotos de este bloque…</button></div></div>'
         : '') +
       (canSplit
         ? '<div class="cxf-pdf-tools cxf-pdf-tools--split"><button type="button" class="btn btn-outline btn-sm" data-cxf-split-pdf data-prov-id="' +
           esc(provId) +
           '" data-factura-id="' +
           esc(factura.id) +
-          '">✂ Dividir PDF en varias facturas</button></div>'
+          '"> Dividir PDF en varias facturas</button></div>'
         : '') +
       renderDocThumbsForProv(provId, factura.id) +
       '<label class="cxf-label">Nº factura (FE, prefijo, etc.)</label>' +
@@ -5113,7 +5113,7 @@
           '<div class="cxf-pdf-tools__btns">' +
           '<button type="button" class="btn btn-primary btn-sm cxf-img-to-pdf" data-prov-id="' +
           esc(pid) +
-          '" data-pdf-mode="ask">📑 Convertir fotos a PDF…</button></div></div>'
+          '" data-pdf-mode="ask"> Convertir fotos a PDF…</button></div></div>'
         : '') +
       '<div class="cxf-facturas-in-prov">' +
       b.facturas
@@ -5262,7 +5262,7 @@
     }
     var main = '';
     if (a && a.aplicadoAt) {
-      main = '<span class="cxf-fe-badge cxf-fe-badge--applied">✓ Aplicada</span>';
+      main = '<span class="cxf-fe-badge cxf-fe-badge--applied"> Aplicada</span>';
     } else if (a && a.identidad && a.identidad.numeroFactura) {
       main =
         '<span class="cxf-fe-badge cxf-fe-badge--ready" title="' +
@@ -5423,7 +5423,7 @@
       '</p></header>' +
       '<div class="cxf-modo-grid">' +
       '<article class="cxf-modo-card">' +
-      (premium ? '<div class="cxf-modo-card__icon" aria-hidden="true">📄</div>' : '') +
+      (premium ? '<div class="cxf-modo-card__icon" aria-hidden="true"></div>' : '') +
       '<h3 class="cxf-modo-card__title">Simple</h3>' +
       '<p class="cxf-modo-card__desc">Ingrese el <strong>número de factura</strong> y las líneas a mano. PDF o fotos son <strong>opcionales</strong>.</p>' +
       '<ul class="cxf-modo-card__list form-hint"><li>Sin PDF obligatorio</li><li>Varios PDF por proveedor (opcional)</li><li>Control manual de líneas</li></ul>' +
@@ -5436,7 +5436,7 @@
       '<span class="cxf-modo-card__tier">' +
       (feLocked ? cxfFeatureLockedChip() : premium ? 'Recomendado · Poder FE' : 'Recomendado FE') +
       '</span>' +
-      (premium ? '<div class="cxf-modo-card__icon cxf-modo-card__icon--power" aria-hidden="true">⚡</div>' : '') +
+      (premium ? '<div class="cxf-modo-card__icon cxf-modo-card__icon--power" aria-hidden="true"></div>' : '') +
       '<h3 class="cxf-modo-card__title">Inteligencia FE</h3>' +
       '<p class="cxf-modo-card__desc">Analiza facturas electrónicas: lee <strong>QR y CUFE</strong>, consulta DIAN, valida proveedor y total del cajero, y sugiere materias primas.</p>' +
       '<ul class="cxf-modo-card__list form-hint"><li>Detección automática FE</li><li>Enlace a catálogo DIAN</li><li>Match proveedor y valor</li><li>Sugerencia de líneas MP</li></ul>' +
@@ -7038,7 +7038,7 @@
     var parts = [];
     if (ident.numeroFactura) parts.push(ident.numeroFactura);
     if (ident.totalFmt) parts.push(ident.totalFmt);
-    if (ident.proveedorOk) parts.push('proveedor ✓');
+    if (ident.proveedorOk) parts.push('proveedor ');
     else if (ident.estadoId === 'probable' || ident.estadoId === 'parcial') {
       parts.push('revise proveedor');
     }
@@ -7113,12 +7113,12 @@
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">📷 Escanear QR con cámara (sin esperar)</button> ' +
+        '"> Escanear QR con cámara (sin esperar)</button> ' +
         '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">🔲 Marcar QR</button></div>'
+        '"> Marcar QR</button></div>'
       );
     }
     if (!a || a.estado === 'analizando') {
@@ -7140,12 +7140,12 @@
           esc(provId) +
           '" data-factura-id="' +
           esc(factura.id) +
-          '">📷 Cámara QR</button> ' +
+          '"> Cámara QR</button> ' +
           '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-marca-qr data-prov-id="' +
           esc(provId) +
           '" data-factura-id="' +
           esc(factura.id) +
-          '">🔲 Marcar QR</button></div>'
+          '"> Marcar QR</button></div>'
         );
       }
       if (a && a.estado === 'analizando' && FD.renderFeAnalisisLoader) {
@@ -7171,12 +7171,12 @@
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">🔲 Marcar QR</button> ' +
+        '"> Marcar QR</button> ' +
         '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-camara data-prov-id="' +
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">📷 Cámara QR</button></div>'
+        '"> Cámara QR</button></div>'
       );
     }
     if (a.estado === 'error') {
@@ -7195,12 +7195,12 @@
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">🔲 Marcar QR</button> ' +
+        '"> Marcar QR</button> ' +
         '<button type="button" class="btn btn-outline btn-sm" data-cxf-fe-camara data-prov-id="' +
         esc(provId) +
         '" data-factura-id="' +
         esc(factura.id) +
-        '">📷 Cámara QR</button></div>'
+        '"> Cámara QR</button></div>'
       );
     }
     return FD.renderAnalisisPanel(a, {
@@ -7301,18 +7301,18 @@
           '</span>'
       );
     }
-    if (st.aplicado) chips.push('<span class="cxf-documento-resumen__chip is-ok">✓ ' + st.aplicado + ' aplicadas</span>');
+    if (st.aplicado) chips.push('<span class="cxf-documento-resumen__chip is-ok"> ' + st.aplicado + ' aplicadas</span>');
     if (st.listo - st.aplicado > 0) {
       chips.push(
-        '<span class="cxf-documento-resumen__chip is-warn">⚠ ' +
+        '<span class="cxf-documento-resumen__chip is-warn"> ' +
           (st.listo - st.aplicado) +
           ' listas sin aplicar</span>'
       );
     }
-    if (st.error) chips.push('<span class="cxf-documento-resumen__chip is-fail">✕ ' + st.error + ' con error</span>');
+    if (st.error) chips.push('<span class="cxf-documento-resumen__chip is-fail"> ' + st.error + ' con error</span>');
     if (st.sinQr) {
       chips.push(
-        '<span class="cxf-documento-resumen__chip is-fail" title="Escaneos sin QR/CUFE — use cámara o ingreso manual">📷 ' +
+        '<span class="cxf-documento-resumen__chip is-fail" title="Escaneos sin QR/CUFE — use cámara o ingreso manual"> ' +
           st.sinQr +
           ' sin QR/CUFE</span>'
       );
@@ -7326,7 +7326,7 @@
     } else if (st.sinAplicarFe.length) {
       hint = 'Pulse <strong>Aplicar datos</strong> en cada factura electrónica antes de continuar.';
     } else if (st.error) {
-      hint = 'Use <strong>🔲 Marcar QR</strong>, <strong>↻ Reanalizar</strong> o <strong>📷 Cámara QR</strong> en las facturas con error.';
+      hint = 'Use <strong> Marcar QR</strong>, <strong>↻ Reanalizar</strong> o <strong> Cámara QR</strong> en las facturas con error.';
     } else if (st.aplicado >= st.totalConDoc || st.listo >= st.totalConDoc) {
       hint = 'Todo listo — puede continuar a productos.';
     } else {
@@ -7373,7 +7373,7 @@
           (premium ? ' cxf-modo-banner--power' : '') +
           '"><strong>' +
           (premium ? 'Motor FE activo:' : 'Modo complejo:') +
-          '</strong> lee <strong>QR/CUFE</strong>, extrae texto del PDF (fuentes Arial/Helvetica, etc.), y si el archivo es escaneado aplica <strong>OCR por zonas</strong> (impreso y manuscrito en totales). Valida que el documento sea FE y que coincida con el <strong>proveedor asignado</strong>. Si falla el QR: <strong>🔲 Marcar QR</strong>, <strong>📷 Cámara</strong> o <strong>↻ Reanalizar</strong>. Pulse <strong>Aplicar datos</strong> antes de continuar.' +
+          '</strong> lee <strong>QR/CUFE</strong>, extrae texto del PDF (fuentes Arial/Helvetica, etc.), y si el archivo es escaneado aplica <strong>OCR por zonas</strong> (impreso y manuscrito en totales). Valida que el documento sea FE y que coincida con el <strong>proveedor asignado</strong>. Si falla el QR: <strong> Marcar QR</strong>, <strong> Cámara</strong> o <strong>↻ Reanalizar</strong>. Pulse <strong>Aplicar datos</strong> antes de continuar.' +
           feTrainingBannerExtra() +
           '</div>'
         : '<div class="cxf-modo-banner cxf-muted" style="font-size:0.85rem">Modo simple — escriba el Nº de factura y continúe; el PDF es opcional.</div>';
@@ -7450,7 +7450,7 @@
       '<div class="cxf-mp-create cxf-mp-create--modal" id="cxf-mp-create-panel">' +
       '<header class="cxf-mp-create__head">' +
       '<span class="cxf-mp-create__icon" aria-hidden="true">' +
-      (isEdit ? '✎' : '✨') +
+      (isEdit ? '' : '') +
       '</span>' +
       '<div><h4 class="cxf-mp-create__title" id="cxf-mp-modal-title">' +
       (isEdit ? 'Editar materia prima' : 'Nueva materia prima') +
@@ -7518,7 +7518,7 @@
           esc(ln.mpId || '') +
           '" title="Editar"' +
           (ln.mpId ? '' : ' disabled') +
-          '>✎</button>' +
+          '></button>' +
           '<button type="button" class="btn btn-outline btn-sm cxf-line-new-mp" data-line-new-mp="' +
           i +
           '" title="Nuevo">+</button></div></div>' +
@@ -7634,7 +7634,7 @@
                 '" data-factura-id="' +
                 esc(f.id) +
                 '">' +
-                (d.mime && d.mime.indexOf('pdf') >= 0 ? 'PDF' : '🖼') +
+                (d.mime && d.mime.indexOf('pdf') >= 0 ? 'PDF' : '') +
                 ' ' +
                 esc((d.nombre || '').slice(0, 12)) +
                 '</button>'
@@ -7674,11 +7674,11 @@
       ui.lines.length +
       ' línea(s)</span></div>' +
       '<details class="cxf-hint-fold"><summary>¿Peso vs dinero?</summary>' +
-      '<p class="cxf-card__hint"><strong>⚖ Peso</strong> en g/ml/und (3 kg = 3000) · <strong>💰 Dinero</strong> = total en factura. El cálculo $/g aparece abajo de cada línea.</p></details>' +
+      '<p class="cxf-card__hint"><strong> Peso</strong> en g/ml/und (3 kg = 3000) · <strong> Dinero</strong> = total en factura. El cálculo $/g aparece abajo de cada línea.</p></details>' +
       renderTotalsMatchHtml() +
       '<div class="cxf-lines-panel cxf-card cxf-card--glass">' +
       '<div class="cxf-lines-panel__bar">' +
-      '<span class="cxf-lines-panel__legend"><span class="cxf-legend-peso">⚖ Peso</span><span class="cxf-legend-dinero">💰 Dinero</span><span class="cxf-legend-calc">Cálculo</span></span>' +
+      '<span class="cxf-lines-panel__legend"><span class="cxf-legend-peso"> Peso</span><span class="cxf-legend-dinero"> Dinero</span><span class="cxf-legend-calc">Cálculo</span></span>' +
       '<div class="cxf-lines-toolbar cxf-lines-toolbar--inline">' +
       '<button type="button" class="btn btn-outline btn-sm" id="cxf-add-line">+ Línea</button>' +
       '<button type="button" class="btn btn-outline btn-sm" id="cxf-new-mp-line">+ Materia prima</button></div></div>' +
@@ -7808,7 +7808,7 @@
       '" min="0" step="1">' +
       (Math.abs(diff) >= 1
         ? '<p class="cxf-warn">La suma de líneas no coincide con el total — revise antes de confirmar.</p>'
-        : '<p class="cxf-ok-hint">✓ Totales coherentes</p>') +
+        : '<p class="cxf-ok-hint"> Totales coherentes</p>') +
       renderCierreImpactPanel(f) +
       '</div>' +
       '<div class="cxf-card cxf-card--accent">' +
@@ -7816,7 +7816,7 @@
       '<div class="cxf-pay-methods" id="cxf-pay-methods">' +
       ['efectivo', 'tarjeta', 'transferencia']
         .map(function (m) {
-          var labels = { efectivo: '💵 Efectivo', tarjeta: '💳 Tarjeta', transferencia: '🏦 Transferencia' };
+          var labels = { efectivo: ' Efectivo', tarjeta: ' Tarjeta', transferencia: ' Transferencia' };
           return (
             '<button type="button" class="cxf-pay' +
             (ui.metodoPago === m ? ' is-active' : '') +
@@ -7870,14 +7870,14 @@
             '">Editar</button> ' +
             '<button type="button" class="btn btn-outline btn-sm cxf-hist-delete cxf-hist-delete--danger" data-rec-id="' +
             esc(r.id) +
-            '" title="Eliminar del historial">🗑 Borrar</button></td></tr>'
+            '" title="Eliminar del historial"> Borrar</button></td></tr>'
           );
         }).join('')
       : '';
     return (
       '<section class="cxf-historial">' +
       '<details class="cxf-historial__toggle" open>' +
-      '<summary><span class="cxf-storage-bar__icon" aria-hidden="true">📋</span> Historial de ingresos · editar cuando haga falta</summary>' +
+      '<summary><span class="cxf-storage-bar__icon" aria-hidden="true"></span> Historial de ingresos · editar cuando haga falta</summary>' +
       '<div class="crozzo-mod-table-scroll"><table class="crozzo-mod-table"><thead><tr>' +
       '<th>Fecha</th><th>Proveedor</th><th>Nº factura</th><th>Valor</th><th>Pago</th><th>Ítems</th><th></th>' +
       '</tr></thead><tbody>' +
@@ -7900,7 +7900,7 @@
     var ret = summary.retentionDays || 365;
     return (
       '<details class="cxf-storage-bar crozzo-mod-aside" id="cxf-storage-note">' +
-      '<summary><span class="cxf-storage-bar__icon" aria-hidden="true">📁</span> Documentos · ' +
+      '<summary><span class="cxf-storage-bar__icon" aria-hidden="true"></span> Documentos · ' +
       ret +
       ' días' +
       (blobs.mb != null ? ' · ~' + blobs.mb + ' MB' : '') +
@@ -8414,7 +8414,7 @@
         if (_cxfFacCam) {
           _cxfFacCam.autoMode = (mode === 'auto');
           _cxfFacCam.cooldownFrames = 30;
-          setFacCamStatus('Modo ' + (mode === 'auto' ? 'automático — detección por bordes' : 'manual — pulse 📸 Capturar'));
+          setFacCamStatus('Modo ' + (mode === 'auto' ? 'automático — detección por bordes' : 'manual — pulse  Capturar'));
         }
         document.querySelectorAll('[data-cxf-fac-cam-mode]').forEach(function (b) {
           b.classList.toggle('is-active', b.getAttribute('data-cxf-fac-cam-mode') === mode);
@@ -9395,7 +9395,7 @@
     if (diffEl && val > 0) {
       var diff = val - sum;
       var ok = Math.abs(diff) < 1;
-      diffEl.textContent = ok ? '✓ Coincide con la factura' : '⚠ Diferencia: ' + fmtMoney(diff);
+      diffEl.textContent = ok ? ' Coincide con la factura' : ' Diferencia: ' + fmtMoney(diff);
       var wrap = host.querySelector('.cxf-factura-totals');
       if (wrap) {
         wrap.classList.toggle('cxf-factura-totals--ok', ok);
@@ -9548,9 +9548,9 @@
   }
 
   function saveButtonLabel(entryCount) {
-    if (ui.editingId) return '✓ Actualizar recepción';
-    if (entryCount > 1) return '✓ Confirmar ' + entryCount + ' ingresos';
-    return '✓ Confirmar ingreso y salir';
+    if (ui.editingId) return ' Actualizar recepción';
+    if (entryCount > 1) return ' Confirmar ' + entryCount + ' ingresos';
+    return ' Confirmar ingreso y salir';
   }
 
   function collectAllSaveEntries(host) {
@@ -9691,7 +9691,7 @@
     html += '<h4 class="cxf-save-plan__title">Resumen del registro</h4><ul class="cxf-save-plan__list">';
     pack.entries.forEach(function (e) {
       html +=
-        '<li class="cxf-save-plan__item cxf-save-plan__item--ok"><span class="cxf-save-plan__check" aria-hidden="true">✓</span> ' +
+        '<li class="cxf-save-plan__item cxf-save-plan__item--ok"><span class="cxf-save-plan__check" aria-hidden="true"></span> ' +
         esc(e.provNombre || e.payload.proveedorNombre) +
         ' · ' +
         esc(e.facturaLabel || e.payload.numeroFactura || 'Factura') +
