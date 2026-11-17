@@ -1,0 +1,608 @@
+/* =============================================================================
+ * Crozzo Premium Shell — capa de refinamiento "Executive Elite"
+ * -----------------------------------------------------------------------------
+ * Se carga DESPUÉS de CrozzoPosStyles.css + CrozzoPantallasShell.css.
+ * NO reemplaza estilos existentes: solo añade micro-interacciones, estados de
+ * foco, profundidad y feedback táctil.
+ *
+ * Todo el movimiento pesado vive bajo `body.crozzo-premium`, clase que añade
+ * CrozzoCommandCenter.js en DOMContentLoaded. Si el JS no carga, el sistema se
+ * ve exactamente igual que antes (degradación segura).
+ *
+ * Respeta:
+ *   body.crozzo-a11y-reduce-motion  → sin transformaciones
+ *   body.theme-high-contrast       → sin glass, bordes sólidos
+ * ============================================================================= */
+
+:root {
+  --cz-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --cz-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --cz-t-fast: 120ms;
+  --cz-t-mid: 220ms;
+  --cz-ring: 0 0 0 2px rgba(10, 10, 10, 0.9), 0 0 0 4px var(--gold-primary, #c9a962);
+  --cz-lift-1: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --cz-lift-2: 0 10px 30px rgba(0, 0, 0, 0.34);
+  --cz-gold-line: linear-gradient(90deg, transparent, rgba(201, 169, 98, 0.55), transparent);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 1. FOCO — anillo dorado consistente (solo teclado)
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--cz-ring);
+  border-radius: inherit;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 2. BOTONES — presión mecánica + brillo al pasar
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .btn,
+body.crozzo-premium .btn-luxury,
+body.crozzo-premium .crozzo-status-pill,
+body.crozzo-premium .crozzo-conflict-badge,
+body.crozzo-premium .nav-item {
+  transition:
+    transform var(--cz-t-fast) var(--cz-ease),
+    box-shadow var(--cz-t-mid) var(--cz-ease),
+    background-color var(--cz-t-mid) var(--cz-ease),
+    border-color var(--cz-t-mid) var(--cz-ease),
+    color var(--cz-t-mid) var(--cz-ease);
+}
+
+body.crozzo-premium .btn:not(:disabled):not(.btn-static):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--cz-lift-1);
+}
+
+body.crozzo-premium .btn:not(:disabled):not(.btn-static):active {
+  transform: translateY(0) scale(0.972);
+  transition-duration: 60ms;
+  box-shadow: none;
+}
+
+body.crozzo-premium .btn-primary:not(:disabled):hover {
+  box-shadow: 0 4px 18px rgba(201, 169, 98, 0.28), var(--cz-lift-1);
+}
+
+/* Sheen diagonal en botones primarios (sin capturar puntero) */
+body.crozzo-premium .btn-primary:not(:disabled) {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+body.crozzo-premium .btn-primary:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.16) 45%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 620ms var(--cz-ease-out);
+  pointer-events: none;
+  z-index: -1;
+}
+body.crozzo-premium .btn-primary:not(:disabled):hover::after {
+  transform: translateX(120%);
+}
+
+/* Ripple (lo inyecta CrozzoCommandCenter.js) */
+.cz-ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+  animation: cz-ripple 520ms var(--cz-ease-out) forwards;
+  z-index: 0;
+}
+@keyframes cz-ripple {
+  to { transform: scale(2.6); opacity: 0; }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 3. TARJETAS — elevación al pasar
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .card {
+  transition:
+    transform var(--cz-t-mid) var(--cz-ease),
+    box-shadow var(--cz-t-mid) var(--cz-ease),
+    border-color var(--cz-t-mid) var(--cz-ease);
+}
+body.crozzo-premium .card:not(.card--static):not(.card--flat):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cz-lift-2);
+  border-color: rgba(201, 169, 98, 0.28);
+}
+
+/* Filas de tabla: acento dorado sutil */
+body.crozzo-premium tbody tr {
+  transition: background-color var(--cz-t-fast) var(--cz-ease);
+}
+body.crozzo-premium tbody tr:hover {
+  background-color: rgba(201, 169, 98, 0.06);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 4. NAV LATERAL — barra indicadora animada
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .nav-item {
+  position: relative;
+}
+body.crozzo-premium .nav-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--gradient-gold, linear-gradient(135deg, #d4af37, #b8941f));
+  transform: translateY(-50%);
+  transition: height var(--cz-t-mid) var(--cz-ease);
+  pointer-events: none;
+}
+body.crozzo-premium .nav-item:hover::before,
+body.crozzo-premium .nav-item.active::before,
+body.crozzo-premium .nav-item.is-active::before {
+  height: 62%;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 5. MODALES — vidrio + entrada cinematográfica
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .modal-overlay.active {
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  animation: cz-fade-in var(--cz-t-mid) var(--cz-ease-out);
+}
+body.crozzo-premium .modal-overlay.active .modal,
+body.crozzo-premium .modal-overlay.active .modal-dialog {
+  animation: cz-modal-in 300ms var(--cz-ease-out);
+  border: 1px solid rgba(201, 169, 98, 0.22);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+@keyframes cz-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cz-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 6. PÁGINA — transición sobria al cambiar de pantalla
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium #mainContent.cz-page-enter {
+  animation: cz-page-in 260ms var(--cz-ease-out);
+}
+@keyframes cz-page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 7. SKELETON — carga percibida
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  color: transparent !important;
+  pointer-events: none;
+  user-select: none;
+}
+.cz-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  transform: translateX(-100%);
+  animation: cz-shimmer 1.35s infinite;
+}
+@keyframes cz-shimmer { to { transform: translateX(100%); } }
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 8. SCROLLBAR — fino, dorado al pasar
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 169, 98, 0.32) transparent;
+}
+body.crozzo-premium *::-webkit-scrollbar { width: 10px; height: 10px; }
+body.crozzo-premium *::-webkit-scrollbar-track { background: transparent; }
+body.crozzo-premium *::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 98, 0.26);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+body.crozzo-premium *::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 98, 0.55);
+  background-clip: content-box;
+}
+
+/* Selección de texto */
+body.crozzo-premium ::selection {
+  background: rgba(201, 169, 98, 0.32);
+  color: #fff;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 9. INSIGNIA "SISTEMA" EN EL HEADER (la inyecta CrozzoCommandCenter.js)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-health {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 169, 98, 0.5);
+  background: linear-gradient(180deg, rgba(201, 169, 98, 0.18), rgba(201, 169, 98, 0.06));
+  color: var(--text-primary, #f5f5f7);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--cz-t-mid) var(--cz-ease), box-shadow var(--cz-t-mid) var(--cz-ease), transform var(--cz-t-fast) var(--cz-ease);
+}
+.cz-health:hover { border-color: rgba(201, 169, 98, 0.6); box-shadow: 0 0 16px rgba(201, 169, 98, 0.22); }
+.cz-health:active { transform: scale(0.98); }
+
+.cz-health__dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--success, #34c759);
+  box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.6);
+  animation: cz-pulse 2.4s var(--cz-ease) infinite;
+  flex: 0 0 auto;
+}
+.cz-health[data-state="degraded"] .cz-health__dot { background: var(--warning, #ff9f0a); box-shadow: 0 0 0 0 rgba(255, 159, 10, 0.6); }
+.cz-health[data-state="critical"] .cz-health__dot { background: var(--danger, #ff453a); box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.6); }
+.cz-health[data-state="critical"] { border-color: rgba(255, 69, 58, 0.45); }
+@keyframes cz-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(52, 199, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
+}
+
+/* Popover de salud */
+.cz-health-panel {
+  position: fixed;
+  z-index: 10060;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 169, 98, 0.5);
+  background: var(--bg-card, #1c1c1e);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  color: var(--text-primary, #f5f5f7);
+  font-size: 0.8rem;
+  animation: cz-pop-in 180ms var(--cz-ease-out);
+}
+@keyframes cz-pop-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cz-health-panel__title {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-dark, #b8941f);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.cz-health-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.22));
+}
+.cz-health-row:last-of-type { border-bottom: 0; }
+.cz-health-row__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success, #34c759); flex: 0 0 auto; }
+.cz-health-row__dot.warn { background: var(--warning, #ff9f0a); }
+.cz-health-row__dot.err { background: var(--danger, #ff453a); }
+.cz-health-row__label { flex: 1 1 auto; color: var(--text-secondary, #aeaeb2); }
+.cz-health-row__value { font-variant-numeric: tabular-nums; font-weight: 600; }
+.cz-health-panel__actions { display: flex; gap: 8px; margin-top: 12px; }
+.cz-health-panel__actions button {
+  flex: 1 1 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 169, 98, 0.55);
+  background: rgba(201, 169, 98, 0.12);
+  color: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--cz-t-fast) var(--cz-ease);
+}
+.cz-health-panel__actions button:hover { background: rgba(201, 169, 98, 0.22); }
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 10. COMMAND PALETTE (Ctrl/Cmd+K)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+  background: rgba(6, 6, 8, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: cz-fade-in 140ms var(--cz-ease-out);
+}
+.cz-palette {
+  width: 100%;
+  max-width: 640px;
+  border-radius: 16px;
+  border: 1px solid rgba(201, 169, 98, 0.55);
+  background: var(--bg-card, #1c1c1e);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  animation: cz-modal-in 200ms var(--cz-ease-out);
+  color: var(--text-primary, #f5f5f7);
+}
+.cz-palette__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.22));
+}
+.cz-palette__icon { opacity: 0.55; font-size: 1rem; }
+.cz-palette__input {
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1rem;
+  font-family: inherit;
+}
+.cz-palette__input::placeholder { color: var(--text-muted, #8e8e93); opacity: 0.9; }
+.cz-palette__kbd {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.3));
+  color: var(--text-secondary, #aeaeb2);
+}
+.cz-palette__list {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  padding: 6px;
+}
+.cz-palette__group {
+  padding: 10px 10px 4px;
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-dark, #b8941f);
+  font-weight: 700;
+}
+.cz-palette__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  border: 1px solid transparent;
+}
+.cz-palette__item.is-active {
+  background: rgba(201, 169, 98, 0.16);
+  border-color: rgba(201, 169, 98, 0.45);
+}
+.cz-palette__item__glyph { width: 20px; text-align: center; opacity: 0.8; flex: 0 0 auto; }
+.cz-palette__item__label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-palette__item__hint { font-size: 0.66rem; color: var(--text-muted, #8e8e93); flex: 0 0 auto; }
+.cz-palette__empty { padding: 26px 16px; text-align: center; color: var(--text-muted, #8e8e93); font-size: 0.82rem; }
+.cz-palette__foot {
+  display: flex;
+  gap: 14px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--border, rgba(128, 128, 128, 0.22));
+  font-size: 0.64rem;
+  color: var(--text-muted, #8e8e93);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 11. HOJA DE ATAJOS (?)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-shortcuts {
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: rgba(6, 6, 8, 0.66);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: cz-fade-in 140ms var(--cz-ease-out);
+}
+.cz-shortcuts__card {
+  width: 100%;
+  max-width: 560px;
+  max-height: 84vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(201, 169, 98, 0.55);
+  background: var(--bg-card, #1c1c1e);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+  padding: 22px;
+  color: var(--text-primary, #f5f5f7);
+}
+.cz-shortcuts__title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.cz-shortcuts__sub { font-size: 0.76rem; color: var(--text-muted, #8e8e93); margin-bottom: 16px; }
+.cz-shortcuts__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+.cz-shortcuts__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.8rem; padding: 6px 0; border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.22)); }
+.cz-shortcuts__keys { display: flex; gap: 4px; flex: 0 0 auto; }
+.cz-shortcuts__key {
+  font-size: 0.62rem;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.3));
+  background: var(--bg-secondary, rgba(128, 128, 128, 0.08));
+  color: var(--text-secondary, #aeaeb2);
+  font-family: inherit;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 12. ESTADO VACÍO
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 44px 20px;
+  text-align: center;
+  color: var(--text-muted, #8e8e93);
+}
+.cz-empty__glyph {
+  font-size: 2rem;
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+.cz-empty__title { font-size: 0.95rem; font-weight: 600; color: var(--text-secondary, #aeaeb2); }
+.cz-empty__hint { font-size: 0.78rem; max-width: 42ch; line-height: 1.5; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 13. BOTÓN FLOTANTE DE COMANDO (tablet / móvil, sin teclado)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-cmd-fab {
+  position: fixed;
+  left: 14px;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 9060;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 169, 98, 0.6);
+  background: var(--bg-card, #1c1c1e);
+  color: var(--gold-dark, #b8941f);
+  font-size: 1.15rem;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28), 0 0 0 0 rgba(201, 169, 98, 0.5);
+  transition: transform var(--cz-t-fast) var(--cz-ease), box-shadow var(--cz-t-mid) var(--cz-ease);
+}
+.cz-cmd-fab.is-on { display: flex; }
+.cz-cmd-fab:hover { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34), 0 0 18px rgba(201, 169, 98, 0.35); }
+.cz-cmd-fab:active { transform: scale(0.94); }
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 14. TARJETA DE RECUPERACIÓN (error boundary)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.cz-recovery {
+  margin: 24px auto;
+  max-width: 620px;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 69, 58, 0.34);
+  background: linear-gradient(180deg, rgba(255, 69, 58, 0.08), rgba(255, 69, 58, 0.02));
+  color: var(--text-primary, #f5f5f7);
+}
+.cz-recovery__title { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+.cz-recovery__text { font-size: 0.82rem; color: var(--text-secondary, #aeaeb2); margin-bottom: 14px; line-height: 1.55; }
+.cz-recovery__detail {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--danger, #d32f2f);
+  background: rgba(128, 128, 128, 0.12);
+  border-radius: 8px;
+  padding: 10px;
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin-bottom: 14px;
+}
+.cz-recovery__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 14. GUARDAS DE ACCESIBILIDAD
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-a11y-reduce-motion .cz-health__dot,
+body.crozzo-a11y-reduce-motion .cz-skeleton::after,
+body.crozzo-a11y-reduce-motion .btn-primary::after {
+  animation: none !important;
+  transition: none !important;
+}
+body.crozzo-a11y-reduce-motion .card:hover,
+body.crozzo-a11y-reduce-motion .btn:hover,
+body.crozzo-a11y-reduce-motion .btn:active,
+body.crozzo-a11y-reduce-motion .modal-overlay.active .modal,
+body.crozzo-a11y-reduce-motion #mainContent.cz-page-enter {
+  transform: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.crozzo-premium .cz-health__dot,
+  body.crozzo-premium .cz-skeleton::after { animation: none !important; }
+  body.crozzo-premium .card:hover,
+  body.crozzo-premium .btn:hover,
+  body.crozzo-premium .btn:active { transform: none !important; }
+  body.crozzo-premium .modal-overlay.active,
+  body.crozzo-premium .modal-overlay.active .modal,
+  body.crozzo-premium #mainContent.cz-page-enter { animation: none !important; }
+}
+
+body.theme-high-contrast .modal-overlay.active,
+body.theme-high-contrast .cz-palette-backdrop,
+body.theme-high-contrast .cz-shortcuts {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(0, 0, 0, 0.92);
+}
+body.theme-high-contrast .cz-palette,
+body.theme-high-contrast .cz-shortcuts__card,
+body.theme-high-contrast .cz-health-panel {
+  border-color: var(--a11y-hc-border, #ffd700) !important;
+  background: var(--a11y-hc-bg, #000) !important;
+  color: var(--a11y-hc-fg, #fff) !important;
+}
+
+/* Pantallas táctiles: sin hover lift (evita "saltos" fantasma) */
+@media (hover: none) {
+  body.crozzo-premium .card:hover,
+  body.crozzo-premium .btn:hover { transform: none; box-shadow: none; }
+  body.crozzo-premium .btn-primary:hover::after { transform: translateX(-120%); }
+}
+
+/* Compacto en móvil */
+@media (max-width: 640px) {
+  .cz-health { display: none; }
+  .cz-palette-backdrop { padding-top: 7vh; }
+  .cz-shortcuts__grid { grid-template-columns: 1fr; }
+}
+
+/* Tema claro: velo más suave y bordes dorados legibles */
+body.crozzo-theme-light .cz-palette-backdrop,
+body.crozzo-theme-light .cz-shortcuts {
+  background: rgba(24, 24, 28, 0.34);
+}
+body.crozzo-theme-light .cz-palette,
+body.crozzo-theme-light .cz-shortcuts__card,
+body.crozzo-theme-light .cz-health-panel {
+  box-shadow: 0 30px 80px rgba(20, 20, 24, 0.28);
+}
+

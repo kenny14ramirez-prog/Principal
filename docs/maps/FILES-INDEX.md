@@ -15,11 +15,13 @@
 | 1640 | `app/core/CrozzoAuthSecurity.js` |
 | 26 | `app/core/CrozzoCertVault.js` |
 | 31 | `app/core/CrozzoCertVaultIntegration.js` |
+| 1050 | `app/core/CrozzoCommandCenter.js` |
 | 49 | `app/core/CrozzoConfigWrapper.js` |
 | 111 | `app/core/CrozzoConnectionManager.js` |
 | 282 | `app/core/CrozzoCspDomWire.js` |
 | 40 | `app/core/CrozzoDedupIntegration.js` |
 | 98 | `app/core/CrozzoDedupMultilevel.js` |
+| 748 | `app/core/CrozzoDeploymentCenter.js` |
 | 443 | `app/core/CrozzoDeviceForm.js` |
 | 233 | `app/core/CrozzoDevicePerf.js` |
 | 258 | `app/core/CrozzoDocDesign.js` |
@@ -49,7 +51,7 @@
 | 114 | `app/core/CrozzoPosBoot.js` |
 | 3775 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53921 | `app/core/CrozzoPosMain.js` |
+| 53926 | `app/core/CrozzoPosMain.js` |
 | 2816 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |
@@ -73,7 +75,7 @@
 | 97 | `app/core/CrozzoTombstones.js` |
 | 43 | `app/core/CrozzoTombstonesIntegration.js` |
 | 344 | `app/core/CrozzoViewportFit.js` |
-| 796 | `app/core/pos/CrozzoPosConfigManager.js` |
+| 803 | `app/core/pos/CrozzoPosConfigManager.js` |
 | 810 | `app/core/pos/CrozzoPosDianLib.js` |
 | 1321 | `app/core/pos/CrozzoPosFacturasPage.js` |
 | 110 | `app/core/pos/CrozzoPosKeyboard.js` |
@@ -146,6 +148,7 @@
 | 180 | `app/infra/CrozzoTransportPathHealth.js` |
 | 101 | `app/infra/CrozzoUserSyncProfile.js` |
 | 532 | `app/infra/CrozzoWebRtcP2P.js` |
+| 153 | `app/infra/CrozzoWebSerialPrinter.js` |
 | 271 | `app/infra/CrozzoWifiDirectBridge.js` |
 | 383 | `app/infra/CrozzoWifiZoneBridge.js` |
 | 267 | `app/infra/CrozzoZ0AutoGuard.js` |
@@ -277,6 +280,7 @@
 | Líneas | Archivo |
 |--------|--------|
 | 688 | `app/ui/CrozzoA11yUser.js` |
+| 217 | `app/ui/CrozzoContextualHelp.js` |
 | 342 | `app/ui/CrozzoFormulaInput.js` |
 | 556 | `app/ui/CrozzoI18n.js` |
 | 298 | `app/ui/CrozzoLoadingShell.js` |
