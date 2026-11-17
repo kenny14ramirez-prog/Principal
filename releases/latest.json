@@ -1,28 +1,16 @@
 {
-  "id": "1.0.300-critical",
-  "version": "v1.0.300",
-  "semver": "1.0.300",
+  "id": "1.0.301-critical",
+  "version": "v1.0.301",
+  "semver": "1.0.301",
   "type": "critical",
-  "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion",
-  "publishedAt": "2026-11-17T21:09:37.621Z",
+  "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta",
+  "publishedAt": "2026-11-17T21:44:43.144Z",
   "installMode": "auto",
   "changelog": [
-    "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion"
+    "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta"
   ],
-  "updatedAt": "2026-11-17T21:09:37.621Z",
+  "updatedAt": "2026-11-17T21:44:43.144Z",
   "entries": [
-    {
-      "id": "1.0.276-critical",
-      "version": "v1.0.276",
-      "semver": "1.0.276",
-      "type": "critical",
-      "message": "Prueba de actualización automática v1.0.276",
-      "publishedAt": "2026-11-09T13:44:17.939Z",
-      "installMode": "auto",
-      "changelog": [
-        "Prueba de actualización automática v1.0.276"
-      ]
-    },
     {
       "id": "1.0.277-critical",
       "version": "v1.0.277",
@@ -325,6 +313,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion"
+      ]
+    },
+    {
+      "id": "1.0.301-critical",
+      "version": "v1.0.301",
+      "semver": "1.0.301",
+      "type": "critical",
+      "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta",
+      "publishedAt": "2026-11-17T21:44:43.144Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0, numeracion robusta"
       ]
     }
   ]
