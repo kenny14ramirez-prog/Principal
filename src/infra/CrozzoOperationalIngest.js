@@ -122,7 +122,18 @@
       return { apply: false, reason: reg.reason || 'op_ack', opId: reg.opId || opId };
     }
 
+    // Fase 0: dedup multinivel (feature flag, default off)
     var tid = String(snap.transaction_id || '').trim();
+    if (!opts.forceApply && global.CrozzoFeatureFlags && typeof global.CrozzoFeatureFlags.isEnabled === 'function' && global.CrozzoFeatureFlags.isEnabled('useDedupMultilevel')) {
+      var _dd = (global.CrozzoDedupIntegration && typeof global.CrozzoDedupIntegration.isDuplicate === 'function')
+        ? global.CrozzoDedupIntegration.isDuplicate(tid, 'comanda:' + snap.id, null)
+        : { duplicate: false };
+      if (_dd && _dd.duplicate) {
+        logGateSkip('comanda_new', 'dedup_' + (_dd.reason || 'dup'), opId, via);
+        return { apply: false, reason: 'dedup_' + (_dd.reason || 'dup'), opId: opId };
+      }
+    }
+
     if (tid && !opts.forceApply && typeof global.__crozzoComandaTidRecent === 'function' && global.__crozzoComandaTidRecent(tid, opts.tidWindowMs || 120000)) {
       var seen = global.__crozzoComandaTidSeen && global.__crozzoComandaTidSeen[tid];
       if (seen && viaRank(via) <= srcToRank(seen.src)) {
@@ -159,6 +170,16 @@
     if (!reg.apply) return { apply: false, reason: reg.reason || 'op_ack', opId: reg.opId || opId };
 
     var tid = String(pay.transaction_id || '').trim();
+    // Fase 0: dedup multinivel (feature flag, default off)
+    if (!opts.forceApply && global.CrozzoFeatureFlags && typeof global.CrozzoFeatureFlags.isEnabled === 'function' && global.CrozzoFeatureFlags.isEnabled('useDedupMultilevel')) {
+      var _dd2 = (global.CrozzoDedupIntegration && typeof global.CrozzoDedupIntegration.isDuplicate === 'function')
+        ? global.CrozzoDedupIntegration.isDuplicate(tid, 'comanda_estado:' + (pay.id || ''), null)
+        : { duplicate: false };
+      if (_dd2 && _dd2.duplicate) {
+        return { apply: false, reason: 'dedup_' + (_dd2.reason || 'dup'), opId: opId };
+      }
+    }
+
     if (tid && !opts.forceApply && typeof global.__crozzoComandaTidRecent === 'function' && global.__crozzoComandaTidRecent(tid, 45000)) {
       if (viaRank(via) <= 20) {
         return { apply: false, reason: 'duplicate_tid', opId: opId };
@@ -175,6 +196,10 @@
     if (tid && typeof global.__crozzoComandaTidMark === 'function') {
       global.__crozzoComandaTidMark(tid, via);
     }
+    // Fase 0: dedup mark (feature flag, default off)
+    if (global.CrozzoFeatureFlags && typeof global.CrozzoFeatureFlags.isEnabled === 'function' && global.CrozzoFeatureFlags.isEnabled('useDedupMultilevel') && global.CrozzoDedupIntegration && typeof global.CrozzoDedupIntegration.markProcessed === 'function') {
+      global.CrozzoDedupIntegration.markProcessed(tid, 'comanda:' + (snap.id || ''), null);
+    }
     var R = ackRegistry();
     if (R && typeof R.markApplied === 'function') {
       return R.markApplied({ type: 'comanda', data: snap, deviceId: snap.deviceId || '' }, via);
@@ -186,6 +211,10 @@
     if (!pay) return '';
     opts = opts || {};
     var via = normalizeVia(opts.via);
+    var tid = String(pay.transaction_id || '').trim();
+    if (tid && global.CrozzoFeatureFlags && typeof global.CrozzoFeatureFlags.isEnabled === 'function' && global.CrozzoFeatureFlags.isEnabled('useDedupMultilevel') && global.CrozzoDedupIntegration && typeof global.CrozzoDedupIntegration.markProcessed === 'function') {
+      global.CrozzoDedupIntegration.markProcessed(tid, 'comanda_estado:' + (pay.id || ''), null);
+    }
     var R = ackRegistry();
     if (R && typeof R.markApplied === 'function') {
       return R.markApplied({ type: 'comanda_estado', data: pay, deviceId: pay.deviceId || '' }, via);

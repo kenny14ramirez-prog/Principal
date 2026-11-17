@@ -1399,7 +1399,17 @@
     } catch (_) {}
     var allowCloud = cloudTransportActive();
     var allowLan = runtimeLanPushAllowed();
-    if (!allowCloud && !allowLan) return false;
+    if (!allowCloud && !allowLan) {
+      // Fase 0: outbox runtime (feature flag, default off) — no perder cambios si no hay red
+      if (global.CrozzoFeatureFlags && typeof global.CrozzoFeatureFlags.isEnabled === 'function' && global.CrozzoFeatureFlags.isEnabled('useOutboxRuntime')) {
+        try {
+          if (global.CrozzoHlcTombstonesDedupOutboxIntegration && typeof global.CrozzoHlcTombstonesDedupOutboxIntegration.enqueueRuntimePush === 'function') {
+            global.CrozzoHlcTombstonesDedupOutboxIntegration.enqueueRuntimePush('runtime', snap || full, { reason: 'no_transport' });
+          }
+        } catch (_) {}
+      }
+      return false;
+    }
     var full = collectFull();
     var snap = packForCloud(full);
     if (!snap) return false;

@@ -144,6 +144,16 @@ window.crozzoAppDisplayName = function () {
 <script src="core/CrozzoRlsIntegration.js"></script>
 <script src="core/CrozzoRlsPayloadEnricher.js"></script>
 <script src="core/CrozzoRlsPairing.js"></script>
+<!-- Fase 0: HLC + Tombstones + Dedup + Outbox (PoC integrado) -->
+<script src="core/CrozzoHlc.js"></script>
+<script src="core/CrozzoHlcIntegration.js"></script>
+<script src="core/CrozzoTombstones.js"></script>
+<script src="core/CrozzoTombstonesIntegration.js"></script>
+<script src="core/CrozzoDedupMultilevel.js"></script>
+<script src="core/CrozzoDedupIntegration.js"></script>
+<script src="core/CrozzoOutboxRuntime.js"></script>
+<script src="core/CrozzoOutboxRuntimeIntegration.js"></script>
+<script src="core/CrozzoHlcTombstonesDedupOutboxIntegration.js"></script>
 <script src="modules/CrozzoPairingQrReader.js"></script>
 <script src="vendor/CrozzoSupabaseUmd.js" defer></script>
 <script>
