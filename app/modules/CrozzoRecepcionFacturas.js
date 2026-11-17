@@ -141,7 +141,7 @@
     if (!mc) {
       var h = getCxfHost();
       if (h && h.parentElement) {
-        h.parentElement.innerHTML = render();
+        h.parentElement.innerHTML = CrozzoSanitize.sanitizeHtml(render());
         init(h.parentElement);
       }
       return;
@@ -149,7 +149,7 @@
     if (typeof global.crozzoPrepareModuloGestionPage === 'function') {
       global.crozzoPrepareModuloGestionPage(mc);
     }
-    mc.innerHTML = render();
+    mc.innerHTML = CrozzoSanitize.sanitizeHtml(render());
     init(mc);
     try {
       mc.scrollTop = 0;
@@ -960,7 +960,7 @@
     if (oldRes) {
       if (resHtml) {
         var wrap = document.createElement('div');
-        wrap.innerHTML = resHtml;
+        wrap.innerHTML = CrozzoSanitize.sanitizeHtml(resHtml);
         if (wrap.firstChild) oldRes.parentNode.replaceChild(wrap.firstChild, oldRes);
       } else {
         oldRes.remove();
@@ -1311,13 +1311,13 @@
     var previewEl = slot.querySelector('.cxf-prov-factura-card__preview');
     if (previewEl) {
       var tmp = document.createElement('div');
-      tmp.innerHTML = renderFacturaSlotPreview(provId, f);
+      tmp.innerHTML = CrozzoSanitize.sanitizeHtml(renderFacturaSlotPreview(provId, f));
       var next = tmp.firstElementChild;
       if (next) previewEl.replaceWith(next);
     }
     var feMount = slot.querySelector('[data-cxf-fe-mount]');
     if (feMount && isModoComplejo()) {
-      feMount.innerHTML = renderFeAnalisisBlock(provId, f);
+      feMount.innerHTML = CrozzoSanitize.sanitizeHtml(renderFeAnalisisBlock(provId, f));
     }
     if (f._feAnalisisRunning) slot.classList.add('is-fe-busy');
     else slot.classList.remove('is-fe-busy');
@@ -2238,9 +2238,9 @@
     }
     _cxfOcrState = { provId: '', facturaId: '', file: null, dataUrl: '', text: '', parseado: null, lines: [] };
     var prev = document.getElementById('cxf-ocr-preview');
-    if (prev) prev.innerHTML = '';
+    if (prev) prev.innerHTML = CrozzoSanitize.sanitizeHtml('');
     var body = document.getElementById('cxf-ocr-lines-body');
-    if (body) body.innerHTML = '';
+    if (body) body.innerHTML = CrozzoSanitize.sanitizeHtml('');
     var cnt = document.getElementById('cxf-ocr-count');
     if (cnt) cnt.textContent = '0';
     var st = document.getElementById('cxf-ocr-status');
@@ -2269,12 +2269,12 @@
         _cxfOcrState.dataUrl = '';
         var prev = document.getElementById('cxf-ocr-preview');
         if (prev) {
-          prev.innerHTML = '';
+          prev.innerHTML = CrozzoSanitize.sanitizeHtml('');
           if (f.type && f.type.indexOf('image') >= 0) {
             var url = URL.createObjectURL(f);
-            prev.innerHTML = '<img src="' + esc(url) + '" style="max-width:100%;display:block" alt="preview">';
+            prev.innerHTML = CrozzoSanitize.sanitizeHtml('<img src="' + esc(url) + '" style="max-width:100%;display:block" alt="preview">');
           } else {
-            prev.innerHTML = '<div class="cxf-muted">PDF seleccionado: ' + esc(f.name) + '</div>';
+            prev.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cxf-muted">PDF seleccionado: ' + esc(f.name) + '</div>');
           }
         }
         var st = document.getElementById('cxf-ocr-status');
@@ -2807,7 +2807,7 @@
     if (useBtn) useBtn.disabled = !_cxfFacCam.captures.length;
     if (clearBtn) clearBtn.disabled = !_cxfFacCam.captures.length;
     if (!thumbs) return;
-    thumbs.innerHTML = _cxfFacCam.captures.map(function (cap, i) {
+    thumbs.innerHTML = CrozzoSanitize.sanitizeHtml(_cxfFacCam.captures.map(function (cap, i) {
       return (
         '<div class="cxf-fac-cam-thumb" data-cxf-fac-thumb-idx="' + i + '">' +
         '<img src="' + cap.url + '" alt="Captura ' + (i + 1) + '">' +
@@ -2815,7 +2815,7 @@
         '<button type="button" class="cxf-fac-cam-thumb-del" data-cxf-fac-del-idx="' + i + '" aria-label="Eliminar">×</button>' +
         '</div>'
       );
-    }).join('');
+    }).join(''));
   }
 
   function snapFacCamera() {
@@ -3456,7 +3456,7 @@
     }
     _cxfQrCam = null;
     var host = document.getElementById('cxf-qr-cam-host');
-    if (host) host.innerHTML = '';
+    if (host) host.innerHTML = CrozzoSanitize.sanitizeHtml('');
   }
 
   function closeCxfQrCameraModal(resumeBatch) {
@@ -3612,7 +3612,7 @@
   function startCxfQrCameraScan() {
     var hostEl = document.getElementById('cxf-qr-cam-host');
     if (!hostEl) return;
-    hostEl.innerHTML = '';
+    hostEl.innerHTML = CrozzoSanitize.sanitizeHtml('');
     if (!global.isSecureContext) {
       setCxfQrCamStatus('Cámara requiere HTTPS o localhost. Use Reanalizar con el PDF.', true);
       return;
@@ -4082,7 +4082,7 @@
       mpIdInp && mpIdInp.value
         ? evalLinePrice(mpIdInp.value, precio && precio.value, cant && cant.value)
         : null;
-    cell.innerHTML = linePriceInsightHtml(ev, mp);
+    cell.innerHTML = CrozzoSanitize.sanitizeHtml(linePriceInsightHtml(ev, mp));
   }
 
   function stepIndex(id) {
@@ -4326,7 +4326,7 @@
     var inp = wrap.querySelector('.cxf-mp-combo-input');
     if (!list || !inp) return;
     var selectedId = hid ? hid.value : '';
-    list.innerHTML = renderMpComboOptionsHtml(inp.value, lineIdx, selectedId);
+    list.innerHTML = CrozzoSanitize.sanitizeHtml(renderMpComboOptionsHtml(inp.value, lineIdx, selectedId));
     list.hidden = false;
     wrap.classList.add('is-open');
     inp.setAttribute('aria-expanded', 'true');
@@ -4445,7 +4445,7 @@
       modal.setAttribute('aria-hidden', 'true');
       modal.style.cssText =
         'display:none!important;pointer-events:none!important;visibility:hidden!important;z-index:-1!important';
-      modal.innerHTML = '';
+      modal.innerHTML = CrozzoSanitize.sanitizeHtml('');
     }
     ui.creatingMpLine = null;
     ui.editingMpId = '';
@@ -4459,10 +4459,9 @@
     if (ui.creatingMpLine == null) return;
     var modal = root.querySelector('#cxf-mp-modal');
     if (!modal) return;
-    modal.innerHTML =
-      '<div class="cxf-mp-modal" role="dialog" aria-modal="true" aria-labelledby="cxf-mp-modal-title">' +
+    modal.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cxf-mp-modal" role="dialog" aria-modal="true" aria-labelledby="cxf-mp-modal-title">' +
       renderMpCreatePanel() +
-      '</div>';
+      '</div>');
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     modal.style.display = '';
@@ -5367,7 +5366,7 @@
     var strip = host.querySelector('#cxf-command-strip');
     if (!strip) return;
     var wrap = document.createElement('div');
-    wrap.innerHTML = renderCxfCommandStrip();
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderCxfCommandStrip());
     var neu = wrap.firstChild;
     if (neu && strip.parentNode) strip.parentNode.replaceChild(neu, strip);
   }
@@ -6188,8 +6187,7 @@
     el.setAttribute('role', 'status');
     el.setAttribute('aria-live', 'polite');
     el.hidden = true;
-    el.innerHTML =
-      '<div class="cxf-progress-dock__inner">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="cxf-progress-dock__inner">' +
       '<div class="cxf-progress-dock__head">' +
       '<span class="cxf-progress-dock__spinner" aria-hidden="true"></span>' +
       '<div class="cxf-progress-dock__text">' +
@@ -6201,7 +6199,7 @@
       '<div class="cxf-progress-dock__bar-wrap"><div class="cxf-progress-dock__bar" data-cxf-dock-bar></div></div>' +
       '<p class="cxf-progress-dock__hint" data-cxf-dock-hint>Puede usar otras pantallas — el análisis sigue en segundo plano</p>' +
       '<div class="cxf-progress-dock__actions" data-cxf-dock-actions hidden></div>' +
-      '</div>';
+      '</div>');
     document.body.appendChild(el);
     _cxfProgressDockEl = el;
     _cxfDockRefs = null;
@@ -6337,11 +6335,10 @@
         !!opts.showContinue || (_feBatchSession && _feBatchSession.awaitingContinue && !feActive && !ingestActive);
       if (showBtn) {
         actionsEl.hidden = false;
-        actionsEl.innerHTML =
-          '<button type="button" class="btn btn-primary" data-cxf-goto-recepcion>Continuar con facturas →</button>';
+        actionsEl.innerHTML = CrozzoSanitize.sanitizeHtml('<button type="button" class="btn btn-primary" data-cxf-goto-recepcion>Continuar con facturas →</button>');
       } else {
         actionsEl.hidden = true;
-        actionsEl.innerHTML = '';
+        actionsEl.innerHTML = CrozzoSanitize.sanitizeHtml('');
       }
     }
 
@@ -6364,7 +6361,7 @@
     if (!f) return false;
     var feMount = slot.querySelector('[data-cxf-fe-mount]');
     if (feMount && isModoComplejo()) {
-      feMount.innerHTML = renderFeAnalisisBlock(provId, f);
+      feMount.innerHTML = CrozzoSanitize.sanitizeHtml(renderFeAnalisisBlock(provId, f));
     }
     var head = slot.querySelector('.cxf-factura-slot__head');
     if (head) {
@@ -6717,7 +6714,7 @@
     if (progreso.steps && progreso.steps.length) {
       var list = loader.querySelector('[data-fe-loader-steps]');
       if (list) {
-        list.innerHTML = progreso.steps
+        list.innerHTML = CrozzoSanitize.sanitizeHtml(progreso.steps
           .map(function (s) {
             var cls = 'cxf-fe-loader__step';
             if (s.done) cls += ' is-done';
@@ -6732,7 +6729,7 @@
               '</span></li>'
             );
           })
-          .join('');
+          .join(''));
       }
     }
     return true;
@@ -7918,7 +7915,7 @@
       var el = host.querySelector('#cxf-storage-note');
       if (el && el.parentNode) {
         var wrap = document.createElement('div');
-        wrap.innerHTML = renderStorageNote(s);
+        wrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderStorageNote(s));
         var neu = wrap.firstChild;
         if (neu) el.parentNode.replaceChild(neu, el);
       }
@@ -8092,12 +8089,12 @@
     var stack = host.querySelector('.cxf-prov-facturas-stack');
     if (!stack) return false;
     var provs = getSelectedProviders();
-    stack.innerHTML = provs.length
+    stack.innerHTML = CrozzoSanitize.sanitizeHtml(provs.length
       ? provs.map(renderProvFacturaCard).join('')
-      : '<p class="cxf-muted">Vuelva al paso anterior y agregue proveedores.</p>';
+      : '<p class="cxf-muted">Vuelva al paso anterior y agregue proveedores.</p>');
     if (!opts.skipStepper) {
       var stepper = host.querySelector('.cxf-stepper');
-      if (stepper) stepper.innerHTML = renderStepper();
+      if (stepper) stepper.innerHTML = CrozzoSanitize.sanitizeHtml(renderStepper());
     }
     if (!opts.skipPreviews && !isFeBlockingPdfPreviews()) applyPdfPreviews(host);
     if (!opts.skipSync && String(getActiveProvId())) syncUiFromBucket();
@@ -8147,9 +8144,9 @@
       persistActiveBucket();
     }
     var sh = host.querySelector('#cxf-step-host');
-    if (sh) sh.innerHTML = renderStepContent();
+    if (sh) sh.innerHTML = CrozzoSanitize.sanitizeHtml(renderStepContent());
     var stepper = host.querySelector('.cxf-stepper');
-    if (stepper) stepper.innerHTML = renderStepper();
+    if (stepper) stepper.innerHTML = CrozzoSanitize.sanitizeHtml(renderStepper());
     bindStep(host);
     patchCxfCommandStrip(host);
     var rail = host.querySelector('.cxf-stepper-rail');
@@ -8502,7 +8499,7 @@
     var comboBox = host.querySelector('#cxf-prov-combobox');
     if (list) {
       list.hidden = false;
-      list.innerHTML = renderProvComboOptionsHtml();
+      list.innerHTML = CrozzoSanitize.sanitizeHtml(renderProvComboOptionsHtml());
     }
     if (comboBox) comboBox.classList.add('is-open');
   }
@@ -9785,7 +9782,7 @@
     opts = opts || {};
     var hubHost = document.getElementById('crozzo-hub-local-host');
     if (hubHost) {
-      hubHost.innerHTML = render();
+      hubHost.innerHTML = CrozzoSanitize.sanitizeHtml(render());
       init(hubHost);
       applyHistoryHighlights(hubHost, opts.highlightIds);
       if (!opts.partial) {

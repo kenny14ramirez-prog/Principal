@@ -5396,7 +5396,7 @@
         hub.seed = fresh || hub.seed || matrizFallbackSeed();
         var host = document.getElementById('mainContent');
         if (!host || hub.view !== 'matriz') return;
-        host.innerHTML = renderMatrizPanel(hub.seed);
+        host.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrizPanel(hub.seed));
         host._costosBound = false;
         bindRoot(host);
         initMatrizAllPanels(host, hub.seed);
@@ -5404,13 +5404,12 @@
         console.error('[costos] commitMatrizPanel', err);
         var hostErr = document.getElementById('mainContent');
         if (hostErr && hub.view === 'matriz') {
-          hostErr.innerHTML =
-            '<div class="card" style="margin:24px;padding:20px;max-width:520px">' +
+          hostErr.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card" style="margin:24px;padding:20px;max-width:520px">' +
             '<p style="margin:0 0 8px;font-weight:600">No se pudo cargar la matriz de costos</p>' +
             '<p class="form-hint" style="margin:0 0 14px">' +
             esc(String((err && err.message) || err || 'Error desconocido')) +
             '</p>' +
-            '<button type="button" class="btn btn-primary btn-sm" onclick="location.reload()">Recargar</button></div>';
+            '<button type="button" class="btn btn-primary btn-sm" onclick="location.reload()">Recargar</button></div>');
         }
       }
     };
@@ -5481,8 +5480,8 @@
       var ev = evaluarPlatoObjetivo(r, row, seed);
       var bar = tr.querySelector('[data-resumen-obj-bar]');
       var ob = tr.querySelector('[data-resumen-obj]');
-      if (bar) bar.innerHTML = renderObjetivoBarHtml(r.pctCostoMp, objFrac);
-      if (ob) ob.innerHTML = renderMatrizStatusPill(ev);
+      if (bar) bar.innerHTML = CrozzoSanitize.sanitizeHtml(renderObjetivoBarHtml(r.pctCostoMp, objFrac));
+      if (ob) ob.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrizStatusPill(ev));
       var rowCls = ev.bajoTolerancia
         ? 'crozzo-matriz-row--crit'
         : !ev.dentroObjetivo || ev.alertaSubida === 'warn'
@@ -5609,7 +5608,7 @@
     var histPanel = root.querySelector('[data-matriz-vista-panel="historial"]');
     if (histPanel) {
       histPanel.removeAttribute('data-matriz-lazy');
-      histPanel.innerHTML = renderCosteoGuardadoPanel(seed || hub.seed);
+      histPanel.innerHTML = CrozzoSanitize.sanitizeHtml(renderCosteoGuardadoPanel(seed || hub.seed));
     }
   }
 
@@ -6013,7 +6012,7 @@
     var panel = root.querySelector('#crozzoRevisionAdmin');
     if (!panel) return;
     var wrap = document.createElement('div');
-    wrap.innerHTML = renderRevisionAdminPanel(seed);
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderRevisionAdminPanel(seed));
     var neu = wrap.firstElementChild;
     if (neu) panel.replaceWith(neu);
     bindRevisionAdmin(root, seed);
@@ -6157,7 +6156,7 @@
                   hub.seed = fresh;
                   var host = document.getElementById('mainContent');
                   if (host) {
-                    host.innerHTML = renderMatrizPanel(fresh);
+                    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrizPanel(fresh));
                     host._costosBound = false;
                     bindRoot(host);
                     initMatrizAllPanels(host, fresh);
@@ -6613,14 +6612,14 @@
       var oldHead = resumenPanel.querySelector('.crozzo-matriz-panel-head');
       if (oldHead) {
         var wrap = document.createElement('div');
-        wrap.innerHTML = renderMatrizPanelIntro('resumen', seed);
+        wrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrizPanelIntro('resumen', seed));
         var neu = wrap.firstElementChild;
         if (neu) oldHead.replaceWith(neu);
       }
     }
     var tbody = root.querySelector('#crozzoResumenTbody');
     if (!tbody) return;
-    tbody.innerHTML = renderResumenRowsHtml(seed);
+    tbody.innerHTML = CrozzoSanitize.sanitizeHtml(renderResumenRowsHtml(seed));
     root.querySelectorAll('#crozzoResumenTbody [data-resumen-field]').forEach(function (inp) {
       inp._bound = false;
     });
@@ -6631,7 +6630,7 @@
     var accBar = root.querySelector('#crozzoMatrizResumenAcciones');
     if (accBar) {
       var wrap = document.createElement('div');
-      wrap.innerHTML = renderMatrizResumenAcciones(seed);
+      wrap.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrizResumenAcciones(seed));
       var neu = wrap.firstElementChild;
       if (neu) {
         accBar.replaceWith(neu);
@@ -7000,7 +6999,7 @@
     var inp = wrap.querySelector('[data-receta-mp-combo]');
     var q = inp ? inp.value : '';
     var list = wrap.querySelector('.cxf-combobox__list');
-    if (list) list.innerHTML = renderRecetaMpComboOptionsHtml(q, selId, lineIdx);
+    if (list) list.innerHTML = CrozzoSanitize.sanitizeHtml(renderRecetaMpComboOptionsHtml(q, selId, lineIdx));
   }
 
   function refreshPlatoComboList(wrap, seed) {
@@ -7019,8 +7018,7 @@
       .slice(0, 40);
     var listEl = wrap.querySelector('.cxf-combobox__list');
     if (!listEl) return;
-    listEl.innerHTML =
-      filtered
+    listEl.innerHTML = CrozzoSanitize.sanitizeHtml(filtered
         .map(function (r) {
           return (
             '<button type="button" class="cxf-combobox__option' +
@@ -7039,7 +7037,7 @@
             '</span></button>'
           );
         })
-        .join('') || '<div class="cxf-combobox__empty">Sin coincidencias</div>';
+        .join('') || '<div class="cxf-combobox__empty">Sin coincidencias</div>');
   }
 
   function pickRecetaMpForLine(wrap, mpId) {
@@ -7299,7 +7297,7 @@
     if (!root) return;
     var panel = root.querySelector('[data-matriz-panel="demo"]');
     if (!panel) return;
-    panel.innerHTML = renderDemoRecetaHtml(seed);
+    panel.innerHTML = CrozzoSanitize.sanitizeHtml(renderDemoRecetaHtml(seed));
     initMatrizGerenciaPanel(root, seed);
     bindRecetaNewPlatoForm(root);
     bindPerdidasProcesoAdmin(root);
@@ -10032,7 +10030,7 @@
     if (!root) return;
     var guide = root.querySelector('#crozzoInvOutputGuide');
     if (!guide) return;
-    guide.innerHTML = inventarioOutputGuideText(inventarioSavedPrintOutput());
+    guide.innerHTML = CrozzoSanitize.sanitizeHtml(inventarioOutputGuideText(inventarioSavedPrintOutput()));
   }
 
   function inventarioResolvePrintOpts(extra) {
@@ -10746,7 +10744,7 @@
   function refreshInventarioPanel() {
     var host = document.getElementById('mainContent');
     if (!host) return;
-    host.innerHTML = renderInventarioPanel();
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(renderInventarioPanel());
     initInventarioPanel(host);
   }
 
@@ -12773,7 +12771,7 @@
     var old = tr.querySelector('[data-resumen-pos]');
     if (!old) return;
     var wrap = document.createElement('tbody');
-    wrap.innerHTML = '<tr>' + renderPrecioPosCell(row) + '</tr>';
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml('<tr>' + renderPrecioPosCell(row) + '</tr>');
     var neu = wrap.querySelector('[data-resumen-pos]');
     if (neu) old.replaceWith(neu);
     refreshComparativaPrecioCell(tr, seed);
@@ -12793,7 +12791,7 @@
     var old = tr.querySelector('[data-resumen-cmp]');
     if (!old) return;
     var wrap = document.createElement('tbody');
-    wrap.innerHTML = '<tr>' + renderComparativaPrecioCell(row) + '</tr>';
+    wrap.innerHTML = CrozzoSanitize.sanitizeHtml('<tr>' + renderComparativaPrecioCell(row) + '</tr>');
     var neu = wrap.querySelector('[data-resumen-cmp]');
     if (neu) old.replaceWith(neu);
     var bar = tr.closest('.crozzo-matriz-premium');
@@ -12804,13 +12802,12 @@
       if (tfootCmp && hub.seed) {
         var tot = collectTotalesResumenFromDom(bar);
         var posTot = sumPreciosPosResumen(seed || hub.seed);
-        tfootCmp.innerHTML =
-          posTot.count && posTot.sum > 0
+        tfootCmp.innerHTML = CrozzoSanitize.sanitizeHtml(posTot.count && posTot.sum > 0
             ? renderComparativaPrecioInner(posTot.sum, tot.sumPrecio, {
                 labelAnterior: 'caja',
                 labelNuevo: 'costeo',
               })
-            : '—';
+            : '—');
       }
     }
   }
@@ -12849,7 +12846,7 @@
     if (progPanel.getAttribute('data-matriz-lazy') === 'programaciones') {
       progPanel.removeAttribute('data-matriz-lazy');
     }
-    progPanel.innerHTML = renderProgramacionesPanel();
+    progPanel.innerHTML = CrozzoSanitize.sanitizeHtml(renderProgramacionesPanel());
   }
 
   function maybeProgramarPrecioEnCaja(slug, precioVenta, root) {
@@ -12953,8 +12950,8 @@
     if (u) u.textContent = engFmt(r.utilidadBruta);
     refreshMargenUtilidadCell(tr, r);
     refreshCostoPctCell(tr, r);
-    if (bar) bar.innerHTML = renderObjetivoBarHtml(r.pctCostoMp, getObjetivoCostoFraccion());
-    if (ob) ob.innerHTML = renderMatrizStatusPill(ev);
+    if (bar) bar.innerHTML = CrozzoSanitize.sanitizeHtml(renderObjetivoBarHtml(r.pctCostoMp, getObjetivoCostoFraccion()));
+    if (ob) ob.innerHTML = CrozzoSanitize.sanitizeHtml(renderMatrizStatusPill(ev));
     var rowCls = ev.bajoTolerancia
       ? 'crozzo-matriz-row--crit'
       : !ev.dentroObjetivo || ev.alertaSubida === 'warn'
@@ -13404,7 +13401,7 @@
           var progPanel = root.querySelector('[data-matriz-vista-panel="programaciones"]');
           if (progPanel && progPanel.getAttribute('data-matriz-lazy') === 'programaciones') {
             progPanel.removeAttribute('data-matriz-lazy');
-            progPanel.innerHTML = renderProgramacionesPanel();
+            progPanel.innerHTML = CrozzoSanitize.sanitizeHtml(renderProgramacionesPanel());
           }
         }
       });
@@ -13466,13 +13463,12 @@
     set('[data-receta-kpi-val="pct-util"]', res && res.precioVenta > 0 ? engPct(res.pctUtilidad) : '—');
     var pctMp = scope.querySelector('[data-receta-kpi="pct-mp"]');
     if (pctMp) {
-      pctMp.innerHTML =
-        res && res.precioVenta > 0
+      pctMp.innerHTML = CrozzoSanitize.sanitizeHtml(res && res.precioVenta > 0
           ? engPct(res.pctCostoMp) +
             '<span class="crozzo-receta-block__sub">' +
             (evalMp && evalMp.dentroObjetivo ? 'Dentro del objetivo' : 'Sobre objetivo food cost') +
             '</span>'
-          : '—';
+          : '—');
     }
     var porcInp = scope.querySelector('[data-receta-opt="porciones"]');
     var pesoAutoChk = scope.querySelector('[data-receta-peso-auto]');
@@ -14379,11 +14375,11 @@
         reservorio().updateFeedEstado(fno.getAttribute('data-id'), 'rechazado');
         toast('Propuesta rechazada', 'info');
         var hfn = document.getElementById('mainContent');
-        if (hfn) { hfn.innerHTML = render('planilla-feed'); }
+        if (hfn) { hfn.innerHTML = CrozzoSanitize.sanitizeHtml(render('planilla-feed')); }
       }
       if (e.target.id === 'crozzoCostosFeedRefresh') {
         var hr = document.getElementById('mainContent');
-        if (hr) { hr.innerHTML = render('planilla-feed'); bindRoot(hr); }
+        if (hr) { hr.innerHTML = CrozzoSanitize.sanitizeHtml(render('planilla-feed')); bindRoot(hr); }
       }
       var tab = e.target.closest('[data-matriz-tab]');
       if (tab) {

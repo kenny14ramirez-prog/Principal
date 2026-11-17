@@ -99,7 +99,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:800px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML = renderTabs() + '<div id="dc-content" style="margin-top:16px;"></div>';
+    card.innerHTML = CrozzoSanitize.sanitizeHtml(renderTabs() + '<div id="dc-content" style="margin-top:16px;"></div>');
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
@@ -138,7 +138,7 @@
     if (!overlay) return;
     var card = overlay.querySelector('div[style*="max-width"]');
     if (card) {
-      card.innerHTML = renderTabs() + '<div id="dc-content" style="margin-top:16px;"></div>';
+      card.innerHTML = CrozzoSanitize.sanitizeHtml(renderTabs() + '<div id="dc-content" style="margin-top:16px;"></div>');
       document.getElementById('dcClose').onclick = function () { cerrar(); };
     }
     renderFace();
@@ -147,9 +147,9 @@
   function renderFace() {
     var content = document.getElementById('dc-content');
     if (!content) return;
-    if (_face === 'deploy') content.innerHTML = renderDeployFace();
-    else if (_face === 'solver') content.innerHTML = renderSolverFace();
-    else if (_face === 'diagnostic') content.innerHTML = renderDiagnosticFace();
+    if (_face === 'deploy') content.innerHTML = CrozzoSanitize.sanitizeHtml(renderDeployFace());
+    else if (_face === 'solver') content.innerHTML = CrozzoSanitize.sanitizeHtml(renderSolverFace());
+    else if (_face === 'diagnostic') content.innerHTML = CrozzoSanitize.sanitizeHtml(renderDiagnosticFace());
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -359,7 +359,7 @@
         break;
     }
 
-    el.innerHTML = html;
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   }
 
   function renderPrinterDetection() {
@@ -427,7 +427,7 @@
         html += detected.map(function (d) { return ' ' + (d.vendor || 'Desconocido') + ' — ' + (d.product || 'Sin nombre') + ' (' + new Date(d.detectedAt).toLocaleString() + ')'; }).join('<br>');
       }
     } catch (_) {}
-    el.innerHTML = html;
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   };
 
   global._dcSaveEmpresa = function () {
@@ -468,11 +468,11 @@
 
     var el = document.getElementById('dc-step-content');
     if (el) {
-      el.innerHTML = '<h3> Verificación Final</h3>' +
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('<h3> Verificación Final</h3>' +
         '<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">' +
         results.map(function (r) { return '<div style="font-size:0.9rem;">' + r + '</div>'; }).join('') +
         '</div>' +
-        '<button onclick="window._dcMarkStep(\'verificacion\')" style="margin-top:12px;padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar como completado</button>';
+        '<button onclick="window._dcMarkStep(\'verificacion\')" style="margin-top:12px;padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar como completado</button>');
     }
   };
 
@@ -519,10 +519,10 @@
     if (!el) return;
     var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
     if (printers.length === 0) {
-      el.innerHTML = '<span style="color:#e74c3c;"> No se encontraron impresoras configuradas</span><br>' +
-        '<span style="color:#666;">Verifica que las impresoras estén encendidas y conectadas.</span>';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="color:#e74c3c;"> No se encontraron impresoras configuradas</span><br>' +
+        '<span style="color:#666;">Verifica que las impresoras estén encendidas y conectadas.</span>');
     } else {
-      el.innerHTML = printers.map(function (p) { return ' ' + p; }).join('<br>');
+      el.innerHTML = CrozzoSanitize.sanitizeHtml(printers.map(function (p) { return ' ' + p; }).join('<br>'));
     }
   };
 
@@ -530,22 +530,22 @@
     var el = document.getElementById('dc-conn-status');
     if (!el) return;
     var online = navigator.onLine;
-    el.innerHTML = 'Internet: ' + (online ? ' Conectado' : ' Sin conexión') + '<br>' +
-      'Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? ' Disponible' : ' No disponible');
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('Internet: ' + (online ? ' Conectado' : ' Sin conexión') + '<br>' +
+      'Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? ' Disponible' : ' No disponible'));
   };
 
   global._dcCheckDatabase = function () {
     var el = document.getElementById('dc-db-status');
     if (!el) return;
     var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
-    el.innerHTML = 'Usuarios: ' + staff.length + '<br>' +
-      'Errores: ' + ((typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats().total : 0);
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('Usuarios: ' + staff.length + '<br>' +
+      'Errores: ' + ((typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats().total : 0));
   };
 
   global._dcAutoRepair = async function () {
     var el = document.getElementById('dc-repair-status');
     if (!el) return;
-    el.innerHTML = 'Ejecutando auto-reparación...';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('Ejecutando auto-reparación...');
     var results = [];
     // 1. Verificar conexión
     if (typeof CrozzoEasyConnect !== 'undefined' && CrozzoEasyConnect.runAutoConnect) {
@@ -561,7 +561,7 @@
     if (typeof crozzoRunPostLoginCloudSync === 'function') {
       try { crozzoRunPostLoginCloudSync(); results.push(' Sync cloud ejecutado'); } catch (e) { results.push(' Sync: ' + (e.message || e)); }
     }
-    el.innerHTML = results.join('<br>');
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(results.join('<br>'));
   };
 
   // ══════════════════════════════════════════════════════════════════
@@ -653,7 +653,7 @@
         '</div>';
     }
 
-    el.innerHTML = html;
+    el.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   };
 
   global._dcStartMonitoring = function () {
@@ -690,7 +690,7 @@
     var el = document.getElementById('dc-printer-status');
     if (!el) return;
     if (!navigator.usb) {
-      el.innerHTML = '<span style="color:#999;">WebUSB no disponible en este navegador</span>';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="color:#999;">WebUSB no disponible en este navegador</span>');
       return;
     }
     try {
@@ -698,10 +698,10 @@
       var found = PRINTER_DB.find(function (p) { return p.ids.indexOf(device.vendorId) >= 0; });
       var msg = ' Detectada: ' + (device.productName || device.manufacturerName || 'Desconocida');
       if (found) msg += ' (' + found.vendor + ' — ' + found.driver + ')';
-      el.innerHTML = msg;
+      el.innerHTML = CrozzoSanitize.sanitizeHtml(msg);
       _dcLogProblem('impresora', 'Detectada: ' + (device.productName || 'Desconocida'));
     } catch (e) {
-      el.innerHTML = '<span style="color:#e74c3c;"> ' + (e.message || e) + '</span>';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="color:#e74c3c;"> ' + (e.message || e) + '</span>');
     }
   };
 
@@ -717,7 +717,7 @@
     var btn = document.createElement('button');
     btn.id = 'dc-menu-btn';
     btn.style.cssText = 'padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;';
-    btn.innerHTML = '<strong>Centro de Despliegue</strong><br><span style="font-size:0.8rem;color:#888;">Asistente unificado: despliegue, solución de problemas, diagnóstico.</span>';
+    btn.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Centro de Despliegue</strong><br><span style="font-size:0.8rem;color:#888;">Asistente unificado: despliegue, solución de problemas, diagnóstico.</span>');
     btn.onclick = function () { abrir(); };
     var cerrar = document.getElementById('samCerrar');
     if (cerrar && cerrar.parentElement) {

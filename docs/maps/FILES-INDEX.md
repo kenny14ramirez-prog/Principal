@@ -66,7 +66,7 @@
 | 133 | `app/core/CrozzoStorageHygiene.js` |
 | 44 | `app/core/CrozzoSupabaseAuth.js` |
 | 515 | `app/core/CrozzoSuperAdminCentral.js` |
-| 382 | `app/core/CrozzoSuperAdminMenu.js` |
+| 378 | `app/core/CrozzoSuperAdminMenu.js` |
 | 319 | `app/core/CrozzoTabletNav.js` |
 | 109 | `app/core/CrozzoTabletShell.js` |
 | 142 | `app/core/CrozzoTechConsole.js` |
@@ -242,7 +242,7 @@
 | 5090 | `app/modules/CrozzoProveedorDocumentos.js` |
 | 687 | `app/modules/CrozzoQuickAppsFab.js` |
 | 334 | `app/modules/CrozzoQuickAppsPolicy.js` |
-| 10381 | `app/modules/CrozzoRecepcionFacturas.js` |
+| 10378 | `app/modules/CrozzoRecepcionFacturas.js` |
 | 912 | `app/modules/CrozzoRecepcionFeBanco.js` |
 | 8837 | `app/modules/CrozzoRecepcionFeDian.js` |
 | 77 | `app/modules/CrozzoRecepcionGuardar.js` |
@@ -258,7 +258,7 @@
 | 380 | `app/modules/CrozzoSalonSlotsConfig.js` |
 | 163 | `app/modules/CrozzoSandboxFiscal.js` |
 | 208 | `app/modules/CrozzoSemaforoMargen.js` |
-| 9260 | `app/modules/CrozzoSistemaCostos.js` |
+| 9256 | `app/modules/CrozzoSistemaCostos.js` |
 | 44 | `app/modules/CrozzoSpotifyDock.js` |
 | 516 | `app/modules/CrozzoStaffCelebrations.js` |
 | 2347 | `app/modules/CrozzoStaffOpsReport.js` |

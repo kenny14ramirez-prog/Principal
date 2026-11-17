@@ -24,8 +24,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 8px;font-size:1.4rem;color:#1a1a2e;">Super Admin</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 8px;font-size:1.4rem;color:#1a1a2e;">Super Admin</h2>' +
       '<p style="margin:0 0 24px;color:#666;font-size:0.9rem;">Bienvenido, Kenny. ¿Qué deseas hacer?</p>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<button id="samDemo" style="padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;">' +
@@ -43,7 +42,7 @@
         '<button id="samCerrar" style="padding:10px 20px;border:none;border-radius:10px;background:#e74c3c;color:#fff;cursor:pointer;font-size:0.9rem;margin-top:8px;">' +
           'Cerrar menú' +
         '</button>' +
-      '</div>';
+      '</div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -88,7 +87,7 @@
     var banner = document.createElement('div');
     banner.id = 'demoModeBanner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:8px;font-size:0.85rem;font-weight:600;';
-    banner.innerHTML = 'MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir del demo</button>';
+    banner.innerHTML = CrozzoSanitize.sanitizeHtml('MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir del demo</button>');
     document.body.appendChild(banner);
 
     // Desplazar contenido para el banner
@@ -130,8 +129,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">Registrar nueva empresa</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">Registrar nueva empresa</h2>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">Nombre de la empresa</label>' +
         '<input id="samNombre" type="text" placeholder="Pepito Flores" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:1rem;">' +
@@ -148,7 +146,7 @@
           '<button id="samCancelarBtn" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">Cancelar</button>' +
         '</div>' +
       '</div>' +
-      '<div id="samResultado" style="margin-top:16px;font-size:0.9rem;"></div>';
+      '<div id="samResultado" style="margin-top:16px;font-size:0.9rem;"></div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -170,13 +168,13 @@
         var busqueda = await CrozzoSuperAdminCentral.buscarNegocio(nit);
         if (busqueda.ok && busqueda.negocios && busqueda.negocios.length > 0) {
           var existente = busqueda.negocios[0];
-          resultado.innerHTML = '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;">' +
+          resultado.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;">' +
             '<strong>⚠️ Empresa encontrada:</strong> ' + existente.nombre + '<br>' +
             '<span style="font-size:0.85rem;">NIT: ' + (existente.nit || 'N/A') + ' · ' + (existente.direccion || '') + '</span><br><br>' +
             '<strong>¿Qué deseas hacer?</strong><br>' +
             '<button onclick="window._samCrearSucursal(\'' + existente.id + '\')" style="margin:4px;padding:6px 12px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">Crear sucursal</button>' +
             '<button onclick="window._samAccederNegocio(\'' + existente.id + '\')" style="margin:4px;padding:6px 12px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">Acceder</button>' +
-          '</div>';
+          '</div>');
           return;
         }
       }
@@ -185,9 +183,9 @@
       if (typeof CrozzoSuperAdminCentral !== 'undefined') {
         var reg = await CrozzoSuperAdminCentral.registrarNegocio(nombre, nit, direccion, telefono, email);
         if (reg.ok) {
-          resultado.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
+          resultado.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
             '<strong>✅ Empresa registrada:</strong> ' + nombre + '<br>' +
-            '<span style="font-size:0.85rem;">ID: ' + reg.negocioId + '</span></div>';
+            '<span style="font-size:0.85rem;">ID: ' + reg.negocioId + '</span></div>');
         } else {
           resultado.textContent = '❌ Error al registrar: ' + (reg.error || 'desconocido');
           resultado.style.color = '#e74c3c';
@@ -208,8 +206,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML =
-      '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">🔍 Acceder a empresa existente</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">🔍 Acceder a empresa existente</h2>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">NIT o nombre de la empresa</label>' +
         '<input id="samBusqueda" type="text" placeholder="900123456 o Pepito Flores" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:1rem;">' +
@@ -218,7 +215,7 @@
           '<button id="samCancelarBtn2" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">Cancelar</button>' +
         '</div>' +
       '</div>' +
-      '<div id="samResultadoAcceso" style="margin-top:16px;font-size:0.9rem;"></div>';
+      '<div id="samResultadoAcceso" style="margin-top:16px;font-size:0.9rem;"></div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -243,7 +240,7 @@
             '</div>';
           });
           html += '</div>';
-          resultado.innerHTML = html;
+          resultado.innerHTML = CrozzoSanitize.sanitizeHtml(html);
         } else {
           resultado.textContent = '❌ No se encontraron empresas con ese NIT o nombre.';
           resultado.style.color = '#e74c3c';
@@ -264,9 +261,9 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML = '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">Dashboard de negocios</h2>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">Dashboard de negocios</h2>' +
       '<div id="samDashboardContent" style="font-size:0.9rem;">Cargando...</div>' +
-      '<button id="samCerrarDashboard" style="margin-top:16px;padding:10px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">Cerrar</button>';
+      '<button id="samCerrarDashboard" style="margin-top:16px;padding:10px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">Cerrar</button>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -294,9 +291,9 @@
               '</div>' +
             '</div>';
           });
-          content.innerHTML = html;
+          content.innerHTML = CrozzoSanitize.sanitizeHtml(html);
         } else {
-          content.innerHTML = '<p style="color:#888;">No hay negocios registrados aún.</p>';
+          content.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="color:#888;">No hay negocios registrados aún.</p>');
         }
       });
     } else {
@@ -313,8 +310,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML =
-      '<h3 style="margin:0 0 16px;font-size:1.2rem;color:#1a1a2e;">Crear sucursal</h3>' +
+    card.innerHTML = CrozzoSanitize.sanitizeHtml('<h3 style="margin:0 0 16px;font-size:1.2rem;color:#1a1a2e;">Crear sucursal</h3>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">Nombre de la sucursal</label>' +
         '<input id="scNombre" type="text" placeholder="Pepito Flores - Cerritos" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:1rem;">' +
@@ -329,7 +325,7 @@
           '<button id="scCancelarBtn" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;font-size:1rem;">Cancelar</button>' +
         '</div>' +
       '</div>' +
-      '<div id="scResultado" style="margin-top:12px;font-size:0.9rem;"></div>';
+      '<div id="scResultado" style="margin-top:12px;font-size:0.9rem;"></div>');
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -347,9 +343,9 @@
       if (typeof CrozzoSuperAdminCentral !== 'undefined') {
         var res = await CrozzoSuperAdminCentral.crearSucursal(negocioId, nombre, ubicacion, copiarDeId);
         if (res.ok) {
-          resultado.innerHTML = '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
+          resultado.innerHTML = CrozzoSanitize.sanitizeHtml('<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:12px;">' +
             '<strong>✅ Sucursal creada:</strong> ' + nombre + '<br>' +
-            '<span style="font-size:0.85rem;">' + (copiarDeId ? 'Configuración copiada de la sucursal origen' : 'Configuración en blanco') + '</span></div>';
+            '<span style="font-size:0.85rem;">' + (copiarDeId ? 'Configuración copiada de la sucursal origen' : 'Configuración en blanco') + '</span></div>');
         } else {
           resultado.textContent = '❌ Error: ' + (res.error || 'desconocido');
           resultado.style.color = '#e74c3c';
