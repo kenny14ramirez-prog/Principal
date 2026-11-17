@@ -606,3 +606,188 @@ body.crozzo-theme-light .cz-health-panel {
   box-shadow: 0 30px 80px rgba(20, 20, 24, 0.28);
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+ * 15. FORMULARIOS — legibilidad y respuesta al tacto
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .form-input,
+body.crozzo-premium .form-select,
+body.crozzo-premium .form-control {
+  transition:
+    border-color var(--cz-t-fast) var(--cz-ease),
+    box-shadow var(--cz-t-mid) var(--cz-ease),
+    background-color var(--cz-t-mid) var(--cz-ease);
+}
+
+/* Hover: borde apenas más definido, sin mover el layout */
+body.crozzo-premium .form-input:hover:not(:disabled):not(:focus),
+body.crozzo-premium .form-select:hover:not(:disabled):not(:focus),
+body.crozzo-premium .form-control:hover:not(:disabled):not(:focus) {
+  border-color: rgba(201, 169, 98, 0.55);
+}
+
+/* Foco: mismo lenguaje dorado que el resto de la capa premium */
+body.crozzo-premium .form-input:focus,
+body.crozzo-premium .form-select:focus,
+body.crozzo-premium .form-control:focus {
+  border-color: var(--gold-primary, #c9a962);
+  box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.22);
+}
+
+/* Placeholder: 0.4 de opacidad era casi invisible; subimos a 0.55 */
+body.crozzo-premium .form-input::placeholder,
+body.crozzo-premium .form-control::placeholder {
+  opacity: 0.55;
+}
+
+/* Estados de validación con halo, no solo borde */
+body.crozzo-premium .form-input.invalid,
+body.crozzo-premium .form-control.invalid {
+  border-color: var(--danger, #ff453a);
+  box-shadow: 0 0 0 3px rgba(255, 69, 58, 0.18);
+}
+body.crozzo-premium .form-input.valid,
+body.crozzo-premium .form-control.valid {
+  border-color: var(--success, #34c759);
+  box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.15);
+}
+
+/* Campos deshabilitados: se leen como inactivos, no como error */
+body.crozzo-premium .form-input:disabled,
+body.crozzo-premium .form-select:disabled,
+body.crozzo-premium .form-control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(128, 128, 128, 0.06) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+/* Textarea: altura mínima cómoda para notas y observaciones */
+body.crozzo-premium textarea.form-input,
+body.crozzo-premium textarea.form-control {
+  min-height: 96px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+/* Etiquetas: un punto más firmes, sin gritar */
+body.crozzo-premium .form-label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+body.crozzo-premium .form-hint {
+  line-height: 1.45;
+}
+
+/* Casillas y radios con el acento de marca (nativo, sin JS) */
+body.crozzo-premium input[type="checkbox"],
+body.crozzo-premium input[type="radio"] {
+  accent-color: var(--gold-primary, #c9a962);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 16. TABLAS — lectura rápida y cabecera anclada
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .table-container table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+body.crozzo-premium table th {
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(201, 169, 98, 0.32);
+  background: var(--bg-card, #fff);
+}
+
+/* Cabecera fija al desplazar tablas largas dentro de su contenedor */
+body.crozzo-premium .table-container th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Números alineados en columna: se comparan de un vistazo */
+body.crozzo-premium table td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* La fila activa/seleccionada conserva el tinte dorado aunque haya hover */
+body.crozzo-premium tbody tr.is-selected,
+body.crozzo-premium tbody tr.selected,
+body.crozzo-premium tbody tr[aria-selected="true"] {
+  background-color: rgba(201, 169, 98, 0.12);
+  box-shadow: inset 3px 0 0 var(--gold-primary, #c9a962);
+}
+
+body.crozzo-premium tbody tr.is-selected:hover,
+body.crozzo-premium tbody tr.selected:hover,
+body.crozzo-premium tbody tr[aria-selected="true"]:hover {
+  background-color: rgba(201, 169, 98, 0.18);
+}
+
+/* Celdas numéricas marcadas explícitamente (helper opcional) */
+body.crozzo-premium table .cz-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 17. CABECERAS DE TARJETA — jerarquía sin ruido
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium .card > .card-header {
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.22));
+  position: relative;
+}
+
+/* Filo dorado que se apoya sobre el divisor (solo cabecera directa) */
+body.crozzo-premium .card > .card-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 56px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-primary, #c9a962), transparent);
+  pointer-events: none;
+}
+
+body.crozzo-premium .card > .card-header .card-title {
+  letter-spacing: 0.005em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tema claro: el tinte dorado necesita un poco más de cuerpo */
+body.crozzo-theme-light.crozzo-premium table th {
+  border-bottom-color: rgba(160, 128, 52, 0.45);
+}
+body.crozzo-theme-light.crozzo-premium tbody tr:hover {
+  background-color: rgba(201, 169, 98, 0.1);
+}
+body.crozzo-theme-light.crozzo-premium tbody tr.is-selected,
+body.crozzo-theme-light.crozzo-premium tbody tr.selected,
+body.crozzo-theme-light.crozzo-premium tbody tr[aria-selected="true"] {
+  background-color: rgba(201, 169, 98, 0.16);
+}
+
+/* Alto contraste: sin transparencias ni degradados */
+body.theme-high-contrast.crozzo-premium .card > .card-header::after {
+  background: var(--a11y-hc-border, #ffd700);
+  width: 100%;
+}
+body.theme-high-contrast.crozzo-premium .form-input:disabled,
+body.theme-high-contrast.crozzo-premium .form-select:disabled,
+body.theme-high-contrast.crozzo-premium .form-control:disabled {
+  background-image: none;
+}
+
