@@ -39,15 +39,29 @@
     { id: 'demo', label: '🎮 Demo (datos ficticios)', roles: ['admin', 'caja', 'mesero'], printers: [] },
   ];
 
-  // ── Base de datos de impresoras conocidas ────────────────────────
+  // ── Base de datos de impresoras conocidas (expandida) ────────────
   var PRINTER_DB = [
-    { vendor: 'Epson', ids: [0x04B8], models: ['TM-T20II', 'TM-T20III', 'TM-T82II', 'TM-T88V', 'TM-T88VI', 'TM-m30', 'TM-U220'], driver: 'Epson Advanced Printer Driver', port: 'USB/Serial' },
-    { vendor: 'Star', ids: [0x0519], models: ['TSP100III', 'TSP143III', 'TSP654II', 'TSP700II', 'mC-Print3'], driver: 'Star futurePRNT', port: 'USB' },
-    { vendor: 'Bixolon', ids: [0x1504], models: ['SRP-350III', 'SRP-350plusIII', 'SRP-E300', 'SRP-S300'], driver: 'Bixolon Unified Driver', port: 'USB' },
-    { vendor: 'Citizen', ids: [0x08BD, 0x1D90], models: ['CT-S310II', 'CT-S4000', 'CT-S601'], driver: 'Citizen Driver', port: 'USB' },
-    { vendor: 'Zebra', ids: [0x0A5F], models: ['ZD220', 'ZD421', 'ZT230', 'GK420t'], driver: 'Zebra ZDesigner', port: 'USB' },
-    { vendor: 'Xprinter/Generic', ids: [0x0416, 0x0FE6, 0x154F], models: ['XP-58', 'XP-80', 'POS-58', 'POS-80', 'Generic 58mm', 'Generic 80mm'], driver: 'Generic / Text Only', port: 'USB' },
-    { vendor: 'HP', ids: [0x03F0], models: ['OfficeJet', 'LaserJet'], driver: 'HP Universal Print Driver', port: 'USB/Network' },
+    { vendor: 'Epson', ids: [0x04B8], models: ['TM-T20II', 'TM-T20III', 'TM-T82II', 'TM-T82III', 'TM-T88V', 'TM-T88VI', 'TM-T88VII', 'TM-m30', 'TM-m30II', 'TM-m30III', 'TM-U220', 'TM-T70', 'TM-P20', 'TM-P60II', 'TM-P80'], driver: 'Epson Advanced Printer Driver', port: 'USB/Serial' },
+    { vendor: 'Star Micronics', ids: [0x0519], models: ['TSP100III', 'TSP143III', 'TSP654II', 'TSP700II', 'mC-Print3', 'mPOP', 'BSC10', 'SP700'], driver: 'Star futurePRNT', port: 'USB' },
+    { vendor: 'Bixolon', ids: [0x1504], models: ['SRP-350III', 'SRP-350plusIII', 'SRP-E300', 'SRP-S300', 'SRP-275III', 'SPP-R200III', 'SPP-R310'], driver: 'Bixolon Unified Driver', port: 'USB' },
+    { vendor: 'Citizen', ids: [0x08BD, 0x1D90, 0x2730], models: ['CT-S310II', 'CT-S4000', 'CT-S601', 'CT-S651', 'CT-E351', 'CT-E651'], driver: 'Citizen Driver', port: 'USB' },
+    { vendor: 'Zebra', ids: [0x0A5F], models: ['ZD220', 'ZD421', 'ZD621', 'ZT230', 'ZT411', 'GK420t', 'GK420d', 'ZQ520', 'ZQ630'], driver: 'Zebra ZDesigner', port: 'USB' },
+    { vendor: 'NCR', ids: [0x0404], models: ['7197', '7199', '7167', 'RealPOS 7197'], driver: 'NCR Driver', port: 'USB' },
+    { vendor: 'Custom', ids: [0x0DD4], models: ['VKP80', 'TG2480', 'TL60'], driver: 'Custom Driver', port: 'USB' },
+    { vendor: 'OKI', ids: [0x06BC], models: ['POS Printer'], driver: 'OKI Driver', port: 'USB' },
+    { vendor: 'Fujitsu', ids: [0x04C5], models: ['FTP-628', 'FTP-638'], driver: 'Fujitsu Driver', port: 'USB' },
+    { vendor: 'TSC', ids: [0x1203], models: ['TTP-244 Plus', 'TTP-342', 'TE200', 'TE300'], driver: 'TSC Driver', port: 'USB' },
+    { vendor: 'Dymo', ids: [0x0922], models: ['LabelWriter 450', 'LabelWriter 550'], driver: 'Dymo Driver', port: 'USB' },
+    { vendor: 'Xprinter/Generic', ids: [0x0416, 0x0FE6, 0x154F], models: ['XP-58', 'XP-80', 'XP-58IIH', 'POS-58', 'POS-80', 'Generic 58mm', 'Generic 80mm', 'POS58', 'POS80'], driver: 'Generic / Text Only', port: 'USB' },
+    { vendor: 'HP', ids: [0x03F0], models: ['OfficeJet', 'LaserJet', 'DeskJet'], driver: 'HP Universal Print Driver', port: 'USB/Network' },
+    { vendor: 'Bematech/Elgin', ids: [], models: ['MP-4200 TH', 'MP-2800', 'I9'], driver: 'Elgin Driver', port: 'USB' },
+    { vendor: 'Daruma', ids: [], models: ['DR700', 'DR800'], driver: 'Daruma Driver', port: 'USB' },
+    { vendor: 'Sweda', ids: [], models: ['SI-300', 'SI-500'], driver: 'Sweda Driver', port: 'USB' },
+    { vendor: 'Tanca', ids: [], models: ['TP-650', 'TP-550'], driver: 'Tanca Driver', port: 'USB' },
+    { vendor: 'Sunmi', ids: [], models: ['V2', 'V2s', 'P2', 'T2'], driver: 'Built-in (Android)', port: 'Internal' },
+    { vendor: 'Rongta', ids: [], models: ['RP80', 'RP326', 'RPP02N'], driver: 'Rongta Driver', port: 'USB' },
+    { vendor: 'HOIN', ids: [], models: ['HOP-E200', 'HOP-E58', 'HOP-E80'], driver: 'HOIN Driver', port: 'USB' },
+    { vendor: 'Cashino', ids: [], models: ['P80', 'P58', 'P58H'], driver: 'Cashino Driver', port: 'USB' },
   ];
 
   // ── Estado ───────────────────────────────────────────────────────
