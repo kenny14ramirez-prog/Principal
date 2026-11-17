@@ -19,10 +19,28 @@
   --cz-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --cz-t-fast: 120ms;
   --cz-t-mid: 220ms;
-  --cz-ring: 0 0 0 2px rgba(10, 10, 10, 0.9), 0 0 0 4px var(--gold-primary, #c9a962);
-  --cz-lift-1: 0 2px 8px rgba(0, 0, 0, 0.24);
-  --cz-lift-2: 0 10px 30px rgba(0, 0, 0, 0.34);
-  --cz-gold-line: linear-gradient(90deg, transparent, rgba(201, 169, 98, 0.55), transparent);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 0. TOKENS DE MARCA — la capa premium habla el idioma de BONA origen
+ * ---------------------------------------------------------------------------
+ * No inventamos colores: leemos los tokens del tema activo.
+ *   BONA origen  → oro #B59A6D, crema #FAF9F7, Cormorant Garamond
+ *   Executive    → oro #C9A962, carbón, DM Sans
+ * Así el mismo archivo sirve para toda la familia de temas sin duplicarse.
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium {
+  --cz-gold: var(--gold-primary, #c9a962);
+  --cz-gold-light: var(--gold-light, #d4af37);
+  --cz-gold-dark: var(--gold-dark, #b8941f);
+  --cz-gold-rgb: var(--accent-rgb, 201, 169, 98);
+  --cz-surface: var(--surface-glass, rgba(28, 28, 30, 0.92));
+  --cz-surface-border: var(--surface-glass-border, rgba(128, 128, 128, 0.24));
+  --cz-font-display: var(--bona-font-display, var(--font-sans, system-ui));
+  --cz-ring: 0 0 0 2px var(--bg-primary, #0a0a0a), 0 0 0 4px var(--cz-gold);
+  --cz-lift-1: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --cz-lift-2: 0 10px 30px rgba(0, 0, 0, 0.14);
+  --cz-gold-line: linear-gradient(90deg, transparent, rgba(var(--cz-gold-rgb), 0.55), transparent);
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -62,7 +80,7 @@ body.crozzo-premium .btn:not(:disabled):not(.btn-static):active {
 }
 
 body.crozzo-premium .btn-primary:not(:disabled):hover {
-  box-shadow: 0 4px 18px rgba(201, 169, 98, 0.28), var(--cz-lift-1);
+  box-shadow: 0 4px 18px rgba(var(--cz-gold-rgb), 0.28), var(--cz-lift-1);
 }
 
 /* Sheen diagonal en botones primarios (sin capturar puntero) */
@@ -111,7 +129,7 @@ body.crozzo-premium .card {
 body.crozzo-premium .card:not(.card--static):not(.card--flat):hover {
   transform: translateY(-2px);
   box-shadow: var(--cz-lift-2);
-  border-color: rgba(201, 169, 98, 0.28);
+  border-color: rgba(var(--cz-gold-rgb), 0.28);
 }
 
 /* Filas de tabla: acento dorado sutil */
@@ -119,7 +137,7 @@ body.crozzo-premium tbody tr {
   transition: background-color var(--cz-t-fast) var(--cz-ease);
 }
 body.crozzo-premium tbody tr:hover {
-  background-color: rgba(201, 169, 98, 0.06);
+  background-color: rgba(var(--cz-gold-rgb), 0.06);
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -136,7 +154,7 @@ body.crozzo-premium .nav-item::before {
   width: 3px;
   height: 0;
   border-radius: 0 3px 3px 0;
-  background: var(--gradient-gold, linear-gradient(135deg, #d4af37, #b8941f));
+  background: var(--gradient-gold, linear-gradient(135deg, var(--cz-gold-light), var(--cz-gold-dark)));
   transform: translateY(-50%);
   transition: height var(--cz-t-mid) var(--cz-ease);
   pointer-events: none;
@@ -158,7 +176,7 @@ body.crozzo-premium .modal-overlay.active {
 body.crozzo-premium .modal-overlay.active .modal,
 body.crozzo-premium .modal-overlay.active .modal-dialog {
   animation: cz-modal-in 300ms var(--cz-ease-out);
-  border: 1px solid rgba(201, 169, 98, 0.22);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.22);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 }
 @keyframes cz-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -205,24 +223,24 @@ body.crozzo-premium #mainContent.cz-page-enter {
  * ─────────────────────────────────────────────────────────────────────────── */
 body.crozzo-premium * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(201, 169, 98, 0.32) transparent;
+  scrollbar-color: rgba(var(--cz-gold-rgb), 0.32) transparent;
 }
 body.crozzo-premium *::-webkit-scrollbar { width: 10px; height: 10px; }
 body.crozzo-premium *::-webkit-scrollbar-track { background: transparent; }
 body.crozzo-premium *::-webkit-scrollbar-thumb {
-  background: rgba(201, 169, 98, 0.26);
+  background: rgba(var(--cz-gold-rgb), 0.26);
   border-radius: 99px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 body.crozzo-premium *::-webkit-scrollbar-thumb:hover {
-  background: rgba(201, 169, 98, 0.55);
+  background: rgba(var(--cz-gold-rgb), 0.55);
   background-clip: content-box;
 }
 
 /* Selección de texto */
 body.crozzo-premium ::selection {
-  background: rgba(201, 169, 98, 0.32);
+  background: rgba(var(--cz-gold-rgb), 0.32);
   color: #fff;
 }
 
@@ -236,8 +254,8 @@ body.crozzo-premium ::selection {
   gap: 7px;
   padding: 4px 11px 4px 9px;
   border-radius: 999px;
-  border: 1px solid rgba(201, 169, 98, 0.5);
-  background: linear-gradient(180deg, rgba(201, 169, 98, 0.18), rgba(201, 169, 98, 0.06));
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.5);
+  background: linear-gradient(180deg, rgba(var(--cz-gold-rgb), 0.18), rgba(var(--cz-gold-rgb), 0.06));
   color: var(--text-primary, #f5f5f7);
   font-size: 0.68rem;
   font-weight: 600;
@@ -247,7 +265,7 @@ body.crozzo-premium ::selection {
   white-space: nowrap;
   transition: border-color var(--cz-t-mid) var(--cz-ease), box-shadow var(--cz-t-mid) var(--cz-ease), transform var(--cz-t-fast) var(--cz-ease);
 }
-.cz-health:hover { border-color: rgba(201, 169, 98, 0.6); box-shadow: 0 0 16px rgba(201, 169, 98, 0.22); }
+.cz-health:hover { border-color: rgba(var(--cz-gold-rgb), 0.6); box-shadow: 0 0 16px rgba(var(--cz-gold-rgb), 0.22); }
 .cz-health:active { transform: scale(0.98); }
 
 .cz-health__dot {
@@ -266,7 +284,7 @@ body.crozzo-premium ::selection {
   100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
 }
 
-/* Popover de salud */
+/* Popover de salud — vidrio de marca (crema en BONA, carbón en Executive) */
 .cz-health-panel {
   position: fixed;
   z-index: 10060;
@@ -274,9 +292,11 @@ body.crozzo-premium ::selection {
   max-width: calc(100vw - 24px);
   padding: 14px;
   border-radius: 14px;
-  border: 1px solid rgba(201, 169, 98, 0.5);
-  background: var(--bg-card, #1c1c1e);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.5);
+  background: var(--cz-surface);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
   color: var(--text-primary, #f5f5f7);
   font-size: 0.8rem;
   animation: cz-pop-in 180ms var(--cz-ease-out);
@@ -289,7 +309,7 @@ body.crozzo-premium ::selection {
   font-size: 0.62rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--gold-dark, #b8941f);
+  color: var(--cz-gold-dark);
   margin-bottom: 10px;
   font-weight: 700;
 }
@@ -311,8 +331,8 @@ body.crozzo-premium ::selection {
   flex: 1 1 0;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(201, 169, 98, 0.55);
-  background: rgba(201, 169, 98, 0.12);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.55);
+  background: rgba(var(--cz-gold-rgb), 0.12);
   color: inherit;
   font-size: 0.72rem;
   font-weight: 600;
@@ -320,7 +340,7 @@ body.crozzo-premium ::selection {
   cursor: pointer;
   transition: background var(--cz-t-fast) var(--cz-ease);
 }
-.cz-health-panel__actions button:hover { background: rgba(201, 169, 98, 0.22); }
+.cz-health-panel__actions button:hover { background: rgba(var(--cz-gold-rgb), 0.22); }
 
 /* ───────────────────────────────────────────────────────────────────────────
  * 10. COMMAND PALETTE (Ctrl/Cmd+K)
@@ -342,9 +362,11 @@ body.crozzo-premium ::selection {
   width: 100%;
   max-width: 640px;
   border-radius: 16px;
-  border: 1px solid rgba(201, 169, 98, 0.55);
-  background: var(--bg-card, #1c1c1e);
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.55);
+  background: var(--cz-surface);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
   overflow: hidden;
   animation: cz-modal-in 200ms var(--cz-ease-out);
   color: var(--text-primary, #f5f5f7);
@@ -354,7 +376,8 @@ body.crozzo-premium ::selection {
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
-  border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.22));
+  border-bottom: 1px solid rgba(var(--cz-gold-rgb), 0.28);
+  background: linear-gradient(180deg, rgba(var(--cz-gold-rgb), 0.07), transparent);
 }
 .cz-palette__icon { opacity: 0.55; font-size: 1rem; }
 .cz-palette__input {
@@ -385,7 +408,7 @@ body.crozzo-premium ::selection {
   font-size: 0.58rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--gold-dark, #b8941f);
+  color: var(--cz-gold-dark);
   font-weight: 700;
 }
 .cz-palette__item {
@@ -399,8 +422,8 @@ body.crozzo-premium ::selection {
   border: 1px solid transparent;
 }
 .cz-palette__item.is-active {
-  background: rgba(201, 169, 98, 0.16);
-  border-color: rgba(201, 169, 98, 0.45);
+  background: rgba(var(--cz-gold-rgb), 0.16);
+  border-color: rgba(var(--cz-gold-rgb), 0.45);
 }
 .cz-palette__item__glyph { width: 20px; text-align: center; opacity: 0.8; flex: 0 0 auto; }
 .cz-palette__item__label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -437,15 +460,19 @@ body.crozzo-premium ::selection {
   max-height: 84vh;
   overflow-y: auto;
   border-radius: 16px;
-  border: 1px solid rgba(201, 169, 98, 0.55);
-  background: var(--bg-card, #1c1c1e);
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.55);
+  background: var(--cz-surface);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
   padding: 22px;
   color: var(--text-primary, #f5f5f7);
 }
 .cz-shortcuts__title {
-  font-size: 0.98rem;
+  font-family: var(--cz-font-display);
+  font-size: 1.2rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
   margin-bottom: 4px;
 }
 .cz-shortcuts__sub { font-size: 0.76rem; color: var(--text-muted, #8e8e93); margin-bottom: 16px; }
@@ -480,7 +507,13 @@ body.crozzo-premium ::selection {
   opacity: 0.5;
   filter: grayscale(0.3);
 }
-.cz-empty__title { font-size: 0.95rem; font-weight: 600; color: var(--text-secondary, #aeaeb2); }
+.cz-empty__title {
+  font-family: var(--cz-font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-primary, #aeaeb2);
+}
 .cz-empty__hint { font-size: 0.78rem; max-width: 42ch; line-height: 1.5; }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -494,20 +527,20 @@ body.crozzo-premium ::selection {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 1px solid rgba(201, 169, 98, 0.6);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.6);
   background: var(--bg-card, #1c1c1e);
-  color: var(--gold-dark, #b8941f);
+  color: var(--cz-gold-dark);
   font-size: 1.15rem;
   line-height: 1;
   display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28), 0 0 0 0 rgba(201, 169, 98, 0.5);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28), 0 0 0 0 rgba(var(--cz-gold-rgb), 0.5);
   transition: transform var(--cz-t-fast) var(--cz-ease), box-shadow var(--cz-t-mid) var(--cz-ease);
 }
 .cz-cmd-fab.is-on { display: flex; }
-.cz-cmd-fab:hover { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34), 0 0 18px rgba(201, 169, 98, 0.35); }
+.cz-cmd-fab:hover { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34), 0 0 18px rgba(var(--cz-gold-rgb), 0.35); }
 .cz-cmd-fab:active { transform: scale(0.94); }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -522,7 +555,13 @@ body.crozzo-premium ::selection {
   background: linear-gradient(180deg, rgba(255, 69, 58, 0.08), rgba(255, 69, 58, 0.02));
   color: var(--text-primary, #f5f5f7);
 }
-.cz-recovery__title { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+.cz-recovery__title {
+  font-family: var(--cz-font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-bottom: 6px;
+}
 .cz-recovery__text { font-size: 0.82rem; color: var(--text-secondary, #aeaeb2); margin-bottom: 14px; line-height: 1.55; }
 .cz-recovery__detail {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -622,15 +661,15 @@ body.crozzo-premium .form-control {
 body.crozzo-premium .form-input:hover:not(:disabled):not(:focus),
 body.crozzo-premium .form-select:hover:not(:disabled):not(:focus),
 body.crozzo-premium .form-control:hover:not(:disabled):not(:focus) {
-  border-color: rgba(201, 169, 98, 0.55);
+  border-color: rgba(var(--cz-gold-rgb), 0.55);
 }
 
 /* Foco: mismo lenguaje dorado que el resto de la capa premium */
 body.crozzo-premium .form-input:focus,
 body.crozzo-premium .form-select:focus,
 body.crozzo-premium .form-control:focus {
-  border-color: var(--gold-primary, #c9a962);
-  box-shadow: 0 0 0 3px rgba(201, 169, 98, 0.22);
+  border-color: var(--cz-gold);
+  box-shadow: 0 0 0 3px rgba(var(--cz-gold-rgb), 0.22);
 }
 
 /* Placeholder: 0.4 de opacidad era casi invisible; subimos a 0.55 */
@@ -685,7 +724,7 @@ body.crozzo-premium .form-hint {
 /* Casillas y radios con el acento de marca (nativo, sin JS) */
 body.crozzo-premium input[type="checkbox"],
 body.crozzo-premium input[type="radio"] {
-  accent-color: var(--gold-primary, #c9a962);
+  accent-color: var(--cz-gold);
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -702,7 +741,7 @@ body.crozzo-premium .table-container table {
 body.crozzo-premium table th {
   letter-spacing: 0.08em;
   font-weight: 700;
-  border-bottom: 1px solid rgba(201, 169, 98, 0.32);
+  border-bottom: 1px solid rgba(var(--cz-gold-rgb), 0.32);
   background: var(--bg-card, #fff);
 }
 
@@ -722,14 +761,14 @@ body.crozzo-premium table td {
 body.crozzo-premium tbody tr.is-selected,
 body.crozzo-premium tbody tr.selected,
 body.crozzo-premium tbody tr[aria-selected="true"] {
-  background-color: rgba(201, 169, 98, 0.12);
-  box-shadow: inset 3px 0 0 var(--gold-primary, #c9a962);
+  background-color: rgba(var(--cz-gold-rgb), 0.12);
+  box-shadow: inset 3px 0 0 var(--cz-gold);
 }
 
 body.crozzo-premium tbody tr.is-selected:hover,
 body.crozzo-premium tbody tr.selected:hover,
 body.crozzo-premium tbody tr[aria-selected="true"]:hover {
-  background-color: rgba(201, 169, 98, 0.18);
+  background-color: rgba(var(--cz-gold-rgb), 0.18);
 }
 
 /* Celdas numéricas marcadas explícitamente (helper opcional) */
@@ -756,7 +795,7 @@ body.crozzo-premium .card > .card-header::after {
   bottom: -1px;
   width: 56px;
   height: 1px;
-  background: linear-gradient(90deg, var(--gold-primary, #c9a962), transparent);
+  background: linear-gradient(90deg, var(--cz-gold), transparent);
   pointer-events: none;
 }
 
@@ -769,15 +808,15 @@ body.crozzo-premium .card > .card-header .card-title {
 
 /* Tema claro: el tinte dorado necesita un poco más de cuerpo */
 body.crozzo-theme-light.crozzo-premium table th {
-  border-bottom-color: rgba(160, 128, 52, 0.45);
+  border-bottom-color: rgba(var(--cz-gold-rgb), 0.5);
 }
 body.crozzo-theme-light.crozzo-premium tbody tr:hover {
-  background-color: rgba(201, 169, 98, 0.1);
+  background-color: rgba(var(--cz-gold-rgb), 0.1);
 }
 body.crozzo-theme-light.crozzo-premium tbody tr.is-selected,
 body.crozzo-theme-light.crozzo-premium tbody tr.selected,
 body.crozzo-theme-light.crozzo-premium tbody tr[aria-selected="true"] {
-  background-color: rgba(201, 169, 98, 0.16);
+  background-color: rgba(var(--cz-gold-rgb), 0.16);
 }
 
 /* Alto contraste: sin transparencias ni degradados */
@@ -790,4 +829,172 @@ body.theme-high-contrast.crozzo-premium .form-select:disabled,
 body.theme-high-contrast.crozzo-premium .form-control:disabled {
   background-image: none;
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 18. BONA ORIGEN — voz tipográfica y materiales de la casa
+ * ---------------------------------------------------------------------------
+ * La marca usa Cormorant Garamond para los títulos y DM Sans para la interfaz.
+ * Aquí se aplica esa jerarquía a las superficies de mando (encabezado y
+ * modales), conservando los tamaños ya definidos por el sistema.
+ * ─────────────────────────────────────────────────────────────────────────── */
+html[data-theme="bona-origen"] body.crozzo-premium .page-title {
+  font-family: var(--bona-font-display, Georgia, serif);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+html[data-theme="bona-origen"] body.crozzo-premium .page-subtitle {
+  letter-spacing: 0.015em;
+}
+
+html[data-theme="bona-origen"] body.crozzo-premium .modal-title,
+html[data-theme="bona-origen"] body.crozzo-premium .modal-head .modal-title {
+  font-family: var(--bona-font-display, Georgia, serif);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* Material de la casa: filo champagne sobre el vidrio de los overlays */
+html[data-theme="bona-origen"] body.crozzo-premium .cz-palette,
+html[data-theme="bona-origen"] body.crozzo-premium .cz-shortcuts__card,
+html[data-theme="bona-origen"] body.crozzo-premium .cz-health-panel {
+  border-color: rgba(var(--cz-gold-rgb), 0.42);
+  box-shadow:
+    0 24px 60px rgba(28, 28, 28, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+/* La insignia de sistema se lee como un sello de la casa */
+html[data-theme="bona-origen"] body.crozzo-premium .cz-health {
+  font-family: var(--bona-font, var(--font-sans));
+  letter-spacing: 0.1em;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * 19. SUPER ADMIN — el menú de la casa
+ * ---------------------------------------------------------------------------
+ * El módulo CrozzoSuperAdminMenu.js construye la tarjeta con estilos en línea.
+ * Aquí se reintegra al lenguaje visual BONA sin tocar su lógica: mismos
+ * botones, mismos ids, misma navegación. Solo cambia la piel.
+ * ─────────────────────────────────────────────────────────────────────────── */
+body.crozzo-premium #crozzoSuperAdminMenu {
+  background: rgba(28, 28, 28, 0.42) !important;
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  padding: 20px;
+  animation: cz-fade-in 180ms var(--cz-ease-out);
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu > div {
+  background-color: var(--bg-card, #fff) !important;
+  background-image: linear-gradient(90deg, transparent, var(--cz-gold, #c9a962), transparent) !important;
+  background-size: 100% 2px !important;
+  background-repeat: no-repeat !important;
+  background-position: top center !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.35) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 30px 80px rgba(28, 28, 28, 0.22) !important;
+  animation: cz-modal-in 240ms var(--cz-ease-out);
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu h2 {
+  font-family: var(--cz-font-display) !important;
+  font-size: 1.85rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  color: var(--text-primary, #1c1c1c) !important;
+  margin: 0 0 6px !important;
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu p {
+  color: var(--text-secondary, #4a4a4a) !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.02em !important;
+  margin: 0 0 22px !important;
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu button {
+  background: var(--bg-primary, #faf9f7) !important;
+  border: 1px solid var(--border, rgba(45, 45, 45, 0.1)) !important;
+  border-radius: 12px !important;
+  color: var(--text-primary, #1c1c1c) !important;
+  text-align: left !important;
+  padding: 14px 18px !important;
+  transition:
+    background-color var(--cz-t-mid) var(--cz-ease),
+    border-color var(--cz-t-mid) var(--cz-ease),
+    box-shadow var(--cz-t-mid) var(--cz-ease),
+    transform var(--cz-t-fast) var(--cz-ease) !important;
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu button:hover {
+  background: rgba(var(--cz-gold-rgb), 0.09) !important;
+  border-color: rgba(var(--cz-gold-rgb), 0.55) !important;
+  box-shadow: var(--cz-lift-1) !important;
+  transform: translateY(-1px);
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu button:active {
+  transform: scale(0.99);
+  box-shadow: none !important;
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu button strong {
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu button span {
+  color: var(--text-muted, #7a756c) !important;
+  font-size: 0.78rem !important;
+}
+
+/* Cerrar: acción neutra, no destructiva. Se retira el rojo genérico. */
+body.crozzo-premium #crozzoSuperAdminMenu #samCerrar {
+  background: transparent !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.6) !important;
+  color: var(--cz-gold-dark) !important;
+  text-align: center !important;
+  font-weight: 700 !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+  padding: 12px 20px !important;
+}
+
+body.crozzo-premium #crozzoSuperAdminMenu #samCerrar:hover {
+  background: rgba(var(--cz-gold-rgb), 0.12) !important;
+  border-color: var(--cz-gold) !important;
+  color: var(--cz-gold-dark) !important;
+  transform: none;
+}
+
+/* Guardas de accesibilidad */
+body.crozzo-a11y-reduce-motion #crozzoSuperAdminMenu,
+body.crozzo-a11y-reduce-motion #crozzoSuperAdminMenu > div {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.crozzo-premium #crozzoSuperAdminMenu,
+  body.crozzo-premium #crozzoSuperAdminMenu > div {
+    animation: none !important;
+  }
+  body.crozzo-premium #crozzoSuperAdminMenu button:hover {
+    transform: none !important;
+  }
+}
+body.theme-high-contrast.crozzo-premium #crozzoSuperAdminMenu > div {
+  background-image: none !important;
+  background-color: var(--a11y-hc-bg, #000) !important;
+  color: var(--a11y-hc-fg, #fff) !important;
+  border-color: var(--a11y-hc-border, #ffd700) !important;
+}
+body.theme-high-contrast.crozzo-premium #crozzoSuperAdminMenu button {
+  background: #000 !important;
+  color: var(--a11y-hc-fg, #fff) !important;
+  border-color: var(--a11y-hc-border, #ffd700) !important;
+}
+
+
 
