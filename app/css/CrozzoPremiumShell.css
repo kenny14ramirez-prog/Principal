@@ -998,3 +998,129 @@ body.theme-high-contrast.crozzo-premium #crozzoSuperAdminMenu button {
 
 
 
+/* ===========================================================================
+ * 20. CAPA SILENCIOSA - quitar ruido visual, dejar solo premium
+ * ---------------------------------------------------------------------------
+ * Colores saturados, degradados neon y sombras pesadas del sistema base se
+ * neutralizan aqui para chrome, insignias, alertas, toasts y pildoras.
+ * No se toca la logica: solo la piel. El oro BONA y la crema son la paleta.
+ * =========================================================================== */
+
+/* Banner de conectividad: dejar de ser una franja rosa chillona */
+body.crozzo-premium #crozzoConnBanner {
+  background: var(--cz-surface) !important;
+  color: var(--text-primary, #1c1c1c) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.35) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--cz-lift-1) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em;
+}
+
+/* Toasts: borde lateral dorado, sin rojos chillones */
+body.crozzo-premium .toast {
+  background: var(--cz-surface) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.22) !important;
+  box-shadow: var(--cz-lift-2) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  color: var(--text-primary, #1c1c1c) !important;
+}
+body.crozzo-premium .toast-success,
+body.crozzo-premium .toast-error,
+body.crozzo-premium .toast-warning,
+body.crozzo-premium .toast-info {
+  border-left: 3px solid var(--cz-gold) !important;
+}
+
+/* Insignias y pills saturadas -> oro suave */
+body.crozzo-premium .badge,
+body.crozzo-premium .pill,
+body.crozzo-premium .chip,
+body.crozzo-premium .tag {
+  background: rgba(var(--cz-gold-rgb), 0.1) !important;
+  color: var(--cz-gold-dark) !important;
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.28) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+}
+
+/* Botones de accion fuertes -> oro de la casa */
+body.crozzo-premium .btn-danger,
+body.crozzo-premium .btn-destructive {
+  background: linear-gradient(135deg, var(--cz-gold), var(--cz-gold-dark)) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: var(--cz-lift-1) !important;
+}
+body.crozzo-premium .btn-danger:hover,
+body.crozzo-premium .btn-destructive:hover {
+  filter: brightness(1.05);
+}
+
+/* Nav inferior movil: premium, sin azul electrico */
+body.crozzo-premium #crozzoMobileBottomNav {
+  background: var(--cz-surface) !important;
+  backdrop-filter: blur(18px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+  border-top: 1px solid rgba(var(--cz-gold-rgb), 0.22) !important;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06) !important;
+}
+body.crozzo-premium #crozzoMobileBottomNav .crozzo-mbn-btn {
+  color: var(--text-muted, #7a756c) !important;
+  background: transparent !important;
+}
+body.crozzo-premium #crozzoMobileBottomNav .crozzo-mbn-btn.active,
+body.crozzo-premium #crozzoMobileBottomNav .crozzo-mbn-btn:active {
+  color: var(--cz-gold-dark) !important;
+  background: rgba(var(--cz-gold-rgb), 0.1) !important;
+}
+body.crozzo-premium #crozzoMobileBottomNav .crozzo-mbn-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+body.crozzo-premium #crozzoMobileBottomNav .crozzo-mbn-ico svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.6;
+}
+body.crozzo-premium #crozzoMobileBottomNav .crozzo-mbn-txt {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Neutralizar degradados neon en chrome (inline styles) */
+body.crozzo-premium [style*="#8b5cf6"],
+body.crozzo-premium [style*="#93c5fd"],
+body.crozzo-premium [style*="#6366f1"] {
+  background-image: none !important;
+  background-color: var(--cz-surface) !important;
+}
+
+/* Sombras pesadas -> suaves */
+body.crozzo-premium .modal,
+body.crozzo-premium .modal-content,
+body.crozzo-premium .dialog {
+  box-shadow: 0 24px 60px rgba(28, 28, 28, 0.16) !important;
+}
+
+/* Guardas de accesibilidad */
+body.crozzo-a11y-reduce-motion #crozzoConnBanner,
+body.crozzo-a11y-reduce-motion .toast,
+body.crozzo-a11y-reduce-motion #crozzoMobileBottomNav {
+  transition: none !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.crozzo-premium #crozzoConnBanner,
+  body.crozzo-premium .toast,
+  body.crozzo-premium #crozzoMobileBottomNav {
+    transition: none !important;
+    animation: none !important;
+  }
+}

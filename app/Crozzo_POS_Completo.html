@@ -125,6 +125,11 @@ window.crozzoAppDisplayName = function () {
 };
 </script>
 <script src="vendor/CrozzoLucide.js" defer></script>
+<script defer>
+  document.addEventListener('DOMContentLoaded', function () {
+    try { if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons({ root: document.getElementById('crozzoMobileBottomNav') }); } catch (_) {}
+  });
+</script>
 <script src="vendor/CrozzoQRCode.js" defer></script>
 <script src="vendor/CrozzoJsQR.js" defer></script>
 <script src="core/CrozzoPairingSeal.js" defer></script>
@@ -570,11 +575,11 @@ if (typeof crozzoApplyFormFactorClasses === 'function') crozzoApplyFormFactorCla
 </div>
 
 <nav class="crozzo-mobile-bottom-nav" id="crozzoMobileBottomNav" aria-label="Navegación rápida">
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true">🏁</span><span class="crozzo-mbn-txt">Inicio</span></button>
-  <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true">📱</span><span class="crozzo-mbn-txt">Pedidos</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true">💵</span><span class="crozzo-mbn-txt">Venta</span></button>
-  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true">🧾</span><span class="crozzo-mbn-txt">Comandas</span></button>
-  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" data-crozzo-act="toggleSidebar"><span class="crozzo-mbn-ico" aria-hidden="true">☰</span><span class="crozzo-mbn-txt">Más</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="inicio-operacion" aria-label="Inicio"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="home"></i></span><span class="crozzo-mbn-txt">Inicio</span></button>
+  <button type="button" class="crozzo-mbn-btn active" data-crozzo-nav="tablets" aria-label="Toma de pedidos"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="clipboard-list"></i></span><span class="crozzo-mbn-txt">Pedidos</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="cajero" aria-label="Punto de venta"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="wallet"></i></span><span class="crozzo-mbn-txt">Venta</span></button>
+  <button type="button" class="crozzo-mbn-btn" data-crozzo-nav="comandas" aria-label="Comandas"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="receipt"></i></span><span class="crozzo-mbn-txt">Comandas</span></button>
+  <button type="button" class="crozzo-mbn-btn crozzo-mbn-more" aria-label="Abrir menú completo" data-crozzo-act="toggleSidebar"><span class="crozzo-mbn-ico" aria-hidden="true"><i data-lucide="menu"></i></span><span class="crozzo-mbn-txt">Más</span></button>
 </nav>
 
 <div class="sidebar-backdrop" id="sidebarBackdrop" role="presentation" aria-hidden="true" data-crozzo-act="crozzoCloseSidebarDrawer"></div>

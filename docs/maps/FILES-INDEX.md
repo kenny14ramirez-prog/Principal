@@ -103,7 +103,7 @@
 | 351 | `app/infra/CrozzoConnectivityDirector.js` |
 | 1008 | `app/infra/CrozzoConnectivityOrchestrator.js` |
 | 157 | `app/infra/CrozzoConnectivityStandby.js` |
-| 174 | `app/infra/CrozzoConnectivityUx.js` |
+| 177 | `app/infra/CrozzoConnectivityUx.js` |
 | 964 | `app/infra/CrozzoConnectivityVisibilityProbe.js` |
 | 242 | `app/infra/CrozzoDeviceMind.js` |
 | 429 | `app/infra/CrozzoDeviceReport.js` |
@@ -142,7 +142,7 @@
 | 351 | `app/infra/CrozzoSedeReadiness.js` |
 | 402 | `app/infra/CrozzoStartupReady.js` |
 | 176 | `app/infra/CrozzoSyncQueueHygiene.js` |
-| 7365 | `app/infra/CrozzoSystemUpdates.js` |
+| 7378 | `app/infra/CrozzoSystemUpdates.js` |
 | 2104 | `app/infra/CrozzoTauriUpdater.js` |
 | 117 | `app/infra/CrozzoTlsPinning.js` |
 | 180 | `app/infra/CrozzoTransportPathHealth.js` |

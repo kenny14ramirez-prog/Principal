@@ -3834,7 +3834,20 @@
     } catch (_) {}
   }
 
-  function populateCriticalInfo(state, errMsg) {
+  function setDetailOpen(open) {
+    var ov = document.getElementById('crozzo-update-detail-overlay');
+    if (!ov) return;
+    ov.classList.toggle('is-open', !!open);
+    ov.classList.toggle('crozzo-update-detail-open', !!open);
+    ov.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (document.body) {
+      document.body.classList.toggle('crozzo-update-detail-open', !!open);
+    }
+    if (!open) {
+      try { if (typeof refreshUpdateIcons === 'function') refreshUpdateIcons(); } catch (_) {}
+    }
+  }
+
     var badge = document.getElementById('crozzoUpdateCriticalBadge');
     var title = document.getElementById('crozzoUpdateCriticalTitle');
     var list = document.getElementById('crozzoUpdateCriticalList');

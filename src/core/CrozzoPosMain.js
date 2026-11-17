@@ -49326,13 +49326,13 @@ function showToast(message, type = 'info') {
   ) {
     toast.classList.add('toast-premium-success');
   }
-  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const icons = { success: '✓', error: '✕', warning: '!', info: 'i' };
   var humanSoft =
     document.body &&
     (document.body.classList.contains('crozzo-premium-human') ||
       document.body.classList.contains('crozzo-luxury-cockpit')) &&
     (type === 'warning' || type === 'info');
-  var icon = humanSoft && type === 'warning' ? '🤝' : (icons[type] || 'ℹ️');
+  var icon = humanSoft && type === 'warning' ? '·' : (icons[type] || 'i');
   const iconSpan = document.createElement('span');
   iconSpan.className = 'crozzo-toast__icon';
   iconSpan.textContent = icon;

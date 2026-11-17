@@ -25,20 +25,20 @@
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
     card.innerHTML =
-      '<h2 style="margin:0 0 8px;font-size:1.4rem;color:#1a1a2e;">👑 Super Admin</h2>' +
+      '<h2 style="margin:0 0 8px;font-size:1.4rem;color:#1a1a2e;">Super Admin</h2>' +
       '<p style="margin:0 0 24px;color:#666;font-size:0.9rem;">Bienvenido, Kenny. ¿Qué deseas hacer?</p>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<button id="samDemo" style="padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;">' +
-          '<strong>🎮 Modo Demo</strong><br><span style="font-size:0.8rem;color:#888;">Carga datos ficticios para mostrar al cliente. No se registra en la nube.</span>' +
+          '<strong>Modo Demo</strong><br><span style="font-size:0.8rem;color:#888;">Carga datos ficticios para mostrar al cliente. No se registra en la nube.</span>' +
         '</button>' +
         '<button id="samRegistrar" style="padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;">' +
-          '<strong>🏢 Registrar nueva empresa</strong><br><span style="font-size:0.8rem;color:#888;">Crea un negocio nuevo en Supabase Central.</span>' +
+          '<strong>Registrar nueva empresa</strong><br><span style="font-size:0.8rem;color:#888;">Crea un negocio nuevo en Supabase Central.</span>' +
         '</button>' +
         '<button id="samAcceder" style="padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;">' +
-          '<strong>🔍 Acceder a empresa existente</strong><br><span style="font-size:0.8rem;color:#888;">Busca por NIT o nombre.</span>' +
+          '<strong>Acceder a empresa existente</strong><br><span style="font-size:0.8rem;color:#888;">Busca por NIT o nombre.</span>' +
         '</button>' +
         '<button id="samDashboard" style="padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;">' +
-          '<strong>📊 Dashboard de negocios</strong><br><span style="font-size:0.8rem;color:#888;">Lista de empresas registradas.</span>' +
+          '<strong>Dashboard de negocios</strong><br><span style="font-size:0.8rem;color:#888;">Lista de empresas registradas.</span>' +
         '</button>' +
         '<button id="samCerrar" style="padding:10px 20px;border:none;border-radius:10px;background:#e74c3c;color:#fff;cursor:pointer;font-size:0.9rem;margin-top:8px;">' +
           'Cerrar menú' +
@@ -88,7 +88,7 @@
     var banner = document.createElement('div');
     banner.id = 'demoModeBanner';
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99998;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;text-align:center;padding:8px;font-size:0.85rem;font-weight:600;';
-    banner.innerHTML = '🎮 MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir del demo</button>';
+    banner.innerHTML = 'MODO DEMO — Datos ficticios · <button onclick="window._exitDemoMode()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer;margin-left:8px;">Salir del demo</button>';
     document.body.appendChild(banner);
 
     // Desplazar contenido para el banner
@@ -131,7 +131,7 @@
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
     card.innerHTML =
-      '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">🏢 Registrar nueva empresa</h2>' +
+      '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">Registrar nueva empresa</h2>' +
       '<div style="display:flex;flex-direction:column;gap:12px;">' +
         '<label style="font-size:0.85rem;color:#555;">Nombre de la empresa</label>' +
         '<input id="samNombre" type="text" placeholder="Pepito Flores" style="padding:10px;border:1px solid #ddd;border-radius:8px;font-size:1rem;">' +
@@ -264,7 +264,7 @@
     var card = document.createElement('div');
     card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML = '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">📊 Dashboard de negocios</h2>' +
+    card.innerHTML = '<h2 style="margin:0 0 16px;font-size:1.3rem;color:#1a1a2e;">Dashboard de negocios</h2>' +
       '<div id="samDashboardContent" style="font-size:0.9rem;">Cargando...</div>' +
       '<button id="samCerrarDashboard" style="margin-top:16px;padding:10px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;">Cerrar</button>';
 

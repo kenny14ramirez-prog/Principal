@@ -29,7 +29,7 @@
 
   function tierEmoji(t) {
     var c = tierColor(t);
-    return c === 'green' ? '🟢' : c === 'yellow' ? '🟡' : '🔴';
+    return c === 'green' ? '●' : c === 'yellow' ? '●' : '●';
   }
 
   function tierLabel(t) {
@@ -78,7 +78,10 @@
     var el = ensureIndicator();
     if (!el) return;
     var t = tierNow();
-    el.textContent = tierEmoji(t) + ' ' + tierLabel(t);
+    var c = tierColor(t);
+    var col = c === 'green' ? '#16a34a' : c === 'yellow' ? '#ca8a04' : '#dc2626';
+    el.style.color = col;
+    el.textContent = '\u25CF ' + tierLabel(t);
     el.title = 'Canal activo: ' + tierLabel(t);
   }
 
@@ -127,12 +130,12 @@
     renderIndicator();
     if (to === 'offline') {
       auditLog('disconnected', 'tier ' + from + ' -> offline');
-      showBanner('⚠️ Sin conexión — operando en modo local', 'red');
+      showBanner('Sin conexión — operando en modo local', 'red');
       playBeep(220, 300);
     } else if (from === 'offline' || from === '' ) {
       if (from !== '' && from !== to) {
         auditLog('reconnected', 'tier -> ' + to);
-        showBanner('✅ Conexión restaurada (' + tierLabel(to) + ')', 'green');
+        showBanner('Conexión restaurada (' + tierLabel(to) + ')', 'green');
         playBeep(660, 200);
       }
     } else if (to !== from) {
