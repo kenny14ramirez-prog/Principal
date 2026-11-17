@@ -387,20 +387,47 @@
 
   global._dcDetectPrinters = async function () {
     if (!navigator.usb) {
-      if (typeof showToast === 'function') showToast('WebUSB no disponible en este navegador', 'warning');
+      if (typeof showToast === 'function') showToast('WebUSB no disponible. Usando detección nativa del sistema.', 'warning');
       return;
     }
     try {
-      var device = await navigator.usb.requestDevice({ filters: PRINTER_DB.map(function (p) { return { vendorId: p.ids[0] }; }) });
-      if (typeof showToast === 'function') showToast('Impresora detectada: ' + (device.productName || device.manufacturerName || 'Desconocida'), 'success');
-      // Buscar en base de datos
+      var device = await navigator.usb.requestDevice({ filters: PRINTER_DB.filter(function (p) { return p.ids.length > 0; }).map(function (p) { return { vendorId: p.ids[0] }; }) });
       var found = PRINTER_DB.find(function (p) { return p.ids.indexOf(device.vendorId) >= 0; });
-      if (found) {
-        if (typeof showToast === 'function') showToast('Marca: ' + found.vendor + ' — Driver: ' + found.driver, 'info');
-      }
+      var msg = 'Impresora detectada: ' + (device.productName || device.manufacturerName || 'Desconocida');
+      if (found) msg += ' (' + found.vendor + ' — ' + found.driver + ')';
+      if (typeof showToast === 'function') showToast(msg, 'success');
+      // Guardar en localStorage
+      try {
+        var detected = JSON.parse(localStorage.getItem('crozzo_detected_printers') || '[]');
+        detected.push({ vendor: found ? found.vendor : 'Desconocido', product: device.productName || '', vendorId: device.vendorId, productId: device.productId, detectedAt: new Date().toISOString() });
+        localStorage.setItem('crozzo_detected_printers', JSON.stringify(detected));
+      } catch (_) {}
     } catch (e) {
       if (typeof showToast === 'function') showToast('No se detectó impresora: ' + (e.message || e), 'warning');
     }
+  };
+
+  // ── Verificar impresoras del sistema (nativo Tauri) ──────────────
+  global._dcCheckPrinters = function () {
+    var el = document.getElementById('dc-printer-status');
+    if (!el) return;
+    var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
+    var html = '';
+    if (printers.length === 0) {
+      html = '<span style="color:#e74c3c;">❌ No se encontraron impresoras configuradas</span><br>' +
+        '<span style="color:#666;">Verifica que las impresoras estén encendidas y conectadas.</span>';
+    } else {
+      html = printers.map(function (p) { return '✅ ' + p; }).join('<br>');
+    }
+    // Mostrar detectadas por WebUSB
+    try {
+      var detected = JSON.parse(localStorage.getItem('crozzo_detected_printers') || '[]');
+      if (detected.length > 0) {
+        html += '<br><br><strong>Detectadas por WebUSB:</strong><br>';
+        html += detected.map(function (d) { return '🔍 ' + (d.vendor || 'Desconocido') + ' — ' + (d.product || 'Sin nombre') + ' (' + new Date(d.detectedAt).toLocaleString() + ')'; }).join('<br>');
+      }
+    } catch (_) {}
+    el.innerHTML = html;
   };
 
   global._dcSaveEmpresa = function () {
@@ -566,13 +593,21 @@
     } else {
       printers.forEach(function (p) { html += '<span style="font-size:0.8rem;">✅ ' + p + '</span><br>'; });
     }
+    // Detectadas por WebUSB
+    try {
+      var detected = JSON.parse(localStorage.getItem('crozzo_detected_printers') || '[]');
+      if (detected.length > 0) {
+        html += '<br><span style="font-size:0.75rem;color:#666;">Detectadas por WebUSB:</span><br>';
+        html += detected.map(function (d) { return '<span style="font-size:0.75rem;">🔍 ' + (d.vendor || '?') + ' — ' + (d.product || '?') + '</span>'; }).join('<br>');
+      }
+    } catch (_) {}
     html += '</div>';
 
     // Conexión
     html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
       '<strong style="font-size:0.85rem;">🔗 Conexión</strong><br>' +
-      '<span style="font-size:0.8rem;">Internet: ' + (navigator.onLine ? '✅' : '❌') + '</span><br>' +
-      '<span style="font-size:0.8rem;">Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? '✅' : '❌') + '</span>' +
+      '<span style="font-size:0.8rem;">Internet: ' + (navigator.onLine ? '✅ Conectado' : '❌ Sin conexión') + '</span><br>' +
+      '<span style="font-size:0.8rem;">Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? '✅ Disponible' : '❌ No disponible') + '</span>' +
       '</div>';
 
     // Base de datos
@@ -581,17 +616,42 @@
     var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
     html += '<span style="font-size:0.8rem;">Usuarios: ' + staff.length + '</span><br>';
     var errStats = (typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats() : { total: 0 };
-    html += '<span style="font-size:0.8rem;">Errores: ' + (errStats.total || 0) + '</span>' +
+    html += '<span style="font-size:0.8rem;">Errores: ' + (errStats.total || 0) + ' (críticos: ' + (errStats.critical || 0) + ', altos: ' + (errStats.high || 0) + ')</span>' +
       '</div>';
 
     // Rendimiento
     html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
       '<strong style="font-size:0.85rem;">⚡ Rendimiento</strong><br>';
     if (typeof performance !== 'undefined' && performance.memory) {
-      html += '<span style="font-size:0.8rem;">Memoria: ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB</span><br>';
+      html += '<span style="font-size:0.8rem;">Memoria: ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB / ' + Math.round(performance.memory.jsHeapSizeLimit / 1048576) + ' MB</span><br>';
     }
-    html += '<span style="font-size:0.8rem;">Tiempo de carga: ' + Math.round(performance.now()) + ' ms</span>' +
+    html += '<span style="font-size:0.8rem;">Tiempo de carga: ' + Math.round(performance.now()) + ' ms</span><br>';
+    html += '<span style="font-size:0.8rem;">Navegador: ' + (navigator.userAgent.match(/Chrome|Firefox|Safari|Edge/) || ['Desconocido'])[0] + '</span>' +
       '</div>';
+
+    // Historial de problemas
+    var problemHistory = [];
+    try { problemHistory = JSON.parse(localStorage.getItem('crozzo_problem_history') || '[]'); } catch (_) {}
+    if (problemHistory.length > 0) {
+      html += '<div style="margin-bottom:8px;padding:8px;background:#fff3cd;border-radius:6px;">' +
+        '<strong style="font-size:0.85rem;">📋 Historial de problemas (' + problemHistory.length + ')</strong><br>';
+      problemHistory.slice(-5).forEach(function (p) {
+        html += '<span style="font-size:0.75rem;">' + new Date(p.ts).toLocaleString() + ' — ' + p.type + ': ' + p.desc + '</span><br>';
+      });
+      html += '</div>';
+    }
+
+    // Honeypot status
+    if (typeof config !== 'undefined') {
+      var seg = config.get('seguridad') || {};
+      var hp = seg.honeypot || {};
+      html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+        '<strong style="font-size:0.85rem;">🍯 Honeypot</strong><br>' +
+        '<span style="font-size:0.8rem;">Estado: ' + (hp.produccionEstricta ? '✅ Activo (estricto)' : '⚠️ Desactivado') + '</span><br>' +
+        '<span style="font-size:0.8rem;">Bloqueos: ' + (hp.tripCount || 0) + ' trips</span><br>' +
+        '<span style="font-size:0.8rem;">Cuarentena: ' + (hp.legendaryActive ? '🔴 Activa' : '✅ Inactiva') + '</span>' +
+        '</div>';
+    }
 
     el.innerHTML = html;
   };
@@ -612,6 +672,36 @@
       CrozzoFieldDiagnostic.downloadFullReport();
     } else if (typeof showToast === 'function') {
       showToast('Módulo de reportes no disponible', 'warning');
+    }
+  };
+
+  // ── Registrar problema en historial ──────────────────────────────
+  global._dcLogProblem = function (type, desc) {
+    try {
+      var history = JSON.parse(localStorage.getItem('crozzo_problem_history') || '[]');
+      history.push({ ts: Date.now(), type: type, desc: desc });
+      if (history.length > 50) history = history.slice(-50);
+      localStorage.setItem('crozzo_problem_history', JSON.stringify(history));
+    } catch (_) {}
+  };
+
+  // ── Verificar impresoras con WebUSB ──────────────────────────────
+  global._dcCheckPrintersWebUSB = async function () {
+    var el = document.getElementById('dc-printer-status');
+    if (!el) return;
+    if (!navigator.usb) {
+      el.innerHTML = '<span style="color:#999;">WebUSB no disponible en este navegador</span>';
+      return;
+    }
+    try {
+      var device = await navigator.usb.requestDevice({ filters: PRINTER_DB.filter(function (p) { return p.ids.length > 0; }).map(function (p) { return { vendorId: p.ids[0] }; }) });
+      var found = PRINTER_DB.find(function (p) { return p.ids.indexOf(device.vendorId) >= 0; });
+      var msg = '✅ Detectada: ' + (device.productName || device.manufacturerName || 'Desconocida');
+      if (found) msg += ' (' + found.vendor + ' — ' + found.driver + ')';
+      el.innerHTML = msg;
+      _dcLogProblem('impresora', 'Detectada: ' + (device.productName || 'Desconocida'));
+    } catch (e) {
+      el.innerHTML = '<span style="color:#e74c3c;">❌ ' + (e.message || e) + '</span>';
     }
   };
 
