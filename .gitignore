@@ -32,3 +32,4 @@ assets/
 # Keystore Android local (no versionar el .jks; el .b64 en .github/signing/ es bootstrap CI)
 *.jks
 .crozzo-android/
+scripts/_qa-out/
