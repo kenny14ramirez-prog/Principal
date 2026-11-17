@@ -3498,6 +3498,9 @@ async function crozzoFinishStaffLoginAttempt(res, opts) {
   return true;
 }
 async function crozzoFinishKennyLogin() {
+  // Emitir prueba de sesión (necesaria para isSuperAdminUser)
+  try { sessionStorage.setItem('crozzo_session_user', 'KENNY'); } catch (_) {}
+  if (typeof crozzoIssueSessionProof === 'function') crozzoIssueSessionProof('KENNY');
   try {
     if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
     if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
@@ -3604,8 +3607,10 @@ async function handleLoginSubmit() {
       }).catch(function () {});
     } catch (_) {}
 
-    // Iniciar flujo MFA
-    if (typeof CrozzoMfaKenny !== 'undefined' && CrozzoMfaKenny.isAvailable()) {
+    // MFA DESACTIVADO TEMPORALMENTE (pendiente de reactivar)
+    // Para reactivar: cambiar MFA_TEMP_DISABLED a false
+    var MFA_TEMP_DISABLED = true;
+    if (!MFA_TEMP_DISABLED && typeof CrozzoMfaKenny !== 'undefined' && CrozzoMfaKenny.isAvailable()) {
       var mfaRes = await CrozzoMfaKenny.iniciarMfa('KENNY');
       if (mfaRes && mfaRes.ok) {
         if (mfaRes.requiereDispositivo) {
