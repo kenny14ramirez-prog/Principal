@@ -3848,6 +3848,7 @@
     }
   }
 
+  function populateCriticalInfo(state, errMsg) {
     var badge = document.getElementById('crozzoUpdateCriticalBadge');
     var title = document.getElementById('crozzoUpdateCriticalTitle');
     var list = document.getElementById('crozzoUpdateCriticalList');

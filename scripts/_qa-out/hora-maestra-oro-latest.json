@@ -3,8 +3,8 @@
   "version": 1,
   "intensity": "normal",
   "intensityLabel": "Normal",
-  "startedAt": "2026-11-14T00:43:15.615Z",
-  "finishedAt": "2026-11-14T00:43:54.305Z",
+  "startedAt": "2026-11-17T02:24:47.240Z",
+  "finishedAt": "2026-11-17T02:25:28.248Z",
   "ok": true,
   "humanPsychology": {
     "premise": "El sistema debe acompañar al humano orgánico: novato y experto, por rol, con errores esperables y abuso sin colapsar.",
@@ -194,7 +194,7 @@
         "badge": "",
         "roleLine": "Cobra, une/divide cuentas y carga compras — no borra lo ya comandado."
       },
-      "at": "2026-11-14T00:43:21.149Z"
+      "at": "2026-11-17T02:24:52.343Z"
     },
     {
       "level": "warn",
@@ -207,7 +207,7 @@
         "badge": "",
         "roleLine": "Toma el pedido en tablet — antes de comandar todo; después, bloqueo total."
       },
-      "at": "2026-11-14T00:43:22.750Z"
+      "at": "2026-11-17T02:24:53.787Z"
     },
     {
       "level": "warn",
@@ -220,26 +220,26 @@
         "badge": "",
         "roleLine": "Recibe comandas, prepara con receta, marca LISTO — no toca el pedido del mesero."
       },
-      "at": "2026-11-14T00:43:24.302Z"
+      "at": "2026-11-17T02:24:55.204Z"
     }
   ],
   "metrics": {
     "stepsOk": 17,
     "stepsWarn": 3,
     "stepsFail": 0,
-    "durationMs": 38690
+    "durationMs": 41008
   },
   "phases": [
     {
       "id": "boot",
       "title": "Arranque y módulos humanos",
-      "startedAt": "2026-11-14T00:43:16.550Z",
+      "startedAt": "2026-11-17T02:24:48.024Z",
       "steps": [
         {
           "id": "boot-ready",
           "label": "App lista (POS + config)",
           "ok": true,
-          "at": "2026-11-14T00:43:16.551Z",
+          "at": "2026-11-17T02:24:48.024Z",
           "detail": {
             "modules": {
               "psyche": true,
@@ -253,7 +253,7 @@
           "id": "boot-human-modules",
           "label": "Capa humana cargada",
           "ok": true,
-          "at": "2026-11-14T00:43:19.364Z",
+          "at": "2026-11-17T02:24:50.795Z",
           "detail": {
             "psyche": true,
             "companion": true
@@ -263,7 +263,7 @@
           "id": "boot-staff-permisos",
           "label": "Staff QA con permisos de rol",
           "ok": true,
-          "at": "2026-11-14T00:43:19.374Z",
+          "at": "2026-11-17T02:24:50.805Z",
           "detail": {
             "ok": true,
             "patched": 2
@@ -274,13 +274,13 @@
     {
       "id": "personas",
       "title": "Matriz humana por rol y experiencia",
-      "startedAt": "2026-11-14T00:43:19.385Z",
+      "startedAt": "2026-11-17T02:24:50.808Z",
       "steps": [
         {
           "id": "persona-cajero-novato",
           "label": "Cajero · primer turno",
           "ok": true,
-          "at": "2026-11-14T00:43:19.385Z",
+          "at": "2026-11-17T02:24:50.808Z",
           "detail": {
             "persona": "cajero-novato",
             "login": {
@@ -318,7 +318,7 @@
           "id": "persona-mesero-novato",
           "label": "Mesero · aprendiz",
           "ok": true,
-          "at": "2026-11-14T00:43:21.149Z",
+          "at": "2026-11-17T02:24:52.343Z",
           "detail": {
             "persona": "mesero-novato",
             "login": {
@@ -355,7 +355,7 @@
           "id": "persona-cocina",
           "label": "Cocina / producción",
           "ok": true,
-          "at": "2026-11-14T00:43:22.750Z",
+          "at": "2026-11-17T02:24:53.787Z",
           "detail": {
             "persona": "cocina",
             "login": {
@@ -392,7 +392,7 @@
           "id": "persona-encargado",
           "label": "Encargado de turno",
           "ok": true,
-          "at": "2026-11-14T00:43:24.302Z",
+          "at": "2026-11-17T02:24:55.204Z",
           "detail": {
             "persona": "encargado",
             "login": {
@@ -430,13 +430,13 @@
     {
       "id": "oro",
       "title": "Escenario oro · venta mesa → cocina → cobro",
-      "startedAt": "2026-11-14T00:43:25.896Z",
+      "startedAt": "2026-11-17T02:24:56.604Z",
       "steps": [
         {
           "id": "oro-login",
           "label": "Encargado abre turno operativo",
           "ok": true,
-          "at": "2026-11-14T00:43:25.896Z",
+          "at": "2026-11-17T02:24:56.604Z",
           "detail": {
             "ok": true,
             "userId": "ENC1",
@@ -449,13 +449,13 @@
           "id": "oro-venta-1",
           "label": "Venta mesa M1 (ciclo 1)",
           "ok": true,
-          "at": "2026-11-14T00:43:26.414Z",
+          "at": "2026-11-17T02:24:57.070Z",
           "detail": {
             "mesaId": "M1",
             "qty": 1,
             "comandaId": 1,
             "total": 30240,
-            "facturaUuid": "POS-d91dc845-2b9a-4dca-94c6-11e7e3785023"
+            "facturaUuid": "POS-79ab5dfc-a83d-47b7-b653-70acf200aa26"
           }
         }
       ]
@@ -463,13 +463,13 @@
     {
       "id": "action-chains",
       "title": "Cadenas de acción · efectos en cascada",
-      "startedAt": "2026-11-14T00:43:29.296Z",
+      "startedAt": "2026-11-17T02:24:59.650Z",
       "steps": [
         {
           "id": "chain-mesa-estados-comanda-cobro",
           "label": "Mesa · pendiente → morado → rojo → verde",
           "ok": true,
-          "at": "2026-11-14T00:43:29.881Z",
+          "at": "2026-11-17T02:25:00.110Z",
           "detail": {
             "id": "mesa-estados-comanda-cobro",
             "label": "Mesa · pendiente → morado → rojo → verde",
@@ -646,45 +646,45 @@
                   "qty": 2,
                   "mesa": "M7"
                 },
-                "at": "2026-11-14T00:43:32.053Z"
+                "at": "2026-11-17T02:25:03.254Z"
               },
               {
                 "name": "comandar:cocina",
                 "detail": {
                   "comandasAfter": 2
                 },
-                "at": "2026-11-14T00:43:32.775Z"
+                "at": "2026-11-17T02:25:03.929Z"
               },
               {
                 "name": "cocina:lista",
                 "detail": {
                   "comandaId": 2
                 },
-                "at": "2026-11-14T00:43:32.782Z"
+                "at": "2026-11-17T02:25:03.931Z"
               },
               {
                 "name": "cocina:entregada",
                 "detail": {
                   "comandaId": 2
                 },
-                "at": "2026-11-14T00:43:33.048Z"
+                "at": "2026-11-17T02:25:04.156Z"
               },
               {
                 "name": "cobro:facturar",
                 "detail": {
                   "total": 60480
                 },
-                "at": "2026-11-14T00:43:33.897Z"
+                "at": "2026-11-17T02:25:04.958Z"
               }
             ],
-            "durationMs": 3968
+            "durationMs": 4797
           }
         },
         {
           "id": "chain-comanda-ramas-cocina",
           "label": "Comanda · carrito + área + historial",
           "ok": true,
-          "at": "2026-11-14T00:43:33.904Z",
+          "at": "2026-11-17T02:25:04.958Z",
           "detail": {
             "id": "comanda-ramas-cocina",
             "label": "Comanda · carrito + área + historial",
@@ -781,17 +781,17 @@
                   "count": 1,
                   "mesaActiva": "M8"
                 },
-                "at": "2026-11-14T00:43:36.657Z"
+                "at": "2026-11-17T02:25:09.193Z"
               }
             ],
-            "durationMs": 2991
+            "durationMs": 4451
           }
         },
         {
           "id": "chain-cobro-ramificaciones",
           "label": "Cobro · factura + slot pagado + carrito vacío",
           "ok": true,
-          "at": "2026-11-14T00:43:36.906Z",
+          "at": "2026-11-17T02:25:09.415Z",
           "detail": {
             "id": "cobro-ramificaciones",
             "label": "Cobro · factura + slot pagado + carrito vacío",
@@ -812,7 +812,7 @@
                 },
                 "actual": {
                   "facturasCount": 3,
-                  "uuid": "POS-ca4ae354-ba86-4b6d-9f93-e6eb80624ba0"
+                  "uuid": "POS-67891151-13c8-4ee3-8623-a21aa9d7ecac"
                 },
                 "branches": [
                   "config:save"
@@ -855,19 +855,19 @@
               {
                 "name": "factura:emitida",
                 "detail": {
-                  "uuid": "POS-ca4ae354-ba86-4b6d-9f93-e6eb80624ba0"
+                  "uuid": "POS-67891151-13c8-4ee3-8623-a21aa9d7ecac"
                 },
-                "at": "2026-11-14T00:43:40.314Z"
+                "at": "2026-11-17T02:25:12.503Z"
               }
             ],
-            "durationMs": 3404
+            "durationMs": 3082
           }
         },
         {
           "id": "chain-venta-inventario-meta",
           "label": "Venta · meta inventario / reservorio",
           "ok": true,
-          "at": "2026-11-14T00:43:40.315Z",
+          "at": "2026-11-17T02:25:12.501Z",
           "detail": {
             "id": "venta-inventario-meta",
             "label": "Venta · meta inventario / reservorio",
@@ -905,7 +905,7 @@
                   "contexto": "restaurante",
                   "restauranteOmitido": true
                 },
-                "at": "2026-11-14T00:43:43.243Z"
+                "at": "2026-11-17T02:25:16.950Z"
               },
               {
                 "name": "inventario:lineas",
@@ -916,17 +916,17 @@
                     "resultado": "omitido"
                   }
                 ],
-                "at": "2026-11-14T00:43:43.243Z"
+                "at": "2026-11-17T02:25:16.950Z"
               }
             ],
-            "durationMs": 2917
+            "durationMs": 4441
           }
         },
         {
           "id": "chain-tablet-dual-slot-lock",
           "label": "2 meseros · misma mesa · anti-pisoteo",
           "ok": true,
-          "at": "2026-11-14T00:43:43.245Z",
+          "at": "2026-11-17T02:25:16.948Z",
           "detail": {
             "id": "tablet-dual-slot-lock",
             "label": "2 meseros · misma mesa · anti-pisoteo",
@@ -1004,7 +1004,7 @@
                   },
                   "tabletOpen": true
                 },
-                "at": "2026-11-14T00:43:47.305Z"
+                "at": "2026-11-17T02:25:22.276Z"
               },
               {
                 "name": "tablet:B-vista-sin-login",
@@ -1019,7 +1019,7 @@
                   "slotState": "en-uso",
                   "slotLabel": "En uso · Sofía Mesera (Tablet)"
                 },
-                "at": "2026-11-14T00:43:47.509Z"
+                "at": "2026-11-17T02:25:22.483Z"
               },
               {
                 "name": "tablet:B-intenta",
@@ -1035,10 +1035,10 @@
                   "slotState": "atendiendo",
                   "bAware": true
                 },
-                "at": "2026-11-14T00:43:48.852Z"
+                "at": "2026-11-17T02:25:23.726Z"
               }
             ],
-            "durationMs": 5616
+            "durationMs": 6779
           }
         }
       ]
@@ -1046,13 +1046,13 @@
     {
       "id": "adversarial",
       "title": "Errores humanos y intentos de romper flujo",
-      "startedAt": "2026-11-14T00:43:49.472Z",
+      "startedAt": "2026-11-17T02:25:24.220Z",
       "steps": [
         {
           "id": "adversarial-pack",
           "label": "Paquete adversarial",
           "ok": true,
-          "at": "2026-11-14T00:43:49.472Z",
+          "at": "2026-11-17T02:25:24.220Z",
           "detail": {
             "postComandarBlocked": true,
             "postComandarQty": {
@@ -1072,13 +1072,13 @@
     {
       "id": "cierre",
       "title": "Cierre de caja · arqueo",
-      "startedAt": "2026-11-14T00:43:50.900Z",
+      "startedAt": "2026-11-17T02:25:25.312Z",
       "steps": [
         {
           "id": "cierre-arqueo",
           "label": "Arqueo mañana coherente con ventas",
           "ok": true,
-          "at": "2026-11-14T00:43:51.559Z",
+          "at": "2026-11-17T02:25:25.817Z",
           "detail": {
             "grew": true,
             "mananaClosed": "closed"
@@ -1089,30 +1089,20 @@
     {
       "id": "journal",
       "title": "Diario automático (memoria de incidentes)",
-      "startedAt": "2026-11-14T00:43:54.300Z",
+      "startedAt": "2026-11-17T02:25:28.226Z",
       "steps": [
         {
           "id": "journal-snapshot",
           "label": "Journal local accesible",
           "ok": true,
-          "at": "2026-11-14T00:43:54.300Z",
+          "at": "2026-11-17T02:25:28.226Z",
           "detail": {
-            "entries": 5,
+            "entries": 3,
             "recent": [
               {
                 "kind": "connectivity",
                 "code": "tier_lan_to_offline",
                 "page": "tablets"
-              },
-              {
-                "kind": "autoguard",
-                "code": "tier_degraded",
-                "page": "tablets"
-              },
-              {
-                "kind": "connectivity",
-                "code": "tier_lan_to_offline",
-                "page": "cajero"
               },
               {
                 "kind": "autoguard",
@@ -1135,7 +1125,7 @@
       "id": "boot-ready",
       "label": "App lista (POS + config)",
       "ok": true,
-      "at": "2026-11-14T00:43:16.551Z",
+      "at": "2026-11-17T02:24:48.024Z",
       "detail": {
         "modules": {
           "psyche": true,
@@ -1149,7 +1139,7 @@
       "id": "boot-human-modules",
       "label": "Capa humana cargada",
       "ok": true,
-      "at": "2026-11-14T00:43:19.364Z",
+      "at": "2026-11-17T02:24:50.795Z",
       "detail": {
         "psyche": true,
         "companion": true
@@ -1159,7 +1149,7 @@
       "id": "boot-staff-permisos",
       "label": "Staff QA con permisos de rol",
       "ok": true,
-      "at": "2026-11-14T00:43:19.374Z",
+      "at": "2026-11-17T02:24:50.805Z",
       "detail": {
         "ok": true,
         "patched": 2
@@ -1169,7 +1159,7 @@
       "id": "persona-cajero-novato",
       "label": "Cajero · primer turno",
       "ok": true,
-      "at": "2026-11-14T00:43:19.385Z",
+      "at": "2026-11-17T02:24:50.808Z",
       "detail": {
         "persona": "cajero-novato",
         "login": {
@@ -1207,7 +1197,7 @@
       "id": "persona-mesero-novato",
       "label": "Mesero · aprendiz",
       "ok": true,
-      "at": "2026-11-14T00:43:21.149Z",
+      "at": "2026-11-17T02:24:52.343Z",
       "detail": {
         "persona": "mesero-novato",
         "login": {
@@ -1244,7 +1234,7 @@
       "id": "persona-cocina",
       "label": "Cocina / producción",
       "ok": true,
-      "at": "2026-11-14T00:43:22.750Z",
+      "at": "2026-11-17T02:24:53.787Z",
       "detail": {
         "persona": "cocina",
         "login": {
@@ -1281,7 +1271,7 @@
       "id": "persona-encargado",
       "label": "Encargado de turno",
       "ok": true,
-      "at": "2026-11-14T00:43:24.302Z",
+      "at": "2026-11-17T02:24:55.204Z",
       "detail": {
         "persona": "encargado",
         "login": {
@@ -1318,7 +1308,7 @@
       "id": "oro-login",
       "label": "Encargado abre turno operativo",
       "ok": true,
-      "at": "2026-11-14T00:43:25.896Z",
+      "at": "2026-11-17T02:24:56.604Z",
       "detail": {
         "ok": true,
         "userId": "ENC1",
@@ -1331,20 +1321,20 @@
       "id": "oro-venta-1",
       "label": "Venta mesa M1 (ciclo 1)",
       "ok": true,
-      "at": "2026-11-14T00:43:26.414Z",
+      "at": "2026-11-17T02:24:57.070Z",
       "detail": {
         "mesaId": "M1",
         "qty": 1,
         "comandaId": 1,
         "total": 30240,
-        "facturaUuid": "POS-d91dc845-2b9a-4dca-94c6-11e7e3785023"
+        "facturaUuid": "POS-79ab5dfc-a83d-47b7-b653-70acf200aa26"
       }
     },
     {
       "id": "chain-mesa-estados-comanda-cobro",
       "label": "Mesa · pendiente → morado → rojo → verde",
       "ok": true,
-      "at": "2026-11-14T00:43:29.881Z",
+      "at": "2026-11-17T02:25:00.110Z",
       "detail": {
         "id": "mesa-estados-comanda-cobro",
         "label": "Mesa · pendiente → morado → rojo → verde",
@@ -1521,45 +1511,45 @@
               "qty": 2,
               "mesa": "M7"
             },
-            "at": "2026-11-14T00:43:32.053Z"
+            "at": "2026-11-17T02:25:03.254Z"
           },
           {
             "name": "comandar:cocina",
             "detail": {
               "comandasAfter": 2
             },
-            "at": "2026-11-14T00:43:32.775Z"
+            "at": "2026-11-17T02:25:03.929Z"
           },
           {
             "name": "cocina:lista",
             "detail": {
               "comandaId": 2
             },
-            "at": "2026-11-14T00:43:32.782Z"
+            "at": "2026-11-17T02:25:03.931Z"
           },
           {
             "name": "cocina:entregada",
             "detail": {
               "comandaId": 2
             },
-            "at": "2026-11-14T00:43:33.048Z"
+            "at": "2026-11-17T02:25:04.156Z"
           },
           {
             "name": "cobro:facturar",
             "detail": {
               "total": 60480
             },
-            "at": "2026-11-14T00:43:33.897Z"
+            "at": "2026-11-17T02:25:04.958Z"
           }
         ],
-        "durationMs": 3968
+        "durationMs": 4797
       }
     },
     {
       "id": "chain-comanda-ramas-cocina",
       "label": "Comanda · carrito + área + historial",
       "ok": true,
-      "at": "2026-11-14T00:43:33.904Z",
+      "at": "2026-11-17T02:25:04.958Z",
       "detail": {
         "id": "comanda-ramas-cocina",
         "label": "Comanda · carrito + área + historial",
@@ -1656,17 +1646,17 @@
               "count": 1,
               "mesaActiva": "M8"
             },
-            "at": "2026-11-14T00:43:36.657Z"
+            "at": "2026-11-17T02:25:09.193Z"
           }
         ],
-        "durationMs": 2991
+        "durationMs": 4451
       }
     },
     {
       "id": "chain-cobro-ramificaciones",
       "label": "Cobro · factura + slot pagado + carrito vacío",
       "ok": true,
-      "at": "2026-11-14T00:43:36.906Z",
+      "at": "2026-11-17T02:25:09.415Z",
       "detail": {
         "id": "cobro-ramificaciones",
         "label": "Cobro · factura + slot pagado + carrito vacío",
@@ -1687,7 +1677,7 @@
             },
             "actual": {
               "facturasCount": 3,
-              "uuid": "POS-ca4ae354-ba86-4b6d-9f93-e6eb80624ba0"
+              "uuid": "POS-67891151-13c8-4ee3-8623-a21aa9d7ecac"
             },
             "branches": [
               "config:save"
@@ -1730,19 +1720,19 @@
           {
             "name": "factura:emitida",
             "detail": {
-              "uuid": "POS-ca4ae354-ba86-4b6d-9f93-e6eb80624ba0"
+              "uuid": "POS-67891151-13c8-4ee3-8623-a21aa9d7ecac"
             },
-            "at": "2026-11-14T00:43:40.314Z"
+            "at": "2026-11-17T02:25:12.503Z"
           }
         ],
-        "durationMs": 3404
+        "durationMs": 3082
       }
     },
     {
       "id": "chain-venta-inventario-meta",
       "label": "Venta · meta inventario / reservorio",
       "ok": true,
-      "at": "2026-11-14T00:43:40.315Z",
+      "at": "2026-11-17T02:25:12.501Z",
       "detail": {
         "id": "venta-inventario-meta",
         "label": "Venta · meta inventario / reservorio",
@@ -1780,7 +1770,7 @@
               "contexto": "restaurante",
               "restauranteOmitido": true
             },
-            "at": "2026-11-14T00:43:43.243Z"
+            "at": "2026-11-17T02:25:16.950Z"
           },
           {
             "name": "inventario:lineas",
@@ -1791,17 +1781,17 @@
                 "resultado": "omitido"
               }
             ],
-            "at": "2026-11-14T00:43:43.243Z"
+            "at": "2026-11-17T02:25:16.950Z"
           }
         ],
-        "durationMs": 2917
+        "durationMs": 4441
       }
     },
     {
       "id": "chain-tablet-dual-slot-lock",
       "label": "2 meseros · misma mesa · anti-pisoteo",
       "ok": true,
-      "at": "2026-11-14T00:43:43.245Z",
+      "at": "2026-11-17T02:25:16.948Z",
       "detail": {
         "id": "tablet-dual-slot-lock",
         "label": "2 meseros · misma mesa · anti-pisoteo",
@@ -1879,7 +1869,7 @@
               },
               "tabletOpen": true
             },
-            "at": "2026-11-14T00:43:47.305Z"
+            "at": "2026-11-17T02:25:22.276Z"
           },
           {
             "name": "tablet:B-vista-sin-login",
@@ -1894,7 +1884,7 @@
               "slotState": "en-uso",
               "slotLabel": "En uso · Sofía Mesera (Tablet)"
             },
-            "at": "2026-11-14T00:43:47.509Z"
+            "at": "2026-11-17T02:25:22.483Z"
           },
           {
             "name": "tablet:B-intenta",
@@ -1910,17 +1900,17 @@
               "slotState": "atendiendo",
               "bAware": true
             },
-            "at": "2026-11-14T00:43:48.852Z"
+            "at": "2026-11-17T02:25:23.726Z"
           }
         ],
-        "durationMs": 5616
+        "durationMs": 6779
       }
     },
     {
       "id": "adversarial-pack",
       "label": "Paquete adversarial",
       "ok": true,
-      "at": "2026-11-14T00:43:49.472Z",
+      "at": "2026-11-17T02:25:24.220Z",
       "detail": {
         "postComandarBlocked": true,
         "postComandarQty": {
@@ -1939,7 +1929,7 @@
       "id": "cierre-arqueo",
       "label": "Arqueo mañana coherente con ventas",
       "ok": true,
-      "at": "2026-11-14T00:43:51.559Z",
+      "at": "2026-11-17T02:25:25.817Z",
       "detail": {
         "grew": true,
         "mananaClosed": "closed"
@@ -1949,24 +1939,14 @@
       "id": "journal-snapshot",
       "label": "Journal local accesible",
       "ok": true,
-      "at": "2026-11-14T00:43:54.300Z",
+      "at": "2026-11-17T02:25:28.226Z",
       "detail": {
-        "entries": 5,
+        "entries": 3,
         "recent": [
           {
             "kind": "connectivity",
             "code": "tier_lan_to_offline",
             "page": "tablets"
-          },
-          {
-            "kind": "autoguard",
-            "code": "tier_degraded",
-            "page": "tablets"
-          },
-          {
-            "kind": "connectivity",
-            "code": "tier_lan_to_offline",
-            "page": "cajero"
           },
           {
             "kind": "autoguard",
@@ -1990,7 +1970,7 @@
         "qty": 1,
         "comandaId": 1,
         "total": 30240,
-        "facturaUuid": "POS-d91dc845-2b9a-4dca-94c6-11e7e3785023"
+        "facturaUuid": "POS-79ab5dfc-a83d-47b7-b653-70acf200aa26"
       }
     ],
     "adversarial": {
@@ -2007,22 +1987,12 @@
       "emptyComandarGraceful": true
     },
     "journal": {
-      "entries": 5,
+      "entries": 3,
       "recent": [
         {
           "kind": "connectivity",
           "code": "tier_lan_to_offline",
           "page": "tablets"
-        },
-        {
-          "kind": "autoguard",
-          "code": "tier_degraded",
-          "page": "tablets"
-        },
-        {
-          "kind": "connectivity",
-          "code": "tier_lan_to_offline",
-          "page": "cajero"
         },
         {
           "kind": "autoguard",
@@ -2216,38 +2186,38 @@
               "qty": 2,
               "mesa": "M7"
             },
-            "at": "2026-11-14T00:43:32.053Z"
+            "at": "2026-11-17T02:25:03.254Z"
           },
           {
             "name": "comandar:cocina",
             "detail": {
               "comandasAfter": 2
             },
-            "at": "2026-11-14T00:43:32.775Z"
+            "at": "2026-11-17T02:25:03.929Z"
           },
           {
             "name": "cocina:lista",
             "detail": {
               "comandaId": 2
             },
-            "at": "2026-11-14T00:43:32.782Z"
+            "at": "2026-11-17T02:25:03.931Z"
           },
           {
             "name": "cocina:entregada",
             "detail": {
               "comandaId": 2
             },
-            "at": "2026-11-14T00:43:33.048Z"
+            "at": "2026-11-17T02:25:04.156Z"
           },
           {
             "name": "cobro:facturar",
             "detail": {
               "total": 60480
             },
-            "at": "2026-11-14T00:43:33.897Z"
+            "at": "2026-11-17T02:25:04.958Z"
           }
         ],
-        "durationMs": 3968
+        "durationMs": 4797
       },
       {
         "id": "comanda-ramas-cocina",
@@ -2345,10 +2315,10 @@
               "count": 1,
               "mesaActiva": "M8"
             },
-            "at": "2026-11-14T00:43:36.657Z"
+            "at": "2026-11-17T02:25:09.193Z"
           }
         ],
-        "durationMs": 2991
+        "durationMs": 4451
       },
       {
         "id": "cobro-ramificaciones",
@@ -2370,7 +2340,7 @@
             },
             "actual": {
               "facturasCount": 3,
-              "uuid": "POS-ca4ae354-ba86-4b6d-9f93-e6eb80624ba0"
+              "uuid": "POS-67891151-13c8-4ee3-8623-a21aa9d7ecac"
             },
             "branches": [
               "config:save"
@@ -2413,12 +2383,12 @@
           {
             "name": "factura:emitida",
             "detail": {
-              "uuid": "POS-ca4ae354-ba86-4b6d-9f93-e6eb80624ba0"
+              "uuid": "POS-67891151-13c8-4ee3-8623-a21aa9d7ecac"
             },
-            "at": "2026-11-14T00:43:40.314Z"
+            "at": "2026-11-17T02:25:12.503Z"
           }
         ],
-        "durationMs": 3404
+        "durationMs": 3082
       },
       {
         "id": "venta-inventario-meta",
@@ -2457,7 +2427,7 @@
               "contexto": "restaurante",
               "restauranteOmitido": true
             },
-            "at": "2026-11-14T00:43:43.243Z"
+            "at": "2026-11-17T02:25:16.950Z"
           },
           {
             "name": "inventario:lineas",
@@ -2468,10 +2438,10 @@
                 "resultado": "omitido"
               }
             ],
-            "at": "2026-11-14T00:43:43.243Z"
+            "at": "2026-11-17T02:25:16.950Z"
           }
         ],
-        "durationMs": 2917
+        "durationMs": 4441
       },
       {
         "id": "tablet-dual-slot-lock",
@@ -2550,7 +2520,7 @@
               },
               "tabletOpen": true
             },
-            "at": "2026-11-14T00:43:47.305Z"
+            "at": "2026-11-17T02:25:22.276Z"
           },
           {
             "name": "tablet:B-vista-sin-login",
@@ -2565,7 +2535,7 @@
               "slotState": "en-uso",
               "slotLabel": "En uso · Sofía Mesera (Tablet)"
             },
-            "at": "2026-11-14T00:43:47.509Z"
+            "at": "2026-11-17T02:25:22.483Z"
           },
           {
             "name": "tablet:B-intenta",
@@ -2581,10 +2551,10 @@
               "slotState": "atendiendo",
               "bAware": true
             },
-            "at": "2026-11-14T00:43:48.852Z"
+            "at": "2026-11-17T02:25:23.726Z"
           }
         ],
-        "durationMs": 5616
+        "durationMs": 6779
       }
     ],
     "summary": {
