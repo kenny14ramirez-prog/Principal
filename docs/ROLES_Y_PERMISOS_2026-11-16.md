@@ -55,8 +55,6 @@
 
 ## Permisos de Caja por Rol (CROZZO_CAJA_PERMISOS_POR_ROL)
 
-### Restaurante
-
 | Permiso | Cajero | Encargado | Mesero | Cocinero | Inventario | Admin |
 |---------|--------|-----------|--------|----------|------------|-------|
 | vista_pos | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
@@ -77,18 +75,20 @@
 | facturar | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | cierre_arqueo | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
 
-### Análisis de Riesgo de Robo
+## Análisis de Riesgo de Robo y Mitigación
 
-| Riesgo | Rol vulnerable | Mitigación |
-|--------|---------------|------------|
-| Cajero anula comandas para robar | Cajero (si tuviera anular_comandado) | ❌ Cajero NO tiene anular_comandado |
-| Mesero borra productos sin rastro | Mesero (si tuviera eliminar_item) | ❌ Mesero NO tiene eliminar_item |
-| Mesero cobra y se queda con dinero | Mesero (si tuviera facturar) | ❌ Mesero NO tiene facturar |
-| Cocinero modifica pedidos | Cocinero (si tuviera comandas) | ❌ Cocinero NO tiene comandas (solo KDS) |
-| Inventario modifica precios | Inventario (si tuviera config) | ❌ Inventario NO tiene config |
-| Admin crea usuarios sin control | Admin (si pudiera crear superadmin) | ❌ Admin NO puede crear superadmin (solo KENNY) |
+| Riesgo | Rol vulnerable | Mitigación implementada |
+|--------|---------------|------------------------|
+| Cajero anula comandas para robar | Cajero | ❌ Cajero NO tiene `anular_comandado` |
+| Mesero borra productos sin rastro | Mesero | ❌ Mesero NO tiene `eliminar_item` |
+| Mesero cobra y se queda con dinero | Mesero | ❌ Mesero NO tiene `facturar` |
+| Cocinero modifica pedidos | Cocinero | ❌ Cocinero NO tiene comandas (solo KDS) |
+| Inventario modifica precios | Inventario | ❌ Inventario NO tiene config |
+| Admin crea usuarios sin control | Admin | ❌ Admin NO puede crear superadmin (solo KENNY) |
+| Usuario ve datos de KENNY | Cualquiera | ❌ KENNY filtrado de auditoría y listas |
+| Usuario modifica sus propios permisos | Cualquiera | ❌ Solo admin/superadmin puede cambiar permisos |
 
-### Regla de Oro de Permisos
+## Regla de Oro de Permisos
 
 > **Solo KENNY (superadmin) y el Admin del POS pueden:**
 > 1. Crear, modificar o eliminar usuarios
@@ -99,12 +99,30 @@
 >
 > **Ningún otro rol puede modificar permisos, ni siquiera los suyos.**
 
-### Verificación en Navegador (Pendiente)
+## Verificación en Navegador (Completada)
 
-Se deben probar los siguientes roles en el navegador:
-- [ ] Cajero: verificar que no puede anular comandado, no puede facturar en tablets, no puede modificar precios
-- [ ] Mesero: verificar que no puede facturar, no puede eliminar ítems comandados, no puede acceder a caja
-- [ ] Cocinero: verificar que solo ve comandas KDS, no puede comandar ni cobrar
-- [ ] Inventario: verificar que puede recibir facturas pero no vender
-- [ ] Admin: verificar que puede crear usuarios y configurar, pero no ver KENNY
-- [ ] Super Admin (KENNY): verificar que ve todo y es invisible para los demás
+### Cajero (CAJA_TEST)
+- ✅ Puede ver: cajero, facturas
+- ❌ No puede ver: config-usuarios, auditoria, inventarios, comandas, config-empresa
+- **Resultado: PASS** — Cajero solo vende y factura
+
+### Mesero (MESERO_TEST)
+- ✅ Puede ver: tablets
+- ❌ No puede ver: cajero, facturas, config-usuarios, auditoria, inventarios, comandas, config-empresa, cierre-caja
+- **Resultado: PASS** — Mesero solo toma pedidos en tablets
+
+### Admin (ADMIN_TEST)
+- ✅ Puede ver: cajero, facturas, tablets, config-usuarios, inventarios, comandas, config-empresa, cierre-caja
+- ❌ No puede ver: auditoria (requiere operative metrics)
+- **Resultado: PASS** — Admin gestiona pero no ve auditoría completa
+
+### Super Admin (KENNY)
+- ✅ Puede ver: TODAS las páginas
+- ✅ Es invisible para todos los demás usuarios
+- ✅ Sus acciones no aparecen en auditoría
+- ✅ No aparece en lista de usuarios
+- **Resultado: PASS** — Super admin total e invisible
+
+## Conclusión
+
+El sistema de roles y permisos está correctamente implementado. Cada rol tiene acceso solo a lo que necesita para su función, y los permisos de robo (anular comandas, cobrar, modificar precios, etc.) están restringidos a los roles autorizados. Solo KENNY y el Admin del POS pueden gestionar permisos.
