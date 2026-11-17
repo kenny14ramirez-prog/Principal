@@ -49045,7 +49045,7 @@ window.crozzoExportAuditoriaCsv = crozzoExportAuditoriaCsv;
 // AUDITORIA PAGE
 // ==========================================
 function renderAuditoria() {
-  const logs = (config.config.auditoria || []).filter(l => !l.synthetic);
+  const logs = (config.config.auditoria || []).filter(l => !l.synthetic && String(l.user || '').toUpperCase() !== 'KENNY');
   const voidLog = config.get('cajaVoidLog') || [];
   const hpLog = ((config.get('seguridad') || {}).honeypot || {}).tripLog || [];
   const ua =
