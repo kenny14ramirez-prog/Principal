@@ -20,6 +20,7 @@
   var DEPLOY_STEPS = [
     { id: 'empresa', label: '🏢 Empresa', desc: 'Datos básicos del negocio' },
     { id: 'impuestos', label: '💰 Impuestos', desc: 'IVA, INC, facturación' },
+    { id: 'salon', label: '🍽️ Salón y mesas', desc: 'Cantidad de mesas y pedidos para llevar' },
     { id: 'usuarios', label: '👥 Usuarios', desc: 'Crear usuarios y roles' },
     { id: 'impresoras', label: '🖨️ Impresoras', desc: 'Detectar y configurar' },
     { id: 'red', label: '🔗 Red', desc: 'Conexión y dispositivos' },
@@ -250,6 +251,62 @@
     }
   };
 
+  // ── Paso: Salón y mesas ──────────────────────────────────────────
+  function renderSalonStep() {
+    var cfg = (typeof getSalonConfig === 'function') ? getSalonConfig() : { mesaCount: 40, llevarCount: 10, mesaEtiquetaTablet: 'solo_numero', llevarEtiquetaTablet: 'solo_numero' };
+    var html = '<p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Configura la cantidad de mesas y pedidos para llevar.</p>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    html += '<label style="font-size:0.85rem;">Cantidad de mesas (1-100)</label>';
+    html += '<input id="dcSalonMesas" type="number" min="1" max="100" value="' + (cfg.mesaCount || 40) + '" style="padding:6px;border:1px solid #ddd;border-radius:4px;">';
+    html += '<label style="font-size:0.85rem;">Cantidad de pedidos para llevar (1-60)</label>';
+    html += '<input id="dcSalonLlevar" type="number" min="1" max="60" value="' + (cfg.llevarCount || 10) + '" style="padding:6px;border:1px solid #ddd;border-radius:4px;">';
+    html += '<label style="font-size:0.85rem;">Etiqueta mesas en tablet</label>';
+    html += '<select id="dcSalonMesaEtiqueta" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+      '<option value="solo_numero" ' + (cfg.mesaEtiquetaTablet === 'solo_numero' ? 'selected' : '') + '>Solo número</option>' +
+      '<option value="nombre" ' + (cfg.mesaEtiquetaTablet === 'nombre' ? 'selected' : '') + '>Nombre completo</option>' +
+      '</select>';
+    html += '<label style="font-size:0.85rem;">Etiqueta llevar en tablet</label>';
+    html += '<select id="dcSalonLlevarEtiqueta" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+      '<option value="solo_numero" ' + (cfg.llevarEtiquetaTablet === 'solo_numero' ? 'selected' : '') + '>Solo número</option>' +
+      '<option value="nombre" ' + (cfg.llevarEtiquetaTablet === 'nombre' ? 'selected' : '') + '>Nombre completo</option>' +
+      '</select>';
+    html += '<button onclick="window._dcSaveSalon()" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#2ecc71;color:#fff;cursor:pointer;">Guardar configuración de salón</button>';
+    html += '</div>';
+    html += '<p style="font-size:0.75rem;color:#999;margin-top:8px;">Los cambios se aplican al guardar. Las mesas se generan automáticamente (M1, M2, ... M' + (cfg.mesaCount || 40) + ').</p>';
+    return html;
+  }
+
+  global._dcSaveSalon = function () {
+    var mesaCount = parseInt(document.getElementById('dcSalonMesas').value, 10) || 40;
+    var llevarCount = parseInt(document.getElementById('dcSalonLlevar').value, 10) || 10;
+    var mesaEtiqueta = document.getElementById('dcSalonMesaEtiqueta').value;
+    var llevarEtiqueta = document.getElementById('dcSalonLlevarEtiqueta').value;
+
+    if (typeof saveSalonConfig === 'function') {
+      saveSalonConfig({
+        mesaCount: mesaCount,
+        llevarCount: llevarCount,
+        mesaEtiquetaTablet: mesaEtiqueta,
+        llevarEtiquetaTablet: llevarEtiqueta,
+      });
+      if (typeof applySalonSlotsToRuntime === 'function') {
+        applySalonSlotsToRuntime({ silent: true });
+      }
+      if (typeof showToast === 'function') showToast('Configuración de salón guardada: ' + mesaCount + ' mesas, ' + llevarCount + ' para llevar', 'success');
+    } else if (typeof config !== 'undefined' && config.set) {
+      config.set('salon', {
+        mesaCount: mesaCount,
+        llevarCount: llevarCount,
+        mesaEtiquetaTablet: mesaEtiqueta,
+        llevarEtiquetaTablet: llevarEtiqueta,
+        mesaNombres: {},
+        llevarNombres: {},
+      });
+      if (typeof showToast === 'function') showToast('Configuración de salón guardada', 'success');
+    }
+    _dcMarkStep('salon');
+  };
+
   function renderDeployStepContent() {
     var el = document.getElementById('dc-step-content');
     if (!el) return;
@@ -274,6 +331,9 @@
         html += '<p style="font-size:0.85rem;color:#666;">Configura impuestos y facturación.</p>';
         html += '<p style="font-size:0.85rem;">Ve a <strong>Configuración → Impuestos</strong> y <strong>Config. DIAN</strong>.</p>';
         html += '<button onclick="window._dcMarkStep(\'impuestos\')" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;">Marcar completado</button>';
+        break;
+      case 'salon':
+        html += renderSalonStep();
         break;
       case 'usuarios':
         html += '<p style="font-size:0.85rem;color:#666;">Roles sugeridos para este negocio: <strong>' + (_state.roles || []).join(', ') + '</strong></p>';
