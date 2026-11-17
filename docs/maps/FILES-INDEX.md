@@ -60,7 +60,7 @@
 | 69 | `app/core/CrozzoRlsJwt.js` |
 | 50 | `app/core/CrozzoRlsPairing.js` |
 | 59 | `app/core/CrozzoRlsPayloadEnricher.js` |
-| 53 | `app/core/CrozzoSanitize.js` |
+| 61 | `app/core/CrozzoSanitize.js` |
 | 313 | `app/core/CrozzoSoporteCentral.js` |
 | 77 | `app/core/CrozzoStorage.js` |
 | 133 | `app/core/CrozzoStorageHygiene.js` |

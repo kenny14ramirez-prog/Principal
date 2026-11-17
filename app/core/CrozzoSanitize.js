@@ -45,8 +45,16 @@
       proto.__crozzoSanitizePatched = true;
     } catch (_) {}
   }
-  // Intentar instalar al cargar (si el flag está activo)
+  // Intentar instalar al cargar (si el flag está activo) y reintentar tras DOMContentLoaded
   try { installInnerHtmlGuard(); } catch (_) {}
+  try {
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('DOMContentLoaded', function () { try { installInnerHtmlGuard(); } catch (_) {} }, { once: true });
+    }
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('load', function () { try { installInnerHtmlGuard(); } catch (_) {} }, { once: true });
+    }
+  } catch (_) {}
 
   global.CrozzoSanitize = { escapeHtml: escapeHtml, sanitizeHtml: sanitizeHtml, escapeAttr: escapeAttr, installInnerHtmlGuard: installInnerHtmlGuard };
 })(typeof window !== 'undefined' ? window : globalThis);
