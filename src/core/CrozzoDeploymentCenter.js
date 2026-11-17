@@ -1,70 +1,79 @@
 /**
- * CrozzoDeploymentCenter — Centro de Despliegue Unificado.
+ * CrozzoDeploymentCenter — Centro de Despliegue Unificado (3 Caras).
  *
- * Unifica todos los sistemas de configuración/despliegue del POS en un solo
- * asistente paso a paso. Accesible solo para Super Admin (KENNY).
+ * Cara 1: Despliegue Inicial — Configuración paso a paso según tipo de negocio
+ * Cara 2: Solucionador de Problemas — Detección y solución automática
+ * Cara 3: Diagnóstico en Tiempo Real — Salud del sistema
  *
- * Módulos integrados:
- * 1. Empresa y datos fiscales
- * 2. Usuarios y permisos
- * 3. Impresoras y periféricos
- * 4. Conexión y red (wizard existente)
- * 5. Nube y sincronización
- * 6. Diagnóstico y salud del sistema
- * 7. Base de datos (Supabase)
- *
- * Cada módulo puede ejecutarse de forma independiente.
+ * Accesible solo para Super Admin (KENNY).
  */
 (function (global) {
   'use strict';
 
   var DC_ID = 'crozzoDeploymentCenter';
-
-  // ── Pasos del despliegue ──────────────────────────────────────────
-  var STEPS = [
-    { id: 'empresa', label: '🏢 Empresa y datos fiscales', desc: 'Nombre, NIT, dirección, teléfono, email, logo' },
-    { id: 'impuestos', label: '💰 Impuestos y facturación', desc: 'IVA, INC, resolución DIAN, rangos de numeración' },
-    { id: 'usuarios', label: '👥 Usuarios y permisos', desc: 'Crear usuarios, asignar roles, configurar permisos' },
-    { id: 'impresoras', label: '🖨️ Impresoras y periféricos', desc: 'Detectar, configurar y probar impresoras' },
-    { id: 'red', label: '🔗 Conexión y red', desc: 'Configurar rol (A/B), IP, puertos, LAN/WAN' },
-    { id: 'nube', label: '☁️ Nube y sincronización', desc: 'Supabase, sync, backup, restauración' },
-    { id: 'diagnostico', label: '🔍 Diagnóstico y salud', desc: 'Verificar estado del sistema, errores, rendimiento' },
-  ];
-
+  var _face = 'deploy'; // 'deploy' | 'solver' | 'diagnostic'
   var _currentStep = 0;
   var _completedSteps = {};
+  var _monitorInterval = null;
 
-  // ── Cargar estado guardado ───────────────────────────────────────
+  // ── Pasos del despliegue ──────────────────────────────────────────
+  var DEPLOY_STEPS = [
+    { id: 'empresa', label: '🏢 Empresa', desc: 'Datos básicos del negocio' },
+    { id: 'impuestos', label: '💰 Impuestos', desc: 'IVA, INC, facturación' },
+    { id: 'usuarios', label: '👥 Usuarios', desc: 'Crear usuarios y roles' },
+    { id: 'impresoras', label: '🖨️ Impresoras', desc: 'Detectar y configurar' },
+    { id: 'red', label: '🔗 Red', desc: 'Conexión y dispositivos' },
+    { id: 'nube', label: '☁️ Nube', desc: 'Supabase y sync' },
+    { id: 'verificacion', label: '✅ Verificación', desc: 'Test final' },
+  ];
+
+  // ── Tipos de negocio ─────────────────────────────────────────────
+  var BUSINESS_TYPES = [
+    { id: 'restaurante_pequeno', label: '🍽️ Restaurante pequeño', roles: ['admin', 'caja', 'mesero', 'cocina'], printers: ['recibo', 'cocina'] },
+    { id: 'restaurante_mediano', label: '🍽️ Restaurante mediano', roles: ['admin', 'encargado', 'caja', 'mesero', 'cocina', 'inventario'], printers: ['recibo', 'recibo', 'cocina', 'cocina', 'bar'] },
+    { id: 'restaurante_grande', label: '🍽️ Restaurante grande', roles: ['admin', 'encargado', 'caja', 'mesero', 'cocina', 'inventario', 'compras'], printers: ['recibo', 'recibo', 'recibo', 'cocina', 'cocina', 'cocina', 'bar', 'bar', 'etiquetas'] },
+    { id: 'tienda_pequena', label: '🏪 Tienda pequeña', roles: ['admin', 'caja'], printers: ['recibo'] },
+    { id: 'supermercado', label: '🛒 Supermercado', roles: ['admin', 'caja', 'inventario', 'compras'], printers: ['recibo', 'recibo', 'etiquetas'] },
+    { id: 'hotel', label: '🏨 Hotel (F&B)', roles: ['admin', 'recepcion', 'mesero', 'cocina'], printers: ['recibo', 'recibo', 'cocina', 'cocina', 'bar'] },
+    { id: 'bodega', label: '📦 Bodega/Suministros', roles: ['admin', 'inventario', 'compras'], printers: ['recibo', 'etiquetas'] },
+    { id: 'demo', label: '🎮 Demo (datos ficticios)', roles: ['admin', 'caja', 'mesero'], printers: [] },
+  ];
+
+  // ── Base de datos de impresoras conocidas ────────────────────────
+  var PRINTER_DB = [
+    { vendor: 'Epson', ids: [0x04B8], models: ['TM-T20II', 'TM-T20III', 'TM-T82II', 'TM-T88V', 'TM-T88VI', 'TM-m30', 'TM-U220'], driver: 'Epson Advanced Printer Driver', port: 'USB/Serial' },
+    { vendor: 'Star', ids: [0x0519], models: ['TSP100III', 'TSP143III', 'TSP654II', 'TSP700II', 'mC-Print3'], driver: 'Star futurePRNT', port: 'USB' },
+    { vendor: 'Bixolon', ids: [0x1504], models: ['SRP-350III', 'SRP-350plusIII', 'SRP-E300', 'SRP-S300'], driver: 'Bixolon Unified Driver', port: 'USB' },
+    { vendor: 'Citizen', ids: [0x08BD, 0x1D90], models: ['CT-S310II', 'CT-S4000', 'CT-S601'], driver: 'Citizen Driver', port: 'USB' },
+    { vendor: 'Zebra', ids: [0x0A5F], models: ['ZD220', 'ZD421', 'ZT230', 'GK420t'], driver: 'Zebra ZDesigner', port: 'USB' },
+    { vendor: 'Xprinter/Generic', ids: [0x0416, 0x0FE6, 0x154F], models: ['XP-58', 'XP-80', 'POS-58', 'POS-80', 'Generic 58mm', 'Generic 80mm'], driver: 'Generic / Text Only', port: 'USB' },
+    { vendor: 'HP', ids: [0x03F0], models: ['OfficeJet', 'LaserJet'], driver: 'HP Universal Print Driver', port: 'USB/Network' },
+  ];
+
+  // ── Estado ───────────────────────────────────────────────────────
+  var _state = { businessType: null, facturacion: null, completedSteps: {} };
+
   function loadState() {
     try {
       var raw = localStorage.getItem('crozzo_deploy_state');
       if (raw) {
         var st = JSON.parse(raw);
-        _completedSteps = st.completed || {};
-        _currentStep = st.currentStep || 0;
+        _state = Object.assign(_state, st);
       }
     } catch (_) {}
   }
 
   function saveState() {
-    try {
-      localStorage.setItem('crozzo_deploy_state', JSON.stringify({
-        completed: _completedSteps,
-        currentStep: _currentStep,
-        savedAt: new Date().toISOString(),
-      }));
-    } catch (_) {}
+    try { localStorage.setItem('crozzo_deploy_state', JSON.stringify(_state)); } catch (_) {}
   }
 
-  // ── Abrir centro de despliegue ───────────────────────────────────
+  // ── Abrir centro ─────────────────────────────────────────────────
   function abrir() {
     if (typeof isSuperAdminUser === 'function' && !isSuperAdminUser()) {
-      if (typeof showToast === 'function') showToast('Solo Super Admin puede acceder al centro de despliegue.', 'warning');
+      if (typeof showToast === 'function') showToast('Solo Super Admin puede acceder.', 'warning');
       return;
     }
-
     loadState();
-
     var existing = document.getElementById(DC_ID);
     if (existing) existing.remove();
 
@@ -73,223 +82,466 @@
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;';
 
     var card = document.createElement('div');
-    card.style.cssText = 'background:#fff;border-radius:16px;padding:32px;max-width:720px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    card.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:800px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
 
-    card.innerHTML = renderHTML();
+    card.innerHTML = renderTabs() + '<div id="dc-content" style="margin-top:16px;"></div>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
-    // Event handlers
-    document.getElementById('dcClose').onclick = function () { overlay.remove(); };
-    document.getElementById('dcNext').onclick = function () { nextStep(); };
-    document.getElementById('dcPrev').onclick = function () { prevStep(); };
-
-    // Step click handlers
-    STEPS.forEach(function (step, idx) {
-      var btn = document.getElementById('dc-step-' + step.id);
-      if (btn) {
-        btn.onclick = function () { goToStep(idx); };
-      }
-    });
-
-    renderStep();
+    document.getElementById('dcClose').onclick = function () { cerrar(); };
+    renderFace();
   }
 
-  function renderHTML() {
-    var stepsHtml = STEPS.map(function (step, idx) {
-      var done = _completedSteps[step.id] ? '✅' : '⬜';
-      var active = idx === _currentStep ? 'font-weight:700;color:#1a1a2e;' : 'color:#666;';
-      return '<div id="dc-step-' + step.id + '" style="padding:8px 12px;border-radius:8px;cursor:pointer;margin:4px 0;' + active + '">' +
-        done + ' ' + step.label + '<br><span style="font-size:0.75rem;color:#999;">' + step.desc + '</span></div>';
-    }).join('');
+  function cerrar() {
+    if (_monitorInterval) { clearInterval(_monitorInterval); _monitorInterval = null; }
+    var el = document.getElementById(DC_ID);
+    if (el) el.remove();
+  }
 
-    return '<h2 style="margin:0 0 8px;font-size:1.4rem;color:#1a1a2e;">🚀 Centro de Despliegue</h2>' +
-      '<p style="margin:0 0 16px;color:#666;font-size:0.9rem;">Asistente unificado para configurar y desplegar el sistema POS.</p>' +
-      '<div style="display:flex;gap:16px;">' +
-        '<div style="flex:0 0 220px;border-right:1px solid #eee;padding-right:16px;">' + stepsHtml + '</div>' +
-        '<div style="flex:1;" id="dc-content"></div>' +
+  // ── Tabs (3 caras) ───────────────────────────────────────────────
+  function renderTabs() {
+    var tabs = [
+      { id: 'deploy', label: '🚀 Despliegue' },
+      { id: 'solver', label: '🔧 Solucionador' },
+      { id: 'diagnostic', label: '🔍 Diagnóstico' },
+    ];
+    return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+      '<h2 style="margin:0;font-size:1.3rem;color:#1a1a2e;">Centro de Despliegue Unificado</h2>' +
+      '<button id="dcClose" style="border:none;background:none;font-size:1.5rem;cursor:pointer;color:#999;">✕</button>' +
       '</div>' +
-      '<div style="display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid #eee;">' +
-        '<button id="dcPrev" class="btn btn-outline" style="padding:8px 16px;">← Anterior</button>' +
-        '<button id="dcNext" class="btn btn-primary" style="padding:8px 16px;margin-left:auto;">Siguiente →</button>' +
-        '<button id="dcClose" class="btn btn-outline" style="padding:8px 16px;">Cerrar</button>' +
+      '<div style="display:flex;gap:4px;border-bottom:2px solid #eee;padding-bottom:8px;">' +
+      tabs.map(function (t) {
+        var active = t.id === _face ? 'background:#1a1a2e;color:#fff;' : 'background:#f1f3f5;color:#666;';
+        return '<button onclick="window._dcSwitchFace(\'' + t.id + '\')" style="padding:8px 16px;border:none;border-radius:8px 8px 0 0;cursor:pointer;font-size:0.9rem;' + active + '">' + t.label + '</button>';
+      }).join('') +
       '</div>';
   }
 
-  function renderStep() {
+  global._dcSwitchFace = function (face) {
+    _face = face;
+    var overlay = document.getElementById(DC_ID);
+    if (!overlay) return;
+    var card = overlay.querySelector('div[style*="max-width"]');
+    if (card) {
+      card.innerHTML = renderTabs() + '<div id="dc-content" style="margin-top:16px;"></div>';
+      document.getElementById('dcClose').onclick = function () { cerrar(); };
+    }
+    renderFace();
+  };
+
+  function renderFace() {
     var content = document.getElementById('dc-content');
     if (!content) return;
-    var step = STEPS[_currentStep];
+    if (_face === 'deploy') content.innerHTML = renderDeployFace();
+    else if (_face === 'solver') content.innerHTML = renderSolverFace();
+    else if (_face === 'diagnostic') content.innerHTML = renderDiagnosticFace();
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // CARA 1: DESPLIEGUE INICIAL
+  // ══════════════════════════════════════════════════════════════════
+  function renderDeployFace() {
+    if (!_state.businessType) {
+      return renderBusinessTypeSelection();
+    }
+    return renderDeploySteps();
+  }
+
+  function renderBusinessTypeSelection() {
+    var html = '<h3 style="margin:0 0 12px;">¿Qué tipo de negocio vas a desplegar?</h3>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+    BUSINESS_TYPES.forEach(function (bt) {
+      html += '<button onclick="window._dcSelectBusiness(\'' + bt.id + '\')" style="padding:12px;border:1px solid #ddd;border-radius:8px;background:#f8f9fa;cursor:pointer;text-align:left;font-size:0.9rem;">' +
+        bt.label + '<br><span style="font-size:0.75rem;color:#999;">' + bt.roles.join(', ') + '</span></button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  global._dcSelectBusiness = function (typeId) {
+    var bt = BUSINESS_TYPES.find(function (b) { return b.id === typeId; });
+    if (!bt) return;
+    _state.businessType = typeId;
+    _state.roles = bt.roles;
+    _state.printers = bt.printers;
+    if (typeId === 'demo') {
+      _state.facturacion = 'demo';
+    }
+    saveState();
+    renderFace();
+  };
+
+  function renderDeploySteps() {
+    var bt = BUSINESS_TYPES.find(function (b) { return b.id === _state.businessType; });
+    var html = '<div style="margin-bottom:12px;padding:8px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;">' +
+      'Negocio: <strong>' + (bt ? bt.label : '') + '</strong> · ' +
+      '<button onclick="window._dcResetBusiness()" style="border:none;background:none;color:#e74c3c;cursor:pointer;font-size:0.8rem;">Cambiar</button></div>';
+
+    html += '<div style="display:flex;gap:16px;">';
+    // Sidebar de pasos
+    html += '<div style="flex:0 0 180px;">';
+    DEPLOY_STEPS.forEach(function (step, idx) {
+      var done = _state.completedSteps[step.id] ? '✅' : '⬜';
+      var active = idx === _currentStep;
+      html += '<div onclick="window._dcGoToStep(' + idx + ')" style="padding:6px 8px;border-radius:6px;cursor:pointer;margin:2px 0;' + (active ? 'background:#1a1a2e;color:#fff;' : 'color:#666;') + '">' +
+        done + ' ' + step.label + '</div>';
+    });
+    html += '</div>';
+
+    // Contenido del paso
+    html += '<div style="flex:1;" id="dc-step-content"></div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px;margin-top:12px;">' +
+      '<button onclick="window._dcPrevStep()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;cursor:pointer;">← Anterior</button>' +
+      '<button onclick="window._dcNextStep()" style="padding:6px 12px;border:none;border-radius:6px;background:#1a1a2e;color:#fff;cursor:pointer;margin-left:auto;">Siguiente →</button>' +
+      '</div>';
+
+    // Renderizar después de insertar HTML
+    setTimeout(function () { renderDeployStepContent(); }, 50);
+    return html;
+  }
+
+  global._dcResetBusiness = function () {
+    _state.businessType = null;
+    _state.completedSteps = {};
+    saveState();
+    renderFace();
+  };
+
+  global._dcGoToStep = function (idx) {
+    _currentStep = idx;
+    saveState();
+    renderDeployStepContent();
+    // Update sidebar active
+    var items = document.querySelectorAll('#dc-content > div > div:first-child > div');
+    items.forEach(function (el, i) {
+      el.style.background = i === idx ? '#1a1a2e' : '';
+      el.style.color = i === idx ? '#fff' : '#666';
+    });
+  };
+
+  global._dcNextStep = function () {
+    if (_currentStep < DEPLOY_STEPS.length - 1) {
+      _currentStep++;
+      saveState();
+      renderDeployStepContent();
+    }
+  };
+
+  global._dcPrevStep = function () {
+    if (_currentStep > 0) {
+      _currentStep--;
+      saveState();
+      renderDeployStepContent();
+    }
+  };
+
+  function renderDeployStepContent() {
+    var el = document.getElementById('dc-step-content');
+    if (!el) return;
+    var step = DEPLOY_STEPS[_currentStep];
     if (!step) return;
 
-    var html = '<h3 style="margin:0 0 12px;font-size:1.1rem;">' + step.label + '</h3>';
+    var html = '<h3 style="margin:0 0 8px;">' + step.label + '</h3>';
 
     switch (step.id) {
       case 'empresa':
-        html += renderEmpresaStep();
+        html += '<p style="font-size:0.85rem;color:#666;">Configura los datos de tu negocio.</p>';
+        html += '<div style="display:flex;flex-direction:column;gap:6px;">' +
+          '<input id="dcEmpNombre" placeholder="Nombre comercial" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+          '<input id="dcEmpNit" placeholder="NIT / RUT" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+          '<input id="dcEmpDir" placeholder="Dirección" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+          '<input id="dcEmpTel" placeholder="Teléfono" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+          '<input id="dcEmpEmail" placeholder="Email" style="padding:6px;border:1px solid #ddd;border-radius:4px;">' +
+          '<button onclick="window._dcSaveEmpresa()" style="padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Guardar</button>' +
+          '</div>';
         break;
       case 'impuestos':
-        html += renderImpuestosStep();
+        html += '<p style="font-size:0.85rem;color:#666;">Configura impuestos y facturación.</p>';
+        html += '<p style="font-size:0.85rem;">Ve a <strong>Configuración → Impuestos</strong> y <strong>Config. DIAN</strong>.</p>';
+        html += '<button onclick="window._dcMarkStep(\'impuestos\')" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;">Marcar completado</button>';
         break;
       case 'usuarios':
-        html += renderUsuariosStep();
+        html += '<p style="font-size:0.85rem;color:#666;">Roles sugeridos para este negocio: <strong>' + (_state.roles || []).join(', ') + '</strong></p>';
+        html += '<p style="font-size:0.85rem;">Ve a <strong>Configuración → Usuarios</strong> para crearlos.</p>';
+        html += '<button onclick="window._dcMarkStep(\'usuarios\')" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;">Marcar completado</button>';
         break;
       case 'impresoras':
-        html += renderImpresorasStep();
+        html += renderPrinterDetection();
         break;
       case 'red':
-        html += renderRedStep();
+        html += '<p style="font-size:0.85rem;color:#666;">Configura la conexión de red.</p>';
+        html += '<button onclick="if(typeof wizardOpen===\'function\')wizardOpen();" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;margin-right:4px;">Abrir asistente de conexión</button>';
+        html += '<button onclick="window._dcMarkStep(\'red\')" style="padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar completado</button>';
         break;
       case 'nube':
-        html += renderNubeStep();
+        html += '<p style="font-size:0.85rem;color:#666;">Configura la nube y sincronización.</p>';
+        html += '<p style="font-size:0.85rem;">Ve a <strong>Configuración → Nube global</strong>.</p>';
+        html += '<button onclick="window._dcMarkStep(\'nube\')" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;">Marcar completado</button>';
         break;
-      case 'diagnostico':
-        html += renderDiagnosticoStep();
+      case 'verificacion':
+        html += '<p style="font-size:0.85rem;color:#666;">Verificación final del despliegue.</p>';
+        html += '<button onclick="window._dcRunVerification()" style="padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Ejecutar verificación</button>';
         break;
     }
 
-    content.innerHTML = html;
+    el.innerHTML = html;
   }
 
-  // ── Paso: Empresa ────────────────────────────────────────────────
-  function renderEmpresaStep() {
-    var emp = (typeof config !== 'undefined' && config.getEmpresa) ? config.getEmpresa() : {};
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Configura los datos básicos de tu negocio.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<label style="font-size:0.85rem;">Nombre comercial</label>' +
-        '<input id="dcEmpNombre" type="text" value="' + (emp.nombreComercial || '') + '" style="padding:8px;border:1px solid #ddd;border-radius:6px;">' +
-        '<label style="font-size:0.85rem;">NIT / RUT</label>' +
-        '<input id="dcEmpNit" type="text" value="' + (emp.nit || '') + '" style="padding:8px;border:1px solid #ddd;border-radius:6px;">' +
-        '<label style="font-size:0.85rem;">Dirección</label>' +
-        '<input id="dcEmpDir" type="text" value="' + (emp.direccion || '') + '" style="padding:8px;border:1px solid #ddd;border-radius:6px;">' +
-        '<label style="font-size:0.85rem;">Teléfono</label>' +
-        '<input id="dcEmpTel" type="text" value="' + (emp.telefono || '') + '" style="padding:8px;border:1px solid #ddd;border-radius:6px;">' +
-        '<label style="font-size:0.85rem;">Email</label>' +
-        '<input id="dcEmpEmail" type="email" value="' + (emp.email || '') + '" style="padding:8px;border:1px solid #ddd;border-radius:6px;">' +
-        '<button onclick="window._dcSaveEmpresa()" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#2ecc71;color:#fff;cursor:pointer;">Guardar datos de empresa</button>' +
-      '</div>';
+  function renderPrinterDetection() {
+    var webUsbAvailable = (typeof navigator !== 'undefined' && navigator.usb);
+    var html = '<p style="font-size:0.85rem;color:#666;">Detecta e instala impresoras automáticamente.</p>';
+    html += '<div style="margin:8px 0;padding:8px;background:#f1f3f5;border-radius:6px;font-size:0.8rem;">' +
+      'WebUSB: ' + (webUsbAvailable ? '✅ Disponible' : '❌ No disponible (usar detección nativa)') + '</div>';
+
+    if (webUsbAvailable) {
+      html += '<button onclick="window._dcDetectPrinters()" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;margin-right:4px;">Detectar impresoras USB</button>';
+    }
+    html += '<button onclick="if(typeof crozzoAdminRefreshSystemPrinters===\'function\')crozzoAdminRefreshSystemPrinters();" style="padding:6px 12px;border:none;border-radius:4px;background:#6c757d;color:#fff;cursor:pointer;margin-right:4px;">Listar impresoras del sistema</button>';
+    html += '<button onclick="window._dcMarkStep(\'impresoras\')" style="padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar completado</button>';
+
+    // Mostrar impresoras conocidas
+    html += '<div style="margin-top:12px;"><strong style="font-size:0.85rem;">Impresoras conocidas:</strong></div>';
+    html += '<div style="max-height:120px;overflow-y:auto;font-size:0.75rem;margin-top:4px;">';
+    PRINTER_DB.forEach(function (p) {
+      html += '<div style="padding:2px 0;">' + p.vendor + ': ' + p.models.join(', ') + '</div>';
+    });
+    html += '</div>';
+
+    return html;
   }
+
+  global._dcDetectPrinters = async function () {
+    if (!navigator.usb) {
+      if (typeof showToast === 'function') showToast('WebUSB no disponible en este navegador', 'warning');
+      return;
+    }
+    try {
+      var device = await navigator.usb.requestDevice({ filters: PRINTER_DB.map(function (p) { return { vendorId: p.ids[0] }; }) });
+      if (typeof showToast === 'function') showToast('Impresora detectada: ' + (device.productName || device.manufacturerName || 'Desconocida'), 'success');
+      // Buscar en base de datos
+      var found = PRINTER_DB.find(function (p) { return p.ids.indexOf(device.vendorId) >= 0; });
+      if (found) {
+        if (typeof showToast === 'function') showToast('Marca: ' + found.vendor + ' — Driver: ' + found.driver, 'info');
+      }
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('No se detectó impresora: ' + (e.message || e), 'warning');
+    }
+  };
 
   global._dcSaveEmpresa = function () {
     if (typeof config !== 'undefined' && config.setEmpresa) {
       config.setEmpresa({
-        nombreComercial: document.getElementById('dcEmpNombre').value,
-        nit: document.getElementById('dcEmpNit').value,
-        direccion: document.getElementById('dcEmpDir').value,
-        telefono: document.getElementById('dcEmpTel').value,
-        email: document.getElementById('dcEmpEmail').value,
+        nombreComercial: (document.getElementById('dcEmpNombre') || {}).value || '',
+        nit: (document.getElementById('dcEmpNit') || {}).value || '',
+        direccion: (document.getElementById('dcEmpDir') || {}).value || '',
+        telefono: (document.getElementById('dcEmpTel') || {}).value || '',
+        email: (document.getElementById('dcEmpEmail') || {}).value || '',
       });
       if (typeof showToast === 'function') showToast('Datos de empresa guardados', 'success');
-      _completedSteps.empresa = true;
-      saveState();
-      renderStep();
+      _dcMarkStep('empresa');
     }
   };
 
-  // ── Paso: Impuestos ──────────────────────────────────────────────
-  function renderImpuestosStep() {
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Configura impuestos y facturación.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<p style="font-size:0.85rem;">Para configurar impuestos, ve a <strong>Configuración → Impuestos</strong> en el menú.</p>' +
-        '<p style="font-size:0.85rem;">Para configurar facturación DIAN, ve a <strong>Configuración → Config. DIAN</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para configurar el certificado digital, ve a <strong>Configuración → Certificado .p12</strong>.</p>' +
-        '<button onclick="window._dcMarkComplete(\'impuestos\')" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;">Marcar como completado</button>' +
-      '</div>';
-  }
-
-  // ── Paso: Usuarios ───────────────────────────────────────────────
-  function renderUsuariosStep() {
-    var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
-    var userCount = staff.filter(function (u) { return u.id !== 'KENNY'; }).length;
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Gestiona usuarios y permisos del sistema.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<p style="font-size:0.85rem;">Usuarios creados: <strong>' + userCount + '</strong></p>' +
-        '<p style="font-size:0.85rem;">Para crear/editar usuarios, ve a <strong>Configuración → Usuarios</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Roles disponibles: Cajero, Mesero, Cocina, Inventario, Admin.</p>' +
-        '<button onclick="window._dcMarkComplete(\'usuarios\')" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;">Marcar como completado</button>' +
-      '</div>';
-  }
-
-  // ── Paso: Impresoras ─────────────────────────────────────────────
-  function renderImpresorasStep() {
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Configura impresoras y periféricos.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<p style="font-size:0.85rem;">Para configurar impresoras de comandas, ve a <strong>Configuración → Impresión comandas</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para configurar facturas e impresión, ve a <strong>Configuración → Facturas e impresión</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para probar impresión, usa el botón de prueba en cada configuración.</p>' +
-        '<button onclick="window._dcMarkComplete(\'impresoras\')" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;">Marcar como completado</button>' +
-      '</div>';
-  }
-
-  // ── Paso: Red ────────────────────────────────────────────────────
-  function renderRedStep() {
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Configura la conexión de red y dispositivos.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<p style="font-size:0.85rem;">Para configurar la red, ve a <strong>Configuración → Conexión de sistemas</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para configurar multi-dispositivo, ve a <strong>Configuración → Multi-dispositivo</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para diagnóstico de comunicación, ve a <strong>Configuración → Diagnóstico comunicación</strong>.</p>' +
-        '<button onclick="if(typeof wizardOpen===\'function\')wizardOpen();" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;">Abrir asistente de conexión</button>' +
-        '<button onclick="window._dcMarkComplete(\'red\')" style="margin-top:4px;padding:8px 16px;border:none;border-radius:6px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar como completado</button>' +
-      '</div>';
-  }
-
-  // ── Paso: Nube ───────────────────────────────────────────────────
-  function renderNubeStep() {
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Configura la nube y sincronización.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<p style="font-size:0.85rem;">Para configurar la nube global, ve a <strong>Configuración → Nube global</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para prioridades de sync, ve a <strong>Configuración → Prioridades sync</strong>.</p>' +
-        '<button onclick="window._dcMarkComplete(\'nube\')" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;">Marcar como completado</button>' +
-      '</div>';
-  }
-
-  // ── Paso: Diagnóstico ────────────────────────────────────────────
-  function renderDiagnosticoStep() {
-    var errorStats = (typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats() : { total: 0 };
-    return '<p style="color:#666;font-size:0.9rem;margin-bottom:12px;">Diagnóstico y salud del sistema.</p>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;">' +
-        '<p style="font-size:0.85rem;">Errores registrados: <strong>' + (errorStats.total || 0) + '</strong></p>' +
-        '<p style="font-size:0.85rem;">Para diagnóstico completo, ve a <strong>Configuración → Pruebas de sistema</strong>.</p>' +
-        '<p style="font-size:0.85rem;">Para auditoría, ve a <strong>Configuración → Auditoría (eventos)</strong>.</p>' +
-        '<button onclick="if(typeof crozzoShowSuperAdminMenu===\'function\'){ /* noop */ } if(typeof renderPage===\'function\')renderPage(\'super-admin-diagnostics\');" style="margin-top:8px;padding:8px 16px;border:none;border-radius:6px;background:#3498db;color:#fff;cursor:pointer;">Abrir diagnóstico completo</button>' +
-        '<button onclick="window._dcMarkComplete(\'diagnostico\')" style="margin-top:4px;padding:8px 16px;border:none;border-radius:6px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar como completado</button>' +
-      '</div>';
-  }
-
-  global._dcMarkComplete = function (stepId) {
-    _completedSteps[stepId] = true;
+  global._dcMarkStep = function (stepId) {
+    _state.completedSteps[stepId] = true;
     saveState();
-    renderStep();
-    // Update step list
-    var btn = document.getElementById('dc-step-' + stepId);
-    if (btn) btn.innerHTML = btn.innerHTML.replace('⬜', '✅');
+    renderDeployStepContent();
   };
 
-  function goToStep(idx) {
-    if (idx < 0 || idx >= STEPS.length) return;
-    _currentStep = idx;
-    saveState();
-    renderStep();
-    // Update active styling
-    STEPS.forEach(function (s, i) {
-      var b = document.getElementById('dc-step-' + s.id);
-      if (b) {
-        b.style.fontWeight = i === idx ? '700' : '400';
-        b.style.color = i === idx ? '#1a1a2e' : '#666';
-      }
-    });
+  global._dcRunVerification = function () {
+    var results = [];
+    // Verificar empresa
+    var emp = (typeof config !== 'undefined' && config.getEmpresa) ? config.getEmpresa() : {};
+    results.push('Empresa: ' + (emp.nombreComercial ? '✅ ' + emp.nombreComercial : '❌ Sin configurar'));
+    // Verificar usuarios
+    var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
+    var userCount = staff.filter(function (u) { return u.id !== 'KENNY'; }).length;
+    results.push('Usuarios: ' + (userCount > 0 ? '✅ ' + userCount + ' creados' : '❌ Sin usuarios'));
+    // Verificar impresoras
+    var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
+    results.push('Impresoras: ' + (printers.length > 0 ? '✅ ' + printers.length + ' disponibles' : '⚠️ Sin impresoras configuradas'));
+    // Verificar errores
+    var errStats = (typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats() : { total: 0 };
+    results.push('Errores: ' + (errStats.total === 0 ? '✅ Sin errores' : '⚠️ ' + errStats.total + ' errores'));
+
+    var el = document.getElementById('dc-step-content');
+    if (el) {
+      el.innerHTML = '<h3>✅ Verificación Final</h3>' +
+        '<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">' +
+        results.map(function (r) { return '<div style="font-size:0.9rem;">' + r + '</div>'; }).join('') +
+        '</div>' +
+        '<button onclick="window._dcMarkStep(\'verificacion\')" style="margin-top:12px;padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;">Marcar como completado</button>';
+    }
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // CARA 2: SOLUCIONADOR DE PROBLEMAS
+  // ══════════════════════════════════════════════════════════════════
+  function renderSolverFace() {
+    var html = '<h3 style="margin:0 0 12px;">🔧 Solucionador de Problemas</h3>';
+    html += '<p style="font-size:0.85rem;color:#666;margin-bottom:12px;">Detecta y soluciona problemas de hardware y conexión.</p>';
+
+    // Diagnóstico de impresoras
+    html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
+      '<strong style="font-size:0.9rem;">🖨️ Impresoras</strong><br>' +
+      '<button onclick="window._dcCheckPrinters()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar impresoras</button>' +
+      '<div id="dc-printer-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
+      '</div>';
+
+    // Diagnóstico de conexión
+    html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
+      '<strong style="font-size:0.9rem;">🔗 Conexión</strong><br>' +
+      '<button onclick="window._dcCheckConnection()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar conexión</button>' +
+      '<div id="dc-conn-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
+      '</div>';
+
+    // Diagnóstico de base de datos
+    html += '<div style="margin-bottom:12px;padding:12px;background:#f8f9fa;border-radius:8px;">' +
+      '<strong style="font-size:0.9rem;">💾 Base de datos</strong><br>' +
+      '<button onclick="window._dcCheckDatabase()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Verificar base de datos</button>' +
+      '<div id="dc-db-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
+      '</div>';
+
+    // Auto-reparación
+    html += '<div style="margin-top:12px;padding:12px;background:#fff3cd;border-radius:8px;">' +
+      '<strong style="font-size:0.9rem;">🔧 Auto-reparación</strong><br>' +
+      '<button onclick="window._dcAutoRepair()" style="margin-top:4px;padding:6px 12px;border:none;border-radius:4px;background:#e67e22;color:#fff;cursor:pointer;font-size:0.8rem;">Ejecutar auto-reparación</button>' +
+      '<div id="dc-repair-status" style="margin-top:8px;font-size:0.8rem;"></div>' +
+      '</div>';
+
+    return html;
   }
 
-  function nextStep() {
-    if (_currentStep < STEPS.length - 1) goToStep(_currentStep + 1);
+  global._dcCheckPrinters = function () {
+    var el = document.getElementById('dc-printer-status');
+    if (!el) return;
+    var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
+    if (printers.length === 0) {
+      el.innerHTML = '<span style="color:#e74c3c;">❌ No se encontraron impresoras configuradas</span><br>' +
+        '<span style="color:#666;">Verifica que las impresoras estén encendidas y conectadas.</span>';
+    } else {
+      el.innerHTML = printers.map(function (p) { return '✅ ' + p; }).join('<br>');
+    }
+  };
+
+  global._dcCheckConnection = function () {
+    var el = document.getElementById('dc-conn-status');
+    if (!el) return;
+    var online = navigator.onLine;
+    el.innerHTML = 'Internet: ' + (online ? '✅ Conectado' : '❌ Sin conexión') + '<br>' +
+      'Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? '✅ Disponible' : '❌ No disponible');
+  };
+
+  global._dcCheckDatabase = function () {
+    var el = document.getElementById('dc-db-status');
+    if (!el) return;
+    var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
+    el.innerHTML = 'Usuarios: ' + staff.length + '<br>' +
+      'Errores: ' + ((typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats().total : 0);
+  };
+
+  global._dcAutoRepair = async function () {
+    var el = document.getElementById('dc-repair-status');
+    if (!el) return;
+    el.innerHTML = 'Ejecutando auto-reparación...';
+    var results = [];
+    // 1. Verificar conexión
+    if (typeof CrozzoEasyConnect !== 'undefined' && CrozzoEasyConnect.runAutoConnect) {
+      try { await CrozzoEasyConnect.runAutoConnect({ silent: true }); results.push('✅ Auto-conexión ejecutada'); } catch (e) { results.push('⚠️ Auto-conexión: ' + (e.message || e)); }
+    }
+    // 2. Verificar errores
+    if (typeof CrozzoErrorMonitor !== 'undefined') {
+      var stats = CrozzoErrorMonitor.getErrorStats();
+      if (stats.total > 0) { CrozzoErrorMonitor.clearErrorLog(); results.push('🧹 Log de errores limpiado (' + stats.total + ' errores)'); }
+      else results.push('✅ Sin errores registrados');
+    }
+    // 3. Verificar sync
+    if (typeof crozzoRunPostLoginCloudSync === 'function') {
+      try { crozzoRunPostLoginCloudSync(); results.push('✅ Sync cloud ejecutado'); } catch (e) { results.push('⚠️ Sync: ' + (e.message || e)); }
+    }
+    el.innerHTML = results.join('<br>');
+  };
+
+  // ══════════════════════════════════════════════════════════════════
+  // CARA 3: DIAGNÓSTICO EN TIEMPO REAL
+  // ══════════════════════════════════════════════════════════════════
+  function renderDiagnosticFace() {
+    var html = '<h3 style="margin:0 0 12px;">🔍 Diagnóstico en Tiempo Real</h3>';
+    html += '<div id="dc-diag-content"></div>';
+    html += '<div style="margin-top:12px;display:flex;gap:8px;">' +
+      '<button onclick="window._dcStartMonitoring()" style="padding:6px 12px;border:none;border-radius:4px;background:#2ecc71;color:#fff;cursor:pointer;font-size:0.8rem;">Iniciar monitoreo</button>' +
+      '<button onclick="window._dcStopMonitoring()" style="padding:6px 12px;border:none;border-radius:4px;background:#e74c3c;color:#fff;cursor:pointer;font-size:0.8rem;">Detener</button>' +
+      '<button onclick="window._dcExportReport()" style="padding:6px 12px;border:none;border-radius:4px;background:#3498db;color:#fff;cursor:pointer;font-size:0.8rem;">Exportar reporte</button>' +
+      '</div>';
+    setTimeout(function () { window._dcRefreshDiagnostic(); }, 100);
+    return html;
   }
 
-  function prevStep() {
-    if (_currentStep > 0) goToStep(_currentStep - 1);
-  }
+  global._dcRefreshDiagnostic = function () {
+    var el = document.getElementById('dc-diag-content');
+    if (!el) return;
+    var html = '';
+
+    // Impresoras
+    html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+      '<strong style="font-size:0.85rem;">🖨️ Impresoras</strong><br>';
+    var printers = (typeof getAvailablePrintersList === 'function') ? getAvailablePrintersList() : [];
+    if (printers.length === 0) {
+      html += '<span style="font-size:0.8rem;color:#e74c3c;">Sin impresoras configuradas</span>';
+    } else {
+      printers.forEach(function (p) { html += '<span style="font-size:0.8rem;">✅ ' + p + '</span><br>'; });
+    }
+    html += '</div>';
+
+    // Conexión
+    html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+      '<strong style="font-size:0.85rem;">🔗 Conexión</strong><br>' +
+      '<span style="font-size:0.8rem;">Internet: ' + (navigator.onLine ? '✅' : '❌') + '</span><br>' +
+      '<span style="font-size:0.8rem;">Supabase: ' + (typeof CrozzoSuperAdminCentral !== 'undefined' && CrozzoSuperAdminCentral.isAvailable() ? '✅' : '❌') + '</span>' +
+      '</div>';
+
+    // Base de datos
+    html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+      '<strong style="font-size:0.85rem;">💾 Base de datos</strong><br>';
+    var staff = (typeof getUsuariosConfig === 'function') ? (getUsuariosConfig().staff || []) : [];
+    html += '<span style="font-size:0.8rem;">Usuarios: ' + staff.length + '</span><br>';
+    var errStats = (typeof CrozzoErrorMonitor !== 'undefined') ? CrozzoErrorMonitor.getErrorStats() : { total: 0 };
+    html += '<span style="font-size:0.8rem;">Errores: ' + (errStats.total || 0) + '</span>' +
+      '</div>';
+
+    // Rendimiento
+    html += '<div style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+      '<strong style="font-size:0.85rem;">⚡ Rendimiento</strong><br>';
+    if (typeof performance !== 'undefined' && performance.memory) {
+      html += '<span style="font-size:0.8rem;">Memoria: ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + ' MB</span><br>';
+    }
+    html += '<span style="font-size:0.8rem;">Tiempo de carga: ' + Math.round(performance.now()) + ' ms</span>' +
+      '</div>';
+
+    el.innerHTML = html;
+  };
+
+  global._dcStartMonitoring = function () {
+    if (_monitorInterval) clearInterval(_monitorInterval);
+    _monitorInterval = setInterval(function () { window._dcRefreshDiagnostic(); }, 5000);
+    if (typeof showToast === 'function') showToast('Monitoreo iniciado (actualización cada 5s)', 'success');
+  };
+
+  global._dcStopMonitoring = function () {
+    if (_monitorInterval) { clearInterval(_monitorInterval); _monitorInterval = null; }
+    if (typeof showToast === 'function') showToast('Monitoreo detenido', 'info');
+  };
+
+  global._dcExportReport = function () {
+    if (typeof CrozzoFieldDiagnostic !== 'undefined' && CrozzoFieldDiagnostic.downloadFullReport) {
+      CrozzoFieldDiagnostic.downloadFullReport();
+    } else if (typeof showToast === 'function') {
+      showToast('Módulo de reportes no disponible', 'warning');
+    }
+  };
 
   // ── Integración con menú Super Admin ─────────────────────────────
-  // Agregar botón al menú de Super Admin
   function patchSuperAdminMenu() {
     var menu = document.getElementById('crozzoSuperAdminMenu');
     if (!menu) return;
@@ -301,9 +553,8 @@
     var btn = document.createElement('button');
     btn.id = 'dc-menu-btn';
     btn.style.cssText = 'padding:14px 20px;border:1px solid #e0e0e0;border-radius:10px;background:#f8f9fa;cursor:pointer;font-size:1rem;text-align:left;';
-    btn.innerHTML = '<strong>🚀 Centro de Despliegue</strong><br><span style="font-size:0.8rem;color:#888;">Asistente unificado para configurar todo el sistema.</span>';
+    btn.innerHTML = '<strong>🚀 Centro de Despliegue</strong><br><span style="font-size:0.8rem;color:#888;">Asistente unificado: despliegue, solución de problemas, diagnóstico.</span>';
     btn.onclick = function () { abrir(); };
-    // Insertar antes del botón de cerrar
     var cerrar = document.getElementById('samCerrar');
     if (cerrar && cerrar.parentElement) {
       cerrar.parentElement.insertBefore(btn, cerrar);
@@ -312,10 +563,7 @@
     }
   }
 
-  // Observar cuando se crea el menú de Super Admin
-  var observer = new MutationObserver(function () {
-    patchSuperAdminMenu();
-  });
+  var observer = new MutationObserver(function () { patchSuperAdminMenu(); });
   if (typeof document !== 'undefined') {
     observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
   }
@@ -323,12 +571,12 @@
   // ── API pública ──────────────────────────────────────────────────
   global.CrozzoDeploymentCenter = {
     abrir: abrir,
-    STEPS: STEPS,
-    loadState: loadState,
-    saveState: saveState,
+    cerrar: cerrar,
+    DEPLOY_STEPS: DEPLOY_STEPS,
+    BUSINESS_TYPES: BUSINESS_TYPES,
+    PRINTER_DB: PRINTER_DB,
   };
 
-  // Inicializar
   if (typeof document !== 'undefined') {
     loadState();
   }
