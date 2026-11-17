@@ -3503,6 +3503,8 @@ async function crozzoFinishKennyLogin() {
   try {
     if (typeof crozzoHpHideContainment === 'function') crozzoHpHideContainment();
     if (typeof crozzoRefreshLoginHoneypotBanner === 'function') crozzoRefreshLoginHoneypotBanner();
+    // Limpiar estado de bloqueo residual del honeypot para KENNY (superadmin)
+    try { localStorage.removeItem('crozzo_jaula_bloqueado'); localStorage.removeItem('crozzo_jaula_log'); localStorage.removeItem('crozzo_blocked_pending_fp'); localStorage.removeItem('crozzo_blocked_registered'); } catch (_) {}
   } catch (_) {}
   try {
     if (window.CrozzoAuthSecurity && typeof CrozzoAuthSecurity.crozzoHoneypotClearDecoyScan === 'function') CrozzoAuthSecurity.crozzoHoneypotClearDecoyScan();

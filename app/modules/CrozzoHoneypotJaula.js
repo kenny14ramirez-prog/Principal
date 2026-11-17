@@ -258,6 +258,7 @@
     ];
 
     alertas.forEach(function (alerta) {
+      if (alerta.tipo === 'bloqueo' && jaula.opts && jaula.opts.adminPreview) return;
       var delay = Math.floor(liveMs * alerta.delay) + Math.floor(Math.random() * 8000);
       var timer = setTimeout(function () {
         if (!jaula.active) return;
@@ -696,7 +697,7 @@
             programarAlertas(remainingMs, false);
           } else {
             // Ya debería haber bloqueado
-            if (!isBlocked()) bloquearFinal();
+            if (!isBlocked() && !(jaula.opts && jaula.opts.adminPreview)) bloquearFinal();
           }
           return true;
         }
