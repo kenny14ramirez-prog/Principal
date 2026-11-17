@@ -51,7 +51,7 @@
 | 114 | `app/core/CrozzoPosBoot.js` |
 | 3775 | `app/core/CrozzoPosCloud.js` |
 | 4179 | `app/core/CrozzoPosExtensions.js` |
-| 53926 | `app/core/CrozzoPosMain.js` |
+| 53862 | `app/core/CrozzoPosMain.js` |
 | 2816 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |

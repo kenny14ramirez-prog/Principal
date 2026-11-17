@@ -1472,9 +1472,8 @@ function crozzoClearLoginGatePlaceholder() {
   try {
     var mc = document.getElementById('mainContent');
     if (!mc || !crozzoIsLoginGatePlaceholder()) return;
-    mc.innerHTML =
-      '<div class="card" style="max-width:460px;margin:48px auto;text-align:center;padding:28px 24px;">' +
-      '<p class="form-hint" style="margin:0;">Cargando panel…</p></div>';
+    mc.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card" style="max-width:460px;margin:48px auto;text-align:center;padding:28px 24px;">' +
+      '<p class="form-hint" style="margin:0;">Cargando panel…</p></div>');
   } catch (_) {}
 }
 function crozzoForcePaintPage(page) {
@@ -2497,7 +2496,7 @@ function crozzoHoneypotLiveEnd() {
   } else {
     const content = document.getElementById('mainContent');
     if (content) {
-      content.innerHTML = '';
+      content.innerHTML = CrozzoSanitize.sanitizeHtml('');
       content.classList.remove('main-body--retail-pos', 'main-body--qyc-embed', 'main-body--centro-compras');
     }
   }
@@ -2644,7 +2643,7 @@ function crozzoHpInjectAiDecoyNav() {
     btn.type = 'button';
     btn.className = 'nav-item';
     btn.setAttribute('data-page', item.page);
-    btn.innerHTML = '<span class="nav-icon">' + item.icon + '</span><span class="nav-item-label">' + item.label + '</span>';
+    btn.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="nav-icon">' + item.icon + '</span><span class="nav-item-label">' + item.label + '</span>');
     btn.addEventListener('click', function () {
       if (typeof navigateTo === 'function') navigateTo(item.page);
     });
@@ -3019,7 +3018,7 @@ async function crozzoHpRunBreachPhase(trip, decoy, ctx, Sim, believable, adminPr
       Sim && typeof Sim.buildBreachAlertList === 'function'
         ? Sim.buildBreachAlertList(decoy, ctx, (window.__crozzoHoneypotLive && window.__crozzoHoneypotLive.lastTrapSource) || '')
         : ['Intento de acceso no autorizado detectado', 'Huella del dispositivo capturada'];
-    alerts.innerHTML = breachList.map(t => '<li>' + t + '</li>').join('');
+    alerts.innerHTML = CrozzoSanitize.sanitizeHtml(breachList.map(t => '<li>' + t + '</li>').join(''));
   }
   if (dump) {
     dump.textContent =
@@ -5390,9 +5389,9 @@ window.crozzoIsPantallasKioskUi = crozzoIsPantallasKioskUi;
 function crozzoRefreshComandasPantallaUi(areaId) {
   const kioskUi = crozzoIsPantallasKioskUi();
   document.querySelectorAll('select[data-crozzo-device-pantalla]').forEach(function (sel) {
-    sel.innerHTML = kioskUi
+    sel.innerHTML = CrozzoSanitize.sanitizeHtml(kioskUi
       ? crozzoComandaPantallaKioskOptionsHtml(crozzoGetDevicePantallaId())
-      : crozzoComandaPantallaOptionsHtml(crozzoGetDevicePantallaId());
+      : crozzoComandaPantallaOptionsHtml(crozzoGetDevicePantallaId()));
   });
   if (typeof crozzoRefreshComandasPrinterUi === 'function') crozzoRefreshComandasPrinterUi(areaId);
 }
@@ -5524,7 +5523,7 @@ function crozzoRefreshComandasPrinterUi(areaId) {
     if (label) label.textContent = crozzoComandaPrinterDisplayText(a);
     document.querySelectorAll('select[data-crozzo-area-printer="' + a.id + '"]').forEach(function (sel) {
       var saved = String(a.impresora || '').trim();
-      sel.innerHTML = crozzoComandaPrinterOptionsHtml(saved);
+      sel.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoComandaPrinterOptionsHtml(saved));
       sel.value = saved;
     });
   });
@@ -5735,10 +5734,9 @@ function crozzoRefreshKennyBootstrapHint() {
     return;
   }
   box.hidden = false;
-  box.innerHTML =
-    '<strong>Primera instalación.</strong> Usuario <code>KENNY</code> · clave temporal (solo se muestra una vez): <strong>' +
+  box.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Primera instalación.</strong> Usuario <code>KENNY</code> · clave temporal (solo se muestra una vez): <strong>' +
     escUserAttr(hint.pass) +
-    '</strong>. Al entrar deberá definir una contraseña nueva.';
+    '</strong>. Al entrar deberá definir una contraseña nueva.');
 }
 window.crozzoRefreshKennyBootstrapHint = crozzoRefreshKennyBootstrapHint;
 /** Recuperación soporte: nueva clave temporal KENNY (consola F12 en pantalla de login). */
@@ -9429,7 +9427,7 @@ function crozzoPatchComandasHubDom() {
       .join('|');
     if (masonry.getAttribute('data-hub-fp') === fp) return true;
     masonry.setAttribute('data-hub-fp', fp);
-    masonry.innerHTML = notes;
+    masonry.innerHTML = CrozzoSanitize.sanitizeHtml(notes);
     return true;
   } catch (_) {
     return false;
@@ -9462,7 +9460,7 @@ function crozzoPatchKdsBoardDom() {
     const fp = crozzoCorkboardListFingerprint(list);
     if (board.getAttribute('data-kds-fp') === fp) return true;
     board.setAttribute('data-kds-fp', fp);
-    board.innerHTML = renderCocinaKdsColumnsHtml(areas);
+    board.innerHTML = CrozzoSanitize.sanitizeHtml(renderCocinaKdsColumnsHtml(areas));
     if (typeof crozzoComandaKdsTimerDesired === 'function' && crozzoComandaKdsTimerDesired()) {
       if (typeof crozzoStartKdsComandaTimer === 'function') crozzoStartKdsComandaTimer();
     }
@@ -9492,7 +9490,7 @@ function crozzoPatchCorkboardDom(page) {
     const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
     const areaKey = page === 'comandas' ? comandasAreaSelected : '';
     board.setAttribute('data-cork-fp', fp);
-    board.innerHTML = crozzoRenderComandasMasonryHtml(list, areaKey);
+    board.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoRenderComandasMasonryHtml(list, areaKey));
     if (scrollEl) scrollEl.scrollTop = scrollTop;
     if (page === 'comandas') crozzoInitComandasCorkboardSortable();
     else crozzoInitCocinaCorkboardSortable();
@@ -9553,11 +9551,11 @@ function crozzoPatchOperationalPageFromRemote(page) {
         document.querySelector('.mesas-grid');
       if (grid && typeof renderTablets === 'function') {
         var tmp = document.createElement('div');
-        tmp.innerHTML = renderTablets();
+        tmp.innerHTML = CrozzoSanitize.sanitizeHtml(renderTablets());
         var freshGrid =
           tmp.querySelector('.crozzo-tablet-slots .crozzo-rest-pos__slots') || tmp.querySelector('.mesas-grid');
         if (freshGrid) {
-          grid.innerHTML = freshGrid.innerHTML;
+          grid.innerHTML = CrozzoSanitize.sanitizeHtml(freshGrid.innerHTML);
           try {
             if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ root: grid });
           } catch (_) {}
@@ -10557,8 +10555,7 @@ function crozzoEnsureComandaTrashBinElement() {
   bin.hidden = true;
   bin.title = 'Historial del día';
   bin.setAttribute('aria-label', 'Historial de comandas del día');
-  bin.innerHTML =
-    '<span class="crozzo-comanda-trash-bin__count" aria-hidden="true"></span>' +
+  bin.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-comanda-trash-bin__count" aria-hidden="true"></span>' +
     '<span class="crozzo-comanda-trash-bin__wrap" aria-hidden="true">' +
     '<span class="crozzo-comanda-trash-bin__rim"></span>' +
     '<span class="crozzo-comanda-trash-bin__can">' +
@@ -10571,7 +10568,7 @@ function crozzoEnsureComandaTrashBinElement() {
     '</svg>' +
     '<span class="crozzo-comanda-trash-bin__crumbs"></span>' +
     '</span></span>' +
-    '<span class="crozzo-comanda-trash-bin__lbl">Historial hoy</span>';
+    '<span class="crozzo-comanda-trash-bin__lbl">Historial hoy</span>');
   bin.addEventListener('click', function () {
     crozzoOpenComandaDayHistory(crozzoComandaTrashBinAreaFilter());
   });
@@ -11306,8 +11303,7 @@ function crozzoPlayComandaThreadAnimation(fromEl, onDone, opts) {
   svg.setAttribute('class', 'crozzo-comanda-thread-svg');
   svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
   const defs = document.createElementNS(svgNs, 'defs');
-  defs.innerHTML =
-    '<linearGradient id="crozzoThreadGrad" gradientUnits="userSpaceOnUse" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '">' +
+  defs.innerHTML = CrozzoSanitize.sanitizeHtml('<linearGradient id="crozzoThreadGrad" gradientUnits="userSpaceOnUse" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '">' +
     '<stop offset="0%" stop-color="#fff1f2"/>' +
     '<stop offset="18%" stop-color="#fca5a5"/>' +
     '<stop offset="45%" stop-color="#ef4444"/>' +
@@ -11326,7 +11322,7 @@ function crozzoPlayComandaThreadAnimation(fromEl, onDone, opts) {
     '<filter id="crozzoBeadGlow" x="-100%" y="-100%" width="300%" height="300%">' +
     '<feGaussianBlur stdDeviation="4" result="b2"/>' +
     '<feMerge><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>' +
-    '</filter>';
+    '</filter>');
   svg.appendChild(defs);
   const cometGroup = document.createElementNS(svgNs, 'g');
   cometGroup.setAttribute('class', 'crozzo-comanda-thread-comet-group');
@@ -11380,7 +11376,7 @@ function crozzoPlayComandaThreadAnimation(fromEl, onDone, opts) {
   spool.className = 'crozzo-comanda-thread-spool';
   spool.style.left = x1 + 'px';
   spool.style.top = y1 + 'px';
-  spool.innerHTML = '<span class="crozzo-comanda-thread-spool__disk"></span><span class="crozzo-comanda-thread-spool__tail"></span>';
+  spool.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-comanda-thread-spool__disk"></span><span class="crozzo-comanda-thread-spool__tail"></span>');
   overlay.appendChild(spool);
   const pinFlash = document.createElement('div');
   pinFlash.className = 'crozzo-comanda-thread-pinflash';
@@ -11391,13 +11387,12 @@ function crozzoPlayComandaThreadAnimation(fromEl, onDone, opts) {
   portal.className = 'crozzo-comanda-thread-portal';
   portal.style.left = x2 + 'px';
   portal.style.top = y2 + 'px';
-  portal.innerHTML =
-    '<span class="crozzo-comanda-thread-portal__dest-pin" aria-hidden="true"></span>' +
+  portal.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-comanda-thread-portal__dest-pin" aria-hidden="true"></span>' +
     '<span class="crozzo-comanda-thread-portal__ripple"></span>' +
     '<span class="crozzo-comanda-thread-portal__ripple crozzo-comanda-thread-portal__ripple--2"></span>' +
     '<span class="crozzo-comanda-thread-portal__ring"></span>' +
     '<span class="crozzo-comanda-thread-portal__core"></span>' +
-    '<span class="crozzo-comanda-thread-portal__zoom"></span>';
+    '<span class="crozzo-comanda-thread-portal__zoom"></span>');
   overlay.appendChild(portal);
   document.body.appendChild(overlay);
   fromEl.classList.add('crozzo-station-note--pulling');
@@ -11941,8 +11936,7 @@ function crozzoShowStaffCallBanner(call) {
         (pendingCount - 1 === 1 ? '' : 'es') +
         ' · Entendido los marca a todos</span>'
       : '';
-  root.innerHTML =
-    '<div class="crozzo-staff-call-banner" role="alert">' +
+  root.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-staff-call-banner" role="alert">' +
     '<div class="crozzo-staff-call-banner__body">' +
     '<strong>📣 Te llaman desde ' + esc(area) + '</strong>' +
     '<p>' + esc(latest.mensaje || call.mensaje || '') + '</p>' +
@@ -11950,7 +11944,7 @@ function crozzoShowStaffCallBanner(call) {
     stackNote +
     '</div>' +
     '<button type="button" class="btn btn-primary" onclick="crozzoAckStaffCall(' + latest.id + ')">Entendido</button>' +
-    '</div>';
+    '</div>');
   root.classList.add('is-visible');
   try {
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -11965,7 +11959,7 @@ function crozzoAckStaffCall(callId) {
   const root = document.getElementById('crozzoStaffCallBanner');
   if (root) {
     root.classList.remove('is-visible');
-    root.innerHTML = '';
+    root.innerHTML = CrozzoSanitize.sanitizeHtml('');
   }
   if (count > 1 && typeof showToast === 'function') {
     showToast('✓ ' + count + ' llamados marcados como atendidos', 'success');
@@ -13627,7 +13621,7 @@ function crozzoInitCollapsibleSidebar() {
   toggleBtn.setAttribute('aria-label', 'Expandir o contraer menú lateral');
   toggleBtn.setAttribute('aria-controls', 'sidebar');
   if (!toggleBtn.querySelector('.menu-toggle-icon')) {
-    toggleBtn.innerHTML = '<span class="menu-toggle-icon" aria-hidden="true">☰</span>';
+    toggleBtn.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="menu-toggle-icon" aria-hidden="true">☰</span>');
   }
   crozzoSidebarMountToggleBtn(sidebar);
   if (document.body.classList.contains('crozzo-login-open') || (document.getElementById('loginOverlay') && !document.getElementById('loginOverlay').hasAttribute('hidden'))) {
@@ -13778,7 +13772,7 @@ function crozzoPopulateThemeSelect(sel) {
       crozzoThemeOptionLabel(id) +
       '</option>';
   }
-  sel.innerHTML = html;
+  sel.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   if (CROZZO_THEME_IDS.indexOf(cur) >= 0) sel.value = cur;
 }
 function crozzoApplyVisualTheme(themeId, opts) {
@@ -16183,7 +16177,7 @@ function renderSinAcceso() {
   if (!content) return;
   document.getElementById('pageTitle').textContent = 'Sin acceso';
   document.getElementById('pageSubtitle').textContent = 'Tu usuario aún no tiene módulos habilitados';
-  content.innerHTML = `
+  content.innerHTML = CrozzoSanitize.sanitizeHtml(`
     <div class="card" style="max-width:520px;margin:40px auto;text-align:center;">
       <h3 style="margin-top:0;">🔒 Sin acceso a módulos</h3>
       <p style="color:var(--text-secondary);">
@@ -16194,7 +16188,7 @@ function renderSinAcceso() {
         <button class="btn btn-outline" onclick="handleLogout()">🚪 Cerrar sesión</button>
       </div>
     </div>
-  `;
+  `);
 }
 function crozzoPremiumGreeting() {
   var h = new Date().getHours();
@@ -17036,10 +17030,9 @@ function renderPage(page, renderOpts) {
     const content = document.getElementById('mainContent');
     if (content) {
       if (window.CrozzoHoneypotSim && typeof CrozzoHoneypotSim.renderLivePage === 'function') {
-        content.innerHTML = CrozzoHoneypotSim.renderLivePage(page, hpLive.ctx, hpLive.decoy, hpLive);
+        content.innerHTML = CrozzoSanitize.sanitizeHtml(CrozzoHoneypotSim.renderLivePage(page, hpLive.ctx, hpLive.decoy, hpLive));
       } else {
-        content.innerHTML =
-          '<motion.div class="card"><p class="form-hint">Cargando terminal señuelo…</p></motion.div>'.replace(/<motion\./g, '<').replace(/<\/motion\./g, '</');
+        content.innerHTML = CrozzoSanitize.sanitizeHtml('<motion.div class="card"><p class="form-hint">Cargando terminal señuelo…</p></motion.div>'.replace(/<motion\./g, '<').replace(/<\/motion\./g, '</'));
       }
       if (typeof crozzoHpApplyLivePageChrome === 'function') crozzoHpApplyLivePageChrome(page, content);
     }
@@ -17137,12 +17130,12 @@ function renderPage(page, renderOpts) {
   try {
   switch(page) {
     case 'inicio-operacion':
-      content.innerHTML = renderInicioOperacion();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderInicioOperacion());
       if (document.body) document.body.classList.add('crozzo-page-inicio-operacion');
       if (typeof initInicioOperacion === 'function') initInicioOperacion();
       break;
     case 'cajero':
-      content.innerHTML = renderCajero();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCajero());
       content.classList.add('main-body--rest-pos');
       initCajero();
       if (
@@ -17160,12 +17153,12 @@ function renderPage(page, renderOpts) {
       }
       break;
     case 'venta-comercial':
-      content.innerHTML = renderVentaComercial();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderVentaComercial());
       content.classList.add('main-body--retail-pos');
       initVentaComercial();
       break;
     case 'tablets':
-      content.innerHTML = renderTablets();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderTablets());
       if (document.body) document.body.classList.add('crozzo-page-tablets');
       initTablets();
       if (!backgroundRender && typeof crozzoShouldRunInitialOperativeSync === 'function' && crozzoShouldRunInitialOperativeSync('tablets') && typeof crozzoEnsureOperationalFreshBeforeEdit === 'function') {
@@ -17176,121 +17169,109 @@ function renderPage(page, renderOpts) {
       break;
     case 'caja-clientes':
       if (document.body) document.body.classList.add('crozzo-page-caja-clientes');
-      content.innerHTML = renderCajaClientes();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCajaClientes());
       initCajaClientes();
       break;
     case 'cartera-comercial':
-      content.innerHTML =
-        window.CrozzoCarteraComercial && typeof CrozzoCarteraComercial.renderPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(window.CrozzoCarteraComercial && typeof CrozzoCarteraComercial.renderPage === 'function'
           ? CrozzoCarteraComercial.renderPage()
-          : '<div class="card"><p>Módulo cartera no cargado. Recargue la aplicación.</p></div>';
+          : '<div class="card"><p>Módulo cartera no cargado. Recargue la aplicación.</p></div>');
       if (window.CrozzoCarteraComercial && typeof CrozzoCarteraComercial.initPage === 'function') {
         CrozzoCarteraComercial.initPage();
       }
       break;
     case 'cupos-clientes':
-      content.innerHTML =
-        window.CrozzoCuposClientes && typeof CrozzoCuposClientes.renderPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(window.CrozzoCuposClientes && typeof CrozzoCuposClientes.renderPage === 'function'
           ? CrozzoCuposClientes.renderPage()
-          : '<div class="card"><p>Módulo cupos no cargado. Recargue la aplicación.</p></div>';
+          : '<div class="card"><p>Módulo cupos no cargado. Recargue la aplicación.</p></div>');
       if (window.CrozzoCuposClientes && typeof CrozzoCuposClientes.initPage === 'function') {
         CrozzoCuposClientes.initPage();
       }
       break;
     case 'rentabilidad':
-      content.innerHTML =
-        window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.renderPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.renderPage === 'function'
           ? CrozzoRentabilidadPage.renderPage()
-          : '<div class="card"><p>Módulo rentabilidad no cargado. Recargue la aplicación.</p></div>';
+          : '<div class="card"><p>Módulo rentabilidad no cargado. Recargue la aplicación.</p></div>');
       if (window.CrozzoRentabilidadPage && typeof CrozzoRentabilidadPage.initPage === 'function') {
         CrozzoRentabilidadPage.initPage();
       }
       break;
-    case 'facturas': content.innerHTML = renderFacturas(); initFacturas(); break;
+    case 'facturas': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderFacturas()); initFacturas(); break;
     case 'whatsapp-web':
       if (document.body) document.body.classList.add('crozzo-page-whatsapp-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-whatsapp-web');
-      content.innerHTML =
-        typeof crozzoRenderWhatsAppWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderWhatsAppWebPage === 'function'
           ? crozzoRenderWhatsAppWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell" id="crozzoWaPageShell"><div id="crozzoWaEmbedHost" class="crozzo-wa-page__host" aria-label="WhatsApp Web"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell" id="crozzoWaPageShell"><div id="crozzoWaEmbedHost" class="crozzo-wa-page__host" aria-label="WhatsApp Web"></div></div></div>');
       if (typeof crozzoInitWhatsAppWebPage === 'function') crozzoInitWhatsAppWebPage();
       break;
     case 'gmail-web':
       if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('gmail'); break; }
       if (document.body) document.body.classList.add('crozzo-page-gmail-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-gmail-web');
-      content.innerHTML =
-        typeof crozzoRenderGmailWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderGmailWebPage === 'function'
           ? crozzoRenderGmailWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoGmailEmbedHost" class="crozzo-wa-page__host" aria-label="Gmail"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoGmailEmbedHost" class="crozzo-wa-page__host" aria-label="Gmail"></div></div></div>');
       if (typeof crozzoInitGmailWebPage === 'function') crozzoInitGmailWebPage();
       break;
     case 'drive-web':
       if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('drive'); break; }
       if (document.body) document.body.classList.add('crozzo-page-drive-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-drive-web');
-      content.innerHTML =
-        typeof crozzoRenderDriveWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderDriveWebPage === 'function'
           ? crozzoRenderDriveWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoDriveEmbedHost" class="crozzo-wa-page__host" aria-label="Google Drive"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoDriveEmbedHost" class="crozzo-wa-page__host" aria-label="Google Drive"></div></div></div>');
       if (typeof crozzoInitDriveWebPage === 'function') crozzoInitDriveWebPage();
       break;
     case 'dataico-web':
       if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('dataico'); break; }
       if (document.body) document.body.classList.add('crozzo-page-dataico-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-dataico-web');
-      content.innerHTML =
-        typeof crozzoRenderDataicoWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderDataicoWebPage === 'function'
           ? crozzoRenderDataicoWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoDataicoEmbedHost" class="crozzo-wa-page__host" aria-label="Dataico"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoDataicoEmbedHost" class="crozzo-wa-page__host" aria-label="Dataico"></div></div></div>');
       if (typeof crozzoInitDataicoWebPage === 'function') crozzoInitDataicoWebPage();
       break;
     case 'dian-vpfe-web':
       if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('dian'); break; }
       if (document.body) document.body.classList.add('crozzo-page-dian-vpfe-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-dian-vpfe-web');
-      content.innerHTML =
-        typeof crozzoRenderDianVpfeWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderDianVpfeWebPage === 'function'
           ? crozzoRenderDianVpfeWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoDianVpfeEmbedHost" class="crozzo-wa-page__host" aria-label="DIAN Consulta CUFE"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoDianVpfeEmbedHost" class="crozzo-wa-page__host" aria-label="DIAN Consulta CUFE"></div></div></div>');
       if (typeof crozzoInitDianVpfeWebPage === 'function') crozzoInitDianVpfeWebPage();
       break;
     case 'spotify-web':
       if (typeof crozzoWebDockV2ActivateService === 'function') { crozzoWebDockV2ActivateService('spotify'); break; }
       if (document.body) document.body.classList.add('crozzo-page-spotify-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-spotify-web');
-      content.innerHTML =
-        typeof crozzoRenderSpotifyWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderSpotifyWebPage === 'function'
           ? crozzoRenderSpotifyWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoSpotifyEmbedHost" class="crozzo-wa-page__host" aria-label="Spotify"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoSpotifyEmbedHost" class="crozzo-wa-page__host" aria-label="Spotify"></div></div></div>');
       if (typeof crozzoInitSpotifyWebPage === 'function') crozzoInitSpotifyWebPage();
       break;
     case 'supabase-nube-web':
       if (document.body) document.body.classList.add('crozzo-page-supabase-nube-web');
       if (document.documentElement) document.documentElement.classList.add('crozzo-page-supabase-nube-web');
-      content.innerHTML =
-        typeof crozzoRenderSupabaseNubeWebPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoRenderSupabaseNubeWebPage === 'function'
           ? crozzoRenderSupabaseNubeWebPage()
-          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoNubeSupabaseEmbedHost" class="crozzo-wa-page__host" aria-label="Supabase SQL Editor"></div></div></div>';
+          : '<div class="crozzo-wa-page"><div class="crozzo-wa-page__shell"><div id="crozzoNubeSupabaseEmbedHost" class="crozzo-wa-page__host" aria-label="Supabase SQL Editor"></div></div></div>');
       if (typeof crozzoInitSupabaseNubeWebPage === 'function') crozzoInitSupabaseNubeWebPage();
       break;
     case 'cierre-caja':
-      content.innerHTML =
-        window.CrozzoCierreTurnos && typeof CrozzoCierreTurnos.renderPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(window.CrozzoCierreTurnos && typeof CrozzoCierreTurnos.renderPage === 'function'
           ? CrozzoCierreTurnos.renderPage()
-          : '<div class="card"><p class="page-subtitle">Módulo de cierre de caja no disponible. Recargue la aplicación.</p></div>';
+          : '<div class="card"><p class="page-subtitle">Módulo de cierre de caja no disponible. Recargue la aplicación.</p></div>');
       initCierreCaja();
       break;
     case 'laboratorio-admin':
-      content.innerHTML =
-        window.CrozzoLaboratorio && typeof CrozzoLaboratorio.renderPage === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(window.CrozzoLaboratorio && typeof CrozzoLaboratorio.renderPage === 'function'
           ? CrozzoLaboratorio.renderPage()
-          : '<div class="card"><p class="page-subtitle">Laboratorio no disponible. Recargue la aplicación.</p></div>';
+          : '<div class="card"><p class="page-subtitle">Laboratorio no disponible. Recargue la aplicación.</p></div>');
       if (window.CrozzoLaboratorio && typeof CrozzoLaboratorio.initPage === 'function') CrozzoLaboratorio.initPage();
       break;
     case 'comandas':
-      content.innerHTML = renderComandas();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderComandas());
       if (document.body) {
         document.body.classList.add('crozzo-page-comandas');
         document.body.classList.toggle(
@@ -17301,7 +17282,7 @@ function renderPage(page, renderOpts) {
       initComandas();
       break;
     case 'cocina':
-      content.innerHTML = renderCocina();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCocina());
       if (document.body) {
         document.body.classList.add('crozzo-page-cocina');
         document.body.classList.toggle(
@@ -17313,57 +17294,53 @@ function renderPage(page, renderOpts) {
       break;
     case 'compras-dashboard':
       if (document.body) document.body.classList.add('crozzo-page-compras-dashboard');
-      content.innerHTML = renderComprasDashboardPage();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderComprasDashboardPage());
       initComprasDashboardPage();
       break;
     case 'inventarios':
       if (document.body) document.body.classList.add('crozzo-page-inventarios');
-      content.innerHTML = renderInventarios();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderInventarios());
       initInventariosReportes();
       break;
     case 'compras-recepcion': {
       crozzoPrepareModuloGestionPage(content);
-      content.innerHTML =
-        typeof renderRecepcionFacturas === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderRecepcionFacturas === 'function'
           ? renderRecepcionFacturas()
           : typeof CrozzoRecepcionFacturas !== 'undefined' && CrozzoRecepcionFacturas.render
             ? CrozzoRecepcionFacturas.render()
-            : '<div class="card"><p>Módulo de entrada de facturas no disponible. Recargue la página.</p></div>';
+            : '<div class="card"><p>Módulo de entrada de facturas no disponible. Recargue la página.</p></div>');
       if (typeof initRecepcionFacturas === 'function') initRecepcionFacturas(content);
       else if (typeof CrozzoRecepcionFacturas !== 'undefined' && CrozzoRecepcionFacturas.init) CrozzoRecepcionFacturas.init(content);
       break;
     }
     case 'compras-proveedores': {
       crozzoPrepareModuloGestionPage(content);
-      content.innerHTML =
-        '<div class="crozzo-mod-page crozzo-prov-page">' +
+      content.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-mod-page crozzo-prov-page">' +
         '<p class="crozzo-mod-lead">Mantenimiento del directorio (RUT/NIT, rubro, certificados). Para facturar el día use <strong>Entrada de factura</strong>.</p>' +
         (typeof renderComprasProveedores === 'function'
           ? renderComprasProveedores({ view: 'full' })
           : '<div class="card"><p>Módulo de proveedores no disponible</p></div>') +
-        '</div>';
+        '</div>');
       if (typeof initComprasProveedores === 'function') initComprasProveedores({ view: 'full' });
       break;
     }
     case 'compras-ordenes': {
       crozzoPrepareModuloGestionPage(content);
-      content.innerHTML =
-        '<div class="crozzo-mod-page crozzo-prov-page">' +
+      content.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-mod-page crozzo-prov-page">' +
         '<p class="crozzo-mod-lead">Órdenes de compra al catálogo POS. Al recibir en tránsito se actualiza el stock.</p>' +
         (typeof renderComprasProveedores === 'function'
           ? renderComprasProveedores({ view: 'ordenes' })
           : '<div class="card"><p>Módulo no disponible</p></div>') +
-        '</div>';
+        '</div>');
       if (typeof initComprasProveedores === 'function') initComprasProveedores({ view: 'ordenes' });
       break;
     }
     case 'compras-cotizaciones': {
       crozzoPrepareModuloGestionPage(content);
       if (document.body) document.body.classList.add('crozzo-page-compras-cotizaciones');
-      content.innerHTML =
-        typeof renderComprasCotizaciones === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderComprasCotizaciones === 'function'
           ? renderComprasCotizaciones()
-          : '<div class="card"><p>Módulo de cotizaciones no disponible. Recargue la página.</p></div>';
+          : '<div class="card"><p>Módulo de cotizaciones no disponible. Recargue la página.</p></div>');
       if (typeof initComprasCotizaciones === 'function') initComprasCotizaciones();
       break;
     }
@@ -17385,23 +17362,20 @@ function renderPage(page, renderOpts) {
         proStart = global.CrozzoManifest.procesosPageToView(page);
       }
       if (typeof renderCentroProcesos === 'function') {
-        content.innerHTML = renderCentroProcesos(proStart);
+        content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCentroProcesos(proStart));
         if (typeof initCentroProcesos === 'function') initCentroProcesos(proStart);
       } else if (typeof crozzoEnsureModulesForPage === 'function') {
-        content.innerHTML =
-          '<div class="card" style="margin:24px auto;max-width:420px;text-align:center;padding:28px 20px;"><p class="form-hint" style="margin:0;">Cargando centro de producción…</p></div>';
+        content.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card" style="margin:24px auto;max-width:420px;text-align:center;padding:28px 20px;"><p class="form-hint" style="margin:0;">Cargando centro de producción…</p></div>');
         void crozzoEnsureModulesForPage('centro-procesos').then(function () {
           if (typeof renderCentroProcesos !== 'function') {
-            content.innerHTML =
-              '<div class="card"><p>No se pudo cargar el módulo de procesos. Compruebe su conexión y recargue la página.</p><button type="button" class="btn btn-primary" style="margin-top:12px;" onclick="location.reload()">Recargar</button></div>';
+            content.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card"><p>No se pudo cargar el módulo de procesos. Compruebe su conexión y recargue la página.</p><button type="button" class="btn btn-primary" style="margin-top:12px;" onclick="location.reload()">Recargar</button></div>');
             return;
           }
-          content.innerHTML = renderCentroProcesos(proStart);
+          content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCentroProcesos(proStart));
           if (typeof initCentroProcesos === 'function') initCentroProcesos(proStart);
         });
       } else {
-        content.innerHTML =
-          '<div class="card"><p>No se pudo cargar el módulo de procesos. Recargue la página.</p></div>';
+        content.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card"><p>No se pudo cargar el módulo de procesos. Recargue la página.</p></div>');
       }
       break;
     }
@@ -17414,7 +17388,7 @@ function renderPage(page, renderOpts) {
       var hubStart = window.__crozzoCentroComprasStart || null;
       window.__crozzoCentroComprasStart = null;
       if (!hubStart && page === 'operaciones-qyc') hubStart = 'recepcion';
-      content.innerHTML = typeof renderCentroCompras === 'function' ? renderCentroCompras(hubStart) : '<div class="card"><p>No se pudo cargar el módulo de compras. Recargue la página.</p></div>';
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderCentroCompras === 'function' ? renderCentroCompras(hubStart) : '<div class="card"><p>No se pudo cargar el módulo de compras. Recargue la página.</p></div>');
       if (typeof initCentroCompras === 'function') initCentroCompras(hubStart);
       break;
     }
@@ -17424,83 +17398,77 @@ function renderPage(page, renderOpts) {
       if (page === 'catalogo-mp') window.__crozzoCostosOpenNewMp = true;
       crozzoPrepareModuloGestionPage(content);
       if (document.body) document.body.classList.add('crozzo-page-sistema-costos');
-      content.innerHTML =
-        typeof renderSistemaCostos === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderSistemaCostos === 'function'
           ? renderSistemaCostos('matriz')
-          : '<div class="card"><p>No se pudo cargar sistema de costos.</p></div>';
+          : '<div class="card"><p>No se pudo cargar sistema de costos.</p></div>');
       if (typeof initSistemaCostos === 'function') initSistemaCostos('matriz');
       break;
     }
-    case 'config-empresa': content.innerHTML = renderConfigEmpresa(); initConfigEmpresa(); break;
-    case 'config-dian': content.innerHTML = renderConfigDian(); initConfigDian(); break;
-    case 'config-certificado': content.innerHTML = renderConfigCertificado(); initConfigCertificado(); break;
-    case 'config-proveedor': content.innerHTML = renderConfigProveedor(); initConfigProveedor(); break;
-    case 'config-impuestos': content.innerHTML = renderConfigImpuestos(); initConfigImpuestos(); break;
-    case 'config-comandas': content.innerHTML = renderConfigComandas(); initConfigComandas(); break;
+    case 'config-empresa': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigEmpresa()); initConfigEmpresa(); break;
+    case 'config-dian': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigDian()); initConfigDian(); break;
+    case 'config-certificado': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigCertificado()); initConfigCertificado(); break;
+    case 'config-proveedor': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigProveedor()); initConfigProveedor(); break;
+    case 'config-impuestos': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigImpuestos()); initConfigImpuestos(); break;
+    case 'config-comandas': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigComandas()); initConfigComandas(); break;
     case 'config-salon':
-      content.innerHTML =
-        typeof renderConfigSalon === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderConfigSalon === 'function'
           ? renderConfigSalon()
-          : '<div class="card"><p>No se cargó <code>CrozzoSalonSlotsConfig.js</code>.</p></div>';
+          : '<div class="card"><p>No se cargó <code>CrozzoSalonSlotsConfig.js</code>.</p></div>');
       if (typeof initConfigSalon === 'function') initConfigSalon();
       break;
-    case 'config-conexiones-sistemas': content.innerHTML = renderConfigConexionesSistemas(); initConfigConexionesSistemas(); break;
-    case 'config-multidispositivo': content.innerHTML = renderConfigMultidispositivo(); initConfigMultidispositivo(); break;
+    case 'config-conexiones-sistemas': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigConexionesSistemas()); initConfigConexionesSistemas(); break;
+    case 'config-multidispositivo': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigMultidispositivo()); initConfigMultidispositivo(); break;
     case 'super-admin-nube':
-      content.innerHTML =
-        typeof window.renderSuperAdminNubeConfigHTML === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof window.renderSuperAdminNubeConfigHTML === 'function'
           ? window.renderSuperAdminNubeConfigHTML()
-          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminNube.js</code>.</p></div>';
+          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminNube.js</code>.</p></div>');
       if (typeof window.initSuperAdminNubeConfig === 'function') window.initSuperAdminNubeConfig();
       break;
     case 'super-admin-federacion':
-      content.innerHTML =
-        typeof window.renderSuperAdminFederacionHTML === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof window.renderSuperAdminFederacionHTML === 'function'
           ? window.renderSuperAdminFederacionHTML()
-          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminFederacion.js</code>.</p></div>';
+          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminFederacion.js</code>.</p></div>');
       if (typeof window.initSuperAdminFederacion === 'function') window.initSuperAdminFederacion();
       break;
     case 'super-admin-diagnostics':
-      content.innerHTML =
-        typeof window.renderSuperAdminDiagnosticsHTML === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof window.renderSuperAdminDiagnosticsHTML === 'function'
           ? window.renderSuperAdminDiagnosticsHTML()
-          : '<div class="card"><p>No se pudo cargar el módulo de diagnóstico (<code>DiagnosticsPanel.js</code>).</p></div>';
+          : '<div class="card"><p>No se pudo cargar el módulo de diagnóstico (<code>DiagnosticsPanel.js</code>).</p></div>');
       if (typeof window.initDiagnosticsPanel === 'function') window.initDiagnosticsPanel();
       break;
     case 'super-admin-sync-priorities':
-      content.innerHTML =
-        typeof window.renderSuperAdminSyncPrioritiesHTML === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof window.renderSuperAdminSyncPrioritiesHTML === 'function'
           ? window.renderSuperAdminSyncPrioritiesHTML()
-          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminSyncPriorities.js</code>.</p></div>';
+          : '<div class="card"><p>No se cargó <code>CrozzoSuperAdminSyncPriorities.js</code>.</p></div>');
       if (typeof window.initSuperAdminSyncPriorities === 'function') window.initSuperAdminSyncPriorities();
       break;
     case 'config-facturas-admin':
       if (document.body) document.body.classList.add('crozzo-page-print-hub');
-      content.innerHTML = renderConfigFacturasAdmin();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigFacturasAdmin());
       initConfigFacturasAdmin();
       break;
     case 'config-usuarios':
       if (document.body) document.body.classList.add('crozzo-page-config-usuarios');
-      content.innerHTML = renderConfigUsuarios();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigUsuarios());
       initConfigUsuarios();
       break;
-    case 'modo-demo': content.innerHTML = renderModoDemo(); initModoDemo(); break;
-    case 'super-admin-identidad': content.innerHTML = renderSuperAdminIdentidad(); initSuperAdminIdentidad(); break;
+    case 'modo-demo': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderModoDemo()); initModoDemo(); break;
+    case 'super-admin-identidad': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderSuperAdminIdentidad()); initSuperAdminIdentidad(); break;
     case 'actualizaciones-sistema':
-      content.innerHTML = renderActualizacionesSistema();
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(renderActualizacionesSistema());
       if (typeof initActualizacionesSistema === 'function') initActualizacionesSistema();
       break;
-    case 'config-seguridad': content.innerHTML = renderConfigSeguridad(); break;
-    case 'gestion-perfiles-menus': content.innerHTML = renderGestionPerfilesMenus(); initGestionPerfilesMenus(); break;
-    case 'auditoria': content.innerHTML = renderAuditoria(); break;
+    case 'config-seguridad': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderConfigSeguridad()); break;
+    case 'gestion-perfiles-menus': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderGestionPerfilesMenus()); initGestionPerfilesMenus(); break;
+    case 'auditoria': content.innerHTML = CrozzoSanitize.sanitizeHtml(renderAuditoria()); break;
     case 'pedidos-internos':
       crozzoPrepareModuloGestionPage(content);
-      content.innerHTML = typeof renderPedidosInternos === 'function' ? renderPedidosInternos() : '<div class="card"><p>No se pudo cargar pedidos internos. Recargue la página.</p></div>';
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderPedidosInternos === 'function' ? renderPedidosInternos() : '<div class="card"><p>No se pudo cargar pedidos internos. Recargue la página.</p></div>');
       if (typeof initPedidosInternos === 'function') initPedidosInternos();
       break;
     case 'control-acceso':
       if (document.body) document.body.classList.add('crozzo-page-control-acceso');
-      content.innerHTML = typeof renderControlAcceso === 'function' ? renderControlAcceso() : '<div class="card"><p>No se pudo cargar control de acceso. Recargue la página.</p></div>';
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderControlAcceso === 'function' ? renderControlAcceso() : '<div class="card"><p>No se pudo cargar control de acceso. Recargue la página.</p></div>');
       if (typeof initControlAcceso === 'function') initControlAcceso();
       break;
     case 'planilla-2026':
@@ -17509,10 +17477,9 @@ function renderPage(page, renderOpts) {
       if (content) content.classList.add('main-body--planillas');
       var plTab = window.__crozzoPlanillaTab || (typeof crozzoPlanillaPageToTab === 'function' ? crozzoPlanillaPageToTab(page) : null);
       window.__crozzoPlanillaTab = null;
-      content.innerHTML =
-        typeof renderPlanilla2026 === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderPlanilla2026 === 'function'
           ? renderPlanilla2026(plTab)
-          : '<div class="card"><p>No se pudo cargar planillas. Recargue la página.</p></div>';
+          : '<div class="card"><p>No se pudo cargar planillas. Recargue la página.</p></div>');
       if (typeof initPlanilla2026 === 'function') initPlanilla2026(plTab);
       break;
     }
@@ -17527,34 +17494,31 @@ function renderPage(page, renderOpts) {
         if (page === 'costos-inventario') document.body.classList.add('crozzo-page-costos-inventario');
       }
       var costosView = typeof crozzoCostosPageToView === 'function' ? crozzoCostosPageToView(page) : 'map';
-      content.innerHTML =
-        typeof renderSistemaCostos === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderSistemaCostos === 'function'
           ? renderSistemaCostos(costosView)
-          : '<div class="card"><p>No se pudo cargar sistema de costos. Recargue la página.</p></div>';
+          : '<div class="card"><p>No se pudo cargar sistema de costos. Recargue la página.</p></div>');
       if (typeof initSistemaCostos === 'function') initSistemaCostos(costosView);
       break;
     }
     case 'costos-federacion': {
       crozzoPrepareModuloGestionPage(content);
       if (document.body) document.body.classList.add('crozzo-page-sistema-costos');
-      content.innerHTML =
-        typeof renderFederacionOperaciones === 'function'
+      content.innerHTML = CrozzoSanitize.sanitizeHtml(typeof renderFederacionOperaciones === 'function'
           ? renderFederacionOperaciones()
-          : '<div class="card"><p>No se pudo cargar bodegas y remisiones. Recargue la página.</p></div>';
+          : '<div class="card"><p>No se pudo cargar bodegas y remisiones. Recargue la página.</p></div>');
       if (typeof initFederacionOperaciones === 'function') initFederacionOperaciones();
       break;
     }
-    default: content.innerHTML = renderCajero(); initCajero();
+    default: content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCajero()); initCajero();
   }
   } catch (renderErr) {
     console.error('[Crozzo] renderPage', page, renderErr);
-    content.innerHTML =
-      '<div class="card" style="max-width:520px;margin:40px auto;">' +
+    content.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card" style="max-width:520px;margin:40px auto;">' +
       '<h3 style="margin-top:0;">No se pudo cargar esta pantalla</h3>' +
       '<p class="form-hint">' + String(renderErr && renderErr.message ? renderErr.message : renderErr) + '</p>' +
       '<div class="btn-group" style="margin-top:14px;flex-wrap:wrap;gap:8px;">' +
       '<button type="button" class="btn btn-primary" onclick="navigateTo(\'inicio-operacion\')">Inicio ventas</button>' +
-      '<button type="button" class="btn btn-outline" onclick="navigateTo(\'cajero\')">Restaurante · POS</button></div></div>';
+      '<button type="button" class="btn btn-outline" onclick="navigateTo(\'cajero\')">Restaurante · POS</button></div></div>');
   } finally {
     if (typeof crozzoHidePageLoading === 'function') crozzoHidePageLoading();
   }
@@ -17939,7 +17903,7 @@ function renderTabletCart() {
     return;
   }
   var cart = getTabletActiveCart();
-  panel.innerHTML = crozzoTabletOrderPanelInnerHtml(cart);
+  panel.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoTabletOrderPanelInnerHtml(cart));
   if (document.getElementById('crozzoCrmWrap')) {
     if (typeof crozzoHydrateClienteSlotToForm === 'function') crozzoHydrateClienteSlotToForm();
     if (typeof crozzoCrmLiteBindCartUi === 'function') crozzoCrmLiteBindCartUi();
@@ -18567,7 +18531,7 @@ function crozzoRepRefreshBasicoDashboard() {
   };
   const setHtml = (id, html) => {
     const n = document.getElementById(id);
-    if (n) n.innerHTML = html;
+    if (n) n.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   };
   set('crozzo-rep-hero-total', '$' + Math.round(m.total).toLocaleString('es-CO'));
   setHtml('crozzo-rep-hero-delta', crozzoRepDeltaHtml(m.total, yM.total));
@@ -18589,16 +18553,16 @@ function crozzoRepRefreshBasicoDashboard() {
     (navigator.onLine ? ' · Online' : ' · Sin red');
   set('crozzo-rep-hero-meta', meta);
   const hourHost = document.getElementById('crozzo-rep-hour-chart');
-  if (hourHost) hourHost.innerHTML = crozzoRepRenderHourlyChart(crozzoRepComputeHourlyTotals(list), m.total);
+  if (hourHost) hourHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoRepRenderHourlyChart(crozzoRepComputeHourlyTotals(list), m.total));
   const opHost = document.getElementById('crozzo-rep-op-live');
-  if (opHost) opHost.innerHTML = crozzoRepRenderOperacionLiveHtml(snap);
+  if (opHost) opHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoRepRenderOperacionLiveHtml(snap));
   const canal = crozzoRepComputeByCanal(list);
   const canalTotal = Object.values(canal).reduce((a, b) => a + b, 0);
   const canalLabels = crozzoRepCanalLabels();
   const canalHost = document.getElementById('crozzo-rep-canal-breakdown');
   if (canalHost) {
     const keys = Object.keys(canal).filter((k) => canal[k] > 0);
-    canalHost.innerHTML = keys.length
+    canalHost.innerHTML = CrozzoSanitize.sanitizeHtml(keys.length
       ? keys
           .sort((a, b) => canal[b] - canal[a])
           .map((k) => {
@@ -18620,14 +18584,14 @@ function crozzoRepRefreshBasicoDashboard() {
             );
           })
           .join('')
-      : '<p class="crozzo-rep-empty">Sin ventas por canal.</p>';
+      : '<p class="crozzo-rep-empty">Sin ventas por canal.</p>');
   }
   const alertsHost = document.getElementById('crozzo-rep-alerts-preview');
   if (alertsHost) {
     const alerts = crozzoRepCollectAlertsPreview(4);
-    alertsHost.innerHTML = alerts.length
+    alertsHost.innerHTML = CrozzoSanitize.sanitizeHtml(alerts.length
       ? alerts.map((a) => '<div class="crozzo-rep-pred ' + a.cls + '">' + a.html + '</div>').join('')
-      : '<p class="crozzo-rep-empty">Todo en orden — sin alertas urgentes.</p>';
+      : '<p class="crozzo-rep-empty">Todo en orden — sin alertas urgentes.</p>');
   }
   const mesHost = document.getElementById('crozzo-rep-mes-progress');
   if (mesHost) {
@@ -18646,8 +18610,7 @@ function crozzoRepRefreshBasicoDashboard() {
     const dayOfMonth = now.getDate();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const pacePct = crozzoRepFormatPct(dayOfMonth, daysInMonth);
-    mesHost.innerHTML =
-      '<div class="crozzo-rep-mes-row">' +
+    mesHost.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-rep-mes-row">' +
       '<div><strong>$' +
       Math.round(mesTotal).toLocaleString('es-CO') +
       '</strong><span class="crozzo-rep-mes-sub">' +
@@ -18660,7 +18623,7 @@ function crozzoRepRefreshBasicoDashboard() {
       '/' +
       daysInMonth +
       ' días)</div></div>' +
-      crozzoRepPctBarHtml((dayOfMonth / daysInMonth) * 100, 'digital');
+      crozzoRepPctBarHtml((dayOfMonth / daysInMonth) * 100, 'digital'));
   }
   if (typeof CrozzoReportesDashboard !== 'undefined' && CrozzoReportesDashboard.refreshVisuals) {
     CrozzoReportesDashboard.refreshVisuals({ list: list, metrics: m });
@@ -19005,9 +18968,9 @@ function crozzoRepRefreshVentas() {
   const payHost = document.getElementById('crozzo-rep-pay-breakdown');
   if (payHost) {
     if (typeof CrozzoReportesDashboard !== 'undefined' && CrozzoReportesDashboard.renderPaySection) {
-      payHost.innerHTML = CrozzoReportesDashboard.renderPaySection(byMethod, total);
+      payHost.innerHTML = CrozzoSanitize.sanitizeHtml(CrozzoReportesDashboard.renderPaySection(byMethod, total));
     } else {
-      payHost.innerHTML = crozzoRepRenderPayBreakdown(byMethod, total);
+      payHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoRepRenderPayBreakdown(byMethod, total));
     }
   }
   const revBase = Object.values(topMap).reduce((acc, d) => acc + d.rev, 0);
@@ -19016,7 +18979,7 @@ function crozzoRepRefreshVentas() {
     .slice(0, 10);
   const tb = document.querySelector('#crozzo-rep-top-products tbody');
   if (tb) {
-    tb.innerHTML = top.length
+    tb.innerHTML = CrozzoSanitize.sanitizeHtml(top.length
       ? top
           .map(([n, d]) => {
             const pctRev = revBase > 0 ? (d.rev / revBase) * 100 : 0;
@@ -19042,7 +19005,7 @@ function crozzoRepRefreshVentas() {
             );
           })
           .join('')
-      : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin ventas hoy (día operativo)</td></tr>';
+      : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Sin ventas hoy (día operativo)</td></tr>');
   }
   const catBase = Object.values(catMap).reduce((acc, d) => acc + d.rev, 0);
   const cats = Object.entries(catMap)
@@ -19051,9 +19014,9 @@ function crozzoRepRefreshVentas() {
   const catHost = document.getElementById('crozzo-rep-cat-breakdown');
   if (catHost) {
     if (typeof CrozzoReportesDashboard !== 'undefined' && CrozzoReportesDashboard.renderCatSection) {
-      catHost.innerHTML = CrozzoReportesDashboard.renderCatSection(catMap);
+      catHost.innerHTML = CrozzoSanitize.sanitizeHtml(CrozzoReportesDashboard.renderCatSection(catMap));
     } else if (cats.length) {
-      catHost.innerHTML = cats
+      catHost.innerHTML = CrozzoSanitize.sanitizeHtml(cats
           .map(([name, d]) => {
             const pct = catBase > 0 ? (d.rev / catBase) * 100 : 0;
             return (
@@ -19073,9 +19036,9 @@ function crozzoRepRefreshVentas() {
               '</div>'
             );
           })
-          .join('');
+          .join(''));
     } else {
-      catHost.innerHTML = '<p class="crozzo-rep-empty">Sin categorías en ventas del día.</p>';
+      catHost.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-rep-empty">Sin categorías en ventas del día.</p>');
     }
   }
   if (typeof CrozzoReportesDashboard !== 'undefined' && CrozzoReportesDashboard.refreshVisuals) {
@@ -19147,10 +19110,10 @@ function crozzoRepRefreshInventarioTab() {
   const tb = document.querySelector('#crozzo-rep-inv-table tbody');
   if (!tb) return;
   if (typeof products === 'undefined' || !products.length) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Sin productos en catálogo</td></tr>';
+    tb.innerHTML = CrozzoSanitize.sanitizeHtml('<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Sin productos en catálogo</td></tr>');
     return;
   }
-  tb.innerHTML = products
+  tb.innerHTML = CrozzoSanitize.sanitizeHtml(products
     .map((p) => {
       const tracked = p.stock != null && !Number.isNaN(Number(p.stock));
       const st = tracked
@@ -19168,7 +19131,7 @@ function crozzoRepRefreshInventarioTab() {
         <td>${st}</td>
       </tr>`;
     })
-    .join('');
+    .join(''));
 }
 function crozzoRepRefreshPredictions() {
   const el = document.getElementById('crozzo-rep-predict-list');
@@ -19203,9 +19166,9 @@ function crozzoRepRefreshPredictions() {
       });
     }
   });
-  el.innerHTML = alerts.length
+  el.innerHTML = CrozzoSanitize.sanitizeHtml(alerts.length
     ? alerts.map((a) => `<div class="crozzo-rep-pred ${a.cls}">${a.html}</div>`).join('')
-    : '<p style="color:var(--text-muted);">Sin alertas activas.</p>';
+    : '<p style="color:var(--text-muted);">Sin alertas activas.</p>');
 }
 function crozzoRepOpenReceiveModal() {
   if (typeof products === 'undefined' || !products.length) {
@@ -19342,11 +19305,11 @@ function crozzoRepRefreshComprasTab() {
   var host = document.getElementById('crozzo-rep-compras-host');
   if (!host) return;
   if (typeof CrozzoComprasLocal !== 'undefined' && CrozzoComprasLocal.render) {
-    host.innerHTML = CrozzoComprasLocal.render('dashboard');
+    host.innerHTML = CrozzoSanitize.sanitizeHtml(CrozzoComprasLocal.render('dashboard'));
     if (CrozzoComprasLocal.init) CrozzoComprasLocal.init(host, 'dashboard');
     return;
   }
-  host.innerHTML = '<div class="card"><p class="page-subtitle">No se pudo cargar el resumen local de compras.</p></div>';
+  host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="card"><p class="page-subtitle">No se pudo cargar el resumen local de compras.</p></div>');
 }
 function crozzoInvDeductFromFactura(factura) {
   if (typeof products === 'undefined' || !Array.isArray(factura.items)) return;
@@ -20017,7 +19980,7 @@ function crozzoProvSaveEdit() {
     const mc = document.getElementById('mainContent');
     if (mc && typeof renderComprasProveedores === 'function') {
       const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
-      mc.innerHTML = renderComprasProveedores({ view: view });
+      mc.innerHTML = CrozzoSanitize.sanitizeHtml(renderComprasProveedores({ view: view }));
       initComprasProveedores({ view: view });
     }
   });
@@ -20048,7 +20011,7 @@ function crozzoProvDelete(id) {
   const mc = document.getElementById('mainContent');
   if (mc && typeof renderComprasProveedores === 'function') {
     const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
-    mc.innerHTML = renderComprasProveedores({ view: view });
+    mc.innerHTML = CrozzoSanitize.sanitizeHtml(renderComprasProveedores({ view: view }));
     initComprasProveedores({ view: view });
   }
 }
@@ -20115,7 +20078,7 @@ function crozzoOpBindProvDocImports(root) {
         const mc = document.getElementById('mainContent');
         const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
         if (mc && typeof renderComprasProveedores === 'function') {
-          mc.innerHTML = renderComprasProveedores({ view: view });
+          mc.innerHTML = CrozzoSanitize.sanitizeHtml(renderComprasProveedores({ view: view }));
           initComprasProveedores({ view: view });
           if (view === 'full') crozzoOpSwitchProvTab('prov');
         }
@@ -20172,9 +20135,9 @@ function crozzoOpPoRenderDraft() {
   const el = document.getElementById('crozzo-op-po-draft');
   if (!el) return;
   const d = window.__crozzoPoDraft || [];
-  el.innerHTML = d.length
+  el.innerHTML = CrozzoSanitize.sanitizeHtml(d.length
     ? d.map((l) => `<div>${escUserAttr(String(l.nombre || ''))} × ${Number(l.qty) || 0}</div>`).join('')
-    : 'Borrador vacío — agrega líneas.';
+    : 'Borrador vacío — agrega líneas.');
 }
 function crozzoOpAddSupplier() {
   crozzoEnsureProveedoresExtensions();
@@ -20197,7 +20160,7 @@ function crozzoOpAddSupplier() {
     const mc = document.getElementById('mainContent');
     if (mc) {
       const view = (document.getElementById('crozzo-op-root') || {}).getAttribute('data-prov-view') || 'full';
-      mc.innerHTML = renderComprasProveedores({ view: view });
+      mc.innerHTML = CrozzoSanitize.sanitizeHtml(renderComprasProveedores({ view: view }));
       initComprasProveedores({ view: view });
     }
   };
@@ -20334,7 +20297,7 @@ function crozzoOpRunDiagnostics() {
     { n: 'Cola sync local', ok: qPending < 80, msg: qPending + ' pendientes (aprox.)' },
     { n: 'WebCrypto', ok: !!(window.crypto && crypto.subtle), msg: window.crypto?.subtle ? 'Disponible' : 'Limitado (p. ej. iframe)' }
   ];
-  out.innerHTML = checks
+  out.innerHTML = CrozzoSanitize.sanitizeHtml(checks
     .map(
       (c) => `
     <div class="crozzo-rep-kpi" style="text-align:left;padding:10px;border:1px solid var(--border);border-radius:var(--radius);">
@@ -20343,7 +20306,7 @@ function crozzoOpRunDiagnostics() {
       <div class="form-hint" style="margin-top:4px;">${escUserAttr(c.msg)}</div>
     </div>`
     )
-    .join('');
+    .join(''));
 }
 window.crozzoOpAddSupplier = crozzoOpAddSupplier;
 window.crozzoOpPoAddLine = crozzoOpPoAddLine;
@@ -20555,7 +20518,7 @@ function crozzoMpRefreshProvPickerGrid(prefix, root, filterQ) {
   var selected = crozzoMpGetSelectedProvNames(root, prefix);
   var search = root.querySelector('#' + prefix + 'ProvSearch');
   var q = filterQ != null ? filterQ : search ? search.value : '';
-  grid.innerHTML = crozzoMpProveedorPickerGridHtml(prefix, q, selected);
+  grid.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoMpProveedorPickerGridHtml(prefix, q, selected));
 }
 function crozzoMpFilterProvPicker(prefix) {
   prefix = prefix || 'crozzoMp';
@@ -20666,7 +20629,7 @@ function crozzoMpRefreshCatPickerGrid(prefix, root, filterQ, selectedKey) {
   const selected = selectedKey != null ? selectedKey : crozzoMpGetSelectedCatKey(root, prefix);
   const search = root.querySelector('#' + prefix + 'CatSearch');
   const q = filterQ != null ? filterQ : search ? search.value : '';
-  grid.innerHTML = crozzoMpCategoriaPickerGridHtml(prefix, q, selected);
+  grid.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoMpCategoriaPickerGridHtml(prefix, q, selected));
   const hidden = root.querySelector('#' + prefix + 'NewCat');
   if (hidden) hidden.value = selected;
 }
@@ -21647,7 +21610,7 @@ function crozzoDismissGlobalStressBanner() {
   var el = document.getElementById('crozzo-global-stress');
   if (el) {
     el.hidden = true;
-    el.innerHTML = '';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('');
   }
   try {
     if (typeof crozzoWhatsAppDockRequestLayoutSync === 'function') crozzoWhatsAppDockRequestLayoutSync();
@@ -21671,20 +21634,19 @@ function crozzoUpdateGlobalStressBanner() {
     } catch (_) {}
     el.hidden = true;
     el.className = 'crozzo-global-stress crozzo-global-stress--calm';
-    el.innerHTML = '';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('');
     return;
   }
   try {
     if (sessionStorage.getItem('crozzo_global_stress_dismissed') === '1') {
       el.hidden = true;
-      el.innerHTML = '';
+      el.innerHTML = CrozzoSanitize.sanitizeHtml('');
       return;
     }
   } catch (_) {}
   el.hidden = false;
   el.className = 'crozzo-global-stress crozzo-global-stress--' + stress.level;
-  el.innerHTML =
-    '<span class="crozzo-global-stress__icon"><i data-lucide="' +
+  el.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-global-stress__icon"><i data-lucide="' +
     (stress.level === 'rush' ? 'flame' : 'activity') +
     '"></i></span>' +
     '<span class="crozzo-global-stress__txt"><strong>' +
@@ -21694,7 +21656,7 @@ function crozzoUpdateGlobalStressBanner() {
     ' comandas · ' +
     stress.salesHour +
     ' ventas/h</span>' +
-    '<button type="button" class="btn btn-outline btn-sm crozzo-global-stress__dismiss" onclick="crozzoDismissGlobalStressBanner()" aria-label="Ocultar aviso de servicio" title="Ocultar aviso">Ocultar</button>';
+    '<button type="button" class="btn btn-outline btn-sm crozzo-global-stress__dismiss" onclick="crozzoDismissGlobalStressBanner()" aria-label="Ocultar aviso de servicio" title="Ocultar aviso">Ocultar</button>');
   try {
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [el] });
   } catch (_) {}
@@ -22355,7 +22317,7 @@ function crozzoCrmRenderRetailSummary(c) {
   var host = document.getElementById('crozzoCrmRetailSummary');
   if (!host) return;
   if (!c || !c.id) {
-    host.innerHTML = '';
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('');
     host.hidden = true;
     return;
   }
@@ -22382,8 +22344,7 @@ function crozzoCrmRenderRetailSummary(c) {
       '</ul>';
   }
   host.hidden = false;
-  host.innerHTML =
-    '<div class="crozzo-crm-retail-summary__grid">' +
+  host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-crm-retail-summary__grid">' +
     '<div class="crozzo-crm-retail-summary__card">' +
     '<span class="crozzo-crm-retail-summary__label">Cupo crédito</span>' +
     '<strong>' +
@@ -22407,7 +22368,7 @@ function crozzoCrmRenderRetailSummary(c) {
       : '') +
     '<div class="crozzo-crm-retail-summary__meta">' +
     crozzoCrmRetailIntelMetaLine(c) +
-    '</div>';
+    '</div>');
 }
 function crozzoCrmRetailIntelMetaLine(c) {
   var bits = [
@@ -22726,18 +22687,16 @@ function renderCartComercial() {
   var container = document.getElementById('cartItems');
   if (!container) return;
   if (!cart.length) {
-    container.innerHTML =
-      '<div class="crozzo-retail-cart-empty">' +
+    container.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-retail-cart-empty">' +
       '<i data-lucide="scan-line" aria-hidden="true"></i>' +
-      'Escanee o seleccione productos<br>para armar la venta</div>';
+      'Escanee o seleccione productos<br>para armar la venta</div>');
     updateCartTotals();
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ root: container });
     } catch (_) {}
     return;
   }
-  container.innerHTML =
-    '<table class="crozzo-retail-cart-table"><thead><tr><th>Producto</th><th class="col-qty">Cant.</th><th style="text-align:right;">Total</th><th class="col-del"></th></tr></thead><tbody>' +
+  container.innerHTML = CrozzoSanitize.sanitizeHtml('<table class="crozzo-retail-cart-table"><thead><tr><th>Producto</th><th class="col-qty">Cant.</th><th style="text-align:right;">Total</th><th class="col-del"></th></tr></thead><tbody>' +
     cart.map(function (item) {
       var nom = escUserAttr(item.nombreVenta || item.nombre);
       var det = item.detalleConfig ? '<br><small style="color:var(--text-muted);font-size:0.68rem;">' + escUserAttr(item.detalleConfig) + '</small>' : '';
@@ -22763,7 +22722,7 @@ function renderCartComercial() {
         '</td></tr>'
       );
     }).join('') +
-    '</tbody></table>';
+    '</tbody></table>');
   updateCartTotals();
   try {
     if (typeof crozzoPosNotifyOperationState === 'function') crozzoPosNotifyOperationState();
@@ -24869,7 +24828,7 @@ function crozzoCajeroRefreshSlotPicker() {
   var domSig = slotsHtml + '##' + filtersHtml + '##' + modesHtml;
   if (domSig === __lastCajeroSlotPickerDomSig) return true;
   __lastCajeroSlotPickerDomSig = domSig;
-  slotsEl.innerHTML = slotsHtml;
+  slotsEl.innerHTML = CrozzoSanitize.sanitizeHtml(slotsHtml);
   const filtersEl = document.querySelector('.crozzo-rest-pos__slot-filters');
   if (filtersEl) filtersEl.outerHTML = filtersHtml;
   const modesEl = document.querySelector('.crozzo-rest-pos__modes');
@@ -25060,9 +25019,9 @@ function crozzoCajeroRefreshProductsGrid() {
     return;
   }
   const visible = getVisibleProducts();
-  el.innerHTML = visible.length
+  el.innerHTML = CrozzoSanitize.sanitizeHtml(visible.length
     ? visible.map(crozzoRestProductTileHtml).join('')
-    : '<div class="crozzo-rest-pos__empty">Sin productos para el filtro actual.</div>';
+    : '<div class="crozzo-rest-pos__empty">Sin productos para el filtro actual.</div>');
   try {
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [el] });
   } catch (_) {}
@@ -25073,7 +25032,7 @@ function crozzoCajeroGoToPickerAfterCobro() {
   } catch (_) {}
   const content = document.getElementById('mainContent');
   if (content && typeof renderCajero === 'function') {
-    content.innerHTML = renderCajero();
+    content.innerHTML = CrozzoSanitize.sanitizeHtml(renderCajero());
     content.classList.add('main-body--rest-pos');
     if (typeof initCajero === 'function') initCajero();
     return;
@@ -26496,7 +26455,7 @@ function initCajero() {
       const val = (e.target.value || '').trim();
       const status = document.getElementById('nitStatus');
       if (!val) {
-        if (status) status.innerHTML = '';
+        if (status) status.innerHTML = CrozzoSanitize.sanitizeHtml('');
         nitInput.classList.remove('valid', 'invalid');
         return;
       }
@@ -26504,22 +26463,22 @@ function initCajero() {
       if (!status) return;
       if (result.valido) {
         if (result.modo === 'nit_dian') {
-          status.innerHTML = '<span class="form-success">✓ NIT-DV verificado (DIAN)</span>';
+          status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ NIT-DV verificado (DIAN)</span>');
           nitInput.title = '';
         } else if (result.modo === 'cedula_o_documento') {
-          status.innerHTML = '<span class="form-success">✓ Documento / referencia</span>';
+          status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ Documento / referencia</span>');
           nitInput.title = 'Cédula u otro ID numérico. Para NIT de empresa con DV verificado usa formato 900123456-1.';
         } else if (result.modo === 'dv_no_verificado') {
-          status.innerHTML = '<span class="form-warning">⚠ DV no verificado (referencia)</span>';
+          status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-warning">⚠ DV no verificado (referencia)</span>');
           nitInput.title = result.advertencia || '';
         } else {
-          status.innerHTML = '<span class="form-success">✓ Referencia</span>';
+          status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ Referencia</span>');
           nitInput.title = '';
         }
         nitInput.classList.add('valid');
         nitInput.classList.remove('invalid');
       } else {
-        status.innerHTML = '<span class="form-error">✗ ' + escHtml(crozzoUserFacingError(result.error)) + '</span>';
+        status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-error">✗ ' + escHtml(crozzoUserFacingError(result.error)) + '</span>');
         nitInput.classList.add('invalid');
         nitInput.classList.remove('valid');
         nitInput.title = '';
@@ -26649,12 +26608,11 @@ function crozzoCajaClientesRefreshTable() {
   const tbody = document.getElementById('crozzoClientesDirTbody');
   if (!tbody) return;
   if (typeof CrozzoCrmIntel !== 'undefined' && CrozzoCrmIntel.renderTableRows) {
-    tbody.innerHTML = CrozzoCrmIntel.renderTableRows();
+    tbody.innerHTML = CrozzoSanitize.sanitizeHtml(CrozzoCrmIntel.renderTableRows());
     return;
   }
   const rows = crozzoCajaClientesRowsHtml();
-  tbody.innerHTML =
-    rows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Sin coincidencias. Borre el filtro o cree un cliente nuevo.</td></tr>';
+  tbody.innerHTML = CrozzoSanitize.sanitizeHtml(rows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text-muted);">Sin coincidencias. Borre el filtro o cree un cliente nuevo.</td></tr>');
 }
 function renderCajaClientes() {
   if (typeof CrozzoCrmIntel !== 'undefined' && CrozzoCrmIntel.renderPage) {
@@ -27695,17 +27653,16 @@ function renderCart() {
   if (!container) return;
   
   if (cart.length === 0) {
-    container.innerHTML =
-      '<div class="crozzo-rest-pos__cart-empty">' +
+    container.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-rest-pos__cart-empty">' +
       '<i data-lucide="shopping-cart"></i>' +
-      '<p>Agregue productos a la orden</p></div>';
+      '<p>Agregue productos a la orden</p></div>');
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [container] });
     } catch (_) {}
   } else {
     const canEditQty = typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('editar_orden');
     const canAddQty = typeof crozzoHasCajaPermiso === 'function' && crozzoHasCajaPermiso('abrir_orden');
-    container.innerHTML = cart.map((item, lineIdx) => {
+    container.innerHTML = CrozzoSanitize.sanitizeHtml(cart.map((item, lineIdx) => {
       const hasNota = !!String(item.notaLinea || '').trim();
       const precioU = Number(item.precio) || 0;
       const lineTot = crozzoCartLineTotal(item);
@@ -27732,7 +27689,7 @@ function renderCart() {
         </div>
       </div>
     `;
-    }).join('');
+    }).join(''));
   }
   
   updateCartTotals();
@@ -27787,10 +27744,9 @@ function updateCartTotals() {
     btnDesc.classList.toggle('is-active', !!(d && Number(d.monto) > 0));
     const icon = btnDesc.querySelector('i');
     const labelBase = 'Descuento';
-    btnDesc.innerHTML =
-      (icon ? '<i data-lucide="badge-percent" aria-hidden="true"></i> ' : '') +
+    btnDesc.innerHTML = CrozzoSanitize.sanitizeHtml((icon ? '<i data-lucide="badge-percent" aria-hidden="true"></i> ' : '') +
       labelBase +
-      (d && Number(d.monto) > 0 ? ' · $' + Number(d.monto).toLocaleString('es-CO') : '');
+      (d && Number(d.monto) > 0 ? ' · $' + Number(d.monto).toLocaleString('es-CO') : ''));
     try {
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ nodes: [btnDesc] });
     } catch (_) {}
@@ -28440,11 +28396,10 @@ function crozzoCobroDivisionRender() {
   const pend = crozzoCobroDivisionPendiente();
   const sug = crozzoCobroDivisionMontoSugerido();
   if (pendEl) {
-    pendEl.innerHTML =
-      '<strong>Pendiente:</strong> $' +
+    pendEl.innerHTML = CrozzoSanitize.sanitizeHtml('<strong>Pendiente:</strong> $' +
       pend.toLocaleString('es-CO') +
       ' de $' +
-      crozzoCobroDivisionTotalObjetivo().toLocaleString('es-CO');
+      crozzoCobroDivisionTotalObjetivo().toLocaleString('es-CO'));
   }
   if (sugEl) {
     sugEl.textContent =
@@ -28452,9 +28407,9 @@ function crozzoCobroDivisionRender() {
   }
   if (lista) {
     if (!d.pagos.length) {
-      lista.innerHTML = '<p class="form-hint">Aún no hay pagos registrados.</p>';
+      lista.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint">Aún no hay pagos registrados.</p>');
     } else {
-      lista.innerHTML = d.pagos
+      lista.innerHTML = CrozzoSanitize.sanitizeHtml(d.pagos
         .map(function (p) {
           return (
             '<div class="crozzo-cobro-division-pago-item">' +
@@ -28473,13 +28428,13 @@ function crozzoCobroDivisionRender() {
             ')">Quitar</button></div>'
           );
         })
-        .join('');
+        .join(''));
     }
   }
   const linesHost = document.getElementById('cobroDivisionLineas');
   if (linesHost && d.activo && d.tipo === 'productos') {
     const cart = getActiveCart();
-    linesHost.innerHTML = cart
+    linesHost.innerHTML = CrozzoSanitize.sanitizeHtml(cart
       .map(function (it, i) {
         const k = crozzoCartLineKey(it, i);
         const paid = crozzoCobroDivisionLinePaid(k);
@@ -28505,7 +28460,7 @@ function crozzoCobroDivisionRender() {
           '</strong></label>'
         );
       })
-      .join('');
+      .join(''));
   }
   let montoReg = sug;
   if (d.activo && d.tipo === 'igual') {
@@ -29004,14 +28959,13 @@ function crozzoRefreshPrecuentaStudioPreview() {
   const host = document.getElementById('precuentaStudioThermalPreview');
   const legalHost = document.getElementById('precuentaStudioLegalPanel');
   if (legalHost && typeof crozzoCuentaLegalResumenHtml === 'function') {
-    legalHost.innerHTML = crozzoCuentaLegalResumenHtml(preFact);
+    legalHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoCuentaLegalResumenHtml(preFact));
   }
   if (host) {
     try {
-      host.innerHTML =
-        typeof crozzoFacturaBuildThermalHtml === 'function' ? crozzoFacturaBuildThermalHtml(preFact) : '';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoFacturaBuildThermalHtml === 'function' ? crozzoFacturaBuildThermalHtml(preFact) : '');
     } catch (_) {
-      host.innerHTML = '<p class="form-hint">Error en vista previa.</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint">Error en vista previa.</p>');
     }
   }
 }
@@ -29311,10 +29265,10 @@ function crozzoRefreshCobroStudioLegalTotals() {
     return;
   }
   if (legalHost && typeof crozzoCuentaLegalResumenHtml === 'function') {
-    legalHost.innerHTML = crozzoCuentaLegalResumenHtml(draft);
+    legalHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoCuentaLegalResumenHtml(draft));
   }
   if (totHost && typeof crozzoCuentaTotalesTicketHtml === 'function') {
-    totHost.innerHTML = crozzoCuentaTotalesTicketHtml(draft);
+    totHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoCuentaTotalesTicketHtml(draft));
   }
 }
 function crozzoRefreshCobroStudioPreview() {
@@ -29324,7 +29278,7 @@ function crozzoRefreshCobroStudioPreview() {
   try {
     draft = crozzoBuildDraftFacturaCobroPreview();
   } catch (err) {
-    host.innerHTML = '<p style="color:var(--danger);">Error al preparar vista previa.</p>';
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<p style="color:var(--danger);">Error al preparar vista previa.</p>');
     console.warn('crozzoBuildDraftFacturaCobroPreview', err);
     return;
   }
@@ -29339,7 +29293,7 @@ function crozzoRefreshCobroStudioPreview() {
     html = '<p style="color:var(--danger);">Error al generar vista previa.</p>';
     console.warn('crozzoFacturaBuildThermalHtml', err);
   }
-  host.innerHTML = html;
+  host.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   const meta = document.getElementById('cobroStudioPreviewMeta');
   if (meta) {
     const tipo = draft.tipoComprobante === 'electronica' ? 'Factura electrónica' : 'Ticket / cuenta POS';
@@ -29502,14 +29456,13 @@ function crozzoRefreshCotizacionStudioPreview() {
   const host = document.getElementById('cotizacionStudioThermalPreview');
   const legalHost = document.getElementById('cotizacionStudioLegalPanel');
   if (legalHost && typeof crozzoCuentaLegalResumenHtml === 'function') {
-    legalHost.innerHTML = crozzoCuentaLegalResumenHtml(cotFact);
+    legalHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoCuentaLegalResumenHtml(cotFact));
   }
   if (host) {
     try {
-      host.innerHTML =
-        typeof crozzoFacturaBuildThermalHtml === 'function' ? crozzoFacturaBuildThermalHtml(cotFact) : '';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml(typeof crozzoFacturaBuildThermalHtml === 'function' ? crozzoFacturaBuildThermalHtml(cotFact) : '');
     } catch (_) {
-      host.innerHTML = '<p class="form-hint">Error en vista previa.</p>';
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="form-hint">Error en vista previa.</p>');
     }
   }
 }
@@ -31017,8 +30970,7 @@ function crozzoRefreshDescuentoVentaPreview() {
     co && typeof co.calcularPropinaSugeridaMonto === 'function'
       ? co.calcularPropinaSugeridaMonto(baseProp, prCfg.pctSugerido)
       : Math.round(baseProp * (Number(prCfg.pctSugerido) / 100));
-  host.innerHTML =
-    '<div class="crozzo-precuenta-totals">' +
+  host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-precuenta-totals">' +
     (monto > 0
       ? '<div class="row"><span>Descuento</span><span>−$' + Math.min(monto, txBruto.total).toLocaleString('es-CO') + '</span></div>'
       : '') +
@@ -31042,7 +30994,7 @@ function crozzoRefreshDescuentoVentaPreview() {
         propinaMonto.toLocaleString('es-CO') +
         '</span></div>'
       : '') +
-    '</div>';
+    '</div>');
 }
 function crozzoConfirmDescuentoVenta() {
   if (!crozzoRequireCajaPermiso('descuento_autorizado', {}, 'Sin permiso para descuentos.')) return;
@@ -31572,7 +31524,7 @@ function crozzoHydrateClienteSlotToForm() {
   if (prof) prof.style.display = 'none';
   if (typeof crozzoCrmUpdateProfileLines === 'function') crozzoCrmUpdateProfileLines(null);
   if (dd) {
-    dd.innerHTML = '';
+    dd.innerHTML = CrozzoSanitize.sanitizeHtml('');
     dd.style.display = 'none';
   }
   if (!clientePorSlot[ref.tipo]) {
@@ -31623,7 +31575,7 @@ function crozzoCrmSetLookupChip(info) {
   var hint = document.getElementById('crozzoCrmLookupHint');
   if (!chip) return;
   if (!info) {
-    chip.innerHTML = '';
+    chip.innerHTML = CrozzoSanitize.sanitizeHtml('');
     chip.hidden = true;
     if (hint) hint.classList.remove('has-chip');
     return;
@@ -31634,11 +31586,10 @@ function crozzoCrmSetLookupChip(info) {
     typeof CrozzoClienteDocIntel !== 'undefined' && CrozzoClienteDocIntel.formatHintLine
       ? CrozzoClienteDocIntel.formatHintLine(info)
       : (info.tipoLabel || 'Doc') + ' ' + (info.documento || '');
-  chip.innerHTML =
-    '<span class="crozzo-crm-lookup-chip__badge">' +
+  chip.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-crm-lookup-chip__badge">' +
     crozzoCrmEscAttr(info.tipoLabel || 'Doc') +
     '</span> ' +
-    crozzoCrmEscAttr(line);
+    crozzoCrmEscAttr(line));
 }
 function crozzoCrmApplyScanParseToSearch(raw) {
   if (typeof CrozzoClienteDocIntel === 'undefined' || !CrozzoClienteDocIntel.tryParseFromScan) return raw;
@@ -31782,7 +31733,7 @@ function crozzoCrmUpdateFeNombreVisibility() {
     }
     var list = document.getElementById('crozzoCrmNewEmailsList');
     if (list && typeof crozzoCrmEmailRowHtml === 'function') {
-      list.innerHTML = crozzoCrmEmailRowHtml('', 'crozzoCrmNewEmailIn');
+      list.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoCrmEmailRowHtml('', 'crozzoCrmNewEmailIn'));
     }
     setTimeout(function () {
       if (typeof CrozzoAdquirienteLookup !== 'undefined' && CrozzoAdquirienteLookup.bindForm) {
@@ -32125,7 +32076,7 @@ function crozzoCrmOpenCreateFromLookupPending(pending) {
   if (nDir && data.direccion) nDir.value = data.direccion;
   var emailList = document.getElementById('crozzoCrmNewEmailsList');
   if (emailList && typeof crozzoCrmEmailRowHtml === 'function') {
-    emailList.innerHTML = crozzoCrmEmailRowHtml(data.email || '', 'crozzoCrmNewEmailIn');
+    emailList.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoCrmEmailRowHtml(data.email || '', 'crozzoCrmNewEmailIn'));
   }
   window.__crozzoCrmPendingLookup = null;
   var dd = document.getElementById('crozzoCrmDropdown');
@@ -32618,26 +32569,26 @@ function crozzoCrmApplyClientToUi(c, opts) {
       if (result.valido) {
         if (status) {
           if (result.modo === 'nit_dian') {
-            status.innerHTML = '<span class="form-success">✓ NIT-DV verificado (DIAN)</span>';
+            status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ NIT-DV verificado (DIAN)</span>');
           } else if (result.modo === 'cedula_o_documento') {
-            status.innerHTML = '<span class="form-success">✓ Documento / referencia</span>';
+            status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ Documento / referencia</span>');
           } else if (result.modo === 'dv_no_verificado') {
-            status.innerHTML = '<span class="form-warning">⚠ DV no verificado (referencia)</span>';
+            status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-warning">⚠ DV no verificado (referencia)</span>');
           } else {
-            status.innerHTML = '<span class="form-success">✓ Referencia</span>';
+            status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ Referencia</span>');
           }
         }
         nitEl.title = result.advertencia || (result.modo === 'cedula_o_documento' ? 'Cédula u otro ID; para NIT empresa use formato NIT-DV.' : '');
         nitEl.classList.add('valid');
         nitEl.classList.remove('invalid');
       } else if (status) {
-        status.innerHTML = '<span class="form-error">✗ ' + escHtml(crozzoUserFacingError(result.error)) + '</span>';
+        status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-error">✗ ' + escHtml(crozzoUserFacingError(result.error)) + '</span>');
         nitEl.classList.add('invalid');
         nitEl.classList.remove('valid');
         nitEl.title = '';
       }
     } else {
-      if (status) status.innerHTML = '';
+      if (status) status.innerHTML = CrozzoSanitize.sanitizeHtml('');
       if (nitEl) {
         nitEl.classList.remove('valid', 'invalid');
         nitEl.title = '';
@@ -32669,7 +32620,7 @@ function crozzoCrmClearClient() {
   if (nitEl) nitEl.value = '';
   if (nomEl) nomEl.value = '';
   const st = document.getElementById('nitStatus');
-  if (st) st.innerHTML = '';
+  if (st) st.innerHTML = CrozzoSanitize.sanitizeHtml('');
   if (typeof crozzoCrmUpdateProfileLines === 'function') crozzoCrmUpdateProfileLines(null);
   if (typeof crozzoCrmRenderRetailSummary === 'function') crozzoCrmRenderRetailSummary(null);
   if (typeof crozzoRetailRefreshClienteTrigger === 'function') crozzoRetailRefreshClienteTrigger(null);
@@ -32920,7 +32871,7 @@ function crozzoCrmShowInternetLookupModal(items, meta) {
   var title = meta.pendingInternet ? 'Buscando en internet…' : 'Buscar cliente' + (q ? ' · ' + q : '');
   var bodyEl = document.getElementById('crozzoCrmInetModalBody');
   if (window.__crozzoCrmInetModalOpen && bodyEl) {
-    bodyEl.innerHTML = html;
+    bodyEl.innerHTML = CrozzoSanitize.sanitizeHtml(html);
     var titleEl = document.querySelector('#modalContent .modal-title');
     if (titleEl) titleEl.textContent = title;
   } else {
@@ -32933,7 +32884,7 @@ function crozzoCrmShowInternetLookupModal(items, meta) {
   }
   var dd = document.getElementById('crozzoCrmDropdown');
   if (dd) {
-    dd.innerHTML = '';
+    dd.innerHTML = CrozzoSanitize.sanitizeHtml('');
     dd.style.display = 'none';
   }
 }
@@ -32950,11 +32901,11 @@ function crozzoCrmRenderDropdown(items, meta) {
   if (!dd) return;
   const html = crozzoCrmBuildLookupUiHtml(items, meta);
   if (!html) {
-    dd.innerHTML = '';
+    dd.innerHTML = CrozzoSanitize.sanitizeHtml('');
     dd.style.display = 'none';
     return;
   }
-  dd.innerHTML = html;
+  dd.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   dd.style.display = 'block';
 }
 function crozzoCrmLiteBindCartUi() {
@@ -35916,12 +35867,11 @@ function showConexionStatus(panel, type, message) {
   if (!el) return;
   el.style.display = 'flex';
   el.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
-  el.innerHTML =
-    '<span>' +
+  el.innerHTML = CrozzoSanitize.sanitizeHtml('<span>' +
     (type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️') +
     '</span><div>' +
     escHtml(message) +
-    '</div>';
+    '</div>');
 }
 function detectConexionLocalIp() {
   const pc = new RTCPeerConnection({ iceServers: [] });
@@ -35976,7 +35926,7 @@ async function testConexionHealthFromForm(which) {
 async function scanConexionRed() {
   const resultsContainer = document.getElementById('conexionScanResults');
   const statusText = document.getElementById('conexionScanStatus');
-  if (resultsContainer) resultsContainer.innerHTML = '';
+  if (resultsContainer) resultsContainer.innerHTML = CrozzoSanitize.sanitizeHtml('');
   if (statusText) statusText.textContent = 'Escaneando red local…';
   const simulatedIPs = [
     { ip: '192.168.137.1', type: 'Windows Hotspot', port: 3000 },
@@ -35988,12 +35938,11 @@ async function scanConexionRed() {
     setTimeout(() => {
       const item = document.createElement('div');
       item.className = 'crozzo-scan-item';
-      item.innerHTML =
-        '<span style="font-family:monospace;font-weight:600;">' +
+      item.innerHTML = CrozzoSanitize.sanitizeHtml('<span style="font-family:monospace;font-weight:600;">' +
         escHtml(device.ip) +
         '</span><span style="color:var(--text-muted);font-size:0.8rem;">' +
         escHtml(device.type) +
-        '</span>';
+        '</span>');
       item.onclick = () => {
         const ci = document.getElementById('conexionCentralIp');
         const cp = document.getElementById('conexionPortB');
@@ -38715,7 +38664,7 @@ async function detectMultiLocalIp() {
 }
 async function scanMultiNetwork() {
   const out = document.getElementById('mdScanResults');
-  if (out) out.innerHTML = '<span class="form-hint">Escaneando…</span>';
+  if (out) out.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-hint">Escaneando…</span>');
   const local = await detectLocalIP();
   const candidates = [];
   if (local) {
@@ -38728,12 +38677,12 @@ async function scanMultiNetwork() {
   const seen = new Set();
   const final = candidates.filter((c) => (seen.has(c.ip) ? false : (seen.add(c.ip), true)));
   if (out) {
-    out.innerHTML = final.map((r) => `
+    out.innerHTML = CrozzoSanitize.sanitizeHtml(final.map((r) => `
       <div class="crozzo-scan-item" data-ip="${escMd(r.ip)}">
         <span style="font-family:monospace;font-weight:600;">${escMd(r.ip)}</span>
         <span style="color:var(--text-muted);font-size:0.8rem;">${escMd(r.type)}</span>
       </div>
-    `).join('');
+    `).join(''));
     out.querySelectorAll('.crozzo-scan-item').forEach((el) => {
       el.addEventListener('click', () => {
         const ipInput = document.getElementById('mdCentralIp');
@@ -41023,7 +40972,7 @@ function wizardRender() {
     wizardUpdateQuickFooter();
     if (title) title.textContent = '⚡ Configuración rápida';
     subtitle.textContent = 'Detectará red, rol óptimo y sincronización. Sin pasos manuales.';
-    contentRoot.innerHTML = wizardRenderQuickScreen();
+    contentRoot.innerHTML = CrozzoSanitize.sanitizeHtml(wizardRenderQuickScreen());
     wizardDedupeAdvInputIds(contentRoot);
     if (wizardState.advancedOpen) wizardWireStepEvents();
     wizardSaveStoredState({ role: wizardState.role, step: wizardState.step, completed: wizardState.completed });
@@ -41035,7 +40984,7 @@ function wizardRender() {
   if (!wizardState.role) {
     footer.hidden = true;
     subtitle.textContent = 'Selecciona el rol de este dispositivo para empezar';
-    contentRoot.innerHTML = wizardRenderRoleSelection();
+    contentRoot.innerHTML = CrozzoSanitize.sanitizeHtml(wizardRenderRoleSelection());
     return;
   }
   footer.hidden = false;
@@ -41043,12 +40992,12 @@ function wizardRender() {
   subtitle.textContent = wizardState.role === 'A'
     ? 'Rol A · Central / Servidor en la red local'
     : 'Rol B · Tablet / Cliente que toma pedidos';
-  contentRoot.innerHTML = `
+  contentRoot.innerHTML = CrozzoSanitize.sanitizeHtml(`
     ${wizardRenderProgress(steps)}
     <div class="wizard-step-section" data-step="${wizardState.step}">
       ${wizardRenderStep(wizardState.role, wizardState.step)}
     </div>
-  `;
+  `);
   wizardUpdateNavButtons(steps);
   wizardWireStepEvents();
   wizardSaveStoredState({ role: wizardState.role, step: wizardState.step, completed: wizardState.completed });
@@ -41956,7 +41905,7 @@ function wizardWireStepEvents() {
       }
       wizardState.qrText = text;
       if (target && typeof QRCode === 'function') {
-        target.innerHTML = '';
+        target.innerHTML = CrozzoSanitize.sanitizeHtml('');
         try {
           new QRCode(target, { text, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M });
         } catch (e2) {
@@ -41988,12 +41937,12 @@ async function wizardDetectIp() {
 async function wizardHydrateNetworkPanel(contentId, fillServerIp) {
   const box = document.getElementById(contentId);
   if (!box) return;
-  box.innerHTML = '<span class="form-hint">Analizando interfaz de red…</span>';
+  box.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-hint">Analizando interfaz de red…</span>');
   const info = await getNetworkInfo();
   const gw = info.gatewayGuess
     ? `<div><strong>Puerta de enlace (estimada):</strong> <code>${wizardEsc(info.gatewayGuess)}</code></div>`
     : '';
-  box.innerHTML = `
+  box.innerHTML = CrozzoSanitize.sanitizeHtml(`
     <div style="display:grid;gap:6px;font-size:0.88rem;line-height:1.45;">
       <div><strong>IP local (WebRTC):</strong> ${info.localIp ? `<code>${wizardEsc(info.localIp)}</code>` : '<em>— aún no detectada —</em>'}</div>
       <div><strong>Tipo de enlace (Navigator Connection):</strong> ${wizardEsc(info.connectionType)}</div>
@@ -42002,7 +41951,7 @@ async function wizardHydrateNetworkPanel(contentId, fillServerIp) {
       ${gw}
       <p class="form-hint" style="margin:0;">${wizardEsc(info.gatewayNote)}</p>
     </div>
-  `;
+  `);
   if (fillServerIp && info.localIp) {
     const ipInput = document.getElementById('wzServerIp');
     if (ipInput && !String(ipInput.value || '').trim()) {
@@ -42296,12 +42245,12 @@ function wizardMaybeShowInitialBanner() {
   const banner = document.createElement('div');
   banner.id = 'wizardInitBanner';
   banner.className = 'wizard-banner';
-  banner.innerHTML = `
+  banner.innerHTML = CrozzoSanitize.sanitizeHtml(`
     <span>🔧</span>
     <div>${resume ? 'El asistente quedó a medias. Puedes reanudarlo sin perder el avance guardado en este equipo.' : 'Aún no has configurado este dispositivo.'}</div>
     <button class="btn btn-primary" type="button" onclick="document.getElementById('wizardInitBanner')?.remove(); wizardOpen();">${resume ? 'Reanudar asistente' : 'Configurar ahora'}</button>
     <button class="btn btn-outline" type="button" aria-label="Cerrar" onclick="document.getElementById('wizardInitBanner')?.remove();">✕</button>
-  `;
+  `);
   document.body.appendChild(banner);
 }
 // Cierre por click fuera del shell
@@ -42411,17 +42360,17 @@ function initConfigEmpresa() {
       if (val.length > 5) {
         const result = validarNIT(val);
         if (result.valido) {
-          status.innerHTML = '<span class="form-success">✓ NIT válido</span>';
+          status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-success">✓ NIT válido</span>');
           nitInput.classList.add('valid');
           nitInput.classList.remove('invalid');
           if (dvInput) dvInput.value = result.dv;
         } else {
-          status.innerHTML = '<span class="form-error">✗ ' + escHtml(crozzoUserFacingError(result.error)) + '</span>';
+          status.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-error">✗ ' + escHtml(crozzoUserFacingError(result.error)) + '</span>');
           nitInput.classList.add('invalid');
           nitInput.classList.remove('valid');
         }
       } else {
-        status.innerHTML = '';
+        status.innerHTML = CrozzoSanitize.sanitizeHtml('');
         nitInput.classList.remove('valid', 'invalid');
       }
     });
@@ -43541,13 +43490,13 @@ async function handleCertUpload(event) {
   const upload = document.getElementById('certUpload');
   if (upload) {
     upload.classList.add('has-file');
-    upload.innerHTML = `
+    upload.innerHTML = CrozzoSanitize.sanitizeHtml(`
       <div style="font-size: 2rem; margin-bottom: 8px;">✅</div>
       <div style="font-weight: 500; color: var(--success);">${file.name}</div>
       <div style="font-size: 0.8rem; color: var(--text-muted);">${(file.size / 1024).toFixed(1)} KB</div>
       <div style="font-size: 0.8rem; color: var(--text-muted);">Haz clic para cambiar</div>
       <input type="file" id="certFileInput" accept=".p12,.pfx" style="display: none;" onchange="handleCertUpload(event)">
-    `;
+    `);
   }
   showToast('Archivo seleccionado: ' + file.name, 'info');
 }
@@ -43996,10 +43945,9 @@ function crozzoRenderDetectedPrintersPanel() {
   var sys = window.__CROZZO_SYSTEM_PRINTERS || [];
   var def = window.__CROZZO_DEFAULT_PRINTER || '';
   if (!sys.length) {
-    el.innerHTML =
-      '<div class="crozzo-printers-detected crozzo-printers-detected--empty">' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-printers-detected crozzo-printers-detected--empty">' +
       '<strong>No hay impresoras visibles</strong>' +
-      '<span>Conecte la térmica, enciéndala y pulse <em>Actualizar lista</em>.</span></div>';
+      '<span>Conecte la térmica, enciéndala y pulse <em>Actualizar lista</em>.</span></div>');
     return;
   }
   var chips = sys
@@ -44015,8 +43963,7 @@ function crozzoRenderDetectedPrintersPanel() {
       );
     })
     .join('');
-  el.innerHTML =
-    '<div class="crozzo-printers-detected crozzo-printers-detected--ok">' +
+  el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-printers-detected crozzo-printers-detected--ok">' +
     '<div class="crozzo-printers-detected__head">' +
     '<strong>' +
     sys.length +
@@ -44032,7 +43979,7 @@ function crozzoRenderDetectedPrintersPanel() {
     chips +
     '</div>' +
     (def ? '<p class="crozzo-printers-detected__default">Predeterminada: <strong>' + escUserAttr(def) + '</strong></p>' : '') +
-    '</div>';
+    '</div>');
 }
 function crozzoRefreshPrinterSelectOptions() {
   var list = typeof getAvailablePrintersList === 'function' ? getAvailablePrintersList() : [];
@@ -44063,7 +44010,7 @@ function crozzoRefreshPrinterSelectOptions() {
         escUserAttr(cur) +
         ' (guardada)</option>';
     }
-    sel.innerHTML = html;
+    sel.innerHTML = CrozzoSanitize.sanitizeHtml(html);
     if (cur) sel.value = cur;
   }
   fillSelect(document.getElementById('adminCajaPosPrinter'), conf.impresoraCajaPos);
@@ -45229,7 +45176,7 @@ function crozzoStaffNewUserRoleChanged() {
   if (!found && tplSel.options.length) tplSel.selectedIndex = 0;
   var logicHost = document.getElementById('crozzoStaffLogicPanelHost');
   if (logicHost && typeof crozzoOperativeLogicPanelHtml === 'function') {
-    logicHost.innerHTML = crozzoOperativeLogicPanelHtml(rol);
+    logicHost.innerHTML = CrozzoSanitize.sanitizeHtml(crozzoOperativeLogicPanelHtml(rol));
   }
 }
 window.crozzoStaffNewUserRoleChanged = crozzoStaffNewUserRoleChanged;
@@ -46336,7 +46283,7 @@ function crozzoSaRefreshModoOperacionPanel() {
   if (currentPage !== 'modo-demo') return;
   const content = document.getElementById('mainContent');
   if (!content) return;
-  content.innerHTML = renderModoDemo();
+  content.innerHTML = CrozzoSanitize.sanitizeHtml(renderModoDemo());
   initModoDemo();
 }
 function crozzoSaAplicarModoPrueba(nuevo) {
@@ -46614,7 +46561,7 @@ function crozzoIdentidadPaintPvCell(el, show, url, w, h, emoji, label, viewOpts,
   if (!el) return;
   if (!show) {
     el.classList.remove('is-on');
-    el.innerHTML = '';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('');
     return;
   }
   el.classList.add('is-on');
@@ -46630,19 +46577,17 @@ function crozzoIdentidadPaintPvCell(el, show, url, w, h, emoji, label, viewOpts,
   el.style.setProperty('--pv-scale', String((v.scale || 100) / 100));
   var has = typeof crozzoBrandHasImageSrc === 'function' ? crozzoBrandHasImageSrc(url) : !!(url && String(url).trim().length > 40);
   if (has) {
-    el.innerHTML = '<img alt="" src="' + crozzoIdentidadEscAttr(url) + '" />';
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<img alt="" src="' + crozzoIdentidadEscAttr(url) + '" />');
   } else if (logoOnly) {
-    el.innerHTML =
-      '<div class="crozzo-identidad-pv-fallback crozzo-identidad-pv-fallback--icon"><span>' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-identidad-pv-fallback crozzo-identidad-pv-fallback--icon"><span>' +
       crozzoIdentidadEscMini(emoji) +
-      '</span></div>';
+      '</span></div>');
   } else {
-    el.innerHTML =
-      '<div class="crozzo-identidad-pv-fallback"><span>' +
+    el.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-identidad-pv-fallback"><span>' +
       crozzoIdentidadEscMini(emoji) +
       '</span><span>' +
       crozzoIdentidadEscMini(label) +
-      '</span></div>';
+      '</span></div>');
   }
 }
 function crozzoIdentidadFillStage(stageId, url, viewOpts) {
@@ -46654,8 +46599,7 @@ function crozzoIdentidadFillStage(stageId, url, viewOpts) {
   var scale = (v.scale || 100) / 100;
   var has = typeof crozzoBrandHasImageSrc === 'function' ? crozzoBrandHasImageSrc(url) : !!(url && String(url).trim().length > 40);
   if (has) {
-    st.innerHTML =
-      '<img alt="Vista previa logo" src="' +
+    st.innerHTML = CrozzoSanitize.sanitizeHtml('<img alt="Vista previa logo" src="' +
       crozzoIdentidadEscAttr(url) +
       '" style="max-width:100%;max-height:min(420px,55vh);object-fit:' +
       crozzoIdentidadEscAttr(f) +
@@ -46665,10 +46609,9 @@ function crozzoIdentidadFillStage(stageId, url, viewOpts) {
       scale +
       ');transform-origin:' +
       crozzoIdentidadEscAttr(pos) +
-      ';" />';
+      ';" />');
   } else {
-    st.innerHTML =
-      '<span class="form-hint" style="text-align:center;padding:16px;">Aquí verás el logo al subir un archivo</span>';
+    st.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="form-hint" style="text-align:center;padding:16px;">Aquí verás el logo al subir un archivo</span>');
   }
 }
 function crozzoIdentidadRefreshPreview() {
@@ -47070,7 +47013,7 @@ function crozzoGestionPerfilesRefreshUI(previewPerfil) {
   var parent = root.parentElement;
   var html = renderGestionPerfilesMenus(previewPerfil);
   var wrap = document.createElement('div');
-  wrap.innerHTML = html;
+  wrap.innerHTML = CrozzoSanitize.sanitizeHtml(html);
   var newSec = wrap.firstElementChild;
   if (newSec) {
     parent.replaceChild(newSec, root);
@@ -49010,7 +48953,7 @@ function crozzoRunProductionReadiness() {
       : 'En file:// el SW no se registra (esperado). Use HTTPS para instalación y SW.'
   );
   row(typeof showToast === 'function' ? 'ok' : 'warn', 'Notificaciones', 'showToast unificado (#toastContainer)');
-  out.innerHTML = '<div class="crozzo-readiness-list">' + rows.join('') + '</div>';
+  out.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-readiness-list">' + rows.join('') + '</div>');
   if (typeof showToast === 'function') showToast('Checklist actualizado', 'info');
 }
 window.crozzoPwaInit = crozzoPwaInit;
@@ -49209,7 +49152,7 @@ function showModal(title, content, options) {
   const closeHtml = showClose
     ? '<button type="button" class="crozzo-modal-close" id="crozzoModalCloseBtn" aria-label="Cerrar">&times;</button>'
     : '';
-  modal.innerHTML = `<div class="modal-head">${titleHtml}${closeHtml}</div><div class="modal-body">${content}</div>`;
+  modal.innerHTML = CrozzoSanitize.sanitizeHtml(`<div class="modal-head">${titleHtml}${closeHtml}</div><div class="modal-body">${content}</div>`);
   if (showClose) {
     const closeEl = modal.querySelector('.crozzo-modal-close');
     if (closeEl) {
@@ -51327,12 +51270,11 @@ function init() {
   function crozzoPairingShowReaderPlaceholder(msg, ok) {
     var host = el('crozzoPairingReaderHost');
     if (!host) return;
-    host.innerHTML =
-      '<p class="crozzo-pairing-scan-placeholder' +
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<p class="crozzo-pairing-scan-placeholder' +
       (ok ? ' is-ok' : '') +
       '">' +
       (msg || 'Enfoque el QR de la caja') +
-      '</p>';
+      '</p>');
   }
   function crozzoPairingClearCapturePreview() {
     var host = el('crozzoPairingReaderHost');
@@ -51349,10 +51291,9 @@ function init() {
     try {
       var url = URL.createObjectURL(file);
       host._previewUrl = url;
-      host.innerHTML =
-        '<img class="crozzo-pairing-capture-preview" src="' +
+      host.innerHTML = CrozzoSanitize.sanitizeHtml('<img class="crozzo-pairing-capture-preview" src="' +
         url +
-        '" alt="Foto capturada" style="width:100%;max-height:min(55vh,340px);object-fit:contain;border-radius:10px;background:#0a0f18;" />';
+        '" alt="Foto capturada" style="width:100%;max-height:min(55vh,340px);object-fit:contain;border-radius:10px;background:#0a0f18;" />');
     } catch (_) {}
   }
   function crozzoPairingBindCaptureInput() {
@@ -51486,11 +51427,9 @@ function init() {
     s.classList.toggle('is-ok', isOk);
     s.classList.toggle('is-busy', busy);
     if (busy) {
-      s.innerHTML =
-        '<span class="crozzo-pairing-status__pulse" aria-hidden="true"></span><span>' + msg + '</span>';
+      s.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-pairing-status__pulse" aria-hidden="true"></span><span>' + msg + '</span>');
     } else if (isOk) {
-      s.innerHTML =
-        '<span class="crozzo-pairing-status__check" aria-hidden="true">✓</span><span>' + msg + '</span>';
+      s.innerHTML = CrozzoSanitize.sanitizeHtml('<span class="crozzo-pairing-status__check" aria-hidden="true">✓</span><span>' + msg + '</span>');
     } else {
       s.textContent = msg;
     }
@@ -52049,7 +51988,7 @@ function init() {
     crozzoPairingShowStatus('');
     crozzoPairingSetWarn('crozzoPairingReceiverWarn', '');
     const qrHost0 = el('crozzoPairingQrHost');
-    if (qrHost0) qrHost0.innerHTML = '';
+    if (qrHost0) qrHost0.innerHTML = CrozzoSanitize.sanitizeHtml('');
     var isTabletLike = crozzoPairingIsTabletLikeDevice();
     if (!isTabletLike && typeof crozzoPairingEnsureCajaReady === 'function') {
       crozzoPairingEnsureCajaReady().catch(function () {});
@@ -52069,7 +52008,7 @@ function init() {
     const ov = el('crozzoPairingOverlay');
     if (ov) ov.setAttribute('hidden', '');
     const vh = el('crozzoPairingStep1Video');
-    if (vh) vh.innerHTML = '';
+    if (vh) vh.innerHTML = CrozzoSanitize.sanitizeHtml('');
   };
   function crozzoPairingSetWizardStep(n) {
     document.querySelectorAll('#crozzoPairingWizardSteps [data-pair-step]').forEach(function (stepEl) {
@@ -52148,7 +52087,7 @@ function init() {
   function crozzoPairingMountQr(host, text, opts) {
     opts = opts || {};
     if (!host || !text || typeof QRCode !== 'function') return null;
-    host.innerHTML = '';
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('');
     var size = opts.size || 320;
     try {
       new QRCode(host, {
@@ -52173,11 +52112,10 @@ function init() {
     var size = dense
       ? Math.min(480, Math.max(360, crozzoPairingQrSlotSizes(host).full + 80))
       : Math.min(400, Math.max(300, crozzoPairingQrSlotSizes(host).full));
-    host.innerHTML =
-      '<div class="crozzo-pairing-qr-single" data-pairing-layout="single">' +
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-pairing-qr-single" data-pairing-layout="single">' +
       '<p class="crozzo-pairing-qr-single__label">Escanee este código desde la tablet</p>' +
       '<div class="crozzo-pairing-qr-single__host" id="crozzoPairingQrScanHost"></div>' +
-      '</div>';
+      '</div>');
     var slot = host.querySelector('#crozzoPairingQrScanHost');
     if (!slot) return null;
     return crozzoPairingMountQr(slot, scanText, {
@@ -52269,10 +52207,9 @@ function init() {
   function crozzoPairingShowQrSkeleton(hostId) {
     var host = el(hostId || 'crozzoPairingQrHost');
     if (!host) return;
-    host.innerHTML =
-      '<div class="crozzo-pairing-qr-skeleton" aria-busy="true">' +
+    host.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-pairing-qr-skeleton" aria-busy="true">' +
       '<div class="crozzo-pairing-qr-skeleton__shimmer"></div>' +
-      '<p>Generando código cifrado…</p></div>';
+      '<p>Generando código cifrado…</p></div>');
   }
   window.crozzoPairingShowQrSkeleton = crozzoPairingShowQrSkeleton;
   async function crozzoPairingRenderReceiverQr(targetProfile, built) {
@@ -52647,7 +52584,7 @@ function init() {
     crozzoPairingClearCapturePreview();
     try {
       var h0 = el('crozzoPairingReaderHost');
-      if (h0 && !h0.querySelector('.crozzo-pairing-scan-placeholder')) h0.innerHTML = '';
+      if (h0 && !h0.querySelector('.crozzo-pairing-scan-placeholder')) h0.innerHTML = CrozzoSanitize.sanitizeHtml('');
     } catch (_) {}
   };
   window.crozzoPairingScanNative = function crozzoPairingScanNative() {
@@ -53087,8 +53024,7 @@ function init() {
       String(p.business_name || p.businessName || '').trim() ||
       String(p.business_id || p.businessId || '').trim() ||
       '—';
-    pr.innerHTML =
-      '<div class="crozzo-pairing-preview-grid">' +
+    pr.innerHTML = CrozzoSanitize.sanitizeHtml('<div class="crozzo-pairing-preview-grid">' +
       crozzoPairingPreviewChip('Negocio', bizLabel, true) +
       crozzoPairingPreviewChip('Perfil', crozzoPairingTargetProfileLabel(tp)) +
       crozzoPairingPreviewChip('Nodo central', cip ? cip + ':' + port : '—') +
@@ -53098,7 +53034,7 @@ function init() {
       (tp === 'pantalla' && p.pantalla_area_id
         ? crozzoPairingPreviewChip('Área pantalla', String(p.pantalla_area_id), true)
         : '') +
-      '</div>';
+      '</div>');
     pr.hidden = false;
   }
   async function crozzoPairingApplyLanFromPayload(p) {
