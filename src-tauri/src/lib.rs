@@ -1,4 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+#![allow(unexpected_cfgs, unused_mut, dead_code)]
+#![allow(clippy::large_enum_variant, clippy::needless_borrow, clippy::needless_bool, clippy::needless_question_mark)]
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod crozzo_lan_sync_server;
@@ -67,7 +69,7 @@ fn greet(name: &str) -> String {
 #[cfg(desktop)]
 #[tauri::command]
 fn crozzo_open_devtools(app: tauri::AppHandle) -> Result<(), String> {
-    #[cfg(any(debug_assertions, feature = "devtools"))]
+    #[cfg(debug_assertions)]
     {
         if let Some(win) = app.get_webview_window("main") {
             win.open_devtools();

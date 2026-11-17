@@ -1,20 +1,6 @@
 {
-  "updatedAt": "2026-11-16T11:14:41.471Z",
+  "updatedAt": "2026-11-17T21:09:37.621Z",
   "entries": [
-    {
-      "id": "1.0.275-critical",
-      "version": "v1.0.275",
-      "semver": "1.0.275",
-      "type": "critical",
-      "message": "Sistema de actualizaciones reforzado (4 capas + Plan B/C + 129 tests)",
-      "publishedAt": "2026-11-09T13:10:09.991Z",
-      "installMode": "auto",
-      "changelog": [
-        "Sistema de actualizaciones reforzado (4 capas",
-        "Plan B/C",
-        "129 tests)"
-      ]
-    },
     {
       "id": "1.0.276-critical",
       "version": "v1.0.276",
@@ -317,6 +303,18 @@
       "installMode": "auto",
       "changelog": [
         "Actualización completa: seguridad, MFA, honeypot, sync, code-splitting"
+      ]
+    },
+    {
+      "id": "1.0.300-critical",
+      "version": "v1.0.300",
+      "semver": "1.0.300",
+      "type": "critical",
+      "message": "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion",
+      "publishedAt": "2026-11-17T21:09:37.621Z",
+      "installMode": "auto",
+      "changelog": [
+        "Actualizacion completa: premium BONA, seguridad, CSP enforce, innerHTML sanitizado, Fase 0 integracion"
       ]
     }
   ]
