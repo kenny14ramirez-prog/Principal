@@ -126,7 +126,7 @@
 | 534 | `app/infra/CrozzoMobileInstall.js` |
 | 935 | `app/infra/CrozzoOfflineGossip.js` |
 | 327 | `app/infra/CrozzoOpAckRegistry.js` |
-| 310 | `app/infra/CrozzoOperationalIngest.js` |
+| 339 | `app/infra/CrozzoOperationalIngest.js` |
 | 208 | `app/infra/CrozzoOperativeJournal.js` |
 | 305 | `app/infra/CrozzoOpFanout.js` |
 | 268 | `app/infra/CrozzoOpsPresenceBus.js` |
@@ -142,7 +142,7 @@
 | 351 | `app/infra/CrozzoSedeReadiness.js` |
 | 402 | `app/infra/CrozzoStartupReady.js` |
 | 176 | `app/infra/CrozzoSyncQueueHygiene.js` |
-| 7378 | `app/infra/CrozzoSystemUpdates.js` |
+| 7379 | `app/infra/CrozzoSystemUpdates.js` |
 | 2104 | `app/infra/CrozzoTauriUpdater.js` |
 | 117 | `app/infra/CrozzoTlsPinning.js` |
 | 180 | `app/infra/CrozzoTransportPathHealth.js` |
@@ -233,7 +233,7 @@
 | 685 | `app/modules/CrozzoPermisosPolicy.js` |
 | 3332 | `app/modules/CrozzoPlanilla2026.js` |
 | 140 | `app/modules/CrozzoPlanProducto.js` |
-| 2279 | `app/modules/CrozzoPosRuntimeCloud.js` |
+| 2289 | `app/modules/CrozzoPosRuntimeCloud.js` |
 | 469 | `app/modules/CrozzoPrintDeviceRegistry.js` |
 | 971 | `app/modules/CrozzoPrinterRescue.js` |
 | 624 | `app/modules/CrozzoPrintPresets.js` |
