@@ -786,9 +786,17 @@ class ConfigManager {
       var cacheKey = 'crozzo_consecutivo_attempt_v1';
       var raw = localStorage.getItem(cacheKey);
       var cache = raw ? JSON.parse(raw) : {};
+      var released = null;
       if (cache && cache[saleAttemptId]) {
+        released = Number(cache[saleAttemptId]);
         delete cache[saleAttemptId];
         localStorage.setItem(cacheKey, JSON.stringify(cache));
+      }
+      // Rollback del contador si fue el último emitido (evita huecos en la numeración)
+      if (released && Number.isFinite(released) && this.config && typeof this.config.ultimoConsecutivo === 'number' &&
+          this.config.ultimoConsecutivo === released) {
+        this.config.ultimoConsecutivo = Math.max((this.config.dian && this.config.dian.rangoDesde ? this.config.dian.rangoDesde - 1 : 0), released - 1);
+        this.save();
       }
     } catch (_) {}
   }

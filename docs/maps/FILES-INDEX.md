@@ -75,7 +75,7 @@
 | 97 | `app/core/CrozzoTombstones.js` |
 | 43 | `app/core/CrozzoTombstonesIntegration.js` |
 | 344 | `app/core/CrozzoViewportFit.js` |
-| 803 | `app/core/pos/CrozzoPosConfigManager.js` |
+| 811 | `app/core/pos/CrozzoPosConfigManager.js` |
 | 810 | `app/core/pos/CrozzoPosDianLib.js` |
 | 1321 | `app/core/pos/CrozzoPosFacturasPage.js` |
 | 110 | `app/core/pos/CrozzoPosKeyboard.js` |
