@@ -383,7 +383,10 @@
         paletteState.index = parseInt(row.getAttribute('data-idx'), 10) || 0;
         paintPaletteActive();
       });
-      row.addEventListener('click', function () { runPalette(); });
+      row.addEventListener('click', function () {
+        paletteState.index = parseInt(row.getAttribute('data-idx'), 10) || 0;
+        runPalette();
+      });
     });
 
     paintPaletteActive();
