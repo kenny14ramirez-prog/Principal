@@ -13,10 +13,11 @@
 | 107 | `app/core/Crozzo2FAPoC.js` |
 | 191 | `app/core/CrozzoAndroidNative.js` |
 | 1640 | `app/core/CrozzoAuthSecurity.js` |
+| 39 | `app/core/CrozzoBrandKit.js` |
 | 26 | `app/core/CrozzoCertVault.js` |
 | 31 | `app/core/CrozzoCertVaultIntegration.js` |
 | 1096 | `app/core/CrozzoCommandCenter.js` |
-| 617 | `app/core/CrozzoCompanion.js` |
+| 650 | `app/core/CrozzoCompanion.js` |
 | 49 | `app/core/CrozzoConfigWrapper.js` |
 | 111 | `app/core/CrozzoConnectionManager.js` |
 | 312 | `app/core/CrozzoCspDomWire.js` |

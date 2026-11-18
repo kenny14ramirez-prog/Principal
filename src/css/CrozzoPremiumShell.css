@@ -1269,6 +1269,9 @@ body.crozzo-premium .crozzo-empty-state h3 {
   font-size: 1.4rem; font-weight: 500; color: var(--text-primary, #1c1c1c); margin: 0 0 6px;
 }
 
+body.crozzo-premium .crozzo-mayordomo--tip { border-style: dashed; }
+body.crozzo-premium .crozzo-mayordomo__tip { margin: 0; font-size: 0.9rem; color: var(--text-secondary, #4a4a4a); line-height: 1.5; }
+
 body.crozzo-premium .crozzo-mayordomo__item {
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
 }
@@ -1338,6 +1341,9 @@ body.crozzo-premium .crozzo-empty-state h3 {
   font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
   font-size: 1.4rem; font-weight: 500; color: var(--text-primary, #1c1c1c); margin: 0 0 6px;
 }
+
+body.crozzo-premium .crozzo-mayordomo--tip { border-style: dashed; }
+body.crozzo-premium .crozzo-mayordomo__tip { margin: 0; font-size: 0.9rem; color: var(--text-secondary, #4a4a4a); line-height: 1.5; }
 
 body.crozzo-premium .crozzo-mayordomo__item {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;

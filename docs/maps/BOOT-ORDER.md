@@ -2,7 +2,7 @@
 
 # Orden de arranque (scripts)
 
-Generado: 2026-11-18T12:15:58-05:00 · v1.0.308
+Generado: 2026-11-18T12:16:17-05:00 · v1.0.308
 
 | # | Script |
 |---|--------|
@@ -224,9 +224,10 @@ Generado: 2026-11-18T12:15:58-05:00 · v1.0.308
 | 216 | `ui/CrozzoA11yUser.js` |
 | 217 | `ui/CrozzoContextualHelp.js` |
 | 218 | `core/CrozzoCompanion.js` |
-| 219 | `core/CrozzoCommandCenter.js` |
-| 220 | `core/CrozzoNotificationCenter.js` |
-| 221 | `infra/CrozzoWebSerialPrinter.js` |
+| 219 | `core/CrozzoBrandKit.js` |
+| 220 | `core/CrozzoCommandCenter.js` |
+| 221 | `core/CrozzoNotificationCenter.js` |
+| 222 | `infra/CrozzoWebSerialPrinter.js` |
 
 ## Tramo crítico sync (no reordenar)
 

@@ -7,6 +7,13 @@
   var PAGINA_INICIO = 'inicio-operacion';
   var HORA_CIERRE = 15;
   var HITOS = [3, 10, 25];
+  var TIPS = {
+    'cajero': 'Consejo: usa chips de categoría para filtrar rápido y Enter para confirmar.',
+    'inicio-operacion': 'Consejo: el mayordomo sugiere dónde continuar según tu última venta.',
+    'cierre-caja': 'Consejo: declara efectivo antes de cerrar para evitar diferencias.',
+    'facturas': 'Consejo: filtra por periodo para encontrar facturas rápido.',
+    'default': 'Consejo: personaliza tu asistente con Ctrl+K → "Personalizar asistente".'
+  };
   var PAUSA_TRAS_MS = 3 * 60 * 60 * 1000;
   var PAUSA_CADA_MS = 90 * 60 * 1000;
   var REVISION_MS = 5 * 60 * 1000;
@@ -450,10 +457,36 @@
     if (!host) return;
     var prev = doc.getElementById('crozzoMayordomo');
     var p = load();
+    var usted = p.tratamiento === 'usted';
     var esInicio = p.enabled && p.mayordomo !== false;
     var items = esInicio ? sugerencias(p) : [];
     if (!items.length) {
+      var tip = TIPS[paginaActual()] || TIPS.default;
+      var firmaTip = 'tip|' + paginaActual();
+      if (prev && prev.dataset.firma === firmaTip) return;
       if (prev) prev.remove();
+      if (!p.enabled || p.mayordomo === false) return;
+      var boxTip = doc.createElement('section');
+      boxTip.id = 'crozzoMayordomo';
+      boxTip.className = 'crozzo-mayordomo crozzo-mayordomo--tip';
+      boxTip.dataset.firma = firmaTip;
+      var headTip = doc.createElement('div');
+      headTip.className = 'crozzo-mayordomo__head';
+      var tTip = doc.createElement('h3');
+      tTip.textContent = usted ? 'Un consejo' : 'Un consejo';
+      headTip.appendChild(tTip);
+      var closeTip = doc.createElement('button');
+      closeTip.type = 'button';
+      closeTip.className = 'crozzo-mayordomo__close';
+      closeTip.textContent = 'Ocultar';
+      closeTip.addEventListener('click', function () { boxTip.remove(); });
+      headTip.appendChild(closeTip);
+      boxTip.appendChild(headTip);
+      var pTip = doc.createElement('p');
+      pTip.className = 'crozzo-mayordomo__tip';
+      pTip.textContent = tip;
+      boxTip.appendChild(pTip);
+      host.insertBefore(boxTip, host.firstChild);
       return;
     }
     var firma = p.tratamiento + '|' + items.map(function (s) { return s.page; }).join(',');
