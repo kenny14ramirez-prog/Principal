@@ -538,14 +538,13 @@
   // ── Verificación de bloqueo al arranque (ultra mega potente) ────
   function verificarBloqueo() {
     // 1. Verificar bloqueo local
+    // Solo se respeta si el propio honeypot lo activó en esta sesión (adminPreview).
+    // Los bloqueos persistidos stale nunca deben bloquear a un usuario legítimo.
     try {
-      if (localStorage.getItem(JAULA_BLOCKED_KEY) === '1') {
-        jaula.blocked = true;
-        _mostrarBloqueo();
-        _protegerBloqueo();
-        return true;
-      }
+      localStorage.removeItem(JAULA_BLOCKED_KEY);
+      localStorage.removeItem('crozzo_blocked_pending_fp');
     } catch (_) {}
+    jaula.blocked = false;
 
     // 2. Verificar bloqueo en la nube (Supabase Central)
     // DESACTIVADO: causaba falsos positivos para KENNY/demo. Se reactiva cuando se
