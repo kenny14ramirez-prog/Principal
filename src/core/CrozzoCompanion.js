@@ -3,7 +3,7 @@
   'use strict';
 
   var KEY = 'crozzo_companion_prefs_v1';
-  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true };
+  var DEFAULTS = { enabled: true, nombre: '', tratamiento: 'tu', region: 'colombia', ritmo: 'directo', mayordomo: true, pausa: true, onboardingDone: false };
   var PAGINA_INICIO = 'inicio-operacion';
   var HORA_CIERRE = 15;
   var HITOS = [3, 10, 25];
@@ -265,9 +265,10 @@
     btnCancel.addEventListener('click', cerrar);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) cerrar(); });
     btnSave.addEventListener('click', function () {
-      save(leer());
+      save(Object.assign({}, leer(), { onboardingDone: true }));
       refrescarSaludo();
       renderMayordomo();
+      renderBienvenida();
       cerrar();
       if (typeof global.showToast === 'function') global.showToast('Listo, quedó guardado', 'success');
     });
@@ -424,7 +425,7 @@
     if (!host) return;
     var prev = doc.getElementById('crozzoMayordomo');
     var p = load();
-    var esInicio = paginaActual() === PAGINA_INICIO && p.enabled && p.mayordomo !== false;
+    var esInicio = p.enabled && p.mayordomo !== false;
     var items = esInicio ? sugerencias(p) : [];
     if (!items.length) {
       if (prev) prev.remove();
@@ -479,16 +480,74 @@
     host.insertBefore(box, host.firstChild);
   }
 
+  function renderBienvenida() {
+    var doc = global.document;
+    var host = doc.getElementById('mainContent');
+    if (!host) return;
+    var prev = doc.getElementById('crozzoBienvenida');
+    var p = load();
+    if (!p.enabled || paginaActual() !== PAGINA_INICIO) {
+      if (prev) prev.remove();
+      return;
+    }
+    var u = typeof global.getCurrentUser === 'function' ? global.getCurrentUser() : null;
+    var firma = (u && u.id ? u.id : '') + '|' + (p.nombre || '') + '|' + (p.tratamiento || '') + '|' + (p.ritmo || '');
+    if (prev && prev.dataset.firma === firma) return;
+    if (prev) prev.remove();
+    var usted = p.tratamiento === 'usted';
+    var box = doc.createElement('section');
+    box.id = 'crozzoBienvenida';
+    box.className = 'crozzo-bienvenida';
+    box.dataset.firma = firma;
+    var h = doc.createElement('h2');
+    h.textContent = greeting((u && u.nombre) ? String(u.nombre).trim().split(/\s+/)[0] : '') || 'Bienvenido';
+    box.appendChild(h);
+    var sub = doc.createElement('p');
+    sub.className = 'crozzo-bienvenida__sub';
+    var memo = memoriaTurno(p);
+    sub.textContent = memo || (usted ? 'Su espacio de trabajo está listo.' : 'Tu espacio de trabajo está listo.');
+    box.appendChild(sub);
+    var meta = doc.createElement('div');
+    meta.className = 'crozzo-bienvenida__meta';
+    if (u && u.rol && typeof global.crozzoPremiumTierMeta === 'function') {
+      var m = global.crozzoPremiumTierMeta(u.rol);
+      var badge = doc.createElement('span');
+      badge.className = 'crozzo-bienvenida__badge';
+      badge.textContent = m.badge;
+      meta.appendChild(badge);
+      var role = doc.createElement('span');
+      role.className = 'crozzo-bienvenida__role';
+      role.textContent = m.roleLine;
+      meta.appendChild(role);
+    }
+    box.appendChild(meta);
+    var actions = doc.createElement('div');
+    actions.className = 'crozzo-bienvenida__actions';
+    var btn = doc.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline';
+    btn.textContent = usted ? 'Personalizar asistente' : 'Personalizar asistente';
+    btn.addEventListener('click', function () { openPrefs(); });
+    actions.appendChild(btn);
+    box.appendChild(actions);
+    host.insertBefore(box, host.firstChild);
+  }
+
   function iniciarMayordomo() {
     var host = global.document.getElementById('mainContent');
     if (!host || typeof global.MutationObserver !== 'function') return;
-    new global.MutationObserver(renderMayordomo).observe(host, { childList: true });
+    new global.MutationObserver(function () { renderMayordomo(); renderBienvenida(); }).observe(host, { childList: true });
     renderMayordomo();
+    renderBienvenida();
   }
 
   function iniciarTodo() {
     iniciarMayordomo();
     iniciarAcompanamiento();
+    var p = load();
+    if (p.enabled && !p.onboardingDone && !String(p.nombre || '').trim()) {
+      global.setTimeout(function () { openPrefs(); }, 600);
+    }
   }
 
   if (global.document) {
@@ -509,6 +568,7 @@
     refrescarSaludo: refrescarSaludo,
     openPrefs: openPrefs,
     renderMayordomo: renderMayordomo,
+    renderBienvenida: renderBienvenida,
     revisarLogros: revisarLogros,
     revisarPausa: revisarPausa
   };

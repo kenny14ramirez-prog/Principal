@@ -16,7 +16,7 @@
 | 26 | `app/core/CrozzoCertVault.js` |
 | 31 | `app/core/CrozzoCertVaultIntegration.js` |
 | 1096 | `app/core/CrozzoCommandCenter.js` |
-| 516 | `app/core/CrozzoCompanion.js` |
+| 576 | `app/core/CrozzoCompanion.js` |
 | 49 | `app/core/CrozzoConfigWrapper.js` |
 | 111 | `app/core/CrozzoConnectionManager.js` |
 | 312 | `app/core/CrozzoCspDomWire.js` |

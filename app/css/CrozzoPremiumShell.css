@@ -1204,6 +1204,33 @@ body.crozzo-premium .crozzo-mayordomo__close {
   font-size: 0.78rem; color: var(--text-muted, #7a756c); text-decoration: underline; text-underline-offset: 3px;
 }
 body.crozzo-premium .crozzo-mayordomo__list { display: flex; flex-wrap: wrap; gap: 10px; }
+body.crozzo-premium .crozzo-bienvenida {
+  margin: 0 0 18px; padding: 22px 24px; border-radius: 18px;
+  background-color: var(--bg-card, #ffffff);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0) 45%);
+  border: 1px solid rgba(var(--cz-gold-rgb), 0.32);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.95), 0 18px 36px -24px rgba(122,99,66,0.45);
+}
+body.crozzo-premium .crozzo-bienvenida h2 {
+  margin: 0 0 4px; font-family: var(--bona-font-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.9rem; font-weight: 500; color: var(--text-primary, #1c1c1c);
+}
+body.crozzo-premium .crozzo-bienvenida__sub {
+  margin: 0 0 12px; font-size: 0.95rem; color: var(--text-secondary, #4a4a4a); line-height: 1.5;
+}
+body.crozzo-premium .crozzo-bienvenida__meta {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px;
+}
+body.crozzo-premium .crozzo-bienvenida__badge {
+  padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+  background: rgba(var(--cz-gold-rgb), 0.12); border: 1px solid rgba(var(--cz-gold-rgb), 0.35);
+  color: var(--text-primary, #1c1c1c);
+}
+body.crozzo-premium .crozzo-bienvenida__role {
+  font-size: 0.82rem; color: var(--text-muted, #7a756c);
+}
+body.crozzo-premium .crozzo-bienvenida__actions { display: flex; gap: 10px; }
+
 body.crozzo-premium .crozzo-mayordomo__item {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   padding: 10px 14px; border-radius: 12px; cursor: pointer; text-align: left;
