@@ -203,7 +203,7 @@
 | 44 | `app/modules/CrozzoGmailDock.js` |
 | 264 | `app/modules/CrozzoGuiaFeElectronica.js` |
 | 774 | `app/modules/CrozzoHelpHub.js` |
-| 791 | `app/modules/CrozzoHoneypotJaula.js` |
+| 801 | `app/modules/CrozzoHoneypotJaula.js` |
 | 2953 | `app/modules/CrozzoHoneypotSim.js` |
 | 1197 | `app/modules/CrozzoInternalQrRegistry.js` |
 | 522 | `app/modules/CrozzoInventarioContinuo.js` |

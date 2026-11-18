@@ -169,10 +169,16 @@
 
   function desactivar() {
     jaula.active = false;
+    jaula.blocked = false;
     jaula.decoy = null;
     jaula.fakeUser = null;
     jaula.actionLog = [];
+    if (jaula.blockObserver) { try { jaula.blockObserver.disconnect(); } catch (_) {} jaula.blockObserver = null; }
+    if (jaula.blockInterval) { clearInterval(jaula.blockInterval); jaula.blockInterval = null; }
+    jaula.alertTimers.forEach(function (t) { try { clearTimeout(t); } catch (_) {} });
+    jaula.alertTimers = [];
     try { sessionStorage.removeItem(JAULA_FLAG); sessionStorage.removeItem(JAULA_START_KEY); sessionStorage.removeItem(JAULA_DECOY_KEY); } catch (_) {}
+    try { localStorage.removeItem(JAULA_BLOCKED_KEY); localStorage.removeItem(JAULA_LOG_KEY); } catch (_) {}
   }
 
   // ── Interceptores de datos ──────────────────────────────────────
@@ -503,7 +509,7 @@
     // MutationObserver: si alguien remueve el overlay, lo re-aplica
     if (typeof MutationObserver !== 'undefined') {
       var observer = new MutationObserver(function (mutations) {
-        if (!jaula.blocked) return;
+        if (!jaula.blocked || (jaula.opts && jaula.opts.adminPreview)) return;
         var ov = document.getElementById('crozzoHoneypotOverlay');
         if (!ov || ov.hasAttribute('hidden')) {
           _mostrarBloqueo();
@@ -542,6 +548,9 @@
     } catch (_) {}
 
     // 2. Verificar bloqueo en la nube (Supabase Central)
+    // DESACTIVADO: causaba falsos positivos para KENNY/demo. Se reactiva cuando se
+    // implemente un unblock por superadmin. El bloqueo local (localStorage) sigue activo.
+    /*
     try {
       var fp = generarFingerprintDispositivo();
       if (typeof fetch === 'function') {
@@ -566,6 +575,7 @@
         }).catch(function () {});
       }
     } catch (_) {}
+    */
 
     // 3. Verificar si hay bloqueo pendiente de registrar en la nube
     try {
