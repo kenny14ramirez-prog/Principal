@@ -68,7 +68,8 @@ async function main() {
     const netBefore = report.networkFailures.length;
     try {
       await page.evaluate((p) => { if (typeof window.navigateTo === 'function') window.navigateTo(p); }, pg);
-      await page.waitForTimeout(1200);
+      const slow = process.env.QA_SLOW === '1' ? 3 : 1;
+  await page.waitForTimeout(1200 * slow);
     } catch (e) {
       status = 'fail';
       report.consoleErrors.push({ text: `navigateTo(${pg}) threw: ${e.message}`, time: new Date().toISOString() });
@@ -103,6 +104,9 @@ async function main() {
   const md = `# Agente Maestro — ${RUN_ID}\n\nPáginas: ${report.summary.total} | OK: ${report.summary.ok} | Warn: ${report.summary.warn} | Fail: ${report.summary.fail}\n\n## Sugerencias\n${report.suggestions.map(s => `- [${s.type}] ${s.page}: ${s.detail}`).join('\n') || '(ninguna)'}\n\n## Errores de consola\n${report.consoleErrors.slice(0, 20).map(e => `- ${e.text}`).join('\n') || '(ninguno)'}\n`;
   fs.writeFileSync(path.join(RUN_DIR, 'report.md'), md, 'utf8');
 
+  if (!HEADLESS) {
+    await page.waitForTimeout(15000);
+  }
   await browser.close();
   console.log(`Agente Maestro: ${report.summary.total} páginas, OK=${report.summary.ok}, Warn=${report.summary.warn}, Fail=${report.summary.fail}`);
   console.log(`Reporte: ${RUN_DIR}`);
