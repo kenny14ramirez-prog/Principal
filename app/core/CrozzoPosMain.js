@@ -3529,6 +3529,7 @@ async function crozzoFinishKennyLogin() {
   // Mostrar menú de opciones para Super Admin
   setTimeout(function () {
     if (typeof crozzoShowSuperAdminMenu === 'function') crozzoShowSuperAdminMenu();
+    if (window.CrozzoDeploymentCenter && typeof window.CrozzoDeploymentCenter.patchSuperAdminMenu === 'function') window.CrozzoDeploymentCenter.patchSuperAdminMenu();
   }, 500);
 }
 

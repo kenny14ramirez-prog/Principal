@@ -21,7 +21,7 @@
 | 282 | `app/core/CrozzoCspDomWire.js` |
 | 40 | `app/core/CrozzoDedupIntegration.js` |
 | 98 | `app/core/CrozzoDedupMultilevel.js` |
-| 748 | `app/core/CrozzoDeploymentCenter.js` |
+| 749 | `app/core/CrozzoDeploymentCenter.js` |
 | 443 | `app/core/CrozzoDeviceForm.js` |
 | 233 | `app/core/CrozzoDevicePerf.js` |
 | 258 | `app/core/CrozzoDocDesign.js` |
@@ -52,7 +52,7 @@
 | 114 | `app/core/CrozzoPosBoot.js` |
 | 3775 | `app/core/CrozzoPosCloud.js` |
 | 4173 | `app/core/CrozzoPosExtensions.js` |
-| 53864 | `app/core/CrozzoPosMain.js` |
+| 53865 | `app/core/CrozzoPosMain.js` |
 | 2816 | `app/core/CrozzoPrintService.js` |
 | 2923 | `app/core/CrozzoPrintStudioHub.js` |
 | 20 | `app/core/CrozzoRecepcionBridge.js` |

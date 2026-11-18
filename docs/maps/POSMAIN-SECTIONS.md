@@ -2,35 +2,35 @@
 
 # PosMain — secciones por línea
 
-Archivo: `app/core/CrozzoPosMain.js` · 53864 líneas
+Archivo: `app/core/CrozzoPosMain.js` · 53865 líneas
 
 | Líneas | Sección |
 |--------|--------|
 | 1–344 | Global State |
-| 345–12206 | 🔐 SESIÓN DE USUARIO + AUTO-CONFIG DEL DISPOSITIVO |
-| 12207–17920 | UI Rendering |
-| 17921–21473 | INVENTARIOS / PRODUCTOS (placeholders) |
-| 21474–22891 | INICIO VENTAS + VENTA COMERCIAL (tienda / servicios) |
-| 22892–35812 | CAJERO PAGE (restaurante) |
-| 35813–36206 | CONFIG CONEXIÓN DE SISTEMAS (multi-dispositivo) |
-| 36207–40375 | 🔗 CONEXIÓN MULTI-DISPOSITIVO (Cloud → LAN → Offline) |
-| 40376–42264 | 🔧 WIZARD DE CONFIGURACIÓN (Rol A / Rol B) |
-| 42265–43260 | CONFIG EMPRESA PAGE |
-| 43261–43383 | CONFIG DIAN PAGE |
-| 43384–43573 | CONFIG CERTIFICADO PAGE |
-| 43574–43668 | CONFIG PROVEEDOR PAGE |
-| 43669–46156 | CONFIG IMPUESTOS PAGE |
-| 46157–46449 | MODO DE OPERACIÓN (Demo / Simple / Electrónica) |
-| 46450–47803 | Super Admin — Identidad y logos (dual branding) |
-| 47804–47867 | ACTUALIZACIONES DEL SISTEMA (Super Admin) — UI en HTML; lógica en CrozzoSystemUpdates.js |
-| 47868–48988 | CONFIGURACIÓN DEL SISTEMA (Super Admin) |
-| 48989–49134 | AUDITORIA PAGE |
-| 49135–49328 | MODAL & TOAST |
-| 49329–50296 | NAVIGATION |
-| 50297–53864 | INIT |
+| 345–12207 | 🔐 SESIÓN DE USUARIO + AUTO-CONFIG DEL DISPOSITIVO |
+| 12208–17921 | UI Rendering |
+| 17922–21474 | INVENTARIOS / PRODUCTOS (placeholders) |
+| 21475–22892 | INICIO VENTAS + VENTA COMERCIAL (tienda / servicios) |
+| 22893–35813 | CAJERO PAGE (restaurante) |
+| 35814–36207 | CONFIG CONEXIÓN DE SISTEMAS (multi-dispositivo) |
+| 36208–40376 | 🔗 CONEXIÓN MULTI-DISPOSITIVO (Cloud → LAN → Offline) |
+| 40377–42265 | 🔧 WIZARD DE CONFIGURACIÓN (Rol A / Rol B) |
+| 42266–43261 | CONFIG EMPRESA PAGE |
+| 43262–43384 | CONFIG DIAN PAGE |
+| 43385–43574 | CONFIG CERTIFICADO PAGE |
+| 43575–43669 | CONFIG PROVEEDOR PAGE |
+| 43670–46157 | CONFIG IMPUESTOS PAGE |
+| 46158–46450 | MODO DE OPERACIÓN (Demo / Simple / Electrónica) |
+| 46451–47804 | Super Admin — Identidad y logos (dual branding) |
+| 47805–47868 | ACTUALIZACIONES DEL SISTEMA (Super Admin) — UI en HTML; lógica en CrozzoSystemUpdates.js |
+| 47869–48989 | CONFIGURACIÓN DEL SISTEMA (Super Admin) |
+| 48990–49135 | AUDITORIA PAGE |
+| 49136–49329 | MODAL & TOAST |
+| 49330–50297 | NAVIGATION |
+| 50298–53865 | INIT |
 
 ## Zona sync operativo (buscar aquí primero)
 
 | Líneas | Tema |
 |--------|------|
-| 22892–35812 | CAJERO PAGE (restaurante) |
+| 22893–35813 | CAJERO PAGE (restaurante) |

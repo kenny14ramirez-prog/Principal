@@ -736,6 +736,7 @@
   global.CrozzoDeploymentCenter = {
     abrir: abrir,
     cerrar: cerrar,
+    patchSuperAdminMenu: patchSuperAdminMenu,
     DEPLOY_STEPS: DEPLOY_STEPS,
     BUSINESS_TYPES: BUSINESS_TYPES,
     PRINTER_DB: PRINTER_DB,
